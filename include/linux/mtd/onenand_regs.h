@@ -3,7 +3,7 @@
  *
  *  OneNAND Register header file
  *
- *  Copyright (C) 2005 Samsung Electronics
+ *  Copyright (C) 2005-2006 Samsung Electronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -72,6 +72,7 @@
 #define ONENAND_DEVICE_VCC_MASK		(0x3)
 
 #define ONENAND_DEVICE_DENSITY_512Mb	(0x002)
+#define ONENAND_DEVICE_DENSITY_1Gb	(0x003)
 
 /*
  * Version ID Register F002h (R)
@@ -110,6 +111,7 @@
 #define ONENAND_CMD_UNLOCK		(0x23)
 #define ONENAND_CMD_LOCK		(0x2A)
 #define ONENAND_CMD_LOCK_TIGHT		(0x2C)
+#define ONENAND_CMD_UNLOCK_ALL		(0x27)
 #define ONENAND_CMD_ERASE		(0x94)
 #define ONENAND_CMD_RESET		(0xF0)
 #define ONENAND_CMD_OTP_ACCESS		(0x65)

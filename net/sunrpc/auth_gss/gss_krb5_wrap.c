@@ -57,9 +57,9 @@ gss_krb5_remove_padding(struct xdr_buf *buf, int blocksize)
 					>>PAGE_CACHE_SHIFT;
 		int offset = (buf->page_base + len - 1)
 					& (PAGE_CACHE_SIZE - 1);
-		ptr = kmap_atomic(buf->pages[last], KM_SKB_SUNRPC_DATA);
+		ptr = kmap_atomic(buf->pages[last], KM_USER0);
 		pad = *(ptr + offset);
-		kunmap_atomic(ptr, KM_SKB_SUNRPC_DATA);
+		kunmap_atomic(ptr, KM_USER0);
 		goto out;
 	} else
 		len -= buf->page_len;
@@ -120,7 +120,6 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 		struct xdr_buf *buf, struct page **pages)
 {
 	struct krb5_ctx		*kctx = ctx->internal_ctx_id;
-	s32			checksum_type;
 	char			cksumdata[16];
 	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	int			blocksize = 0, plainlen;
@@ -133,21 +132,6 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	dprintk("RPC:     gss_wrap_kerberos\n");
 
 	now = get_seconds();
-
-	switch (kctx->signalg) {
-		case SGN_ALG_DES_MAC_MD5:
-			checksum_type = CKSUMTYPE_RSA_MD5;
-			break;
-		default:
-			dprintk("RPC:      gss_krb5_seal: kctx->signalg %d not"
-				" supported\n", kctx->signalg);
-			goto out_err;
-	}
-	if (kctx->sealalg != SEAL_ALG_NONE && kctx->sealalg != SEAL_ALG_DES) {
-		dprintk("RPC:      gss_krb5_seal: kctx->sealalg %d not supported\n",
-			kctx->sealalg);
-		goto out_err;
-	}
 
 	blocksize = crypto_blkcipher_blocksize(kctx->enc);
 	gss_krb5_add_padding(buf, offset, blocksize);
@@ -175,37 +159,27 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	/* ptr now at byte 2 of header described in rfc 1964, section 1.2.1: */
 	krb5_hdr = ptr - 2;
 	msg_start = krb5_hdr + 24;
-	/* XXXJBF: */ BUG_ON(buf->head[0].iov_base + offset + headlen != msg_start + blocksize);
 
-	*(u16 *)(krb5_hdr + 2) = htons(kctx->signalg);
+	*(__be16 *)(krb5_hdr + 2) = htons(SGN_ALG_DES_MAC_MD5);
 	memset(krb5_hdr + 4, 0xff, 4);
-	*(u16 *)(krb5_hdr + 4) = htons(kctx->sealalg);
+	*(__be16 *)(krb5_hdr + 4) = htons(SEAL_ALG_DES);
 
 	make_confounder(msg_start, blocksize);
 
 	/* XXXJBF: UGH!: */
 	tmp_pages = buf->pages;
 	buf->pages = pages;
-	if (make_checksum(checksum_type, krb5_hdr, 8, buf,
+	if (make_checksum("md5", krb5_hdr, 8, buf,
 				offset + headlen - blocksize, &md5cksum))
-		goto out_err;
+		return GSS_S_FAILURE;
 	buf->pages = tmp_pages;
 
-	switch (kctx->signalg) {
-	case SGN_ALG_DES_MAC_MD5:
-		if (krb5_encrypt(kctx->seq, NULL, md5cksum.data,
-				  md5cksum.data, md5cksum.len))
-			goto out_err;
-		memcpy(krb5_hdr + 16,
-		       md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
-		       KRB5_CKSUM_LENGTH);
-
-		dprintk("RPC:      make_seal_token: cksum data: \n");
-		print_hexl((u32 *) (krb5_hdr + 16), KRB5_CKSUM_LENGTH, 0);
-		break;
-	default:
-		BUG();
-	}
+	if (krb5_encrypt(kctx->seq, NULL, md5cksum.data,
+			  md5cksum.data, md5cksum.len))
+		return GSS_S_FAILURE;
+	memcpy(krb5_hdr + 16,
+	       md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
+	       KRB5_CKSUM_LENGTH);
 
 	spin_lock(&krb5_seq_lock);
 	seq_send = kctx->seq_send++;
@@ -215,15 +189,13 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	 * and encrypt at the same time: */
 	if ((krb5_make_seq_num(kctx->seq, kctx->initiate ? 0 : 0xff,
 			       seq_send, krb5_hdr + 16, krb5_hdr + 8)))
-		goto out_err;
+		return GSS_S_FAILURE;
 
 	if (gss_encrypt_xdr_buf(kctx->enc, buf, offset + headlen - blocksize,
 									pages))
-		goto out_err;
+		return GSS_S_FAILURE;
 
-	return ((kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE);
-out_err:
-	return GSS_S_FAILURE;
+	return (kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
 
 u32
@@ -232,7 +204,6 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 	struct krb5_ctx		*kctx = ctx->internal_ctx_id;
 	int			signalg;
 	int			sealalg;
-	s32			checksum_type;
 	char			cksumdata[16];
 	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	s32			now;
@@ -240,7 +211,6 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 	s32			seqnum;
 	unsigned char		*ptr;
 	int			bodysize;
-	u32			ret = GSS_S_DEFECTIVE_TOKEN;
 	void			*data_start, *orig_start;
 	int			data_len;
 	int			blocksize;
@@ -250,98 +220,58 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 	ptr = (u8 *)buf->head[0].iov_base + offset;
 	if (g_verify_token_header(&kctx->mech_used, &bodysize, &ptr,
 					buf->len - offset))
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 
 	if ((*ptr++ != ((KG_TOK_WRAP_MSG>>8)&0xff)) ||
 	    (*ptr++ !=  (KG_TOK_WRAP_MSG    &0xff))   )
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 
 	/* XXX sanity-check bodysize?? */
 
 	/* get the sign and seal algorithms */
 
 	signalg = ptr[0] + (ptr[1] << 8);
-	sealalg = ptr[2] + (ptr[3] << 8);
+	if (signalg != SGN_ALG_DES_MAC_MD5)
+		return GSS_S_DEFECTIVE_TOKEN;
 
-	/* Sanity checks */
+	sealalg = ptr[2] + (ptr[3] << 8);
+	if (sealalg != SEAL_ALG_DES)
+		return GSS_S_DEFECTIVE_TOKEN;
 
 	if ((ptr[4] != 0xff) || (ptr[5] != 0xff))
-		goto out;
-
-	if (sealalg == 0xffff)
-		goto out;
-
-	/* in the current spec, there is only one valid seal algorithm per
-	   key type, so a simple comparison is ok */
-
-	if (sealalg != kctx->sealalg)
-		goto out;
-
-	/* there are several mappings of seal algorithms to sign algorithms,
-	   but few enough that we can try them all. */
-
-	if ((kctx->sealalg == SEAL_ALG_NONE && signalg > 1) ||
-	    (kctx->sealalg == SEAL_ALG_1 && signalg != SGN_ALG_3) ||
-	    (kctx->sealalg == SEAL_ALG_DES3KD &&
-	     signalg != SGN_ALG_HMAC_SHA1_DES3_KD))
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 
 	if (gss_decrypt_xdr_buf(kctx->enc, buf,
 			ptr + 22 - (unsigned char *)buf->head[0].iov_base))
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 
-	/* compute the checksum of the message */
+	if (make_checksum("md5", ptr - 2, 8, buf,
+		 ptr + 22 - (unsigned char *)buf->head[0].iov_base, &md5cksum))
+		return GSS_S_FAILURE;
 
-	/* initialize the the cksum */
-	switch (signalg) {
-	case SGN_ALG_DES_MAC_MD5:
-		checksum_type = CKSUMTYPE_RSA_MD5;
-		break;
-	default:
-		ret = GSS_S_DEFECTIVE_TOKEN;
-		goto out;
-	}
+	if (krb5_encrypt(kctx->seq, NULL, md5cksum.data,
+			   md5cksum.data, md5cksum.len))
+		return GSS_S_FAILURE;
 
-	switch (signalg) {
-	case SGN_ALG_DES_MAC_MD5:
-		ret = make_checksum(checksum_type, ptr - 2, 8, buf,
-			 ptr + 22 - (unsigned char *)buf->head[0].iov_base, &md5cksum);
-		if (ret)
-			goto out;
-
-		ret = krb5_encrypt(kctx->seq, NULL, md5cksum.data,
-				   md5cksum.data, md5cksum.len);
-		if (ret)
-			goto out;
-
-		if (memcmp(md5cksum.data + 8, ptr + 14, 8)) {
-			ret = GSS_S_BAD_SIG;
-			goto out;
-		}
-		break;
-	default:
-		ret = GSS_S_DEFECTIVE_TOKEN;
-		goto out;
-	}
+	if (memcmp(md5cksum.data + 8, ptr + 14, 8))
+		return GSS_S_BAD_SIG;
 
 	/* it got through unscathed.  Make sure the context is unexpired */
 
 	now = get_seconds();
 
-	ret = GSS_S_CONTEXT_EXPIRED;
 	if (now > kctx->endtime)
-		goto out;
+		return GSS_S_CONTEXT_EXPIRED;
 
 	/* do sequencing checks */
 
-	ret = GSS_S_BAD_SIG;
-	if ((ret = krb5_get_seq_num(kctx->seq, ptr + 14, ptr + 6, &direction,
-				    &seqnum)))
-		goto out;
+	if (krb5_get_seq_num(kctx->seq, ptr + 14, ptr + 6, &direction,
+				    &seqnum))
+		return GSS_S_BAD_SIG;
 
 	if ((kctx->initiate && direction != 0xff) ||
 	    (!kctx->initiate && direction != 0))
-		goto out;
+		return GSS_S_BAD_SIG;
 
 	/* Copy the data back to the right position.  XXX: Would probably be
 	 * better to copy and encrypt at the same time. */
@@ -354,11 +284,8 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 	buf->head[0].iov_len -= (data_start - orig_start);
 	buf->len -= (data_start - orig_start);
 
-	ret = GSS_S_DEFECTIVE_TOKEN;
 	if (gss_krb5_remove_padding(buf, blocksize))
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 
-	ret = GSS_S_COMPLETE;
-out:
-	return ret;
+	return GSS_S_COMPLETE;
 }

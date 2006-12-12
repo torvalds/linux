@@ -218,4 +218,8 @@ static inline int __raw_read_trylock(raw_rwlock_t *rw)
 /* read_can_lock - would read_trylock() succeed? */
 #define __raw_read_can_lock(x)		((x)->lock < 0x80000000)
 
+#define _raw_spin_relax(lock)	cpu_relax()
+#define _raw_read_relax(lock)	cpu_relax()
+#define _raw_write_relax(lock)	cpu_relax()
+
 #endif /* __ASM_SPINLOCK_H */

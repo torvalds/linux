@@ -20,7 +20,7 @@ static int ebt_target_reply(struct sk_buff **pskb, unsigned int hooknr,
    const void *data, unsigned int datalen)
 {
 	struct ebt_arpreply_info *info = (struct ebt_arpreply_info *)data;
-	u32 _sip, *siptr, _dip, *diptr;
+	__be32 _sip, *siptr, _dip, *diptr;
 	struct arphdr _ah, *ap;
 	unsigned char _sha[ETH_ALEN], *shp;
 	struct sk_buff *skb = *pskb;

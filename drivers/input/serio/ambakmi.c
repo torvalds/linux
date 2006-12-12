@@ -37,14 +37,14 @@ struct amba_kmi_port {
 	unsigned int		open;
 };
 
-static irqreturn_t amba_kmi_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t amba_kmi_int(int irq, void *dev_id)
 {
 	struct amba_kmi_port *kmi = dev_id;
 	unsigned int status = readb(KMIIR);
 	int handled = IRQ_NONE;
 
 	while (status & KMIIR_RXINTR) {
-		serio_interrupt(kmi->io, readb(KMIDATA), 0, regs);
+		serio_interrupt(kmi->io, readb(KMIDATA), 0);
 		status = readb(KMIIR);
 		handled = IRQ_HANDLED;
 	}

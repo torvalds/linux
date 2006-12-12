@@ -29,12 +29,12 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/smp_lock.h>
 #include <asm/atomic.h>
 #include <linux/delay.h>
-#include "pci_hotplug.h"
 #include "cpci_hotplug.h"
 
 #define DRIVER_AUTHOR	"Scott Murray <scottm@somanetworks.com>"
@@ -342,7 +342,7 @@ cpci_hp_unregister_bus(struct pci_bus *bus)
 
 /* This is the interrupt mode interrupt handler */
 static irqreturn_t
-cpci_hp_intr(int irq, void *data, struct pt_regs *regs)
+cpci_hp_intr(int irq, void *data)
 {
 	dbg("entered cpci_hp_intr");
 

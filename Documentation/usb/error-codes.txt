@@ -98,13 +98,13 @@ one or more packets could finish before an error stops further endpoint I/O.
 			error, a failure to respond (often caused by
 			device disconnect), or some other fault.
 
--ETIMEDOUT (**)		No response packet received within the prescribed
+-ETIME (**)		No response packet received within the prescribed
 			bus turn-around time.  This error may instead be
 			reported as -EPROTO or -EILSEQ.
 
-			Note that the synchronous USB message functions
-			also use this code to indicate timeout expired
-			before the transfer completed.
+-ETIMEDOUT		Synchronous USB message functions use this code
+			to indicate timeout expired before the transfer
+			completed, and no other error was reported by HC.
 
 -EPIPE (**)		Endpoint stalled.  For non-control endpoints,
 			reset this status with usb_clear_halt().
@@ -126,7 +126,7 @@ one or more packets could finish before an error stops further endpoint I/O.
 			urb->transfer_flags.
 
 -ENODEV			Device was removed.  Often preceded by a burst of
-			other errors, since the hub driver does't detect
+			other errors, since the hub driver doesn't detect
 			device removal events immediately.
 
 -EXDEV			ISO transfer only partially completed
@@ -145,7 +145,7 @@ one or more packets could finish before an error stops further endpoint I/O.
 hardware problems such as bad devices (including firmware) or cables.
 
 (**) This is also one of several codes that different kinds of host
-controller use to to indicate a transfer has failed because of device
+controller use to indicate a transfer has failed because of device
 disconnect.  In the interval before the hub driver starts disconnect
 processing, devices may receive such fault reports for every request.
 
@@ -163,6 +163,3 @@ usb_get_*/usb_set_*():
 usb_control_msg():
 usb_bulk_msg():
 -ETIMEDOUT		Timeout expired before the transfer completed.
-			In the future this code may change to -ETIME,
-			whose definition is a closer match to this sort
-			of error.

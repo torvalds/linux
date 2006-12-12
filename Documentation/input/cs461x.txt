@@ -27,7 +27,7 @@ This driver have the basic support for PCI devices only; there is no
 ISA or PnP ISA cards supported. AFAIK the ns558 have support for Crystal 
 ISA and PnP ISA series.
 
-The driver works witn ALSA drivers simultaneously. For exmple, the xracer
+The driver works with ALSA drivers simultaneously. For example, the xracer
 uses joystick as input device and PCM device as sound output in one time.
 There are no sound or input collisions detected. The source code have
 comments about them; but I've found the joystick can be initialized 

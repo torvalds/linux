@@ -32,7 +32,7 @@
 #undef DEBUG
 #include <linux/usb.h>
 
-#include "hid.h"
+#include <linux/hid.h>
 
 /*
  * This table contains pointers to initializers. To add support for new
@@ -44,45 +44,40 @@ struct hid_ff_initializer {
 	int (*init)(struct hid_device*);
 };
 
+/*
+ * We try pidff when no other driver is found because PID is the
+ * standards compliant way of implementing force feedback in HID.
+ * pidff_init() will quickly abort if the device doesn't appear to
+ * be a PID device
+ */
 static struct hid_ff_initializer inits[] = {
 #ifdef CONFIG_LOGITECH_FF
-	{0x46d, 0xc211, hid_lgff_init}, // Logitech Cordless rumble pad
-	{0x46d, 0xc283, hid_lgff_init}, // Logitech Wingman Force 3d
-	{0x46d, 0xc295, hid_lgff_init},	// Logitech MOMO force wheel
-	{0x46d, 0xc219, hid_lgff_init}, // Logitech Cordless rumble pad 2
-#endif
-#ifdef CONFIG_HID_PID
-	{0x45e, 0x001b, hid_pid_init},
+	{ 0x46d, 0xc211, hid_lgff_init }, /* Logitech Cordless rumble pad */
+	{ 0x46d, 0xc283, hid_lgff_init }, /* Logitech Wingman Force 3d */
+	{ 0x46d, 0xc295, hid_lgff_init }, /* Logitech MOMO force wheel */
+	{ 0x46d, 0xc219, hid_lgff_init }, /* Logitech Cordless rumble pad 2 */
 #endif
 #ifdef CONFIG_THRUSTMASTER_FF
-	{0x44f, 0xb304, hid_tmff_init},
+	{ 0x44f, 0xb304, hid_tmff_init },
 #endif
-	{0, 0, NULL} /* Terminating entry */
+#ifdef CONFIG_ZEROPLUS_FF
+	{ 0xc12, 0x0005, hid_zpff_init },
+	{ 0xc12, 0x0030, hid_zpff_init },
+#endif
+	{ 0,	 0,	 hid_pidff_init}  /* Matches anything */
 };
-
-static struct hid_ff_initializer *hid_get_ff_init(__u16 idVendor,
-						  __u16 idProduct)
-{
-	struct hid_ff_initializer *init;
-	for (init = inits;
-	     init->idVendor
-	     && !(init->idVendor == idVendor
-		  && init->idProduct == idProduct);
-	     init++);
-
-	return init->idVendor? init : NULL;
-}
 
 int hid_ff_init(struct hid_device* hid)
 {
 	struct hid_ff_initializer *init;
+	int vendor = le16_to_cpu(to_usb_device(hid->dev)->descriptor.idVendor);
+	int product = le16_to_cpu(to_usb_device(hid->dev)->descriptor.idProduct);
 
-	init = hid_get_ff_init(le16_to_cpu(hid->dev->descriptor.idVendor),
-			       le16_to_cpu(hid->dev->descriptor.idProduct));
+	for (init = inits; init->idVendor; init++)
+		if (init->idVendor == vendor && init->idProduct == product)
+			break;
 
-	if (!init) {
-		dbg("hid_ff_init could not find initializer");
-		return -ENOSYS;
-	}
 	return init->init(hid);
 }
+EXPORT_SYMBOL_GPL(hid_ff_init);
+

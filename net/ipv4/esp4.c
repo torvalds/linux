@@ -67,7 +67,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	if (x->encap) {
 		struct xfrm_encap_tmpl *encap = x->encap;
 		struct udphdr *uh;
-		u32 *udpdata32;
+		__be32 *udpdata32;
 
 		uh = (struct udphdr *)esph;
 		uh->source = encap->encap_sport;
@@ -81,7 +81,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 			esph = (struct ip_esp_hdr *)(uh + 1);
 			break;
 		case UDP_ENCAP_ESPINUDP_NON_IKE:
-			udpdata32 = (u32 *)(uh + 1);
+			udpdata32 = (__be32 *)(uh + 1);
 			udpdata32[0] = udpdata32[1] = 0;
 			esph = (struct ip_esp_hdr *)(udpdata32 + 2);
 			break;
@@ -253,7 +253,8 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 		 *    as per draft-ietf-ipsec-udp-encaps-06,
 		 *    section 3.1.2
 		 */
-		if (x->props.mode == XFRM_MODE_TRANSPORT)
+		if (x->props.mode == XFRM_MODE_TRANSPORT ||
+		    x->props.mode == XFRM_MODE_BEET)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
@@ -271,17 +272,28 @@ static u32 esp4_get_max_size(struct xfrm_state *x, int mtu)
 {
 	struct esp_data *esp = x->data;
 	u32 blksize = ALIGN(crypto_blkcipher_blocksize(esp->conf.tfm), 4);
+	int enclen = 0;
 
-	if (x->props.mode == XFRM_MODE_TUNNEL) {
-		mtu = ALIGN(mtu + 2, blksize);
-	} else {
-		/* The worst case. */
+	switch (x->props.mode) {
+	case XFRM_MODE_TUNNEL:
+		mtu = ALIGN(mtu +2, blksize);
+		break;
+	default:
+	case XFRM_MODE_TRANSPORT:
+		/* The worst case */
 		mtu = ALIGN(mtu + 2, 4) + blksize - 4;
+		break;
+	case XFRM_MODE_BEET:
+ 		/* The worst case. */
+		enclen = IPV4_BEET_PHMAXLEN;
+		mtu = ALIGN(mtu + enclen + 2, blksize);
+		break;
 	}
+
 	if (esp->conf.padlen)
 		mtu = ALIGN(mtu, esp->conf.padlen);
 
-	return mtu + x->props.header_len + esp->auth.icv_trunc_len;
+	return mtu + x->props.header_len + esp->auth.icv_trunc_len - enclen;
 }
 
 static void esp4_err(struct sk_buff *skb, u32 info)

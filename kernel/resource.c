@@ -88,7 +88,7 @@ static int r_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations resource_op = {
+static const struct seq_operations resource_op = {
 	.start	= r_start,
 	.next	= r_next,
 	.stop	= r_stop,
@@ -115,14 +115,14 @@ static int iomem_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-static struct file_operations proc_ioports_operations = {
+static const struct file_operations proc_ioports_operations = {
 	.open		= ioports_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
 
-static struct file_operations proc_iomem_operations = {
+static const struct file_operations proc_iomem_operations = {
 	.open		= iomem_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -193,6 +193,13 @@ static int __release_resource(struct resource *old)
 	return -EINVAL;
 }
 
+/**
+ * request_resource - request and reserve an I/O or memory resource
+ * @root: root resource descriptor
+ * @new: resource descriptor desired by caller
+ *
+ * Returns 0 for success, negative error code on error.
+ */
 int request_resource(struct resource *root, struct resource *new)
 {
 	struct resource *conflict;
@@ -205,6 +212,15 @@ int request_resource(struct resource *root, struct resource *new)
 
 EXPORT_SYMBOL(request_resource);
 
+/**
+ * ____request_resource - reserve a resource, with resource conflict returned
+ * @root: root resource descriptor
+ * @new: resource descriptor desired by caller
+ *
+ * Returns:
+ * On success, NULL is returned.
+ * On error, a pointer to the conflicting resource is returned.
+ */
 struct resource *____request_resource(struct resource *root, struct resource *new)
 {
 	struct resource *conflict;
@@ -217,6 +233,10 @@ struct resource *____request_resource(struct resource *root, struct resource *ne
 
 EXPORT_SYMBOL(____request_resource);
 
+/**
+ * release_resource - release a previously reserved resource
+ * @old: resource pointer
+ */
 int release_resource(struct resource *old)
 {
 	int retval;
@@ -315,8 +335,16 @@ static int find_resource(struct resource *root, struct resource *new,
 	return -EBUSY;
 }
 
-/*
- * Allocate empty slot in the resource tree given range and alignment.
+/**
+ * allocate_resource - allocate empty slot in the resource tree given range & alignment
+ * @root: root resource descriptor
+ * @new: resource descriptor desired by caller
+ * @size: requested resource region size
+ * @min: minimum size to allocate
+ * @max: maximum size to allocate
+ * @align: alignment requested, in bytes
+ * @alignf: alignment function, optional, called if not NULL
+ * @alignf_data: arbitrary data to pass to the @alignf function
  */
 int allocate_resource(struct resource *root, struct resource *new,
 		      resource_size_t size, resource_size_t min,
@@ -344,12 +372,11 @@ EXPORT_SYMBOL(allocate_resource);
  *
  * Returns 0 on success, -EBUSY if the resource can't be inserted.
  *
- * This function is equivalent of request_resource when no conflict
+ * This function is equivalent to request_resource when no conflict
  * happens. If a conflict happens, and the conflicting resources
  * entirely fit within the range of the new resource, then the new
- * resource is inserted and the conflicting resources become childs of
- * the new resource.  Otherwise the new resource becomes the child of
- * the conflicting resource
+ * resource is inserted and the conflicting resources become children of
+ * the new resource.
  */
 int insert_resource(struct resource *parent, struct resource *new)
 {
@@ -357,20 +384,21 @@ int insert_resource(struct resource *parent, struct resource *new)
 	struct resource *first, *next;
 
 	write_lock(&resource_lock);
- begin:
- 	result = 0;
-	first = __request_resource(parent, new);
-	if (!first)
-		goto out;
 
-	result = -EBUSY;
-	if (first == parent)
-		goto out;
+	for (;; parent = first) {
+	 	result = 0;
+		first = __request_resource(parent, new);
+		if (!first)
+			goto out;
 
-	/* Resource fully contained by the clashing resource? Recurse into it */
-	if (first->start <= new->start && first->end >= new->end) {
-		parent = first;
-		goto begin;
+		result = -EBUSY;
+		if (first == parent)
+			goto out;
+
+		if ((first->start > new->start) || (first->end < new->end))
+			break;
+		if ((first->start == new->start) && (first->end == new->end))
+			break;
 	}
 
 	for (next = first; ; next = next->sibling) {
@@ -407,10 +435,15 @@ int insert_resource(struct resource *parent, struct resource *new)
 	return result;
 }
 
-/*
+/**
+ * adjust_resource - modify a resource's start and size
+ * @res: resource to modify
+ * @start: new start value
+ * @size: new size
+ *
  * Given an existing resource, change its start and size to match the
- * arguments.  Returns -EBUSY if it can't fit.  Existing children of
- * the resource are assumed to be immutable.
+ * arguments.  Returns 0 on success, -EBUSY if it can't fit.
+ * Existing children of the resource are assumed to be immutable.
  */
 int adjust_resource(struct resource *res, resource_size_t start, resource_size_t size)
 {
@@ -456,11 +489,19 @@ EXPORT_SYMBOL(adjust_resource);
  * Note how this, unlike the above, knows about
  * the IO flag meanings (busy etc).
  *
- * Request-region creates a new busy region.
+ * request_region creates a new busy region.
  *
- * Check-region returns non-zero if the area is already busy
+ * check_region returns non-zero if the area is already busy.
  *
- * Release-region releases a matching busy region.
+ * release_region releases a matching busy region.
+ */
+
+/**
+ * __request_region - create a new busy resource region
+ * @parent: parent resource descriptor
+ * @start: resource start address
+ * @n: resource region size
+ * @name: reserving caller's ID string
  */
 struct resource * __request_region(struct resource *parent,
 				   resource_size_t start, resource_size_t n,
@@ -497,9 +538,23 @@ struct resource * __request_region(struct resource *parent,
 	}
 	return res;
 }
-
 EXPORT_SYMBOL(__request_region);
 
+/**
+ * __check_region - check if a resource region is busy or free
+ * @parent: parent resource descriptor
+ * @start: resource start address
+ * @n: resource region size
+ *
+ * Returns 0 if the region is free at the moment it is checked,
+ * returns %-EBUSY if the region is busy.
+ *
+ * NOTE:
+ * This function is deprecated because its use is racy.
+ * Even if it returns 0, a subsequent call to request_region()
+ * may fail because another driver etc. just allocated the region.
+ * Do NOT use it.  It will be removed from the kernel.
+ */
 int __check_region(struct resource *parent, resource_size_t start,
 			resource_size_t n)
 {
@@ -513,9 +568,16 @@ int __check_region(struct resource *parent, resource_size_t start,
 	kfree(res);
 	return 0;
 }
-
 EXPORT_SYMBOL(__check_region);
 
+/**
+ * __release_region - release a previously reserved resource region
+ * @parent: parent resource descriptor
+ * @start: resource start address
+ * @n: resource region size
+ *
+ * The described resource region must match a currently busy region.
+ */
 void __release_region(struct resource *parent, resource_size_t start,
 			resource_size_t n)
 {
@@ -553,7 +615,6 @@ void __release_region(struct resource *parent, resource_size_t start,
 		"<%016llx-%016llx>\n", (unsigned long long)start,
 		(unsigned long long)end);
 }
-
 EXPORT_SYMBOL(__release_region);
 
 /*

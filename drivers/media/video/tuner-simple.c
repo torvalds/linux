@@ -10,7 +10,7 @@
 #include <media/v4l2-common.h>
 
 static int offset = 0;
-module_param(offset, int, 0666);
+module_param(offset, int, 0664);
 MODULE_PARM_DESC(offset,"Allows to specify an offset for tuner");
 
 /* ---------------------------------------------------------------------- */
@@ -108,6 +108,7 @@ static int tuner_stereo(struct i2c_client *c)
 		case TUNER_PHILIPS_FM1216ME_MK3:
 		case TUNER_PHILIPS_FM1236_MK3:
 		case TUNER_PHILIPS_FM1256_IH3:
+		case TUNER_LG_NTSC_TAPE:
 			stereo = ((status & TUNER_SIGNAL) == TUNER_STEREO_MK3);
 			break;
 		default:
@@ -331,6 +332,8 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 			else if (params->default_top_high)
 				config |= TDA9887_TOP(params->default_top_high);
 		}
+		if (params->default_pll_gating_18)
+			config |= TDA9887_GATING_18;
 		i2c_clients_command(c->adapter, TDA9887_SET_CONFIG, &config);
 	}
 	tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
@@ -419,6 +422,7 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	case TUNER_PHILIPS_FM1216ME_MK3:
 	case TUNER_PHILIPS_FM1236_MK3:
 	case TUNER_PHILIPS_FMD1216ME_MK3:
+	case TUNER_LG_NTSC_TAPE:
 		buffer[3] = 0x19;
 		break;
 	case TUNER_TNF_5335MF:
@@ -439,8 +443,6 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 		buffer[3] = 0xa4;
 		break;
 	}
-	buffer[0] = (div>>8) & 0x7f;
-	buffer[1] = div      & 0xff;
 	if (params->cb_first_if_lower_freq && div < t->last_div) {
 		buffer[0] = buffer[2];
 		buffer[1] = buffer[3];
@@ -465,6 +467,8 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 			config |= TDA9887_INTERCARRIER;
 /*		if (params->port1_set_for_fm_mono)
 			config &= ~TDA9887_PORT1_ACTIVE;*/
+		if (params->fm_gain_normal)
+			config |= TDA9887_GAIN_NORMAL;
 		i2c_clients_command(c->adapter, TDA9887_SET_CONFIG, &config);
 	}
 	if (4 != (rc = i2c_master_send(c,buffer,4)))

@@ -111,14 +111,12 @@ struct spu {
 	u8 *local_store;
 	unsigned long problem_phys;
 	struct spu_problem __iomem *problem;
-	struct spu_priv1 __iomem *priv1;
 	struct spu_priv2 __iomem *priv2;
 	struct list_head list;
 	struct list_head sched_list;
+	struct list_head full_list;
 	int number;
-	int nid;
 	unsigned int irqs[3];
-	u32 isrc;
 	u32 node;
 	u64 flags;
 	u64 dar;
@@ -138,15 +136,18 @@ struct spu {
 	void (* ibox_callback)(struct spu *spu);
 	void (* stop_callback)(struct spu *spu);
 	void (* mfc_callback)(struct spu *spu);
+	void (* dma_callback)(struct spu *spu, int type);
 
 	char irq_c0[8];
 	char irq_c1[8];
 	char irq_c2[8];
 
+	void* pdata; /* platform private data */
 	struct sys_device sysdev;
 };
 
 struct spu *spu_alloc(void);
+struct spu *spu_alloc_node(int node);
 void spu_free(struct spu *spu);
 int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);
@@ -168,6 +169,31 @@ extern struct spufs_calls {
 	struct module *owner;
 } spufs_calls;
 
+/* coredump calls implemented in spufs */
+struct spu_coredump_calls {
+	asmlinkage int (*arch_notes_size)(void);
+	asmlinkage void (*arch_write_notes)(struct file *file);
+	struct module *owner;
+};
+
+/* return status from spu_run, same as in libspe */
+#define SPE_EVENT_DMA_ALIGNMENT		0x0008	/*A DMA alignment error */
+#define SPE_EVENT_SPE_ERROR		0x0010	/*An illegal instruction error*/
+#define SPE_EVENT_SPE_DATA_SEGMENT	0x0020	/*A DMA segmentation error    */
+#define SPE_EVENT_SPE_DATA_STORAGE	0x0040	/*A DMA storage error */
+#define SPE_EVENT_INVALID_DMA		0x0800	/* Invalid MFC DMA */
+
+/*
+ * Flags for sys_spu_create.
+ */
+#define SPU_CREATE_EVENTS_ENABLED	0x0001
+#define SPU_CREATE_GANG			0x0002
+#define SPU_CREATE_NOSCHED		0x0004
+#define SPU_CREATE_ISOLATE		0x0008
+
+#define SPU_CREATE_FLAG_ALL		0x000f /* mask of all valid flags */
+
+
 #ifdef CONFIG_SPU_FS_MODULE
 int register_spu_syscalls(struct spufs_calls *calls);
 void unregister_spu_syscalls(struct spufs_calls *calls);
@@ -181,6 +207,33 @@ static inline void unregister_spu_syscalls(struct spufs_calls *calls)
 }
 #endif /* MODULE */
 
+int register_arch_coredump_calls(struct spu_coredump_calls *calls);
+void unregister_arch_coredump_calls(struct spu_coredump_calls *calls);
+
+int spu_add_sysdev_attr(struct sysdev_attribute *attr);
+void spu_remove_sysdev_attr(struct sysdev_attribute *attr);
+
+int spu_add_sysdev_attr_group(struct attribute_group *attrs);
+void spu_remove_sysdev_attr_group(struct attribute_group *attrs);
+
+
+/*
+ * Notifier blocks:
+ *
+ * oprofile can get notified when a context switch is performed
+ * on an spe. The notifer function that gets called is passed
+ * a pointer to the SPU structure as well as the object-id that
+ * identifies the binary running on that SPU now.
+ *
+ * For a context save, the object-id that is passed is zero,
+ * identifying that the kernel will run from that moment on.
+ *
+ * For a context restore, the object-id is the value written
+ * to object-id spufs file from user space and the notifer
+ * function can assume that spu->ctx is valid.
+ */
+int spu_switch_event_register(struct notifier_block * n);
+int spu_switch_event_unregister(struct notifier_block * n);
 
 /*
  * This defines the Local Store, Problem Area and Privlege Area of an SPU.
@@ -241,6 +294,7 @@ struct spu_problem {
 	u32 spu_runcntl_RW;					/* 0x401c */
 #define SPU_RUNCNTL_STOP	0L
 #define SPU_RUNCNTL_RUNNABLE	1L
+#define SPU_RUNCNTL_ISOLATE	2L
 	u8  pad_0x4020_0x4024[0x4];				/* 0x4020 */
 	u32 spu_status_R;					/* 0x4024 */
 #define SPU_STOP_STATUS_SHIFT           16
@@ -253,8 +307,8 @@ struct spu_problem {
 #define SPU_STATUS_INVALID_INSTR        0x20
 #define SPU_STATUS_INVALID_CH           0x40
 #define SPU_STATUS_ISOLATED_STATE       0x80
-#define SPU_STATUS_ISOLATED_LOAD_STAUTUS 0x200
-#define SPU_STATUS_ISOLATED_EXIT_STAUTUS 0x400
+#define SPU_STATUS_ISOLATED_LOAD_STATUS 0x200
+#define SPU_STATUS_ISOLATED_EXIT_STATUS 0x400
 	u8  pad_0x4028_0x402c[0x4];				/* 0x4028 */
 	u32 spu_spe_R;						/* 0x402c */
 	u8  pad_0x4030_0x4034[0x4];				/* 0x4030 */

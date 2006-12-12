@@ -250,6 +250,12 @@ typedef struct drm_via_blitsync {
 	unsigned engine;
 } drm_via_blitsync_t;
 
+/* - * Below,"flags" is currently unused but will be used for possible future
+ * extensions like kernel space bounce buffers for bad alignments and
+ * blit engine busy-wait polling for better latency in the absence of
+ * interrupts.
+ */
+
 typedef struct drm_via_dmablit {
 	uint32_t num_lines;
 	uint32_t line_length;
@@ -260,7 +266,7 @@ typedef struct drm_via_dmablit {
 	unsigned char *mem_addr;
 	uint32_t mem_stride;
 
-	int bounce_buffer;
+	uint32_t flags;
 	int to_fb;
 
 	drm_via_blitsync_t sync;

@@ -82,7 +82,7 @@ struct smtc_ipi_q freeIPIq;
 
 /* Forward declarations */
 
-void ipi_decode(struct pt_regs *, struct smtc_ipi *);
+void ipi_decode(struct smtc_ipi *);
 void post_direct_ipi(int cpu, struct smtc_ipi *pipi);
 void setup_cross_vpe_interrupts(void);
 void init_smtc_stats(void);
@@ -476,6 +476,7 @@ void mipsmt_prepare_cpus(void)
 			write_vpe_c0_compare(0);
 			/* Propagate Config7 */
 			write_vpe_c0_config7(read_c0_config7());
+			write_vpe_c0_count(read_c0_count());
 		}
 		/* enable multi-threading within VPE */
 		write_vpe_c0_vpecontrol(read_vpe_c0_vpecontrol() | VPECONTROL_TE);
@@ -820,19 +821,19 @@ void post_direct_ipi(int cpu, struct smtc_ipi *pipi)
 	write_tc_c0_tcrestart(__smtc_ipi_vector);
 }
 
-void ipi_resched_interrupt(struct pt_regs *regs)
+static void ipi_resched_interrupt(void)
 {
 	/* Return from interrupt should be enough to cause scheduler check */
 }
 
 
-void ipi_call_interrupt(struct pt_regs *regs)
+static void ipi_call_interrupt(void)
 {
 	/* Invoke generic function invocation code in smp.c */
 	smp_call_function_interrupt();
 }
 
-void ipi_decode(struct pt_regs *regs, struct smtc_ipi *pipi)
+void ipi_decode(struct smtc_ipi *pipi)
 {
 	void *arg_copy = pipi->arg;
 	int type_copy = pipi->type;
@@ -846,15 +847,15 @@ void ipi_decode(struct pt_regs *regs, struct smtc_ipi *pipi)
 #ifdef SMTC_IDLE_HOOK_DEBUG
 		clock_hang_reported[dest_copy] = 0;
 #endif /* SMTC_IDLE_HOOK_DEBUG */
-		local_timer_interrupt(0, NULL, regs);
+		local_timer_interrupt(0, NULL);
 		break;
 	case LINUX_SMP_IPI:
 		switch ((int)arg_copy) {
 		case SMP_RESCHEDULE_YOURSELF:
-			ipi_resched_interrupt(regs);
+			ipi_resched_interrupt();
 			break;
 		case SMP_CALL_FUNCTION:
-			ipi_call_interrupt(regs);
+			ipi_call_interrupt();
 			break;
 		default:
 			printk("Impossible SMTC IPI Argument 0x%x\n",
@@ -868,7 +869,7 @@ void ipi_decode(struct pt_regs *regs, struct smtc_ipi *pipi)
 	}
 }
 
-void deferred_smtc_ipi(struct pt_regs *regs)
+void deferred_smtc_ipi(void)
 {
 	struct smtc_ipi *pipi;
 	unsigned long flags;
@@ -883,7 +884,7 @@ void deferred_smtc_ipi(struct pt_regs *regs)
 		while((pipi = smtc_ipi_dq(&IPIQ[q])) != NULL) {
 			/* ipi_decode() should be called with interrupts off */
 			local_irq_save(flags);
-			ipi_decode(regs, pipi);
+			ipi_decode(pipi);
 			local_irq_restore(flags);
 		}
 	}
@@ -917,7 +918,7 @@ void smtc_timer_broadcast(int vpe)
 
 static int cpu_ipi_irq = MIPSCPU_INT_BASE + MIPS_CPU_IPI_IRQ;
 
-static irqreturn_t ipi_interrupt(int irq, void *dev_idm, struct pt_regs *regs)
+static irqreturn_t ipi_interrupt(int irq, void *dev_idm)
 {
 	int my_vpe = cpu_data[smp_processor_id()].vpe_id;
 	int my_tc = cpu_data[smp_processor_id()].tc_id;
@@ -978,7 +979,7 @@ static irqreturn_t ipi_interrupt(int irq, void *dev_idm, struct pt_regs *regs)
 				 * with interrupts off
 				 */
 				local_irq_save(flags);
-				ipi_decode(regs, pipi);
+				ipi_decode(pipi);
 				local_irq_restore(flags);
 			}
 		}
@@ -987,9 +988,9 @@ static irqreturn_t ipi_interrupt(int irq, void *dev_idm, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static void ipi_irq_dispatch(struct pt_regs *regs)
+static void ipi_irq_dispatch(void)
 {
-	do_IRQ(cpu_ipi_irq, regs);
+	do_IRQ(cpu_ipi_irq);
 }
 
 static struct irqaction irq_ipi;
@@ -1008,6 +1009,7 @@ void setup_cross_vpe_interrupts(void)
 	setup_irq_smtc(cpu_ipi_irq, &irq_ipi, (0x100 << MIPS_CPU_IPI_IRQ));
 
 	irq_desc[cpu_ipi_irq].status |= IRQ_PER_CPU;
+	set_irq_handler(cpu_ipi_irq, handle_percpu_irq);
 }
 
 /*

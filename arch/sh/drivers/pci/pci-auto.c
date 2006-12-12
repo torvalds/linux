@@ -45,11 +45,11 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 
-#undef	DEBUG
-#ifdef 	DEBUG
+#define	DEBUG
+#ifdef	DEBUG
 #define	DBG(x...)	printk(x)
 #else
-#define	DBG(x...)	
+#define	DBG(x...)
 #endif
 
 /*
@@ -102,7 +102,7 @@ static u32 pciauto_upper_iospc;
 static u32 pciauto_lower_memspc;
 static u32 pciauto_upper_memspc;
 
-static void __init 
+static void __init
 pciauto_setup_bars(struct pci_channel *hose,
 		   int top_bus,
 		   int current_bus,
@@ -116,7 +116,6 @@ pciauto_setup_bars(struct pci_channel *hose,
 	int found_mem64 = 0;
 
 	for (bar = PCI_BASE_ADDRESS_0; bar <= bar_limit; bar+=4) {
-#if !defined(CONFIG_SH_HS7751RVOIP) && !defined(CONFIG_SH_RTS7751R2D)
 		u32 bar_addr;
 
 		/* Read the old BAR value */
@@ -125,7 +124,6 @@ pciauto_setup_bars(struct pci_channel *hose,
 					pci_devfn,
 					bar,
 					&bar_addr);
-#endif
 
 		/* Tickle the BAR and get the response */
 		early_write_config_dword(hose, top_bus,
@@ -140,8 +138,7 @@ pciauto_setup_bars(struct pci_channel *hose,
 					bar,
 					&bar_response);
 
-#if !defined(CONFIG_SH_HS7751RVOIP) && !defined(CONFIG_SH_RTS7751R2D)
-		/* 
+		/*
 		 * Write the old BAR value back out, only update the BAR
 		 * if we implicitly want resources to be updated, which
 		 * is done by the generic code further down. -- PFM.
@@ -151,7 +148,6 @@ pciauto_setup_bars(struct pci_channel *hose,
 					 pci_devfn,
 					 bar,
 					 bar_addr);
-#endif
 
 		/* If BAR is not implemented go to the next BAR */
 		if (!bar_response)
@@ -177,7 +173,7 @@ retry:
 			    PCI_BASE_ADDRESS_MEM_TYPE_64)
 				found_mem64 = 1;
 
-			addr_mask = PCI_BASE_ADDRESS_MEM_MASK;		
+			addr_mask = PCI_BASE_ADDRESS_MEM_MASK;
 			upper_limit = &pciauto_upper_memspc;
 			lower_limit = &pciauto_lower_memspc;
 			DBG("        Mem");
@@ -193,22 +189,22 @@ retry:
 		if ((bar_value + bar_size) > *upper_limit) {
 			if (bar_response & PCI_BASE_ADDRESS_SPACE) {
 				if (io_resource_inuse->child) {
-					io_resource_inuse = 
+					io_resource_inuse =
 						io_resource_inuse->child;
-					pciauto_lower_iospc = 
+					pciauto_lower_iospc =
 						io_resource_inuse->start;
-					pciauto_upper_iospc = 
+					pciauto_upper_iospc =
 						io_resource_inuse->end + 1;
 					goto retry;
 				}
 
 			} else {
 				if (mem_resource_inuse->child) {
-					mem_resource_inuse = 
+					mem_resource_inuse =
 						mem_resource_inuse->child;
-					pciauto_lower_memspc = 
+					pciauto_lower_memspc =
 						mem_resource_inuse->start;
-					pciauto_upper_memspc = 
+					pciauto_upper_memspc =
 						mem_resource_inuse->end + 1;
 					goto retry;
 				}
@@ -230,7 +226,7 @@ retry:
 		 * If we are a 64-bit decoder then increment to the
 		 * upper 32 bits of the bar and force it to locate
 		 * in the lower 4GB of memory.
-		 */ 
+		 */
 		if (found_mem64) {
 			bar += 4;
 			early_write_config_dword(hose, top_bus,
@@ -362,7 +358,6 @@ pciauto_postscan_setup_cardbus_bridge(struct pci_channel *hose,
 {
 	u32 temp;
 
-#if !defined(CONFIG_SH_HS7751RVOIP) && !defined(CONFIG_SH_RTS7751R2D)
 	/*
 	 * [jsun] we always bump up baselines a little, so that if there
 	 * nothing behind P2P bridge, we don't wind up overlapping IO/MEM
@@ -370,7 +365,6 @@ pciauto_postscan_setup_cardbus_bridge(struct pci_channel *hose,
 	 */
 	pciauto_lower_memspc += 1;
 	pciauto_lower_iospc += 1;
-#endif
 
 	/*
 	 * Configure subordinate bus number.  The PCI subsystem
@@ -396,11 +390,6 @@ pciauto_postscan_setup_cardbus_bridge(struct pci_channel *hose,
 	 * configured by this routine to happily live behind a
 	 * P2P bridge in a system.
 	 */
-#if defined(CONFIG_SH_HS7751RVOIP) || defined(CONFIG_SH_RTS7751R2D)
-	pciauto_lower_memspc += 0x00400000;
-	pciauto_lower_iospc += 0x00004000;
-#endif
-
 	/* Align memory and I/O to 4KB and 4 byte boundaries. */
 	pciauto_lower_memspc = (pciauto_lower_memspc + (0x1000 - 1))
 		& ~(0x1000 - 1);
@@ -433,12 +422,12 @@ pciauto_bus_scan(struct pci_channel *hose, int top_bus, int current_bus)
 	int devfn_stop = 0xff;
 
 	sub_bus = current_bus;
-	
+
 	if (hose->first_devfn)
 		devfn_start = hose->first_devfn;
 	if (hose->last_devfn)
 		devfn_stop = hose->last_devfn;
-	
+
 	for (pci_devfn=devfn_start; pci_devfn<devfn_stop; pci_devfn++) {
 
 		if (PCI_FUNC(pci_devfn) && !found_multi)
@@ -471,9 +460,6 @@ pciauto_bus_scan(struct pci_channel *hose, int top_bus, int current_bus)
 		if ((pci_class >> 16) == PCI_CLASS_BRIDGE_PCI) {
 			DBG("        Bridge: primary=%.2x, secondary=%.2x\n",
 				current_bus, sub_bus + 1);
-#if defined(CONFIG_SH_HS7751RVOIP) || defined(CONFIG_SH_RTS7751R2D)
-			pciauto_setup_bars(hose, top_bus, current_bus, pci_devfn, PCI_BASE_ADDRESS_1);
-#endif
 			pciauto_prescan_setup_bridge(hose, top_bus, current_bus,
 						     pci_devfn, sub_bus);
 			DBG("Scanning sub bus %.2x, I/O 0x%.8x, Mem 0x%.8x\n",
@@ -490,10 +476,10 @@ pciauto_bus_scan(struct pci_channel *hose, int top_bus, int current_bus)
 			DBG("PCI Autoconfig: Found CardBus bridge, device %d function %d\n", PCI_SLOT(pci_devfn), PCI_FUNC(pci_devfn));
 			/* Place CardBus Socket/ExCA registers */
 			pciauto_setup_bars(hose, top_bus, current_bus, pci_devfn, PCI_BASE_ADDRESS_0);
- 
+
 			pciauto_prescan_setup_cardbus_bridge(hose, top_bus,
 					current_bus, pci_devfn, sub_bus);
- 
+
 			DBG("Scanning sub bus %.2x, I/O 0x%.8x, Mem 0x%.8x\n",
 				sub_bus + 1,
 				pciauto_lower_iospc, pciauto_lower_memspc);

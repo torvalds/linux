@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/platforms/mvme5100.h
+ * arch/ppc/platforms/mvme5100.h
  *
  * Definitions for Motorola MVME5100.
  *

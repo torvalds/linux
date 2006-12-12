@@ -51,7 +51,7 @@ more complex object types. It provides a set of basic fields that
 almost all complex data types share. kobjects are intended to be
 embedded in larger data structures and replace fields they duplicate. 
 
-1.2 Defintion
+1.2 Definition
 
 struct kobject {
 	char			name[KOBJ_NAME_LEN];

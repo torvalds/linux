@@ -166,7 +166,7 @@ static inline int match_futex(union futex_key *key1, union futex_key *key2)
 /*
  * Get parameters which are the keys for a futex.
  *
- * For shared mappings, it's (page->index, vma->vm_file->f_dentry->d_inode,
+ * For shared mappings, it's (page->index, vma->vm_file->f_path.dentry->d_inode,
  * offset_within_page).  For private mappings, it's (uaddr, current->mm).
  * We can usually work out the index without swapping in the page.
  *
@@ -223,7 +223,7 @@ static int get_futex_key(u32 __user *uaddr, union futex_key *key)
 	/*
 	 * Linear file mappings are also simple.
 	 */
-	key->shared.inode = vma->vm_file->f_dentry->d_inode;
+	key->shared.inode = vma->vm_file->f_path.dentry->d_inode;
 	key->both.offset++; /* Bit 0 of offset indicates inode-based key. */
 	if (likely(!(vma->vm_flags & VM_NONLINEAR))) {
 		key->shared.pgoff = (((address - vma->vm_start) >> PAGE_SHIFT)
@@ -282,9 +282,9 @@ static inline int get_futex_value_locked(u32 *dest, u32 __user *from)
 {
 	int ret;
 
-	inc_preempt_count();
+	pagefault_disable();
 	ret = __copy_from_user_inatomic(dest, from, sizeof(u32));
-	dec_preempt_count();
+	pagefault_enable();
 
 	return ret ? -EFAULT : 0;
 }
@@ -324,12 +324,11 @@ static int refill_pi_state_cache(void)
 	if (likely(current->pi_state_cache))
 		return 0;
 
-	pi_state = kmalloc(sizeof(*pi_state), GFP_KERNEL);
+	pi_state = kzalloc(sizeof(*pi_state), GFP_KERNEL);
 
 	if (!pi_state)
 		return -ENOMEM;
 
-	memset(pi_state, 0, sizeof(*pi_state));
 	INIT_LIST_HEAD(&pi_state->list);
 	/* pi_mutex gets initialized later */
 	pi_state->owner = NULL;
@@ -389,7 +388,7 @@ static struct task_struct * futex_find_get_task(pid_t pid)
 {
 	struct task_struct *p;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	p = find_task_by_pid(pid);
 	if (!p)
 		goto out_unlock;
@@ -403,7 +402,7 @@ static struct task_struct * futex_find_get_task(pid_t pid)
 	}
 	get_task_struct(p);
 out_unlock:
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 
 	return p;
 }
@@ -553,7 +552,7 @@ static void wake_futex(struct futex_q *q)
 	 * at the end of wake_up_all() does not prevent this store from
 	 * moving.
 	 */
-	wmb();
+	smp_wmb();
 	q->lock_ptr = NULL;
 }
 
@@ -585,9 +584,9 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
 	if (!(uval & FUTEX_OWNER_DIED)) {
 		newval = FUTEX_WAITERS | new_owner->pid;
 
-		inc_preempt_count();
+		pagefault_disable();
 		curval = futex_atomic_cmpxchg_inatomic(uaddr, uval, newval);
-		dec_preempt_count();
+		pagefault_enable();
 		if (curval == -EFAULT)
 			return -EFAULT;
 		if (curval != uval)
@@ -618,9 +617,9 @@ static int unlock_futex_pi(u32 __user *uaddr, u32 uval)
 	 * There is no waiter, so we unlock the futex. The owner died
 	 * bit has not to be preserved here. We are the owner:
 	 */
-	inc_preempt_count();
+	pagefault_disable();
 	oldval = futex_atomic_cmpxchg_inatomic(uaddr, uval, 0);
-	dec_preempt_count();
+	pagefault_enable();
 
 	if (oldval == -EFAULT)
 		return oldval;
@@ -1158,9 +1157,9 @@ static int futex_lock_pi(u32 __user *uaddr, int detect, unsigned long sec,
 	 */
 	newval = current->pid;
 
-	inc_preempt_count();
+	pagefault_disable();
 	curval = futex_atomic_cmpxchg_inatomic(uaddr, 0, newval);
-	dec_preempt_count();
+	pagefault_enable();
 
 	if (unlikely(curval == -EFAULT))
 		goto uaddr_faulted;
@@ -1183,9 +1182,9 @@ static int futex_lock_pi(u32 __user *uaddr, int detect, unsigned long sec,
 	uval = curval;
 	newval = uval | FUTEX_WAITERS;
 
-	inc_preempt_count();
+	pagefault_disable();
 	curval = futex_atomic_cmpxchg_inatomic(uaddr, uval, newval);
-	dec_preempt_count();
+	pagefault_enable();
 
 	if (unlikely(curval == -EFAULT))
 		goto uaddr_faulted;
@@ -1215,10 +1214,10 @@ static int futex_lock_pi(u32 __user *uaddr, int detect, unsigned long sec,
 			newval = current->pid |
 				FUTEX_OWNER_DIED | FUTEX_WAITERS;
 
-			inc_preempt_count();
+			pagefault_disable();
 			curval = futex_atomic_cmpxchg_inatomic(uaddr,
 							       uval, newval);
-			dec_preempt_count();
+			pagefault_enable();
 
 			if (unlikely(curval == -EFAULT))
 				goto uaddr_faulted;
@@ -1390,9 +1389,9 @@ retry_locked:
 	 * anyone else up:
 	 */
 	if (!(uval & FUTEX_OWNER_DIED)) {
-		inc_preempt_count();
+		pagefault_disable();
 		uval = futex_atomic_cmpxchg_inatomic(uaddr, current->pid, 0);
-		dec_preempt_count();
+		pagefault_enable();
 	}
 
 	if (unlikely(uval == -EFAULT))
@@ -1493,7 +1492,7 @@ static unsigned int futex_poll(struct file *filp,
 	return ret;
 }
 
-static struct file_operations futex_fops = {
+static const struct file_operations futex_fops = {
 	.release	= futex_close,
 	.poll		= futex_poll,
 };
@@ -1507,6 +1506,13 @@ static int futex_fd(u32 __user *uaddr, int signal)
 	struct futex_q *q;
 	struct file *filp;
 	int ret, err;
+	static unsigned long printk_interval;
+
+	if (printk_timed_ratelimit(&printk_interval, 60 * 60 * 1000)) {
+		printk(KERN_WARNING "Process `%s' used FUTEX_FD, which "
+		    	"will be removed from the kernel in June 2007\n",
+			current->comm);
+	}
 
 	ret = -EINVAL;
 	if (!valid_signal(signal))
@@ -1522,12 +1528,12 @@ static int futex_fd(u32 __user *uaddr, int signal)
 		goto out;
 	}
 	filp->f_op = &futex_fops;
-	filp->f_vfsmnt = mntget(futex_mnt);
-	filp->f_dentry = dget(futex_mnt->mnt_root);
-	filp->f_mapping = filp->f_dentry->d_inode->i_mapping;
+	filp->f_path.mnt = mntget(futex_mnt);
+	filp->f_path.dentry = dget(futex_mnt->mnt_root);
+	filp->f_mapping = filp->f_path.dentry->d_inode->i_mapping;
 
 	if (signal) {
-		err = f_setown(filp, current->pid, 1);
+		err = __f_setown(filp, task_pid(current), PIDTYPE_PID, 1);
 		if (err < 0) {
 			goto error;
 		}
@@ -1612,10 +1618,10 @@ sys_set_robust_list(struct robust_list_head __user *head,
  * @len_ptr: pointer to a length field, the kernel fills in the header size
  */
 asmlinkage long
-sys_get_robust_list(int pid, struct robust_list_head __user **head_ptr,
+sys_get_robust_list(int pid, struct robust_list_head __user * __user *head_ptr,
 		    size_t __user *len_ptr)
 {
-	struct robust_list_head *head;
+	struct robust_list_head __user *head;
 	unsigned long ret;
 
 	if (!pid)
@@ -1624,7 +1630,7 @@ sys_get_robust_list(int pid, struct robust_list_head __user **head_ptr,
 		struct task_struct *p;
 
 		ret = -ESRCH;
-		read_lock(&tasklist_lock);
+		rcu_read_lock();
 		p = find_task_by_pid(pid);
 		if (!p)
 			goto err_unlock;
@@ -1633,7 +1639,7 @@ sys_get_robust_list(int pid, struct robust_list_head __user **head_ptr,
 				!capable(CAP_SYS_PTRACE))
 			goto err_unlock;
 		head = p->robust_list;
-		read_unlock(&tasklist_lock);
+		rcu_read_unlock();
 	}
 
 	if (put_user(sizeof(*head), len_ptr))
@@ -1641,7 +1647,7 @@ sys_get_robust_list(int pid, struct robust_list_head __user **head_ptr,
 	return put_user(head, head_ptr);
 
 err_unlock:
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 
 	return ret;
 }
@@ -1694,14 +1700,15 @@ retry:
  * Fetch a robust-list pointer. Bit 0 signals PI futexes:
  */
 static inline int fetch_robust_entry(struct robust_list __user **entry,
-				     struct robust_list __user **head, int *pi)
+				     struct robust_list __user * __user *head,
+				     int *pi)
 {
 	unsigned long uentry;
 
-	if (get_user(uentry, (unsigned long *)head))
+	if (get_user(uentry, (unsigned long __user *)head))
 		return -EFAULT;
 
-	*entry = (void *)(uentry & ~1UL);
+	*entry = (void __user *)(uentry & ~1UL);
 	*pi = uentry & 1;
 
 	return 0;
@@ -1739,7 +1746,7 @@ void exit_robust_list(struct task_struct *curr)
 		return;
 
 	if (pending)
-		handle_futex_death((void *)pending + futex_offset, curr, pip);
+		handle_futex_death((void __user *)pending + futex_offset, curr, pip);
 
 	while (entry != &head->list) {
 		/*
@@ -1747,7 +1754,7 @@ void exit_robust_list(struct task_struct *curr)
 		 * don't process it twice:
 		 */
 		if (entry != pending)
-			if (handle_futex_death((void *)entry + futex_offset,
+			if (handle_futex_death((void __user *)entry + futex_offset,
 						curr, pi))
 				return;
 		/*
@@ -1850,10 +1857,16 @@ static struct file_system_type futex_fs_type = {
 
 static int __init init(void)
 {
-	unsigned int i;
+	int i = register_filesystem(&futex_fs_type);
 
-	register_filesystem(&futex_fs_type);
+	if (i)
+		return i;
+
 	futex_mnt = kern_mount(&futex_fs_type);
+	if (IS_ERR(futex_mnt)) {
+		unregister_filesystem(&futex_fs_type);
+		return PTR_ERR(futex_mnt);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(futex_queues); i++) {
 		INIT_LIST_HEAD(&futex_queues[i].chain);

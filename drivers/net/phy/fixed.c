@@ -13,7 +13,6 @@
  * option) any later version.
  *
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
@@ -255,7 +254,7 @@ static int fixed_mdio_register_device(int number, int speed, int duplex)
 		goto device_create_fail;
 	}
 
-	phydev->irq = -1;
+	phydev->irq = PHY_IGNORE_INTERRUPT;
 	phydev->dev.bus = &mdio_bus_type;
 
 	if(number)
@@ -289,8 +288,12 @@ static int fixed_mdio_register_device(int number, int speed, int duplex)
 		goto probe_fail;
 	}
 
-	device_bind_driver(&phydev->dev);
+	err = device_bind_driver(&phydev->dev);
+
 	up_write(&phydev->dev.bus->subsys.rwsem);
+
+	if (err)
+		goto probe_fail;
 
 	return 0;
 

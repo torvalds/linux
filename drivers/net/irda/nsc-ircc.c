@@ -110,7 +110,7 @@ static nsc_chip_t chips[] = {
 	{ "PC87338", { 0x398, 0x15c, 0x2e }, 0x08, 0xb0, 0xf8, 
 	  nsc_ircc_probe_338, nsc_ircc_init_338 },
 	/* Contributed by Steffen Pingel - IBM X40 */
-	{ "PC8738x", { 0x164e, 0x4e, 0x0 }, 0x20, 0xf4, 0xff,
+	{ "PC8738x", { 0x164e, 0x4e, 0x2e }, 0x20, 0xf4, 0xff,
 	  nsc_ircc_probe_39x, nsc_ircc_init_39x },
 	/* Contributed by Jan Frey - IBM A30/A31 */
 	{ "PC8739x", { 0x2e, 0x4e, 0x0 }, 0x20, 0xea, 0xff, 
@@ -2066,20 +2066,14 @@ static void nsc_ircc_fir_interrupt(struct nsc_ircc_cb *self, int iobase,
  *    An interrupt from the chip has arrived. Time to do some work
  *
  */
-static irqreturn_t nsc_ircc_interrupt(int irq, void *dev_id,
-				struct pt_regs *regs)
+static irqreturn_t nsc_ircc_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	struct nsc_ircc_cb *self;
 	__u8 bsr, eir;
 	int iobase;
 
-	if (!dev) {
-		IRDA_WARNING("%s: irq %d for unknown device.\n",
-			     driver_name, irq);
-		return IRQ_NONE;
-	}
-	self = (struct nsc_ircc_cb *) dev->priv;
+	self = dev->priv;
 
 	spin_lock(&self->lock);	
 

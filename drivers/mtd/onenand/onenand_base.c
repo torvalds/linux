@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/mtd/onenand/onenand_base.c
  *
- *  Copyright (C) 2005 Samsung Electronics
+ *  Copyright (C) 2005-2006 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -199,6 +199,7 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 	case ONENAND_CMD_UNLOCK:
 	case ONENAND_CMD_LOCK:
 	case ONENAND_CMD_LOCK_TIGHT:
+	case ONENAND_CMD_UNLOCK_ALL:
 		block = -1;
 		page = -1;
 		break;
@@ -1211,11 +1212,11 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 	end = len >> this->erase_shift;
 
 	/* Continuous lock scheme */
-	if (this->options & ONENAND_CONT_LOCK) {
+	if (this->options & ONENAND_HAS_CONT_LOCK) {
 		/* Set start block address */
 		this->write_word(start, this->base + ONENAND_REG_START_BLOCK_ADDRESS);
 		/* Set end block address */
-		this->write_word(end - 1, this->base + ONENAND_REG_END_BLOCK_ADDRESS);
+		this->write_word(start + end - 1, this->base + ONENAND_REG_END_BLOCK_ADDRESS);
 		/* Write unlock command */
 		this->command(mtd, ONENAND_CMD_UNLOCK, 0, 0);
 
@@ -1236,7 +1237,7 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 	}
 
 	/* Block lock scheme */
-	for (block = start; block < end; block++) {
+	for (block = start; block < start + end; block++) {
 		/* Set block address */
 		value = onenand_block_address(this, block);
 		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS1);
@@ -1261,6 +1262,79 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 		if (!(status & ONENAND_WP_US))
 			printk(KERN_ERR "block = %d, wp status = 0x%x\n", block, status);
 	}
+
+	return 0;
+}
+
+/**
+ * onenand_check_lock_status - [OneNAND Interface] Check lock status
+ * @param this		onenand chip data structure
+ *
+ * Check lock status
+ */
+static void onenand_check_lock_status(struct onenand_chip *this)
+{
+	unsigned int value, block, status;
+	unsigned int end;
+
+	end = this->chipsize >> this->erase_shift;
+	for (block = 0; block < end; block++) {
+		/* Set block address */
+		value = onenand_block_address(this, block);
+		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS1);
+		/* Select DataRAM for DDP */
+		value = onenand_bufferram_address(this, block);
+		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
+		/* Set start block address */
+		this->write_word(block, this->base + ONENAND_REG_START_BLOCK_ADDRESS);
+
+		/* Check lock status */
+		status = this->read_word(this->base + ONENAND_REG_WP_STATUS);
+		if (!(status & ONENAND_WP_US))
+			printk(KERN_ERR "block = %d, wp status = 0x%x\n", block, status);
+	}
+}
+
+/**
+ * onenand_unlock_all - [OneNAND Interface] unlock all blocks
+ * @param mtd		MTD device structure
+ *
+ * Unlock all blocks
+ */
+static int onenand_unlock_all(struct mtd_info *mtd)
+{
+	struct onenand_chip *this = mtd->priv;
+
+	if (this->options & ONENAND_HAS_UNLOCK_ALL) {
+		/* Write unlock command */
+		this->command(mtd, ONENAND_CMD_UNLOCK_ALL, 0, 0);
+
+		/* There's no return value */
+		this->wait(mtd, FL_UNLOCKING);
+
+		/* Sanity check */
+		while (this->read_word(this->base + ONENAND_REG_CTRL_STATUS)
+		    & ONENAND_CTRL_ONGO)
+			continue;
+
+		/* Workaround for all block unlock in DDP */
+		if (this->device_id & ONENAND_DEVICE_IS_DDP) {
+			loff_t ofs;
+			size_t len;
+
+			/* 1st block on another chip */
+			ofs = this->chipsize >> 1;
+			len = 1 << this->erase_shift;
+
+			onenand_unlock(mtd, ofs, len);
+		}
+
+		onenand_check_lock_status(this);
+
+		return 0;
+	}
+
+	mtd->unlock(mtd, 0x0, this->chipsize);
 
 	return 0;
 }
@@ -1564,12 +1638,43 @@ static int onenand_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
 #endif	/* CONFIG_MTD_ONENAND_OTP */
 
 /**
+ * onenand_lock_scheme - Check and set OneNAND lock scheme
+ * @param mtd		MTD data structure
+ *
+ * Check and set OneNAND lock scheme
+ */
+static void onenand_lock_scheme(struct mtd_info *mtd)
+{
+	struct onenand_chip *this = mtd->priv;
+	unsigned int density, process;
+
+	/* Lock scheme depends on density and process */
+	density = this->device_id >> ONENAND_DEVICE_DENSITY_SHIFT;
+	process = this->version_id >> ONENAND_VERSION_PROCESS_SHIFT;
+
+	/* Lock scheme */
+	if (density >= ONENAND_DEVICE_DENSITY_1Gb) {
+		/* A-Die has all block unlock */
+		if (process) {
+			printk(KERN_DEBUG "Chip support all block unlock\n");
+			this->options |= ONENAND_HAS_UNLOCK_ALL;
+		}
+	} else {
+		/* Some OneNAND has continues lock scheme */
+		if (!process) {
+			printk(KERN_DEBUG "Lock scheme is Continues Lock\n");
+			this->options |= ONENAND_HAS_CONT_LOCK;
+		}
+	}
+}
+
+/**
  * onenand_print_device_info - Print device ID
  * @param device        device ID
  *
  * Print device ID
  */
-static void onenand_print_device_info(int device)
+static void onenand_print_device_info(int device, int version)
 {
         int vcc, demuxed, ddp, density;
 
@@ -1583,6 +1688,7 @@ static void onenand_print_device_info(int device)
                 (16 << density),
                 vcc ? "2.65/3.3" : "1.8",
                 device);
+	printk(KERN_DEBUG "OneNAND version = 0x%04x\n", version);
 }
 
 static const struct onenand_manufacturers onenand_manuf_ids[] = {
@@ -1625,9 +1731,14 @@ static int onenand_check_maf(int manuf)
 static int onenand_probe(struct mtd_info *mtd)
 {
 	struct onenand_chip *this = mtd->priv;
-	int bram_maf_id, bram_dev_id, maf_id, dev_id;
-	int version_id;
+	int bram_maf_id, bram_dev_id, maf_id, dev_id, ver_id;
 	int density;
+	int syscfg;
+
+	/* Save system configuration 1 */
+	syscfg = this->read_word(this->base + ONENAND_REG_SYS_CFG1);
+	/* Clear Sync. Burst Read mode to read BootRAM */
+	this->write_word((syscfg & ~ONENAND_SYS_CFG1_SYNC_READ), this->base + ONENAND_REG_SYS_CFG1);
 
 	/* Send the command for reading device ID from BootRAM */
 	this->write_word(ONENAND_CMD_READID, this->base + ONENAND_BOOTRAM);
@@ -1636,24 +1747,31 @@ static int onenand_probe(struct mtd_info *mtd)
 	bram_maf_id = this->read_word(this->base + ONENAND_BOOTRAM + 0x0);
 	bram_dev_id = this->read_word(this->base + ONENAND_BOOTRAM + 0x2);
 
+	/* Reset OneNAND to read default register values */
+	this->write_word(ONENAND_CMD_RESET, this->base + ONENAND_BOOTRAM);
+	/* Wait reset */
+	this->wait(mtd, FL_RESETING);
+
+	/* Restore system configuration 1 */
+	this->write_word(syscfg, this->base + ONENAND_REG_SYS_CFG1);
+
 	/* Check manufacturer ID */
 	if (onenand_check_maf(bram_maf_id))
 		return -ENXIO;
 
-	/* Reset OneNAND to read default register values */
-	this->write_word(ONENAND_CMD_RESET, this->base + ONENAND_BOOTRAM);
-
 	/* Read manufacturer and device IDs from Register */
 	maf_id = this->read_word(this->base + ONENAND_REG_MANUFACTURER_ID);
 	dev_id = this->read_word(this->base + ONENAND_REG_DEVICE_ID);
+	ver_id= this->read_word(this->base + ONENAND_REG_VERSION_ID);
 
 	/* Check OneNAND device */
 	if (maf_id != bram_maf_id || dev_id != bram_dev_id)
 		return -ENXIO;
 
 	/* Flash device information */
-	onenand_print_device_info(dev_id);
+	onenand_print_device_info(dev_id, ver_id);
 	this->device_id = dev_id;
+	this->version_id = ver_id;
 
 	density = dev_id >> ONENAND_DEVICE_DENSITY_SHIFT;
 	this->chipsize = (16 << density) << 20;
@@ -1676,16 +1794,8 @@ static int onenand_probe(struct mtd_info *mtd)
 
 	mtd->size = this->chipsize;
 
-	/* Version ID */
-	version_id = this->read_word(this->base + ONENAND_REG_VERSION_ID);
-	printk(KERN_DEBUG "OneNAND version = 0x%04x\n", version_id);
-
-	/* Lock scheme */
-	if (density <= ONENAND_DEVICE_DENSITY_512Mb &&
-	    !(version_id >> ONENAND_VERSION_PROCESS_SHIFT)) {
-		printk(KERN_INFO "Lock scheme is Continues Lock\n");
-		this->options |= ONENAND_CONT_LOCK;
-	}
+	/* Check OneNAND lock scheme */
+	onenand_lock_scheme(mtd);
 
 	return 0;
 }
@@ -1821,7 +1931,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->owner = THIS_MODULE;
 
 	/* Unlock whole block */
-	mtd->unlock(mtd, 0x0, this->chipsize);
+	onenand_unlock_all(mtd);
 
 	return this->scan_bbt(mtd);
 }

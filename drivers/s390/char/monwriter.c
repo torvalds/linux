@@ -26,6 +26,7 @@
 #define MONWRITE_MAX_DATALEN	4024
 
 static int mon_max_bufs = 255;
+static int mon_buf_count;
 
 struct mon_buf {
 	struct list_head list;
@@ -40,7 +41,6 @@ struct mon_private {
 	size_t hdr_to_read;
 	size_t data_to_read;
 	struct mon_buf *current_buf;
-	int mon_buf_count;
 };
 
 /*
@@ -73,12 +73,15 @@ static inline struct mon_buf *monwrite_find_hdr(struct mon_private *monpriv,
 	struct mon_buf *entry, *next;
 
 	list_for_each_entry_safe(entry, next, &monpriv->list, list)
-		if (entry->hdr.applid == monhdr->applid &&
+		if ((entry->hdr.mon_function == monhdr->mon_function ||
+		     monhdr->mon_function == MONWRITE_STOP_INTERVAL) &&
+		    entry->hdr.applid == monhdr->applid &&
 		    entry->hdr.record_num == monhdr->record_num &&
 		    entry->hdr.version == monhdr->version &&
 		    entry->hdr.release == monhdr->release &&
 		    entry->hdr.mod_level == monhdr->mod_level)
 			return entry;
+
 	return NULL;
 }
 
@@ -92,25 +95,27 @@ static int monwrite_new_hdr(struct mon_private *monpriv)
 	    monhdr->mon_function > MONWRITE_START_CONFIG ||
 	    monhdr->hdrlen != sizeof(struct monwrite_hdr))
 		return -EINVAL;
-	monbuf = monwrite_find_hdr(monpriv, monhdr);
+	monbuf = NULL;
+	if (monhdr->mon_function != MONWRITE_GEN_EVENT)
+		monbuf = monwrite_find_hdr(monpriv, monhdr);
 	if (monbuf) {
 		if (monhdr->mon_function == MONWRITE_STOP_INTERVAL) {
 			monhdr->datalen = monbuf->hdr.datalen;
 			rc = monwrite_diag(monhdr, monbuf->data,
 					   APPLDATA_STOP_REC);
 			list_del(&monbuf->list);
-			monpriv->mon_buf_count--;
+			mon_buf_count--;
 			kfree(monbuf->data);
 			kfree(monbuf);
 			monbuf = NULL;
 		}
-	} else {
-		if (monpriv->mon_buf_count >= mon_max_bufs)
+	} else if (monhdr->mon_function != MONWRITE_STOP_INTERVAL) {
+		if (mon_buf_count >= mon_max_bufs)
 			return -ENOSPC;
 		monbuf = kzalloc(sizeof(struct mon_buf), GFP_KERNEL);
 		if (!monbuf)
 			return -ENOMEM;
-		monbuf->data = kzalloc(monbuf->hdr.datalen,
+		monbuf->data = kzalloc(monhdr->datalen,
 				       GFP_KERNEL | GFP_DMA);
 		if (!monbuf->data) {
 			kfree(monbuf);
@@ -118,7 +123,8 @@ static int monwrite_new_hdr(struct mon_private *monpriv)
 		}
 		monbuf->hdr = *monhdr;
 		list_add_tail(&monbuf->list, &monpriv->list);
-		monpriv->mon_buf_count++;
+		if (monhdr->mon_function != MONWRITE_GEN_EVENT)
+			mon_buf_count++;
 	}
 	monpriv->current_buf = monbuf;
 	return 0;
@@ -186,7 +192,7 @@ static int monwrite_close(struct inode *inode, struct file *filp)
 		if (entry->hdr.mon_function != MONWRITE_GEN_EVENT)
 			monwrite_diag(&entry->hdr, entry->data,
 				      APPLDATA_STOP_REC);
-		monpriv->mon_buf_count--;
+		mon_buf_count--;
 		list_del(&entry->list);
 		kfree(entry->data);
 		kfree(entry);

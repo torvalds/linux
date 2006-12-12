@@ -1,5 +1,5 @@
 /*
- * sound/sb_common.c
+ * sound/oss/sb_common.c
  *
  * Common routines for Sound Blaster compatible cards.
  *
@@ -132,7 +132,7 @@ static void sb_intr (sb_devc *devc)
 
 		if (src & 4)						/* MPU401 interrupt */
 			if(devc->midi_irq_cookie)
-				uart401intr(devc->irq, devc->midi_irq_cookie, NULL);
+				uart401intr(devc->irq, devc->midi_irq_cookie);
 
 		if (!(src & 3))
 			return;	/* Not a DSP interrupt */
@@ -200,7 +200,7 @@ static void pci_intr(sb_devc *devc)
 		sb_intr(devc);
 }
 
-static irqreturn_t sbintr(int irq, void *dev_id, struct pt_regs *dummy)
+static irqreturn_t sbintr(int irq, void *dev_id)
 {
 	sb_devc *devc = dev_id;
 

@@ -49,7 +49,6 @@
  *	More info available at http://www.berkprod.com/ or http://www.pcwatchdog.com/
  */
 
-#include <linux/config.h>	/* For CONFIG_WATCHDOG_NOWAYOUT/... */
 #include <linux/module.h>	/* For module specific items */
 #include <linux/moduleparam.h>	/* For new moduleparam's */
 #include <linux/types.h>	/* For standard types (like size_t) */
@@ -572,7 +571,7 @@ static int pcwd_ioctl(struct inode *inode, struct file *file,
 
 	switch(cmd) {
 	default:
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 
 	case WDIOC_GETSUPPORT:
 		if(copy_to_user(argp, &ident, sizeof(ident)))

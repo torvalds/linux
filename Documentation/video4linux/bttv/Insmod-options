@@ -54,6 +54,12 @@ bttv.o
 				dropouts.
 		chroma_agc=0/1	AGC of chroma signal, off by default.
 		adc_crush=0/1	Luminance ADC crush, on by default.
+		i2c_udelay=     Allow reduce I2C speed. Default is 5 usecs
+				(meaning 66,67 Kbps). The default is the
+				maximum supported speed by kernel bitbang
+				algoritm. You may use lower numbers, if I2C
+				messages are lost (16 is known to work on
+				all supported cards).
 
 		bttv_gpio=0/1
 		gpiomask=

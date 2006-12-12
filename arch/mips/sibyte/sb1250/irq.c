@@ -28,7 +28,6 @@
 #include <asm/errno.h>
 #include <asm/signal.h>
 #include <asm/system.h>
-#include <asm/ptrace.h>
 #include <asm/io.h>
 
 #include <asm/sibyte/sb1250_regs.h>
@@ -45,11 +44,9 @@
  */
 
 
-#define shutdown_sb1250_irq	disable_sb1250_irq
 static void end_sb1250_irq(unsigned int irq);
 static void enable_sb1250_irq(unsigned int irq);
 static void disable_sb1250_irq(unsigned int irq);
-static unsigned int startup_sb1250_irq(unsigned int irq);
 static void ack_sb1250_irq(unsigned int irq);
 #ifdef CONFIG_SMP
 static void sb1250_set_affinity(unsigned int irq, cpumask_t mask);
@@ -71,11 +68,10 @@ extern char sb1250_duart_present[];
 
 static struct irq_chip sb1250_irq_type = {
 	.typename = "SB1250-IMR",
-	.startup = startup_sb1250_irq,
-	.shutdown = shutdown_sb1250_irq,
-	.enable = enable_sb1250_irq,
-	.disable = disable_sb1250_irq,
 	.ack = ack_sb1250_irq,
+	.mask = disable_sb1250_irq,
+	.mask_ack = ack_sb1250_irq,
+	.unmask = enable_sb1250_irq,
 	.end = end_sb1250_irq,
 #ifdef CONFIG_SMP
 	.set_affinity = sb1250_set_affinity
@@ -164,14 +160,6 @@ static void sb1250_set_affinity(unsigned int irq, cpumask_t mask)
 
 /*****************************************************************************/
 
-static unsigned int startup_sb1250_irq(unsigned int irq)
-{
-	sb1250_unmask_irq(sb1250_irq_owner[irq], irq);
-
-	return 0;		/* never anything pending */
-}
-
-
 static void disable_sb1250_irq(unsigned int irq)
 {
 	sb1250_mask_irq(sb1250_irq_owner[irq], irq);
@@ -240,22 +228,14 @@ void __init init_sb1250_irqs(void)
 {
 	int i;
 
-	for (i = 0; i < NR_IRQS; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = 0;
-		irq_desc[i].depth = 1;
-		if (i < SB1250_NR_IRQS) {
-			irq_desc[i].chip = &sb1250_irq_type;
-			sb1250_irq_owner[i] = 0;
-		} else {
-			irq_desc[i].chip = &no_irq_chip;
-		}
+	for (i = 0; i < SB1250_NR_IRQS; i++) {
+		set_irq_chip(i, &sb1250_irq_type);
+		sb1250_irq_owner[i] = 0;
 	}
 }
 
 
-static irqreturn_t  sb1250_dummy_handler(int irq, void *dev_id,
-	struct pt_regs *regs)
+static irqreturn_t  sb1250_dummy_handler(int irq, void *dev_id)
 {
 	return IRQ_NONE;
 }
@@ -403,7 +383,7 @@ void __init arch_init_irq(void)
 #define duart_out(reg, val)     csr_out32(val, IOADDR(A_DUART_CHANREG(kgdb_port,reg)))
 #define duart_in(reg)           csr_in32(IOADDR(A_DUART_CHANREG(kgdb_port,reg)))
 
-static void sb1250_kgdb_interrupt(struct pt_regs *regs)
+static void sb1250_kgdb_interrupt(void)
 {
 	/*
 	 * Clear break-change status (allow some time for the remote
@@ -414,31 +394,15 @@ static void sb1250_kgdb_interrupt(struct pt_regs *regs)
 	mdelay(500);
 	duart_out(R_DUART_CMD, V_DUART_MISC_CMD_RESET_BREAK_INT |
 				M_DUART_RX_EN | M_DUART_TX_EN);
-	set_async_breakpoint(&regs->cp0_epc);
+	set_async_breakpoint(&get_irq_regs()->cp0_epc);
 }
 
 #endif 	/* CONFIG_KGDB */
 
-static inline int dclz(unsigned long long x)
-{
-	int lz;
+extern void sb1250_timer_interrupt(void);
+extern void sb1250_mailbox_interrupt(void);
 
-	__asm__ (
-	"	.set	push						\n"
-	"	.set	mips64						\n"
-	"	dclz	%0, %1						\n"
-	"	.set	pop						\n"
-	: "=r" (lz)
-	: "r" (x));
-
-	return lz;
-}
-
-extern void sb1250_timer_interrupt(struct pt_regs *regs);
-extern void sb1250_mailbox_interrupt(struct pt_regs *regs);
-extern void sb1250_kgdb_interrupt(struct pt_regs *regs);
-
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending;
 
@@ -457,25 +421,25 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 	 * blasting the high 32 bits.
 	 */
 
-	pending = read_c0_cause();
+	pending = read_c0_cause() & read_c0_status();
 
 #ifdef CONFIG_SIBYTE_SB1250_PROF
 	if (pending & CAUSEF_IP7) /* Cpu performance counter interrupt */
-		sbprof_cpu_intr(exception_epc(regs));
+		sbprof_cpu_intr();
 	else
 #endif
 
 	if (pending & CAUSEF_IP4)
-		sb1250_timer_interrupt(regs);
+		sb1250_timer_interrupt();
 
 #ifdef CONFIG_SMP
 	else if (pending & CAUSEF_IP3)
-		sb1250_mailbox_interrupt(regs);
+		sb1250_mailbox_interrupt();
 #endif
 
 #ifdef CONFIG_KGDB
 	else if (pending & CAUSEF_IP6)			/* KGDB (uart 1) */
-		sb1250_kgdb_interrupt(regs);
+		sb1250_kgdb_interrupt();
 #endif
 
 	else if (pending & CAUSEF_IP2) {
@@ -490,6 +454,9 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 		mask = __raw_readq(IOADDR(A_IMR_REGISTER(smp_processor_id(),
 		                              R_IMR_INTERRUPT_STATUS_BASE)));
 		if (mask)
-			do_IRQ(63 - dclz(mask), regs);
-	}
+			do_IRQ(fls64(mask) - 1);
+		else
+			spurious_interrupt();
+	} else
+		spurious_interrupt();
 }

@@ -297,8 +297,13 @@ static int patch_si3054(struct hda_codec *codec)
 struct hda_codec_preset snd_hda_preset_si3054[] = {
  	{ .id = 0x163c3055, .name = "Si3054", .patch = patch_si3054 },
  	{ .id = 0x163c3155, .name = "Si3054", .patch = patch_si3054 },
+ 	{ .id = 0x11c11040, .name = "Si3054", .patch = patch_si3054 },
  	{ .id = 0x11c13026, .name = "Si3054", .patch = patch_si3054 },
+ 	{ .id = 0x11c13055, .name = "Si3054", .patch = patch_si3054 },
+ 	{ .id = 0x11c13155, .name = "Si3054", .patch = patch_si3054 },
+ 	{ .id = 0x10573055, .name = "Si3054", .patch = patch_si3054 },
  	{ .id = 0x10573057, .name = "Si3054", .patch = patch_si3054 },
+ 	{ .id = 0x10573155, .name = "Si3054", .patch = patch_si3054 },
 	{}
 };
 

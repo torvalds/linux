@@ -82,11 +82,9 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/spinlock.h>
 #include <linux/types.h>
 
 extern u32 cached_kn02_csr;
-extern spinlock_t kn02_lock;
 extern void init_kn02_irqs(int base);
 #endif
 

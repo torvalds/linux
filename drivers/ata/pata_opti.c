@@ -34,7 +34,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_opti"
-#define DRV_VERSION "0.2.4"
+#define DRV_VERSION "0.2.7"
 
 enum {
 	READ_REG	= 0,	/* index of Read cycle timing register */
@@ -59,11 +59,9 @@ static int opti_pre_reset(struct ata_port *ap)
 		{ 0x40, 1, 0x08, 0x00 }
 	};
 
-	if (!pci_test_config_bits(pdev, &opti_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (!pci_test_config_bits(pdev, &opti_enable_bits[ap->port_no]))
+		return -ENOENT;
+
 	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
@@ -110,30 +108,6 @@ static void opti_write_reg(struct ata_port *ap, u8 val, int reg)
 	/* Relock */
 	outb(0x83, regio + 2);
 }
-
-#if 0
-/**
- *	opti_read_reg		-	control register read
- *	@ap: ATA port
- *	@reg: control register number
- *
- *	The Opti uses magic 'trapdoor' register accesses to do configuration
- *	rather than using PCI space as other controllers do. The double inw
- *	on the error register activates configuration mode. We can then read
- *	the control register
- */
-
-static u8 opti_read_reg(struct ata_port *ap, int reg)
-{
-	unsigned long regio = ap->ioaddr.cmd_addr;
-	u8 ret;
-	inw(regio + 1);
-	inw(regio + 1);
-	outb(3, regio + 2);
-	ret = inb(regio + reg);
-	outb(0x83, regio + 2);
-}
-#endif
 
 /**
  *	opti_set_piomode	-	set initial PIO mode data
@@ -197,20 +171,21 @@ static struct scsi_host_template opti_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations opti_port_ops = {
 	.port_disable	= ata_port_disable,
 	.set_piomode	= opti_set_piomode,
-/*	.set_dmamode	= opti_set_dmamode, */
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -229,7 +204,7 @@ static struct ata_port_operations opti_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -258,23 +233,25 @@ static int opti_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id opti[] = {
-	{ PCI_VENDOR_ID_OPTI, PCI_DEVICE_ID_OPTI_82C621, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_OPTI, PCI_DEVICE_ID_OPTI_82C825, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ 0, },
+	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C621), 0 },
+	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C825), 1 },
+
+	{ },
 };
 
 static struct pci_driver opti_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= opti,
 	.probe 		= opti_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= ata_pci_device_resume,
 };
 
 static int __init opti_init(void)
 {
 	return pci_register_driver(&opti_pci_driver);
 }
-
 
 static void __exit opti_exit(void)
 {

@@ -22,7 +22,6 @@
  *	Masahide NAKAMURA @USAGI
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/time.h>
@@ -263,10 +262,10 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb, struct
 	sel.proto = fl->proto;
 	sel.dport = xfrm_flowi_dport(fl);
 	if (sel.dport)
-		sel.dport_mask = ~((__u16)0);
+		sel.dport_mask = htons(~0);
 	sel.sport = xfrm_flowi_sport(fl);
 	if (sel.sport)
-		sel.sport_mask = ~((__u16)0);
+		sel.sport_mask = htons(~0);
 	sel.ifindex = fl->oif;
 
 	err = km_report(IPPROTO_DSTOPTS, &sel,

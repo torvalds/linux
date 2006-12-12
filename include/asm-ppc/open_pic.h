@@ -48,12 +48,12 @@ extern void openpic_init(int linux_irq_offset);
 extern void openpic_init_nmi_irq(u_int irq);
 extern void openpic_set_irq_priority(u_int irq, u_int pri);
 extern void openpic_hookup_cascade(u_int irq, char *name,
-				   int (*cascade_fn)(struct pt_regs *));
+				   int (*cascade_fn)(void));
 extern u_int openpic_irq(void);
 extern void openpic_eoi(void);
 extern void openpic_request_IPIs(void);
 extern void do_openpic_setup_cpu(void);
-extern int openpic_get_irq(struct pt_regs *regs);
+extern int openpic_get_irq(void);
 extern void openpic_reset_processor_phys(u_int cpumask);
 extern void openpic_setup_ISU(int isu_num, unsigned long addr);
 extern void openpic_cause_IPI(u_int ipi, cpumask_t cpumask);
@@ -93,6 +93,6 @@ extern void openpic2_init(int linux_irq_offset);
 extern void openpic2_init_nmi_irq(u_int irq);
 extern u_int openpic2_irq(void);
 extern void openpic2_eoi(void);
-extern int openpic2_get_irq(struct pt_regs *regs);
+extern int openpic2_get_irq(void);
 extern void openpic2_setup_ISU(int isu_num, unsigned long addr);
 #endif /* _PPC_KERNEL_OPEN_PIC_H */

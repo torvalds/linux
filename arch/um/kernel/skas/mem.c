@@ -3,7 +3,6 @@
  * Licensed under the GPL
  */
 
-#include "linux/config.h"
 #include "linux/mm.h"
 #include "asm/pgtable.h"
 #include "mem_user.h"

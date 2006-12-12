@@ -280,6 +280,7 @@ enum sis190_feature {
 struct sis190_private {
 	void __iomem *mmio_addr;
 	struct pci_dev *pci_dev;
+	struct net_device *dev;
 	struct net_device_stats stats;
 	spinlock_t lock;
 	u32 rx_buf_sz;
@@ -713,7 +714,7 @@ static void sis190_tx_interrupt(struct net_device *dev,
  * The interrupt handler does all of the Rx thread work and cleans up after
  * the Tx thread.
  */
-static irqreturn_t sis190_interrupt(int irq, void *__dev, struct pt_regs *regs)
+static irqreturn_t sis190_interrupt(int irq, void *__dev)
 {
 	struct net_device *dev = __dev;
 	struct sis190_private *tp = netdev_priv(dev);
@@ -758,7 +759,7 @@ static void sis190_netpoll(struct net_device *dev)
 	struct pci_dev *pdev = tp->pci_dev;
 
 	disable_irq(pdev->irq);
-	sis190_interrupt(pdev->irq, dev, NULL);
+	sis190_interrupt(pdev->irq, dev);
 	enable_irq(pdev->irq);
 }
 #endif
@@ -897,10 +898,11 @@ static void sis190_hw_start(struct net_device *dev)
 	netif_start_queue(dev);
 }
 
-static void sis190_phy_task(void * data)
+static void sis190_phy_task(struct work_struct *work)
 {
-	struct net_device *dev = data;
-	struct sis190_private *tp = netdev_priv(dev);
+	struct sis190_private *tp =
+		container_of(work, struct sis190_private, phy_task);
+	struct net_device *dev = tp->dev;
 	void __iomem *ioaddr = tp->mmio_addr;
 	int phy_id = tp->mii_if.phy_id;
 	u16 val;
@@ -1047,7 +1049,7 @@ static int sis190_open(struct net_device *dev)
 	if (rc < 0)
 		goto err_free_rx_1;
 
-	INIT_WORK(&tp->phy_task, sis190_phy_task, dev);
+	INIT_WORK(&tp->phy_task, sis190_phy_task);
 
 	sis190_request_timer(dev);
 
@@ -1436,6 +1438,7 @@ static struct net_device * __devinit sis190_init_board(struct pci_dev *pdev)
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	tp = netdev_priv(dev);
+	tp->dev = dev;
 	tp->msg_enable = netif_msg_init(debug.msg_enable, SIS190_MSG_DEFAULT);
 
 	rc = pci_enable_device(pdev);
@@ -1798,7 +1801,7 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 
 	sis190_init_rxfilter(dev);
 
-	INIT_WORK(&tp->phy_task, sis190_phy_task, dev);
+	INIT_WORK(&tp->phy_task, sis190_phy_task);
 
 	dev->open = sis190_open;
 	dev->stop = sis190_close;

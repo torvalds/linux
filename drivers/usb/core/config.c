@@ -475,7 +475,9 @@ int usb_get_configuration(struct usb_device *dev)
 		if (result < 0) {
 			dev_err(ddev, "unable to read config index %d "
 			    "descriptor/%s\n", cfgno, "start");
-			goto err;
+			dev_err(ddev, "chopping to %d config(s)\n", cfgno);
+			dev->descriptor.bNumConfigurations = cfgno;
+			break;
 		} else if (result < 4) {
 			dev_err(ddev, "config index %d descriptor too short "
 			    "(expected %i, got %i)\n", cfgno,

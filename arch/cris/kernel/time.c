@@ -37,7 +37,6 @@ int have_rtc;  /* used to remember if we have an RTC or not */;
 
 #define TICK_SIZE tick
 
-extern unsigned long wall_jiffies;
 extern unsigned long loops_per_jiffy; /* init/main.c */
 unsigned long loops_per_usec;
 
@@ -58,11 +57,6 @@ void do_gettimeofday(struct timeval *tv)
 	local_irq_save(flags);
 	local_irq_disable();
 	usec = do_gettimeoffset();
-	{
-		unsigned long lost = jiffies - wall_jiffies;
-		if (lost)
-			usec += lost * (1000000 / HZ);
-	}
 
         /*
 	 * If time_adjust is negative then NTP is slowing the clock
@@ -103,7 +97,6 @@ int do_settimeofday(struct timespec *tv)
 	 * made, and then undo it!
 	 */
 	nsec -= do_gettimeoffset() * NSEC_PER_USEC;
-	nsec -= (jiffies - wall_jiffies) * TICK_NSEC;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);

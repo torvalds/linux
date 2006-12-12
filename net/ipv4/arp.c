@@ -1,4 +1,4 @@
-/* linux/net/inet/arp.c
+/* linux/net/ipv4/arp.c
  *
  * Version:	$Id: arp.c,v 1.99 2001/08/30 22:55:42 davem Exp $
  *
@@ -203,7 +203,7 @@ struct neigh_table arp_tbl = {
 	.gc_thresh3 =	1024,
 };
 
-int arp_mc_map(u32 addr, u8 *haddr, struct net_device *dev, int dir)
+int arp_mc_map(__be32 addr, u8 *haddr, struct net_device *dev, int dir)
 {
 	switch (dev->type) {
 	case ARPHRD_ETHER:
@@ -234,7 +234,7 @@ static u32 arp_hash(const void *pkey, const struct net_device *dev)
 
 static int arp_constructor(struct neighbour *neigh)
 {
-	u32 addr = *(u32*)neigh->primary_key;
+	__be32 addr = *(__be32*)neigh->primary_key;
 	struct net_device *dev = neigh->dev;
 	struct in_device *in_dev;
 	struct neigh_parms *parms;
@@ -330,10 +330,10 @@ static void arp_error_report(struct neighbour *neigh, struct sk_buff *skb)
 
 static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 {
-	u32 saddr = 0;
+	__be32 saddr = 0;
 	u8  *dst_ha = NULL;
 	struct net_device *dev = neigh->dev;
-	u32 target = *(u32*)neigh->primary_key;
+	__be32 target = *(__be32*)neigh->primary_key;
 	int probes = atomic_read(&neigh->probes);
 	struct in_device *in_dev = in_dev_get(dev);
 
@@ -385,7 +385,7 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 }
 
 static int arp_ignore(struct in_device *in_dev, struct net_device *dev,
-		      u32 sip, u32 tip)
+		      __be32 sip, __be32 tip)
 {
 	int scope;
 
@@ -420,7 +420,7 @@ static int arp_ignore(struct in_device *in_dev, struct net_device *dev,
 	return !inet_confirm_addr(dev, sip, tip, scope);
 }
 
-static int arp_filter(__u32 sip, __u32 tip, struct net_device *dev)
+static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 {
 	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = sip,
 						 .saddr = tip } } };
@@ -449,7 +449,7 @@ static int arp_filter(__u32 sip, __u32 tip, struct net_device *dev)
  *	is allowed to use this function, it is scheduled to be removed. --ANK
  */
 
-static int arp_set_predefined(int addr_hint, unsigned char * haddr, u32 paddr, struct net_device * dev)
+static int arp_set_predefined(int addr_hint, unsigned char * haddr, __be32 paddr, struct net_device * dev)
 {
 	switch (addr_hint) {
 	case RTN_LOCAL:
@@ -470,7 +470,7 @@ static int arp_set_predefined(int addr_hint, unsigned char * haddr, u32 paddr, s
 int arp_find(unsigned char *haddr, struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
-	u32 paddr;
+	__be32 paddr;
 	struct neighbour *n;
 
 	if (!skb->dst) {
@@ -511,7 +511,7 @@ int arp_bind_neighbour(struct dst_entry *dst)
 	if (dev == NULL)
 		return -EINVAL;
 	if (n == NULL) {
-		u32 nexthop = ((struct rtable*)dst)->rt_gateway;
+		__be32 nexthop = ((struct rtable*)dst)->rt_gateway;
 		if (dev->flags&(IFF_LOOPBACK|IFF_POINTOPOINT))
 			nexthop = 0;
 		n = __neigh_lookup_errno(
@@ -560,8 +560,8 @@ static inline int arp_fwd_proxy(struct in_device *in_dev, struct rtable *rt)
  *	Create an arp packet. If (dest_hw == NULL), we create a broadcast
  *	message.
  */
-struct sk_buff *arp_create(int type, int ptype, u32 dest_ip,
-			   struct net_device *dev, u32 src_ip,
+struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
+			   struct net_device *dev, __be32 src_ip,
 			   unsigned char *dest_hw, unsigned char *src_hw,
 			   unsigned char *target_hw)
 {
@@ -675,8 +675,8 @@ void arp_xmit(struct sk_buff *skb)
 /*
  *	Create and send an arp packet.
  */
-void arp_send(int type, int ptype, u32 dest_ip, 
-	      struct net_device *dev, u32 src_ip, 
+void arp_send(int type, int ptype, __be32 dest_ip,
+	      struct net_device *dev, __be32 src_ip,
 	      unsigned char *dest_hw, unsigned char *src_hw,
 	      unsigned char *target_hw)
 {
@@ -710,7 +710,7 @@ static int arp_process(struct sk_buff *skb)
 	unsigned char *arp_ptr;
 	struct rtable *rt;
 	unsigned char *sha, *tha;
-	u32 sip, tip;
+	__be32 sip, tip;
 	u16 dev_type = dev->type;
 	int addr_type;
 	struct neighbour *n;
@@ -969,13 +969,13 @@ out_of_mem:
 
 static int arp_req_set(struct arpreq *r, struct net_device * dev)
 {
-	u32 ip = ((struct sockaddr_in *) &r->arp_pa)->sin_addr.s_addr;
+	__be32 ip = ((struct sockaddr_in *) &r->arp_pa)->sin_addr.s_addr;
 	struct neighbour *neigh;
 	int err;
 
 	if (r->arp_flags&ATF_PUBL) {
-		u32 mask = ((struct sockaddr_in *) &r->arp_netmask)->sin_addr.s_addr;
-		if (mask && mask != 0xFFFFFFFF)
+		__be32 mask = ((struct sockaddr_in *) &r->arp_netmask)->sin_addr.s_addr;
+		if (mask && mask != htonl(0xFFFFFFFF))
 			return -EINVAL;
 		if (!dev && (r->arp_flags & ATF_COM)) {
 			dev = dev_getbyhwaddr(r->arp_ha.sa_family, r->arp_ha.sa_data);
@@ -1063,7 +1063,7 @@ static unsigned arp_state_to_flags(struct neighbour *neigh)
 
 static int arp_req_get(struct arpreq *r, struct net_device *dev)
 {
-	u32 ip = ((struct sockaddr_in *) &r->arp_pa)->sin_addr.s_addr;
+	__be32 ip = ((struct sockaddr_in *) &r->arp_pa)->sin_addr.s_addr;
 	struct neighbour *neigh;
 	int err = -ENXIO;
 
@@ -1084,13 +1084,13 @@ static int arp_req_get(struct arpreq *r, struct net_device *dev)
 static int arp_req_delete(struct arpreq *r, struct net_device * dev)
 {
 	int err;
-	u32 ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
+	__be32 ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
 	struct neighbour *neigh;
 
 	if (r->arp_flags & ATF_PUBL) {
-		u32 mask =
+		__be32 mask =
 		       ((struct sockaddr_in *)&r->arp_netmask)->sin_addr.s_addr;
-		if (mask == 0xFFFFFFFF)
+		if (mask == htonl(0xFFFFFFFF))
 			return pneigh_delete(&arp_tbl, &ip, dev);
 		if (mask == 0) {
 			if (dev == NULL) {

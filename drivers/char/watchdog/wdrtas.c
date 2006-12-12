@@ -385,7 +385,7 @@ wdrtas_ioctl(struct inode *inode, struct file *file,
 		return put_user(wdrtas_interval, argp);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	}
 }
 

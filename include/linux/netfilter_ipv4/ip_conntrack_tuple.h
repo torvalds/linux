@@ -23,13 +23,13 @@ union ip_conntrack_manip_proto
 		__be16 port;
 	} tcp;
 	struct {
-		u_int16_t port;
+		__be16 port;
 	} udp;
 	struct {
-		u_int16_t id;
+		__be16 id;
 	} icmp;
 	struct {
-		u_int16_t port;
+		__be16 port;
 	} sctp;
 	struct {
 		__be16 key;	/* key is 32bit, pptp only uses 16 */
@@ -39,7 +39,7 @@ union ip_conntrack_manip_proto
 /* The manipulable part of the tuple. */
 struct ip_conntrack_manip
 {
-	u_int32_t ip;
+	__be32 ip;
 	union ip_conntrack_manip_proto u;
 };
 
@@ -50,22 +50,22 @@ struct ip_conntrack_tuple
 
 	/* These are the parts of the tuple which are fixed. */
 	struct {
-		u_int32_t ip;
+		__be32 ip;
 		union {
 			/* Add other protocols here. */
 			u_int16_t all;
 
 			struct {
-				u_int16_t port;
+				__be16 port;
 			} tcp;
 			struct {
-				u_int16_t port;
+				__be16 port;
 			} udp;
 			struct {
 				u_int8_t type, code;
 			} icmp;
 			struct {
-				u_int16_t port;
+				__be16 port;
 			} sctp;
 			struct {
 				__be16 key;	/* key is 32bit, 

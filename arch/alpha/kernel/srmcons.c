@@ -229,7 +229,7 @@ srmcons_close(struct tty_struct *tty, struct file *filp)
 
 static struct tty_driver *srmcons_driver;
 
-static struct tty_operations srmcons_ops = {
+static const struct tty_operations srmcons_ops = {
 	.open		= srmcons_open,
 	.close		= srmcons_close,
 	.write		= srmcons_write,

@@ -177,6 +177,7 @@ void find_export_symbols(char * filename)
 		{
 			fprintf(stderr, "docproc: ");
 			perror(real_filename);
+			exit(1);
 		}
 		while(fgets(line, MAXLINESZ, fp)) {
 			char *p;
@@ -249,7 +250,7 @@ void intfunc(char * filename) {	docfunctions(filename, NOFUNCTION); }
 void extfunc(char * filename) { docfunctions(filename, FUNCTION);   }
 
 /*
- * Document spåecific function(s) in a file.
+ * Document specific function(s) in a file.
  * Call kernel-doc with the following parameters:
  * kernel-doc -docbook -function function1 [-function function2]
  */

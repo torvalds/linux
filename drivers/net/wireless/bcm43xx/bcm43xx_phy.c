@@ -361,7 +361,7 @@ static void bcm43xx_phy_setupg(struct bcm43xx_private *bcm)
 	if (phy->rev <= 2)
 		for (i = 0; i < BCM43xx_ILT_NOISESCALEG_SIZE; i++)
 			bcm43xx_ilt_write(bcm, 0x1400 + i, bcm43xx_ilt_noisescaleg1[i]);
-	else if ((phy->rev == 7) && (bcm43xx_phy_read(bcm, 0x0449) & 0x0200))
+	else if ((phy->rev >= 7) && (bcm43xx_phy_read(bcm, 0x0449) & 0x0200))
 		for (i = 0; i < BCM43xx_ILT_NOISESCALEG_SIZE; i++)
 			bcm43xx_ilt_write(bcm, 0x1400 + i, bcm43xx_ilt_noisescaleg3[i]);
 	else
@@ -371,7 +371,7 @@ static void bcm43xx_phy_setupg(struct bcm43xx_private *bcm)
 	if (phy->rev == 2)
 		for (i = 0; i < BCM43xx_ILT_SIGMASQR_SIZE; i++)
 			bcm43xx_ilt_write(bcm, 0x5000 + i, bcm43xx_ilt_sigmasqr1[i]);
-	else if ((phy->rev > 2) && (phy->rev <= 7))
+	else if ((phy->rev > 2) && (phy->rev <= 8))
 		for (i = 0; i < BCM43xx_ILT_SIGMASQR_SIZE; i++)
 			bcm43xx_ilt_write(bcm, 0x5000 + i, bcm43xx_ilt_sigmasqr2[i]);
 	
@@ -1197,7 +1197,7 @@ static void bcm43xx_phy_initg(struct bcm43xx_private *bcm)
 
 	if (phy->rev == 1)
 		bcm43xx_phy_initb5(bcm);
-	else if (phy->rev >= 2 && phy->rev <= 7)
+	else
 		bcm43xx_phy_initb6(bcm);
 	if (phy->rev >= 2 || phy->connected)
 		bcm43xx_phy_inita(bcm);
@@ -1241,23 +1241,22 @@ static void bcm43xx_phy_initg(struct bcm43xx_private *bcm)
 		bcm43xx_phy_lo_g_measure(bcm);
 	} else {
 		if (radio->version == 0x2050 && radio->revision == 8) {
-			//FIXME
+			bcm43xx_radio_write16(bcm, 0x0052,
+					      (radio->txctl1 << 4) | radio->txctl2);
 		} else {
 			bcm43xx_radio_write16(bcm, 0x0052,
 					      (bcm43xx_radio_read16(bcm, 0x0052)
 					       & 0xFFF0) | radio->txctl1);
 		}
 		if (phy->rev >= 6) {
-			/*
 			bcm43xx_phy_write(bcm, 0x0036,
 					  (bcm43xx_phy_read(bcm, 0x0036)
-					   & 0xF000) | (FIXME << 12));
-			*/
+					   & 0xF000) | (radio->txctl2 << 12));
 		}
 		if (bcm->sprom.boardflags & BCM43xx_BFL_PACTRL)
 			bcm43xx_phy_write(bcm, 0x002E, 0x8075);
 		else
-			bcm43xx_phy_write(bcm, 0x003E, 0x807F);
+			bcm43xx_phy_write(bcm, 0x002E, 0x807F);
 		if (phy->rev < 2)
 			bcm43xx_phy_write(bcm, 0x002F, 0x0101);
 		else

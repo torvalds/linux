@@ -238,7 +238,7 @@ Top Level Directory Layout
 The sysfs directory arrangement exposes the relationship of kernel
 data structures. 
 
-The top level sysfs diretory looks like:
+The top level sysfs directory looks like:
 
 block/
 bus/

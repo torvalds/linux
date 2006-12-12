@@ -31,9 +31,9 @@
  * the S390 page table tree.
  */
 #ifndef __ASSEMBLY__
+#include <linux/mm_types.h>
 #include <asm/bug.h>
 #include <asm/processor.h>
-#include <linux/threads.h>
 
 struct vm_area_struct; /* forward declaration (include/linux/mm.h) */
 struct mm_struct;
@@ -107,15 +107,26 @@ extern char empty_zero_page[PAGE_SIZE];
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced
  * area for the same reason. ;)
  */
+extern unsigned long vmalloc_end;
 #define VMALLOC_OFFSET  (8*1024*1024)
 #define VMALLOC_START   (((unsigned long) high_memory + VMALLOC_OFFSET) \
 			 & ~(VMALLOC_OFFSET-1))
-#ifndef __s390x__
-# define VMALLOC_END     (0x7fffffffL)
-#else /* __s390x__ */
-# define VMALLOC_END     (0x40000000000L)
-#endif /* __s390x__ */
+#define VMALLOC_END	vmalloc_end
 
+/*
+ * We need some free virtual space to be able to do vmalloc.
+ * VMALLOC_MIN_SIZE defines the minimum size of the vmalloc
+ * area. On a machine with 2GB memory we make sure that we
+ * have at least 128MB free space for vmalloc. On a machine
+ * with 4TB we make sure we have at least 128GB.
+ */
+#ifndef __s390x__
+#define VMALLOC_MIN_SIZE	0x8000000UL
+#define VMALLOC_END_INIT	0x80000000UL
+#else /* __s390x__ */
+#define VMALLOC_MIN_SIZE	0x2000000000UL
+#define VMALLOC_END_INIT	0x40000000000UL
+#endif /* __s390x__ */
 
 /*
  * A 31 bit pagetable entry of S390 has following format:
@@ -200,17 +211,44 @@ extern char empty_zero_page[PAGE_SIZE];
  */
 
 /* Hardware bits in the page table entry */
-#define _PAGE_RO        0x200          /* HW read-only                     */
-#define _PAGE_INVALID   0x400          /* HW invalid                       */
+#define _PAGE_RO	0x200		/* HW read-only bit  */
+#define _PAGE_INVALID	0x400		/* HW invalid bit    */
+#define _PAGE_SWT	0x001		/* SW pte type bit t */
+#define _PAGE_SWX	0x002		/* SW pte type bit x */
 
-/* Mask and six different types of pages. */
-#define _PAGE_TYPE_MASK		0x601
+/* Six different types of pages. */
 #define _PAGE_TYPE_EMPTY	0x400
 #define _PAGE_TYPE_NONE		0x401
-#define _PAGE_TYPE_SWAP		0x600
-#define _PAGE_TYPE_FILE		0x601
+#define _PAGE_TYPE_SWAP		0x403
+#define _PAGE_TYPE_FILE		0x601	/* bit 0x002 is used for offset !! */
 #define _PAGE_TYPE_RO		0x200
 #define _PAGE_TYPE_RW		0x000
+
+/*
+ * PTE type bits are rather complicated. handle_pte_fault uses pte_present,
+ * pte_none and pte_file to find out the pte type WITHOUT holding the page
+ * table lock. ptep_clear_flush on the other hand uses ptep_clear_flush to
+ * invalidate a given pte. ipte sets the hw invalid bit and clears all tlbs
+ * for the page. The page table entry is set to _PAGE_TYPE_EMPTY afterwards.
+ * This change is done while holding the lock, but the intermediate step
+ * of a previously valid pte with the hw invalid bit set can be observed by
+ * handle_pte_fault. That makes it necessary that all valid pte types with
+ * the hw invalid bit set must be distinguishable from the four pte types
+ * empty, none, swap and file.
+ *
+ *			irxt  ipte  irxt
+ * _PAGE_TYPE_EMPTY	1000   ->   1000
+ * _PAGE_TYPE_NONE	1001   ->   1001
+ * _PAGE_TYPE_SWAP	1011   ->   1011
+ * _PAGE_TYPE_FILE	11?1   ->   11?1
+ * _PAGE_TYPE_RO	0100   ->   1100
+ * _PAGE_TYPE_RW	0000   ->   1000
+ *
+ * pte_none is true for bits combinations 1000, 1100
+ * pte_present is true for bits combinations 0000, 0010, 0100, 0110, 1001
+ * pte_file is true for bits combinations 1101, 1111
+ * swap pte is 1011 and 0001, 0011, 0101, 0111, 1010 and 1110 are invalid.
+ */
 
 #ifndef __s390x__
 
@@ -365,18 +403,21 @@ static inline int pmd_bad(pmd_t pmd)
 
 static inline int pte_none(pte_t pte)
 {
-	return (pte_val(pte) & _PAGE_TYPE_MASK) == _PAGE_TYPE_EMPTY;
+	return (pte_val(pte) & _PAGE_INVALID) && !(pte_val(pte) & _PAGE_SWT);
 }
 
 static inline int pte_present(pte_t pte)
 {
-	return !(pte_val(pte) & _PAGE_INVALID) ||
-		(pte_val(pte) & _PAGE_TYPE_MASK) == _PAGE_TYPE_NONE;
+	unsigned long mask = _PAGE_RO | _PAGE_INVALID | _PAGE_SWT | _PAGE_SWX;
+	return (pte_val(pte) & mask) == _PAGE_TYPE_NONE ||
+		(!(pte_val(pte) & _PAGE_INVALID) &&
+		 !(pte_val(pte) & _PAGE_SWT));
 }
 
 static inline int pte_file(pte_t pte)
 {
-	return (pte_val(pte) & _PAGE_TYPE_MASK) == _PAGE_TYPE_FILE;
+	unsigned long mask = _PAGE_RO | _PAGE_INVALID | _PAGE_SWT;
+	return (pte_val(pte) & mask) == _PAGE_TYPE_FILE;
 }
 
 #define pte_same(a,b)	(pte_val(a) == pte_val(b))
@@ -554,9 +595,10 @@ static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
 		/* ipte in zarch mode can do the math */
 		pte_t *pto = ptep;
 #endif
-		asm volatile ("ipte %2,%3"
-			      : "=m" (*ptep) : "m" (*ptep),
-				"a" (pto), "a" (address) );
+		asm volatile(
+			"	ipte	%2,%3"
+			: "=m" (*ptep) : "m" (*ptep),
+			  "a" (pto), "a" (address));
 	}
 	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
 }
@@ -596,30 +638,31 @@ ptep_establish(struct vm_area_struct *vma,
  * should therefore only be called if it is not mapped in any
  * address space.
  */
-#define page_test_and_clear_dirty(_page)				  \
-({									  \
-	struct page *__page = (_page);					  \
-	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
-	int __skey = page_get_storage_key(__physpage);			  \
-	if (__skey & _PAGE_CHANGED)					  \
-		page_set_storage_key(__physpage, __skey & ~_PAGE_CHANGED);\
-	(__skey & _PAGE_CHANGED);					  \
-})
+static inline int page_test_and_clear_dirty(struct page *page)
+{
+	unsigned long physpage = page_to_phys(page);
+	int skey = page_get_storage_key(physpage);
+
+	if (skey & _PAGE_CHANGED)
+		page_set_storage_key(physpage, skey & ~_PAGE_CHANGED);
+	return skey & _PAGE_CHANGED;
+}
 
 /*
  * Test and clear referenced bit in storage key.
  */
-#define page_test_and_clear_young(page)					  \
-({									  \
-	struct page *__page = (page);					  \
-	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
-	int __ccode;							  \
-	asm volatile ("rrbe 0,%1\n\t"					  \
-		      "ipm  %0\n\t"					  \
-		      "srl  %0,28\n\t" 					  \
-                      : "=d" (__ccode) : "a" (__physpage) : "cc" );	  \
-	(__ccode & 2);							  \
-})
+static inline int page_test_and_clear_young(struct page *page)
+{
+	unsigned long physpage = page_to_phys(page);
+	int ccode;
+
+	asm volatile(
+		"	rrbe	0,%1\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
+		: "=d" (ccode) : "a" (physpage) : "cc" );
+	return ccode & 2;
+}
 
 /*
  * Conversion functions: convert a page and protection to a page entry,
@@ -632,32 +675,28 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 	return __pte;
 }
 
-#define mk_pte(pg, pgprot)                                                \
-({                                                                        \
-	struct page *__page = (pg);                                       \
-	pgprot_t __pgprot = (pgprot);					  \
-	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
-	pte_t __pte = mk_pte_phys(__physpage, __pgprot);                  \
-	__pte;                                                            \
-})
+static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
+{
+	unsigned long physpage = page_to_phys(page);
 
-#define pfn_pte(pfn, pgprot)                                              \
-({                                                                        \
-	pgprot_t __pgprot = (pgprot);					  \
-	unsigned long __physpage = __pa((pfn) << PAGE_SHIFT);             \
-	pte_t __pte = mk_pte_phys(__physpage, __pgprot);                  \
-	__pte;                                                            \
-})
+	return mk_pte_phys(physpage, pgprot);
+}
+
+static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
+{
+	unsigned long physpage = __pa((pfn) << PAGE_SHIFT);
+
+	return mk_pte_phys(physpage, pgprot);
+}
 
 #ifdef __s390x__
 
-#define pfn_pmd(pfn, pgprot)                                              \
-({                                                                        \
-	pgprot_t __pgprot = (pgprot);                                     \
-	unsigned long __physpage = __pa((pfn) << PAGE_SHIFT);             \
-	pmd_t __pmd = __pmd(__physpage + pgprot_val(__pgprot));           \
-	__pmd;                                                            \
-})
+static inline pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
+{
+	unsigned long physpage = __pa((pfn) << PAGE_SHIFT);
+
+	return __pmd(physpage + pgprot_val(pgprot));
+}
 
 #endif /* __s390x__ */
 
@@ -666,11 +705,11 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 
 #define pmd_page_vaddr(pmd) (pmd_val(pmd) & PAGE_MASK)
 
-#define pmd_page(pmd) (mem_map+(pmd_val(pmd) >> PAGE_SHIFT))
+#define pmd_page(pmd) pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
 
 #define pgd_page_vaddr(pgd) (pgd_val(pgd) & PAGE_MASK)
 
-#define pgd_page(pgd) (mem_map+(pgd_val(pgd) >> PAGE_SHIFT))
+#define pgd_page(pgd) pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT)
 
 /* to find an entry in a page-table-directory */
 #define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
@@ -778,10 +817,16 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 
 #define kern_addr_valid(addr)   (1)
 
+extern int add_shared_memory(unsigned long start, unsigned long size);
+extern int remove_shared_memory(unsigned long start, unsigned long size);
+
 /*
  * No page table caches to initialise
  */
 #define pgtable_cache_init()	do { } while (0)
+
+#define __HAVE_ARCH_MEMMAP_INIT
+extern void memmap_init(unsigned long, int, unsigned long, unsigned long);
 
 #define __HAVE_ARCH_PTEP_ESTABLISH
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS

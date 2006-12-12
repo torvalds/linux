@@ -94,7 +94,7 @@ void befs_debug(const struct super_block *sb, const char *fmt, ...);
 
 void befs_dump_super_block(const struct super_block *sb, befs_super_block *);
 void befs_dump_inode(const struct super_block *sb, befs_inode *);
-void befs_dump_index_entry(const struct super_block *sb, befs_btree_super *);
+void befs_dump_index_entry(const struct super_block *sb, befs_disk_btree_super *);
 void befs_dump_index_node(const struct super_block *sb, befs_btree_nodehead *);
 /****************************/
 
@@ -136,7 +136,7 @@ blockno2iaddr(struct super_block *sb, befs_blocknr_t blockno)
 static inline unsigned int
 befs_iaddrs_per_block(struct super_block *sb)
 {
-	return BEFS_SB(sb)->block_size / sizeof (befs_inode_addr);
+	return BEFS_SB(sb)->block_size / sizeof (befs_disk_inode_addr);
 }
 
 static inline int
@@ -150,5 +150,7 @@ befs_brun_size(struct super_block *sb, befs_block_run run)
 {
 	return BEFS_SB(sb)->block_size * run.len;
 }
+
+#include "endian.h"
 
 #endif				/* _LINUX_BEFS_H */

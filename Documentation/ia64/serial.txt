@@ -124,6 +124,13 @@ TROUBLESHOOTING SERIAL CONSOLE PROBLEMS
 
 	- Add entry to /etc/securetty for console tty.
 
+    No ACPI serial devices found in 2.6.17 or later:
+
+	- Turn on CONFIG_PNP and CONFIG_PNPACPI.  Prior to 2.6.17, ACPI
+	  serial devices were discovered by 8250_acpi.  In 2.6.17,
+	  8250_acpi was replaced by the combination of 8250_pnp and
+	  CONFIG_PNPACPI.
+
 
 
 [1] http://www.dig64.org/specifications/DIG64_PCDPv20.pdf

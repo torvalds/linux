@@ -88,7 +88,7 @@ static void apne_block_input(struct net_device *dev, int count,
 								struct sk_buff *skb, int ring_offset);
 static void apne_block_output(struct net_device *dev, const int count,
 							const unsigned char *buf, const int start_page);
-static irqreturn_t apne_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t apne_interrupt(int irq, void *dev_id);
 
 static int init_pcmcia(void);
 
@@ -311,9 +311,10 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
 #endif
 
     dev->base_addr = ioaddr;
+    dev->irq = IRQ_AMIGA_PORTS;
 
     /* Install the Interrupt handler */
-    i = request_irq(IRQ_AMIGA_PORTS, apne_interrupt, IRQF_SHARED, DRV_NAME, dev);
+    i = request_irq(dev->irq, apne_interrupt, IRQF_SHARED, DRV_NAME, dev);
     if (i) return i;
 
     for(i = 0; i < ETHER_ADDR_LEN; i++) {
@@ -543,7 +544,7 @@ apne_block_output(struct net_device *dev, int count,
     return;
 }
 
-static irqreturn_t apne_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t apne_interrupt(int irq, void *dev_id)
 {
     unsigned char pcmcia_intreq;
 
@@ -559,7 +560,7 @@ static irqreturn_t apne_interrupt(int irq, void *dev_id, struct pt_regs *regs)
     if (ei_debug > 3)
         printk("pcmcia intreq = %x\n", pcmcia_intreq);
     pcmcia_disable_irq();			/* to get rid of the sti() within ei_interrupt */
-    ei_interrupt(irq, dev_id, regs);
+    ei_interrupt(irq, dev_id);
     pcmcia_ack_int(pcmcia_get_intreq());
     pcmcia_enable_irq();
     return IRQ_HANDLED;
@@ -568,7 +569,7 @@ static irqreturn_t apne_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #ifdef MODULE
 static struct net_device *apne_dev;
 
-int init_module(void)
+int __init init_module(void)
 {
 	apne_dev = apne_probe(-1);
 	if (IS_ERR(apne_dev))
@@ -576,7 +577,7 @@ int init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	unregister_netdev(apne_dev);
 

@@ -129,6 +129,9 @@ static inline void suspend_console(void) {}
 static inline void resume_console(void) {}
 #endif /* CONFIG_DISABLE_CONSOLE_SUSPEND */
 
+int mda_console_init(void);
+void prom_con_init(void);
+
 /* Some debug stub to catch some of the obvious races in the VT code */
 #if 1
 #define WARN_CONSOLE_UNLOCKED()	WARN_ON(!is_console_locked() && !oops_in_progress)

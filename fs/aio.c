@@ -15,6 +15,7 @@
 #include <linux/aio_abi.h>
 #include <linux/module.h>
 #include <linux/syscalls.h>
+#include <linux/uio.h>
 
 #define DEBUG 0
 
@@ -46,19 +47,19 @@ unsigned long aio_nr;		/* current system wide number of aio requests */
 unsigned long aio_max_nr = 0x10000; /* system wide maximum number of aio requests */
 /*----end sysctl variables---*/
 
-static kmem_cache_t	*kiocb_cachep;
-static kmem_cache_t	*kioctx_cachep;
+static struct kmem_cache	*kiocb_cachep;
+static struct kmem_cache	*kioctx_cachep;
 
 static struct workqueue_struct *aio_wq;
 
 /* Used for rare fput completion. */
-static void aio_fput_routine(void *);
-static DECLARE_WORK(fput_work, aio_fput_routine, NULL);
+static void aio_fput_routine(struct work_struct *);
+static DECLARE_WORK(fput_work, aio_fput_routine);
 
 static DEFINE_SPINLOCK(fput_lock);
 static LIST_HEAD(fput_head);
 
-static void aio_kick_handler(void *);
+static void aio_kick_handler(struct work_struct *);
 static void aio_queue_work(struct kioctx *);
 
 /* aio_setup
@@ -226,7 +227,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 
 	INIT_LIST_HEAD(&ctx->active_reqs);
 	INIT_LIST_HEAD(&ctx->run_list);
-	INIT_WORK(&ctx->wq, aio_kick_handler, ctx);
+	INIT_DELAYED_WORK(&ctx->wq, aio_kick_handler);
 
 	if (aio_setup_ring(ctx) < 0)
 		goto out_freectx;
@@ -366,8 +367,7 @@ void fastcall __put_ioctx(struct kioctx *ctx)
 {
 	unsigned nr_events = ctx->max_reqs;
 
-	if (unlikely(ctx->reqs_active))
-		BUG();
+	BUG_ON(ctx->reqs_active);
 
 	cancel_delayed_work(&ctx->wq);
 	flush_workqueue(aio_wq);
@@ -414,6 +414,7 @@ static struct kiocb fastcall *__aio_get_req(struct kioctx *ctx)
 	req->ki_retry = NULL;
 	req->ki_dtor = NULL;
 	req->private = NULL;
+	req->ki_iovec = NULL;
 	INIT_LIST_HEAD(&req->ki_run_list);
 
 	/* Check if the completion queue has enough free space to
@@ -459,6 +460,8 @@ static inline void really_put_req(struct kioctx *ctx, struct kiocb *req)
 
 	if (req->ki_dtor)
 		req->ki_dtor(req);
+	if (req->ki_iovec != &req->ki_inline_vec)
+		kfree(req->ki_iovec);
 	kmem_cache_free(kiocb_cachep, req);
 	ctx->reqs_active--;
 
@@ -466,7 +469,7 @@ static inline void really_put_req(struct kioctx *ctx, struct kiocb *req)
 		wake_up(&ctx->wait);
 }
 
-static void aio_fput_routine(void *data)
+static void aio_fput_routine(struct work_struct *data)
 {
 	spin_lock_irq(&fput_lock);
 	while (likely(!list_empty(&fput_head))) {
@@ -501,8 +504,7 @@ static int __aio_put_req(struct kioctx *ctx, struct kiocb *req)
 	assert_spin_locked(&ctx->ctx_lock);
 
 	req->ki_users --;
-	if (unlikely(req->ki_users < 0))
-		BUG();
+	BUG_ON(req->ki_users < 0);
 	if (likely(req->ki_users))
 		return 0;
 	list_del(&req->ki_list);		/* remove from active_reqs */
@@ -663,17 +665,6 @@ static ssize_t aio_run_iocb(struct kiocb *iocb)
 	struct kioctx	*ctx = iocb->ki_ctx;
 	ssize_t (*retry)(struct kiocb *);
 	ssize_t ret;
-
-	if (iocb->ki_retried++ > 1024*1024) {
-		printk("Maximal retry count.  Bytes done %Zd\n",
-			iocb->ki_nbytes - iocb->ki_left);
-		return -EAGAIN;
-	}
-
-	if (!(iocb->ki_retried & 0xff)) {
-		pr_debug("%ld retry: %d of %d\n", iocb->ki_retried,
-			iocb->ki_nbytes - iocb->ki_left, iocb->ki_nbytes);
-	}
 
 	if (!(retry = iocb->ki_retry)) {
 		printk("aio_run_iocb: iocb->ki_retry = NULL\n");
@@ -855,9 +846,9 @@ static inline void aio_run_all_iocbs(struct kioctx *ctx)
  *      space.
  * Run on aiod's context.
  */
-static void aio_kick_handler(void *data)
+static void aio_kick_handler(struct work_struct *work)
 {
-	struct kioctx *ctx = data;
+	struct kioctx *ctx = container_of(work, struct kioctx, wq.work);
 	mm_segment_t oldfs = get_fs();
 	int requeue;
 
@@ -872,7 +863,7 @@ static void aio_kick_handler(void *data)
 	 * we're in a worker thread already, don't use queue_delayed_work,
 	 */
 	if (requeue)
-		queue_work(aio_wq, &ctx->wq);
+		queue_delayed_work(aio_wq, &ctx->wq, 0);
 }
 
 
@@ -1003,9 +994,6 @@ int fastcall aio_complete(struct kiocb *iocb, long res, long res2)
 	kunmap_atomic(ring, KM_IRQ1);
 
 	pr_debug("added to ring %p at [%lu]\n", iocb, tail);
-
-	pr_debug("%ld retries: %d of %d\n", iocb->ki_retried,
-		iocb->ki_nbytes - iocb->ki_left, iocb->ki_nbytes);
 put_rq:
 	/* everything turned out well, dispose of the aiocb. */
 	ret = __aio_put_req(ctx, iocb);
@@ -1300,63 +1288,63 @@ asmlinkage long sys_io_destroy(aio_context_t ctx)
 	return -EINVAL;
 }
 
-/*
- * aio_p{read,write} are the default  ki_retry methods for
- * IO_CMD_P{READ,WRITE}.  They maintains kiocb retry state around potentially
- * multiple calls to f_op->aio_read().  They loop around partial progress
- * instead of returning -EIOCBRETRY because they don't have the means to call
- * kick_iocb().
- */
-static ssize_t aio_pread(struct kiocb *iocb)
+static void aio_advance_iovec(struct kiocb *iocb, ssize_t ret)
+{
+	struct iovec *iov = &iocb->ki_iovec[iocb->ki_cur_seg];
+
+	BUG_ON(ret <= 0);
+
+	while (iocb->ki_cur_seg < iocb->ki_nr_segs && ret > 0) {
+		ssize_t this = min((ssize_t)iov->iov_len, ret);
+		iov->iov_base += this;
+		iov->iov_len -= this;
+		iocb->ki_left -= this;
+		ret -= this;
+		if (iov->iov_len == 0) {
+			iocb->ki_cur_seg++;
+			iov++;
+		}
+	}
+
+	/* the caller should not have done more io than what fit in
+	 * the remaining iovecs */
+	BUG_ON(ret > 0 && iocb->ki_left == 0);
+}
+
+static ssize_t aio_rw_vect_retry(struct kiocb *iocb)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = mapping->host;
+	ssize_t (*rw_op)(struct kiocb *, const struct iovec *,
+			 unsigned long, loff_t);
 	ssize_t ret = 0;
+	unsigned short opcode;
+
+	if ((iocb->ki_opcode == IOCB_CMD_PREADV) ||
+		(iocb->ki_opcode == IOCB_CMD_PREAD)) {
+		rw_op = file->f_op->aio_read;
+		opcode = IOCB_CMD_PREADV;
+	} else {
+		rw_op = file->f_op->aio_write;
+		opcode = IOCB_CMD_PWRITEV;
+	}
 
 	do {
-		ret = file->f_op->aio_read(iocb, iocb->ki_buf,
-			iocb->ki_left, iocb->ki_pos);
-		/*
-		 * Can't just depend on iocb->ki_left to determine
-		 * whether we are done. This may have been a short read.
-		 */
-		if (ret > 0) {
-			iocb->ki_buf += ret;
-			iocb->ki_left -= ret;
-		}
+		ret = rw_op(iocb, &iocb->ki_iovec[iocb->ki_cur_seg],
+			    iocb->ki_nr_segs - iocb->ki_cur_seg,
+			    iocb->ki_pos);
+		if (ret > 0)
+			aio_advance_iovec(iocb, ret);
 
-		/*
-		 * For pipes and sockets we return once we have some data; for
-		 * regular files we retry till we complete the entire read or
-		 * find that we can't read any more data (e.g short reads).
-		 */
+	/* retry all partial writes.  retry partial reads as long as its a
+	 * regular file. */
 	} while (ret > 0 && iocb->ki_left > 0 &&
-		 !S_ISFIFO(inode->i_mode) && !S_ISSOCK(inode->i_mode));
+		 (opcode == IOCB_CMD_PWRITEV ||
+		  (!S_ISFIFO(inode->i_mode) && !S_ISSOCK(inode->i_mode))));
 
 	/* This means we must have transferred all that we could */
 	/* No need to retry anymore */
-	if ((ret == 0) || (iocb->ki_left == 0))
-		ret = iocb->ki_nbytes - iocb->ki_left;
-
-	return ret;
-}
-
-/* see aio_pread() */
-static ssize_t aio_pwrite(struct kiocb *iocb)
-{
-	struct file *file = iocb->ki_filp;
-	ssize_t ret = 0;
-
-	do {
-		ret = file->f_op->aio_write(iocb, iocb->ki_buf,
-			iocb->ki_left, iocb->ki_pos);
-		if (ret > 0) {
-			iocb->ki_buf += ret;
-			iocb->ki_left -= ret;
-		}
-	} while (ret > 0 && iocb->ki_left > 0);
-
 	if ((ret == 0) || (iocb->ki_left == 0))
 		ret = iocb->ki_nbytes - iocb->ki_left;
 
@@ -1383,6 +1371,37 @@ static ssize_t aio_fsync(struct kiocb *iocb)
 	return ret;
 }
 
+static ssize_t aio_setup_vectored_rw(int type, struct kiocb *kiocb)
+{
+	ssize_t ret;
+
+	ret = rw_copy_check_uvector(type, (struct iovec __user *)kiocb->ki_buf,
+				    kiocb->ki_nbytes, 1,
+				    &kiocb->ki_inline_vec, &kiocb->ki_iovec);
+	if (ret < 0)
+		goto out;
+
+	kiocb->ki_nr_segs = kiocb->ki_nbytes;
+	kiocb->ki_cur_seg = 0;
+	/* ki_nbytes/left now reflect bytes instead of segs */
+	kiocb->ki_nbytes = ret;
+	kiocb->ki_left = ret;
+
+	ret = 0;
+out:
+	return ret;
+}
+
+static ssize_t aio_setup_single_vector(struct kiocb *kiocb)
+{
+	kiocb->ki_iovec = &kiocb->ki_inline_vec;
+	kiocb->ki_iovec->iov_base = kiocb->ki_buf;
+	kiocb->ki_iovec->iov_len = kiocb->ki_left;
+	kiocb->ki_nr_segs = 1;
+	kiocb->ki_cur_seg = 0;
+	return 0;
+}
+
 /*
  * aio_setup_iocb:
  *	Performs the initial checks and aio retry method
@@ -1405,9 +1424,12 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb)
 		ret = security_file_permission(file, MAY_READ);
 		if (unlikely(ret))
 			break;
+		ret = aio_setup_single_vector(kiocb);
+		if (ret)
+			break;
 		ret = -EINVAL;
 		if (file->f_op->aio_read)
-			kiocb->ki_retry = aio_pread;
+			kiocb->ki_retry = aio_rw_vect_retry;
 		break;
 	case IOCB_CMD_PWRITE:
 		ret = -EBADF;
@@ -1420,9 +1442,40 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb)
 		ret = security_file_permission(file, MAY_WRITE);
 		if (unlikely(ret))
 			break;
+		ret = aio_setup_single_vector(kiocb);
+		if (ret)
+			break;
 		ret = -EINVAL;
 		if (file->f_op->aio_write)
-			kiocb->ki_retry = aio_pwrite;
+			kiocb->ki_retry = aio_rw_vect_retry;
+		break;
+	case IOCB_CMD_PREADV:
+		ret = -EBADF;
+		if (unlikely(!(file->f_mode & FMODE_READ)))
+			break;
+		ret = security_file_permission(file, MAY_READ);
+		if (unlikely(ret))
+			break;
+		ret = aio_setup_vectored_rw(READ, kiocb);
+		if (ret)
+			break;
+		ret = -EINVAL;
+		if (file->f_op->aio_read)
+			kiocb->ki_retry = aio_rw_vect_retry;
+		break;
+	case IOCB_CMD_PWRITEV:
+		ret = -EBADF;
+		if (unlikely(!(file->f_mode & FMODE_WRITE)))
+			break;
+		ret = security_file_permission(file, MAY_WRITE);
+		if (unlikely(ret))
+			break;
+		ret = aio_setup_vectored_rw(WRITE, kiocb);
+		if (ret)
+			break;
+		ret = -EINVAL;
+		if (file->f_op->aio_write)
+			kiocb->ki_retry = aio_rw_vect_retry;
 		break;
 	case IOCB_CMD_FDSYNC:
 		ret = -EINVAL;
@@ -1523,7 +1576,6 @@ int fastcall io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	req->ki_opcode = iocb->aio_lio_opcode;
 	init_waitqueue_func_entry(&req->ki_wait, aio_wake_function);
 	INIT_LIST_HEAD(&req->ki_wait.task_list);
-	req->ki_retried = 0;
 
 	ret = aio_setup_iocb(req);
 

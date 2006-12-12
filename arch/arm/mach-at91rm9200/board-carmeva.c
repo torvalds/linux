@@ -19,7 +19,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -35,20 +34,11 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
 
 #include "generic.h"
 
-static void __init carmeva_init_irq(void)
-{
-	/* Initialize AIC controller */
-	at91rm9200_init_irq(NULL);
-
-	/* Set up the GPIO interrupts */
-	at91_gpio_irq_setup(BGA_GPIO_BANKS);
-}
 
 /*
  * Serial port configuration.
@@ -63,13 +53,16 @@ static struct at91_uart_config __initdata carmeva_uart_config = {
 
 static void __init carmeva_map_io(void)
 {
-	at91rm9200_map_io();
-
-	/* Initialize clocks: 20.000 MHz crystal */
-	at91_clock_init(20000000);
+	/* Initialize processor: 20.000 MHz crystal */
+	at91rm9200_initialize(20000000, AT91RM9200_BGA);
 
 	/* Setup the serial ports and console */
 	at91_init_serial(&carmeva_uart_config);
+}
+
+static void __init carmeva_init_irq(void)
+{
+	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata carmeva_eth_data = {
@@ -95,8 +88,33 @@ static struct at91_udc_data __initdata carmeva_udc_data = {
 // };
 
 static struct at91_mmc_data __initdata carmeva_mmc_data = {
-	.is_b		= 0,
+	.slot_b		= 0,
 	.wire4		= 1,
+	.det_pin	= AT91_PIN_PB10,
+	.wp_pin		= AT91_PIN_PC14,
+};
+
+static struct spi_board_info carmeva_spi_devices[] = {
+	{ /* DataFlash chip */
+		.modalias = "mtd_dataflash",
+		.chip_select  = 0,
+		.max_speed_hz = 10 * 1000 * 1000,
+	},
+	{ /* User accessable spi - cs1 (250KHz) */
+		.modalias = "spi-cs1",
+		.chip_select  = 1,
+		.max_speed_hz = 250 *  1000,
+	},
+	{ /* User accessable spi - cs2 (1MHz) */
+		.modalias = "spi-cs2",
+		.chip_select  = 2,
+		.max_speed_hz = 1 * 1000 *  1000,
+	},
+	{ /* User accessable spi - cs3 (10MHz) */
+		.modalias = "spi-cs3",
+		.chip_select  = 3,
+		.max_speed_hz = 10 * 1000 *  1000,
+	},
 };
 
 static void __init carmeva_board_init(void)
@@ -111,10 +129,10 @@ static void __init carmeva_board_init(void)
 	at91_add_device_udc(&carmeva_udc_data);
 	/* I2C */
 	at91_add_device_i2c();
+	/* SPI */
+	at91_add_device_spi(carmeva_spi_devices, ARRAY_SIZE(carmeva_spi_devices));
 	/* Compact Flash */
 //	at91_add_device_cf(&carmeva_cf_data);
-	/* SPI */
-//	at91_add_device_spi(NULL, 0);
 	/* MMC */
 	at91_add_device_mmc(&carmeva_mmc_data);
 }

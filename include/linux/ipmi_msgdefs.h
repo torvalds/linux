@@ -46,6 +46,8 @@
 #define IPMI_NETFN_APP_REQUEST			0x06
 #define IPMI_NETFN_APP_RESPONSE			0x07
 #define IPMI_GET_DEVICE_ID_CMD		0x01
+#define IPMI_COLD_RESET_CMD		0x02
+#define IPMI_WARM_RESET_CMD		0x03
 #define IPMI_CLEAR_MSG_FLAGS_CMD	0x30
 #define IPMI_GET_DEVICE_GUID_CMD	0x08
 #define IPMI_GET_MSG_FLAGS_CMD		0x31
@@ -60,21 +62,30 @@
 #define IPMI_NETFN_STORAGE_RESPONSE		0x0b
 #define IPMI_ADD_SEL_ENTRY_CMD		0x44
 
+#define IPMI_NETFN_FIRMWARE_REQUEST		0x08
+#define IPMI_NETFN_FIRMWARE_RESPONSE		0x09
+
 /* The default slave address */
 #define IPMI_BMC_SLAVE_ADDR	0x20
 
 /* The BT interface on high-end HP systems supports up to 255 bytes in
  * one transfer.  Its "virtual" BMC supports some commands that are longer
  * than 128 bytes.  Use the full 256, plus NetFn/LUN, Cmd, cCode, plus
- * some overhead.  It would be nice to base this on the "BT Capabilities"
- * but that's too hard to propagate to the rest of the driver. */
+ * some overhead; it's not worth the effort to dynamically size this based
+ * on the results of the "Get BT Capabilities" command. */
 #define IPMI_MAX_MSG_LENGTH	272	/* multiple of 16 */
 
 #define IPMI_CC_NO_ERROR		0x00
 #define IPMI_NODE_BUSY_ERR		0xc0
 #define IPMI_INVALID_COMMAND_ERR	0xc1
+#define IPMI_TIMEOUT_ERR		0xc3
 #define IPMI_ERR_MSG_TRUNCATED		0xc6
+#define IPMI_REQ_LEN_INVALID_ERR	0xc7
+#define IPMI_REQ_LEN_EXCEEDED_ERR	0xc8
+#define IPMI_NOT_IN_MY_STATE_ERR	0xd5	/* IPMI 2.0 */
 #define IPMI_LOST_ARBITRATION_ERR	0x81
+#define IPMI_BUS_ERR			0x82
+#define IPMI_NAK_ON_WRITE_ERR		0x83
 #define IPMI_ERR_UNSPECIFIED		0xff
 
 #define IPMI_CHANNEL_PROTOCOL_IPMB	1

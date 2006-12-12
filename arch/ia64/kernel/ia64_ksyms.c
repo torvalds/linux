@@ -14,6 +14,7 @@ EXPORT_SYMBOL(strlen);
 
 #include <asm/checksum.h>
 EXPORT_SYMBOL(ip_fast_csum);		/* hand-coded assembly */
+EXPORT_SYMBOL(csum_ipv6_magic);
 
 #include <asm/semaphore.h>
 EXPORT_SYMBOL(__down);
@@ -105,5 +106,9 @@ EXPORT_SYMBOL(ia64_spinlock_contention);
 # endif
 #endif
 
+#if defined(CONFIG_IA64_ESI) || defined(CONFIG_IA64_ESI_MODULE)
+extern void esi_call_phys (void);
+EXPORT_SYMBOL_GPL(esi_call_phys);
+#endif
 extern char ia64_ivt[];
 EXPORT_SYMBOL(ia64_ivt);

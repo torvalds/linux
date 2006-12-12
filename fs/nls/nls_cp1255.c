@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp1255.c
+ * linux/fs/nls/nls_cp1255.c
  *
  * Charset cp1255 translation tables.
  * The Unicode to charset table has only exact mappings.

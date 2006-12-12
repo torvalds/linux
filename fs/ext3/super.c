@@ -45,7 +45,7 @@
 static int ext3_load_journal(struct super_block *, struct ext3_super_block *,
 			     unsigned long journal_devnum);
 static int ext3_create_journal(struct super_block *, struct ext3_super_block *,
-			       int);
+			       unsigned int);
 static void ext3_commit_super (struct super_block * sb,
 			       struct ext3_super_block * es,
 			       int sync);
@@ -62,13 +62,13 @@ static void ext3_unlockfs(struct super_block *sb);
 static void ext3_write_super (struct super_block * sb);
 static void ext3_write_super_lockfs(struct super_block *sb);
 
-/* 
+/*
  * Wrappers for journal_start/end.
  *
  * The only special thing we need to do here is to make sure that all
  * journal_end calls result in the superblock being marked dirty, so
  * that sync() will call the filesystem's write_super callback if
- * appropriate. 
+ * appropriate.
  */
 handle_t *ext3_journal_start_sb(struct super_block *sb, int nblocks)
 {
@@ -90,11 +90,11 @@ handle_t *ext3_journal_start_sb(struct super_block *sb, int nblocks)
 	return journal_start(journal, nblocks);
 }
 
-/* 
+/*
  * The only special thing we need to do here is to make sure that all
  * journal_stop calls result in the superblock being marked dirty, so
  * that sync() will call the filesystem's write_super callback if
- * appropriate. 
+ * appropriate.
  */
 int __ext3_journal_stop(const char *where, handle_t *handle)
 {
@@ -159,20 +159,21 @@ static void ext3_handle_error(struct super_block *sb)
 	if (sb->s_flags & MS_RDONLY)
 		return;
 
-	if (test_opt (sb, ERRORS_RO)) {
-		printk (KERN_CRIT "Remounting filesystem read-only\n");
-		sb->s_flags |= MS_RDONLY;
-	} else {
+	if (!test_opt (sb, ERRORS_CONT)) {
 		journal_t *journal = EXT3_SB(sb)->s_journal;
 
 		EXT3_SB(sb)->s_mount_opt |= EXT3_MOUNT_ABORT;
 		if (journal)
 			journal_abort(journal, -EIO);
 	}
+	if (test_opt (sb, ERRORS_RO)) {
+		printk (KERN_CRIT "Remounting filesystem read-only\n");
+		sb->s_flags |= MS_RDONLY;
+	}
+	ext3_commit_super(sb, es, 1);
 	if (test_opt(sb, ERRORS_PANIC))
 		panic("EXT3-fs (device %s): panic forced after error\n",
 			sb->s_id);
-	ext3_commit_super(sb, es, 1);
 }
 
 void ext3_error (struct super_block * sb, const char * function,
@@ -369,16 +370,16 @@ static void dump_orphan_list(struct super_block *sb, struct ext3_sb_info *sbi)
 {
 	struct list_head *l;
 
-	printk(KERN_ERR "sb orphan head is %d\n", 
+	printk(KERN_ERR "sb orphan head is %d\n",
 	       le32_to_cpu(sbi->s_es->s_last_orphan));
 
 	printk(KERN_ERR "sb_info orphan list:\n");
 	list_for_each(l, &sbi->s_orphan) {
 		struct inode *inode = orphan_list_entry(l);
 		printk(KERN_ERR "  "
-		       "inode %s:%ld at %p: mode %o, nlink %d, next %d\n",
+		       "inode %s:%lu at %p: mode %o, nlink %d, next %d\n",
 		       inode->i_sb->s_id, inode->i_ino, inode,
-		       inode->i_mode, inode->i_nlink, 
+		       inode->i_mode, inode->i_nlink,
 		       NEXT_ORPHAN(inode));
 	}
 }
@@ -435,7 +436,7 @@ static void ext3_put_super (struct super_block * sb)
 	return;
 }
 
-static kmem_cache_t *ext3_inode_cachep;
+static struct kmem_cache *ext3_inode_cachep;
 
 /*
  * Called inside transaction, so use GFP_NOFS
@@ -444,7 +445,7 @@ static struct inode *ext3_alloc_inode(struct super_block *sb)
 {
 	struct ext3_inode_info *ei;
 
-	ei = kmem_cache_alloc(ext3_inode_cachep, SLAB_NOFS);
+	ei = kmem_cache_alloc(ext3_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
 #ifdef CONFIG_EXT3_FS_POSIX_ACL
@@ -461,7 +462,7 @@ static void ext3_destroy_inode(struct inode *inode)
 	kmem_cache_free(ext3_inode_cachep, EXT3_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct ext3_inode_info *ei = (struct ext3_inode_info *) foo;
 
@@ -475,7 +476,7 @@ static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 		inode_init_once(&ei->vfs_inode);
 	}
 }
- 
+
 static int init_inodecache(void)
 {
 	ext3_inode_cachep = kmem_cache_create("ext3_inode_cache",
@@ -490,8 +491,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(ext3_inode_cachep))
-		printk(KERN_INFO "ext3_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(ext3_inode_cachep);
 }
 
 static void ext3_clear_inode(struct inode *inode)
@@ -733,8 +733,8 @@ static match_table_t tokens = {
 
 static ext3_fsblk_t get_sb_block(void **data)
 {
-	ext3_fsblk_t 	sb_block;
-	char 		*options = (char *) *data;
+	ext3_fsblk_t	sb_block;
+	char		*options = (char *) *data;
 
 	if (!options || strncmp(options, "sb=", 3) != 0)
 		return 1;	/* Default location */
@@ -753,7 +753,7 @@ static ext3_fsblk_t get_sb_block(void **data)
 }
 
 static int parse_options (char *options, struct super_block *sb,
-			  unsigned long *inum, unsigned long *journal_devnum,
+			  unsigned int *inum, unsigned long *journal_devnum,
 			  ext3_fsblk_t *n_blocks_count, int is_remount)
 {
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
@@ -1174,7 +1174,8 @@ static int ext3_setup_super(struct super_block *sb, struct ext3_super_block *es,
 static int ext3_check_descriptors (struct super_block * sb)
 {
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
-	ext3_fsblk_t block = le32_to_cpu(sbi->s_es->s_first_data_block);
+	ext3_fsblk_t first_block = le32_to_cpu(sbi->s_es->s_first_data_block);
+	ext3_fsblk_t last_block;
 	struct ext3_group_desc * gdp = NULL;
 	int desc_block = 0;
 	int i;
@@ -1183,12 +1184,17 @@ static int ext3_check_descriptors (struct super_block * sb)
 
 	for (i = 0; i < sbi->s_groups_count; i++)
 	{
+		if (i == sbi->s_groups_count - 1)
+			last_block = le32_to_cpu(sbi->s_es->s_blocks_count) - 1;
+		else
+			last_block = first_block +
+				(EXT3_BLOCKS_PER_GROUP(sb) - 1);
+
 		if ((i % EXT3_DESC_PER_BLOCK(sb)) == 0)
 			gdp = (struct ext3_group_desc *)
 					sbi->s_group_desc[desc_block++]->b_data;
-		if (le32_to_cpu(gdp->bg_block_bitmap) < block ||
-		    le32_to_cpu(gdp->bg_block_bitmap) >=
-				block + EXT3_BLOCKS_PER_GROUP(sb))
+		if (le32_to_cpu(gdp->bg_block_bitmap) < first_block ||
+		    le32_to_cpu(gdp->bg_block_bitmap) > last_block)
 		{
 			ext3_error (sb, "ext3_check_descriptors",
 				    "Block bitmap for group %d"
@@ -1197,9 +1203,8 @@ static int ext3_check_descriptors (struct super_block * sb)
 					le32_to_cpu(gdp->bg_block_bitmap));
 			return 0;
 		}
-		if (le32_to_cpu(gdp->bg_inode_bitmap) < block ||
-		    le32_to_cpu(gdp->bg_inode_bitmap) >=
-				block + EXT3_BLOCKS_PER_GROUP(sb))
+		if (le32_to_cpu(gdp->bg_inode_bitmap) < first_block ||
+		    le32_to_cpu(gdp->bg_inode_bitmap) > last_block)
 		{
 			ext3_error (sb, "ext3_check_descriptors",
 				    "Inode bitmap for group %d"
@@ -1208,9 +1213,9 @@ static int ext3_check_descriptors (struct super_block * sb)
 					le32_to_cpu(gdp->bg_inode_bitmap));
 			return 0;
 		}
-		if (le32_to_cpu(gdp->bg_inode_table) < block ||
-		    le32_to_cpu(gdp->bg_inode_table) + sbi->s_itb_per_group >=
-		    block + EXT3_BLOCKS_PER_GROUP(sb))
+		if (le32_to_cpu(gdp->bg_inode_table) < first_block ||
+		    le32_to_cpu(gdp->bg_inode_table) + sbi->s_itb_per_group >
+		    last_block)
 		{
 			ext3_error (sb, "ext3_check_descriptors",
 				    "Inode table for group %d"
@@ -1219,7 +1224,7 @@ static int ext3_check_descriptors (struct super_block * sb)
 					le32_to_cpu(gdp->bg_inode_table));
 			return 0;
 		}
-		block += EXT3_BLOCKS_PER_GROUP(sb);
+		first_block += EXT3_BLOCKS_PER_GROUP(sb);
 		gdp++;
 	}
 
@@ -1256,6 +1261,12 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 #endif
 	if (!es->s_last_orphan) {
 		jbd_debug(4, "no orphan inodes to clean up\n");
+		return;
+	}
+
+	if (bdev_read_only(sb->s_bdev)) {
+		printk(KERN_ERR "EXT3-fs: write access "
+			"unavailable, skipping orphan cleanup.\n");
 		return;
 	}
 
@@ -1301,17 +1312,17 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 		DQUOT_INIT(inode);
 		if (inode->i_nlink) {
 			printk(KERN_DEBUG
-				"%s: truncating inode %ld to %Ld bytes\n",
+				"%s: truncating inode %lu to %Ld bytes\n",
 				__FUNCTION__, inode->i_ino, inode->i_size);
-			jbd_debug(2, "truncating inode %ld to %Ld bytes\n",
+			jbd_debug(2, "truncating inode %lu to %Ld bytes\n",
 				  inode->i_ino, inode->i_size);
 			ext3_truncate(inode);
 			nr_truncates++;
 		} else {
 			printk(KERN_DEBUG
-				"%s: deleting unreferenced inode %ld\n",
+				"%s: deleting unreferenced inode %lu\n",
 				__FUNCTION__, inode->i_ino);
-			jbd_debug(2, "deleting unreferenced inode %ld\n",
+			jbd_debug(2, "deleting unreferenced inode %lu\n",
 				  inode->i_ino);
 			nr_orphans++;
 		}
@@ -1335,8 +1346,6 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 #endif
 	sb->s_flags = s_flags; /* Restore MS_RDONLY status */
 }
-
-#define log2(n) ffz(~(n))
 
 /*
  * Maximal file size.  There is a direct, and {,double-,triple-}indirect
@@ -1390,7 +1399,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	ext3_fsblk_t sb_block = get_sb_block(&data);
 	ext3_fsblk_t logic_sb_block;
 	unsigned long offset = 0;
-	unsigned long journal_inum = 0;
+	unsigned int journal_inum = 0;
 	unsigned long journal_devnum = 0;
 	unsigned long def_mount_opts;
 	struct inode *root;
@@ -1401,11 +1410,10 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	int needs_recovery;
 	__le32 features;
 
-	sbi = kmalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 	sb->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(*sbi));
 	sbi->s_mount_opt = 0;
 	sbi->s_resuid = EXT3_DEF_RESUID;
 	sbi->s_resgid = EXT3_DEF_RESGID;
@@ -1466,6 +1474,8 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		set_opt(sbi->s_mount_opt, ERRORS_PANIC);
 	else if (le16_to_cpu(sbi->s_es->s_errors) == EXT3_ERRORS_RO)
 		set_opt(sbi->s_mount_opt, ERRORS_RO);
+	else
+		set_opt(sbi->s_mount_opt, ERRORS_CONT);
 
 	sbi->s_resuid = le16_to_cpu(es->s_def_resuid);
 	sbi->s_resgid = le16_to_cpu(es->s_def_resgid);
@@ -1483,7 +1493,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	    (EXT3_HAS_COMPAT_FEATURE(sb, ~0U) ||
 	     EXT3_HAS_RO_COMPAT_FEATURE(sb, ~0U) ||
 	     EXT3_HAS_INCOMPAT_FEATURE(sb, ~0U)))
-		printk(KERN_WARNING 
+		printk(KERN_WARNING
 		       "EXT3-fs warning: feature flags set on rev 0 fs, "
 		       "running e2fsck is recommended\n");
 	/*
@@ -1509,7 +1519,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 
 	if (blocksize < EXT3_MIN_BLOCK_SIZE ||
 	    blocksize > EXT3_MAX_BLOCK_SIZE) {
-		printk(KERN_ERR 
+		printk(KERN_ERR
 		       "EXT3-fs: Unsupported filesystem blocksize %d on %s.\n",
 		       blocksize, sb->s_id);
 		goto failed_mount;
@@ -1533,14 +1543,14 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		offset = (sb_block * EXT3_MIN_BLOCK_SIZE) % blocksize;
 		bh = sb_bread(sb, logic_sb_block);
 		if (!bh) {
-			printk(KERN_ERR 
+			printk(KERN_ERR
 			       "EXT3-fs: Can't read superblock on 2nd try.\n");
 			goto failed_mount;
 		}
 		es = (struct ext3_super_block *)(((char *)bh->b_data) + offset);
 		sbi->s_es = es;
 		if (es->s_magic != cpu_to_le16(EXT3_SUPER_MAGIC)) {
-			printk (KERN_ERR 
+			printk (KERN_ERR
 				"EXT3-fs: Magic mismatch, very weird !\n");
 			goto failed_mount;
 		}
@@ -1585,8 +1595,8 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	sbi->s_desc_per_block = blocksize / sizeof(struct ext3_group_desc);
 	sbi->s_sbh = bh;
 	sbi->s_mount_state = le16_to_cpu(es->s_state);
-	sbi->s_addr_per_block_bits = log2(EXT3_ADDR_PER_BLOCK(sb));
-	sbi->s_desc_per_block_bits = log2(EXT3_DESC_PER_BLOCK(sb));
+	sbi->s_addr_per_block_bits = ilog2(EXT3_ADDR_PER_BLOCK(sb));
+	sbi->s_desc_per_block_bits = ilog2(EXT3_DESC_PER_BLOCK(sb));
 	for (i=0; i < 4; i++)
 		sbi->s_hash_seed[i] = le32_to_cpu(es->s_hash_seed[i]);
 	sbi->s_def_hash_version = es->s_def_hash_version;
@@ -1622,10 +1632,9 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 
 	if (EXT3_BLOCKS_PER_GROUP(sb) == 0)
 		goto cantfind_ext3;
-	sbi->s_groups_count = (le32_to_cpu(es->s_blocks_count) -
-			       le32_to_cpu(es->s_first_data_block) +
-			       EXT3_BLOCKS_PER_GROUP(sb) - 1) /
-			      EXT3_BLOCKS_PER_GROUP(sb);
+	sbi->s_groups_count = ((le32_to_cpu(es->s_blocks_count) -
+			       le32_to_cpu(es->s_first_data_block) - 1)
+				       / EXT3_BLOCKS_PER_GROUP(sb)) + 1;
 	db_count = (sbi->s_groups_count + EXT3_DESC_PER_BLOCK(sb) - 1) /
 		   EXT3_DESC_PER_BLOCK(sb);
 	sbi->s_group_desc = kmalloc(db_count * sizeof (struct buffer_head *),
@@ -1820,7 +1829,7 @@ out_fail:
 /*
  * Setup any per-fs journal parameters now.  We'll do this both on
  * initial mount, once the journal has been initialised but before we've
- * done any recovery; and again on any subsequent remount. 
+ * done any recovery; and again on any subsequent remount.
  */
 static void ext3_init_journal_params(struct super_block *sb, journal_t *journal)
 {
@@ -1840,7 +1849,8 @@ static void ext3_init_journal_params(struct super_block *sb, journal_t *journal)
 	spin_unlock(&journal->j_state_lock);
 }
 
-static journal_t *ext3_get_journal(struct super_block *sb, int journal_inum)
+static journal_t *ext3_get_journal(struct super_block *sb,
+				   unsigned int journal_inum)
 {
 	struct inode *journal_inode;
 	journal_t *journal;
@@ -1975,7 +1985,7 @@ static int ext3_load_journal(struct super_block *sb,
 			     unsigned long journal_devnum)
 {
 	journal_t *journal;
-	int journal_inum = le32_to_cpu(es->s_journal_inum);
+	unsigned int journal_inum = le32_to_cpu(es->s_journal_inum);
 	dev_t journal_dev;
 	int err = 0;
 	int really_read_only;
@@ -2061,7 +2071,7 @@ static int ext3_load_journal(struct super_block *sb,
 
 static int ext3_create_journal(struct super_block * sb,
 			       struct ext3_super_block * es,
-			       int journal_inum)
+			       unsigned int journal_inum)
 {
 	journal_t *journal;
 
@@ -2074,7 +2084,7 @@ static int ext3_create_journal(struct super_block * sb,
 	if (!(journal = ext3_get_journal(sb, journal_inum)))
 		return -EINVAL;
 
-	printk(KERN_INFO "EXT3-fs: creating new journal on inode %d\n",
+	printk(KERN_INFO "EXT3-fs: creating new journal on inode %u\n",
 	       journal_inum);
 
 	if (journal_create(journal)) {
@@ -2342,10 +2352,8 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 			 */
 			ext3_clear_journal_err(sb, es);
 			sbi->s_mount_state = le16_to_cpu(es->s_state);
-			if ((ret = ext3_group_extend(sb, es, n_blocks_count))) {
-				err = ret;
+			if ((err = ext3_group_extend(sb, es, n_blocks_count)))
 				goto restore_opts;
-			}
 			if (!ext3_setup_super (sb, es, 0))
 				sb->s_flags &= ~MS_RDONLY;
 		}
@@ -2383,6 +2391,7 @@ static int ext3_statfs (struct dentry * dentry, struct kstatfs * buf)
 	struct ext3_super_block *es = sbi->s_es;
 	ext3_fsblk_t overhead;
 	int i;
+	u64 fsid;
 
 	if (test_opt (sb, MINIX_DF))
 		overhead = 0;
@@ -2429,6 +2438,10 @@ static int ext3_statfs (struct dentry * dentry, struct kstatfs * buf)
 	buf->f_files = le32_to_cpu(es->s_inodes_count);
 	buf->f_ffree = percpu_counter_sum(&sbi->s_freeinodes_counter);
 	buf->f_namelen = EXT3_NAME_LEN;
+	fsid = le64_to_cpup((void *)es->s_uuid) ^
+	       le64_to_cpup((void *)es->s_uuid + sizeof(u64));
+	buf->f_fsid.val[0] = fsid & 0xFFFFFFFFUL;
+	buf->f_fsid.val[1] = (fsid >> 32) & 0xFFFFFFFFUL;
 	return 0;
 }
 
@@ -2734,7 +2747,7 @@ static int __init init_ext3_fs(void)
 out:
 	destroy_inodecache();
 out1:
- 	exit_ext3_xattr();
+	exit_ext3_xattr();
 	return err;
 }
 

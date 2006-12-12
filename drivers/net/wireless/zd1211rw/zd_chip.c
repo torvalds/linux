@@ -249,7 +249,6 @@ int zd_ioread16(struct zd_chip *chip, zd_addr_t addr, u16 *value)
 {
 	int r;
 
-	ZD_ASSERT(!mutex_is_locked(&chip->mutex));
 	mutex_lock(&chip->mutex);
 	r = zd_ioread16_locked(chip, value, addr);
 	mutex_unlock(&chip->mutex);
@@ -260,7 +259,6 @@ int zd_ioread32(struct zd_chip *chip, zd_addr_t addr, u32 *value)
 {
 	int r;
 
-	ZD_ASSERT(!mutex_is_locked(&chip->mutex));
 	mutex_lock(&chip->mutex);
 	r = zd_ioread32_locked(chip, value, addr);
 	mutex_unlock(&chip->mutex);
@@ -271,7 +269,6 @@ int zd_iowrite16(struct zd_chip *chip, zd_addr_t addr, u16 value)
 {
 	int r;
 
-	ZD_ASSERT(!mutex_is_locked(&chip->mutex));
 	mutex_lock(&chip->mutex);
 	r = zd_iowrite16_locked(chip, value, addr);
 	mutex_unlock(&chip->mutex);
@@ -282,7 +279,6 @@ int zd_iowrite32(struct zd_chip *chip, zd_addr_t addr, u32 value)
 {
 	int r;
 
-	ZD_ASSERT(!mutex_is_locked(&chip->mutex));
 	mutex_lock(&chip->mutex);
 	r = zd_iowrite32_locked(chip, value, addr);
 	mutex_unlock(&chip->mutex);
@@ -294,7 +290,6 @@ int zd_ioread32v(struct zd_chip *chip, const zd_addr_t *addresses,
 {
 	int r;
 
-	ZD_ASSERT(!mutex_is_locked(&chip->mutex));
 	mutex_lock(&chip->mutex);
 	r = zd_ioread32v_locked(chip, values, addresses, count);
 	mutex_unlock(&chip->mutex);
@@ -306,7 +301,6 @@ int zd_iowrite32a(struct zd_chip *chip, const struct zd_ioreq32 *ioreqs,
 {
 	int r;
 
-	ZD_ASSERT(!mutex_is_locked(&chip->mutex));
 	mutex_lock(&chip->mutex);
 	r = zd_iowrite32a_locked(chip, ioreqs, count);
 	mutex_unlock(&chip->mutex);
@@ -331,13 +325,22 @@ static int read_pod(struct zd_chip *chip, u8 *rf_type)
 	chip->patch_cr157 = (value >> 13) & 0x1;
 	chip->patch_6m_band_edge = (value >> 21) & 0x1;
 	chip->new_phy_layout = (value >> 31) & 0x1;
+	chip->link_led = ((value >> 4) & 1) ? LED1 : LED2;
+	chip->supports_tx_led = 1;
+	if (value & (1 << 24)) { /* LED scenario */
+		if (value & (1 << 29))
+			chip->supports_tx_led = 0;
+	}
 
 	dev_dbg_f(zd_chip_dev(chip),
 		"RF %s %#01x PA type %#01x patch CCK %d patch CR157 %d "
-		"patch 6M %d new PHY %d\n",
+		"patch 6M %d new PHY %d link LED%d tx led %d\n",
 		zd_rf_name(*rf_type), *rf_type,
 		chip->pa_type, chip->patch_cck_gain,
-		chip->patch_cr157, chip->patch_6m_band_edge, chip->new_phy_layout);
+		chip->patch_cr157, chip->patch_6m_band_edge,
+		chip->new_phy_layout,
+		chip->link_led == LED1 ? 1 : 2,
+		chip->supports_tx_led);
 	return 0;
 error:
 	*rf_type = 0;
@@ -1073,6 +1076,31 @@ static int set_mandatory_rates(struct zd_chip *chip, enum ieee80211_std std)
 	return zd_iowrite32_locked(chip, rates, CR_MANDATORY_RATE_TBL);
 }
 
+int zd_chip_set_rts_cts_rate_locked(struct zd_chip *chip,
+	u8 rts_rate, int preamble)
+{
+	int rts_mod = ZD_RX_CCK;
+	u32 value = 0;
+
+	/* Modulation bit */
+	if (ZD_CS_TYPE(rts_rate) == ZD_CS_OFDM)
+		rts_mod = ZD_RX_OFDM;
+
+	dev_dbg_f(zd_chip_dev(chip), "rts_rate=%x preamble=%x\n",
+		rts_rate, preamble);
+
+	value |= rts_rate << RTSCTS_SH_RTS_RATE;
+	value |= rts_mod << RTSCTS_SH_RTS_MOD_TYPE;
+	value |= preamble << RTSCTS_SH_RTS_PMB_TYPE;
+	value |= preamble << RTSCTS_SH_CTS_PMB_TYPE;
+
+	/* We always send 11M self-CTS messages, like the vendor driver. */
+	value |= ZD_CCK_RATE_11M << RTSCTS_SH_CTS_RATE;
+	value |= ZD_RX_CCK << RTSCTS_SH_CTS_MOD_TYPE;
+
+	return zd_iowrite32_locked(chip, value, CR_RTS_CTS_RATE);
+}
+
 int zd_chip_enable_hwint(struct zd_chip *chip)
 {
 	int r;
@@ -1181,7 +1209,7 @@ static int update_pwr_int(struct zd_chip *chip, u8 channel)
 	u8 value = chip->pwr_int_values[channel - 1];
 	dev_dbg_f(zd_chip_dev(chip), "channel %d pwr_int %#04x\n",
 		 channel, value);
-	return zd_iowrite32_locked(chip, value, CR31);
+	return zd_iowrite16_locked(chip, value, CR31);
 }
 
 static int update_pwr_cal(struct zd_chip *chip, u8 channel)
@@ -1189,12 +1217,12 @@ static int update_pwr_cal(struct zd_chip *chip, u8 channel)
 	u8 value = chip->pwr_cal_values[channel-1];
 	dev_dbg_f(zd_chip_dev(chip), "channel %d pwr_cal %#04x\n",
 		 channel, value);
-	return zd_iowrite32_locked(chip, value, CR68);
+	return zd_iowrite16_locked(chip, value, CR68);
 }
 
 static int update_ofdm_cal(struct zd_chip *chip, u8 channel)
 {
-	struct zd_ioreq32 ioreqs[3];
+	struct zd_ioreq16 ioreqs[3];
 
 	ioreqs[0].addr = CR67;
 	ioreqs[0].value = chip->ofdm_cal_values[OFDM_36M_INDEX][channel-1];
@@ -1206,7 +1234,7 @@ static int update_ofdm_cal(struct zd_chip *chip, u8 channel)
 	dev_dbg_f(zd_chip_dev(chip),
 		"channel %d ofdm_cal 36M %#04x 48M %#04x 54M %#04x\n",
 		channel, ioreqs[0].value, ioreqs[1].value, ioreqs[2].value);
-	return zd_iowrite32a_locked(chip, ioreqs, ARRAY_SIZE(ioreqs));
+	return zd_iowrite16a_locked(chip, ioreqs, ARRAY_SIZE(ioreqs));
 }
 
 static int update_channel_integration_and_calibration(struct zd_chip *chip,
@@ -1218,7 +1246,7 @@ static int update_channel_integration_and_calibration(struct zd_chip *chip,
 	if (r)
 		return r;
 	if (chip->is_zd1211b) {
-		static const struct zd_ioreq32 ioreqs[] = {
+		static const struct zd_ioreq16 ioreqs[] = {
 			{ CR69, 0x28 },
 			{},
 			{ CR69, 0x2a },
@@ -1230,7 +1258,7 @@ static int update_channel_integration_and_calibration(struct zd_chip *chip,
 		r = update_pwr_cal(chip, channel);
 		if (r)
 			return r;
-		r = zd_iowrite32a_locked(chip, ioreqs, ARRAY_SIZE(ioreqs));
+		r = zd_iowrite16a_locked(chip, ioreqs, ARRAY_SIZE(ioreqs));
 		if (r)
 			return r;
 	}
@@ -1252,7 +1280,7 @@ static int patch_cck_gain(struct zd_chip *chip)
 	if (r)
 		return r;
 	dev_dbg_f(zd_chip_dev(chip), "patching value %x\n", value & 0xff);
-	return zd_iowrite32_locked(chip, value & 0xff, CR47);
+	return zd_iowrite16_locked(chip, value & 0xff, CR47);
 }
 
 int zd_chip_set_channel(struct zd_chip *chip, u8 channel)
@@ -1295,103 +1323,69 @@ u8 zd_chip_get_channel(struct zd_chip *chip)
 	return channel;
 }
 
-static u16 led_mask(int led)
+int zd_chip_control_leds(struct zd_chip *chip, enum led_status status)
 {
-	switch (led) {
-	case 1:
-		return LED1;
-	case 2:
-		return LED2;
-	default:
-		return 0;
-	}
-}
+	static const zd_addr_t a[] = {
+		FW_LINK_STATUS,
+		CR_LED,
+	};
 
-static int read_led_reg(struct zd_chip *chip, u16 *status)
-{
-	ZD_ASSERT(mutex_is_locked(&chip->mutex));
-	return zd_ioread16_locked(chip, status, CR_LED);
-}
+	int r;
+	u16 v[ARRAY_SIZE(a)];
+	struct zd_ioreq16 ioreqs[ARRAY_SIZE(a)] = {
+		[0] = { FW_LINK_STATUS },
+		[1] = { CR_LED },
+	};
+	u16 other_led;
 
-static int write_led_reg(struct zd_chip *chip, u16 status)
-{
-	ZD_ASSERT(mutex_is_locked(&chip->mutex));
-	return zd_iowrite16_locked(chip, status, CR_LED);
-}
-
-int zd_chip_led_status(struct zd_chip *chip, int led, enum led_status status)
-{
-	int r, ret;
-	u16 mask = led_mask(led);
-	u16 reg;
-
-	if (!mask)
-		return -EINVAL;
 	mutex_lock(&chip->mutex);
-	r = read_led_reg(chip, &reg);
+	r = zd_ioread16v_locked(chip, v, (const zd_addr_t *)a, ARRAY_SIZE(a));
 	if (r)
-		return r;
+		goto out;
+
+	other_led = chip->link_led == LED1 ? LED2 : LED1;
+
 	switch (status) {
-	case LED_STATUS:
-		return (reg & mask) ? LED_ON : LED_OFF;
 	case LED_OFF:
-		reg &= ~mask;
-		ret = LED_OFF;
+		ioreqs[0].value = FW_LINK_OFF;
+		ioreqs[1].value = v[1] & ~(LED1|LED2);
 		break;
-	case LED_FLIP:
-		reg ^= mask;
-		ret = (reg&mask) ? LED_ON : LED_OFF;
+	case LED_SCANNING:
+		ioreqs[0].value = FW_LINK_OFF;
+		ioreqs[1].value = v[1] & ~other_led;
+		if (get_seconds() % 3 == 0) {
+			ioreqs[1].value &= ~chip->link_led;
+		} else {
+			ioreqs[1].value |= chip->link_led;
+		}
 		break;
-	case LED_ON:
-		reg |= mask;
-		ret = LED_ON;
+	case LED_ASSOCIATED:
+		ioreqs[0].value = FW_LINK_TX;
+		ioreqs[1].value = v[1] & ~other_led;
+		ioreqs[1].value |= chip->link_led;
 		break;
 	default:
-		return -EINVAL;
-	}
-	r = write_led_reg(chip, reg);
-	if (r) {
-		ret = r;
+		r = -EINVAL;
 		goto out;
 	}
-out:
-	mutex_unlock(&chip->mutex);
-	return r;
-}
 
-int zd_chip_led_flip(struct zd_chip *chip, int led,
-	const unsigned int *phases_msecs, unsigned int count)
-{
-	int i, r;
-	enum led_status status;
-
-	r = zd_chip_led_status(chip, led, LED_STATUS);
-	if (r)
-		return r;
-	status = r;
-	for (i = 0; i < count; i++) {
-		r = zd_chip_led_status(chip, led, LED_FLIP);
-		if (r < 0)
+	if (v[0] != ioreqs[0].value || v[1] != ioreqs[1].value) {
+		r = zd_iowrite16a_locked(chip, ioreqs, ARRAY_SIZE(ioreqs));
+		if (r)
 			goto out;
-		msleep(phases_msecs[i]);
 	}
-
+	r = 0;
 out:
-	zd_chip_led_status(chip, led, status);
+	mutex_unlock(&chip->mutex);
 	return r;
 }
 
-int zd_chip_set_basic_rates(struct zd_chip *chip, u16 cr_rates)
+int zd_chip_set_basic_rates_locked(struct zd_chip *chip, u16 cr_rates)
 {
-	int r;
+	ZD_ASSERT((cr_rates & ~(CR_RATES_80211B | CR_RATES_80211G)) == 0);
+	dev_dbg_f(zd_chip_dev(chip), "%x\n", cr_rates);
 
-	if (cr_rates & ~(CR_RATES_80211B|CR_RATES_80211G))
-		return -EINVAL;
-
-	mutex_lock(&chip->mutex);
-	r = zd_iowrite32_locked(chip, cr_rates, CR_BASIC_RATE_TBL);
-	mutex_unlock(&chip->mutex);
-	return r;
+	return zd_iowrite32_locked(chip, cr_rates, CR_BASIC_RATE_TBL);
 }
 
 static int ofdm_qual_db(u8 status_quality, u8 rate, unsigned int size)
@@ -1680,3 +1674,15 @@ int zd_rfwritev_cr_locked(struct zd_chip *chip,
 	return 0;
 }
 
+int zd_chip_set_multicast_hash(struct zd_chip *chip,
+	                       struct zd_mc_hash *hash)
+{
+	struct zd_ioreq32 ioreqs[] = {
+		{ CR_GROUP_HASH_P1, hash->low },
+		{ CR_GROUP_HASH_P2, hash->high },
+	};
+
+	dev_dbg_f(zd_chip_dev(chip), "hash l 0x%08x h 0x%08x\n",
+		ioreqs[0].value, ioreqs[1].value);
+	return zd_iowrite32a(chip, ioreqs, ARRAY_SIZE(ioreqs));
+}

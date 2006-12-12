@@ -3,7 +3,6 @@
  * Licensed under the GPL
  */
 
-#include "linux/config.h"
 #include "linux/kernel.h"
 #include "linux/sched.h"
 #include "linux/notifier.h"
@@ -106,7 +105,7 @@ static void c_stop(struct seq_file *m, void *v)
 {
 }
 
-struct seq_operations cpuinfo_op = {
+const struct seq_operations cpuinfo_op = {
 	.start	= c_start,
 	.next	= c_next,
 	.stop	= c_stop,
@@ -167,7 +166,7 @@ static char *usage_string =
 
 static int __init uml_version_setup(char *line, int *add)
 {
-	printf("%s\n", system_utsname.release);
+	printf("%s\n", init_utsname()->release);
 	exit(0);
 
 	return 0;
@@ -278,7 +277,7 @@ static int __init Usage(char *line, int *add)
 {
  	const char **p;
 
-	printf(usage_string, system_utsname.release);
+	printf(usage_string, init_utsname()->release);
  	p = &__uml_help_start;
  	while (p < &__uml_help_end) {
  		printf("%s", *p);
@@ -403,7 +402,7 @@ int linux_main(int argc, char **argv)
 	/* Reserve up to 4M after the current brk */
 	uml_reserved = ROUND_4M(brk_start) + (1 << 22);
 
-	setup_machinename(system_utsname.machine);
+	setup_machinename(init_utsname()->machine);
 
 #ifdef CONFIG_CMDLINE_ON_HOST
 	argv1_begin = argv[1];

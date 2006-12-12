@@ -104,11 +104,6 @@ struct ib_srq *ipath_create_srq(struct ib_pd *ibpd,
 	u32 sz;
 	struct ib_srq *ret;
 
-	if (dev->n_srqs_allocated == ib_ipath_max_srqs) {
-		ret = ERR_PTR(-ENOMEM);
-		goto done;
-	}
-
 	if (srq_init_attr->attr.max_wr == 0) {
 		ret = ERR_PTR(-EINVAL);
 		goto done;
@@ -180,10 +175,17 @@ struct ib_srq *ipath_create_srq(struct ib_pd *ibpd,
 	spin_lock_init(&srq->rq.lock);
 	srq->rq.wq->head = 0;
 	srq->rq.wq->tail = 0;
-	srq->rq.max_sge = srq_init_attr->attr.max_sge;
 	srq->limit = srq_init_attr->attr.srq_limit;
 
-	dev->n_srqs_allocated++;
+	spin_lock(&dev->n_srqs_lock);
+	if (dev->n_srqs_allocated == ib_ipath_max_srqs) {
+		spin_unlock(&dev->n_srqs_lock);
+		ret = ERR_PTR(-ENOMEM);
+		goto bail_wq;
+	}
+
+ 	dev->n_srqs_allocated++;
+	spin_unlock(&dev->n_srqs_lock);
 
 	ret = &srq->ibsrq;
 	goto done;
@@ -351,8 +353,13 @@ int ipath_destroy_srq(struct ib_srq *ibsrq)
 	struct ipath_srq *srq = to_isrq(ibsrq);
 	struct ipath_ibdev *dev = to_idev(ibsrq->device);
 
+	spin_lock(&dev->n_srqs_lock);
 	dev->n_srqs_allocated--;
-	vfree(srq->rq.wq);
+	spin_unlock(&dev->n_srqs_lock);
+	if (srq->ip)
+		kref_put(&srq->ip->ref, ipath_release_mmap_info);
+	else
+		vfree(srq->rq.wq);
 	kfree(srq);
 
 	return 0;

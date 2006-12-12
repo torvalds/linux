@@ -70,7 +70,7 @@ static int mt352_single_write(struct dvb_frontend *fe, u8 reg, u8 val)
 	return 0;
 }
 
-int mt352_write(struct dvb_frontend* fe, u8* ibuf, int ilen)
+static int _mt352_write(struct dvb_frontend* fe, u8* ibuf, int ilen)
 {
 	int err,i;
 	for (i=0; i < ilen-1; i++)
@@ -107,7 +107,7 @@ static int mt352_sleep(struct dvb_frontend* fe)
 {
 	static u8 mt352_softdown[] = { CLOCK_CTL, 0x20, 0x08 };
 
-	mt352_write(fe, mt352_softdown, sizeof(mt352_softdown));
+	_mt352_write(fe, mt352_softdown, sizeof(mt352_softdown));
 	return 0;
 }
 
@@ -293,14 +293,14 @@ static int mt352_set_parameters(struct dvb_frontend* fe,
 				fe->ops.i2c_gate_ctrl(fe, 0);
 		}
 
-		mt352_write(fe, buf, 8);
-		mt352_write(fe, fsm_go, 2);
+		_mt352_write(fe, buf, 8);
+		_mt352_write(fe, fsm_go, 2);
 	} else {
 		if (fe->ops.tuner_ops.calc_regs) {
 			fe->ops.tuner_ops.calc_regs(fe, param, buf+8, 5);
 			buf[8] <<= 1;
-			mt352_write(fe, buf, sizeof(buf));
-			mt352_write(fe, tuner_go, 2);
+			_mt352_write(fe, buf, sizeof(buf));
+			_mt352_write(fe, tuner_go, 2);
 		}
 	}
 
@@ -522,7 +522,7 @@ static int mt352_init(struct dvb_frontend* fe)
 	    (mt352_read_register(state, CONFIG) & 0x20) == 0) {
 
 		/* Do a "hard" reset */
-		mt352_write(fe, mt352_reset_attach, sizeof(mt352_reset_attach));
+		_mt352_write(fe, mt352_reset_attach, sizeof(mt352_reset_attach));
 		return state->config.demod_init(fe);
 	}
 
@@ -585,6 +585,7 @@ static struct dvb_frontend_ops mt352_ops = {
 
 	.init = mt352_init,
 	.sleep = mt352_sleep,
+	.write = _mt352_write,
 
 	.set_frontend = mt352_set_parameters,
 	.get_frontend = mt352_get_parameters,
@@ -605,4 +606,3 @@ MODULE_AUTHOR("Holger Waechtler, Daniel Mack, Antonio Mancuso");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(mt352_attach);
-EXPORT_SYMBOL(mt352_write);

@@ -1,25 +1,24 @@
 /*******************************************************************************
 
-  
-  Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
-  
-  This program is free software; you can redistribute it and/or modify it 
-  under the terms of the GNU General Public License as published by the Free 
-  Software Foundation; either version 2 of the License, or (at your option) 
-  any later version.
-  
-  This program is distributed in the hope that it will be useful, but WITHOUT 
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
+  Intel PRO/1000 Linux driver
+  Copyright(c) 1999 - 2006 Intel Corporation.
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms and conditions of the GNU General Public License,
+  version 2, as published by the Free Software Foundation.
+
+  This program is distributed in the hope it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
-  
+
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59 
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-  
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
-  
+  this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+
+  The full GNU General Public License is included in this distribution in
+  the file called "COPYING".
+
   Contact Information:
   Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
@@ -45,16 +44,6 @@
  */
 
 #define E1000_PARAM_INIT { [0 ... E1000_MAX_NIC] = OPTION_UNSET }
-/* Module Parameters are always initialized to -1, so that the driver
- * can tell the difference between no user specified value or the
- * user asking for the default value.
- * The true default values are loaded in when e1000_check_options is called.
- *
- * This is a GCC extension to ANSI C.
- * See the item "Labeled Elements in Initializers" in the section
- * "Extensions to the C Language Family" of the GCC documentation.
- */
-
 #define E1000_PARAM(X, desc) \
 	static int __devinitdata X[E1000_MAX_NIC+1] = E1000_PARAM_INIT; \
 	static int num_##X = 0; \
@@ -68,7 +57,6 @@
  *
  * Default Value: 256
  */
-
 E1000_PARAM(TxDescriptors, "Number of transmit descriptors");
 
 /* Receive Descriptor Count
@@ -78,7 +66,6 @@ E1000_PARAM(TxDescriptors, "Number of transmit descriptors");
  *
  * Default Value: 256
  */
-
 E1000_PARAM(RxDescriptors, "Number of receive descriptors");
 
 /* User Specified Speed Override
@@ -91,7 +78,6 @@ E1000_PARAM(RxDescriptors, "Number of receive descriptors");
  *
  * Default Value: 0
  */
-
 E1000_PARAM(Speed, "Speed setting");
 
 /* User Specified Duplex Override
@@ -103,7 +89,6 @@ E1000_PARAM(Speed, "Speed setting");
  *
  * Default Value: 0
  */
-
 E1000_PARAM(Duplex, "Duplex setting");
 
 /* Auto-negotiation Advertisement Override
@@ -120,8 +105,9 @@ E1000_PARAM(Duplex, "Duplex setting");
  *
  * Default Value: 0x2F (copper); 0x20 (fiber)
  */
-
 E1000_PARAM(AutoNeg, "Advertised auto-negotiation setting");
+#define AUTONEG_ADV_DEFAULT  0x2F
+#define AUTONEG_ADV_MASK     0x2F
 
 /* User Specified Flow Control Override
  *
@@ -133,8 +119,8 @@ E1000_PARAM(AutoNeg, "Advertised auto-negotiation setting");
  *
  * Default Value: Read flow control settings from the EEPROM
  */
-
 E1000_PARAM(FlowControl, "Flow Control setting");
+#define FLOW_CONTROL_DEFAULT FLOW_CONTROL_FULL
 
 /* XsumRX - Receive Checksum Offload Enable/Disable
  *
@@ -145,53 +131,54 @@ E1000_PARAM(FlowControl, "Flow Control setting");
  *
  * Default Value: 1
  */
-
 E1000_PARAM(XsumRX, "Disable or enable Receive Checksum offload");
 
 /* Transmit Interrupt Delay in units of 1.024 microseconds
+ *  Tx interrupt delay needs to typically be set to something non zero
  *
  * Valid Range: 0-65535
- *
- * Default Value: 64
  */
-
 E1000_PARAM(TxIntDelay, "Transmit Interrupt Delay");
+#define DEFAULT_TIDV                   8
+#define MAX_TXDELAY               0xFFFF
+#define MIN_TXDELAY                    0
 
 /* Transmit Absolute Interrupt Delay in units of 1.024 microseconds
  *
  * Valid Range: 0-65535
- *
- * Default Value: 0
  */
-
 E1000_PARAM(TxAbsIntDelay, "Transmit Absolute Interrupt Delay");
+#define DEFAULT_TADV                  32
+#define MAX_TXABSDELAY            0xFFFF
+#define MIN_TXABSDELAY                 0
 
 /* Receive Interrupt Delay in units of 1.024 microseconds
+ *   hardware will likely hang if you set this to anything but zero.
  *
  * Valid Range: 0-65535
- *
- * Default Value: 0
  */
-
 E1000_PARAM(RxIntDelay, "Receive Interrupt Delay");
+#define DEFAULT_RDTR                   0
+#define MAX_RXDELAY               0xFFFF
+#define MIN_RXDELAY                    0
 
 /* Receive Absolute Interrupt Delay in units of 1.024 microseconds
  *
  * Valid Range: 0-65535
- *
- * Default Value: 128
  */
-
 E1000_PARAM(RxAbsIntDelay, "Receive Absolute Interrupt Delay");
+#define DEFAULT_RADV                   8
+#define MAX_RXABSDELAY            0xFFFF
+#define MIN_RXABSDELAY                 0
 
 /* Interrupt Throttle Rate (interrupts/sec)
  *
- * Valid Range: 100-100000 (0=off, 1=dynamic)
- *
- * Default Value: 8000
+ * Valid Range: 100-100000 (0=off, 1=dynamic, 3=dynamic conservative)
  */
-
 E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
+#define DEFAULT_ITR                    3
+#define MAX_ITR                   100000
+#define MIN_ITR                      100
 
 /* Enable Smart Power Down of the PHY
  *
@@ -199,7 +186,6 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
  *
  * Default Value: 0 (disabled)
  */
-
 E1000_PARAM(SmartPowerDownEnable, "Enable PHY smart power down");
 
 /* Enable Kumeran Lock Loss workaround
@@ -208,32 +194,7 @@ E1000_PARAM(SmartPowerDownEnable, "Enable PHY smart power down");
  *
  * Default Value: 1 (enabled)
  */
-
 E1000_PARAM(KumeranLockLoss, "Enable Kumeran lock loss workaround");
-
-#define AUTONEG_ADV_DEFAULT  0x2F
-#define AUTONEG_ADV_MASK     0x2F
-#define FLOW_CONTROL_DEFAULT FLOW_CONTROL_FULL
-
-#define DEFAULT_RDTR                   0
-#define MAX_RXDELAY               0xFFFF
-#define MIN_RXDELAY                    0
-
-#define DEFAULT_RADV                 128
-#define MAX_RXABSDELAY            0xFFFF
-#define MIN_RXABSDELAY                 0
-
-#define DEFAULT_TIDV                  64
-#define MAX_TXDELAY               0xFFFF
-#define MIN_TXDELAY                    0
-
-#define DEFAULT_TADV                  64
-#define MAX_TXABSDELAY            0xFFFF
-#define MIN_TXABSDELAY                 0
-
-#define DEFAULT_ITR                 8000
-#define MAX_ITR                   100000
-#define MIN_ITR                      100
 
 struct e1000_option {
 	enum { enable_option, range_option, list_option } type;
@@ -397,17 +358,17 @@ e1000_check_options(struct e1000_adapter *adapter)
 	{ /* Flow Control */
 
 		struct e1000_opt_list fc_list[] =
-			{{ e1000_fc_none,    "Flow Control Disabled" },
-			 { e1000_fc_rx_pause,"Flow Control Receive Only" },
-			 { e1000_fc_tx_pause,"Flow Control Transmit Only" },
-			 { e1000_fc_full,    "Flow Control Enabled" },
-			 { e1000_fc_default, "Flow Control Hardware Default" }};
+			{{ E1000_FC_NONE,    "Flow Control Disabled" },
+			 { E1000_FC_RX_PAUSE,"Flow Control Receive Only" },
+			 { E1000_FC_TX_PAUSE,"Flow Control Transmit Only" },
+			 { E1000_FC_FULL,    "Flow Control Enabled" },
+			 { E1000_FC_DEFAULT, "Flow Control Hardware Default" }};
 
 		struct e1000_option opt = {
 			.type = list_option,
 			.name = "Flow Control",
 			.err  = "reading default settings from EEPROM",
-			.def  = e1000_fc_default,
+			.def  = E1000_FC_DEFAULT,
 			.arg  = { .l = { .nr = ARRAY_SIZE(fc_list),
 					 .p = fc_list }}
 		};
@@ -511,15 +472,27 @@ e1000_check_options(struct e1000_adapter *adapter)
 				break;
 			case 1:
 				DPRINTK(PROBE, INFO, "%s set to dynamic mode\n",
-				        opt.name);
+					opt.name);
+				adapter->itr_setting = adapter->itr;
+				adapter->itr = 20000;
+				break;
+			case 3:
+				DPRINTK(PROBE, INFO,
+				        "%s set to dynamic conservative mode\n",
+					opt.name);
+				adapter->itr_setting = adapter->itr;
+				adapter->itr = 20000;
 				break;
 			default:
 				e1000_validate_option(&adapter->itr, &opt,
-				                      adapter);
+				        adapter);
+				/* save the setting, because the dynamic bits change itr */
+				adapter->itr_setting = adapter->itr;
 				break;
 			}
 		} else {
-			adapter->itr = opt.def;
+			adapter->itr_setting = opt.def;
+			adapter->itr = 20000;
 		}
 	}
 	{ /* Smart Power Down */

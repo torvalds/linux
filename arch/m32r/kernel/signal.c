@@ -21,7 +21,7 @@
 #include <linux/unistd.h>
 #include <linux/stddef.h>
 #include <linux/personality.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
@@ -33,7 +33,7 @@
 int do_signal(struct pt_regs *, sigset_t *);
 
 asmlinkage int
-sys_rt_sigsuspend(sigset_t *unewset, size_t sigsetsize,
+sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize,
 		  unsigned long r2, unsigned long r3, unsigned long r4,
 		  unsigned long r5, unsigned long r6, struct pt_regs *regs)
 {
@@ -78,8 +78,8 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 struct rt_sigframe
 {
 	int sig;
-	struct siginfo *pinfo;
-	void *puc;
+	struct siginfo __user *pinfo;
+	void __user *puc;
 	struct siginfo info;
 	struct ucontext uc;
 //	struct _fpstate fpstate;

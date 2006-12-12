@@ -191,7 +191,7 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 	if (tsk != current)
 		fp = thread_saved_fp(tsk);
 	else
-		asm("mov%? %0, fp" : "=r" (fp));
+		asm("mov %0, fp" : "=r" (fp) : : "cc");
 
 	c_backtrace(fp, 0x10);
 	barrier();
@@ -631,12 +631,9 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 	notify_die("unknown data abort code", regs, &info, instr, 0);
 }
 
-void __attribute__((noreturn)) __bug(const char *file, int line, void *data)
+void __attribute__((noreturn)) __bug(const char *file, int line)
 {
-	printk(KERN_CRIT"kernel BUG at %s:%d!", file, line);
-	if (data)
-		printk(" - extra data = %p", data);
-	printk("\n");
+	printk(KERN_CRIT"kernel BUG at %s:%d!\n", file, line);
 	*(int *)0 = 0;
 
 	/* Avoid "noreturn function does return" */

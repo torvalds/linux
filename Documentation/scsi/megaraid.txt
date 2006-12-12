@@ -4,11 +4,11 @@
 Overview:
 --------
 
-Different classes of controllers from LSI Logic, accept and respond to the
+Different classes of controllers from LSI Logic accept and respond to the
 user applications in a similar way. They understand the same firmware control
 commands. Furthermore, the applications also can treat different classes of
 the controllers uniformly. Hence it is logical to have a single module that
-interefaces with the applications on one side and all the low level drivers
+interfaces with the applications on one side and all the low level drivers
 on the other.
 
 The advantages, though obvious, are listed for completeness:

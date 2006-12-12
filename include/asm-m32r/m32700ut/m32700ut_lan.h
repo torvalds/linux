@@ -1,5 +1,5 @@
 /*
- * include/asm/m32700ut_lan.h
+ * include/asm-m32r/m32700ut/m32700ut_lan.h
  *
  * M32700UT-LAN board
  *

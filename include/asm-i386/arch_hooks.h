@@ -14,7 +14,7 @@
 extern void init_ISA_irqs(void);
 extern void apic_intr_init(void);
 extern void smp_intr_init(void);
-extern irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+extern irqreturn_t timer_interrupt(int irq, void *dev_id);
 
 /* these are the defined hooks */
 extern void intr_init_hook(void);

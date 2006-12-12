@@ -58,8 +58,8 @@
 #include <asm/page.h>
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/irq_regs.h>
 #include <asm/processor.h>
-#include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <linux/bootmem.h>
@@ -160,8 +160,7 @@ int tx4927_pci66 = 0;		/* 0:auto */
 char *toshiba_name = "";
 
 #ifdef CONFIG_PCI
-static void tx4927_pcierr_interrupt(int irq, void *dev_id,
-				    struct pt_regs *regs)
+static void tx4927_pcierr_interrupt(int irq, void *dev_id)
 {
 #ifdef CONFIG_BLK_DEV_IDEPCI
 	/* ignore MasterAbort for ide probing... */
@@ -185,7 +184,7 @@ static void tx4927_pcierr_interrupt(int irq, void *dev_id,
 	       (unsigned long) tx4927_ccfgptr->ccfg,
 	       (unsigned long) (tx4927_ccfgptr->tear >> 32),
 	       (unsigned long) tx4927_ccfgptr->tear);
-	show_regs(regs);
+	show_regs(get_irq_regs());
 }
 
 void __init toshiba_rbtx4927_pci_irq_init(void)

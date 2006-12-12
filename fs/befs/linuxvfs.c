@@ -22,7 +22,6 @@
 #include "datastream.h"
 #include "super.h"
 #include "io.h"
-#include "endian.h"
 
 MODULE_DESCRIPTION("BeOS File System (BeFS) driver");
 MODULE_AUTHOR("Will Dyson");
@@ -62,7 +61,7 @@ static const struct super_operations befs_sops = {
 };
 
 /* slab cache for befs_inode_info objects */
-static kmem_cache_t *befs_inode_cachep;
+static struct kmem_cache *befs_inode_cachep;
 
 static const struct file_operations befs_dir_operations = {
 	.read		= generic_read_dir,
@@ -213,7 +212,7 @@ befs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 static int
 befs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct super_block *sb = inode->i_sb;
 	befs_data_stream *ds = &BEFS_I(inode)->i_data.ds;
 	befs_off_t value;
@@ -223,7 +222,7 @@ befs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	char keybuf[BEFS_NAME_LEN + 1];
 	char *nlsname;
 	int nlsnamelen;
-	const char *dirname = filp->f_dentry->d_name.name;
+	const char *dirname = filp->f_path.dentry->d_name.name;
 
 	befs_debug(sb, "---> befs_readdir() "
 		   "name %s, inode %ld, filp->f_pos %Ld",
@@ -278,7 +277,7 @@ befs_alloc_inode(struct super_block *sb)
 {
         struct befs_inode_info *bi;
         bi = (struct befs_inode_info *)kmem_cache_alloc(befs_inode_cachep,
-							SLAB_KERNEL);
+							GFP_KERNEL);
         if (!bi)
                 return NULL;
         return &bi->vfs_inode;
@@ -290,7 +289,7 @@ befs_destroy_inode(struct inode *inode)
         kmem_cache_free(befs_inode_cachep, BEFS_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
         struct befs_inode_info *bi = (struct befs_inode_info *) foo;
 	
@@ -365,7 +364,6 @@ befs_read_inode(struct inode *inode)
 	inode->i_mtime.tv_nsec = 0;   /* lower 16 bits are not a time */	
 	inode->i_ctime = inode->i_mtime;
 	inode->i_atime = inode->i_mtime;
-	inode->i_blksize = befs_sb->block_size;
 
 	befs_ino->i_inode_num = fsrun_to_cpu(sb, raw_inode->inode_num);
 	befs_ino->i_parent = fsrun_to_cpu(sb, raw_inode->parent);
@@ -446,9 +444,7 @@ befs_init_inodecache(void)
 static void
 befs_destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(befs_inode_cachep))
-		printk(KERN_ERR "befs_destroy_inodecache: "
-		       "not all structures were freed\n");
+	kmem_cache_destroy(befs_inode_cachep);
 }
 
 /*

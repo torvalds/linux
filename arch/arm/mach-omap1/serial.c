@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap1/id.c
+ * linux/arch/arm/mach-omap1/serial.c
  *
  * OMAP1 CPU identification code
  *
@@ -204,8 +204,7 @@ void __init omap_serial_init(void)
 
 #ifdef CONFIG_OMAP_SERIAL_WAKE
 
-static irqreturn_t omap_serial_wake_interrupt(int irq, void *dev_id,
-					      struct pt_regs *regs)
+static irqreturn_t omap_serial_wake_interrupt(int irq, void *dev_id)
 {
 	/* Need to do something with serial port right after wake-up? */
 	return IRQ_HANDLED;

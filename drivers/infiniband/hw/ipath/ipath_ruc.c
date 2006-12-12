@@ -108,7 +108,6 @@ void ipath_insert_rnr_queue(struct ipath_qp *qp)
 
 static int init_sge(struct ipath_qp *qp, struct ipath_rwqe *wqe)
 {
-	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
 	int user = to_ipd(qp->ibqp.pd)->user;
 	int i, j, ret;
 	struct ib_wc wc;
@@ -119,8 +118,7 @@ static int init_sge(struct ipath_qp *qp, struct ipath_rwqe *wqe)
 			continue;
 		/* Check LKEY */
 		if ((user && wqe->sg_list[i].lkey == 0) ||
-		    !ipath_lkey_ok(&dev->lk_table,
-				   &qp->r_sg_list[j], &wqe->sg_list[i],
+		    !ipath_lkey_ok(qp, &qp->r_sg_list[j], &wqe->sg_list[i],
 				   IB_ACCESS_LOCAL_WRITE))
 			goto bad_lkey;
 		qp->r_len += wqe->sg_list[i].length;
@@ -231,6 +229,7 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 		}
 	}
 	spin_unlock_irqrestore(&rq->lock, flags);
+	qp->r_wrid_valid = 1;
 
 bail:
 	return ret;
@@ -326,7 +325,7 @@ again:
 	case IB_WR_RDMA_WRITE:
 		if (wqe->length == 0)
 			break;
-		if (unlikely(!ipath_rkey_ok(dev, &qp->r_sge, wqe->length,
+		if (unlikely(!ipath_rkey_ok(qp, &qp->r_sge, wqe->length,
 					    wqe->wr.wr.rdma.remote_addr,
 					    wqe->wr.wr.rdma.rkey,
 					    IB_ACCESS_REMOTE_WRITE))) {
@@ -350,7 +349,7 @@ again:
 		break;
 
 	case IB_WR_RDMA_READ:
-		if (unlikely(!ipath_rkey_ok(dev, &sqp->s_sge, wqe->length,
+		if (unlikely(!ipath_rkey_ok(qp, &sqp->s_sge, wqe->length,
 					    wqe->wr.wr.rdma.remote_addr,
 					    wqe->wr.wr.rdma.rkey,
 					    IB_ACCESS_REMOTE_READ)))
@@ -365,7 +364,7 @@ again:
 
 	case IB_WR_ATOMIC_CMP_AND_SWP:
 	case IB_WR_ATOMIC_FETCH_AND_ADD:
-		if (unlikely(!ipath_rkey_ok(dev, &qp->r_sge, sizeof(u64),
+		if (unlikely(!ipath_rkey_ok(qp, &qp->r_sge, sizeof(u64),
 					    wqe->wr.wr.rdma.remote_addr,
 					    wqe->wr.wr.rdma.rkey,
 					    IB_ACCESS_REMOTE_ATOMIC)))
@@ -575,8 +574,7 @@ int ipath_post_ruc_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 		}
 		if (wr->sg_list[i].length == 0)
 			continue;
-		if (!ipath_lkey_ok(&to_idev(qp->ibqp.device)->lk_table,
-				   &wqe->sg_list[j], &wr->sg_list[i],
+		if (!ipath_lkey_ok(qp, &wqe->sg_list[j], &wr->sg_list[i],
 				   acc)) {
 			spin_unlock_irqrestore(&qp->s_lock, flags);
 			ret = -EINVAL;

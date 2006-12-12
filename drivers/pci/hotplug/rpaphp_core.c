@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
@@ -36,7 +37,6 @@
 #include "../pci.h"		/* for pci_add_new_bus */
 				/* and pci_do_scan_bus */
 #include "rpaphp.h"
-#include "pci_hotplug.h"
 
 int debug;
 static struct semaphore rpaphp_sem;
@@ -356,7 +356,7 @@ static int __init rpaphp_init(void)
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 	init_MUTEX(&rpaphp_sem);
 
-	while ((dn = of_find_node_by_type(dn, "pci")))
+	while ((dn = of_find_node_by_name(dn, "pci")))
 		rpaphp_add_slot(dn);
 
 	return 0;

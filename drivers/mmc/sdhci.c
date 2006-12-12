@@ -4,8 +4,9 @@
  *  Copyright (C) 2005-2006 Pierre Ossman, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or (at
+ * your option) any later version.
  */
 
 #include <linux/delay.h>
@@ -34,6 +35,8 @@ static unsigned int debug_quirks = 0;
 
 #define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
 #define SDHCI_QUIRK_FORCE_DMA				(1<<1)
+/* Controller doesn't like some resets when there is no card inserted. */
+#define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -50,7 +53,8 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.device		= PCI_DEVICE_ID_RICOH_R5C822,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
+		.driver_data	= SDHCI_QUIRK_FORCE_DMA |
+				  SDHCI_QUIRK_NO_CARD_NO_RESET,
 	},
 
 	{
@@ -123,6 +127,12 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 static void sdhci_reset(struct sdhci_host *host, u8 mask)
 {
 	unsigned long timeout;
+
+	if (host->chip->quirks & SDHCI_QUIRK_NO_CARD_NO_RESET) {
+		if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) &
+			SDHCI_CARD_PRESENT))
+			return;
+	}
 
 	writeb(mask, host->ioaddr + SDHCI_SOFTWARE_RESET);
 
@@ -606,6 +616,7 @@ static void sdhci_finish_command(struct sdhci_host *host)
 static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	int div;
+	u8 ctrl;
 	u16 clk;
 	unsigned long timeout;
 
@@ -613,6 +624,13 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 		return;
 
 	writew(0, host->ioaddr + SDHCI_CLOCK_CONTROL);
+
+	ctrl = readb(host->ioaddr + SDHCI_HOST_CONTROL);
+	if (clock > 25000000)
+		ctrl |= SDHCI_CTRL_HISPD;
+	else
+		ctrl &= ~SDHCI_CTRL_HISPD;
+	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 
 	if (clock == 0)
 		goto out;
@@ -716,6 +734,7 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	} else
 		sdhci_send_command(host, mrq->cmd);
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -752,6 +771,7 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		ctrl &= ~SDHCI_CTRL_4BITBUS;
 	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -772,7 +792,7 @@ static int sdhci_get_ro(struct mmc_host *mmc)
 	return !(present & SDHCI_WRITE_PROTECT);
 }
 
-static struct mmc_host_ops sdhci_ops = {
+static const struct mmc_host_ops sdhci_ops = {
 	.request	= sdhci_request,
 	.set_ios	= sdhci_set_ios,
 	.get_ro		= sdhci_get_ro,
@@ -859,6 +879,7 @@ static void sdhci_tasklet_finish(unsigned long param)
 
 	sdhci_deactivate_led(host);
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	mmc_request_done(host->mmc, mrq);
@@ -892,6 +913,7 @@ static void sdhci_timeout_timer(unsigned long data)
 		}
 	}
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -971,7 +993,7 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 	}
 }
 
-static irqreturn_t sdhci_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sdhci_irq(int irq, void *dev_id)
 {
 	irqreturn_t result;
 	struct sdhci_host* host = dev_id;
@@ -1029,6 +1051,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id, struct pt_regs *regs)
 
 	result = IRQ_HANDLED;
 
+	mmiowb();
 out:
 	spin_unlock(&host->lock);
 
@@ -1094,6 +1117,7 @@ static int sdhci_resume (struct pci_dev *pdev)
 		if (chip->hosts[i]->flags & SDHCI_USE_DMA)
 			pci_set_master(pdev);
 		sdhci_init(chip->hosts[i]);
+		mmiowb();
 		ret = mmc_resume_host(chip->hosts[i]->mmc);
 		if (ret)
 			return ret;
@@ -1146,8 +1170,8 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	}
 
 	if (pci_resource_len(pdev, first_bar + slot) != 0x100) {
-		printk(KERN_ERR DRIVER_NAME ": Invalid iomem size. Aborting.\n");
-		return -ENODEV;
+		printk(KERN_ERR DRIVER_NAME ": Invalid iomem size. "
+			"You may experience problems.\n");
 	}
 
 	if ((pdev->class & 0x0000FF) == PCI_SDHCI_IFVENDOR) {
@@ -1166,6 +1190,9 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
+
+	host->chip = chip;
+	chip->hosts[slot] = host;
 
 	host->bar = first_bar + slot;
 
@@ -1262,7 +1289,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	mmc->ops = &sdhci_ops;
 	mmc->f_min = host->max_clk / 256;
 	mmc->f_max = host->max_clk;
-	mmc->caps = MMC_CAP_4_BIT_DATA;
+	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MULTIWRITE | MMC_CAP_BYTEBLOCK;
 
 	mmc->ocr_avail = 0;
 	if (caps & SDHCI_CAN_VDD_330)
@@ -1271,6 +1298,13 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		mmc->ocr_avail |= MMC_VDD_29_30|MMC_VDD_30_31;
 	else if (caps & SDHCI_CAN_VDD_180)
 		mmc->ocr_avail |= MMC_VDD_17_18|MMC_VDD_18_19;
+
+	if ((host->max_clk > 25000000) && !(caps & SDHCI_CAN_DO_HISPD)) {
+		printk(KERN_ERR "%s: Controller reports > 25 MHz base clock,"
+			" but no high speed support.\n",
+			host->slot_descr);
+		mmc->f_max = 25000000;
+	}
 
 	if (mmc->ocr_avail == 0) {
 		printk(KERN_ERR "%s: Hardware doesn't report any "
@@ -1310,7 +1344,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	tasklet_init(&host->finish_tasklet,
 		sdhci_tasklet_finish, (unsigned long)host);
 
-	setup_timer(&host->timer, sdhci_timeout_timer, (long)host);
+	setup_timer(&host->timer, sdhci_timeout_timer, (unsigned long)host);
 
 	ret = request_irq(host->irq, sdhci_irq, IRQF_SHARED,
 		host->slot_descr, host);
@@ -1323,8 +1357,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	sdhci_dumpregs(host);
 #endif
 
-	host->chip = chip;
-	chip->hosts[slot] = host;
+	mmiowb();
 
 	mmc_add_host(mmc);
 

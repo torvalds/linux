@@ -141,7 +141,7 @@ static int smctr_init_shared_memory(struct net_device *dev);
 static int smctr_init_tx_bdbs(struct net_device *dev);
 static int smctr_init_tx_fcbs(struct net_device *dev);
 static int smctr_internal_self_test(struct net_device *dev);
-static irqreturn_t smctr_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t smctr_interrupt(int irq, void *dev_id);
 static int smctr_issue_enable_int_cmd(struct net_device *dev,
         __u16 interrupt_enable_mask);
 static int smctr_issue_int_ack(struct net_device *dev, __u16 iack_code,
@@ -1980,7 +1980,7 @@ static int smctr_internal_self_test(struct net_device *dev)
 /*
  * The typical workload of the driver: Handle the network interface interrupts.
  */
-static irqreturn_t smctr_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t smctr_interrupt(int irq, void *dev_id)
 {
         struct net_device *dev = dev_id;
         struct net_local *tp;
@@ -1990,15 +1990,8 @@ static irqreturn_t smctr_interrupt(int irq, void *dev_id, struct pt_regs *regs)
         __u8 isb_type, isb_subtype;
         __u16 isb_index;
 
-        if(dev == NULL)
-        {
-                printk(KERN_CRIT "%s: irq %d for unknown device.\n", dev->name, irq);
-                return IRQ_NONE;
-        }
-
         ioaddr = dev->base_addr;
         tp = netdev_priv(dev);
-        
 
         if(tp->status == NOT_INITIALIZED)
                 return IRQ_NONE;
@@ -5713,7 +5706,7 @@ int __init init_module(void)
         return found ? 0 : -ENODEV;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
         int i;
 

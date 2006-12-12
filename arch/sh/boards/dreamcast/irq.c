@@ -10,7 +10,6 @@
  */
 
 #include <linux/irq.h>
-
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/dreamcast/sysasic.h>
@@ -26,10 +25,10 @@
    event.
 
    There are three 32-bit ESRs located at 0xa05f8900 - 0xa05f6908.  Event
-   types can be found in include/asm-sh/dc_sysasic.h.  There are three groups
-   of EMRs that parallel the ESRs.  Each EMR group corresponds to an IRQ, so
-   0xa05f6910 - 0xa05f6918 triggers IRQ 13, 0xa05f6920 - 0xa05f6928 triggers
-   IRQ 11, and 0xa05f6930 - 0xa05f6938 triggers IRQ 9.
+   types can be found in include/asm-sh/dreamcast/sysasic.h. There are three
+   groups of EMRs that parallel the ESRs.  Each EMR group corresponds to an
+   IRQ, so 0xa05f6910 - 0xa05f6918 triggers IRQ 13, 0xa05f6920 - 0xa05f6928
+   triggers IRQ 11, and 0xa05f6930 - 0xa05f6938 triggers IRQ 9.
 
    In the kernel, these events are mapped to virtual IRQs so that drivers can
    respond to them as they would a normal interrupt.  In order to keep this
@@ -57,29 +56,23 @@
 /* Disable the hardware event by masking its bit in its EMR */
 static inline void disable_systemasic_irq(unsigned int irq)
 {
-        unsigned long flags;
         __u32 emr = EMR_BASE + (LEVEL(irq) << 4) + (LEVEL(irq) << 2);
         __u32 mask;
 
-        local_irq_save(flags);
         mask = inl(emr);
         mask &= ~(1 << EVENT_BIT(irq));
         outl(mask, emr);
-        local_irq_restore(flags);
 }
 
 /* Enable the hardware event by setting its bit in its EMR */
 static inline void enable_systemasic_irq(unsigned int irq)
 {
-        unsigned long flags;
         __u32 emr = EMR_BASE + (LEVEL(irq) << 4) + (LEVEL(irq) << 2);
         __u32 mask;
 
-        local_irq_save(flags);
         mask = inl(emr);
         mask |= (1 << EVENT_BIT(irq));
         outl(mask, emr);
-        local_irq_restore(flags);
 }
 
 /* Acknowledge a hardware event by writing its bit back to its ESR */

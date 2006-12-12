@@ -8,12 +8,10 @@
  * Modified for RTS7751R2D by
  * Atom Create Engineering Co., Ltd. 2002.
  */
-
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/rts7751r2d/rts7751r2d.h>
+#include <linux/io.h>
+#include <asm/rts7751r2d.h>
 
 #if defined(CONFIG_RTS7751R2D_REV11)
 static int mask_pos[] = {11, 9, 8, 12, 10, 6, 5, 4, 7, 14, 13, 0, 0, 0, 0};
@@ -41,30 +39,24 @@ static unsigned int startup_rts7751r2d_irq(unsigned int irq)
 
 static void disable_rts7751r2d_irq(unsigned int irq)
 {
-	unsigned long flags;
 	unsigned short val;
 	unsigned short mask = 0xffff ^ (0x0001 << mask_pos[irq]);
 
 	/* Set the priority in IPR to 0 */
-	local_irq_save(flags);
 	val = ctrl_inw(IRLCNTR1);
 	val &= mask;
 	ctrl_outw(val, IRLCNTR1);
-	local_irq_restore(flags);
 }
 
 static void enable_rts7751r2d_irq(unsigned int irq)
 {
-	unsigned long flags;
 	unsigned short val;
 	unsigned short value = (0x0001 << mask_pos[irq]);
 
 	/* Set priority in IPR back to original value */
-	local_irq_save(flags);
 	val = ctrl_inw(IRLCNTR1);
 	val |= value;
 	ctrl_outw(val, IRLCNTR1);
-	local_irq_restore(flags);
 }
 
 int rts7751r2d_irq_demux(int irq)

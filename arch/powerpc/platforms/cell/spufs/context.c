@@ -27,7 +27,7 @@
 #include <asm/spu_csa.h>
 #include "spufs.h"
 
-struct spu_context *alloc_spu_context(void)
+struct spu_context *alloc_spu_context(struct spu_gang *gang)
 {
 	struct spu_context *ctx;
 	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
@@ -51,6 +51,8 @@ struct spu_context *alloc_spu_context(void)
 	ctx->state = SPU_STATE_SAVED;
 	ctx->ops = &spu_backing_ops;
 	ctx->owner = get_task_mm(current);
+	if (gang)
+		spu_gang_add_ctx(gang, ctx);
 	goto out;
 out_free:
 	kfree(ctx);
@@ -67,6 +69,8 @@ void destroy_spu_context(struct kref *kref)
 	spu_deactivate(ctx);
 	up_write(&ctx->state_sema);
 	spu_fini_csa(&ctx->csa);
+	if (ctx->gang)
+		spu_gang_remove_ctx(ctx->gang, ctx);
 	kfree(ctx);
 }
 
@@ -114,6 +118,33 @@ void spu_unmap_mappings(struct spu_context *ctx)
 		unmap_mapping_range(ctx->signal1, 0, 0x4000, 1);
 	if (ctx->signal2)
 		unmap_mapping_range(ctx->signal2, 0, 0x4000, 1);
+}
+
+int spu_acquire_exclusive(struct spu_context *ctx)
+{
+	int ret = 0;
+
+	down_write(&ctx->state_sema);
+	/* ctx is about to be freed, can't acquire any more */
+	if (!ctx->owner) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (ctx->state == SPU_STATE_SAVED) {
+		ret = spu_activate(ctx, 0);
+		if (ret)
+			goto out;
+		ctx->state = SPU_STATE_RUNNABLE;
+	} else {
+		/* We need to exclude userspace access to the context. */
+		spu_unmap_mappings(ctx);
+	}
+
+out:
+	if (ret)
+		up_write(&ctx->state_sema);
+	return ret;
 }
 
 int spu_acquire_runnable(struct spu_context *ctx)

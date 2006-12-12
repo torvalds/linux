@@ -9,3 +9,16 @@ config DVB_CORE
 	  in-kernel drivers will select this automatically if needed.
 	  If unsure say N.
 
+config DVB_CORE_ATTACH
+	bool "Load and attach frontend modules as needed"
+	depends on DVB_CORE
+	depends on MODULES
+	help
+	  Remove the static dependency of DVB card drivers on all
+	  frontend modules for all possible card variants. Instead,
+	  allow the card drivers to only load the frontend modules
+	  they require. This saves several KBytes of memory.
+
+	  Note: You will need module-init-tools v3.2 or later for this feature.
+
+	  If unsure say Y.

@@ -81,7 +81,6 @@ static struct i2c_algo_bit_data bit_data = {
 	.getsda		= bit_via_getsda,
 	.getscl		= bit_via_getscl,
 	.udelay		= 5,
-	.mdelay		= 5,
 	.timeout	= HZ
 };
 
@@ -152,7 +151,7 @@ static int __devinit vt586b_probe(struct pci_dev *dev, const struct pci_device_i
 
 static void __devexit vt586b_remove(struct pci_dev *dev)
 {
-	i2c_bit_del_bus(&vt586b_adapter);
+	i2c_del_adapter(&vt586b_adapter);
 	release_region(I2C_DIR, IOSPACE);
 	pm_io_base = 0;
 }

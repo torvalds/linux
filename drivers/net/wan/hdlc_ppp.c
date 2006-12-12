@@ -2,7 +2,7 @@
  * Generic HDLC support routines for Linux
  * Point-to-point protocol support
  *
- * Copyright (C) 1999 - 2003 Krzysztof Halasa <khc@pm.waw.pl>
+ * Copyright (C) 1999 - 2006 Krzysztof Halasa <khc@pm.waw.pl>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -22,6 +22,21 @@
 #include <linux/lapb.h>
 #include <linux/rtnetlink.h>
 #include <linux/hdlc.h>
+#include <net/syncppp.h>
+
+struct ppp_state {
+	struct ppp_device pppdev;
+	struct ppp_device *syncppp_ptr;
+	int (*old_change_mtu)(struct net_device *dev, int new_mtu);
+};
+
+static int ppp_ioctl(struct net_device *dev, struct ifreq *ifr);
+
+
+static inline struct ppp_state* state(hdlc_device *hdlc)
+{
+	return(struct ppp_state *)(hdlc->state);
+}
 
 
 static int ppp_open(struct net_device *dev)
@@ -30,16 +45,16 @@ static int ppp_open(struct net_device *dev)
 	void *old_ioctl;
 	int result;
 
-	dev->priv = &hdlc->state.ppp.syncppp_ptr;
-	hdlc->state.ppp.syncppp_ptr = &hdlc->state.ppp.pppdev;
-	hdlc->state.ppp.pppdev.dev = dev;
+	dev->priv = &state(hdlc)->syncppp_ptr;
+	state(hdlc)->syncppp_ptr = &state(hdlc)->pppdev;
+	state(hdlc)->pppdev.dev = dev;
 
 	old_ioctl = dev->do_ioctl;
-	hdlc->state.ppp.old_change_mtu = dev->change_mtu;
-	sppp_attach(&hdlc->state.ppp.pppdev);
+	state(hdlc)->old_change_mtu = dev->change_mtu;
+	sppp_attach(&state(hdlc)->pppdev);
 	/* sppp_attach nukes them. We don't need syncppp's ioctl */
 	dev->do_ioctl = old_ioctl;
-	hdlc->state.ppp.pppdev.sppp.pp_flags &= ~PP_CISCO;
+	state(hdlc)->pppdev.sppp.pp_flags &= ~PP_CISCO;
 	dev->type = ARPHRD_PPP;
 	result = sppp_open(dev);
 	if (result) {
@@ -59,7 +74,7 @@ static void ppp_close(struct net_device *dev)
 	sppp_close(dev);
 	sppp_detach(dev);
 	dev->rebuild_header = NULL;
-	dev->change_mtu = hdlc->state.ppp.old_change_mtu;
+	dev->change_mtu = state(hdlc)->old_change_mtu;
 	dev->mtu = HDLC_MAX_MTU;
 	dev->hard_header_len = 16;
 }
@@ -73,13 +88,24 @@ static __be16 ppp_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 
 
-int hdlc_ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
+static struct hdlc_proto proto = {
+	.open		= ppp_open,
+	.close		= ppp_close,
+	.type_trans	= ppp_type_trans,
+	.ioctl		= ppp_ioctl,
+	.module		= THIS_MODULE,
+};
+
+
+static int ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	int result;
 
 	switch (ifr->ifr_settings.type) {
 	case IF_GET_PROTO:
+		if (dev_to_hdlc(dev)->proto != &proto)
+			return -EINVAL;
 		ifr->ifr_settings.type = IF_PROTO_PPP;
 		return 0; /* return protocol only, no settable parameters */
 
@@ -96,13 +122,10 @@ int hdlc_ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (result)
 			return result;
 
-		hdlc_proto_detach(hdlc);
-		memset(&hdlc->proto, 0, sizeof(hdlc->proto));
-
-		hdlc->proto.open = ppp_open;
-		hdlc->proto.close = ppp_close;
-		hdlc->proto.type_trans = ppp_type_trans;
-		hdlc->proto.id = IF_PROTO_PPP;
+		result = attach_hdlc_protocol(dev, &proto, NULL,
+					      sizeof(struct ppp_state));
+		if (result)
+			return result;
 		dev->hard_start_xmit = hdlc->xmit;
 		dev->hard_header = NULL;
 		dev->type = ARPHRD_PPP;
@@ -113,3 +136,25 @@ int hdlc_ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 	return -EINVAL;
 }
+
+
+static int __init mod_init(void)
+{
+	register_hdlc_protocol(&proto);
+	return 0;
+}
+
+
+
+static void __exit mod_exit(void)
+{
+	unregister_hdlc_protocol(&proto);
+}
+
+
+module_init(mod_init);
+module_exit(mod_exit);
+
+MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
+MODULE_DESCRIPTION("PPP protocol support for generic HDLC");
+MODULE_LICENSE("GPL v2");

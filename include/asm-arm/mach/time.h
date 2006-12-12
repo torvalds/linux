@@ -38,7 +38,9 @@ struct sys_timer {
 	void			(*init)(void);
 	void			(*suspend)(void);
 	void			(*resume)(void);
+#ifndef CONFIG_GENERIC_TIME
 	unsigned long		(*offset)(void);
+#endif
 
 #ifdef CONFIG_NO_IDLE_HZ
 	struct dyn_tick_timer	*dyn_tick;
@@ -55,7 +57,7 @@ struct dyn_tick_timer {
 	int		(*enable)(void);	/* Enables dynamic tick */
 	int		(*disable)(void);	/* Disables dynamic tick */
 	void		(*reprogram)(unsigned long); /* Reprograms the timer */
-	int		(*handler)(int, void *, struct pt_regs *);
+	int		(*handler)(int, void *);
 };
 
 void timer_dyn_reprogram(void);
@@ -64,7 +66,7 @@ void timer_dyn_reprogram(void);
 #endif
 
 extern struct sys_timer *system_timer;
-extern void timer_tick(struct pt_regs *);
+extern void timer_tick(void);
 
 /*
  * Kernel time keeping support.

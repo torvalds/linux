@@ -201,6 +201,18 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 	    qp->s_rnr_timeout)
 		goto done;
 
+	/* Limit the number of packets sent without an ACK. */
+	if (ipath_cmp24(qp->s_psn, qp->s_last_psn + IPATH_PSN_CREDIT) > 0) {
+		qp->s_wait_credit = 1;
+		dev->n_rc_stalls++;
+		spin_lock(&dev->pending_lock);
+		if (list_empty(&qp->timerwait))
+			list_add_tail(&qp->timerwait,
+				      &dev->pending[dev->pending_index]);
+		spin_unlock(&dev->pending_lock);
+		goto done;
+	}
+
 	/* header size in 32-bit words LRH+BTH = (8+12)/4. */
 	hwords = 5;
 	bth0 = 0;
@@ -221,7 +233,7 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 			/* Check if send work queue is empty. */
 			if (qp->s_tail == qp->s_head)
 				goto done;
-			qp->s_psn = wqe->psn = qp->s_next_psn;
+			wqe->psn = qp->s_next_psn;
 			newreq = 1;
 		}
 		/*
@@ -229,10 +241,7 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		 * original work request since we may need to resend
 		 * it.
 		 */
-		qp->s_sge.sge = wqe->sg_list[0];
-		qp->s_sge.sg_list = wqe->sg_list + 1;
-		qp->s_sge.num_sge = wqe->wr.num_sge;
-		qp->s_len = len = wqe->length;
+		len = wqe->length;
 		ss = &qp->s_sge;
 		bth2 = 0;
 		switch (wqe->wr.opcode) {
@@ -356,14 +365,23 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		default:
 			goto done;
 		}
+		qp->s_sge.sge = wqe->sg_list[0];
+		qp->s_sge.sg_list = wqe->sg_list + 1;
+		qp->s_sge.num_sge = wqe->wr.num_sge;
+		qp->s_len = wqe->length;
 		if (newreq) {
 			qp->s_tail++;
 			if (qp->s_tail >= qp->s_size)
 				qp->s_tail = 0;
 		}
-		bth2 |= qp->s_psn++ & IPATH_PSN_MASK;
-		if ((int)(qp->s_psn - qp->s_next_psn) > 0)
-			qp->s_next_psn = qp->s_psn;
+		bth2 |= qp->s_psn & IPATH_PSN_MASK;
+		if (wqe->wr.opcode == IB_WR_RDMA_READ)
+			qp->s_psn = wqe->lpsn + 1;
+		else {
+			qp->s_psn++;
+			if ((int)(qp->s_psn - qp->s_next_psn) > 0)
+				qp->s_next_psn = qp->s_psn;
+		}
 		/*
 		 * Put the QP on the pending list so lost ACKs will cause
 		 * a retry.  More than one request can be pending so the
@@ -393,12 +411,6 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		ss = &qp->s_sge;
 		len = qp->s_len;
 		if (len > pmtu) {
-			/*
-			 * Request an ACK every 1/2 MB to avoid retransmit
-			 * timeouts.
-			 */
-			if (((wqe->length - len) % (512 * 1024)) == 0)
-				bth2 |= 1 << 31;
 			len = pmtu;
 			break;
 		}
@@ -435,12 +447,6 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		ss = &qp->s_sge;
 		len = qp->s_len;
 		if (len > pmtu) {
-			/*
-			 * Request an ACK every 1/2 MB to avoid retransmit
-			 * timeouts.
-			 */
-			if (((wqe->length - len) % (512 * 1024)) == 0)
-				bth2 |= 1 << 31;
 			len = pmtu;
 			break;
 		}
@@ -498,6 +504,8 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		 */
 		goto done;
 	}
+	if (ipath_cmp24(qp->s_psn, qp->s_last_psn + IPATH_PSN_CREDIT - 1) >= 0)
+		bth2 |= 1 << 31;	/* Request ACK. */
 	qp->s_len -= len;
 	qp->s_hdrwords = hwords;
 	qp->s_cur_sge = ss;
@@ -688,13 +696,6 @@ void ipath_restart_rc(struct ipath_qp *qp, u32 psn, struct ib_wc *wc)
 	struct ipath_swqe *wqe = get_swqe_ptr(qp, qp->s_last);
 	struct ipath_ibdev *dev;
 
-	/*
-	 * If there are no requests pending, we are done.
-	 */
-	if (ipath_cmp24(psn, qp->s_next_psn) >= 0 ||
-	    qp->s_last == qp->s_tail)
-		goto done;
-
 	if (qp->s_retry == 0) {
 		wc->wr_id = wqe->wr.wr_id;
 		wc->status = IB_WC_RETRY_EXC_ERR;
@@ -729,12 +730,19 @@ void ipath_restart_rc(struct ipath_qp *qp, u32 psn, struct ib_wc *wc)
 		dev->n_rc_resends += (int)qp->s_psn - (int)psn;
 
 	reset_psn(qp, psn);
-
-done:
 	tasklet_hi_schedule(&qp->s_task);
 
 bail:
 	return;
+}
+
+static inline void update_last_psn(struct ipath_qp *qp, u32 psn)
+{
+	if (qp->s_wait_credit) {
+		qp->s_wait_credit = 0;
+		tasklet_hi_schedule(&qp->s_task);
+	}
+	qp->s_last_psn = psn;
 }
 
 /**
@@ -754,6 +762,7 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 	struct ib_wc wc;
 	struct ipath_swqe *wqe;
 	int ret = 0;
+	u32 ack_psn;
 
 	/*
 	 * Remove the QP from the timeout queue (or RNR timeout queue).
@@ -766,26 +775,26 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 		list_del_init(&qp->timerwait);
 	spin_unlock(&dev->pending_lock);
 
+	/* Nothing is pending to ACK/NAK. */
+	if (unlikely(qp->s_last == qp->s_tail))
+		goto bail;
+
 	/*
 	 * Note that NAKs implicitly ACK outstanding SEND and RDMA write
 	 * requests and implicitly NAK RDMA read and atomic requests issued
 	 * before the NAK'ed request.  The MSN won't include the NAK'ed
 	 * request but will include an ACK'ed request(s).
 	 */
+	ack_psn = psn;
+	if (aeth >> 29)
+		ack_psn--;
 	wqe = get_swqe_ptr(qp, qp->s_last);
-
-	/* Nothing is pending to ACK/NAK. */
-	if (qp->s_last == qp->s_tail)
-		goto bail;
 
 	/*
 	 * The MSN might be for a later WQE than the PSN indicates so
 	 * only complete WQEs that the PSN finishes.
 	 */
-	while (ipath_cmp24(psn, wqe->lpsn) >= 0) {
-		/* If we are ACKing a WQE, the MSN should be >= the SSN. */
-		if (ipath_cmp24(aeth, wqe->ssn) < 0)
-			break;
+	while (ipath_cmp24(ack_psn, wqe->lpsn) >= 0) {
 		/*
 		 * If this request is a RDMA read or atomic, and the ACK is
 		 * for a later operation, this ACK NAKs the RDMA read or
@@ -796,7 +805,8 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 		 * is sent but before the response is received.
 		 */
 		if ((wqe->wr.opcode == IB_WR_RDMA_READ &&
-		     opcode != OP(RDMA_READ_RESPONSE_LAST)) ||
+		     (opcode != OP(RDMA_READ_RESPONSE_LAST) ||
+		       ipath_cmp24(ack_psn, wqe->lpsn) != 0)) ||
 		    ((wqe->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
 		      wqe->wr.opcode == IB_WR_ATOMIC_FETCH_AND_ADD) &&
 		     (opcode != OP(ATOMIC_ACKNOWLEDGE) ||
@@ -805,7 +815,7 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 			 * The last valid PSN seen is the previous
 			 * request's.
 			 */
-			qp->s_last_psn = wqe->psn - 1;
+			update_last_psn(qp, wqe->psn - 1);
 			/* Retry this request. */
 			ipath_restart_rc(qp, wqe->psn, &wc);
 			/*
@@ -814,6 +824,10 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 			 */
 			goto bail;
 		}
+		if (wqe->wr.opcode == IB_WR_RDMA_READ ||
+		    wqe->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
+		    wqe->wr.opcode == IB_WR_ATOMIC_FETCH_AND_ADD)
+			tasklet_hi_schedule(&qp->s_task);
 		/* Post a send completion queue entry if requested. */
 		if (!test_bit(IPATH_S_SIGNAL_REQ_WR, &qp->s_flags) ||
 		    (wqe->wr.send_flags & IB_SEND_SIGNALED)) {
@@ -864,7 +878,7 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 		ipath_get_credit(qp, aeth);
 		qp->s_rnr_retry = qp->s_rnr_retry_cnt;
 		qp->s_retry = qp->s_retry_cnt;
-		qp->s_last_psn = psn;
+		update_last_psn(qp, psn);
 		ret = 1;
 		goto bail;
 
@@ -883,7 +897,7 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 			goto bail;
 
 		/* The last valid PSN is the previous PSN. */
-		qp->s_last_psn = psn - 1;
+		update_last_psn(qp, psn - 1);
 
 		dev->n_rc_resends += (int)qp->s_psn - (int)psn;
 
@@ -898,7 +912,7 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 	case 3:		/* NAK */
 		/* The last valid PSN seen is the previous request's. */
 		if (qp->s_last != qp->s_tail)
-			qp->s_last_psn = wqe->psn - 1;
+			update_last_psn(qp, wqe->psn - 1);
 		switch ((aeth >> IPATH_AETH_CREDIT_SHIFT) &
 			IPATH_AETH_CREDIT_MASK) {
 		case 0:	/* PSN sequence error */
@@ -1044,7 +1058,8 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 		/* no AETH, no ACK */
 		if (unlikely(ipath_cmp24(psn, qp->s_last_psn + 1))) {
 			dev->n_rdma_seq++;
-			ipath_restart_rc(qp, qp->s_last_psn + 1, &wc);
+			if (qp->s_last != qp->s_tail)
+				ipath_restart_rc(qp, qp->s_last_psn + 1, &wc);
 			goto ack_done;
 		}
 	rdma_read:
@@ -1071,7 +1086,7 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 		 * since we don't want s_sge modified.
 		 */
 		qp->s_len -= pmtu;
-		qp->s_last_psn = psn;
+		update_last_psn(qp, psn);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 		ipath_copy_sge(&qp->s_sge, data, pmtu);
 		goto bail;
@@ -1080,7 +1095,8 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 		/* ACKs READ req. */
 		if (unlikely(ipath_cmp24(psn, qp->s_last_psn + 1))) {
 			dev->n_rdma_seq++;
-			ipath_restart_rc(qp, qp->s_last_psn + 1, &wc);
+			if (qp->s_last != qp->s_tail)
+				ipath_restart_rc(qp, qp->s_last_psn + 1, &wc);
 			goto ack_done;
 		}
 		/* FALLTHROUGH */
@@ -1223,7 +1239,7 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 			 * Address range must be a subset of the original
 			 * request and start on pmtu boundaries.
 			 */
-			ok = ipath_rkey_ok(dev, &qp->s_rdma_sge,
+			ok = ipath_rkey_ok(qp, &qp->s_rdma_sge,
 					   qp->s_rdma_len, vaddr, rkey,
 					   IB_ACCESS_REMOTE_READ);
 			if (unlikely(!ok)) {
@@ -1282,6 +1298,14 @@ done:
 	return 1;
 }
 
+static void ipath_rc_error(struct ipath_qp *qp, enum ib_wc_status err)
+{
+	spin_lock_irq(&qp->s_lock);
+	qp->state = IB_QPS_ERR;
+	ipath_error_qp(qp, err);
+	spin_unlock_irq(&qp->s_lock);
+}
+
 /**
  * ipath_rc_rcv - process an incoming RC packet
  * @dev: the device this packet came in on
@@ -1308,6 +1332,10 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	int diff;
 	struct ib_reth *reth;
 	int header_in_data;
+
+	/* Validate the SLID. See Ch. 9.6.1.5 */
+	if (unlikely(be16_to_cpu(hdr->lrh[3]) != qp->remote_ah_attr.dlid))
+		goto done;
 
 	/* Check for GRH */
 	if (!has_grh) {
@@ -1370,8 +1398,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		 */
 		if (qp->r_ack_state >= OP(COMPARE_SWAP))
 			goto send_ack;
-		/* XXX Flush WQEs */
-		qp->state = IB_QPS_ERR;
+		ipath_rc_error(qp, IB_WC_REM_INV_REQ_ERR);
 		qp->r_ack_state = OP(SEND_ONLY);
 		qp->r_nak_state = IB_NAK_INVALID_REQUEST;
 		qp->r_ack_psn = qp->r_psn;
@@ -1477,9 +1504,9 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			goto nack_inv;
 		ipath_copy_sge(&qp->r_sge, data, tlen);
 		qp->r_msn++;
-		if (opcode == OP(RDMA_WRITE_LAST) ||
-		    opcode == OP(RDMA_WRITE_ONLY))
+		if (!qp->r_wrid_valid)
 			break;
+		qp->r_wrid_valid = 0;
 		wc.wr_id = qp->r_wr_id;
 		wc.status = IB_WC_SUCCESS;
 		wc.opcode = IB_WC_RECV;
@@ -1517,7 +1544,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			int ok;
 
 			/* Check rkey & NAK */
-			ok = ipath_rkey_ok(dev, &qp->r_sge,
+			ok = ipath_rkey_ok(qp, &qp->r_sge,
 					   qp->r_len, vaddr, rkey,
 					   IB_ACCESS_REMOTE_WRITE);
 			if (unlikely(!ok))
@@ -1559,7 +1586,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			int ok;
 
 			/* Check rkey & NAK */
-			ok = ipath_rkey_ok(dev, &qp->s_rdma_sge,
+			ok = ipath_rkey_ok(qp, &qp->s_rdma_sge,
 					   qp->s_rdma_len, vaddr, rkey,
 					   IB_ACCESS_REMOTE_READ);
 			if (unlikely(!ok)) {
@@ -1618,7 +1645,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			goto nack_inv;
 		rkey = be32_to_cpu(ateth->rkey);
 		/* Check rkey & NAK */
-		if (unlikely(!ipath_rkey_ok(dev, &qp->r_sge,
+		if (unlikely(!ipath_rkey_ok(qp, &qp->r_sge,
 					    sizeof(u64), vaddr, rkey,
 					    IB_ACCESS_REMOTE_ATOMIC)))
 			goto nack_acc;
@@ -1670,8 +1697,7 @@ nack_acc:
 	 * is pending though.
 	 */
 	if (qp->r_ack_state < OP(COMPARE_SWAP)) {
-		/* XXX Flush WQEs */
-		qp->state = IB_QPS_ERR;
+		ipath_rc_error(qp, IB_WC_REM_ACCESS_ERR);
 		qp->r_ack_state = OP(RDMA_WRITE_ONLY);
 		qp->r_nak_state = IB_NAK_REMOTE_ACCESS_ERROR;
 		qp->r_ack_psn = qp->r_psn;

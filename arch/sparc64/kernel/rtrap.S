@@ -165,14 +165,26 @@ rtrap:
 __handle_softirq_continue:
 rtrap_xcall:
 		sethi			%hi(0xf << 20), %l4
-		andcc			%l1, TSTATE_PRIV, %l3
 		and			%l1, %l4, %l4
+		andn			%l1, %l4, %l1
+		srl			%l4, 20, %l4
+#ifdef CONFIG_TRACE_IRQFLAGS
+		brnz,pn			%l4, rtrap_no_irq_enable
+		 nop
+		call			trace_hardirqs_on
+		 nop
+		wrpr			%l4, %pil
+rtrap_no_irq_enable:
+#endif
+		andcc			%l1, TSTATE_PRIV, %l3
 		bne,pn			%icc, to_kernel
-		 andn			%l1, %l4, %l1
+		 nop
 
 		/* We must hold IRQs off and atomically test schedule+signal
 		 * state, then hold them off all the way back to userspace.
-		 * If we are returning to kernel, none of this matters.
+		 * If we are returning to kernel, none of this matters.  Note
+		 * that we are disabling interrupts via PSTATE_IE, not using
+		 * %pil.
 		 *
 		 * If we do not do this, there is a window where we would do
 		 * the tests, later the signal/resched event arrives but we do
@@ -256,7 +268,6 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 
 		ld			[%sp + PTREGS_OFF + PT_V9_Y], %o3
 		wr			%o3, %g0, %y
-		srl			%l4, 20, %l4
 		wrpr			%l4, 0x0, %pil
 		wrpr			%g0, 0x1, %tl
 		wrpr			%l1, %g0, %tstate
@@ -374,8 +385,8 @@ to_kernel:
 		 ldx			[%g6 + TI_FLAGS], %l5
 		andcc			%l5, _TIF_NEED_RESCHED, %g0
 		be,pt			%xcc, kern_fpucheck
-		 srl			%l4, 20, %l5
-		cmp			%l5, 0
+		 nop
+		cmp			%l4, 0
 		bne,pn			%xcc, kern_fpucheck
 		 sethi			%hi(PREEMPT_ACTIVE), %l6
 		stw			%l6, [%g6 + TI_PRE_COUNT]

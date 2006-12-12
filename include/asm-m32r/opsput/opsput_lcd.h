@@ -1,5 +1,5 @@
 /*
- * include/asm/opsput_lcd.h
+ * include/asm-m32r/opsput/opsput_lcd.h
  *
  * OPSPUT-LCD board
  *

@@ -53,6 +53,11 @@ config FB
 	  (e.g. an accelerated X server) and that are not frame buffer
 	  device-aware may cause unexpected results. If unsure, say N.
 
+config FB_DDC
+       tristate
+       depends on FB && I2C && I2C_ALGOBIT
+       default n
+
 config FB_CFB_FILLRECT
 	tristate
 	depends on FB
@@ -183,7 +188,7 @@ config FB_ARMCLCD_SHARP_LQ035Q7DB02_HRTFT
 	bool "LogicPD LCD 3.5\" QVGA w/HRTFT IC"
 	help
 	  This is an implementation of the Sharp LQ035Q7DB02, a 3.5"
-	  color QVGA, HRTFT panel.  The LogicPD device includes an
+	  color QVGA, HRTFT panel.  The LogicPD device includes
 	  an integrated HRTFT controller IC.
 	  The native resolution is 240x320.
 
@@ -398,7 +403,7 @@ config FB_ARC
 	  is based on the KS-108 lcd controller and is typically a matrix
 	  of 2*n chips. This driver was tested with a 128x64 panel. This
 	  driver supports it for use with x86 SBCs through a 16 bit GPIO
-	  interface (8 bit data, 8 bit control). If you anticpate using
+	  interface (8 bit data, 8 bit control). If you anticipate using
 	  this driver, say Y or M; otherwise say N. You must specify the
 	  GPIO IO address to be used for setting control and data.
 
@@ -536,6 +541,7 @@ config FB_TGA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select BITREVERSE
 	help
 	  This is the frame buffer device driver for generic TGA graphic
 	  cards. Say Y if you have one of those.
@@ -546,6 +552,7 @@ config FB_VESA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select VIDEO_SELECT
 	help
 	  This is the frame buffer device driver for generic VESA 2.0
 	  compliant graphic cards. The older VESA 1.2 cards are not supported.
@@ -700,6 +707,7 @@ config FB_NVIDIA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select BITREVERSE
 	help
 	  This driver supports graphics boards with the nVidia chips, TNT
 	  and newer. For very old chipsets, such as the RIVA128, then use
@@ -734,10 +742,12 @@ config FB_RIVA
 	depends on FB && PCI
 	select I2C_ALGOBIT if FB_RIVA_I2C
 	select I2C if FB_RIVA_I2C
+	select FB_DDC if FB_RIVA_I2C
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select BITREVERSE
 	help
 	  This driver supports graphics boards with the nVidia Riva/Geforce
 	  chips.
@@ -764,7 +774,7 @@ config FB_RIVA_DEBUG
 	default n
 	help
 	  Say Y here if you want the Riva driver to output all sorts
-	  of debugging informations to provide to the maintainer when
+	  of debugging information to provide to the maintainer when
 	  something goes wrong.
 
 config FB_RIVA_BACKLIGHT
@@ -822,32 +832,51 @@ config FB_I810_I2C
 	depends on FB_I810 && FB_I810_GTF
 	select I2C
 	select I2C_ALGOBIT
+	select FB_DDC
 	help
 
 config FB_INTEL
-	tristate "Intel 830M/845G/852GM/855GM/865G support (EXPERIMENTAL)"
+	tristate "Intel 830M/845G/852GM/855GM/865G/915G/945G support (EXPERIMENTAL)"
 	depends on FB && EXPERIMENTAL && PCI && X86
 	select AGP
 	select AGP_INTEL
+	select I2C_ALGOBIT if FB_INTEL_I2C
+	select I2C if FB_INTEL_I2C
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	help
 	  This driver supports the on-board graphics built in to the Intel
-          830M/845G/852GM/855GM/865G chipsets.
+          830M/845G/852GM/855GM/865G/915G/915GM/945G/945GM chipsets.
           Say Y if you have and plan to use such a board.
 
-          To compile this driver as a module, choose M here: the
+	  If you say Y here and want DDC/I2C support you must first say Y to
+	  "I2C support" and "I2C bit-banging support" in the character devices
+	  section.
+
+	  If you say M here then "I2C support" and "I2C bit-banging support"
+	  can be build either as modules or built-in.
+
+	  To compile this driver as a module, choose M here: the
 	  module will be called intelfb.
 
+	  For more information, please read <file:Documentation/fb/intelfb.txt>
+
 config FB_INTEL_DEBUG
-        bool "Intel driver Debug Messages"
+	bool "Intel driver Debug Messages"
 	depends on FB_INTEL
 	---help---
 	  Say Y here if you want the Intel driver to output all sorts
-	  of debugging informations to provide to the maintainer when
+	  of debugging information to provide to the maintainer when
 	  something goes wrong.
+
+config FB_INTEL_I2C
+	bool "DDC/I2C for Intel framebuffer support"
+	depends on FB_INTEL
+	default y
+	help
+	  Say Y here if you want DDC/I2C support for your on-board Intel graphics.
 
 config FB_MATROX
 	tristate "Matrox acceleration"
@@ -994,6 +1023,7 @@ config FB_RADEON
 	depends on FB && PCI
 	select I2C_ALGOBIT if FB_RADEON_I2C
 	select I2C if FB_RADEON_I2C
+	select FB_DDC if FB_RADEON_I2C
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1035,7 +1065,7 @@ config FB_RADEON_DEBUG
 	default n
 	help
 	  Say Y here if you want the Radeon driver to output all sorts
-	  of debugging informations to provide to the maintainer when
+	  of debugging information to provide to the maintainer when
 	  something goes wrong.
 
 config FB_ATY128
@@ -1122,6 +1152,7 @@ config FB_SAVAGE
 	depends on FB && PCI && EXPERIMENTAL
 	select I2C_ALGOBIT if FB_SAVAGE_I2C
 	select I2C if FB_SAVAGE_I2C
+	select FB_DDC if FB_SAVAGE_I2C
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1584,6 +1615,16 @@ config FB_PNX4008_DUM_RGB
 	---help---
 	  Say Y here to enable support for PNX4008 RGB Framebuffer
 
+config FB_IBM_GXT4500
+	tristate "Framebuffer support for IBM GXT4500P adaptor"
+	depends on PPC
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Say Y here to enable support for the IBM GXT4500P display
+	  adaptor, found on some IBM System P (pSeries) machines.
+
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"
 	depends on FB
@@ -1601,7 +1642,8 @@ config FB_VIRTUAL
 	  kernel option `video=vfb:'.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called vfb.
+	  module will be called vfb. In order to load it, you must use
+	  the vfb_enable=1 option.
 
 	  If unsure, say N.
 if VT

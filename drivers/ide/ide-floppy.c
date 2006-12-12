@@ -588,7 +588,7 @@ static int idefloppy_do_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 	/* Why does this happen? */
 	if (!rq)
 		return 0;
-	if (!(rq->flags & REQ_SPECIAL)) { //if (!IDEFLOPPY_RQ_CMD (rq->cmd)) {
+	if (!blk_special_request(rq)) {
 		/* our real local end request function */
 		ide_end_request(drive, uptodate, nsecs);
 		return 0;
@@ -689,7 +689,7 @@ static void idefloppy_queue_pc_head (ide_drive_t *drive,idefloppy_pc_t *pc,struc
 
 	ide_init_drive_cmd(rq);
 	rq->buffer = (char *) pc;
-	rq->flags = REQ_SPECIAL;	//rq->cmd = IDEFLOPPY_PC_RQ;
+	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->rq_disk = floppy->disk;
 	(void) ide_do_drive_cmd(drive, rq, ide_preempt);
 }
@@ -1250,7 +1250,7 @@ static void idefloppy_create_rw_cmd (idefloppy_floppy_t *floppy, idefloppy_pc_t 
 	pc->callback = &idefloppy_rw_callback;
 	pc->rq = rq;
 	pc->b_count = cmd == READ ? 0 : rq->bio->bi_size;
-	if (rq->flags & REQ_RW)
+	if (rq->cmd_flags & REQ_RW)
 		set_bit(PC_WRITING, &pc->flags);
 	pc->buffer = NULL;
 	pc->request_transfer = pc->buffer_size = blocks * floppy->block_size;
@@ -1281,8 +1281,7 @@ static ide_startstop_t idefloppy_do_request (ide_drive_t *drive, struct request 
 	idefloppy_pc_t *pc;
 	unsigned long block = (unsigned long)block_s;
 
-	debug_log(KERN_INFO "rq_status: %d, dev: %s, flags: %lx, errors: %d\n",
-			rq->rq_status,
+	debug_log(KERN_INFO "dev: %s, flags: %lx, errors: %d\n",
 			rq->rq_disk ? rq->rq_disk->disk_name : "?",
 			rq->flags, rq->errors);
 	debug_log(KERN_INFO "sector: %ld, nr_sectors: %ld, "
@@ -1303,7 +1302,7 @@ static ide_startstop_t idefloppy_do_request (ide_drive_t *drive, struct request 
 		idefloppy_do_end_request(drive, 0, 0);
 		return ide_stopped;
 	}
-	if (rq->flags & REQ_CMD) {
+	if (blk_fs_request(rq)) {
 		if (((long)rq->sector % floppy->bs_factor) ||
 		    (rq->nr_sectors % floppy->bs_factor)) {
 			printk("%s: unsupported r/w request size\n",
@@ -1313,9 +1312,9 @@ static ide_startstop_t idefloppy_do_request (ide_drive_t *drive, struct request 
 		}
 		pc = idefloppy_next_pc_storage(drive);
 		idefloppy_create_rw_cmd(floppy, pc, rq, block);
-	} else if (rq->flags & REQ_SPECIAL) {
+	} else if (blk_special_request(rq)) {
 		pc = (idefloppy_pc_t *) rq->buffer;
-	} else if (rq->flags & REQ_BLOCK_PC) {
+	} else if (blk_pc_request(rq)) {
 		pc = idefloppy_next_pc_storage(drive);
 		if (idefloppy_blockpc_cmd(floppy, pc, rq)) {
 			idefloppy_do_end_request(drive, 0, 0);
@@ -1343,7 +1342,7 @@ static int idefloppy_queue_pc_tail (ide_drive_t *drive,idefloppy_pc_t *pc)
 
 	ide_init_drive_cmd (&rq);
 	rq.buffer = (char *) pc;
-	rq.flags = REQ_SPECIAL;		//	rq.cmd = IDEFLOPPY_PC_RQ;
+	rq.cmd_type = REQ_TYPE_SPECIAL;
 	rq.rq_disk = floppy->disk;
 
 	return ide_do_drive_cmd(drive, &rq, ide_wait);
@@ -1636,7 +1635,7 @@ static int idefloppy_begin_format(ide_drive_t *drive, int __user *arg)
 /*
 ** Get ATAPI_FORMAT_UNIT progress indication.
 **
-** Userland gives a pointer to an int.  The int is set to a progresss
+** Userland gives a pointer to an int.  The int is set to a progress
 ** indicator 0-65536, with 65536=100%.
 **
 ** If the drive does not support format progress indication, we just check

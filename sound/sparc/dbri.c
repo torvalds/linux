@@ -1903,8 +1903,7 @@ static void dbri_process_interrupt_buffer(struct snd_dbri * dbri)
 	}
 }
 
-static irqreturn_t snd_dbri_interrupt(int irq, void *dev_id,
-				      struct pt_regs *regs)
+static irqreturn_t snd_dbri_interrupt(int irq, void *dev_id)
 {
 	struct snd_dbri *dbri = dev_id;
 	static int errcnt = 0;
@@ -2412,8 +2411,6 @@ static struct snd_kcontrol_new dbri_controls[] __devinitdata = {
 	CS4215_SINGLE("Mic boost", 4, 4, 1, 1)
 };
 
-#define NUM_CS4215_CONTROLS (sizeof(dbri_controls)/sizeof(struct snd_kcontrol_new))
-
 static int __init snd_dbri_mixer(struct snd_dbri * dbri)
 {
 	struct snd_card *card;
@@ -2424,7 +2421,7 @@ static int __init snd_dbri_mixer(struct snd_dbri * dbri)
 	card = dbri->card;
 	strcpy(card->mixername, card->shortname);
 
-	for (idx = 0; idx < NUM_CS4215_CONTROLS; idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(dbri_controls); idx++) {
 		if ((err = snd_ctl_add(card,
 				snd_ctl_new1(&dbri_controls[idx], dbri))) < 0)
 			return err;

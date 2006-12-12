@@ -6,6 +6,9 @@
 #include <asm/pda.h>
 #include <asm/apic.h>
 
+/* We can have at most NR_VECTORS irqs routed to a cpu at a time */
+#define MAX_HARDIRQS_PER_CPU NR_VECTORS
+
 #define __ARCH_IRQ_STAT 1
 
 #define local_softirq_pending() read_pda(__softirq_pending)

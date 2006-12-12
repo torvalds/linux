@@ -12,6 +12,9 @@
 #ifndef __LINUX_LEDS_H_INCLUDED
 #define __LINUX_LEDS_H_INCLUDED
 
+#include <linux/list.h>
+#include <linux/spinlock.h>
+
 struct device;
 struct class_device;
 /*

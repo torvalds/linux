@@ -56,6 +56,7 @@
 
 #include <asm/tlbflush.h>
 #include <asm/cpu.h>
+#include <asm/pda.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
@@ -99,22 +100,18 @@ EXPORT_SYMBOL(enable_hlt);
  */
 void default_idle(void)
 {
-	local_irq_enable();
-
 	if (!hlt_counter && boot_cpu_data.hlt_works_ok) {
 		current_thread_info()->status &= ~TS_POLLING;
 		smp_mb__after_clear_bit();
-		while (!need_resched()) {
-			local_irq_disable();
-			if (!need_resched())
-				safe_halt();
-			else
-				local_irq_enable();
-		}
+		local_irq_disable();
+		if (!need_resched())
+			safe_halt();	/* enables interrupts racelessly */
+		else
+			local_irq_enable();
 		current_thread_info()->status |= TS_POLLING;
 	} else {
-		while (!need_resched())
-			cpu_relax();
+		/* loop is done by the caller */
+		cpu_relax();
 	}
 }
 #ifdef CONFIG_APM_MODULE
@@ -128,14 +125,7 @@ EXPORT_SYMBOL(default_idle);
  */
 static void poll_idle (void)
 {
-	local_irq_enable();
-
-	asm volatile(
-		"2:"
-		"testl %0, %1;"
-		"rep; nop;"
-		"je 2b;"
-		: : "i"(_TIF_NEED_RESCHED), "m" (current_thread_info()->flags));
+	cpu_relax();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -205,7 +195,7 @@ void cpu_idle(void)
 void cpu_idle_wait(void)
 {
 	unsigned int cpu, this_cpu = get_cpu();
-	cpumask_t map;
+	cpumask_t map, tmp = current->cpus_allowed;
 
 	set_cpus_allowed(current, cpumask_of_cpu(this_cpu));
 	put_cpu();
@@ -227,6 +217,8 @@ void cpu_idle_wait(void)
 		}
 		cpus_and(map, map, cpu_online_map);
 	} while (!cpus_empty(map));
+
+	set_cpus_allowed(current, tmp);
 }
 EXPORT_SYMBOL_GPL(cpu_idle_wait);
 
@@ -236,18 +228,25 @@ EXPORT_SYMBOL_GPL(cpu_idle_wait);
  * We execute MONITOR against need_resched and enter optimized wait state
  * through MWAIT. Whenever someone changes need_resched, we would be woken
  * up from MWAIT (without an IPI).
+ *
+ * New with Core Duo processors, MWAIT can take some hints based on CPU
+ * capability.
  */
+void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
+{
+	if (!need_resched()) {
+		__monitor((void *)&current_thread_info()->flags, 0, 0);
+		smp_mb();
+		if (!need_resched())
+			__mwait(eax, ecx);
+	}
+}
+
+/* Default MONITOR/MWAIT with no hints, used for default C1 state */
 static void mwait_idle(void)
 {
 	local_irq_enable();
-
-	while (!need_resched()) {
-		__monitor((void *)&current_thread_info()->flags, 0, 0);
-		smp_mb();
-		if (need_resched())
-			break;
-		__mwait(0, 0);
-	}
+	mwait_idle_with_hints(0, 0);
 }
 
 void __devinit select_idle_routine(const struct cpuinfo_x86 *c)
@@ -297,15 +296,15 @@ void show_regs(struct pt_regs * regs)
 	if (user_mode_vm(regs))
 		printk(" ESP: %04x:%08lx",0xffff & regs->xss,regs->esp);
 	printk(" EFLAGS: %08lx    %s  (%s %.*s)\n",
-	       regs->eflags, print_tainted(), system_utsname.release,
-	       (int)strcspn(system_utsname.version, " "),
-	       system_utsname.version);
+	       regs->eflags, print_tainted(), init_utsname()->release,
+	       (int)strcspn(init_utsname()->version, " "),
+	       init_utsname()->version);
 	printk("EAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx\n",
 		regs->eax,regs->ebx,regs->ecx,regs->edx);
 	printk("ESI: %08lx EDI: %08lx EBP: %08lx",
 		regs->esi, regs->edi, regs->ebp);
-	printk(" DS: %04x ES: %04x\n",
-		0xffff & regs->xds,0xffff & regs->xes);
+	printk(" DS: %04x ES: %04x GS: %04x\n",
+	       0xffff & regs->xds,0xffff & regs->xes, 0xffff & regs->xgs);
 
 	cr0 = read_cr0();
 	cr2 = read_cr2();
@@ -336,6 +335,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 
 	regs.xds = __USER_DS;
 	regs.xes = __USER_DS;
+	regs.xgs = __KERNEL_PDA;
 	regs.orig_eax = -1;
 	regs.eip = (unsigned long) kernel_thread_helper;
 	regs.xcs = __KERNEL_CS | get_kernel_rpl();
@@ -421,17 +421,15 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 	p->thread.eip = (unsigned long) ret_from_fork;
 
 	savesegment(fs,p->thread.fs);
-	savesegment(gs,p->thread.gs);
 
 	tsk = current;
 	if (unlikely(test_tsk_thread_flag(tsk, TIF_IO_BITMAP))) {
-		p->thread.io_bitmap_ptr = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
+		p->thread.io_bitmap_ptr = kmemdup(tsk->thread.io_bitmap_ptr,
+						IO_BITMAP_BYTES, GFP_KERNEL);
 		if (!p->thread.io_bitmap_ptr) {
 			p->thread.io_bitmap_max = 0;
 			return -ENOMEM;
 		}
-		memcpy(p->thread.io_bitmap_ptr, tsk->thread.io_bitmap_ptr,
-			IO_BITMAP_BYTES);
 		set_tsk_thread_flag(p, TIF_IO_BITMAP);
 	}
 
@@ -499,7 +497,7 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 	dump->regs.ds = regs->xds;
 	dump->regs.es = regs->xes;
 	savesegment(fs,dump->regs.fs);
-	savesegment(gs,dump->regs.gs);
+	dump->regs.gs = regs->xgs;
 	dump->regs.orig_eax = regs->orig_eax;
 	dump->regs.eip = regs->eip;
 	dump->regs.cs = regs->xcs;
@@ -639,22 +637,27 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 
 	__unlazy_fpu(prev_p);
 
+
+	/* we're going to use this soon, after a few expensive things */
+	if (next_p->fpu_counter > 5)
+		prefetch(&next->i387.fxsave);
+
 	/*
 	 * Reload esp0.
 	 */
 	load_esp0(tss, next);
 
 	/*
-	 * Save away %fs and %gs. No need to save %es and %ds, as
-	 * those are always kernel segments while inside the kernel.
-	 * Doing this before setting the new TLS descriptors avoids
-	 * the situation where we temporarily have non-reloadable
-	 * segments in %fs and %gs.  This could be an issue if the
-	 * NMI handler ever used %fs or %gs (it does not today), or
-	 * if the kernel is running inside of a hypervisor layer.
+	 * Save away %fs. No need to save %gs, as it was saved on the
+	 * stack on entry.  No need to save %es and %ds, as those are
+	 * always kernel segments while inside the kernel.  Doing this
+	 * before setting the new TLS descriptors avoids the situation
+	 * where we temporarily have non-reloadable segments in %fs
+	 * and %gs.  This could be an issue if the NMI handler ever
+	 * used %fs or %gs (it does not today), or if the kernel is
+	 * running inside of a hypervisor layer.
 	 */
 	savesegment(fs, prev->fs);
-	savesegment(gs, prev->gs);
 
 	/*
 	 * Load the per-thread Thread-Local Storage descriptor.
@@ -662,22 +665,14 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	load_TLS(next, cpu);
 
 	/*
-	 * Restore %fs and %gs if needed.
+	 * Restore %fs if needed.
 	 *
-	 * Glibc normally makes %fs be zero, and %gs is one of
-	 * the TLS segments.
+	 * Glibc normally makes %fs be zero.
 	 */
 	if (unlikely(prev->fs | next->fs))
 		loadsegment(fs, next->fs);
 
-	if (prev->gs | next->gs)
-		loadsegment(gs, next->gs);
-
-	/*
-	 * Restore IOPL if needed.
-	 */
-	if (unlikely(prev->iopl != next->iopl))
-		set_iopl_mask(next->iopl);
+	write_pda(pcurrent, next_p);
 
 	/*
 	 * Now maybe handle debug registers and/or IO bitmaps
@@ -687,6 +682,13 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 		__switch_to_xtra(next_p, tss);
 
 	disable_tsc(prev_p, next_p);
+
+	/* If the task has used fpu the last 5 timeslices, just do a full
+	 * restore of the math state immediately to avoid the trap; the
+	 * chances of needing FPU soon are obviously high now
+	 */
+	if (next_p->fpu_counter > 5)
+		math_state_restore();
 
 	return prev_p;
 }

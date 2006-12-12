@@ -16,7 +16,7 @@
 
 struct vfsmount *sysfs_mount;
 struct super_block * sysfs_sb = NULL;
-kmem_cache_t *sysfs_dir_cachep;
+struct kmem_cache *sysfs_dir_cachep;
 
 static struct super_operations sysfs_ops = {
 	.statfs		= simple_statfs,
@@ -49,7 +49,7 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 		inode->i_op = &sysfs_dir_inode_operations;
 		inode->i_fop = &sysfs_dir_operations;
 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
-		inode->i_nlink++;	
+		inc_nlink(inode);
 	} else {
 		pr_debug("sysfs: could not get root inode\n");
 		return -ENOMEM;

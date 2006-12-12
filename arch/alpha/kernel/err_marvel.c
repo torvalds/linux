@@ -1042,7 +1042,7 @@ marvel_process_logout_frame(struct ev7_lf_subpackets *lf_subpackets, int print)
 }
 
 void
-marvel_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
+marvel_machine_check(u64 vector, u64 la_ptr)
 {
 	struct el_subpacket *el_ptr = (struct el_subpacket *)la_ptr;
 	int (*process_frame)(struct ev7_lf_subpackets *, int) = NULL;
@@ -1077,7 +1077,7 @@ marvel_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
 
 	default:
 		/* Don't know it - pass it up.  */
-		ev7_machine_check(vector, la_ptr, regs);
+		ev7_machine_check(vector, la_ptr);
 		return;
 	}	
 

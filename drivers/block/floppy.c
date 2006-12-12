@@ -221,7 +221,7 @@ static DEFINE_SPINLOCK(floppy_lock);
 static struct completion device_release;
 
 static unsigned short virtual_dma_port = 0x3f0;
-irqreturn_t floppy_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t floppy_interrupt(int irq, void *dev_id);
 static int set_dor(int fdc, char mask, char data);
 
 #define K_64	0x10000		/* 64KB */
@@ -992,11 +992,11 @@ static void empty(void)
 {
 }
 
-static DECLARE_WORK(floppy_work, NULL, NULL);
+static DECLARE_WORK(floppy_work, NULL);
 
 static void schedule_bh(void (*handler) (void))
 {
-	PREPARE_WORK(&floppy_work, (void (*)(void *))handler, NULL);
+	PREPARE_WORK(&floppy_work, (work_func_t)handler);
 	schedule_work(&floppy_work);
 }
 
@@ -1008,7 +1008,7 @@ static void cancel_activity(void)
 
 	spin_lock_irqsave(&floppy_lock, flags);
 	do_floppy = NULL;
-	PREPARE_WORK(&floppy_work, (void *)empty, NULL);
+	PREPARE_WORK(&floppy_work, (work_func_t)empty);
 	del_timer(&fd_timer);
 	spin_unlock_irqrestore(&floppy_lock, flags);
 }
@@ -1726,7 +1726,7 @@ static void print_result(char *message, int inr)
 }
 
 /* interrupt handler. Note that this can be called externally on the Sparc */
-irqreturn_t floppy_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t floppy_interrupt(int irq, void *dev_id)
 {
 	void (*handler) (void) = do_floppy;
 	int do_print;
@@ -1868,7 +1868,7 @@ static void show_floppy(void)
 	printk("fdc_busy=%lu\n", fdc_busy);
 	if (do_floppy)
 		printk("do_floppy=%p\n", do_floppy);
-	if (floppy_work.pending)
+	if (work_pending(&floppy_work))
 		printk("floppy_work.func=%p\n", floppy_work.func);
 	if (timer_pending(&fd_timer))
 		printk("fd_timer.function=%p\n", fd_timer.function);
@@ -2991,8 +2991,8 @@ static void do_fd_request(request_queue_t * q)
 	if (usage_count == 0) {
 		printk("warning: usage count=0, current_req=%p exiting\n",
 		       current_req);
-		printk("sect=%ld flags=%lx\n", (long)current_req->sector,
-		       current_req->flags);
+		printk("sect=%ld type=%x flags=%x\n", (long)current_req->sector,
+		       current_req->cmd_type, current_req->cmd_flags);
 		return;
 	}
 	if (test_bit(0, &fdc_busy)) {
@@ -4498,7 +4498,7 @@ static void floppy_release_irq_and_dma(void)
 		printk("floppy timer still active:%s\n", timeout_message);
 	if (timer_pending(&fd_timer))
 		printk("auxiliary floppy timer still active\n");
-	if (floppy_work.pending)
+	if (work_pending(&floppy_work))
 		printk("work still pending\n");
 #endif
 	old_fdc = fdc;

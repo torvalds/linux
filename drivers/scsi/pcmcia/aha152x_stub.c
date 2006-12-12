@@ -154,16 +154,11 @@ static int aha152x_config_cs(struct pcmcia_device *link)
     
     DEBUG(0, "aha152x_config(0x%p)\n", link);
 
-    tuple.DesiredTuple = CISTPL_CONFIG;
     tuple.TupleData = tuple_data;
     tuple.TupleDataMax = 64;
     tuple.TupleOffset = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-    link->conf.ConfigBase = parse.config.base;
-
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
+    tuple.Attributes = 0;
     CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     while (1) {
 	if (pcmcia_get_tuple_data(link, &tuple) != 0 ||

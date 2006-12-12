@@ -229,30 +229,6 @@ static int __init parse_tag_rsvd_mem(struct tag *tag)
 }
 __tagtable(ATAG_RSVD_MEM, parse_tag_rsvd_mem);
 
-static int __init parse_tag_ethernet(struct tag *tag)
-{
-#if 0
-	const struct platform_device *pdev;
-
-	/*
-	 * We really need a bus type that supports "classes"...this
-	 * will do for now (until we must handle other kinds of
-	 * ethernet controllers)
-	 */
-	pdev = platform_get_device("macb", tag->u.ethernet.mac_index);
-	if (pdev && pdev->dev.platform_data) {
-		struct eth_platform_data *data = pdev->dev.platform_data;
-
-		data->valid = 1;
-		data->mii_phy_addr = tag->u.ethernet.mii_phy_addr;
-		memcpy(data->hw_addr, tag->u.ethernet.hw_address,
-		       sizeof(data->hw_addr));
-	}
-#endif
-	return 0;
-}
-__tagtable(ATAG_ETHERNET, parse_tag_ethernet);
-
 /*
  * Scan the tag table for this tag, and call its parse function. The
  * tag table is built by the linker from all the __tagtable
@@ -292,6 +268,7 @@ void __init setup_arch (char **cmdline_p)
 
 	setup_processor();
 	setup_platform();
+	setup_board();
 
 	cpu_clk = clk_get(NULL, "cpu");
 	if (IS_ERR(cpu_clk)) {

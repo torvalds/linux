@@ -333,7 +333,7 @@ good_area:
 		/* protection fault */
 		if (error_code & 0x08000000)
 			goto bad_area;
-		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
+		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
 			goto bad_area;
 	}
 
@@ -386,7 +386,7 @@ bad_area_nosemaphore:
  */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if (current->pid == 1) {
+	if (is_init(current)) {
 		yield();
 		down_read(&mm->mmap_sem);
 		goto survive;
@@ -426,18 +426,21 @@ void bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 
 	/* kernel has accessed a bad area */
 
-	printk(KERN_ALERT "Unable to handle kernel paging request for ");
 	switch (regs->trap) {
-		case 0x300:
-		case 0x380:
-			printk("data at address 0x%08lx\n", regs->dar);
-			break;
-		case 0x400:
-		case 0x480:
-			printk("instruction fetch\n");
-			break;
-		default:
-			printk("unknown fault\n");
+	case 0x300:
+	case 0x380:
+		printk(KERN_ALERT "Unable to handle kernel paging request for "
+			"data at address 0x%08lx\n", regs->dar);
+		break;
+	case 0x400:
+	case 0x480:
+		printk(KERN_ALERT "Unable to handle kernel paging request for "
+			"instruction fetch\n");
+		break;
+	default:
+		printk(KERN_ALERT "Unable to handle kernel paging request for "
+			"unknown fault\n");
+		break;
 	}
 	printk(KERN_ALERT "Faulting instruction address: 0x%08lx\n",
 		regs->nip);

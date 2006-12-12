@@ -198,7 +198,7 @@ static void hil_kbd_process_err(struct hil_kbd *kbd) {
 }
 
 static irqreturn_t hil_kbd_interrupt(struct serio *serio, 
-	      unsigned char data, unsigned int flags, struct pt_regs *regs)
+	      unsigned char data, unsigned int flags)
 {
 	struct hil_kbd *kbd;
 	hil_packet packet;
@@ -328,7 +328,7 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	kbd->dev->id.vendor	= PCI_VENDOR_ID_HP;
 	kbd->dev->id.product	= 0x0001; /* TODO: get from kbd->rsc */
 	kbd->dev->id.version	= 0x0100; /* TODO: get from kbd->rsc */
-	kbd->dev->dev		= &serio->dev;
+	kbd->dev->cdev.dev	= &serio->dev;
 
 	for (i = 0; i < 128; i++) {
 		set_bit(hil_kbd_set1[i], kbd->dev->keybit);
@@ -381,8 +381,7 @@ struct serio_driver hil_kbd_serio_drv = {
 
 static int __init hil_kbd_init(void)
 {
-	serio_register_driver(&hil_kbd_serio_drv);
-        return 0;
+	return serio_register_driver(&hil_kbd_serio_drv);
 }
                 
 static void __exit hil_kbd_exit(void)

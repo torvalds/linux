@@ -28,14 +28,6 @@ static void enable_r4030_irq(unsigned int irq)
 	spin_unlock_irqrestore(&r4030_lock, flags);
 }
 
-static unsigned int startup_r4030_irq(unsigned int irq)
-{
-	enable_r4030_irq(irq);
-	return 0; /* never anything pending */
-}
-
-#define shutdown_r4030_irq	disable_r4030_irq
-
 void disable_r4030_irq(unsigned int irq)
 {
 	unsigned int mask = ~(1 << (irq - JAZZ_PARALLEL_IRQ));
@@ -47,34 +39,20 @@ void disable_r4030_irq(unsigned int irq)
 	spin_unlock_irqrestore(&r4030_lock, flags);
 }
 
-#define mask_and_ack_r4030_irq disable_r4030_irq
-
-static void end_r4030_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_r4030_irq(irq);
-}
-
 static struct irq_chip r4030_irq_type = {
 	.typename = "R4030",
-	.startup = startup_r4030_irq,
-	.shutdown = shutdown_r4030_irq,
-	.enable = enable_r4030_irq,
-	.disable = disable_r4030_irq,
-	.ack = mask_and_ack_r4030_irq,
-	.end = end_r4030_irq,
+	.ack = disable_r4030_irq,
+	.mask = disable_r4030_irq,
+	.mask_ack = disable_r4030_irq,
+	.unmask = enable_r4030_irq,
 };
 
 void __init init_r4030_ints(void)
 {
 	int i;
 
-	for (i = JAZZ_PARALLEL_IRQ; i <= JAZZ_TIMER_IRQ; i++) {
-		irq_desc[i].status     = IRQ_DISABLED;
-		irq_desc[i].action     = 0;
-		irq_desc[i].depth      = 1;
-		irq_desc[i].chip    = &r4030_irq_type;
-	}
+	for (i = JAZZ_PARALLEL_IRQ; i <= JAZZ_TIMER_IRQ; i++)
+		set_irq_chip_and_handler(i, &r4030_irq_type, handle_level_irq);
 
 	r4030_write_reg16(JAZZ_IO_IRQ_ENABLE, 0);
 	r4030_read_reg16(JAZZ_IO_IRQ_SOURCE);		/* clear pending IRQs */
@@ -94,26 +72,26 @@ void __init arch_init_irq(void)
 	change_c0_status(ST0_IM, IE_IRQ4 | IE_IRQ3 | IE_IRQ2 | IE_IRQ1);
 }
 
-static void loc_call(unsigned int irq, struct pt_regs *regs, unsigned int mask)
+static void loc_call(unsigned int irq, unsigned int mask)
 {
 	r4030_write_reg16(JAZZ_IO_IRQ_ENABLE,
 	                  r4030_read_reg16(JAZZ_IO_IRQ_ENABLE) & mask);
-	do_IRQ(irq, regs);
+	do_IRQ(irq);
 	r4030_write_reg16(JAZZ_IO_IRQ_ENABLE,
 	                  r4030_read_reg16(JAZZ_IO_IRQ_ENABLE) | mask);
 }
 
-static void ll_local_dev(struct pt_regs *regs)
+static void ll_local_dev(void)
 {
 	switch (r4030_read_reg32(JAZZ_IO_IRQ_SOURCE)) {
 	case 0:
 		panic("Unimplemented loc_no_irq handler");
 		break;
 	case 4:
-		loc_call(JAZZ_PARALLEL_IRQ, regs, JAZZ_IE_PARALLEL);
+		loc_call(JAZZ_PARALLEL_IRQ, JAZZ_IE_PARALLEL);
 		break;
 	case 8:
-		loc_call(JAZZ_PARALLEL_IRQ, regs, JAZZ_IE_FLOPPY);
+		loc_call(JAZZ_PARALLEL_IRQ, JAZZ_IE_FLOPPY);
 		break;
 	case 12:
 		panic("Unimplemented loc_sound handler");
@@ -122,27 +100,27 @@ static void ll_local_dev(struct pt_regs *regs)
 		panic("Unimplemented loc_video handler");
 		break;
 	case 20:
-		loc_call(JAZZ_ETHERNET_IRQ, regs, JAZZ_IE_ETHERNET);
+		loc_call(JAZZ_ETHERNET_IRQ, JAZZ_IE_ETHERNET);
 		break;
 	case 24:
-		loc_call(JAZZ_SCSI_IRQ, regs, JAZZ_IE_SCSI);
+		loc_call(JAZZ_SCSI_IRQ, JAZZ_IE_SCSI);
 		break;
 	case 28:
-		loc_call(JAZZ_KEYBOARD_IRQ, regs, JAZZ_IE_KEYBOARD);
+		loc_call(JAZZ_KEYBOARD_IRQ, JAZZ_IE_KEYBOARD);
 		break;
 	case 32:
-		loc_call(JAZZ_MOUSE_IRQ, regs, JAZZ_IE_MOUSE);
+		loc_call(JAZZ_MOUSE_IRQ, JAZZ_IE_MOUSE);
 		break;
 	case 36:
-		loc_call(JAZZ_SERIAL1_IRQ, regs, JAZZ_IE_SERIAL1);
+		loc_call(JAZZ_SERIAL1_IRQ, JAZZ_IE_SERIAL1);
 		break;
 	case 40:
-		loc_call(JAZZ_SERIAL2_IRQ, regs, JAZZ_IE_SERIAL2);
+		loc_call(JAZZ_SERIAL2_IRQ, JAZZ_IE_SERIAL2);
 		break;
 	}
 }
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
 
@@ -150,13 +128,13 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 		write_c0_compare(0);
 	else if (pending & IE_IRQ4) {
 		r4030_read_reg32(JAZZ_TIMER_REGISTER);
-		do_IRQ(JAZZ_TIMER_IRQ, regs);
+		do_IRQ(JAZZ_TIMER_IRQ);
 	} else if (pending & IE_IRQ3)
 		panic("Unimplemented ISA NMI handler");
 	else if (pending & IE_IRQ2)
-		do_IRQ(r4030_read_reg32(JAZZ_EISA_IRQ_ACK), regs);
+		do_IRQ(r4030_read_reg32(JAZZ_EISA_IRQ_ACK));
 	else if (pending & IE_IRQ1) {
-		ll_local_dev(regs);
+		ll_local_dev();
 	} else if (unlikely(pending & IE_IRQ0))
 		panic("Unimplemented local_dma handler");
 	else if (pending & IE_SW1) {

@@ -306,7 +306,7 @@ static void pluto_dma_end(struct pluto *pluto, unsigned int nbpackets)
 			TS_DMA_BYTES, PCI_DMA_FROMDEVICE);
 }
 
-static irqreturn_t pluto_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pluto_irq(int irq, void *dev_id)
 {
 	struct pluto *pluto = dev_id;
 	u32 tscr;
@@ -650,7 +650,7 @@ static int __devinit pluto2_probe(struct pci_dev *pdev,
 	/* dvb */
 	ret = dvb_register_adapter(&pluto->dvb_adapter, DRIVER_NAME, THIS_MODULE, &pdev->dev);
 	if (ret < 0)
-		goto err_i2c_bit_del_bus;
+		goto err_i2c_del_adapter;
 
 	dvb_adapter = &pluto->dvb_adapter;
 
@@ -712,8 +712,8 @@ err_dvb_dmx_release:
 	dvb_dmx_release(dvbdemux);
 err_dvb_unregister_adapter:
 	dvb_unregister_adapter(dvb_adapter);
-err_i2c_bit_del_bus:
-	i2c_bit_del_bus(&pluto->i2c_adap);
+err_i2c_del_adapter:
+	i2c_del_adapter(&pluto->i2c_adap);
 err_pluto_hw_exit:
 	pluto_hw_exit(pluto);
 err_free_irq:
@@ -748,7 +748,7 @@ static void __devexit pluto2_remove(struct pci_dev *pdev)
 	dvb_dmxdev_release(&pluto->dmxdev);
 	dvb_dmx_release(dvbdemux);
 	dvb_unregister_adapter(dvb_adapter);
-	i2c_bit_del_bus(&pluto->i2c_adap);
+	i2c_del_adapter(&pluto->i2c_adap);
 	pluto_hw_exit(pluto);
 	free_irq(pdev->irq, pluto);
 	pci_iounmap(pdev, pluto->io_mem);

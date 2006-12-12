@@ -99,6 +99,7 @@ extern void * memchr(const void *,int,__kernel_size_t);
 #endif
 
 extern char *kstrdup(const char *s, gfp_t gfp);
+extern void *kmemdup(const void *src, size_t len, gfp_t gfp);
 
 #ifdef __cplusplus
 }

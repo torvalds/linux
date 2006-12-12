@@ -1,4 +1,4 @@
-/* linux/include/asm/arch-s3c2410/fb.h
+/* linux/include/asm-arm/arch-s3c2410/fb.h
  *
  * Copyright (c) 2004 Arnaud Patard <arnaud.patard@rtp-net.org>
  *
@@ -30,6 +30,9 @@ struct s3c2410fb_hw {
 
 struct s3c2410fb_mach_info {
 	unsigned char	fixed_syncs;	/* do not update sync/border */
+
+	/* LCD types */
+	int		type;
 
 	/* Screen size */
 	int		width;

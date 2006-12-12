@@ -205,9 +205,9 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 static long ptrace32_siginfo(unsigned request, u32 pid, u32 addr, u32 data)
 {
 	int ret;
-	compat_siginfo_t *si32 = (compat_siginfo_t *)compat_ptr(data);
+	compat_siginfo_t __user *si32 = compat_ptr(data);
 	siginfo_t ssi; 
-	siginfo_t *si = compat_alloc_user_space(sizeof(siginfo_t));
+	siginfo_t __user *si = compat_alloc_user_space(sizeof(siginfo_t));
 	if (request == PTRACE_SETSIGINFO) {
 		memset(&ssi, 0, sizeof(siginfo_t));
 		ret = copy_siginfo_from_user32(&ssi, si32);
@@ -244,6 +244,8 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	case PTRACE_DETACH:
 	case PTRACE_SYSCALL:
 	case PTRACE_SETOPTIONS:
+	case PTRACE_SET_THREAD_AREA:
+	case PTRACE_GET_THREAD_AREA:
 		return sys_ptrace(request, pid, addr, data); 
 
 	default:

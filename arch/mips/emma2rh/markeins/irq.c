@@ -57,7 +57,7 @@
 extern void emma2rh_sw_irq_init(u32 base);
 extern void emma2rh_gpio_irq_init(u32 base);
 extern void emma2rh_irq_init(u32 base);
-extern asmlinkage void emma2rh_irq_dispatch(struct pt_regs *regs);
+extern void emma2rh_irq_dispatch(void);
 
 static struct irqaction irq_cascade = {
 	   .handler = no_action,
@@ -114,20 +114,20 @@ void __init arch_init_irq(void)
 	setup_irq(CPU_IRQ_BASE + CPU_EMMA2RH_CASCADE, &irq_cascade);
 }
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
         unsigned int pending = read_c0_status() & read_c0_cause();
 
 	if (pending & STATUSF_IP7)
-		do_IRQ(CPU_IRQ_BASE + 7, regs);
+		do_IRQ(CPU_IRQ_BASE + 7);
 	else if (pending & STATUSF_IP2)
-		emma2rh_irq_dispatch(regs);
+		emma2rh_irq_dispatch();
 	else if (pending & STATUSF_IP1)
-		do_IRQ(CPU_IRQ_BASE + 1, regs);
+		do_IRQ(CPU_IRQ_BASE + 1);
 	else if (pending & STATUSF_IP0)
-		do_IRQ(CPU_IRQ_BASE + 0, regs);
+		do_IRQ(CPU_IRQ_BASE + 0);
 	else
-		spurious_interrupt(regs);
+		spurious_interrupt();
 }
 
 

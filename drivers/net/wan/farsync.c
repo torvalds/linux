@@ -1498,7 +1498,7 @@ do_bottom_half_rx(struct fst_card_info *card)
  *      Dev_id is our fst_card_info pointer
  */
 static irqreturn_t
-fst_intr(int irq, void *dev_id, struct pt_regs *regs)
+fst_intr(int irq, void *dev_id)
 {
 	struct fst_card_info *card;
 	struct fst_port_info *port;

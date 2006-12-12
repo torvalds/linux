@@ -732,7 +732,7 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 	}
 }
 
-static void ttusb_iso_irq(struct urb *urb, struct pt_regs *ptregs)
+static void ttusb_iso_irq(struct urb *urb)
 {
 	struct ttusb *ttusb = urb->context;
 
@@ -1107,17 +1107,17 @@ static int philips_tdm1316l_tuner_set_params(struct dvb_frontend* fe, struct dvb
 	// setup PLL filter
 	switch (params->u.ofdm.bandwidth) {
 	case BANDWIDTH_6_MHZ:
-		tda1004x_write_byte(fe, 0x0C, 0);
+		tda1004x_writereg(fe, 0x0C, 0);
 		filter = 0;
 		break;
 
 	case BANDWIDTH_7_MHZ:
-		tda1004x_write_byte(fe, 0x0C, 0);
+		tda1004x_writereg(fe, 0x0C, 0);
 		filter = 0;
 		break;
 
 	case BANDWIDTH_8_MHZ:
-		tda1004x_write_byte(fe, 0x0C, 0xFF);
+		tda1004x_writereg(fe, 0x0C, 0xFF);
 		filter = 1;
 		break;
 
@@ -1564,13 +1564,13 @@ static void frontend_init(struct ttusb* ttusb)
 	switch(le16_to_cpu(ttusb->dev->descriptor.idProduct)) {
 	case 0x1003: // Hauppauge/TT Nova-USB-S budget (stv0299/ALPS BSRU6|BSBE1(tsa5059))
 		// try the stv0299 based first
-		ttusb->fe = stv0299_attach(&alps_stv0299_config, &ttusb->i2c_adap);
+		ttusb->fe = dvb_attach(stv0299_attach, &alps_stv0299_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
 			ttusb->fe->ops.tuner_ops.set_params = philips_tsa5059_tuner_set_params;
 
 			if(ttusb->revision == TTUSB_REV_2_2) { // ALPS BSBE1
 				alps_stv0299_config.inittab = alps_bsbe1_inittab;
-				lnbp21_attach(ttusb->fe, &ttusb->i2c_adap, 0, 0);
+				dvb_attach(lnbp21_attach, ttusb->fe, &ttusb->i2c_adap, 0, 0);
 			} else { // ALPS BSRU6
 				ttusb->fe->ops.set_voltage = ttusb_set_voltage;
 			}
@@ -1578,7 +1578,7 @@ static void frontend_init(struct ttusb* ttusb)
 		}
 
 		// Grundig 29504-491
-		ttusb->fe = tda8083_attach(&ttusb_novas_grundig_29504_491_config, &ttusb->i2c_adap);
+		ttusb->fe = dvb_attach(tda8083_attach, &ttusb_novas_grundig_29504_491_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
 			ttusb->fe->ops.tuner_ops.set_params = ttusb_novas_grundig_29504_491_tuner_set_params;
 			ttusb->fe->ops.set_voltage = ttusb_set_voltage;
@@ -1587,13 +1587,13 @@ static void frontend_init(struct ttusb* ttusb)
 		break;
 
 	case 0x1004: // Hauppauge/TT DVB-C budget (ves1820/ALPS TDBE2(sp5659))
-		ttusb->fe = ves1820_attach(&alps_tdbe2_config, &ttusb->i2c_adap, read_pwm(ttusb));
+		ttusb->fe = dvb_attach(ves1820_attach, &alps_tdbe2_config, &ttusb->i2c_adap, read_pwm(ttusb));
 		if (ttusb->fe != NULL) {
 			ttusb->fe->ops.tuner_ops.set_params = alps_tdbe2_tuner_set_params;
 			break;
 		}
 
-		ttusb->fe = stv0297_attach(&dvbc_philips_tdm1316l_config, &ttusb->i2c_adap);
+		ttusb->fe = dvb_attach(stv0297_attach, &dvbc_philips_tdm1316l_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
 			ttusb->fe->ops.tuner_ops.set_params = dvbc_philips_tdm1316l_tuner_set_params;
 			break;
@@ -1602,14 +1602,14 @@ static void frontend_init(struct ttusb* ttusb)
 
 	case 0x1005: // Hauppauge/TT Nova-USB-t budget (tda10046/Philips td1316(tda6651tt) OR cx22700/ALPS TDMB7(??))
 		// try the ALPS TDMB7 first
-		ttusb->fe = cx22700_attach(&alps_tdmb7_config, &ttusb->i2c_adap);
+		ttusb->fe = dvb_attach(cx22700_attach, &alps_tdmb7_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
 			ttusb->fe->ops.tuner_ops.set_params = alps_tdmb7_tuner_set_params;
 			break;
 		}
 
 		// Philips td1316
-		ttusb->fe = tda10046_attach(&philips_tdm1316l_config, &ttusb->i2c_adap);
+		ttusb->fe = dvb_attach(tda10046_attach, &philips_tdm1316l_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
 			ttusb->fe->ops.tuner_ops.init = philips_tdm1316l_tuner_init;
 			ttusb->fe->ops.tuner_ops.set_params = philips_tdm1316l_tuner_set_params;
@@ -1625,8 +1625,7 @@ static void frontend_init(struct ttusb* ttusb)
 	} else {
 		if (dvb_register_frontend(&ttusb->adapter, ttusb->fe)) {
 			printk("dvb-ttusb-budget: Frontend registration failed!\n");
-			if (ttusb->fe->ops.release)
-				ttusb->fe->ops.release(ttusb->fe);
+			dvb_frontend_detach(ttusb->fe);
 			ttusb->fe = NULL;
 		}
 	}
@@ -1763,7 +1762,10 @@ static void ttusb_disconnect(struct usb_interface *intf)
 	dvb_net_release(&ttusb->dvbnet);
 	dvb_dmxdev_release(&ttusb->dmxdev);
 	dvb_dmx_release(&ttusb->dvb_demux);
-	if (ttusb->fe != NULL) dvb_unregister_frontend(ttusb->fe);
+	if (ttusb->fe != NULL) {
+		dvb_unregister_frontend(ttusb->fe);
+		dvb_frontend_detach(ttusb->fe);
+	}
 	i2c_del_adapter(&ttusb->i2c_adap);
 	dvb_unregister_adapter(&ttusb->adapter);
 

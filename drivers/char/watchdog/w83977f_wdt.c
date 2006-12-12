@@ -393,7 +393,7 @@ static int wdt_ioctl(struct inode *inode, struct file *file,
 	switch(cmd)
 	{
 	default:
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(uarg.ident, &ident, sizeof(ident)) ? -EFAULT : 0;

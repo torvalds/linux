@@ -11,8 +11,8 @@
 
 #define RODATA								\
 	. = ALIGN(4096);						\
-	__start_rodata = .;						\
 	.rodata           : AT(ADDR(.rodata) - LOAD_OFFSET) {		\
+		VMLINUX_SYMBOL(__start_rodata) = .;			\
 		*(.rodata) *(.rodata.*)					\
 		*(__vermagic)		/* Kernel version magic */	\
 	}								\
@@ -118,15 +118,18 @@
         __ksymtab_strings : AT(ADDR(__ksymtab_strings) - LOAD_OFFSET) {	\
 		*(__ksymtab_strings)					\
 	}								\
-	__end_rodata = .;						\
-	. = ALIGN(4096);						\
+									\
+	EH_FRAME							\
 									\
 	/* Built-in module parameters. */				\
 	__param : AT(ADDR(__param) - LOAD_OFFSET) {			\
 		VMLINUX_SYMBOL(__start___param) = .;			\
 		*(__param)						\
 		VMLINUX_SYMBOL(__stop___param) = .;			\
-	}
+		VMLINUX_SYMBOL(__end_rodata) = .;			\
+	}								\
+									\
+	. = ALIGN(4096);
 
 #define SECURITY_INIT							\
 	.security_initcall.init : AT(ADDR(.security_initcall.init) - LOAD_OFFSET) { \
@@ -156,6 +159,26 @@
 		VMLINUX_SYMBOL(__kprobes_text_start) = .;		\
 		*(.kprobes.text)					\
 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
+
+#ifdef CONFIG_STACK_UNWIND
+#define EH_FRAME							\
+		/* Unwind data binary search table */			\
+		. = ALIGN(8);						\
+        	.eh_frame_hdr : AT(ADDR(.eh_frame_hdr) - LOAD_OFFSET) {	\
+			VMLINUX_SYMBOL(__start_unwind_hdr) = .;		\
+			*(.eh_frame_hdr)				\
+			VMLINUX_SYMBOL(__end_unwind_hdr) = .;		\
+		}							\
+		/* Unwind data */					\
+		. = ALIGN(8);						\
+		.eh_frame : AT(ADDR(.eh_frame) - LOAD_OFFSET) {		\
+			VMLINUX_SYMBOL(__start_unwind) = .;		\
+		  	*(.eh_frame)					\
+			VMLINUX_SYMBOL(__end_unwind) = .;		\
+		}
+#else
+#define EH_FRAME
+#endif
 
 		/* DWARF debug sections.
 		Symbols in the DWARF debugging sections are relative to
@@ -195,5 +218,33 @@
 		.stab.indexstr 0 : { *(.stab.indexstr) }		\
 		.comment 0 : { *(.comment) }
 
+#define BUG_TABLE							\
+	. = ALIGN(8);							\
+	__bug_table : AT(ADDR(__bug_table) - LOAD_OFFSET) {		\
+		__start___bug_table = .;				\
+		*(__bug_table)						\
+		__stop___bug_table = .;					\
+	}
+
 #define NOTES								\
 		.notes : { *(.note.*) } :note
+
+#define INITCALLS							\
+  	*(.initcall0.init)						\
+  	*(.initcall0s.init)						\
+  	*(.initcall1.init)						\
+  	*(.initcall1s.init)						\
+  	*(.initcall2.init)						\
+  	*(.initcall2s.init)						\
+  	*(.initcall3.init)						\
+  	*(.initcall3s.init)						\
+  	*(.initcall4.init)						\
+  	*(.initcall4s.init)						\
+  	*(.initcall5.init)						\
+  	*(.initcall5s.init)						\
+	*(.initcallrootfs.init)						\
+  	*(.initcall6.init)						\
+  	*(.initcall6s.init)						\
+  	*(.initcall7.init)						\
+  	*(.initcall7s.init)
+

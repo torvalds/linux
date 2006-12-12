@@ -32,6 +32,7 @@
 #include <linux/proc_fs.h>
 #include <linux/workqueue.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/debugfs.h>
 #include "cpqphp.h"
 
@@ -140,7 +141,7 @@ struct ctrl_dbg {
 
 static int open(struct inode *inode, struct file *file)
 {
-	struct controller *ctrl = inode->u.generic_ip;
+	struct controller *ctrl = inode->i_private;
 	struct ctrl_dbg *dbg;
 	int retval = -ENOMEM;
 

@@ -206,8 +206,7 @@ static int streamer_open(struct net_device *dev);
 static int streamer_xmit(struct sk_buff *skb, struct net_device *dev);
 static int streamer_close(struct net_device *dev);
 static void streamer_set_rx_mode(struct net_device *dev);
-static irqreturn_t streamer_interrupt(int irq, void *dev_id,
-			       struct pt_regs *regs);
+static irqreturn_t streamer_interrupt(int irq, void *dev_id);
 static struct net_device_stats *streamer_get_stats(struct net_device *dev);
 static int streamer_set_mac_address(struct net_device *dev, void *addr);
 static void streamer_arb_cmd(struct net_device *dev);
@@ -1028,7 +1027,7 @@ static void streamer_rx(struct net_device *dev)
 	}			/* end for all completed rx descriptors */
 }
 
-static irqreturn_t streamer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t streamer_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct streamer_private *streamer_priv =
@@ -1876,7 +1875,6 @@ static int sprintf_info(char *buffer, struct net_device *dev)
 		datap[size+1]=io_word & 0xff;
 	}
 
-
 	size = sprintf(buffer, "\n%6s: Adapter Address   : Node Address      : Functional Addr\n", dev->name);
 
 	size += sprintf(buffer + size,
@@ -1930,64 +1928,6 @@ static int sprintf_info(char *buffer, struct net_device *dev)
 	return size;
 }
 #endif
-#endif
-
-#if STREAMER_IOCTL && (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-static int streamer_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-        int i;
-	struct streamer_private *streamer_priv = (struct streamer_private *) dev->priv;
-	u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
-
-	switch(cmd) {
-	case IOCTL_SISR_MASK:
-		writew(SISR_MI, streamer_mmio + SISR_MASK_SUM);
-		break;
-	case IOCTL_SPIN_LOCK_TEST:
-	        printk(KERN_INFO "spin_lock() called.\n");
-		spin_lock(&streamer_priv->streamer_lock);
-		spin_unlock(&streamer_priv->streamer_lock);
-		printk(KERN_INFO "spin_unlock() finished.\n");
-		break;
-	case IOCTL_PRINT_BDAS:
-	        printk(KERN_INFO "bdas: RXBDA: %x RXLBDA: %x TX2FDA: %x TX2LFDA: %x\n",
-		       readw(streamer_mmio + RXBDA),
-		       readw(streamer_mmio + RXLBDA),
-		       readw(streamer_mmio + TX2FDA),
-		       readw(streamer_mmio + TX2LFDA));
-		break;
-	case IOCTL_PRINT_REGISTERS:
-	        printk(KERN_INFO "registers:\n");
-		printk(KERN_INFO "SISR: %04x MISR: %04x LISR: %04x BCTL: %04x BMCTL: %04x\nmask  %04x mask  %04x\n", 
-		       readw(streamer_mmio + SISR),
-		       readw(streamer_mmio + MISR_RUM),
-		       readw(streamer_mmio + LISR),
-		       readw(streamer_mmio + BCTL),
-		       readw(streamer_mmio + BMCTL_SUM),
-		       readw(streamer_mmio + SISR_MASK),
-		       readw(streamer_mmio + MISR_MASK));
-		break;
-	case IOCTL_PRINT_RX_BUFS:
-	        printk(KERN_INFO "Print rx bufs:\n");
-		for(i=0; i<STREAMER_RX_RING_SIZE; i++)
-		        printk(KERN_INFO "rx_ring %d status: 0x%x\n", i, 
-			       streamer_priv->streamer_rx_ring[i].status);
-		break;
-	case IOCTL_PRINT_TX_BUFS:
-	        printk(KERN_INFO "Print tx bufs:\n");
-		for(i=0; i<STREAMER_TX_RING_SIZE; i++)
-		        printk(KERN_INFO "tx_ring %d status: 0x%x\n", i, 
-			       streamer_priv->streamer_tx_ring[i].status);
-		break;
-	case IOCTL_RX_CMD:
-	        streamer_rx(dev);
-		printk(KERN_INFO "Sent rx command.\n");
-		break;
-	default:
-	        printk(KERN_INFO "Bad ioctl!\n");
-	}
-	return 0;
-}
 #endif
 
 static struct pci_driver streamer_pci_driver = {

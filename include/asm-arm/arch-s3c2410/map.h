@@ -160,6 +160,11 @@
 #define S3C2440_PA_CAMIF   (0x4F000000)
 #define S3C2440_SZ_CAMIF   SZ_1M
 
+/* AC97 */
+
+#define S3C2440_PA_AC97	   (0x5B000000)
+#define S3C2440_SZ_AC97	   SZ_1M
+
 /* ISA style IO, for each machine to sort out mappings for, if it
  * implements it. We reserve two 16M regions for ISA.
  */

@@ -13,6 +13,8 @@
 
 #define COMMAND_LINE_SIZE 256
 
+#ifdef __KERNEL__
+
 /* Magic number indicating that a tag table is present */
 #define ATAG_MAGIC	0xa2a25441
 
@@ -137,5 +139,7 @@ extern void board_setup_fbmem(unsigned long fbmem_start,
 void chip_enable_sdram(void);
 
 #endif /* !__ASSEMBLY__ */
+
+#endif  /*  __KERNEL__  */
 
 #endif /* __ASM_AVR32_SETUP_H__ */

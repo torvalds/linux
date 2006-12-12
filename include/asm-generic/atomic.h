@@ -66,7 +66,7 @@ static inline void atomic_long_sub(long i, atomic_long_t *l)
 	atomic64_sub(i, v);
 }
 
-#else
+#else  /*  BITS_PER_LONG == 64  */
 
 typedef atomic_t atomic_long_t;
 
@@ -113,5 +113,6 @@ static inline void atomic_long_sub(long i, atomic_long_t *l)
 	atomic_sub(i, v);
 }
 
-#endif
-#endif
+#endif  /*  BITS_PER_LONG == 64  */
+
+#endif  /*  _ASM_GENERIC_ATOMIC_H  */

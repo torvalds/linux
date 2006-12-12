@@ -57,7 +57,7 @@ static int daemon_write(int fd, struct sk_buff **skb,
 				 (struct daemon_data *) &lp->user));
 }
 
-static struct net_kern_info daemon_kern_info = {
+static const struct net_kern_info daemon_kern_info = {
 	.init			= daemon_init,
 	.protocol		= eth_protocol,
 	.read			= daemon_read,
@@ -98,4 +98,4 @@ static int register_daemon(void)
 	return 0;
 }
 
-__initcall(register_daemon);
+late_initcall(register_daemon);

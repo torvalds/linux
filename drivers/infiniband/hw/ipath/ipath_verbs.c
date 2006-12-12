@@ -898,7 +898,8 @@ int ipath_get_counters(struct ipath_devdata *dd,
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_erricrccnt) +
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_errvcrccnt) +
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_errlpcrccnt) +
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_badformatcnt);
+		ipath_snap_cntr(dd, dd->ipath_cregs->cr_badformatcnt) +
+		dd->ipath_rxfc_unsupvl_errs;
 	cntrs->port_rcv_remphys_errors =
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_rcvebpcnt);
 	cntrs->port_xmit_discards =
@@ -911,8 +912,10 @@ int ipath_get_counters(struct ipath_devdata *dd,
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_pktsendcnt);
 	cntrs->port_rcv_packets =
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_pktrcvcnt);
-	cntrs->local_link_integrity_errors = dd->ipath_lli_errors;
-	cntrs->excessive_buffer_overrun_errors = 0; /* XXX */
+	cntrs->local_link_integrity_errors =
+		(dd->ipath_flags & IPATH_GPIO_ERRINTRS) ?
+		dd->ipath_lli_errs : dd->ipath_lli_errors;
+	cntrs->excessive_buffer_overrun_errors = dd->ipath_overrun_thresh_errs;
 
 	ret = 0;
 
@@ -1199,6 +1202,7 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 	struct ipath_ah *ah;
 	struct ib_ah *ret;
 	struct ipath_ibdev *dev = to_idev(pd->device);
+	unsigned long flags;
 
 	/* A multicast address requires a GRH (see ch. 8.4.1). */
 	if (ah_attr->dlid >= IPATH_MULTICAST_LID_BASE &&
@@ -1225,16 +1229,16 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 		goto bail;
 	}
 
-	spin_lock(&dev->n_ahs_lock);
+	spin_lock_irqsave(&dev->n_ahs_lock, flags);
 	if (dev->n_ahs_allocated == ib_ipath_max_ahs) {
-		spin_unlock(&dev->n_ahs_lock);
+		spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
 		kfree(ah);
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
 	}
 
 	dev->n_ahs_allocated++;
-	spin_unlock(&dev->n_ahs_lock);
+	spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
 
 	/* ib_create_ah() will initialize ah->ibah. */
 	ah->attr = *ah_attr;
@@ -1255,10 +1259,11 @@ static int ipath_destroy_ah(struct ib_ah *ibah)
 {
 	struct ipath_ibdev *dev = to_idev(ibah->device);
 	struct ipath_ah *ah = to_iah(ibah);
+	unsigned long flags;
 
-	spin_lock(&dev->n_ahs_lock);
+	spin_lock_irqsave(&dev->n_ahs_lock, flags);
 	dev->n_ahs_allocated--;
-	spin_unlock(&dev->n_ahs_lock);
+	spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
 
 	kfree(ah);
 
@@ -1380,11 +1385,13 @@ static int enable_timer(struct ipath_devdata *dd)
 	 * processing.
 	 */
 	if (dd->ipath_flags & IPATH_GPIO_INTR) {
+		u64 val;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_debugportselect,
 				 0x2074076542310ULL);
 		/* Enable GPIO bit 2 interrupt */
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_mask,
-				 (u64) (1 << 2));
+		val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_gpio_mask);
+		val |= (u64) (1 << IPATH_GPIO_PORT0_BIT);
+		ipath_write_kreg( dd, dd->ipath_kregs->kr_gpio_mask, val);
 	}
 
 	init_timer(&dd->verbs_timer);
@@ -1399,8 +1406,17 @@ static int enable_timer(struct ipath_devdata *dd)
 static int disable_timer(struct ipath_devdata *dd)
 {
 	/* Disable GPIO bit 2 interrupt */
-	if (dd->ipath_flags & IPATH_GPIO_INTR)
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_mask, 0);
+	if (dd->ipath_flags & IPATH_GPIO_INTR) {
+                u64 val;
+                /* Disable GPIO bit 2 interrupt */
+                val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_gpio_mask);
+                val &= ~((u64) (1 << IPATH_GPIO_PORT0_BIT));
+                ipath_write_kreg( dd, dd->ipath_kregs->kr_gpio_mask, val);
+		/*
+		 * We might want to undo changes to debugportselect,
+		 * but how?
+		 */
+	}
 
 	del_timer_sync(&dd->verbs_timer);
 
@@ -1471,7 +1487,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	idev->pma_counter_select[1] = IB_PMA_PORT_RCV_DATA;
 	idev->pma_counter_select[2] = IB_PMA_PORT_XMIT_PKTS;
 	idev->pma_counter_select[3] = IB_PMA_PORT_RCV_PKTS;
-	idev->pma_counter_select[5] = IB_PMA_PORT_XMIT_WAIT;
+	idev->pma_counter_select[4] = IB_PMA_PORT_XMIT_WAIT;
 	idev->link_width_enabled = 3;	/* 1x or 4x */
 
 	/* Snapshot current HW counters to "clear" them. */
@@ -1585,7 +1601,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	dev->mmap = ipath_mmap;
 
 	snprintf(dev->node_desc, sizeof(dev->node_desc),
-		 IPATH_IDSTR " %s", system_utsname.nodename);
+		 IPATH_IDSTR " %s", init_utsname()->nodename);
 
 	ret = ib_register_device(dev);
 	if (ret)
@@ -1683,6 +1699,7 @@ static ssize_t show_stats(struct class_device *cdev, char *buf)
 		      "RC OTH NAKs %d\n"
 		      "RC timeouts %d\n"
 		      "RC RDMA dup %d\n"
+		      "RC stalls   %d\n"
 		      "piobuf wait %d\n"
 		      "no piobuf   %d\n"
 		      "PKT drops   %d\n"
@@ -1690,7 +1707,7 @@ static ssize_t show_stats(struct class_device *cdev, char *buf)
 		      dev->n_rc_resends, dev->n_rc_qacks, dev->n_rc_acks,
 		      dev->n_seq_naks, dev->n_rdma_seq, dev->n_rnr_naks,
 		      dev->n_other_naks, dev->n_timeouts,
-		      dev->n_rdma_dup_busy, dev->n_piowait,
+		      dev->n_rdma_dup_busy, dev->n_rc_stalls, dev->n_piowait,
 		      dev->n_no_piobuf, dev->n_pkt_drops, dev->n_wqe_errs);
 	for (i = 0; i < ARRAY_SIZE(dev->opstats); i++) {
 		const struct ipath_opcode_stats *si = &dev->opstats[i];

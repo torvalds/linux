@@ -45,9 +45,9 @@ Assumptions and Introduction
    by  circuitry on the card and is often presented uncompressed.
    For  a PAL TV signal encoded at a resolution of 768x576 24-bit
    color pixels over 25 frames per second - a fair amount of data
-   is  generated and must be proceesed by the PC before it can be
+   is  generated and must be processed by the PC before it can be
    displayed  on the video monitor screen. Some Analogue TV cards
-   for  PC's  have  onboard  MPEG2  encoders which permit the raw
+   for  PCs  have  onboard  MPEG2  encoders  which permit the raw
    digital  data  stream  to be presented to the PC in an encoded
    and  compressed  form  -  similar  to the form that is used in
    Digital TV.

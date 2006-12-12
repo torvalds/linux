@@ -1,5 +1,5 @@
 #
-# Character device configuration
+# I2C subsystem configuration
 #
 
 menu "I2C support"

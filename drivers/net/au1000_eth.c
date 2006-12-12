@@ -89,7 +89,7 @@ static int au1000_open(struct net_device *);
 static int au1000_close(struct net_device *);
 static int au1000_tx(struct sk_buff *, struct net_device *);
 static int au1000_rx(struct net_device *);
-static irqreturn_t au1000_interrupt(int, void *, struct pt_regs *);
+static irqreturn_t au1000_interrupt(int, void *);
 static void au1000_tx_timeout(struct net_device *);
 static void set_rx_mode(struct net_device *);
 static struct net_device_stats *au1000_get_stats(struct net_device *);
@@ -102,7 +102,7 @@ static void enable_mac(struct net_device *, int);
 // externs
 extern int get_ethernet_addr(char *ethernet_addr);
 extern void str2eaddr(unsigned char *ea, unsigned char *str);
-extern char * __init prom_getcmdline(void);
+extern char * prom_getcmdline(void);
 
 /*
  * Theory of operation
@@ -360,7 +360,8 @@ static int mii_probe (struct net_device *dev)
 	BUG_ON(!phydev);
 	BUG_ON(phydev->attached_dev);
 
-	phydev = phy_connect(dev, phydev->dev.bus_id, &au1000_adjust_link, 0);
+	phydev = phy_connect(dev, phydev->dev.bus_id, &au1000_adjust_link, 0,
+			PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
@@ -1253,7 +1254,7 @@ static int au1000_rx(struct net_device *dev)
 /*
  * Au1000 interrupt service routine.
  */
-static irqreturn_t au1000_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t au1000_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 

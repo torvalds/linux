@@ -30,7 +30,6 @@ extern int pckbd_translate(unsigned char scancode, unsigned char *keycode,
 extern char pckbd_unexpected_up(unsigned char keycode);
 extern void pckbd_leds(unsigned char leds);
 extern void pckbd_init_hw(void);
-extern unsigned char pckbd_sysrq_xlate[128];
 
 #define kbd_setkeycode		pckbd_setkeycode
 #define kbd_getkeycode		pckbd_getkeycode
@@ -38,9 +37,6 @@ extern unsigned char pckbd_sysrq_xlate[128];
 #define kbd_unexpected_up	pckbd_unexpected_up
 #define kbd_leds		pckbd_leds
 #define kbd_init_hw		pckbd_init_hw
-#define kbd_sysrq_xlate		pckbd_sysrq_xlate
-
-#define SYSRQ_KEY 0x54
 
 /* resource allocation */
 #define kbd_request_region()

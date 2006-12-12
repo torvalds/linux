@@ -12,7 +12,7 @@
 #include <net/ip.h>
 #include <net/xfrm.h>
 
-static kmem_cache_t *secpath_cachep __read_mostly;
+static struct kmem_cache *secpath_cachep __read_mostly;
 
 void __secpath_destroy(struct sec_path *sp)
 {
@@ -27,7 +27,7 @@ struct sec_path *secpath_dup(struct sec_path *src)
 {
 	struct sec_path *sp;
 
-	sp = kmem_cache_alloc(secpath_cachep, SLAB_ATOMIC);
+	sp = kmem_cache_alloc(secpath_cachep, GFP_ATOMIC);
 	if (!sp)
 		return NULL;
 
@@ -46,7 +46,7 @@ EXPORT_SYMBOL(secpath_dup);
 
 /* Fetch spi and seq from ipsec header */
 
-int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq)
+int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 {
 	int offset, offset_seq;
 
@@ -62,7 +62,7 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq)
 	case IPPROTO_COMP:
 		if (!pskb_may_pull(skb, sizeof(struct ip_comp_hdr)))
 			return -EINVAL;
-		*spi = htonl(ntohs(*(u16*)(skb->h.raw + 2)));
+		*spi = htonl(ntohs(*(__be16*)(skb->h.raw + 2)));
 		*seq = 0;
 		return 0;
 	default:
@@ -72,8 +72,8 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq)
 	if (!pskb_may_pull(skb, 16))
 		return -EINVAL;
 
-	*spi = *(u32*)(skb->h.raw + offset);
-	*seq = *(u32*)(skb->h.raw + offset_seq);
+	*spi = *(__be32*)(skb->h.raw + offset);
+	*seq = *(__be32*)(skb->h.raw + offset_seq);
 	return 0;
 }
 EXPORT_SYMBOL(xfrm_parse_spi);

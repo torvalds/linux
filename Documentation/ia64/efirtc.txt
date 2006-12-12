@@ -26,7 +26,7 @@ to initialize the system view of the time during boot.
 Because we wanted to minimize the impact on existing user-level apps using
 the CMOS clock, we decided to expose an API that was very similar to the one
 used today with the legacy RTC driver (driver/char/rtc.c). However, because 
-EFI provides a simpler services, not all all ioctl() are available. Also
+EFI provides a simpler services, not all ioctl() are available. Also
 new ioctl()s have been introduced for things that EFI provides but not the 
 legacy.
 

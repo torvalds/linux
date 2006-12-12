@@ -97,6 +97,11 @@ static inline void reiserfs_mark_inode_private(struct inode *inode)
 	inode->i_flags |= S_PRIVATE;
 }
 
+static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
+{
+	init_rwsem(&REISERFS_I(inode)->xattr_sem);
+}
+
 #else
 
 #define is_reiserfs_priv_object(inode) 0
@@ -129,6 +134,9 @@ static inline int reiserfs_xattr_init(struct super_block *sb, int mount_flags)
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL);	/* to be sure */
 	return 0;
 };
+static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
+{
+}
 #endif
 
 #endif				/* __KERNEL__ */

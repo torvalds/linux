@@ -10,29 +10,15 @@
  * Copyright (C) 1999 Silicon Graphics, Inc.
  * Copyright (C) 2000 2001, 2002  Maciej W. Rozycki
  */
-#include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/stddef.h>
-#include <linux/string.h>
-#include <linux/unistd.h>
-#include <linux/slab.h>
-#include <linux/user.h>
-#include <linux/utsname.h>
-#include <linux/a.out.h>
 #include <linux/screen_info.h>
 #include <linux/bootmem.h>
 #include <linux/initrd.h>
-#include <linux/major.h>
-#include <linux/kdev_t.h>
 #include <linux/root_dev.h>
 #include <linux/highmem.h>
 #include <linux/console.h>
-#include <linux/mmzone.h>
 #include <linux/pfn.h>
 
 #include <asm/addrspace.h>
@@ -96,6 +82,12 @@ void __init add_memory_region(phys_t start, phys_t size, long type)
 	int x = boot_mem_map.nr_map;
 	struct boot_mem_map_entry *prev = boot_mem_map.map + x - 1;
 
+	/* Sanity check */
+	if (start + size < start) {
+		printk("Trying to add an invalid memory region, skipped\n");
+		return;
+	}
+
 	/*
 	 * Try to merge with previous entry if any.  This is far less than
 	 * perfect but is sufficient for most real world cases.
@@ -143,167 +135,157 @@ static void __init print_memory_map(void)
 	}
 }
 
-static inline void parse_cmdline_early(void)
+/*
+ * Manage initrd
+ */
+#ifdef CONFIG_BLK_DEV_INITRD
+
+static int __init rd_start_early(char *p)
 {
-	char c = ' ', *to = command_line, *from = saved_command_line;
-	unsigned long start_at, mem_size;
-	int len = 0;
-	int usermem = 0;
-
-	printk("Determined physical RAM map:\n");
-	print_memory_map();
-
-	for (;;) {
-		/*
-		 * "mem=XXX[kKmM]" defines a memory region from
-		 * 0 to <XXX>, overriding the determined size.
-		 * "mem=XXX[KkmM]@YYY[KkmM]" defines a memory region from
-		 * <YYY> to <YYY>+<XXX>, overriding the determined size.
-		 */
-		if (c == ' ' && !memcmp(from, "mem=", 4)) {
-			if (to != command_line)
-				to--;
-			/*
-			 * If a user specifies memory size, we
-			 * blow away any automatically generated
-			 * size.
-			 */
-			if (usermem == 0) {
-				boot_mem_map.nr_map = 0;
-				usermem = 1;
-			}
-			mem_size = memparse(from + 4, &from);
-			if (*from == '@')
-				start_at = memparse(from + 1, &from);
-			else
-				start_at = 0;
-			add_memory_region(start_at, mem_size, BOOT_MEM_RAM);
-		}
-		c = *(from++);
-		if (!c)
-			break;
-		if (CL_SIZE <= ++len)
-			break;
-		*(to++) = c;
-	}
-	*to = '\0';
-
-	if (usermem) {
-		printk("User-defined physical RAM map:\n");
-		print_memory_map();
-	}
-}
-
-static inline int parse_rd_cmdline(unsigned long* rd_start, unsigned long* rd_end)
-{
-	/*
-	 * "rd_start=0xNNNNNNNN" defines the memory address of an initrd
-	 * "rd_size=0xNN" it's size
-	 */
-	unsigned long start = 0;
-	unsigned long size = 0;
-	unsigned long end;
-	char cmd_line[CL_SIZE];
-	char *start_str;
-	char *size_str;
-	char *tmp;
-
-	strcpy(cmd_line, command_line);
-	*command_line = 0;
-	tmp = cmd_line;
-	/* Ignore "rd_start=" strings in other parameters. */
-	start_str = strstr(cmd_line, "rd_start=");
-	if (start_str && start_str != cmd_line && *(start_str - 1) != ' ')
-		start_str = strstr(start_str, " rd_start=");
-	while (start_str) {
-		if (start_str != cmd_line)
-			strncat(command_line, tmp, start_str - tmp);
-		start = memparse(start_str + 9, &start_str);
-		tmp = start_str + 1;
-		start_str = strstr(start_str, " rd_start=");
-	}
-	if (*tmp)
-		strcat(command_line, tmp);
-
-	strcpy(cmd_line, command_line);
-	*command_line = 0;
-	tmp = cmd_line;
-	/* Ignore "rd_size" strings in other parameters. */
-	size_str = strstr(cmd_line, "rd_size=");
-	if (size_str && size_str != cmd_line && *(size_str - 1) != ' ')
-		size_str = strstr(size_str, " rd_size=");
-	while (size_str) {
-		if (size_str != cmd_line)
-			strncat(command_line, tmp, size_str - tmp);
-		size = memparse(size_str + 8, &size_str);
-		tmp = size_str + 1;
-		size_str = strstr(size_str, " rd_size=");
-	}
-	if (*tmp)
-		strcat(command_line, tmp);
+	unsigned long start = memparse(p, &p);
 
 #ifdef CONFIG_64BIT
-	/* HACK: Guess if the sign extension was forgotten */
-	if (start > 0x0000000080000000 && start < 0x00000000ffffffff)
-		start |= 0xffffffff00000000UL;
+	/* Guess if the sign extension was forgotten by bootloader */
+	if (start < XKPHYS)
+		start = (int)start;
 #endif
+	initrd_start = start;
+	initrd_end += start;
+	return 0;
+}
+early_param("rd_start", rd_start_early);
 
-	end = start + size;
-	if (start && end) {
-		*rd_start = start;
-		*rd_end = end;
-		return 1;
+static int __init rd_size_early(char *p)
+{
+	initrd_end += memparse(p, &p);
+	return 0;
+}
+early_param("rd_size", rd_size_early);
+
+/* it returns the next free pfn after initrd */
+static unsigned long __init init_initrd(void)
+{
+	unsigned long end;
+	u32 *initrd_header;
+
+	/*
+	 * Board specific code or command line parser should have
+	 * already set up initrd_start and initrd_end. In these cases
+	 * perfom sanity checks and use them if all looks good.
+	 */
+	if (initrd_start && initrd_end > initrd_start)
+		goto sanitize;
+
+	/*
+	 * See if initrd has been added to the kernel image by
+	 * arch/mips/boot/addinitrd.c. In that case a header is
+	 * prepended to initrd and is made up by 8 bytes. The fisrt
+	 * word is a magic number and the second one is the size of
+	 * initrd.  Initrd start must be page aligned in any cases.
+	 */
+	initrd_header = __va(PAGE_ALIGN(__pa_symbol(&_end) + 8)) - 8;
+	if (initrd_header[0] != 0x494E5244)
+		goto disable;
+	initrd_start = (unsigned long)(initrd_header + 2);
+	initrd_end = initrd_start + initrd_header[1];
+
+sanitize:
+	if (initrd_start & ~PAGE_MASK) {
+		printk(KERN_ERR "initrd start must be page aligned\n");
+		goto disable;
 	}
+	if (initrd_start < PAGE_OFFSET) {
+		printk(KERN_ERR "initrd start < PAGE_OFFSET\n");
+		goto disable;
+	}
+
+	/*
+	 * Sanitize initrd addresses. For example firmware
+	 * can't guess if they need to pass them through
+	 * 64-bits values if the kernel has been built in pure
+	 * 32-bit. We need also to switch from KSEG0 to XKPHYS
+	 * addresses now, so the code can now safely use __pa().
+	 */
+	end = __pa(initrd_end);
+	initrd_end = (unsigned long)__va(end);
+	initrd_start = (unsigned long)__va(__pa(initrd_start));
+
+	ROOT_DEV = Root_RAM0;
+	return PFN_UP(end);
+disable:
+	initrd_start = 0;
+	initrd_end = 0;
 	return 0;
 }
 
-#define MAXMEM		HIGHMEM_START
-#define MAXMEM_PFN	PFN_DOWN(MAXMEM)
-
-static inline void bootmem_init(void)
+static void __init finalize_initrd(void)
 {
-	unsigned long start_pfn;
-	unsigned long reserved_end = (unsigned long)&_end;
-#ifndef CONFIG_SGI_IP27
-	unsigned long first_usable_pfn;
+	unsigned long size = initrd_end - initrd_start;
+
+	if (size == 0) {
+		printk(KERN_INFO "Initrd not found or empty");
+		goto disable;
+	}
+	if (__pa(initrd_end) > PFN_PHYS(max_low_pfn)) {
+		printk("Initrd extends beyond end of memory");
+		goto disable;
+	}
+
+	reserve_bootmem(__pa(initrd_start), size);
+	initrd_below_start_ok = 1;
+
+	printk(KERN_INFO "Initial ramdisk at: 0x%lx (%lu bytes)\n",
+	       initrd_start, size);
+	return;
+disable:
+	printk(" - disabling initrd\n");
+	initrd_start = 0;
+	initrd_end = 0;
+}
+
+#else  /* !CONFIG_BLK_DEV_INITRD */
+
+static unsigned long __init init_initrd(void)
+{
+	return 0;
+}
+
+#define finalize_initrd()	do {} while (0)
+
+#endif
+
+/*
+ * Initialize the bootmem allocator. It also setup initrd related data
+ * if needed.
+ */
+#ifdef CONFIG_SGI_IP27
+
+static void __init bootmem_init(void)
+{
+	init_initrd();
+	finalize_initrd();
+}
+
+#else  /* !CONFIG_SGI_IP27 */
+
+static void __init bootmem_init(void)
+{
+	unsigned long reserved_end;
+	unsigned long highest = 0;
+	unsigned long mapstart = -1UL;
 	unsigned long bootmap_size;
 	int i;
-#endif
-#ifdef CONFIG_BLK_DEV_INITRD
-	int initrd_reserve_bootmem = 0;
-
-	/* Board specific code should have set up initrd_start and initrd_end */
- 	ROOT_DEV = Root_RAM0;
-	if (parse_rd_cmdline(&initrd_start, &initrd_end)) {
-		reserved_end = max(reserved_end, initrd_end);
-		initrd_reserve_bootmem = 1;
-	} else {
-		unsigned long tmp;
-		u32 *initrd_header;
-
-		tmp = ((reserved_end + PAGE_SIZE-1) & PAGE_MASK) - sizeof(u32) * 2;
-		if (tmp < reserved_end)
-			tmp += PAGE_SIZE;
-		initrd_header = (u32 *)tmp;
-		if (initrd_header[0] == 0x494E5244) {
-			initrd_start = (unsigned long)&initrd_header[2];
-			initrd_end = initrd_start + initrd_header[1];
-			reserved_end = max(reserved_end, initrd_end);
-			initrd_reserve_bootmem = 1;
-		}
-	}
-#endif	/* CONFIG_BLK_DEV_INITRD */
 
 	/*
-	 * Partially used pages are not usable - thus
-	 * we are rounding upwards.
+	 * Init any data related to initrd. It's a nop if INITRD is
+	 * not selected. Once that done we can determine the low bound
+	 * of usable memory.
 	 */
-	start_pfn = PFN_UP(CPHYSADDR(reserved_end));
+	reserved_end = max(init_initrd(), PFN_UP(__pa_symbol(&_end)));
 
-#ifndef CONFIG_SGI_IP27
-	/* Find the highest page frame number we have available.  */
-	max_pfn = 0;
-	first_usable_pfn = -1UL;
+	/*
+	 * Find the highest page frame number we have available.
+	 */
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		unsigned long start, end;
 
@@ -312,56 +294,38 @@ static inline void bootmem_init(void)
 
 		start = PFN_UP(boot_mem_map.map[i].addr);
 		end = PFN_DOWN(boot_mem_map.map[i].addr
-		      + boot_mem_map.map[i].size);
+				+ boot_mem_map.map[i].size);
 
-		if (start >= end)
+		if (end > highest)
+			highest = end;
+		if (end <= reserved_end)
 			continue;
-		if (end > max_pfn)
-			max_pfn = end;
-		if (start < first_usable_pfn) {
-			if (start > start_pfn) {
-				first_usable_pfn = start;
-			} else if (end > start_pfn) {
-				first_usable_pfn = start_pfn;
-			}
-		}
+		if (start >= mapstart)
+			continue;
+		mapstart = max(reserved_end, start);
 	}
 
 	/*
 	 * Determine low and high memory ranges
 	 */
-	max_low_pfn = max_pfn;
-	if (max_low_pfn > MAXMEM_PFN) {
-		max_low_pfn = MAXMEM_PFN;
-#ifndef CONFIG_HIGHMEM
-		/* Maximum memory usable is what is directly addressable */
-		printk(KERN_WARNING "Warning only %ldMB will be used.\n",
-		       MAXMEM >> 20);
-		printk(KERN_WARNING "Use a HIGHMEM enabled kernel.\n");
-#endif
-	}
-
+	if (highest > PFN_DOWN(HIGHMEM_START)) {
 #ifdef CONFIG_HIGHMEM
-	/*
-	 * Crude, we really should make a better attempt at detecting
-	 * highstart_pfn
-	 */
-	highstart_pfn = highend_pfn = max_pfn;
-	if (max_pfn > MAXMEM_PFN) {
-		highstart_pfn = MAXMEM_PFN;
-		printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
-		       (highend_pfn - highstart_pfn) >> (20 - PAGE_SHIFT));
-	}
+		highstart_pfn = PFN_DOWN(HIGHMEM_START);
+		highend_pfn = highest;
 #endif
+		highest = PFN_DOWN(HIGHMEM_START);
+	}
 
-	/* Initialize the boot-time allocator with low memory only.  */
-	bootmap_size = init_bootmem(first_usable_pfn, max_low_pfn);
+	/*
+	 * Initialize the boot-time allocator with low memory only.
+	 */
+	bootmap_size = init_bootmem(mapstart, highest);
 
 	/*
 	 * Register fully available low RAM pages with the bootmem allocator.
 	 */
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
-		unsigned long curr_pfn, last_pfn, size;
+		unsigned long start, end, size;
 
 		/*
 		 * Reserve usable memory.
@@ -369,85 +333,50 @@ static inline void bootmem_init(void)
 		if (boot_mem_map.map[i].type != BOOT_MEM_RAM)
 			continue;
 
-		/*
-		 * We are rounding up the start address of usable memory:
-		 */
-		curr_pfn = PFN_UP(boot_mem_map.map[i].addr);
-		if (curr_pfn >= max_low_pfn)
-			continue;
-		if (curr_pfn < start_pfn)
-			curr_pfn = start_pfn;
-
-		/*
-		 * ... and at the end of the usable range downwards:
-		 */
-		last_pfn = PFN_DOWN(boot_mem_map.map[i].addr
+		start = PFN_UP(boot_mem_map.map[i].addr);
+		end   = PFN_DOWN(boot_mem_map.map[i].addr
 				    + boot_mem_map.map[i].size);
-
-		if (last_pfn > max_low_pfn)
-			last_pfn = max_low_pfn;
+		/*
+		 * We are rounding up the start address of usable memory
+		 * and at the end of the usable range downwards.
+		 */
+		if (start >= max_low_pfn)
+			continue;
+		if (start < reserved_end)
+			start = reserved_end;
+		if (end > max_low_pfn)
+			end = max_low_pfn;
 
 		/*
-		 * Only register lowmem part of lowmem segment with bootmem.
+		 * ... finally, is the area going away?
 		 */
-		size = last_pfn - curr_pfn;
-		if (curr_pfn > PFN_DOWN(HIGHMEM_START))
+		if (end <= start)
 			continue;
-		if (curr_pfn + size - 1 > PFN_DOWN(HIGHMEM_START))
-			size = PFN_DOWN(HIGHMEM_START) - curr_pfn;
-		if (!size)
-			continue;
-
-		/*
-		 * ... finally, did all the rounding and playing
-		 * around just make the area go away?
-		 */
-		if (last_pfn <= curr_pfn)
-			continue;
+		size = end - start;
 
 		/* Register lowmem ranges */
-		free_bootmem(PFN_PHYS(curr_pfn), PFN_PHYS(size));
-		memory_present(0, curr_pfn, curr_pfn + size - 1);
+		free_bootmem(PFN_PHYS(start), size << PAGE_SHIFT);
+		memory_present(0, start, end);
 	}
 
-	/* Reserve the bootmap memory.  */
-	reserve_bootmem(PFN_PHYS(first_usable_pfn), bootmap_size);
-#endif /* CONFIG_SGI_IP27 */
+	/*
+	 * Reserve the bootmap memory.
+	 */
+	reserve_bootmem(PFN_PHYS(mapstart), bootmap_size);
 
-#ifdef CONFIG_BLK_DEV_INITRD
-	initrd_below_start_ok = 1;
-	if (initrd_start) {
-		unsigned long initrd_size = ((unsigned char *)initrd_end) -
-			((unsigned char *)initrd_start);
-		const int width = sizeof(long) * 2;
-
-		printk("Initial ramdisk at: 0x%p (%lu bytes)\n",
-		       (void *)initrd_start, initrd_size);
-
-		if (CPHYSADDR(initrd_end) > PFN_PHYS(max_low_pfn)) {
-			printk("initrd extends beyond end of memory "
-			       "(0x%0*Lx > 0x%0*Lx)\ndisabling initrd\n",
-			       width,
-			       (unsigned long long) CPHYSADDR(initrd_end),
-			       width,
-			       (unsigned long long) PFN_PHYS(max_low_pfn));
-			initrd_start = initrd_end = 0;
-			initrd_reserve_bootmem = 0;
-		}
-
-		if (initrd_reserve_bootmem)
-			reserve_bootmem(CPHYSADDR(initrd_start), initrd_size);
-	}
-#endif /* CONFIG_BLK_DEV_INITRD  */
+	/*
+	 * Reserve initrd memory if needed.
+	 */
+	finalize_initrd();
 }
+
+#endif	/* CONFIG_SGI_IP27 */
 
 /*
  * arch_mem_init - initialize memory managment subsystem
  *
  *  o plat_mem_setup() detects the memory configuration and will record detected
  *    memory areas using add_memory_region.
- *  o parse_cmdline_early() parses the command line for mem= options which,
- *    iff detected, will override the results of the automatic detection.
  *
  * At this stage the memory configuration of the system is known to the
  * kernel but generic memory managment system is still entirely uninitialized.
@@ -465,35 +394,69 @@ static inline void bootmem_init(void)
  * initialization hook for anything else was introduced.
  */
 
-extern void plat_mem_setup(void);
+static int usermem __initdata = 0;
+
+static int __init early_parse_mem(char *p)
+{
+	unsigned long start, size;
+
+	/*
+	 * If a user specifies memory size, we
+	 * blow away any automatically generated
+	 * size.
+	 */
+	if (usermem == 0) {
+		boot_mem_map.nr_map = 0;
+		usermem = 1;
+ 	}
+	start = 0;
+	size = memparse(p, &p);
+	if (*p == '@')
+		start = memparse(p + 1, &p);
+
+	add_memory_region(start, size, BOOT_MEM_RAM);
+	return 0;
+}
+early_param("mem", early_parse_mem);
 
 static void __init arch_mem_init(char **cmdline_p)
 {
+	extern void plat_mem_setup(void);
+
 	/* call board setup routine */
 	plat_mem_setup();
+
+	printk("Determined physical RAM map:\n");
+	print_memory_map();
 
 	strlcpy(command_line, arcs_cmdline, sizeof(command_line));
 	strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
 
 	*cmdline_p = command_line;
 
-	parse_cmdline_early();
+	parse_early_param();
+
+	if (usermem) {
+		printk("User-defined physical RAM map:\n");
+		print_memory_map();
+	}
+
 	bootmem_init();
 	sparse_init();
 	paging_init();
 }
 
-static inline void resource_init(void)
+static void __init resource_init(void)
 {
 	int i;
 
 	if (UNCAC_BASE != IO_BASE)
 		return;
 
-	code_resource.start = virt_to_phys(&_text);
-	code_resource.end = virt_to_phys(&_etext) - 1;
-	data_resource.start = virt_to_phys(&_etext);
-	data_resource.end = virt_to_phys(&_edata) - 1;
+	code_resource.start = __pa_symbol(&_text);
+	code_resource.end = __pa_symbol(&_etext) - 1;
+	data_resource.start = __pa_symbol(&_etext);
+	data_resource.end = __pa_symbol(&_edata) - 1;
 
 	/*
 	 * Request address space for all standard RAM.
@@ -504,10 +467,10 @@ static inline void resource_init(void)
 
 		start = boot_mem_map.map[i].addr;
 		end = boot_mem_map.map[i].addr + boot_mem_map.map[i].size - 1;
-		if (start >= MAXMEM)
+		if (start >= HIGHMEM_START)
 			continue;
-		if (end >= MAXMEM)
-			end = MAXMEM - 1;
+		if (end >= HIGHMEM_START)
+			end = HIGHMEM_START - 1;
 
 		res = alloc_bootmem(sizeof(struct resource));
 		switch (boot_mem_map.map[i].type) {
@@ -535,9 +498,6 @@ static inline void resource_init(void)
 		request_resource(res, &data_resource);
 	}
 }
-
-#undef MAXMEM
-#undef MAXMEM_PFN
 
 void __init setup_arch(char **cmdline_p)
 {

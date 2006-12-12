@@ -106,7 +106,7 @@ static int i810_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 	unlock_kernel();
 
 	if (io_remap_pfn_range(vma, vma->vm_start,
-			       VM_OFFSET(vma) >> PAGE_SHIFT,
+			       vma->vm_pgoff,
 			       vma->vm_end - vma->vm_start, vma->vm_page_prot))
 		return -EAGAIN;
 	return 0;
@@ -141,10 +141,10 @@ static int i810_map_buffer(drm_buf_t * buf, struct file *filp)
 					    MAP_SHARED, buf->bus_address);
 	dev_priv->mmap_buffer = NULL;
 	filp->f_op = old_fops;
-	if ((unsigned long)buf_priv->virtual > -1024UL) {
+	if (IS_ERR(buf_priv->virtual)) {
 		/* Real error */
 		DRM_ERROR("mmap error\n");
-		retcode = (signed int)buf_priv->virtual;
+		retcode = PTR_ERR(buf_priv->virtual);
 		buf_priv->virtual = NULL;
 	}
 	up_write(&current->mm->mmap_sem);
@@ -808,7 +808,7 @@ static void i810_dma_dispatch_vertex(drm_device_t * dev,
 		    ((GFX_OP_PRIMITIVE | prim | ((used / 4) - 2)));
 
 		if (used & 4) {
-			*(u32 *) ((u32) buf_priv->kernel_virtual + used) = 0;
+			*(u32 *) ((char *) buf_priv->kernel_virtual + used) = 0;
 			used += 4;
 		}
 
@@ -1166,7 +1166,7 @@ static void i810_dma_dispatch_mc(drm_device_t * dev, drm_buf_t * buf, int used,
 
 	if (buf_priv->currently_mapped == I810_BUF_MAPPED) {
 		if (used & 4) {
-			*(u32 *) ((u32) buf_priv->virtual + used) = 0;
+			*(u32 *) ((char *) buf_priv->virtual + used) = 0;
 			used += 4;
 		}
 

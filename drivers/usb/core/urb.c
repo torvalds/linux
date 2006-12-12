@@ -57,7 +57,7 @@ struct urb *usb_alloc_urb(int iso_packets, gfp_t mem_flags)
 {
 	struct urb *urb;
 
-	urb = (struct urb *)kmalloc(sizeof(struct urb) + 
+	urb = kmalloc(sizeof(struct urb) +
 		iso_packets * sizeof(struct usb_iso_packet_descriptor),
 		mem_flags);
 	if (!urb) {
@@ -221,7 +221,6 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 {
 	int			pipe, temp, max;
 	struct usb_device	*dev;
-	struct usb_operations	*op;
 	int			is_out;
 
 	if (!urb || urb->hcpriv || !urb->complete)
@@ -233,8 +232,6 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	if (dev->bus->controller->power.power_state.event != PM_EVENT_ON
 			|| dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
-	if (!(op = dev->bus->op) || !op->submit_urb)
-		return -ENODEV;
 
 	urb->status = -EINPROGRESS;
 	urb->actual_length = 0;
@@ -376,7 +373,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		urb->interval = temp;
 	}
 
-	return op->submit_urb (urb, mem_flags);
+	return usb_hcd_submit_urb (urb, mem_flags);
 }
 
 /*-------------------------------------------------------------------*/
@@ -440,9 +437,9 @@ int usb_unlink_urb(struct urb *urb)
 {
 	if (!urb)
 		return -EINVAL;
-	if (!(urb->dev && urb->dev->bus && urb->dev->bus->op))
+	if (!(urb->dev && urb->dev->bus))
 		return -ENODEV;
-	return urb->dev->bus->op->unlink_urb(urb, -ECONNRESET);
+	return usb_hcd_unlink_urb(urb, -ECONNRESET);
 }
 
 /**
@@ -468,13 +465,13 @@ int usb_unlink_urb(struct urb *urb)
 void usb_kill_urb(struct urb *urb)
 {
 	might_sleep();
-	if (!(urb && urb->dev && urb->dev->bus && urb->dev->bus->op))
+	if (!(urb && urb->dev && urb->dev->bus))
 		return;
 	spin_lock_irq(&urb->lock);
 	++urb->reject;
 	spin_unlock_irq(&urb->lock);
 
-	urb->dev->bus->op->unlink_urb(urb, -ENOENT);
+	usb_hcd_unlink_urb(urb, -ENOENT);
 	wait_event(usb_kill_urb_queue, atomic_read(&urb->use_count) == 0);
 
 	spin_lock_irq(&urb->lock);

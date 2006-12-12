@@ -40,14 +40,15 @@
  * Cfg   42000000 - 42FFFFFF	  PCI config
  *
  */
-#define SYS_PCICTL			IO_ADDRESS(VERSATILE_SYS_PCICTL)
-#define PCI_IMAP0			IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x0)
-#define PCI_IMAP1			IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x4)
-#define PCI_IMAP2			IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x8)
-#define PCI_SMAP0			IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x10)
-#define PCI_SMAP1			IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x14)
-#define PCI_SMAP2			IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x18)
-#define PCI_SELFID			IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0xc)
+#define __IO_ADDRESS(n) ((void __iomem *)(unsigned long)IO_ADDRESS(n))
+#define SYS_PCICTL		__IO_ADDRESS(VERSATILE_SYS_PCICTL)
+#define PCI_IMAP0		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x0)
+#define PCI_IMAP1		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x4)
+#define PCI_IMAP2		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x8)
+#define PCI_SMAP0		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x10)
+#define PCI_SMAP1		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x14)
+#define PCI_SMAP2		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x18)
+#define PCI_SELFID		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0xc)
 
 #define DEVICE_ID_OFFSET		0x00
 #define CSR_OFFSET			0x04
@@ -76,7 +77,7 @@ static int __init versatile_pci_slot_ignore(char *str)
 __setup("pci_slot_ignore=", versatile_pci_slot_ignore);
 
 
-static unsigned long __pci_addr(struct pci_bus *bus,
+static void __iomem *__pci_addr(struct pci_bus *bus,
 				unsigned int devfn, int offset)
 {
 	unsigned int busnr = bus->number;
@@ -91,14 +92,14 @@ static unsigned long __pci_addr(struct pci_bus *bus,
 	if (devfn > 255)
 		BUG();
 
-	return (VERSATILE_PCI_CFG_VIRT_BASE | (busnr << 16) |
+	return VERSATILE_PCI_CFG_VIRT_BASE + ((busnr << 16) |
 		(PCI_SLOT(devfn) << 11) | (PCI_FUNC(devfn) << 8) | offset);
 }
 
 static int versatile_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 				 int size, u32 *val)
 {
-	unsigned long addr = __pci_addr(bus, devfn, where);
+	void __iomem *addr = __pci_addr(bus, devfn, where & ~3);
 	u32 v;
 	int slot = PCI_SLOT(devfn);
 
@@ -117,18 +118,16 @@ static int versatile_read_config(struct pci_bus *bus, unsigned int devfn, int wh
 	} else {
 		switch (size) {
 		case 1:
-			addr &= ~3;
 			v = __raw_readb(addr);
 			break;
 
 		case 2:
-			v = __raw_readl(addr & ~3);
-			if (addr & 2) v >>= 16;
+			v = __raw_readl(addr);
+			if (where & 2) v >>= 16;
  			v &= 0xffff;
 			break;
 
 		default:
-			addr &= ~3;
 			v = __raw_readl(addr);
 			break;
 		}
@@ -141,7 +140,7 @@ static int versatile_read_config(struct pci_bus *bus, unsigned int devfn, int wh
 static int versatile_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 				  int size, u32 val)
 {
-	unsigned long addr = __pci_addr(bus, devfn, where);
+	void __iomem *addr = __pci_addr(bus, devfn, where);
 	int slot = PCI_SLOT(devfn);
 
 	if (pci_slot_ignore & (1 << slot)) {
@@ -280,7 +279,7 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
 	printk("PCI core found (slot %d)\n",myslot);
 
 	__raw_writel(myslot, PCI_SELFID);
-	local_pci_cfg_base = (void *) VERSATILE_PCI_CFG_VIRT_BASE + (myslot << 11);
+	local_pci_cfg_base = VERSATILE_PCI_CFG_VIRT_BASE + (myslot << 11);
 
 	val = __raw_readl(local_pci_cfg_base + CSR_OFFSET);
 	val |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER | PCI_COMMAND_INVALIDATE;

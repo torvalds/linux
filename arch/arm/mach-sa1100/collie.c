@@ -91,30 +91,29 @@ static struct mcp_plat_data collie_mcp_data = {
 /*
  * low-level UART features.
  */
-static struct locomo_dev *uart_dev = NULL;
+struct platform_device collie_locomo_device;
 
 static void collie_uart_set_mctrl(struct uart_port *port, u_int mctrl)
 {
- 	if (!uart_dev) return;
-
  	if (mctrl & TIOCM_RTS)
-		locomo_gpio_write(uart_dev, LOCOMO_GPIO_RTS, 0);
+		locomo_gpio_write(&collie_locomo_device.dev, LOCOMO_GPIO_RTS, 0);
  	else
-		locomo_gpio_write(uart_dev, LOCOMO_GPIO_RTS, 1);
+		locomo_gpio_write(&collie_locomo_device.dev, LOCOMO_GPIO_RTS, 1);
 
  	if (mctrl & TIOCM_DTR)
-		locomo_gpio_write(uart_dev, LOCOMO_GPIO_DTR, 0);
+		locomo_gpio_write(&collie_locomo_device.dev, LOCOMO_GPIO_DTR, 0);
  	else
-		locomo_gpio_write(uart_dev, LOCOMO_GPIO_DTR, 1);
+		locomo_gpio_write(&collie_locomo_device.dev, LOCOMO_GPIO_DTR, 1);
 }
 
 static u_int collie_uart_get_mctrl(struct uart_port *port)
 {
 	int ret = TIOCM_CD;
 	unsigned int r;
-	if (!uart_dev) return ret;
 
-	r = locomo_gpio_read_output(uart_dev, LOCOMO_GPIO_CTS & LOCOMO_GPIO_DSR);
+	r = locomo_gpio_read_output(&collie_locomo_device.dev, LOCOMO_GPIO_CTS & LOCOMO_GPIO_DSR);
+	if (r == -ENODEV)
+		return ret;
 	if (r & LOCOMO_GPIO_CTS)
 		ret |= TIOCM_CTS;
 	if (r & LOCOMO_GPIO_DSR)
@@ -130,13 +129,11 @@ static struct sa1100_port_fns collie_port_fns __initdata = {
 
 static int collie_uart_probe(struct locomo_dev *dev)
 {
-	uart_dev = dev;
 	return 0;
 }
 
 static int collie_uart_remove(struct locomo_dev *dev)
 {
-	uart_dev = NULL;
 	return 0;
 }
 
@@ -170,7 +167,7 @@ static struct resource locomo_resources[] = {
 	},
 };
 
-static struct platform_device locomo_device = {
+struct platform_device collie_locomo_device = {
 	.name		= "locomo",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(locomo_resources),
@@ -178,7 +175,7 @@ static struct platform_device locomo_device = {
 };
 
 static struct platform_device *devices[] __initdata = {
-	&locomo_device,
+	&collie_locomo_device,
 	&colliescoop_device,
 };
 

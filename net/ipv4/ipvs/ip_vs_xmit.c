@@ -232,7 +232,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* check if it is a connection of no-client-port */
 	if (unlikely(cp->flags & IP_VS_CONN_F_NO_CPORT)) {
-		__u16 _pt, *p;
+		__be16 _pt, *p;
 		p = skb_header_pointer(skb, iph->ihl*4, sizeof(_pt), &_pt);
 		if (p == NULL)
 			goto tx_error;

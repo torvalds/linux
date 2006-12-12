@@ -99,7 +99,7 @@ static int pca_isa_waitforinterrupt(struct i2c_algo_pca_data *adap)
 	return ret;
 }
 
-static irqreturn_t pca_handler(int this_irq, void *dev_id, struct pt_regs *regs) {
+static irqreturn_t pca_handler(int this_irq, void *dev_id) {
 	wake_up_interruptible(&pca_wait);
 	return IRQ_HANDLED;
 }
@@ -156,7 +156,7 @@ static int __init pca_isa_init(void)
 
 static void pca_isa_exit(void)
 {
-	i2c_pca_del_bus(&pca_isa_ops);
+	i2c_del_adapter(&pca_isa_ops);
 
 	if (irq > 0) {
 		disable_irq(irq);

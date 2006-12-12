@@ -174,7 +174,7 @@ static struct pxa2xx_udc_mach_info udc_info __initdata = {
  */
 static struct pxamci_platform_data tosa_mci_platform_data;
 
-static int tosa_mci_init(struct device *dev, irqreturn_t (*tosa_detect_int)(int, void *, struct pt_regs *), void *data)
+static int tosa_mci_init(struct device *dev, irq_handler_t tosa_detect_int, void *data)
 {
 	int err;
 

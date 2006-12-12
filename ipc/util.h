@@ -3,6 +3,8 @@
  * Copyright (C) 1999 Christoph Rohland
  *
  * ipc helper functions (c) 1999 Manfred Spraul <manfred@colorfullife.com>
+ * namespaces support.      2006 OpenVZ, SWsoft Inc.
+ *                               Pavel Emelianov <xemul@openvz.org>
  */
 
 #ifndef _IPC_UTIL_H
@@ -14,6 +16,14 @@
 void sem_init (void);
 void msg_init (void);
 void shm_init (void);
+
+int sem_init_ns(struct ipc_namespace *ns);
+int msg_init_ns(struct ipc_namespace *ns);
+int shm_init_ns(struct ipc_namespace *ns);
+
+void sem_exit_ns(struct ipc_namespace *ns);
+void msg_exit_ns(struct ipc_namespace *ns);
+void shm_exit_ns(struct ipc_namespace *ns);
 
 struct ipc_id_ary {
 	int size;
@@ -31,14 +41,22 @@ struct ipc_ids {
 };
 
 struct seq_file;
-void __init ipc_init_ids(struct ipc_ids* ids, int size);
+#ifdef CONFIG_IPC_NS
+#define __ipc_init
+#else
+#define __ipc_init	__init
+#endif
+void __ipc_init ipc_init_ids(struct ipc_ids *ids, int size);
 #ifdef CONFIG_PROC_FS
 void __init ipc_init_proc_interface(const char *path, const char *header,
-				    struct ipc_ids *ids,
-				    int (*show)(struct seq_file *, void *));
+		int ids, int (*show)(struct seq_file *, void *));
 #else
 #define ipc_init_proc_interface(path, header, ids, show) do {} while (0)
 #endif
+
+#define IPC_SEM_IDS	0
+#define IPC_MSG_IDS	1
+#define IPC_SHM_IDS	2
 
 /* must be called with ids->mutex acquired.*/
 int ipc_findkey(struct ipc_ids* ids, key_t key);
@@ -64,6 +82,18 @@ void ipc_free(void* ptr, int size);
 void* ipc_rcu_alloc(int size);
 void ipc_rcu_getref(void *ptr);
 void ipc_rcu_putref(void *ptr);
+
+static inline void __ipc_fini_ids(struct ipc_ids *ids,
+		struct ipc_id_ary *entries)
+{
+	if (entries != &ids->nullentry)
+		ipc_rcu_putref(entries);
+}
+
+static inline void ipc_fini_ids(struct ipc_ids *ids)
+{
+	__ipc_fini_ids(ids, ids->entries);
+}
 
 struct kern_ipc_perm* ipc_get(struct ipc_ids* ids, int id);
 struct kern_ipc_perm* ipc_lock(struct ipc_ids* ids, int id);

@@ -60,8 +60,6 @@ static unsigned short int sclp_tty_chars_count;
 
 struct tty_driver *sclp_tty_driver;
 
-extern struct termios  tty_std_termios;
-
 static struct sclp_ioctls sclp_ioctls;
 static struct sclp_ioctls sclp_ioctls_init =
 {
@@ -711,7 +709,7 @@ static struct sclp_register sclp_input_event =
 	.receiver_fn = sclp_tty_receiver
 };
 
-static struct tty_operations sclp_ops = {
+static const struct tty_operations sclp_ops = {
 	.open = sclp_tty_open,
 	.close = sclp_tty_close,
 	.write = sclp_tty_write,

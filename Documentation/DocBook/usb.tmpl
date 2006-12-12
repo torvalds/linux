@@ -43,59 +43,52 @@
 
     <para>A Universal Serial Bus (USB) is used to connect a host,
     such as a PC or workstation, to a number of peripheral
-    devices.  USB uses a tree structure, with the host at the
+    devices.  USB uses a tree structure, with the host as the
     root (the system's master), hubs as interior nodes, and
-    peripheral devices as leaves (and slaves).
+    peripherals as leaves (and slaves).
     Modern PCs support several such trees of USB devices, usually
     one USB 2.0 tree (480 Mbit/sec each) with
     a few USB 1.1 trees (12 Mbit/sec each) that are used when you
     connect a USB 1.1 device directly to the machine's "root hub".
     </para>
 
-    <para>That master/slave asymmetry was designed in part for
-    ease of use.  It is not physically possible to assemble
-    (legal) USB cables incorrectly:  all upstream "to-the-host"
-    connectors are the rectangular type, matching the sockets on
-    root hubs, and the downstream type are the squarish type
-    (or they are built in to the peripheral).
-    Software doesn't need to deal with distributed autoconfiguration
-    since the pre-designated master node manages all that.
-    At the electrical level, bus protocol overhead is reduced by
-    eliminating arbitration and moving scheduling into host software.
+    <para>That master/slave asymmetry was designed-in for a number of
+    reasons, one being ease of use.  It is not physically possible to
+    assemble (legal) USB cables incorrectly:  all upstream "to the host"
+    connectors are the rectangular type (matching the sockets on
+    root hubs), and all downstream connectors are the squarish type
+    (or they are built into the peripheral).
+    Also, the host software doesn't need to deal with distributed
+    auto-configuration since the pre-designated master node manages all that.
+    And finally, at the electrical level, bus protocol overhead is reduced by
+    eliminating arbitration and moving scheduling into the host software.
     </para>
 
-    <para>USB 1.0 was announced in January 1996, and was revised
+    <para>USB 1.0 was announced in January 1996 and was revised
     as USB 1.1 (with improvements in hub specification and
     support for interrupt-out transfers) in September 1998.
-    USB 2.0 was released in April 2000, including high speed
-    transfers and transaction translating hubs (used for USB 1.1
+    USB 2.0 was released in April 2000, adding high-speed
+    transfers and transaction-translating hubs (used for USB 1.1
     and 1.0 backward compatibility).
     </para>
 
-    <para>USB support was added to Linux early in the 2.2 kernel series
-    shortly before the 2.3 development forked off.  Updates
-    from 2.3 were regularly folded back into 2.2 releases, bringing
-    new features such as <filename>/sbin/hotplug</filename> support,
-    more drivers, and more robustness.
-    The 2.5 kernel series continued such improvements, and also
-    worked on USB 2.0 support,
-    higher performance,
-    better consistency between host controller drivers,
-    API simplification (to make bugs less likely),
-    and providing internal "kerneldoc" documentation.
+    <para>Kernel developers added USB support to Linux early in the 2.2 kernel
+    series, shortly before 2.3 development forked.  Updates from 2.3 were
+    regularly folded back into 2.2 releases, which improved reliability and
+    brought <filename>/sbin/hotplug</filename> support as well more drivers.
+    Such improvements were continued in the 2.5 kernel series, where they added
+    USB 2.0 support, improved performance, and made the host controller drivers
+    (HCDs) more consistent.  They also simplified the API (to make bugs less
+    likely) and added internal "kerneldoc" documentation.
     </para>
 
     <para>Linux can run inside USB devices as well as on
     the hosts that control the devices.
-    Because the Linux 2.x USB support evolved to support mass market
-    platforms such as Apple Macintosh or PC-compatible systems,
-    it didn't address design concerns for those types of USB systems.
-    So it can't be used inside mass-market PDAs, or other peripherals.
-    USB device drivers running inside those Linux peripherals
+    But USB device drivers running inside those peripherals
     don't do the same things as the ones running inside hosts,
-    and so they've been given a different name:
-    they're called <emphasis>gadget drivers</emphasis>.
-    This document does not present gadget drivers.
+    so they've been given a different name:
+    <emphasis>gadget drivers</emphasis>.
+    This document does not cover gadget drivers.
     </para>
 
     </chapter>
@@ -103,17 +96,14 @@
 <chapter id="host">
     <title>USB Host-Side API Model</title>
 
-    <para>Within the kernel,
-    host-side drivers for USB devices talk to the "usbcore" APIs.
-    There are two types of public "usbcore" APIs, targetted at two different
-    layers of USB driver.  Those are
-    <emphasis>general purpose</emphasis> drivers, exposed through
-    driver frameworks such as block, character, or network devices;
-    and drivers that are <emphasis>part of the core</emphasis>,
-    which are involved in managing a USB bus.
-    Such core drivers include the <emphasis>hub</emphasis> driver,
-    which manages trees of USB devices, and several different kinds
-    of <emphasis>host controller driver (HCD)</emphasis>,
+    <para>Host-side drivers for USB devices talk to the "usbcore" APIs.
+    There are two.  One is intended for
+    <emphasis>general-purpose</emphasis> drivers (exposed through
+    driver frameworks), and the other is for drivers that are
+    <emphasis>part of the core</emphasis>.
+    Such core drivers include the <emphasis>hub</emphasis> driver
+    (which manages trees of USB devices) and several different kinds
+    of <emphasis>host controller drivers</emphasis>,
     which control individual busses.
     </para>
 
@@ -122,21 +112,21 @@
      
     <itemizedlist>
 
-	<listitem><para>USB supports four kinds of data transfer
-	(control, bulk, interrupt, and isochronous).  Two transfer
-	types use bandwidth as it's available (control and bulk),
-	while the other two types of transfer (interrupt and isochronous)
+	<listitem><para>USB supports four kinds of data transfers
+	(control, bulk, interrupt, and isochronous).  Two of them (control
+	and bulk) use bandwidth as it's available,
+	while the other two (interrupt and isochronous)
 	are scheduled to provide guaranteed bandwidth.
 	</para></listitem>
 
 	<listitem><para>The device description model includes one or more
 	"configurations" per device, only one of which is active at a time.
-	Devices that are capable of high speed operation must also support
-	full speed configurations, along with a way to ask about the
-	"other speed" configurations that might be used.
+	Devices that are capable of high-speed operation must also support
+	full-speed configurations, along with a way to ask about the
+	"other speed" configurations which might be used.
 	</para></listitem>
 
-	<listitem><para>Configurations have one or more "interface", each
+	<listitem><para>Configurations have one or more "interfaces", each
 	of which may have "alternate settings".  Interfaces may be
 	standardized by USB "Class" specifications, or may be specific to
 	a vendor or device.</para>
@@ -162,7 +152,7 @@
 	</para></listitem>
 
 	<listitem><para>The Linux USB API supports synchronous calls for
-	control and bulk messaging.
+	control and bulk messages.
 	It also supports asynchnous calls for all kinds of data transfer,
 	using request structures called "URBs" (USB Request Blocks).
 	</para></listitem>
@@ -324,8 +314,7 @@
 	<emphasis>usbdevfs</emphasis> although it wasn't solving what
 	<emphasis>devfs</emphasis> was.
 	Every USB device will appear in usbfs, regardless of whether or
-	not it has a kernel driver; but only devices with kernel drivers
-	show up in devfs.
+	not it has a kernel driver.
 	</para>
 
 	<sect1>
@@ -463,14 +452,25 @@
 	    file in your Linux kernel sources.
 	    </para>
 
-	    <para>Otherwise the main use for this file from programs
-	    is to poll() it to get notifications of usb devices
-	    as they're plugged or unplugged.
-	    To see what changed, you'd need to read the file and
-	    compare "before" and "after" contents, scan the filesystem,
-	    or see its hotplug event.
-	    </para>
+	    <para>This file, in combination with the poll() system call, can
+	    also be used to detect when devices are added or removed:
+<programlisting>int fd;
+struct pollfd pfd;
 
+fd = open("/proc/bus/usb/devices", O_RDONLY);
+pfd = { fd, POLLIN, 0 };
+for (;;) {
+	/* The first time through, this call will return immediately. */
+	poll(&amp;pfd, 1, -1);
+
+	/* To see what's changed, compare the file's previous and current
+	   contents or scan the filesystem.  (Scanning is more precise.) */
+}</programlisting>
+	    Note that this behavior is intended to be used for informational
+	    and debug purposes.  It would be more appropriate to use programs
+	    such as udev or HAL to initialize a device or start a user-mode
+	    helper program, for instance.
+	    </para>
 	</sect1>
 
 	<sect1>
@@ -740,7 +740,7 @@ usbdev_ioctl (int fd, int ifno, unsigned request, void *param)
 		<title>Synchronous I/O Support</title>
 
 		<para>Synchronous requests involve the kernel blocking
-		until until the user mode request completes, either by
+		until the user mode request completes, either by
 		finishing successfully or by reporting an error.
 		In most cases this is the simplest way to use usbfs,
 		although as noted above it does prevent performing I/O

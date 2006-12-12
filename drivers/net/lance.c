@@ -57,6 +57,7 @@ static const char version[] = "lance.c:v1.16 2006/11/09 dplatt@3do.com, becker@c
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/mm.h>
 #include <linux/bitops.h>
 
 #include <asm/io.h>
@@ -301,7 +302,7 @@ static int lance_open(struct net_device *dev);
 static void lance_init_ring(struct net_device *dev, gfp_t mode);
 static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int lance_rx(struct net_device *dev);
-static irqreturn_t lance_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t lance_interrupt(int irq, void *dev_id);
 static int lance_close(struct net_device *dev);
 static struct net_device_stats *lance_get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
@@ -367,7 +368,7 @@ static void cleanup_card(struct net_device *dev)
 	kfree(lp);
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	int this_dev;
 
@@ -1012,18 +1013,12 @@ out:
 }
 
 /* The LANCE interrupt handler. */
-static irqreturn_t
-lance_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t lance_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct lance_private *lp;
 	int csr0, ioaddr, boguscnt=10;
 	int must_restart;
-
-	if (dev == NULL) {
-		printk ("lance_interrupt(): irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
 
 	ioaddr = dev->base_addr;
 	lp = dev->priv;

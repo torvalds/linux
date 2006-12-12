@@ -126,8 +126,8 @@ int proc_exe_link(struct inode *inode, struct dentry **dentry, struct vfsmount *
 	}
 
 	if (vma) {
-		*mnt = mntget(vma->vm_file->f_vfsmnt);
-		*dentry = dget(vma->vm_file->f_dentry);
+		*mnt = mntget(vma->vm_file->f_path.mnt);
+		*dentry = dget(vma->vm_file->f_path.dentry);
 		result = 0;
 	}
 
@@ -138,25 +138,63 @@ out:
 }
 
 /*
- * Albert D. Cahalan suggested to fake entries for the traditional
- * sections here.  This might be worth investigating.
+ * display mapping lines for a particular process's /proc/pid/maps
  */
-static int show_map(struct seq_file *m, void *v)
+static int show_map(struct seq_file *m, void *_vml)
 {
-	return 0;
+	struct vm_list_struct *vml = _vml;
+	return nommu_vma_show(m, vml->vma);
 }
+
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
+	struct proc_maps_private *priv = m->private;
+	struct vm_list_struct *vml;
+	struct mm_struct *mm;
+	loff_t n = *pos;
+
+	/* pin the task and mm whilst we play with them */
+	priv->task = get_pid_task(priv->pid, PIDTYPE_PID);
+	if (!priv->task)
+		return NULL;
+
+	mm = get_task_mm(priv->task);
+	if (!mm) {
+		put_task_struct(priv->task);
+		priv->task = NULL;
+		return NULL;
+	}
+
+	down_read(&mm->mmap_sem);
+
+	/* start from the Nth VMA */
+	for (vml = mm->context.vmlist; vml; vml = vml->next)
+		if (n-- == 0)
+			return vml;
 	return NULL;
 }
-static void m_stop(struct seq_file *m, void *v)
+
+static void m_stop(struct seq_file *m, void *_vml)
 {
+	struct proc_maps_private *priv = m->private;
+
+	if (priv->task) {
+		struct mm_struct *mm = priv->task->mm;
+		up_read(&mm->mmap_sem);
+		mmput(mm);
+		put_task_struct(priv->task);
+	}
 }
-static void *m_next(struct seq_file *m, void *v, loff_t *pos)
+
+static void *m_next(struct seq_file *m, void *_vml, loff_t *pos)
 {
-	return NULL;
+	struct vm_list_struct *vml = _vml;
+
+	(*pos)++;
+	return vml ? vml->next : NULL;
 }
-static struct seq_operations proc_pid_maps_op = {
+
+static struct seq_operations proc_pid_maps_ops = {
 	.start	= m_start,
 	.next	= m_next,
 	.stop	= m_stop,
@@ -165,11 +203,19 @@ static struct seq_operations proc_pid_maps_op = {
 
 static int maps_open(struct inode *inode, struct file *file)
 {
-	int ret;
-	ret = seq_open(file, &proc_pid_maps_op);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		m->private = NULL;
+	struct proc_maps_private *priv;
+	int ret = -ENOMEM;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (priv) {
+		priv->pid = proc_pid(inode);
+		ret = seq_open(file, &proc_pid_maps_ops);
+		if (!ret) {
+			struct seq_file *m = file->private_data;
+			m->private = priv;
+		} else {
+			kfree(priv);
+		}
 	}
 	return ret;
 }
@@ -178,6 +224,6 @@ struct file_operations proc_maps_operations = {
 	.open		= maps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= seq_release_private,
 };
 

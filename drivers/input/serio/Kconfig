@@ -112,12 +112,12 @@ config SERIO_GSCPS2
 
 config HP_SDC
 	tristate "HP System Device Controller i8042 Support"
-	depends on GSC && SERIO
+	depends on (GSC || HP300) && SERIO
 	default y
 	---help---
-	  This option enables supports for the the "System Device
+	  This option enables support for the "System Device
 	  Controller", an i8042 carrying microcode to manage a
-	  few miscellanous devices on some Hewlett Packard systems.
+	  few miscellaneous devices on some Hewlett Packard systems.
 	  The SDC itself contains a 10ms resolution timer/clock capable
 	  of delivering interrupts on a periodic and one-shot basis.
 	  The SDC may also be connected to a battery-backed real-time

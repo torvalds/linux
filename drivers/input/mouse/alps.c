@@ -36,7 +36,7 @@
 #define ALPS_PASS	0x20
 #define ALPS_FW_BK_2	0x40
 
-static struct alps_model_info alps_model_data[] = {
+static const struct alps_model_info alps_model_data[] = {
 	{ { 0x33, 0x02, 0x0a },	0x88, 0xf8, ALPS_OLDPROTO },		/* UMAX-530T */
 	{ { 0x53, 0x02, 0x0a },	0xf8, 0xf8, 0 },
 	{ { 0x53, 0x02, 0x14 },	0xf8, 0xf8, 0 },
@@ -76,7 +76,7 @@ static struct alps_model_info alps_model_data[] = {
  * on a dualpoint, etc.
  */
 
-static void alps_process_packet(struct psmouse *psmouse, struct pt_regs *regs)
+static void alps_process_packet(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
 	unsigned char *packet = psmouse->packet;
@@ -84,8 +84,6 @@ static void alps_process_packet(struct psmouse *psmouse, struct pt_regs *regs)
 	struct input_dev *dev2 = priv->dev2;
 	int x, y, z, ges, fin, left, right, middle;
 	int back = 0, forward = 0;
-
-	input_regs(dev, regs);
 
 	if ((packet[0] & 0xc8) == 0x08) {   /* 3-byte PS/2 packet */
 		input_report_key(dev2, BTN_LEFT,   packet[0] & 1);
@@ -181,13 +179,13 @@ static void alps_process_packet(struct psmouse *psmouse, struct pt_regs *regs)
 	input_sync(dev);
 }
 
-static psmouse_ret_t alps_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
+static psmouse_ret_t alps_process_byte(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
 
 	if ((psmouse->packet[0] & 0xc8) == 0x08) { /* PS/2 packet */
 		if (psmouse->pktcnt == 3) {
-			alps_process_packet(psmouse, regs);
+			alps_process_packet(psmouse);
 			return PSMOUSE_FULL_PACKET;
 		}
 		return PSMOUSE_GOOD_DATA;
@@ -202,17 +200,17 @@ static psmouse_ret_t alps_process_byte(struct psmouse *psmouse, struct pt_regs *
 		return PSMOUSE_BAD_DATA;
 
 	if (psmouse->pktcnt == 6) {
-		alps_process_packet(psmouse, regs);
+		alps_process_packet(psmouse);
 		return PSMOUSE_FULL_PACKET;
 	}
 
 	return PSMOUSE_GOOD_DATA;
 }
 
-static struct alps_model_info *alps_get_model(struct psmouse *psmouse, int *version)
+static const struct alps_model_info *alps_get_model(struct psmouse *psmouse, int *version)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
-	unsigned char rates[] = { 0, 10, 20, 40, 60, 80, 100, 200 };
+	static const unsigned char rates[] = { 0, 10, 20, 40, 60, 80, 100, 200 };
 	unsigned char param[4];
 	int i;
 
@@ -504,7 +502,7 @@ init_fail:
 int alps_detect(struct psmouse *psmouse, int set_properties)
 {
 	int version;
-	struct alps_model_info *model;
+	const struct alps_model_info *model;
 
 	if (!(model = alps_get_model(psmouse, &version)))
 		return -1;

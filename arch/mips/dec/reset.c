@@ -8,7 +8,6 @@
 #include <linux/linkage.h>
 
 #include <asm/addrspace.h>
-#include <asm/ptrace.h>
 
 typedef void ATTRIB_NORET (* noret_func_t)(void);
 
@@ -35,7 +34,7 @@ void ATTRIB_NORET dec_machine_power_off(void)
 	back_to_prom();
 }
 
-irqreturn_t dec_intr_halt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t dec_intr_halt(int irq, void *dev_id)
 {
 	dec_machine_halt();
 }

@@ -1,5 +1,5 @@
 /*
- * drivers/input/adbhid.c
+ * drivers/macintosh/adbhid.c
  *
  * ADB HID driver for Power Macintosh computers.
  *
@@ -222,7 +222,7 @@ static struct adbhid *adbhid[16];
 
 static void adbhid_probe(void);
 
-static void adbhid_input_keycode(int, int, int, struct pt_regs *);
+static void adbhid_input_keycode(int, int, int);
 
 static void init_trackpad(int id);
 static void init_trackball(int id);
@@ -253,7 +253,7 @@ static struct adb_ids buttons_ids;
 #define ADBMOUSE_MACALLY2	9	/* MacAlly 2-button mouse */
 
 static void
-adbhid_keyboard_input(unsigned char *data, int nb, struct pt_regs *regs, int apoll)
+adbhid_keyboard_input(unsigned char *data, int nb, int apoll)
 {
 	int id = (data[0] >> 4) & 0x0f;
 
@@ -266,13 +266,13 @@ adbhid_keyboard_input(unsigned char *data, int nb, struct pt_regs *regs, int apo
 	/* first check this is from register 0 */
 	if (nb != 3 || (data[0] & 3) != KEYB_KEYREG)
 		return;		/* ignore it */
-	adbhid_input_keycode(id, data[1], 0, regs);
+	adbhid_input_keycode(id, data[1], 0);
 	if (!(data[2] == 0xff || (data[2] == 0x7f && data[1] == 0x7f)))
-		adbhid_input_keycode(id, data[2], 0, regs);
+		adbhid_input_keycode(id, data[2], 0);
 }
 
 static void
-adbhid_input_keycode(int id, int keycode, int repeat, struct pt_regs *regs)
+adbhid_input_keycode(int id, int keycode, int repeat)
 {
 	struct adbhid *ahid = adbhid[id];
 	int up_flag;
@@ -282,7 +282,6 @@ adbhid_input_keycode(int id, int keycode, int repeat, struct pt_regs *regs)
 
 	switch (keycode) {
 	case ADB_KEY_CAPSLOCK: /* Generate down/up events for CapsLock everytime. */
-		input_regs(ahid->input, regs);
 		input_report_key(ahid->input, KEY_CAPSLOCK, 1);
 		input_report_key(ahid->input, KEY_CAPSLOCK, 0);
 		input_sync(ahid->input);
@@ -338,7 +337,6 @@ adbhid_input_keycode(int id, int keycode, int repeat, struct pt_regs *regs)
 	}
 
 	if (adbhid[id]->keycode[keycode]) {
-		input_regs(adbhid[id]->input, regs);
 		input_report_key(adbhid[id]->input,
 				 adbhid[id]->keycode[keycode], !up_flag);
 		input_sync(adbhid[id]->input);
@@ -349,7 +347,7 @@ adbhid_input_keycode(int id, int keycode, int repeat, struct pt_regs *regs)
 }
 
 static void
-adbhid_mouse_input(unsigned char *data, int nb, struct pt_regs *regs, int autopoll)
+adbhid_mouse_input(unsigned char *data, int nb, int autopoll)
 {
 	int id = (data[0] >> 4) & 0x0f;
 
@@ -432,8 +430,6 @@ adbhid_mouse_input(unsigned char *data, int nb, struct pt_regs *regs, int autopo
                 break;
 	}
 
-	input_regs(adbhid[id]->input, regs);
-
 	input_report_key(adbhid[id]->input, BTN_LEFT,   !((data[1] >> 7) & 1));
 	input_report_key(adbhid[id]->input, BTN_MIDDLE, !((data[2] >> 7) & 1));
 
@@ -449,7 +445,7 @@ adbhid_mouse_input(unsigned char *data, int nb, struct pt_regs *regs, int autopo
 }
 
 static void
-adbhid_buttons_input(unsigned char *data, int nb, struct pt_regs *regs, int autopoll)
+adbhid_buttons_input(unsigned char *data, int nb, int autopoll)
 {
 	int id = (data[0] >> 4) & 0x0f;
 
@@ -457,8 +453,6 @@ adbhid_buttons_input(unsigned char *data, int nb, struct pt_regs *regs, int auto
 		printk(KERN_ERR "ADB HID on ID %d not yet registered\n", id);
 		return;
 	}
-
-	input_regs(adbhid[id]->input, regs);
 
 	switch (adbhid[id]->original_handler_id) {
 	default:
@@ -695,7 +689,6 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 	if (!hid || !input_dev) {
 		err = -ENOMEM;
 		goto fail;
-
 	}
 
 	sprintf(hid->phys, "adb%d:%d.%02x/input", id, default_id, original_handler_id);
@@ -813,7 +806,9 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 
 	input_dev->keycode = hid->keycode;
 
-	input_register_device(input_dev);
+	err = input_register_device(input_dev);
+	if (err)
+		goto fail;
 
 	if (default_id == ADB_KEYBOARD) {
 		/* HACK WARNING!! This should go away as soon there is an utility
@@ -826,7 +821,10 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 	return 0;
 
  fail:	input_free_device(input_dev);
-	kfree(hid);
+	if (hid) {
+		kfree(hid->keycode);
+		kfree(hid);
+	}
 	adbhid[id] = NULL;
 	return err;
 }

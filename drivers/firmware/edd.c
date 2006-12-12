@@ -1,5 +1,5 @@
 /*
- * linux/arch/i386/kernel/edd.c
+ * linux/drivers/firmware/edd.c
  *  Copyright (C) 2002, 2003, 2004 Dell Inc.
  *  by Matt Domsch <Matt_Domsch@dell.com>
  *  disk signature by Matt Domsch, Andrew Wilks, and Sandeep K. Shandilya

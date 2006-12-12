@@ -4,16 +4,16 @@
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef	_H_JFS_METAPAGE
@@ -33,7 +33,7 @@ struct metapage {
 	unsigned long flag;	/* See Below */
 	unsigned long count;	/* Reference count */
 	void *data;		/* Data pointer */
-	sector_t index; 	/* block address of page */
+	sector_t index;		/* block address of page */
 	wait_queue_head_t wait;
 
 	/* implementation */
@@ -65,10 +65,10 @@ extern struct metapage *__get_metapage(struct inode *inode,
 				  int absolute, unsigned long new);
 
 #define read_metapage(inode, lblock, size, absolute)\
-	 __get_metapage(inode, lblock, size, absolute, FALSE)
+	 __get_metapage(inode, lblock, size, absolute, false)
 
 #define get_metapage(inode, lblock, size, absolute)\
-	 __get_metapage(inode, lblock, size, absolute, TRUE)
+	 __get_metapage(inode, lblock, size, absolute, true)
 
 extern void release_metapage(struct metapage *);
 extern void grab_metapage(struct metapage *);

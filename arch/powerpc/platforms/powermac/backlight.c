@@ -18,11 +18,11 @@
 
 #define OLD_BACKLIGHT_MAX 15
 
-static void pmac_backlight_key_worker(void *data);
-static void pmac_backlight_set_legacy_worker(void *data);
+static void pmac_backlight_key_worker(struct work_struct *work);
+static void pmac_backlight_set_legacy_worker(struct work_struct *work);
 
-static DECLARE_WORK(pmac_backlight_key_work, pmac_backlight_key_worker, NULL);
-static DECLARE_WORK(pmac_backlight_set_legacy_work, pmac_backlight_set_legacy_worker, NULL);
+static DECLARE_WORK(pmac_backlight_key_work, pmac_backlight_key_worker);
+static DECLARE_WORK(pmac_backlight_set_legacy_work, pmac_backlight_set_legacy_worker);
 
 /* Although these variables are used in interrupt context, it makes no sense to
  * protect them. No user is able to produce enough key events per second and
@@ -94,7 +94,7 @@ int pmac_backlight_curve_lookup(struct fb_info *info, int value)
 	return level;
 }
 
-static void pmac_backlight_key_worker(void *data)
+static void pmac_backlight_key_worker(struct work_struct *work)
 {
 	if (atomic_read(&kernel_backlight_disabled))
 		return;
@@ -166,7 +166,7 @@ static int __pmac_backlight_set_legacy_brightness(int brightness)
 	return error;
 }
 
-static void pmac_backlight_set_legacy_worker(void *data)
+static void pmac_backlight_set_legacy_worker(struct work_struct *work)
 {
 	if (atomic_read(&kernel_backlight_disabled))
 		return;

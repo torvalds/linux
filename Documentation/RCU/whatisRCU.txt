@@ -582,7 +582,7 @@ The rcu_read_lock() and rcu_read_unlock() primitive read-acquire
 and release a global reader-writer lock.  The synchronize_rcu()
 primitive write-acquires this same lock, then immediately releases
 it.  This means that once synchronize_rcu() exits, all RCU read-side
-critical sections that were in progress before synchonize_rcu() was
+critical sections that were in progress before synchronize_rcu() was
 called are guaranteed to have completed -- there is no way that
 synchronize_rcu() would have been able to write-acquire the lock
 otherwise.
@@ -750,7 +750,7 @@ Or, for those who prefer a side-by-side listing:
 
 Either way, the differences are quite small.  Read-side locking moves
 to rcu_read_lock() and rcu_read_unlock, update-side locking moves from
-from a reader-writer lock to a simple spinlock, and a synchronize_rcu()
+a reader-writer lock to a simple spinlock, and a synchronize_rcu()
 precedes the kfree().
 
 However, there is one potential catch: the read-side and update-side
@@ -778,6 +778,8 @@ Markers for RCU read-side critical sections:
 	rcu_read_unlock
 	rcu_read_lock_bh
 	rcu_read_unlock_bh
+	srcu_read_lock
+	srcu_read_unlock
 
 RCU pointer/list traversal:
 
@@ -804,6 +806,7 @@ RCU grace period:
 	synchronize_net
 	synchronize_sched
 	synchronize_rcu
+	synchronize_srcu
 	call_rcu
 	call_rcu_bh
 

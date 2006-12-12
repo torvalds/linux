@@ -25,52 +25,54 @@
  * must be added on to the end.
  */
 typedef struct xfs_inode_log_format {
-	unsigned short		ilf_type;	/* inode log item type */
-	unsigned short		ilf_size;	/* size of this item */
-	uint			ilf_fields;	/* flags for fields logged */
-	ushort			ilf_asize;	/* size of attr d/ext/root */
-	ushort			ilf_dsize;	/* size of data/ext/root */
-	xfs_ino_t		ilf_ino;	/* inode number */
+	__uint16_t		ilf_type;	/* inode log item type */
+	__uint16_t		ilf_size;	/* size of this item */
+	__uint32_t		ilf_fields;	/* flags for fields logged */
+	__uint16_t		ilf_asize;	/* size of attr d/ext/root */
+	__uint16_t		ilf_dsize;	/* size of data/ext/root */
+	__uint64_t		ilf_ino;	/* inode number */
 	union {
-		xfs_dev_t	ilfu_rdev;	/* rdev value for dev inode*/
+		__uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
 		uuid_t		ilfu_uuid;	/* mount point value */
 	} ilf_u;
 	__int64_t		ilf_blkno;	/* blkno of inode buffer */
-	int			ilf_len;	/* len of inode buffer */
-	int			ilf_boffset;	/* off of inode in buffer */
+	__int32_t		ilf_len;	/* len of inode buffer */
+	__int32_t		ilf_boffset;	/* off of inode in buffer */
 } xfs_inode_log_format_t;
 
+#ifndef HAVE_FORMAT32
 typedef struct xfs_inode_log_format_32 {
-	unsigned short		ilf_type;	/* 16: inode log item type */
-	unsigned short		ilf_size;	/* 16: size of this item */
-	uint			ilf_fields;	/* 32: flags for fields logged */
-	ushort			ilf_asize;	/* 32: size of attr d/ext/root */
-	ushort			ilf_dsize;	/* 32: size of data/ext/root */
-	xfs_ino_t		ilf_ino;	/* 64: inode number */
+	__uint16_t		ilf_type;	/* inode log item type */
+	__uint16_t		ilf_size;	/* size of this item */
+	__uint32_t		ilf_fields;	/* flags for fields logged */
+	__uint16_t		ilf_asize;	/* size of attr d/ext/root */
+	__uint16_t		ilf_dsize;	/* size of data/ext/root */
+	__uint64_t		ilf_ino;	/* inode number */
 	union {
-		xfs_dev_t	ilfu_rdev;	/* 32: rdev value for dev inode*/
-		uuid_t		ilfu_uuid;	/* 128: mount point value */
+		__uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
+		uuid_t		ilfu_uuid;	/* mount point value */
 	} ilf_u;
-	__int64_t		ilf_blkno;	/* 64: blkno of inode buffer */
-	int			ilf_len;	/* 32: len of inode buffer */
-	int			ilf_boffset;	/* 32: off of inode in buffer */
+	__int64_t		ilf_blkno;	/* blkno of inode buffer */
+	__int32_t		ilf_len;	/* len of inode buffer */
+	__int32_t		ilf_boffset;	/* off of inode in buffer */
 } __attribute__((packed)) xfs_inode_log_format_32_t;
+#endif
 
 typedef struct xfs_inode_log_format_64 {
-	unsigned short		ilf_type;	/* 16: inode log item type */
-	unsigned short		ilf_size;	/* 16: size of this item */
-	uint			ilf_fields;	/* 32: flags for fields logged */
-	ushort			ilf_asize;	/* 32: size of attr d/ext/root */
-	ushort			ilf_dsize;	/* 32: size of data/ext/root */
-	__uint32_t		ilf_pad;	/* 32: pad for 64 bit boundary */
-	xfs_ino_t		ilf_ino;	/* 64: inode number */
+	__uint16_t		ilf_type;	/* inode log item type */
+	__uint16_t		ilf_size;	/* size of this item */
+	__uint32_t		ilf_fields;	/* flags for fields logged */
+	__uint16_t		ilf_asize;	/* size of attr d/ext/root */
+	__uint16_t		ilf_dsize;	/* size of data/ext/root */
+	__uint32_t		ilf_pad;	/* pad for 64 bit boundary */
+	__uint64_t		ilf_ino;	/* inode number */
 	union {
-		xfs_dev_t	ilfu_rdev;	/* 32: rdev value for dev inode*/
-		uuid_t		ilfu_uuid;	/* 128: mount point value */
+		__uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
+		uuid_t		ilfu_uuid;	/* mount point value */
 	} ilf_u;
-	__int64_t		ilf_blkno;	/* 64: blkno of inode buffer */
-	int			ilf_len;	/* 32: len of inode buffer */
-	int			ilf_boffset;	/* 32: off of inode in buffer */
+	__int64_t		ilf_blkno;	/* blkno of inode buffer */
+	__int32_t		ilf_len;	/* len of inode buffer */
+	__int32_t		ilf_boffset;	/* off of inode in buffer */
 } xfs_inode_log_format_64_t;
 
 /*

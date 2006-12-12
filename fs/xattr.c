@@ -48,14 +48,21 @@ xattr_permission(struct inode *inode, const char *name, int mask)
 		return 0;
 
 	/*
-	 * The trusted.* namespace can only accessed by a privilegued user.
+	 * The trusted.* namespace can only be accessed by a privileged user.
 	 */
 	if (!strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN))
 		return (capable(CAP_SYS_ADMIN) ? 0 : -EPERM);
 
+	/* In user.* namespace, only regular files and directories can have
+	 * extended attributes. For sticky directories, only the owner and
+	 * privileged user can write attributes.
+	 */
 	if (!strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN)) {
-		if (!S_ISREG(inode->i_mode) &&
-		    (!S_ISDIR(inode->i_mode) || inode->i_mode & S_ISVTX))
+		if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
+			return -EPERM;
+		if (S_ISDIR(inode->i_mode) && (inode->i_mode & S_ISVTX) &&
+		    (mask & MAY_WRITE) && (current->fsuid != inode->i_uid) &&
+		    !capable(CAP_FOWNER))
 			return -EPERM;
 	}
 
@@ -134,6 +141,26 @@ vfs_getxattr(struct dentry *dentry, char *name, void *value, size_t size)
 	return error;
 }
 EXPORT_SYMBOL_GPL(vfs_getxattr);
+
+ssize_t
+vfs_listxattr(struct dentry *d, char *list, size_t size)
+{
+	ssize_t error;
+
+	error = security_inode_listxattr(d);
+	if (error)
+		return error;
+	error = -EOPNOTSUPP;
+	if (d->d_inode->i_op && d->d_inode->i_op->listxattr) {
+		error = d->d_inode->i_op->listxattr(d, list, size);
+	} else {
+		error = security_inode_listsecurity(d->d_inode, list, size);
+		if (size && error > size)
+			error = -ERANGE;
+	}
+	return error;
+}
+EXPORT_SYMBOL_GPL(vfs_listxattr);
 
 int
 vfs_removexattr(struct dentry *dentry, char *name)
@@ -241,7 +268,7 @@ sys_fsetxattr(int fd, char __user *name, void __user *value,
 	f = fget(fd);
 	if (!f)
 		return error;
-	dentry = f->f_dentry;
+	dentry = f->f_path.dentry;
 	audit_inode(NULL, dentry->d_inode);
 	error = setxattr(dentry, name, value, size, flags);
 	fput(f);
@@ -324,7 +351,7 @@ sys_fgetxattr(int fd, char __user *name, void __user *value, size_t size)
 	f = fget(fd);
 	if (!f)
 		return error;
-	error = getxattr(f->f_dentry, name, value, size);
+	error = getxattr(f->f_path.dentry, name, value, size);
 	fput(f);
 	return error;
 }
@@ -346,17 +373,7 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 			return -ENOMEM;
 	}
 
-	error = security_inode_listxattr(d);
-	if (error)
-		goto out;
-	error = -EOPNOTSUPP;
-	if (d->d_inode->i_op && d->d_inode->i_op->listxattr) {
-		error = d->d_inode->i_op->listxattr(d, klist, size);
-	} else {
-		error = security_inode_listsecurity(d->d_inode, klist, size);
-		if (size && error > size)
-			error = -ERANGE;
-	}
+	error = vfs_listxattr(d, klist, size);
 	if (error > 0) {
 		if (size && copy_to_user(list, klist, error))
 			error = -EFAULT;
@@ -365,7 +382,6 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 		   than XATTR_LIST_MAX bytes. Not possible. */
 		error = -E2BIG;
 	}
-out:
 	kfree(klist);
 	return error;
 }
@@ -407,7 +423,7 @@ sys_flistxattr(int fd, char __user *list, size_t size)
 	f = fget(fd);
 	if (!f)
 		return error;
-	error = listxattr(f->f_dentry, list, size);
+	error = listxattr(f->f_path.dentry, list, size);
 	fput(f);
 	return error;
 }
@@ -468,7 +484,7 @@ sys_fremovexattr(int fd, char __user *name)
 	f = fget(fd);
 	if (!f)
 		return error;
-	dentry = f->f_dentry;
+	dentry = f->f_path.dentry;
 	audit_inode(NULL, dentry->d_inode);
 	error = removexattr(dentry, name);
 	fput(f);

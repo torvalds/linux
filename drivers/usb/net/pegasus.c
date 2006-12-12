@@ -45,7 +45,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.6.13 (2005/11/13)"
+#define DRIVER_VERSION "v0.6.14 (2006/09/27)"
 #define DRIVER_AUTHOR "Petko Manolov <petkan@users.sourceforge.net>"
 #define DRIVER_DESC "Pegasus/Pegasus II USB Ethernet driver"
 
@@ -96,7 +96,7 @@ MODULE_DEVICE_TABLE(usb, pegasus_ids);
 
 static int update_eth_regs_async(pegasus_t *);
 /* Aargh!!! I _really_ hate such tweaks */
-static void ctrl_callback(struct urb *urb, struct pt_regs *regs)
+static void ctrl_callback(struct urb *urb)
 {
 	pegasus_t *pegasus = urb->context;
 
@@ -163,6 +163,7 @@ static int get_registers(pegasus_t * pegasus, __u16 indx, __u16 size,
 
 	/* using ATOMIC, we'd never wake up if we slept */
 	if ((ret = usb_submit_urb(pegasus->ctrl_urb, GFP_ATOMIC))) {
+		set_current_state(TASK_RUNNING);
 		if (ret == -ENODEV)
 			netif_device_detach(pegasus->net);
 		if (netif_msg_drv(pegasus))
@@ -339,7 +340,7 @@ static int read_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 * regd)
 	}
 fail:
 	if (netif_msg_drv(pegasus))
-		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
+		dev_warn(&pegasus->intf->dev, "%s failed\n", __FUNCTION__);
 
 	return ret;
 }
@@ -376,7 +377,7 @@ static int write_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 regd)
 
 fail:
 	if (netif_msg_drv(pegasus))
-		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
+		dev_warn(&pegasus->intf->dev, "%s failed\n", __FUNCTION__);
 	return -ETIMEDOUT;
 }
 
@@ -413,7 +414,7 @@ static int read_eprom_word(pegasus_t * pegasus, __u8 index, __u16 * retdata)
 
 fail:
 	if (netif_msg_drv(pegasus))
-		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
+		dev_warn(&pegasus->intf->dev, "%s failed\n", __FUNCTION__);
 	return -ETIMEDOUT;
 }
 
@@ -461,7 +462,7 @@ static int write_eprom_word(pegasus_t * pegasus, __u8 index, __u16 data)
 		return ret;
 fail:
 	if (netif_msg_drv(pegasus))
-		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
+		dev_warn(&pegasus->intf->dev, "%s failed\n", __FUNCTION__);
 	return -ETIMEDOUT;
 }
 #endif				/* PEGASUS_WRITE_EEPROM */
@@ -481,8 +482,12 @@ static void set_ethernet_addr(pegasus_t * pegasus)
 {
 	__u8 node_id[6];
 
-	get_node_id(pegasus, node_id);
-	set_registers(pegasus, EthID, sizeof (node_id), node_id);
+	if (pegasus->features & PEGASUS_II) {
+		get_registers(pegasus, 0x10, sizeof(node_id), node_id);
+	} else {
+		get_node_id(pegasus, node_id);
+		set_registers(pegasus, EthID, sizeof (node_id), node_id);
+	}
 	memcpy(pegasus->net->dev_addr, node_id, sizeof (node_id));
 }
 
@@ -601,7 +606,7 @@ static inline struct sk_buff *pull_skb(pegasus_t * pegasus)
 	return NULL;
 }
 
-static void read_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void read_bulk_callback(struct urb *urb)
 {
 	pegasus_t *pegasus = urb->context;
 	struct net_device *net;
@@ -619,7 +624,7 @@ static void read_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	switch (urb->status) {
 	case 0:
 		break;
-	case -ETIMEDOUT:
+	case -ETIME:
 		if (netif_msg_rx_err(pegasus))
 			pr_debug("%s: reset MAC\n", net->name);
 		pegasus->flags &= ~PEGASUS_RX_BUSY;
@@ -760,7 +765,7 @@ done:
 	spin_unlock_irqrestore(&pegasus->rx_pool_lock, flags);
 }
 
-static void write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void write_bulk_callback(struct urb *urb)
 {
 	pegasus_t *pegasus = urb->context;
 	struct net_device *net = pegasus->net;
@@ -797,7 +802,7 @@ static void write_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	netif_wake_queue(net);
 }
 
-static void intr_callback(struct urb *urb, struct pt_regs *regs)
+static void intr_callback(struct urb *urb)
 {
 	pegasus_t *pegasus = urb->context;
 	struct net_device *net;
@@ -851,7 +856,7 @@ static void intr_callback(struct urb *urb, struct pt_regs *regs)
 		pegasus->stats.rx_missed_errors += ((d[3] & 0x7f) << 8) | d[4];
 	}
 
-	status = usb_submit_urb(urb, SLAB_ATOMIC);
+	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status == -ENODEV)
 		netif_device_detach(pegasus->net);
 	if (status && netif_msg_timer(pegasus))
@@ -1222,7 +1227,7 @@ static void pegasus_set_multicast(struct net_device *net)
 	}
 
 	pegasus->flags |= ETH_REGS_CHANGE;
-	ctrl_callback(pegasus->ctrl_urb, NULL);
+	ctrl_callback(pegasus->ctrl_urb);
 }
 
 static __u8 mii_phy_probe(pegasus_t * pegasus)
@@ -1276,9 +1281,9 @@ static inline void setup_pegasus_II(pegasus_t * pegasus)
 static struct workqueue_struct *pegasus_workqueue = NULL;
 #define CARRIER_CHECK_DELAY (2 * HZ)
 
-static void check_carrier(void *data)
+static void check_carrier(struct work_struct *work)
 {
-	pegasus_t *pegasus = data;
+	pegasus_t *pegasus = container_of(work, pegasus_t, carrier_check.work);
 	set_carrier(pegasus->net);
 	if (!(pegasus->flags & PEGASUS_UNPLUG)) {
 		queue_delayed_work(pegasus_workqueue, &pegasus->carrier_check,
@@ -1314,7 +1319,7 @@ static int pegasus_probe(struct usb_interface *intf,
 
 	tasklet_init(&pegasus->rx_tl, rx_fixup, (unsigned long) pegasus);
 
-	INIT_WORK(&pegasus->carrier_check, check_carrier, pegasus);
+	INIT_DELAYED_WORK(&pegasus->carrier_check, check_carrier);
 
 	pegasus->intf = intf;
 	pegasus->usb = dev;
@@ -1429,11 +1434,11 @@ static int pegasus_resume (struct usb_interface *intf)
 	if (netif_running(pegasus->net)) {
 		pegasus->rx_urb->status = 0;
 		pegasus->rx_urb->actual_length = 0;
-		read_bulk_callback(pegasus->rx_urb, NULL);
+		read_bulk_callback(pegasus->rx_urb);
 
 		pegasus->intr_urb->status = 0;
 		pegasus->intr_urb->actual_length = 0;
-		intr_callback(pegasus->intr_urb, NULL);
+		intr_callback(pegasus->intr_urb);
 	}
 	queue_delayed_work(pegasus_workqueue, &pegasus->carrier_check,
 				CARRIER_CHECK_DELAY);

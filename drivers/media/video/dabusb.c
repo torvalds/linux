@@ -166,7 +166,7 @@ static int dabusb_free_buffers (pdabusb_t s)
 	return 0;
 }
 /*-------------------------------------------------------------------*/
-static void dabusb_iso_complete (struct urb *purb, struct pt_regs *regs)
+static void dabusb_iso_complete (struct urb *purb)
 {
 	pbuff_t b = purb->context;
 	pdabusb_t s = b->s;

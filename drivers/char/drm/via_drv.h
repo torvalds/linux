@@ -24,15 +24,16 @@
 #ifndef _VIA_DRV_H_
 #define _VIA_DRV_H_
 
+#include "drm_sman.h"
 #define DRIVER_AUTHOR	"Various"
 
 #define DRIVER_NAME		"via"
 #define DRIVER_DESC		"VIA Unichrome / Pro"
-#define DRIVER_DATE		"20051116"
+#define DRIVER_DATE		"20060529"
 
 #define DRIVER_MAJOR		2
-#define DRIVER_MINOR		7
-#define DRIVER_PATCHLEVEL	4
+#define DRIVER_MINOR		10
+#define DRIVER_PATCHLEVEL	0
 
 #include "via_verifier.h"
 
@@ -85,6 +86,12 @@ typedef struct drm_via_private {
 	uint32_t irq_enable_mask;
 	uint32_t irq_pending_mask;
 	int *irq_map;
+	unsigned int idle_fault;
+	drm_sman_t sman;
+	int vram_initialized;
+	int agp_initialized;
+	unsigned long vram_offset;
+	unsigned long agp_offset;
 	drm_via_blitq_t blit_queues[VIA_NUM_BLIT_ENGINES];
 } drm_via_private_t;
 
@@ -134,6 +141,9 @@ extern int via_driver_dma_quiescent(drm_device_t * dev);
 extern void via_init_futex(drm_via_private_t * dev_priv);
 extern void via_cleanup_futex(drm_via_private_t * dev_priv);
 extern void via_release_futex(drm_via_private_t * dev_priv, int context);
+
+extern void via_reclaim_buffers_locked(drm_device_t *dev, struct file *filp);
+extern void via_lastclose(drm_device_t *dev);
 
 extern void via_dmablit_handler(drm_device_t *dev, int engine, int from_irq);
 extern void via_init_dmablit(drm_device_t *dev);

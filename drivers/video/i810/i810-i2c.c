@@ -19,7 +19,6 @@
 #include "i810_main.h"
 #include "../edid.h"
 
-#define I810_DDC 0x50
 /* bit locations in the registers */
 #define SCL_DIR_MASK		0x0001
 #define SCL_DIR			0x0002
@@ -98,7 +97,6 @@ static int i810_setup_i2c_bus(struct i810fb_i2c_chan *chan, const char *name)
 	chan->algo.getsda               = i810i2c_getsda;
 	chan->algo.getscl               = i810i2c_getscl;
 	chan->algo.udelay               = 10;
-	chan->algo.mdelay               = 10;
         chan->algo.timeout              = (HZ/2);
         chan->algo.data                 = chan;
 
@@ -139,73 +137,32 @@ void i810_create_i2c_busses(struct i810fb_par *par)
 void i810_delete_i2c_busses(struct i810fb_par *par)
 {
         if (par->chan[0].par)
-                i2c_bit_del_bus(&par->chan[0].adapter);
+		i2c_del_adapter(&par->chan[0].adapter);
         par->chan[0].par = NULL;
 
 	if (par->chan[1].par)
-		i2c_bit_del_bus(&par->chan[1].adapter);
+		i2c_del_adapter(&par->chan[1].adapter);
 	par->chan[1].par = NULL;
 
 	if (par->chan[2].par)
-		i2c_bit_del_bus(&par->chan[2].adapter);
+		i2c_del_adapter(&par->chan[2].adapter);
 	par->chan[2].par = NULL;
-}
-
-static u8 *i810_do_probe_i2c_edid(struct i810fb_i2c_chan *chan)
-{
-        u8 start = 0x0;
-        struct i2c_msg msgs[] = {
-                {
-                        .addr   = I810_DDC,
-                        .len    = 1,
-                        .buf    = &start,
-                }, {
-                        .addr   = I810_DDC,
-                        .flags  = I2C_M_RD,
-                        .len    = EDID_LENGTH,
-                },
-        };
-        u8 *buf;
-
-        buf = kmalloc(EDID_LENGTH, GFP_KERNEL);
-        if (!buf) {
-		DPRINTK("i810-i2c: Failed to allocate memory\n");
-                return NULL;
-        }
-        msgs[1].buf = buf;
-
-        if (i2c_transfer(&chan->adapter, msgs, 2) == 2) {
-		DPRINTK("i810-i2c: I2C Transfer successful\n");
-                return buf;
-	}
-
-        DPRINTK("i810-i2c: Unable to read EDID block.\n");
-        kfree(buf);
-        return NULL;
 }
 
 int i810_probe_i2c_connector(struct fb_info *info, u8 **out_edid, int conn)
 {
 	struct i810fb_par *par = info->par;
         u8 *edid = NULL;
-        int i;
 
 	DPRINTK("i810-i2c: Probe DDC%i Bus\n", conn+1);
 	if (conn < par->ddc_num) {
-		for (i = 0; i < 3; i++) {
-			/* Do the real work */
-			edid = i810_do_probe_i2c_edid(&par->chan[conn]);
-			if (edid)
-				break;
-		}
+		edid = fb_ddc_read(&par->chan[conn].adapter);
 	} else {
 		const u8 *e = fb_firmware_edid(info->device);
 
 		if (e != NULL) {
 			DPRINTK("i810-i2c: Getting EDID from BIOS\n");
-			edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
-			if (edid)
-				memcpy(edid, e, EDID_LENGTH);
+			edid = kmemdup(e, EDID_LENGTH, GFP_KERNEL);
 		}
 	}
 

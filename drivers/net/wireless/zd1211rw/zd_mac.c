@@ -32,6 +32,14 @@
 
 static void ieee_init(struct ieee80211_device *ieee);
 static void softmac_init(struct ieee80211softmac_device *sm);
+static void set_rts_cts_work(struct work_struct *work);
+static void set_basic_rates_work(struct work_struct *work);
+
+static void housekeeping_init(struct zd_mac *mac);
+static void housekeeping_enable(struct zd_mac *mac);
+static void housekeeping_disable(struct zd_mac *mac);
+
+static void set_multicast_hash_handler(struct work_struct *work);
 
 int zd_mac_init(struct zd_mac *mac,
 	        struct net_device *netdev,
@@ -42,10 +50,14 @@ int zd_mac_init(struct zd_mac *mac,
 	memset(mac, 0, sizeof(*mac));
 	spin_lock_init(&mac->lock);
 	mac->netdev = netdev;
+	INIT_DELAYED_WORK(&mac->set_rts_cts_work, set_rts_cts_work);
+	INIT_DELAYED_WORK(&mac->set_basic_rates_work, set_basic_rates_work);
 
 	ieee_init(ieee);
 	softmac_init(ieee80211_priv(netdev));
 	zd_chip_init(&mac->chip, netdev, intf);
+	housekeeping_init(mac);
+	INIT_WORK(&mac->set_multicast_hash_work, set_multicast_hash_handler);
 	return 0;
 }
 
@@ -127,6 +139,7 @@ out:
 
 void zd_mac_clear(struct zd_mac *mac)
 {
+	flush_workqueue(zd_workqueue);
 	zd_chip_clear(&mac->chip);
 	ZD_ASSERT(!spin_is_locked(&mac->lock));
 	ZD_MEMCLEAR(mac, sizeof(struct zd_mac));
@@ -178,6 +191,7 @@ int zd_mac_open(struct net_device *netdev)
 	if (r < 0)
 		goto disable_rx;
 
+	housekeeping_enable(mac);
 	ieee80211softmac_start(netdev);
 	return 0;
 disable_rx:
@@ -204,7 +218,15 @@ int zd_mac_stop(struct net_device *netdev)
 	 */
 
 	zd_chip_disable_rx(chip);
+	housekeeping_disable(mac);
 	ieee80211softmac_stop(netdev);
+
+	/* Ensure no work items are running or queued from this point */
+	cancel_delayed_work(&mac->set_rts_cts_work);
+	cancel_delayed_work(&mac->set_basic_rates_work);
+	flush_workqueue(zd_workqueue);
+	mac->updating_rts_rate = 0;
+	mac->updating_basic_rates = 0;
 
 	zd_chip_disable_hwint(chip);
 	zd_chip_switch_radio_off(chip);
@@ -236,6 +258,43 @@ int zd_mac_set_mac_address(struct net_device *netdev, void *p)
 	spin_unlock_irqrestore(&mac->lock, flags);
 
 	return 0;
+}
+
+static void set_multicast_hash_handler(struct work_struct *work)
+{
+	struct zd_mac *mac = container_of(work, struct zd_mac,
+					  set_multicast_hash_work);
+	struct zd_mc_hash hash;
+
+	spin_lock_irq(&mac->lock);
+	hash = mac->multicast_hash;
+	spin_unlock_irq(&mac->lock);
+
+	zd_chip_set_multicast_hash(&mac->chip, &hash);
+}
+
+void zd_mac_set_multicast_list(struct net_device *dev)
+{
+	struct zd_mc_hash hash;
+	struct zd_mac *mac = zd_netdev_mac(dev);
+	struct dev_mc_list *mc;
+	unsigned long flags;
+
+	if (dev->flags & (IFF_PROMISC|IFF_ALLMULTI)) {
+		zd_mc_add_all(&hash);
+	} else {
+		zd_mc_clear(&hash);
+		for (mc = dev->mc_list; mc; mc = mc->next) {
+			dev_dbg_f(zd_mac_dev(mac), "mc addr " MAC_FMT "\n",
+				  MAC_ARG(mc->dmi_addr));
+			zd_mc_add_addr(&hash, mc->dmi_addr);
+		}
+	}
+
+	spin_lock_irqsave(&mac->lock, flags);
+	mac->multicast_hash = hash;
+	spin_unlock_irqrestore(&mac->lock, flags);
+	queue_work(zd_workqueue, &mac->set_multicast_hash_work);
 }
 
 int zd_mac_set_regdomain(struct zd_mac *mac, u8 regdomain)
@@ -279,6 +338,189 @@ u8 zd_mac_get_regdomain(struct zd_mac *mac)
 	return regdomain;
 }
 
+/* Fallback to lowest rate, if rate is unknown. */
+static u8 rate_to_zd_rate(u8 rate)
+{
+	switch (rate) {
+	case IEEE80211_CCK_RATE_2MB:
+		return ZD_CCK_RATE_2M;
+	case IEEE80211_CCK_RATE_5MB:
+		return ZD_CCK_RATE_5_5M;
+	case IEEE80211_CCK_RATE_11MB:
+		return ZD_CCK_RATE_11M;
+	case IEEE80211_OFDM_RATE_6MB:
+		return ZD_OFDM_RATE_6M;
+	case IEEE80211_OFDM_RATE_9MB:
+		return ZD_OFDM_RATE_9M;
+	case IEEE80211_OFDM_RATE_12MB:
+		return ZD_OFDM_RATE_12M;
+	case IEEE80211_OFDM_RATE_18MB:
+		return ZD_OFDM_RATE_18M;
+	case IEEE80211_OFDM_RATE_24MB:
+		return ZD_OFDM_RATE_24M;
+	case IEEE80211_OFDM_RATE_36MB:
+		return ZD_OFDM_RATE_36M;
+	case IEEE80211_OFDM_RATE_48MB:
+		return ZD_OFDM_RATE_48M;
+	case IEEE80211_OFDM_RATE_54MB:
+		return ZD_OFDM_RATE_54M;
+	}
+	return ZD_CCK_RATE_1M;
+}
+
+static u16 rate_to_cr_rate(u8 rate)
+{
+	switch (rate) {
+	case IEEE80211_CCK_RATE_2MB:
+		return CR_RATE_1M;
+	case IEEE80211_CCK_RATE_5MB:
+		return CR_RATE_5_5M;
+	case IEEE80211_CCK_RATE_11MB:
+		return CR_RATE_11M;
+	case IEEE80211_OFDM_RATE_6MB:
+		return CR_RATE_6M;
+	case IEEE80211_OFDM_RATE_9MB:
+		return CR_RATE_9M;
+	case IEEE80211_OFDM_RATE_12MB:
+		return CR_RATE_12M;
+	case IEEE80211_OFDM_RATE_18MB:
+		return CR_RATE_18M;
+	case IEEE80211_OFDM_RATE_24MB:
+		return CR_RATE_24M;
+	case IEEE80211_OFDM_RATE_36MB:
+		return CR_RATE_36M;
+	case IEEE80211_OFDM_RATE_48MB:
+		return CR_RATE_48M;
+	case IEEE80211_OFDM_RATE_54MB:
+		return CR_RATE_54M;
+	}
+	return CR_RATE_1M;
+}
+
+static void try_enable_tx(struct zd_mac *mac)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&mac->lock, flags);
+	if (mac->updating_rts_rate == 0 && mac->updating_basic_rates == 0)
+		netif_wake_queue(mac->netdev);
+	spin_unlock_irqrestore(&mac->lock, flags);
+}
+
+static void set_rts_cts_work(struct work_struct *work)
+{
+	struct zd_mac *mac =
+		container_of(work, struct zd_mac, set_rts_cts_work.work);
+	unsigned long flags;
+	u8 rts_rate;
+	unsigned int short_preamble;
+
+	mutex_lock(&mac->chip.mutex);
+
+	spin_lock_irqsave(&mac->lock, flags);
+	mac->updating_rts_rate = 0;
+	rts_rate = mac->rts_rate;
+	short_preamble = mac->short_preamble;
+	spin_unlock_irqrestore(&mac->lock, flags);
+
+	zd_chip_set_rts_cts_rate_locked(&mac->chip, rts_rate, short_preamble);
+	mutex_unlock(&mac->chip.mutex);
+
+	try_enable_tx(mac);
+}
+
+static void set_basic_rates_work(struct work_struct *work)
+{
+	struct zd_mac *mac =
+		container_of(work, struct zd_mac, set_basic_rates_work.work);
+	unsigned long flags;
+	u16 basic_rates;
+
+	mutex_lock(&mac->chip.mutex);
+
+	spin_lock_irqsave(&mac->lock, flags);
+	mac->updating_basic_rates = 0;
+	basic_rates = mac->basic_rates;
+	spin_unlock_irqrestore(&mac->lock, flags);
+
+	zd_chip_set_basic_rates_locked(&mac->chip, basic_rates);
+	mutex_unlock(&mac->chip.mutex);
+
+	try_enable_tx(mac);
+}
+
+static void bssinfo_change(struct net_device *netdev, u32 changes)
+{
+	struct zd_mac *mac = zd_netdev_mac(netdev);
+	struct ieee80211softmac_device *softmac = ieee80211_priv(netdev);
+	struct ieee80211softmac_bss_info *bssinfo = &softmac->bssinfo;
+	int need_set_rts_cts = 0;
+	int need_set_rates = 0;
+	u16 basic_rates;
+	unsigned long flags;
+
+	dev_dbg_f(zd_mac_dev(mac), "changes: %x\n", changes);
+
+	if (changes & IEEE80211SOFTMAC_BSSINFOCHG_SHORT_PREAMBLE) {
+		spin_lock_irqsave(&mac->lock, flags);
+		mac->short_preamble = bssinfo->short_preamble;
+		spin_unlock_irqrestore(&mac->lock, flags);
+		need_set_rts_cts = 1;
+	}
+
+	if (changes & IEEE80211SOFTMAC_BSSINFOCHG_RATES) {
+		/* Set RTS rate to highest available basic rate */
+		u8 rate = ieee80211softmac_highest_supported_rate(softmac,
+			&bssinfo->supported_rates, 1);
+		rate = rate_to_zd_rate(rate);
+
+		spin_lock_irqsave(&mac->lock, flags);
+		if (rate != mac->rts_rate) {
+			mac->rts_rate = rate;
+			need_set_rts_cts = 1;
+		}
+		spin_unlock_irqrestore(&mac->lock, flags);
+
+		/* Set basic rates */
+		need_set_rates = 1;
+		if (bssinfo->supported_rates.count == 0) {
+			/* Allow the device to be flexible */
+			basic_rates = CR_RATES_80211B | CR_RATES_80211G;
+		} else {
+			int i = 0;
+			basic_rates = 0;
+
+			for (i = 0; i < bssinfo->supported_rates.count; i++) {
+				u16 rate = bssinfo->supported_rates.rates[i];
+				if ((rate & IEEE80211_BASIC_RATE_MASK) == 0)
+					continue;
+
+				rate &= ~IEEE80211_BASIC_RATE_MASK;
+				basic_rates |= rate_to_cr_rate(rate);
+			}
+		}
+		spin_lock_irqsave(&mac->lock, flags);
+		mac->basic_rates = basic_rates;
+		spin_unlock_irqrestore(&mac->lock, flags);
+	}
+
+	/* Schedule any changes we made above */
+
+	spin_lock_irqsave(&mac->lock, flags);
+	if (need_set_rts_cts && !mac->updating_rts_rate) {
+		mac->updating_rts_rate = 1;
+		netif_stop_queue(mac->netdev);
+		queue_delayed_work(zd_workqueue, &mac->set_rts_cts_work, 0);
+	}
+	if (need_set_rates && !mac->updating_basic_rates) {
+		mac->updating_basic_rates = 1;
+		netif_stop_queue(mac->netdev);
+		queue_delayed_work(zd_workqueue, &mac->set_basic_rates_work,
+				   0);
+	}
+	spin_unlock_irqrestore(&mac->lock, flags);
+}
+
 static void set_channel(struct net_device *netdev, u8 channel)
 {
 	struct zd_mac *mac = zd_netdev_mac(netdev);
@@ -288,7 +530,6 @@ static void set_channel(struct net_device *netdev, u8 channel)
 	zd_chip_set_channel(&mac->chip, channel);
 }
 
-/* TODO: Should not work in Managed mode. */
 int zd_mac_request_channel(struct zd_mac *mac, u8 channel)
 {
 	unsigned long lock_flags;
@@ -310,31 +551,22 @@ int zd_mac_request_channel(struct zd_mac *mac, u8 channel)
 		return 0;
 }
 
-int zd_mac_get_channel(struct zd_mac *mac, u8 *channel, u8 *flags)
+u8 zd_mac_get_channel(struct zd_mac *mac)
 {
-	struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
+	u8 channel = zd_chip_get_channel(&mac->chip);
 
-	*channel = zd_chip_get_channel(&mac->chip);
-	if (ieee->iw_mode != IW_MODE_INFRA) {
-		spin_lock_irq(&mac->lock);
-		*flags = *channel == mac->requested_channel ?
-			MAC_FIXED_CHANNEL : 0;
-		spin_unlock(&mac->lock);
-	} else {
-		*flags = 0;
-	}
-	dev_dbg_f(zd_mac_dev(mac), "channel %u flags %u\n", *channel, *flags);
-	return 0;
+	dev_dbg_f(zd_mac_dev(mac), "channel %u\n", channel);
+	return channel;
 }
 
 /* If wrong rate is given, we are falling back to the slowest rate: 1MBit/s */
-static u8 cs_typed_rate(u8 cs_rate)
+static u8 zd_rate_typed(u8 zd_rate)
 {
 	static const u8 typed_rates[16] = {
-		[ZD_CS_CCK_RATE_1M]	= ZD_CS_CCK|ZD_CS_CCK_RATE_1M,
-		[ZD_CS_CCK_RATE_2M]	= ZD_CS_CCK|ZD_CS_CCK_RATE_2M,
-		[ZD_CS_CCK_RATE_5_5M]	= ZD_CS_CCK|ZD_CS_CCK_RATE_5_5M,
-		[ZD_CS_CCK_RATE_11M]	= ZD_CS_CCK|ZD_CS_CCK_RATE_11M,
+		[ZD_CCK_RATE_1M]	= ZD_CS_CCK|ZD_CCK_RATE_1M,
+		[ZD_CCK_RATE_2M]	= ZD_CS_CCK|ZD_CCK_RATE_2M,
+		[ZD_CCK_RATE_5_5M]	= ZD_CS_CCK|ZD_CCK_RATE_5_5M,
+		[ZD_CCK_RATE_11M]	= ZD_CS_CCK|ZD_CCK_RATE_11M,
 		[ZD_OFDM_RATE_6M]	= ZD_CS_OFDM|ZD_OFDM_RATE_6M,
 		[ZD_OFDM_RATE_9M]	= ZD_CS_OFDM|ZD_OFDM_RATE_9M,
 		[ZD_OFDM_RATE_12M]	= ZD_CS_OFDM|ZD_OFDM_RATE_12M,
@@ -346,37 +578,7 @@ static u8 cs_typed_rate(u8 cs_rate)
 	};
 
 	ZD_ASSERT(ZD_CS_RATE_MASK == 0x0f);
-	return typed_rates[cs_rate & ZD_CS_RATE_MASK];
-}
-
-/* Fallback to lowest rate, if rate is unknown. */
-static u8 rate_to_cs_rate(u8 rate)
-{
-	switch (rate) {
-	case IEEE80211_CCK_RATE_2MB:
-		return ZD_CS_CCK_RATE_2M;
-	case IEEE80211_CCK_RATE_5MB:
-		return ZD_CS_CCK_RATE_5_5M;
-	case IEEE80211_CCK_RATE_11MB:
-		return ZD_CS_CCK_RATE_11M;
-	case IEEE80211_OFDM_RATE_6MB:
-		return ZD_OFDM_RATE_6M;
-	case IEEE80211_OFDM_RATE_9MB:
-		return ZD_OFDM_RATE_9M;
-	case IEEE80211_OFDM_RATE_12MB:
-		return ZD_OFDM_RATE_12M;
-	case IEEE80211_OFDM_RATE_18MB:
-		return ZD_OFDM_RATE_18M;
-	case IEEE80211_OFDM_RATE_24MB:
-		return ZD_OFDM_RATE_24M;
-	case IEEE80211_OFDM_RATE_36MB:
-		return ZD_OFDM_RATE_36M;
-	case IEEE80211_OFDM_RATE_48MB:
-		return ZD_OFDM_RATE_48M;
-	case IEEE80211_OFDM_RATE_54MB:
-		return ZD_OFDM_RATE_54M;
-	}
-	return ZD_CS_CCK_RATE_1M;
+	return typed_rates[zd_rate & ZD_CS_RATE_MASK];
 }
 
 int zd_mac_set_mode(struct zd_mac *mac, u32 mode)
@@ -457,6 +659,9 @@ int zd_mac_get_range(struct zd_mac *mac, struct iw_range *range)
 	range->we_version_compiled = WIRELESS_EXT;
 	range->we_version_source = 20;
 
+	range->enc_capa = IW_ENC_CAPA_WPA |  IW_ENC_CAPA_WPA2 |
+			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
+
 	ZD_ASSERT(!irqs_disabled());
 	spin_lock_irq(&mac->lock);
 	regdomain = mac->regdomain;
@@ -477,13 +682,13 @@ int zd_mac_get_range(struct zd_mac *mac, struct iw_range *range)
 	return 0;
 }
 
-static int zd_calc_tx_length_us(u8 *service, u8 cs_rate, u16 tx_length)
+static int zd_calc_tx_length_us(u8 *service, u8 zd_rate, u16 tx_length)
 {
 	static const u8 rate_divisor[] = {
-		[ZD_CS_CCK_RATE_1M]	=  1,
-		[ZD_CS_CCK_RATE_2M]	=  2,
-		[ZD_CS_CCK_RATE_5_5M]	= 11, /* bits must be doubled */
-		[ZD_CS_CCK_RATE_11M]	= 11,
+		[ZD_CCK_RATE_1M]	=  1,
+		[ZD_CCK_RATE_2M]	=  2,
+		[ZD_CCK_RATE_5_5M]	= 11, /* bits must be doubled */
+		[ZD_CCK_RATE_11M]	= 11,
 		[ZD_OFDM_RATE_6M]	=  6,
 		[ZD_OFDM_RATE_9M]	=  9,
 		[ZD_OFDM_RATE_12M]	= 12,
@@ -497,15 +702,15 @@ static int zd_calc_tx_length_us(u8 *service, u8 cs_rate, u16 tx_length)
 	u32 bits = (u32)tx_length * 8;
 	u32 divisor;
 
-	divisor = rate_divisor[cs_rate];
+	divisor = rate_divisor[zd_rate];
 	if (divisor == 0)
 		return -EINVAL;
 
-	switch (cs_rate) {
-	case ZD_CS_CCK_RATE_5_5M:
+	switch (zd_rate) {
+	case ZD_CCK_RATE_5_5M:
 		bits = (2*bits) + 10; /* round up to the next integer */
 		break;
-	case ZD_CS_CCK_RATE_11M:
+	case ZD_CCK_RATE_11M:
 		if (service) {
 			u32 t = bits % 11;
 			*service &= ~ZD_PLCP_SERVICE_LENGTH_EXTENSION;
@@ -525,16 +730,16 @@ enum {
 	R2M_11A		   = 0x02,
 };
 
-static u8 cs_rate_to_modulation(u8 cs_rate, int flags)
+static u8 zd_rate_to_modulation(u8 zd_rate, int flags)
 {
 	u8 modulation;
 
-	modulation = cs_typed_rate(cs_rate);
+	modulation = zd_rate_typed(zd_rate);
 	if (flags & R2M_SHORT_PREAMBLE) {
 		switch (ZD_CS_RATE(modulation)) {
-		case ZD_CS_CCK_RATE_2M:
-		case ZD_CS_CCK_RATE_5_5M:
-		case ZD_CS_CCK_RATE_11M:
+		case ZD_CCK_RATE_2M:
+		case ZD_CCK_RATE_5_5M:
+		case ZD_CCK_RATE_11M:
 			modulation |= ZD_CS_CCK_PREA_SHORT;
 			return modulation;
 		}
@@ -551,39 +756,36 @@ static void cs_set_modulation(struct zd_mac *mac, struct zd_ctrlset *cs,
 {
 	struct ieee80211softmac_device *softmac = ieee80211_priv(mac->netdev);
 	u16 ftype = WLAN_FC_GET_TYPE(le16_to_cpu(hdr->frame_ctl));
-	u8 rate, cs_rate;
+	u8 rate, zd_rate;
 	int is_mgt = (ftype == IEEE80211_FTYPE_MGMT) != 0;
+	int is_multicast = is_multicast_ether_addr(hdr->addr1);
+	int short_preamble = ieee80211softmac_short_preamble_ok(softmac,
+		is_multicast, is_mgt);
+	int flags = 0;
 
-	/* FIXME: 802.11a? short preamble? */
-	rate = ieee80211softmac_suggest_txrate(softmac,
-		is_multicast_ether_addr(hdr->addr1), is_mgt);
+	/* FIXME: 802.11a? */
+	rate = ieee80211softmac_suggest_txrate(softmac, is_multicast, is_mgt);
 
-	cs_rate = rate_to_cs_rate(rate);
-	cs->modulation = cs_rate_to_modulation(cs_rate, 0);
+	if (short_preamble)
+		flags |= R2M_SHORT_PREAMBLE;
+
+	zd_rate = rate_to_zd_rate(rate);
+	cs->modulation = zd_rate_to_modulation(zd_rate, flags);
 }
 
 static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 	                   struct ieee80211_hdr_4addr *header)
 {
+	struct ieee80211softmac_device *softmac = ieee80211_priv(mac->netdev);
 	unsigned int tx_length = le16_to_cpu(cs->tx_length);
 	u16 fctl = le16_to_cpu(header->frame_ctl);
 	u16 ftype = WLAN_FC_GET_TYPE(fctl);
 	u16 stype = WLAN_FC_GET_STYPE(fctl);
 
 	/*
-	 * CONTROL:
-	 * - start at 0x00
-	 * - if fragment 0, enable bit 0
+	 * CONTROL TODO:
 	 * - if backoff needed, enable bit 0
 	 * - if burst (backoff not needed) disable bit 0
-	 * - if multicast, enable bit 1
-	 * - if PS-POLL frame, enable bit 2
-	 * - if in INDEPENDENT_BSS mode and zd1205_DestPowerSave, then enable
-	 *   bit 4 (FIXME: wtf)
-	 * - if frag_len > RTS threshold, set bit 5 as long if it isnt
-	 *   multicast or mgt
-	 * - if bit 5 is set, and we are in OFDM mode, unset bit 5 and set bit
-	 *   7
 	 */
 
 	cs->control = 0;
@@ -600,17 +802,18 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 	if (stype == IEEE80211_STYPE_PSPOLL)
 		cs->control |= ZD_CS_PS_POLL_FRAME;
 
+	/* Unicast data frames over the threshold should have RTS */
 	if (!is_multicast_ether_addr(header->addr1) &&
-	    ftype != IEEE80211_FTYPE_MGMT &&
-	    tx_length > zd_netdev_ieee80211(mac->netdev)->rts)
-	{
-		/* FIXME: check the logic */
-		if (ZD_CS_TYPE(cs->modulation) == ZD_CS_OFDM) {
-			/* 802.11g */
-			cs->control |= ZD_CS_SELF_CTS;
-		} else { /* 802.11b */
-			cs->control |= ZD_CS_RTS;
-		}
+	    	ftype != IEEE80211_FTYPE_MGMT &&
+		    tx_length > zd_netdev_ieee80211(mac->netdev)->rts)
+		cs->control |= ZD_CS_RTS;
+
+	/* Use CTS-to-self protection if required */
+	if (ZD_CS_TYPE(cs->modulation) == ZD_CS_OFDM &&
+			ieee80211softmac_protection_needed(softmac)) {
+		/* FIXME: avoid sending RTS *and* self-CTS, is that correct? */
+		cs->control &= ~ZD_CS_RTS;
+		cs->control |= ZD_CS_SELF_CTS;
 	}
 
 	/* FIXME: Management frame? */
@@ -714,7 +917,7 @@ struct zd_rt_hdr {
 	u8  rt_rate;
 	u16 rt_channel;
 	u16 rt_chbitmask;
-};
+} __attribute__((packed));
 
 static void fill_rt_header(void *buffer, struct zd_mac *mac,
 	                   const struct ieee80211_rx_stats *stats,
@@ -771,13 +974,16 @@ static int is_data_packet_for_us(struct ieee80211_device *ieee,
 	}
 
 	return memcmp(hdr->addr1, netdev->dev_addr, ETH_ALEN) == 0 ||
-	       is_multicast_ether_addr(hdr->addr1) ||
+	       (is_multicast_ether_addr(hdr->addr1) &&
+		memcmp(hdr->addr3, netdev->dev_addr, ETH_ALEN) != 0) ||
 	       (netdev->flags & IFF_PROMISC);
 }
 
-/* Filters receiving packets. If it returns 1 send it to ieee80211_rx, if 0
- * return. If an error is detected -EINVAL is returned. ieee80211_rx_mgt() is
- * called here.
+/* Filters received packets. The function returns 1 if the packet should be
+ * forwarded to ieee80211_rx(). If the packet should be ignored the function
+ * returns 0. If an invalid packet is found the function returns -EINVAL.
+ *
+ * The function calls ieee80211_rx_mgt() directly.
  *
  * It has been based on ieee80211_rx_any.
  */
@@ -803,9 +1009,9 @@ static int filter_rx(struct ieee80211_device *ieee,
 		ieee80211_rx_mgt(ieee, hdr, stats);
 		return 0;
 	case IEEE80211_FTYPE_CTL:
-		/* Ignore invalid short buffers */
 		return 0;
 	case IEEE80211_FTYPE_DATA:
+		/* Ignore invalid short buffers */
 		if (length < sizeof(struct ieee80211_hdr_3addr))
 			return -EINVAL;
 		return is_data_packet_for_us(ieee, hdr);
@@ -901,10 +1107,8 @@ int zd_mac_rx(struct zd_mac *mac, const u8 *buffer, unsigned int length)
 	memcpy(skb_put(skb, length), buffer, length);
 
 	r = ieee80211_rx(ieee, skb, &stats);
-	if (!r) {
-		ZD_ASSERT(in_irq());
-		dev_kfree_skb_irq(skb);
-	}
+	if (!r)
+		dev_kfree_skb_any(skb);
 	return 0;
 }
 
@@ -986,6 +1190,7 @@ static void ieee_init(struct ieee80211_device *ieee)
 static void softmac_init(struct ieee80211softmac_device *sm)
 {
 	sm->set_channel = set_channel;
+	sm->bssinfo_change = bssinfo_change;
 }
 
 struct iw_statistics *zd_mac_get_wireless_stats(struct net_device *ndev)
@@ -1021,62 +1226,46 @@ struct iw_statistics *zd_mac_get_wireless_stats(struct net_device *ndev)
 	return iw_stats;
 }
 
-#ifdef DEBUG
-static const char* decryption_types[] = {
-	[ZD_RX_NO_WEP] = "none",
-	[ZD_RX_WEP64] = "WEP64",
-	[ZD_RX_TKIP] = "TKIP",
-	[ZD_RX_AES] = "AES",
-	[ZD_RX_WEP128] = "WEP128",
-	[ZD_RX_WEP256] = "WEP256",
-};
+#define LINK_LED_WORK_DELAY HZ
 
-static const char *decryption_type_string(u8 type)
+static void link_led_handler(struct work_struct *work)
 {
-	const char *s;
+	struct zd_mac *mac =
+		container_of(work, struct zd_mac, housekeeping.link_led_work.work);
+	struct zd_chip *chip = &mac->chip;
+	struct ieee80211softmac_device *sm = ieee80211_priv(mac->netdev);
+	int is_associated;
+	int r;
 
-	if (type < ARRAY_SIZE(decryption_types)) {
-		s = decryption_types[type];
-	} else {
-		s = NULL;
-	}
-	return s ? s : "unknown";
+	spin_lock_irq(&mac->lock);
+	is_associated = sm->associnfo.associated != 0;
+	spin_unlock_irq(&mac->lock);
+
+	r = zd_chip_control_leds(chip,
+		                 is_associated ? LED_ASSOCIATED : LED_SCANNING);
+	if (r)
+		dev_err(zd_mac_dev(mac), "zd_chip_control_leds error %d\n", r);
+
+	queue_delayed_work(zd_workqueue, &mac->housekeeping.link_led_work,
+		           LINK_LED_WORK_DELAY);
 }
 
-static int is_ofdm(u8 frame_status)
+static void housekeeping_init(struct zd_mac *mac)
 {
-	return (frame_status & ZD_RX_OFDM);
+	INIT_DELAYED_WORK(&mac->housekeeping.link_led_work, link_led_handler);
 }
 
-void zd_dump_rx_status(const struct rx_status *status)
+static void housekeeping_enable(struct zd_mac *mac)
 {
-	const char* modulation;
-	u8 quality;
-
-	if (is_ofdm(status->frame_status)) {
-		modulation = "ofdm";
-		quality = status->signal_quality_ofdm;
-	} else {
-		modulation = "cck";
-		quality = status->signal_quality_cck;
-	}
-	pr_debug("rx status %s strength %#04x qual %#04x decryption %s\n",
-		modulation, status->signal_strength, quality,
-		decryption_type_string(status->decryption_type));
-	if (status->frame_status & ZD_RX_ERROR) {
-		pr_debug("rx error %s%s%s%s%s%s\n",
-			(status->frame_status & ZD_RX_TIMEOUT_ERROR) ?
-				"timeout " : "",
-			(status->frame_status & ZD_RX_FIFO_OVERRUN_ERROR) ?
-				"fifo " : "",
-			(status->frame_status & ZD_RX_DECRYPTION_ERROR) ?
-				"decryption " : "",
-			(status->frame_status & ZD_RX_CRC32_ERROR) ?
-				"crc32 " : "",
-			(status->frame_status & ZD_RX_NO_ADDR1_MATCH_ERROR) ?
-				"addr1 " : "",
-			(status->frame_status & ZD_RX_CRC16_ERROR) ?
-				"crc16" : "");
-	}
+	dev_dbg_f(zd_mac_dev(mac), "\n");
+	queue_delayed_work(zd_workqueue, &mac->housekeeping.link_led_work,
+			   0);
 }
-#endif /* DEBUG */
+
+static void housekeeping_disable(struct zd_mac *mac)
+{
+	dev_dbg_f(zd_mac_dev(mac), "\n");
+	cancel_rearming_delayed_workqueue(zd_workqueue,
+		&mac->housekeeping.link_led_work);
+	zd_chip_control_leds(&mac->chip, LED_OFF);
+}

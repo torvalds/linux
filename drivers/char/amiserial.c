@@ -104,24 +104,13 @@ static struct async_struct *IRQ_ports;
 
 static unsigned char current_ctl_bits;
 
-static void change_speed(struct async_struct *info, struct termios *old);
+static void change_speed(struct async_struct *info, struct ktermios *old);
 static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
 
 
 static struct serial_state rs_table[1];
 
 #define NR_PORTS ARRAY_SIZE(rs_table)
-
-/*
- * tmp_buf is used as a temporary buffer by serial_write.  We need to
- * lock it in case the copy_from_user blocks while swapping in a page,
- * and some other program tries to do a serial write at the same time.
- * Since the lock will only come under contention when the system is
- * swapping and available memory is low, it makes sense to share one
- * buffer across all the serial ports, since it significantly saves
- * memory if large numbers of serial ports are open.
- */
-static unsigned char *tmp_buf;
 
 #include <asm/uaccess.h>
 
@@ -458,7 +447,7 @@ static void check_modem_status(struct async_struct *info)
 	}
 }
 
-static irqreturn_t ser_vbl_int( int irq, void *data, struct pt_regs *regs)
+static irqreturn_t ser_vbl_int( int irq, void *data)
 {
         /* vbl is just a periodic interrupt we tie into to update modem status */
 	struct async_struct * info = IRQ_ports;
@@ -471,7 +460,7 @@ static irqreturn_t ser_vbl_int( int irq, void *data, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ser_rx_int(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t ser_rx_int(int irq, void *dev_id)
 {
 	struct async_struct * info;
 
@@ -491,7 +480,7 @@ static irqreturn_t ser_rx_int(int irq, void *dev_id, struct pt_regs * regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ser_tx_int(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t ser_tx_int(int irq, void *dev_id)
 {
 	struct async_struct * info;
 
@@ -705,7 +694,7 @@ static void shutdown(struct async_struct * info)
  * the specified baud rate for a serial port.
  */
 static void change_speed(struct async_struct *info,
-			 struct termios *old_termios)
+			 struct ktermios *old_termios)
 {
 	int	quot = 0, baud_base, baud;
 	unsigned cflag, cval = 0;
@@ -912,7 +901,7 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
 	if (serial_paranoia_check(info, tty->name, "rs_write"))
 		return 0;
 
-	if (!info->xmit.buf || !tmp_buf)
+	if (!info->xmit.buf)
 		return 0;
 
 	local_save_flags(flags);
@@ -1376,7 +1365,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 	return 0;
 }
 
-static void rs_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct async_struct *info = (struct async_struct *)tty->driver_data;
 	unsigned long flags;
@@ -1778,7 +1767,6 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 {
 	struct async_struct	*info;
 	int 			retval, line;
-	unsigned long		page;
 
 	line = tty->index;
 	if ((line < 0) || (line >= NR_PORTS)) {
@@ -1797,17 +1785,6 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	printk("rs_open %s, count = %d\n", tty->name, info->state->count);
 #endif
 	info->tty->low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
-
-	if (!tmp_buf) {
-		page = get_zeroed_page(GFP_KERNEL);
-		if (!page) {
-			return -ENOMEM;
-		}
-		if (tmp_buf)
-			free_page(page);
-		else
-			tmp_buf = (unsigned char *) page;
-	}
 
 	/*
 	 * If the port is the middle of closing, bail out now
@@ -1958,7 +1935,7 @@ static void show_serial_version(void)
 }
 
 
-static struct tty_operations serial_ops = {
+static const struct tty_operations serial_ops = {
 	.open = rs_open,
 	.close = rs_close,
 	.write = rs_write,
@@ -2088,11 +2065,6 @@ static __exit void rs_exit(void)
 	if (info) {
 	  rs_table[0].info = NULL;
 	  kfree(info);
-	}
-
-	if (tmp_buf) {
-		free_page((unsigned long) tmp_buf);
-		tmp_buf = NULL;
 	}
 
 	release_mem_region(CUSTOM_PHYSADDR+0x30, 4);

@@ -744,17 +744,12 @@ static void tms380tr_timer_chk(unsigned long data)
 /*
  * The typical workload of the driver: Handle the network interface interrupts.
  */
-irqreturn_t tms380tr_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t tms380tr_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct net_local *tp;
 	unsigned short irq_type;
 	int handled = 0;
-
-	if(dev == NULL) {
-		printk(KERN_INFO "%s: irq %d for unknown device.\n", dev->name, irq);
-		return IRQ_NONE;
-	}
 
 	tp = netdev_priv(dev);
 

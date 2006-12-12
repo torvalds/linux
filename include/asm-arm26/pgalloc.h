@@ -15,7 +15,7 @@
 #include <asm/tlbflush.h>
 #include <linux/slab.h>
 
-extern kmem_cache_t *pte_cache;
+extern struct kmem_cache *pte_cache;
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr){
 	return kmem_cache_alloc(pte_cache, GFP_KERNEL);

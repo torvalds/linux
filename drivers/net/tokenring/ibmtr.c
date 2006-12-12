@@ -197,7 +197,7 @@ static void 	open_sap(unsigned char type, struct net_device *dev);
 static void 	tok_set_multicast_list(struct net_device *dev);
 static int 	tok_send_packet(struct sk_buff *skb, struct net_device *dev);
 static int 	tok_close(struct net_device *dev);
-static irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t tok_interrupt(int irq, void *dev_id);
 static void 	initial_tok_int(struct net_device *dev);
 static void 	tr_tx(struct net_device *dev);
 static void 	tr_rx(struct net_device *dev);
@@ -1166,7 +1166,7 @@ static void dir_open_adapter (struct net_device *dev)
 
 /******************************************************************************/
 
-static irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t tok_interrupt(int irq, void *dev_id)
 {
 	unsigned char status;
 	/*  unsigned char status_even ; */
@@ -1178,7 +1178,7 @@ static irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	dev = dev_id;
 #if TR_VERBOSE
-	DPRINTK("Int from tok_driver, dev : %p irq%d regs=%p\n", dev,irq,regs);
+	DPRINTK("Int from tok_driver, dev : %p irq%d\n", dev,irq);
 #endif
 	ti = (struct tok_info *) dev->priv;
 	if (ti->sram_phys & 1)
@@ -1826,7 +1826,7 @@ static void tr_rx(struct net_device *dev)
 	skb->protocol = tr_type_trans(skb, dev);
 	if (IPv4_p) {
 		skb->csum = chksum;
-		skb->ip_summed = 1;
+		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 	netif_rx(skb);
 	dev->last_rx = jiffies;

@@ -256,7 +256,7 @@ static u32 esp6_get_max_size(struct xfrm_state *x, int mtu)
 }
 
 static void esp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-                     int type, int code, int offset, __u32 info)
+                     int type, int code, int offset, __be32 info)
 {
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
 	struct ipv6_esp_hdr *esph = (struct ipv6_esp_hdr*)(skb->data+offset);

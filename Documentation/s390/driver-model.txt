@@ -18,10 +18,17 @@ devices/
 	   - 0.0.0002/
 	   - 0.1.0000/0.1.1234/
 	   ...
+	   - defunct/
 
 In this example, device 0815 is accessed via subchannel 0 in subchannel set 0,
 device 4711 via subchannel 1 in subchannel set 0, and subchannel 2 is a non-I/O
 subchannel. Device 1234 is accessed via subchannel 0 in subchannel set 1.
+
+The subchannel named 'defunct' does not represent any real subchannel on the
+system; it is a pseudo subchannel where disconnnected ccw devices are moved to
+if they are displaced by another ccw device becoming operational on their
+former subchannel. The ccw devices will be moved again to a proper subchannel
+if they become operational again on that subchannel.
 
 You should address a ccw device via its bus id (e.g. 0.0.4711); the device can
 be found under bus/ccw/devices/.
@@ -157,7 +164,7 @@ notify: This function is called by the common I/O layer for some state changes
 	* In online state, device detached (CIO_GONE) or last path gone
 	  (CIO_NO_PATH). The driver must return !0 to keep the device; for
 	  return code 0, the device will be deleted as usual (also when no
-	  notify function is registerd). If the driver wants to keep the
+	  notify function is registered). If the driver wants to keep the
 	  device, it is moved into disconnected state.
 	* In disconnected state, device operational again (CIO_OPER). The
 	  common I/O layer performs some sanity checks on device number and
@@ -239,6 +246,9 @@ status - Can be 'online' or 'offline'.
 
 type - The physical type of the channel path.
 
+shared - Whether the channel path is shared.
+
+cmg - The channel measurement group.
 
 3. System devices
 -----------------
@@ -262,7 +272,7 @@ attribute 'online' which can be 0 or 1.
 -----------
 
 The netiucv driver creates an attribute 'connection' under
-bus/iucv/drivers/netiucv. Piping to this attibute creates a new netiucv
+bus/iucv/drivers/netiucv. Piping to this attribute creates a new netiucv
 connection to the specified host.
 
 Netiucv connections show up under devices/iucv/ as "netiucv<ifnum>". The interface

@@ -25,6 +25,10 @@
 #include <linux/pm.h>
 #include <linux/string.h>
 
+#include <linux/sched.h>
+#include <asm/cnt32_to_63.h>
+#include <asm/div64.h>
+
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/system.h>
@@ -39,6 +43,62 @@
 #include <asm/arch/i2c.h>
 
 #include "generic.h"
+
+/*
+ * This is the PXA2xx sched_clock implementation. This has a resolution
+ * of at least 308ns and a maximum value that depends on the value of
+ * CLOCK_TICK_RATE.
+ *
+ * The return value is guaranteed to be monotonic in that range as
+ * long as there is always less than 582 seconds between successive
+ * calls to this function.
+ */
+unsigned long long sched_clock(void)
+{
+	unsigned long long v = cnt32_to_63(OSCR);
+	/* Note: top bit ov v needs cleared unless multiplier is even. */
+
+#if	CLOCK_TICK_RATE == 3686400
+	/* 1E9 / 3686400 => 78125 / 288, max value = 32025597s (370 days). */
+	/* The <<1 is used to get rid of tick.hi top bit */
+	v *= 78125<<1;
+	do_div(v, 288<<1);
+#elif	CLOCK_TICK_RATE == 3250000
+	/* 1E9 / 3250000 => 4000 / 13, max value = 709490156s (8211 days) */
+	v *= 4000;
+	do_div(v, 13);
+#elif	CLOCK_TICK_RATE == 3249600
+	/* 1E9 / 3249600 => 625000 / 2031, max value = 4541295s (52 days) */
+	v *= 625000;
+	do_div(v, 2031);
+#else
+#warning "consider fixing sched_clock for your value of CLOCK_TICK_RATE"
+	/*
+	 * 96-bit math to perform tick * NSEC_PER_SEC / CLOCK_TICK_RATE for
+	 * any value of CLOCK_TICK_RATE. Max value is in the 80 thousand
+	 * years range which is nice, but with higher computation cost.
+	 */
+	{
+		union {
+			unsigned long long val;
+			struct { unsigned long lo, hi; };
+		} x;
+		unsigned long long y;
+
+		x.val = v;
+		x.hi &= 0x7fffffff;
+		y = (unsigned long long)x.lo * NSEC_PER_SEC;
+		x.lo = y;
+		y = (y >> 32) + (unsigned long long)x.hi * NSEC_PER_SEC;
+		x.hi = do_div(y, CLOCK_TICK_RATE);
+		do_div(x.val, CLOCK_TICK_RATE);
+		x.hi += y;
+		v = x.val;
+	}
+#endif
+
+	return v;
+}
 
 /*
  * Handy function to set GPIO alternate functions
@@ -204,13 +264,6 @@ static struct platform_device udc_device = {
 	}
 };
 
-static struct pxafb_mach_info pxa_fb_info;
-
-void __init set_pxa_fb_info(struct pxafb_mach_info *hard_pxa_fb_info)
-{
-	memcpy(&pxa_fb_info,hard_pxa_fb_info,sizeof(struct pxafb_mach_info));
-}
-
 static struct resource pxafb_resources[] = {
 	[0] = {
 		.start	= 0x44000000,
@@ -230,13 +283,17 @@ static struct platform_device pxafb_device = {
 	.name		= "pxa2xx-fb",
 	.id		= -1,
 	.dev		= {
- 		.platform_data	= &pxa_fb_info,
 		.dma_mask	= &fb_dma_mask,
 		.coherent_dma_mask = 0xffffffff,
 	},
 	.num_resources	= ARRAY_SIZE(pxafb_resources),
 	.resource	= pxafb_resources,
 };
+
+void __init set_pxa_fb_info(struct pxafb_mach_info *info)
+{
+	pxafb_device.dev.platform_data = info;
+}
 
 void __init set_pxa_fb_parent(struct device *parent_dev)
 {

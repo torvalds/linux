@@ -46,6 +46,7 @@
 #include <asm/abs_addr.h>
 #include <asm/uaccess.h>
 #include <asm/of_device.h>
+#include <asm/of_platform.h>
 
 #define VERSION "0.7"
 #define AUTHOR  "(c) 2005 Benjamin Herrenschmidt, IBM Corp."
@@ -145,7 +146,7 @@ static void smu_start_cmd(void)
 }
 
 
-static irqreturn_t smu_db_intr(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t smu_db_intr(int irq, void *arg)
 {
 	unsigned long flags;
 	struct smu_cmd *cmd;
@@ -224,7 +225,7 @@ static irqreturn_t smu_db_intr(int irq, void *arg, struct pt_regs *regs)
 }
 
 
-static irqreturn_t smu_msg_intr(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t smu_msg_intr(int irq, void *arg)
 {
 	/* I don't quite know what to do with this one, we seem to never
 	 * receive it, so I suspect we have to arm it someway in the SMU
@@ -309,7 +310,7 @@ void smu_poll(void)
 
 	gpio = pmac_do_feature_call(PMAC_FTR_READ_GPIO, NULL, smu->doorbell);
 	if ((gpio & 7) == 7)
-		smu_db_intr(smu->db_irq, smu, NULL);
+		smu_db_intr(smu->db_irq, smu);
 }
 EXPORT_SYMBOL(smu_poll);
 
@@ -600,7 +601,7 @@ core_initcall(smu_late_init);
  * sysfs visibility
  */
 
-static void smu_expose_childs(void *unused)
+static void smu_expose_childs(struct work_struct *unused)
 {
 	struct device_node *np;
 
@@ -610,7 +611,7 @@ static void smu_expose_childs(void *unused)
 						  &smu->of_dev->dev);
 }
 
-static DECLARE_WORK(smu_expose_childs_work, smu_expose_childs, NULL);
+static DECLARE_WORK(smu_expose_childs_work, smu_expose_childs);
 
 static int smu_platform_probe(struct of_device* dev,
 			      const struct of_device_id *match)
@@ -653,7 +654,7 @@ static int __init smu_init_sysfs(void)
 	 * I'm a bit too far from figuring out how that works with those
 	 * new chipsets, but that will come back and bite us
 	 */
-	of_register_driver(&smu_of_platform_driver);
+	of_register_platform_driver(&smu_of_platform_driver);
 	return 0;
 }
 
@@ -870,7 +871,7 @@ int smu_queue_i2c(struct smu_i2c_cmd *cmd)
 
 static int smu_read_datablock(u8 *dest, unsigned int addr, unsigned int len)
 {
-	DECLARE_COMPLETION(comp);
+	DECLARE_COMPLETION_ONSTACK(comp);
 	unsigned int chunk;
 	struct smu_cmd cmd;
 	int rc;
@@ -917,7 +918,7 @@ static int smu_read_datablock(u8 *dest, unsigned int addr, unsigned int len)
 
 static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 {
-	DECLARE_COMPLETION(comp);
+	DECLARE_COMPLETION_ONSTACK(comp);
 	struct smu_simple_cmd cmd;
 	unsigned int addr, len, tlen;
 	struct smu_sdbp_header *hdr;

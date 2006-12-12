@@ -623,6 +623,8 @@ static void hwif_release_dev (struct device *dev)
 
 static void hwif_register (ide_hwif_t *hwif)
 {
+	int ret;
+
 	/* register with global device tree */
 	strlcpy(hwif->gendev.bus_id,hwif->name,BUS_ID_SIZE);
 	hwif->gendev.driver_data = hwif;
@@ -634,7 +636,10 @@ static void hwif_register (ide_hwif_t *hwif)
 			hwif->gendev.parent = NULL;
 	}
 	hwif->gendev.release = hwif_release_dev;
-	device_register(&hwif->gendev);
+	ret = device_register(&hwif->gendev);
+	if (ret < 0)
+		printk(KERN_WARNING "IDE: %s: device_register error: %d\n",
+			__FUNCTION__, ret);
 }
 
 static int wait_hwif_ready(ide_hwif_t *hwif)
@@ -884,13 +889,19 @@ int probe_hwif_init_with_fixup(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif)
 
 	if (hwif->present) {
 		u16 unit = 0;
+		int ret;
+
 		for (unit = 0; unit < MAX_DRIVES; ++unit) {
 			ide_drive_t *drive = &hwif->drives[unit];
 			/* For now don't attach absent drives, we may
 			   want them on default or a new "empty" class
 			   for hotplug reprobing ? */
 			if (drive->present) {
-				device_register(&drive->gendev);
+				ret = device_register(&drive->gendev);
+				if (ret < 0)
+					printk(KERN_WARNING "IDE: %s: "
+						"device_register error: %d\n",
+						__FUNCTION__, ret);
 			}
 		}
 	}
@@ -988,10 +999,6 @@ static int ide_init_queue(ide_drive_t *drive)
 
 	/* needs drive->queue to be set */
 	ide_toggle_bounce(drive, 1);
-
-	/* enable led activity for disk drives only */
-	if (drive->media == ide_disk && hwif->led_act)
-		blk_queue_activity_fn(q, hwif->led_act, drive);
 
 	return 0;
 }
@@ -1409,8 +1416,14 @@ int ideprobe_init (void)
 			if (hwif->chipset == ide_unknown || hwif->chipset == ide_forced)
 				hwif->chipset = ide_generic;
 			for (unit = 0; unit < MAX_DRIVES; ++unit)
-				if (hwif->drives[unit].present)
-					device_register(&hwif->drives[unit].gendev);
+				if (hwif->drives[unit].present) {
+					int ret = device_register(
+						&hwif->drives[unit].gendev);
+					if (ret < 0)
+						printk(KERN_WARNING "IDE: %s: "
+							"device_register error: %d\n",
+							__FUNCTION__, ret);
+				}
 		}
 	}
 	return 0;

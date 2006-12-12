@@ -20,12 +20,6 @@
 #include <asm/ustack.h>
 
 #define IA64_NUM_DBG_REGS	8
-/*
- * Limits for PMC and PMD are set to less than maximum architected values
- * but should be sufficient for a while
- */
-#define IA64_NUM_PMC_REGS	64
-#define IA64_NUM_PMD_REGS	64
 
 #define DEFAULT_MAP_BASE	__IA64_UL_CONST(0x2000000000000000)
 #define DEFAULT_TASK_SIZE	__IA64_UL_CONST(0xa000000000000000)
@@ -163,6 +157,7 @@ struct cpuinfo_ia64 {
 	__u8 family;
 	__u8 archrev;
 	char vendor[16];
+	char *model_name;
 
 #ifdef CONFIG_NUMA
 	struct ia64_node_data *node_data;
@@ -262,13 +257,9 @@ struct thread_struct {
 # define INIT_THREAD_IA32
 #endif /* CONFIG_IA32_SUPPORT */
 #ifdef CONFIG_PERFMON
-	__u64 pmcs[IA64_NUM_PMC_REGS];
-	__u64 pmds[IA64_NUM_PMD_REGS];
 	void *pfm_context;		     /* pointer to detailed PMU context */
 	unsigned long pfm_needs_checking;    /* when >0, pending perfmon work on kernel exit */
-# define INIT_THREAD_PM		.pmcs =			{0UL, },  \
-				.pmds =			{0UL, },  \
-				.pfm_context =		NULL,     \
+# define INIT_THREAD_PM		.pfm_context =		NULL,     \
 				.pfm_needs_checking =	0UL,
 #else
 # define INIT_THREAD_PM

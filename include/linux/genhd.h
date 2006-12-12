@@ -11,6 +11,8 @@
 
 #include <linux/types.h>
 
+#ifdef CONFIG_BLOCK
+
 enum {
 /* These three have identical behaviour; use the second one if DOS FDISK gets
    confused about extended/logical partitions starting past cylinder 1023. */
@@ -81,6 +83,9 @@ struct hd_struct {
 	struct kobject *holder_dir;
 	unsigned ios[2], sectors[2];	/* READs and WRITEs */
 	int policy, partno;
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+	int make_it_fail;
+#endif
 };
 
 #define GENHD_FL_REMOVABLE			1
@@ -88,6 +93,7 @@ struct hd_struct {
 #define GENHD_FL_CD				8
 #define GENHD_FL_UP				16
 #define GENHD_FL_SUPPRESS_PARTITION_INFO	32
+#define GENHD_FL_FAIL				64
 
 struct disk_stats {
 	unsigned long sectors[2];	/* READs and WRITEs */
@@ -416,6 +422,8 @@ static inline struct block_device *bdget_disk(struct gendisk *disk, int index)
 {
 	return bdget(MKDEV(disk->major, disk->first_minor) + index);
 }
+
+#endif
 
 #endif
 

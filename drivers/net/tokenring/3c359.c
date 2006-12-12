@@ -130,7 +130,7 @@ static int xl_xmit(struct sk_buff *skb, struct net_device *dev);
 static void xl_dn_comp(struct net_device *dev); 
 static int xl_close(struct net_device *dev);
 static void xl_set_rx_mode(struct net_device *dev);
-static irqreturn_t xl_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t xl_interrupt(int irq, void *dev_id);
 static struct net_device_stats * xl_get_stats(struct net_device *dev);
 static int xl_set_mac_address(struct net_device *dev, void *addr) ; 
 static void xl_arb_cmd(struct net_device *dev);
@@ -1042,7 +1042,7 @@ static void xl_freemem(struct net_device *dev)
 	return  ; 
 }
 
-static irqreturn_t xl_interrupt(int irq, void *dev_id, struct pt_regs *regs) 
+static irqreturn_t xl_interrupt(int irq, void *dev_id) 
 {
 	struct net_device *dev = (struct net_device *)dev_id;
  	struct xl_private *xl_priv =(struct xl_private *)dev->priv;

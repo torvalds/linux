@@ -21,6 +21,7 @@
 #include <linux/mount.h>
 #include <linux/pagemap.h>
 #include <linux/init.h>
+#include <linux/kobject.h>
 #include <linux/namei.h>
 #include <linux/debugfs.h>
 
@@ -40,7 +41,6 @@ static struct inode *debugfs_get_inode(struct super_block *sb, int mode, dev_t d
 		inode->i_mode = mode;
 		inode->i_uid = 0;
 		inode->i_gid = 0;
-		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		switch (mode & S_IFMT) {
@@ -55,7 +55,7 @@ static struct inode *debugfs_get_inode(struct super_block *sb, int mode, dev_t d
 			inode->i_fop = &simple_dir_operations;
 
 			/* directory inodes start off with i_nlink == 2 (for "." entry) */
-			inode->i_nlink++;
+			inc_nlink(inode);
 			break;
 		}
 	}
@@ -88,7 +88,7 @@ static int debugfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
 	res = debugfs_mknod(dir, dentry, mode, 0);
 	if (!res)
-		dir->i_nlink++;
+		inc_nlink(dir);
 	return res;
 }
 
@@ -148,13 +148,13 @@ static int debugfs_create_by_name(const char *name, mode_t mode,
 	*dentry = NULL;
 	mutex_lock(&parent->d_inode->i_mutex);
 	*dentry = lookup_one_len(name, parent, strlen(name));
-	if (!IS_ERR(dentry)) {
+	if (!IS_ERR(*dentry)) {
 		if ((mode & S_IFMT) == S_IFDIR)
 			error = debugfs_mkdir(parent->d_inode, *dentry, mode);
 		else 
 			error = debugfs_create(parent->d_inode, *dentry, mode);
 	} else
-		error = PTR_ERR(dentry);
+		error = PTR_ERR(*dentry);
 	mutex_unlock(&parent->d_inode->i_mutex);
 
 	return error;
@@ -168,7 +168,7 @@ static int debugfs_create_by_name(const char *name, mode_t mode,
  *          directory dentry if set.  If this paramater is NULL, then the
  *          file will be created in the root of the debugfs filesystem.
  * @data: a pointer to something that the caller will want to get to later
- *        on.  The inode.u.generic_ip pointer will point to this value on
+ *        on.  The inode.i_private pointer will point to this value on
  *        the open() call.
  * @fops: a pointer to a struct file_operations that should be used for
  *        this file.
@@ -209,7 +209,7 @@ struct dentry *debugfs_create_file(const char *name, mode_t mode,
 
 	if (dentry->d_inode) {
 		if (data)
-			dentry->d_inode->u.generic_ip = data;
+			dentry->d_inode->i_private = data;
 		if (fops)
 			dentry->d_inode->i_fop = fops;
 	}
@@ -253,7 +253,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_dir);
  *
  * This function removes a file or directory in debugfs that was previously
  * created with a call to another debugfs function (like
- * debufs_create_file() or variants thereof.)
+ * debugfs_create_file() or variants thereof.)
  *
  * This function is required to be called in order for the file to be
  * removed, no automatic cleanup of files will happen when a module is

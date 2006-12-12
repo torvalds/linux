@@ -77,6 +77,7 @@
 #define  SN_SAL_IOIF_GET_WIDGET_DMAFLUSH_LIST	   0x02000058	// deprecated
 #define  SN_SAL_IOIF_GET_DEVICE_DMAFLUSH_LIST	   0x0200005a
 
+#define SN_SAL_IOIF_INIT			   0x0200005f
 #define SN_SAL_HUB_ERROR_INTERRUPT		   0x02000060
 #define SN_SAL_BTE_RECOVER			   0x02000061
 #define SN_SAL_RESERVED_DO_NOT_USE		   0x02000062
@@ -86,6 +87,8 @@
 #define  SN_SAL_SET_OS_FEATURE_SET		   0x02000066
 #define  SN_SAL_INJECT_ERROR			   0x02000067
 #define  SN_SAL_SET_CPU_NUMBER			   0x02000068
+
+#define  SN_SAL_KERNEL_LAUNCH_EVENT		   0x02000069
 
 /*
  * Service-specific constants
@@ -1152,6 +1155,13 @@ ia64_sn_set_cpu_number(int cpu)
 	struct ia64_sal_retval rv;
 
 	SAL_CALL_NOLOCK(rv, SN_SAL_SET_CPU_NUMBER, cpu, 0, 0, 0, 0, 0, 0);
+	return rv.status;
+}
+static inline int
+ia64_sn_kernel_launch_event(void)
+{
+ 	struct ia64_sal_retval rv;
+	SAL_CALL_NOLOCK(rv, SN_SAL_KERNEL_LAUNCH_EVENT, 0, 0, 0, 0, 0, 0, 0);
 	return rv.status;
 }
 #endif /* _ASM_IA64_SN_SN_SAL_H */

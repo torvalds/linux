@@ -233,11 +233,10 @@ static int map_p1k_to_key(int scancode)
  *
  * The key parameter can be cascaded: key2 << 8 | key1
  */
-static void report_key(struct yealink_dev *yld, int key, struct pt_regs *regs)
+static void report_key(struct yealink_dev *yld, int key)
 {
 	struct input_dev *idev = yld->idev;
 
-	input_regs(idev, regs);
 	if (yld->key_code >= 0) {
 		/* old key up */
 		input_report_key(idev, yld->key_code & 0xff, 0);
@@ -422,7 +421,7 @@ send_update:
  * error,start
  *
  */
-static void urb_irq_callback(struct urb *urb, struct pt_regs *regs)
+static void urb_irq_callback(struct urb *urb)
 {
 	struct yealink_dev *yld = urb->context;
 	int ret;
@@ -439,7 +438,7 @@ static void urb_irq_callback(struct urb *urb, struct pt_regs *regs)
 	case CMD_SCANCODE:
 		dbg("get scancode %x", yld->irq_data->data[0]);
 
-		report_key(yld, map_p1k_to_key(yld->irq_data->data[0]), regs);
+		report_key(yld, map_p1k_to_key(yld->irq_data->data[0]));
 		break;
 
 	default:
@@ -453,7 +452,7 @@ static void urb_irq_callback(struct urb *urb, struct pt_regs *regs)
 		err("%s - usb_submit_urb failed %d", __FUNCTION__, ret);
 }
 
-static void urb_ctl_callback(struct urb *urb, struct pt_regs *regs)
+static void urb_ctl_callback(struct urb *urb)
 {
 	struct yealink_dev *yld = urb->context;
 	int ret;
@@ -860,10 +859,8 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	interface = intf->cur_altsetting;
 	endpoint = &interface->endpoint[0].desc;
-	if (!(endpoint->bEndpointAddress & USB_DIR_IN))
-		return -EIO;
-	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_INT)
-		return -EIO;
+	if (!usb_endpoint_is_int_in(endpoint))
+		return -ENODEV;
 
 	yld = kzalloc(sizeof(struct yealink_dev), GFP_KERNEL);
 	if (!yld)
@@ -877,17 +874,17 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	/* allocate usb buffers */
 	yld->irq_data = usb_buffer_alloc(udev, USB_PKT_LEN,
-					SLAB_ATOMIC, &yld->irq_dma);
+					GFP_ATOMIC, &yld->irq_dma);
 	if (yld->irq_data == NULL)
 		return usb_cleanup(yld, -ENOMEM);
 
 	yld->ctl_data = usb_buffer_alloc(udev, USB_PKT_LEN,
-					SLAB_ATOMIC, &yld->ctl_dma);
+					GFP_ATOMIC, &yld->ctl_dma);
 	if (!yld->ctl_data)
 		return usb_cleanup(yld, -ENOMEM);
 
 	yld->ctl_req = usb_buffer_alloc(udev, sizeof(*(yld->ctl_req)),
-					SLAB_ATOMIC, &yld->ctl_req_dma);
+					GFP_ATOMIC, &yld->ctl_req_dma);
 	if (yld->ctl_req == NULL)
 		return usb_cleanup(yld, -ENOMEM);
 
@@ -971,7 +968,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			DRIVER_VERSION, sizeof(DRIVER_VERSION));
 
 	/* Register sysfs hooks (don't care about failure) */
-	sysfs_create_group(&intf->dev.kobj, &yld_attr_group);
+	ret = sysfs_create_group(&intf->dev.kobj, &yld_attr_group);
 	return 0;
 }
 

@@ -42,7 +42,11 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 						    drm_file_t * filp_priv,
 						    u32 *offset)
 {
-	u32 off = *offset;
+	u64 off = *offset;
+	u32 fb_start = dev_priv->fb_location;
+	u32 fb_end = fb_start + dev_priv->fb_size - 1;
+	u32 gart_start = dev_priv->gart_vm_start;
+	u32 gart_end = gart_start + dev_priv->gart_size - 1;
 	struct drm_radeon_driver_file_fields *radeon_priv;
 
 	/* Hrm ... the story of the offset ... So this function converts
@@ -62,10 +66,8 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 	/* First, the best case, the offset already lands in either the
 	 * framebuffer or the GART mapped space
 	 */
-	if ((off >= dev_priv->fb_location &&
-	     off < (dev_priv->fb_location + dev_priv->fb_size)) ||
-	    (off >= dev_priv->gart_vm_start &&
-	     off < (dev_priv->gart_vm_start + dev_priv->gart_size)))
+	if ((off >= fb_start && off <= fb_end) ||
+	    (off >= gart_start && off <= gart_end))
 		return 0;
 
 	/* Ok, that didn't happen... now check if we have a zero based
@@ -78,16 +80,13 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 	}
 
 	/* Finally, assume we aimed at a GART offset if beyond the fb */
-	if (off > (dev_priv->fb_location + dev_priv->fb_size))
-		off = off - (dev_priv->fb_location + dev_priv->fb_size) +
-			dev_priv->gart_vm_start;
+	if (off > fb_end)
+		off = off - fb_end - 1 + gart_start;
 
 	/* Now recheck and fail if out of bounds */
-	if ((off >= dev_priv->fb_location &&
-	     off < (dev_priv->fb_location + dev_priv->fb_size)) ||
-	    (off >= dev_priv->gart_vm_start &&
-	     off < (dev_priv->gart_vm_start + dev_priv->gart_size))) {
-		DRM_DEBUG("offset fixed up to 0x%x\n", off);
+	if ((off >= fb_start && off <= fb_end) ||
+	    (off >= gart_start && off <= gart_end)) {
+		DRM_DEBUG("offset fixed up to 0x%x\n", (unsigned int)off);
 		*offset = off;
 		return 0;
 	}
@@ -276,6 +275,8 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 						     unsigned int *cmdsz)
 {
 	u32 *cmd = (u32 *) cmdbuf->buf;
+	u32 offset, narrays;
+	int count, i, k;
 
 	*cmdsz = 2 + ((cmd[0] & RADEON_CP_PACKET_COUNT_MASK) >> 16);
 
@@ -289,10 +290,106 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 		return DRM_ERR(EINVAL);
 	}
 
-	/* Check client state and fix it up if necessary */
-	if (cmd[0] & 0x8000) {	/* MSB of opcode: next DWORD GUI_CNTL */
-		u32 offset;
+	switch(cmd[0] & 0xff00) {
+	/* XXX Are there old drivers needing other packets? */
 
+	case RADEON_3D_DRAW_IMMD:
+	case RADEON_3D_DRAW_VBUF:
+	case RADEON_3D_DRAW_INDX:
+	case RADEON_WAIT_FOR_IDLE:
+	case RADEON_CP_NOP:
+	case RADEON_3D_CLEAR_ZMASK:
+/*	case RADEON_CP_NEXT_CHAR:
+	case RADEON_CP_PLY_NEXTSCAN:
+	case RADEON_CP_SET_SCISSORS: */ /* probably safe but will never need them? */
+		/* these packets are safe */
+		break;
+
+	case RADEON_CP_3D_DRAW_IMMD_2:
+	case RADEON_CP_3D_DRAW_VBUF_2:
+	case RADEON_CP_3D_DRAW_INDX_2:
+	case RADEON_3D_CLEAR_HIZ:
+		/* safe but r200 only */
+		if (dev_priv->microcode_version != UCODE_R200) {
+			DRM_ERROR("Invalid 3d packet for r100-class chip\n");
+			return DRM_ERR(EINVAL);
+		}
+		break;
+
+	case RADEON_3D_LOAD_VBPNTR:
+		count = (cmd[0] >> 16) & 0x3fff;
+
+		if (count > 18) { /* 12 arrays max */
+			DRM_ERROR("Too large payload in 3D_LOAD_VBPNTR (count=%d)\n",
+				  count);
+			return DRM_ERR(EINVAL);
+		}
+
+		/* carefully check packet contents */
+		narrays = cmd[1] & ~0xc000;
+		k = 0;
+		i = 2;
+		while ((k < narrays) && (i < (count + 2))) {
+			i++;		/* skip attribute field */
+			if (radeon_check_and_fixup_offset(dev_priv, filp_priv, &cmd[i])) {
+				DRM_ERROR
+				    ("Invalid offset (k=%d i=%d) in 3D_LOAD_VBPNTR packet.\n",
+				     k, i);
+				return DRM_ERR(EINVAL);
+			}
+			k++;
+			i++;
+			if (k == narrays)
+				break;
+			/* have one more to process, they come in pairs */
+			if (radeon_check_and_fixup_offset(dev_priv, filp_priv, &cmd[i])) {
+				DRM_ERROR
+				    ("Invalid offset (k=%d i=%d) in 3D_LOAD_VBPNTR packet.\n",
+				     k, i);
+				return DRM_ERR(EINVAL);
+			}
+			k++;
+			i++;
+		}
+		/* do the counts match what we expect ? */
+		if ((k != narrays) || (i != (count + 2))) {
+			DRM_ERROR
+			    ("Malformed 3D_LOAD_VBPNTR packet (k=%d i=%d narrays=%d count+1=%d).\n",
+			      k, i, narrays, count + 1);
+			return DRM_ERR(EINVAL);
+		}
+		break;
+
+	case RADEON_3D_RNDR_GEN_INDX_PRIM:
+		if (dev_priv->microcode_version != UCODE_R100) {
+			DRM_ERROR("Invalid 3d packet for r200-class chip\n");
+			return DRM_ERR(EINVAL);
+		}
+		if (radeon_check_and_fixup_offset(dev_priv, filp_priv, &cmd[1])) {
+				DRM_ERROR("Invalid rndr_gen_indx offset\n");
+				return DRM_ERR(EINVAL);
+		}
+		break;
+
+	case RADEON_CP_INDX_BUFFER:
+		if (dev_priv->microcode_version != UCODE_R200) {
+			DRM_ERROR("Invalid 3d packet for r100-class chip\n");
+			return DRM_ERR(EINVAL);
+		}
+		if ((cmd[1] & 0x8000ffff) != 0x80000810) {
+			DRM_ERROR("Invalid indx_buffer reg address %08X\n", cmd[1]);
+			return DRM_ERR(EINVAL);
+		}
+		if (radeon_check_and_fixup_offset(dev_priv, filp_priv, &cmd[2])) {
+			DRM_ERROR("Invalid indx_buffer offset is %08X\n", cmd[2]);
+			return DRM_ERR(EINVAL);
+		}
+		break;
+
+	case RADEON_CNTL_HOSTDATA_BLT:
+	case RADEON_CNTL_PAINT_MULTI:
+	case RADEON_CNTL_BITBLT_MULTI:
+		/* MSB of opcode: next DWORD GUI_CNTL */
 		if (cmd[1] & (RADEON_GMC_SRC_PITCH_OFFSET_CNTL
 			      | RADEON_GMC_DST_PITCH_OFFSET_CNTL)) {
 			offset = cmd[2] << 10;
@@ -314,6 +411,11 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 			}
 			cmd[3] = (cmd[3] & 0xffc00000) | offset >> 10;
 		}
+		break;
+
+	default:
+		DRM_ERROR("Invalid packet type %x\n", cmd[0] & 0xff00);
+		return DRM_ERR(EINVAL);
 	}
 
 	return 0;
@@ -869,7 +971,7 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 		 */
 		dev_priv->sarea_priv->ctx_owner = 0;
 
-		if ((dev_priv->flags & CHIP_HAS_HIERZ)
+		if ((dev_priv->flags & RADEON_HAS_HIERZ)
 		    && (flags & RADEON_USE_HIERZ)) {
 			/* FIXME : reverse engineer that for Rx00 cards */
 			/* FIXME : the mask supposedly contains low-res z values. So can't set
@@ -914,7 +1016,7 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 		for (i = 0; i < nbox; i++) {
 			int tileoffset, nrtilesx, nrtilesy, j;
 			/* it looks like r200 needs rv-style clears, at least if hierz is not enabled? */
-			if ((dev_priv->flags & CHIP_HAS_HIERZ)
+			if ((dev_priv->flags & RADEON_HAS_HIERZ)
 			    && !(dev_priv->microcode_version == UCODE_R200)) {
 				/* FIXME : figure this out for r200 (when hierz is enabled). Or
 				   maybe r200 actually doesn't need to put the low-res z value into
@@ -998,7 +1100,7 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 		}
 
 		/* TODO don't always clear all hi-level z tiles */
-		if ((dev_priv->flags & CHIP_HAS_HIERZ)
+		if ((dev_priv->flags & RADEON_HAS_HIERZ)
 		    && (dev_priv->microcode_version == UCODE_R200)
 		    && (flags & RADEON_USE_HIERZ))
 			/* r100 and cards without hierarchical z-buffer have no high-level z-buffer */
@@ -1270,9 +1372,9 @@ static void radeon_cp_dispatch_swap(drm_device_t * dev)
 
 		DRM_DEBUG("dispatch swap %d,%d-%d,%d\n", x, y, w, h);
 
-		BEGIN_RING(7);
+		BEGIN_RING(9);
 
-		OUT_RING(CP_PACKET3(RADEON_CNTL_BITBLT_MULTI, 5));
+		OUT_RING(CP_PACKET0(RADEON_DP_GUI_MASTER_CNTL, 0));
 		OUT_RING(RADEON_GMC_SRC_PITCH_OFFSET_CNTL |
 			 RADEON_GMC_DST_PITCH_OFFSET_CNTL |
 			 RADEON_GMC_BRUSH_NONE |
@@ -1284,6 +1386,7 @@ static void radeon_cp_dispatch_swap(drm_device_t * dev)
 
 		/* Make this work even if front & back are flipped:
 		 */
+		OUT_RING(CP_PACKET0(RADEON_SRC_PITCH_OFFSET, 1));
 		if (dev_priv->current_page == 0) {
 			OUT_RING(dev_priv->back_pitch_offset);
 			OUT_RING(dev_priv->front_pitch_offset);
@@ -1292,6 +1395,7 @@ static void radeon_cp_dispatch_swap(drm_device_t * dev)
 			OUT_RING(dev_priv->back_pitch_offset);
 		}
 
+		OUT_RING(CP_PACKET0(RADEON_SRC_X_Y, 2));
 		OUT_RING((x << 16) | y);
 		OUT_RING((x << 16) | y);
 		OUT_RING((w << 16) | h);
@@ -2987,16 +3091,21 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 	case RADEON_PARAM_GART_TEX_HANDLE:
 		value = dev_priv->gart_textures_offset;
 		break;
-	
+	case RADEON_PARAM_SCRATCH_OFFSET:
+		if (!dev_priv->writeback_works)
+			return DRM_ERR(EINVAL);
+		value = RADEON_SCRATCH_REG_OFFSET;
+		break;
 	case RADEON_PARAM_CARD_TYPE:
-		if (dev_priv->flags & CHIP_IS_PCIE)
+		if (dev_priv->flags & RADEON_IS_PCIE)
 			value = RADEON_CARD_PCIE;
-		else if (dev_priv->flags & CHIP_IS_AGP)
+		else if (dev_priv->flags & RADEON_IS_AGP)
 			value = RADEON_CARD_AGP;
 		else
 			value = RADEON_CARD_PCI;
 		break;
 	default:
+		DRM_DEBUG("Invalid parameter %d\n", param.param);
 		return DRM_ERR(EINVAL);
 	}
 

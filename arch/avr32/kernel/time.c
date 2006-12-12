@@ -124,15 +124,15 @@ unsigned long long sched_clock(void)
  *
  * In UP mode, it is invoked from the (global) timer_interrupt.
  */
-static void local_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static void local_timer_interrupt(int irq, void *dev_id)
 {
 	if (current->pid)
-		profile_tick(CPU_PROFILING, regs);
-	update_process_times(user_mode(regs));
+		profile_tick(CPU_PROFILING);
+	update_process_times(user_mode(get_irq_regs()));
 }
 
 static irqreturn_t
-timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+timer_interrupt(int irq, void *dev_id)
 {
 	unsigned int count;
 
@@ -148,7 +148,7 @@ timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * Call the generic timer interrupt handler
 	 */
 	write_seqlock(&xtime_lock);
-	do_timer(regs);
+	do_timer(1);
 	write_sequnlock(&xtime_lock);
 
 	/*
@@ -157,7 +157,7 @@ timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 *
 	 * SMP is not supported yet.
 	 */
-	local_timer_interrupt(irq, dev_id, regs);
+	local_timer_interrupt(irq, dev_id);
 
 	return IRQ_HANDLED;
 }

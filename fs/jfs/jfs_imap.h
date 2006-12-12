@@ -1,18 +1,18 @@
 /*
- *   Copyright (c) International Business Machines Corp., 2000-2002
+ *   Copyright (C) International Business Machines Corp., 2000-2002
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef	_H_JFS_IMAP
@@ -45,13 +45,13 @@
 /* get the starting block number of the 4K page of an inode extent
  * that contains ino.
  */
-#define INOPBLK(pxd,ino,l2nbperpg)    	(addressPXD((pxd)) +		\
+#define INOPBLK(pxd,ino,l2nbperpg)	(addressPXD((pxd)) +		\
 	((((ino) & (INOSPEREXT-1)) >> L2INOSPERPAGE) << (l2nbperpg)))
 
 /*
  *	inode allocation map:
- * 
- * inode allocation map consists of 
+ *
+ * inode allocation map consists of
  * . the inode map control page and
  * . inode allocation group pages (per 4096 inodes)
  * which are addressed by standard JFS xtree.
@@ -159,11 +159,11 @@ struct inomap {
 #define	im_maxag	im_imap.in_maxag
 
 extern int diFree(struct inode *);
-extern int diAlloc(struct inode *, boolean_t, struct inode *);
+extern int diAlloc(struct inode *, bool, struct inode *);
 extern int diSync(struct inode *);
 /* external references */
 extern int diUpdatePMap(struct inode *ipimap, unsigned long inum,
-			boolean_t is_free, struct tblock * tblk);
+			bool is_free, struct tblock * tblk);
 extern int diExtendFS(struct inode *ipimap, struct inode *ipbmap);
 extern int diMount(struct inode *);
 extern int diUnmount(struct inode *, int);

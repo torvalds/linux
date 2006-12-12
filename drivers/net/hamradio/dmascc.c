@@ -249,10 +249,10 @@ static void start_timer(struct scc_priv *priv, int t, int r15);
 static inline unsigned char random(void);
 
 static inline void z8530_isr(struct scc_info *info);
-static irqreturn_t scc_isr(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t scc_isr(int irq, void *dev_id);
 static void rx_isr(struct scc_priv *priv);
 static void special_condition(struct scc_priv *priv, int rc);
-static void rx_bh(void *arg);
+static void rx_bh(struct work_struct *);
 static void tx_isr(struct scc_priv *priv);
 static void es_isr(struct scc_priv *priv);
 static void tm_isr(struct scc_priv *priv);
@@ -264,12 +264,6 @@ static int io[MAX_NUM_DEVS] __initdata = { 0, };
 
 /* Beware! hw[] is also used in cleanup_module(). */
 static struct scc_hardware hw[NUM_TYPES] __initdata_or_module = HARDWARE;
-static char ax25_broadcast[7] __initdata =
-    { 'Q' << 1, 'S' << 1, 'T' << 1, ' ' << 1, ' ' << 1, ' ' << 1,
-'0' << 1 };
-static char ax25_test[7] __initdata =
-    { 'L' << 1, 'I' << 1, 'N' << 1, 'U' << 1, 'X' << 1, ' ' << 1,
-'1' << 1 };
 
 
 /* Global variables */
@@ -443,8 +437,8 @@ static void __init dev_setup(struct net_device *dev)
 	dev->mtu = 1500;
 	dev->addr_len = AX25_ADDR_LEN;
 	dev->tx_queue_len = 64;
-	memcpy(dev->broadcast, ax25_broadcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr, ax25_test, AX25_ADDR_LEN);
+	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
+	memcpy(dev->dev_addr, &ax25_defaddr, AX25_ADDR_LEN);
 }
 
 static int __init setup_adapter(int card_base, int type, int n)
@@ -579,7 +573,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 		priv->param.clocks = TCTRxCP | RCRTxCP;
 		priv->param.persist = 256;
 		priv->param.dma = -1;
-		INIT_WORK(&priv->rx_work, rx_bh, priv);
+		INIT_WORK(&priv->rx_work, rx_bh);
 		dev->priv = priv;
 		sprintf(dev->name, "dmascc%i", 2 * n + i);
 		dev->base_addr = card_base;
@@ -1142,7 +1136,7 @@ static inline void z8530_isr(struct scc_info *info)
 }
 
 
-static irqreturn_t scc_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t scc_isr(int irq, void *dev_id)
 {
 	struct scc_info *info = dev_id;
 
@@ -1272,9 +1266,9 @@ static void special_condition(struct scc_priv *priv, int rc)
 }
 
 
-static void rx_bh(void *arg)
+static void rx_bh(struct work_struct *ugli_api)
 {
-	struct scc_priv *priv = arg;
+	struct scc_priv *priv = container_of(ugli_api, struct scc_priv, rx_work);
 	int i = priv->rx_tail;
 	int cb;
 	unsigned long flags;

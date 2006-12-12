@@ -28,7 +28,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_artop"
-#define DRV_VERSION	"0.4.1"
+#define DRV_VERSION	"0.4.2"
 
 /*
  *	The ARTOP has 33 Mhz and "over clocked" timing tables. Until we
@@ -47,11 +47,9 @@ static int artop6210_pre_reset(struct ata_port *ap)
 		{ 0x4AU, 1U, 0x04UL, 0x04UL },	/* port 1 */
 	};
 
-	if (!pci_test_config_bits(pdev, &artop_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (!pci_test_config_bits(pdev, &artop_enable_bits[ap->port_no]))
+		return -ENOENT;
+
 	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
@@ -90,13 +88,11 @@ static int artop6260_pre_reset(struct ata_port *ap)
 	u8 tmp;
 
 	/* Odd numbered device ids are the units with enable bits (the -R cards) */
-	if (pdev->device % 1 && !pci_test_config_bits(pdev, &artop_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (pdev->device % 1 && !pci_test_config_bits(pdev, &artop_enable_bits[ap->port_no]))
+		return -ENOENT;
+
 	pci_read_config_byte(pdev, 0x49, &tmp);
-	if (tmp & (1 >> ap->port_no))
+	if (tmp & (1 << ap->port_no))
 		ap->cbl = ATA_CBL_PATA40;
 	else
 		ap->cbl = ATA_CBL_PATA80;
@@ -311,13 +307,13 @@ static struct scsi_host_template artop_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
 };
 
@@ -344,7 +340,7 @@ static const struct ata_port_operations artop6210_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.eng_timeout		= ata_eng_timeout,
+
 	.data_xfer		= ata_pio_data_xfer,
 
 	.irq_handler		= ata_interrupt,
@@ -378,8 +374,6 @@ static const struct ata_port_operations artop6260_ops = {
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_pio_data_xfer,
-
-	.eng_timeout		= ata_eng_timeout,
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
@@ -432,7 +426,7 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops	= &artop6260_ops,
 	};
 	struct ata_port_info *port_info[2];
-	struct ata_port_info *info;
+	struct ata_port_info *info = NULL;
 	int ports = 2;
 
 	if (!printed_version++)
@@ -476,16 +470,20 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		pci_write_config_byte(pdev, 0x4a, (reg & ~0x01) | 0x80);
 
 	}
+
+	BUG_ON(info == NULL);
+
 	port_info[0] = port_info[1] = info;
 	return ata_pci_init_one(pdev, port_info, ports);
 }
 
 static const struct pci_device_id artop_pci_tbl[] = {
-	{ 0x1191, 0x0005, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ 0x1191, 0x0006, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ 0x1191, 0x0007, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ 0x1191, 0x0008, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
-	{ 0x1191, 0x0009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
+	{ PCI_VDEVICE(ARTOP, 0x0005), 0 },
+	{ PCI_VDEVICE(ARTOP, 0x0006), 1 },
+	{ PCI_VDEVICE(ARTOP, 0x0007), 1 },
+	{ PCI_VDEVICE(ARTOP, 0x0008), 2 },
+	{ PCI_VDEVICE(ARTOP, 0x0009), 2 },
+
 	{ }	/* terminate list */
 };
 
@@ -505,7 +503,6 @@ static void __exit artop_exit(void)
 {
 	pci_unregister_driver(&artop_pci_driver);
 }
-
 
 module_init(artop_init);
 module_exit(artop_exit);

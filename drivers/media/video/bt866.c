@@ -65,7 +65,7 @@ MODULE_LICENSE("GPL");
 struct bt866 {
 	struct i2c_client *i2c;
 	int addr;
-	unsigned char reg[128];
+	unsigned char reg[256];
 
 	int norm;
 	int enable;

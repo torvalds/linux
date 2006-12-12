@@ -16,6 +16,7 @@
 
 #include <asm/lowcore.h>
 #include <asm/s390_ext.h>
+#include <asm/irq_regs.h>
 #include <asm/irq.h>
 
 /*
@@ -114,7 +115,9 @@ void do_extint(struct pt_regs *regs, unsigned short code)
 {
         ext_int_info_t *p;
         int index;
+	struct pt_regs *old_regs;
 
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 	asm volatile ("mc 0,0");
 	if (S390_lowcore.int_clock >= S390_lowcore.jiffy_timer)
@@ -122,18 +125,18 @@ void do_extint(struct pt_regs *regs, unsigned short code)
 		 * Make sure that the i/o interrupt did not "overtake"
 		 * the last HZ timer interrupt.
 		 */
-		account_ticks(regs);
+		account_ticks();
 	kstat_cpu(smp_processor_id()).irqs[EXTERNAL_INTERRUPT]++;
         index = ext_hash(code);
 	for (p = ext_int_hash[index]; p; p = p->next) {
 		if (likely(p->code == code)) {
 			if (likely(p->handler))
-				p->handler(regs, code);
+				p->handler(code);
 		}
 	}
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 EXPORT_SYMBOL(register_external_interrupt);
 EXPORT_SYMBOL(unregister_external_interrupt);
-

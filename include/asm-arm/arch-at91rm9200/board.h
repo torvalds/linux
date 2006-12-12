@@ -48,13 +48,14 @@ struct at91_cf_data {
 	u8	det_pin;		/* Card detect */
 	u8	vcc_pin;		/* power switching */
 	u8	rst_pin;		/* card reset */
+	u8	chipselect;		/* EBI Chip Select number */
 };
 extern void __init at91_add_device_cf(struct at91_cf_data *data);
 
  /* MMC / SD */
 struct at91_mmc_data {
 	u8		det_pin;	/* card detect IRQ */
-	unsigned	is_b:1;		/* uses B side (vs A) */
+	unsigned	slot_b:1;	/* uses Slot B */
 	unsigned	wire4:1;	/* (SD) supports DAT0..DAT3 */
 	u8		wp_pin;		/* (SD) writeprotect detect */
 	u8		vcc_pin;	/* power switching (high == on) */
@@ -81,7 +82,8 @@ struct at91_nand_data {
 	u8		rdy_pin;	/* ready/busy */
 	u8		ale;		/* address line number connected to ALE */
 	u8		cle;		/* address line number connected to CLE */
-        struct mtd_partition* (*partition_info)(int, int*);
+	u8		bus_width_16;	/* buswidth is 16 bit */
+	struct mtd_partition* (*partition_info)(int, int*);
 };
 extern void __init at91_add_device_nand(struct at91_nand_data *data);
 
@@ -97,12 +99,13 @@ struct at91_uart_config {
 	unsigned short	nr_tty;		/* number of serial tty's */
 	short		tty_map[];	/* map UART to tty number */
 };
-extern struct platform_device *at91_default_console_device;
+extern struct platform_device *atmel_default_console_device;
 extern void __init at91_init_serial(struct at91_uart_config *config);
 
-struct at91_uart_data {
+struct atmel_uart_data {
 	short		use_dma_tx;	/* use transmit DMA? */
 	short		use_dma_rx;	/* use receive DMA? */
+	void __iomem	*regs;		/* virtual base address, if any */
 };
 extern void __init at91_add_device_serial(void);
 

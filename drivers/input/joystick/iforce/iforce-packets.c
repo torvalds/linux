@@ -140,7 +140,10 @@ static int mark_core_as_ready(struct iforce *iforce, unsigned short addr)
 {
 	int i;
 
-	for (i = 0; i < iforce->dev->ff_effects_max; ++i) {
+	if (!iforce->dev->ff)
+		return 0;
+
+	for (i = 0; i < iforce->dev->ff->max_effects; ++i) {
 		if (test_bit(FF_CORE_IS_USED, iforce->core_effects[i].flags) &&
 		    (iforce->core_effects[i].mod1_chunk.start == addr ||
 		     iforce->core_effects[i].mod2_chunk.start == addr)) {
@@ -152,7 +155,7 @@ static int mark_core_as_ready(struct iforce *iforce, unsigned short addr)
 	return -1;
 }
 
-void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data, struct pt_regs *regs)
+void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
 {
 	struct input_dev *dev = iforce->dev;
 	int i;
@@ -180,9 +183,6 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data, 
 
 		case 0x01:	/* joystick position data */
 		case 0x03:	/* wheel position data */
-
-			input_regs(dev, regs);
-
 			if (HI(cmd) == 1) {
 				input_report_abs(dev, ABS_X, (__s16) (((__s16)data[1] << 8) | data[0]));
 				input_report_abs(dev, ABS_Y, (__s16) (((__s16)data[3] << 8) | data[2]));
@@ -221,7 +221,6 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data, 
 			break;
 
 		case 0x02:	/* status report */
-			input_regs(dev, regs);
 			input_report_key(dev, BTN_DEAD, data[0] & 0x02);
 			input_sync(dev);
 
@@ -229,19 +228,17 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data, 
 			i = data[1] & 0x7f;
 			if (data[1] & 0x80) {
 				if (!test_and_set_bit(FF_CORE_IS_PLAYED, iforce->core_effects[i].flags)) {
-				/* Report play event */
-				input_report_ff_status(dev, i, FF_STATUS_PLAYING);
+					/* Report play event */
+					input_report_ff_status(dev, i, FF_STATUS_PLAYING);
 				}
-			}
-			else if (test_and_clear_bit(FF_CORE_IS_PLAYED, iforce->core_effects[i].flags)) {
+			} else if (test_and_clear_bit(FF_CORE_IS_PLAYED, iforce->core_effects[i].flags)) {
 				/* Report stop event */
 				input_report_ff_status(dev, i, FF_STATUS_STOPPED);
 			}
 			if (LO(cmd) > 3) {
 				int j;
-				for (j=3; j<LO(cmd); j+=2) {
+				for (j = 3; j < LO(cmd); j += 2)
 					mark_core_as_ready(iforce, data[j] | (data[j+1]<<8));
-				}
 			}
 			break;
 	}

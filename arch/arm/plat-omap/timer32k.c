@@ -105,6 +105,8 @@ static inline unsigned long omap_32k_timer_read(int reg)
 
 static inline void omap_32k_timer_start(unsigned long load_val)
 {
+	if (!load_val)
+		load_val = 1;
 	omap_32k_timer_write(load_val, OMAP1_32K_TIMER_TVR);
 	omap_32k_timer_write(0x0f, OMAP1_32K_TIMER_CR);
 }
@@ -192,13 +194,9 @@ unsigned long long sched_clock(void)
  * issues with dynamic tick. In the dynamic tick case, we need to lock
  * with irqsave.
  */
-static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
-					    struct pt_regs *regs)
+static inline irqreturn_t _omap_32k_timer_interrupt(int irq, void *dev_id)
 {
-	unsigned long flags;
 	unsigned long now;
-
-	write_seqlock_irqsave(&xtime_lock, flags);
 
 	omap_32k_timer_ack_irq();
 	now = omap_32k_sync_timer_read();
@@ -206,7 +204,7 @@ static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
 	while ((signed long)(now - omap_32k_last_tick)
 						>= OMAP_32K_TICKS_PER_HZ) {
 		omap_32k_last_tick += OMAP_32K_TICKS_PER_HZ;
-		timer_tick(regs);
+		timer_tick();
 	}
 
 	/* Restart timer so we don't drift off due to modulo or dynamic tick.
@@ -215,6 +213,21 @@ static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
 	 * continuous timer can be overridden from pm_idle to be longer.
 	 */
 	omap_32k_timer_start(omap_32k_last_tick + OMAP_32K_TICKS_PER_HZ - now);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t omap_32k_timer_handler(int irq, void *dev_id)
+{
+	return _omap_32k_timer_interrupt(irq, dev_id);
+}
+
+static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id)
+{
+	unsigned long flags;
+
+	write_seqlock_irqsave(&xtime_lock, flags);
+	_omap_32k_timer_interrupt(irq, dev_id);
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
 	return IRQ_HANDLED;
@@ -230,7 +243,15 @@ static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
  */
 void omap_32k_timer_reprogram(unsigned long next_tick)
 {
-	omap_32k_timer_start(JIFFIES_TO_HW_TICKS(next_tick, 32768) + 1);
+	unsigned long ticks = JIFFIES_TO_HW_TICKS(next_tick, 32768) + 1;
+	unsigned long now = omap_32k_sync_timer_read();
+	unsigned long idled = now - omap_32k_last_tick;
+
+	if (idled + 1 < ticks)
+		ticks -= idled;
+	else
+		ticks = 1;
+	omap_32k_timer_start(ticks);
 }
 
 static struct irqaction omap_32k_timer_irq;
@@ -252,7 +273,7 @@ static struct dyn_tick_timer omap_dyn_tick_timer = {
 	.enable		= omap_32k_timer_enable_dyn_tick,
 	.disable	= omap_32k_timer_disable_dyn_tick,
 	.reprogram	= omap_32k_timer_reprogram,
-	.handler	= omap_32k_timer_interrupt,
+	.handler	= omap_32k_timer_handler,
 };
 #endif	/* CONFIG_NO_IDLE_HZ */
 

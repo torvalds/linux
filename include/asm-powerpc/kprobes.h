@@ -44,6 +44,28 @@ typedef unsigned int kprobe_opcode_t;
 #define IS_TDI(instr)		(((instr) & 0xfc000000) == 0x08000000)
 #define IS_TWI(instr)		(((instr) & 0xfc000000) == 0x0c000000)
 
+/*
+ * 64bit powerpc uses function descriptors.
+ * Handle cases where:
+ * 		- User passes a <.symbol> or <module:.symbol>
+ * 		- User passes a <symbol> or <module:symbol>
+ * 		- User passes a non-existant symbol, kallsyms_lookup_name
+ * 		  returns 0. Don't deref the NULL pointer in that case
+ */
+#define kprobe_lookup_name(name, addr)					\
+{									\
+	addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);		\
+	if (addr) {							\
+		char *colon;						\
+		if ((colon = strchr(name, ':')) != NULL) {		\
+			colon++;					\
+			if (*colon != '\0' && *colon != '.')		\
+				addr = *(kprobe_opcode_t **)addr;	\
+		} else if (name[0] != '.')				\
+			addr = *(kprobe_opcode_t **)addr;		\
+	}								\
+}
+
 #define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)((func_descr_t *)pentry)
 
 #define is_trap(instr)	(IS_TW(instr) || IS_TD(instr) || \

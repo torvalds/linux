@@ -28,6 +28,8 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/init.h>
 #include <linux/smp_lock.h>
+#include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include <media/tvaudio.h>
 #include <media/v4l2-common.h>
@@ -124,11 +126,8 @@ struct CHIPSTATE {
 	int input;
 
 	/* thread */
-	pid_t                tpid;
-	struct completion    texit;
-	wait_queue_head_t    wq;
+	struct task_struct   *thread;
 	struct timer_list    wt;
-	int                  done;
 	int                  watch_stereo;
 	int 		     audmode;
 };
@@ -264,28 +263,23 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 static void chip_thread_wake(unsigned long data)
 {
 	struct CHIPSTATE *chip = (struct CHIPSTATE*)data;
-	wake_up_interruptible(&chip->wq);
+	wake_up_process(chip->thread);
 }
 
 static int chip_thread(void *data)
 {
-	DECLARE_WAITQUEUE(wait, current);
 	struct CHIPSTATE *chip = data;
 	struct CHIPDESC  *desc = chiplist + chip->type;
 
-	daemonize("%s", chip->c.name);
-	allow_signal(SIGTERM);
 	v4l_dbg(1, debug, &chip->c, "%s: thread started\n", chip->c.name);
 
 	for (;;) {
-		add_wait_queue(&chip->wq, &wait);
-		if (!chip->done) {
-			set_current_state(TASK_INTERRUPTIBLE);
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (!kthread_should_stop())
 			schedule();
-		}
-		remove_wait_queue(&chip->wq, &wait);
+		set_current_state(TASK_RUNNING);
 		try_to_freeze();
-		if (chip->done || signal_pending(current))
+		if (kthread_should_stop())
 			break;
 		v4l_dbg(1, debug, &chip->c, "%s: thread wakeup\n", chip->c.name);
 
@@ -301,7 +295,6 @@ static int chip_thread(void *data)
 	}
 
 	v4l_dbg(1, debug, &chip->c, "%s: thread exiting\n", chip->c.name);
-	complete_and_exit(&chip->texit, 0);
 	return 0;
 }
 
@@ -1536,19 +1529,18 @@ static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
 		chip_write(chip,desc->treblereg,desc->treblefunc(chip->treble));
 	}
 
-	chip->tpid = -1;
+	chip->thread = NULL;
 	if (desc->checkmode) {
 		/* start async thread */
 		init_timer(&chip->wt);
 		chip->wt.function = chip_thread_wake;
 		chip->wt.data     = (unsigned long)chip;
-		init_waitqueue_head(&chip->wq);
-		init_completion(&chip->texit);
-		chip->tpid = kernel_thread(chip_thread,(void *)chip,0);
-		if (chip->tpid < 0)
-			v4l_warn(&chip->c, "%s: kernel_thread() failed\n",
+		chip->thread = kthread_run(chip_thread, chip, chip->c.name);
+		if (IS_ERR(chip->thread)) {
+			v4l_warn(&chip->c, "%s: failed to create kthread\n",
 			       chip->c.name);
-		wake_up_interruptible(&chip->wq);
+			chip->thread = NULL;
+		}
 	}
 	return 0;
 }
@@ -1569,11 +1561,10 @@ static int chip_detach(struct i2c_client *client)
 	struct CHIPSTATE *chip = i2c_get_clientdata(client);
 
 	del_timer_sync(&chip->wt);
-	if (chip->tpid >= 0) {
+	if (chip->thread) {
 		/* shutdown async thread */
-		chip->done = 1;
-		wake_up_interruptible(&chip->wq);
-		wait_for_completion(&chip->texit);
+		kthread_stop(chip->thread);
+		chip->thread = NULL;
 	}
 
 	i2c_detach_client(&chip->c);

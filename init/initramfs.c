@@ -182,6 +182,10 @@ static int __init do_collect(void)
 
 static int __init do_header(void)
 {
+	if (memcmp(collected, "070707", 6)==0) {
+		error("incorrect cpio method used: use -H newc option");
+		return 1;
+	}
 	if (memcmp(collected, "070701", 6)) {
 		error("no cpio magic");
 		return 1;
@@ -522,7 +526,7 @@ static void __init free_initrd(void)
 
 #endif
 
-void __init populate_rootfs(void)
+static int __init populate_rootfs(void)
 {
 	char *err = unpack_to_rootfs(__initramfs_start,
 			 __initramfs_end - __initramfs_start, 0);
@@ -540,7 +544,7 @@ void __init populate_rootfs(void)
 			unpack_to_rootfs((char *)initrd_start,
 				initrd_end - initrd_start, 0);
 			free_initrd();
-			return;
+			return 0;
 		}
 		printk("it isn't (%s); looks like an initrd\n", err);
 		fd = sys_open("/initrd.image", O_WRONLY|O_CREAT, 0700);
@@ -561,4 +565,6 @@ void __init populate_rootfs(void)
 #endif
 	}
 #endif
+	return 0;
 }
+rootfs_initcall(populate_rootfs);

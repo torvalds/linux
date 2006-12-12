@@ -121,7 +121,7 @@ config SERIAL_8250_RUNTIME_UARTS
 	default "4"
 	help
 	  Set this to the maximum number of serial ports you want
-	  the kernel to register at boot time.  This can be overriden
+	  the kernel to register at boot time.  This can be overridden
 	  with the module parameter "nr_uarts", or boot-time parameter
 	  8250.nr_uarts
 
@@ -151,6 +151,58 @@ config SERIAL_8250_MANY_PORTS
 	  say N here to save some memory. You can also say Y if you have an
 	  "intelligent" multiport card such as Cyclades, Digiboards, etc.
 
+#
+# Multi-port serial cards
+#
+
+config SERIAL_8250_FOURPORT
+	tristate "Support Fourport cards"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  Say Y here if you have an AST FourPort serial board.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_fourport.
+
+config SERIAL_8250_ACCENT
+	tristate "Support Accent cards"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  Say Y here if you have an Accent Async serial board.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_accent.
+
+config SERIAL_8250_BOCA
+	tristate "Support Boca cards"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  Say Y here if you have a Boca serial board.  Please read the Boca
+	  mini-HOWTO, available from <http://www.tldp.org/docs.html#howto>
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_boca.
+
+config SERIAL_8250_EXAR_ST16C554
+	tristate "Support Exar ST16C554/554D Quad UART"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  The Uplogix Envoy TU301 uses this Exar Quad UART.  If you are
+	  tinkering with your Envoy TU301, or have a machine with this UART,
+	  say Y here.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_exar_st16c554.
+
+config SERIAL_8250_HUB6
+	tristate "Support Hub6 cards"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  Say Y here if you have a HUB6 serial board.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_hub6.
+
 config SERIAL_8250_SHARE_IRQ
 	bool "Support for sharing serial interrupts"
 	depends on SERIAL_8250_EXTENDED
@@ -176,48 +228,6 @@ config SERIAL_8250_RSA
 	depends on SERIAL_8250_EXTENDED
 	help
 	  ::: To be written :::
-
-#
-# Multi-port serial cards
-#
-
-config SERIAL_8250_FOURPORT
-	tristate "Support Fourport cards"
-	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
-	help
-	  Say Y here if you have an AST FourPort serial board.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_fourport.
-
-config SERIAL_8250_ACCENT
-	tristate "Support Accent cards"
-	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
-	help
-	  Say Y here if you have an Accent Async serial board.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_accent.
-
-
-config SERIAL_8250_BOCA
-	tristate "Support Boca cards"
-	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
-	help
-	  Say Y here if you have a Boca serial board.  Please read the Boca
-	  mini-HOWTO, avaialble from <http://www.tldp.org/docs.html#howto>
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_boca.
-
-config SERIAL_8250_HUB6
-	tristate "Support Hub6 cards"
-	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
-	help
-	  Say Y here if you have a HUB6 serial board.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_hub6.
 
 config SERIAL_8250_MCA
 	tristate "Support 8250-type ports on MCA buses"
@@ -295,37 +305,37 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  Even if you say Y here, the currently visible framebuffer console
 	  (/dev/tty0) will still be used as the system console by default, but
 	  you can alter that using a kernel command line option such as
-	  "console=ttyAM0". (Try "man bootparam" or see the documentation of
+	  "console=ttyAMA0". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_AT91
-	bool "AT91RM9200 / AT91SAM9261 serial port support"
-	depends on ARM && (ARCH_AT91RM9200 || ARCH_AT91SAM9261)
+config SERIAL_ATMEL
+	bool "AT91 / AT32 on-chip serial port support"
+	depends on (ARM && ARCH_AT91) || AVR32
 	select SERIAL_CORE
 	help
 	  This enables the driver for the on-chip UARTs of the Atmel
-	  AT91RM9200 and AT91SAM926 processor.
+	  AT91 and AT32 processors.
 
-config SERIAL_AT91_CONSOLE
-	bool "Support for console on AT91RM9200 / AT91SAM9261 serial port"
-	depends on SERIAL_AT91=y
+config SERIAL_ATMEL_CONSOLE
+	bool "Support for console on AT91 / AT32 serial port"
+	depends on SERIAL_ATMEL=y
 	select SERIAL_CORE_CONSOLE
 	help
-	  Say Y here if you wish to use a UART on the Atmel AT91RM9200 or
-	  AT91SAM9261 as the system console (the system console is the device
-	  which receives all kernel messages and warnings and which allows
-	  logins in single user mode).
+	  Say Y here if you wish to use an on-chip UART on a Atmel
+	  AT91 or AT32 processor as the system console (the system
+	  console is the device which receives all kernel messages and
+	  warnings and which allows logins in single user mode).
 
-config SERIAL_AT91_TTYAT
-	bool "Install as device ttyAT0-4 instead of ttyS0-4"
-	depends on SERIAL_AT91=y
+config SERIAL_ATMEL_TTYAT
+	bool "Install as device ttyATn instead of ttySn"
+	depends on SERIAL_ATMEL=y
 	help
-	  Say Y here if you wish to have the five internal AT91RM9200 UARTs
-	  appear as /dev/ttyAT0-4 (major 204, minor 154-158) instead of the
-	  normal /dev/ttyS0-4 (major 4, minor 64-68). This is necessary if
-	  you also want other UARTs, such as external 8250/16C550 compatible
-	  UARTs.
+	  Say Y here if you wish to have the internal AT91 / AT32 UARTs
+	  appear as /dev/ttyATn (major 204, minor starting at 154)
+	  instead of the normal /dev/ttySn (major 4, minor starting at
+	  64). This is necessary if you also want other UARTs, such as
+	  external 8250/16C550 compatible UARTs.
 	  The ttySn nodes are legally reserved for the 8250 serial driver
 	  but are often misused by other serial drivers.
 
@@ -511,6 +521,25 @@ config SERIAL_IMX_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
+config SERIAL_UARTLITE
+	tristate "Xilinx uartlite serial port support"
+	depends on PPC32
+	select SERIAL_CORE
+	help
+	  Say Y here if you want to use the Xilinx uartlite serial controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called uartlite.ko.
+
+config SERIAL_UARTLITE_CONSOLE
+	bool "Support for console on Xilinx uartlite serial port"
+	depends on SERIAL_UARTLITE=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use a Xilinx uartlite as the system
+	  console (the system console is the device which receives all kernel
+	  messages and warnings and which allows logins in single user mode).
+
 config SERIAL_SUNCORE
 	bool
 	depends on SPARC
@@ -556,10 +585,11 @@ config SERIAL_MUX
 	default y
 	---help---
 	  Saying Y here will enable the hardware MUX serial driver for
-	  the Nova and K class systems.  The hardware MUX is not 8250/16550 
-	  compatible therefore the /dev/ttyB0 device is shared between the 
-	  Serial MUX and the PDC software console.  The following steps 
-	  need to be completed to use the Serial MUX:
+	  the Nova, K class systems and D class with a 'remote control card'.
+	  The hardware MUX is not 8250/16550 compatible therefore the
+	  /dev/ttyB0 device is shared between the Serial MUX and the PDC
+	  software console. The following steps need to be completed to use
+	  the Serial MUX:
 
 	    1. create the device entry (mknod /dev/ttyB0 c 11 0)
 	    2. Edit the /etc/inittab to start a getty listening on /dev/ttyB0
@@ -642,12 +672,17 @@ config V850E_UART_CONSOLE
 	select SERIAL_CORE_CONSOLE
 
 config SERIAL_SH_SCI
-	tristate "SH SCI(F) serial port support"
+	tristate "SuperH SCI(F) serial port support"
 	depends on SUPERH || H8300
 	select SERIAL_CORE
 
+config SERIAL_SH_SCI_NR_UARTS
+	int "Maximum number of SCI(F) serial ports"
+	depends on SERIAL_SH_SCI
+	default "2"
+
 config SERIAL_SH_SCI_CONSOLE
-	bool "Support for console on SH SCI(F)"
+	bool "Support for console on SuperH SCI(F)"
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
 
@@ -662,7 +697,7 @@ config SERIAL_68328
 	depends on M68328 || M68EZ328 || M68VZ328
 	help
 	  This driver supports the built-in serial port of the Motorola 68328
-	  (standard, EZ and VZ varities).
+	  (standard, EZ and VZ varieties).
 
 config SERIAL_68328_RTS_CTS
 	bool "Support RTS/CTS on 68328 serial port"
@@ -761,37 +796,37 @@ config SERIAL_CPM_SCC1
 	bool "Support for SCC1 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SCC1 as a serial port
+	  Select this option to use SCC1 as a serial port
 
 config SERIAL_CPM_SCC2
 	bool "Support for SCC2 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SCC2 as a serial port
+	  Select this option to use SCC2 as a serial port
 
 config SERIAL_CPM_SCC3
 	bool "Support for SCC3 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SCC3 as a serial port
+	  Select this option to use SCC3 as a serial port
 
 config SERIAL_CPM_SCC4
 	bool "Support for SCC4 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SCC4 as a serial port
+	  Select this option to use SCC4 as a serial port
 
 config SERIAL_CPM_SMC1
 	bool "Support for SMC1 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SMC1 as a serial port
+	  Select this option to use SMC1 as a serial port
 
 config SERIAL_CPM_SMC2
 	bool "Support for SMC2 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SMC2 as a serial port
+	  Select this option to use SMC2 as a serial port
 
 config SERIAL_SGI_L1_CONSOLE
 	bool "SGI Altix L1 serial console support"

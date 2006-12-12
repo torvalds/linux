@@ -141,9 +141,11 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
 	enum zone_type k;
 
 	max = 1 + MAX_NR_ZONES * nodes_weight(*nodes);
+	max++;			/* space for zlcache_ptr (see mmzone.h) */
 	zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
 	if (!zl)
 		return NULL;
+	zl->zlcache_ptr = NULL;
 	num = 0;
 	/* First put in the highest zones from all nodes, then all the next 
 	   lower zones etc. Avoid empty zones because the memory allocator
@@ -219,7 +221,7 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	do {
 		struct page *page;
-		unsigned int nid;
+		int nid;
 
 		if (!pte_present(*pte))
 			continue;
@@ -727,7 +729,7 @@ int do_migrate_pages(struct mm_struct *mm,
 	return -ENOSYS;
 }
 
-static struct page *new_vma_page(struct page *page, unsigned long private)
+static struct page *new_vma_page(struct page *page, unsigned long private, int **x)
 {
 	return NULL;
 }
@@ -1136,7 +1138,9 @@ static unsigned interleave_nodes(struct mempolicy *policy)
  */
 unsigned slab_node(struct mempolicy *policy)
 {
-	switch (policy->policy) {
+	int pol = policy ? policy->policy : MPOL_DEFAULT;
+
+	switch (pol) {
 	case MPOL_INTERLEAVE:
 		return interleave_nodes(policy);
 
@@ -1322,12 +1326,11 @@ struct mempolicy *__mpol_copy(struct mempolicy *old)
 	atomic_set(&new->refcnt, 1);
 	if (new->policy == MPOL_BIND) {
 		int sz = ksize(old->v.zonelist);
-		new->v.zonelist = kmalloc(sz, SLAB_KERNEL);
+		new->v.zonelist = kmemdup(old->v.zonelist, sz, GFP_KERNEL);
 		if (!new->v.zonelist) {
 			kmem_cache_free(policy_cache, new);
 			return ERR_PTR(-ENOMEM);
 		}
-		memcpy(new->v.zonelist, old->v.zonelist, sz);
 	}
 	return new;
 }
@@ -1704,8 +1707,8 @@ void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
  * Display pages allocated per node and memory policy via /proc.
  */
 
-static const char *policy_types[] = { "default", "prefer", "bind",
-				      "interleave" };
+static const char * const policy_types[] =
+	{ "default", "prefer", "bind", "interleave" };
 
 /*
  * Convert a mempolicy into a string.
@@ -1854,7 +1857,7 @@ int show_numa_map(struct seq_file *m, void *v)
 
 	if (file) {
 		seq_printf(m, " file=");
-		seq_path(m, file->f_vfsmnt, file->f_dentry, "\n\t= ");
+		seq_path(m, file->f_path.mnt, file->f_path.dentry, "\n\t= ");
 	} else if (vma->vm_start <= mm->brk && vma->vm_end >= mm->start_brk) {
 		seq_printf(m, " heap");
 	} else if (vma->vm_start <= mm->start_stack &&

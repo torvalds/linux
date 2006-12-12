@@ -72,8 +72,8 @@ init_srm_irqs(long max, unsigned long ignore_mask)
 }
 
 void 
-srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
+srm_device_interrupt(unsigned long vector)
 {
 	int irq = (vector - 0x800) >> 4;
-	handle_irq(irq, regs);
+	handle_irq(irq);
 }

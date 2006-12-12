@@ -62,7 +62,6 @@
 #include <asm/irq.h>
 #include <asm/pci.h>
 #include <asm/processor.h>
-#include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/marvell.h>
 #include <linux/bootmem.h>
@@ -70,8 +69,7 @@
 #include "ocelot_c_fpga.h"
 
 unsigned long marvell_base;
-extern unsigned long mv64340_sram_base;
-unsigned long cpu_clock;
+unsigned int cpu_clock;
 
 /* These functions are used for rebooting or halting the machine*/
 extern void momenco_ocelot_restart(char *command);
@@ -120,7 +118,6 @@ void PMON_v2_setup(void)
 	add_wired_entry(ENTRYLO(0xfe000000), ENTRYLO(0xff000000), 0xfffffffffe000000, PM_16M);
 
 	marvell_base = 0xfffffffff4000000;
-	mv64340_sram_base = 0xfffffffffe000000;
 #else
 	/* marvell and extra space */
 	add_wired_entry(ENTRYLO(0xf4000000), ENTRYLO(0xf4010000), 0xf4000000, PM_64K);
@@ -130,7 +127,6 @@ void PMON_v2_setup(void)
 	add_wired_entry(ENTRYLO(0xfe000000), ENTRYLO(0xff000000), 0xfe000000, PM_16M);
 
 	marvell_base = 0xf4000000;
-	mv64340_sram_base = 0xfe000000;
 #endif
 }
 
@@ -347,22 +343,20 @@ void __init plat_mem_setup(void)
 	}
 }
 
-#ifndef CONFIG_64BIT
-/* This needs to be one of the first initcalls, because no I/O port access
-   can work before this */
+/*
+ * This needs to be one of the first initcalls, because no I/O port access
+ * can work before this
+ */
 static int io_base_ioremap(void)
 {
-	/* we're mapping PCI accesses from 0xc0000000 to 0xf0000000 */
-	void *io_remap_range = ioremap(0xc0000000, 0x30000000);
+	void __iomem * io_remap_range = ioremap(0xc0000000UL, 0x10000);
 
-	if (!io_remap_range) {
+	if (!io_remap_range)
 		panic("Could not ioremap I/O port range");
-	}
-	printk("io_remap_range set at 0x%08x\n", (uint32_t)io_remap_range);
-	set_io_port_base(io_remap_range - 0xc0000000);
+
+	set_io_port_base((unsigned long) io_remap_range);
 
 	return 0;
 }
 
 module_init(io_base_ioremap);
-#endif

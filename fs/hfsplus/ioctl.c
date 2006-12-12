@@ -28,11 +28,11 @@ int hfsplus_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 	case HFSPLUS_IOC_EXT2_GETFLAGS:
 		flags = 0;
 		if (HFSPLUS_I(inode).rootflags & HFSPLUS_FLG_IMMUTABLE)
-			flags |= EXT2_FLAG_IMMUTABLE; /* EXT2_IMMUTABLE_FL */
+			flags |= FS_IMMUTABLE_FL; /* EXT2_IMMUTABLE_FL */
 		if (HFSPLUS_I(inode).rootflags & HFSPLUS_FLG_APPEND)
-			flags |= EXT2_FLAG_APPEND; /* EXT2_APPEND_FL */
+			flags |= FS_APPEND_FL; /* EXT2_APPEND_FL */
 		if (HFSPLUS_I(inode).userflags & HFSPLUS_FLG_NODUMP)
-			flags |= EXT2_FLAG_NODUMP; /* EXT2_NODUMP_FL */
+			flags |= FS_NODUMP_FL; /* EXT2_NODUMP_FL */
 		return put_user(flags, (int __user *)arg);
 	case HFSPLUS_IOC_EXT2_SETFLAGS: {
 		if (IS_RDONLY(inode))
@@ -44,32 +44,31 @@ int hfsplus_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		if (get_user(flags, (int __user *)arg))
 			return -EFAULT;
 
-		if (flags & (EXT2_FLAG_IMMUTABLE|EXT2_FLAG_APPEND) ||
+		if (flags & (FS_IMMUTABLE_FL|FS_APPEND_FL) ||
 		    HFSPLUS_I(inode).rootflags & (HFSPLUS_FLG_IMMUTABLE|HFSPLUS_FLG_APPEND)) {
 			if (!capable(CAP_LINUX_IMMUTABLE))
 				return -EPERM;
 		}
 
 		/* don't silently ignore unsupported ext2 flags */
-		if (flags & ~(EXT2_FLAG_IMMUTABLE|EXT2_FLAG_APPEND|
-			      EXT2_FLAG_NODUMP))
+		if (flags & ~(FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NODUMP_FL))
 			return -EOPNOTSUPP;
 
-		if (flags & EXT2_FLAG_IMMUTABLE) { /* EXT2_IMMUTABLE_FL */
+		if (flags & FS_IMMUTABLE_FL) { /* EXT2_IMMUTABLE_FL */
 			inode->i_flags |= S_IMMUTABLE;
 			HFSPLUS_I(inode).rootflags |= HFSPLUS_FLG_IMMUTABLE;
 		} else {
 			inode->i_flags &= ~S_IMMUTABLE;
 			HFSPLUS_I(inode).rootflags &= ~HFSPLUS_FLG_IMMUTABLE;
 		}
-		if (flags & EXT2_FLAG_APPEND) { /* EXT2_APPEND_FL */
+		if (flags & FS_APPEND_FL) { /* EXT2_APPEND_FL */
 			inode->i_flags |= S_APPEND;
 			HFSPLUS_I(inode).rootflags |= HFSPLUS_FLG_APPEND;
 		} else {
 			inode->i_flags &= ~S_APPEND;
 			HFSPLUS_I(inode).rootflags &= ~HFSPLUS_FLG_APPEND;
 		}
-		if (flags & EXT2_FLAG_NODUMP) /* EXT2_NODUMP_FL */
+		if (flags & FS_NODUMP_FL) /* EXT2_NODUMP_FL */
 			HFSPLUS_I(inode).userflags |= HFSPLUS_FLG_NODUMP;
 		else
 			HFSPLUS_I(inode).userflags &= ~HFSPLUS_FLG_NODUMP;

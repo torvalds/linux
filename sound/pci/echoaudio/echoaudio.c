@@ -1818,8 +1818,7 @@ static struct snd_kcontrol_new snd_echo_channels_info __devinitdata = {
 	IRQ Handler
 ******************************************************************************/
 
-static irqreturn_t snd_echo_interrupt(int irq, void *dev_id,
-				      struct pt_regs *regs)
+static irqreturn_t snd_echo_interrupt(int irq, void *dev_id)
 {
 	struct echoaudio *chip = dev_id;
 	struct snd_pcm_substream *substream;

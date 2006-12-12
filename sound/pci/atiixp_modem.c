@@ -1017,7 +1017,7 @@ static int __devinit snd_atiixp_pcm_new(struct atiixp_modem *chip)
 /*
  * interrupt handler
  */
-static irqreturn_t snd_atiixp_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_atiixp_interrupt(int irq, void *dev_id)
 {
 	struct atiixp_modem *chip = dev_id;
 	unsigned int status;
@@ -1128,9 +1128,9 @@ static int snd_atiixp_suspend(struct pci_dev *pci, pm_message_t state)
 	snd_atiixp_aclink_down(chip);
 	snd_atiixp_chip_stop(chip);
 
-	pci_set_power_state(pci, PCI_D3hot);
 	pci_disable_device(pci);
 	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
 }
 
@@ -1140,9 +1140,14 @@ static int snd_atiixp_resume(struct pci_dev *pci)
 	struct atiixp_modem *chip = card->private_data;
 	int i;
 
-	pci_restore_state(pci);
-	pci_enable_device(pci);
 	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "atiixp-modem: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
 	pci_set_master(pci);
 
 	snd_atiixp_aclink_reset(chip);

@@ -650,6 +650,8 @@ static struct tuner_params tuner_microtune_4049_fm5_params[] = {
 		.count  = ARRAY_SIZE(tuner_temic_4009f_5_pal_ranges),
 		.has_tda9887 = 1,
 		.port1_invert_for_secam_lc = 1,
+		.default_pll_gating_18 = 1,
+		.fm_gain_normal=1,
 	},
 };
 
@@ -668,16 +670,6 @@ static struct tuner_params tuner_panasonic_vp27_params[] = {
 		.count  = ARRAY_SIZE(tuner_panasonic_vp27_ntsc_ranges),
 		.has_tda9887 = 1,
 		.intercarrier_mode = 1,
-	},
-};
-
-/* ------------ TUNER_LG_NTSC_TAPE - LGINNOTEK NTSC ------------ */
-
-static struct tuner_params tuner_lg_ntsc_tape_params[] = {
-	{
-		.type   = TUNER_PARAM_TYPE_NTSC,
-		.ranges = tuner_fm1236_mk3_ntsc_ranges,
-		.count  = ARRAY_SIZE(tuner_fm1236_mk3_ntsc_ranges),
 	},
 };
 
@@ -1045,7 +1037,6 @@ static struct tuner_params tuner_samsung_tcpn_2121p30a_params[] = {
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_samsung_tcpn_2121p30a_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_samsung_tcpn_2121p30a_ntsc_ranges),
-		.has_tda9887 = 1,
 	},
 };
 
@@ -1331,8 +1322,8 @@ struct tunertype tuners[] = {
 	},
 	[TUNER_LG_NTSC_TAPE] = { /* LGINNOTEK NTSC */
 		.name   = "LG NTSC (TAPE series)",
-		.params = tuner_lg_ntsc_tape_params,
-		.count  = ARRAY_SIZE(tuner_lg_ntsc_tape_params),
+		.params = tuner_fm1236_mk3_params,
+		.count  = ARRAY_SIZE(tuner_fm1236_mk3_params),
 	},
 	[TUNER_TNF_8831BGFF] = { /* Philips PAL */
 		.name   = "Tenna TNF 8831 BGFF)",

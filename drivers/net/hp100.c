@@ -188,10 +188,12 @@ struct hp100_private {
 /*
  *  variables
  */
+#ifdef CONFIG_ISA
 static const char *hp100_isa_tbl[] = {
 	"HWPF150", /* HP J2573 rev A */
 	"HWP1950", /* HP J2573 */
 };
+#endif
 
 #ifdef CONFIG_EISA
 static struct eisa_device_id hp100_eisa_tbl[] = {
@@ -247,7 +249,7 @@ static void hp100_misc_interrupt(struct net_device *dev);
 static void hp100_update_stats(struct net_device *dev);
 static void hp100_clear_stats(struct hp100_private *lp, int ioaddr);
 static void hp100_set_multicast_list(struct net_device *dev);
-static irqreturn_t hp100_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t hp100_interrupt(int irq, void *dev_id);
 static void hp100_start_interface(struct net_device *dev);
 static void hp100_stop_interface(struct net_device *dev);
 static void hp100_load_eeprom(struct net_device *dev, u_short ioaddr);
@@ -333,6 +335,7 @@ static __devinit const char *hp100_read_id(int ioaddr)
 	return str;
 }
 
+#ifdef CONFIG_ISA
 static __init int hp100_isa_probe1(struct net_device *dev, int ioaddr)
 {
 	const char *sig;
@@ -390,9 +393,9 @@ static int  __init hp100_isa_probe(struct net_device *dev, int addr)
 	}
 	return err;
 }
+#endif /* CONFIG_ISA */
 
-
-#ifndef MODULE
+#if !defined(MODULE) && defined(CONFIG_ISA)
 struct net_device * __init hp100_probe(int unit)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct hp100_private));
@@ -422,7 +425,7 @@ struct net_device * __init hp100_probe(int unit)
 	free_netdev(dev);
 	return ERR_PTR(err);
 }
-#endif
+#endif /* !MODULE && CONFIG_ISA */
 
 static int __devinit hp100_probe1(struct net_device *dev, int ioaddr,
 				  u_char bus, struct pci_dev *pci_dev)
@@ -2184,7 +2187,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
  *  hardware interrupt handling
  */
 
-static irqreturn_t hp100_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t hp100_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct hp100_private *lp = netdev_priv(dev);

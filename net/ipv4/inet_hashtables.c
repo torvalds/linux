@@ -27,11 +27,11 @@
  * Allocate and initialize a new local port bind bucket.
  * The bindhash mutex for snum's hash chain must be held here.
  */
-struct inet_bind_bucket *inet_bind_bucket_create(kmem_cache_t *cachep,
+struct inet_bind_bucket *inet_bind_bucket_create(struct kmem_cache *cachep,
 						 struct inet_bind_hashbucket *head,
 						 const unsigned short snum)
 {
-	struct inet_bind_bucket *tb = kmem_cache_alloc(cachep, SLAB_ATOMIC);
+	struct inet_bind_bucket *tb = kmem_cache_alloc(cachep, GFP_ATOMIC);
 
 	if (tb != NULL) {
 		tb->port      = snum;
@@ -45,7 +45,7 @@ struct inet_bind_bucket *inet_bind_bucket_create(kmem_cache_t *cachep,
 /*
  * Caller must hold hashbucket lock for this tb with local BH disabled
  */
-void inet_bind_bucket_destroy(kmem_cache_t *cachep, struct inet_bind_bucket *tb)
+void inet_bind_bucket_destroy(struct kmem_cache *cachep, struct inet_bind_bucket *tb)
 {
 	if (hlist_empty(&tb->owners)) {
 		__hlist_del(&tb->node);
@@ -125,7 +125,7 @@ EXPORT_SYMBOL(inet_listen_wlock);
  * wildcarded during the search since they can never be otherwise.
  */
 static struct sock *inet_lookup_listener_slow(const struct hlist_head *head,
-					      const u32 daddr,
+					      const __be32 daddr,
 					      const unsigned short hnum,
 					      const int dif)
 {
@@ -137,7 +137,7 @@ static struct sock *inet_lookup_listener_slow(const struct hlist_head *head,
 		const struct inet_sock *inet = inet_sk(sk);
 
 		if (inet->num == hnum && !ipv6_only_sock(sk)) {
-			const __u32 rcv_saddr = inet->rcv_saddr;
+			const __be32 rcv_saddr = inet->rcv_saddr;
 			int score = sk->sk_family == PF_INET ? 1 : 0;
 
 			if (rcv_saddr) {
@@ -163,7 +163,7 @@ static struct sock *inet_lookup_listener_slow(const struct hlist_head *head,
 
 /* Optimize the common listener case. */
 struct sock *__inet_lookup_listener(struct inet_hashinfo *hashinfo,
-				    const u32 daddr, const unsigned short hnum,
+				    const __be32 daddr, const unsigned short hnum,
 				    const int dif)
 {
 	struct sock *sk = NULL;
@@ -197,11 +197,11 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	struct inet_sock *inet = inet_sk(sk);
-	u32 daddr = inet->rcv_saddr;
-	u32 saddr = inet->daddr;
+	__be32 daddr = inet->rcv_saddr;
+	__be32 saddr = inet->daddr;
 	int dif = sk->sk_bound_dev_if;
 	INET_ADDR_COOKIE(acookie, saddr, daddr)
-	const __u32 ports = INET_COMBINED_PORTS(inet->dport, lport);
+	const __portpair ports = INET_COMBINED_PORTS(inet->dport, lport);
 	unsigned int hash = inet_ehashfn(daddr, lport, saddr, inet->dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
 	struct sock *sk2;

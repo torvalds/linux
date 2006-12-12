@@ -126,7 +126,6 @@ union aty_pll {
      */
 
 struct atyfb_par {
-	struct aty_cmap_regs __iomem *aty_cmap_regs;
 	struct { u8 red, green, blue; } palette[256];
 	const struct aty_dac_ops *dac_ops;
 	const struct aty_pll_ops *pll_ops;
@@ -186,6 +185,7 @@ struct atyfb_par {
 	int mtrr_aper;
 	int mtrr_reg;
 #endif
+	u32 mem_cntl;
 };
 
     /*
@@ -227,7 +227,7 @@ static inline u32 aty_ld_le32(int regindex, const struct atyfb_par *par)
 		regindex -= 0x800;
 
 #ifdef CONFIG_ATARI
-	return in_le32((volatile u32 *)(par->ati_regbase + regindex));
+	return in_le32(par->ati_regbase + regindex);
 #else
 	return readl(par->ati_regbase + regindex);
 #endif
@@ -240,7 +240,7 @@ static inline void aty_st_le32(int regindex, u32 val, const struct atyfb_par *pa
 		regindex -= 0x800;
 
 #ifdef CONFIG_ATARI
-	out_le32((volatile u32 *)(par->ati_regbase + regindex), val);
+	out_le32(par->ati_regbase + regindex, val);
 #else
 	writel(val, par->ati_regbase + regindex);
 #endif
@@ -253,7 +253,7 @@ static inline void aty_st_le16(int regindex, u16 val,
 	if (regindex >= 0x400)
 		regindex -= 0x800;
 #ifdef CONFIG_ATARI
-	out_le16((volatile u16 *)(par->ati_regbase + regindex), val);
+	out_le16(par->ati_regbase + regindex, val);
 #else
 	writel(val, par->ati_regbase + regindex);
 #endif
@@ -315,6 +315,7 @@ struct aty_pll_ops {
 	void (*set_pll)   (const struct fb_info * info, const union aty_pll * pll);
 	void (*get_pll)   (const struct fb_info *info, union aty_pll * pll);
 	int (*init_pll)   (const struct fb_info * info, union aty_pll * pll);
+	void (*resume_pll)(const struct fb_info *info, union aty_pll *pll);
 };
 
 extern const struct aty_pll_ops aty_pll_ati18818_1; /* ATI 18818 */
@@ -355,5 +356,9 @@ static inline void wait_for_idle(struct atyfb_par *par)
 
 extern void aty_reset_engine(const struct atyfb_par *par);
 extern void aty_init_engine(struct atyfb_par *par, struct fb_info *info);
-extern void aty_st_pll_ct(int offset, u8 val, const struct atyfb_par *par);
 extern u8   aty_ld_pll_ct(int offset, const struct atyfb_par *par);
+
+void atyfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);
+void atyfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
+void atyfb_imageblit(struct fb_info *info, const struct fb_image *image);
+

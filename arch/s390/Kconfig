@@ -22,6 +22,14 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -30,8 +38,8 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config GENERIC_BUST_SPINLOCK
-	bool
+config GENERIC_TIME
+	def_bool y
 
 mainmenu "Linux Kernel Configuration"
 
@@ -50,6 +58,10 @@ config 64BIT
 	help
 	  Select this option if you have a 64 bit IBM zSeries machine
 	  and want to use the 64 bit addressing mode.
+
+config 32BIT
+	bool
+	default y if !64BIT
 
 config SMP
 	bool "Symmetric multi-processing support"
@@ -149,6 +161,14 @@ config MARCH_Z990
 	  This will be slightly faster but does not work on
 	  older machines such as the z900.
 
+config MARCH_Z9_109
+	bool "IBM System z9"
+	help
+	  Select this to enable optimizations for IBM System z9-109, IBM
+	  System z9 Enterprise Class (z9 EC), and IBM System z9 Business
+	  Class (z9 BC). The kernel will be slightly faster but will not
+	  work on older machines such as the z990, z890, z900, and z800.
+
 endchoice
 
 config PACK_STACK
@@ -166,7 +186,7 @@ config PACK_STACK
 
 config SMALL_STACK
 	bool "Use 4kb/8kb for kernel stack instead of 8kb/16kb"
-	depends on PACK_STACK
+	depends on PACK_STACK && !LOCKDEP
 	help
 	  If you say Y here and the compiler supports the -mkernel-backchain
 	  option the kernel will use a smaller kernel stack size. For 31 bit
@@ -221,7 +241,13 @@ config WARN_STACK_SIZE
 	  This allows you to specify the maximum frame size a function may
 	  have without the compiler complaining about it.
 
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 source "mm/Kconfig"
+
+config HOLES_IN_ZONE
+	def_bool y
 
 comment "I/O subsystem configuration"
 
@@ -245,14 +271,6 @@ config QDIO
 	  module will be called qdio.
 
 	  If unsure, say Y.
-
-config QDIO_PERF_STATS
-	bool "Performance statistics in /proc"
-	depends on QDIO
-	help
-	  Say Y here to get performance statistics in /proc/qdio_perf
-
-	  If unsure, say N.
 
 config QDIO_DEBUG
 	bool "Extended debugging information"

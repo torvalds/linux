@@ -64,14 +64,21 @@ huge_pte_offset (struct mm_struct *mm, unsigned long addr)
 	return pte;
 }
 
+int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+{
+	return 0;
+}
+
 #define mk_pte_huge(entry) { pte_val(entry) |= _PAGE_P; }
 
 /*
  * Don't actually need to do any preparation, but need to make sure
  * the address is in the right region.
  */
-int prepare_hugepage_range(unsigned long addr, unsigned long len)
+int prepare_hugepage_range(unsigned long addr, unsigned long len, pgoff_t pgoff)
 {
+	if (pgoff & (~HPAGE_MASK >> PAGE_SHIFT))
+		return -EINVAL;
 	if (len & ~HPAGE_MASK)
 		return -EINVAL;
 	if (addr & ~HPAGE_MASK)

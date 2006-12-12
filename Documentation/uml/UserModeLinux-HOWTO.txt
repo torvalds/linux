@@ -157,7 +157,7 @@
   13. What to do when UML doesn't work
 
      13.1 Strange compilation errors when you build from source
-     13.2 UML hangs on boot after mounting devfs
+     13.2 (obsolete)
      13.3 A variety of panics and hangs with /tmp on a reiserfs  filesystem
      13.4 The compile fails with errors about conflicting types for 'open', 'dup', and 'waitpid'
      13.5 UML doesn't work when /tmp is an NFS filesystem
@@ -377,31 +377,6 @@
 
   where 'x' is the version in your pool. Note that you will not get the
   bug fixes and enhancements that have gone into subsequent releases.
-
-
-  If you build your own kernel, and want to boot it from one of the
-  filesystems distributed from this site, then, in nearly all cases,
-  devfs must be compiled into the kernel and mounted at boot time.  The
-  exception is the SuSE filesystem.  For this, devfs must either not be
-  in the kernel at all, or "devfs=nomount" must be on the kernel command
-  line.  Any disagreement between the kernel and the filesystem being
-  booted about whether devfs is being used will result in the boot
-  getting no further than single-user mode.
-
-
-  If you don't want to use devfs, you can remove the need for it from a
-  filesystem by copying /dev from someplace, making a bunch of /dev/ubd
-  devices:
-
-
-  UML# for i in 0 1 2 3 4 5 6 7; do mknod ubd$i b 98 $i; done
-
-
-
-
-  and changing /etc/fstab and /etc/inittab to refer to the non-devfs
-  devices.
-
 
 
   22..22..  CCoommppiilliinngg aanndd iinnssttaalllliinngg kkeerrnneell mmoodduulleess
@@ -839,9 +814,7 @@
   +o  None - device=none
 
 
-     This causes the device to disappear.  If you are using devfs, the
-     device will not appear in /dev.  If not, then attempts to open it
-     will return -ENODEV.
+     This causes the device to disappear.
 
 
 
@@ -1047,7 +1020,7 @@
 
   Note that the IP address you assign to the host end of the tap device
   must be different than the IP you assign to the eth device inside UML.
-  If you are short on IPs and don't want to comsume two per UML, then
+  If you are short on IPs and don't want to consume two per UML, then
   you can reuse the host's eth IP address for the host ends of the tap
   devices.  Internally, the UMLs must still get unique IPs for their eth
   devices.  You can also give the UMLs non-routable IPs (192.168.x.x or
@@ -1504,7 +1477,7 @@
 
 
 
-  Making it world-writeable looks bad, but it seems not to be
+  Making it world-writable looks bad, but it seems not to be
   exploitable as a security hole.  However, it does allow anyone to cre-
   ate useless tap devices (useless because they can't configure them),
   which is a DOS attack.  A somewhat more secure alternative would to be
@@ -2058,7 +2031,7 @@
   there are multiple COWs associated with a backing file, a -d merge of
   one of them will invalidate all of the others.  However, it is
   convenient if you're short of disk space, and it should also be
-  noticably faster than a non-destructive merge.
+  noticeably faster than a non-destructive merge.
 
 
 
@@ -3898,29 +3871,6 @@
 
 
 
-  1133..22..  UUMMLL hhaannggss oonn bboooott aafftteerr mmoouunnttiinngg ddeevvffss
-
-  The boot looks like this:
-
-
-       VFS: Mounted root (ext2 filesystem) readonly.
-       Mounted devfs on /dev
-
-
-
-
-  You're probably running a recent distribution on an old machine.  I
-  saw this with the RH7.1 filesystem running on a Pentium.  The shared
-  library loader, ld.so, was executing an instruction (cmove) which the
-  Pentium didn't support.  That instruction was apparently added later.
-  If you run UML under the debugger, you'll see the hang caused by one
-  instruction causing an infinite SIGILL stream.
-
-
-  The fix is to boot UML on an older filesystem.
-
-
-
   1133..33..  AA vvaarriieettyy ooff ppaanniiccss aanndd hhaannggss wwiitthh //ttmmpp oonn aa rreeiisseerrffss  ffiilleessyyss--
   tteemm
 
@@ -3953,9 +3903,9 @@
 
   1133..55..  UUMMLL ddooeessnn''tt wwoorrkk wwhheenn //ttmmpp iiss aann NNFFSS ffiilleessyysstteemm
 
-  This seems to be a similar situation with the resierfs problem above.
+  This seems to be a similar situation with the ReiserFS problem above.
   Some versions of NFS seems not to handle mmap correctly, which UML
-  depends on.  The workaround is have /tmp be non-NFS directory.
+  depends on.  The workaround is have /tmp be a non-NFS directory.
 
 
   1133..66..  UUMMLL hhaannggss oonn bboooott wwhheenn ccoommppiilleedd wwiitthh ggpprrooff ssuuppppoorrtt
@@ -4022,7 +3972,7 @@
   nneett
 
   If you can connect to the host, and the host can connect to UML, but
-  you can not connect to any other machines, then you may need to enable
+  you cannot connect to any other machines, then you may need to enable
   IP Masquerading on the host.  Usually this is only experienced when
   using private IP addresses (192.168.x.x or 10.x.x.x) for host/UML
   networking, rather than the public address space that your host is
@@ -4671,7 +4621,7 @@
   Chris Reahard built a specialized root filesystem for running a DNS
   server jailed inside UML.  It's available from the download
   <http://user-mode-linux.sourceforge.net/dl-sf.html>  page in the Jail
-  Filesysems section.
+  Filesystems section.
 
 
 

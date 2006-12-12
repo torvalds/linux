@@ -40,6 +40,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef CONFIG_PPC_64K_PAGES
+#include <linux/slab.h>
+#endif
 #include "ehca_classes.h"
 #include "ehca_iverbs.h"
 #include "ehca_mrmw.h"
@@ -49,7 +52,7 @@
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Christoph Raisch <raisch@de.ibm.com>");
 MODULE_DESCRIPTION("IBM eServer HCA InfiniBand Device Driver");
-MODULE_VERSION("SVNEHCA_0016");
+MODULE_VERSION("SVNEHCA_0019");
 
 int ehca_open_aqp1     = 0;
 int ehca_debug_level   = 0;
@@ -94,10 +97,30 @@ spinlock_t ehca_cq_idr_lock;
 DEFINE_IDR(ehca_qp_idr);
 DEFINE_IDR(ehca_cq_idr);
 
+
 static struct list_head shca_list; /* list of all registered ehcas */
 static spinlock_t shca_list_lock;
 
 static struct timer_list poll_eqs_timer;
+
+#ifdef CONFIG_PPC_64K_PAGES
+static struct kmem_cache *ctblk_cache = NULL;
+
+void *ehca_alloc_fw_ctrlblock(void)
+{
+	void *ret = kmem_cache_zalloc(ctblk_cache, GFP_KERNEL);
+	if (!ret)
+		ehca_gen_err("Out of memory for ctblk");
+	return ret;
+}
+
+void ehca_free_fw_ctrlblock(void *ptr)
+{
+	if (ptr)
+		kmem_cache_free(ctblk_cache, ptr);
+
+}
+#endif
 
 static int ehca_create_slab_caches(void)
 {
@@ -133,6 +156,17 @@ static int ehca_create_slab_caches(void)
 		goto create_slab_caches5;
 	}
 
+#ifdef CONFIG_PPC_64K_PAGES
+	ctblk_cache = kmem_cache_create("ehca_cache_ctblk",
+					EHCA_PAGESIZE, H_CB_ALIGNMENT,
+					SLAB_HWCACHE_ALIGN,
+					NULL, NULL);
+	if (!ctblk_cache) {
+		ehca_gen_err("Cannot create ctblk SLAB cache.");
+		ehca_cleanup_mrmw_cache();
+		goto create_slab_caches5;
+	}
+#endif
 	return 0;
 
 create_slab_caches5:
@@ -157,6 +191,10 @@ static void ehca_destroy_slab_caches(void)
 	ehca_cleanup_qp_cache();
 	ehca_cleanup_cq_cache();
 	ehca_cleanup_pd_cache();
+#ifdef CONFIG_PPC_64K_PAGES
+	if (ctblk_cache)
+		kmem_cache_destroy(ctblk_cache);
+#endif
 }
 
 #define EHCA_HCAAVER  EHCA_BMASK_IBM(32,39)
@@ -168,7 +206,7 @@ int ehca_sense_attributes(struct ehca_shca *shca)
 	u64 h_ret;
 	struct hipz_query_hca *rblock;
 
-	rblock = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	rblock = ehca_alloc_fw_ctrlblock();
 	if (!rblock) {
 		ehca_gen_err("Cannot allocate rblock memory.");
 		return -ENOMEM;
@@ -211,7 +249,7 @@ int ehca_sense_attributes(struct ehca_shca *shca)
 	shca->sport[1].rate = IB_RATE_30_GBPS;
 
 num_ports1:
-	kfree(rblock);
+	ehca_free_fw_ctrlblock(rblock);
 	return ret;
 }
 
@@ -220,7 +258,7 @@ static int init_node_guid(struct ehca_shca *shca)
 	int ret = 0;
 	struct hipz_query_hca *rblock;
 
-	rblock = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	rblock = ehca_alloc_fw_ctrlblock();
 	if (!rblock) {
 		ehca_err(&shca->ib_device, "Can't allocate rblock memory.");
 		return -ENOMEM;
@@ -235,11 +273,11 @@ static int init_node_guid(struct ehca_shca *shca)
 	memcpy(&shca->ib_device.node_guid, &rblock->node_guid, sizeof(u64));
 
 init_node_guid1:
-	kfree(rblock);
+	ehca_free_fw_ctrlblock(rblock);
 	return ret;
 }
 
-int ehca_register_device(struct ehca_shca *shca)
+int ehca_init_device(struct ehca_shca *shca)
 {
 	int ret;
 
@@ -316,11 +354,6 @@ int ehca_register_device(struct ehca_shca *shca)
 	shca->ib_device.detach_mcast	    = ehca_detach_mcast;
 	/* shca->ib_device.process_mad	    = ehca_process_mad;	    */
 	shca->ib_device.mmap		    = ehca_mmap;
-
-	ret = ib_register_device(&shca->ib_device);
-	if (ret)
-		ehca_err(&shca->ib_device,
-			 "ib_register_device() failed ret=%x", ret);
 
 	return ret;
 }
@@ -436,7 +469,7 @@ static ssize_t  ehca_show_##name(struct device *dev,                       \
 									   \
 	shca = dev->driver_data;					   \
 									   \
-	rblock = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);			   \
+	rblock = ehca_alloc_fw_ctrlblock();				   \
 	if (!rblock) {						           \
 		dev_err(dev, "Can't allocate rblock memory.");		   \
 		return 0;						   \
@@ -444,12 +477,12 @@ static ssize_t  ehca_show_##name(struct device *dev,                       \
 									   \
 	if (hipz_h_query_hca(shca->ipz_hca_handle, rblock) != H_SUCCESS) { \
 		dev_err(dev, "Can't query device properties");	   	   \
-		kfree(rblock);					   	   \
+		ehca_free_fw_ctrlblock(rblock);			   	   \
 		return 0;					   	   \
 	}								   \
 									   \
 	data = rblock->name;                                               \
-	kfree(rblock);                                                     \
+	ehca_free_fw_ctrlblock(rblock);                                    \
 									   \
 	if ((strcmp(#name, "num_ports") == 0) && (ehca_nr_ports == 1))	   \
 		return snprintf(buf, 256, "1\n");			   \
@@ -561,9 +594,9 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 		goto probe1;
 	}
 
-	ret = ehca_register_device(shca);
+	ret = ehca_init_device(shca);
 	if (ret) {
-		ehca_gen_err("Cannot register Infiniband device");
+		ehca_gen_err("Cannot init ehca  device struct");
 		goto probe1;
 	}
 
@@ -571,7 +604,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 	ret = ehca_create_eq(shca, &shca->eq, EHCA_EQ, 2048);
 	if (ret) {
 		ehca_err(&shca->ib_device, "Cannot create EQ.");
-		goto probe2;
+		goto probe1;
 	}
 
 	ret = ehca_create_eq(shca, &shca->neq, EHCA_NEQ, 513);
@@ -600,6 +633,13 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 		goto probe5;
 	}
 
+	ret = ib_register_device(&shca->ib_device);
+	if (ret) {
+		ehca_err(&shca->ib_device,
+			 "ib_register_device() failed ret=%x", ret);
+		goto probe6;
+	}
+
 	/* create AQP1 for port 1 */
 	if (ehca_open_aqp1 == 1) {
 		shca->sport[0].port_state = IB_PORT_DOWN;
@@ -607,7 +647,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 		if (ret) {
 			ehca_err(&shca->ib_device,
 				 "Cannot create AQP1 for port 1.");
-			goto probe6;
+			goto probe7;
 		}
 	}
 
@@ -618,7 +658,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 		if (ret) {
 			ehca_err(&shca->ib_device,
 				 "Cannot create AQP1 for port 2.");
-			goto probe7;
+			goto probe8;
 		}
 	}
 
@@ -630,11 +670,14 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 
 	return 0;
 
-probe7:
+probe8:
 	ret = ehca_destroy_aqp1(&shca->sport[0]);
 	if (ret)
 		ehca_err(&shca->ib_device,
 			 "Cannot destroy AQP1 for port 1. ret=%x", ret);
+
+probe7:
+	ib_unregister_device(&shca->ib_device);
 
 probe6:
 	ret = ehca_dereg_internal_maxmr(shca);
@@ -659,9 +702,6 @@ probe3:
 	if (ret)
 		ehca_err(&shca->ib_device,
 			 "Cannot destroy EQ. ret=%x", ret);
-
-probe2:
-	ib_unregister_device(&shca->ib_device);
 
 probe1:
 	ib_dealloc_device(&shca->ib_device);
@@ -750,7 +790,7 @@ int __init ehca_module_init(void)
 	int ret;
 
 	printk(KERN_INFO "eHCA Infiniband Device Driver "
-	                 "(Rel.: SVNEHCA_0016)\n");
+	                 "(Rel.: SVNEHCA_0019)\n");
 	idr_init(&ehca_qp_idr);
 	idr_init(&ehca_cq_idr);
 	spin_lock_init(&ehca_qp_idr_lock);

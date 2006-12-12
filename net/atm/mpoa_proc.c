@@ -231,14 +231,14 @@ static int parse_qos(const char *buff)
          */
         unsigned char ip[4]; 
 	int tx_pcr, tx_sdu, rx_pcr, rx_sdu;
-        uint32_t ipaddr;
+        __be32 ipaddr;
 	struct atm_qos qos; 
         
         memset(&qos, 0, sizeof(struct atm_qos));
 
 	if (sscanf(buff, "del %hhu.%hhu.%hhu.%hhu",
 			ip, ip+1, ip+2, ip+3) == 4) {
-		ipaddr = *(uint32_t *)ip;
+		ipaddr = *(__be32 *)ip;
 		return atm_mpoa_delete_qos(atm_mpoa_search_qos(ipaddr));
 	}
 
@@ -250,7 +250,7 @@ static int parse_qos(const char *buff)
 		ip, ip+1, ip+2, ip+3, &tx_pcr, &tx_sdu, &rx_pcr, &rx_sdu) != 8)
 		return 0;
 
-        ipaddr = *(uint32_t *)ip;
+        ipaddr = *(__be32 *)ip;
 	qos.txtp.traffic_class = ATM_CBR;
 	qos.txtp.max_pcr = tx_pcr;
 	qos.txtp.max_sdu = tx_sdu;

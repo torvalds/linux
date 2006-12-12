@@ -649,7 +649,7 @@ static void receive_packet(struct net_device *dev, int len)
  *
  ******************************************************/
 
-static irqreturn_t elp_interrupt(int irq, void *dev_id, struct pt_regs *reg_ptr)
+static irqreturn_t elp_interrupt(int irq, void *dev_id)
 {
 	int len;
 	int dlen;
@@ -1670,7 +1670,7 @@ int __init init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	int this_dev;
 

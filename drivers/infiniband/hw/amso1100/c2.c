@@ -72,7 +72,7 @@ static int c2_down(struct net_device *netdev);
 static int c2_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 static void c2_tx_interrupt(struct net_device *netdev);
 static void c2_rx_interrupt(struct net_device *netdev);
-static irqreturn_t c2_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t c2_interrupt(int irq, void *dev_id);
 static void c2_tx_timeout(struct net_device *netdev);
 static int c2_change_mtu(struct net_device *netdev, int new_mtu);
 static void c2_reset(struct c2_port *c2_port);
@@ -544,7 +544,7 @@ static void c2_rx_interrupt(struct net_device *netdev)
 /*
  * Handle netisr0 TX & RX interrupts.
  */
-static irqreturn_t c2_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t c2_interrupt(int irq, void *dev_id)
 {
 	unsigned int netisr0, dmaisr;
 	int handled = 0;
@@ -1155,7 +1155,8 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 		goto bail10;
 	}
 
-	c2_register_device(c2dev);
+	if (c2_register_device(c2dev))
+		goto bail10;
 
 	return 0;
 
@@ -1243,7 +1244,7 @@ static struct pci_driver c2_pci_driver = {
 
 static int __init c2_init_module(void)
 {
-	return pci_module_init(&c2_pci_driver);
+	return pci_register_driver(&c2_pci_driver);
 }
 
 static void __exit c2_exit_module(void)

@@ -2,7 +2,7 @@
  * Generic HDLC support routines for Linux
  * X.25 support
  *
- * Copyright (C) 1999 - 2003 Krzysztof Halasa <khc@pm.waw.pl>
+ * Copyright (C) 1999 - 2006 Krzysztof Halasa <khc@pm.waw.pl>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -24,6 +24,8 @@
 #include <linux/hdlc.h>
 
 #include <net/x25device.h>
+
+static int x25_ioctl(struct net_device *dev, struct ifreq *ifr);
 
 /* These functions are callbacks called by LAPB layer */
 
@@ -162,30 +164,39 @@ static void x25_close(struct net_device *dev)
 
 static int x25_rx(struct sk_buff *skb)
 {
-	hdlc_device *hdlc = dev_to_hdlc(skb->dev);
+	struct hdlc_device_desc *desc = dev_to_desc(skb->dev);
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
-		hdlc->stats.rx_dropped++;
+		desc->stats.rx_dropped++;
 		return NET_RX_DROP;
 	}
 
 	if (lapb_data_received(skb->dev, skb) == LAPB_OK)
 		return NET_RX_SUCCESS;
 
-	hdlc->stats.rx_errors++;
+	desc->stats.rx_errors++;
 	dev_kfree_skb_any(skb);
 	return NET_RX_DROP;
 }
 
 
+static struct hdlc_proto proto = {
+	.open		= x25_open,
+	.close		= x25_close,
+	.ioctl		= x25_ioctl,
+	.module		= THIS_MODULE,
+};
 
-int hdlc_x25_ioctl(struct net_device *dev, struct ifreq *ifr)
+
+static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	int result;
 
 	switch (ifr->ifr_settings.type) {
 	case IF_GET_PROTO:
+		if (dev_to_hdlc(dev)->proto != &proto)
+			return -EINVAL;
 		ifr->ifr_settings.type = IF_PROTO_X25;
 		return 0; /* return protocol only, no settable parameters */
 
@@ -200,14 +211,9 @@ int hdlc_x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (result)
 			return result;
 
-		hdlc_proto_detach(hdlc);
-		memset(&hdlc->proto, 0, sizeof(hdlc->proto));
-
-		hdlc->proto.open = x25_open;
-		hdlc->proto.close = x25_close;
-		hdlc->proto.netif_rx = x25_rx;
-		hdlc->proto.type_trans = NULL;
-		hdlc->proto.id = IF_PROTO_X25;
+		if ((result = attach_hdlc_protocol(dev, &proto,
+						   x25_rx, 0)) != 0)
+			return result;
 		dev->hard_start_xmit = x25_xmit;
 		dev->hard_header = NULL;
 		dev->type = ARPHRD_X25;
@@ -218,3 +224,25 @@ int hdlc_x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 	return -EINVAL;
 }
+
+
+static int __init mod_init(void)
+{
+	register_hdlc_protocol(&proto);
+	return 0;
+}
+
+
+
+static void __exit mod_exit(void)
+{
+	unregister_hdlc_protocol(&proto);
+}
+
+
+module_init(mod_init);
+module_exit(mod_exit);
+
+MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
+MODULE_DESCRIPTION("X.25 protocol support for generic HDLC");
+MODULE_LICENSE("GPL v2");

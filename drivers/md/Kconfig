@@ -2,6 +2,8 @@
 # Block device driver configuration
 #
 
+if BLOCK
+
 menu "Multi-device support (RAID and LVM)"
 
 config MD
@@ -136,16 +138,16 @@ config MD_RAID456
 	  If unsure, say Y.
 
 config MD_RAID5_RESHAPE
-	bool "Support adding drives to a raid-5 array (experimental)"
-	depends on MD_RAID456 && EXPERIMENTAL
+	bool "Support adding drives to a raid-5 array"
+	depends on MD_RAID456
+	default y
 	---help---
 	  A RAID-5 set can be expanded by adding extra drives. This
 	  requires "restriping" the array which means (almost) every
 	  block must be written to a different place.
 
           This option allows such restriping to be done while the array
-	  is online.  However it is still EXPERIMENTAL code.  It should
-	  work, but please be sure that you have backups.
+	  is online.
 
 	  You will need mdadm version 2.4.1 or later to use this
 	  feature safely.  During the early stage of reshape there is
@@ -161,6 +163,8 @@ config MD_RAID5_RESHAPE
 	  Note: The array can only be expanded, not contracted.
 	  There should be enough spares already present to make the new
 	  array workable.
+
+	  If unsure, say Y.
 
 config MD_MULTIPATH
 	tristate "Multipath I/O support"
@@ -199,10 +203,19 @@ config BLK_DEV_DM
 
 	  If unsure, say N.
 
+config DM_DEBUG
+	boolean "Device mapper debugging support"
+	depends on BLK_DEV_DM && EXPERIMENTAL
+	---help---
+	  Enable this for messages that may help debug device-mapper problems.
+
+	  If unsure, say N.
+
 config DM_CRYPT
 	tristate "Crypt target support"
 	depends on BLK_DEV_DM && EXPERIMENTAL
 	select CRYPTO
+	select CRYPTO_CBC
 	---help---
 	  This device-mapper target allows you to create a device that
 	  transparently encrypts the data on it. You'll need to activate
@@ -251,3 +264,4 @@ config DM_MULTIPATH_EMC
 
 endmenu
 
+endif

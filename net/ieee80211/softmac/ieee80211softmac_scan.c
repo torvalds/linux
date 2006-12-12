@@ -47,7 +47,6 @@ ieee80211softmac_start_scan(struct ieee80211softmac_device *sm)
 	sm->scanning = 1;
 	spin_unlock_irqrestore(&sm->lock, flags);
 
-	netif_tx_disable(sm->ieee->dev);
 	ret = sm->start_scan(sm->dev);
 	if (ret) {
 		spin_lock_irqsave(&sm->lock, flags);
@@ -91,12 +90,14 @@ ieee80211softmac_wait_for_scan(struct ieee80211softmac_device *sm)
 
 
 /* internal scanning implementation follows */
-void ieee80211softmac_scan(void *d)
+void ieee80211softmac_scan(struct work_struct *work)
 {
 	int invalid_channel;
 	u8 current_channel_idx;
-	struct ieee80211softmac_device *sm = (struct ieee80211softmac_device *)d;
-	struct ieee80211softmac_scaninfo *si = sm->scaninfo;
+	struct ieee80211softmac_scaninfo *si =
+		container_of(work, struct ieee80211softmac_scaninfo,
+			     softmac_scan.work);
+	struct ieee80211softmac_device *sm = si->mac;
 	unsigned long flags;
 
 	while (!(si->stop) && (si->current_channel_idx < si->number_channels)) {
@@ -135,7 +136,8 @@ void ieee80211softmac_scan(void *d)
 	si->started = 0;
 	spin_unlock_irqrestore(&sm->lock, flags);
 
-	dprintk(PFX "Scanning finished\n");
+	dprintk(PFX "Scanning finished: scanned %d channels starting with channel %d\n",
+		     sm->scaninfo->number_channels, sm->scaninfo->channels[0].channel);
 	ieee80211softmac_scan_finished(sm);
 	complete_all(&sm->scaninfo->finished);
 }
@@ -146,7 +148,8 @@ static inline struct ieee80211softmac_scaninfo *allocate_scaninfo(struct ieee802
 	struct ieee80211softmac_scaninfo *info = kmalloc(sizeof(struct ieee80211softmac_scaninfo), GFP_ATOMIC);
 	if (unlikely(!info))
 		return NULL;
-	INIT_WORK(&info->softmac_scan, ieee80211softmac_scan, mac);
+	INIT_DELAYED_WORK(&info->softmac_scan, ieee80211softmac_scan);
+	info->mac = mac;
 	init_completion(&info->finished);
 	return info;
 }
@@ -183,13 +186,11 @@ int ieee80211softmac_start_scan_implementation(struct net_device *dev)
 		sm->scaninfo->channels = sm->ieee->geo.bg;
 		sm->scaninfo->number_channels = sm->ieee->geo.bg_channels;
 	}
-	dprintk(PFX "Start scanning with channel: %d\n", sm->scaninfo->channels[0].channel);
-	dprintk(PFX "Scanning %d channels\n", sm->scaninfo->number_channels);
 	sm->scaninfo->current_channel_idx = 0;
 	sm->scaninfo->started = 1;
 	sm->scaninfo->stop = 0;
 	INIT_COMPLETION(sm->scaninfo->finished);
-	schedule_work(&sm->scaninfo->softmac_scan);
+	schedule_delayed_work(&sm->scaninfo->softmac_scan, 0);
 	spin_unlock_irqrestore(&sm->lock, flags);
 	return 0;
 }
@@ -248,7 +249,6 @@ void ieee80211softmac_scan_finished(struct ieee80211softmac_device *sm)
 		if (net)
 			sm->set_channel(sm->dev, net->channel);
 	}
-	netif_wake_queue(sm->ieee->dev);
 	ieee80211softmac_call_events(sm, IEEE80211SOFTMAC_EVENT_SCAN_FINISHED, NULL);
 }
 EXPORT_SYMBOL_GPL(ieee80211softmac_scan_finished);

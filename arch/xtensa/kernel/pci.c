@@ -1,5 +1,5 @@
 /*
- * arch/xtensa/pcibios.c
+ * arch/xtensa/kernel/pci.c
  *
  * PCI bios-type initialisation for PCI machines
  *

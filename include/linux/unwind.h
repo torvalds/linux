@@ -12,8 +12,6 @@
  * is not much point in implementing the full Dwarf2 unwind API.
  */
 
-#include <linux/config.h>
-
 struct module;
 
 #ifdef CONFIG_STACK_UNWIND
@@ -28,6 +26,7 @@ struct module;
  * Initialize unwind support.
  */
 extern void unwind_init(void);
+extern void unwind_setup(void);
 
 #ifdef CONFIG_MODULES
 
@@ -75,6 +74,7 @@ extern int unwind_to_user(struct unwind_frame_info *);
 struct unwind_frame_info {};
 
 static inline void unwind_init(void) {}
+static inline void unwind_setup(void) {}
 
 #ifdef CONFIG_MODULES
 

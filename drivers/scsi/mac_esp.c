@@ -44,7 +44,7 @@
 /* #define DEBUG_MAC_ESP */
 
 extern void esp_handle(struct NCR_ESP *esp);
-extern void mac_esp_intr(int irq, void *dev_id, struct pt_regs *pregs);
+extern void mac_esp_intr(int irq, void *dev_id);
 
 static int  dma_bytes_sent(struct NCR_ESP * esp, int fifo_count);
 static int  dma_can_transfer(struct NCR_ESP * esp, Scsi_Cmnd *sp);
@@ -88,7 +88,7 @@ static int setup_hostid = -1;
  * set up properly!
  */
 
-void mac_esp_intr(int irq, void *dev_id, struct pt_regs *pregs)
+void mac_esp_intr(int irq, void *dev_id)
 {
 	struct NCR_ESP *esp = (struct NCR_ESP *) dev_id;
 	int irq_p = 0;
@@ -122,24 +122,24 @@ void mac_esp_intr(int irq, void *dev_id, struct pt_regs *pregs)
  * acknowledge on the various machines
  */
 
-void scsi_esp_polled(int irq, void *dev_id, struct pt_regs *pregs)
+void scsi_esp_polled(int irq, void *dev_id)
 {
 	if (esp_initialized == 0)
 		return;
 
-	mac_esp_intr(irq, dev_id, pregs);
+	mac_esp_intr(irq, dev_id);
 }
 
-void fake_intr(int irq, void *dev_id, struct pt_regs *pregs)
+void fake_intr(int irq, void *dev_id)
 {
 #ifdef DEBUG_MAC_ESP
 	printk("mac_esp: got irq\n");
 #endif
 
-	mac_esp_intr(irq, dev_id, pregs);
+	mac_esp_intr(irq, dev_id);
 }
 
-irqreturn_t fake_drq(int irq, void *dev_id, struct pt_regs *pregs)
+irqreturn_t fake_drq(int irq, void *dev_id)
 {
 	printk("mac_esp: got drq\n");
 	return IRQ_HANDLED;

@@ -33,6 +33,14 @@
 #   define CPU_NAME cpu_arm6
 #  endif
 # endif
+# ifdef CONFIG_CPU_ARM7TDMI
+#  ifdef CPU_NAME
+#   undef  MULTI_CPU
+#   define MULTI_CPU
+#  else
+#   define CPU_NAME cpu_arm7tdmi
+#  endif
+# endif
 # ifdef CONFIG_CPU_ARM710
 #  ifdef CPU_NAME
 #   undef  MULTI_CPU
@@ -47,6 +55,22 @@
 #   define MULTI_CPU
 #  else
 #   define CPU_NAME cpu_arm720
+#  endif
+# endif
+# ifdef CONFIG_CPU_ARM740T
+#  ifdef CPU_NAME
+#   undef  MULTI_CPU
+#   define MULTI_CPU
+#  else
+#   define CPU_NAME cpu_arm740
+#  endif
+# endif
+# ifdef CONFIG_CPU_ARM9TDMI
+#  ifdef CPU_NAME
+#   undef  MULTI_CPU
+#   define MULTI_CPU
+#  else
+#   define CPU_NAME cpu_arm9tdmi
 #  endif
 # endif
 # ifdef CONFIG_CPU_ARM920T
@@ -79,6 +103,22 @@
 #   define MULTI_CPU
 #  else
 #   define CPU_NAME cpu_arm926
+#  endif
+# endif
+# ifdef CONFIG_CPU_ARM940T
+#  ifdef CPU_NAME
+#   undef  MULTI_CPU
+#   define MULTI_CPU
+#  else
+#   define CPU_NAME cpu_arm940
+#  endif
+# endif
+# ifdef CONFIG_CPU_ARM946E
+#  ifdef CPU_NAME
+#   undef  MULTI_CPU
+#   define MULTI_CPU
+#  else
+#   define CPU_NAME cpu_arm946
 #  endif
 # endif
 # ifdef CONFIG_CPU_SA110

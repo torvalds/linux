@@ -16,20 +16,8 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 
-/*
- * NOTE: Macro/functions in this file depends on threads_info.h implementation.
- * Assumes:
- * TI_FLAGS == 8
- * TIF_USERSPACE == 31
- * USER_ADDR_LIMIT == 0x80000000
- */
-
 #define VERIFY_READ    0
 #define VERIFY_WRITE   1
-
-typedef struct {
-	unsigned int is_user_space;
-} mm_segment_t;
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -40,16 +28,18 @@ typedef struct {
  */
 
 #define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
-#define segment_eq(a,b)	((a).is_user_space == (b).is_user_space)
 
-#define USER_ADDR_LIMIT	0x80000000
+#define KERNEL_DS	MAKE_MM_SEG(0xFFFFFFFFUL)
+#define USER_DS		MAKE_MM_SEG(PAGE_OFFSET)
 
-#define KERNEL_DS	MAKE_MM_SEG(0)
-#define USER_DS		MAKE_MM_SEG(1)
+#define segment_eq(a,b)	((a).seg == (b).seg)
 
 #define get_ds()	(KERNEL_DS)
 
 #if !defined(CONFIG_MMU)
+/* NOMMU is always true */
+#define __addr_ok(addr) (1)
+
 static inline mm_segment_t get_fs(void)
 {
 	return USER_DS;
@@ -76,31 +66,11 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 	return ((addr >= memory_start) && ((addr + size) < memory_end));
 }
 #else /* CONFIG_MMU */
-static inline mm_segment_t get_fs(void)
-{
-	return MAKE_MM_SEG(test_thread_flag(TIF_USERSPACE));
-}
+#define __addr_ok(addr) \
+	((unsigned long)(addr) < (current_thread_info()->addr_limit.seg))
 
-static inline void set_fs(mm_segment_t s)
-{
-	unsigned long ti, flag;
-	__asm__ __volatile__(
-		"stc	r7_bank, %0\n\t"
-		"mov.l	@(8,%0), %1\n\t"
-		"shal	%1\n\t"
-		"cmp/pl	%2\n\t"
-		"rotcr	%1\n\t"
-		"mov.l	%1, @(8,%0)"
-		: "=&r" (ti), "=&r" (flag)
-		: "r" (s.is_user_space)
-		: "t");
-/****
-	if (s.is_user_space)
-		set_thread_flag(TIF_USERSPACE);
-	else
-		clear_thread_flag(TIF_USERSPACE);
-****/
-}
+#define get_fs()	(current_thread_info()->addr_limit)
+#define set_fs(x)	(current_thread_info()->addr_limit = (x))
 
 /*
  * __access_ok: Check if address with size is OK or not.
@@ -108,7 +78,7 @@ static inline void set_fs(mm_segment_t s)
  * We do three checks:
  * (1) is it user space? 
  * (2) addr + size --> carry?
- * (3) addr + size >= 0x80000000  (USER_ADDR_LIMIT)
+ * (3) addr + size >= 0x80000000  (PAGE_OFFSET)
  *
  * (1) (2) (3) | RESULT
  *  0   0   0  |  ok
@@ -201,6 +171,7 @@ do {								\
 	__gu_err;						\
 })
 
+#ifdef CONFIG_MMU
 #define __get_user_check(x,ptr,size)				\
 ({								\
 	long __gu_err, __gu_val;				\
@@ -290,6 +261,18 @@ __asm__("stc	r7_bank, %1\n\t"		\
 	: "r" (addr)				\
 	: "t");					\
 })
+#else /* CONFIG_MMU */
+#define __get_user_check(x,ptr,size)					\
+({									\
+	long __gu_err, __gu_val;					\
+	if (__access_ok((unsigned long)(ptr), (size))) {		\
+		__get_user_size(__gu_val, (ptr), (size), __gu_err);	\
+		(x) = (__typeof__(*(ptr)))__gu_val;			\
+	} else								\
+		__gu_err = -EFAULT;					\
+	__gu_err;							\
+})
+#endif
 
 #define __get_user_asm(x, addr, err, insn) \
 ({ \
@@ -541,7 +524,7 @@ static __inline__ long __strnlen_user(const char __user *__s, long __n)
 		"3:\n\t"
 		"mov.l	4f, %1\n\t"
 		"jmp	@%1\n\t"
-		" mov	%5, %0\n"
+		" mov	#0, %0\n"
 		".balign 4\n"
 		"4:	.long 2b\n"
 		".previous\n"
@@ -550,26 +533,20 @@ static __inline__ long __strnlen_user(const char __user *__s, long __n)
 		"	.long 1b,3b\n"
 		".previous"
 		: "=z" (res), "=&r" (__dummy)
-		: "0" (0), "r" (__s), "r" (__n), "i" (-EFAULT)
+		: "0" (0), "r" (__s), "r" (__n)
 		: "t");
 	return res;
 }
 
 static __inline__ long strnlen_user(const char __user *s, long n)
 {
-	if (!access_ok(VERIFY_READ, s, n))
+	if (!__addr_ok(s))
 		return 0;
 	else
 		return __strnlen_user(s, n);
 }
 
-static __inline__ long strlen_user(const char __user *s)
-{
-	if (!access_ok(VERIFY_READ, s, 0))
-		return 0;
-	else
-		return __strnlen_user(s, ~0UL >> 1);
-}
+#define strlen_user(str)	strnlen_user(str, ~0UL >> 1)
 
 /*
  * The exception table consists of pairs of addresses: the first is the

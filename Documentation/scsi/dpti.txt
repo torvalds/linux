@@ -48,7 +48,7 @@
  *      Implemented suggestions from Alan Cox
  *      Added calculation of resid for sg layer
  *      Better error handling
- *         Added checking underflow condtions 
+ *         Added checking underflow conditions 
  *         Added DATAPROTECT checking
  *         Changed error return codes
  *         Fixed pointer bug in bus reset routine

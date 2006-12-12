@@ -13,9 +13,11 @@
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/smp_lock.h>
+#include <linux/mount.h>
 
 #include "internal.h"
 
@@ -28,6 +30,17 @@ struct proc_dir_entry *proc_sys_root;
 static int proc_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
+	if (proc_mnt) {
+		/* Seed the root directory with a pid so it doesn't need
+		 * to be special in base.c.  I would do this earlier but
+		 * the only task alive when /proc is mounted the first time
+		 * is the init_task and it doesn't have any pids.
+		 */
+		struct proc_inode *ei;
+		ei = PROC_I(proc_mnt->mnt_sb->s_root->d_inode);
+		if (!ei->pid)
+			ei->pid = find_get_pid(1);
+	}
 	return get_sb_single(fs_type, flags, data, proc_fill_super, mnt);
 }
 

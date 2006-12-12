@@ -11,6 +11,8 @@ config SH_DMA
 config NR_ONCHIP_DMA_CHANNELS
 	depends on SH_DMA
 	int "Number of on-chip DMAC channels"
+	default "8" if CPU_SUBTYPE_SH7750R || CPU_SUBTYPE_SH7751R
+	default "12" if CPU_SUBTYPE_SH7780
 	default "4"
 	help
 	  This allows you to specify the number of channels that the on-chip
@@ -52,4 +54,3 @@ config DMA_PAGE_OPS_CHANNEL
 	  are dual-address capable.
 
 endmenu
-

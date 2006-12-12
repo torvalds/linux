@@ -359,8 +359,7 @@ static void siu_break_ctl(struct uart_port *port, int ctl)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static inline void receive_chars(struct uart_port *port, uint8_t *status,
-                                 struct pt_regs *regs)
+static inline void receive_chars(struct uart_port *port, uint8_t *status)
 {
 	struct tty_struct *tty;
 	uint8_t lsr, ch;
@@ -405,7 +404,7 @@ static inline void receive_chars(struct uart_port *port, uint8_t *status,
 				flag = TTY_PARITY;
 		}
 
-		if (uart_handle_sysrq_char(port, ch, regs))
+		if (uart_handle_sysrq_char(port, ch))
 			goto ignore_char;
 
 		uart_insert_char(port, lsr, UART_LSR_OE, ch, flag);
@@ -472,7 +471,7 @@ static inline void transmit_chars(struct uart_port *port)
 		siu_stop_tx(port);
 }
 
-static irqreturn_t siu_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t siu_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port;
 	uint8_t iir, lsr;
@@ -485,7 +484,7 @@ static irqreturn_t siu_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	lsr = siu_read(port, UART_LSR);
 	if (lsr & UART_LSR_DR)
-		receive_chars(port, &lsr, regs);
+		receive_chars(port, &lsr);
 
 	check_modem_status(port);
 
@@ -563,8 +562,8 @@ static void siu_shutdown(struct uart_port *port)
 	free_irq(port->irq, port);
 }
 
-static void siu_set_termios(struct uart_port *port, struct termios *new,
-                            struct termios *old)
+static void siu_set_termios(struct uart_port *port, struct ktermios *new,
+                            struct ktermios *old)
 {
 	tcflag_t c_cflag, c_iflag;
 	uint8_t lcr, fcr, ier;

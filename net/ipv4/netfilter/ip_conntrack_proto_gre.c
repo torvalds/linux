@@ -34,8 +34,6 @@
 #include <linux/interrupt.h>
 
 static DEFINE_RWLOCK(ip_ct_gre_lock);
-#define ASSERT_READ_LOCK(x)
-#define ASSERT_WRITE_LOCK(x)
 
 #include <linux/netfilter_ipv4/ip_conntrack_protocol.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>

@@ -41,10 +41,6 @@ struct pxafb_info {
 	struct fb_info		fb;
 	struct device		*dev;
 
-	u_int			max_bpp;
-	u_int			max_xres;
-	u_int			max_yres;
-
 	/*
 	 * These are the addresses we mapped
 	 * the framebuffer memory region to.

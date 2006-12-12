@@ -3,7 +3,6 @@
  * Licensed under the GPL
  */
 
-#include "linux/config.h"
 #include "linux/stddef.h"
 #include "linux/sys.h"
 #include "linux/sched.h"

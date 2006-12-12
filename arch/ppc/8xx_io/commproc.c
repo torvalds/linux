@@ -47,12 +47,12 @@ cpm8xx_t	*cpmp;		/* Pointer to comm processor space */
 /* CPM interrupt vector functions.
 */
 struct	cpm_action {
-	void	(*handler)(void *, struct pt_regs * regs);
+	void	(*handler)(void *);
 	void	*dev_id;
 };
 static	struct	cpm_action cpm_vecs[CPMVEC_NR];
-static	irqreturn_t cpm_interrupt(int irq, void * dev, struct pt_regs * regs);
-static	irqreturn_t cpm_error_interrupt(int irq, void *dev, struct pt_regs * regs);
+static	irqreturn_t cpm_interrupt(int irq, void * dev);
+static	irqreturn_t cpm_error_interrupt(int irq, void *dev);
 static	void	alloc_host_memory(void);
 /* Define a table of names to identify CPM interrupt handlers in
  * /proc/interrupts.
@@ -205,7 +205,7 @@ cpm_interrupt_init(void)
  * Get the CPM interrupt vector.
  */
 int
-cpm_get_irq(struct pt_regs *regs)
+cpm_get_irq(void)
 {
 	int cpm_vec;
 
@@ -222,7 +222,7 @@ cpm_get_irq(struct pt_regs *regs)
 /* CPM interrupt controller cascade interrupt.
 */
 static	irqreturn_t
-cpm_interrupt(int irq, void * dev, struct pt_regs * regs)
+cpm_interrupt(int irq, void * dev)
 {
 	/* This interrupt handler never actually gets called.  It is
 	 * installed only to unmask the CPM cascade interrupt in the SIU
@@ -237,7 +237,7 @@ cpm_interrupt(int irq, void * dev, struct pt_regs * regs)
  * tests in the interrupt handler.
  */
 static	irqreturn_t
-cpm_error_interrupt(int irq, void *dev, struct pt_regs *regs)
+cpm_error_interrupt(int irq, void *dev)
 {
 	return IRQ_HANDLED;
 }
@@ -246,11 +246,11 @@ cpm_error_interrupt(int irq, void *dev, struct pt_regs *regs)
  * request_irq() to the handler prototype required by cpm_install_handler().
  */
 static irqreturn_t
-cpm_handler_helper(int irq, void *dev_id, struct pt_regs *regs)
+cpm_handler_helper(int irq, void *dev_id)
 {
 	int cpm_vec = irq - CPM_IRQ_OFFSET;
 
-	(*cpm_vecs[cpm_vec].handler)(dev_id, regs);
+	(*cpm_vecs[cpm_vec].handler)(dev_id);
 
 	return IRQ_HANDLED;
 }
@@ -267,8 +267,7 @@ cpm_handler_helper(int irq, void *dev_id, struct pt_regs *regs)
  * request_irq() or cpm_install_handler().
  */
 void
-cpm_install_handler(int cpm_vec, void (*handler)(void *, struct pt_regs *regs),
-		    void *dev_id)
+cpm_install_handler(int cpm_vec, void (*handler)(void *), void *dev_id)
 {
 	int err;
 

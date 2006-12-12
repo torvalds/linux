@@ -6,7 +6,7 @@
 /*             David Jeffery, Adaptec, Inc.                                  */
 /*                                                                           */
 /* Copyright (C) 1999 IBM Corporation                                        */
-/* Copyright (C) 2003 Adaptec, Inc.                                          */ 
+/* Copyright (C) 2003 Adaptec, Inc.                                          */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or modify      */
 /* it under the terms of the GNU General Public License as published by      */
@@ -51,6 +51,7 @@
    #define _IPS_H_
 
 #include <linux/version.h>
+#include <linux/nmi.h>
    #include <asm/uaccess.h>
    #include <asm/io.h>
 
@@ -116,9 +117,11 @@
             dev_printk(level , &((pcidev)->dev) , format , ## arg)
    #endif
 
-   #ifndef MDELAY
-      #define MDELAY mdelay
-   #endif
+   #define MDELAY(n)			\
+	do {				\
+		mdelay(n);		\
+		touch_nmi_watchdog();	\
+	} while (0)
 
    #ifndef min
       #define min(x,y) ((x) < (y) ? x : y)
@@ -1033,14 +1036,14 @@ typedef struct ips_scb_queue {
  * Wait queue_format
  */
 typedef struct ips_wait_queue {
-   Scsi_Cmnd      *head;
-   Scsi_Cmnd      *tail;
-   int             count;
+	struct scsi_cmnd *head;
+	struct scsi_cmnd *tail;
+	int count;
 } ips_wait_queue_t;
 
 typedef struct ips_copp_wait_item {
-   Scsi_Cmnd                 *scsi_cmd;
-   struct ips_copp_wait_item *next;
+	struct scsi_cmnd *scsi_cmd;
+	struct ips_copp_wait_item *next;
 } ips_copp_wait_item_t;
 
 typedef struct ips_copp_queue {
@@ -1149,7 +1152,7 @@ typedef struct ips_scb {
    uint32_t          flags;
    uint32_t          op_code;
    IPS_SG_LIST       sg_list;
-   Scsi_Cmnd        *scsi_cmd;
+   struct scsi_cmnd *scsi_cmd;
    struct ips_scb   *q_next;
    ips_scb_callback  callback;
    uint32_t          sg_busaddr;
@@ -1175,7 +1178,7 @@ typedef struct ips_scb_pt {
    uint32_t          flags;
    uint32_t          op_code;
    IPS_SG_LIST      *sg_list;
-   Scsi_Cmnd        *scsi_cmd;
+   struct scsi_cmnd *scsi_cmd;
    struct ips_scb   *q_next;
    ips_scb_callback  callback;
 } ips_scb_pt_t;

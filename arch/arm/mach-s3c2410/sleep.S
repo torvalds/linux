@@ -41,15 +41,25 @@
 
 	.text
 
-	/* s3c2410_cpu_suspend
+	/* s3c2410_cpu_save
 	 *
-	 * put the cpu into sleep mode
+	 * save enough of the CPU state to allow us to re-start
+	 * pm.c code. as we store items like the sp/lr, we will
+	 * end up returning from this function when the cpu resumes
+	 * so the return value is set to mark this.
+	 *
+	 * This arangement means we avoid having to flush the cache
+	 * from this code.
 	 *
 	 * entry:
-	 *	r0 = sleep save block
+	 *	r0 = pointer to save block
+	 *
+	 * exit:
+	 *	r0 = 0 => we stored everything
+	 *	     1 => resumed from sleep
 	*/
 
-ENTRY(s3c2410_cpu_suspend)
+ENTRY(s3c2410_cpu_save)
 	stmfd	sp!, { r4 - r12, lr }
 
 	@@ store co-processor registers
@@ -62,44 +72,14 @@ ENTRY(s3c2410_cpu_suspend)
 
 	stmia	r0, { r4 - r13 }
 
-	@@ flush the caches to ensure everything is back out to
-	@@ SDRAM before the core powers down
-
-#ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
-	bl	arm920_flush_kern_cache_all
-#endif
-
-	@@ prepare cpu to sleep
-
-	ldr	r4, =S3C2410_REFRESH
-	ldr	r5, =S3C24XX_MISCCR
-	ldr	r6, =S3C2410_CLKCON
-	ldr	r7, [ r4 ]		@ get REFRESH (and ensure in TLB)
-	ldr	r8, [ r5 ]		@ get MISCCR (and ensure in TLB)
-	ldr	r9, [ r6 ]		@ get CLKCON (and ensure in TLB)
-
-	orr	r7, r7, #S3C2410_REFRESH_SELF	@ SDRAM sleep command
-	orr	r8, r8, #S3C2410_MISCCR_SDSLEEP @ SDRAM power-down signals
-	orr	r9, r9, #S3C2410_CLKCON_POWER	@ power down command
-
-	teq	pc, #0			@ first as a trial-run to load cache
-	bl	s3c2410_do_sleep
-	teq	r0, r0			@ now do it for real
-	b	s3c2410_do_sleep	@
-
-	@@ align next bit of code to cache line
-	.align	8
-s3c2410_do_sleep:
-	streq	r7, [ r4 ]			@ SDRAM sleep command
-	streq	r8, [ r5 ]			@ SDRAM power-down config
-	streq	r9, [ r6 ]			@ CPU sleep
-1:	beq	1b
-	mov	pc, r14
+	mov	r0, #0
+	ldmfd	sp, { r4 - r12, pc }
 
 	@@ return to the caller, after having the MMU
 	@@ turned on, this restores the last bits from the
 	@@ stack
 resume_with_mmu:
+	mov	r0, #1
 	ldmfd	sp!, { r4 - r12, pc }
 
 	.ltorg

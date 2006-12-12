@@ -1,5 +1,5 @@
 /*
- * linux/drivers/char/ppdev.h
+ * linux/include/linux/ppdev.h
  *
  * User-space parallel port device driver (header file).
  *

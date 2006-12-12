@@ -18,7 +18,7 @@
  * The driver conciously keeps this logic internally to avoid pushing quirky
  * PATA history into the clean libata layer.
  *
- * Thinkpad specific note: If you boot an MPIIX using thinkpad with a PCMCIA
+ * Thinkpad specific note: If you boot an MPIIX using a thinkpad with a PCMCIA
  * hard disk present this driver will not detect it. This is not a bug. In this
  * configuration the secondary port of the MPIIX is disabled and the addresses
  * are decoded by the PCMCIA bridge and therefore are for a generic IDE driver
@@ -35,7 +35,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_mpiix"
-#define DRV_VERSION "0.7.1"
+#define DRV_VERSION "0.7.3"
 
 enum {
 	IDETIM = 0x6C,		/* IDE control register */
@@ -54,11 +54,8 @@ static int mpiix_pre_reset(struct ata_port *ap)
 		{ 0x6F, 1, 0x80, 0x80 }
 	};
 
-	if (!pci_test_config_bits(pdev, &mpiix_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (!pci_test_config_bits(pdev, &mpiix_enable_bits[ap->port_no]))
+		return -ENOENT;
 	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
@@ -162,14 +159,16 @@ static struct scsi_host_template mpiix_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations mpiix_port_ops = {
@@ -277,18 +276,19 @@ static void __devexit mpiix_remove_one(struct pci_dev *pdev)
 	dev_set_drvdata(dev, NULL);
 }
 
-
-
 static const struct pci_device_id mpiix[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371MX), },
-	{ 0, },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82371MX), },
+
+	{ },
 };
 
 static struct pci_driver mpiix_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= mpiix,
 	.probe 		= mpiix_init_one,
-	.remove		= mpiix_remove_one
+	.remove		= mpiix_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= ata_pci_device_resume,
 };
 
 static int __init mpiix_init(void)
@@ -296,12 +296,10 @@ static int __init mpiix_init(void)
 	return pci_register_driver(&mpiix_pci_driver);
 }
 
-
 static void __exit mpiix_exit(void)
 {
 	pci_unregister_driver(&mpiix_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Intel MPIIX");

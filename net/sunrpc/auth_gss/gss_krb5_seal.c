@@ -77,7 +77,6 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 		struct xdr_netobj *token)
 {
 	struct krb5_ctx		*ctx = gss_ctx->internal_ctx_id;
-	s32			checksum_type;
 	char			cksumdata[16];
 	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	unsigned char		*ptr, *krb5_hdr, *msg_start;
@@ -87,21 +86,6 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 	dprintk("RPC:     gss_krb5_seal\n");
 
 	now = get_seconds();
-
-	switch (ctx->signalg) {
-		case SGN_ALG_DES_MAC_MD5:
-			checksum_type = CKSUMTYPE_RSA_MD5;
-			break;
-		default:
-			dprintk("RPC:      gss_krb5_seal: ctx->signalg %d not"
-				" supported\n", ctx->signalg);
-			goto out_err;
-	}
-	if (ctx->sealalg != SEAL_ALG_NONE && ctx->sealalg != SEAL_ALG_DES) {
-		dprintk("RPC:      gss_krb5_seal: ctx->sealalg %d not supported\n",
-			ctx->sealalg);
-		goto out_err;
-	}
 
 	token->len = g_token_size(&ctx->mech_used, 22);
 
@@ -115,37 +99,26 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 	krb5_hdr = ptr - 2;
 	msg_start = krb5_hdr + 24;
 
-	*(u16 *)(krb5_hdr + 2) = htons(ctx->signalg);
+	*(__be16 *)(krb5_hdr + 2) = htons(SGN_ALG_DES_MAC_MD5);
 	memset(krb5_hdr + 4, 0xff, 4);
 
-	if (make_checksum(checksum_type, krb5_hdr, 8, text, 0, &md5cksum))
-			goto out_err;
+	if (make_checksum("md5", krb5_hdr, 8, text, 0, &md5cksum))
+		return GSS_S_FAILURE;
 
-	switch (ctx->signalg) {
-	case SGN_ALG_DES_MAC_MD5:
-		if (krb5_encrypt(ctx->seq, NULL, md5cksum.data,
-				  md5cksum.data, md5cksum.len))
-			goto out_err;
-		memcpy(krb5_hdr + 16,
-		       md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
-		       KRB5_CKSUM_LENGTH);
+	if (krb5_encrypt(ctx->seq, NULL, md5cksum.data,
+			  md5cksum.data, md5cksum.len))
+		return GSS_S_FAILURE;
 
-		dprintk("RPC:      make_seal_token: cksum data: \n");
-		print_hexl((u32 *) (krb5_hdr + 16), KRB5_CKSUM_LENGTH, 0);
-		break;
-	default:
-		BUG();
-	}
+	memcpy(krb5_hdr + 16, md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
+	       KRB5_CKSUM_LENGTH);
 
 	spin_lock(&krb5_seq_lock);
 	seq_send = ctx->seq_send++;
 	spin_unlock(&krb5_seq_lock);
 
-	if ((krb5_make_seq_num(ctx->seq, ctx->initiate ? 0 : 0xff,
-			       seq_send, krb5_hdr + 16, krb5_hdr + 8)))
-		goto out_err;
+	if (krb5_make_seq_num(ctx->seq, ctx->initiate ? 0 : 0xff,
+			       ctx->seq_send, krb5_hdr + 16, krb5_hdr + 8))
+		return GSS_S_FAILURE;
 
-	return ((ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE);
-out_err:
-	return GSS_S_FAILURE;
+	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }

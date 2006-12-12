@@ -12,252 +12,53 @@
 
 
 #ifdef __ASSEMBLY__
-
-	.macro	_ssnop
-	sll	$0, $0, 1
-	.endm
-
-	.macro	_ehb
-	sll	$0, $0, 3
-	.endm
-
-/*
- * RM9000 hazards.  When the JTLB is updated by tlbwi or tlbwr, a subsequent
- * use of the JTLB for instructions should not occur for 4 cpu cycles and use
- * for data translations should not occur for 3 cpu cycles.
- */
-#ifdef CONFIG_CPU_RM9000
-
-	.macro	mtc0_tlbw_hazard
-	.set	push
-	.set	mips32
-	_ssnop; _ssnop; _ssnop; _ssnop
-	.set	pop
-	.endm
-
-	.macro	tlbw_eret_hazard
-	.set	push
-	.set	mips32
-	_ssnop; _ssnop; _ssnop; _ssnop
-	.set	pop
-	.endm
-
+#define ASMMACRO(name, code...) .macro name; code; .endm
 #else
 
-/*
- * The taken branch will result in a two cycle penalty for the two killed
- * instructions on R4000 / R4400.  Other processors only have a single cycle
- * hazard so this is nice trick to have an optimal code for a range of
- * processors.
- */
-	.macro	mtc0_tlbw_hazard
-	b	. + 8
-	.endm
+#define ASMMACRO(name, code...)						\
+__asm__(".macro " #name "; " #code "; .endm");				\
+									\
+static inline void name(void)						\
+{									\
+	__asm__ __volatile__ (#name);					\
+}
 
-	.macro	tlbw_eret_hazard
-	.endm
 #endif
 
+ASMMACRO(_ssnop,
+	 sll	$0, $0, 1
+	)
+
+ASMMACRO(_ehb,
+	 sll	$0, $0, 3
+	)
+
 /*
- * mtc0->mfc0 hazard
- * The 24K has a 2 cycle mtc0/mfc0 execution hazard.
- * It is a MIPS32R2 processor so ehb will clear the hazard.
+ * TLB hazards
+ */
+#if defined(CONFIG_CPU_MIPSR2)
+
+/*
+ * MIPSR2 defines ehb for hazard avoidance
  */
 
-#ifdef CONFIG_CPU_MIPSR2
-/*
- * Use a macro for ehb unless explicit support for MIPSR2 is enabled
- */
-
-#define irq_enable_hazard						\
+ASMMACRO(mtc0_tlbw_hazard,
+	 _ehb
+	)
+ASMMACRO(tlbw_use_hazard,
+	 _ehb
+	)
+ASMMACRO(tlb_probe_hazard,
+	 _ehb
+	)
+ASMMACRO(irq_enable_hazard,
+	)
+ASMMACRO(irq_disable_hazard,
 	_ehb
-
-#define irq_disable_hazard						\
-	_ehb
-
-#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000)
-
-/*
- * R10000 rocks - all hazards handled in hardware, so this becomes a nobrainer.
- */
-
-#define irq_enable_hazard
-
-#define irq_disable_hazard
-
-#else
-
-/*
- * Classic MIPS needs 1 - 3 nops or ssnops
- */
-#define irq_enable_hazard
-#define irq_disable_hazard						\
-	_ssnop; _ssnop; _ssnop
-
-#endif
-
-#else /* __ASSEMBLY__ */
-
-__asm__(
-	"	.macro	_ssnop					\n"
-	"	sll	$0, $0, 1				\n"
-	"	.endm						\n"
-	"							\n"
-	"	.macro	_ehb					\n"
-	"	sll	$0, $0, 3				\n"
-	"	.endm						\n");
-
-#ifdef CONFIG_CPU_RM9000
-
-/*
- * RM9000 hazards.  When the JTLB is updated by tlbwi or tlbwr, a subsequent
- * use of the JTLB for instructions should not occur for 4 cpu cycles and use
- * for data translations should not occur for 3 cpu cycles.
- */
-
-#define mtc0_tlbw_hazard()						\
-	__asm__ __volatile__(						\
-	"	.set	mips32					\n"	\
-	"	_ssnop						\n"	\
-	"	_ssnop						\n"	\
-	"	_ssnop						\n"	\
-	"	_ssnop						\n"	\
-	"	.set	mips0					\n")
-
-#define tlbw_use_hazard()						\
-	__asm__ __volatile__(						\
-	"	.set	mips32					\n"	\
-	"	_ssnop						\n"	\
-	"	_ssnop						\n"	\
-	"	_ssnop						\n"	\
-	"	_ssnop						\n"	\
-	"	.set	mips0					\n")
-
-#else
-
-/*
- * Overkill warning ...
- */
-#define mtc0_tlbw_hazard()						\
-	__asm__ __volatile__(						\
-	"	.set	noreorder				\n"	\
-	"	nop						\n"	\
-	"	nop						\n"	\
-	"	nop						\n"	\
-	"	nop						\n"	\
-	"	nop						\n"	\
-	"	nop						\n"	\
-	"	.set	reorder					\n")
-
-#define tlbw_use_hazard()						\
-	__asm__ __volatile__(						\
-	"	.set	noreorder				\n"	\
-	"	nop						\n"	\
-	"	nop						\n"	\
-	"	nop						\n"	\
-	"	nop						\n"	\
-	"	nop						\n"	\
-	"	nop						\n"	\
-	"	.set	reorder					\n")
-
-#endif
-
-/*
- * Interrupt enable/disable hazards
- * Some processors have hazards when modifying
- * the status register to change the interrupt state
- */
-
-#ifdef CONFIG_CPU_MIPSR2
-
-__asm__("	.macro	irq_enable_hazard			\n"
-	"	_ehb						\n"
-	"	.endm						\n"
-	"							\n"
-	"	.macro	irq_disable_hazard			\n"
-	"	_ehb						\n"
-	"	.endm						\n");
-
-#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000)
-
-/*
- * R10000 rocks - all hazards handled in hardware, so this becomes a nobrainer.
- */
-
-__asm__(
-	"	.macro	irq_enable_hazard			\n"
-	"	.endm						\n"
-	"							\n"
-	"	.macro	irq_disable_hazard			\n"
-	"	.endm						\n");
-
-#else
-
-/*
- * Default for classic MIPS processors.  Assume worst case hazards but don't
- * care about the irq_enable_hazard - sooner or later the hardware will
- * enable it and we don't care when exactly.
- */
-
-__asm__(
-	"	#						\n"
-	"	# There is a hazard but we do not care		\n"
-	"	#						\n"
-	"	.macro\tirq_enable_hazard			\n"
-	"	.endm						\n"
-	"							\n"
-	"	.macro\tirq_disable_hazard			\n"
-	"	_ssnop						\n"
-	"	_ssnop						\n"
-	"	_ssnop						\n"
-	"	.endm						\n");
-
-#endif
-
-#define irq_enable_hazard()						\
-	__asm__ __volatile__("irq_enable_hazard")
-#define irq_disable_hazard()						\
-	__asm__ __volatile__("irq_disable_hazard")
-
-
-/*
- * Back-to-back hazards -
- *
- * What is needed to separate a move to cp0 from a subsequent read from the
- * same cp0 register?
- */
-#ifdef CONFIG_CPU_MIPSR2
-
-__asm__("	.macro	back_to_back_c0_hazard			\n"
-	"	_ehb						\n"
-	"	.endm						\n");
-
-#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000) || \
-      defined(CONFIG_CPU_SB1)
-
-__asm__("	.macro	back_to_back_c0_hazard			\n"
-	"	.endm						\n");
-
-#else
-
-__asm__("	.macro	back_to_back_c0_hazard			\n"
-	"	.set	noreorder				\n"
-	"	_ssnop						\n"
-	"	_ssnop						\n"
-	"	_ssnop						\n"
-	"	.set	reorder					\n"
-	"	.endm");
-
-#endif
-
-#define back_to_back_c0_hazard()					\
-	__asm__ __volatile__("back_to_back_c0_hazard")
-
-
-/*
- * Instruction execution hazard
- */
-#ifdef CONFIG_CPU_MIPSR2
+	)
+ASMMACRO(back_to_back_c0_hazard,
+	 _ehb
+	)
 /*
  * gcc has a tradition of misscompiling the previous construct using the
  * address of a label as argument to inline assembler.  Gas otoh has the
@@ -279,12 +80,101 @@ do {									\
 	: "=r" (tmp));							\
 } while (0)
 
-#else
+#elif defined(CONFIG_CPU_R10000)
+
+/*
+ * R10000 rocks - all hazards handled in hardware, so this becomes a nobrainer.
+ */
+
+ASMMACRO(mtc0_tlbw_hazard,
+	)
+ASMMACRO(tlbw_use_hazard,
+	)
+ASMMACRO(tlb_probe_hazard,
+	)
+ASMMACRO(irq_enable_hazard,
+	)
+ASMMACRO(irq_disable_hazard,
+	)
+ASMMACRO(back_to_back_c0_hazard,
+	)
 #define instruction_hazard() do { } while (0)
+
+#elif defined(CONFIG_CPU_RM9000)
+
+/*
+ * RM9000 hazards.  When the JTLB is updated by tlbwi or tlbwr, a subsequent
+ * use of the JTLB for instructions should not occur for 4 cpu cycles and use
+ * for data translations should not occur for 3 cpu cycles.
+ */
+
+ASMMACRO(mtc0_tlbw_hazard,
+	 _ssnop; _ssnop; _ssnop; _ssnop
+	)
+ASMMACRO(tlbw_use_hazard,
+	 _ssnop; _ssnop; _ssnop; _ssnop
+	)
+ASMMACRO(tlb_probe_hazard,
+	 _ssnop; _ssnop; _ssnop; _ssnop
+	)
+ASMMACRO(irq_enable_hazard,
+	)
+ASMMACRO(irq_disable_hazard,
+	)
+ASMMACRO(back_to_back_c0_hazard,
+	)
+#define instruction_hazard() do { } while (0)
+
+#elif defined(CONFIG_CPU_SB1)
+
+/*
+ * Mostly like R4000 for historic reasons
+ */
+ASMMACRO(mtc0_tlbw_hazard,
+	)
+ASMMACRO(tlbw_use_hazard,
+	)
+ASMMACRO(tlb_probe_hazard,
+	)
+ASMMACRO(irq_enable_hazard,
+	)
+ASMMACRO(irq_disable_hazard,
+	 _ssnop; _ssnop; _ssnop
+	)
+ASMMACRO(back_to_back_c0_hazard,
+	)
+#define instruction_hazard() do { } while (0)
+
+#else
+
+/*
+ * Finally the catchall case for all other processors including R4000, R4400,
+ * R4600, R4700, R5000, RM7000, NEC VR41xx etc.
+ *
+ * The taken branch will result in a two cycle penalty for the two killed
+ * instructions on R4000 / R4400.  Other processors only have a single cycle
+ * hazard so this is nice trick to have an optimal code for a range of
+ * processors.
+ */
+ASMMACRO(mtc0_tlbw_hazard,
+	nop
+	)
+ASMMACRO(tlbw_use_hazard,
+	nop; nop; nop
+	)
+ASMMACRO(tlb_probe_hazard,
+	 nop; nop; nop
+	)
+ASMMACRO(irq_enable_hazard,
+	)
+ASMMACRO(irq_disable_hazard,
+	nop; nop; nop
+	)
+ASMMACRO(back_to_back_c0_hazard,
+	 _ssnop; _ssnop; _ssnop;
+	)
+#define instruction_hazard() do { } while (0)
+
 #endif
-
-extern void mips_ihb(void);
-
-#endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_HAZARDS_H */

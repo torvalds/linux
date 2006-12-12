@@ -107,6 +107,11 @@ struct rt6_info
 	u8				rt6i_protocol;
 };
 
+static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
+{
+	return ((struct rt6_info *)dst)->rt6i_idev;
+}
+
 struct fib6_walker_t
 {
 	struct fib6_walker_t *prev, *next;

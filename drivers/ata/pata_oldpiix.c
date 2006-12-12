@@ -25,7 +25,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_oldpiix"
-#define DRV_VERSION	"0.5.1"
+#define DRV_VERSION	"0.5.2"
 
 /**
  *	oldpiix_pre_reset		-	probe begin
@@ -42,11 +42,8 @@ static int oldpiix_pre_reset(struct ata_port *ap)
 		{ 0x43U, 1U, 0x80UL, 0x80UL },	/* port 1 */
 	};
 
-	if (!pci_test_config_bits(pdev, &oldpiix_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (!pci_test_config_bits(pdev, &oldpiix_enable_bits[ap->port_no]))
+		return -ENOENT;
 	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
@@ -227,14 +224,16 @@ static struct scsi_host_template oldpiix_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static const struct ata_port_operations oldpiix_pata_ops = {
@@ -306,7 +305,8 @@ static int oldpiix_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 }
 
 static const struct pci_device_id oldpiix_pci_tbl[] = {
-	{ PCI_DEVICE(0x8086, 0x1230), },
+	{ PCI_VDEVICE(INTEL, 0x1230), },
+
 	{ }	/* terminate list */
 };
 
@@ -315,6 +315,8 @@ static struct pci_driver oldpiix_pci_driver = {
 	.id_table		= oldpiix_pci_tbl,
 	.probe			= oldpiix_init_one,
 	.remove			= ata_pci_remove_one,
+	.suspend		= ata_pci_device_suspend,
+	.resume			= ata_pci_device_resume,
 };
 
 static int __init oldpiix_init(void)
@@ -326,7 +328,6 @@ static void __exit oldpiix_exit(void)
 {
 	pci_unregister_driver(&oldpiix_pci_driver);
 }
-
 
 module_init(oldpiix_init);
 module_exit(oldpiix_exit);

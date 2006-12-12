@@ -218,10 +218,11 @@ static struct pipe_buf_operations anon_pipe_buf_ops = {
 };
 
 static ssize_t
-pipe_readv(struct file *filp, const struct iovec *_iov,
-	   unsigned long nr_segs, loff_t *ppos)
+pipe_read(struct kiocb *iocb, const struct iovec *_iov,
+	   unsigned long nr_segs, loff_t pos)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct file *filp = iocb->ki_filp;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct pipe_inode_info *pipe;
 	int do_wakeup;
 	ssize_t ret;
@@ -330,18 +331,11 @@ redo:
 }
 
 static ssize_t
-pipe_read(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
+pipe_write(struct kiocb *iocb, const struct iovec *_iov,
+	    unsigned long nr_segs, loff_t ppos)
 {
-	struct iovec iov = { .iov_base = buf, .iov_len = count };
-
-	return pipe_readv(filp, &iov, 1, ppos);
-}
-
-static ssize_t
-pipe_writev(struct file *filp, const struct iovec *_iov,
-	    unsigned long nr_segs, loff_t *ppos)
-{
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct file *filp = iocb->ki_filp;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct pipe_inode_info *pipe;
 	ssize_t ret;
 	int do_wakeup;
@@ -510,15 +504,6 @@ out:
 }
 
 static ssize_t
-pipe_write(struct file *filp, const char __user *buf,
-	   size_t count, loff_t *ppos)
-{
-	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
-
-	return pipe_writev(filp, &iov, 1, ppos);
-}
-
-static ssize_t
 bad_pipe_r(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 {
 	return -EBADF;
@@ -535,7 +520,7 @@ static int
 pipe_ioctl(struct inode *pino, struct file *filp,
 	   unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct pipe_inode_info *pipe;
 	int count, buf, nrbufs;
 
@@ -563,7 +548,7 @@ static unsigned int
 pipe_poll(struct file *filp, poll_table *wait)
 {
 	unsigned int mask;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct pipe_inode_info *pipe = inode->i_pipe;
 	int nrbufs;
 
@@ -616,7 +601,7 @@ pipe_release(struct inode *inode, int decr, int decw)
 static int
 pipe_read_fasync(int fd, struct file *filp, int on)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	int retval;
 
 	mutex_lock(&inode->i_mutex);
@@ -633,7 +618,7 @@ pipe_read_fasync(int fd, struct file *filp, int on)
 static int
 pipe_write_fasync(int fd, struct file *filp, int on)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	int retval;
 
 	mutex_lock(&inode->i_mutex);
@@ -650,7 +635,7 @@ pipe_write_fasync(int fd, struct file *filp, int on)
 static int
 pipe_rdwr_fasync(int fd, struct file *filp, int on)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct pipe_inode_info *pipe = inode->i_pipe;
 	int retval;
 
@@ -736,8 +721,8 @@ pipe_rdwr_open(struct inode *inode, struct file *filp)
  */
 const struct file_operations read_fifo_fops = {
 	.llseek		= no_llseek,
-	.read		= pipe_read,
-	.readv		= pipe_readv,
+	.read		= do_sync_read,
+	.aio_read	= pipe_read,
 	.write		= bad_pipe_w,
 	.poll		= pipe_poll,
 	.ioctl		= pipe_ioctl,
@@ -749,8 +734,8 @@ const struct file_operations read_fifo_fops = {
 const struct file_operations write_fifo_fops = {
 	.llseek		= no_llseek,
 	.read		= bad_pipe_r,
-	.write		= pipe_write,
-	.writev		= pipe_writev,
+	.write		= do_sync_write,
+	.aio_write	= pipe_write,
 	.poll		= pipe_poll,
 	.ioctl		= pipe_ioctl,
 	.open		= pipe_write_open,
@@ -760,10 +745,10 @@ const struct file_operations write_fifo_fops = {
 
 const struct file_operations rdwr_fifo_fops = {
 	.llseek		= no_llseek,
-	.read		= pipe_read,
-	.readv		= pipe_readv,
-	.write		= pipe_write,
-	.writev		= pipe_writev,
+	.read		= do_sync_read,
+	.aio_read	= pipe_read,
+	.write		= do_sync_write,
+	.aio_write	= pipe_write,
 	.poll		= pipe_poll,
 	.ioctl		= pipe_ioctl,
 	.open		= pipe_rdwr_open,
@@ -773,8 +758,8 @@ const struct file_operations rdwr_fifo_fops = {
 
 static struct file_operations read_pipe_fops = {
 	.llseek		= no_llseek,
-	.read		= pipe_read,
-	.readv		= pipe_readv,
+	.read		= do_sync_read,
+	.aio_read	= pipe_read,
 	.write		= bad_pipe_w,
 	.poll		= pipe_poll,
 	.ioctl		= pipe_ioctl,
@@ -786,8 +771,8 @@ static struct file_operations read_pipe_fops = {
 static struct file_operations write_pipe_fops = {
 	.llseek		= no_llseek,
 	.read		= bad_pipe_r,
-	.write		= pipe_write,
-	.writev		= pipe_writev,
+	.write		= do_sync_write,
+	.aio_write	= pipe_write,
 	.poll		= pipe_poll,
 	.ioctl		= pipe_ioctl,
 	.open		= pipe_write_open,
@@ -797,10 +782,10 @@ static struct file_operations write_pipe_fops = {
 
 static struct file_operations rdwr_pipe_fops = {
 	.llseek		= no_llseek,
-	.read		= pipe_read,
-	.readv		= pipe_readv,
-	.write		= pipe_write,
-	.writev		= pipe_writev,
+	.read		= do_sync_read,
+	.aio_read	= pipe_read,
+	.write		= do_sync_write,
+	.aio_write	= pipe_write,
 	.poll		= pipe_poll,
 	.ioctl		= pipe_ioctl,
 	.open		= pipe_rdwr_open,
@@ -845,7 +830,14 @@ void free_pipe_info(struct inode *inode)
 static struct vfsmount *pipe_mnt __read_mostly;
 static int pipefs_delete_dentry(struct dentry *dentry)
 {
-	return 1;
+	/*
+	 * At creation time, we pretended this dentry was hashed
+	 * (by clearing DCACHE_UNHASHED bit in d_flags)
+	 * At delete time, we restore the truth : not hashed.
+	 * (so that dput() can proceed correctly)
+	 */
+	dentry->d_flags |= DCACHE_UNHASHED;
+	return 0;
 }
 
 static struct dentry_operations pipefs_dentry_operations = {
@@ -879,7 +871,6 @@ static struct inode * get_pipe_inode(void)
 	inode->i_uid = current->fsuid;
 	inode->i_gid = current->fsgid;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	inode->i_blksize = PAGE_SIZE;
 
 	return inode;
 
@@ -890,87 +881,123 @@ fail_inode:
 	return NULL;
 }
 
-int do_pipe(int *fd)
+struct file *create_write_pipe(void)
 {
-	struct qstr this;
-	char name[32];
+	int err;
+	struct inode *inode;
+	struct file *f;
 	struct dentry *dentry;
-	struct inode * inode;
-	struct file *f1, *f2;
-	int error;
-	int i, j;
+	char name[32];
+	struct qstr this;
 
-	error = -ENFILE;
-	f1 = get_empty_filp();
-	if (!f1)
-		goto no_files;
-
-	f2 = get_empty_filp();
-	if (!f2)
-		goto close_f1;
-
+	f = get_empty_filp();
+	if (!f)
+		return ERR_PTR(-ENFILE);
+	err = -ENFILE;
 	inode = get_pipe_inode();
 	if (!inode)
-		goto close_f12;
+		goto err_file;
 
-	error = get_unused_fd();
-	if (error < 0)
-		goto close_f12_inode;
-	i = error;
-
-	error = get_unused_fd();
-	if (error < 0)
-		goto close_f12_inode_i;
-	j = error;
-
-	error = -ENOMEM;
-	sprintf(name, "[%lu]", inode->i_ino);
+	this.len = sprintf(name, "[%lu]", inode->i_ino);
 	this.name = name;
-	this.len = strlen(name);
-	this.hash = inode->i_ino; /* will go */
+	this.hash = 0;
+	err = -ENOMEM;
 	dentry = d_alloc(pipe_mnt->mnt_sb->s_root, &this);
 	if (!dentry)
-		goto close_f12_inode_i_j;
+		goto err_inode;
 
 	dentry->d_op = &pipefs_dentry_operations;
-	d_add(dentry, inode);
-	f1->f_vfsmnt = f2->f_vfsmnt = mntget(mntget(pipe_mnt));
-	f1->f_dentry = f2->f_dentry = dget(dentry);
-	f1->f_mapping = f2->f_mapping = inode->i_mapping;
+	/*
+	 * We dont want to publish this dentry into global dentry hash table.
+	 * We pretend dentry is already hashed, by unsetting DCACHE_UNHASHED
+	 * This permits a working /proc/$pid/fd/XXX on pipes
+	 */
+	dentry->d_flags &= ~DCACHE_UNHASHED;
+	d_instantiate(dentry, inode);
+	f->f_path.mnt = mntget(pipe_mnt);
+	f->f_path.dentry = dentry;
+	f->f_mapping = inode->i_mapping;
 
-	/* read file */
-	f1->f_pos = f2->f_pos = 0;
-	f1->f_flags = O_RDONLY;
-	f1->f_op = &read_pipe_fops;
-	f1->f_mode = FMODE_READ;
-	f1->f_version = 0;
+	f->f_flags = O_WRONLY;
+	f->f_op = &write_pipe_fops;
+	f->f_mode = FMODE_WRITE;
+	f->f_version = 0;
 
-	/* write file */
-	f2->f_flags = O_WRONLY;
-	f2->f_op = &write_pipe_fops;
-	f2->f_mode = FMODE_WRITE;
-	f2->f_version = 0;
+	return f;
 
-	fd_install(i, f1);
-	fd_install(j, f2);
-	fd[0] = i;
-	fd[1] = j;
+ err_inode:
+	free_pipe_info(inode);
+	iput(inode);
+ err_file:
+	put_filp(f);
+	return ERR_PTR(err);
+}
+
+void free_write_pipe(struct file *f)
+{
+	mntput(f->f_path.mnt);
+	dput(f->f_path.dentry);
+	put_filp(f);
+}
+
+struct file *create_read_pipe(struct file *wrf)
+{
+	struct file *f = get_empty_filp();
+	if (!f)
+		return ERR_PTR(-ENFILE);
+
+	/* Grab pipe from the writer */
+	f->f_path.mnt = mntget(wrf->f_path.mnt);
+	f->f_path.dentry = dget(wrf->f_path.dentry);
+	f->f_mapping = wrf->f_path.dentry->d_inode->i_mapping;
+
+	f->f_pos = 0;
+	f->f_flags = O_RDONLY;
+	f->f_op = &read_pipe_fops;
+	f->f_mode = FMODE_READ;
+	f->f_version = 0;
+
+	return f;
+}
+
+int do_pipe(int *fd)
+{
+	struct file *fw, *fr;
+	int error;
+	int fdw, fdr;
+
+	fw = create_write_pipe();
+	if (IS_ERR(fw))
+		return PTR_ERR(fw);
+	fr = create_read_pipe(fw);
+	error = PTR_ERR(fr);
+	if (IS_ERR(fr))
+		goto err_write_pipe;
+
+	error = get_unused_fd();
+	if (error < 0)
+		goto err_read_pipe;
+	fdr = error;
+
+	error = get_unused_fd();
+	if (error < 0)
+		goto err_fdr;
+	fdw = error;
+
+	fd_install(fdr, fr);
+	fd_install(fdw, fw);
+	fd[0] = fdr;
+	fd[1] = fdw;
 
 	return 0;
 
-close_f12_inode_i_j:
-	put_unused_fd(j);
-close_f12_inode_i:
-	put_unused_fd(i);
-close_f12_inode:
-	free_pipe_info(inode);
-	iput(inode);
-close_f12:
-	put_filp(f2);
-close_f1:
-	put_filp(f1);
-no_files:
-	return error;	
+ err_fdr:
+	put_unused_fd(fdr);
+ err_read_pipe:
+	put_filp(fr);
+ err_write_pipe:
+	free_write_pipe(fw);
+	return error;
 }
 
 /*

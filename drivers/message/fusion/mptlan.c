@@ -111,7 +111,8 @@ struct mpt_lan_priv {
 	u32 total_received;
 	struct net_device_stats stats;	/* Per device statistics */
 
-	struct work_struct post_buckets_task;
+	struct delayed_work post_buckets_task;
+	struct net_device *dev;
 	unsigned long post_buckets_active;
 };
 
@@ -132,7 +133,7 @@ static int  lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf,
 static int  mpt_lan_open(struct net_device *dev);
 static int  mpt_lan_reset(struct net_device *dev);
 static int  mpt_lan_close(struct net_device *dev);
-static void mpt_lan_post_receive_buckets(void *dev_id);
+static void mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv);
 static void mpt_lan_wake_post_buckets_task(struct net_device *dev,
 					   int priority);
 static int  mpt_lan_receive_post_turbo(struct net_device *dev, u32 tmsg);
@@ -345,7 +346,7 @@ mpt_lan_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 			priv->mpt_rxfidx[++priv->mpt_rxfidx_tail] = i;
 		spin_unlock_irqrestore(&priv->rxfidx_lock, flags);
 	} else {
-		mpt_lan_post_receive_buckets(dev);
+		mpt_lan_post_receive_buckets(priv);
 		netif_wake_queue(dev);
 	}
 
@@ -441,7 +442,7 @@ mpt_lan_open(struct net_device *dev)
 
 	dlprintk((KERN_INFO MYNAM "/lo: Finished initializing RcvCtl\n"));
 
-	mpt_lan_post_receive_buckets(dev);
+	mpt_lan_post_receive_buckets(priv);
 	printk(KERN_INFO MYNAM ": %s/%s: interface up & active\n",
 			IOC_AND_NETDEV_NAMES_s_s(dev));
 
@@ -854,7 +855,7 @@ mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
 	
 	if (test_and_set_bit(0, &priv->post_buckets_active) == 0) {
 		if (priority) {
-			schedule_work(&priv->post_buckets_task);
+			schedule_delayed_work(&priv->post_buckets_task, 0);
 		} else {
 			schedule_delayed_work(&priv->post_buckets_task, 1);
 			dioprintk((KERN_INFO MYNAM ": post_buckets queued on "
@@ -1188,10 +1189,9 @@ mpt_lan_receive_post_reply(struct net_device *dev,
 /* Simple SGE's only at the moment */
 
 static void
-mpt_lan_post_receive_buckets(void *dev_id)
+mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv)
 {
-	struct net_device *dev = dev_id;
-	struct mpt_lan_priv *priv = dev->priv;
+	struct net_device *dev = priv->dev;
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;
 	MPT_FRAME_HDR *mf;
 	LANReceivePostRequest_t *pRecvReq;
@@ -1335,6 +1335,13 @@ out:
 	clear_bit(0, &priv->post_buckets_active);
 }
 
+static void
+mpt_lan_post_receive_buckets_work(struct work_struct *work)
+{
+	mpt_lan_post_receive_buckets(container_of(work, struct mpt_lan_priv,
+						  post_buckets_task.work));
+}
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 static struct net_device *
 mpt_register_lan_device (MPT_ADAPTER *mpt_dev, int pnum)
@@ -1350,11 +1357,13 @@ mpt_register_lan_device (MPT_ADAPTER *mpt_dev, int pnum)
 
 	priv = netdev_priv(dev);
 
+	priv->dev = dev;
 	priv->mpt_dev = mpt_dev;
 	priv->pnum = pnum;
 
-	memset(&priv->post_buckets_task, 0, sizeof(struct work_struct));
-	INIT_WORK(&priv->post_buckets_task, mpt_lan_post_receive_buckets, dev);
+	memset(&priv->post_buckets_task, 0, sizeof(priv->post_buckets_task));
+	INIT_DELAYED_WORK(&priv->post_buckets_task,
+			  mpt_lan_post_receive_buckets_work);
 	priv->post_buckets_active = 0;
 
 	dlprintk((KERN_INFO MYNAM "@%d: bucketlen = %d\n",

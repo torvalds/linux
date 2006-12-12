@@ -260,7 +260,7 @@ items:
        a pointer to it.
 
   7.4) Appropriately modify architecture specific code to register the
-       the new system call.
+       new system call.
 
 8) Test Specification
 ---------------------

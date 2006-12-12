@@ -230,7 +230,6 @@ ENTRY(system_call)
 	CFI_REL_OFFSET rip,RIP-ARGOFFSET
 	GET_THREAD_INFO(%rcx)
 	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%rcx)
-	CFI_REMEMBER_STATE
 	jnz tracesys
 	cmpq $__NR_syscall_max,%rax
 	ja badsys
@@ -241,7 +240,6 @@ ENTRY(system_call)
  * Syscall return path ending with SYSRET (fast path)
  * Has incomplete stack frame and undefined top of stack. 
  */		
-	.globl ret_from_sys_call
 ret_from_sys_call:
 	movl $_TIF_ALLWORK_MASK,%edi
 	/* edi:	flagmask */
@@ -251,8 +249,8 @@ sysret_check:
 	TRACE_IRQS_OFF
 	movl threadinfo_flags(%rcx),%edx
 	andl %edi,%edx
-	CFI_REMEMBER_STATE
 	jnz  sysret_careful 
+	CFI_REMEMBER_STATE
 	/*
 	 * sysretq will re-enable interrupts:
 	 */
@@ -265,10 +263,10 @@ sysret_check:
 	swapgs
 	sysretq
 
+	CFI_RESTORE_STATE
 	/* Handle reschedules */
 	/* edx:	work, edi: workmask */	
 sysret_careful:
-	CFI_RESTORE_STATE
 	bt $TIF_NEED_RESCHED,%edx
 	jnc sysret_signal
 	TRACE_IRQS_ON
@@ -306,7 +304,6 @@ badsys:
 
 	/* Do syscall tracing */
 tracesys:			 
-	CFI_RESTORE_STATE
 	SAVE_REST
 	movq $-ENOSYS,RAX(%rsp)
 	FIXUP_TOP_OF_STACK %rdi
@@ -315,37 +312,20 @@ tracesys:
 	LOAD_ARGS ARGOFFSET  /* reload args from stack in case ptrace changed it */
 	RESTORE_REST
 	cmpq $__NR_syscall_max,%rax
+	movq $-ENOSYS,%rcx
+	cmova %rcx,%rax
 	ja  1f
 	movq %r10,%rcx	/* fixup for C */
 	call *sys_call_table(,%rax,8)
 1:	movq %rax,RAX-ARGOFFSET(%rsp)
 	/* Use IRET because user could have changed frame */
-	jmp int_ret_from_sys_call
-	CFI_ENDPROC
-END(system_call)
 		
 /* 
  * Syscall return path ending with IRET.
  * Has correct top of stack, but partial stack frame.
- */ 	
-ENTRY(int_ret_from_sys_call)
-	CFI_STARTPROC	simple
-	CFI_SIGNAL_FRAME
-	CFI_DEF_CFA	rsp,SS+8-ARGOFFSET
-	/*CFI_REL_OFFSET	ss,SS-ARGOFFSET*/
-	CFI_REL_OFFSET	rsp,RSP-ARGOFFSET
-	/*CFI_REL_OFFSET	rflags,EFLAGS-ARGOFFSET*/
-	/*CFI_REL_OFFSET	cs,CS-ARGOFFSET*/
-	CFI_REL_OFFSET	rip,RIP-ARGOFFSET
-	CFI_REL_OFFSET	rdx,RDX-ARGOFFSET
-	CFI_REL_OFFSET	rcx,RCX-ARGOFFSET
-	CFI_REL_OFFSET	rax,RAX-ARGOFFSET
-	CFI_REL_OFFSET	rdi,RDI-ARGOFFSET
-	CFI_REL_OFFSET	rsi,RSI-ARGOFFSET
-	CFI_REL_OFFSET	r8,R8-ARGOFFSET
-	CFI_REL_OFFSET	r9,R9-ARGOFFSET
-	CFI_REL_OFFSET	r10,R10-ARGOFFSET
-	CFI_REL_OFFSET	r11,R11-ARGOFFSET
+ */
+	.globl int_ret_from_sys_call
+int_ret_from_sys_call:
 	cli
 	TRACE_IRQS_OFF
 	testl $3,CS-ARGOFFSET(%rsp)
@@ -392,8 +372,6 @@ int_very_careful:
 	popq %rdi
 	CFI_ADJUST_CFA_OFFSET -8
 	andl $~(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP),%edi
-	cli
-	TRACE_IRQS_OFF
 	jmp int_restore_rest
 	
 int_signal:
@@ -409,7 +387,7 @@ int_restore_rest:
 	TRACE_IRQS_OFF
 	jmp int_with_check
 	CFI_ENDPROC
-END(int_ret_from_sys_call)
+END(system_call)
 		
 /* 
  * Certain special system calls that need to save a complete full stack frame.
@@ -1023,7 +1001,7 @@ ENDPROC(child_rip)
  * do_sys_execve asm fallback arguments:
  *	rdi: name, rsi: argv, rdx: envp, fake frame on the stack
  */
-ENTRY(execve)
+ENTRY(kernel_execve)
 	CFI_STARTPROC
 	FAKE_STACK_FRAME $0
 	SAVE_ALL	
@@ -1036,7 +1014,7 @@ ENTRY(execve)
 	UNFAKE_STACK_FRAME
 	ret
 	CFI_ENDPROC
-ENDPROC(execve)
+ENDPROC(kernel_execve)
 
 KPROBE_ENTRY(page_fault)
 	errorentry do_page_fault

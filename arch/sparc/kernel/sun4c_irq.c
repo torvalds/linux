@@ -154,7 +154,7 @@ static void sun4c_load_profile_irq(int cpu, unsigned int limit)
 	/* Errm.. not sure how to do this.. */
 }
 
-static void __init sun4c_init_timers(irqreturn_t (*counter_fn)(int, void *, struct pt_regs *))
+static void __init sun4c_init_timers(irq_handler_t counter_fn)
 {
 	int irq;
 

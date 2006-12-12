@@ -1799,7 +1799,7 @@ static int alc_build_pcms(struct hda_codec *codec)
 	/* SPDIF for stream index #1 */
 	if (spec->multiout.dig_out_nid || spec->dig_in_nid) {
 		codec->num_pcms = 2;
-		info++;
+		info = spec->pcm_rec + 1;
 		info->name = spec->stream_name_digital;
 		if (spec->multiout.dig_out_nid &&
 		    spec->stream_digital_playback) {
@@ -1820,7 +1820,7 @@ static int alc_build_pcms(struct hda_codec *codec)
 	if (spec->num_adc_nids > 1 && spec->stream_analog_capture &&
 	    spec->adc_nids) {
 		codec->num_pcms = 3;
-		info++;
+		info = spec->pcm_rec + 2;
 		info->name = spec->stream_name_analog;
 		/* No playback stream for second PCM */
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK] = alc_pcm_null_playback;
@@ -5076,6 +5076,10 @@ static struct hda_board_config alc883_cfg_tbl[] = {
 	{ .modelname = "acer", .config = ALC883_ACER },
 	{ .pci_subvendor = 0x1025, .pci_subdevice = 0/*0x0102*/,
 	  .config = ALC883_ACER },
+	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x0102,
+	  .config = ALC883_ACER },
+	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x009f,
+	  .config = ALC883_ACER },
 	{ .modelname = "auto", .config = ALC883_AUTO },
 	{}
 };
@@ -5866,7 +5870,7 @@ static struct hda_board_config alc262_cfg_tbl[] = {
 	{ .pci_subvendor = 0x10cf, .pci_subdevice = 0x1397,
 	  .config = ALC262_FUJITSU },
 	{ .modelname = "hp-bpc", .config = ALC262_HP_BPC },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x208c,
+	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x280c,
 	  .config = ALC262_HP_BPC }, /* xw4400 */
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3014,
 	  .config = ALC262_HP_BPC }, /* xw6400 */

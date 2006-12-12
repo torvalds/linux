@@ -7,7 +7,6 @@
  * Modified for SH-Mobile SolutionEngine 73180 Support
  *              by YOSHII Takashi <yoshii-takashi@hitachi-ul.co.jp>
  *
- *
  */
 
 #include <linux/init.h>
@@ -15,14 +14,6 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/mach/se73180.h>
-
-static int
-intreq2irq(int i)
-{
-	if (i == 5)
-		return 10;
-	return 32 + 7 - i;
-}
 
 static int
 irq2intreq(int irq)
@@ -96,13 +87,38 @@ shmse_irq_demux(int irq)
 	return irq;
 }
 
+static struct ipr_data se73180_siof0_ipr_map[] = {
+	{ SIOF0_IRQ, SIOF0_IPR_ADDR, SIOF0_IPR_POS, SIOF0_PRIORITY },
+};
+static struct ipr_data se73180_vpu_ipr_map[] = {
+	{ VPU_IRQ, VPU_IPR_ADDR, VPU_IPR_POS, 8 },
+};
+static struct ipr_data se73180_other_ipr_map[] = {
+	{ DMTE2_IRQ, DMA1_IPR_ADDR, DMA1_IPR_POS, DMA1_PRIORITY },
+	{ DMTE3_IRQ, DMA1_IPR_ADDR, DMA1_IPR_POS, DMA1_PRIORITY },
+	{ DMTE4_IRQ, DMA2_IPR_ADDR, DMA2_IPR_POS, DMA2_PRIORITY },
+	{ IIC0_ALI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS, IIC0_PRIORITY },
+	{ IIC0_TACKI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS, IIC0_PRIORITY },
+	{ IIC0_WAITI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS, IIC0_PRIORITY },
+	{ IIC0_DTEI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS, IIC0_PRIORITY },
+	{ SIOF0_IRQ, SIOF0_IPR_ADDR, SIOF0_IPR_POS, SIOF0_PRIORITY },
+	{ SIU_IRQ, SIU_IPR_ADDR, SIU_IPR_POS, SIU_PRIORITY },
+
+	/* VIO interrupt */
+	{ CEU_IRQ, VIO_IPR_ADDR, VIO_IPR_POS, VIO_PRIORITY },
+	{ BEU_IRQ, VIO_IPR_ADDR, VIO_IPR_POS, VIO_PRIORITY },
+	{ VEU_IRQ, VIO_IPR_ADDR, VIO_IPR_POS, VIO_PRIORITY },
+
+	{ LCDC_IRQ, LCDC_IPR_ADDR, LCDC_IPR_POS, LCDC_PRIORITY },
+};
+
 /*
  * Initialize IRQ setting
  */
 void __init
 init_73180se_IRQ(void)
 {
-	make_ipr_irq(SIOF0_IRQ, SIOF0_IPR_ADDR, SIOF0_IPR_POS, SIOF0_PRIORITY);
+	make_ipr_irq(se73180_siof0_ipr_map, ARRAY_SIZE(se73180_siof0_ipr_map));
 
 	ctrl_outw(0x2000, 0xb03fffec);	/* mrshpc irq enable */
 	ctrl_outw(0x2000, 0xb07fffec);	/* mrshpc irq enable */
@@ -110,27 +126,11 @@ init_73180se_IRQ(void)
 	ctrl_outw(2 << ((7 - 5) * 2), INTC_ICR1);	/* low-level irq */
 	make_intreq_irq(10);
 
-	make_ipr_irq(VPU_IRQ, VPU_IPR_ADDR, VPU_IPR_POS, 8);
+	make_ipr_irq(se73180_vpu_ipr_map, ARRAY_SIZE(se73180_vpu_ipr_map));
 
 	ctrl_outb(0x0f, INTC_IMCR5);	/* enable SCIF IRQ */
 
-	make_ipr_irq(DMTE2_IRQ, DMA1_IPR_ADDR, DMA1_IPR_POS, DMA1_PRIORITY);
-	make_ipr_irq(DMTE3_IRQ, DMA1_IPR_ADDR, DMA1_IPR_POS, DMA1_PRIORITY);
-	make_ipr_irq(DMTE4_IRQ, DMA2_IPR_ADDR, DMA2_IPR_POS, DMA2_PRIORITY);
-	make_ipr_irq(IIC0_ALI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS, IIC0_PRIORITY);
-	make_ipr_irq(IIC0_TACKI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS,
-		     IIC0_PRIORITY);
-	make_ipr_irq(IIC0_WAITI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS,
-		     IIC0_PRIORITY);
-	make_ipr_irq(IIC0_DTEI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS, IIC0_PRIORITY);
-	make_ipr_irq(SIOF0_IRQ, SIOF0_IPR_ADDR, SIOF0_IPR_POS, SIOF0_PRIORITY);
-	make_ipr_irq(SIU_IRQ, SIU_IPR_ADDR, SIU_IPR_POS, SIU_PRIORITY);
+	make_ipr_irq(se73180_other_ipr_map, ARRAY_SIZE(se73180_other_ipr_map));
 
-	/* VIO interrupt */
-	make_ipr_irq(CEU_IRQ, VIO_IPR_ADDR, VIO_IPR_POS, VIO_PRIORITY);
-	make_ipr_irq(BEU_IRQ, VIO_IPR_ADDR, VIO_IPR_POS, VIO_PRIORITY);
-	make_ipr_irq(VEU_IRQ, VIO_IPR_ADDR, VIO_IPR_POS, VIO_PRIORITY);
-
-	make_ipr_irq(LCDC_IRQ, LCDC_IPR_ADDR, LCDC_IPR_POS, LCDC_PRIORITY);
 	ctrl_outw(0x2000, PA_MRSHPC + 0x0c);	/* mrshpc irq enable */
 }

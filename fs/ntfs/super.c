@@ -74,18 +74,18 @@ const option_t on_errors_arr[] = {
  *
  * Copied from old ntfs driver (which copied from vfat driver).
  */
-static int simple_getbool(char *s, BOOL *setval)
+static int simple_getbool(char *s, bool *setval)
 {
 	if (s) {
 		if (!strcmp(s, "1") || !strcmp(s, "yes") || !strcmp(s, "true"))
-			*setval = TRUE;
+			*setval = true;
 		else if (!strcmp(s, "0") || !strcmp(s, "no") ||
 							!strcmp(s, "false"))
-			*setval = FALSE;
+			*setval = false;
 		else
 			return 0;
 	} else
-		*setval = TRUE;
+		*setval = true;
 	return 1;
 }
 
@@ -96,7 +96,7 @@ static int simple_getbool(char *s, BOOL *setval)
  *
  * Parse the recognized options in @opt for the ntfs volume described by @vol.
  */
-static BOOL parse_options(ntfs_volume *vol, char *opt)
+static bool parse_options(ntfs_volume *vol, char *opt)
 {
 	char *p, *v, *ov;
 	static char *utf8 = "utf8";
@@ -137,7 +137,7 @@ static BOOL parse_options(ntfs_volume *vol, char *opt)
 	}
 #define NTFS_GETOPT_BOOL(option, variable)				\
 	if (!strcmp(p, option)) {					\
-		BOOL val;						\
+		bool val;						\
 		if (!simple_getbool(v, &val))				\
 			goto needs_bool;				\
 		variable = val;						\
@@ -170,7 +170,7 @@ static BOOL parse_options(ntfs_volume *vol, char *opt)
 		else NTFS_GETOPT_OCTAL("fmask", fmask)
 		else NTFS_GETOPT_OCTAL("dmask", dmask)
 		else NTFS_GETOPT("mft_zone_multiplier", mft_zone_multiplier)
-		else NTFS_GETOPT_WITH_DEFAULT("sloppy", sloppy, TRUE)
+		else NTFS_GETOPT_WITH_DEFAULT("sloppy", sloppy, true)
 		else NTFS_GETOPT_BOOL("show_sys_files", show_sys_files)
 		else NTFS_GETOPT_BOOL("case_sensitive", case_sensitive)
 		else NTFS_GETOPT_BOOL("disable_sparse", disable_sparse)
@@ -194,7 +194,7 @@ use_utf8:
 				if (!old_nls) {
 					ntfs_error(vol->sb, "NLS character set "
 							"%s not found.", v);
-					return FALSE;
+					return false;
 				}
 				ntfs_error(vol->sb, "NLS character set %s not "
 						"found. Using previous one %s.",
@@ -205,14 +205,14 @@ use_utf8:
 					unload_nls(old_nls);
 			}
 		} else if (!strcmp(p, "utf8")) {
-			BOOL val = FALSE;
+			bool val = false;
 			ntfs_warning(vol->sb, "Option utf8 is no longer "
 				   "supported, using option nls=utf8. Please "
 				   "use option nls=utf8 in the future and "
 				   "make sure utf8 is compiled either as a "
 				   "module or into the kernel.");
 			if (!v || !*v)
-				val = TRUE;
+				val = true;
 			else if (!simple_getbool(v, &val))
 				goto needs_bool;
 			if (val) {
@@ -231,7 +231,7 @@ use_utf8:
 	}
 no_mount_options:
 	if (errors && !sloppy)
-		return FALSE;
+		return false;
 	if (sloppy)
 		ntfs_warning(vol->sb, "Sloppy option given. Ignoring "
 				"unrecognized mount option(s) and continuing.");
@@ -240,14 +240,14 @@ no_mount_options:
 		if (!on_errors) {
 			ntfs_error(vol->sb, "Invalid errors option argument "
 					"or bug in options parser.");
-			return FALSE;
+			return false;
 		}
 	}
 	if (nls_map) {
 		if (vol->nls_map && vol->nls_map != nls_map) {
 			ntfs_error(vol->sb, "Cannot change NLS character set "
 					"on remount.");
-			return FALSE;
+			return false;
 		} /* else (!vol->nls_map) */
 		ntfs_debug("Using NLS character set %s.", nls_map->charset);
 		vol->nls_map = nls_map;
@@ -257,7 +257,7 @@ no_mount_options:
 			if (!vol->nls_map) {
 				ntfs_error(vol->sb, "Failed to load default "
 						"NLS character set.");
-				return FALSE;
+				return false;
 			}
 			ntfs_debug("Using default NLS character set (%s).",
 					vol->nls_map->charset);
@@ -268,7 +268,7 @@ no_mount_options:
 				mft_zone_multiplier) {
 			ntfs_error(vol->sb, "Cannot change mft_zone_multiplier "
 					"on remount.");
-			return FALSE;
+			return false;
 		}
 		if (mft_zone_multiplier < 1 || mft_zone_multiplier > 4) {
 			ntfs_error(vol->sb, "Invalid mft_zone_multiplier. "
@@ -318,16 +318,16 @@ no_mount_options:
 				NVolSetSparseEnabled(vol);
 		}
 	}
-	return TRUE;
+	return true;
 needs_arg:
 	ntfs_error(vol->sb, "The %s option requires an argument.", p);
-	return FALSE;
+	return false;
 needs_bool:
 	ntfs_error(vol->sb, "The %s option requires a boolean argument.", p);
-	return FALSE;
+	return false;
 needs_val:
 	ntfs_error(vol->sb, "Invalid %s option argument: %s", p, ov);
-	return FALSE;
+	return false;
 }
 
 #ifdef NTFS_RW
@@ -543,16 +543,16 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
  * is_boot_sector_ntfs - check whether a boot sector is a valid NTFS boot sector
  * @sb:		Super block of the device to which @b belongs.
  * @b:		Boot sector of device @sb to check.
- * @silent:	If TRUE, all output will be silenced.
+ * @silent:	If 'true', all output will be silenced.
  *
  * is_boot_sector_ntfs() checks whether the boot sector @b is a valid NTFS boot
- * sector. Returns TRUE if it is valid and FALSE if not.
+ * sector. Returns 'true' if it is valid and 'false' if not.
  *
  * @sb is only needed for warning/error output, i.e. it can be NULL when silent
- * is TRUE.
+ * is 'true'.
  */
-static BOOL is_boot_sector_ntfs(const struct super_block *sb,
-		const NTFS_BOOT_SECTOR *b, const BOOL silent)
+static bool is_boot_sector_ntfs(const struct super_block *sb,
+		const NTFS_BOOT_SECTOR *b, const bool silent)
 {
 	/*
 	 * Check that checksum == sum of u32 values from b to the checksum
@@ -620,9 +620,9 @@ static BOOL is_boot_sector_ntfs(const struct super_block *sb,
 	 */
 	if (!silent && b->end_of_sector_marker != const_cpu_to_le16(0xaa55))
 		ntfs_warning(sb, "Invalid end of sector marker.");
-	return TRUE;
+	return true;
 not_ntfs:
-	return FALSE;
+	return false;
 }
 
 /**
@@ -732,9 +732,9 @@ hotfix_primary_boot_sector:
  * @b:		boot sector to parse
  *
  * Parse the ntfs boot sector @b and store all imporant information therein in
- * the ntfs super block @vol.  Return TRUE on success and FALSE on error.
+ * the ntfs super block @vol.  Return 'true' on success and 'false' on error.
  */
-static BOOL parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
+static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 {
 	unsigned int sectors_per_cluster_bits, nr_hidden_sects;
 	int clusters_per_mft_record, clusters_per_index_record;
@@ -751,7 +751,7 @@ static BOOL parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 				"device block size (%lu).  This is not "
 				"supported.  Sorry.", vol->sector_size,
 				vol->sb->s_blocksize);
-		return FALSE;
+		return false;
 	}
 	ntfs_debug("sectors_per_cluster = 0x%x", b->bpb.sectors_per_cluster);
 	sectors_per_cluster_bits = ffs(b->bpb.sectors_per_cluster) - 1;
@@ -770,7 +770,7 @@ static BOOL parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 		ntfs_error(vol->sb, "Cluster size (%i) is smaller than the "
 				"sector size (%i).  This is not supported.  "
 				"Sorry.", vol->cluster_size, vol->sector_size);
-		return FALSE;
+		return false;
 	}
 	clusters_per_mft_record = b->clusters_per_mft_record;
 	ntfs_debug("clusters_per_mft_record = %i (0x%x)",
@@ -802,7 +802,7 @@ static BOOL parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 				"PAGE_CACHE_SIZE on your system (%lu).  "
 				"This is not supported.  Sorry.",
 				vol->mft_record_size, PAGE_CACHE_SIZE);
-		return FALSE;
+		return false;
 	}
 	/* We cannot support mft record sizes below the sector size. */
 	if (vol->mft_record_size < vol->sector_size) {
@@ -810,7 +810,7 @@ static BOOL parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 				"sector size (%i).  This is not supported.  "
 				"Sorry.", vol->mft_record_size,
 				vol->sector_size);
-		return FALSE;
+		return false;
 	}
 	clusters_per_index_record = b->clusters_per_index_record;
 	ntfs_debug("clusters_per_index_record = %i (0x%x)",
@@ -841,7 +841,7 @@ static BOOL parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 				"the sector size (%i).  This is not "
 				"supported.  Sorry.", vol->index_record_size,
 				vol->sector_size);
-		return FALSE;
+		return false;
 	}
 	/*
 	 * Get the size of the volume in clusters and check for 64-bit-ness.
@@ -851,7 +851,7 @@ static BOOL parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 	ll = sle64_to_cpu(b->number_of_sectors) >> sectors_per_cluster_bits;
 	if ((u64)ll >= 1ULL << 32) {
 		ntfs_error(vol->sb, "Cannot handle 64-bit clusters.  Sorry.");
-		return FALSE;
+		return false;
 	}
 	vol->nr_clusters = ll;
 	ntfs_debug("vol->nr_clusters = 0x%llx", (long long)vol->nr_clusters);
@@ -867,7 +867,7 @@ static BOOL parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 					"Maximum supported is 2TiB.  Sorry.",
 					(unsigned long long)ll >> (40 -
 					vol->cluster_size_bits));
-			return FALSE;
+			return false;
 		}
 	}
 	ll = sle64_to_cpu(b->mft_lcn);
@@ -875,7 +875,7 @@ static BOOL parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 		ntfs_error(vol->sb, "MFT LCN (%lli, 0x%llx) is beyond end of "
 				"volume.  Weird.", (unsigned long long)ll,
 				(unsigned long long)ll);
-		return FALSE;
+		return false;
 	}
 	vol->mft_lcn = ll;
 	ntfs_debug("vol->mft_lcn = 0x%llx", (long long)vol->mft_lcn);
@@ -884,7 +884,7 @@ static BOOL parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 		ntfs_error(vol->sb, "MFTMirr LCN (%lli, 0x%llx) is beyond end "
 				"of volume.  Weird.", (unsigned long long)ll,
 				(unsigned long long)ll);
-		return FALSE;
+		return false;
 	}
 	vol->mftmirr_lcn = ll;
 	ntfs_debug("vol->mftmirr_lcn = 0x%llx", (long long)vol->mftmirr_lcn);
@@ -907,7 +907,7 @@ static BOOL parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 	vol->serial_no = le64_to_cpu(b->volume_serial_number);
 	ntfs_debug("vol->serial_no = 0x%llx",
 			(unsigned long long)vol->serial_no);
-	return TRUE;
+	return true;
 }
 
 /**
@@ -1000,9 +1000,9 @@ static void ntfs_setup_allocators(ntfs_volume *vol)
  * load_and_init_mft_mirror - load and setup the mft mirror inode for a volume
  * @vol:	ntfs super block describing device whose mft mirror to load
  *
- * Return TRUE on success or FALSE on error.
+ * Return 'true' on success or 'false' on error.
  */
-static BOOL load_and_init_mft_mirror(ntfs_volume *vol)
+static bool load_and_init_mft_mirror(ntfs_volume *vol)
 {
 	struct inode *tmp_ino;
 	ntfs_inode *tmp_ni;
@@ -1014,7 +1014,7 @@ static BOOL load_and_init_mft_mirror(ntfs_volume *vol)
 		if (!IS_ERR(tmp_ino))
 			iput(tmp_ino);
 		/* Caller will display error message. */
-		return FALSE;
+		return false;
 	}
 	/*
 	 * Re-initialize some specifics about $MFTMirr's inode as
@@ -1041,20 +1041,20 @@ static BOOL load_and_init_mft_mirror(ntfs_volume *vol)
 	tmp_ni->itype.index.block_size_bits = vol->mft_record_size_bits;
 	vol->mftmirr_ino = tmp_ino;
 	ntfs_debug("Done.");
-	return TRUE;
+	return true;
 }
 
 /**
  * check_mft_mirror - compare contents of the mft mirror with the mft
  * @vol:	ntfs super block describing device whose mft mirror to check
  *
- * Return TRUE on success or FALSE on error.
+ * Return 'true' on success or 'false' on error.
  *
  * Note, this function also results in the mft mirror runlist being completely
  * mapped into memory.  The mft mirror write code requires this and will BUG()
  * should it find an unmapped runlist element.
  */
-static BOOL check_mft_mirror(ntfs_volume *vol)
+static bool check_mft_mirror(ntfs_volume *vol)
 {
 	struct super_block *sb = vol->sb;
 	ntfs_inode *mirr_ni;
@@ -1086,7 +1086,7 @@ static BOOL check_mft_mirror(ntfs_volume *vol)
 					index);
 			if (IS_ERR(mft_page)) {
 				ntfs_error(sb, "Failed to read $MFT.");
-				return FALSE;
+				return false;
 			}
 			kmft = page_address(mft_page);
 			/* Get the $MFTMirr page. */
@@ -1110,7 +1110,7 @@ mm_unmap_out:
 				ntfs_unmap_page(mirr_page);
 mft_unmap_out:
 				ntfs_unmap_page(mft_page);
-				return FALSE;
+				return false;
 			}
 		}
 		/* Do not check the mirror record if it is not in use. */
@@ -1169,21 +1169,21 @@ mft_unmap_out:
 			ntfs_error(sb, "$MFTMirr location mismatch.  "
 					"Run chkdsk.");
 			up_read(&mirr_ni->runlist.lock);
-			return FALSE;
+			return false;
 		}
 	} while (rl2[i++].length);
 	up_read(&mirr_ni->runlist.lock);
 	ntfs_debug("Done.");
-	return TRUE;
+	return true;
 }
 
 /**
  * load_and_check_logfile - load and check the logfile inode for a volume
  * @vol:	ntfs super block describing device whose logfile to load
  *
- * Return TRUE on success or FALSE on error.
+ * Return 'true' on success or 'false' on error.
  */
-static BOOL load_and_check_logfile(ntfs_volume *vol,
+static bool load_and_check_logfile(ntfs_volume *vol,
 		RESTART_PAGE_HEADER **rp)
 {
 	struct inode *tmp_ino;
@@ -1194,17 +1194,17 @@ static BOOL load_and_check_logfile(ntfs_volume *vol,
 		if (!IS_ERR(tmp_ino))
 			iput(tmp_ino);
 		/* Caller will display error message. */
-		return FALSE;
+		return false;
 	}
 	if (!ntfs_check_logfile(tmp_ino, rp)) {
 		iput(tmp_ino);
 		/* ntfs_check_logfile() will have displayed error output. */
-		return FALSE;
+		return false;
 	}
 	NInoSetSparseDisabled(NTFS_I(tmp_ino));
 	vol->logfile_ino = tmp_ino;
 	ntfs_debug("Done.");
-	return TRUE;
+	return true;
 }
 
 #define NTFS_HIBERFIL_HEADER_SIZE	4096
@@ -1329,10 +1329,10 @@ iput_out:
  * load_and_init_quota - load and setup the quota file for a volume if present
  * @vol:	ntfs super block describing device whose quota file to load
  *
- * Return TRUE on success or FALSE on error.  If $Quota is not present, we
+ * Return 'true' on success or 'false' on error.  If $Quota is not present, we
  * leave vol->quota_ino as NULL and return success.
  */
-static BOOL load_and_init_quota(ntfs_volume *vol)
+static bool load_and_init_quota(ntfs_volume *vol)
 {
 	MFT_REF mref;
 	struct inode *tmp_ino;
@@ -1366,11 +1366,11 @@ static BOOL load_and_init_quota(ntfs_volume *vol)
 			 * not enabled.
 			 */
 			NVolSetQuotaOutOfDate(vol);
-			return TRUE;
+			return true;
 		}
 		/* A real error occured. */
 		ntfs_error(vol->sb, "Failed to find inode number for $Quota.");
-		return FALSE;
+		return false;
 	}
 	/* We do not care for the type of match that was found. */
 	kfree(name);
@@ -1380,25 +1380,25 @@ static BOOL load_and_init_quota(ntfs_volume *vol)
 		if (!IS_ERR(tmp_ino))
 			iput(tmp_ino);
 		ntfs_error(vol->sb, "Failed to load $Quota.");
-		return FALSE;
+		return false;
 	}
 	vol->quota_ino = tmp_ino;
 	/* Get the $Q index allocation attribute. */
 	tmp_ino = ntfs_index_iget(vol->quota_ino, Q, 2);
 	if (IS_ERR(tmp_ino)) {
 		ntfs_error(vol->sb, "Failed to load $Quota/$Q index.");
-		return FALSE;
+		return false;
 	}
 	vol->quota_q_ino = tmp_ino;
 	ntfs_debug("Done.");
-	return TRUE;
+	return true;
 }
 
 /**
  * load_and_init_usnjrnl - load and setup the transaction log if present
  * @vol:	ntfs super block describing device whose usnjrnl file to load
  *
- * Return TRUE on success or FALSE on error.
+ * Return 'true' on success or 'false' on error.
  *
  * If $UsnJrnl is not present or in the process of being disabled, we set
  * NVolUsnJrnlStamped() and return success.
@@ -1408,7 +1408,7 @@ static BOOL load_and_init_quota(ntfs_volume *vol)
  * stamped and nothing has been logged since, we also set NVolUsnJrnlStamped()
  * and return success.
  */
-static BOOL load_and_init_usnjrnl(ntfs_volume *vol)
+static bool load_and_init_usnjrnl(ntfs_volume *vol)
 {
 	MFT_REF mref;
 	struct inode *tmp_ino;
@@ -1450,12 +1450,12 @@ not_enabled:
 			 * transaction logging is not enabled.
 			 */
 			NVolSetUsnJrnlStamped(vol);
-			return TRUE;
+			return true;
 		}
 		/* A real error occured. */
 		ntfs_error(vol->sb, "Failed to find inode number for "
 				"$UsnJrnl.");
-		return FALSE;
+		return false;
 	}
 	/* We do not care for the type of match that was found. */
 	kfree(name);
@@ -1465,7 +1465,7 @@ not_enabled:
 		if (!IS_ERR(tmp_ino))
 			iput(tmp_ino);
 		ntfs_error(vol->sb, "Failed to load $UsnJrnl.");
-		return FALSE;
+		return false;
 	}
 	vol->usnjrnl_ino = tmp_ino;
 	/*
@@ -1483,7 +1483,7 @@ not_enabled:
 	if (IS_ERR(tmp_ino)) {
 		ntfs_error(vol->sb, "Failed to load $UsnJrnl/$DATA/$Max "
 				"attribute.");
-		return FALSE;
+		return false;
 	}
 	vol->usnjrnl_max_ino = tmp_ino;
 	if (unlikely(i_size_read(tmp_ino) < sizeof(USN_HEADER))) {
@@ -1491,14 +1491,14 @@ not_enabled:
 				"attribute (size is 0x%llx but should be at "
 				"least 0x%zx bytes).", i_size_read(tmp_ino),
 				sizeof(USN_HEADER));
-		return FALSE;
+		return false;
 	}
 	/* Get the $DATA/$J attribute. */
 	tmp_ino = ntfs_attr_iget(vol->usnjrnl_ino, AT_DATA, J, 2);
 	if (IS_ERR(tmp_ino)) {
 		ntfs_error(vol->sb, "Failed to load $UsnJrnl/$DATA/$J "
 				"attribute.");
-		return FALSE;
+		return false;
 	}
 	vol->usnjrnl_j_ino = tmp_ino;
 	/* Verify $J is non-resident and sparse. */
@@ -1506,14 +1506,14 @@ not_enabled:
 	if (unlikely(!NInoNonResident(tmp_ni) || !NInoSparse(tmp_ni))) {
 		ntfs_error(vol->sb, "$UsnJrnl/$DATA/$J attribute is resident "
 				"and/or not sparse.");
-		return FALSE;
+		return false;
 	}
 	/* Read the USN_HEADER from $DATA/$Max. */
 	page = ntfs_map_page(vol->usnjrnl_max_ino->i_mapping, 0);
 	if (IS_ERR(page)) {
 		ntfs_error(vol->sb, "Failed to read from $UsnJrnl/$DATA/$Max "
 				"attribute.");
-		return FALSE;
+		return false;
 	}
 	uh = (USN_HEADER*)page_address(page);
 	/* Sanity check the $Max. */
@@ -1524,7 +1524,7 @@ not_enabled:
 				(long long)sle64_to_cpu(uh->allocation_delta),
 				(long long)sle64_to_cpu(uh->maximum_size));
 		ntfs_unmap_page(page);
-		return FALSE;
+		return false;
 	}
 	/*
 	 * If the transaction log has been stamped and nothing has been written
@@ -1548,20 +1548,20 @@ not_enabled:
 				(long long)sle64_to_cpu(uh->lowest_valid_usn),
 				i_size_read(vol->usnjrnl_j_ino));
 		ntfs_unmap_page(page);
-		return FALSE;
+		return false;
 	}
 	ntfs_unmap_page(page);
 	ntfs_debug("Done.");
-	return TRUE;
+	return true;
 }
 
 /**
  * load_and_init_attrdef - load the attribute definitions table for a volume
  * @vol:	ntfs super block describing device whose attrdef to load
  *
- * Return TRUE on success or FALSE on error.
+ * Return 'true' on success or 'false' on error.
  */
-static BOOL load_and_init_attrdef(ntfs_volume *vol)
+static bool load_and_init_attrdef(ntfs_volume *vol)
 {
 	loff_t i_size;
 	struct super_block *sb = vol->sb;
@@ -1607,7 +1607,7 @@ read_partial_attrdef_page:
 	vol->attrdef_size = i_size;
 	ntfs_debug("Read %llu bytes from $AttrDef.", i_size);
 	iput(ino);
-	return TRUE;
+	return true;
 free_iput_failed:
 	ntfs_free(vol->attrdef);
 	vol->attrdef = NULL;
@@ -1615,7 +1615,7 @@ iput_failed:
 	iput(ino);
 failed:
 	ntfs_error(sb, "Failed to initialize attribute definition table.");
-	return FALSE;
+	return false;
 }
 
 #endif /* NTFS_RW */
@@ -1624,9 +1624,9 @@ failed:
  * load_and_init_upcase - load the upcase table for an ntfs volume
  * @vol:	ntfs super block describing device whose upcase to load
  *
- * Return TRUE on success or FALSE on error.
+ * Return 'true' on success or 'false' on error.
  */
-static BOOL load_and_init_upcase(ntfs_volume *vol)
+static bool load_and_init_upcase(ntfs_volume *vol)
 {
 	loff_t i_size;
 	struct super_block *sb = vol->sb;
@@ -1682,7 +1682,7 @@ read_partial_upcase_page:
 		ntfs_debug("Using volume specified $UpCase since default is "
 				"not present.");
 		mutex_unlock(&ntfs_lock);
-		return TRUE;
+		return true;
 	}
 	max = default_upcase_len;
 	if (max > vol->upcase_len)
@@ -1698,12 +1698,12 @@ read_partial_upcase_page:
 		mutex_unlock(&ntfs_lock);
 		ntfs_debug("Volume specified $UpCase matches default. Using "
 				"default.");
-		return TRUE;
+		return true;
 	}
 	mutex_unlock(&ntfs_lock);
 	ntfs_debug("Using volume specified $UpCase since it does not match "
 			"the default.");
-	return TRUE;
+	return true;
 iput_upcase_failed:
 	iput(ino);
 	ntfs_free(vol->upcase);
@@ -1717,11 +1717,11 @@ upcase_failed:
 		mutex_unlock(&ntfs_lock);
 		ntfs_error(sb, "Failed to load $UpCase from the volume. Using "
 				"default.");
-		return TRUE;
+		return true;
 	}
 	mutex_unlock(&ntfs_lock);
 	ntfs_error(sb, "Failed to initialize upcase table.");
-	return FALSE;
+	return false;
 }
 
 /*
@@ -1739,9 +1739,9 @@ static struct lock_class_key
  * Open the system files with normal access functions and complete setting up
  * the ntfs super block @vol.
  *
- * Return TRUE on success or FALSE on error.
+ * Return 'true' on success or 'false' on error.
  */
-static BOOL load_system_files(ntfs_volume *vol)
+static bool load_system_files(ntfs_volume *vol)
 {
 	struct super_block *sb = vol->sb;
 	MFT_RECORD *m;
@@ -2067,7 +2067,7 @@ get_ctx_vol_failed:
 #endif /* NTFS_RW */
 	/* If on NTFS versions before 3.0, we are done. */
 	if (unlikely(vol->major_ver < 3))
-		return TRUE;
+		return true;
 	/* NTFS 3.0+ specific initialization. */
 	/* Get the security descriptors inode. */
 	vol->secure_ino = ntfs_iget(sb, FILE_Secure);
@@ -2173,7 +2173,7 @@ get_ctx_vol_failed:
 		NVolSetErrors(vol);
 	}
 #endif /* NTFS_RW */
-	return TRUE;
+	return true;
 #ifdef NTFS_RW
 iput_usnjrnl_err_out:
 	if (vol->usnjrnl_j_ino)
@@ -2229,7 +2229,7 @@ iput_mirr_err_out:
 	if (vol->mftmirr_ino)
 		iput(vol->mftmirr_ino);
 #endif /* NTFS_RW */
-	return FALSE;
+	return false;
 }
 
 /**
@@ -3248,32 +3248,14 @@ ictx_err_out:
 
 static void __exit exit_ntfs_fs(void)
 {
-	int err = 0;
-
 	ntfs_debug("Unregistering NTFS driver.");
 
 	unregister_filesystem(&ntfs_fs_type);
-
-	if (kmem_cache_destroy(ntfs_big_inode_cache) && (err = 1))
-		printk(KERN_CRIT "NTFS: Failed to destory %s.\n",
-				ntfs_big_inode_cache_name);
-	if (kmem_cache_destroy(ntfs_inode_cache) && (err = 1))
-		printk(KERN_CRIT "NTFS: Failed to destory %s.\n",
-				ntfs_inode_cache_name);
-	if (kmem_cache_destroy(ntfs_name_cache) && (err = 1))
-		printk(KERN_CRIT "NTFS: Failed to destory %s.\n",
-				ntfs_name_cache_name);
-	if (kmem_cache_destroy(ntfs_attr_ctx_cache) && (err = 1))
-		printk(KERN_CRIT "NTFS: Failed to destory %s.\n",
-				ntfs_attr_ctx_cache_name);
-	if (kmem_cache_destroy(ntfs_index_ctx_cache) && (err = 1))
-		printk(KERN_CRIT "NTFS: Failed to destory %s.\n",
-				ntfs_index_ctx_cache_name);
-	if (err)
-		printk(KERN_CRIT "NTFS: This causes memory to leak! There is "
-				"probably a BUG in the driver! Please report "
-				"you saw this message to "
-				"linux-ntfs-dev@lists.sourceforge.net\n");
+	kmem_cache_destroy(ntfs_big_inode_cache);
+	kmem_cache_destroy(ntfs_inode_cache);
+	kmem_cache_destroy(ntfs_name_cache);
+	kmem_cache_destroy(ntfs_attr_ctx_cache);
+	kmem_cache_destroy(ntfs_index_ctx_cache);
 	/* Unregister the ntfs sysctls. */
 	ntfs_sysctl(0);
 }

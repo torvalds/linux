@@ -223,7 +223,7 @@ struct catc {
  * Receive routines.
  */
 
-static void catc_rx_done(struct urb *urb, struct pt_regs *regs)
+static void catc_rx_done(struct urb *urb)
 {
 	struct catc *catc = urb->context;
 	u8 *pkt_start = urb->transfer_buffer;
@@ -289,7 +289,7 @@ static void catc_rx_done(struct urb *urb, struct pt_regs *regs)
 	}
 }
 
-static void catc_irq_done(struct urb *urb, struct pt_regs *regs)
+static void catc_irq_done(struct urb *urb)
 {
 	struct catc *catc = urb->context;
 	u8 *data = urb->transfer_buffer;
@@ -345,7 +345,7 @@ static void catc_irq_done(struct urb *urb, struct pt_regs *regs)
 		} 
 	}
 resubmit:
-	status = usb_submit_urb (urb, SLAB_ATOMIC);
+	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status)
 		err ("can't resubmit intr, %s-%s, status %d",
 				catc->usbdev->bus->bus_name,
@@ -376,7 +376,7 @@ static void catc_tx_run(struct catc *catc)
 	catc->netdev->trans_start = jiffies;
 }
 
-static void catc_tx_done(struct urb *urb, struct pt_regs *regs)
+static void catc_tx_done(struct urb *urb)
 {
 	struct catc *catc = urb->context;
 	unsigned long flags;
@@ -486,7 +486,7 @@ static void catc_ctrl_run(struct catc *catc)
 		err("submit(ctrl_urb) status %d", status);
 }
 
-static void catc_ctrl_done(struct urb *urb, struct pt_regs *regs)
+static void catc_ctrl_done(struct urb *urb)
 {
 	struct catc *catc = urb->context;
 	struct ctrl_queue *q;
@@ -786,14 +786,10 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	if ((!catc->ctrl_urb) || (!catc->tx_urb) || 
 	    (!catc->rx_urb) || (!catc->irq_urb)) {
 		err("No free urbs available.");
-		if (catc->ctrl_urb)
-			usb_free_urb(catc->ctrl_urb);
-		if (catc->tx_urb)
-			usb_free_urb(catc->tx_urb);
-		if (catc->rx_urb)
-			usb_free_urb(catc->rx_urb);
-		if (catc->irq_urb)
-			usb_free_urb(catc->irq_urb);
+		usb_free_urb(catc->ctrl_urb);
+		usb_free_urb(catc->tx_urb);
+		usb_free_urb(catc->rx_urb);
+		usb_free_urb(catc->irq_urb);
 		free_netdev(netdev);
 		return -ENOMEM;
 	}

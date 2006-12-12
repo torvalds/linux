@@ -221,20 +221,19 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 #define __S110	PAGE_SHARED_EXEC
 #define __S111	PAGE_SHARED_EXEC
 
-static inline unsigned long pgd_bad(pgd_t pgd) 
-{ 
-       unsigned long val = pgd_val(pgd);
-       val &= ~PTE_MASK; 
-       val &= ~(_PAGE_USER | _PAGE_DIRTY); 
-       return val & ~(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED);      
-} 
+static inline unsigned long pgd_bad(pgd_t pgd)
+{
+	return pgd_val(pgd) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
+}
 
 static inline unsigned long pud_bad(pud_t pud)
 {
-       unsigned long val = pud_val(pud);
-       val &= ~PTE_MASK;
-       val &= ~(_PAGE_USER | _PAGE_DIRTY);
-       return val & ~(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED);
+	return pud_val(pud) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
+}
+
+static inline unsigned long pmd_bad(pmd_t pmd)
+{
+	return pmd_val(pmd) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
 }
 
 #define pte_none(x)	(!pte_val(x))
@@ -347,7 +346,6 @@ static inline int pmd_large(pmd_t pte) {
 #define pmd_none(x)	(!pmd_val(x))
 #define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
 #define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
-#define	pmd_bad(x)	((pmd_val(x) & (~PTE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE )
 #define pfn_pmd(nr,prot) (__pmd(((nr) << PAGE_SHIFT) | pgprot_val(prot)))
 #define pmd_pfn(x)  ((pmd_val(x) & __PHYSICAL_MASK) >> PAGE_SHIFT)
 
@@ -366,6 +364,7 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 { 
 	pte_t pte;
 	pte_val(pte) = physpage | pgprot_val(pgprot); 
+	pte_val(pte) &= __supported_pte_mask;
 	return pte; 
 }
  

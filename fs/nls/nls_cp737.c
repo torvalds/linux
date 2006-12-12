@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp737.c
+ * linux/fs/nls/nls_cp737.c
  *
  * Charset cp737 translation tables.
  * Generated automatically from the Unicode and charset

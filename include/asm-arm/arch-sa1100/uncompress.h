@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-arm/arch-brutus/uncompress.h
+ * linux/include/asm-arm/arch-sa1100/uncompress.h
  *
  * (C) 1999 Nicolas Pitre <nico@cam.org>
  *

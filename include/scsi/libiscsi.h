@@ -25,6 +25,8 @@
 
 #include <linux/types.h>
 #include <linux/mutex.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
 #include <scsi/iscsi_proto.h>
 #include <scsi/iscsi_if.h>
 
@@ -136,7 +138,6 @@ struct iscsi_conn {
 
 	/* control data */
 	int			id;		/* CID */
-	struct list_head	item;		/* maintains list of conns */
 	int			c_stage;	/* connection state */
 	/*
 	 * Preallocated buffer for pdus that have data but do not
@@ -235,10 +236,8 @@ struct iscsi_session {
 						 * - mgmtpool,		   *
 						 * - r2tpool		   */
 	int			state;		/* session state           */
-	struct list_head	item;
 	int			age;		/* counts session re-opens */
 
-	struct list_head	connections;	/* list of connections */
 	int			cmds_max;	/* size of cmds array */
 	struct iscsi_cmd_task	**cmds;		/* Original Cmds arr */
 	struct iscsi_queue	cmdpool;	/* PDU's pool */

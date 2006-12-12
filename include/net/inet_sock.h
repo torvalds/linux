@@ -36,7 +36,7 @@
  * @ts_needaddr - Need to record addr of outgoing dev
  */
 struct ip_options {
-	__u32		faddr;
+	__be32		faddr;
 	unsigned char	optlen;
 	unsigned char	srr;
 	unsigned char	rr;
@@ -62,9 +62,9 @@ struct inet_request_sock {
 	u16			inet6_rsk_offset;
 	/* 2 bytes hole, try to pack */
 #endif
-	u32			loc_addr;
-	u32			rmt_addr;
-	u16			rmt_port;
+	__be32			loc_addr;
+	__be32			rmt_addr;
+	__be16			rmt_port;
 	u16			snd_wscale : 4, 
 				rcv_wscale : 4, 
 				tstamp_ok  : 1,
@@ -110,15 +110,15 @@ struct inet_sock {
 	struct ipv6_pinfo	*pinet6;
 #endif
 	/* Socket demultiplex comparisons on incoming packets. */
-	__u32			daddr;
-	__u32			rcv_saddr;
-	__u16			dport;
+	__be32			daddr;
+	__be32			rcv_saddr;
+	__be16			dport;
 	__u16			num;
-	__u32			saddr;
+	__be32			saddr;
 	__s16			uc_ttl;
 	__u16			cmsg_flags;
 	struct ip_options	*opt;
-	__u16			sport;
+	__be16			sport;
 	__u16			id;
 	__u8			tos;
 	__u8			mc_ttl;
@@ -129,7 +129,7 @@ struct inet_sock {
 				hdrincl:1,
 				mc_loop:1;
 	int			mc_index;
-	__u32			mc_addr;
+	__be32			mc_addr;
 	struct ip_mc_socklist	*mc_list;
 	struct {
 		unsigned int		flags;
@@ -137,7 +137,7 @@ struct inet_sock {
 		struct ip_options	*opt;
 		struct rtable		*rt;
 		int			length; /* Total length of all frames */
-		u32			addr;
+		__be32			addr;
 		struct flowi		fl;
 	} cork;
 };
@@ -167,10 +167,10 @@ static inline void inet_sk_copy_descendant(struct sock *sk_to,
 
 extern int inet_sk_rebuild_header(struct sock *sk);
 
-static inline unsigned int inet_ehashfn(const __u32 laddr, const __u16 lport,
-					const __u32 faddr, const __u16 fport)
+static inline unsigned int inet_ehashfn(const __be32 laddr, const __u16 lport,
+					const __be32 faddr, const __be16 fport)
 {
-	unsigned int h = (laddr ^ lport) ^ (faddr ^ fport);
+	unsigned int h = ((__force __u32)laddr ^ lport) ^ ((__force __u32)faddr ^ (__force __u32)fport);
 	h ^= h >> 16;
 	h ^= h >> 8;
 	return h;
@@ -179,10 +179,10 @@ static inline unsigned int inet_ehashfn(const __u32 laddr, const __u16 lport,
 static inline int inet_sk_ehashfn(const struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
-	const __u32 laddr = inet->rcv_saddr;
+	const __be32 laddr = inet->rcv_saddr;
 	const __u16 lport = inet->num;
-	const __u32 faddr = inet->daddr;
-	const __u16 fport = inet->dport;
+	const __be32 faddr = inet->daddr;
+	const __be16 fport = inet->dport;
 
 	return inet_ehashfn(laddr, lport, faddr, fport);
 }

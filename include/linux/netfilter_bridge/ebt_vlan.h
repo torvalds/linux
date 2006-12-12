@@ -10,7 +10,7 @@
 struct ebt_vlan_info {
 	uint16_t id;		/* VLAN ID {1-4095} */
 	uint8_t prio;		/* VLAN User Priority {0-7} */
-	uint16_t encap;		/* VLAN Encapsulated frame code {0-65535} */
+	__be16 encap;		/* VLAN Encapsulated frame code {0-65535} */
 	uint8_t bitmask;		/* Args bitmask bit 1=1 - ID arg,
 				   bit 2=1 User-Priority arg, bit 3=1 encap*/
 	uint8_t invflags;		/* Inverse bitmask  bit 1=1 - inversed ID arg, 

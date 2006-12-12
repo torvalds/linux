@@ -23,22 +23,13 @@
 
 int acpi_numa __initdata;
 
-#if (defined(CONFIG_ACPI_HOTPLUG_MEMORY) || \
-	defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)) \
-		&& !defined(CONFIG_MEMORY_HOTPLUG)
-#define RESERVE_HOTADD 1
-#endif
-
 static struct acpi_table_slit *acpi_slit;
 
 static nodemask_t nodes_parsed __initdata;
 static struct bootnode nodes[MAX_NUMNODES] __initdata;
-static struct bootnode nodes_add[MAX_NUMNODES] __initdata;
+static struct bootnode nodes_add[MAX_NUMNODES];
 static int found_add_area __initdata;
 int hotadd_percent __initdata = 0;
-#ifndef RESERVE_HOTADD
-#define hotadd_percent 0	/* Ignore all settings */
-#endif
 
 /* Too small nodes confuse the VM badly. Usually they result
    from BIOS bugs. */
@@ -93,6 +84,7 @@ static __init void bad_srat(void)
 		apicid_to_node[i] = NUMA_NO_NODE;
 	for (i = 0; i < MAX_NUMNODES; i++)
 		nodes_add[i].start = nodes[i].end = 0;
+	remove_all_active_ranges();
 }
 
 static __init inline int srat_disabled(void)
@@ -159,7 +151,7 @@ acpi_numa_processor_affinity_init(struct acpi_table_processor_affinity *pa)
 	       pxm, pa->apic_id, node);
 }
 
-#ifdef RESERVE_HOTADD
+#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
 /*
  * Protect against too large hotadd areas that would fill up memory.
  */
@@ -175,7 +167,7 @@ static int hotadd_enough_memory(struct bootnode *nd)
 
 	if (mem < 0)
 		return 0;
-	allowed = (end_pfn - e820_hole_size(0, end_pfn)) * PAGE_SIZE;
+	allowed = (end_pfn - absent_pages_in_range(0, end_pfn)) * PAGE_SIZE;
 	allowed = (allowed / 100) * hotadd_percent;
 	if (allocated + mem > allowed) {
 		unsigned long range;
@@ -202,15 +194,37 @@ static int hotadd_enough_memory(struct bootnode *nd)
 	return 1;
 }
 
+static int update_end_of_memory(unsigned long end)
+{
+	found_add_area = 1;
+	if ((end >> PAGE_SHIFT) > end_pfn)
+		end_pfn = end >> PAGE_SHIFT;
+	return 1;
+}
+
+static inline int save_add_info(void)
+{
+	return hotadd_percent > 0;
+}
+#else
+int update_end_of_memory(unsigned long end) {return -1;}
+static int hotadd_enough_memory(struct bootnode *nd) {return 1;}
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+static inline int save_add_info(void) {return 1;}
+#else
+static inline int save_add_info(void) {return 0;}
+#endif
+#endif
 /*
- * It is fine to add this area to the nodes data it will be used later
+ * Update nodes_add and decide if to include add are in the zone.
+ * Both SPARSE and RESERVE need nodes_add infomation.
  * This code supports one contigious hot add area per node.
  */
 static int reserve_hotadd(int node, unsigned long start, unsigned long end)
 {
 	unsigned long s_pfn = start >> PAGE_SHIFT;
 	unsigned long e_pfn = end >> PAGE_SHIFT;
-	int changed = 0;
+	int ret = 0, changed = 0;
 	struct bootnode *nd = &nodes_add[node];
 
 	/* I had some trouble with strange memory hotadd regions breaking
@@ -225,8 +239,10 @@ static int reserve_hotadd(int node, unsigned long start, unsigned long end)
 	}
 
 	/* This check might be a bit too strict, but I'm keeping it for now. */
-	if (e820_hole_size(s_pfn, e_pfn) != e_pfn - s_pfn) {
-		printk(KERN_ERR "SRAT: Hotplug area has existing memory\n");
+	if (absent_pages_in_range(s_pfn, e_pfn) != e_pfn - s_pfn) {
+		printk(KERN_ERR
+			"SRAT: Hotplug area %lu -> %lu has existing memory\n",
+			s_pfn, e_pfn);
 		return -1;
 	}
 
@@ -237,7 +253,6 @@ static int reserve_hotadd(int node, unsigned long start, unsigned long end)
 
 	/* Looks good */
 
- 	found_add_area = 1;
 	if (nd->start == nd->end) {
  		nd->start = start;
  		nd->end = end;
@@ -255,14 +270,12 @@ static int reserve_hotadd(int node, unsigned long start, unsigned long end)
 			printk(KERN_ERR "SRAT: Hotplug zone not continuous. Partly ignored\n");
  	}
 
- 	if ((nd->end >> PAGE_SHIFT) > end_pfn)
- 		end_pfn = nd->end >> PAGE_SHIFT;
+	ret = update_end_of_memory(nd->end);
 
 	if (changed)
 	 	printk(KERN_INFO "SRAT: hot plug zone found %Lx - %Lx\n", nd->start, nd->end);
-	return 0;
+	return ret;
 }
-#endif
 
 /* Callback for parsing of the Proximity Domain <-> Memory Area mappings */
 void __init
@@ -281,7 +294,7 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 	}
 	if (ma->flags.enabled == 0)
 		return;
- 	if (ma->flags.hot_pluggable && hotadd_percent == 0)
+ 	if (ma->flags.hot_pluggable && !save_add_info())
 		return;
 	start = ma->base_addr_lo | ((u64)ma->base_addr_hi << 32);
 	end = start + (ma->length_lo | ((u64)ma->length_hi << 32));
@@ -319,16 +332,18 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 
 	printk(KERN_INFO "SRAT: Node %u PXM %u %Lx-%Lx\n", node, pxm,
 	       nd->start, nd->end);
+	e820_register_active_regions(node, nd->start >> PAGE_SHIFT,
+						nd->end >> PAGE_SHIFT);
+	push_node_boundaries(node, nd->start >> PAGE_SHIFT,
+						nd->end >> PAGE_SHIFT);
 
-#ifdef RESERVE_HOTADD
- 	if (ma->flags.hot_pluggable && reserve_hotadd(node, start, end) < 0) {
+ 	if (ma->flags.hot_pluggable && (reserve_hotadd(node, start, end) < 0)) {
 		/* Ignore hotadd region. Undo damage */
 		printk(KERN_NOTICE "SRAT: Hotplug region ignored\n");
 		*nd = oldnode;
 		if ((nd->start | nd->end) == 0)
 			node_clear(node, nodes_parsed);
 	}
-#endif
 }
 
 /* Sanity check to catch more bad SRATs (they are amazingly common).
@@ -343,13 +358,12 @@ static int nodes_cover_memory(void)
 		unsigned long s = nodes[i].start >> PAGE_SHIFT;
 		unsigned long e = nodes[i].end >> PAGE_SHIFT;
 		pxmram += e - s;
-		pxmram -= e820_hole_size(s, e);
-		pxmram -= nodes_add[i].end - nodes_add[i].start;
+		pxmram -= absent_pages_in_range(s, e);
 		if ((long)pxmram < 0)
 			pxmram = 0;
 	}
 
-	e820ram = end_pfn - e820_hole_size(0, end_pfn);
+	e820ram = end_pfn - absent_pages_in_range(0, end_pfn);
 	/* We seem to lose 3 pages somewhere. Allow a bit of slack. */
 	if ((long)(e820ram - pxmram) >= 1*1024*1024) {
 		printk(KERN_ERR
@@ -452,3 +466,16 @@ int __node_distance(int a, int b)
 }
 
 EXPORT_SYMBOL(__node_distance);
+
+int memory_add_physaddr_to_nid(u64 start)
+{
+	int i, ret = 0;
+
+	for_each_node(i)
+		if (nodes_add[i].start <= start && nodes_add[i].end > start)
+			ret = i;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+

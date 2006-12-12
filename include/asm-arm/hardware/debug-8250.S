@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-arm/hardware/debug-8250.h
+ * linux/include/asm-arm/hardware/debug-8250.S
  *
  *  Copyright (C) 1994-1999 Russell King
  *

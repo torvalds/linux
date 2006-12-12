@@ -21,7 +21,6 @@
  *  - flush_cache_range(vma, start, end) flushes a range of pages
  *  - flush_icache_range(start, end) flush a range of instructions
  *  - flush_dcache_page(pg) flushes(wback&invalidates) a page for dcache
- *  - flush_icache_page(vma, pg) flushes(invalidates) a page for icache
  *
  * MIPS specific flush operations:
  *
@@ -39,7 +38,7 @@ extern void __flush_dcache_page(struct page *page);
 
 static inline void flush_dcache_page(struct page *page)
 {
-	if (cpu_has_dc_aliases)
+	if (cpu_has_dc_aliases || !cpu_has_ic_fills_f_dc)
 		__flush_dcache_page(page);
 
 }
@@ -47,30 +46,22 @@ static inline void flush_dcache_page(struct page *page)
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
-extern void (*flush_icache_page)(struct vm_area_struct *vma,
-	struct page *page);
+static inline void flush_icache_page(struct vm_area_struct *vma,
+	struct page *page)
+{
+}
+
 extern void (*flush_icache_range)(unsigned long start, unsigned long end);
 #define flush_cache_vmap(start, end)		flush_cache_all()
 #define flush_cache_vunmap(start, end)		flush_cache_all()
 
-static inline void copy_to_user_page(struct vm_area_struct *vma,
+extern void copy_to_user_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vaddr, void *dst, const void *src,
-	unsigned long len)
-{
-	if (cpu_has_dc_aliases)
-		flush_cache_page(vma, vaddr, page_to_pfn(page));
-	memcpy(dst, src, len);
-	flush_icache_page(vma, page);
-}
+	unsigned long len);
 
-static inline void copy_from_user_page(struct vm_area_struct *vma,
+extern void copy_from_user_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vaddr, void *dst, const void *src,
-	unsigned long len)
-{
-	if (cpu_has_dc_aliases)
-		flush_cache_page(vma, vaddr, page_to_pfn(page));
-	memcpy(dst, src, len);
-}
+	unsigned long len);
 
 extern void (*flush_cache_sigtramp)(unsigned long addr);
 extern void (*flush_icache_all)(void);

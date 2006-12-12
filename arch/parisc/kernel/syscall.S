@@ -6,7 +6,6 @@
  * thanks to Philipp Rumpf, Mike Shaver and various others
  * sorry about the wall, puffin..
  */
-#include <linux/config.h> /* for CONFIG_SMP */
 
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>

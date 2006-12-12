@@ -32,12 +32,7 @@
 #include "avc.h"
 #include "avc_ss.h"
 
-static const struct av_perm_to_string
-{
-  u16 tclass;
-  u32 value;
-  const char *name;
-} av_perm_to_string[] = {
+static const struct av_perm_to_string av_perm_to_string[] = {
 #define S_(c, v, s) { c, v, s },
 #include "av_perm_to_string.h"
 #undef S_
@@ -57,15 +52,19 @@ static const char *class_to_string[] = {
 #undef TE_
 #undef S_
 
-static const struct av_inherit
-{
-    u16 tclass;
-    const char **common_pts;
-    u32 common_base;
-} av_inherit[] = {
+static const struct av_inherit av_inherit[] = {
 #define S_(c, i, b) { c, common_##i##_perm_to_string, b },
 #include "av_inherit.h"
 #undef S_
+};
+
+const struct selinux_class_perm selinux_class_perm = {
+	av_perm_to_string,
+	ARRAY_SIZE(av_perm_to_string),
+	class_to_string,
+	ARRAY_SIZE(class_to_string),
+	av_inherit,
+	ARRAY_SIZE(av_inherit)
 };
 
 #define AVC_CACHE_SLOTS			512
@@ -125,7 +124,7 @@ DEFINE_PER_CPU(struct avc_cache_stats, avc_cache_stats) = { 0 };
 
 static struct avc_cache avc_cache;
 static struct avc_callback_node *avc_callbacks;
-static kmem_cache_t *avc_node_cachep;
+static struct kmem_cache *avc_node_cachep;
 
 static inline int avc_hash(u32 ssid, u32 tsid, u16 tclass)
 {
@@ -333,7 +332,7 @@ static struct avc_node *avc_alloc_node(void)
 {
 	struct avc_node *node;
 
-	node = kmem_cache_alloc(avc_node_cachep, SLAB_ATOMIC);
+	node = kmem_cache_alloc(avc_node_cachep, GFP_ATOMIC);
 	if (!node)
 		goto out;
 
@@ -497,7 +496,7 @@ static inline void avc_print_ipv6_addr(struct audit_buffer *ab,
 		audit_log_format(ab, " %s=%d", name2, ntohs(port));
 }
 
-static inline void avc_print_ipv4_addr(struct audit_buffer *ab, u32 addr,
+static inline void avc_print_ipv4_addr(struct audit_buffer *ab, __be32 addr,
 				       __be16 port, char *name1, char *name2)
 {
 	if (addr)

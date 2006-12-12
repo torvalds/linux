@@ -19,7 +19,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_sl82c105"
-#define DRV_VERSION "0.2.2"
+#define DRV_VERSION "0.2.3"
 
 enum {
 	/*
@@ -49,11 +49,8 @@ static int sl82c105_pre_reset(struct ata_port *ap)
 	};
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (ap->port_no && !pci_test_config_bits(pdev, &sl82c105_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		dev_printk(KERN_INFO, &pdev->dev, "port disabled. ignoring.\n");
-		return 0;
-	}
+	if (ap->port_no && !pci_test_config_bits(pdev, &sl82c105_enable_bits[ap->port_no]))
+		return -ENOENT;
 	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
@@ -233,13 +230,13 @@ static struct scsi_host_template sl82c105_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
 };
 
@@ -264,7 +261,7 @@ static struct ata_port_operations sl82c105_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -354,9 +351,10 @@ static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id
 	return ata_pci_init_one(dev, port_info, 1); /* For now */
 }
 
-static struct pci_device_id sl82c105[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105), },
-	{ 0, },
+static const struct pci_device_id sl82c105[] = {
+	{ PCI_VDEVICE(WINBOND, PCI_DEVICE_ID_WINBOND_82C105), },
+
+	{ },
 };
 
 static struct pci_driver sl82c105_pci_driver = {
@@ -371,12 +369,10 @@ static int __init sl82c105_init(void)
 	return pci_register_driver(&sl82c105_pci_driver);
 }
 
-
 static void __exit sl82c105_exit(void)
 {
 	pci_unregister_driver(&sl82c105_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Sl82c105");

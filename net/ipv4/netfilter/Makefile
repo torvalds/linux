@@ -5,17 +5,23 @@
 # objects for the standalone - connection tracking / NAT
 ip_conntrack-objs	:= ip_conntrack_standalone.o ip_conntrack_core.o ip_conntrack_proto_generic.o ip_conntrack_proto_tcp.o ip_conntrack_proto_udp.o ip_conntrack_proto_icmp.o
 ip_nat-objs	:= ip_nat_core.o ip_nat_helper.o ip_nat_proto_unknown.o ip_nat_proto_tcp.o ip_nat_proto_udp.o ip_nat_proto_icmp.o
+nf_nat-objs	:= nf_nat_core.o nf_nat_helper.o nf_nat_proto_unknown.o nf_nat_proto_tcp.o nf_nat_proto_udp.o nf_nat_proto_icmp.o
+ifneq ($(CONFIG_NF_NAT),)
+iptable_nat-objs	:= nf_nat_rule.o nf_nat_standalone.o
+else
 iptable_nat-objs	:= ip_nat_rule.o ip_nat_standalone.o
+endif
 
 ip_conntrack_pptp-objs	:= ip_conntrack_helper_pptp.o ip_conntrack_proto_gre.o
 ip_nat_pptp-objs	:= ip_nat_helper_pptp.o ip_nat_proto_gre.o
 
-ip_conntrack_h323-objs := ip_conntrack_helper_h323.o ip_conntrack_helper_h323_asn1.o
+ip_conntrack_h323-objs := ip_conntrack_helper_h323.o ../../netfilter/nf_conntrack_h323_asn1.o
 ip_nat_h323-objs := ip_nat_helper_h323.o
 
 # connection tracking
 obj-$(CONFIG_IP_NF_CONNTRACK) += ip_conntrack.o
 obj-$(CONFIG_IP_NF_NAT) += ip_nat.o
+obj-$(CONFIG_NF_NAT) += nf_nat.o
 
 # conntrack netlink interface
 obj-$(CONFIG_IP_NF_CONNTRACK_NETLINK) += ip_conntrack_netlink.o
@@ -34,7 +40,7 @@ obj-$(CONFIG_IP_NF_IRC) += ip_conntrack_irc.o
 obj-$(CONFIG_IP_NF_SIP) += ip_conntrack_sip.o
 obj-$(CONFIG_IP_NF_NETBIOS_NS) += ip_conntrack_netbios_ns.o
 
-# NAT helpers 
+# NAT helpers (ip_conntrack)
 obj-$(CONFIG_IP_NF_NAT_H323) += ip_nat_h323.o
 obj-$(CONFIG_IP_NF_NAT_PPTP) += ip_nat_pptp.o
 obj-$(CONFIG_IP_NF_NAT_AMANDA) += ip_nat_amanda.o
@@ -43,6 +49,19 @@ obj-$(CONFIG_IP_NF_NAT_FTP) += ip_nat_ftp.o
 obj-$(CONFIG_IP_NF_NAT_IRC) += ip_nat_irc.o
 obj-$(CONFIG_IP_NF_NAT_SIP) += ip_nat_sip.o
 
+# NAT helpers (nf_conntrack)
+obj-$(CONFIG_NF_NAT_AMANDA) += nf_nat_amanda.o
+obj-$(CONFIG_NF_NAT_FTP) += nf_nat_ftp.o
+obj-$(CONFIG_NF_NAT_H323) += nf_nat_h323.o
+obj-$(CONFIG_NF_NAT_IRC) += nf_nat_irc.o
+obj-$(CONFIG_NF_NAT_PPTP) += nf_nat_pptp.o
+obj-$(CONFIG_NF_NAT_SIP) += nf_nat_sip.o
+obj-$(CONFIG_NF_NAT_SNMP_BASIC) += nf_nat_snmp_basic.o
+obj-$(CONFIG_NF_NAT_TFTP) += nf_nat_tftp.o
+
+# NAT protocols (nf_nat)
+obj-$(CONFIG_NF_NAT_PROTO_GRE) += nf_nat_proto_gre.o
+
 # generic IP tables 
 obj-$(CONFIG_IP_NF_IPTABLES) += ip_tables.o
 
@@ -50,10 +69,10 @@ obj-$(CONFIG_IP_NF_IPTABLES) += ip_tables.o
 obj-$(CONFIG_IP_NF_FILTER) += iptable_filter.o
 obj-$(CONFIG_IP_NF_MANGLE) += iptable_mangle.o
 obj-$(CONFIG_IP_NF_NAT) += iptable_nat.o
+obj-$(CONFIG_NF_NAT) += iptable_nat.o
 obj-$(CONFIG_IP_NF_RAW) += iptable_raw.o
 
 # matches
-obj-$(CONFIG_IP_NF_MATCH_HASHLIMIT) += ipt_hashlimit.o
 obj-$(CONFIG_IP_NF_MATCH_IPRANGE) += ipt_iprange.o
 obj-$(CONFIG_IP_NF_MATCH_OWNER) += ipt_owner.o
 obj-$(CONFIG_IP_NF_MATCH_TOS) += ipt_tos.o
@@ -89,6 +108,11 @@ obj-$(CONFIG_IP_NF_QUEUE) += ip_queue.o
 
 # objects for l3 independent conntrack
 nf_conntrack_ipv4-objs  :=  nf_conntrack_l3proto_ipv4.o nf_conntrack_proto_icmp.o
+ifeq ($(CONFIG_NF_CONNTRACK_PROC_COMPAT),y)
+ifeq ($(CONFIG_PROC_FS),y)
+nf_conntrack_ipv4-objs	+= nf_conntrack_l3proto_ipv4_compat.o
+endif
+endif
 
 # l3 independent conntrack
 obj-$(CONFIG_NF_CONNTRACK_IPV4) += nf_conntrack_ipv4.o

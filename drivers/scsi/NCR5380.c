@@ -558,8 +558,7 @@ static int probe_irq __initdata = 0;
  *	used by the IRQ probe code.
  */
  
-static irqreturn_t __init probe_intr(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t __init probe_intr(int irq, void *dev_id)
 {
 	probe_irq = irq;
 	return IRQ_HANDLED;
@@ -850,7 +849,7 @@ static int __devinit NCR5380_init(struct Scsi_Host *instance, int flags)
 	hostdata->issue_queue = NULL;
 	hostdata->disconnected_queue = NULL;
 	
-	INIT_WORK(&hostdata->coroutine, NCR5380_main, hostdata);
+	INIT_DELAYED_WORK(&hostdata->coroutine, NCR5380_main);
 	
 #ifdef NCR5380_STATS
 	for (i = 0; i < 8; ++i) {
@@ -1017,7 +1016,7 @@ static int NCR5380_queue_command(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 
 	/* Run the coroutine if it isn't already running. */
 	/* Kick off command processing */
-	schedule_work(&hostdata->coroutine);
+	schedule_delayed_work(&hostdata->coroutine, 0);
 	return 0;
 }
 
@@ -1034,9 +1033,10 @@ static int NCR5380_queue_command(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
  *	host lock and called routines may take the isa dma lock.
  */
 
-static void NCR5380_main(void *p)
+static void NCR5380_main(struct work_struct *work)
 {
-	struct NCR5380_hostdata *hostdata = p;
+	struct NCR5380_hostdata *hostdata =
+		container_of(work, struct NCR5380_hostdata, coroutine.work);
 	struct Scsi_Host *instance = hostdata->host;
 	Scsi_Cmnd *tmp, *prev;
 	int done;
@@ -1148,7 +1148,6 @@ static void NCR5380_main(void *p)
  * 	NCR5380_intr	-	generic NCR5380 irq handler
  *	@irq: interrupt number
  *	@dev_id: device info
- *	@regs: registers (unused)
  *
  *	Handle interrupts, reestablishing I_T_L or I_T_L_Q nexuses
  *      from the disconnected queue, and restarting NCR5380_main() 
@@ -1157,7 +1156,7 @@ static void NCR5380_main(void *p)
  *	Locks: takes the needed instance locks
  */
 
-static irqreturn_t NCR5380_intr(int irq, void *dev_id, struct pt_regs *regs) 
+static irqreturn_t NCR5380_intr(int irq, void *dev_id) 
 {
 	NCR5380_local_declare();
 	struct Scsi_Host *instance = (struct Scsi_Host *)dev_id;
@@ -1223,7 +1222,7 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id, struct pt_regs *regs)
 		}	/* if BASR_IRQ */
 		spin_unlock_irqrestore(instance->host_lock, flags);
 		if(!done)
-			schedule_work(&hostdata->coroutine);
+			schedule_delayed_work(&hostdata->coroutine, 0);
 	} while (!done);
 	return IRQ_HANDLED;
 }

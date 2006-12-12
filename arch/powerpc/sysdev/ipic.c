@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/ipic.c
+ * arch/powerpc/sysdev/ipic.c
  *
  * IPIC routines implementations.
  *
@@ -473,9 +473,9 @@ static int ipic_set_irq_type(unsigned int virq, unsigned int flow_type)
 	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
 	if (flow_type & IRQ_TYPE_LEVEL_LOW)  {
 		desc->status |= IRQ_LEVEL;
-		set_irq_handler(virq, handle_level_irq);
+		desc->handle_irq = handle_level_irq;
 	} else {
-		set_irq_handler(virq, handle_edge_irq);
+		desc->handle_irq = handle_edge_irq;
 	}
 
 	/* only EXT IRQ senses are programmable on ipic
@@ -709,7 +709,7 @@ void ipic_clear_mcp_status(u32 mask)
 }
 
 /* Return an interrupt vector or NO_IRQ if no interrupt is pending. */
-unsigned int ipic_get_irq(struct pt_regs *regs)
+unsigned int ipic_get_irq(void)
 {
 	int irq;
 

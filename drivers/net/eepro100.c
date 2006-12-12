@@ -488,7 +488,7 @@ static int speedo_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void speedo_refill_rx_buffers(struct net_device *dev, int force);
 static int speedo_rx(struct net_device *dev);
 static void speedo_tx_buffer_gc(struct net_device *dev);
-static irqreturn_t speedo_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t speedo_interrupt(int irq, void *dev_instance);
 static int speedo_close(struct net_device *dev);
 static struct net_device_stats *speedo_get_stats(struct net_device *dev);
 static int speedo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -606,7 +606,7 @@ static void poll_speedo (struct net_device *dev)
 	/* disable_irq is not very nice, but with the funny lockless design
 	   we have no other choice. */
 	disable_irq(dev->irq);
-	speedo_interrupt (dev->irq, dev, NULL);
+	speedo_interrupt (dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif
@@ -1541,7 +1541,7 @@ static void speedo_tx_buffer_gc(struct net_device *dev)
 
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread. */
-static irqreturn_t speedo_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t speedo_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = (struct net_device *)dev_instance;
 	struct speedo_private *sp;

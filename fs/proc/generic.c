@@ -52,7 +52,7 @@ static ssize_t
 proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 	       loff_t *ppos)
 {
-	struct inode * inode = file->f_dentry->d_inode;
+	struct inode * inode = file->f_path.dentry->d_inode;
 	char 	*page;
 	ssize_t	retval=0;
 	int	eof=0;
@@ -203,7 +203,7 @@ static ssize_t
 proc_file_write(struct file *file, const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct proc_dir_entry * dp;
 	
 	dp = PDE(inode);
@@ -432,7 +432,7 @@ int proc_readdir(struct file * filp,
 	struct proc_dir_entry * de;
 	unsigned int ino;
 	int i;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	int ret = 0;
 
 	lock_kernel();
@@ -453,7 +453,7 @@ int proc_readdir(struct file * filp,
 			/* fall through */
 		case 1:
 			if (filldir(dirent, "..", 2, i,
-				    parent_ino(filp->f_dentry),
+				    parent_ino(filp->f_path.dentry),
 				    DT_DIR) < 0)
 				goto out;
 			i++;
@@ -558,7 +558,7 @@ static void proc_kill_inodes(struct proc_dir_entry *de)
 	file_list_lock();
 	list_for_each(p, &sb->s_files) {
 		struct file * filp = list_entry(p, struct file, f_u.fu_list);
-		struct dentry * dentry = filp->f_dentry;
+		struct dentry * dentry = filp->f_path.dentry;
 		struct inode * inode;
 		const struct file_operations *fops;
 

@@ -5,6 +5,7 @@
 
 struct scatterlist;
 
+#ifndef CONFIG_MMU_SUN3
 static inline int dma_supported(struct device *dev, u64 mask)
 {
 	return 1;
@@ -20,13 +21,13 @@ static inline int dma_get_cache_alignment(void)
 	return 1 << L1_CACHE_SHIFT;
 }
 
-static inline int dma_is_consistent(dma_addr_t dma_addr)
+static inline int dma_is_consistent(struct device *dev, dma_addr_t dma_addr)
 {
 	return 0;
 }
 
 extern void *dma_alloc_coherent(struct device *, size_t,
-				dma_addr_t *, int);
+				dma_addr_t *, gfp_t);
 extern void dma_free_coherent(struct device *, size_t,
 			      void *, dma_addr_t);
 
@@ -40,7 +41,7 @@ static inline void dma_free_noncoherent(struct device *dev, size_t size,
 {
 	dma_free_coherent(dev, size, addr, handle);
 }
-static inline void dma_cache_sync(void *vaddr, size_t size,
+static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 				  enum dma_data_direction dir)
 {
 	/* we use coherent allocation, so not much to do here. */
@@ -87,5 +88,9 @@ static inline int dma_mapping_error(dma_addr_t handle)
 {
 	return 0;
 }
+
+#else
+#include <asm-generic/dma-mapping-broken.h>
+#endif
 
 #endif  /* _M68K_DMA_MAPPING_H */

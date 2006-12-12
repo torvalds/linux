@@ -18,14 +18,6 @@
 #define kbd_enable_irq(x...)	do {;} while (0)
 #define kbd_disable_irq(x...)	do {;} while (0)
 
-
-/* needed if MAGIC_SYSRQ is enabled for serial console */
-#ifndef SYSRQ_KEY
-#define SYSRQ_KEY		((unsigned char)(-1))
-#define kbd_sysrq_xlate         ((unsigned char *)NULL)
-#endif
-
-
 #endif  /* _H8300_KEYBOARD_H */
 
 

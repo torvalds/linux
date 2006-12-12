@@ -106,7 +106,7 @@ EXPORT_SYMBOL(iowrite32_rep);
 
 void __iomem *ioport_map(unsigned long port, unsigned int len)
 {
-	return (void __iomem *) (port+pci_io_base);
+	return (void __iomem *) (port + _IO_BASE);
 }
 
 void ioport_unmap(void __iomem *addr)

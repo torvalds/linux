@@ -453,9 +453,18 @@ static void scsi_eh_done(struct scsi_cmnd *scmd)
 }
 
 /**
- * scsi_send_eh_cmnd  - send a cmd to a device as part of error recovery.
- * @scmd:	SCSI Cmd to send.
- * @timeout:	Timeout for cmd.
+ * scsi_send_eh_cmnd  - submit a scsi command as part of error recory
+ * @scmd:       SCSI command structure to hijack
+ * @cmnd:       CDB to send
+ * @cmnd_size:  size in bytes of @cmnd
+ * @timeout:    timeout for this request
+ * @copy_sense: request sense data if set to 1
+ *
+ * This function is used to send a scsi command down to a target device
+ * as part of the error recovery process.  If @copy_sense is 0 the command
+ * sent must be one that does not transfer any data.  If @copy_sense is 1
+ * the command must be REQUEST_SENSE and this functions copies out the
+ * sense buffer it got into @scmd->sense_buffer.
  *
  * Return value:
  *    SUCCESS or FAILED or NEEDS_RETRY
@@ -469,6 +478,7 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, unsigned char *cmnd,
 	DECLARE_COMPLETION_ONSTACK(done);
 	unsigned long timeleft;
 	unsigned long flags;
+	struct scatterlist sgl;
 	unsigned char old_cmnd[MAX_COMMAND_SIZE];
 	enum dma_data_direction old_data_direction;
 	unsigned short old_use_sg;
@@ -495,24 +505,29 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, unsigned char *cmnd,
 	memcpy(scmd->cmnd, cmnd, cmnd_size);
 
 	if (copy_sense) {
-		int gfp_mask = GFP_ATOMIC;
+		gfp_t gfp_mask = GFP_ATOMIC;
 
 		if (shost->hostt->unchecked_isa_dma)
 			gfp_mask |= __GFP_DMA;
 
-		scmd->sc_data_direction = DMA_FROM_DEVICE;
-		scmd->request_bufflen = 252;
-		scmd->request_buffer = kzalloc(scmd->request_bufflen, gfp_mask);
-		if (!scmd->request_buffer)
+		sgl.page = alloc_page(gfp_mask);
+		if (!sgl.page)
 			return FAILED;
+		sgl.offset = 0;
+		sgl.length = 252;
+
+		scmd->sc_data_direction = DMA_FROM_DEVICE;
+		scmd->request_bufflen = sgl.length;
+		scmd->request_buffer = &sgl;
+		scmd->use_sg = 1;
 	} else {
 		scmd->request_buffer = NULL;
 		scmd->request_bufflen = 0;
 		scmd->sc_data_direction = DMA_NONE;
+		scmd->use_sg = 0;
 	}
 
 	scmd->underflow = 0;
-	scmd->use_sg = 0;
 	scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
 
 	if (sdev->scsi_level <= SCSI_2)
@@ -583,7 +598,7 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, unsigned char *cmnd,
 			memcpy(scmd->sense_buffer, scmd->request_buffer,
 			       sizeof(scmd->sense_buffer));
 		}
-		kfree(scmd->request_buffer);
+		__free_page(sgl.page);
 	}
 
 

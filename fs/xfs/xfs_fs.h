@@ -22,8 +22,6 @@
  * SGI's XFS filesystem's major stuff (constants, structures)
  */
 
-#define XFS_NAME	"xfs"
-
 /*
  * Direct I/O attribute record used with XFS_IOC_DIOINFO
  * d_miniosz is the min xfer size, xfer size multiple and file seek offset
@@ -426,11 +424,7 @@ typedef struct xfs_handle {
 				 - (char *) &(handle))			  \
 				 + (handle).ha_fid.xfs_fid_len)
 
-#define XFS_HANDLE_CMP(h1, h2)	memcmp(h1, h2, sizeof(xfs_handle_t))
-
-#define FSHSIZE		sizeof(fsid_t)
-
-/* 
+/*
  * Flags for going down operation
  */
 #define XFS_FSOP_GOING_FLAGS_DEFAULT		0x0	/* going down */

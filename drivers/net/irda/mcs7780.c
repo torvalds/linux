@@ -560,9 +560,9 @@ static inline int mcs_find_endpoints(struct mcs_cb *mcs,
 	return ret;
 }
 
-static void mcs_speed_work(void *arg)
+static void mcs_speed_work(struct work_struct *work)
 {
-	struct mcs_cb *mcs = arg;
+	struct mcs_cb *mcs = container_of(work, struct mcs_cb, work);
 	struct net_device *netdev = mcs->netdev;
 
 	mcs_speed_change(mcs);
@@ -764,7 +764,7 @@ static struct net_device_stats *mcs_net_get_stats(struct net_device *netdev)
 }
 
 /* Receive callback function.  */
-static void mcs_receive_irq(struct urb *urb, struct pt_regs *regs)
+static void mcs_receive_irq(struct urb *urb)
 {
 	__u8 *bytes;
 	struct mcs_cb *mcs = urb->context;
@@ -813,7 +813,7 @@ static void mcs_receive_irq(struct urb *urb, struct pt_regs *regs)
 }
 
 /* Transmit callback funtion.  */
-static void mcs_send_irq(struct urb *urb, struct pt_regs *regs)
+static void mcs_send_irq(struct urb *urb)
 {
 	struct mcs_cb *mcs = urb->context;
 	struct net_device *ndev = mcs->netdev;
@@ -927,7 +927,7 @@ static int mcs_probe(struct usb_interface *intf,
 	irda_qos_bits_to_value(&mcs->qos);
 
 	/* Speed change work initialisation*/
-	INIT_WORK(&mcs->work, mcs_speed_work, mcs);
+	INIT_WORK(&mcs->work, mcs_speed_work);
 
 	/* Override the network functions we need to use */
 	ndev->hard_start_xmit = mcs_hard_xmit;

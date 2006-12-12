@@ -1922,7 +1922,7 @@ xfs_showargs(
 	}
 
 	if (mp->m_flags & XFS_MOUNT_IHASHSIZE)
-		seq_printf(m, "," MNTOPT_IHASHSIZE "=%d", mp->m_ihsize);
+		seq_printf(m, "," MNTOPT_IHASHSIZE "=%d", (int)mp->m_ihsize);
 
 	if (mp->m_flags & XFS_MOUNT_DFLT_IOSIZE)
 		seq_printf(m, "," MNTOPT_ALLOCSIZE "=%dk",

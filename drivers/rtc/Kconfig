@@ -27,7 +27,7 @@ config RTC_HCTOSYS
 	help
 	  If you say yes here, the system time will be set using
 	  the value read from the specified RTC device. This is useful
-	  in order to avoid unnecessary fschk runs.
+	  in order to avoid unnecessary fsck runs.
 
 config RTC_HCTOSYS_DEVICE
 	string "The RTC to read the time from"
@@ -37,6 +37,13 @@ config RTC_HCTOSYS_DEVICE
 	  The RTC device that will be used as the source for
 	  the system time, usually rtc0.
 
+config RTC_DEBUG
+	bool "RTC debug support"
+	depends on RTC_CLASS = y
+	help
+	  Say yes here to enable debugging support in the RTC framework
+	  and individual RTC drivers.
+
 comment "RTC interfaces"
 	depends on RTC_CLASS
 
@@ -45,8 +52,8 @@ config RTC_INTF_SYSFS
 	depends on RTC_CLASS && SYSFS
 	default RTC_CLASS
 	help
-	  Say yes here if you want to use your RTC using the sysfs
-	  interface, /sys/class/rtc/rtcX .
+	  Say yes here if you want to use your RTCs using sysfs interfaces,
+	  /sys/class/rtc/rtc0 through /sys/.../rtcN.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-sysfs.
@@ -56,8 +63,9 @@ config RTC_INTF_PROC
 	depends on RTC_CLASS && PROC_FS
 	default RTC_CLASS
 	help
-	  Say yes here if you want to use your RTC using the proc
-	  interface, /proc/driver/rtc .
+	  Say yes here if you want to use your first RTC through the proc
+	  interface, /proc/driver/rtc.  Other RTCs will not be available
+	  through that API.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-proc.
@@ -67,8 +75,11 @@ config RTC_INTF_DEV
 	depends on RTC_CLASS
 	default RTC_CLASS
 	help
-	  Say yes here if you want to use your RTC using the dev
-	  interface, /dev/rtc .
+	  Say yes here if you want to use your RTCs using the /dev
+	  interfaces, which "udev" sets up as /dev/rtc0 through
+	  /dev/rtcN.  You may want to set up a symbolic link so one
+	  of these can be accessed as /dev/rtc, which is a name
+	  expected by "hwclock" and some other programs.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-dev.
@@ -78,7 +89,8 @@ config RTC_INTF_DEV_UIE_EMUL
 	depends on RTC_INTF_DEV
 	help
 	  Provides an emulation for RTC_UIE if the underlaying rtc chip
-	  driver did not provide RTC_UIE ioctls.
+	  driver does not expose RTC_UIE ioctls.  Those requests generate
+	  once-per-second update interrupts, used for synchronization.
 
 comment "RTC drivers"
 	depends on RTC_CLASS
@@ -142,14 +154,22 @@ config RTC_DRV_DS1672
 	  will be called rtc-ds1672.
 
 config RTC_DRV_DS1742
-	tristate "Dallas DS1742"
+	tristate "Dallas DS1742/1743"
 	depends on RTC_CLASS
 	help
 	  If you say yes here you get support for the
-	  Dallas DS1742 timekeeping chip.
+	  Dallas DS1742/1743 timekeeping chip.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1742.
+
+config RTC_DRV_OMAP
+	tristate "TI OMAP1"
+	depends on RTC_CLASS && ( \
+		ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 )
+	help
+	  Say "yes" here to support the real time clock on TI OMAP1 chips.
+	  This driver can also be built as a module called rtc-omap.
 
 config RTC_DRV_PCF8563
 	tristate "Philips PCF8563/Epson RTC8564"
@@ -238,6 +258,16 @@ config RTC_DRV_SA1100
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-sa1100.
 
+config RTC_DRV_SH
+	tristate "SuperH On-Chip RTC"
+	depends on RTC_CLASS && SUPERH
+	help
+	  Say Y here to enable support for the on-chip RTC found in
+	  most SuperH processors.
+
+ 	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-sh.
+
 config RTC_DRV_VR41XX
 	tristate "NEC VR41XX"
 	depends on RTC_CLASS && CPU_VR41XX
@@ -258,7 +288,7 @@ config RTC_DRV_PL031
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-pl031.
 
-config RTC_DRV_AT91
+config RTC_DRV_AT91RM9200
 	tristate "AT91RM9200"
 	depends on RTC_CLASS && ARCH_AT91RM9200
 	help

@@ -304,7 +304,7 @@ about the status of the key service:
 	R	Revoked
 	D	Dead
 	Q	Contributes to user's quota
-	U	Under contruction by callback to userspace
+	U	Under construction by callback to userspace
 	N	Negative key
 
      This file must be enabled at kernel configuration time as it allows anyone
@@ -671,7 +671,7 @@ The keyctl syscall functions are:
 
      Note that this setting is inherited across fork/exec.
 
-     [1] The default default is: the thread keyring if there is one, otherwise
+     [1] The default is: the thread keyring if there is one, otherwise
      the process keyring if there is one, otherwise the session keyring if
      there is one, otherwise the user default session keyring.
 
@@ -708,14 +708,14 @@ The keyctl syscall functions are:
 
      If the specified key is 0, then any assumed authority will be divested.
 
-     The assumed authorititive key is inherited across fork and exec.
+     The assumed authoritative key is inherited across fork and exec.
 
 
 ===============
 KERNEL SERVICES
 ===============
 
-The kernel services for key managment are fairly simple to deal with. They can
+The kernel services for key management are fairly simple to deal with. They can
 be broken down into two areas: keys and key types.
 
 Dealing with keys is fairly straightforward. Firstly, the kernel service

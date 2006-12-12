@@ -38,7 +38,7 @@ ntfs_index_context *ntfs_index_ctx_get(ntfs_inode *idx_ni)
 {
 	ntfs_index_context *ictx;
 
-	ictx = kmem_cache_alloc(ntfs_index_ctx_cache, SLAB_NOFS);
+	ictx = kmem_cache_alloc(ntfs_index_ctx_cache, GFP_NOFS);
 	if (ictx)
 		*ictx = (ntfs_index_context){ .idx_ni = idx_ni };
 	return ictx;
@@ -204,7 +204,7 @@ int ntfs_index_lookup(const void *key, const int key_len,
 		if ((key_len == le16_to_cpu(ie->key_length)) && !memcmp(key,
 				&ie->key, key_len)) {
 ir_done:
-			ictx->is_in_root = TRUE;
+			ictx->is_in_root = true;
 			ictx->ir = ir;
 			ictx->actx = actx;
 			ictx->base_ni = base_ni;
@@ -374,7 +374,7 @@ fast_descend_into_child_node:
 		if ((key_len == le16_to_cpu(ie->key_length)) && !memcmp(key,
 				&ie->key, key_len)) {
 ia_done:
-			ictx->is_in_root = FALSE;
+			ictx->is_in_root = false;
 			ictx->actx = NULL;
 			ictx->base_ni = NULL;
 			ictx->ia = ia;

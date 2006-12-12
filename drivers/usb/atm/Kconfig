@@ -64,7 +64,7 @@ config USB_XUSBATM
 	  Say Y here if you have a DSL USB modem not explicitly supported by
 	  another USB DSL drivers.  In order to use your modem you will need to
 	  pass the vendor ID, product ID, and endpoint numbers for transmission
-	  and reception as module parameters.  You may need to initialize the
+	  and reception as module parameters.  You may need to initialize
 	  the modem using a user space utility (a firmware loader for example).
 
 	  To compile this driver as a module, choose M here: the

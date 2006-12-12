@@ -8,19 +8,21 @@
  * Modified for edosk7705 development
  * board by S. Dunn, 2003.
  */
-
 #include <linux/init.h>
 #include <asm/machvec.h>
-#include <asm/machvec_init.h>
 #include <asm/edosk7705/io.h>
 
-static void init_edosk7705(void);
+static void __init sh_edosk7705_init_irq(void)
+{
+	/* This is the Ethernet interrupt */
+	make_imask_irq(0x09);
+}
 
 /*
  * The Machine Vector
  */
-
 struct sh_machine_vector mv_edosk7705 __initmv = {
+	.mv_name		= "EDOSK7705",
 	.mv_nr_irqs		= 80,
 
 	.mv_inb			= sh_edosk7705_inb,
@@ -37,23 +39,6 @@ struct sh_machine_vector mv_edosk7705 __initmv = {
 	.mv_outsl		= sh_edosk7705_outsl,
 
 	.mv_isa_port2addr	= sh_edosk7705_isa_port2addr,
-	.mv_init_irq		= init_edosk7705,
+	.mv_init_irq		= sh_edosk7705_init_irq,
 };
 ALIAS_MV(edosk7705)
-
-static void __init init_edosk7705(void)
-{
-	/* This is the Ethernet interrupt */
-	make_imask_irq(0x09);
-}
-
-const char *get_system_type(void)
-{
-	return "EDOSK7705";
-}
-
-void __init platform_setup(void)
-{
-	/* Nothing .. */
-}
-

@@ -3,16 +3,16 @@
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -78,7 +78,7 @@
  *
  * case-insensitive search:
  *
- * 	fold search key;
+ *	fold search key;
  *
  *	case-insensitive search of B-tree:
  *	for internal entry, router key is already folded;
@@ -93,7 +93,7 @@
  *	else
  *		return no match;
  *
- * 	serialization:
+ *	serialization:
  * target directory inode lock is being held on entry/exit
  * of all main directory service routines.
  *
@@ -925,7 +925,7 @@ int dtInsert(tid_t tid, struct inode *ip,
  *
  * return: 0 - success;
  *	   errno - failure;
- * 	leaf page unpinned;
+ *	leaf page unpinned;
  */
 static int dtSplitUp(tid_t tid,
 	  struct inode *ip, struct dtsplit * split, struct btstack * btstack)
@@ -3009,7 +3009,7 @@ static inline struct jfs_dirent *next_jfs_dirent(struct jfs_dirent *dirent)
  */
 int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *ip = filp->f_dentry->d_inode;
+	struct inode *ip = filp->f_path.dentry->d_inode;
 	struct nls_table *codepage = JFS_SBI(ip->i_sb)->nls_tab;
 	int rc = 0;
 	loff_t dtpos;	/* legacy OS/2 style position */
@@ -3767,7 +3767,7 @@ static int ciCompare(struct component_name * key,	/* search key */
  *	     across page boundary
  *
  * return: non-zero on error
- *	
+ *
  */
 static int ciGetLeafPrefixKey(dtpage_t * lp, int li, dtpage_t * rp,
 			       int ri, struct component_name * key, int flag)
@@ -3780,13 +3780,13 @@ static int ciGetLeafPrefixKey(dtpage_t * lp, int li, dtpage_t * rp,
 	lkey.name = (wchar_t *) kmalloc((JFS_NAME_MAX + 1) * sizeof(wchar_t),
 					GFP_KERNEL);
 	if (lkey.name == NULL)
-		return -ENOSPC;
+		return -ENOMEM;
 
 	rkey.name = (wchar_t *) kmalloc((JFS_NAME_MAX + 1) * sizeof(wchar_t),
 					GFP_KERNEL);
 	if (rkey.name == NULL) {
 		kfree(lkey.name);
-		return -ENOSPC;
+		return -ENOMEM;
 	}
 
 	/* get left and right key */

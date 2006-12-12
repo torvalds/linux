@@ -46,6 +46,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
+#include <asm/fs_pd.h>
 
 #if defined(CONFIG_SERIAL_CPM_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -194,10 +195,8 @@ static void cpm_uart_start_tx(struct uart_port *port)
 	if (cpm_uart_tx_pump(port) != 0) {
 		if (IS_SMC(pinfo)) {
 			smcp->smc_smcm |= SMCM_TX;
-			smcp->smc_smcmr |= SMCMR_TEN;
 		} else {
 			sccp->scc_sccm |= UART_SCCM_TX;
-			pinfo->sccp->scc_gsmrl |= SCC_GSMRL_ENT;
 		}
 	}
 }
@@ -247,7 +246,7 @@ static void cpm_uart_break_ctl(struct uart_port *port, int break_state)
 /*
  * Transmit characters, refill buffer descriptor, if possible
  */
-static void cpm_uart_int_tx(struct uart_port *port, struct pt_regs *regs)
+static void cpm_uart_int_tx(struct uart_port *port)
 {
 	pr_debug("CPM uart[%d]:TX INT\n", port->line);
 
@@ -257,7 +256,7 @@ static void cpm_uart_int_tx(struct uart_port *port, struct pt_regs *regs)
 /*
  * Receive characters
  */
-static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
+static void cpm_uart_int_rx(struct uart_port *port)
 {
 	int i;
 	unsigned char ch, *cp;
@@ -303,7 +302,7 @@ static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
 			if (status &
 			    (BD_SC_BR | BD_SC_FR | BD_SC_PR | BD_SC_OV))
 				goto handle_error;
-			if (uart_handle_sysrq_char(port, ch, regs))
+			if (uart_handle_sysrq_char(port, ch))
 				continue;
 
 		      error_return:
@@ -372,7 +371,7 @@ static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
 /*
  * Asynchron mode interrupt handler
  */
-static irqreturn_t cpm_uart_int(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t cpm_uart_int(int irq, void *data)
 {
 	u8 events;
 	struct uart_port *port = (struct uart_port *)data;
@@ -388,18 +387,18 @@ static irqreturn_t cpm_uart_int(int irq, void *data, struct pt_regs *regs)
 		if (events & SMCM_BRKE)
 			uart_handle_break(port);
 		if (events & SMCM_RX)
-			cpm_uart_int_rx(port, regs);
+			cpm_uart_int_rx(port);
 		if (events & SMCM_TX)
-			cpm_uart_int_tx(port, regs);
+			cpm_uart_int_tx(port);
 	} else {
 		events = sccp->scc_scce;
 		sccp->scc_scce = events;
 		if (events & UART_SCCM_BRKE)
 			uart_handle_break(port);
 		if (events & UART_SCCM_RX)
-			cpm_uart_int_rx(port, regs);
+			cpm_uart_int_rx(port);
 		if (events & UART_SCCM_TX)
-			cpm_uart_int_tx(port, regs);
+			cpm_uart_int_tx(port);
 	}
 	return (events) ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -420,9 +419,10 @@ static int cpm_uart_startup(struct uart_port *port)
 	/* Startup rx-int */
 	if (IS_SMC(pinfo)) {
 		pinfo->smcp->smc_smcm |= SMCM_RX;
-		pinfo->smcp->smc_smcmr |= SMCMR_REN;
+		pinfo->smcp->smc_smcmr |= (SMCMR_REN | SMCMR_TEN);
 	} else {
 		pinfo->sccp->scc_sccm |= UART_SCCM_RX;
+		pinfo->sccp->scc_gsmrl |= (SCC_GSMRL_ENR | SCC_GSMRL_ENT);
 	}
 
 	if (!(pinfo->flags & FLAG_CONSOLE))
@@ -1022,15 +1022,17 @@ int cpm_uart_drv_get_platform_data(struct platform_device *pdev, int is_con)
 {
 	struct resource *r;
 	struct fs_uart_platform_info *pdata = pdev->dev.platform_data;
-	int idx = pdata->fs_no;	/* It is UART_SMCx or UART_SCCx index */
+	int idx;	/* It is UART_SMCx or UART_SCCx index */
 	struct uart_cpm_port *pinfo;
 	int line;
 	u32 mem, pram;
 
+        idx = pdata->fs_no = fs_uart_get_id(pdata);
+
 	line = cpm_uart_id2nr(idx);
 	if(line < 0) {
 		printk(KERN_ERR"%s(): port %d is not registered", __FUNCTION__, idx);
-		return -1;
+		return -EINVAL;
 	}
 
 	pinfo = (struct uart_cpm_port *) &cpm_uart_ports[idx];
@@ -1044,11 +1046,11 @@ int cpm_uart_drv_get_platform_data(struct platform_device *pdev, int is_con)
 
 	if (!(r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs")))
 		return -EINVAL;
-	mem = r->start;
+	mem = (u32)ioremap(r->start, r->end - r->start + 1);
 
 	if (!(r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pram")))
 		return -EINVAL;
-	pram = r->start;
+	pram = (u32)ioremap(r->start, r->end - r->start + 1);
 
 	if(idx > fsid_smc2_uart) {
 		pinfo->sccp = (scc_t *)mem;
@@ -1179,7 +1181,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 		pdata = pdev->dev.platform_data;
 		if (pdata)
 			if (pdata->init_ioports)
-    	                	pdata->init_ioports();
+    	                	pdata->init_ioports(pdata);
 
 		cpm_uart_drv_get_platform_data(pdev, 1);
 	}
@@ -1189,11 +1191,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	if (options) {
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	} else {
-		bd_t *bd = (bd_t *) __res;
-
-		if (bd->bi_baudrate)
-			baud = bd->bi_baudrate;
-		else
+		if ((baud = uart_baudrate()) == -1)
 			baud = 9600;
 	}
 
@@ -1266,13 +1264,14 @@ static int cpm_uart_drv_probe(struct device *dev)
 	}
 
 	pdata = pdev->dev.platform_data;
-	pr_debug("cpm_uart_drv_probe: Adding CPM UART %d\n", cpm_uart_id2nr(pdata->fs_no));
 
 	if ((ret = cpm_uart_drv_get_platform_data(pdev, 0)))
 		return ret;
 
+	pr_debug("cpm_uart_drv_probe: Adding CPM UART %d\n", cpm_uart_id2nr(pdata->fs_no));
+
 	if (pdata->init_ioports)
-                pdata->init_ioports();
+                pdata->init_ioports(pdata);
 
 	ret = uart_add_one_port(&cpm_reg, &cpm_uart_ports[pdata->fs_no].port);
 
@@ -1350,11 +1349,10 @@ static int cpm_uart_init(void) {
 		pr_info("cpm_uart: WARNING: no UART devices found on platform bus!\n");
 		pr_info(
 		"cpm_uart: the driver will guess configuration, but this mode is no longer supported.\n");
-#ifndef CONFIG_SERIAL_CPM_CONSOLE
-		ret = cpm_uart_init_portdesc();
-		if (ret)
-			return ret;
-#endif
+
+		/* Don't run this again, if the console driver did it already */
+		if (cpm_uart_nr == 0)
+			cpm_uart_init_portdesc();
 
 		cpm_reg.nr = cpm_uart_nr;
 		ret = uart_register_driver(&cpm_reg);
@@ -1366,6 +1364,8 @@ static int cpm_uart_init(void) {
 			int con = cpm_uart_port_map[i];
 			cpm_uart_ports[con].port.line = i;
 			cpm_uart_ports[con].port.flags = UPF_BOOT_AUTOCONF;
+			if (cpm_uart_ports[con].set_lineif)
+				cpm_uart_ports[con].set_lineif(&cpm_uart_ports[con]);
 			uart_add_one_port(&cpm_reg, &cpm_uart_ports[con].port);
 		}
 

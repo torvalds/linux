@@ -552,7 +552,8 @@ static void process_page(unsigned long data)
 static int mm_make_request(request_queue_t *q, struct bio *bio)
 {
 	struct cardinfo *card = q->queuedata;
-	pr_debug("mm_make_request %ld %d\n", bh->b_rsector, bh->b_size);
+	pr_debug("mm_make_request %llu %u\n",
+		 (unsigned long long)bio->bi_sector, bio->bi_size);
 
 	bio->bi_phys_segments = bio->bi_idx; /* count of completed segments*/
 	spin_lock_irq(&card->lock);
@@ -570,7 +571,7 @@ static int mm_make_request(request_queue_t *q, struct bio *bio)
 --                              mm_interrupt
 -----------------------------------------------------------------------------------
 */
-static irqreturn_t mm_interrupt(int irq, void *__card, struct pt_regs *regs)
+static irqreturn_t mm_interrupt(int irq, void *__card)
 {
 	struct cardinfo *card = (struct cardinfo *) __card;
 	unsigned int dma_status;

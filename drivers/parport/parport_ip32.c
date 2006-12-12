@@ -548,10 +548,8 @@ static void parport_ip32_dma_setup_context(unsigned int limit)
  * parport_ip32_dma_interrupt - DMA interrupt handler
  * @irq:	interrupt number
  * @dev_id:	unused
- * @regs:	pointer to &struct pt_regs
  */
-static irqreturn_t parport_ip32_dma_interrupt(int irq, void *dev_id,
-					      struct pt_regs *regs)
+static irqreturn_t parport_ip32_dma_interrupt(int irq, void *dev_id)
 {
 	if (parport_ip32_dma.left)
 		pr_trace(NULL, "(%d): ctx=%d", irq, parport_ip32_dma.ctx);
@@ -560,8 +558,7 @@ static irqreturn_t parport_ip32_dma_interrupt(int irq, void *dev_id,
 }
 
 #if DEBUG_PARPORT_IP32
-static irqreturn_t parport_ip32_merr_interrupt(int irq, void *dev_id,
-					       struct pt_regs *regs)
+static irqreturn_t parport_ip32_merr_interrupt(int irq, void *dev_id)
 {
 	pr_trace1(NULL, "(%d)", irq);
 	return IRQ_HANDLED;
@@ -772,20 +769,18 @@ static inline void parport_ip32_wakeup(struct parport *p)
  * parport_ip32_interrupt - interrupt handler
  * @irq:	interrupt number
  * @dev_id:	pointer to &struct parport
- * @regs:	pointer to &struct pt_regs
  *
  * Caught interrupts are forwarded to the upper parport layer if IRQ_mode is
  * %PARPORT_IP32_IRQ_FWD.
  */
-static irqreturn_t parport_ip32_interrupt(int irq, void *dev_id,
-					  struct pt_regs *regs)
+static irqreturn_t parport_ip32_interrupt(int irq, void *dev_id)
 {
 	struct parport * const p = dev_id;
 	struct parport_ip32_private * const priv = p->physport->private_data;
 	enum parport_ip32_irq_mode irq_mode = priv->irq_mode;
 	switch (irq_mode) {
 	case PARPORT_IP32_IRQ_FWD:
-		parport_generic_irq(irq, p, regs);
+		parport_generic_irq(irq, p);
 		break;
 	case PARPORT_IP32_IRQ_HERE:
 		parport_ip32_wakeup(p);

@@ -52,20 +52,56 @@ unsigned int (*ip_nat_sdp_hook)(struct sk_buff **pskb,
 				const char *dptr);
 EXPORT_SYMBOL_GPL(ip_nat_sdp_hook);
 
-int ct_sip_get_info(const char *dptr, size_t dlen,
-				unsigned int *matchoff,
-				unsigned int *matchlen,
-				struct sip_header_nfo *hnfo);
-EXPORT_SYMBOL_GPL(ct_sip_get_info);
-
-
 static int digits_len(const char *dptr, const char *limit, int *shift);
 static int epaddr_len(const char *dptr, const char *limit, int *shift);
 static int skp_digits_len(const char *dptr, const char *limit, int *shift);
 static int skp_epaddr_len(const char *dptr, const char *limit, int *shift);
 
-struct sip_header_nfo ct_sip_hdrs[] = {
-	{ 	/* Via header */
+struct sip_header_nfo {
+	const char	*lname;
+	const char	*sname;
+	const char	*ln_str;
+	size_t		lnlen;
+	size_t		snlen;
+	size_t		ln_strlen;
+	int		case_sensitive;
+	int		(*match_len)(const char *, const char *, int *);
+};
+
+static struct sip_header_nfo ct_sip_hdrs[] = {
+	[POS_REG_REQ_URI] = { 	/* SIP REGISTER request URI */
+		.lname		= "sip:",
+		.lnlen		= sizeof("sip:") - 1,
+		.ln_str		= ":",
+		.ln_strlen	= sizeof(":") - 1,
+		.match_len	= epaddr_len
+	},
+	[POS_REQ_URI] = { 	/* SIP request URI */
+		.lname		= "sip:",
+		.lnlen		= sizeof("sip:") - 1,
+		.ln_str		= "@",
+		.ln_strlen	= sizeof("@") - 1,
+		.match_len	= epaddr_len
+	},
+	[POS_FROM] = {		/* SIP From header */
+		.lname		= "From:",
+		.lnlen		= sizeof("From:") - 1,
+		.sname		= "\r\nf:",
+		.snlen		= sizeof("\r\nf:") - 1,
+		.ln_str		= "sip:",
+		.ln_strlen	= sizeof("sip:") - 1,
+		.match_len	= skp_epaddr_len,
+	},
+	[POS_TO] = {		/* SIP To header */
+		.lname		= "To:",
+		.lnlen		= sizeof("To:") - 1,
+		.sname		= "\r\nt:",
+		.snlen		= sizeof("\r\nt:") - 1,
+		.ln_str		= "sip:",
+		.ln_strlen	= sizeof("sip:") - 1,
+		.match_len	= skp_epaddr_len,
+	},
+	[POS_VIA] = { 		/* SIP Via header */
 		.lname		= "Via:",
 		.lnlen		= sizeof("Via:") - 1,
 		.sname		= "\r\nv:",
@@ -74,7 +110,7 @@ struct sip_header_nfo ct_sip_hdrs[] = {
 		.ln_strlen	= sizeof("UDP ") - 1,
 		.match_len	= epaddr_len,
 	},
-	{ 	/* Contact header */
+	[POS_CONTACT] = { 	/* SIP Contact header */
 		.lname		= "Contact:",
 		.lnlen		= sizeof("Contact:") - 1,
 		.sname		= "\r\nm:",
@@ -83,7 +119,7 @@ struct sip_header_nfo ct_sip_hdrs[] = {
 		.ln_strlen	= sizeof("sip:") - 1,
 		.match_len	= skp_epaddr_len
 	},
-	{ 	/* Content length header */
+	[POS_CONTENT] = { 	/* SIP Content length header */
 		.lname		= "Content-Length:",
 		.lnlen		= sizeof("Content-Length:") - 1,
 		.sname		= "\r\nl:",
@@ -92,7 +128,8 @@ struct sip_header_nfo ct_sip_hdrs[] = {
 		.ln_strlen	= sizeof(":") - 1,
 		.match_len	= skp_digits_len
 	},
-	{	/* SDP media info */
+	[POS_MEDIA] = {		/* SDP media info */
+		.case_sensitive	= 1,
 		.lname		= "\nm=",
 		.lnlen		= sizeof("\nm=") - 1,
 		.sname		= "\rm=",
@@ -101,7 +138,8 @@ struct sip_header_nfo ct_sip_hdrs[] = {
 		.ln_strlen	= sizeof("audio ") - 1,
 		.match_len	= digits_len
 	},
-	{ 	/* SDP owner address*/
+	[POS_OWNER] = { 	/* SDP owner address*/
+		.case_sensitive	= 1,
 		.lname		= "\no=",
 		.lnlen		= sizeof("\no=") - 1,
 		.sname		= "\ro=",
@@ -110,7 +148,8 @@ struct sip_header_nfo ct_sip_hdrs[] = {
 		.ln_strlen	= sizeof("IN IP4 ") - 1,
 		.match_len	= epaddr_len
 	},
-	{ 	/* SDP connection info */
+	[POS_CONNECTION] = { 	/* SDP connection info */
+		.case_sensitive	= 1,
 		.lname		= "\nc=",
 		.lnlen		= sizeof("\nc=") - 1,
 		.sname		= "\rc=",
@@ -119,16 +158,8 @@ struct sip_header_nfo ct_sip_hdrs[] = {
 		.ln_strlen	= sizeof("IN IP4 ") - 1,
 		.match_len	= epaddr_len
 	},
-	{ 	/* Requests headers */
-		.lname		= "sip:",
-		.lnlen		= sizeof("sip:") - 1,
-		.sname		= "sip:",
-		.snlen		= sizeof("sip:") - 1, /* yes, i know.. ;) */
-		.ln_str		= "@",
-		.ln_strlen	= sizeof("@") - 1,
-		.match_len	= epaddr_len
-	},
-	{ 	/* SDP version header */
+	[POS_SDP_HEADER] = { 	/* SDP version header */
+		.case_sensitive	= 1,
 		.lname		= "\nv=",
 		.lnlen		= sizeof("\nv=") - 1,
 		.sname		= "\rv=",
@@ -138,7 +169,6 @@ struct sip_header_nfo ct_sip_hdrs[] = {
 		.match_len	= digits_len
 	}
 };
-EXPORT_SYMBOL_GPL(ct_sip_hdrs);
 
 /* get line lenght until first CR or LF seen. */
 int ct_sip_lnlen(const char *line, const char *limit)
@@ -159,13 +189,19 @@ EXPORT_SYMBOL_GPL(ct_sip_lnlen);
 
 /* Linear string search, case sensitive. */
 const char *ct_sip_search(const char *needle, const char *haystack,
-                          size_t needle_len, size_t haystack_len)
+			  size_t needle_len, size_t haystack_len,
+			  int case_sensitive)
 {
 	const char *limit = haystack + (haystack_len - needle_len);
 
 	while (haystack <= limit) {
-		if (memcmp(haystack, needle, needle_len) == 0)
-			return haystack;
+		if (case_sensitive) {
+			if (strncmp(haystack, needle, needle_len) == 0)
+				return haystack;
+		} else {
+			if (strnicmp(haystack, needle, needle_len) == 0)
+				return haystack;
+		}
 		haystack++;
 	}
 	return NULL;
@@ -193,7 +229,7 @@ static int skp_digits_len(const char *dptr, const char *limit, int *shift)
 
 /* Simple ipaddr parser.. */
 static int parse_ipaddr(const char *cp,	const char **endp,
-			u_int32_t *ipaddr, const char *limit)
+			__be32 *ipaddr, const char *limit)
 {
 	unsigned long int val;
 	int i, digit = 0;
@@ -227,7 +263,7 @@ static int parse_ipaddr(const char *cp,	const char **endp,
 static int epaddr_len(const char *dptr, const char *limit, int *shift)
 {
 	const char *aux = dptr;
-	u_int32_t ip;
+	__be32 ip;
 
 	if (parse_ipaddr(dptr, &dptr, &ip, limit) < 0) {
 		DEBUGP("ip: %s parse failed.!\n", dptr);
@@ -263,8 +299,9 @@ static int skp_epaddr_len(const char *dptr, const char *limit, int *shift)
 int ct_sip_get_info(const char *dptr, size_t dlen,
 		    unsigned int *matchoff,
 		    unsigned int *matchlen,
-		    struct sip_header_nfo *hnfo)
+		    enum sip_header_pos pos)
 {
+	struct sip_header_nfo *hnfo = &ct_sip_hdrs[pos];
 	const char *limit, *aux, *k = dptr;
 	int shift = 0;
 
@@ -272,12 +309,14 @@ int ct_sip_get_info(const char *dptr, size_t dlen,
 
 	while (dptr <= limit) {
 		if ((strncmp(dptr, hnfo->lname, hnfo->lnlen) != 0) &&
-		    (strncmp(dptr, hnfo->sname, hnfo->snlen) != 0)) {
+		    (hnfo->sname == NULL ||
+		     strncmp(dptr, hnfo->sname, hnfo->snlen) != 0)) {
 			dptr++;
 			continue;
 		}
 		aux = ct_sip_search(hnfo->ln_str, dptr, hnfo->ln_strlen,
-		                    ct_sip_lnlen(dptr, limit));
+		                    ct_sip_lnlen(dptr, limit),
+				    hnfo->case_sensitive);
 		if (!aux) {
 			DEBUGP("'%s' not found in '%s'.\n", hnfo->ln_str,
 			       hnfo->lname);
@@ -298,16 +337,18 @@ int ct_sip_get_info(const char *dptr, size_t dlen,
 	DEBUGP("%s header not found.\n", hnfo->lname);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ct_sip_get_info);
 
 static int set_expected_rtp(struct sk_buff **pskb,
 			    struct ip_conntrack *ct,
 			    enum ip_conntrack_info ctinfo,
-			    u_int32_t ipaddr, u_int16_t port,
+			    __be32 ipaddr, u_int16_t port,
 			    const char *dptr)
 {
 	struct ip_conntrack_expect *exp;
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	int ret;
+	typeof(ip_nat_sdp_hook) ip_nat_sdp;
 
 	exp = ip_conntrack_expect_alloc(ct);
 	if (exp == NULL)
@@ -319,17 +360,18 @@ static int set_expected_rtp(struct sk_buff **pskb,
 	exp->tuple.dst.u.udp.port = htons(port);
 	exp->tuple.dst.protonum = IPPROTO_UDP;
 
-	exp->mask.src.ip = 0xFFFFFFFF;
+	exp->mask.src.ip = htonl(0xFFFFFFFF);
 	exp->mask.src.u.udp.port = 0;
-	exp->mask.dst.ip = 0xFFFFFFFF;
-	exp->mask.dst.u.udp.port = 0xFFFF;
+	exp->mask.dst.ip = htonl(0xFFFFFFFF);
+	exp->mask.dst.u.udp.port = htons(0xFFFF);
 	exp->mask.dst.protonum = 0xFF;
 
 	exp->expectfn = NULL;
 	exp->flags = 0;
 
-	if (ip_nat_sdp_hook)
-		ret = ip_nat_sdp_hook(pskb, ctinfo, exp, dptr);
+	ip_nat_sdp = rcu_dereference(ip_nat_sdp_hook);
+	if (ip_nat_sdp)
+		ret = ip_nat_sdp(pskb, ctinfo, exp, dptr);
 	else {
 		if (ip_conntrack_expect_related(exp) != 0)
 			ret = NF_DROP;
@@ -349,8 +391,9 @@ static int sip_help(struct sk_buff **pskb,
 	const char *dptr;
 	int ret = NF_ACCEPT;
 	int matchoff, matchlen;
-	u_int32_t ipaddr;
+	__be32 ipaddr;
 	u_int16_t port;
+	typeof(ip_nat_sip_hook) ip_nat_sip;
 
 	/* No Data ? */
 	dataoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
@@ -368,8 +411,9 @@ static int sip_help(struct sk_buff **pskb,
 		goto out;
 	}
 
-	if (ip_nat_sip_hook) {
-		if (!ip_nat_sip_hook(pskb, ctinfo, ct, &dptr)) {
+	ip_nat_sip = rcu_dereference(ip_nat_sip_hook);
+	if (ip_nat_sip) {
+		if (!ip_nat_sip(pskb, ctinfo, ct, &dptr)) {
 			ret = NF_DROP;
 			goto out;
 		}
@@ -389,7 +433,7 @@ static int sip_help(struct sk_buff **pskb,
 	}
 	/* Get ip and port address from SDP packet. */
 	if (ct_sip_get_info(dptr, datalen, &matchoff, &matchlen,
-	                    &ct_sip_hdrs[POS_CONNECTION]) > 0) {
+	                    POS_CONNECTION) > 0) {
 
 		/* We'll drop only if there are parse problems. */
 		if (parse_ipaddr(dptr + matchoff, NULL, &ipaddr,
@@ -398,7 +442,7 @@ static int sip_help(struct sk_buff **pskb,
 			goto out;
 		}
 		if (ct_sip_get_info(dptr, datalen, &matchoff, &matchlen,
-		                    &ct_sip_hdrs[POS_MEDIA]) > 0) {
+		                    POS_MEDIA) > 0) {
 
 			port = simple_strtoul(dptr + matchoff, NULL, 10);
 			if (port < 1024) {
@@ -439,7 +483,7 @@ static int __init init(void)
 
 		sip[i].tuple.dst.protonum = IPPROTO_UDP;
 		sip[i].tuple.src.u.udp.port = htons(ports[i]);
-		sip[i].mask.src.u.udp.port = 0xFFFF;
+		sip[i].mask.src.u.udp.port = htons(0xFFFF);
 		sip[i].mask.dst.protonum = 0xFF;
 		sip[i].max_expected = 2;
 		sip[i].timeout = 3 * 60; /* 3 minutes */

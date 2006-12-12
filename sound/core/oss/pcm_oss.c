@@ -2359,7 +2359,8 @@ static int snd_pcm_oss_release(struct inode *inode, struct file *file)
 		substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_CAPTURE];
 	snd_assert(substream != NULL, return -ENXIO);
 	pcm = substream->pcm;
-	snd_pcm_oss_sync(pcm_oss_file);
+	if (!pcm->card->shutdown)
+		snd_pcm_oss_sync(pcm_oss_file);
 	mutex_lock(&pcm->open_mutex);
 	snd_pcm_oss_release_file(pcm_oss_file);
 	mutex_unlock(&pcm->open_mutex);

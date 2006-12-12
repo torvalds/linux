@@ -65,16 +65,14 @@ static int ras_check_exception_token;
 #define EPOW_SENSOR_INDEX	0
 #define RAS_VECTOR_OFFSET	0x500
 
-static irqreturn_t ras_epow_interrupt(int irq, void *dev_id,
-					struct pt_regs * regs);
-static irqreturn_t ras_error_interrupt(int irq, void *dev_id,
-					struct pt_regs * regs);
+static irqreturn_t ras_epow_interrupt(int irq, void *dev_id);
+static irqreturn_t ras_error_interrupt(int irq, void *dev_id);
 
 /* #define DEBUG */
 
 
 static void request_ras_irqs(struct device_node *np,
-			irqreturn_t (*handler)(int, void *, struct pt_regs *),
+			irq_handler_t handler,
 			const char *name)
 {
 	int i, index, count = 0;
@@ -166,8 +164,7 @@ __initcall(init_ras_IRQ);
  * to examine the type of power failure and take appropriate action where
  * the time horizon permits something useful to be done.
  */
-static irqreturn_t
-ras_epow_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t ras_epow_interrupt(int irq, void *dev_id)
 {
 	int status = 0xdeadbeef;
 	int state = 0;
@@ -210,8 +207,7 @@ ras_epow_interrupt(int irq, void *dev_id, struct pt_regs * regs)
  * For nonrecoverable errors, an error is logged and we stop all processing
  * as quickly as possible in order to prevent propagation of the failure.
  */
-static irqreturn_t
-ras_error_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t ras_error_interrupt(int irq, void *dev_id)
 {
 	struct rtas_error_log *rtas_elog;
 	int status = 0xdeadbeef;
@@ -337,7 +333,7 @@ static int recover_mce(struct pt_regs *regs, struct rtas_error_log * err)
 		   err->disposition == RTAS_DISP_NOT_RECOVERED &&
 		   err->target == RTAS_TARGET_MEMORY &&
 		   err->type == RTAS_TYPE_ECC_UNCORR &&
-		   !(current->pid == 0 || current->pid == 1)) {
+		   !(current->pid == 0 || is_init(current))) {
 		/* Kill off a user process with an ECC error */
 		printk(KERN_ERR "MCE: uncorrectable ecc error for pid %d\n",
 		       current->pid);

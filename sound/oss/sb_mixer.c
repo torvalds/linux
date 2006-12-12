@@ -1,5 +1,5 @@
 /*
- * sound/sb_mixer.c
+ * sound/oss/sb_mixer.c
  *
  * The low level mixer driver for the Sound Blaster compatible cards.
  */

@@ -29,7 +29,7 @@ udp_conn_in_get(const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		const struct iphdr *iph, unsigned int proto_off, int inverse)
 {
 	struct ip_vs_conn *cp;
-	__u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 
 	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
 	if (pptr == NULL)
@@ -54,7 +54,7 @@ udp_conn_out_get(const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 const struct iphdr *iph, unsigned int proto_off, int inverse)
 {
 	struct ip_vs_conn *cp;
-	__u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 
 	pptr = skb_header_pointer(skb, skb->nh.iph->ihl*4,
 				  sizeof(_ports), _ports);
@@ -89,7 +89,7 @@ udp_conn_schedule(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		return 0;
 	}
 
-	if ((svc = ip_vs_service_get(skb->nfmark, skb->nh.iph->protocol,
+	if ((svc = ip_vs_service_get(skb->mark, skb->nh.iph->protocol,
 				     skb->nh.iph->daddr, uh->dest))) {
 		if (ip_vs_todrop()) {
 			/*
@@ -117,15 +117,15 @@ udp_conn_schedule(struct sk_buff *skb, struct ip_vs_protocol *pp,
 
 
 static inline void
-udp_fast_csum_update(struct udphdr *uhdr, u32 oldip, u32 newip,
-		     u16 oldport, u16 newport)
+udp_fast_csum_update(struct udphdr *uhdr, __be32 oldip, __be32 newip,
+		     __be16 oldport, __be16 newport)
 {
 	uhdr->check =
-		ip_vs_check_diff(~oldip, newip,
-				 ip_vs_check_diff(oldport ^ 0xFFFF,
-						  newport, uhdr->check));
+		csum_fold(ip_vs_check_diff4(oldip, newip,
+				 ip_vs_check_diff2(oldport, newport,
+					~csum_unfold(uhdr->check))));
 	if (!uhdr->check)
-		uhdr->check = 0xFFFF;
+		uhdr->check = CSUM_MANGLED_0;
 }
 
 static int
@@ -173,7 +173,7 @@ udp_snat_handler(struct sk_buff **pskb,
 						cp->protocol,
 						(*pskb)->csum);
 		if (udph->check == 0)
-			udph->check = 0xFFFF;
+			udph->check = CSUM_MANGLED_0;
 		IP_VS_DBG(11, "O-pkt: %s O-csum=%d (+%zd)\n",
 			  pp->name, udph->check,
 			  (char*)&(udph->check) - (char*)udph);
@@ -228,7 +228,7 @@ udp_dnat_handler(struct sk_buff **pskb,
 						cp->protocol,
 						(*pskb)->csum);
 		if (udph->check == 0)
-			udph->check = 0xFFFF;
+			udph->check = CSUM_MANGLED_0;
 		(*pskb)->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 	return 1;
@@ -282,16 +282,18 @@ udp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 static struct list_head udp_apps[UDP_APP_TAB_SIZE];
 static DEFINE_SPINLOCK(udp_app_lock);
 
-static inline __u16 udp_app_hashkey(__u16 port)
+static inline __u16 udp_app_hashkey(__be16 port)
 {
-	return ((port >> UDP_APP_TAB_BITS) ^ port) & UDP_APP_TAB_MASK;
+	return (((__force u16)port >> UDP_APP_TAB_BITS) ^ (__force u16)port)
+		& UDP_APP_TAB_MASK;
 }
 
 
 static int udp_register_app(struct ip_vs_app *inc)
 {
 	struct ip_vs_app *i;
-	__u16 hash, port = inc->port;
+	__u16 hash;
+	__be16 port = inc->port;
 	int ret = 0;
 
 	hash = udp_app_hashkey(port);

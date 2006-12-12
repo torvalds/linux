@@ -72,7 +72,7 @@ static u8 tda10021_inittab[0x40]=
 	0x04, 0x2d, 0x2f, 0xff, 0x00, 0x00, 0x00, 0x00,
 };
 
-static int tda10021_writereg (struct tda10021_state* state, u8 reg, u8 data)
+static int _tda10021_writereg (struct tda10021_state* state, u8 reg, u8 data)
 {
 	u8 buf[] = { reg, data };
 	struct i2c_msg msg = { .addr = state->config->demod_address, .flags = 0, .buf = buf, .len = 2 };
@@ -87,14 +87,6 @@ static int tda10021_writereg (struct tda10021_state* state, u8 reg, u8 data)
 	msleep(10);
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
-
-int tda10021_write_byte(struct dvb_frontend* fe, int reg, int data)
-{
-	struct tda10021_state* state = fe->demodulator_priv;
-
-	return tda10021_writereg(state, reg, data);
-}
-EXPORT_SYMBOL(tda10021_write_byte);
 
 static u8 tda10021_readreg (struct tda10021_state* state, u8 reg)
 {
@@ -149,8 +141,8 @@ static int tda10021_setup_reg0 (struct tda10021_state* state, u8 reg0,
 	else if (INVERSION_OFF == inversion)
 		DISABLE_INVERSION(reg0);
 
-	tda10021_writereg (state, 0x00, reg0 & 0xfe);
-	tda10021_writereg (state, 0x00, reg0 | 0x01);
+	_tda10021_writereg (state, 0x00, reg0 & 0xfe);
+	_tda10021_writereg (state, 0x00, reg0 | 0x01);
 
 	state->reg0 = reg0;
 	return 0;
@@ -198,15 +190,25 @@ static int tda10021_set_symbolrate (struct tda10021_state* state, u32 symbolrate
 
 	NDEC = (NDEC << 6) | tda10021_inittab[0x03];
 
-	tda10021_writereg (state, 0x03, NDEC);
-	tda10021_writereg (state, 0x0a, BDR&0xff);
-	tda10021_writereg (state, 0x0b, (BDR>> 8)&0xff);
-	tda10021_writereg (state, 0x0c, (BDR>>16)&0x3f);
+	_tda10021_writereg (state, 0x03, NDEC);
+	_tda10021_writereg (state, 0x0a, BDR&0xff);
+	_tda10021_writereg (state, 0x0b, (BDR>> 8)&0xff);
+	_tda10021_writereg (state, 0x0c, (BDR>>16)&0x3f);
 
-	tda10021_writereg (state, 0x0d, BDRI);
-	tda10021_writereg (state, 0x0e, SFIL);
+	_tda10021_writereg (state, 0x0d, BDRI);
+	_tda10021_writereg (state, 0x0e, SFIL);
 
 	return 0;
+}
+
+int tda10021_write(struct dvb_frontend* fe, u8 *buf, int len)
+{
+	struct tda10021_state* state = fe->demodulator_priv;
+
+	if (len != 2)
+		return -EINVAL;
+
+	return _tda10021_writereg(state, buf[0], buf[1]);
 }
 
 static int tda10021_init (struct dvb_frontend *fe)
@@ -216,12 +218,12 @@ static int tda10021_init (struct dvb_frontend *fe)
 
 	dprintk("DVB: TDA10021(%d): init chip\n", fe->adapter->num);
 
-	//tda10021_writereg (fe, 0, 0);
+	//_tda10021_writereg (fe, 0, 0);
 
 	for (i=0; i<tda10021_inittab_size; i++)
-		tda10021_writereg (state, i, tda10021_inittab[i]);
+		_tda10021_writereg (state, i, tda10021_inittab[i]);
 
-	tda10021_writereg (state, 0x34, state->pwm);
+	_tda10021_writereg (state, 0x34, state->pwm);
 
 	//Comment by markus
 	//0x2A[3-0] == PDIV -> P multiplaying factor (P=PDIV+1)(default 0)
@@ -230,7 +232,7 @@ static int tda10021_init (struct dvb_frontend *fe)
 	//0x2A[6] == POLAXIN -> Polarity of the input reference clock (default 0)
 
 	//Activate PLL
-	tda10021_writereg(state, 0x2a, tda10021_inittab[0x2a] & 0xef);
+	_tda10021_writereg(state, 0x2a, tda10021_inittab[0x2a] & 0xef);
 	return 0;
 }
 
@@ -264,12 +266,12 @@ static int tda10021_set_parameters (struct dvb_frontend *fe,
 	}
 
 	tda10021_set_symbolrate (state, p->u.qam.symbol_rate);
-	tda10021_writereg (state, 0x34, state->pwm);
+	_tda10021_writereg (state, 0x34, state->pwm);
 
-	tda10021_writereg (state, 0x01, reg0x01[qam]);
-	tda10021_writereg (state, 0x05, reg0x05[qam]);
-	tda10021_writereg (state, 0x08, reg0x08[qam]);
-	tda10021_writereg (state, 0x09, reg0x09[qam]);
+	_tda10021_writereg (state, 0x01, reg0x01[qam]);
+	_tda10021_writereg (state, 0x05, reg0x05[qam]);
+	_tda10021_writereg (state, 0x08, reg0x08[qam]);
+	_tda10021_writereg (state, 0x09, reg0x09[qam]);
 
 	tda10021_setup_reg0 (state, reg0x00[qam], p->inversion);
 
@@ -342,8 +344,8 @@ static int tda10021_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 		*ucblocks = 0xffffffff;
 
 	/* reset uncorrected block counter */
-	tda10021_writereg (state, 0x10, tda10021_inittab[0x10] & 0xdf);
-	tda10021_writereg (state, 0x10, tda10021_inittab[0x10]);
+	_tda10021_writereg (state, 0x10, tda10021_inittab[0x10] & 0xdf);
+	_tda10021_writereg (state, 0x10, tda10021_inittab[0x10]);
 
 	return 0;
 }
@@ -392,8 +394,8 @@ static int tda10021_sleep(struct dvb_frontend* fe)
 {
 	struct tda10021_state* state = fe->demodulator_priv;
 
-	tda10021_writereg (state, 0x1b, 0x02);  /* pdown ADC */
-	tda10021_writereg (state, 0x00, 0x80);  /* standby */
+	_tda10021_writereg (state, 0x1b, 0x02);  /* pdown ADC */
+	_tda10021_writereg (state, 0x00, 0x80);  /* standby */
 
 	return 0;
 }
@@ -459,6 +461,7 @@ static struct dvb_frontend_ops tda10021_ops = {
 
 	.init = tda10021_init,
 	.sleep = tda10021_sleep,
+	.write = tda10021_write,
 	.i2c_gate_ctrl = tda10021_i2c_gate_ctrl,
 
 	.set_frontend = tda10021_set_parameters,

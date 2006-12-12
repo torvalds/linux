@@ -7,8 +7,11 @@ Supported adapters:
   * VIA Technologies, Inc. VT82C686A/B
     Datasheet: Sometimes available at the VIA website
 
-  * VIA Technologies, Inc. VT8231, VT8233, VT8233A, VT8235, VT8237R
+  * VIA Technologies, Inc. VT8231, VT8233, VT8233A
     Datasheet: available on request from VIA
+
+  * VIA Technologies, Inc. VT8235, VT8237R, VT8237A, VT8251
+    Datasheet: available on request and under NDA from VIA
 
 Authors:
 	Kyösti Mälkki <kmalkki@cc.hut.fi>,
@@ -39,6 +42,8 @@ Your lspci -n listing must show one of these :
  device 1106:8235   (VT8231 function 4)
  device 1106:3177   (VT8235)
  device 1106:3227   (VT8237R)
+ device 1106:3337   (VT8237A)
+ device 1106:3287   (VT8251)
 
 If none of these show up, you should look in the BIOS for settings like
 enable ACPI / SMBus or even USB.

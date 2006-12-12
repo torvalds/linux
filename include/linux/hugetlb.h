@@ -17,6 +17,7 @@ int hugetlb_sysctl_handler(struct ctl_table *, int, struct file *, void __user *
 int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
 int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *, struct page **, struct vm_area_struct **, unsigned long *, int *, int);
 void unmap_hugepage_range(struct vm_area_struct *, unsigned long, unsigned long);
+void __unmap_hugepage_range(struct vm_area_struct *, unsigned long, unsigned long);
 int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
 int hugetlb_report_meminfo(char *);
 int hugetlb_report_node_meminfo(int, char *);
@@ -34,6 +35,7 @@ extern int sysctl_hugetlb_shm_group;
 
 pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr);
 pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr);
+int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep);
 struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
 			      int write);
 struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
@@ -59,8 +61,11 @@ void hugetlb_free_pgd_range(struct mmu_gather **tlb, unsigned long addr,
  * If the arch doesn't supply something else, assume that hugepage
  * size aligned regions are ok without further preparation.
  */
-static inline int prepare_hugepage_range(unsigned long addr, unsigned long len)
+static inline int prepare_hugepage_range(unsigned long addr, unsigned long len,
+						pgoff_t pgoff)
 {
+	if (pgoff & (~HPAGE_MASK >> PAGE_SHIFT))
+		return -EINVAL;
 	if (len & ~HPAGE_MASK)
 		return -EINVAL;
 	if (addr & ~HPAGE_MASK)
@@ -68,7 +73,8 @@ static inline int prepare_hugepage_range(unsigned long addr, unsigned long len)
 	return 0;
 }
 #else
-int prepare_hugepage_range(unsigned long addr, unsigned long len);
+int prepare_hugepage_range(unsigned long addr, unsigned long len,
+						pgoff_t pgoff);
 #endif
 
 #ifndef ARCH_HAS_SETCLEAR_HUGE_PTE
@@ -106,7 +112,7 @@ static inline unsigned long hugetlb_total_pages(void)
 #define hugetlb_report_meminfo(buf)		0
 #define hugetlb_report_node_meminfo(n, buf)	0
 #define follow_huge_pmd(mm, addr, pmd, write)	NULL
-#define prepare_hugepage_range(addr, len)	(-EINVAL)
+#define prepare_hugepage_range(addr,len,pgoff)	(-EINVAL)
 #define pmd_huge(x)	0
 #define is_hugepage_only_range(mm, addr, len)	0
 #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })

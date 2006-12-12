@@ -829,7 +829,7 @@ static void transfer_bytes(Scsi_Cmnd * cmd, int data_in_dir)
  * but it _does_ need to be able to compile and run in an SMP kernel.)
  */
 
-static irqreturn_t in2000_intr(int irqnum, void *dev_id, struct pt_regs *ptregs)
+static irqreturn_t in2000_intr(int irqnum, void *dev_id)
 {
 	struct Scsi_Host *instance = dev_id;
 	struct IN2000_hostdata *hostdata;

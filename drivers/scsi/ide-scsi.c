@@ -110,6 +110,7 @@ typedef struct ide_scsi_obj {
 } idescsi_scsi_t;
 
 static DEFINE_MUTEX(idescsi_ref_mutex);
+static int idescsi_nocd;			/* Set by module param to skip cd */
 
 #define ide_scsi_g(disk) \
 	container_of((disk)->private_data, struct ide_scsi_obj, driver)
@@ -344,7 +345,7 @@ static int idescsi_check_condition(ide_drive_t *drive, struct request *failed_co
 	pc->buffer = buf;
 	pc->c[0] = REQUEST_SENSE;
 	pc->c[4] = pc->request_transfer = pc->buffer_size = SCSI_SENSE_BUFFERSIZE;
-	rq->flags = REQ_SENSE;
+	rq->cmd_type = REQ_TYPE_SENSE;
 	pc->timeout = jiffies + WAIT_READY;
 	/* NOTE! Save the failed packet command in "rq->buffer" */
 	rq->buffer = (void *) failed_command->special;
@@ -398,12 +399,12 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 	int errors = rq->errors;
 	unsigned long flags;
 
-	if (!(rq->flags & (REQ_SPECIAL|REQ_SENSE))) {
+	if (!blk_special_request(rq) && !blk_sense_request(rq)) {
 		ide_end_request(drive, uptodate, nrsecs);
 		return 0;
 	}
 	ide_end_drive_cmd (drive, 0, 0);
-	if (rq->flags & REQ_SENSE) {
+	if (blk_sense_request(rq)) {
 		idescsi_pc_t *opc = (idescsi_pc_t *) rq->buffer;
 		if (log) {
 			printk ("ide-scsi: %s: wrap up check %lu, rst = ", drive->name, opc->scsi_cmd->serial_number);
@@ -708,11 +709,11 @@ static ide_startstop_t idescsi_issue_pc (ide_drive_t *drive, idescsi_pc_t *pc)
 static ide_startstop_t idescsi_do_request (ide_drive_t *drive, struct request *rq, sector_t block)
 {
 #if IDESCSI_DEBUG_LOG
-	printk (KERN_INFO "rq_status: %d, dev: %s, cmd: %x, errors: %d\n",rq->rq_status, rq->rq_disk->disk_name,rq->cmd[0],rq->errors);
+	printk (KERN_INFO "dev: %s, cmd: %x, errors: %d\n", rq->rq_disk->disk_name,rq->cmd[0],rq->errors);
 	printk (KERN_INFO "sector: %ld, nr_sectors: %ld, current_nr_sectors: %d\n",rq->sector,rq->nr_sectors,rq->current_nr_sectors);
 #endif /* IDESCSI_DEBUG_LOG */
 
-	if (rq->flags & (REQ_SPECIAL|REQ_SENSE)) {
+	if (blk_sense_request(rq) || blk_special_request(rq)) {
 		return idescsi_issue_pc (drive, (idescsi_pc_t *) rq->special);
 	}
 	blk_dump_rq_flags(rq, "ide-scsi: unsup command");
@@ -938,7 +939,7 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 
 	ide_init_drive_cmd (rq);
 	rq->special = (char *) pc;
-	rq->flags = REQ_SPECIAL;
+	rq->cmd_type = REQ_TYPE_SPECIAL;
 	spin_unlock_irq(host->host_lock);
 	rq->rq_disk = scsi->disk;
 	(void) ide_do_drive_cmd (drive, rq, ide_end);
@@ -992,7 +993,7 @@ static int idescsi_eh_abort (struct scsi_cmnd *cmd)
 		 */
 		printk (KERN_ERR "ide-scsi: cmd aborted!\n");
 
-		if (scsi->pc->rq->flags & REQ_SENSE)
+		if (blk_sense_request(scsi->pc->rq))
 			kfree(scsi->pc->buffer);
 		kfree(scsi->pc->rq);
 		kfree(scsi->pc);
@@ -1042,7 +1043,7 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 	/* kill current request */
 	blkdev_dequeue_request(req);
 	end_that_request_last(req, 0);
-	if (req->flags & REQ_SENSE)
+	if (blk_sense_request(req))
 		kfree(scsi->pc->buffer);
 	kfree(scsi->pc);
 	scsi->pc = NULL;
@@ -1127,6 +1128,9 @@ static int ide_scsi_probe(ide_drive_t *drive)
 		warned = 1;
 	}
 
+	if (idescsi_nocd && drive->media == ide_cdrom)
+		return -ENODEV;
+
 	if (!strstr("ide-scsi", drive->driver_req) ||
 	    !drive->present ||
 	    drive->media == ide_disk ||
@@ -1187,6 +1191,8 @@ static void __exit exit_idescsi_module(void)
 	driver_unregister(&idescsi_driver.gen_driver);
 }
 
+module_param(idescsi_nocd, int, 0600);
+MODULE_PARM_DESC(idescsi_nocd, "Disable handling of CD-ROMs so they may be driven by ide-cd");
 module_init(init_idescsi_module);
 module_exit(exit_idescsi_module);
 MODULE_LICENSE("GPL");

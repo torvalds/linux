@@ -42,7 +42,6 @@
 #include <asm/irq.h>
 #include <asm/pci.h>
 #include <asm/processor.h>
-#include <asm/ptrace.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
 #include <asm/traps.h>
@@ -69,7 +68,6 @@ unsigned long __init prom_free_prom_memory(void)
  * Initializes basic routines and structures pointers, memory size (as
  * given by the bios and saves the command line.
  */
-extern void gt64120_time_init(void);
 
 void __init plat_mem_setup(void)
 {
@@ -77,7 +75,6 @@ void __init plat_mem_setup(void)
 	_machine_halt = galileo_machine_halt;
 	pm_power_off = galileo_machine_power_off;
 
-	board_time_init = gt64120_time_init;
 	set_io_port_base(KSEG1);
 }
 

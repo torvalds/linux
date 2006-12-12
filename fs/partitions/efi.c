@@ -238,10 +238,9 @@ alloc_read_gpt_entries(struct block_device *bdev, gpt_header *gpt)
                 le32_to_cpu(gpt->sizeof_partition_entry);
 	if (!count)
 		return NULL;
-	pte = kmalloc(count, GFP_KERNEL);
+	pte = kzalloc(count, GFP_KERNEL);
 	if (!pte)
 		return NULL;
-	memset(pte, 0, count);
 
 	if (read_lba(bdev, le64_to_cpu(gpt->partition_entry_lba),
                      (u8 *) pte,
@@ -269,10 +268,9 @@ alloc_read_gpt_header(struct block_device *bdev, u64 lba)
 	if (!bdev)
 		return NULL;
 
-	gpt = kmalloc(sizeof (gpt_header), GFP_KERNEL);
+	gpt = kzalloc(sizeof (gpt_header), GFP_KERNEL);
 	if (!gpt)
 		return NULL;
-	memset(gpt, 0, sizeof (gpt_header));
 
 	if (read_lba(bdev, lba, (u8 *) gpt,
 		     sizeof (gpt_header)) < sizeof (gpt_header)) {
@@ -526,9 +524,8 @@ find_valid_gpt(struct block_device *bdev, gpt_header **gpt, gpt_entry **ptes)
 	lastlba = last_lba(bdev);
         if (!force_gpt) {
                 /* This will be added to the EFI Spec. per Intel after v1.02. */
-                legacymbr = kmalloc(sizeof (*legacymbr), GFP_KERNEL);
+                legacymbr = kzalloc(sizeof (*legacymbr), GFP_KERNEL);
                 if (legacymbr) {
-                        memset(legacymbr, 0, sizeof (*legacymbr));
                         read_lba(bdev, 0, (u8 *) legacymbr,
                                  sizeof (*legacymbr));
                         good_pmbr = is_pmbr_valid(legacymbr, lastlba);

@@ -362,7 +362,7 @@ static void gigaset_modem_fill(unsigned long data)
  *
  *	It is called if the data was received from the device.
  */
-static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
+static void gigaset_read_int_callback(struct urb *urb)
 {
 	struct inbuf_t *inbuf = urb->context;
 	struct cardstate *cs = inbuf->cs;
@@ -410,7 +410,7 @@ static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
 
 	if (resubmit) {
 		spin_lock_irqsave(&cs->lock, flags);
-		r = cs->connected ? usb_submit_urb(urb, SLAB_ATOMIC) : -ENODEV;
+		r = cs->connected ? usb_submit_urb(urb, GFP_ATOMIC) : -ENODEV;
 		spin_unlock_irqrestore(&cs->lock, flags);
 		if (r)
 			dev_err(cs->dev, "error %d when resubmitting urb.\n",
@@ -420,7 +420,7 @@ static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
 
 
 /* This callback routine is called when data was transmitted to the device. */
-static void gigaset_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void gigaset_write_bulk_callback(struct urb *urb)
 {
 	struct cardstate *cs = urb->context;
 	unsigned long flags;
@@ -486,7 +486,7 @@ static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
 			atomic_set(&ucs->busy, 1);
 
 			spin_lock_irqsave(&cs->lock, flags);
-			status = cs->connected ? usb_submit_urb(ucs->bulk_out_urb, SLAB_ATOMIC) : -ENODEV;
+			status = cs->connected ? usb_submit_urb(ucs->bulk_out_urb, GFP_ATOMIC) : -ENODEV;
 			spin_unlock_irqrestore(&cs->lock, flags);
 
 			if (status) {
@@ -664,7 +664,7 @@ static int write_modem(struct cardstate *cs)
 						  ucs->bulk_out_endpointAddr & 0x0f),
 				  ucs->bulk_out_buffer, count,
 				  gigaset_write_bulk_callback, cs);
-		ret = usb_submit_urb(ucs->bulk_out_urb, SLAB_ATOMIC);
+		ret = usb_submit_urb(ucs->bulk_out_urb, GFP_ATOMIC);
 	} else {
 		ret = -ENODEV;
 	}
@@ -763,7 +763,7 @@ static int gigaset_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	ucs->bulk_out_urb = usb_alloc_urb(0, SLAB_KERNEL);
+	ucs->bulk_out_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!ucs->bulk_out_urb) {
 		dev_err(cs->dev, "Couldn't allocate bulk_out_urb\n");
 		retval = -ENOMEM;
@@ -774,7 +774,7 @@ static int gigaset_probe(struct usb_interface *interface,
 
 	atomic_set(&ucs->busy, 0);
 
-	ucs->read_urb = usb_alloc_urb(0, SLAB_KERNEL);
+	ucs->read_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!ucs->read_urb) {
 		dev_err(cs->dev, "No free urbs available\n");
 		retval = -ENOMEM;
@@ -797,7 +797,7 @@ static int gigaset_probe(struct usb_interface *interface,
 			 gigaset_read_int_callback,
 			 cs->inbuf + 0, endpoint->bInterval);
 
-	retval = usb_submit_urb(ucs->read_urb, SLAB_KERNEL);
+	retval = usb_submit_urb(ucs->read_urb, GFP_KERNEL);
 	if (retval) {
 		dev_err(cs->dev, "Could not submit URB (error %d)\n", -retval);
 		goto error;
@@ -815,14 +815,11 @@ static int gigaset_probe(struct usb_interface *interface,
 	return 0;
 
 error:
-	if (ucs->read_urb)
-		usb_kill_urb(ucs->read_urb);
+	usb_kill_urb(ucs->read_urb);
 	kfree(ucs->bulk_out_buffer);
-	if (ucs->bulk_out_urb != NULL)
-		usb_free_urb(ucs->bulk_out_urb);
+	usb_free_urb(ucs->bulk_out_urb);
 	kfree(cs->inbuf[0].rcvbuf);
-	if (ucs->read_urb != NULL)
-		usb_free_urb(ucs->read_urb);
+	usb_free_urb(ucs->read_urb);
 	usb_set_intfdata(interface, NULL);
 	ucs->read_urb = ucs->bulk_out_urb = NULL;
 	cs->inbuf[0].rcvbuf = ucs->bulk_out_buffer = NULL;
@@ -850,11 +847,9 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	usb_kill_urb(ucs->bulk_out_urb);	/* FIXME: only if active? */
 
 	kfree(ucs->bulk_out_buffer);
-	if (ucs->bulk_out_urb != NULL)
-		usb_free_urb(ucs->bulk_out_urb);
+	usb_free_urb(ucs->bulk_out_urb);
 	kfree(cs->inbuf[0].rcvbuf);
-	if (ucs->read_urb != NULL)
-		usb_free_urb(ucs->read_urb);
+	usb_free_urb(ucs->read_urb);
 	ucs->read_urb = ucs->bulk_out_urb = NULL;
 	cs->inbuf[0].rcvbuf = ucs->bulk_out_buffer = NULL;
 

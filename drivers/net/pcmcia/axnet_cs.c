@@ -92,7 +92,7 @@ static int axnet_open(struct net_device *dev);
 static int axnet_close(struct net_device *dev);
 static int axnet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops netdev_ethtool_ops;
-static irqreturn_t ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t ei_irq_wrapper(int irq, void *dev_id);
 static void ei_watchdog(u_long arg);
 static void axnet_reset_8390(struct net_device *dev);
 
@@ -112,7 +112,7 @@ static void axdev_setup(struct net_device *dev);
 static void AX88190_init(struct net_device *dev, int startp);
 static int ax_open(struct net_device *dev);
 static int ax_close(struct net_device *dev);
-static irqreturn_t ax_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t ax_interrupt(int irq, void *dev_id);
 
 /*====================================================================*/
 
@@ -299,11 +299,7 @@ static int axnet_config(struct pcmcia_device *link)
     tuple.TupleData = (cisdata_t *)buf;
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-    link->conf.ConfigBase = parse.config.base;
+
     /* don't trust the CIS on this; Linksys got it wrong */
     link->conf.Present = 0x63;
 
@@ -599,11 +595,11 @@ static void axnet_reset_8390(struct net_device *dev)
 
 /*====================================================================*/
 
-static irqreturn_t ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ei_irq_wrapper(int irq, void *dev_id)
 {
     struct net_device *dev = dev_id;
     PRIV(dev)->stale = 0;
-    return ax_interrupt(irq, dev_id, regs);
+    return ax_interrupt(irq, dev_id);
 }
 
 static void ei_watchdog(u_long arg)
@@ -621,7 +617,7 @@ static void ei_watchdog(u_long arg)
     if (info->stale++ && (inb_p(nic_base + EN0_ISR) & ENISR_ALL)) {
 	if (!info->fast_poll)
 	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
-	ei_irq_wrapper(dev->irq, dev, NULL);
+	ei_irq_wrapper(dev->irq, dev);
 	info->fast_poll = HZ;
     }
     if (info->fast_poll) {
@@ -1193,7 +1189,7 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * needed.
  */
 
-static irqreturn_t ax_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t ax_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	long e8390_base;
@@ -1201,14 +1197,8 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	struct ei_device *ei_local;
     	int handled = 0;
 
-	if (dev == NULL) 
-	{
-		printk ("net_interrupt(): irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
-    
 	e8390_base = dev->base_addr;
-	ei_local = (struct ei_device *) netdev_priv(dev);
+	ei_local = netdev_priv(dev);
 
 	/*
 	 *	Protect the irq test too.

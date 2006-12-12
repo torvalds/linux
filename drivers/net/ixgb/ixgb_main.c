@@ -1,27 +1,27 @@
 /*******************************************************************************
 
-  
-  Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
-  
-  This program is free software; you can redistribute it and/or modify it 
-  under the terms of the GNU General Public License as published by the Free 
-  Software Foundation; either version 2 of the License, or (at your option) 
-  any later version.
-  
-  This program is distributed in the hope that it will be useful, but WITHOUT 
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
+  Intel PRO/10GbE Linux driver
+  Copyright(c) 1999 - 2006 Intel Corporation.
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms and conditions of the GNU General Public License,
+  version 2, as published by the Free Software Foundation.
+
+  This program is distributed in the hope it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
-  
+
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59 
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-  
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
-  
+  this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+
+  The full GNU General Public License is included in this distribution in
+  the file called "COPYING".
+
   Contact Information:
   Linux NICS <linux.nics@intel.com>
+  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 *******************************************************************************/
@@ -36,7 +36,7 @@ static char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION		"1.0.112-k2"DRIVERNAPI
+#define DRV_VERSION		"1.0.117-k2"DRIVERNAPI
 char ixgb_driver_version[] = DRV_VERSION;
 static char ixgb_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
@@ -93,7 +93,7 @@ static int ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 static struct net_device_stats *ixgb_get_stats(struct net_device *netdev);
 static int ixgb_change_mtu(struct net_device *netdev, int new_mtu);
 static int ixgb_set_mac(struct net_device *netdev, void *p);
-static irqreturn_t ixgb_intr(int irq, void *data, struct pt_regs *regs);
+static irqreturn_t ixgb_intr(int irq, void *data);
 static boolean_t ixgb_clean_tx_irq(struct ixgb_adapter *adapter);
 
 #ifdef CONFIG_IXGB_NAPI
@@ -106,7 +106,7 @@ static boolean_t ixgb_clean_rx_irq(struct ixgb_adapter *adapter);
 static void ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter);
 void ixgb_set_ethtool_ops(struct net_device *netdev);
 static void ixgb_tx_timeout(struct net_device *dev);
-static void ixgb_tx_timeout_task(struct net_device *dev);
+static void ixgb_tx_timeout_task(struct work_struct *work);
 static void ixgb_vlan_rx_register(struct net_device *netdev,
 				  struct vlan_group *grp);
 static void ixgb_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid);
@@ -437,7 +437,7 @@ ixgb_probe(struct pci_dev *pdev,
 	netdev->poll_controller = ixgb_netpoll;
 #endif
 
-	strcpy(netdev->name, pci_name(pdev));
+	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 	netdev->mem_start = mmio_start;
 	netdev->mem_end = mmio_start + mmio_len;
 	netdev->base_addr = adapter->hw.io_base;
@@ -489,8 +489,7 @@ ixgb_probe(struct pci_dev *pdev,
 	adapter->watchdog_timer.function = &ixgb_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 
-	INIT_WORK(&adapter->tx_timeout_task,
-		  (void (*)(void *))ixgb_tx_timeout_task, netdev);
+	INIT_WORK(&adapter->tx_timeout_task, ixgb_tx_timeout_task);
 
 	strcpy(netdev->name, "eth%d");
 	if((err = register_netdev(netdev)))
@@ -1249,7 +1248,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	if(likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		struct ixgb_buffer *buffer_info;
 		css = skb->h.raw - skb->data;
-		cso = (skb->h.raw + skb->csum) - skb->data;
+		cso = css + skb->csum_offset;
 
 		i = adapter->tx_ring.next_to_use;
 		context_desc = IXGB_CONTEXT_DESC(adapter->tx_ring, i);
@@ -1493,9 +1492,10 @@ ixgb_tx_timeout(struct net_device *netdev)
 }
 
 static void
-ixgb_tx_timeout_task(struct net_device *netdev)
+ixgb_tx_timeout_task(struct work_struct *work)
 {
-	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	struct ixgb_adapter *adapter =
+		container_of(work, struct ixgb_adapter, tx_timeout_task);
 
 	adapter->tx_timeout_count++;
 	ixgb_down(adapter, TRUE);
@@ -1687,11 +1687,10 @@ ixgb_update_stats(struct ixgb_adapter *adapter)
  * ixgb_intr - Interrupt Handler
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
- * @pt_regs: CPU registers structure
  **/
 
 static irqreturn_t
-ixgb_intr(int irq, void *data, struct pt_regs *regs)
+ixgb_intr(int irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
@@ -2213,7 +2212,7 @@ static void ixgb_netpoll(struct net_device *dev)
 	struct ixgb_adapter *adapter = netdev_priv(dev);
 
 	disable_irq(adapter->pdev->irq);
-	ixgb_intr(adapter->pdev->irq, dev, NULL);
+	ixgb_intr(adapter->pdev->irq, dev);
 	enable_irq(adapter->pdev->irq);
 }
 #endif
@@ -2230,7 +2229,7 @@ static pci_ers_result_t ixgb_io_error_detected (struct pci_dev *pdev,
 			             enum pci_channel_state state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	if(netif_running(netdev))
 		ixgb_down(adapter, TRUE);
@@ -2253,7 +2252,7 @@ static pci_ers_result_t ixgb_io_error_detected (struct pci_dev *pdev,
 static pci_ers_result_t ixgb_io_slot_reset (struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	if(pci_enable_device(pdev)) {
 		DPRINTK(PROBE, ERR, "Cannot re-enable PCI device after reset.\n");
@@ -2297,7 +2296,7 @@ static pci_ers_result_t ixgb_io_slot_reset (struct pci_dev *pdev)
 static void ixgb_io_resume (struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	pci_set_master(pdev);
 

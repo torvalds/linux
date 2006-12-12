@@ -11,16 +11,37 @@
 #ifndef __ASM_SPINLOCK_H
 #define __ASM_SPINLOCK_H
 
+#include <linux/smp.h>
+
+#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
+
 static inline int
 _raw_compare_and_swap(volatile unsigned int *lock,
 		      unsigned int old, unsigned int new)
 {
-	asm volatile ("cs %0,%3,0(%4)"
-		      : "=d" (old), "=m" (*lock)
-		      : "0" (old), "d" (new), "a" (lock), "m" (*lock)
-		      : "cc", "memory" );
+	asm volatile(
+		"	cs	%0,%3,%1"
+		: "=d" (old), "=Q" (*lock)
+		: "0" (old), "d" (new), "Q" (*lock)
+		: "cc", "memory" );
 	return old;
 }
+
+#else /* __GNUC__ */
+
+static inline int
+_raw_compare_and_swap(volatile unsigned int *lock,
+		      unsigned int old, unsigned int new)
+{
+	asm volatile(
+		"	cs	%0,%3,0(%4)"
+		: "=d" (old), "=m" (*lock)
+		: "0" (old), "d" (new), "a" (lock), "m" (*lock)
+		: "cc", "memory" );
+	return old;
+}
+
+#endif /* __GNUC__ */
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
@@ -31,34 +52,46 @@ _raw_compare_and_swap(volatile unsigned int *lock,
  * (the type definitions are in asm/spinlock_types.h)
  */
 
-#define __raw_spin_is_locked(x) ((x)->lock != 0)
+#define __raw_spin_is_locked(x) ((x)->owner_cpu != 0)
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 #define __raw_spin_unlock_wait(lock) \
-	do { while (__raw_spin_is_locked(lock)) cpu_relax(); } while (0)
+	do { while (__raw_spin_is_locked(lock)) \
+		 _raw_spin_relax(lock); } while (0)
 
-extern void _raw_spin_lock_wait(raw_spinlock_t *lp, unsigned int pc);
-extern int _raw_spin_trylock_retry(raw_spinlock_t *lp, unsigned int pc);
+extern void _raw_spin_lock_wait(raw_spinlock_t *, unsigned int pc);
+extern int _raw_spin_trylock_retry(raw_spinlock_t *, unsigned int pc);
+extern void _raw_spin_relax(raw_spinlock_t *lock);
 
 static inline void __raw_spin_lock(raw_spinlock_t *lp)
 {
 	unsigned long pc = 1 | (unsigned long) __builtin_return_address(0);
+	int old;
 
-	if (unlikely(_raw_compare_and_swap(&lp->lock, 0, pc) != 0))
-		_raw_spin_lock_wait(lp, pc);
+	old = _raw_compare_and_swap(&lp->owner_cpu, 0, ~smp_processor_id());
+	if (likely(old == 0)) {
+		lp->owner_pc = pc;
+		return;
+	}
+	_raw_spin_lock_wait(lp, pc);
 }
 
 static inline int __raw_spin_trylock(raw_spinlock_t *lp)
 {
 	unsigned long pc = 1 | (unsigned long) __builtin_return_address(0);
+	int old;
 
-	if (likely(_raw_compare_and_swap(&lp->lock, 0, pc) == 0))
+	old = _raw_compare_and_swap(&lp->owner_cpu, 0, ~smp_processor_id());
+	if (likely(old == 0)) {
+		lp->owner_pc = pc;
 		return 1;
+	}
 	return _raw_spin_trylock_retry(lp, pc);
 }
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lp)
 {
-	_raw_compare_and_swap(&lp->lock, lp->lock, 0);
+	lp->owner_pc = 0;
+	_raw_compare_and_swap(&lp->owner_cpu, lp->owner_cpu, 0);
 }
 		
 /*
@@ -134,5 +167,8 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 		return 1;
 	return _raw_write_trylock_retry(rw);
 }
+
+#define _raw_read_relax(lock)	cpu_relax()
+#define _raw_write_relax(lock)	cpu_relax()
 
 #endif /* __ASM_SPINLOCK_H */

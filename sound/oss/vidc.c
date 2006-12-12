@@ -372,7 +372,7 @@ static void vidc_audio_trigger(int dev, int enable_bits)
 			adev->flags |= DMA_ACTIVE;
 
 			dma_interrupt = vidc_audio_dma_interrupt;
-			vidc_sound_dma_irq(0, NULL, NULL);
+			vidc_sound_dma_irq(0, NULL);
 			iomd_writeb(DMA_CR_E | 0x10, IOMD_SD0CR);
 
 			local_irq_restore(flags);

@@ -24,6 +24,20 @@ config INPUT
 
 if INPUT
 
+config INPUT_FF_MEMLESS
+	tristate "Support for memoryless force-feedback devices"
+	default n
+	---help---
+	  Say Y here if you have memoryless force-feedback input device
+	  such as Logitech WingMan Force 3D, ThrustMaster FireStorm Dual
+	  Power 2, or similar. You will also need to enable hardware-specific
+	  driver.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ff-memless.
+
 comment "Userland interfaces"
 
 config INPUT_MOUSEDEV

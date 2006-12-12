@@ -864,13 +864,13 @@ static int radeon_do_pixcache_flush(drm_radeon_private_t * dev_priv)
 
 	dev_priv->stats.boxes |= RADEON_BOX_WAIT_IDLE;
 
-	tmp = RADEON_READ(RADEON_RB2D_DSTCACHE_CTLSTAT);
-	tmp |= RADEON_RB2D_DC_FLUSH_ALL;
-	RADEON_WRITE(RADEON_RB2D_DSTCACHE_CTLSTAT, tmp);
+	tmp = RADEON_READ(RADEON_RB3D_DSTCACHE_CTLSTAT);
+	tmp |= RADEON_RB3D_DC_FLUSH_ALL;
+	RADEON_WRITE(RADEON_RB3D_DSTCACHE_CTLSTAT, tmp);
 
 	for (i = 0; i < dev_priv->usec_timeout; i++) {
-		if (!(RADEON_READ(RADEON_RB2D_DSTCACHE_CTLSTAT)
-		      & RADEON_RB2D_DC_BUSY)) {
+		if (!(RADEON_READ(RADEON_RB3D_DSTCACHE_CTLSTAT)
+		      & RADEON_RB3D_DC_BUSY)) {
 			return 0;
 		}
 		DRM_UDELAY(1);
@@ -1130,7 +1130,7 @@ static void radeon_cp_init_ring_buffer(drm_device_t * dev,
 			     | (dev_priv->fb_location >> 16));
 
 #if __OS_HAS_AGP
-	if (dev_priv->flags & CHIP_IS_AGP) {
+	if (dev_priv->flags & RADEON_IS_AGP) {
 		RADEON_WRITE(RADEON_AGP_BASE, (unsigned int)dev->agp->base);
 		RADEON_WRITE(RADEON_MC_AGP_LOCATION,
 			     (((dev_priv->gart_vm_start - 1 +
@@ -1158,7 +1158,7 @@ static void radeon_cp_init_ring_buffer(drm_device_t * dev,
 	dev_priv->ring.tail = cur_read_ptr;
 
 #if __OS_HAS_AGP
-	if (dev_priv->flags & CHIP_IS_AGP) {
+	if (dev_priv->flags & RADEON_IS_AGP) {
 		RADEON_WRITE(RADEON_CP_RB_RPTR_ADDR,
 			     dev_priv->ring_rptr->offset
 			     - dev->agp->base + dev_priv->gart_vm_start);
@@ -1258,6 +1258,13 @@ static void radeon_test_writeback(drm_radeon_private_t * dev_priv)
 		dev_priv->writeback_works = 0;
 		DRM_INFO("writeback forced off\n");
 	}
+
+	if (!dev_priv->writeback_works) {
+		/* Disable writeback to avoid unnecessary bus master transfer */
+		RADEON_WRITE(RADEON_CP_RB_CNTL, RADEON_READ(RADEON_CP_RB_CNTL) |
+			     RADEON_RB_NO_UPDATE);
+		RADEON_WRITE(RADEON_SCRATCH_UMSK, 0);
+	}
 }
 
 /* Enable or disable PCI-E GART on the chip */
@@ -1295,7 +1302,7 @@ static void radeon_set_pcigart(drm_radeon_private_t * dev_priv, int on)
 {
 	u32 tmp;
 
-	if (dev_priv->flags & CHIP_IS_PCIE) {
+	if (dev_priv->flags & RADEON_IS_PCIE) {
 		radeon_set_pciegart(dev_priv, on);
 		return;
 	}
@@ -1333,20 +1340,22 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 	DRM_DEBUG("\n");
 
 	/* if we require new memory map but we don't have it fail */
-	if ((dev_priv->flags & CHIP_NEW_MEMMAP) && !dev_priv->new_memmap)
-	{
-		DRM_ERROR("Cannot initialise DRM on this card\nThis card requires a new X.org DDX\n");
+	if ((dev_priv->flags & RADEON_NEW_MEMMAP) && !dev_priv->new_memmap) {
+		DRM_ERROR("Cannot initialise DRM on this card\nThis card requires a new X.org DDX for 3D\n");
 		radeon_do_cleanup_cp(dev);
 		return DRM_ERR(EINVAL);
 	}
 
-	if (init->is_pci && (dev_priv->flags & CHIP_IS_AGP))
-	{
+	if (init->is_pci && (dev_priv->flags & RADEON_IS_AGP)) {
 		DRM_DEBUG("Forcing AGP card to PCI mode\n");
-		dev_priv->flags &= ~CHIP_IS_AGP;
+		dev_priv->flags &= ~RADEON_IS_AGP;
+	} else if (!(dev_priv->flags & (RADEON_IS_AGP | RADEON_IS_PCI | RADEON_IS_PCIE))
+		   && !init->is_pci) {
+		DRM_DEBUG("Restoring AGP flag\n");
+		dev_priv->flags |= RADEON_IS_AGP;
 	}
 
-	if ((!(dev_priv->flags & CHIP_IS_AGP)) && !dev->sg) {
+	if ((!(dev_priv->flags & RADEON_IS_AGP)) && !dev->sg) {
 		DRM_ERROR("PCI GART memory not allocated!\n");
 		radeon_do_cleanup_cp(dev);
 		return DRM_ERR(EINVAL);
@@ -1489,7 +1498,7 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 				    init->sarea_priv_offset);
 
 #if __OS_HAS_AGP
-	if (dev_priv->flags & CHIP_IS_AGP) {
+	if (dev_priv->flags & RADEON_IS_AGP) {
 		drm_core_ioremap(dev_priv->cp_ring, dev);
 		drm_core_ioremap(dev_priv->ring_rptr, dev);
 		drm_core_ioremap(dev->agp_buffer_map, dev);
@@ -1548,7 +1557,7 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 		 * align it down.
 		 */
 #if __OS_HAS_AGP
-		if (dev_priv->flags & CHIP_IS_AGP) {
+		if (dev_priv->flags & RADEON_IS_AGP) {
 			base = dev->agp->base;
 			/* Check if valid */
 			if ((base + dev_priv->gart_size) > dev_priv->fb_location &&
@@ -1578,7 +1587,7 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 	}
 
 #if __OS_HAS_AGP
-	if (dev_priv->flags & CHIP_IS_AGP)
+	if (dev_priv->flags & RADEON_IS_AGP)
 		dev_priv->gart_buffers_offset = (dev->agp_buffer_map->offset
 						 - dev->agp->base
 						 + dev_priv->gart_vm_start);
@@ -1604,7 +1613,7 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 	dev_priv->ring.high_mark = RADEON_RING_HIGH_MARK;
 
 #if __OS_HAS_AGP
-	if (dev_priv->flags & CHIP_IS_AGP) {
+	if (dev_priv->flags & RADEON_IS_AGP) {
 		/* Turn off PCI GART */
 		radeon_set_pcigart(dev_priv, 0);
 	} else
@@ -1624,7 +1633,7 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 			    dev_priv->gart_info.mapping.handle;
 
 			dev_priv->gart_info.is_pcie =
-			    !!(dev_priv->flags & CHIP_IS_PCIE);
+			    !!(dev_priv->flags & RADEON_IS_PCIE);
 			dev_priv->gart_info.gart_table_location =
 			    DRM_ATI_GART_FB;
 
@@ -1636,7 +1645,7 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 			    DRM_ATI_GART_MAIN;
 			dev_priv->gart_info.addr = NULL;
 			dev_priv->gart_info.bus_addr = 0;
-			if (dev_priv->flags & CHIP_IS_PCIE) {
+			if (dev_priv->flags & RADEON_IS_PCIE) {
 				DRM_ERROR
 				    ("Cannot use PCI Express without GART in FB memory\n");
 				radeon_do_cleanup_cp(dev);
@@ -1678,7 +1687,7 @@ static int radeon_do_cleanup_cp(drm_device_t * dev)
 		drm_irq_uninstall(dev);
 
 #if __OS_HAS_AGP
-	if (dev_priv->flags & CHIP_IS_AGP) {
+	if (dev_priv->flags & RADEON_IS_AGP) {
 		if (dev_priv->cp_ring != NULL) {
 			drm_core_ioremapfree(dev_priv->cp_ring, dev);
 			dev_priv->cp_ring = NULL;
@@ -1733,7 +1742,7 @@ static int radeon_do_resume_cp(drm_device_t * dev)
 	DRM_DEBUG("Starting radeon_do_resume_cp()\n");
 
 #if __OS_HAS_AGP
-	if (dev_priv->flags & CHIP_IS_AGP) {
+	if (dev_priv->flags & RADEON_IS_AGP) {
 		/* Turn off PCI GART */
 		radeon_set_pcigart(dev_priv, 0);
 	} else
@@ -2177,13 +2186,15 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->flags = flags;
 
-	switch (flags & CHIP_FAMILY_MASK) {
+	switch (flags & RADEON_FAMILY_MASK) {
 	case CHIP_R100:
 	case CHIP_RV200:
 	case CHIP_R200:
 	case CHIP_R300:
+	case CHIP_R350:
 	case CHIP_R420:
-		dev_priv->flags |= CHIP_HAS_HIERZ;
+	case CHIP_RV410:
+		dev_priv->flags |= RADEON_HAS_HIERZ;
 		break;
 	default:
 		/* all other chips have no hierarchical z buffer */
@@ -2191,13 +2202,14 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	if (drm_device_is_agp(dev))
-		dev_priv->flags |= CHIP_IS_AGP;
-
-	if (drm_device_is_pcie(dev))
-		dev_priv->flags |= CHIP_IS_PCIE;
+		dev_priv->flags |= RADEON_IS_AGP;
+	else if (drm_device_is_pcie(dev))
+		dev_priv->flags |= RADEON_IS_PCIE;
+	else
+		dev_priv->flags |= RADEON_IS_PCI;
 
 	DRM_DEBUG("%s card detected\n",
-		  ((dev_priv->flags & CHIP_IS_AGP) ? "AGP" : (((dev_priv->flags & CHIP_IS_PCIE) ? "PCIE" : "PCI"))));
+		  ((dev_priv->flags & RADEON_IS_AGP) ? "AGP" : (((dev_priv->flags & RADEON_IS_PCIE) ? "PCIE" : "PCI"))));
 	return ret;
 }
 

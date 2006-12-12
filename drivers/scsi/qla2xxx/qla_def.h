@@ -608,6 +608,7 @@ typedef struct {
  */
 #define MBC_SERDES_PARAMS		0x10	/* Serdes Tx Parameters. */
 #define MBC_GET_IOCB_STATUS		0x12	/* Get IOCB status command. */
+#define MBC_PORT_PARAMS			0x1A	/* Port iDMA Parameters. */
 #define MBC_GET_TIMEOUT_PARAMS		0x22	/* Get FW timeouts. */
 #define MBC_TRACE_CONTROL		0x27	/* Trace control command. */
 #define MBC_GEN_SYSTEM_ERROR		0x2a	/* Generate System Error. */
@@ -1497,6 +1498,9 @@ typedef struct {
 	port_id_t d_id;
 	uint8_t node_name[WWN_SIZE];
 	uint8_t port_name[WWN_SIZE];
+	uint8_t fabric_port_name[WWN_SIZE];
+	uint16_t fp_speeds;
+	uint16_t fp_speed;
 } sw_info_t;
 
 /*
@@ -1524,6 +1528,9 @@ typedef struct fc_port {
 	uint16_t loop_id;
 	uint16_t old_loop_id;
 
+	uint8_t fabric_port_name[WWN_SIZE];
+	uint16_t fp_speed;
+
 	fc_port_type_t port_type;
 
 	atomic_t state;
@@ -1538,6 +1545,9 @@ typedef struct fc_port {
 	spinlock_t rport_lock;
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
+
+	unsigned long last_queue_full;
+	unsigned long last_ramp_up;
 } fc_port_t;
 
 /*
@@ -1634,6 +1644,15 @@ typedef struct fc_port {
 #define	RSNN_NN_CMD	 0x239
 #define	RSNN_NN_REQ_SIZE (16 + 8 + 1 + 255)
 #define	RSNN_NN_RSP_SIZE 16
+
+#define	GFPN_ID_CMD	0x11C
+#define	GFPN_ID_REQ_SIZE (16 + 4)
+#define	GFPN_ID_RSP_SIZE (16 + 8)
+
+#define	GPSC_CMD	0x127
+#define	GPSC_REQ_SIZE	(16 + 8)
+#define	GPSC_RSP_SIZE	(16 + 2 + 2)
+
 
 /*
  * HBA attribute types.
@@ -1748,7 +1767,7 @@ struct ct_sns_req {
 	uint8_t reserved[3];
 
 	union {
-		/* GA_NXT, GPN_ID, GNN_ID, GFT_ID */
+		/* GA_NXT, GPN_ID, GNN_ID, GFT_ID, GFPN_ID */
 		struct {
 			uint8_t reserved;
 			uint8_t port_id[3];
@@ -1823,6 +1842,10 @@ struct ct_sns_req {
 		struct {
 			uint8_t port_name[8];
 		} dpa;
+
+		struct {
+			uint8_t port_name[8];
+		} gpsc;
 	} req;
 };
 
@@ -1886,6 +1909,15 @@ struct ct_sns_rsp {
 			uint8_t port_name[8];
 			struct ct_fdmi_hba_attributes attrs;
 		} ghat;
+
+		struct {
+			uint8_t port_name[8];
+		} gfpn_id;
+
+		struct {
+			uint16_t speeds;
+			uint16_t speed;
+		} gpsc;
 	} rsp;
 };
 
@@ -1980,7 +2012,7 @@ struct isp_operations {
 	char * (*pci_info_str) (struct scsi_qla_host *, char *);
 	char * (*fw_version_str) (struct scsi_qla_host *, char *);
 
-	irqreturn_t (*intr_handler) (int, void *, struct pt_regs *);
+	irq_handler_t intr_handler;
 	void (*enable_intrs) (struct scsi_qla_host *);
 	void (*disable_intrs) (struct scsi_qla_host *);
 
@@ -2182,11 +2214,11 @@ typedef struct scsi_qla_host {
 	uint16_t	max_public_loop_ids;
 	uint16_t	min_external_loopid;	/* First external loop Id */
 
+#define PORT_SPEED_UNKNOWN 0xFFFF
+#define PORT_SPEED_1GB	0x00
+#define PORT_SPEED_2GB	0x01
+#define PORT_SPEED_4GB	0x03
 	uint16_t	link_data_rate;		/* F/W operating speed */
-#define LDR_1GB		0
-#define LDR_2GB		1
-#define LDR_4GB		3
-#define LDR_UNKNOWN	0xFFFF
 
 	uint8_t		current_topology;
 	uint8_t		prev_topology;
@@ -2226,6 +2258,7 @@ typedef struct scsi_qla_host {
 	uint16_t	mgmt_svr_loop_id;
 
         uint32_t	login_retry_count;
+	int		max_q_depth;
 
 	/* Fibre Channel Device List. */
 	struct list_head	fcports;
@@ -2333,6 +2366,7 @@ typedef struct scsi_qla_host {
 
 	uint8_t		*node_name;
 	uint8_t		*port_name;
+	uint8_t		fabric_node_name[WWN_SIZE];
 	uint32_t    isp_abort_cnt;
 
 	/* Option ROM information. */

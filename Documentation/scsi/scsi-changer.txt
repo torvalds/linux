@@ -31,7 +31,7 @@ changers. But it allows to handle nearly all possible cases. It knows
   media transport - this one shuffles around the media, i.e. the
                     transport arm.  Also known as "picker".
   storage         - a slot which can hold a media.
-  import/export   - the same as above, but is accessable from outside,
+  import/export   - the same as above, but is accessible from outside,
                     i.e. there the operator (you !) can use this to
                     fill in and remove media from the changer.
 		    Sometimes named "mailslot".
@@ -88,7 +88,7 @@ If the module finds the changer, it prints some messages about the
 device [ try "dmesg" if you don't see anything ] and should show up in
 /proc/devices. If not....  some changers use ID ? / LUN 0 for the
 device and ID ? / LUN 1 for the robot mechanism. But Linux does *not*
-look for LUN's other than 0 as default, becauce there are to many
+look for LUNs other than 0 as default, because there are too many
 broken devices. So you can try:
 
   1) echo "scsi add-single-device 0 0 ID 1" > /proc/scsi/scsi
@@ -107,7 +107,7 @@ because the kernel will translate the error codes into human-readable
 strings then.
 
 You can display these messages with the dmesg command (or check the
-logfiles).  If you email me some question becauce of a problem with the
+logfiles).  If you email me some question because of a problem with the
 driver, please include these messages.
 
 

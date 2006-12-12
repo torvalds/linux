@@ -30,6 +30,7 @@
 #include <linux/nodemask.h>
 #include <asm/srat.h>
 #include <asm/topology.h>
+#include <asm/smp.h>
 
 /*
  * proximity macros and definitions
@@ -54,8 +55,7 @@ struct node_memory_chunk_s {
 static struct node_memory_chunk_s node_memory_chunk[MAXCHUNKS];
 
 static int num_memory_chunks;		/* total number of memory chunks */
-static int zholes_size_init;
-static unsigned long zholes_size[MAX_NUMNODES * MAX_NR_ZONES];
+static u8 __initdata apicid_to_pxm[MAX_APICID];
 
 extern void * boot_ioremap(unsigned long, unsigned long);
 
@@ -70,6 +70,8 @@ static void __init parse_cpu_affinity_structure(char *p)
 
 	/* mark this node as "seen" in node bitmap */
 	BMAP_SET(pxm_bitmap, cpu_affinity->proximity_domain);
+
+	apicid_to_pxm[cpu_affinity->apic_id] = cpu_affinity->proximity_domain;
 
 	printk("CPU 0x%02X in proximity domain 0x%02X\n",
 		cpu_affinity->apic_id, cpu_affinity->proximity_domain);
@@ -135,47 +137,6 @@ static void __init parse_memory_affinity_structure (char *sratp)
 		 "enabled and removable" : "enabled" ) );
 }
 
-/* Take a chunk of pages from page frame cstart to cend and count the number
- * of pages in each zone, returned via zones[].
- */
-static __init void chunk_to_zones(unsigned long cstart, unsigned long cend, 
-		unsigned long *zones)
-{
-	unsigned long max_dma;
-	extern unsigned long max_low_pfn;
-
-	int z;
-	unsigned long rend;
-
-	/* FIXME: MAX_DMA_ADDRESS and max_low_pfn are trying to provide
-	 * similarly scoped information and should be handled in a consistant
-	 * manner.
-	 */
-	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-
-	/* Split the hole into the zones in which it falls.  Repeatedly
-	 * take the segment in which the remaining hole starts, round it
-	 * to the end of that zone.
-	 */
-	memset(zones, 0, MAX_NR_ZONES * sizeof(long));
-	while (cstart < cend) {
-		if (cstart < max_dma) {
-			z = ZONE_DMA;
-			rend = (cend < max_dma)? cend : max_dma;
-
-		} else if (cstart < max_low_pfn) {
-			z = ZONE_NORMAL;
-			rend = (cend < max_low_pfn)? cend : max_low_pfn;
-
-		} else {
-			z = ZONE_HIGHMEM;
-			rend = cend;
-		}
-		zones[z] += rend - cstart;
-		cstart = rend;
-	}
-}
-
 /*
  * The SRAT table always lists ascending addresses, so can always
  * assume that the first "start" address that you see is the real
@@ -220,7 +181,6 @@ static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
 
 	memset(pxm_bitmap, 0, sizeof(pxm_bitmap));	/* init proximity domain bitmap */
 	memset(node_memory_chunk, 0, sizeof(node_memory_chunk));
-	memset(zholes_size, 0, sizeof(zholes_size));
 
 	num_memory_chunks = 0;
 	while (p < end) {
@@ -279,11 +239,15 @@ static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
 	printk("Number of logical nodes in system = %d\n", num_online_nodes());
 	printk("Number of memory chunks in system = %d\n", num_memory_chunks);
 
+	for (i = 0; i < MAX_APICID; i++)
+		apicid_2_node[i] = pxm_to_node(apicid_to_pxm[i]);
+
 	for (j = 0; j < num_memory_chunks; j++){
 		struct node_memory_chunk_s * chunk = &node_memory_chunk[j];
 		printk("chunk %d nid %d start_pfn %08lx end_pfn %08lx\n",
 		       j, chunk->nid, chunk->start_pfn, chunk->end_pfn);
 		node_read_chunk(chunk->nid, chunk);
+		add_active_range(chunk->nid, chunk->start_pfn, chunk->end_pfn);
 	}
  
 	for_each_online_node(nid) {
@@ -392,57 +356,7 @@ int __init get_memcfg_from_srat(void)
 		return acpi20_parse_srat((struct acpi_table_srat *)header);
 	}
 out_err:
+	remove_all_active_ranges();
 	printk("failed to get NUMA memory information from SRAT table\n");
 	return 0;
-}
-
-/* For each node run the memory list to determine whether there are
- * any memory holes.  For each hole determine which ZONE they fall
- * into.
- *
- * NOTE#1: this requires knowledge of the zone boundries and so
- * _cannot_ be performed before those are calculated in setup_memory.
- * 
- * NOTE#2: we rely on the fact that the memory chunks are ordered by
- * start pfn number during setup.
- */
-static void __init get_zholes_init(void)
-{
-	int nid;
-	int c;
-	int first;
-	unsigned long end = 0;
-
-	for_each_online_node(nid) {
-		first = 1;
-		for (c = 0; c < num_memory_chunks; c++){
-			if (node_memory_chunk[c].nid == nid) {
-				if (first) {
-					end = node_memory_chunk[c].end_pfn;
-					first = 0;
-
-				} else {
-					/* Record any gap between this chunk
-					 * and the previous chunk on this node
-					 * against the zones it spans.
-					 */
-					chunk_to_zones(end,
-						node_memory_chunk[c].start_pfn,
-						&zholes_size[nid * MAX_NR_ZONES]);
-				}
-			}
-		}
-	}
-}
-
-unsigned long * __init get_zholes_size(int nid)
-{
-	if (!zholes_size_init) {
-		zholes_size_init++;
-		get_zholes_init();
-	}
-	if (nid >= MAX_NUMNODES || !node_online(nid))
-		printk("%s: nid = %d is invalid/offline. num_online_nodes = %d",
-		       __FUNCTION__, nid, num_online_nodes());
-	return &zholes_size[nid * MAX_NR_ZONES];
 }

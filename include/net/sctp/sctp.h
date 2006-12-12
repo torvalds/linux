@@ -139,6 +139,7 @@ int sctp_inet_listen(struct socket *sock, int backlog);
 void sctp_write_space(struct sock *sk);
 unsigned int sctp_poll(struct file *file, struct socket *sock,
 		poll_table *wait);
+void sctp_sock_rfree(struct sk_buff *skb);
 
 /*
  * sctp/primitive.c
@@ -367,7 +368,7 @@ static inline void sctp_sysctl_register(void) { return; }
 static inline void sctp_sysctl_unregister(void) { return; }
 static inline int sctp_sysctl_jiffies_ms(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen, void **context) {
+		void __user *newval, size_t newlen) {
 	return -ENOSYS;
 }
 #endif
@@ -442,6 +443,19 @@ static inline struct list_head *sctp_list_dequeue(struct list_head *list)
 		INIT_LIST_HEAD(result);
 	}
 	return result;
+}
+
+/* SCTP version of skb_set_owner_r.  We need this one because
+ * of the way we have to do receive buffer accounting on bundled
+ * chunks.
+ */
+static inline void sctp_skb_set_owner_r(struct sk_buff *skb, struct sock *sk)
+{
+	struct sctp_ulpevent *event = sctp_skb2event(skb);
+
+	skb->sk = sk;
+	skb->destructor = sctp_sock_rfree;
+	atomic_add(event->rmem_len, &sk->sk_rmem_alloc);
 }
 
 /* Tests if the list has one and only one entry. */
@@ -571,7 +585,7 @@ static inline int ipver2af(__u8 ipver)
 }
 
 /* Convert from an address parameter type to an address family.  */
-static inline int param_type2af(__u16 type)
+static inline int param_type2af(__be16 type)
 {
 	switch (type) {
 	case SCTP_PARAM_IPV4_ADDRESS:

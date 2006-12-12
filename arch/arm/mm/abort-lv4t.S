@@ -19,11 +19,16 @@
  */
 ENTRY(v4t_late_abort)
 	tst	r3, #PSR_T_BIT			@ check for thumb mode
+#ifdef CONFIG_CPU_CP15_MMU
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
+	bic	r1, r1, #1 << 11 | 1 << 10	@ clear bits 11 and 10 of FSR
+#else
+	mov	r0, #0				@ clear r0, r1 (no FSR/FAR)
+	mov	r1, #0
+#endif
 	bne	.data_thumb_abort
 	ldr	r8, [r2]			@ read arm instruction
-	bic	r1, r1, #1 << 11 | 1 << 10	@ clear bits 11 and 10 of FSR
 	tst	r8, #1 << 20			@ L = 1 -> write?
 	orreq	r1, r1, #1 << 11		@ yes.
 	and	r7, r8, #15 << 24

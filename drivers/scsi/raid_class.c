@@ -215,18 +215,19 @@ static void raid_component_release(struct class_device *cdev)
 	kfree(rc);
 }
 
-void raid_component_add(struct raid_template *r,struct device *raid_dev,
-			struct device *component_dev)
+int raid_component_add(struct raid_template *r,struct device *raid_dev,
+		       struct device *component_dev)
 {
 	struct class_device *cdev =
 		attribute_container_find_class_device(&r->raid_attrs.ac,
 						      raid_dev);
 	struct raid_component *rc;
 	struct raid_data *rd = class_get_devdata(cdev);
+	int err;
 
 	rc = kzalloc(sizeof(*rc), GFP_KERNEL);
 	if (!rc)
-		return;
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&rc->node);
 	class_device_initialize(&rc->cdev);
@@ -239,7 +240,18 @@ void raid_component_add(struct raid_template *r,struct device *raid_dev,
 	list_add_tail(&rc->node, &rd->component_list);
 	rc->cdev.parent = cdev;
 	rc->cdev.class = &raid_class.class;
-	class_device_add(&rc->cdev);
+	err = class_device_add(&rc->cdev);
+	if (err)
+		goto err_out;
+
+	return 0;
+
+err_out:
+	list_del(&rc->node);
+	rd->component_count--;
+	put_device(component_dev);
+	kfree(rc);
+	return err;
 }
 EXPORT_SYMBOL(raid_component_add);
 

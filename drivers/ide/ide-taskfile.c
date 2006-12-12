@@ -363,7 +363,7 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 
 static void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 {
-	if (rq->flags & REQ_DRIVE_TASKFILE) {
+	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		ide_task_t *task = rq->special;
 
 		if (task->tf_out_flags.all) {
@@ -474,7 +474,7 @@ static int ide_diag_taskfile(ide_drive_t *drive, ide_task_t *args, unsigned long
 	struct request rq;
 
 	memset(&rq, 0, sizeof(rq));
-	rq.flags = REQ_DRIVE_TASKFILE;
+	rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq.buffer = buf;
 
 	/*
@@ -499,7 +499,7 @@ static int ide_diag_taskfile(ide_drive_t *drive, ide_task_t *args, unsigned long
 		rq.hard_cur_sectors = rq.current_nr_sectors = rq.nr_sectors;
 
 		if (args->command_type == IDE_DRIVE_TASK_RAW_WRITE)
-			rq.flags |= REQ_RW;
+			rq.cmd_flags |= REQ_RW;
 	}
 
 	rq.special = args;
@@ -524,8 +524,8 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	task_ioreg_t *hobsptr	= args.hobRegister;
 	int err			= 0;
 	int tasksize		= sizeof(struct ide_task_request_s);
-	int taskin		= 0;
-	int taskout		= 0;
+	unsigned int taskin	= 0;
+	unsigned int taskout	= 0;
 	u8 io_32bit		= drive->io_32bit;
 	char __user *buf = (char __user *)arg;
 
@@ -538,8 +538,13 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 		return -EFAULT;
 	}
 
-	taskout = (int) req_task->out_size;
-	taskin  = (int) req_task->in_size;
+	taskout = req_task->out_size;
+	taskin  = req_task->in_size;
+	
+	if (taskin > 65536 || taskout > 65536) {
+		err = -EINVAL;
+		goto abort;
+	}
 
 	if (taskout) {
 		int outtotal = tasksize;
@@ -737,7 +742,7 @@ static int ide_wait_cmd_task(ide_drive_t *drive, u8 *buf)
 	struct request rq;
 
 	ide_init_drive_cmd(&rq);
-	rq.flags = REQ_DRIVE_TASK;
+	rq.cmd_type = REQ_TYPE_ATA_TASK;
 	rq.buffer = buf;
 	return ide_do_drive_cmd(drive, &rq, ide_wait);
 }

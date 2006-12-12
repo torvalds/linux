@@ -166,38 +166,6 @@ static inline void _writel(unsigned long l, unsigned long addr)
 
 #define flush_write_buffers() do { } while (0)  /* M32R_FIXME */
 
-/**
- *	check_signature		-	find BIOS signatures
- *	@io_addr: mmio address to check
- *	@signature:  signature block
- *	@length: length of signature
- *
- *	Perform a signature comparison with the ISA mmio address io_addr.
- *	Returns 1 on a match.
- *
- *	This function is deprecated. New drivers should use ioremap and
- *	check_signature.
- */
-
-static inline int check_signature(void __iomem *io_addr,
-        const unsigned char *signature, int length)
-{
-        int retval = 0;
-#if 0
-printk("check_signature\n");
-        do {
-                if (readb(io_addr) != *signature)
-                        goto out;
-                io_addr++;
-                signature++;
-                length--;
-        } while (length);
-        retval = 1;
-out:
-#endif
-        return retval;
-}
-
 static inline void
 memset_io(volatile void __iomem *addr, unsigned char val, int count)
 {

@@ -4,17 +4,18 @@
 #include <linux/file.h>
 #include <linux/rcupdate.h>
 #include <linux/irqflags.h>
+#include <linux/utsname.h>
 #include <linux/lockdep.h>
+#include <linux/ipc.h>
+#include <linux/pid_namespace.h>
 
 #define INIT_FDTABLE \
 {							\
 	.max_fds	= NR_OPEN_DEFAULT, 		\
-	.max_fdset	= EMBEDDED_FD_SET_SIZE,		\
 	.fd		= &init_files.fd_array[0], 	\
 	.close_on_exec	= (fd_set *)&init_files.close_on_exec_init, \
 	.open_fds	= (fd_set *)&init_files.open_fds_init, 	\
 	.rcu		= RCU_HEAD_INIT, 		\
-	.free_files	= NULL,		 		\
 	.next		= NULL,		 		\
 }
 
@@ -55,17 +56,29 @@
 	.cpu_vm_mask	= CPU_MASK_ALL,				\
 }
 
-#define INIT_SIGNALS(sig) {	\
-	.count		= ATOMIC_INIT(1), 		\
+#define INIT_SIGNALS(sig) {						\
+	.count		= ATOMIC_INIT(1), 				\
 	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(sig.wait_chldexit),\
-	.shared_pending	= { 				\
+	.shared_pending	= { 						\
 		.list = LIST_HEAD_INIT(sig.shared_pending.list),	\
-		.signal =  {{0}}}, \
+		.signal =  {{0}}},					\
 	.posix_timers	 = LIST_HEAD_INIT(sig.posix_timers),		\
 	.cpu_timers	= INIT_CPU_TIMERS(sig.cpu_timers),		\
 	.rlim		= INIT_RLIMITS,					\
 	.pgrp		= 1,						\
-	.session	= 1,						\
+	.tty_old_pgrp   = 0,						\
+	{ .__session      = 1},						\
+}
+
+extern struct nsproxy init_nsproxy;
+#define INIT_NSPROXY(nsproxy) {						\
+	.pid_ns		= &init_pid_ns,					\
+	.count		= ATOMIC_INIT(1),				\
+	.nslock		= __SPIN_LOCK_UNLOCKED(nsproxy.nslock),		\
+	.id		= 0,						\
+	.uts_ns		= &init_uts_ns,					\
+	.mnt_ns		= NULL,						\
+	INIT_IPC_NS(ipc_ns)						\
 }
 
 #define INIT_SIGHAND(sighand) {						\
@@ -117,6 +130,7 @@ extern struct group_info init_groups;
 	.files		= &init_files,					\
 	.signal		= &init_signals,				\
 	.sighand	= &init_sighand,				\
+	.nsproxy	= &init_nsproxy,				\
 	.pending	= {						\
 		.list = LIST_HEAD_INIT(tsk.pending.list),		\
 		.signal = {{0}}},					\

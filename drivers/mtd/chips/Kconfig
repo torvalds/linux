@@ -270,7 +270,7 @@ config MTD_JEDEC
 	tristate "JEDEC device support"
 	depends on MTD && MTD_OBSOLETE_CHIPS && BROKEN
 	help
-	  Enable older older JEDEC flash interface devices for self
+	  Enable older JEDEC flash interface devices for self
 	  programming flash.  It is commonly used in older AMD chips.  It is
 	  only called JEDEC because the JEDEC association
 	  <http://www.jedec.org/> distributes the identification codes for the

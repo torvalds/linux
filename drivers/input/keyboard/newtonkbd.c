@@ -65,13 +65,12 @@ struct nkbd {
 };
 
 static irqreturn_t nkbd_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct nkbd *nkbd = serio_get_drvdata(serio);
 
 	/* invalid scan codes are probably the init sequence, so we ignore them */
 	if (nkbd->keycode[data & NKBD_KEY]) {
-		input_regs(nkbd->dev, regs);
 		input_report_key(nkbd->dev, nkbd->keycode[data & NKBD_KEY], data & NKBD_PRESS);
 		input_sync(nkbd->dev);
 	}
@@ -92,7 +91,7 @@ static int nkbd_connect(struct serio *serio, struct serio_driver *drv)
 	nkbd = kzalloc(sizeof(struct nkbd), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!nkbd || !input_dev)
-		goto fail;
+		goto fail1;
 
 	nkbd->serio = serio;
 	nkbd->dev = input_dev;
@@ -120,13 +119,17 @@ static int nkbd_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device(nkbd->dev);
+	err = input_register_device(nkbd->dev);
+	if (err)
+		goto fail3;
+
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
 	kfree(nkbd);
 	return err;
 }
@@ -166,8 +169,7 @@ static struct serio_driver nkbd_drv = {
 
 static int __init nkbd_init(void)
 {
-	serio_register_driver(&nkbd_drv);
-	return 0;
+	return serio_register_driver(&nkbd_drv);
 }
 
 static void __exit nkbd_exit(void)

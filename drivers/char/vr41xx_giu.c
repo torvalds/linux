@@ -221,7 +221,7 @@ static struct hw_interrupt_type giuint_high_irq_type = {
 	.end		= end_giuint_high_irq,
 };
 
-static int giu_get_irq(unsigned int irq, struct pt_regs *regs)
+static int giu_get_irq(unsigned int irq)
 {
 	uint16_t pendl, pendh, maskl, maskh;
 	int i;
@@ -506,7 +506,7 @@ static ssize_t gpio_read(struct file *file, char __user *buf, size_t len,
 	unsigned int pin;
 	char value = '0';
 
-	pin = iminor(file->f_dentry->d_inode);
+	pin = iminor(file->f_path.dentry->d_inode);
 	if (pin >= giu_nr_pins)
 		return -EBADF;
 
@@ -530,7 +530,7 @@ static ssize_t gpio_write(struct file *file, const char __user *data,
 	char c;
 	int retval = 0;
 
-	pin = iminor(file->f_dentry->d_inode);
+	pin = iminor(file->f_path.dentry->d_inode);
 	if (pin >= giu_nr_pins)
 		return -EBADF;
 

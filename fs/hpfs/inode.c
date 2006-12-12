@@ -17,7 +17,6 @@ void hpfs_init_inode(struct inode *i)
 	i->i_gid = hpfs_sb(sb)->sb_gid;
 	i->i_mode = hpfs_sb(sb)->sb_mode;
 	hpfs_inode->i_conv = hpfs_sb(sb)->sb_conv;
-	i->i_blksize = 512;
 	i->i_size = -1;
 	i->i_blocks = -1;
 	
@@ -61,14 +60,14 @@ void hpfs_read_inode(struct inode *i)
 	if (hpfs_sb(i->i_sb)->sb_eas) {
 		if ((ea = hpfs_get_ea(i->i_sb, fnode, "UID", &ea_size))) {
 			if (ea_size == 2) {
-				i->i_uid = le16_to_cpu(*(u16*)ea);
+				i->i_uid = le16_to_cpu(*(__le16*)ea);
 				hpfs_inode->i_ea_uid = 1;
 			}
 			kfree(ea);
 		}
 		if ((ea = hpfs_get_ea(i->i_sb, fnode, "GID", &ea_size))) {
 			if (ea_size == 2) {
-				i->i_gid = le16_to_cpu(*(u16*)ea);
+				i->i_gid = le16_to_cpu(*(__le16*)ea);
 				hpfs_inode->i_ea_gid = 1;
 			}
 			kfree(ea);
@@ -88,7 +87,7 @@ void hpfs_read_inode(struct inode *i)
 			int rdev = 0;
 			umode_t mode = hpfs_sb(sb)->sb_mode;
 			if (ea_size == 2) {
-				mode = le16_to_cpu(*(u16*)ea);
+				mode = le16_to_cpu(*(__le16*)ea);
 				hpfs_inode->i_ea_mode = 1;
 			}
 			kfree(ea);
@@ -96,7 +95,7 @@ void hpfs_read_inode(struct inode *i)
 			if (S_ISBLK(mode) || S_ISCHR(mode)) {
 				if ((ea = hpfs_get_ea(i->i_sb, fnode, "DEV", &ea_size))) {
 					if (ea_size == 4)
-						rdev = le32_to_cpu(*(u32*)ea);
+						rdev = le32_to_cpu(*(__le32*)ea);
 					kfree(ea);
 				}
 			}
@@ -149,7 +148,7 @@ static void hpfs_write_inode_ea(struct inode *i, struct fnode *fnode)
 		   we'd better not overwrite them
 		hpfs_error(i->i_sb, "fnode %08x has some unknown HPFS386 stuctures", i->i_ino);
 	} else*/ if (hpfs_sb(i->i_sb)->sb_eas >= 2) {
-		u32 ea;
+		__le32 ea;
 		if ((i->i_uid != hpfs_sb(i->i_sb)->sb_uid) || hpfs_inode->i_ea_uid) {
 			ea = cpu_to_le32(i->i_uid);
 			hpfs_set_ea(i, fnode, "UID", (char*)&ea, 2);
@@ -166,6 +165,7 @@ static void hpfs_write_inode_ea(struct inode *i, struct fnode *fnode)
 			  && i->i_mode != ((hpfs_sb(i->i_sb)->sb_mode & ~(S_ISDIR(i->i_mode) ? 0222 : 0333))
 			  | (S_ISDIR(i->i_mode) ? S_IFDIR : S_IFREG))) || hpfs_inode->i_ea_mode) {
 				ea = cpu_to_le32(i->i_mode);
+				/* sick, but legal */
 				hpfs_set_ea(i, fnode, "MODE", (char *)&ea, 2);
 				hpfs_inode->i_ea_mode = 1;
 			}
@@ -251,7 +251,10 @@ void hpfs_write_inode_nolock(struct inode *i)
 			de->file_size = 0;
 			hpfs_mark_4buffers_dirty(&qbh);
 			hpfs_brelse4(&qbh);
-		} else hpfs_error(i->i_sb, "directory %08x doesn't have '.' entry", i->i_ino);
+		} else
+			hpfs_error(i->i_sb,
+				"directory %08lx doesn't have '.' entry",
+				(unsigned long)i->i_ino);
 	}
 	mark_buffer_dirty(bh);
 	brelse(bh);

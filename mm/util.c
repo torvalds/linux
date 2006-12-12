@@ -11,7 +11,7 @@
  */
 void *__kzalloc(size_t size, gfp_t flags)
 {
-	void *ret = ____kmalloc(size, flags);
+	void *ret = kmalloc_track_caller(size, flags);
 	if (ret)
 		memset(ret, 0, size);
 	return ret;
@@ -33,12 +33,30 @@ char *kstrdup(const char *s, gfp_t gfp)
 		return NULL;
 
 	len = strlen(s) + 1;
-	buf = ____kmalloc(len, gfp);
+	buf = kmalloc_track_caller(len, gfp);
 	if (buf)
 		memcpy(buf, s, len);
 	return buf;
 }
 EXPORT_SYMBOL(kstrdup);
+
+/**
+ * kmemdup - duplicate region of memory
+ *
+ * @src: memory region to duplicate
+ * @len: memory region length
+ * @gfp: GFP mask to use
+ */
+void *kmemdup(const void *src, size_t len, gfp_t gfp)
+{
+	void *p;
+
+	p = kmalloc_track_caller(len, gfp);
+	if (p)
+		memcpy(p, src, len);
+	return p;
+}
+EXPORT_SYMBOL(kmemdup);
 
 /*
  * strndup_user - duplicate an existing string from user space

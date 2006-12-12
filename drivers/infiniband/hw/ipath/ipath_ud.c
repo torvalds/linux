@@ -39,7 +39,6 @@
 static int init_sge(struct ipath_qp *qp, struct ipath_rwqe *wqe,
 		    u32 *lengthp, struct ipath_sge_state *ss)
 {
-	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
 	int user = to_ipd(qp->ibqp.pd)->user;
 	int i, j, ret;
 	struct ib_wc wc;
@@ -50,8 +49,7 @@ static int init_sge(struct ipath_qp *qp, struct ipath_rwqe *wqe,
 			continue;
 		/* Check LKEY */
 		if ((user && wqe->sg_list[i].lkey == 0) ||
-		    !ipath_lkey_ok(&dev->lk_table,
-				   j ? &ss->sg_list[j - 1] : &ss->sge,
+		    !ipath_lkey_ok(qp, j ? &ss->sg_list[j - 1] : &ss->sge,
 				   &wqe->sg_list[i], IB_ACCESS_LOCAL_WRITE))
 			goto bad_lkey;
 		*lengthp += wqe->sg_list[i].length;
@@ -343,7 +341,7 @@ int ipath_post_ud_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 
 		if (wr->sg_list[i].length == 0)
 			continue;
-		if (!ipath_lkey_ok(&dev->lk_table, ss.num_sge ?
+		if (!ipath_lkey_ok(qp, ss.num_sge ?
 				   sg_list + ss.num_sge - 1 : &ss.sge,
 				   &wr->sg_list[i], 0)) {
 			ret = -EINVAL;

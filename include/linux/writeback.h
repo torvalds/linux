@@ -1,5 +1,5 @@
 /*
- * include/linux/writeback.h.
+ * include/linux/writeback.h
  */
 #ifndef WRITEBACK_H
 #define WRITEBACK_H
@@ -85,7 +85,6 @@ int wakeup_pdflush(long nr_pages);
 void laptop_io_completion(void);
 void laptop_sync_completion(void);
 void throttle_vm_writeout(void);
-void writeback_congestion_end(void);
 
 /* These are exported to sysctl. */
 extern int dirty_background_ratio;
@@ -111,12 +110,15 @@ balance_dirty_pages_ratelimited(struct address_space *mapping)
 }
 
 int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0);
+extern int generic_writepages(struct address_space *mapping,
+			      struct writeback_control *wbc);
 int do_writepages(struct address_space *mapping, struct writeback_control *wbc);
 int sync_page_range(struct inode *inode, struct address_space *mapping,
 			loff_t pos, loff_t count);
 int sync_page_range_nolock(struct inode *inode, struct address_space *mapping,
 			   loff_t pos, loff_t count);
 void set_page_dirty_balance(struct page *page);
+void writeback_set_ratelimit(void);
 
 /* pdflush.c */
 extern int nr_pdflush_threads;	/* Global so it can be exported to sysctl

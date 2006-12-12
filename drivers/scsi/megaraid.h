@@ -801,7 +801,8 @@ typedef struct {
 				   clustering is available */
 	u32	flag;
 
-	unsigned long	base;
+	unsigned long		base;
+	void __iomem		*mmio_base;
 
 	/* mbox64 with mbox not aligned on 16-byte boundry */
 	mbox64_t	*una_mbox64;
@@ -991,8 +992,8 @@ static scb_t * mega_build_cmd(adapter_t *, Scsi_Cmnd *, int *);
 static void __mega_runpendq(adapter_t *);
 static int issue_scb_block(adapter_t *, u_char *);
 
-static irqreturn_t megaraid_isr_memmapped(int, void *, struct pt_regs *);
-static irqreturn_t megaraid_isr_iomapped(int, void *, struct pt_regs *);
+static irqreturn_t megaraid_isr_memmapped(int, void *);
+static irqreturn_t megaraid_isr_iomapped(int, void *);
 
 static void mega_free_scb(adapter_t *, scb_t *);
 

@@ -45,6 +45,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+#include <linux/jiffies.h>
 
 /* for sysctl */
 #include <linux/fs.h>
@@ -87,7 +88,7 @@ static int sysctl_ip_vs_lblc_expiration = 24*60*60*HZ;
  */
 struct ip_vs_lblc_entry {
 	struct list_head        list;
-	__u32                   addr;           /* destination IP address */
+	__be32                  addr;           /* destination IP address */
 	struct ip_vs_dest       *dest;          /* real server (cache) */
 	unsigned long           lastuse;        /* last used time */
 };
@@ -160,7 +161,7 @@ static struct ctl_table_header * sysctl_header;
  *      IP address to a server.
  */
 static inline struct ip_vs_lblc_entry *
-ip_vs_lblc_new(__u32 daddr, struct ip_vs_dest *dest)
+ip_vs_lblc_new(__be32 daddr, struct ip_vs_dest *dest)
 {
 	struct ip_vs_lblc_entry *en;
 
@@ -195,7 +196,7 @@ static inline void ip_vs_lblc_free(struct ip_vs_lblc_entry *en)
 /*
  *	Returns hash value for IPVS LBLC entry
  */
-static inline unsigned ip_vs_lblc_hashkey(__u32 addr)
+static inline unsigned ip_vs_lblc_hashkey(__be32 addr)
 {
 	return (ntohl(addr)*2654435761UL) & IP_VS_LBLC_TAB_MASK;
 }
@@ -234,7 +235,7 @@ ip_vs_lblc_hash(struct ip_vs_lblc_table *tbl, struct ip_vs_lblc_entry *en)
  *  Get ip_vs_lblc_entry associated with supplied parameters.
  */
 static inline struct ip_vs_lblc_entry *
-ip_vs_lblc_get(struct ip_vs_lblc_table *tbl, __u32 addr)
+ip_vs_lblc_get(struct ip_vs_lblc_table *tbl, __be32 addr)
 {
 	unsigned hash;
 	struct ip_vs_lblc_entry *en;

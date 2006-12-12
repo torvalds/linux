@@ -34,6 +34,7 @@
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <net/netlink.h>
+#include <asm/atomic.h>
 
 /*
  * NetLabel - A management interface for maintaining network packet label
@@ -92,26 +93,54 @@
  *
  */
 
+/* NetLabel audit information */
+struct netlbl_audit {
+	u32 secid;
+	uid_t loginuid;
+};
+
 /* Domain mapping definition struct */
 struct netlbl_dom_map;
 
 /* Domain mapping operations */
-int netlbl_domhsh_remove(const char *domain);
+int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info);
 
 /* LSM security attributes */
 struct netlbl_lsm_cache {
+	atomic_t refcount;
 	void (*free) (const void *data);
 	void *data;
 };
+/* The catmap bitmap field MUST be a power of two in length and large
+ * enough to hold at least 240 bits.  Special care (i.e. check the code!)
+ * should be used when changing these values as the LSM implementation
+ * probably has functions which rely on the sizes of these types to speed
+ * processing. */
+#define NETLBL_CATMAP_MAPTYPE           u64
+#define NETLBL_CATMAP_MAPCNT            4
+#define NETLBL_CATMAP_MAPSIZE           (sizeof(NETLBL_CATMAP_MAPTYPE) * 8)
+#define NETLBL_CATMAP_SIZE              (NETLBL_CATMAP_MAPSIZE * \
+					 NETLBL_CATMAP_MAPCNT)
+#define NETLBL_CATMAP_BIT               (NETLBL_CATMAP_MAPTYPE)0x01
+struct netlbl_lsm_secattr_catmap {
+	u32 startbit;
+	NETLBL_CATMAP_MAPTYPE bitmap[NETLBL_CATMAP_MAPCNT];
+	struct netlbl_lsm_secattr_catmap *next;
+};
+#define NETLBL_SECATTR_NONE             0x00000000
+#define NETLBL_SECATTR_DOMAIN           0x00000001
+#define NETLBL_SECATTR_CACHE            0x00000002
+#define NETLBL_SECATTR_MLS_LVL          0x00000004
+#define NETLBL_SECATTR_MLS_CAT          0x00000008
 struct netlbl_lsm_secattr {
+	u32 flags;
+
 	char *domain;
 
 	u32 mls_lvl;
-	u32 mls_lvl_vld;
-	unsigned char *mls_cat;
-	size_t mls_cat_len;
+	struct netlbl_lsm_secattr_catmap *mls_cat;
 
-	struct netlbl_lsm_cache cache;
+	struct netlbl_lsm_cache *cache;
 };
 
 /*
@@ -120,39 +149,109 @@ struct netlbl_lsm_secattr {
 
 
 /**
+ * netlbl_secattr_cache_alloc - Allocate and initialize a secattr cache
+ * @flags: the memory allocation flags
+ *
+ * Description:
+ * Allocate and initialize a netlbl_lsm_cache structure.  Returns a pointer
+ * on success, NULL on failure.
+ *
+ */
+static inline struct netlbl_lsm_cache *netlbl_secattr_cache_alloc(gfp_t flags)
+{
+	struct netlbl_lsm_cache *cache;
+
+	cache = kzalloc(sizeof(*cache), flags);
+	if (cache)
+		atomic_set(&cache->refcount, 1);
+	return cache;
+}
+
+/**
+ * netlbl_secattr_cache_free - Frees a netlbl_lsm_cache struct
+ * @cache: the struct to free
+ *
+ * Description:
+ * Frees @secattr including all of the internal buffers.
+ *
+ */
+static inline void netlbl_secattr_cache_free(struct netlbl_lsm_cache *cache)
+{
+	if (!atomic_dec_and_test(&cache->refcount))
+		return;
+
+	if (cache->free)
+		cache->free(cache->data);
+	kfree(cache);
+}
+
+/**
+ * netlbl_secattr_catmap_alloc - Allocate a LSM secattr catmap
+ * @flags: memory allocation flags
+ *
+ * Description:
+ * Allocate memory for a LSM secattr catmap, returns a pointer on success, NULL
+ * on failure.
+ *
+ */
+static inline struct netlbl_lsm_secattr_catmap *netlbl_secattr_catmap_alloc(
+	                                                           gfp_t flags)
+{
+	return kzalloc(sizeof(struct netlbl_lsm_secattr_catmap), flags);
+}
+
+/**
+ * netlbl_secattr_catmap_free - Free a LSM secattr catmap
+ * @catmap: the category bitmap
+ *
+ * Description:
+ * Free a LSM secattr catmap.
+ *
+ */
+static inline void netlbl_secattr_catmap_free(
+	                              struct netlbl_lsm_secattr_catmap *catmap)
+{
+	struct netlbl_lsm_secattr_catmap *iter;
+
+	do {
+		iter = catmap;
+		catmap = catmap->next;
+		kfree(iter);
+	} while (catmap);
+}
+
+/**
  * netlbl_secattr_init - Initialize a netlbl_lsm_secattr struct
  * @secattr: the struct to initialize
  *
  * Description:
- * Initialize an already allocated netlbl_lsm_secattr struct.  Returns zero on
- * success, negative values on error.
+ * Initialize an already allocated netlbl_lsm_secattr struct.
  *
  */
-static inline int netlbl_secattr_init(struct netlbl_lsm_secattr *secattr)
+static inline void netlbl_secattr_init(struct netlbl_lsm_secattr *secattr)
 {
-	memset(secattr, 0, sizeof(*secattr));
-	return 0;
+	secattr->flags = 0;
+	secattr->domain = NULL;
+	secattr->mls_cat = NULL;
+	secattr->cache = NULL;
 }
 
 /**
  * netlbl_secattr_destroy - Clears a netlbl_lsm_secattr struct
  * @secattr: the struct to clear
- * @clear_cache: cache clear flag
  *
  * Description:
  * Destroys the @secattr struct, including freeing all of the internal buffers.
- * If @clear_cache is true then free the cache fields, otherwise leave them
- * intact.  The struct must be reset with a call to netlbl_secattr_init()
- * before reuse.
+ * The struct must be reset with a call to netlbl_secattr_init() before reuse.
  *
  */
-static inline void netlbl_secattr_destroy(struct netlbl_lsm_secattr *secattr,
-					  u32 clear_cache)
+static inline void netlbl_secattr_destroy(struct netlbl_lsm_secattr *secattr)
 {
-	if (clear_cache && secattr->cache.data != NULL && secattr->cache.free)
-		secattr->cache.free(secattr->cache.data);
+	if (secattr->cache)
+		netlbl_secattr_cache_free(secattr->cache);
 	kfree(secattr->domain);
-	kfree(secattr->mls_cat);
+	if (secattr->mls_cat)
+		netlbl_secattr_catmap_free(secattr->mls_cat);
 }
 
 /**
@@ -164,7 +263,7 @@ static inline void netlbl_secattr_destroy(struct netlbl_lsm_secattr *secattr,
  * pointer on success, or NULL on failure.
  *
  */
-static inline struct netlbl_lsm_secattr *netlbl_secattr_alloc(int flags)
+static inline struct netlbl_lsm_secattr *netlbl_secattr_alloc(gfp_t flags)
 {
 	return kzalloc(sizeof(struct netlbl_lsm_secattr), flags);
 }
@@ -172,19 +271,61 @@ static inline struct netlbl_lsm_secattr *netlbl_secattr_alloc(int flags)
 /**
  * netlbl_secattr_free - Frees a netlbl_lsm_secattr struct
  * @secattr: the struct to free
- * @clear_cache: cache clear flag
  *
  * Description:
- * Frees @secattr including all of the internal buffers.  If @clear_cache is
- * true then free the cache fields, otherwise leave them intact.
+ * Frees @secattr including all of the internal buffers.
  *
  */
-static inline void netlbl_secattr_free(struct netlbl_lsm_secattr *secattr,
-				       u32 clear_cache)
+static inline void netlbl_secattr_free(struct netlbl_lsm_secattr *secattr)
 {
-	netlbl_secattr_destroy(secattr, clear_cache);
+	netlbl_secattr_destroy(secattr);
 	kfree(secattr);
 }
+
+#ifdef CONFIG_NETLABEL
+int netlbl_secattr_catmap_walk(struct netlbl_lsm_secattr_catmap *catmap,
+			       u32 offset);
+int netlbl_secattr_catmap_walk_rng(struct netlbl_lsm_secattr_catmap *catmap,
+				   u32 offset);
+int netlbl_secattr_catmap_setbit(struct netlbl_lsm_secattr_catmap *catmap,
+				 u32 bit,
+				 gfp_t flags);
+int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap *catmap,
+				 u32 start,
+				 u32 end,
+				 gfp_t flags);
+#else
+static inline int netlbl_secattr_catmap_walk(
+	                              struct netlbl_lsm_secattr_catmap *catmap,
+				      u32 offset)
+{
+	return -ENOENT;
+}
+
+static inline int netlbl_secattr_catmap_walk_rng(
+				      struct netlbl_lsm_secattr_catmap *catmap,
+				      u32 offset)
+{
+	return -ENOENT;
+}
+
+static inline int netlbl_secattr_catmap_setbit(
+	                              struct netlbl_lsm_secattr_catmap *catmap,
+				      u32 bit,
+				      gfp_t flags)
+{
+	return 0;
+}
+
+static inline int netlbl_secattr_catmap_setrng(
+	                              struct netlbl_lsm_secattr_catmap *catmap,
+				      u32 start,
+				      u32 end,
+				      gfp_t flags)
+{
+	return 0;
+}
+#endif
 
 /*
  * LSM protocol operations

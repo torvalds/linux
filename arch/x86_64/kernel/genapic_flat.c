@@ -22,6 +22,20 @@ static cpumask_t flat_target_cpus(void)
 	return cpu_online_map;
 }
 
+static cpumask_t flat_vector_allocation_domain(int cpu)
+{
+	/* Careful. Some cpus do not strictly honor the set of cpus
+	 * specified in the interrupt destination when using lowest
+	 * priority interrupt delivery mode.
+	 *
+	 * In particular there was a hyperthreading cpu observed to
+	 * deliver interrupts to the wrong hyperthread when only one
+	 * hyperthread was specified in the interrupt desitination.
+	 */
+	cpumask_t domain = { { [0] = APIC_ALL_CPUS, } };
+	return domain;
+}
+
 /*
  * Set up the logical destination ID.
  *
@@ -121,6 +135,7 @@ struct genapic apic_flat =  {
 	.int_delivery_mode = dest_LowestPrio,
 	.int_dest_mode = (APIC_DEST_LOGICAL != 0),
 	.target_cpus = flat_target_cpus,
+	.vector_allocation_domain = flat_vector_allocation_domain,
 	.apic_id_registered = flat_apic_id_registered,
 	.init_apic_ldr = flat_init_apic_ldr,
 	.send_IPI_all = flat_send_IPI_all,
@@ -138,8 +153,16 @@ struct genapic apic_flat =  {
 
 static cpumask_t physflat_target_cpus(void)
 {
-	return cpumask_of_cpu(0);
+	return cpu_online_map;
 }
+
+static cpumask_t physflat_vector_allocation_domain(int cpu)
+{
+	cpumask_t domain = CPU_MASK_NONE;
+	cpu_set(cpu, domain);
+	return domain;
+}
+
 
 static void physflat_send_IPI_mask(cpumask_t cpumask, int vector)
 {
@@ -179,6 +202,7 @@ struct genapic apic_physflat =  {
 	.int_delivery_mode = dest_Fixed,
 	.int_dest_mode = (APIC_DEST_PHYSICAL != 0),
 	.target_cpus = physflat_target_cpus,
+	.vector_allocation_domain = physflat_vector_allocation_domain,
 	.apic_id_registered = flat_apic_id_registered,
 	.init_apic_ldr = flat_init_apic_ldr,/*not needed, but shouldn't hurt*/
 	.send_IPI_all = physflat_send_IPI_all,

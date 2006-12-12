@@ -424,7 +424,10 @@ struct parisc_device * create_tree_node(char id, struct device *parent)
 	/* make the generic dma mask a pointer to the parisc one */
 	dev->dev.dma_mask = &dev->dma_mask;
 	dev->dev.coherent_dma_mask = dev->dma_mask;
-	device_register(&dev->dev);
+	if (device_register(&dev->dev)) {
+		kfree(dev);
+		return NULL;
+	}
 
 	return dev;
 }
@@ -850,8 +853,10 @@ static void print_parisc_device(struct parisc_device *dev)
  */
 void init_parisc_bus(void)
 {
-	bus_register(&parisc_bus_type);
-	device_register(&root);
+	if (bus_register(&parisc_bus_type))
+		panic("Could not register PA-RISC bus type\n");
+	if (device_register(&root))
+		panic("Could not register PA-RISC root device\n");
 	get_device(&root);
 }
 

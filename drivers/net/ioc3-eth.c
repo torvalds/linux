@@ -57,7 +57,6 @@
 #include <net/ip.h>
 
 #include <asm/byteorder.h>
-#include <asm/checksum.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -750,7 +749,7 @@ static void ioc3_error(struct ioc3_private *ip, u32 eisr)
 
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread.  */
-static irqreturn_t ioc3_interrupt(int irq, void *_dev, struct pt_regs *regs)
+static irqreturn_t ioc3_interrupt(int irq, void *_dev)
 {
 	struct net_device *dev = (struct net_device *)_dev;
 	struct ioc3_private *ip = netdev_priv(dev);
@@ -1017,7 +1016,7 @@ static void ioc3_init(struct net_device *dev)
 	struct ioc3_private *ip = netdev_priv(dev);
 	struct ioc3 *ioc3 = ip->regs;
 
-	del_timer(&ip->ioc3_timer);		/* Kill if running	*/
+	del_timer_sync(&ip->ioc3_timer);	/* Kill if running	*/
 
 	ioc3_w_emcr(EMCR_RST);			/* Reset		*/
 	(void) ioc3_r_emcr();			/* Flush WB		*/
@@ -1081,7 +1080,7 @@ static int ioc3_close(struct net_device *dev)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
 
-	del_timer(&ip->ioc3_timer);
+	del_timer_sync(&ip->ioc3_timer);
 
 	netif_stop_queue(dev);
 

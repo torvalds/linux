@@ -122,7 +122,7 @@ static void fib_flush(void)
  *	Find the first device with a given source address.
  */
 
-struct net_device * ip_dev_find(u32 addr)
+struct net_device * ip_dev_find(__be32 addr)
 {
 	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = addr } } };
 	struct fib_result res;
@@ -146,7 +146,7 @@ out:
 	return dev;
 }
 
-unsigned inet_addr_type(u32 addr)
+unsigned inet_addr_type(__be32 addr)
 {
 	struct flowi		fl = { .nl_u = { .ip4_u = { .daddr = addr } } };
 	struct fib_result	res;
@@ -180,8 +180,8 @@ unsigned inet_addr_type(u32 addr)
    - check, that packet arrived from expected physical interface.
  */
 
-int fib_validate_source(u32 src, u32 dst, u8 tos, int oif,
-			struct net_device *dev, u32 *spec_dst, u32 *itag)
+int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
+			struct net_device *dev, __be32 *spec_dst, u32 *itag)
 {
 	struct in_device *in_dev;
 	struct flowi fl = { .nl_u = { .ip4_u =
@@ -253,7 +253,7 @@ e_inval:
 
 #ifndef CONFIG_IP_NOSIOCRT
 
-static inline u32 sk_extract_addr(struct sockaddr *addr)
+static inline __be32 sk_extract_addr(struct sockaddr *addr)
 {
 	return ((struct sockaddr_in *) addr)->sin_addr.s_addr;
 }
@@ -273,7 +273,7 @@ static int put_rtax(struct nlattr *mx, int len, int type, u32 value)
 static int rtentry_to_fib_config(int cmd, struct rtentry *rt,
 				 struct fib_config *cfg)
 {
-	u32 addr;
+	__be32 addr;
 	int plen;
 
 	memset(cfg, 0, sizeof(*cfg));
@@ -292,7 +292,7 @@ static int rtentry_to_fib_config(int cmd, struct rtentry *rt,
 	plen = 32;
 	addr = sk_extract_addr(&rt->rt_dst);
 	if (!(rt->rt_flags & RTF_HOST)) {
-		u32 mask = sk_extract_addr(&rt->rt_genmask);
+		__be32 mask = sk_extract_addr(&rt->rt_genmask);
 
 		if (rt->rt_genmask.sa_family != AF_INET) {
 			if (mask || rt->rt_genmask.sa_family)
@@ -482,9 +482,7 @@ static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	memset(cfg, 0, sizeof(*cfg));
 
 	rtm = nlmsg_data(nlh);
-	cfg->fc_family = rtm->rtm_family;
 	cfg->fc_dst_len = rtm->rtm_dst_len;
-	cfg->fc_src_len = rtm->rtm_src_len;
 	cfg->fc_tos = rtm->rtm_tos;
 	cfg->fc_table = rtm->rtm_table;
 	cfg->fc_protocol = rtm->rtm_protocol;
@@ -499,22 +497,19 @@ static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	nlmsg_for_each_attr(attr, nlh, sizeof(struct rtmsg), remaining) {
 		switch (attr->nla_type) {
 		case RTA_DST:
-			cfg->fc_dst = nla_get_u32(attr);
-			break;
-		case RTA_SRC:
-			cfg->fc_src = nla_get_u32(attr);
+			cfg->fc_dst = nla_get_be32(attr);
 			break;
 		case RTA_OIF:
 			cfg->fc_oif = nla_get_u32(attr);
 			break;
 		case RTA_GATEWAY:
-			cfg->fc_gw = nla_get_u32(attr);
+			cfg->fc_gw = nla_get_be32(attr);
 			break;
 		case RTA_PRIORITY:
 			cfg->fc_priority = nla_get_u32(attr);
 			break;
 		case RTA_PREFSRC:
-			cfg->fc_prefsrc = nla_get_u32(attr);
+			cfg->fc_prefsrc = nla_get_be32(attr);
 			break;
 		case RTA_METRICS:
 			cfg->fc_mx = nla_data(attr);
@@ -627,8 +622,7 @@ out:
    only when netlink is already locked.
  */
 
-static void fib_magic(int cmd, int type, u32 dst, int dst_len,
-		      struct in_ifaddr *ifa)
+static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifaddr *ifa)
 {
 	struct fib_table *tb;
 	struct fib_config cfg = {
@@ -667,9 +661,9 @@ void fib_add_ifaddr(struct in_ifaddr *ifa)
 	struct in_device *in_dev = ifa->ifa_dev;
 	struct net_device *dev = in_dev->dev;
 	struct in_ifaddr *prim = ifa;
-	u32 mask = ifa->ifa_mask;
-	u32 addr = ifa->ifa_local;
-	u32 prefix = ifa->ifa_address&mask;
+	__be32 mask = ifa->ifa_mask;
+	__be32 addr = ifa->ifa_local;
+	__be32 prefix = ifa->ifa_address&mask;
 
 	if (ifa->ifa_flags&IFA_F_SECONDARY) {
 		prim = inet_ifa_byprefix(in_dev, prefix, mask);
@@ -685,7 +679,7 @@ void fib_add_ifaddr(struct in_ifaddr *ifa)
 		return;
 
 	/* Add broadcast address, if it is explicitly assigned. */
-	if (ifa->ifa_broadcast && ifa->ifa_broadcast != 0xFFFFFFFF)
+	if (ifa->ifa_broadcast && ifa->ifa_broadcast != htonl(0xFFFFFFFF))
 		fib_magic(RTM_NEWROUTE, RTN_BROADCAST, ifa->ifa_broadcast, 32, prim);
 
 	if (!ZERONET(prefix) && !(ifa->ifa_flags&IFA_F_SECONDARY) &&
@@ -707,8 +701,8 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 	struct net_device *dev = in_dev->dev;
 	struct in_ifaddr *ifa1;
 	struct in_ifaddr *prim = ifa;
-	u32 brd = ifa->ifa_address|~ifa->ifa_mask;
-	u32 any = ifa->ifa_address&ifa->ifa_mask;
+	__be32 brd = ifa->ifa_address|~ifa->ifa_mask;
+	__be32 any = ifa->ifa_address&ifa->ifa_mask;
 #define LOCAL_OK	1
 #define BRD_OK		2
 #define BRD0_OK		4
@@ -774,8 +768,8 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb )
 {
 	
 	struct fib_result       res;
-	struct flowi            fl = { .nl_u = { .ip4_u = { .daddr = frn->fl_addr, 
-							    .fwmark = frn->fl_fwmark,
+	struct flowi            fl = { .mark = frn->fl_mark,
+				       .nl_u = { .ip4_u = { .daddr = frn->fl_addr,
 							    .tos = frn->fl_tos,
 							    .scope = frn->fl_scope } } };
 	if (tb) {
@@ -817,7 +811,6 @@ static void nl_fib_input(struct sock *sk, int len)
 	
 	pid = nlh->nlmsg_pid;           /*pid of sending process */
 	NETLINK_CB(skb).pid = 0;         /* from kernel */
-	NETLINK_CB(skb).dst_pid = pid;
 	NETLINK_CB(skb).dst_group = 0;  /* unicast */
 	netlink_unicast(sk, skb, pid, MSG_DONTWAIT);
 }    

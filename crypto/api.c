@@ -331,7 +331,7 @@ struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 flags)
 	tfm_size = sizeof(*tfm) + crypto_ctxsize(alg, flags);
 	tfm = kzalloc(tfm_size, GFP_KERNEL);
 	if (tfm == NULL)
-		goto out;
+		goto out_err;
 
 	tfm->__crt_alg = alg;
 
@@ -355,6 +355,7 @@ cra_init_failed:
 	crypto_exit_ops(tfm);
 out_free_tfm:
 	kfree(tfm);
+out_err:
 	tfm = ERR_PTR(err);
 out:
 	return tfm;
@@ -414,14 +415,14 @@ struct crypto_tfm *crypto_alloc_base(const char *alg_name, u32 type, u32 mask)
 		struct crypto_alg *alg;
 
 		alg = crypto_alg_mod_lookup(alg_name, type, mask);
-		err = PTR_ERR(alg);
-		tfm = ERR_PTR(err);
-		if (IS_ERR(alg))
+		if (IS_ERR(alg)) {
+			err = PTR_ERR(alg);
 			goto err;
+		}
 
 		tfm = __crypto_alloc_tfm(alg, 0);
 		if (!IS_ERR(tfm))
-			break;
+			return tfm;
 
 		crypto_mod_put(alg);
 		err = PTR_ERR(tfm);
@@ -433,9 +434,9 @@ err:
 			err = -EINTR;
 			break;
 		}
-	};
+	}
 
-	return tfm;
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_base);
  
@@ -465,23 +466,8 @@ void crypto_free_tfm(struct crypto_tfm *tfm)
 	kfree(tfm);
 }
 
-int crypto_alg_available(const char *name, u32 flags)
-{
-	int ret = 0;
-	struct crypto_alg *alg = crypto_alg_mod_lookup(name, 0,
-						       CRYPTO_ALG_ASYNC);
-	
-	if (!IS_ERR(alg)) {
-		crypto_mod_put(alg);
-		ret = 1;
-	}
-	
-	return ret;
-}
-
 EXPORT_SYMBOL_GPL(crypto_alloc_tfm);
 EXPORT_SYMBOL_GPL(crypto_free_tfm);
-EXPORT_SYMBOL_GPL(crypto_alg_available);
 
 int crypto_has_alg(const char *name, u32 type, u32 mask)
 {

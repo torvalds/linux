@@ -79,9 +79,10 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	struct buffer_head * bh, * tmp;
 	struct ocfs2_dir_entry * de;
 	int err;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct super_block * sb = inode->i_sb;
 	unsigned int ra_sectors = 16;
+	int lock_level = 0;
 
 	mlog_entry("dirino=%llu\n",
 		   (unsigned long long)OCFS2_I(inode)->ip_blkno);
@@ -89,7 +90,15 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	stored = 0;
 	bh = NULL;
 
-	error = ocfs2_meta_lock(inode, NULL, NULL, 0);
+	error = ocfs2_meta_lock_atime(inode, filp->f_vfsmnt, &lock_level);
+	if (lock_level && error >= 0) {
+		/* We release EX lock which used to update atime
+		 * and get PR lock again to reduce contention
+		 * on commonly accessed directories. */
+		ocfs2_meta_unlock(inode, 1);
+		lock_level = 0;
+		error = ocfs2_meta_lock(inode, NULL, 0);
+	}
 	if (error < 0) {
 		if (error != -ENOENT)
 			mlog_errno(error);
@@ -198,7 +207,7 @@ revalidate:
 
 	stored = 0;
 bail:
-	ocfs2_meta_unlock(inode, 0);
+	ocfs2_meta_unlock(inode, lock_level);
 
 bail_nolock:
 	mlog_exit(stored);
@@ -340,7 +349,7 @@ int ocfs2_empty_dir(struct inode *inode)
 
 /* returns a bh of the 1st new block in the allocation. */
 int ocfs2_do_extend_dir(struct super_block *sb,
-			struct ocfs2_journal_handle *handle,
+			handle_t *handle,
 			struct inode *dir,
 			struct buffer_head *parent_fe_bh,
 			struct ocfs2_alloc_context *data_ac,
@@ -398,7 +407,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) parent_fe_bh->b_data;
 	struct ocfs2_alloc_context *data_ac = NULL;
 	struct ocfs2_alloc_context *meta_ac = NULL;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct buffer_head *new_bh = NULL;
 	struct ocfs2_dir_entry * de;
 	struct super_block *sb = osb->sb;
@@ -408,13 +417,6 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	dir_i_size = i_size_read(dir);
 	mlog(0, "extending dir %llu (i_size = %lld)\n",
 	     (unsigned long long)OCFS2_I(dir)->ip_blkno, dir_i_size);
-
-	handle = ocfs2_alloc_handle(osb);
-	if (handle == NULL) {
-		status = -ENOMEM;
-		mlog_errno(status);
-		goto bail;
-	}
 
 	/* dir->i_size is always block aligned. */
 	spin_lock(&OCFS2_I(dir)->ip_lock);
@@ -428,8 +430,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 		}
 
 		if (!num_free_extents) {
-			status = ocfs2_reserve_new_metadata(osb, handle,
-							    fe, &meta_ac);
+			status = ocfs2_reserve_new_metadata(osb, fe, &meta_ac);
 			if (status < 0) {
 				if (status != -ENOSPC)
 					mlog_errno(status);
@@ -437,7 +438,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 			}
 		}
 
-		status = ocfs2_reserve_clusters(osb, handle, 1, &data_ac);
+		status = ocfs2_reserve_clusters(osb, 1, &data_ac);
 		if (status < 0) {
 			if (status != -ENOSPC)
 				mlog_errno(status);
@@ -450,7 +451,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 		credits = OCFS2_SIMPLE_DIR_EXTEND_CREDITS;
 	}
 
-	handle = ocfs2_start_trans(osb, handle, credits);
+	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -496,7 +497,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	get_bh(*new_de_bh);
 bail:
 	if (handle)
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 
 	if (data_ac)
 		ocfs2_free_alloc_context(data_ac);

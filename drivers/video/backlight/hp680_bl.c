@@ -19,8 +19,8 @@
 #include <linux/backlight.h>
 
 #include <asm/cpu/dac.h>
-#include <asm/hp6xx/hp6xx.h>
-#include <asm/hd64461/hd64461.h>
+#include <asm/hp6xx.h>
+#include <asm/hd64461.h>
 
 #define HP680_MAX_INTENSITY 255
 #define HP680_DEFAULT_INTENSITY 10
@@ -117,6 +117,10 @@ static int __init hp680bl_probe(struct platform_device *dev)
 
 static int hp680bl_remove(struct platform_device *dev)
 {
+	hp680bl_data.brightness = 0;
+	hp680bl_data.power = 0;
+	hp680bl_send_intensity(hp680_backlight_device);
+
 	backlight_device_unregister(hp680_backlight_device);
 
 	return 0;
@@ -163,6 +167,6 @@ static void __exit hp680bl_exit(void)
 module_init(hp680bl_init);
 module_exit(hp680bl_exit);
 
-MODULE_AUTHOR("Andriy Skulysh <askulysh@image.kiev.ua>");
+MODULE_AUTHOR("Andriy Skulysh <askulysh@gmail.com>");
 MODULE_DESCRIPTION("HP Jornada 680 Backlight Driver");
 MODULE_LICENSE("GPL");

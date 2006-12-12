@@ -1,5 +1,5 @@
 /*
- * linux/include/nfsd/stats.h
+ * linux/include/linux/nfsd/stats.h
  *
  * Statistics for NFS server.
  *

@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/omap2/board-h4.c
+ * linux/arch/arm/mach-omap2/board-h4.c
  *
  * Copyright (C) 2005 Nokia Corporation
  * Author: Paul Mundt <paul.mundt@nokia.com>
@@ -206,7 +206,8 @@ static int h4_transceiver_mode(struct device *dev, int mode)
 
 	cancel_delayed_work(&irda_config->gpio_expa);
 	PREPARE_WORK(&irda_config->gpio_expa, set_trans_mode, &mode);
-	schedule_work(&irda_config->gpio_expa);
+#error this is not permitted - mode is an argument variable
+	schedule_delayed_work(&irda_config->gpio_expa, 0);
 
 	return 0;
 }
@@ -245,6 +246,7 @@ static struct omap_kp_platform_data h4_kp_data = {
 	.rows		= 6,
 	.cols		= 7,
 	.keymap 	= h4_keymap,
+	.keymapsize 	= ARRAY_SIZE(h4_keymap),
 	.rep		= 1,
 	.row_gpios 	= row_gpios,
 	.col_gpios 	= col_gpios,

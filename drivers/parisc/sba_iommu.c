@@ -38,21 +38,14 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#include <asm/ropes.h>
+#include <asm/mckinley.h>	/* for proc_mckinley_root */
 #include <asm/runway.h>		/* for proc_runway_root */
 #include <asm/pdc.h>		/* for PDC_MODEL_* */
 #include <asm/pdcpat.h>		/* for is_pdc_pat() */
 #include <asm/parisc-device.h>
 
-
-/* declared in arch/parisc/kernel/setup.c */
-extern struct proc_dir_entry * proc_mckinley_root;
-
 #define MODULE_NAME "SBA"
-
-#ifdef CONFIG_PROC_FS
-/* depends on proc fs support. But costs CPU performance */
-#undef SBA_COLLECT_STATS
-#endif
 
 /*
 ** The number of debug flags is a clue - this code is fragile.
@@ -92,202 +85,12 @@ extern struct proc_dir_entry * proc_mckinley_root;
 #define DBG_RES(x...)
 #endif
 
-#if defined(CONFIG_64BIT)
-/* "low end" PA8800 machines use ZX1 chipset: PAT PDC and only run 64-bit */
-#define ZX1_SUPPORT
-#endif
-
 #define SBA_INLINE	__inline__
-
-
-/*
-** The number of pdir entries to "free" before issueing
-** a read to PCOM register to flush out PCOM writes.
-** Interacts with allocation granularity (ie 4 or 8 entries
-** allocated and free'd/purged at a time might make this
-** less interesting).
-*/
-#define DELAYED_RESOURCE_CNT	16
 
 #define DEFAULT_DMA_HINT_REG	0
 
-#define ASTRO_RUNWAY_PORT	0x582
-#define IKE_MERCED_PORT		0x803
-#define REO_MERCED_PORT		0x804
-#define REOG_MERCED_PORT	0x805
-#define PLUTO_MCKINLEY_PORT	0x880
-
-#define SBA_FUNC_ID	0x0000	/* function id */
-#define SBA_FCLASS	0x0008	/* function class, bist, header, rev... */
-
-#define IS_ASTRO(id)		((id)->hversion == ASTRO_RUNWAY_PORT)
-#define IS_IKE(id)		((id)->hversion == IKE_MERCED_PORT)
-#define IS_PLUTO(id)		((id)->hversion == PLUTO_MCKINLEY_PORT)
-
-#define SBA_FUNC_SIZE 4096   /* SBA configuration function reg set */
-
-#define ASTRO_IOC_OFFSET	(32 * SBA_FUNC_SIZE)
-#define PLUTO_IOC_OFFSET	(1 * SBA_FUNC_SIZE)
-/* Ike's IOC's occupy functions 2 and 3 */
-#define IKE_IOC_OFFSET(p)	((p+2) * SBA_FUNC_SIZE)
-
-#define IOC_CTRL          0x8	/* IOC_CTRL offset */
-#define IOC_CTRL_TC       (1 << 0) /* TOC Enable */
-#define IOC_CTRL_CE       (1 << 1) /* Coalesce Enable */
-#define IOC_CTRL_DE       (1 << 2) /* Dillon Enable */
-#define IOC_CTRL_RM       (1 << 8) /* Real Mode */
-#define IOC_CTRL_NC       (1 << 9) /* Non Coherent Mode */
-#define IOC_CTRL_D4       (1 << 11) /* Disable 4-byte coalescing */
-#define IOC_CTRL_DD       (1 << 13) /* Disable distr. LMMIO range coalescing */
-
-#define MAX_IOC		2	/* per Ike. Pluto/Astro only have 1. */
-
-#define ROPES_PER_IOC	8	/* per Ike half or Pluto/Astro */
-
-
-/*
-** Offsets into MBIB (Function 0 on Ike and hopefully Astro)
-** Firmware programs this stuff. Don't touch it.
-*/
-#define LMMIO_DIRECT0_BASE  0x300
-#define LMMIO_DIRECT0_MASK  0x308
-#define LMMIO_DIRECT0_ROUTE 0x310
-
-#define LMMIO_DIST_BASE  0x360
-#define LMMIO_DIST_MASK  0x368
-#define LMMIO_DIST_ROUTE 0x370
-
-#define IOS_DIST_BASE	0x390
-#define IOS_DIST_MASK	0x398
-#define IOS_DIST_ROUTE	0x3A0
-
-#define IOS_DIRECT_BASE	0x3C0
-#define IOS_DIRECT_MASK	0x3C8
-#define IOS_DIRECT_ROUTE 0x3D0
-
-/*
-** Offsets into I/O TLB (Function 2 and 3 on Ike)
-*/
-#define ROPE0_CTL	0x200  /* "regbus pci0" */
-#define ROPE1_CTL	0x208
-#define ROPE2_CTL	0x210
-#define ROPE3_CTL	0x218
-#define ROPE4_CTL	0x220
-#define ROPE5_CTL	0x228
-#define ROPE6_CTL	0x230
-#define ROPE7_CTL	0x238
-
-#define IOC_ROPE0_CFG	0x500	/* pluto only */
-#define   IOC_ROPE_AO	  0x10	/* Allow "Relaxed Ordering" */
-
-
-
-#define HF_ENABLE	0x40
-
-
-#define IOC_IBASE	0x300	/* IO TLB */
-#define IOC_IMASK	0x308
-#define IOC_PCOM	0x310
-#define IOC_TCNFG	0x318
-#define IOC_PDIR_BASE	0x320
-
-/* AGP GART driver looks for this */
-#define SBA_IOMMU_COOKIE    0x0000badbadc0ffeeUL
-
-
-/*
-** IOC supports 4/8/16/64KB page sizes (see TCNFG register)
-** It's safer (avoid memory corruption) to keep DMA page mappings
-** equivalently sized to VM PAGE_SIZE.
-**
-** We really can't avoid generating a new mapping for each
-** page since the Virtual Coherence Index has to be generated
-** and updated for each page.
-**
-** PAGE_SIZE could be greater than IOVP_SIZE. But not the inverse.
-*/
-#define IOVP_SIZE	PAGE_SIZE
-#define IOVP_SHIFT	PAGE_SHIFT
-#define IOVP_MASK	PAGE_MASK
-
-#define SBA_PERF_CFG	0x708	/* Performance Counter stuff */
-#define SBA_PERF_MASK1	0x718
-#define SBA_PERF_MASK2	0x730
-
-
-/*
-** Offsets into PCI Performance Counters (functions 12 and 13)
-** Controlled by PERF registers in function 2 & 3 respectively.
-*/
-#define SBA_PERF_CNT1	0x200
-#define SBA_PERF_CNT2	0x208
-#define SBA_PERF_CNT3	0x210
-
-
-struct ioc {
-	void __iomem	*ioc_hpa;	/* I/O MMU base address */
-	char		*res_map;	/* resource map, bit == pdir entry */
-	u64		*pdir_base;	/* physical base address */
-	unsigned long	ibase;	/* pdir IOV Space base - shared w/lba_pci */
-	unsigned long	imask;	/* pdir IOV Space mask - shared w/lba_pci */
-#ifdef ZX1_SUPPORT
-	unsigned long	iovp_mask;	/* help convert IOVA to IOVP */
-#endif
-	unsigned long	*res_hint;	/* next avail IOVP - circular search */
-	spinlock_t	res_lock;
-	unsigned int	res_bitshift;	/* from the LEFT! */
-	unsigned int	res_size;	/* size of resource map in bytes */
-#ifdef SBA_HINT_SUPPORT
-/* FIXME : DMA HINTs not used */
-	unsigned long	hint_mask_pdir;	/* bits used for DMA hints */
-	unsigned int	hint_shift_pdir;
-#endif
-#if DELAYED_RESOURCE_CNT > 0
-	int saved_cnt;
-	struct sba_dma_pair {
-		dma_addr_t	iova;
-		size_t		size;
-	} saved[DELAYED_RESOURCE_CNT];
-#endif
-
-#ifdef SBA_COLLECT_STATS
-#define SBA_SEARCH_SAMPLE	0x100
-	unsigned long avg_search[SBA_SEARCH_SAMPLE];
-	unsigned long avg_idx;	/* current index into avg_search */
-	unsigned long used_pages;
-	unsigned long msingle_calls;
-	unsigned long msingle_pages;
-	unsigned long msg_calls;
-	unsigned long msg_pages;
-	unsigned long usingle_calls;
-	unsigned long usingle_pages;
-	unsigned long usg_calls;
-	unsigned long usg_pages;
-#endif
-
-	/* STUFF We don't need in performance path */
-	unsigned int	pdir_size;	/* in bytes, determined by IOV Space size */
-};
-
-struct sba_device {
-	struct sba_device	*next;	/* list of SBA's in system */
-	struct parisc_device	*dev;	/* dev found in bus walk */
-	struct parisc_device_id	*iodc;	/* data about dev from firmware */
-	const char 		*name;
-	void __iomem		*sba_hpa; /* base address */
-	spinlock_t		sba_lock;
-	unsigned int		flags;  /* state/functionality enabled */
-	unsigned int		hw_rev;  /* HW revision of chip */
-
-	struct resource		chip_resv; /* MMIO reserved for chip */
-	struct resource		iommu_resv; /* MMIO reserved for iommu */
-
-	unsigned int		num_ioc;  /* number of on-board IOC's */
-	struct ioc		ioc[MAX_IOC];
-};
-
-
-static struct sba_device *sba_list;
+struct sba_device *sba_list;
+EXPORT_SYMBOL_GPL(sba_list);
 
 static unsigned long ioc_needs_fdc = 0;
 
@@ -300,8 +103,14 @@ static unsigned long piranha_bad_128k = 0;
 /* Looks nice and keeps the compiler happy */
 #define SBA_DEV(d) ((struct sba_device *) (d))
 
+#ifdef CONFIG_AGP_PARISC
+#define SBA_AGP_SUPPORT
+#endif /*CONFIG_AGP_PARISC*/
+
 #ifdef SBA_AGP_SUPPORT
-static int reserve_sba_gart = 1;
+static int sba_reserve_agpgart = 1;
+module_param(sba_reserve_agpgart, int, 1);
+MODULE_PARM_DESC(sba_reserve_agpgart, "Reserve half of IO pdir as AGPGART");
 #endif
 
 #define ROUNDUP(x,y) ((x + ((y)-1)) & ~((y)-1))
@@ -741,7 +550,7 @@ sba_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 	asm("lci 0(%%sr1, %1), %0" : "=r" (ci) : "r" (vba));
 	pa |= (ci >> 12) & 0xff;  /* move CI (8 bits) into lowest byte */
 
-	pa |= 0x8000000000000000ULL;	/* set "valid" bit */
+	pa |= SBA_PDIR_VALID_BIT;	/* set "valid" bit */
 	*pdir_ptr = cpu_to_le64(pa);	/* swap and store into I/O Pdir */
 
 	/*
@@ -1498,6 +1307,10 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	WRITE_REG(ioc->ibase | 31, ioc->ioc_hpa + IOC_PCOM);
 
 #ifdef SBA_AGP_SUPPORT
+{
+	struct klist_iter i;
+	struct device *dev = NULL;
+
 	/*
 	** If an AGP device is present, only use half of the IOV space
 	** for PCI DMA.  Unfortunately we can't know ahead of time
@@ -1506,20 +1319,22 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	** We program the next pdir index after we stop w/ a key for
 	** the GART code to handshake on.
 	*/
-	device=NULL;
-	for (lba = sba->child; lba; lba = lba->sibling) {
+	klist_iter_init(&sba->dev.klist_children, &i);
+	while ((dev = next_device(&i))) {
+		struct parisc_device *lba = to_parisc_device(dev);
 		if (IS_QUICKSILVER(lba))
-			break;
+			agp_found = 1;
 	}
+	klist_iter_exit(&i);
 
-	if (lba) {
-		DBG_INIT("%s: Reserving half of IOVA space for AGP GART support\n", __FUNCTION__);
+	if (agp_found && sba_reserve_agpgart) {
+		printk(KERN_INFO "%s: reserving %dMb of IOVA space for agpgart\n",
+		       __FUNCTION__, (iova_space_size/2) >> 20);
 		ioc->pdir_size /= 2;
-		((u64 *)ioc->pdir_base)[PDIR_INDEX(iova_space_size/2)] = SBA_IOMMU_COOKIE;
-	} else {
-		DBG_INIT("%s: No GART needed - no AGP controller found\n", __FUNCTION__);
+		ioc->pdir_base[PDIR_INDEX(iova_space_size/2)] = SBA_AGPGART_COOKIE;
 	}
-#endif /* 0 */
+}
+#endif /*SBA_AGP_SUPPORT*/
 
 }
 
@@ -1701,7 +1516,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 	}
 #endif
 
-	if (!IS_PLUTO(sba_dev->iodc)) {
+	if (!IS_PLUTO(sba_dev->dev)) {
 		ioc_ctl = READ_REG(sba_dev->sba_hpa+IOC_CTRL);
 		DBG_INIT("%s() hpa 0x%lx ioc_ctl 0x%Lx ->",
 			__FUNCTION__, sba_dev->sba_hpa, ioc_ctl);
@@ -1718,9 +1533,8 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 #endif
 	} /* if !PLUTO */
 
-	if (IS_ASTRO(sba_dev->iodc)) {
+	if (IS_ASTRO(sba_dev->dev)) {
 		int err;
-		/* PAT_PDC (L-class) also reports the same goofy base */
 		sba_dev->ioc[0].ioc_hpa = ioc_remap(sba_dev, ASTRO_IOC_OFFSET);
 		num_ioc = 1;
 
@@ -1730,13 +1544,9 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 		err = request_resource(&iomem_resource, &(sba_dev->chip_resv));
 		BUG_ON(err < 0);
 
-	} else if (IS_PLUTO(sba_dev->iodc)) {
+	} else if (IS_PLUTO(sba_dev->dev)) {
 		int err;
 
-		/* We use a negative value for IOC HPA so it gets 
-                 * corrected when we add it with IKE's IOC offset.
-		 * Doesnt look clean, but fewer code. 
-                 */
 		sba_dev->ioc[0].ioc_hpa = ioc_remap(sba_dev, PLUTO_IOC_OFFSET);
 		num_ioc = 1;
 
@@ -1752,14 +1562,14 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 		err = request_resource(&iomem_resource, &(sba_dev->iommu_resv));
 		WARN_ON(err < 0);
 	} else {
-		/* IS_IKE (ie N-class, L3000, L1500) */
+		/* IKE, REO */
 		sba_dev->ioc[0].ioc_hpa = ioc_remap(sba_dev, IKE_IOC_OFFSET(0));
 		sba_dev->ioc[1].ioc_hpa = ioc_remap(sba_dev, IKE_IOC_OFFSET(1));
 		num_ioc = 2;
 
 		/* TODO - LOOKUP Ike/Stretch chipset mem map */
 	}
-	/* XXX: What about Reo? */
+	/* XXX: What about Reo Grande? */
 
 	sba_dev->num_ioc = num_ioc;
 	for (i = 0; i < num_ioc; i++) {
@@ -1774,7 +1584,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 			 * Overrides bit 1 in DMA Hint Sets.
 			 * Improves netperf UDP_STREAM by ~10% for bcm5701.
 			 */
-			if (IS_PLUTO(sba_dev->iodc)) {
+			if (IS_PLUTO(sba_dev->dev)) {
 				void __iomem *rope_cfg;
 				unsigned long cfg_val;
 
@@ -1803,7 +1613,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 				READ_REG(sba_dev->ioc[i].ioc_hpa + 0x400)
 			);
 
-		if (IS_PLUTO(sba_dev->iodc)) {
+		if (IS_PLUTO(sba_dev->dev)) {
 			sba_ioc_init_pluto(sba_dev->dev, &(sba_dev->ioc[i]), i);
 		} else {
 			sba_ioc_init(sba_dev->dev, &(sba_dev->ioc[i]), i);
@@ -2067,7 +1877,7 @@ sba_driver_callback(struct parisc_device *dev)
 	/* Read HW Rev First */
 	func_class = READ_REG(sba_addr + SBA_FCLASS);
 
-	if (IS_ASTRO(&dev->id)) {
+	if (IS_ASTRO(dev)) {
 		unsigned long fclass;
 		static char astro_rev[]="Astro ?.?";
 
@@ -2078,11 +1888,11 @@ sba_driver_callback(struct parisc_device *dev)
 		astro_rev[8] = '0' + (char) ((fclass & 0x18) >> 3);
 		version = astro_rev;
 
-	} else if (IS_IKE(&dev->id)) {
+	} else if (IS_IKE(dev)) {
 		static char ike_rev[] = "Ike rev ?";
 		ike_rev[8] = '0' + (char) (func_class & 0xff);
 		version = ike_rev;
-	} else if (IS_PLUTO(&dev->id)) {
+	} else if (IS_PLUTO(dev)) {
 		static char pluto_rev[]="Pluto ?.?";
 		pluto_rev[6] = '0' + (char) ((func_class & 0xf0) >> 4); 
 		pluto_rev[8] = '0' + (char) (func_class & 0x0f); 
@@ -2097,7 +1907,7 @@ sba_driver_callback(struct parisc_device *dev)
 		global_ioc_cnt = count_parisc_driver(&sba_driver);
 
 		/* Astro and Pluto have one IOC per SBA */
-		if ((!IS_ASTRO(&dev->id)) || (!IS_PLUTO(&dev->id)))
+		if ((!IS_ASTRO(dev)) || (!IS_PLUTO(dev)))
 			global_ioc_cnt *= 2;
 	}
 
@@ -2117,7 +1927,6 @@ sba_driver_callback(struct parisc_device *dev)
 
 	sba_dev->dev = dev;
 	sba_dev->hw_rev = func_class;
-	sba_dev->iodc = &dev->id;
 	sba_dev->name = dev->name;
 	sba_dev->sba_hpa = sba_addr;
 

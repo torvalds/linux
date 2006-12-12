@@ -131,10 +131,11 @@ startup_continue:
 	.long	init_thread_union
 .Lpmask:
 	.byte	0
-.align 8
+	.align	8
 .Lpcext:.long	0x00080000,0x80000000
 .Lcr:
 	.long	0x00			# place holder for cr0
+	.align	8
 .Lwaitsclp:
 	.long 0x010a0000,0x80000000 + .Lsclph
 .Lrcp:
@@ -156,7 +157,7 @@ startup_continue:
 	slr	%r4,%r4			# set start of chunk to zero
 	slr	%r5,%r5			# set end of chunk to zero
 	slr	%r6,%r6			# set access code to zero
-	la	%r10, MEMORY_CHUNKS	# number of chunks
+	la	%r10,MEMORY_CHUNKS	# number of chunks
 .Lloop:
 	tprot	0(%r5),0		# test protection of first byte
 	ipm	%r7
@@ -176,8 +177,6 @@ startup_continue:
 	st	%r0,4(%r3)		# store size of chunk
 	st	%r6,8(%r3)		# store type of chunk
 	la	%r3,12(%r3)
-	l	%r4,.Lmemsize-.LPG1(%r13)	 # address of variable memory_size
-	st	%r5,0(%r4)		# store last end to memory size
 	ahi	%r10,-1			# update chunk number
 .Lchkloop:
 	lr	%r6,%r7			# set access code to last cc
@@ -254,6 +253,16 @@ startup_continue:
 	oi	3(%r12),0x80		# set IDTE flag
 .Lchkidte:
 
+#
+# find out if the diag 0x9c is available
+#
+	mvc	__LC_PGM_NEW_PSW(8),.Lpcdiag9c-.LPG1(%r13)
+	stap	__LC_CPUID+4		# store cpu address
+	lh	%r1,__LC_CPUID+4
+	diag	%r1,0,0x9c		# test diag 0x9c
+	oi	2(%r12),1		# set diag9c flag
+.Lchkdiag9c:
+
 	lpsw  .Lentry-.LPG1(13)		# jump to _stext in primary-space,
 					# virtual and never return ...
 	.align	8
@@ -281,7 +290,7 @@ startup_continue:
 .Lpccsp:.long	0x00080000,0x80000000 + .Lchkcsp
 .Lpcmvpg:.long	0x00080000,0x80000000 + .Lchkmvpg
 .Lpcidte:.long	0x00080000,0x80000000 + .Lchkidte
-.Lmemsize:.long memory_size
+.Lpcdiag9c:.long 0x00080000,0x80000000 + .Lchkdiag9c
 .Lmchunk:.long	memory_chunk
 .Lmflags:.long	machine_flags
 .Lbss_bgn:  .long __bss_start

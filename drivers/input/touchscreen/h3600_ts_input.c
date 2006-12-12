@@ -106,19 +106,18 @@ struct h3600_dev {
 	char phys[32];
 };
 
-static irqreturn_t action_button_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t action_button_handler(int irq, void *dev_id)
 {
 	int down = (GPLR & GPIO_BITSY_ACTION_BUTTON) ? 0 : 1;
 	struct input_dev *dev = (struct input_dev *) dev_id;
 
-	input_regs(dev, regs);
 	input_report_key(dev, KEY_ENTER, down);
 	input_sync(dev);
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t npower_button_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t npower_button_handler(int irq, void *dev_id)
 {
 	int down = (GPLR & GPIO_BITSY_NPOWER_BUTTON) ? 0 : 1;
 	struct input_dev *dev = (struct input_dev *) dev_id;
@@ -127,7 +126,6 @@ static irqreturn_t npower_button_handler(int irq, void *dev_id, struct pt_regs *
 	 * This interrupt is only called when we release the key. So we have
 	 * to fake a key press.
 	 */
-	input_regs(dev, regs);
 	input_report_key(dev, KEY_SUSPEND, 1);
 	input_report_key(dev, KEY_SUSPEND, down);
 	input_sync(dev);
@@ -165,13 +163,11 @@ unsigned int h3600_flite_power(struct input_dev *dev, enum flite_pwr pwr)
  * packets. Some packets coming from serial are not touchscreen related. In
  * this case we send them off to be processed elsewhere.
  */
-static void h3600ts_process_packet(struct h3600_dev *ts, struct pt_regs *regs)
+static void h3600ts_process_packet(struct h3600_dev *ts)
 {
 	struct input_dev *dev = ts->dev;
 	static int touched = 0;
 	int key, down = 0;
-
-	input_regs(dev, regs);
 
 	switch (ts->event) {
 		/*
@@ -301,7 +297,7 @@ static int state;
 #define STATE_EOF       3       /* state where we decode checksum or EOF */
 
 static irqreturn_t h3600ts_interrupt(struct serio *serio, unsigned char data,
-                                     unsigned int flags, struct pt_regs *regs)
+                                     unsigned int flags)
 {
 	struct h3600_dev *ts = serio_get_drvdata(serio);
 
@@ -333,7 +329,7 @@ static irqreturn_t h3600ts_interrupt(struct serio *serio, unsigned char data,
 		case STATE_EOF:
 			state = STATE_SOF;
 			if (data == CHAR_EOF || data == ts->chksum)
-				h3600ts_process_packet(ts, regs);
+				h3600ts_process_packet(ts);
 			break;
 		default:
 			printk("Error3\n");
@@ -482,8 +478,7 @@ static struct serio_driver h3600ts_drv = {
 
 static int __init h3600ts_init(void)
 {
-	serio_register_driver(&h3600ts_drv);
-	return 0;
+	return serio_register_driver(&h3600ts_drv);
 }
 
 static void __exit h3600ts_exit(void)

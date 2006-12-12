@@ -595,7 +595,7 @@ static void atmel_join_bss(struct atmel_private *priv, int bss_index);
 static void atmel_smooth_qual(struct atmel_private *priv);
 static void atmel_writeAR(struct net_device *dev, u16 data);
 static int probe_atmel_card(struct net_device *dev);
-static int reset_atmel_card(struct net_device *dev );
+static int reset_atmel_card(struct net_device *dev);
 static void atmel_enter_state(struct atmel_private *priv, int new_state);
 int atmel_open (struct net_device *dev);
 
@@ -784,11 +784,11 @@ static void tx_update_descriptor(struct atmel_private *priv, int is_bcast,
 
 static int start_tx(struct sk_buff *skb, struct net_device *dev)
 {
+	static const u8 SNAP_RFC1024[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 	struct atmel_private *priv = netdev_priv(dev);
 	struct ieee80211_hdr_4addr header;
 	unsigned long flags;
 	u16 buff, frame_ctl, len = (ETH_ZLEN < skb->len) ? skb->len : ETH_ZLEN;
-	u8 SNAP_RFC1024[6] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 
 	if (priv->card && priv->present_callback &&
 	    !(*priv->present_callback)(priv->card)) {
@@ -1145,7 +1145,7 @@ next:
 	}
 }
 
-static irqreturn_t service_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t service_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct atmel_private *priv = netdev_priv(dev);
@@ -1193,7 +1193,7 @@ static irqreturn_t service_interrupt(int irq, void *dev_id, struct pt_regs *regs
 
 		atmel_set_gcr(dev, GCR_ACKINT); /* acknowledge interrupt */
 
-		for (i = 0; i < sizeof(irq_order)/sizeof(u8); i++)
+		for (i = 0; i < ARRAY_SIZE(irq_order); i++)
 			if (isr & irq_order[i])
 				break;
 
@@ -1345,10 +1345,10 @@ int atmel_open(struct net_device *dev)
 		atmel_set_mib8(priv, Phy_Mib_Type, PHY_MIB_REG_DOMAIN_POS, priv->reg_domain);
 	} else {
 		priv->reg_domain = atmel_get_mib8(priv, Phy_Mib_Type, PHY_MIB_REG_DOMAIN_POS);
-		for (i = 0; i < sizeof(channel_table)/sizeof(channel_table[0]); i++)
+		for (i = 0; i < ARRAY_SIZE(channel_table); i++)
 			if (priv->reg_domain == channel_table[i].reg_domain)
 				break;
-		if (i == sizeof(channel_table)/sizeof(channel_table[0])) {
+		if (i == ARRAY_SIZE(channel_table)) {
 			priv->reg_domain = REG_DOMAIN_MKK1;
 			printk(KERN_ALERT "%s: failed to get regulatory domain: assuming MKK1.\n", dev->name);
 		}
@@ -1393,7 +1393,7 @@ static int atmel_validate_channel(struct atmel_private *priv, int channel)
 	   else return suitable default channel */
 	int i;
 
-	for (i = 0; i < sizeof(channel_table)/sizeof(channel_table[0]); i++)
+	for (i = 0; i < ARRAY_SIZE(channel_table); i++)
 		if (priv->reg_domain == channel_table[i].reg_domain) {
 			if (channel >= channel_table[i].min &&
 			    channel <= channel_table[i].max)
@@ -1437,7 +1437,7 @@ static int atmel_proc_output (char *buf, struct atmel_private *priv)
 		}
 
 		r = "<unknown>";
-		for (i = 0; i < sizeof(channel_table)/sizeof(channel_table[0]); i++)
+		for (i = 0; i < ARRAY_SIZE(channel_table); i++)
 			if (priv->reg_domain == channel_table[i].reg_domain)
 				r = channel_table[i].name;
 
@@ -1656,13 +1656,13 @@ static int atmel_set_essid(struct net_device *dev,
 		priv->connect_to_any_BSS = 0;
 
 		/* Check the size of the string */
-		if (dwrq->length > MAX_SSID_LENGTH + 1)
+		if (dwrq->length > MAX_SSID_LENGTH)
 			 return -E2BIG;
 		if (index != 0)
 			return -EINVAL;
 
-		memcpy(priv->new_SSID, extra, dwrq->length - 1);
-		priv->new_SSID_size = dwrq->length - 1;
+		memcpy(priv->new_SSID, extra, dwrq->length);
+		priv->new_SSID_size = dwrq->length;
 	}
 
 	return -EINPROGRESS;
@@ -1678,11 +1678,9 @@ static int atmel_get_essid(struct net_device *dev,
 	/* Get the current SSID */
 	if (priv->new_SSID_size != 0) {
 		memcpy(extra, priv->new_SSID, priv->new_SSID_size);
-		extra[priv->new_SSID_size] = '\0';
 		dwrq->length = priv->new_SSID_size;
 	} else {
 		memcpy(extra, priv->SSID, priv->SSID_size);
-		extra[priv->SSID_size] = '\0';
 		dwrq->length = priv->SSID_size;
 	}
 
@@ -1738,7 +1736,7 @@ static int atmel_set_encode(struct net_device *dev,
 				/* Disable the key */
 				priv->wep_key_len[index] = 0;
 		/* Check if the key is not marked as invalid */
-		if(!(dwrq->flags & IW_ENCODE_NOKEY)) {
+		if (!(dwrq->flags & IW_ENCODE_NOKEY)) {
 			/* Cleanup */
 			memset(priv->wep_keys[index], 0, 13);
 			/* Copy the key in the driver */
@@ -1909,7 +1907,7 @@ static int atmel_get_encodeext(struct net_device *dev,
 
 	encoding->flags = idx + 1;
 	memset(ext, 0, sizeof(*ext));
-	
+
 	if (!priv->wep_is_on) {
 		ext->alg = IW_ENCODE_ALG_NONE;
 		ext->key_len = 0;
@@ -2120,9 +2118,9 @@ static int atmel_set_retry(struct net_device *dev,
 	struct atmel_private *priv = netdev_priv(dev);
 
 	if (!vwrq->disabled && (vwrq->flags & IW_RETRY_LIMIT)) {
-		if (vwrq->flags & IW_RETRY_MAX)
+		if (vwrq->flags & IW_RETRY_LONG)
 			priv->long_retry = vwrq->value;
-		else if (vwrq->flags & IW_RETRY_MIN)
+		else if (vwrq->flags & IW_RETRY_SHORT)
 			priv->short_retry = vwrq->value;
 		else {
 			/* No modifier : set both */
@@ -2144,15 +2142,15 @@ static int atmel_get_retry(struct net_device *dev,
 
 	vwrq->disabled = 0;      /* Can't be disabled */
 
-	/* Note : by default, display the min retry number */
-	if (vwrq->flags & IW_RETRY_MAX) {
-		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
+	/* Note : by default, display the short retry number */
+	if (vwrq->flags & IW_RETRY_LONG) {
+		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
 		vwrq->value = priv->long_retry;
 	} else {
 		vwrq->flags = IW_RETRY_LIMIT;
 		vwrq->value = priv->short_retry;
 		if (priv->long_retry != priv->short_retry)
-			vwrq->flags |= IW_RETRY_MIN;
+			vwrq->flags |= IW_RETRY_SHORT;
 	}
 
 	return 0;
@@ -2345,6 +2343,14 @@ static int atmel_get_scan(struct net_device *dev,
 		iwe.u.freq.e = 0;
 		current_ev = iwe_stream_add_event(current_ev, extra + IW_SCAN_MAX_DATA, &iwe, IW_EV_FREQ_LEN);
 
+		/* Add quality statistics */
+		iwe.cmd = IWEVQUAL;
+		iwe.u.qual.level = priv->BSSinfo[i].RSSI;
+		iwe.u.qual.qual  = iwe.u.qual.level;
+		/* iwe.u.qual.noise  = SOMETHING */
+		current_ev = iwe_stream_add_event(current_ev, extra + IW_SCAN_MAX_DATA , &iwe, IW_EV_QUAL_LEN);
+
+
 		iwe.cmd = SIOCGIWENCODE;
 		if (priv->BSSinfo[i].UsingWEP)
 			iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
@@ -2375,7 +2381,7 @@ static int atmel_get_range(struct net_device *dev,
 	range->min_nwid = 0x0000;
 	range->max_nwid = 0x0000;
 	range->num_channels = 0;
-	for (j = 0; j < sizeof(channel_table)/sizeof(channel_table[0]); j++)
+	for (j = 0; j < ARRAY_SIZE(channel_table); j++)
 		if (priv->reg_domain == channel_table[j].reg_domain) {
 			range->num_channels = channel_table[j].max - channel_table[j].min + 1;
 			break;
@@ -2581,9 +2587,9 @@ static const struct iw_priv_args atmel_private_args[] = {
 
 static const struct iw_handler_def atmel_handler_def =
 {
-	.num_standard	= sizeof(atmel_handler)/sizeof(iw_handler),
-	.num_private	= sizeof(atmel_private_handler)/sizeof(iw_handler),
-	.num_private_args = sizeof(atmel_private_args)/sizeof(struct iw_priv_args),
+	.num_standard	= ARRAY_SIZE(atmel_handler),
+	.num_private	= ARRAY_SIZE(atmel_private_handler),
+	.num_private_args = ARRAY_SIZE(atmel_private_args),
 	.standard	= (iw_handler *) atmel_handler,
 	.private	= (iw_handler *) atmel_private_handler,
 	.private_args	= (struct iw_priv_args *) atmel_private_args,
@@ -2647,7 +2653,7 @@ static int atmel_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 		domain[REGDOMAINSZ] = 0;
 		rc = -EINVAL;
-		for (i = 0; i < sizeof(channel_table)/sizeof(channel_table[0]); i++) {
+		for (i = 0; i < ARRAY_SIZE(channel_table); i++) {
 			/* strcasecmp doesn't exist in the library */
 			char *a = channel_table[i].name;
 			char *b = domain;

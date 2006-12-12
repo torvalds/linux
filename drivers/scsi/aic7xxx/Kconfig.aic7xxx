@@ -27,12 +27,12 @@ config AIC7XXX_CMDS_PER_DEVICE
 	to be used for any device.  The aic7xxx driver will automatically
 	vary this number based on device behavior.  For devices with a
 	fixed maximum, the driver will eventually lock to this maximum
-	and display a console message inidicating this value.
+	and display a console message indicating this value.
 
 	Due to resource allocation issues in the Linux SCSI mid-layer, using
 	a high number of commands per device may result in memory allocation
 	failures when many devices are attached to the system.  For this reason,
-	the default is set to 32.  Higher values may result in higer performance
+	the default is set to 32.  Higher values may result in higher performance
 	on some devices.  The upper bound is 253.  0 disables tagged queueing.
 
 	Per device tag depth can be controlled via the kernel command line

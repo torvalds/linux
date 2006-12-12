@@ -8,6 +8,7 @@
  */
 #include <linux/init.h>
 #include <linux/mm.h>
+#include <asm/fixmap.h>
 #include <asm/pgtable.h>
 
 void pgd_init(unsigned long page)
@@ -52,7 +53,20 @@ void pmd_init(unsigned long addr, unsigned long pagetable)
 
 void __init pagetable_init(void)
 {
+	unsigned long vaddr;
+	pgd_t *pgd_base;
+
 	/* Initialize the entire pgd.  */
 	pgd_init((unsigned long)swapper_pg_dir);
+#ifdef MODULE_START
+	pgd_init((unsigned long)module_pg_dir);
+#endif
 	pmd_init((unsigned long)invalid_pmd_table, (unsigned long)invalid_pte_table);
+
+	pgd_base = swapper_pg_dir;
+	/*
+	 * Fixed mappings:
+	 */
+	vaddr = __fix_to_virt(__end_of_fixed_addresses - 1) & PMD_MASK;
+	fixrange_init(vaddr, 0, pgd_base);
 }

@@ -34,6 +34,8 @@
    VT8233A            0x3147             yes?
    VT8235             0x3177             yes
    VT8237R            0x3227             yes
+   VT8237A            0x3337             yes
+   VT8251             0x3287             yes
 
    Note: we assume there can only be one device, with one SMBus interface.
 */
@@ -297,7 +299,7 @@ static u32 vt596_func(struct i2c_adapter *adapter)
 	return func;
 }
 
-static struct i2c_algorithm smbus_algorithm = {
+static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer	= vt596_access,
 	.functionality	= vt596_func,
 };
@@ -381,7 +383,9 @@ found:
 	dev_dbg(&pdev->dev, "VT596_smba = 0x%X\n", vt596_smba);
 
 	switch (pdev->device) {
+	case PCI_DEVICE_ID_VIA_8251:
 	case PCI_DEVICE_ID_VIA_8237:
+	case PCI_DEVICE_ID_VIA_8237A:
 	case PCI_DEVICE_ID_VIA_8235:
 	case PCI_DEVICE_ID_VIA_8233A:
 	case PCI_DEVICE_ID_VIA_8233_0:
@@ -432,8 +436,12 @@ static struct pci_device_id vt596_ids[] = {
 	  .driver_data = SMBBA3 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237),
 	  .driver_data = SMBBA3 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237A),
+	  .driver_data = SMBBA3 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8231_4),
 	  .driver_data = SMBBA1 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8251),
+	  .driver_data = SMBBA3 },
 	{ 0, }
 };
 

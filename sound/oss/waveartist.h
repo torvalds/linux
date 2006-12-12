@@ -1,5 +1,5 @@
 /*
- * linux/drivers/sound/waveartist.h
+ * linux/sound/oss/waveartist.h
  *
  * def file for Rockwell RWA010 chip set, as installed in Rebel.com NetWinder
  */

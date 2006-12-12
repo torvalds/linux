@@ -212,7 +212,7 @@
  * Note: you'll need to define uint32_t and uint64_t in your headers.
  */
 
-#if !defined(__ASSEMBLER__)
+#if !defined(__ASSEMBLY__)
 #define _SB_MAKE64(x) ((uint64_t)(x))
 #define _SB_MAKE32(x) ((uint32_t)(x))
 #else
@@ -251,9 +251,9 @@
  */
 
 
-#if defined(__mips64) && !defined(__ASSEMBLER__)
+#if defined(__mips64) && !defined(__ASSEMBLY__)
 #define SBWRITECSR(csr,val) *((volatile uint64_t *) PHYS_TO_K1(csr)) = (val)
 #define SBREADCSR(csr) (*((volatile uint64_t *) PHYS_TO_K1(csr)))
-#endif /* __ASSEMBLER__ */
+#endif /* __ASSEMBLY__ */
 
 #endif

@@ -345,7 +345,7 @@ static void put_driver_status(struct cosa_data *cosa);
 static void put_driver_status_nolock(struct cosa_data *cosa);
 
 /* Interrupt handling */
-static irqreturn_t cosa_interrupt(int irq, void *cosa, struct pt_regs *regs);
+static irqreturn_t cosa_interrupt(int irq, void *cosa);
 
 /* I/O ops debugging */
 #ifdef DEBUG_IO
@@ -974,12 +974,12 @@ static int cosa_open(struct inode *inode, struct file *file)
 	unsigned long flags;
 	int n;
 
-	if ((n=iminor(file->f_dentry->d_inode)>>CARD_MINOR_BITS)
+	if ((n=iminor(file->f_path.dentry->d_inode)>>CARD_MINOR_BITS)
 		>= nr_cards)
 		return -ENODEV;
 	cosa = cosa_cards+n;
 
-	if ((n=iminor(file->f_dentry->d_inode)
+	if ((n=iminor(file->f_path.dentry->d_inode)
 		& ((1<<CARD_MINOR_BITS)-1)) >= cosa->nchannels)
 		return -ENODEV;
 	chan = cosa->chan + n;
@@ -1972,7 +1972,7 @@ out:
 	spin_unlock_irqrestore(&cosa->lock, flags);
 }
 
-static irqreturn_t cosa_interrupt(int irq, void *cosa_, struct pt_regs *regs)
+static irqreturn_t cosa_interrupt(int irq, void *cosa_)
 {
 	unsigned status;
 	int count = 0;

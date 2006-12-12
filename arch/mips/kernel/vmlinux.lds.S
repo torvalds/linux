@@ -50,6 +50,16 @@ SECTIONS
   /* writeable */
   .data : {			/* Data */
     . = . + DATAOFFSET;		/* for CONFIG_MAPPED_KERNEL */
+    /*
+     * This ALIGN is needed as a workaround for a bug a gcc bug upto 4.1 which
+     * limits the maximum alignment to at most 32kB and results in the following
+     * warning:
+     *
+     *  CC      arch/mips/kernel/init_task.o
+     * arch/mips/kernel/init_task.c:30: warning: alignment of ‘init_thread_union’
+     * is greater than maximum object file alignment.  Using 32768
+     */
+    . = ALIGN(_PAGE_SIZE);
     *(.data.init_task)
 
     *(.data)
@@ -91,13 +101,7 @@ SECTIONS
 
   __initcall_start = .;
   .initcall.init : {
-	*(.initcall1.init)
-	*(.initcall2.init)
-	*(.initcall3.init)
-	*(.initcall4.init)
-	*(.initcall5.init)
-	*(.initcall6.init)
-	*(.initcall7.init)
+	INITCALLS
   }
   __initcall_end = .;
 
@@ -108,6 +112,7 @@ SECTIONS
     /* .exit.text is discarded at runtime, not link time, to deal with
      references from .rodata */
   .exit.text : { *(.exit.text) }
+  .exit.data : { *(.exit.data) }
   . = ALIGN(_PAGE_SIZE);
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }
@@ -135,7 +140,6 @@ SECTIONS
 
   /* Sections to be discarded */
   /DISCARD/ : {
-        *(.exit.data)
         *(.exitcall.exit)
 
 	/* ABI crap starts here */

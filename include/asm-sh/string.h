@@ -1,13 +1,15 @@
 #ifndef __ASM_SH_STRING_H
 #define __ASM_SH_STRING_H
 
+#ifdef __KERNEL__
+
 /*
  * Copyright (C) 1999 Niibe Yutaka
  * But consider these trivial functions to be public domain.
  */
 
 #define __HAVE_ARCH_STRCPY
-static __inline__ char *strcpy(char *__dest, const char *__src)
+static inline char *strcpy(char *__dest, const char *__src)
 {
 	register char *__xdest = __dest;
 	unsigned long __dummy;
@@ -26,7 +28,7 @@ static __inline__ char *strcpy(char *__dest, const char *__src)
 }
 
 #define __HAVE_ARCH_STRNCPY
-static __inline__ char *strncpy(char *__dest, const char *__src, size_t __n)
+static inline char *strncpy(char *__dest, const char *__src, size_t __n)
 {
 	register char *__xdest = __dest;
 	unsigned long __dummy;
@@ -52,7 +54,7 @@ static __inline__ char *strncpy(char *__dest, const char *__src, size_t __n)
 }
 
 #define __HAVE_ARCH_STRCMP
-static __inline__ int strcmp(const char *__cs, const char *__ct)
+static inline int strcmp(const char *__cs, const char *__ct)
 {
 	register int __res;
 	unsigned long __dummy;
@@ -78,7 +80,7 @@ static __inline__ int strcmp(const char *__cs, const char *__ct)
 }
 
 #define __HAVE_ARCH_STRNCMP
-static __inline__ int strncmp(const char *__cs, const char *__ct, size_t __n)
+static inline int strncmp(const char *__cs, const char *__ct, size_t __n)
 {
 	register int __res;
 	unsigned long __dummy;
@@ -123,5 +125,10 @@ extern void *memchr(const void *__s, int __c, size_t __n);
 
 #define __HAVE_ARCH_STRLEN
 extern size_t strlen(const char *);
+
+/* arch/sh/lib/strcasecmp.c */
+extern int strcasecmp(const char *, const char *);
+
+#endif /* __KERNEL__ */
 
 #endif /* __ASM_SH_STRING_H */

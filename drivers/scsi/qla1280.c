@@ -813,7 +813,7 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 	uint16_t data;
 	unsigned char *handle;
 	int result, i;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	struct timer_list timer;
 
 	ha = (struct scsi_qla_host *)(CMD_HOST(cmd)->hostdata);
@@ -931,11 +931,10 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 
 	case BUS_RESET:
 		if (qla1280_verbose)
-			printk(KERN_INFO "qla1280(%ld:%d): Issuing BUS "
-			       "DEVICE RESET\n", ha->host_no, bus);
-		if (qla1280_bus_reset(ha, bus == 0))
+			printk(KERN_INFO "qla1280(%ld:%d): Issued bus "
+			       "reset.\n", ha->host_no, bus);
+		if (qla1280_bus_reset(ha, bus) == 0)
 			result = SUCCESS;
-
 		break;
 
 	case ADAPTER_RESET:
@@ -1113,7 +1112,7 @@ qla1280_enable_intrs(struct scsi_qla_host *ha)
  *   Handles the H/W interrupt
  **************************************************************************/
 static irqreturn_t
-qla1280_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
+qla1280_intr_handler(int irq, void *dev_id)
 {
 	struct scsi_qla_host *ha;
 	struct device_reg __iomem *reg;
@@ -2406,7 +2405,7 @@ qla1280_mailbox_command(struct scsi_qla_host *ha, uint8_t mr, uint16_t *mb)
 	uint16_t *optr, *iptr;
 	uint16_t __iomem *mptr;
 	uint16_t data;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	struct timer_list timer;
 
 	ENTER("qla1280_mailbox_command");
@@ -2862,7 +2861,7 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	memset(((char *)pkt + 8), 0, (REQUEST_ENTRY_SIZE - 8));
 
 	/* Set ISP command timeout. */
-	pkt->timeout = cpu_to_le16(30);
+	pkt->timeout = cpu_to_le16(cmd->timeout_per_command/HZ);
 
 	/* Set device target ID and LUN */
 	pkt->lun = SCSI_LUN_32(cmd);
@@ -3161,7 +3160,7 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	memset(((char *)pkt + 8), 0, (REQUEST_ENTRY_SIZE - 8));
 
 	/* Set ISP command timeout. */
-	pkt->timeout = cpu_to_le16(30);
+	pkt->timeout = cpu_to_le16(cmd->timeout_per_command/HZ);
 
 	/* Set device target ID and LUN */
 	pkt->lun = SCSI_LUN_32(cmd);
@@ -4484,7 +4483,7 @@ qla1280_init(void)
 		qla1280_setup(qla1280);
 #endif
 
-	return pci_module_init(&qla1280_pci_driver);
+	return pci_register_driver(&qla1280_pci_driver);
 }
 
 static void __exit

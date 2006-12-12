@@ -37,10 +37,10 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
-#include "pci_hotplug.h"
 #include "acpiphp.h"
 
 #define MY_NAME	"acpiphp"
@@ -303,23 +303,13 @@ static int __init init_acpi(void)
 	/* read initial number of slots */
 	if (!retval) {
 		num_slots = acpiphp_get_num_slots();
-		if (num_slots == 0)
+		if (num_slots == 0) {
+			acpiphp_glue_exit();
 			retval = -ENODEV;
+		}
 	}
 
 	return retval;
-}
-
-
-/**
- * make_slot_name - make a slot name that appears in pcihpfs
- * @slot: slot to name
- *
- */
-static void make_slot_name(struct slot *slot)
-{
-	snprintf(slot->hotplug_slot->name, SLOT_NAME_SIZE, "%u",
-		 slot->acpi_slot->sun);
 }
 
 /**
@@ -332,8 +322,6 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 
 	dbg("%s - physical_slot = %s\n", __FUNCTION__, hotplug_slot->name);
 
-	kfree(slot->hotplug_slot->info);
-	kfree(slot->hotplug_slot->name);
 	kfree(slot->hotplug_slot);
 	kfree(slot);
 }
@@ -342,26 +330,19 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 {
 	struct slot *slot;
-	struct hotplug_slot *hotplug_slot;
-	struct hotplug_slot_info *hotplug_slot_info;
 	int retval = -ENOMEM;
 
 	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 	if (!slot)
 		goto error;
 
-	slot->hotplug_slot = kzalloc(sizeof(*hotplug_slot), GFP_KERNEL);
+	slot->hotplug_slot = kzalloc(sizeof(*slot->hotplug_slot), GFP_KERNEL);
 	if (!slot->hotplug_slot)
 		goto error_slot;
 
-	slot->hotplug_slot->info = kzalloc(sizeof(*hotplug_slot_info),
-					   GFP_KERNEL);
-	if (!slot->hotplug_slot->info)
-		goto error_hpslot;
+	slot->hotplug_slot->info = &slot->info;
 
-	slot->hotplug_slot->name = kzalloc(SLOT_NAME_SIZE, GFP_KERNEL);
-	if (!slot->hotplug_slot->name)
-		goto error_info;
+	slot->hotplug_slot->name = slot->name;
 
 	slot->hotplug_slot->private = slot;
 	slot->hotplug_slot->release = &release_slot;
@@ -376,21 +357,17 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 	slot->hotplug_slot->info->cur_bus_speed = PCI_SPEED_UNKNOWN;
 
 	acpiphp_slot->slot = slot;
-	make_slot_name(slot);
+	snprintf(slot->name, sizeof(slot->name), "%u", slot->acpi_slot->sun);
 
 	retval = pci_hp_register(slot->hotplug_slot);
 	if (retval) {
 		err("pci_hp_register failed with error %d\n", retval);
-		goto error_name;
+		goto error_hpslot;
  	}
 
 	info("Slot [%s] registered\n", slot->hotplug_slot->name);
 
 	return 0;
-error_name:
-	kfree(slot->hotplug_slot->name);
-error_info:
-	kfree(slot->hotplug_slot->info);
 error_hpslot:
 	kfree(slot->hotplug_slot);
 error_slot:

@@ -51,6 +51,7 @@
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <linux/errno.h>
+#include <asm/atomic.h>
 #include <linux/device.h>
 
 /* File state for mmap()s on /proc/bus/pci/X/Y */
@@ -159,7 +160,6 @@ struct pci_dev {
 	unsigned int	transparent:1;	/* Transparent PCI bridge */
 	unsigned int	multifunction:1;/* Part of multi-function device */
 	/* keep track of device state */
-	unsigned int	is_enabled:1;	/* pci_enable_device has been called */
 	unsigned int	is_busmaster:1; /* device is busmaster */
 	unsigned int	no_msi:1;	/* device may not use msi */
 	unsigned int	no_d1d2:1;   /* only allow d0 or d3 */
@@ -167,6 +167,7 @@ struct pci_dev {
 	unsigned int	broken_parity_status:1;	/* Device generates false positive parity */
 	unsigned int 	msi_enabled:1;
 	unsigned int	msix_enabled:1;
+	atomic_t	enable_cnt;	/* pci_enable_device has been called */
 
 	u32		saved_config_space[16]; /* config space saved at suspend time */
 	struct hlist_head saved_cap_space;
@@ -356,6 +357,8 @@ struct pci_driver {
 	struct pci_error_handlers *err_handler;
 	struct device_driver	driver;
 	struct pci_dynids dynids;
+
+	int multithread_probe;
 };
 
 #define	to_pci_driver(drv) container_of(drv,struct pci_driver, driver)
@@ -431,7 +434,7 @@ int pci_scan_slot(struct pci_bus *bus, int devfn);
 struct pci_dev * pci_scan_single_device(struct pci_bus *bus, int devfn);
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus);
 unsigned int pci_scan_child_bus(struct pci_bus *bus);
-void pci_bus_add_device(struct pci_dev *dev);
+int __must_check pci_bus_add_device(struct pci_dev *dev);
 void pci_read_bridge_bases(struct pci_bus *child);
 struct resource *pci_find_parent_resource(const struct pci_dev *dev, struct resource *res);
 int pci_get_interrupt_pin(struct pci_dev *dev, struct pci_dev **bridge);
@@ -439,7 +442,9 @@ extern struct pci_dev *pci_dev_get(struct pci_dev *dev);
 extern void pci_dev_put(struct pci_dev *dev);
 extern void pci_remove_bus(struct pci_bus *b);
 extern void pci_remove_bus_device(struct pci_dev *dev);
+extern void pci_stop_bus_device(struct pci_dev *dev);
 void pci_setup_cardbus(struct pci_bus *bus);
+extern void pci_sort_breadthfirst(void);
 
 /* Generic PCI functions exported to card drivers */
 
@@ -449,13 +454,18 @@ struct pci_dev *pci_find_slot (unsigned int bus, unsigned int devfn);
 int pci_find_capability (struct pci_dev *dev, int cap);
 int pci_find_next_capability (struct pci_dev *dev, u8 pos, int cap);
 int pci_find_ext_capability (struct pci_dev *dev, int cap);
-struct pci_bus * pci_find_next_bus(const struct pci_bus *from);
+struct pci_bus *pci_find_next_bus(const struct pci_bus *from);
 
-struct pci_dev *pci_get_device (unsigned int vendor, unsigned int device, struct pci_dev *from);
+struct pci_dev *pci_get_device(unsigned int vendor, unsigned int device,
+				struct pci_dev *from);
+struct pci_dev *pci_get_device_reverse(unsigned int vendor, unsigned int device,
+				struct pci_dev *from);
+
 struct pci_dev *pci_get_subsys (unsigned int vendor, unsigned int device,
 				unsigned int ss_vendor, unsigned int ss_device,
 				struct pci_dev *from);
 struct pci_dev *pci_get_slot (struct pci_bus *bus, unsigned int devfn);
+struct pci_dev *pci_get_bus_and_slot (unsigned int bus, unsigned int devfn);
 struct pci_dev *pci_get_class (unsigned int class, struct pci_dev *from);
 int pci_dev_present(const struct pci_device_id *ids);
 
@@ -592,6 +602,7 @@ struct msix_entry {
 	u16	entry;	/* driver uses to specify entry, OS writes */
 };
 
+
 #ifndef CONFIG_PCI_MSI
 static inline void pci_scan_msi_device(struct pci_dev *dev) {}
 static inline int pci_enable_msi(struct pci_dev *dev) {return -1;}
@@ -609,6 +620,12 @@ extern int pci_enable_msix(struct pci_dev* dev,
 extern void pci_disable_msix(struct pci_dev *dev);
 extern void msi_remove_pci_irq_vectors(struct pci_dev *dev);
 #endif
+
+#ifdef CONFIG_HT_IRQ
+/* The functions a driver should call */
+int  ht_create_irq(struct pci_dev *dev, int idx);
+void ht_destroy_irq(unsigned int irq);
+#endif /* CONFIG_HT_IRQ */
 
 extern void pci_block_user_cfg_access(struct pci_dev *dev);
 extern void pci_unblock_user_cfg_access(struct pci_dev *dev);
@@ -648,7 +665,12 @@ static inline struct pci_dev *pci_find_device(unsigned int vendor, unsigned int 
 static inline struct pci_dev *pci_find_slot(unsigned int bus, unsigned int devfn)
 { return NULL; }
 
-static inline struct pci_dev *pci_get_device (unsigned int vendor, unsigned int device, struct pci_dev *from)
+static inline struct pci_dev *pci_get_device(unsigned int vendor,
+				unsigned int device, struct pci_dev *from)
+{ return NULL; }
+
+static inline struct pci_dev *pci_get_device_reverse(unsigned int vendor,
+				unsigned int device, struct pci_dev *from)
 { return NULL; }
 
 static inline struct pci_dev *pci_get_subsys (unsigned int vendor, unsigned int device,
@@ -784,12 +806,13 @@ enum pci_fixup_pass {
 void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev);
 
 extern int pci_pci_problems;
-#define PCIPCI_FAIL		1
+#define PCIPCI_FAIL		1	/* No PCI PCI DMA */
 #define PCIPCI_TRITON		2
 #define PCIPCI_NATOMA		4
 #define PCIPCI_VIAETBF		8
 #define PCIPCI_VSFX		16
-#define PCIPCI_ALIMAGIK		32
+#define PCIPCI_ALIMAGIK		32	/* Need low latency setting */
+#define PCIAGP_FAIL		64	/* No PCI to AGP DMA */
 
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */

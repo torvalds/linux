@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-arm/hardware/SA-1111.h
+ * linux/include/asm-arm/hardware/sa1111.h
  *
  * Copyright (C) 2000 John G Dorsey <john+@cs.cmu.edu>
  *

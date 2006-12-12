@@ -28,7 +28,7 @@
 #include <linux/string.h>
 #include <linux/input.h>
 #include <linux/device.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
 
@@ -58,6 +58,7 @@ static int adcsync;
 static inline void ucb1x00_ts_evt_add(struct ucb1x00_ts *ts, u16 pressure, u16 x, u16 y)
 {
 	struct input_dev *idev = ts->idev;
+
 	input_report_abs(idev, ABS_X, x);
 	input_report_abs(idev, ABS_Y, y);
 	input_report_abs(idev, ABS_PRESSURE, pressure);
@@ -67,6 +68,7 @@ static inline void ucb1x00_ts_evt_add(struct ucb1x00_ts *ts, u16 pressure, u16 x
 static inline void ucb1x00_ts_event_release(struct ucb1x00_ts *ts)
 {
 	struct input_dev *idev = ts->idev;
+
 	input_report_abs(idev, ABS_PRESSURE, 0);
 	input_sync(idev);
 }
@@ -189,6 +191,7 @@ static inline unsigned int ucb1x00_ts_read_yres(struct ucb1x00_ts *ts)
 static inline int ucb1x00_ts_pen_down(struct ucb1x00_ts *ts)
 {
 	unsigned int val = ucb1x00_reg_read(ts->ucb, UCB_TS_CR);
+
 	if (machine_is_collie())
 		return (!(val & (UCB_TS_CR_TSPX_LOW)));
 	else
@@ -291,6 +294,7 @@ static int ucb1x00_thread(void *_ts)
 static void ucb1x00_ts_irq(int idx, void *id)
 {
 	struct ucb1x00_ts *ts = id;
+
 	ucb1x00_disable_irq(ts->ucb, UCB_IRQ_TSPX, UCB_FALLING);
 	wake_up(&ts->irq_wait);
 }
@@ -372,36 +376,43 @@ static int ucb1x00_ts_resume(struct ucb1x00_dev *dev)
 static int ucb1x00_ts_add(struct ucb1x00_dev *dev)
 {
 	struct ucb1x00_ts *ts;
+	struct input_dev *idev;
+	int err;
 
 	ts = kzalloc(sizeof(struct ucb1x00_ts), GFP_KERNEL);
-	if (!ts)
-		return -ENOMEM;
-
-	ts->idev = input_allocate_device();
-	if (!ts->idev) {
-		kfree(ts);
-		return -ENOMEM;
+	idev = input_allocate_device();
+	if (!ts || !idev) {
+		err = -ENOMEM;
+		goto fail;
 	}
 
 	ts->ucb = dev->ucb;
+	ts->idev = idev;
 	ts->adcsync = adcsync ? UCB_SYNC : UCB_NOSYNC;
 
-	ts->idev->private = ts;
-	ts->idev->name       = "Touchscreen panel";
-	ts->idev->id.product = ts->ucb->id;
-	ts->idev->open       = ucb1x00_ts_open;
-	ts->idev->close      = ucb1x00_ts_close;
+	idev->private    = ts;
+	idev->name       = "Touchscreen panel";
+	idev->id.product = ts->ucb->id;
+	idev->open       = ucb1x00_ts_open;
+	idev->close      = ucb1x00_ts_close;
 
-	__set_bit(EV_ABS, ts->idev->evbit);
-	__set_bit(ABS_X, ts->idev->absbit);
-	__set_bit(ABS_Y, ts->idev->absbit);
-	__set_bit(ABS_PRESSURE, ts->idev->absbit);
+	__set_bit(EV_ABS, idev->evbit);
+	__set_bit(ABS_X, idev->absbit);
+	__set_bit(ABS_Y, idev->absbit);
+	__set_bit(ABS_PRESSURE, idev->absbit);
 
-	input_register_device(ts->idev);
+	err = input_register_device(idev);
+	if (err)
+		goto fail;
 
 	dev->priv = ts;
 
 	return 0;
+
+ fail:
+	input_free_device(idev);
+	kfree(ts);
+	return err;
 }
 
 static void ucb1x00_ts_remove(struct ucb1x00_dev *dev)

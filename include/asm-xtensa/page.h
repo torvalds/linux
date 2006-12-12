@@ -15,18 +15,24 @@
 
 #include <asm/processor.h>
 
+#define XCHAL_KSEG_CACHED_VADDR 0xd0000000
+#define XCHAL_KSEG_BYPASS_VADDR 0xd8000000
+#define XCHAL_KSEG_PADDR        0x00000000
+#define XCHAL_KSEG_SIZE         0x08000000
+
 /*
  * PAGE_SHIFT determines the page size
  * PAGE_ALIGN(x) aligns the pointer to the (next) page boundary
  */
 
-#define PAGE_SHIFT		XCHAL_MMU_MIN_PTE_PAGE_SIZE
+#define PAGE_SHIFT		12
 #define PAGE_SIZE		(1 << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE-1))
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE - 1) & PAGE_MASK)
 
-#define DCACHE_WAY_SIZE		(XCHAL_DCACHE_SIZE / XCHAL_DCACHE_WAYS)
 #define PAGE_OFFSET		XCHAL_KSEG_CACHED_VADDR
+#define MAX_MEM_PFN             XCHAL_KSEG_SIZE
+#define PGTABLE_START           0x80000000
 
 #ifdef __ASSEMBLY__
 

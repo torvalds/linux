@@ -41,10 +41,7 @@ Example to enable the 3780i DSP using ttyS1 resources:
 Accessing the driver
 --------------------
 
-You must also create a node for the driver.  Without devfs:
+You must also create a node for the driver:
   mkdir -p /dev/modems
   mknod --mode=660 /dev/modems/mwave c 10 219
-With devfs:
-  mkdir -p /dev/modems
-  ln -s ../misc/mwave /dev/modems/mwave
 

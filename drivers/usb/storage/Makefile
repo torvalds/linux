@@ -20,6 +20,7 @@ usb-storage-obj-$(CONFIG_USB_STORAGE_DATAFAB)	+= datafab.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_JUMPSHOT)	+= jumpshot.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_ALAUDA)	+= alauda.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_ONETOUCH)	+= onetouch.o
+usb-storage-obj-$(CONFIG_USB_STORAGE_KARMA)	+= karma.o
 
 usb-storage-objs :=	scsiglue.o protocol.o transport.o usb.o \
 			initializers.o $(usb-storage-obj-y)

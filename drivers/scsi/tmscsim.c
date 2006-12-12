@@ -279,6 +279,10 @@ static void dc390_ResetDevParam(struct dc390_acb* pACB);
 static u32	dc390_laststatus = 0;
 static u8	dc390_adapterCnt = 0;
 
+static int disable_clustering;
+module_param(disable_clustering, int, S_IRUGO);
+MODULE_PARM_DESC(disable_clustering, "If you experience problems with your devices, try setting to 1");
+
 /* Startup values, to be overriden on the commandline */
 static int tmscsim[] = {-2, -2, -2, -2, -2, -2};
 
@@ -696,9 +700,9 @@ dc390_InvalidCmd(struct dc390_acb* pACB)
 
 
 static irqreturn_t __inline__
-DC390_Interrupt(int irq, void *dev_id, struct pt_regs *regs)
+DC390_Interrupt(void *dev_id)
 {
-    struct dc390_acb *pACB = (struct dc390_acb*)dev_id;
+    struct dc390_acb *pACB = dev_id;
     struct dc390_dcb *pDCB;
     struct dc390_srb *pSRB;
     u8  sstatus=0;
@@ -807,12 +811,12 @@ DC390_Interrupt(int irq, void *dev_id, struct pt_regs *regs)
     return IRQ_HANDLED;
 }
 
-static irqreturn_t do_DC390_Interrupt( int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t do_DC390_Interrupt(int irq, void *dev_id)
 {
     irqreturn_t ret;
     DEBUG1(printk (KERN_INFO "DC390: Irq (%i) caught: ", irq));
     /* Locking is done in DC390_Interrupt */
-    ret = DC390_Interrupt(irq, dev_id, regs);
+    ret = DC390_Interrupt(dev_id);
     DEBUG1(printk (".. IRQ returned\n"));
     return ret;
 }
@@ -2299,7 +2303,8 @@ static struct scsi_host_template driver_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 1,
-	.use_clustering		= DISABLE_CLUSTERING,
+	.use_clustering		= ENABLE_CLUSTERING,
+	.max_sectors		= 0x4000, /* 8MiB = 16 * 1024 * 512 */
 };
 
 /***********************************************************************
@@ -2525,6 +2530,8 @@ static int __devinit dc390_probe_one(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	error = -ENOMEM;
+	if (disable_clustering)
+		driver_template.use_clustering = DISABLE_CLUSTERING;
 	shost = scsi_host_alloc(&driver_template, sizeof(struct dc390_acb));
 	if (!shost)
 		goto out_disable_device;
@@ -2660,6 +2667,10 @@ static struct pci_driver dc390_driver = {
 
 static int __init dc390_module_init(void)
 {
+	if (!disable_clustering)
+		printk(KERN_INFO "DC390: clustering now enabled by default. If you get problems load\n"
+		       "\twith \"disable_clustering=1\" and report to maintainers\n");
+
 	if (tmscsim[0] == -1 || tmscsim[0] > 15) {
 		tmscsim[0] = 7;
 		tmscsim[1] = 4;

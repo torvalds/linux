@@ -358,11 +358,11 @@ static void ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
 static void ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,
     struct ub_scsi_cmd *cmd, struct ub_request *urq);
 static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd);
-static void ub_end_rq(struct request *rq, int uptodate);
+static void ub_end_rq(struct request *rq, unsigned int status);
 static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,
     struct ub_request *urq, struct ub_scsi_cmd *cmd);
 static int ub_submit_scsi(struct ub_dev *sc, struct ub_scsi_cmd *cmd);
-static void ub_urb_complete(struct urb *urb, struct pt_regs *pt);
+static void ub_urb_complete(struct urb *urb);
 static void ub_scsi_action(unsigned long _dev);
 static void ub_scsi_dispatch(struct ub_dev *sc);
 static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd);
@@ -376,7 +376,7 @@ static int ub_submit_clear_stall(struct ub_dev *sc, struct ub_scsi_cmd *cmd,
     int stalled_pipe);
 static void ub_top_sense_done(struct ub_dev *sc, struct ub_scsi_cmd *scmd);
 static void ub_reset_enter(struct ub_dev *sc, int try);
-static void ub_reset_task(void *arg);
+static void ub_reset_task(struct work_struct *work);
 static int ub_sync_tur(struct ub_dev *sc, struct ub_lun *lun);
 static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
     struct ub_capacity *ret);
@@ -639,9 +639,15 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 	struct ub_request *urq;
 	int n_elem;
 
-	if (atomic_read(&sc->poison) || lun->changed) {
+	if (atomic_read(&sc->poison)) {
 		blkdev_dequeue_request(rq);
-		ub_end_rq(rq, 0);
+		ub_end_rq(rq, DID_NO_CONNECT << 16);
+		return 0;
+	}
+
+	if (lun->changed && !blk_pc_request(rq)) {
+		blkdev_dequeue_request(rq);
+		ub_end_rq(rq, SAM_STAT_CHECK_CONDITION);
 		return 0;
 	}
 
@@ -693,7 +699,7 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 
 drop:
 	ub_put_cmd(lun, cmd);
-	ub_end_rq(rq, 0);
+	ub_end_rq(rq, DID_ERROR << 16);
 	return 0;
 }
 
@@ -761,47 +767,53 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	struct ub_lun *lun = cmd->lun;
 	struct ub_request *urq = cmd->back;
 	struct request *rq;
-	int uptodate;
+	unsigned int scsi_status;
 
 	rq = urq->rq;
 
 	if (cmd->error == 0) {
-		uptodate = 1;
-
 		if (blk_pc_request(rq)) {
 			if (cmd->act_len >= rq->data_len)
 				rq->data_len = 0;
 			else
 				rq->data_len -= cmd->act_len;
 		}
+		scsi_status = 0;
 	} else {
-		uptodate = 0;
-
 		if (blk_pc_request(rq)) {
 			/* UB_SENSE_SIZE is smaller than SCSI_SENSE_BUFFERSIZE */
 			memcpy(rq->sense, sc->top_sense, UB_SENSE_SIZE);
 			rq->sense_len = UB_SENSE_SIZE;
 			if (sc->top_sense[0] != 0)
-				rq->errors = SAM_STAT_CHECK_CONDITION;
+				scsi_status = SAM_STAT_CHECK_CONDITION;
 			else
-				rq->errors = DID_ERROR << 16;
+				scsi_status = DID_ERROR << 16;
 		} else {
 			if (cmd->error == -EIO) {
 				if (ub_rw_cmd_retry(sc, lun, urq, cmd) == 0)
 					return;
 			}
+			scsi_status = SAM_STAT_CHECK_CONDITION;
 		}
 	}
 
 	urq->rq = NULL;
 
 	ub_put_cmd(lun, cmd);
-	ub_end_rq(rq, uptodate);
+	ub_end_rq(rq, scsi_status);
 	blk_start_queue(lun->disk->queue);
 }
 
-static void ub_end_rq(struct request *rq, int uptodate)
+static void ub_end_rq(struct request *rq, unsigned int scsi_status)
 {
+	int uptodate;
+
+	if (scsi_status == 0) {
+		uptodate = 1;
+	} else {
+		uptodate = 0;
+		rq->errors = scsi_status;
+	}
 	end_that_request_first(rq, uptodate, rq->hard_nr_sectors);
 	end_that_request_last(rq, uptodate);
 }
@@ -947,7 +959,7 @@ static void ub_urb_timeout(unsigned long arg)
  * the sc->lock taken) and from an interrupt (while we do NOT have
  * the sc->lock taken). Therefore, bounce this off to a tasklet.
  */
-static void ub_urb_complete(struct urb *urb, struct pt_regs *pt)
+static void ub_urb_complete(struct urb *urb)
 {
 	struct ub_dev *sc = urb->context;
 
@@ -1546,9 +1558,9 @@ static void ub_reset_enter(struct ub_dev *sc, int try)
 	schedule_work(&sc->reset_work);
 }
 
-static void ub_reset_task(void *arg)
+static void ub_reset_task(struct work_struct *work)
 {
-	struct ub_dev *sc = arg;
+	struct ub_dev *sc = container_of(work, struct ub_dev, reset_work);
 	unsigned long flags;
 	struct list_head *p;
 	struct ub_lun *lun;
@@ -1911,7 +1923,7 @@ err_alloc:
 
 /*
  */
-static void ub_probe_urb_complete(struct urb *urb, struct pt_regs *pt)
+static void ub_probe_urb_complete(struct urb *urb)
 {
 	struct completion *cop = urb->context;
 	complete(cop);
@@ -2167,7 +2179,7 @@ static int ub_probe(struct usb_interface *intf,
 	usb_init_urb(&sc->work_urb);
 	tasklet_init(&sc->tasklet, ub_scsi_action, (unsigned long)sc);
 	atomic_set(&sc->poison, 0);
-	INIT_WORK(&sc->reset_work, ub_reset_task, sc);
+	INIT_WORK(&sc->reset_work, ub_reset_task);
 	init_waitqueue_head(&sc->reset_wait);
 
 	init_timer(&sc->work_timer);

@@ -383,7 +383,7 @@ static u32 scx200_acb_func(struct i2c_adapter *adapter)
 }
 
 /* For now, we only handle combined mode (smbus) */
-static struct i2c_algorithm scx200_acb_algorithm = {
+static const struct i2c_algorithm scx200_acb_algorithm = {
 	.smbus_xfer	= scx200_acb_smbus_xfer,
 	.functionality	= scx200_acb_func,
 };
@@ -494,11 +494,12 @@ static __init int scx200_create_pci(const char *text, struct pci_dev *pdev,
 	iface->pdev = pdev;
 	iface->bar = bar;
 
-	pci_enable_device_bars(iface->pdev, 1 << iface->bar);
+	rc = pci_enable_device_bars(iface->pdev, 1 << iface->bar);
+	if (rc)
+		goto errout_free;
 
 	rc = pci_request_region(iface->pdev, iface->bar, iface->adapter.name);
-
-	if (rc != 0) {
+	if (rc) {
 		printk(KERN_ERR NAME ": can't allocate PCI BAR %d\n",
 				iface->bar);
 		goto errout_free;

@@ -159,7 +159,7 @@ static int init_slots(struct controller *ctrl)
 			goto error_info;
 
 		slot->number = sun;
-		INIT_WORK(&slot->work, queue_pushbutton_work, slot);
+		INIT_DELAYED_WORK(&slot->work, queue_pushbutton_work);
 
 		/* register this slot with the hotplug pci core */
 		hotplug_slot->private = slot;
@@ -449,10 +449,14 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ctrl->speed = PCI_SPEED_33MHz;
 	}
 
-	shpchp_create_ctrl_files(ctrl);
+	rc = shpchp_create_ctrl_files(ctrl);
+	if (rc)
+		goto err_cleanup_slots;
 
 	return 0;
 
+err_cleanup_slots:
+	cleanup_slots(ctrl);
 err_out_release_ctlr:
 	ctrl->hpc_ops->release_ctlr(ctrl);
 err_out_free_ctrl:

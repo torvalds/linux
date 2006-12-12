@@ -95,16 +95,6 @@ const char *ipath_ibcstatus_str[] = {
 	"RecovIdle",
 };
 
-/*
- * These variables are initialized in the chip-specific files
- * but are defined here.
- */
-u16 ipath_gpio_sda_num, ipath_gpio_scl_num;
-u64 ipath_gpio_sda, ipath_gpio_scl;
-u64 infinipath_i_bitsextant;
-ipath_err_t infinipath_e_bitsextant, infinipath_hwe_bitsextant;
-u32 infinipath_i_rcvavail_mask, infinipath_i_rcvurg_mask;
-
 static void __devexit ipath_remove_one(struct pci_dev *);
 static int __devinit ipath_init_one(struct pci_dev *,
 				    const struct pci_device_id *);
@@ -314,7 +304,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	}
 	addr = pci_resource_start(pdev, 0);
 	len = pci_resource_len(pdev, 0);
-	ipath_cdbg(VERBOSE, "regbase (0) %llx len %d irq %x, vend %x/%x "
+	ipath_cdbg(VERBOSE, "regbase (0) %llx len %d pdev->irq %d, vend %x/%x "
 		   "driver_data %lx\n", addr, len, pdev->irq, ent->vendor,
 		   ent->device, ent->driver_data);
 
@@ -400,12 +390,16 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 
 	/* setup the chip-specific functions, as early as possible. */
 	switch (ent->device) {
+#ifdef CONFIG_HT_IRQ
 	case PCI_DEVICE_ID_INFINIPATH_HT:
 		ipath_init_iba6110_funcs(dd);
 		break;
+#endif
+#ifdef CONFIG_PCI_MSI
 	case PCI_DEVICE_ID_INFINIPATH_PE800:
 		ipath_init_iba6120_funcs(dd);
 		break;
+#endif
 	default:
 		ipath_dev_err(dd, "Found unknown QLogic deviceid 0x%x, "
 			      "failing\n", ent->device);
@@ -477,15 +471,15 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	 * check 0 irq after we return from chip-specific bus setup, since
 	 * that can affect this due to setup
 	 */
-	if (!pdev->irq)
+	if (!dd->ipath_irq)
 		ipath_dev_err(dd, "irq is 0, BIOS error?  Interrupts won't "
 			      "work\n");
 	else {
-		ret = request_irq(pdev->irq, ipath_intr, IRQF_SHARED,
+		ret = request_irq(dd->ipath_irq, ipath_intr, IRQF_SHARED,
 				  IPATH_DRV_NAME, dd);
 		if (ret) {
 			ipath_dev_err(dd, "Couldn't setup irq handler, "
-				      "irq=%u: %d\n", pdev->irq, ret);
+				      "irq=%d: %d\n", dd->ipath_irq, ret);
 			goto bail_iounmap;
 		}
 	}
@@ -527,28 +521,145 @@ bail:
 	return ret;
 }
 
+static void __devexit cleanup_device(struct ipath_devdata *dd)
+{
+	int port;
+
+	ipath_shutdown_device(dd);
+
+	if (*dd->ipath_statusp & IPATH_STATUS_CHIP_PRESENT) {
+		/* can't do anything more with chip; needs re-init */
+		*dd->ipath_statusp &= ~IPATH_STATUS_CHIP_PRESENT;
+		if (dd->ipath_kregbase) {
+			/*
+			 * if we haven't already cleaned up before these are
+			 * to ensure any register reads/writes "fail" until
+			 * re-init
+			 */
+			dd->ipath_kregbase = NULL;
+			dd->ipath_uregbase = 0;
+			dd->ipath_sregbase = 0;
+			dd->ipath_cregbase = 0;
+			dd->ipath_kregsize = 0;
+		}
+		ipath_disable_wc(dd);
+	}
+
+	if (dd->ipath_pioavailregs_dma) {
+		dma_free_coherent(&dd->pcidev->dev, PAGE_SIZE,
+				  (void *) dd->ipath_pioavailregs_dma,
+				  dd->ipath_pioavailregs_phys);
+		dd->ipath_pioavailregs_dma = NULL;
+	}
+	if (dd->ipath_dummy_hdrq) {
+		dma_free_coherent(&dd->pcidev->dev,
+			dd->ipath_pd[0]->port_rcvhdrq_size,
+			dd->ipath_dummy_hdrq, dd->ipath_dummy_hdrq_phys);
+		dd->ipath_dummy_hdrq = NULL;
+	}
+
+	if (dd->ipath_pageshadow) {
+		struct page **tmpp = dd->ipath_pageshadow;
+		dma_addr_t *tmpd = dd->ipath_physshadow;
+		int i, cnt = 0;
+
+		ipath_cdbg(VERBOSE, "Unlocking any expTID pages still "
+			   "locked\n");
+		for (port = 0; port < dd->ipath_cfgports; port++) {
+			int port_tidbase = port * dd->ipath_rcvtidcnt;
+			int maxtid = port_tidbase + dd->ipath_rcvtidcnt;
+			for (i = port_tidbase; i < maxtid; i++) {
+				if (!tmpp[i])
+					continue;
+				pci_unmap_page(dd->pcidev, tmpd[i],
+					PAGE_SIZE, PCI_DMA_FROMDEVICE);
+				ipath_release_user_pages(&tmpp[i], 1);
+				tmpp[i] = NULL;
+				cnt++;
+			}
+		}
+		if (cnt) {
+			ipath_stats.sps_pageunlocks += cnt;
+			ipath_cdbg(VERBOSE, "There were still %u expTID "
+				   "entries locked\n", cnt);
+		}
+		if (ipath_stats.sps_pagelocks ||
+		    ipath_stats.sps_pageunlocks)
+			ipath_cdbg(VERBOSE, "%llu pages locked, %llu "
+				   "unlocked via ipath_m{un}lock\n",
+				   (unsigned long long)
+				   ipath_stats.sps_pagelocks,
+				   (unsigned long long)
+				   ipath_stats.sps_pageunlocks);
+
+		ipath_cdbg(VERBOSE, "Free shadow page tid array at %p\n",
+			   dd->ipath_pageshadow);
+		vfree(dd->ipath_pageshadow);
+		dd->ipath_pageshadow = NULL;
+	}
+
+	/*
+	 * free any resources still in use (usually just kernel ports)
+	 * at unload; we do for portcnt, not cfgports, because cfgports
+	 * could have changed while we were loaded.
+	 */
+	for (port = 0; port < dd->ipath_portcnt; port++) {
+		struct ipath_portdata *pd = dd->ipath_pd[port];
+		dd->ipath_pd[port] = NULL;
+		ipath_free_pddata(dd, pd);
+	}
+	kfree(dd->ipath_pd);
+	/*
+	 * debuggability, in case some cleanup path tries to use it
+	 * after this
+	 */
+	dd->ipath_pd = NULL;
+}
+
 static void __devexit ipath_remove_one(struct pci_dev *pdev)
 {
-	struct ipath_devdata *dd;
+	struct ipath_devdata *dd = pci_get_drvdata(pdev);
 
-	ipath_cdbg(VERBOSE, "removing, pdev=%p\n", pdev);
-	if (!pdev)
-		return;
+	ipath_cdbg(VERBOSE, "removing, pdev=%p, dd=%p\n", pdev, dd);
 
-	dd = pci_get_drvdata(pdev);
-	ipath_unregister_ib_device(dd->verbs_dev);
+	if (dd->verbs_dev)
+		ipath_unregister_ib_device(dd->verbs_dev);
+
 	ipath_diag_remove(dd);
 	ipath_user_remove(dd);
 	ipathfs_remove_device(dd);
 	ipath_device_remove_group(&pdev->dev, dd);
+
 	ipath_cdbg(VERBOSE, "Releasing pci memory regions, dd %p, "
 		   "unit %u\n", dd, (u32) dd->ipath_unit);
-	if (dd->ipath_kregbase) {
-		ipath_cdbg(VERBOSE, "Unmapping kregbase %p\n",
-			   dd->ipath_kregbase);
-		iounmap((volatile void __iomem *) dd->ipath_kregbase);
-		dd->ipath_kregbase = NULL;
-	}
+
+	cleanup_device(dd);
+
+	/*
+	 * turn off rcv, send, and interrupts for all ports, all drivers
+	 * should also hard reset the chip here?
+	 * free up port 0 (kernel) rcvhdr, egr bufs, and eventually tid bufs
+	 * for all versions of the driver, if they were allocated
+	 */
+	if (dd->ipath_irq) {
+		ipath_cdbg(VERBOSE, "unit %u free irq %d\n",
+			   dd->ipath_unit, dd->ipath_irq);
+		dd->ipath_f_free_irq(dd);
+	} else
+		ipath_dbg("irq is 0, not doing free_irq "
+			  "for unit %u\n", dd->ipath_unit);
+	/*
+	 * we check for NULL here, because it's outside
+	 * the kregbase check, and we need to call it
+	 * after the free_irq.	Thus it's possible that
+	 * the function pointers were never initialized.
+	 */
+	if (dd->ipath_f_cleanup)
+		/* clean up chip-specific stuff */
+		dd->ipath_f_cleanup(dd);
+
+	ipath_cdbg(VERBOSE, "Unmapping kregbase %p\n", dd->ipath_kregbase);
+	iounmap((volatile void __iomem *) dd->ipath_kregbase);
 	pci_release_regions(pdev);
 	ipath_cdbg(VERBOSE, "calling pci_disable_device\n");
 	pci_disable_device(pdev);
@@ -760,8 +871,8 @@ static void get_rhf_errstring(u32 err, char *msg, size_t len)
 static inline void *ipath_get_egrbuf(struct ipath_devdata *dd, u32 bufnum,
 				     int err)
 {
-	return dd->ipath_port0_skbs ?
-		(void *)dd->ipath_port0_skbs[bufnum]->data : NULL;
+	return dd->ipath_port0_skbinfo ?
+		(void *) dd->ipath_port0_skbinfo[bufnum].skb->data : NULL;
 }
 
 /**
@@ -783,31 +894,34 @@ struct sk_buff *ipath_alloc_skb(struct ipath_devdata *dd,
 	 */
 
 	/*
-	 * We need 4 extra bytes for unaligned transfer copying
+	 * We need 2 extra bytes for ipath_ether data sent in the
+	 * key header.  In order to keep everything dword aligned,
+	 * we'll reserve 4 bytes.
 	 */
+	len = dd->ipath_ibmaxlen + 4;
+
 	if (dd->ipath_flags & IPATH_4BYTE_TID) {
-		/* we need a 4KB multiple alignment, and there is no way
+		/* We need a 2KB multiple alignment, and there is no way
 		 * to do it except to allocate extra and then skb_reserve
 		 * enough to bring it up to the right alignment.
 		 */
-		len = dd->ipath_ibmaxlen + 4 + (1 << 11) - 1;
+		len += 2047;
 	}
-	else
-		len = dd->ipath_ibmaxlen + 4;
+
 	skb = __dev_alloc_skb(len, gfp_mask);
 	if (!skb) {
 		ipath_dev_err(dd, "Failed to allocate skbuff, length %u\n",
 			      len);
 		goto bail;
 	}
+
+	skb_reserve(skb, 4);
+
 	if (dd->ipath_flags & IPATH_4BYTE_TID) {
-		u32 una = ((1 << 11) - 1) & (unsigned long)(skb->data + 4);
+		u32 una = (unsigned long)skb->data & 2047;
 		if (una)
-			skb_reserve(skb, 4 + (1 << 11) - una);
-		else
-			skb_reserve(skb, 4);
-	} else
-		skb_reserve(skb, 4);
+			skb_reserve(skb, 2048 - una);
+	}
 
 bail:
 	return skb;
@@ -1326,6 +1440,9 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 				      "for port %u rcvhdrqtailaddr failed\n",
 				      pd->port_port);
 			ret = -ENOMEM;
+			dma_free_coherent(&dd->pcidev->dev, amt,
+					  pd->port_rcvhdrq, pd->port_rcvhdrq_phys);
+			pd->port_rcvhdrq = NULL;
 			goto bail;
 		}
 		pd->port_rcvhdrqtailaddr_phys = phys_hdrqtail;
@@ -1347,12 +1464,13 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 		ipath_cdbg(VERBOSE, "reuse port %d rcvhdrq @%p %llx phys; "
 			   "hdrtailaddr@%p %llx physical\n",
 			   pd->port_port, pd->port_rcvhdrq,
-			   pd->port_rcvhdrq_phys, pd->port_rcvhdrtail_kvaddr,
-			   (unsigned long long)pd->port_rcvhdrqtailaddr_phys);
+			   (unsigned long long) pd->port_rcvhdrq_phys,
+			   pd->port_rcvhdrtail_kvaddr, (unsigned long long)
+			   pd->port_rcvhdrqtailaddr_phys);
 
 	/* clear for security and sanity on each use */
 	memset(pd->port_rcvhdrq, 0, pd->port_rcvhdrq_size);
-	memset((void *)pd->port_rcvhdrtail_kvaddr, 0, PAGE_SIZE);
+	memset(pd->port_rcvhdrtail_kvaddr, 0, PAGE_SIZE);
 
 	/*
 	 * tell chip each time we init it, even if we are re-using previous
@@ -1805,7 +1923,7 @@ void ipath_free_pddata(struct ipath_devdata *dd, struct ipath_portdata *pd)
 		pd->port_rcvhdrq = NULL;
 		if (pd->port_rcvhdrtail_kvaddr) {
 			dma_free_coherent(&dd->pcidev->dev, PAGE_SIZE,
-					 (void *)pd->port_rcvhdrtail_kvaddr,
+					 pd->port_rcvhdrtail_kvaddr,
 					 pd->port_rcvhdrqtailaddr_phys);
 			pd->port_rcvhdrtail_kvaddr = NULL;
 		}
@@ -1824,24 +1942,32 @@ void ipath_free_pddata(struct ipath_devdata *dd, struct ipath_portdata *pd)
 			dma_free_coherent(&dd->pcidev->dev, size,
 				base, pd->port_rcvegrbuf_phys[e]);
 		}
-		vfree(pd->port_rcvegrbuf);
+		kfree(pd->port_rcvegrbuf);
 		pd->port_rcvegrbuf = NULL;
-		vfree(pd->port_rcvegrbuf_phys);
+		kfree(pd->port_rcvegrbuf_phys);
 		pd->port_rcvegrbuf_phys = NULL;
 		pd->port_rcvegrbuf_chunks = 0;
-	} else if (pd->port_port == 0 && dd->ipath_port0_skbs) {
+	} else if (pd->port_port == 0 && dd->ipath_port0_skbinfo) {
 		unsigned e;
-		struct sk_buff **skbs = dd->ipath_port0_skbs;
+		struct ipath_skbinfo *skbinfo = dd->ipath_port0_skbinfo;
 
-		dd->ipath_port0_skbs = NULL;
-		ipath_cdbg(VERBOSE, "free closed port %d ipath_port0_skbs "
-			   "@ %p\n", pd->port_port, skbs);
+		dd->ipath_port0_skbinfo = NULL;
+		ipath_cdbg(VERBOSE, "free closed port %d "
+			   "ipath_port0_skbinfo @ %p\n", pd->port_port,
+			   skbinfo);
 		for (e = 0; e < dd->ipath_rcvegrcnt; e++)
-			if (skbs[e])
-				dev_kfree_skb(skbs[e]);
-		vfree(skbs);
+		if (skbinfo[e].skb) {
+			pci_unmap_single(dd->pcidev, skbinfo[e].phys,
+					 dd->ipath_ibmaxlen,
+					 PCI_DMA_FROMDEVICE);
+			dev_kfree_skb(skbinfo[e].skb);
+		}
+		vfree(skbinfo);
 	}
 	kfree(pd->port_tid_pg_list);
+	vfree(pd->subport_uregbase);
+	vfree(pd->subport_rcvegrbuf);
+	vfree(pd->subport_rcvhdr_base);
 	kfree(pd);
 }
 
@@ -1882,17 +2008,7 @@ static int __init infinipath_init(void)
 		goto bail_group;
 	}
 
-	ret = ipath_diagpkt_add();
-	if (ret < 0) {
-		printk(KERN_ERR IPATH_DRV_NAME ": Unable to create "
-		       "diag data device: error %d\n", -ret);
-		goto bail_ipathfs;
-	}
-
 	goto bail;
-
-bail_ipathfs:
-	ipath_exit_ipathfs();
 
 bail_group:
 	ipath_driver_remove_group(&ipath_driver.driver);
@@ -1907,149 +2023,11 @@ bail:
 	return ret;
 }
 
-static void cleanup_device(struct ipath_devdata *dd)
-{
-	int port;
-
-	ipath_shutdown_device(dd);
-
-	if (*dd->ipath_statusp & IPATH_STATUS_CHIP_PRESENT) {
-		/* can't do anything more with chip; needs re-init */
-		*dd->ipath_statusp &= ~IPATH_STATUS_CHIP_PRESENT;
-		if (dd->ipath_kregbase) {
-			/*
-			 * if we haven't already cleaned up before these are
-			 * to ensure any register reads/writes "fail" until
-			 * re-init
-			 */
-			dd->ipath_kregbase = NULL;
-			dd->ipath_uregbase = 0;
-			dd->ipath_sregbase = 0;
-			dd->ipath_cregbase = 0;
-			dd->ipath_kregsize = 0;
-		}
-		ipath_disable_wc(dd);
-	}
-
-	if (dd->ipath_pioavailregs_dma) {
-		dma_free_coherent(&dd->pcidev->dev, PAGE_SIZE,
-				  (void *) dd->ipath_pioavailregs_dma,
-				  dd->ipath_pioavailregs_phys);
-		dd->ipath_pioavailregs_dma = NULL;
-	}
-	if (dd->ipath_dummy_hdrq) {
-		dma_free_coherent(&dd->pcidev->dev,
-			dd->ipath_pd[0]->port_rcvhdrq_size,
-			dd->ipath_dummy_hdrq, dd->ipath_dummy_hdrq_phys);
-		dd->ipath_dummy_hdrq = NULL;
-	}
-
-	if (dd->ipath_pageshadow) {
-		struct page **tmpp = dd->ipath_pageshadow;
-		int i, cnt = 0;
-
-		ipath_cdbg(VERBOSE, "Unlocking any expTID pages still "
-			   "locked\n");
-		for (port = 0; port < dd->ipath_cfgports; port++) {
-			int port_tidbase = port * dd->ipath_rcvtidcnt;
-			int maxtid = port_tidbase + dd->ipath_rcvtidcnt;
-			for (i = port_tidbase; i < maxtid; i++) {
-				if (!tmpp[i])
-					continue;
-				ipath_release_user_pages(&tmpp[i], 1);
-				tmpp[i] = NULL;
-				cnt++;
-			}
-		}
-		if (cnt) {
-			ipath_stats.sps_pageunlocks += cnt;
-			ipath_cdbg(VERBOSE, "There were still %u expTID "
-				   "entries locked\n", cnt);
-		}
-		if (ipath_stats.sps_pagelocks ||
-		    ipath_stats.sps_pageunlocks)
-			ipath_cdbg(VERBOSE, "%llu pages locked, %llu "
-				   "unlocked via ipath_m{un}lock\n",
-				   (unsigned long long)
-				   ipath_stats.sps_pagelocks,
-				   (unsigned long long)
-				   ipath_stats.sps_pageunlocks);
-
-		ipath_cdbg(VERBOSE, "Free shadow page tid array at %p\n",
-			   dd->ipath_pageshadow);
-		vfree(dd->ipath_pageshadow);
-		dd->ipath_pageshadow = NULL;
-	}
-
-	/*
-	 * free any resources still in use (usually just kernel ports)
-	 * at unload; we do for portcnt, not cfgports, because cfgports
-	 * could have changed while we were loaded.
-	 */
-	for (port = 0; port < dd->ipath_portcnt; port++) {
-		struct ipath_portdata *pd = dd->ipath_pd[port];
-		dd->ipath_pd[port] = NULL;
-		ipath_free_pddata(dd, pd);
-	}
-	kfree(dd->ipath_pd);
-	/*
-	 * debuggability, in case some cleanup path tries to use it
-	 * after this
-	 */
-	dd->ipath_pd = NULL;
-}
-
 static void __exit infinipath_cleanup(void)
 {
-	struct ipath_devdata *dd, *tmp;
-	unsigned long flags;
-
-	ipath_diagpkt_remove();
-
 	ipath_exit_ipathfs();
 
 	ipath_driver_remove_group(&ipath_driver.driver);
-
-	spin_lock_irqsave(&ipath_devs_lock, flags);
-
-	/*
-	 * turn off rcv, send, and interrupts for all ports, all drivers
-	 * should also hard reset the chip here?
-	 * free up port 0 (kernel) rcvhdr, egr bufs, and eventually tid bufs
-	 * for all versions of the driver, if they were allocated
-	 */
-	list_for_each_entry_safe(dd, tmp, &ipath_dev_list, ipath_list) {
-		spin_unlock_irqrestore(&ipath_devs_lock, flags);
-
-		if (dd->ipath_kregbase)
-			cleanup_device(dd);
-
-		if (dd->pcidev) {
-			if (dd->pcidev->irq) {
-				ipath_cdbg(VERBOSE,
-					   "unit %u free_irq of irq %x\n",
-					   dd->ipath_unit, dd->pcidev->irq);
-				free_irq(dd->pcidev->irq, dd);
-			} else
-				ipath_dbg("irq is 0, not doing free_irq "
-					  "for unit %u\n", dd->ipath_unit);
-
-			/*
-			 * we check for NULL here, because it's outside
-			 * the kregbase check, and we need to call it
-			 * after the free_irq.  Thus it's possible that
-			 * the function pointers were never initialized.
-			 */
-			if (dd->ipath_f_cleanup)
-				/* clean up chip-specific stuff */
-				dd->ipath_f_cleanup(dd);
-
-			dd->pcidev = NULL;
-		}
-		spin_lock_irqsave(&ipath_devs_lock, flags);
-	}
-
-	spin_unlock_irqrestore(&ipath_devs_lock, flags);
 
 	ipath_cdbg(VERBOSE, "Unregistering pci driver\n");
 	pci_unregister_driver(&ipath_driver);

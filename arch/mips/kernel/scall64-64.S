@@ -34,7 +34,7 @@ NESTED(handle_sys64, PT_SIZE, sp)
 	 */
 	.set	noat
 	SAVE_SOME
-	TRACE_IRQS_ON
+	TRACE_IRQS_ON_RELOAD
 	STI
 	.set	at
 #endif
@@ -466,3 +466,8 @@ sys_call_table:
 	PTR	sys_tee				/* 5265 */
 	PTR	sys_vmsplice
 	PTR	sys_move_pages
+	PTR	sys_set_robust_list
+	PTR	sys_get_robust_list
+	PTR	sys_kexec_load			/* 5270 */
+	PTR	sys_getcpu
+	PTR	sys_epoll_pwait

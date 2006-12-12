@@ -52,8 +52,8 @@
 
 #define FBPIXMAPSIZE	(1024 * 8)
 
-struct fb_info *registered_fb[FB_MAX];
-int num_registered_fb;
+struct fb_info *registered_fb[FB_MAX] __read_mostly;
+int num_registered_fb __read_mostly;
 
 /*
  * Helpers
@@ -202,7 +202,7 @@ static void  fb_set_logo_truepalette(struct fb_info *info,
 					    const struct linux_logo *logo,
 					    u32 *palette)
 {
-	unsigned char mask[9] = { 0,0x80,0xc0,0xe0,0xf0,0xf8,0xfc,0xfe,0xff };
+	static const unsigned char mask[] = { 0,0x80,0xc0,0xe0,0xf0,0xf8,0xfc,0xfe,0xff };
 	unsigned char redmask, greenmask, bluemask;
 	int redshift, greenshift, blueshift;
 	int i;
@@ -317,7 +317,7 @@ static struct logo_data {
 	int needs_truepalette;
 	int needs_cmapreset;
 	const struct linux_logo *logo;
-} fb_logo;
+} fb_logo __read_mostly;
 
 static void fb_rotate_logo_ud(const u8 *in, u8 *out, u32 width, u32 height)
 {
@@ -554,7 +554,8 @@ static int fbmem_read_proc(char *buf, char **start, off_t offset,
 	int clen;
 
 	clen = 0;
-	for (fi = registered_fb; fi < &registered_fb[FB_MAX] && len < 4000; fi++)
+	for (fi = registered_fb; fi < &registered_fb[FB_MAX] && clen < 4000;
+	     fi++)
 		if (*fi)
 			clen += sprintf(buf + clen, "%d %s\n",
 				        (*fi)->node,
@@ -571,7 +572,7 @@ static ssize_t
 fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	int fbidx = iminor(inode);
 	struct fb_info *info = registered_fb[fbidx];
 	u32 *buffer, *dst;
@@ -646,7 +647,7 @@ static ssize_t
 fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	int fbidx = iminor(inode);
 	struct fb_info *info = registered_fb[fbidx];
 	u32 *buffer, *src;
@@ -1080,7 +1081,7 @@ static int fb_get_fscreeninfo(struct inode *inode, struct file *file,
 static long
 fb_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	int fbidx = iminor(inode);
 	struct fb_info *info = registered_fb[fbidx];
 	struct fb_ops *fb = info->fbops;
@@ -1120,7 +1121,7 @@ fb_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static int 
 fb_mmap(struct file *file, struct vm_area_struct * vma)
 {
-	int fbidx = iminor(file->f_dentry->d_inode);
+	int fbidx = iminor(file->f_path.dentry->d_inode);
 	struct fb_info *info = registered_fb[fbidx];
 	struct fb_ops *fb = info->fbops;
 	unsigned long off;
@@ -1252,7 +1253,7 @@ fb_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations fb_fops = {
+static const struct file_operations fb_fops = {
 	.owner =	THIS_MODULE,
 	.read =		fb_read,
 	.write =	fb_write,
@@ -1295,14 +1296,14 @@ register_framebuffer(struct fb_info *fb_info)
 			break;
 	fb_info->node = i;
 
-	fb_info->class_device = class_device_create(fb_class, NULL, MKDEV(FB_MAJOR, i),
-				    fb_info->device, "fb%d", i);
-	if (IS_ERR(fb_info->class_device)) {
+	fb_info->dev = device_create(fb_class, fb_info->device,
+				     MKDEV(FB_MAJOR, i), "fb%d", i);
+	if (IS_ERR(fb_info->dev)) {
 		/* Not fatal */
-		printk(KERN_WARNING "Unable to create class_device for framebuffer %d; errno = %ld\n", i, PTR_ERR(fb_info->class_device));
-		fb_info->class_device = NULL;
+		printk(KERN_WARNING "Unable to create device for framebuffer %d; errno = %ld\n", i, PTR_ERR(fb_info->dev));
+		fb_info->dev = NULL;
 	} else
-		fb_init_class_device(fb_info);
+		fb_init_device(fb_info);
 
 	if (fb_info->pixmap.addr == NULL) {
 		fb_info->pixmap.addr = kmalloc(FBPIXMAPSIZE, GFP_KERNEL);
@@ -1355,8 +1356,8 @@ unregister_framebuffer(struct fb_info *fb_info)
 	fb_destroy_modelist(&fb_info->modelist);
 	registered_fb[i]=NULL;
 	num_registered_fb--;
-	fb_cleanup_class_device(fb_info);
-	class_device_destroy(fb_class, MKDEV(FB_MAJOR, i));
+	fb_cleanup_device(fb_info);
+	device_destroy(fb_class, MKDEV(FB_MAJOR, i));
 	event.info = fb_info;
 	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
 	return 0;
@@ -1458,8 +1459,8 @@ int fb_new_modelist(struct fb_info *info)
 	return err;
 }
 
-static char *video_options[FB_MAX];
-static int ofonly;
+static char *video_options[FB_MAX] __read_mostly;
+static int ofonly __read_mostly;
 
 extern const char *global_mode_option;
 

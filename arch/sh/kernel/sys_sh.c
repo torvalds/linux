@@ -21,9 +21,11 @@
 #include <linux/mman.h>
 #include <linux/file.h>
 #include <linux/utsname.h>
-
+#include <linux/module.h>
+#include <asm/cacheflush.h>
 #include <asm/uaccess.h>
 #include <asm/ipc.h>
+#include <asm/unistd.h>
 
 /*
  * sys_pipe() is the normal C calling standard for creating
@@ -31,24 +33,31 @@
  */
 asmlinkage int sys_pipe(unsigned long r4, unsigned long r5,
 	unsigned long r6, unsigned long r7,
-	struct pt_regs regs)
+	struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	int fd[2];
 	int error;
 
 	error = do_pipe(fd);
 	if (!error) {
-		regs.regs[1] = fd[1];
+		regs->regs[1] = fd[1];
 		return fd[0];
 	}
 	return error;
 }
 
-#if defined(HAVE_ARCH_UNMAPPED_AREA)
+unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
+
+EXPORT_SYMBOL(shm_align_mask);
+
+#ifdef CONFIG_MMU
 /*
- * To avoid cache alias, we map the shard page with same color.
+ * To avoid cache aliases, we map the shared page with same color.
  */
-#define COLOUR_ALIGN(addr)	(((addr)+SHMLBA-1)&~(SHMLBA-1))
+#define COLOUR_ALIGN(addr, pgoff)				\
+	((((addr) + shm_align_mask) & ~shm_align_mask) +	\
+	 (((pgoff) << PAGE_SHIFT) & shm_align_mask))
 
 unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	unsigned long len, unsigned long pgoff, unsigned long flags)
@@ -56,43 +65,52 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long start_addr;
+	int do_colour_align;
 
 	if (flags & MAP_FIXED) {
 		/* We do not accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
-		if ((flags & MAP_SHARED) && (addr & (SHMLBA - 1)))
+		if ((flags & MAP_SHARED) && (addr & shm_align_mask))
 			return -EINVAL;
 		return addr;
 	}
 
-	if (len > TASK_SIZE)
+	if (unlikely(len > TASK_SIZE))
 		return -ENOMEM;
 
+	do_colour_align = 0;
+	if (filp || (flags & MAP_SHARED))
+		do_colour_align = 1;
+
 	if (addr) {
-		if (flags & MAP_PRIVATE)
-			addr = PAGE_ALIGN(addr);
+		if (do_colour_align)
+			addr = COLOUR_ALIGN(addr, pgoff);
 		else
-			addr = COLOUR_ALIGN(addr);
+			addr = PAGE_ALIGN(addr);
+
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr &&
 		    (!vma || addr + len <= vma->vm_start))
 			return addr;
 	}
-	if (len <= mm->cached_hole_size) {
+
+	if (len > mm->cached_hole_size) {
+		start_addr = addr = mm->free_area_cache;
+	} else {
 	        mm->cached_hole_size = 0;
-		mm->free_area_cache = TASK_UNMAPPED_BASE;
+		start_addr = addr = TASK_UNMAPPED_BASE;
 	}
-	if (flags & MAP_PRIVATE)
-		addr = PAGE_ALIGN(mm->free_area_cache);
-	else
-		addr = COLOUR_ALIGN(mm->free_area_cache);
-	start_addr = addr;
 
 full_search:
+	if (do_colour_align)
+		addr = COLOUR_ALIGN(addr, pgoff);
+	else
+		addr = PAGE_ALIGN(mm->free_area_cache);
+
 	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
 		/* At this point:  (!vma || addr < vma->vm_end). */
-		if (TASK_SIZE - len < addr) {
+		if (unlikely(TASK_SIZE - len < addr)) {
 			/*
 			 * Start a new search - just in case we missed
 			 * some holes.
@@ -104,7 +122,7 @@ full_search:
 			}
 			return -ENOMEM;
 		}
-		if (!vma || addr + len <= vma->vm_start) {
+		if (likely(!vma || addr + len <= vma->vm_start)) {
 			/*
 			 * Remember the place where we stopped the search:
 			 */
@@ -115,11 +133,11 @@ full_search:
 		        mm->cached_hole_size = vma->vm_start - addr;
 
 		addr = vma->vm_end;
-		if (!(flags & MAP_PRIVATE))
-			addr = COLOUR_ALIGN(addr);
+		if (do_colour_align)
+			addr = COLOUR_ALIGN(addr, pgoff);
 	}
 }
-#endif
+#endif /* CONFIG_MMU */
 
 static inline long
 do_mmap2(unsigned long addr, unsigned long len, unsigned long prot, 
@@ -267,7 +285,7 @@ asmlinkage int sys_uname(struct old_utsname * name)
 	if (!name)
 		return -EFAULT;
 	down_read(&uts_sem);
-	err=copy_to_user(name, &system_utsname, sizeof (*name));
+	err = copy_to_user(name, utsname(), sizeof (*name));
 	up_read(&uts_sem);
 	return err?-EFAULT:0;
 }
@@ -294,4 +312,26 @@ asmlinkage int sys_fadvise64_64_wrapper(int fd, u32 offset0, u32 offset1,
 	return sys_fadvise64_64(fd, (u64)offset0 << 32 | offset1,
 				(u64)len0 << 32 | len1,	advice);
 #endif
+}
+
+#if defined(CONFIG_CPU_SH2) || defined(CONFIG_CPU_SH2A)
+#define SYSCALL_ARG3	"trapa #0x23"
+#else
+#define SYSCALL_ARG3	"trapa #0x13"
+#endif
+
+/*
+ * Do a system call from kernel instead of calling sys_execve so we
+ * end up with proper pt_regs.
+ */
+int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+{
+	register long __sc0 __asm__ ("r3") = __NR_execve;
+	register long __sc4 __asm__ ("r4") = (long) filename;
+	register long __sc5 __asm__ ("r5") = (long) argv;
+	register long __sc6 __asm__ ("r6") = (long) envp;
+	__asm__ __volatile__ (SYSCALL_ARG3 : "=z" (__sc0)	
+			: "0" (__sc0), "r" (__sc4), "r" (__sc5), "r" (__sc6)
+			: "memory");
+	return __sc0;
 }

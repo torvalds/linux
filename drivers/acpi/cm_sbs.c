@@ -67,7 +67,7 @@ void acpi_unlock_ac_dir(struct proc_dir_entry *acpi_ac_dir_param)
 		lock_ac_dir_cnt--;
 	if (lock_ac_dir_cnt == 0 && acpi_ac_dir_param && acpi_ac_dir) {
 		remove_proc_entry(ACPI_AC_CLASS, acpi_root_dir);
-		acpi_ac_dir = 0;
+		acpi_ac_dir = NULL;
 	}
 	mutex_unlock(&cm_sbs_mutex);
 }
@@ -99,7 +99,7 @@ void acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir_param)
 	if (lock_battery_dir_cnt == 0 && acpi_battery_dir_param
 	    && acpi_battery_dir) {
 		remove_proc_entry(ACPI_BATTERY_CLASS, acpi_root_dir);
-		acpi_battery_dir = 0;
+		acpi_battery_dir = NULL;
 	}
 	mutex_unlock(&cm_sbs_mutex);
 	return;

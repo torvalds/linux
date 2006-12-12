@@ -18,7 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#define DRV_VERSION "0.1"
+#define DRV_VERSION "0.2"
 
 #define RTC_REG_SIZE		0x2000
 #define RTC_OFFSET		0x1ff0
@@ -189,8 +189,7 @@ static int ds1553_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return 0;
 }
 
-static irqreturn_t ds1553_rtc_interrupt(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t ds1553_rtc_interrupt(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
@@ -250,7 +249,7 @@ static int ds1553_rtc_ioctl(struct device *dev, unsigned int cmd,
 	return 0;
 }
 
-static struct rtc_class_ops ds1553_rtc_ops = {
+static const struct rtc_class_ops ds1553_rtc_ops = {
 	.read_time	= ds1553_rtc_read_time,
 	.set_time	= ds1553_rtc_set_time,
 	.read_alarm	= ds1553_rtc_read_alarm,
@@ -341,7 +340,8 @@ static int __init ds1553_rtc_probe(struct platform_device *pdev)
 
 	if (pdata->irq >= 0) {
 		writeb(0, ioaddr + RTC_INTERRUPTS);
-		if (request_irq(pdata->irq, ds1553_rtc_interrupt, IRQF_SHARED,
+		if (request_irq(pdata->irq, ds1553_rtc_interrupt,
+				IRQF_DISABLED | IRQF_SHARED,
 				pdev->name, pdev) < 0) {
 			dev_warn(&pdev->dev, "interrupt not available.\n");
 			pdata->irq = -1;
@@ -357,9 +357,13 @@ static int __init ds1553_rtc_probe(struct platform_device *pdev)
 	pdata->rtc = rtc;
 	pdata->last_jiffies = jiffies;
 	platform_set_drvdata(pdev, pdata);
-	sysfs_create_bin_file(&pdev->dev.kobj, &ds1553_nvram_attr);
+	ret = sysfs_create_bin_file(&pdev->dev.kobj, &ds1553_nvram_attr);
+	if (ret)
+		goto out;
 	return 0;
  out:
+	if (pdata->rtc)
+		rtc_device_unregister(pdata->rtc);
 	if (pdata->irq >= 0)
 		free_irq(pdata->irq, pdev);
 	if (ioaddr)

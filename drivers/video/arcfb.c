@@ -218,8 +218,7 @@ static int arcfb_pan_display(struct fb_var_screeninfo *var,
 	return -EINVAL;
 }
 
-static irqreturn_t arcfb_interrupt(int vec, void *dev_instance,
-		struct pt_regs *regs)
+static irqreturn_t arcfb_interrupt(int vec, void *dev_instance)
 {
 	struct fb_info *info = dev_instance;
 	unsigned char ctl2status;
@@ -455,7 +454,7 @@ static ssize_t arcfb_write(struct file *file, const char __user *buf, size_t cou
 	unsigned int xres;
 
 	p = *ppos;
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 	fbidx = iminor(inode);
 	info = registered_fb[fbidx];
 

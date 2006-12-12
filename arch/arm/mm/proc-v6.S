@@ -13,8 +13,8 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
+#include <asm/elf.h>
 #include <asm/hardware/arm_scu.h>
-#include <asm/procinfo.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 

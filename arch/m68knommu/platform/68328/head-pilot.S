@@ -1,5 +1,5 @@
 /*
- * linux/arch/m68knommu/platform/68328/head-rom.S
+ * linux/arch/m68knommu/platform/68328/head-pilot.S
  * - A startup file for the MC68328
  *
  * Copyright (C) 1998  D. Jeff Dionne <jeff@ryeham.ee.ryerson.ca>,

@@ -51,6 +51,7 @@
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
+#include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 
 #include "bnep.h"
@@ -116,18 +117,18 @@ static int bnep_send_rsp(struct bnep_session *s, u8 ctrl, u16 resp)
 static inline void bnep_set_default_proto_filter(struct bnep_session *s)
 {
 	/* (IPv4, ARP)  */
-	s->proto_filter[0].start = htons(0x0800);
-	s->proto_filter[0].end   = htons(0x0806);
+	s->proto_filter[0].start = ETH_P_IP;
+	s->proto_filter[0].end   = ETH_P_ARP;
 	/* (RARP, AppleTalk) */
-	s->proto_filter[1].start = htons(0x8035);
-	s->proto_filter[1].end   = htons(0x80F3);
+	s->proto_filter[1].start = ETH_P_RARP;
+	s->proto_filter[1].end   = ETH_P_AARP;
 	/* (IPX, IPv6) */
-	s->proto_filter[2].start = htons(0x8137);
-	s->proto_filter[2].end   = htons(0x86DD);
+	s->proto_filter[2].start = ETH_P_IPX;
+	s->proto_filter[2].end   = ETH_P_IPV6;
 }
 #endif
 
-static int bnep_ctrl_set_netfilter(struct bnep_session *s, u16 *data, int len)
+static int bnep_ctrl_set_netfilter(struct bnep_session *s, __be16 *data, int len)
 {
 	int n;
 
@@ -149,8 +150,8 @@ static int bnep_ctrl_set_netfilter(struct bnep_session *s, u16 *data, int len)
 		int i;
 
 		for (i = 0; i < n; i++) {
-			f[i].start = get_unaligned(data++);
-			f[i].end   = get_unaligned(data++);
+			f[i].start = ntohs(get_unaligned(data++));
+			f[i].end   = ntohs(get_unaligned(data++));
 
 			BT_DBG("proto filter start %d end %d",
 				f[i].start, f[i].end);
@@ -179,7 +180,7 @@ static int bnep_ctrl_set_mcfilter(struct bnep_session *s, u8 *data, int len)
 	if (len < 2)
 		return -EILSEQ;
 
-	n = ntohs(get_unaligned((u16 *) data)); 
+	n = ntohs(get_unaligned((__be16 *) data));
 	data += 2; len -= 2;
 
 	if (len < n)
@@ -331,7 +332,7 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	if (!skb_pull(skb, __bnep_rx_hlen[type & BNEP_TYPE_MASK]))
 		goto badframe;
 
-	s->eh.h_proto = get_unaligned((u16 *) (skb->data - 2));
+	s->eh.h_proto = get_unaligned((__be16 *) (skb->data - 2));
 
 	if (type & BNEP_EXT_HEADER) {
 		if (bnep_rx_extension(s, skb) < 0)
@@ -342,7 +343,7 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	if (ntohs(s->eh.h_proto) == 0x8100) {
 		if (!skb_pull(skb, 4))
 			goto badframe;
-		s->eh.h_proto = get_unaligned((u16 *) (skb->data - 2));
+		s->eh.h_proto = get_unaligned((__be16 *) (skb->data - 2));
 	}
 	
 	/* We have to alloc new skb and copy data here :(. Because original skb
@@ -364,7 +365,7 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	case BNEP_COMPRESSED_SRC_ONLY:
 		memcpy(__skb_put(nskb, ETH_ALEN), s->eh.h_dest, ETH_ALEN);
 		memcpy(__skb_put(nskb, ETH_ALEN), skb->mac.raw, ETH_ALEN);
-		put_unaligned(s->eh.h_proto, (u16 *) __skb_put(nskb, 2));
+		put_unaligned(s->eh.h_proto, (__be16 *) __skb_put(nskb, 2));
 		break;
 
 	case BNEP_COMPRESSED_DST_ONLY:
@@ -374,7 +375,7 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 
 	case BNEP_GENERAL:
 		memcpy(__skb_put(nskb, ETH_ALEN * 2), skb->mac.raw, ETH_ALEN * 2);
-		put_unaligned(s->eh.h_proto, (u16 *) __skb_put(nskb, 2));
+		put_unaligned(s->eh.h_proto, (__be16 *) __skb_put(nskb, 2));
 		break;
 	}
 
@@ -515,6 +516,24 @@ static int bnep_session(void *arg)
 	return 0;
 }
 
+static struct device *bnep_get_device(struct bnep_session *session)
+{
+	bdaddr_t *src = &bt_sk(session->sock->sk)->src;
+	bdaddr_t *dst = &bt_sk(session->sock->sk)->dst;
+	struct hci_dev *hdev;
+	struct hci_conn *conn;
+
+	hdev = hci_get_route(dst, src);
+	if (!hdev)
+		return NULL;
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
+
+	hci_dev_put(hdev);
+
+	return conn ? &conn->dev : NULL;
+}
+
 int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 {
 	struct net_device *dev;
@@ -534,7 +553,6 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	if (!dev)
 		return -ENOMEM;
 
-
 	down_write(&bnep_session_sem);
 
 	ss = __bnep_get_session(dst);
@@ -551,7 +569,7 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	memcpy(s->eh.h_source, &dst, ETH_ALEN);
 	memcpy(dev->dev_addr, s->eh.h_dest, ETH_ALEN);
 
-	s->dev = dev;
+	s->dev   = dev;
 	s->sock  = sock;
 	s->role  = req->role;
 	s->state = BT_CONNECTED;
@@ -567,6 +585,8 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	/* Set default protocol filter */
 	bnep_set_default_proto_filter(s);
 #endif
+
+	SET_NETDEV_DEV(dev, bnep_get_device(s));
 
 	err = register_netdev(dev);
 	if (err) {

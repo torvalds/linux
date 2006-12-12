@@ -1,7 +1,7 @@
 /*
  * fs/ioprio.c
  *
- * Copyright (C) 2004 Jens Axboe <axboe@suse.de>
+ * Copyright (C) 2004 Jens Axboe <axboe@kernel.dk>
  *
  * Helper functions for setting/querying io priorities of processes. The
  * system calls closely mimmick getpriority/setpriority, see the man page for
@@ -47,8 +47,8 @@ static int set_task_ioprio(struct task_struct *task, int ioprio)
 	/* see wmb() in current_io_context() */
 	smp_read_barrier_depends();
 
-	if (ioc && ioc->set_ioprio)
-		ioc->set_ioprio(ioc, ioprio);
+	if (ioc)
+		ioc->ioprio_changed = 1;
 
 	task_unlock(task);
 	return 0;
@@ -81,7 +81,12 @@ asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
 	}
 
 	ret = -ESRCH;
-	read_lock_irq(&tasklist_lock);
+	/*
+	 * We want IOPRIO_WHO_PGRP/IOPRIO_WHO_USER to be "atomic",
+	 * so we can't use rcu_read_lock(). See re-copy of ->ioprio
+	 * in copy_process().
+	 */
+	read_lock(&tasklist_lock);
 	switch (which) {
 		case IOPRIO_WHO_PROCESS:
 			if (!who)
@@ -124,7 +129,7 @@ free_uid:
 			ret = -EINVAL;
 	}
 
-	read_unlock_irq(&tasklist_lock);
+	read_unlock(&tasklist_lock);
 	return ret;
 }
 
@@ -144,11 +149,6 @@ int ioprio_best(unsigned short aprio, unsigned short bprio)
 {
 	unsigned short aclass = IOPRIO_PRIO_CLASS(aprio);
 	unsigned short bclass = IOPRIO_PRIO_CLASS(bprio);
-
-	if (!ioprio_valid(aprio))
-		return bprio;
-	if (!ioprio_valid(bprio))
-		return aprio;
 
 	if (aclass == IOPRIO_CLASS_NONE)
 		aclass = IOPRIO_CLASS_BE;
@@ -170,7 +170,7 @@ asmlinkage long sys_ioprio_get(int which, int who)
 	int ret = -ESRCH;
 	int tmpio;
 
-	read_lock_irq(&tasklist_lock);
+	read_lock(&tasklist_lock);
 	switch (which) {
 		case IOPRIO_WHO_PROCESS:
 			if (!who)
@@ -221,7 +221,7 @@ asmlinkage long sys_ioprio_get(int which, int who)
 			ret = -EINVAL;
 	}
 
-	read_unlock_irq(&tasklist_lock);
+	read_unlock(&tasklist_lock);
 	return ret;
 }
 

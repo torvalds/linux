@@ -30,6 +30,7 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/8xx_immap.h>
 #include <asm/pgtable.h>
@@ -37,7 +38,6 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <asm/commproc.h>
-#include <asm/dma-mapping.h>
 
 #include "fec_8xx.h"
 
@@ -708,7 +708,7 @@ static void fec_enet_tx(struct net_device *dev)
  * This is called from the MPC core interrupt.
  */
 static irqreturn_t
-fec_enet_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+fec_enet_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct fec_enet_private *fep;
@@ -768,7 +768,7 @@ fec_enet_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 /* This interrupt occurs when the PHY detects a link change. */
 static irqreturn_t
-fec_mii_link_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+fec_mii_link_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct fec_enet_private *fep;

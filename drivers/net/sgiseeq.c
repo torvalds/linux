@@ -432,7 +432,7 @@ static inline void sgiseeq_tx(struct net_device *dev, struct sgiseeq_private *sp
 	}
 }
 
-static irqreturn_t sgiseeq_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sgiseeq_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct sgiseeq_private *sp = netdev_priv(dev);

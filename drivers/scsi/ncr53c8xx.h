@@ -218,7 +218,7 @@
 **	Same as option 1, but also deal with 
 **	misconfigured interrupts.
 **
-**	- Edge triggerred instead of level sensitive.
+**	- Edge triggered instead of level sensitive.
 **	- No interrupt line connected.
 **	- IRQ number misconfigured.
 **	
@@ -549,7 +549,7 @@ struct ncr_driver_setup {
 
 /*
 **	Initial setup.
-**	Can be overriden at startup by a command line.
+**	Can be overridden at startup by a command line.
 */
 #define SCSI_NCR_DRIVER_SETUP			\
 {						\
@@ -1093,7 +1093,7 @@ struct scr_tblsel {
 **-----------------------------------------------------------
 **	On 810A, 860, 825A, 875, 895 and 896 chips the content 
 **	of SFBR register can be used as data (SCR_SFBR_DATA).
-**	The 896 has additionnal IO registers starting at 
+**	The 896 has additional IO registers starting at 
 **	offset 0x80. Bit 7 of register offset is stored in 
 **	bit 7 of the SCRIPTS instruction first DWORD.
 **-----------------------------------------------------------
@@ -1322,7 +1322,7 @@ struct ncr_device {
 
 extern struct Scsi_Host *ncr_attach(struct scsi_host_template *tpnt, int unit, struct ncr_device *device);
 extern int ncr53c8xx_release(struct Scsi_Host *host);
-irqreturn_t ncr53c8xx_intr(int irq, void *dev_id, struct pt_regs * regs);
+irqreturn_t ncr53c8xx_intr(int irq, void *dev_id);
 extern int ncr53c8xx_init(void);
 extern void ncr53c8xx_exit(void);
 

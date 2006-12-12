@@ -164,7 +164,7 @@ static void lh7a40x_ack_cpld_irq (u32 irq)
 	/* CPLD doesn't have ack capability, but some devices may */
 
 #if defined (CPLD_INTMASK_TOUCH)
-	/* The touch control *must* mask the the interrupt because the
+	/* The touch control *must* mask the interrupt because the
 	 * interrupt bit is read by the driver to determine if the pen
 	 * is still down. */
 	if (irq == IRQ_TOUCH)
@@ -207,8 +207,7 @@ static struct irq_chip lpd7a40x_cpld_chip = {
 	.unmask	= lh7a40x_unmask_cpld_irq,
 };
 
-static void lpd7a40x_cpld_handler (unsigned int irq, struct irqdesc *desc,
-				  struct pt_regs *regs)
+static void lpd7a40x_cpld_handler (unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int mask = CPLD_INTERRUPTS;
 
@@ -280,7 +279,7 @@ void __init lh7a40x_init_board_irq (void)
 	for (irq = IRQ_BOARD_START;
 	     irq < IRQ_BOARD_START + NR_IRQ_BOARD; ++irq) {
 		set_irq_chip (irq, &lpd7a40x_cpld_chip);
-		set_irq_handler (irq, do_level_IRQ);
+		set_irq_handler (irq, handle_level_irq);
 		set_irq_flags (irq, IRQF_VALID);
 	}
 

@@ -27,6 +27,7 @@
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/sysfs.h>
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("System voltages control via Attansic ATXP1");
@@ -116,8 +117,7 @@ static ssize_t atxp1_storevcore(struct device *dev, struct device_attribute *att
 {
 	struct atxp1_data *data;
 	struct i2c_client *client;
-	char vid;
-	char cvid;
+	int vid, cvid;
 	unsigned int vcore;
 
 	client = to_i2c_client(dev);
@@ -251,6 +251,17 @@ static ssize_t atxp1_storegpio2(struct device *dev, struct device_attribute *att
 */
 static DEVICE_ATTR(gpio2, S_IRUGO | S_IWUSR, atxp1_showgpio2, atxp1_storegpio2);
 
+static struct attribute *atxp1_attributes[] = {
+	&dev_attr_gpio1.attr,
+	&dev_attr_gpio2.attr,
+	&dev_attr_cpu0_vid.attr,
+	NULL
+};
+
+static const struct attribute_group atxp1_group = {
+	.attrs = atxp1_attributes,
+};
+
 
 static int atxp1_attach_adapter(struct i2c_adapter *adapter)
 {
@@ -320,21 +331,23 @@ static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit_free;
 	}
 
+	/* Register sysfs hooks */
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &atxp1_group)))
+		goto exit_detach;
+
 	data->class_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
-		goto exit_detach;
+		goto exit_remove_files;
 	}
-
-	device_create_file(&new_client->dev, &dev_attr_gpio1);
-	device_create_file(&new_client->dev, &dev_attr_gpio2);
-	device_create_file(&new_client->dev, &dev_attr_cpu0_vid);
 
 	dev_info(&new_client->dev, "Using VRM: %d.%d\n",
 			 data->vrm / 10, data->vrm % 10);
 
 	return 0;
 
+exit_remove_files:
+	sysfs_remove_group(&new_client->dev.kobj, &atxp1_group);
 exit_detach:
 	i2c_detach_client(new_client);
 exit_free:
@@ -349,6 +362,7 @@ static int atxp1_detach_client(struct i2c_client * client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &atxp1_group);
 
 	err = i2c_detach_client(client);
 

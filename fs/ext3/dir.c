@@ -44,6 +44,9 @@ const struct file_operations ext3_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= ext3_readdir,		/* we take BKL. needed?*/
 	.ioctl		= ext3_ioctl,		/* BKL held */
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ext3_compat_ioctl,
+#endif
 	.fsync		= ext3_sync_file,	/* BKL held */
 #ifdef CONFIG_EXT3_INDEX
 	.release	= ext3_release_dir,
@@ -59,7 +62,7 @@ static unsigned char get_dtype(struct super_block *sb, int filetype)
 
 	return (ext3_filetype_table[filetype]);
 }
-			       
+
 
 int ext3_check_dir_entry (const char * function, struct inode * dir,
 			  struct ext3_dir_entry_2 * de,
@@ -67,7 +70,7 @@ int ext3_check_dir_entry (const char * function, struct inode * dir,
 			  unsigned long offset)
 {
 	const char * error_msg = NULL;
- 	const int rlen = le16_to_cpu(de->rec_len);
+	const int rlen = le16_to_cpu(de->rec_len);
 
 	if (rlen < EXT3_DIR_REC_LEN(1))
 		error_msg = "rec_len is smaller than minimal";
@@ -100,7 +103,7 @@ static int ext3_readdir(struct file * filp,
 	struct ext3_dir_entry_2 *de;
 	struct super_block *sb;
 	int err;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	int ret = 0;
 
 	sb = inode->i_sb;
@@ -119,7 +122,7 @@ static int ext3_readdir(struct file * filp,
 		 * We don't set the inode dirty flag since it's not
 		 * critical that it get flushed back to the disk.
 		 */
-		EXT3_I(filp->f_dentry->d_inode)->i_flags &= ~EXT3_INDEX_FL;
+		EXT3_I(filp->f_path.dentry->d_inode)->i_flags &= ~EXT3_INDEX_FL;
 	}
 #endif
 	stored = 0;
@@ -151,6 +154,9 @@ static int ext3_readdir(struct file * filp,
 			ext3_error (sb, "ext3_readdir",
 				"directory #%lu contains a hole at offset %lu",
 				inode->i_ino, (unsigned long)filp->f_pos);
+			/* corrupt size?  Maybe no more blocks to read */
+			if (filp->f_pos > inode->i_blocks << 9)
+				break;
 			filp->f_pos += sb->s_blocksize - offset;
 			continue;
 		}
@@ -162,7 +168,7 @@ revalidate:
 		 * to make sure. */
 		if (filp->f_version != inode->i_version) {
 			for (i = 0; i < sb->s_blocksize && i < offset; ) {
-				de = (struct ext3_dir_entry_2 *) 
+				de = (struct ext3_dir_entry_2 *)
 					(bh->b_data + i);
 				/* It's too expensive to do a full
 				 * dirent test each time round this
@@ -181,7 +187,7 @@ revalidate:
 			filp->f_version = inode->i_version;
 		}
 
-		while (!error && filp->f_pos < inode->i_size 
+		while (!error && filp->f_pos < inode->i_size
 		       && offset < sb->s_blocksize) {
 			de = (struct ext3_dir_entry_2 *) (bh->b_data + offset);
 			if (!ext3_check_dir_entry ("ext3_readdir", inode, de,
@@ -229,7 +235,7 @@ out:
 /*
  * These functions convert from the major/minor hash to an f_pos
  * value.
- * 
+ *
  * Currently we only use major hash numer.  This is unfortunate, but
  * on 32-bit machines, the same VFS interface is used for lseek and
  * llseek, so if we use the 64 bit offset, then the 32-bit versions of
@@ -250,7 +256,7 @@ out:
 struct fname {
 	__u32		hash;
 	__u32		minor_hash;
-	struct rb_node	rb_hash; 
+	struct rb_node	rb_hash;
 	struct fname	*next;
 	__u32		inode;
 	__u8		name_len;
@@ -343,10 +349,9 @@ int ext3_htree_store_dirent(struct file *dir_file, __u32 hash,
 
 	/* Create and allocate the fname structure */
 	len = sizeof(struct fname) + dirent->name_len + 1;
-	new_fn = kmalloc(len, GFP_KERNEL);
+	new_fn = kzalloc(len, GFP_KERNEL);
 	if (!new_fn)
 		return -ENOMEM;
-	memset(new_fn, 0, len);
 	new_fn->hash = hash;
 	new_fn->minor_hash = minor_hash;
 	new_fn->inode = le32_to_cpu(dirent->inode);
@@ -397,7 +402,7 @@ static int call_filldir(struct file * filp, void * dirent,
 {
 	struct dir_private_info *info = filp->private_data;
 	loff_t	curr_pos;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct super_block * sb;
 	int error;
 
@@ -410,7 +415,7 @@ static int call_filldir(struct file * filp, void * dirent,
 	curr_pos = hash2pos(fname->hash, fname->minor_hash);
 	while (fname) {
 		error = filldir(dirent, fname->name,
-				fname->name_len, curr_pos, 
+				fname->name_len, curr_pos,
 				fname->inode,
 				get_dtype(sb, fname->file_type));
 		if (error) {
@@ -427,7 +432,7 @@ static int ext3_dx_readdir(struct file * filp,
 			 void * dirent, filldir_t filldir)
 {
 	struct dir_private_info *info = filp->private_data;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct fname *fname;
 	int	ret;
 
@@ -465,7 +470,7 @@ static int ext3_dx_readdir(struct file * filp,
 		/*
 		 * Fill the rbtree if we have no more entries,
 		 * or the inode has changed since we last read in the
-		 * cached entries. 
+		 * cached entries.
 		 */
 		if ((!info->curr_node) ||
 		    (filp->f_version != inode->i_version)) {

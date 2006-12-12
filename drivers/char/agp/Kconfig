@@ -1,6 +1,6 @@
 config AGP
 	tristate "/dev/agpgart (AGP Support)"
-	depends on ALPHA || IA64 || PPC || X86
+	depends on ALPHA || IA64 || PARISC || PPC || X86
 	depends on PCI
 	---help---
 	  AGP (Accelerated Graphics Port) is a bus system mainly used to
@@ -121,6 +121,14 @@ config AGP_HP_ZX1
 	help
 	  This option gives you AGP GART support for the HP ZX1 chipset
 	  for IA64 processors.
+
+config AGP_PARISC
+	tristate "HP Quicksilver AGP support"
+	depends on AGP && PARISC && 64BIT
+	help
+	  This option gives you AGP GART support for the HP Quicksilver
+	  AGP bus adapter on HP PA-RISC machines (Ok, just on the C8000
+	  workstation...)
 
 config AGP_ALPHA_CORE
 	tristate "Alpha AGP support"

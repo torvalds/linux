@@ -65,7 +65,7 @@ static struct lock_class_key port_lock_key;
 #define uart_console(port)	(0)
 #endif
 
-static void uart_change_speed(struct uart_state *state, struct termios *old_termios);
+static void uart_change_speed(struct uart_state *state, struct ktermios *old_termios);
 static void uart_wait_until_sent(struct tty_struct *tty, int timeout);
 static void uart_change_pm(struct uart_state *state, int pm_state);
 
@@ -338,8 +338,8 @@ EXPORT_SYMBOL(uart_update_timeout);
  *	we're actually going to be using.
  */
 unsigned int
-uart_get_baud_rate(struct uart_port *port, struct termios *termios,
-		   struct termios *old, unsigned int min, unsigned int max)
+uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
+		   struct ktermios *old, unsigned int min, unsigned int max)
 {
 	unsigned int try, baud, altbaud = 38400;
 	upf_t flags = port->flags & UPF_SPD_MASK;
@@ -421,11 +421,11 @@ uart_get_divisor(struct uart_port *port, unsigned int baud)
 EXPORT_SYMBOL(uart_get_divisor);
 
 static void
-uart_change_speed(struct uart_state *state, struct termios *old_termios)
+uart_change_speed(struct uart_state *state, struct ktermios *old_termios)
 {
 	struct tty_struct *tty = state->info->tty;
 	struct uart_port *port = state->port;
-	struct termios *termios;
+	struct ktermios *termios;
 
 	/*
 	 * If we have no tty, termios, or the port does not exist,
@@ -792,6 +792,7 @@ static int uart_set_info(struct uart_state *state,
 			 * We failed anyway.
 			 */
 			retval = -EBUSY;
+			goto exit;  // Added to return the correct error -Ram Gupta
 		}
 	}
 
@@ -1138,7 +1139,7 @@ uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
 	return ret;
 }
 
-static void uart_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void uart_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct uart_state *state = tty->driver_data;
 	unsigned long flags;
@@ -1662,16 +1663,16 @@ static int uart_line_info(char *buf, struct uart_driver *drv, int i)
 	struct uart_port *port = state->port;
 	char stat_buf[32];
 	unsigned int status;
-	int ret;
+	int mmio, ret;
 
 	if (!port)
 		return 0;
 
+	mmio = port->iotype >= UPIO_MEM;
 	ret = sprintf(buf, "%d: uart:%s %s%08lX irq:%d",
 			port->line, uart_type(port),
-			port->iotype == UPIO_MEM ? "mmio:0x" : "port:",
-			port->iotype == UPIO_MEM ? port->mapbase :
-						(unsigned long) port->iobase,
+			mmio ? "mmio:0x" : "port:",
+			mmio ? port->mapbase : (unsigned long) port->iobase,
 			port->irq);
 
 	if (port->type == PORT_UNKNOWN) {
@@ -1865,7 +1866,7 @@ int __init
 uart_set_options(struct uart_port *port, struct console *co,
 		 int baud, int parity, int bits, int flow)
 {
-	struct termios termios;
+	struct ktermios termios;
 	int i;
 
 	/*
@@ -1875,7 +1876,7 @@ uart_set_options(struct uart_port *port, struct console *co,
 	spin_lock_init(&port->lock);
 	lockdep_set_class(&port->lock, &port_lock_key);
 
-	memset(&termios, 0, sizeof(struct termios));
+	memset(&termios, 0, sizeof(struct ktermios));
 
 	termios.c_cflag = CREAD | HUPCL | CLOCAL;
 
@@ -1939,6 +1940,9 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 	if (state->info && state->info->flags & UIF_INITIALIZED) {
 		const struct uart_ops *ops = port->ops;
 
+		state->info->flags = (state->info->flags & ~UIF_INITIALIZED)
+				     | UIF_SUSPENDED;
+
 		spin_lock_irq(&port->lock);
 		ops->stop_tx(port);
 		ops->set_mctrl(port, 0);
@@ -1987,12 +1991,12 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 	 * Re-enable the console device after suspending.
 	 */
 	if (uart_console(port)) {
-		struct termios termios;
+		struct ktermios termios;
 
 		/*
 		 * First try to use the console cflag setting.
 		 */
-		memset(&termios, 0, sizeof(struct termios));
+		memset(&termios, 0, sizeof(struct ktermios));
 		termios.c_cflag = port->cons->cflag;
 
 		/*
@@ -2005,7 +2009,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 		console_start(port->cons);
 	}
 
-	if (state->info && state->info->flags & UIF_INITIALIZED) {
+	if (state->info && state->info->flags & UIF_SUSPENDED) {
 		const struct uart_ops *ops = port->ops;
 		int ret;
 
@@ -2017,15 +2021,17 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 			ops->set_mctrl(port, port->mctrl);
 			ops->start_tx(port);
 			spin_unlock_irq(&port->lock);
+			state->info->flags |= UIF_INITIALIZED;
 		} else {
 			/*
 			 * Failed to resume - maybe hardware went away?
 			 * Clear the "initialized" flag so we won't try
 			 * to call the low level drivers shutdown method.
 			 */
-			state->info->flags &= ~UIF_INITIALIZED;
 			uart_shutdown(state);
 		}
+
+		state->info->flags &= ~UIF_SUSPENDED;
 	}
 
 	mutex_unlock(&state->mutex);
@@ -2111,7 +2117,7 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 	}
 }
 
-static struct tty_operations uart_ops = {
+static const struct tty_operations uart_ops = {
 	.open		= uart_open,
 	.close		= uart_close,
 	.write		= uart_write,
@@ -2183,6 +2189,7 @@ int uart_register_driver(struct uart_driver *drv)
 	normal->subtype		= SERIAL_TYPE_NORMAL;
 	normal->init_termios	= tty_std_termios;
 	normal->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	normal->init_termios.c_ispeed = normal->init_termios.c_ospeed = 9600;
 	normal->flags		= TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	normal->driver_state    = drv;
 	tty_set_operations(normal, &uart_ops);

@@ -31,7 +31,6 @@
 #include <linux/kernel_stat.h>
 
 #include <asm/irq.h>
-#include <asm/ptrace.h>
 #include <asm/addrspace.h>
 #include <asm/time.h>
 #include <asm/io.h>
@@ -48,6 +47,12 @@
 #define IMR_IP3_VAL	K_BCM1480_INT_MAP_I1
 #define IMR_IP4_VAL	K_BCM1480_INT_MAP_I2
 
+#ifdef CONFIG_SIMULATION
+#define BCM1480_HPT_VALUE	50000
+#else
+#define BCM1480_HPT_VALUE	1000000
+#endif
+
 extern int bcm1480_steal_irq(int irq);
 
 void bcm1480_time_init(void)
@@ -60,11 +65,6 @@ void bcm1480_time_init(void)
 		BUG();
 	}
 
-	if (!cpu) {
-		/* Use our own gettimeoffset() routine */
-		do_gettimeoffset = bcm1480_gettimeoffset;
-	}
-
 	bcm1480_mask_irq(cpu, irq);
 
 	/* Map the timer interrupt to ip[4] of this cpu */
@@ -75,11 +75,7 @@ void bcm1480_time_init(void)
 	/* Disable the timer and set up the count */
 	__raw_writeq(0, IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
 	__raw_writeq(
-#ifndef CONFIG_SIMULATION
-		1000000/HZ
-#else
-		50000/HZ
-#endif
+		BCM1480_HPT_VALUE/HZ
 		, IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT)));
 
 	/* Set the timer running */
@@ -98,12 +94,10 @@ void bcm1480_time_init(void)
 	 */
 }
 
-#include <asm/sibyte/sb1250.h>
-
-void bcm1480_timer_interrupt(struct pt_regs *regs)
+void bcm1480_timer_interrupt(void)
 {
 	int cpu = smp_processor_id();
-	int irq = K_BCM1480_INT_TIMER_0+cpu;
+	int irq = K_BCM1480_INT_TIMER_0 + cpu;
 
 	/* Reset the timer */
 	__raw_writeq(M_SCD_TIMER_ENABLE|M_SCD_TIMER_MODE_CONTINUOUS,
@@ -113,26 +107,26 @@ void bcm1480_timer_interrupt(struct pt_regs *regs)
 		/*
 		 * CPU 0 handles the global timer interrupt job
 		 */
-		ll_timer_interrupt(irq, regs);
+		ll_timer_interrupt(irq);
 	}
 	else {
 		/*
 		 * other CPUs should just do profiling and process accounting
 		 */
-		ll_local_timer_interrupt(irq, regs);
+		ll_local_timer_interrupt(irq);
 	}
 }
 
-/*
- * We use our own do_gettimeoffset() instead of the generic one,
- * because the generic one does not work for SMP case.
- * In addition, since we use general timer 0 for system time,
- * we can get accurate intra-jiffy offset without calibration.
- */
-unsigned long bcm1480_gettimeoffset(void)
+static cycle_t bcm1480_hpt_read(void)
 {
+	/* We assume this function is called xtime_lock held. */
 	unsigned long count =
 		__raw_readq(IOADDR(A_SCD_TIMER_REGISTER(0, R_SCD_TIMER_CNT)));
+	return (jiffies + 1) * (BCM1480_HPT_VALUE / HZ) - count;
+}
 
-	return 1000000/HZ - count;
+void __init bcm1480_hpt_setup(void)
+{
+	clocksource_mips.read = bcm1480_hpt_read;
+	mips_hpt_frequency = BCM1480_HPT_VALUE;
 }

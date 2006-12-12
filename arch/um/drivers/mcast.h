@@ -13,7 +13,7 @@ struct mcast_data {
 	void *dev;
 };
 
-extern struct net_user_info mcast_user_info;
+extern const struct net_user_info mcast_user_info;
 
 extern int mcast_user_write(int fd, void *buf, int len, 
 			    struct mcast_data *pri);

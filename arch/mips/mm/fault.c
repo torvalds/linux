@@ -60,6 +60,10 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 	 */
 	if (unlikely(address >= VMALLOC_START && address <= VMALLOC_END))
 		goto vmalloc_fault;
+#ifdef MODULE_START
+	if (unlikely(address >= MODULE_START && address < MODULE_END))
+		goto vmalloc_fault;
+#endif
 
 	/*
 	 * If we're in an interrupt or have no user
@@ -89,7 +93,7 @@ good_area:
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
 	} else {
-		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
+		if (!(vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC)))
 			goto bad_area;
 	}
 
@@ -171,7 +175,7 @@ no_context:
  */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if (tsk->pid == 1) {
+	if (is_init(tsk)) {
 		yield();
 		down_read(&mm->mmap_sem);
 		goto survive;

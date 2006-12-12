@@ -20,7 +20,7 @@
 
 #define LINE_BUFSIZE 4096
 
-static irqreturn_t line_interrupt(int irq, void *data, struct pt_regs *unused)
+static irqreturn_t line_interrupt(int irq, void *data)
 {
 	struct chan *chan = data;
 	struct line *line = chan->line;
@@ -31,9 +31,9 @@ static irqreturn_t line_interrupt(int irq, void *data, struct pt_regs *unused)
 	return IRQ_HANDLED;
 }
 
-static void line_timer_cb(void *arg)
+static void line_timer_cb(struct work_struct *work)
 {
-	struct line *line = arg;
+	struct line *line = container_of(work, struct line, task.work);
 
 	if(!line->throttled)
 		chan_interrupt(&line->chan_list, &line->task, line->tty,
@@ -246,12 +246,12 @@ out_up:
 	return ret;
 }
 
-void line_set_termios(struct tty_struct *tty, struct termios * old)
+void line_set_termios(struct tty_struct *tty, struct ktermios * old)
 {
 	/* nothing */
 }
 
-static struct {
+static const struct {
 	int  cmd;
 	char *level;
 	char *name;
@@ -364,8 +364,7 @@ void line_unthrottle(struct tty_struct *tty)
 		reactivate_chan(&line->chan_list, line->driver->read_irq);
 }
 
-static irqreturn_t line_write_interrupt(int irq, void *data,
-					struct pt_regs *unused)
+static irqreturn_t line_write_interrupt(int irq, void *data)
 {
 	struct chan *chan = data;
 	struct line *line = chan->line;
@@ -405,7 +404,7 @@ static irqreturn_t line_write_interrupt(int irq, void *data,
 
 int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 {
-	struct line_driver *driver = line->driver;
+	const struct line_driver *driver = line->driver;
 	int err = 0, flags = IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM;
 
 	if (input)
@@ -444,7 +443,7 @@ int line_open(struct line *lines, struct tty_struct *tty)
 		 * is registered.
 		 */
 		enable_chan(line);
-		INIT_WORK(&line->task, line_timer_cb, line);
+		INIT_DELAYED_WORK(&line->task, line_timer_cb);
 
 		if(!line->sigio){
 			chan_enable_winch(&line->chan_list, tty);
@@ -497,7 +496,7 @@ void close_lines(struct line *lines, int nlines)
 }
 
 /* Common setup code for both startup command line and mconsole initialization.
- * @lines contains the the array (of size @num) to modify;
+ * @lines contains the array (of size @num) to modify;
  * @init is the setup string;
  */
 
@@ -558,7 +557,7 @@ int line_setup(struct line *lines, unsigned int num, char *init)
 }
 
 int line_config(struct line *lines, unsigned int num, char *str,
-		struct chan_opts *opts)
+		const struct chan_opts *opts)
 {
 	struct line *line;
 	char *new;
@@ -642,9 +641,9 @@ int line_remove(struct line *lines, unsigned int num, int n)
 }
 
 struct tty_driver *line_register_devfs(struct lines *set,
-			 struct line_driver *line_driver,
-			 struct tty_operations *ops, struct line *lines,
-			 int nlines)
+				       struct line_driver *line_driver,
+				       const struct tty_operations *ops,
+				       struct line *lines, int nlines)
 {
 	int i;
 	struct tty_driver *driver = alloc_tty_driver(nlines);
@@ -712,7 +711,7 @@ struct winch {
 	struct tty_struct *tty;
 };
 
-static irqreturn_t winch_interrupt(int irq, void *data, struct pt_regs *unused)
+static irqreturn_t winch_interrupt(int irq, void *data)
 {
 	struct winch *winch = data;
 	struct tty_struct *tty;

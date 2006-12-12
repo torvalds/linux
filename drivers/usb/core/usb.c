@@ -1,5 +1,5 @@
 /*
- * drivers/usb/usb.c
+ * drivers/usb/core/usb.c
  *
  * (C) Copyright Linus Torvalds 1999
  * (C) Copyright Johannes Erdfelt 1999-2001
@@ -33,6 +33,7 @@
 #include <linux/smp_lock.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
+#include <linux/workqueue.h>
 
 #include <asm/io.h>
 #include <asm/scatterlist.h>
@@ -46,6 +47,8 @@
 const char *usbcore_name = "usbcore";
 
 static int nousb;	/* Disable USB when built into kernel image */
+
+struct workqueue_struct *ksuspend_usb_wq;	/* For autosuspend */
 
 
 /**
@@ -67,7 +70,8 @@ static int nousb;	/* Disable USB when built into kernel image */
  * Don't call this function unless you are bound to one of the interfaces
  * on this device or you have locked the device!
  */
-struct usb_interface *usb_ifnum_to_if(struct usb_device *dev, unsigned ifnum)
+struct usb_interface *usb_ifnum_to_if(const struct usb_device *dev,
+				      unsigned ifnum)
 {
 	struct usb_host_config *config = dev->actconfig;
 	int i;
@@ -100,8 +104,8 @@ struct usb_interface *usb_ifnum_to_if(struct usb_device *dev, unsigned ifnum)
  * Don't call this function unless you are bound to the intf interface
  * or you have locked the device!
  */
-struct usb_host_interface *usb_altnum_to_altsetting(struct usb_interface *intf,
-		unsigned int altnum)
+struct usb_host_interface *usb_altnum_to_altsetting(const struct usb_interface *intf,
+						    unsigned int altnum)
 {
 	int i;
 
@@ -110,87 +114,6 @@ struct usb_host_interface *usb_altnum_to_altsetting(struct usb_interface *intf,
 			return &intf->altsetting[i];
 	}
 	return NULL;
-}
-
-/**
- * usb_driver_claim_interface - bind a driver to an interface
- * @driver: the driver to be bound
- * @iface: the interface to which it will be bound; must be in the
- *	usb device's active configuration
- * @priv: driver data associated with that interface
- *
- * This is used by usb device drivers that need to claim more than one
- * interface on a device when probing (audio and acm are current examples).
- * No device driver should directly modify internal usb_interface or
- * usb_device structure members.
- *
- * Few drivers should need to use this routine, since the most natural
- * way to bind to an interface is to return the private data from
- * the driver's probe() method.
- *
- * Callers must own the device lock and the driver model's usb_bus_type.subsys
- * writelock.  So driver probe() entries don't need extra locking,
- * but other call contexts may need to explicitly claim those locks.
- */
-int usb_driver_claim_interface(struct usb_driver *driver,
-				struct usb_interface *iface, void* priv)
-{
-	struct device *dev = &iface->dev;
-
-	if (dev->driver)
-		return -EBUSY;
-
-	dev->driver = &driver->driver;
-	usb_set_intfdata(iface, priv);
-	iface->condition = USB_INTERFACE_BOUND;
-	mark_active(iface);
-
-	/* if interface was already added, bind now; else let
-	 * the future device_add() bind it, bypassing probe()
-	 */
-	if (device_is_registered(dev))
-		device_bind_driver(dev);
-
-	return 0;
-}
-
-/**
- * usb_driver_release_interface - unbind a driver from an interface
- * @driver: the driver to be unbound
- * @iface: the interface from which it will be unbound
- *
- * This can be used by drivers to release an interface without waiting
- * for their disconnect() methods to be called.  In typical cases this
- * also causes the driver disconnect() method to be called.
- *
- * This call is synchronous, and may not be used in an interrupt context.
- * Callers must own the device lock and the driver model's usb_bus_type.subsys
- * writelock.  So driver disconnect() entries don't need extra locking,
- * but other call contexts may need to explicitly claim those locks.
- */
-void usb_driver_release_interface(struct usb_driver *driver,
-					struct usb_interface *iface)
-{
-	struct device *dev = &iface->dev;
-
-	/* this should never happen, don't release something that's not ours */
-	if (!dev->driver || dev->driver != &driver->driver)
-		return;
-
-	/* don't release from within disconnect() */
-	if (iface->condition != USB_INTERFACE_BOUND)
-		return;
-
-	/* don't release if the interface hasn't been added yet */
-	if (device_is_registered(dev)) {
-		iface->condition = USB_INTERFACE_UNBINDING;
-		device_release_driver(dev);
-	}
-
-	dev->driver = NULL;
-	usb_set_intfdata(iface, NULL);
-	iface->condition = USB_INTERFACE_UNBOUND;
-	mark_quiesced(iface);
 }
 
 struct find_interface_arg {
@@ -204,7 +127,7 @@ static int __find_interface(struct device * dev, void * data)
 	struct usb_interface *intf;
 
 	/* can't look at usb devices, only interfaces */
-	if (dev->driver == &usb_generic_driver)
+	if (is_usb_device(dev))
 		return 0;
 
 	intf = to_usb_interface(dev);
@@ -227,126 +150,15 @@ static int __find_interface(struct device * dev, void * data)
 struct usb_interface *usb_find_interface(struct usb_driver *drv, int minor)
 {
 	struct find_interface_arg argb;
+	int retval;
 
 	argb.minor = minor;
 	argb.interface = NULL;
-	driver_for_each_device(&drv->driver, NULL, &argb, __find_interface);
+	/* eat the error, it will be in argb.interface */
+	retval = driver_for_each_device(&drv->drvwrap.driver, NULL, &argb,
+					__find_interface);
 	return argb.interface;
 }
-
-#ifdef	CONFIG_HOTPLUG
-
-/*
- * This sends an uevent to userspace, typically helping to load driver
- * or other modules, configure the device, and more.  Drivers can provide
- * a MODULE_DEVICE_TABLE to help with module loading subtasks.
- *
- * We're called either from khubd (the typical case) or from root hub
- * (init, kapmd, modprobe, rmmod, etc), but the agents need to handle
- * delays in event delivery.  Use sysfs (and DEVPATH) to make sure the
- * device (and this configuration!) are still present.
- */
-static int usb_uevent(struct device *dev, char **envp, int num_envp,
-		      char *buffer, int buffer_size)
-{
-	struct usb_interface *intf;
-	struct usb_device *usb_dev;
-	struct usb_host_interface *alt;
-	int i = 0;
-	int length = 0;
-
-	if (!dev)
-		return -ENODEV;
-
-	/* driver is often null here; dev_dbg() would oops */
-	pr_debug ("usb %s: uevent\n", dev->bus_id);
-
-	/* Must check driver_data here, as on remove driver is always NULL */
-	if ((dev->driver == &usb_generic_driver) || 
-	    (dev->driver_data == &usb_generic_driver_data))
-		return 0;
-
-	intf = to_usb_interface(dev);
-	usb_dev = interface_to_usbdev (intf);
-	alt = intf->cur_altsetting;
-
-	if (usb_dev->devnum < 0) {
-		pr_debug ("usb %s: already deleted?\n", dev->bus_id);
-		return -ENODEV;
-	}
-	if (!usb_dev->bus) {
-		pr_debug ("usb %s: bus removed?\n", dev->bus_id);
-		return -ENODEV;
-	}
-
-#ifdef	CONFIG_USB_DEVICEFS
-	/* If this is available, userspace programs can directly read
-	 * all the device descriptors we don't tell them about.  Or
-	 * even act as usermode drivers.
-	 *
-	 * FIXME reduce hardwired intelligence here
-	 */
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "DEVICE=/proc/bus/usb/%03d/%03d",
-			   usb_dev->bus->busnum, usb_dev->devnum))
-		return -ENOMEM;
-#endif
-
-	/* per-device configurations are common */
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "PRODUCT=%x/%x/%x",
-			   le16_to_cpu(usb_dev->descriptor.idVendor),
-			   le16_to_cpu(usb_dev->descriptor.idProduct),
-			   le16_to_cpu(usb_dev->descriptor.bcdDevice)))
-		return -ENOMEM;
-
-	/* class-based driver binding models */
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "TYPE=%d/%d/%d",
-			   usb_dev->descriptor.bDeviceClass,
-			   usb_dev->descriptor.bDeviceSubClass,
-			   usb_dev->descriptor.bDeviceProtocol))
-		return -ENOMEM;
-
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "INTERFACE=%d/%d/%d",
-			   alt->desc.bInterfaceClass,
-			   alt->desc.bInterfaceSubClass,
-			   alt->desc.bInterfaceProtocol))
-		return -ENOMEM;
-
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "MODALIAS=usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
-			   le16_to_cpu(usb_dev->descriptor.idVendor),
-			   le16_to_cpu(usb_dev->descriptor.idProduct),
-			   le16_to_cpu(usb_dev->descriptor.bcdDevice),
-			   usb_dev->descriptor.bDeviceClass,
-			   usb_dev->descriptor.bDeviceSubClass,
-			   usb_dev->descriptor.bDeviceProtocol,
-			   alt->desc.bInterfaceClass,
-			   alt->desc.bInterfaceSubClass,
-			   alt->desc.bInterfaceProtocol))
-		return -ENOMEM;
-
-	envp[i] = NULL;
-
-	return 0;
-}
-
-#else
-
-static int usb_uevent(struct device *dev, char **envp,
-			int num_envp, char *buffer, int buffer_size)
-{
-	return -ENODEV;
-}
-
-#endif	/* CONFIG_HOTPLUG */
 
 /**
  * usb_release_dev - free a usb device structure when all users of it are finished.
@@ -361,13 +173,60 @@ static void usb_release_dev(struct device *dev)
 
 	udev = to_usb_device(dev);
 
+#ifdef	CONFIG_USB_SUSPEND
+	cancel_delayed_work(&udev->autosuspend);
+	flush_workqueue(ksuspend_usb_wq);
+#endif
 	usb_destroy_configuration(udev);
-	usb_bus_put(udev->bus);
+	usb_put_hcd(bus_to_hcd(udev->bus));
 	kfree(udev->product);
 	kfree(udev->manufacturer);
 	kfree(udev->serial);
 	kfree(udev);
 }
+
+#ifdef	CONFIG_PM
+
+static int ksuspend_usb_init(void)
+{
+	ksuspend_usb_wq = create_singlethread_workqueue("ksuspend_usbd");
+	if (!ksuspend_usb_wq)
+		return -ENOMEM;
+	return 0;
+}
+
+static void ksuspend_usb_cleanup(void)
+{
+	destroy_workqueue(ksuspend_usb_wq);
+}
+
+#ifdef	CONFIG_USB_SUSPEND
+
+/* usb_autosuspend_work - callback routine to autosuspend a USB device */
+static void usb_autosuspend_work(struct work_struct *work)
+{
+	struct usb_device *udev =
+		container_of(work, struct usb_device, autosuspend.work);
+
+	usb_pm_lock(udev);
+	udev->auto_pm = 1;
+	usb_suspend_both(udev, PMSG_SUSPEND);
+	usb_pm_unlock(udev);
+}
+
+#else
+
+static void usb_autosuspend_work(struct work_struct *work)
+{}
+
+#endif	/* CONFIG_USB_SUSPEND */
+
+#else
+
+#define ksuspend_usb_init()	0
+#define ksuspend_usb_cleanup()	do {} while (0)
+
+#endif	/* CONFIG_PM */
 
 /**
  * usb_alloc_dev - usb device constructor (usbcore-internal)
@@ -390,8 +249,7 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 	if (!dev)
 		return NULL;
 
-	bus = usb_bus_get(bus);
-	if (!bus) {
+	if (!usb_get_hcd(bus_to_hcd(bus))) {
 		kfree(dev);
 		return NULL;
 	}
@@ -399,10 +257,11 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 	device_initialize(&dev->dev);
 	dev->dev.bus = &usb_bus_type;
 	dev->dev.dma_mask = bus->controller->dma_mask;
-	dev->dev.driver_data = &usb_generic_driver_data;
-	dev->dev.driver = &usb_generic_driver;
 	dev->dev.release = usb_release_dev;
 	dev->state = USB_STATE_ATTACHED;
+
+	/* This magic assignment distinguishes devices from interfaces */
+	dev->dev.platform_data = &usb_generic_driver;
 
 	INIT_LIST_HEAD(&dev->ep0.urb_list);
 	dev->ep0.desc.bLength = USB_DT_ENDPOINT_SIZE;
@@ -444,6 +303,10 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 	dev->parent = parent;
 	INIT_LIST_HEAD(&dev->filelist);
 
+#ifdef	CONFIG_PM
+	mutex_init(&dev->pm_mutex);
+	INIT_DELAYED_WORK(&dev->autosuspend, usb_autosuspend_work);
+#endif
 	return dev;
 }
 
@@ -549,7 +412,7 @@ void usb_put_intf(struct usb_interface *intf)
  * case the driver already owns the device lock.)
  */
 int usb_lock_device_for_reset(struct usb_device *udev,
-		struct usb_interface *iface)
+			      const struct usb_interface *iface)
 {
 	unsigned long jiffies_expire = jiffies + HZ;
 
@@ -672,7 +535,7 @@ exit:
  */
 int usb_get_current_frame_number(struct usb_device *dev)
 {
-	return dev->bus->op->get_frame_number (dev);
+	return usb_hcd_get_frame_number (dev);
 }
 
 /*-------------------------------------------------------------------*/
@@ -737,9 +600,9 @@ void *usb_buffer_alloc (
 	dma_addr_t *dma
 )
 {
-	if (!dev || !dev->bus || !dev->bus->op || !dev->bus->op->buffer_alloc)
+	if (!dev || !dev->bus)
 		return NULL;
-	return dev->bus->op->buffer_alloc (dev->bus, size, mem_flags, dma);
+	return hcd_buffer_alloc (dev->bus, size, mem_flags, dma);
 }
 
 /**
@@ -760,9 +623,11 @@ void usb_buffer_free (
 	dma_addr_t dma
 )
 {
-	if (!dev || !dev->bus || !dev->bus->op || !dev->bus->op->buffer_free)
-	    	return;
-	dev->bus->op->buffer_free (dev->bus, size, addr, dma);
+	if (!dev || !dev->bus)
+		return;
+	if (!addr)
+		return;
+	hcd_buffer_free (dev->bus, size, addr, dma);
 }
 
 /**
@@ -911,8 +776,8 @@ void usb_buffer_unmap (struct urb *urb)
  *
  * Reverse the effect of this call with usb_buffer_unmap_sg().
  */
-int usb_buffer_map_sg (struct usb_device *dev, unsigned pipe,
-		struct scatterlist *sg, int nents)
+int usb_buffer_map_sg(const struct usb_device *dev, unsigned pipe,
+		      struct scatterlist *sg, int nents)
 {
 	struct usb_bus		*bus;
 	struct device		*controller;
@@ -946,8 +811,8 @@ int usb_buffer_map_sg (struct usb_device *dev, unsigned pipe,
  * Use this when you are re-using a scatterlist's data buffers for
  * another USB request.
  */
-void usb_buffer_dmasync_sg (struct usb_device *dev, unsigned pipe,
-		struct scatterlist *sg, int n_hw_ents)
+void usb_buffer_dmasync_sg(const struct usb_device *dev, unsigned pipe,
+			   struct scatterlist *sg, int n_hw_ents)
 {
 	struct usb_bus		*bus;
 	struct device		*controller;
@@ -972,8 +837,8 @@ void usb_buffer_dmasync_sg (struct usb_device *dev, unsigned pipe,
  *
  * Reverses the effect of usb_buffer_map_sg().
  */
-void usb_buffer_unmap_sg (struct usb_device *dev, unsigned pipe,
-		struct scatterlist *sg, int n_hw_ents)
+void usb_buffer_unmap_sg(const struct usb_device *dev, unsigned pipe,
+			 struct scatterlist *sg, int n_hw_ents)
 {
 	struct usb_bus		*bus;
 	struct device		*controller;
@@ -987,116 +852,6 @@ void usb_buffer_unmap_sg (struct usb_device *dev, unsigned pipe,
 	dma_unmap_sg (controller, sg, n_hw_ents,
 			usb_pipein (pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
-
-static int verify_suspended(struct device *dev, void *unused)
-{
-	if (dev->driver == NULL)
-		return 0;
-	return (dev->power.power_state.event == PM_EVENT_ON) ? -EBUSY : 0;
-}
-
-static int usb_generic_suspend(struct device *dev, pm_message_t message)
-{
-	struct usb_interface	*intf;
-	struct usb_driver	*driver;
-	int			status;
-
-	/* USB devices enter SUSPEND state through their hubs, but can be
-	 * marked for FREEZE as soon as their children are already idled.
-	 * But those semantics are useless, so we equate the two (sigh).
-	 */
-	if (dev->driver == &usb_generic_driver) {
-		if (dev->power.power_state.event == message.event)
-			return 0;
-		/* we need to rule out bogus requests through sysfs */
-		status = device_for_each_child(dev, NULL, verify_suspended);
-		if (status)
-			return status;
- 		return usb_suspend_device (to_usb_device(dev));
-	}
-
-	if ((dev->driver == NULL) ||
-	    (dev->driver_data == &usb_generic_driver_data))
-		return 0;
-
-	intf = to_usb_interface(dev);
-	driver = to_usb_driver(dev->driver);
-
-	/* with no hardware, USB interfaces only use FREEZE and ON states */
-	if (!is_active(intf))
-		return 0;
-
-	if (driver->suspend && driver->resume) {
-		status = driver->suspend(intf, message);
-		if (status)
-			dev_err(dev, "%s error %d\n", "suspend", status);
-		else
-			mark_quiesced(intf);
-	} else {
-		// FIXME else if there's no suspend method, disconnect...
-		dev_warn(dev, "no suspend for driver %s?\n", driver->name);
-		mark_quiesced(intf);
-		status = 0;
-	}
-	return status;
-}
-
-static int usb_generic_resume(struct device *dev)
-{
-	struct usb_interface	*intf;
-	struct usb_driver	*driver;
-	struct usb_device	*udev;
-	int			status;
-
-	if (dev->power.power_state.event == PM_EVENT_ON)
-		return 0;
-
-	/* mark things as "on" immediately, no matter what errors crop up */
-	dev->power.power_state.event = PM_EVENT_ON;
-
-	/* devices resume through their hubs */
-	if (dev->driver == &usb_generic_driver) {
-		udev = to_usb_device(dev);
-		if (udev->state == USB_STATE_NOTATTACHED)
-			return 0;
-		return usb_resume_device (to_usb_device(dev));
-	}
-
-	if ((dev->driver == NULL) ||
-	    (dev->driver_data == &usb_generic_driver_data)) {
-		dev->power.power_state.event = PM_EVENT_FREEZE;
-		return 0;
-	}
-
-	intf = to_usb_interface(dev);
-	driver = to_usb_driver(dev->driver);
-
-	udev = interface_to_usbdev(intf);
-	if (udev->state == USB_STATE_NOTATTACHED)
-		return 0;
-
-	/* if driver was suspended, it has a resume method;
-	 * however, sysfs can wrongly mark things as suspended
-	 * (on the "no suspend method" FIXME path above)
-	 */
-	if (driver->resume) {
-		status = driver->resume(intf);
-		if (status) {
-			dev_err(dev, "%s error %d\n", "resume", status);
-			mark_quiesced(intf);
-		}
-	} else
-		dev_warn(dev, "no resume for driver %s?\n", driver->name);
-	return 0;
-}
-
-struct bus_type usb_bus_type = {
-	.name =		"usb",
-	.match =	usb_device_match,
-	.uevent =	usb_uevent,
-	.suspend =	usb_generic_suspend,
-	.resume =	usb_generic_resume,
-};
 
 /* format to disable USB on kernel command line is: nousb */
 __module_param_call("", nousb, param_set_bool, param_get_bool, &nousb, 0444);
@@ -1120,9 +875,12 @@ static int __init usb_init(void)
 		return 0;
 	}
 
+	retval = ksuspend_usb_init();
+	if (retval)
+		goto out;
 	retval = bus_register(&usb_bus_type);
 	if (retval) 
-		goto out;
+		goto bus_register_failed;
 	retval = usb_host_init();
 	if (retval)
 		goto host_init_failed;
@@ -1141,7 +899,7 @@ static int __init usb_init(void)
 	retval = usb_hub_init();
 	if (retval)
 		goto hub_init_failed;
-	retval = driver_register(&usb_generic_driver);
+	retval = usb_register_device_driver(&usb_generic_driver, THIS_MODULE);
 	if (!retval)
 		goto out;
 
@@ -1158,6 +916,8 @@ major_init_failed:
 	usb_host_cleanup();
 host_init_failed:
 	bus_unregister(&usb_bus_type);
+bus_register_failed:
+	ksuspend_usb_cleanup();
 out:
 	return retval;
 }
@@ -1171,7 +931,7 @@ static void __exit usb_exit(void)
 	if (nousb)
 		return;
 
-	driver_unregister(&usb_generic_driver);
+	usb_deregister_device_driver(&usb_generic_driver);
 	usb_major_cleanup();
 	usbfs_cleanup();
 	usb_deregister(&usbfs_driver);
@@ -1179,6 +939,7 @@ static void __exit usb_exit(void)
 	usb_hub_cleanup();
 	usb_host_cleanup();
 	bus_unregister(&usb_bus_type);
+	ksuspend_usb_cleanup();
 }
 
 subsys_initcall(usb_init);
@@ -1201,14 +962,9 @@ EXPORT_SYMBOL(usb_hub_tt_clear_buffer);
 
 EXPORT_SYMBOL(usb_lock_device_for_reset);
 
-EXPORT_SYMBOL(usb_driver_claim_interface);
-EXPORT_SYMBOL(usb_driver_release_interface);
 EXPORT_SYMBOL(usb_find_interface);
 EXPORT_SYMBOL(usb_ifnum_to_if);
 EXPORT_SYMBOL(usb_altnum_to_altsetting);
-
-EXPORT_SYMBOL(usb_reset_device);
-EXPORT_SYMBOL(usb_reset_composite_device);
 
 EXPORT_SYMBOL(__usb_get_extra_descriptor);
 

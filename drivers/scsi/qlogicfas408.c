@@ -209,7 +209,7 @@ static int ql_wai(struct qlogicfas408_priv *priv)
  *	caller must hold host lock
  */
 
-static void ql_icmd(Scsi_Cmnd * cmd)
+static void ql_icmd(struct scsi_cmnd *cmd)
 {
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
 	int 	qbase = priv->qbase;
@@ -256,7 +256,7 @@ static void ql_icmd(Scsi_Cmnd * cmd)
  *	Process scsi command - usually after interrupt 
  */
 
-static unsigned int ql_pcmd(Scsi_Cmnd * cmd)
+static unsigned int ql_pcmd(struct scsi_cmnd *cmd)
 {
 	unsigned int i, j;
 	unsigned long k;
@@ -405,10 +405,10 @@ static unsigned int ql_pcmd(Scsi_Cmnd * cmd)
  *	Interrupt handler 
  */
 
-static void ql_ihandl(int irq, void *dev_id, struct pt_regs *regs)
+static void ql_ihandl(void *dev_id)
 {
-	Scsi_Cmnd *icmd;
-	struct Scsi_Host *host = (struct Scsi_Host *)dev_id;
+	struct scsi_cmnd *icmd;
+	struct Scsi_Host *host = dev_id;
 	struct qlogicfas408_priv *priv = get_priv_by_host(host);
 	int qbase = priv->qbase;
 	REG0;
@@ -432,13 +432,13 @@ static void ql_ihandl(int irq, void *dev_id, struct pt_regs *regs)
 	(icmd->scsi_done) (icmd);
 }
 
-irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id)
 {
 	unsigned long flags;
 	struct Scsi_Host *host = dev_id;
 
 	spin_lock_irqsave(host->host_lock, flags);
-	ql_ihandl(irq, dev_id, regs);
+	ql_ihandl(dev_id);
 	spin_unlock_irqrestore(host->host_lock, flags);
 	return IRQ_HANDLED;
 }
@@ -447,7 +447,8 @@ irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id, struct pt_regs *regs)
  *	Queued command
  */
 
-int qlogicfas408_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
+int qlogicfas408_queuecommand(struct scsi_cmnd *cmd,
+			      void (*done) (struct scsi_cmnd *))
 {
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
 	if (scmd_id(cmd) == priv->qinitid) {
@@ -470,9 +471,8 @@ int qlogicfas408_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
  *	Return bios parameters 
  */
 
-int qlogicfas408_biosparam(struct scsi_device * disk,
-		        struct block_device *dev,
-			sector_t capacity, int ip[])
+int qlogicfas408_biosparam(struct scsi_device *disk, struct block_device *dev,
+			   sector_t capacity, int ip[])
 {
 /* This should mimic the DOS Qlogic driver's behavior exactly */
 	ip[0] = 0x40;
@@ -494,7 +494,7 @@ int qlogicfas408_biosparam(struct scsi_device * disk,
  *	Abort a command in progress
  */
  
-int qlogicfas408_abort(Scsi_Cmnd * cmd)
+int qlogicfas408_abort(struct scsi_cmnd *cmd)
 {
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
 	priv->qabort = 1;
@@ -508,7 +508,7 @@ int qlogicfas408_abort(Scsi_Cmnd * cmd)
  *	the PCMCIA qlogic_stub code. This wants fixing
  */
 
-int qlogicfas408_bus_reset(Scsi_Cmnd * cmd)
+int qlogicfas408_bus_reset(struct scsi_cmnd *cmd)
 {
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
 	unsigned long flags;

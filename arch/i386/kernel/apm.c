@@ -198,7 +198,7 @@
  *   (APM) BIOS Interface Specification, Revision 1.2, February 1996.
  *
  * [This document is available from Microsoft at:
- *    http://www.microsoft.com/hwdev/busbios/amp_12.htm]
+ *    http://www.microsoft.com/whdc/archive/amp_12.mspx]
  */
 
 #include <linux/module.h>
@@ -225,11 +225,13 @@
 #include <linux/smp_lock.h>
 #include <linux/dmi.h>
 #include <linux/suspend.h>
+#include <linux/kthread.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/desc.h>
 #include <asm/i8253.h>
+#include <asm/paravirt.h>
 
 #include "io_ports.h"
 
@@ -402,8 +404,6 @@ static int			realmode_power_off = 1;
 #else
 static int			realmode_power_off;
 #endif
-static int			exit_kapmd __read_mostly;
-static int			kapmd_running __read_mostly;
 #ifdef CONFIG_APM_ALLOW_INTS
 static int			allow_ints = 1;
 #else
@@ -418,6 +418,8 @@ static DEFINE_SPINLOCK(user_list_lock);
 static const struct desc_struct	bad_bios_desc = { 0, 0x00409200 };
 
 static const char		driver_version[] = "1.16ac";	/* no spaces */
+
+static struct task_struct *kapmd_task;
 
 /*
  *	APM event names taken from the APM 1.2 specification. These are
@@ -539,11 +541,30 @@ static inline void apm_restore_cpus(cpumask_t mask)
  * Also, we KNOW that for the non error case of apm_bios_call, there
  * is no useful data returned in the low order 8 bits of eax.
  */
-#define APM_DO_CLI	\
-	if (apm_info.allow_ints) \
-		local_irq_enable(); \
-	else \
+
+static inline unsigned long __apm_irq_save(void)
+{
+	unsigned long flags;
+	local_save_flags(flags);
+	if (apm_info.allow_ints) {
+		if (irqs_disabled_flags(flags))
+			local_irq_enable();
+	} else
 		local_irq_disable();
+
+	return flags;
+}
+
+#define apm_irq_save(flags) \
+	do { flags = __apm_irq_save(); } while (0)
+
+static inline void apm_irq_restore(unsigned long flags)
+{
+	if (irqs_disabled_flags(flags))
+		local_irq_disable();
+	else if (irqs_disabled())
+		local_irq_enable();
+}
 
 #ifdef APM_ZERO_SEGS
 #	define APM_DECL_SEGS \
@@ -595,12 +616,11 @@ static u8 apm_bios_call(u32 func, u32 ebx_in, u32 ecx_in,
 	save_desc_40 = gdt[0x40 / 8];
 	gdt[0x40 / 8] = bad_bios_desc;
 
-	local_save_flags(flags);
-	APM_DO_CLI;
+	apm_irq_save(flags);
 	APM_DO_SAVE_SEGS;
 	apm_bios_call_asm(func, ebx_in, ecx_in, eax, ebx, ecx, edx, esi);
 	APM_DO_RESTORE_SEGS;
-	local_irq_restore(flags);
+	apm_irq_restore(flags);
 	gdt[0x40 / 8] = save_desc_40;
 	put_cpu();
 	apm_restore_cpus(cpus);
@@ -639,12 +659,11 @@ static u8 apm_bios_call_simple(u32 func, u32 ebx_in, u32 ecx_in, u32 *eax)
 	save_desc_40 = gdt[0x40 / 8];
 	gdt[0x40 / 8] = bad_bios_desc;
 
-	local_save_flags(flags);
-	APM_DO_CLI;
+	apm_irq_save(flags);
 	APM_DO_SAVE_SEGS;
 	error = apm_bios_call_simple_asm(func, ebx_in, ecx_in, eax);
 	APM_DO_RESTORE_SEGS;
-	local_irq_restore(flags);
+	apm_irq_restore(flags);
 	gdt[0x40 / 8] = save_desc_40;
 	put_cpu();
 	apm_restore_cpus(cpus);
@@ -1423,7 +1442,7 @@ static void apm_mainloop(void)
 	set_current_state(TASK_INTERRUPTIBLE);
 	for (;;) {
 		schedule_timeout(APM_CHECK_TIMEOUT);
-		if (exit_kapmd)
+		if (kthread_should_stop())
 			break;
 		/*
 		 * Ok, check all events, check for idle (and mark us sleeping
@@ -1706,12 +1725,6 @@ static int apm(void *unused)
 	char *		power_stat;
 	char *		bat_stat;
 
-	kapmd_running = 1;
-
-	daemonize("kapmd");
-
-	current->flags |= PF_NOFREEZE;
-
 #ifdef CONFIG_SMP
 	/* 2002/08/01 - WT
 	 * This is to avoid random crashes at boot time during initialization
@@ -1821,7 +1834,6 @@ static int apm(void *unused)
 		console_blank_hook = NULL;
 #endif
 	}
-	kapmd_running = 0;
 
 	return 0;
 }
@@ -2220,11 +2232,11 @@ static int __init apm_init(void)
 {
 	struct proc_dir_entry *apm_proc;
 	struct desc_struct *gdt;
-	int ret;
+	int err;
 
 	dmi_check_system(apm_dmi_table);
 
-	if (apm_info.bios.version == 0) {
+	if (apm_info.bios.version == 0 || paravirt_enabled()) {
 		printk(KERN_INFO "apm: BIOS not found.\n");
 		return -ENODEV;
 	}
@@ -2329,12 +2341,17 @@ static int __init apm_init(void)
 	if (apm_proc)
 		apm_proc->owner = THIS_MODULE;
 
-	ret = kernel_thread(apm, NULL, CLONE_KERNEL | SIGCHLD);
-	if (ret < 0) {
-		printk(KERN_ERR "apm: disabled - Unable to start kernel thread.\n");
+	kapmd_task = kthread_create(apm, NULL, "kapmd");
+	if (IS_ERR(kapmd_task)) {
+		printk(KERN_ERR "apm: disabled - Unable to start kernel "
+				"thread.\n");
+		err = PTR_ERR(kapmd_task);
+		kapmd_task = NULL;
 		remove_proc_entry("apm", NULL);
-		return -ENOMEM;
+		return err;
 	}
+	kapmd_task->flags |= PF_NOFREEZE;
+	wake_up_process(kapmd_task);
 
 	if (num_online_cpus() > 1 && !smp ) {
 		printk(KERN_NOTICE
@@ -2384,9 +2401,10 @@ static void __exit apm_exit(void)
 	remove_proc_entry("apm", NULL);
 	if (power_off)
 		pm_power_off = NULL;
-	exit_kapmd = 1;
-	while (kapmd_running)
-		schedule();
+	if (kapmd_task) {
+		kthread_stop(kapmd_task);
+		kapmd_task = NULL;
+	}
 #ifdef CONFIG_PM_LEGACY
 	pm_active = 0;
 #endif

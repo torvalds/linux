@@ -171,9 +171,12 @@ static struct resource kp_resources[] = {
 };
 
 static struct omap_kp_platform_data kp_data = {
-	.rows	= 8,
-	.cols	= 8,
-	.keymap = p2_keymap,
+	.rows		= 8,
+	.cols		= 8,
+	.keymap		= p2_keymap,
+	.keymapsize	= ARRAY_SIZE(p2_keymap),
+	.delay		= 4,
+	.dbounce	= 1,
 };
 
 static struct platform_device kp_device = {

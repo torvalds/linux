@@ -1,5 +1,5 @@
 /*
- * inclue/asm-ppc/rtc.h
+ * include/asm-ppc/rtc.h
  *
  * Author: Tom Rini <trini@mvista.com>
  *

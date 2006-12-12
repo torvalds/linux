@@ -23,35 +23,35 @@
  *	updated in fork.c:copy_thread, signal.c:do_signal,
  *	ptrace.c and ptrace.h
  *
- * M32Rx/M32R2				M32R
- *       @(sp)      - r4		ditto
- *       @(0x04,sp) - r5		ditto
- *       @(0x08,sp) - r6		ditto
- *       @(0x0c,sp) - *pt_regs		ditto
- *       @(0x10,sp) - r0		ditto
- *       @(0x14,sp) - r1		ditto
- *       @(0x18,sp) - r2		ditto
- *       @(0x1c,sp) - r3		ditto
- *       @(0x20,sp) - r7		ditto
- *       @(0x24,sp) - r8		ditto
- *       @(0x28,sp) - r9		ditto
- *       @(0x2c,sp) - r10		ditto
- *       @(0x30,sp) - r11		ditto
- *       @(0x34,sp) - r12		ditto
- *       @(0x38,sp) - syscall_nr	ditto
- *       @(0x3c,sp) - acc0h		@(0x3c,sp) - acch
- *       @(0x40,sp) - acc0l		@(0x40,sp) - accl
- *       @(0x44,sp) - acc1h		@(0x44,sp) - dummy_acc1h
- *       @(0x48,sp) - acc1l		@(0x48,sp) - dummy_acc1l
- *       @(0x4c,sp) - psw		ditto
- *       @(0x50,sp) - bpc		ditto
- *       @(0x54,sp) - bbpsw		ditto
- *       @(0x58,sp) - bbpc		ditto
- *       @(0x5c,sp) - spu (cr3)		ditto
- *       @(0x60,sp) - fp (r13)		ditto
- *       @(0x64,sp) - lr (r14)		ditto
- *       @(0x68,sp) - spi (cr2)		ditto
- *       @(0x6c,sp) - orig_r0		ditto
+ * M32R/M32Rx/M32R2
+ *       @(sp)      - r4
+ *       @(0x04,sp) - r5
+ *       @(0x08,sp) - r6
+ *       @(0x0c,sp) - *pt_regs
+ *       @(0x10,sp) - r0
+ *       @(0x14,sp) - r1
+ *       @(0x18,sp) - r2
+ *       @(0x1c,sp) - r3
+ *       @(0x20,sp) - r7
+ *       @(0x24,sp) - r8
+ *       @(0x28,sp) - r9
+ *       @(0x2c,sp) - r10
+ *       @(0x30,sp) - r11
+ *       @(0x34,sp) - r12
+ *       @(0x38,sp) - syscall_nr
+ *       @(0x3c,sp) - acc0h
+ *       @(0x40,sp) - acc0l
+ *       @(0x44,sp) - acc1h		; ISA_DSP_LEVEL2 only
+ *       @(0x48,sp) - acc1l		; ISA_DSP_LEVEL2 only
+ *       @(0x4c,sp) - psw
+ *       @(0x50,sp) - bpc
+ *       @(0x54,sp) - bbpsw
+ *       @(0x58,sp) - bbpc
+ *       @(0x5c,sp) - spu (cr3)
+ *       @(0x60,sp) - fp (r13)
+ *       @(0x64,sp) - lr (r14)
+ *       @(0x68,sp) - spi (cr2)
+ *       @(0x6c,sp) - orig_r0
  */
 
 #include <linux/linkage.h>
@@ -95,17 +95,10 @@
 #define R11(reg)		@(0x30,reg)
 #define R12(reg)		@(0x34,reg)
 #define SYSCALL_NR(reg)		@(0x38,reg)
-#if defined(CONFIG_ISA_M32R2) && defined(CONFIG_ISA_DSP_LEVEL2)
 #define ACC0H(reg)		@(0x3C,reg)
 #define ACC0L(reg)		@(0x40,reg)
 #define ACC1H(reg)		@(0x44,reg)
 #define ACC1L(reg)		@(0x48,reg)
-#elif defined(CONFIG_ISA_M32R2) || defined(CONFIG_ISA_M32R)
-#define ACCH(reg)		@(0x3C,reg)
-#define ACCL(reg)		@(0x40,reg)
-#else
-#error unknown isa configuration
-#endif
 #define PSW(reg)		@(0x4C,reg)
 #define BPC(reg)		@(0x50,reg)
 #define BBPSW(reg)		@(0x54,reg)
@@ -603,8 +596,6 @@ ENTRY(ace_handler)
 	beqz	r1, inst
 oprand:
 	ld	r2, @(low(MDEVA_offset),r2)	; set address
-	srli	r2, #12
-	slli	r2, #12
 	srli	r1, #1
 	bra	1f
 inst:

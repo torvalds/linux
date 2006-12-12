@@ -107,7 +107,7 @@ The query is performed via a call to pci_set_dma_mask():
 
 	int pci_set_dma_mask(struct pci_dev *pdev, u64 device_mask);
 
-The query for consistent allocations is performed via a a call to
+The query for consistent allocations is performed via a call to
 pci_set_consistent_dma_mask():
 
 	int pci_set_consistent_dma_mask(struct pci_dev *pdev, u64 device_mask);
@@ -117,7 +117,7 @@ device_mask is a bit mask describing which bits of a PCI address your
 device supports.  It returns zero if your card can perform DMA
 properly on the machine given the address mask you provided.
 
-If it returns non-zero, your device can not perform DMA properly on
+If it returns non-zero, your device cannot perform DMA properly on
 this platform, and attempting to do so will result in undefined
 behavior.  You must either use a different mask, or not use DMA.
 

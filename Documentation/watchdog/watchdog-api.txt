@@ -45,7 +45,7 @@ daemon and it crashes the system will not reboot.  Because of this,
 some of the drivers support the configuration option "Disable watchdog
 shutdown on close", CONFIG_WATCHDOG_NOWAYOUT.  If it is set to Y when
 compiling the kernel, there is no way of disabling the watchdog once
-it has been started.  So, if the watchdog dameon crashes, the system
+it has been started.  So, if the watchdog daemon crashes, the system
 will reboot after the timeout has passed.
 
 Some other drivers will not disable the watchdog, unless a specific
@@ -207,14 +207,14 @@ Note that not all devices support these two calls, and some only
 support the GETBOOTSTATUS call.
 
 Some drivers can measure the temperature using the GETTEMP ioctl.  The
-returned value is the temperature in degrees farenheit.
+returned value is the temperature in degrees fahrenheit.
 
     int temperature;
     ioctl(fd, WDIOC_GETTEMP, &temperature);
 
 Finally the SETOPTIONS ioctl can be used to control some aspects of
 the cards operation; right now the pcwd driver is the only one
-supporting thiss ioctl.
+supporting this ioctl.
 
     int options = 0;
     ioctl(fd, WDIOC_SETOPTIONS, options);
@@ -258,13 +258,13 @@ booke_wdt.c -- PowerPC BookE Watchdog Timer
 	Timeout default varies according to frequency, supports
 	SETTIMEOUT
 
-	Watchdog can not be turned off, CONFIG_WATCHDOG_NOWAYOUT
+	Watchdog cannot be turned off, CONFIG_WATCHDOG_NOWAYOUT
 	does not make sense
 
 	GETSUPPORT returns the watchdog_info struct, and
 	GETSTATUS returns the supported options. GETBOOTSTATUS
 	returns a 1 if the last reset was caused by the
-	watchdog and a 0 otherwise. This watchdog can not be
+	watchdog and a 0 otherwise. This watchdog cannot be
 	disabled once it has been started. The wdt_period kernel
 	parameter selects which bit of the time base changing
 	from 0->1 will trigger the watchdog exception. Changing

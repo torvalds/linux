@@ -59,10 +59,13 @@
 #define USB_DEVICE_MAX			USB_MAXBUS * 128
 static struct class *usb_device_class;
 
+/* Mutual exclusion for removal, open, and release */
+DEFINE_MUTEX(usbfs_mutex);
+
 struct async {
 	struct list_head asynclist;
 	struct dev_state *ps;
-	pid_t pid;
+	struct pid *pid;
 	uid_t uid, euid;
 	unsigned int signr;
 	unsigned int ifnum;
@@ -87,9 +90,10 @@ MODULE_PARM_DESC (usbfs_snoop, "true to log all usbfs traffic");
 
 #define	MAX_USBFS_BUFFER_SIZE	16384
 
-static inline int connected (struct usb_device *dev)
+static inline int connected (struct dev_state *ps)
 {
-	return dev->state != USB_STATE_NOTATTACHED;
+	return (!list_empty(&ps->list) &&
+			ps->dev->state != USB_STATE_NOTATTACHED);
 }
 
 static loff_t usbdev_lseek(struct file *file, loff_t offset, int orig)
@@ -118,7 +122,7 @@ static loff_t usbdev_lseek(struct file *file, loff_t offset, int orig)
 
 static ssize_t usbdev_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
-	struct dev_state *ps = (struct dev_state *)file->private_data;
+	struct dev_state *ps = file->private_data;
 	struct usb_device *dev = ps->dev;
 	ssize_t ret = 0;
 	unsigned len;
@@ -127,7 +131,7 @@ static ssize_t usbdev_read(struct file *file, char __user *buf, size_t nbytes, l
 
 	pos = *ppos;
 	usb_lock_device(dev);
-	if (!connected(dev)) {
+	if (!connected(ps)) {
 		ret = -ENODEV;
 		goto err;
 	} else if (pos < 0) {
@@ -221,6 +225,7 @@ static struct async *alloc_async(unsigned int numisoframes)
 
 static void free_async(struct async *as)
 {
+	put_pid(as->pid);
 	kfree(as->urb->transfer_buffer);
 	kfree(as->urb->setup_packet);
 	usb_free_urb(as->urb);
@@ -299,9 +304,9 @@ static void snoop_urb(struct urb *urb, void __user *userurb)
 	printk("\n");
 }
 
-static void async_completed(struct urb *urb, struct pt_regs *regs)
+static void async_completed(struct urb *urb)
 {
-        struct async *as = (struct async *)urb->context;
+        struct async *as = urb->context;
         struct dev_state *ps = as->ps;
 	struct siginfo sinfo;
 
@@ -313,7 +318,7 @@ static void async_completed(struct urb *urb, struct pt_regs *regs)
 		sinfo.si_errno = as->urb->status;
 		sinfo.si_code = SI_ASYNCIO;
 		sinfo.si_addr = as->userurb;
-		kill_proc_info_as_uid(as->signr, &sinfo, as->pid, as->uid, 
+		kill_pid_info_as_uid(as->signr, &sinfo, as->pid, as->uid,
 				      as->euid, as->secid);
 	}
 	snoop(&urb->dev->dev, "urb complete\n");
@@ -541,25 +546,25 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	struct dev_state *ps;
 	int ret;
 
-	/* 
-	 * no locking necessary here, as chrdev_open has the kernel lock
-	 * (still acquire the kernel lock for safety)
-	 */
+	/* Protect against simultaneous removal or release */
+	mutex_lock(&usbfs_mutex);
+
 	ret = -ENOMEM;
 	if (!(ps = kmalloc(sizeof(struct dev_state), GFP_KERNEL)))
-		goto out_nolock;
+		goto out;
 
-	lock_kernel();
 	ret = -ENOENT;
 	/* check if we are called from a real node or usbfs */
 	if (imajor(inode) == USB_DEVICE_MAJOR)
 		dev = usbdev_lookup_minor(iminor(inode));
 	if (!dev)
-		dev = inode->u.generic_ip;
-	if (!dev) {
-		kfree(ps);
+		dev = inode->i_private;
+	if (!dev)
 		goto out;
-	}
+	ret = usb_autoresume_device(dev);
+	if (ret)
+		goto out;
+
 	usb_get_dev(dev);
 	ret = 0;
 	ps->dev = dev;
@@ -569,7 +574,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&ps->async_completed);
 	init_waitqueue_head(&ps->wait);
 	ps->discsignr = 0;
-	ps->disc_pid = current->pid;
+	ps->disc_pid = get_pid(task_pid(current));
 	ps->disc_uid = current->uid;
 	ps->disc_euid = current->euid;
 	ps->disccontext = NULL;
@@ -579,30 +584,37 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	list_add_tail(&ps->list, &dev->filelist);
 	file->private_data = ps;
  out:
-	unlock_kernel();
- out_nolock:
-        return ret;
+	if (ret)
+		kfree(ps);
+	mutex_unlock(&usbfs_mutex);
+	return ret;
 }
 
 static int usbdev_release(struct inode *inode, struct file *file)
 {
-	struct dev_state *ps = (struct dev_state *)file->private_data;
+	struct dev_state *ps = file->private_data;
 	struct usb_device *dev = ps->dev;
 	unsigned int ifnum;
 
 	usb_lock_device(dev);
+
+	/* Protect against simultaneous open */
+	mutex_lock(&usbfs_mutex);
 	list_del_init(&ps->list);
+	mutex_unlock(&usbfs_mutex);
+
 	for (ifnum = 0; ps->ifclaimed && ifnum < 8*sizeof(ps->ifclaimed);
 			ifnum++) {
 		if (test_bit(ifnum, &ps->ifclaimed))
 			releaseintf(ps, ifnum);
 	}
 	destroy_all_async(ps);
+	usb_autosuspend_device(dev);
 	usb_unlock_device(dev);
 	usb_put_dev(dev);
-	ps->dev = NULL;
+	put_pid(ps->disc_pid);
 	kfree(ps);
-        return 0;
+	return 0;
 }
 
 static int proc_control(struct dev_state *ps, void __user *arg)
@@ -1053,7 +1065,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		as->userbuffer = NULL;
 	as->signr = uurb->signr;
 	as->ifnum = ifnum;
-	as->pid = current->pid;
+	as->pid = get_pid(task_pid(current));
 	as->uid = current->uid;
 	as->euid = current->euid;
 	security_task_getsecid(current, &as->secid);
@@ -1204,7 +1216,7 @@ static int proc_submiturb_compat(struct dev_state *ps, void __user *arg)
 {
 	struct usbdevfs_urb uurb;
 
-	if (get_urb32(&uurb,(struct usbdevfs_urb32 *)arg))
+	if (get_urb32(&uurb,(struct usbdevfs_urb32 __user *)arg))
 		return -EFAULT;
 
 	return proc_do_submiturb(ps, &uurb, ((struct usbdevfs_urb32 __user *)arg)->iso_frame_desc, arg);
@@ -1239,7 +1251,7 @@ static int processcompl_compat(struct async *as, void __user * __user *arg)
 	}
 
 	free_async(as);
-	if (put_user((u32)(u64)addr, (u32 __user *)arg))
+	if (put_user(ptr_to_compat(addr), (u32 __user *)arg))
 		return -EFAULT;
 	return 0;
 }
@@ -1322,7 +1334,7 @@ static int proc_ioctl(struct dev_state *ps, struct usbdevfs_ioctl *ctl)
 		}
 	}
 
-	if (!connected(ps->dev)) {
+	if (!connected(ps)) {
 		kfree(buf);
 		return -ENODEV;
 	}
@@ -1349,7 +1361,7 @@ static int proc_ioctl(struct dev_state *ps, struct usbdevfs_ioctl *ctl)
 	/* let kernel drivers try to (re)bind to the interface */
 	case USBDEVFS_CONNECT:
 		usb_unlock_device(ps->dev);
-		bus_rescan_devices(intf->dev.bus);
+		retval = bus_rescan_devices(intf->dev.bus);
 		usb_lock_device(ps->dev);
 		break;
 
@@ -1413,7 +1425,7 @@ static int proc_ioctl_compat(struct dev_state *ps, compat_uptr_t arg)
  */
 static int usbdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct dev_state *ps = (struct dev_state *)file->private_data;
+	struct dev_state *ps = file->private_data;
 	struct usb_device *dev = ps->dev;
 	void __user *p = (void __user *)arg;
 	int ret = -ENOTTY;
@@ -1421,7 +1433,7 @@ static int usbdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 	if (!(file->f_mode & FMODE_WRITE))
 		return -EPERM;
 	usb_lock_device(dev);
-	if (!connected(dev)) {
+	if (!connected(ps)) {
 		usb_unlock_device(dev);
 		return -ENODEV;
 	}
@@ -1508,7 +1520,7 @@ static int usbdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 
 	case USBDEVFS_IOCTL32:
 		snoop(&dev->dev, "%s: IOCTL\n", __FUNCTION__);
-		ret = proc_ioctl_compat(ps, (compat_uptr_t)(long)p);
+		ret = proc_ioctl_compat(ps, ptr_to_compat(p));
 		break;
 #endif
 
@@ -1556,18 +1568,18 @@ static int usbdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 /* No kernel lock - fine */
 static unsigned int usbdev_poll(struct file *file, struct poll_table_struct *wait)
 {
-	struct dev_state *ps = (struct dev_state *)file->private_data;
-        unsigned int mask = 0;
+	struct dev_state *ps = file->private_data;
+	unsigned int mask = 0;
 
 	poll_wait(file, &ps->wait, wait);
 	if (file->f_mode & FMODE_WRITE && !list_empty(&ps->async_completed))
 		mask |= POLLOUT | POLLWRNORM;
-	if (!connected(ps->dev))
+	if (!connected(ps))
 		mask |= POLLERR | POLLHUP;
 	return mask;
 }
 
-struct file_operations usbfs_device_file_operations = {
+const struct file_operations usbfs_device_file_operations = {
 	.llseek =	usbdev_lseek,
 	.read =		usbdev_read,
 	.poll =		usbdev_poll,
@@ -1576,15 +1588,18 @@ struct file_operations usbfs_device_file_operations = {
 	.release =	usbdev_release,
 };
 
-static void usbdev_add(struct usb_device *dev)
+static int usbdev_add(struct usb_device *dev)
 {
 	int minor = ((dev->bus->busnum-1) * 128) + (dev->devnum-1);
 
 	dev->class_dev = class_device_create(usb_device_class, NULL,
 				MKDEV(USB_DEVICE_MAJOR, minor), &dev->dev,
 				"usbdev%d.%d", dev->bus->busnum, dev->devnum);
+	if (IS_ERR(dev->class_dev))
+		return PTR_ERR(dev->class_dev);
 
 	dev->class_dev->class_data = dev;
+	return 0;
 }
 
 static void usbdev_remove(struct usb_device *dev)
@@ -1597,7 +1612,8 @@ static int usbdev_notify(struct notifier_block *self, unsigned long action,
 {
 	switch (action) {
 	case USB_DEVICE_ADD:
-		usbdev_add(dev);
+		if (usbdev_add(dev))
+			return NOTIFY_BAD;
 		break;
 	case USB_DEVICE_REMOVE:
 		usbdev_remove(dev);

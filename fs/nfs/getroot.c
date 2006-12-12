@@ -9,7 +9,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 
@@ -32,7 +31,7 @@
 #include <linux/nfs_idmap.h>
 #include <linux/vfs.h>
 #include <linux/namei.h>
-#include <linux/namespace.h>
+#include <linux/mnt_namespace.h>
 #include <linux/security.h>
 
 #include <asm/system.h>

@@ -17,7 +17,7 @@
 #ifndef FLATDEVTREE_H
 #define FLATDEVTREE_H
 
-#include "types.h"
+#include "flatdevtree_env.h"
 
 /* Definitions used by the flattened device tree */
 #define OF_DT_HEADER            0xd00dfeed      /* marker */
@@ -42,5 +42,65 @@ struct boot_param_header {
 	/* version 3 fields below */
 	u32 dt_strings_size;    /* size of the DT strings block */
 };
+
+struct ft_reserve {
+	u64 start;
+	u64 len;
+};
+
+struct ft_region {
+	char *start;
+	unsigned long size;
+};
+
+enum ft_rgn_id {
+	FT_RSVMAP,
+	FT_STRUCT,
+	FT_STRINGS,
+	FT_N_REGION
+};
+
+#define FT_MAX_DEPTH	50
+
+struct ft_cxt {
+	struct boot_param_header *bph;
+	int max_size;           /* maximum size of tree */
+	int isordered;		/* everything in standard order */
+	void *(*realloc)(void *, unsigned long);
+	char *str_anchor;
+	char *p;		/* current insertion point in structs */
+	struct ft_region rgn[FT_N_REGION];
+	void *genealogy[FT_MAX_DEPTH+1];
+	char **node_tbl;
+	unsigned int node_max;
+	unsigned int nodes_used;
+};
+
+int ft_begin_node(struct ft_cxt *cxt, const char *name);
+void ft_end_node(struct ft_cxt *cxt);
+
+void ft_begin_tree(struct ft_cxt *cxt);
+void ft_end_tree(struct ft_cxt *cxt);
+
+void ft_nop(struct ft_cxt *cxt);
+int ft_prop(struct ft_cxt *cxt, const char *name,
+	    const void *data, unsigned int sz);
+int ft_prop_str(struct ft_cxt *cxt, const char *name, const char *str);
+int ft_prop_int(struct ft_cxt *cxt, const char *name, unsigned int val);
+void ft_begin(struct ft_cxt *cxt, void *blob, unsigned int max_size,
+	      void *(*realloc_fn)(void *, unsigned long));
+int ft_open(struct ft_cxt *cxt, void *blob, unsigned int max_size,
+		unsigned int max_find_device,
+		void *(*realloc_fn)(void *, unsigned long));
+int ft_add_rsvmap(struct ft_cxt *cxt, u64 physaddr, u64 size);
+
+void ft_dump_blob(const void *bphp);
+void ft_merge_blob(struct ft_cxt *cxt, void *blob);
+void *ft_find_device(struct ft_cxt *cxt, const char *srch_path);
+void *ft_find_descendent(struct ft_cxt *cxt, void *top, const char *srch_path);
+int ft_get_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
+		void *buf, const unsigned int buflen);
+int ft_set_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
+		const void *buf, const unsigned int buflen);
 
 #endif /* FLATDEVTREE_H */

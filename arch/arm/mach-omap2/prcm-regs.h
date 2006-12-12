@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap2/prcm-reg.h
+ * linux/arch/arm/mach-omap2/prcm-regs.h
  *
  * OMAP24XX Power Reset and Clock Management (PRCM) registers
  *

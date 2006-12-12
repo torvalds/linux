@@ -162,7 +162,7 @@ config ETRAX_SDRAM_GRP1_CONFIG
 	depends on ETRAX_ARCH_V32
 	default "0"
 	help
-	  SDRAM configuration for group 1. The defult value is 0
+	  SDRAM configuration for group 1. The default value is 0
 	  because group 1 is not used in the default configuration,
 	  described in the help for SDRAM_GRP0_CONFIG.
 

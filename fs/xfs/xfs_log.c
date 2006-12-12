@@ -617,7 +617,8 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 		reg[0].i_len  = sizeof(magic);
 		XLOG_VEC_SET_TYPE(&reg[0], XLOG_REG_TYPE_UNMOUNT);
 
-		error = xfs_log_reserve(mp, 600, 1, &tic, XFS_LOG, 0, 0);
+		error = xfs_log_reserve(mp, 600, 1, &tic,
+					XFS_LOG, 0, XLOG_UNMOUNT_REC_TYPE);
 		if (!error) {
 			/* remove inited flag */
 			((xlog_ticket_t *)tic)->t_flags = 0;
@@ -655,8 +656,11 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 		} else {
 			LOG_UNLOCK(log, s);
 		}
-		if (tic)
+		if (tic) {
+			xlog_trace_loggrant(log, tic, "unmount rec");
+			xlog_ungrant_log_space(log, tic);
 			xlog_state_put_ticket(log, tic);
+		}
 	} else {
 		/*
 		 * We're already in forced_shutdown mode, couldn't
@@ -1196,7 +1200,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 			  kmem_zalloc(sizeof(xlog_in_core_t), KM_SLEEP);
 		iclog = *iclogp;
 		iclog->hic_data = (xlog_in_core_2_t *)
-			  kmem_zalloc(iclogsize, KM_SLEEP);
+			  kmem_zalloc(iclogsize, KM_SLEEP | KM_LARGE);
 
 		iclog->ic_prev = prev_iclog;
 		prev_iclog = iclog;
@@ -2212,9 +2216,13 @@ xlog_state_do_callback(
 
 			iclog = iclog->ic_next;
 		} while (first_iclog != iclog);
-		if (repeats && (repeats % 10) == 0) {
+
+		if (repeats > 5000) {
+			flushcnt += repeats;
+			repeats = 0;
 			xfs_fs_cmn_err(CE_WARN, log->l_mp,
-				"xlog_state_do_callback: looping %d", repeats);
+				"%s: possible infinite loop (%d iterations)",
+				__FUNCTION__, flushcnt);
 		}
 	} while (!ioerrors && loopdidcallbacks);
 
@@ -2246,6 +2254,7 @@ xlog_state_do_callback(
 	}
 #endif
 
+	flushcnt = 0;
 	if (log->l_iclog->ic_state & (XLOG_STATE_ACTIVE|XLOG_STATE_IOERROR)) {
 		flushcnt = log->l_flushcnt;
 		log->l_flushcnt = 0;

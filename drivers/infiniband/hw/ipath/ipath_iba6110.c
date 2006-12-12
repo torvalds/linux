@@ -38,6 +38,7 @@
 
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/htirq.h>
 
 #include "ipath_kernel.h"
 #include "ipath_registers.h"
@@ -252,8 +253,8 @@ static const struct ipath_cregs ipath_ht_cregs = {
 };
 
 /* kr_intstatus, kr_intclear, kr_intmask bits */
-#define INFINIPATH_I_RCVURG_MASK 0x1FF
-#define INFINIPATH_I_RCVAVAIL_MASK 0x1FF
+#define INFINIPATH_I_RCVURG_MASK ((1U<<9)-1)
+#define INFINIPATH_I_RCVAVAIL_MASK ((1U<<9)-1)
 
 /* kr_hwerrclear, kr_hwerrmask, kr_hwerrstatus, bits */
 #define INFINIPATH_HWE_HTCMEMPARITYERR_SHIFT 0
@@ -338,7 +339,7 @@ static void hwerr_crcbits(struct ipath_devdata *dd, ipath_err_t hwerrs,
 	if (crcbits) {
 		u16 ctrl0, ctrl1;
 		snprintf(bitsmsg, sizeof bitsmsg,
-			 "[HT%s lane %s CRC (%llx); ignore till reload]",
+			 "[HT%s lane %s CRC (%llx); powercycle to completely clear]",
 			 !(crcbits & _IPATH_HTLINK1_CRCBITS) ?
 			 "0 (A)" : (!(crcbits & _IPATH_HTLINK0_CRCBITS)
 				    ? "1 (B)" : "0+1 (A+B)"),
@@ -389,17 +390,28 @@ static void hwerr_crcbits(struct ipath_devdata *dd, ipath_err_t hwerrs,
 				     _IPATH_HTLINK1_CRCBITS)));
 }
 
+/* 6110 specific hardware errors... */
+static const struct ipath_hwerror_msgs ipath_6110_hwerror_msgs[] = {
+	INFINIPATH_HWE_MSG(HTCBUSIREQPARITYERR, "HTC Ireq Parity"),
+	INFINIPATH_HWE_MSG(HTCBUSTREQPARITYERR, "HTC Treq Parity"),
+	INFINIPATH_HWE_MSG(HTCBUSTRESPPARITYERR, "HTC Tresp Parity"),
+	INFINIPATH_HWE_MSG(HTCMISCERR5, "HT core Misc5"),
+	INFINIPATH_HWE_MSG(HTCMISCERR6, "HT core Misc6"),
+	INFINIPATH_HWE_MSG(HTCMISCERR7, "HT core Misc7"),
+	INFINIPATH_HWE_MSG(RXDSYNCMEMPARITYERR, "Rx Dsync"),
+	INFINIPATH_HWE_MSG(SERDESPLLFAILED, "SerDes PLL"),
+};
+
 /**
- * ipath_ht_handle_hwerrors - display hardware errors
+ * ipath_ht_handle_hwerrors - display hardware errors.
  * @dd: the infinipath device
  * @msg: the output buffer
  * @msgl: the size of the output buffer
  *
- * Use same msg buffer as regular errors to avoid
- * excessive stack use.  Most hardware errors are catastrophic, but for
- * right now, we'll print them and continue.
- * We reuse the same message buffer as ipath_handle_errors() to avoid
- * excessive stack usage.
+ * Use same msg buffer as regular errors to avoid excessive stack
+ * use.  Most hardware errors are catastrophic, but for right now,
+ * we'll print them and continue.  We reuse the same message buffer as
+ * ipath_handle_errors() to avoid excessive stack usage.
  */
 static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 				     size_t msgl)
@@ -440,19 +452,49 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 	 * make sure we get this much out, unless told to be quiet,
 	 * or it's occurred within the last 5 seconds
 	 */
-	if ((hwerrs & ~dd->ipath_lasthwerror) ||
+	if ((hwerrs & ~(dd->ipath_lasthwerror |
+			((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
+			  INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
+			<< INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT))) ||
 	    (ipath_debug & __IPATH_VERBDBG))
 		dev_info(&dd->pcidev->dev, "Hardware error: hwerr=0x%llx "
 			 "(cleared)\n", (unsigned long long) hwerrs);
 	dd->ipath_lasthwerror |= hwerrs;
 
-	if (hwerrs & ~infinipath_hwe_bitsextant)
+	if (hwerrs & ~dd->ipath_hwe_bitsextant)
 		ipath_dev_err(dd, "hwerror interrupt with unknown errors "
 			      "%llx set\n", (unsigned long long)
-			      (hwerrs & ~infinipath_hwe_bitsextant));
+			      (hwerrs & ~dd->ipath_hwe_bitsextant));
 
 	ctrl = ipath_read_kreg32(dd, dd->ipath_kregs->kr_control);
 	if (ctrl & INFINIPATH_C_FREEZEMODE) {
+		/*
+		 * parity errors in send memory are recoverable,
+		 * just cancel the send (if indicated in * sendbuffererror),
+		 * count the occurrence, unfreeze (if no other handled
+		 * hardware error bits are set), and continue. They can
+		 * occur if a processor speculative read is done to the PIO
+		 * buffer while we are sending a packet, for example.
+		 */
+		if (hwerrs & ((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
+			       INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
+			      << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)) {
+			ipath_stats.sps_txeparity++;
+			ipath_dbg("Recovering from TXE parity error (%llu), "
+			    	  "hwerrstatus=%llx\n",
+				  (unsigned long long) ipath_stats.sps_txeparity,
+				  (unsigned long long) hwerrs);
+			ipath_disarm_senderrbufs(dd);
+			hwerrs &= ~((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
+				     INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
+				    << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT);
+			if (!hwerrs) { /* else leave in freeze mode */
+				ipath_write_kreg(dd,
+						 dd->ipath_kregs->kr_control,
+						 dd->ipath_control);
+				return;
+			}
+		}
 		if (hwerrs) {
 			/*
 			 * if any set that we aren't ignoring; only
@@ -499,44 +541,16 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			 bits);
 		strlcat(msg, bitsmsg, msgl);
 	}
-	if (hwerrs & (INFINIPATH_HWE_RXEMEMPARITYERR_MASK
-		      << INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT)) {
-		bits = (u32) ((hwerrs >>
-			       INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT) &
-			      INFINIPATH_HWE_RXEMEMPARITYERR_MASK);
-		snprintf(bitsmsg, sizeof bitsmsg, "[RXE Parity Errs %x] ",
-			 bits);
-		strlcat(msg, bitsmsg, msgl);
-	}
-	if (hwerrs & (INFINIPATH_HWE_TXEMEMPARITYERR_MASK
-		      << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)) {
-		bits = (u32) ((hwerrs >>
-			       INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT) &
-			      INFINIPATH_HWE_TXEMEMPARITYERR_MASK);
-		snprintf(bitsmsg, sizeof bitsmsg, "[TXE Parity Errs %x] ",
-			 bits);
-		strlcat(msg, bitsmsg, msgl);
-	}
-	if (hwerrs & INFINIPATH_HWE_IBCBUSTOSPCPARITYERR)
-		strlcat(msg, "[IB2IPATH Parity]", msgl);
-	if (hwerrs & INFINIPATH_HWE_IBCBUSFRSPCPARITYERR)
-		strlcat(msg, "[IPATH2IB Parity]", msgl);
-	if (hwerrs & INFINIPATH_HWE_HTCBUSIREQPARITYERR)
-		strlcat(msg, "[HTC Ireq Parity]", msgl);
-	if (hwerrs & INFINIPATH_HWE_HTCBUSTREQPARITYERR)
-		strlcat(msg, "[HTC Treq Parity]", msgl);
-	if (hwerrs & INFINIPATH_HWE_HTCBUSTRESPPARITYERR)
-		strlcat(msg, "[HTC Tresp Parity]", msgl);
+
+	ipath_format_hwerrors(hwerrs,
+			      ipath_6110_hwerror_msgs,
+			      sizeof(ipath_6110_hwerror_msgs) /
+			      sizeof(ipath_6110_hwerror_msgs[0]),
+			      msg, msgl);
 
 	if (hwerrs & (_IPATH_HTLINK0_CRCBITS | _IPATH_HTLINK1_CRCBITS))
 		hwerr_crcbits(dd, hwerrs, msg, msgl);
 
-	if (hwerrs & INFINIPATH_HWE_HTCMISCERR5)
-		strlcat(msg, "[HT core Misc5]", msgl);
-	if (hwerrs & INFINIPATH_HWE_HTCMISCERR6)
-		strlcat(msg, "[HT core Misc6]", msgl);
-	if (hwerrs & INFINIPATH_HWE_HTCMISCERR7)
-		strlcat(msg, "[HT core Misc7]", msgl);
 	if (hwerrs & INFINIPATH_HWE_MEMBISTFAILED) {
 		strlcat(msg, "[Memory BIST test failed, InfiniPath hardware unusable]",
 			msgl);
@@ -572,11 +586,6 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_hwerrmask,
 				 dd->ipath_hwerrmask);
 	}
-
-	if (hwerrs & INFINIPATH_HWE_RXDSYNCMEMPARITYERR)
-		strlcat(msg, "[Rx Dsync]", msgl);
-	if (hwerrs & INFINIPATH_HWE_SERDESPLLFAILED)
-		strlcat(msg, "[SerDes PLL]", msgl);
 
 	ipath_dev_err(dd, "%s hardware error\n", msg);
 	if (isfatal && !ipath_diag_inuse && dd->ipath_freezemsg)
@@ -742,7 +751,6 @@ static int ipath_setup_ht_reset(struct ipath_devdata *dd)
 	return 0;
 }
 
-#define HT_CAPABILITY_ID   0x08	/* HT capabilities not defined in kernel */
 #define HT_INTR_DISC_CONFIG  0x80	/* HT interrupt and discovery cap */
 #define HT_INTR_REG_INDEX    2	/* intconfig requires indirect accesses */
 
@@ -906,49 +914,40 @@ static void slave_or_pri_blk(struct ipath_devdata *dd, struct pci_dev *pdev,
 	}
 }
 
-static int set_int_handler(struct ipath_devdata *dd, struct pci_dev *pdev,
-			    int pos)
+static int ipath_ht_intconfig(struct ipath_devdata *dd)
 {
-	u32 int_handler_addr_lower;
-	u32 int_handler_addr_upper;
-	u64 ihandler;
-	u32 intvec;
+	int ret;
 
-	/* use indirection register to get the intr handler */
-	pci_write_config_byte(pdev, pos + HT_INTR_REG_INDEX, 0x10);
-	pci_read_config_dword(pdev, pos + 4, &int_handler_addr_lower);
-	pci_write_config_byte(pdev, pos + HT_INTR_REG_INDEX, 0x11);
-	pci_read_config_dword(pdev, pos + 4, &int_handler_addr_upper);
+	if (dd->ipath_intconfig) {
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_interruptconfig,
+				 dd->ipath_intconfig);	/* interrupt address */
+		ret = 0;
+	} else {
+		ipath_dev_err(dd, "No interrupts enabled, couldn't setup "
+			      "interrupt address\n");
+		ret = -EINVAL;
+	}
 
-	ihandler = (u64) int_handler_addr_lower |
-		((u64) int_handler_addr_upper << 32);
+	return ret;
+}
+
+static void ipath_ht_irq_update(struct pci_dev *dev, int irq,
+				struct ht_irq_msg *msg)
+{
+	struct ipath_devdata *dd = pci_get_drvdata(dev);
+	u64 prev_intconfig = dd->ipath_intconfig;
+
+	dd->ipath_intconfig = msg->address_lo;
+	dd->ipath_intconfig |= ((u64) msg->address_hi) << 32;
 
 	/*
-	 * kernels with CONFIG_PCI_MSI set the vector in the irq field of
-	 * struct pci_device, so we use that to program the internal
-	 * interrupt register (not config space) with that value. The BIOS
-	 * must still have done the basic MSI setup.
+	 * If the previous value of dd->ipath_intconfig is zero, we're
+	 * getting configured for the first time, and must not program the
+	 * intconfig register here (it will be programmed later, when the
+	 * hardware is ready).  Otherwise, we should.
 	 */
-	intvec = pdev->irq;
-	/*
-	 * clear any vector bits there; normally not set but we'll overload
-	 * this for some debug purposes (setting the HTC debug register
-	 * value from software, rather than GPIOs), so it might be set on a
-	 * driver reload.
-	 */
-	ihandler &= ~0xff0000;
-	/* x86 vector goes in intrinfo[23:16] */
-	ihandler |= intvec << 16;
-	ipath_cdbg(VERBOSE, "ihandler lower %x, upper %x, intvec %x, "
-		   "interruptconfig %llx\n", int_handler_addr_lower,
-		   int_handler_addr_upper, intvec,
-		   (unsigned long long) ihandler);
-
-	/* can't program yet, so save for interrupt setup */
-	dd->ipath_intconfig = ihandler;
-	/* keep going, so we find link control stuff also */
-
-	return ihandler != 0;
+	if (prev_intconfig)
+		ipath_ht_intconfig(dd);
 }
 
 /**
@@ -964,16 +963,23 @@ static int set_int_handler(struct ipath_devdata *dd, struct pci_dev *pdev,
 static int ipath_setup_ht_config(struct ipath_devdata *dd,
 				 struct pci_dev *pdev)
 {
-	int pos, ret = 0;
-	int ihandler = 0;
+	int pos, ret;
+
+	ret = __ht_create_irq(pdev, 0, ipath_ht_irq_update);
+	if (ret < 0) {
+		ipath_dev_err(dd, "Couldn't create interrupt handler: "
+			      "err %d\n", ret);
+		goto bail;
+	}
+	dd->ipath_irq = ret;
+	ret = 0;
 
 	/*
-	 * Read the capability info to find the interrupt info, and also
-	 * handle clearing CRC errors in linkctrl register if necessary.  We
+	 * Handle clearing CRC errors in linkctrl register if necessary.  We
 	 * do this early, before we ever enable errors or hardware errors,
 	 * mostly to avoid causing the chip to enter freeze mode.
 	 */
-	pos = pci_find_capability(pdev, HT_CAPABILITY_ID);
+	pos = pci_find_capability(pdev, PCI_CAP_ID_HT);
 	if (!pos) {
 		ipath_dev_err(dd, "Couldn't find HyperTransport "
 			      "capability; no interrupts\n");
@@ -993,16 +999,8 @@ static int ipath_setup_ht_config(struct ipath_devdata *dd,
 		}
 		if (!(cap_type & 0xE0))
 			slave_or_pri_blk(dd, pdev, pos, cap_type);
-		else if (cap_type == HT_INTR_DISC_CONFIG)
-			ihandler = set_int_handler(dd, pdev, pos);
 	} while ((pos = pci_find_next_capability(pdev, pos,
-						 HT_CAPABILITY_ID)));
-
-	if (!ihandler) {
-		ipath_dev_err(dd, "Couldn't find interrupt handler in "
-			      "config space\n");
-		ret = -ENODEV;
-	}
+						 PCI_CAP_ID_HT)));
 
 bail:
 	return ret;
@@ -1081,21 +1079,21 @@ static void ipath_setup_ht_setextled(struct ipath_devdata *dd,
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_extctrl, extctl);
 }
 
-static void ipath_init_ht_variables(void)
+static void ipath_init_ht_variables(struct ipath_devdata *dd)
 {
-	ipath_gpio_sda_num = _IPATH_GPIO_SDA_NUM;
-	ipath_gpio_scl_num = _IPATH_GPIO_SCL_NUM;
-	ipath_gpio_sda = IPATH_GPIO_SDA;
-	ipath_gpio_scl = IPATH_GPIO_SCL;
+	dd->ipath_gpio_sda_num = _IPATH_GPIO_SDA_NUM;
+	dd->ipath_gpio_scl_num = _IPATH_GPIO_SCL_NUM;
+	dd->ipath_gpio_sda = IPATH_GPIO_SDA;
+	dd->ipath_gpio_scl = IPATH_GPIO_SCL;
 
-	infinipath_i_bitsextant =
+	dd->ipath_i_bitsextant =
 		(INFINIPATH_I_RCVURG_MASK << INFINIPATH_I_RCVURG_SHIFT) |
 		(INFINIPATH_I_RCVAVAIL_MASK <<
 		 INFINIPATH_I_RCVAVAIL_SHIFT) |
 		INFINIPATH_I_ERROR | INFINIPATH_I_SPIOSENT |
 		INFINIPATH_I_SPIOBUFAVAIL | INFINIPATH_I_GPIO;
 
-	infinipath_e_bitsextant =
+	dd->ipath_e_bitsextant =
 		INFINIPATH_E_RFORMATERR | INFINIPATH_E_RVCRC |
 		INFINIPATH_E_RICRC | INFINIPATH_E_RMINPKTLEN |
 		INFINIPATH_E_RMAXPKTLEN | INFINIPATH_E_RLONGPKTLEN |
@@ -1113,7 +1111,7 @@ static void ipath_init_ht_variables(void)
 		INFINIPATH_E_INVALIDADDR | INFINIPATH_E_RESET |
 		INFINIPATH_E_HARDWARE;
 
-	infinipath_hwe_bitsextant =
+	dd->ipath_hwe_bitsextant =
 		(INFINIPATH_HWE_HTCMEMPARITYERR_MASK <<
 		 INFINIPATH_HWE_HTCMEMPARITYERR_SHIFT) |
 		(INFINIPATH_HWE_TXEMEMPARITYERR_MASK <<
@@ -1142,8 +1140,8 @@ static void ipath_init_ht_variables(void)
 		INFINIPATH_HWE_IBCBUSTOSPCPARITYERR |
 		INFINIPATH_HWE_IBCBUSFRSPCPARITYERR;
 
-	infinipath_i_rcvavail_mask = INFINIPATH_I_RCVAVAIL_MASK;
-	infinipath_i_rcvurg_mask = INFINIPATH_I_RCVURG_MASK;
+	dd->ipath_i_rcvavail_mask = INFINIPATH_I_RCVAVAIL_MASK;
+	dd->ipath_i_rcvurg_mask = INFINIPATH_I_RCVURG_MASK;
 }
 
 /**
@@ -1353,25 +1351,6 @@ static void ipath_ht_quiet_serdes(struct ipath_devdata *dd)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_serdesconfig0, val);
 }
 
-static int ipath_ht_intconfig(struct ipath_devdata *dd)
-{
-	int ret;
-
-	if (!dd->ipath_intconfig) {
-		ipath_dev_err(dd, "No interrupts enabled, couldn't setup "
-			      "interrupt address\n");
-		ret = 1;
-		goto bail;
-	}
-
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_interruptconfig,
-			 dd->ipath_intconfig);	/* interrupt address */
-	ret = 0;
-
-bail:
-	return ret;
-}
-
 /**
  * ipath_pe_put_tid - write a TID in chip
  * @dd: the infinipath device
@@ -1568,6 +1547,14 @@ static int ipath_ht_get_base_info(struct ipath_portdata *pd, void *kbase)
 	return 0;
 }
 
+static void ipath_ht_free_irq(struct ipath_devdata *dd)
+{
+	free_irq(dd->ipath_irq, dd);
+	ht_destroy_irq(dd->ipath_irq);
+	dd->ipath_irq = 0;
+	dd->ipath_intconfig = 0;
+}
+
 /**
  * ipath_init_iba6110_funcs - set up the chip-specific function pointers
  * @dd: the infinipath device
@@ -1591,6 +1578,7 @@ void ipath_init_iba6110_funcs(struct ipath_devdata *dd)
 	dd->ipath_f_cleanup = ipath_setup_ht_cleanup;
 	dd->ipath_f_setextled = ipath_setup_ht_setextled;
 	dd->ipath_f_get_base_info = ipath_ht_get_base_info;
+	dd->ipath_f_free_irq = ipath_ht_free_irq;
 
 	/*
 	 * initialize chip-specific variables
@@ -1608,5 +1596,5 @@ void ipath_init_iba6110_funcs(struct ipath_devdata *dd)
 	 * do very early init that is needed before ipath_f_bus is
 	 * called
 	 */
-	ipath_init_ht_variables();
+	ipath_init_ht_variables(dd);
 }

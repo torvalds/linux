@@ -342,7 +342,7 @@ static void fd_select_drive( int drive );
 static void fd_deselect( void );
 static void fd_motor_off_timer( unsigned long dummy );
 static void check_change( unsigned long dummy );
-static irqreturn_t floppy_irq (int irq, void *dummy, struct pt_regs *fp);
+static irqreturn_t floppy_irq (int irq, void *dummy);
 static void fd_error( void );
 static int do_format(int drive, int type, struct atari_format_descr *desc);
 static void do_fd_action( int drive );
@@ -573,7 +573,7 @@ static inline void copy_buffer(void *from, void *to)
 
 static void (*FloppyIRQHandler)( int status ) = NULL;
 
-static irqreturn_t floppy_irq (int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t floppy_irq (int irq, void *dummy)
 {
 	unsigned char status;
 	void (*handler)( int );

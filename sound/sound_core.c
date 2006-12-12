@@ -170,8 +170,8 @@ static int sound_insert_unit(struct sound_unit **list, const struct file_operati
 	else
 		sprintf(s->name, "sound/%s%d", name, r / SOUND_STEP);
 
-	class_device_create(sound_class, NULL, MKDEV(SOUND_MAJOR, s->unit_minor),
-			    dev, s->name+6);
+	device_create(sound_class, dev, MKDEV(SOUND_MAJOR, s->unit_minor),
+		      s->name+6);
 	return r;
 
  fail:
@@ -193,7 +193,7 @@ static void sound_remove_unit(struct sound_unit **list, int unit)
 	p = __sound_remove_unit(list, unit);
 	spin_unlock(&sound_loader_lock);
 	if (p) {
-		class_device_destroy(sound_class, MKDEV(SOUND_MAJOR, p->unit_minor));
+		device_destroy(sound_class, MKDEV(SOUND_MAJOR, p->unit_minor));
 		kfree(p);
 	}
 }
@@ -366,25 +366,6 @@ int register_sound_dsp(const struct file_operations *fops, int dev)
 EXPORT_SYMBOL(register_sound_dsp);
 
 /**
- *	register_sound_synth - register a synth device
- *	@fops: File operations for the driver
- *	@dev: Unit number to allocate
- *
- *	Allocate a synth device. Unit is the number of the synth device requested.
- *	Pass -1 to request the next free synth unit. On success the allocated
- *	number is returned, on failure a negative error code is returned.
- */
-
-
-int register_sound_synth(const struct file_operations *fops, int dev)
-{
-	return sound_insert_unit(&chains[9], fops, dev, 9, 137,
-				 "synth", S_IRUSR | S_IWUSR, NULL);
-}
-
-EXPORT_SYMBOL(register_sound_synth);
-
-/**
  *	unregister_sound_special - unregister a special sound device
  *	@unit: unit number to allocate
  *
@@ -448,21 +429,6 @@ void unregister_sound_dsp(int unit)
 
 
 EXPORT_SYMBOL(unregister_sound_dsp);
-
-/**
- *	unregister_sound_synth - unregister a synth device
- *	@unit: unit number to allocate
- *
- *	Release a sound device that was allocated with register_sound_synth().
- *	The unit passed is the return value from the register function.
- */
-
-void unregister_sound_synth(int unit)
-{
-	return sound_remove_unit(&chains[9], unit);
-}
-
-EXPORT_SYMBOL(unregister_sound_synth);
 
 /*
  *	Now our file operations
@@ -550,10 +516,6 @@ int soundcore_open(struct inode *inode, struct file *file)
 	spin_unlock(&sound_loader_lock);
 	return -ENODEV;
 }
-
-extern int mod_firmware_load(const char *, char **);
-EXPORT_SYMBOL(mod_firmware_load);
-
 
 MODULE_DESCRIPTION("Core sound module");
 MODULE_AUTHOR("Alan Cox");

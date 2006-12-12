@@ -832,8 +832,7 @@ static int ks0127_detach(struct i2c_client *client)
 static int __devinit ks0127_init_module(void)
 {
 	init_reg_defaults();
-	i2c_add_driver(&i2c_driver_ks0127);
-	return 0;
+	return i2c_add_driver(&i2c_driver_ks0127);
 }
 
 static void __devexit ks0127_cleanup_module(void)

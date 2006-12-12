@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-omap/omap2/serial.c
+ * arch/arm/mach-omap2/serial.c
  *
  * OMAP2 serial support.
  *

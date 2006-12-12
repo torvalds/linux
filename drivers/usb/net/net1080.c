@@ -237,12 +237,12 @@ static inline void nc_dump_usbctl(struct usbnet *dev, u16 usbctl)
 #define	STATUS_CONN_OTHER	(1 << 14)
 #define	STATUS_SUSPEND_OTHER	(1 << 13)
 #define	STATUS_MAILBOX_OTHER	(1 << 12)
-#define	STATUS_PACKETS_OTHER(n)	(((n) >> 8) && 0x03)
+#define	STATUS_PACKETS_OTHER(n)	(((n) >> 8) & 0x03)
 
 #define	STATUS_CONN_THIS	(1 << 6)
 #define	STATUS_SUSPEND_THIS	(1 << 5)
 #define	STATUS_MAILBOX_THIS	(1 << 4)
-#define	STATUS_PACKETS_THIS(n)	(((n) >> 0) && 0x03)
+#define	STATUS_PACKETS_THIS(n)	(((n) >> 0) & 0x03)
 
 #define	STATUS_UNSPEC_MASK	0x0c8c
 #define	STATUS_NOISE_MASK 	((u16)~(0x0303|STATUS_UNSPEC_MASK))
@@ -368,7 +368,7 @@ static int net1080_check_connect(struct usbnet *dev)
 	return 0;
 }
 
-static void nc_flush_complete(struct urb *urb, struct pt_regs *regs)
+static void nc_flush_complete(struct urb *urb)
 {
 	kfree(urb->context);
 	usb_free_urb(urb);
@@ -383,7 +383,7 @@ static void nc_ensure_sync(struct usbnet *dev)
 		int			status;
 
 		/* Send a flush */
-		urb = usb_alloc_urb(0, SLAB_ATOMIC);
+		urb = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!urb)
 			return;
 
@@ -498,25 +498,24 @@ static int net1080_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 static struct sk_buff *
 net1080_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 {
-	int			padlen;
 	struct sk_buff		*skb2;
 	struct nc_header	*header = NULL;
 	struct nc_trailer	*trailer = NULL;
+	int			padlen = sizeof (struct nc_trailer);
 	int			len = skb->len;
 
-	padlen = ((len + sizeof (struct nc_header)
-			+ sizeof (struct nc_trailer)) & 0x01) ? 0 : 1;
+	if (!((len + padlen + sizeof (struct nc_header)) & 0x01))
+		padlen++;
 	if (!skb_cloned(skb)) {
 		int	headroom = skb_headroom(skb);
 		int	tailroom = skb_tailroom(skb);
 
-		if ((padlen + sizeof (struct nc_trailer)) <= tailroom
-			    && sizeof (struct nc_header) <= headroom)
+		if (padlen <= tailroom &&
+		    sizeof(struct nc_header) <= headroom)
 			/* There's enough head and tail room */
 			goto encapsulate;
 
-		if ((sizeof (struct nc_header) + padlen
-					+ sizeof (struct nc_trailer)) <
+		if ((sizeof (struct nc_header) + padlen) <
 				(headroom + tailroom)) {
 			/* There's enough total room, so just readjust */
 			skb->data = memmove(skb->head
@@ -530,7 +529,7 @@ net1080_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	/* Create a new skb to use with the correct size */
 	skb2 = skb_copy_expand(skb,
 				sizeof (struct nc_header),
-				sizeof (struct nc_trailer) + padlen,
+				padlen,
 				flags);
 	dev_kfree_skb_any(skb);
 	if (!skb2)

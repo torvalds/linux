@@ -157,7 +157,7 @@ typedef struct svc_fh {
 	__u64			fh_post_size;	/* i_size */
 	unsigned long		fh_post_blocks; /* i_blocks */
 	unsigned long		fh_post_blksize;/* i_blksize */
-	__u32			fh_post_rdev[2];/* i_rdev */
+	__be32			fh_post_rdev[2];/* i_rdev */
 	struct timespec		fh_post_atime;	/* i_atime */
 	struct timespec		fh_post_mtime;	/* i_mtime */
 	struct timespec		fh_post_ctime;	/* i_ctime */
@@ -209,9 +209,9 @@ extern char * SVCFH_fmt(struct svc_fh *fhp);
 /*
  * Function prototypes
  */
-u32	fh_verify(struct svc_rqst *, struct svc_fh *, int, int);
-int	fh_compose(struct svc_fh *, struct svc_export *, struct dentry *, struct svc_fh *);
-int	fh_update(struct svc_fh *);
+__be32	fh_verify(struct svc_rqst *, struct svc_fh *, int, int);
+__be32	fh_compose(struct svc_fh *, struct svc_export *, struct dentry *, struct svc_fh *);
+__be32	fh_update(struct svc_fh *);
 void	fh_put(struct svc_fh *);
 
 static __inline__ struct svc_fh *
@@ -269,14 +269,8 @@ fill_post_wcc(struct svc_fh *fhp)
 	fhp->fh_post_uid	= inode->i_uid;
 	fhp->fh_post_gid	= inode->i_gid;
 	fhp->fh_post_size       = inode->i_size;
-	if (inode->i_blksize) {
-		fhp->fh_post_blksize    = inode->i_blksize;
-		fhp->fh_post_blocks     = inode->i_blocks;
-	} else {
-		fhp->fh_post_blksize    = BLOCK_SIZE;
-		/* how much do we care for accuracy with MinixFS? */
-		fhp->fh_post_blocks     = (inode->i_size+511) >> 9;
-	}
+	fhp->fh_post_blksize    = BLOCK_SIZE;
+	fhp->fh_post_blocks     = inode->i_blocks;
 	fhp->fh_post_rdev[0]    = htonl((u32)imajor(inode));
 	fhp->fh_post_rdev[1]    = htonl((u32)iminor(inode));
 	fhp->fh_post_atime      = inode->i_atime;
@@ -296,8 +290,9 @@ fill_post_wcc(struct svc_fh *fhp)
  * vfs.c:nfsd_rename as it needs to grab 2 i_mutex's at once
  * so, any changes here should be reflected there.
  */
+
 static inline void
-fh_lock(struct svc_fh *fhp)
+fh_lock_nested(struct svc_fh *fhp, unsigned int subclass)
 {
 	struct dentry	*dentry = fhp->fh_dentry;
 	struct inode	*inode;
@@ -316,9 +311,15 @@ fh_lock(struct svc_fh *fhp)
 	}
 
 	inode = dentry->d_inode;
-	mutex_lock(&inode->i_mutex);
+	mutex_lock_nested(&inode->i_mutex, subclass);
 	fill_pre_wcc(fhp);
 	fhp->fh_locked = 1;
+}
+
+static inline void
+fh_lock(struct svc_fh *fhp)
+{
+	fh_lock_nested(fhp, I_MUTEX_NORMAL);
 }
 
 /*

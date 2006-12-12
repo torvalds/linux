@@ -41,10 +41,10 @@ struct isdnhdlc_vars {
 	unsigned char shift_reg;
 	unsigned char ffvalue;
 
-	int data_received:1; 	// set if transferring data
-	int dchannel:1; 	// set if D channel (send idle instead of flags)
-	int do_adapt56:1; 	// set if 56K adaptation
-        int do_closing:1; 	// set if in closing phase (need to send CRC + flag
+	unsigned int data_received:1; 	// set if transferring data
+	unsigned int dchannel:1; 	// set if D channel (send idle instead of flags)
+	unsigned int do_adapt56:1; 	// set if 56K adaptation
+	unsigned int do_closing:1; 	// set if in closing phase (need to send CRC + flag
 };
 
 
@@ -56,8 +56,6 @@ struct isdnhdlc_vars {
 #define HDLC_FRAMING_ERROR     1
 #define HDLC_CRC_ERROR         2
 #define HDLC_LENGTH_ERROR      3
-
-extern const unsigned char isdnhdlc_bit_rev_tab[256];
 
 extern void isdnhdlc_rcv_init (struct isdnhdlc_vars *hdlc, int do_adapt56);
 

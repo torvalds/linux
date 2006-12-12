@@ -63,7 +63,7 @@ int dcache_dir_open(struct inode *inode, struct file *file)
 {
 	static struct qstr cursor_name = {.len = 1, .name = "."};
 
-	file->private_data = d_alloc(file->f_dentry, &cursor_name);
+	file->private_data = d_alloc(file->f_path.dentry, &cursor_name);
 
 	return file->private_data ? 0 : -ENOMEM;
 }
@@ -76,7 +76,7 @@ int dcache_dir_close(struct inode *inode, struct file *file)
 
 loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 {
-	mutex_lock(&file->f_dentry->d_inode->i_mutex);
+	mutex_lock(&file->f_path.dentry->d_inode->i_mutex);
 	switch (origin) {
 		case 1:
 			offset += file->f_pos;
@@ -84,7 +84,7 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 			if (offset >= 0)
 				break;
 		default:
-			mutex_unlock(&file->f_dentry->d_inode->i_mutex);
+			mutex_unlock(&file->f_path.dentry->d_inode->i_mutex);
 			return -EINVAL;
 	}
 	if (offset != file->f_pos) {
@@ -96,8 +96,8 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 
 			spin_lock(&dcache_lock);
 			list_del(&cursor->d_u.d_child);
-			p = file->f_dentry->d_subdirs.next;
-			while (n && p != &file->f_dentry->d_subdirs) {
+			p = file->f_path.dentry->d_subdirs.next;
+			while (n && p != &file->f_path.dentry->d_subdirs) {
 				struct dentry *next;
 				next = list_entry(p, struct dentry, d_u.d_child);
 				if (!d_unhashed(next) && next->d_inode)
@@ -108,7 +108,7 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 			spin_unlock(&dcache_lock);
 		}
 	}
-	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
+	mutex_unlock(&file->f_path.dentry->d_inode->i_mutex);
 	return offset;
 }
 
@@ -126,7 +126,7 @@ static inline unsigned char dt_type(struct inode *inode)
 
 int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
-	struct dentry *dentry = filp->f_dentry;
+	struct dentry *dentry = filp->f_path.dentry;
 	struct dentry *cursor = filp->private_data;
 	struct list_head *p, *q = &cursor->d_u.d_child;
 	ino_t ino;
@@ -243,7 +243,7 @@ int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *den
 	struct inode *inode = old_dentry->d_inode;
 
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-	inode->i_nlink++;
+	inc_nlink(inode);
 	atomic_inc(&inode->i_count);
 	dget(dentry);
 	d_instantiate(dentry, inode);
@@ -275,7 +275,7 @@ int simple_unlink(struct inode *dir, struct dentry *dentry)
 	struct inode *inode = dentry->d_inode;
 
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-	inode->i_nlink--;
+	drop_nlink(inode);
 	dput(dentry);
 	return 0;
 }
@@ -285,9 +285,9 @@ int simple_rmdir(struct inode *dir, struct dentry *dentry)
 	if (!simple_empty(dentry))
 		return -ENOTEMPTY;
 
-	dentry->d_inode->i_nlink--;
+	drop_nlink(dentry->d_inode);
 	simple_unlink(dir, dentry);
-	dir->i_nlink--;
+	drop_nlink(dir);
 	return 0;
 }
 
@@ -303,10 +303,10 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (new_dentry->d_inode) {
 		simple_unlink(new_dir, new_dentry);
 		if (they_are_dirs)
-			old_dir->i_nlink--;
+			drop_nlink(old_dir);
 	} else if (they_are_dirs) {
-		old_dir->i_nlink--;
-		new_dir->i_nlink++;
+		drop_nlink(old_dir);
+		inc_nlink(new_dir);
 	}
 
 	old_dir->i_ctime = old_dir->i_mtime = new_dir->i_ctime =
@@ -317,17 +317,9 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 int simple_readpage(struct file *file, struct page *page)
 {
-	void *kaddr;
-
-	if (PageUptodate(page))
-		goto out;
-
-	kaddr = kmap_atomic(page, KM_USER0);
-	memset(kaddr, 0, PAGE_CACHE_SIZE);
-	kunmap_atomic(kaddr, KM_USER0);
+	clear_highpage(page);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
-out:
 	unlock_page(page);
 	return 0;
 }
@@ -383,7 +375,6 @@ int simple_fill_super(struct super_block *s, int magic, struct tree_descr *files
 		return -ENOMEM;
 	inode->i_mode = S_IFDIR | 0755;
 	inode->i_uid = inode->i_gid = 0;
-	inode->i_blksize = PAGE_CACHE_SIZE;
 	inode->i_blocks = 0;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	inode->i_op = &simple_dir_inode_operations;
@@ -405,7 +396,6 @@ int simple_fill_super(struct super_block *s, int magic, struct tree_descr *files
 			goto out;
 		inode->i_mode = S_IFREG | files->mode;
 		inode->i_uid = inode->i_gid = 0;
-		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inode->i_fop = files->ops;
@@ -547,7 +537,7 @@ int simple_attr_open(struct inode *inode, struct file *file,
 
 	attr->get = get;
 	attr->set = set;
-	attr->data = inode->u.generic_ip;
+	attr->data = inode->i_private;
 	attr->fmt = fmt;
 	mutex_init(&attr->mutex);
 

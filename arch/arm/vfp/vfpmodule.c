@@ -40,10 +40,19 @@ unsigned int VFP_arch;
 static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 {
 	struct thread_info *thread = v;
-	union vfp_state *vfp = &thread->vfpstate;
+	union vfp_state *vfp;
 
-	switch (cmd) {
-	case THREAD_NOTIFY_FLUSH:
+	if (likely(cmd == THREAD_NOTIFY_SWITCH)) {
+		/*
+		 * Always disable VFP so we can lazily save/restore the
+		 * old state.
+		 */
+		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_ENABLE);
+		return NOTIFY_DONE;
+	}
+
+	vfp = &thread->vfpstate;
+	if (cmd == THREAD_NOTIFY_FLUSH) {
 		/*
 		 * Per-thread VFP initialisation.
 		 */
@@ -56,28 +65,11 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 		 * Disable VFP to ensure we initialise it first.
 		 */
 		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_ENABLE);
-
-		/*
-		 * FALLTHROUGH: Ensure we don't try to overwrite our newly
-		 * initialised state information on the first fault.
-		 */
-
-	case THREAD_NOTIFY_RELEASE:
-		/*
-		 * Per-thread VFP cleanup.
-		 */
-		if (last_VFP_context == vfp)
-			last_VFP_context = NULL;
-		break;
-
-	case THREAD_NOTIFY_SWITCH:
-		/*
-		 * Always disable VFP so we can lazily save/restore the
-		 * old state.
-		 */
-		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_ENABLE);
-		break;
 	}
+
+	/* flush and release case: Per-thread VFP cleanup. */
+	if (last_VFP_context == vfp)
+		last_VFP_context = NULL;
 
 	return NOTIFY_DONE;
 }
@@ -98,7 +90,7 @@ void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
 
 	info.si_signo = SIGFPE;
 	info.si_code = sicode;
-	info.si_addr = (void *)(instruction_pointer(regs) - 4);
+	info.si_addr = (void __user *)(instruction_pointer(regs) - 4);
 
 	/*
 	 * This is the same as NWFPE, because it's not clear what
@@ -156,6 +148,7 @@ static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_
 	/*
 	 * These are arranged in priority order, least to highest.
 	 */
+	RAISE(FPSCR_DZC, FPSCR_DZE, FPE_FLTDIV);
 	RAISE(FPSCR_IXC, FPSCR_IXE, FPE_FLTRES);
 	RAISE(FPSCR_UFC, FPSCR_UFE, FPE_FLTUND);
 	RAISE(FPSCR_OFC, FPSCR_OFE, FPE_FLTOVF);

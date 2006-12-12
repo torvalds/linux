@@ -1090,7 +1090,7 @@ static void snd_opti93x_overrange(struct snd_opti93x *chip)
 	spin_unlock_irqrestore(&chip->lock, flags);
 }
 
-static irqreturn_t snd_opti93x_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_opti93x_interrupt(int irq, void *dev_id)
 {
 	struct snd_opti93x *codec = dev_id;
 	unsigned char status;
@@ -1683,6 +1683,8 @@ static int __init snd_card_opti9xx_pnp(struct snd_opti9xx *chip, struct pnp_card
 	struct pnp_resource_table *cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);
 	int err;
 
+	if (!cfg)
+		return -ENOMEM;
 	chip->dev = pnp_request_card_device(card, pid->devs[0].id, NULL);
 	if (chip->dev == NULL) {
 		kfree(cfg);

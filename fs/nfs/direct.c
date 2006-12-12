@@ -58,7 +58,7 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
-static kmem_cache_t *nfs_direct_cachep;
+static struct kmem_cache *nfs_direct_cachep;
 
 /*
  * This represents a set of asynchronous requests that we're waiting on
@@ -116,7 +116,7 @@ static inline int put_dreq(struct nfs_direct_req *dreq)
 ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov, loff_t pos, unsigned long nr_segs)
 {
 	dprintk("NFS: nfs_direct_IO (%s) off/no(%Ld/%lu) EINVAL\n",
-			iocb->ki_filp->f_dentry->d_name.name,
+			iocb->ki_filp->f_path.dentry->d_name.name,
 			(long long) pos, nr_segs);
 
 	return -EINVAL;
@@ -143,7 +143,7 @@ static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
 {
 	struct nfs_direct_req *dreq;
 
-	dreq = kmem_cache_alloc(nfs_direct_cachep, SLAB_KERNEL);
+	dreq = kmem_cache_alloc(nfs_direct_cachep, GFP_KERNEL);
 	if (!dreq)
 		return NULL;
 
@@ -307,9 +307,7 @@ static ssize_t nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned lo
 
 		data->task.tk_cookie = (unsigned long) inode;
 
-		lock_kernel();
 		rpc_execute(&data->task);
-		unlock_kernel();
 
 		dfprintk(VFS, "NFS: %5u initiated direct read call (req %s/%Ld, %zu bytes @ offset %Lu)\n",
 				data->task.tk_pid,
@@ -475,9 +473,7 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 
 	dprintk("NFS: %5u initiated commit call\n", data->task.tk_pid);
 
-	lock_kernel();
 	rpc_execute(&data->task);
-	unlock_kernel();
 }
 
 static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode)
@@ -497,6 +493,7 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
 			if (dreq->commit_data != NULL)
 				nfs_commit_free(dreq->commit_data);
 			nfs_direct_free_writedata(dreq);
+			nfs_zap_mapping(inode, inode->i_mapping);
 			nfs_direct_complete(dreq);
 	}
 }
@@ -517,6 +514,7 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
 {
 	nfs_end_data_update(inode);
 	nfs_direct_free_writedata(dreq);
+	nfs_zap_mapping(inode, inode->i_mapping);
 	nfs_direct_complete(dreq);
 }
 #endif
@@ -532,10 +530,12 @@ static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 
 	spin_lock(&dreq->lock);
 
-	if (likely(status >= 0))
-		dreq->count += data->res.count;
-	else
-		dreq->error = task->tk_status;
+	if (unlikely(status < 0)) {
+		dreq->error = status;
+		goto out_unlock;
+	}
+
+	dreq->count += data->res.count;
 
 	if (data->res.verf->committed != NFS_FILE_SYNC) {
 		switch (dreq->flags) {
@@ -550,7 +550,7 @@ static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 				}
 		}
 	}
-
+out_unlock:
 	spin_unlock(&dreq->lock);
 }
 
@@ -637,9 +637,7 @@ static ssize_t nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned l
 		data->task.tk_priority = RPC_PRIORITY_NORMAL;
 		data->task.tk_cookie = (unsigned long) inode;
 
-		lock_kernel();
 		rpc_execute(&data->task);
-		unlock_kernel();
 
 		dfprintk(VFS, "NFS: %5u initiated direct write call (req %s/%Ld, %zu bytes @ offset %Lu)\n",
 				data->task.tk_pid,
@@ -707,8 +705,8 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
 /**
  * nfs_file_direct_read - file direct read operation for NFS files
  * @iocb: target I/O control block
- * @buf: user's buffer into which to read data
- * @count: number of bytes to read
+ * @iov: vector of user buffers into which to read data
+ * @nr_segs: size of iov vector
  * @pos: byte offset in file where reading starts
  *
  * We use this function for direct reads instead of calling
@@ -725,16 +723,23 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
  * client must read the updated atime from the server back into its
  * cache.
  */
-ssize_t nfs_file_direct_read(struct kiocb *iocb, char __user *buf, size_t count, loff_t pos)
+ssize_t nfs_file_direct_read(struct kiocb *iocb, const struct iovec *iov,
+				unsigned long nr_segs, loff_t pos)
 {
 	ssize_t retval = -EINVAL;
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
+	/* XXX: temporary */
+	const char __user *buf = iov[0].iov_base;
+	size_t count = iov[0].iov_len;
 
 	dprintk("nfs: direct read(%s/%s, %lu@%Ld)\n",
-		file->f_dentry->d_parent->d_name.name,
-		file->f_dentry->d_name.name,
+		file->f_path.dentry->d_parent->d_name.name,
+		file->f_path.dentry->d_name.name,
 		(unsigned long) count, (long long) pos);
+
+	if (nr_segs != 1)
+		return -EINVAL;
 
 	if (count < 0)
 		goto out;
@@ -760,8 +765,8 @@ out:
 /**
  * nfs_file_direct_write - file direct write operation for NFS files
  * @iocb: target I/O control block
- * @buf: user's buffer from which to write data
- * @count: number of bytes to write
+ * @iov: vector of user buffers from which to write data
+ * @nr_segs: size of iov vector
  * @pos: byte offset in file where writing starts
  *
  * We use this function for direct writes instead of calling
@@ -782,16 +787,23 @@ out:
  * Note that O_APPEND is not supported for NFS direct writes, as there
  * is no atomic O_APPEND write facility in the NFS protocol.
  */
-ssize_t nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t count, loff_t pos)
+ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
+				unsigned long nr_segs, loff_t pos)
 {
 	ssize_t retval;
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
+	/* XXX: temporary */
+	const char __user *buf = iov[0].iov_base;
+	size_t count = iov[0].iov_len;
 
 	dfprintk(VFS, "nfs: direct write(%s/%s, %lu@%Ld)\n",
-		file->f_dentry->d_parent->d_name.name,
-		file->f_dentry->d_name.name,
+		file->f_path.dentry->d_parent->d_name.name,
+		file->f_path.dentry->d_name.name,
 		(unsigned long) count, (long long) pos);
+
+	if (nr_segs != 1)
+		return -EINVAL;
 
 	retval = generic_write_checks(file, &pos, &count, 0);
 	if (retval)
@@ -813,17 +825,6 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t
 		goto out;
 
 	retval = nfs_direct_write(iocb, (unsigned long) buf, count, pos);
-
-	/*
-	 * XXX: nfs_end_data_update() already ensures this file's
-	 *      cached data is subsequently invalidated.  Do we really
-	 *      need to call invalidate_inode_pages2() again here?
-	 *
-	 *      For aio writes, this invalidation will almost certainly
-	 *      occur before the writes complete.  Kind of racey.
-	 */
-	if (mapping->nrpages)
-		invalidate_inode_pages2(mapping);
 
 	if (retval > 0)
 		iocb->ki_pos = pos + retval;
@@ -855,6 +856,5 @@ int __init nfs_init_directcache(void)
  */
 void nfs_destroy_directcache(void)
 {
-	if (kmem_cache_destroy(nfs_direct_cachep))
-		printk(KERN_INFO "nfs_direct_cache: not all structures were freed\n");
+	kmem_cache_destroy(nfs_direct_cachep);
 }

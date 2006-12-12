@@ -331,7 +331,7 @@ typedef struct xfs_mount {
 	xfs_agnumber_t		m_agirotor;	/* last ag dir inode alloced */
 	lock_t			m_agirotor_lock;/* .. and lock protecting it */
 	xfs_agnumber_t		m_maxagi;	/* highest inode alloc group */
-	uint			m_ihsize;	/* size of next field */
+	size_t			m_ihsize;	/* size of next field */
 	struct xfs_ihash	*m_ihash;	/* fs private inode hash table*/
 	struct xfs_inode	*m_inodes;	/* active inode list */
 	struct list_head	m_del_inodes;	/* inodes to reclaim */
@@ -541,7 +541,8 @@ static inline xfs_mount_t *xfs_bhvtom(bhv_desc_t *bdp)
 #define XFS_VFSTOM(vfs) xfs_vfstom(vfs)
 static inline xfs_mount_t *xfs_vfstom(bhv_vfs_t *vfs)
 {
-	return XFS_BHVTOM(bhv_lookup(VFS_BHVHEAD(vfs), &xfs_vfsops));
+	return XFS_BHVTOM(bhv_lookup_range(VFS_BHVHEAD(vfs),
+				VFS_POSITION_XFS, VFS_POSITION_XFS));
 }
 
 #define XFS_DADDR_TO_AGNO(mp,d)         xfs_daddr_to_agno(mp,d)

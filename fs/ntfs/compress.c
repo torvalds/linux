@@ -600,7 +600,7 @@ do_next_cb:
 	rl = NULL;
 	for (vcn = start_vcn, start_vcn += cb_clusters; vcn < start_vcn;
 			vcn++) {
-		BOOL is_retry = FALSE;
+		bool is_retry = false;
 
 		if (!rl) {
 lock_retry_remap:
@@ -626,7 +626,7 @@ lock_retry_remap:
 				break;
 			if (is_retry || lcn != LCN_RL_NOT_MAPPED)
 				goto rl_err;
-			is_retry = TRUE;
+			is_retry = true;
 			/*
 			 * Attempt to map runlist, dropping lock for the
 			 * duration.

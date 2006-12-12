@@ -6,7 +6,6 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 
-
 #define MSG_SIMPLE_TAG	0x20
 #define MSG_HEAD_TAG	0x21
 #define MSG_ORDERED_TAG	0x22
@@ -14,6 +13,7 @@
 #define SCSI_NO_TAG	(-1)    /* identify no tag in use */
 
 
+#ifdef CONFIG_BLOCK
 
 /**
  * scsi_get_tag_type - get the type of tag the device supports
@@ -100,7 +100,7 @@ static inline int scsi_populate_tag_msg(struct scsi_cmnd *cmd, char *msg)
 	struct scsi_device *sdev = cmd->device;
 
         if (blk_rq_tagged(req)) {
-		if (sdev->ordered_tags && req->flags & REQ_HARDBARRIER)
+		if (sdev->ordered_tags && req->cmd_flags & REQ_HARDBARRIER)
         	        *msg++ = MSG_ORDERED_TAG;
         	else
         	        *msg++ = MSG_SIMPLE_TAG;
@@ -144,4 +144,25 @@ static inline int scsi_init_shared_tag_map(struct Scsi_Host *shost, int depth)
 	return shost->bqt ? 0 : -ENOMEM;
 }
 
+/**
+ * scsi_host_find_tag - find the tagged command by host
+ * @shost:	pointer to scsi_host
+ * @tag:	tag of the scsi_cmnd
+ *
+ * Notes:
+ *	Only works with tags allocated by the generic blk layer.
+ **/
+static inline struct scsi_cmnd *scsi_host_find_tag(struct Scsi_Host *shost,
+						int tag)
+{
+	struct request *req;
+
+	if (tag != SCSI_NO_TAG) {
+		req = blk_map_queue_find_tag(shost->bqt, tag);
+		return req ? (struct scsi_cmnd *)req->special : NULL;
+	}
+	return NULL;
+}
+
+#endif /* CONFIG_BLOCK */
 #endif /* _SCSI_SCSI_TCQ_H */

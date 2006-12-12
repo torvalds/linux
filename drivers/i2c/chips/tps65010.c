@@ -305,7 +305,7 @@ static int dbg_show(struct seq_file *s, void *_)
 
 static int dbg_tps_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, dbg_show, inode->u.generic_ip);
+	return single_open(file, dbg_show, inode->i_private);
 }
 
 static struct file_operations debug_fops = {
@@ -446,7 +446,7 @@ static void tps65010_work(void *_tps)
 	mutex_unlock(&tps->lock);
 }
 
-static irqreturn_t tps65010_irq(int irq, void *_tps, struct pt_regs *regs)
+static irqreturn_t tps65010_irq(int irq, void *_tps)
 {
 	struct tps65010		*tps = _tps;
 

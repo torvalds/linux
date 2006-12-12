@@ -63,31 +63,12 @@
 #include <asm/iommu.h>
 #include <asm/abs_addr.h>
 #include <asm/vdso.h>
+#include <asm/firmware.h>
 
 #include "mmu_decl.h"
 
 unsigned long ioremap_bot = IMALLOC_BASE;
 static unsigned long phbs_io_bot = PHBS_IO_BASE;
-
-#ifdef CONFIG_PPC_ISERIES
-
-void __iomem *ioremap(unsigned long addr, unsigned long size)
-{
-	return (void __iomem *)addr;
-}
-
-extern void __iomem *__ioremap(unsigned long addr, unsigned long size,
-		       unsigned long flags)
-{
-	return (void __iomem *)addr;
-}
-
-void iounmap(volatile void __iomem *addr)
-{
-	return;
-}
-
-#else
 
 /*
  * map_io_page currently only called by __ioremap
@@ -132,7 +113,7 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 }
 
 
-static void __iomem * __ioremap_com(unsigned long addr, unsigned long pa,
+static void __iomem * __ioremap_com(phys_addr_t addr, unsigned long pa,
 			    unsigned long ea, unsigned long size,
 			    unsigned long flags)
 {
@@ -148,14 +129,7 @@ static void __iomem * __ioremap_com(unsigned long addr, unsigned long pa,
 	return (void __iomem *) (ea + (addr & ~PAGE_MASK));
 }
 
-
-void __iomem *
-ioremap(unsigned long addr, unsigned long size)
-{
-	return __ioremap(addr, size, _PAGE_NO_CACHE | _PAGE_GUARDED);
-}
-
-void __iomem * __ioremap(unsigned long addr, unsigned long size,
+void __iomem * __ioremap(phys_addr_t addr, unsigned long size,
 			 unsigned long flags)
 {
 	unsigned long pa, ea;
@@ -194,9 +168,28 @@ void __iomem * __ioremap(unsigned long addr, unsigned long size,
 	return ret;
 }
 
+
+void __iomem * ioremap(phys_addr_t addr, unsigned long size)
+{
+	unsigned long flags = _PAGE_NO_CACHE | _PAGE_GUARDED;
+
+	if (ppc_md.ioremap)
+		return ppc_md.ioremap(addr, size, flags);
+	return __ioremap(addr, size, flags);
+}
+
+void __iomem * ioremap_flags(phys_addr_t addr, unsigned long size,
+			     unsigned long flags)
+{
+	if (ppc_md.ioremap)
+		return ppc_md.ioremap(addr, size, flags);
+	return __ioremap(addr, size, flags);
+}
+
+
 #define IS_PAGE_ALIGNED(_val) ((_val) == ((_val) & PAGE_MASK))
 
-int __ioremap_explicit(unsigned long pa, unsigned long ea,
+int __ioremap_explicit(phys_addr_t pa, unsigned long ea,
 		       unsigned long size, unsigned long flags)
 {
 	struct vm_struct *area;
@@ -251,7 +244,7 @@ int __ioremap_explicit(unsigned long pa, unsigned long ea,
  *
  * XXX	what about calls before mem_init_done (ie python_countermeasures())
  */
-void iounmap(volatile void __iomem *token)
+void __iounmap(volatile void __iomem *token)
 {
 	void *addr;
 
@@ -261,6 +254,14 @@ void iounmap(volatile void __iomem *token)
 	addr = (void *) ((unsigned long __force) token & PAGE_MASK);
 
 	im_free(addr);
+}
+
+void iounmap(volatile void __iomem *token)
+{
+	if (ppc_md.iounmap)
+		ppc_md.iounmap(token);
+	else
+		__iounmap(token);
 }
 
 static int iounmap_subset_regions(unsigned long addr, unsigned long size)
@@ -281,7 +282,7 @@ static int iounmap_subset_regions(unsigned long addr, unsigned long size)
 	return 0;
 }
 
-int iounmap_explicit(volatile void __iomem *start, unsigned long size)
+int __iounmap_explicit(volatile void __iomem *start, unsigned long size)
 {
 	struct vm_struct *area;
 	unsigned long addr;
@@ -315,11 +316,11 @@ int iounmap_explicit(volatile void __iomem *start, unsigned long size)
 	return 0;
 }
 
-#endif
-
 EXPORT_SYMBOL(ioremap);
+EXPORT_SYMBOL(ioremap_flags);
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
+EXPORT_SYMBOL(__iounmap);
 
 void __iomem * reserve_phb_iospace(unsigned long size)
 {

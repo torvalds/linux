@@ -221,7 +221,7 @@ static void aaci_fifo_irq(struct aaci *aaci, u32 mask)
 	}
 }
 
-static irqreturn_t aaci_irq(int irq, void *devid, struct pt_regs *regs)
+static irqreturn_t aaci_irq(int irq, void *devid)
 {
 	struct aaci *aaci = devid;
 	u32 mask;

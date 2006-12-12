@@ -15,7 +15,7 @@
 #include <asm/scatterlist.h>
 
 void *dma_alloc_coherent(struct device *dev, size_t size,
-			 dma_addr_t *handle, int flag)
+			 dma_addr_t *handle, gfp_t flag)
 {
 	struct page *page, **map;
 	pgprot_t pgprot;
@@ -51,7 +51,7 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 		pgprot_val(pgprot) |= _PAGE_GLOBAL040 | _PAGE_NOCACHE_S;
 	else
 		pgprot_val(pgprot) |= _PAGE_NOCACHE030;
-	addr = vmap(map, size, flag, pgprot);
+	addr = vmap(map, size, VM_MAP, pgprot);
 	kfree(map);
 
 	return addr;

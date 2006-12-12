@@ -270,7 +270,7 @@ void board_pcmcia_power(int power)	{;}
 #endif		/* CONFIG_MACH_TRIZEPS4_CONXS */
 EXPORT_SYMBOL(board_pcmcia_power);
 
-static int trizeps4_mci_init(struct device *dev, irqreturn_t (*mci_detect_int)(int, void *, struct pt_regs *), void *data)
+static int trizeps4_mci_init(struct device *dev, irq_handler_t mci_detect_int, void *data)
 {
 	int err;
 	/* setup GPIO for PXA27x MMC controller */
@@ -368,7 +368,7 @@ static struct map_desc trizeps4_io_desc[] __initdata = {
 	}
 };
 
-static struct pxafb_mach_info sharp_lcd __initdata = {
+static struct pxafb_mode_info sharp_lcd_mode = {
     .pixclock		= 78000,
     .xres		= 640,
     .yres		= 480,
@@ -381,6 +381,11 @@ static struct pxafb_mach_info sharp_lcd __initdata = {
     .lower_margin	= 0,
     .sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
     .cmap_greyscale	= 0,
+};
+
+static struct pxafb_mach_info sharp_lcd = {
+    .modes		= &sharp_lcd_mode,
+    .num_modes	= 1,
     .cmap_inverse	= 0,
     .cmap_static	= 0,
     .lccr0		= LCCR0_Color | LCCR0_Pas | LCCR0_Dual,

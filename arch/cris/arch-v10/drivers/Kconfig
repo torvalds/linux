@@ -550,7 +550,7 @@ config ETRAX_IDE
 	select BLK_DEV_IDEDMA
 	help
 	  Enable this to get support for ATA/IDE.
-	  You can't use paralell ports or SCSI ports
+	  You can't use parallel ports or SCSI ports
 	  at the same time.
 
 
@@ -744,7 +744,7 @@ config ETRAX_PA_CHANGEABLE_BITS
 	default "FF"
 	help
 	  This is a bitmask with information of what bits in PA that a user
-	  can change change the value on using ioctl's.
+	  can change the value on using ioctl's.
 	  Bit set = changeable.
 	  You probably want 00 here.
 
@@ -839,7 +839,7 @@ config ETRAX_DS1302_TRICKLE_CHARGE
 	default "0"
 	help
 	  This controls the initial value of the trickle charge register.
-	  0 = disabled (use this if you are unsure or have a non rechargable battery)
+	  0 = disabled (use this if you are unsure or have a non rechargeable battery)
 	  Otherwise the following values can be OR:ed together to control the
 	  charge current:
 	  1 = 2kohm, 2 = 4kohm, 3 = 4kohm

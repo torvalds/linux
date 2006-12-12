@@ -9,7 +9,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <linux/list.h>
 #include <linux/radix-tree.h>
@@ -136,6 +135,10 @@ struct irq_map_entry {
 
 extern struct irq_map_entry irq_map[NR_IRQS];
 
+static inline irq_hw_number_t virq_to_hw(unsigned int virq)
+{
+	return irq_map[virq].hwirq;
+}
 
 /**
  * irq_alloc_host - Allocate a new irq_host data structure
@@ -826,7 +829,7 @@ extern struct thread_info *softirq_ctx[NR_CPUS];
 
 extern void irq_ctx_init(void);
 extern void call_do_softirq(struct thread_info *tp);
-extern int call_handle_irq(int irq, void *p1, void *p2,
+extern int call_handle_irq(int irq, void *p1,
 			   struct thread_info *tp, void *func);
 #else
 #define irq_ctx_init()

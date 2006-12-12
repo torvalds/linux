@@ -19,6 +19,7 @@
 #include "user_util.h"
 #include "sigio.h"
 #include "os.h"
+#include "um_malloc.h"
 
 /* Protected by sigio_lock(), also used by sigio_cleanup, which is an
  * exitcall.

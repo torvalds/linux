@@ -14,23 +14,24 @@
 #include <linux/string.h>
 #include <asm/page.h>
 
-static void copy_page_nommu(void *to, void *from)
+void copy_page_nommu(void *to, void *from)
 {
 	memcpy(to, from, PAGE_SIZE);
 }
 
-static void clear_page_nommu(void *to)
+void clear_page_nommu(void *to)
 {
 	memset(to, 0, PAGE_SIZE);
 }
 
-static int __init pg_nommu_init(void)
+__kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n)
 {
-	copy_page = copy_page_nommu;
-	clear_page = clear_page_nommu;
-
+	memcpy(to, from, n);
 	return 0;
 }
 
-subsys_initcall(pg_nommu_init);
-
+__kernel_size_t __clear_user(void *to, __kernel_size_t n)
+{
+	memset(to, 0, n);
+	return 0;
+}

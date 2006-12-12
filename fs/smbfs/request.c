@@ -25,7 +25,7 @@
 #define ROUND_UP(x) (((x)+3) & ~3)
 
 /* cache for request structures */
-static kmem_cache_t *req_cachep;
+static struct kmem_cache *req_cachep;
 
 static int smb_request_send_req(struct smb_request *req);
 
@@ -49,8 +49,7 @@ int smb_init_request_cache(void)
 
 void smb_destroy_request_cache(void)
 {
-	if (kmem_cache_destroy(req_cachep))
-		printk(KERN_INFO "smb_destroy_request_cache: not all structures were freed\n");
+	kmem_cache_destroy(req_cachep);
 }
 
 /*
@@ -62,7 +61,7 @@ static struct smb_request *smb_do_alloc_request(struct smb_sb_info *server,
 	struct smb_request *req;
 	unsigned char *buf = NULL;
 
-	req = kmem_cache_alloc(req_cachep, SLAB_KERNEL);
+	req = kmem_cache_alloc(req_cachep, GFP_KERNEL);
 	VERBOSE("allocating request: %p\n", req);
 	if (!req)
 		goto out;

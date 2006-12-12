@@ -3,7 +3,6 @@
  * Licensed under the GPL
  */
 
-#include "linux/config.h"
 #include "linux/sched.h"
 #include "linux/list.h"
 #include "linux/spinlock.h"
@@ -61,8 +60,7 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 #endif
 
 	*pte = mk_pte(virt_to_page(kernel), __pgprot(_PAGE_PRESENT));
-	*pte = pte_mkexec(*pte);
-	*pte = pte_wrprotect(*pte);
+	*pte = pte_mkread(*pte);
 	return(0);
 
  out_pmd:

@@ -225,14 +225,13 @@ static int wdt_get_temperature(int *temperature)
  *	wdt_interrupt:
  *	@irq:		Interrupt number
  *	@dev_id:	Unused as we don't allow multiple devices.
- *	@regs:		Unused.
  *
  *	Handle an interrupt from the board. These are raised when the status
  *	map changes in what the board considers an interesting way. That means
  *	a failure condition occurring.
  */
 
-static irqreturn_t wdt_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t wdt_interrupt(int irq, void *dev_id)
 {
 	/*
 	 *	Read the status register see what is up and
@@ -341,7 +340,7 @@ static int wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	switch(cmd)
 	{
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 		case WDIOC_GETSUPPORT:
 			return copy_to_user(argp, &ident, sizeof(ident))?-EFAULT:0;
 

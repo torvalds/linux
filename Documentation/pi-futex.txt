@@ -118,4 +118,4 @@ properties of futexes, and all four combinations are possible: futex,
 robust-futex, PI-futex, robust+PI-futex.
 
 More details about priority inheritance can be found in
-Documentation/rtmutex.txt.
+Documentation/rt-mutex.txt.

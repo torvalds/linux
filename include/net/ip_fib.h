@@ -21,22 +21,19 @@
 #include <net/fib_rules.h>
 
 struct fib_config {
-	u8			fc_family;
 	u8			fc_dst_len;
-	u8			fc_src_len;
 	u8			fc_tos;
 	u8			fc_protocol;
 	u8			fc_scope;
 	u8			fc_type;
-	/* 1 byte unused */
+	/* 3 bytes unused */
 	u32			fc_table;
-	u32			fc_dst;
-	u32			fc_src;
-	u32			fc_gw;
+	__be32			fc_dst;
+	__be32			fc_gw;
 	int			fc_oif;
 	u32			fc_flags;
 	u32			fc_priority;
-	u32			fc_prefsrc;
+	__be32			fc_prefsrc;
 	struct nlattr		*fc_mx;
 	struct rtnexthop	*fc_mp;
 	int			fc_mx_len;
@@ -63,7 +60,7 @@ struct fib_nh {
 	__u32			nh_tclassid;
 #endif
 	int			nh_oif;
-	u32			nh_gw;
+	__be32			nh_gw;
 };
 
 /*
@@ -78,7 +75,7 @@ struct fib_info {
 	int			fib_dead;
 	unsigned		fib_flags;
 	int			fib_protocol;
-	u32			fib_prefsrc;
+	__be32			fib_prefsrc;
 	u32			fib_priority;
 	u32			fib_metrics[RTAX_MAX];
 #define fib_mtu fib_metrics[RTAX_MTU-1]
@@ -107,8 +104,8 @@ struct fib_result {
 	unsigned char	type;
 	unsigned char	scope;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	__u32           network;
-	__u32           netmask;
+	__be32          network;
+	__be32          netmask;
 #endif
 	struct fib_info *fi;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
@@ -117,8 +114,8 @@ struct fib_result {
 };
 
 struct fib_result_nl {
-	u32		fl_addr;   /* To be looked up*/ 
-	u32		fl_fwmark; 
+	__be32		fl_addr;   /* To be looked up*/
+	u32		fl_mark;
 	unsigned char	fl_tos;
 	unsigned char   fl_scope;
 	unsigned char   tb_id_in;
@@ -222,17 +219,17 @@ extern int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *ar
 extern int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
 extern int inet_rtm_getroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
 extern int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb);
-extern int fib_validate_source(u32 src, u32 dst, u8 tos, int oif,
-			       struct net_device *dev, u32 *spec_dst, u32 *itag);
+extern int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
+			       struct net_device *dev, __be32 *spec_dst, u32 *itag);
 extern void fib_select_multipath(const struct flowi *flp, struct fib_result *res);
 
 struct rtentry;
 
 /* Exported by fib_semantics.c */
-extern int ip_fib_check_default(u32 gw, struct net_device *dev);
-extern int fib_sync_down(u32 local, struct net_device *dev, int force);
+extern int ip_fib_check_default(__be32 gw, struct net_device *dev);
+extern int fib_sync_down(__be32 local, struct net_device *dev, int force);
 extern int fib_sync_up(struct net_device *dev);
-extern u32  __fib_res_prefsrc(struct fib_result *res);
+extern __be32  __fib_res_prefsrc(struct fib_result *res);
 
 /* Exported by fib_hash.c */
 extern struct fib_table *fib_hash_init(u32 id);

@@ -70,16 +70,16 @@ typedef enum
 static inline sigp_ccode
 signal_processor(__u16 cpu_addr, sigp_order_code order_code)
 {
+	register unsigned long reg1 asm ("1") = 0;
 	sigp_ccode ccode;
 
-	__asm__ __volatile__(
-		"    sr     1,1\n"        /* parameter=0 in gpr 1 */
-		"    sigp   1,%1,0(%2)\n"
-		"    ipm    %0\n"
-		"    srl    %0,28\n"
-		: "=d" (ccode)
-		: "d" (__cpu_logical_map[cpu_addr]), "a" (order_code)
-		: "cc" , "memory", "1" );
+	asm volatile(
+		"	sigp	%1,%2,0(%3)\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
+		:	"=d"	(ccode)
+		: "d" (reg1), "d" (__cpu_logical_map[cpu_addr]),
+		  "a" (order_code) : "cc" , "memory");
 	return ccode;
 }
 
@@ -87,20 +87,18 @@ signal_processor(__u16 cpu_addr, sigp_order_code order_code)
  * Signal processor with parameter
  */
 static inline sigp_ccode
-signal_processor_p(__u32 parameter, __u16 cpu_addr,
-		   sigp_order_code order_code)
+signal_processor_p(__u32 parameter, __u16 cpu_addr, sigp_order_code order_code)
 {
+	register unsigned int reg1 asm ("1") = parameter;
 	sigp_ccode ccode;
-	
-	__asm__ __volatile__(
-		"    lr     1,%1\n"       /* parameter in gpr 1 */
-		"    sigp   1,%2,0(%3)\n"
-		"    ipm    %0\n"
-		"    srl    %0,28\n"
+
+	asm volatile(
+		"	sigp	%1,%2,0(%3)\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
 		: "=d" (ccode)
-		: "d" (parameter), "d" (__cpu_logical_map[cpu_addr]),
-                  "a" (order_code)
-		: "cc" , "memory", "1" );
+		: "d" (reg1), "d" (__cpu_logical_map[cpu_addr]),
+		  "a" (order_code) : "cc" , "memory");
 	return ccode;
 }
 
@@ -108,24 +106,21 @@ signal_processor_p(__u32 parameter, __u16 cpu_addr,
  * Signal processor with parameter and return status
  */
 static inline sigp_ccode
-signal_processor_ps(__u32 *statusptr, __u32 parameter,
-		    __u16 cpu_addr, sigp_order_code order_code)
+signal_processor_ps(__u32 *statusptr, __u32 parameter, __u16 cpu_addr,
+		    sigp_order_code order_code)
 {
+	register unsigned int reg1 asm ("1") = parameter;
 	sigp_ccode ccode;
-	
-	__asm__ __volatile__(
-		"    sr     2,2\n"        /* clear status */
-		"    lr     3,%2\n"       /* parameter in gpr 3 */
-		"    sigp   2,%3,0(%4)\n"
-		"    st     2,%1\n"
-		"    ipm    %0\n"
-		"    srl    %0,28\n"
-		: "=d" (ccode), "=m" (*statusptr)
-		: "d" (parameter), "d" (__cpu_logical_map[cpu_addr]),
-                  "a" (order_code)
-		: "cc" , "memory", "2" , "3"
-		);
-   return ccode;
+
+	asm volatile(
+		"	sigp	%1,%2,0(%3)\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
+		: "=d" (ccode), "+d" (reg1)
+		: "d" (__cpu_logical_map[cpu_addr]), "a" (order_code)
+		: "cc" , "memory");
+	*statusptr = reg1;
+	return ccode;
 }
 
 #endif /* __SIGP__ */

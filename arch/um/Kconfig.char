@@ -190,6 +190,11 @@ config HOSTAUDIO
 	tristate
 	default UML_SOUND
 
+#It is selected elsewhere, so kconfig would warn without this.
+config HW_RANDOM
+	tristate
+	default n
+
 config UML_RANDOM
 	tristate "Hardware random number generator"
 	help

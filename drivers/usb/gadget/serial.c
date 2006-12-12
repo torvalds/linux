@@ -200,7 +200,7 @@ static void gs_unthrottle(struct tty_struct * tty);
 static void gs_break(struct tty_struct *tty, int break_state);
 static int  gs_ioctl(struct tty_struct *tty, struct file *file,
 	unsigned int cmd, unsigned long arg);
-static void gs_set_termios(struct tty_struct *tty, struct termios *old);
+static void gs_set_termios(struct tty_struct *tty, struct ktermios *old);
 
 static int gs_send(struct gs_dev *dev);
 static int gs_send_packet(struct gs_dev *dev, char *packet,
@@ -271,7 +271,7 @@ static unsigned int use_acm = GS_DEFAULT_USE_ACM;
 
 
 /* tty driver struct */
-static struct tty_operations gs_tty_ops = {
+static const struct tty_operations gs_tty_ops = {
 	.open =			gs_open,
 	.close =		gs_close,
 	.write =		gs_write,
@@ -1077,7 +1077,7 @@ static int gs_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd,
 /*
  * gs_set_termios
  */
-static void gs_set_termios(struct tty_struct *tty, struct termios *old)
+static void gs_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 }
 
@@ -1120,12 +1120,15 @@ static int gs_send(struct gs_dev *dev)
 gs_debug_level(3, "gs_send: len=%d, 0x%2.2x 0x%2.2x 0x%2.2x ...\n", len, *((unsigned char *)req->buf), *((unsigned char *)req->buf+1), *((unsigned char *)req->buf+2));
 			list_del(&req_entry->re_entry);
 			req->length = len;
+			spin_unlock_irqrestore(&dev->dev_lock, flags);
 			if ((ret=usb_ep_queue(ep, req, GFP_ATOMIC))) {
 				printk(KERN_ERR
 				"gs_send: cannot queue read request, ret=%d\n",
 					ret);
+				spin_lock_irqsave(&dev->dev_lock, flags);
 				break;
 			}
+			spin_lock_irqsave(&dev->dev_lock, flags);
 		} else {
 			break;
 		}
@@ -1431,7 +1434,7 @@ static int __init gs_bind(struct usb_gadget *gadget)
 		return -ENOMEM;
 
 	snprintf(manufacturer, sizeof(manufacturer), "%s %s with %s",
-		system_utsname.sysname, system_utsname.release,
+		init_utsname()->sysname, init_utsname()->release,
 		gadget->name);
 
 	memset(dev, 0, sizeof(struct gs_dev));

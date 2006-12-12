@@ -280,31 +280,12 @@
 #define __NR_sync_file_range	262
 #define __NR_tee		263
 #define __NR_vmsplice		264
-
-#define NR_syscalls		265
-
-
-/*
- * AVR32 calling convention for system calls:
- *   - System call number in r8
- *   - Parameters in r12 and downwards to r9 as well as r6 and r5.
- *   - Return value in r12
- */
-
-/*
- * user-visible error numbers are in the range -1 - -124: see
- * <asm-generic/errno.h>
- */
-
-#define __syscall_return(type, res) do {				\
-		if ((unsigned long)(res) >= (unsigned long)(-125)) {	\
-			errno = -(res);					\
-			res = -1;					\
-		}							\
-		return (type) (res);					\
-	} while (0)
+#define __NR_epoll_pwait	265
 
 #ifdef __KERNEL__
+#define NR_syscalls		266
+
+
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYS_ALARM
@@ -319,62 +300,6 @@
 #define __ARCH_WANT_SYS_GETPGRP
 #define __ARCH_WANT_SYS_RT_SIGACTION
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
-#endif
-
-#if defined(__KERNEL_SYSCALLS__) || defined(__CHECKER__)
-
-#include <linux/types.h>
-#include <linux/linkage.h>
-#include <asm/signal.h>
-
-struct pt_regs;
-
-/*
- * we need this inline - forking from kernel space will result
- * in NO COPY ON WRITE (!!!), until an execve is executed. This
- * is no problem, but for the stack. This is handled by not letting
- * main() use the stack at all after fork(). Thus, no function
- * calls - which means inline code for fork too, as otherwise we
- * would use the stack upon exit from 'fork()'.
- *
- * Actually only pause and fork are needed inline, so that there
- * won't be any messing with the stack from main(), but we define
- * some others too.
- */
-static inline int execve(const char *file, char **argv, char **envp)
-{
-	register long scno asm("r8") = __NR_execve;
-	register long sc1 asm("r12") = (long)file;
-	register long sc2 asm("r11") = (long)argv;
-	register long sc3 asm("r10") = (long)envp;
-	int res;
-
-	asm volatile("scall"
-		     : "=r"(sc1)
-		     : "r"(scno), "0"(sc1), "r"(sc2), "r"(sc3)
-		     : "lr", "memory");
-	res = sc1;
-	__syscall_return(int, res);
-}
-
-asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize);
-asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
-			       struct pt_regs *regs);
-asmlinkage int sys_rt_sigreturn(struct pt_regs *regs);
-asmlinkage int sys_pipe(unsigned long __user *filedes);
-asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
-			  unsigned long prot, unsigned long flags,
-			  unsigned long fd, off_t offset);
-asmlinkage int sys_cacheflush(int operation, void __user *addr, size_t len);
-asmlinkage int sys_fork(struct pt_regs *regs);
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-			 unsigned long parent_tidptr,
-			 unsigned long child_tidptr, struct pt_regs *regs);
-asmlinkage int sys_vfork(struct pt_regs *regs);
-asmlinkage int sys_execve(char __user *ufilename, char __user *__user *uargv,
-			  char __user *__user *uenvp, struct pt_regs *regs);
-
-#endif
 
 /*
  * "Conditional" syscalls
@@ -383,5 +308,7 @@ asmlinkage int sys_execve(char __user *ufilename, char __user *__user *uargv,
  * but it doesn't work on all toolchains, so we just do it by hand
  */
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall");
+
+#endif /* __KERNEL__ */
 
 #endif /* __ASM_AVR32_UNISTD_H */

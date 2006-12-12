@@ -201,7 +201,7 @@ static void sysv_read_inode(struct inode *inode)
 	inode->i_ctime.tv_nsec = 0;
 	inode->i_atime.tv_nsec = 0;
 	inode->i_mtime.tv_nsec = 0;
-	inode->i_blocks = inode->i_blksize = 0;
+	inode->i_blocks = 0;
 
 	si = SYSV_I(inode);
 	for (block = 0; block < 10+1+1+1; block++)
@@ -301,13 +301,13 @@ static void sysv_delete_inode(struct inode *inode)
 	unlock_kernel();
 }
 
-static kmem_cache_t *sysv_inode_cachep;
+static struct kmem_cache *sysv_inode_cachep;
 
 static struct inode *sysv_alloc_inode(struct super_block *sb)
 {
 	struct sysv_inode_info *si;
 
-	si = kmem_cache_alloc(sysv_inode_cachep, SLAB_KERNEL);
+	si = kmem_cache_alloc(sysv_inode_cachep, GFP_KERNEL);
 	if (!si)
 		return NULL;
 	return &si->vfs_inode;
@@ -318,7 +318,7 @@ static void sysv_destroy_inode(struct inode *inode)
 	kmem_cache_free(sysv_inode_cachep, SYSV_I(inode));
 }
 
-static void init_once(void *p, kmem_cache_t *cachep, unsigned long flags)
+static void init_once(void *p, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct sysv_inode_info *si = (struct sysv_inode_info *)p;
 

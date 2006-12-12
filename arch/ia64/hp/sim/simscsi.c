@@ -103,7 +103,7 @@ simscsi_interrupt (unsigned long val)
 
 	while ((sc = queue[rd].sc) != 0) {
 		atomic_dec(&num_reqs);
-		queue[rd].sc = 0;
+		queue[rd].sc = NULL;
 		if (DBG)
 			printk("simscsi_interrupt: done with %ld\n", sc->serial_number);
 		(*sc->scsi_done)(sc);

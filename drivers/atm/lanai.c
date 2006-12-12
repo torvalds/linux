@@ -1482,16 +1482,10 @@ static inline void vcc_table_deallocate(const struct lanai_dev *lanai)
 static inline struct lanai_vcc *new_lanai_vcc(void)
 {
 	struct lanai_vcc *lvcc;
-	lvcc = (struct lanai_vcc *) kmalloc(sizeof(*lvcc), GFP_KERNEL);
+	lvcc =  kzalloc(sizeof(*lvcc), GFP_KERNEL);
 	if (likely(lvcc != NULL)) {
-		lvcc->vbase = NULL;
-		lvcc->rx.atmvcc = lvcc->tx.atmvcc = NULL;
-		lvcc->nref = 0;
-		memset(&lvcc->stats, 0, sizeof lvcc->stats);
-		lvcc->rx.buf.start = lvcc->tx.buf.start = NULL;
 		skb_queue_head_init(&lvcc->tx.backlog);
 #ifdef DEBUG
-		lvcc->tx.unqueue = NULL;
 		lvcc->vci = -1;
 #endif
 	}
@@ -1896,12 +1890,10 @@ static inline void lanai_int_1(struct lanai_dev *lanai, u32 reason)
 		reg_write(lanai, ack, IntAck_Reg);
 }
 
-static irqreturn_t lanai_int(int irq, void *devid, struct pt_regs *regs)
+static irqreturn_t lanai_int(int irq, void *devid)
 {
-	struct lanai_dev *lanai = (struct lanai_dev *) devid;
+	struct lanai_dev *lanai = devid;
 	u32 reason;
-
-	(void) irq; (void) regs;	/* unused variables */
 
 #ifdef USE_POWERDOWN
 	/*

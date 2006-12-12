@@ -67,10 +67,9 @@
 
 extern void set_debug_traps(void);
 extern irq_cpustat_t irq_stat [NR_CPUS];
-extern void mips_timer_interrupt(struct pt_regs *regs);
+extern void mips_timer_interrupt(void);
 
 static void setup_local_irq(unsigned int irq, int type, int int_req);
-static unsigned int startup_irq(unsigned int irq);
 static void end_irq(unsigned int irq_nr);
 static inline void mask_and_ack_level_irq(unsigned int irq_nr);
 static inline void mask_and_ack_rise_edge_irq(unsigned int irq_nr);
@@ -81,25 +80,7 @@ inline void local_disable_irq(unsigned int irq_nr);
 
 void	(*board_init_irq)(void);
 
-#ifdef CONFIG_PM
-extern irqreturn_t counter0_irq(int irq, void *dev_id, struct pt_regs *regs);
-#endif
-
 static DEFINE_SPINLOCK(irq_lock);
-
-
-static unsigned int startup_irq(unsigned int irq_nr)
-{
-	local_enable_irq(irq_nr);
-	return 0;
-}
-
-
-static void shutdown_irq(unsigned int irq_nr)
-{
-	local_disable_irq(irq_nr);
-	return;
-}
 
 
 inline void local_enable_irq(unsigned int irq_nr)
@@ -253,46 +234,42 @@ void restore_local_and_enable(int controller, unsigned long mask)
 
 static struct irq_chip rise_edge_irq_type = {
 	.typename = "Au1000 Rise Edge",
-	.startup = startup_irq,
-	.shutdown = shutdown_irq,
-	.enable = local_enable_irq,
-	.disable = local_disable_irq,
 	.ack = mask_and_ack_rise_edge_irq,
+	.mask = local_disable_irq,
+	.mask_ack = mask_and_ack_rise_edge_irq,
+	.unmask = local_enable_irq,
 	.end = end_irq,
 };
 
 static struct irq_chip fall_edge_irq_type = {
 	.typename = "Au1000 Fall Edge",
-	.startup = startup_irq,
-	.shutdown = shutdown_irq,
-	.enable = local_enable_irq,
-	.disable = local_disable_irq,
 	.ack = mask_and_ack_fall_edge_irq,
+	.mask = local_disable_irq,
+	.mask_ack = mask_and_ack_fall_edge_irq,
+	.unmask = local_enable_irq,
 	.end = end_irq,
 };
 
 static struct irq_chip either_edge_irq_type = {
 	.typename = "Au1000 Rise or Fall Edge",
-	.startup = startup_irq,
-	.shutdown = shutdown_irq,
-	.enable = local_enable_irq,
-	.disable = local_disable_irq,
 	.ack = mask_and_ack_either_edge_irq,
+	.mask = local_disable_irq,
+	.mask_ack = mask_and_ack_either_edge_irq,
+	.unmask = local_enable_irq,
 	.end = end_irq,
 };
 
 static struct irq_chip level_irq_type = {
 	.typename = "Au1000 Level",
-	.startup = startup_irq,
-	.shutdown = shutdown_irq,
-	.enable = local_enable_irq,
-	.disable = local_disable_irq,
 	.ack = mask_and_ack_level_irq,
+	.mask = local_disable_irq,
+	.mask_ack = mask_and_ack_level_irq,
+	.unmask = local_enable_irq,
 	.end = end_irq,
 };
 
 #ifdef CONFIG_PM
-void startup_match20_interrupt(irqreturn_t (*handler)(int, void *, struct pt_regs *))
+void startup_match20_interrupt(irq_handler_t handler)
 {
 	struct irq_desc *desc = &irq_desc[AU1000_TOY_MATCH2_INT];
 
@@ -332,31 +309,31 @@ static void setup_local_irq(unsigned int irq_nr, int type, int int_req)
 				au_writel(1<<(irq_nr-32), IC1_CFG2CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG1CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG0SET);
-				irq_desc[irq_nr].chip = &rise_edge_irq_type;
+				set_irq_chip(irq_nr, &rise_edge_irq_type);
 				break;
 			case INTC_INT_FALL_EDGE: /* 0:1:0 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG1SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG0CLR);
-				irq_desc[irq_nr].chip = &fall_edge_irq_type;
+				set_irq_chip(irq_nr, &fall_edge_irq_type);
 				break;
 			case INTC_INT_RISE_AND_FALL_EDGE: /* 0:1:1 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG1SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG0SET);
-				irq_desc[irq_nr].chip = &either_edge_irq_type;
+				set_irq_chip(irq_nr, &either_edge_irq_type);
 				break;
 			case INTC_INT_HIGH_LEVEL: /* 1:0:1 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG1CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG0SET);
-				irq_desc[irq_nr].chip = &level_irq_type;
+				set_irq_chip(irq_nr, &level_irq_type);
 				break;
 			case INTC_INT_LOW_LEVEL: /* 1:1:0 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG1SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG0CLR);
-				irq_desc[irq_nr].chip = &level_irq_type;
+				set_irq_chip(irq_nr, &level_irq_type);
 				break;
 			case INTC_INT_DISABLED: /* 0:0:0 */
 				au_writel(1<<(irq_nr-32), IC1_CFG0CLR);
@@ -384,31 +361,31 @@ static void setup_local_irq(unsigned int irq_nr, int type, int int_req)
 				au_writel(1<<irq_nr, IC0_CFG2CLR);
 				au_writel(1<<irq_nr, IC0_CFG1CLR);
 				au_writel(1<<irq_nr, IC0_CFG0SET);
-				irq_desc[irq_nr].chip = &rise_edge_irq_type;
+				set_irq_chip(irq_nr, &rise_edge_irq_type);
 				break;
 			case INTC_INT_FALL_EDGE: /* 0:1:0 */
 				au_writel(1<<irq_nr, IC0_CFG2CLR);
 				au_writel(1<<irq_nr, IC0_CFG1SET);
 				au_writel(1<<irq_nr, IC0_CFG0CLR);
-				irq_desc[irq_nr].chip = &fall_edge_irq_type;
+				set_irq_chip(irq_nr, &fall_edge_irq_type);
 				break;
 			case INTC_INT_RISE_AND_FALL_EDGE: /* 0:1:1 */
 				au_writel(1<<irq_nr, IC0_CFG2CLR);
 				au_writel(1<<irq_nr, IC0_CFG1SET);
 				au_writel(1<<irq_nr, IC0_CFG0SET);
-				irq_desc[irq_nr].chip = &either_edge_irq_type;
+				set_irq_chip(irq_nr, &either_edge_irq_type);
 				break;
 			case INTC_INT_HIGH_LEVEL: /* 1:0:1 */
 				au_writel(1<<irq_nr, IC0_CFG2SET);
 				au_writel(1<<irq_nr, IC0_CFG1CLR);
 				au_writel(1<<irq_nr, IC0_CFG0SET);
-				irq_desc[irq_nr].chip = &level_irq_type;
+				set_irq_chip(irq_nr, &level_irq_type);
 				break;
 			case INTC_INT_LOW_LEVEL: /* 1:1:0 */
 				au_writel(1<<irq_nr, IC0_CFG2SET);
 				au_writel(1<<irq_nr, IC0_CFG1SET);
 				au_writel(1<<irq_nr, IC0_CFG0CLR);
-				irq_desc[irq_nr].chip = &level_irq_type;
+				set_irq_chip(irq_nr, &level_irq_type);
 				break;
 			case INTC_INT_DISABLED: /* 0:0:0 */
 				au_writel(1<<irq_nr, IC0_CFG0CLR);
@@ -501,14 +478,15 @@ void __init arch_init_irq(void)
  * intcX_reqX_irqdispatch().
  */
 
-void intc0_req0_irqdispatch(struct pt_regs *regs)
+static void intc0_req0_irqdispatch(void)
 {
 	int irq = 0;
 	static unsigned long intc0_req0 = 0;
 
 	intc0_req0 |= au_readl(IC0_REQ0INT);
 
-	if (!intc0_req0) return;
+	if (!intc0_req0)
+		return;
 #ifdef AU1000_USB_DEV_REQ_INT
 	/*
 	 * Because of the tight timing of SETUP token to reply
@@ -517,28 +495,29 @@ void intc0_req0_irqdispatch(struct pt_regs *regs)
 	 */
 	if ((intc0_req0 & (1<<AU1000_USB_DEV_REQ_INT))) {
 		intc0_req0 &= ~(1<<AU1000_USB_DEV_REQ_INT);
-		do_IRQ(AU1000_USB_DEV_REQ_INT, regs);
+		do_IRQ(AU1000_USB_DEV_REQ_INT);
 		return;
 	}
 #endif
 	irq = au_ffs(intc0_req0) - 1;
 	intc0_req0 &= ~(1<<irq);
-	do_IRQ(irq, regs);
+	do_IRQ(irq);
 }
 
 
-void intc0_req1_irqdispatch(struct pt_regs *regs)
+static void intc0_req1_irqdispatch(void)
 {
 	int irq = 0;
 	static unsigned long intc0_req1 = 0;
 
 	intc0_req1 |= au_readl(IC0_REQ1INT);
 
-	if (!intc0_req1) return;
+	if (!intc0_req1)
+		return;
 
 	irq = au_ffs(intc0_req1) - 1;
 	intc0_req1 &= ~(1<<irq);
-	do_IRQ(irq, regs);
+	do_IRQ(irq);
 }
 
 
@@ -546,35 +525,37 @@ void intc0_req1_irqdispatch(struct pt_regs *regs)
  * Interrupt Controller 1:
  * interrupts 32 - 63
  */
-void intc1_req0_irqdispatch(struct pt_regs *regs)
+static void intc1_req0_irqdispatch(void)
 {
 	int irq = 0;
 	static unsigned long intc1_req0 = 0;
 
 	intc1_req0 |= au_readl(IC1_REQ0INT);
 
-	if (!intc1_req0) return;
+	if (!intc1_req0)
+		return;
 
 	irq = au_ffs(intc1_req0) - 1;
 	intc1_req0 &= ~(1<<irq);
 	irq += 32;
-	do_IRQ(irq, regs);
+	do_IRQ(irq);
 }
 
 
-void intc1_req1_irqdispatch(struct pt_regs *regs)
+static void intc1_req1_irqdispatch(void)
 {
 	int irq = 0;
 	static unsigned long intc1_req1 = 0;
 
 	intc1_req1 |= au_readl(IC1_REQ1INT);
 
-	if (!intc1_req1) return;
+	if (!intc1_req1)
+		return;
 
 	irq = au_ffs(intc1_req1) - 1;
 	intc1_req1 &= ~(1<<irq);
 	irq += 32;
-	do_IRQ(irq, regs);
+	do_IRQ(irq);
 }
 
 #ifdef CONFIG_PM
@@ -660,20 +641,20 @@ restore_au1xxx_intctl(void)
 }
 #endif /* CONFIG_PM */
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
 
 	if (pending & CAUSEF_IP7)
-		mips_timer_interrupt(regs);
+		mips_timer_interrupt();
 	else if (pending & CAUSEF_IP2)
-		intc0_req0_irqdispatch(regs);
+		intc0_req0_irqdispatch();
 	else if (pending & CAUSEF_IP3)
-		intc0_req1_irqdispatch(regs);
+		intc0_req1_irqdispatch();
 	else if (pending & CAUSEF_IP4)
-		intc1_req0_irqdispatch(regs);
+		intc1_req0_irqdispatch();
 	else if (pending  & CAUSEF_IP5)
-		intc1_req1_irqdispatch(regs);
+		intc1_req1_irqdispatch();
 	else
-		spurious_interrupt(regs);
+		spurious_interrupt();
 }

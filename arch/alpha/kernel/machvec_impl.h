@@ -1,5 +1,5 @@
 /*
- *	linux/arch/alpha/kernel/machvec.h
+ *	linux/arch/alpha/kernel/machvec_impl.h
  *
  *	Copyright (C) 1997, 1998  Richard Henderson
  *

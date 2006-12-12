@@ -91,7 +91,7 @@ static struct hw_interrupt_type eiger_irq_type = {
 };
 
 static void
-eiger_device_interrupt(unsigned long vector, struct pt_regs * regs)
+eiger_device_interrupt(unsigned long vector)
 {
 	unsigned intstatus;
 
@@ -118,20 +118,20 @@ eiger_device_interrupt(unsigned long vector, struct pt_regs * regs)
 		 * despatch an interrupt if it's set.
 		 */
 
-		if (intstatus & 8) handle_irq(16+3, regs);
-		if (intstatus & 4) handle_irq(16+2, regs);
-		if (intstatus & 2) handle_irq(16+1, regs);
-		if (intstatus & 1) handle_irq(16+0, regs);
+		if (intstatus & 8) handle_irq(16+3);
+		if (intstatus & 4) handle_irq(16+2);
+		if (intstatus & 2) handle_irq(16+1);
+		if (intstatus & 1) handle_irq(16+0);
 	} else {
-		isa_device_interrupt(vector, regs);
+		isa_device_interrupt(vector);
 	}
 }
 
 static void
-eiger_srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
+eiger_srm_device_interrupt(unsigned long vector)
 {
 	int irq = (vector - 0x800) >> 4;
-	handle_irq(irq, regs);
+	handle_irq(irq);
 }
 
 static void __init

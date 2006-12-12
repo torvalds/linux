@@ -390,7 +390,7 @@ static int isl1208_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	return isl1208_i2c_read_alarm(to_i2c_client(dev), alarm);
 }
 
-static struct rtc_class_ops isl1208_rtc_ops = {
+static const struct rtc_class_ops isl1208_rtc_ops = {
 	.proc		= isl1208_rtc_proc,
 	.read_time	= isl1208_rtc_read_time,
 	.set_time	= isl1208_rtc_set_time,

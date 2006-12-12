@@ -126,7 +126,7 @@ Here is a list of supported device_setup values for this device:
    - Alsa driver default mode
    - maintains backward compatibility with setups that do not use this 
      parameter by not introducing any change
-   - results sometimes in corrupted sound as decribed earlier
+   - results sometimes in corrupted sound as described earlier
  * device_setup=0x01
    - 16bits 48kHz mode with Di disabled
    - Ai,Ao,Do can be used at the same time

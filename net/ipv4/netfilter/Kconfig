@@ -6,7 +6,7 @@ menu "IP: Netfilter Configuration"
 	depends on INET && NETFILTER
 
 config NF_CONNTRACK_IPV4
-	tristate "IPv4 support for new connection tracking (EXPERIMENTAL)"
+	tristate "IPv4 connection tracking support (required for NAT) (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && NF_CONNTRACK
 	---help---
 	  Connection tracking keeps a record of what packets have passed
@@ -19,21 +19,18 @@ config NF_CONNTRACK_IPV4
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_CONNTRACK_PROC_COMPAT
+	bool "proc/sysctl compatibility with old connection tracking"
+	depends on NF_CONNTRACK_IPV4
+	default y
+	help
+	  This option enables /proc and sysctl compatibility with the old
+	  layer 3 dependant connection tracking. This is needed to keep
+	  old programs that have not been adapted to the new names working.
+
+	  If unsure, say Y.
+
 # connection tracking, helpers and protocols
-config IP_NF_CONNTRACK
-	tristate "Connection tracking (required for masq/NAT)"
-	---help---
-	  Connection tracking keeps a record of what packets have passed
-	  through your machine, in order to figure out how they are related
-	  into connections.
-
-	  This is required to do Masquerading or other kinds of Network
-	  Address Translation (except for Fast NAT).  It can also be used to
-	  enhance packet filtering (see `Connection state match support'
-	  below).
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_CT_ACCT
 	bool "Connection tracking flow accounting"
 	depends on IP_NF_CONNTRACK
@@ -315,20 +312,6 @@ config IP_NF_MATCH_ADDRTYPE
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/modules.txt>.  If unsure, say `N'.
 
-config IP_NF_MATCH_HASHLIMIT
-	tristate  'hashlimit match support'
-	depends on IP_NF_IPTABLES
-	help
-	  This option adds a new iptables `hashlimit' match.  
-
-	  As opposed to `limit', this match dynamically creates a hash table
-	  of limit buckets, based on your selection of source/destination
-	  ip addresses and/or ports.
-
-	  It enables you to express policies like `10kpps for any given
-	  destination IP' or `500pps from any given source IP'  with a single
-	  IPtables rule.
-
 # `filter', generic and specific targets
 config IP_NF_FILTER
 	tristate "Packet filtering"
@@ -373,7 +356,7 @@ config IP_NF_TARGET_ULOG
 	  daemon using netlink multicast sockets; unlike the LOG target
 	  which can only be viewed through syslog.
 
-	  The apropriate userspace logging daemon (ulogd) may be obtained from
+	  The appropriate userspace logging daemon (ulogd) may be obtained from
 	  <http://www.gnumonks.org/projects/ulogd/>
 
 	  To compile it as a module, choose M here.  If unsure, say N.
@@ -404,7 +387,7 @@ config IP_NF_TARGET_TCPMSS
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-# NAT + specific targets
+# NAT + specific targets: ip_conntrack
 config IP_NF_NAT
 	tristate "Full NAT"
 	depends on IP_NF_IPTABLES && IP_NF_CONNTRACK
@@ -415,14 +398,30 @@ config IP_NF_NAT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+# NAT + specific targets: nf_conntrack
+config NF_NAT
+	tristate "Full NAT"
+	depends on IP_NF_IPTABLES && NF_CONNTRACK
+	help
+	  The Full NAT option allows masquerading, port forwarding and other
+	  forms of full Network Address Port Translation.  It is controlled by
+	  the `nat' table in iptables: see the man page for iptables(8).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config IP_NF_NAT_NEEDED
 	bool
-	depends on IP_NF_NAT != n
+	depends on IP_NF_NAT
+	default y
+
+config NF_NAT_NEEDED
+	bool
+	depends on NF_NAT
 	default y
 
 config IP_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
-	depends on IP_NF_NAT
+	depends on (NF_NAT || IP_NF_NAT)
 	help
 	  Masquerading is a special case of NAT: all outgoing connections are
 	  changed to seem to come from a particular interface's address, and
@@ -434,7 +433,7 @@ config IP_NF_TARGET_MASQUERADE
 
 config IP_NF_TARGET_REDIRECT
 	tristate "REDIRECT target support"
-	depends on IP_NF_NAT
+	depends on (NF_NAT || IP_NF_NAT)
 	help
 	  REDIRECT is a special case of NAT: all incoming connections are
 	  mapped onto the incoming interface's address, causing the packets to
@@ -445,7 +444,7 @@ config IP_NF_TARGET_REDIRECT
 
 config IP_NF_TARGET_NETMAP
 	tristate "NETMAP target support"
-	depends on IP_NF_NAT
+	depends on (NF_NAT || IP_NF_NAT)
 	help
 	  NETMAP is an implementation of static 1:1 NAT mapping of network
 	  addresses. It maps the network address part, while keeping the host
@@ -456,7 +455,7 @@ config IP_NF_TARGET_NETMAP
 
 config IP_NF_TARGET_SAME
 	tristate "SAME target support"
-	depends on IP_NF_NAT
+	depends on (NF_NAT || IP_NF_NAT)
 	help
 	  This option adds a `SAME' target, which works like the standard SNAT
 	  target, but attempts to give clients the same IP for all connections.
@@ -478,19 +477,52 @@ config IP_NF_NAT_SNMP_BASIC
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_NAT_SNMP_BASIC
+	tristate "Basic SNMP-ALG support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_NAT
+	---help---
+
+	  This module implements an Application Layer Gateway (ALG) for
+	  SNMP payloads.  In conjunction with NAT, it allows a network
+	  management system to access multiple private networks with
+	  conflicting addresses.  It works by modifying IP addresses
+	  inside SNMP payloads to match IP-layer NAT mapping.
+
+	  This is the "basic" form of SNMP-ALG, as described in RFC 2962
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+# If they want FTP, set to $CONFIG_IP_NF_NAT (m or y),
+# or $CONFIG_IP_NF_FTP (m or y), whichever is weaker.
+# From kconfig-language.txt:
+#
+#           <expr> '&&' <expr>                   (6)
+#
+# (6) Returns the result of min(/expr/, /expr/).
+config NF_NAT_PROTO_GRE
+	tristate
+	depends on NF_NAT && NF_CT_PROTO_GRE
+
+config IP_NF_NAT_FTP
+	tristate
+	depends on IP_NF_IPTABLES && IP_NF_CONNTRACK && IP_NF_NAT
+	default IP_NF_NAT && IP_NF_FTP
+
+config NF_NAT_FTP
+	tristate
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_FTP
+
 config IP_NF_NAT_IRC
 	tristate
 	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
 	default IP_NF_NAT if IP_NF_IRC=y
 	default m if IP_NF_IRC=m
 
-# If they want FTP, set to $CONFIG_IP_NF_NAT (m or y), 
-# or $CONFIG_IP_NF_FTP (m or y), whichever is weaker.  Argh.
-config IP_NF_NAT_FTP
+config NF_NAT_IRC
 	tristate
-	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
-	default IP_NF_NAT if IP_NF_FTP=y
-	default m if IP_NF_FTP=m
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_IRC
 
 config IP_NF_NAT_TFTP
 	tristate
@@ -498,11 +530,21 @@ config IP_NF_NAT_TFTP
 	default IP_NF_NAT if IP_NF_TFTP=y
 	default m if IP_NF_TFTP=m
 
+config NF_NAT_TFTP
+	tristate
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_TFTP
+
 config IP_NF_NAT_AMANDA
 	tristate
 	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
 	default IP_NF_NAT if IP_NF_AMANDA=y
 	default m if IP_NF_AMANDA=m
+
+config NF_NAT_AMANDA
+	tristate
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_AMANDA
 
 config IP_NF_NAT_PPTP
 	tristate
@@ -510,17 +552,33 @@ config IP_NF_NAT_PPTP
 	default IP_NF_NAT if IP_NF_PPTP=y
 	default m if IP_NF_PPTP=m
 
+config NF_NAT_PPTP
+	tristate
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_PPTP
+	select NF_NAT_PROTO_GRE
+
 config IP_NF_NAT_H323
 	tristate
 	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
 	default IP_NF_NAT if IP_NF_H323=y
 	default m if IP_NF_H323=m
 
+config NF_NAT_H323
+	tristate
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_H323
+
 config IP_NF_NAT_SIP
 	tristate
 	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
 	default IP_NF_NAT if IP_NF_SIP=y
 	default m if IP_NF_SIP=m
+
+config NF_NAT_SIP
+	tristate
+	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_SIP
 
 # mangle + specific targets
 config IP_NF_MANGLE

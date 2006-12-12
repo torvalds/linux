@@ -260,7 +260,7 @@ long ppc_newuname(struct new_utsname __user * name)
 	int err = 0;
 
 	down_read(&uts_sem);
-	if (copy_to_user(name, &system_utsname, sizeof(*name)))
+	if (copy_to_user(name, utsname(), sizeof(*name)))
 		err = -EFAULT;
 	up_read(&uts_sem);
 	if (!err)
@@ -273,7 +273,7 @@ int sys_uname(struct old_utsname __user *name)
 	int err = 0;
 	
 	down_read(&uts_sem);
-	if (copy_to_user(name, &system_utsname, sizeof(*name)))
+	if (copy_to_user(name, utsname(), sizeof(*name)))
 		err = -EFAULT;
 	up_read(&uts_sem);
 	if (!err)
@@ -289,19 +289,19 @@ int sys_olduname(struct oldold_utsname __user *name)
 		return -EFAULT;
   
 	down_read(&uts_sem);
-	error = __copy_to_user(&name->sysname, &system_utsname.sysname,
+	error = __copy_to_user(&name->sysname, &utsname()->sysname,
 			       __OLD_UTS_LEN);
 	error |= __put_user(0, name->sysname + __OLD_UTS_LEN);
-	error |= __copy_to_user(&name->nodename, &system_utsname.nodename,
+	error |= __copy_to_user(&name->nodename, &utsname()->nodename,
 				__OLD_UTS_LEN);
 	error |= __put_user(0, name->nodename + __OLD_UTS_LEN);
-	error |= __copy_to_user(&name->release, &system_utsname.release,
+	error |= __copy_to_user(&name->release, &utsname()->release,
 				__OLD_UTS_LEN);
 	error |= __put_user(0, name->release + __OLD_UTS_LEN);
-	error |= __copy_to_user(&name->version, &system_utsname.version,
+	error |= __copy_to_user(&name->version, &utsname()->version,
 				__OLD_UTS_LEN);
 	error |= __put_user(0, name->version + __OLD_UTS_LEN);
-	error |= __copy_to_user(&name->machine, &system_utsname.machine,
+	error |= __copy_to_user(&name->machine, &utsname()->machine,
 				__OLD_UTS_LEN);
 	error |= override_machine(name->machine);
 	up_read(&uts_sem);

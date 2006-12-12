@@ -23,7 +23,7 @@ int xfrm4_rcv(struct sk_buff *skb)
 
 EXPORT_SYMBOL(xfrm4_rcv);
 
-static int xfrm4_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq)
+static int xfrm4_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 {
 	switch (nexthdr) {
 	case IPPROTO_IPIP:
@@ -55,7 +55,7 @@ drop:
 int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 {
 	int err;
-	u32 spi, seq;
+	__be32 spi, seq;
 	struct xfrm_state *xfrm_vec[XFRM_MAX_DEPTH];
 	struct xfrm_state *x;
 	int xfrm_nr = 0;

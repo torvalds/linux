@@ -13,7 +13,7 @@ struct ethertap_data {
 	void *dev;
 };
 
-extern struct net_user_info ethertap_user_info;
+extern const struct net_user_info ethertap_user_info;
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

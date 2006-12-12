@@ -145,7 +145,7 @@ typedef struct xfs_btree_cur
 	union {
 		xfs_alloc_rec_incore_t	a;
 		xfs_bmbt_irec_t		b;
-		xfs_inobt_rec_t		i;
+		xfs_inobt_rec_incore_t	i;
 	}		bc_rec;		/* current insert/search record value */
 	struct xfs_buf	*bc_bufs[XFS_BTREE_MAXLEVELS];	/* buf ptr per level */
 	int		bc_ptrs[XFS_BTREE_MAXLEVELS];	/* key/record # */
@@ -242,6 +242,9 @@ xfs_btree_check_lptr(
 	xfs_btree_cur_t		*cur,	/* btree cursor */
 	xfs_dfsbno_t		ptr,	/* btree block disk address */
 	int			level);	/* btree block level */
+
+#define xfs_btree_check_lptr_disk(cur, ptr, level) \
+	xfs_btree_check_lptr(cur, be64_to_cpu(ptr), level)
 
 /*
  * Checking routine: check that short form block header is ok.

@@ -310,6 +310,7 @@ static int help(struct sk_buff **pskb,
 	struct ip_conntrack_expect *exp;
 	unsigned int i;
 	int found = 0, ends_in_nl;
+	typeof(ip_nat_ftp_hook) ip_nat_ftp;
 
 	/* Until there's been traffic both ways, don't look in packets. */
 	if (ctinfo != IP_CT_ESTABLISHED
@@ -425,17 +426,18 @@ static int help(struct sk_buff **pskb,
 	exp->tuple.src.u.tcp.port = 0; /* Don't care. */
 	exp->tuple.dst.protonum = IPPROTO_TCP;
 	exp->mask = ((struct ip_conntrack_tuple)
-		{ { 0xFFFFFFFF, { 0 } },
-		  { 0xFFFFFFFF, { .tcp = { 0xFFFF } }, 0xFF }});
+		{ { htonl(0xFFFFFFFF), { 0 } },
+		  { htonl(0xFFFFFFFF), { .tcp = { htons(0xFFFF) } }, 0xFF }});
 
 	exp->expectfn = NULL;
 	exp->flags = 0;
 
 	/* Now, NAT might want to mangle the packet, and register the
 	 * (possibly changed) expectation itself. */
-	if (ip_nat_ftp_hook)
-		ret = ip_nat_ftp_hook(pskb, ctinfo, search[dir][i].ftptype,
-				      matchoff, matchlen, exp, &seq);
+	ip_nat_ftp = rcu_dereference(ip_nat_ftp_hook);
+	if (ip_nat_ftp)
+		ret = ip_nat_ftp(pskb, ctinfo, search[dir][i].ftptype,
+				 matchoff, matchlen, exp, &seq);
 	else {
 		/* Can't expect this?  Best to drop packet now. */
 		if (ip_conntrack_expect_related(exp) != 0)
@@ -488,7 +490,7 @@ static int __init ip_conntrack_ftp_init(void)
 	for (i = 0; i < ports_c; i++) {
 		ftp[i].tuple.src.u.tcp.port = htons(ports[i]);
 		ftp[i].tuple.dst.protonum = IPPROTO_TCP;
-		ftp[i].mask.src.u.tcp.port = 0xFFFF;
+		ftp[i].mask.src.u.tcp.port = htons(0xFFFF);
 		ftp[i].mask.dst.protonum = 0xFF;
 		ftp[i].max_expected = 1;
 		ftp[i].timeout = 5 * 60; /* 5 minutes */

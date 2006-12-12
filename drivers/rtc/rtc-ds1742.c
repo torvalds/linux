@@ -6,6 +6,10 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ * Copyright (C) 2006 Torsten Ertbjerg Rasmussen <tr@newtec.dk>
+ *  - nvram size determined from resource
+ *  - this ds1742 driver now supports ds1743.
  */
 
 #include <linux/bcd.h>
@@ -17,20 +21,19 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#define DRV_VERSION "0.1"
+#define DRV_VERSION "0.3"
 
-#define RTC_REG_SIZE		0x800
-#define RTC_OFFSET		0x7f8
+#define RTC_SIZE		8
 
-#define RTC_CONTROL		(RTC_OFFSET + 0)
-#define RTC_CENTURY		(RTC_OFFSET + 0)
-#define RTC_SECONDS		(RTC_OFFSET + 1)
-#define RTC_MINUTES		(RTC_OFFSET + 2)
-#define RTC_HOURS		(RTC_OFFSET + 3)
-#define RTC_DAY			(RTC_OFFSET + 4)
-#define RTC_DATE		(RTC_OFFSET + 5)
-#define RTC_MONTH		(RTC_OFFSET + 6)
-#define RTC_YEAR		(RTC_OFFSET + 7)
+#define RTC_CONTROL		0
+#define RTC_CENTURY		0
+#define RTC_SECONDS		1
+#define RTC_MINUTES		2
+#define RTC_HOURS		3
+#define RTC_DAY			4
+#define RTC_DATE		5
+#define RTC_MONTH		6
+#define RTC_YEAR		7
 
 #define RTC_CENTURY_MASK	0x3f
 #define RTC_SECONDS_MASK	0x7f
@@ -48,7 +51,10 @@
 
 struct rtc_plat_data {
 	struct rtc_device *rtc;
-	void __iomem *ioaddr;
+	void __iomem *ioaddr_nvram;
+	void __iomem *ioaddr_rtc;
+	size_t size_nvram;
+	size_t size;
 	unsigned long baseaddr;
 	unsigned long last_jiffies;
 };
@@ -57,7 +63,7 @@ static int ds1742_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-	void __iomem *ioaddr = pdata->ioaddr;
+	void __iomem *ioaddr = pdata->ioaddr_rtc;
 	u8 century;
 
 	century = BIN2BCD((tm->tm_year + 1900) / 100);
@@ -82,7 +88,7 @@ static int ds1742_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-	void __iomem *ioaddr = pdata->ioaddr;
+	void __iomem *ioaddr = pdata->ioaddr_rtc;
 	unsigned int year, month, day, hour, minute, second, week;
 	unsigned int century;
 
@@ -116,7 +122,7 @@ static int ds1742_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static struct rtc_class_ops ds1742_rtc_ops = {
+static const struct rtc_class_ops ds1742_rtc_ops = {
 	.read_time	= ds1742_rtc_read_time,
 	.set_time	= ds1742_rtc_set_time,
 };
@@ -127,10 +133,10 @@ static ssize_t ds1742_nvram_read(struct kobject *kobj, char *buf,
 	struct platform_device *pdev =
 		to_platform_device(container_of(kobj, struct device, kobj));
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-	void __iomem *ioaddr = pdata->ioaddr;
+	void __iomem *ioaddr = pdata->ioaddr_nvram;
 	ssize_t count;
 
-	for (count = 0; size > 0 && pos < RTC_OFFSET; count++, size--)
+	for (count = 0; size > 0 && pos < pdata->size_nvram; count++, size--)
 		*buf++ = readb(ioaddr + pos++);
 	return count;
 }
@@ -141,10 +147,10 @@ static ssize_t ds1742_nvram_write(struct kobject *kobj, char *buf,
 	struct platform_device *pdev =
 		to_platform_device(container_of(kobj, struct device, kobj));
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-	void __iomem *ioaddr = pdata->ioaddr;
+	void __iomem *ioaddr = pdata->ioaddr_nvram;
 	ssize_t count;
 
-	for (count = 0; size > 0 && pos < RTC_OFFSET; count++, size--)
+	for (count = 0; size > 0 && pos < pdata->size_nvram; count++, size--)
 		writeb(*buf++, ioaddr + pos++);
 	return count;
 }
@@ -155,7 +161,6 @@ static struct bin_attribute ds1742_nvram_attr = {
 		.mode = S_IRUGO | S_IWUGO,
 		.owner = THIS_MODULE,
 	},
-	.size = RTC_OFFSET,
 	.read = ds1742_nvram_read,
 	.write = ds1742_nvram_write,
 };
@@ -175,19 +180,23 @@ static int __init ds1742_rtc_probe(struct platform_device *pdev)
 	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
-	if (!request_mem_region(res->start, RTC_REG_SIZE, pdev->name)) {
+	pdata->size = res->end - res->start + 1;
+	if (!request_mem_region(res->start, pdata->size, pdev->name)) {
 		ret = -EBUSY;
 		goto out;
 	}
 	pdata->baseaddr = res->start;
-	ioaddr = ioremap(pdata->baseaddr, RTC_REG_SIZE);
+	ioaddr = ioremap(pdata->baseaddr, pdata->size);
 	if (!ioaddr) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	pdata->ioaddr = ioaddr;
+	pdata->ioaddr_nvram = ioaddr;
+	pdata->size_nvram = pdata->size - RTC_SIZE;
+	pdata->ioaddr_rtc = ioaddr + pdata->size_nvram;
 
 	/* turn RTC on if it was not on */
+	ioaddr = pdata->ioaddr_rtc;
 	sec = readb(ioaddr + RTC_SECONDS);
 	if (sec & RTC_STOP) {
 		sec &= RTC_SECONDS_MASK;
@@ -196,7 +205,7 @@ static int __init ds1742_rtc_probe(struct platform_device *pdev)
 		writeb(sec, ioaddr + RTC_SECONDS);
 		writeb(cen & RTC_CENTURY_MASK, ioaddr + RTC_CONTROL);
 	}
-	if (readb(ioaddr + RTC_DAY) & RTC_BATT_FLAG)
+	if (!(readb(ioaddr + RTC_DAY) & RTC_BATT_FLAG))
 		dev_warn(&pdev->dev, "voltage-low detected.\n");
 
 	rtc = rtc_device_register(pdev->name, &pdev->dev,
@@ -208,13 +217,19 @@ static int __init ds1742_rtc_probe(struct platform_device *pdev)
 	pdata->rtc = rtc;
 	pdata->last_jiffies = jiffies;
 	platform_set_drvdata(pdev, pdata);
-	sysfs_create_bin_file(&pdev->dev.kobj, &ds1742_nvram_attr);
+	ds1742_nvram_attr.size = max(ds1742_nvram_attr.size,
+				     pdata->size_nvram);
+	ret = sysfs_create_bin_file(&pdev->dev.kobj, &ds1742_nvram_attr);
+	if (ret)
+		goto out;
 	return 0;
  out:
-	if (ioaddr)
-		iounmap(ioaddr);
+	if (pdata->rtc)
+		rtc_device_unregister(pdata->rtc);
+	if (pdata->ioaddr_nvram)
+		iounmap(pdata->ioaddr_nvram);
 	if (pdata->baseaddr)
-		release_mem_region(pdata->baseaddr, RTC_REG_SIZE);
+		release_mem_region(pdata->baseaddr, pdata->size);
 	kfree(pdata);
 	return ret;
 }
@@ -225,8 +240,8 @@ static int __devexit ds1742_rtc_remove(struct platform_device *pdev)
 
 	sysfs_remove_bin_file(&pdev->dev.kobj, &ds1742_nvram_attr);
 	rtc_device_unregister(pdata->rtc);
-	iounmap(pdata->ioaddr);
-	release_mem_region(pdata->baseaddr, RTC_REG_SIZE);
+	iounmap(pdata->ioaddr_nvram);
+	release_mem_region(pdata->baseaddr, pdata->size);
 	kfree(pdata);
 	return 0;
 }

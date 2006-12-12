@@ -37,6 +37,7 @@
 
 #include "cpu.h"
 #include "irq.h"
+#include "pm.h"
 
 /* the s3c2412 changes the behaviour of IRQ_EINT0 through IRQ_EINT3 by
  * having them turn up in both the INT* and the EINT* registers. Whilst
@@ -97,7 +98,7 @@ s3c2412_irq_unmask(unsigned int irqno)
 	__raw_writel(mask & ~bitval, S3C2410_INTMSK);
 }
 
-static struct irqchip s3c2412_irq_eint0t4 = {
+static struct irq_chip s3c2412_irq_eint0t4 = {
 	.ack	   = s3c2412_irq_ack,
 	.mask	   = s3c2412_irq_mask,
 	.unmask	   = s3c2412_irq_unmask,
@@ -111,7 +112,7 @@ static int s3c2412_irq_add(struct sys_device *sysdev)
 
 	for (irqno = IRQ_EINT0; irqno <= IRQ_EINT3; irqno++) {
 		set_irq_chip(irqno, &s3c2412_irq_eint0t4);
-		set_irq_handler(irqno, do_edge_IRQ);
+		set_irq_handler(irqno, handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
@@ -120,6 +121,8 @@ static int s3c2412_irq_add(struct sys_device *sysdev)
 
 static struct sysdev_driver s3c2412_irq_driver = {
 	.add		= s3c2412_irq_add,
+	.suspend	= s3c24xx_irq_suspend,
+	.resume		= s3c24xx_irq_resume,
 };
 
 static int s3c2412_irq_init(void)

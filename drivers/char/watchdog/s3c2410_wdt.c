@@ -62,7 +62,7 @@
 #define CONFIG_S3C2410_WATCHDOG_ATBOOT		(0)
 #define CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME	(15)
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static int nowayout	= WATCHDOG_NOWAYOUT;
 static int tmr_margin	= CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME;
 static int tmr_atboot	= CONFIG_S3C2410_WATCHDOG_ATBOOT;
 static int soft_noboot	= 0;
@@ -213,11 +213,10 @@ static int s3c2410wdt_open(struct inode *inode, struct file *file)
 	if(down_trylock(&open_lock))
 		return -EBUSY;
 
-	if (nowayout) {
+	if (nowayout)
 		__module_get(THIS_MODULE);
-	} else {
-		allow_close = CLOSE_STATE_ALLOW;
-	}
+
+	allow_close = CLOSE_STATE_NOT;
 
 	/* start the timer */
 	s3c2410wdt_start();
@@ -230,6 +229,7 @@ static int s3c2410wdt_release(struct inode *inode, struct file *file)
 	 *	Shut off the timer.
 	 * 	Lock it in if it's a module and we set nowayout
 	 */
+
 	if (allow_close == CLOSE_STATE_ALLOW) {
 		s3c2410wdt_stop();
 	} else {
@@ -288,7 +288,7 @@ static int s3c2410wdt_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 
 		case WDIOC_GETSUPPORT:
 			return copy_to_user(argp, &s3c2410_wdt_ident,
@@ -336,8 +336,7 @@ static struct miscdevice s3c2410wdt_miscdev = {
 
 /* interrupt handler code */
 
-static irqreturn_t s3c2410wdt_irq(int irqno, void *param,
-				  struct pt_regs *regs)
+static irqreturn_t s3c2410wdt_irq(int irqno, void *param)
 {
 	printk(KERN_INFO PFX "Watchdog timer expired!\n");
 
@@ -381,18 +380,21 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		printk(KERN_INFO PFX "failed to get irq resource\n");
+		iounmap(wdt_base);
 		return -ENOENT;
 	}
 
 	ret = request_irq(res->start, s3c2410wdt_irq, 0, pdev->name, pdev);
 	if (ret != 0) {
 		printk(KERN_INFO PFX "failed to install irq (%d)\n", ret);
+		iounmap(wdt_base);
 		return ret;
 	}
 
 	wdt_clock = clk_get(&pdev->dev, "watchdog");
 	if (wdt_clock == NULL) {
 		printk(KERN_INFO PFX "failed to find watchdog clock source\n");
+		iounmap(wdt_base);
 		return -ENOENT;
 	}
 
@@ -416,6 +418,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	if (ret) {
 		printk (KERN_ERR PFX "cannot register miscdev on minor=%d (%d)\n",
 			WATCHDOG_MINOR, ret);
+		iounmap(wdt_base);
 		return ret;
 	}
 
@@ -452,6 +455,7 @@ static int s3c2410wdt_remove(struct platform_device *dev)
 		wdt_clock = NULL;
 	}
 
+	iounmap(wdt_base);
 	misc_deregister(&s3c2410wdt_miscdev);
 	return 0;
 }

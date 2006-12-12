@@ -2,11 +2,18 @@ if ARCH_S3C2410
 
 menu "S3C24XX Implementations"
 
+config MACH_AML_M5900
+	bool "AML M5900 Series"
+	select CPU_S3C2410
+	help
+	   Say Y here if you are using the American Microsystems M5900 Series
+           <http://www.amltd.com>
+
 config MACH_ANUBIS
 	bool "Simtec Electronics ANUBIS"
 	select CPU_S3C2440
 	help
-	  Say Y gere if you are using the Simtec Electronics ANUBIS
+	  Say Y here if you are using the Simtec Electronics ANUBIS
 	  development system
 
 config MACH_OSIRIS
@@ -34,9 +41,16 @@ config BAST_PC104_IRQ
 	  Say Y	here to enable the PC104 IRQ routing on the
 	  Simtec BAST (EB2410ITX)
 
+config PM_H1940
+	bool
+	depends on PM
+	help
+	  Internal node for H1940 and related PM
+
 config ARCH_H1940
 	bool "IPAQ H1940"
 	select CPU_S3C2410
+	select PM_H1940
 	help
 	  Say Y here if you are using the HP IPAQ H1940
 
@@ -84,7 +98,7 @@ config SMDK2440_CPU2442
 config MACH_S3C2413
 	bool
 	help
-	  Internal node for S3C2413 verison of SMDK2413, so that
+	  Internal node for S3C2413 version of SMDK2413, so that
 	  machine_is_s3c2413() will work when MACH_SMDK2413 is
 	  selected
 
@@ -108,6 +122,7 @@ config MACH_VR1000
 config MACH_RX3715
 	bool "HP iPAQ rx3715"
 	select CPU_S3C2440
+	select PM_H1940
 	help
 	  Say Y here if you are using the HP iPAQ rx3715.
 
@@ -126,6 +141,12 @@ config MACH_NEXCODER_2440
 	help
  	  Say Y here if you are using the Nex Vision NEXCODER 2440 Light Board
 
+config MACH_VSTMS
+	bool "VMSTMS"
+	select CPU_S3C2412
+	help
+	  Say Y here if you are using an VSTMS board
+
 endmenu
 
 config S3C2410_CLOCK
@@ -133,10 +154,24 @@ config S3C2410_CLOCK
 	help
 	  Clock code for the S3C2410, and similar processors
 
+config S3C2410_PM
+	bool
+	depends on CONFIG_PM
+	help
+	  Power Management code common to S3C2410 and better
+
+config CPU_S3C2410_DMA
+	bool
+	depends on S3C2410_DMA && (CPU_S3C2410 || CPU_S3C2442)
+	default y if CPU_S3C2410 || CPU_S3C2442
+	help
+	  DMA device selection for S3C2410 and compatible CPUs
+
 config CPU_S3C2410
 	bool
 	depends on ARCH_S3C2410
 	select S3C2410_CLOCK
+	select S3C2410_PM
 	help
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line
 	  of Samsung Mobile CPUs.
@@ -148,6 +183,13 @@ config CPU_S3C2412_ONLY
 	depends on ARCH_S3C2410 && !CPU_S3C2400 && !CPU_S3C2410 && \
 		   !CPU_S3C2440 && !CPU_S3C2442 && CPU_S3C2412
 	default y if CPU_S3C2412
+
+config S3C2412_PM
+	bool
+	default y if PM
+	depends on CPU_S3C2412
+	help
+	  Internal config node to apply S3C2412 power management
 
 config CPU_S3C2412
 	bool
@@ -165,6 +207,7 @@ config CPU_S3C2440
 	bool
 	depends on ARCH_S3C2410
 	select S3C2410_CLOCK
+	select S3C2410_PM
 	select CPU_S3C244X
 	help
 	  Support for S3C2440 Samsung Mobile CPU based systems.
@@ -173,6 +216,7 @@ config CPU_S3C2442
 	bool
 	depends on ARCH_S3C2420
 	select S3C2410_CLOCK
+	select S3C2410_PM
 	select CPU_S3C244X
 	help
 	  Support for S3C2442 Samsung Mobile CPU based systems.
@@ -256,7 +300,7 @@ config S3C2410_PM_CHECK_CHUNKSIZE
 
 config PM_SIMTEC
 	bool
-	depends on PM && (ARCH_BAST || MACH_VR1000)
+	depends on PM && (ARCH_BAST || MACH_VR1000 || MACH_AML_M5900)
 	default y
 
 config S3C2410_LOWLEVEL_UART_PORT

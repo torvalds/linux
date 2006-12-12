@@ -33,7 +33,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/netlink.h>
-#include <linux/divert.h>
 
 /* A unified ethernet device probe.  This is the easiest way to have every
    ethernet adaptor have the name "eth[0123...]".
@@ -165,7 +164,7 @@ static struct devprobe2 mca_probes[] __initdata = {
  * look for EISA/PCI/MCA cards in addition to ISA cards).
  */
 static struct devprobe2 isa_probes[] __initdata = {
-#ifdef CONFIG_HP100 		/* ISA, EISA & PCI */
+#if defined(CONFIG_HP100) && defined(CONFIG_ISA)	/* ISA, EISA */
 	{hp100_probe, 0},
 #endif
 #ifdef CONFIG_3C515

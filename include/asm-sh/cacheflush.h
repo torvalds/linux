@@ -2,6 +2,7 @@
 #define __ASM_SH_CACHEFLUSH_H
 #ifdef __KERNEL__
 
+#include <linux/mm.h>
 #include <asm/cpu/cacheflush.h>
 
 /* Flush (write-back only) a region (smaller than a page) */
@@ -26,6 +27,8 @@ extern void __flush_invalidate_region(void *start, int size);
 		flush_cache_page(vma, vaddr, page_to_pfn(page));\
 		memcpy(dst, src, len);				\
 	} while (0)
+
+#define HAVE_ARCH_UNMAPPED_AREA
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHEFLUSH_H */

@@ -112,8 +112,7 @@
  * Valid machtype for group GALILEO
  */
 #define MACH_GROUP_GALILEO     11	/* Galileo Eval Boards		*/
-#define  MACH_EV96100		0	/* EV96100 */
-#define  MACH_EV64120A		1	/* EV64120A */
+#define  MACH_EV64120A		0	/* EV64120A */
 
 /*
  * Valid machtype for group MOMENCO
@@ -126,24 +125,13 @@
 #define  MACH_MOMENCO_OCELOT_3	4
 
 /*
- * Valid machtype for group ITE
- */
-#define MACH_GROUP_ITE		13	/* ITE Semi Eval Boards		*/
-#define  MACH_QED_4N_S01B	0	/* ITE8172 based eval board */
-
-/*
  * Valid machtype for group PHILIPS
  */
 #define MACH_GROUP_PHILIPS     14
 #define  MACH_PHILIPS_NINO	0	/* Nino */
 #define  MACH_PHILIPS_VELO	1	/* Velo */
 #define  MACH_PHILIPS_JBS	2	/* JBS */
-
-/*
- * Valid machtype for group Globespan
- */
-#define MACH_GROUP_GLOBESPAN   15	/* Globespan */
-#define  MACH_IVR		0	/* IVR eval board */
+#define  MACH_PHILIPS_STB810	3	/* STB810 */
 
 /*
  * Valid machtype for group SIBYTE

@@ -404,20 +404,6 @@ unsigned long __must_check __copy_from_user_ll_nocache_nozero(void *to,
  * anything, so this is accurate.
  */
 
-/**
- * __copy_to_user: - Copy a block of data into user space, with less checking.
- * @to:   Destination address, in user space.
- * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only.  This function may sleep.
- *
- * Copy data from kernel space to user space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- */
 static __always_inline unsigned long __must_check
 __copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
 {
@@ -439,6 +425,20 @@ __copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
 	return __copy_to_user_ll(to, from, n);
 }
 
+/**
+ * __copy_to_user: - Copy a block of data into user space, with less checking.
+ * @to:   Destination address, in user space.
+ * @from: Source address, in kernel space.
+ * @n:    Number of bytes to copy.
+ *
+ * Context: User context only.  This function may sleep.
+ *
+ * Copy data from kernel space to user space.  Caller must check
+ * the specified block with access_ok() before calling this function.
+ *
+ * Returns number of bytes that could not be copied.
+ * On success, this will be zero.
+ */
 static __always_inline unsigned long __must_check
 __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
@@ -446,28 +446,6 @@ __copy_to_user(void __user *to, const void *from, unsigned long n)
        return __copy_to_user_inatomic(to, from, n);
 }
 
-/**
- * __copy_from_user: - Copy a block of data from user space, with less checking.
- * @to:   Destination address, in kernel space.
- * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only.  This function may sleep.
- *
- * Copy data from user space to kernel space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- *
- * If some data could not be copied, this function will pad the copied
- * data to the requested size using zero bytes.
- *
- * An alternate version - __copy_from_user_inatomic() - may be called from
- * atomic context and will fail rather than sleep.  In this case the
- * uncopied bytes will *NOT* be padded with zeros.  See fs/filemap.h
- * for explanation of why this is needed.
- */
 static __always_inline unsigned long
 __copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
 {
@@ -493,6 +471,29 @@ __copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
 	}
 	return __copy_from_user_ll_nozero(to, from, n);
 }
+
+/**
+ * __copy_from_user: - Copy a block of data from user space, with less checking.
+ * @to:   Destination address, in kernel space.
+ * @from: Source address, in user space.
+ * @n:    Number of bytes to copy.
+ *
+ * Context: User context only.  This function may sleep.
+ *
+ * Copy data from user space to kernel space.  Caller must check
+ * the specified block with access_ok() before calling this function.
+ *
+ * Returns number of bytes that could not be copied.
+ * On success, this will be zero.
+ *
+ * If some data could not be copied, this function will pad the copied
+ * data to the requested size using zero bytes.
+ *
+ * An alternate version - __copy_from_user_inatomic() - may be called from
+ * atomic context and will fail rather than sleep.  In this case the
+ * uncopied bytes will *NOT* be padded with zeros.  See fs/filemap.h
+ * for explanation of why this is needed.
+ */
 static __always_inline unsigned long
 __copy_from_user(void *to, const void __user *from, unsigned long n)
 {

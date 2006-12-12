@@ -61,3 +61,14 @@ kernel patches.
     Documentation/kernel-parameters.txt.
 
 18: All new module parameters are documented with MODULE_PARM_DESC()
+
+19: All new userspace interfaces are documented in Documentation/ABI/.
+    See Documentation/ABI/README for more information.
+
+20: Check that it all passes `make headers_check'.
+
+21: Has been checked with injection of at least slab and page-allocation
+    fauilures.  See Documentation/fault-injection/.
+
+    If the new code is substantial, addition of subsystem-specific fault
+    injection might be appropriate.

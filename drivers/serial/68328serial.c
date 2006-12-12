@@ -275,8 +275,7 @@ static void status_handle(struct m68k_serial *info, unsigned short status)
 	return;
 }
 
-static void receive_chars(struct m68k_serial *info, struct pt_regs *regs,
-			  unsigned short rx)
+static void receive_chars(struct m68k_serial *info, unsigned short rx)
 {
 	struct tty_struct *tty = info->tty;
 	m68328_uart *uart = &uart_addr[info->line];
@@ -377,7 +376,7 @@ clear_and_return:
 /*
  * This is the serial driver's generic interrupt routine
  */
-irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+irqreturn_t rs_interrupt(int irq, void *dev_id)
 {
 	struct m68k_serial * info;
 	m68328_uart *uart;
@@ -394,10 +393,10 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 #ifdef USE_INTS
 	tx = uart->utx.w;
 
-	if (rx & URX_DATA_READY) receive_chars(info, regs, rx);
+	if (rx & URX_DATA_READY) receive_chars(info, rx);
 	if (tx & UTX_TX_AVAIL)   transmit_chars(info);
 #else
-	receive_chars(info, regs, rx);		
+	receive_chars(info, rx);		
 #endif
 	return IRQ_HANDLED;
 }
@@ -1062,7 +1061,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 	return 0;
 }
 
-static void rs_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct m68k_serial *info = (struct m68k_serial *)tty->driver_data;
 
@@ -1378,7 +1377,7 @@ void startup_console(void)
 #endif /* CONFIG_PM_LEGACY */
 
 
-static struct tty_operations rs_ops = {
+static const struct tty_operations rs_ops = {
 	.open = rs_open,
 	.close = rs_close,
 	.write = rs_write,

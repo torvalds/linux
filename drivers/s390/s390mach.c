@@ -208,7 +208,7 @@ s390_handle_mcck(void)
 		 */
 		__ctl_clear_bit(14, 24);	/* Disable WARNING MCH */
 		if (xchg(&mchchk_wng_posted, 1) == 0)
-			kill_proc(1, SIGPWR, 1);
+			kill_cad_pid(SIGPWR, 1);
 	}
 #endif
 
@@ -253,11 +253,12 @@ s390_revalidate_registers(struct mci *mci)
 		kill_task = 1;
 
 #ifndef CONFIG_64BIT
-	asm volatile("ld 0,0(%0)\n"
-		     "ld 2,8(%0)\n"
-		     "ld 4,16(%0)\n"
-		     "ld 6,24(%0)"
-		     : : "a" (&S390_lowcore.floating_pt_save_area));
+	asm volatile(
+		"	ld	0,0(%0)\n"
+		"	ld	2,8(%0)\n"
+		"	ld	4,16(%0)\n"
+		"	ld	6,24(%0)"
+		: : "a" (&S390_lowcore.floating_pt_save_area));
 #endif
 
 	if (MACHINE_HAS_IEEE) {
@@ -274,37 +275,36 @@ s390_revalidate_registers(struct mci *mci)
 			 * Floating point control register can't be restored.
 			 * Task will be terminated.
 			 */
-			asm volatile ("lfpc 0(%0)" : : "a" (&zero), "m" (zero));
+			asm volatile("lfpc 0(%0)" : : "a" (&zero), "m" (zero));
 			kill_task = 1;
 
-		}
-		else
-			asm volatile (
-				"lfpc 0(%0)"
-				: : "a" (fpt_creg_save_area));
+		} else
+			asm volatile("lfpc 0(%0)" : : "a" (fpt_creg_save_area));
 
-		asm volatile("ld  0,0(%0)\n"
-			     "ld  1,8(%0)\n"
-			     "ld  2,16(%0)\n"
-			     "ld  3,24(%0)\n"
-			     "ld  4,32(%0)\n"
-			     "ld  5,40(%0)\n"
-			     "ld  6,48(%0)\n"
-			     "ld  7,56(%0)\n"
-			     "ld  8,64(%0)\n"
-			     "ld  9,72(%0)\n"
-			     "ld 10,80(%0)\n"
-			     "ld 11,88(%0)\n"
-			     "ld 12,96(%0)\n"
-			     "ld 13,104(%0)\n"
-			     "ld 14,112(%0)\n"
-			     "ld 15,120(%0)\n"
-			     : : "a" (fpt_save_area));
+		asm volatile(
+			"	ld	0,0(%0)\n"
+			"	ld	1,8(%0)\n"
+			"	ld	2,16(%0)\n"
+			"	ld	3,24(%0)\n"
+			"	ld	4,32(%0)\n"
+			"	ld	5,40(%0)\n"
+			"	ld	6,48(%0)\n"
+			"	ld	7,56(%0)\n"
+			"	ld	8,64(%0)\n"
+			"	ld	9,72(%0)\n"
+			"	ld	10,80(%0)\n"
+			"	ld	11,88(%0)\n"
+			"	ld	12,96(%0)\n"
+			"	ld	13,104(%0)\n"
+			"	ld	14,112(%0)\n"
+			"	ld	15,120(%0)\n"
+			: : "a" (fpt_save_area));
 	}
 
 	/* Revalidate access registers */
-	asm volatile("lam 0,15,0(%0)"
-		     : : "a" (&S390_lowcore.access_regs_save_area));
+	asm volatile(
+		"	lam	0,15,0(%0)"
+		: : "a" (&S390_lowcore.access_regs_save_area));
 	if (!mci->ar)
 		/*
 		 * Access registers have unknown contents.
@@ -321,11 +321,13 @@ s390_revalidate_registers(struct mci *mci)
 		s390_handle_damage("invalid control registers.");
 	else
 #ifdef CONFIG_64BIT
-		asm volatile("lctlg 0,15,0(%0)"
-			     : : "a" (&S390_lowcore.cregs_save_area));
+		asm volatile(
+			"	lctlg	0,15,0(%0)"
+			: : "a" (&S390_lowcore.cregs_save_area));
 #else
-		asm volatile("lctl 0,15,0(%0)"
-			     : : "a" (&S390_lowcore.cregs_save_area));
+		asm volatile(
+			"	lctl	0,15,0(%0)"
+			: : "a" (&S390_lowcore.cregs_save_area));
 #endif
 
 	/*
@@ -339,20 +341,23 @@ s390_revalidate_registers(struct mci *mci)
 	 * old contents (should be zero) otherwise set it to zero.
 	 */
 	if (!mci->pr)
-		asm volatile("sr 0,0\n"
-			     "sckpf"
-			     : : : "0", "cc");
+		asm volatile(
+			"	sr	0,0\n"
+			"	sckpf"
+			: : : "0", "cc");
 	else
 		asm volatile(
-			"l 0,0(%0)\n"
-			"sckpf"
-			: : "a" (&S390_lowcore.tod_progreg_save_area) : "0", "cc");
+			"	l	0,0(%0)\n"
+			"	sckpf"
+			: : "a" (&S390_lowcore.tod_progreg_save_area)
+			: "0", "cc");
 #endif
 
 	/* Revalidate clock comparator register */
-	asm volatile ("stck 0(%1)\n"
-		      "sckc 0(%1)"
-		      : "=m" (tmpclock) : "a" (&(tmpclock)) : "cc", "memory");
+	asm volatile(
+		"	stck	0(%1)\n"
+		"	sckc	0(%1)"
+		: "=m" (tmpclock) : "a" (&(tmpclock)) : "cc", "memory");
 
 	/* Check if old PSW is valid */
 	if (!mci->wp)

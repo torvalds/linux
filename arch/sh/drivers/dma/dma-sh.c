@@ -11,35 +11,42 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <asm/dreamcast/dma.h>
-#include <asm/signal.h>
-#include <asm/irq.h>
 #include <asm/dma.h>
 #include <asm/io.h>
 #include "dma-sh.h"
 
-static inline unsigned int get_dmte_irq(unsigned int chan)
-{
-	unsigned int irq = 0;
 
+
+#ifdef CONFIG_CPU_SH4
+static struct ipr_data dmae_ipr_map[] = {
+	{ DMAE_IRQ, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+};
+#endif
+static struct ipr_data dmte_ipr_map[] = {
 	/*
 	 * Normally we could just do DMTE0_IRQ + chan outright, though in the
 	 * case of the 7751R, the DMTE IRQs for channels > 4 start right above
 	 * the SCIF
 	 */
-	if (chan < 4) {
-		irq = DMTE0_IRQ + chan;
-	} else {
-#ifdef DMTE4_IRQ
-		irq = DMTE4_IRQ + chan - 4;
-#endif
-	}
+	{ DMTE0_IRQ + 0, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE0_IRQ + 1, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE0_IRQ + 2, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE0_IRQ + 3, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE4_IRQ + 0, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE4_IRQ + 1, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE4_IRQ + 2, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+	{ DMTE4_IRQ + 3, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY },
+};
 
+static inline unsigned int get_dmte_irq(unsigned int chan)
+{
+	unsigned int irq = 0;
+	if (chan < ARRAY_SIZE(dmte_ipr_map))
+		irq = dmte_ipr_map[chan].irq;
 	return irq;
 }
 
@@ -64,9 +71,9 @@ static inline unsigned int calc_xmit_shift(struct dma_channel *chan)
  * Besides that it needs to waken any waiting process, which should handle
  * setting up the next transfer.
  */
-static irqreturn_t dma_tei(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t dma_tei(int irq, void *dev_id)
 {
-	struct dma_channel *chan = (struct dma_channel *)dev_id;
+	struct dma_channel *chan = dev_id;
 	u32 chcr;
 
 	chcr = ctrl_inl(CHCR[chan->chan]);
@@ -84,13 +91,11 @@ static irqreturn_t dma_tei(int irq, void *dev_id, struct pt_regs *regs)
 
 static int sh_dmac_request_dma(struct dma_channel *chan)
 {
-	char name[32];
-
-	snprintf(name, sizeof(name), "DMAC Transfer End (Channel %d)",
-		 chan->chan);
+	if (unlikely(!chan->flags & DMA_TEI_CAPABLE))
+		return 0;
 
 	return request_irq(get_dmte_irq(chan->chan), dma_tei,
-			   IRQF_DISABLED, name, chan);
+			   IRQF_DISABLED, chan->dev_id, chan);
 }
 
 static void sh_dmac_free_dma(struct dma_channel *chan)
@@ -227,7 +232,7 @@ static inline int dmaor_reset(void)
 }
 
 #if defined(CONFIG_CPU_SH4)
-static irqreturn_t dma_err(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t dma_err(int irq, void *dummy)
 {
 	dmaor_reset();
 	disable_irq(irq);
@@ -257,24 +262,23 @@ static int __init sh_dmac_init(void)
 	int i;
 
 #ifdef CONFIG_CPU_SH4
-	make_ipr_irq(DMAE_IRQ, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY);
+	make_ipr_irq(dmae_ipr_map, ARRAY_SIZE(dmae_ipr_map));
 	i = request_irq(DMAE_IRQ, dma_err, IRQF_DISABLED, "DMAC Address Error", 0);
-	if (i < 0)
+	if (unlikely(i < 0))
 		return i;
 #endif
 
-	for (i = 0; i < info->nr_channels; i++) {
-		int irq = get_dmte_irq(i);
-
-		make_ipr_irq(irq, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY);
-	}
+	i = info->nr_channels;
+	if (i > ARRAY_SIZE(dmte_ipr_map))
+		i = ARRAY_SIZE(dmte_ipr_map);
+	make_ipr_irq(dmte_ipr_map, i);
 
 	/*
 	 * Initialize DMAOR, and clean up any error flags that may have
 	 * been set.
 	 */
 	i = dmaor_reset();
-	if (i < 0)
+	if (unlikely(i != 0))
 		return i;
 
 	return register_dmac(info);

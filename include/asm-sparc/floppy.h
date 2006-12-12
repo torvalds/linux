@@ -262,7 +262,7 @@ static __inline__ void sun_fd_enable_dma(void)
 }
 
 /* Our low-level entry point in arch/sparc/kernel/entry.S */
-irqreturn_t floppy_hardint(int irq, void *unused, struct pt_regs *regs);
+irqreturn_t floppy_hardint(int irq, void *unused);
 
 static int sun_fd_request_irq(void)
 {

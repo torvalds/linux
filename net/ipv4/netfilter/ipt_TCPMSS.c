@@ -42,7 +42,8 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	const struct ipt_tcpmss_info *tcpmssinfo = targinfo;
 	struct tcphdr *tcph;
 	struct iphdr *iph;
-	u_int16_t tcplen, newtotlen, oldval, newmss;
+	u_int16_t tcplen, newmss;
+	__be16 newtotlen, oldval;
 	unsigned int i;
 	u_int8_t *opt;
 
@@ -96,10 +97,8 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 			opt[i+2] = (newmss & 0xff00) >> 8;
 			opt[i+3] = (newmss & 0x00ff);
 
-			tcph->check = nf_proto_csum_update(*pskb,
-							   htons(oldmss)^0xFFFF,
-							   htons(newmss),
-							   tcph->check, 0);
+			nf_proto_csum_replace2(&tcph->check, *pskb,
+						htons(oldmss), htons(newmss), 0);
 			return IPT_CONTINUE;
 		}
 	}
@@ -125,28 +124,22 @@ ipt_tcpmss_target(struct sk_buff **pskb,
  	opt = (u_int8_t *)tcph + sizeof(struct tcphdr);
 	memmove(opt + TCPOLEN_MSS, opt, tcplen - sizeof(struct tcphdr));
 
-	tcph->check = nf_proto_csum_update(*pskb,
-					   htons(tcplen) ^ 0xFFFF,
-				           htons(tcplen + TCPOLEN_MSS),
-					   tcph->check, 1);
+	nf_proto_csum_replace2(&tcph->check, *pskb,
+				htons(tcplen), htons(tcplen + TCPOLEN_MSS), 1);
 	opt[0] = TCPOPT_MSS;
 	opt[1] = TCPOLEN_MSS;
 	opt[2] = (newmss & 0xff00) >> 8;
 	opt[3] = (newmss & 0x00ff);
 
-	tcph->check = nf_proto_csum_update(*pskb, ~0, *((u_int32_t *)opt),
-					   tcph->check, 0);
+	nf_proto_csum_replace4(&tcph->check, *pskb, 0, *((__be32 *)opt), 0);
 
-	oldval = ((u_int16_t *)tcph)[6];
+	oldval = ((__be16 *)tcph)[6];
 	tcph->doff += TCPOLEN_MSS/4;
-	tcph->check = nf_proto_csum_update(*pskb,
-					   oldval ^ 0xFFFF,
-					   ((u_int16_t *)tcph)[6],
-					   tcph->check, 0);
+	nf_proto_csum_replace2(&tcph->check, *pskb,
+				oldval, ((__be16 *)tcph)[6], 0);
 
 	newtotlen = htons(ntohs(iph->tot_len) + TCPOLEN_MSS);
-	iph->check = nf_csum_update(iph->tot_len ^ 0xFFFF,
-				    newtotlen, iph->check);
+	nf_csum_replace2(&iph->check, iph->tot_len, newtotlen);
 	iph->tot_len = newtotlen;
 	return IPT_CONTINUE;
 }

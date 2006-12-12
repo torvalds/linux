@@ -76,7 +76,6 @@ static void bfs_read_inode(struct inode * inode)
 	inode->i_size = BFS_FILESIZE(di);
 	inode->i_blocks = BFS_FILEBLOCKS(di);
         if (inode->i_size || inode->i_blocks) dprintf("Registered inode with %lld size, %ld blocks\n", inode->i_size, inode->i_blocks);
-	inode->i_blksize = PAGE_SIZE;
 	inode->i_atime.tv_sec =  le32_to_cpu(di->i_atime);
 	inode->i_mtime.tv_sec =  le32_to_cpu(di->i_mtime);
 	inode->i_ctime.tv_sec =  le32_to_cpu(di->i_ctime);
@@ -229,12 +228,12 @@ static void bfs_write_super(struct super_block *s)
 	unlock_kernel();
 }
 
-static kmem_cache_t * bfs_inode_cachep;
+static struct kmem_cache * bfs_inode_cachep;
 
 static struct inode *bfs_alloc_inode(struct super_block *sb)
 {
 	struct bfs_inode_info *bi;
-	bi = kmem_cache_alloc(bfs_inode_cachep, SLAB_KERNEL);
+	bi = kmem_cache_alloc(bfs_inode_cachep, GFP_KERNEL);
 	if (!bi)
 		return NULL;
 	return &bi->vfs_inode;
@@ -245,7 +244,7 @@ static void bfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(bfs_inode_cachep, BFS_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct bfs_inode_info *bi = foo;
 
@@ -268,8 +267,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(bfs_inode_cachep))
-		printk(KERN_INFO "bfs_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(bfs_inode_cachep);
 }
 
 static struct super_operations bfs_sops = {
@@ -311,11 +309,10 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	unsigned i, imap_len;
 	struct bfs_sb_info * info;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 	s->s_fs_info = info;
-	memset(info, 0, sizeof(*info));
 
 	sb_set_blocksize(s, BFS_BSIZE);
 
@@ -338,10 +335,9 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 			+ BFS_ROOT_INO - 1;
 
 	imap_len = info->si_lasti/8 + 1;
-	info->si_imap = kmalloc(imap_len, GFP_KERNEL);
+	info->si_imap = kzalloc(imap_len, GFP_KERNEL);
 	if (!info->si_imap)
 		goto out;
-	memset(info->si_imap, 0, imap_len);
 	for (i=0; i<BFS_ROOT_INO; i++) 
 		set_bit(i, info->si_imap);
 

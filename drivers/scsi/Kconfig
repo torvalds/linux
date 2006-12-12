@@ -3,11 +3,13 @@ menu "SCSI device support"
 config RAID_ATTRS
 	tristate "RAID Transport Class"
 	default n
+	depends on BLOCK
 	---help---
 	  Provides RAID
 
 config SCSI
 	tristate "SCSI device support"
+	depends on BLOCK
 	---help---
 	  If you want to use a SCSI hard disk, SCSI tape drive, SCSI CD-ROM or
 	  any other SCSI device under Linux, say Y and make sure that you know
@@ -27,6 +29,13 @@ config SCSI
 	  However, do not compile this as a module if your root file system
 	  (the one containing the directory /) is located on a SCSI device.
 
+config SCSI_TGT
+	tristate "SCSI target support"
+	depends on SCSI && EXPERIMENTAL
+	---help---
+	  If you want to use SCSI target mode drivers enable this option.
+	  If you choose M, the module will be called scsi_tgt.
+
 config SCSI_NETLINK
 	bool
 	default	n
@@ -38,10 +47,10 @@ config SCSI_PROC_FS
 	default y
 	---help---
 	  This option enables support for the various files in
-	  /proc/scsi.  In Linux 2.6 this has been superceeded by
+	  /proc/scsi.  In Linux 2.6 this has been superseded by
 	  files in sysfs but many legacy applications rely on this.
 
-	  If unusure say Y.
+	  If unsure say Y.
 
 comment "SCSI support type (disk, tape, CD-ROM)"
 	depends on SCSI
@@ -83,7 +92,7 @@ config CHR_DEV_OSST
 	tristate "SCSI OnStream SC-x0 tape support"
 	depends on SCSI
 	---help---
-	  The OnStream SC-x0 SCSI tape drives can not be driven by the
+	  The OnStream SC-x0 SCSI tape drives cannot be driven by the
 	  standard st driver, but instead need this special osst driver and
 	  use the  /dev/osstX char device nodes (major 206).  Via usb-storage
 	  and ide-scsi, you may be able to drive the USB-x0 and DI-x0 drives
@@ -213,6 +222,23 @@ config SCSI_LOGGING
 	  problems. If you say Y here your kernel will be somewhat larger, but
 	  there should be no noticeable performance impact as long as you have
 	  logging turned off.
+
+config SCSI_SCAN_ASYNC
+	bool "Asynchronous SCSI scanning"
+	depends on SCSI
+	help
+	  The SCSI subsystem can probe for devices while the rest of the
+	  system continues booting, and even probe devices on different
+	  busses in parallel, leading to a significant speed-up.
+	  If you have built SCSI as modules, enabling this option can
+	  be a problem as the devices may not have been found by the
+	  time your system expects them to have been.  You can load the
+	  scsi_wait_scan module to ensure that all scans have completed.
+	  If you build your SCSI drivers into the kernel, then everything
+	  will work fine if you say Y here.
+
+	  You can override this choice by specifying scsi_mod.scan="sync"
+	  or "async" on the kernel's command line.
 
 menu "SCSI Transports"
 	depends on SCSI
@@ -795,6 +821,20 @@ config SCSI_IBMVSCSI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmvscsic.
 
+config SCSI_IBMVSCSIS
+	tristate "IBM Virtual SCSI Server support"
+	depends on PPC_PSERIES && SCSI_TGT && SCSI_SRP
+	help
+	  This is the SRP target driver for IBM pSeries virtual environments.
+
+	  The userspace component needed to initialize the driver and
+	  documentation can be found:
+
+	  http://stgt.berlios.de/
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ibmvstgt.
+
 config SCSI_INITIO
 	tristate "Initio 9100U(W) support"
 	depends on PCI && SCSI
@@ -942,8 +982,13 @@ config SCSI_STEX
 	tristate "Promise SuperTrak EX Series support"
 	depends on PCI && SCSI
 	---help---
-	  This driver supports Promise SuperTrak EX8350/8300/16350/16300
-	  Storage controllers.
+	  This driver supports Promise SuperTrak EX series storage controllers.
+
+	  Promise provides Linux RAID configuration utility for these
+	  controllers. Please visit <http://www.promise.com> to download.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stex.
 
 config SCSI_SYM53C8XX_2
 	tristate "SYM53C8XX Version 2 SCSI support"
@@ -1014,7 +1059,7 @@ config SCSI_SYM53C8XX_MMIO
 
 config SCSI_IPR
 	tristate "IBM Power Linux RAID adapter support"
-	depends on PCI && SCSI
+	depends on PCI && SCSI && ATA
 	select FW_LOADER
 	---help---
 	  This driver supports the IBM Power Linux family RAID adapters.
@@ -1024,6 +1069,7 @@ config SCSI_IPR
 config SCSI_IPR_TRACE
 	bool "enable driver internal trace"
 	depends on SCSI_IPR
+	default y
 	help
 	  If you say Y here, the driver will trace all commands issued
 	  to the adapter. Performance impact is minimal. Trace can be
@@ -1032,6 +1078,7 @@ config SCSI_IPR_TRACE
 config SCSI_IPR_DUMP
 	bool "enable adapter dump support"
 	depends on SCSI_IPR
+	default y
 	help
 	  If you say Y here, the driver will support adapter crash dump.
 	  If you enable this support, the iprdump daemon can be used
@@ -1244,6 +1291,7 @@ config SCSI_QLOGICPTI
 	  module will be called qlogicpti.
 
 source "drivers/scsi/qla2xxx/Kconfig"
+source "drivers/scsi/qla4xxx/Kconfig"
 
 config SCSI_LPFC
 	tristate "Emulex LightPulse Fibre Channel Support"
@@ -1260,8 +1308,8 @@ config SCSI_SEAGATE
 	  These are 8-bit SCSI controllers; the ST-01 is also supported by
 	  this driver.  It is explained in section 3.9 of the SCSI-HOWTO,
 	  available from <http://www.tldp.org/docs.html#howto>.  If it
-	  doesn't work out of the box, you may have to change some settings in
-	  <file:drivers/scsi/seagate.h>.
+	  doesn't work out of the box, you may have to change some macros at
+	  compiletime, which are described in <file:drivers/scsi/seagate.c>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called seagate.
@@ -1689,7 +1737,7 @@ config SCSI_NCR53C7xx_FAST
 
 config SUN3_SCSI
 	tristate "Sun3 NCR5380 SCSI"
-	depends on SUN3 && SCSI && BROKEN
+	depends on SUN3 && SCSI
 	select SCSI_SPI_ATTRS
 	help
 	  This option will enable support for the OBIO (onboard io) NCR5380
@@ -1730,6 +1778,16 @@ config ZFCP
           This driver is also available as a module. This module will be
           called zfcp. If you want to compile it as a module, say M here
           and read <file:Documentation/modules.txt>.
+
+config SCSI_SRP
+	tristate "SCSI RDMA Protocol helper library"
+	depends on SCSI && PCI
+	select SCSI_TGT
+	help
+	  If you wish to use SRP target drivers, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called libsrp.
 
 endmenu
 

@@ -1,5 +1,5 @@
 /*
- * arch/xtensa/setup.c
+ * arch/xtensa/kernel/setup.c
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -41,8 +41,6 @@
 #include <asm/platform.h>
 #include <asm/page.h>
 #include <asm/setup.h>
-
-#include <xtensa/config/system.h>
 
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 struct screen_info screen_info = { 0, 24, 0, 0, 0, 80, 0, 0, 0, 24, 1, 16};
@@ -336,7 +334,7 @@ c_show(struct seq_file *f, void *slot)
 	/* high-level stuff */
 	seq_printf(f,"processor\t: 0\n"
 		     "vendor_id\t: Tensilica\n"
-		     "model\t\t: Xtensa " XCHAL_HW_RELEASE_NAME "\n"
+		     "model\t\t: Xtensa " XCHAL_HW_VERSION_NAME "\n"
 		     "core ID\t\t: " XCHAL_CORE_ID "\n"
 		     "build ID\t: 0x%x\n"
 		     "byte order\t: %s\n"
@@ -420,25 +418,6 @@ c_show(struct seq_file *f, void *slot)
 		     XCHAL_NUM_TIMERS,
 		     XCHAL_DEBUGLEVEL);
 
-	/* Coprocessors */
-#if XCHAL_HAVE_CP
-	seq_printf(f, "coprocessors\t: %d\n", XCHAL_CP_NUM);
-#else
-	seq_printf(f, "coprocessors\t: none\n");
-#endif
-
-	/* {I,D}{RAM,ROM} and XLMI */
-	seq_printf(f,"inst ROMs\t: %d\n"
-		     "inst RAMs\t: %d\n"
-		     "data ROMs\t: %d\n"
-		     "data RAMs\t: %d\n"
-		     "XLMI ports\t: %d\n",
-		     XCHAL_NUM_IROM,
-		     XCHAL_NUM_IRAM,
-		     XCHAL_NUM_DROM,
-		     XCHAL_NUM_DRAM,
-		     XCHAL_NUM_XLMI);
-
 	/* Cache */
 	seq_printf(f,"icache line size: %d\n"
 		     "icache ways\t: %d\n"
@@ -465,24 +444,6 @@ c_show(struct seq_file *f, void *slot)
 		     XCHAL_DCACHE_LINESIZE,
 		     XCHAL_DCACHE_WAYS,
 		     XCHAL_DCACHE_SIZE);
-
-	/* MMU */
-	seq_printf(f,"ASID bits\t: %d\n"
-		     "ASID invalid\t: %d\n"
-		     "ASID kernel\t: %d\n"
-		     "rings\t\t: %d\n"
-		     "itlb ways\t: %d\n"
-		     "itlb AR ways\t: %d\n"
-		     "dtlb ways\t: %d\n"
-		     "dtlb AR ways\t: %d\n",
-		     XCHAL_MMU_ASID_BITS,
-		     XCHAL_MMU_ASID_INVALID,
-		     XCHAL_MMU_ASID_KERNEL,
-		     XCHAL_MMU_RINGS,
-		     XCHAL_ITLB_WAYS,
-		     XCHAL_ITLB_ARF_WAYS,
-		     XCHAL_DTLB_WAYS,
-		     XCHAL_DTLB_ARF_WAYS);
 
 	return 0;
 }

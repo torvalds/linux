@@ -56,7 +56,7 @@ FEATURES
 
       ethtool -C eth0 rx-usecs 100
 
-  You may also provide a timer latency value while disabling adpative-rx:
+  You may also provide a timer latency value while disabling adaptive-rx:
 
       ethtool -C <interface> adaptive-rx off rx-usecs <microseconds>
 
@@ -172,7 +172,7 @@ PERFORMANCE
    smaller window prevents congestion and facilitates better pacing,
    especially if/when MAC level flow control does not work well or when it is
    not supported on the machine. Experimentation may be necessary to attain
-   the correct value. This method is provided as a starting point fot the
+   the correct value. This method is provided as a starting point for the
    correct receive buffer size.
    Setting the min, max, and default receive buffer (RX_WINDOW) size is
    performed in the same manner as single connection.

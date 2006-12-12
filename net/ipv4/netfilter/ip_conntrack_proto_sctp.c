@@ -210,7 +210,7 @@ static int sctp_print_conntrack(struct seq_file *s,
 for (offset = skb->nh.iph->ihl * 4 + sizeof(sctp_sctphdr_t), count = 0;	\
 	offset < skb->len &&						\
 	(sch = skb_header_pointer(skb, offset, sizeof(_sch), &_sch));	\
-	offset += (htons(sch->length) + 3) & ~3, count++)
+	offset += (ntohs(sch->length) + 3) & ~3, count++)
 
 /* Some validity checks to make sure the chunks are fine */
 static int do_basic_checks(struct ip_conntrack *conntrack,

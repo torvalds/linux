@@ -155,7 +155,7 @@ __do_page_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 	 */
 good_area:
 	if (READ_FAULT(fsr)) /* read? */
-		mask = VM_READ|VM_EXEC;
+		mask = VM_READ|VM_EXEC|VM_WRITE;
 	else
 		mask = VM_WRITE;
 
@@ -185,7 +185,7 @@ survive:
 	}
 
 	fault = -3; /* out of memory */
-	if (tsk->pid != 1)
+	if (!is_init(tsk))
 		goto out;
 
 	/*
@@ -215,7 +215,7 @@ int do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (in_interrupt() || !mm)
+	if (in_atomic() || !mm)
 		goto no_context;
 
 	down_read(&mm->mmap_sem);

@@ -281,7 +281,7 @@ static void pci_4u_free_consistent(struct pci_dev *pdev, size_t size, void *cpu,
 
 	spin_lock_irqsave(&iommu->lock, flags);
 
-	free_npages(iommu, dvma, npages);
+	free_npages(iommu, dvma - iommu->page_table_map_base, npages);
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 

@@ -35,12 +35,14 @@
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/audit.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
 #include <asm/bug.h>
 
 #include "netlabel_mgmt.h"
 #include "netlabel_domainhash.h"
+#include "netlabel_user.h"
 
 struct netlbl_domhsh_tbl {
 	struct list_head *tbl;
@@ -186,6 +188,7 @@ int netlbl_domhsh_init(u32 size)
 /**
  * netlbl_domhsh_add - Adds a entry to the domain hash table
  * @entry: the entry to add
+ * @audit_info: NetLabel audit information
  *
  * Description:
  * Adds a new entry to the domain hash table and handles any updates to the
@@ -193,10 +196,12 @@ int netlbl_domhsh_init(u32 size)
  * negative on failure.
  *
  */
-int netlbl_domhsh_add(struct netlbl_dom_map *entry)
+int netlbl_domhsh_add(struct netlbl_dom_map *entry,
+		      struct netlbl_audit *audit_info)
 {
 	int ret_val;
 	u32 bkt;
+	struct audit_buffer *audit_buf;
 
 	switch (entry->type) {
 	case NETLBL_NLTYPE_UNLABELED:
@@ -236,6 +241,26 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry)
 		spin_unlock(&netlbl_domhsh_def_lock);
 	} else
 		ret_val = -EINVAL;
+
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_ADD, audit_info);
+	if (audit_buf != NULL) {
+		audit_log_format(audit_buf,
+				 " nlbl_domain=%s",
+				 entry->domain ? entry->domain : "(default)");
+		switch (entry->type) {
+		case NETLBL_NLTYPE_UNLABELED:
+			audit_log_format(audit_buf, " nlbl_protocol=unlbl");
+			break;
+		case NETLBL_NLTYPE_CIPSOV4:
+			audit_log_format(audit_buf,
+					 " nlbl_protocol=cipsov4 cipso_doi=%u",
+					 entry->type_def.cipsov4->doi);
+			break;
+		}
+		audit_log_format(audit_buf, " res=%u", ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
+	}
+
 	rcu_read_unlock();
 
 	if (ret_val != 0) {
@@ -254,6 +279,7 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry)
 /**
  * netlbl_domhsh_add_default - Adds the default entry to the domain hash table
  * @entry: the entry to add
+ * @audit_info: NetLabel audit information
  *
  * Description:
  * Adds a new default entry to the domain hash table and handles any updates
@@ -261,14 +287,16 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry)
  * negative on failure.
  *
  */
-int netlbl_domhsh_add_default(struct netlbl_dom_map *entry)
+int netlbl_domhsh_add_default(struct netlbl_dom_map *entry,
+			      struct netlbl_audit *audit_info)
 {
-	return netlbl_domhsh_add(entry);
+	return netlbl_domhsh_add(entry, audit_info);
 }
 
 /**
  * netlbl_domhsh_remove - Removes an entry from the domain hash table
  * @domain: the domain to remove
+ * @audit_info: NetLabel audit information
  *
  * Description:
  * Removes an entry from the domain hash table and handles any updates to the
@@ -276,10 +304,11 @@ int netlbl_domhsh_add_default(struct netlbl_dom_map *entry)
  * negative on failure.
  *
  */
-int netlbl_domhsh_remove(const char *domain)
+int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info)
 {
 	int ret_val = -ENOENT;
 	struct netlbl_dom_map *entry;
+	struct audit_buffer *audit_buf;
 
 	rcu_read_lock();
 	if (domain != NULL)
@@ -316,6 +345,16 @@ int netlbl_domhsh_remove(const char *domain)
 			ret_val = -ENOENT;
 		spin_unlock(&netlbl_domhsh_def_lock);
 	}
+
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_DEL, audit_info);
+	if (audit_buf != NULL) {
+		audit_log_format(audit_buf,
+				 " nlbl_domain=%s res=%u",
+				 entry->domain ? entry->domain : "(default)",
+				 ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
+	}
+
 	if (ret_val == 0)
 		call_rcu(&entry->rcu, netlbl_domhsh_free_entry);
 
@@ -326,6 +365,7 @@ remove_return:
 
 /**
  * netlbl_domhsh_remove_default - Removes the default entry from the table
+ * @audit_info: NetLabel audit information
  *
  * Description:
  * Removes/resets the default entry for the domain hash table and handles any
@@ -333,9 +373,9 @@ remove_return:
  * success, non-zero on failure.
  *
  */
-int netlbl_domhsh_remove_default(void)
+int netlbl_domhsh_remove_default(struct netlbl_audit *audit_info)
 {
-	return netlbl_domhsh_remove(NULL);
+	return netlbl_domhsh_remove(NULL, audit_info);
 }
 
 /**

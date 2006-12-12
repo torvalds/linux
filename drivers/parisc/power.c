@@ -1,5 +1,5 @@
 /*
- * linux/arch/parisc/kernel/power.c
+ * linux/drivers/parisc/power.c
  * HP PARISC soft power switch support driver
  *
  * Copyright (c) 2001-2005 Helge Deller <deller@gmx.de>
@@ -84,8 +84,7 @@
 
 static void deferred_poweroff(void *dummy)
 {
-	extern int cad_pid;	/* from kernel/sys.c */
-	if (kill_proc(cad_pid, SIGINT, 1)) {
+	if (kill_cad_pid(SIGINT, 1)) {
 		/* just in case killing init process failed */
 		machine_power_off();
 	}
@@ -189,7 +188,7 @@ static void polling_tasklet_func(unsigned long soft_power_reg)
  * powerfail interruption handler (irq IRQ_FROM_REGION(CPU_IRQ_REGION)+2) 
  */
 #if 0
-static void powerfail_interrupt(int code, void *x, struct pt_regs *regs)
+static void powerfail_interrupt(int code, void *x)
 {
 	printk(KERN_CRIT "POWERFAIL INTERRUPTION !\n");
 	poweroff();

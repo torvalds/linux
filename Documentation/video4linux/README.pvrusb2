@@ -155,7 +155,7 @@ Source file list / functional overview:
   pvrusb2-i2c-core.[ch] - This module provides an implementation of a
     kernel-friendly I2C adaptor driver, through which other external
     I2C client drivers (e.g. msp3400, tuner, lirc) may connect and
-    operate corresponding chips within the the pvrusb2 device.  It is
+    operate corresponding chips within the pvrusb2 device.  It is
     through here that other V4L modules can reach into this driver to
     operate specific pieces (and those modules are in turn driven by
     glue logic which is coordinated by pvrusb2-hdw, doled out by

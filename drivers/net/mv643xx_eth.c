@@ -277,9 +277,11 @@ static void mv643xx_eth_tx_timeout(struct net_device *dev)
  *
  * Actual routine to reset the adapter when a timeout on Tx has occurred
  */
-static void mv643xx_eth_tx_timeout_task(struct net_device *dev)
+static void mv643xx_eth_tx_timeout_task(struct work_struct *ugly)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_private *mp = container_of(ugly, struct mv643xx_private,
+						  tx_timeout_task);
+	struct net_device *dev = mp->mii.dev; /* yuck */
 
 	if (!netif_running(dev))
 		return;
@@ -507,8 +509,7 @@ static void mv643xx_eth_update_pscr(struct net_device *dev,
  * Output :	N/A
  */
 
-static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
-						struct pt_regs *regs)
+static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct mv643xx_private *mp = netdev_priv(dev);
@@ -1099,7 +1100,7 @@ static void eth_tx_fill_frag_descs(struct mv643xx_private *mp,
 					 ETH_TX_ENABLE_INTERRUPT;
 			mp->tx_skb[tx_index] = skb;
 		} else
-			mp->tx_skb[tx_index] = 0;
+			mp->tx_skb[tx_index] = NULL;
 
 		desc = &mp->p_tx_desc_area[tx_index];
 		desc->l4i_chk = 0;
@@ -1135,7 +1136,7 @@ static void eth_tx_submit_descs_for_skb(struct mv643xx_private *mp,
 		eth_tx_fill_frag_descs(mp, skb);
 
 		length = skb_headlen(skb);
-		mp->tx_skb[tx_index] = 0;
+		mp->tx_skb[tx_index] = NULL;
 	} else {
 		cmd_sts |= ETH_ZERO_PADDING |
 			   ETH_TX_LAST_DESC |
@@ -1252,7 +1253,7 @@ static void mv643xx_netpoll(struct net_device *netdev)
 	/* wait for previous write to complete */
 	mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
 
-	mv643xx_eth_int_handler(netdev->irq, netdev, NULL);
+	mv643xx_eth_int_handler(netdev->irq, netdev);
 
 	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), ETH_INT_UNMASK_ALL);
 }
@@ -1361,8 +1362,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 #endif
 
 	/* Configure the timeout task */
-	INIT_WORK(&mp->tx_timeout_task,
-			(void (*)(void *))mv643xx_eth_tx_timeout_task, dev);
+	INIT_WORK(&mp->tx_timeout_task, mv643xx_eth_tx_timeout_task);
 
 	spin_lock_init(&mp->lock);
 
@@ -2156,7 +2156,7 @@ static void eth_update_mib_counters(struct mv643xx_private *mp)
 	for (offset = ETH_MIB_BAD_OCTETS_RECEIVED;
 			offset <= ETH_MIB_FRAMES_1024_TO_MAX_OCTETS;
 			offset += 4)
-		*(u32 *)((char *)p + offset) = read_mib(mp, offset);
+		*(u32 *)((char *)p + offset) += read_mib(mp, offset);
 
 	p->good_octets_sent += read_mib(mp, ETH_MIB_GOOD_OCTETS_SENT_LOW);
 	p->good_octets_sent +=
@@ -2165,7 +2165,7 @@ static void eth_update_mib_counters(struct mv643xx_private *mp)
 	for (offset = ETH_MIB_GOOD_FRAMES_SENT;
 			offset <= ETH_MIB_LATE_COLLISION;
 			offset += 4)
-		*(u32 *)((char *)p + offset) = read_mib(mp, offset);
+		*(u32 *)((char *)p + offset) += read_mib(mp, offset);
 }
 
 /*

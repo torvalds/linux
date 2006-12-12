@@ -276,7 +276,7 @@ control_action_handler(hfcusb_data * hfc, int reg, int val, int action)
 /* control completion routine handling background control cmds */
 /***************************************************************/
 static void
-ctrl_complete(struct urb *urb, struct pt_regs *regs)
+ctrl_complete(struct urb *urb)
 {
 	hfcusb_data *hfc = (hfcusb_data *) urb->context;
 	ctrl_buft *buf;
@@ -603,7 +603,7 @@ static int iso_packets[8] =
 /* transmit completion routine for all ISO tx fifos */
 /*****************************************************/
 static void
-tx_iso_complete(struct urb *urb, struct pt_regs *regs)
+tx_iso_complete(struct urb *urb)
 {
 	iso_urb_struct *context_iso_urb = (iso_urb_struct *) urb->context;
 	usb_fifo *fifo = context_iso_urb->owner_fifo;
@@ -696,7 +696,7 @@ tx_iso_complete(struct urb *urb, struct pt_regs *regs)
 				fifo->delete_flg = TRUE;
 				fifo->hif->l1l2(fifo->hif,
 						PH_DATA | CONFIRM,
-						(void *) fifo->skbuff->
+						(void *) (unsigned long) fifo->skbuff->
 						truesize);
 				if (fifo->skbuff && fifo->delete_flg) {
 					dev_kfree_skb_any(fifo->skbuff);
@@ -726,7 +726,7 @@ tx_iso_complete(struct urb *urb, struct pt_regs *regs)
 /* receive completion routine for all ISO tx fifos   */
 /*****************************************************/
 static void
-rx_iso_complete(struct urb *urb, struct pt_regs *regs)
+rx_iso_complete(struct urb *urb)
 {
 	iso_urb_struct *context_iso_urb = (iso_urb_struct *) urb->context;
 	usb_fifo *fifo = context_iso_urb->owner_fifo;
@@ -919,7 +919,7 @@ collect_rx_frame(usb_fifo * fifo, __u8 * data, int len, int finish)
 /* receive completion routine for all rx fifos */
 /***********************************************/
 static void
-rx_complete(struct urb *urb, struct pt_regs *regs)
+rx_complete(struct urb *urb)
 {
 	int len;
 	int status;
@@ -1144,7 +1144,7 @@ hfc_usb_l2l1(struct hisax_if *my_hisax_if, int pr, void *arg)
 				set_hfcmode(hfc,
 					    (fifo->fifonum ==
 					     HFCUSB_B1_TX) ? 0 : 1,
-					    (int) arg);
+					    (long) arg);
 				fifo->hif->l1l2(fifo->hif,
 						PH_ACTIVATE | INDICATION,
 						NULL);
@@ -1481,9 +1481,8 @@ hfc_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			iface = iface_used;
 			if (!
 			    (context =
-			     kmalloc(sizeof(hfcusb_data), GFP_KERNEL)))
+			     kzalloc(sizeof(hfcusb_data), GFP_KERNEL)))
 				return (-ENOMEM);	/* got no mem */
-			memset(context, 0, sizeof(hfcusb_data));
 
 			ep = iface->endpoint;
 			vcf = validconf[small_match];

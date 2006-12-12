@@ -57,10 +57,6 @@ struct timestruc_t {
 #define	HIGHORDER	0x80000000u	/* high order bit on            */
 #define	ONES		0xffffffffu	/* all bit on                   */
 
-typedef int boolean_t;
-#define TRUE 1
-#define FALSE 0
-
 /*
  *	logical xd (lxd)
  */

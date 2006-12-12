@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
-#include <asm/ptrace.h>
+#include <asm/irq_regs.h>
 #include <asm/gt64120.h>
 
 /*
@@ -19,7 +19,7 @@
  * differently than other MIPS interrupts.
  */
 
-static void gt64120_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t gt64120_irq(int irq, void *dev_id)
 {
 	unsigned int irq_src, int_high_src, irq_src_mask, int_high_src_mask;
 	int handled = 0;
@@ -34,14 +34,16 @@ static void gt64120_irq(int irq, void *dev_id, struct pt_regs *regs)
 	if (irq_src & 0x00000800) {	/* Check for timer interrupt */
 		handled = 1;
 		irq_src &= ~0x00000800;
-		do_timer(regs);
+		do_timer(1);
 #ifndef CONFIG_SMP
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode(get_irq_regs()));
 #endif
 	}
 
 	GT_WRITE(GT_INTRCAUSE_OFS, 0);
 	GT_WRITE(GT_HINTRCAUSE_OFS, 0);
+
+	return IRQ_HANDLED;
 }
 
 /*
@@ -62,14 +64,14 @@ static void gt64120_irq(int irq, void *dev_id, struct pt_regs *regs)
  * as *irq (=irq0 in ../kernel/time.c).  We will do our own timer interrupt
  * handling.
  */
-void gt64120_time_init(void)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	static struct irqaction timer;
 
 	/* Disable timer first */
 	GT_WRITE(GT_TC_CONTROL_OFS, 0);
 	/* Load timer value for 100 Hz */
-	GT_WRITE(GT_TC3_OFS, Sys_clock / 100);
+	GT_WRITE(GT_TC3_OFS, Sys_clock / HZ);
 
 	/*
 	 * Create the IRQ structure entry for the timer.  Since we're too early

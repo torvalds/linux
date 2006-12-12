@@ -98,7 +98,15 @@
 #define IRLAN_SHORT  1
 #define IRLAN_ARRAY  2
 
-#define IRLAN_MAX_HEADER (TTP_HEADER+LMP_HEADER+LAP_MAX_HEADER)
+/* IrLAN sits on top if IrTTP */
+#define IRLAN_MAX_HEADER (TTP_HEADER+LMP_HEADER)
+/* 1 byte for the command code and 1 byte for the parameter count */
+#define IRLAN_CMD_HEADER 2
+
+#define IRLAN_STRING_PARAMETER_LEN(name, value) (1 + strlen((name)) + 2 \
+						+ strlen ((value)))
+#define IRLAN_BYTE_PARAMETER_LEN(name)          (1 + strlen((name)) + 2 + 1)
+#define IRLAN_SHORT_PARAMETER_LEN(name)         (1 + strlen((name)) + 2 + 2)
 
 /*
  *  IrLAN client

@@ -18,9 +18,9 @@
  * Returns an 32bit unfolded checksum of the buffer.
  * src and dst are best aligned to 64bits. 
  */ 
-unsigned int 
-csum_partial_copy_from_user(const unsigned char __user *src, unsigned char *dst,
-			    int len, unsigned int isum, int *errp)
+__wsum
+csum_partial_copy_from_user(const void __user *src, void *dst,
+			    int len, __wsum isum, int *errp)
 { 
 	might_sleep();
 	*errp = 0;
@@ -34,17 +34,19 @@ csum_partial_copy_from_user(const unsigned char __user *src, unsigned char *dst,
 		if (unlikely((unsigned long)src & 6)) {			
 			while (((unsigned long)src & 6) && len >= 2) { 
 				__u16 val16;			
-				*errp = __get_user(val16, (__u16 __user *)src); 
+				*errp = __get_user(val16, (const __u16 __user *)src);
 				if (*errp)
 					return isum;
 				*(__u16 *)dst = val16;
-				isum = add32_with_carry(isum, val16); 
+				isum = (__force __wsum)add32_with_carry(
+						(__force unsigned)isum, val16);
 				src += 2; 
 				dst += 2; 
 				len -= 2;
 			}
 		}
-		isum = csum_partial_copy_generic((__force void *)src,dst,len,isum,errp,NULL);
+		isum = csum_partial_copy_generic((__force const void *)src,
+					dst, len, isum, errp, NULL);
 		if (likely(*errp == 0)) 
 			return isum;
 	} 
@@ -66,9 +68,9 @@ EXPORT_SYMBOL(csum_partial_copy_from_user);
  * Returns an 32bit unfolded checksum of the buffer.
  * src and dst are best aligned to 64bits.
  */ 
-unsigned int 
-csum_partial_copy_to_user(unsigned const char *src, unsigned char __user *dst,
-			  int len, unsigned int isum, int *errp)
+__wsum
+csum_partial_copy_to_user(const void *src, void __user *dst,
+			  int len, __wsum isum, int *errp)
 { 
 	might_sleep();
 	if (unlikely(!access_ok(VERIFY_WRITE, dst, len))) {
@@ -79,7 +81,8 @@ csum_partial_copy_to_user(unsigned const char *src, unsigned char __user *dst,
 	if (unlikely((unsigned long)dst & 6)) {
 		while (((unsigned long)dst & 6) && len >= 2) { 
 			__u16 val16 = *(__u16 *)src;
-			isum = add32_with_carry(isum, val16);
+			isum = (__force __wsum)add32_with_carry(
+					(__force unsigned)isum, val16);
 			*errp = __put_user(val16, (__u16 __user *)dst);
 			if (*errp)
 				return isum;
@@ -104,19 +107,21 @@ EXPORT_SYMBOL(csum_partial_copy_to_user);
  * 
  * Returns an 32bit unfolded checksum of the buffer.
  */ 
-unsigned int 
-csum_partial_copy_nocheck(const unsigned char *src, unsigned char *dst, int len, unsigned int sum)
+__wsum
+csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 { 
 	return csum_partial_copy_generic(src,dst,len,sum,NULL,NULL);
 } 
 EXPORT_SYMBOL(csum_partial_copy_nocheck);
 
-unsigned short csum_ipv6_magic(struct in6_addr *saddr, struct in6_addr *daddr,
-			       __u32 len, unsigned short proto, unsigned int sum) 
+__sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+			const struct in6_addr *daddr,
+			__u32 len, unsigned short proto, __wsum sum)
 {
 	__u64 rest, sum64;
      
-	rest = (__u64)htonl(len) + (__u64)htons(proto) + (__u64)sum;
+	rest = (__force __u64)htonl(len) + (__force __u64)htons(proto) +
+		(__force __u64)sum;
 	asm("  addq (%[saddr]),%[sum]\n"
 	    "  adcq 8(%[saddr]),%[sum]\n"
 	    "  adcq (%[daddr]),%[sum]\n" 
@@ -124,7 +129,7 @@ unsigned short csum_ipv6_magic(struct in6_addr *saddr, struct in6_addr *daddr,
 	    "  adcq $0,%[sum]\n"
 	    : [sum] "=r" (sum64) 
 	    : "[sum]" (rest),[saddr] "r" (saddr), [daddr] "r" (daddr));
-	return csum_fold(add32_with_carry(sum64 & 0xffffffff, sum64>>32));
+	return csum_fold((__force __wsum)add32_with_carry(sum64 & 0xffffffff, sum64>>32));
 }
 
 EXPORT_SYMBOL(csum_ipv6_magic);

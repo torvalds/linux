@@ -234,7 +234,9 @@
 #define SM_BFINS(name,value,old)                (((old) & ~(((1 << SM_##name##_SIZE) - 1) << SM_##name##_OFFSET)) | SM_BF(name,value))
 
 /* Register access macros */
-#define sm_readl(port,reg)                      readl((port)->regs + SM_##reg)
-#define sm_writel(port,reg,value)               writel((value), (port)->regs + SM_##reg)
+#define sm_readl(port,reg)					\
+	__raw_readl((port)->regs + SM_##reg)
+#define sm_writel(port,reg,value)				\
+	__raw_writel((value), (port)->regs + SM_##reg)
 
 #endif /* __ASM_AVR32_SM_H__ */

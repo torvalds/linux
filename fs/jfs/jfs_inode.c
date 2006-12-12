@@ -3,16 +3,16 @@
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -61,7 +61,7 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	inode = new_inode(sb);
 	if (!inode) {
 		jfs_warn("ialloc: new_inode returned NULL!");
-		return inode;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	jfs_inode = JFS_IP(inode);
@@ -69,9 +69,10 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	rc = diAlloc(parent, S_ISDIR(mode), inode);
 	if (rc) {
 		jfs_warn("ialloc: diAlloc returned %d!", rc);
-		make_bad_inode(inode);
+		if (rc == -EIO)
+			make_bad_inode(inode);
 		iput(inode);
-		return NULL;
+		return ERR_PTR(rc);
 	}
 
 	inode->i_uid = current->fsuid;
@@ -97,7 +98,7 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 		inode->i_flags |= S_NOQUOTA;
 		inode->i_nlink = 0;
 		iput(inode);
-		return NULL;
+		return ERR_PTR(-EDQUOT);
 	}
 
 	inode->i_mode = mode;
@@ -115,7 +116,6 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	}
 	jfs_inode->mode2 |= mode;
 
-	inode->i_blksize = sb->s_blocksize;
 	inode->i_blocks = 0;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	jfs_inode->otime = inode->i_ctime.tv_sec;

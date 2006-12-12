@@ -323,6 +323,7 @@ static void sc1200_tuneproc (ide_drive_t *drive, byte pio)	/* mode=255 means "au
  	}
 }
 
+#ifdef CONFIG_PM
 static ide_hwif_t *lookup_pci_dev (ide_hwif_t *prev, struct pci_dev *dev)
 {
 	int	h;
@@ -451,6 +452,7 @@ static int sc1200_resume (struct pci_dev *dev)
 	}
 	return 0;
 }
+#endif
 
 /*
  * This gets invoked by the IDE driver once for each channel,
@@ -499,8 +501,10 @@ static struct pci_driver driver = {
 	.name		= "SC1200_IDE",
 	.id_table	= sc1200_pci_tbl,
 	.probe		= sc1200_init_one,
+#ifdef CONFIG_PM
 	.suspend	= sc1200_suspend,
 	.resume		= sc1200_resume,
+#endif
 };
 
 static int sc1200_ide_init(void)

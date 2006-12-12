@@ -1,0 +1,207 @@
+#!/bin/sh
+
+# Copyright (C) 2006 Paul Mackerras, IBM Corporation <paulus@samba.org>
+# This program may be used under the terms of version 2 of the GNU
+# General Public License.
+
+# This script takes a kernel binary and optionally an initrd image
+# and/or a device-tree blob, and creates a bootable zImage for a
+# given platform.
+
+# Options:
+# -o zImage	specify output file
+# -p platform	specify platform (links in $platform.o)
+# -i initrd	specify initrd file
+# -d devtree	specify device-tree blob
+# -s tree.dts	specify device-tree source file (needs dtc installed)
+# -c		cache $kernel.strip.gz (use if present & newer, else make)
+# -C prefix	specify command prefix for cross-building tools
+#		(strip, objcopy, ld)
+# -D dir	specify directory containing data files used by script
+#		(default ./arch/powerpc/boot)
+# -W dir	specify working directory for temporary files (default .)
+
+# defaults
+kernel=
+ofile=zImage
+platform=of
+initrd=
+dtb=
+dts=
+cacheit=
+
+# cross-compilation prefix
+CROSS=
+
+# directory for object and other files used by this script
+object=arch/powerpc/boot
+
+# directory for working files
+tmpdir=.
+
+usage() {
+    echo 'Usage: wrapper [-o output] [-p platform] [-i initrd]' >&2
+    echo '       [-d devtree] [-s tree.dts] [-c] [-C cross-prefix]' >&2
+    echo '       [-D datadir] [-W workingdir] [vmlinux]' >&2
+    exit 1
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+    -o)
+	shift
+	[ "$#" -gt 0 ] || usage
+	ofile="$1"
+	;;
+    -p)
+	shift
+	[ "$#" -gt 0 ] || usage
+	platform="$1"
+	;;
+    -i)
+	shift
+	[ "$#" -gt 0 ] || usage
+	initrd="$1"
+	;;
+    -d)
+	shift
+	[ "$#" -gt 0 ] || usage
+	dtb="$1"
+	;;
+    -s)
+	shift
+	[ "$#" -gt 0 ] || usage
+	dts="$1"
+	;;
+    -c)
+	cacheit=y
+	;;
+    -C)
+	shift
+	[ "$#" -gt 0 ] || usage
+	CROSS="$1"
+	;;
+    -D)
+	shift
+	[ "$#" -gt 0 ] || usage
+	object="$1"
+	;;
+    -W)
+	shift
+	[ "$#" -gt 0 ] || usage
+	tmpdir="$1"
+	;;
+    -?)
+	usage
+	;;
+    *)
+	[ -z "$kernel" ] || usage
+	kernel="$1"
+	;;
+    esac
+    shift
+done
+
+if [ -n "$dts" ]; then
+    if [ -z "$dtb" ]; then
+	dtb="$platform.dtb"
+    fi
+    dtc -O dtb -o "$dtb" -b 0 -V 16 "$dts" || exit 1
+fi
+
+if [ -z "$kernel" ]; then
+    kernel=vmlinux
+fi
+
+platformo=$object/"$platform".o
+lds=$object/zImage.lds
+ext=strip
+objflags=-S
+tmp=$tmpdir/zImage.$$.o
+ksection=.kernel:vmlinux.strip
+isection=.kernel:initrd
+
+case "$platform" in
+pmac|pseries|chrp)
+    platformo=$object/of.o
+    ;;
+pmaccoff)
+    platformo=$object/of.o
+    lds=$object/zImage.coff.lds
+    ;;
+miboot|uboot)
+    # miboot and U-boot want just the bare bits, not an ELF binary
+    ext=bin
+    objflags="-O binary"
+    tmp="$ofile"
+    ksection=image
+    isection=initrd
+    ;;
+esac
+
+vmz="$tmpdir/`basename \"$kernel\"`.$ext"
+if [ -z "$cacheit" -o ! -f "$vmz.gz" -o "$vmz.gz" -ot "$kernel" ]; then
+    ${CROSS}objcopy $objflags "$kernel" "$vmz.$$"
+    gzip -f -9 "$vmz.$$"
+    if [ -n "$cacheit" ]; then
+	mv -f "$vmz.$$.gz" "$vmz.gz"
+    else
+	vmz="$vmz.$$"
+    fi
+fi
+
+case "$platform" in
+uboot)
+    rm -f "$ofile"
+    version=`${CROSS}strings "$kernel" | grep '^Linux version [-0-9.]' | \
+	cut -d' ' -f3`
+    if [ -n "$version" ]; then
+	version="-n Linux-$version"
+    fi
+    mkimage -A ppc -O linux -T kernel -C gzip -a 00000000 -e 00000000 \
+	$version -d "$vmz.gz" "$ofile"
+    if [ -z "$cacheit" ]; then
+	rm -f $vmz.gz
+    fi
+    exit 0
+    ;;
+esac
+
+addsec() {
+    ${CROSS}objcopy $4 $1 \
+	--add-section=$3="$2" \
+	--set-section-flags=$3=contents,alloc,load,readonly,data
+}
+
+addsec $tmp "$vmz.gz" $ksection $object/empty.o
+if [ -z "$cacheit" ]; then
+    rm -f "$vmz.gz"
+fi
+
+if [ -n "$initrd" ]; then
+    addsec $tmp "$initrd" $isection
+fi
+
+if [ -n "$dtb" ]; then
+    addsec $tmp "$dtb" .kernel:dtb
+    if [ -n "$dts" ]; then
+	rm $dtb
+    fi
+fi
+
+if [ "$platform" != "miboot" ]; then
+    ${CROSS}ld -m elf32ppc -T $lds -o "$ofile" \
+	$object/crt0.o $platformo $tmp $object/wrapper.a
+    rm $tmp
+fi
+
+# post-processing needed for some platforms
+case "$platform" in
+pseries|chrp)
+    $object/addnote "$ofile"
+    ;;
+pmaccoff)
+    ${CROSS}objcopy -O aixcoff-rs6000 --set-start 0x500000 "$ofile"
+    $object/hack-coff "$ofile"
+    ;;
+esac

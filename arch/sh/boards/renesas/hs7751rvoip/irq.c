@@ -14,7 +14,7 @@
 #include <linux/irq.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hs7751rvoip/hs7751rvoip.h>
+#include <asm/hs7751rvoip.h>
 
 static int mask_pos[] = {8, 9, 10, 11, 12, 13, 0, 1, 2, 3, 4, 5, 6, 7};
 
@@ -35,30 +35,24 @@ static unsigned int startup_hs7751rvoip_irq(unsigned int irq)
 
 static void disable_hs7751rvoip_irq(unsigned int irq)
 {
-	unsigned long flags;
 	unsigned short val;
 	unsigned short mask = 0xffff ^ (0x0001 << mask_pos[irq]);
 
 	/* Set the priority in IPR to 0 */
-	local_irq_save(flags);
 	val = ctrl_inw(IRLCNTR3);
 	val &= mask;
 	ctrl_outw(val, IRLCNTR3);
-	local_irq_restore(flags);
 }
 
 static void enable_hs7751rvoip_irq(unsigned int irq)
 {
-	unsigned long flags;
 	unsigned short val;
 	unsigned short value = (0x0001 << mask_pos[irq]);
 
 	/* Set priority in IPR back to original value */
-	local_irq_save(flags);
 	val = ctrl_inw(IRLCNTR3);
 	val |= value;
 	ctrl_outw(val, IRLCNTR3);
-	local_irq_restore(flags);
 }
 
 static void ack_hs7751rvoip_irq(unsigned int irq)

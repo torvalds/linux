@@ -933,25 +933,25 @@ static int __init pf_init(void)
 	int unit;
 
 	if (disable)
-		return -1;
+		return -EINVAL;
 
 	pf_init_units();
 
 	if (pf_detect())
-		return -1;
+		return -ENODEV;
 	pf_busy = 0;
 
 	if (register_blkdev(major, name)) {
 		for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++)
 			put_disk(pf->disk);
-		return -1;
+		return -EBUSY;
 	}
 	pf_queue = blk_init_queue(do_pf_request, &pf_spin_lock);
 	if (!pf_queue) {
 		unregister_blkdev(major, name);
 		for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++)
 			put_disk(pf->disk);
-		return -1;
+		return -ENOMEM;
 	}
 
 	blk_queue_max_phys_segments(pf_queue, cluster);

@@ -249,7 +249,7 @@ struct net_local {
 static int cs89x0_probe1(struct net_device *dev, int ioaddr, int modular);
 static int net_open(struct net_device *dev);
 static int net_send_packet(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t net_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t net_interrupt(int irq, void *dev_id);
 static void set_multicast_list(struct net_device *dev);
 static void net_timeout(struct net_device *dev);
 static void net_rx(struct net_device *dev);
@@ -495,7 +495,7 @@ get_eeprom_cksum(int off, int len, int *buffer)
 static void net_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	net_interrupt(dev->irq, dev, NULL);
+	net_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif
@@ -588,10 +588,10 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 				goto out2;
 			}
 	}
-	printk(KERN_DEBUG "PP_addr at %x[%x]: 0x%x\n",
-			ioaddr, ADD_PORT, readword(ioaddr, ADD_PORT));
 
 	ioaddr &= ~3;
+	printk(KERN_DEBUG "PP_addr at %x[%x]: 0x%x\n",
+			ioaddr, ADD_PORT, readword(ioaddr, ADD_PORT));
 	writeword(ioaddr, ADD_PORT, PP_ChipID);
 
 	tmp = readword(ioaddr, DATA_PORT);
@@ -1573,7 +1573,7 @@ static int net_send_packet(struct sk_buff *skb, struct net_device *dev)
 /* The typical workload of the driver:
    Handle the network interface interrupts. */
 
-static irqreturn_t net_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t net_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct net_local *lp;
@@ -1974,7 +1974,7 @@ out:
 	return ret;
 }
 
-void
+void __exit
 cleanup_module(void)
 {
 	unregister_netdev(dev_cs89x0);

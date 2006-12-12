@@ -24,7 +24,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -310,11 +309,29 @@ static ssize_t asd_show_dev_pcba_sn(struct device *dev,
 }
 static DEVICE_ATTR(pcba_sn, S_IRUGO, asd_show_dev_pcba_sn, NULL);
 
-static void asd_create_dev_attrs(struct asd_ha_struct *asd_ha)
+static int asd_create_dev_attrs(struct asd_ha_struct *asd_ha)
 {
-	device_create_file(&asd_ha->pcidev->dev, &dev_attr_revision);
-	device_create_file(&asd_ha->pcidev->dev, &dev_attr_bios_build);
-	device_create_file(&asd_ha->pcidev->dev, &dev_attr_pcba_sn);
+	int err;
+
+	err = device_create_file(&asd_ha->pcidev->dev, &dev_attr_revision);
+	if (err)
+		return err;
+
+	err = device_create_file(&asd_ha->pcidev->dev, &dev_attr_bios_build);
+	if (err)
+		goto err_rev;
+
+	err = device_create_file(&asd_ha->pcidev->dev, &dev_attr_pcba_sn);
+	if (err)
+		goto err_biosb;
+
+	return 0;
+
+err_biosb:
+	device_remove_file(&asd_ha->pcidev->dev, &dev_attr_bios_build);
+err_rev:
+	device_remove_file(&asd_ha->pcidev->dev, &dev_attr_revision);
+	return err;
 }
 
 static void asd_remove_dev_attrs(struct asd_ha_struct *asd_ha)
@@ -433,8 +450,8 @@ static inline void asd_destroy_ha_caches(struct asd_ha_struct *asd_ha)
 	asd_ha->scb_pool = NULL;
 }
 
-kmem_cache_t *asd_dma_token_cache;
-kmem_cache_t *asd_ascb_cache;
+struct kmem_cache *asd_dma_token_cache;
+struct kmem_cache *asd_ascb_cache;
 
 static int asd_create_global_caches(void)
 {
@@ -646,7 +663,9 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 	}
 	ASD_DPRINTK("escbs posted\n");
 
-	asd_create_dev_attrs(asd_ha);
+	err = asd_create_dev_attrs(asd_ha);
+	if (err)
+		goto Err_dev_attrs;
 
 	err = asd_register_sas_ha(asd_ha);
 	if (err)
@@ -669,6 +688,7 @@ Err_en_phys:
 	asd_unregister_sas_ha(asd_ha);
 Err_reg_sas:
 	asd_remove_dev_attrs(asd_ha);
+Err_dev_attrs:
 Err_escbs:
 	asd_disable_ints(asd_ha);
 	free_irq(dev->irq, asd_ha);
@@ -704,6 +724,15 @@ static void asd_free_queues(struct asd_ha_struct *asd_ha)
 
 	list_for_each_safe(pos, n, &pending) {
 		struct asd_ascb *ascb = list_entry(pos, struct asd_ascb, list);
+		/*
+		 * Delete unexpired ascb timers.  This may happen if we issue
+		 * a CONTROL PHY scb to an adapter and rmmod before the scb
+		 * times out.  Apparently we don't wait for the CONTROL PHY
+		 * to complete, so it doesn't matter if we kill the timer.
+		 */
+		del_timer_sync(&ascb->timer);
+		WARN_ON(ascb->scb->header.opcode != CONTROL_PHY);
+
 		list_del_init(pos);
 		ASD_DPRINTK("freeing from pending\n");
 		asd_ascb_free(ascb);
@@ -755,9 +784,9 @@ static ssize_t asd_version_show(struct device_driver *driver, char *buf)
 }
 static DRIVER_ATTR(version, S_IRUGO, asd_version_show, NULL);
 
-static void asd_create_driver_attrs(struct device_driver *driver)
+static int asd_create_driver_attrs(struct device_driver *driver)
 {
-	driver_create_file(driver, &driver_attr_version);
+	return driver_create_file(driver, &driver_attr_version);
 }
 
 static void asd_remove_driver_attrs(struct device_driver *driver)
@@ -766,8 +795,6 @@ static void asd_remove_driver_attrs(struct device_driver *driver)
 }
 
 static struct sas_domain_function_template aic94xx_transport_functions = {
-	.lldd_port_formed	= asd_update_port_links,
-
 	.lldd_dev_found		= asd_dev_found,
 	.lldd_dev_gone		= asd_dev_gone,
 
@@ -793,6 +820,8 @@ static const struct pci_device_id aic94xx_pci_table[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_RAZOR12),
 	 0, 0, 1},
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_RAZOR1E),
+	 0, 0, 1},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_RAZOR1F),
 	 0, 0, 1},
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_RAZOR30),
 	 0, 0, 2},
@@ -835,10 +864,14 @@ static int __init aic94xx_init(void)
 	if (err)
 		goto out_release_transport;
 
-	asd_create_driver_attrs(&aic94xx_pci_driver.driver);
+	err = asd_create_driver_attrs(&aic94xx_pci_driver.driver);
+	if (err)
+		goto out_unregister_pcidrv;
 
 	return err;
 
+ out_unregister_pcidrv:
+	pci_unregister_driver(&aic94xx_pci_driver);
  out_release_transport:
 	sas_release_transport(aic94xx_transport_template);
  out_destroy_caches:

@@ -13,10 +13,12 @@ OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)
 ENTRY(phys_startup_64)
 jiffies_64 = jiffies;
+_proxy_pda = 0;
 PHDRS {
 	text PT_LOAD FLAGS(5);	/* R_E */
 	data PT_LOAD FLAGS(7);	/* RWE */
 	user PT_LOAD FLAGS(7);	/* RWE */
+	data.init PT_LOAD FLAGS(7);	/* RWE */
 	note PT_NOTE FLAGS(4);	/* R__ */
 }
 SECTIONS
@@ -50,15 +52,9 @@ SECTIONS
 
   RODATA
 
-#ifdef CONFIG_STACK_UNWIND
-  . = ALIGN(8);
-  .eh_frame : AT(ADDR(.eh_frame) - LOAD_OFFSET) {
-	__start_unwind = .;
-  	*(.eh_frame)
-	__end_unwind = .;
-  }
-#endif
+  BUG_TABLE
 
+  . = ALIGN(PAGE_SIZE);        /* Align data segment to page size boundary */
 				/* Data */
   .data : AT(ADDR(.data) - LOAD_OFFSET) {
 	*(.data)
@@ -66,13 +62,6 @@ SECTIONS
 	} :data
 
   _edata = .;			/* End of data section */
-
-  __bss_start = .;		/* BSS */
-  .bss : AT(ADDR(.bss) - LOAD_OFFSET) {
-	*(.bss.page_aligned)	
-	*(.bss)
-	}
-  __bss_stop = .;
 
   . = ALIGN(PAGE_SIZE);
   . = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
@@ -108,9 +97,6 @@ SECTIONS
   .vgetcpu_mode : AT(VLOAD(.vgetcpu_mode)) { *(.vgetcpu_mode) }
   vgetcpu_mode = VVIRT(.vgetcpu_mode);
 
-  .wall_jiffies : AT(VLOAD(.wall_jiffies)) { *(.wall_jiffies) }
-  wall_jiffies = VVIRT(.wall_jiffies);
-
   .sys_tz : AT(VLOAD(.sys_tz)) { *(.sys_tz) }
   sys_tz = VVIRT(.sys_tz);
 
@@ -141,7 +127,7 @@ SECTIONS
   . = ALIGN(8192);		/* init_task */
   .data.init_task : AT(ADDR(.data.init_task) - LOAD_OFFSET) {
 	*(.data.init_task)
-  } :data
+  }:data.init
 
   . = ALIGN(4096);
   .data.page_aligned : AT(ADDR(.data.page_aligned) - LOAD_OFFSET) {
@@ -184,13 +170,7 @@ SECTIONS
   __setup_end = .;
   __initcall_start = .;
   .initcall.init : AT(ADDR(.initcall.init) - LOAD_OFFSET) {
-	*(.initcall1.init) 
-	*(.initcall2.init) 
-	*(.initcall3.init) 
-	*(.initcall4.init) 
-	*(.initcall5.init) 
-	*(.initcall6.init) 
-	*(.initcall7.init)
+	INITCALLS
   }
   __initcall_end = .;
   __con_initcall_start = .;
@@ -228,6 +208,13 @@ SECTIONS
   .data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) { *(.data.nosave) }
   . = ALIGN(4096);
   __nosave_end = .;
+
+  __bss_start = .;		/* BSS */
+  .bss : AT(ADDR(.bss) - LOAD_OFFSET) {
+	*(.bss.page_aligned)
+	*(.bss)
+	}
+  __bss_stop = .;
 
   _end = . ;
 

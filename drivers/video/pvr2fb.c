@@ -187,7 +187,7 @@ static short do_blank = 0;		/* (Un)Blank the screen */
 static unsigned int is_blanked = 0;		/* Is the screen blanked? */
 
 #ifdef CONFIG_SH_STORE_QUEUES
-static struct sq_mapping *pvr2fb_map;
+static unsigned long pvr2fb_map;
 #endif
 
 #ifdef CONFIG_SH_DMA
@@ -209,19 +209,21 @@ static int pvr2fb_set_par(struct fb_info *info);
 static void pvr2_update_display(struct fb_info *info);
 static void pvr2_init_display(struct fb_info *info);
 static void pvr2_do_blank(void);
-static irqreturn_t pvr2fb_interrupt(int irq, void *dev_id, struct pt_regs *fp);
+static irqreturn_t pvr2fb_interrupt(int irq, void *dev_id);
 static int pvr2_init_cable(void);
 static int pvr2_get_param(const struct pvr2_params *p, const char *s,
                             int val, int size);
+#ifdef CONFIG_SH_DMA
 static ssize_t pvr2fb_write(struct file *file, const char *buf,
 			    size_t count, loff_t *ppos);
+#endif
 
 static struct fb_ops pvr2fb_ops = {
-	.owner 		= THIS_MODULE,
-	.fb_setcolreg 	= pvr2fb_setcolreg,
-	.fb_blank 	= pvr2fb_blank,
-	.fb_check_var 	= pvr2fb_check_var,
-	.fb_set_par 	= pvr2fb_set_par,
+	.owner		= THIS_MODULE,
+	.fb_setcolreg	= pvr2fb_setcolreg,
+	.fb_blank	= pvr2fb_blank,
+	.fb_check_var	= pvr2fb_check_var,
+	.fb_set_par	= pvr2fb_set_par,
 #ifdef CONFIG_SH_DMA
 	.fb_write	= pvr2fb_write,
 #endif
@@ -624,7 +626,7 @@ static void pvr2_do_blank(void)
 	is_blanked = do_blank > 0 ? do_blank : 0;
 }
 
-static irqreturn_t pvr2fb_interrupt(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t pvr2fb_interrupt(int irq, void *dev_id)
 {
 	struct fb_info *info = dev_id;
 
@@ -783,7 +785,7 @@ static int __init pvr2fb_common_init(void)
 		goto out_err;
 	}
 
-	fb_memset((unsigned long)fb_info->screen_base, 0, pvr2_fix.smem_len);
+	fb_memset(fb_info->screen_base, 0, pvr2_fix.smem_len);
 
 	pvr2_fix.ypanstep	= nopan  ? 0 : 1;
 	pvr2_fix.ywrapstep	= nowrap ? 0 : 1;
@@ -820,7 +822,7 @@ static int __init pvr2fb_common_init(void)
 	       modememused >> 10, (unsigned long)(fb_info->fix.smem_len >> 10));
 	printk("fb%d: Mode %dx%d-%d pitch = %ld cable: %s video output: %s\n", 
 	       fb_info->node, fb_info->var.xres, fb_info->var.yres,
-	       fb_info->var.bits_per_pixel, 
+	       fb_info->var.bits_per_pixel,
 	       get_line_length(fb_info->var.xres, fb_info->var.bits_per_pixel),
 	       (char *)pvr2_get_param(cables, NULL, cable_type, 3),
 	       (char *)pvr2_get_param(outputs, NULL, video_output, 3));
@@ -829,10 +831,10 @@ static int __init pvr2fb_common_init(void)
 	printk(KERN_NOTICE "fb%d: registering with SQ API\n", fb_info->node);
 
 	pvr2fb_map = sq_remap(fb_info->fix.smem_start, fb_info->fix.smem_len,
-			      fb_info->fix.id);
+			      fb_info->fix.id, pgprot_val(PAGE_SHARED));
 
 	printk(KERN_NOTICE "fb%d: Mapped video memory to SQ addr 0x%lx\n",
-	       fb_info->node, pvr2fb_map->sq_addr);
+	       fb_info->node, pvr2fb_map);
 #endif
 
 	return 0;
@@ -903,6 +905,15 @@ static int __init pvr2fb_dc_init(void)
 
 static void pvr2fb_dc_exit(void)
 {
+	if (fb_info->screen_base) {
+		iounmap(fb_info->screen_base);
+		fb_info->screen_base = NULL;
+	}
+	if (currentpar->mmio_base) {
+		iounmap((void *)currentpar->mmio_base);
+		currentpar->mmio_base = 0;
+	}
+
 	free_irq(HW_EVENT_VSYNC, 0);
 #ifdef CONFIG_SH_DMA
 	free_dma(pvr2dma);
@@ -944,6 +955,15 @@ static int __devinit pvr2fb_pci_probe(struct pci_dev *pdev,
 
 static void __devexit pvr2fb_pci_remove(struct pci_dev *pdev)
 {
+	if (fb_info->screen_base) {
+		iounmap(fb_info->screen_base);
+		fb_info->screen_base = NULL;
+	}
+	if (currentpar->mmio_base) {
+		iounmap((void *)currentpar->mmio_base);
+		currentpar->mmio_base = 0;
+	}
+
 	pci_release_regions(pdev);
 }
 

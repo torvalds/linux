@@ -31,6 +31,7 @@ obj-$(CONFIG_MOXA_INTELLIO)	+= moxa.o
 obj-$(CONFIG_A2232)		+= ser_a2232.o generic_serial.o
 obj-$(CONFIG_ATARI_DSP56K)	+= dsp56k.o
 obj-$(CONFIG_MOXA_SMARTIO)	+= mxser.o
+obj-$(CONFIG_MOXA_SMARTIO_NEW)	+= mxser_new.o
 obj-$(CONFIG_COMPUTONE)		+= ip2/
 obj-$(CONFIG_RISCOM8)		+= riscom8.o
 obj-$(CONFIG_ISI)		+= isicom.o
@@ -47,6 +48,7 @@ obj-$(CONFIG_HVC_RTAS)		+= hvc_rtas.o
 obj-$(CONFIG_HVC_DRIVER)	+= hvc_console.o
 obj-$(CONFIG_RAW_DRIVER)	+= raw.o
 obj-$(CONFIG_SGI_SNSC)		+= snsc.o snsc_event.o
+obj-$(CONFIG_MSPEC)		+= mspec.o
 obj-$(CONFIG_MMTIMER)		+= mmtimer.o
 obj-$(CONFIG_VIOCONS)		+= viocons.o
 obj-$(CONFIG_VIOTAPE)		+= viotape.o
@@ -68,7 +70,6 @@ obj-$(CONFIG_EFI_RTC)		+= efirtc.o
 obj-$(CONFIG_SGI_DS1286)	+= ds1286.o
 obj-$(CONFIG_SGI_IP27_RTC)	+= ip27-rtc.o
 obj-$(CONFIG_DS1302)		+= ds1302.o
-obj-$(CONFIG_S3C2410_RTC)	+= s3c2410-rtc.o
 ifeq ($(CONFIG_GENERIC_NVRAM),y)
   obj-$(CONFIG_NVRAM)	+= generic_nvram.o
 else
@@ -78,7 +79,6 @@ obj-$(CONFIG_TOSHIBA)		+= toshiba.o
 obj-$(CONFIG_I8K)		+= i8k.o
 obj-$(CONFIG_DS1620)		+= ds1620.o
 obj-$(CONFIG_HW_RANDOM)		+= hw_random/
-obj-$(CONFIG_FTAPE)		+= ftape/
 obj-$(CONFIG_COBALT_LCD)	+= lcd.o
 obj-$(CONFIG_PPDEV)		+= ppdev.o
 obj-$(CONFIG_NWBUTTON)		+= nwbutton.o
@@ -102,7 +102,7 @@ obj-$(CONFIG_HANGCHECK_TIMER)	+= hangcheck-timer.o
 obj-$(CONFIG_TCG_TPM)		+= tpm/
 
 # Files generated that shall be removed upon make clean
-clean-files := consolemap_deftbl.c defkeymap.c qtronixmap.c
+clean-files := consolemap_deftbl.c defkeymap.c
 
 quiet_cmd_conmk = CONMK   $@
       cmd_conmk = scripts/conmakehash $< > $@
@@ -112,8 +112,6 @@ $(obj)/consolemap_deftbl.c: $(src)/$(FONTMAPFILE)
 
 $(obj)/defkeymap.o:  $(obj)/defkeymap.c
 
-$(obj)/qtronixmap.o: $(obj)/qtronixmap.c
-
 # Uncomment if you're changing the keymap and have an appropriate
 # loadkeys version for the map. By default, we'll use the shipped
 # versions.
@@ -121,7 +119,7 @@ $(obj)/qtronixmap.o: $(obj)/qtronixmap.c
 
 ifdef GENERATE_KEYMAP
 
-$(obj)/defkeymap.c $(obj)/qtronixmap.c: $(obj)/%.c: $(src)/%.map
+$(obj)/defkeymap.c $(obj)/%.c: $(src)/%.map
 	loadkeys --mktable $< > $@.tmp
 	sed -e 's/^static *//' $@.tmp > $@
 	rm $@.tmp

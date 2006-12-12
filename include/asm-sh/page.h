@@ -13,24 +13,42 @@
    [ P4 control   ]		0xE0000000
  */
 
-
 /* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT	12
+#if defined(CONFIG_PAGE_SIZE_4KB)
+# define PAGE_SHIFT	12
+#elif defined(CONFIG_PAGE_SIZE_8KB)
+# define PAGE_SHIFT	13
+#elif defined(CONFIG_PAGE_SIZE_64KB)
+# define PAGE_SHIFT	16
+#else
+# error "Bogus kernel page size?"
+#endif
+
+#ifdef __ASSEMBLY__
+#define PAGE_SIZE	(1 << PAGE_SHIFT)
+#else
 #define PAGE_SIZE	(1UL << PAGE_SHIFT)
+#endif
+
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 #define PTE_MASK	PAGE_MASK
 
 #if defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
 #define HPAGE_SHIFT	16
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_256K)
+#define HPAGE_SHIFT	18
 #elif defined(CONFIG_HUGETLB_PAGE_SIZE_1MB)
 #define HPAGE_SHIFT	20
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
+#define HPAGE_SHIFT	22
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_64MB)
+#define HPAGE_SHIFT	26
 #endif
 
 #ifdef CONFIG_HUGETLB_PAGE
 #define HPAGE_SIZE		(1UL << HPAGE_SHIFT)
 #define HPAGE_MASK		(~(HPAGE_SIZE-1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT-PAGE_SHIFT)
-#define ARCH_HAS_SETCLEAR_HUGE_PTE
 #endif
 
 #ifdef __KERNEL__
@@ -39,10 +57,18 @@
 extern void (*clear_page)(void *to);
 extern void (*copy_page)(void *to, void *from);
 
+extern unsigned long shm_align_mask;
+
+#ifdef CONFIG_MMU
 extern void clear_page_slow(void *to);
 extern void copy_page_slow(void *to, void *from);
+#else
+extern void clear_page_nommu(void *to);
+extern void copy_page_nommu(void *to, void *from);
+#endif
 
-#if defined(CONFIG_SH7705_CACHE_32KB) && defined(CONFIG_MMU)
+#if defined(CONFIG_MMU) && (defined(CONFIG_CPU_SH4) || \
+	defined(CONFIG_SH7705_CACHE_32KB))
 struct page;
 extern void clear_user_page(void *to, unsigned long address, struct page *pg);
 extern void copy_user_page(void *to, void *from, unsigned long address, struct page *pg);
@@ -51,29 +77,30 @@ extern void __copy_user_page(void *to, void *from, void *orig_to);
 #elif defined(CONFIG_CPU_SH2) || defined(CONFIG_CPU_SH3) || !defined(CONFIG_MMU)
 #define clear_user_page(page, vaddr, pg)	clear_page(page)
 #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
-#elif defined(CONFIG_CPU_SH4)
-struct page;
-extern void clear_user_page(void *to, unsigned long address, struct page *pg);
-extern void copy_user_page(void *to, void *from, unsigned long address, struct page *pg);
-extern void __clear_user_page(void *to, void *orig_to);
-extern void __copy_user_page(void *to, void *from, void *orig_to);
 #endif
 
 /*
  * These are used to make use of C type-checking..
  */
-typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long pmd; } pmd_t;
-typedef struct { unsigned long pgd; } pgd_t;
+#ifdef CONFIG_X2TLB
+typedef struct { unsigned long pte_low, pte_high; } pte_t;
+typedef struct { unsigned long long pgprot; } pgprot_t;
+#define pte_val(x) \
+	((x).pte_low | ((unsigned long long)(x).pte_high << 32))
+#define __pte(x) \
+	({ pte_t __pte = {(x), ((unsigned long long)(x)) >> 32}; __pte; })
+#else
+typedef struct { unsigned long pte_low; } pte_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
+#define pte_val(x)	((x).pte_low)
+#define __pte(x) ((pte_t) { (x) } )
+#endif
 
-#define pte_val(x)	((x).pte)
-#define pmd_val(x)	((x).pmd)
+typedef struct { unsigned long pgd; } pgd_t;
+
 #define pgd_val(x)	((x).pgd)
 #define pgprot_val(x)	((x).pgprot)
 
-#define __pte(x) ((pte_t) { (x) } )
-#define __pmd(x) ((pmd_t) { (x) } )
 #define __pgd(x) ((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
@@ -93,7 +120,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define __MEMORY_START		CONFIG_MEMORY_START
 #define __MEMORY_SIZE		CONFIG_MEMORY_SIZE
 
-#define PAGE_OFFSET		(0x80000000UL)
+#define PAGE_OFFSET		CONFIG_PAGE_OFFSET
 #define __pa(x)			((unsigned long)(x)-PAGE_OFFSET)
 #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
 
@@ -114,6 +141,11 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
+
+/* vDSO support */
+#ifdef CONFIG_VSYSCALL
+#define __HAVE_ARCH_GATE_AREA
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_PAGE_H */

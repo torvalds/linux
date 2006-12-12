@@ -8,6 +8,7 @@ mainmenu "Linux/SuperH Kernel Configuration"
 config SUPERH
 	bool
 	default y
+	select EMBEDDED
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -44,12 +45,34 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_IOMAP
 	bool
 
+config GENERIC_TIME
+	def_bool n
+
 config ARCH_MAY_HAVE_PC_FDC
 	bool
+
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
 
 source "init/Kconfig"
 
 menu "System type"
+
+config SOLUTION_ENGINE
+	bool
 
 choice
 	prompt "SuperH system type"
@@ -57,12 +80,14 @@ choice
 
 config SH_SOLUTION_ENGINE
 	bool "SolutionEngine"
+	select SOLUTION_ENGINE
 	help
 	  Select SolutionEngine if configuring for a Hitachi SH7709
 	  or SH7750 evaluation board.
 
 config SH_7751_SOLUTION_ENGINE
 	bool "SolutionEngine7751"
+	select SOLUTION_ENGINE
 	select CPU_SUBTYPE_SH7751
 	help
 	  Select 7751 SolutionEngine if configuring for a Hitachi SH7751
@@ -70,17 +95,27 @@ config SH_7751_SOLUTION_ENGINE
 
 config SH_7300_SOLUTION_ENGINE
 	bool "SolutionEngine7300"
+	select SOLUTION_ENGINE
 	select CPU_SUBTYPE_SH7300
 	help
-	  Select 7300 SolutionEngine if configuring for a Hitachi SH7300(SH-Mobile V)
-	  evaluation board.
+	  Select 7300 SolutionEngine if configuring for a Hitachi
+	  SH7300(SH-Mobile V) evaluation board.
+
+config SH_7343_SOLUTION_ENGINE
+	bool "SolutionEngine7343"
+	select SOLUTION_ENGINE
+	select CPU_SUBTYPE_SH7343
+	help
+	  Select 7343 SolutionEngine if configuring for a Hitachi
+	  SH7343 (SH-Mobile 3AS) evaluation board.
 
 config SH_73180_SOLUTION_ENGINE
        bool "SolutionEngine73180"
-       select CPU_SUBTYPE_SH73180
-       help
-         Select 73180 SolutionEngine if configuring for a Hitachi SH73180(SH-Mobile 3)
-         evaluation board.
+	select SOLUTION_ENGINE
+	select CPU_SUBTYPE_SH73180
+	help
+	  Select 73180 SolutionEngine if configuring for a Hitachi
+	  SH73180(SH-Mobile 3) evaluation board.
 
 config SH_7751_SYSTEMH
 	bool "SystemH7751R"
@@ -89,31 +124,12 @@ config SH_7751_SYSTEMH
 	  Select SystemH if you are configuring for a Renesas SystemH
 	  7751R evaluation board.
 
-config SH_STB1_HARP
-	bool "STB1_Harp"
-
-config SH_STB1_OVERDRIVE
-	bool "STB1_Overdrive"
-
 config SH_HP6XX
 	bool "HP6XX"
 	help
 	  Select HP6XX if configuring for a HP jornada HP6xx.
 	  More information (hardware only) at
 	  <http://www.hp.com/jornada/>.
-
-config SH_CQREEK
-	bool "CqREEK"
-	help
-	  Select CqREEK if configuring for a CqREEK SH7708 or SH7750.
-	  More information at
-	  <http://sources.redhat.com/ecos/hardware.html#SuperH>.
-
-config SH_DMIDA
-	bool "DMIDA"
-	help
-	  Select DMIDA if configuring for a DataMyte 4000 Industrial
-	  Digital Assistant. More information at <http://www.dmida.com/>.
 
 config SH_EC3104
 	bool "EC3104"
@@ -136,24 +152,8 @@ config SH_DREAMCAST
 	  <http://www.m17n.org/linux-sh/dreamcast/>.  There is a
 	  Dreamcast project is at <http://linuxdc.sourceforge.net/>.
 
-config SH_CAT68701
-	bool "CAT68701"
-
 config SH_BIGSUR
 	bool "BigSur"
-
-config SH_SH2000
-	bool "SH2000"
-	select CPU_SUBTYPE_SH7709
-	help
-	  SH-2000 is a single-board computer based around SH7709A chip
-	  intended for embedded applications.
-	  It has an Ethernet interface (CS8900A), direct connected
-	  Compact Flash socket, three serial ports and PC-104 bus.
-	  More information at <http://sh2000.sh-linux.org>.
-
-config SH_ADX
-	bool "ADX"
 
 config SH_MPC1211
 	bool "Interface MPC1211"
@@ -183,6 +183,13 @@ config SH_HS7751RVOIP
 	help
 	  Select HS7751RVOIP if configuring for a Renesas Technology
 	  Sales VoIP board.
+
+config SH_7710VOIPGW
+	bool "SH7710-VOIP-GW"
+	select CPU_SUBTYPE_SH7710
+	help
+	  Select this option to build a kernel for the SH7710 based
+	  VOIP GW.
 
 config SH_RTS7751R2D
 	bool "RTS7751R2D"
@@ -222,6 +229,26 @@ config SH_TITAN
 	  Select Titan if you are configuring for a Nimble Microsystems
 	  NetEngine NP51R.
 
+config SH_SHMIN
+	bool "SHMIN"
+	select CPU_SUBTYPE_SH7706
+	help
+	  Select SHMIN if configuring for the SHMIN board.
+
+config SH_7206_SOLUTION_ENGINE
+	bool "SolutionEngine7206"
+	select CPU_SUBTYPE_SH7206
+	help
+	  Select 7206 SolutionEngine if configuring for a Hitachi SH7206
+	  evaluation board.
+
+config SH_7619_SOLUTION_ENGINE
+	bool "SolutionEngine7619"
+	select CPU_SUBTYPE_SH7619
+	help
+	  Select 7619 SolutionEngine if configuring for a Hitachi SH7619
+	  evaluation board.
+
 config SH_UNKNOWN
 	bool "BareCPU"
 	help
@@ -238,35 +265,9 @@ endchoice
 
 source "arch/sh/mm/Kconfig"
 
-config MEMORY_START
-	hex "Physical memory start address"
-	default "0x08000000"
-	---help---
-	  Computers built with Hitachi SuperH processors always
-	  map the ROM starting at address zero.  But the processor
-	  does not specify the range that RAM takes.
-
-	  The physical memory (RAM) start address will be automatically
-	  set to 08000000. Other platforms, such as the Solution Engine
-	  boards typically map RAM at 0C000000.
-
-	  Tweak this only when porting to a new machine which does not
-	  already have a defconfig. Changing it from the known correct
-	  value on any of the known systems will only lead to disaster.
-
-config MEMORY_SIZE
-	hex "Physical memory size"
-	default "0x00400000"
-	help
-	  This sets the default memory size assumed by your SH kernel. It can
-	  be overridden as normal by the 'mem=' argument on the kernel command
-	  line. If unsure, consult your board specifications or just leave it
-	  as 0x00400000 which was the default value before this became
-	  configurable.
-
 config CF_ENABLER
 	bool "Compact Flash Enabler support"
-	depends on SH_ADX || SH_SOLUTION_ENGINE || SH_UNKNOWN || SH_CAT68701 || SH_SH03
+	depends on SH_SOLUTION_ENGINE || SH_UNKNOWN || SH_SH03
 	---help---
 	  Compact Flash is a small, removable mass storage device introduced
 	  in 1994 originally as a PCMCIA device.  If you say `Y' here, you
@@ -294,7 +295,7 @@ config CF_AREA5
 	  - "Area5" if CompactFlash is connected to Area 5 (0x14000000)
 	  - "Area6" if it is connected to Area 6 (0x18000000)
 
-	  "Area6" will work for most boards. For ADX, select "Area5".
+	  "Area6" will work for most boards.
 
 config CF_AREA6
 	bool "Area6"
@@ -309,25 +310,20 @@ config CF_BASE_ADDR
 
 menu "Processor features"
 
-config CPU_LITTLE_ENDIAN
-	bool "Little Endian"
+choice
+	prompt "Endianess selection" 
+	default CPU_LITTLE_ENDIAN
 	help
 	  Some SuperH machines can be configured for either little or big
-	  endian byte order. These modes require different kernels. Say Y if
-	  your machine is little endian, N if it's a big endian machine.
+	  endian byte order. These modes require different kernels.
 
-# The SH7750 RTC module is disabled in the Dreamcast
-config SH_RTC
-	bool
-	depends on !SH_DREAMCAST && !SH_SATURN && !SH_7300_SOLUTION_ENGINE && \
-		   !SH_73180_SOLUTION_ENGINE && !SH_LANDISK && \
-		   !SH_R7780RP
-	default y
-	help
-	  Selecting this option will allow the Linux kernel to emulate
-	  PC's RTC.
+config CPU_LITTLE_ENDIAN
+	bool "Little Endian"
 
-	  If unsure, say N.
+config CPU_BIG_ENDIAN
+	bool "Big Endian"
+
+endchoice
 
 config SH_FPU
 	bool "FPU support"
@@ -339,14 +335,22 @@ config SH_FPU
 
 	  This option must be set in order to enable the FPU.
 
+config SH_FPU_EMU
+	bool "FPU emulation support"
+	depends on !SH_FPU && EXPERIMENTAL
+	default n
+	help
+	  Selecting this option will enable support for software FPU emulation.
+	  Most SH-3 users will want to say Y here, whereas most SH-4 users will
+	  want to say N.
+
 config SH_DSP
 	bool "DSP support"
-	depends on !CPU_SH4
-	default y
+	default y if SH4AL_DSP || !CPU_SH4
+	default n
 	help
 	  Selecting this option will enable support for SH processors that
-	  have DSP units (ie, SH2-DSP and SH3-DSP). It is safe to say Y here
-	  by default, as the existance of the DSP will be probed at runtime.
+	  have DSP units (ie, SH2-DSP, SH3-DSP, and SH4AL-DSP).
 
 	  This option must be set in order to enable the DSP.
 
@@ -373,7 +377,13 @@ config CPU_HAS_INTEVT
 config CPU_HAS_PINT_IRQ
 	bool
 
+config CPU_HAS_MASKREG_IRQ
+	bool
+
 config CPU_HAS_INTC2_IRQ
+	bool
+
+config CPU_HAS_IPR_IRQ
 	bool
 
 config CPU_HAS_SR_RB
@@ -388,33 +398,88 @@ config CPU_HAS_SR_RB
 	  See <file:Documentation/sh/register-banks.txt> for further
 	  information on SR.RB and register banking in the kernel in general.
 
+config CPU_HAS_PTEA
+	bool
+
 endmenu
 
 menu "Timer support"
+depends on !GENERIC_TIME
 
 config SH_TMU
 	bool "TMU timer support"
+	depends on CPU_SH3 || CPU_SH4
 	default y
 	help
 	  This enables the use of the TMU as the system timer.
 
+config SH_CMT
+	bool "CMT timer support"
+	depends on CPU_SH2
+	default y
+	help
+	  This enables the use of the CMT as the system timer.
+
+config SH_MTU2
+	bool "MTU2 timer support"
+	depends on CPU_SH2A
+	default n
+	help
+	  This enables the use of the MTU2 as the system timer.
+
 endmenu
 
-#source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
+source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
 
-#source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
+source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
+
+source "arch/sh/boards/renesas/r7780rp/Kconfig"
+
+config SH_TIMER_IRQ
+	int
+	default "28" if CPU_SUBTYPE_SH7780
+	default "86" if CPU_SUBTYPE_SH7619
+	default "140" if CPU_SUBTYPE_SH7206
+	default "16"
+
+config NO_IDLE_HZ
+	bool "Dynamic tick timer"
+	help
+	  Select this option if you want to disable continuous timer ticks
+	  and have them programmed to occur as required. This option saves
+	  power as the system can remain in idle state for longer.
+
+	  By default dynamic tick is disabled during the boot, and can be
+	  manually enabled with:
+
+	    echo 1 > /sys/devices/system/timer/timer0/dyn_tick
+
+	  Alternatively, if you want dynamic tick automatically enabled
+	  during boot, pass "dyntick=enable" via the kernel command string.
+
+	  Please note that dynamic tick may affect the accuracy of
+	  timekeeping on some platforms depending on the implementation.
 
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
+	default "27000000" if CPU_SUBTYPE_SH73180 || CPU_SUBTYPE_SH7343
+	default "31250000" if CPU_SUBTYPE_SH7619
+	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || \
+			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
+			      CPU_SUBTYPE_SH7206
 	default "50000000" if CPU_SUBTYPE_SH7750 || CPU_SUBTYPE_SH7780
 	default "60000000" if CPU_SUBTYPE_SH7751
-	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || CPU_SUBTYPE_SH7760
-	default "27000000" if CPU_SUBTYPE_SH73180
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	help
 	  This option is used to specify the peripheral clock frequency.
 	  This is necessary for determining the reference clock value on
 	  platforms lacking an RTC.
+
+config SH_CLK_MD
+	int "CPU Mode Pin Setting"
+	depends on CPU_SUBTYPE_SH7619 || CPU_SUBTYPE_SH7206
+	help
+	  MD2 - MD0 pin setting.
 
 menu "CPU Frequency scaling"
 
@@ -440,15 +505,15 @@ source "arch/sh/cchips/Kconfig"
 
 config HEARTBEAT
 	bool "Heartbeat LED"
-	depends on SH_MPC1211 || SH_SH03 || SH_CAT68701 || \
-		   SH_STB1_HARP || SH_STB1_OVERDRIVE || SH_BIGSUR || \
-		   SH_7751_SOLUTION_ENGINE || SH_7300_SOLUTION_ENGINE || \
-		   SH_73180_SOLUTION_ENGINE || SH_SOLUTION_ENGINE || \
+	depends on SH_MPC1211 || SH_SH03 || \
+		   SH_BIGSUR || SOLUTION_ENGINE || \
 		   SH_RTS7751R2D || SH_SH4202_MICRODEV || SH_LANDISK
 	help
 	  Use the power-on LED on your machine as a load meter.  The exact
 	  behavior is platform-dependent, but normally the flash frequency is
 	  a hyperbolic function of the 5-minute load average.
+
+source "arch/sh/drivers/Kconfig"
 
 endmenu
 
@@ -458,6 +523,8 @@ config ISA_DMA_API
 	default y
 
 menu "Kernel features"
+
+source kernel/Kconfig.hz
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
@@ -475,10 +542,6 @@ config KEXEC
 	  initially work for you.  It may help to enable device hotplugging
 	  support.  As of this writing the exact hardware interface is
 	  strongly in flux, so no good recommendation can be made.
-
-config PREEMPT
-	bool "Preemptible Kernel (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
 
 config SMP
 	bool "Symmetric multi-processing support"
@@ -515,17 +578,7 @@ config NR_CPUS
 	  This is purely to save memory - each supported CPU adds
 	  approximately eight kilobytes to the kernel image.
 
-config CPU_HAS_SR_RB
-	bool "CPU has SR.RB"
-	depends on CPU_SH3 || CPU_SH4
-	default y
-	help
-	  This will enable the use of SR.RB register bank usage. Processors
-	  that are lacking this bit must have another method in place for
-	  accomplishing what is taken care of by the banked registers.
-
-	  See <file:Documentation/sh/register-banks.txt> for further
-	  information on SR.RB and register banking in the kernel in general.
+source "kernel/Kconfig.preempt"
 
 config NODES_SHIFT
 	int
@@ -634,6 +687,16 @@ menu "Executable file formats"
 
 source "fs/Kconfig.binfmt"
 
+endmenu
+
+menu "Power management options (EXPERIMENTAL)"
+depends on EXPERIMENTAL
+
+source kernel/power/Kconfig
+
+config APM
+	bool "Advanced Power Management Emulation"
+	depends on PM
 endmenu
 
 source "net/Kconfig"

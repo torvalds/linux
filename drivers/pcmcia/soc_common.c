@@ -256,7 +256,7 @@ static void soc_common_pcmcia_poll_event(unsigned long dummy)
  * handling code performs scheduling operations which cannot be
  * executed from within an interrupt context.
  */
-static irqreturn_t soc_common_pcmcia_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t soc_common_pcmcia_interrupt(int irq, void *dev)
 {
 	struct soc_pcmcia_socket *skt = dev;
 
@@ -824,3 +824,4 @@ int soc_common_drv_pcmcia_remove(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL(soc_common_drv_pcmcia_remove);

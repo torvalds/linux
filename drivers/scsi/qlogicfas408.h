@@ -75,15 +75,15 @@
 /*----------------------------------------------------------------*/
 
 struct qlogicfas408_priv {
-	 int		qbase;		/* Port */
-	 int		qinitid;	/* initiator ID */
-	 int		qabort;		/* Flag to cause an abort */
-	 int		qlirq;		/* IRQ being used */
-	 int		int_type;	/* type of irq, 2 for ISA board, 0 for PCMCIA */
-	 char		qinfo[80];	/* description */
-	 Scsi_Cmnd 	*qlcmd;		/* current command being processed */
-	 struct Scsi_Host *shost;	/* pointer back to host */
-	 struct qlogicfas408_priv *next; /* next private struct */
+	int qbase;		/* Port */
+	int qinitid;		/* initiator ID */
+	int qabort;		/* Flag to cause an abort */
+	int qlirq;		/* IRQ being used */
+	int int_type;		/* type of irq, 2 for ISA board, 0 for PCMCIA */
+	char qinfo[80];		/* description */
+	struct scsi_cmnd *qlcmd;	/* current command being processed */
+	struct Scsi_Host *shost;	/* pointer back to host */
+	struct qlogicfas408_priv *next; /* next private struct */
 };
 
 /* The qlogic card uses two register maps - These macros select which one */
@@ -102,13 +102,14 @@ struct qlogicfas408_priv {
 #define get_priv_by_cmd(x) (struct qlogicfas408_priv *)&((x)->device->host->hostdata[0])
 #define get_priv_by_host(x) (struct qlogicfas408_priv *)&((x)->hostdata[0])
 
-irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id, struct pt_regs *regs);
-int qlogicfas408_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *));
+irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id);
+int qlogicfas408_queuecommand(struct scsi_cmnd * cmd,
+			      void (*done) (struct scsi_cmnd *));
 int qlogicfas408_biosparam(struct scsi_device * disk,
-		        struct block_device *dev,
-			sector_t capacity, int ip[]);
-int qlogicfas408_abort(Scsi_Cmnd * cmd);
-int qlogicfas408_bus_reset(Scsi_Cmnd * cmd);
+			   struct block_device *dev,
+			   sector_t capacity, int ip[]);
+int qlogicfas408_abort(struct scsi_cmnd * cmd);
+int qlogicfas408_bus_reset(struct scsi_cmnd * cmd);
 const char *qlogicfas408_info(struct Scsi_Host *host);
 int qlogicfas408_get_chip_type(int qbase, int int_type);
 void qlogicfas408_setup(int qbase, int id, int int_type);

@@ -209,14 +209,14 @@ int ip_vs_make_skb_writable(struct sk_buff **pskb, int writable_len)
 static struct ip_vs_conn *
 ip_vs_sched_persist(struct ip_vs_service *svc,
 		    const struct sk_buff *skb,
-		    __u16 ports[2])
+		    __be16 ports[2])
 {
 	struct ip_vs_conn *cp = NULL;
 	struct iphdr *iph = skb->nh.iph;
 	struct ip_vs_dest *dest;
 	struct ip_vs_conn *ct;
-	__u16  dport;	 /* destination port to forward */
-	__u32  snet;	 /* source network of the client, after masking */
+	__be16  dport;	 /* destination port to forward */
+	__be32  snet;	 /* source network of the client, after masking */
 
 	/* Mask saddr with the netmask to adjust template granularity */
 	snet = iph->saddr & svc->netmask;
@@ -383,7 +383,7 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	struct ip_vs_conn *cp = NULL;
 	struct iphdr *iph = skb->nh.iph;
 	struct ip_vs_dest *dest;
-	__u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 
 	pptr = skb_header_pointer(skb, iph->ihl*4,
 				  sizeof(_ports), _ports);
@@ -446,7 +446,7 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		struct ip_vs_protocol *pp)
 {
-	__u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 	struct iphdr *iph = skb->nh.iph;
 
 	pptr = skb_header_pointer(skb, iph->ihl*4,
@@ -536,9 +536,9 @@ static unsigned int ip_vs_post_routing(unsigned int hooknum,
 	return NF_STOP;
 }
 
-u16 ip_vs_checksum_complete(struct sk_buff *skb, int offset)
+__sum16 ip_vs_checksum_complete(struct sk_buff *skb, int offset)
 {
-	return (u16) csum_fold(skb_checksum(skb, offset, skb->len - offset, 0));
+	return csum_fold(skb_checksum(skb, offset, skb->len - offset, 0));
 }
 
 static inline struct sk_buff *
@@ -576,7 +576,7 @@ void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
 
 	/* the TCP/UDP port */
 	if (IPPROTO_TCP == ciph->protocol || IPPROTO_UDP == ciph->protocol) {
-		__u16 *ports = (void *)ciph + ciph->ihl*4;
+		__be16 *ports = (void *)ciph + ciph->ihl*4;
 
 		if (inout)
 			ports[1] = cp->vport;
@@ -775,7 +775,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 		if (sysctl_ip_vs_nat_icmp_send &&
 		    (pp->protocol == IPPROTO_TCP ||
 		     pp->protocol == IPPROTO_UDP)) {
-			__u16 _ports[2], *pptr;
+			__be16 _ports[2], *pptr;
 
 			pptr = skb_header_pointer(skb, ihl,
 						  sizeof(_ports), _ports);
@@ -812,6 +812,16 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 	skb = *pskb;
 	skb->nh.iph->saddr = cp->vaddr;
 	ip_send_check(skb->nh.iph);
+
+ 	/* For policy routing, packets originating from this
+ 	 * machine itself may be routed differently to packets
+ 	 * passing through.  We want this packet to be routed as
+ 	 * if it came from this machine itself.  So re-compute
+ 	 * the routing information.
+ 	 */
+ 	if (ip_route_me_harder(pskb, RTN_LOCAL) != 0)
+ 		goto drop;
+	skb = *pskb;
 
 	IP_VS_DBG_PKT(10, pp, skb, 0, "After SNAT");
 

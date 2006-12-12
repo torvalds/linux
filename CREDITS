@@ -34,6 +34,7 @@ E: magrawal@nortelnetworks.com
 D: Basic Interphase 5575 driver with UBR and ABR support.
 S: 75 Donald St, Apt 42
 S: Weymouth, MA 02188
+S: USA
 
 N: Dave Airlie
 E: airlied@linux.ie
@@ -44,7 +45,7 @@ S: Longford, Ireland
 S: Sydney, Australia
 
 N: Tigran A. Aivazian
-E: tigran@veritas.com
+E: tigran@aivazian.fsnet.co.uk
 W: http://www.moses.uklinux.net/patches
 D: BFS filesystem
 D: Intel IA32 CPU microcode update support
@@ -202,6 +203,7 @@ S: MS42
 S: Hewlett-Packard
 S: 3404 E Harmony Rd
 S: Fort Collins, CO 80525
+S: USA
 
 N: Arindam Banerji
 E: axb@cse.nd.edu
@@ -444,6 +446,7 @@ E: rbradetich@uswest.net
 D: Linux/PA-RISC hacker
 S: 1200 Goldenrod Dr.
 S: Nampa, Idaho 83686
+S: USA
 
 N: Derrick J. Brashear
 E: shadow@dementia.org
@@ -633,6 +636,7 @@ E: scole@lanl.gov
 E: elenstev@mesatop.com
 D: Various build fixes and kernel documentation.
 S: Los Alamos, New Mexico
+S: USA
 
 N: Hamish Coleman
 E: hamish@zot.apana.org.au
@@ -950,6 +954,12 @@ D: D-Link pocket adapter drivers
 S: Brevia 1043
 S: S-114 79 Stockholm
 S: Sweden
+
+N: Pekka Enberg
+E: penberg@cs.helsinki.fi
+W: http://www.cs.helsinki.fi/u/penberg/
+D: Various kernel hacks, fixes, and cleanups.
+S: Finland
 
 N: David Engebretsen
 E: engebret@us.ibm.com
@@ -1620,7 +1630,8 @@ D: fbdev hacking
 
 N: Jesper Juhl
 E: jesper.juhl@gmail.com
-D: Various fixes, cleanups and minor features.
+D: Various fixes, cleanups and minor features all over the tree.
+D: Wrote initial version of the hdaps driver (since passed on to others).
 S: Lemnosvej 1, 3.tv
 S: 2300 Copenhagen S.
 S: Denmark
@@ -1796,6 +1807,14 @@ S: X/OS Experts in Open Systems BV
 S: Kruislaan 419
 S: 1098 VA Amsterdam 
 S: The Netherlands
+
+N: Jiri Kosina
+E: jikos@jikos.cz
+E: jkosina@suse.cz
+D: Generic HID layer - original code split, fixes
+D: Various ACPI fixes, keeping correct battery state through suspend
+D: various lockdep annotations, autofs and other random bugfixes
+S: Prague, Czech Republic
 
 N: Gene Kozin
 E: 74604.152@compuserve.com
@@ -2002,6 +2021,7 @@ W: http://www.mathematik.uni-stuttgart.de/~floeff
 D: Busmaster driver for HP 10/100 Mbit Network Adapters
 S: University of Stuttgart, Germany and
 S: Ecole Nationale Superieure des Telecommunications, Paris
+S: France
 
 N: Jamie Lokier
 E: jamie@shareable.org
@@ -2171,6 +2191,7 @@ S: Hewlett Packard
 S: MS 42
 S: 3404 E. Harmony Road
 S: Fort Collins, CO 80528
+S: USA
 
 N: Torben Mathiasen
 E: torben.mathiasen@compaq.com
@@ -2226,6 +2247,12 @@ D: netfilter: addrtype match
 D: tc: HFSC scheduler
 S: Freiburg
 S: Germany
+
+N: Paul E. McKenney
+E: paulmck@us.ibm.com
+W: http://www.rdrop.com/users/paulmck/
+D: RCU and variants
+D: rcutorture module
 
 N: Mike McLagan
 E: mike.mclagan@linux.org
@@ -2477,7 +2504,8 @@ S: Derbyshire DE4 3RL
 S: United Kingdom
 
 N: Ian S. Nelson
-E: ian.nelson@echostar.com
+E: nelsonis@earthlink.net
+P: 1024D/00D3D983 3EFD 7B86 B888 D7E2 29B6  9E97 576F 1B97 00D3 D983
 D: Minor mmap and ide hacks
 S: 1370 Atlantis Ave.
 S: Lafayette CO, 80026
@@ -2577,6 +2605,9 @@ D: USB (HID, ACM, Printer ...)
 S: Ucitelska 1576
 S: Prague 8
 S: 182 00 Czech Republic
+
+N: Rick Payne
+D: RFC2385 Support for TCP
 
 N: Barak A. Pearlmutter
 E: bap@cs.unm.edu
@@ -2967,6 +2998,10 @@ S: 69 rue Dunois
 S: 75013 Paris
 S: France
 
+N: Dipankar Sarma
+E: dipankar@in.ibm.com
+D: RCU
+
 N: Hannu Savolainen
 E: hannu@opensound.com
 D: Maintainer of the sound drivers until 2.1.x days.
@@ -3279,6 +3314,12 @@ S: 3 Ballow Crescent
 S: MacGregor A.C.T 2615
 S: Australia
 
+N: Josh Triplett
+E: josh@freedesktop.org
+P: 1024D/D0FE7AFB B24A 65C9 1D71 2AC2 DE87  CA26 189B 9946 D0FE 7AFB
+D: rcutorture maintainer
+D: lock annotations, finding and fixing lock bugs
+
 N: Winfried Trümper
 E: winni@xpilot.org
 W: http://www.shop.de/~winni/
@@ -3481,14 +3522,12 @@ D: The Linux Support Team Erlangen
 
 N: David Weinehall
 E: tao@acc.umu.se
+P: 1024D/DC47CA16 7ACE 0FB0 7A74 F994 9B36  E1D1 D14E 8526 DC47 CA16
 W: http://www.acc.umu.se/~tao/
-W: http://www.acc.umu.se/~mcalinux/
+D: v2.0 kernel maintainer
 D: Fixes for the NE/2-driver
 D: Miscellaneous MCA-support
 D: Cleanup of the Config-files
-S: Axtorpsvagen 40:20
-S: S-903 37  UMEA
-S: Sweden
 
 N: Matt Welsh
 E: mdw@metalab.unc.edu
@@ -3548,11 +3587,11 @@ S: Fargo, North Dakota 58122
 S: USA
 
 N: Steven Whitehouse
-E: SteveW@ACM.org
+E: steve@chygwyn.com
 W: http://www.chygwyn.com/~steve
-D: Linux DECnet project: http://www.sucs.swan.ac.uk/~rohan/DECnet/index.html
+D: Linux DECnet project
 D: Minor debugging of other networking protocols.
-D: Misc bug fixes and filesystem development
+D: Misc bug fixes and GFS2 filesystem development
 
 N: Hans-Joachim Widmaier
 E: hjw@zvw.de
@@ -3650,7 +3689,7 @@ S: Portland, OR
 S: USA
 
 N: Michal Wronski
-E: Michal.Wronski@motorola.com
+E: michal.wronski@gmail.com
 D: POSIX message queues fs (with K. Benedyczak)
 S: Krakow
 S: Poland

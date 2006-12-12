@@ -34,7 +34,7 @@
 #include <linux/dmi.h>
 
 #define DRV_NAME "pata_ali"
-#define DRV_VERSION "0.6.5"
+#define DRV_VERSION "0.7.2"
 
 /*
  *	Cable special cases
@@ -78,7 +78,7 @@ static int ali_c2_cable_detect(struct ata_port *ap)
 	   implement the detect logic */
 
 	if (ali_cable_override(pdev))
-		return ATA_CBL_PATA80;
+		return ATA_CBL_PATA40_SHORT;
 
 	/* Host view cable detect 0x4A bit 0 primary bit 1 secondary
 	   Bit set for 40 pin */
@@ -337,16 +337,16 @@ static struct scsi_host_template ali_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	/* Keep LBA28 counts so large I/O's don't turn LBA48 and PIO
-	   with older controllers. Not locked so will grow on C5 or later */
-	.max_sectors		= 255,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 /*
@@ -369,7 +369,7 @@ static struct ata_port_operations ali_early_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -410,7 +410,7 @@ static struct ata_port_operations ali_20_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -448,7 +448,7 @@ static struct ata_port_operations ali_c2_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -485,7 +485,7 @@ static struct ata_port_operations ali_c5_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -496,6 +496,69 @@ static struct ata_port_operations ali_c5_port_ops = {
 	.host_stop	= ata_host_stop
 };
 
+
+/**
+ *	ali_init_chipset	-	chip setup function
+ *	@pdev: PCI device of ATA controller
+ *
+ *	Perform the setup on the device that must be done both at boot
+ *	and at resume time.
+ */
+ 
+static void ali_init_chipset(struct pci_dev *pdev)
+{
+	u8 rev, tmp;
+	struct pci_dev *north, *isa_bridge;
+
+	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
+
+	/*
+	 * The chipset revision selects the driver operations and
+	 * mode data.
+	 */
+
+	if (rev >= 0x20 && rev < 0xC2) {
+		/* 1543-E/F, 1543C-C, 1543C-D, 1543C-E */
+		pci_read_config_byte(pdev, 0x4B, &tmp);
+		/* Clear CD-ROM DMA write bit */
+		tmp &= 0x7F;
+		pci_write_config_byte(pdev, 0x4B, tmp);
+	} else if (rev >= 0xC2) {
+		/* Enable cable detection logic */
+		pci_read_config_byte(pdev, 0x4B, &tmp);
+		pci_write_config_byte(pdev, 0x4B, tmp | 0x08);
+	}
+	north = pci_get_bus_and_slot(0, PCI_DEVFN(0,0));
+	isa_bridge = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
+
+	if (north && north->vendor == PCI_VENDOR_ID_AL && isa_bridge) {
+		/* Configure the ALi bridge logic. For non ALi rely on BIOS.
+		   Set the south bridge enable bit */
+		pci_read_config_byte(isa_bridge, 0x79, &tmp);
+		if (rev == 0xC2)
+			pci_write_config_byte(isa_bridge, 0x79, tmp | 0x04);
+		else if (rev > 0xC2 && rev < 0xC5)
+			pci_write_config_byte(isa_bridge, 0x79, tmp | 0x02);
+	}
+	if (rev >= 0x20) {
+		/*
+		 * CD_ROM DMA on (0x53 bit 0). Enable this even if we want
+		 * to use PIO. 0x53 bit 1 (rev 20 only) - enable FIFO control
+		 * via 0x54/55.
+		 */
+		pci_read_config_byte(pdev, 0x53, &tmp);
+		if (rev <= 0x20)
+			tmp &= ~0x02;
+		if (rev >= 0xc7)
+			tmp |= 0x03;
+		else
+			tmp |= 0x01;	/* CD_ROM enable for DMA */
+		pci_write_config_byte(pdev, 0x53, tmp);
+	}
+	pci_dev_put(isa_bridge);
+	pci_dev_put(north);
+	ata_pci_clear_simplex(pdev);
+}
 /**
  *	ali_init_one		-	discovery callback
  *	@pdev: PCI device ID
@@ -569,7 +632,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	static struct ata_port_info *port_info[2];
 	u8 rev, tmp;
-	struct pci_dev *north, *isa_bridge;
+	struct pci_dev *isa_bridge;
 
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 
@@ -581,11 +644,6 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rev < 0x20) {
 		port_info[0] = port_info[1] = &info_early;
 	} else if (rev < 0xC2) {
-		/* 1543-E/F, 1543C-C, 1543C-D, 1543C-E */
-		pci_read_config_byte(pdev, 0x4B, &tmp);
-		/* Clear CD-ROM DMA write bit */
-		tmp &= 0x7F;
-		pci_write_config_byte(pdev, 0x4B, tmp);
         	port_info[0] = port_info[1] = &info_20;
 	} else if (rev == 0xC2) {
         	port_info[0] = port_info[1] = &info_c2;
@@ -596,65 +654,39 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	} else
         	port_info[0] = port_info[1] = &info_c5;
 
-	if (rev >= 0xC2) {
-		/* Enable cable detection logic */
-		pci_read_config_byte(pdev, 0x4B, &tmp);
-		pci_write_config_byte(pdev, 0x4B, tmp | 0x08);
-	}
-
-	north = pci_get_slot(pdev->bus, PCI_DEVFN(0,0));
+	ali_init_chipset(pdev);
+	
 	isa_bridge = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
-
-	if (north && north->vendor == PCI_VENDOR_ID_AL) {
-		/* Configure the ALi bridge logic. For non ALi rely on BIOS.
-		   Set the south bridge enable bit */
-		pci_read_config_byte(isa_bridge, 0x79, &tmp);
-		if (rev == 0xC2)
-			pci_write_config_byte(isa_bridge, 0x79, tmp | 0x04);
-		else if (rev > 0xC2)
-			pci_write_config_byte(isa_bridge, 0x79, tmp | 0x02);
+	if (isa_bridge && rev >= 0x20 && rev < 0xC2) {
+		/* Are we paired with a UDMA capable chip */
+		pci_read_config_byte(isa_bridge, 0x5E, &tmp);
+		if ((tmp & 0x1E) == 0x12)
+	        	port_info[0] = port_info[1] = &info_20_udma;
+		pci_dev_put(isa_bridge);
 	}
-
-	if (rev >= 0x20) {
-		if (rev < 0xC2) {
-			/* Are we paired with a UDMA capable chip */
-			pci_read_config_byte(isa_bridge, 0x5E, &tmp);
-			if ((tmp & 0x1E) == 0x12)
-		        	port_info[0] = port_info[1] = &info_20_udma;
-		}
-		/*
-		 * CD_ROM DMA on (0x53 bit 0). Enable this even if we want
-		 * to use PIO. 0x53 bit 1 (rev 20 only) - enable FIFO control
-		 * via 0x54/55.
-		 */
-		pci_read_config_byte(pdev, 0x53, &tmp);
-		if (rev <= 0x20)
-			tmp &= ~0x02;
-		if (rev == 0xc7)
-			tmp |= 0x03;
-		else
-			tmp |= 0x01;	/* CD_ROM enable for DMA */
-		pci_write_config_byte(pdev, 0x53, tmp);
-	}
-
-	pci_dev_put(isa_bridge);
-	pci_dev_put(north);
-
-	ata_pci_clear_simplex(pdev);
 	return ata_pci_init_one(pdev, port_info, 2);
 }
 
-static struct pci_device_id ali[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M5228), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M5229), },
-	{ 0, },
+static int ali_reinit_one(struct pci_dev *pdev)
+{
+	ali_init_chipset(pdev);
+	return ata_pci_device_resume(pdev);
+}
+
+static const struct pci_device_id ali[] = {
+	{ PCI_VDEVICE(AL, PCI_DEVICE_ID_AL_M5228), },
+	{ PCI_VDEVICE(AL, PCI_DEVICE_ID_AL_M5229), },
+
+	{ },
 };
 
 static struct pci_driver ali_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= ali,
 	.probe 		= ali_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= ali_reinit_one,
 };
 
 static int __init ali_init(void)

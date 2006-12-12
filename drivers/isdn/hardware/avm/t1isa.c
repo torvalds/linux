@@ -131,7 +131,7 @@ static int t1_detectandinit(unsigned int base, unsigned irq, int cardnr)
         return 0;
 }
 
-static irqreturn_t t1isa_interrupt(int interrupt, void *devptr, struct pt_regs *regs)
+static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 {
 	avmcard *card = devptr;
 	avmctrl_info *cinfo = &card->ctrlinfo[0];
@@ -584,6 +584,7 @@ static void __exit t1isa_exit(void)
 {
 	int i;
 
+	unregister_capi_driver(&capi_driver_t1isa);
 	for (i = 0; i < MAX_CARDS; i++) {
 		if (!io[i])
 			break;

@@ -46,10 +46,10 @@ static int  visor_probe		(struct usb_serial *serial, const struct usb_device_id 
 static int  visor_calc_num_ports(struct usb_serial *serial);
 static void visor_shutdown	(struct usb_serial *serial);
 static int  visor_ioctl		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
-static void visor_set_termios	(struct usb_serial_port *port, struct termios *old_termios);
-static void visor_write_bulk_callback	(struct urb *urb, struct pt_regs *regs);
-static void visor_read_bulk_callback	(struct urb *urb, struct pt_regs *regs);
-static void visor_read_int_callback	(struct urb *urb, struct pt_regs *regs);
+static void visor_set_termios	(struct usb_serial_port *port, struct ktermios *old_termios);
+static void visor_write_bulk_callback	(struct urb *urb);
+static void visor_read_bulk_callback	(struct urb *urb);
+static void visor_read_int_callback	(struct urb *urb);
 static int  clie_3_5_startup	(struct usb_serial *serial);
 static int  treo_attach		(struct usb_serial *serial);
 static int clie_5_attach (struct usb_serial *serial);
@@ -348,8 +348,7 @@ static void visor_close (struct usb_serial_port *port, struct file * filp)
 			 
 	/* shutdown our urbs */
 	usb_kill_urb(port->read_urb);
-	if (port->interrupt_in_urb)
-		usb_kill_urb(port->interrupt_in_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 
 	/* Try to send shutdown message, if the device is gone, this will just fail. */
 	transfer_buffer =  kmalloc (0x12, GFP_KERNEL);
@@ -471,7 +470,7 @@ static int visor_chars_in_buffer (struct usb_serial_port *port)
 }
 
 
-static void visor_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
+static void visor_write_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct visor_private *priv = usb_get_serial_port_data(port);
@@ -494,7 +493,7 @@ static void visor_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 }
 
 
-static void visor_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
+static void visor_read_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct visor_private *priv = usb_get_serial_port_data(port);
@@ -539,7 +538,7 @@ static void visor_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 	return;
 }
 
-static void visor_read_int_callback (struct urb *urb, struct pt_regs *regs)
+static void visor_read_int_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	int result;
@@ -917,7 +916,7 @@ static int visor_ioctl (struct usb_serial_port *port, struct file * file, unsign
 
 
 /* This function is all nice and good, but we don't change anything based on it :) */
-static void visor_set_termios (struct usb_serial_port *port, struct termios *old_termios)
+static void visor_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	unsigned int cflag;
 

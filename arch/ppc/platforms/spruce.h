@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/platforms/spruce.h
+ * arch/ppc/platforms/spruce.h
  *
  * Definitions for IBM Spruce reference board support
  *

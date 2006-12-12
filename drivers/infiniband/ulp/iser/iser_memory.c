@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/highmem.h>
 #include <asm/io.h>
 #include <asm/scatterlist.h>
 #include <linux/scatterlist.h>
@@ -113,7 +114,7 @@ int iser_start_rdma_unaligned_sg(struct iscsi_iser_cmd_task  *iser_ctask,
 
 	if (cmd_data_len > ISER_KMALLOC_THRESHOLD)
 		mem = (void *)__get_free_pages(GFP_NOIO,
-		      long_log2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
+		      ilog2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
 	else
 		mem = kmalloc(cmd_data_len, GFP_NOIO);
 
@@ -210,7 +211,7 @@ void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_cmd_task *iser_ctask,
 
 	if (cmd_data_len > ISER_KMALLOC_THRESHOLD)
 		free_pages((unsigned long)mem_copy->copy_buf,
-			   long_log2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
+			   ilog2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
 	else
 		kfree(mem_copy->copy_buf);
 
@@ -369,6 +370,44 @@ static void iser_page_vec_build(struct iser_data_buf *data,
 	}
 }
 
+int iser_dma_map_task_data(struct iscsi_iser_cmd_task *iser_ctask,
+			    struct iser_data_buf       *data,
+			    enum   iser_data_dir       iser_dir,
+			    enum   dma_data_direction  dma_dir)
+{
+	struct device *dma_device;
+
+	iser_ctask->dir[iser_dir] = 1;
+	dma_device =
+		iser_ctask->iser_conn->ib_conn->device->ib_device->dma_device;
+
+	data->dma_nents = dma_map_sg(dma_device, data->buf, data->size, dma_dir);
+	if (data->dma_nents == 0) {
+		iser_err("dma_map_sg failed!!!\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+void iser_dma_unmap_task_data(struct iscsi_iser_cmd_task *iser_ctask)
+{
+	struct device  *dma_device;
+	struct iser_data_buf *data;
+
+	dma_device =
+		iser_ctask->iser_conn->ib_conn->device->ib_device->dma_device;
+
+	if (iser_ctask->dir[ISER_DIR_IN]) {
+		data = &iser_ctask->data[ISER_DIR_IN];
+		dma_unmap_sg(dma_device, data->buf, data->size, DMA_FROM_DEVICE);
+	}
+
+	if (iser_ctask->dir[ISER_DIR_OUT]) {
+		data = &iser_ctask->data[ISER_DIR_OUT];
+		dma_unmap_sg(dma_device, data->buf, data->size, DMA_TO_DEVICE);
+	}
+}
+
 /**
  * iser_reg_rdma_mem - Registers memory intended for RDMA,
  * obtaining rkey and va
@@ -394,6 +433,10 @@ int iser_reg_rdma_mem(struct iscsi_iser_cmd_task *iser_ctask,
 		iser_err("rdma alignment violation %d/%d aligned\n",
 			 aligned_len, mem->size);
 		iser_data_buf_dump(mem);
+
+		/* unmap the command data before accessing it */
+		iser_dma_unmap_task_data(iser_ctask);
+
 		/* allocate copy buf, if we are writing, copy the */
 		/* unaligned scatterlist, dma map the copy        */
 		if (iser_start_rdma_unaligned_sg(iser_ctask, cmd_dir) != 0)

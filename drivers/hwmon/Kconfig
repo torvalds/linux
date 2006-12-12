@@ -53,7 +53,7 @@ config SENSORS_ADM1021
 
 config SENSORS_ADM1025
 	tristate "Analog Devices ADM1025 and compatibles"
-	depends on HWMON && I2C && EXPERIMENTAL
+	depends on HWMON && I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for Analog Devices ADM1025
@@ -94,6 +94,18 @@ config SENSORS_ADM9240
 	  This driver can also be built as a module.  If so, the module
 	  will be called adm9240.
 
+config SENSORS_K8TEMP
+	tristate "AMD Athlon64/FX or Opteron temperature sensor"
+	depends on HWMON && X86 && PCI && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the temperature
+	  sensor(s) inside your CPU. Supported is whole AMD K8
+	  microarchitecture. Please note that you will need at least
+	  lm-sensors 2.10.1 for proper userspace support.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called k8temp.
+
 config SENSORS_ASB100
 	tristate "Asus ASB100 Bach"
 	depends on HWMON && I2C && EXPERIMENTAL
@@ -121,7 +133,7 @@ config SENSORS_ATXP1
 
 config SENSORS_DS1621
 	tristate "Dallas Semiconductor DS1621 and DS1625"
-	depends on HWMON && I2C && EXPERIMENTAL
+	depends on HWMON && I2C
 	help
 	  If you say yes here you get support for Dallas Semiconductor
 	  DS1621 and DS1625 sensor chips.
@@ -141,7 +153,7 @@ config SENSORS_F71805F
 
 config SENSORS_FSCHER
 	tristate "FSC Hermes"
-	depends on HWMON && I2C && EXPERIMENTAL
+	depends on HWMON && I2C
 	help
 	  If you say yes here you get support for Fujitsu Siemens
 	  Computers Hermes sensor chips.
@@ -151,7 +163,7 @@ config SENSORS_FSCHER
 
 config SENSORS_FSCPOS
 	tristate "FSC Poseidon"
-	depends on HWMON && I2C && EXPERIMENTAL
+	depends on HWMON && I2C
 	help
 	  If you say yes here you get support for Fujitsu Siemens
 	  Computers Poseidon sensor chips.
@@ -171,7 +183,7 @@ config SENSORS_GL518SM
 
 config SENSORS_GL520SM
 	tristate "Genesys Logic GL520SM"
-	depends on HWMON && I2C && EXPERIMENTAL
+	depends on HWMON && I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for Genesys Logic GL520SM
@@ -186,15 +198,15 @@ config SENSORS_IT87
 	select I2C_ISA
 	select HWMON_VID
 	help
-	  If you say yes here you get support for ITE IT87xx sensor chips
-	  and clones: SiS960.
+	  If you say yes here you get support for ITE IT8705F, IT8712F,
+	  IT8716F and IT8718F sensor chips, and the SiS960 clone.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called it87.
 
 config SENSORS_LM63
 	tristate "National Semiconductor LM63"
-	depends on HWMON && I2C && EXPERIMENTAL
+	depends on HWMON && I2C
 	help
 	  If you say yes here you get support for the National Semiconductor
 	  LM63 remote diode digital temperature sensor with integrated fan
@@ -231,7 +243,7 @@ config SENSORS_LM75
 
 config SENSORS_LM77
 	tristate "National Semiconductor LM77"
-	depends on HWMON && I2C && EXPERIMENTAL
+	depends on HWMON && I2C
 	help
 	  If you say yes here you get support for National Semiconductor LM77
 	  sensor chips.
@@ -241,7 +253,7 @@ config SENSORS_LM77
 
 config SENSORS_LM78
 	tristate "National Semiconductor LM78 and compatibles"
-	depends on HWMON && I2C && EXPERIMENTAL
+	depends on HWMON && I2C
 	select I2C_ISA
 	select HWMON_VID
 	help
@@ -284,7 +296,7 @@ config SENSORS_LM85
 
 config SENSORS_LM87
 	tristate "National Semiconductor LM87"
-	depends on HWMON && I2C && EXPERIMENTAL
+	depends on HWMON && I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for National Semiconductor LM87
@@ -309,7 +321,7 @@ config SENSORS_LM90
 
 config SENSORS_LM92
 	tristate "National Semiconductor LM92 and compatibles"
-	depends on HWMON && I2C && EXPERIMENTAL
+	depends on HWMON && I2C
 	help
 	  If you say yes here you get support for National Semiconductor LM92
 	  and Maxim MAX6635 sensor chips.
@@ -319,7 +331,7 @@ config SENSORS_LM92
 
 config SENSORS_MAX1619
 	tristate "Maxim MAX1619 sensor chip"
-	depends on HWMON && I2C && EXPERIMENTAL
+	depends on HWMON && I2C
 	help
 	  If you say yes here you get support for MAX1619 sensor chip.
 
@@ -354,13 +366,13 @@ config SENSORS_SIS5595
 
 config SENSORS_SMSC47M1
 	tristate "SMSC LPC47M10x and compatibles"
-	depends on HWMON && I2C && EXPERIMENTAL
+	depends on HWMON && I2C
 	select I2C_ISA
 	help
 	  If you say yes here you get support for the integrated fan
 	  monitoring and control capabilities of the SMSC LPC47B27x,
-	  LPC47M10x, LPC47M13x, LPC47M14x, LPC47M15x, LPC47M192 and
-	  LPC47M997 chips.
+	  LPC47M10x, LPC47M112, LPC47M13x, LPC47M14x, LPC47M15x,
+	  LPC47M192 and LPC47M997 chips.
 
 	  The temperature and voltage sensor features of the LPC47M192
 	  and LPC47M997 are supported by another driver, select also
@@ -407,8 +419,19 @@ config SENSORS_VIA686A
 	  This driver can also be built as a module.  If so, the module
 	  will be called via686a.
 
+config SENSORS_VT1211
+	tristate "VIA VT1211"
+	depends on HWMON && EXPERIMENTAL
+	select HWMON_VID
+	help
+	  If you say yes here then you get support for hardware monitoring
+	  features of the VIA VT1211 Super-I/O chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called vt1211.
+
 config SENSORS_VT8231
-	tristate "VT8231"
+	tristate "VIA VT8231"
 	depends on HWMON && I2C && PCI && EXPERIMENTAL
 	select HWMON_VID
 	select I2C_ISA

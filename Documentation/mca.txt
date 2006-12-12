@@ -177,7 +177,7 @@ Currently, there are a number of MCA-specific device drivers.
 	with clones that have a different adapter id than the original
 	NE/2.
 
-6) Future Domain MCS-600/700, OEM'd IBM Fast SCSI Aapter/A and
+6) Future Domain MCS-600/700, OEM'd IBM Fast SCSI Adapter/A and
    Reply Sound Blaster/SCSI (SCSI part)
 	Better support for these cards than the driver for ISA.
    Supports multiple cards with IRQ sharing.

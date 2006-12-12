@@ -606,9 +606,14 @@ static struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
 		return __get_name_cell(param->name);
 
 	md = dm_get_md(huge_decode_dev(param->dev));
-	if (md)
-		mdptr = dm_get_mdptr(md);
+	if (!md)
+		goto out;
 
+	mdptr = dm_get_mdptr(md);
+	if (!mdptr)
+		dm_put(md);
+
+out:
 	return mdptr;
 }
 
@@ -760,7 +765,7 @@ out:
 static int do_suspend(struct dm_ioctl *param)
 {
 	int r = 0;
-	int do_lockfs = 1;
+	unsigned suspend_flags = DM_SUSPEND_LOCKFS_FLAG;
 	struct mapped_device *md;
 
 	md = find_device(param);
@@ -768,10 +773,12 @@ static int do_suspend(struct dm_ioctl *param)
 		return -ENXIO;
 
 	if (param->flags & DM_SKIP_LOCKFS_FLAG)
-		do_lockfs = 0;
+		suspend_flags &= ~DM_SUSPEND_LOCKFS_FLAG;
+	if (param->flags & DM_NOFLUSH_FLAG)
+		suspend_flags |= DM_SUSPEND_NOFLUSH_FLAG;
 
 	if (!dm_suspended(md))
-		r = dm_suspend(md, do_lockfs);
+		r = dm_suspend(md, suspend_flags);
 
 	if (!r)
 		r = __dev_status(md, param);
@@ -783,7 +790,7 @@ static int do_suspend(struct dm_ioctl *param)
 static int do_resume(struct dm_ioctl *param)
 {
 	int r = 0;
-	int do_lockfs = 1;
+	unsigned suspend_flags = DM_SUSPEND_LOCKFS_FLAG;
 	struct hash_cell *hc;
 	struct mapped_device *md;
 	struct dm_table *new_map;
@@ -809,9 +816,11 @@ static int do_resume(struct dm_ioctl *param)
 	if (new_map) {
 		/* Suspend if it isn't already suspended */
 		if (param->flags & DM_SKIP_LOCKFS_FLAG)
-			do_lockfs = 0;
+			suspend_flags &= ~DM_SUSPEND_LOCKFS_FLAG;
+		if (param->flags & DM_NOFLUSH_FLAG)
+			suspend_flags |= DM_SUSPEND_NOFLUSH_FLAG;
 		if (!dm_suspended(md))
-			dm_suspend(md, do_lockfs);
+			dm_suspend(md, suspend_flags);
 
 		r = dm_swap_table(md, new_map);
 		if (r) {

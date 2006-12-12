@@ -80,7 +80,7 @@ the /proc filesystem entry which the "block" side of the driver creates as
 the SCSI core may not yet be initialized (because the driver is a block 
 driver) and attempting to register it with the SCSI core in such a case 
 would cause a hang.  This is best done via an initialization script 
-(typically in /etc/init.d, but could vary depending on distibution). 
+(typically in /etc/init.d, but could vary depending on distribution). 
 For example:
 
 	for x in /proc/driver/cciss/cciss[0-9]*
@@ -152,7 +152,7 @@ side during the SCSI error recovery process, the cciss driver only
 implements the first two of these actions, aborting the command, and
 resetting the device.  Additionally, most tape drives will not oblige 
 in aborting commands, and sometimes it appears they will not even 
-obey a reset coommand, though in most circumstances they will.  In
+obey a reset command, though in most circumstances they will.  In
 the case that the command cannot be aborted and the device cannot be 
 reset, the device will be set offline.
 

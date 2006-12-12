@@ -11,36 +11,28 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/irq.h>
-
 #include <asm/io.h>
 #include <asm/irq.h>
-
-#include <asm/hd64461/hd64461.h>
+#include <asm/hd64461.h>
 
 static void disable_hd64461_irq(unsigned int irq)
 {
-	unsigned long flags;
 	unsigned short nimr;
 	unsigned short mask = 1 << (irq - HD64461_IRQBASE);
 
-	local_irq_save(flags);
 	nimr = inw(HD64461_NIMR);
 	nimr |= mask;
 	outw(nimr, HD64461_NIMR);
-	local_irq_restore(flags);
 }
 
 static void enable_hd64461_irq(unsigned int irq)
 {
-	unsigned long flags;
 	unsigned short nimr;
 	unsigned short mask = 1 << (irq - HD64461_IRQBASE);
 
-	local_irq_save(flags);
 	nimr = inw(HD64461_NIMR);
 	nimr &= ~mask;
 	outw(nimr, HD64461_NIMR);
-	local_irq_restore(flags);
 }
 
 static void mask_and_ack_hd64461(unsigned int irq)
@@ -79,7 +71,7 @@ static struct hw_interrupt_type hd64461_irq_type = {
 	.end		= end_hd64461_irq,
 };
 
-static irqreturn_t hd64461_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t hd64461_interrupt(int irq, void *dev_id)
 {
 	printk(KERN_INFO
 	       "HD64461: spurious interrupt, nirr: 0x%x nimr: 0x%x\n",

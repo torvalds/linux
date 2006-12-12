@@ -248,33 +248,6 @@ static void tx39_flush_icache_range(unsigned long start, unsigned long end)
 	}
 }
 
-/*
- * Ok, this seriously sucks.  We use them to flush a user page but don't
- * know the virtual address, so we have to blast away the whole icache
- * which is significantly more expensive than the real thing.  Otoh we at
- * least know the kernel address of the page so we can flush it
- * selectivly.
- */
-static void tx39_flush_icache_page(struct vm_area_struct *vma, struct page *page)
-{
-	unsigned long addr;
-	/*
-	 * If there's no context yet, or the page isn't executable, no icache
-	 * flush is needed.
-	 */
-	if (!(vma->vm_flags & VM_EXEC))
-		return;
-
-	addr = (unsigned long) page_address(page);
-	tx39_blast_dcache_page(addr);
-
-	/*
-	 * We're not sure of the virtual address(es) involved here, so
-	 * we have to flush the entire I-cache.
-	 */
-	tx39_blast_icache();
-}
-
 static void tx39_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 {
 	unsigned long end;
@@ -382,7 +355,6 @@ void __init tx39_cache_init(void)
 		flush_cache_mm		= (void *) tx39h_flush_icache_all;
 		flush_cache_range	= (void *) tx39h_flush_icache_all;
 		flush_cache_page	= (void *) tx39h_flush_icache_all;
-		flush_icache_page	= (void *) tx39h_flush_icache_all;
 		flush_icache_range	= (void *) tx39h_flush_icache_all;
 
 		flush_cache_sigtramp	= (void *) tx39h_flush_icache_all;
@@ -408,7 +380,6 @@ void __init tx39_cache_init(void)
 		flush_cache_mm = tx39_flush_cache_mm;
 		flush_cache_range = tx39_flush_cache_range;
 		flush_cache_page = tx39_flush_cache_page;
-		flush_icache_page = tx39_flush_icache_page;
 		flush_icache_range = tx39_flush_icache_range;
 
 		flush_cache_sigtramp = tx39_flush_cache_sigtramp;

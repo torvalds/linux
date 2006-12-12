@@ -6,13 +6,11 @@ ALTARCHDEF := defined __i386__
 
 header-y += boot.h
 header-y += bootsetup.h
-header-y += cpufeature.h
 header-y += debugreg.h
 header-y += ldt.h
 header-y += msr.h
 header-y += prctl.h
 header-y += ptrace-abi.h
-header-y += setup.h
 header-y += sigcontext32.h
 header-y += ucontext.h
 header-y += vsyscall32.h

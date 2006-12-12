@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/sched.h>
 #include <linux/parser.h>
 #include <linux/idr.h>
 
@@ -460,8 +461,10 @@ static int __init init_v9fs(void)
 
 	ret = v9fs_mux_global_init();
 	if (!ret)
-		ret = register_filesystem(&v9fs_fs_type);
-
+		return ret;
+	ret = register_filesystem(&v9fs_fs_type);
+	if (!ret)
+		v9fs_mux_global_exit();
 	return ret;
 }
 

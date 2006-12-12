@@ -295,6 +295,7 @@ static inline long put_tv32(struct compat_timeval __user *o, struct timeval *i)
  *
  * This is really horribly ugly.
  */
+#ifdef CONFIG_SYSVIPC
 asmlinkage long sys32_ipc(u32 call, int first, int second, int third, u32 ptr)
 {
 	if (call >> 16)		/* hack for backward compatibility */
@@ -338,6 +339,7 @@ asmlinkage long sys32_ipc(u32 call, int first, int second, int third, u32 ptr)
 
 	return -ENOSYS;
 }
+#endif
 
 asmlinkage long sys32_truncate64(const char __user * path, unsigned long high, unsigned long low)
 {
@@ -357,9 +359,14 @@ asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned 
 
 int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
 {
+	compat_ino_t ino;
 	int err;
 
 	if (!old_valid_dev(stat->dev) || !old_valid_dev(stat->rdev))
+		return -EOVERFLOW;
+
+	ino = stat->ino;
+	if (sizeof(ino) < sizeof(stat->ino) && ino != stat->ino)
 		return -EOVERFLOW;
 
 	err = put_user(old_encode_dev(stat->dev), &statbuf->st_dev);
@@ -544,10 +551,7 @@ sys32_execve(struct pt_regs regs)
 		current->ptrace &= ~PT_DTRACE;
 		task_unlock(current);
 		current->thread.fp_regs.fpc=0;
-		__asm__ __volatile__
-		        ("sr  0,0\n\t"
-		         "sfpc 0,0\n\t"
-			 : : :"0");
+		asm volatile("sfpc %0,0" : : "d" (0));
 	}
         putname(filename);
 out:
@@ -708,7 +712,7 @@ asmlinkage long sys32_sendfile64(int out_fd, int in_fd,
 	return ret;
 }
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_SYSCTL_SYSCALL
 struct __sysctl_args32 {
 	u32 name;
 	int nlen;
@@ -753,7 +757,9 @@ asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
 			    put_user(oldlen, (u32 __user *)compat_ptr(tmp.oldlenp)))
 				error = -EFAULT;
 		}
-		copy_to_user(args->__unused, tmp.__unused, sizeof(tmp.__unused));
+		if (copy_to_user(args->__unused, tmp.__unused,
+				 sizeof(tmp.__unused)))
+			error = -EFAULT;
 	}
 	return error;
 }

@@ -160,10 +160,6 @@ static int mxb_probe(struct saa7146_dev* dev)
 		printk("mxb: saa7111 i2c module not available.\n");
 		return -ENODEV;
 	}
-	if ((result = request_module("tuner")) < 0) {
-		printk("mxb: tuner i2c module not available.\n");
-		return -ENODEV;
-	}
 	if ((result = request_module("tea6420")) < 0) {
 		printk("mxb: tea6420 i2c module not available.\n");
 		return -ENODEV;
@@ -174,6 +170,10 @@ static int mxb_probe(struct saa7146_dev* dev)
 	}
 	if ((result = request_module("tda9840")) < 0) {
 		printk("mxb: tda9840 i2c module not available.\n");
+		return -ENODEV;
+	}
+	if ((result = request_module("tuner")) < 0) {
+		printk("mxb: tuner i2c module not available.\n");
 		return -ENODEV;
 	}
 

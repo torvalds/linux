@@ -290,17 +290,6 @@
        Description: Very nice 92 pages GPL book on the topic of modules
        programming. Lots of examples.
        
-     * Title: "Device File System (devfs) Overview"
-       Author: Richard Gooch.
-       URL: http://www.atnf.csiro.au/people/rgooch/linux/docs/devfs.html
-       Keywords: filesystem, /dev, devfs, dynamic devices, major/minor
-       allocation, device management.
-       Description: Document describing Richard Gooch's controversial
-       devfs, which allows for dynamic devices, only shows present
-       devices in /dev, gets rid of major/minor numbers allocation
-       problems, and allows for hundreds of identical devices (which some
-       USB systems might demand soon).
-       
      * Title: "I/O Event Handling Under Linux"
        Author: Richard Gooch.
        URL: http://www.atnf.csiro.au/~rgooch/linux/docs/io-events.html

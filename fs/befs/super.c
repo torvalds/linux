@@ -11,7 +11,6 @@
 
 #include "befs.h"
 #include "super.h"
-#include "endian.h"
 
 /**
  * load_befs_sb -- Read from disk and properly byteswap all the fields

@@ -1,8 +1,13 @@
 /*
- * X-Box gamepad - v0.0.5
+ * X-Box gamepad - v0.0.6
  *
  * Copyright (c) 2002 Marko Friedemann <mfr@bmx-chemnitz.de>
- *
+ *               2004 Oliver Schwartz <Oliver.Schwartz@gmx.de>,
+ *                    Steven Toth <steve@toth.demon.co.uk>,
+ *                    Franz Lehner <franz@caos.at>,
+ *                    Ivan Hawkes <blackhawk@ivanhawkes.com>
+ *               2005 Dominic Cerquetti <binary1230@yahoo.com>
+ *               2006 Adam Buchbinder <adam.buchbinder@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -28,11 +33,13 @@
  *  - ITO Takayuki for providing essential xpad information on his website
  *  - Vojtech Pavlik     - iforce driver / input subsystem
  *  - Greg Kroah-Hartman - usb-skeleton driver
+ *  - XBOX Linux project - extra USB id's
  *
  * TODO:
- *  - fine tune axes
+ *  - fine tune axes (especially trigger axes)
  *  - fix "analog" buttons (reported as digital now)
  *  - get rumble working
+ *  - need USB IDs for other dance pads
  *
  * History:
  *
@@ -52,30 +59,79 @@
  *  - fixed d-pad to axes mapping
  *
  * 2002-07-17 - 0.0.5 : simplified d-pad handling
+ *
+ * 2004-10-02 - 0.0.6 : DDR pad support
+ *  - borrowed from the XBOX linux kernel
+ *  - USB id's for commonly used dance pads are present
+ *  - dance pads will map D-PAD to buttons, not axes
+ *  - pass the module paramater 'dpad_to_buttons' to force
+ *    the D-PAD to map to buttons if your pad is not detected
  */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/stat.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/smp_lock.h>
 #include <linux/usb/input.h>
 
-#define DRIVER_VERSION "v0.0.5"
+#define DRIVER_VERSION "v0.0.6"
 #define DRIVER_AUTHOR "Marko Friedemann <mfr@bmx-chemnitz.de>"
 #define DRIVER_DESC "X-Box pad driver"
 
 #define XPAD_PKT_LEN 32
 
+/* xbox d-pads should map to buttons, as is required for DDR pads
+   but we map them to axes when possible to simplify things */
+#define MAP_DPAD_TO_BUTTONS    0
+#define MAP_DPAD_TO_AXES       1
+#define MAP_DPAD_UNKNOWN       -1
+
+static int dpad_to_buttons;
+module_param(dpad_to_buttons, bool, S_IRUGO);
+MODULE_PARM_DESC(dpad_to_buttons, "Map D-PAD to buttons rather than axes for unknown pads");
+
 static const struct xpad_device {
 	u16 idVendor;
 	u16 idProduct;
 	char *name;
+	u8 dpad_mapping;
 } xpad_device[] = {
-	{ 0x045e, 0x0202, "Microsoft X-Box pad (US)" },
-	{ 0x045e, 0x0285, "Microsoft X-Box pad (Japan)" },
-	{ 0x05fd, 0x107a, "InterAct 'PowerPad Pro' X-Box pad (Germany)" },
-	{ 0x0000, 0x0000, "X-Box pad" }
+	{ 0x045e, 0x0202, "Microsoft X-Box pad v1 (US)", MAP_DPAD_TO_AXES },
+	{ 0x045e, 0x0289, "Microsoft X-Box pad v2 (US)", MAP_DPAD_TO_AXES },
+	{ 0x045e, 0x0285, "Microsoft X-Box pad (Japan)", MAP_DPAD_TO_AXES },
+	{ 0x045e, 0x0287, "Microsoft Xbox Controller S", MAP_DPAD_TO_AXES },
+	{ 0x0c12, 0x8809, "RedOctane Xbox Dance Pad", MAP_DPAD_TO_BUTTONS },
+	{ 0x044f, 0x0f07, "Thrustmaster, Inc. Controller", MAP_DPAD_TO_AXES },
+	{ 0x046d, 0xca84, "Logitech Xbox Cordless Controller", MAP_DPAD_TO_AXES },
+	{ 0x046d, 0xca88, "Logitech Compact Controller for Xbox", MAP_DPAD_TO_AXES },
+	{ 0x05fd, 0x1007, "Mad Catz Controller (unverified)", MAP_DPAD_TO_AXES },
+	{ 0x05fd, 0x107a, "InterAct 'PowerPad Pro' X-Box pad (Germany)", MAP_DPAD_TO_AXES },
+	{ 0x0738, 0x4516, "Mad Catz Control Pad", MAP_DPAD_TO_AXES },
+	{ 0x0738, 0x4522, "Mad Catz LumiCON", MAP_DPAD_TO_AXES },
+	{ 0x0738, 0x4526, "Mad Catz Control Pad Pro", MAP_DPAD_TO_AXES },
+	{ 0x0738, 0x4536, "Mad Catz MicroCON", MAP_DPAD_TO_AXES },
+	{ 0x0738, 0x4540, "Mad Catz Beat Pad", MAP_DPAD_TO_BUTTONS },
+	{ 0x0738, 0x4556, "Mad Catz Lynx Wireless Controller", MAP_DPAD_TO_AXES },
+	{ 0x0738, 0x6040, "Mad Catz Beat Pad Pro", MAP_DPAD_TO_BUTTONS },
+	{ 0x0c12, 0x8802, "Zeroplus Xbox Controller", MAP_DPAD_TO_AXES },
+	{ 0x0c12, 0x8810, "Zeroplus Xbox Controller", MAP_DPAD_TO_AXES },
+	{ 0x0c12, 0x9902, "HAMA VibraX - *FAULTY HARDWARE*", MAP_DPAD_TO_AXES },
+	{ 0x0e4c, 0x1097, "Radica Gamester Controller", MAP_DPAD_TO_AXES },
+	{ 0x0e4c, 0x2390, "Radica Games Jtech Controller", MAP_DPAD_TO_AXES},
+	{ 0x0e6f, 0x0003, "Logic3 Freebird wireless Controller", MAP_DPAD_TO_AXES },
+	{ 0x0e6f, 0x0005, "Eclipse wireless Controller", MAP_DPAD_TO_AXES },
+	{ 0x0e6f, 0x0006, "Edge wireless Controller", MAP_DPAD_TO_AXES },
+	{ 0x0e8f, 0x0201, "SmartJoy Frag Xpad/PS2 adaptor", MAP_DPAD_TO_AXES },
+	{ 0x0f30, 0x0202, "Joytech Advanced Controller", MAP_DPAD_TO_AXES },
+	{ 0x0f30, 0x8888, "BigBen XBMiniPad Controller", MAP_DPAD_TO_AXES },
+	{ 0x102c, 0xff0c, "Joytech Wireless Advanced Controller", MAP_DPAD_TO_AXES },
+	{ 0x12ab, 0x8809, "Xbox DDR dancepad", MAP_DPAD_TO_BUTTONS },
+	{ 0x1430, 0x8888, "TX6500+ Dance Pad (first generation)", MAP_DPAD_TO_BUTTONS },
+	{ 0xffff, 0xffff, "Chinese-made Xbox Controller", MAP_DPAD_TO_AXES },
+	{ 0x0000, 0x0000, "Generic X-Box pad", MAP_DPAD_UNKNOWN }
 };
 
 static const signed short xpad_btn[] = {
@@ -84,11 +140,23 @@ static const signed short xpad_btn[] = {
 	-1						/* terminating entry */
 };
 
+/* only used if MAP_DPAD_TO_BUTTONS */
+static const signed short xpad_btn_pad[] = {
+	BTN_LEFT, BTN_RIGHT,		/* d-pad left, right */
+	BTN_0, BTN_1,			/* d-pad up, down (XXX names??) */
+	-1				/* terminating entry */
+};
+
 static const signed short xpad_abs[] = {
 	ABS_X, ABS_Y,		/* left stick */
 	ABS_RX, ABS_RY,		/* right stick */
 	ABS_Z, ABS_RZ,		/* triggers left/right */
-	ABS_HAT0X, ABS_HAT0Y,	/* digital pad */
+	-1			/* terminating entry */
+};
+
+/* only used if MAP_DPAD_TO_AXES */
+static const signed short xpad_abs_pad[] = {
+	ABS_HAT0X, ABS_HAT0Y,	/* d-pad axes */
 	-1			/* terminating entry */
 };
 
@@ -100,14 +168,16 @@ static struct usb_device_id xpad_table [] = {
 MODULE_DEVICE_TABLE (usb, xpad_table);
 
 struct usb_xpad {
-	struct input_dev *dev;			/* input device interface */
-	struct usb_device *udev;		/* usb device */
+	struct input_dev *dev;		/* input device interface */
+	struct usb_device *udev;	/* usb device */
 
-	struct urb *irq_in;			/* urb for interrupt in report */
-	unsigned char *idata;			/* input data */
+	struct urb *irq_in;		/* urb for interrupt in report */
+	unsigned char *idata;		/* input data */
 	dma_addr_t idata_dma;
 
-	char phys[65];				/* physical device path */
+	char phys[65];			/* physical device path */
+
+	int dpad_mapping;		/* map d-pad to buttons or to axes */
 };
 
 /*
@@ -120,11 +190,9 @@ struct usb_xpad {
  *	 http://euc.jp/periphs/xbox-controller.ja.html
  */
 
-static void xpad_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *data, struct pt_regs *regs)
+static void xpad_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *data)
 {
 	struct input_dev *dev = xpad->dev;
-
-	input_regs(dev, regs);
 
 	/* left stick */
 	input_report_abs(dev, ABS_X, (__s16) (((__s16)data[13] << 8) | data[12]));
@@ -139,14 +207,21 @@ static void xpad_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *d
 	input_report_abs(dev, ABS_RZ, data[11]);
 
 	/* digital pad */
-	input_report_abs(dev, ABS_HAT0X, !!(data[2] & 0x08) - !!(data[2] & 0x04));
-	input_report_abs(dev, ABS_HAT0Y, !!(data[2] & 0x02) - !!(data[2] & 0x01));
+	if (xpad->dpad_mapping == MAP_DPAD_TO_AXES) {
+		input_report_abs(dev, ABS_HAT0X, !!(data[2] & 0x08) - !!(data[2] & 0x04));
+		input_report_abs(dev, ABS_HAT0Y, !!(data[2] & 0x02) - !!(data[2] & 0x01));
+	} else /* xpad->dpad_mapping == MAP_DPAD_TO_BUTTONS */ {
+		input_report_key(dev, BTN_LEFT,  data[2] & 0x04);
+		input_report_key(dev, BTN_RIGHT, data[2] & 0x08);
+		input_report_key(dev, BTN_0,     data[2] & 0x01); // up
+		input_report_key(dev, BTN_1,     data[2] & 0x02); // down
+	}
 
 	/* start/back buttons and stick press left/right */
-	input_report_key(dev, BTN_START, (data[2] & 0x10) >> 4);
-	input_report_key(dev, BTN_BACK, (data[2] & 0x20) >> 5);
-	input_report_key(dev, BTN_THUMBL, (data[2] & 0x40) >> 6);
-	input_report_key(dev, BTN_THUMBR, data[2] >> 7);
+	input_report_key(dev, BTN_START,  data[2] & 0x10);
+	input_report_key(dev, BTN_BACK,   data[2] & 0x20);
+	input_report_key(dev, BTN_THUMBL, data[2] & 0x40);
+	input_report_key(dev, BTN_THUMBR, data[2] & 0x80);
 
 	/* "analog" buttons A, B, X, Y */
 	input_report_key(dev, BTN_A, data[4]);
@@ -161,7 +236,7 @@ static void xpad_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *d
 	input_sync(dev);
 }
 
-static void xpad_irq_in(struct urb *urb, struct pt_regs *regs)
+static void xpad_irq_in(struct urb *urb)
 {
 	struct usb_xpad *xpad = urb->context;
 	int retval;
@@ -181,7 +256,7 @@ static void xpad_irq_in(struct urb *urb, struct pt_regs *regs)
 		goto exit;
 	}
 
-	xpad_process_packet(xpad, 0, xpad->idata, regs);
+	xpad_process_packet(xpad, 0, xpad->idata);
 
 exit:
 	retval = usb_submit_urb (urb, GFP_ATOMIC);
@@ -208,6 +283,28 @@ static void xpad_close (struct input_dev *dev)
 	usb_kill_urb(xpad->irq_in);
 }
 
+static void xpad_set_up_abs(struct input_dev *input_dev, signed short abs)
+{
+	set_bit(abs, input_dev->absbit);
+
+	switch (abs) {
+	case ABS_X:
+	case ABS_Y:
+	case ABS_RX:
+	case ABS_RY:	/* the two sticks */
+		input_set_abs_params(input_dev, abs, -32768, 32767, 16, 128);
+		break;
+	case ABS_Z:
+	case ABS_RZ:	/* the triggers */
+		input_set_abs_params(input_dev, abs, 0, 255, 0, 0);
+		break;
+	case ABS_HAT0X:
+	case ABS_HAT0Y:	/* the d-pad (only if MAP_DPAD_TO_AXES) */
+		input_set_abs_params(input_dev, abs, -1, 1, 0, 0);
+		break;
+	}
+}
+
 static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev (intf);
@@ -228,7 +325,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		goto fail1;
 
 	xpad->idata = usb_buffer_alloc(udev, XPAD_PKT_LEN,
-				       SLAB_ATOMIC, &xpad->idata_dma);
+				       GFP_ATOMIC, &xpad->idata_dma);
 	if (!xpad->idata)
 		goto fail1;
 
@@ -237,6 +334,9 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		goto fail2;
 
 	xpad->udev = udev;
+	xpad->dpad_mapping = xpad_device[i].dpad_mapping;
+	if (xpad->dpad_mapping == MAP_DPAD_UNKNOWN)
+		xpad->dpad_mapping = dpad_to_buttons;
 	xpad->dev = input_dev;
 	usb_make_path(udev, xpad->phys, sizeof(xpad->phys));
 	strlcat(xpad->phys, "/input0", sizeof(xpad->phys));
@@ -251,32 +351,19 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 
+	/* set up buttons */
 	for (i = 0; xpad_btn[i] >= 0; i++)
 		set_bit(xpad_btn[i], input_dev->keybit);
+	if (xpad->dpad_mapping == MAP_DPAD_TO_BUTTONS)
+		for (i = 0; xpad_btn_pad[i] >= 0; i++)
+			set_bit(xpad_btn_pad[i], input_dev->keybit);
 
-	for (i = 0; xpad_abs[i] >= 0; i++) {
-
-		signed short t = xpad_abs[i];
-
-		set_bit(t, input_dev->absbit);
-
-		switch (t) {
-			case ABS_X:
-			case ABS_Y:
-			case ABS_RX:
-			case ABS_RY:	/* the two sticks */
-				input_set_abs_params(input_dev, t, -32768, 32767, 16, 128);
-				break;
-			case ABS_Z:
-			case ABS_RZ:	/* the triggers */
-				input_set_abs_params(input_dev, t, 0, 255, 0, 0);
-				break;
-			case ABS_HAT0X:
-			case ABS_HAT0Y:	/* the d-pad */
-				input_set_abs_params(input_dev, t, -1, 1, 0, 0);
-				break;
-		}
-	}
+	/* set up axes */
+	for (i = 0; xpad_abs[i] >= 0; i++)
+		xpad_set_up_abs(input_dev, xpad_abs[i]);
+	if (xpad->dpad_mapping == MAP_DPAD_TO_AXES)
+		for (i = 0; xpad_abs_pad[i] >= 0; i++)
+		    xpad_set_up_abs(input_dev, xpad_abs_pad[i]);
 
 	ep_irq_in = &intf->cur_altsetting->endpoint[0].desc;
 	usb_fill_int_urb(xpad->irq_in, udev,
@@ -307,7 +394,8 @@ static void xpad_disconnect(struct usb_interface *intf)
 		usb_kill_urb(xpad->irq_in);
 		input_unregister_device(xpad->dev);
 		usb_free_urb(xpad->irq_in);
-		usb_buffer_free(interface_to_usbdev(intf), XPAD_PKT_LEN, xpad->idata, xpad->idata_dma);
+		usb_buffer_free(interface_to_usbdev(intf), XPAD_PKT_LEN,
+				xpad->idata, xpad->idata_dma);
 		kfree(xpad);
 	}
 }

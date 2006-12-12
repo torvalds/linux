@@ -124,7 +124,7 @@ static int mthca_query_device(struct ib_device *ibdev,
 		props->max_map_per_fmr = 255;
 	else
 		props->max_map_per_fmr =
-			(1 << (32 - long_log2(mdev->limits.num_mpts))) - 1;
+			(1 << (32 - ilog2(mdev->limits.num_mpts))) - 1;
 
 	err = 0;
  out:
@@ -179,6 +179,8 @@ static int mthca_query_port(struct ib_device *ibdev,
 	props->max_mtu           = out_mad->data[41] & 0xf;
 	props->active_mtu        = out_mad->data[36] >> 4;
 	props->subnet_timeout    = out_mad->data[51] & 0x1f;
+	props->max_vl_num        = out_mad->data[37] >> 4;
+	props->init_type_reply   = out_mad->data[41] >> 4;
 
  out:
 	kfree(in_mad);
@@ -814,7 +816,7 @@ static int mthca_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *uda
 		lkey = ucmd.lkey;
 	}
 
-	ret = mthca_RESIZE_CQ(dev, cq->cqn, lkey, long_log2(entries), &status);
+	ret = mthca_RESIZE_CQ(dev, cq->cqn, lkey, ilog2(entries), &status);
 	if (status)
 		ret = -EINVAL;
 
@@ -1098,11 +1100,10 @@ static struct ib_fmr *mthca_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 	struct mthca_fmr *fmr;
 	int err;
 
-	fmr = kmalloc(sizeof *fmr, GFP_KERNEL);
+	fmr = kmemdup(fmr_attr, sizeof *fmr, GFP_KERNEL);
 	if (!fmr)
 		return ERR_PTR(-ENOMEM);
 
-	memcpy(&fmr->attr, fmr_attr, sizeof *fmr_attr);
 	err = mthca_fmr_alloc(to_mdev(pd->device), to_mpd(pd)->pd_num,
 			     convert_access(mr_access_flags), fmr);
 

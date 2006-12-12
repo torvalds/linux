@@ -152,8 +152,8 @@ EXPORT_SYMBOL(fput);
  */
 void fastcall __fput(struct file *file)
 {
-	struct dentry *dentry = file->f_dentry;
-	struct vfsmount *mnt = file->f_vfsmnt;
+	struct dentry *dentry = file->f_path.dentry;
+	struct vfsmount *mnt = file->f_path.mnt;
 	struct inode *inode = dentry->d_inode;
 
 	might_sleep();
@@ -169,14 +169,15 @@ void fastcall __fput(struct file *file)
 	if (file->f_op && file->f_op->release)
 		file->f_op->release(inode, file);
 	security_file_free(file);
-	if (unlikely(inode->i_cdev != NULL))
+	if (unlikely(S_ISCHR(inode->i_mode) && inode->i_cdev != NULL))
 		cdev_put(inode->i_cdev);
 	fops_put(file->f_op);
 	if (file->f_mode & FMODE_WRITE)
 		put_write_access(inode);
+	put_pid(file->f_owner.pid);
 	file_kill(file);
-	file->f_dentry = NULL;
-	file->f_vfsmnt = NULL;
+	file->f_path.dentry = NULL;
+	file->f_path.mnt = NULL;
 	file_free(file);
 	dput(dentry);
 	mntput(mnt);
@@ -270,7 +271,7 @@ int fs_may_remount_ro(struct super_block *sb)
 	file_list_lock();
 	list_for_each(p, &sb->s_files) {
 		struct file *file = list_entry(p, struct file, f_u.fu_list);
-		struct inode *inode = file->f_dentry->d_inode;
+		struct inode *inode = file->f_path.dentry->d_inode;
 
 		/* File with pending delete? */
 		if (inode->i_nlink == 0)

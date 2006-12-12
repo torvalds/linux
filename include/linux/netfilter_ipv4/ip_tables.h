@@ -101,18 +101,21 @@ struct ipt_entry
 /*
  * New IP firewall options for [gs]etsockopt at the RAW IP level.
  * Unlike BSD Linux inherits IP options so you don't have to use a raw
- * socket for this. Instead we check rights in the calls. */
-#define IPT_BASE_CTL		XT_BASE_CTL
+ * socket for this. Instead we check rights in the calls.
+ *
+ * ATTENTION: check linux/in.h before adding new number here.
+ */
+#define IPT_BASE_CTL		64
 
-#define IPT_SO_SET_REPLACE	XT_SO_SET_REPLACE
-#define IPT_SO_SET_ADD_COUNTERS	XT_SO_SET_ADD_COUNTERS
-#define IPT_SO_SET_MAX		XT_SO_SET_MAX
+#define IPT_SO_SET_REPLACE	(IPT_BASE_CTL)
+#define IPT_SO_SET_ADD_COUNTERS	(IPT_BASE_CTL + 1)
+#define IPT_SO_SET_MAX		IPT_SO_SET_ADD_COUNTERS
 
-#define IPT_SO_GET_INFO			XT_SO_GET_INFO
-#define IPT_SO_GET_ENTRIES		XT_SO_GET_ENTRIES
-#define IPT_SO_GET_REVISION_MATCH	XT_SO_GET_REVISION_MATCH
-#define IPT_SO_GET_REVISION_TARGET	XT_SO_GET_REVISION_TARGET
-#define IPT_SO_GET_MAX			XT_SO_GET_REVISION_TARGET
+#define IPT_SO_GET_INFO			(IPT_BASE_CTL)
+#define IPT_SO_GET_ENTRIES		(IPT_BASE_CTL + 1)
+#define IPT_SO_GET_REVISION_MATCH	(IPT_BASE_CTL + 2)
+#define IPT_SO_GET_REVISION_TARGET	(IPT_BASE_CTL + 3)
+#define IPT_SO_GET_MAX			IPT_SO_GET_REVISION_TARGET
 
 #define IPT_CONTINUE XT_CONTINUE
 #define IPT_RETURN XT_RETURN

@@ -35,7 +35,7 @@ static u8 hw_led_state;
 
 static u8 tps_leds_change;
 
-static void tps_work(void *unused)
+static void tps_work(struct work_struct *unused)
 {
 	for (;;) {
 		u8	leds;
@@ -61,7 +61,7 @@ static void tps_work(void *unused)
 	}
 }
 
-static DECLARE_WORK(work, tps_work, NULL);
+static DECLARE_WORK(work, tps_work);
 
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
 

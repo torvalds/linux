@@ -12,6 +12,7 @@
 #include <asm/system.h>
 #include <asm/traps.h>
 #include <asm/branch.h>
+#include <asm/irq_regs.h>
 #include <asm/sgi/mc.h>
 #include <asm/sgi/hpc3.h>
 #include <asm/sgi/ioc.h>
@@ -85,9 +86,10 @@ static void print_buserr(void)
  * and then clear the interrupt when this happens.
  */
 
-void ip22_be_interrupt(int irq, struct pt_regs *regs)
+void ip22_be_interrupt(int irq)
 {
 	const int field = 2 * sizeof(unsigned long);
+	const struct pt_regs *regs = get_irq_regs();
 
 	save_and_clear_buserr();
 	print_buserr();

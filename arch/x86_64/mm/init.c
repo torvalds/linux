@@ -403,69 +403,18 @@ void __cpuinit zap_low_mappings(int cpu)
 	__flush_tlb_all();
 }
 
-/* Compute zone sizes for the DMA and DMA32 zones in a node. */
-__init void
-size_zones(unsigned long *z, unsigned long *h,
-	   unsigned long start_pfn, unsigned long end_pfn)
-{
- 	int i;
- 	unsigned long w;
-
- 	for (i = 0; i < MAX_NR_ZONES; i++)
- 		z[i] = 0;
-
- 	if (start_pfn < MAX_DMA_PFN)
- 		z[ZONE_DMA] = MAX_DMA_PFN - start_pfn;
- 	if (start_pfn < MAX_DMA32_PFN) {
- 		unsigned long dma32_pfn = MAX_DMA32_PFN;
- 		if (dma32_pfn > end_pfn)
- 			dma32_pfn = end_pfn;
- 		z[ZONE_DMA32] = dma32_pfn - start_pfn;
- 	}
- 	z[ZONE_NORMAL] = end_pfn - start_pfn;
-
- 	/* Remove lower zones from higher ones. */
- 	w = 0;
- 	for (i = 0; i < MAX_NR_ZONES; i++) {
- 		if (z[i])
- 			z[i] -= w;
- 	        w += z[i];
-	}
-
-	/* Compute holes */
-	w = start_pfn;
-	for (i = 0; i < MAX_NR_ZONES; i++) {
-		unsigned long s = w;
-		w += z[i];
-		h[i] = e820_hole_size(s, w);
-	}
-
-	/* Add the space pace needed for mem_map to the holes too. */
-	for (i = 0; i < MAX_NR_ZONES; i++)
-		h[i] += (z[i] * sizeof(struct page)) / PAGE_SIZE;
-
-	/* The 16MB DMA zone has the kernel and other misc mappings.
- 	   Account them too */
-	if (h[ZONE_DMA]) {
-		h[ZONE_DMA] += dma_reserve;
-		if (h[ZONE_DMA] >= z[ZONE_DMA]) {
-			printk(KERN_WARNING
-				"Kernel too large and filling up ZONE_DMA?\n");
-			h[ZONE_DMA] = z[ZONE_DMA];
-		}
-	}
-}
-
 #ifndef CONFIG_NUMA
 void __init paging_init(void)
 {
-	unsigned long zones[MAX_NR_ZONES], holes[MAX_NR_ZONES];
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
+	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
+	max_zone_pfns[ZONE_NORMAL] = end_pfn;
 
 	memory_present(0, 0, end_pfn);
 	sparse_init();
-	size_zones(zones, holes, 0, end_pfn);
-	free_area_init_node(0, NODE_DATA(0), zones,
-			    __pa(PAGE_OFFSET) >> PAGE_SHIFT, holes);
+	free_area_init_nodes(max_zone_pfns);
 }
 #endif
 
@@ -517,19 +466,6 @@ void online_page(struct page *page)
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
- * XXX: memory_add_physaddr_to_nid() is to find node id from physical address
- *	via probe interface of sysfs. If acpi notifies hot-add event, then it
- *	can tell node id by searching dsdt. But, probe interface doesn't have
- *	node id. So, return 0 as node id at this time.
- */
-#ifdef CONFIG_NUMA
-int memory_add_physaddr_to_nid(u64 start)
-{
-	return 0;
-}
-#endif
-
-/*
  * Memory is added always to NORMAL zone. This means you will never get
  * additional DMA/DMA32 memory.
  */
@@ -541,11 +477,11 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret;
 
+	init_memory_mapping(start, (start + size -1));
+
 	ret = __add_pages(zone, start_pfn, nr_pages);
 	if (ret)
 		goto error;
-
-	init_memory_mapping(start, (start + size -1));
 
 	return ret;
 error:
@@ -560,7 +496,17 @@ int remove_memory(u64 start, u64 size)
 }
 EXPORT_SYMBOL_GPL(remove_memory);
 
-#else /* CONFIG_MEMORY_HOTPLUG */
+#if !defined(CONFIG_ACPI_NUMA) && defined(CONFIG_NUMA)
+int memory_add_physaddr_to_nid(u64 start)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+#endif
+
+#endif /* CONFIG_MEMORY_HOTPLUG */
+
+#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
 /*
  * Memory Hotadd without sparsemem. The mem_maps have been allocated in advance,
  * just online the pages.
@@ -586,7 +532,7 @@ int __add_pages(struct zone *z, unsigned long start_pfn, unsigned long nr_pages)
 	}
 	return err;
 }
-#endif /* CONFIG_MEMORY_HOTPLUG */
+#endif
 
 static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel, kcore_modules,
 			 kcore_vsyscall;
@@ -608,7 +554,8 @@ void __init mem_init(void)
 #else
 	totalram_pages = free_all_bootmem();
 #endif
-	reservedpages = end_pfn - totalram_pages - e820_hole_size(0, end_pfn);
+	reservedpages = end_pfn - totalram_pages -
+					absent_pages_in_range(0, end_pfn);
 
 	after_bootmem = 1;
 
@@ -701,15 +648,30 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 
 void __init reserve_bootmem_generic(unsigned long phys, unsigned len) 
 { 
-	/* Should check here against the e820 map to avoid double free */ 
 #ifdef CONFIG_NUMA
 	int nid = phys_to_nid(phys);
+#endif
+	unsigned long pfn = phys >> PAGE_SHIFT;
+	if (pfn >= end_pfn) {
+		/* This can happen with kdump kernels when accessing firmware
+		   tables. */
+		if (pfn < end_pfn_map)
+			return;
+		printk(KERN_ERR "reserve_bootmem: illegal reserve %lx %u\n",
+				phys, len);
+		return;
+	}
+
+	/* Should check here against the e820 map to avoid double free */
+#ifdef CONFIG_NUMA
   	reserve_bootmem_node(NODE_DATA(nid), phys, len);
 #else       		
 	reserve_bootmem(phys, len);    
 #endif
-	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE)
+	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE) {
 		dma_reserve += len / PAGE_SIZE;
+		set_dma_reserve(dma_reserve);
+	}
 }
 
 int kern_addr_valid(unsigned long addr) 
@@ -768,14 +730,15 @@ static __init int x8664_sysctl_init(void)
 __initcall(x8664_sysctl_init);
 #endif
 
-/* A pseudo VMAs to allow ptrace access for the vsyscall page.   This only
+/* A pseudo VMA to allow ptrace access for the vsyscall page.  This only
    covers the 64bit vsyscall page now. 32bit has a real VMA now and does
    not need special handling anymore. */
 
 static struct vm_area_struct gate_vma = {
 	.vm_start = VSYSCALL_START,
-	.vm_end = VSYSCALL_END,
-	.vm_page_prot = PAGE_READONLY
+	.vm_end = VSYSCALL_START + (VSYSCALL_MAPPED_PAGES << PAGE_SHIFT),
+	.vm_page_prot = PAGE_READONLY_EXEC,
+	.vm_flags = VM_READ | VM_EXEC
 };
 
 struct vm_area_struct *get_gate_vma(struct task_struct *tsk)

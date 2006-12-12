@@ -93,15 +93,15 @@ extern void nfs_destroy_directcache(void);
 /* nfs2xdr.c */
 extern int nfs_stat_to_errno(int);
 extern struct rpc_procinfo nfs_procedures[];
-extern u32 * nfs_decode_dirent(u32 *, struct nfs_entry *, int);
+extern __be32 * nfs_decode_dirent(__be32 *, struct nfs_entry *, int);
 
 /* nfs3xdr.c */
 extern struct rpc_procinfo nfs3_procedures[];
-extern u32 *nfs3_decode_dirent(u32 *, struct nfs_entry *, int);
+extern __be32 *nfs3_decode_dirent(__be32 *, struct nfs_entry *, int);
 
 /* nfs4xdr.c */
 #ifdef CONFIG_NFS_V4
-extern u32 *nfs4_decode_dirent(u32 *p, struct nfs_entry *entry, int plus);
+extern __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus);
 #endif
 
 /* nfs4proc.c */
@@ -216,4 +216,22 @@ void nfs_super_set_maxbytes(struct super_block *sb, __u64 maxfilesize)
 	sb->s_maxbytes = (loff_t)maxfilesize;
 	if (sb->s_maxbytes > MAX_LFS_FILESIZE || sb->s_maxbytes <= 0)
 		sb->s_maxbytes = MAX_LFS_FILESIZE;
+}
+
+/*
+ * Determine the number of bytes of data the page contains
+ */
+static inline
+unsigned int nfs_page_length(struct page *page)
+{
+	loff_t i_size = i_size_read(page->mapping->host);
+
+	if (i_size > 0) {
+		pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+		if (page->index < end_index)
+			return PAGE_CACHE_SIZE;
+		if (page->index == end_index)
+			return ((i_size - 1) & ~PAGE_CACHE_MASK) + 1;
+	}
+	return 0;
 }

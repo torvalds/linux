@@ -414,7 +414,7 @@ static void siccuart_event(struct SICC_info *info, int event)
 }
 
 static void
-siccuart_rx_chars(struct SICC_info *info, struct pt_regs *regs)
+siccuart_rx_chars(struct SICC_info *info)
 {
     struct tty_struct *tty = info->tty;
     unsigned int status, ch, rsr, flg, ignored = 0;
@@ -441,7 +441,7 @@ siccuart_rx_chars(struct SICC_info *info, struct pt_regs *regs)
 #ifdef SUPPORT_SYSRQ
         if (info->sysrq) {
             if (ch && time_before(jiffies, info->sysrq)) {
-                handle_sysrq(ch, regs, NULL);
+                handle_sysrq(ch, NULL);
                 info->sysrq = 0;
                 goto ignore_char;
             }
@@ -553,15 +553,15 @@ static void siccuart_tx_chars(struct SICC_info *info)
 }
 
 
-static irqreturn_t siccuart_int_rx(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t siccuart_int_rx(int irq, void *dev_id)
 {
     struct SICC_info *info = dev_id;
-    siccuart_rx_chars(info, regs);
+    siccuart_rx_chars(info)
     return IRQ_HANDLED;
 }
 
 
-static irqreturn_t siccuart_int_tx(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t siccuart_int_tx(int irq, void *dev_id)
 {
     struct SICC_info *info = dev_id;
     siccuart_tx_chars(info);
@@ -1720,7 +1720,7 @@ static int siccuart_open(struct tty_struct *tty, struct file *filp)
     return 0;
 }
 
-static struct tty_operations sicc_ops = {
+static const struct tty_operations sicc_ops = {
 	.open = siccuart_open,
 	.close = siccuart_close,
 	.write = siccuart_write,

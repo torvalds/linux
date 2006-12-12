@@ -125,7 +125,7 @@ static int booke_wdt_ioctl (struct inode *inode, struct file *file,
 			return -EINVAL;
 		return 0;
 	default:
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	}
 
 	return 0;

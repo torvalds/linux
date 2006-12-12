@@ -2,6 +2,8 @@
 # Block device driver configuration
 #
 
+if BLOCK
+
 menu "Block devices"
 
 config BLK_DEV_FD
@@ -166,7 +168,8 @@ config BLK_CPQ_CISS_DA
 
 config CISS_SCSI_TAPE
 	bool "SCSI tape drive support for Smart Array 5xxx"
-	depends on BLK_CPQ_CISS_DA && SCSI && PROC_FS
+	depends on BLK_CPQ_CISS_DA && PROC_FS
+	depends on SCSI=y || SCSI=BLK_CPQ_CISS_DA
 	help
 	  When enabled (Y), this option allows SCSI tape drives and SCSI medium
 	  changers (tape robots) to be accessed via a Compaq 5xxx array 
@@ -205,8 +208,7 @@ config BLK_DEV_UMEM
 	  module will be called umem.
 
 	  The umem driver has not yet been allocated a MAJOR number, so
-	  one is chosen dynamically.  Use "devfs" or look in /proc/devices
-	  for the device number
+	  one is chosen dynamically.
 
 config BLK_DEV_UBD
 	bool "Virtual block device"
@@ -304,6 +306,7 @@ config BLK_DEV_LOOP
 config BLK_DEV_CRYPTOLOOP
 	tristate "Cryptoloop Support"
 	select CRYPTO
+	select CRYPTO_CBC
 	depends on BLK_DEV_LOOP
 	---help---
 	  Say Y here if you want to be able to use the ciphers that are 
@@ -405,7 +408,7 @@ config BLK_DEV_RAM_BLOCKSIZE
 	depends on BLK_DEV_RAM
 	default "1024"
 	help
-	  The default value is 1024 kilobytes.  PAGE_SIZE is a much more
+	  The default value is 1024 bytes.  PAGE_SIZE is a much more
 	  efficient choice however.  The default is kept to ensure initrd
 	  setups function - apparently needed by the rd_load_image routine
 	  that supposes the filesystem in the image uses a 1024 blocksize.
@@ -428,13 +431,17 @@ config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media"
 	depends on !UML
 	help
-	  If you have a CDROM drive that supports packet writing, say Y to
-	  include preliminary support. It should work with any MMC/Mt Fuji
-	  compliant ATAPI or SCSI drive, which is just about any newer CD
-	  writer.
+	  If you have a CDROM/DVD drive that supports packet writing, say
+	  Y to include support. It should work with any MMC/Mt Fuji
+	  compliant ATAPI or SCSI drive, which is just about any newer
+	  DVD/CD writer.
 
-	  Currently only writing to CD-RW, DVD-RW and DVD+RW discs is possible.
+	  Currently only writing to CD-RW, DVD-RW, DVD+RW and DVDRAM discs
+	  is possible.
 	  DVD-RW disks must be in restricted overwrite mode.
+
+	  See the file <file:Documentation/cdrom/packet-writing.txt>
+	  for further information on the use of this driver.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pktcdvd.
@@ -468,3 +475,5 @@ config ATA_OVER_ETH
 	devices like the Coraid EtherDrive (R) Storage Blade.
 
 endmenu
+
+endif

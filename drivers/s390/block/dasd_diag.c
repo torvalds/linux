@@ -63,44 +63,26 @@ static const u8 DASD_DIAG_CMS1[] = { 0xc3, 0xd4, 0xe2, 0xf1 };/* EBCDIC CMS1 */
  * and function code cmd.
  * In case of an exception return 3. Otherwise return result of bitwise OR of
  * resulting condition code and DIAG return code. */
-static __inline__ int
-dia250(void *iob, int cmd)
+static inline int dia250(void *iob, int cmd)
 {
+	register unsigned long reg0 asm ("0") = (unsigned long) iob;
 	typedef union {
 		struct dasd_diag_init_io init_io;
 		struct dasd_diag_rw_io rw_io;
 	} addr_type;
 	int rc;
 
-	__asm__ __volatile__(
-#ifdef CONFIG_64BIT
-		"	lghi	%0,3\n"
-		"	lgr	0,%3\n"
+	rc = 3;
+	asm volatile(
 		"	diag	0,%2,0x250\n"
 		"0:	ipm	%0\n"
 		"	srl	%0,28\n"
 		"	or	%0,1\n"
 		"1:\n"
-		".section __ex_table,\"a\"\n"
-		"	.align 8\n"
-		"	.quad  0b,1b\n"
-		".previous\n"
-#else
-		"	lhi	%0,3\n"
-		"	lr	0,%3\n"
-		"	diag	0,%2,0x250\n"
-		"0:	ipm	%0\n"
-		"	srl	%0,28\n"
-		"	or	%0,1\n"
-		"1:\n"
-		".section __ex_table,\"a\"\n"
-		"	.align 4\n"
-		"	.long 0b,1b\n"
-		".previous\n"
-#endif
-		: "=&d" (rc), "=m" (*(addr_type *) iob)
-		: "d" (cmd), "d" (iob), "m" (*(addr_type *) iob)
-		: "0", "1", "cc");
+		EX_TABLE(0b,1b)
+		: "+d" (rc), "=m" (*(addr_type *) iob)
+		: "d" (cmd), "d" (reg0), "m" (*(addr_type *) iob)
+		: "1", "cc");
 	return rc;
 }
 
@@ -236,7 +218,7 @@ dasd_diag_term_IO(struct dasd_ccw_req * cqr)
 
 /* Handle external interruption. */
 static void
-dasd_ext_handler(struct pt_regs *regs, __u16 code)
+dasd_ext_handler(__u16 code)
 {
 	struct dasd_ccw_req *cqr, *next;
 	struct dasd_device *device;
@@ -547,7 +529,7 @@ dasd_diag_build_cp(struct dasd_device * device, struct request *req)
 	}
 	cqr->retries = DIAG_MAX_RETRIES;
 	cqr->buildclk = get_clock();
-	if (req->flags & REQ_FAILFAST)
+	if (req->cmd_flags & REQ_FAILFAST)
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->device = device;
 	cqr->expires = DIAG_TIMEOUT;

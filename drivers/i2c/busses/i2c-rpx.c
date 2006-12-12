@@ -55,10 +55,10 @@ rpx_iic_init(struct i2c_algo_8xx_data *data)
 	data->i2c = (i2c8xx_t *)&(((immap_t *)IMAP_ADDR)->im_i2c);
 }
 
-static int rpx_install_isr(int irq, void (*func)(void *, void *), void *data)
+static int rpx_install_isr(int irq, void (*func)(void *), void *data)
 {
 	/* install interrupt handler */
-	cpm_install_handler(irq, (void (*)(void *, struct pt_regs *)) func, data);
+	cpm_install_handler(irq, func, data);
 
 	return 0;
 }

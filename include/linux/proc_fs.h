@@ -244,13 +244,15 @@ static inline void kclist_add(struct kcore_list *new, void *addr, size_t size)
 extern void kclist_add(struct kcore_list *, void *, size_t);
 #endif
 
+union proc_op {
+	int (*proc_get_link)(struct inode *, struct dentry **, struct vfsmount **);
+	int (*proc_read)(struct task_struct *task, char *page);
+};
+
 struct proc_inode {
 	struct pid *pid;
 	int fd;
-	union {
-		int (*proc_get_link)(struct inode *, struct dentry **, struct vfsmount **);
-		int (*proc_read)(struct task_struct *task, char *page);
-	} op;
+	union proc_op op;
 	struct proc_dir_entry *pde;
 	struct inode vfs_inode;
 };
@@ -268,7 +270,9 @@ static inline struct proc_dir_entry *PDE(const struct inode *inode)
 struct proc_maps_private {
 	struct pid *pid;
 	struct task_struct *task;
+#ifdef CONFIG_MMU
 	struct vm_area_struct *tail_vma;
+#endif
 };
 
 #endif /* _LINUX_PROC_FS_H */

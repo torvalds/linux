@@ -16,7 +16,6 @@
 
 #include <asm/assembler.h>
 #include <asm/domain.h>
-#include <asm/procinfo.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
 #include <asm/memory.h>
@@ -234,18 +233,18 @@ __create_page_tables:
 
 	/*
 	 * Now setup the pagetables for our kernel direct
-	 * mapped region.  We round TEXTADDR down to the
-	 * nearest megabyte boundary.  It is assumed that
-	 * the kernel fits within 4 contigous 1MB sections.
+	 * mapped region.
 	 */
 	add	r0, r4,  #(TEXTADDR & 0xff000000) >> 18	@ start of kernel
 	str	r3, [r0, #(TEXTADDR & 0x00f00000) >> 18]!
-	add	r3, r3, #1 << 20
-	str	r3, [r0, #4]!			@ KERNEL + 1MB
-	add	r3, r3, #1 << 20
-	str	r3, [r0, #4]!			@ KERNEL + 2MB
-	add	r3, r3, #1 << 20
-	str	r3, [r0, #4]			@ KERNEL + 3MB
+
+	ldr	r6, =(_end - PAGE_OFFSET - 1)	@ r6 = number of sections
+	mov	r6, r6, lsr #20			@ needed for kernel minus 1
+
+1:	add	r3, r3, #1 << 20
+	str	r3, [r0, #4]!
+	subs	r6, r6, #1
+	bgt	1b
 
 	/*
 	 * Then map first 1MB of ram in case it contains our boot params.

@@ -308,14 +308,14 @@ static inline unsigned int xics_remap_irq(unsigned int vec)
 	return NO_IRQ;
 }
 
-static unsigned int xics_get_irq_direct(struct pt_regs *regs)
+static unsigned int xics_get_irq_direct(void)
 {
 	unsigned int cpu = smp_processor_id();
 
 	return xics_remap_irq(direct_xirr_info_get(cpu));
 }
 
-static unsigned int xics_get_irq_lpar(struct pt_regs *regs)
+static unsigned int xics_get_irq_lpar(void)
 {
 	unsigned int cpu = smp_processor_id();
 
@@ -324,7 +324,7 @@ static unsigned int xics_get_irq_lpar(struct pt_regs *regs)
 
 #ifdef CONFIG_SMP
 
-static irqreturn_t xics_ipi_dispatch(int cpu, struct pt_regs *regs)
+static irqreturn_t xics_ipi_dispatch(int cpu)
 {
 	WARN_ON(cpu_is_offline(cpu));
 
@@ -332,47 +332,47 @@ static irqreturn_t xics_ipi_dispatch(int cpu, struct pt_regs *regs)
 		if (test_and_clear_bit(PPC_MSG_CALL_FUNCTION,
 				       &xics_ipi_message[cpu].value)) {
 			mb();
-			smp_message_recv(PPC_MSG_CALL_FUNCTION, regs);
+			smp_message_recv(PPC_MSG_CALL_FUNCTION);
 		}
 		if (test_and_clear_bit(PPC_MSG_RESCHEDULE,
 				       &xics_ipi_message[cpu].value)) {
 			mb();
-			smp_message_recv(PPC_MSG_RESCHEDULE, regs);
+			smp_message_recv(PPC_MSG_RESCHEDULE);
 		}
 #if 0
 		if (test_and_clear_bit(PPC_MSG_MIGRATE_TASK,
 				       &xics_ipi_message[cpu].value)) {
 			mb();
-			smp_message_recv(PPC_MSG_MIGRATE_TASK, regs);
+			smp_message_recv(PPC_MSG_MIGRATE_TASK);
 		}
 #endif
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 		if (test_and_clear_bit(PPC_MSG_DEBUGGER_BREAK,
 				       &xics_ipi_message[cpu].value)) {
 			mb();
-			smp_message_recv(PPC_MSG_DEBUGGER_BREAK, regs);
+			smp_message_recv(PPC_MSG_DEBUGGER_BREAK);
 		}
 #endif
 	}
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t xics_ipi_action_direct(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t xics_ipi_action_direct(int irq, void *dev_id)
 {
 	int cpu = smp_processor_id();
 
 	direct_qirr_info(cpu, 0xff);
 
-	return xics_ipi_dispatch(cpu, regs);
+	return xics_ipi_dispatch(cpu);
 }
 
-static irqreturn_t xics_ipi_action_lpar(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t xics_ipi_action_lpar(int irq, void *dev_id)
 {
 	int cpu = smp_processor_id();
 
 	lpar_qirr_info(cpu, 0xff);
 
-	return xics_ipi_dispatch(cpu, regs);
+	return xics_ipi_dispatch(cpu);
 }
 
 void xics_cause_IPI(int cpu)
@@ -656,13 +656,38 @@ static void __init xics_setup_8259_cascade(void)
 	set_irq_chained_handler(cascade, pseries_8259_cascade);
 }
 
+static struct device_node *cpuid_to_of_node(int cpu)
+{
+	struct device_node *np;
+	u32 hcpuid = get_hard_smp_processor_id(cpu);
+
+	for_each_node_by_type(np, "cpu") {
+		int i, len;
+		const u32 *intserv;
+
+		intserv = get_property(np, "ibm,ppc-interrupt-server#s", &len);
+
+		if (!intserv)
+			intserv = get_property(np, "reg", &len);
+
+		i = len / sizeof(u32);
+
+		while (i--)
+			if (intserv[i] == hcpuid)
+				return np;
+	}
+
+	return NULL;
+}
+
 void __init xics_init_IRQ(void)
 {
-	int i;
+	int i, j;
 	struct device_node *np;
 	u32 ilen, indx = 0;
-	const u32 *ireg;
+	const u32 *ireg, *isize;
 	int found = 0;
+	u32 hcpuid;
 
 	ppc64_boot_msg(0x20, "XICS Init");
 
@@ -683,26 +708,31 @@ void __init xics_init_IRQ(void)
 	xics_init_host();
 
 	/* Find the server numbers for the boot cpu. */
-	for (np = of_find_node_by_type(NULL, "cpu");
-	     np;
-	     np = of_find_node_by_type(np, "cpu")) {
-		ireg = get_property(np, "reg", &ilen);
-		if (ireg && ireg[0] == get_hard_smp_processor_id(boot_cpuid)) {
-			ireg = get_property(np,
-					"ibm,ppc-interrupt-gserver#s", &ilen);
-			i = ilen / sizeof(int);
-			if (ireg && i > 0) {
-				default_server = ireg[0];
-				/* take last element */
-				default_distrib_server = ireg[i-1];
-			}
-			ireg = get_property(np,
+	np = cpuid_to_of_node(boot_cpuid);
+	BUG_ON(!np);
+	ireg = get_property(np, "ibm,ppc-interrupt-gserver#s", &ilen);
+	if (!ireg)
+		goto skip_gserver_check;
+	i = ilen / sizeof(int);
+	hcpuid = get_hard_smp_processor_id(boot_cpuid);
+
+	/* Global interrupt distribution server is specified in the last
+	 * entry of "ibm,ppc-interrupt-gserver#s" property. Get the last
+	 * entry fom this property for current boot cpu id and use it as
+	 * default distribution server
+	 */
+	for (j = 0; j < i; j += 2) {
+		if (ireg[j] == hcpuid) {
+			default_server = hcpuid;
+			default_distrib_server = ireg[j+1];
+
+			isize = get_property(np,
 					"ibm,interrupt-server#-size", NULL);
-			if (ireg)
-				interrupt_server_size = *ireg;
-			break;
+			if (isize)
+				interrupt_server_size = *isize;
 		}
 	}
+skip_gserver_check:
 	of_node_put(np);
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))

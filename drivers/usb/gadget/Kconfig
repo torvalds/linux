@@ -7,7 +7,7 @@
 #
 #  - Host systems (like PCs) need CONFIG_USB (with "A" jacks).
 #  - Peripherals (like PDAs) need CONFIG_USB_GADGET (with "B" jacks).
-#  - Some systems have both kinds of of controller.
+#  - Some systems have both kinds of controllers.
 #
 # With help from a special transceiver and a "Mini-AB" jack, systems with
 # both kinds of controller can also support "USB On-the-Go" (CONFIG_USB_OTG).
@@ -26,7 +26,7 @@ config USB_GADGET
 	   you need a low level bus controller driver, and some software
 	   talking to it.  Peripheral controllers are often discrete silicon,
 	   or are integrated with the CPU in a microcontroller.  The more
-	   familiar host side controllers have names like like "EHCI", "OHCI",
+	   familiar host side controllers have names like "EHCI", "OHCI",
 	   or "UHCI", and are usually integrated into southbridges on PC
 	   motherboards.
 
@@ -189,7 +189,7 @@ config USB_OTG
 
 config USB_GADGET_AT91
 	boolean "AT91 USB Device Port"
-	depends on ARCH_AT91RM9200
+	depends on ARCH_AT91
 	select USB_GADGET_SELECTED
 	help
 	   Many Atmel AT91 processors (such as the AT91RM2000) have a
@@ -403,6 +403,20 @@ config USB_G_SERIAL
 	  For more information, see Documentation/usb/gadget_serial.txt
 	  which includes instructions and a "driver info file" needed to
 	  make MS-Windows work with this driver.
+
+config USB_MIDI_GADGET
+	tristate "MIDI Gadget (EXPERIMENTAL)"
+	depends on SND && EXPERIMENTAL
+	select SND_RAWMIDI
+	help
+	  The MIDI Gadget acts as a USB Audio device, with one MIDI
+	  input and one MIDI output. These MIDI jacks appear as
+	  a sound "card" in the ALSA sound system. Other MIDI
+	  connections can then be made on the gadget system, using
+	  ALSA's aconnect utility etc.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_midi".
 
 
 # put drivers that need isochronous transfer support (for audio

@@ -10,7 +10,9 @@
 #define DM_SNAPSHOT_H
 
 #include "dm.h"
+#include "dm-bio-list.h"
 #include <linux/blkdev.h>
+#include <linux/workqueue.h>
 
 struct exception_table {
 	uint32_t hash_mask;
@@ -112,10 +114,20 @@ struct dm_snapshot {
 	struct exception_table pending;
 	struct exception_table complete;
 
+	/*
+	 * pe_lock protects all pending_exception operations and access
+	 * as well as the snapshot_bios list.
+	 */
+	spinlock_t pe_lock;
+
 	/* The on disk metadata handler */
 	struct exception_store store;
 
 	struct kcopyd_client *kcopyd_client;
+
+	/* Queue of snapshot writes for ksnapd to flush */
+	struct bio_list queued_bios;
+	struct work_struct queued_bios_work;
 };
 
 /*
@@ -128,10 +140,9 @@ int dm_add_exception(struct dm_snapshot *s, chunk_t old, chunk_t new);
  * Constructor and destructor for the default persistent
  * store.
  */
-int dm_create_persistent(struct exception_store *store, uint32_t chunk_size);
+int dm_create_persistent(struct exception_store *store);
 
-int dm_create_transient(struct exception_store *store,
-			struct dm_snapshot *s, int blocksize);
+int dm_create_transient(struct exception_store *store);
 
 /*
  * Return the number of sectors in the device.

@@ -241,7 +241,6 @@ struct nfsd4_read {
 	stateid_t	rd_stateid;         /* request */
 	u64		rd_offset;          /* request */
 	u32		rd_length;          /* request */
-	struct kvec	rd_iov[RPCSVC_MAXPAGES];
 	int		rd_vlen;
 	struct file     *rd_filp;
 	
@@ -259,9 +258,9 @@ struct nfsd4_readdir {
 	struct svc_fh * rd_fhp;             /* response */
 
 	struct readdir_cd	common;
-	u32 *			buffer;
+	__be32 *		buffer;
 	int			buflen;
-	u32 *			offset;
+	__be32 *		offset;
 };
 
 struct nfsd4_release_lockowner {
@@ -326,7 +325,6 @@ struct nfsd4_write {
 	u64		wr_offset;          /* request */
 	u32		wr_stable_how;      /* request */
 	u32		wr_buflen;          /* request */
-	struct kvec	wr_vec[RPCSVC_MAXPAGES]; /* request */
 	int		wr_vlen;
 
 	u32		wr_bytes_written;   /* response */
@@ -336,7 +334,7 @@ struct nfsd4_write {
 
 struct nfsd4_op {
 	int					opnum;
-	int					status;
+	__be32					status;
 	union {
 		struct nfsd4_access		access;
 		struct nfsd4_close		close;
@@ -373,12 +371,12 @@ struct nfsd4_op {
 
 struct nfsd4_compoundargs {
 	/* scratch variables for XDR decode */
-	u32 *				p;
-	u32 *				end;
+	__be32 *			p;
+	__be32 *			end;
 	struct page **			pagelist;
 	int				pagelen;
-	u32				tmp[8];
-	u32 *				tmpp;
+	__be32				tmp[8];
+	__be32 *			tmpp;
 	struct tmpbuf {
 		struct tmpbuf *next;
 		void (*release)(const void *);
@@ -397,15 +395,15 @@ struct nfsd4_compoundargs {
 
 struct nfsd4_compoundres {
 	/* scratch variables for XDR encode */
-	u32 *				p;
-	u32 *				end;
+	__be32 *			p;
+	__be32 *			end;
 	struct xdr_buf *		xbuf;
 	struct svc_rqst *		rqstp;
 
 	u32				taglen;
 	char *				tag;
 	u32				opcnt;
-	u32 *				tagp; /* where to encode tag and  opcount */
+	__be32 *			tagp; /* where to encode tag and  opcount */
 };
 
 #define NFS4_SVC_XDRSIZE		sizeof(struct nfsd4_compoundargs)
@@ -421,45 +419,45 @@ set_change_info(struct nfsd4_change_info *cinfo, struct svc_fh *fhp)
 	cinfo->after_ctime_nsec = fhp->fh_post_ctime.tv_nsec;
 }
 
-int nfs4svc_encode_voidres(struct svc_rqst *, u32 *, void *);
-int nfs4svc_decode_compoundargs(struct svc_rqst *, u32 *, 
+int nfs4svc_encode_voidres(struct svc_rqst *, __be32 *, void *);
+int nfs4svc_decode_compoundargs(struct svc_rqst *, __be32 *,
 		struct nfsd4_compoundargs *);
-int nfs4svc_encode_compoundres(struct svc_rqst *, u32 *, 
+int nfs4svc_encode_compoundres(struct svc_rqst *, __be32 *,
 		struct nfsd4_compoundres *);
 void nfsd4_encode_operation(struct nfsd4_compoundres *, struct nfsd4_op *);
 void nfsd4_encode_replay(struct nfsd4_compoundres *resp, struct nfsd4_op *op);
-int nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
-		       struct dentry *dentry, u32 *buffer, int *countp, 
+__be32 nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
+		       struct dentry *dentry, __be32 *buffer, int *countp,
 		       u32 *bmval, struct svc_rqst *);
-extern int nfsd4_setclientid(struct svc_rqst *rqstp, 
+extern __be32 nfsd4_setclientid(struct svc_rqst *rqstp,
 		struct nfsd4_setclientid *setclid);
-extern int nfsd4_setclientid_confirm(struct svc_rqst *rqstp, 
+extern __be32 nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		struct nfsd4_setclientid_confirm *setclientid_confirm);
-extern int nfsd4_process_open1(struct nfsd4_open *open);
-extern int nfsd4_process_open2(struct svc_rqst *rqstp, 
+extern __be32 nfsd4_process_open1(struct nfsd4_open *open);
+extern __be32 nfsd4_process_open2(struct svc_rqst *rqstp,
 		struct svc_fh *current_fh, struct nfsd4_open *open);
-extern int nfsd4_open_confirm(struct svc_rqst *rqstp, 
+extern __be32 nfsd4_open_confirm(struct svc_rqst *rqstp,
 		struct svc_fh *current_fh, struct nfsd4_open_confirm *oc,
 		struct nfs4_stateowner **);
-extern  int nfsd4_close(struct svc_rqst *rqstp, struct svc_fh *current_fh, 
+extern __be32 nfsd4_close(struct svc_rqst *rqstp, struct svc_fh *current_fh,
 		struct nfsd4_close *close,
 		struct nfs4_stateowner **replay_owner);
-extern int nfsd4_open_downgrade(struct svc_rqst *rqstp, 
+extern __be32 nfsd4_open_downgrade(struct svc_rqst *rqstp,
 		struct svc_fh *current_fh, struct nfsd4_open_downgrade *od,
 		struct nfs4_stateowner **replay_owner);
-extern int nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, 
+extern __be32 nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh,
 		struct nfsd4_lock *lock,
 		struct nfs4_stateowner **replay_owner);
-extern int nfsd4_lockt(struct svc_rqst *rqstp, struct svc_fh *current_fh, 
+extern __be32 nfsd4_lockt(struct svc_rqst *rqstp, struct svc_fh *current_fh,
 		struct nfsd4_lockt *lockt);
-extern int nfsd4_locku(struct svc_rqst *rqstp, struct svc_fh *current_fh, 
+extern __be32 nfsd4_locku(struct svc_rqst *rqstp, struct svc_fh *current_fh,
 		struct nfsd4_locku *locku,
 		struct nfs4_stateowner **replay_owner);
-extern int
+extern __be32
 nfsd4_release_lockowner(struct svc_rqst *rqstp,
 		struct nfsd4_release_lockowner *rlockowner);
 extern void nfsd4_release_compoundargs(struct nfsd4_compoundargs *);
-extern int nfsd4_delegreturn(struct svc_rqst *rqstp,
+extern __be32 nfsd4_delegreturn(struct svc_rqst *rqstp,
 		struct svc_fh *current_fh, struct nfsd4_delegreturn *dr);
 #endif
 

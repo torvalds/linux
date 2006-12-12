@@ -31,7 +31,7 @@ struct xterm_chan {
 };
 
 /* Not static because it's called directly by the tt mode gdb code */
-void *xterm_init(char *str, int device, struct chan_opts *opts)
+void *xterm_init(char *str, int device, const struct chan_opts *opts)
 {
 	struct xterm_chan *data;
 
@@ -136,8 +136,6 @@ int xterm_open(int input, int output, int primary, void *d,
 		return(pid);
 	}
 
-	if(data->stack == 0) free_stack(stack, 0);
-
 	if (data->direct_rcv) {
 		new = os_rcv_fd(fd, &data->helper_pid);
 	} else {
@@ -194,7 +192,7 @@ static void xterm_free(void *d)
 	free(d);
 }
 
-struct chan_ops xterm_ops = {
+const struct chan_ops xterm_ops = {
 	.type		= "xterm",
 	.init		= xterm_init,
 	.open		= xterm_open,

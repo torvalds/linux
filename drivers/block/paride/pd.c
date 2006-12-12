@@ -352,19 +352,19 @@ static enum action (*phase)(void);
 
 static void run_fsm(void);
 
-static void ps_tq_int( void *data);
+static void ps_tq_int(struct work_struct *work);
 
-static DECLARE_WORK(fsm_tq, ps_tq_int, NULL);
+static DECLARE_DELAYED_WORK(fsm_tq, ps_tq_int);
 
 static void schedule_fsm(void)
 {
 	if (!nice)
-		schedule_work(&fsm_tq);
+		schedule_delayed_work(&fsm_tq, 0);
 	else
 		schedule_delayed_work(&fsm_tq, nice-1);
 }
 
-static void ps_tq_int(void *data)
+static void ps_tq_int(struct work_struct *work)
 {
 	run_fsm();
 }
@@ -437,7 +437,7 @@ static char *pd_buf;		/* buffer for request in progress */
 
 static enum action do_pd_io_start(void)
 {
-	if (pd_req->flags & REQ_SPECIAL) {
+	if (blk_special_request(pd_req)) {
 		phase = pd_special;
 		return pd_special();
 	}
@@ -713,20 +713,18 @@ static void do_pd_request(request_queue_t * q)
 static int pd_special_command(struct pd_unit *disk,
 		      enum action (*func)(struct pd_unit *disk))
 {
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request rq;
 	int err = 0;
 
 	memset(&rq, 0, sizeof(rq));
 	rq.errors = 0;
-	rq.rq_status = RQ_ACTIVE;
 	rq.rq_disk = disk->gd;
 	rq.ref_count = 1;
-	rq.waiting = &wait;
+	rq.end_io_data = &wait;
 	rq.end_io = blk_end_sync_rq;
 	blk_insert_request(disk->gd->queue, &rq, 0, func);
 	wait_for_completion(&wait);
-	rq.waiting = NULL;
 	if (rq.errors)
 		err = -EIO;
 	blk_put_request(&rq);

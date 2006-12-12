@@ -28,7 +28,7 @@
 NESTED(handle_sys, PT_SIZE, sp)
 	.set	noat
 	SAVE_SOME
-	TRACE_IRQS_ON
+	TRACE_IRQS_ON_RELOAD
 	STI
 	.set	at
 	ld	t1, PT_EPC(sp)		# skip syscall on return
@@ -226,7 +226,7 @@ sys_call_table:
 	PTR	sys_ni_syscall			/* was sys_stat */
 	PTR	sys_lseek
 	PTR	sys_getpid			/* 4020 */
-	PTR	sys_mount
+	PTR	compat_sys_mount
 	PTR	sys_oldumount
 	PTR	sys_setuid
 	PTR	sys_getuid
@@ -498,7 +498,7 @@ sys_call_table:
 	PTR	sys_mknodat			/* 4290 */
 	PTR	sys_fchownat
 	PTR	compat_sys_futimesat
-	PTR	compat_sys_newfstatat
+	PTR	sys_newfstatat
 	PTR	sys_unlinkat
 	PTR	sys_renameat			/* 4295 */
 	PTR	sys_linkat
@@ -514,4 +514,9 @@ sys_call_table:
 	PTR	sys_tee
 	PTR	sys_vmsplice
 	PTR	compat_sys_move_pages
+	PTR	compat_sys_set_robust_list
+	PTR	compat_sys_get_robust_list	/* 4310 */
+	PTR	compat_sys_kexec_load
+	PTR	sys_getcpu
+	PTR	sys_epoll_pwait
 	.size	sys_call_table,.-sys_call_table

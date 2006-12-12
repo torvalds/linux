@@ -38,7 +38,7 @@
  * Interrupt handling.
  */
 static void 
-io7_device_interrupt(unsigned long vector, struct pt_regs * regs)
+io7_device_interrupt(unsigned long vector)
 {
 	unsigned int pid;
 	unsigned int irq;
@@ -64,7 +64,7 @@ io7_device_interrupt(unsigned long vector, struct pt_regs * regs)
 	irq &= MARVEL_IRQ_VEC_IRQ_MASK;		/* not too many bits */
 	irq |= pid << MARVEL_IRQ_VEC_PE_SHIFT;	/* merge the pid     */
 
-	handle_irq(irq, regs);
+	handle_irq(irq);
 }
 
 static volatile unsigned long *

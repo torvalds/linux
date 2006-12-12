@@ -293,6 +293,7 @@ int trackpoint_detect(struct psmouse *psmouse, int set_properties)
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char firmware_id;
 	unsigned char button_info;
+	int error;
 
 	if (trackpoint_start_protocol(psmouse, &firmware_id))
 		return -1;
@@ -305,7 +306,7 @@ int trackpoint_detect(struct psmouse *psmouse, int set_properties)
 		button_info = 0;
 	}
 
-	psmouse->private = priv = kcalloc(1, sizeof(struct trackpoint_data), GFP_KERNEL);
+	psmouse->private = priv = kzalloc(sizeof(struct trackpoint_data), GFP_KERNEL);
 	if (!priv)
 		return -1;
 
@@ -318,7 +319,14 @@ int trackpoint_detect(struct psmouse *psmouse, int set_properties)
 	trackpoint_defaults(priv);
 	trackpoint_sync(psmouse);
 
-	sysfs_create_group(&ps2dev->serio->dev.kobj, &trackpoint_attr_group);
+	error = sysfs_create_group(&ps2dev->serio->dev.kobj, &trackpoint_attr_group);
+	if (error) {
+		printk(KERN_ERR
+			"trackpoint.c: failed to create sysfs attributes, error: %d\n",
+			error);
+		kfree(priv);
+		return -1;
+	}
 
 	printk(KERN_INFO "IBM TrackPoint firmware: 0x%02x, buttons: %d/%d\n",
 		firmware_id, (button_info & 0xf0) >> 4, button_info & 0x0f);

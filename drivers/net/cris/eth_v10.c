@@ -403,8 +403,8 @@ static int etrax_ethernet_init(void);
 static int e100_open(struct net_device *dev);
 static int e100_set_mac_address(struct net_device *dev, void *addr);
 static int e100_send_packet(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t e100rxtx_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-static irqreturn_t e100nw_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t e100rxtx_interrupt(int irq, void *dev_id);
+static irqreturn_t e100nw_interrupt(int irq, void *dev_id);
 static void e100_rx(struct net_device *dev);
 static int e100_close(struct net_device *dev);
 static int e100_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
@@ -509,6 +509,8 @@ etrax_ethernet_init(void)
 		 * does not share cacheline with any other data (to avoid cache bug)
 		 */
 		RxDescList[i].skb = dev_alloc_skb(MAX_MEDIA_DATA_SIZE + 2 * L1_CACHE_BYTES);
+		if (!RxDescList[i].skb)
+			return -ENOMEM;
 		RxDescList[i].descr.ctrl   = 0;
 		RxDescList[i].descr.sw_len = MAX_MEDIA_DATA_SIZE;
 		RxDescList[i].descr.next   = virt_to_phys(&RxDescList[i + 1]);
@@ -1197,7 +1199,7 @@ e100_send_packet(struct sk_buff *skb, struct net_device *dev)
  */
 
 static irqreturn_t
-e100rxtx_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+e100rxtx_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct net_local *np = (struct net_local *)dev->priv;
@@ -1264,7 +1266,7 @@ e100rxtx_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 }
 
 static irqreturn_t
-e100nw_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+e100nw_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct net_local *np = (struct net_local *)dev->priv;

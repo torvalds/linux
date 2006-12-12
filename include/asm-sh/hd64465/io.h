@@ -1,5 +1,5 @@
 /*
- * include/asm-sh/io_hd64465.h
+ * include/asm-sh/hd64465/io.h
  *
  * By Greg Banks <gbanks@pocketpenguins.com>
  * (c) 2000 PocketPenguins Inc.

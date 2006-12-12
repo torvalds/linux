@@ -79,10 +79,10 @@ JOY0DAT   Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0     X7  X6  X5  X4  X3  X2  X1  X0
 JOY1DAT   Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0     X7  X6  X5  X4  X3  X2  X1  X0
 
         0=LEFT CONTROLLER PAIR, 1=RIGHT CONTROLLER PAIR.
-        (4 counters total).The bit usage for both left and right
+        (4 counters total). The bit usage for both left and right
         addresses is shown below. Each 6 bit counter (Y7-Y2,X7-X2) is
         clocked by 2 of the signals input from the mouse serial
-        stream. Starting with first bit recived:
+        stream. Starting with first bit received:
 
          +-------------------+-----------------------------------------+
          | Serial | Bit Name | Description                             |
@@ -91,8 +91,8 @@ JOY1DAT   Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0     X7  X6  X5  X4  X3  X2  X1  X0
          |   1    | M0HQ     | JOY0DAT Horizontal Clock (quadrature)   |
          |   2    | M0V      | JOY0DAT Vertical Clock                  |
          |   3    | M0VQ     | JOY0DAT Vertical Clock  (quadrature)    |
-         |   4    | M1V      | JOY1DAT Horizontall Clock               |
-         |   5    | M1VQ     | JOY1DAT Horizontall Clock (quadrature)  |
+         |   4    | M1V      | JOY1DAT Horizontal Clock                |
+         |   5    | M1VQ     | JOY1DAT Horizontal Clock (quadrature)   |
          |   6    | M1V      | JOY1DAT Vertical Clock                  |
          |   7    | M1VQ     | JOY1DAT Vertical Clock (quadrature)     |
          +--------+----------+-----------------------------------------+

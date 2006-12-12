@@ -210,6 +210,7 @@ struct smc_local {
 
 	/* work queue */
 	struct work_struct phy_configure;
+	struct net_device *dev;
 	int	work_pending;
 
 	spinlock_t lock;
@@ -1114,10 +1115,11 @@ static void smc_phy_check_media(struct net_device *dev, int init)
  * of autonegotiation.)  If the RPC ANEG bit is cleared, the selection
  * is controlled by the RPC SPEED and RPC DPLX bits.
  */
-static void smc_phy_configure(void *data)
+static void smc_phy_configure(struct work_struct *work)
 {
-	struct net_device *dev = data;
-	struct smc_local *lp = netdev_priv(dev);
+	struct smc_local *lp =
+		container_of(work, struct smc_local, phy_configure);
+	struct net_device *dev = lp->dev;
 	void __iomem *ioaddr = lp->base;
 	int phyaddr = lp->mii.phy_id;
 	int my_phy_caps; /* My PHY capabilities */
@@ -1284,7 +1286,7 @@ static void smc_eph_interrupt(struct net_device *dev)
  * This is the main routine of the driver, to handle the device when
  * it needs some attention.
  */
-static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t smc_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct smc_local *lp = netdev_priv(dev);
@@ -1400,7 +1402,7 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static void smc_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	smc_interrupt(dev->irq, dev, NULL);
+	smc_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif
@@ -1592,7 +1594,7 @@ smc_open(struct net_device *dev)
 
 	/* Configure the PHY, initialize the link state */
 	if (lp->phy_type != 0)
-		smc_phy_configure(dev);
+		smc_phy_configure(&lp->phy_configure);
 	else {
 		spin_lock_irq(&lp->lock);
 		smc_10bt_check_media(dev, 1);
@@ -1972,7 +1974,8 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 #endif
 
 	tasklet_init(&lp->tx_task, smc_hardware_send_pkt, (unsigned long)dev);
-	INIT_WORK(&lp->phy_configure, smc_phy_configure, dev);
+	INIT_WORK(&lp->phy_configure, smc_phy_configure);
+	lp->dev = dev;
 	lp->mii.phy_id_mask = 0x1f;
 	lp->mii.reg_num_mask = 0x1f;
 	lp->mii.force_media = 0;
@@ -2322,7 +2325,7 @@ static int smc_drv_resume(struct platform_device *dev)
 			smc_reset(ndev);
 			smc_enable(ndev);
 			if (lp->phy_type != 0)
-				smc_phy_configure(ndev);
+				smc_phy_configure(&lp->phy_configure);
 			netif_device_attach(ndev);
 		}
 	}

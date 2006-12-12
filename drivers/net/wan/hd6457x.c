@@ -424,7 +424,7 @@ static inline void sca_tx_intr(port_t *port)
 
 
 
-static irqreturn_t sca_intr(int irq, void* dev_id, struct pt_regs *regs)
+static irqreturn_t sca_intr(int irq, void* dev_id)
 {
 	card_t *card = dev_id;
 	int i;

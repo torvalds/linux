@@ -27,7 +27,7 @@ Tekram DC390(T) adapter. This is where the name comes from: tm = Tekram
 scsi = SCSI driver, m = AMD (?) as opposed to w for the DC390W/U/F
 (NCR53c8X5, X=2/7) driver. Yes, there was also a driver for the latter,
 tmscsiw, which supported DC390W/U/F adapters. It's not maintained any more,
-as the ncr53c8xx is perfectly supporting these adpaters since some time.
+as the ncr53c8xx is perfectly supporting these adapters since some time.
 
 The driver first appeared in April 1996, exclusively supported the DC390 
 and has been enhanced since then in various steps. In May 1998 support for 
@@ -381,7 +381,7 @@ Please see http://www.garloff.de/kurt/linux/dc390/problems.html
   replaced by the dev index of your scanner). You may try to reset your SCSI
   bus afterwards (echo "RESET" >/proc/scsi/tmscsim/?).
   The problem seems to be solved as of 2.0d18, thanks to Andreas Rick.
-* If there is a valid partition table, the driver will use it for determing
+* If there is a valid partition table, the driver will use it for determining
   the mapping. If there's none, a reasonable mapping (Symbios-like) will be
   assumed. Other operating systems may not like this mapping, though
   it's consistent with the BIOS' behaviour. Old DC390 drivers ignored the

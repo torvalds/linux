@@ -31,7 +31,9 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
+#include <net/ip.h>
 #include <linux/lockd/lockd.h>
+#include <linux/lockd/sm_inter.h>
 #include <linux/nfs.h>
 
 #define NLMDBG_FACILITY		NLMDBG_SVC
@@ -46,6 +48,7 @@ EXPORT_SYMBOL(nlmsvc_ops);
 static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
 static pid_t			nlmsvc_pid;
+static struct svc_serv		*nlmsvc_serv;
 int				nlmsvc_grace_period;
 unsigned long			nlmsvc_timeout;
 
@@ -59,6 +62,7 @@ static DECLARE_WAIT_QUEUE_HEAD(lockd_exit);
 static unsigned long		nlm_grace_period;
 static unsigned long		nlm_timeout = LOCKD_DFLT_TIMEO;
 static int			nlm_udpport, nlm_tcpport;
+int				nsm_use_hostnames = 0;
 
 /*
  * Constants needed for the sysctl interface.
@@ -96,7 +100,6 @@ static inline void clear_grace_period(void)
 static void
 lockd(struct svc_rqst *rqstp)
 {
-	struct svc_serv	*serv = rqstp->rq_server;
 	int		err = 0;
 	unsigned long grace_period_expire;
 
@@ -112,6 +115,7 @@ lockd(struct svc_rqst *rqstp)
 	 * Let our maker know we're running.
 	 */
 	nlmsvc_pid = current->pid;
+	nlmsvc_serv = rqstp->rq_server;
 	complete(&lockd_start_done);
 
 	daemonize("lockd");
@@ -161,7 +165,7 @@ lockd(struct svc_rqst *rqstp)
 		 * Find a socket with data available and call its
 		 * recvfrom routine.
 		 */
-		err = svc_recv(serv, rqstp, timeout);
+		err = svc_recv(rqstp, timeout);
 		if (err == -EAGAIN || err == -EINTR)
 			continue;
 		if (err < 0) {
@@ -174,7 +178,7 @@ lockd(struct svc_rqst *rqstp)
 		dprintk("lockd: request from %08x\n",
 			(unsigned)ntohl(rqstp->rq_addr.sin_addr.s_addr));
 
-		svc_process(serv, rqstp);
+		svc_process(rqstp);
 
 	}
 
@@ -189,6 +193,7 @@ lockd(struct svc_rqst *rqstp)
 			nlmsvc_invalidate_all();
 		nlm_shutdown_hosts();
 		nlmsvc_pid = 0;
+		nlmsvc_serv = NULL;
 	} else
 		printk(KERN_DEBUG
 			"lockd: new process, skipping host shutdown\n");
@@ -205,54 +210,77 @@ lockd(struct svc_rqst *rqstp)
 	module_put_and_exit(0);
 }
 
+
+static int find_socket(struct svc_serv *serv, int proto)
+{
+	struct svc_sock *svsk;
+	int found = 0;
+	list_for_each_entry(svsk, &serv->sv_permsocks, sk_list)
+		if (svsk->sk_sk->sk_protocol == proto) {
+			found = 1;
+			break;
+		}
+	return found;
+}
+
+static int make_socks(struct svc_serv *serv, int proto)
+{
+	/* Make any sockets that are needed but not present.
+	 * If nlm_udpport or nlm_tcpport were set as module
+	 * options, make those sockets unconditionally
+	 */
+	static int		warned;
+	int err = 0;
+	if (proto == IPPROTO_UDP || nlm_udpport)
+		if (!find_socket(serv, IPPROTO_UDP))
+			err = svc_makesock(serv, IPPROTO_UDP, nlm_udpport);
+	if (err == 0 && (proto == IPPROTO_TCP || nlm_tcpport))
+		if (!find_socket(serv, IPPROTO_TCP))
+			err= svc_makesock(serv, IPPROTO_TCP, nlm_tcpport);
+	if (!err)
+		warned = 0;
+	else if (warned++ == 0)
+		printk(KERN_WARNING
+		       "lockd_up: makesock failed, error=%d\n", err);
+	return err;
+}
+
 /*
  * Bring up the lockd process if it's not already up.
  */
 int
-lockd_up(void)
+lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
 {
-	static int		warned;
 	struct svc_serv *	serv;
 	int			error = 0;
 
 	mutex_lock(&nlmsvc_mutex);
 	/*
-	 * Unconditionally increment the user count ... this is
-	 * the number of clients who _want_ a lockd process.
-	 */
-	nlmsvc_users++; 
-	/*
 	 * Check whether we're already up and running.
 	 */
-	if (nlmsvc_pid)
+	if (nlmsvc_pid) {
+		if (proto)
+			error = make_socks(nlmsvc_serv, proto);
 		goto out;
+	}
 
 	/*
 	 * Sanity check: if there's no pid,
 	 * we should be the first user ...
 	 */
-	if (nlmsvc_users > 1)
+	if (nlmsvc_users)
 		printk(KERN_WARNING
 			"lockd_up: no pid, %d users??\n", nlmsvc_users);
 
 	error = -ENOMEM;
-	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE);
+	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, NULL);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		goto out;
 	}
 
-	if ((error = svc_makesock(serv, IPPROTO_UDP, nlm_udpport)) < 0 
-#ifdef CONFIG_NFSD_TCP
-	 || (error = svc_makesock(serv, IPPROTO_TCP, nlm_tcpport)) < 0
-#endif
-		) {
-		if (warned++ == 0) 
-			printk(KERN_WARNING
-				"lockd_up: makesock failed, error=%d\n", error);
+	if ((error = make_socks(serv, proto)) < 0)
 		goto destroy_and_out;
-	} 
-	warned = 0;
 
 	/*
 	 * Create the kernel thread and wait for it to start.
@@ -272,6 +300,8 @@ lockd_up(void)
 destroy_and_out:
 	svc_destroy(serv);
 out:
+	if (!error)
+		nlmsvc_users++;
 	mutex_unlock(&nlmsvc_mutex);
 	return error;
 }
@@ -323,9 +353,6 @@ EXPORT_SYMBOL(lockd_down);
  * Sysctl parameters (same as module parameters, different interface).
  */
 
-/* Something that isn't CTL_ANY, CTL_NONE or a value that may clash. */
-#define CTL_UNNUMBERED		-2
-
 static ctl_table nlm_sysctls[] = {
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -366,6 +393,22 @@ static ctl_table nlm_sysctls[] = {
 		.proc_handler	= &proc_dointvec_minmax,
 		.extra1		= (int *) &nlm_port_min,
 		.extra2		= (int *) &nlm_port_max,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "nsm_use_hostnames",
+		.data		= &nsm_use_hostnames,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "nsm_local_state",
+		.data		= &nsm_local_state,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
 	},
 	{ .ctl_name = 0 }
 };
@@ -455,6 +498,7 @@ module_param_call(nlm_udpport, param_set_port, param_get_int,
 		  &nlm_udpport, 0644);
 module_param_call(nlm_tcpport, param_set_port, param_get_int,
 		  &nlm_tcpport, 0644);
+module_param(nsm_use_hostnames, bool, 0644);
 
 /*
  * Initialising and terminating the module.

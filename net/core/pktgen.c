@@ -109,6 +109,8 @@
  *
  * MPLS support by Steven Whitehouse <steve@chygwyn.com>
  *
+ * 802.1Q/Q-in-Q support by Francesco Fondelli (FF) <francesco.fondelli@gmail.com>
+ *
  */
 #include <linux/sys.h>
 #include <linux/types.h>
@@ -137,6 +139,7 @@
 #include <linux/inetdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_arp.h>
+#include <linux/if_vlan.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -157,7 +160,7 @@
 #include <asm/div64.h>		/* do_div */
 #include <asm/timex.h>
 
-#define VERSION  "pktgen v2.67: Packet Generator for packet performance testing.\n"
+#define VERSION  "pktgen v2.68: Packet Generator for packet performance testing.\n"
 
 /* #define PG_DEBUG(a) a */
 #define PG_DEBUG(a)
@@ -178,6 +181,8 @@
 #define F_TXSIZE_RND  (1<<6)	/* Transmit size is random */
 #define F_IPV6        (1<<7)	/* Interface in IPV6 Mode */
 #define F_MPLS_RND    (1<<8)	/* Random MPLS labels */
+#define F_VID_RND     (1<<9)	/* Random VLAN ID */
+#define F_SVID_RND    (1<<10)	/* Random SVLAN ID */
 
 /* Thread control flag bits */
 #define T_TERMINATE   (1<<0)
@@ -198,8 +203,11 @@ static struct proc_dir_entry *pg_proc_dir = NULL;
 
 #define MAX_CFLOWS  65536
 
+#define VLAN_TAG_SIZE(x) ((x)->vlan_id == 0xffff ? 0 : 4)
+#define SVLAN_TAG_SIZE(x) ((x)->svlan_id == 0xffff ? 0 : 4)
+
 struct flow_state {
-	__u32 cur_daddr;
+	__be32 cur_daddr;
 	int count;
 };
 
@@ -274,19 +282,32 @@ struct pktgen_dev {
 	/* If we're doing ranges, random or incremental, then this
 	 * defines the min/max for those ranges.
 	 */
-	__u32 saddr_min;	/* inclusive, source IP address */
-	__u32 saddr_max;	/* exclusive, source IP address */
-	__u32 daddr_min;	/* inclusive, dest IP address */
-	__u32 daddr_max;	/* exclusive, dest IP address */
+	__be32 saddr_min;	/* inclusive, source IP address */
+	__be32 saddr_max;	/* exclusive, source IP address */
+	__be32 daddr_min;	/* inclusive, dest IP address */
+	__be32 daddr_max;	/* exclusive, dest IP address */
 
 	__u16 udp_src_min;	/* inclusive, source UDP port */
 	__u16 udp_src_max;	/* exclusive, source UDP port */
 	__u16 udp_dst_min;	/* inclusive, dest UDP port */
 	__u16 udp_dst_max;	/* exclusive, dest UDP port */
 
+	/* DSCP + ECN */
+	__u8 tos;            /* six most significant bits of (former) IPv4 TOS are for dscp codepoint */
+	__u8 traffic_class;  /* ditto for the (former) Traffic Class in IPv6 (see RFC 3260, sec. 4) */
+
 	/* MPLS */
 	unsigned nr_labels;	/* Depth of stack, 0 = no MPLS */
 	__be32 labels[MAX_MPLS_LABELS];
+
+	/* VLAN/SVLAN (802.1Q/Q-in-Q) */
+	__u8  vlan_p;
+	__u8  vlan_cfi;
+	__u16 vlan_id;  /* 0xffff means no vlan tag */
+
+	__u8  svlan_p;
+	__u8  svlan_cfi;
+	__u16 svlan_id; /* 0xffff means no svlan tag */
 
 	__u32 src_mac_count;	/* How many MACs to iterate through */
 	__u32 dst_mac_count;	/* How many MACs to iterate through */
@@ -296,8 +317,8 @@ struct pktgen_dev {
 
 	__u32 cur_dst_mac_offset;
 	__u32 cur_src_mac_offset;
-	__u32 cur_saddr;
-	__u32 cur_daddr;
+	__be32 cur_saddr;
+	__be32 cur_daddr;
 	__u16 cur_udp_dst;
 	__u16 cur_udp_src;
 	__u32 cur_pkt_size;
@@ -329,10 +350,10 @@ struct pktgen_dev {
 };
 
 struct pktgen_hdr {
-	__u32 pgh_magic;
-	__u32 seq_num;
-	__u32 tv_sec;
-	__u32 tv_usec;
+	__be32 pgh_magic;
+	__be32 seq_num;
+	__be32 tv_sec;
+	__be32 tv_usec;
 };
 
 struct pktgen_thread {
@@ -644,6 +665,24 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 				   i == pkt_dev->nr_labels-1 ? "\n" : ", ");
 	}
 
+	if (pkt_dev->vlan_id != 0xffff) {
+		seq_printf(seq, "     vlan_id: %u  vlan_p: %u  vlan_cfi: %u\n",
+			   pkt_dev->vlan_id, pkt_dev->vlan_p, pkt_dev->vlan_cfi);
+	}
+
+	if (pkt_dev->svlan_id != 0xffff) {
+		seq_printf(seq, "     svlan_id: %u  vlan_p: %u  vlan_cfi: %u\n",
+			   pkt_dev->svlan_id, pkt_dev->svlan_p, pkt_dev->svlan_cfi);
+	}
+
+	if (pkt_dev->tos) {
+		seq_printf(seq, "     tos: 0x%02x\n", pkt_dev->tos);
+	}
+
+	if (pkt_dev->traffic_class) {
+		seq_printf(seq, "     traffic_class: 0x%02x\n", pkt_dev->traffic_class);
+	}
+
 	seq_printf(seq, "     Flags: ");
 
 	if (pkt_dev->flags & F_IPV6)
@@ -672,6 +711,12 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 
 	if (pkt_dev->flags & F_MACDST_RND)
 		seq_printf(seq, "MACDST_RND  ");
+
+	if (pkt_dev->flags & F_VID_RND)
+		seq_printf(seq, "VID_RND  ");
+
+	if (pkt_dev->flags & F_SVID_RND)
+		seq_printf(seq, "SVID_RND  ");
 
 	seq_puts(seq, "\n");
 
@@ -715,12 +760,12 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 }
 
 
-static int hex32_arg(const char __user *user_buffer, __u32 *num)
+static int hex32_arg(const char __user *user_buffer, unsigned long maxlen, __u32 *num)
 {
 	int i = 0;
 	*num = 0;
 
-	for(; i < 8; i++) {
+	for(; i < maxlen; i++) {
 		char c;
 		*num <<= 4;
 		if (get_user(c, &user_buffer[i]))
@@ -815,7 +860,7 @@ static ssize_t get_labels(const char __user *buffer, struct pktgen_dev *pkt_dev)
 	pkt_dev->nr_labels = 0;
 	do {
 		__u32 tmp;
-		len = hex32_arg(&buffer[i], &tmp);
+		len = hex32_arg(&buffer[i], 8, &tmp);
 		if (len <= 0)
 			return len;
 		pkt_dev->labels[n] = htonl(tmp);
@@ -1140,11 +1185,27 @@ static ssize_t pktgen_if_write(struct file *file,
 		else if (strcmp(f, "!MPLS_RND") == 0)
 			pkt_dev->flags &= ~F_MPLS_RND;
 
+		else if (strcmp(f, "VID_RND") == 0)
+			pkt_dev->flags |= F_VID_RND;
+
+		else if (strcmp(f, "!VID_RND") == 0)
+			pkt_dev->flags &= ~F_VID_RND;
+
+		else if (strcmp(f, "SVID_RND") == 0)
+			pkt_dev->flags |= F_SVID_RND;
+
+		else if (strcmp(f, "!SVID_RND") == 0)
+			pkt_dev->flags &= ~F_SVID_RND;
+
+		else if (strcmp(f, "!IPV6") == 0)
+			pkt_dev->flags &= ~F_IPV6;
+
 		else {
 			sprintf(pg_result,
 				"Flag -:%s:- unknown\nAvailable flags, (prepend ! to un-set flag):\n%s",
 				f,
-				"IPSRC_RND, IPDST_RND, TXSIZE_RND, UDPSRC_RND, UDPDST_RND, MACSRC_RND, MACDST_RND\n");
+				"IPSRC_RND, IPDST_RND, UDPSRC_RND, UDPDST_RND, "
+				"MACSRC_RND, MACDST_RND, TXSIZE_RND, IPV6, MPLS_RND, VID_RND, SVID_RND\n");
 			return count;
 		}
 		sprintf(pg_result, "OK: flags=0x%x", pkt_dev->flags);
@@ -1445,6 +1506,160 @@ static ssize_t pktgen_if_write(struct file *file,
 			offset += sprintf(pg_result + offset,
 					  "%08x%s", ntohl(pkt_dev->labels[n]),
 					  n == pkt_dev->nr_labels-1 ? "" : ",");
+
+		if (pkt_dev->nr_labels && pkt_dev->vlan_id != 0xffff) {
+			pkt_dev->vlan_id = 0xffff; /* turn off VLAN/SVLAN */
+			pkt_dev->svlan_id = 0xffff;
+
+			if (debug)
+				printk("pktgen: VLAN/SVLAN auto turned off\n");
+		}
+		return count;
+	}
+
+	if (!strcmp(name, "vlan_id")) {
+		len = num_arg(&user_buffer[i], 4, &value);
+		if (len < 0) {
+			return len;
+		}
+		i += len;
+		if (value <= 4095) {
+			pkt_dev->vlan_id = value;  /* turn on VLAN */
+
+			if (debug)
+				printk("pktgen: VLAN turned on\n");
+
+			if (debug && pkt_dev->nr_labels)
+				printk("pktgen: MPLS auto turned off\n");
+
+			pkt_dev->nr_labels = 0;    /* turn off MPLS */
+			sprintf(pg_result, "OK: vlan_id=%u", pkt_dev->vlan_id);
+		} else {
+			pkt_dev->vlan_id = 0xffff; /* turn off VLAN/SVLAN */
+			pkt_dev->svlan_id = 0xffff;
+
+			if (debug)
+				printk("pktgen: VLAN/SVLAN turned off\n");
+		}
+		return count;
+	}
+
+	if (!strcmp(name, "vlan_p")) {
+		len = num_arg(&user_buffer[i], 1, &value);
+		if (len < 0) {
+			return len;
+		}
+		i += len;
+		if ((value <= 7) && (pkt_dev->vlan_id != 0xffff)) {
+			pkt_dev->vlan_p = value;
+			sprintf(pg_result, "OK: vlan_p=%u", pkt_dev->vlan_p);
+		} else {
+			sprintf(pg_result, "ERROR: vlan_p must be 0-7");
+		}
+		return count;
+	}
+
+	if (!strcmp(name, "vlan_cfi")) {
+		len = num_arg(&user_buffer[i], 1, &value);
+		if (len < 0) {
+			return len;
+		}
+		i += len;
+		if ((value <= 1) && (pkt_dev->vlan_id != 0xffff)) {
+			pkt_dev->vlan_cfi = value;
+			sprintf(pg_result, "OK: vlan_cfi=%u", pkt_dev->vlan_cfi);
+		} else {
+			sprintf(pg_result, "ERROR: vlan_cfi must be 0-1");
+		}
+		return count;
+	}
+
+	if (!strcmp(name, "svlan_id")) {
+		len = num_arg(&user_buffer[i], 4, &value);
+		if (len < 0) {
+			return len;
+		}
+		i += len;
+		if ((value <= 4095) && ((pkt_dev->vlan_id != 0xffff))) {
+			pkt_dev->svlan_id = value;  /* turn on SVLAN */
+
+			if (debug)
+				printk("pktgen: SVLAN turned on\n");
+
+			if (debug && pkt_dev->nr_labels)
+				printk("pktgen: MPLS auto turned off\n");
+
+			pkt_dev->nr_labels = 0;    /* turn off MPLS */
+			sprintf(pg_result, "OK: svlan_id=%u", pkt_dev->svlan_id);
+		} else {
+			pkt_dev->vlan_id = 0xffff; /* turn off VLAN/SVLAN */
+			pkt_dev->svlan_id = 0xffff;
+
+			if (debug)
+				printk("pktgen: VLAN/SVLAN turned off\n");
+		}
+		return count;
+	}
+
+	if (!strcmp(name, "svlan_p")) {
+		len = num_arg(&user_buffer[i], 1, &value);
+		if (len < 0) {
+			return len;
+		}
+		i += len;
+		if ((value <= 7) && (pkt_dev->svlan_id != 0xffff)) {
+			pkt_dev->svlan_p = value;
+			sprintf(pg_result, "OK: svlan_p=%u", pkt_dev->svlan_p);
+		} else {
+			sprintf(pg_result, "ERROR: svlan_p must be 0-7");
+		}
+		return count;
+	}
+
+	if (!strcmp(name, "svlan_cfi")) {
+		len = num_arg(&user_buffer[i], 1, &value);
+		if (len < 0) {
+			return len;
+		}
+		i += len;
+		if ((value <= 1) && (pkt_dev->svlan_id != 0xffff)) {
+			pkt_dev->svlan_cfi = value;
+			sprintf(pg_result, "OK: svlan_cfi=%u", pkt_dev->svlan_cfi);
+		} else {
+			sprintf(pg_result, "ERROR: svlan_cfi must be 0-1");
+		}
+		return count;
+	}
+
+	if (!strcmp(name, "tos")) {
+		__u32 tmp_value = 0;
+		len = hex32_arg(&user_buffer[i], 2, &tmp_value);
+		if (len < 0) {
+			return len;
+		}
+		i += len;
+		if (len == 2) {
+			pkt_dev->tos = tmp_value;
+			sprintf(pg_result, "OK: tos=0x%02x", pkt_dev->tos);
+		} else {
+			sprintf(pg_result, "ERROR: tos must be 00-ff");
+		}
+		return count;
+	}
+
+	if (!strcmp(name, "traffic_class")) {
+		__u32 tmp_value = 0;
+		len = hex32_arg(&user_buffer[i], 2, &tmp_value);
+		if (len < 0) {
+			return len;
+		}
+		i += len;
+		if (len == 2) {
+			pkt_dev->traffic_class = tmp_value;
+			sprintf(pg_result, "OK: traffic_class=0x%02x", pkt_dev->traffic_class);
+		} else {
+			sprintf(pg_result, "ERROR: traffic_class must be 00-ff");
+		}
 		return count;
 	}
 
@@ -1945,8 +2160,16 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 		for(i = 0; i < pkt_dev->nr_labels; i++)
 			if (pkt_dev->labels[i] & MPLS_STACK_BOTTOM)
 				pkt_dev->labels[i] = MPLS_STACK_BOTTOM |
-						     (pktgen_random() &
+					     ((__force __be32)pktgen_random() &
 						      htonl(0x000fffff));
+	}
+
+	if ((pkt_dev->flags & F_VID_RND) && (pkt_dev->vlan_id != 0xffff)) {
+		pkt_dev->vlan_id = pktgen_random() % 4096;
+	}
+
+	if ((pkt_dev->flags & F_SVID_RND) && (pkt_dev->svlan_id != 0xffff)) {
+		pkt_dev->svlan_id = pktgen_random() % 4096;
 	}
 
 	if (pkt_dev->udp_src_min < pkt_dev->udp_src_max) {
@@ -1997,29 +2220,25 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 		if (pkt_dev->cflows && pkt_dev->flows[flow].count != 0) {
 			pkt_dev->cur_daddr = pkt_dev->flows[flow].cur_daddr;
 		} else {
-
-			if ((imn = ntohl(pkt_dev->daddr_min)) < (imx =
-								 ntohl(pkt_dev->
-								       daddr_max)))
-			{
+			imn = ntohl(pkt_dev->daddr_min);
+			imx = ntohl(pkt_dev->daddr_max);
+			if (imn < imx) {
 				__u32 t;
+				__be32 s;
 				if (pkt_dev->flags & F_IPDST_RND) {
 
-					t = ((pktgen_random() % (imx - imn)) +
-					     imn);
-					t = htonl(t);
+					t = pktgen_random() % (imx - imn) + imn;
+					s = htonl(t);
 
-					while (LOOPBACK(t) || MULTICAST(t)
-					       || BADCLASS(t) || ZERONET(t)
-					       || LOCAL_MCAST(t)) {
-						t = ((pktgen_random() %
-						      (imx - imn)) + imn);
-						t = htonl(t);
+					while (LOOPBACK(s) || MULTICAST(s)
+					       || BADCLASS(s) || ZERONET(s)
+					       || LOCAL_MCAST(s)) {
+						t = (pktgen_random() %
+						      (imx - imn)) + imn;
+						s = htonl(t);
 					}
-					pkt_dev->cur_daddr = t;
-				}
-
-				else {
+					pkt_dev->cur_daddr = s;
+				} else {
 					t = ntohl(pkt_dev->cur_daddr);
 					t++;
 					if (t > imx) {
@@ -2047,7 +2266,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 
 			for (i = 0; i < 4; i++) {
 				pkt_dev->cur_in6_daddr.s6_addr32[i] =
-				    ((pktgen_random() |
+				    (((__force __be32)pktgen_random() |
 				      pkt_dev->min_in6_daddr.s6_addr32[i]) &
 				     pkt_dev->max_in6_daddr.s6_addr32[i]);
 			}
@@ -2081,6 +2300,12 @@ static void mpls_push(__be32 *mpls, struct pktgen_dev *pkt_dev)
 	*mpls |= MPLS_STACK_BOTTOM;
 }
 
+static inline __be16 build_tci(unsigned int id, unsigned int cfi,
+			       unsigned int prio)
+{
+	return htons(id | (cfi << 12) | (prio << 13));
+}
+
 static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 					struct pktgen_dev *pkt_dev)
 {
@@ -2092,9 +2317,17 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	struct pktgen_hdr *pgh = NULL;
 	__be16 protocol = __constant_htons(ETH_P_IP);
 	__be32 *mpls;
+	__be16 *vlan_tci = NULL;                 /* Encapsulates priority and VLAN ID */
+	__be16 *vlan_encapsulated_proto = NULL;  /* packet type ID field (or len) for VLAN tag */
+	__be16 *svlan_tci = NULL;                /* Encapsulates priority and SVLAN ID */
+	__be16 *svlan_encapsulated_proto = NULL; /* packet type ID field (or len) for SVLAN tag */
+
 
 	if (pkt_dev->nr_labels)
 		protocol = __constant_htons(ETH_P_MPLS_UC);
+
+	if (pkt_dev->vlan_id != 0xffff)
+		protocol = __constant_htons(ETH_P_8021Q);
 
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
@@ -2103,7 +2336,9 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 
 	datalen = (odev->hard_header_len + 16) & ~0xf;
 	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + datalen +
-			pkt_dev->nr_labels*sizeof(u32), GFP_ATOMIC);
+			pkt_dev->nr_labels*sizeof(u32) +
+			VLAN_TAG_SIZE(pkt_dev) + SVLAN_TAG_SIZE(pkt_dev),
+			GFP_ATOMIC);
 	if (!skb) {
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
@@ -2116,15 +2351,33 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	mpls = (__be32 *)skb_put(skb, pkt_dev->nr_labels*sizeof(__u32));
 	if (pkt_dev->nr_labels)
 		mpls_push(mpls, pkt_dev);
+
+	if (pkt_dev->vlan_id != 0xffff) {
+		if(pkt_dev->svlan_id != 0xffff) {
+			svlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
+			*svlan_tci = build_tci(pkt_dev->svlan_id,
+					       pkt_dev->svlan_cfi,
+					       pkt_dev->svlan_p);
+			svlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
+			*svlan_encapsulated_proto = __constant_htons(ETH_P_8021Q);
+		}
+		vlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
+		*vlan_tci = build_tci(pkt_dev->vlan_id,
+				      pkt_dev->vlan_cfi,
+				      pkt_dev->vlan_p);
+		vlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
+		*vlan_encapsulated_proto = __constant_htons(ETH_P_IP);
+	}
+
 	iph = (struct iphdr *)skb_put(skb, sizeof(struct iphdr));
 	udph = (struct udphdr *)skb_put(skb, sizeof(struct udphdr));
 
 	memcpy(eth, pkt_dev->hh, 12);
-	*(u16 *) & eth[12] = protocol;
+	*(__be16 *) & eth[12] = protocol;
 
 	/* Eth + IPh + UDPh + mpls */
 	datalen = pkt_dev->cur_pkt_size - 14 - 20 - 8 -
-		  pkt_dev->nr_labels*sizeof(u32);
+		  pkt_dev->nr_labels*sizeof(u32) - VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev);
 	if (datalen < sizeof(struct pktgen_hdr))
 		datalen = sizeof(struct pktgen_hdr);
 
@@ -2136,7 +2389,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	iph->ihl = 5;
 	iph->version = 4;
 	iph->ttl = 32;
-	iph->tos = 0;
+	iph->tos = pkt_dev->tos;
 	iph->protocol = IPPROTO_UDP;	/* UDP */
 	iph->saddr = pkt_dev->cur_saddr;
 	iph->daddr = pkt_dev->cur_daddr;
@@ -2146,7 +2399,8 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	iph->check = 0;
 	iph->check = ip_fast_csum((void *)iph, iph->ihl);
 	skb->protocol = protocol;
-	skb->mac.raw = ((u8 *) iph) - 14 - pkt_dev->nr_labels*sizeof(u32);
+	skb->mac.raw = ((u8 *) iph) - 14 - pkt_dev->nr_labels*sizeof(u32) -
+		VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev);
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
 	skb->nh.iph = iph;
@@ -2218,7 +2472,6 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 		pgh->tv_sec = htonl(timestamp.tv_sec);
 		pgh->tv_usec = htonl(timestamp.tv_usec);
 	}
-	pkt_dev->seq_num++;
 
 	return skb;
 }
@@ -2240,7 +2493,7 @@ static unsigned int scan_ip6(const char *s, char ip[16])
 	char suffix[16];
 	unsigned int prefixlen = 0;
 	unsigned int suffixlen = 0;
-	__u32 tmp;
+	__be32 tmp;
 
 	for (i = 0; i < 16; i++)
 		ip[i] = 0;
@@ -2402,9 +2655,16 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	struct pktgen_hdr *pgh = NULL;
 	__be16 protocol = __constant_htons(ETH_P_IPV6);
 	__be32 *mpls;
+	__be16 *vlan_tci = NULL;                 /* Encapsulates priority and VLAN ID */
+	__be16 *vlan_encapsulated_proto = NULL;  /* packet type ID field (or len) for VLAN tag */
+	__be16 *svlan_tci = NULL;                /* Encapsulates priority and SVLAN ID */
+	__be16 *svlan_encapsulated_proto = NULL; /* packet type ID field (or len) for SVLAN tag */
 
 	if (pkt_dev->nr_labels)
 		protocol = __constant_htons(ETH_P_MPLS_UC);
+
+	if (pkt_dev->vlan_id != 0xffff)
+		protocol = __constant_htons(ETH_P_8021Q);
 
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
@@ -2412,7 +2672,9 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	mod_cur_headers(pkt_dev);
 
 	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + 16 +
-			pkt_dev->nr_labels*sizeof(u32), GFP_ATOMIC);
+			pkt_dev->nr_labels*sizeof(u32) +
+			VLAN_TAG_SIZE(pkt_dev) + SVLAN_TAG_SIZE(pkt_dev),
+			GFP_ATOMIC);
 	if (!skb) {
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
@@ -2425,16 +2687,34 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	mpls = (__be32 *)skb_put(skb, pkt_dev->nr_labels*sizeof(__u32));
 	if (pkt_dev->nr_labels)
 		mpls_push(mpls, pkt_dev);
+
+	if (pkt_dev->vlan_id != 0xffff) {
+		if(pkt_dev->svlan_id != 0xffff) {
+			svlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
+			*svlan_tci = build_tci(pkt_dev->svlan_id,
+					       pkt_dev->svlan_cfi,
+					       pkt_dev->svlan_p);
+			svlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
+			*svlan_encapsulated_proto = __constant_htons(ETH_P_8021Q);
+		}
+		vlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
+		*vlan_tci = build_tci(pkt_dev->vlan_id,
+				      pkt_dev->vlan_cfi,
+				      pkt_dev->vlan_p);
+		vlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
+		*vlan_encapsulated_proto = __constant_htons(ETH_P_IPV6);
+	}
+
 	iph = (struct ipv6hdr *)skb_put(skb, sizeof(struct ipv6hdr));
 	udph = (struct udphdr *)skb_put(skb, sizeof(struct udphdr));
 
 	memcpy(eth, pkt_dev->hh, 12);
-	*(u16 *) & eth[12] = __constant_htons(ETH_P_IPV6);
+	*(__be16 *) & eth[12] = protocol;
 
 	/* Eth + IPh + UDPh + mpls */
 	datalen = pkt_dev->cur_pkt_size - 14 -
 		  sizeof(struct ipv6hdr) - sizeof(struct udphdr) -
-		  pkt_dev->nr_labels*sizeof(u32);
+		  pkt_dev->nr_labels*sizeof(u32) - VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev);
 
 	if (datalen < sizeof(struct pktgen_hdr)) {
 		datalen = sizeof(struct pktgen_hdr);
@@ -2448,7 +2728,12 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	udph->len = htons(datalen + sizeof(struct udphdr));
 	udph->check = 0;	/* No checksum */
 
-	*(u32 *) iph = __constant_htonl(0x60000000);	/* Version + flow */
+	*(__be32 *) iph = __constant_htonl(0x60000000);	/* Version + flow */
+
+	if (pkt_dev->traffic_class) {
+		/* Version + traffic class + flow (0) */
+		*(__be32 *)iph |= htonl(0x60000000 | (pkt_dev->traffic_class << 20));
+	}
 
 	iph->hop_limit = 32;
 
@@ -2458,7 +2743,8 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	ipv6_addr_copy(&iph->daddr, &pkt_dev->cur_in6_daddr);
 	ipv6_addr_copy(&iph->saddr, &pkt_dev->cur_in6_saddr);
 
-	skb->mac.raw = ((u8 *) iph) - 14 - pkt_dev->nr_labels*sizeof(u32);
+	skb->mac.raw = ((u8 *) iph) - 14 - pkt_dev->nr_labels*sizeof(u32) -
+		VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev);
 	skb->protocol = protocol;
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
@@ -2531,7 +2817,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 		pgh->tv_sec = htonl(timestamp.tv_sec);
 		pgh->tv_usec = htonl(timestamp.tv_usec);
 	}
-	pkt_dev->seq_num++;
+	/* pkt_dev->seq_num++; FF: you really mean this? */
 
 	return skb;
 }
@@ -3176,6 +3462,13 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	pkt_dev->udp_src_max = 9;
 	pkt_dev->udp_dst_min = 9;
 	pkt_dev->udp_dst_max = 9;
+
+	pkt_dev->vlan_p = 0;
+	pkt_dev->vlan_cfi = 0;
+	pkt_dev->vlan_id = 0xffff;
+	pkt_dev->svlan_p = 0;
+	pkt_dev->svlan_cfi = 0;
+	pkt_dev->svlan_id = 0xffff;
 
 	strncpy(pkt_dev->ifname, ifname, IFNAMSIZ);
 

@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 
 #define DM_MSG_PREFIX "snapshots"
+#define DM_CHUNK_SIZE_DEFAULT_SECTORS 32	/* 16KB */
 
 /*-----------------------------------------------------------------
  * Persistent snapshots, by persistent we mean that the snapshot
@@ -150,6 +151,7 @@ static int alloc_area(struct pstore *ps)
 static void free_area(struct pstore *ps)
 {
 	vfree(ps->area);
+	ps->area = NULL;
 }
 
 /*
@@ -198,48 +200,79 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	int r;
 	struct disk_header *dh;
 	chunk_t chunk_size;
+	int chunk_size_supplied = 1;
+
+	/*
+	 * Use default chunk size (or hardsect_size, if larger) if none supplied
+	 */
+	if (!ps->snap->chunk_size) {
+        	ps->snap->chunk_size = max(DM_CHUNK_SIZE_DEFAULT_SECTORS,
+		    bdev_hardsect_size(ps->snap->cow->bdev) >> 9);
+		ps->snap->chunk_mask = ps->snap->chunk_size - 1;
+		ps->snap->chunk_shift = ffs(ps->snap->chunk_size) - 1;
+		chunk_size_supplied = 0;
+	}
+
+	r = dm_io_get(sectors_to_pages(ps->snap->chunk_size));
+	if (r)
+		return r;
+
+	r = alloc_area(ps);
+	if (r)
+		goto bad1;
 
 	r = chunk_io(ps, 0, READ);
 	if (r)
-		return r;
+		goto bad2;
 
 	dh = (struct disk_header *) ps->area;
 
 	if (le32_to_cpu(dh->magic) == 0) {
 		*new_snapshot = 1;
-
-	} else if (le32_to_cpu(dh->magic) == SNAP_MAGIC) {
-		*new_snapshot = 0;
-		ps->valid = le32_to_cpu(dh->valid);
-		ps->version = le32_to_cpu(dh->version);
-		chunk_size = le32_to_cpu(dh->chunk_size);
-		if (ps->snap->chunk_size != chunk_size) {
-			DMWARN("chunk size %llu in device metadata overrides "
-			       "table chunk size of %llu.",
-			       (unsigned long long)chunk_size,
-			       (unsigned long long)ps->snap->chunk_size);
-
-			/* We had a bogus chunk_size. Fix stuff up. */
-			dm_io_put(sectors_to_pages(ps->snap->chunk_size));
-			free_area(ps);
-
-			ps->snap->chunk_size = chunk_size;
-			ps->snap->chunk_mask = chunk_size - 1;
-			ps->snap->chunk_shift = ffs(chunk_size) - 1;
-
-			r = alloc_area(ps);
-			if (r)
-				return r;
-
-			r = dm_io_get(sectors_to_pages(chunk_size));
-			if (r)
-				return r;
-		}
-	} else {
-		DMWARN("Invalid/corrupt snapshot");
-		r = -ENXIO;
+		return 0;
 	}
 
+	if (le32_to_cpu(dh->magic) != SNAP_MAGIC) {
+		DMWARN("Invalid or corrupt snapshot");
+		r = -ENXIO;
+		goto bad2;
+	}
+
+	*new_snapshot = 0;
+	ps->valid = le32_to_cpu(dh->valid);
+	ps->version = le32_to_cpu(dh->version);
+	chunk_size = le32_to_cpu(dh->chunk_size);
+
+	if (!chunk_size_supplied || ps->snap->chunk_size == chunk_size)
+		return 0;
+
+	DMWARN("chunk size %llu in device metadata overrides "
+	       "table chunk size of %llu.",
+	       (unsigned long long)chunk_size,
+	       (unsigned long long)ps->snap->chunk_size);
+
+	/* We had a bogus chunk_size. Fix stuff up. */
+	dm_io_put(sectors_to_pages(ps->snap->chunk_size));
+	free_area(ps);
+
+	ps->snap->chunk_size = chunk_size;
+	ps->snap->chunk_mask = chunk_size - 1;
+	ps->snap->chunk_shift = ffs(chunk_size) - 1;
+
+	r = dm_io_get(sectors_to_pages(chunk_size));
+	if (r)
+		return r;
+
+	r = alloc_area(ps);
+	if (r)
+		goto bad1;
+
+	return 0;
+
+bad2:
+	free_area(ps);
+bad1:
+	dm_io_put(sectors_to_pages(ps->snap->chunk_size));
 	return r;
 }
 
@@ -263,42 +296,29 @@ static int write_header(struct pstore *ps)
  */
 static struct disk_exception *get_exception(struct pstore *ps, uint32_t index)
 {
-	if (index >= ps->exceptions_per_area)
-		return NULL;
+	BUG_ON(index >= ps->exceptions_per_area);
 
 	return ((struct disk_exception *) ps->area) + index;
 }
 
-static int read_exception(struct pstore *ps,
-			  uint32_t index, struct disk_exception *result)
+static void read_exception(struct pstore *ps,
+			   uint32_t index, struct disk_exception *result)
 {
-	struct disk_exception *e;
-
-	e = get_exception(ps, index);
-	if (!e)
-		return -EINVAL;
+	struct disk_exception *e = get_exception(ps, index);
 
 	/* copy it */
 	result->old_chunk = le64_to_cpu(e->old_chunk);
 	result->new_chunk = le64_to_cpu(e->new_chunk);
-
-	return 0;
 }
 
-static int write_exception(struct pstore *ps,
-			   uint32_t index, struct disk_exception *de)
+static void write_exception(struct pstore *ps,
+			    uint32_t index, struct disk_exception *de)
 {
-	struct disk_exception *e;
-
-	e = get_exception(ps, index);
-	if (!e)
-		return -EINVAL;
+	struct disk_exception *e = get_exception(ps, index);
 
 	/* copy it */
 	e->old_chunk = cpu_to_le64(de->old_chunk);
 	e->new_chunk = cpu_to_le64(de->new_chunk);
-
-	return 0;
 }
 
 /*
@@ -316,10 +336,7 @@ static int insert_exceptions(struct pstore *ps, int *full)
 	*full = 1;
 
 	for (i = 0; i < ps->exceptions_per_area; i++) {
-		r = read_exception(ps, i, &de);
-
-		if (r)
-			return r;
+		read_exception(ps, i, &de);
 
 		/*
 		 * If the new_chunk is pointing at the start of
@@ -519,22 +536,22 @@ static void persistent_commit(struct exception_store *store,
 		if (r)
 			ps->valid = 0;
 
+		/*
+		 * Have we completely filled the current area ?
+		 */
+		if (ps->current_committed == ps->exceptions_per_area) {
+			ps->current_committed = 0;
+			r = zero_area(ps, ps->current_area + 1);
+			if (r)
+				ps->valid = 0;
+		}
+
 		for (i = 0; i < ps->callback_count; i++) {
 			cb = ps->callbacks + i;
 			cb->callback(cb->context, r == 0 ? 1 : 0);
 		}
 
 		ps->callback_count = 0;
-	}
-
-	/*
-	 * Have we completely filled the current area ?
-	 */
-	if (ps->current_committed == ps->exceptions_per_area) {
-		ps->current_committed = 0;
-		r = zero_area(ps, ps->current_area + 1);
-		if (r)
-			ps->valid = 0;
 	}
 }
 
@@ -547,31 +564,21 @@ static void persistent_drop(struct exception_store *store)
 		DMWARN("write header failed");
 }
 
-int dm_create_persistent(struct exception_store *store, uint32_t chunk_size)
+int dm_create_persistent(struct exception_store *store)
 {
-	int r;
 	struct pstore *ps;
-
-	r = dm_io_get(sectors_to_pages(chunk_size));
-	if (r)
-		return r;
 
 	/* allocate the pstore */
 	ps = kmalloc(sizeof(*ps), GFP_KERNEL);
-	if (!ps) {
-		r = -ENOMEM;
-		goto bad;
-	}
+	if (!ps)
+		return -ENOMEM;
 
 	ps->snap = store->snap;
 	ps->valid = 1;
 	ps->version = SNAPSHOT_DISK_VERSION;
+	ps->area = NULL;
 	ps->next_free = 2;	/* skipping the header and first area */
 	ps->current_committed = 0;
-
-	r = alloc_area(ps);
-	if (r)
-		goto bad;
 
 	ps->callback_count = 0;
 	atomic_set(&ps->pending_count, 0);
@@ -586,13 +593,6 @@ int dm_create_persistent(struct exception_store *store, uint32_t chunk_size)
 	store->context = ps;
 
 	return 0;
-
-      bad:
-	dm_io_put(sectors_to_pages(chunk_size));
-	if (ps && ps->area)
-		free_area(ps);
-	kfree(ps);
-	return r;
 }
 
 /*-----------------------------------------------------------------
@@ -642,18 +642,16 @@ static void transient_fraction_full(struct exception_store *store,
 	*denominator = get_dev_size(store->snap->cow->bdev);
 }
 
-int dm_create_transient(struct exception_store *store,
-			struct dm_snapshot *s, int blocksize)
+int dm_create_transient(struct exception_store *store)
 {
 	struct transient_c *tc;
 
-	memset(store, 0, sizeof(*store));
 	store->destroy = transient_destroy;
 	store->read_metadata = transient_read_metadata;
 	store->prepare_exception = transient_prepare;
 	store->commit_exception = transient_commit;
+	store->drop_snapshot = NULL;
 	store->fraction_full = transient_fraction_full;
-	store->snap = s;
 
 	tc = kmalloc(sizeof(struct transient_c), GFP_KERNEL);
 	if (!tc)

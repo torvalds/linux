@@ -26,8 +26,6 @@
 #include <asm/platform.h>
 
 
-extern volatile unsigned long wall_jiffies;
-
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
@@ -49,7 +47,7 @@ unsigned long long sched_clock(void)
 	return (unsigned long long)jiffies * (1000000000 / HZ);
 }
 
-static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t timer_interrupt(int irq, void *dev_id);
 static struct irqaction timer_irqaction = {
 	.handler =	timer_interrupt,
 	.flags =	IRQF_DISABLED,
@@ -110,7 +108,6 @@ int do_settimeofday(struct timespec *tv)
 	 */
 	ccount = get_ccount();
 	nsec -= (ccount - last_ccount_stamp) * CCOUNT_NSEC;
-	nsec -= (jiffies - wall_jiffies) * CCOUNT_PER_JIFFY * CCOUNT_NSEC;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -129,7 +126,7 @@ EXPORT_SYMBOL(do_settimeofday);
 void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long flags;
-	unsigned long sec, usec, delta, lost, seq;
+	unsigned long sec, usec, delta, seq;
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
@@ -137,12 +134,9 @@ void do_gettimeofday(struct timeval *tv)
 		delta = get_ccount() - last_ccount_stamp;
 		sec = xtime.tv_sec;
 		usec = (xtime.tv_nsec / NSEC_PER_USEC);
-
-		lost = jiffies - wall_jiffies;
-
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
-	usec += lost * (1000000UL/HZ) + (delta * CCOUNT_NSEC) / NSEC_PER_USEC;
+	usec += (delta * CCOUNT_NSEC) / NSEC_PER_USEC;
 	for (; usec >= 1000000; sec++, usec -= 1000000)
 		;
 
@@ -156,7 +150,7 @@ EXPORT_SYMBOL(do_gettimeofday);
  * The timer interrupt is called HZ times per second.
  */
 
-irqreturn_t timer_interrupt (int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t timer_interrupt (int irq, void *dev_id)
 {
 
 	unsigned long next;
@@ -166,21 +160,20 @@ irqreturn_t timer_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 again:
 	while ((signed long)(get_ccount() - next) > 0) {
 
-		profile_tick(CPU_PROFILING, regs);
+		profile_tick(CPU_PROFILING);
 #ifndef CONFIG_SMP
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode(get_irq_regs()));
 #endif
 
 		write_seqlock(&xtime_lock);
 
 		last_ccount_stamp = next;
 		next += CCOUNT_PER_JIFFY;
-		do_timer (regs); /* Linux handler in kernel/timer.c */
+		do_timer (1); /* Linux handler in kernel/timer.c */
 
 		if (ntp_synced() &&
 		    xtime.tv_sec - last_rtc_update >= 659 &&
-		    abs((xtime.tv_nsec/1000)-(1000000-1000000/HZ))<5000000/HZ &&
-		    jiffies - wall_jiffies == 1) {
+		    abs((xtime.tv_nsec/1000)-(1000000-1000000/HZ))<5000000/HZ) {
 
 			if (platform_set_rtc_time(xtime.tv_sec+1) == 0)
 				last_rtc_update = xtime.tv_sec+1;

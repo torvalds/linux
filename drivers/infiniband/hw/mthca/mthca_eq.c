@@ -33,7 +33,6 @@
  * $Id: mthca_eq.c 1382 2004-12-24 02:21:02Z roland $
  */
 
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -405,7 +404,7 @@ static int mthca_eq_int(struct mthca_dev *dev, struct mthca_eq *eq)
 	return eqes_found;
 }
 
-static irqreturn_t mthca_tavor_interrupt(int irq, void *dev_ptr, struct pt_regs *regs)
+static irqreturn_t mthca_tavor_interrupt(int irq, void *dev_ptr)
 {
 	struct mthca_dev *dev = dev_ptr;
 	u32 ecr;
@@ -432,8 +431,7 @@ static irqreturn_t mthca_tavor_interrupt(int irq, void *dev_ptr, struct pt_regs 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t mthca_tavor_msi_x_interrupt(int irq, void *eq_ptr,
-					 struct pt_regs *regs)
+static irqreturn_t mthca_tavor_msi_x_interrupt(int irq, void *eq_ptr)
 {
 	struct mthca_eq  *eq  = eq_ptr;
 	struct mthca_dev *dev = eq->dev;
@@ -446,7 +444,7 @@ static irqreturn_t mthca_tavor_msi_x_interrupt(int irq, void *eq_ptr,
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t mthca_arbel_interrupt(int irq, void *dev_ptr, struct pt_regs *regs)
+static irqreturn_t mthca_arbel_interrupt(int irq, void *dev_ptr)
 {
 	struct mthca_dev *dev = dev_ptr;
 	int work = 0;
@@ -467,8 +465,7 @@ static irqreturn_t mthca_arbel_interrupt(int irq, void *dev_ptr, struct pt_regs 
 	return IRQ_RETVAL(work);
 }
 
-static irqreturn_t mthca_arbel_msi_x_interrupt(int irq, void *eq_ptr,
-					       struct pt_regs *regs)
+static irqreturn_t mthca_arbel_msi_x_interrupt(int irq, void *eq_ptr)
 {
 	struct mthca_eq  *eq  = eq_ptr;
 	struct mthca_dev *dev = eq->dev;
@@ -481,10 +478,10 @@ static irqreturn_t mthca_arbel_msi_x_interrupt(int irq, void *eq_ptr,
 	return IRQ_HANDLED;
 }
 
-static int __devinit mthca_create_eq(struct mthca_dev *dev,
-				     int nent,
-				     u8 intr,
-				     struct mthca_eq *eq)
+static int mthca_create_eq(struct mthca_dev *dev,
+			   int nent,
+			   u8 intr,
+			   struct mthca_eq *eq)
 {
 	int npages;
 	u64 *dma_list = NULL;
@@ -666,9 +663,9 @@ static void mthca_free_irqs(struct mthca_dev *dev)
 				 dev->eq_table.eq + i);
 }
 
-static int __devinit mthca_map_reg(struct mthca_dev *dev,
-				   unsigned long offset, unsigned long size,
-				   void __iomem **map)
+static int mthca_map_reg(struct mthca_dev *dev,
+			 unsigned long offset, unsigned long size,
+			 void __iomem **map)
 {
 	unsigned long base = pci_resource_start(dev->pdev, 0);
 
@@ -693,7 +690,7 @@ static void mthca_unmap_reg(struct mthca_dev *dev, unsigned long offset,
 	iounmap(map);
 }
 
-static int __devinit mthca_map_eq_regs(struct mthca_dev *dev)
+static int mthca_map_eq_regs(struct mthca_dev *dev)
 {
 	if (mthca_is_memfree(dev)) {
 		/*
@@ -783,7 +780,7 @@ static void mthca_unmap_eq_regs(struct mthca_dev *dev)
 	}
 }
 
-int __devinit mthca_map_eq_icm(struct mthca_dev *dev, u64 icm_virt)
+int mthca_map_eq_icm(struct mthca_dev *dev, u64 icm_virt)
 {
 	int ret;
 	u8 status;
@@ -827,7 +824,7 @@ void mthca_unmap_eq_icm(struct mthca_dev *dev)
 	__free_page(dev->eq_table.icm_page);
 }
 
-int __devinit mthca_init_eq_table(struct mthca_dev *dev)
+int mthca_init_eq_table(struct mthca_dev *dev)
 {
 	int err;
 	u8 status;

@@ -53,7 +53,7 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 	consistent_free(vaddr, size);
 }
 
-static inline void dma_cache_sync(void *vaddr, size_t size,
+static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 				  enum dma_data_direction dir)
 {
 	consistent_sync(vaddr, size, (int)dir);
@@ -67,7 +67,7 @@ static inline dma_addr_t dma_map_single(struct device *dev,
 	if (dev->bus == &pci_bus_type)
 		return virt_to_bus(ptr);
 #endif
-	dma_cache_sync(ptr, size, dir);
+	dma_cache_sync(dev, ptr, size, dir);
 
 	return virt_to_bus(ptr);
 }
@@ -81,7 +81,7 @@ static inline int dma_map_sg(struct device *dev, struct scatterlist *sg,
 
 	for (i = 0; i < nents; i++) {
 #if !defined(CONFIG_PCI) || defined(CONFIG_SH_PCIDMA_NONCOHERENT)
-		dma_cache_sync(page_address(sg[i].page) + sg[i].offset,
+		dma_cache_sync(dev, page_address(sg[i].page) + sg[i].offset,
 			       sg[i].length, dir);
 #endif
 		sg[i].dma_address = page_to_phys(sg[i].page) + sg[i].offset;
@@ -112,7 +112,7 @@ static inline void dma_sync_single(struct device *dev, dma_addr_t dma_handle,
 	if (dev->bus == &pci_bus_type)
 		return;
 #endif
-	dma_cache_sync(bus_to_virt(dma_handle), size, dir);
+	dma_cache_sync(dev, bus_to_virt(dma_handle), size, dir);
 }
 
 static inline void dma_sync_single_range(struct device *dev,
@@ -124,7 +124,7 @@ static inline void dma_sync_single_range(struct device *dev,
 	if (dev->bus == &pci_bus_type)
 		return;
 #endif
-	dma_cache_sync(bus_to_virt(dma_handle) + offset, size, dir);
+	dma_cache_sync(dev, bus_to_virt(dma_handle) + offset, size, dir);
 }
 
 static inline void dma_sync_sg(struct device *dev, struct scatterlist *sg,
@@ -134,32 +134,42 @@ static inline void dma_sync_sg(struct device *dev, struct scatterlist *sg,
 
 	for (i = 0; i < nelems; i++) {
 #if !defined(CONFIG_PCI) || defined(CONFIG_SH_PCIDMA_NONCOHERENT)
-		dma_cache_sync(page_address(sg[i].page) + sg[i].offset,
+		dma_cache_sync(dev, page_address(sg[i].page) + sg[i].offset,
 			       sg[i].length, dir);
 #endif
 		sg[i].dma_address = page_to_phys(sg[i].page) + sg[i].offset;
 	}
 }
 
-static void dma_sync_single_for_cpu(struct device *dev,
-				    dma_addr_t dma_handle, size_t size,
-				    enum dma_data_direction dir)
-	__attribute__ ((alias("dma_sync_single")));
+static inline void dma_sync_single_for_cpu(struct device *dev,
+					   dma_addr_t dma_handle, size_t size,
+					   enum dma_data_direction dir)
+{
+	dma_sync_single(dev, dma_handle, size, dir);
+}
 
-static void dma_sync_single_for_device(struct device *dev,
-				       dma_addr_t dma_handle, size_t size,
+static inline void dma_sync_single_for_device(struct device *dev,
+					      dma_addr_t dma_handle,
+					      size_t size,
+					      enum dma_data_direction dir)
+{
+	dma_sync_single(dev, dma_handle, size, dir);
+}
+
+static inline void dma_sync_sg_for_cpu(struct device *dev,
+				       struct scatterlist *sg, int nelems,
 				       enum dma_data_direction dir)
-	__attribute__ ((alias("dma_sync_single")));
+{
+	dma_sync_sg(dev, sg, nelems, dir);
+}
 
-static void dma_sync_sg_for_cpu(struct device *dev,
-				struct scatterlist *sg, int nelems,
-				enum dma_data_direction dir)
-	__attribute__ ((alias("dma_sync_sg")));
+static inline void dma_sync_sg_for_device(struct device *dev,
+					  struct scatterlist *sg, int nelems,
+					  enum dma_data_direction dir)
+{
+	dma_sync_sg(dev, sg, nelems, dir);
+}
 
-static void dma_sync_sg_for_device(struct device *dev,
-				   struct scatterlist *sg, int nelems,
-				   enum dma_data_direction dir)
-	__attribute__ ((alias("dma_sync_sg")));
 
 static inline int dma_get_cache_alignment(void)
 {
@@ -174,6 +184,4 @@ static inline int dma_mapping_error(dma_addr_t dma_addr)
 {
 	return dma_addr == 0;
 }
-
 #endif /* __ASM_SH_DMA_MAPPING_H */
-

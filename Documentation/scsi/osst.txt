@@ -56,8 +56,7 @@ Compile your kernel and install the modules.
 
 Now, your osst driver is inside the kernel or available as a module,
 depending on your choice during kernel config. You may still need to create
-the device nodes by calling the Makedevs.sh script (see below) manually,
-unless you use a devfs kernel, where this won't be needed.
+the device nodes by calling the Makedevs.sh script (see below) manually.
 
 To load your module, you may use the command 
 modprobe osst

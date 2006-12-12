@@ -20,6 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
 #include <linux/bootmem.h>
+#include <linux/interrupt.h>
 
 #include <asm/bootinfo.h>
 #include <asm/branch.h>
@@ -40,6 +41,7 @@
 #include <asm/mmu_context.h>
 #include <asm/watch.h>
 #include <asm/types.h>
+#include <asm/stacktrace.h>
 
 extern asmlinkage void handle_int(void);
 extern asmlinkage void handle_tlbm(void);
@@ -52,6 +54,8 @@ extern asmlinkage void handle_dbe(void);
 extern asmlinkage void handle_sys(void);
 extern asmlinkage void handle_bp(void);
 extern asmlinkage void handle_ri(void);
+extern asmlinkage void handle_ri_rdhwr_vivt(void);
+extern asmlinkage void handle_ri_rdhwr(void);
 extern asmlinkage void handle_cpu(void);
 extern asmlinkage void handle_ov(void);
 extern asmlinkage void handle_tr(void);
@@ -64,7 +68,7 @@ extern asmlinkage void handle_mcheck(void);
 extern asmlinkage void handle_reserved(void);
 
 extern int fpu_emulator_cop1Handler(struct pt_regs *xcp,
-	struct mips_fpu_struct *ctx);
+	struct mips_fpu_struct *ctx, int has_fpu);
 
 void (*board_be_init)(void);
 int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
@@ -72,28 +76,62 @@ void (*board_nmi_handler_setup)(void);
 void (*board_ejtag_handler_setup)(void);
 void (*board_bind_eic_interrupt)(int irq, int regset);
 
-/*
- * These constant is for searching for possible module text segments.
- * MODULE_RANGE is a guess of how much space is likely to be vmalloced.
- */
-#define MODULE_RANGE (8*1024*1024)
+
+static void show_raw_backtrace(unsigned long reg29)
+{
+	unsigned long *sp = (unsigned long *)reg29;
+	unsigned long addr;
+
+	printk("Call Trace:");
+#ifdef CONFIG_KALLSYMS
+	printk("\n");
+#endif
+	while (!kstack_end(sp)) {
+		addr = *sp++;
+		if (__kernel_text_address(addr))
+			print_ip_sym(addr);
+	}
+	printk("\n");
+}
+
+#ifdef CONFIG_KALLSYMS
+int raw_show_trace;
+static int __init set_raw_show_trace(char *str)
+{
+	raw_show_trace = 1;
+	return 1;
+}
+__setup("raw_show_trace", set_raw_show_trace);
+#endif
+
+static void show_backtrace(struct task_struct *task, struct pt_regs *regs)
+{
+	unsigned long sp = regs->regs[29];
+	unsigned long ra = regs->regs[31];
+	unsigned long pc = regs->cp0_epc;
+
+	if (raw_show_trace || !__kernel_text_address(pc)) {
+		show_raw_backtrace(sp);
+		return;
+	}
+	printk("Call Trace:\n");
+	do {
+		print_ip_sym(pc);
+		pc = unwind_stack(task, &sp, pc, &ra);
+	} while (pc);
+	printk("\n");
+}
 
 /*
  * This routine abuses get_user()/put_user() to reference pointers
  * with at least a bit of error checking ...
  */
-void show_stack(struct task_struct *task, unsigned long *sp)
+static void show_stacktrace(struct task_struct *task, struct pt_regs *regs)
 {
 	const int field = 2 * sizeof(unsigned long);
 	long stackdata;
 	int i;
-
-	if (!sp) {
-		if (task && task != current)
-			sp = (unsigned long *) task->thread.reg29;
-		else
-			sp = (unsigned long *) &sp;
-	}
+	unsigned long *sp = (unsigned long *)regs->regs[29];
 
 	printk("Stack :");
 	i = 0;
@@ -114,32 +152,26 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 		i++;
 	}
 	printk("\n");
+	show_backtrace(task, regs);
 }
 
-void show_trace(struct task_struct *task, unsigned long *stack)
+void show_stack(struct task_struct *task, unsigned long *sp)
 {
-	const int field = 2 * sizeof(unsigned long);
-	unsigned long addr;
-
-	if (!stack) {
-		if (task && task != current)
-			stack = (unsigned long *) task->thread.reg29;
-		else
-			stack = (unsigned long *) &stack;
-	}
-
-	printk("Call Trace:");
-#ifdef CONFIG_KALLSYMS
-	printk("\n");
-#endif
-	while (!kstack_end(stack)) {
-		addr = *stack++;
-		if (__kernel_text_address(addr)) {
-			printk(" [<%0*lx>] ", field, addr);
-			print_symbol("%s\n", addr);
+	struct pt_regs regs;
+	if (sp) {
+		regs.regs[29] = (unsigned long)sp;
+		regs.regs[31] = 0;
+		regs.cp0_epc = 0;
+	} else {
+		if (task && task != current) {
+			regs.regs[29] = task->thread.reg29;
+			regs.regs[31] = 0;
+			regs.cp0_epc = task->thread.reg31;
+		} else {
+			prepare_frametrace(&regs);
 		}
 	}
-	printk("\n");
+	show_stacktrace(task, &regs);
 }
 
 /*
@@ -147,9 +179,10 @@ void show_trace(struct task_struct *task, unsigned long *stack)
  */
 void dump_stack(void)
 {
-	unsigned long stack;
+	struct pt_regs regs;
 
-	show_trace(current, &stack);
+	prepare_frametrace(&regs);
+	show_backtrace(current, &regs);
 }
 
 EXPORT_SYMBOL(dump_stack);
@@ -268,8 +301,7 @@ void show_registers(struct pt_regs *regs)
 	print_modules();
 	printk("Process %s (pid: %d, threadinfo=%p, task=%p)\n",
 	        current->comm, current->pid, current_thread_info(), current);
-	show_stack(current, (long *) regs->regs[29]);
-	show_trace(current, (long *) regs->regs[29]);
+	show_stacktrace(current, regs);
 	show_code((unsigned int *) regs->cp0_epc);
 	printk("\n");
 }
@@ -292,6 +324,16 @@ NORET_TYPE void ATTRIB_NORET die(const char * str, struct pt_regs * regs)
 	printk("%s[#%d]:\n", str, ++die_counter);
 	show_registers(regs);
 	spin_unlock_irq(&die_lock);
+
+	if (in_interrupt())
+		panic("Fatal exception in interrupt");
+
+	if (panic_on_oops) {
+		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
+		ssleep(5);
+		panic("Fatal exception");
+	}
+
 	do_exit(SIGSEGV);
 }
 
@@ -355,19 +397,6 @@ asmlinkage void do_be(struct pt_regs *regs)
 	       field, regs->cp0_epc, field, regs->regs[31]);
 	die_if_kernel("Oops", regs);
 	force_sig(SIGBUS, current);
-}
-
-static inline int get_insn_opcode(struct pt_regs *regs, unsigned int *opcode)
-{
-	unsigned int __user *epc;
-
-	epc = (unsigned int __user *) regs->cp0_epc +
-	      ((regs->cp0_cause & CAUSEF_BD) != 0);
-	if (!get_user(*opcode, epc))
-		return 0;
-
-	force_sig(SIGSEGV, current);
-	return 1;
 }
 
 /*
@@ -504,8 +533,8 @@ static inline int simulate_llsc(struct pt_regs *regs)
 {
 	unsigned int opcode;
 
-	if (unlikely(get_insn_opcode(regs, &opcode)))
-		return -EFAULT;
+	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		goto out_sigsegv;
 
 	if ((opcode & OPCODE) == LL) {
 		simulate_ll(regs, opcode);
@@ -517,6 +546,10 @@ static inline int simulate_llsc(struct pt_regs *regs)
 	}
 
 	return -EFAULT;			/* Strange things going on ... */
+
+out_sigsegv:
+	force_sig(SIGSEGV, current);
+	return -EFAULT;
 }
 
 /*
@@ -529,8 +562,8 @@ static inline int simulate_rdhwr(struct pt_regs *regs)
 	struct thread_info *ti = task_thread_info(current);
 	unsigned int opcode;
 
-	if (unlikely(get_insn_opcode(regs, &opcode)))
-		return -EFAULT;
+	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		goto out_sigsegv;
 
 	if (unlikely(compute_return_epc(regs)))
 		return -EFAULT;
@@ -548,6 +581,10 @@ static inline int simulate_rdhwr(struct pt_regs *regs)
 	}
 
 	/* Not ours.  */
+	return -EFAULT;
+
+out_sigsegv:
+	force_sig(SIGSEGV, current);
 	return -EFAULT;
 }
 
@@ -601,7 +638,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		preempt_enable();
 
 		/* Run the emulator */
-		sig = fpu_emulator_cop1Handler (regs, &current->thread.fpu);
+		sig = fpu_emulator_cop1Handler (regs, &current->thread.fpu, 1);
 
 		preempt_disable();
 
@@ -632,10 +669,8 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	unsigned int opcode, bcode;
 	siginfo_t info;
 
-	die_if_kernel("Break instruction in kernel code", regs);
-
-	if (get_insn_opcode(regs, &opcode))
-		return;
+	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		goto out_sigsegv;
 
 	/*
 	 * There is the ancient bug in the MIPS assemblers that the break
@@ -656,6 +691,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	switch (bcode) {
 	case BRK_OVERFLOW << 10:
 	case BRK_DIVZERO << 10:
+		die_if_kernel("Break instruction in kernel code", regs);
 		if (bcode == (BRK_DIVZERO << 10))
 			info.si_code = FPE_INTDIV;
 		else
@@ -665,9 +701,16 @@ asmlinkage void do_bp(struct pt_regs *regs)
 		info.si_addr = (void __user *) regs->cp0_epc;
 		force_sig_info(SIGFPE, &info, current);
 		break;
+	case BRK_BUG:
+		die("Kernel bug detected", regs);
+		break;
 	default:
+		die_if_kernel("Break instruction in kernel code", regs);
 		force_sig(SIGTRAP, current);
 	}
+
+out_sigsegv:
+	force_sig(SIGSEGV, current);
 }
 
 asmlinkage void do_tr(struct pt_regs *regs)
@@ -675,10 +718,8 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	unsigned int opcode, tcode = 0;
 	siginfo_t info;
 
-	die_if_kernel("Trap instruction in kernel code", regs);
-
-	if (get_insn_opcode(regs, &opcode))
-		return;
+	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		goto out_sigsegv;
 
 	/* Immediate versions don't provide a code.  */
 	if (!(opcode & OPCODE))
@@ -693,6 +734,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	switch (tcode) {
 	case BRK_OVERFLOW:
 	case BRK_DIVZERO:
+		die_if_kernel("Trap instruction in kernel code", regs);
 		if (tcode == BRK_DIVZERO)
 			info.si_code = FPE_INTDIV;
 		else
@@ -702,9 +744,16 @@ asmlinkage void do_tr(struct pt_regs *regs)
 		info.si_addr = (void __user *) regs->cp0_epc;
 		force_sig_info(SIGFPE, &info, current);
 		break;
+	case BRK_BUG:
+		die("Kernel bug detected", regs);
+		break;
 	default:
+		die_if_kernel("Trap instruction in kernel code", regs);
 		force_sig(SIGTRAP, current);
 	}
+
+out_sigsegv:
+	force_sig(SIGSEGV, current);
 }
 
 asmlinkage void do_ri(struct pt_regs *regs)
@@ -751,11 +800,13 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 			set_used_math();
 		}
 
-		preempt_enable();
-
-		if (!cpu_has_fpu) {
-			int sig = fpu_emulator_cop1Handler(regs,
-						&current->thread.fpu);
+		if (cpu_has_fpu) {
+			preempt_enable();
+		} else {
+			int sig;
+			preempt_enable();
+			sig = fpu_emulator_cop1Handler(regs,
+						&current->thread.fpu, 0);
 			if (sig)
 				force_sig(sig, current);
 #ifdef CONFIG_MIPS_MT_FPAFF
@@ -1069,7 +1120,7 @@ static struct shadow_registers {
 static void mips_srs_init(void)
 {
 	shadow_registers.sr_supported = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
-	printk(KERN_INFO "%d MIPSR2 register sets available\n",
+	printk(KERN_INFO "%ld MIPSR2 register sets available\n",
 	       shadow_registers.sr_supported);
 	shadow_registers.sr_allocated = 1;	/* Set 0 used by kernel */
 }
@@ -1381,6 +1432,15 @@ void __init set_uncached_handler (unsigned long offset, void *addr, unsigned lon
 	memcpy((void *)(uncached_ebase + offset), addr, size);
 }
 
+static int __initdata rdhwr_noopt;
+static int __init set_rdhwr_noopt(char *str)
+{
+	rdhwr_noopt = 1;
+	return 1;
+}
+
+__setup("rdhwr_noopt", set_rdhwr_noopt);
+
 void __init trap_init(void)
 {
 	extern char except_vec3_generic, except_vec3_r4000;
@@ -1460,7 +1520,9 @@ void __init trap_init(void)
 
 	set_except_vector(8, handle_sys);
 	set_except_vector(9, handle_bp);
-	set_except_vector(10, handle_ri);
+	set_except_vector(10, rdhwr_noopt ? handle_ri :
+			  (cpu_has_vtag_icache ?
+			   handle_ri_rdhwr_vivt : handle_ri_rdhwr));
 	set_except_vector(11, handle_cpu);
 	set_except_vector(12, handle_ov);
 	set_except_vector(13, handle_tr);

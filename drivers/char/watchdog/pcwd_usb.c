@@ -158,7 +158,7 @@ static struct usb_driver usb_pcwd_driver = {
 };
 
 
-static void usb_pcwd_intr_done(struct urb *urb, struct pt_regs *regs)
+static void usb_pcwd_intr_done(struct urb *urb)
 {
 	struct usb_pcwd_private *usb_pcwd = (struct usb_pcwd_private *)urb->context;
 	unsigned char *data = usb_pcwd->intr_buffer;
@@ -445,7 +445,7 @@ static int usb_pcwd_ioctl(struct inode *inode, struct file *file,
 		}
 
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 	}
 }
 
@@ -561,8 +561,7 @@ static struct notifier_block usb_pcwd_notifier = {
  */
 static inline void usb_pcwd_delete (struct usb_pcwd_private *usb_pcwd)
 {
-	if (usb_pcwd->intr_urb != NULL)
-		usb_free_urb (usb_pcwd->intr_urb);
+	usb_free_urb(usb_pcwd->intr_urb);
 	if (usb_pcwd->intr_buffer != NULL)
 		usb_buffer_free(usb_pcwd->udev, usb_pcwd->intr_size,
 				usb_pcwd->intr_buffer, usb_pcwd->intr_dma);
@@ -635,7 +634,7 @@ static int usb_pcwd_probe(struct usb_interface *interface, const struct usb_devi
 	usb_pcwd->intr_size = (le16_to_cpu(endpoint->wMaxPacketSize) > 8 ? le16_to_cpu(endpoint->wMaxPacketSize) : 8);
 
 	/* set up the memory buffer's */
-	if (!(usb_pcwd->intr_buffer = usb_buffer_alloc(udev, usb_pcwd->intr_size, SLAB_ATOMIC, &usb_pcwd->intr_dma))) {
+	if (!(usb_pcwd->intr_buffer = usb_buffer_alloc(udev, usb_pcwd->intr_size, GFP_ATOMIC, &usb_pcwd->intr_dma))) {
 		printk(KERN_ERR PFX "Out of memory\n");
 		goto error;
 	}

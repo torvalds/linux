@@ -56,6 +56,7 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 		subdevice=PCI_ANY_ID, class=0, class_mask=0;
 	unsigned long driver_data=0;
 	int fields=0;
+	int retval = 0;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x %lux",
 			&vendor, &device, &subvendor, &subdevice,
@@ -82,10 +83,12 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	spin_unlock(&pdrv->dynids.lock);
 
 	if (get_driver(&pdrv->driver)) {
-		driver_attach(&pdrv->driver);
+		retval = driver_attach(&pdrv->driver);
 		put_driver(&pdrv->driver);
 	}
 
+	if (retval)
+		return retval;
 	return count;
 }
 static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
@@ -262,6 +265,13 @@ static int pci_device_remove(struct device * dev)
 	}
 
 	/*
+	 * If the device is still on, set the power state as "unknown",
+	 * since it might change by the next time we load the driver.
+	 */
+	if (pci_dev->current_state == PCI_D0)
+		pci_dev->current_state = PCI_UNKNOWN;
+
+	/*
 	 * We would love to complain here if pci_dev->is_enabled is set, that
 	 * the driver should have called pci_disable_device(), but the
 	 * unfortunate fact is there are too many odd BIOS and bridge setups
@@ -285,6 +295,12 @@ static int pci_device_suspend(struct device * dev, pm_message_t state)
 		suspend_report_result(drv->suspend, i);
 	} else {
 		pci_save_state(pci_dev);
+		/*
+		 * mark its power state as "unknown", since we don't know if
+		 * e.g. the BIOS will change its device state when we suspend.
+		 */
+		if (pci_dev->current_state == PCI_D0)
+			pci_dev->current_state = PCI_UNKNOWN;
 	}
 	return i;
 }
@@ -313,8 +329,8 @@ static int pci_default_resume(struct pci_dev *pci_dev)
 	/* restore the PCI config space */
 	pci_restore_state(pci_dev);
 	/* if the device was enabled before suspend, reenable */
-	if (pci_dev->is_enabled)
-		retval = pci_enable_device(pci_dev);
+	if (atomic_read(&pci_dev->enable_cnt))
+		retval = __pci_enable_device(pci_dev);
 	/* if the device was busmaster before the suspend, make it busmaster again */
 	if (pci_dev->is_busmaster)
 		pci_set_master(pci_dev);
@@ -418,16 +434,23 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.owner = owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
-	drv->driver.multithread_probe = pci_multithread_probe;
+
+	if (pci_multithread_probe)
+		drv->driver.multithread_probe = pci_multithread_probe;
+	else
+		drv->driver.multithread_probe = drv->multithread_probe;
 
 	spin_lock_init(&drv->dynids.lock);
 	INIT_LIST_HEAD(&drv->dynids.list);
 
 	/* register with core */
 	error = driver_register(&drv->driver);
+	if (error)
+		return error;
 
-	if (!error)
-		error = pci_create_newid_file(drv);
+	error = pci_create_newid_file(drv);
+	if (error)
+		driver_unregister(&drv->driver);
 
 	return error;
 }

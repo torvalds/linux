@@ -18,8 +18,6 @@
 	call_usermodehelper wait flag, and remove exec_usermodehelper.
 	Rusty Russell <rusty@rustcorp.com.au>  Jan 2003
 */
-#define __KERNEL_SYSCALLS__
-
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/syscalls.h>
@@ -27,7 +25,7 @@
 #include <linux/kmod.h>
 #include <linux/smp_lock.h>
 #include <linux/slab.h>
-#include <linux/namespace.h>
+#include <linux/mnt_namespace.h>
 #include <linux/completion.h>
 #include <linux/file.h>
 #include <linux/workqueue.h>
@@ -35,6 +33,7 @@
 #include <linux/mount.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/resource.h>
 #include <asm/uaccess.h>
 
 extern int max_threads;
@@ -115,6 +114,7 @@ EXPORT_SYMBOL(request_module);
 #endif /* CONFIG_KMOD */
 
 struct subprocess_info {
+	struct work_struct work;
 	struct completion *complete;
 	char *path;
 	char **argv;
@@ -122,6 +122,7 @@ struct subprocess_info {
 	struct key *ring;
 	int wait;
 	int retval;
+	struct file *stdin;
 };
 
 /*
@@ -145,12 +146,30 @@ static int ____call_usermodehelper(void *data)
 
 	key_put(old_session);
 
+	/* Install input pipe when needed */
+	if (sub_info->stdin) {
+		struct files_struct *f = current->files;
+		struct fdtable *fdt;
+		/* no races because files should be private here */
+		sys_close(0);
+		fd_install(0, sub_info->stdin);
+		spin_lock(&f->file_lock);
+		fdt = files_fdtable(f);
+		FD_SET(0, fdt->open_fds);
+		FD_CLR(0, fdt->close_on_exec);
+		spin_unlock(&f->file_lock);
+
+		/* and disallow core files too */
+		current->signal->rlim[RLIMIT_CORE] = (struct rlimit){0, 0};
+	}
+
 	/* We can run anywhere, unlike our parent keventd(). */
 	set_cpus_allowed(current, CPU_MASK_ALL);
 
 	retval = -EPERM;
 	if (current->fs->root)
-		retval = execve(sub_info->path, sub_info->argv,sub_info->envp);
+		retval = kernel_execve(sub_info->path,
+				sub_info->argv, sub_info->envp);
 
 	/* Exec failed? */
 	sub_info->retval = retval;
@@ -176,6 +195,8 @@ static int wait_for_helper(void *data)
 	if (pid < 0) {
 		sub_info->retval = pid;
 	} else {
+		int ret;
+
 		/*
 		 * Normally it is bogus to call wait4() from in-kernel because
 		 * wait4() wants to write the exit code to a userspace address.
@@ -185,7 +206,15 @@ static int wait_for_helper(void *data)
 		 *
 		 * Thus the __user pointer cast is valid here.
 		 */
-		sys_wait4(pid, (int __user *) &sub_info->retval, 0, NULL);
+		sys_wait4(pid, (int __user *)&ret, 0, NULL);
+
+		/*
+		 * If ret is 0, either ____call_usermodehelper failed and the
+		 * real error code is already in sub_info->retval or
+		 * sub_info->retval is 0 anyway, so don't mess with it then.
+		 */
+		if (ret)
+			sub_info->retval = ret;
 	}
 
 	complete(sub_info->complete);
@@ -193,9 +222,10 @@ static int wait_for_helper(void *data)
 }
 
 /* This is run by khelper thread  */
-static void __call_usermodehelper(void *data)
+static void __call_usermodehelper(struct work_struct *work)
 {
-	struct subprocess_info *sub_info = data;
+	struct subprocess_info *sub_info =
+		container_of(work, struct subprocess_info, work);
 	pid_t pid;
 	int wait = sub_info->wait;
 
@@ -236,6 +266,8 @@ int call_usermodehelper_keys(char *path, char **argv, char **envp,
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 	struct subprocess_info sub_info = {
+		.work		= __WORK_INITIALIZER(sub_info.work,
+						     __call_usermodehelper),
 		.complete	= &done,
 		.path		= path,
 		.argv		= argv,
@@ -244,7 +276,6 @@ int call_usermodehelper_keys(char *path, char **argv, char **envp,
 		.wait		= wait,
 		.retval		= 0,
 	};
-	DECLARE_WORK(work, __call_usermodehelper, &sub_info);
 
 	if (!khelper_wq)
 		return -EBUSY;
@@ -252,11 +283,50 @@ int call_usermodehelper_keys(char *path, char **argv, char **envp,
 	if (path[0] == '\0')
 		return 0;
 
-	queue_work(khelper_wq, &work);
+	queue_work(khelper_wq, &sub_info.work);
 	wait_for_completion(&done);
 	return sub_info.retval;
 }
 EXPORT_SYMBOL(call_usermodehelper_keys);
+
+int call_usermodehelper_pipe(char *path, char **argv, char **envp,
+			     struct file **filp)
+{
+	DECLARE_COMPLETION(done);
+	struct subprocess_info sub_info = {
+		.work		= __WORK_INITIALIZER(sub_info.work,
+						     __call_usermodehelper),
+		.complete	= &done,
+		.path		= path,
+		.argv		= argv,
+		.envp		= envp,
+		.retval		= 0,
+	};
+	struct file *f;
+
+	if (!khelper_wq)
+		return -EBUSY;
+
+	if (path[0] == '\0')
+		return 0;
+
+	f = create_write_pipe();
+	if (IS_ERR(f))
+		return PTR_ERR(f);
+	*filp = f;
+
+	f = create_read_pipe(f);
+	if (IS_ERR(f)) {
+		free_write_pipe(*filp);
+		return PTR_ERR(f);
+	}
+	sub_info.stdin = f;
+
+	queue_work(khelper_wq, &sub_info.work);
+	wait_for_completion(&done);
+	return sub_info.retval;
+}
+EXPORT_SYMBOL(call_usermodehelper_pipe);
 
 void __init usermodehelper_init(void)
 {

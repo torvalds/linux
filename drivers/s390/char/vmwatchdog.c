@@ -54,48 +54,20 @@ enum vmwdt_func {
 static int __diag288(enum vmwdt_func func, unsigned int timeout,
 			    char *cmd, size_t len)
 {
-	register unsigned long __func asm("2");
-	register unsigned long __timeout asm("3");
-	register unsigned long __cmdp asm("4");
-	register unsigned long __cmdl asm("5");
+	register unsigned long __func asm("2") = func;
+	register unsigned long __timeout asm("3") = timeout;
+	register unsigned long __cmdp asm("4") = virt_to_phys(cmd);
+	register unsigned long __cmdl asm("5") = len;
 	int err;
 
-	__func = func;
-	__timeout = timeout;
-	__cmdp = virt_to_phys(cmd);
-	__cmdl = len;
-	err = 0;
-	asm volatile (
-#ifdef CONFIG_64BIT
-		       "diag %2,%4,0x288\n"
-		"1:	\n"
-		".section .fixup,\"ax\"\n"
-		"2:	lghi %0,%1\n"
-		"	jg 1b\n"
-		".previous\n"
-		".section __ex_table,\"a\"\n"
-		"	.align 8\n"
-		"	.quad 1b,2b\n"
-		".previous\n"
-#else
-		       "diag %2,%4,0x288\n"
-		"1:	\n"
-		".section .fixup,\"ax\"\n"
-		"2:	lhi %0,%1\n"
-		"	bras 1,3f\n"
-		"	.long 1b\n"
-		"3:	l 1,0(1)\n"
-		"	br 1\n"
-		".previous\n"
-		".section __ex_table,\"a\"\n"
-		"	.align 4\n"
-		"	.long 1b,2b\n"
-		".previous\n"
-#endif
-		: "+&d"(err)
-		: "i"(-EINVAL), "d"(__func), "d"(__timeout),
-		  "d"(__cmdp), "d"(__cmdl)
-		: "1", "cc");
+	err = -EINVAL;
+	asm volatile(
+		"	diag	%1,%3,0x288\n"
+		"0:	la	%0,0\n"
+		"1:\n"
+		EX_TABLE(0b,1b)
+		: "=d" (err) : "d"(__func), "d"(__timeout),
+		  "d"(__cmdp), "d"(__cmdl), "0" (-EINVAL) : "1", "cc");
 	return err;
 }
 

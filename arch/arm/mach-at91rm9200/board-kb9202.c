@@ -19,7 +19,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -35,20 +34,11 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
 
 #include "generic.h"
 
-static void __init kb9202_init_irq(void)
-{
-	/* Initialize AIC controller */
-	at91rm9200_init_irq(NULL);
-
-	/* Set up the GPIO interrupts */
-	at91_gpio_irq_setup(PQFP_GPIO_BANKS);
-}
 
 /*
  * Serial port configuration.
@@ -63,16 +53,19 @@ static struct at91_uart_config __initdata kb9202_uart_config = {
 
 static void __init kb9202_map_io(void)
 {
-	at91rm9200_map_io();
-
-	/* Initialize clocks: 10 MHz crystal */
-	at91_clock_init(10000000);
+	/* Initialize processor: 10 MHz crystal */
+	at91rm9200_initialize(10000000, AT91RM9200_PQFP);
 
 	/* Set up the LEDs */
 	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);
 
 	/* Setup the serial ports and console */
 	at91_init_serial(&kb9202_uart_config);
+}
+
+static void __init kb9202_init_irq(void)
+{
+	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata kb9202_eth_data = {
@@ -91,8 +84,31 @@ static struct at91_udc_data __initdata kb9202_udc_data = {
 
 static struct at91_mmc_data __initdata kb9202_mmc_data = {
 	.det_pin	= AT91_PIN_PB2,
-	.is_b		= 0,
+	.slot_b		= 0,
 	.wire4		= 1,
+};
+
+static struct mtd_partition __initdata kb9202_nand_partition[] = {
+	{
+		.name	= "nand_fs",
+		.offset	= 0,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct mtd_partition *nand_partitions(int size, int *num_partitions)
+{
+	*num_partitions = ARRAY_SIZE(kb9202_nand_partition);
+	return kb9202_nand_partition;
+}
+
+static struct at91_nand_data __initdata kb9202_nand_data = {
+	.ale		= 22,
+	.cle		= 21,
+	// .det_pin	= ... not there
+	.rdy_pin	= AT91_PIN_PC29,
+	.enable_pin	= AT91_PIN_PC28,
+	.partition_info	= nand_partitions,
 };
 
 static void __init kb9202_board_init(void)
@@ -111,6 +127,8 @@ static void __init kb9202_board_init(void)
 	at91_add_device_i2c();
 	/* SPI */
 	at91_add_device_spi(NULL, 0);
+	/* NAND */
+	at91_add_device_nand(&kb9202_nand_data);
 }
 
 MACHINE_START(KB9200, "KB920x")

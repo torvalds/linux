@@ -23,7 +23,7 @@
 #include <linux/workqueue.h>
 #include <linux/spi/spi.h>
 
-#define DRV_VERSION "0.1"
+#define DRV_VERSION "0.2"
 
 #define RS5C348_REG_SECS	0
 #define RS5C348_REG_MINS	1
@@ -140,7 +140,7 @@ rs5c348_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static struct rtc_class_ops rs5c348_rtc_ops = {
+static const struct rtc_class_ops rs5c348_rtc_ops = {
 	.read_time	= rs5c348_rtc_read_time,
 	.set_time	= rs5c348_rtc_set_time,
 };
@@ -175,8 +175,15 @@ static int __devinit rs5c348_probe(struct spi_device *spi)
 		goto kfree_exit;
 	if (ret & (RS5C348_BIT_XSTP | RS5C348_BIT_VDET)) {
 		u8 buf[2];
+		struct rtc_time tm;
 		if (ret & RS5C348_BIT_VDET)
 			dev_warn(&spi->dev, "voltage-low detected.\n");
+		if (ret & RS5C348_BIT_XSTP)
+			dev_warn(&spi->dev, "oscillator-stop detected.\n");
+		rtc_time_to_tm(0, &tm);	/* 1970/1/1 */
+		ret = rs5c348_rtc_set_time(&spi->dev, &tm);
+		if (ret < 0)
+			goto kfree_exit;
 		buf[0] = RS5C348_CMD_W(RS5C348_REG_CTL2);
 		buf[1] = 0;
 		ret = spi_write_then_read(spi, buf, sizeof(buf), NULL, 0);

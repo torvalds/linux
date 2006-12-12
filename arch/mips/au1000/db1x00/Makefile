@@ -6,4 +6,3 @@
 # Makefile for the Alchemy Semiconductor Db1x00 board.
 
 lib-y := init.o board_setup.o irqmap.o
-obj-$(CONFIG_WM97XX_COMODULE) += mirage_ts.o

@@ -15,6 +15,7 @@
 #include <asm/intersil.h>
 #include <asm/oplib.h>
 #include <asm/sun3ints.h>
+#include <asm/irq_regs.h>
 #include <linux/seq_file.h>
 
 extern void sun3_leds (unsigned char);
@@ -48,7 +49,7 @@ void sun3_disable_irq(unsigned int irq)
 	*sun3_intreg &= ~(1 << irq);
 }
 
-static irqreturn_t sun3_int7(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t sun3_int7(int irq, void *dev_id)
 {
 	*sun3_intreg |=  (1 << irq);
 	if (!(kstat_cpu(0).irqs[irq] % 2000))
@@ -56,7 +57,7 @@ static irqreturn_t sun3_int7(int irq, void *dev_id, struct pt_regs *fp)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t sun3_int5(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t sun3_int5(int irq, void *dev_id)
 {
 #ifdef CONFIG_SUN3
 	intersil_clear();
@@ -65,16 +66,16 @@ static irqreturn_t sun3_int5(int irq, void *dev_id, struct pt_regs *fp)
 #ifdef CONFIG_SUN3
 	intersil_clear();
 #endif
-        do_timer(fp);
+        do_timer(1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(fp));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
         if (!(kstat_cpu(0).irqs[irq] % 20))
                 sun3_leds(led_pattern[(kstat_cpu(0).irqs[irq] % 160) / 20]);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t sun3_vec255(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t sun3_vec255(int irq, void *dev_id)
 {
 //	intersil_clear();
 	return IRQ_HANDLED;
@@ -84,7 +85,7 @@ static void sun3_inthandle(unsigned int irq, struct pt_regs *fp)
 {
         *sun3_intreg &= ~(1 << irq);
 
-	m68k_handle_int(irq, fp);
+	__m68k_handle_int(irq, fp);
 }
 
 static struct irq_controller sun3_irq_controller = {

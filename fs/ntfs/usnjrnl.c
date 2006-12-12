@@ -39,12 +39,12 @@
  * @vol:	ntfs volume on which to stamp the transaction log
  *
  * Stamp the transaction log ($UsnJrnl) on the ntfs volume @vol and return
- * TRUE on success and FALSE on error.
+ * 'true' on success and 'false' on error.
  *
  * This function assumes that the transaction log has already been loaded and
  * consistency checked by a call to fs/ntfs/super.c::load_and_init_usnjrnl().
  */
-BOOL ntfs_stamp_usnjrnl(ntfs_volume *vol)
+bool ntfs_stamp_usnjrnl(ntfs_volume *vol)
 {
 	ntfs_debug("Entering.");
 	if (likely(!NVolUsnJrnlStamped(vol))) {
@@ -56,7 +56,7 @@ BOOL ntfs_stamp_usnjrnl(ntfs_volume *vol)
 		if (IS_ERR(page)) {
 			ntfs_error(vol->sb, "Failed to read from "
 					"$UsnJrnl/$DATA/$Max attribute.");
-			return FALSE;
+			return false;
 		}
 		uh = (USN_HEADER*)page_address(page);
 		stamp = get_current_ntfs_time();
@@ -78,7 +78,7 @@ BOOL ntfs_stamp_usnjrnl(ntfs_volume *vol)
 		NVolSetUsnJrnlStamped(vol);
 	}
 	ntfs_debug("Done.");
-	return TRUE;
+	return true;
 }
 
 #endif /* NTFS_RW */

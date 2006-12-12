@@ -824,7 +824,7 @@ static char *irq_name[] = { "", "", "", "OFLOW", "", "", "", "", "", "", "",
 			    "RISCI", "FBUS", "FTRGT", "FDSR", "PPERR",
 			    "RIPERR", "PABORT", "OCERR", "SCERR" };
 
-static irqreturn_t btaudio_irq(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t btaudio_irq(int irq, void *dev_id)
 {
 	int count = 0;
 	u32 stat,astat;
@@ -1020,6 +1020,7 @@ static int __devinit btaudio_probe(struct pci_dev *pci_dev,
  fail2:
         free_irq(bta->irq,bta);	
  fail1:
+	iounmap(bta->mmio);
 	kfree(bta);
  fail0:
 	release_mem_region(pci_resource_start(pci_dev,0),
@@ -1051,6 +1052,7 @@ static void __devexit btaudio_remove(struct pci_dev *pci_dev)
         free_irq(bta->irq,bta);
 	release_mem_region(pci_resource_start(pci_dev,0),
 			   pci_resource_len(pci_dev,0));
+	iounmap(bta->mmio);
 
 	/* remove from linked list */
 	if (bta == btaudios) {

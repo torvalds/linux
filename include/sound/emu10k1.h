@@ -1194,7 +1194,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 * emu, int pcm_device, int multi_device
 int snd_emu10k1_timer(struct snd_emu10k1 * emu, int device);
 int snd_emu10k1_fx8010_new(struct snd_emu10k1 *emu, int device, struct snd_hwdep ** rhwdep);
 
-irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id);
 
 void snd_emu10k1_voice_init(struct snd_emu10k1 * emu, int voice);
 int snd_emu10k1_init_efx(struct snd_emu10k1 *emu);

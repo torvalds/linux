@@ -47,7 +47,7 @@ extern int prom_argc;
 extern char **prom_argv, **prom_envp;
 
 
-char * prom_getcmdline(void)
+char * __init_or_module prom_getcmdline(void)
 {
 	return &(arcs_cmdline[0]);
 }

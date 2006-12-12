@@ -14,7 +14,7 @@
 #include <sys/mman.h>
 #include <sys/user.h>
 #include <sys/time.h>
-#include <asm/unistd.h>
+#include <sys/syscall.h>
 #include <asm/types.h>
 #include "user.h"
 #include "sysdep/ptrace.h"
@@ -444,56 +444,22 @@ void map_stub_pages(int fd, unsigned long code,
 	}
 }
 
-void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
-		void (*handler)(int))
+void new_thread(void *stack, jmp_buf *buf, void (*handler)(void))
 {
-	unsigned long flags;
-	jmp_buf switch_buf, fork_buf;
-
-	*switch_buf_ptr = &switch_buf;
-	*fork_buf_ptr = &fork_buf;
-
-	/* Somewhat subtle - siglongjmp restores the signal mask before doing
-	 * the longjmp.  This means that when jumping from one stack to another
-	 * when the target stack has interrupts enabled, an interrupt may occur
-	 * on the source stack.  This is bad when starting up a process because
-	 * it's not supposed to get timer ticks until it has been scheduled.
-	 * So, we disable interrupts around the sigsetjmp to ensure that
-	 * they can't happen until we get back here where they are safe.
-	 */
-	flags = get_signals();
-	block_signals();
-	if(UML_SETJMP(&fork_buf) == 0)
-		new_thread_proc(stack, handler);
-
-	remove_sigstack();
-
-	set_signals(flags);
+	(*buf)[0].JB_IP = (unsigned long) handler;
+	(*buf)[0].JB_SP = (unsigned long) stack +
+		(PAGE_SIZE << UML_CONFIG_KERNEL_STACK_ORDER) - sizeof(void *);
 }
 
 #define INIT_JMP_NEW_THREAD 0
-#define INIT_JMP_REMOVE_SIGSTACK 1
-#define INIT_JMP_CALLBACK 2
-#define INIT_JMP_HALT 3
-#define INIT_JMP_REBOOT 4
+#define INIT_JMP_CALLBACK 1
+#define INIT_JMP_HALT 2
+#define INIT_JMP_REBOOT 3
 
-void thread_wait(void *sw, void *fb)
+void switch_threads(jmp_buf *me, jmp_buf *you)
 {
-	jmp_buf buf, **switch_buf = sw, *fork_buf;
-
-	*switch_buf = &buf;
-	fork_buf = fb;
-	if(UML_SETJMP(&buf) == 0)
-		UML_LONGJMP(fork_buf, INIT_JMP_REMOVE_SIGSTACK);
-}
-
-void switch_threads(void *me, void *next)
-{
-	jmp_buf my_buf, **me_ptr = me, *next_buf = next;
-
-	*me_ptr = &my_buf;
-	if(UML_SETJMP(&my_buf) == 0)
-		UML_LONGJMP(next_buf, 1);
+	if(UML_SETJMP(me) == 0)
+		UML_LONGJMP(you, 1);
 }
 
 static jmp_buf initial_jmpbuf;
@@ -503,23 +469,21 @@ static void (*cb_proc)(void *arg);
 static void *cb_arg;
 static jmp_buf *cb_back;
 
-int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
+int start_idle_thread(void *stack, jmp_buf *switch_buf)
 {
-	jmp_buf **switch_buf = switch_buf_ptr;
 	int n;
 
 	set_handler(SIGWINCH, (__sighandler_t) sig_handler,
 		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGALRM,
 		    SIGVTALRM, -1);
 
-	*fork_buf_ptr = &initial_jmpbuf;
 	n = UML_SETJMP(&initial_jmpbuf);
 	switch(n){
 	case INIT_JMP_NEW_THREAD:
-		new_thread_proc((void *) stack, new_thread_handler);
-		break;
-	case INIT_JMP_REMOVE_SIGSTACK:
-		remove_sigstack();
+		(*switch_buf)[0].JB_IP = (unsigned long) new_thread_handler;
+		(*switch_buf)[0].JB_SP = (unsigned long) stack +
+			(PAGE_SIZE << UML_CONFIG_KERNEL_STACK_ORDER) -
+			sizeof(void *);
 		break;
 	case INIT_JMP_CALLBACK:
 		(*cb_proc)(cb_arg);
@@ -534,7 +498,7 @@ int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 	default:
 		panic("Bad sigsetjmp return in start_idle_thread - %d\n", n);
 	}
-	UML_LONGJMP(*switch_buf, 1);
+	UML_LONGJMP(switch_buf, 1);
 }
 
 void initial_thread_cb_skas(void (*proc)(void *), void *arg)

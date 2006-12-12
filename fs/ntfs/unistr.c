@@ -61,16 +61,16 @@ static const u8 legal_ansi_char_array[0x40] = {
  * @upcase:		upcase table (only if @ic == IGNORE_CASE)
  * @upcase_size:	length in Unicode characters of @upcase (if present)
  *
- * Compare the names @s1 and @s2 and return TRUE (1) if the names are
- * identical, or FALSE (0) if they are not identical. If @ic is IGNORE_CASE,
+ * Compare the names @s1 and @s2 and return 'true' (1) if the names are
+ * identical, or 'false' (0) if they are not identical. If @ic is IGNORE_CASE,
  * the @upcase table is used to performa a case insensitive comparison.
  */
-BOOL ntfs_are_names_equal(const ntfschar *s1, size_t s1_len,
+bool ntfs_are_names_equal(const ntfschar *s1, size_t s1_len,
 		const ntfschar *s2, size_t s2_len, const IGNORE_CASE_BOOL ic,
 		const ntfschar *upcase, const u32 upcase_size)
 {
 	if (s1_len != s2_len)
-		return FALSE;
+		return false;
 	if (ic == CASE_SENSITIVE)
 		return !ntfs_ucsncmp(s1, s2, s1_len);
 	return !ntfs_ucsncasecmp(s1, s2, s1_len, upcase, upcase_size);
@@ -266,7 +266,7 @@ int ntfs_nlstoucs(const ntfs_volume *vol, const char *ins,
 
 	/* We do not trust outside sources. */
 	if (likely(ins)) {
-		ucs = kmem_cache_alloc(ntfs_name_cache, SLAB_NOFS);
+		ucs = kmem_cache_alloc(ntfs_name_cache, GFP_NOFS);
 		if (likely(ucs)) {
 			for (i = o = 0; i < ins_len; i += wc_len) {
 				wc_len = nls->char2uni(ins + i, ins_len - i,
@@ -350,7 +350,7 @@ int ntfs_ucstonls(const ntfs_volume *vol, const ntfschar *ins,
 		}
 		if (!ns) {
 			ns_len = ins_len * NLS_MAX_CHARSET_SIZE;
-			ns = (unsigned char*)kmalloc(ns_len + 1, GFP_NOFS);
+			ns = kmalloc(ns_len + 1, GFP_NOFS);
 			if (!ns)
 				goto mem_err_out;
 		}
@@ -365,7 +365,7 @@ retry:			wc = nls->uni2char(le16_to_cpu(ins[i]), ns + o,
 			else if (wc == -ENAMETOOLONG && ns != *outs) {
 				unsigned char *tc;
 				/* Grow in multiples of 64 bytes. */
-				tc = (unsigned char*)kmalloc((ns_len + 64) &
+				tc = kmalloc((ns_len + 64) &
 						~63, GFP_NOFS);
 				if (tc) {
 					memcpy(tc, ns, ns_len);

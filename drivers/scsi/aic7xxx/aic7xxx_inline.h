@@ -300,7 +300,8 @@ ahc_fetch_transinfo(struct ahc_softc *ahc, char channel, u_int our_id,
 static __inline uint16_t
 ahc_inw(struct ahc_softc *ahc, u_int port)
 {
-	return ((ahc_inb(ahc, port+1) << 8) | ahc_inb(ahc, port));
+	uint16_t r = ahc_inb(ahc, port+1) << 8;
+	return r | ahc_inb(ahc, port);
 }
 
 static __inline void

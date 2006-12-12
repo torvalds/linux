@@ -35,17 +35,17 @@
 
 #define CONFIG_OFFSET_VALID(off) ((off) < 4096)
 
-static unsigned long pa_pxp_cfg_addr(struct pci_controller *hose,
+static void volatile __iomem *pa_pxp_cfg_addr(struct pci_controller *hose,
 				       u8 bus, u8 devfn, int offset)
 {
-	return ((unsigned long)hose->cfg_data) + PA_PXP_CFA(bus, devfn, offset);
+	return hose->cfg_data + PA_PXP_CFA(bus, devfn, offset);
 }
 
 static int pa_pxp_read_config(struct pci_bus *bus, unsigned int devfn,
 			      int offset, int len, u32 *val)
 {
 	struct pci_controller *hose;
-	unsigned long addr;
+	void volatile __iomem *addr;
 
 	hose = pci_bus_to_host(bus);
 	if (!hose)
@@ -62,13 +62,13 @@ static int pa_pxp_read_config(struct pci_bus *bus, unsigned int devfn,
 	 */
 	switch (len) {
 	case 1:
-		*val = in_8((u8 *)addr);
+		*val = in_8(addr);
 		break;
 	case 2:
-		*val = in_le16((u16 *)addr);
+		*val = in_le16(addr);
 		break;
 	default:
-		*val = in_le32((u32 *)addr);
+		*val = in_le32(addr);
 		break;
 	}
 
@@ -79,7 +79,7 @@ static int pa_pxp_write_config(struct pci_bus *bus, unsigned int devfn,
 			       int offset, int len, u32 val)
 {
 	struct pci_controller *hose;
-	unsigned long addr;
+	void volatile __iomem *addr;
 
 	hose = pci_bus_to_host(bus);
 	if (!hose)
@@ -96,16 +96,16 @@ static int pa_pxp_write_config(struct pci_bus *bus, unsigned int devfn,
 	 */
 	switch (len) {
 	case 1:
-		out_8((u8 *)addr, val);
-		(void) in_8((u8 *)addr);
+		out_8(addr, val);
+		(void) in_8(addr);
 		break;
 	case 2:
-		out_le16((u16 *)addr, val);
-		(void) in_le16((u16 *)addr);
+		out_le16(addr, val);
+		(void) in_le16(addr);
 		break;
 	default:
-		out_le32((u32 *)addr, val);
-		(void) in_le32((u32 *)addr);
+		out_le32(addr, val);
+		(void) in_le32(addr);
 		break;
 	}
 	return PCIBIOS_SUCCESSFUL;
@@ -147,14 +147,6 @@ static int __init add_bridge(struct device_node *dev)
 	return 0;
 }
 
-
-void __init pas_pcibios_fixup(void)
-{
-	struct pci_dev *dev = NULL;
-
-	for_each_pci_dev(dev)
-		pci_read_irq_line(dev);
-}
 
 static void __init pas_fixup_phb_resources(void)
 {

@@ -66,7 +66,7 @@ the following process:
 
 [setup]     socket() -------> creation of the capture socket
             setsockopt() ---> allocation of the circular buffer (ring)
-            mmap() ---------> maping of the allocated buffer to the
+            mmap() ---------> mapping of the allocated buffer to the
                               user process
 
 [capture]   poll() ---------> to wait for incoming packets
@@ -93,7 +93,7 @@ The destruction of the socket and all associated resources
 is done by a simple call to close(fd).
 
 Next I will describe PACKET_MMAP settings and it's constraints,
-also the maping of the circular buffer in the user process and 
+also the mapping of the circular buffer in the user process and 
 the use of this buffer.
 
 --------------------------------------------------------------------------------
@@ -153,8 +153,8 @@ we will get the following buffer structure:
 
 A frame can be of any size with the only condition it can fit in a block. A block
 can only hold an integer number of frames, or in other words, a frame cannot 
-be spawn accross two blocks so there are some datails you have to take into 
-account when choosing the frame_size. See "Maping and use of the circular 
+be spawned accross two blocks, so there are some details you have to take into 
+account when choosing the frame_size. See "Mapping and use of the circular 
 buffer (ring)".
 
 
@@ -215,8 +215,8 @@ called pg_vec, its size limits the number of blocks that can be allocated.
      block #1
 
 
-kmalloc allocates any number of bytes of phisically contiguous memory from 
-a pool of pre-determined sizes. This pool of memory is mantained by the slab 
+kmalloc allocates any number of bytes of physically contiguous memory from 
+a pool of pre-determined sizes. This pool of memory is maintained by the slab 
 allocator which is at the end the responsible for doing the allocation and 
 hence which imposes the maximum memory that kmalloc can allocate. 
 
@@ -262,7 +262,7 @@ i386 architecture:
 	<pagesize> = 4096 bytes
 	<max-order> = 11
 
-and a value for <frame size> of 2048 byteas. These parameters will yield
+and a value for <frame size> of 2048 bytes. These parameters will yield
 
 	<block number> = 131072/4 = 32768 blocks
 	<block size> = 4096 << 11 = 8 MiB.
@@ -278,13 +278,13 @@ an i386 kernel's memory size is limited to 1GiB.
 All memory allocations are not freed until the socket is closed. The memory 
 allocations are done with GFP_KERNEL priority, this basically means that 
 the allocation can wait and swap other process' memory in order to allocate 
-the nececessary memory, so normally limits can be reached.
+the necessary memory, so normally limits can be reached.
 
  Other constraints
 -------------------
 
 If you check the source code you will see that what I draw here as a frame
-is not only the link level frame. At the begining of each frame there is a 
+is not only the link level frame. At the beginning of each frame there is a 
 header called struct tpacket_hdr used in PACKET_MMAP to hold link level's frame
 meta information like timestamp. So what we draw here a frame it's really 
 the following (from include/linux/if_packet.h):
@@ -296,7 +296,7 @@ the following (from include/linux/if_packet.h):
    - struct tpacket_hdr
    - pad to TPACKET_ALIGNMENT=16
    - struct sockaddr_ll
-   - Gap, chosen so that packet data (Start+tp_net) alignes to 
+   - Gap, chosen so that packet data (Start+tp_net) aligns to 
      TPACKET_ALIGNMENT=16
    - Start+tp_mac: [ Optional MAC header ]
    - Start+tp_net: Packet data, aligned to TPACKET_ALIGNMENT=16.
@@ -311,14 +311,14 @@ the following (from include/linux/if_packet.h):
    tp_frame_size must be a multiple of TPACKET_ALIGNMENT
    tp_frame_nr   must be exactly frames_per_block*tp_block_nr
 
-Note that tp_block_size should be choosed to be a power of two or there will
+Note that tp_block_size should be chosen to be a power of two or there will
 be a waste of memory.
 
 --------------------------------------------------------------------------------
-+ Maping and use of the circular buffer (ring)
++ Mapping and use of the circular buffer (ring)
 --------------------------------------------------------------------------------
 
-The maping of the buffer in the user process is done with the conventional 
+The mapping of the buffer in the user process is done with the conventional 
 mmap function. Even the circular buffer is compound of several physically
 discontiguous blocks of memory, they are contiguous to the user space, hence
 just one call to mmap is needed:

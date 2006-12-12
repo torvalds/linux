@@ -35,7 +35,7 @@ iocharset=name -- Character set to use for converting between the
 		 you should consider the following option instead.
 
 utf8=<bool>   -- UTF-8 is the filesystem safe version of Unicode that
-		 is used by the console.  It can be be enabled for the
+		 is used by the console.  It can be enabled for the
 		 filesystem with this option. If 'uni_xlate' gets set,
 		 UTF-8 gets disabled.
 

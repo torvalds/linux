@@ -19,20 +19,13 @@
  *              Daniele Bellucci <bellucda@tiscali.it>
  */
 
-#define __KERNEL_SYSCALLS__
-static int errno;
-
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/init.h>
 #include <linux/kthread.h>
-#include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
-#include <linux/init.h>
 #include <linux/miscdevice.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/kernel.h>
+#include <linux/kmod.h>
 
 #include <asm/ebus.h>
 #include <asm/uaccess.h>
@@ -976,13 +969,15 @@ static void envctrl_do_shutdown(void)
 		"HOME=/", "TERM=linux", "PATH=/sbin:/usr/sbin:/bin:/usr/bin", NULL };
 	char *argv[] = { 
 		"/sbin/shutdown", "-h", "now", NULL };	
+	int ret;
 
 	if (inprog != 0)
 		return;
 
 	inprog = 1;
 	printk(KERN_CRIT "kenvctrld: WARNING: Shutting down the system now.\n");
-	if (0 > execve("/sbin/shutdown", argv, envp)) {
+	ret = call_usermodehelper("/sbin/shutdown", argv, envp, 0);
+	if (ret < 0) {
 		printk(KERN_CRIT "kenvctrld: WARNING: system shutdown failed!\n"); 
 		inprog = 0;  /* unlikely to succeed, but we could try again */
 	}

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2001-2002 by David Brownell
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -74,6 +74,7 @@ struct ehci_hcd {			/* one per controller */
 
 	/* per root hub port */
 	unsigned long		reset_done [EHCI_MAX_ROOT_PORTS];
+	unsigned long		bus_suspended;
 
 	/* per-HC memory pools (could be per-bus, but ...) */
 	struct dma_pool		*qh_pool;	/* qh per active urb */
@@ -82,7 +83,6 @@ struct ehci_hcd {			/* one per controller */
 	struct dma_pool		*sitd_pool;	/* sitd per split iso urb */
 
 	struct timer_list	watchdog;
-	struct notifier_block	reboot_notifier;
 	unsigned long		actions;
 	unsigned		stamp;
 	unsigned long		next_statechange;
@@ -104,7 +104,7 @@ struct ehci_hcd {			/* one per controller */
 #endif
 };
 
-/* convert between an HCD pointer and the corresponding EHCI_HCD */ 
+/* convert between an HCD pointer and the corresponding EHCI_HCD */
 static inline struct ehci_hcd *hcd_to_ehci (struct usb_hcd *hcd)
 {
 	return (struct ehci_hcd *) (hcd->hcd_priv);
@@ -179,8 +179,8 @@ struct ehci_caps {
 #define HCS_INDICATOR(p)	((p)&(1 << 16))	/* true: has port indicators */
 #define HCS_N_CC(p)		(((p)>>12)&0xf)	/* bits 15:12, #companion HCs */
 #define HCS_N_PCC(p)		(((p)>>8)&0xf)	/* bits 11:8, ports per CC */
-#define HCS_PORTROUTED(p)	((p)&(1 << 7))	/* true: port routing */ 
-#define HCS_PPC(p)		((p)&(1 << 4))	/* true: port power control */ 
+#define HCS_PORTROUTED(p)	((p)&(1 << 7))	/* true: port routing */
+#define HCS_PPC(p)		((p)&(1 << 4))	/* true: port power control */
 #define HCS_N_PORTS(p)		(((p)>>0)&0xf)	/* bits 3:0, ports on HC */
 
 	u32		hcc_params;      /* HCCPARAMS - offset 0x8 */
@@ -205,7 +205,7 @@ struct ehci_regs {
 #define CMD_LRESET	(1<<7)		/* partial reset (no ports, etc) */
 #define CMD_IAAD	(1<<6)		/* "doorbell" interrupt async advance */
 #define CMD_ASE		(1<<5)		/* async schedule enable */
-#define CMD_PSE  	(1<<4)		/* periodic schedule enable */
+#define CMD_PSE		(1<<4)		/* periodic schedule enable */
 /* 3:2 is periodic frame list size */
 #define CMD_RESET	(1<<1)		/* reset HC not bus */
 #define CMD_RUN		(1<<0)		/* start/stop HC */
@@ -231,9 +231,9 @@ struct ehci_regs {
 	/* FRINDEX: offset 0x0C */
 	u32		frame_index;	/* current microframe number */
 	/* CTRLDSSEGMENT: offset 0x10 */
-	u32		segment; 	/* address bits 63:32 if needed */
+	u32		segment;	/* address bits 63:32 if needed */
 	/* PERIODICLISTBASE: offset 0x14 */
-	u32		frame_list; 	/* points to periodic list */
+	u32		frame_list;	/* points to periodic list */
 	/* ASYNCLISTADDR: offset 0x18 */
 	u32		async_next;	/* address of next async queue head */
 
@@ -302,7 +302,7 @@ struct ehci_dbg_port {
 
 /*
  * EHCI Specification 0.95 Section 3.5
- * QTD: describe data transfer components (buffer, direction, ...) 
+ * QTD: describe data transfer components (buffer, direction, ...)
  * See Fig 3-6 "Queue Element Transfer Descriptor Block Diagram".
  *
  * These are associated only with "QH" (Queue Head) structures,
@@ -312,7 +312,7 @@ struct ehci_qtd {
 	/* first part defined by EHCI spec */
 	__le32			hw_next;	  /* see EHCI 3.5.1 */
 	__le32			hw_alt_next;      /* see EHCI 3.5.2 */
-	__le32			hw_token;         /* see EHCI 3.5.3 */       
+	__le32			hw_token;         /* see EHCI 3.5.3 */
 #define	QTD_TOGGLE	(1 << 31)	/* data toggle */
 #define	QTD_LENGTH(tok)	(((tok)>>16) & 0x7fff)
 #define	QTD_IOC		(1 << 15)	/* interrupt on complete */
@@ -349,8 +349,8 @@ struct ehci_qtd {
 /* values for that type tag */
 #define Q_TYPE_ITD	__constant_cpu_to_le32 (0 << 1)
 #define Q_TYPE_QH	__constant_cpu_to_le32 (1 << 1)
-#define Q_TYPE_SITD 	__constant_cpu_to_le32 (2 << 1)
-#define Q_TYPE_FSTN 	__constant_cpu_to_le32 (3 << 1)
+#define Q_TYPE_SITD	__constant_cpu_to_le32 (2 << 1)
+#define Q_TYPE_FSTN	__constant_cpu_to_le32 (3 << 1)
 
 /* next async queue entry, or pointer to interrupt/periodic QH */
 #define	QH_NEXT(dma)	(cpu_to_le32(((u32)dma)&~0x01f)|Q_TYPE_QH)
@@ -367,7 +367,7 @@ struct ehci_qtd {
  * For entries in the async schedule, the type tag always says "qh".
  */
 union ehci_shadow {
-	struct ehci_qh 		*qh;		/* Q_TYPE_QH */
+	struct ehci_qh		*qh;		/* Q_TYPE_QH */
 	struct ehci_itd		*itd;		/* Q_TYPE_ITD */
 	struct ehci_sitd	*sitd;		/* Q_TYPE_SITD */
 	struct ehci_fstn	*fstn;		/* Q_TYPE_FSTN */
@@ -397,7 +397,7 @@ struct ehci_qh {
 #define	QH_HUBPORT	0x3f800000
 #define	QH_MULT		0xc0000000
 	__le32			hw_current;	 /* qtd list - see EHCI 3.6.4 */
-	
+
 	/* qtd overlay (hardware parts of a struct ehci_qtd) */
 	__le32			hw_qtd_next;
 	__le32			hw_alt_next;
@@ -472,7 +472,7 @@ struct ehci_iso_stream {
 	struct list_head	td_list;	/* queued itds/sitds */
 	struct list_head	free_list;	/* list of unused itds/sitds */
 	struct usb_device	*udev;
- 	struct usb_host_endpoint *ep;
+	struct usb_host_endpoint *ep;
 
 	/* output of (re)scheduling */
 	unsigned long		start;		/* jiffies */
@@ -492,8 +492,8 @@ struct ehci_iso_stream {
 	unsigned		bandwidth;
 
 	/* This is used to initialize iTD's hw_bufp fields */
-	__le32			buf0;		
-	__le32			buf1;		
+	__le32			buf0;
+	__le32			buf1;
 	__le32			buf2;
 
 	/* this is used to initialize sITD's tt info */
@@ -521,7 +521,7 @@ struct ehci_itd {
 
 #define ITD_ACTIVE	__constant_cpu_to_le32(EHCI_ISOC_ACTIVE)
 
-	__le32			hw_bufp [7];	/* see EHCI 3.3.3 */ 
+	__le32			hw_bufp [7];	/* see EHCI 3.3.3 */
 	__le32			hw_bufp_hi [7];	/* Appendix B */
 
 	/* the rest is HCD-private */
@@ -542,7 +542,7 @@ struct ehci_itd {
 /*-------------------------------------------------------------------------*/
 
 /*
- * EHCI Specification 0.95 Section 3.4 
+ * EHCI Specification 0.95 Section 3.4
  * siTD, aka split-transaction isochronous Transfer Descriptor
  *       ... describe full speed iso xfers through TT in hubs
  * see Figure 3-5 "Split-transaction Isochronous Transaction Descriptor (siTD)

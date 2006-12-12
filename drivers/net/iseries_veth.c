@@ -166,7 +166,7 @@ struct veth_msg {
 
 struct veth_lpar_connection {
 	HvLpIndex remote_lp;
-	struct work_struct statemachine_wq;
+	struct delayed_work statemachine_wq;
 	struct veth_msg *msgs;
 	int num_events;
 	struct veth_cap_data local_caps;
@@ -456,7 +456,7 @@ static struct kobj_type veth_port_ktype = {
 
 static inline void veth_kick_statemachine(struct veth_lpar_connection *cnx)
 {
-	schedule_work(&cnx->statemachine_wq);
+	schedule_delayed_work(&cnx->statemachine_wq, 0);
 }
 
 static void veth_take_cap(struct veth_lpar_connection *cnx,
@@ -586,7 +586,7 @@ static void veth_handle_int(struct veth_lpevent *event)
 	};
 }
 
-static void veth_handle_event(struct HvLpEvent *event, struct pt_regs *regs)
+static void veth_handle_event(struct HvLpEvent *event)
 {
 	struct veth_lpevent *veth_event = (struct veth_lpevent *)event;
 
@@ -638,9 +638,11 @@ static int veth_process_caps(struct veth_lpar_connection *cnx)
 }
 
 /* FIXME: The gotos here are a bit dubious */
-static void veth_statemachine(void *p)
+static void veth_statemachine(struct work_struct *work)
 {
-	struct veth_lpar_connection *cnx = (struct veth_lpar_connection *)p;
+	struct veth_lpar_connection *cnx =
+		container_of(work, struct veth_lpar_connection,
+			     statemachine_wq.work);
 	int rlp = cnx->remote_lp;
 	int rc;
 
@@ -827,7 +829,7 @@ static int veth_init_connection(u8 rlp)
 
 	cnx->remote_lp = rlp;
 	spin_lock_init(&cnx->lock);
-	INIT_WORK(&cnx->statemachine_wq, veth_statemachine, cnx);
+	INIT_DELAYED_WORK(&cnx->statemachine_wq, veth_statemachine);
 
 	init_timer(&cnx->ack_timer);
 	cnx->ack_timer.function = veth_timed_ack;

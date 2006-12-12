@@ -43,10 +43,37 @@ static struct platform_device gesbc9312_flash = {
 	.resource	= &gesbc9312_flash_resource,
 };
 
+static struct ep93xx_eth_data gesbc9312_eth_data = {
+	.phy_id			= 1,
+};
+
+static struct resource gesbc9312_eth_resource[] = {
+	{
+		.start	= EP93XX_ETHERNET_PHYS_BASE,
+		.end	= EP93XX_ETHERNET_PHYS_BASE + 0xffff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_EP93XX_ETHERNET,
+		.end	= IRQ_EP93XX_ETHERNET,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device gesbc9312_eth_device = {
+	.name		= "ep93xx-eth",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &gesbc9312_eth_data,
+	},
+	.num_resources	= 2,
+	.resource	= gesbc9312_eth_resource,
+};
+
 static void __init gesbc9312_init_machine(void)
 {
 	ep93xx_init_devices();
 	platform_device_register(&gesbc9312_flash);
+	platform_device_register(&gesbc9312_eth_device);
 }
 
 MACHINE_START(GESBC9312, "Glomation GESBC-9312-sx")

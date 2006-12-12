@@ -10,7 +10,6 @@
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.
  */
-
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
@@ -21,41 +20,6 @@
 
 extern void microdev_heartbeat(void);
 
-/*
- * The Machine Vector
- */
-
-struct sh_machine_vector mv_sh4202_microdev __initmv = {
-	.mv_nr_irqs		= 72,		/* QQQ need to check this - use the MACRO */
-
-	.mv_inb			= microdev_inb,
-	.mv_inw			= microdev_inw,
-	.mv_inl			= microdev_inl,
-	.mv_outb		= microdev_outb,
-	.mv_outw		= microdev_outw,
-	.mv_outl		= microdev_outl,
-
-	.mv_inb_p		= microdev_inb_p,
-	.mv_inw_p		= microdev_inw_p,
-	.mv_inl_p		= microdev_inl_p,
-	.mv_outb_p		= microdev_outb_p,
-	.mv_outw_p		= microdev_outw_p,
-	.mv_outl_p		= microdev_outl_p,
-
-	.mv_insb		= microdev_insb,
-	.mv_insw		= microdev_insw,
-	.mv_insl		= microdev_insl,
-	.mv_outsb		= microdev_outsb,
-	.mv_outsw		= microdev_outsw,
-	.mv_outsl		= microdev_outsl,
-
-	.mv_init_irq		= init_microdev_irq,
-
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat		= microdev_heartbeat,
-#endif
-};
-ALIAS_MV(sh4202_microdev)
 
 /****************************************************************************/
 
@@ -112,11 +76,6 @@ ALIAS_MV(sh4202_microdev)
 
 	/* assume a Keyboard Controller is present */
 int microdev_kbd_controller_present = 1;
-
-const char *get_system_type(void)
-{
-	return "SH4-202 MicroDev";
-}
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -291,25 +250,9 @@ static int __init microdev_devices_setup(void)
 	return platform_add_devices(microdev_devices, ARRAY_SIZE(microdev_devices));
 }
 
-__initcall(microdev_devices_setup);
-
-void __init platform_setup(void)
-{
-	int * const fpgaRevisionRegister = (int*)(MICRODEV_FPGA_GP_BASE + 0x8ul);
-	const int fpgaRevision = *fpgaRevisionRegister;
-	int * const CacheControlRegister = (int*)CCR;
-
-	printk("SuperH %s board (FPGA rev: 0x%0x, CCR: 0x%0x)\n",
-		get_system_type(), fpgaRevision, *CacheControlRegister);
-}
-
-
-/****************************************************************************/
-
-
-	/*
-	 * Setup for the SMSC FDC37C93xAPM
-	 */
+/*
+ * Setup for the SMSC FDC37C93xAPM
+ */
 static int __init smsc_superio_setup(void)
 {
 
@@ -412,8 +355,52 @@ static int __init smsc_superio_setup(void)
 	return 0;
 }
 
+static void __init microdev_setup(char **cmdline_p)
+{
+	int * const fpgaRevisionRegister = (int*)(MICRODEV_FPGA_GP_BASE + 0x8ul);
+	const int fpgaRevision = *fpgaRevisionRegister;
+	int * const CacheControlRegister = (int*)CCR;
 
-/* This is grotty, but, because kernel is always referenced on the link line
- * before any devices, this is safe.
+	device_initcall(microdev_devices_setup);
+	device_initcall(smsc_superio_setup);
+
+	printk("SuperH %s board (FPGA rev: 0x%0x, CCR: 0x%0x)\n",
+		get_system_type(), fpgaRevision, *CacheControlRegister);
+}
+
+/*
+ * The Machine Vector
  */
-__initcall(smsc_superio_setup);
+struct sh_machine_vector mv_sh4202_microdev __initmv = {
+	.mv_name		= "SH4-202 MicroDev",
+	.mv_setup		= microdev_setup,
+	.mv_nr_irqs		= 72,		/* QQQ need to check this - use the MACRO */
+
+	.mv_inb			= microdev_inb,
+	.mv_inw			= microdev_inw,
+	.mv_inl			= microdev_inl,
+	.mv_outb		= microdev_outb,
+	.mv_outw		= microdev_outw,
+	.mv_outl		= microdev_outl,
+
+	.mv_inb_p		= microdev_inb_p,
+	.mv_inw_p		= microdev_inw_p,
+	.mv_inl_p		= microdev_inl_p,
+	.mv_outb_p		= microdev_outb_p,
+	.mv_outw_p		= microdev_outw_p,
+	.mv_outl_p		= microdev_outl_p,
+
+	.mv_insb		= microdev_insb,
+	.mv_insw		= microdev_insw,
+	.mv_insl		= microdev_insl,
+	.mv_outsb		= microdev_outsb,
+	.mv_outsw		= microdev_outsw,
+	.mv_outsl		= microdev_outsl,
+
+	.mv_init_irq		= init_microdev_irq,
+
+#ifdef CONFIG_HEARTBEAT
+	.mv_heartbeat		= microdev_heartbeat,
+#endif
+};
+ALIAS_MV(sh4202_microdev)

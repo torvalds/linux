@@ -956,6 +956,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
 	 .spdif_bug = 1,
+	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit. Fixes ALSA bug#324 */
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .revision = 0x04,
 	 .driver = "Audigy2", .name = "Audigy 2 [Unknown]",
@@ -1461,8 +1462,8 @@ void snd_emu10k1_resume_regs(struct snd_emu10k1 *emu)
 
 	/* resore for spdif */
 	if (emu->audigy)
-		outl(emu->port + A_IOCFG, emu->saved_a_iocfg);
-	outl(emu->port + HCFG, emu->saved_hcfg);
+		outl(emu->saved_a_iocfg, emu->port + A_IOCFG);
+	outl(emu->saved_hcfg, emu->port + HCFG);
 
 	val = emu->saved_ptr;
 	for (reg = saved_regs; *reg != 0xff; reg++)

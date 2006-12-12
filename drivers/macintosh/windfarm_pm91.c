@@ -63,8 +63,6 @@
  */
 #undef HACKED_OVERTEMP
 
-static struct device *wf_smu_dev;
-
 /* Controls & sensors */
 static struct wf_sensor	*sensor_cpu_power;
 static struct wf_sensor	*sensor_cpu_temp;
@@ -641,16 +639,14 @@ static int wf_init_pm(void)
 	return 0;
 }
 
-static int wf_smu_probe(struct device *ddev)
+static int wf_smu_probe(struct platform_device *ddev)
 {
-	wf_smu_dev = ddev;
-
 	wf_register_client(&wf_smu_events);
 
 	return 0;
 }
 
-static int wf_smu_remove(struct device *ddev)
+static int __devexit wf_smu_remove(struct platform_device *ddev)
 {
 	wf_unregister_client(&wf_smu_events);
 
@@ -698,16 +694,16 @@ static int wf_smu_remove(struct device *ddev)
 	if (wf_smu_cpu_fans)
 		kfree(wf_smu_cpu_fans);
 
-	wf_smu_dev = NULL;
-
 	return 0;
 }
 
-static struct device_driver wf_smu_driver = {
-        .name = "windfarm",
-        .bus = &platform_bus_type,
+static struct platform_driver wf_smu_driver = {
         .probe = wf_smu_probe,
-        .remove = wf_smu_remove,
+        .remove = __devexit_p(wf_smu_remove),
+	.driver = {
+		.name = "windfarm",
+		.bus = &platform_bus_type,
+	},
 };
 
 
@@ -723,9 +719,10 @@ static int __init wf_smu_init(void)
 		request_module("windfarm_smu_controls");
 		request_module("windfarm_smu_sensors");
 		request_module("windfarm_lm75_sensor");
+		request_module("windfarm_cpufreq_clamp");
 
 #endif /* MODULE */
-		driver_register(&wf_smu_driver);
+		platform_driver_register(&wf_smu_driver);
 	}
 
 	return rc;
@@ -734,7 +731,7 @@ static int __init wf_smu_init(void)
 static void __exit wf_smu_exit(void)
 {
 
-	driver_unregister(&wf_smu_driver);
+	platform_driver_unregister(&wf_smu_driver);
 }
 
 

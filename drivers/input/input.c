@@ -37,7 +37,7 @@ static struct input_handler *input_table[8];
 
 /**
  * input_event() - report new input event
- * @handle: device that generated the event
+ * @dev: device that generated the event
  * @type: type of the event
  * @code: event code
  * @value: value of the event
@@ -176,6 +176,10 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 			break;
 
 		case EV_FF:
+
+			if (value < 0)
+				return;
+
 			if (dev->event)
 				dev->event(dev, type, code, value);
 			break;
@@ -309,7 +313,8 @@ static void input_link_handle(struct input_handle *handle)
 		if (i != NBITS(max)) \
 			continue;
 
-static struct input_device_id *input_match_device(struct input_device_id *id, struct input_dev *dev)
+static const struct input_device_id *input_match_device(const struct input_device_id *id,
+							struct input_dev *dev)
 {
 	int i;
 
@@ -762,7 +767,9 @@ static void input_dev_release(struct class_device *class_dev)
 {
 	struct input_dev *dev = to_input_dev(class_dev);
 
+	input_ff_destroy(dev);
 	kfree(dev);
+
 	module_put(THIS_MODULE);
 }
 
@@ -893,24 +900,48 @@ struct class input_class = {
 };
 EXPORT_SYMBOL_GPL(input_class);
 
+/**
+ * input_allocate_device - allocate memory for new input device
+ *
+ * Returns prepared struct input_dev or NULL.
+ *
+ * NOTE: Use input_free_device() to free devices that have not been
+ * registered; input_unregister_device() should be used for already
+ * registered devices.
+ */
 struct input_dev *input_allocate_device(void)
 {
 	struct input_dev *dev;
 
 	dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL);
 	if (dev) {
-		dev->dynalloc = 1;
 		dev->cdev.class = &input_class;
 		class_device_initialize(&dev->cdev);
 		mutex_init(&dev->mutex);
 		INIT_LIST_HEAD(&dev->h_list);
 		INIT_LIST_HEAD(&dev->node);
+
+		__module_get(THIS_MODULE);
 	}
 
 	return dev;
 }
 EXPORT_SYMBOL(input_allocate_device);
 
+/**
+ * input_free_device - free memory occupied by input_dev structure
+ * @dev: input device to free
+ *
+ * This function should only be used if input_register_device()
+ * was not called yet or if it failed. Once device was registered
+ * use input_unregister_device() and memory will be freed once last
+ * refrence to the device is dropped.
+ *
+ * Device should be allocated by input_allocate_device().
+ *
+ * NOTE: If there are references to the input device then memory
+ * will not be freed until last reference is dropped.
+ */
 void input_free_device(struct input_dev *dev)
 {
 	if (dev) {
@@ -929,16 +960,9 @@ int input_register_device(struct input_dev *dev)
 	static atomic_t input_no = ATOMIC_INIT(0);
 	struct input_handle *handle;
 	struct input_handler *handler;
-	struct input_device_id *id;
+	const struct input_device_id *id;
 	const char *path;
 	int error;
-
-	if (!dev->dynalloc) {
-		printk(KERN_WARNING "input: device %s is statically allocated, will not register\n"
-			"Please convert to input_allocate_device() or contact dtor_core@ameritech.net\n",
-			dev->name ? dev->name : "<Unknown>");
-		return -EINVAL;
-	}
 
 	set_bit(EV_SYN, dev->evbit);
 
@@ -955,10 +979,8 @@ int input_register_device(struct input_dev *dev)
 		dev->rep[REP_PERIOD] = 33;
 	}
 
-	INIT_LIST_HEAD(&dev->h_list);
 	list_add_tail(&dev->node, &input_dev_list);
 
-	dev->cdev.class = &input_class;
 	snprintf(dev->cdev.class_id, sizeof(dev->cdev.class_id),
 		 "input%ld", (unsigned long) atomic_inc_return(&input_no) - 1);
 
@@ -977,8 +999,6 @@ int input_register_device(struct input_dev *dev)
 	error = sysfs_create_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
 	if (error)
 		goto fail3;
-
-	__module_get(THIS_MODULE);
 
 	path = kobject_get_path(&dev->cdev.kobj, GFP_KERNEL);
 	printk(KERN_INFO "input: %s as %s\n",
@@ -1008,9 +1028,12 @@ EXPORT_SYMBOL(input_register_device);
 void input_unregister_device(struct input_dev *dev)
 {
 	struct list_head *node, *next;
+	int code;
 
-	if (!dev)
-		return;
+	for (code = 0; code <= KEY_MAX; code++)
+		if (test_bit(code, dev->key))
+			input_report_key(dev, code, 0);
+	input_sync(dev);
 
 	del_timer_sync(&dev->timer);
 
@@ -1037,19 +1060,20 @@ void input_unregister_device(struct input_dev *dev)
 }
 EXPORT_SYMBOL(input_unregister_device);
 
-void input_register_handler(struct input_handler *handler)
+int input_register_handler(struct input_handler *handler)
 {
 	struct input_dev *dev;
 	struct input_handle *handle;
-	struct input_device_id *id;
-
-	if (!handler)
-		return;
+	const struct input_device_id *id;
 
 	INIT_LIST_HEAD(&handler->h_list);
 
-	if (handler->fops != NULL)
+	if (handler->fops != NULL) {
+		if (input_table[handler->minor >> 5])
+			return -EBUSY;
+
 		input_table[handler->minor >> 5] = handler;
+	}
 
 	list_add_tail(&handler->node, &input_handler_list);
 
@@ -1063,6 +1087,7 @@ void input_register_handler(struct input_handler *handler)
 				}
 
 	input_wakeup_procfs_readers();
+	return 0;
 }
 EXPORT_SYMBOL(input_register_handler);
 

@@ -24,6 +24,7 @@
 
 static struct workqueue_struct *_kmirrord_wq;
 static struct work_struct _kmirrord_work;
+static DECLARE_WAIT_QUEUE_HEAD(_kmirrord_recovery_stopped);
 
 static inline void wake(void)
 {
@@ -83,6 +84,7 @@ struct region_hash {
 	struct list_head *buckets;
 
 	spinlock_t region_lock;
+	atomic_t recovery_in_flight;
 	struct semaphore recovery_count;
 	struct list_head clean_regions;
 	struct list_head quiesced_regions;
@@ -191,6 +193,7 @@ static int rh_init(struct region_hash *rh, struct mirror_set *ms,
 
 	spin_lock_init(&rh->region_lock);
 	sema_init(&rh->recovery_count, 0);
+	atomic_set(&rh->recovery_in_flight, 0);
 	INIT_LIST_HEAD(&rh->clean_regions);
 	INIT_LIST_HEAD(&rh->quiesced_regions);
 	INIT_LIST_HEAD(&rh->recovered_regions);
@@ -341,6 +344,17 @@ static void dispatch_bios(struct mirror_set *ms, struct bio_list *bio_list)
 	}
 }
 
+static void complete_resync_work(struct region *reg, int success)
+{
+	struct region_hash *rh = reg->rh;
+
+	rh->log->type->set_region_sync(rh->log, reg->key, success);
+	dispatch_bios(rh->ms, &reg->delayed_bios);
+	if (atomic_dec_and_test(&rh->recovery_in_flight))
+		wake_up_all(&_kmirrord_recovery_stopped);
+	up(&rh->recovery_count);
+}
+
 static void rh_update_states(struct region_hash *rh)
 {
 	struct region *reg, *next;
@@ -380,9 +394,7 @@ static void rh_update_states(struct region_hash *rh)
 	 */
 	list_for_each_entry_safe (reg, next, &recovered, list) {
 		rh->log->type->clear_region(rh->log, reg->key);
-		rh->log->type->complete_resync_work(rh->log, reg->key, 1);
-		dispatch_bios(rh->ms, &reg->delayed_bios);
-		up(&rh->recovery_count);
+		complete_resync_work(reg, 1);
 		mempool_free(reg, rh->region_pool);
 	}
 
@@ -502,11 +514,21 @@ static int __rh_recovery_prepare(struct region_hash *rh)
 
 static void rh_recovery_prepare(struct region_hash *rh)
 {
-	while (!down_trylock(&rh->recovery_count))
+	/* Extra reference to avoid race with rh_stop_recovery */
+	atomic_inc(&rh->recovery_in_flight);
+
+	while (!down_trylock(&rh->recovery_count)) {
+		atomic_inc(&rh->recovery_in_flight);
 		if (__rh_recovery_prepare(rh) <= 0) {
+			atomic_dec(&rh->recovery_in_flight);
 			up(&rh->recovery_count);
 			break;
 		}
+	}
+
+	/* Drop the extra reference */
+	if (atomic_dec_and_test(&rh->recovery_in_flight))
+		wake_up_all(&_kmirrord_recovery_stopped);
 }
 
 /*
@@ -868,7 +890,7 @@ static void do_mirror(struct mirror_set *ms)
 	do_writes(ms, &writes);
 }
 
-static void do_work(void *ignored)
+static void do_work(struct work_struct *ignored)
 {
 	struct mirror_set *ms;
 
@@ -1122,7 +1144,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 
 	if (rw == WRITE) {
 		queue_bio(ms, bio, rw);
-		return 0;
+		return DM_MAPIO_SUBMITTED;
 	}
 
 	r = ms->rh.log->type->in_sync(ms->rh.log,
@@ -1131,7 +1153,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 		return r;
 
 	if (r == -EWOULDBLOCK)	/* FIXME: ugly */
-		r = 0;
+		r = DM_MAPIO_SUBMITTED;
 
 	/*
 	 * We don't want to fast track a recovery just for a read
@@ -1144,7 +1166,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 	if (!r) {
 		/* Pass this io over to the daemon */
 		queue_bio(ms, bio, rw);
-		return 0;
+		return DM_MAPIO_SUBMITTED;
 	}
 
 	m = choose_mirror(ms, bio->bi_sector);
@@ -1152,7 +1174,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 		return -EIO;
 
 	map_bio(ms, m, bio);
-	return 1;
+	return DM_MAPIO_REMAPPED;
 }
 
 static int mirror_end_io(struct dm_target *ti, struct bio *bio,
@@ -1177,6 +1199,11 @@ static void mirror_postsuspend(struct dm_target *ti)
 	struct dirty_log *log = ms->rh.log;
 
 	rh_stop_recovery(&ms->rh);
+
+	/* Wait for all I/O we generated to complete */
+	wait_event(_kmirrord_recovery_stopped,
+		   !atomic_read(&ms->rh.recovery_in_flight));
+
 	if (log->type->suspend && log->type->suspend(log))
 		/* FIXME: need better error handling */
 		DMWARN("log suspend failed");
@@ -1213,9 +1240,9 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 		break;
 
 	case STATUSTYPE_TABLE:
-		DMEMIT("%d ", ms->nr_mirrors);
+		DMEMIT("%d", ms->nr_mirrors);
 		for (m = 0; m < ms->nr_mirrors; m++)
-			DMEMIT("%s %llu ", ms->mirror[m].dev->name,
+			DMEMIT(" %s %llu", ms->mirror[m].dev->name,
 				(unsigned long long)ms->mirror[m].offset);
 	}
 
@@ -1249,7 +1276,7 @@ static int __init dm_mirror_init(void)
 		dm_dirty_log_exit();
 		return r;
 	}
-	INIT_WORK(&_kmirrord_work, do_work, NULL);
+	INIT_WORK(&_kmirrord_work, do_work);
 
 	r = dm_register_target(&mirror_target);
 	if (r < 0) {

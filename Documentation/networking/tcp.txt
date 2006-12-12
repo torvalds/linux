@@ -62,7 +62,7 @@ if needed and you will get the expected protocol. If you ask for an
 unknown congestion method, then the sysctl attempt will fail.
 
 If you remove a tcp congestion control module, then you will get the next
-available one. Since reno can not be built as a module, and can not be
+available one. Since reno cannot be built as a module, and cannot be
 deleted, it will always be available.
 
 How the new TCP output machine [nyi] works.

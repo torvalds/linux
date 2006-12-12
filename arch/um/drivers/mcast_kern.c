@@ -61,7 +61,7 @@ static int mcast_write(int fd, struct sk_buff **skb,
 				 (struct mcast_data *) &lp->user);
 }
 
-static struct net_kern_info mcast_kern_info = {
+static const struct net_kern_info mcast_kern_info = {
 	.init			= mcast_init,
 	.protocol		= eth_protocol,
 	.read			= mcast_read,
@@ -127,4 +127,4 @@ static int register_mcast(void)
 	return 0;
 }
 
-__initcall(register_mcast);
+late_initcall(register_mcast);

@@ -269,7 +269,7 @@ static void snd_bt87x_pci_error(struct snd_bt87x *chip, unsigned int status)
 	}
 }
 
-static irqreturn_t snd_bt87x_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_bt87x_interrupt(int irq, void *dev_id)
 {
 	struct snd_bt87x *chip = dev_id;
 	unsigned int status, irq_status;

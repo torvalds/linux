@@ -73,10 +73,12 @@ static char *event_descriptions[IEEE80211SOFTMAC_EVENT_LAST+1] = {
 
 
 static void
-ieee80211softmac_notify_callback(void *d)
+ieee80211softmac_notify_callback(struct work_struct *work)
 {
-	struct ieee80211softmac_event event = *(struct ieee80211softmac_event*) d;
-	kfree(d);
+	struct ieee80211softmac_event *pevent =
+		container_of(work, struct ieee80211softmac_event, work.work);
+	struct ieee80211softmac_event event = *pevent;
+	kfree(pevent);
 	
 	event.fun(event.mac->dev, event.event_type, event.context);
 }
@@ -99,7 +101,7 @@ ieee80211softmac_notify_internal(struct ieee80211softmac_device *mac,
 		return -ENOMEM;
 	
 	eventptr->event_type = event;
-	INIT_WORK(&eventptr->work, ieee80211softmac_notify_callback, eventptr);
+	INIT_DELAYED_WORK(&eventptr->work, ieee80211softmac_notify_callback);
 	eventptr->fun = fun;
 	eventptr->context = context;
 	eventptr->mac = mac;
@@ -170,7 +172,7 @@ ieee80211softmac_call_events_locked(struct ieee80211softmac_device *mac, int eve
 				/* User may have subscribed to ANY event, so
 				 * we tell them which event triggered it. */
 				eventptr->event_type = event;
-				schedule_work(&eventptr->work);
+				schedule_delayed_work(&eventptr->work, 0);
 			}
 		}
 }

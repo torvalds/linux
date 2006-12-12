@@ -62,7 +62,7 @@ int vlan_dev_rebuild_header(struct sk_buff *skb)
 	default:
 		printk(VLAN_DBG
 		       "%s: unable to resolve type %X addresses.\n", 
-		       dev->name, (int)veth->h_vlan_encapsulated_proto);
+		       dev->name, ntohs(veth->h_vlan_encapsulated_proto));
 	 
 		memcpy(veth->h_source, dev->dev_addr, ETH_ALEN);
 		break;

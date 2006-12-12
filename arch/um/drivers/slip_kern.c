@@ -1,4 +1,3 @@
-#include "linux/config.h"
 #include "linux/kernel.h"
 #include "linux/stddef.h"
 #include "linux/init.h"
@@ -61,7 +60,7 @@ static int slip_write(int fd, struct sk_buff **skb,
 			       (struct slip_data *) &lp->user));
 }
 
-struct net_kern_info slip_kern_info = {
+const struct net_kern_info slip_kern_info = {
 	.init			= slip_init,
 	.protocol		= slip_protocol,
 	.read			= slip_read,
@@ -96,4 +95,4 @@ static int register_slip(void)
 	return 0;
 }
 
-__initcall(register_slip);
+late_initcall(register_slip);

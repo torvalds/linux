@@ -53,7 +53,7 @@ static int tuntap_write(int fd, struct sk_buff **skb,
 	return(net_write(fd, (*skb)->data, (*skb)->len));
 }
 
-struct net_kern_info tuntap_kern_info = {
+const struct net_kern_info tuntap_kern_info = {
 	.init			= tuntap_init,
 	.protocol		= eth_protocol,
 	.read			= tuntap_read,
@@ -90,4 +90,4 @@ static int register_tuntap(void)
 	return 0;
 }
 
-__initcall(register_tuntap);
+late_initcall(register_tuntap);

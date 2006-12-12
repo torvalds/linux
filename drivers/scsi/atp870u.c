@@ -44,7 +44,7 @@ static void send_s870(struct atp_unit *dev,unsigned char c);
 static void is885(struct atp_unit *dev, unsigned int wkport,unsigned char c);
 static void tscam_885(void);
 
-static irqreturn_t atp870u_intr_handle(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 {
 	unsigned long flags;
 	unsigned short int tmpcip, id;

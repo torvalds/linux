@@ -135,7 +135,7 @@ extern void             pcireg_intr_addr_addr_set(struct pcibus_info *, int, u64
 extern void             pcireg_force_intr_set(struct pcibus_info *, int);
 extern u64         pcireg_wrb_flush_get(struct pcibus_info *, int);
 extern void             pcireg_int_ate_set(struct pcibus_info *, int, u64);
-extern u64 *	pcireg_int_ate_addr(struct pcibus_info *, int);
+extern u64 __iomem *	pcireg_int_ate_addr(struct pcibus_info *, int);
 extern void 		pcibr_force_interrupt(struct sn_irq_info *sn_irq_info);
 extern void 		pcibr_change_devices_irq(struct sn_irq_info *sn_irq_info);
 extern int 		pcibr_ate_alloc(struct pcibus_info *, int);

@@ -19,7 +19,7 @@ db16		???
 no_wave_dma option
 
 This option defaults to a value of 0, which allows the Ultrasound wavetable
-DSP to use DMA for for playback and downloading samples. This is the same
+DSP to use DMA for playback and downloading samples. This is the same
 as the old behaviour. If set to 1, no DMA is needed for downloading samples,
 and allows owners of a GUS MAX to make use of simultaneous digital audio
 (/dev/dsp), MIDI, and wavetable playback.

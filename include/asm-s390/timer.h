@@ -26,7 +26,7 @@ struct vtimer_list {
 	spinlock_t lock;
 	unsigned long magic;
 
-	void (*function)(unsigned long, struct pt_regs*);
+	void (*function)(unsigned long);
 	unsigned long data;
 };
 

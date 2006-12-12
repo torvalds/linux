@@ -278,14 +278,13 @@ pof_write_open(hysdn_card * card, unsigned char **bufp)
 		return (-ERR_ALREADY_BOOT);	/* boot already active */
 	}
 	/* error no mem available */
-	if (!(boot = kmalloc(sizeof(struct boot_data), GFP_KERNEL))) {
+	if (!(boot = kzalloc(sizeof(struct boot_data), GFP_KERNEL))) {
 		if (card->debug_flags & LOG_MEM_ERR)
 			hysdn_addlog(card, "POF open: unable to allocate mem");
 		return (-EFAULT);
 	}
 	card->boot = boot;
 	card->state = CARD_STATE_BOOTING;
-	memset(boot, 0, sizeof(struct boot_data));
 
 	card->stopcard(card);	/* first stop the card */
 	if (card->testram(card)) {

@@ -24,7 +24,7 @@ The common code handles such things as:
    - general cache lookup with correct locking
    - supporting 'NEGATIVE' as well as positive entries
    - allowing an EXPIRED time on cache items, and removing
-     items after they expire, and are no longe in-use.
+     items after they expire, and are no longer in-use.
    - making requests to user-space to fill in cache entries
    - allowing user-space to directly set entries in the cache
    - delaying RPC requests that depend on as-yet incomplete
@@ -53,7 +53,7 @@ Creating a Cache
 		structure
 	void cache_put(struct kref *)
 		This is called when the last reference to an item is
-		is dropped.  The pointer passed is to the 'ref' field
+		dropped.  The pointer passed is to the 'ref' field
 		in the cache_head.  cache_put should release any
 		references create by 'cache_init' and, if CACHE_VALID
 		is set, any references created by cache_update.

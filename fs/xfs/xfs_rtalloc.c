@@ -1948,7 +1948,7 @@ xfs_growfs_rt(
 	 */
 	nrextents = nrblocks;
 	do_div(nrextents, in->extsize);
-	nrbmblocks = roundup_64(nrextents, NBBY * sbp->sb_blocksize);
+	nrbmblocks = howmany_64(nrextents, NBBY * sbp->sb_blocksize);
 	nrextslog = xfs_highbit32(nrextents);
 	nrsumlevels = nrextslog + 1;
 	nrsumsize = (uint)sizeof(xfs_suminfo_t) * nrsumlevels * nrbmblocks;
@@ -1976,7 +1976,10 @@ xfs_growfs_rt(
 	if ((error = xfs_growfs_rt_alloc(mp, rsumblocks, nrsumblocks,
 			mp->m_sb.sb_rsumino)))
 		return error;
-	nmp = NULL;
+	/*
+	 * Allocate a new (fake) mount/sb.
+	 */
+	nmp = kmem_alloc(sizeof(*nmp), KM_SLEEP);
 	/*
 	 * Loop over the bitmap blocks.
 	 * We will do everything one bitmap block at a time.
@@ -1987,10 +1990,6 @@ xfs_growfs_rt(
 		     ((sbp->sb_rextents & ((1 << mp->m_blkbit_log) - 1)) != 0);
 	     bmbno < nrbmblocks;
 	     bmbno++) {
-		/*
-		 * Allocate a new (fake) mount/sb.
-		 */
-		nmp = kmem_alloc(sizeof(*nmp), KM_SLEEP);
 		*nmp = *mp;
 		nsbp = &nmp->m_sb;
 		/*
@@ -2018,13 +2017,13 @@ xfs_growfs_rt(
 		cancelflags = 0;
 		if ((error = xfs_trans_reserve(tp, 0,
 				XFS_GROWRTFREE_LOG_RES(nmp), 0, 0, 0)))
-			goto error_exit;
+			break;
 		/*
 		 * Lock out other callers by grabbing the bitmap inode lock.
 		 */
 		if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
 						XFS_ILOCK_EXCL, &ip)))
-			goto error_exit;
+			break;
 		ASSERT(ip == mp->m_rbmip);
 		/*
 		 * Update the bitmap inode's size.
@@ -2038,7 +2037,7 @@ xfs_growfs_rt(
 		 */
 		if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rsumino, 0,
 						XFS_ILOCK_EXCL, &ip)))
-			goto error_exit;
+			break;
 		ASSERT(ip == mp->m_rsumip);
 		/*
 		 * Update the summary inode's size.
@@ -2053,7 +2052,7 @@ xfs_growfs_rt(
 		    mp->m_rsumlevels != nmp->m_rsumlevels) {
 			error = xfs_rtcopy_summary(mp, nmp, tp);
 			if (error)
-				goto error_exit;
+				break;
 		}
 		/*
 		 * Update superblock fields.
@@ -2080,17 +2079,12 @@ xfs_growfs_rt(
 		error = xfs_rtfree_range(nmp, tp, sbp->sb_rextents,
 			nsbp->sb_rextents - sbp->sb_rextents, &bp, &sumbno);
 		if (error)
-			goto error_exit;
+			break;
 		/*
 		 * Mark more blocks free in the superblock.
 		 */
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_FREXTENTS,
 			nsbp->sb_rextents - sbp->sb_rextents);
-		/*
-		 * Free the fake mp structure.
-		 */
-		kmem_free(nmp, sizeof(*nmp));
-		nmp = NULL;
 		/*
 		 * Update mp values into the real mp structure.
 		 */
@@ -2101,15 +2095,15 @@ xfs_growfs_rt(
 		 */
 		xfs_trans_commit(tp, 0, NULL);
 	}
-	return 0;
+
+	if (error)
+		xfs_trans_cancel(tp, cancelflags);
 
 	/*
-	 * Error paths come here.
+	 * Free the fake mp structure.
 	 */
-error_exit:
-	if (nmp)
-		kmem_free(nmp, sizeof(*nmp));
-	xfs_trans_cancel(tp, cancelflags);
+	kmem_free(nmp, sizeof(*nmp));
+
 	return error;
 }
 

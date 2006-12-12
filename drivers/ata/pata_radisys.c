@@ -220,14 +220,16 @@ static struct scsi_host_template radisys_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static const struct ata_port_operations radisys_pata_ops = {
@@ -254,8 +256,6 @@ static const struct ata_port_operations radisys_pata_ops = {
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= radisys_qc_issue_prot,
 	.data_xfer		= ata_pio_data_xfer,
-
-	.eng_timeout		= ata_eng_timeout,
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
@@ -302,7 +302,8 @@ static int radisys_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 }
 
 static const struct pci_device_id radisys_pci_tbl[] = {
-	{ 0x1331, 0x8201, PCI_ANY_ID, PCI_ANY_ID, },
+	{ PCI_VDEVICE(RADISYS, 0x8201), },
+
 	{ }	/* terminate list */
 };
 
@@ -311,6 +312,8 @@ static struct pci_driver radisys_pci_driver = {
 	.id_table		= radisys_pci_tbl,
 	.probe			= radisys_init_one,
 	.remove			= ata_pci_remove_one,
+	.suspend		= ata_pci_device_suspend,
+	.resume			= ata_pci_device_resume,
 };
 
 static int __init radisys_init(void)
@@ -322,7 +325,6 @@ static void __exit radisys_exit(void)
 {
 	pci_unregister_driver(&radisys_pci_driver);
 }
-
 
 module_init(radisys_init);
 module_exit(radisys_exit);

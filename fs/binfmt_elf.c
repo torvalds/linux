@@ -46,11 +46,6 @@
 static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs);
 static int load_elf_library(struct file *);
 static unsigned long elf_map (struct file *, unsigned long, struct elf_phdr *, int, int);
-extern int dump_fpu (struct pt_regs *, elf_fpregset_t *);
-
-#ifndef elf_addr_t
-#define elf_addr_t unsigned long
-#endif
 
 /*
  * If we don't support core dumping, then supply a NULL so we
@@ -244,8 +239,9 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	if (interp_aout) {
 		argv = sp + 2;
 		envp = argv + argc + 1;
-		__put_user((elf_addr_t)(unsigned long)argv, sp++);
-		__put_user((elf_addr_t)(unsigned long)envp, sp++);
+		if (__put_user((elf_addr_t)(unsigned long)argv, sp++) ||
+		    __put_user((elf_addr_t)(unsigned long)envp, sp++))
+			return -EFAULT;
 	} else {
 		argv = sp;
 		envp = argv + argc + 1;
@@ -255,7 +251,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	p = current->mm->arg_end = current->mm->arg_start;
 	while (argc-- > 0) {
 		size_t len;
-		__put_user((elf_addr_t)p, argv++);
+		if (__put_user((elf_addr_t)p, argv++))
+			return -EFAULT;
 		len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
 		if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
 			return 0;
@@ -266,7 +263,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	current->mm->arg_end = current->mm->env_start = p;
 	while (envc-- > 0) {
 		size_t len;
-		__put_user((elf_addr_t)p, envp++);
+		if (__put_user((elf_addr_t)p, envp++))
+			return -EFAULT;
 		len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
 		if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
 			return 0;
@@ -546,7 +544,7 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	unsigned long reloc_func_desc = 0;
 	char passed_fileno[6];
 	struct files_struct *files;
-	int have_pt_gnu_stack, executable_stack = EXSTACK_DEFAULT;
+	int executable_stack = EXSTACK_DEFAULT;
 	unsigned long def_flags = 0;
 	struct {
 		struct elfhdr elf_ex;
@@ -709,7 +707,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 				executable_stack = EXSTACK_DISABLE_X;
 			break;
 		}
-	have_pt_gnu_stack = (i < loc->elf_ex.e_phnum);
 
 	/* Some simple consistency checks for the interpreter */
 	if (elf_interpreter) {
@@ -857,7 +854,13 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 			 * default mmap base, as well as whatever program they
 			 * might try to exec.  This is because the brk will
 			 * follow the loader, and is not movable.  */
-			load_bias = ELF_PAGESTART(ELF_ET_DYN_BASE - vaddr);
+			if (current->flags & PF_RANDOMIZE)
+				load_bias = randomize_range(0x10000,
+							    ELF_ET_DYN_BASE,
+							    0);
+			else
+				load_bias = ELF_ET_DYN_BASE;
+			load_bias = ELF_PAGESTART(load_bias - vaddr);
 		}
 
 		error = elf_map(bprm->file, load_bias + vaddr, elf_ppnt,
@@ -1038,10 +1041,8 @@ out_free_interp:
 out_free_file:
 	sys_close(elf_exec_fileno);
 out_free_fh:
-	if (files) {
-		put_files_struct(current->files);
-		current->files = files;
-	}
+	if (files)
+		reset_files_struct(current, files);
 out_free_ph:
 	kfree(elf_phdata);
 	goto out;
@@ -1154,11 +1155,23 @@ static int dump_write(struct file *file, const void *addr, int nr)
 
 static int dump_seek(struct file *file, loff_t off)
 {
-	if (file->f_op->llseek) {
-		if (file->f_op->llseek(file, off, 0) != off)
+	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
+		if (file->f_op->llseek(file, off, SEEK_CUR) < 0)
 			return 0;
-	} else
-		file->f_pos = off;
+	} else {
+		char *buf = (char *)get_zeroed_page(GFP_KERNEL);
+		if (!buf)
+			return 0;
+		while (off > 0) {
+			unsigned long n = off;
+			if (n > PAGE_SIZE)
+				n = PAGE_SIZE;
+			if (!dump_write(file, buf, n))
+				return 0;
+			off -= n;
+		}
+		free_page((unsigned long)buf);
+	}
 	return 1;
 }
 
@@ -1177,7 +1190,7 @@ static int maydump(struct vm_area_struct *vma)
 
 	/* Dump shared memory only if mapped from an anonymous file. */
 	if (vma->vm_flags & VM_SHARED)
-		return vma->vm_file->f_dentry->d_inode->i_nlink == 0;
+		return vma->vm_file->f_path.dentry->d_inode->i_nlink == 0;
 
 	/* If it hasn't been written to, don't write it out */
 	if (!vma->anon_vma)
@@ -1206,30 +1219,35 @@ static int notesize(struct memelfnote *en)
 	return sz;
 }
 
-#define DUMP_WRITE(addr, nr)	\
-	do { if (!dump_write(file, (addr), (nr))) return 0; } while(0)
-#define DUMP_SEEK(off)	\
-	do { if (!dump_seek(file, (off))) return 0; } while(0)
+#define DUMP_WRITE(addr, nr, foffset)	\
+	do { if (!dump_write(file, (addr), (nr))) return 0; *foffset += (nr); } while(0)
 
-static int writenote(struct memelfnote *men, struct file *file)
+static int alignfile(struct file *file, loff_t *foffset)
+{
+	static const char buf[4] = { 0, };
+	DUMP_WRITE(buf, roundup(*foffset, 4) - *foffset, foffset);
+	return 1;
+}
+
+static int writenote(struct memelfnote *men, struct file *file,
+			loff_t *foffset)
 {
 	struct elf_note en;
-
 	en.n_namesz = strlen(men->name) + 1;
 	en.n_descsz = men->datasz;
 	en.n_type = men->type;
 
-	DUMP_WRITE(&en, sizeof(en));
-	DUMP_WRITE(men->name, en.n_namesz);
-	/* XXX - cast from long long to long to avoid need for libgcc.a */
-	DUMP_SEEK(roundup((unsigned long)file->f_pos, 4));	/* XXX */
-	DUMP_WRITE(men->data, men->datasz);
-	DUMP_SEEK(roundup((unsigned long)file->f_pos, 4));	/* XXX */
+	DUMP_WRITE(&en, sizeof(en), foffset);
+	DUMP_WRITE(men->name, en.n_namesz, foffset);
+	if (!alignfile(file, foffset))
+		return 0;
+	DUMP_WRITE(men->data, men->datasz, foffset);
+	if (!alignfile(file, foffset))
+		return 0;
 
 	return 1;
 }
 #undef DUMP_WRITE
-#undef DUMP_SEEK
 
 #define DUMP_WRITE(addr, nr)	\
 	if ((size += (nr)) > limit || !dump_write(file, (addr), (nr))) \
@@ -1299,7 +1317,7 @@ static void fill_prstatus(struct elf_prstatus *prstatus,
 	prstatus->pr_pid = p->pid;
 	prstatus->pr_ppid = p->parent->pid;
 	prstatus->pr_pgrp = process_group(p);
-	prstatus->pr_sid = p->signal->session;
+	prstatus->pr_sid = process_session(p);
 	if (thread_group_leader(p)) {
 		/*
 		 * This is the record for the group leader.  Add in the
@@ -1345,7 +1363,7 @@ static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 	psinfo->pr_pid = p->pid;
 	psinfo->pr_ppid = p->parent->pid;
 	psinfo->pr_pgrp = process_group(p);
-	psinfo->pr_sid = p->signal->session;
+	psinfo->pr_sid = process_session(p);
 
 	i = p->state ? ffz(~p->state) + 1 : 0;
 	psinfo->pr_state = i;
@@ -1429,7 +1447,7 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 	int i;
 	struct vm_area_struct *vma;
 	struct elfhdr *elf = NULL;
-	loff_t offset = 0, dataoff;
+	loff_t offset = 0, dataoff, foffset;
 	unsigned long limit = current->signal->rlim[RLIMIT_CORE].rlim_cur;
 	int numnote;
 	struct memelfnote *notes = NULL;
@@ -1481,20 +1499,19 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 
 	if (signr) {
 		struct elf_thread_status *tmp;
-		read_lock(&tasklist_lock);
+		rcu_read_lock();
 		do_each_thread(g,p)
 			if (current->mm == p->mm && current != p) {
 				tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
 				if (!tmp) {
-					read_unlock(&tasklist_lock);
+					rcu_read_unlock();
 					goto cleanup;
 				}
-				INIT_LIST_HEAD(&tmp->list);
 				tmp->thread = p;
 				list_add(&tmp->list, &thread_list);
 			}
 		while_each_thread(g,p);
-		read_unlock(&tasklist_lock);
+		rcu_read_unlock();
 		list_for_each(t, &thread_list) {
 			struct elf_thread_status *tmp;
 			int sz;
@@ -1556,7 +1573,8 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 
 	DUMP_WRITE(elf, sizeof(*elf));
 	offset += sizeof(*elf);				/* Elf header */
-	offset += (segs+1) * sizeof(struct elf_phdr);	/* Program headers */
+	offset += (segs + 1) * sizeof(struct elf_phdr); /* Program headers */
+	foffset = offset;
 
 	/* Write notes phdr entry */
 	{
@@ -1568,12 +1586,15 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 		
 		sz += thread_status_size;
 
+#ifdef ELF_CORE_WRITE_EXTRA_NOTES
+		sz += ELF_CORE_EXTRA_NOTES_SIZE;
+#endif
+
 		fill_elf_note_phdr(&phdr, sz, offset);
 		offset += sz;
 		DUMP_WRITE(&phdr, sizeof(phdr));
 	}
 
-	/* Page-align dumped data */
 	dataoff = offset = roundup(offset, ELF_EXEC_PAGESIZE);
 
 	/* Write program headers for segments dump */
@@ -1606,8 +1627,12 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 
  	/* write out the notes section */
 	for (i = 0; i < numnote; i++)
-		if (!writenote(notes + i, file))
+		if (!writenote(notes + i, file, &foffset))
 			goto end_coredump;
+
+#ifdef ELF_CORE_WRITE_EXTRA_NOTES
+	ELF_CORE_WRITE_EXTRA_NOTES;
+#endif
 
 	/* write out the thread status notes section */
 	list_for_each(t, &thread_list) {
@@ -1615,11 +1640,12 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 				list_entry(t, struct elf_thread_status, list);
 
 		for (i = 0; i < tmp->num_notes; i++)
-			if (!writenote(&tmp->notes[i], file))
+			if (!writenote(&tmp->notes[i], file, &foffset))
 				goto end_coredump;
 	}
- 
-	DUMP_SEEK(dataoff);
+
+	/* Align to page */
+	DUMP_SEEK(dataoff - foffset);
 
 	for (vma = current->mm->mmap; vma != NULL; vma = vma->vm_next) {
 		unsigned long addr;
@@ -1635,10 +1661,10 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 
 			if (get_user_pages(current, current->mm, addr, 1, 0, 1,
 						&page, &vma) <= 0) {
-				DUMP_SEEK(file->f_pos + PAGE_SIZE);
+				DUMP_SEEK(PAGE_SIZE);
 			} else {
 				if (page == ZERO_PAGE(addr)) {
-					DUMP_SEEK(file->f_pos + PAGE_SIZE);
+					DUMP_SEEK(PAGE_SIZE);
 				} else {
 					void *kaddr;
 					flush_cache_page(vma, addr,
@@ -1661,13 +1687,6 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 #ifdef ELF_CORE_WRITE_EXTRA_DATA
 	ELF_CORE_WRITE_EXTRA_DATA;
 #endif
-
-	if (file->f_pos != offset) {
-		/* Sanity check */
-		printk(KERN_WARNING
-		       "elf_core_dump: file->f_pos (%Ld) != offset (%Ld)\n",
-		       file->f_pos, offset);
-	}
 
 end_coredump:
 	set_fs(fs);

@@ -3,7 +3,7 @@
  *
  * (C) Copyright IBM Corp. 2005
  *
- * Author(s): Rolf Adelsberger <adelsberger@de.ibm.com>
+ * Author(s): Rolf Adelsberger,
  *	      Heiko Carstens <heiko.carstens@de.ibm.com>
  *
  */
@@ -24,14 +24,13 @@
 	.text
 	.globl		relocate_kernel
 	relocate_kernel:
-		basr	%r13,0		#base address
+		basr	%r13,0		# base address
 	.base:
-		stnsm	sys_msk-.base(%r13),0xf8	#disable DAT and IRQ (external)
-		spx	zero64-.base(%r13)	#absolute addressing mode
+		stnsm	sys_msk-.base(%r13),0xfb	# disable DAT
 		stctl	%c0,%c15,ctlregs-.base(%r13)
 		stm	%r0,%r15,gprregs-.base(%r13)
 		la	%r1,load_psw-.base(%r13)
-		mvc     0(8,%r0),0(%r1)
+		mvc	0(8,%r0),0(%r1)
 		la	%r0,.back-.base(%r13)
 		st	%r0,4(%r0)
 		oi	4(%r0),0x80
@@ -51,54 +50,52 @@
 	.back_pgm:
 		lm	%r0,%r15,gprregs-.base(%r13)
 	.start_reloc:
-		lhi	%r10,-1		#preparing the mask
-		sll	%r10,12		#shift it such that it becomes 0xf000
+		lhi	%r10,-1		# preparing the mask
+		sll	%r10,12		# shift it such that it becomes 0xf000
 	.top:
-		lhi	%r7,4096	#load PAGE_SIZE in r7
-		lhi	%r9,4096	#load PAGE_SIZE in r9
-		l	%r5,0(%r2)	#read another word for indirection page
-		ahi	%r2,4		#increment pointer
-		tml	%r5,0x1		#is it a destination page?
-		je	.indir_check	#NO, goto "indir_check"
-		lr	%r6,%r5		#r6 = r5
-		nr	%r6,%r10	#mask it out and...
-		j	.top		#...next iteration
+		lhi	%r7,4096	# load PAGE_SIZE in r7
+		lhi	%r9,4096	# load PAGE_SIZE in r9
+		l	%r5,0(%r2)	# read another word for indirection page
+		ahi	%r2,4		# increment pointer
+		tml	%r5,0x1		# is it a destination page?
+		je	.indir_check	# NO, goto "indir_check"
+		lr	%r6,%r5		# r6 = r5
+		nr	%r6,%r10	# mask it out and...
+		j	.top		# ...next iteration
 	.indir_check:
-		tml	%r5,0x2		#is it a indirection page?
-		je	.done_test	#NO, goto "done_test"
-		nr	%r5,%r10	#YES, mask out,
-		lr	%r2,%r5		#move it into the right register,
-		j	.top		#and read next...
+		tml	%r5,0x2		# is it a indirection page?
+		je	.done_test	# NO, goto "done_test"
+		nr	%r5,%r10	# YES, mask out,
+		lr	%r2,%r5		# move it into the right register,
+		j	.top		# and read next...
 	.done_test:
-		tml	%r5,0x4		#is it the done indicator?
-		je	.source_test	#NO! Well, then it should be the source indicator...
-		j	.done		#ok, lets finish it here...
+		tml	%r5,0x4		# is it the done indicator?
+		je	.source_test	# NO! Well, then it should be the source indicator...
+		j	.done		# ok, lets finish it here...
 	.source_test:
-		tml	%r5,0x8		#it should be a source indicator...
-		je	.top		#NO, ignore it...
-		lr	%r8,%r5		#r8 = r5
-		nr	%r8,%r10	#masking
-	0:	mvcle	%r6,%r8,0x0	#copy PAGE_SIZE bytes from r8 to r6 - pad with 0
+		tml	%r5,0x8		# it should be a source indicator...
+		je	.top		# NO, ignore it...
+		lr	%r8,%r5		# r8 = r5
+		nr	%r8,%r10	# masking
+	0:	mvcle	%r6,%r8,0x0	# copy PAGE_SIZE bytes from r8 to r6 - pad with 0
 		jo	0b
 		j	.top
 	.done:
-		sr	%r0,%r0		#clear register r0
-		la	%r4,load_psw-.base(%r13)	#load psw-address into the register
-		o	%r3,4(%r4)	#or load address into psw
+		sr	%r0,%r0		# clear register r0
+		la	%r4,load_psw-.base(%r13)	# load psw-address into the register
+		o	%r3,4(%r4)	# or load address into psw
 		st	%r3,4(%r4)
-		mvc	0(8,%r0),0(%r4)	#copy psw to absolute address 0
+		mvc	0(8,%r0),0(%r4)	# copy psw to absolute address 0
 		tm	have_diag308-.base(%r13),0x01
 		jno	.no_diag308
 		diag	%r0,%r0,0x308
 	.no_diag308:
-		sr	%r1,%r1		#clear %r1
-		sr	%r2,%r2		#clear %r2
-		sigp	%r1,%r2,0x12	#set cpuid to zero
-		lpsw	0		#hopefully start new kernel...
+		sr	%r1,%r1		# clear %r1
+		sr	%r2,%r2		# clear %r2
+		sigp	%r1,%r2,0x12	# set cpuid to zero
+		lpsw	0		# hopefully start new kernel...
 
 		.align	8
-	zero64:
-		.quad	0
 	load_psw:
 		.long	0x00080000,0x80000000
 	sys_msk:

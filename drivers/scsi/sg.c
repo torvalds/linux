@@ -60,7 +60,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 
 #ifdef CONFIG_SCSI_PROC_FS
 #include <linux/proc_fs.h>
-static char *sg_version_date = "20060818";
+static char *sg_version_date = "20061027";
 
 static int sg_proc_init(void);
 static void sg_proc_cleanup(void);
@@ -93,6 +93,9 @@ int sg_big_buff = SG_DEF_RESERVED_SIZE;
    the kernel (i.e. it is not a module).] */
 static int def_reserved_size = -1;	/* picks up init parameter */
 static int sg_allow_dio = SG_ALLOW_DIO_DEF;
+
+static int scatter_elem_sz = SG_SCATTER_SZ;
+static int scatter_elem_sz_prev = SG_SCATTER_SZ;
 
 #define SG_SECTOR_SZ 512
 #define SG_SECTOR_MSK (SG_SECTOR_SZ - 1)
@@ -707,12 +710,12 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 			  (int) cmnd[0], (int) hp->cmd_len));
 
 	if ((k = sg_start_req(srp))) {
-		SCSI_LOG_TIMEOUT(1, printk("sg_write: start_req err=%d\n", k));
+		SCSI_LOG_TIMEOUT(1, printk("sg_common_write: start_req err=%d\n", k));
 		sg_finish_rem_req(srp);
 		return k;	/* probably out of space --> ENOMEM */
 	}
 	if ((k = sg_write_xfer(srp))) {
-		SCSI_LOG_TIMEOUT(1, printk("sg_write: write_xfer, bad address\n"));
+		SCSI_LOG_TIMEOUT(1, printk("sg_common_write: write_xfer, bad address\n"));
 		sg_finish_rem_req(srp);
 		return k;
 	}
@@ -743,7 +746,7 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 				hp->dxfer_len, srp->data.k_use_sg, timeout,
 				SG_DEFAULT_RETRIES, srp, sg_cmd_done,
 				GFP_ATOMIC)) {
-		SCSI_LOG_TIMEOUT(1, printk("sg_write: scsi_execute_async failed\n"));
+		SCSI_LOG_TIMEOUT(1, printk("sg_common_write: scsi_execute_async failed\n"));
 		/*
 		 * most likely out of mem, but could also be a bad map
 		 */
@@ -1280,7 +1283,7 @@ sg_cmd_done(void *data, char *sense, int result, int resid)
 		sg_finish_rem_req(srp);
 		srp = NULL;
 		if (NULL == sfp->headrp) {
-			SCSI_LOG_TIMEOUT(1, printk("sg...bh: already closed, final cleanup\n"));
+			SCSI_LOG_TIMEOUT(1, printk("sg_cmd_done: already closed, final cleanup\n"));
 			if (0 == sg_remove_sfp(sdp, sfp)) {	/* device still present */
 				scsi_device_put(sdp->device);
 			}
@@ -1509,12 +1512,12 @@ sg_remove(struct class_device *cl_dev, struct class_interface *cl_intf)
 						    POLL_HUP);
 				}
 			}
-			SCSI_LOG_TIMEOUT(3, printk("sg_detach: dev=%d, dirty\n", k));
+			SCSI_LOG_TIMEOUT(3, printk("sg_remove: dev=%d, dirty\n", k));
 			if (NULL == sdp->headfp) {
 				sg_dev_arr[k] = NULL;
 			}
 		} else {	/* nothing active, simple case */
-			SCSI_LOG_TIMEOUT(3, printk("sg_detach: dev=%d\n", k));
+			SCSI_LOG_TIMEOUT(3, printk("sg_remove: dev=%d\n", k));
 			sg_dev_arr[k] = NULL;
 		}
 		sg_nr_dev--;
@@ -1537,11 +1540,9 @@ sg_remove(struct class_device *cl_dev, struct class_interface *cl_intf)
 		msleep(10);	/* dirty detach so delay device destruction */
 }
 
-/* Set 'perm' (4th argument) to 0 to disable module_param's definition
- * of sysfs parameters (which module_param doesn't yet support).
- * Sysfs parameters defined explicitly below.
- */
-module_param_named(def_reserved_size, def_reserved_size, int, S_IRUGO);
+module_param_named(scatter_elem_sz, scatter_elem_sz, int, S_IRUGO | S_IWUSR);
+module_param_named(def_reserved_size, def_reserved_size, int,
+		   S_IRUGO | S_IWUSR);
 module_param_named(allow_dio, sg_allow_dio, int, S_IRUGO | S_IWUSR);
 
 MODULE_AUTHOR("Douglas Gilbert");
@@ -1550,6 +1551,8 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(SG_VERSION_STR);
 MODULE_ALIAS_CHARDEV_MAJOR(SCSI_GENERIC_MAJOR);
 
+MODULE_PARM_DESC(scatter_elem_sz, "scatter gather element "
+                "size (default: max(SG_SCATTER_SZ, PAGE_SIZE))");
 MODULE_PARM_DESC(def_reserved_size, "size of buffer reserved for each fd");
 MODULE_PARM_DESC(allow_dio, "allow direct I/O (default: 0 (disallow))");
 
@@ -1558,8 +1561,14 @@ init_sg(void)
 {
 	int rc;
 
+	if (scatter_elem_sz < PAGE_SIZE) {
+		scatter_elem_sz = PAGE_SIZE;
+		scatter_elem_sz_prev = scatter_elem_sz;
+	}
 	if (def_reserved_size >= 0)
 		sg_big_buff = def_reserved_size;
+	else
+		def_reserved_size = sg_big_buff;
 
 	rc = register_chrdev_region(MKDEV(SCSI_GENERIC_MAJOR, 0), 
 				    SG_MAX_DEVS, "sg");
@@ -1842,24 +1851,40 @@ sg_build_indirect(Sg_scatter_hold * schp, Sg_fd * sfp, int buff_size)
 	if (mx_sc_elems < 0)
 		return mx_sc_elems;	/* most likely -ENOMEM */
 
+	num = scatter_elem_sz;
+	if (unlikely(num != scatter_elem_sz_prev)) {
+		if (num < PAGE_SIZE) {
+			scatter_elem_sz = PAGE_SIZE;
+			scatter_elem_sz_prev = PAGE_SIZE;
+		} else
+			scatter_elem_sz_prev = num;
+	}
 	for (k = 0, sg = schp->buffer, rem_sz = blk_size;
 	     (rem_sz > 0) && (k < mx_sc_elems);
 	     ++k, rem_sz -= ret_sz, ++sg) {
 		
-		num = (rem_sz > SG_SCATTER_SZ) ? SG_SCATTER_SZ : rem_sz;
+		num = (rem_sz > scatter_elem_sz_prev) ?
+		      scatter_elem_sz_prev : rem_sz;
 		p = sg_page_malloc(num, sfp->low_dma, &ret_sz);
 		if (!p)
 			return -ENOMEM;
 
+		if (num == scatter_elem_sz_prev) {
+			if (unlikely(ret_sz > scatter_elem_sz_prev)) {
+				scatter_elem_sz = ret_sz;
+				scatter_elem_sz_prev = ret_sz;
+			}
+		}
 		sg->page = p;
-		sg->length = ret_sz;
+		sg->length = (ret_sz > num) ? num : ret_sz;
 
-		SCSI_LOG_TIMEOUT(5, printk("sg_build_build: k=%d, a=0x%p, len=%d\n",
-				  k, p, ret_sz));
+		SCSI_LOG_TIMEOUT(5, printk("sg_build_indirect: k=%d, num=%d, "
+				 "ret_sz=%d\n", k, num, ret_sz));
 	}		/* end of for loop */
 
 	schp->k_use_sg = k;
-	SCSI_LOG_TIMEOUT(5, printk("sg_build_indirect: k_use_sg=%d, rem_sz=%d\n", k, rem_sz));
+	SCSI_LOG_TIMEOUT(5, printk("sg_build_indirect: k_use_sg=%d, "
+			 "rem_sz=%d\n", k, rem_sz));
 
 	schp->bufflen = blk_size;
 	if (rem_sz > 0)	/* must have failed */
@@ -1990,7 +2015,7 @@ sg_remove_scat(Sg_scatter_hold * schp)
 			for (k = 0; (k < schp->k_use_sg) && sg->page;
 			     ++k, ++sg) {
 				SCSI_LOG_TIMEOUT(5, printk(
-				    "sg_remove_scat: k=%d, a=0x%p, len=%d\n",
+				    "sg_remove_scat: k=%d, pg=0x%p, len=%d\n",
 				    k, sg->page, sg->length));
 				sg_page_free(sg->page, sg->length);
 			}
@@ -2341,6 +2366,9 @@ sg_add_sfp(Sg_device * sdp, int dev)
 	}
 	write_unlock_irqrestore(&sg_dev_arr_lock, iflags);
 	SCSI_LOG_TIMEOUT(3, printk("sg_add_sfp: sfp=0x%p\n", sfp));
+	if (unlikely(sg_big_buff != def_reserved_size))
+		sg_big_buff = def_reserved_size;
+
 	sg_build_reserve(sfp, sg_big_buff);
 	SCSI_LOG_TIMEOUT(3, printk("sg_add_sfp:   bufflen=%d, k_use_sg=%d\n",
 			   sfp->reserve.bufflen, sfp->reserve.k_use_sg));
@@ -2437,16 +2465,16 @@ sg_res_in_use(Sg_fd * sfp)
 	return srp ? 1 : 0;
 }
 
-/* If retSzp==NULL want exact size or fail */
+/* The size fetched (value output via retSzp) set when non-NULL return */
 static struct page *
 sg_page_malloc(int rqSz, int lowDma, int *retSzp)
 {
 	struct page *resp = NULL;
 	gfp_t page_mask;
 	int order, a_size;
-	int resSz = rqSz;
+	int resSz;
 
-	if (rqSz <= 0)
+	if ((rqSz <= 0) || (NULL == retSzp))
 		return resp;
 
 	if (lowDma)
@@ -2456,8 +2484,9 @@ sg_page_malloc(int rqSz, int lowDma, int *retSzp)
 
 	for (order = 0, a_size = PAGE_SIZE; a_size < rqSz;
 	     order++, a_size <<= 1) ;
+	resSz = a_size;		/* rounded up if necessary */
 	resp = alloc_pages(page_mask, order);
-	while ((!resp) && order && retSzp) {
+	while ((!resp) && order) {
 		--order;
 		a_size >>= 1;	/* divide by 2, until PAGE_SIZE */
 		resp =  alloc_pages(page_mask, order);	/* try half */
@@ -2466,8 +2495,7 @@ sg_page_malloc(int rqSz, int lowDma, int *retSzp)
 	if (resp) {
 		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
 			memset(page_address(resp), 0, resSz);
-		if (retSzp)
-			*retSzp = resSz;
+		*retSzp = resSz;
 	}
 	return resp;
 }

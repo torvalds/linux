@@ -754,7 +754,7 @@ static int snd_es18xx_playback_trigger(struct snd_pcm_substream *substream,
 		return snd_es18xx_playback2_trigger(chip, substream, cmd);
 }
 
-static irqreturn_t snd_es18xx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_es18xx_interrupt(int irq, void *dev_id)
 {
 	struct snd_es18xx *chip = dev_id;
 	unsigned char status;
@@ -799,7 +799,7 @@ static irqreturn_t snd_es18xx_interrupt(int irq, void *dev_id, struct pt_regs *r
 
 	/* MPU */
 	if ((status & MPU_IRQ) && chip->rmidi)
-		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data, regs);
+		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data);
 
 	/* Hardware volume */
 	if (status & HWV_IRQ) {
@@ -2154,6 +2154,7 @@ static int __devinit snd_audiodrive_pnpc(int dev, struct snd_audiodrive *acard,
 	}
 	/* Control port initialization */
 	if (pnp_activate_dev(acard->devc) < 0) {
+		kfree(cfg);
 		snd_printk(KERN_ERR PFX "PnP control configure failure (out of resources?)\n");
 		return -EAGAIN;
 	}

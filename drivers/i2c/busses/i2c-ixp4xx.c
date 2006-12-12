@@ -1,5 +1,5 @@
 /*
- * drivers/i2c/i2c-adap-ixp4xx.c
+ * drivers/i2c/busses/i2c-ixp4xx.c
  *
  * Intel's IXP4xx XScale NPU chipsets (IXP420, 421, 422, 425) do not have
  * an on board I2C controller but provide 16 GPIO pins that are often
@@ -91,7 +91,7 @@ static int ixp4xx_i2c_remove(struct platform_device *plat_dev)
 
 	platform_set_drvdata(plat_dev, NULL);
 
-	i2c_bit_del_bus(&drv_data->adapter);
+	i2c_del_adapter(&drv_data->adapter);
 
 	kfree(drv_data);
 
@@ -122,7 +122,6 @@ static int ixp4xx_i2c_probe(struct platform_device *plat_dev)
 	drv_data->algo_data.getsda = ixp4xx_bit_getsda;
 	drv_data->algo_data.getscl = ixp4xx_bit_getscl;
 	drv_data->algo_data.udelay = 10;
-	drv_data->algo_data.mdelay = 10;
 	drv_data->algo_data.timeout = 100;
 
 	drv_data->adapter.id = I2C_HW_B_IXP4XX;
@@ -138,7 +137,8 @@ static int ixp4xx_i2c_probe(struct platform_device *plat_dev)
 	gpio_line_set(gpio->scl_pin, 0);
 	gpio_line_set(gpio->sda_pin, 0);
 
-	if ((err = i2c_bit_add_bus(&drv_data->adapter) != 0)) {
+	err = i2c_bit_add_bus(&drv_data->adapter);
+	if (err) {
 		printk(KERN_ERR "ERROR: Could not install %s\n", plat_dev->dev.bus_id);
 
 		kfree(drv_data);

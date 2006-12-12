@@ -130,7 +130,7 @@ int mpc1211_rtc_settimeofday(const struct timeval *tv)
 
 void mpc1211_time_init(void)
 {
-	rtc_get_time = mpc1211_rtc_gettimeofday;
-	rtc_set_time = mpc1211_rtc_settimeofday;
+	rtc_sh_get_time = mpc1211_rtc_gettimeofday;
+	rtc_sh_set_time = mpc1211_rtc_settimeofday;
 }
 

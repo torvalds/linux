@@ -10,12 +10,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Modifications:
- *	14-Sep-2004 BJD  Created
- *	18-Oct-2004 BJD  Cleanups, and added code to report OC cleared
- *	09-Aug-2005 BJD  Renamed s3c2410_report_oc to s3c2410_usb_report_oc
- *	09-Aug-2005 BJD  Ports powered only if both are enabled
 */
 
 #define DEBUG
@@ -64,7 +58,7 @@ usb_simtec_powercontrol(int port, int to)
 }
 
 static irqreturn_t
-usb_simtec_ocirq(int irq, void *pw, struct pt_regs *regs)
+usb_simtec_ocirq(int irq, void *pw)
 {
 	struct s3c2410_hcd_info *info = (struct s3c2410_hcd_info *)pw;
 

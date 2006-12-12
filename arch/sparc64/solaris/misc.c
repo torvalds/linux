@@ -11,6 +11,7 @@
 #include <linux/limits.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
+#include <linux/tty.h>
 #include <linux/mman.h>
 #include <linux/file.h>
 #include <linux/timex.h>
@@ -76,7 +77,7 @@ static u32 do_solaris_mmap(u32 addr, u32 len, u32 prot, u32 flags, u32 fd, u64 o
 		if (!file)
 			goto out;
 		else {
-			struct inode * inode = file->f_dentry->d_inode;
+			struct inode * inode = file->f_path.dentry->d_inode;
 			if(imajor(inode) == MEM_MAJOR &&
 			   iminor(inode) == 5) {
 				flags |= MAP_ANONYMOUS;
@@ -248,7 +249,7 @@ asmlinkage int solaris_utssys(u32 buf, u32 flags, int which, u32 buf2)
 		/* Let's cheat */
 		err  = set_utsfield(v->sysname, "SunOS", 1, 0);
 		down_read(&uts_sem);
-		err |= set_utsfield(v->nodename, system_utsname.nodename,
+		err |= set_utsfield(v->nodename, utsname()->nodename,
 				    1, 1);
 		up_read(&uts_sem);
 		err |= set_utsfield(v->release, "2.6", 0, 0);
@@ -272,7 +273,7 @@ asmlinkage int solaris_utsname(u32 buf)
 	/* Why should we not lie a bit? */
 	down_read(&uts_sem);
 	err  = set_utsfield(v->sysname, "SunOS", 0, 0);
-	err |= set_utsfield(v->nodename, system_utsname.nodename, 1, 1);
+	err |= set_utsfield(v->nodename, utsname()->nodename, 1, 1);
 	err |= set_utsfield(v->release, "5.6", 0, 0);
 	err |= set_utsfield(v->version, "Generic", 0, 0);
 	err |= set_utsfield(v->machine, machine(), 0, 0);
@@ -304,7 +305,7 @@ asmlinkage int solaris_sysinfo(int cmd, u32 buf, s32 count)
 	case SI_HOSTNAME:
 		r = buffer + 256;
 		down_read(&uts_sem);
-		for (p = system_utsname.nodename, q = buffer; 
+		for (p = utsname()->nodename, q = buffer;
 		     q < r && *p && *p != '.'; *q++ = *p++);
 		up_read(&uts_sem);
 		*q = 0;
@@ -422,7 +423,7 @@ asmlinkage int solaris_procids(int cmd, s32 pid, s32 pgid)
 			   Solaris setpgrp and setsid? */
 			ret = sys_setpgid(0, 0);
 			if (ret) return ret;
-			current->signal->tty = NULL;
+			proc_clear_tty(current);
 			return process_group(current);
 		}
 	case 2: /* getsid */

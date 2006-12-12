@@ -13,8 +13,6 @@ int DMAbuf_move_wrpointer(int dev, int l);
 void DMAbuf_init(int dev, int dma1, int dma2);
 void DMAbuf_deinit(int dev);
 int DMAbuf_start_dma (int dev, unsigned long physaddr, int count, int dma_mode);
-int DMAbuf_open_dma (int dev);
-void DMAbuf_close_dma (int dev);
 void DMAbuf_inputintr(int dev);
 void DMAbuf_outputintr(int dev, int underflow_flag);
 struct dma_buffparms;
@@ -73,7 +71,6 @@ unsigned int MIDIbuf_poll(int dev, struct file *file, poll_table * wait);
 int MIDIbuf_avail(int dev);
 
 void MIDIbuf_bytes_received(int dev, unsigned char *buf, int count);
-void MIDIbuf_init(void);
 
 
 /*	From soundcard.c	*/

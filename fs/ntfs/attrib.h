@@ -40,10 +40,10 @@
  * Structure must be initialized to zero before the first call to one of the
  * attribute search functions. Initialize @mrec to point to the mft record to
  * search, and @attr to point to the first attribute within @mrec (not necessary
- * if calling the _first() functions), and set @is_first to TRUE (not necessary
+ * if calling the _first() functions), and set @is_first to 'true' (not necessary
  * if calling the _first() functions).
  *
- * If @is_first is TRUE, the search begins with @attr. If @is_first is FALSE,
+ * If @is_first is 'true', the search begins with @attr. If @is_first is 'false',
  * the search begins after @attr. This is so that, after the first call to one
  * of the search attribute functions, we can call the function again, without
  * any modification of the search context, to automagically get the next
@@ -52,7 +52,7 @@
 typedef struct {
 	MFT_RECORD *mrec;
 	ATTR_RECORD *attr;
-	BOOL is_first;
+	bool is_first;
 	ntfs_inode *ntfs_ino;
 	ATTR_LIST_ENTRY *al_entry;
 	ntfs_inode *base_ntfs_ino;
@@ -65,7 +65,7 @@ extern int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn,
 extern int ntfs_map_runlist(ntfs_inode *ni, VCN vcn);
 
 extern LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
-		const BOOL write_locked);
+		const bool write_locked);
 
 extern runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni,
 		const VCN vcn, ntfs_attr_search_ctx *ctx);

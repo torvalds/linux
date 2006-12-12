@@ -17,11 +17,13 @@
  *
  */
 
-#include <linux/string.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/param.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 
 #include "csr1212.h"
 #include "ieee1394_types.h"
@@ -149,32 +151,17 @@ static void host_reset(struct hpsb_host *host)
 
 /*
  * HI == seconds (bits 0:2)
- * LO == fraction units of 1/8000 of a second, as per 1394 (bits 19:31)
+ * LO == fractions of a second in units of 125usec (bits 19:31)
  *
- * Convert to units and then to HZ, for comparison to jiffies.
- *
- * By default this will end up being 800 units, or 100ms (125usec per
- * unit).
- *
- * NOTE: The spec says 1/8000, but also says we can compute based on 1/8192
- * like CSR specifies. Should make our math less complex.
+ * Convert SPLIT_TIMEOUT to jiffies.
+ * The default and minimum as per 1394a-2000 clause 8.3.2.2.6 is 100ms.
  */
 static inline void calculate_expire(struct csr_control *csr)
 {
-	unsigned long units;
+	unsigned int usecs = (csr->split_timeout_hi & 7) * 1000000 +
+			     (csr->split_timeout_lo >> 19) * 125;
 
-	/* Take the seconds, and convert to units */
-	units = (unsigned long)(csr->split_timeout_hi & 0x07) << 13;
-
-	/* Add in the fractional units */
-	units += (unsigned long)(csr->split_timeout_lo >> 19);
-
-	/* Convert to jiffies */
-	csr->expire = (unsigned long)(units * HZ) >> 13UL;
-
-	/* Just to keep from rounding low */
-	csr->expire++;
-
+	csr->expire = usecs_to_jiffies(usecs > 100000 ? usecs : 100000);
 	HPSB_VERBOSE("CSR: setting expire to %lu, HZ=%u", csr->expire, HZ);
 }
 

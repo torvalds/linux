@@ -109,6 +109,15 @@ extern struct x8664_pda _proxy_pda;
 #define sub_pda(field,val) pda_to_op("sub",field,val)
 #define or_pda(field,val) pda_to_op("or",field,val)
 
+/* This is not atomic against other CPUs -- CPU preemption needs to be off */
+#define test_and_clear_bit_pda(bit,field) ({		\
+	int old__;						\
+	asm volatile("btr %2,%%gs:%c3\n\tsbbl %0,%0"		\
+	    : "=r" (old__), "+m" (_proxy_pda.field) 		\
+	    : "dIr" (bit), "i" (pda_offset(field)) : "memory");	\
+	old__;							\
+})
+
 #endif
 
 #define PDA_STACKOFFSET (5*8)

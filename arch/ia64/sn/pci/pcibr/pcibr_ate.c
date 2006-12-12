@@ -126,7 +126,7 @@ int pcibr_ate_alloc(struct pcibus_info *pcibus_info, int count)
  * Setup an Address Translation Entry as specified.  Use either the Bridge
  * internal maps or the external map RAM, as appropriate.
  */
-static inline u64 *pcibr_ate_addr(struct pcibus_info *pcibus_info,
+static inline u64 __iomem *pcibr_ate_addr(struct pcibus_info *pcibus_info,
 				       int ate_index)
 {
 	if (ate_index < pcibus_info->pbi_int_ate_size) {
@@ -160,7 +160,7 @@ void pcibr_ate_free(struct pcibus_info *pcibus_info, int index)
 
 	volatile u64 ate;
 	int count;
-	u64 flags;
+	unsigned long flags;
 
 	if (pcibr_invalidate_ate) {
 		/* For debugging purposes, clear the valid bit in the ATE */

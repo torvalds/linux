@@ -52,54 +52,21 @@
 #endif
 
 /*
- * Both Galileo boards have the same UART mappings.
+ * Galileo EV64120 evaluation board
  */
-#if defined (CONFIG_MIPS_EV96100) || defined (CONFIG_MIPS_EV64120)
-#include <asm/galileo-boards/ev96100.h>
-#include <asm/galileo-boards/ev96100int.h>
-#define EV96100_SERIAL_PORT_DEFNS                                  \
-    { .baud_base = EV96100_BASE_BAUD, .irq = EV96100INT_UART_0, \
+#ifdef CONFIG_MIPS_EV64120
+#include <mach-gt64120.h>
+#define EV64120_SERIAL_PORT_DEFNS                                  \
+    { .baud_base = EV64120_BASE_BAUD, .irq = EV64120_UART_IRQ, \
       .flags = STD_COM_FLAGS,  \
-      .iomem_base = EV96100_UART0_REGS_BASE, .iomem_reg_shift = 2, \
+      .iomem_base = EV64120_UART0_REGS_BASE, .iomem_reg_shift = 2, \
       .io_type = SERIAL_IO_MEM }, \
-    { .baud_base = EV96100_BASE_BAUD, .irq = EV96100INT_UART_0, \
+    { .baud_base = EV64120_BASE_BAUD, .irq = EV64120_UART_IRQ, \
       .flags = STD_COM_FLAGS, \
-      .iomem_base = EV96100_UART1_REGS_BASE, .iomem_reg_shift = 2, \
+      .iomem_base = EV64120_UART1_REGS_BASE, .iomem_reg_shift = 2, \
       .io_type = SERIAL_IO_MEM },
 #else
-#define EV96100_SERIAL_PORT_DEFNS
-#endif
-
-#ifdef CONFIG_MIPS_ITE8172
-#include <asm/it8172/it8172.h>
-#include <asm/it8172/it8172_int.h>
-#include <asm/it8712.h>
-#define ITE_SERIAL_PORT_DEFNS                                  \
-    { .baud_base = BASE_BAUD, .port = (IT8172_PCI_IO_BASE + IT_UART_BASE), \
-      .irq = IT8172_UART_IRQ, .flags = STD_COM_FLAGS, .port = PORT_16550 }, \
-    { .baud_base = (24000000/(16*13)), .port = (IT8172_PCI_IO_BASE + IT8712_UART1_PORT), \
-      .irq = IT8172_SERIRQ_4, .flags = STD_COM_FLAGS, .port = PORT_16550 }, \
-    /* Smart Card Reader 0 */ \
-    { .baud_base = BASE_BAUD, .port = (IT8172_PCI_IO_BASE + IT_SCR0_BASE), \
-      .irq = IT8172_SCR0_IRQ, .flags = STD_COM_FLAGS, .port = PORT_16550 }, \
-    /* Smart Card Reader 1 */ \
-    { .baud_base = BASE_BAUD, .port = (IT8172_PCI_IO_BASE + IT_SCR1_BASE), \
-      .irq = IT8172_SCR1_IRQ, .flags = STD_COM_FLAGS, .port = PORT_16550 },
-#else
-#define ITE_SERIAL_PORT_DEFNS
-#endif
-
-#ifdef CONFIG_MIPS_IVR
-#include <asm/it8172/it8172.h>
-#include <asm/it8172/it8172_int.h>
-#define IVR_SERIAL_PORT_DEFNS                                  \
-    { .baud_base = BASE_BAUD, .port = (IT8172_PCI_IO_BASE + IT_UART_BASE), \
-      .irq = IT8172_UART_IRQ, .flags = STD_COM_FLAGS, .port = PORT_16550 },         \
-    /* Smart Card Reader 1 */ \
-    { .baud_base = BASE_BAUD, .port = (IT8172_PCI_IO_BASE + IT_SCR1_BASE), \
-      .irq = IT8172_SCR1_IRQ, .flags = STD_COM_FLAGS, .port = PORT_16550 },
-#else
-#define IVR_SERIAL_PORT_DEFNS
+#define EV64120_SERIAL_PORT_DEFNS
 #endif
 
 #ifdef CONFIG_HAVE_STD_PC_SERIAL_PORT
@@ -239,10 +206,8 @@
 
 #define SERIAL_PORT_DFNS				\
 	DDB5477_SERIAL_PORT_DEFNS			\
-	EV96100_SERIAL_PORT_DEFNS			\
+	EV64120_SERIAL_PORT_DEFNS			\
 	IP32_SERIAL_PORT_DEFNS                          \
-	ITE_SERIAL_PORT_DEFNS           		\
-	IVR_SERIAL_PORT_DEFNS           		\
 	JAZZ_SERIAL_PORT_DEFNS				\
 	STD_SERIAL_PORT_DEFNS				\
 	MOMENCO_OCELOT_G_SERIAL_PORT_DEFNS		\

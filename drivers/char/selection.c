@@ -33,7 +33,7 @@ extern void poke_blanked_console(void);
 
 /* Variables for selection control. */
 /* Use a dynamic buffer, instead of static (Dec 1994) */
-struct vc_data *sel_cons;		/* must not be disallocated */
+struct vc_data *sel_cons;		/* must not be deallocated */
 static volatile int sel_start = -1; 	/* cleared by clear_selection */
 static int sel_end;
 static int sel_buffer_lth;

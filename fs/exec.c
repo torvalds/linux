@@ -38,6 +38,7 @@
 #include <linux/binfmts.h>
 #include <linux/swap.h>
 #include <linux/utsname.h>
+#include <linux/pid_namespace.h>
 #include <linux/module.h>
 #include <linux/namei.h>
 #include <linux/proc_fs.h>
@@ -46,7 +47,7 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/rmap.h>
-#include <linux/acct.h>
+#include <linux/tsacct_kern.h>
 #include <linux/cn_proc.h>
 #include <linux/audit.h>
 
@@ -58,7 +59,7 @@
 #endif
 
 int core_uses_pid;
-char core_pattern[65] = "core";
+char core_pattern[128] = "core";
 int suid_dumpable = 0;
 
 EXPORT_SYMBOL(suid_dumpable);
@@ -404,7 +405,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 		bprm->loader += stack_base;
 	bprm->exec += stack_base;
 
-	mpnt = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
+	mpnt = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 	if (!mpnt)
 		return -ENOMEM;
 
@@ -595,7 +596,7 @@ static int de_thread(struct task_struct *tsk)
 	if (!newsighand)
 		return -ENOMEM;
 
-	if (thread_group_empty(current))
+	if (thread_group_empty(tsk))
 		goto no_thread_group;
 
 	/*
@@ -620,17 +621,17 @@ static int de_thread(struct task_struct *tsk)
 	 * Reparenting needs write_lock on tasklist_lock,
 	 * so it is safe to do it under read_lock.
 	 */
-	if (unlikely(current->group_leader == child_reaper))
-		child_reaper = current;
+	if (unlikely(tsk->group_leader == child_reaper(tsk)))
+		tsk->nsproxy->pid_ns->child_reaper = tsk;
 
-	zap_other_threads(current);
+	zap_other_threads(tsk);
 	read_unlock(&tasklist_lock);
 
 	/*
 	 * Account for the thread group leader hanging around:
 	 */
 	count = 1;
-	if (!thread_group_leader(current)) {
+	if (!thread_group_leader(tsk)) {
 		count = 2;
 		/*
 		 * The SIGALRM timer survives the exec, but needs to point
@@ -639,14 +640,14 @@ static int de_thread(struct task_struct *tsk)
 		 * synchronize with any firing (by calling del_timer_sync)
 		 * before we can safely let the old group leader die.
 		 */
-		sig->tsk = current;
+		sig->tsk = tsk;
 		spin_unlock_irq(lock);
 		if (hrtimer_cancel(&sig->real_timer))
 			hrtimer_restart(&sig->real_timer);
 		spin_lock_irq(lock);
 	}
 	while (atomic_read(&sig->count) > count) {
-		sig->group_exit_task = current;
+		sig->group_exit_task = tsk;
 		sig->notify_count = count;
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		spin_unlock_irq(lock);
@@ -662,13 +663,13 @@ static int de_thread(struct task_struct *tsk)
 	 * do is to wait for the thread group leader to become inactive,
 	 * and to assume its PID:
 	 */
-	if (!thread_group_leader(current)) {
+	if (!thread_group_leader(tsk)) {
 		/*
 		 * Wait for the thread group leader to be a zombie.
 		 * It should already be zombie at this point, most
 		 * of the time.
 		 */
-		leader = current->group_leader;
+		leader = tsk->group_leader;
 		while (leader->exit_state != EXIT_ZOMBIE)
 			yield();
 
@@ -682,12 +683,12 @@ static int de_thread(struct task_struct *tsk)
 		 * When we take on its identity by switching to its PID, we
 		 * also take its birthdate (always earlier than our own).
 		 */
-		current->start_time = leader->start_time;
+		tsk->start_time = leader->start_time;
 
 		write_lock_irq(&tasklist_lock);
 
-		BUG_ON(leader->tgid != current->tgid);
-		BUG_ON(current->pid == current->tgid);
+		BUG_ON(leader->tgid != tsk->tgid);
+		BUG_ON(tsk->pid == tsk->tgid);
 		/*
 		 * An exec() starts a new thread group with the
 		 * TGID of the previous thread group. Rehash the
@@ -696,24 +697,21 @@ static int de_thread(struct task_struct *tsk)
 		 */
 
 		/* Become a process group leader with the old leader's pid.
-		 * Note: The old leader also uses thispid until release_task
+		 * The old leader becomes a thread of the this thread group.
+		 * Note: The old leader also uses this pid until release_task
 		 *       is called.  Odd but simple and correct.
 		 */
-		detach_pid(current, PIDTYPE_PID);
-		current->pid = leader->pid;
-		attach_pid(current, PIDTYPE_PID,  current->pid);
-		attach_pid(current, PIDTYPE_PGID, current->signal->pgrp);
-		attach_pid(current, PIDTYPE_SID,  current->signal->session);
-		list_replace_rcu(&leader->tasks, &current->tasks);
+		detach_pid(tsk, PIDTYPE_PID);
+		tsk->pid = leader->pid;
+		attach_pid(tsk, PIDTYPE_PID,  tsk->pid);
+		transfer_pid(leader, tsk, PIDTYPE_PGID);
+		transfer_pid(leader, tsk, PIDTYPE_SID);
+		list_replace_rcu(&leader->tasks, &tsk->tasks);
 
-		current->group_leader = current;
-		leader->group_leader = current;
+		tsk->group_leader = tsk;
+		leader->group_leader = tsk;
 
-		/* Reduce leader to a thread */
-		detach_pid(leader, PIDTYPE_PGID);
-		detach_pid(leader, PIDTYPE_SID);
-
-		current->exit_signal = SIGCHLD;
+		tsk->exit_signal = SIGCHLD;
 
 		BUG_ON(leader->exit_state != EXIT_ZOMBIE);
 		leader->exit_state = EXIT_DEAD;
@@ -753,7 +751,7 @@ no_thread_group:
 		spin_lock(&oldsighand->siglock);
 		spin_lock_nested(&newsighand->siglock, SINGLE_DEPTH_NESTING);
 
-		rcu_assign_pointer(current->sighand, newsighand);
+		rcu_assign_pointer(tsk->sighand, newsighand);
 		recalc_sigpending();
 
 		spin_unlock(&newsighand->siglock);
@@ -764,7 +762,7 @@ no_thread_group:
 			kmem_cache_free(sighand_cachep, oldsighand);
 	}
 
-	BUG_ON(!thread_group_leader(current));
+	BUG_ON(!thread_group_leader(tsk));
 	return 0;
 }
 	
@@ -785,7 +783,7 @@ static void flush_old_files(struct files_struct * files)
 		j++;
 		i = j * __NFDBITS;
 		fdt = files_fdtable(files);
-		if (i >= fdt->max_fds || i >= fdt->max_fdset)
+		if (i >= fdt->max_fds)
 			break;
 		set = fdt->close_on_exec->fds_bits[j];
 		if (!set)
@@ -901,8 +899,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 	return 0;
 
 mmap_failed:
-	put_files_struct(current->files);
-	current->files = files;
+	reset_files_struct(current, files);
 out:
 	return retval;
 }
@@ -916,7 +913,7 @@ EXPORT_SYMBOL(flush_old_exec);
 int prepare_binprm(struct linux_binprm *bprm)
 {
 	int mode;
-	struct inode * inode = bprm->file->f_dentry->d_inode;
+	struct inode * inode = bprm->file->f_path.dentry->d_inode;
 	int retval;
 
 	mode = inode->i_mode;
@@ -926,7 +923,7 @@ int prepare_binprm(struct linux_binprm *bprm)
 	bprm->e_uid = current->euid;
 	bprm->e_gid = current->egid;
 
-	if(!(bprm->file->f_vfsmnt->mnt_flags & MNT_NOSUID)) {
+	if(!(bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID)) {
 		/* Set-uid? */
 		if (mode & S_ISUID) {
 			current->personality &= ~PER_CLEAR_ON_SETID;
@@ -1322,7 +1319,7 @@ static void format_corename(char *corename, const char *pattern, long signr)
 			case 'h':
 				down_read(&uts_sem);
 				rc = snprintf(out_ptr, out_end - out_ptr,
-					      "%s", system_utsname.nodename);
+					      "%s", utsname()->nodename);
 				up_read(&uts_sem);
 				if (rc > out_end - out_ptr)
 					goto out;
@@ -1467,6 +1464,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	int retval = 0;
 	int fsuid = current->fsuid;
 	int flag = 0;
+	int ispipe = 0;
 
 	binfmt = current->binfmt;
 	if (!binfmt || !binfmt->core_dump)
@@ -1508,22 +1506,35 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
  	lock_kernel();
 	format_corename(corename, core_pattern, signr);
 	unlock_kernel();
-	file = filp_open(corename, O_CREAT | 2 | O_NOFOLLOW | O_LARGEFILE | flag, 0600);
+ 	if (corename[0] == '|') {
+		/* SIGPIPE can happen, but it's just never processed */
+ 		if(call_usermodehelper_pipe(corename+1, NULL, NULL, &file)) {
+ 			printk(KERN_INFO "Core dump to %s pipe failed\n",
+			       corename);
+ 			goto fail_unlock;
+ 		}
+		ispipe = 1;
+ 	} else
+ 		file = filp_open(corename,
+				 O_CREAT | 2 | O_NOFOLLOW | O_LARGEFILE | flag,
+				 0600);
 	if (IS_ERR(file))
 		goto fail_unlock;
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 	if (inode->i_nlink > 1)
 		goto close_fail;	/* multiple links - don't dump */
-	if (d_unhashed(file->f_dentry))
+	if (!ispipe && d_unhashed(file->f_path.dentry))
 		goto close_fail;
 
-	if (!S_ISREG(inode->i_mode))
+	/* AK: actually i see no reason to not allow this for named pipes etc.,
+	   but keep the previous behaviour for now. */
+	if (!ispipe && !S_ISREG(inode->i_mode))
 		goto close_fail;
 	if (!file->f_op)
 		goto close_fail;
 	if (!file->f_op->write)
 		goto close_fail;
-	if (do_truncate(file->f_dentry, 0, 0, file) != 0)
+	if (!ispipe && do_truncate(file->f_path.dentry, 0, 0, file) != 0)
 		goto close_fail;
 
 	retval = binfmt->core_dump(signr, regs, file);

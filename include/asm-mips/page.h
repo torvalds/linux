@@ -34,6 +34,10 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/pfn.h>
+#include <asm/cpu-features.h>
+#include <asm/io.h>
+
 extern void clear_page(void * page);
 extern void copy_page(void * to, void * from);
 
@@ -53,7 +57,7 @@ static inline void clear_user_page(void *addr, unsigned long vaddr,
 	extern void (*flush_data_cache_page)(unsigned long addr);
 
 	clear_page(addr);
-	if (pages_do_alias((unsigned long) addr, vaddr))
+	if (pages_do_alias((unsigned long) addr, vaddr & PAGE_MASK))
 		flush_data_cache_page((unsigned long)addr);
 }
 
@@ -63,7 +67,8 @@ static inline void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 	extern void (*flush_data_cache_page)(unsigned long addr);
 
 	copy_page(vto, vfrom);
-	if (pages_do_alias((unsigned long)vto, vaddr))
+	if (!cpu_has_ic_fills_f_dc ||
+	    pages_do_alias((unsigned long)vto, vaddr & PAGE_MASK))
 		flush_data_cache_page((unsigned long)vto);
 }
 
@@ -74,15 +79,17 @@ static inline void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
   #ifdef CONFIG_CPU_MIPS32
     typedef struct { unsigned long pte_low, pte_high; } pte_t;
     #define pte_val(x)    ((x).pte_low | ((unsigned long long)(x).pte_high << 32))
+    #define __pte(x)      ({ pte_t __pte = {(x), ((unsigned long long)(x)) >> 32}; __pte; })
   #else
      typedef struct { unsigned long long pte; } pte_t;
      #define pte_val(x)	((x).pte)
+     #define __pte(x)	((pte_t) { (x) } )
   #endif
 #else
 typedef struct { unsigned long pte; } pte_t;
 #define pte_val(x)	((x).pte)
-#endif
 #define __pte(x)	((pte_t) { (x) } )
+#endif
 
 /*
  * For 3-level pagetables we defines these ourselves, for 2-level the
@@ -129,8 +136,14 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr) + PAGE_SIZE - 1) & PAGE_MASK)
 
-#define __pa(x)			((unsigned long) (x) - PAGE_OFFSET)
-#define __va(x)			((void *)((unsigned long) (x) + PAGE_OFFSET))
+#if defined(CONFIG_64BIT) && !defined(CONFIG_BUILD_ELF64)
+#define __pa_page_offset(x)	((unsigned long)(x) < CKSEG0 ? PAGE_OFFSET : CKSEG0)
+#else
+#define __pa_page_offset(x)	PAGE_OFFSET
+#endif
+#define __pa(x)			((unsigned long)(x) - __pa_page_offset(x))
+#define __pa_symbol(x)		__pa(RELOC_HIDE((unsigned long)(x),0))
+#define __va(x)			((void *)((unsigned long)(x) + PAGE_OFFSET))
 
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 
@@ -155,8 +168,8 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #endif
 
-#define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
-#define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
+#define virt_to_page(kaddr)	pfn_to_page(PFN_DOWN(virt_to_phys(kaddr)))
+#define virt_addr_valid(kaddr)	pfn_valid(PFN_DOWN(virt_to_phys(kaddr)))
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)

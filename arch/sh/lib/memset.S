@@ -29,6 +29,7 @@ ENTRY(memset)
 	bf/s	1b
 	 mov.b	r5,@-r4
 2:				! make VVVV
+	extu.b	r5,r5
 	swap.b	r5,r0		!   V0
 	or	r0,r5		!   VV
 	swap.w	r5,r0		! VV00

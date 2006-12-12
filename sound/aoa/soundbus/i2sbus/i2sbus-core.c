@@ -93,7 +93,7 @@ static void i2sbus_release_dev(struct device *dev)
 	kfree(i2sdev);
 }
 
-static irqreturn_t i2sbus_bus_intr(int irq, void *devid, struct pt_regs *regs)
+static irqreturn_t i2sbus_bus_intr(int irq, void *devid)
 {
 	struct i2sbus_dev *dev = devid;
 	u32 intreg;
@@ -165,8 +165,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 	static const char *rnames[] = { "i2sbus: %s (control)",
 					"i2sbus: %s (tx)",
 					"i2sbus: %s (rx)" };
-	static irqreturn_t (*ints[])(int irq, void *devid,
-				     struct pt_regs *regs) = {
+	static irq_handler_t ints[] = {
 		i2sbus_bus_intr,
 		i2sbus_tx_intr,
 		i2sbus_rx_intr

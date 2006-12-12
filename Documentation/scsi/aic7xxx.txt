@@ -160,7 +160,7 @@ The following information is available in this file:
 
    6.2.34 (May 5th, 2003)
         - Fix locking regression instroduced in 6.2.29 that
-          could cuase a lock order reversal between the io_request_lock
+          could cause a lock order reversal between the io_request_lock
           and our per-softc lock.  This was only possible on RH9,
           SuSE, and kernel.org 2.4.X kernels.
 

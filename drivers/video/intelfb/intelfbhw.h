@@ -88,6 +88,19 @@
 #define INSTDONE		0x2090
 #define PRI_RING_EMPTY			1
 
+#define HWSTAM			0x2098
+#define IER			0x20A0
+#define IIR			0x20A4
+#define IMR			0x20A8
+#define VSYNC_PIPE_A_INTERRUPT		(1 << 7)
+#define PIPE_A_EVENT_INTERRUPT		(1 << 4)
+#define VSYNC_PIPE_B_INTERRUPT		(1 << 5)
+#define PIPE_B_EVENT_INTERRUPT		(1 << 4)
+#define HOST_PORT_EVENT_INTERRUPT	(1 << 3)
+#define CAPTURE_EVENT_INTERRUPT		(1 << 2)
+#define USER_DEFINED_INTERRUPT		(1 << 1)
+#define BREAKPOINT_INTERRUPT		1
+
 #define INSTPM			0x20c0
 #define SYNC_FLUSH_ENABLE		(1 << 5)
 
@@ -113,6 +126,12 @@
 #define FW_DISPC_BL_SHIFT		8
 #define FW_DISPC_BL_MASK		0x7
 
+#define GPIOA             0x5010
+#define GPIOB             0x5014
+#define GPIOC             0x5018 // this may be external DDC on i830
+#define GPIOD             0x501C // this is DVO DDC
+#define GPIOE             0x5020 // this is DVO i2C
+#define GPIOF             0x5024
 
 /* PLL registers */
 #define VGA0_DIVISOR		0x06000
@@ -468,8 +487,11 @@
 
 /* I/O macros */
 #define INREG8(addr)	      readb((u8 __iomem *)(dinfo->mmio_base + (addr)))
+#define INREG16(addr)	      readw((u16 __iomem *)(dinfo->mmio_base + (addr)))
 #define INREG(addr)	      readl((u32 __iomem *)(dinfo->mmio_base + (addr)))
 #define OUTREG8(addr, val)    writeb((val),(u8 __iomem *)(dinfo->mmio_base + \
+							   (addr)))
+#define OUTREG16(addr, val)    writew((val),(u16 __iomem *)(dinfo->mmio_base + \
 							   (addr)))
 #define OUTREG(addr, val)     writel((val),(u32 __iomem *)(dinfo->mmio_base + \
                                      (addr)))
@@ -545,5 +567,8 @@ extern void intelfbhw_cursor_setcolor(struct intelfb_info *dinfo, u32 bg,
 extern void intelfbhw_cursor_load(struct intelfb_info *dinfo, int width,
 				  int height, u8 *data);
 extern void intelfbhw_cursor_reset(struct intelfb_info *dinfo);
+extern int intelfbhw_enable_irq(struct intelfb_info *dinfo, int reenable);
+extern void intelfbhw_disable_irq(struct intelfb_info *dinfo);
+extern int intelfbhw_wait_for_vsync(struct intelfb_info *dinfo, u32 pipe);
 
 #endif /* _INTELFBHW_H */

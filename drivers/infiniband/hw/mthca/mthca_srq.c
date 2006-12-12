@@ -35,6 +35,8 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+#include <asm/io.h>
+
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
 #include "mthca_memfree.h"
@@ -118,7 +120,7 @@ static void mthca_arbel_init_srq_context(struct mthca_dev *dev,
 
 	memset(context, 0, sizeof *context);
 
-	logsize = long_log2(srq->max) + srq->wqe_shift;
+	logsize = ilog2(srq->max);
 	context->state_logsize_srqn = cpu_to_be32(logsize << 24 | srq->srqn);
 	context->lkey = cpu_to_be32(srq->mr.ibmr.lkey);
 	context->db_index = cpu_to_be32(srq->db_index);
@@ -201,6 +203,8 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 
 	if (mthca_is_memfree(dev))
 		srq->max = roundup_pow_of_two(srq->max + 1);
+	else
+		srq->max = srq->max + 1;
 
 	ds = max(64UL,
 		 roundup_pow_of_two(sizeof (struct mthca_next_seg) +
@@ -209,7 +213,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	if (!mthca_is_memfree(dev) && (ds > dev->limits.max_desc_sz))
 		return -EINVAL;
 
-	srq->wqe_shift = long_log2(ds);
+	srq->wqe_shift = ilog2(ds);
 
 	srq->srqn = mthca_alloc(&dev->srq_table.alloc);
 	if (srq->srqn == -1)
@@ -277,7 +281,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	srq->first_free = 0;
 	srq->last_free  = srq->max - 1;
 
-	attr->max_wr    = (mthca_is_memfree(dev)) ? srq->max - 1 : srq->max;
+	attr->max_wr    = srq->max - 1;
 	attr->max_sge   = srq->max_gs;
 
 	return 0;
@@ -413,7 +417,7 @@ int mthca_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 		srq_attr->srq_limit = be16_to_cpu(tavor_ctx->limit_watermark);
 	}
 
-	srq_attr->max_wr  = (mthca_is_memfree(dev)) ? srq->max - 1 : srq->max;
+	srq_attr->max_wr  = srq->max - 1;
 	srq_attr->max_sge = srq->max_gs;
 
 out:
@@ -593,6 +597,12 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
 	}
 
+	/*
+	 * Make sure doorbells don't leak out of SRQ spinlock and
+	 * reach the HCA out of order:
+	 */
+	mmiowb();
+
 	spin_unlock_irqrestore(&srq->lock, flags);
 	return err;
 }
@@ -705,7 +715,7 @@ int mthca_max_srq_sge(struct mthca_dev *dev)
 		     sizeof (struct mthca_data_seg));
 }
 
-int __devinit mthca_init_srq_table(struct mthca_dev *dev)
+int mthca_init_srq_table(struct mthca_dev *dev)
 {
 	int err;
 

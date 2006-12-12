@@ -363,12 +363,12 @@ static void rio_reset_interrupt(struct Host *HostP)
 }
 
 
-static irqreturn_t rio_interrupt(int irq, void *ptr, struct pt_regs *regs)
+static irqreturn_t rio_interrupt(int irq, void *ptr)
 {
 	struct Host *HostP;
 	func_enter();
 
-	HostP = (struct Host *) ptr;	/* &p->RIOHosts[(long)ptr]; */
+	HostP = ptr;			/* &p->RIOHosts[(long)ptr]; */
 	rio_dprintk(RIO_DEBUG_IFLOW, "rio: enter rio_interrupt (%d/%d)\n", irq, HostP->Ivec);
 
 	/* AAargh! The order in which to do these things is essential and
@@ -402,7 +402,7 @@ static irqreturn_t rio_interrupt(int irq, void *ptr, struct pt_regs *regs)
 		return IRQ_HANDLED;
 	}
 
-	RIOServiceHost(p, HostP, irq);
+	RIOServiceHost(p, HostP);
 
 	rio_dprintk(RIO_DEBUG_IFLOW, "riointr() doing host %p type %d\n", ptr, HostP->Type);
 
@@ -417,7 +417,7 @@ static void rio_pollfunc(unsigned long data)
 {
 	func_enter();
 
-	rio_interrupt(0, &p->RIOHosts[data], NULL);
+	rio_interrupt(0, &p->RIOHosts[data]);
 	p->RIOHosts[data].timer.expires = jiffies + rio_poll;
 	add_timer(&p->RIOHosts[data].timer);
 
@@ -727,7 +727,7 @@ static struct vpd_prom *get_VPD_PROM(struct Host *hp)
 	return &vpdp;
 }
 
-static struct tty_operations rio_ops = {
+static const struct tty_operations rio_ops = {
 	.open = riotopen,
 	.close = gs_close,
 	.write = gs_write,
@@ -1017,11 +1017,16 @@ static int __init rio_init(void)
 			rio_dprintk(RIO_DEBUG_PROBE, "Hmm Tested ok, uniqid = %x.\n", p->RIOHosts[p->RIONumHosts].UniqueNum);
 
 			fix_rio_pci(pdev);
+
+			p->RIOHosts[p->RIONumHosts].pdev = pdev;
+			pci_dev_get(pdev);
+
 			p->RIOLastPCISearch = 0;
 			p->RIONumHosts++;
 			found++;
 		} else {
 			iounmap(p->RIOHosts[p->RIONumHosts].Caddr);
+			p->RIOHosts[p->RIONumHosts].Caddr = NULL;
 		}
 	}
 
@@ -1066,11 +1071,15 @@ static int __init rio_init(void)
 			    ((readb(&p->RIOHosts[p->RIONumHosts].Unique[1]) & 0xFF) << 8) | ((readb(&p->RIOHosts[p->RIONumHosts].Unique[2]) & 0xFF) << 16) | ((readb(&p->RIOHosts[p->RIONumHosts].Unique[3]) & 0xFF) << 24);
 			rio_dprintk(RIO_DEBUG_PROBE, "Hmm Tested ok, uniqid = %x.\n", p->RIOHosts[p->RIONumHosts].UniqueNum);
 
+			p->RIOHosts[p->RIONumHosts].pdev = pdev;
+			pci_dev_get(pdev);
+
 			p->RIOLastPCISearch = 0;
 			p->RIONumHosts++;
 			found++;
 		} else {
 			iounmap(p->RIOHosts[p->RIONumHosts].Caddr);
+			p->RIOHosts[p->RIONumHosts].Caddr = NULL;
 		}
 #else
 		printk(KERN_ERR "Found an older RIO PCI card, but the driver is not " "compiled to support it.\n");
@@ -1110,8 +1119,10 @@ static int __init rio_init(void)
 				}
 			}
 
-			if (!okboard)
+			if (!okboard) {
 				iounmap(hp->Caddr);
+				hp->Caddr = NULL;
+			}
 		}
 	}
 
@@ -1181,6 +1192,10 @@ static void __exit rio_exit(void)
 		}
 		/* It is safe/allowed to del_timer a non-active timer */
 		del_timer(&hp->timer);
+		if (hp->Caddr)
+			iounmap(hp->Caddr);
+		if (hp->Type == RIO_PCI)
+			pci_dev_put(hp->pdev);
 	}
 
 	if (misc_deregister(&rio_fw_device) < 0) {

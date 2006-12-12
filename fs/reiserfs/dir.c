@@ -22,6 +22,9 @@ const struct file_operations reiserfs_dir_operations = {
 	.readdir = reiserfs_readdir,
 	.fsync = reiserfs_dir_fsync,
 	.ioctl = reiserfs_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = reiserfs_compat_ioctl,
+#endif
 };
 
 static int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry,
@@ -42,7 +45,7 @@ static int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry,
 //
 static int reiserfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cpu_key pos_key;	/* key of current position in the directory (key of directory entry) */
 	INITIALIZE_PATH(path_to_entry);
 	struct buffer_head *bh;
@@ -132,7 +135,7 @@ static int reiserfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				/* Ignore the .reiserfs_priv entry */
 				if (reiserfs_xattrs(inode->i_sb) &&
 				    !old_format_only(inode->i_sb) &&
-				    filp->f_dentry == inode->i_sb->s_root &&
+				    filp->f_path.dentry == inode->i_sb->s_root &&
 				    REISERFS_SB(inode->i_sb)->priv_root &&
 				    REISERFS_SB(inode->i_sb)->priv_root->d_inode
 				    && deh_objectid(deh) ==

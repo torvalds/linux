@@ -148,7 +148,7 @@ static inline void omap_init_kp(void) {}
 
 #ifdef CONFIG_ARCH_OMAP24XX
 #define	OMAP_MMC1_BASE		0x4809c000
-#define OMAP_MMC1_INT		83
+#define OMAP_MMC1_INT		INT_24XX_MMC_IRQ
 #else
 #define	OMAP_MMC1_BASE		0xfffb7800
 #define OMAP_MMC1_INT		INT_MMC
@@ -225,7 +225,14 @@ static void __init omap_init_mmc(void)
 	/* block 1 is always available and has just one pinout option */
 	mmc = &mmc_conf->mmc[0];
 	if (mmc->enabled) {
-		if (!cpu_is_omap24xx()) {
+		if (cpu_is_omap24xx()) {
+			omap_cfg_reg(H18_24XX_MMC_CMD);
+			omap_cfg_reg(H15_24XX_MMC_CLKI);
+			omap_cfg_reg(G19_24XX_MMC_CLKO);
+			omap_cfg_reg(F20_24XX_MMC_DAT0);
+			omap_cfg_reg(F19_24XX_MMC_DAT_DIR0);
+			omap_cfg_reg(G18_24XX_MMC_CMD_DIR);
+		} else {
 			omap_cfg_reg(MMC_CMD);
 			omap_cfg_reg(MMC_CLK);
 			omap_cfg_reg(MMC_DAT0);
@@ -236,7 +243,14 @@ static void __init omap_init_mmc(void)
 			}
 		}
 		if (mmc->wire4) {
-			if (!cpu_is_omap24xx()) {
+			if (cpu_is_omap24xx()) {
+				omap_cfg_reg(H14_24XX_MMC_DAT1);
+				omap_cfg_reg(E19_24XX_MMC_DAT2);
+				omap_cfg_reg(D19_24XX_MMC_DAT3);
+				omap_cfg_reg(E20_24XX_MMC_DAT_DIR1);
+				omap_cfg_reg(F18_24XX_MMC_DAT_DIR2);
+				omap_cfg_reg(E18_24XX_MMC_DAT_DIR3);
+			} else {
 				omap_cfg_reg(MMC_DAT1);
 				/* NOTE:  DAT2 can be on W10 (here) or M15 */
 				if (!mmc->nomux)

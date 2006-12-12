@@ -153,7 +153,7 @@ static void eurwdt_activate_timer(void)
  * Kernel methods.
  */
 
-static irqreturn_t eurwdt_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t eurwdt_interrupt(int irq, void *dev_id)
 {
 	printk(KERN_CRIT "timeout WDT timeout\n");
 
@@ -240,7 +240,7 @@ static int eurwdt_ioctl(struct inode *inode, struct file *file,
 
 	switch(cmd) {
 	default:
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;

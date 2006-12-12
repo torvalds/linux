@@ -64,7 +64,7 @@ config ASK_IP_FIB_HASH
 config IP_FIB_TRIE
 	bool "FIB_TRIE"
 	---help---
-	Use new experimental LC-trie as FIB lookup algoritm. 
+	Use new experimental LC-trie as FIB lookup algorithm. 
         This improves lookup performance if you have a large
 	number of routes.
 
@@ -103,13 +103,6 @@ config IP_MULTIPLE_TABLES
 	  <ftp://ftp.tux.org/pub/net/ip-routing/>.
 
 	  If unsure, say N.
-
-config IP_ROUTE_FWMARK
-	bool "IP: use netfilter MARK value as routing key"
-	depends on IP_MULTIPLE_TABLES && NETFILTER
-	help
-	  If you say Y here, you will be able to specify different routes for
-	  packets with different mark values (see iptables(8), MARK target).
 
 config IP_ROUTE_MULTIPATH
 	bool "IP: equal cost multipath"
@@ -434,6 +427,15 @@ config INET_XFRM_MODE_TUNNEL
 
 	  If unsure, say Y.
 
+config INET_XFRM_MODE_BEET
+	tristate "IP: IPsec BEET mode"
+	default y
+	select XFRM
+	---help---
+	  Support for IPsec BEET mode.
+
+	  If unsure, say Y.
+
 config INET_DIAG
 	tristate "INET: socket monitoring interface"
 	default y
@@ -526,7 +528,7 @@ config TCP_CONG_HYBLA
 	---help---
 	TCP-Hybla is a sender-side only change that eliminates penalization of
 	long-RTT, large-bandwidth connections, like when satellite legs are
-	involved, expecially when sharing a common bottleneck with normal
+	involved, especially when sharing a common bottleneck with normal
 	terrestrial connections.
 
 config TCP_CONG_VEGAS
@@ -556,7 +558,7 @@ config TCP_CONG_LP
 	default n
 	---help---
 	TCP Low Priority (TCP-LP), a distributed algorithm whose goal is
-	to utiliza only the excess network bandwidth as compared to the
+	to utilize only the excess network bandwidth as compared to the
 	``fair share`` of bandwidth as targeted by TCP.
 	See http://www-ece.rice.edu/networks/TCP-LP/
 
@@ -615,6 +617,18 @@ config DEFAULT_TCP_CONG
 	default "westwood" if DEFAULT_WESTWOOD
 	default "reno" if DEFAULT_RENO
 	default "cubic"
+
+config TCP_MD5SIG
+	bool "TCP: MD5 Signature Option support (RFC2385) (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	select CRYPTO
+	select CRYPTO_MD5
+	---help---
+	  RFC2385 specifices a method of giving MD5 protection to TCP sessions.
+	  Its main (only?) use is to protect BGP sessions between core routers
+	  on the Internet.
+
+	  If unsure, say N.
 
 source "net/ipv4/ipvs/Kconfig"
 

@@ -650,24 +650,26 @@ static struct notifier_block pm112_events = {
 	.notifier_call = pm112_wf_notify,
 };
 
-static int wf_pm112_probe(struct device *dev)
+static int wf_pm112_probe(struct platform_device *dev)
 {
 	wf_register_client(&pm112_events);
 	return 0;
 }
 
-static int wf_pm112_remove(struct device *dev)
+static int __devexit wf_pm112_remove(struct platform_device *dev)
 {
 	wf_unregister_client(&pm112_events);
 	/* should release all sensors and controls */
 	return 0;
 }
 
-static struct device_driver wf_pm112_driver = {
-	.name = "windfarm",
-	.bus = &platform_bus_type,
+static struct platform_driver wf_pm112_driver = {
 	.probe = wf_pm112_probe,
-	.remove = wf_pm112_remove,
+	.remove = __devexit_p(wf_pm112_remove),
+	.driver = {
+		.name = "windfarm",
+		.bus = &platform_bus_type,
+	},
 };
 
 static int __init wf_pm112_init(void)
@@ -683,13 +685,24 @@ static int __init wf_pm112_init(void)
 		++nr_cores;
 
 	printk(KERN_INFO "windfarm: initializing for dual-core desktop G5\n");
-	driver_register(&wf_pm112_driver);
+
+#ifdef MODULE
+	request_module("windfarm_smu_controls");
+	request_module("windfarm_smu_sensors");
+	request_module("windfarm_smu_sat");
+	request_module("windfarm_lm75_sensor");
+	request_module("windfarm_max6690_sensor");
+	request_module("windfarm_cpufreq_clamp");
+
+#endif /* MODULE */
+
+	platform_driver_register(&wf_pm112_driver);
 	return 0;
 }
 
 static void __exit wf_pm112_exit(void)
 {
-	driver_unregister(&wf_pm112_driver);
+	platform_driver_unregister(&wf_pm112_driver);
 }
 
 module_init(wf_pm112_init);

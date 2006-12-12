@@ -1,5 +1,6 @@
 config DEFCONFIG_LIST
 	string
+	depends on !UML
 	option defconfig_list
 	default "/lib/modules/$UNAME_RELEASE/.config"
 	default "/etc/kernel-config"
@@ -92,7 +93,7 @@ config LOCALVERSION_AUTO
 
 config SWAP
 	bool "Support for paging of anonymous memory (swap)"
-	depends on MMU
+	depends on MMU && BLOCK
 	default y
 	help
 	  This option allows you to choose whether you want to have support
@@ -114,6 +115,15 @@ config SYSVIPC
 	  You can find documentation about IPC with "info ipc" and also in
 	  section 6.4 of the Linux Programmer's Guide, available from
 	  <http://www.tldp.org/guides.html>.
+
+config IPC_NS
+	bool "IPC Namespaces"
+	depends on SYSVIPC
+	default n
+	help
+	  Support ipc namespaces.  This allows containers, i.e. virtual
+	  environments, to use ipc namespaces to provide different ipc
+	  objects for different servers.  If unsure, say N.
 
 config POSIX_MQUEUE
 	bool "POSIX Message Queues"
@@ -182,6 +192,14 @@ config TASK_DELAY_ACCT
 
 	  Say N if unsure.
 
+config UTS_NS
+	bool "UTS Namespaces"
+	default n
+	help
+	  Support uts namespaces.  This allows containers, i.e.
+	  vservers, to use uts namespaces to provide different
+	  uts info for different servers.  If unsure, say N.
+
 config AUDIT
 	bool "Auditing support"
 	depends on NET
@@ -202,7 +220,7 @@ config AUDITSYSCALL
 	  ensure that INOTIFY is configured.
 
 config IKCONFIG
-	bool "Kernel .config support"
+	tristate "Kernel .config support"
 	---help---
 	  This option enables the complete Linux kernel ".config" file
 	  contents to be saved in the kernel. It provides documentation
@@ -231,6 +249,26 @@ config CPUSETS
 
 	  Say N if unsure.
 
+config SYSFS_DEPRECATED
+	bool "Create deprecated sysfs files"
+	default y
+	help
+	  This option creates deprecated symlinks such as the
+	  "device"-link, the <subsystem>:<name>-link, and the
+	  "bus"-link. It may also add deprecated key in the
+	  uevent environment.
+	  None of these features or values should be used today, as
+	  they export driver core implementation details to userspace
+	  or export properties which can't be kept stable across kernel
+	  releases.
+
+	  If enabled, this option will also move any device structures
+	  that belong to a class, back into the /sys/class heirachy, in
+	  order to support older versions of udev.
+
+	  If you are using a distro that was released in 2006 or later,
+	  it should be safe to say N here.
+
 config RELAY
 	bool "Kernel->user space relay support (formerly relayfs)"
 	help
@@ -257,6 +295,27 @@ config CC_OPTIMIZE_FOR_SIZE
 
 	  If unsure, say N.
 
+config TASK_XACCT
+	bool "Enable extended accounting over taskstats (EXPERIMENTAL)"
+	depends on TASKSTATS
+	help
+	  Collect extended task accounting data and send the data
+	  to userland for processing over the taskstats interface.
+
+	  Say N if unsure.
+
+config TASK_IO_ACCOUNTING
+	bool "Enable per-task storage I/O accounting (EXPERIMENTAL)"
+	depends on TASK_XACCT
+	help
+	  Collect information on the number of bytes of storage I/O which this
+	  task has caused.
+
+	  Say N if unsure.
+
+config SYSCTL
+	bool
+
 menuconfig EMBEDDED
 	bool "Configure standard kernel features (for small systems)"
 	help
@@ -272,22 +331,21 @@ config UID16
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.
 
-config SYSCTL
-	bool "Sysctl support" if EMBEDDED
+config SYSCTL_SYSCALL
+	bool "Sysctl syscall support" if EMBEDDED
 	default y
+	select SYSCTL
 	---help---
-	  The sysctl interface provides a means of dynamically changing
-	  certain kernel parameters and variables on the fly without requiring
-	  a recompile of the kernel or reboot of the system.  The primary
-	  interface consists of a system call, but if you say Y to "/proc
-	  file system support", a tree of modifiable sysctl entries will be
-	  generated beneath the /proc/sys directory. They are explained in the
-	  files in <file:Documentation/sysctl/>.  Note that enabling this
-	  option will enlarge the kernel by at least 8 KB.
+	  sys_sysctl uses binary paths that have been found challenging
+	  to properly maintain and use.  The interface in /proc/sys
+	  using paths with ascii names is now the primary path to this
+	  information.
 
-	  As it is generally a good thing, you should say Y here unless
-	  building a kernel for install/rescue disks or your system is very
-	  limited in memory.
+	  Almost nothing using the binary sysctl interface so if you are
+	  trying to save some space it is probably safe to disable this,
+	  making your kernel marginally smaller.
+
+	  If unsure say Y here.
 
 config KALLSYMS
 	 bool "Load all symbols for debugging/kksymoops" if EMBEDDED

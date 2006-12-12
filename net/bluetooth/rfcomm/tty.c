@@ -38,6 +38,7 @@
 #include <linux/skbuff.h>
 
 #include <net/bluetooth/bluetooth.h>
+#include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/rfcomm.h>
 
 #ifndef CONFIG_BT_RFCOMM_DEBUG
@@ -161,6 +162,22 @@ static inline struct rfcomm_dev *rfcomm_dev_get(int id)
 	return dev;
 }
 
+static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
+{
+	struct hci_dev *hdev;
+	struct hci_conn *conn;
+
+	hdev = hci_get_route(&dev->dst, &dev->src);
+	if (!hdev)
+		return NULL;
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &dev->dst);
+
+	hci_dev_put(hdev);
+
+	return conn ? &conn->dev : NULL;
+}
+
 static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 {
 	struct rfcomm_dev *dev;
@@ -244,7 +261,7 @@ out:
 		return err;
 	}
 
-	tty_register_device(rfcomm_tty_driver, dev->id, NULL);
+	tty_register_device(rfcomm_tty_driver, dev->id, rfcomm_get_device(dev));
 
 	return dev->id;
 }
@@ -735,9 +752,9 @@ static int rfcomm_tty_ioctl(struct tty_struct *tty, struct file *filp, unsigned 
 	return -ENOIOCTLCMD;
 }
 
-static void rfcomm_tty_set_termios(struct tty_struct *tty, struct termios *old)
+static void rfcomm_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
-	struct termios *new = (struct termios *) tty->termios;
+	struct ktermios *new = tty->termios;
 	int old_baud_rate = tty_termios_baud_rate(old);
 	int new_baud_rate = tty_termios_baud_rate(new);
 
@@ -747,6 +764,9 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty, struct termios *old)
 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
 
 	BT_DBG("tty %p termios %p", tty, old);
+
+	if (!dev || !dev->dlc || !dev->dlc->session)
+		return;
 
 	/* Handle turning off CRTSCTS */
 	if ((old->c_cflag & CRTSCTS) && !(new->c_cflag & CRTSCTS)) 
@@ -992,7 +1012,7 @@ static int rfcomm_tty_tiocmset(struct tty_struct *tty, struct file *filp, unsign
 
 /* ---- TTY structure ---- */
 
-static struct tty_operations rfcomm_ops = {
+static const struct tty_operations rfcomm_ops = {
 	.open			= rfcomm_tty_open,
 	.close			= rfcomm_tty_close,
 	.write			= rfcomm_tty_write,

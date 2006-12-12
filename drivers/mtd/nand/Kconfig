@@ -21,7 +21,7 @@ config MTD_NAND_VERIFY_WRITE
 	  NAND flash device internally checks only bits transitioning
 	  from 1 to 0. There is a rare possibility that even though the
 	  device thinks the write was successful, a bit could have been
-	  flipped accidentaly due to device wear or something else.
+	  flipped accidentally due to device wear or something else.
 
 config MTD_NAND_ECC_SMC
 	bool "NAND ECC Smart Media byte order"

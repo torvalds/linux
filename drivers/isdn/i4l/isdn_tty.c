@@ -1464,7 +1464,7 @@ isdn_tty_ioctl(struct tty_struct *tty, struct file *file,
 }
 
 static void
-isdn_tty_set_termios(struct tty_struct *tty, struct termios *old_termios)
+isdn_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	modem_info *info = (modem_info *) tty->driver_data;
 
@@ -1860,7 +1860,7 @@ modem_write_profile(atemu * m)
 		send_sig(SIGIO, dev->profd, 1);
 }
 
-static struct tty_operations modem_ops = {
+static const struct tty_operations modem_ops = {
         .open = isdn_tty_open,
 	.close = isdn_tty_close,
 	.write = isdn_tty_write,

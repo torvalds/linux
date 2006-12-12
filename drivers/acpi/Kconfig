@@ -253,7 +253,7 @@ config ACPI_CUSTOM_DSDT
 	depends on !STANDALONE
 	default n 
 	help
-	  Thist option is to load a custom ACPI DSDT
+	  This option is to load a custom ACPI DSDT
 	  If you don't know what that is, say N.
 
 config ACPI_CUSTOM_DSDT_FILE
@@ -310,7 +310,7 @@ config X86_PM_TIMER
 	  The Power Management Timer is available on all ACPI-capable,
 	  in most cases even if ACPI is unusable or blacklisted.
 
-	  This timing source is not affected by powermanagement features
+	  This timing source is not affected by power management features
 	  like aggressive processor idling, throttling, frequency and/or
 	  voltage scaling, unlike the commonly used Time Stamp Counter
 	  (TSC) timing source.
@@ -345,7 +345,7 @@ config ACPI_HOTPLUG_MEMORY
 	  Enabling this driver assumes that your platform hardware
 	  and firmware have support for hot-plugging physical memory. If
 	  your system does not support physically adding or ripping out 
-	  memory DIMMs at some platfrom defined granularity (individually 
+	  memory DIMMs at some platform defined granularity (individually 
 	  or as a bank) at runtime, then you need not enable this driver.
 
 	  If one selects "m," this driver can be loaded using the following

@@ -34,7 +34,6 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/smp_lock.h>
-#include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
@@ -117,7 +116,7 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 	char __user *tmp = buf;
 	u32 data[4];
 	u32 reg = *ppos;
-	int cpu = iminor(file->f_dentry->d_inode);
+	int cpu = iminor(file->f_path.dentry->d_inode);
 
 	if (count % 16)
 		return -EINVAL;	/* Invalid chunk size */
@@ -135,7 +134,7 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 
 static int cpuid_open(struct inode *inode, struct file *file)
 {
-	unsigned int cpu = iminor(file->f_dentry->d_inode);
+	unsigned int cpu = iminor(file->f_path.dentry->d_inode);
 	struct cpuinfo_x86 *c = &(cpu_data)[cpu];
 
 	if (cpu >= NR_CPUS || !cpu_online(cpu))
@@ -156,28 +155,27 @@ static struct file_operations cpuid_fops = {
 	.open = cpuid_open,
 };
 
-static int cpuid_class_device_create(int i)
+static int cpuid_device_create(int i)
 {
 	int err = 0;
-	struct class_device *class_err;
+	struct device *dev;
 
-	class_err = class_device_create(cpuid_class, NULL, MKDEV(CPUID_MAJOR, i), NULL, "cpu%d",i);
-	if (IS_ERR(class_err))
-		err = PTR_ERR(class_err);
+	dev = device_create(cpuid_class, NULL, MKDEV(CPUID_MAJOR, i), "cpu%d",i);
+	if (IS_ERR(dev))
+		err = PTR_ERR(dev);
 	return err;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int cpuid_class_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 
 	switch (action) {
 	case CPU_ONLINE:
-		cpuid_class_device_create(cpu);
+		cpuid_device_create(cpu);
 		break;
 	case CPU_DEAD:
-		class_device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, cpu));
+		device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, cpu));
 		break;
 	}
 	return NOTIFY_OK;
@@ -187,7 +185,6 @@ static struct notifier_block __cpuinitdata cpuid_class_cpu_notifier =
 {
 	.notifier_call = cpuid_class_cpu_callback,
 };
-#endif /* !CONFIG_HOTPLUG_CPU */
 
 static int __init cpuid_init(void)
 {
@@ -206,7 +203,7 @@ static int __init cpuid_init(void)
 		goto out_chrdev;
 	}
 	for_each_online_cpu(i) {
-		err = cpuid_class_device_create(i);
+		err = cpuid_device_create(i);
 		if (err != 0) 
 			goto out_class;
 	}
@@ -218,7 +215,7 @@ static int __init cpuid_init(void)
 out_class:
 	i = 0;
 	for_each_online_cpu(i) {
-		class_device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, i));
+		device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, i));
 	}
 	class_destroy(cpuid_class);
 out_chrdev:
@@ -232,7 +229,7 @@ static void __exit cpuid_exit(void)
 	int cpu = 0;
 
 	for_each_online_cpu(cpu)
-		class_device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, cpu));
+		device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, cpu));
 	class_destroy(cpuid_class);
 	unregister_chrdev(CPUID_MAJOR, "cpu/cpuid");
 	unregister_hotcpu_notifier(&cpuid_class_cpu_notifier);

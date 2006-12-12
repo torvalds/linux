@@ -53,7 +53,7 @@
  *	device-specific ioctl's.  If the ioctl number passed in cmd
  * 	is not recognized by the driver, it should return ENOIOCTLCMD.
  * 
- * void (*set_termios)(struct tty_struct *tty, struct termios * old);
+ * void (*set_termios)(struct tty_struct *tty, struct ktermios * old);
  *
  * 	This routine allows the tty driver to be notified when
  * 	device's termios settings have changed.  Note that a
@@ -132,7 +132,7 @@ struct tty_operations {
 	int  (*chars_in_buffer)(struct tty_struct *tty);
 	int  (*ioctl)(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg);
-	void (*set_termios)(struct tty_struct *tty, struct termios * old);
+	void (*set_termios)(struct tty_struct *tty, struct ktermios * old);
 	void (*throttle)(struct tty_struct * tty);
 	void (*unthrottle)(struct tty_struct * tty);
 	void (*stop)(struct tty_struct *tty);
@@ -165,7 +165,7 @@ struct tty_driver {
 	int	num;		/* number of devices allocated */
 	short	type;		/* type of tty driver */
 	short	subtype;	/* subtype of tty driver */
-	struct termios init_termios; /* Initial termios */
+	struct ktermios init_termios; /* Initial termios */
 	int	flags;		/* tty driver flags */
 	int	refcount;	/* for loadable tty drivers */
 	struct proc_dir_entry *proc_entry; /* /proc fs entry */
@@ -175,8 +175,8 @@ struct tty_driver {
 	 * Pointer to the tty data structures
 	 */
 	struct tty_struct **ttys;
-	struct termios **termios;
-	struct termios **termios_locked;
+	struct ktermios **termios;
+	struct ktermios **termios_locked;
 	void *driver_state;	/* only used for the PTY driver */
 	
 	/*
@@ -193,7 +193,7 @@ struct tty_driver {
 	int  (*chars_in_buffer)(struct tty_struct *tty);
 	int  (*ioctl)(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg);
-	void (*set_termios)(struct tty_struct *tty, struct termios * old);
+	void (*set_termios)(struct tty_struct *tty, struct ktermios * old);
 	void (*throttle)(struct tty_struct * tty);
 	void (*unthrottle)(struct tty_struct * tty);
 	void (*stop)(struct tty_struct *tty);
@@ -219,7 +219,8 @@ extern struct list_head tty_drivers;
 
 struct tty_driver *alloc_tty_driver(int lines);
 void put_tty_driver(struct tty_driver *driver);
-void tty_set_operations(struct tty_driver *driver, struct tty_operations *op);
+void tty_set_operations(struct tty_driver *driver,
+			const struct tty_operations *op);
 
 /* tty driver magic number */
 #define TTY_DRIVER_MAGIC		0x5402

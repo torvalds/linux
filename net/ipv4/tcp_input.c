@@ -935,7 +935,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned char *ptr = ack_skb->h.raw + TCP_SKB_CB(ack_skb)->sacked;
-	struct tcp_sack_block *sp = (struct tcp_sack_block *)(ptr+2);
+	struct tcp_sack_block_wire *sp = (struct tcp_sack_block_wire *)(ptr+2);
 	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
 	int reord = tp->packets_out;
 	int prior_fackets;
@@ -2239,13 +2239,12 @@ static int tcp_tso_acked(struct sock *sk, struct sk_buff *skb,
 	return acked;
 }
 
-static u32 tcp_usrtt(const struct sk_buff *skb)
+static u32 tcp_usrtt(struct timeval *tv)
 {
-	struct timeval tv, now;
+	struct timeval now;
 
 	do_gettimeofday(&now);
-	skb_get_timestamp(skb, &tv);
-	return (now.tv_sec - tv.tv_sec) * 1000000 + (now.tv_usec - tv.tv_usec);
+	return (now.tv_sec - tv->tv_sec) * 1000000 + (now.tv_usec - tv->tv_usec);
 }
 
 /* Remove acknowledged frames from the retransmission queue. */
@@ -2260,6 +2259,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 	u32 pkts_acked = 0;
 	void (*rtt_sample)(struct sock *sk, u32 usrtt)
 		= icsk->icsk_ca_ops->rtt_sample;
+	struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
 
 	while ((skb = skb_peek(&sk->sk_write_queue)) &&
 	       skb != sk->sk_send_head) {
@@ -2308,8 +2308,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 				seq_rtt = -1;
 			} else if (seq_rtt < 0) {
 				seq_rtt = now - scb->when;
-				if (rtt_sample)
-					(*rtt_sample)(sk, tcp_usrtt(skb));
+				skb_get_timestamp(skb, &tv);
 			}
 			if (sacked & TCPCB_SACKED_ACKED)
 				tp->sacked_out -= tcp_skb_pcount(skb);
@@ -2322,8 +2321,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 			}
 		} else if (seq_rtt < 0) {
 			seq_rtt = now - scb->when;
-			if (rtt_sample)
-				(*rtt_sample)(sk, tcp_usrtt(skb));
+			skb_get_timestamp(skb, &tv);
 		}
 		tcp_dec_pcount_approx(&tp->fackets_out, skb);
 		tcp_packets_out_dec(tp, skb);
@@ -2335,6 +2333,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 	if (acked&FLAG_ACKED) {
 		tcp_ack_update_rtt(sk, acked, seq_rtt);
 		tcp_ack_packets_out(sk, tp);
+		if (rtt_sample && !(acked & FLAG_RETRANS_DATA_ACKED))
+			(*rtt_sample)(sk, tcp_usrtt(&tv));
 
 		if (icsk->icsk_ca_ops->pkts_acked)
 			icsk->icsk_ca_ops->pkts_acked(sk, pkts_acked);
@@ -2629,7 +2629,7 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 	  			switch(opcode) {
 				case TCPOPT_MSS:
 					if(opsize==TCPOLEN_MSS && th->syn && !estab) {
-						u16 in_mss = ntohs(get_unaligned((__u16 *)ptr));
+						u16 in_mss = ntohs(get_unaligned((__be16 *)ptr));
 						if (in_mss) {
 							if (opt_rx->user_mss && opt_rx->user_mss < in_mss)
 								in_mss = opt_rx->user_mss;
@@ -2657,8 +2657,8 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 						if ((estab && opt_rx->tstamp_ok) ||
 						    (!estab && sysctl_tcp_timestamps)) {
 							opt_rx->saw_tstamp = 1;
-							opt_rx->rcv_tsval = ntohl(get_unaligned((__u32 *)ptr));
-							opt_rx->rcv_tsecr = ntohl(get_unaligned((__u32 *)(ptr+4)));
+							opt_rx->rcv_tsval = ntohl(get_unaligned((__be32 *)ptr));
+							opt_rx->rcv_tsecr = ntohl(get_unaligned((__be32 *)(ptr+4)));
 						}
 					}
 					break;
@@ -2677,6 +2677,14 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 					   opt_rx->sack_ok) {
 						TCP_SKB_CB(skb)->sacked = (ptr - 2) - (unsigned char *)th;
 					}
+#ifdef CONFIG_TCP_MD5SIG
+				case TCPOPT_MD5SIG:
+					/*
+					 * The MD5 Hash has already been
+					 * checked (see tcp_v{4,6}_do_rcv()).
+					 */
+					break;
+#endif
 	  			};
 	  			ptr+=opsize-2;
 	  			length-=opsize;
@@ -2695,8 +2703,8 @@ static int tcp_fast_parse_options(struct sk_buff *skb, struct tcphdr *th,
 		return 0;
 	} else if (tp->rx_opt.tstamp_ok &&
 		   th->doff == (sizeof(struct tcphdr)>>2)+(TCPOLEN_TSTAMP_ALIGNED>>2)) {
-		__u32 *ptr = (__u32 *)(th + 1);
-		if (*ptr == ntohl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
+		__be32 *ptr = (__be32 *)(th + 1);
+		if (*ptr == htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
 				  | (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP)) {
 			tp->rx_opt.saw_tstamp = 1;
 			++ptr;
@@ -3782,9 +3790,9 @@ static int tcp_copy_to_iovec(struct sock *sk, struct sk_buff *skb, int hlen)
 	return err;
 }
 
-static int __tcp_checksum_complete_user(struct sock *sk, struct sk_buff *skb)
+static __sum16 __tcp_checksum_complete_user(struct sock *sk, struct sk_buff *skb)
 {
-	int result;
+	__sum16 result;
 
 	if (sock_owned_by_user(sk)) {
 		local_bh_enable();
@@ -3911,10 +3919,10 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 
 		/* Check timestamp */
 		if (tcp_header_len == sizeof(struct tcphdr) + TCPOLEN_TSTAMP_ALIGNED) {
-			__u32 *ptr = (__u32 *)(th + 1);
+			__be32 *ptr = (__be32 *)(th + 1);
 
 			/* No? Slow path! */
-			if (*ptr != ntohl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
+			if (*ptr != htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
 					  | (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP))
 				goto slow_path;
 
@@ -4227,8 +4235,10 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		 * Change state from SYN-SENT only after copied_seq
 		 * is initialized. */
 		tp->copied_seq = tp->rcv_nxt;
-		mb();
+		smp_mb();
 		tcp_set_state(sk, TCP_ESTABLISHED);
+
+		security_inet_conn_established(sk, skb);
 
 		/* Make sure socket is routed, for correct metrics.  */
 		icsk->icsk_af_ops->rebuild_header(sk);
@@ -4473,7 +4483,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		case TCP_SYN_RECV:
 			if (acceptable) {
 				tp->copied_seq = tp->rcv_nxt;
-				mb();
+				smp_mb();
 				tcp_set_state(sk, TCP_ESTABLISHED);
 				sk->sk_state_change(sk);
 

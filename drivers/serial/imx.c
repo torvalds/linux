@@ -182,7 +182,7 @@ static void imx_start_tx(struct uart_port *port)
 		imx_transmit_buffer(sport);
 }
 
-static irqreturn_t imx_rtsint(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t imx_rtsint(int irq, void *dev_id)
 {
 	struct imx_port *sport = (struct imx_port *)dev_id;
 	unsigned int val = USR1((u32)sport->port.membase)&USR1_RTSS;
@@ -198,7 +198,7 @@ static irqreturn_t imx_rtsint(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t imx_txint(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t imx_txint(int irq, void *dev_id)
 {
 	struct imx_port *sport = (struct imx_port *)dev_id;
 	struct circ_buf *xmit = &sport->port.info->xmit;
@@ -227,7 +227,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t imx_rxint(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t imx_rxint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
 	unsigned int rx,flg,ignored = 0;
@@ -248,7 +248,7 @@ static irqreturn_t imx_rxint(int irq, void *dev_id, struct pt_regs *regs)
 		}
 
 		if (uart_handle_sysrq_char
-		            (&sport->port, (unsigned char)rx, regs))
+		            (&sport->port, (unsigned char)rx))
 			goto ignore_char;
 
 		if( rx & (URXD_PRERR | URXD_OVRRUN | URXD_FRMERR) )
@@ -459,8 +459,8 @@ static void imx_shutdown(struct uart_port *port)
 }
 
 static void
-imx_set_termios(struct uart_port *port, struct termios *termios,
-		   struct termios *old)
+imx_set_termios(struct uart_port *port, struct ktermios *termios,
+		   struct ktermios *old)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	unsigned long flags;

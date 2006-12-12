@@ -21,6 +21,7 @@ struct info {
 	long ___eax;
 	long ___ds;
 	long ___es;
+	long ___fs;
 	long ___orig_eax;
 	long ___eip;
 	long ___cs;

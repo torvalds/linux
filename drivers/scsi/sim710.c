@@ -282,6 +282,7 @@ static struct eisa_device_id sim710_eisa_ids[] = {
 	{ "HWP0C80" },
 	{ "" }
 };
+MODULE_DEVICE_TABLE(eisa, sim710_eisa_ids);
 
 static __init int
 sim710_eisa_probe(struct device *dev)

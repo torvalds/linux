@@ -8,7 +8,7 @@
 
 struct ipt_iprange {
 	/* Inclusive: network order. */
-	u_int32_t min_ip, max_ip;
+	__be32 min_ip, max_ip;
 };
 
 struct ipt_iprange_info

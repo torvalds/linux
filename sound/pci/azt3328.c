@@ -1191,7 +1191,7 @@ snd_azf3328_capture_pointer(struct snd_pcm_substream *substream)
 }
 
 static irqreturn_t
-snd_azf3328_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+snd_azf3328_interrupt(int irq, void *dev_id)
 {
 	struct snd_azf3328 *chip = dev_id;
 	u8 status, which;
@@ -1256,7 +1256,7 @@ snd_azf3328_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/* MPU401 has less critical IRQ requirements
 	 * than timer and playback/recording, right? */
 	if (status & IRQ_MPU401) {
-		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data, regs);
+		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data);
 
 		/* hmm, do we have to ack the IRQ here somehow?
 		 * If so, then I don't know how... */
@@ -1903,9 +1903,9 @@ snd_azf3328_suspend(struct pci_dev *pci, pm_message_t state)
 	for (reg = 0; reg < AZF_IO_SIZE_SYNTH_PM / 2; reg++)
 		chip->saved_regs_synth[reg] = inw(chip->synth_port + reg * 2);
 
-	pci_set_power_state(pci, PCI_D3hot);
 	pci_disable_device(pci);
 	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
 }
 
@@ -1916,9 +1916,14 @@ snd_azf3328_resume(struct pci_dev *pci)
 	struct snd_azf3328 *chip = card->private_data;
 	int reg;
 
-	pci_restore_state(pci);
-	pci_enable_device(pci);
 	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "azt3328: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
 	pci_set_master(pci);
 
 	for (reg = 0; reg < AZF_IO_SIZE_IO2_PM / 2; reg++)

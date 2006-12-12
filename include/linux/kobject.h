@@ -47,6 +47,7 @@ enum kobject_action {
 	KOBJ_UMOUNT	= (__force kobject_action_t) 0x05,	/* umount event for block devices (broken) */
 	KOBJ_OFFLINE	= (__force kobject_action_t) 0x06,	/* device offline */
 	KOBJ_ONLINE	= (__force kobject_action_t) 0x07,	/* device online */
+	KOBJ_MOVE	= (__force kobject_action_t) 0x08,	/* device move */
 };
 
 struct kobject {
@@ -76,6 +77,7 @@ extern int __must_check kobject_add(struct kobject *);
 extern void kobject_del(struct kobject *);
 
 extern int __must_check kobject_rename(struct kobject *, const char *new_name);
+extern int __must_check kobject_move(struct kobject *, struct kobject *);
 
 extern int __must_check kobject_register(struct kobject *);
 extern void kobject_unregister(struct kobject *);
@@ -264,6 +266,8 @@ extern int __must_check subsys_create_file(struct subsystem * ,
 
 #if defined(CONFIG_HOTPLUG)
 void kobject_uevent(struct kobject *kobj, enum kobject_action action);
+void kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
+			char *envp[]);
 
 int add_uevent_var(char **envp, int num_envp, int *cur_index,
 			char *buffer, int buffer_size, int *cur_len,
@@ -271,6 +275,10 @@ int add_uevent_var(char **envp, int num_envp, int *cur_index,
 	__attribute__((format (printf, 7, 8)));
 #else
 static inline void kobject_uevent(struct kobject *kobj, enum kobject_action action) { }
+static inline void kobject_uevent_env(struct kobject *kobj,
+				      enum kobject_action action,
+				      char *envp[])
+{ }
 
 static inline int add_uevent_var(char **envp, int num_envp, int *cur_index,
 				      char *buffer, int buffer_size, int *cur_len, 

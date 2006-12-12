@@ -289,7 +289,7 @@ static void pvr2_buffer_done(struct pvr2_buffer *bp)
 	pvr2_buffer_set_none(bp);
 	bp->signature = 0;
 	bp->stream = NULL;
-	if (bp->purb) usb_free_urb(bp->purb);
+	usb_free_urb(bp->purb);
 	pvr2_trace(PVR2_TRACE_BUF_POOL,"/*---TRACE_FLOW---*/"
 		   " bufferDone     %p",bp);
 }
@@ -429,7 +429,7 @@ static void pvr2_stream_done(struct pvr2_stream *sp)
 	} while (0); mutex_unlock(&sp->mutex);
 }
 
-static void buffer_complete(struct urb *urb, struct pt_regs *regs)
+static void buffer_complete(struct urb *urb)
 {
 	struct pvr2_buffer *bp = urb->context;
 	struct pvr2_stream *sp;

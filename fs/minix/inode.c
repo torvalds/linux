@@ -51,12 +51,12 @@ static void minix_put_super(struct super_block *sb)
 	return;
 }
 
-static kmem_cache_t * minix_inode_cachep;
+static struct kmem_cache * minix_inode_cachep;
 
 static struct inode *minix_alloc_inode(struct super_block *sb)
 {
 	struct minix_inode_info *ei;
-	ei = (struct minix_inode_info *)kmem_cache_alloc(minix_inode_cachep, SLAB_KERNEL);
+	ei = (struct minix_inode_info *)kmem_cache_alloc(minix_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -67,7 +67,7 @@ static void minix_destroy_inode(struct inode *inode)
 	kmem_cache_free(minix_inode_cachep, minix_i(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct minix_inode_info *ei = (struct minix_inode_info *) foo;
 
@@ -90,8 +90,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(minix_inode_cachep))
-		printk(KERN_INFO "minix_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(minix_inode_cachep);
 }
 
 static struct super_operations minix_sops = {
@@ -145,18 +144,13 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	struct inode *root_inode;
 	struct minix_sb_info *sbi;
 
-	sbi = kmalloc(sizeof(struct minix_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct minix_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 	s->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(struct minix_sb_info));
 
-	/* N.B. These should be compile-time tests.
-	   Unfortunately that is impossible. */
-	if (32 != sizeof (struct minix_inode))
-		panic("bad V1 i-node size");
-	if (64 != sizeof(struct minix2_inode))
-		panic("bad V2 i-node size");
+	BUILD_BUG_ON(32 != sizeof (struct minix_inode));
+	BUILD_BUG_ON(64 != sizeof(struct minix2_inode));
 
 	if (!sb_set_blocksize(s, BLOCK_SIZE))
 		goto out_bad_hblock;
@@ -207,10 +201,9 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	if (sbi->s_imap_blocks == 0 || sbi->s_zmap_blocks == 0)
 		goto out_illegal_sb;
 	i = (sbi->s_imap_blocks + sbi->s_zmap_blocks) * sizeof(bh);
-	map = kmalloc(i, GFP_KERNEL);
+	map = kzalloc(i, GFP_KERNEL);
 	if (!map)
 		goto out_no_map;
-	memset(map, 0, i);
 	sbi->s_imap = &map[0];
 	sbi->s_zmap = &map[sbi->s_imap_blocks];
 
@@ -399,7 +392,7 @@ static void V1_minix_read_inode(struct inode * inode)
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_atime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
-	inode->i_blocks = inode->i_blksize = 0;
+	inode->i_blocks = 0;
 	for (i = 0; i < 9; i++)
 		minix_inode->u.i1_data[i] = raw_inode->i_zone[i];
 	minix_set_inode(inode, old_decode_dev(raw_inode->i_zone[0]));
@@ -432,7 +425,7 @@ static void V2_minix_read_inode(struct inode * inode)
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_atime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
-	inode->i_blocks = inode->i_blksize = 0;
+	inode->i_blocks = 0;
 	for (i = 0; i < 10; i++)
 		minix_inode->u.i2_data[i] = raw_inode->i_zone[i];
 	minix_set_inode(inode, old_decode_dev(raw_inode->i_zone[0]));

@@ -212,7 +212,7 @@ There are some minimal guarantees that may be expected of a CPU:
 
 	STORE *X = c, d = LOAD *X
 
-     (Loads and stores overlap if they are targetted at overlapping pieces of
+     (Loads and stores overlap if they are targeted at overlapping pieces of
      memory).
 
 And there are a number of things that _must_ or _must_not_ be assumed:
@@ -670,7 +670,7 @@ effectively random order, despite the write barrier issued by CPU 1:
 
 
 In the above example, CPU 2 perceives that B is 7, despite the load of *C
-(which would be B) coming after the the LOAD of C.
+(which would be B) coming after the LOAD of C.
 
 If, however, a data dependency barrier were to be placed between the load of C
 and the load of *C (ie: B) on CPU 2:
@@ -1016,7 +1016,7 @@ There are some more advanced barrier functions:
 
  (*) set_mb(var, value)
 
-     This assigns the value to the variable and then inserts at least a write
+     This assigns the value to the variable and then inserts a full memory
      barrier after it, depending on the function.  It isn't guaranteed to
      insert anything more than a compiler barrier in a UP compilation.
 
@@ -1898,7 +1898,7 @@ queue before processing any further requests:
 	smp_wmb();
 	<A:modify v=2>	<C:busy>
 			<C:queue v=2>
-	p = &b;		q = p;
+	p = &v;		q = p;
 			<D:request p>
 	<B:modify p=&v>	<D:commit p=&v>
 		  	<D:read p>
@@ -1915,7 +1915,7 @@ Whilst most CPUs do imply a data dependency barrier on the read when a memory
 access depends on a read, not all do, so it may not be relied on.
 
 Other CPUs may also have split caches, but must coordinate between the various
-cachelets for normal memory accesss.  The semantics of the Alpha removes the
+cachelets for normal memory accesses.  The semantics of the Alpha removes the
 need for coordination in absence of memory barriers.
 
 

@@ -295,7 +295,7 @@ static int asr_ioctl(struct inode *inode, struct file *file,
 		}
 	}
 
-	return -ENOIOCTLCMD;
+	return -ENOTTY;
 }
 
 static int asr_open(struct inode *inode, struct file *file)

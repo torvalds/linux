@@ -360,9 +360,10 @@ static void free_sm_ah(struct kref *kref)
 	kfree(sm_ah);
 }
 
-static void update_sm_ah(void *port_ptr)
+static void update_sm_ah(struct work_struct *work)
 {
-	struct ib_sa_port *port = port_ptr;
+	struct ib_sa_port *port =
+		container_of(work, struct ib_sa_port, update_task);
 	struct ib_sa_sm_ah *new_ah, *old_ah;
 	struct ib_port_attr port_attr;
 	struct ib_ah_attr   ah_attr;
@@ -992,8 +993,7 @@ static void ib_sa_add_one(struct ib_device *device)
 		if (IS_ERR(sa_dev->port[i].agent))
 			goto err;
 
-		INIT_WORK(&sa_dev->port[i].update_task,
-			  update_sm_ah, &sa_dev->port[i]);
+		INIT_WORK(&sa_dev->port[i].update_task, update_sm_ah);
 	}
 
 	ib_set_client_data(device, &sa_client, sa_dev);
@@ -1010,7 +1010,7 @@ static void ib_sa_add_one(struct ib_device *device)
 		goto err;
 
 	for (i = 0; i <= e - s; ++i)
-		update_sm_ah(&sa_dev->port[i]);
+		update_sm_ah(&sa_dev->port[i].update_task);
 
 	return;
 

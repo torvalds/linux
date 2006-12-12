@@ -131,10 +131,11 @@ __do_user_fault(struct task_struct *tsk, unsigned long addr,
 	force_sig_info(sig, &si, tsk);
 }
 
-void
-do_bad_area(struct task_struct *tsk, struct mm_struct *mm, unsigned long addr,
-	    unsigned int fsr, struct pt_regs *regs)
+void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
+	struct task_struct *tsk = current;
+	struct mm_struct *mm = tsk->active_mm;
+
 	/*
 	 * If we are in kernel mode at this point, we
 	 * have no context to handle this fault with.
@@ -170,7 +171,7 @@ good_area:
 	if (fsr & (1 << 11)) /* write? */
 		mask = VM_WRITE;
 	else
-		mask = VM_READ|VM_EXEC;
+		mask = VM_READ|VM_EXEC|VM_WRITE;
 
 	fault = VM_FAULT_BADACCESS;
 	if (!(vma->vm_flags & mask))
@@ -197,7 +198,7 @@ survive:
 		return fault;
 	}
 
-	if (tsk->pid != 1)
+	if (!is_init(tsk))
 		goto out;
 
 	/*
@@ -229,7 +230,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (in_interrupt() || !mm)
+	if (in_atomic() || !mm)
 		goto no_context;
 
 	/*
@@ -319,7 +320,6 @@ static int
 do_translation_fault(unsigned long addr, unsigned int fsr,
 		     struct pt_regs *regs)
 {
-	struct task_struct *tsk;
 	unsigned int index;
 	pgd_t *pgd, *pgd_k;
 	pmd_t *pmd, *pmd_k;
@@ -351,9 +351,7 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 	return 0;
 
 bad_area:
-	tsk = current;
-
-	do_bad_area(tsk, tsk->active_mm, addr, fsr, regs);
+	do_bad_area(addr, fsr, regs);
 	return 0;
 }
 
@@ -364,8 +362,7 @@ bad_area:
 static int
 do_sect_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
-	struct task_struct *tsk = current;
-	do_bad_area(tsk, tsk->active_mm, addr, fsr, regs);
+	do_bad_area(addr, fsr, regs);
 	return 0;
 }
 

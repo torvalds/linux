@@ -79,7 +79,7 @@ static void __ebus_dma_reset(struct ebus_dma_info *p, int no_drain)
 	}
 }
 
-static irqreturn_t ebus_dma_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ebus_dma_irq(int irq, void *dev_id)
 {
 	struct ebus_dma_info *p = dev_id;
 	unsigned long flags;
@@ -389,12 +389,12 @@ static void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_de
 	dev->ofdev.node = dp;
 	dev->ofdev.dev.parent = &dev->bus->ofdev.dev;
 	dev->ofdev.dev.bus = &ebus_bus_type;
-	strcpy(dev->ofdev.dev.bus_id, dp->path_component_name);
+	sprintf(dev->ofdev.dev.bus_id, "ebus[%08x]", dp->node);
 
 	/* Register with core */
 	if (of_device_register(&dev->ofdev) != 0)
 		printk(KERN_DEBUG "ebus: device registration error for %s!\n",
-		       dev->ofdev.dev.bus_id);
+		       dp->path_component_name);
 
 	dp = dp->child;
 	if (dp) {
@@ -494,12 +494,12 @@ void __init ebus_init(void)
 		ebus->ofdev.node = dp;
 		ebus->ofdev.dev.parent = &pdev->dev;
 		ebus->ofdev.dev.bus = &ebus_bus_type;
-		strcpy(ebus->ofdev.dev.bus_id, dp->path_component_name);
+		sprintf(ebus->ofdev.dev.bus_id, "ebus%d", num_ebus);
 
 		/* Register with core */
 		if (of_device_register(&ebus->ofdev) != 0)
 			printk(KERN_DEBUG "ebus: device registration error for %s!\n",
-			       ebus->ofdev.dev.bus_id);
+			       dp->path_component_name);
 
 
 		child = dp->child;

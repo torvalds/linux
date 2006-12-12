@@ -1,4 +1,4 @@
-/* linux/include/asm/arch-s3c2410/regs-adc.h
+/* linux/include/asm-arm/arch-s3c2410/regs-adc.h
  *
  * Copyright (c) 2004 Shannon Holland <holland@loser.net>
  *

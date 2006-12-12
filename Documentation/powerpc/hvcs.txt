@@ -259,7 +259,7 @@ This index of '2' means that in order to connect to vty-server adapter
 
 It should be noted that due to the system hotplug I/O capabilities of a
 system the /dev/hvcs* entry that interacts with a particular vty-server
-adapter is not guarenteed to remain the same across system reboots.  Look
+adapter is not guaranteed to remain the same across system reboots.  Look
 in the Q & A section for more on this issue.
 
 ---------------------------------------------------------------------------

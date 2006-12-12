@@ -22,41 +22,21 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/device.h>
-
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/rtc.h>
 #include <asm/machvec.h>
-#include <asm/machvec_init.h>
 #include <asm/mach/sysasic.h>
 
 extern struct hw_interrupt_type systemasic_int;
-/* XXX: Move this into it's proper header. */
-extern void (*board_time_init)(void);
 extern void aica_time_init(void);
 extern int gapspci_init(void);
 extern int systemasic_irq_demux(int);
 
-void *dreamcast_consistent_alloc(struct device *, size_t, dma_addr_t *, int);
+void *dreamcast_consistent_alloc(struct device *, size_t, dma_addr_t *, gfp_t);
 int dreamcast_consistent_free(struct device *, size_t, void *, dma_addr_t);
 
-const char *get_system_type(void)
-{
-	return "Sega Dreamcast";
-}
-
-struct sh_machine_vector mv_dreamcast __initmv = {
-	.mv_nr_irqs		= NR_IRQS,
-
-	.mv_irq_demux		= systemasic_irq_demux,
-
-#ifdef CONFIG_PCI
-	.mv_consistent_alloc	= dreamcast_consistent_alloc,
-	.mv_consistent_free	= dreamcast_consistent_free,
-#endif
-};
-ALIAS_MV(dreamcast)
-
-int __init platform_setup(void)
+static void __init dreamcast_setup(char **cmdline_p)
 {
 	int i;
 
@@ -78,6 +58,16 @@ int __init platform_setup(void)
 	if (gapspci_init() < 0)
 		printk(KERN_WARNING "GAPSPCI was not detected.\n");
 #endif
-
-	return 0;
 }
+
+struct sh_machine_vector mv_dreamcast __initmv = {
+	.mv_name		= "Sega Dreamcast",
+	.mv_setup		= dreamcast_setup,
+	.mv_irq_demux		= systemasic_irq_demux,
+
+#ifdef CONFIG_PCI
+	.mv_consistent_alloc	= dreamcast_consistent_alloc,
+	.mv_consistent_free	= dreamcast_consistent_free,
+#endif
+};
+ALIAS_MV(dreamcast)

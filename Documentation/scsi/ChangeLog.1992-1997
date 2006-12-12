@@ -1214,7 +1214,7 @@ Thu Jul 21 10:37:39 1994  Eric Youngdale  (eric@esp22)
 
 	* sr.c(sr_open): Do not allow opens with write access.
 
-Mon Jul 18 09:51:22 1994 1994  Eric Youngdale  (eric@esp22)
+Mon Jul 18 09:51:22 1994  Eric Youngdale  (eric@esp22)
 
 	* Linux 1.1.31 released.
 

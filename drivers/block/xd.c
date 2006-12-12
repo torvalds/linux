@@ -48,9 +48,9 @@
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
-#include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/dma.h>
 
@@ -313,7 +313,7 @@ static void do_xd_request (request_queue_t * q)
 		int res = 0;
 		int retry;
 
-		if (!(req->flags & REQ_CMD)) {
+		if (!blk_fs_request(req)) {
 			end_request(req, 0);
 			continue;
 		}
@@ -462,8 +462,7 @@ static void xd_recalibrate (u_char drive)
 }
 
 /* xd_interrupt_handler: interrupt service routine */
-static irqreturn_t xd_interrupt_handler(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t xd_interrupt_handler(int irq, void *dev_id)
 {
 	if (inb(XD_STATUS) & STAT_INTERRUPT) {							/* check if it was our device */
 #ifdef DEBUG_OTHER

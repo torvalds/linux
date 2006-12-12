@@ -217,7 +217,7 @@ static struct hw_interrupt_type clipper_irq_type = {
 };
 
 static void
-dp264_device_interrupt(unsigned long vector, struct pt_regs * regs)
+dp264_device_interrupt(unsigned long vector)
 {
 #if 1
 	printk("dp264_device_interrupt: NOT IMPLEMENTED YET!! \n");
@@ -236,9 +236,9 @@ dp264_device_interrupt(unsigned long vector, struct pt_regs * regs)
 		i = ffz(~pld);
 		pld &= pld - 1; /* clear least bit set */
 		if (i == 55)
-			isa_device_interrupt(vector, regs);
+			isa_device_interrupt(vector);
 		else
-			handle_irq(16 + i, 16 + i, regs);
+			handle_irq(16 + i);
 #if 0
 		TSUNAMI_cchip->dir0.csr = 1UL << i; mb();
 		tmp = TSUNAMI_cchip->dir0.csr;
@@ -248,7 +248,7 @@ dp264_device_interrupt(unsigned long vector, struct pt_regs * regs)
 }
 
 static void 
-dp264_srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
+dp264_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
 
@@ -268,11 +268,11 @@ dp264_srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
 	if (irq >= 32)
 		irq -= 16;
 
-	handle_irq(irq, regs);
+	handle_irq(irq);
 }
 
 static void 
-clipper_srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
+clipper_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
 
@@ -290,7 +290,7 @@ clipper_srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
 	 *
 	 * Eg IRQ 24 is DRIR bit 8, etc, etc
 	 */
-	handle_irq(irq, regs);
+	handle_irq(irq);
 }
 
 static void __init

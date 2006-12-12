@@ -44,4 +44,4 @@ void gsc_fixup_irqs(struct parisc_device *parent, void *ctrl,
 		void (*choose)(struct parisc_device *child, void *ctrl));
 void gsc_asic_assign_irq(struct gsc_asic *asic, int local_irq, int *irqp);
 
-irqreturn_t gsc_asic_intr(int irq, void *dev, struct pt_regs *regs);
+irqreturn_t gsc_asic_intr(int irq, void *dev);

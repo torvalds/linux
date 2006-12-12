@@ -34,7 +34,7 @@
 #define SCDRV_TIMEOUT	1000
 
 static irqreturn_t
-scdrv_interrupt(int irq, void *subch_data, struct pt_regs *regs)
+scdrv_interrupt(int irq, void *subch_data)
 {
 	struct subch_data_s *sd = subch_data;
 	unsigned long flags;

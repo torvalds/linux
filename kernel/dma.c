@@ -62,6 +62,11 @@ static struct dma_chan dma_chan_busy[MAX_DMA_CHANNELS] = {
 };
 
 
+/**
+ * request_dma - request and reserve a system DMA channel
+ * @dmanr: DMA channel number
+ * @device_id: reserving device ID string, used in /proc/dma
+ */
 int request_dma(unsigned int dmanr, const char * device_id)
 {
 	if (dmanr >= MAX_DMA_CHANNELS)
@@ -76,7 +81,10 @@ int request_dma(unsigned int dmanr, const char * device_id)
 	return 0;
 } /* request_dma */
 
-
+/**
+ * free_dma - free a reserved system DMA channel
+ * @dmanr: DMA channel number
+ */
 void free_dma(unsigned int dmanr)
 {
 	if (dmanr >= MAX_DMA_CHANNELS) {
@@ -132,7 +140,7 @@ static int proc_dma_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_dma_show, NULL);
 }
 
-static struct file_operations proc_dma_operations = {
+static const struct file_operations proc_dma_operations = {
 	.open		= proc_dma_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

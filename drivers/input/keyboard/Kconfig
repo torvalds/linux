@@ -121,6 +121,17 @@ config KEYBOARD_NEWTON
 	  To compile this driver as a module, choose M here: the
 	  module will be called newtonkbd.
 
+config KEYBOARD_STOWAWAY
+	tristate "Stowaway keyboard"
+	select SERIO
+	help
+	  Say Y here if you have a Stowaway keyboard on a serial port.
+	  Stowaway compatible keyboards like Dicota Input-PDA keyboard
+	  are also supported by this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stowaway.
+
 config KEYBOARD_CORGI
 	tristate "Corgi keyboard"
 	depends on PXA_SHARPSL
@@ -155,7 +166,7 @@ config KEYBOARD_AMIGA
 
 config KEYBOARD_HIL_OLD
 	tristate "HP HIL keyboard support (simple driver)"
-	depends on GSC
+	depends on GSC || HP300
 	default y
 	help
 	  The "Human Interface Loop" is a older, 8-channel USB-like
@@ -166,13 +177,13 @@ config KEYBOARD_HIL_OLD
 	  However, it has been thoroughly tested and is stable.
 
 	  If you want full HIL support including support for multiple
-	  keyboards, mices and tablets, you have to enable the
+	  keyboards, mice, and tablets, you have to enable the
 	  "HP System Device Controller i8042 Support" in the input/serio
 	  submenu.
 
 config KEYBOARD_HIL
 	tristate "HP HIL keyboard support"
-	depends on GSC
+	depends on GSC || HP300
 	default y
 	select HP_SDC
 	select HIL_MLC
@@ -182,5 +193,25 @@ config KEYBOARD_HIL
 	  controller used in several Hewlett Packard models.
 	  This driver implements support for HIL-keyboards attached
 	  to your machine, so normally you should say Y here.
+
+config KEYBOARD_OMAP
+	tristate "TI OMAP keypad support"
+	depends on (ARCH_OMAP1 || ARCH_OMAP2)
+	help
+	  Say Y here if you want to use the OMAP keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called omap-keypad.
+
+config KEYBOARD_AAED2000
+	tristate "AAED-2000 keyboard"
+	depends on MACH_AAED2000
+	default y
+	help
+	  Say Y here to enable the keyboard on the Agilent AAED-2000
+	  development board.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called aaed2000_kbd.
 
 endif

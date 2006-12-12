@@ -58,11 +58,9 @@ posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 	if (acl) {
 		int size = sizeof(struct posix_acl) + acl->a_count *
 		           sizeof(struct posix_acl_entry);
-		clone = kmalloc(size, flags);
-		if (clone) {
-			memcpy(clone, acl, size);
+		clone = kmemdup(acl, size, flags);
+		if (clone)
 			atomic_set(&clone->a_refcount, 1);
-		}
 	}
 	return clone;
 }

@@ -31,6 +31,7 @@
 #include <linux/security.h>
 #include <linux/bootmem.h>
 #include <linux/syscalls.h>
+#include <linux/jiffies.h>
 
 #include <asm/uaccess.h>
 
@@ -51,8 +52,6 @@ int console_printk[4] = {
 	MINIMUM_CONSOLE_LOGLEVEL,	/* minimum_console_loglevel */
 	DEFAULT_CONSOLE_LOGLEVEL,	/* default_console_loglevel */
 };
-
-EXPORT_UNUSED_SYMBOL(console_printk);  /*  June 2006  */
 
 /*
  * Low lever drivers may need that to know if they can schedule in
@@ -334,13 +333,25 @@ static void __call_console_drivers(unsigned long start, unsigned long end)
 	}
 }
 
+static int __read_mostly ignore_loglevel;
+
+int __init ignore_loglevel_setup(char *str)
+{
+	ignore_loglevel = 1;
+	printk(KERN_INFO "debug: ignoring loglevel setting.\n");
+
+	return 1;
+}
+
+__setup("ignore_loglevel", ignore_loglevel_setup);
+
 /*
  * Write out chars from start to end - 1 inclusive
  */
 static void _call_console_drivers(unsigned long start,
 				unsigned long end, int msg_log_level)
 {
-	if (msg_log_level < console_loglevel &&
+	if ((msg_log_level < console_loglevel || ignore_loglevel) &&
 			console_drivers && start != end) {
 		if ((start & LOG_BUF_MASK) > (end & LOG_BUF_MASK)) {
 			/* wrapped write */
@@ -630,12 +641,7 @@ EXPORT_SYMBOL(vprintk);
 
 asmlinkage long sys_syslog(int type, char __user *buf, int len)
 {
-	return 0;
-}
-
-int do_syslog(int type, char __user *buf, int len)
-{
-	return 0;
+	return -ENOSYS;
 }
 
 static void call_console_drivers(unsigned long start, unsigned long end)
@@ -776,7 +782,6 @@ int is_console_locked(void)
 {
 	return console_locked;
 }
-EXPORT_UNUSED_SYMBOL(is_console_locked);  /*  June 2006  */
 
 /**
  * release_console_sem - unlock the console system
@@ -820,15 +825,8 @@ void release_console_sem(void)
 	console_locked = 0;
 	up(&console_sem);
 	spin_unlock_irqrestore(&logbuf_lock, flags);
-	if (wake_klogd && !oops_in_progress && waitqueue_active(&log_wait)) {
-		/*
-		 * If we printk from within the lock dependency code,
-		 * from within the scheduler code, then do not lock
-		 * up due to self-recursion:
-		 */
-		if (!lockdep_internal())
-			wake_up_interruptible(&log_wait);
-	}
+	if (wake_klogd && !oops_in_progress && waitqueue_active(&log_wait))
+		wake_up_interruptible(&log_wait);
 }
 EXPORT_SYMBOL(release_console_sem);
 
@@ -1108,3 +1106,23 @@ int printk_ratelimit(void)
 				printk_ratelimit_burst);
 }
 EXPORT_SYMBOL(printk_ratelimit);
+
+/**
+ * printk_timed_ratelimit - caller-controlled printk ratelimiting
+ * @caller_jiffies: pointer to caller's state
+ * @interval_msecs: minimum interval between prints
+ *
+ * printk_timed_ratelimit() returns true if more than @interval_msecs
+ * milliseconds have elapsed since the last time printk_timed_ratelimit()
+ * returned true.
+ */
+bool printk_timed_ratelimit(unsigned long *caller_jiffies,
+			unsigned int interval_msecs)
+{
+	if (*caller_jiffies == 0 || time_after(jiffies, *caller_jiffies)) {
+		*caller_jiffies = jiffies + msecs_to_jiffies(interval_msecs);
+		return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL(printk_timed_ratelimit);

@@ -96,7 +96,7 @@ static struct mtd_partition arctic_partitions[PARTITIONS] = {
 static int __init
 init_arctic_mtd(void)
 {
-	int err = 0;
+	int err;
 
 	printk("%s: 0x%08x at 0x%08x\n", NAME, SIZE, PADDR);
 
@@ -112,7 +112,7 @@ init_arctic_mtd(void)
 	arctic_mtd = do_map_probe("cfi_probe", &arctic_mtd_map);
 
 	if (!arctic_mtd) {
-		iounmap((void *) arctic_mtd_map.virt);
+		iounmap(arctic_mtd_map.virt);
 		return -ENXIO;
 	}
 
@@ -121,7 +121,7 @@ init_arctic_mtd(void)
 	err = add_mtd_partitions(arctic_mtd, arctic_partitions, PARTITIONS);
 	if (err) {
 		printk("%s: add_mtd_partitions failed\n", NAME);
-		iounmap((void *) arctic_mtd_map.virt);
+		iounmap(arctic_mtd_map.virt);
 	}
 
 	return err;

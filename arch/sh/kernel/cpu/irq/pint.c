@@ -48,26 +48,22 @@ static struct hw_interrupt_type pint_irq_type = {
 
 static void disable_pint_irq(unsigned int irq)
 {
-	unsigned long val, flags;
+	unsigned long val;
 
-	local_irq_save(flags);
 	val = ctrl_inw(INTC_INTER);
 	val &= ~(1 << (irq - PINT_IRQ_BASE));
 	ctrl_outw(val, INTC_INTER);	/* disable PINTn */
 	portcr_mask &= ~(3 << (irq - PINT_IRQ_BASE)*2);
-	local_irq_restore(flags);
 }
 
 static void enable_pint_irq(unsigned int irq)
 {
-	unsigned long val, flags;
+	unsigned long val;
 
-	local_irq_save(flags);
 	val = ctrl_inw(INTC_INTER);
 	val |= 1 << (irq - PINT_IRQ_BASE);
 	ctrl_outw(val, INTC_INTER);	/* enable PINTn */
 	portcr_mask |= 3 << (irq - PINT_IRQ_BASE)*2;
-	local_irq_restore(flags);
 }
 
 static void mask_and_ack_pint(unsigned int irq)
@@ -88,12 +84,16 @@ void make_pint_irq(unsigned int irq)
 	disable_pint_irq(irq);
 }
 
+static struct ipr_data pint_ipr_map[] = {
+	{ PINT0_IRQ, PINT0_IPR_ADDR, PINT0_IPR_POS, PINT0_PRIORITY },
+	{ PINT8_IRQ, PINT8_IPR_ADDR, PINT8_IPR_POS, PINT8_PRIORITY },
+};
+
 void __init init_IRQ_pint(void)
 {
 	int i;
 
-	make_ipr_irq(PINT0_IRQ, PINT0_IPR_ADDR, PINT0_IPR_POS, PINT0_PRIORITY);
-	make_ipr_irq(PINT8_IRQ, PINT8_IPR_ADDR, PINT8_IPR_POS, PINT8_PRIORITY);
+	make_ipr_irq(pint_ipr_map, ARRAY_SIZE(pint_ipr_map));
 
 	enable_irq(PINT0_IRQ);
 	enable_irq(PINT8_IRQ);

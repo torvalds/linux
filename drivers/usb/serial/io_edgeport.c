@@ -216,10 +216,10 @@ static int CmdUrbs = 0;		/* Number of outstanding Command Write Urbs */
 /* local function prototypes */
 
 /* function prototypes for all URB callbacks */
-static void edge_interrupt_callback	(struct urb *urb, struct pt_regs *regs);
-static void edge_bulk_in_callback	(struct urb *urb, struct pt_regs *regs);
-static void edge_bulk_out_data_callback	(struct urb *urb, struct pt_regs *regs);
-static void edge_bulk_out_cmd_callback	(struct urb *urb, struct pt_regs *regs);
+static void edge_interrupt_callback	(struct urb *urb);
+static void edge_bulk_in_callback	(struct urb *urb);
+static void edge_bulk_out_data_callback	(struct urb *urb);
+static void edge_bulk_out_cmd_callback	(struct urb *urb);
 
 /* function prototypes for the usbserial callbacks */
 static int  edge_open			(struct usb_serial_port *port, struct file *filp);
@@ -229,7 +229,7 @@ static int  edge_write_room		(struct usb_serial_port *port);
 static int  edge_chars_in_buffer	(struct usb_serial_port *port);
 static void edge_throttle		(struct usb_serial_port *port);
 static void edge_unthrottle		(struct usb_serial_port *port);
-static void edge_set_termios		(struct usb_serial_port *port, struct termios *old_termios);
+static void edge_set_termios		(struct usb_serial_port *port, struct ktermios *old_termios);
 static int  edge_ioctl			(struct usb_serial_port *port, struct file *file, unsigned int cmd, unsigned long arg);
 static void edge_break			(struct usb_serial_port *port, int break_state);
 static int  edge_tiocmget		(struct usb_serial_port *port, struct file *file);
@@ -257,7 +257,7 @@ static void handle_new_lsr		(struct edgeport_port *edge_port, __u8 lsrData, __u8
 static int  send_iosp_ext_cmd		(struct edgeport_port *edge_port, __u8 command, __u8 param);
 static int  calc_baud_rate_divisor	(int baud_rate, int *divisor);
 static int  send_cmd_write_baud_rate	(struct edgeport_port *edge_port, int baudRate);
-static void change_port_settings	(struct edgeport_port *edge_port, struct termios *old_termios);
+static void change_port_settings	(struct edgeport_port *edge_port, struct ktermios *old_termios);
 static int  send_cmd_write_uart_register	(struct edgeport_port *edge_port, __u8 regNum, __u8 regValue);
 static int  write_cmd_usb		(struct edgeport_port *edge_port, unsigned char *buffer, int writeLength);
 static void send_more_port_data		(struct edgeport_serial *edge_serial, struct edgeport_port *edge_port);
@@ -534,7 +534,7 @@ static void get_product_info(struct edgeport_serial *edge_serial)
  *	this is the callback function for when we have received data on the 
  *	interrupt endpoint.
  *****************************************************************************/
-static void edge_interrupt_callback (struct urb *urb, struct pt_regs *regs)
+static void edge_interrupt_callback (struct urb *urb)
 {
 	struct edgeport_serial	*edge_serial = (struct edgeport_serial *)urb->context;
 	struct edgeport_port *edge_port;
@@ -631,7 +631,7 @@ exit:
  *	this is the callback function for when we have received data on the 
  *	bulk in endpoint.
  *****************************************************************************/
-static void edge_bulk_in_callback (struct urb *urb, struct pt_regs *regs)
+static void edge_bulk_in_callback (struct urb *urb)
 {
 	struct edgeport_serial	*edge_serial = (struct edgeport_serial *)urb->context;
 	unsigned char		*data = urb->transfer_buffer;
@@ -687,7 +687,7 @@ static void edge_bulk_in_callback (struct urb *urb, struct pt_regs *regs)
  *	this is the callback function for when we have finished sending serial data
  *	on the bulk out endpoint.
  *****************************************************************************/
-static void edge_bulk_out_data_callback (struct urb *urb, struct pt_regs *regs)
+static void edge_bulk_out_data_callback (struct urb *urb)
 {
 	struct edgeport_port *edge_port = (struct edgeport_port *)urb->context;
 	struct tty_struct *tty;
@@ -718,7 +718,7 @@ static void edge_bulk_out_data_callback (struct urb *urb, struct pt_regs *regs)
  *	this is the callback function for when we have finished sending a command
  *	on the bulk out endpoint.
  *****************************************************************************/
-static void edge_bulk_out_cmd_callback (struct urb *urb, struct pt_regs *regs)
+static void edge_bulk_out_cmd_callback (struct urb *urb)
 {
 	struct edgeport_port *edge_port = (struct edgeport_port *)urb->context;
 	struct tty_struct *tty;
@@ -1038,9 +1038,7 @@ static void edge_close (struct usb_serial_port *port, struct file * filp)
 	edge_port->open = FALSE;
 	edge_port->openPending = FALSE;
 
-	if (edge_port->write_urb) {
-		usb_kill_urb(edge_port->write_urb);
-	}
+	usb_kill_urb(edge_port->write_urb);
 
 	if (edge_port->write_urb) {
 		/* if this urb had a transfer buffer already (old transfer) free it */
@@ -1433,7 +1431,7 @@ static void edge_unthrottle (struct usb_serial_port *port)
  * SerialSetTermios
  *	this function is called by the tty driver when it wants to change the termios structure
  *****************************************************************************/
-static void edge_set_termios (struct usb_serial_port *port, struct termios *old_termios)
+static void edge_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	struct tty_struct *tty = port->tty;
@@ -2414,7 +2412,7 @@ static int send_cmd_write_uart_register (struct edgeport_port *edge_port, __u8 r
 #ifndef CMSPAR
 #define CMSPAR 0
 #endif
-static void change_port_settings (struct edgeport_port *edge_port, struct termios *old_termios)
+static void change_port_settings (struct edgeport_port *edge_port, struct ktermios *old_termios)
 {
 	struct tty_struct *tty;
 	int baud;

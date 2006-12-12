@@ -25,8 +25,11 @@ extern void diag10(unsigned long addr);
  * Page allocation orders.
  */
 #ifndef __s390x__
+# define PTE_ALLOC_ORDER	0
+# define PMD_ALLOC_ORDER	0
 # define PGD_ALLOC_ORDER	1
 #else /* __s390x__ */
+# define PTE_ALLOC_ORDER	0
 # define PMD_ALLOC_ORDER	2
 # define PGD_ALLOC_ORDER	2
 #endif /* __s390x__ */
@@ -116,7 +119,7 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
 static inline void
 pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *page)
 {
-	pmd_populate_kernel(mm, pmd, (pte_t *)((page-mem_map) << PAGE_SHIFT));
+	pmd_populate_kernel(mm, pmd, (pte_t *)page_to_phys(page));
 }
 
 /*

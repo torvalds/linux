@@ -63,7 +63,7 @@ static void smp_ext_bitcall(int, ec_bit_sig);
 static void smp_ext_bitcall_others(ec_bit_sig);
 
 /*
- * Structure and data for smp_call_function(). This is designed to minimise
+5B * Structure and data for smp_call_function(). This is designed to minimise
  * static memory requirements. It also looks cleaner.
  */
 static DEFINE_SPINLOCK(call_lock);
@@ -230,17 +230,36 @@ static inline void do_store_status(void)
         }
 }
 
+static inline void do_wait_for_stop(void)
+{
+	int cpu;
+
+	/* Wait for all other cpus to enter stopped state */
+	for_each_online_cpu(cpu) {
+		if (cpu == smp_processor_id())
+			continue;
+		while(!smp_cpu_not_running(cpu))
+			cpu_relax();
+	}
+}
+
 /*
  * this function sends a 'stop' sigp to all other CPUs in the system.
  * it goes straight through.
  */
 void smp_send_stop(void)
 {
+	/* Disable all interrupts/machine checks */
+	__load_psw_mask(PSW_KERNEL_BITS & ~PSW_MASK_MCHECK);
+
         /* write magic number to zero page (absolute 0) */
 	lowcore_ptr[smp_processor_id()]->panic_magic = __PANIC_MAGIC;
 
 	/* stop other processors. */
 	do_send_stop();
+
+	/* wait until other processors are stopped */
+	do_wait_for_stop();
 
 	/* store status of other processors. */
 	do_store_status();
@@ -250,88 +269,28 @@ void smp_send_stop(void)
  * Reboot, halt and power_off routines for SMP.
  */
 
-static void do_machine_restart(void * __unused)
-{
-	int cpu;
-	static atomic_t cpuid = ATOMIC_INIT(-1);
-
-	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) != -1)
-		signal_processor(smp_processor_id(), sigp_stop);
-
-	/* Wait for all other cpus to enter stopped state */
-	for_each_online_cpu(cpu) {
-		if (cpu == smp_processor_id())
-			continue;
-		while(!smp_cpu_not_running(cpu))
-			cpu_relax();
-	}
-
-	/* Store status of other cpus. */
-	do_store_status();
-
-	/*
-	 * Finally call reipl. Because we waited for all other
-	 * cpus to enter this function we know that they do
-	 * not hold any s390irq-locks (the cpus have been
-	 * interrupted by an external interrupt and s390irq
-	 * locks are always held disabled).
-	 */
-	do_reipl();
-}
-
 void machine_restart_smp(char * __unused) 
 {
-        on_each_cpu(do_machine_restart, NULL, 0, 0);
-}
-
-static void do_wait_for_stop(void)
-{
-	unsigned long cr[16];
-
-	__ctl_store(cr, 0, 15);
-	cr[0] &= ~0xffff;
-	cr[6] = 0;
-	__ctl_load(cr, 0, 15);
-	for (;;)
-		enabled_wait();
-}
-
-static void do_machine_halt(void * __unused)
-{
-	static atomic_t cpuid = ATOMIC_INIT(-1);
-
-	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) == -1) {
-		smp_send_stop();
-		if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
-			cpcmd(vmhalt_cmd, NULL, 0, NULL);
-		signal_processor(smp_processor_id(),
-				 sigp_stop_and_store_status);
-	}
-	do_wait_for_stop();
+	smp_send_stop();
+	do_reipl();
 }
 
 void machine_halt_smp(void)
 {
-        on_each_cpu(do_machine_halt, NULL, 0, 0);
-}
-
-static void do_machine_power_off(void * __unused)
-{
-	static atomic_t cpuid = ATOMIC_INIT(-1);
-
-	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) == -1) {
-		smp_send_stop();
-		if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
-			cpcmd(vmpoff_cmd, NULL, 0, NULL);
-		signal_processor(smp_processor_id(),
-				 sigp_stop_and_store_status);
-	}
-	do_wait_for_stop();
+	smp_send_stop();
+	if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
+		__cpcmd(vmhalt_cmd, NULL, 0, NULL);
+	signal_processor(smp_processor_id(), sigp_stop_and_store_status);
+	for (;;);
 }
 
 void machine_power_off_smp(void)
 {
-        on_each_cpu(do_machine_power_off, NULL, 0, 0);
+	smp_send_stop();
+	if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
+		__cpcmd(vmpoff_cmd, NULL, 0, NULL);
+	signal_processor(smp_processor_id(), sigp_stop_and_store_status);
+	for (;;);
 }
 
 /*
@@ -339,7 +298,7 @@ void machine_power_off_smp(void)
  * cpus are handled.
  */
 
-void do_ext_call_interrupt(struct pt_regs *regs, __u16 code)
+void do_ext_call_interrupt(__u16 code)
 {
         unsigned long bits;
 
@@ -418,59 +377,49 @@ void smp_send_reschedule(int cpu)
 /*
  * parameter area for the set/clear control bit callbacks
  */
-typedef struct
-{
-	__u16 start_ctl;
-	__u16 end_ctl;
+struct ec_creg_mask_parms {
 	unsigned long orvals[16];
 	unsigned long andvals[16];
-} ec_creg_mask_parms;
+};
 
 /*
  * callback for setting/clearing control bits
  */
 void smp_ctl_bit_callback(void *info) {
-	ec_creg_mask_parms *pp;
+	struct ec_creg_mask_parms *pp = info;
 	unsigned long cregs[16];
 	int i;
 	
-	pp = (ec_creg_mask_parms *) info;
-	__ctl_store(cregs[pp->start_ctl], pp->start_ctl, pp->end_ctl);
-	for (i = pp->start_ctl; i <= pp->end_ctl; i++)
+	__ctl_store(cregs, 0, 15);
+	for (i = 0; i <= 15; i++)
 		cregs[i] = (cregs[i] & pp->andvals[i]) | pp->orvals[i];
-	__ctl_load(cregs[pp->start_ctl], pp->start_ctl, pp->end_ctl);
+	__ctl_load(cregs, 0, 15);
 }
 
 /*
  * Set a bit in a control register of all cpus
  */
-void smp_ctl_set_bit(int cr, int bit) {
-        ec_creg_mask_parms parms;
+void smp_ctl_set_bit(int cr, int bit)
+{
+	struct ec_creg_mask_parms parms;
 
-	parms.start_ctl = cr;
-	parms.end_ctl = cr;
+	memset(&parms.orvals, 0, sizeof(parms.orvals));
+	memset(&parms.andvals, 0xff, sizeof(parms.andvals));
 	parms.orvals[cr] = 1 << bit;
-	parms.andvals[cr] = -1L;
-	preempt_disable();
-	smp_call_function(smp_ctl_bit_callback, &parms, 0, 1);
-        __ctl_set_bit(cr, bit);
-	preempt_enable();
+	on_each_cpu(smp_ctl_bit_callback, &parms, 0, 1);
 }
 
 /*
  * Clear a bit in a control register of all cpus
  */
-void smp_ctl_clear_bit(int cr, int bit) {
-        ec_creg_mask_parms parms;
+void smp_ctl_clear_bit(int cr, int bit)
+{
+	struct ec_creg_mask_parms parms;
 
-	parms.start_ctl = cr;
-	parms.end_ctl = cr;
-	parms.orvals[cr] = 0;
+	memset(&parms.orvals, 0, sizeof(parms.orvals));
+	memset(&parms.andvals, 0xff, sizeof(parms.andvals));
 	parms.andvals[cr] = ~(1L << bit);
-	preempt_disable();
-	smp_call_function(smp_ctl_bit_callback, &parms, 0, 1);
-        __ctl_clear_bit(cr, bit);
-	preempt_enable();
+	on_each_cpu(smp_ctl_bit_callback, &parms, 0, 1);
 }
 
 /*
@@ -511,8 +460,6 @@ __init smp_count_cpus(void)
  */
 extern void init_cpu_timer(void);
 extern void init_cpu_vtimer(void);
-extern int pfault_init(void);
-extern void pfault_fini(void);
 
 int __devinit start_secondary(void *cpuvoid)
 {
@@ -524,11 +471,9 @@ int __devinit start_secondary(void *cpuvoid)
 #ifdef CONFIG_VIRT_TIMER
         init_cpu_vtimer();
 #endif
-#ifdef CONFIG_PFAULT
 	/* Enable pfault pseudo page faults on this cpu. */
-	if (MACHINE_IS_VM)
-		pfault_init();
-#endif
+	pfault_init();
+
 	/* Mark this cpu as online */
 	cpu_set(smp_processor_id(), cpu_online_map);
 	/* Switch on interrupts */
@@ -650,9 +595,9 @@ __cpu_up(unsigned int cpu)
 	sf->gprs[9] = (unsigned long) sf;
 	cpu_lowcore->save_area[15] = (unsigned long) sf;
 	__ctl_store(cpu_lowcore->cregs_save_area[0], 0, 15);
-	__asm__ __volatile__("stam  0,15,0(%0)"
-			     : : "a" (&cpu_lowcore->access_regs_save_area)
-			     : "memory");
+	asm volatile(
+		"	stam	0,15,0(%0)"
+		: : "a" (&cpu_lowcore->access_regs_save_area) : "memory");
 	cpu_lowcore->percpu_offset = __per_cpu_offset[cpu];
         cpu_lowcore->current_task = (unsigned long) idle;
         cpu_lowcore->cpu_data.cpu_nr = cpu;
@@ -708,7 +653,7 @@ int
 __cpu_disable(void)
 {
 	unsigned long flags;
-	ec_creg_mask_parms cr_parms;
+	struct ec_creg_mask_parms cr_parms;
 	int cpu = smp_processor_id();
 
 	spin_lock_irqsave(&smp_reserve_lock, flags);
@@ -718,36 +663,24 @@ __cpu_disable(void)
 	}
 	cpu_clear(cpu, cpu_online_map);
 
-#ifdef CONFIG_PFAULT
 	/* Disable pfault pseudo page faults on this cpu. */
-	if (MACHINE_IS_VM)
-		pfault_fini();
-#endif
+	pfault_fini();
+
+	memset(&cr_parms.orvals, 0, sizeof(cr_parms.orvals));
+	memset(&cr_parms.andvals, 0xff, sizeof(cr_parms.andvals));
 
 	/* disable all external interrupts */
-
-	cr_parms.start_ctl = 0;
-	cr_parms.end_ctl = 0;
 	cr_parms.orvals[0] = 0;
 	cr_parms.andvals[0] = ~(1<<15 | 1<<14 | 1<<13 | 1<<12 |
 				1<<11 | 1<<10 | 1<< 6 | 1<< 4);
-	smp_ctl_bit_callback(&cr_parms);
-
 	/* disable all I/O interrupts */
-
-	cr_parms.start_ctl = 6;
-	cr_parms.end_ctl = 6;
 	cr_parms.orvals[6] = 0;
 	cr_parms.andvals[6] = ~(1<<31 | 1<<30 | 1<<29 | 1<<28 |
 				1<<27 | 1<<26 | 1<<25 | 1<<24);
-	smp_ctl_bit_callback(&cr_parms);
-
 	/* disable most machine checks */
-
-	cr_parms.start_ctl = 14;
-	cr_parms.end_ctl = 14;
 	cr_parms.orvals[14] = 0;
 	cr_parms.andvals[14] = ~(1<<28 | 1<<27 | 1<<26 | 1<<25 | 1<<24);
+
 	smp_ctl_bit_callback(&cr_parms);
 
 	spin_unlock_irqrestore(&smp_reserve_lock, flags);
@@ -879,4 +812,3 @@ EXPORT_SYMBOL(smp_ctl_clear_bit);
 EXPORT_SYMBOL(smp_call_function);
 EXPORT_SYMBOL(smp_get_cpu);
 EXPORT_SYMBOL(smp_put_cpu);
-

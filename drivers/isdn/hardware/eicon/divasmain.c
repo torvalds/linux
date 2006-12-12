@@ -58,8 +58,7 @@ static char *DRIVERLNAME = "divas";
 static char *DEVNAME = "Divas";
 char *DRIVERRELEASE_DIVAS = "2.0";
 
-extern irqreturn_t diva_os_irq_wrapper(int irq, void *context,
-				struct pt_regs *regs);
+extern irqreturn_t diva_os_irq_wrapper(int irq, void *context);
 extern int create_divas_proc(void);
 extern void remove_divas_proc(void);
 extern void diva_get_vserial_number(PISDN_ADAPTER IoAdapter, char *buf);
@@ -186,7 +185,7 @@ void diva_log_info(unsigned char *format, ...)
 	unsigned char line[160];
 
 	va_start(args, format);
-	vsprintf(line, format, args);
+	vsnprintf(line, sizeof(line), format, args);
 	va_end(args);
 
 	printk(KERN_INFO "%s: %s\n", DRIVERLNAME, line);

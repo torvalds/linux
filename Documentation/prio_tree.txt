@@ -88,7 +88,7 @@ path which is not desirable. Hence, we do not optimize the height of the
 heap-and-size indexed overflow-sub-trees using prio_tree->index_bits.
 Instead the overflow sub-trees are indexed using full BITS_PER_LONG bits
 of size_index. This may lead to skewed sub-trees because most of the
-higher significant bits of the size_index are likely to be be 0 (zero). In
+higher significant bits of the size_index are likely to be 0 (zero). In
 the example above, all 3 overflow-sub-trees are skewed. This may marginally
 affect the performance. However, processes rarely map many vmas with the
 same start_vm_pgoff but different end_vm_pgoffs. Therefore, we normally

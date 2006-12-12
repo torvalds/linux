@@ -484,7 +484,7 @@ rx_next:
 	de->rx_tail = rx_tail;
 }
 
-static irqreturn_t de_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t de_interrupt (int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct de_private *de = dev->priv;
@@ -1730,7 +1730,7 @@ static void __init de21040_get_media_info(struct de_private *de)
 }
 
 /* Note: this routine returns extra data bits for size detection. */
-static unsigned __init tulip_read_eeprom(void __iomem *regs, int location, int addr_len)
+static unsigned __devinit tulip_read_eeprom(void __iomem *regs, int location, int addr_len)
 {
 	int i;
 	unsigned retval = 0;
@@ -1906,9 +1906,7 @@ fill_defaults:
 			de->media[i].csr15 = t21041_csr15[i];
 	}
 
-	de->ee_data = kmalloc(DE_EEPROM_SIZE, GFP_KERNEL);
-	if (de->ee_data)
-		memcpy(de->ee_data, &ee_data[0], DE_EEPROM_SIZE);
+	de->ee_data = kmemdup(&ee_data[0], DE_EEPROM_SIZE, GFP_KERNEL);
 
 	return;
 
@@ -1926,7 +1924,7 @@ bad_srom:
 	goto fill_defaults;
 }
 
-static int __init de_init_one (struct pci_dev *pdev,
+static int __devinit de_init_one (struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
 	struct net_device *dev;
@@ -2082,7 +2080,7 @@ err_out_free:
 	return rc;
 }
 
-static void __exit de_remove_one (struct pci_dev *pdev)
+static void __devexit de_remove_one (struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct de_private *de = dev->priv;
@@ -2164,7 +2162,7 @@ static struct pci_driver de_driver = {
 	.name		= DRV_NAME,
 	.id_table	= de_pci_tbl,
 	.probe		= de_init_one,
-	.remove		= __exit_p(de_remove_one),
+	.remove		= __devexit_p(de_remove_one),
 #ifdef CONFIG_PM
 	.suspend	= de_suspend,
 	.resume		= de_resume,

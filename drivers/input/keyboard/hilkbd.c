@@ -150,7 +150,7 @@ static inline void handle_data(unsigned char s, unsigned char c)
 /* 
  * Handle HIL interrupts.
  */
-static irqreturn_t hil_interrupt(int irq, void *handle, struct pt_regs *regs)
+static irqreturn_t hil_interrupt(int irq, void *handle)
 {
 	unsigned char s, c;
 	

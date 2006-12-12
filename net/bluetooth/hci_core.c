@@ -206,6 +206,9 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	/* Read Local Supported Features */
 	hci_send_cmd(hdev, OGF_INFO_PARAM, OCF_READ_LOCAL_FEATURES, 0, NULL);
 
+	/* Read Local Version */
+	hci_send_cmd(hdev, OGF_INFO_PARAM, OCF_READ_LOCAL_VERSION, 0, NULL);
+
 	/* Read Buffer Size (ACL mtu, max pkt, etc.) */
 	hci_send_cmd(hdev, OGF_INFO_PARAM, OCF_READ_BUFFER_SIZE, 0, NULL);
 

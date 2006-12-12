@@ -682,7 +682,7 @@ static int pwc_rcv_short_packet(struct pwc_device *pdev, const struct pwc_frame_
 /* This gets called for the Isochronous pipe (video). This is done in
  * interrupt time, so it has to be fast, not crash, and not stall. Neat.
  */
-static void pwc_isoc_handler(struct urb *urb, struct pt_regs *regs)
+static void pwc_isoc_handler(struct urb *urb)
 {
 	struct pwc_device *pdev;
 	int i, fst, flen;
@@ -711,7 +711,7 @@ static void pwc_isoc_handler(struct urb *urb, struct pt_regs *regs)
 			case -EOVERFLOW:	errmsg = "Babble (bad cable?)"; break;
 			case -EPROTO:		errmsg = "Bit-stuff error (bad cable?)"; break;
 			case -EILSEQ:		errmsg = "CRC/Timeout (could be anything)"; break;
-			case -ETIMEDOUT:	errmsg = "NAK (device does not respond)"; break;
+			case -ETIME:		errmsg = "Device does not respond"; break;
 		}
 		PWC_DEBUG_FLOW("pwc_isoc_handler() called with status %d [%s].\n", urb->status, errmsg);
 		/* Give up after a number of contiguous errors on the USB bus.
@@ -866,11 +866,9 @@ int pwc_isoc_init(struct pwc_device *pdev)
 	}
 	if (ret) {
 		/* De-allocate in reverse order */
-		while (i >= 0) {
-			if (pdev->sbuf[i].urb != NULL)
-				usb_free_urb(pdev->sbuf[i].urb);
+		while (i--) {
+			usb_free_urb(pdev->sbuf[i].urb);
 			pdev->sbuf[i].urb = NULL;
-			i--;
 		}
 		return ret;
 	}
@@ -1024,12 +1022,25 @@ static ssize_t show_snapshot_button_status(struct class_device *class_dev, char 
 static CLASS_DEVICE_ATTR(button, S_IRUGO | S_IWUSR, show_snapshot_button_status,
 			 NULL);
 
-static void pwc_create_sysfs_files(struct video_device *vdev)
+static int pwc_create_sysfs_files(struct video_device *vdev)
 {
 	struct pwc_device *pdev = video_get_drvdata(vdev);
-	if (pdev->features & FEATURE_MOTOR_PANTILT)
-		video_device_create_file(vdev, &class_device_attr_pan_tilt);
-	video_device_create_file(vdev, &class_device_attr_button);
+	int rc;
+
+	rc = video_device_create_file(vdev, &class_device_attr_button);
+	if (rc)
+		goto err;
+	if (pdev->features & FEATURE_MOTOR_PANTILT) {
+		rc = video_device_create_file(vdev,&class_device_attr_pan_tilt);
+		if (rc) goto err_button;
+	}
+
+	return 0;
+
+err_button:
+	video_device_remove_file(vdev, &class_device_attr_button);
+err:
+	return rc;
 }
 
 static void pwc_remove_sysfs_files(struct video_device *vdev)
@@ -1082,8 +1093,7 @@ static int pwc_video_open(struct inode *inode, struct file *file)
 	PWC_DEBUG_OPEN(">> video_open called(vdev = 0x%p).\n", vdev);
 
 	pdev = (struct pwc_device *)vdev->priv;
-	if (pdev == NULL)
-		BUG();
+	BUG_ON(!pdev);
 	if (pdev->vopen) {
 		PWC_DEBUG_OPEN("I'm busy, someone is using the device.\n");
 		return -EBUSY;
@@ -1408,7 +1418,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct pwc_device *pdev = NULL;
 	int vendor_id, product_id, type_id;
-	int i, hint;
+	int i, hint, rc;
 	int features = 0;
 	int video_nr = -1; /* default: use next available device */
 	char serial_number[30], *name;
@@ -1709,9 +1719,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	i = video_register_device(pdev->vdev, VFL_TYPE_GRABBER, video_nr);
 	if (i < 0) {
 		PWC_ERROR("Failed to register as video device (%d).\n", i);
-		video_device_release(pdev->vdev); /* Drip... drip... drip... */
-		kfree(pdev); /* Oops, no memory leaks please */
-		return -EIO;
+		rc = i;
+		goto err;
 	}
 	else {
 		PWC_INFO("Registered as /dev/video%d.\n", pdev->vdev->minor & 0x3F);
@@ -1723,13 +1732,24 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	PWC_DEBUG_PROBE("probe() function returning struct at 0x%p.\n", pdev);
 	usb_set_intfdata (intf, pdev);
-	pwc_create_sysfs_files(pdev->vdev);
+	rc = pwc_create_sysfs_files(pdev->vdev);
+	if (rc)
+		goto err_unreg;
 
 	/* Set the leds off */
 	pwc_set_leds(pdev, 0, 0);
 	pwc_camera_power(pdev, 0);
 
 	return 0;
+
+err_unreg:
+	if (hint < MAX_DEV_HINTS)
+		device_hint[hint].pdev = NULL;
+	video_unregister_device(pdev->vdev);
+err:
+	video_device_release(pdev->vdev); /* Drip... drip... drip... */
+	kfree(pdev); /* Oops, no memory leaks please */
+	return rc;
 }
 
 /* The user janked out the cable... */

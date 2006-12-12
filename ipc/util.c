@@ -12,6 +12,9 @@
  *            Mingming Cao <cmm@us.ibm.com>
  * Mar 2006 - support for audit of ipc object properties
  *            Dustin Kirkland <dustin.kirkland@us.ibm.com>
+ * Jun 2006 - namespaces ssupport
+ *            OpenVZ, SWsoft Inc.
+ *            Pavel Emelianov <xemul@openvz.org>
  */
 
 #include <linux/mm.h>
@@ -29,6 +32,7 @@
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
 #include <linux/audit.h>
+#include <linux/nsproxy.h>
 
 #include <asm/unistd.h>
 
@@ -37,9 +41,110 @@
 struct ipc_proc_iface {
 	const char *path;
 	const char *header;
-	struct ipc_ids *ids;
+	int ids;
 	int (*show)(struct seq_file *, void *);
 };
+
+struct ipc_namespace init_ipc_ns = {
+	.kref = {
+		.refcount	= ATOMIC_INIT(2),
+	},
+};
+
+#ifdef CONFIG_IPC_NS
+static struct ipc_namespace *clone_ipc_ns(struct ipc_namespace *old_ns)
+{
+	int err;
+	struct ipc_namespace *ns;
+
+	err = -ENOMEM;
+	ns = kmalloc(sizeof(struct ipc_namespace), GFP_KERNEL);
+	if (ns == NULL)
+		goto err_mem;
+
+	err = sem_init_ns(ns);
+	if (err)
+		goto err_sem;
+	err = msg_init_ns(ns);
+	if (err)
+		goto err_msg;
+	err = shm_init_ns(ns);
+	if (err)
+		goto err_shm;
+
+	kref_init(&ns->kref);
+	return ns;
+
+err_shm:
+	msg_exit_ns(ns);
+err_msg:
+	sem_exit_ns(ns);
+err_sem:
+	kfree(ns);
+err_mem:
+	return ERR_PTR(err);
+}
+
+int unshare_ipcs(unsigned long unshare_flags, struct ipc_namespace **new_ipc)
+{
+	struct ipc_namespace *new;
+
+	if (unshare_flags & CLONE_NEWIPC) {
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		new = clone_ipc_ns(current->nsproxy->ipc_ns);
+		if (IS_ERR(new))
+			return PTR_ERR(new);
+
+		*new_ipc = new;
+	}
+
+	return 0;
+}
+
+int copy_ipcs(unsigned long flags, struct task_struct *tsk)
+{
+	struct ipc_namespace *old_ns = tsk->nsproxy->ipc_ns;
+	struct ipc_namespace *new_ns;
+	int err = 0;
+
+	if (!old_ns)
+		return 0;
+
+	get_ipc_ns(old_ns);
+
+	if (!(flags & CLONE_NEWIPC))
+		return 0;
+
+	if (!capable(CAP_SYS_ADMIN)) {
+		err = -EPERM;
+		goto out;
+	}
+
+	new_ns = clone_ipc_ns(old_ns);
+	if (!new_ns) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	tsk->nsproxy->ipc_ns = new_ns;
+out:
+	put_ipc_ns(old_ns);
+	return err;
+}
+
+void free_ipc_ns(struct kref *kref)
+{
+	struct ipc_namespace *ns;
+
+	ns = container_of(kref, struct ipc_namespace, kref);
+	sem_exit_ns(ns);
+	msg_exit_ns(ns);
+	shm_exit_ns(ns);
+	kfree(ns);
+}
+#endif
 
 /**
  *	ipc_init	-	initialise IPC subsystem
@@ -67,7 +172,7 @@ __initcall(ipc_init);
  *	array itself. 
  */
  
-void __init ipc_init_ids(struct ipc_ids* ids, int size)
+void __ipc_init ipc_init_ids(struct ipc_ids* ids, int size)
 {
 	int i;
 
@@ -110,8 +215,7 @@ static struct file_operations sysvipc_proc_fops;
  *	@show: show routine.
  */
 void __init ipc_init_proc_interface(const char *path, const char *header,
-				    struct ipc_ids *ids,
-				    int (*show)(struct seq_file *, void *))
+		int ids, int (*show)(struct seq_file *, void *))
 {
 	struct proc_dir_entry *pde;
 	struct ipc_proc_iface *iface;
@@ -197,7 +301,7 @@ static int grow_ary(struct ipc_ids* ids, int newsize)
 	 */
 	rcu_assign_pointer(ids->entries, new);
 
-	ipc_rcu_putref(old);
+	__ipc_fini_ids(ids, old);
 	return newsize;
 }
 
@@ -410,6 +514,11 @@ void ipc_rcu_getref(void *ptr)
 	container_of(ptr, struct ipc_rcu_hdr, data)->refcount++;
 }
 
+static void ipc_do_vfree(struct work_struct *work)
+{
+	vfree(container_of(work, struct ipc_rcu_sched, work));
+}
+
 /**
  * ipc_schedule_free - free ipc + rcu space
  * @head: RCU callback structure for queued work
@@ -424,7 +533,7 @@ static void ipc_schedule_free(struct rcu_head *head)
 	struct ipc_rcu_sched *sched =
 			container_of(&(grace->data[0]), struct ipc_rcu_sched, data[0]);
 
-	INIT_WORK(&sched->work, vfree, sched);
+	INIT_WORK(&sched->work, ipc_do_vfree);
 	schedule_work(&sched->work);
 }
 
@@ -635,6 +744,9 @@ static void *sysvipc_proc_next(struct seq_file *s, void *it, loff_t *pos)
 	struct ipc_proc_iface *iface = s->private;
 	struct kern_ipc_perm *ipc = it;
 	loff_t p;
+	struct ipc_ids *ids;
+
+	ids = current->nsproxy->ipc_ns->ids[iface->ids];
 
 	/* If we had an ipc id locked before, unlock it */
 	if (ipc && ipc != SEQ_START_TOKEN)
@@ -644,8 +756,8 @@ static void *sysvipc_proc_next(struct seq_file *s, void *it, loff_t *pos)
 	 * p = *pos - 1 (because id 0 starts at position 1)
 	 *          + 1 (because we increment the position by one)
 	 */
-	for (p = *pos; p <= iface->ids->max_id; p++) {
-		if ((ipc = ipc_lock(iface->ids, p)) != NULL) {
+	for (p = *pos; p <= ids->max_id; p++) {
+		if ((ipc = ipc_lock(ids, p)) != NULL) {
 			*pos = p + 1;
 			return ipc;
 		}
@@ -664,12 +776,15 @@ static void *sysvipc_proc_start(struct seq_file *s, loff_t *pos)
 	struct ipc_proc_iface *iface = s->private;
 	struct kern_ipc_perm *ipc;
 	loff_t p;
+	struct ipc_ids *ids;
+
+	ids = current->nsproxy->ipc_ns->ids[iface->ids];
 
 	/*
 	 * Take the lock - this will be released by the corresponding
 	 * call to stop().
 	 */
-	mutex_lock(&iface->ids->mutex);
+	mutex_lock(&ids->mutex);
 
 	/* pos < 0 is invalid */
 	if (*pos < 0)
@@ -680,8 +795,8 @@ static void *sysvipc_proc_start(struct seq_file *s, loff_t *pos)
 		return SEQ_START_TOKEN;
 
 	/* Find the (pos-1)th ipc */
-	for (p = *pos - 1; p <= iface->ids->max_id; p++) {
-		if ((ipc = ipc_lock(iface->ids, p)) != NULL) {
+	for (p = *pos - 1; p <= ids->max_id; p++) {
+		if ((ipc = ipc_lock(ids, p)) != NULL) {
 			*pos = p + 1;
 			return ipc;
 		}
@@ -693,13 +808,15 @@ static void sysvipc_proc_stop(struct seq_file *s, void *it)
 {
 	struct kern_ipc_perm *ipc = it;
 	struct ipc_proc_iface *iface = s->private;
+	struct ipc_ids *ids;
 
 	/* If we had a locked segment, release it */
 	if (ipc && ipc != SEQ_START_TOKEN)
 		ipc_unlock(ipc);
 
+	ids = current->nsproxy->ipc_ns->ids[iface->ids];
 	/* Release the lock we took in start() */
-	mutex_unlock(&iface->ids->mutex);
+	mutex_unlock(&ids->mutex);
 }
 
 static int sysvipc_proc_show(struct seq_file *s, void *it)

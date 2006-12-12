@@ -2000,7 +2000,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
-		.muxsel         = { 3, 0, 1, 2 },
+		.muxsel         = { 3, 1 },
 		.pll            = PLL_28,
 		.no_gpioirq     = 1,
 		.has_dvb        = 1,
@@ -4001,7 +4001,7 @@ static void __devinit init_PXC200(struct bttv *btv)
  *      - sleep 1ms
  *      - write 0x0E
  *     read from GPIO_DATA into buf (uint_32)
- *      - if ( buf>>18 & 0x01 ) || ( buf>>19 && 0x01 != 0 )
+ *      - if ( buf>>18 & 0x01 ) || ( buf>>19 & 0x01 != 0 )
  *                error. ERROR_CPLD_Check_Failed.
  */
 /* ----------------------------------------------------------------------- */
@@ -4991,7 +4991,7 @@ void __devinit bttv_check_chipset(void)
 	int pcipci_fail = 0;
 	struct pci_dev *dev = NULL;
 
-	if (pci_pci_problems & PCIPCI_FAIL)
+	if (pci_pci_problems & (PCIPCI_FAIL|PCIAGP_FAIL)) 	/* should check if target is AGP */
 		pcipci_fail = 1;
 	if (pci_pci_problems & (PCIPCI_TRITON|PCIPCI_NATOMA|PCIPCI_VIAETBF))
 		triton1 = 1;

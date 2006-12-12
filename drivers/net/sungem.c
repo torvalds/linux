@@ -56,6 +56,7 @@
 #include <linux/if_vlan.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
+#include <linux/mm.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -932,7 +933,7 @@ static int gem_poll(struct net_device *dev, int *budget)
 	return 0;
 }
 
-static irqreturn_t gem_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t gem_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct gem *gp = dev->priv;
@@ -975,7 +976,7 @@ static void gem_poll_controller(struct net_device *dev)
 	/* gem_interrupt is safe to reentrance so no need
 	 * to disable_irq here.
 	 */
-	gem_interrupt(dev->irq, dev, NULL);
+	gem_interrupt(dev->irq, dev);
 }
 #endif
 
@@ -1030,7 +1031,7 @@ static int gem_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		u64 csum_start_off, csum_stuff_off;
 
 		csum_start_off = (u64) (skb->h.raw - skb->data);
-		csum_stuff_off = (u64) ((skb->h.raw + skb->csum) - skb->data);
+		csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		ctrl = (TXDCTRL_CENAB |
 			(csum_start_off << 15) |
@@ -2281,9 +2282,9 @@ static void gem_do_stop(struct net_device *dev, int wol)
 	}
 }
 
-static void gem_reset_task(void *data)
+static void gem_reset_task(struct work_struct *work)
 {
-	struct gem *gp = (struct gem *) data;
+	struct gem *gp = container_of(work, struct gem, reset_task);
 
 	mutex_lock(&gp->pm_mutex);
 
@@ -3043,7 +3044,7 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	gp->link_timer.function = gem_link_timer;
 	gp->link_timer.data = (unsigned long) gp;
 
-	INIT_WORK(&gp->reset_task, gem_reset_task, gp);
+	INIT_WORK(&gp->reset_task, gem_reset_task);
 
 	gp->lstate = link_down;
 	gp->timer_ticks = 0;

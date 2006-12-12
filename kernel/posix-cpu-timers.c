@@ -88,6 +88,19 @@ static inline union cpu_time_count cpu_time_sub(const clockid_t which_clock,
 }
 
 /*
+ * Divide and limit the result to res >= 1
+ *
+ * This is necessary to prevent signal delivery starvation, when the result of
+ * the division would be rounded down to 0.
+ */
+static inline cputime_t cputime_div_non_zero(cputime_t time, unsigned long div)
+{
+	cputime_t res = cputime_div(time, div);
+
+	return max_t(cputime_t, res, 1);
+}
+
+/*
  * Update expiry time from increment, and increase overrun count,
  * given the current clock sample.
  */
@@ -483,8 +496,8 @@ static void process_timer_rebalance(struct task_struct *p,
 		BUG();
 		break;
 	case CPUCLOCK_PROF:
-		left = cputime_div(cputime_sub(expires.cpu, val.cpu),
-				   nthreads);
+		left = cputime_div_non_zero(cputime_sub(expires.cpu, val.cpu),
+				       nthreads);
 		do {
 			if (likely(!(t->flags & PF_EXITING))) {
 				ticks = cputime_add(prof_ticks(t), left);
@@ -498,8 +511,8 @@ static void process_timer_rebalance(struct task_struct *p,
 		} while (t != p);
 		break;
 	case CPUCLOCK_VIRT:
-		left = cputime_div(cputime_sub(expires.cpu, val.cpu),
-				   nthreads);
+		left = cputime_div_non_zero(cputime_sub(expires.cpu, val.cpu),
+				       nthreads);
 		do {
 			if (likely(!(t->flags & PF_EXITING))) {
 				ticks = cputime_add(virt_ticks(t), left);
@@ -515,6 +528,7 @@ static void process_timer_rebalance(struct task_struct *p,
 	case CPUCLOCK_SCHED:
 		nsleft = expires.sched - val.sched;
 		do_div(nsleft, nthreads);
+		nsleft = max_t(unsigned long long, nsleft, 1);
 		do {
 			if (likely(!(t->flags & PF_EXITING))) {
 				ns = t->sched_time + nsleft;
@@ -1159,12 +1173,13 @@ static void check_process_timers(struct task_struct *tsk,
 
 		prof_left = cputime_sub(prof_expires, utime);
 		prof_left = cputime_sub(prof_left, stime);
-		prof_left = cputime_div(prof_left, nthreads);
+		prof_left = cputime_div_non_zero(prof_left, nthreads);
 		virt_left = cputime_sub(virt_expires, utime);
-		virt_left = cputime_div(virt_left, nthreads);
+		virt_left = cputime_div_non_zero(virt_left, nthreads);
 		if (sched_expires) {
 			sched_left = sched_expires - sched_time;
 			do_div(sched_left, nthreads);
+			sched_left = max_t(unsigned long long, sched_left, 1);
 		} else {
 			sched_left = 0;
 		}
@@ -1393,23 +1408,11 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 	}
 }
 
-static long posix_cpu_clock_nanosleep_restart(struct restart_block *);
-
-int posix_cpu_nsleep(const clockid_t which_clock, int flags,
-		     struct timespec *rqtp, struct timespec __user *rmtp)
+static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
+			    struct timespec *rqtp, struct itimerspec *it)
 {
-	struct restart_block *restart_block =
-	    &current_thread_info()->restart_block;
 	struct k_itimer timer;
 	int error;
-
-	/*
-	 * Diagnose required errors first.
-	 */
-	if (CPUCLOCK_PERTHREAD(which_clock) &&
-	    (CPUCLOCK_PID(which_clock) == 0 ||
-	     CPUCLOCK_PID(which_clock) == current->pid))
-		return -EINVAL;
 
 	/*
 	 * Set up a temporary timer and then wait for it to go off.
@@ -1422,11 +1425,12 @@ int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 	timer.it_process = current;
 	if (!error) {
 		static struct itimerspec zero_it;
-		struct itimerspec it = { .it_value = *rqtp,
-					 .it_interval = {} };
+
+		memset(it, 0, sizeof *it);
+		it->it_value = *rqtp;
 
 		spin_lock_irq(&timer.it_lock);
-		error = posix_cpu_timer_set(&timer, flags, &it, NULL);
+		error = posix_cpu_timer_set(&timer, flags, it, NULL);
 		if (error) {
 			spin_unlock_irq(&timer.it_lock);
 			return error;
@@ -1454,29 +1458,15 @@ int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 		 * We were interrupted by a signal.
 		 */
 		sample_to_timespec(which_clock, timer.it.cpu.expires, rqtp);
-		posix_cpu_timer_set(&timer, 0, &zero_it, &it);
+		posix_cpu_timer_set(&timer, 0, &zero_it, it);
 		spin_unlock_irq(&timer.it_lock);
 
-		if ((it.it_value.tv_sec | it.it_value.tv_nsec) == 0) {
+		if ((it->it_value.tv_sec | it->it_value.tv_nsec) == 0) {
 			/*
 			 * It actually did fire already.
 			 */
 			return 0;
 		}
-
-		/*
-		 * Report back to the user the time still remaining.
-		 */
-		if (rmtp != NULL && !(flags & TIMER_ABSTIME) &&
-		    copy_to_user(rmtp, &it.it_value, sizeof *rmtp))
-			return -EFAULT;
-
-		restart_block->fn = posix_cpu_clock_nanosleep_restart;
-		/* Caller already set restart_block->arg1 */
-		restart_block->arg0 = which_clock;
-		restart_block->arg1 = (unsigned long) rmtp;
-		restart_block->arg2 = rqtp->tv_sec;
-		restart_block->arg3 = rqtp->tv_nsec;
 
 		error = -ERESTART_RESTARTBLOCK;
 	}
@@ -1484,19 +1474,73 @@ int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 	return error;
 }
 
-static long
-posix_cpu_clock_nanosleep_restart(struct restart_block *restart_block)
+int posix_cpu_nsleep(const clockid_t which_clock, int flags,
+		     struct timespec *rqtp, struct timespec __user *rmtp)
+{
+	struct restart_block *restart_block =
+	    &current_thread_info()->restart_block;
+	struct itimerspec it;
+	int error;
+
+	/*
+	 * Diagnose required errors first.
+	 */
+	if (CPUCLOCK_PERTHREAD(which_clock) &&
+	    (CPUCLOCK_PID(which_clock) == 0 ||
+	     CPUCLOCK_PID(which_clock) == current->pid))
+		return -EINVAL;
+
+	error = do_cpu_nanosleep(which_clock, flags, rqtp, &it);
+
+	if (error == -ERESTART_RESTARTBLOCK) {
+
+	       	if (flags & TIMER_ABSTIME)
+			return -ERESTARTNOHAND;
+		/*
+	 	 * Report back to the user the time still remaining.
+	 	 */
+		if (rmtp != NULL && copy_to_user(rmtp, &it.it_value, sizeof *rmtp))
+			return -EFAULT;
+
+		restart_block->fn = posix_cpu_nsleep_restart;
+		restart_block->arg0 = which_clock;
+		restart_block->arg1 = (unsigned long) rmtp;
+		restart_block->arg2 = rqtp->tv_sec;
+		restart_block->arg3 = rqtp->tv_nsec;
+	}
+	return error;
+}
+
+long posix_cpu_nsleep_restart(struct restart_block *restart_block)
 {
 	clockid_t which_clock = restart_block->arg0;
 	struct timespec __user *rmtp;
 	struct timespec t;
+	struct itimerspec it;
+	int error;
 
 	rmtp = (struct timespec __user *) restart_block->arg1;
 	t.tv_sec = restart_block->arg2;
 	t.tv_nsec = restart_block->arg3;
 
 	restart_block->fn = do_no_restart_syscall;
-	return posix_cpu_nsleep(which_clock, TIMER_ABSTIME, &t, rmtp);
+	error = do_cpu_nanosleep(which_clock, TIMER_ABSTIME, &t, &it);
+
+	if (error == -ERESTART_RESTARTBLOCK) {
+		/*
+	 	 * Report back to the user the time still remaining.
+	 	 */
+		if (rmtp != NULL && copy_to_user(rmtp, &it.it_value, sizeof *rmtp))
+			return -EFAULT;
+
+		restart_block->fn = posix_cpu_nsleep_restart;
+		restart_block->arg0 = which_clock;
+		restart_block->arg1 = (unsigned long) rmtp;
+		restart_block->arg2 = t.tv_sec;
+		restart_block->arg3 = t.tv_nsec;
+	}
+	return error;
+
 }
 
 
@@ -1524,6 +1568,10 @@ static int process_cpu_nsleep(const clockid_t which_clock, int flags,
 {
 	return posix_cpu_nsleep(PROCESS_CLOCK, flags, rqtp, rmtp);
 }
+static long process_cpu_nsleep_restart(struct restart_block *restart_block)
+{
+	return -EINVAL;
+}
 static int thread_cpu_clock_getres(const clockid_t which_clock,
 				   struct timespec *tp)
 {
@@ -1544,6 +1592,10 @@ static int thread_cpu_nsleep(const clockid_t which_clock, int flags,
 {
 	return -EINVAL;
 }
+static long thread_cpu_nsleep_restart(struct restart_block *restart_block)
+{
+	return -EINVAL;
+}
 
 static __init int init_posix_cpu_timers(void)
 {
@@ -1553,6 +1605,7 @@ static __init int init_posix_cpu_timers(void)
 		.clock_set = do_posix_clock_nosettime,
 		.timer_create = process_cpu_timer_create,
 		.nsleep = process_cpu_nsleep,
+		.nsleep_restart = process_cpu_nsleep_restart,
 	};
 	struct k_clock thread = {
 		.clock_getres = thread_cpu_clock_getres,
@@ -1560,6 +1613,7 @@ static __init int init_posix_cpu_timers(void)
 		.clock_set = do_posix_clock_nosettime,
 		.timer_create = thread_cpu_timer_create,
 		.nsleep = thread_cpu_nsleep,
+		.nsleep_restart = thread_cpu_nsleep_restart,
 	};
 
 	register_posix_clock(CLOCK_PROCESS_CPUTIME_ID, &process);

@@ -21,7 +21,7 @@ static inline dma_addr_t
 dma_map_single(struct device *dev, void *ptr, size_t size,
 	       enum dma_data_direction direction)
 {
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(!valid_dma_direction(direction));
 	WARN_ON(size == 0);
 	flush_write_buffers();
 	return virt_to_phys(ptr);
@@ -31,7 +31,7 @@ static inline void
 dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		 enum dma_data_direction direction)
 {
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(!valid_dma_direction(direction));
 }
 
 static inline int
@@ -40,7 +40,7 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 {
 	int i;
 
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(!valid_dma_direction(direction));
 	WARN_ON(nents == 0 || sg[0].length == 0);
 
 	for (i = 0; i < nents; i++ ) {
@@ -57,7 +57,7 @@ static inline dma_addr_t
 dma_map_page(struct device *dev, struct page *page, unsigned long offset,
 	     size_t size, enum dma_data_direction direction)
 {
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(!valid_dma_direction(direction));
 	return page_to_phys(page) + offset;
 }
 
@@ -65,7 +65,7 @@ static inline void
 dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
 	       enum dma_data_direction direction)
 {
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(!valid_dma_direction(direction));
 }
 
 
@@ -73,7 +73,7 @@ static inline void
 dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
 	     enum dma_data_direction direction)
 {
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(!valid_dma_direction(direction));
 }
 
 static inline void
@@ -156,10 +156,10 @@ dma_get_cache_alignment(void)
 	return (1 << INTERNODE_CACHE_SHIFT);
 }
 
-#define dma_is_consistent(d)	(1)
+#define dma_is_consistent(d, h)	(1)
 
 static inline void
-dma_cache_sync(void *vaddr, size_t size,
+dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction)
 {
 	flush_write_buffers();

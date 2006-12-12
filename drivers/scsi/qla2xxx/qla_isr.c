@@ -6,6 +6,8 @@
  */
 #include "qla_def.h"
 
+#include <scsi/scsi_tcq.h>
+
 static void qla2x00_mbx_completion(scsi_qla_host_t *, uint16_t);
 static void qla2x00_async_event(scsi_qla_host_t *, uint16_t *);
 static void qla2x00_process_completed_request(struct scsi_qla_host *, uint32_t);
@@ -20,14 +22,13 @@ static void qla24xx_ms_entry(scsi_qla_host_t *, struct ct_entry_24xx *);
  * qla2100_intr_handler() - Process interrupts for the ISP2100 and ISP2200.
  * @irq:
  * @dev_id: SCSI driver HA context
- * @regs:
  *
  * Called by system whenever the host adapter generates an interrupt.
  *
  * Returns handled flag.
  */
 irqreturn_t
-qla2100_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
+qla2100_intr_handler(int irq, void *dev_id)
 {
 	scsi_qla_host_t	*ha;
 	struct device_reg_2xxx __iomem *reg;
@@ -100,14 +101,13 @@ qla2100_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
  * qla2300_intr_handler() - Process interrupts for the ISP23xx and ISP63xx.
  * @irq:
  * @dev_id: SCSI driver HA context
- * @regs:
  *
  * Called by system whenever the host adapter generates an interrupt.
  *
  * Returns handled flag.
  */
 irqreturn_t
-qla2300_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
+qla2300_intr_handler(int irq, void *dev_id)
 {
 	scsi_qla_host_t	*ha;
 	struct device_reg_2xxx __iomem *reg;
@@ -400,7 +400,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 	case MBA_LOOP_UP:		/* Loop Up Event */
 		if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
 			link_speed = link_speeds[0];
-			ha->link_data_rate = LDR_1GB;
+			ha->link_data_rate = PORT_SPEED_1GB;
 		} else {
 			link_speed = link_speeds[LS_UNKNOWN];
 			if (mb[1] < 5)
@@ -429,7 +429,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		}
 
 		ha->flags.management_server_logged_in = 0;
-		ha->link_data_rate = LDR_UNKNOWN;
+		ha->link_data_rate = PORT_SPEED_UNKNOWN;
 		if (ql2xfdmienable)
 			set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
 		break;
@@ -595,6 +595,67 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 	}
 }
 
+static void
+qla2x00_adjust_sdev_qdepth_up(struct scsi_device *sdev, void *data)
+{
+	fc_port_t *fcport = data;
+
+	if (fcport->ha->max_q_depth <= sdev->queue_depth)
+		return;
+
+	if (sdev->ordered_tags)
+		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG,
+		    sdev->queue_depth + 1);
+	else
+		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG,
+		    sdev->queue_depth + 1);
+
+	fcport->last_ramp_up = jiffies;
+
+	DEBUG2(qla_printk(KERN_INFO, fcport->ha,
+	    "scsi(%ld:%d:%d:%d): Queue depth adjusted-up to %d.\n",
+	    fcport->ha->host_no, sdev->channel, sdev->id, sdev->lun,
+	    sdev->queue_depth));
+}
+
+static void
+qla2x00_adjust_sdev_qdepth_down(struct scsi_device *sdev, void *data)
+{
+	fc_port_t *fcport = data;
+
+	if (!scsi_track_queue_full(sdev, sdev->queue_depth - 1))
+		return;
+
+	DEBUG2(qla_printk(KERN_INFO, fcport->ha,
+	    "scsi(%ld:%d:%d:%d): Queue depth adjusted-down to %d.\n",
+	    fcport->ha->host_no, sdev->channel, sdev->id, sdev->lun,
+	    sdev->queue_depth));
+}
+
+static inline void
+qla2x00_ramp_up_queue_depth(scsi_qla_host_t *ha, srb_t *sp)
+{
+	fc_port_t *fcport;
+	struct scsi_device *sdev;
+
+	sdev = sp->cmd->device;
+	if (sdev->queue_depth >= ha->max_q_depth)
+		return;
+
+	fcport = sp->fcport;
+	if (time_before(jiffies,
+	    fcport->last_ramp_up + ql2xqfullrampup * HZ))
+		return;
+	if (time_before(jiffies,
+	    fcport->last_queue_full + ql2xqfullrampup * HZ))
+		return;
+
+	spin_unlock_irq(&ha->hardware_lock);
+	starget_for_each_device(sdev->sdev_target, fcport,
+	    qla2x00_adjust_sdev_qdepth_up);
+	spin_lock_irq(&ha->hardware_lock);
+}
+
 /**
  * qla2x00_process_completed_request() - Process a Fast Post response.
  * @ha: SCSI driver HA context
@@ -626,6 +687,8 @@ qla2x00_process_completed_request(struct scsi_qla_host *ha, uint32_t index)
 
 		/* Save ISP completion status */
 		sp->cmd->result = DID_OK << 16;
+
+		qla2x00_ramp_up_queue_depth(ha, sp);
 		qla2x00_sp_compl(ha, sp);
 	} else {
 		DEBUG2(printk("scsi(%ld): Invalid ISP SCSI completion handle\n",
@@ -825,6 +888,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 	 */
 	switch (comp_status) {
 	case CS_COMPLETE:
+	case CS_QUEUE_FULL:
 		if (scsi_status == 0) {
 			cp->result = DID_OK << 16;
 			break;
@@ -851,6 +915,20 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		}
 		cp->result = DID_OK << 16 | lscsi_status;
 
+		if (lscsi_status == SAM_STAT_TASK_SET_FULL) {
+			DEBUG2(printk(KERN_INFO
+			    "scsi(%ld): QUEUE FULL status detected "
+			    "0x%x-0x%x.\n", ha->host_no, comp_status,
+			    scsi_status));
+
+			/* Adjust queue depth for all luns on the port. */
+			fcport->last_queue_full = jiffies;
+			spin_unlock_irq(&ha->hardware_lock);
+			starget_for_each_device(cp->device->sdev_target,
+			    fcport, qla2x00_adjust_sdev_qdepth_down);
+			spin_lock_irq(&ha->hardware_lock);
+			break;
+		}
 		if (lscsi_status != SS_CHECK_CONDITION)
 			break;
 
@@ -1066,17 +1144,6 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		/* Check to see if logout occurred. */
 		if ((le16_to_cpu(sts->status_flags) & SF_LOGOUT_SENT))
 			qla2x00_mark_device_lost(ha, fcport, 1, 1);
-		break;
-
-	case CS_QUEUE_FULL:
-		DEBUG2(printk(KERN_INFO
-		    "scsi(%ld): QUEUE FULL status detected 0x%x-0x%x.\n",
-		    ha->host_no, comp_status, scsi_status));
-
-		/* SCSI Mid-Layer handles device queue full */
-
-		cp->result = DID_OK << 16 | lscsi_status;
-
 		break;
 
 	default:
@@ -1338,14 +1405,13 @@ qla24xx_process_response_queue(struct scsi_qla_host *ha)
  * qla24xx_intr_handler() - Process interrupts for the ISP23xx and ISP63xx.
  * @irq:
  * @dev_id: SCSI driver HA context
- * @regs:
  *
  * Called by system whenever the host adapter generates an interrupt.
  *
  * Returns handled flag.
  */
 irqreturn_t
-qla24xx_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
+qla24xx_intr_handler(int irq, void *dev_id)
 {
 	scsi_qla_host_t	*ha;
 	struct device_reg_24xx __iomem *reg;

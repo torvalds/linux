@@ -40,7 +40,7 @@
  *       configuration according to the specified parameters.
  *   (3) User starts the search(es) by calling _find() or _next() to
  *       fetch subsequent occurrences. A state variable is provided
- *       to the algorihtm to store persistant variables.
+ *       to the algorihtm to store persistent variables.
  *   (4) Core eventually resets the search offset and forwards the find()
  *       request to the algorithm.
  *   (5) Algorithm calls get_next_block() provided by the user continously

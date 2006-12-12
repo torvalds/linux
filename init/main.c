@@ -9,8 +9,6 @@
  *  Simplified starting of init:  Michael A. Griffith <grif@acm.org> 
  */
 
-#define __KERNEL_SYSCALLS__
-
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
@@ -31,6 +29,7 @@
 #include <linux/percpu.h>
 #include <linux/kmod.h>
 #include <linux/kernel_stat.h>
+#include <linux/start_kernel.h>
 #include <linux/security.h>
 #include <linux/workqueue.h>
 #include <linux/profile.h>
@@ -51,6 +50,9 @@
 #include <linux/buffer_head.h>
 #include <linux/debug_locks.h>
 #include <linux/lockdep.h>
+#include <linux/utsrelease.h>
+#include <linux/pid_namespace.h>
+#include <linux/compile.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -75,6 +77,10 @@
 #error Sorry, your GCC is too old. It builds incorrect kernels.
 #endif
 
+#if __GNUC__ == 4 && __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ == 0
+#warning gcc-4.1.0 is known to miscompile the kernel.  A different compiler version is recommended.
+#endif
+
 static int init(void *);
 
 extern void init_IRQ(void);
@@ -88,7 +94,6 @@ extern void pidmap_init(void);
 extern void prio_tree_init(void);
 extern void radix_tree_init(void);
 extern void free_initmem(void);
-extern void populate_rootfs(void);
 extern void driver_init(void);
 extern void prepare_namespace(void);
 #ifdef	CONFIG_ACPI
@@ -128,6 +133,18 @@ static char *ramdisk_execute_command;
 static unsigned int max_cpus = NR_CPUS;
 
 /*
+ * If set, this is an indication to the drivers that reset the underlying
+ * device before going ahead with the initialization otherwise driver might
+ * rely on the BIOS and skip the reset operation.
+ *
+ * This is useful if kernel is booting in an unreliable environment.
+ * For ex. kdump situaiton where previous kernel has crashed, BIOS has been
+ * skipped and devices will be in unknown state.
+ */
+unsigned int reset_devices;
+EXPORT_SYMBOL(reset_devices);
+
+/*
  * Setup routine for controlling SMP activation
  *
  * Command-line option of "nosmp" or "maxcpus=0" will disable SMP
@@ -152,6 +169,14 @@ static int __init maxcpus(char *str)
 }
 
 __setup("maxcpus=", maxcpus);
+
+static int __init set_reset_devices(char *str)
+{
+	reset_devices = 1;
+	return 1;
+}
+
+__setup("reset_devices", set_reset_devices);
 
 static char * argv_init[MAX_INIT_ARGS+2] = { "init", NULL, };
 char * envp_init[MAX_INIT_ENVS+2] = { "HOME=/", "TERM=linux", NULL, };
@@ -457,6 +482,12 @@ void __init __attribute__((weak)) smp_setup_processor_id(void)
 {
 }
 
+static const char linux_banner[] =
+	"Linux version " UTS_RELEASE
+	" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
+	" (" LINUX_COMPILER ")"
+	" " UTS_VERSION "\n";
+
 asmlinkage void __init start_kernel(void)
 {
 	char * command_line;
@@ -485,6 +516,7 @@ asmlinkage void __init start_kernel(void)
 	printk(KERN_NOTICE);
 	printk(linux_banner);
 	setup_arch(&command_line);
+	unwind_setup();
 	setup_per_cpu_areas();
 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
 
@@ -600,8 +632,6 @@ static int __init initcall_debug_setup(char *str)
 }
 __setup("initcall_debug", initcall_debug_setup);
 
-struct task_struct *child_reaper = &init_task;
-
 extern initcall_t __initcall_start[], __initcall_end[];
 
 static void __init do_initcalls(void)
@@ -683,7 +713,7 @@ static void do_pre_smp_initcalls(void)
 static void run_init_process(char *init_filename)
 {
 	argv_init[0] = init_filename;
-	execve(init_filename, argv_init, envp_init);
+	kernel_execve(init_filename, argv_init, envp_init);
 }
 
 static int init(void * unused)
@@ -701,7 +731,9 @@ static int init(void * unused)
 	 * assumptions about where in the task array this
 	 * can be found.
 	 */
-	child_reaper = current;
+	init_pid_ns.child_reaper = current;
+
+	cad_pid = task_pid(current);
 
 	smp_prepare_cpus(max_cpus);
 
@@ -711,12 +743,6 @@ static int init(void * unused)
 	sched_init_smp();
 
 	cpuset_init_smp();
-
-	/*
-	 * Do this before initcalls, because some drivers want to access
-	 * firmware files.
-	 */
-	populate_rootfs();
 
 	do_basic_setup();
 

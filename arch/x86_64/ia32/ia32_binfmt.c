@@ -6,7 +6,6 @@
  * of ugly preprocessor tricks. Talk about very very poor man's inheritance.
  */ 
 #include <linux/types.h>
-#include <linux/config.h> 
 #include <linux/stddef.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>
@@ -306,8 +305,6 @@ MODULE_AUTHOR("Eric Youngdale, Andi Kleen");
 #undef MODULE_DESCRIPTION
 #undef MODULE_AUTHOR
 
-#define elf_addr_t __u32
-
 static void elf32_init(struct pt_regs *);
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
@@ -352,7 +349,7 @@ int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top,
 		bprm->loader += stack_base;
 	bprm->exec += stack_base;
 
-	mpnt = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
+	mpnt = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 	if (!mpnt) 
 		return -ENOMEM; 
 

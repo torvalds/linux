@@ -642,13 +642,13 @@ static inline void handle_interrupt(struct i2sbus_dev *i2sdev, int in)
 	spin_unlock(&i2sdev->low_lock);
 }
 
-irqreturn_t i2sbus_tx_intr(int irq, void *devid, struct pt_regs *regs)
+irqreturn_t i2sbus_tx_intr(int irq, void *devid)
 {
 	handle_interrupt((struct i2sbus_dev *)devid, 0);
 	return IRQ_HANDLED;
 }
 
-irqreturn_t i2sbus_rx_intr(int irq, void *devid, struct pt_regs * regs)
+irqreturn_t i2sbus_rx_intr(int irq, void *devid)
 {
 	handle_interrupt((struct i2sbus_dev *)devid, 1);
 	return IRQ_HANDLED;

@@ -238,7 +238,7 @@ static void tc574_reset(struct net_device *dev);
 static void media_check(unsigned long arg);
 static int el3_open(struct net_device *dev);
 static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t el3_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t el3_interrupt(int irq, void *dev_id);
 static void update_stats(struct net_device *dev);
 static struct net_device_stats *el3_get_stats(struct net_device *dev);
 static int el3_rx(struct net_device *dev, int worklimit);
@@ -338,7 +338,6 @@ static int tc574_config(struct pcmcia_device *link)
 	struct net_device *dev = link->priv;
 	struct el3_private *lp = netdev_priv(dev);
 	tuple_t tuple;
-	cisparse_t parse;
 	unsigned short buf[32];
 	int last_fn, last_ret, i, j;
 	kio_addr_t ioaddr;
@@ -349,17 +348,6 @@ static int tc574_config(struct pcmcia_device *link)
 	phys_addr = (u16 *)dev->dev_addr;
 
 	DEBUG(0, "3c574_config(0x%p)\n", link);
-
-	tuple.Attributes = 0;
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	tuple.TupleData = (cisdata_t *)buf;
-	tuple.TupleDataMax = 64;
-	tuple.TupleOffset = 0;
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present = parse.config.rmask[0];
 
 	link->io.IOAddrLines = 16;
 	for (i = j = 0; j < 0x400; j += 0x20) {
@@ -382,6 +370,10 @@ static int tc574_config(struct pcmcia_device *link)
 	/* The 3c574 normally uses an EEPROM for configuration info, including
 	   the hardware address.  The future products may include a modem chip
 	   and put the address in the CIS. */
+	tuple.Attributes = 0;
+	tuple.TupleData = (cisdata_t *)buf;
+	tuple.TupleDataMax = 64;
+	tuple.TupleOffset = 0;
 	tuple.DesiredTuple = 0x88;
 	if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) {
 		pcmcia_get_tuple_data(link, &tuple);
@@ -397,12 +389,9 @@ static int tc574_config(struct pcmcia_device *link)
 			goto failed;
 		}
 	}
-	tuple.DesiredTuple = CISTPL_VERS_1;
-	if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS &&
-		pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS &&
-		pcmcia_parse_tuple(link, &tuple, &parse) == CS_SUCCESS) {
-		cardname = parse.version_1.str + parse.version_1.ofs[1];
-	} else
+	if (link->prod_id[1])
+		cardname = link->prod_id[1];
+	else
 		cardname = "3Com 3c574";
 
 	{
@@ -817,7 +806,7 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* The EL3 interrupt handler. */
-static irqreturn_t el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t el3_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct el3_private *lp = netdev_priv(dev);
@@ -927,7 +916,7 @@ static void media_check(unsigned long arg)
 	if ((inw(ioaddr + EL3_STATUS) & IntLatch) && (inb(ioaddr + Timer) == 0xff)) {
 		if (!lp->fast_poll)
 			printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
-		el3_interrupt(dev->irq, lp, NULL);
+		el3_interrupt(dev->irq, lp);
 		lp->fast_poll = HZ;
 	}
 	if (lp->fast_poll) {

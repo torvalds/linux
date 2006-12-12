@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -25,9 +25,8 @@ struct net_user_info {
 };
 
 extern void ether_user_init(void *data, void *dev);
-extern void dev_ip_addr(void *d, unsigned char *bin_buf);
-extern void iter_addresses(void *d, void (*cb)(unsigned char *, 
-					       unsigned char *, void *), 
+extern void iter_addresses(void *d, void (*cb)(unsigned char *,
+					       unsigned char *, void *),
 			   void *arg);
 
 extern void *get_output_buffer(int *len_out);
@@ -52,14 +51,3 @@ extern char *split_if_spec(char *str, ...);
 extern int dev_netmask(void *d, void *m);
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

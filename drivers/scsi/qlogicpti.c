@@ -461,7 +461,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 
 #define PTI_RESET_LIMIT 400
 
-static int __init qlogicpti_load_firmware(struct qlogicpti *qpti)
+static int __devinit qlogicpti_load_firmware(struct qlogicpti *qpti)
 {
 	struct Scsi_Host *host = qpti->qhost;
 	unsigned short csum = 0;
@@ -649,7 +649,7 @@ static int qlogicpti_verify_tmon(struct qlogicpti *qpti)
 	return 0;
 }
 
-static irqreturn_t qpti_intr(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t qpti_intr(int irq, void *dev_id);
 
 static void __init qpti_chain_add(struct qlogicpti *qpti)
 {
@@ -1297,7 +1297,7 @@ static struct scsi_cmnd *qlogicpti_intr_handler(struct qlogicpti *qpti)
 	return done_queue;
 }
 
-static irqreturn_t qpti_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t qpti_intr(int irq, void *dev_id)
 {
 	struct qlogicpti *qpti = dev_id;
 	unsigned long flags;

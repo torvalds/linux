@@ -1,5 +1,5 @@
 /*
- * sound/adlib_card.c
+ * sound/oss/adlib_card.c
  *
  * Detection routine for the AdLib card.
  *

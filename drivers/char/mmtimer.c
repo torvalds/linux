@@ -422,7 +422,6 @@ static int inline reschedule_periodic_timer(mmtimer_t *x)
  * mmtimer_interrupt - timer interrupt handler
  * @irq: irq received
  * @dev_id: device the irq came from
- * @regs: register state upon receipt of the interrupt
  *
  * Called when one of the comarators matches the counter, This
  * routine will send signals to processes that have requested
@@ -433,7 +432,7 @@ static int inline reschedule_periodic_timer(mmtimer_t *x)
  * registers.
  */
 static irqreturn_t
-mmtimer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+mmtimer_interrupt(int irq, void *dev_id)
 {
 	int i;
 	unsigned long expires = 0;
@@ -681,7 +680,7 @@ static int __init mmtimer_init(void)
 	if (sn_rtc_cycles_per_second < 100000) {
 		printk(KERN_ERR "%s: unable to determine clock frequency\n",
 		       MMTIMER_NAME);
-		return -1;
+		goto out1;
 	}
 
 	mmtimer_femtoperiod = ((unsigned long)1E15 + sn_rtc_cycles_per_second /
@@ -690,13 +689,13 @@ static int __init mmtimer_init(void)
 	if (request_irq(SGI_MMTIMER_VECTOR, mmtimer_interrupt, IRQF_PERCPU, MMTIMER_NAME, NULL)) {
 		printk(KERN_WARNING "%s: unable to allocate interrupt.",
 			MMTIMER_NAME);
-		return -1;
+		goto out1;
 	}
 
 	if (misc_register(&mmtimer_miscdev)) {
 		printk(KERN_ERR "%s: failed to register device\n",
 		       MMTIMER_NAME);
-		return -1;
+		goto out2;
 	}
 
 	/* Get max numbered node, calculate slots needed */
@@ -710,8 +709,10 @@ static int __init mmtimer_init(void)
 	if (timers == NULL) {
 		printk(KERN_ERR "%s: failed to allocate memory for device\n",
 				MMTIMER_NAME);
-		return -1;
+		goto out3;
 	}
+
+	memset(timers,0,(sizeof(mmtimer_t *)*maxn));
 
 	/* Allocate mmtimer_t's for each online node */
 	for_each_online_node(node) {
@@ -719,7 +720,7 @@ static int __init mmtimer_init(void)
 		if (timers[node] == NULL) {
 			printk(KERN_ERR "%s: failed to allocate memory for device\n",
 				MMTIMER_NAME);
-			return -1;
+			goto out4;
 		}
 		for (i=0; i< NUM_COMPARATORS; i++) {
 			mmtimer_t * base = timers[node] + i;
@@ -740,6 +741,17 @@ static int __init mmtimer_init(void)
 	       sn_rtc_cycles_per_second/(unsigned long)1E6);
 
 	return 0;
+
+out4:
+	for_each_online_node(node) {
+		kfree(timers[node]);
+	}
+out3:
+	misc_deregister(&mmtimer_miscdev);
+out2:
+	free_irq(SGI_MMTIMER_VECTOR, NULL);
+out1:
+	return -1;
 }
 
 module_init(mmtimer_init);

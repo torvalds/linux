@@ -72,12 +72,27 @@ static const char* host_info(struct Scsi_Host *host)
 
 static int slave_alloc (struct scsi_device *sdev)
 {
+	struct us_data *us = host_to_us(sdev->host);
+
 	/*
 	 * Set the INQUIRY transfer length to 36.  We don't use any of
 	 * the extra data and many devices choke if asked for more or
 	 * less than 36 bytes.
 	 */
 	sdev->inquiry_len = 36;
+
+	/*
+	 * The UFI spec treates the Peripheral Qualifier bits in an
+	 * INQUIRY result as reserved and requires devices to set them
+	 * to 0.  However the SCSI spec requires these bits to be set
+	 * to 3 to indicate when a LUN is not present.
+	 *
+	 * Let the scanning code know if this target merely sets
+	 * Peripheral Device Type to 0x1f to indicate no LUN.
+	 */
+	if (us->subclass == US_SC_UFI)
+		sdev->sdev_target->pdt_1f_for_no_lun = 1;
+
 	return 0;
 }
 

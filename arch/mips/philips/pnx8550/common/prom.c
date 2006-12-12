@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include <linux/serial_ip3106.h>
+#include <linux/serial_pnx8xxx.h>
 
 #include <asm/bootinfo.h>
 #include <uart.h>
@@ -35,23 +35,15 @@ char * prom_getcmdline(void)
 	return &(arcs_cmdline[0]);
 }
 
-void  prom_init_cmdline(void)
+void __init prom_init_cmdline(void)
 {
-	char *cp;
-	int actr;
+	int i;
 
-	actr = 1; /* Always ignore argv[0] */
-
-	cp = &(arcs_cmdline[0]);
-	while(actr < prom_argc) {
-	        strcpy(cp, prom_argv[actr]);
-		cp += strlen(prom_argv[actr]);
-		*cp++ = ' ';
-		actr++;
+	arcs_cmdline[0] = '\0';
+	for (i = 0; i < prom_argc; i++) {
+		strcat(arcs_cmdline, prom_argv[i]);
+		strcat(arcs_cmdline, " ");
 	}
-	if (cp != &(arcs_cmdline[0])) /* get rid of trailing space */
-		--cp;
-	*cp = '\0';
 }
 
 char *prom_getenv(char *envname)
@@ -126,7 +118,7 @@ void prom_putchar(char c)
 {
 	if (pnx8550_console_port != -1) {
 		/* Wait until FIFO not full */
-		while( ((ip3106_fifo(UART_BASE, pnx8550_console_port) & IP3106_UART_FIFO_TXFIFO) >> 16) >= 16)
+		while( ((ip3106_fifo(UART_BASE, pnx8550_console_port) & PNX8XXX_UART_FIFO_TXFIFO) >> 16) >= 16)
 			;
 		/* Send one char */
 		ip3106_fifo(UART_BASE, pnx8550_console_port) = c;

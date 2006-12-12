@@ -205,7 +205,7 @@ Reserved Space
 
 In ext2, there is a mechanism for reserving a certain number of blocks
 for a particular user (normally the super-user).  This is intended to
-allow for the system to continue functioning even if non-priveleged users
+allow for the system to continue functioning even if non-privileged users
 fill up all the space available to them (this is independent of filesystem
 quotas).  It also keeps the filesystem from filling up entirely which
 helps combat fragmentation.

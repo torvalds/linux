@@ -1,4 +1,49 @@
 
+1 Release Date    : Mon Oct 02 11:21:32 PDT 2006 - Sumant Patro <Sumant.Patro@lsil.com>
+2 Current Version : 00.00.03.05
+3 Older Version   : 00.00.03.04
+
+i.	PCI_DEVICE macro used
+
+	Convert the pci_device_id-table of the megaraid_sas-driver to the PCI_DEVICE-macro, to safe some lines.
+
+		- Henrik Kretzschmar <henne@nachtwindheim.de>
+ii.	All compiler warnings removed
+iii.	megasas_ctrl_info struct reverted to 3.02 release
+iv.	Default value of megasas_dbg_lvl set to 0
+v.	Removing in megasas_exit the sysfs entry created for megasas_dbg_lvl
+vi.	In megasas_teardown_frame_pool(), cmd->frame was passed instead of
+	cmd->sense to pci_pool_free. Fixed. Bug was pointed out by
+	Eric Sesterhenn
+
+1 Release Date    : Wed Sep 13 14:22:51 PDT 2006 - Sumant Patro <Sumant.Patro@lsil.com>
+2 Current Version : 00.00.03.04
+3 Older Version   : 00.00.03.03
+
+i.	Added Reboot notify
+ii.	Reduced by 1 max cmds sent to FW from Driver to make the reply_q_sz same
+	as Max Cmds FW can support
+
+1 Release Date    : Tue Aug 22 16:33:14 PDT 2006 - Sumant Patro <Sumant.Patro@lsil.com>
+2 Current Version : 00.00.03.03
+3 Older Version   : 00.00.03.02
+
+i.	Send stop adapter to FW & Dump pending FW cmds before declaring adapter dead.
+	New varible added to set dbg level.
+ii.	Disable interrupt made as fn pointer as they are different for 1068 / 1078
+iii.	Frame count optimization. Main frame can contain 2 SGE for 64 bit SGLs and
+	3 SGE for 32 bit SGL
+iv.	Tasklet added for cmd completion
+v.	If FW in operational state before firing INIT, now we send RESET Flag to FW instead of just READY. This is used to do soft reset.
+vi.	megasas_ctrl_prop structure updated (based on FW struct)
+vii.	Added print : FW now in Ready State during initialization
+
+1 Release Date    : Sun Aug 06 22:49:52 PDT 2006 - Sumant Patro <Sumant.Patro@lsil.com>
+2 Current Version : 00.00.03.02
+3 Older Version   : 00.00.03.01
+
+i.	Added FW tranistion state for Hotplug scenario
+
 1 Release Date    : Sun May 14 22:49:52 PDT 2006 - Sumant Patro <Sumant.Patro@lsil.com>
 2 Current Version : 00.00.03.01
 3 Older Version   : 00.00.02.04

@@ -684,7 +684,7 @@ int __init led_init(void)
 	int ret;
 
 	snprintf(lcd_text_default, sizeof(lcd_text_default),
-		"Linux %s", system_utsname.release);
+		"Linux %s", init_utsname()->release);
 
 	/* Work around the buggy PDC of KittyHawk-machines */
 	switch (CPU_HVERSION) {

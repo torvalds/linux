@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #include <asm/dwarf2.h>
 
 /* The annotation hides the frame from the unwinder and makes it look

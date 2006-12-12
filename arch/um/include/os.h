@@ -14,6 +14,7 @@
 #include "skas/mm_id.h"
 #include "irq_user.h"
 #include "sysdep/tls.h"
+#include "sysdep/archsetjmp.h"
 
 #define OS_TYPE_FILE 1
 #define OS_TYPE_DIR 2
@@ -198,7 +199,10 @@ extern long os_ptrace_ldt(long pid, long addr, long data);
 extern int os_getpid(void);
 extern int os_getpgrp(void);
 
+#ifdef UML_CONFIG_MODE_TT
 extern void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int));
+extern void stop(void);
+#endif
 extern void init_new_thread_signals(void);
 extern int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr);
 
@@ -216,7 +220,6 @@ extern void os_flush_stdout(void);
  */
 extern void forward_ipi(int fd, int pid);
 extern void kill_child_dead(int pid);
-extern void stop(void);
 extern int wait_for_stop(int pid, int sig, int cont_type, void *relay);
 extern int protect_memory(unsigned long addr, unsigned long len,
 			  int r, int w, int x, int must_succeed);
@@ -230,6 +233,8 @@ extern unsigned long __do_user_copy(void *to, const void *from, int n,
 				    void (*op)(void *to, const void *from,
 					       int n), int *faulted_out);
 
+/* execvp.c */
+extern int execvp_noalloc(char *buf, const char *file, char *const argv[]);
 /* helper.c */
 extern int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 		      unsigned long *stack_out);
@@ -307,12 +312,9 @@ extern int copy_context_skas0(unsigned long stack, int pid);
 extern void userspace(union uml_pt_regs *regs);
 extern void map_stub_pages(int fd, unsigned long code,
 			   unsigned long data, unsigned long stack);
-extern void new_thread(void *stack, void **switch_buf_ptr,
-			 void **fork_buf_ptr, void (*handler)(int));
-extern void thread_wait(void *sw, void *fb);
-extern void switch_threads(void *me, void *next);
-extern int start_idle_thread(void *stack, void *switch_buf_ptr,
-			     void **fork_buf_ptr);
+extern void new_thread(void *stack, jmp_buf *buf, void (*handler)(void));
+extern void switch_threads(jmp_buf *me, jmp_buf *you);
+extern int start_idle_thread(void *stack, jmp_buf *switch_buf);
 extern void initial_thread_cb_skas(void (*proc)(void *),
 				 void *arg);
 extern void halt_skas(void);

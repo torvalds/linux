@@ -83,103 +83,57 @@ static struct iforce_device iforce_device[] = {
 	{ 0x0000, 0x0000, "Unknown I-Force Device [%04x:%04x]",		btn_joystick, abs_joystick, ff_iforce }
 };
 
+static int iforce_playback(struct input_dev *dev, int effect_id, int value)
+{
+	struct iforce* iforce = dev->private;
+	struct iforce_core_effect *core_effect = &iforce->core_effects[effect_id];
 
+	if (value > 0)
+		set_bit(FF_CORE_SHOULD_PLAY, core_effect->flags);
+	else
+		clear_bit(FF_CORE_SHOULD_PLAY, core_effect->flags);
 
-static int iforce_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
+	iforce_control_playback(iforce, effect_id, value);
+	return 0;
+}
+
+static void iforce_set_gain(struct input_dev *dev, u16 gain)
 {
 	struct iforce* iforce = dev->private;
 	unsigned char data[3];
 
-	if (type != EV_FF)
-		return -1;
+	data[0] = gain >> 9;
+	iforce_send_packet(iforce, FF_CMD_GAIN, data);
+}
 
-	switch (code) {
+static void iforce_set_autocenter(struct input_dev *dev, u16 magnitude)
+{
+	struct iforce* iforce = dev->private;
+	unsigned char data[3];
 
-		case FF_GAIN:
+	data[0] = 0x03;
+	data[1] = magnitude >> 9;
+	iforce_send_packet(iforce, FF_CMD_AUTOCENTER, data);
 
-			data[0] = value >> 9;
-			iforce_send_packet(iforce, FF_CMD_GAIN, data);
-
-			return 0;
-
-		case FF_AUTOCENTER:
-
-			data[0] = 0x03;
-			data[1] = value >> 9;
-			iforce_send_packet(iforce, FF_CMD_AUTOCENTER, data);
-
-			data[0] = 0x04;
-			data[1] = 0x01;
-			iforce_send_packet(iforce, FF_CMD_AUTOCENTER, data);
-
-			return 0;
-
-		default: /* Play or stop an effect */
-
-			if (!CHECK_OWNERSHIP(code, iforce)) {
-				return -1;
-			}
-			if (value > 0) {
-				set_bit(FF_CORE_SHOULD_PLAY, iforce->core_effects[code].flags);
-			}
-			else {
-				clear_bit(FF_CORE_SHOULD_PLAY, iforce->core_effects[code].flags);
-			}
-
-			iforce_control_playback(iforce, code, value);
-			return 0;
-	}
-
-	return -1;
+	data[0] = 0x04;
+	data[1] = 0x01;
+	iforce_send_packet(iforce, FF_CMD_AUTOCENTER, data);
 }
 
 /*
  * Function called when an ioctl is performed on the event dev entry.
  * It uploads an effect to the device
  */
-static int iforce_upload_effect(struct input_dev *dev, struct ff_effect *effect)
+static int iforce_upload_effect(struct input_dev *dev, struct ff_effect *effect, struct ff_effect *old)
 {
 	struct iforce* iforce = dev->private;
-	int id;
+	struct iforce_core_effect *core_effect = &iforce->core_effects[effect->id];
 	int ret;
-	int is_update;
 
-/* Check this effect type is supported by this device */
-	if (!test_bit(effect->type, iforce->dev->ffbit))
-		return -EINVAL;
-
-/*
- * If we want to create a new effect, get a free id
- */
-	if (effect->id == -1) {
-
-		for (id = 0; id < FF_EFFECTS_MAX; ++id)
-			if (!test_and_set_bit(FF_CORE_IS_USED, iforce->core_effects[id].flags))
-				break;
-
-		if (id == FF_EFFECTS_MAX || id >= iforce->dev->ff_effects_max)
-			return -ENOMEM;
-
-		effect->id = id;
-		iforce->core_effects[id].owner = current->pid;
-		iforce->core_effects[id].flags[0] = (1 << FF_CORE_IS_USED);	/* Only IS_USED bit must be set */
-
-		is_update = FALSE;
-	}
-	else {
-		/* We want to update an effect */
-		if (!CHECK_OWNERSHIP(effect->id, iforce))
-			return -EACCES;
-
-		/* Parameter type cannot be updated */
-		if (effect->type != iforce->core_effects[effect->id].effect.type)
-			return -EINVAL;
-
+	if (__test_and_set_bit(FF_CORE_IS_USED, core_effect->flags)) {
 		/* Check the effect is not already being updated */
-		if (test_bit(FF_CORE_UPDATE, iforce->core_effects[effect->id].flags))
+		if (test_bit(FF_CORE_UPDATE, core_effect->flags))
 			return -EAGAIN;
-
-		is_update = TRUE;
 	}
 
 /*
@@ -188,28 +142,28 @@ static int iforce_upload_effect(struct input_dev *dev, struct ff_effect *effect)
 	switch (effect->type) {
 
 		case FF_PERIODIC:
-			ret = iforce_upload_periodic(iforce, effect, is_update);
+			ret = iforce_upload_periodic(iforce, effect, old);
 			break;
 
 		case FF_CONSTANT:
-			ret = iforce_upload_constant(iforce, effect, is_update);
+			ret = iforce_upload_constant(iforce, effect, old);
 			break;
 
 		case FF_SPRING:
 		case FF_DAMPER:
-			ret = iforce_upload_condition(iforce, effect, is_update);
+			ret = iforce_upload_condition(iforce, effect, old);
 			break;
 
 		default:
 			return -EINVAL;
 	}
+
 	if (ret == 0) {
 		/* A packet was sent, forbid new updates until we are notified
 		 * that the packet was updated
 		 */
-		set_bit(FF_CORE_UPDATE, iforce->core_effects[effect->id].flags);
+		set_bit(FF_CORE_UPDATE, core_effect->flags);
 	}
-	iforce->core_effects[effect->id].effect = *effect;
 	return ret;
 }
 
@@ -219,20 +173,9 @@ static int iforce_upload_effect(struct input_dev *dev, struct ff_effect *effect)
  */
 static int iforce_erase_effect(struct input_dev *dev, int effect_id)
 {
-	struct iforce* iforce = dev->private;
+	struct iforce *iforce = dev->private;
+	struct iforce_core_effect *core_effect = &iforce->core_effects[effect_id];
 	int err = 0;
-	struct iforce_core_effect* core_effect;
-
-	if (effect_id < 0 || effect_id >= FF_EFFECTS_MAX)
-		return -EINVAL;
-
-	core_effect = &iforce->core_effects[effect_id];
-
-	/* Check who is trying to erase this effect */
-	if (core_effect->owner != current->pid) {
-		printk(KERN_WARNING "iforce-main.c: %d tried to erase an effect belonging to %d\n", current->pid, core_effect->owner);
-		return -EACCES;
-	}
 
 	if (test_bit(FF_MOD1_IS_USED, core_effect->flags))
 		err = release_resource(&core_effect->mod1_chunk);
@@ -240,7 +183,7 @@ static int iforce_erase_effect(struct input_dev *dev, int effect_id)
 	if (!err && test_bit(FF_MOD2_IS_USED, core_effect->flags))
 		err = release_resource(&core_effect->mod2_chunk);
 
-	/*TODO: remember to change that if more FF_MOD* bits are added */
+	/* TODO: remember to change that if more FF_MOD* bits are added */
 	core_effect->flags[0] = 0;
 
 	return err;
@@ -260,33 +203,11 @@ static int iforce_open(struct input_dev *dev)
 #endif
 	}
 
-	/* Enable force feedback */
-	iforce_send_packet(iforce, FF_CMD_ENABLE, "\004");
-
-	return 0;
-}
-
-static int iforce_flush(struct input_dev *dev, struct file *file)
-{
-	struct iforce *iforce = dev->private;
-	int i;
-
-	/* Erase all effects this process owns */
-	for (i=0; i<dev->ff_effects_max; ++i) {
-
-		if (test_bit(FF_CORE_IS_USED, iforce->core_effects[i].flags) &&
-			current->pid == iforce->core_effects[i].owner) {
-
-			/* Stop effect */
-			input_report_ff(dev, i, 0);
-
-			/* Free ressources assigned to effect */
-			if (iforce_erase_effect(dev, i)) {
-				printk(KERN_WARNING "iforce_flush: erase effect %d failed\n", i);
-			}
-		}
-
+	if (test_bit(EV_FF, dev->evbit)) {
+		/* Enable force feedback */
+		iforce_send_packet(iforce, FF_CMD_ENABLE, "\004");
 	}
+
 	return 0;
 }
 
@@ -295,17 +216,18 @@ static void iforce_release(struct input_dev *dev)
 	struct iforce *iforce = dev->private;
 	int i;
 
-	/* Check: no effect should be present in memory */
-	for (i=0; i<dev->ff_effects_max; ++i) {
-		if (test_bit(FF_CORE_IS_USED, iforce->core_effects[i].flags))
-			break;
-	}
-	if (i<dev->ff_effects_max) {
-		printk(KERN_WARNING "iforce_release: Device still owns effects\n");
-	}
+	if (test_bit(EV_FF, dev->evbit)) {
+		/* Check: no effects should be present in memory */
+		for (i = 0; i < dev->ff->max_effects; i++) {
+			if (test_bit(FF_CORE_IS_USED, iforce->core_effects[i].flags)) {
+				printk(KERN_WARNING "iforce_release: Device still owns effects\n");
+				break;
+			}
+		}
 
-	/* Disable force feedback playback */
-	iforce_send_packet(iforce, FF_CMD_ENABLE, "\001");
+		/* Disable force feedback playback */
+		iforce_send_packet(iforce, FF_CMD_ENABLE, "\001");
+	}
 
 	switch (iforce->bus) {
 #ifdef CONFIG_JOYSTICK_IFORCE_USB
@@ -342,8 +264,10 @@ void iforce_delete_device(struct iforce *iforce)
 int iforce_init_device(struct iforce *iforce)
 {
 	struct input_dev *input_dev;
+	struct ff_device *ff;
 	unsigned char c[] = "CEOV";
-	int i;
+	int i, error;
+	int ff_effects = 0;
 
 	input_dev = input_allocate_device();
 	if (!input_dev)
@@ -378,11 +302,6 @@ int iforce_init_device(struct iforce *iforce)
 	input_dev->name = "Unknown I-Force device";
 	input_dev->open = iforce_open;
 	input_dev->close = iforce_release;
-	input_dev->flush = iforce_flush;
-	input_dev->event = iforce_input_event;
-	input_dev->upload_effect = iforce_upload_effect;
-	input_dev->erase_effect = iforce_erase_effect;
-	input_dev->ff_effects_max = 10;
 
 /*
  * On-device memory allocation.
@@ -406,8 +325,8 @@ int iforce_init_device(struct iforce *iforce)
 
 	if (i == 20) { /* 5 seconds */
 		printk(KERN_ERR "iforce-main.c: Timeout waiting for response from device.\n");
-		input_free_device(input_dev);
-		return -ENODEV;
+		error = -ENODEV;
+		goto fail;
 	}
 
 /*
@@ -430,15 +349,15 @@ int iforce_init_device(struct iforce *iforce)
 		printk(KERN_WARNING "iforce-main.c: Device does not respond to id packet B\n");
 
 	if (!iforce_get_id_packet(iforce, "N"))
-		iforce->dev->ff_effects_max = iforce->edata[1];
+		ff_effects = iforce->edata[1];
 	else
 		printk(KERN_WARNING "iforce-main.c: Device does not respond to id packet N\n");
 
 	/* Check if the device can store more effects than the driver can really handle */
-	if (iforce->dev->ff_effects_max > FF_EFFECTS_MAX) {
-		printk(KERN_WARNING "input??: Device can handle %d effects, but N_EFFECTS_MAX is set to %d in iforce.h\n",
-			iforce->dev->ff_effects_max, FF_EFFECTS_MAX);
-		iforce->dev->ff_effects_max = FF_EFFECTS_MAX;
+	if (ff_effects > IFORCE_EFFECTS_MAX) {
+		printk(KERN_WARNING "iforce: Limiting number of effects to %d (device reports %d)\n",
+		       IFORCE_EFFECTS_MAX, ff_effects);
+		ff_effects = IFORCE_EFFECTS_MAX;
 	}
 
 /*
@@ -472,12 +391,10 @@ int iforce_init_device(struct iforce *iforce)
  * Set input device bitfields and ranges.
  */
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_FF) | BIT(EV_FF_STATUS);
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_FF_STATUS);
 
-	for (i = 0; iforce->type->btn[i] >= 0; i++) {
-		signed short t = iforce->type->btn[i];
-		set_bit(t, input_dev->keybit);
-	}
+	for (i = 0; iforce->type->btn[i] >= 0; i++)
+		set_bit(iforce->type->btn[i], input_dev->keybit);
 	set_bit(BTN_DEAD, input_dev->keybit);
 
 	for (i = 0; iforce->type->abs[i] >= 0; i++) {
@@ -516,29 +433,55 @@ int iforce_init_device(struct iforce *iforce)
 		}
 	}
 
-	for (i = 0; iforce->type->ff[i] >= 0; i++)
-		set_bit(iforce->type->ff[i], input_dev->ffbit);
+	if (ff_effects) {
 
+		for (i = 0; iforce->type->ff[i] >= 0; i++)
+			set_bit(iforce->type->ff[i], input_dev->ffbit);
+
+		error = input_ff_create(input_dev, ff_effects);
+		if (error)
+			goto fail;
+
+		ff = input_dev->ff;
+		ff->upload = iforce_upload_effect;
+		ff->erase = iforce_erase_effect;
+		ff->set_gain = iforce_set_gain;
+		ff->set_autocenter = iforce_set_autocenter;
+		ff->playback = iforce_playback;
+	}
 /*
  * Register input device.
  */
 
-	input_register_device(iforce->dev);
+	error = input_register_device(iforce->dev);
+	if (error)
+		goto fail;
 
 	printk(KERN_DEBUG "iforce->dev->open = %p\n", iforce->dev->open);
 
 	return 0;
+
+ fail:	input_free_device(input_dev);
+	return error;
 }
 
 static int __init iforce_init(void)
 {
+	int err = 0;
+
 #ifdef CONFIG_JOYSTICK_IFORCE_USB
-	usb_register(&iforce_usb_driver);
+	err = usb_register(&iforce_usb_driver);
+	if (err)
+		return err;
 #endif
 #ifdef CONFIG_JOYSTICK_IFORCE_232
-	serio_register_driver(&iforce_serio_drv);
+	err = serio_register_driver(&iforce_serio_drv);
+#ifdef CONFIG_JOYSTICK_IFORCE_USB
+	if (err)
+		usb_deregister(&iforce_usb_driver);
 #endif
-	return 0;
+#endif
+	return err;
 }
 
 static void __exit iforce_exit(void)

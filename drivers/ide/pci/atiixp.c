@@ -318,6 +318,20 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 	hwif->drives[0].autodma = hwif->autodma;
 }
 
+static void __devinit init_hwif_sb600_legacy(ide_hwif_t *hwif)
+{
+
+	hwif->atapi_dma = 1;
+	hwif->ultra_mask = 0x7f;
+	hwif->mwdma_mask = 0x07;
+	hwif->swdma_mask = 0x07;
+
+	if (!noautodma)
+		hwif->autodma = 1;
+	hwif->drives[0].autodma = hwif->autodma;
+	hwif->drives[1].autodma = hwif->autodma;
+}
+
 static ide_pci_device_t atiixp_pci_info[] __devinitdata = {
 	{	/* 0 */
 		.name		= "ATIIXP",
@@ -325,6 +339,12 @@ static ide_pci_device_t atiixp_pci_info[] __devinitdata = {
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x48,0x01,0x00}, {0x48,0x08,0x00}},
+		.bootable	= ON_BOARD,
+	},{	/* 1 */
+		.name		= "ATI SB600 SATA Legacy IDE",
+		.init_hwif	= init_hwif_sb600_legacy,
+		.channels	= 2,
+		.autodma	= AUTODMA,
 		.bootable	= ON_BOARD,
 	}
 };
@@ -348,6 +368,7 @@ static struct pci_device_id atiixp_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP300_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP400_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP600_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP600_SATA, PCI_ANY_ID, PCI_ANY_ID, (PCI_CLASS_STORAGE_IDE<<8)|0x8a, 0xffff05, 1},
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, atiixp_pci_tbl);

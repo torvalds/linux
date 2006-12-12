@@ -21,7 +21,7 @@ config MMC_DEBUG
 
 config MMC_BLOCK
 	tristate "MMC block device driver"
-	depends on MMC
+	depends on MMC && BLOCK
 	default y
 	help
 	  Say Y here to enable the MMC block device driver support.
@@ -40,7 +40,7 @@ config MMC_ARMMMCI
 	  If unsure, say N.
 
 config MMC_PXA
-	tristate "Intel PXA255 Multimedia Card Interface support"
+	tristate "Intel PXA25x/26x/27x Multimedia Card Interface support"
 	depends on ARCH_PXA && MMC
 	help
 	  This selects the Intel(R) PXA(R) Multimedia card Interface.
@@ -91,11 +91,11 @@ config MMC_AU1X
 
 	  If unsure, say N.
 
-config MMC_AT91RM9200
-	tristate "AT91RM9200 SD/MMC Card Interface support"
-	depends on ARCH_AT91RM9200 && MMC
+config MMC_AT91
+	tristate "AT91 SD/MMC Card Interface support"
+	depends on ARCH_AT91 && MMC
 	help
-	  This selects the AT91RM9200 MCI controller.
+	  This selects the AT91 MCI controller.
 
 	  If unsure, say N.
 
@@ -108,5 +108,21 @@ config MMC_IMX
 	  say Y or M here.
 
 	  If unsure, say N.
+
+config MMC_TIFM_SD
+	tristate "TI Flash Media MMC/SD Interface support  (EXPERIMENTAL)"
+	depends on MMC && EXPERIMENTAL
+	select TIFM_CORE
+	help
+	  Say Y here if you want to be able to access MMC/SD cards with
+	  the Texas Instruments(R) Flash Media card reader, found in many
+	  laptops.
+	  This option 'selects' (turns on, enables) 'TIFM_CORE', but you
+	  probably also need appropriate card reader host adapter, such as
+	  'Misc devices: TI Flash Media PCI74xx/PCI76xx host adapter support
+	  (TIFM_7XX1)'.
+
+          To compile this driver as a module, choose M here: the
+	  module will be called tifm_sd.
 
 endmenu

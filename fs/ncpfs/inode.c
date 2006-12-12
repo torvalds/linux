@@ -40,12 +40,12 @@ static void ncp_delete_inode(struct inode *);
 static void ncp_put_super(struct super_block *);
 static int  ncp_statfs(struct dentry *, struct kstatfs *);
 
-static kmem_cache_t * ncp_inode_cachep;
+static struct kmem_cache * ncp_inode_cachep;
 
 static struct inode *ncp_alloc_inode(struct super_block *sb)
 {
 	struct ncp_inode_info *ei;
-	ei = (struct ncp_inode_info *)kmem_cache_alloc(ncp_inode_cachep, SLAB_KERNEL);
+	ei = (struct ncp_inode_info *)kmem_cache_alloc(ncp_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -56,7 +56,7 @@ static void ncp_destroy_inode(struct inode *inode)
 	kmem_cache_free(ncp_inode_cachep, NCP_FINFO(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct ncp_inode_info *ei = (struct ncp_inode_info *) foo;
 
@@ -81,8 +81,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(ncp_inode_cachep))
-		printk(KERN_INFO "ncp_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(ncp_inode_cachep);
 }
 
 static int ncp_remount(struct super_block *sb, int *flags, char* data)
@@ -224,7 +223,6 @@ static void ncp_set_attr(struct inode *inode, struct ncp_entry_info *nwinfo)
 	inode->i_nlink = 1;
 	inode->i_uid = server->m.uid;
 	inode->i_gid = server->m.gid;
-	inode->i_blksize = NCP_BLOCK_SIZE;
 
 	ncp_update_dates(inode, &nwinfo->i);
 	ncp_update_inode(inode, nwinfo);
@@ -411,11 +409,10 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 #endif
 	struct ncp_entry_info finfo;
 
-	server = kmalloc(sizeof(struct ncp_server), GFP_KERNEL);
+	server = kzalloc(sizeof(struct ncp_server), GFP_KERNEL);
 	if (!server)
 		return -ENOMEM;
 	sb->s_fs_info = server;
-	memset(server, 0, sizeof(struct ncp_server));
 
 	error = -EFAULT;
 	if (raw_data == NULL)
@@ -474,7 +471,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	if (!ncp_filp)
 		goto out;
 	error = -ENOTSOCK;
-	sock_inode = ncp_filp->f_dentry->d_inode;
+	sock_inode = ncp_filp->f_path.dentry->d_inode;
 	if (!S_ISSOCK(sock_inode->i_mode))
 		goto out_fput;
 	sock = SOCKET_I(sock_inode);
@@ -507,7 +504,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 		if (!server->info_filp)
 			goto out_fput;
 		error = -ENOTSOCK;
-		sock_inode = server->info_filp->f_dentry->d_inode;
+		sock_inode = server->info_filp->f_path.dentry->d_inode;
 		if (!S_ISSOCK(sock_inode->i_mode))
 			goto out_fput2;
 		info_sock = SOCKET_I(sock_inode);
@@ -580,12 +577,12 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 		server->rcv.ptr = (unsigned char*)&server->rcv.buf;
 		server->rcv.len = 10;
 		server->rcv.state = 0;
-		INIT_WORK(&server->rcv.tq, ncp_tcp_rcv_proc, server);
-		INIT_WORK(&server->tx.tq, ncp_tcp_tx_proc, server);
+		INIT_WORK(&server->rcv.tq, ncp_tcp_rcv_proc);
+		INIT_WORK(&server->tx.tq, ncp_tcp_tx_proc);
 		sock->sk->sk_write_space = ncp_tcp_write_space;
 	} else {
-		INIT_WORK(&server->rcv.tq, ncpdgram_rcv_proc, server);
-		INIT_WORK(&server->timeout_tq, ncpdgram_timeout_proc, server);
+		INIT_WORK(&server->rcv.tq, ncpdgram_rcv_proc);
+		INIT_WORK(&server->timeout_tq, ncpdgram_timeout_proc);
 		server->timeout_tm.data = (unsigned long)server;
 		server->timeout_tm.function = ncpdgram_timeout_call;
 	}

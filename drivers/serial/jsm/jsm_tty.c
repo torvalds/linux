@@ -142,7 +142,7 @@ static void jsm_tty_send_xchar(struct uart_port *port, char ch)
 {
 	unsigned long lock_flags;
 	struct jsm_channel *channel = (struct jsm_channel *)port;
-	struct termios *termios;
+	struct ktermios *termios;
 
 	spin_lock_irqsave(&port->lock, lock_flags);
 	termios = port->info->tty->termios;
@@ -180,7 +180,7 @@ static int jsm_tty_open(struct uart_port *port)
 	struct jsm_board *brd;
 	int rc = 0;
 	struct jsm_channel *channel = (struct jsm_channel *)port;
-	struct termios *termios;
+	struct ktermios *termios;
 
 	/* Get board pointer from our array of majors we have allocated */
 	brd = channel->ch_bd;
@@ -269,7 +269,7 @@ static int jsm_tty_open(struct uart_port *port)
 static void jsm_tty_close(struct uart_port *port)
 {
 	struct jsm_board *bd;
-	struct termios *ts;
+	struct ktermios *ts;
 	struct jsm_channel *channel = (struct jsm_channel *)port;
 
 	jsm_printk(CLOSE, INFO, &channel->ch_bd->pci_dev, "start\n");
@@ -302,8 +302,8 @@ static void jsm_tty_close(struct uart_port *port)
 }
 
 static void jsm_tty_set_termios(struct uart_port *port,
-				 struct termios *termios,
-				 struct termios *old_termios)
+				 struct ktermios *termios,
+				 struct ktermios *old_termios)
 {
 	unsigned long lock_flags;
 	struct jsm_channel *channel = (struct jsm_channel *)port;

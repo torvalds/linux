@@ -8,7 +8,10 @@ config VIDEO_BT848
 	select VIDEO_IR
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
-	select VIDEO_MSP3400
+	select VIDEO_MSP3400 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_TVAUDIO if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_TDA7432 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_TDA9875 if VIDEO_HELPER_CHIPS_AUTO
 	---help---
 	  Support for BT848 based frame grabber/overlay boards. This includes
 	  the Miro, Hauppauge and STB boards. Please read the material in

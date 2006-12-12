@@ -24,7 +24,7 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 	int err;
 	struct rtc_device *rtc = container_of(inode->i_cdev,
 					struct rtc_device, char_dev);
-	struct rtc_class_ops *ops = rtc->ops;
+	const struct rtc_class_ops *ops = rtc->ops;
 
 	/* We keep the lock as long as the device is in use
 	 * and return immediately if busy
@@ -53,15 +53,18 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
  * Routine to poll RTC seconds field for change as often as possible,
  * after first RTC_UIE use timer to reduce polling
  */
-static void rtc_uie_task(void *data)
+static void rtc_uie_task(struct work_struct *work)
 {
-	struct rtc_device *rtc = data;
+	struct rtc_device *rtc =
+		container_of(work, struct rtc_device, uie_task);
 	struct rtc_time tm;
 	int num = 0;
 	int err;
 
 	err = rtc_read_time(&rtc->class_dev, &tm);
-	spin_lock_irq(&rtc->irq_lock);
+
+	local_irq_disable();
+	spin_lock(&rtc->irq_lock);
 	if (rtc->stop_uie_polling || err) {
 		rtc->uie_task_active = 0;
 	} else if (rtc->oldsecs != tm.tm_sec) {
@@ -74,11 +77,11 @@ static void rtc_uie_task(void *data)
 	} else if (schedule_work(&rtc->uie_task) == 0) {
 		rtc->uie_task_active = 0;
 	}
-	spin_unlock_irq(&rtc->irq_lock);
+	spin_unlock(&rtc->irq_lock);
 	if (num)
 		rtc_update_irq(&rtc->class_dev, num, RTC_UF | RTC_IRQF);
+	local_irq_enable();
 }
-
 static void rtc_uie_timer(unsigned long data)
 {
 	struct rtc_device *rtc = (struct rtc_device *)data;
@@ -209,12 +212,12 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 	int err = 0;
 	struct class_device *class_dev = file->private_data;
 	struct rtc_device *rtc = to_rtc_device(class_dev);
-	struct rtc_class_ops *ops = rtc->ops;
+	const struct rtc_class_ops *ops = rtc->ops;
 	struct rtc_time tm;
 	struct rtc_wkalrm alarm;
 	void __user *uarg = (void __user *) arg;
 
-	/* check that the calles has appropriate permissions
+	/* check that the calling task has appropriate permissions
 	 * for certain ioctls. doing this check here is useful
 	 * to avoid duplicate code in each driver.
 	 */
@@ -238,10 +241,10 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 	/* avoid conflicting IRQ users */
 	if (cmd == RTC_PIE_ON || cmd == RTC_PIE_OFF || cmd == RTC_IRQP_SET) {
-		spin_lock(&rtc->irq_task_lock);
+		spin_lock_irq(&rtc->irq_task_lock);
 		if (rtc->irq_task)
 			err = -EBUSY;
-		spin_unlock(&rtc->irq_task_lock);
+		spin_unlock_irq(&rtc->irq_task_lock);
 
 		if (err < 0)
 			return err;
@@ -299,6 +302,17 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 		err = rtc_set_time(class_dev, &tm);
 		break;
+
+	case RTC_IRQP_READ:
+		if (ops->irq_set_freq)
+			err = put_user(rtc->irq_freq, (unsigned long *) arg);
+		break;
+
+	case RTC_IRQP_SET:
+		if (ops->irq_set_freq)
+			err = rtc_irq_set_freq(class_dev, rtc->irq_task, arg);
+		break;
+
 #if 0
 	case RTC_EPOCH_SET:
 #ifndef rtc_epoch
@@ -398,7 +412,7 @@ static int rtc_dev_add_device(struct class_device *class_dev,
 	spin_lock_init(&rtc->irq_lock);
 	init_waitqueue_head(&rtc->irq_queue);
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
-	INIT_WORK(&rtc->uie_task, rtc_uie_task, rtc);
+	INIT_WORK(&rtc->uie_task, rtc_uie_task);
 	setup_timer(&rtc->uie_timer, rtc_uie_timer, (unsigned long)rtc);
 #endif
 
@@ -406,7 +420,6 @@ static int rtc_dev_add_device(struct class_device *class_dev,
 	rtc->char_dev.owner = rtc->owner;
 
 	if (cdev_add(&rtc->char_dev, MKDEV(MAJOR(rtc_devt), rtc->id), 1)) {
-		cdev_del(&rtc->char_dev);
 		dev_err(class_dev->dev,
 			"failed to add char device %d:%d\n",
 			MAJOR(rtc_devt), rtc->id);
@@ -496,7 +509,7 @@ static void __exit rtc_dev_exit(void)
 	unregister_chrdev_region(rtc_devt, RTC_DEV_MAX);
 }
 
-module_init(rtc_dev_init);
+subsys_initcall(rtc_dev_init);
 module_exit(rtc_dev_exit);
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");

@@ -1,5 +1,5 @@
 /*
- * arch/sh/pci/dma-dreamcast.c
+ * arch/sh/drivers/pci/dma-dreamcast.c
  *
  * PCI DMA support for the Sega Dreamcast
  *

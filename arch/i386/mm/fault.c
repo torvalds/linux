@@ -22,9 +22,9 @@
 #include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/kprobes.h>
+#include <linux/uaccess.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
 #include <asm/desc.h>
 #include <asm/kdebug.h>
 #include <asm/segment.h>
@@ -167,7 +167,7 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 static int __is_prefetch(struct pt_regs *regs, unsigned long addr)
 { 
 	unsigned long limit;
-	unsigned long instr = get_segment_eip (regs, &limit);
+	unsigned char *instr = (unsigned char *)get_segment_eip (regs, &limit);
 	int scan_more = 1;
 	int prefetch = 0; 
 	int i;
@@ -177,9 +177,9 @@ static int __is_prefetch(struct pt_regs *regs, unsigned long addr)
 		unsigned char instr_hi;
 		unsigned char instr_lo;
 
-		if (instr > limit)
+		if (instr > (unsigned char *)limit)
 			break;
-		if (__get_user(opcode, (unsigned char __user *) instr))
+		if (probe_kernel_address(instr, opcode))
 			break; 
 
 		instr_hi = opcode & 0xf0; 
@@ -204,9 +204,9 @@ static int __is_prefetch(struct pt_regs *regs, unsigned long addr)
 		case 0x00:
 			/* Prefetch instruction is 0x0F0D or 0x0F18 */
 			scan_more = 0;
-			if (instr > limit)
+			if (instr > (unsigned char *)limit)
 				break;
-			if (__get_user(opcode, (unsigned char __user *) instr))
+			if (probe_kernel_address(instr, opcode))
 				break;
 			prefetch = (instr_lo == 0xF) &&
 				(opcode == 0x0D || opcode == 0x18);
@@ -440,7 +440,7 @@ good_area:
 		case 1:		/* read, present */
 			goto bad_area;
 		case 0:		/* read, not present */
-			if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
+			if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
 				goto bad_area;
 	}
 
@@ -589,7 +589,7 @@ no_context:
  */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if (tsk->pid == 1) {
+	if (is_init(tsk)) {
 		yield();
 		down_read(&mm->mmap_sem);
 		goto survive;

@@ -204,6 +204,7 @@ struct fat_mount_options {
 		 unicode_xlate:1, /* create escape sequences for unhandled Unicode */
 		 numtail:1,       /* Does first alias have a numeric '~1' type tail? */
 		 atari:1,         /* Use Atari GEMDOS variation of MS-DOS fs */
+		 flush:1,	  /* write things quickly */
 		 nocase:1;	  /* Does this need case conversion? 0=need case conversion*/
 };
 
@@ -401,6 +402,8 @@ extern const struct file_operations fat_file_operations;
 extern struct inode_operations fat_file_inode_operations;
 extern int fat_notify_change(struct dentry * dentry, struct iattr * attr);
 extern void fat_truncate(struct inode *inode);
+extern int fat_getattr(struct vfsmount *mnt, struct dentry *dentry,
+		       struct kstat *stat);
 
 /* fat/inode.c */
 extern void fat_attach(struct inode *inode, loff_t i_pos);
@@ -412,6 +415,8 @@ extern int fat_sync_inode(struct inode *inode);
 extern int fat_fill_super(struct super_block *sb, void *data, int silent,
 			struct inode_operations *fs_dir_inode_ops, int isvfat);
 
+extern int fat_flush_inodes(struct super_block *sb, struct inode *i1,
+		            struct inode *i2);
 /* fat/misc.c */
 extern void fat_fs_panic(struct super_block *s, const char *fmt, ...);
 extern void fat_clusters_flush(struct super_block *sb);

@@ -1,5 +1,5 @@
 /*
- * include/asm/mappi3/mappi3_pld.h
+ * include/asm-m32r/mappi3/mappi3_pld.h
  *
  * Definitions for Extended IO Logic on MAPPI3 board.
  *  based on m32700ut_pld.h

@@ -4,6 +4,8 @@
 
 menu "File systems"
 
+if BLOCK
+
 config EXT2_FS
 	tristate "Second extended fs support"
 	help
@@ -72,11 +74,11 @@ config EXT3_FS
 	tristate "Ext3 journalling file system support"
 	select JBD
 	help
-	  This is the journaling version of the Second extended file system
+	  This is the journalling version of the Second extended file system
 	  (often called ext3), the de facto standard Linux file system
 	  (method to organize files on a storage device) for hard disks.
 
-	  The journaling code included in this driver means you do not have
+	  The journalling code included in this driver means you do not have
 	  to run e2fsck (file system checker) on your file systems after a
 	  crash.  The journal keeps track of any changes that were being made
 	  at the time the system crashed, and can ensure that your file system
@@ -138,10 +140,77 @@ config EXT3_FS_SECURITY
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
 
+config EXT4DEV_FS
+	tristate "Ext4dev/ext4 extended fs support development (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	select JBD2
+	help
+	  Ext4dev is a predecessor filesystem of the next generation
+	  extended fs ext4, based on ext3 filesystem code. It will be
+	  renamed ext4 fs later, once ext4dev is mature and stabilized.
+
+	  Unlike the change from ext2 filesystem to ext3 filesystem,
+	  the on-disk format of ext4dev is not the same as ext3 any more:
+	  it is based on extent maps and it supports 48-bit physical block
+	  numbers. These combined on-disk format changes will allow
+	  ext4dev/ext4 to handle more than 16 TB filesystem volumes --
+	  a hard limit that ext3 cannot overcome without changing the
+	  on-disk format.
+
+	  Other than extent maps and 48-bit block numbers, ext4dev also is
+	  likely to have other new features such as persistent preallocation,
+	  high resolution time stamps, and larger file support etc.  These
+	  features will be added to ext4dev gradually.
+
+	  To compile this file system support as a module, choose M here. The
+	  module will be called ext4dev.  Be aware, however, that the filesystem
+	  of your root partition (the one containing the directory /) cannot
+	  be compiled as a module, and so this could be dangerous.
+
+	  If unsure, say N.
+
+config EXT4DEV_FS_XATTR
+	bool "Ext4dev extended attributes"
+	depends on EXT4DEV_FS
+	default y
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  If unsure, say N.
+
+	  You need this for POSIX ACL support on ext4dev/ext4.
+
+config EXT4DEV_FS_POSIX_ACL
+	bool "Ext4dev POSIX Access Control Lists"
+	depends on EXT4DEV_FS_XATTR
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N
+
+config EXT4DEV_FS_SECURITY
+	bool "Ext4dev Security Labels"
+	depends on EXT4DEV_FS_XATTR
+	help
+	  Security labels support alternative access control models
+	  implemented by security modules like SELinux.  This option
+	  enables an extended attribute handler for file security
+	  labels in the ext4dev/ext4 filesystem.
+
+	  If you are not using a security module that requires using
+	  extended attributes for file security labels, say N.
+
 config JBD
 	tristate
 	help
-	  This is a generic journaling layer for block devices.  It is
+	  This is a generic journalling layer for block devices.  It is
 	  currently used by the ext3 and OCFS2 file systems, but it could
 	  also be used to add journal support to other file systems or block
 	  devices such as RAID or LVM.
@@ -170,18 +239,50 @@ config JBD_DEBUG
 	  generated.  To turn debugging off again, do
 	  "echo 0 > /proc/sys/fs/jbd-debug".
 
-config FS_MBCACHE
-# Meta block cache for Extended Attributes (ext2/ext3)
+config JBD2
 	tristate
-	depends on EXT2_FS_XATTR || EXT3_FS_XATTR
-	default y if EXT2_FS=y || EXT3_FS=y
-	default m if EXT2_FS=m || EXT3_FS=m
+	help
+	  This is a generic journaling layer for block devices that support
+	  both 32-bit and 64-bit block numbers.  It is currently used by
+	  the ext4dev/ext4 filesystem, but it could also be used to add
+	  journal support to other file systems or block devices such
+	  as RAID or LVM.
+
+	  If you are using ext4dev/ext4, you need to say Y here. If you are not
+	  using ext4dev/ext4 then you will probably want to say N.
+
+	  To compile this device as a module, choose M here. The module will be
+	  called jbd2.  If you are compiling ext4dev/ext4 into the kernel,
+	  you cannot compile this code as a module.
+
+config JBD2_DEBUG
+	bool "JBD2 (ext4dev/ext4) debugging support"
+	depends on JBD2
+	help
+	  If you are using the ext4dev/ext4 journaled file system (or
+	  potentially any other filesystem/device using JBD2), this option
+	  allows you to enable debugging output while the system is running,
+	  in order to help track down any problems you are having.
+	  By default, the debugging output will be turned off.
+
+	  If you select Y here, then you will be able to turn on debugging
+	  with "echo N > /proc/sys/fs/jbd2-debug", where N is a number between
+	  1 and 5. The higher the number, the more debugging output is
+	  generated.  To turn debugging off again, do
+	  "echo 0 > /proc/sys/fs/jbd2-debug".
+
+config FS_MBCACHE
+# Meta block cache for Extended Attributes (ext2/ext3/ext4)
+	tristate
+	depends on EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4DEV_FS_XATTR
+	default y if EXT2_FS=y || EXT3_FS=y || EXT4DEV_FS=y
+	default m if EXT2_FS=m || EXT3_FS=m || EXT4DEV_FS=m
 
 config REISERFS_FS
 	tristate "Reiserfs support"
 	help
 	  Stores not just filenames but the files themselves in a balanced
-	  tree.  Uses journaling.
+	  tree.  Uses journalling.
 
 	  Balanced trees are more efficient than traditional file system
 	  architectural foundations.
@@ -323,6 +424,7 @@ config FS_POSIX_ACL
 	default n
 
 source "fs/xfs/Kconfig"
+source "fs/gfs2/Kconfig"
 
 config OCFS2_FS
 	tristate "OCFS2 file system support"
@@ -398,6 +500,8 @@ config ROMFS_FS
 
 	  If you don't know whether you need it, then you don't need it:
 	  answer N.
+
+endif
 
 config INOTIFY
 	bool "Inotify file change notification support"
@@ -530,6 +634,11 @@ config FUSE_FS
 	  If you want to develop a userspace FS, or if you want to use
 	  a filesystem based on FUSE, answer Y or M.
 
+config GENERIC_ACL
+	bool
+	select FS_POSIX_ACL
+
+if BLOCK
 menu "CD-ROM/DVD Filesystems"
 
 config ISO9660_FS
@@ -597,7 +706,9 @@ config UDF_NLS
 	depends on (UDF_FS=m && NLS) || (UDF_FS=y && NLS=y)
 
 endmenu
+endif
 
+if BLOCK
 menu "DOS/FAT/NT Filesystems"
 
 config FAT_FS
@@ -782,6 +893,7 @@ config NTFS_RW
 	  It is perfectly safe to say N here.
 
 endmenu
+endif
 
 menu "Pseudo filesystems"
 
@@ -826,6 +938,25 @@ config PROC_VMCORE
         help
         Exports the dump image of crashed kernel in ELF format.
 
+config PROC_SYSCTL
+	bool "Sysctl support (/proc/sys)" if EMBEDDED
+	depends on PROC_FS
+	select SYSCTL
+	default y
+	---help---
+	  The sysctl interface provides a means of dynamically changing
+	  certain kernel parameters and variables on the fly without requiring
+	  a recompile of the kernel or reboot of the system.  The primary
+	  interface is through /proc/sys.  If you say Y here a tree of
+	  modifiable sysctl entries will be generated beneath the
+          /proc/sys directory. They are explained in the files
+	  in <file:Documentation/sysctl/>.  Note that enabling this
+	  option will enlarge the kernel by at least 8 KB.
+
+	  As it is generally a good thing, you should say Y here unless
+	  building a kernel for install/rescue disks or your system is very
+	  limited in memory.
+
 config SYSFS
 	bool "sysfs file system support" if EMBEDDED
 	default y
@@ -841,7 +972,7 @@ config SYSFS
 
 	Some system agents rely on the information in sysfs to operate.
 	/sbin/hotplug uses device and object attributes in sysfs to assist in
-	delegating policy decisions, like persistantly naming devices.
+	delegating policy decisions, like persistently naming devices.
 
 	sysfs is currently used by the block subsystem to mount the root
 	partition.  If sysfs is disabled you must specify the boot device on
@@ -861,6 +992,19 @@ config TMPFS
 	  lost.
 
 	  See <file:Documentation/filesystems/tmpfs.txt> for details.
+
+config TMPFS_POSIX_ACL
+	bool "Tmpfs POSIX Access Control Lists"
+	depends on TMPFS
+	select GENERIC_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N.
 
 config HUGETLBFS
 	bool "HugeTLB file system support"
@@ -907,7 +1051,7 @@ menu "Miscellaneous filesystems"
 
 config ADFS_FS
 	tristate "ADFS file system support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on BLOCK && EXPERIMENTAL
 	help
 	  The Acorn Disc Filing System is the standard file system of the
 	  RiscOS operating system which runs on Acorn's ARM-based Risc PC
@@ -935,7 +1079,7 @@ config ADFS_FS_RW
 
 config AFFS_FS
 	tristate "Amiga FFS file system support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on BLOCK && EXPERIMENTAL
 	help
 	  The Fast File System (FFS) is the common file system used on hard
 	  disks by Amiga(tm) systems since AmigaOS Version 1.3 (34.20).  Say Y
@@ -955,9 +1099,21 @@ config AFFS_FS
 	  To compile this file system support as a module, choose M here: the
 	  module will be called affs.  If unsure, say N.
 
+config ECRYPT_FS
+	tristate "eCrypt filesystem layer support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && KEYS && CRYPTO
+	help
+	  Encrypted filesystem that operates on the VFS layer.  See
+	  <file:Documentation/ecryptfs.txt> to learn more about
+	  eCryptfs.  Userspace components are required and can be
+	  obtained from <http://ecryptfs.sf.net>.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called ecryptfs.
+
 config HFS_FS
 	tristate "Apple Macintosh file system support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on BLOCK && EXPERIMENTAL
 	select NLS
 	help
 	  If you say Y here, you will be able to mount Macintosh-formatted
@@ -970,6 +1126,7 @@ config HFS_FS
 
 config HFSPLUS_FS
 	tristate "Apple Extended HFS file system support"
+	depends on BLOCK
 	select NLS
 	select NLS_UTF8
 	help
@@ -983,15 +1140,15 @@ config HFSPLUS_FS
 
 config BEFS_FS
 	tristate "BeOS file system (BeFS) support (read only) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on BLOCK && EXPERIMENTAL
 	select NLS
 	help
 	  The BeOS File System (BeFS) is the native file system of Be, Inc's
 	  BeOS. Notable features include support for arbitrary attributes
-	  on files and directories, and database-like indeces on selected
+	  on files and directories, and database-like indices on selected
 	  attributes. (Also note that this driver doesn't make those features
 	  available at this time). It is a 64 bit filesystem, so it supports
-	  extremly large volumes and files.
+	  extremely large volumes and files.
 
 	  If you use this filesystem, you should also say Y to at least one
 	  of the NLS (native language support) options below.
@@ -1010,7 +1167,7 @@ config BEFS_DEBUG
 
 config BFS_FS
 	tristate "BFS file system support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on BLOCK && EXPERIMENTAL
 	help
 	  Boot File System (BFS) is a file system used under SCO UnixWare to
 	  allow the bootloader access to the kernel image and other important
@@ -1032,7 +1189,7 @@ config BFS_FS
 
 config EFS_FS
 	tristate "EFS file system support (read only) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on BLOCK && EXPERIMENTAL
 	help
 	  EFS is an older file system used for non-ISO9660 CD-ROMs and hard
 	  disk partitions by SGI's IRIX operating system (IRIX 6.0 and newer
@@ -1047,9 +1204,9 @@ config EFS_FS
 
 config JFFS_FS
 	tristate "Journalling Flash File System (JFFS) support"
-	depends on MTD
+	depends on MTD && BLOCK
 	help
-	  JFFS is the Journaling Flash File System developed by Axis
+	  JFFS is the Journalling Flash File System developed by Axis
 	  Communications in Sweden, aimed at providing a crash/powerdown-safe
 	  file system for disk-less embedded devices. Further information is
 	  available at (<http://developer.axis.com/software/jffs/>).
@@ -1219,7 +1376,7 @@ config JFFS2_CMODE_NONE
 config JFFS2_CMODE_PRIORITY
         bool "priority"
         help
-          Tries the compressors in a predefinied order and chooses the first
+          Tries the compressors in a predefined order and chooses the first
           successful one.
 
 config JFFS2_CMODE_SIZE
@@ -1232,6 +1389,7 @@ endchoice
 
 config CRAMFS
 	tristate "Compressed ROM file system support (cramfs)"
+	depends on BLOCK
 	select ZLIB_INFLATE
 	help
 	  Saying Y here includes support for CramFs (Compressed ROM File
@@ -1251,6 +1409,7 @@ config CRAMFS
 
 config VXFS_FS
 	tristate "FreeVxFS file system support (VERITAS VxFS(TM) compatible)"
+	depends on BLOCK
 	help
 	  FreeVxFS is a file system driver that support the VERITAS VxFS(TM)
 	  file system format.  VERITAS VxFS(TM) is the standard file system
@@ -1268,6 +1427,7 @@ config VXFS_FS
 
 config HPFS_FS
 	tristate "OS/2 HPFS file system support"
+	depends on BLOCK
 	help
 	  OS/2 is IBM's operating system for PC's, the same as Warp, and HPFS
 	  is the file system used for organizing files on OS/2 hard disk
@@ -1284,6 +1444,7 @@ config HPFS_FS
 
 config QNX4FS_FS
 	tristate "QNX4 file system support (read only)"
+	depends on BLOCK
 	help
 	  This is the file system used by the real-time operating systems
 	  QNX 4 and QNX 6 (the latter is also called QNX RTP).
@@ -1311,6 +1472,7 @@ config QNX4FS_RW
 
 config SYSV_FS
 	tristate "System V/Xenix/V7/Coherent file system support"
+	depends on BLOCK
 	help
 	  SCO, Xenix and Coherent are commercial Unix systems for Intel
 	  machines, and Version 7 was used on the DEC PDP-11. Saying Y
@@ -1319,7 +1481,7 @@ config SYSV_FS
 
 	  If you have floppies or hard disk partitions like that, it is likely
 	  that they contain binaries from those other Unix systems; in order
-	  to run these binaries, you will want to install linux-abi which is a
+	  to run these binaries, you will want to install linux-abi which is
 	  a set of kernel modules that lets you run SCO, Xenix, Wyse,
 	  UnixWare, Dell Unix and System V programs under Linux.  It is
 	  available via FTP (user: ftp) from
@@ -1349,6 +1511,7 @@ config SYSV_FS
 
 config UFS_FS
 	tristate "UFS file system support (read only)"
+	depends on BLOCK
 	help
 	  BSD and derivate versions of Unix (such as SunOS, FreeBSD, NetBSD,
 	  OpenBSD and NeXTstep) use a file system called UFS. Some System V
@@ -1614,6 +1777,7 @@ config RPCSEC_GSS_KRB5
 	select CRYPTO
 	select CRYPTO_MD5
 	select CRYPTO_DES
+	select CRYPTO_CBC
 	help
 	  Provides for secure RPC calls by means of a gss-api
 	  mechanism based on Kerberos V5. This is required for
@@ -1632,6 +1796,7 @@ config RPCSEC_GSS_SPKM3
 	select CRYPTO_MD5
 	select CRYPTO_DES
 	select CRYPTO_CAST5
+	select CRYPTO_CBC
 	help
 	  Provides for secure RPC calls by means of a gss-api
 	  mechanism based on the SPKM3 public-key mechanism.
@@ -1827,7 +1992,7 @@ config CIFS_EXPERIMENTAL
 config CIFS_UPCALL
 	  bool "Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
 	  depends on CIFS_EXPERIMENTAL
-	  select CONNECTOR
+	  depends on CONNECTOR
 	  help
 	    Enables an upcall mechanism for CIFS which will be used to contact
 	    userspace helper utilities to provide SPNEGO packaged Kerberos
@@ -1895,15 +2060,14 @@ config CODA_FS_OLD_API
 	  For most cases you probably want to say N.
 
 config AFS_FS
-# for fs/nls/Config.in
-	tristate "Andrew File System support (AFS) (Experimental)"
+	tristate "Andrew File System support (AFS) (EXPERIMENTAL)"
 	depends on INET && EXPERIMENTAL
 	select RXRPC
 	help
 	  If you say Y here, you will get an experimental Andrew File System
 	  driver. It currently only supports unsecured read-only AFS access.
 
-	  See <file:Documentation/filesystems/afs.txt> for more intormation.
+	  See <file:Documentation/filesystems/afs.txt> for more information.
 
 	  If unsure, say N.
 
@@ -1923,13 +2087,16 @@ config 9P_FS
 
 endmenu
 
+if BLOCK
 menu "Partition Types"
 
 source "fs/partitions/Kconfig"
 
 endmenu
+endif
 
 source "fs/nls/Kconfig"
+source "fs/dlm/Kconfig"
 
 endmenu
 

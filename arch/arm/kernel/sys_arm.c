@@ -279,7 +279,7 @@ out:
 	return error;
 }
 
-long execve(const char *filename, char **argv, char **envp)
+int kernel_execve(const char *filename, char *const argv[], char *const envp[])
 {
 	struct pt_regs regs;
 	int ret;
@@ -317,7 +317,7 @@ long execve(const char *filename, char **argv, char **envp)
  out:
 	return ret;
 }
-EXPORT_SYMBOL(execve);
+EXPORT_SYMBOL(kernel_execve);
 
 /*
  * Since loff_t is a 64 bit type we avoid a lot of ABI hastle

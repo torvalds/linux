@@ -1007,7 +1007,7 @@ static int dsp_write(const char __user *buf, size_t len)
 
 static ssize_t dev_read(struct file *file, char __user *buf, size_t count, loff_t *off)
 {
-	int minor = iminor(file->f_dentry->d_inode);
+	int minor = iminor(file->f_path.dentry->d_inode);
 	if (minor == dev.dsp_minor)
 		return dsp_read(buf, count);
 	else
@@ -1016,7 +1016,7 @@ static ssize_t dev_read(struct file *file, char __user *buf, size_t count, loff_
 
 static ssize_t dev_write(struct file *file, const char __user *buf, size_t count, loff_t *off)
 {
-	int minor = iminor(file->f_dentry->d_inode);
+	int minor = iminor(file->f_path.dentry->d_inode);
 	if (minor == dev.dsp_minor)
 		return dsp_write(buf, count);
 	else
@@ -1087,7 +1087,7 @@ static __inline__ void eval_dsp_msg(register WORD wMessage)
 	}
 }
 
-static irqreturn_t intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t intr(int irq, void *dev_id)
 {
 	/* Send ack to DSP */
 	msnd_inb(dev.io + HP_RXL);

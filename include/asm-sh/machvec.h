@@ -8,17 +8,18 @@
  */
 
 #ifndef _ASM_SH_MACHVEC_H
-#define _ASM_SH_MACHVEC_H 1
+#define _ASM_SH_MACHVEC_H
 
 #include <linux/types.h>
 #include <linux/time.h>
-
 #include <asm/machtypes.h>
 #include <asm/machvec_init.h>
 
 struct device;
 
 struct sh_machine_vector {
+	void (*mv_setup)(char **cmdline_p);
+	const char *mv_name;
 	int mv_nr_irqs;
 
 	u8 (*mv_inb)(unsigned long);
@@ -64,5 +65,7 @@ struct sh_machine_vector {
 };
 
 extern struct sh_machine_vector sh_mv;
+
+#define get_system_type()	sh_mv.mv_name
 
 #endif /* _ASM_SH_MACHVEC_H */

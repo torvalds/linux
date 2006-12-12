@@ -220,7 +220,7 @@ sgiioc4_ide_dma_end(ide_drive_t * drive)
 	ide_hwif_t *hwif = HWIF(drive);
 	u64 dma_base = hwif->dma_base;
 	int dma_stat = 0;
-	unsigned long *ending_dma = (unsigned long *) hwif->dma_base2;
+	unsigned long *ending_dma = ide_get_hwifdata(hwif);
 
 	hwif->OUTL(IOC4_S_DMA_STOP, dma_base + IOC4_DMA_CTRL * 4);
 
@@ -369,6 +369,7 @@ ide_dma_sgiioc4(ide_hwif_t * hwif, unsigned long dma_base)
 {
 	void __iomem *virt_dma_base;
 	int num_ports = sizeof (ioc4_dma_regs_t);
+	void *pad;
 
 	printk(KERN_INFO "%s: BM-DMA at 0x%04lx-0x%04lx\n", hwif->name,
 	       dma_base, dma_base + num_ports - 1);
@@ -400,17 +401,14 @@ ide_dma_sgiioc4(ide_hwif_t * hwif, unsigned long dma_base)
 
 	hwif->sg_max_nents = IOC4_PRD_ENTRIES;
 
-	hwif->dma_base2 = (unsigned long)
-		pci_alloc_consistent(hwif->pci_dev,
-				     IOC4_IDE_CACHELINE_SIZE,
-				     (dma_addr_t *) &(hwif->dma_status));
+	pad = pci_alloc_consistent(hwif->pci_dev, IOC4_IDE_CACHELINE_SIZE,
+				   (dma_addr_t *) &(hwif->dma_status));
 
-	if (!hwif->dma_base2)
-		goto dma_base2alloc_failure;
+	if (pad) {
+		ide_set_hwifdata(hwif, pad);
+		return;
+	}
 
-	return;
-
-dma_base2alloc_failure:
 	pci_free_consistent(hwif->pci_dev,
 			    IOC4_PRD_ENTRIES * IOC4_PRD_BYTES,
 			    hwif->dmatable_cpu, hwif->dmatable_dma);
@@ -476,7 +474,7 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 	hwif->OUTL(dma_addr, dma_base + IOC4_DMA_PTR_L * 4);
 
 	/* Address of the Ending DMA */
-	memset((unsigned int *) hwif->dma_base2, 0, IOC4_IDE_CACHELINE_SIZE);
+	memset(ide_get_hwifdata(hwif), 0, IOC4_IDE_CACHELINE_SIZE);
 	ending_dma_addr = cpu_to_le32(hwif->dma_status);
 	hwif->OUTL(ending_dma_addr, dma_base + IOC4_DMA_END_ADDR * 4);
 
@@ -770,14 +768,7 @@ ioc4_ide_init(void)
 	return ioc4_register_submodule(&ioc4_ide_submodule);
 }
 
-static void __devexit
-ioc4_ide_exit(void)
-{
-	ioc4_unregister_submodule(&ioc4_ide_submodule);
-}
-
-module_init(ioc4_ide_init);
-module_exit(ioc4_ide_exit);
+late_initcall(ioc4_ide_init); /* Call only after IDE init is done */
 
 MODULE_AUTHOR("Aniket Malatpure/Jeremy Higdon");
 MODULE_DESCRIPTION("IDE PCI driver module for SGI IOC4 Base-IO Card");

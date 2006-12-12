@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/poison.h>
+#include <linux/bitrev.h>
 
 #include <asm/atomic.h>
 #include <asm/io.h>
@@ -861,17 +862,10 @@ static inline void interrupts_off (amb_dev * dev) {
 
 /********** interrupt handling **********/
 
-static irqreturn_t interrupt_handler(int irq, void *dev_id,
-					struct pt_regs *pt_regs) {
-  amb_dev * dev = (amb_dev *) dev_id;
-  (void) pt_regs;
+static irqreturn_t interrupt_handler(int irq, void *dev_id) {
+  amb_dev * dev = dev_id;
   
   PRINTD (DBG_IRQ|DBG_FLOW, "interrupt_handler: %p", dev_id);
-  
-  if (!dev_id) {
-    PRINTD (DBG_IRQ|DBG_ERR, "irq with NULL dev_id: %d", irq);
-    return IRQ_NONE;
-  }
   
   {
     u32 interrupt = rd_plain (dev, offsetof(amb_mem, interrupt));
@@ -915,8 +909,8 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id,
 
 /********** make rate (not quite as much fun as Horizon) **********/
 
-static unsigned int make_rate (unsigned int rate, rounding r,
-			       u16 * bits, unsigned int * actual) {
+static int make_rate (unsigned int rate, rounding r,
+		      u16 * bits, unsigned int * actual) {
   unsigned char exp = -1; // hush gcc
   unsigned int man = -1;  // hush gcc
   
@@ -979,7 +973,7 @@ static unsigned int make_rate (unsigned int rate, rounding r,
       }
       case round_up: {
 	// check all bits that we are discarding
-	if (man & (-1>>9)) {
+	if (man & (~0U>>9)) {
 	  man = (man>>(32-9)) + 1;
 	  if (man == (1<<9)) {
 	    // no need to check for round up outside of range
@@ -2075,18 +2069,6 @@ static void __devinit amb_ucode_version (amb_dev * dev) {
   PRINTK (KERN_INFO, "microcode version is %u.%u", major, minor);
 }
   
-// swap bits within byte to get Ethernet ordering
-static u8 bit_swap (u8 byte)
-{
-    const u8 swap[] = {
-      0x0, 0x8, 0x4, 0xc,
-      0x2, 0xa, 0x6, 0xe,
-      0x1, 0x9, 0x5, 0xd,
-      0x3, 0xb, 0x7, 0xf
-    };
-    return ((swap[byte & 0xf]<<4) | swap[byte>>4]);
-}
-
 // get end station address
 static void __devinit amb_esi (amb_dev * dev, u8 * esi) {
   u32 lower4;
@@ -2108,9 +2090,9 @@ static void __devinit amb_esi (amb_dev * dev, u8 * esi) {
     PRINTDB (DBG_INIT, "ESI:");
     for (i = 0; i < ESI_LEN; ++i) {
       if (i < 4)
-	  esi[i] = bit_swap (lower4>>(8*i));
+	  esi[i] = bitrev8(lower4>>(8*i));
       else
-	  esi[i] = bit_swap (upper2>>(8*(i-4)));
+	  esi[i] = bitrev8(upper2>>(8*(i-4)));
       PRINTDM (DBG_INIT, " %02x", esi[i]);
     }
     
@@ -2459,8 +2441,8 @@ static int __init amb_module_init (void)
 static void __exit amb_module_exit (void)
 {
   PRINTD (DBG_FLOW|DBG_INIT, "cleanup_module");
-  
-  return pci_unregister_driver(&amb_driver);
+
+  pci_unregister_driver(&amb_driver);
 }
 
 module_init(amb_module_init);

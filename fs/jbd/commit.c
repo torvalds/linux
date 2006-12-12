@@ -1,5 +1,5 @@
 /*
- * linux/fs/commit.c
+ * linux/fs/jbd/commit.c
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1998
  *

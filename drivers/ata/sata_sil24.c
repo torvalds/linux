@@ -100,10 +100,14 @@ enum {
 	 */
 	PORT_REGS_SIZE		= 0x2000,
 
-	PORT_LRAM		= 0x0000, /* 31 LRAM slots and PM regs */
+	PORT_LRAM		= 0x0000, /* 31 LRAM slots and PMP regs */
 	PORT_LRAM_SLOT_SZ	= 0x0080, /* 32 bytes PRB + 2 SGE, ACT... */
 
-	PORT_PM			= 0x0f80, /* 8 bytes PM * 16 (128 bytes) */
+	PORT_PMP		= 0x0f80, /* 8 bytes PMP * 16 (128 bytes) */
+	PORT_PMP_STATUS		= 0x0000, /* port device status offset */
+	PORT_PMP_QACTIVE	= 0x0004, /* port device QActive offset */
+	PORT_PMP_SIZE		= 0x0008, /* 8 bytes per PMP */
+
 		/* 32 bit regs */
 	PORT_CTRL_STAT		= 0x1000, /* write: ctrl-set, read: stat */
 	PORT_CTRL_CLR		= 0x1004, /* write: ctrl-clear */
@@ -126,6 +130,7 @@ enum {
 	PORT_PHY_CFG		= 0x1050,
 	PORT_SLOT_STAT		= 0x1800,
 	PORT_CMD_ACTIVATE	= 0x1c00, /* 64 bit cmd activate * 31 (248 bytes) */
+	PORT_CONTEXT		= 0x1e04,
 	PORT_EXEC_DIAG		= 0x1e00, /* 32bit exec diag * 16 (64 bytes, 0-10 used on 3124) */
 	PORT_PSD_DIAG		= 0x1e40, /* 32bit psd diag * 16 (64 bytes, 0-8 used on 3124) */
 	PORT_SCONTROL		= 0x1f00,
@@ -139,9 +144,9 @@ enum {
 	PORT_CS_INIT		= (1 << 2), /* port initialize */
 	PORT_CS_IRQ_WOC		= (1 << 3), /* interrupt write one to clear */
 	PORT_CS_CDB16		= (1 << 5), /* 0=12b cdb, 1=16b cdb */
-	PORT_CS_RESUME		= (1 << 6), /* port resume */
+	PORT_CS_PMP_RESUME	= (1 << 6), /* PMP resume */
 	PORT_CS_32BIT_ACTV	= (1 << 10), /* 32-bit activation */
-	PORT_CS_PM_EN		= (1 << 13), /* port multiplier enable */
+	PORT_CS_PMP_EN		= (1 << 13), /* port multiplier enable */
 	PORT_CS_RDY		= (1 << 31), /* port ready to accept commands */
 
 	/* PORT_IRQ_STAT/ENABLE_SET/CLR */
@@ -330,7 +335,7 @@ static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static void sil24_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc);
 static void sil24_irq_clear(struct ata_port *ap);
-static irqreturn_t sil24_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t sil24_interrupt(int irq, void *dev_instance);
 static void sil24_freeze(struct ata_port *ap);
 static void sil24_thaw(struct ata_port *ap);
 static void sil24_error_handler(struct ata_port *ap);
@@ -344,11 +349,12 @@ static int sil24_pci_device_resume(struct pci_dev *pdev);
 #endif
 
 static const struct pci_device_id sil24_pci_tbl[] = {
-	{ 0x1095, 0x3124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3124 },
-	{ 0x8086, 0x3124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3124 },
-	{ 0x1095, 0x3132, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3132 },
-	{ 0x1095, 0x3131, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3131 },
-	{ 0x1095, 0x3531, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3131 },
+	{ PCI_VDEVICE(CMD, 0x3124), BID_SIL3124 },
+	{ PCI_VDEVICE(INTEL, 0x3124), BID_SIL3124 },
+	{ PCI_VDEVICE(CMD, 0x3132), BID_SIL3132 },
+	{ PCI_VDEVICE(CMD, 0x3131), BID_SIL3131 },
+	{ PCI_VDEVICE(CMD, 0x3531), BID_SIL3131 },
+
 	{ } /* terminate list */
 };
 
@@ -561,7 +567,7 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 
 	/* do SRST */
 	prb->ctrl = cpu_to_le16(PRB_CTRL_SRST);
-	prb->fis[1] = 0; /* no PM yet */
+	prb->fis[1] = 0; /* no PMP yet */
 
 	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
 	writel((u64)paddr >> 32, port + PORT_CMD_ACTIVATE + 4);
@@ -869,7 +875,7 @@ static inline void sil24_host_intr(struct ata_port *ap)
 			slot_stat, ap->active_tag, ap->sactive);
 }
 
-static irqreturn_t sil24_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t sil24_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct sil24_host_priv *hpriv = host->private_data;
@@ -1049,7 +1055,8 @@ static void sil24_init_controller(struct pci_dev *pdev, int n_ports,
 		writel(PORT_CS_32BIT_ACTV, port + PORT_CTRL_CLR);
 
 		/* Clear port multiplier enable and resume bits */
-		writel(PORT_CS_PM_EN | PORT_CS_RESUME, port + PORT_CTRL_CLR);
+		writel(PORT_CS_PMP_EN | PORT_CS_PMP_RESUME,
+		       port + PORT_CTRL_CLR);
 	}
 
 	/* Turn on interrupts */

@@ -1149,7 +1149,7 @@ static int snd_cs46xx_capture_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static irqreturn_t snd_cs46xx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_cs46xx_interrupt(int irq, void *dev_id)
 {
 	struct snd_cs46xx *chip = dev_id;
 	u32 status1;
@@ -3687,8 +3687,10 @@ int snd_cs46xx_suspend(struct pci_dev *pci, pm_message_t state)
 	/* disable CLKRUN */
 	chip->active_ctrl(chip, -chip->amplifier);
 	chip->amplifier = amp_saved; /* restore the status */
+
 	pci_disable_device(pci);
 	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
 }
 
@@ -3698,9 +3700,16 @@ int snd_cs46xx_resume(struct pci_dev *pci)
 	struct snd_cs46xx *chip = card->private_data;
 	int amp_saved;
 
+	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
-	pci_enable_device(pci);
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "cs46xx: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
 	pci_set_master(pci);
+
 	amp_saved = chip->amplifier;
 	chip->amplifier = 0;
 	chip->active_ctrl(chip, 1); /* force to on */

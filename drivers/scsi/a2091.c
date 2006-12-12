@@ -24,7 +24,7 @@
 #define DMA(ptr) ((a2091_scsiregs *)((ptr)->base))
 #define HDATA(ptr) ((struct WD33C93_hostdata *)((ptr)->hostdata))
 
-static irqreturn_t a2091_intr (int irq, void *_instance, struct pt_regs *fp)
+static irqreturn_t a2091_intr (int irq, void *_instance)
 {
     unsigned long flags;
     unsigned int status;

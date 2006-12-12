@@ -75,8 +75,6 @@ static struct clk *mcbsp1_ick = 0;
 static struct clk *mcbsp1_fck = 0;
 static struct clk *mcbsp2_ick = 0;
 static struct clk *mcbsp2_fck = 0;
-static struct clk *sys_ck = 0;
-static struct clk *sys_clkout = 0;
 #endif
 
 static void omap_mcbsp_dump_reg(u8 id)
@@ -98,7 +96,7 @@ static void omap_mcbsp_dump_reg(u8 id)
 	DBG("***********************\n");
 }
 
-static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id)
 {
 	struct omap_mcbsp * mcbsp_tx = (struct omap_mcbsp *)(dev_id);
 
@@ -108,7 +106,7 @@ static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id, struct pt_re
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t omap_mcbsp_rx_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t omap_mcbsp_rx_irq_handler(int irq, void *dev_id)
 {
 	struct omap_mcbsp * mcbsp_rx = (struct omap_mcbsp *)(dev_id);
 
@@ -232,7 +230,6 @@ static void omap2_mcbsp2_mux_setup(void)
 	omap_cfg_reg(W15_24XX_MCBSP2_DR);
 	omap_cfg_reg(V15_24XX_MCBSP2_DX);
 	omap_cfg_reg(V14_24XX_GPIO117);
-	omap_cfg_reg(W14_24XX_SYS_CLKOUT);
 }
 #endif
 
@@ -984,13 +981,7 @@ static int __init omap_mcbsp_init(void)
 	if (cpu_is_omap24xx()) {
 		mcbsp_info = mcbsp_24xx;
 		mcbsp_count = ARRAY_SIZE(mcbsp_24xx);
-
-		/* REVISIT: where's the right place? */
 		omap2_mcbsp2_mux_setup();
-		sys_ck = clk_get(0, "sys_ck");
-		sys_clkout = clk_get(0, "sys_clkout");
-		clk_set_parent(sys_clkout, sys_ck);
-		clk_enable(sys_clkout);
 	}
 #endif
 	for (i = 0; i < OMAP_MAX_MCBSP_COUNT ; i++) {

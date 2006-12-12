@@ -1,6 +1,6 @@
 $Id: README.hysdn,v 1.3.6.1 2001/02/10 14:41:19 kai Exp $
 The hysdn driver has been written by
-by Werner Cornelius (werner@isdn4linux.de or werner@titro.de) 
+Werner Cornelius (werner@isdn4linux.de or werner@titro.de)
 for Hypercope GmbH Aachen Germany. Hypercope agreed to publish this driver
 under the GNU General Public License.
 

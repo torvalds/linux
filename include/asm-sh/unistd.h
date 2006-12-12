@@ -292,135 +292,45 @@
 #define __NR_mq_getsetattr      (__NR_mq_open+5)
 #define __NR_kexec_load		283
 #define __NR_waitid		284
-#define __NR_add_key		285
-#define __NR_request_key	286
-#define __NR_keyctl		287
-#define __NR_ioprio_set		288
-#define __NR_ioprio_get		289
-#define __NR_inotify_init	290
-#define __NR_inotify_add_watch	291
-#define __NR_inotify_rm_watch	292
+/* #define __NR_sys_setaltroot	285 */
+#define __NR_add_key		286
+#define __NR_request_key	287
+#define __NR_keyctl		288
+#define __NR_ioprio_set		289
+#define __NR_ioprio_get		290
+#define __NR_inotify_init	291
+#define __NR_inotify_add_watch	292
+#define __NR_inotify_rm_watch	293
+#define __NR_migrate_pages	294
+#define __NR_openat		295
+#define __NR_mkdirat		296
+#define __NR_mknodat		297
+#define __NR_fchownat		298
+#define __NR_futimesat		299
+#define __NR_newfstatat		300
+#define __NR_unlinkat		301
+#define __NR_renameat		302
+#define __NR_linkat		303
+#define __NR_symlinkat		304
+#define __NR_readlinkat		305
+#define __NR_fchmodat		306
+#define __NR_faccessat		307
+#define __NR_pselect6		308
+#define __NR_ppoll		309
+#define __NR_unshare		310
+#define __NR_set_robust_list	311
+#define __NR_get_robust_list	312
+#define __NR_splice		313
+#define __NR_sync_file_range	314
+#define __NR_tee		315
+#define __NR_vmsplice		316
+#define __NR_move_pages		317
+#define __NR_getcpu		318
+#define __NR_epoll_pwait	319
 
-
-#define NR_syscalls 293
+#define NR_syscalls 320
 
 #ifdef __KERNEL__
-
-/* user-visible error numbers are in the range -1 - -124: see <asm-sh/errno.h> */
-
-#define __syscall_return(type, res) \
-do { \
-	if ((unsigned long)(res) >= (unsigned long)(-124)) { \
-	/* Avoid using "res" which is declared to be in register r0; \
-	   errno might expand to a function call and clobber it.  */ \
-		int __err = -(res); \
-		errno = __err; \
-		res = -1; \
-	} \
-	return (type) (res); \
-} while (0)
-
-/* XXX - _foo needs to be __foo, while __NR_bar could be _NR_bar. */
-#define _syscall0(type,name) \
-type name(void) \
-{ \
-register long __sc0 __asm__ ("r3") = __NR_##name; \
-__asm__ __volatile__ ("trapa	#0x10" \
-	: "=z" (__sc0) \
-	: "0" (__sc0) \
-	: "memory" ); \
-__syscall_return(type,__sc0); \
-}
-
-#define _syscall1(type,name,type1,arg1) \
-type name(type1 arg1) \
-{ \
-register long __sc0 __asm__ ("r3") = __NR_##name; \
-register long __sc4 __asm__ ("r4") = (long) arg1; \
-__asm__ __volatile__ ("trapa	#0x11" \
-	: "=z" (__sc0) \
-	: "0" (__sc0), "r" (__sc4) \
-	: "memory"); \
-__syscall_return(type,__sc0); \
-}
-
-#define _syscall2(type,name,type1,arg1,type2,arg2) \
-type name(type1 arg1,type2 arg2) \
-{ \
-register long __sc0 __asm__ ("r3") = __NR_##name; \
-register long __sc4 __asm__ ("r4") = (long) arg1; \
-register long __sc5 __asm__ ("r5") = (long) arg2; \
-__asm__ __volatile__ ("trapa	#0x12" \
-	: "=z" (__sc0) \
-	: "0" (__sc0), "r" (__sc4), "r" (__sc5) \
-	: "memory"); \
-__syscall_return(type,__sc0); \
-}
-
-#define _syscall3(type,name,type1,arg1,type2,arg2,type3,arg3) \
-type name(type1 arg1,type2 arg2,type3 arg3) \
-{ \
-register long __sc0 __asm__ ("r3") = __NR_##name; \
-register long __sc4 __asm__ ("r4") = (long) arg1; \
-register long __sc5 __asm__ ("r5") = (long) arg2; \
-register long __sc6 __asm__ ("r6") = (long) arg3; \
-__asm__ __volatile__ ("trapa	#0x13" \
-	: "=z" (__sc0) \
-	: "0" (__sc0), "r" (__sc4), "r" (__sc5), "r" (__sc6) \
-	: "memory"); \
-__syscall_return(type,__sc0); \
-}
-
-#define _syscall4(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4) \
-type name (type1 arg1, type2 arg2, type3 arg3, type4 arg4) \
-{ \
-register long __sc0 __asm__ ("r3") = __NR_##name; \
-register long __sc4 __asm__ ("r4") = (long) arg1; \
-register long __sc5 __asm__ ("r5") = (long) arg2; \
-register long __sc6 __asm__ ("r6") = (long) arg3; \
-register long __sc7 __asm__ ("r7") = (long) arg4; \
-__asm__ __volatile__ ("trapa	#0x14" \
-	: "=z" (__sc0) \
-	: "0" (__sc0), "r" (__sc4), "r" (__sc5), "r" (__sc6),  \
-	  "r" (__sc7) \
-	: "memory" ); \
-__syscall_return(type,__sc0); \
-}
-
-#define _syscall5(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,type5,arg5) \
-type name (type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) \
-{ \
-register long __sc3 __asm__ ("r3") = __NR_##name; \
-register long __sc4 __asm__ ("r4") = (long) arg1; \
-register long __sc5 __asm__ ("r5") = (long) arg2; \
-register long __sc6 __asm__ ("r6") = (long) arg3; \
-register long __sc7 __asm__ ("r7") = (long) arg4; \
-register long __sc0 __asm__ ("r0") = (long) arg5; \
-__asm__ __volatile__ ("trapa	#0x15" \
-	: "=z" (__sc0) \
-	: "0" (__sc0), "r" (__sc4), "r" (__sc5), "r" (__sc6), "r" (__sc7),  \
-	  "r" (__sc3) \
-	: "memory" ); \
-__syscall_return(type,__sc0); \
-}
-
-#define _syscall6(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,type5,arg5,type6,arg6) \
-type name (type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6) \
-{ \
-register long __sc3 __asm__ ("r3") = __NR_##name; \
-register long __sc4 __asm__ ("r4") = (long) arg1; \
-register long __sc5 __asm__ ("r5") = (long) arg2; \
-register long __sc6 __asm__ ("r6") = (long) arg3; \
-register long __sc7 __asm__ ("r7") = (long) arg4; \
-register long __sc0 __asm__ ("r0") = (long) arg5; \
-register long __sc1 __asm__ ("r1") = (long) arg6; \
-__asm__ __volatile__ ("trapa	#0x16" \
-	: "=z" (__sc0) \
-	: "0" (__sc0), "r" (__sc4), "r" (__sc5), "r" (__sc6), "r" (__sc7),  \
-	  "r" (__sc3), "r" (__sc1) \
-	: "memory" ); \
-__syscall_return(type,__sc0); \
-}
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
@@ -444,76 +354,7 @@ __syscall_return(type,__sc0); \
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
-
-#ifdef __KERNEL_SYSCALLS__
-
-#include <linux/compiler.h>
-#include <linux/types.h>
-#include <linux/linkage.h>
-#include <asm/ptrace.h>
-
-/*
- * we need this inline - forking from kernel space will result
- * in NO COPY ON WRITE (!!!), until an execve is executed. This
- * is no problem, but for the stack. This is handled by not letting
- * main() use the stack at all after fork(). Thus, no function
- * calls - which means inline code for fork too, as otherwise we
- * would use the stack upon exit from 'fork()'.
- *
- * Actually only pause and fork are needed inline, so that there
- * won't be any messing with the stack from main(), but we define
- * some others too.
- */
-#define __NR__exit __NR_exit
-static __inline__ _syscall0(int,pause)
-static __inline__ _syscall0(int,sync)
-static __inline__ _syscall0(pid_t,setsid)
-static __inline__ _syscall3(int,write,int,fd,const char *,buf,off_t,count)
-static __inline__ _syscall3(int,read,int,fd,char *,buf,off_t,count)
-static __inline__ _syscall3(off_t,lseek,int,fd,off_t,offset,int,count)
-static __inline__ _syscall1(int,dup,int,fd)
-static __inline__ _syscall3(int,execve,const char *,file,char **,argv,char **,envp)
-static __inline__ _syscall3(int,open,const char *,file,int,flag,int,mode)
-static __inline__ _syscall1(int,close,int,fd)
-static __inline__ _syscall3(pid_t,waitpid,pid_t,pid,int *,wait_stat,int,options)
-static __inline__ _syscall1(int,delete_module,const char *,name)
-
-static __inline__ pid_t wait(int * wait_stat)
-{
-	return waitpid(-1,wait_stat,0);
-}
-
-asmlinkage long sys_mmap2(
-			unsigned long addr, unsigned long len,
-			unsigned long prot, unsigned long flags,
-			unsigned long fd, unsigned long pgoff);
-asmlinkage int sys_execve(char *ufilename, char **uargv,
-			char **uenvp, unsigned long r7,
-			struct pt_regs regs);
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-			unsigned long parent_tidptr,
-			unsigned long child_tidptr,
-			struct pt_regs regs);
-asmlinkage int sys_fork(unsigned long r4, unsigned long r5,
-			unsigned long r6, unsigned long r7,
-			struct pt_regs regs);
-asmlinkage int sys_vfork(unsigned long r4, unsigned long r5,
-			unsigned long r6, unsigned long r7,
-			struct pt_regs regs);
-asmlinkage int sys_pipe(unsigned long r4, unsigned long r5,
-			unsigned long r6, unsigned long r7,
-			struct pt_regs regs);
-asmlinkage ssize_t sys_pread_wrapper(unsigned int fd, char *buf,
-				size_t count, long dummy, loff_t pos);
-asmlinkage ssize_t sys_pwrite_wrapper(unsigned int fd, const char *buf,
-				size_t count, long dummy, loff_t pos);
-struct sigaction;
-asmlinkage long sys_rt_sigaction(int sig,
-				const struct sigaction __user *act,
-				struct sigaction __user *oact,
-				size_t sigsetsize);
-
-#endif /* __KERNEL_SYSCALLS__ */
+#define __ARCH_WANT_SYS_RT_SIGSUSPEND
 
 /*
  * "Conditional" syscalls

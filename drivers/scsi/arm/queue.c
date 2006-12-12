@@ -29,7 +29,7 @@
 
 typedef struct queue_entry {
 	struct list_head   list;
-	Scsi_Cmnd	   *SCpnt;
+	struct scsi_cmnd   *SCpnt;
 #ifdef DEBUG
 	unsigned long	   magic;
 #endif
@@ -96,14 +96,14 @@ void queue_free (Queue_t *queue)
      
 
 /*
- * Function: int queue_add_cmd(Queue_t *queue, Scsi_Cmnd *SCpnt, int head)
+ * Function: int __queue_add(Queue_t *queue, struct scsi_cmnd *SCpnt, int head)
  * Purpose : Add a new command onto a queue, adding REQUEST_SENSE to head.
  * Params  : queue - destination queue
  *	     SCpnt - command to add
  *	     head  - add command to head of queue
  * Returns : 0 on error, !0 on success
  */
-int __queue_add(Queue_t *queue, Scsi_Cmnd *SCpnt, int head)
+int __queue_add(Queue_t *queue, struct scsi_cmnd *SCpnt, int head)
 {
 	unsigned long flags;
 	struct list_head *l;
@@ -134,7 +134,7 @@ empty:
 	return ret;
 }
 
-static Scsi_Cmnd *__queue_remove(Queue_t *queue, struct list_head *ent)
+static struct scsi_cmnd *__queue_remove(Queue_t *queue, struct list_head *ent)
 {
 	QE_t *q;
 
@@ -152,17 +152,17 @@ static Scsi_Cmnd *__queue_remove(Queue_t *queue, struct list_head *ent)
 }
 
 /*
- * Function: Scsi_Cmnd *queue_remove_exclude (queue, exclude)
+ * Function: struct scsi_cmnd *queue_remove_exclude (queue, exclude)
  * Purpose : remove a SCSI command from a queue
  * Params  : queue   - queue to remove command from
  *	     exclude - bit array of target&lun which is busy
- * Returns : Scsi_Cmnd if successful (and a reference), or NULL if no command available
+ * Returns : struct scsi_cmnd if successful (and a reference), or NULL if no command available
  */
-Scsi_Cmnd *queue_remove_exclude(Queue_t *queue, unsigned long *exclude)
+struct scsi_cmnd *queue_remove_exclude(Queue_t *queue, unsigned long *exclude)
 {
 	unsigned long flags;
 	struct list_head *l;
-	Scsi_Cmnd *SCpnt = NULL;
+	struct scsi_cmnd *SCpnt = NULL;
 
 	spin_lock_irqsave(&queue->queue_lock, flags);
 	list_for_each(l, &queue->head) {
@@ -178,15 +178,15 @@ Scsi_Cmnd *queue_remove_exclude(Queue_t *queue, unsigned long *exclude)
 }
 
 /*
- * Function: Scsi_Cmnd *queue_remove (queue)
+ * Function: struct scsi_cmnd *queue_remove (queue)
  * Purpose : removes first SCSI command from a queue
  * Params  : queue   - queue to remove command from
- * Returns : Scsi_Cmnd if successful (and a reference), or NULL if no command available
+ * Returns : struct scsi_cmnd if successful (and a reference), or NULL if no command available
  */
-Scsi_Cmnd *queue_remove(Queue_t *queue)
+struct scsi_cmnd *queue_remove(Queue_t *queue)
 {
 	unsigned long flags;
-	Scsi_Cmnd *SCpnt = NULL;
+	struct scsi_cmnd *SCpnt = NULL;
 
 	spin_lock_irqsave(&queue->queue_lock, flags);
 	if (!list_empty(&queue->head))
@@ -197,19 +197,20 @@ Scsi_Cmnd *queue_remove(Queue_t *queue)
 }
 
 /*
- * Function: Scsi_Cmnd *queue_remove_tgtluntag (queue, target, lun, tag)
+ * Function: struct scsi_cmnd *queue_remove_tgtluntag (queue, target, lun, tag)
  * Purpose : remove a SCSI command from the queue for a specified target/lun/tag
  * Params  : queue  - queue to remove command from
  *	     target - target that we want
  *	     lun    - lun on device
  *	     tag    - tag on device
- * Returns : Scsi_Cmnd if successful, or NULL if no command satisfies requirements
+ * Returns : struct scsi_cmnd if successful, or NULL if no command satisfies requirements
  */
-Scsi_Cmnd *queue_remove_tgtluntag (Queue_t *queue, int target, int lun, int tag)
+struct scsi_cmnd *queue_remove_tgtluntag(Queue_t *queue, int target, int lun,
+					 int tag)
 {
 	unsigned long flags;
 	struct list_head *l;
-	Scsi_Cmnd *SCpnt = NULL;
+	struct scsi_cmnd *SCpnt = NULL;
 
 	spin_lock_irqsave(&queue->queue_lock, flags);
 	list_for_each(l, &queue->head) {
@@ -275,13 +276,13 @@ int queue_probetgtlun (Queue_t *queue, int target, int lun)
 }
 
 /*
- * Function: int queue_remove_cmd(Queue_t *queue, Scsi_Cmnd *SCpnt)
+ * Function: int queue_remove_cmd(Queue_t *queue, struct scsi_cmnd *SCpnt)
  * Purpose : remove a specific command from the queues
  * Params  : queue - queue to look in
  *	     SCpnt - command to find
  * Returns : 0 if not found
  */
-int queue_remove_cmd(Queue_t *queue, Scsi_Cmnd *SCpnt)
+int queue_remove_cmd(Queue_t *queue, struct scsi_cmnd *SCpnt)
 {
 	unsigned long flags;
 	struct list_head *l;

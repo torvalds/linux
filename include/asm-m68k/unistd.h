@@ -284,106 +284,39 @@
 #define __NR_add_key		279
 #define __NR_request_key	280
 #define __NR_keyctl		281
+#define __NR_ioprio_set		282
+#define __NR_ioprio_get		283
+#define __NR_inotify_init	284
+#define __NR_inotify_add_watch	285
+#define __NR_inotify_rm_watch	286
+#define __NR_migrate_pages	287
+#define __NR_openat		288
+#define __NR_mkdirat		289
+#define __NR_mknodat		290
+#define __NR_fchownat		291
+#define __NR_futimesat		292
+#define __NR_fstatat64		293
+#define __NR_unlinkat		294
+#define __NR_renameat		295
+#define __NR_linkat		296
+#define __NR_symlinkat		297
+#define __NR_readlinkat		298
+#define __NR_fchmodat		299
+#define __NR_faccessat		300
+#define __NR_pselect6		301
+#define __NR_ppoll		302
+#define __NR_unshare		303
+#define __NR_set_robust_list	304
+#define __NR_get_robust_list	305
+#define __NR_splice		306
+#define __NR_sync_file_range	307
+#define __NR_tee		308
+#define __NR_vmsplice		309
+#define __NR_move_pages		310
 
 #ifdef __KERNEL__
 
-#define NR_syscalls		282
-
-/* user-visible error numbers are in the range -1 - -124: see
-   <asm-m68k/errno.h> */
-
-#define __syscall_return(type, res) \
-do { \
-	if ((unsigned long)(res) >= (unsigned long)(-125)) { \
-	/* avoid using res which is declared to be in register d0; \
-	   errno might expand to a function call and clobber it.  */ \
-		int __err = -(res); \
-		errno = __err; \
-		res = -1; \
-	} \
-	return (type) (res); \
-} while (0)
-
-#define _syscall0(type,name) \
-type name(void) \
-{ \
-register long __res __asm__ ("%d0") = __NR_##name; \
-__asm__ __volatile__ ("trap  #0" \
-                      : "+d" (__res) ); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall1(type,name,atype,a) \
-type name(atype a) \
-{ \
-register long __res __asm__ ("%d0") = __NR_##name; \
-register long __a __asm__ ("%d1") = (long)(a); \
-__asm__ __volatile__ ("trap  #0" \
-		      : "+d" (__res) \
-		      : "d" (__a)  ); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall2(type,name,atype,a,btype,b) \
-type name(atype a,btype b) \
-{ \
-register long __res __asm__ ("%d0") = __NR_##name; \
-register long __a __asm__ ("%d1") = (long)(a); \
-register long __b __asm__ ("%d2") = (long)(b); \
-__asm__ __volatile__ ("trap  #0" \
-		      : "+d" (__res) \
-                      : "d" (__a), "d" (__b) \
-		     ); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall3(type,name,atype,a,btype,b,ctype,c) \
-type name(atype a,btype b,ctype c) \
-{ \
-register long __res __asm__ ("%d0") = __NR_##name; \
-register long __a __asm__ ("%d1") = (long)(a); \
-register long __b __asm__ ("%d2") = (long)(b); \
-register long __c __asm__ ("%d3") = (long)(c); \
-__asm__ __volatile__ ("trap  #0" \
-		      : "+d" (__res) \
-                      : "d" (__a), "d" (__b), \
-			"d" (__c) \
-		     ); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall4(type,name,atype,a,btype,b,ctype,c,dtype,d) \
-type name (atype a, btype b, ctype c, dtype d) \
-{ \
-register long __res __asm__ ("%d0") = __NR_##name; \
-register long __a __asm__ ("%d1") = (long)(a); \
-register long __b __asm__ ("%d2") = (long)(b); \
-register long __c __asm__ ("%d3") = (long)(c); \
-register long __d __asm__ ("%d4") = (long)(d); \
-__asm__ __volatile__ ("trap  #0" \
-                      : "+d" (__res) \
-                      : "d" (__a), "d" (__b), \
-			"d" (__c), "d" (__d)  \
-		     ); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall5(type,name,atype,a,btype,b,ctype,c,dtype,d,etype,e) \
-type name (atype a,btype b,ctype c,dtype d,etype e) \
-{ \
-register long __res __asm__ ("%d0") = __NR_##name; \
-register long __a __asm__ ("%d1") = (long)(a); \
-register long __b __asm__ ("%d2") = (long)(b); \
-register long __c __asm__ ("%d3") = (long)(c); \
-register long __d __asm__ ("%d4") = (long)(d); \
-register long __e __asm__ ("%d5") = (long)(e); \
-__asm__ __volatile__ ("trap  #0" \
-		      : "+d" (__res) \
-		      : "d" (__a), "d" (__b), \
-			"d" (__c), "d" (__d), "d" (__e)  \
-                     ); \
-__syscall_return(type,__res); \
-}
+#define NR_syscalls		311
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
@@ -407,12 +340,6 @@ __syscall_return(type,__res); \
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
-
-#ifdef __KERNEL_SYSCALLS__
-
-static inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp)
-
-#endif /* __KERNEL_SYSCALLS__ */
 
 /*
  * "Conditional" syscalls

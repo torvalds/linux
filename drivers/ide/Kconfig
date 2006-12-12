@@ -4,6 +4,8 @@
 # Andre Hedrick <andre@linux-ide.org>
 #
 
+if BLOCK
+
 menu "ATA/ATAPI/MFM/RLL support"
 
 config IDE
@@ -54,7 +56,7 @@ if IDE
 
 config IDE_MAX_HWIFS
 	int "Max IDE interfaces"
-	depends on ALPHA || SUPERH || IA64
+	depends on ALPHA || SUPERH || IA64 || EMBEDDED
 	default 4
 	help
 	  This is the maximum number of IDE hardware interfaces that will
@@ -387,14 +389,6 @@ config BLK_DEV_RZ1000
 	  Linux. This may slow disk throughput by a few percent, but at least
 	  things will operate 100% reliably.
 
-config BLK_DEV_SL82C105
-	tristate "Winbond SL82c105 support"
-	depends on PCI && (PPC || ARM) && BLK_DEV_IDEPCI
-	help
-	  If you have a Winbond SL82c105 IDE controller, say Y here to enable
-	  special configuration for this chip. This is common on various CHRP
-	  motherboards, but could be used elsewhere. If in doubt, say Y.
-
 config BLK_DEV_IDEDMA_PCI
 	bool "Generic PCI bus-master DMA support"
 	depends on PCI && BLK_DEV_IDEPCI
@@ -592,6 +586,12 @@ config BLK_DEV_HPT366
 	  ide-probe at boot. It is reported to support DVD II drives, by the
 	  manufacturer.
 
+config BLK_DEV_JMICRON
+	tristate "JMicron JMB36x support"
+	help
+	  Basic support for the JMicron ATA controllers. For full support
+	  use the libata drivers.
+
 config BLK_DEV_SC1200
 	tristate "National SCx200 chipset support"
 	help
@@ -605,15 +605,6 @@ config BLK_DEV_PIIX
 	  and also for the Efar Victory66 (slc90e66) chip.  This allows
 	  the kernel to change PIO, DMA and UDMA speeds and to configure
 	  the chip to optimum performance.
-
-config BLK_DEV_IT8172
-	bool "IT8172 IDE support"
-	depends on (MIPS_ITE8172 || MIPS_IVR)
-	help
-	  Say Y here to support the on-board IDE controller on the Integrated
-	  Technology Express, Inc. ITE8172 SBC.  Vendor page at
-	  <http://www.ite.com.tw/ia/brief_it8172bsp.htm>; picture of the
-	  board at <http://www.mvista.com/partners/semiconductor/ite.html>.
 
 config BLK_DEV_IT821X
 	tristate "IT821X IDE support"
@@ -712,6 +703,14 @@ config BLK_DEV_SIS5513
 	  available" as well.
 
 	  Please read the comments at the top of <file:drivers/ide/pci/sis5513.c>.
+
+config BLK_DEV_SL82C105
+	tristate "Winbond SL82c105 support"
+	depends on (PPC || ARM)
+	help
+	  If you have a Winbond SL82c105 IDE controller, say Y here to enable
+	  special configuration for this chip. This is common on various CHRP
+	  motherboards, but could be used elsewhere. If in doubt, say Y.
 
 config BLK_DEV_SLC90E66
 	tristate "SLC90E66 chipset support"
@@ -1082,3 +1081,5 @@ config BLK_DEV_HD
 endif
 
 endmenu
+
+endif

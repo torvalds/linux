@@ -42,6 +42,7 @@ cpumask_t cpu_possible_map;
 EXPORT_SYMBOL(cpu_possible_map);
 
 cpumask_t cpu_online_map;
+EXPORT_SYMBOL(cpu_online_map);
 static atomic_t cpus_booted = ATOMIC_INIT(0);
 
 /* These are defined by the board-specific code. */

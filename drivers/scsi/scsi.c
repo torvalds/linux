@@ -128,7 +128,7 @@ const char * scsi_device_type(unsigned type)
 		return "Well-known LUN   ";
 	if (type == 0x1f)
 		return "No Device        ";
-	if (type > ARRAY_SIZE(scsi_device_types))
+	if (type >= ARRAY_SIZE(scsi_device_types))
 		return "Unknown          ";
 	return scsi_device_types[type];
 }
@@ -136,7 +136,7 @@ const char * scsi_device_type(unsigned type)
 EXPORT_SYMBOL(scsi_device_type);
 
 struct scsi_host_cmd_pool {
-	kmem_cache_t	*slab;
+	struct kmem_cache	*slab;
 	unsigned int	users;
 	char		*name;
 	unsigned int	slab_flags;
@@ -156,8 +156,7 @@ static struct scsi_host_cmd_pool scsi_cmd_dma_pool = {
 
 static DEFINE_MUTEX(host_cmd_pool_mutex);
 
-static struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost,
-					    gfp_t gfp_mask)
+struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost, gfp_t gfp_mask)
 {
 	struct scsi_cmnd *cmd;
 
@@ -178,6 +177,7 @@ static struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost,
 
 	return cmd;
 }
+EXPORT_SYMBOL_GPL(__scsi_get_command);
 
 /*
  * Function:	scsi_get_command()
@@ -214,8 +214,28 @@ struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, gfp_t gfp_mask)
 		put_device(&dev->sdev_gendev);
 
 	return cmd;
-}				
+}
 EXPORT_SYMBOL(scsi_get_command);
+
+void __scsi_put_command(struct Scsi_Host *shost, struct scsi_cmnd *cmd,
+			struct device *dev)
+{
+	unsigned long flags;
+
+	/* changing locks here, don't need to restore the irq state */
+	spin_lock_irqsave(&shost->free_list_lock, flags);
+	if (unlikely(list_empty(&shost->free_list))) {
+		list_add(&cmd->list, &shost->free_list);
+		cmd = NULL;
+	}
+	spin_unlock_irqrestore(&shost->free_list_lock, flags);
+
+	if (likely(cmd != NULL))
+		kmem_cache_free(shost->cmd_pool->slab, cmd);
+
+	put_device(dev);
+}
+EXPORT_SYMBOL(__scsi_put_command);
 
 /*
  * Function:	scsi_put_command()
@@ -231,26 +251,15 @@ EXPORT_SYMBOL(scsi_get_command);
 void scsi_put_command(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *sdev = cmd->device;
-	struct Scsi_Host *shost = sdev->host;
 	unsigned long flags;
-	
+
 	/* serious error if the command hasn't come from a device list */
 	spin_lock_irqsave(&cmd->device->list_lock, flags);
 	BUG_ON(list_empty(&cmd->list));
 	list_del_init(&cmd->list);
-	spin_unlock(&cmd->device->list_lock);
-	/* changing locks here, don't need to restore the irq state */
-	spin_lock(&shost->free_list_lock);
-	if (unlikely(list_empty(&shost->free_list))) {
-		list_add(&cmd->list, &shost->free_list);
-		cmd = NULL;
-	}
-	spin_unlock_irqrestore(&shost->free_list_lock, flags);
+	spin_unlock_irqrestore(&cmd->device->list_lock, flags);
 
-	if (likely(cmd != NULL))
-		kmem_cache_free(shost->cmd_pool->slab, cmd);
-
-	put_device(&sdev->sdev_gendev);
+	__scsi_put_command(cmd->device->host, cmd, &sdev->sdev_gendev);
 }
 EXPORT_SYMBOL(scsi_put_command);
 
@@ -592,12 +601,6 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	return rtn;
 }
 
-
-/*
- * Per-CPU I/O completion queue.
- */
-static DEFINE_PER_CPU(struct list_head, scsi_done_q);
-
 /**
  * scsi_req_abort_cmd -- Request command recovery for the specified command
  * cmd: pointer to the SCSI command of interest
@@ -877,9 +880,9 @@ EXPORT_SYMBOL(scsi_device_get);
  */
 void scsi_device_put(struct scsi_device *sdev)
 {
+#ifdef CONFIG_MODULE_UNLOAD
 	struct module *module = sdev->host->hostt->module;
 
-#ifdef CONFIG_MODULE_UNLOAD
 	/* The module refcount will be zero if scsi_device_get()
 	 * was called from a module removal routine */
 	if (module && module_refcount(module) != 0)
@@ -1065,7 +1068,7 @@ int scsi_device_cancel(struct scsi_device *sdev, int recovery)
 
 	spin_lock_irqsave(&sdev->list_lock, flags);
 	list_for_each_entry(scmd, &sdev->cmd_list, list) {
-		if (scmd->request && scmd->request->rq_status != RQ_INACTIVE) {
+		if (scmd->request) {
 			/*
 			 * If we are unable to remove the timer, it means
 			 * that the command has already timed out or
@@ -1102,7 +1105,7 @@ MODULE_PARM_DESC(scsi_logging_level, "a bit mask of logging levels");
 
 static int __init init_scsi(void)
 {
-	int error, i;
+	int error;
 
 	error = scsi_init_queue();
 	if (error)
@@ -1122,9 +1125,6 @@ static int __init init_scsi(void)
 	error = scsi_sysfs_register();
 	if (error)
 		goto cleanup_sysctl;
-
-	for_each_possible_cpu(i)
-		INIT_LIST_HEAD(&per_cpu(scsi_done_q, i));
 
 	scsi_netlink_init();
 

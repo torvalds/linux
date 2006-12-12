@@ -244,7 +244,8 @@ int FPU_load_int64(long long __user *_s)
 
   RE_ENTRANT_CHECK_OFF;
   FPU_access_ok(VERIFY_READ, _s, 8);
-  copy_from_user(&s,_s,8);
+  if (copy_from_user(&s,_s,8))
+    FPU_abort;
   RE_ENTRANT_CHECK_ON;
 
   if (s == 0)
@@ -907,7 +908,8 @@ int FPU_store_int64(FPU_REG *st0_ptr, u_char st0_tag, long long __user *d)
 
   RE_ENTRANT_CHECK_OFF;
   FPU_access_ok(VERIFY_WRITE,d,8);
-  copy_to_user(d, &tll, 8);
+  if (copy_to_user(d, &tll, 8))
+    FPU_abort;
   RE_ENTRANT_CHECK_ON;
 
   return 1;
@@ -1336,7 +1338,8 @@ u_char __user *fstenv(fpu_addr_modes addr_modes, u_char __user *d)
       I387.soft.fcs &= ~0xf8000000;
       I387.soft.fos |= 0xffff0000;
 #endif /* PECULIAR_486 */
-      __copy_to_user(d, &control_word, 7*4);
+      if (__copy_to_user(d, &control_word, 7*4))
+	FPU_abort;
       RE_ENTRANT_CHECK_ON;
       d += 0x1c;
     }
@@ -1359,9 +1362,11 @@ void fsave(fpu_addr_modes addr_modes, u_char __user *data_address)
   FPU_access_ok(VERIFY_WRITE,d,80);
 
   /* Copy all registers in stack order. */
-  __copy_to_user(d, register_base+offset, other);
+  if (__copy_to_user(d, register_base+offset, other))
+    FPU_abort;
   if ( offset )
-    __copy_to_user(d+other, register_base, offset);
+    if (__copy_to_user(d+other, register_base, offset))
+      FPU_abort;
   RE_ENTRANT_CHECK_ON;
 
   finit();

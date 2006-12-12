@@ -123,7 +123,8 @@ static inline void power_button(void)
 	if (machine_state & MACHINE_PANICED)
 		return;
 
-	if ((machine_state & MACHINE_SHUTTING_DOWN) || kill_proc(1,SIGINT,1)) {
+	if ((machine_state & MACHINE_SHUTTING_DOWN) ||
+			kill_cad_pid(SIGINT, 1)) {
 		/* No init process or button pressed twice.  */
 		sgi_machine_power_off();
 	}
@@ -168,7 +169,7 @@ static inline void volume_down_button(unsigned long data)
 	}
 }
 
-static irqreturn_t panel_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t panel_int(int irq, void *dev_id)
 {
 	unsigned int buttons;
 

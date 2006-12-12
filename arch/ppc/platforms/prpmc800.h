@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/platforms/prpmc800.h
+ * arch/ppc/platforms/prpmc800.h
  *
  * Definitions for Motorola PrPMC800 board support
  *

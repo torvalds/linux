@@ -266,9 +266,11 @@ static const int osk_keymap[] = {
 };
 
 static struct omap_kp_platform_data osk_kp_data = {
-	.rows	= 8,
-	.cols	= 8,
-	.keymap = (int *) osk_keymap,
+	.rows		= 8,
+	.cols		= 8,
+	.keymap		= (int *) osk_keymap,
+	.keymapsize	= ARRAY_SIZE(osk_keymap),
+	.delay		= 9,
 };
 
 static struct resource osk5912_kp_resources[] = {
@@ -325,7 +327,7 @@ static struct spi_board_info __initdata mistral_boardinfo[] = { {
 
 #ifdef	CONFIG_PM
 static irqreturn_t
-osk_mistral_wake_interrupt(int irq, void *ignored, struct pt_regs *regs)
+osk_mistral_wake_interrupt(int irq, void *ignored)
 {
 	return IRQ_HANDLED;
 }

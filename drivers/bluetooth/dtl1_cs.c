@@ -291,7 +291,7 @@ static void dtl1_receive(dtl1_info_t *info)
 }
 
 
-static irqreturn_t dtl1_interrupt(int irq, void *dev_inst, struct pt_regs *regs)
+static irqreturn_t dtl1_interrupt(int irq, void *dev_inst)
 {
 	dtl1_info_t *info = dev_inst;
 	unsigned int iobase;
@@ -626,22 +626,7 @@ static int dtl1_config(struct pcmcia_device *link)
 	u_short buf[256];
 	cisparse_t parse;
 	cistpl_cftable_entry_t *cf = &parse.cftable_entry;
-	int i, last_ret, last_fn;
-
-	tuple.TupleData = (cisdata_t *)buf;
-	tuple.TupleOffset = 0;
-	tuple.TupleDataMax = 255;
-	tuple.Attributes = 0;
-
-	/* Get configuration register information */
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	last_ret = first_tuple(link, &tuple, &parse);
-	if (last_ret != CS_SUCCESS) {
-		last_fn = ParseTuple;
-		goto cs_failed;
-	}
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present = parse.config.rmask[0];
+	int i;
 
 	tuple.TupleData = (cisdata_t *)buf;
 	tuple.TupleOffset = 0;
@@ -690,9 +675,6 @@ static int dtl1_config(struct pcmcia_device *link)
 
 	return 0;
 
-cs_failed:
-	cs_error(link, last_fn, last_ret);
-
 failed:
 	dtl1_release(link);
 	return -ENODEV;
@@ -711,6 +693,7 @@ static void dtl1_release(struct pcmcia_device *link)
 
 static struct pcmcia_device_id dtl1_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Nokia Mobile Phones", "DTL-1", 0xe1bfdd64, 0xe168480d),
+	PCMCIA_DEVICE_PROD_ID12("Nokia Mobile Phones", "DTL-4", 0xe1bfdd64, 0x9102bc82),
 	PCMCIA_DEVICE_PROD_ID12("Socket", "CF", 0xb38bcc2e, 0x44ebf863),
 	PCMCIA_DEVICE_PROD_ID12("Socket", "CF+ Personal Network Card", 0xb38bcc2e, 0xe732bae3),
 	PCMCIA_DEVICE_NULL

@@ -51,6 +51,11 @@ static inline void clustered_apic_check(void)
 {
 }
 
+static inline int apicid_to_node(int logical_apicid)
+{
+	return 0;
+}
+
 /* Mapping from cpu number to logical apicid */
 static inline int cpu_to_logical_apicid(int cpu)
 {

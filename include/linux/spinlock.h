@@ -52,6 +52,7 @@
 #include <linux/thread_info.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
+#include <linux/bottom_half.h>
 
 #include <asm/system.h>
 
@@ -167,9 +168,9 @@ do {								\
  * regardless of whether CONFIG_SMP or CONFIG_PREEMPT are set. The various
  * methods are defined as nops in the case they are not required.
  */
-#define spin_trylock(lock)		__cond_lock(_spin_trylock(lock))
-#define read_trylock(lock)		__cond_lock(_read_trylock(lock))
-#define write_trylock(lock)		__cond_lock(_write_trylock(lock))
+#define spin_trylock(lock)		__cond_lock(lock, _spin_trylock(lock))
+#define read_trylock(lock)		__cond_lock(lock, _read_trylock(lock))
+#define write_trylock(lock)		__cond_lock(lock, _write_trylock(lock))
 
 #define spin_lock(lock)			_spin_lock(lock)
 
@@ -183,13 +184,27 @@ do {								\
 #define read_lock(lock)			_read_lock(lock)
 
 #if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+
 #define spin_lock_irqsave(lock, flags)	flags = _spin_lock_irqsave(lock)
 #define read_lock_irqsave(lock, flags)	flags = _read_lock_irqsave(lock)
 #define write_lock_irqsave(lock, flags)	flags = _write_lock_irqsave(lock)
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#define spin_lock_irqsave_nested(lock, flags, subclass) \
+	flags = _spin_lock_irqsave_nested(lock, subclass)
 #else
+#define spin_lock_irqsave_nested(lock, flags, subclass) \
+	flags = _spin_lock_irqsave(lock)
+#endif
+
+#else
+
 #define spin_lock_irqsave(lock, flags)	_spin_lock_irqsave(lock, flags)
 #define read_lock_irqsave(lock, flags)	_read_lock_irqsave(lock, flags)
 #define write_lock_irqsave(lock, flags)	_write_lock_irqsave(lock, flags)
+#define spin_lock_irqsave_nested(lock, flags, subclass)	\
+	spin_lock_irqsave(lock, flags)
+
 #endif
 
 #define spin_lock_irq(lock)		_spin_lock_irq(lock)
@@ -236,19 +251,19 @@ do {								\
 					_write_unlock_irqrestore(lock, flags)
 #define write_unlock_bh(lock)		_write_unlock_bh(lock)
 
-#define spin_trylock_bh(lock)		__cond_lock(_spin_trylock_bh(lock))
+#define spin_trylock_bh(lock)	__cond_lock(lock, _spin_trylock_bh(lock))
 
 #define spin_trylock_irq(lock) \
 ({ \
 	local_irq_disable(); \
-	_spin_trylock(lock) ? \
+	spin_trylock(lock) ? \
 	1 : ({ local_irq_enable(); 0;  }); \
 })
 
 #define spin_trylock_irqsave(lock, flags) \
 ({ \
 	local_irq_save(flags); \
-	_spin_trylock(lock) ? \
+	spin_trylock(lock) ? \
 	1 : ({ local_irq_restore(flags); 0; }); \
 })
 
@@ -264,7 +279,7 @@ do {								\
  */
 extern int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *lock);
 #define atomic_dec_and_lock(atomic, lock) \
-		__cond_lock(_atomic_dec_and_lock(atomic, lock))
+		__cond_lock(lock, _atomic_dec_and_lock(atomic, lock))
 
 /**
  * spin_can_lock - would spin_trylock() succeed?

@@ -63,7 +63,7 @@ struct ip_vs_sh_bucket {
 /*
  *	Returns hash value for IPVS SH entry
  */
-static inline unsigned ip_vs_sh_hashkey(__u32 addr)
+static inline unsigned ip_vs_sh_hashkey(__be32 addr)
 {
 	return (ntohl(addr)*2654435761UL) & IP_VS_SH_TAB_MASK;
 }
@@ -73,7 +73,7 @@ static inline unsigned ip_vs_sh_hashkey(__u32 addr)
  *      Get ip_vs_dest associated with supplied parameters.
  */
 static inline struct ip_vs_dest *
-ip_vs_sh_get(struct ip_vs_sh_bucket *tbl, __u32 addr)
+ip_vs_sh_get(struct ip_vs_sh_bucket *tbl, __be32 addr)
 {
 	return (tbl[ip_vs_sh_hashkey(addr)]).dest;
 }

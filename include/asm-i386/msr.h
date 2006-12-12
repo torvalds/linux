@@ -1,6 +1,10 @@
 #ifndef __ASM_MSR_H
 #define __ASM_MSR_H
 
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
+
 /*
  * Access to machine-specific registers (available on 586 and better only)
  * Note: the rd* operations modify the parameters directly (without using
@@ -77,6 +81,7 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
      __asm__ __volatile__("rdpmc" \
 			  : "=a" (low), "=d" (high) \
 			  : "c" (counter))
+#endif	/* !CONFIG_PARAVIRT */
 
 /* symbolic names for some interesting MSRs */
 /* Intel defined MSRs. */
@@ -140,6 +145,10 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
 #define MSR_IA32_MC0_STATUS		0x401
 #define MSR_IA32_MC0_ADDR		0x402
 #define MSR_IA32_MC0_MISC		0x403
+
+#define MSR_IA32_PEBS_ENABLE		0x3f1
+#define MSR_IA32_DS_AREA		0x600
+#define MSR_IA32_PERF_CAPABILITIES	0x345
 
 /* Pentium IV performance counter MSRs */
 #define MSR_P4_BPU_PERFCTR0 		0x300
@@ -283,5 +292,14 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
 #define MSR_TMTA_LONGRUN_FLAGS		0x80868011
 #define MSR_TMTA_LRTI_READOUT		0x80868018
 #define MSR_TMTA_LRTI_VOLT_MHZ		0x8086801a
+
+/* Intel Core-based CPU performance counters */
+#define MSR_CORE_PERF_FIXED_CTR0	0x309
+#define MSR_CORE_PERF_FIXED_CTR1	0x30a
+#define MSR_CORE_PERF_FIXED_CTR2	0x30b
+#define MSR_CORE_PERF_FIXED_CTR_CTRL	0x38d
+#define MSR_CORE_PERF_GLOBAL_STATUS	0x38e
+#define MSR_CORE_PERF_GLOBAL_CTRL	0x38f
+#define MSR_CORE_PERF_GLOBAL_OVF_CTRL	0x390
 
 #endif /* __ASM_MSR_H */

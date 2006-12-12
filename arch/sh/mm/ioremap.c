@@ -15,98 +15,13 @@
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <asm/io.h>
+#include <linux/pci.h>
+#include <linux/io.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/addrspace.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
-
-static inline void remap_area_pte(pte_t * pte, unsigned long address,
-	unsigned long size, unsigned long phys_addr, unsigned long flags)
-{
-	unsigned long end;
-	unsigned long pfn;
-	pgprot_t pgprot = __pgprot(_PAGE_PRESENT | _PAGE_RW |
-				   _PAGE_DIRTY | _PAGE_ACCESSED |
-				   _PAGE_HW_SHARED | _PAGE_FLAGS_HARD | flags);
-
-	address &= ~PMD_MASK;
-	end = address + size;
-	if (end > PMD_SIZE)
-		end = PMD_SIZE;
-	if (address >= end)
-		BUG();
-	pfn = phys_addr >> PAGE_SHIFT;
-	do {
-		if (!pte_none(*pte)) {
-			printk("remap_area_pte: page already exists\n");
-			BUG();
-		}
-		set_pte(pte, pfn_pte(pfn, pgprot));
-		address += PAGE_SIZE;
-		pfn++;
-		pte++;
-	} while (address && (address < end));
-}
-
-static inline int remap_area_pmd(pmd_t * pmd, unsigned long address,
-	unsigned long size, unsigned long phys_addr, unsigned long flags)
-{
-	unsigned long end;
-
-	address &= ~PGDIR_MASK;
-	end = address + size;
-	if (end > PGDIR_SIZE)
-		end = PGDIR_SIZE;
-	phys_addr -= address;
-	if (address >= end)
-		BUG();
-	do {
-		pte_t * pte = pte_alloc_kernel(pmd, address);
-		if (!pte)
-			return -ENOMEM;
-		remap_area_pte(pte, address, end - address, address + phys_addr, flags);
-		address = (address + PMD_SIZE) & PMD_MASK;
-		pmd++;
-	} while (address && (address < end));
-	return 0;
-}
-
-int remap_area_pages(unsigned long address, unsigned long phys_addr,
-		     unsigned long size, unsigned long flags)
-{
-	int error;
-	pgd_t * dir;
-	unsigned long end = address + size;
-
-	phys_addr -= address;
-	dir = pgd_offset_k(address);
-	flush_cache_all();
-	if (address >= end)
-		BUG();
-	do {
-		pud_t *pud;
-		pmd_t *pmd;
-
-		error = -ENOMEM;
-
-		pud = pud_alloc(&init_mm, dir, address);
-		if (!pud)
-			break;
-		pmd = pmd_alloc(&init_mm, pud, address);
-		if (!pmd)
-			break;
-		if (remap_area_pmd(pmd, address, end - address,
-					phys_addr + address, flags))
-			break;
-		error = 0;
-		address = (address + PGDIR_SIZE) & PGDIR_MASK;
-		dir++;
-	} while (address && (address < end));
-	flush_tlb_all();
-	return error;
-}
 
 /*
  * Remap an arbitrary physical address space into the kernel virtual
@@ -122,6 +37,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 {
 	struct vm_struct * area;
 	unsigned long offset, last_addr, addr, orig_addr;
+	pgprot_t pgprot;
 
 	/* Don't allow wraparound or zero size */
 	last_addr = phys_addr + size - 1;
@@ -133,6 +49,20 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	 */
 	if (phys_addr >= 0xA0000 && last_addr < 0x100000)
 		return (void __iomem *)phys_to_virt(phys_addr);
+
+	/*
+	 * If we're on an SH7751 or SH7780 PCI controller, PCI memory is
+	 * mapped at the end of the address space (typically 0xfd000000)
+	 * in a non-translatable area, so mapping through page tables for
+	 * this area is not only pointless, but also fundamentally
+	 * broken. Just return the physical address instead.
+	 *
+	 * For boards that map a small PCI memory aperture somewhere in
+	 * P1/P2 space, ioremap() will already do the right thing,
+	 * and we'll never get this far.
+	 */
+	if (is_pci_memaddr(phys_addr) && is_pci_memaddr(last_addr))
+		return (void __iomem *)phys_addr;
 
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
@@ -177,8 +107,9 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	}
 #endif
 
+	pgprot = __pgprot(pgprot_val(PAGE_KERNEL_NOCACHE) | flags);
 	if (likely(size))
-		if (remap_area_pages(addr, phys_addr, size, flags)) {
+		if (ioremap_page_range(addr, addr + size, phys_addr, pgprot)) {
 			vunmap((void *)orig_addr);
 			return NULL;
 		}
@@ -192,7 +123,7 @@ void __iounmap(void __iomem *addr)
 	unsigned long vaddr = (unsigned long __force)addr;
 	struct vm_struct *p;
 
-	if (PXSEG(vaddr) < P3SEG)
+	if (PXSEG(vaddr) < P3SEG || is_pci_memaddr(vaddr))
 		return;
 
 #ifdef CONFIG_32BIT

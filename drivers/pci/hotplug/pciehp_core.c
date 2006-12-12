@@ -448,7 +448,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	}
 
 	/* Wait for exclusive access to hardware */
-	mutex_lock(&ctrl->crit_sect);
+	mutex_lock(&ctrl->ctrl_lock);
 
 	t_slot->hpc_ops->get_adapter_status(t_slot, &value); /* Check if slot is occupied */
 	
@@ -456,7 +456,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		rc = t_slot->hpc_ops->power_off_slot(t_slot); /* Power off slot if not occupied*/
 		if (rc) {
 			/* Done with exclusive hardware access */
-			mutex_unlock(&ctrl->crit_sect);
+			mutex_unlock(&ctrl->ctrl_lock);
 			goto err_out_free_ctrl_slot;
 		} else
 			/* Wait for the command to complete */
@@ -464,7 +464,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	}
 
 	/* Done with exclusive hardware access */
-	mutex_unlock(&ctrl->crit_sect);
+	mutex_unlock(&ctrl->ctrl_lock);
 
 	return 0;
 
@@ -521,14 +521,9 @@ static void __exit unload_pciehpd(void)
 
 }
 
-static int hpdriver_context = 0;
-
 static void pciehp_remove (struct pcie_device *device)
 {
-	printk("%s ENTRY\n", __FUNCTION__);	
-	printk("%s -> Call free_irq for irq = %d\n",  
-		__FUNCTION__, device->irq);
-	free_irq(device->irq, &hpdriver_context);
+	/* XXX - Needs to be adapted to device driver model */
 }
 
 #ifdef CONFIG_PM

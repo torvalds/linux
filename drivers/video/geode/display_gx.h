@@ -11,10 +11,14 @@
 #ifndef __DISPLAY_GX_H__
 #define __DISPLAY_GX_H__
 
-int gx_frame_buffer_size(void);
+unsigned int gx_frame_buffer_size(void);
 int gx_line_delta(int xres, int bpp);
 
 extern struct geode_dc_ops gx_dc_ops;
+
+/* MSR that tells us if a TFT or CRT is attached */
+#define GLD_MSR_CONFIG   0xC0002001
+#define GLD_MSR_CONFIG_DM_FP 0x40
 
 /* Display controller registers */
 
@@ -93,4 +97,5 @@ extern struct geode_dc_ops gx_dc_ops;
 #define DC_PAL_ADDRESS 0x70
 #define DC_PAL_DATA    0x74
 
+#define DC_GLIU0_MEM_OFFSET 0x84
 #endif /* !__DISPLAY_GX1_H__ */

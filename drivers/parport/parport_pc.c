@@ -270,9 +270,9 @@ static int clear_epp_timeout(struct parport *pb)
  * of these are in parport_pc.h.
  */
 
-static irqreturn_t parport_pc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t parport_pc_interrupt(int irq, void *dev_id)
 {
-	parport_generic_irq(irq, (struct parport *) dev_id, regs);
+	parport_generic_irq(irq, (struct parport *) dev_id);
 	/* FIXME! Was it really ours? */
 	return IRQ_HANDLED;
 }
@@ -1975,7 +1975,7 @@ static int __devinit parport_ECPPS2_supported(struct parport *pb){return 0;}
 /* --- IRQ detection -------------------------------------- */
 
 /* Only if supports ECP mode */
-static int __devinit programmable_irq_support(struct parport *pb)
+static int programmable_irq_support(struct parport *pb)
 {
 	int irq, intrLine;
 	unsigned char oecr = inb (ECONTROL (pb));
@@ -1992,7 +1992,7 @@ static int __devinit programmable_irq_support(struct parport *pb)
 	return irq;
 }
 
-static int __devinit irq_probe_ECP(struct parport *pb)
+static int irq_probe_ECP(struct parport *pb)
 {
 	int i;
 	unsigned long irqs;
@@ -2020,7 +2020,7 @@ static int __devinit irq_probe_ECP(struct parport *pb)
  * This detection seems that only works in National Semiconductors
  * This doesn't work in SMC, LGS, and Winbond 
  */
-static int __devinit irq_probe_EPP(struct parport *pb)
+static int irq_probe_EPP(struct parport *pb)
 {
 #ifndef ADVANCED_DETECT
 	return PARPORT_IRQ_NONE;
@@ -2059,7 +2059,7 @@ static int __devinit irq_probe_EPP(struct parport *pb)
 #endif /* Advanced detection */
 }
 
-static int __devinit irq_probe_SPP(struct parport *pb)
+static int irq_probe_SPP(struct parport *pb)
 {
 	/* Don't even try to do this. */
 	return PARPORT_IRQ_NONE;
@@ -2747,6 +2747,7 @@ enum parport_pc_pci_cards {
 	titan_1284p2,
 	avlab_1p,
 	avlab_2p,
+	oxsemi_952,
 	oxsemi_954,
 	oxsemi_840,
 	aks_0100,
@@ -2822,6 +2823,7 @@ static struct parport_pc_pci {
 	/* avlab_2p		*/	{ 2, { { 0, 1}, { 2, 3 },} },
 	/* The Oxford Semi cards are unusual: 954 doesn't support ECP,
 	 * and 840 locks up if you write 1 to bit 2! */
+	/* oxsemi_952 */		{ 1, { { 0, 1 }, } },
 	/* oxsemi_954 */		{ 1, { { 0, -1 }, } },
 	/* oxsemi_840 */		{ 1, { { 0, -1 }, } },
 	/* aks_0100 */                  { 1, { { 0, -1 }, } },
@@ -2895,6 +2897,8 @@ static const struct pci_device_id parport_pc_pci_tbl[] = {
 	/* PCI_VENDOR_ID_AVLAB/Intek21 has another bunch of cards ...*/
 	{ 0x14db, 0x2120, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1p}, /* AFAVLAB_TK9902 */
 	{ 0x14db, 0x2121, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_2p},
+	{ PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_16PCI952PP,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, oxsemi_952 },
 	{ PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_16PCI954PP,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, oxsemi_954 },
 	{ PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_12PCI840,

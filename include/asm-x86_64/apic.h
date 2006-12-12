@@ -77,7 +77,7 @@ extern void sync_Arb_IDs (void);
 extern void init_bsp_APIC (void);
 extern void setup_local_APIC (void);
 extern void init_apic_mappings (void);
-extern void smp_local_timer_interrupt (struct pt_regs * regs);
+extern void smp_local_timer_interrupt (void);
 extern void setup_boot_APIC_clock (void);
 extern void setup_secondary_APIC_clock (void);
 extern int APIC_init_uniprocessor (void);

@@ -2,7 +2,7 @@
  * net/tipc/socket.c: TIPC socket API
  * 
  * Copyright (c) 2001-2006, Ericsson AB
- * Copyright (c) 2004-2005, Wind River Systems
+ * Copyright (c) 2004-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -629,6 +629,9 @@ static int send_stream(struct kiocb *iocb, struct socket *sock,
                         return -ENOTCONN;
         }
 
+	if (unlikely(m->msg_name))
+		return -EISCONN;
+
 	/* 
 	 * Send each iovec entry using one or more messages
 	 *
@@ -641,6 +644,8 @@ static int send_stream(struct kiocb *iocb, struct socket *sock,
 	curr_iovlen = m->msg_iovlen;
 	my_msg.msg_iov = &my_iov;
 	my_msg.msg_iovlen = 1;
+	my_msg.msg_flags = m->msg_flags;
+	my_msg.msg_name = NULL;
 	bytes_sent = 0;
 
 	while (curr_iovlen--) {
@@ -941,7 +946,7 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 	int sz_to_copy;
 	int sz_copied = 0;
 	int needed;
-	char *crs = m->msg_iov->iov_base;
+	char __user *crs = m->msg_iov->iov_base;
 	unsigned char *buf_crs;
 	u32 err;
 	int res;
@@ -1203,7 +1208,8 @@ static u32 dispatch(struct tipc_port *tport, struct sk_buff *buf)
 	atomic_inc(&tipc_queue_size);
 	skb_queue_tail(&sock->sk->sk_receive_queue, buf);
 
-        wake_up_interruptible(sock->sk->sk_sleep);
+	if (waitqueue_active(sock->sk->sk_sleep))
+		wake_up_interruptible(sock->sk->sk_sleep);
 	return TIPC_OK;
 }
 
@@ -1218,7 +1224,8 @@ static void wakeupdispatch(struct tipc_port *tport)
 {
 	struct tipc_sock *tsock = (struct tipc_sock *)tport->usr_handle;
 
-        wake_up_interruptible(tsock->sk.sk_sleep);
+	if (waitqueue_active(tsock->sk.sk_sleep))
+		wake_up_interruptible(tsock->sk.sk_sleep);
 }
 
 /**
@@ -1496,7 +1503,7 @@ static int setsockopt(struct socket *sock,
 		return -ENOPROTOOPT;
 	if (ol < sizeof(value))
 		return -EINVAL;
-        if ((res = get_user(value, (u32 *)ov)))
+        if ((res = get_user(value, (u32 __user *)ov)))
 		return res;
 
 	if (down_interruptible(&tsock->sem)) 
@@ -1541,7 +1548,7 @@ static int setsockopt(struct socket *sock,
  */
 
 static int getsockopt(struct socket *sock, 
-		      int lvl, int opt, char __user *ov, int *ol)
+		      int lvl, int opt, char __user *ov, int __user *ol)
 {
 	struct tipc_sock *tsock = tipc_sk(sock->sk);
         int len;

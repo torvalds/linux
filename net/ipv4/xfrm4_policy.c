@@ -52,7 +52,7 @@ __xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 		    xdst->u.rt.fl.fl4_dst == fl->fl4_dst &&
 	    	    xdst->u.rt.fl.fl4_src == fl->fl4_src &&
 	    	    xdst->u.rt.fl.fl4_tos == fl->fl4_tos &&
-		    xfrm_bundle_ok(xdst, fl, AF_INET, 0)) {
+		    xfrm_bundle_ok(policy, xdst, fl, AF_INET, 0)) {
 			dst_clone(dst);
 			break;
 		}
@@ -72,8 +72,8 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 	struct dst_entry *dst, *dst_prev;
 	struct rtable *rt0 = (struct rtable*)(*dst_p);
 	struct rtable *rt = rt0;
-	u32 remote = fl->fl4_dst;
-	u32 local  = fl->fl4_src;
+	__be32 remote = fl->fl4_dst;
+	__be32 local  = fl->fl4_src;
 	struct flowi fl_tunnel = {
 		.nl_u = {
 			.ip4_u = {
@@ -199,11 +199,12 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 	if (!(iph->frag_off & htons(IP_MF | IP_OFFSET))) {
 		switch (iph->protocol) {
 		case IPPROTO_UDP:
+		case IPPROTO_UDPLITE:
 		case IPPROTO_TCP:
 		case IPPROTO_SCTP:
 		case IPPROTO_DCCP:
 			if (pskb_may_pull(skb, xprth + 4 - skb->data)) {
-				u16 *ports = (u16 *)xprth;
+				__be16 *ports = (__be16 *)xprth;
 
 				fl->fl_ip_sport = ports[0];
 				fl->fl_ip_dport = ports[1];
@@ -221,7 +222,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 
 		case IPPROTO_ESP:
 			if (pskb_may_pull(skb, xprth + 4 - skb->data)) {
-				u32 *ehdr = (u32 *)xprth;
+				__be32 *ehdr = (__be32 *)xprth;
 
 				fl->fl_ipsec_spi = ehdr[0];
 			}
@@ -229,7 +230,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 
 		case IPPROTO_AH:
 			if (pskb_may_pull(skb, xprth + 8 - skb->data)) {
-				u32 *ah_hdr = (u32*)xprth;
+				__be32 *ah_hdr = (__be32*)xprth;
 
 				fl->fl_ipsec_spi = ah_hdr[1];
 			}
@@ -237,7 +238,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 
 		case IPPROTO_COMP:
 			if (pskb_may_pull(skb, xprth + 4 - skb->data)) {
-				u16 *ipcomp_hdr = (u16 *)xprth;
+				__be16 *ipcomp_hdr = (__be16 *)xprth;
 
 				fl->fl_ipsec_spi = htonl(ntohs(ipcomp_hdr[1]));
 			}
@@ -273,6 +274,8 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 
 	if (likely(xdst->u.rt.idev))
 		in_dev_put(xdst->u.rt.idev);
+	if (likely(xdst->u.rt.peer))
+		inet_putpeer(xdst->u.rt.peer);
 	xfrm_dst_destroy(xdst);
 }
 

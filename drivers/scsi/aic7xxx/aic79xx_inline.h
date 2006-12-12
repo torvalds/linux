@@ -418,10 +418,6 @@ ahd_targetcmd_offset(struct ahd_softc *ahd, u_int index)
 }
 
 /*********************** Miscelaneous Support Functions ***********************/
-static __inline void	ahd_complete_scb(struct ahd_softc *ahd,
-					 struct scb *scb);
-static __inline void	ahd_update_residual(struct ahd_softc *ahd,
-					    struct scb *scb);
 static __inline struct ahd_initiator_tinfo *
 			ahd_fetch_transinfo(struct ahd_softc *ahd,
 					    char channel, u_int our_id,
@@ -467,32 +463,6 @@ static __inline uint32_t
 			ahd_get_sense_bufaddr(struct ahd_softc *ahd,
 					      struct scb *scb);
 
-static __inline void
-ahd_complete_scb(struct ahd_softc *ahd, struct scb *scb)
-{
-	uint32_t sgptr;
-
-	sgptr = ahd_le32toh(scb->hscb->sgptr);
-	if ((sgptr & SG_STATUS_VALID) != 0)
-		ahd_handle_scb_status(ahd, scb);
-	else
-		ahd_done(ahd, scb);
-}
-
-/*
- * Determine whether the sequencer reported a residual
- * for this SCB/transaction.
- */
-static __inline void
-ahd_update_residual(struct ahd_softc *ahd, struct scb *scb)
-{
-	uint32_t sgptr;
-
-	sgptr = ahd_le32toh(scb->hscb->sgptr);
-	if ((sgptr & SG_STATUS_VALID) != 0)
-		ahd_calc_residual(ahd, scb);
-}
-
 /*
  * Return pointers to the transfer negotiation information
  * for the specified our_id/remote_id pair.
@@ -527,7 +497,8 @@ ahd_inw(struct ahd_softc *ahd, u_int port)
 	 * or have other side effects when the low byte is
 	 * read.
 	 */
-	return ((ahd_inb(ahd, port+1) << 8) | ahd_inb(ahd, port));
+	uint16_t r = ahd_inb(ahd, port+1) << 8;
+	return r | ahd_inb(ahd, port);
 }
 
 static __inline void

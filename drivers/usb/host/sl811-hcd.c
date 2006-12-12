@@ -428,7 +428,6 @@ static void finish_request(
 	struct sl811		*sl811,
 	struct sl811h_ep	*ep,
 	struct urb		*urb,
-	struct pt_regs		*regs,
 	int			status
 ) __releases(sl811->lock) __acquires(sl811->lock)
 {
@@ -444,7 +443,7 @@ static void finish_request(
 	spin_unlock(&urb->lock);
 
 	spin_unlock(&sl811->lock);
-	usb_hcd_giveback_urb(sl811_to_hcd(sl811), urb, regs);
+	usb_hcd_giveback_urb(sl811_to_hcd(sl811), urb);
 	spin_lock(&sl811->lock);
 
 	/* leave active endpoints in the schedule */
@@ -484,7 +483,7 @@ static void finish_request(
 }
 
 static void
-done(struct sl811 *sl811, struct sl811h_ep *ep, u8 bank, struct pt_regs *regs)
+done(struct sl811 *sl811, struct sl811h_ep *ep, u8 bank)
 {
 	u8			status;
 	struct urb		*urb;
@@ -597,7 +596,7 @@ done(struct sl811 *sl811, struct sl811h_ep *ep, u8 bank, struct pt_regs *regs)
 	/* error? retry, until "3 strikes" */
 	} else if (++ep->error_count >= 3) {
 		if (status & SL11H_STATMASK_TMOUT)
-			urbstat = -ETIMEDOUT;
+			urbstat = -ETIME;
 		else if (status & SL11H_STATMASK_OVF)
 			urbstat = -EOVERFLOW;
 		else
@@ -608,7 +607,7 @@ done(struct sl811 *sl811, struct sl811h_ep *ep, u8 bank, struct pt_regs *regs)
 	}
 
 	if (urb && (urbstat != -EINPROGRESS || urb->status != -EINPROGRESS))
-		finish_request(sl811, ep, urb, regs, urbstat);
+		finish_request(sl811, ep, urb, urbstat);
 }
 
 static inline u8 checkdone(struct sl811 *sl811)
@@ -641,7 +640,7 @@ static inline u8 checkdone(struct sl811 *sl811)
 	return irqstat;
 }
 
-static irqreturn_t sl811h_irq(struct usb_hcd *hcd, struct pt_regs *regs)
+static irqreturn_t sl811h_irq(struct usb_hcd *hcd)
 {
 	struct sl811	*sl811 = hcd_to_sl811(hcd);
 	u8		irqstat;
@@ -670,13 +669,13 @@ retry:
 	 * issued ... that's fine if they're different endpoints.
 	 */
 	if (irqstat & SL11H_INTMASK_DONE_A) {
-		done(sl811, sl811->active_a, SL811_EP_A(SL811_HOST_BUF), regs);
+		done(sl811, sl811->active_a, SL811_EP_A(SL811_HOST_BUF));
 		sl811->active_a = NULL;
 		sl811->stat_a++;
 	}
 #ifdef USE_B
 	if (irqstat & SL11H_INTMASK_DONE_B) {
-		done(sl811, sl811->active_b, SL811_EP_B(SL811_HOST_BUF), regs);
+		done(sl811, sl811->active_b, SL811_EP_B(SL811_HOST_BUF));
 		sl811->active_b = NULL;
 		sl811->stat_b++;
 	}
@@ -723,7 +722,7 @@ retry:
 				container_of(sl811->active_a
 						->hep->urb_list.next,
 					struct urb, urb_list),
-				NULL, -ESHUTDOWN);
+				-ESHUTDOWN);
 			sl811->active_a = NULL;
 		}
 #ifdef	USE_B
@@ -957,7 +956,7 @@ static int sl811h_urb_enqueue(
 	spin_lock(&urb->lock);
 	if (urb->status != -EINPROGRESS) {
 		spin_unlock(&urb->lock);
-		finish_request(sl811, ep, urb, NULL, 0);
+		finish_request(sl811, ep, urb, 0);
 		retval = 0;
 		goto fail;
 	}
@@ -1026,7 +1025,7 @@ static int sl811h_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 		}
 
 		if (urb)
-			finish_request(sl811, ep, urb, NULL, 0);
+			finish_request(sl811, ep, urb, 0);
 		else
 			VDBG("dequeue, urb %p active %s; wait4irq\n", urb,
 				(sl811->active_a == ep) ? "A" : "B");
@@ -1083,7 +1082,7 @@ sl811h_hub_status_data(struct usb_hcd *hcd, char *buf)
 	 */
 	local_irq_save(flags);
 	if (!timer_pending(&sl811->timer)) {
-		if (sl811h_irq( /* ~0, */ hcd, NULL) != IRQ_NONE)
+		if (sl811h_irq( /* ~0, */ hcd) != IRQ_NONE)
 			sl811->stat_lost++;
 	}
 	local_irq_restore(flags);
@@ -1517,7 +1516,7 @@ static int proc_sl811h_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_sl811h_show, PDE(inode)->data);
 }
 
-static struct file_operations proc_ops = {
+static const struct file_operations proc_ops = {
 	.open		= proc_sl811h_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

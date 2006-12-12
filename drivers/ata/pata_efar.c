@@ -22,7 +22,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_efar"
-#define DRV_VERSION	"0.4.1"
+#define DRV_VERSION	"0.4.3"
 
 /**
  *	efar_pre_reset	-	check for 40/80 pin
@@ -42,11 +42,9 @@ static int efar_pre_reset(struct ata_port *ap)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 tmp;
 
-	if (!pci_test_config_bits(pdev, &efar_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (!pci_test_config_bits(pdev, &efar_enable_bits[ap->port_no]))
+		return -ENOENT;
+
 	pci_read_config_byte(pdev, 0x47, &tmp);
 	if (tmp & (2 >> ap->port_no))
 		ap->cbl = ATA_CBL_PATA40;
@@ -228,14 +226,16 @@ static struct scsi_host_template efar_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static const struct ata_port_operations efar_ops = {
@@ -262,8 +262,6 @@ static const struct ata_port_operations efar_ops = {
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_pio_data_xfer,
-
-	.eng_timeout		= ata_eng_timeout,
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
@@ -309,7 +307,8 @@ static int efar_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 }
 
 static const struct pci_device_id efar_pci_tbl[] = {
-	{ 0x1055, 0x9130, PCI_ANY_ID, PCI_ANY_ID, },
+	{ PCI_VDEVICE(EFAR, 0x9130), },
+
 	{ }	/* terminate list */
 };
 
@@ -318,6 +317,8 @@ static struct pci_driver efar_pci_driver = {
 	.id_table		= efar_pci_tbl,
 	.probe			= efar_init_one,
 	.remove			= ata_pci_remove_one,
+	.suspend		= ata_pci_device_suspend,
+	.resume			= ata_pci_device_resume,
 };
 
 static int __init efar_init(void)
@@ -329,7 +330,6 @@ static void __exit efar_exit(void)
 {
 	pci_unregister_driver(&efar_pci_driver);
 }
-
 
 module_init(efar_init);
 module_exit(efar_exit);

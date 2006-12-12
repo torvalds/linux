@@ -315,7 +315,7 @@ struct getdents_callback {
  * the name matching the specified inode number.
  */
 static int filldir_one(void * __buf, const char * name, int len,
-			loff_t pos, ino_t ino, unsigned int d_type)
+			loff_t pos, u64 ino, unsigned int d_type)
 {
 	struct getdents_callback *buf = __buf;
 	int result = 0;

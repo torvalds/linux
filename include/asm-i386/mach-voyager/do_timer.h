@@ -1,14 +1,14 @@
 /* defines for inline arch setup functions */
 #include <asm/voyager.h>
 
-static inline void do_timer_interrupt_hook(struct pt_regs *regs)
+static inline void do_timer_interrupt_hook(void)
 {
-	do_timer(regs);
+	do_timer(1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode_vm(regs));
+	update_process_times(user_mode_vm(irq_regs));
 #endif
 
-	voyager_timer_interrupt(regs);
+	voyager_timer_interrupt();
 }
 
 static inline int do_timer_overflow(int count)

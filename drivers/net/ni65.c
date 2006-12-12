@@ -248,7 +248,7 @@ struct priv
 };
 
 static int  ni65_probe1(struct net_device *dev,int);
-static irqreturn_t ni65_interrupt(int irq, void * dev_id, struct pt_regs *regs);
+static irqreturn_t ni65_interrupt(int irq, void * dev_id);
 static void ni65_recv_intr(struct net_device *dev,int);
 static void ni65_xmit_intr(struct net_device *dev,int);
 static int  ni65_open(struct net_device *dev);
@@ -871,7 +871,7 @@ static int ni65_lance_reinit(struct net_device *dev)
 /*
  * interrupt handler
  */
-static irqreturn_t ni65_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+static irqreturn_t ni65_interrupt(int irq, void * dev_id)
 {
 	int csr0 = 0;
 	struct net_device *dev = dev_id;
@@ -1259,7 +1259,7 @@ int __init init_module(void)
 	return IS_ERR(dev_ni65) ? PTR_ERR(dev_ni65) : 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
  	unregister_netdev(dev_ni65);
  	cleanup_card(dev_ni65);

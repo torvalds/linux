@@ -199,7 +199,7 @@ static int pxa_irda_set_speed(struct pxa_irda *si, int speed)
 }
 
 /* SIR interrupt service routine. */
-static irqreturn_t pxa_irda_sir_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pxa_irda_sir_irq(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct pxa_irda *si = netdev_priv(dev);
@@ -281,7 +281,7 @@ static irqreturn_t pxa_irda_sir_irq(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 /* FIR Receive DMA interrupt handler */
-static void pxa_irda_fir_dma_rx_irq(int channel, void *data, struct pt_regs *regs)
+static void pxa_irda_fir_dma_rx_irq(int channel, void *data)
 {
 	int dcsr = DCSR(channel);
 
@@ -291,7 +291,7 @@ static void pxa_irda_fir_dma_rx_irq(int channel, void *data, struct pt_regs *reg
 }
 
 /* FIR Transmit DMA interrupt handler */
-static void pxa_irda_fir_dma_tx_irq(int channel, void *data, struct pt_regs *regs)
+static void pxa_irda_fir_dma_tx_irq(int channel, void *data)
 {
 	struct net_device *dev = data;
 	struct pxa_irda *si = netdev_priv(dev);
@@ -388,7 +388,7 @@ static void pxa_irda_fir_irq_eif(struct pxa_irda *si, struct net_device *dev)
 }
 
 /* FIR interrupt handler */
-static irqreturn_t pxa_irda_fir_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pxa_irda_fir_irq(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct pxa_irda *si = netdev_priv(dev);
@@ -704,9 +704,9 @@ static int pxa_irda_stop(struct net_device *dev)
 	return 0;
 }
 
-static int pxa_irda_suspend(struct device *_dev, pm_message_t state)
+static int pxa_irda_suspend(struct platform_device *_dev, pm_message_t state)
 {
-	struct net_device *dev = dev_get_drvdata(_dev);
+	struct net_device *dev = platform_get_drvdata(_dev);
 	struct pxa_irda *si;
 
 	if (dev && netif_running(dev)) {
@@ -718,9 +718,9 @@ static int pxa_irda_suspend(struct device *_dev, pm_message_t state)
 	return 0;
 }
 
-static int pxa_irda_resume(struct device *_dev)
+static int pxa_irda_resume(struct platform_device *_dev)
 {
-	struct net_device *dev = dev_get_drvdata(_dev);
+	struct net_device *dev = platform_get_drvdata(_dev);
 	struct pxa_irda *si;
 
 	if (dev && netif_running(dev)) {
@@ -746,9 +746,8 @@ static int pxa_irda_init_iobuf(iobuff_t *io, int size)
 	return io->head ? 0 : -ENOMEM;
 }
 
-static int pxa_irda_probe(struct device *_dev)
+static int pxa_irda_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(_dev);
 	struct net_device *dev;
 	struct pxa_irda *si;
 	unsigned int baudrate_mask;
@@ -822,9 +821,9 @@ err_mem_1:
 	return err;
 }
 
-static int pxa_irda_remove(struct device *_dev)
+static int pxa_irda_remove(struct platform_device *_dev)
 {
-	struct net_device *dev = dev_get_drvdata(_dev);
+	struct net_device *dev = platform_get_drvdata(_dev);
 
 	if (dev) {
 		struct pxa_irda *si = netdev_priv(dev);
@@ -840,9 +839,10 @@ static int pxa_irda_remove(struct device *_dev)
 	return 0;
 }
 
-static struct device_driver pxa_ir_driver = {
-	.name		= "pxa2xx-ir",
-	.bus		= &platform_bus_type,
+static struct platform_driver pxa_ir_driver = {
+	.driver         = {
+		.name   = "pxa2xx-ir",
+	},
 	.probe		= pxa_irda_probe,
 	.remove		= pxa_irda_remove,
 	.suspend	= pxa_irda_suspend,
@@ -851,12 +851,12 @@ static struct device_driver pxa_ir_driver = {
 
 static int __init pxa_irda_init(void)
 {
-	return driver_register(&pxa_ir_driver);
+	return platform_driver_register(&pxa_ir_driver);
 }
 
 static void __exit pxa_irda_exit(void)
 {
-	driver_unregister(&pxa_ir_driver);
+	platform_driver_unregister(&pxa_ir_driver);
 }
 
 module_init(pxa_irda_init);

@@ -76,6 +76,7 @@ struct ads7846 {
 	char			phys[32];
 
 	struct spi_device	*spi;
+	struct attribute_group	*attr_group;
 	u16			model;
 	u16			vref_delay_usecs;
 	u16			x_plate_ohms;
@@ -189,7 +190,7 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 {
 	struct spi_device	*spi = to_spi_device(dev);
 	struct ads7846		*ts = dev_get_drvdata(dev);
-	struct ser_req		*req = kzalloc(sizeof *req, SLAB_KERNEL);
+	struct ser_req		*req = kzalloc(sizeof *req, GFP_KERNEL);
 	int			status;
 	int			sample;
 	int			i;
@@ -316,6 +317,48 @@ static ssize_t ads7846_disable_store(struct device *dev,
 }
 
 static DEVICE_ATTR(disable, 0664, ads7846_disable_show, ads7846_disable_store);
+
+static struct attribute *ads7846_attributes[] = {
+	&dev_attr_temp0.attr,
+	&dev_attr_temp1.attr,
+	&dev_attr_vbatt.attr,
+	&dev_attr_vaux.attr,
+	&dev_attr_pen_down.attr,
+	&dev_attr_disable.attr,
+	NULL,
+};
+
+static struct attribute_group ads7846_attr_group = {
+	.attrs = ads7846_attributes,
+};
+
+/*
+ * ads7843/7845 don't have temperature sensors, and
+ * use the other sensors a bit differently too
+ */
+
+static struct attribute *ads7843_attributes[] = {
+	&dev_attr_vbatt.attr,
+	&dev_attr_vaux.attr,
+	&dev_attr_pen_down.attr,
+	&dev_attr_disable.attr,
+	NULL,
+};
+
+static struct attribute_group ads7843_attr_group = {
+	.attrs = ads7843_attributes,
+};
+
+static struct attribute *ads7845_attributes[] = {
+	&dev_attr_vaux.attr,
+	&dev_attr_pen_down.attr,
+	&dev_attr_disable.attr,
+	NULL,
+};
+
+static struct attribute_group ads7845_attr_group = {
+	.attrs = ads7845_attributes,
+};
 
 /*--------------------------------------------------------------------------*/
 
@@ -487,7 +530,7 @@ static void ads7846_timer(unsigned long handle)
 	spin_unlock_irq(&ts->lock);
 }
 
-static irqreturn_t ads7846_irq(int irq, void *handle, struct pt_regs *regs)
+static irqreturn_t ads7846_irq(int irq, void *handle)
 {
 	struct ads7846 *ts = handle;
 	unsigned long flags;
@@ -788,38 +831,30 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	(void) ads7846_read12_ser(&spi->dev,
 			  READ_12BIT_SER(vaux) | ADS_PD10_ALL_ON);
 
-	/* ads7843/7845 don't have temperature sensors, and
-	 * use the other sensors a bit differently too
-	 */
-	if (ts->model == 7846) {
-		device_create_file(&spi->dev, &dev_attr_temp0);
-		device_create_file(&spi->dev, &dev_attr_temp1);
+	switch (ts->model) {
+	case 7846:
+		ts->attr_group = &ads7846_attr_group;
+		break;
+	case 7845:
+		ts->attr_group = &ads7845_attr_group;
+		break;
+	default:
+		ts->attr_group = &ads7843_attr_group;
+		break;
 	}
-	if (ts->model != 7845)
-		device_create_file(&spi->dev, &dev_attr_vbatt);
-	device_create_file(&spi->dev, &dev_attr_vaux);
-
-	device_create_file(&spi->dev, &dev_attr_pen_down);
-
-	device_create_file(&spi->dev, &dev_attr_disable);
+	err = sysfs_create_group(&spi->dev.kobj, ts->attr_group);
+	if (err)
+		goto err_free_irq;
 
 	err = input_register_device(input_dev);
 	if (err)
-		goto err_remove_attr;
+		goto err_remove_attr_group;
 
 	return 0;
 
- err_remove_attr:
-	device_remove_file(&spi->dev, &dev_attr_disable);
-	device_remove_file(&spi->dev, &dev_attr_pen_down);
-	if (ts->model == 7846) {
-		device_remove_file(&spi->dev, &dev_attr_temp1);
-		device_remove_file(&spi->dev, &dev_attr_temp0);
-	}
-	if (ts->model != 7845)
-		device_remove_file(&spi->dev, &dev_attr_vbatt);
-	device_remove_file(&spi->dev, &dev_attr_vaux);
-
+ err_remove_attr_group:
+	sysfs_remove_group(&spi->dev.kobj, ts->attr_group);
+ err_free_irq:
 	free_irq(spi->irq, ts);
  err_free_mem:
 	input_free_device(input_dev);
@@ -835,15 +870,7 @@ static int __devexit ads7846_remove(struct spi_device *spi)
 
 	ads7846_suspend(spi, PMSG_SUSPEND);
 
-	device_remove_file(&spi->dev, &dev_attr_disable);
-	device_remove_file(&spi->dev, &dev_attr_pen_down);
-	if (ts->model == 7846) {
-		device_remove_file(&spi->dev, &dev_attr_temp1);
-		device_remove_file(&spi->dev, &dev_attr_temp0);
-	}
-	if (ts->model != 7845)
-		device_remove_file(&spi->dev, &dev_attr_vbatt);
-	device_remove_file(&spi->dev, &dev_attr_vaux);
+	sysfs_remove_group(&spi->dev.kobj, ts->attr_group);
 
 	free_irq(ts->spi->irq, ts);
 	/* suspend left the IRQ disabled */

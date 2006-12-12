@@ -141,7 +141,7 @@ static void qdi_data_xfer(struct ata_device *adev, unsigned char *buf, unsigned 
 				memcpy(&pad, buf + buflen - slop, slop);
 				outl(le32_to_cpu(pad), ap->ioaddr.data_addr);
 			} else {
-				pad = cpu_to_le16(inl(ap->ioaddr.data_addr));
+				pad = cpu_to_le32(inl(ap->ioaddr.data_addr));
 				memcpy(buf + buflen - slop, &pad, slop);
 			}
 		}
@@ -157,13 +157,13 @@ static struct scsi_host_template qdi_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
 };
 
@@ -184,7 +184,7 @@ static struct ata_port_operations qdi6500_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= qdi_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= qdi_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -212,7 +212,7 @@ static struct ata_port_operations qdi6580_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= qdi_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= qdi_data_xfer,
 
 	.irq_handler	= ata_interrupt,

@@ -16,8 +16,11 @@ static void pci_free_resources(struct pci_dev *dev)
 	}
 }
 
-static void pci_destroy_dev(struct pci_dev *dev)
+static void pci_stop_dev(struct pci_dev *dev)
 {
+	if (!dev->global_list.next)
+		return;
+
 	if (!list_empty(&dev->global_list)) {
 		pci_proc_detach_device(dev);
 		pci_remove_sysfs_dev_files(dev);
@@ -27,6 +30,11 @@ static void pci_destroy_dev(struct pci_dev *dev)
 		dev->global_list.next = dev->global_list.prev = NULL;
 		up_write(&pci_bus_sem);
 	}
+}
+
+static void pci_destroy_dev(struct pci_dev *dev)
+{
+	pci_stop_dev(dev);
 
 	/* Remove the device from the device lists, and prevent any further
 	 * list accesses from this device */
@@ -119,5 +127,32 @@ void pci_remove_behind_bridge(struct pci_dev *dev)
 	}
 }
 
+static void pci_stop_bus_devices(struct pci_bus *bus)
+{
+	struct list_head *l, *n;
+
+	list_for_each_safe(l, n, &bus->devices) {
+		struct pci_dev *dev = pci_dev_b(l);
+		pci_stop_bus_device(dev);
+	}
+}
+
+/**
+ * pci_stop_bus_device - stop a PCI device and any children
+ * @dev: the device to stop
+ *
+ * Stop a PCI device (detach the driver, remove from the global list
+ * and so on). This also stop any subordinate buses and children in a
+ * depth-first manner.
+ */
+void pci_stop_bus_device(struct pci_dev *dev)
+{
+	if (dev->subordinate)
+		pci_stop_bus_devices(dev->subordinate);
+
+	pci_stop_dev(dev);
+}
+
 EXPORT_SYMBOL(pci_remove_bus_device);
 EXPORT_SYMBOL(pci_remove_behind_bridge);
+EXPORT_SYMBOL_GPL(pci_stop_bus_device);

@@ -30,7 +30,6 @@ struct r1_private_data_s {
 	mddev_t			*mddev;
 	mirror_info_t		*mirrors;
 	int			raid_disks;
-	int			working_disks;
 	int			last_used;
 	sector_t		next_seq_sect;
 	spinlock_t		device_lock;

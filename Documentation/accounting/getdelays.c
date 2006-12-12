@@ -7,6 +7,8 @@
  * Copyright (C) Balbir Singh, IBM Corp. 2006
  * Copyright (c) Jay Lan, SGI. 2006
  *
+ * Compile with
+ *	gcc -I/usr/src/linux/include getdelays.c -o getdelays
  */
 
 #include <stdio.h>
@@ -35,13 +37,20 @@
 #define NLA_DATA(na)		((void *)((char*)(na) + NLA_HDRLEN))
 #define NLA_PAYLOAD(len)	(len - NLA_HDRLEN)
 
-#define err(code, fmt, arg...) do { printf(fmt, ##arg); exit(code); } while (0)
-int done = 0;
-int rcvbufsz=0;
+#define err(code, fmt, arg...)			\
+	do {					\
+		fprintf(stderr, fmt, ##arg);	\
+		exit(code);			\
+	} while (0)
 
-    char name[100];
-int dbg=0, print_delays=0;
+int done;
+int rcvbufsz;
+char name[100];
+int dbg;
+int print_delays;
+int print_io_accounting;
 __u64 stime, utime;
+
 #define PRINTF(fmt, arg...) {			\
 	    if (dbg) {				\
 		printf(fmt, ##arg);		\
@@ -49,7 +58,7 @@ __u64 stime, utime;
 	}
 
 /* Maximum size of response requested or message sent */
-#define MAX_MSG_SIZE	256
+#define MAX_MSG_SIZE	1024
 /* Maximum number of cpus expected to be specified in a cpumask */
 #define MAX_CPUS	32
 /* Maximum length of pathname to log file */
@@ -78,8 +87,9 @@ static int create_nl_socket(int protocol)
 	if (rcvbufsz)
 		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
 				&rcvbufsz, sizeof(rcvbufsz)) < 0) {
-			printf("Unable to set socket rcv buf size to %d\n",
-			       rcvbufsz);
+			fprintf(stderr, "Unable to set socket rcv buf size "
+					"to %d\n",
+				rcvbufsz);
 			return -1;
 		}
 
@@ -186,6 +196,15 @@ void print_delayacct(struct taskstats *t)
 	       "count", "delay total", t->swapin_count, t->swapin_delay_total);
 }
 
+void print_ioacct(struct taskstats *t)
+{
+	printf("%s: read=%llu, write=%llu, cancelled_write=%llu\n",
+		t->ac_comm,
+		(unsigned long long)t->read_bytes,
+		(unsigned long long)t->write_bytes,
+		(unsigned long long)t->cancelled_write_bytes);
+}
+
 int main(int argc, char *argv[])
 {
 	int c, rc, rep_len, aggr_len, len2, cmd_type;
@@ -208,7 +227,7 @@ int main(int argc, char *argv[])
 	struct msgtemplate msg;
 
 	while (1) {
-		c = getopt(argc, argv, "dw:r:m:t:p:v:l");
+		c = getopt(argc, argv, "diw:r:m:t:p:v:l");
 		if (c < 0)
 			break;
 
@@ -216,6 +235,10 @@ int main(int argc, char *argv[])
 		case 'd':
 			printf("print delayacct stats ON\n");
 			print_delays = 1;
+			break;
+		case 'i':
+			printf("printing IO accounting\n");
+			print_io_accounting = 1;
 			break;
 		case 'w':
 			strncpy(logfile, optarg, MAX_FILENAME);
@@ -238,14 +261,12 @@ int main(int argc, char *argv[])
 			if (!tid)
 				err(1, "Invalid tgid\n");
 			cmd_type = TASKSTATS_CMD_ATTR_TGID;
-			print_delays = 1;
 			break;
 		case 'p':
 			tid = atoi(optarg);
 			if (!tid)
 				err(1, "Invalid pid\n");
 			cmd_type = TASKSTATS_CMD_ATTR_PID;
-			print_delays = 1;
 			break;
 		case 'v':
 			printf("debug on\n");
@@ -277,7 +298,7 @@ int main(int argc, char *argv[])
 	mypid = getpid();
 	id = get_family_id(nl_sd);
 	if (!id) {
-		printf("Error getting family id, errno %d", errno);
+		fprintf(stderr, "Error getting family id, errno %d\n", errno);
 		goto err;
 	}
 	PRINTF("family id %d\n", id);
@@ -285,10 +306,10 @@ int main(int argc, char *argv[])
 	if (maskset) {
 		rc = send_cmd(nl_sd, id, mypid, TASKSTATS_CMD_GET,
 			      TASKSTATS_CMD_ATTR_REGISTER_CPUMASK,
-			      &cpumask, sizeof(cpumask));
+			      &cpumask, strlen(cpumask) + 1);
 		PRINTF("Sent register cpumask, retval %d\n", rc);
 		if (rc < 0) {
-			printf("error sending register cpumask\n");
+			fprintf(stderr, "error sending register cpumask\n");
 			goto err;
 		}
 	}
@@ -298,7 +319,7 @@ int main(int argc, char *argv[])
 			      cmd_type, &tid, sizeof(__u32));
 		PRINTF("Sent pid/tgid, retval %d\n", rc);
 		if (rc < 0) {
-			printf("error sending tid/tgid cmd\n");
+			fprintf(stderr, "error sending tid/tgid cmd\n");
 			goto done;
 		}
 	}
@@ -310,12 +331,15 @@ int main(int argc, char *argv[])
 		PRINTF("received %d bytes\n", rep_len);
 
 		if (rep_len < 0) {
-			printf("nonfatal reply error: errno %d\n", errno);
+			fprintf(stderr, "nonfatal reply error: errno %d\n",
+				errno);
 			continue;
 		}
 		if (msg.n.nlmsg_type == NLMSG_ERROR ||
 		    !NLMSG_OK((&msg.n), rep_len)) {
-			printf("fatal reply error,  errno %d\n", errno);
+			struct nlmsgerr *err = NLMSG_DATA(&msg);
+			fprintf(stderr, "fatal reply error,  errno %d\n",
+				err->error);
 			goto done;
 		}
 
@@ -355,6 +379,8 @@ int main(int argc, char *argv[])
 						count++;
 						if (print_delays)
 							print_delayacct((struct taskstats *) NLA_DATA(na));
+						if (print_io_accounting)
+							print_ioacct((struct taskstats *) NLA_DATA(na));
 						if (fd) {
 							if (write(fd, NLA_DATA(na), na->nla_len) < 0) {
 								err(1,"write error\n");
@@ -364,7 +390,9 @@ int main(int argc, char *argv[])
 							goto done;
 						break;
 					default:
-						printf("Unknown nested nla_type %d\n", na->nla_type);
+						fprintf(stderr, "Unknown nested"
+							" nla_type %d\n",
+							na->nla_type);
 						break;
 					}
 					len2 += NLA_ALIGN(na->nla_len);
@@ -373,7 +401,8 @@ int main(int argc, char *argv[])
 				break;
 
 			default:
-				printf("Unknown nla_type %d\n", na->nla_type);
+				fprintf(stderr, "Unknown nla_type %d\n",
+					na->nla_type);
 				break;
 			}
 			na = (struct nlattr *) (GENLMSG_DATA(&msg) + len);
@@ -383,7 +412,7 @@ done:
 	if (maskset) {
 		rc = send_cmd(nl_sd, id, mypid, TASKSTATS_CMD_GET,
 			      TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK,
-			      &cpumask, sizeof(cpumask));
+			      &cpumask, strlen(cpumask) + 1);
 		printf("Sent deregister mask, retval %d\n", rc);
 		if (rc < 0)
 			err(rc, "error sending deregister cpumask\n");

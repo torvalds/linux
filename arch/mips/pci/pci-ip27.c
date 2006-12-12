@@ -16,8 +16,6 @@
 #include <asm/sn/intr.h>
 #include <asm/sn/sn0/hub.h>
 
-extern unsigned int allocate_irqno(void);
-
 /*
  * Max #PCI busses we can handle; ie, max #PCI bridges.
  */

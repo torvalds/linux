@@ -24,12 +24,15 @@ config NETDEVICES
 
 	  If unsure, say Y.
 
+# All the following symbols are dependent on NETDEVICES - do not repeat
+# that for each of the symbols.
+if NETDEVICES
 
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
 	---help---
-	  This is an intermidiate driver that allows sharing of
+	  This is an intermediate driver that allows sharing of
 	  resources.
 	  To compile this driver as a module, choose M here: the module
 	  will be called ifb.  If you want to use more than one ifb
@@ -184,6 +187,17 @@ config MII
 	  Most ethernet controllers have MII transceiver either as an external
 	  or internal device.  It is safe to say Y or M here even if your
 	  ethernet card lack MII.
+
+config MACB
+	tristate "Atmel MACB support"
+	depends on NET_ETHERNET && AVR32
+	select MII
+	help
+	  The Atmel MACB ethernet interface is found on many AT32 and AT91
+	  parts. Say Y to include support for the MACB chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called macb.
 
 source "drivers/net/arm/Kconfig"
 
@@ -483,7 +497,7 @@ config SGI_IOC3_ETH_HW_TX_CSUM
 
 config MIPS_SIM_NET
 	tristate "MIPS simulator Network device (EXPERIMENTAL)"
-	depends on NETDEVICES && MIPS_SIM && EXPERIMENTAL
+	depends on MIPS_SIM && EXPERIMENTAL
 	help
 	  The MIPSNET device is a simple Ethernet network device which is
 	  emulated by the MIPS Simulator.
@@ -1766,8 +1780,8 @@ config VIA_RHINE_NAPI
 	  information.
 
 config LAN_SAA9730
-	bool "Philips SAA9730 Ethernet support (EXPERIMENTAL)"
-	depends on NET_PCI && EXPERIMENTAL && MIPS
+	bool "Philips SAA9730 Ethernet support"
+	depends on NET_PCI && PCI && MIPS_ATLAS
 	help
 	  The SAA9730 is a combined multimedia and peripheral controller used
 	  in thin clients, Internet access terminals, and diskless
@@ -2109,16 +2123,16 @@ config SKGE
 
 config SKY2
 	tristate "SysKonnect Yukon2 support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	select CRC32
 	---help---
-	  This driver supports Gigabit Ethernet adapters based on the the
+	  This driver supports Gigabit Ethernet adapters based on the
 	  Marvell Yukon 2 chipset:
 	  Marvell 88E8021/88E8022/88E8035/88E8036/88E8038/88E8050/88E8052/
 	  88E8053/88E8055/88E8061/88E8062, SysKonnect SK-9E21D/SK-9S21
 
-	  This driver does not support the original Yukon chipset: a seperate
-	  driver, skge, is provided for Yukon-based adapters.
+	  There is companion driver for the older Marvell Yukon and
+	  Genesis based adapters: skge.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called sky2.  This is recommended.
@@ -2133,7 +2147,7 @@ config SK98LIN
 	  This driver supports the original Yukon chipset. A cleaner driver is 
 	  also available (skge) which seems to work better than this one.
 
-	  This driver does not support the newer Yukon2 chipset. A seperate
+	  This driver does not support the newer Yukon2 chipset. A separate
 	  driver, sky2, is provided to support Yukon2-based adapters.
 
 	  The following adapters are supported by this driver:
@@ -2248,6 +2262,14 @@ config SPIDER_NET
 	  This driver supports the Gigabit Ethernet chips present on the
 	  Cell Processor-Based Blades from IBM.
 
+config TSI108_ETH
+	   tristate "Tundra TSI108 gigabit Ethernet support"
+	   depends on TSI108_BRIDGE
+	   help
+	     This driver supports Tundra TSI108 gigabit Ethernet ports.
+	     To compile this driver as a module, choose M here: the module
+	     will be called tsi108_eth.
+
 config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on 85xx || 83xx || PPC_86xx
@@ -2285,7 +2307,7 @@ config UGETH_TX_ON_DEMOND
 
 config UGETH_HAS_GIGA
 	bool
-	depends on UCC_GETH && MPC836x
+	depends on UCC_GETH && PPC_MPC836x
 
 config MV643XX_ETH
 	tristate "MV-643XX Ethernet support"
@@ -2338,10 +2360,11 @@ menu "Ethernet (10000 Mbit)"
 config CHELSIO_T1
         tristate "Chelsio 10Gb Ethernet support"
         depends on PCI
+	select CRC32
         help
-          This driver supports Chelsio N110 and N210 models 10Gb Ethernet
-          cards. More information about adapter features and performance
-          tuning is in <file:Documentation/networking/cxgb.txt>.
+          This driver supports Chelsio gigabit and 10-gigabit
+          Ethernet cards. More information about adapter features and
+	  performance tuning is in <file:Documentation/networking/cxgb.txt>.
 
           For general information about Chelsio and our products, visit
           our website at <http://www.chelsio.com>.
@@ -2353,6 +2376,21 @@ config CHELSIO_T1
 
           To compile this driver as a module, choose M here: the module
           will be called cxgb.
+
+config CHELSIO_T1_1G
+        bool "Chelsio gigabit Ethernet support"
+        depends on CHELSIO_T1
+        help
+          Enables support for Chelsio's gigabit Ethernet PCI cards.  If you
+          are using only 10G cards say 'N' here.
+
+config CHELSIO_T1_NAPI
+	bool "Use Rx Polling (NAPI)"
+	depends on CHELSIO_T1
+	default y
+	help
+	  NAPI is a driver API designed to reduce CPU and interrupt load
+	  when the driver is receiving lots of packets from the card.
 
 config EHEA
 	tristate "eHEA Ethernet support"
@@ -2444,6 +2482,12 @@ config MYRI10GE
 	  <file:Documentation/networking/net-modules.txt>.  The module
 	  will be called myri10ge.
 
+config NETXEN_NIC
+	tristate "NetXen Multi port (1/10) Gigabit Ethernet NIC"
+	depends on PCI
+	help
+	  This enables the support for NetXen's Gigabit Ethernet card.
+
 endmenu
 
 source "drivers/net/tokenring/Kconfig"
@@ -2464,7 +2508,7 @@ config ISERIES_VETH
 
 config RIONET
 	tristate "RapidIO Ethernet over messaging driver support"
-	depends on NETDEVICES && RAPIDIO
+	depends on RAPIDIO
 
 config RIONET_TX_SIZE
 	int "Number of outbound queue entries"
@@ -2714,6 +2758,7 @@ config PPP_MPPE
        select CRYPTO
        select CRYPTO_SHA1
        select CRYPTO_ARC4
+       select CRYPTO_ECB
        ---help---
          Support for the MPPE Encryption protocol, as employed by the
 	 Microsoft Point-to-Point Tunneling Protocol.
@@ -2829,7 +2874,7 @@ config NET_FC
 	  "SCSI generic support".
 
 config SHAPER
-	tristate "Traffic Shaper (EXPERIMENTAL)"
+	tristate "Traffic Shaper (OBSOLETE)"
 	depends on EXPERIMENTAL
 	---help---
 	  The traffic shaper is a virtual network device that allows you to
@@ -2838,9 +2883,9 @@ config SHAPER
 	  these virtual devices. See
 	  <file:Documentation/networking/shaper.txt> for more information.
 
-	  An alternative to this traffic shaper is the experimental
-	  Class-Based Queuing (CBQ) scheduling support which you get if you
-	  say Y to "QoS and/or fair queuing" above.
+	  An alternative to this traffic shaper are traffic schedulers which
+	  you'll get if you say Y to "QoS and/or fair queuing" in
+	  "Networking options".
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called shaper.  If unsure, say N.
@@ -2851,6 +2896,8 @@ config NETCONSOLE
 	---help---
 	If you want to log kernel messages over the network, enable this.
 	See <file:Documentation/networking/netconsole.txt> for details.
+
+endif #NETDEVICES
 
 config NETPOLL
 	def_bool NETCONSOLE

@@ -9,7 +9,6 @@
  *		Christoph Lameter <christoph@lameter.com>
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
@@ -371,7 +370,7 @@ void zone_statistics(struct zonelist *zonelist, struct zone *z)
 		__inc_zone_state(z, NUMA_MISS);
 		__inc_zone_state(zonelist->zones[0], NUMA_FOREIGN);
 	}
-	if (z->zone_pgdat == NODE_DATA(numa_node_id()))
+	if (z->node == numa_node_id())
 		__inc_zone_state(z, NUMA_LOCAL);
 	else
 		__inc_zone_state(z, NUMA_OTHER);
@@ -431,7 +430,7 @@ static int frag_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-struct seq_operations fragmentation_op = {
+const struct seq_operations fragmentation_op = {
 	.start	= frag_start,
 	.next	= frag_next,
 	.stop	= frag_stop,
@@ -453,7 +452,7 @@ struct seq_operations fragmentation_op = {
 #define TEXTS_FOR_ZONES(xx) xx "_dma", TEXT_FOR_DMA32(xx) xx "_normal", \
 					TEXT_FOR_HIGHMEM(xx)
 
-static char *vmstat_text[] = {
+static const char * const vmstat_text[] = {
 	/* Zoned VM counters */
 	"nr_anon_pages",
 	"nr_mapped",
@@ -465,6 +464,7 @@ static char *vmstat_text[] = {
 	"nr_writeback",
 	"nr_unstable",
 	"nr_bounce",
+	"nr_vmscan_write",
 
 #ifdef CONFIG_NUMA
 	"numa_hit",
@@ -587,11 +587,9 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 		seq_printf(m,
 			   "\n  all_unreclaimable: %u"
 			   "\n  prev_priority:     %i"
-			   "\n  temp_priority:     %i"
 			   "\n  start_pfn:         %lu",
 			   zone->all_unreclaimable,
 			   zone->prev_priority,
-			   zone->temp_priority,
 			   zone->zone_start_pfn);
 		spin_unlock_irqrestore(&zone->lock, flags);
 		seq_putc(m, '\n');
@@ -599,7 +597,7 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-struct seq_operations zoneinfo_op = {
+const struct seq_operations zoneinfo_op = {
 	.start	= frag_start, /* iterate over all zones. The same as in
 			       * fragmentation. */
 	.next	= frag_next,
@@ -662,7 +660,7 @@ static void vmstat_stop(struct seq_file *m, void *arg)
 	m->private = NULL;
 }
 
-struct seq_operations vmstat_op = {
+const struct seq_operations vmstat_op = {
 	.start	= vmstat_start,
 	.next	= vmstat_next,
 	.stop	= vmstat_stop,
@@ -681,13 +679,13 @@ static int __cpuinit vmstat_cpuup_callback(struct notifier_block *nfb,
 		void *hcpu)
 {
 	switch (action) {
-		case CPU_UP_PREPARE:
-		case CPU_UP_CANCELED:
-		case CPU_DEAD:
-			refresh_zone_stat_thresholds();
-			break;
-		default:
-			break;
+	case CPU_UP_PREPARE:
+	case CPU_UP_CANCELED:
+	case CPU_DEAD:
+		refresh_zone_stat_thresholds();
+		break;
+	default:
+		break;
 	}
 	return NOTIFY_OK;
 }

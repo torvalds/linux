@@ -118,9 +118,10 @@ void ipath_free_lkey(struct ipath_lkey_table *rkt, u32 lkey)
  * Check the IB SGE for validity and initialize our internal version
  * of it.
  */
-int ipath_lkey_ok(struct ipath_lkey_table *rkt, struct ipath_sge *isge,
+int ipath_lkey_ok(struct ipath_qp *qp, struct ipath_sge *isge,
 		  struct ib_sge *sge, int acc)
 {
+	struct ipath_lkey_table *rkt = &to_idev(qp->ibqp.device)->lk_table;
 	struct ipath_mregion *mr;
 	unsigned n, m;
 	size_t off;
@@ -140,7 +141,8 @@ int ipath_lkey_ok(struct ipath_lkey_table *rkt, struct ipath_sge *isge,
 		goto bail;
 	}
 	mr = rkt->table[(sge->lkey >> (32 - ib_ipath_lkey_table_size))];
-	if (unlikely(mr == NULL || mr->lkey != sge->lkey)) {
+	if (unlikely(mr == NULL || mr->lkey != sge->lkey ||
+		     qp->ibqp.pd != mr->pd)) {
 		ret = 0;
 		goto bail;
 	}
@@ -188,9 +190,10 @@ bail:
  *
  * Return 1 if successful, otherwise 0.
  */
-int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
+int ipath_rkey_ok(struct ipath_qp *qp, struct ipath_sge_state *ss,
 		  u32 len, u64 vaddr, u32 rkey, int acc)
 {
+	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
 	struct ipath_lkey_table *rkt = &dev->lk_table;
 	struct ipath_sge *sge = &ss->sge;
 	struct ipath_mregion *mr;
@@ -214,7 +217,8 @@ int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
 	}
 
 	mr = rkt->table[(rkey >> (32 - ib_ipath_lkey_table_size))];
-	if (unlikely(mr == NULL || mr->lkey != rkey)) {
+	if (unlikely(mr == NULL || mr->lkey != rkey ||
+		     qp->ibqp.pd != mr->pd)) {
 		ret = 0;
 		goto bail;
 	}

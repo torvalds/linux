@@ -32,13 +32,11 @@
 #include <asm/unaligned.h>
 
 #define SYS_IND(p)	(get_unaligned(&p->sys_ind))
-#define NR_SECTS(p)	({ __typeof__(p->nr_sects) __a =	\
-				get_unaligned(&p->nr_sects);	\
+#define NR_SECTS(p)	({ __le32 __a =	get_unaligned(&p->nr_sects);	\
 				le32_to_cpu(__a); \
 			})
 
-#define START_SECT(p)	({ __typeof__(p->start_sect) __a =	\
-				get_unaligned(&p->start_sect);	\
+#define START_SECT(p)	({ __le32 __a =	get_unaligned(&p->start_sect);	\
 				le32_to_cpu(__a); \
 			})
 
@@ -56,6 +54,31 @@ static inline int
 msdos_magic_present(unsigned char *p)
 {
 	return (p[0] == MSDOS_LABEL_MAGIC1 && p[1] == MSDOS_LABEL_MAGIC2);
+}
+
+/* Value is EBCDIC 'IBMA' */
+#define AIX_LABEL_MAGIC1	0xC9
+#define AIX_LABEL_MAGIC2	0xC2
+#define AIX_LABEL_MAGIC3	0xD4
+#define AIX_LABEL_MAGIC4	0xC1
+static int aix_magic_present(unsigned char *p, struct block_device *bdev)
+{
+	Sector sect;
+	unsigned char *d;
+	int ret = 0;
+
+	if (p[0] != AIX_LABEL_MAGIC1 &&
+		p[1] != AIX_LABEL_MAGIC2 &&
+		p[2] != AIX_LABEL_MAGIC3 &&
+		p[3] != AIX_LABEL_MAGIC4)
+		return 0;
+	d = read_dev_sector(bdev, 7, &sect);
+	if (d) {
+		if (d[0] == '_' && d[1] == 'L' && d[2] == 'V' && d[3] == 'M')
+			ret = 1;
+		put_dev_sector(sect);
+	};
+	return ret;
 }
 
 /*
@@ -390,6 +413,12 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 		return -1;
 	if (!msdos_magic_present(data + 510)) {
 		put_dev_sector(sect);
+		return 0;
+	}
+
+	if (aix_magic_present(data, bdev)) {
+		put_dev_sector(sect);
+		printk( " [AIX]");
 		return 0;
 	}
 

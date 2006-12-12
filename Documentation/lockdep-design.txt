@@ -36,6 +36,28 @@ The validator tracks lock-class usage history into 5 separate state bits:
 
 - 'ever used'                                       [ == !unused        ]
 
+When locking rules are violated, these 4 state bits are presented in the
+locking error messages, inside curlies.  A contrived example:
+
+   modprobe/2287 is trying to acquire lock:
+    (&sio_locks[i].lock){--..}, at: [<c02867fd>] mutex_lock+0x21/0x24
+
+   but task is already holding lock:
+    (&sio_locks[i].lock){--..}, at: [<c02867fd>] mutex_lock+0x21/0x24
+
+
+The bit position indicates hardirq, softirq, hardirq-read,
+softirq-read respectively, and the character displayed in each
+indicates:
+
+   '.'  acquired while irqs disabled
+   '+'  acquired in irq context
+   '-'  acquired with irqs enabled
+   '?' read acquired in irq context with irqs enabled.
+
+Unused mutexes cannot be part of the cause of an error.
+
+
 Single-lock state rules:
 ------------------------
 
@@ -111,7 +133,7 @@ cases there is an inherent "natural" ordering between the two objects
 (defined by the properties of the hierarchy), and the kernel grabs the
 locks in this fixed order on each of the objects.
 
-An example of such an object hieararchy that results in "nested locking"
+An example of such an object hierarchy that results in "nested locking"
 is that of a "whole disk" block-dev object and a "partition" block-dev
 object; the partition is "part of" the whole device and as long as one
 always takes the whole disk lock as a higher lock than the partition
@@ -136,11 +158,11 @@ enum bdev_bd_mutex_lock_class
 In this case the locking is done on a bdev object that is known to be a
 partition.
 
-The validator treats a lock that is taken in such a nested fasion as a
+The validator treats a lock that is taken in such a nested fashion as a
 separate (sub)class for the purposes of validation.
 
 Note: When changing code to use the _nested() primitives, be careful and
-check really thoroughly that the hiearchy is correctly mapped; otherwise
+check really thoroughly that the hierarchy is correctly mapped; otherwise
 you can get false positives or false negatives.
 
 Proof of 100% correctness:
@@ -148,7 +170,7 @@ Proof of 100% correctness:
 
 The validator achieves perfect, mathematical 'closure' (proof of locking
 correctness) in the sense that for every simple, standalone single-task
-locking sequence that occured at least once during the lifetime of the
+locking sequence that occurred at least once during the lifetime of the
 kernel, the validator proves it with a 100% certainty that no
 combination and timing of these locking sequences can cause any class of
 lock related deadlock. [*]

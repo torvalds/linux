@@ -76,7 +76,7 @@
 /*
  * But the RM200C seems to have been shipped only with V2.0 R4600s
  */
-#ifdef CONFIG_SNI_RM200_PCI
+#ifdef CONFIG_SNI_RM
 
 #define R4600_V2_HIT_CACHEOP_WAR	1
 

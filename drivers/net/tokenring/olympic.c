@@ -185,7 +185,7 @@ static int olympic_xmit(struct sk_buff *skb, struct net_device *dev);
 static int olympic_close(struct net_device *dev);
 static void olympic_set_rx_mode(struct net_device *dev);
 static void olympic_freemem(struct net_device *dev) ;  
-static irqreturn_t olympic_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t olympic_interrupt(int irq, void *dev_id);
 static struct net_device_stats * olympic_get_stats(struct net_device *dev);
 static int olympic_set_mac_address(struct net_device *dev, void *addr) ; 
 static void olympic_arb_cmd(struct net_device *dev);
@@ -925,7 +925,7 @@ static void olympic_freemem(struct net_device *dev)
 	return ; 
 }
  
-static irqreturn_t olympic_interrupt(int irq, void *dev_id, struct pt_regs *regs) 
+static irqreturn_t olympic_interrupt(int irq, void *dev_id) 
 {
 	struct net_device *dev= (struct net_device *)dev_id;
 	struct olympic_private *olympic_priv=(struct olympic_private *)dev->priv;
@@ -1771,7 +1771,7 @@ static struct pci_driver olympic_driver = {
 
 static int __init olympic_pci_init(void) 
 {
-	return pci_module_init (&olympic_driver) ; 
+	return pci_register_driver(&olympic_driver) ;
 }
 
 static void __exit olympic_pci_cleanup(void)

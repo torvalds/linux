@@ -178,11 +178,17 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
 	safe_halt();
 	/* Change frequency on next halt or sleep */
 	wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
-	ACPI_FLUSH_CPU_CACHE();
-	/* Invoke C3 */
-	inb(cx_address);
-	/* Dummy op - must do something useless after P_LVL3 read */
-	t = inl(acpi_fadt.xpm_tmr_blk.address);
+	if (port22_en) {
+		ACPI_FLUSH_CPU_CACHE();
+		/* Invoke C1 */
+		halt();
+	} else {
+		ACPI_FLUSH_CPU_CACHE();
+		/* Invoke C3 */
+		inb(cx_address);
+		/* Dummy op - must do something useless after P_LVL3 read */
+		t = inl(acpi_fadt.xpm_tmr_blk.address);
+	}
 
 	/* Disable bus ratio bit */
 	local_irq_disable();
@@ -567,16 +573,23 @@ static acpi_status longhaul_walk_callback(acpi_handle obj_handle,
 static int enable_arbiter_disable(void)
 {
 	struct pci_dev *dev;
+	int reg;
 	u8 pci_cmd;
 
 	/* Find PLE133 host bridge */
+	reg = 0x78;
 	dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8601_0, NULL);
+	/* Find CLE266 host bridge */
+	if (dev == NULL) {
+		reg = 0x76;
+		dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_862X_0, NULL);
+	}
 	if (dev != NULL) {
 		/* Enable access to port 0x22 */
-		pci_read_config_byte(dev, 0x78, &pci_cmd);
+		pci_read_config_byte(dev, reg, &pci_cmd);
 		if ( !(pci_cmd & 1<<7) ) {
 			pci_cmd |= 1<<7;
-			pci_write_config_byte(dev, 0x78, pci_cmd);
+			pci_write_config_byte(dev, reg, pci_cmd);
 		}
 		return 1;
 	}
@@ -680,19 +693,24 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	if (longhaul_version == TYPE_POWERSAVER) {
 		/* Check ACPI support for C3 state */
 		cx = &pr->power.states[ACPI_STATE_C3];
-		if (cx->address == 0 ||
-		   (cx->latency > 1000 && ignore_latency == 0) )
-			goto err_acpi;
-
-	} else {
-		/* Check ACPI support for bus master arbiter disable */
-		if (!pr->flags.bm_control) {
-			if (!enable_arbiter_disable()) {
-				printk(KERN_ERR PFX "No ACPI support. No VT8601 host bridge. Aborting.\n");
-				return -ENODEV;
-			} else
-				port22_en = 1;
+		if (cx->address > 0 &&
+		   (cx->latency <= 1000 || ignore_latency != 0) ) {
+			goto print_support_type;
 		}
+	}
+	/* Check ACPI support for bus master arbiter disable */
+	if (!pr->flags.bm_control) {
+		if (enable_arbiter_disable()) {
+			port22_en = 1;
+		} else {
+			goto err_acpi;
+		}
+	}
+print_support_type:
+	if (!port22_en) {
+		printk (KERN_INFO PFX "Using ACPI support.\n");
+	} else {
+		printk (KERN_INFO PFX "Using northbridge support.\n");
 	}
 
 	ret = longhaul_get_ranges();
@@ -716,7 +734,7 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 
 err_acpi:
-	printk(KERN_ERR PFX "No ACPI support for CPU frequency changes.\n");
+	printk(KERN_ERR PFX "No ACPI support. No VT8601 or VT8623 northbridge. Aborting.\n");
 	return -ENODEV;
 }
 

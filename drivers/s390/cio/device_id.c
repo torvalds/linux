@@ -42,18 +42,15 @@ diag210(struct diag210 * addr)
 	spin_lock_irqsave(&diag210_lock, flags);
 	diag210_tmp = *addr;
 
-	asm volatile (
-		"   lhi	  %0,-1\n"
-		"   sam31\n"
-		"   diag  %1,0,0x210\n"
-		"0: ipm	  %0\n"
-		"   srl	  %0,28\n"
-		"1: sam64\n"
-		".section __ex_table,\"a\"\n"
-		"    .align 8\n"
-		"    .quad 0b,1b\n"
-		".previous"
-		: "=&d" (ccode) : "a" (__pa(&diag210_tmp)) : "cc", "memory" );
+	asm volatile(
+		"	lhi	%0,-1\n"
+		"	sam31\n"
+		"	diag	%1,0,0x210\n"
+		"0:	ipm	%0\n"
+		"	srl	%0,28\n"
+		"1:	sam64\n"
+		EX_TABLE(0b,1b)
+		: "=&d" (ccode) : "a" (__pa(&diag210_tmp)) : "cc", "memory");
 
 	*addr = diag210_tmp;
 	spin_unlock_irqrestore(&diag210_lock, flags);
@@ -66,17 +63,14 @@ diag210(struct diag210 * addr)
 {
 	int ccode;
 
-	asm volatile (
-		"   lhi	  %0,-1\n"
-		"   diag  %1,0,0x210\n"
-		"0: ipm	  %0\n"
-		"   srl	  %0,28\n"
+	asm volatile(
+		"	lhi	%0,-1\n"
+		"	diag	%1,0,0x210\n"
+		"0:	ipm	%0\n"
+		"	srl	%0,28\n"
 		"1:\n"
-		".section __ex_table,\"a\"\n"
-		"    .align 4\n"
-		"    .long 0b,1b\n"
-		".previous"
-		: "=&d" (ccode) : "a" (__pa(addr)) : "cc", "memory" );
+		EX_TABLE(0b,1b)
+		: "=&d" (ccode) : "a" (__pa(addr)) : "cc", "memory");
 
 	return ccode;
 }
@@ -197,6 +191,8 @@ __ccw_device_sense_id_start(struct ccw_device *cdev)
 		if ((sch->opm & cdev->private->imask) != 0 &&
 		    cdev->private->iretry > 0) {
 			cdev->private->iretry--;
+			/* Reset internal retry indication. */
+			cdev->private->flags.intretry = 0;
 			ret = cio_start (sch, cdev->private->iccws,
 					 cdev->private->imask);
 			/* ret is 0, -EBUSY, -EACCES or -ENODEV */
@@ -243,8 +239,14 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 		return 0; /* Success */
 	}
 	/* Check the error cases. */
-	if (irb->scsw.fctl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC))
+	if (irb->scsw.fctl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC)) {
+		/* Retry Sense ID if requested. */
+		if (cdev->private->flags.intretry) {
+			cdev->private->flags.intretry = 0;
+			return -EAGAIN;
+		}
 		return -ETIME;
+	}
 	if (irb->esw.esw0.erw.cons && (irb->ecw[0] & SNS0_CMD_REJECT)) {
 		/*
 		 * if the device doesn't support the SenseID
@@ -257,7 +259,7 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 		 */
 		CIO_MSG_EVENT(2, "SenseID : device %04x on Subchannel "
 			      "0.%x.%04x reports cmd reject\n",
-			      cdev->private->devno, sch->schid.ssid,
+			      cdev->private->dev_id.devno, sch->schid.ssid,
 			      sch->schid.sch_no);
 		return -EOPNOTSUPP;
 	}
@@ -265,7 +267,8 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 		CIO_MSG_EVENT(2, "SenseID : UC on dev 0.%x.%04x, "
 			      "lpum %02X, cnt %02d, sns :"
 			      " %02X%02X%02X%02X %02X%02X%02X%02X ...\n",
-			      cdev->private->ssid, cdev->private->devno,
+			      cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno,
 			      irb->esw.esw0.sublog.lpum,
 			      irb->esw.esw0.erw.scnt,
 			      irb->ecw[0], irb->ecw[1],
@@ -280,14 +283,15 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 			CIO_MSG_EVENT(2, "SenseID : path %02X for device %04x "
 				      "on subchannel 0.%x.%04x is "
 				      "'not operational'\n", sch->orb.lpm,
-				      cdev->private->devno, sch->schid.ssid,
-				      sch->schid.sch_no);
+				      cdev->private->dev_id.devno,
+				      sch->schid.ssid, sch->schid.sch_no);
 		return -EACCES;
 	}
 	/* Hmm, whatever happened, try again. */
 	CIO_MSG_EVENT(2, "SenseID : start_IO() for device %04x on "
 		      "subchannel 0.%x.%04x returns status %02X%02X\n",
-		      cdev->private->devno, sch->schid.ssid, sch->schid.sch_no,
+		      cdev->private->dev_id.devno, sch->schid.ssid,
+		      sch->schid.sch_no,
 		      irb->scsw.dstat, irb->scsw.cstat);
 	return -EAGAIN;
 }
@@ -336,7 +340,7 @@ ccw_device_sense_id_irq(struct ccw_device *cdev, enum dev_event dev_event)
 		/* fall through. */
 	default:		/* Sense ID failed. Try asking VM. */
 		if (MACHINE_IS_VM) {
-			VM_virtual_device_info (cdev->private->devno,
+			VM_virtual_device_info (cdev->private->dev_id.devno,
 						&cdev->private->senseid);
 			if (cdev->private->senseid.cu_type != 0xFFFF) {
 				/* Got the device information from VM. */

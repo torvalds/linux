@@ -1,5 +1,5 @@
 /* 
- * linux/include/asm-arm/namei.h
+ * linux/include/asm-arm26/namei.h
  *
  * Routines to handle famous /usr/gnemul
  * Derived from the Sparc version of this file

@@ -106,6 +106,7 @@ extern int rtc_year_days(unsigned int day, unsigned int month, unsigned int year
 extern int rtc_valid_tm(struct rtc_time *tm);
 extern int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time);
 extern void rtc_time_to_tm(unsigned long time, struct rtc_time *tm);
+extern void rtc_merge_alarm(struct rtc_time *now, struct rtc_time *alarm);
 
 #include <linux/device.h>
 #include <linux/seq_file.h>
@@ -141,7 +142,7 @@ struct rtc_device
 	int id;
 	char name[RTC_DEVICE_NAME_SIZE];
 
-	struct rtc_class_ops *ops;
+	const struct rtc_class_ops *ops;
 	struct mutex ops_lock;
 
 	struct class_device *rtc_dev;
@@ -172,7 +173,7 @@ struct rtc_device
 
 extern struct rtc_device *rtc_device_register(const char *name,
 					struct device *dev,
-					struct rtc_class_ops *ops,
+					const struct rtc_class_ops *ops,
 					struct module *owner);
 extern void rtc_device_unregister(struct rtc_device *rdev);
 extern int rtc_interface_register(struct class_interface *intf);
@@ -208,7 +209,7 @@ int rtc_register(rtc_task_t *task);
 int rtc_unregister(rtc_task_t *task);
 int rtc_control(rtc_task_t *t, unsigned int cmd, unsigned long arg);
 void rtc_get_rtc_time(struct rtc_time *rtc_tm);
-irqreturn_t rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t rtc_interrupt(int irq, void *dev_id);
 
 #endif /* __KERNEL__ */
 

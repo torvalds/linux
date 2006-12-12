@@ -266,6 +266,7 @@ salinfo_log_wakeup(int type, u8 *buffer, u64 size, int irqsafe)
 /* Check for outstanding MCA/INIT records every minute (arbitrary) */
 #define SALINFO_TIMER_DELAY (60*HZ)
 static struct timer_list salinfo_timer;
+extern void ia64_mlogbuf_dump(void);
 
 static void
 salinfo_timeout_check(struct salinfo_data *data)
@@ -283,6 +284,7 @@ salinfo_timeout_check(struct salinfo_data *data)
 static void
 salinfo_timeout (unsigned long arg)
 {
+	ia64_mlogbuf_dump();
 	salinfo_timeout_check(salinfo_data + SAL_INFO_TYPE_MCA);
 	salinfo_timeout_check(salinfo_data + SAL_INFO_TYPE_INIT);
 	salinfo_timer.expires = jiffies + SALINFO_TIMER_DELAY;
@@ -300,7 +302,7 @@ salinfo_event_open(struct inode *inode, struct file *file)
 static ssize_t
 salinfo_event_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct proc_dir_entry *entry = PDE(inode);
 	struct salinfo_data *data = entry->data;
 	char cmd[32];
@@ -331,6 +333,8 @@ retry:
 
 	if (cpu == -1)
 		goto retry;
+
+	ia64_mlogbuf_dump();
 
 	/* for next read, start checking at next CPU */
 	data->cpu_check = cpu;
@@ -460,7 +464,7 @@ retry:
 static ssize_t
 salinfo_log_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct proc_dir_entry *entry = PDE(inode);
 	struct salinfo_data *data = entry->data;
 	u8 *buf;
@@ -521,7 +525,7 @@ salinfo_log_clear(struct salinfo_data *data, int cpu)
 static ssize_t
 salinfo_log_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct proc_dir_entry *entry = PDE(inode);
 	struct salinfo_data *data = entry->data;
 	char cmd[32];
@@ -571,7 +575,6 @@ static struct file_operations salinfo_data_fops = {
 	.write   = salinfo_log_write,
 };
 
-#ifdef	CONFIG_HOTPLUG_CPU
 static int __devinit
 salinfo_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 {
@@ -616,7 +619,6 @@ static struct notifier_block salinfo_cpu_notifier =
 	.notifier_call = salinfo_cpu_callback,
 	.priority = 0,
 };
-#endif	/* CONFIG_HOTPLUG_CPU */
 
 static int __init
 salinfo_init(void)

@@ -17,6 +17,8 @@
 #include "dvb-usb.h"
 
 #include "dib3000.h"
+#include "dib3000mc.h"
+#include "mt2060.h"
 
 /*
  * protocol of all dibusb related devices
@@ -96,7 +98,10 @@
 
 struct dibusb_state {
 	struct dib_fe_xfer_ops ops;
+	int mt2060_present;
+};
 
+struct dibusb_device_state {
 	/* for RC5 remote control */
 	int old_toggle;
 	int last_repeat_count;
@@ -104,14 +109,15 @@ struct dibusb_state {
 
 extern struct i2c_algorithm dibusb_i2c_algo;
 
-extern int dibusb_dib3000mc_frontend_attach(struct dvb_usb_device *);
-extern int dibusb_dib3000mc_tuner_attach (struct dvb_usb_device *);
+extern int dibusb_dib3000mc_frontend_attach(struct dvb_usb_adapter *);
+extern int dibusb_dib3000mc_tuner_attach (struct dvb_usb_adapter *);
 
-extern int dibusb_streaming_ctrl(struct dvb_usb_device *, int);
-extern int dibusb_pid_filter(struct dvb_usb_device *, int, u16, int);
-extern int dibusb_pid_filter_ctrl(struct dvb_usb_device *, int);
+extern int dibusb_streaming_ctrl(struct dvb_usb_adapter *, int);
+extern int dibusb_pid_filter(struct dvb_usb_adapter *, int, u16, int);
+extern int dibusb_pid_filter_ctrl(struct dvb_usb_adapter *, int);
+extern int dibusb2_0_streaming_ctrl(struct dvb_usb_adapter *, int);
+
 extern int dibusb_power_ctrl(struct dvb_usb_device *, int);
-extern int dibusb2_0_streaming_ctrl(struct dvb_usb_device *, int);
 extern int dibusb2_0_power_ctrl(struct dvb_usb_device *, int);
 
 #define DEFAULT_RC_INTERVAL 150

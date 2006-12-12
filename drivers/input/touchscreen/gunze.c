@@ -60,7 +60,7 @@ struct gunze {
 	char phys[32];
 };
 
-static void gunze_process_packet(struct gunze* gunze, struct pt_regs *regs)
+static void gunze_process_packet(struct gunze* gunze)
 {
 	struct input_dev *dev = gunze->dev;
 
@@ -70,7 +70,6 @@ static void gunze_process_packet(struct gunze* gunze, struct pt_regs *regs)
 		return;
 	}
 
-	input_regs(dev, regs);
 	input_report_abs(dev, ABS_X, simple_strtoul(gunze->data + 1, NULL, 10));
 	input_report_abs(dev, ABS_Y, 1024 - simple_strtoul(gunze->data + 6, NULL, 10));
 	input_report_key(dev, BTN_TOUCH, gunze->data[0] == 'T');
@@ -78,12 +77,12 @@ static void gunze_process_packet(struct gunze* gunze, struct pt_regs *regs)
 }
 
 static irqreturn_t gunze_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct gunze* gunze = serio_get_drvdata(serio);
 
 	if (data == '\r') {
-		gunze_process_packet(gunze, regs);
+		gunze_process_packet(gunze);
 		gunze->idx = 0;
 	} else {
 		if (gunze->idx < GUNZE_MAX_LENGTH)
@@ -124,7 +123,7 @@ static int gunze_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev = input_allocate_device();
 	if (!gunze || !input_dev) {
 		err = -ENOMEM;
-		goto fail;
+		goto fail1;
 	}
 
 	gunze->serio = serio;
@@ -147,13 +146,17 @@ static int gunze_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device(gunze->dev);
+	err = input_register_device(gunze->dev);
+	if (err)
+		goto fail3;
+
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
 	kfree(gunze);
 	return err;
 }
@@ -191,8 +194,7 @@ static struct serio_driver gunze_drv = {
 
 static int __init gunze_init(void)
 {
-	serio_register_driver(&gunze_drv);
-	return 0;
+	return serio_register_driver(&gunze_drv);
 }
 
 static void __exit gunze_exit(void)

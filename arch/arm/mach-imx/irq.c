@@ -146,13 +146,13 @@ imx_gpio_unmask_irq(unsigned int irq)
 
 static void
 imx_gpio_handler(unsigned int mask, unsigned int irq,
-                 struct irqdesc *desc, struct pt_regs *regs)
+                 struct irq_desc *desc)
 {
 	desc = irq_desc + irq;
 	while (mask) {
 		if (mask & 1) {
 			DEBUG_IRQ("handling irq %d\n", irq);
-			desc_handle_irq(irq, desc, regs);
+			desc_handle_irq(irq, desc);
 		}
 		irq++;
 		desc++;
@@ -161,47 +161,43 @@ imx_gpio_handler(unsigned int mask, unsigned int irq,
 }
 
 static void
-imx_gpioa_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
-			struct pt_regs *regs)
+imx_gpioa_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 {
 	unsigned int mask, irq;
 
 	mask = ISR(0);
 	irq = IRQ_GPIOA(0);
-	imx_gpio_handler(mask, irq, desc, regs);
+	imx_gpio_handler(mask, irq, desc);
 }
 
 static void
-imx_gpiob_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
-			struct pt_regs *regs)
+imx_gpiob_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 {
 	unsigned int mask, irq;
 
 	mask = ISR(1);
 	irq = IRQ_GPIOB(0);
-	imx_gpio_handler(mask, irq, desc, regs);
+	imx_gpio_handler(mask, irq, desc);
 }
 
 static void
-imx_gpioc_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
-			struct pt_regs *regs)
+imx_gpioc_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 {
 	unsigned int mask, irq;
 
 	mask = ISR(2);
 	irq = IRQ_GPIOC(0);
-	imx_gpio_handler(mask, irq, desc, regs);
+	imx_gpio_handler(mask, irq, desc);
 }
 
 static void
-imx_gpiod_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
-			struct pt_regs *regs)
+imx_gpiod_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 {
 	unsigned int mask, irq;
 
 	mask = ISR(3);
 	irq = IRQ_GPIOD(0);
-	imx_gpio_handler(mask, irq, desc, regs);
+	imx_gpio_handler(mask, irq, desc);
 }
 
 static struct irq_chip imx_internal_chip = {
@@ -234,13 +230,13 @@ imx_init_irq(void)
 
 	for (irq = 0; irq < IMX_IRQS; irq++) {
 		set_irq_chip(irq, &imx_internal_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
 	for (irq = IRQ_GPIOA(0); irq < IRQ_GPIOD(32); irq++) {
 		set_irq_chip(irq, &imx_gpio_chip);
-		set_irq_handler(irq, do_edge_IRQ);
+		set_irq_handler(irq, handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 

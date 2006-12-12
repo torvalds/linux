@@ -83,7 +83,7 @@ struct pt_regs;
  * interrupt source (if it supports chaining).
  */
 typedef struct irq_node {
-	int		(*handler)(int, void *, struct pt_regs *);
+	int		(*handler)(int, void *);
 	void		*dev_id;
 	struct irq_node *next;
 	unsigned long	flags;
@@ -93,12 +93,12 @@ typedef struct irq_node {
 /*
  * This structure has only 4 elements for speed reasons
  */
-typedef struct irq_handler {
-	int		(*handler)(int, void *, struct pt_regs *);
+struct irq_handler {
+	int		(*handler)(int, void *);
 	unsigned long	flags;
 	void		*dev_id;
 	const char	*devname;
-} irq_handler_t;
+};
 
 struct irq_controller {
 	const char *name;
@@ -122,6 +122,7 @@ extern void m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
 				      void (*handler)(unsigned int, struct pt_regs *));
 extern void m68k_setup_irq_controller(struct irq_controller *, unsigned int, unsigned int);
 
-asmlinkage void m68k_handle_int(unsigned int, struct pt_regs *);
+asmlinkage void m68k_handle_int(unsigned int);
+asmlinkage void __m68k_handle_int(unsigned int, struct pt_regs *);
 
 #endif /* _M68K_IRQ_H_ */

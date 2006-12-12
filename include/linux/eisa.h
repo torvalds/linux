@@ -3,8 +3,8 @@
 
 #include <linux/ioport.h>
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 
-#define EISA_SIG_LEN   8
 #define EISA_MAX_SLOTS 8
 
 #define EISA_MAX_RESOURCES 4
@@ -26,12 +26,6 @@
 
 #define EISA_CONFIG_ENABLED         1
 #define EISA_CONFIG_FORCED          2
-
-/* The EISA signature, in ASCII form, null terminated */
-struct eisa_device_id {
-	char          sig[EISA_SIG_LEN];
-	unsigned long driver_data;
-};
 
 /* There is not much we can say about an EISA device, apart from
  * signature, slot number, and base address. dma_mask is set by

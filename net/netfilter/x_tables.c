@@ -21,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/mutex.h>
+#include <linux/mm.h>
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_arp.h>

@@ -1,4 +1,4 @@
-/*arch/ppc/platforms/mpc885ads-setup.c
+/*arch/ppc/platforms/mpc885ads_setup.c
  *
  * Platform setup for the Freescale mpc885ads board
  *
@@ -161,7 +161,7 @@ void __init board_init(void)
 #endif
 }
 
-static void setup_fec1_ioports(void)
+static void setup_fec1_ioports(struct fs_platform_info*)
 {
 	immap_t *immap = (immap_t *) IMAP_ADDR;
 
@@ -181,7 +181,7 @@ static void setup_fec1_ioports(void)
 	clrbits32(&immap->im_cpm.cp_cptr, 0x00000100);
 }
 
-static void setup_fec2_ioports(void)
+static void setup_fec2_ioports(struct fs_platform_info*)
 {
 	immap_t *immap = (immap_t *) IMAP_ADDR;
 
@@ -193,7 +193,7 @@ static void setup_fec2_ioports(void)
 	clrbits32(&immap->im_cpm.cp_cptr, 0x00000080);
 }
 
-static void setup_scc3_ioports(void)
+static void setup_scc3_ioports(struct fs_platform_info*)
 {
 	immap_t *immap = (immap_t *) IMAP_ADDR;
 	unsigned *bcsr_io;
@@ -263,7 +263,7 @@ static void mpc885ads_fixup_enet_pdata(struct platform_device *pdev, int fs_no)
 	char *e;
 	int i;
 
-	if(fs_no > ARRAY_SIZE(mpc8xx_enet_pdata)) {
+	if(fs_no >= ARRAY_SIZE(mpc8xx_enet_pdata)) {
 		printk(KERN_ERR"No network-suitable #%d device on bus", fs_no);
 		return;
 	}
@@ -315,7 +315,7 @@ static void __init mpc885ads_fixup_scc_enet_pdata(struct platform_device *pdev,
 	mpc885ads_fixup_enet_pdata(pdev, fsid_scc1 + pdev->id - 1);
 }
 
-static void setup_smc1_ioports(void)
+static void setup_smc1_ioports(struct fs_uart_platform_info*)
 {
         immap_t *immap = (immap_t *) IMAP_ADDR;
         unsigned *bcsr_io;
@@ -335,7 +335,7 @@ static void setup_smc1_ioports(void)
         clrbits16(&immap->im_cpm.cp_pbodr, iobits);
 }
 
-static void setup_smc2_ioports(void)
+static void setup_smc2_ioports(struct fs_uart_platform_info*)
 {
         immap_t *immap = (immap_t *) IMAP_ADDR;
         unsigned *bcsr_io;
@@ -371,7 +371,7 @@ static void __init mpc885ads_fixup_uart_pdata(struct platform_device *pdev,
 	int id = fs_uart_id_smc2fsid(idx);
 
 	/* no need to alter anything if console */
-	if ((id <= num) && (!pdev->dev.platform_data)) {
+	if ((id < num) && (!pdev->dev.platform_data)) {
 		pinfo = &mpc885_uart_pdata[id];
 		pinfo->uart_clk = bd->bi_intfreq;
 		pdev->dev.platform_data = pinfo;

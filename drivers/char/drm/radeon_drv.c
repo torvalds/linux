@@ -44,7 +44,7 @@ module_param_named(no_wb, radeon_no_wb, int, 0444);
 static int dri_library_name(struct drm_device *dev, char *buf)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	int family = dev_priv->flags & CHIP_FAMILY_MASK;
+	int family = dev_priv->flags & RADEON_FAMILY_MASK;
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 		        (family < CHIP_R200) ? "radeon" :

@@ -57,12 +57,6 @@ static atomic_t			nfsd_busy;
 static unsigned long		nfsd_last_call;
 static DEFINE_SPINLOCK(nfsd_call_lock);
 
-struct nfsd_list {
-	struct list_head 	list;
-	struct task_struct	*task;
-};
-static struct list_head nfsd_list = LIST_HEAD_INIT(nfsd_list);
-
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 static struct svc_stat	nfsd_acl_svcstats;
 static struct svc_version *	nfsd_acl_version[] = {
@@ -117,6 +111,32 @@ struct svc_program		nfsd_program = {
 
 };
 
+int nfsd_vers(int vers, enum vers_op change)
+{
+	if (vers < NFSD_MINVERS || vers >= NFSD_NRVERS)
+		return -1;
+	switch(change) {
+	case NFSD_SET:
+		nfsd_versions[vers] = nfsd_version[vers];
+		break;
+#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
+		if (vers < NFSD_ACL_NRVERS)
+			nfsd_acl_version[vers] = nfsd_acl_version[vers];
+#endif
+	case NFSD_CLEAR:
+		nfsd_versions[vers] = NULL;
+#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
+		if (vers < NFSD_ACL_NRVERS)
+			nfsd_acl_version[vers] = NULL;
+#endif
+		break;
+	case NFSD_TEST:
+		return nfsd_versions[vers] != NULL;
+	case NFSD_AVAIL:
+		return nfsd_version[vers] != NULL;
+	}
+	return 0;
+}
 /*
  * Maximum number of nfsd processes
  */
@@ -130,16 +150,192 @@ int nfsd_nrthreads(void)
 		return nfsd_serv->sv_nrthreads;
 }
 
+static int killsig;	/* signal that was used to kill last nfsd */
+static void nfsd_last_thread(struct svc_serv *serv)
+{
+	/* When last nfsd thread exits we need to do some clean-up */
+	struct svc_sock *svsk;
+	list_for_each_entry(svsk, &serv->sv_permsocks, sk_list)
+		lockd_down();
+	nfsd_serv = NULL;
+	nfsd_racache_shutdown();
+	nfs4_state_shutdown();
+
+	printk(KERN_WARNING "nfsd: last server has exited\n");
+	if (killsig != SIG_NOCLEAN) {
+		printk(KERN_WARNING "nfsd: unexporting all filesystems\n");
+		nfsd_export_flush();
+	}
+}
+
+void nfsd_reset_versions(void)
+{
+	int found_one = 0;
+	int i;
+
+	for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++) {
+		if (nfsd_program.pg_vers[i])
+			found_one = 1;
+	}
+
+	if (!found_one) {
+		for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++)
+			nfsd_program.pg_vers[i] = nfsd_version[i];
+#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
+		for (i = NFSD_ACL_MINVERS; i < NFSD_ACL_NRVERS; i++)
+			nfsd_acl_program.pg_vers[i] =
+				nfsd_acl_version[i];
+#endif
+	}
+}
+
+int nfsd_create_serv(void)
+{
+	int err = 0;
+	lock_kernel();
+	if (nfsd_serv) {
+		svc_get(nfsd_serv);
+		unlock_kernel();
+		return 0;
+	}
+	if (nfsd_max_blksize == 0) {
+		/* choose a suitable default */
+		struct sysinfo i;
+		si_meminfo(&i);
+		/* Aim for 1/4096 of memory per thread
+		 * This gives 1MB on 4Gig machines
+		 * But only uses 32K on 128M machines.
+		 * Bottom out at 8K on 32M and smaller.
+		 * Of course, this is only a default.
+		 */
+		nfsd_max_blksize = NFSSVC_MAXBLKSIZE;
+		i.totalram <<= PAGE_SHIFT - 12;
+		while (nfsd_max_blksize > i.totalram &&
+		       nfsd_max_blksize >= 8*1024*2)
+			nfsd_max_blksize /= 2;
+	}
+
+	atomic_set(&nfsd_busy, 0);
+	nfsd_serv = svc_create_pooled(&nfsd_program,
+				      nfsd_max_blksize,
+				      nfsd_last_thread,
+				      nfsd, SIG_NOCLEAN, THIS_MODULE);
+	if (nfsd_serv == NULL)
+		err = -ENOMEM;
+	unlock_kernel();
+	do_gettimeofday(&nfssvc_boot);		/* record boot time */
+	return err;
+}
+
+static int nfsd_init_socks(int port)
+{
+	int error;
+	if (!list_empty(&nfsd_serv->sv_permsocks))
+		return 0;
+
+	error = lockd_up(IPPROTO_UDP);
+	if (error >= 0) {
+		error = svc_makesock(nfsd_serv, IPPROTO_UDP, port);
+		if (error < 0)
+			lockd_down();
+	}
+	if (error < 0)
+		return error;
+
+#ifdef CONFIG_NFSD_TCP
+	error = lockd_up(IPPROTO_TCP);
+	if (error >= 0) {
+		error = svc_makesock(nfsd_serv, IPPROTO_TCP, port);
+		if (error < 0)
+			lockd_down();
+	}
+	if (error < 0)
+		return error;
+#endif
+	return 0;
+}
+
+int nfsd_nrpools(void)
+{
+	if (nfsd_serv == NULL)
+		return 0;
+	else
+		return nfsd_serv->sv_nrpools;
+}
+
+int nfsd_get_nrthreads(int n, int *nthreads)
+{
+	int i = 0;
+
+	if (nfsd_serv != NULL) {
+		for (i = 0; i < nfsd_serv->sv_nrpools && i < n; i++)
+			nthreads[i] = nfsd_serv->sv_pools[i].sp_nrthreads;
+	}
+
+	return 0;
+}
+
+int nfsd_set_nrthreads(int n, int *nthreads)
+{
+	int i = 0;
+	int tot = 0;
+	int err = 0;
+
+	if (nfsd_serv == NULL || n <= 0)
+		return 0;
+
+	if (n > nfsd_serv->sv_nrpools)
+		n = nfsd_serv->sv_nrpools;
+
+	/* enforce a global maximum number of threads */
+	tot = 0;
+	for (i = 0; i < n; i++) {
+		if (nthreads[i] > NFSD_MAXSERVS)
+			nthreads[i] = NFSD_MAXSERVS;
+		tot += nthreads[i];
+	}
+	if (tot > NFSD_MAXSERVS) {
+		/* total too large: scale down requested numbers */
+		for (i = 0; i < n && tot > 0; i++) {
+		    	int new = nthreads[i] * NFSD_MAXSERVS / tot;
+			tot -= (nthreads[i] - new);
+			nthreads[i] = new;
+		}
+		for (i = 0; i < n && tot > 0; i++) {
+			nthreads[i]--;
+			tot--;
+		}
+	}
+
+	/*
+	 * There must always be a thread in pool 0; the admin
+	 * can't shut down NFS completely using pool_threads.
+	 */
+	if (nthreads[0] == 0)
+		nthreads[0] = 1;
+
+	/* apply the new numbers */
+	lock_kernel();
+	svc_get(nfsd_serv);
+	for (i = 0; i < n; i++) {
+		err = svc_set_num_threads(nfsd_serv, &nfsd_serv->sv_pools[i],
+				    	  nthreads[i]);
+		if (err)
+			break;
+	}
+	svc_destroy(nfsd_serv);
+	unlock_kernel();
+
+	return err;
+}
+
 int
 nfsd_svc(unsigned short port, int nrservs)
 {
 	int	error;
-	int	none_left, found_one, i;
-	struct list_head *victim;
 	
 	lock_kernel();
-	dprintk("nfsd: creating service: vers 0x%x\n",
-		nfsd_versbits);
+	dprintk("nfsd: creating service\n");
 	error = -EINVAL;
 	if (nrservs <= 0)
 		nrservs = 0;
@@ -153,91 +349,20 @@ nfsd_svc(unsigned short port, int nrservs)
 	error = nfs4_state_start();
 	if (error<0)
 		goto out;
-	if (!nfsd_serv) {
-		/*
-		 * Use the nfsd_ctlbits to define which
-		 * versions that will be advertised.
-		 * If nfsd_ctlbits doesn't list any version,
-		 * export them all.
-		 */
-		found_one = 0;
 
-		for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++) {
-			if (NFSCTL_VERISSET(nfsd_versbits, i)) {
-				nfsd_program.pg_vers[i] = nfsd_version[i];
-				found_one = 1;
-			} else
-				nfsd_program.pg_vers[i] = NULL;
-		}
+	nfsd_reset_versions();
 
-		if (!found_one) {
-			for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++)
-				nfsd_program.pg_vers[i] = nfsd_version[i];
-		}
+	error = nfsd_create_serv();
 
+	if (error)
+		goto out;
+	error = nfsd_init_socks(port);
+	if (error)
+		goto failure;
 
-#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
-		found_one = 0;
-
-		for (i = NFSD_ACL_MINVERS; i < NFSD_ACL_NRVERS; i++) {
-			if (NFSCTL_VERISSET(nfsd_versbits, i)) {
-				nfsd_acl_program.pg_vers[i] =
-					nfsd_acl_version[i];
-				found_one = 1;
-			} else
-				nfsd_acl_program.pg_vers[i] = NULL;
-		}
-
-		if (!found_one) {
-			for (i = NFSD_ACL_MINVERS; i < NFSD_ACL_NRVERS; i++)
-				nfsd_acl_program.pg_vers[i] =
-					nfsd_acl_version[i];
-		}
-#endif
-
-		atomic_set(&nfsd_busy, 0);
-		error = -ENOMEM;
-		nfsd_serv = svc_create(&nfsd_program, NFSD_BUFSIZE);
-		if (nfsd_serv == NULL)
-			goto out;
-		error = svc_makesock(nfsd_serv, IPPROTO_UDP, port);
-		if (error < 0)
-			goto failure;
-
-#ifdef CONFIG_NFSD_TCP
-		error = svc_makesock(nfsd_serv, IPPROTO_TCP, port);
-		if (error < 0)
-			goto failure;
-#endif
-		do_gettimeofday(&nfssvc_boot);		/* record boot time */
-	} else
-		nfsd_serv->sv_nrthreads++;
-	nrservs -= (nfsd_serv->sv_nrthreads-1);
-	while (nrservs > 0) {
-		nrservs--;
-		__module_get(THIS_MODULE);
-		error = svc_create_thread(nfsd, nfsd_serv);
-		if (error < 0) {
-			module_put(THIS_MODULE);
-			break;
-		}
-	}
-	victim = nfsd_list.next;
-	while (nrservs < 0 && victim != &nfsd_list) {
-		struct nfsd_list *nl =
-			list_entry(victim,struct nfsd_list, list);
-		victim = victim->next;
-		send_sig(SIG_NOCLEAN, nl->task, 1);
-		nrservs++;
-	}
+	error = svc_set_num_threads(nfsd_serv, NULL, nrservs);
  failure:
-	none_left = (nfsd_serv->sv_nrthreads == 1);
 	svc_destroy(nfsd_serv);		/* Release server */
-	if (none_left) {
-		nfsd_serv = NULL;
-		nfsd_racache_shutdown();
-		nfs4_state_shutdown();
-	}
  out:
 	unlock_kernel();
 	return error;
@@ -270,10 +395,8 @@ update_thread_usage(int busy_threads)
 static void
 nfsd(struct svc_rqst *rqstp)
 {
-	struct svc_serv	*serv = rqstp->rq_server;
 	struct fs_struct *fsp;
 	int		err;
-	struct nfsd_list me;
 	sigset_t shutdown_mask, allowed_mask;
 
 	/* Lock module and set up kernel thread */
@@ -297,10 +420,7 @@ nfsd(struct svc_rqst *rqstp)
 
 	nfsdstats.th_cnt++;
 
-	lockd_up();				/* start lockd */
-
-	me.task = current;
-	list_add(&me.list, &nfsd_list);
+	rqstp->rq_task = current;
 
 	unlock_kernel();
 
@@ -322,8 +442,7 @@ nfsd(struct svc_rqst *rqstp)
 		 * Find a socket with data available and call its
 		 * recvfrom routine.
 		 */
-		while ((err = svc_recv(serv, rqstp,
-				       60*60*HZ)) == -EAGAIN)
+		while ((err = svc_recv(rqstp, 60*60*HZ)) == -EAGAIN)
 			;
 		if (err < 0)
 			break;
@@ -336,7 +455,7 @@ nfsd(struct svc_rqst *rqstp)
 		/* Process request with signals blocked.  */
 		sigprocmask(SIG_SETMASK, &allowed_mask, NULL);
 
-		svc_process(serv, rqstp);
+		svc_process(rqstp);
 
 		/* Unlock export hash tables */
 		exp_readunlock();
@@ -353,29 +472,13 @@ nfsd(struct svc_rqst *rqstp)
 			if (sigismember(&current->pending.signal, signo) &&
 			    !sigismember(&current->blocked, signo))
 				break;
-		err = signo;
+		killsig = signo;
 	}
-	/* Clear signals before calling lockd_down() and svc_exit_thread() */
+	/* Clear signals before calling svc_exit_thread() */
 	flush_signals(current);
 
 	lock_kernel();
 
-	/* Release lockd */
-	lockd_down();
-
-	/* Check if this is last thread */
-	if (serv->sv_nrthreads==1) {
-		
-		printk(KERN_WARNING "nfsd: last server has exited\n");
-		if (err != SIG_NOCLEAN) {
-			printk(KERN_WARNING "nfsd: unexporting all filesystems\n");
-			nfsd_export_flush();
-		}
-		nfsd_serv = NULL;
-	        nfsd_racache_shutdown();	/* release read-ahead cache */
-		nfs4_state_shutdown();
-	}
-	list_del(&me.list);
 	nfsdstats.th_cnt --;
 
 out:
@@ -388,12 +491,12 @@ out:
 }
 
 int
-nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp)
+nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
 	struct svc_procedure	*proc;
 	kxdrproc_t		xdr;
-	u32			nfserr;
-	u32			*nfserrp;
+	__be32			nfserr;
+	__be32			*nfserrp;
 
 	dprintk("nfsd_dispatch: vers %d proc %d\n",
 				rqstp->rq_vers, rqstp->rq_proc);
@@ -412,7 +515,7 @@ nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp)
 
 	/* Decode arguments */
 	xdr = proc->pc_decode;
-	if (xdr && !xdr(rqstp, (u32*)rqstp->rq_arg.head[0].iov_base,
+	if (xdr && !xdr(rqstp, (__be32*)rqstp->rq_arg.head[0].iov_base,
 			rqstp->rq_argp)) {
 		dprintk("nfsd: failed to decode arguments!\n");
 		nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
@@ -425,7 +528,7 @@ nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp)
 	 */
 	nfserrp = rqstp->rq_res.head[0].iov_base
 		+ rqstp->rq_res.head[0].iov_len;
-	rqstp->rq_res.head[0].iov_len += sizeof(u32);
+	rqstp->rq_res.head[0].iov_len += sizeof(__be32);
 
 	/* Now call the procedure handler, and encode NFS status. */
 	nfserr = proc->pc_func(rqstp, rqstp->rq_argp, rqstp->rq_resp);

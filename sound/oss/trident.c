@@ -216,6 +216,7 @@
 #include <linux/gameport.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/mm.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -488,10 +489,6 @@ static void ali_set_spdif_out_rate(struct trident_card *card, unsigned int rate)
 static void ali_enable_special_channel(struct trident_state *stat);
 static struct trident_channel *ali_alloc_rec_pcm_channel(struct trident_card *card);
 static struct trident_channel *ali_alloc_pcm_channel(struct trident_card *card);
-static void ali_restore_regs(struct trident_card *card);
-static void ali_save_regs(struct trident_card *card);
-static int trident_suspend(struct pci_dev *dev, pm_message_t unused);
-static int trident_resume(struct pci_dev *dev);
 static void ali_free_pcm_channel(struct trident_card *card, unsigned int channel);
 static int ali_setup_multi_channels(struct trident_card *card, int chan_nums);
 static unsigned int ali_get_spdif_in_rate(struct trident_card *card);
@@ -506,13 +503,6 @@ static int ali_write_5_1(struct trident_state *state,
 static int ali_allocate_other_states_resources(struct trident_state *state, 
 					       int chan_nums);
 static void ali_free_other_states_resources(struct trident_state *state);
-
-/* save registers for ALi Power Management */
-static struct ali_saved_registers {
-	unsigned long global_regs[ALI_GLOBAL_REGS];
-	unsigned long channel_regs[ALI_CHANNELS][ALI_CHANNEL_REGS];
-	unsigned mixer_regs[ALI_MIXER_REGS];
-} ali_registers;
 
 #define seek_offset(dma_ptr, buffer, cnt, offset, copy_count)	do { \
         (dma_ptr) += (offset);	  \
@@ -1822,7 +1812,7 @@ cyber_address_interrupt(struct trident_card *card)
 }
 
 static irqreturn_t
-trident_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+trident_interrupt(int irq, void *dev_id)
 {
 	struct trident_card *card = (struct trident_card *) dev_id;
 	u32 event;
@@ -1873,7 +1863,7 @@ trident_read(struct file *file, char __user *buffer, size_t count, loff_t * ppos
 	unsigned swptr;
 	int cnt;
 
-	pr_debug("trident: trident_read called, count = %d\n", count);
+	pr_debug("trident: trident_read called, count = %zd\n", count);
 
 	VALIDATE_STATE(state);
 
@@ -1989,7 +1979,7 @@ trident_write(struct file *file, const char __user *buffer, size_t count, loff_t
 	unsigned int copy_count;
 	int lret; /* for lock_set_fmt */
 
-	pr_debug("trident: trident_write called, count = %d\n", count);
+	pr_debug("trident: trident_write called, count = %zd\n", count);
 
 	VALIDATE_STATE(state);
 
@@ -3280,8 +3270,8 @@ ali_setup_spdif_out(struct trident_card *card, int flag)
 	char temp;
 	struct pci_dev *pci_dev = NULL;
 
-	pci_dev = pci_find_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, 
-				  pci_dev);
+	pci_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533,
+				 pci_dev);
 	if (pci_dev == NULL)
 		return;
 	pci_read_config_byte(pci_dev, 0x61, &temp);
@@ -3294,6 +3284,8 @@ ali_setup_spdif_out(struct trident_card *card, int flag)
 	temp &= (~0x20);
 	temp |= 0x10;
 	pci_write_config_byte(pci_dev, 0x7e, temp);
+
+	pci_dev_put(pci_dev);
 
 	ch = inb(TRID_REG(card, ALI_SCTRL));
 	outb(ch | ALI_SPDIF_OUT_ENABLE, TRID_REG(card, ALI_SCTRL));
@@ -3501,22 +3493,27 @@ ali_close_multi_channels(void)
 	char temp = 0;
 	struct pci_dev *pci_dev = NULL;
 
-	pci_dev = pci_find_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, 
-				  pci_dev);
+	pci_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533,
+				 pci_dev);
 	if (pci_dev == NULL)
 		return -1;
+
 	pci_read_config_byte(pci_dev, 0x59, &temp);
 	temp &= ~0x80;
 	pci_write_config_byte(pci_dev, 0x59, temp);
 
-	pci_dev = pci_find_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101, 
-				  pci_dev);
+	pci_dev_put(pci_dev);
+
+	pci_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101,
+				 NULL);
 	if (pci_dev == NULL)
 		return -1;
 
 	pci_read_config_byte(pci_dev, 0xB8, &temp);
 	temp &= ~0x20;
 	pci_write_config_byte(pci_dev, 0xB8, temp);
+
+	pci_dev_put(pci_dev);
 
 	return 0;
 }
@@ -3528,21 +3525,26 @@ ali_setup_multi_channels(struct trident_card *card, int chan_nums)
 	char temp = 0;
 	struct pci_dev *pci_dev = NULL;
 
-	pci_dev = pci_find_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, 
-				  pci_dev);
+	pci_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533,
+				 pci_dev);
 	if (pci_dev == NULL)
 		return -1;
 	pci_read_config_byte(pci_dev, 0x59, &temp);
 	temp |= 0x80;
 	pci_write_config_byte(pci_dev, 0x59, temp);
 
-	pci_dev = pci_find_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101, 
-				  pci_dev);
+	pci_dev_put(pci_dev);
+
+	pci_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101,
+				 NULL);
 	if (pci_dev == NULL)
 		return -1;
 	pci_read_config_byte(pci_dev, (int) 0xB8, &temp);
 	temp |= 0x20;
 	pci_write_config_byte(pci_dev, (int) 0xB8, (u8) temp);
+
+	pci_dev_put(pci_dev);
+
 	if (chan_nums == 6) {
 		dwValue = inl(TRID_REG(card, ALI_SCTRL)) | 0x000f0000;
 		outl(dwValue, TRID_REG(card, ALI_SCTRL));
@@ -3653,6 +3655,14 @@ ali_allocate_other_states_resources(struct trident_state *state, int chan_nums)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+/* save registers for ALi Power Management */
+static struct ali_saved_registers {
+	unsigned long global_regs[ALI_GLOBAL_REGS];
+	unsigned long channel_regs[ALI_CHANNELS][ALI_CHANNEL_REGS];
+	unsigned mixer_regs[ALI_MIXER_REGS];
+} ali_registers;
+
 static void
 ali_save_regs(struct trident_card *card)
 {
@@ -3746,6 +3756,7 @@ trident_resume(struct pci_dev *dev)
 	}
 	return 0;
 }
+#endif
 
 static struct trident_channel *
 ali_alloc_pcm_channel(struct trident_card *card)
@@ -4105,8 +4116,8 @@ ali_reset_5451(struct trident_card *card)
 	unsigned int dwVal;
 	unsigned short wCount, wReg;
 
-	pci_dev = pci_find_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, 
-				  pci_dev);
+	pci_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533,
+				 pci_dev);
 	if (pci_dev == NULL)
 		return -1;
 
@@ -4116,6 +4127,7 @@ ali_reset_5451(struct trident_card *card)
 	pci_read_config_dword(pci_dev, 0x7c, &dwVal);
 	pci_write_config_dword(pci_dev, 0x7c, dwVal & 0xf7ffffff);
 	udelay(5000);
+	pci_dev_put(pci_dev);
 
 	pci_dev = card->pci_dev;
 	if (pci_dev == NULL)
@@ -4395,7 +4407,7 @@ trident_probe(struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 
 	init_timer(&card->timer);
 	card->iobase = iobase;
-	card->pci_dev = pci_dev;
+	card->pci_dev = pci_dev_get(pci_dev);
 	card->pci_id = pci_id->device;
 	card->revision = revision;
 	card->irq = pci_dev->irq;
@@ -4549,6 +4561,7 @@ out_unregister_sound_dsp:
 out_free_irq:
 	free_irq(card->irq, card);
 out_proc_fs:
+	pci_dev_put(card->pci_dev);
 	if (res) {
 		remove_proc_entry("ALi5451", NULL);
 		res = NULL;
@@ -4599,9 +4612,9 @@ trident_remove(struct pci_dev *pci_dev)
 		}
 	unregister_sound_dsp(card->dev_audio);
 
-	kfree(card);
-
 	pci_set_drvdata(pci_dev, NULL);
+	pci_dev_put(card->pci_dev);
+	kfree(card);
 }
 
 MODULE_AUTHOR("Alan Cox, Aaron Holtzman, Ollie Lho, Ching Ling Lee, Muli Ben-Yehuda");
@@ -4616,8 +4629,10 @@ static struct pci_driver trident_pci_driver = {
 	.id_table = trident_pci_tbl,
 	.probe = trident_probe,
 	.remove = __devexit_p(trident_remove),
+#ifdef CONFIG_PM
 	.suspend = trident_suspend,
 	.resume = trident_resume
+#endif
 };
 
 static int __init

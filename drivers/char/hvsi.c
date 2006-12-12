@@ -69,7 +69,7 @@
 #define __ALIGNED__	__attribute__((__aligned__(sizeof(long))))
 
 struct hvsi_struct {
-	struct work_struct writer;
+	struct delayed_work writer;
 	struct work_struct handshaker;
 	wait_queue_head_t emptyq; /* woken when outbuf is emptied */
 	wait_queue_head_t stateq; /* woken when HVSI state changes */
@@ -406,7 +406,7 @@ static void hvsi_insert_chars(struct hvsi_struct *hp, const char *buf, int len)
 			hp->sysrq = 1;
 			continue;
 		} else if (hp->sysrq) {
-			handle_sysrq(c, NULL, hp->tty);
+			handle_sysrq(c, hp->tty);
 			hp->sysrq = 0;
 			continue;
 		}
@@ -555,7 +555,7 @@ static void hvsi_send_overflow(struct hvsi_struct *hp)
  * must get all pending data because we only get an irq on empty->non-empty
  * transition
  */
-static irqreturn_t hvsi_interrupt(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t hvsi_interrupt(int irq, void *arg)
 {
 	struct hvsi_struct *hp = (struct hvsi_struct *)arg;
 	struct tty_struct *flip;
@@ -616,7 +616,7 @@ static int __init poll_for_state(struct hvsi_struct *hp, int state)
 	unsigned long end_jiffies = jiffies + HVSI_TIMEOUT;
 
 	for (;;) {
-		hvsi_interrupt(hp->virq, (void *)hp, NULL); /* get pending data */
+		hvsi_interrupt(hp->virq, (void *)hp); /* get pending data */
 
 		if (hp->state == state)
 			return 0;
@@ -744,9 +744,10 @@ static int hvsi_handshake(struct hvsi_struct *hp)
 	return 0;
 }
 
-static void hvsi_handshaker(void *arg)
+static void hvsi_handshaker(struct work_struct *work)
 {
-	struct hvsi_struct *hp = (struct hvsi_struct *)arg;
+	struct hvsi_struct *hp =
+		container_of(work, struct hvsi_struct, handshaker);
 
 	if (hvsi_handshake(hp) >= 0)
 		return;
@@ -951,9 +952,10 @@ static void hvsi_push(struct hvsi_struct *hp)
 }
 
 /* hvsi_write_worker will keep rescheduling itself until outbuf is empty */
-static void hvsi_write_worker(void *arg)
+static void hvsi_write_worker(struct work_struct *work)
 {
-	struct hvsi_struct *hp = (struct hvsi_struct *)arg;
+	struct hvsi_struct *hp =
+		container_of(work, struct hvsi_struct, writer.work);
 	unsigned long flags;
 #ifdef DEBUG
 	static long start_j = 0;
@@ -1130,7 +1132,7 @@ static int hvsi_tiocmset(struct tty_struct *tty, struct file *file,
 }
 
 
-static struct tty_operations hvsi_ops = {
+static const struct tty_operations hvsi_ops = {
 	.open = hvsi_open,
 	.close = hvsi_close,
 	.write = hvsi_write,
@@ -1159,6 +1161,8 @@ static int __init hvsi_init(void)
 	hvsi_driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	hvsi_driver->init_termios = tty_std_termios;
 	hvsi_driver->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL;
+	hvsi_driver->init_termios.c_ispeed = 9600;
+	hvsi_driver->init_termios.c_ospeed = 9600;
 	hvsi_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(hvsi_driver, &hvsi_ops);
 
@@ -1287,8 +1291,8 @@ static int __init hvsi_console_init(void)
 		}
 
 		hp = &hvsi_ports[hvsi_count];
-		INIT_WORK(&hp->writer, hvsi_write_worker, hp);
-		INIT_WORK(&hp->handshaker, hvsi_handshaker, hp);
+		INIT_DELAYED_WORK(&hp->writer, hvsi_write_worker);
+		INIT_WORK(&hp->handshaker, hvsi_handshaker);
 		init_waitqueue_head(&hp->emptyq);
 		init_waitqueue_head(&hp->stateq);
 		spin_lock_init(&hp->lock);

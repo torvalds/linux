@@ -65,7 +65,7 @@ static int etap_write(int fd, struct sk_buff **skb, struct uml_net_private *lp)
 	return(net_send(fd, (*skb)->data, (*skb)->len));
 }
 
-struct net_kern_info ethertap_kern_info = {
+const struct net_kern_info ethertap_kern_info = {
 	.init			= etap_init,
 	.protocol		= eth_protocol,
 	.read			= etap_read,
@@ -105,4 +105,4 @@ static int register_ethertap(void)
 	return 0;
 }
 
-__initcall(register_ethertap);
+late_initcall(register_ethertap);

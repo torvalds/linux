@@ -34,31 +34,24 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 source "init/Kconfig"
 
 menu "Processor type and features"
 
 choice
 	prompt "Xtensa Processor Configuration"
-	default XTENSA_CPU_LINUX_BE
+	default XTENSA_VARIANT_FSF
 
-config XTENSA_CPU_LINUX_BE
-	bool "linux_be"
-	---help---
-	  The linux_be processor configuration is the baseline Xtensa
-	  configurations included in this kernel and also used by
-	  binutils, gcc, and gdb. It contains no TIE, no coprocessors,
-	  and the following configuration options:
-
-	  Code Density Option                2 Misc Special Registers
-	  NSA/NSAU Instructions              128-bit Data Bus Width
-	  Processor ID                       8K, 2-way I and D Caches
-	  Zero-Overhead Loops                2 Inst Address Break Registers
-	  Big Endian                         2 Data Address Break Registers
-	  64 General-Purpose Registers       JTAG Interface and Trace Port
-	  17 Interrupts                      MMU w/ TLBs and Autorefill
-	  3 Interrupt Levels                 8 Autorefill Ways (I/D TLBs)
-	  3 Timers                           Unaligned Exceptions
+config XTENSA_VARIANT_FSF
+	bool "fsf"
 endchoice
 
 config MMU
@@ -206,7 +199,7 @@ source "drivers/pci/hotplug/Kconfig"
 
 endmenu
 
-menu "Exectuable file formats"
+menu "Executable file formats"
 
 # only elf supported
 config KCORE_ELF
@@ -241,7 +234,7 @@ menu "Xtensa initrd options"
 	bool "Embed root filesystem ramdisk into the kernel"
 
 config EMBEDDED_RAMDISK_IMAGE
-	string "Filename of gziped ramdisk image"
+	string "Filename of gzipped ramdisk image"
 	depends on EMBEDDED_RAMDISK
 	default "ramdisk.gz"
 	help

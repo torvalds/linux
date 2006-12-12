@@ -112,7 +112,7 @@ xfs_compat_ioctl(
 	unsigned	cmd,
 	unsigned long	arg)
 {
-	struct inode	*inode = file->f_dentry->d_inode;
+	struct inode	*inode = file->f_path.dentry->d_inode;
 	bhv_vnode_t	*vp = vn_from_inode(inode);
 	int		error;
 

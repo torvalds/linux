@@ -153,7 +153,7 @@ Description:
 	events, which is implicit if it doesn't even support it in the first
 	place).
 
-	Note that the PMC Register in the device's PM Capabilties has a bitmask
+	Note that the PMC Register in the device's PM Capabilities has a bitmask
 	of the states it supports generating PME# from. D3hot is bit 3 and
 	D3cold is bit 4. So, while a value of 4 as the state may not seem
 	semantically correct, it is. 
@@ -268,7 +268,7 @@ to wake the system up. (However, it is possible that a device may support
 some non-standard way of generating a wake event on sleep.)
 
 Bits 15:11 of the PMC (Power Mgmt Capabilities) Register in a device's
-PM Capabilties describe what power states the device supports generating a 
+PM Capabilities describe what power states the device supports generating a 
 wake event from:
 
 +------------------+
@@ -326,7 +326,7 @@ A reference implementation
 
 This is a typical implementation. Drivers can slightly change the order
 of the operations in the implementation, ignore some operations or add
-more deriver specific operations in it, but drivers should do something like
+more driver specific operations in it, but drivers should do something like
 this on the whole.
 
 5. Resources

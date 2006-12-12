@@ -116,9 +116,11 @@ typedef enum {
 typedef union {
 	__s32 i32;
 	__u32 u32;
+	__be32 be32;
 	__u16 u16;
 	__u8 u8;
 	int error;
+	__be16 err;
 	sctp_state_t state;
 	sctp_event_timeout_t to;
 	unsigned long zero;
@@ -164,9 +166,11 @@ SCTP_## name (type arg)		\
 
 SCTP_ARG_CONSTRUCTOR(I32,	__s32, i32)
 SCTP_ARG_CONSTRUCTOR(U32,	__u32, u32)
+SCTP_ARG_CONSTRUCTOR(BE32,	__be32, be32)
 SCTP_ARG_CONSTRUCTOR(U16,	__u16, u16)
 SCTP_ARG_CONSTRUCTOR(U8,	__u8, u8)
 SCTP_ARG_CONSTRUCTOR(ERROR,     int, error)
+SCTP_ARG_CONSTRUCTOR(PERR,      __be16, err)	/* protocol error */
 SCTP_ARG_CONSTRUCTOR(STATE,	sctp_state_t, state)
 SCTP_ARG_CONSTRUCTOR(TO,	sctp_event_timeout_t, to)
 SCTP_ARG_CONSTRUCTOR(PTR,	void *, ptr)

@@ -21,11 +21,35 @@
 #define DMERR(f, arg...) printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
 #define DMWARN(f, arg...) printk(KERN_WARNING DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
 #define DMINFO(f, arg...) printk(KERN_INFO DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
+#ifdef CONFIG_DM_DEBUG
+#  define DMDEBUG(f, arg...) printk(KERN_DEBUG DM_NAME ": " DM_MSG_PREFIX " DEBUG: " f "\n", ## arg)
+#else
+#  define DMDEBUG(f, arg...) do {} while (0)
+#endif
 
 #define DMEMIT(x...) sz += ((sz >= maxlen) ? \
 			  0 : scnprintf(result + sz, maxlen - sz, x))
 
 #define SECTOR_SHIFT 9
+
+/*
+ * Definitions of return values from target end_io function.
+ */
+#define DM_ENDIO_INCOMPLETE	1
+#define DM_ENDIO_REQUEUE	2
+
+/*
+ * Definitions of return values from target map function.
+ */
+#define DM_MAPIO_SUBMITTED	0
+#define DM_MAPIO_REMAPPED	1
+#define DM_MAPIO_REQUEUE	DM_ENDIO_REQUEUE
+
+/*
+ * Suspend feature flags
+ */
+#define DM_SUSPEND_LOCKFS_FLAG		(1 << 0)
+#define DM_SUSPEND_NOFLUSH_FLAG		(1 << 1)
 
 /*
  * List of devices that a metadevice uses and should open/close.
@@ -52,7 +76,7 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q);
 struct list_head *dm_table_get_devices(struct dm_table *t);
 void dm_table_presuspend_targets(struct dm_table *t);
 void dm_table_postsuspend_targets(struct dm_table *t);
-void dm_table_resume_targets(struct dm_table *t);
+int dm_table_resume_targets(struct dm_table *t);
 int dm_table_any_congested(struct dm_table *t, int bdi_bits);
 void dm_table_unplug_all(struct dm_table *t);
 int dm_table_flush_all(struct dm_table *t);

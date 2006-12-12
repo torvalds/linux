@@ -299,9 +299,9 @@ static int __devinit snd_interwave_detect(struct snd_interwave *iwcard,
 	return -ENODEV;
 }
 
-static irqreturn_t snd_interwave_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_interwave_interrupt(int irq, void *dev_id)
 {
-	struct snd_interwave *iwcard = (struct snd_interwave *) dev_id;
+	struct snd_interwave *iwcard = dev_id;
 	int loop, max = 5;
 	int handled = 0;
 
@@ -309,12 +309,12 @@ static irqreturn_t snd_interwave_interrupt(int irq, void *dev_id, struct pt_regs
 		loop = 0;
 		if (inb(iwcard->gus_status_reg)) {
 			handled = 1;
-			snd_gus_interrupt(irq, iwcard->gus, regs);
+			snd_gus_interrupt(irq, iwcard->gus);
 			loop++;
 		}
 		if (inb(iwcard->pcm_status_reg) & 0x01) {	/* IRQ bit is set? */
 			handled = 1;
-			snd_cs4231_interrupt(irq, iwcard->cs4231, regs);
+			snd_cs4231_interrupt(irq, iwcard->cs4231);
 			loop++;
 		}
 	} while (loop && --max > 0);
@@ -564,6 +564,8 @@ static int __devinit snd_interwave_pnp(int dev, struct snd_interwave *iwcard,
 	struct pnp_resource_table * cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
 	int err;
 
+	if (!cfg)
+		return -ENOMEM;
 	iwcard->dev = pnp_request_card_device(card, id->devs[0].id, NULL);
 	if (iwcard->dev == NULL) {
 		kfree(cfg);

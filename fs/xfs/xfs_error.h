@@ -18,14 +18,6 @@
 #ifndef	__XFS_ERROR_H__
 #define	__XFS_ERROR_H__
 
-#define XFS_ERECOVER	1	/* Failure to recover log */
-#define XFS_ELOGSTAT	2	/* Failure to stat log in user space */
-#define XFS_ENOLOGSPACE	3	/* Reservation too large */
-#define XFS_ENOTSUP	4	/* Operation not supported */
-#define	XFS_ENOLSN	5	/* Can't find the lsn you asked for */
-#define XFS_ENOTFOUND	6
-#define XFS_ENOTXFS	7	/* Not XFS filesystem */
-
 #ifdef DEBUG
 #define	XFS_ERROR_NTRAP	10
 extern int	xfs_etrap[XFS_ERROR_NTRAP];
@@ -175,6 +167,7 @@ extern int xfs_errortag_clearall_umount(int64_t fsid, char *fsname, int loud);
 #define		XFS_PTAG_SHUTDOWN_CORRUPT	0x00000010
 #define		XFS_PTAG_SHUTDOWN_IOERROR	0x00000020
 #define		XFS_PTAG_SHUTDOWN_LOGERROR	0x00000040
+#define		XFS_PTAG_FSBLOCK_ZERO		0x00000080
 
 struct xfs_mount;
 /* PRINTFLIKE4 */

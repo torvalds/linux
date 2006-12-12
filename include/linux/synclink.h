@@ -1,7 +1,7 @@
 /*
  * SyncLink Multiprotocol Serial Adapter Driver
  *
- * $Id: synclink.h,v 3.13 2006/05/23 18:25:06 paulkf Exp $
+ * $Id: synclink.h,v 3.14 2006/07/17 20:15:43 paulkf Exp $
  *
  * Copyright (C) 1998-2000 by Microgate Corporation
  *
@@ -124,6 +124,8 @@
 
 #define MGSL_MODE_ASYNC		1
 #define MGSL_MODE_HDLC		2
+#define MGSL_MODE_MONOSYNC	3
+#define MGSL_MODE_BISYNC	4
 #define MGSL_MODE_RAW		6
 
 #define MGSL_BUS_TYPE_ISA	1

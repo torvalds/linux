@@ -13,6 +13,7 @@
 
 #include <asm/compat.h>
 #include <asm/siginfo.h>
+#include <asm/signal.h>
 
 #define compat_jiffies_to_clock_t(x)	\
 		(((unsigned long)(x) * COMPAT_USER_HZ) / HZ)
@@ -162,7 +163,7 @@ asmlinkage long
 compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
 			   compat_size_t len);
 asmlinkage long
-compat_sys_get_robust_list(int pid, compat_uptr_t *head_ptr,
+compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
 			   compat_size_t __user *len_ptr);
 
 long compat_sys_semctl(int first, int second, int third, void __user *uptr);
@@ -195,7 +196,7 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 #define BITS_TO_COMPAT_LONGS(bits) \
 	(((bits)+BITS_PER_COMPAT_LONG-1)/BITS_PER_COMPAT_LONG)
 
-long compat_get_bitmap(unsigned long *mask, compat_ulong_t __user *umask,
+long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 		       unsigned long bitmap_size);
 long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 		       unsigned long bitmap_size);
@@ -227,6 +228,11 @@ static inline int compat_timespec_compare(struct compat_timespec *lhs,
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
 
 extern int compat_printk(const char *fmt, ...);
+extern void sigset_from_compat(sigset_t *set, compat_sigset_t *compat);
+
+asmlinkage long compat_sys_migrate_pages(compat_pid_t pid,
+		compat_ulong_t maxnode, const compat_ulong_t __user *old_nodes,
+		const compat_ulong_t __user *new_nodes);
 
 #endif /* CONFIG_COMPAT */
 #endif /* _LINUX_COMPAT_H */

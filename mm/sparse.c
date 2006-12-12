@@ -24,6 +24,25 @@ struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
 #endif
 EXPORT_SYMBOL(mem_section);
 
+#ifdef NODE_NOT_IN_PAGE_FLAGS
+/*
+ * If we did not store the node number in the page then we have to
+ * do a lookup in the section_to_node_table in order to find which
+ * node the page belongs to.
+ */
+#if MAX_NUMNODES <= 256
+static u8 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
+#else
+static u16 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
+#endif
+
+int page_to_nid(struct page *page)
+{
+	return section_to_node_table[page_to_section(page)];
+}
+EXPORT_SYMBOL(page_to_nid);
+#endif
+
 #ifdef CONFIG_SPARSEMEM_EXTREME
 static struct mem_section *sparse_index_alloc(int nid)
 {
@@ -48,6 +67,10 @@ static int sparse_index_init(unsigned long section_nr, int nid)
 	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
 	struct mem_section *section;
 	int ret = 0;
+
+#ifdef NODE_NOT_IN_PAGE_FLAGS
+	section_to_node_table[section_nr] = nid;
+#endif
 
 	if (mem_section[root])
 		return -EEXIST;
@@ -211,7 +234,7 @@ static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
 	struct page *page, *ret;
 	unsigned long memmap_size = sizeof(struct page) * nr_pages;
 
-	page = alloc_pages(GFP_KERNEL, get_order(memmap_size));
+	page = alloc_pages(GFP_KERNEL|__GFP_NOWARN, get_order(memmap_size));
 	if (page)
 		goto got_map_page;
 

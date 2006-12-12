@@ -161,19 +161,18 @@ static int gp8psk_power_ctrl(struct dvb_usb_device *d, int onoff)
 }
 
 
-static int gp8psk_streaming_ctrl(struct dvb_usb_device *d, int onoff)
+static int gp8psk_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
-	return gp8psk_usb_out_op(d, ARM_TRANSFER, onoff, 0 , NULL, 0);
+	return gp8psk_usb_out_op(adap->dev, ARM_TRANSFER, onoff, 0 , NULL, 0);
 }
 
-static int gp8psk_frontend_attach(struct dvb_usb_device *d)
+static int gp8psk_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	d->fe = gp8psk_fe_attach(d);
-
+	adap->fe = gp8psk_fe_attach(adap->dev);
 	return 0;
 }
 
-static struct dvb_usb_properties gp8psk_properties;
+static struct dvb_usb_device_properties gp8psk_properties;
 
 static int gp8psk_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
@@ -188,28 +187,31 @@ static struct usb_device_id gp8psk_usb_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, gp8psk_usb_table);
 
-static struct dvb_usb_properties gp8psk_properties = {
-	.caps = 0,
-
+static struct dvb_usb_device_properties gp8psk_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-gp8psk-01.fw",
 
-	.streaming_ctrl   = gp8psk_streaming_ctrl,
-	.power_ctrl       = gp8psk_power_ctrl,
-	.frontend_attach  = gp8psk_frontend_attach,
-
-	.generic_bulk_ctrl_endpoint = 0x01,
-	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
-		.count = 7,
-		.endpoint = 0x82,
-		.u = {
-			.bulk = {
-				.buffersize = 8192,
-			}
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.streaming_ctrl   = gp8psk_streaming_ctrl,
+			.frontend_attach  = gp8psk_frontend_attach,
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 7,
+				.endpoint = 0x82,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
 		}
 	},
+	.power_ctrl       = gp8psk_power_ctrl,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
 
 	.num_device_descs = 1,
 	.devices = {
@@ -217,7 +219,7 @@ static struct dvb_usb_properties gp8psk_properties = {
 		  .cold_ids = { &gp8psk_usb_table[0], NULL },
 		  .warm_ids = { &gp8psk_usb_table[1], NULL },
 		},
-		{ 0 },
+		{ NULL },
 	}
 };
 

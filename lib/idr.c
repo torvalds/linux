@@ -33,7 +33,7 @@
 #include <linux/string.h>
 #include <linux/idr.h>
 
-static kmem_cache_t *idr_layer_cache;
+static struct kmem_cache *idr_layer_cache;
 
 static struct idr_layer *alloc_layer(struct idr *idp)
 {
@@ -445,7 +445,7 @@ void *idr_replace(struct idr *idp, void *ptr, int id)
 }
 EXPORT_SYMBOL(idr_replace);
 
-static void idr_cache_ctor(void * idr_layer, kmem_cache_t *idr_layer_cache,
+static void idr_cache_ctor(void * idr_layer, struct kmem_cache *idr_layer_cache,
 		unsigned long flags)
 {
 	memset(idr_layer, 0, sizeof(struct idr_layer));

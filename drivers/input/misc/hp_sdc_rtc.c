@@ -60,7 +60,7 @@ static struct fasync_struct *hp_sdc_rtc_async_queue;
 
 static DECLARE_WAIT_QUEUE_HEAD(hp_sdc_rtc_wait);
 
-static ssize_t hp_sdc_rtc_read(struct file *file, char *buf,
+static ssize_t hp_sdc_rtc_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos);
 
 static int hp_sdc_rtc_ioctl(struct inode *inode, struct file *file,
@@ -385,14 +385,14 @@ static int hp_sdc_rtc_set_i8042timer (struct timeval *setto, uint8_t setcmd)
 	return 0;
 }
 
-static ssize_t hp_sdc_rtc_read(struct file *file, char *buf,
+static ssize_t hp_sdc_rtc_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos) {
 	ssize_t retval;
 
         if (count < sizeof(unsigned long))
                 return -EINVAL;
 
-	retval = put_user(68, (unsigned long *)buf);
+	retval = put_user(68, (unsigned long __user *)buf);
 	return retval;
 }
 
@@ -695,8 +695,10 @@ static int __init hp_sdc_rtc_init(void)
 
 	if ((ret = hp_sdc_request_timer_irq(&hp_sdc_rtc_isr)))
 		return ret;
-	misc_register(&hp_sdc_rtc_dev);
-        create_proc_read_entry ("driver/rtc", 0, 0, 
+	if (misc_register(&hp_sdc_rtc_dev) != 0)
+		printk(KERN_INFO "Could not register misc. dev for i8042 rtc\n");
+
+        create_proc_read_entry ("driver/rtc", 0, NULL,
 				hp_sdc_rtc_read_proc, NULL);
 
 	printk(KERN_INFO "HP i8042 SDC + MSM-58321 RTC support loaded "

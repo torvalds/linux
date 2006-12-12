@@ -176,12 +176,9 @@ static void *claim(unsigned long virt, unsigned long size, unsigned long align)
 static void *of_try_claim(u32 size)
 {
 	unsigned long addr = 0;
-	static u8 first_time = 1;
 
-	if (first_time) {
+	if (claim_base == 0)
 		claim_base = _ALIGN_UP((unsigned long)_end, ONE_MB);
-		first_time = 0;
-	}
 
 	for(; claim_base < RAM_END; claim_base += ONE_MB) {
 #ifdef DEBUG
@@ -259,24 +256,18 @@ static void of_console_write(char *buf, int len)
 	call_prom("write", 3, 1, of_stdout_handle, buf, len);
 }
 
-int platform_init(void *promptr)
+int platform_init(void *promptr, char *dt_blob_start, char *dt_blob_end)
 {
-	platform_ops.fixups = NULL;
 	platform_ops.image_hdr = of_image_hdr;
 	platform_ops.malloc = of_try_claim;
-	platform_ops.free = NULL;
 	platform_ops.exit = of_exit;
 
 	dt_ops.finddevice = of_finddevice;
 	dt_ops.getprop = of_getprop;
 	dt_ops.setprop = of_setprop;
-	dt_ops.translate_addr = NULL;
 
 	console_ops.open = of_console_open;
 	console_ops.write = of_console_write;
-	console_ops.edit_cmdline = NULL;
-	console_ops.close = NULL;
-	console_ops.data = NULL;
 
 	prom = (int (*)(void *))promptr;
 	return 0;

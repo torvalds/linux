@@ -72,7 +72,7 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 	int size;
 
 	down(&con_buf_sem);
-	size = vcs_size(file->f_dentry->d_inode);
+	size = vcs_size(file->f_path.dentry->d_inode);
 	switch (orig) {
 		default:
 			up(&con_buf_sem);
@@ -98,7 +98,7 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 static ssize_t
 vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	unsigned int currcons = iminor(inode);
 	struct vc_data *vc;
 	long pos;
@@ -271,7 +271,7 @@ unlock_out:
 static ssize_t
 vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	unsigned int currcons = iminor(inode);
 	struct vc_data *vc;
 	long pos;
@@ -474,17 +474,18 @@ static const struct file_operations vcs_fops = {
 
 static struct class *vc_class;
 
-void vcs_make_devfs(struct tty_struct *tty)
+void vcs_make_sysfs(struct tty_struct *tty)
 {
-	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 1),
-			NULL, "vcs%u", tty->index + 1);
-	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 129),
-			NULL, "vcsa%u", tty->index + 1);
+	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 1),
+			"vcs%u", tty->index + 1);
+	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 129),
+			"vcsa%u", tty->index + 1);
 }
-void vcs_remove_devfs(struct tty_struct *tty)
+
+void vcs_remove_sysfs(struct tty_struct *tty)
 {
-	class_device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 1));
-	class_device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 129));
+	device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 1));
+	device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 129));
 }
 
 int __init vcs_init(void)
@@ -493,7 +494,7 @@ int __init vcs_init(void)
 		panic("unable to get major %d for vcs device", VCS_MAJOR);
 	vc_class = class_create(THIS_MODULE, "vc");
 
-	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 0), NULL, "vcs");
-	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 128), NULL, "vcsa");
+	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 0), "vcs");
+	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 128), "vcsa");
 	return 0;
 }

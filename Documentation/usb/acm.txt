@@ -49,20 +49,6 @@ Abstract Control Model (USB CDC ACM) specification.
   Unfortunately many modems and most ISDN TAs use proprietary interfaces and
 thus won't work with this drivers. Check for ACM compliance before buying.
 
-  The driver (with devfs) creates these devices in /dev/usb/acm:
-
-	crw-r--r--   1 root     root     166,   0 Apr  1 10:49 0
-	crw-r--r--   1 root     root     166,   1 Apr  1 10:49 1
-	crw-r--r--   1 root     root     166,   2 Apr  1 10:49 2
-
-  And so on, up to 31, with the limit being possible to change in acm.c to up
-to 256, so you can use up to 256 USB modems with one computer (you'll need
-three USB cards for that, though).
-
-  If you don't use devfs, then you can create device nodes with the same
-minor/major numbers anywhere you want, but either the above location or
-/dev/usb/ttyACM0 is preferred.
-
   To use the modems you need these modules loaded:
 
 	usbcore.ko

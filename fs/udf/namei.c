@@ -762,7 +762,7 @@ static int udf_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 		cpu_to_le32(UDF_I_UNIQUE(inode) & 0x00000000FFFFFFFFUL);
 	cfi.fileCharacteristics |= FID_FILE_CHAR_DIRECTORY;
 	udf_write_fi(dir, &cfi, fi, &fibh, NULL, NULL);
-	dir->i_nlink++;
+	inc_nlink(dir);
 	mark_inode_dirty(dir);
 	d_instantiate(dentry, inode);
 	if (fibh.sbh != fibh.ebh)
@@ -876,10 +876,9 @@ static int udf_rmdir(struct inode * dir, struct dentry * dentry)
 		udf_warning(inode->i_sb, "udf_rmdir",
 			"empty directory has nlink != 2 (%d)",
 			inode->i_nlink);
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	inode->i_size = 0;
-	mark_inode_dirty(inode);
-	dir->i_nlink --;
+	inode_dec_link_count(inode);
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_fs_time(dir->i_sb);
 	mark_inode_dirty(dir);
 
@@ -923,8 +922,7 @@ static int udf_unlink(struct inode * dir, struct dentry * dentry)
 		goto end_unlink;
 	dir->i_ctime = dir->i_mtime = current_fs_time(dir->i_sb);
 	mark_inode_dirty(dir);
-	inode->i_nlink--;
-	mark_inode_dirty(inode);
+	inode_dec_link_count(inode);
 	inode->i_ctime = dir->i_ctime;
 	retval = 0;
 
@@ -1101,8 +1099,7 @@ out:
 	return err;
 
 out_no_entry:
-	inode->i_nlink--;
-	mark_inode_dirty(inode);
+	inode_dec_link_count(inode);
 	iput(inode);
 	goto out;
 }
@@ -1150,7 +1147,7 @@ static int udf_link(struct dentry * old_dentry, struct inode * dir,
 	if (fibh.sbh != fibh.ebh)
 		udf_release_data(fibh.ebh);
 	udf_release_data(fibh.sbh);
-	inode->i_nlink ++;
+	inc_nlink(inode);
 	inode->i_ctime = current_fs_time(inode->i_sb);
 	mark_inode_dirty(inode);
 	atomic_inc(&inode->i_count);
@@ -1261,9 +1258,8 @@ static int udf_rename (struct inode * old_dir, struct dentry * old_dentry,
 
 	if (new_inode)
 	{
-		new_inode->i_nlink--;
 		new_inode->i_ctime = current_fs_time(new_inode->i_sb);
-		mark_inode_dirty(new_inode);
+		inode_dec_link_count(new_inode);
 	}
 	old_dir->i_ctime = old_dir->i_mtime = current_fs_time(old_dir->i_sb);
 	mark_inode_dirty(old_dir);
@@ -1279,16 +1275,14 @@ static int udf_rename (struct inode * old_dir, struct dentry * old_dentry,
 		}
 		else
 			mark_buffer_dirty_inode(dir_bh, old_inode);
-		old_dir->i_nlink --;
-		mark_inode_dirty(old_dir);
+		inode_dec_link_count(old_dir);
 		if (new_inode)
 		{
-			new_inode->i_nlink --;
-			mark_inode_dirty(new_inode);
+			inode_dec_link_count(new_inode);
 		}
 		else
 		{
-			new_dir->i_nlink ++;
+			inc_nlink(new_dir);
 			mark_inode_dirty(new_dir);
 		}
 	}

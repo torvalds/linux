@@ -90,11 +90,11 @@ struct in_ifaddr
 	struct in_ifaddr	*ifa_next;
 	struct in_device	*ifa_dev;
 	struct rcu_head		rcu_head;
-	u32			ifa_local;
-	u32			ifa_address;
-	u32			ifa_mask;
-	u32			ifa_broadcast;
-	u32			ifa_anycast;
+	__be32			ifa_local;
+	__be32			ifa_address;
+	__be32			ifa_mask;
+	__be32			ifa_broadcast;
+	__be32			ifa_anycast;
 	unsigned char		ifa_scope;
 	unsigned char		ifa_flags;
 	unsigned char		ifa_prefixlen;
@@ -104,18 +104,18 @@ struct in_ifaddr
 extern int register_inetaddr_notifier(struct notifier_block *nb);
 extern int unregister_inetaddr_notifier(struct notifier_block *nb);
 
-extern struct net_device 	*ip_dev_find(u32 addr);
-extern int		inet_addr_onlink(struct in_device *in_dev, u32 a, u32 b);
+extern struct net_device 	*ip_dev_find(__be32 addr);
+extern int		inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b);
 extern int		devinet_ioctl(unsigned int cmd, void __user *);
 extern void		devinet_init(void);
 extern struct in_device *inetdev_init(struct net_device *dev);
 extern struct in_device	*inetdev_by_index(int);
-extern u32		inet_select_addr(const struct net_device *dev, u32 dst, int scope);
-extern u32		inet_confirm_addr(const struct net_device *dev, u32 dst, u32 local, int scope);
-extern struct in_ifaddr *inet_ifa_byprefix(struct in_device *in_dev, u32 prefix, u32 mask);
+extern __be32		inet_select_addr(const struct net_device *dev, __be32 dst, int scope);
+extern __be32		inet_confirm_addr(const struct net_device *dev, __be32 dst, __be32 local, int scope);
+extern struct in_ifaddr *inet_ifa_byprefix(struct in_device *in_dev, __be32 prefix, __be32 mask);
 extern void		inet_forward_change(void);
 
-static __inline__ int inet_ifa_match(u32 addr, struct in_ifaddr *ifa)
+static __inline__ int inet_ifa_match(__be32 addr, struct in_ifaddr *ifa)
 {
 	return !((addr^ifa->ifa_address)&ifa->ifa_mask);
 }
@@ -124,12 +124,13 @@ static __inline__ int inet_ifa_match(u32 addr, struct in_ifaddr *ifa)
  *	Check if a mask is acceptable.
  */
  
-static __inline__ int bad_mask(u32 mask, u32 addr)
+static __inline__ int bad_mask(__be32 mask, __be32 addr)
 {
+	__u32 hmask;
 	if (addr & (mask = ~mask))
 		return 1;
-	mask = ntohl(mask);
-	if (mask & (mask+1))
+	hmask = ntohl(mask);
+	if (hmask & (hmask+1))
 		return 1;
 	return 0;
 }
@@ -183,18 +184,19 @@ static inline void in_dev_put(struct in_device *idev)
 
 #endif /* __KERNEL__ */
 
-static __inline__ __u32 inet_make_mask(int logmask)
+static __inline__ __be32 inet_make_mask(int logmask)
 {
 	if (logmask)
 		return htonl(~((1<<(32-logmask))-1));
 	return 0;
 }
 
-static __inline__ int inet_mask_len(__u32 mask)
+static __inline__ int inet_mask_len(__be32 mask)
 {
-	if (!(mask = ntohl(mask)))
+	__u32 hmask = ntohl(mask);
+	if (!hmask)
 		return 0;
-	return 32 - ffz(~mask);
+	return 32 - ffz(~hmask);
 }
 
 

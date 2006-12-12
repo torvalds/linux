@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/led_bigsur.c
+ * linux/arch/sh/boards/bigsur/led.c
  *
  * By Dustin McIntire (dustin@sensoria.com) (c)2001
  * Derived from led_se.c and led.c, which bore the message:

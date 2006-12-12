@@ -2,8 +2,9 @@
  * Derived from arch/powerpc/kernel/iommu.c
  *
  * Copyright (C) IBM Corporation, 2006
+ * Copyright (C) 2006  Jon Mason <jdmason@kudzu.us>
  *
- * Author: Jon Mason <jdmason@us.ibm.com>
+ * Author: Jon Mason <jdmason@kudzu.us>
  * Author: Muli Ben-Yehuda <muli@il.ibm.com>
 
  * This program is free software; you can redistribute it and/or modify
@@ -21,7 +22,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -41,6 +41,13 @@
 #include <asm/pci-direct.h>
 #include <asm/system.h>
 #include <asm/dma.h>
+#include <asm/rio.h>
+
+#ifdef CONFIG_CALGARY_IOMMU_ENABLED_BY_DEFAULT
+int use_calgary __read_mostly = 1;
+#else
+int use_calgary __read_mostly = 0;
+#endif /* CONFIG_CALGARY_DEFAULT_ENABLED */
 
 #define PCI_DEVICE_ID_IBM_CALGARY 0x02a1
 #define PCI_VENDOR_DEVICE_ID_CALGARY \
@@ -52,7 +59,8 @@
 #define ONE_BASED_CHASSIS_NUM   1
 
 /* register offsets inside the host bridge space */
-#define PHB_CSR_OFFSET		0x0110
+#define CALGARY_CONFIG_REG	0x0108
+#define PHB_CSR_OFFSET		0x0110 /* Channel Status */
 #define PHB_PLSSR_OFFSET	0x0120
 #define PHB_CONFIG_RW_OFFSET	0x0160
 #define PHB_IOBASE_BAR_LOW	0x0170
@@ -83,6 +91,8 @@
 #define TAR_VALID		0x0000000000000008UL
 /* CSR (Channel/DMA Status Register) */
 #define CSR_AGENT_MASK		0xffe0ffff
+/* CCR (Calgary Configuration Register) */
+#define CCR_2SEC_TIMEOUT        0x000000000000000EUL
 
 #define MAX_NUM_OF_PHBS		8 /* how many PHBs in total? */
 #define MAX_NUM_CHASSIS		8 /* max number of chassis */
@@ -112,14 +122,35 @@ static const unsigned long phb_offsets[] = {
 	0xB000 /* PHB3 */
 };
 
+/* PHB debug registers */
+
+static const unsigned long phb_debug_offsets[] = {
+	0x4000	/* PHB 0 DEBUG */,
+	0x5000	/* PHB 1 DEBUG */,
+	0x6000	/* PHB 2 DEBUG */,
+	0x7000	/* PHB 3 DEBUG */
+};
+
+/*
+ * STUFF register for each debug PHB,
+ * byte 1 = start bus number, byte 2 = end bus number
+ */
+
+#define PHB_DEBUG_STUFF_OFFSET	0x0020
+
 unsigned int specified_table_size = TCE_TABLE_SIZE_UNSPECIFIED;
 static int translate_empty_slots __read_mostly = 0;
 static int calgary_detected __read_mostly = 0;
+
+static struct rio_table_hdr	*rio_table_hdr __initdata;
+static struct scal_detail	*scal_devs[MAX_NUMNODES] __initdata;
+static struct rio_detail	*rio_devs[MAX_NUMNODES * 4] __initdata;
 
 struct calgary_bus_info {
 	void *tce_space;
 	unsigned char translation_disabled;
 	signed char phbid;
+	void __iomem *bbar;
 };
 
 static struct calgary_bus_info bus_info[MAX_PHB_BUS_NUM] = { { NULL, 0, 0 }, };
@@ -472,6 +503,11 @@ static struct dma_mapping_ops calgary_dma_ops = {
 	.unmap_sg = calgary_unmap_sg,
 };
 
+static inline void __iomem * busno_to_bbar(unsigned char num)
+{
+	return bus_info[num].bbar;
+}
+
 static inline int busno_to_phbid(unsigned char num)
 {
 	return bus_info[num].phbid;
@@ -617,13 +653,8 @@ static void __init calgary_reserve_peripheral_mem_2(struct pci_dev *dev)
 static void __init calgary_reserve_regions(struct pci_dev *dev)
 {
 	unsigned int npages;
-	void __iomem *bbar;
-	unsigned char busnum;
 	u64 start;
 	struct iommu_table *tbl = dev->sysdata;
-
-	bbar = tbl->bbar;
-	busnum = dev->bus->number;
 
 	/* reserve bad_dma_address in case it's a legal address */
 	iommu_range_reserve(tbl, bad_dma_address, 1);
@@ -715,7 +746,7 @@ static void calgary_watchdog(unsigned long data)
 
 	/* If no error, the agent ID in the CSR is not valid */
 	if (val32 & CSR_AGENT_MASK) {
-		printk(KERN_EMERG "calgary_watchdog: DMA error on bus %d, "
+		printk(KERN_EMERG "calgary_watchdog: DMA error on PHB %#x, "
 				  "CSR = %#x\n", dev->bus->number, val32);
 		writel(0, target);
 
@@ -730,6 +761,38 @@ static void calgary_watchdog(unsigned long data)
 		/* Reset the timer */
 		mod_timer(&tbl->watchdog_timer, jiffies + 2 * HZ);
 	}
+}
+
+static void __init calgary_increase_split_completion_timeout(void __iomem *bbar,
+	unsigned char busnum)
+{
+	u64 val64;
+	void __iomem *target;
+	unsigned int phb_shift = ~0; /* silence gcc */
+	u64 mask;
+
+	switch (busno_to_phbid(busnum)) {
+	case 0: phb_shift = (63 - 19);
+		break;
+	case 1: phb_shift = (63 - 23);
+		break;
+	case 2: phb_shift = (63 - 27);
+		break;
+	case 3: phb_shift = (63 - 35);
+		break;
+	default:
+		BUG_ON(busno_to_phbid(busnum));
+	}
+
+	target = calgary_reg(bbar, CALGARY_CONFIG_REG);
+	val64 = be64_to_cpu(readq(target));
+
+	/* zero out this PHB's timer bits */
+	mask = ~(0xFUL << phb_shift);
+	val64 &= mask;
+	val64 |= (CCR_2SEC_TIMEOUT << phb_shift);
+	writeq(cpu_to_be64(val64), target);
+	readq(target); /* flush */
 }
 
 static void __init calgary_enable_translation(struct pci_dev *dev)
@@ -749,12 +812,19 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 	val32 = be32_to_cpu(readl(target));
 	val32 |= PHB_TCE_ENABLE | PHB_DAC_DISABLE | PHB_MCSR_ENABLE;
 
-	printk(KERN_INFO "Calgary: enabling translation on PHB %d\n", busnum);
+	printk(KERN_INFO "Calgary: enabling translation on PHB %#x\n", busnum);
 	printk(KERN_INFO "Calgary: errant DMAs will now be prevented on this "
 	       "bus.\n");
 
 	writel(cpu_to_be32(val32), target);
 	readl(target); /* flush */
+
+	/*
+	 * Give split completion a longer timeout on bus 1 for aic94xx
+	 * http://bugzilla.kernel.org/show_bug.cgi?id=7180
+	 */
+	if (busnum == 1)
+		calgary_increase_split_completion_timeout(bbar, busnum);
 
 	init_timer(&tbl->watchdog_timer);
 	tbl->watchdog_timer.function = &calgary_watchdog;
@@ -779,29 +849,11 @@ static void __init calgary_disable_translation(struct pci_dev *dev)
 	val32 = be32_to_cpu(readl(target));
 	val32 &= ~(PHB_TCE_ENABLE | PHB_DAC_DISABLE | PHB_MCSR_ENABLE);
 
-	printk(KERN_INFO "Calgary: disabling translation on PHB %d!\n", busnum);
+	printk(KERN_INFO "Calgary: disabling translation on PHB %#x!\n", busnum);
 	writel(cpu_to_be32(val32), target);
 	readl(target); /* flush */
 
 	del_timer_sync(&tbl->watchdog_timer);
-}
-
-static inline unsigned int __init locate_register_space(struct pci_dev *dev)
-{
-	int rionodeid;
-	u32 address;
-
-	rionodeid = (dev->bus->number % 15 > 4) ? 3 : 2;
-	/*
-	 * register space address calculation as follows:
-	 * FE0MB-8MB*OneBasedChassisNumber+1MB*(RioNodeId-ChassisBase)
-	 * ChassisBase is always zero for x366/x260/x460
-	 * RioNodeId is 2 for first Calgary, 3 for second Calgary
-	 */
-	address = START_ADDRESS	-
-		(0x800000 * (ONE_BASED_CHASSIS_NUM + dev->bus->number / 15)) +
-		(0x100000) * (rionodeid - CHASSIS_BASE);
-	return address;
 }
 
 static void __init calgary_init_one_nontraslated(struct pci_dev *dev)
@@ -813,21 +865,15 @@ static void __init calgary_init_one_nontraslated(struct pci_dev *dev)
 
 static int __init calgary_init_one(struct pci_dev *dev)
 {
-	u32 address;
 	void __iomem *bbar;
 	int ret;
 
-	address = locate_register_space(dev);
-	/* map entire 1MB of Calgary config space */
-	bbar = ioremap_nocache(address, 1024 * 1024);
-	if (!bbar) {
-		ret = -ENODATA;
-		goto done;
-	}
+	BUG_ON(dev->bus->number >= MAX_PHB_BUS_NUM);
 
+	bbar = busno_to_bbar(dev->bus->number);
 	ret = calgary_setup_tar(dev, bbar);
 	if (ret)
-		goto iounmap;
+		goto done;
 
 	pci_dev_get(dev);
 	dev->bus->self = dev;
@@ -835,18 +881,67 @@ static int __init calgary_init_one(struct pci_dev *dev)
 
 	return 0;
 
-iounmap:
-	iounmap(bbar);
 done:
+	return ret;
+}
+
+static int __init calgary_locate_bbars(void)
+{
+	int ret;
+	int rioidx, phb, bus;
+	void __iomem *bbar;
+	void __iomem *target;
+	unsigned long offset;
+	u8 start_bus, end_bus;
+	u32 val;
+
+	ret = -ENODATA;
+	for (rioidx = 0; rioidx < rio_table_hdr->num_rio_dev; rioidx++) {
+		struct rio_detail *rio = rio_devs[rioidx];
+
+		if ((rio->type != COMPAT_CALGARY) && (rio->type != ALT_CALGARY))
+			continue;
+
+		/* map entire 1MB of Calgary config space */
+		bbar = ioremap_nocache(rio->BBAR, 1024 * 1024);
+		if (!bbar)
+			goto error;
+
+		for (phb = 0; phb < PHBS_PER_CALGARY; phb++) {
+			offset = phb_debug_offsets[phb] | PHB_DEBUG_STUFF_OFFSET;
+			target = calgary_reg(bbar, offset);
+
+			val = be32_to_cpu(readl(target));
+			start_bus = (u8)((val & 0x00FF0000) >> 16);
+			end_bus = (u8)((val & 0x0000FF00) >> 8);
+			for (bus = start_bus; bus <= end_bus; bus++) {
+				bus_info[bus].bbar = bbar;
+				bus_info[bus].phbid = phb;
+			}
+		}
+	}
+
+	return 0;
+
+error:
+	/* scan bus_info and iounmap any bbars we previously ioremap'd */
+	for (bus = 0; bus < ARRAY_SIZE(bus_info); bus++)
+		if (bus_info[bus].bbar)
+			iounmap(bus_info[bus].bbar);
+
 	return ret;
 }
 
 static int __init calgary_init(void)
 {
-	int i, ret = -ENODEV;
+	int ret;
 	struct pci_dev *dev = NULL;
 
-	for (i = 0; i < MAX_PHB_BUS_NUM; i++) {
+	ret = calgary_locate_bbars();
+	if (ret)
+		return ret;
+
+	do {
 		dev = pci_get_device(PCI_VENDOR_ID_IBM,
 				     PCI_DEVICE_ID_IBM_CALGARY,
 				     dev);
@@ -862,13 +957,13 @@ static int __init calgary_init(void)
 		ret = calgary_init_one(dev);
 		if (ret)
 			goto error;
-	}
+	} while (1);
 
 	return ret;
 
 error:
-	for (i--; i >= 0; i--) {
-		dev = pci_find_device_reverse(PCI_VENDOR_ID_IBM,
+	do {
+		dev = pci_get_device_reverse(PCI_VENDOR_ID_IBM,
 					      PCI_DEVICE_ID_IBM_CALGARY,
 					      dev);
 		if (!dev)
@@ -883,7 +978,7 @@ error:
 		calgary_disable_translation(dev);
 		calgary_free_bus(dev);
 		pci_dev_put(dev); /* Undo calgary_init_one()'s pci_dev_get() */
-	}
+	} while (1);
 
 	return ret;
 }
@@ -909,13 +1004,56 @@ static inline int __init determine_tce_table_size(u64 ram)
 	return ret;
 }
 
+static int __init build_detail_arrays(void)
+{
+	unsigned long ptr;
+	int i, scal_detail_size, rio_detail_size;
+
+	if (rio_table_hdr->num_scal_dev > MAX_NUMNODES){
+		printk(KERN_WARNING
+			"Calgary: MAX_NUMNODES too low! Defined as %d, "
+			"but system has %d nodes.\n",
+			MAX_NUMNODES, rio_table_hdr->num_scal_dev);
+		return -ENODEV;
+	}
+
+	switch (rio_table_hdr->version){
+	case 2:
+		scal_detail_size = 11;
+		rio_detail_size = 13;
+		break;
+	case 3:
+		scal_detail_size = 12;
+		rio_detail_size = 15;
+		break;
+	default:
+		printk(KERN_WARNING
+		       "Calgary: Invalid Rio Grande Table Version: %d\n",
+		       rio_table_hdr->version);
+		return -EPROTO;
+	}
+
+	ptr = ((unsigned long)rio_table_hdr) + 3;
+	for (i = 0; i < rio_table_hdr->num_scal_dev;
+		    i++, ptr += scal_detail_size)
+		scal_devs[i] = (struct scal_detail *)ptr;
+
+	for (i = 0; i < rio_table_hdr->num_rio_dev;
+		    i++, ptr += rio_detail_size)
+		rio_devs[i] = (struct rio_detail *)ptr;
+
+	return 0;
+}
+
 void __init detect_calgary(void)
 {
 	u32 val;
 	int bus;
 	void *tbl;
 	int calgary_found = 0;
-	int phb = -1;
+	unsigned long ptr;
+	int offset;
+	int ret;
 
 	/*
 	 * if the user specified iommu=off or iommu=soft or we found
@@ -924,24 +1062,46 @@ void __init detect_calgary(void)
 	if (swiotlb || no_iommu || iommu_detected)
 		return;
 
+	if (!use_calgary)
+		return;
+
 	if (!early_pci_allowed())
 		return;
+
+	ptr = (unsigned long)phys_to_virt(get_bios_ebda());
+
+	rio_table_hdr = NULL;
+	offset = 0x180;
+	while (offset) {
+		/* The block id is stored in the 2nd word */
+		if (*((unsigned short *)(ptr + offset + 2)) == 0x4752){
+			/* set the pointer past the offset & block id */
+			rio_table_hdr = (struct rio_table_hdr *)(ptr + offset + 4);
+			break;
+		}
+		/* The next offset is stored in the 1st word. 0 means no more */
+		offset = *((unsigned short *)(ptr + offset));
+	}
+	if (!rio_table_hdr) {
+		printk(KERN_ERR "Calgary: Unable to locate "
+				"Rio Grande Table in EBDA - bailing!\n");
+		return;
+	}
+
+	ret = build_detail_arrays();
+	if (ret) {
+		printk(KERN_ERR "Calgary: build_detail_arrays ret %d\n", ret);
+		return;
+	}
 
 	specified_table_size = determine_tce_table_size(end_pfn * PAGE_SIZE);
 
 	for (bus = 0; bus < MAX_PHB_BUS_NUM; bus++) {
 		int dev;
 		struct calgary_bus_info *info = &bus_info[bus];
-		info->phbid = -1;
 
 		if (read_pci_config(bus, 0, 0, 0) != PCI_VENDOR_DEVICE_ID_CALGARY)
 			continue;
-
-		/*
-		 * There are 4 PHBs per Calgary chip.  Set phb to which phb (0-3)
-		 * it is connected to releative to the clagary chip.
-		 */
-		phb = (phb + 1) % PHBS_PER_CALGARY;
 
 		if (info->translation_disabled)
 			continue;
@@ -957,7 +1117,6 @@ void __init detect_calgary(void)
 				if (!tbl)
 					goto cleanup;
 				info->tce_space = tbl;
-				info->phbid = phb;
 				calgary_found = 1;
 				break;
 			}
@@ -1053,7 +1212,7 @@ static int __init calgary_parse_options(char *p)
 
 			if (bridge < MAX_PHB_BUS_NUM) {
 				printk(KERN_INFO "Calgary: disabling "
-				       "translation for PHB 0x%x\n", bridge);
+				       "translation for PHB %#x\n", bridge);
 				bus_info[bridge].translation_disabled = 1;
 			}
 		}

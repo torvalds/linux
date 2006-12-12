@@ -123,11 +123,11 @@ static int jffs2_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct jffs2_inode_info *f;
 	struct jffs2_sb_info *c;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct jffs2_full_dirent *fd;
 	unsigned long offset, curofs;
 
-	D1(printk(KERN_DEBUG "jffs2_readdir() for dir_i #%lu\n", filp->f_dentry->d_inode->i_ino));
+	D1(printk(KERN_DEBUG "jffs2_readdir() for dir_i #%lu\n", filp->f_path.dentry->d_inode->i_ino));
 
 	f = JFFS2_INODE_INFO(inode);
 	c = JFFS2_SB_INFO(inode->i_sb);
@@ -141,7 +141,7 @@ static int jffs2_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		offset++;
 	}
 	if (offset == 1) {
-		unsigned long pino = parent_ino(filp->f_dentry);
+		unsigned long pino = parent_ino(filp->f_path.dentry);
 		D1(printk(KERN_DEBUG "Dirent 1: \"..\", ino #%lu\n", pino));
 		if (filldir(dirent, "..", 2, 1, pino, DT_DIR) < 0)
 			goto out;
@@ -588,7 +588,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	}
 
 	dir_i->i_mtime = dir_i->i_ctime = ITIME(je32_to_cpu(rd->mctime));
-	dir_i->i_nlink++;
+	inc_nlink(dir_i);
 
 	jffs2_free_raw_dirent(rd);
 
@@ -615,7 +615,7 @@ static int jffs2_rmdir (struct inode *dir_i, struct dentry *dentry)
 	}
 	ret = jffs2_unlink(dir_i, dentry);
 	if (!ret)
-		dir_i->i_nlink--;
+		drop_nlink(dir_i);
 	return ret;
 }
 
@@ -823,7 +823,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 
 	if (victim_f) {
 		/* There was a victim. Kill it off nicely */
-		new_dentry->d_inode->i_nlink--;
+		drop_nlink(new_dentry->d_inode);
 		/* Don't oops if the victim was a dirent pointing to an
 		   inode which didn't exist. */
 		if (victim_f->inocache) {
@@ -836,7 +836,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 	/* If it was a directory we moved, and there was no victim,
 	   increase i_nlink on its new parent */
 	if (S_ISDIR(old_dentry->d_inode->i_mode) && !victim_f)
-		new_dir_i->i_nlink++;
+		inc_nlink(new_dir_i);
 
 	/* Unlink the original */
 	ret = jffs2_do_unlink(c, JFFS2_INODE_INFO(old_dir_i),
@@ -848,7 +848,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 		/* Oh shit. We really ought to make a single node which can do both atomically */
 		struct jffs2_inode_info *f = JFFS2_INODE_INFO(old_dentry->d_inode);
 		down(&f->sem);
-		old_dentry->d_inode->i_nlink++;
+		inc_nlink(old_dentry->d_inode);
 		if (f->inocache)
 			f->inocache->nlink++;
 		up(&f->sem);
@@ -862,7 +862,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 	}
 
 	if (S_ISDIR(old_dentry->d_inode->i_mode))
-		old_dir_i->i_nlink--;
+		drop_nlink(old_dir_i);
 
 	new_dir_i->i_mtime = new_dir_i->i_ctime = old_dir_i->i_mtime = old_dir_i->i_ctime = ITIME(now);
 

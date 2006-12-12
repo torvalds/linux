@@ -128,9 +128,12 @@ static int proc_read_drivers(char *buf, char **start, off_t pos,
 			     int count, int *eof, void *data)
 {
 	char *p = buf;
+	int rc;
 
-	bus_for_each_drv(&pcmcia_bus_type, NULL,
-			 (void *) &p, proc_read_drivers_callback);
+	rc = bus_for_each_drv(&pcmcia_bus_type, NULL,
+			      (void *) &p, proc_read_drivers_callback);
+	if (rc < 0)
+		return rc;
 
 	return (p - buf);
 }
@@ -269,8 +272,10 @@ rescan:
 	 * Prevent this racing with a card insertion.
 	 */
 	mutex_lock(&s->skt_mutex);
-	bus_rescan_devices(&pcmcia_bus_type);
+	ret = bus_rescan_devices(&pcmcia_bus_type);
 	mutex_unlock(&s->skt_mutex);
+	if (ret)
+		goto err_put_module;
 
 	/* check whether the driver indeed matched. I don't care if this
 	 * is racy or not, because it can only happen on cardmgr access
@@ -481,7 +486,7 @@ static ssize_t ds_read(struct file *file, char __user *buf,
     user_info_t *user;
     int ret;
 
-    ds_dbg(2, "ds_read(socket %d)\n", iminor(file->f_dentry->d_inode));
+    ds_dbg(2, "ds_read(socket %d)\n", iminor(file->f_path.dentry->d_inode));
 
     if (count < 4)
 	return -EINVAL;
@@ -506,7 +511,7 @@ static ssize_t ds_read(struct file *file, char __user *buf,
 static ssize_t ds_write(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
-    ds_dbg(2, "ds_write(socket %d)\n", iminor(file->f_dentry->d_inode));
+    ds_dbg(2, "ds_write(socket %d)\n", iminor(file->f_path.dentry->d_inode));
 
     if (count != 4)
 	return -EINVAL;
@@ -524,7 +529,7 @@ static u_int ds_poll(struct file *file, poll_table *wait)
     struct pcmcia_socket *s;
     user_info_t *user;
 
-    ds_dbg(2, "ds_poll(socket %d)\n", iminor(file->f_dentry->d_inode));
+    ds_dbg(2, "ds_poll(socket %d)\n", iminor(file->f_path.dentry->d_inode));
 
     user = file->private_data;
     if (CHECK_USER(user))
@@ -589,7 +594,12 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 
     err = ret = 0;
 
-    if (cmd & IOC_IN) __copy_from_user((char *)buf, uarg, size);
+    if (cmd & IOC_IN) {
+	if (__copy_from_user((char *)buf, uarg, size)) {
+	    err = -EFAULT;
+	    goto free_out;
+	}
+    }
 
     switch (cmd) {
     case DS_ADJUST_RESOURCE_INFO:

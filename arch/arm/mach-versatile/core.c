@@ -27,6 +27,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 
+#include <asm/cnt32_to_63.h>
 #include <asm/system.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
@@ -77,12 +78,12 @@ static struct irq_chip sic_chip = {
 };
 
 static void
-sic_handle_irq(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+sic_handle_irq(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long status = readl(VA_SIC_BASE + SIC_IRQ_STATUS);
 
 	if (status == 0) {
-		do_bad_IRQ(irq, desc, regs);
+		do_bad_IRQ(irq, desc);
 		return;
 	}
 
@@ -93,7 +94,7 @@ sic_handle_irq(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 		irq += IRQ_SIC_START;
 
 		desc = irq_desc + irq;
-		desc_handle_irq(irq, desc, regs);
+		desc_handle_irq(irq, desc);
 	} while (status);
 }
 
@@ -123,7 +124,7 @@ void __init versatile_init_irq(void)
 	for (i = IRQ_SIC_START; i <= IRQ_SIC_END; i++) {
 		if ((PIC_MASK & (1 << (i - IRQ_SIC_START))) == 0) {
 			set_irq_chip(i, &sic_chip);
-			set_irq_handler(i, do_level_IRQ);
+			set_irq_handler(i, handle_level_irq);
 			set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 		}
 	}
@@ -188,12 +189,12 @@ static struct map_desc versatile_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	=  VERSATILE_PCI_VIRT_BASE,
+		.virtual	=  (unsigned long)VERSATILE_PCI_VIRT_BASE,
 		.pfn		= __phys_to_pfn(VERSATILE_PCI_BASE),
 		.length		= VERSATILE_PCI_BASE_SIZE,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	=  VERSATILE_PCI_CFG_VIRT_BASE,
+		.virtual	=  (unsigned long)VERSATILE_PCI_CFG_VIRT_BASE,
 		.pfn		= __phys_to_pfn(VERSATILE_PCI_CFG_BASE),
 		.length		= VERSATILE_PCI_CFG_BASE_SIZE,
 		.type		= MT_DEVICE
@@ -228,14 +229,19 @@ void __init versatile_map_io(void)
 
 /*
  * This is the Versatile sched_clock implementation.  This has
- * a resolution of 41.7ns, and a maximum value of about 179s.
+ * a resolution of 41.7ns, and a maximum value of about 35583 days.
+ *
+ * The return value is guaranteed to be monotonic in that range as
+ * long as there is always less than 89 seconds between successive
+ * calls to this function.
  */
 unsigned long long sched_clock(void)
 {
-	unsigned long long v;
+	unsigned long long v = cnt32_to_63(readl(VERSATILE_REFCOUNTER));
 
-	v = (unsigned long long)readl(VERSATILE_REFCOUNTER) * 125;
-	do_div(v, 3);
+	/* the <<1 gets rid of the cnt_32_to_63 top bit saving on a bic insn */
+	v *= 125<<1;
+	do_div(v, 3<<1);
 
 	return v;
 }
@@ -317,6 +323,19 @@ static struct platform_device smc91x_device = {
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
+};
+
+static struct resource versatile_i2c_resource = {
+	.start			= VERSATILE_I2C_BASE,
+	.end			= VERSATILE_I2C_BASE + SZ_4K - 1,
+	.flags			= IORESOURCE_MEM,
+};
+
+static struct platform_device versatile_i2c_device = {
+	.name			= "versatile-i2c",
+	.id			= -1,
+	.num_resources		= 1,
+	.resource		= &versatile_i2c_resource,
 };
 
 #define VERSATILE_SYSMCI	(__io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_MCI_OFFSET)
@@ -769,6 +788,7 @@ void __init versatile_init(void)
 	clk_register(&versatile_clcd_clk);
 
 	platform_device_register(&versatile_flash_device);
+	platform_device_register(&versatile_i2c_device);
 	platform_device_register(&smc91x_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
@@ -851,14 +871,14 @@ static unsigned long versatile_gettimeoffset(void)
 /*
  * IRQ handler for the timer
  */
-static irqreturn_t versatile_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t versatile_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
 
 	// ...clear the interrupt
 	writel(1, TIMER0_VA_BASE + TIMER_INTCLR);
 
-	timer_tick(regs);
+	timer_tick();
 
 	write_sequnlock(&xtime_lock);
 

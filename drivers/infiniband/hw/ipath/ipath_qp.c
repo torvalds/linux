@@ -335,6 +335,7 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->s_ack_state = IB_OPCODE_RC_ACKNOWLEDGE;
 	qp->r_ack_state = IB_OPCODE_RC_ACKNOWLEDGE;
 	qp->r_nak_state = 0;
+	qp->r_wrid_valid = 0;
 	qp->s_rnr_timeout = 0;
 	qp->s_head = 0;
 	qp->s_tail = 0;
@@ -342,6 +343,7 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->s_last = 0;
 	qp->s_ssn = 1;
 	qp->s_lsn = 0;
+	qp->s_wait_credit = 0;
 	if (qp->r_rq.wq) {
 		qp->r_rq.wq->head = 0;
 		qp->r_rq.wq->tail = 0;
@@ -352,12 +354,13 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 /**
  * ipath_error_qp - put a QP into an error state
  * @qp: the QP to put into an error state
+ * @err: the receive completion error to signal if a RWQE is active
  *
  * Flushes both send and receive work queues.
  * QP s_lock should be held and interrupts disabled.
  */
 
-void ipath_error_qp(struct ipath_qp *qp)
+void ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
 {
 	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
 	struct ib_wc wc;
@@ -373,7 +376,6 @@ void ipath_error_qp(struct ipath_qp *qp)
 		list_del_init(&qp->piowait);
 	spin_unlock(&dev->pending_lock);
 
-	wc.status = IB_WC_WR_FLUSH_ERR;
 	wc.vendor_err = 0;
 	wc.byte_len = 0;
 	wc.imm_data = 0;
@@ -385,6 +387,12 @@ void ipath_error_qp(struct ipath_qp *qp)
 	wc.sl = 0;
 	wc.dlid_path_bits = 0;
 	wc.port_num = 0;
+	if (qp->r_wrid_valid) {
+		qp->r_wrid_valid = 0;
+		wc.status = err;
+		ipath_cq_enter(to_icq(qp->ibqp.send_cq), &wc, 1);
+	}
+	wc.status = IB_WC_WR_FLUSH_ERR;
 
 	while (qp->s_last != qp->s_head) {
 		struct ipath_swqe *wqe = get_swqe_ptr(qp, qp->s_last);
@@ -501,7 +509,7 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		break;
 
 	case IB_QPS_ERR:
-		ipath_error_qp(qp);
+		ipath_error_qp(qp, IB_WC_GENERAL_ERR);
 		break;
 
 	default:
@@ -516,7 +524,7 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		qp->remote_qpn = attr->dest_qp_num;
 
 	if (attr_mask & IB_QP_SQ_PSN) {
-		qp->s_next_psn = attr->sq_psn;
+		qp->s_psn = qp->s_next_psn = attr->sq_psn;
 		qp->s_last_psn = qp->s_next_psn - 1;
 	}
 

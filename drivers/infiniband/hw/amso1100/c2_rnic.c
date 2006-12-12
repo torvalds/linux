@@ -150,15 +150,15 @@ static int c2_rnic_query(struct c2_dev *c2dev, struct ib_device_attr *props)
 	    (struct c2wr_rnic_query_rep *) (unsigned long) (vq_req->reply_msg);
 	if (!reply)
 		err = -ENOMEM;
-
-	err = c2_errno(reply);
+	else
+		err = c2_errno(reply);
 	if (err)
 		goto bail2;
 
 	props->fw_ver =
 		((u64)be32_to_cpu(reply->fw_ver_major) << 32) |
-		((be32_to_cpu(reply->fw_ver_minor) && 0xFFFF) << 16) |
-		(be32_to_cpu(reply->fw_ver_patch) && 0xFFFF);
+		((be32_to_cpu(reply->fw_ver_minor) & 0xFFFF) << 16) |
+		(be32_to_cpu(reply->fw_ver_patch) & 0xFFFF);
 	memcpy(&props->sys_image_guid, c2dev->netdev->dev_addr, 6);
 	props->max_mr_size         = 0xFFFFFFFF;
 	props->page_size_cap       = ~(C2_MIN_PAGESIZE-1);
@@ -441,7 +441,7 @@ static int c2_rnic_close(struct c2_dev *c2dev)
  * involves initalizing the various limits and resouce pools that
  * comprise the RNIC instance.
  */
-int c2_rnic_init(struct c2_dev *c2dev)
+int __devinit c2_rnic_init(struct c2_dev *c2dev)
 {
 	int err;
 	u32 qsize, msgsize;
@@ -517,17 +517,15 @@ int c2_rnic_init(struct c2_dev *c2dev)
 	/* Initialize the Verbs Reply Queue */
 	qsize = be32_to_cpu(readl(mmio_regs + C2_REGS_Q1_QSIZE));
 	msgsize = be32_to_cpu(readl(mmio_regs + C2_REGS_Q1_MSGSIZE));
-	q1_pages = kmalloc(qsize * msgsize, GFP_KERNEL);
+	q1_pages = dma_alloc_coherent(&c2dev->pcidev->dev, qsize * msgsize,
+				      &c2dev->rep_vq.host_dma, GFP_KERNEL);
 	if (!q1_pages) {
 		err = -ENOMEM;
 		goto bail1;
 	}
-	c2dev->rep_vq.host_dma = dma_map_single(c2dev->ibdev.dma_device,
-					        (void *)q1_pages, qsize * msgsize,
-				      		DMA_FROM_DEVICE);
 	pci_unmap_addr_set(&c2dev->rep_vq, mapping, c2dev->rep_vq.host_dma);
 	pr_debug("%s rep_vq va %p dma %llx\n", __FUNCTION__, q1_pages,
-		 (u64)c2dev->rep_vq.host_dma);
+		 (unsigned long long) c2dev->rep_vq.host_dma);
 	c2_mq_rep_init(&c2dev->rep_vq,
 		   1,
 		   qsize,
@@ -540,17 +538,15 @@ int c2_rnic_init(struct c2_dev *c2dev)
 	/* Initialize the Asynchronus Event Queue */
 	qsize = be32_to_cpu(readl(mmio_regs + C2_REGS_Q2_QSIZE));
 	msgsize = be32_to_cpu(readl(mmio_regs + C2_REGS_Q2_MSGSIZE));
-	q2_pages = kmalloc(qsize * msgsize, GFP_KERNEL);
+	q2_pages = dma_alloc_coherent(&c2dev->pcidev->dev, qsize * msgsize,
+				      &c2dev->aeq.host_dma, GFP_KERNEL);
 	if (!q2_pages) {
 		err = -ENOMEM;
 		goto bail2;
 	}
-	c2dev->aeq.host_dma = dma_map_single(c2dev->ibdev.dma_device,
-					        (void *)q2_pages, qsize * msgsize,
-				      		DMA_FROM_DEVICE);
 	pci_unmap_addr_set(&c2dev->aeq, mapping, c2dev->aeq.host_dma);
-	pr_debug("%s aeq va %p dma %llx\n", __FUNCTION__, q1_pages,
-		 (u64)c2dev->rep_vq.host_dma);
+	pr_debug("%s aeq va %p dma %llx\n", __FUNCTION__, q2_pages,
+		 (unsigned long long) c2dev->aeq.host_dma);
 	c2_mq_rep_init(&c2dev->aeq,
 		       2,
 		       qsize,
@@ -597,17 +593,13 @@ int c2_rnic_init(struct c2_dev *c2dev)
       bail4:
 	vq_term(c2dev);
       bail3:
-	dma_unmap_single(c2dev->ibdev.dma_device,
-			 pci_unmap_addr(&c2dev->aeq, mapping),
-			 c2dev->aeq.q_size * c2dev->aeq.msg_size,
-		  	 DMA_FROM_DEVICE);
-	kfree(q2_pages);
+	dma_free_coherent(&c2dev->pcidev->dev,
+			  c2dev->aeq.q_size * c2dev->aeq.msg_size,
+			  q2_pages, pci_unmap_addr(&c2dev->aeq, mapping));
       bail2:
-	dma_unmap_single(c2dev->ibdev.dma_device,
-			 pci_unmap_addr(&c2dev->rep_vq, mapping),
-			 c2dev->rep_vq.q_size * c2dev->rep_vq.msg_size,
-		  	 DMA_FROM_DEVICE);
-	kfree(q1_pages);
+	dma_free_coherent(&c2dev->pcidev->dev,
+			  c2dev->rep_vq.q_size * c2dev->rep_vq.msg_size,
+			  q1_pages, pci_unmap_addr(&c2dev->rep_vq, mapping));
       bail1:
 	c2_free_mqsp_pool(c2dev, c2dev->kern_mqsp_pool);
       bail0:
@@ -619,7 +611,7 @@ int c2_rnic_init(struct c2_dev *c2dev)
 /*
  * Called by c2_remove to cleanup the RNIC resources.
  */
-void c2_rnic_term(struct c2_dev *c2dev)
+void __devexit c2_rnic_term(struct c2_dev *c2dev)
 {
 
 	/* Close the open adapter instance */
@@ -640,19 +632,17 @@ void c2_rnic_term(struct c2_dev *c2dev)
 	/* Free the verbs request allocator */
 	vq_term(c2dev);
 
-	/* Unmap and free the asynchronus event queue */
-	dma_unmap_single(c2dev->ibdev.dma_device,
-			 pci_unmap_addr(&c2dev->aeq, mapping),
-			 c2dev->aeq.q_size * c2dev->aeq.msg_size,
-		  	 DMA_FROM_DEVICE);
-	kfree(c2dev->aeq.msg_pool.host);
+	/* Free the asynchronus event queue */
+	dma_free_coherent(&c2dev->pcidev->dev,
+			  c2dev->aeq.q_size * c2dev->aeq.msg_size,
+			  c2dev->aeq.msg_pool.host,
+			  pci_unmap_addr(&c2dev->aeq, mapping));
 
-	/* Unmap and free the verbs reply queue */
-	dma_unmap_single(c2dev->ibdev.dma_device,
-			 pci_unmap_addr(&c2dev->rep_vq, mapping),
-			 c2dev->rep_vq.q_size * c2dev->rep_vq.msg_size,
-		  	 DMA_FROM_DEVICE);
-	kfree(c2dev->rep_vq.msg_pool.host);
+	/* Free the verbs reply queue */
+	dma_free_coherent(&c2dev->pcidev->dev,
+			  c2dev->rep_vq.q_size * c2dev->rep_vq.msg_size,
+			  c2dev->rep_vq.msg_pool.host,
+			  pci_unmap_addr(&c2dev->rep_vq, mapping));
 
 	/* Free the MQ shared pointer pool */
 	c2_free_mqsp_pool(c2dev, c2dev->kern_mqsp_pool);

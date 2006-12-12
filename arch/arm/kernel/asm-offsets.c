@@ -15,6 +15,7 @@
 #include <asm/mach/arch.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
+#include <asm/procinfo.h>
 
 /*
  * Make sure that the compiler and target are compatible.

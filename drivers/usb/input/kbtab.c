@@ -41,7 +41,7 @@ struct kbtab {
 	char phys[32];
 };
 
-static void kbtab_irq(struct urb *urb, struct pt_regs *regs)
+static void kbtab_irq(struct urb *urb)
 {
 	struct kbtab *kbtab = urb->context;
 	unsigned char *data = kbtab->data;

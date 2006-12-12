@@ -221,3 +221,41 @@ over a rather long period of time, but improvements are always welcome!
 	disable irq on a given acquisition of that lock will result in
 	deadlock as soon as the RCU callback happens to interrupt that
 	acquisition's critical section.
+
+13.	SRCU (srcu_read_lock(), srcu_read_unlock(), and synchronize_srcu())
+	may only be invoked from process context.  Unlike other forms of
+	RCU, it -is- permissible to block in an SRCU read-side critical
+	section (demarked by srcu_read_lock() and srcu_read_unlock()),
+	hence the "SRCU": "sleepable RCU".  Please note that if you
+	don't need to sleep in read-side critical sections, you should
+	be using RCU rather than SRCU, because RCU is almost always
+	faster and easier to use than is SRCU.
+
+	Also unlike other forms of RCU, explicit initialization
+	and cleanup is required via init_srcu_struct() and
+	cleanup_srcu_struct().	These are passed a "struct srcu_struct"
+	that defines the scope of a given SRCU domain.	Once initialized,
+	the srcu_struct is passed to srcu_read_lock(), srcu_read_unlock()
+	and synchronize_srcu().  A given synchronize_srcu() waits only
+	for SRCU read-side critical sections governed by srcu_read_lock()
+	and srcu_read_unlock() calls that have been passd the same
+	srcu_struct.  This property is what makes sleeping read-side
+	critical sections tolerable -- a given subsystem delays only
+	its own updates, not those of other subsystems using SRCU.
+	Therefore, SRCU is less prone to OOM the system than RCU would
+	be if RCU's read-side critical sections were permitted to
+	sleep.
+
+	The ability to sleep in read-side critical sections does not
+	come for free.	First, corresponding srcu_read_lock() and
+	srcu_read_unlock() calls must be passed the same srcu_struct.
+	Second, grace-period-detection overhead is amortized only
+	over those updates sharing a given srcu_struct, rather than
+	being globally amortized as they are for other forms of RCU.
+	Therefore, SRCU should be used in preference to rw_semaphore
+	only in extremely read-intensive situations, or in situations
+	requiring SRCU's read-side deadlock immunity or low read-side
+	realtime latency.
+
+	Note that, rcu_assign_pointer() and rcu_dereference() relate to
+	SRCU just as they do to other forms of RCU.

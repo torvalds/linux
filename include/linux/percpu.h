@@ -19,7 +19,7 @@
  * we force a syntax error here if it isn't.
  */
 #define get_cpu_var(var) (*({				\
-	extern int simple_indentifier_##var(void);	\
+	extern int simple_identifier_##var(void);	\
 	preempt_disable();				\
 	&__get_cpu_var(var); }))
 #define put_cpu_var(var) preempt_enable()
@@ -74,7 +74,7 @@ static inline int __percpu_populate_mask(void *__pdata, size_t size, gfp_t gfp,
 	return 0;
 }
 
-static inline void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask)
+static __always_inline void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask)
 {
 	return kzalloc(size, gfp);
 }

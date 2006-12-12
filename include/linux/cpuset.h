@@ -23,6 +23,7 @@ extern void cpuset_fork(struct task_struct *p);
 extern void cpuset_exit(struct task_struct *p);
 extern cpumask_t cpuset_cpus_allowed(struct task_struct *p);
 extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
+#define cpuset_current_mems_allowed (current->mems_allowed)
 void cpuset_init_current_mems_allowed(void);
 void cpuset_update_task_memory_state(void);
 #define cpuset_nodes_subset_current_mems_allowed(nodes) \
@@ -45,7 +46,7 @@ extern int cpuset_excl_nodes_overlap(const struct task_struct *p);
 extern int cpuset_memory_pressure_enabled;
 extern void __cpuset_memory_pressure_bump(void);
 
-extern struct file_operations proc_cpuset_operations;
+extern const struct file_operations proc_cpuset_operations;
 extern char *cpuset_task_status_allowed(struct task_struct *task, char *buffer);
 
 extern void cpuset_lock(void);
@@ -62,6 +63,8 @@ static inline int cpuset_do_slab_mem_spread(void)
 {
 	return current->flags & PF_SPREAD_SLAB;
 }
+
+extern void cpuset_track_online_nodes(void);
 
 #else /* !CONFIG_CPUSETS */
 
@@ -81,6 +84,7 @@ static inline nodemask_t cpuset_mems_allowed(struct task_struct *p)
 	return node_possible_map;
 }
 
+#define cpuset_current_mems_allowed (node_online_map)
 static inline void cpuset_init_current_mems_allowed(void) {}
 static inline void cpuset_update_task_memory_state(void) {}
 #define cpuset_nodes_subset_current_mems_allowed(nodes) (1)
@@ -125,6 +129,8 @@ static inline int cpuset_do_slab_mem_spread(void)
 {
 	return 0;
 }
+
+static inline void cpuset_track_online_nodes(void) {}
 
 #endif /* !CONFIG_CPUSETS */
 

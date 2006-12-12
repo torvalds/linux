@@ -21,56 +21,58 @@
 #include "lifebook.h"
 
 static struct dmi_system_id lifebook_dmi_table[] = {
-       {
-               .ident = "LifeBook B",
-               .matches = {
-                       DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B Series"),
-               },
-       },
-       {
-               .ident = "Lifebook B",
-               .matches = {
-                       DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK B Series"),
-               },
-       },
-       {
-               .ident = "Lifebook B213x/B2150",
-               .matches = {
-                       DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B2131/B2133/B2150"),
-               },
-       },
-       {
-               .ident = "Zephyr",
-               .matches = {
-                       DMI_MATCH(DMI_PRODUCT_NAME, "ZEPHYR"),
-               },
-       },
-       {
-               .ident = "CF-18",
-               .matches = {
-                       DMI_MATCH(DMI_PRODUCT_NAME, "CF-18"),
-               },
-       },
-       {
-               .ident = "Lifebook B142",
-               .matches = {
-                       DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B142"),
-               },
-
-       },
-       { }
+	{
+		.ident = "FLORA-ie 55mi",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "FLORA-ie 55mi"),
+		},
+	},
+	{
+		.ident = "LifeBook B",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B Series"),
+		},
+	},
+	{
+		.ident = "Lifebook B",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK B Series"),
+		},
+	},
+	{
+		.ident = "Lifebook B213x/B2150",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B2131/B2133/B2150"),
+		},
+	},
+	{
+		.ident = "Zephyr",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "ZEPHYR"),
+		},
+	},
+	{
+		.ident = "CF-18",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "CF-18"),
+		},
+	},
+	{
+		.ident = "Lifebook B142",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B142"),
+		},
+	},
+	{ }
 };
 
-
-static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
+static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse)
 {
 	unsigned char *packet = psmouse->packet;
 	struct input_dev *dev = psmouse->dev;
 
 	if (psmouse->pktcnt != 3)
 		return PSMOUSE_GOOD_DATA;
-
-	input_regs(dev, regs);
 
 	/* calculate X and Y */
 	if ((packet[0] & 0x08) == 0x00) {
@@ -115,13 +117,15 @@ static int lifebook_absolute_mode(struct psmouse *psmouse)
 
 static void lifebook_set_resolution(struct psmouse *psmouse, unsigned int resolution)
 {
-	unsigned char params[] = { 0, 1, 2, 2, 3 };
+	static const unsigned char params[] = { 0, 1, 2, 2, 3 };
+	unsigned char p;
 
 	if (resolution == 0 || resolution > 400)
 		resolution = 400;
 
-	ps2_command(&psmouse->ps2dev, &params[resolution / 100], PSMOUSE_CMD_SETRES);
-	psmouse->resolution = 50 << params[resolution / 100];
+	p = params[resolution / 100];
+	ps2_command(&psmouse->ps2dev, &p, PSMOUSE_CMD_SETRES);
+	psmouse->resolution = 50 << p;
 }
 
 static void lifebook_disconnect(struct psmouse *psmouse)

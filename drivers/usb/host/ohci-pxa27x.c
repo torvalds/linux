@@ -270,6 +270,7 @@ static const struct hc_driver ohci_pxa27x_hc_driver = {
 	 */
 	.start =		ohci_pxa27x_start,
 	.stop =			ohci_stop,
+	.shutdown = 		ohci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -288,6 +289,7 @@ static const struct hc_driver ohci_pxa27x_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
+	.hub_irq_enable =	ohci_rhsc_enable,
 #ifdef  CONFIG_PM
 	.bus_suspend =		ohci_bus_suspend,
 	.bus_resume =		ohci_bus_resume,
@@ -357,6 +359,7 @@ static int ohci_hcd_pxa27x_drv_resume(struct platform_device *pdev)
 static struct platform_driver ohci_hcd_pxa27x_driver = {
 	.probe		= ohci_hcd_pxa27x_drv_probe,
 	.remove		= ohci_hcd_pxa27x_drv_remove,
+	.shutdown 	= usb_hcd_platform_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= ohci_hcd_pxa27x_drv_suspend, 
 	.resume		= ohci_hcd_pxa27x_drv_resume,

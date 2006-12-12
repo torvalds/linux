@@ -76,7 +76,7 @@ int show_interrupts(struct seq_file *p, void *v)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 		}
 #endif
-		seq_printf(p, " %14s", irq_desc[i].chip->typename);
+		seq_printf(p, " %14s", irq_desc[i].chip->name);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -194,8 +194,11 @@ void fixup_irqs(void)
 	 */
 	for (irq=0; irq < NR_IRQS; irq++) {
 		if (vectors_in_migration[irq]) {
+			struct pt_regs *old_regs = set_irq_regs(NULL);
+
 			vectors_in_migration[irq]=0;
-			__do_IRQ(irq, NULL);
+			generic_handle_irq(irq);
+			set_irq_regs(old_regs);
 		}
 	}
 

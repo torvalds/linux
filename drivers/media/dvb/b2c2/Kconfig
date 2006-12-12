@@ -2,13 +2,14 @@ config DVB_B2C2_FLEXCOP
 	tristate "Technisat/B2C2 FlexCopII(b) and FlexCopIII adapters"
 	depends on DVB_CORE && I2C
 	select DVB_PLL
-	select DVB_STV0299
-	select DVB_MT352
-	select DVB_MT312
-	select DVB_NXT200X
-	select DVB_STV0297
-	select DVB_BCM3510
-	select DVB_LGDT330X
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_MT352 if !DVB_FE_CUSTOMISE
+	select DVB_MT312 if !DVB_FE_CUSTOMISE
+	select DVB_NXT200X if !DVB_FE_CUSTOMISE
+	select DVB_STV0297 if !DVB_FE_CUSTOMISE
+	select DVB_BCM3510 if !DVB_FE_CUSTOMISE
+	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
+	select DVB_TUNER_LGH06XF if !DVB_FE_CUSTOMISE
 	help
 	  Support for the digital TV receiver chip made by B2C2 Inc. included in
 	  Technisats PCI cards and USB boxes.

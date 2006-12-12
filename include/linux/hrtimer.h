@@ -138,6 +138,7 @@ extern long hrtimer_nanosleep(struct timespec *rqtp,
 			      struct timespec __user *rmtp,
 			      const enum hrtimer_mode mode,
 			      const clockid_t clockid);
+extern long hrtimer_nanosleep_restart(struct restart_block *restart_block);
 
 extern void hrtimer_init_sleeper(struct hrtimer_sleeper *sl,
 				 struct task_struct *tsk);

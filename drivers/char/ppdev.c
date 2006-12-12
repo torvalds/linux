@@ -106,7 +106,7 @@ static inline void pp_enable_irq (struct pp_struct *pp)
 static ssize_t pp_read (struct file * file, char __user * buf, size_t count,
 			loff_t * ppos)
 {
-	unsigned int minor = iminor(file->f_dentry->d_inode);
+	unsigned int minor = iminor(file->f_path.dentry->d_inode);
 	struct pp_struct *pp = file->private_data;
 	char * kbuffer;
 	ssize_t bytes_read = 0;
@@ -189,7 +189,7 @@ static ssize_t pp_read (struct file * file, char __user * buf, size_t count,
 static ssize_t pp_write (struct file * file, const char __user * buf,
 			 size_t count, loff_t * ppos)
 {
-	unsigned int minor = iminor(file->f_dentry->d_inode);
+	unsigned int minor = iminor(file->f_path.dentry->d_inode);
 	struct pp_struct *pp = file->private_data;
 	char * kbuffer;
 	ssize_t bytes_written = 0;
@@ -269,7 +269,7 @@ static ssize_t pp_write (struct file * file, const char __user * buf,
 	return bytes_written;
 }
 
-static void pp_irq (int irq, void * private, struct pt_regs * unused)
+static void pp_irq (int irq, void * private)
 {
 	struct pp_struct * pp = (struct pp_struct *) private;
 
@@ -752,13 +752,13 @@ static const struct file_operations pp_fops = {
 
 static void pp_attach(struct parport *port)
 {
-	class_device_create(ppdev_class, NULL, MKDEV(PP_MAJOR, port->number),
-			NULL, "parport%d", port->number);
+	device_create(ppdev_class, NULL, MKDEV(PP_MAJOR, port->number),
+			"parport%d", port->number);
 }
 
 static void pp_detach(struct parport *port)
 {
-	class_device_destroy(ppdev_class, MKDEV(PP_MAJOR, port->number));
+	device_destroy(ppdev_class, MKDEV(PP_MAJOR, port->number));
 }
 
 static struct parport_driver pp_driver = {

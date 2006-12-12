@@ -26,7 +26,7 @@ The type of **_id is int.
 The type of siblings is cpumask_t.
 
 To be consistent on all architectures, the 4 attributes should have
-deafult values if their values are unavailable. Below is the rule.
+default values if their values are unavailable. Below is the rule.
 1) physical_package_id: If cpu has no physical package id, -1 is the
 default value.
 2) core_id: If cpu doesn't support multi-core, its core id is 0.

@@ -136,6 +136,7 @@ ENTRY(generic_find_next_zero_le_bit)
 	/* offset is not word-aligned. Handle the first (32 - r10) bits */
 	ldswp.w	r8, r12[0]
 	sub	r12, -4
+	com	r8
 	lsr	r8, r8, r10
 	brne	.L_found
 
@@ -146,7 +147,7 @@ ENTRY(generic_find_next_zero_le_bit)
 
 	/* Main loop. offset must be word-aligned */
 1:	ldswp.w	r8, r12[0]
-	cp.w	r8, 0
+	com	r8
 	brne	.L_found
 	sub	r12, -4
 	sub	r9, 32

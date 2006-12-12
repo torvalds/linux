@@ -35,7 +35,7 @@
     nForce4 MCP55		0368
 
     This driver supports the 2 SMBuses that are included in the MCP of the
-    nForce2/3/4 chipsets.
+    nForce2/3/4/5xx chipsets.
 */
 
 /* Note: we assume there can only be one nForce2, with two SMBus interfaces */
@@ -52,8 +52,8 @@
 #include <asm/io.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR ("Hans-Frieder Vogt <hfvogt@arcor.de>");
-MODULE_DESCRIPTION("nForce2 SMBus driver");
+MODULE_AUTHOR ("Hans-Frieder Vogt <hfvogt@gmx.net>");
+MODULE_DESCRIPTION("nForce2/3/4/5xx SMBus driver");
 
 
 struct nforce2_smbus {
@@ -80,9 +80,6 @@ struct nforce2_smbus {
 #define NVIDIA_SMB_ADDR		(smbus->base + 0x02)	/* address */
 #define NVIDIA_SMB_CMD		(smbus->base + 0x03)	/* command */
 #define NVIDIA_SMB_DATA		(smbus->base + 0x04)	/* 32 data registers */
-#define NVIDIA_SMB_BCNT		(smbus->base + 0x24)	/* number of data bytes */
-#define NVIDIA_SMB_ALRM_A	(smbus->base + 0x25)	/* alarm address */
-#define NVIDIA_SMB_ALRM_D	(smbus->base + 0x26)	/* 2 bytes alarm data */
 
 #define NVIDIA_SMB_STS_DONE	0x80
 #define NVIDIA_SMB_STS_ALRM	0x40
@@ -95,40 +92,17 @@ struct nforce2_smbus {
 #define NVIDIA_SMB_PRTCL_BYTE			0x04
 #define NVIDIA_SMB_PRTCL_BYTE_DATA		0x06
 #define NVIDIA_SMB_PRTCL_WORD_DATA		0x08
-#define NVIDIA_SMB_PRTCL_BLOCK_DATA		0x0a
-#define NVIDIA_SMB_PRTCL_PROC_CALL		0x0c
-#define NVIDIA_SMB_PRTCL_BLOCK_PROC_CALL	0x0d
-#define NVIDIA_SMB_PRTCL_I2C_BLOCK_DATA		0x4a
 #define NVIDIA_SMB_PRTCL_PEC			0x80
 
 static struct pci_driver nforce2_driver;
 
-static s32 nforce2_access(struct i2c_adapter *adap, u16 addr,
-		       unsigned short flags, char read_write,
-		       u8 command, int size, union i2c_smbus_data *data);
-static u32 nforce2_func(struct i2c_adapter *adapter);
-
-
-static struct i2c_algorithm smbus_algorithm = {
-	.smbus_xfer = nforce2_access,
-	.functionality = nforce2_func,
-};
-
-static struct i2c_adapter nforce2_adapter = {
-	.owner          = THIS_MODULE,
-	.class          = I2C_CLASS_HWMON,
-	.algo           = &smbus_algorithm,
-};
-
-/* Return -1 on error. See smbus.h for more information */
+/* Return -1 on error */
 static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 		unsigned short flags, char read_write,
 		u8 command, int size, union i2c_smbus_data * data)
 {
 	struct nforce2_smbus *smbus = adap->algo_data;
 	unsigned char protocol, pec, temp;
-	unsigned char len = 0; /* to keep the compiler quiet */
-	int i;
 
 	protocol = (read_write == I2C_SMBUS_READ) ? NVIDIA_SMB_PRTCL_READ :
 		NVIDIA_SMB_PRTCL_WRITE;
@@ -162,35 +136,6 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 			}
 			protocol |= NVIDIA_SMB_PRTCL_WORD_DATA | pec;
 			break;
-
-		case I2C_SMBUS_BLOCK_DATA:
-			outb_p(command, NVIDIA_SMB_CMD);
-			if (read_write == I2C_SMBUS_WRITE) {
-				len = min_t(u8, data->block[0], 32);
-				outb_p(len, NVIDIA_SMB_BCNT);
-				for (i = 0; i < len; i++)
-					outb_p(data->block[i + 1], NVIDIA_SMB_DATA+i);
-			}
-			protocol |= NVIDIA_SMB_PRTCL_BLOCK_DATA | pec;
-			break;
-
-		case I2C_SMBUS_I2C_BLOCK_DATA:
-			len = min_t(u8, data->block[0], 32);
-			outb_p(command, NVIDIA_SMB_CMD);
-			outb_p(len, NVIDIA_SMB_BCNT);
-			if (read_write == I2C_SMBUS_WRITE)
-				for (i = 0; i < len; i++)
-					outb_p(data->block[i + 1], NVIDIA_SMB_DATA+i);
-			protocol |= NVIDIA_SMB_PRTCL_I2C_BLOCK_DATA;
-			break;
-
-		case I2C_SMBUS_PROC_CALL:
-			dev_err(&adap->dev, "I2C_SMBUS_PROC_CALL not supported!\n");
-			return -1;
-
-		case I2C_SMBUS_BLOCK_PROC_CALL:
-			dev_err(&adap->dev, "I2C_SMBUS_BLOCK_PROC_CALL not supported!\n");
-			return -1;
 
 		default:
 			dev_err(&adap->dev, "Unsupported transaction %d\n", size);
@@ -227,18 +172,7 @@ static s32 nforce2_access(struct i2c_adapter * adap, u16 addr,
 			break;
 
 		case I2C_SMBUS_WORD_DATA:
-		/* case I2C_SMBUS_PROC_CALL: not supported */
 			data->word = inb_p(NVIDIA_SMB_DATA) | (inb_p(NVIDIA_SMB_DATA+1) << 8);
-			break;
-
-		case I2C_SMBUS_BLOCK_DATA:
-		/* case I2C_SMBUS_BLOCK_PROC_CALL: not supported */
-			len = inb_p(NVIDIA_SMB_BCNT);
-			len = min_t(u8, len, 32);
-		case I2C_SMBUS_I2C_BLOCK_DATA:
-			for (i = 0; i < len; i++)
-				data->block[i+1] = inb_p(NVIDIA_SMB_DATA + i);
-			data->block[0] = len;
 			break;
 	}
 
@@ -250,9 +184,13 @@ static u32 nforce2_func(struct i2c_adapter *adapter)
 {
 	/* other functionality might be possible, but is not tested */
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
-	    I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA /* |
-	    I2C_FUNC_SMBUS_BLOCK_DATA */;
+	    I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA;
 }
+
+static struct i2c_algorithm smbus_algorithm = {
+	.smbus_xfer	= nforce2_access,
+	.functionality	= nforce2_func,
+};
 
 
 static struct pci_device_id nforce2_ids[] = {
@@ -266,7 +204,6 @@ static struct pci_device_id nforce2_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SMBUS) },
 	{ 0 }
 };
-
 
 MODULE_DEVICE_TABLE (pci, nforce2_ids);
 
@@ -291,7 +228,7 @@ static int __devinit nforce2_probe_smb (struct pci_dev *dev, int bar,
 		}
 
 		smbus->base = iobase & PCI_BASE_ADDRESS_IO_MASK;
-		smbus->size = 8;
+		smbus->size = 64;
 	}
 	smbus->dev = dev;
 
@@ -300,7 +237,9 @@ static int __devinit nforce2_probe_smb (struct pci_dev *dev, int bar,
 			smbus->base, smbus->base+smbus->size-1, name);
 		return -1;
 	}
-	smbus->adapter = nforce2_adapter;
+	smbus->adapter.owner = THIS_MODULE;
+	smbus->adapter.class = I2C_CLASS_HWMON;
+	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;
 	smbus->adapter.dev.parent = &dev->dev;
 	snprintf(smbus->adapter.name, I2C_NAME_SIZE,

@@ -135,7 +135,7 @@ Some new queue property settings:
 		Sets two variables that limit the size of the request.
 
 		- The request queue's max_sectors, which is a soft size in
-		in units of 512 byte sectors, and could be dynamically varied
+		units of 512 byte sectors, and could be dynamically varied
 		by the core kernel.
 
 		- The request queue's max_hw_sectors, which is a hard limit
@@ -183,7 +183,7 @@ it, the pci dma mapping routines and associated data structures have now been
 modified to accomplish a direct page -> bus translation, without requiring
 a virtual address mapping (unlike the earlier scheme of virtual address
 -> bus translation). So this works uniformly for high-memory pages (which
-do not have a correponding kernel virtual address space mapping) and
+do not have a corresponding kernel virtual address space mapping) and
 low-memory pages.
 
 Note: Please refer to DMA-mapping.txt for a discussion on PCI high mem DMA
@@ -391,7 +391,7 @@ forced such requests to be broken up into small chunks before being passed
 on to the generic block layer, only to be merged by the i/o scheduler
 when the underlying device was capable of handling the i/o in one shot.
 Also, using the buffer head as an i/o structure for i/os that didn't originate
-from the buffer cache unecessarily added to the weight of the descriptors
+from the buffer cache unnecessarily added to the weight of the descriptors
 which were generated for each such chunk.
 
 The following were some of the goals and expectations considered in the
@@ -403,14 +403,14 @@ i.  Should be appropriate as a descriptor for both raw and buffered i/o  -
     for raw i/o.
 ii. Ability to represent high-memory buffers (which do not have a virtual
     address mapping in kernel address space).
-iii.Ability to represent large i/os w/o unecessarily breaking them up (i.e
+iii.Ability to represent large i/os w/o unnecessarily breaking them up (i.e
     greater than PAGE_SIZE chunks in one shot)
 iv. At the same time, ability to retain independent identity of i/os from
     different sources or i/o units requiring individual completion (e.g. for
     latency reasons)
 v.  Ability to represent an i/o involving multiple physical memory segments
     (including non-page aligned page fragments, as specified via readv/writev)
-    without unecessarily breaking it up, if the underlying device is capable of
+    without unnecessarily breaking it up, if the underlying device is capable of
     handling it.
 vi. Preferably should be based on a memory descriptor structure that can be
     passed around different types of subsystems or layers, maybe even
@@ -783,7 +783,7 @@ all the outstanding requests. There's a third helper to do that:
 
 	blk_queue_invalidate_tags(request_queue_t *q)
 
-	Clear the internal block tag queue and readd all the pending requests
+	Clear the internal block tag queue and re-add all the pending requests
 	to the request queue. The driver will receive them again on the
 	next request_fn run, just like it did the first time it encountered
 	them.
@@ -890,7 +890,7 @@ Aside:
 
   Kvec i/o:
 
-  Ben LaHaise's aio code uses a slighly different structure instead
+  Ben LaHaise's aio code uses a slightly different structure instead
   of kiobufs, called a kvec_cb. This contains an array of <page, offset, len>
   tuples (very much like the networking code), together with a callback function
   and data pointer. This is embedded into a brw_cb structure when passed
@@ -988,7 +988,7 @@ elevator_exit_fn		Allocate and free any elevator specific storage
 				for a queue.
 
 4.2 Request flows seen by I/O schedulers
-All requests seens by I/O schedulers strictly follow one of the following three
+All requests seen by I/O schedulers strictly follow one of the following three
 flows.
 
  set_req_fn ->
@@ -1013,7 +1013,7 @@ Characteristics:
 i. Binary tree
 AS and deadline i/o schedulers use red black binary trees for disk position
 sorting and searching, and a fifo linked list for time-based searching. This
-gives good scalability and good availablility of information. Requests are
+gives good scalability and good availability of information. Requests are
 almost always dispatched in disk sort order, so a cache is kept of the next
 request in sort order to prevent binary tree lookups.
 
@@ -1203,6 +1203,6 @@ temporarily map a bio into the virtual address space.
 and Linus' comments - Jan 2001)
 9.2 Discussions about kiobuf and bh design on lkml between sct, linus, alan
 et al - Feb-March 2001 (many of the initial thoughts that led to bio were
-brought up in this discusion thread)
+brought up in this discussion thread)
 9.3 Discussions on mempool on lkml - Dec 2001.
 

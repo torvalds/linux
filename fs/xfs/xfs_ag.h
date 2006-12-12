@@ -150,7 +150,7 @@ typedef struct xfs_agi {
 #define	XFS_BUF_TO_AGFL(bp)	((xfs_agfl_t *)XFS_BUF_PTR(bp))
 
 typedef struct xfs_agfl {
-	xfs_agblock_t	agfl_bno[1];	/* actually XFS_AGFL_SIZE(mp) */
+	__be32		agfl_bno[1];	/* actually XFS_AGFL_SIZE(mp) */
 } xfs_agfl_t;
 
 /*

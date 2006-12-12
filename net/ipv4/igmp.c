@@ -138,14 +138,14 @@
 		time_before(jiffies, (in_dev)->mr_v2_seen)))
 
 static void igmpv3_add_delrec(struct in_device *in_dev, struct ip_mc_list *im);
-static void igmpv3_del_delrec(struct in_device *in_dev, __u32 multiaddr);
+static void igmpv3_del_delrec(struct in_device *in_dev, __be32 multiaddr);
 static void igmpv3_clear_delrec(struct in_device *in_dev);
 static int sf_setstate(struct ip_mc_list *pmc);
 static void sf_markstate(struct ip_mc_list *pmc);
 #endif
 static void ip_mc_clear_src(struct ip_mc_list *pmc);
-static int ip_mc_add_src(struct in_device *in_dev, __u32 *pmca, int sfmode,
-			 int sfcount, __u32 *psfsrc, int delta);
+static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
+			 int sfcount, __be32 *psfsrc, int delta);
 
 static void ip_ma_put(struct ip_mc_list *im)
 {
@@ -426,7 +426,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 	first = 1;
 	psf_prev = NULL;
 	for (psf=*psf_list; psf; psf=psf_next) {
-		u32 *psrc;
+		__be32 *psrc;
 
 		psf_next = psf->sf_next;
 
@@ -439,7 +439,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 		if (isquery)
 			psf->sf_gsresp = 0;
 
-		if (AVAILABLE(skb) < sizeof(u32) +
+		if (AVAILABLE(skb) < sizeof(__be32) +
 		    first*sizeof(struct igmpv3_grec)) {
 			if (truncate && !first)
 				break;	 /* truncate these */
@@ -455,7 +455,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 			skb = add_grhead(skb, pmc, type, &pgr);
 			first = 0;
 		}
-		psrc = (u32 *)skb_put(skb, sizeof(u32));
+		psrc = (__be32 *)skb_put(skb, sizeof(__be32));
 		*psrc = psf->sf_inaddr;
 		scount++; stotal++;
 		if ((type == IGMPV3_ALLOW_NEW_SOURCES ||
@@ -630,8 +630,8 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 	struct igmphdr *ih;
 	struct rtable *rt;
 	struct net_device *dev = in_dev->dev;
-	u32	group = pmc ? pmc->multiaddr : 0;
-	u32	dst;
+	__be32	group = pmc ? pmc->multiaddr : 0;
+	__be32	dst;
 
 	if (type == IGMPV3_HOST_MEMBERSHIP_REPORT)
 		return igmpv3_send_report(in_dev, pmc);
@@ -748,7 +748,7 @@ static void igmp_timer_expire(unsigned long data)
 }
 
 /* mark EXCLUDE-mode sources */
-static int igmp_xmarksources(struct ip_mc_list *pmc, int nsrcs, __u32 *srcs)
+static int igmp_xmarksources(struct ip_mc_list *pmc, int nsrcs, __be32 *srcs)
 {
 	struct ip_sf_list *psf;
 	int i, scount;
@@ -775,7 +775,7 @@ static int igmp_xmarksources(struct ip_mc_list *pmc, int nsrcs, __u32 *srcs)
 	return 1;
 }
 
-static int igmp_marksources(struct ip_mc_list *pmc, int nsrcs, __u32 *srcs)
+static int igmp_marksources(struct ip_mc_list *pmc, int nsrcs, __be32 *srcs)
 {
 	struct ip_sf_list *psf;
 	int i, scount;
@@ -803,7 +803,7 @@ static int igmp_marksources(struct ip_mc_list *pmc, int nsrcs, __u32 *srcs)
 	return 1;
 }
 
-static void igmp_heard_report(struct in_device *in_dev, u32 group)
+static void igmp_heard_report(struct in_device *in_dev, __be32 group)
 {
 	struct ip_mc_list *im;
 
@@ -828,7 +828,7 @@ static void igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 	struct igmphdr 		*ih = skb->h.igmph;
 	struct igmpv3_query *ih3 = (struct igmpv3_query *)ih;
 	struct ip_mc_list	*im;
-	u32			group = ih->group;
+	__be32			group = ih->group;
 	int			max_delay;
 	int			mark = 0;
 
@@ -862,7 +862,7 @@ static void igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 		ih3 = (struct igmpv3_query *) skb->h.raw;
 		if (ih3->nsrcs) {
 			if (!pskb_may_pull(skb, sizeof(struct igmpv3_query) 
-					   + ntohs(ih3->nsrcs)*sizeof(__u32)))
+					   + ntohs(ih3->nsrcs)*sizeof(__be32)))
 				return;
 			ih3 = (struct igmpv3_query *) skb->h.raw;
 		}
@@ -932,7 +932,7 @@ int igmp_rcv(struct sk_buff *skb)
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
-		if (!(u16)csum_fold(skb->csum))
+		if (!csum_fold(skb->csum))
 			break;
 		/* fall through */
 	case CHECKSUM_NONE:
@@ -985,7 +985,7 @@ drop:
  *	Add a filter to a device
  */
 
-static void ip_mc_filter_add(struct in_device *in_dev, u32 addr)
+static void ip_mc_filter_add(struct in_device *in_dev, __be32 addr)
 {
 	char buf[MAX_ADDR_LEN];
 	struct net_device *dev = in_dev->dev;
@@ -1005,7 +1005,7 @@ static void ip_mc_filter_add(struct in_device *in_dev, u32 addr)
  *	Remove a filter from a device
  */
 
-static void ip_mc_filter_del(struct in_device *in_dev, u32 addr)
+static void ip_mc_filter_del(struct in_device *in_dev, __be32 addr)
 {
 	char buf[MAX_ADDR_LEN];
 	struct net_device *dev = in_dev->dev;
@@ -1055,7 +1055,7 @@ static void igmpv3_add_delrec(struct in_device *in_dev, struct ip_mc_list *im)
 	spin_unlock_bh(&in_dev->mc_tomb_lock);
 }
 
-static void igmpv3_del_delrec(struct in_device *in_dev, __u32 multiaddr)
+static void igmpv3_del_delrec(struct in_device *in_dev, __be32 multiaddr)
 {
 	struct ip_mc_list *pmc, *pmc_prev;
 	struct ip_sf_list *psf, *psf_next;
@@ -1193,7 +1193,7 @@ static void igmp_group_added(struct ip_mc_list *im)
  *	A socket has joined a multicast group on device dev.
  */
 
-void ip_mc_inc_group(struct in_device *in_dev, u32 addr)
+void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
 {
 	struct ip_mc_list *im;
 
@@ -1252,7 +1252,7 @@ out:
  *	A socket has left a multicast group on device dev
  */
 
-void ip_mc_dec_group(struct in_device *in_dev, u32 addr)
+void ip_mc_dec_group(struct in_device *in_dev, __be32 addr)
 {
 	struct ip_mc_list *i, **ip;
 	
@@ -1402,7 +1402,7 @@ int sysctl_igmp_max_msf __read_mostly = IP_MAX_MSF;
 
 
 static int ip_mc_del1_src(struct ip_mc_list *pmc, int sfmode,
-	__u32 *psfsrc)
+	__be32 *psfsrc)
 {
 	struct ip_sf_list *psf, *psf_prev;
 	int rv = 0;
@@ -1450,8 +1450,8 @@ static int ip_mc_del1_src(struct ip_mc_list *pmc, int sfmode,
 #define igmp_ifc_event(x)	do { } while (0)
 #endif
 
-static int ip_mc_del_src(struct in_device *in_dev, __u32 *pmca, int sfmode,
-			 int sfcount, __u32 *psfsrc, int delta)
+static int ip_mc_del_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
+			 int sfcount, __be32 *psfsrc, int delta)
 {
 	struct ip_mc_list *pmc;
 	int	changerec = 0;
@@ -1517,7 +1517,7 @@ out_unlock:
  * Add multicast single-source filter to the interface list
  */
 static int ip_mc_add1_src(struct ip_mc_list *pmc, int sfmode,
-	__u32 *psfsrc, int delta)
+	__be32 *psfsrc, int delta)
 {
 	struct ip_sf_list *psf, *psf_prev;
 
@@ -1623,8 +1623,8 @@ static int sf_setstate(struct ip_mc_list *pmc)
 /*
  * Add multicast source filter list to the interface list
  */
-static int ip_mc_add_src(struct in_device *in_dev, __u32 *pmca, int sfmode,
-			 int sfcount, __u32 *psfsrc, int delta)
+static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
+			 int sfcount, __be32 *psfsrc, int delta)
 {
 	struct ip_mc_list *pmc;
 	int	isexclude;
@@ -1717,7 +1717,7 @@ static void ip_mc_clear_src(struct ip_mc_list *pmc)
 int ip_mc_join_group(struct sock *sk , struct ip_mreqn *imr)
 {
 	int err;
-	u32 addr = imr->imr_multiaddr.s_addr;
+	__be32 addr = imr->imr_multiaddr.s_addr;
 	struct ip_mc_socklist *iml=NULL, *i;
 	struct in_device *in_dev;
 	struct inet_sock *inet = inet_sk(sk);
@@ -1791,7 +1791,7 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_mc_socklist *iml, **imlp;
 	struct in_device *in_dev;
-	u32 group = imr->imr_multiaddr.s_addr;
+	__be32 group = imr->imr_multiaddr.s_addr;
 	u32 ifindex;
 	int ret = -EADDRNOTAVAIL;
 
@@ -1829,7 +1829,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 {
 	int err;
 	struct ip_mreqn imr;
-	u32 addr = mreqs->imr_multiaddr;
+	__be32 addr = mreqs->imr_multiaddr;
 	struct ip_mc_socklist *pmc;
 	struct in_device *in_dev = NULL;
 	struct inet_sock *inet = inet_sk(sk);
@@ -1883,7 +1883,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 		rv = !0;
 		for (i=0; i<psl->sl_count; i++) {
 			rv = memcmp(&psl->sl_addr[i], &mreqs->imr_sourceaddr,
-				sizeof(__u32));
+				sizeof(__be32));
 			if (rv == 0)
 				break;
 		}
@@ -1935,7 +1935,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	rv = 1;	/* > 0 for insert logic below if sl_count is 0 */
 	for (i=0; i<psl->sl_count; i++) {
 		rv = memcmp(&psl->sl_addr[i], &mreqs->imr_sourceaddr,
-			sizeof(__u32));
+			sizeof(__be32));
 		if (rv == 0)
 			break;
 	}
@@ -1960,7 +1960,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 {
 	int err = 0;
 	struct ip_mreqn	imr;
-	u32 addr = msf->imsf_multiaddr;
+	__be32 addr = msf->imsf_multiaddr;
 	struct ip_mc_socklist *pmc;
 	struct in_device *in_dev;
 	struct inet_sock *inet = inet_sk(sk);
@@ -2044,7 +2044,7 @@ int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 {
 	int err, len, count, copycount;
 	struct ip_mreqn	imr;
-	u32 addr = msf->imsf_multiaddr;
+	__be32 addr = msf->imsf_multiaddr;
 	struct ip_mc_socklist *pmc;
 	struct in_device *in_dev;
 	struct inet_sock *inet = inet_sk(sk);
@@ -2103,7 +2103,7 @@ int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 {
 	int err, i, count, copycount;
 	struct sockaddr_in *psin;
-	u32 addr;
+	__be32 addr;
 	struct ip_mc_socklist *pmc;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_sf_socklist *psl;
@@ -2156,7 +2156,7 @@ done:
 /*
  * check if a multicast source filter allows delivery for a given <src,dst,intf>
  */
-int ip_mc_sf_allow(struct sock *sk, u32 loc_addr, u32 rmt_addr, int dif)
+int ip_mc_sf_allow(struct sock *sk, __be32 loc_addr, __be32 rmt_addr, int dif)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_mc_socklist *pmc;
@@ -2216,7 +2216,7 @@ void ip_mc_drop_socket(struct sock *sk)
 	rtnl_unlock();
 }
 
-int ip_check_mc(struct in_device *in_dev, u32 mc_addr, u32 src_addr, u16 proto)
+int ip_check_mc(struct in_device *in_dev, __be32 mc_addr, __be32 src_addr, u16 proto)
 {
 	struct ip_mc_list *im;
 	struct ip_sf_list *psf;

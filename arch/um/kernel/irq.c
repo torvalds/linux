@@ -5,7 +5,6 @@
  *	Copyright (C) 1992, 1998 Linus Torvalds, Ingo Molnar
  */
 
-#include "linux/config.h"
 #include "linux/kernel.h"
 #include "linux/module.h"
 #include "linux/smp.h"
@@ -32,6 +31,7 @@
 #include "irq_kern.h"
 #include "os.h"
 #include "sigio.h"
+#include "um_malloc.h"
 #include "misc_constants.h"
 
 /*
@@ -356,14 +356,16 @@ void forward_interrupts(int pid)
  */
 unsigned int do_IRQ(int irq, union uml_pt_regs *regs)
 {
-       irq_enter();
-       __do_IRQ(irq, (struct pt_regs *)regs);
-       irq_exit();
-       return 1;
+	struct pt_regs *old_regs = set_irq_regs((struct pt_regs *)regs);
+	irq_enter();
+	__do_IRQ(irq);
+	irq_exit();
+	set_irq_regs(old_regs);
+	return 1;
 }
 
 int um_request_irq(unsigned int irq, int fd, int type,
-		   irqreturn_t (*handler)(int, void *, struct pt_regs *),
+		   irq_handler_t handler,
 		   unsigned long irqflags, const char * devname,
 		   void *dev_id)
 {
@@ -424,8 +426,7 @@ void __init init_IRQ(void)
 	}
 }
 
-int init_aio_irq(int irq, char *name, irqreturn_t (*handler)(int, void *,
-							     struct pt_regs *))
+int init_aio_irq(int irq, char *name, irq_handler_t handler)
 {
 	int fds[2], err;
 

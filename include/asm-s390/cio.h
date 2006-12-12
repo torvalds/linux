@@ -275,13 +275,18 @@ struct ccw_dev_id {
 	u16 devno;
 };
 
+static inline int ccw_dev_id_is_equal(struct ccw_dev_id *dev_id1,
+				      struct ccw_dev_id *dev_id2)
+{
+	if ((dev_id1->ssid == dev_id2->ssid) &&
+	    (dev_id1->devno == dev_id2->devno))
+		return 1;
+	return 0;
+}
+
 extern int diag210(struct diag210 *addr);
 
 extern void wait_cons_dev(void);
-
-extern void clear_all_subchannels(void);
-
-extern void cio_reset_channel_paths(void);
 
 extern void css_schedule_reprobe(void);
 

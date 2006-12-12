@@ -24,8 +24,10 @@ very similar behavior to the deadline IO scheduler.
 Selecting IO schedulers
 -----------------------
 To choose IO schedulers at boot time, use the argument 'elevator=deadline'.
-'noop' and 'as' (the default) are also available. IO schedulers are assigned
-globally at boot time only presently.
+'noop', 'as' and 'cfq' (the default) are also available. IO schedulers are
+assigned globally at boot time only presently. It's also possible to change
+the IO scheduler for a determined device on the fly, as described in
+Documentation/block/switching-sched.txt.
 
 
 Anticipatory IO scheduler Policies
@@ -99,8 +101,8 @@ contrast, many write requests may be dispatched to the disk controller
 at a time during a write batch.  It is this characteristic that can make
 the anticipatory scheduler perform anomalously with controllers supporting
 TCQ, or with hardware striped RAID devices. Setting the antic_expire
-queue paramter (see below) to zero disables this behavior, and the anticipatory
-scheduler behaves essentially like the deadline scheduler.
+queue parameter (see below) to zero disables this behavior, and the 
+anticipatory scheduler behaves essentially like the deadline scheduler.
 
 When read anticipation is enabled (antic_expire is not zero), reads
 are dispatched to the disk controller one at a time.

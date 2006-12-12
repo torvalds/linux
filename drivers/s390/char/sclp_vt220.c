@@ -655,7 +655,7 @@ __sclp_vt220_init(int early)
 	return 0;
 }
 
-static struct tty_operations sclp_vt220_ops = {
+static const struct tty_operations sclp_vt220_ops = {
 	.open = sclp_vt220_open,
 	.close = sclp_vt220_close,
 	.write = sclp_vt220_write,

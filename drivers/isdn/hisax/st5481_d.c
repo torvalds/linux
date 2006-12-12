@@ -173,7 +173,7 @@ static void l1m_debug(struct FsmInst *fi, char *fmt, ...)
 	char buf[256];
 	
 	va_start(args, fmt);
-	vsprintf(buf, fmt, args);
+	vsnprintf(buf, sizeof(buf), fmt, args);
 	DBG(8, "%s", buf);
 	va_end(args);
 }
@@ -275,7 +275,7 @@ static void dout_debug(struct FsmInst *fi, char *fmt, ...)
 	char buf[256];
 	
 	va_start(args, fmt);
-	vsprintf(buf, fmt, args);
+	vsnprintf(buf, sizeof(buf), fmt, args);
 	DBG(0x2, "%s", buf);
 	va_end(args);
 }
@@ -370,11 +370,11 @@ static void fifo_reseted(void *context)
 	FsmEvent(&adapter->d_out.fsm, EV_DOUT_RESETED, NULL);
 }
 
-static void usb_d_out_complete(struct urb *urb, struct pt_regs *regs)
+static void usb_d_out_complete(struct urb *urb)
 {
 	struct st5481_adapter *adapter = urb->context;
 	struct st5481_d_out *d_out = &adapter->d_out;
-	int buf_nr;
+	long buf_nr;
 	
 	DBG(2, "");
 
@@ -546,7 +546,7 @@ static void dout_reseted(struct FsmInst *fsm, int event, void *arg)
 static void dout_complete(struct FsmInst *fsm, int event, void *arg)
 {
 	struct st5481_adapter *adapter = fsm->userdata;
-	int buf_nr = (int) arg;
+	long buf_nr = (long) arg;
 
 	usb_d_out(adapter, buf_nr);
 }

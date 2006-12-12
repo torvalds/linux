@@ -83,10 +83,10 @@ int cifs_dir_notify(struct file * file, unsigned long arg)
 		return 0;
 
 	xid = GetXid();
-	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
+	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 
-	full_path = build_path_from_dentry(file->f_dentry);
+	full_path = build_path_from_dentry(file->f_path.dentry);
 
 	if(full_path == NULL) {
 		rc = -ENOMEM;

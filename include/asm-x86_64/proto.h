@@ -24,8 +24,6 @@ extern void mtrr_bp_init(void);
 #define mtrr_bp_init() do {} while (0)
 #endif
 extern void init_memory_mapping(unsigned long start, unsigned long end);
-extern void size_zones(unsigned long *z, unsigned long *h,
-			unsigned long start_pfn, unsigned long end_pfn);
 
 extern void system_call(void); 
 extern int kernel_syscall(void);
@@ -63,12 +61,11 @@ extern void numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn);
 extern unsigned long numa_free_all_bootmem(void);
 
 extern void reserve_bootmem_generic(unsigned long phys, unsigned len);
-extern void free_bootmem_generic(unsigned long phys, unsigned len);
 
 extern void load_gs_index(unsigned gs);
 
 extern void stop_timer_interrupt(void);
-extern void main_timer_handler(struct pt_regs *regs);
+extern void main_timer_handler(void);
 
 extern unsigned long end_pfn_map; 
 
@@ -90,6 +87,7 @@ extern void syscall32_cpu_init(void);
 extern void setup_node_bootmem(int nodeid, unsigned long start, unsigned long end);
 
 extern void early_quirks(void);
+extern void quirk_intel_irqbalance(void);
 extern void check_efer(void);
 
 extern int unhandled_signal(struct task_struct *tsk, int sig);
@@ -124,9 +122,11 @@ extern int fix_aperture;
 extern int reboot_force;
 extern int notsc_setup(char *);
 
+extern int timer_over_8254;
+
 extern int gsi_irq_sharing(int gsi);
 
-extern void smp_local_timer_interrupt(struct pt_regs * regs);
+extern void smp_local_timer_interrupt(void);
 
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr);
 

@@ -246,7 +246,7 @@ static int flexcop_usb_i2c_req(struct flexcop_usb *fc_usb,
 	wIndex = (chipaddr << 8 ) | addr;
 
 	deb_i2c("i2c %2d: %02x %02x %02x %02x %02x %02x\n",func,request_type,req,
-			((wValue && 0xff) << 8),wValue >> 8,((wIndex && 0xff) << 8),wIndex >> 8);
+		wValue & 0xff, wValue >> 8, wIndex & 0xff, wIndex >> 8);
 
 	len = usb_control_msg(fc_usb->udev,pipe,
 			req,
@@ -328,7 +328,7 @@ static void flexcop_usb_process_frame(struct flexcop_usb *fc_usb, u8 *buffer, in
 	fc_usb->tmp_buffer_length = l;
 }
 
-static void flexcop_usb_urb_complete(struct urb *urb, struct pt_regs *ptregs)
+static void flexcop_usb_urb_complete(struct urb *urb)
 {
 	struct flexcop_usb *fc_usb = urb->context;
 	int i;

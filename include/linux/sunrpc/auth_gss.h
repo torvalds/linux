@@ -1,5 +1,5 @@
 /*
- * linux/include/linux/auth_gss.h
+ * linux/include/linux/sunrpc/auth_gss.h
  *
  * Declarations for RPCSEC_GSS
  *
@@ -89,8 +89,6 @@ struct gss_cred {
 #define gc_count		gc_base.cr_count
 #define gc_flags		gc_base.cr_flags
 #define gc_expire		gc_base.cr_expire
-
-void print_hexl(u32 *p, u_int length, u_int offset);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_AUTH_GSS_H */

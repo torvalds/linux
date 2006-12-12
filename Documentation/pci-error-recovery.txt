@@ -172,7 +172,7 @@ is STEP 6 (Permanent Failure).
 >>> a value of 0xff on read, and writes will be dropped. If the device
 >>> driver attempts more than 10K I/O's to a frozen adapter, it will
 >>> assume that the device driver has gone into an infinite loop, and
->>> it will panic the the kernel. There doesn't seem to be any other
+>>> it will panic the kernel. There doesn't seem to be any other
 >>> way of stopping a device driver that insists on spinning on I/O.
 
 STEP 2: MMIO Enabled

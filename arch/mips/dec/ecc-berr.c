@@ -18,13 +18,14 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/spinlock.h>
 #include <linux/types.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
+#include <asm/irq_regs.h>
 #include <asm/processor.h>
+#include <asm/ptrace.h>
 #include <asm/system.h>
 #include <asm/traps.h>
 
@@ -200,8 +201,10 @@ int dec_ecc_be_handler(struct pt_regs *regs, int is_fixup)
 	return dec_ecc_be_backend(regs, is_fixup, 0);
 }
 
-irqreturn_t dec_ecc_be_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t dec_ecc_be_interrupt(int irq, void *dev_id)
 {
+	struct pt_regs *regs = get_irq_regs();
+
 	int action = dec_ecc_be_backend(regs, 0, 1);
 
 	if (action == MIPS_BE_DISCARD)
@@ -228,12 +231,9 @@ irqreturn_t dec_ecc_be_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static inline void dec_kn02_be_init(void)
 {
 	volatile u32 *csr = (void *)CKSEG1ADDR(KN02_SLOT_BASE + KN02_CSR);
-	unsigned long flags;
 
 	kn0x_erraddr = (void *)CKSEG1ADDR(KN02_SLOT_BASE + KN02_ERRADDR);
 	kn0x_chksyn = (void *)CKSEG1ADDR(KN02_SLOT_BASE + KN02_CHKSYN);
-
-	spin_lock_irqsave(&kn02_lock, flags);
 
 	/* Preset write-only bits of the Control Register cache. */
 	cached_kn02_csr = *csr | KN02_CSR_LEDS;
@@ -244,8 +244,6 @@ static inline void dec_kn02_be_init(void)
 	cached_kn02_csr |= KN02_CSR_CORRECT;
 	*csr = cached_kn02_csr;
 	iob();
-
-	spin_unlock_irqrestore(&kn02_lock, flags);
 }
 
 static inline void dec_kn03_be_init(void)

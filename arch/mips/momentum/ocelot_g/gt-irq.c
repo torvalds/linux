@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <asm/ptrace.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <asm/gt64240.h>
@@ -28,7 +27,7 @@ unsigned long bus_clock;
  * be handled and ack'ed differently than other MIPS interrupts.
  */
 
-#if CURRENTLY_UNUSED
+#if 0
 
 struct tq_struct irq_handlers[MAX_CAUSE_REGS][MAX_CAUSE_REG_WIDTH];
 void hook_irq_handler(int int_cause, int bit_num, void *isr_ptr);
@@ -96,7 +95,7 @@ int disable_galileo_irq(int int_cause, int bit_num)
 		return 0;
 	return 1;
 }
-#endif				/*  UNUSED  */
+#endif /* 0 */
 
 /*
  * Interrupt handler for interrupts coming from the Galileo chip via P0_INT#.
@@ -108,7 +107,7 @@ int disable_galileo_irq(int int_cause, int bit_num)
  * we keep this particular structure in the function.
  */
 
-static irqreturn_t gt64240_p0int_irq(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t gt64240_p0int_irq(int irq, void *dev)
 {
 	uint32_t irq_src, irq_src_mask;
 	int handled;
@@ -133,9 +132,9 @@ static irqreturn_t gt64240_p0int_irq(int irq, void *dev, struct pt_regs *regs)
 		MV_WRITE(TIMER_COUNTER_0_3_INTERRUPT_CAUSE, 0x0);
 
 		/* handle the timer call */
-		do_timer(regs);
+		do_timer(1);
 #ifndef CONFIG_SMP
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode(get_irq_regs()));
 #endif
 	}
 
@@ -197,7 +196,7 @@ void gt64240_time_init(void)
 
 void gt64240_irq_init(void)
 {
-#if CURRENTLY_UNUSED
+#if 0
 	int i, j;
 
 	/* Reset irq handlers pointers to NULL */
@@ -209,5 +208,5 @@ void gt64240_irq_init(void)
 			irq_handlers[i][j].data = NULL;
 		}
 	}
-#endif
+#endif /* 0 */
 }

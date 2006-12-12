@@ -34,6 +34,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
+#include <linux/freezer.h>
 
 #include <asm/prom.h>
 

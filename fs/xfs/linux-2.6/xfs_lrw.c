@@ -270,16 +270,18 @@ xfs_read(
 		}
 	}
 
-	if (unlikely((ioflags & IO_ISDIRECT) && VN_CACHED(vp)))
-		bhv_vop_flushinval_pages(vp, ctooff(offtoct(*offset)),
-						-1, FI_REMAPF_LOCKED);
-
-	if (unlikely(ioflags & IO_ISDIRECT))
+	if (unlikely(ioflags & IO_ISDIRECT)) {
+		if (VN_CACHED(vp))
+			bhv_vop_flushinval_pages(vp, ctooff(offtoct(*offset)),
+						 -1, FI_REMAPF_LOCKED);
 		mutex_unlock(&inode->i_mutex);
+	}
 
 	xfs_rw_enter_trace(XFS_READ_ENTER, &ip->i_iocore,
 				(void *)iovp, segs, *offset, ioflags);
-	ret = __generic_file_aio_read(iocb, iovp, segs, offset);
+
+	iocb->ki_pos = *offset;
+	ret = generic_file_aio_read(iocb, iovp, segs, *offset);
 	if (ret == -EIOCBQUEUED && !(ioflags & IO_ISAIO))
 		ret = wait_on_sync_kiocb(iocb);
 	if (ret > 0)
@@ -803,7 +805,7 @@ start:
 	     !capable(CAP_FSETID)) {
 		error = xfs_write_clear_setuid(xip);
 		if (likely(!error))
-			error = -remove_suid(file->f_dentry);
+			error = -remove_suid(file->f_path.dentry);
 		if (unlikely(error)) {
 			xfs_iunlock(xip, iolock);
 			goto out_unlock_mutex;

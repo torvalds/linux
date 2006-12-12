@@ -281,11 +281,10 @@ int afs_vlocation_lookup(struct afs_cell *cell,
 	spin_unlock(&cell->vl_gylock);
 
 	/* not in the cell's in-memory lists - create a new record */
-	vlocation = kmalloc(sizeof(struct afs_vlocation), GFP_KERNEL);
+	vlocation = kzalloc(sizeof(struct afs_vlocation), GFP_KERNEL);
 	if (!vlocation)
 		return -ENOMEM;
 
-	memset(vlocation, 0, sizeof(struct afs_vlocation));
 	atomic_set(&vlocation->usage, 1);
 	INIT_LIST_HEAD(&vlocation->link);
 	rwlock_init(&vlocation->lock);

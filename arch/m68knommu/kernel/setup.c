@@ -36,10 +36,7 @@
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/machdep.h>
-
-#ifdef CONFIG_BLK_DEV_INITRD
 #include <asm/pgtable.h>
-#endif
 
 unsigned long memory_start;
 unsigned long memory_end;
@@ -62,7 +59,7 @@ int (*mach_kbdrate) (struct kbd_repeat *);
 void (*mach_kbd_leds) (unsigned int);
 /* machine dependent irq functions */
 void (*mach_init_IRQ) (void);
-irqreturn_t (*(*mach_default_handler)[]) (int, void *, struct pt_regs *);
+irq_handler_t mach_default_handler;
 int (*mach_get_irq_list) (struct seq_file *, void *);
 void (*mach_process_int) (int irq, struct pt_regs *fp);
 void (*mach_trap_init) (void);

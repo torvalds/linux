@@ -570,7 +570,7 @@ static void snd_mtpav_read_bytes(struct mtpav *mcrd)
 	} while (sbyt & SIGS_BYTE);
 }
 
-static irqreturn_t snd_mtpav_irqh(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_mtpav_irqh(int irq, void *dev_id)
 {
 	struct mtpav *mcard = dev_id;
 

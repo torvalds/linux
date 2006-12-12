@@ -181,9 +181,9 @@ static int snd_usbmidi_urb_error(int status)
 	case -ENODEV:
 		return -ENODEV;
 	/* errors that might occur during unplugging */
-	case -EPROTO:    /* EHCI */
-	case -ETIMEDOUT: /* OHCI */
-	case -EILSEQ:    /* UHCI */
+	case -EPROTO:
+	case -ETIME:
+	case -EILSEQ:
 		return -EIO;
 	default:
 		snd_printk(KERN_ERR "urb status %d\n", status);
@@ -223,7 +223,7 @@ static void dump_urb(const char *type, const u8 *data, int length)
 /*
  * Processes the data read from the device.
  */
-static void snd_usbmidi_in_urb_complete(struct urb* urb, struct pt_regs *regs)
+static void snd_usbmidi_in_urb_complete(struct urb* urb)
 {
 	struct snd_usb_midi_in_endpoint* ep = urb->context;
 
@@ -247,7 +247,7 @@ static void snd_usbmidi_in_urb_complete(struct urb* urb, struct pt_regs *regs)
 	snd_usbmidi_submit_urb(urb, GFP_ATOMIC);
 }
 
-static void snd_usbmidi_out_urb_complete(struct urb* urb, struct pt_regs *regs)
+static void snd_usbmidi_out_urb_complete(struct urb* urb)
 {
 	struct snd_usb_midi_out_endpoint* ep = urb->context;
 
@@ -323,10 +323,9 @@ static int send_bulk_static_data(struct snd_usb_midi_out_endpoint* ep,
 				 const void *data, int len)
 {
 	int err;
-	void *buf = kmalloc(len, GFP_KERNEL);
+	void *buf = kmemdup(data, len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-	memcpy(buf, data, len);
 	dump_urb("sending", buf, len);
 	err = usb_bulk_msg(ep->umidi->chip->dev, ep->urb->pipe, buf, len,
 			   NULL, 250);
@@ -982,7 +981,7 @@ void snd_usbmidi_disconnect(struct list_head* p)
 			if (umidi->usb_protocol_ops->finish_out_endpoint)
 				umidi->usb_protocol_ops->finish_out_endpoint(ep->out);
 		}
-		if (ep->in && ep->in->urb)
+		if (ep->in)
 			usb_kill_urb(ep->in->urb);
 	}
 }

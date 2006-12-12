@@ -39,7 +39,7 @@ int sysctl_local_port_range[2] = { 1024, 4999 };
 int inet_csk_bind_conflict(const struct sock *sk,
 			   const struct inet_bind_bucket *tb)
 {
-	const u32 sk_rcv_saddr = inet_rcv_saddr(sk);
+	const __be32 sk_rcv_saddr = inet_rcv_saddr(sk);
 	struct sock *sk2;
 	struct hlist_node *node;
 	int reuse = sk->sk_reuse;
@@ -52,7 +52,7 @@ int inet_csk_bind_conflict(const struct sock *sk,
 		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if)) {
 			if (!reuse || !sk2->sk_reuse ||
 			    sk2->sk_state == TCP_LISTEN) {
-				const u32 sk2_rcv_saddr = inet_rcv_saddr(sk2);
+				const __be32 sk2_rcv_saddr = inet_rcv_saddr(sk2);
 				if (!sk2_rcv_saddr || !sk_rcv_saddr ||
 				    sk2_rcv_saddr == sk_rcv_saddr)
 					break;
@@ -342,10 +342,10 @@ struct dst_entry* inet_csk_route_req(struct sock *sk,
 
 EXPORT_SYMBOL_GPL(inet_csk_route_req);
 
-static inline u32 inet_synq_hash(const u32 raddr, const u16 rport,
-				 const u32 rnd, const u16 synq_hsize)
+static inline u32 inet_synq_hash(const __be32 raddr, const __be16 rport,
+				 const u32 rnd, const u32 synq_hsize)
 {
-	return jhash_2words(raddr, (u32)rport, rnd) & (synq_hsize - 1);
+	return jhash_2words((__force u32)raddr, (__force u32)rport, rnd) & (synq_hsize - 1);
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
@@ -356,8 +356,8 @@ static inline u32 inet_synq_hash(const u32 raddr, const u16 rport,
 
 struct request_sock *inet_csk_search_req(const struct sock *sk,
 					 struct request_sock ***prevp,
-					 const __u16 rport, const __u32 raddr,
-					 const __u32 laddr)
+					 const __be16 rport, const __be32 raddr,
+					 const __be32 laddr)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;

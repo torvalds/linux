@@ -23,7 +23,7 @@
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
-#include <linux/namespace.h>
+#include <linux/mnt_namespace.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/quotaops.h>
@@ -430,21 +430,29 @@ int remove_save_link(struct inode *inode, int truncate)
 	return journal_end(&th, inode->i_sb, JOURNAL_PER_BALANCE_CNT);
 }
 
+static void reiserfs_kill_sb(struct super_block *s)
+{
+	if (REISERFS_SB(s)) {
+		if (REISERFS_SB(s)->xattr_root) {
+			d_invalidate(REISERFS_SB(s)->xattr_root);
+			dput(REISERFS_SB(s)->xattr_root);
+			REISERFS_SB(s)->xattr_root = NULL;
+		}
+
+		if (REISERFS_SB(s)->priv_root) {
+			d_invalidate(REISERFS_SB(s)->priv_root);
+			dput(REISERFS_SB(s)->priv_root);
+			REISERFS_SB(s)->priv_root = NULL;
+		}
+	}
+
+	kill_block_super(s);
+}
+
 static void reiserfs_put_super(struct super_block *s)
 {
-	int i;
 	struct reiserfs_transaction_handle th;
 	th.t_trans_id = 0;
-
-	if (REISERFS_SB(s)->xattr_root) {
-		d_invalidate(REISERFS_SB(s)->xattr_root);
-		dput(REISERFS_SB(s)->xattr_root);
-	}
-
-	if (REISERFS_SB(s)->priv_root) {
-		d_invalidate(REISERFS_SB(s)->priv_root);
-		dput(REISERFS_SB(s)->priv_root);
-	}
 
 	/* change file system state to current state if it was mounted with read-write permissions */
 	if (!(s->s_flags & MS_RDONLY)) {
@@ -462,10 +470,7 @@ static void reiserfs_put_super(struct super_block *s)
 	 */
 	journal_release(&th, s);
 
-	for (i = 0; i < SB_BMAP_NR(s); i++)
-		brelse(SB_AP_BITMAP(s)[i].bh);
-
-	vfree(SB_AP_BITMAP(s));
+	reiserfs_free_bitmap_cache(s);
 
 	brelse(SB_BUFFER_WITH_SB(s));
 
@@ -485,13 +490,13 @@ static void reiserfs_put_super(struct super_block *s)
 	return;
 }
 
-static kmem_cache_t *reiserfs_inode_cachep;
+static struct kmem_cache *reiserfs_inode_cachep;
 
 static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 {
 	struct reiserfs_inode_info *ei;
 	ei = (struct reiserfs_inode_info *)
-	    kmem_cache_alloc(reiserfs_inode_cachep, SLAB_KERNEL);
+	    kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -502,7 +507,7 @@ static void reiserfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(reiserfs_inode_cachep, REISERFS_I(inode));
 }
 
-static void init_once(void *foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct reiserfs_inode_info *ei = (struct reiserfs_inode_info *)foo;
 
@@ -510,8 +515,10 @@ static void init_once(void *foo, kmem_cache_t * cachep, unsigned long flags)
 	    SLAB_CTOR_CONSTRUCTOR) {
 		INIT_LIST_HEAD(&ei->i_prealloc_list);
 		inode_init_once(&ei->vfs_inode);
+#ifdef CONFIG_REISERFS_FS_POSIX_ACL
 		ei->i_acl_access = NULL;
 		ei->i_acl_default = NULL;
+#endif
 	}
 }
 
@@ -530,9 +537,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(reiserfs_inode_cachep))
-		reiserfs_warning(NULL,
-				 "reiserfs_inode_cache: not all structures were freed");
+	kmem_cache_destroy(reiserfs_inode_cachep);
 }
 
 /* we don't mark inodes dirty, we just log them */
@@ -562,6 +567,7 @@ static void reiserfs_dirty_inode(struct inode *inode)
 	reiserfs_write_unlock(inode->i_sb);
 }
 
+#ifdef CONFIG_REISERFS_FS_POSIX_ACL
 static void reiserfs_clear_inode(struct inode *inode)
 {
 	struct posix_acl *acl;
@@ -576,6 +582,9 @@ static void reiserfs_clear_inode(struct inode *inode)
 		posix_acl_release(acl);
 	REISERFS_I(inode)->i_acl_default = NULL;
 }
+#else
+#define reiserfs_clear_inode NULL
+#endif
 
 #ifdef CONFIG_QUOTA
 static ssize_t reiserfs_quota_write(struct super_block *, int, const char *,
@@ -724,12 +733,6 @@ static const arg_desc_t error_actions[] = {
 #endif
 	{NULL, 0, 0},
 };
-
-int reiserfs_default_io_size = 128 * 1024;	/* Default recommended I/O size is 128k.
-						   There might be broken applications that are
-						   confused by this. Use nolargeio mount option
-						   to get usual i/o size = PAGE_SIZE.
-						 */
 
 /* proceed only one option from a list *cur - string containing of mount options
    opts - array of options which are accepted
@@ -959,19 +962,8 @@ static int reiserfs_parse_options(struct super_block *s, char *options,	/* strin
 		}
 
 		if (c == 'w') {
-			char *p = NULL;
-			int val = simple_strtoul(arg, &p, 0);
-
-			if (*p != '\0') {
-				reiserfs_warning(s,
-						 "reiserfs_parse_options: non-numeric value %s for nolargeio option",
-						 arg);
-				return 0;
-			}
-			if (val)
-				reiserfs_default_io_size = PAGE_SIZE;
-			else
-				reiserfs_default_io_size = 128 * 1024;
+			reiserfs_warning(s, "reiserfs: nolargeio option is no longer supported");
+			return 0;
 		}
 
 		if (c == 'j') {
@@ -1256,118 +1248,6 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	return 0;
 }
 
-/* load_bitmap_info_data - Sets up the reiserfs_bitmap_info structure from disk.
- * @sb - superblock for this filesystem
- * @bi - the bitmap info to be loaded. Requires that bi->bh is valid.
- *
- * This routine counts how many free bits there are, finding the first zero
- * as a side effect. Could also be implemented as a loop of test_bit() calls, or
- * a loop of find_first_zero_bit() calls. This implementation is similar to
- * find_first_zero_bit(), but doesn't return after it finds the first bit.
- * Should only be called on fs mount, but should be fairly efficient anyways.
- *
- * bi->first_zero_hint is considered unset if it == 0, since the bitmap itself
- * will * invariably occupt block 0 represented in the bitmap. The only
- * exception to this is when free_count also == 0, since there will be no
- * free blocks at all.
- */
-
-static void load_bitmap_info_data(struct super_block *sb,
-				  struct reiserfs_bitmap_info *bi)
-{
-	unsigned long *cur = (unsigned long *)bi->bh->b_data;
-
-	while ((char *)cur < (bi->bh->b_data + sb->s_blocksize)) {
-
-		/* No need to scan if all 0's or all 1's.
-		 * Since we're only counting 0's, we can simply ignore all 1's */
-		if (*cur == 0) {
-			if (bi->first_zero_hint == 0) {
-				bi->first_zero_hint =
-				    ((char *)cur - bi->bh->b_data) << 3;
-			}
-			bi->free_count += sizeof(unsigned long) * 8;
-		} else if (*cur != ~0L) {
-			int b;
-			for (b = 0; b < sizeof(unsigned long) * 8; b++) {
-				if (!reiserfs_test_le_bit(b, cur)) {
-					bi->free_count++;
-					if (bi->first_zero_hint == 0)
-						bi->first_zero_hint =
-						    (((char *)cur -
-						      bi->bh->b_data) << 3) + b;
-				}
-			}
-		}
-		cur++;
-	}
-
-#ifdef CONFIG_REISERFS_CHECK
-// This outputs a lot of unneded info on big FSes
-//    reiserfs_warning ("bitmap loaded from block %d: %d free blocks",
-//                    bi->bh->b_blocknr, bi->free_count);
-#endif
-}
-
-static int read_bitmaps(struct super_block *s)
-{
-	int i, bmap_nr;
-
-	SB_AP_BITMAP(s) =
-	    vmalloc(sizeof(struct reiserfs_bitmap_info) * SB_BMAP_NR(s));
-	if (SB_AP_BITMAP(s) == 0)
-		return 1;
-	memset(SB_AP_BITMAP(s), 0,
-	       sizeof(struct reiserfs_bitmap_info) * SB_BMAP_NR(s));
-	for (i = 0, bmap_nr =
-	     REISERFS_DISK_OFFSET_IN_BYTES / s->s_blocksize + 1;
-	     i < SB_BMAP_NR(s); i++, bmap_nr = s->s_blocksize * 8 * i) {
-		SB_AP_BITMAP(s)[i].bh = sb_getblk(s, bmap_nr);
-		if (!buffer_uptodate(SB_AP_BITMAP(s)[i].bh))
-			ll_rw_block(READ, 1, &SB_AP_BITMAP(s)[i].bh);
-	}
-	for (i = 0; i < SB_BMAP_NR(s); i++) {
-		wait_on_buffer(SB_AP_BITMAP(s)[i].bh);
-		if (!buffer_uptodate(SB_AP_BITMAP(s)[i].bh)) {
-			reiserfs_warning(s, "sh-2029: reiserfs read_bitmaps: "
-					 "bitmap block (#%lu) reading failed",
-					 SB_AP_BITMAP(s)[i].bh->b_blocknr);
-			for (i = 0; i < SB_BMAP_NR(s); i++)
-				brelse(SB_AP_BITMAP(s)[i].bh);
-			vfree(SB_AP_BITMAP(s));
-			SB_AP_BITMAP(s) = NULL;
-			return 1;
-		}
-		load_bitmap_info_data(s, SB_AP_BITMAP(s) + i);
-	}
-	return 0;
-}
-
-static int read_old_bitmaps(struct super_block *s)
-{
-	int i;
-	struct reiserfs_super_block *rs = SB_DISK_SUPER_BLOCK(s);
-	int bmp1 = (REISERFS_OLD_DISK_OFFSET_IN_BYTES / s->s_blocksize) + 1;	/* first of bitmap blocks */
-
-	/* read true bitmap */
-	SB_AP_BITMAP(s) =
-	    vmalloc(sizeof(struct reiserfs_buffer_info *) * sb_bmap_nr(rs));
-	if (SB_AP_BITMAP(s) == 0)
-		return 1;
-
-	memset(SB_AP_BITMAP(s), 0,
-	       sizeof(struct reiserfs_buffer_info *) * sb_bmap_nr(rs));
-
-	for (i = 0; i < sb_bmap_nr(rs); i++) {
-		SB_AP_BITMAP(s)[i].bh = sb_bread(s, bmp1 + i);
-		if (!SB_AP_BITMAP(s)[i].bh)
-			return 1;
-		load_bitmap_info_data(s, SB_AP_BITMAP(s) + i);
-	}
-
-	return 0;
-}
-
 static int read_super_block(struct super_block *s, int offset)
 {
 	struct buffer_head *bh;
@@ -1469,7 +1349,6 @@ static int read_super_block(struct super_block *s, int offset)
 /* after journal replay, reread all bitmap and super blocks */
 static int reread_meta_blocks(struct super_block *s)
 {
-	int i;
 	ll_rw_block(READ, 1, &(SB_BUFFER_WITH_SB(s)));
 	wait_on_buffer(SB_BUFFER_WITH_SB(s));
 	if (!buffer_uptodate(SB_BUFFER_WITH_SB(s))) {
@@ -1478,20 +1357,7 @@ static int reread_meta_blocks(struct super_block *s)
 		return 1;
 	}
 
-	for (i = 0; i < SB_BMAP_NR(s); i++) {
-		ll_rw_block(READ, 1, &(SB_AP_BITMAP(s)[i].bh));
-		wait_on_buffer(SB_AP_BITMAP(s)[i].bh);
-		if (!buffer_uptodate(SB_AP_BITMAP(s)[i].bh)) {
-			reiserfs_warning(s,
-					 "reread_meta_blocks, error reading bitmap block number %d at %llu",
-					 i,
-					 (unsigned long long)SB_AP_BITMAP(s)[i].
-					 bh->b_blocknr);
-			return 1;
-		}
-	}
 	return 0;
-
 }
 
 /////////////////////////////////////////////////////
@@ -1672,7 +1538,6 @@ static int function2code(hashf_t func)
 static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct inode *root_inode;
-	int j;
 	struct reiserfs_transaction_handle th;
 	int old_format = 0;
 	unsigned long blocks;
@@ -1684,13 +1549,12 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	struct reiserfs_sb_info *sbi;
 	int errval = -EINVAL;
 
-	sbi = kmalloc(sizeof(struct reiserfs_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct reiserfs_sb_info), GFP_KERNEL);
 	if (!sbi) {
 		errval = -ENOMEM;
 		goto error;
 	}
 	s->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(struct reiserfs_sb_info));
 	/* Set default values for options: non-aggressive tails, RO on errors */
 	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_SMALLTAIL);
 	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_ERROR_RO);
@@ -1749,11 +1613,12 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	sbi->s_mount_state = SB_REISERFS_STATE(s);
 	sbi->s_mount_state = REISERFS_VALID_FS;
 
-	if (old_format ? read_old_bitmaps(s) : read_bitmaps(s)) {
+	if ((errval = reiserfs_init_bitmap_cache(s))) {
 		SWARN(silent, s,
 		      "jmacd-8: reiserfs_fill_super: unable to read bitmap");
 		goto error;
 	}
+	errval = -EINVAL;
 #ifdef CONFIG_REISERFS_CHECK
 	SWARN(silent, s, "CONFIG_REISERFS_CHECK is set ON");
 	SWARN(silent, s, "- it is slow mode for debugging.");
@@ -1831,6 +1696,8 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	if (is_reiserfs_3_5(rs)
 	    || (is_reiserfs_jr(rs) && SB_VERSION(s) == REISERFS_VERSION_1))
 		set_bit(REISERFS_3_5, &(sbi->s_properties));
+	else if (old_format)
+		set_bit(REISERFS_OLD_FORMAT, &(sbi->s_properties));
 	else
 		set_bit(REISERFS_3_6, &(sbi->s_properties));
 
@@ -1916,19 +1783,17 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	if (jinit_done) {	/* kill the commit thread, free journal ram */
 		journal_release_error(NULL, s);
 	}
-	if (SB_DISK_SUPER_BLOCK(s)) {
-		for (j = 0; j < SB_BMAP_NR(s); j++) {
-			if (SB_AP_BITMAP(s))
-				brelse(SB_AP_BITMAP(s)[j].bh);
-		}
-		vfree(SB_AP_BITMAP(s));
-	}
+
+	reiserfs_free_bitmap_cache(s);
 	if (SB_BUFFER_WITH_SB(s))
 		brelse(SB_BUFFER_WITH_SB(s));
 #ifdef CONFIG_QUOTA
-	for (j = 0; j < MAXQUOTAS; j++) {
-		kfree(sbi->s_qf_names[j]);
-		sbi->s_qf_names[j] = NULL;
+	{
+		int j;
+		for (j = 0; j < MAXQUOTAS; j++) {
+			kfree(sbi->s_qf_names[j]);
+			sbi->s_qf_names[j] = NULL;
+		}
 	}
 #endif
 	kfree(sbi);
@@ -2300,7 +2165,7 @@ struct file_system_type reiserfs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "reiserfs",
 	.get_sb = get_super_block,
-	.kill_sb = kill_block_super,
+	.kill_sb = reiserfs_kill_sb,
 	.fs_flags = FS_REQUIRES_DEV,
 };
 

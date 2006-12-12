@@ -424,7 +424,7 @@ bch_l2l1(struct hisax_if *ifc, int pr, void *arg)
 	struct hfc4s8s_btype *bch = ifc->priv;
 	struct hfc4s8s_l1 *l1 = bch->l1p;
 	struct sk_buff *skb = (struct sk_buff *) arg;
-	int mode = (int) arg;
+	long mode = (long) arg;
 	u_long flags;
 
 	switch (pr) {
@@ -914,7 +914,7 @@ tx_d_frame(struct hfc4s8s_l1 *l1p)
 	struct sk_buff *skb;
 	u_char f1, f2;
 	u_char *cp;
-	int cnt;
+	long cnt;
 
 	if (l1p->l1_state != 7)
 		return;
@@ -980,7 +980,8 @@ tx_b_frame(struct hfc4s8s_btype *bch)
 	struct sk_buff *skb;
 	struct hfc4s8s_l1 *l1 = bch->l1p;
 	u_char *cp;
-	int cnt, max, hdlc_num, ack_len = 0;
+	int cnt, max, hdlc_num;
+	long ack_len = 0;
 
 	if (!l1->enabled || (bch->mode == L1_MODE_NULL))
 		return;
@@ -1082,8 +1083,9 @@ tx_b_frame(struct hfc4s8s_btype *bch)
 /* bottom half handler for interrupt */
 /*************************************/
 static void
-hfc4s8s_bh(hfc4s8s_hw * hw)
+hfc4s8s_bh(struct work_struct *work)
 {
+	hfc4s8s_hw *hw = container_of(work, hfc4s8s_hw, tqueue);
 	u_char b;
 	struct hfc4s8s_l1 *l1p;
 	volatile u_char *fifo_stat;
@@ -1267,7 +1269,7 @@ hfc4s8s_bh(hfc4s8s_hw * hw)
 /* interrupt handler */
 /*********************/
 static irqreturn_t
-hfc4s8s_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+hfc4s8s_interrupt(int intno, void *dev_id)
 {
 	hfc4s8s_hw *hw = dev_id;
 	u_char b, ovr;
@@ -1549,7 +1551,7 @@ setup_instance(hfc4s8s_hw * hw)
 		goto out;
 	}
 
-	INIT_WORK(&hw->tqueue, (void *) (void *) hfc4s8s_bh, hw);
+	INIT_WORK(&hw->tqueue, hfc4s8s_bh);
 
 	if (request_irq
 	    (hw->irq, hfc4s8s_interrupt, IRQF_SHARED, hw->card_name, hw)) {
@@ -1589,11 +1591,10 @@ hfc4s8s_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hfc4s8s_param *driver_data = (hfc4s8s_param *) ent->driver_data;
 	hfc4s8s_hw *hw;
 
-	if (!(hw = kmalloc(sizeof(hfc4s8s_hw), GFP_ATOMIC))) {
+	if (!(hw = kzalloc(sizeof(hfc4s8s_hw), GFP_ATOMIC))) {
 		printk(KERN_ERR "No kmem for HFC-4S/8S card\n");
 		return (err);
 	}
-	memset(hw, 0, sizeof(hfc4s8s_hw));
 
 	hw->pdev = pdev;
 	err = pci_enable_device(pdev);

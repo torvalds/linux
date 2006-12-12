@@ -122,7 +122,6 @@ vn_revalidate_core(
 	inode->i_blocks	    = vap->va_nblocks;
 	inode->i_mtime	    = vap->va_mtime;
 	inode->i_ctime	    = vap->va_ctime;
-	inode->i_blksize    = vap->va_blocksize;
 	if (vap->va_xflags & XFS_XFLAG_IMMUTABLE)
 		inode->i_flags |= S_IMMUTABLE;
 	else

@@ -15,6 +15,7 @@ config CPU_ARM610
 	select CPU_32v3
 	select CPU_CACHE_V3
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V3 if MMU
 	select CPU_TLB_V3 if MMU
 	help
@@ -24,6 +25,20 @@ config CPU_ARM610
 	  Say Y if you want support for the ARM610 processor.
 	  Otherwise, say N.
 
+# ARM7TDMI
+config CPU_ARM7TDMI
+	bool "Support ARM7TDMI processor"
+	depends on !MMU
+	select CPU_32v4T
+	select CPU_ABRT_LV4T
+	select CPU_CACHE_V4
+	help
+	  A 32-bit RISC microprocessor based on the ARM7 processor core
+	  which has no memory control unit and cache.
+
+	  Say Y if you want support for the ARM7TDMI processor.
+	  Otherwise, say N.
+
 # ARM710
 config CPU_ARM710
 	bool "Support ARM710 processor" if !ARCH_CLPS7500 && ARCH_RPC
@@ -31,6 +46,7 @@ config CPU_ARM710
 	select CPU_32v3
 	select CPU_CACHE_V3
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V3 if MMU
 	select CPU_TLB_V3 if MMU
 	help
@@ -50,6 +66,7 @@ config CPU_ARM720T
 	select CPU_ABRT_LV4T
 	select CPU_CACHE_V4
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WT if MMU
 	select CPU_TLB_V4WT if MMU
 	help
@@ -57,6 +74,36 @@ config CPU_ARM720T
 	  MMU built around an ARM7TDMI core.
 
 	  Say Y if you want support for the ARM720T processor.
+	  Otherwise, say N.
+
+# ARM740T
+config CPU_ARM740T
+	bool "Support ARM740T processor" if ARCH_INTEGRATOR
+	depends on !MMU
+	select CPU_32v4T
+	select CPU_ABRT_LV4T
+	select CPU_CACHE_V3	# although the core is v4t
+	select CPU_CP15_MPU
+	help
+	  A 32-bit RISC processor with 8KB cache or 4KB variants,
+	  write buffer and MPU(Protection Unit) built around
+	  an ARM7TDMI core.
+
+	  Say Y if you want support for the ARM740T processor.
+	  Otherwise, say N.
+
+# ARM9TDMI
+config CPU_ARM9TDMI
+	bool "Support ARM9TDMI processor"
+	depends on !MMU
+	select CPU_32v4T
+	select CPU_ABRT_NOMMU
+	select CPU_CACHE_V4
+	help
+	  A 32-bit RISC microprocessor based on the ARM9 processor core
+	  which has no memory control unit and cache.
+
+	  Say Y if you want support for the ARM9TDMI processor.
 	  Otherwise, say N.
 
 # ARM920T
@@ -68,6 +115,7 @@ config CPU_ARM920T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
 	help
@@ -89,6 +137,7 @@ config CPU_ARM922T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
 	help
@@ -108,6 +157,7 @@ config CPU_ARM925T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
  	help
@@ -126,6 +176,7 @@ config CPU_ARM926T
 	select CPU_32v5
 	select CPU_ABRT_EV5TJ
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
 	help
@@ -136,6 +187,39 @@ config CPU_ARM926T
 	  Say Y if you want support for the ARM926T processor.
 	  Otherwise, say N.
 
+# ARM940T
+config CPU_ARM940T
+	bool "Support ARM940T processor" if ARCH_INTEGRATOR
+	depends on !MMU
+	select CPU_32v4T
+	select CPU_ABRT_NOMMU
+	select CPU_CACHE_VIVT
+	select CPU_CP15_MPU
+	help
+	  ARM940T is a member of the ARM9TDMI family of general-
+	  purpose microprocessors with MPU and separate 4KB
+	  instruction and 4KB data cases, each with a 4-word line
+	  length.
+
+	  Say Y if you want support for the ARM940T processor.
+	  Otherwise, say N.
+
+# ARM946E-S
+config CPU_ARM946E
+	bool "Support ARM946E-S processor" if ARCH_INTEGRATOR
+	depends on !MMU
+	select CPU_32v5
+	select CPU_ABRT_NOMMU
+	select CPU_CACHE_VIVT
+	select CPU_CP15_MPU
+	help
+	  ARM946E-S is a member of the ARM9E-S family of high-
+	  performance, 32-bit system-on-chip processor solutions.
+	  The TCM and ARMv5TE 32-bit instruction set is supported.
+
+	  Say Y if you want support for the ARM946E-S processor.
+	  Otherwise, say N.
+
 # ARM1020 - needs validating
 config CPU_ARM1020
 	bool "Support ARM1020T (rev 0) processor"
@@ -144,6 +228,7 @@ config CPU_ARM1020
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
 	help
@@ -161,6 +246,7 @@ config CPU_ARM1020E
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
 	depends on n
@@ -172,6 +258,7 @@ config CPU_ARM1022
 	select CPU_32v5
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU # can probably do better
 	select CPU_TLB_V4WBI if MMU
 	help
@@ -189,6 +276,7 @@ config CPU_ARM1026
 	select CPU_32v5
 	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ ignores bit 10
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU # can probably do better
 	select CPU_TLB_V4WBI if MMU
 	help
@@ -207,6 +295,7 @@ config CPU_SA110
 	select CPU_ABRT_EV4
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WB if MMU
 	help
@@ -227,26 +316,29 @@ config CPU_SA1100
 	select CPU_ABRT_EV4
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_TLB_V4WB if MMU
 
 # XScale
 config CPU_XSCALE
 	bool
-	depends on ARCH_IOP3XX || ARCH_PXA || ARCH_IXP4XX || ARCH_IXP2000
+	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_PXA || ARCH_IXP4XX || ARCH_IXP2000
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU
 
 # XScale Core Version 3
 config CPU_XSC3
 	bool
-	depends on ARCH_IXP23XX
+	depends on ARCH_IXP23XX || ARCH_IOP13XX
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU
 	select IO_36
 
@@ -258,6 +350,7 @@ config CPU_V6
 	select CPU_ABRT_EV6
 	select CPU_CACHE_V6
 	select CPU_CACHE_VIPT
+	select CPU_CP15_MMU
 	select CPU_COPY_V6 if MMU
 	select CPU_TLB_V6 if MMU
 
@@ -299,6 +392,9 @@ config CPU_32v6
 	bool
 
 # The abort model
+config CPU_ABRT_NOMMU
+	bool
+
 config CPU_ABRT_EV4
 	bool
 
@@ -380,6 +476,23 @@ config CPU_TLB_V6
 
 endif
 
+config CPU_CP15
+	bool
+	help
+	  Processor has the CP15 register.
+
+config CPU_CP15_MMU
+	bool
+	select CPU_CP15
+	help
+	  Processor has the CP15 register, which has MMU related registers.
+
+config CPU_CP15_MPU
+	bool
+	select CPU_CP15
+	help
+	  Processor has the CP15 register, which has MPU related registers.
+
 #
 # CPU supports 36-bit I/O
 #
@@ -390,7 +503,7 @@ comment "Processor Features"
 
 config ARM_THUMB
 	bool "Support Thumb user binaries"
-	depends on CPU_ARM720T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_V6
+	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_V6
 	default y
 	help
 	  Say Y if you want to include kernel support for running user space
@@ -411,23 +524,48 @@ config CPU_BIG_ENDIAN
 	  port must properly enable any big-endian related features
 	  of your chipset/board/processor.
 
+config CPU_HIGH_VECTOR
+	depends !MMU && CPU_CP15 && !CPU_ARM740T
+	bool "Select the High exception vector"
+	default n
+	help
+	  Say Y here to select high exception vector(0xFFFF0000~).
+	  The exception vector can be vary depending on the platform
+	  design in nommu mode. If your platform needs to select
+	  high exception vector, say Y.
+	  Otherwise or if you are unsure, say N, and the low exception
+	  vector (0x00000000~) will be used.
+
 config CPU_ICACHE_DISABLE
-	bool "Disable I-Cache"
-	depends on CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020 || CPU_V6
+	bool "Disable I-Cache (I-bit)"
+	depends on CPU_CP15 && !(CPU_ARM610 || CPU_ARM710 || CPU_ARM720T || CPU_ARM740T || CPU_XSCALE || CPU_XSC3)
 	help
 	  Say Y here to disable the processor instruction cache. Unless
 	  you have a reason not to or are unsure, say N.
 
 config CPU_DCACHE_DISABLE
-	bool "Disable D-Cache"
-	depends on CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020 || CPU_V6
+	bool "Disable D-Cache (C-bit)"
+	depends on CPU_CP15
 	help
 	  Say Y here to disable the processor data cache. Unless
 	  you have a reason not to or are unsure, say N.
 
+config CPU_DCACHE_SIZE
+	hex
+	depends on CPU_ARM740T || CPU_ARM946E
+	default 0x00001000 if CPU_ARM740T
+	default 0x00002000 # default size for ARM946E-S
+	help
+	  Some cores are synthesizable to have various sized cache. For
+	  ARM946E-S case, it can vary from 0KB to 1MB.
+	  To support such cache operations, it is efficient to know the size
+	  before compile time.
+	  If your SoC is configured to have a different size, define the value
+	  here with proper conditions.
+
 config CPU_DCACHE_WRITETHROUGH
 	bool "Force write through D-cache"
-	depends on (CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020 || CPU_V6) && !CPU_DCACHE_DISABLE
+	depends on (CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020 || CPU_V6) && !CPU_DCACHE_DISABLE
 	default y if CPU_ARM925T
 	help
 	  Say Y here to use the data cache in writethrough mode. Unless you
@@ -435,14 +573,14 @@ config CPU_DCACHE_WRITETHROUGH
 
 config CPU_CACHE_ROUND_ROBIN
 	bool "Round robin I and D cache replacement algorithm"
-	depends on (CPU_ARM926T || CPU_ARM1020) && (!CPU_ICACHE_DISABLE || !CPU_DCACHE_DISABLE)
+	depends on (CPU_ARM926T || CPU_ARM946E || CPU_ARM1020) && (!CPU_ICACHE_DISABLE || !CPU_DCACHE_DISABLE)
 	help
 	  Say Y here to use the predictable round-robin cache replacement
 	  policy.  Unless you specifically require this or are unsure, say N.
 
 config CPU_BPREDICT_DISABLE
 	bool "Disable branch prediction"
-	depends on CPU_ARM1020 || CPU_V6
+	depends on CPU_ARM1020 || CPU_V6 || CPU_XSC3
 	help
 	  Say Y here to disable branch prediction.  If unsure, say N.
 

@@ -75,8 +75,7 @@ static struct irq_chip lpd270_irq_chip = {
 	.unmask		= lpd270_unmask_irq,
 };
 
-static void lpd270_irq_handler(unsigned int irq, struct irqdesc *desc,
-				  struct pt_regs *regs)
+static void lpd270_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long pending;
 
@@ -86,7 +85,7 @@ static void lpd270_irq_handler(unsigned int irq, struct irqdesc *desc,
 		if (likely(pending)) {
 			irq = LPD270_IRQ(0) + __ffs(pending);
 			desc = irq_desc + irq;
-			desc_handle_irq(irq, desc, regs);
+			desc_handle_irq(irq, desc);
 
 			pending = __raw_readw(LPD270_INT_STATUS) &
 						lpd270_irq_enabled;
@@ -106,7 +105,7 @@ static void __init lpd270_init_irq(void)
 	/* setup extra LogicPD PXA270 irqs */
 	for (irq = LPD270_IRQ(2); irq <= LPD270_IRQ(4); irq++) {
 		set_irq_chip(irq, &lpd270_irq_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 	set_irq_chained_handler(IRQ_GPIO(0), lpd270_irq_handler);
@@ -248,7 +247,7 @@ static void lpd270_backlight_power(int on)
 }
 
 /* 5.7" TFT QVGA (LoLo display number 1) */
-static struct pxafb_mach_info sharp_lq057q3dc02 __initdata = {
+static struct pxafb_mode_info sharp_lq057q3dc02_mode = {
 	.pixclock		= 150000,
 	.xres			= 320,
 	.yres			= 240,
@@ -260,13 +259,18 @@ static struct pxafb_mach_info sharp_lq057q3dc02 __initdata = {
 	.upper_margin		= 0x08,
 	.lower_margin		= 0x14,
 	.sync			= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+};
+
+static struct pxafb_mach_info sharp_lq057q3dc02 = {
+	.modes			= &sharp_lq057q3dc02_mode,
+	.num_modes		= 1,
 	.lccr0			= 0x07800080,
 	.lccr3			= 0x00400000,
 	.pxafb_backlight_power	= lpd270_backlight_power,
 };
 
 /* 12.1" TFT SVGA (LoLo display number 2) */
-static struct pxafb_mach_info sharp_lq121s1dg31 __initdata = {
+static struct pxafb_mode_info sharp_lq121s1dg31_mode = {
 	.pixclock		= 50000,
 	.xres			= 800,
 	.yres			= 600,
@@ -278,13 +282,18 @@ static struct pxafb_mach_info sharp_lq121s1dg31 __initdata = {
 	.upper_margin		= 0x14,
 	.lower_margin		= 0x0a,
 	.sync			= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+};
+
+static struct pxafb_mach_info sharp_lq121s1dg31 = {
+	.modes			= &sharp_lq121s1dg31_mode,
+	.num_modes		= 1,
 	.lccr0			= 0x07800080,
 	.lccr3			= 0x00400000,
 	.pxafb_backlight_power	= lpd270_backlight_power,
 };
 
 /* 3.6" TFT QVGA (LoLo display number 3) */
-static struct pxafb_mach_info sharp_lq036q1da01 __initdata = {
+static struct pxafb_mode_info sharp_lq036q1da01_mode = {
 	.pixclock		= 150000,
 	.xres			= 320,
 	.yres			= 240,
@@ -296,13 +305,18 @@ static struct pxafb_mach_info sharp_lq036q1da01 __initdata = {
 	.upper_margin		= 0x03,
 	.lower_margin		= 0x03,
 	.sync			= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+};
+
+static struct pxafb_mach_info sharp_lq036q1da01 = {
+	.modes			= &sharp_lq036q1da01_mode,
+	.num_modes		= 1,
 	.lccr0			= 0x07800080,
 	.lccr3			= 0x00400000,
 	.pxafb_backlight_power	= lpd270_backlight_power,
 };
 
 /* 6.4" TFT VGA (LoLo display number 5) */
-static struct pxafb_mach_info sharp_lq64d343 __initdata = {
+static struct pxafb_mode_info sharp_lq64d343_mode = {
 	.pixclock		= 25000,
 	.xres			= 640,
 	.yres			= 480,
@@ -314,13 +328,18 @@ static struct pxafb_mach_info sharp_lq64d343 __initdata = {
 	.upper_margin		= 0x22,
 	.lower_margin		= 0x00,
 	.sync			= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+};
+
+static struct pxafb_mach_info sharp_lq64d343 = {
+	.modes			= &sharp_lq64d343_mode,
+	.num_modes		= 1,
 	.lccr0			= 0x07800080,
 	.lccr3			= 0x00400000,
 	.pxafb_backlight_power	= lpd270_backlight_power,
 };
 
 /* 10.4" TFT VGA (LoLo display number 7) */
-static struct pxafb_mach_info sharp_lq10d368 __initdata = {
+static struct pxafb_mode_info sharp_lq10d368_mode = {
 	.pixclock		= 25000,
 	.xres			= 640,
 	.yres			= 480,
@@ -332,13 +351,18 @@ static struct pxafb_mach_info sharp_lq10d368 __initdata = {
 	.upper_margin		= 0x22,
 	.lower_margin		= 0x00,
 	.sync			= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+};
+
+static struct pxafb_mach_info sharp_lq10d368 = {
+	.modes			= &sharp_lq10d368_mode,
+	.num_modes		= 1,
 	.lccr0			= 0x07800080,
 	.lccr3			= 0x00400000,
 	.pxafb_backlight_power	= lpd270_backlight_power,
 };
 
 /* 3.5" TFT QVGA (LoLo display number 8) */
-static struct pxafb_mach_info sharp_lq035q7db02_20 __initdata = {
+static struct pxafb_mode_info sharp_lq035q7db02_20_mode = {
 	.pixclock		= 150000,
 	.xres			= 240,
 	.yres			= 320,
@@ -350,6 +374,11 @@ static struct pxafb_mach_info sharp_lq035q7db02_20 __initdata = {
 	.upper_margin		= 0x05,
 	.lower_margin		= 0x14,
 	.sync			= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+};
+
+static struct pxafb_mach_info sharp_lq035q7db02_20 = {
+	.modes			= &sharp_lq035q7db02_20_mode,
+	.num_modes		= 1,
 	.lccr0			= 0x07800080,
 	.lccr3			= 0x00400000,
 	.pxafb_backlight_power	= lpd270_backlight_power,

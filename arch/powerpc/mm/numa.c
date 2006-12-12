@@ -39,96 +39,6 @@ static bootmem_data_t __initdata plat_node_bdata[MAX_NUMNODES];
 static int min_common_depth;
 static int n_mem_addr_cells, n_mem_size_cells;
 
-/*
- * We need somewhere to store start/end/node for each region until we have
- * allocated the real node_data structures.
- */
-#define MAX_REGIONS	(MAX_LMB_REGIONS*2)
-static struct {
-	unsigned long start_pfn;
-	unsigned long end_pfn;
-	int nid;
-} init_node_data[MAX_REGIONS] __initdata;
-
-int __init early_pfn_to_nid(unsigned long pfn)
-{
-	unsigned int i;
-
-	for (i = 0; init_node_data[i].end_pfn; i++) {
-		unsigned long start_pfn = init_node_data[i].start_pfn;
-		unsigned long end_pfn = init_node_data[i].end_pfn;
-
-		if ((start_pfn <= pfn) && (pfn < end_pfn))
-			return init_node_data[i].nid;
-	}
-
-	return -1;
-}
-
-void __init add_region(unsigned int nid, unsigned long start_pfn,
-		       unsigned long pages)
-{
-	unsigned int i;
-
-	dbg("add_region nid %d start_pfn 0x%lx pages 0x%lx\n",
-		nid, start_pfn, pages);
-
-	for (i = 0; init_node_data[i].end_pfn; i++) {
-		if (init_node_data[i].nid != nid)
-			continue;
-		if (init_node_data[i].end_pfn == start_pfn) {
-			init_node_data[i].end_pfn += pages;
-			return;
-		}
-		if (init_node_data[i].start_pfn == (start_pfn + pages)) {
-			init_node_data[i].start_pfn -= pages;
-			return;
-		}
-	}
-
-	/*
-	 * Leave last entry NULL so we dont iterate off the end (we use
-	 * entry.end_pfn to terminate the walk).
-	 */
-	if (i >= (MAX_REGIONS - 1)) {
-		printk(KERN_ERR "WARNING: too many memory regions in "
-				"numa code, truncating\n");
-		return;
-	}
-
-	init_node_data[i].start_pfn = start_pfn;
-	init_node_data[i].end_pfn = start_pfn + pages;
-	init_node_data[i].nid = nid;
-}
-
-/* We assume init_node_data has no overlapping regions */
-void __init get_region(unsigned int nid, unsigned long *start_pfn,
-		       unsigned long *end_pfn, unsigned long *pages_present)
-{
-	unsigned int i;
-
-	*start_pfn = -1UL;
-	*end_pfn = *pages_present = 0;
-
-	for (i = 0; init_node_data[i].end_pfn; i++) {
-		if (init_node_data[i].nid != nid)
-			continue;
-
-		*pages_present += init_node_data[i].end_pfn -
-			init_node_data[i].start_pfn;
-
-		if (init_node_data[i].start_pfn < *start_pfn)
-			*start_pfn = init_node_data[i].start_pfn;
-
-		if (init_node_data[i].end_pfn > *end_pfn)
-			*end_pfn = init_node_data[i].end_pfn;
-	}
-
-	/* We didnt find a matching region, return start/end as 0 */
-	if (*start_pfn == -1UL)
-		*start_pfn = 0;
-}
-
 static void __cpuinit map_cpu_to_node(int cpu, int node)
 {
 	numa_cpu_lookup_table[cpu] = node;
@@ -385,6 +295,63 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 	return lmb_end_of_DRAM() - start;
 }
 
+/*
+ * Extract NUMA information from the ibm,dynamic-reconfiguration-memory
+ * node.  This assumes n_mem_{addr,size}_cells have been set.
+ */
+static void __init parse_drconf_memory(struct device_node *memory)
+{
+	const unsigned int *lm, *dm, *aa;
+	unsigned int ls, ld, la;
+	unsigned int n, aam, aalen;
+	unsigned long lmb_size, size;
+	int nid, default_nid = 0;
+	unsigned int start, ai, flags;
+
+	lm = get_property(memory, "ibm,lmb-size", &ls);
+	dm = get_property(memory, "ibm,dynamic-memory", &ld);
+	aa = get_property(memory, "ibm,associativity-lookup-arrays", &la);
+	if (!lm || !dm || !aa ||
+	    ls < sizeof(unsigned int) || ld < sizeof(unsigned int) ||
+	    la < 2 * sizeof(unsigned int))
+		return;
+
+	lmb_size = read_n_cells(n_mem_size_cells, &lm);
+	n = *dm++;		/* number of LMBs */
+	aam = *aa++;		/* number of associativity lists */
+	aalen = *aa++;		/* length of each associativity list */
+	if (ld < (n * (n_mem_addr_cells + 4) + 1) * sizeof(unsigned int) ||
+	    la < (aam * aalen + 2) * sizeof(unsigned int))
+		return;
+
+	for (; n != 0; --n) {
+		start = read_n_cells(n_mem_addr_cells, &dm);
+		ai = dm[2];
+		flags = dm[3];
+		dm += 4;
+		/* 0x80 == reserved, 0x8 = assigned to us */
+		if ((flags & 0x80) || !(flags & 0x8))
+			continue;
+		nid = default_nid;
+		/* flags & 0x40 means associativity index is invalid */
+		if (min_common_depth > 0 && min_common_depth <= aalen &&
+		    (flags & 0x40) == 0 && ai < aam) {
+			/* this is like of_node_to_nid_single */
+			nid = aa[ai * aalen + min_common_depth - 1];
+			if (nid == 0xffff || nid >= MAX_NUMNODES)
+				nid = default_nid;
+		}
+		node_set_online(nid);
+
+		size = numa_enforce_memory_limit(start, lmb_size);
+		if (!size)
+			continue;
+
+		add_active_range(nid, start >> PAGE_SHIFT,
+				 (start >> PAGE_SHIFT) + (size >> PAGE_SHIFT));
+	}
+}
+
 static int __init parse_numa_properties(void)
 {
 	struct device_node *cpu = NULL;
@@ -468,12 +435,20 @@ new_range:
 				continue;
 		}
 
-		add_region(nid, start >> PAGE_SHIFT,
-			   size >> PAGE_SHIFT);
+		add_active_range(nid, start >> PAGE_SHIFT,
+				(start >> PAGE_SHIFT) + (size >> PAGE_SHIFT));
 
 		if (--ranges)
 			goto new_range;
 	}
+
+	/*
+	 * Now do the same thing for each LMB listed in the ibm,dynamic-memory
+	 * property in the ibm,dynamic-reconfiguration-memory node.
+	 */
+	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	if (memory)
+		parse_drconf_memory(memory);
 
 	return 0;
 }
@@ -482,6 +457,7 @@ static void __init setup_nonnuma(void)
 {
 	unsigned long top_of_ram = lmb_end_of_DRAM();
 	unsigned long total_ram = lmb_phys_mem_size();
+	unsigned long start_pfn, end_pfn;
 	unsigned int i;
 
 	printk(KERN_DEBUG "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
@@ -489,9 +465,11 @@ static void __init setup_nonnuma(void)
 	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
 	       (top_of_ram - total_ram) >> 20);
 
-	for (i = 0; i < lmb.memory.cnt; ++i)
-		add_region(0, lmb.memory.region[i].base >> PAGE_SHIFT,
-			   lmb_size_pages(&lmb.memory, i));
+	for (i = 0; i < lmb.memory.cnt; ++i) {
+		start_pfn = lmb.memory.region[i].base >> PAGE_SHIFT;
+		end_pfn = start_pfn + lmb_size_pages(&lmb.memory, i);
+		add_active_range(0, start_pfn, end_pfn);
+	}
 	node_set_online(0);
 }
 
@@ -630,11 +608,11 @@ void __init do_init_bootmem(void)
 			  (void *)(unsigned long)boot_cpuid);
 
 	for_each_online_node(nid) {
-		unsigned long start_pfn, end_pfn, pages_present;
+		unsigned long start_pfn, end_pfn;
 		unsigned long bootmem_paddr;
 		unsigned long bootmap_pages;
 
-		get_region(nid, &start_pfn, &end_pfn, &pages_present);
+		get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
 
 		/* Allocate the node structure node local if possible */
 		NODE_DATA(nid) = careful_allocation(nid,
@@ -667,19 +645,7 @@ void __init do_init_bootmem(void)
 		init_bootmem_node(NODE_DATA(nid), bootmem_paddr >> PAGE_SHIFT,
 				  start_pfn, end_pfn);
 
-		/* Add free regions on this node */
-		for (i = 0; init_node_data[i].end_pfn; i++) {
-			unsigned long start, end;
-
-			if (init_node_data[i].nid != nid)
-				continue;
-
-			start = init_node_data[i].start_pfn << PAGE_SHIFT;
-			end = init_node_data[i].end_pfn << PAGE_SHIFT;
-
-			dbg("free_bootmem %lx %lx\n", start, end - start);
-  			free_bootmem_node(NODE_DATA(nid), start, end - start);
-		}
+		free_bootmem_with_active_regions(nid, end_pfn);
 
 		/* Mark reserved regions on this node */
 		for (i = 0; i < lmb.reserved.cnt; i++) {
@@ -710,44 +676,16 @@ void __init do_init_bootmem(void)
 			}
 		}
 
-		/* Add regions into sparsemem */
-		for (i = 0; init_node_data[i].end_pfn; i++) {
-			unsigned long start, end;
-
-			if (init_node_data[i].nid != nid)
-				continue;
-
-			start = init_node_data[i].start_pfn;
-			end = init_node_data[i].end_pfn;
-
-			memory_present(nid, start, end);
-		}
+		sparse_memory_present_with_active_regions(nid);
 	}
 }
 
 void __init paging_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES];
-	unsigned long zholes_size[MAX_NR_ZONES];
-	int nid;
-
-	memset(zones_size, 0, sizeof(zones_size));
-	memset(zholes_size, 0, sizeof(zholes_size));
-
-	for_each_online_node(nid) {
-		unsigned long start_pfn, end_pfn, pages_present;
-
-		get_region(nid, &start_pfn, &end_pfn, &pages_present);
-
-		zones_size[ZONE_DMA] = end_pfn - start_pfn;
-		zholes_size[ZONE_DMA] = zones_size[ZONE_DMA] - pages_present;
-
-		dbg("free_area_init node %d %lx %lx (hole: %lx)\n", nid,
-		    zones_size[ZONE_DMA], start_pfn, zholes_size[ZONE_DMA]);
-
-		free_area_init_node(nid, NODE_DATA(nid), zones_size, start_pfn,
-				    zholes_size);
-	}
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+	max_zone_pfns[ZONE_DMA] = lmb_end_of_DRAM() >> PAGE_SHIFT;
+	free_area_init_nodes(max_zone_pfns);
 }
 
 static int __init early_numa(char *p)

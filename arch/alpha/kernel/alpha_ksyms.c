@@ -1,46 +1,18 @@
 /*
- * linux/arch/alpha/kernel/ksyms.c
+ * linux/arch/alpha/kernel/alpha_ksyms.c
  *
  * Export the alpha-specific functions that are needed for loadable
  * modules.
  */
 
 #include <linux/module.h>
-#include <linux/string.h>
-#include <linux/user.h>
-#include <linux/elfcore.h>
-#include <linux/socket.h>
-#include <linux/syscalls.h>
-#include <linux/in.h>
-#include <linux/in6.h>
-#include <linux/pci.h>
-#include <linux/screen_info.h>
-#include <linux/tty.h>
-#include <linux/mm.h>
-#include <linux/delay.h>
-#include <linux/dma-mapping.h>
-
-#include <asm/io.h>
 #include <asm/console.h>
-#include <asm/hwrpb.h>
 #include <asm/uaccess.h>
-#include <asm/processor.h>
 #include <asm/checksum.h>
-#include <linux/interrupt.h>
 #include <asm/fpu.h>
-#include <asm/irq.h>
 #include <asm/machvec.h>
-#include <asm/pgalloc.h>
-#include <asm/semaphore.h>
-#include <asm/tlbflush.h>
-#include <asm/cacheflush.h>
-#include <asm/vga.h>
 
-#define __KERNEL_SYSCALLS__
-#include <asm/unistd.h>
-
-extern struct hwrpb_struct *hwrpb;
-extern spinlock_t rtc_lock;
+#include <linux/syscalls.h>
 
 /* these are C runtime functions with special calling conventions: */
 extern void __divl (void);
@@ -53,14 +25,9 @@ extern void __divqu (void);
 extern void __remqu (void);
 
 EXPORT_SYMBOL(alpha_mv);
-EXPORT_SYMBOL(screen_info);
-EXPORT_SYMBOL(perf_irq);
 EXPORT_SYMBOL(callback_getenv);
 EXPORT_SYMBOL(callback_setenv);
 EXPORT_SYMBOL(callback_save_env);
-#ifdef CONFIG_ALPHA_GENERIC
-EXPORT_SYMBOL(alpha_using_srm);
-#endif /* CONFIG_ALPHA_GENERIC */
 
 /* platform dependent support */
 EXPORT_SYMBOL(strcat);
@@ -78,47 +45,14 @@ EXPORT_SYMBOL(__constant_c_memset);
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(clear_page);
 
-EXPORT_SYMBOL(__direct_map_base);
-EXPORT_SYMBOL(__direct_map_size);
-
-#ifdef CONFIG_PCI
-EXPORT_SYMBOL(pci_alloc_consistent);
-EXPORT_SYMBOL(pci_free_consistent);
-EXPORT_SYMBOL(pci_map_single);
-EXPORT_SYMBOL(pci_map_page);
-EXPORT_SYMBOL(pci_unmap_single);
-EXPORT_SYMBOL(pci_unmap_page);
-EXPORT_SYMBOL(pci_map_sg);
-EXPORT_SYMBOL(pci_unmap_sg);
-EXPORT_SYMBOL(pci_dma_supported);
-EXPORT_SYMBOL(pci_dac_dma_supported);
-EXPORT_SYMBOL(pci_dac_page_to_dma);
-EXPORT_SYMBOL(pci_dac_dma_to_page);
-EXPORT_SYMBOL(pci_dac_dma_to_offset);
-EXPORT_SYMBOL(alpha_gendev_to_pci);
-#endif
-EXPORT_SYMBOL(dma_set_mask);
-
-EXPORT_SYMBOL(dump_thread);
-EXPORT_SYMBOL(dump_elf_thread);
-EXPORT_SYMBOL(dump_elf_task);
-EXPORT_SYMBOL(dump_elf_task_fp);
-EXPORT_SYMBOL(hwrpb);
-EXPORT_SYMBOL(start_thread);
 EXPORT_SYMBOL(alpha_read_fp_reg);
 EXPORT_SYMBOL(alpha_read_fp_reg_s);
 EXPORT_SYMBOL(alpha_write_fp_reg);
 EXPORT_SYMBOL(alpha_write_fp_reg_s);
 
-/* In-kernel system calls.  */
+/* entry.S */
 EXPORT_SYMBOL(kernel_thread);
-EXPORT_SYMBOL(sys_dup);
-EXPORT_SYMBOL(sys_exit);
-EXPORT_SYMBOL(sys_write);
-EXPORT_SYMBOL(sys_lseek);
-EXPORT_SYMBOL(execve);
-EXPORT_SYMBOL(sys_setsid);
-EXPORT_SYMBOL(sys_wait4);
+EXPORT_SYMBOL(kernel_execve);
 
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_tcpudp_magic);
@@ -133,10 +67,6 @@ extern long (*alpha_fp_emul_imprecise)(struct pt_regs *, unsigned long);
 extern long (*alpha_fp_emul) (unsigned long pc);
 EXPORT_SYMBOL(alpha_fp_emul_imprecise);
 EXPORT_SYMBOL(alpha_fp_emul);
-#endif
-
-#ifdef CONFIG_ALPHA_BROKEN_IRQ_MASK
-EXPORT_SYMBOL(__min_ipl);
 #endif
 
 /*
@@ -161,25 +91,8 @@ EXPORT_SYMBOL(up);
  */
 
 #ifdef CONFIG_SMP
-EXPORT_SYMBOL(flush_tlb_mm);
-EXPORT_SYMBOL(flush_tlb_range);
-EXPORT_SYMBOL(flush_tlb_page);
-EXPORT_SYMBOL(smp_imb);
-EXPORT_SYMBOL(cpu_data);
-EXPORT_SYMBOL(smp_num_cpus);
-EXPORT_SYMBOL(smp_call_function);
-EXPORT_SYMBOL(smp_call_function_on_cpu);
 EXPORT_SYMBOL(_atomic_dec_and_lock);
 #endif /* CONFIG_SMP */
-
-/*
- * NUMA specific symbols
- */
-#ifdef CONFIG_DISCONTIGMEM
-EXPORT_SYMBOL(node_data);
-#endif /* CONFIG_DISCONTIGMEM */
-
-EXPORT_SYMBOL(rtc_lock);
 
 /*
  * The following are special because they're not called
@@ -201,8 +114,3 @@ EXPORT_SYMBOL(__remqu);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memchr);
-
-#ifdef CONFIG_ALPHA_IRONGATE
-EXPORT_SYMBOL(irongate_ioremap);
-EXPORT_SYMBOL(irongate_iounmap);
-#endif

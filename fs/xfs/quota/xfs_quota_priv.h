@@ -75,7 +75,6 @@ static inline int XQMISLCKD(struct xfs_dqhash *h)
 
 #define xfs_qm_freelist_lock(qm)	XQMLCK(&((qm)->qm_dqfreelist))
 #define xfs_qm_freelist_unlock(qm)	XQMUNLCK(&((qm)->qm_dqfreelist))
-#define XFS_QM_IS_FREELIST_LOCKED(qm)	XQMISLCKD(&((qm)->qm_dqfreelist))
 
 /*
  * Hash into a bucket in the dquot hash table, based on <mp, id>.
@@ -170,6 +169,5 @@ for ((dqp) = (qlist)->qh_next; (dqp) != (xfs_dquot_t *)(qlist); \
 #define DQFLAGTO_TYPESTR(d)	(((d)->dq_flags & XFS_DQ_USER) ? "USR" : \
 				 (((d)->dq_flags & XFS_DQ_GROUP) ? "GRP" : \
 				 (((d)->dq_flags & XFS_DQ_PROJ) ? "PRJ":"???")))
-#define DQFLAGTO_DIRTYSTR(d)	(XFS_DQ_IS_DIRTY(d) ? "DIRTY" : "NOTDIRTY")
 
 #endif	/* __XFS_QUOTA_PRIV_H__ */

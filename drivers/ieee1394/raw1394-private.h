@@ -27,13 +27,12 @@ struct file_info {
 
         struct hpsb_host *host;
 
-        struct list_head req_pending;
-        struct list_head req_complete;
-        struct semaphore complete_sem;
+        struct list_head req_pending;	/* protected by reqlists_lock */
+        struct list_head req_complete;	/* protected by reqlists_lock */
         spinlock_t reqlists_lock;
-        wait_queue_head_t poll_wait_complete;
+        wait_queue_head_t wait_complete;
 
-        struct list_head addr_list;
+        struct list_head addr_list;	/* protected by host_info_lock */
 
         u8 __user *fcp_buffer;
 
@@ -64,7 +63,7 @@ struct arm_addr {
         u8     client_transactions;
         u64    recvb;
         u16    rec_length;
-        u8     *addr_space_buffer; /* accessed by read/write/lock */
+        u8     *addr_space_buffer; /* accessed by read/write/lock requests */
 };
 
 struct pending_request {
@@ -80,7 +79,7 @@ struct pending_request {
 struct host_info {
         struct list_head list;
         struct hpsb_host *host;
-        struct list_head file_info_list;
+        struct list_head file_info_list;  /* protected by host_info_lock */
 };
 
 #endif  /* IEEE1394_RAW1394_PRIVATE_H */

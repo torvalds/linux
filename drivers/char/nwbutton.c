@@ -127,9 +127,8 @@ static void button_consume_callbacks (int bpcount)
 static void button_sequence_finished (unsigned long parameters)
 {
 #ifdef CONFIG_NWBUTTON_REBOOT		/* Reboot using button is enabled */
-	if (button_press_count == reboot_count) {
-		kill_proc (1, SIGINT, 1);	/* Ask init to reboot us */
-	}
+	if (button_press_count == reboot_count)
+		kill_cad_pid(SIGINT, 1);	/* Ask init to reboot us */
 #endif /* CONFIG_NWBUTTON_REBOOT */
 	button_consume_callbacks (button_press_count);
 	bcount = sprintf (button_output_buffer, "%d\n", button_press_count);
@@ -145,7 +144,7 @@ static void button_sequence_finished (unsigned long parameters)
  *  increments the counter.
  */ 
 
-static irqreturn_t button_handler (int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t button_handler (int irq, void *dev_id)
 {
 	if (button_press_count) {
 		del_timer (&button_timer);

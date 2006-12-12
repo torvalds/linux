@@ -425,8 +425,7 @@ static int lance_tx (struct net_device *dev)
 	return 0;
 }
 
-static irqreturn_t
-lance_interrupt (int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t lance_interrupt (int irq, void *dev_id)
 {
 	struct net_device *dev;
 	struct lance_private *lp;

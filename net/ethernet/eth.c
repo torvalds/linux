@@ -60,7 +60,6 @@
 #include <net/ip.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
-#include <asm/checksum.h>
 
 __setup("ether=", netdev_boot_setup);
 
@@ -223,7 +222,7 @@ static int eth_header_parse(struct sk_buff *skb, unsigned char *haddr)
  */
 int eth_header_cache(struct neighbour *neigh, struct hh_cache *hh)
 {
-	unsigned short type = hh->hh_type;
+	__be16 type = hh->hh_type;
 	struct ethhdr *eth;
 	struct net_device *dev = neigh->dev;
 

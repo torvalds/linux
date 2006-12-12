@@ -43,7 +43,7 @@ are not planned to be included in the kernel tree.
 What is covered within this file is mainly information to authors
 of modules. The author of an external module should supply
 a makefile that hides most of the complexity, so one only has to type
-'make' to build the module. A complete example will be present in
+'make' to build the module. A complete example will be presented in
 chapter 4, "Creating a kbuild file for an external module".
 
 
@@ -61,6 +61,7 @@ when building an external module.
 		make -C <path-to-kernel> M=`pwd`
 
 	For the running kernel use:
+
 		make -C /lib/modules/`uname -r`/build M=`pwd`
 
 	For the above command to succeed, the kernel must have been
@@ -130,10 +131,10 @@ when building an external module.
 
 	To make sure the kernel contains the information required to
 	build external modules the target 'modules_prepare' must be used.
-	'module_prepare' exists solely as a simple way to prepare
+	'modules_prepare' exists solely as a simple way to prepare
 	a kernel source tree for building external modules.
 	Note: modules_prepare will not build Module.symvers even if
-	CONFIG_MODULEVERSIONING is set. Therefore a full kernel build
+	CONFIG_MODVERSIONS is set. Therefore a full kernel build
 	needs to be executed to make module versioning work.
 
 --- 2.5 Building separate files for a module
@@ -450,7 +451,7 @@ kernel refuses to load the module.
 
 Module.symvers contains a list of all exported symbols from a kernel build.
 
---- 7.1 Symbols fron the kernel (vmlinux + modules)
+--- 7.1 Symbols from the kernel (vmlinux + modules)
 
 	During a kernel build, a file named Module.symvers will be generated.
 	Module.symvers contains all exported symbols from the kernel and

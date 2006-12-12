@@ -31,6 +31,7 @@ extern int __node_distance(int, int);
 #define SD_NODE_INIT (struct sched_domain) {		\
 	.span			= CPU_MASK_NONE,	\
 	.parent			= NULL,			\
+	.child			= NULL,			\
 	.groups			= NULL,			\
 	.min_interval		= 8,			\
 	.max_interval		= 32,			\
@@ -46,6 +47,7 @@ extern int __node_distance(int, int);
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_FORK	\
 				| SD_BALANCE_EXEC	\
+				| SD_SERIALIZE		\
 				| SD_WAKE_BALANCE,	\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\

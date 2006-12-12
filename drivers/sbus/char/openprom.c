@@ -630,7 +630,7 @@ static int openprom_ioctl(struct inode * inode, struct file * file,
 	case OPROMPATH2NODE:
 		if ((file->f_mode & FMODE_READ) == 0)
 			return -EPERM;
-		return openprom_sunos_ioctl(inode, file, cmd, arg, 0);
+		return openprom_sunos_ioctl(inode, file, cmd, arg, NULL);
 
 	case OPIOCGET:
 	case OPIOCNEXTPROP:
@@ -676,7 +676,7 @@ static long openprom_compat_ioctl(struct file *file, unsigned int cmd,
 	case OPROMSETCUR:
 	case OPROMPCI2NODE:
 	case OPROMPATH2NODE:
-		rval = openprom_ioctl(file->f_dentry->d_inode, file, cmd, arg);
+		rval = openprom_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
 		break;
 	}
 

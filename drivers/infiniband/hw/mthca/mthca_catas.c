@@ -57,7 +57,7 @@ static int catas_reset_disable;
 module_param_named(catas_reset_disable, catas_reset_disable, int, 0644);
 MODULE_PARM_DESC(catas_reset_disable, "disable reset on catastrophic event if nonzero");
 
-static void catas_reset(void *work_ptr)
+static void catas_reset(struct work_struct *work)
 {
 	struct mthca_dev *dev, *tmpdev;
 	LIST_HEAD(tlist);
@@ -203,7 +203,7 @@ void mthca_stop_catas_poll(struct mthca_dev *dev)
 
 int __init mthca_catas_init(void)
 {
-	INIT_WORK(&catas_work, catas_reset, NULL);
+	INIT_WORK(&catas_work, catas_reset);
 
 	catas_wq = create_singlethread_workqueue("mthca_catas");
 	if (!catas_wq)

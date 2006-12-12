@@ -1059,7 +1059,7 @@ isdn_info_update(void)
 static ssize_t
 isdn_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 {
-	uint minor = iminor(file->f_dentry->d_inode);
+	uint minor = iminor(file->f_path.dentry->d_inode);
 	int len = 0;
 	int drvidx;
 	int chidx;
@@ -1134,9 +1134,12 @@ isdn_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 		if (dev->drv[drvidx]->interface->readstat) {
 			if (count > dev->drv[drvidx]->stavail)
 				count = dev->drv[drvidx]->stavail;
-			len = dev->drv[drvidx]->interface->
-				readstat(buf, count, drvidx,
-					 isdn_minor2chan(minor));
+			len = dev->drv[drvidx]->interface->readstat(buf, count,
+						drvidx, isdn_minor2chan(minor));
+			if (len < 0) {
+				retval = len;
+				goto out;
+			}
 		} else {
 			len = 0;
 		}
@@ -1163,7 +1166,7 @@ isdn_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 static ssize_t
 isdn_write(struct file *file, const char __user *buf, size_t count, loff_t * off)
 {
-	uint minor = iminor(file->f_dentry->d_inode);
+	uint minor = iminor(file->f_path.dentry->d_inode);
 	int drvidx;
 	int chidx;
 	int retval;
@@ -1225,7 +1228,7 @@ static unsigned int
 isdn_poll(struct file *file, poll_table * wait)
 {
 	unsigned int mask = 0;
-	unsigned int minor = iminor(file->f_dentry->d_inode);
+	unsigned int minor = iminor(file->f_path.dentry->d_inode);
 	int drvidx = isdn_minor2drv(minor - ISDN_MINOR_CTRL);
 
 	lock_kernel();
@@ -2069,21 +2072,19 @@ isdn_add_channels(isdn_driver_t *d, int drvidx, int n, int adding)
 
 	if ((adding) && (d->rcverr))
 		kfree(d->rcverr);
-	if (!(d->rcverr = kmalloc(sizeof(int) * m, GFP_ATOMIC))) {
+	if (!(d->rcverr = kzalloc(sizeof(int) * m, GFP_ATOMIC))) {
 		printk(KERN_WARNING "register_isdn: Could not alloc rcverr\n");
 		return -1;
 	}
-	memset((char *) d->rcverr, 0, sizeof(int) * m);
 
 	if ((adding) && (d->rcvcount))
 		kfree(d->rcvcount);
-	if (!(d->rcvcount = kmalloc(sizeof(int) * m, GFP_ATOMIC))) {
+	if (!(d->rcvcount = kzalloc(sizeof(int) * m, GFP_ATOMIC))) {
 		printk(KERN_WARNING "register_isdn: Could not alloc rcvcount\n");
 		if (!adding)
 			kfree(d->rcverr);
 		return -1;
 	}
-	memset((char *) d->rcvcount, 0, sizeof(int) * m);
 
 	if ((adding) && (d->rpqueue)) {
 		for (j = 0; j < d->channels; j++)
@@ -2223,11 +2224,10 @@ register_isdn(isdn_if * i)
 		printk(KERN_WARNING "register_isdn: No write routine given.\n");
 		return 0;
 	}
-	if (!(d = kmalloc(sizeof(isdn_driver_t), GFP_KERNEL))) {
+	if (!(d = kzalloc(sizeof(isdn_driver_t), GFP_KERNEL))) {
 		printk(KERN_WARNING "register_isdn: Could not alloc driver-struct\n");
 		return 0;
 	}
-	memset((char *) d, 0, sizeof(isdn_driver_t));
 
 	d->maxbufsize = i->maxbufsize;
 	d->pktcount = 0;

@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-mips/tx4938/tx4938_bitmask.h
+ * linux/include/asm-mips/tx4938/tx4938_mips.h
  * Generic bitmask definitions
  *
  * 2003-2005 (c) MontaVista Software, Inc. This file is licensed under the

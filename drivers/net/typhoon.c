@@ -117,6 +117,7 @@ static const int multicast_filter_limit = 32;
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>
@@ -127,7 +128,6 @@ static const int multicast_filter_limit = 32;
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/in6.h>
-#include <asm/checksum.h>
 #include <linux/version.h>
 #include <linux/dma-mapping.h>
 
@@ -333,11 +333,7 @@ enum state_values {
 #define TYPHOON_RESET_TIMEOUT_NOSLEEP	((6 * 1000000) / TYPHOON_UDELAY)
 #define TYPHOON_WAIT_TIMEOUT		((1000000 / 2) / TYPHOON_UDELAY)
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 28)
-#define typhoon_synchronize_irq(x) synchronize_irq()
-#else
 #define typhoon_synchronize_irq(x) synchronize_irq(x)
-#endif
 
 #if defined(NETIF_F_TSO)
 #define skb_tso_size(x)		(skb_shinfo(x)->gso_size)
@@ -1830,7 +1826,7 @@ typhoon_poll(struct net_device *dev, int *total_budget)
 }
 
 static irqreturn_t
-typhoon_interrupt(int irq, void *dev_instance, struct pt_regs *rgs)
+typhoon_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = (struct net_device *) dev_instance;
 	struct typhoon *tp = dev->priv;

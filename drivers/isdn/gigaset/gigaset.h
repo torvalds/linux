@@ -444,7 +444,7 @@ struct cardstate {
 	struct gigaset_driver *driver;
 	unsigned minor_index;
 	struct device *dev;
-	struct class_device *class;
+	struct device *tty_dev;
 
 	const struct gigaset_ops *ops;
 
@@ -875,10 +875,6 @@ static inline void gigaset_rcv_error(struct sk_buff *procskb,
 		gigaset_isdn_rcv_err(bcs);
 	}
 }
-
-
-/* bitwise byte inversion table */
-extern __u8 gigaset_invtab[];	/* in common.c */
 
 /* append received bytes to inbuf */
 int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,

@@ -1,49 +1,52 @@
 /*
- * arch/sh/kernel/cpu/sq.c
+ * arch/sh/kernel/cpu/sh4/sq.c
  *
  * General management API for SH-4 integrated Store Queues
  *
- * Copyright (C) 2001, 2002, 2003, 2004  Paul Mundt
+ * Copyright (C) 2001 - 2006  Paul Mundt
  * Copyright (C) 2001, 2002  M. R. Brown
- *
- * Some of this code has been adopted directly from the old arch/sh/mm/sq.c
- * hack that was part of the LinuxDC project. For all intents and purposes,
- * this is a completely new interface that really doesn't have much in common
- * with the old zone-based approach at all. In fact, it's only listed here for
- * general completeness.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
 #include <linux/init.h>
+#include <linux/cpu.h>
+#include <linux/bitmap.h>
+#include <linux/sysdev.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/list.h>
-#include <linux/proc_fs.h>
-#include <linux/miscdevice.h>
 #include <linux/vmalloc.h>
-
-#include <asm/io.h>
+#include <linux/mm.h>
+#include <linux/io.h>
 #include <asm/page.h>
-#include <asm/mmu_context.h>
+#include <asm/cacheflush.h>
 #include <asm/cpu/sq.h>
 
-static LIST_HEAD(sq_mapping_list);
-static DEFINE_SPINLOCK(sq_mapping_lock);
+struct sq_mapping;
 
-/**
- * sq_flush - Flush (prefetch) the store queue cache
- * @addr: the store queue address to flush
- *
- * Executes a prefetch instruction on the specified store queue cache,
- * so that the cached data is written to physical memory.
- */
-inline void sq_flush(void *addr)
-{
-	__asm__ __volatile__ ("pref @%0" : : "r" (addr) : "memory");
-}
+struct sq_mapping {
+	const char *name;
+
+	unsigned long sq_addr;
+	unsigned long addr;
+	unsigned int size;
+
+	struct sq_mapping *next;
+};
+
+static struct sq_mapping *sq_mapping_list;
+static DEFINE_SPINLOCK(sq_mapping_lock);
+static struct kmem_cache *sq_cache;
+static unsigned long *sq_bitmap;
+
+#define store_queue_barrier()			\
+do {						\
+	(void)ctrl_inl(P4SEG_STORE_QUE);	\
+	ctrl_outl(0, P4SEG_STORE_QUE + 0);	\
+	ctrl_outl(0, P4SEG_STORE_QUE + 8);	\
+} while (0);
 
 /**
  * sq_flush_range - Flush (prefetch) a specific SQ range
@@ -56,152 +59,75 @@ inline void sq_flush(void *addr)
 void sq_flush_range(unsigned long start, unsigned int len)
 {
 	volatile unsigned long *sq = (unsigned long *)start;
-	unsigned long dummy;
 
 	/* Flush the queues */
 	for (len >>= 5; len--; sq += 8)
-		sq_flush((void *)sq);
+		prefetchw((void *)sq);
 
 	/* Wait for completion */
-	dummy = ctrl_inl(P4SEG_STORE_QUE);
+	store_queue_barrier();
+}
+EXPORT_SYMBOL(sq_flush_range);
 
-	ctrl_outl(0, P4SEG_STORE_QUE + 0);
-	ctrl_outl(0, P4SEG_STORE_QUE + 8);
+static inline void sq_mapping_list_add(struct sq_mapping *map)
+{
+	struct sq_mapping **p, *tmp;
+
+	spin_lock_irq(&sq_mapping_lock);
+
+	p = &sq_mapping_list;
+	while ((tmp = *p) != NULL)
+		p = &tmp->next;
+
+	map->next = tmp;
+	*p = map;
+
+	spin_unlock_irq(&sq_mapping_lock);
 }
 
-static struct sq_mapping *__sq_alloc_mapping(unsigned long virt, unsigned long phys, unsigned long size, const char *name)
+static inline void sq_mapping_list_del(struct sq_mapping *map)
 {
-	struct sq_mapping *map;
+	struct sq_mapping **p, *tmp;
 
-	if (virt + size > SQ_ADDRMAX)
-		return ERR_PTR(-ENOSPC);
+	spin_lock_irq(&sq_mapping_lock);
 
-	map = kmalloc(sizeof(struct sq_mapping), GFP_KERNEL);
-	if (!map)
-		return ERR_PTR(-ENOMEM);
-
-	INIT_LIST_HEAD(&map->list);
-
-	map->sq_addr	= virt;
-	map->addr	= phys;
-	map->size	= size + 1;
-	map->name	= name;
-
-	list_add(&map->list, &sq_mapping_list);
-
-	return map;
-}
-
-static unsigned long __sq_get_next_addr(void)
-{
-	if (!list_empty(&sq_mapping_list)) {
-		struct list_head *pos, *tmp;
-
-		/*
-		 * Read one off the list head, as it will have the highest
-		 * mapped allocation. Set the next one up right above it.
-		 *
-		 * This is somewhat sub-optimal, as we don't look at
-		 * gaps between allocations or anything lower then the
-		 * highest-level allocation.
-		 *
-		 * However, in the interest of performance and the general
-		 * lack of desire to do constant list rebalancing, we don't
-		 * worry about it.
-		 */
-		list_for_each_safe(pos, tmp, &sq_mapping_list) {
-			struct sq_mapping *entry;
-
-			entry = list_entry(pos, typeof(*entry), list);
-
-			return entry->sq_addr + entry->size;
+	for (p = &sq_mapping_list; (tmp = *p); p = &tmp->next)
+		if (tmp == map) {
+			*p = tmp->next;
+			break;
 		}
-	}
 
-	return P4SEG_STORE_QUE;
+	spin_unlock_irq(&sq_mapping_lock);
 }
 
-/**
- * __sq_remap - Perform a translation from the SQ to a phys addr
- * @map: sq mapping containing phys and store queue addresses.
- *
- * Maps the store queue address specified in the mapping to the physical
- * address specified in the mapping.
- */
-static struct sq_mapping *__sq_remap(struct sq_mapping *map)
+static int __sq_remap(struct sq_mapping *map, unsigned long flags)
 {
-	unsigned long flags, pteh, ptel;
+#if defined(CONFIG_MMU)
 	struct vm_struct *vma;
-	pgprot_t pgprot;
 
+	vma = __get_vm_area(map->size, VM_ALLOC, map->sq_addr, SQ_ADDRMAX);
+	if (!vma)
+		return -ENOMEM;
+
+	vma->phys_addr = map->addr;
+
+	if (ioremap_page_range((unsigned long)vma->addr,
+			       (unsigned long)vma->addr + map->size,
+			       vma->phys_addr, __pgprot(flags))) {
+		vunmap(vma->addr);
+		return -EAGAIN;
+	}
+#else
 	/*
 	 * Without an MMU (or with it turned off), this is much more
 	 * straightforward, as we can just load up each queue's QACR with
 	 * the physical address appropriately masked.
 	 */
-
 	ctrl_outl(((map->addr >> 26) << 2) & 0x1c, SQ_QACR0);
 	ctrl_outl(((map->addr >> 26) << 2) & 0x1c, SQ_QACR1);
+#endif
 
-#ifdef CONFIG_MMU
-	/*
-	 * With an MMU on the other hand, things are slightly more involved.
-	 * Namely, we have to have a direct mapping between the SQ addr and
-	 * the associated physical address in the UTLB by way of setting up
-	 * a virt<->phys translation by hand. We do this by simply specifying
-	 * the SQ addr in UTLB.VPN and the associated physical address in
-	 * UTLB.PPN.
-	 *
-	 * Notably, even though this is a special case translation, and some
-	 * of the configuration bits are meaningless, we're still required
-	 * to have a valid ASID context in PTEH.
-	 *
-	 * We could also probably get by without explicitly setting PTEA, but
-	 * we do it here just for good measure.
-	 */
-	spin_lock_irqsave(&sq_mapping_lock, flags);
-
-	pteh = map->sq_addr;
-	ctrl_outl((pteh & MMU_VPN_MASK) | get_asid(), MMU_PTEH);
-
-	ptel = map->addr & PAGE_MASK;
-	ctrl_outl(((ptel >> 28) & 0xe) | (ptel & 0x1), MMU_PTEA);
-
-	pgprot = pgprot_noncached(PAGE_KERNEL);
-
-	ptel &= _PAGE_FLAGS_HARDWARE_MASK;
-	ptel |= pgprot_val(pgprot);
-	ctrl_outl(ptel, MMU_PTEL);
-
-	__asm__ __volatile__ ("ldtlb" : : : "memory");
-
-	spin_unlock_irqrestore(&sq_mapping_lock, flags);
-
-	/*
-	 * Next, we need to map ourselves in the kernel page table, so that
-	 * future accesses after a TLB flush will be handled when we take a
-	 * page fault.
-	 *
-	 * Theoretically we could just do this directly and not worry about
-	 * setting up the translation by hand ahead of time, but for the
-	 * cases where we want a one-shot SQ mapping followed by a quick
-	 * writeout before we hit the TLB flush, we do it anyways. This way
-	 * we at least save ourselves the initial page fault overhead.
-	 */
-	vma = __get_vm_area(map->size, VM_ALLOC, map->sq_addr, SQ_ADDRMAX);
-	if (!vma)
-		return ERR_PTR(-ENOMEM);
-
-	vma->phys_addr = map->addr;
-
-	if (remap_area_pages((unsigned long)vma->addr, vma->phys_addr,
-			     map->size, pgprot_val(pgprot))) {
-		vunmap(vma->addr);
-		return NULL;
-	}
-#endif /* CONFIG_MMU */
-
-	return map;
+	return 0;
 }
 
 /**
@@ -209,43 +135,67 @@ static struct sq_mapping *__sq_remap(struct sq_mapping *map)
  * @phys: Physical address of mapping.
  * @size: Length of mapping.
  * @name: User invoking mapping.
+ * @flags: Protection flags.
  *
  * Remaps the physical address @phys through the next available store queue
  * address of @size length. @name is logged at boot time as well as through
- * the procfs interface.
- *
- * A pre-allocated and filled sq_mapping pointer is returned, and must be
- * cleaned up with a call to sq_unmap() when the user is done with the
- * mapping.
+ * the sysfs interface.
  */
-struct sq_mapping *sq_remap(unsigned long phys, unsigned int size, const char *name)
+unsigned long sq_remap(unsigned long phys, unsigned int size,
+		       const char *name, unsigned long flags)
 {
 	struct sq_mapping *map;
-	unsigned long virt, end;
+	unsigned long end;
 	unsigned int psz;
+	int ret, page;
 
 	/* Don't allow wraparound or zero size */
 	end = phys + size - 1;
-	if (!size || end < phys)
-		return NULL;
+	if (unlikely(!size || end < phys))
+		return -EINVAL;
 	/* Don't allow anyone to remap normal memory.. */
-	if (phys < virt_to_phys(high_memory))
-		return NULL;
+	if (unlikely(phys < virt_to_phys(high_memory)))
+		return -EINVAL;
 
 	phys &= PAGE_MASK;
+	size = PAGE_ALIGN(end + 1) - phys;
 
-	size  = PAGE_ALIGN(end + 1) - phys;
-	virt  = __sq_get_next_addr();
-	psz   = (size + (PAGE_SIZE - 1)) / PAGE_SIZE;
-	map   = __sq_alloc_mapping(virt, phys, size, name);
+	map = kmem_cache_alloc(sq_cache, GFP_KERNEL);
+	if (unlikely(!map))
+		return -ENOMEM;
 
-	printk("sqremap: %15s  [%4d page%s]  va 0x%08lx   pa 0x%08lx\n",
-	       map->name ? map->name : "???",
-	       psz, psz == 1 ? " " : "s",
-	       map->sq_addr, map->addr);
+	map->addr = phys;
+	map->size = size;
+	map->name = name;
 
-	return __sq_remap(map);
+	page = bitmap_find_free_region(sq_bitmap, 0x04000000 >> PAGE_SHIFT,
+				       get_order(map->size));
+	if (unlikely(page < 0)) {
+		ret = -ENOSPC;
+		goto out;
+	}
+
+	map->sq_addr = P4SEG_STORE_QUE + (page << PAGE_SHIFT);
+
+	ret = __sq_remap(map, pgprot_val(PAGE_KERNEL_NOCACHE) | flags);
+	if (unlikely(ret != 0))
+		goto out;
+
+	psz = (size + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
+	pr_info("sqremap: %15s  [%4d page%s]  va 0x%08lx   pa 0x%08lx\n",
+		likely(map->name) ? map->name : "???",
+		psz, psz == 1 ? " " : "s",
+		map->sq_addr, map->addr);
+
+	sq_mapping_list_add(map);
+
+	return map->sq_addr;
+
+out:
+	kmem_cache_free(sq_cache, map);
+	return ret;
 }
+EXPORT_SYMBOL(sq_remap);
 
 /**
  * sq_unmap - Unmap a Store Queue allocation
@@ -255,188 +205,199 @@ struct sq_mapping *sq_remap(unsigned long phys, unsigned int size, const char *n
  * sq_remap(). Also frees up the pte that was previously inserted into
  * the kernel page table and discards the UTLB translation.
  */
-void sq_unmap(struct sq_mapping *map)
+void sq_unmap(unsigned long vaddr)
 {
-	if (map->sq_addr > (unsigned long)high_memory)
-		vfree((void *)(map->sq_addr & PAGE_MASK));
+	struct sq_mapping **p, *map;
+	struct vm_struct *vma;
+	int page;
 
-	list_del(&map->list);
-	kfree(map);
-}
+	for (p = &sq_mapping_list; (map = *p); p = &map->next)
+		if (map->sq_addr == vaddr)
+			break;
 
-/**
- * sq_clear - Clear a store queue range
- * @addr: Address to start clearing from.
- * @len: Length to clear.
- *
- * A quick zero-fill implementation for clearing out memory that has been
- * remapped through the store queues.
- */
-void sq_clear(unsigned long addr, unsigned int len)
-{
-	int i;
-
-	/* Clear out both queues linearly */
-	for (i = 0; i < 8; i++) {
-		ctrl_outl(0, addr + i + 0);
-		ctrl_outl(0, addr + i + 8);
+	if (unlikely(!map)) {
+		printk("%s: bad store queue address 0x%08lx\n",
+		       __FUNCTION__, vaddr);
+		return;
 	}
 
-	sq_flush_range(addr, len);
-}
+	page = (map->sq_addr - P4SEG_STORE_QUE) >> PAGE_SHIFT;
+	bitmap_release_region(sq_bitmap, page, get_order(map->size));
 
-/**
- * sq_vma_unmap - Unmap a VMA range
- * @area: VMA containing range.
- * @addr: Start of range.
- * @len: Length of range.
- *
- * Searches the sq_mapping_list for a mapping matching the sq addr @addr,
- * and subsequently frees up the entry. Further cleanup is done by generic
- * code.
- */
-static void sq_vma_unmap(struct vm_area_struct *area,
-			 unsigned long addr, size_t len)
-{
-	struct list_head *pos, *tmp;
-
-	list_for_each_safe(pos, tmp, &sq_mapping_list) {
-		struct sq_mapping *entry;
-
-		entry = list_entry(pos, typeof(*entry), list);
-
-		if (entry->sq_addr == addr) {
-			/*
-			 * We could probably get away without doing the tlb flush
-			 * here, as generic code should take care of most of this
-			 * when unmapping the rest of the VMA range for us. Leave
-			 * it in for added sanity for the time being..
-			 */
-			__flush_tlb_page(get_asid(), entry->sq_addr & PAGE_MASK);
-
-			list_del(&entry->list);
-			kfree(entry);
-
-			return;
-		}
+#ifdef CONFIG_MMU
+	vma = remove_vm_area((void *)(map->sq_addr & PAGE_MASK));
+	if (!vma) {
+		printk(KERN_ERR "%s: bad address 0x%08lx\n",
+		       __FUNCTION__, map->sq_addr);
+		return;
 	}
-}
+#endif
 
-/**
- * sq_vma_sync - Sync a VMA range
- * @area: VMA containing range.
- * @start: Start of range.
- * @len: Length of range.
- * @flags: Additional flags.
+	sq_mapping_list_del(map);
+
+	kmem_cache_free(sq_cache, map);
+}
+EXPORT_SYMBOL(sq_unmap);
+
+/*
+ * Needlessly complex sysfs interface. Unfortunately it doesn't seem like
+ * there is any other easy way to add things on a per-cpu basis without
+ * putting the directory entries somewhere stupid and having to create
+ * links in sysfs by hand back in to the per-cpu directories.
  *
- * Synchronizes an sq mapped range by flushing the store queue cache for
- * the duration of the mapping.
- *
- * Used internally for user mappings, which must use msync() to prefetch
- * the store queue cache.
+ * Some day we may want to have an additional abstraction per store
+ * queue, but considering the kobject hell we already have to deal with,
+ * it's simply not worth the trouble.
  */
-static int sq_vma_sync(struct vm_area_struct *area,
-		       unsigned long start, size_t len, unsigned int flags)
-{
-	sq_flush_range(start, len);
+static struct kobject *sq_kobject[NR_CPUS];
 
-	return 0;
-}
-
-static struct vm_operations_struct sq_vma_ops = {
-	.unmap	= sq_vma_unmap,
-	.sync	= sq_vma_sync,
+struct sq_sysfs_attr {
+	struct attribute attr;
+	ssize_t (*show)(char *buf);
+	ssize_t (*store)(const char *buf, size_t count);
 };
 
-/**
- * sq_mmap - mmap() for /dev/cpu/sq
- * @file: unused.
- * @vma: VMA to remap.
- *
- * Remap the specified vma @vma through the store queues, and setup associated
- * information for the new mapping. Also build up the page tables for the new
- * area.
- */
-static int sq_mmap(struct file *file, struct vm_area_struct *vma)
+#define to_sq_sysfs_attr(attr)	container_of(attr, struct sq_sysfs_attr, attr)
+
+static ssize_t sq_sysfs_show(struct kobject *kobj, struct attribute *attr,
+			     char *buf)
 {
-	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
-	unsigned long size = vma->vm_end - vma->vm_start;
-	struct sq_mapping *map;
+	struct sq_sysfs_attr *sattr = to_sq_sysfs_attr(attr);
 
-	/*
-	 * We're not interested in any arbitrary virtual address that has
-	 * been stuck in the VMA, as we already know what addresses we
-	 * want. Save off the size, and reposition the VMA to begin at
-	 * the next available sq address.
-	 */
-	vma->vm_start = __sq_get_next_addr();
-	vma->vm_end   = vma->vm_start + size;
+	if (likely(sattr->show))
+		return sattr->show(buf);
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	vma->vm_flags |= VM_IO | VM_RESERVED;
-
-	map = __sq_alloc_mapping(vma->vm_start, offset, size, "Userspace");
-
-	if (io_remap_pfn_range(vma, map->sq_addr, map->addr >> PAGE_SHIFT,
-				size, vma->vm_page_prot))
-		return -EAGAIN;
-
-	vma->vm_ops = &sq_vma_ops;
-
-	return 0;
+	return -EIO;
 }
 
-#ifdef CONFIG_PROC_FS
-static int sq_mapping_read_proc(char *buf, char **start, off_t off,
-				int len, int *eof, void *data)
+static ssize_t sq_sysfs_store(struct kobject *kobj, struct attribute *attr,
+			      const char *buf, size_t count)
 {
-	struct list_head *pos;
+	struct sq_sysfs_attr *sattr = to_sq_sysfs_attr(attr);
+
+	if (likely(sattr->store))
+		return sattr->store(buf, count);
+
+	return -EIO;
+}
+
+static ssize_t mapping_show(char *buf)
+{
+	struct sq_mapping **list, *entry;
 	char *p = buf;
 
-	list_for_each_prev(pos, &sq_mapping_list) {
-		struct sq_mapping *entry;
-
-		entry = list_entry(pos, typeof(*entry), list);
-
-		p += sprintf(p, "%08lx-%08lx [%08lx]: %s\n", entry->sq_addr,
-			     entry->sq_addr + entry->size - 1, entry->addr,
-			     entry->name);
-	}
+	for (list = &sq_mapping_list; (entry = *list); list = &entry->next)
+		p += sprintf(p, "%08lx-%08lx [%08lx]: %s\n",
+			     entry->sq_addr, entry->sq_addr + entry->size,
+			     entry->addr, entry->name);
 
 	return p - buf;
 }
-#endif
 
-static struct file_operations sq_fops = {
-	.owner		= THIS_MODULE,
-	.mmap		= sq_mmap,
+static ssize_t mapping_store(const char *buf, size_t count)
+{
+	unsigned long base = 0, len = 0;
+
+	sscanf(buf, "%lx %lx", &base, &len);
+	if (!base)
+		return -EIO;
+
+	if (likely(len)) {
+		int ret = sq_remap(base, len, "Userspace",
+				   pgprot_val(PAGE_SHARED));
+		if (ret < 0)
+			return ret;
+	} else
+		sq_unmap(base);
+
+	return count;
+}
+
+static struct sq_sysfs_attr mapping_attr =
+	__ATTR(mapping, 0644, mapping_show, mapping_store);
+
+static struct attribute *sq_sysfs_attrs[] = {
+	&mapping_attr.attr,
+	NULL,
 };
 
-static struct miscdevice sq_dev = {
-	.minor		= STORE_QUEUE_MINOR,
-	.name		= "sq",
-	.fops		= &sq_fops,
+static struct sysfs_ops sq_sysfs_ops = {
+	.show	= sq_sysfs_show,
+	.store	= sq_sysfs_store,
+};
+
+static struct kobj_type ktype_percpu_entry = {
+	.sysfs_ops	= &sq_sysfs_ops,
+	.default_attrs	= sq_sysfs_attrs,
+};
+
+static int __devinit sq_sysdev_add(struct sys_device *sysdev)
+{
+	unsigned int cpu = sysdev->id;
+	struct kobject *kobj;
+
+	sq_kobject[cpu] = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+	if (unlikely(!sq_kobject[cpu]))
+		return -ENOMEM;
+
+	kobj = sq_kobject[cpu];
+	kobj->parent = &sysdev->kobj;
+	kobject_set_name(kobj, "%s", "sq");
+	kobj->ktype = &ktype_percpu_entry;
+
+	return kobject_register(kobj);
+}
+
+static int __devexit sq_sysdev_remove(struct sys_device *sysdev)
+{
+	unsigned int cpu = sysdev->id;
+	struct kobject *kobj = sq_kobject[cpu];
+
+	kobject_unregister(kobj);
+	return 0;
+}
+
+static struct sysdev_driver sq_sysdev_driver = {
+	.add		= sq_sysdev_add,
+	.remove		= __devexit_p(sq_sysdev_remove),
 };
 
 static int __init sq_api_init(void)
 {
-	int ret;
+	unsigned int nr_pages = 0x04000000 >> PAGE_SHIFT;
+	unsigned int size = (nr_pages + (BITS_PER_LONG - 1)) / BITS_PER_LONG;
+	int ret = -ENOMEM;
+
 	printk(KERN_NOTICE "sq: Registering store queue API.\n");
 
-	create_proc_read_entry("sq_mapping", 0, 0, sq_mapping_read_proc, 0);
+	sq_cache = kmem_cache_create("store_queue_cache",
+				sizeof(struct sq_mapping), 0, 0,
+				NULL, NULL);
+	if (unlikely(!sq_cache))
+		return ret;
 
-	ret = misc_register(&sq_dev);
-	if (ret)
-		remove_proc_entry("sq_mapping", NULL);
+	sq_bitmap = kzalloc(size, GFP_KERNEL);
+	if (unlikely(!sq_bitmap))
+		goto out;
+
+	ret = sysdev_driver_register(&cpu_sysdev_class, &sq_sysdev_driver);
+	if (unlikely(ret != 0))
+		goto out;
+
+	return 0;
+
+out:
+	kfree(sq_bitmap);
+	kmem_cache_destroy(sq_cache);
 
 	return ret;
 }
 
 static void __exit sq_api_exit(void)
 {
-	misc_deregister(&sq_dev);
-	remove_proc_entry("sq_mapping", NULL);
+	sysdev_driver_unregister(&cpu_sysdev_class, &sq_sysdev_driver);
+	kfree(sq_bitmap);
+	kmem_cache_destroy(sq_cache);
 }
 
 module_init(sq_api_init);
@@ -445,11 +406,3 @@ module_exit(sq_api_exit);
 MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>, M. R. Brown <mrbrown@0xd6.org>");
 MODULE_DESCRIPTION("Simple API for SH-4 integrated Store Queues");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(STORE_QUEUE_MINOR);
-
-EXPORT_SYMBOL(sq_remap);
-EXPORT_SYMBOL(sq_unmap);
-EXPORT_SYMBOL(sq_clear);
-EXPORT_SYMBOL(sq_flush);
-EXPORT_SYMBOL(sq_flush_range);
-

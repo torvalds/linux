@@ -73,11 +73,9 @@ typedef unsigned int BOOLEAN;
 
 #ifdef SIS_LINUX_KERNEL
 typedef unsigned long SISIOADDRESS;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,8)
 #include <linux/types.h>  /* Need __iomem */
 #undef SISIOMEMTYPE
 #define SISIOMEMTYPE __iomem
-#endif
 #endif
 
 #ifdef SIS_XORG_XF86

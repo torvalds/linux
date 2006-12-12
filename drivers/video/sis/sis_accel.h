@@ -390,25 +390,11 @@
 	MMIO_OUT32(ivideo->mmio_vbase, FIRE_TRIGGER, 0); \
 	CmdQueLen -= 2;
 
-
 int  sisfb_initaccel(struct sis_video_info *ivideo);
 void sisfb_syncaccel(struct sis_video_info *ivideo);
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,33)
-void fbcon_sis_bmove(struct display *p, int srcy, int srcx, int dsty,
-			int dstx, int height, int width);
-void fbcon_sis_revc(struct display *p, int srcy, int srcx);
-void fbcon_sis_clear8(struct vc_data *conp, struct display *p, int srcy,
-			int srcx, int height, int width);
-void fbcon_sis_clear16(struct vc_data *conp, struct display *p, int srcy,
-			int srcx, int height, int width);
-void fbcon_sis_clear32(struct vc_data *conp, struct display *p, int srcy,
-			int srcx, int height, int width);
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,34)
 int  fbcon_sis_sync(struct fb_info *info);
 void fbcon_sis_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
 void fbcon_sis_copyarea(struct fb_info *info, const struct fb_copyarea *area);
-#endif
 
 #endif

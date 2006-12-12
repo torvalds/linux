@@ -212,8 +212,10 @@ static void read_from_buf(struct saa6588 *s, struct rds_command *a)
 	if (rd_blocks > s->block_count)
 		rd_blocks = s->block_count;
 
-	if (!rd_blocks)
+	if (!rd_blocks) {
+		spin_unlock_irqrestore(&s->lock, flags);
 		return;
+	}
 
 	for (i = 0; i < rd_blocks; i++) {
 		if (block_to_user_buf(s, buf_ptr)) {
@@ -322,9 +324,9 @@ static void saa6588_timer(unsigned long data)
 	schedule_work(&s->work);
 }
 
-static void saa6588_work(void *data)
+static void saa6588_work(struct work_struct *work)
 {
-	struct saa6588 *s = (struct saa6588 *)data;
+	struct saa6588 *s = container_of(work, struct saa6588, work);
 
 	saa6588_i2c_poll(s);
 	mod_timer(&s->timer, jiffies + msecs_to_jiffies(20));
@@ -417,7 +419,7 @@ static int saa6588_attach(struct i2c_adapter *adap, int addr, int kind)
 	saa6588_configure(s);
 
 	/* start polling via eventd */
-	INIT_WORK(&s->work, saa6588_work, s);
+	INIT_WORK(&s->work, saa6588_work);
 	init_timer(&s->timer);
 	s->timer.function = saa6588_timer;
 	s->timer.data = (unsigned long)s;

@@ -109,7 +109,7 @@ static int he_open(struct atm_vcc *vcc);
 static void he_close(struct atm_vcc *vcc);
 static int he_send(struct atm_vcc *vcc, struct sk_buff *skb);
 static int he_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg);
-static irqreturn_t he_irq_handler(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t he_irq_handler(int irq, void *dev_id);
 static void he_tasklet(unsigned long data);
 static int he_proc_read(struct atm_dev *dev,loff_t *pos,char *page);
 static int he_start(struct atm_dev *dev);
@@ -383,14 +383,12 @@ he_init_one(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent)
 	}
 	pci_set_drvdata(pci_dev, atm_dev);
 
-	he_dev = (struct he_dev *) kmalloc(sizeof(struct he_dev),
+	he_dev = kzalloc(sizeof(struct he_dev),
 							GFP_KERNEL);
 	if (!he_dev) {
 		err = -ENOMEM;
 		goto init_one_failure;
 	}
-	memset(he_dev, 0, sizeof(struct he_dev));
-
 	he_dev->pci_dev = pci_dev;
 	he_dev->atm_dev = atm_dev;
 	he_dev->atm_dev->dev_data = he_dev;
@@ -822,7 +820,7 @@ he_init_group(struct he_dev *he_dev, int group)
 		void *cpuaddr;
 
 #ifdef USE_RBPS_POOL 
-		cpuaddr = pci_pool_alloc(he_dev->rbps_pool, SLAB_KERNEL|SLAB_DMA, &dma_handle);
+		cpuaddr = pci_pool_alloc(he_dev->rbps_pool, GFP_KERNEL|GFP_DMA, &dma_handle);
 		if (cpuaddr == NULL)
 			return -ENOMEM;
 #else
@@ -886,7 +884,7 @@ he_init_group(struct he_dev *he_dev, int group)
 		void *cpuaddr;
 
 #ifdef USE_RBPL_POOL
-		cpuaddr = pci_pool_alloc(he_dev->rbpl_pool, SLAB_KERNEL|SLAB_DMA, &dma_handle);
+		cpuaddr = pci_pool_alloc(he_dev->rbpl_pool, GFP_KERNEL|GFP_DMA, &dma_handle);
 		if (cpuaddr == NULL)
 			return -ENOMEM;
 #else
@@ -1726,7 +1724,7 @@ __alloc_tpd(struct he_dev *he_dev)
 	struct he_tpd *tpd;
 	dma_addr_t dma_handle; 
 
-	tpd = pci_pool_alloc(he_dev->tpd_pool, SLAB_ATOMIC|SLAB_DMA, &dma_handle);              
+	tpd = pci_pool_alloc(he_dev->tpd_pool, GFP_ATOMIC|GFP_DMA, &dma_handle);
 	if (tpd == NULL)
 		return NULL;
 			
@@ -2218,7 +2216,7 @@ he_tasklet(unsigned long data)
 }
 
 static irqreturn_t
-he_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
+he_irq_handler(int irq, void *dev_id)
 {
 	unsigned long flags;
 	struct he_dev *he_dev = (struct he_dev * )dev_id;

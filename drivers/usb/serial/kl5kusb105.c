@@ -80,13 +80,13 @@ static void klsi_105_close	         (struct usb_serial_port *port,
 static int  klsi_105_write	         (struct usb_serial_port *port,
 					  const unsigned char *buf,
 					  int count);
-static void klsi_105_write_bulk_callback (struct urb *urb, struct pt_regs *regs);
+static void klsi_105_write_bulk_callback (struct urb *urb);
 static int  klsi_105_chars_in_buffer     (struct usb_serial_port *port);
 static int  klsi_105_write_room          (struct usb_serial_port *port);
 
-static void klsi_105_read_bulk_callback  (struct urb *urb, struct pt_regs *regs);
+static void klsi_105_read_bulk_callback  (struct urb *urb);
 static void klsi_105_set_termios         (struct usb_serial_port *port,
-					  struct termios * old);
+					  struct ktermios *old);
 static int  klsi_105_ioctl	         (struct usb_serial_port *port,
 					  struct file * file,
 					  unsigned int cmd,
@@ -164,7 +164,7 @@ struct klsi_105_port_settings {
 #define URB_TRANSFER_BUFFER_SIZE	64
 struct klsi_105_private {
 	struct klsi_105_port_settings	cfg;
-	struct termios			termios;
+	struct ktermios			termios;
 	unsigned long			line_state; /* modem line settings */
 	/* write pool */
 	struct urb *			write_urb_pool[NUM_URBS];
@@ -556,7 +556,7 @@ exit:
 	return bytes_sent;	/* that's how much we wrote */
 } /* klsi_105_write */
 
-static void klsi_105_write_bulk_callback ( struct urb *urb, struct pt_regs *regs)
+static void klsi_105_write_bulk_callback ( struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 
@@ -616,7 +616,7 @@ static int klsi_105_write_room (struct usb_serial_port *port)
 
 
 
-static void klsi_105_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
+static void klsi_105_read_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
@@ -688,7 +688,7 @@ static void klsi_105_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 
 
 static void klsi_105_set_termios (struct usb_serial_port *port,
-				  struct termios *old_termios)
+				  struct ktermios *old_termios)
 {
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
 	unsigned int iflag = port->tty->termios->c_iflag;

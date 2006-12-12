@@ -11,6 +11,7 @@
 #define __ASM_AVR32_AT32AP_INIT_H__
 
 void setup_platform(void);
+void setup_board(void);
 
 /* Called by setup_platform */
 void at32_clock_init(void);

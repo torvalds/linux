@@ -92,7 +92,7 @@ config HAVE_MEMORY_PRESENT
 
 #
 # SPARSEMEM_EXTREME (which is the default) does some bootmem
-# allocations when memory_present() is called.  If this can not
+# allocations when memory_present() is called.  If this cannot
 # be done on your architecture, select this option.  However,
 # statically allocating the mem_section[] array can potentially
 # consume vast quantities of .bss, so be careful.
@@ -104,7 +104,7 @@ config SPARSEMEM_STATIC
 	def_bool n
 
 #
-# Architectecture platforms which require a two level mem_section in SPARSEMEM
+# Architecture platforms which require a two level mem_section in SPARSEMEM
 # must select this option. This is usually for architecture platforms with
 # an extremely sparse physical address space.
 #
@@ -115,11 +115,16 @@ config SPARSEMEM_EXTREME
 # eventually, we can have this option just 'select SPARSEMEM'
 config MEMORY_HOTPLUG
 	bool "Allow for memory hot-add"
-	depends on SPARSEMEM && HOTPLUG && !SOFTWARE_SUSPEND && ARCH_ENABLE_MEMORY_HOTPLUG
+	depends on SPARSEMEM || X86_64_ACPI_NUMA
+	depends on HOTPLUG && !SOFTWARE_SUSPEND && ARCH_ENABLE_MEMORY_HOTPLUG
 	depends on (IA64 || X86 || PPC64)
 
 comment "Memory hotplug is currently incompatible with Software Suspend"
 	depends on SPARSEMEM && HOTPLUG && SOFTWARE_SUSPEND
+
+config MEMORY_HOTPLUG_SPARSE
+	def_bool y
+	depends on SPARSEMEM && MEMORY_HOTPLUG
 
 # Heavily threaded applications may benefit from splitting the mm-wide
 # page_table_lock, so that faults on different parts of the user address

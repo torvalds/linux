@@ -57,9 +57,11 @@ struct netlbl_dom_map {
 int netlbl_domhsh_init(u32 size);
 
 /* Manipulate the domain hash table */
-int netlbl_domhsh_add(struct netlbl_dom_map *entry);
-int netlbl_domhsh_add_default(struct netlbl_dom_map *entry);
-int netlbl_domhsh_remove_default(void);
+int netlbl_domhsh_add(struct netlbl_dom_map *entry,
+		      struct netlbl_audit *audit_info);
+int netlbl_domhsh_add_default(struct netlbl_dom_map *entry,
+			      struct netlbl_audit *audit_info);
+int netlbl_domhsh_remove_default(struct netlbl_audit *audit_info);
 struct netlbl_dom_map *netlbl_domhsh_getentry(const char *domain);
 int netlbl_domhsh_walk(u32 *skip_bkt,
 		     u32 *skip_chain,

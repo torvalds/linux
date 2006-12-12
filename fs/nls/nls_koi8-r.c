@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_koi8-r.c
+ * linux/fs/nls/nls_koi8-r.c
  *
  * Charset koi8-r translation tables.
  * Generated automatically from the Unicode and charset

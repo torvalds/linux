@@ -77,7 +77,8 @@ static struct pci_dev *alim7101_pmu;
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+		 __stringify(CONFIG_WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	Whack the dog
@@ -277,7 +278,7 @@ static int fop_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 		case WDIOC_GETTIMEOUT:
 			return put_user(timeout, p);
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 	}
 }
 
@@ -333,6 +334,7 @@ static void __exit alim7101_wdt_unload(void)
 	/* Deregister */
 	misc_deregister(&wdt_miscdev);
 	unregister_reboot_notifier(&wdt_notifier);
+	pci_dev_put(alim7101_pmu);
 }
 
 static int __init alim7101_wdt_init(void)
@@ -342,7 +344,8 @@ static int __init alim7101_wdt_init(void)
 	char tmp;
 
 	printk(KERN_INFO PFX "Steve Hill <steve@navaho.co.uk>.\n");
-	alim7101_pmu = pci_find_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101,NULL);
+	alim7101_pmu = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101,
+		NULL);
 	if (!alim7101_pmu) {
 		printk(KERN_INFO PFX "ALi M7101 PMU not present - WDT not set\n");
 		return -EBUSY;
@@ -351,21 +354,23 @@ static int __init alim7101_wdt_init(void)
 	/* Set the WDT in the PMU to 1 second */
 	pci_write_config_byte(alim7101_pmu, ALI_7101_WDT, 0x02);
 
-	ali1543_south = pci_find_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
+	ali1543_south = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533,
+		NULL);
 	if (!ali1543_south) {
 		printk(KERN_INFO PFX "ALi 1543 South-Bridge not present - WDT not set\n");
-		return -EBUSY;
+		goto err_out;
 	}
 	pci_read_config_byte(ali1543_south, 0x5e, &tmp);
+	pci_dev_put(ali1543_south);
 	if ((tmp & 0x1e) == 0x00) {
 		if (!use_gpio) {
 			printk(KERN_INFO PFX "Detected old alim7101 revision 'a1d'.  If this is a cobalt board, set the 'use_gpio' module parameter.\n");
-			return -EBUSY;
+			goto err_out;
 		} 
 		nowayout = 1;
 	} else if ((tmp & 0x1e) != 0x12 && (tmp & 0x1e) != 0x00) {
 		printk(KERN_INFO PFX "ALi 1543 South-Bridge does not have the correct revision number (???1001?) - WDT not set\n");
-		return -EBUSY;
+		goto err_out;
 	}
 
 	if(timeout < 1 || timeout > 3600) /* arbitrary upper limit */
@@ -404,11 +409,22 @@ static int __init alim7101_wdt_init(void)
 err_out_miscdev:
 	misc_deregister(&wdt_miscdev);
 err_out:
+	pci_dev_put(alim7101_pmu);
 	return rc;
 }
 
 module_init(alim7101_wdt_init);
 module_exit(alim7101_wdt_unload);
+
+static struct pci_device_id alim7101_pci_tbl[] __devinitdata = {
+	{ PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ }
+};
+
+MODULE_DEVICE_TABLE(pci, alim7101_pci_tbl);
 
 MODULE_AUTHOR("Steve Hill");
 MODULE_DESCRIPTION("ALi M7101 PMU Computer Watchdog Timer driver");

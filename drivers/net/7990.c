@@ -438,7 +438,7 @@ static int lance_tx (struct net_device *dev)
 }
 
 static irqreturn_t
-lance_interrupt (int irq, void *dev_id, struct pt_regs *regs)
+lance_interrupt (int irq, void *dev_id)
 {
         struct net_device *dev = (struct net_device *)dev_id;
         struct lance_private *lp = netdev_priv(dev);
@@ -500,7 +500,7 @@ int lance_open (struct net_device *dev)
 	int res;
 
         /* Install the Interrupt handler. Or we could shunt this out to specific drivers? */
-        if (request_irq(lp->irq, lance_interrupt, 0, lp->name, dev))
+        if (request_irq(lp->irq, lance_interrupt, SA_SHIRQ, lp->name, dev))
                 return -EAGAIN;
 
         res = lance_reset(dev);
@@ -674,7 +674,7 @@ void lance_poll(struct net_device *dev)
 	WRITERAP(lp, LE_CSR0);
 	WRITERDP(lp, LE_C0_STRT);
 	spin_unlock (&lp->devlock);
-	lance_interrupt(dev->irq, dev, NULL);
+	lance_interrupt(dev->irq, dev);
 }
 #endif
 

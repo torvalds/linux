@@ -40,7 +40,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb_ch9.h>
 #include <linux/usb_gadget.h>
-#include <linux/usb_otg.h>
+#include <linux/usb/otg.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/byteorder.h>
@@ -1815,8 +1815,7 @@ static void devstate_irq(struct omap_udc *udc, u16 irq_src)
 	UDC_IRQ_SRC_REG = UDC_DS_CHG;
 }
 
-static irqreturn_t
-omap_udc_irq(int irq, void *_udc, struct pt_regs *r)
+static irqreturn_t omap_udc_irq(int irq, void *_udc)
 {
 	struct omap_udc	*udc = _udc;
 	u16		irq_src;
@@ -1888,8 +1887,7 @@ static void pio_out_timer(unsigned long _ep)
 	spin_unlock_irqrestore(&ep->udc->lock, flags);
 }
 
-static irqreturn_t
-omap_udc_pio_irq(int irq, void *_dev, struct pt_regs *r)
+static irqreturn_t omap_udc_pio_irq(int irq, void *_dev)
 {
 	u16		epn_stat, irq_src;
 	irqreturn_t	status = IRQ_NONE;
@@ -1968,8 +1966,7 @@ omap_udc_pio_irq(int irq, void *_dev, struct pt_regs *r)
 }
 
 #ifdef	USE_ISO
-static irqreturn_t
-omap_udc_iso_irq(int irq, void *_dev, struct pt_regs *r)
+static irqreturn_t omap_udc_iso_irq(int irq, void *_dev)
 {
 	struct omap_udc	*udc = _dev;
 	struct omap_ep	*ep;
@@ -2437,7 +2434,7 @@ static int proc_udc_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_udc_show, NULL);
 }
 
-static struct file_operations proc_ops = {
+static const struct file_operations proc_ops = {
 	.open		= proc_udc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -2584,7 +2581,7 @@ omap_udc_setup(struct platform_device *odev, struct otg_transceiver *xceiv)
 	/* UDC_PULLUP_EN gates the chip clock */
 	// OTG_SYSCON_1_REG |= DEV_IDLE_EN;
 
-	udc = kzalloc(sizeof(*udc), SLAB_KERNEL);
+	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
 	if (!udc)
 		return -ENOMEM;
 
@@ -2869,7 +2866,7 @@ cleanup0:
 
 static int __exit omap_udc_remove(struct platform_device *pdev)
 {
-	DECLARE_COMPLETION(done);
+	DECLARE_COMPLETION_ONSTACK(done);
 
 	if (!udc)
 		return -ENODEV;

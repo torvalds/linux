@@ -102,4 +102,26 @@ extern int dvb_usercopy(struct inode *inode, struct file *file,
 			    int (*func)(struct inode *inode, struct file *file,
 			    unsigned int cmd, void *arg));
 
+/** generic DVB attach function. */
+#ifdef CONFIG_DVB_CORE_ATTACH
+#define dvb_attach(FUNCTION, ARGS...) ({ \
+	void *__r = NULL; \
+	typeof(&FUNCTION) __a = symbol_request(FUNCTION); \
+	if (__a) { \
+		__r = (void *) __a(ARGS); \
+		if (__r == NULL) \
+			symbol_put(FUNCTION); \
+	} else { \
+		printk(KERN_ERR "DVB: Unable to find symbol "#FUNCTION"()\n"); \
+	} \
+	__r; \
+})
+
+#else
+#define dvb_attach(FUNCTION, ARGS...) ({ \
+	FUNCTION(ARGS); \
+})
+
+#endif
+
 #endif /* #ifndef _DVBDEV_H_ */

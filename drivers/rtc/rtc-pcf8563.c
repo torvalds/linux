@@ -95,7 +95,7 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	tm->tm_wday = buf[PCF8563_REG_DW] & 0x07;
 	tm->tm_mon = BCD2BIN(buf[PCF8563_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
 	tm->tm_year = BCD2BIN(buf[PCF8563_REG_YR])
-		+ (buf[PCF8563_REG_MO] & PCF8563_MO_C ? 100 : 0);
+		+ (buf[PCF8563_REG_MO] & PCF8563_MO_C ? 0 : 100);
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
@@ -135,7 +135,7 @@ static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	/* year and century */
 	buf[PCF8563_REG_YR] = BIN2BCD(tm->tm_year % 100);
-	if (tm->tm_year / 100)
+	if (tm->tm_year < 100)
 		buf[PCF8563_REG_MO] |= PCF8563_MO_C;
 
 	buf[PCF8563_REG_DW] = tm->tm_wday & 0x07;
@@ -192,7 +192,7 @@ static int pcf8563_validate_client(struct i2c_client *client)
 		xfer = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 
 		if (xfer != ARRAY_SIZE(msgs)) {
-			dev_err(&client->adapter->dev,
+			dev_err(&client->dev,
 				"%s: could not read register 0x%02X\n",
 				__FUNCTION__, pattern[i].reg);
 
@@ -203,7 +203,7 @@ static int pcf8563_validate_client(struct i2c_client *client)
 
 		if (value > pattern[i].max ||
 			value < pattern[i].min) {
-			dev_dbg(&client->adapter->dev,
+			dev_dbg(&client->dev,
 				"%s: pattern=%d, reg=%x, mask=0x%02x, min=%d, "
 				"max=%d, value=%d, raw=0x%02X\n",
 				__FUNCTION__, i, pattern[i].reg, pattern[i].mask,
@@ -227,7 +227,7 @@ static int pcf8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return pcf8563_set_datetime(to_i2c_client(dev), tm);
 }
 
-static struct rtc_class_ops pcf8563_rtc_ops = {
+static const struct rtc_class_ops pcf8563_rtc_ops = {
 	.read_time	= pcf8563_rtc_read_time,
 	.set_time	= pcf8563_rtc_set_time,
 };
@@ -253,7 +253,7 @@ static int pcf8563_probe(struct i2c_adapter *adapter, int address, int kind)
 
 	int err = 0;
 
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
+	dev_dbg(adapter->class_dev.dev, "%s\n", __FUNCTION__);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;

@@ -123,11 +123,10 @@ static int avma1cs_probe(struct pcmcia_device *p_dev)
     DEBUG(0, "avma1cs_attach()\n");
 
     /* Allocate space for private device-specific data */
-    local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+    local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local)
 	return -ENOMEM;
 
-    memset(local, 0, sizeof(local_info_t));
     p_dev->priv = local;
 
     /* The io structure describes IO port mapping */
@@ -216,41 +215,11 @@ static int avma1cs_config(struct pcmcia_device *link)
 
     DEBUG(0, "avma1cs_config(0x%p)\n", link);
 
-    /*
-       This reads the card's CONFIG tuple to find its configuration
-       registers.
-    */
     do {
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	i = pcmcia_get_first_tuple(link, &tuple);
-	if (i != CS_SUCCESS) break;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = 64;
-	tuple.TupleOffset = 0;
-	i = pcmcia_get_tuple_data(link, &tuple);
-	if (i != CS_SUCCESS) break;
-	i = pcmcia_parse_tuple(link, &tuple, &parse);
-	if (i != CS_SUCCESS) break;
-	link->conf.ConfigBase = parse.config.base;
-    } while (0);
-    if (i != CS_SUCCESS) {
-	cs_error(link, ParseTuple, i);
-	return -ENODEV;
-    }
-
-    do {
-
-	tuple.Attributes = 0;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = 254;
-	tuple.TupleOffset = 0;
-	tuple.DesiredTuple = CISTPL_VERS_1;
-
 	devname[0] = 0;
-	if( !first_tuple(link, &tuple, &parse) && parse.version_1.ns > 1 ) {
-	    strlcpy(devname,parse.version_1.str + parse.version_1.ofs[1], 
-			sizeof(devname));
-	}
+	if (link->prod_id[1])
+		strlcpy(devname, link->prod_id[1], sizeof(devname));
+
 	/*
          * find IO port
          */

@@ -32,6 +32,9 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/socket.h>
+#include <linux/audit.h>
+#include <linux/tty.h>
+#include <linux/security.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
@@ -42,6 +45,10 @@
 #include "netlabel_unlabeled.h"
 #include "netlabel_cipso_v4.h"
 #include "netlabel_user.h"
+
+/* do not do any auditing if audit_enabled == 0, see kernel/audit.c for
+ * details */
+extern int audit_enabled;
 
 /*
  * NetLabel NETLINK Setup Functions
@@ -73,4 +80,45 @@ int netlbl_netlink_init(void)
 		return ret_val;
 
 	return 0;
+}
+
+/*
+ * NetLabel Audit Functions
+ */
+
+/**
+ * netlbl_audit_start_common - Start an audit message
+ * @type: audit message type
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Start an audit message using the type specified in @type and fill the audit
+ * message with some fields common to all NetLabel audit messages.  Returns
+ * a pointer to the audit buffer on success, NULL on failure.
+ *
+ */
+struct audit_buffer *netlbl_audit_start_common(int type,
+					       struct netlbl_audit *audit_info)
+{
+	struct audit_context *audit_ctx = current->audit_context;
+	struct audit_buffer *audit_buf;
+	char *secctx;
+	u32 secctx_len;
+
+	if (audit_enabled == 0)
+		return NULL;
+
+	audit_buf = audit_log_start(audit_ctx, GFP_ATOMIC, type);
+	if (audit_buf == NULL)
+		return NULL;
+
+	audit_log_format(audit_buf, "netlabel: auid=%u", audit_info->loginuid);
+
+	if (audit_info->secid != 0 &&
+	    security_secid_to_secctx(audit_info->secid,
+				     &secctx,
+				     &secctx_len) == 0)
+		audit_log_format(audit_buf, " subj=%s", secctx);
+
+	return audit_buf;
 }

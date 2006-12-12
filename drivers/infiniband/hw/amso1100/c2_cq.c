@@ -246,20 +246,17 @@ int c2_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 
 static void c2_free_cq_buf(struct c2_dev *c2dev, struct c2_mq *mq)
 {
-
-	dma_unmap_single(c2dev->ibdev.dma_device, pci_unmap_addr(mq, mapping),
-			 mq->q_size * mq->msg_size, DMA_FROM_DEVICE);
-	free_pages((unsigned long) mq->msg_pool.host,
-		   get_order(mq->q_size * mq->msg_size));
+	dma_free_coherent(&c2dev->pcidev->dev, mq->q_size * mq->msg_size,
+			  mq->msg_pool.host, pci_unmap_addr(mq, mapping));
 }
 
 static int c2_alloc_cq_buf(struct c2_dev *c2dev, struct c2_mq *mq, int q_size,
 			   int msg_size)
 {
-	unsigned long pool_start;
+	u8 *pool_start;
 
-	pool_start = __get_free_pages(GFP_KERNEL,
-				      get_order(q_size * msg_size));
+	pool_start = dma_alloc_coherent(&c2dev->pcidev->dev, q_size * msg_size,
+					&mq->host_dma, GFP_KERNEL);
 	if (!pool_start)
 		return -ENOMEM;
 
@@ -267,13 +264,10 @@ static int c2_alloc_cq_buf(struct c2_dev *c2dev, struct c2_mq *mq, int q_size,
 		       0,		/* index (currently unknown) */
 		       q_size,
 		       msg_size,
-		       (u8 *) pool_start,
+		       pool_start,
 		       NULL,	/* peer (currently unknown) */
 		       C2_MQ_HOST_TARGET);
 
-	mq->host_dma = dma_map_single(c2dev->ibdev.dma_device,
-				      (void *)pool_start,
-				      q_size * msg_size, DMA_FROM_DEVICE);
 	pci_unmap_addr_set(mq, mapping, mq->host_dma);
 
 	return 0;

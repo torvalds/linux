@@ -28,6 +28,7 @@
 #include <linux/percpu.h>
 #include <linux/skbuff.h>
 #include <linux/dmaengine.h>
+#include <linux/crypto.h>
 
 #include <net/inet_connection_sock.h>
 #include <net/inet_timewait_sock.h>
@@ -138,7 +139,6 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define MAX_TCP_SYNCNT		127
 
 #define TCP_SYNQ_INTERVAL	(HZ/5)	/* Period of SYNACK timer */
-#define TCP_SYNQ_HSIZE		512	/* Size of SYNACK hash table */
 
 #define TCP_PAWS_24DAYS	(60 * 60 * 24 * 24)
 #define TCP_PAWS_MSL	60		/* Per-host timestamps are invalidated
@@ -162,6 +162,7 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCPOPT_SACK_PERM        4       /* SACK Permitted */
 #define TCPOPT_SACK             5       /* SACK Block */
 #define TCPOPT_TIMESTAMP	8	/* Better RTT estimations/PAWS */
+#define TCPOPT_MD5SIG		19	/* MD5 Signature (RFC2385) */
 
 /*
  *     TCP option lengths
@@ -171,6 +172,7 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCPOLEN_WINDOW         3
 #define TCPOLEN_SACK_PERM      2
 #define TCPOLEN_TIMESTAMP      10
+#define TCPOLEN_MD5SIG         18
 
 /* But this is what stacks really send out. */
 #define TCPOLEN_TSTAMP_ALIGNED		12
@@ -179,6 +181,7 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCPOLEN_SACK_BASE		2
 #define TCPOLEN_SACK_BASE_ALIGNED	4
 #define TCPOLEN_SACK_PERBLOCK		8
+#define TCPOLEN_MD5SIG_ALIGNED		20
 
 /* Flags in tp->nonagle */
 #define TCP_NAGLE_OFF		1	/* Nagle's algo is disabled */
@@ -299,6 +302,8 @@ extern void			tcp_cleanup_rbuf(struct sock *sk, int copied);
 
 extern int			tcp_twsk_unique(struct sock *sk,
 						struct sock *sktw, void *twp);
+
+extern void			tcp_twsk_destructor(struct sock *sk);
 
 static inline void tcp_dec_quickack_mode(struct sock *sk,
 					 const unsigned int pkts)
@@ -621,8 +626,12 @@ enum tcp_ca_event {
  * Interface for adding new TCP congestion control handlers
  */
 #define TCP_CA_NAME_MAX	16
+#define TCP_CA_MAX	128
+#define TCP_CA_BUF_MAX	(TCP_CA_NAME_MAX*TCP_CA_MAX)
+
 struct tcp_congestion_ops {
 	struct list_head	list;
+	int	non_restricted;
 
 	/* initialize private data (optional) */
 	void (*init)(struct sock *sk);
@@ -660,6 +669,9 @@ extern void tcp_init_congestion_control(struct sock *sk);
 extern void tcp_cleanup_congestion_control(struct sock *sk);
 extern int tcp_set_default_congestion_control(const char *name);
 extern void tcp_get_default_congestion_control(char *name);
+extern void tcp_get_available_congestion_control(char *buf, size_t len);
+extern void tcp_get_allowed_congestion_control(char *buf, size_t len);
+extern int tcp_set_allowed_congestion_control(char *allowed);
 extern int tcp_set_congestion_control(struct sock *sk, const char *name);
 extern void tcp_slow_start(struct tcp_sock *tp);
 
@@ -795,14 +807,14 @@ static inline void tcp_update_wl(struct tcp_sock *tp, u32 ack, u32 seq)
 /*
  * Calculate(/check) TCP checksum
  */
-static inline u16 tcp_v4_check(struct tcphdr *th, int len,
-			       unsigned long saddr, unsigned long daddr, 
-			       unsigned long base)
+static inline __sum16 tcp_v4_check(struct tcphdr *th, int len,
+			       __be32 saddr, __be32 daddr,
+			       __wsum base)
 {
 	return csum_tcpudp_magic(saddr,daddr,len,IPPROTO_TCP,base);
 }
 
-static inline int __tcp_checksum_complete(struct sk_buff *skb)
+static inline __sum16 __tcp_checksum_complete(struct sk_buff *skb)
 {
 	return __skb_checksum_complete(skb);
 }
@@ -1058,6 +1070,114 @@ static inline void clear_all_retrans_hints(struct tcp_sock *tp){
 	tp->fastpath_skb_hint = NULL;
 }
 
+/* MD5 Signature */
+struct crypto_hash;
+
+/* - key database */
+struct tcp_md5sig_key {
+	u8			*key;
+	u8			keylen;
+};
+
+struct tcp4_md5sig_key {
+	u8			*key;
+	u16			keylen;
+	__be32			addr;
+};
+
+struct tcp6_md5sig_key {
+	u8			*key;
+	u16			keylen;
+#if 0
+	u32			scope_id;	/* XXX */
+#endif
+	struct in6_addr		addr;
+};
+
+/* - sock block */
+struct tcp_md5sig_info {
+	struct tcp4_md5sig_key	*keys4;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct tcp6_md5sig_key	*keys6;
+	u32			entries6;
+	u32			alloced6;
+#endif
+	u32			entries4;
+	u32			alloced4;
+};
+
+/* - pseudo header */
+struct tcp4_pseudohdr {
+	__be32		saddr;
+	__be32		daddr;
+	__u8		pad;
+	__u8		protocol;
+	__be16		len;
+};
+
+struct tcp6_pseudohdr {
+	struct in6_addr	saddr;
+	struct in6_addr daddr;
+	__be32		len;
+	__be32		protocol;	/* including padding */
+};
+
+union tcp_md5sum_block {
+	struct tcp4_pseudohdr ip4;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct tcp6_pseudohdr ip6;
+#endif
+};
+
+/* - pool: digest algorithm, hash description and scratch buffer */
+struct tcp_md5sig_pool {
+	struct hash_desc	md5_desc;
+	union tcp_md5sum_block	md5_blk;
+};
+
+#define TCP_MD5SIG_MAXKEYS	(~(u32)0)	/* really?! */
+
+/* - functions */
+extern int			tcp_v4_calc_md5_hash(char *md5_hash,
+						     struct tcp_md5sig_key *key,
+						     struct sock *sk,
+						     struct dst_entry *dst,
+						     struct request_sock *req,
+						     struct tcphdr *th,
+						     int protocol, int tcplen);
+extern struct tcp_md5sig_key	*tcp_v4_md5_lookup(struct sock *sk,
+						   struct sock *addr_sk);
+
+extern int			tcp_v4_md5_do_add(struct sock *sk,
+						  __be32 addr,
+						  u8 *newkey,
+						  u8 newkeylen);
+
+extern int			tcp_v4_md5_do_del(struct sock *sk,
+						  __be32 addr);
+
+extern struct tcp_md5sig_pool	**tcp_alloc_md5sig_pool(void);
+extern void			tcp_free_md5sig_pool(void);
+
+extern struct tcp_md5sig_pool	*__tcp_get_md5sig_pool(int cpu);
+extern void			__tcp_put_md5sig_pool(void);
+
+static inline
+struct tcp_md5sig_pool		*tcp_get_md5sig_pool(void)
+{
+	int cpu = get_cpu();
+	struct tcp_md5sig_pool *ret = __tcp_get_md5sig_pool(cpu);
+	if (!ret)
+		put_cpu();
+	return ret;
+}
+
+static inline void		tcp_put_md5sig_pool(void)
+{
+	__tcp_put_md5sig_pool();
+	put_cpu();
+}
+
 /* /proc */
 enum tcp_seq_states {
 	TCP_SEQ_STATE_LISTENING,
@@ -1096,6 +1216,35 @@ extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features);
 extern int  tcp4_proc_init(void);
 extern void tcp4_proc_exit(void);
 #endif
+
+/* TCP af-specific functions */
+struct tcp_sock_af_ops {
+#ifdef CONFIG_TCP_MD5SIG
+	struct tcp_md5sig_key	*(*md5_lookup) (struct sock *sk,
+						struct sock *addr_sk);
+	int			(*calc_md5_hash) (char *location,
+						  struct tcp_md5sig_key *md5,
+						  struct sock *sk,
+						  struct dst_entry *dst,
+						  struct request_sock *req,
+						  struct tcphdr *th,
+						  int protocol, int len);
+	int			(*md5_add) (struct sock *sk,
+					    struct sock *addr_sk,
+					    u8 *newkey,
+					    u8 len);
+	int			(*md5_parse) (struct sock *sk,
+					      char __user *optval,
+					      int optlen);
+#endif
+};
+
+struct tcp_request_sock_ops {
+#ifdef CONFIG_TCP_MD5SIG
+	struct tcp_md5sig_key	*(*md5_lookup) (struct sock *sk,
+						struct request_sock *req);
+#endif
+};
 
 extern void tcp_v4_init(struct net_proto_family *ops);
 extern void tcp_init(void);

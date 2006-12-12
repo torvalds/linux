@@ -48,16 +48,16 @@ struct ip_vs_sync_conn {
 
 	/* Protocol, addresses and port numbers */
 	__u8			protocol;       /* Which protocol (TCP/UDP) */
-	__u16			cport;
-	__u16                   vport;
-	__u16                   dport;
-	__u32                   caddr;          /* client address */
-	__u32                   vaddr;          /* virtual address */
-	__u32                   daddr;          /* destination address */
+	__be16			cport;
+	__be16                  vport;
+	__be16                  dport;
+	__be32                  caddr;          /* client address */
+	__be32                  vaddr;          /* virtual address */
+	__be32                  daddr;          /* destination address */
 
 	/* Flags and state transition */
-	__u16                   flags;          /* status flags */
-	__u16                   state;          /* state info */
+	__be16                  flags;          /* status flags */
+	__be16                  state;          /* state info */
 
 	/* The sequence options start here */
 };
@@ -464,7 +464,7 @@ join_mcast_group(struct sock *sk, struct in_addr *addr, char *ifname)
 static int bind_mcastif_addr(struct socket *sock, char *ifname)
 {
 	struct net_device *dev;
-	u32 addr;
+	__be32 addr;
 	struct sockaddr_in sin;
 
 	if ((dev = __dev_get_by_name(ifname)) == NULL)
@@ -657,7 +657,7 @@ static void sync_master_loop(void)
 		if (stop_master_sync)
 			break;
 
-		ssleep(1);
+		msleep_interruptible(1000);
 	}
 
 	/* clean up the sync_buff queue */
@@ -714,7 +714,7 @@ static void sync_backup_loop(void)
 		if (stop_backup_sync)
 			break;
 
-		ssleep(1);
+		msleep_interruptible(1000);
 	}
 
 	/* release the sending multicast socket */
@@ -826,7 +826,7 @@ static int fork_sync_thread(void *startup)
 	if ((pid = kernel_thread(sync_thread, startup, 0)) < 0) {
 		IP_VS_ERR("could not create sync_thread due to %d... "
 			  "retrying.\n", pid);
-		ssleep(1);
+		msleep_interruptible(1000);
 		goto repeat;
 	}
 
@@ -836,7 +836,7 @@ static int fork_sync_thread(void *startup)
 
 int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 {
-	DECLARE_COMPLETION(startup);
+	DECLARE_COMPLETION_ONSTACK(startup);
 	pid_t pid;
 
 	if ((state == IP_VS_STATE_MASTER && sync_master_pid) ||
@@ -849,10 +849,12 @@ int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 
 	ip_vs_sync_state |= state;
 	if (state == IP_VS_STATE_MASTER) {
-		strlcpy(ip_vs_master_mcast_ifn, mcast_ifn, sizeof(ip_vs_master_mcast_ifn));
+		strlcpy(ip_vs_master_mcast_ifn, mcast_ifn,
+			sizeof(ip_vs_master_mcast_ifn));
 		ip_vs_master_syncid = syncid;
 	} else {
-		strlcpy(ip_vs_backup_mcast_ifn, mcast_ifn, sizeof(ip_vs_backup_mcast_ifn));
+		strlcpy(ip_vs_backup_mcast_ifn, mcast_ifn,
+			sizeof(ip_vs_backup_mcast_ifn));
 		ip_vs_backup_syncid = syncid;
 	}
 
@@ -860,7 +862,7 @@ int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 	if ((pid = kernel_thread(fork_sync_thread, &startup, 0)) < 0) {
 		IP_VS_ERR("could not create fork_sync_thread due to %d... "
 			  "retrying.\n", pid);
-		ssleep(1);
+		msleep_interruptible(1000);
 		goto repeat;
 	}
 
@@ -880,7 +882,8 @@ int stop_sync_thread(int state)
 
 	IP_VS_DBG(7, "%s: pid %d\n", __FUNCTION__, current->pid);
 	IP_VS_INFO("stopping sync thread %d ...\n",
-		   (state == IP_VS_STATE_MASTER) ? sync_master_pid : sync_backup_pid);
+		   (state == IP_VS_STATE_MASTER) ?
+		   sync_master_pid : sync_backup_pid);
 
 	__set_current_state(TASK_UNINTERRUPTIBLE);
 	add_wait_queue(&stop_sync_wait, &wait);

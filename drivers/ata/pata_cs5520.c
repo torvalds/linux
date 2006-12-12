@@ -41,7 +41,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_cs5520"
-#define DRV_VERSION	"0.6.2"
+#define DRV_VERSION	"0.6.3"
 
 struct pio_clocks
 {
@@ -159,14 +159,16 @@ static struct scsi_host_template cs5520_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations cs5520_port_ops = {
@@ -192,8 +194,6 @@ static struct ata_port_operations cs5520_port_ops = {
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_pio_data_xfer,
-
-	.eng_timeout		= ata_eng_timeout,
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
@@ -298,22 +298,40 @@ static void __devexit cs5520_remove_one(struct pci_dev *pdev)
 	dev_set_drvdata(dev, NULL);
 }
 
+/**
+ *	cs5520_reinit_one	-	device resume
+ *	@pdev: PCI device
+ *
+ *	Do any reconfiguration work needed by a resume from RAM. We need
+ *	to restore DMA mode support on BIOSen which disabled it
+ */
+ 
+static int cs5520_reinit_one(struct pci_dev *pdev)
+{
+	u8 pcicfg;
+	pci_read_config_byte(pdev, 0x60, &pcicfg);
+	if ((pcicfg & 0x40) == 0)
+		pci_write_config_byte(pdev, 0x60, pcicfg | 0x40);
+	return ata_pci_device_resume(pdev);
+}
 /* For now keep DMA off. We can set it for all but A rev CS5510 once the
    core ATA code can handle it */
 
-static struct pci_device_id pata_cs5520[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5510), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5520), },
-	{ 0, },
+static const struct pci_device_id pata_cs5520[] = {
+	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5510), },
+	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5520), },
+
+	{ },
 };
 
 static struct pci_driver cs5520_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= pata_cs5520,
 	.probe 		= cs5520_init_one,
-	.remove		= cs5520_remove_one
+	.remove		= cs5520_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= cs5520_reinit_one,
 };
-
 
 static int __init cs5520_init(void)
 {

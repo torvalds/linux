@@ -32,6 +32,16 @@ config USB_EMI26
 	  To compile this driver as a module, choose M here: the
 	  module will be called emi26.
 
+config USB_ADUTUX
+	tristate "ADU devices from Ontrak Control Systems (EXPERIMENTAL)"
+	depends on USB && EXPERIMENTAL
+	help
+	  Say Y if you want to use an ADU device from Ontrak Control
+	  Systems.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called adutux.
+
 config USB_AUERSWALD
 	tristate "USB Auerswald ISDN support (EXPERIMENTAL)"
 	depends on USB && EXPERIMENTAL
@@ -115,19 +125,36 @@ config USB_CYTHERM
 	  To compile this driver as a module, choose M here: the
 	  module will be called cytherm.
 
-config USB_PHIDGETKIT
-	tristate "USB PhidgetKit support"
+config USB_PHIDGET
+	tristate "USB Phidgets drivers"
 	depends on USB
 	help
-	  Say Y here if you want to connect a PhidgetKit USB device from
-	  Phidgets Inc.
+	  Say Y here to enable the various drivers for devices from
+	  Phidgets inc.
+
+config USB_PHIDGETKIT
+	tristate "USB PhidgetInterfaceKit support"
+	depends on USB_PHIDGET
+	help
+	  Say Y here if you want to connect a PhidgetInterfaceKit USB device
+	  from Phidgets Inc.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called phidgetkit.
 
+config USB_PHIDGETMOTORCONTROL
+	tristate "USB PhidgetMotorControl support"
+	depends on USB_PHIDGET
+	help
+	  Say Y here if you want to connect a PhidgetMotorControl USB device
+	  from Phidgets Inc.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called phidgetmotorcontrol.
+
 config USB_PHIDGETSERVO
 	tristate "USB PhidgetServo support"
-	depends on USB
+	depends on USB_PHIDGET
 	help
 	  Say Y here if you want to connect an 1 or 4 Motor PhidgetServo 
 	  servo controller version 2.0 or 3.0.
@@ -151,6 +178,30 @@ config USB_IDMOUSE
 
 	  See also <http://www.fs.tum.de/~echtler/idmouse/>.
 
+config USB_FTDI_ELAN
+	tristate "Elan PCMCIA CardBus Adapter USB Client"
+	depends on USB
+	default M
+	help
+	  ELAN's Uxxx series of adapters are USB to PCMCIA CardBus adapters.
+	  Currently only the U132 adapter is available.
+
+	  The U132 is specifically designed for CardBus PC cards that contain
+	  an OHCI host controller. Typical PC cards are the Orange Mobile 3G
+	  Option GlobeTrotter Fusion card. The U132 adapter will *NOT* work
+	  with PC cards that do not contain an OHCI controller. To use a U132
+	  adapter you will need this "ftdi-elan" module as well as the "u132-hcd"
+	  module which is a USB host controller driver that talks to the OHCI
+	  controller within CardBus card that are inserted in the U132 adapter.
+
+	  This driver has been tested with a CardBus OHCI USB adapter, and
+	  worked with a USB PEN Drive inserted into the first USB port of
+	  the PCCARD. A rather pointless thing to do, but useful for testing.
+
+	  See also the USB_U132_HCD entry "Elan U132 Adapter Host Controller"
+
+	  It is safe to say M here.
+
 config USB_APPLEDISPLAY
 	tristate "Apple Cinema Display support"
 	depends on USB
@@ -171,6 +222,16 @@ config USB_LD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ldusb.
+
+config USB_TRANCEVIBRATOR
+	tristate "PlayStation 2 Trance Vibrator driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a PlayStation 2 Trance Vibrator
+	  device to your computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called trancevibrator.
 
 config USB_TEST
 	tristate "USB testing driver (DEVELOPMENT)"

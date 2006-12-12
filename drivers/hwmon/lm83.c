@@ -1,7 +1,7 @@
 /*
  * lm83.c - Part of lm_sensors, Linux kernel modules for hardware
  *          monitoring
- * Copyright (C) 2003-2005  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2003-2006  Jean Delvare <khali@linux-fr.org>
  *
  * Heavily inspired from the lm78, lm75 and adm1021 drivers. The LM83 is
  * a sensor chip made by National Semiconductor. It reports up to four
@@ -40,6 +40,7 @@
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/sysfs.h>
 
 /*
  * Addresses to scan
@@ -191,6 +192,16 @@ static ssize_t show_alarms(struct device *dev, struct device_attribute *dummy,
 	return sprintf(buf, "%d\n", data->alarms);
 }
 
+static ssize_t show_alarm(struct device *dev, struct device_attribute
+			  *devattr, char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct lm83_data *data = lm83_update_device(dev);
+	int bitnr = attr->index;
+
+	return sprintf(buf, "%d\n", (data->alarms >> bitnr) & 1);
+}
+
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 1);
 static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 2);
@@ -208,7 +219,63 @@ static SENSOR_DEVICE_ATTR(temp2_crit, S_IRUGO, show_temp, NULL, 8);
 static SENSOR_DEVICE_ATTR(temp3_crit, S_IWUSR | S_IRUGO, show_temp,
 	set_temp, 8);
 static SENSOR_DEVICE_ATTR(temp4_crit, S_IRUGO, show_temp, NULL, 8);
+
+/* Individual alarm files */
+static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp3_crit_alarm, S_IRUGO, show_alarm, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp3_input_fault, S_IRUGO, show_alarm, NULL, 2);
+static SENSOR_DEVICE_ATTR(temp3_max_alarm, S_IRUGO, show_alarm, NULL, 4);
+static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 6);
+static SENSOR_DEVICE_ATTR(temp2_crit_alarm, S_IRUGO, show_alarm, NULL, 8);
+static SENSOR_DEVICE_ATTR(temp4_crit_alarm, S_IRUGO, show_alarm, NULL, 9);
+static SENSOR_DEVICE_ATTR(temp4_input_fault, S_IRUGO, show_alarm, NULL, 10);
+static SENSOR_DEVICE_ATTR(temp4_max_alarm, S_IRUGO, show_alarm, NULL, 12);
+static SENSOR_DEVICE_ATTR(temp2_input_fault, S_IRUGO, show_alarm, NULL, 13);
+static SENSOR_DEVICE_ATTR(temp2_max_alarm, S_IRUGO, show_alarm, NULL, 15);
+/* Raw alarm file for compatibility */
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
+
+static struct attribute *lm83_attributes[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp3_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_temp3_max.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit.dev_attr.attr,
+	&sensor_dev_attr_temp3_crit.dev_attr.attr,
+
+	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp3_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp3_input_fault.dev_attr.attr,
+	&sensor_dev_attr_temp3_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
+	&dev_attr_alarms.attr,
+	NULL
+};
+
+static const struct attribute_group lm83_group = {
+	.attrs = lm83_attributes,
+};
+
+static struct attribute *lm83_attributes_opt[] = {
+	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp4_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_max.dev_attr.attr,
+	&sensor_dev_attr_temp4_max.dev_attr.attr,
+	&sensor_dev_attr_temp2_crit.dev_attr.attr,
+	&sensor_dev_attr_temp4_crit.dev_attr.attr,
+
+	&sensor_dev_attr_temp2_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp4_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp4_input_fault.dev_attr.attr,
+	&sensor_dev_attr_temp4_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_input_fault.dev_attr.attr,
+	&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group lm83_group_opt = {
+	.attrs = lm83_attributes_opt,
+};
 
 /*
  * Real code
@@ -318,59 +385,32 @@ static int lm83_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit_free;
 
 	/*
-	 * Initialize the LM83 chip
-	 * (Nothing to do for this one.)
-	 */
-
-	/* Register sysfs hooks */
-	data->class_dev = hwmon_device_register(&new_client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
-		goto exit_detach;
-	}
-
-	/*
+	 * Register sysfs hooks
 	 * The LM82 can only monitor one external diode which is
 	 * at the same register as the LM83 temp3 entry - so we
 	 * declare 1 and 3 common, and then 2 and 4 only for the LM83.
 	 */
 
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_input.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp3_input.dev_attr);
-
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_max.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp3_max.dev_attr);
-
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_crit.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp3_crit.dev_attr);
-
-	device_create_file(&new_client->dev, &dev_attr_alarms);
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &lm83_group)))
+		goto exit_detach;
 
 	if (kind == lm83) {
-		device_create_file(&new_client->dev,
-				   &sensor_dev_attr_temp2_input.dev_attr);
-		device_create_file(&new_client->dev,
-				   &sensor_dev_attr_temp4_input.dev_attr);
+		if ((err = sysfs_create_group(&new_client->dev.kobj,
+					      &lm83_group_opt)))
+			goto exit_remove_files;
+	}
 
-		device_create_file(&new_client->dev,
-				   &sensor_dev_attr_temp2_max.dev_attr);
-		device_create_file(&new_client->dev,
-				   &sensor_dev_attr_temp4_max.dev_attr);
-
-		device_create_file(&new_client->dev,
-				   &sensor_dev_attr_temp2_crit.dev_attr);
-		device_create_file(&new_client->dev,
-				   &sensor_dev_attr_temp4_crit.dev_attr);
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_remove_files;
 	}
 
 	return 0;
 
+exit_remove_files:
+	sysfs_remove_group(&new_client->dev.kobj, &lm83_group);
+	sysfs_remove_group(&new_client->dev.kobj, &lm83_group_opt);
 exit_detach:
 	i2c_detach_client(new_client);
 exit_free:
@@ -385,6 +425,8 @@ static int lm83_detach_client(struct i2c_client *client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &lm83_group);
+	sysfs_remove_group(&client->dev.kobj, &lm83_group_opt);
 
 	if ((err = i2c_detach_client(client)))
 		return err;

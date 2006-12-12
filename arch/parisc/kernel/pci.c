@@ -290,7 +290,7 @@ EXPORT_SYMBOL(pcibios_bus_to_resource);
 void pcibios_align_resource(void *data, struct resource *res,
 				resource_size_t size, resource_size_t alignment)
 {
-	unsigned long mask, align;
+	resource_size_t mask, align;
 
 	DBG_RES("pcibios_align_resource(%s, (%p) [%lx,%lx]/%x, 0x%lx, 0x%lx)\n",
 		pci_name(((struct pci_dev *) data)),

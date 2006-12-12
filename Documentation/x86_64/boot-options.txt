@@ -52,10 +52,6 @@ APICs
 		 apicmaintimer. Useful when your PIT timer is totally
 		 broken.
 
-   disable_8254_timer / enable_8254_timer
-		 Enable interrupt 0 timer routing over the 8254 in addition to over
-	         the IO-APIC. The kernel tries to set a sensible default.
-
 Early Console
 
    syntax: earlyprintk=vga
@@ -109,7 +105,7 @@ Idle loop
 Rebooting
 
    reboot=b[ios] | t[riple] | k[bd] [, [w]arm | [c]old]
-   bios	  Use the CPU reboto vector for warm reset
+   bios	  Use the CPU reboot vector for warm reset
    warm   Don't set the cold reboot flag
    cold   Set the cold reboot flag
    triple Force a triple fault (init)
@@ -183,7 +179,7 @@ PCI
 IOMMU
 
  iommu=[size][,noagp][,off][,force][,noforce][,leak][,memaper[=order]][,merge]
-         [,forcesac][,fullflush][,nomerge][,noaperture]
+         [,forcesac][,fullflush][,nomerge][,noaperture][,calgary]
    size  set size of iommu (in bytes)
    noagp don't initialize the AGP driver and use full aperture.
    off   don't use the IOMMU
@@ -199,6 +195,12 @@ IOMMU
    allowed  overwrite iommu off workarounds for specific chipsets.
    soft	 Use software bounce buffering (default for Intel machines)
    noaperture Don't touch the aperture for AGP.
+   allowdac Allow DMA >4GB
+	    When off all DMA over >4GB is forced through an IOMMU or bounce
+	    buffering.
+   nodac    Forbid DMA >4GB
+   panic    Always panic when IOMMU overflows
+   calgary  Use the Calgary IOMMU if it is available
 
   swiotlb=pages[,force]
 

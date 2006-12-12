@@ -11,6 +11,8 @@
  *	based upon discusions in irc://irc.openprojects.net/#kernelnewbies
  */
 
+#ifndef _LINUX_SYSRQ_H
+#define _LINUX_SYSRQ_H
 
 struct pt_regs;
 struct tty_struct;
@@ -27,7 +29,7 @@ struct tty_struct;
 #define SYSRQ_ENABLE_RTNICE	0x0100
 
 struct sysrq_key_op {
-	void (*handler)(int, struct pt_regs *, struct tty_struct *);
+	void (*handler)(int, struct tty_struct *);
 	char *help_msg;
 	char *action_msg;
 	int enable_mask;
@@ -40,8 +42,8 @@ struct sysrq_key_op {
  * are available -- else NULL's).
  */
 
-void handle_sysrq(int, struct pt_regs *, struct tty_struct *);
-void __handle_sysrq(int, struct pt_regs *, struct tty_struct *, int check_mask);
+void handle_sysrq(int, struct tty_struct *);
+void __handle_sysrq(int, struct tty_struct *, int check_mask);
 int register_sysrq_key(int, struct sysrq_key_op *);
 int unregister_sysrq_key(int, struct sysrq_key_op *);
 struct sysrq_key_op *__sysrq_get_key_op(int key);
@@ -57,3 +59,5 @@ static inline int __reterr(void)
 #define unregister_sysrq_key(ig,nore) __reterr()
 
 #endif
+
+#endif /* _LINUX_SYSRQ_H */

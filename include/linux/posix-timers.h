@@ -72,6 +72,7 @@ struct k_clock {
 	int (*timer_create) (struct k_itimer *timer);
 	int (*nsleep) (const clockid_t which_clock, int flags,
 		       struct timespec *, struct timespec __user *);
+	long (*nsleep_restart) (struct restart_block *restart_block);
 	int (*timer_set) (struct k_itimer * timr, int flags,
 			  struct itimerspec * new_setting,
 			  struct itimerspec * old_setting);
@@ -97,6 +98,7 @@ int posix_cpu_clock_set(const clockid_t which_clock, const struct timespec *ts);
 int posix_cpu_timer_create(struct k_itimer *timer);
 int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 		     struct timespec *rqtp, struct timespec __user *rmtp);
+long posix_cpu_nsleep_restart(struct restart_block *restart_block);
 int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 			struct itimerspec *new, struct itimerspec *old);
 int posix_cpu_timer_del(struct k_itimer *timer);
@@ -110,5 +112,7 @@ void posix_cpu_timers_exit_group(struct task_struct *task);
 
 void set_process_cpu_timer(struct task_struct *task, unsigned int clock_idx,
 			   cputime_t *newval, cputime_t *oldval);
+
+long clock_nanosleep_restart(struct restart_block *restart_block);
 
 #endif

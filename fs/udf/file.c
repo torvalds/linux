@@ -103,19 +103,21 @@ const struct address_space_operations udf_adinicb_aops = {
 	.commit_write		= udf_adinicb_commit_write,
 };
 
-static ssize_t udf_file_write(struct file * file, const char __user * buf,
-	size_t count, loff_t *ppos)
+static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
+			      unsigned long nr_segs, loff_t ppos)
 {
 	ssize_t retval;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	int err, pos;
+	size_t count = iocb->ki_left;
 
 	if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB)
 	{
 		if (file->f_flags & O_APPEND)
 			pos = inode->i_size;
 		else
-			pos = *ppos;
+			pos = ppos;
 
 		if (inode->i_sb->s_blocksize < (udf_file_entry_alloc_offset(inode) +
 			pos + count))
@@ -136,7 +138,7 @@ static ssize_t udf_file_write(struct file * file, const char __user * buf,
 		}
 	}
 
-	retval = generic_file_write(file, buf, count, ppos);
+	retval = generic_file_aio_write(iocb, iov, nr_segs, ppos);
 
 	if (retval > 0)
 		mark_inode_dirty(inode);
@@ -249,11 +251,13 @@ static int udf_release_file(struct inode * inode, struct file * filp)
 }
 
 const struct file_operations udf_file_operations = {
-	.read			= generic_file_read,
+	.read			= do_sync_read,
+	.aio_read		= generic_file_aio_read,
 	.ioctl			= udf_ioctl,
 	.open			= generic_file_open,
 	.mmap			= generic_file_mmap,
-	.write			= udf_file_write,
+	.write			= do_sync_write,
+	.aio_write		= udf_file_aio_write,
 	.release		= udf_release_file,
 	.fsync			= udf_fsync_file,
 	.sendfile		= generic_file_sendfile,

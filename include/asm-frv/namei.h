@@ -1,5 +1,5 @@
 /*
- * asm/namei.h
+ * include/asm-frv/namei.h
  *
  * Included from linux/fs/namei.c
  */

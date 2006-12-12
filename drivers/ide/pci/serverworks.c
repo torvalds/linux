@@ -359,7 +359,7 @@ static unsigned int __devinit init_chipset_svwks (struct pci_dev *dev, const cha
 
 	/* OSB4 : South Bridge and IDE */
 	if (dev->device == PCI_DEVICE_ID_SERVERWORKS_OSB4IDE) {
-		isa_dev = pci_find_device(PCI_VENDOR_ID_SERVERWORKS,
+		isa_dev = pci_get_device(PCI_VENDOR_ID_SERVERWORKS,
 			  PCI_DEVICE_ID_SERVERWORKS_OSB4, NULL);
 		if (isa_dev) {
 			pci_read_config_dword(isa_dev, 0x64, &reg);
@@ -380,7 +380,7 @@ static unsigned int __devinit init_chipset_svwks (struct pci_dev *dev, const cha
 		if (!(PCI_FUNC(dev->devfn) & 1)) {
 			struct pci_dev * findev = NULL;
 			u32 reg4c = 0;
-			findev = pci_find_device(PCI_VENDOR_ID_SERVERWORKS,
+			findev = pci_get_device(PCI_VENDOR_ID_SERVERWORKS,
 				PCI_DEVICE_ID_SERVERWORKS_CSB5, NULL);
 			if (findev) {
 				pci_read_config_dword(findev, 0x4C, &reg4c);
@@ -388,6 +388,7 @@ static unsigned int __devinit init_chipset_svwks (struct pci_dev *dev, const cha
 				reg4c |=  0x00000040;
 				reg4c |=  0x00000020;
 				pci_write_config_dword(findev, 0x4C, reg4c);
+				pci_dev_put(findev);
 			}
 			outb_p(0x06, 0x0c00);
 			dev->irq = inb_p(0x0c01);
@@ -395,12 +396,13 @@ static unsigned int __devinit init_chipset_svwks (struct pci_dev *dev, const cha
 			struct pci_dev * findev = NULL;
 			u8 reg41 = 0;
 
-			findev = pci_find_device(PCI_VENDOR_ID_SERVERWORKS,
+			findev = pci_get_device(PCI_VENDOR_ID_SERVERWORKS,
 					PCI_DEVICE_ID_SERVERWORKS_CSB6, NULL);
 			if (findev) {
 				pci_read_config_byte(findev, 0x41, &reg41);
 				reg41 &= ~0x40;
 				pci_write_config_byte(findev, 0x41, reg41);
+				pci_dev_put(findev);
 			}
 			/*
 			 * This is a device pin issue on CSB6.

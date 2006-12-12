@@ -105,6 +105,16 @@ static ssize_t set_write(struct device *dev, struct device_attribute *attr, cons
 
 static DEVICE_ATTR(write, S_IWUSR | S_IRUGO, show_write, set_write);
 
+static struct attribute *pcf8574_attributes[] = {
+	&dev_attr_read.attr,
+	&dev_attr_write.attr,
+	NULL
+};
+
+static const struct attribute_group pcf8574_attr_group = {
+	.attrs = pcf8574_attributes,
+};
+
 /*
  * Real code
  */
@@ -166,13 +176,13 @@ static int pcf8574_detect(struct i2c_adapter *adapter, int address, int kind)
 	pcf8574_init_client(new_client);
 
 	/* Register sysfs hooks */
-	device_create_file(&new_client->dev, &dev_attr_read);
-	device_create_file(&new_client->dev, &dev_attr_write);
+	err = sysfs_create_group(&new_client->dev.kobj, &pcf8574_attr_group);
+	if (err)
+		goto exit_detach;
 	return 0;
 
-/* OK, this is not exactly good programming practice, usually. But it is
-   very code-efficient in this case. */
-
+      exit_detach:
+	i2c_detach_client(new_client);
       exit_free:
 	kfree(data);
       exit:
@@ -182,6 +192,8 @@ static int pcf8574_detect(struct i2c_adapter *adapter, int address, int kind)
 static int pcf8574_detach_client(struct i2c_client *client)
 {
 	int err;
+
+	sysfs_remove_group(&client->dev.kobj, &pcf8574_attr_group);
 
 	if ((err = i2c_detach_client(client)))
 		return err;

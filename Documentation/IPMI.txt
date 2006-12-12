@@ -326,9 +326,12 @@ for events, they will all receive all events that come in.
 
 For receiving commands, you have to individually register commands you
 want to receive.  Call ipmi_register_for_cmd() and supply the netfn
-and command name for each command you want to receive.  Only one user
-may be registered for each netfn/cmd, but different users may register
-for different commands.
+and command name for each command you want to receive.  You also
+specify a bitmask of the channels you want to receive the command from
+(or use IPMI_CHAN_ALL for all channels if you don't care).  Only one
+user may be registered for each netfn/cmd/channel, but different users
+may register for different commands, or the same command if the
+channel bitmasks do not overlap.
 
 From userland, equivalent IOCTLs are provided to do these functions.
 
@@ -361,6 +364,8 @@ You can change this at module load time (for a module) with:
        regspacings=<sp1>,<sp2>,... regsizes=<size1>,<size2>,...
        regshifts=<shift1>,<shift2>,...
        slave_addrs=<addr1>,<addr2>,...
+       force_kipmid=<enable1>,<enable2>,...
+       unload_when_empty=[0|1]
 
 Each of these except si_trydefaults is a list, the first item for the
 first interface, second item for the second interface, etc.
@@ -406,7 +411,18 @@ The slave_addrs specifies the IPMI address of the local BMC.  This is
 usually 0x20 and the driver defaults to that, but in case it's not, it
 can be specified when the driver starts up.
 
-When compiled into the kernel, the addresses can be specified on the
+The force_ipmid parameter forcefully enables (if set to 1) or disables
+(if set to 0) the kernel IPMI daemon.  Normally this is auto-detected
+by the driver, but systems with broken interrupts might need an enable,
+or users that don't want the daemon (don't need the performance, don't
+want the CPU hit) can disable it.
+
+If unload_when_empty is set to 1, the driver will be unloaded if it
+doesn't find any interfaces or all the interfaces fail to work.  The
+default is one.  Setting to 0 is useful with the hotmod, but is
+obviously only useful for modules.
+
+When compiled into the kernel, the parameters can be specified on the
 kernel command line as:
 
   ipmi_si.type=<type1>,<type2>...
@@ -416,6 +432,7 @@ kernel command line as:
        ipmi_si.regsizes=<size1>,<size2>,...
        ipmi_si.regshifts=<shift1>,<shift2>,...
        ipmi_si.slave_addrs=<addr1>,<addr2>,...
+       ipmi_si.force_kipmid=<enable1>,<enable2>,...
 
 It works the same as the module parameters of the same names.
 
@@ -430,6 +447,25 @@ have high-res timers enabled in the kernel and you don't have
 interrupts enabled, the driver will run VERY slowly.  Don't blame me,
 these interfaces suck.
 
+The driver supports a hot add and remove of interfaces.  This way,
+interfaces can be added or removed after the kernel is up and running.
+This is done using /sys/modules/ipmi_si/hotmod, which is a write-only
+parameter.  You write a string to this interface.  The string has the
+format:
+   <op1>[:op2[:op3...]]
+The "op"s are:
+   add|remove,kcs|bt|smic,mem|i/o,<address>[,<opt1>[,<opt2>[,...]]]
+You can specify more than one interface on the line.  The "opt"s are:
+   rsp=<regspacing>
+   rsi=<regsize>
+   rsh=<regshift>
+   irq=<irq>
+   ipmb=<ipmb slave addr>
+and these have the same meanings as discussed above.  Note that you
+can also use this on the kernel command line for a more compact format
+for specifying an interface.  Note that when removing an interface,
+only the first three parameters (si type, address type, and address)
+are used for the comparison.  Any options are ignored for removing.
 
 The SMBus Driver
 ----------------
@@ -457,12 +493,12 @@ BMCs specified on the smb_addr line will be detected.
 Setting smb_dbg_probe to 1 will enable debugging of the probing and
 detection process for BMCs on the SMBusses.
 
-Discovering the IPMI compilant BMC on the SMBus can cause devices
+Discovering the IPMI compliant BMC on the SMBus can cause devices
 on the I2C bus to fail. The SMBus driver writes a "Get Device ID" IPMI
 message as a block write to the I2C bus and waits for a response.
 This action can be detrimental to some I2C devices. It is highly recommended
 that the known I2c address be given to the SMBus driver in the smb_addr
-parameter. The default adrress range will not be used when a smb_addr
+parameter. The default address range will not be used when a smb_addr
 parameter is provided.
 
 When compiled into the kernel, the addresses can be specified on the
@@ -491,7 +527,10 @@ used to control it:
 
   modprobe ipmi_watchdog timeout=<t> pretimeout=<t> action=<action type>
       preaction=<preaction type> preop=<preop type> start_now=x
-      nowayout=x
+      nowayout=x ifnum_to_use=n
+
+ifnum_to_use specifies which interface the watchdog timer should use.
+The default is -1, which means to pick the first one registered.
 
 The timeout is the number of seconds to the action, and the pretimeout
 is the amount of seconds before the reset that the pre-timeout panic will
@@ -612,6 +651,10 @@ ipmi_poweroff.poweroff_control=x will do the same thing on the kernel
 command line.  The parameter is also available via the proc filesystem
 in /proc/sys/dev/ipmi/poweroff_powercycle.  Note that if the system
 does not support power cycling, it will always do the power off.
+
+The "ifnum_to_use" parameter specifies which interface the poweroff
+code should use.  The default is -1, which means to pick the first one
+registered.
 
 Note that if you have ACPI enabled, the system will prefer using ACPI to
 power off.

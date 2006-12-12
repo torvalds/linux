@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/drivers/scsi/arxescsi.c
+ * linux/drivers/scsi/arm/arxescsi.c
  *
  * Copyright (C) 1997-2000 Russell King, Stefan Hanske
  *

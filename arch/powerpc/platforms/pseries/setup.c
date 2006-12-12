@@ -121,12 +121,11 @@ static void __init fwnmi_init(void)
 		fwnmi_active = 1;
 }
 
-void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc,
-			  struct pt_regs *regs)
+void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	unsigned int cascade_irq = i8259_irq(regs);
+	unsigned int cascade_irq = i8259_irq();
 	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq, regs);
+		generic_handle_irq(cascade_irq);
 	desc->chip->eoi(irq);
 }
 
@@ -180,7 +179,7 @@ static void __init pseries_mpic_init_IRQ(void)
 
 	cascade_irq = irq_of_parse_and_map(cascade, 0);
 	if (cascade == NO_IRQ) {
-		printk(KERN_ERR "xics: failed to map cascade interrupt");
+		printk(KERN_ERR "mpic: failed to map cascade interrupt");
 		return;
 	}
 
@@ -342,22 +341,11 @@ static int __init pSeries_init_panel(void)
 {
 	/* Manually leave the kernel version on the panel. */
 	ppc_md.progress("Linux ppc64\n", 0);
-	ppc_md.progress(system_utsname.release, 0);
+	ppc_md.progress(init_utsname()->version, 0);
 
 	return 0;
 }
 arch_initcall(pSeries_init_panel);
-
-static void pSeries_mach_cpu_die(void)
-{
-	local_irq_disable();
-	idle_task_exit();
-	xics_teardown_cpu(0);
-	rtas_stop_self();
-	/* Should never get here... */
-	BUG();
-	for(;;);
-}
 
 static int pseries_set_dabr(unsigned long dabr)
 {
@@ -434,19 +422,14 @@ static int __init pSeries_probe_hypertas(unsigned long node,
 	if (of_get_flat_dt_prop(node, "ibm,hypertas-functions", NULL) != NULL)
  		powerpc_firmware_features |= FW_FEATURE_LPAR;
 
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		hpte_init_lpar();
-	else
-		hpte_init_native();
-
  	return 1;
 }
 
 static int __init pSeries_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
- 	char *dtype = of_get_flat_dt_prop(of_get_flat_dt_root(),
- 					  "device_type", NULL);
+ 	char *dtype = of_get_flat_dt_prop(root, "device_type", NULL);
+
  	if (dtype == NULL)
  		return 0;
  	if (strcmp(dtype, "chrp"))
@@ -464,6 +447,11 @@ static int __init pSeries_probe(void)
 	/* Now try to figure out if we are running on LPAR */
 	of_scan_flat_dt(pSeries_probe_hypertas, NULL);
 
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		hpte_init_lpar();
+	else
+		hpte_init_native();
+
 	DBG("Machine is%s LPAR !\n",
 	    (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
 
@@ -477,7 +465,6 @@ static void pseries_dedicated_idle_sleep(void)
 { 
 	unsigned int cpu = smp_processor_id();
 	unsigned long start_snooze;
-	unsigned long *smt_snooze_delay = &__get_cpu_var(smt_snooze_delay);
 
 	/*
 	 * Indicate to the HV that we are idle. Now would be
@@ -490,9 +477,9 @@ static void pseries_dedicated_idle_sleep(void)
 	 * has been checked recently.  If we should poll for a little
 	 * while, do so.
 	 */
-	if (*smt_snooze_delay) {
+	if (__get_cpu_var(smt_snooze_delay)) {
 		start_snooze = get_tb() +
-			*smt_snooze_delay * tb_ticks_per_usec;
+			__get_cpu_var(smt_snooze_delay) * tb_ticks_per_usec;
 		local_irq_enable();
 		set_thread_flag(TIF_POLLING_NRFLAG);
 
@@ -512,24 +499,7 @@ static void pseries_dedicated_idle_sleep(void)
 			goto out;
 	}
 
-	/*
-	 * If not SMT, cede processor.  If CPU is running SMT
-	 * cede if the other thread is not idle, so that it can
-	 * go single-threaded.  If the other thread is idle,
-	 * we ask the hypervisor if it has pending work it
-	 * wants to do and cede if it does.  Otherwise we keep
-	 * polling in order to reduce interrupt latency.
-	 *
-	 * Doing the cede when the other thread is active will
-	 * result in this thread going dormant, meaning the other
-	 * thread gets to run in single-threaded (ST) mode, which
-	 * is slightly faster than SMT mode with this thread at
-	 * very low priority.  The cede enables interrupts, which
-	 * doesn't matter here.
-	 */
-	if (!cpu_has_feature(CPU_FTR_SMT) || !lppaca[cpu ^ 1].idle
-	    || poll_pending() == H_PENDING)
-		cede_processor();
+	cede_processor();
 
 out:
 	HMT_medium();
@@ -572,12 +542,10 @@ define_machine(pseries) {
 	.log_error		= pSeries_log_error,
 	.pcibios_fixup		= pSeries_final_fixup,
 	.pci_probe_mode		= pSeries_pci_probe_mode,
-	.irq_bus_setup		= pSeries_irq_bus_setup,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
 	.panic			= rtas_os_term,
-	.cpu_die		= pSeries_mach_cpu_die,
 	.get_boot_time		= rtas_get_boot_time,
 	.get_rtc_time		= rtas_get_rtc_time,
 	.set_rtc_time		= rtas_set_rtc_time,

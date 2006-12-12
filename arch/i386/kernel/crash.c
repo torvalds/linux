@@ -23,74 +23,13 @@
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
 #include <asm/kdebug.h>
+#include <asm/smp.h>
 
 #include <mach_ipi.h>
 
 
 /* This keeps a track of which one is crashing cpu. */
 static int crashing_cpu;
-
-static u32 *append_elf_note(u32 *buf, char *name, unsigned type, void *data,
-							       size_t data_len)
-{
-	struct elf_note note;
-
-	note.n_namesz = strlen(name) + 1;
-	note.n_descsz = data_len;
-	note.n_type   = type;
-	memcpy(buf, &note, sizeof(note));
-	buf += (sizeof(note) +3)/4;
-	memcpy(buf, name, note.n_namesz);
-	buf += (note.n_namesz + 3)/4;
-	memcpy(buf, data, note.n_descsz);
-	buf += (note.n_descsz + 3)/4;
-
-	return buf;
-}
-
-static void final_note(u32 *buf)
-{
-	struct elf_note note;
-
-	note.n_namesz = 0;
-	note.n_descsz = 0;
-	note.n_type   = 0;
-	memcpy(buf, &note, sizeof(note));
-}
-
-static void crash_save_this_cpu(struct pt_regs *regs, int cpu)
-{
-	struct elf_prstatus prstatus;
-	u32 *buf;
-
-	if ((cpu < 0) || (cpu >= NR_CPUS))
-		return;
-
-	/* Using ELF notes here is opportunistic.
-	 * I need a well defined structure format
-	 * for the data I pass, and I need tags
-	 * on the data to indicate what information I have
-	 * squirrelled away.  ELF notes happen to provide
-	 * all of that, so there is no need to invent something new.
-	 */
-	buf = (u32*)per_cpu_ptr(crash_notes, cpu);
-	if (!buf)
-		return;
-	memset(&prstatus, 0, sizeof(prstatus));
-	prstatus.pr_pid = current->pid;
-	elf_core_copy_regs(&prstatus.pr_reg, regs);
-	buf = append_elf_note(buf, "CORE", NT_PRSTATUS, &prstatus,
-				sizeof(prstatus));
-	final_note(buf);
-}
-
-static void crash_save_self(struct pt_regs *regs)
-{
-	int cpu;
-
-	cpu = smp_processor_id();
-	crash_save_this_cpu(regs, cpu);
-}
 
 #if defined(CONFIG_SMP) && defined(CONFIG_X86_LOCAL_APIC)
 static atomic_t waiting_for_crash_ipi;
@@ -120,7 +59,7 @@ static int crash_nmi_callback(struct notifier_block *self,
 		crash_fixup_ss_esp(&fixed_regs, regs);
 		regs = &fixed_regs;
 	}
-	crash_save_this_cpu(regs, cpu);
+	crash_save_cpu(regs, cpu);
 	disable_local_APIC();
 	atomic_dec(&waiting_for_crash_ipi);
 	/* Assume hlt works */
@@ -133,7 +72,10 @@ static int crash_nmi_callback(struct notifier_block *self,
 
 static void smp_send_nmi_allbutself(void)
 {
-	send_IPI_allbutself(NMI_VECTOR);
+	cpumask_t mask = cpu_online_map;
+	cpu_clear(safe_smp_processor_id(), mask);
+	if (!cpus_empty(mask))
+		send_IPI_mask(mask, NMI_VECTOR);
 }
 
 static struct notifier_block crash_nmi_nb = {
@@ -185,11 +127,11 @@ void machine_crash_shutdown(struct pt_regs *regs)
 	local_irq_disable();
 
 	/* Make a note of crashing cpu. Will be used in NMI callback.*/
-	crashing_cpu = smp_processor_id();
+	crashing_cpu = safe_smp_processor_id();
 	nmi_shootdown_cpus();
 	lapic_shutdown();
 #if defined(CONFIG_X86_IO_APIC)
 	disable_IO_APIC();
 #endif
-	crash_save_self(regs);
+	crash_save_cpu(regs, safe_smp_processor_id());
 }

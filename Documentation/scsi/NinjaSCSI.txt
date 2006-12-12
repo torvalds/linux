@@ -24,7 +24,7 @@ SCSI device:  I-O data CDPS-PX24 (CD-ROM drive)
     You can also use "cardctl" program (this program is in pcmcia-cs source
     code) to get more info.
 
-# cat /var/log/messgaes
+# cat /var/log/messages
 ...
 Jan  2 03:45:06 lindberg cardmgr[78]: unsupported card in socket 1
 Jan  2 03:45:06 lindberg cardmgr[78]:   product info: "WBT", "NinjaSCSI-3", "R1.0"
@@ -36,18 +36,18 @@ Socket 1:
   product info: "IO DATA", "CBSC16       ", "1"
 
 
-[2] Get Linux kernel source, and extract it to /usr/src.
-    Because NinjaSCSI driver requiers some SCSI header files in Linux kernel
-    source.
-    I recomend rebuilding your kernel. This eliminate some versioning problem.
+[2] Get the Linux kernel source, and extract it to /usr/src.
+    Because the NinjaSCSI driver requires some SCSI header files in Linux 
+    kernel source, I recommend rebuilding your kernel; this eliminates 
+    some versioning problems.
 $ cd /usr/src
 $ tar -zxvf linux-x.x.x.tar.gz
 $ cd linux
 $ make config
 ...
 
-[3] If you use this driver with Kernel 2.2, Unpack pcmcia-cs in some directory
-    and make & install. This driver requies pcmcia-cs header file.
+[3] If you use this driver with Kernel 2.2, unpack pcmcia-cs in some directory
+    and make & install. This driver requires the pcmcia-cs header file.
 $ cd /usr/src
 $ tar zxvf cs-pcmcia-cs-3.x.x.tar.gz
 ...
@@ -59,10 +59,10 @@ $ emacs Makefile
 ...
 $ make
 
-[5] Copy nsp_cs.o to suitable plase, like /lib/modules/<Kernel version>/pcmcia/ .
+[5] Copy nsp_cs.ko to suitable place, like /lib/modules/<Kernel version>/pcmcia/ .
 
 [6] Add these lines to /etc/pcmcia/config .
-    If you yse pcmcia-cs-3.1.8 or later, we can use "nsp_cs.conf" file.
+    If you use pcmcia-cs-3.1.8 or later, we can use "nsp_cs.conf" file.
     So, you don't need to edit file. Just copy to /etc/pcmcia/ .
 
 -------------------------------------

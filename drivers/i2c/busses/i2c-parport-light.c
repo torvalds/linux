@@ -103,7 +103,6 @@ static struct i2c_algo_bit_data parport_algo_data = {
 	.getsda		= parport_getsda,
 	.getscl		= parport_getscl,
 	.udelay		= 50,
-	.mdelay		= 50,
 	.timeout	= HZ,
 }; 
 
@@ -164,7 +163,7 @@ static void __exit i2c_parport_exit(void)
 	if (adapter_parm[type].init.val)
 		line_set(0, &adapter_parm[type].init);
 
-	i2c_bit_del_bus(&parport_adapter);
+	i2c_del_adapter(&parport_adapter);
 	release_region(base, 3);
 }
 

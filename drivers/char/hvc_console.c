@@ -38,6 +38,7 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
+#include <linux/freezer.h>
 
 #include <asm/uaccess.h>
 
@@ -294,7 +295,7 @@ static int hvc_poll(struct hvc_struct *hp);
  * NOTE: This API isn't used if the console adapter doesn't support interrupts.
  * In this case the console is poll driven.
  */
-static irqreturn_t hvc_handle_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t hvc_handle_interrupt(int irq, void *dev_instance)
 {
 	/* if hvc_poll request a repoll, then kick the hvcd thread */
 	if (hvc_poll(dev_instance))
@@ -621,7 +622,7 @@ static int hvc_poll(struct hvc_struct *hp)
 					sysrq_pressed = 1;
 					continue;
 				} else if (sysrq_pressed) {
-					handle_sysrq(buf[i], NULL, tty);
+					handle_sysrq(buf[i], tty);
 					sysrq_pressed = 0;
 					continue;
 				}
@@ -696,7 +697,7 @@ int khvcd(void *unused)
 	return 0;
 }
 
-static struct tty_operations hvc_ops = {
+static const struct tty_operations hvc_ops = {
 	.open = hvc_open,
 	.close = hvc_close,
 	.write = hvc_write,

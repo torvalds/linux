@@ -26,11 +26,6 @@ extern void build_tlb_refill_handler(void);
  */
 #define UNIQUE_ENTRYHI(idx) (CKSEG0 + ((idx) << (PAGE_SHIFT + 1)))
 
-/* CP0 hazard avoidance. */
-#define BARRIER __asm__ __volatile__(".set noreorder\n\t" \
-				     "nop; nop; nop; nop; nop; nop;\n\t" \
-				     ".set reorder\n\t")
-
 /* Atomicity and interruptability */
 #ifdef CONFIG_MIPS_MT_SMTC
 
@@ -126,7 +121,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 				start += (PAGE_SIZE << 1);
 				mtc0_tlbw_hazard();
 				tlb_probe();
-				BARRIER;
+				tlb_probe_hazard();
 				idx = read_c0_index();
 				write_c0_entrylo0(0);
 				write_c0_entrylo1(0);
@@ -168,7 +163,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 			start += (PAGE_SIZE << 1);
 			mtc0_tlbw_hazard();
 			tlb_probe();
-			BARRIER;
+			tlb_probe_hazard();
 			idx = read_c0_index();
 			write_c0_entrylo0(0);
 			write_c0_entrylo1(0);
@@ -202,7 +197,7 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 		write_c0_entryhi(page | newpid);
 		mtc0_tlbw_hazard();
 		tlb_probe();
-		BARRIER;
+		tlb_probe_hazard();
 		idx = read_c0_index();
 		write_c0_entrylo0(0);
 		write_c0_entrylo1(0);
@@ -235,7 +230,7 @@ void local_flush_tlb_one(unsigned long page)
 	write_c0_entryhi(page);
 	mtc0_tlbw_hazard();
 	tlb_probe();
-	BARRIER;
+	tlb_probe_hazard();
 	idx = read_c0_index();
 	write_c0_entrylo0(0);
 	write_c0_entrylo1(0);
@@ -279,7 +274,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	pgdp = pgd_offset(vma->vm_mm, address);
 	mtc0_tlbw_hazard();
 	tlb_probe();
-	BARRIER;
+	tlb_probe_hazard();
 	pudp = pud_offset(pgdp, address);
 	pmdp = pmd_offset(pudp, address);
 	idx = read_c0_index();
@@ -320,7 +315,7 @@ static void r4k_update_mmu_cache_hwbug(struct vm_area_struct * vma,
 	pgdp = pgd_offset(vma->vm_mm, address);
 	mtc0_tlbw_hazard();
 	tlb_probe();
-	BARRIER;
+	tlb_probe_hazard();
 	pmdp = pmd_offset(pgdp, address);
 	idx = read_c0_index();
 	ptep = pte_offset_map(pmdp, address);
@@ -351,7 +346,7 @@ void __init add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 	wired = read_c0_wired();
 	write_c0_wired(wired + 1);
 	write_c0_index(wired);
-	BARRIER;
+	tlbw_use_hazard();	/* What is the hazard here? */
 	write_c0_pagemask(pagemask);
 	write_c0_entryhi(entryhi);
 	write_c0_entrylo0(entrylo0);
@@ -361,7 +356,7 @@ void __init add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 	tlbw_use_hazard();
 
 	write_c0_entryhi(old_ctx);
-	BARRIER;
+	tlbw_use_hazard();	/* What is the hazard here? */
 	write_c0_pagemask(old_pagemask);
 	local_flush_tlb_all();
 	EXIT_CRITICAL(flags);

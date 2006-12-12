@@ -16,9 +16,13 @@ int uml_exitcode = 0;
 static int read_proc_exitcode(char *page, char **start, off_t off,
 			      int count, int *eof, void *data)
 {
-	int len;
+	int len, val;
 
-	len = sprintf(page, "%d\n", uml_exitcode);
+	/* Save uml_exitcode in a local so that we don't need to guarantee
+	 * that sprintf accesses it atomically.
+	 */
+	val = uml_exitcode;
+	len = sprintf(page, "%d\n", val);
 	len -= off;
 	if(len <= off+count) *eof = 1;
 	*start = page + off;

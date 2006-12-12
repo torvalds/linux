@@ -929,7 +929,7 @@ static struct pci_device_id ad1889_id_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, ad1889_id_tbl);
 
-static irqreturn_t ad1889_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ad1889_interrupt(int irq, void *dev_id)
 {
 	u32 stat;
 	ad1889_dev_t *dev = (ad1889_dev_t *)dev_id;

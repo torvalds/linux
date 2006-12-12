@@ -693,6 +693,10 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 		put_cpu();
 		return -EBUSY;
 	}
+
+	/* Can deadlock when called with interrupts disabled */
+	WARN_ON(irqs_disabled());
+
 	spin_lock_bh(&call_lock);
 	__smp_call_function_single(cpu, func, info, nonatomic, wait);
 	spin_unlock_bh(&call_lock);
@@ -700,3 +704,30 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function_single);
+
+static int convert_apicid_to_cpu(int apic_id)
+{
+	int i;
+
+	for (i = 0; i < NR_CPUS; i++) {
+		if (x86_cpu_to_apicid[i] == apic_id)
+			return i;
+	}
+	return -1;
+}
+
+int safe_smp_processor_id(void)
+{
+	int apicid, cpuid;
+
+	if (!boot_cpu_has(X86_FEATURE_APIC))
+		return 0;
+
+	apicid = hard_smp_processor_id();
+	if (apicid == BAD_APICID)
+		return 0;
+
+	cpuid = convert_apicid_to_cpu(apicid);
+
+	return cpuid >= 0 ? cpuid : 0;
+}

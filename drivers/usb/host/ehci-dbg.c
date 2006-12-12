@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2001-2002 by David Brownell
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -65,7 +65,7 @@ static void dbg_hcs_params (struct ehci_hcd *ehci, char *label)
 		for (i = 0; i < HCS_N_PORTS (params); i++) {
 			// FIXME MIPS won't readb() ...
 			byte = readb (&ehci->caps->portroute[(i>>1)]);
-			sprintf(tmp, "%d ", 
+			sprintf(tmp, "%d ",
 				((i & 0x1) ? ((byte)&0xf) : ((byte>>4)&0xf)));
 			strcat(buf, tmp);
 		}
@@ -141,12 +141,12 @@ dbg_qh (const char *label, struct ehci_hcd *ehci, struct ehci_qh *qh)
 }
 
 static void __attribute__((__unused__))
-dbg_itd (const char *label, struct ehci_hcd *ehci, struct ehci_itd *itd) 
+dbg_itd (const char *label, struct ehci_hcd *ehci, struct ehci_itd *itd)
 {
 	ehci_dbg (ehci, "%s [%d] itd %p, next %08x, urb %p\n",
 		label, itd->frame, itd, le32_to_cpu(itd->hw_next), itd->urb);
 	ehci_dbg (ehci,
-		"  trans: %08x %08x %08x %08x %08x %08x %08x %08x\n", 
+		"  trans: %08x %08x %08x %08x %08x %08x %08x %08x\n",
 		le32_to_cpu(itd->hw_transaction[0]),
 		le32_to_cpu(itd->hw_transaction[1]),
 		le32_to_cpu(itd->hw_transaction[2]),
@@ -156,7 +156,7 @@ dbg_itd (const char *label, struct ehci_hcd *ehci, struct ehci_itd *itd)
 		le32_to_cpu(itd->hw_transaction[6]),
 		le32_to_cpu(itd->hw_transaction[7]));
 	ehci_dbg (ehci,
-		"  buf:   %08x %08x %08x %08x %08x %08x %08x\n", 
+		"  buf:   %08x %08x %08x %08x %08x %08x %08x\n",
 		le32_to_cpu(itd->hw_bufp[0]),
 		le32_to_cpu(itd->hw_bufp[1]),
 		le32_to_cpu(itd->hw_bufp[2]),
@@ -171,12 +171,12 @@ dbg_itd (const char *label, struct ehci_hcd *ehci, struct ehci_itd *itd)
 }
 
 static void __attribute__((__unused__))
-dbg_sitd (const char *label, struct ehci_hcd *ehci, struct ehci_sitd *sitd) 
+dbg_sitd (const char *label, struct ehci_hcd *ehci, struct ehci_sitd *sitd)
 {
 	ehci_dbg (ehci, "%s [%d] sitd %p, next %08x, urb %p\n",
 		label, sitd->frame, sitd, le32_to_cpu(sitd->hw_next), sitd->urb);
 	ehci_dbg (ehci,
-		"  addr %08x sched %04x result %08x buf %08x %08x\n", 
+		"  addr %08x sched %04x result %08x buf %08x %08x\n",
 		le32_to_cpu(sitd->hw_fullspeed_ep),
 		le32_to_cpu(sitd->hw_uframe),
 		le32_to_cpu(sitd->hw_results),
@@ -451,7 +451,7 @@ show_async (struct class_device *class_dev, char *buf)
 	*buf = 0;
 
 	bus = class_get_devdata(class_dev);
-	hcd = bus->hcpriv;
+	hcd = bus_to_hcd(bus);
 	ehci = hcd_to_ehci (hcd);
 	next = buf;
 	size = PAGE_SIZE;
@@ -492,12 +492,12 @@ show_periodic (struct class_device *class_dev, char *buf)
 	unsigned		i;
 	__le32			tag;
 
-	if (!(seen = kmalloc (DBG_SCHED_LIMIT * sizeof *seen, SLAB_ATOMIC)))
+	if (!(seen = kmalloc (DBG_SCHED_LIMIT * sizeof *seen, GFP_ATOMIC)))
 		return 0;
 	seen_count = 0;
 
 	bus = class_get_devdata(class_dev);
-	hcd = bus->hcpriv;
+	hcd = bus_to_hcd(bus);
 	ehci = hcd_to_ehci (hcd);
 	next = buf;
 	size = PAGE_SIZE;
@@ -634,7 +634,7 @@ show_registers (struct class_device *class_dev, char *buf)
 	static char		label [] = "";
 
 	bus = class_get_devdata(class_dev);
-	hcd = bus->hcpriv;
+	hcd = bus_to_hcd(bus);
 	ehci = hcd_to_ehci (hcd);
 	next = buf;
 	size = PAGE_SIZE;
@@ -785,10 +785,11 @@ static CLASS_DEVICE_ATTR (registers, S_IRUGO, show_registers, NULL);
 static inline void create_debug_files (struct ehci_hcd *ehci)
 {
 	struct class_device *cldev = ehci_to_hcd(ehci)->self.class_dev;
+	int retval;
 
-	class_device_create_file(cldev, &class_device_attr_async);
-	class_device_create_file(cldev, &class_device_attr_periodic);
-	class_device_create_file(cldev, &class_device_attr_registers);
+	retval = class_device_create_file(cldev, &class_device_attr_async);
+	retval = class_device_create_file(cldev, &class_device_attr_periodic);
+	retval = class_device_create_file(cldev, &class_device_attr_registers);
 }
 
 static inline void remove_debug_files (struct ehci_hcd *ehci)

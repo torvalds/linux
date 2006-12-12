@@ -44,7 +44,7 @@
 #include "hcd.h"
 
 static struct super_operations usbfs_ops;
-static struct file_operations default_file_operations;
+static const struct file_operations default_file_operations;
 static struct vfsmount *usbfs_mount;
 static int usbfs_mount_count;	/* = 0 */
 static int ignore_mount = 0;
@@ -249,7 +249,6 @@ static struct inode *usbfs_get_inode (struct super_block *sb, int mode, dev_t de
 		inode->i_mode = mode;
 		inode->i_uid = current->fsuid;
 		inode->i_gid = current->fsgid;
-		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		switch (mode & S_IFMT) {
@@ -264,7 +263,7 @@ static struct inode *usbfs_get_inode (struct super_block *sb, int mode, dev_t de
 			inode->i_fop = &simple_dir_operations;
 
 			/* directory inodes start off with i_nlink == 2 (for "." entry) */
-			inode->i_nlink++;
+			inc_nlink(inode);
 			break;
 		}
 	}
@@ -296,7 +295,7 @@ static int usbfs_mkdir (struct inode *dir, struct dentry *dentry, int mode)
 	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
 	res = usbfs_mknod (dir, dentry, mode, 0);
 	if (!res)
-		dir->i_nlink++;
+		inc_nlink(dir);
 	return res;
 }
 
@@ -333,7 +332,7 @@ static int usbfs_unlink (struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 	mutex_lock(&inode->i_mutex);
-	dentry->d_inode->i_nlink--;
+	drop_nlink(dentry->d_inode);
 	dput(dentry);
 	mutex_unlock(&inode->i_mutex);
 	d_delete(dentry);
@@ -348,10 +347,11 @@ static int usbfs_rmdir(struct inode *dir, struct dentry *dentry)
 	mutex_lock(&inode->i_mutex);
 	dentry_unhash(dentry);
 	if (usbfs_empty(dentry)) {
-		dentry->d_inode->i_nlink -= 2;
+		drop_nlink(dentry->d_inode);
+		drop_nlink(dentry->d_inode);
 		dput(dentry);
 		inode->i_flags |= S_DEAD;
-		dir->i_nlink--;
+		drop_nlink(dir);
 		error = 0;
 	}
 	mutex_unlock(&inode->i_mutex);
@@ -379,7 +379,7 @@ static loff_t default_file_lseek (struct file *file, loff_t offset, int orig)
 {
 	loff_t retval = -EINVAL;
 
-	mutex_lock(&file->f_dentry->d_inode->i_mutex);
+	mutex_lock(&file->f_path.dentry->d_inode->i_mutex);
 	switch(orig) {
 	case 0:
 		if (offset > 0) {
@@ -396,19 +396,19 @@ static loff_t default_file_lseek (struct file *file, loff_t offset, int orig)
 	default:
 		break;
 	}
-	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
+	mutex_unlock(&file->f_path.dentry->d_inode->i_mutex);
 	return retval;
 }
 
 static int default_open (struct inode *inode, struct file *file)
 {
-	if (inode->u.generic_ip)
-		file->private_data = inode->u.generic_ip;
+	if (inode->i_private)
+		file->private_data = inode->i_private;
 
 	return 0;
 }
 
-static struct file_operations default_file_operations = {
+static const struct file_operations default_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		default_open,
@@ -495,7 +495,7 @@ static int fs_create_by_name (const char *name, mode_t mode,
 
 static struct dentry *fs_create_file (const char *name, mode_t mode,
 				      struct dentry *parent, void *data,
-				      struct file_operations *fops,
+				      const struct file_operations *fops,
 				      uid_t uid, gid_t gid)
 {
 	struct dentry *dentry;
@@ -509,7 +509,7 @@ static struct dentry *fs_create_file (const char *name, mode_t mode,
 	} else {
 		if (dentry->d_inode) {
 			if (data)
-				dentry->d_inode->u.generic_ip = data;
+				dentry->d_inode->i_private = data;
 			if (fops)
 				dentry->d_inode->i_fop = fops;
 			dentry->d_inode->i_uid = uid;
@@ -699,7 +699,7 @@ static void usbfs_remove_device(struct usb_device *dev)
 			sinfo.si_errno = EPIPE;
 			sinfo.si_code = SI_ASYNCIO;
 			sinfo.si_addr = ds->disccontext;
-			kill_proc_info_as_uid(ds->discsignr, &sinfo, ds->disc_pid, ds->disc_uid, ds->disc_euid, ds->secid);
+			kill_pid_info_as_uid(ds->discsignr, &sinfo, ds->disc_pid, ds->disc_uid, ds->disc_euid, ds->secid);
 		}
 	}
 }

@@ -37,15 +37,6 @@
 #define I8042_CTL_TIMEOUT	10000
 
 /*
- * When the device isn't opened and it's interrupts aren't used, we poll it at
- * regular intervals to see if any characters arrived. If yes, we can start
- * probing for any mouse / keyboard connected. This is the period of the
- * polling.
- */
-
-#define I8042_POLL_PERIOD	HZ/20
-
-/*
  * Status register bits.
  */
 

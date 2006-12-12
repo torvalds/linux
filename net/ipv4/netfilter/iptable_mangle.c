@@ -131,8 +131,8 @@ ipt_local_hook(unsigned int hook,
 {
 	unsigned int ret;
 	u_int8_t tos;
-	u_int32_t saddr, daddr;
-	unsigned long nfmark;
+	__be32 saddr, daddr;
+	u_int32_t mark;
 
 	/* root is playing with raw sockets. */
 	if ((*pskb)->len < sizeof(struct iphdr)
@@ -143,7 +143,7 @@ ipt_local_hook(unsigned int hook,
 	}
 
 	/* Save things which could affect route */
-	nfmark = (*pskb)->nfmark;
+	mark = (*pskb)->mark;
 	saddr = (*pskb)->nh.iph->saddr;
 	daddr = (*pskb)->nh.iph->daddr;
 	tos = (*pskb)->nh.iph->tos;
@@ -153,11 +153,10 @@ ipt_local_hook(unsigned int hook,
 	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE
 	    && ((*pskb)->nh.iph->saddr != saddr
 		|| (*pskb)->nh.iph->daddr != daddr
-#ifdef CONFIG_IP_ROUTE_FWMARK
-		|| (*pskb)->nfmark != nfmark
-#endif
+		|| (*pskb)->mark != mark
 		|| (*pskb)->nh.iph->tos != tos))
-		return ip_route_me_harder(pskb) == 0 ? ret : NF_DROP;
+		if (ip_route_me_harder(pskb, RTN_UNSPEC))
+			ret = NF_DROP;
 
 	return ret;
 }

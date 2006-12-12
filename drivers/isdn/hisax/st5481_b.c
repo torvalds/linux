@@ -14,6 +14,7 @@
 #include <linux/usb.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
+#include <linux/bitrev.h>
 #include "st5481.h"
 
 static inline void B_L1L2(struct st5481_bcs *bcs, int pr, void *arg)
@@ -72,7 +73,7 @@ static void usb_b_out(struct st5481_bcs *bcs,int buf_nr)
 					register unsigned char *dest = urb->transfer_buffer+len;
 					register unsigned int count;
 					for (count = 0; count < bytes_sent; count++)
-						*dest++ = isdnhdlc_bit_rev_tab[*src++];
+						*dest++ = bitrev8(*src++);
 				}
 				len += bytes_sent;
 			} else {
@@ -86,7 +87,7 @@ static void usb_b_out(struct st5481_bcs *bcs,int buf_nr)
 			if (!skb->len) {
 				// Frame sent
 				b_out->tx_skb = NULL;
-				B_L1L2(bcs, PH_DATA | CONFIRM, (void *) skb->truesize);
+				B_L1L2(bcs, PH_DATA | CONFIRM, (void *)(unsigned long) skb->truesize);
 				dev_kfree_skb_any(skb);
 
 /* 				if (!(bcs->tx_skb = skb_dequeue(&bcs->sq))) { */
@@ -161,7 +162,7 @@ static void led_blink(struct st5481_adapter *adapter)
 	st5481_usb_device_ctrl_msg(adapter, GPIO_OUT, leds, NULL, NULL);
 }
 
-static void usb_b_out_complete(struct urb *urb, struct pt_regs *regs)
+static void usb_b_out_complete(struct urb *urb)
 {
 	struct st5481_bcs *bcs = urb->context;
 	struct st5481_b_out *b_out = &bcs->b_out;
@@ -350,7 +351,7 @@ void st5481_b_l2l1(struct hisax_if *ifc, int pr, void *arg)
 {
 	struct st5481_bcs *bcs = ifc->priv;
 	struct sk_buff *skb = arg;
-	int mode;
+	long mode;
 
 	DBG(4, "");
 
@@ -360,8 +361,8 @@ void st5481_b_l2l1(struct hisax_if *ifc, int pr, void *arg)
 		bcs->b_out.tx_skb = skb;
 		break;
 	case PH_ACTIVATE | REQUEST:
-		mode = (int) arg;
-		DBG(4,"B%d,PH_ACTIVATE_REQUEST %d", bcs->channel + 1, mode);
+		mode = (long) arg;
+		DBG(4,"B%d,PH_ACTIVATE_REQUEST %ld", bcs->channel + 1, mode);
 		st5481B_mode(bcs, mode);
 		B_L1L2(bcs, PH_ACTIVATE | INDICATION, NULL);
 		break;

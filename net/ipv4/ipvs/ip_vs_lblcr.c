@@ -43,6 +43,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+#include <linux/jiffies.h>
 
 /* for sysctl */
 #include <linux/fs.h>
@@ -276,7 +277,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_max(struct ip_vs_dest_set *set)
  */
 struct ip_vs_lblcr_entry {
 	struct list_head        list;
-	__u32                   addr;           /* destination IP address */
+	__be32                   addr;           /* destination IP address */
 	struct ip_vs_dest_set   set;            /* destination server set */
 	unsigned long           lastuse;        /* last used time */
 };
@@ -348,7 +349,7 @@ static struct ctl_table_header * sysctl_header;
  *      new/free a ip_vs_lblcr_entry, which is a mapping of a destination
  *      IP address to a server.
  */
-static inline struct ip_vs_lblcr_entry *ip_vs_lblcr_new(__u32 daddr)
+static inline struct ip_vs_lblcr_entry *ip_vs_lblcr_new(__be32 daddr)
 {
 	struct ip_vs_lblcr_entry *en;
 
@@ -381,7 +382,7 @@ static inline void ip_vs_lblcr_free(struct ip_vs_lblcr_entry *en)
 /*
  *	Returns hash value for IPVS LBLCR entry
  */
-static inline unsigned ip_vs_lblcr_hashkey(__u32 addr)
+static inline unsigned ip_vs_lblcr_hashkey(__be32 addr)
 {
 	return (ntohl(addr)*2654435761UL) & IP_VS_LBLCR_TAB_MASK;
 }
@@ -420,7 +421,7 @@ ip_vs_lblcr_hash(struct ip_vs_lblcr_table *tbl, struct ip_vs_lblcr_entry *en)
  *  Get ip_vs_lblcr_entry associated with supplied parameters.
  */
 static inline struct ip_vs_lblcr_entry *
-ip_vs_lblcr_get(struct ip_vs_lblcr_table *tbl, __u32 addr)
+ip_vs_lblcr_get(struct ip_vs_lblcr_table *tbl, __be32 addr)
 {
 	unsigned hash;
 	struct ip_vs_lblcr_entry *en;

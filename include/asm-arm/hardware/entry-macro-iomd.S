@@ -1,5 +1,5 @@
 /*
- * arch/arm/commond/entry-macro-iomd.S
+ * include/asm-arm/hardware/entry-macro-iomd.S
  *
  * Low-level IRQ helper macros for IOC/IOMD based platforms
  *

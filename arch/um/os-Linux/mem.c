@@ -132,6 +132,9 @@ err:
 	else if(found < 0)
 		printf("read returned errno %d\n", -found);
 
+out:
+	close(fd);
+
 	return;
 
 found:
@@ -141,11 +144,12 @@ found:
 
 	if(strncmp(buf, "tmpfs", strlen("tmpfs"))){
 		printf("not tmpfs\n");
-		return;
+		goto out;
 	}
 
 	printf("OK\n");
 	default_tmpdir = "/dev/shm";
+	goto out;
 }
 
 /*

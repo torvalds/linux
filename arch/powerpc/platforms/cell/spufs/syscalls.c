@@ -38,7 +38,7 @@ static long do_spu_run(struct file *filp,
 	u32 npc, status;
 
 	ret = -EFAULT;
-	if (get_user(npc, unpc) || get_user(status, ustatus))
+	if (get_user(npc, unpc))
 		goto out;
 
 	/* check if this file was created by spu_create */
@@ -46,10 +46,13 @@ static long do_spu_run(struct file *filp,
 	if (filp->f_op != &spufs_context_fops)
 		goto out;
 
-	i = SPUFS_I(filp->f_dentry->d_inode);
+	i = SPUFS_I(filp->f_path.dentry->d_inode);
 	ret = spufs_run_spu(filp, i->i_ctx, &npc, &status);
 
-	if (put_user(npc, unpc) || put_user(status, ustatus))
+	if (put_user(npc, unpc))
+		ret = -EFAULT;
+
+	if (ustatus && put_user(status, ustatus))
 		ret = -EFAULT;
 out:
 	return ret;
@@ -87,7 +90,7 @@ asmlinkage long sys_spu_create(const char __user *pathname,
 		ret = path_lookup(tmp, LOOKUP_PARENT|
 				LOOKUP_OPEN|LOOKUP_CREATE, &nd);
 		if (!ret) {
-			ret = spufs_create_thread(&nd, flags, mode);
+			ret = spufs_create(&nd, flags, mode);
 			path_release(&nd);
 		}
 		putname(tmp);

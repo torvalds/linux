@@ -1,5 +1,5 @@
 /* 
- * inclue/asm-parisc/rtc.h
+ * include/asm-parisc/rtc.h
  *
  * Copyright 2002 Randolph CHung <tausq@debian.org>
  *

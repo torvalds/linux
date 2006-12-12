@@ -283,7 +283,7 @@ static void serial_txx9_enable_ms(struct uart_port *port)
 }
 
 static inline void
-receive_chars(struct uart_txx9_port *up, unsigned int *status, struct pt_regs *regs)
+receive_chars(struct uart_txx9_port *up, unsigned int *status)
 {
 	struct tty_struct *tty = up->port.info->tty;
 	unsigned char ch;
@@ -344,7 +344,7 @@ receive_chars(struct uart_txx9_port *up, unsigned int *status, struct pt_regs *r
 			else if (disr & TXX9_SIDISR_UFER)
 				flag = TTY_FRAME;
 		}
-		if (uart_handle_sysrq_char(&up->port, ch, regs))
+		if (uart_handle_sysrq_char(&up->port, ch))
 			goto ignore_char;
 
 		uart_insert_char(&up->port, disr, TXX9_SIDISR_UOER, ch, flag);
@@ -391,7 +391,7 @@ static inline void transmit_chars(struct uart_txx9_port *up)
 		serial_txx9_stop_tx(&up->port);
 }
 
-static irqreturn_t serial_txx9_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t serial_txx9_interrupt(int irq, void *dev_id)
 {
 	int pass_counter = 0;
 	struct uart_txx9_port *up = dev_id;
@@ -409,7 +409,7 @@ static irqreturn_t serial_txx9_interrupt(int irq, void *dev_id, struct pt_regs *
 		}
 
 		if (status & TXX9_SIDISR_RDIS)
-			receive_chars(up, &status, regs);
+			receive_chars(up, &status);
 		if (status & TXX9_SIDISR_TDIS)
 			transmit_chars(up);
 		/* Clear TX/RX Int. Status */
@@ -556,8 +556,8 @@ static void serial_txx9_shutdown(struct uart_port *port)
 }
 
 static void
-serial_txx9_set_termios(struct uart_port *port, struct termios *termios,
-		       struct termios *old)
+serial_txx9_set_termios(struct uart_port *port, struct ktermios *termios,
+		       struct ktermios *old)
 {
 	struct uart_txx9_port *up = (struct uart_txx9_port *)port;
 	unsigned int cval, fcr = 0;
@@ -990,7 +990,6 @@ int __init early_serial_txx9_setup(struct uart_port *port)
 /**
  *	serial_txx9_suspend_port - suspend one serial port
  *	@line:  serial line number
- *      @level: the level of port suspension, as per uart_suspend_port
  *
  *	Suspend one serial port.
  */
@@ -1002,7 +1001,6 @@ static void serial_txx9_suspend_port(int line)
 /**
  *	serial_txx9_resume_port - resume one serial port
  *	@line:  serial line number
- *      @level: the level of port resumption, as per uart_resume_port
  *
  *	Resume one serial port.
  */

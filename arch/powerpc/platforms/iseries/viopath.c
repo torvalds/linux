@@ -119,10 +119,9 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 	struct device_node *node;
 	const char *sysid;
 
-	buf = kmalloc(HW_PAGE_SIZE, GFP_KERNEL);
+	buf = kzalloc(HW_PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
 		return 0;
-	memset(buf, 0, HW_PAGE_SIZE);
 
 	handle = dma_map_single(iSeries_vio_dev, buf, HW_PAGE_SIZE,
 				DMA_FROM_DEVICE);
@@ -378,7 +377,7 @@ void vio_set_hostlp(void)
 }
 EXPORT_SYMBOL(vio_set_hostlp);
 
-static void vio_handleEvent(struct HvLpEvent *event, struct pt_regs *regs)
+static void vio_handleEvent(struct HvLpEvent *event)
 {
 	HvLpIndex remoteLp;
 	int subtype = (event->xSubtype & VIOMAJOR_SUBTYPE_MASK)

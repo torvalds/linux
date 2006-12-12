@@ -42,12 +42,11 @@ struct isl6421 {
 	u8			override_and;
 	struct i2c_adapter	*i2c;
 	u8			i2c_addr;
-	void			(*release_chain)(struct dvb_frontend* fe);
 };
 
 static int isl6421_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
-	struct isl6421 *isl6421 = (struct isl6421 *) fe->misc_priv;
+	struct isl6421 *isl6421 = (struct isl6421 *) fe->sec_priv;
 	struct i2c_msg msg = {	.addr = isl6421->i2c_addr, .flags = 0,
 				.buf = &isl6421->config,
 				.len = sizeof(isl6421->config) };
@@ -75,7 +74,7 @@ static int isl6421_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage
 
 static int isl6421_enable_high_lnb_voltage(struct dvb_frontend *fe, long arg)
 {
-	struct isl6421 *isl6421 = (struct isl6421 *) fe->misc_priv;
+	struct isl6421 *isl6421 = (struct isl6421 *) fe->sec_priv;
 	struct i2c_msg msg = {	.addr = isl6421->i2c_addr, .flags = 0,
 				.buf = &isl6421->config,
 				.len = sizeof(isl6421->config) };
@@ -93,31 +92,26 @@ static int isl6421_enable_high_lnb_voltage(struct dvb_frontend *fe, long arg)
 
 static void isl6421_release(struct dvb_frontend *fe)
 {
-	struct isl6421 *isl6421 = (struct isl6421 *) fe->misc_priv;
-
 	/* power off */
 	isl6421_set_voltage(fe, SEC_VOLTAGE_OFF);
 
-	/* free data & call next release routine */
-	fe->ops.release = isl6421->release_chain;
-	kfree(fe->misc_priv);
-	fe->misc_priv = NULL;
-	if (fe->ops.release)
-		fe->ops.release(fe);
+	/* free */
+	kfree(fe->sec_priv);
+	fe->sec_priv = NULL;
 }
 
-int isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, u8 i2c_addr,
+struct dvb_frontend *isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, u8 i2c_addr,
 		   u8 override_set, u8 override_clear)
 {
 	struct isl6421 *isl6421 = kmalloc(sizeof(struct isl6421), GFP_KERNEL);
 	if (!isl6421)
-		return -ENOMEM;
+		return NULL;
 
 	/* default configuration */
 	isl6421->config = ISL6421_ISEL1;
 	isl6421->i2c = i2c;
 	isl6421->i2c_addr = i2c_addr;
-	fe->misc_priv = isl6421;
+	fe->sec_priv = isl6421;
 
 	/* bits which should be forced to '1' */
 	isl6421->override_or = override_set;
@@ -128,19 +122,17 @@ int isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, u8 i2c_addr
 	/* detect if it is present or not */
 	if (isl6421_set_voltage(fe, SEC_VOLTAGE_OFF)) {
 		kfree(isl6421);
-		fe->misc_priv = NULL;
-		return -EIO;
+		return NULL;
 	}
 
 	/* install release callback */
-	isl6421->release_chain = fe->ops.release;
-	fe->ops.release = isl6421_release;
+	fe->ops.release_sec = isl6421_release;
 
 	/* override frontend ops */
 	fe->ops.set_voltage = isl6421_set_voltage;
 	fe->ops.enable_high_lnb_voltage = isl6421_enable_high_lnb_voltage;
 
-	return 0;
+	return fe;
 }
 EXPORT_SYMBOL(isl6421_attach);
 

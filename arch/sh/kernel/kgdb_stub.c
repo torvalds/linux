@@ -101,16 +101,17 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
+#ifdef CONFIG_SH_KGDB_CONSOLE
+#include <linux/console.h>
+#endif
+
 #include <asm/system.h>
 #include <asm/current.h>
 #include <asm/signal.h>
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
 #include <asm/kgdb.h>
-
-#ifdef CONFIG_SH_KGDB_CONSOLE
-#include <linux/console.h>
-#endif
+#include <asm/io.h>
 
 /* Function pointers for linkage */
 kgdb_debug_hook_t *kgdb_debug_hook;
@@ -240,7 +241,6 @@ static jmp_buf rem_com_env;
 /* Misc static */
 static int stepped_address;
 static short stepped_opcode;
-static const char hexchars[] = "0123456789abcdef";
 static char in_buffer[BUFMAX];
 static char out_buffer[OUTBUFMAX];
 
@@ -253,29 +253,6 @@ typedef unsigned char threadref[8];
 #define BUF_THREAD_ID_SIZE 16
 #endif
 
-/* Return addr as a real volatile address */
-static inline unsigned int ctrl_inl(const unsigned long addr)
-{
-	return *(volatile unsigned long *) addr;
-}
-
-/* Correctly set *addr using volatile */
-static inline void ctrl_outl(const unsigned int b, unsigned long addr)
-{
-	*(volatile unsigned long *) addr = b;
-}
-
-/* Get high hex bits */
-static char highhex(const int x)
-{
-	return hexchars[(x >> 4) & 0xf];
-}
-
-/* Get low hex bits */
-static char lowhex(const int x)
-{
-	return hexchars[x & 0xf];
-}
 
 /* Convert ch to hex */
 static int hex(const char ch)

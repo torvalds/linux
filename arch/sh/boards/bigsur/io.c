@@ -1,5 +1,5 @@
 /*
- * include/asm-sh/io_bigsur.c
+ * arch/sh/boards/bigsur/io.c
  *
  * By Dustin McIntire (dustin@sensoria.com) (c)2001
  * Derived from io_hd64465.h, which bore the message:

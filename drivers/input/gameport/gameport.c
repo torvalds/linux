@@ -23,6 +23,7 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>	/* HZ */
 #include <linux/mutex.h>
+#include <linux/freezer.h>
 
 /*#include <asm/io.h>*/
 
@@ -191,6 +192,8 @@ static void gameport_run_poll_handler(unsigned long d)
 
 static void gameport_bind_driver(struct gameport *gameport, struct gameport_driver *drv)
 {
+	int error;
+
 	down_write(&gameport_bus.subsys.rwsem);
 
 	gameport->dev.driver = &drv->driver;
@@ -198,8 +201,20 @@ static void gameport_bind_driver(struct gameport *gameport, struct gameport_driv
 		gameport->dev.driver = NULL;
 		goto out;
 	}
-	device_bind_driver(&gameport->dev);
-out:
+
+	error = device_bind_driver(&gameport->dev);
+	if (error) {
+		printk(KERN_WARNING
+			"gameport: device_bind_driver() failed "
+			"for %s (%s) and %s, error: %d\n",
+			gameport->phys, gameport->name,
+			drv->description, error);
+		drv->disconnect(gameport);
+		gameport->dev.driver = NULL;
+		goto out;
+	}
+
+ out:
 	up_write(&gameport_bus.subsys.rwsem);
 }
 
@@ -716,12 +731,6 @@ static int gameport_driver_remove(struct device *dev)
 	return 0;
 }
 
-static struct bus_type gameport_bus = {
-	.name	= "gameport",
-	.probe	= gameport_driver_probe,
-	.remove	= gameport_driver_remove,
-};
-
 static void gameport_add_driver(struct gameport_driver *drv)
 {
 	int error;
@@ -767,6 +776,15 @@ static int gameport_bus_match(struct device *dev, struct device_driver *drv)
 	return !gameport_drv->ignore;
 }
 
+static struct bus_type gameport_bus = {
+	.name		= "gameport",
+	.dev_attrs	= gameport_device_attrs,
+	.drv_attrs	= gameport_driver_attrs,
+	.match		= gameport_bus_match,
+	.probe		= gameport_driver_probe,
+	.remove		= gameport_driver_remove,
+};
+
 static void gameport_set_drv(struct gameport *gameport, struct gameport_driver *drv)
 {
 	mutex_lock(&gameport->drv_mutex);
@@ -776,7 +794,6 @@ static void gameport_set_drv(struct gameport *gameport, struct gameport_driver *
 
 int gameport_open(struct gameport *gameport, struct gameport_driver *drv, int mode)
 {
-
 	if (gameport->open) {
 		if (gameport->open(gameport, mode)) {
 			return -1;
@@ -804,9 +821,6 @@ static int __init gameport_init(void)
 {
 	int error;
 
-	gameport_bus.dev_attrs = gameport_device_attrs;
-	gameport_bus.drv_attrs = gameport_driver_attrs;
-	gameport_bus.match = gameport_bus_match;
 	error = bus_register(&gameport_bus);
 	if (error) {
 		printk(KERN_ERR "gameport: failed to register gameport bus, error: %d\n", error);

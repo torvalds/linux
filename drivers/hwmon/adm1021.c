@@ -190,6 +190,21 @@ static int adm1021_attach_adapter(struct i2c_adapter *adapter)
 	return i2c_probe(adapter, &addr_data, adm1021_detect);
 }
 
+static struct attribute *adm1021_attributes[] = {
+	&dev_attr_temp1_max.attr,
+	&dev_attr_temp1_min.attr,
+	&dev_attr_temp1_input.attr,
+	&dev_attr_temp2_max.attr,
+	&dev_attr_temp2_min.attr,
+	&dev_attr_temp2_input.attr,
+	&dev_attr_alarms.attr,
+	NULL
+};
+
+static const struct attribute_group adm1021_group = {
+	.attrs = adm1021_attributes,
+};
+
 static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	int i;
@@ -287,22 +302,19 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 		adm1021_init_client(new_client);
 
 	/* Register sysfs hooks */
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &adm1021_group)))
+		goto error2;
+
 	data->class_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
-		goto error2;
+		goto error3;
 	}
-
-	device_create_file(&new_client->dev, &dev_attr_temp1_max);
-	device_create_file(&new_client->dev, &dev_attr_temp1_min);
-	device_create_file(&new_client->dev, &dev_attr_temp1_input);
-	device_create_file(&new_client->dev, &dev_attr_temp2_max);
-	device_create_file(&new_client->dev, &dev_attr_temp2_min);
-	device_create_file(&new_client->dev, &dev_attr_temp2_input);
-	device_create_file(&new_client->dev, &dev_attr_alarms);
 
 	return 0;
 
+error3:
+	sysfs_remove_group(&new_client->dev.kobj, &adm1021_group);
 error2:
 	i2c_detach_client(new_client);
 error1:
@@ -326,6 +338,7 @@ static int adm1021_detach_client(struct i2c_client *client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &adm1021_group);
 
 	if ((err = i2c_detach_client(client)))
 		return err;

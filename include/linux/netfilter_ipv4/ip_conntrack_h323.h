@@ -3,7 +3,7 @@
 
 #ifdef __KERNEL__
 
-#include <linux/netfilter_ipv4/ip_conntrack_helper_h323_asn1.h>
+#include <linux/netfilter/nf_conntrack_h323_asn1.h>
 
 #define RAS_PORT 1719
 #define Q931_PORT 1720
@@ -30,7 +30,7 @@ struct ip_ct_h323_master {
 struct ip_conntrack_expect;
 
 extern int get_h225_addr(unsigned char *data, TransportAddress * addr,
-			 u_int32_t * ip, u_int16_t * port);
+			 __be32 * ip, u_int16_t * port);
 extern void ip_conntrack_h245_expect(struct ip_conntrack *new,
 				     struct ip_conntrack_expect *this);
 extern void ip_conntrack_q931_expect(struct ip_conntrack *new,
@@ -38,11 +38,11 @@ extern void ip_conntrack_q931_expect(struct ip_conntrack *new,
 extern int (*set_h245_addr_hook) (struct sk_buff ** pskb,
 				  unsigned char **data, int dataoff,
 				  H245_TransportAddress * addr,
-				  u_int32_t ip, u_int16_t port);
+				  __be32 ip, u_int16_t port);
 extern int (*set_h225_addr_hook) (struct sk_buff ** pskb,
 				  unsigned char **data, int dataoff,
 				  TransportAddress * addr,
-				  u_int32_t ip, u_int16_t port);
+				  __be32 ip, u_int16_t port);
 extern int (*set_sig_addr_hook) (struct sk_buff ** pskb,
 				 struct ip_conntrack * ct,
 				 enum ip_conntrack_info ctinfo,

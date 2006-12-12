@@ -11,6 +11,7 @@ SECTIONS
   . = 0x10000 + SIZEOF_HEADERS;
   .text 0xf0004000 :
   {
+    _text = .;
     *(.text)
     SCHED_TEXT
     LOCK_TEXT
@@ -36,11 +37,11 @@ SECTIONS
 
   . = ALIGN(4096);
   __init_begin = .;
+  _sinittext = .;
   .init.text : { 
-	_sinittext = .;
 	*(.init.text)
-	_einittext = .;
   }
+  _einittext = .;
   __init_text_end = .;
   .init.data : { *(.init.data) }
   . = ALIGN(16);
@@ -49,13 +50,7 @@ SECTIONS
   __setup_end = .;
   __initcall_start = .;
   .initcall.init : {
-	*(.initcall1.init) 
-	*(.initcall2.init) 
-	*(.initcall3.init) 
-	*(.initcall4.init) 
-	*(.initcall5.init) 
-	*(.initcall6.init) 
-	*(.initcall7.init)
+	INITCALLS
   }
   __initcall_end = .;
   __con_initcall_start = .;

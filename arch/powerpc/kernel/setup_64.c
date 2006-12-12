@@ -33,6 +33,7 @@
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/bootmem.h>
+#include <linux/pci.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
 #include <asm/prom.h>
@@ -71,7 +72,6 @@
 
 int have_of = 1;
 int boot_cpuid = 0;
-dev_t boot_dev;
 u64 ppc64_pft_size;
 
 /* Pick defaults since we might want to patch instructions
@@ -92,11 +92,6 @@ EXPORT_SYMBOL_GPL(ppc64_caches);
 int dcache_bsize;
 int icache_bsize;
 int ucache_bsize;
-
-#ifdef CONFIG_MAGIC_SYSRQ
-unsigned long SYSRQ_KEY;
-#endif /* CONFIG_MAGIC_SYSRQ */
-
 
 #ifdef CONFIG_SMP
 
@@ -175,6 +170,9 @@ void __init setup_paca(int cpu)
 
 void __init early_setup(unsigned long dt_ptr)
 {
+	/* Identify CPU type */
+	identify_cpu(0, mfspr(SPRN_PVR));
+
 	/* Assume we're on cpu 0 for now. Don't write to the paca yet! */
 	setup_paca(0);
 
@@ -228,8 +226,8 @@ void early_setup_secondary(void)
 {
 	struct paca_struct *lpaca = get_paca();
 
-	/* Mark enabled in PACA */
-	lpaca->proc_enabled = 0;
+	/* Mark interrupts enabled in PACA */
+	lpaca->soft_enabled = 0;
 
 	/* Initialize hash table for that CPU */
 	htab_initialize_secondary();
@@ -353,6 +351,14 @@ void __init setup_system(void)
 {
 	DBG(" -> setup_system()\n");
 
+	/* Apply the CPUs-specific and firmware specific fixups to kernel
+	 * text (nop out sections not relevant to this CPU or this firmware)
+	 */
+	do_feature_fixups(cur_cpu_spec->cpu_features,
+			  &__start___ftr_fixup, &__stop___ftr_fixup);
+	do_feature_fixups(powerpc_firmware_features,
+			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
+
 	/*
 	 * Unflatten the device-tree passed by prom_init or kexec
 	 */
@@ -386,7 +392,8 @@ void __init setup_system(void)
 	 * setting up the hash table pointers. It also sets up some interrupt-mapping
 	 * related options that will be used by finish_device_tree()
 	 */
-	ppc_md.init_early();
+	if (ppc_md.init_early)
+		ppc_md.init_early();
 
  	/*
 	 * We can discover serial ports now since the above did setup the
@@ -396,18 +403,14 @@ void __init setup_system(void)
 	find_legacy_serial_ports();
 
 	/*
-	 * Initialize xmon
-	 */
-#ifdef CONFIG_XMON_DEFAULT
-	xmon_init(1);
-#endif
-	/*
 	 * Register early console
 	 */
 	register_early_udbg_console();
 
-	if (do_early_xmon)
-		debugger(NULL);
+	/*
+	 * Initialize xmon
+	 */
+	xmon_setup();
 
 	check_smt_enabled();
 	smp_setup_cpu_maps();
@@ -419,7 +422,7 @@ void __init setup_system(void)
 	smp_release_cpus();
 #endif
 
-	printk("Starting Linux PPC64 %s\n", system_utsname.version);
+	printk("Starting Linux PPC64 %s\n", init_utsname()->version);
 
 	printk("-----------------------------------------------------\n");
 	printk("ppc64_pft_size                = 0x%lx\n", ppc64_pft_size);
@@ -596,3 +599,10 @@ void __init setup_per_cpu_areas(void)
 	}
 }
 #endif
+
+
+#ifdef CONFIG_PPC_INDIRECT_IO
+struct ppc_pci_io ppc_pci_io;
+EXPORT_SYMBOL(ppc_pci_io);
+#endif /* CONFIG_PPC_INDIRECT_IO */
+

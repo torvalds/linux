@@ -62,6 +62,7 @@
 #include <asm/cache.h>
 #include <asm/8xx_immap.h>
 #include <asm/machdep.h>
+#include <asm/irq_regs.h>
 
 #include <asm/time.h>
 
@@ -79,8 +80,6 @@ unsigned tb_ticks_per_jiffy;
 unsigned tb_to_us;
 unsigned tb_last_stamp;
 unsigned long tb_to_ns_scale;
-
-extern unsigned long wall_jiffies;
 
 /* used for timezone offset */
 static long timezone_offset;
@@ -131,6 +130,7 @@ void wakeup_decrementer(void)
  */
 void timer_interrupt(struct pt_regs * regs)
 {
+	struct pt_regs *old_regs;
 	int next_dec;
 	unsigned long cpu = smp_processor_id();
 	unsigned jiffy_stamp = last_jiffy_stamp(cpu);
@@ -139,12 +139,13 @@ void timer_interrupt(struct pt_regs * regs)
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)
 		do_IRQ(regs);
 
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 
 	while ((next_dec = tb_ticks_per_jiffy - tb_delta(&jiffy_stamp)) <= 0) {
 		jiffy_stamp += tb_ticks_per_jiffy;
 		
-		profile_tick(CPU_PROFILING, regs);
+		profile_tick(CPU_PROFILING);
 		update_process_times(user_mode(regs));
 
 	  	if (smp_processor_id())
@@ -153,7 +154,7 @@ void timer_interrupt(struct pt_regs * regs)
 		/* We are in an interrupt, no need to save/restore flags */
 		write_seqlock(&xtime_lock);
 		tb_last_stamp = jiffy_stamp;
-		do_timer(regs);
+		do_timer(1);
 
 		/*
 		 * update the rtc when needed, this should be performed on the
@@ -173,8 +174,7 @@ void timer_interrupt(struct pt_regs * regs)
 		 */
 		if ( ppc_md.set_rtc_time && ntp_synced() &&
 		     xtime.tv_sec - last_rtc_update >= 659 &&
-		     abs((xtime.tv_nsec / 1000) - (1000000-1000000/HZ)) < 500000/HZ &&
-		     jiffies - wall_jiffies == 1) {
+		     abs((xtime.tv_nsec / 1000) - (1000000-1000000/HZ)) < 500000/HZ) {
 		  	if (ppc_md.set_rtc_time(xtime.tv_sec+1 + timezone_offset) == 0)
 				last_rtc_update = xtime.tv_sec+1;
 			else
@@ -191,6 +191,7 @@ void timer_interrupt(struct pt_regs * regs)
 		ppc_md.heartbeat();
 
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 /*
@@ -200,7 +201,7 @@ void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long flags;
 	unsigned long seq;
-	unsigned delta, lost_ticks, usec, sec;
+	unsigned delta, usec, sec;
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
@@ -214,10 +215,9 @@ void do_gettimeofday(struct timeval *tv)
 		if (!smp_tb_synchronized)
 			delta = 0;
 #endif /* CONFIG_SMP */
-		lost_ticks = jiffies - wall_jiffies;
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
-	usec += mulhwu(tb_to_us, tb_ticks_per_jiffy * lost_ticks + delta);
+	usec += mulhwu(tb_to_us, delta);
 	while (usec >= 1000000) {
 	  	sec++;
 		usec -= 1000000;
@@ -258,7 +258,6 @@ int do_settimeofday(struct timespec *tv)
 	 * still reasonable when gettimeofday resolution is 1 jiffy.
 	 */
 	tb_delta = tb_ticks_since(last_jiffy_stamp(smp_processor_id()));
-	tb_delta += (jiffies - wall_jiffies) * tb_ticks_per_jiffy;
 
 	new_nsec -= 1000 * mulhwu(tb_to_us, tb_delta);
 

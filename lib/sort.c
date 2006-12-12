@@ -49,15 +49,15 @@ void sort(void *base, size_t num, size_t size,
 	  void (*swap)(void *, void *, int size))
 {
 	/* pre-scale counters for performance */
-	int i = (num/2) * size, n = num * size, c, r;
+	int i = (num/2 - 1) * size, n = num * size, c, r;
 
 	if (!swap)
 		swap = (size == 4 ? u32_swap : generic_swap);
 
 	/* heapify */
 	for ( ; i >= 0; i -= size) {
-		for (r = i; r * 2 < n; r  = c) {
-			c = r * 2;
+		for (r = i; r * 2 + size < n; r  = c) {
+			c = r * 2 + size;
 			if (c < n - size && cmp(base + c, base + c + size) < 0)
 				c += size;
 			if (cmp(base + r, base + c) >= 0)
@@ -69,8 +69,8 @@ void sort(void *base, size_t num, size_t size,
 	/* sort */
 	for (i = n - size; i >= 0; i -= size) {
 		swap(base, base + i, size);
-		for (r = 0; r * 2 < i; r = c) {
-			c = r * 2;
+		for (r = 0; r * 2 + size < i; r = c) {
+			c = r * 2 + size;
 			if (c < i - size && cmp(base + c, base + c + size) < 0)
 				c += size;
 			if (cmp(base + r, base + c) >= 0)

@@ -199,8 +199,7 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 	mutex_init(&data->update_lock);
 
 	/* Init fake client data */
-	/* set the client data to the i2c_client so that it will get freed */
-	i2c_set_clientdata(fake_client, fake_client);
+	i2c_set_clientdata(fake_client, NULL);
 	fake_client->addr = address | 1;
 	fake_client->adapter = adapter;
 	fake_client->driver = &max6875_driver;
@@ -214,13 +213,17 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit_kfree2;
 
 	if ((err = i2c_attach_client(fake_client)) != 0)
-		goto exit_detach;
+		goto exit_detach1;
 
-	sysfs_create_bin_file(&real_client->dev.kobj, &user_eeprom_attr);
+	err = sysfs_create_bin_file(&real_client->dev.kobj, &user_eeprom_attr);
+	if (err)
+		goto exit_detach2;
 
 	return 0;
 
-exit_detach:
+exit_detach2:
+	i2c_detach_client(fake_client);
+exit_detach1:
 	i2c_detach_client(real_client);
 exit_kfree2:
 	kfree(fake_client);
@@ -229,14 +232,24 @@ exit_kfree1:
 	return err;
 }
 
+/* Will be called for both the real client and the fake client */
 static int max6875_detach_client(struct i2c_client *client)
 {
 	int err;
+	struct max6875_data *data = i2c_get_clientdata(client);
+
+	/* data is NULL for the fake client */
+	if (data)
+		sysfs_remove_bin_file(&client->dev.kobj, &user_eeprom_attr);
 
 	err = i2c_detach_client(client);
 	if (err)
 		return err;
-	kfree(i2c_get_clientdata(client));
+
+	if (data)		/* real client */
+		kfree(data);
+	else			/* fake client */
+		kfree(client);
 	return 0;
 }
 

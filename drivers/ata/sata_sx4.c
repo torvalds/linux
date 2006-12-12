@@ -152,7 +152,7 @@ struct pdc_host_priv {
 
 
 static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
-static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance);
 static void pdc_eng_timeout(struct ata_port *ap);
 static void pdc_20621_phy_reset (struct ata_port *ap);
 static int pdc_port_start(struct ata_port *ap);
@@ -230,11 +230,10 @@ static const struct ata_port_info pdc_port_info[] = {
 };
 
 static const struct pci_device_id pdc_sata_pci_tbl[] = {
-	{ PCI_VENDOR_ID_PROMISE, 0x6622, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20621 },
+	{ PCI_VDEVICE(PROMISE, 0x6622), board_20621 },
+
 	{ }	/* terminate list */
 };
-
 
 static struct pci_driver pdc_sata_pci_driver = {
 	.name			= DRV_NAME,
@@ -789,7 +788,7 @@ static void pdc20621_irq_clear(struct ata_port *ap)
 	readl(mmio + PDC_20621_SEQMASK);
 }
 
-static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct ata_port *ap;

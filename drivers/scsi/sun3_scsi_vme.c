@@ -41,9 +41,9 @@
 #define REAL_DMA
 
 #include "scsi.h"
+#include "initio.h"
 #include <scsi/scsi_host.h>
 #include "sun3_scsi.h"
-#include "NCR5380.h"
 
 extern int sun3_map_test(unsigned long, char *);
 
@@ -67,7 +67,7 @@ extern int sun3_map_test(unsigned long, char *);
 #define ENABLE_IRQ()
 
 
-static irqreturn_t scsi_sun3_intr(int irq, void *dummy, struct pt_regs *fp);
+static irqreturn_t scsi_sun3_intr(int irq, void *dummy);
 static inline unsigned char sun3scsi_read(int reg);
 static inline void sun3scsi_write(int reg, int value);
 
@@ -84,7 +84,7 @@ module_param(setup_use_tagged_queuing, int, 0);
 static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
 
-static Scsi_Cmnd *sun3_dma_setup_done = NULL;
+static struct scsi_cmnd *sun3_dma_setup_done = NULL;
 
 #define	AFTER_RESET_DELAY	(HZ/2)
 
@@ -340,7 +340,7 @@ static const char * sun3scsi_info (struct Scsi_Host *spnt) {
 // safe bits for the CSR
 #define CSR_GOOD 0x060f
 
-static irqreturn_t scsi_sun3_intr(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t scsi_sun3_intr(int irq, void *dummy)
 {
 	unsigned short csr = dregs->csr;
 	int handled = 0;
@@ -371,7 +371,7 @@ static irqreturn_t scsi_sun3_intr(int irq, void *dummy, struct pt_regs *fp)
 	}
 
 	if(csr & (CSR_SDB_INT | CSR_DMA_INT)) {
-		NCR5380_intr(irq, dummy, fp);
+		NCR5380_intr(irq, dummy);
 		handled = 1;
 	}
 
@@ -455,10 +455,11 @@ static inline unsigned long sun3scsi_dma_residual(struct Scsi_Host *instance)
 	return last_residual;
 }
 
-static inline unsigned long sun3scsi_dma_xfer_len(unsigned long wanted, Scsi_Cmnd *cmd,
-				    int write_flag)
+static inline unsigned long sun3scsi_dma_xfer_len(unsigned long wanted,
+						  struct scsi_cmnd *cmd,
+						  int write_flag)
 {
-	if(cmd->request->flags & REQ_CMD)
+	if(blk_fs_request(cmd->request))
  		return wanted;
 	else
 		return 0;

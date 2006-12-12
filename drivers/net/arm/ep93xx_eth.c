@@ -9,7 +9,6 @@
  * (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -194,11 +193,8 @@ static struct net_device_stats *ep93xx_get_stats(struct net_device *dev)
 static int ep93xx_rx(struct net_device *dev, int *budget)
 {
 	struct ep93xx_priv *ep = netdev_priv(dev);
-	int tail_offset;
 	int rx_done;
 	int processed;
-
-	tail_offset = rdl(ep, REG_RXSTSQCURADD) - ep->descs_dma_addr;
 
 	rx_done = 0;
 	processed = 0;
@@ -212,36 +208,28 @@ static int ep93xx_rx(struct net_device *dev, int *budget)
 
 		entry = ep->rx_pointer;
 		rstat = ep->descs->rstat + entry;
-		if ((void *)rstat - (void *)ep->descs == tail_offset) {
+
+		rstat0 = rstat->rstat0;
+		rstat1 = rstat->rstat1;
+		if (!(rstat0 & RSTAT0_RFP) || !(rstat1 & RSTAT1_RFP)) {
 			rx_done = 1;
 			break;
 		}
 
-		rstat0 = rstat->rstat0;
-		rstat1 = rstat->rstat1;
 		rstat->rstat0 = 0;
 		rstat->rstat1 = 0;
 
-		if (!(rstat0 & RSTAT0_RFP))
-			printk(KERN_CRIT "ep93xx_rx: buffer not done "
-					 " %.8x %.8x\n", rstat0, rstat1);
 		if (!(rstat0 & RSTAT0_EOF))
 			printk(KERN_CRIT "ep93xx_rx: not end-of-frame "
 					 " %.8x %.8x\n", rstat0, rstat1);
 		if (!(rstat0 & RSTAT0_EOB))
 			printk(KERN_CRIT "ep93xx_rx: not end-of-buffer "
 					 " %.8x %.8x\n", rstat0, rstat1);
-		if (!(rstat1 & RSTAT1_RFP))
-			printk(KERN_CRIT "ep93xx_rx: buffer1 not done "
-					 " %.8x %.8x\n", rstat0, rstat1);
 		if ((rstat1 & RSTAT1_BUFFER_INDEX) >> 16 != entry)
 			printk(KERN_CRIT "ep93xx_rx: entry mismatch "
 					 " %.8x %.8x\n", rstat0, rstat1);
 
 		if (!(rstat0 & RSTAT0_RWE)) {
-			printk(KERN_NOTICE "ep93xx_rx: receive error "
-					 " %.8x %.8x\n", rstat0, rstat1);
-
 			ep->stats.rx_errors++;
 			if (rstat0 & RSTAT0_OE)
 				ep->stats.rx_fifo_errors++;
@@ -302,13 +290,8 @@ err:
 
 static int ep93xx_have_more_rx(struct ep93xx_priv *ep)
 {
-	struct ep93xx_rstat *rstat;
-	int tail_offset;
-
-	rstat = ep->descs->rstat + ep->rx_pointer;
-	tail_offset = rdl(ep, REG_RXSTSQCURADD) - ep->descs_dma_addr;
-
-	return !((void *)rstat - (void *)ep->descs == tail_offset);
+	struct ep93xx_rstat *rstat = ep->descs->rstat + ep->rx_pointer;
+	return !!((rstat->rstat0 & RSTAT0_RFP) && (rstat->rstat1 & RSTAT1_RFP));
 }
 
 static int ep93xx_poll(struct net_device *dev, int *budget)
@@ -348,7 +331,7 @@ static int ep93xx_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ep93xx_priv *ep = netdev_priv(dev);
 	int entry;
 
-	if (unlikely(skb->len) > MAX_PKT_SIZE) {
+	if (unlikely(skb->len > MAX_PKT_SIZE)) {
 		ep->stats.tx_dropped++;
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
@@ -380,10 +363,8 @@ static int ep93xx_xmit(struct sk_buff *skb, struct net_device *dev)
 static void ep93xx_tx_complete(struct net_device *dev)
 {
 	struct ep93xx_priv *ep = netdev_priv(dev);
-	int tail_offset;
 	int wake;
 
-	tail_offset = rdl(ep, REG_TXSTSQCURADD) - ep->descs_dma_addr;
 	wake = 0;
 
 	spin_lock(&ep->tx_pending_lock);
@@ -394,15 +375,13 @@ static void ep93xx_tx_complete(struct net_device *dev)
 
 		entry = ep->tx_clean_pointer;
 		tstat = ep->descs->tstat + entry;
-		if ((void *)tstat - (void *)ep->descs == tail_offset)
-			break;
 
 		tstat0 = tstat->tstat0;
+		if (!(tstat0 & TSTAT0_TXFP))
+			break;
+
 		tstat->tstat0 = 0;
 
-		if (!(tstat0 & TSTAT0_TXFP))
-			printk(KERN_CRIT "ep93xx_tx_complete: buffer not done "
-					 " %.8x\n", tstat0);
 		if (tstat0 & TSTAT0_FA)
 			printk(KERN_CRIT "ep93xx_tx_complete: frame aborted "
 					 " %.8x\n", tstat0);
@@ -436,7 +415,7 @@ static void ep93xx_tx_complete(struct net_device *dev)
 		netif_wake_queue(dev);
 }
 
-static irqreturn_t ep93xx_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ep93xx_irq(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct ep93xx_priv *ep = netdev_priv(dev);

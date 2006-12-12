@@ -180,7 +180,7 @@ To set the driver parameters in this file, proceed as follows:
 1. Insert a line of the form :
    options sk98lin ...
    For "...", the same syntax is required as described for the command
-   line paramaters of modprobe below.
+   line parameters of modprobe below.
 2. To activate the new parameters, either reboot your computer
    or 
    unload and reload the driver.
@@ -320,7 +320,7 @@ Parameter:    Moderation
 Values:       None, Static, Dynamic
 Default:      None
 
-Interrupt moderation is employed to limit the maxmimum number of interrupts
+Interrupt moderation is employed to limit the maximum number of interrupts
 the driver has to serve. That is, one or more interrupts (which indicate any
 transmit or receive packet to be processed) are queued until the driver 
 processes them. When queued interrupts are to be served, is determined by the
@@ -346,7 +346,7 @@ Possible modes:
       depending on the load of the system. If the driver detects that the
       system load is too high, the driver tries to shield the system against 
       too much network load by enabling interrupt moderation. If - at a later
-      time - the CPU utilizaton decreases again (or if the network load is 
+      time - the CPU utilization decreases again (or if the network load is 
       negligible) the interrupt moderation will automatically be disabled.
 
 Interrupt moderation should be used when the driver has to handle one or more
@@ -364,9 +364,9 @@ Parameter:    IntsPerSec
 Values:       30...40000 (interrupts per second)
 Default:      2000
 
-This parameter is only used, if either static or dynamic interrupt moderation
-is used on a network adapter card. Using this paramter if no moderation is
-applied, will lead to no action performed.
+This parameter is only used if either static or dynamic interrupt moderation
+is used on a network adapter card. Using this parameter if no moderation is
+applied will lead to no action performed.
 
 This parameter determines the length of any interrupt moderation interval. 
 Assuming that static interrupt moderation is to be used, an 'IntsPerSec' 
@@ -484,7 +484,7 @@ If any problems occur during the installation process, check the
 following list:
 
 
-Problem:  The SK-98xx adapter can not be found by the driver.
+Problem:  The SK-98xx adapter cannot be found by the driver.
 Solution: In /proc/pci search for the following entry:
              'Ethernet controller: SysKonnect SK-98xx ...'
           If this entry exists, the SK-98xx or SK-98xx V2.0 adapter has 
@@ -497,12 +497,12 @@ Solution: In /proc/pci search for the following entry:
           www.syskonnect.com
           
           Some COMPAQ machines have problems dealing with PCI under Linux.
-          Linux. This problem is described in the 'PCI howto' document
+          This problem is described in the 'PCI howto' document
           (included in some distributions or available from the
           web, e.g. at 'www.linux.org'). 
 
 
-Problem:  Programs such as 'ifconfig' or 'route' can not be found or the 
+Problem:  Programs such as 'ifconfig' or 'route' cannot be found or the 
           error message 'Operation not permitted' is displayed.
 Reason:   You are not logged in as user 'root'.
 Solution: Logout and login as 'root' or change to 'root' via 'su'.

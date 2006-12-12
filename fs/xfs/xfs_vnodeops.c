@@ -1013,7 +1013,7 @@ xfs_readlink(
 	pathlen = (int)ip->i_d.di_size;
 
 	if (ip->i_df.if_flags & XFS_IFINLINE) {
-		error = uio_read(ip->i_df.if_u1.if_data, pathlen, uiop);
+		error = xfs_uio_read(ip->i_df.if_u1.if_data, pathlen, uiop);
 	}
 	else {
 		/*
@@ -1044,7 +1044,7 @@ xfs_readlink(
 				byte_cnt = pathlen;
 			pathlen -= byte_cnt;
 
-			error = uio_read(XFS_BUF_PTR(bp), byte_cnt, uiop);
+			error = xfs_uio_read(XFS_BUF_PTR(bp), byte_cnt, uiop);
 			xfs_buf_relse (bp);
 		}
 
@@ -2366,10 +2366,15 @@ xfs_remove(
 
 	namelen = VNAMELEN(dentry);
 
+	if (!xfs_get_dir_entry(dentry, &ip)) {
+	        dm_di_mode = ip->i_d.di_mode;
+		IRELE(ip);
+	}
+
 	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_REMOVE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE, dir_vp,
 					DM_RIGHT_NULL, NULL, DM_RIGHT_NULL,
-					name, NULL, 0, 0, 0);
+					name, NULL, dm_di_mode, 0, 0);
 		if (error)
 			return error;
 	}
@@ -2995,7 +3000,7 @@ xfs_rmdir(
 	int			cancel_flags;
 	int			committed;
 	bhv_vnode_t		*dir_vp;
-	int			dm_di_mode = 0;
+	int			dm_di_mode = S_IFDIR;
 	int			last_cdp_link;
 	int			namelen;
 	uint			resblks;
@@ -3010,11 +3015,16 @@ xfs_rmdir(
 		return XFS_ERROR(EIO);
 	namelen = VNAMELEN(dentry);
 
+	if (!xfs_get_dir_entry(dentry, &cdp)) {
+	        dm_di_mode = cdp->i_d.di_mode;
+		IRELE(cdp);
+	}
+
 	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_REMOVE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE,
 					dir_vp, DM_RIGHT_NULL,
 					NULL, DM_RIGHT_NULL,
-					name, NULL, 0, 0, 0);
+					name, NULL, dm_di_mode, 0, 0);
 		if (error)
 			return XFS_ERROR(error);
 	}
@@ -3817,11 +3827,16 @@ xfs_reclaim(
 	 */
 	xfs_synchronize_atime(ip);
 
-	/* If we have nothing to flush with this inode then complete the
-	 * teardown now, otherwise break the link between the xfs inode
-	 * and the linux inode and clean up the xfs inode later. This
-	 * avoids flushing the inode to disk during the delete operation
-	 * itself.
+	/*
+	 * If we have nothing to flush with this inode then complete the
+	 * teardown now, otherwise break the link between the xfs inode and the
+	 * linux inode and clean up the xfs inode later. This avoids flushing
+	 * the inode to disk during the delete operation itself.
+	 *
+	 * When breaking the link, we need to set the XFS_IRECLAIMABLE flag
+	 * first to ensure that xfs_iunpin() will never see an xfs inode
+	 * that has a linux inode being reclaimed. Synchronisation is provided
+	 * by the i_flags_lock.
 	 */
 	if (!ip->i_update_core && (ip->i_itemp == NULL)) {
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -3830,11 +3845,13 @@ xfs_reclaim(
 	} else {
 		xfs_mount_t	*mp = ip->i_mount;
 
-		/* Protect sync from us */
+		/* Protect sync and unpin from us */
 		XFS_MOUNT_ILOCK(mp);
+		spin_lock(&ip->i_flags_lock);
+		__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
 		vn_bhv_remove(VN_BHV_HEAD(vp), XFS_ITOBHV(ip));
+		spin_unlock(&ip->i_flags_lock);
 		list_add_tail(&ip->i_reclaim, &mp->m_del_inodes);
-		ip->i_flags |= XFS_IRECLAIMABLE;
 		XFS_MOUNT_IUNLOCK(mp);
 	}
 	return 0;
@@ -3859,8 +3876,10 @@ xfs_finish_reclaim(
 	 * us.
 	 */
 	write_lock(&ih->ih_lock);
-	if ((ip->i_flags & XFS_IRECLAIM) ||
-	    (!(ip->i_flags & XFS_IRECLAIMABLE) && vp == NULL)) {
+	spin_lock(&ip->i_flags_lock);
+	if (__xfs_iflags_test(ip, XFS_IRECLAIM) ||
+	    (!__xfs_iflags_test(ip, XFS_IRECLAIMABLE) && vp == NULL)) {
+		spin_unlock(&ip->i_flags_lock);
 		write_unlock(&ih->ih_lock);
 		if (locked) {
 			xfs_ifunlock(ip);
@@ -3868,7 +3887,8 @@ xfs_finish_reclaim(
 		}
 		return 1;
 	}
-	ip->i_flags |= XFS_IRECLAIM;
+	__xfs_iflags_set(ip, XFS_IRECLAIM);
+	spin_unlock(&ip->i_flags_lock);
 	write_unlock(&ih->ih_lock);
 
 	/*
@@ -4272,7 +4292,7 @@ xfs_free_file_space(
 	xfs_mount_t		*mp;
 	int			nimap;
 	uint			resblks;
-	int			rounding;
+	uint			rounding;
 	int			rt;
 	xfs_fileoff_t		startoffset_fsb;
 	xfs_trans_t		*tp;
@@ -4313,8 +4333,7 @@ xfs_free_file_space(
 		vn_iowait(vp);	/* wait for the completion of any pending DIOs */
 	}
 
-	rounding = MAX((__uint8_t)(1 << mp->m_sb.sb_blocklog),
-			(__uint8_t)NBPP);
+	rounding = max_t(uint, 1 << mp->m_sb.sb_blocklog, NBPP);
 	ilen = len + (offset & (rounding - 1));
 	ioffset = offset & ~(rounding - 1);
 	if (ilen & (rounding - 1))

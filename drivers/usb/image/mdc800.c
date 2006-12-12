@@ -280,7 +280,7 @@ static int mdc800_isReady (char *ch)
 /*
  * USB IRQ Handler for InputLine
  */
-static void mdc800_usb_irq (struct urb *urb, struct pt_regs *res)
+static void mdc800_usb_irq (struct urb *urb)
 {
 	int data_received=0, wake_up;
 	unsigned char* b=urb->transfer_buffer;
@@ -374,7 +374,7 @@ static int mdc800_usb_waitForIRQ (int mode, int msec)
 /*
  * The write_urb callback function
  */
-static void mdc800_usb_write_notify (struct urb *urb, struct pt_regs *res)
+static void mdc800_usb_write_notify (struct urb *urb)
 {
 	struct mdc800_data* mdc800=urb->context;
 
@@ -394,7 +394,7 @@ static void mdc800_usb_write_notify (struct urb *urb, struct pt_regs *res)
 /*
  * The download_urb callback function
  */
-static void mdc800_usb_download_notify (struct urb *urb, struct pt_regs *res)
+static void mdc800_usb_download_notify (struct urb *urb)
 {
 	struct mdc800_data* mdc800=urb->context;
 
@@ -424,7 +424,7 @@ static void mdc800_usb_download_notify (struct urb *urb, struct pt_regs *res)
  ***************************************************************************/
 
 static struct usb_driver mdc800_usb_driver;
-static struct file_operations mdc800_device_ops;
+static const struct file_operations mdc800_device_ops;
 static struct usb_class_driver mdc800_class = {
 	.name =		"mdc800%d",
 	.fops =		&mdc800_device_ops,
@@ -941,7 +941,7 @@ static ssize_t mdc800_device_write (struct file *file, const char __user *buf, s
 ****************************************************************************/
 
 /* File Operations of this drivers */
-static struct file_operations mdc800_device_ops =
+static const struct file_operations mdc800_device_ops =
 {
 	.owner =	THIS_MODULE,
 	.read =		mdc800_device_read,

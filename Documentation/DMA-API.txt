@@ -77,7 +77,7 @@ To get this part of the dma_ API, you must #include <linux/dmapool.h>
 Many drivers need lots of small dma-coherent memory regions for DMA
 descriptors or I/O buffers.  Rather than allocating in units of a page
 or more using dma_alloc_coherent(), you can use DMA pools.  These work
-much like a kmem_cache_t, except that they use the dma-coherent allocator
+much like a struct kmem_cache, except that they use the dma-coherent allocator
 not __get_free_pages().  Also, they understand common hardware constraints
 for alignment, like queue heads needing to be aligned on N byte boundaries.
 
@@ -94,7 +94,7 @@ The pool create() routines initialize a pool of dma-coherent buffers
 for use with a given device.  It must be called in a context which
 can sleep.
 
-The "name" is for diagnostics (like a kmem_cache_t name); dev and size
+The "name" is for diagnostics (like a struct kmem_cache name); dev and size
 are like what you'd pass to dma_alloc_coherent().  The device's hardware
 alignment requirement for this type of data is "align" (which is expressed
 in bytes, and must be a power of two).  If your device has no boundary
@@ -431,10 +431,10 @@ be identical to those passed in (and returned by
 dma_alloc_noncoherent()).
 
 int
-dma_is_consistent(dma_addr_t dma_handle)
+dma_is_consistent(struct device *dev, dma_addr_t dma_handle)
 
-returns true if the memory pointed to by the dma_handle is actually
-consistent.
+returns true if the device dev is performing consistent DMA on the memory
+area pointed to by the dma_handle.
 
 int
 dma_get_cache_alignment(void)
@@ -459,7 +459,7 @@ anything like this.  You must also be extra careful about accessing
 memory you intend to sync partially.
 
 void
-dma_cache_sync(void *vaddr, size_t size,
+dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction)
 
 Do a partial sync of memory that was allocated by
@@ -489,7 +489,7 @@ size is the size of the area (must be multiples of PAGE_SIZE).
 flags can be or'd together and are
 
 DMA_MEMORY_MAP - request that the memory returned from
-dma_alloc_coherent() be directly writeable.
+dma_alloc_coherent() be directly writable.
 
 DMA_MEMORY_IO - request that the memory returned from
 dma_alloc_coherent() be addressable using read/write/memcpy_toio etc.

@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/boards/systemh/setup.c
+ * linux/arch/sh/boards/renesas/systemh/setup.c
  *
  * Copyright (C) 2000  Kazumoto Kojima
  * Copyright (C) 2003  Paul Mundt
@@ -15,28 +15,21 @@
  * for more details.
  */
 #include <linux/init.h>
-#include <asm/mach/7751systemh.h>
-#include <asm/mach/io.h>
 #include <asm/machvec.h>
+#include <asm/systemh7751.h>
 
 extern void make_systemh_irq(unsigned int irq);
-
-const char *get_system_type(void)
-{
-	return "7751 SystemH";
-}
 
 /*
  * Initialize IRQ setting
  */
-void __init init_7751systemh_IRQ(void)
+static void __init sh7751systemh_init_irq(void)
 {
-/*  	make_ipr_irq(10, BCR_ILCRD, 1, 0x0f-10); LAN */
-/*  	make_ipr_irq(14, BCR_ILCRA, 2, 0x0f-4); */
 	make_systemh_irq(0xb);	/* Ethernet interrupt */
 }
 
 struct sh_machine_vector mv_7751systemh __initmv = {
+	.mv_name		= "7751 SystemH",
 	.mv_nr_irqs		= 72,
 
 	.mv_inb			= sh7751systemh_inb,
@@ -60,21 +53,6 @@ struct sh_machine_vector mv_7751systemh __initmv = {
 	.mv_outsw		= sh7751systemh_outsw,
 	.mv_outsl		= sh7751systemh_outsl,
 
-	.mv_readb		= sh7751systemh_readb,
-	.mv_readw		= sh7751systemh_readw,
-	.mv_readl		= sh7751systemh_readl,
-	.mv_writeb		= sh7751systemh_writeb,
-	.mv_writew		= sh7751systemh_writew,
-	.mv_writel		= sh7751systemh_writel,
-
-	.mv_isa_port2addr	= sh7751systemh_isa_port2addr,
-
-	.mv_init_irq		= init_7751systemh_IRQ,
+	.mv_init_irq		= sh7751systemh_init_irq,
 };
 ALIAS_MV(7751systemh)
-
-int __init platform_setup(void)
-{
-	return 0;
-}
-

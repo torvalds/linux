@@ -100,7 +100,6 @@ static struct i2c_algo_bit_data vp3054_i2c_algo_template = {
 	.getsda  = vp3054_bit_getsda,
 	.getscl  = vp3054_bit_getscl,
 	.udelay  = 16,
-	.mdelay  = 10,
 	.timeout = 200,
 };
 
@@ -169,7 +168,7 @@ void vp3054_i2c_remove(struct cx8802_dev *dev)
 	    dev->core->board != CX88_BOARD_DNTV_LIVE_DVB_T_PRO)
 		return;
 
-	i2c_bit_del_bus(&vp3054_i2c->adap);
+	i2c_del_adapter(&vp3054_i2c->adap);
 	kfree(vp3054_i2c);
 }
 

@@ -331,7 +331,7 @@ static int CS_SetFormat(int format);
 static int CS_SetVolume(int volume);
 static void cs4218_tdm_tx_intr(void *devid);
 static void cs4218_tdm_rx_intr(void *devid);
-static void cs4218_intr(void *devid, struct pt_regs *regs);
+static void cs4218_intr(void *devid);
 static int cs_get_volume(uint reg);
 static int cs_volume_setter(int volume, int mute);
 static int cs_get_gain(uint reg);
@@ -2165,7 +2165,7 @@ static int sq_release(struct inode *inode, struct file *file)
 	int rc = 0;
 
 	if (sq.busy)
-		rc = sq_fsync(file, file->f_dentry);
+		rc = sq_fsync(file, file->f_path.dentry);
 	sound.soft = sound.dsp;
 	sound.hard = sound.dsp;
 	sound_silence();
@@ -2218,25 +2218,25 @@ static int sq_ioctl(struct inode *inode, struct file *file, u_int cmd,
 		return 0;
 	case SNDCTL_DSP_POST:
 	case SNDCTL_DSP_SYNC:
-		return sq_fsync(file, file->f_dentry);
+		return sq_fsync(file, file->f_path.dentry);
 
 		/* ++TeSche: before changing any of these it's
 		 * probably wise to wait until sound playing has
 		 * settled down. */
 	case SNDCTL_DSP_SPEED:
-		sq_fsync(file, file->f_dentry);
+		sq_fsync(file, file->f_path.dentry);
 		IOCTL_IN(arg, data);
 		return IOCTL_OUT(arg, sound_set_speed(data));
 	case SNDCTL_DSP_STEREO:
-		sq_fsync(file, file->f_dentry);
+		sq_fsync(file, file->f_path.dentry);
 		IOCTL_IN(arg, data);
 		return IOCTL_OUT(arg, sound_set_stereo(data));
 	case SOUND_PCM_WRITE_CHANNELS:
-		sq_fsync(file, file->f_dentry);
+		sq_fsync(file, file->f_path.dentry);
 		IOCTL_IN(arg, data);
 		return IOCTL_OUT(arg, sound_set_stereo(data-1)+1);
 	case SNDCTL_DSP_SETFMT:
-		sq_fsync(file, file->f_dentry);
+		sq_fsync(file, file->f_path.dentry);
 		IOCTL_IN(arg, data);
 		return IOCTL_OUT(arg, sound_set_format(data));
 	case SNDCTL_DSP_GETFMTS:
@@ -2646,7 +2646,7 @@ int __init tdm8xx_sound_init(void)
  * full duplex operation.
  */
 static void
-cs4218_intr(void *dev_id, struct pt_regs *regs)
+cs4218_intr(void *dev_id)
 {
 	volatile smc_t	*sp;
 	volatile cpm8xx_t	*cp;

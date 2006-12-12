@@ -9,6 +9,7 @@
 #include <linux/seq_file.h>
 #include <linux/hash.h>
 #include <linux/string.h>
+#include <net/sock.h>
 
 #define RPCDBG_FACILITY	RPCDBG_AUTH
 
@@ -100,9 +101,9 @@ static void ip_map_put(struct kref *kref)
  * IP addresses in reverse-endian (i.e. on a little-endian machine).
  * So use a trivial but reliable hash instead
  */
-static inline int hash_ip(unsigned long ip)
+static inline int hash_ip(__be32 ip)
 {
-	int hash = ip ^ (ip>>16);
+	int hash = (__force u32)ip ^ ((__force u32)ip>>16);
 	return (hash ^ (hash>>8)) & 0xff;
 }
 #endif
@@ -145,7 +146,7 @@ static void ip_map_request(struct cache_detail *cd,
 {
 	char text_addr[20];
 	struct ip_map *im = container_of(h, struct ip_map, h);
-	__u32 addr = im->m_addr.s_addr;
+	__be32 addr = im->m_addr.s_addr;
 	
 	snprintf(text_addr, 20, "%u.%u.%u.%u",
 		 ntohl(addr) >> 24 & 0xff,
@@ -249,10 +250,10 @@ static int ip_map_show(struct seq_file *m,
 
 	seq_printf(m, "%s %d.%d.%d.%d %s\n",
 		   im->m_class,
-		   htonl(addr.s_addr) >> 24 & 0xff,
-		   htonl(addr.s_addr) >> 16 & 0xff,
-		   htonl(addr.s_addr) >>  8 & 0xff,
-		   htonl(addr.s_addr) >>  0 & 0xff,
+		   ntohl(addr.s_addr) >> 24 & 0xff,
+		   ntohl(addr.s_addr) >> 16 & 0xff,
+		   ntohl(addr.s_addr) >>  8 & 0xff,
+		   ntohl(addr.s_addr) >>  0 & 0xff,
 		   dom
 		   );
 	return 0;
@@ -283,7 +284,7 @@ static struct ip_map *ip_map_lookup(char *class, struct in_addr addr)
 	ip.m_addr = addr;
 	ch = sunrpc_cache_lookup(&ip_map_cache, &ip.h,
 				 hash_str(class, IP_HASHBITS) ^
-				 hash_ip((unsigned long)addr.s_addr));
+				 hash_ip(addr.s_addr));
 
 	if (ch)
 		return container_of(ch, struct ip_map, h);
@@ -312,7 +313,7 @@ static int ip_map_update(struct ip_map *ipm, struct unix_domain *udom, time_t ex
 	ch = sunrpc_cache_update(&ip_map_cache,
 				 &ip.h, &ipm->h,
 				 hash_str(ipm->m_class, IP_HASHBITS) ^
-				 hash_ip((unsigned long)ipm->m_addr.s_addr));
+				 hash_ip(ipm->m_addr.s_addr));
 	if (!ch)
 		return -ENOMEM;
 	cache_put(ch, &ip_map_cache);
@@ -348,11 +349,8 @@ int auth_unix_forget_old(struct auth_domain *dom)
 
 struct auth_domain *auth_unix_lookup(struct in_addr addr)
 {
-	struct ip_map key, *ipm;
+	struct ip_map *ipm;
 	struct auth_domain *rv;
-
-	strcpy(key.m_class, "nfsd");
-	key.m_addr = addr;
 
 	ipm = ip_map_lookup("nfsd", addr);
 
@@ -378,6 +376,44 @@ void svcauth_unix_purge(void)
 	cache_purge(&ip_map_cache);
 }
 
+static inline struct ip_map *
+ip_map_cached_get(struct svc_rqst *rqstp)
+{
+	struct ip_map *ipm = rqstp->rq_sock->sk_info_authunix;
+	if (ipm != NULL) {
+		if (!cache_valid(&ipm->h)) {
+			/*
+			 * The entry has been invalidated since it was
+			 * remembered, e.g. by a second mount from the
+			 * same IP address.
+			 */
+			rqstp->rq_sock->sk_info_authunix = NULL;
+			cache_put(&ipm->h, &ip_map_cache);
+			return NULL;
+		}
+		cache_get(&ipm->h);
+	}
+	return ipm;
+}
+
+static inline void
+ip_map_cached_put(struct svc_rqst *rqstp, struct ip_map *ipm)
+{
+	struct svc_sock *svsk = rqstp->rq_sock;
+
+	if (svsk->sk_sock->type == SOCK_STREAM && svsk->sk_info_authunix == NULL)
+		svsk->sk_info_authunix = ipm;	/* newly cached, keep the reference */
+	else
+		cache_put(&ipm->h, &ip_map_cache);
+}
+
+void
+svcauth_unix_info_release(void *info)
+{
+	struct ip_map *ipm = info;
+	cache_put(&ipm->h, &ip_map_cache);
+}
+
 static int
 svcauth_unix_set_client(struct svc_rqst *rqstp)
 {
@@ -387,8 +423,10 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 	if (rqstp->rq_proc == 0)
 		return SVC_OK;
 
-	ipm = ip_map_lookup(rqstp->rq_server->sv_program->pg_class,
-			    rqstp->rq_addr.sin_addr);
+	ipm = ip_map_cached_get(rqstp);
+	if (ipm == NULL)
+		ipm = ip_map_lookup(rqstp->rq_server->sv_program->pg_class,
+				    rqstp->rq_addr.sin_addr);
 
 	if (ipm == NULL)
 		return SVC_DENIED;
@@ -403,14 +441,14 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 		case 0:
 			rqstp->rq_client = &ipm->m_client->h;
 			kref_get(&rqstp->rq_client->ref);
-			cache_put(&ipm->h, &ip_map_cache);
+			ip_map_cached_put(rqstp, ipm);
 			break;
 	}
 	return SVC_OK;
 }
 
 static int
-svcauth_null_accept(struct svc_rqst *rqstp, u32 *authp)
+svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 {
 	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
@@ -427,7 +465,7 @@ svcauth_null_accept(struct svc_rqst *rqstp, u32 *authp)
 		*authp = rpc_autherr_badcred;
 		return SVC_DENIED;
 	}
-	if (svc_getu32(argv) != RPC_AUTH_NULL || svc_getu32(argv) != 0) {
+	if (svc_getu32(argv) != htonl(RPC_AUTH_NULL) || svc_getu32(argv) != 0) {
 		dprintk("svc: bad null verf\n");
 		*authp = rpc_autherr_badverf;
 		return SVC_DENIED;
@@ -441,8 +479,8 @@ svcauth_null_accept(struct svc_rqst *rqstp, u32 *authp)
 		return SVC_DROP; /* kmalloc failure - client must retry */
 
 	/* Put NULL verifier */
-	svc_putu32(resv, RPC_AUTH_NULL);
-	svc_putu32(resv, 0);
+	svc_putnl(resv, RPC_AUTH_NULL);
+	svc_putnl(resv, 0);
 
 	return SVC_OK;
 }
@@ -472,7 +510,7 @@ struct auth_ops svcauth_null = {
 
 
 static int
-svcauth_unix_accept(struct svc_rqst *rqstp, u32 *authp)
+svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 {
 	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
@@ -488,31 +526,31 @@ svcauth_unix_accept(struct svc_rqst *rqstp, u32 *authp)
 
 	svc_getu32(argv);			/* length */
 	svc_getu32(argv);			/* time stamp */
-	slen = XDR_QUADLEN(ntohl(svc_getu32(argv)));	/* machname length */
+	slen = XDR_QUADLEN(svc_getnl(argv));	/* machname length */
 	if (slen > 64 || (len -= (slen + 3)*4) < 0)
 		goto badcred;
-	argv->iov_base = (void*)((u32*)argv->iov_base + slen);	/* skip machname */
+	argv->iov_base = (void*)((__be32*)argv->iov_base + slen);	/* skip machname */
 	argv->iov_len -= slen*4;
 
-	cred->cr_uid = ntohl(svc_getu32(argv));		/* uid */
-	cred->cr_gid = ntohl(svc_getu32(argv));		/* gid */
-	slen = ntohl(svc_getu32(argv));			/* gids length */
+	cred->cr_uid = svc_getnl(argv);		/* uid */
+	cred->cr_gid = svc_getnl(argv);		/* gid */
+	slen = svc_getnl(argv);			/* gids length */
 	if (slen > 16 || (len -= (slen + 2)*4) < 0)
 		goto badcred;
 	cred->cr_group_info = groups_alloc(slen);
 	if (cred->cr_group_info == NULL)
 		return SVC_DROP;
 	for (i = 0; i < slen; i++)
-		GROUP_AT(cred->cr_group_info, i) = ntohl(svc_getu32(argv));
+		GROUP_AT(cred->cr_group_info, i) = svc_getnl(argv);
 
-	if (svc_getu32(argv) != RPC_AUTH_NULL || svc_getu32(argv) != 0) {
+	if (svc_getu32(argv) != htonl(RPC_AUTH_NULL) || svc_getu32(argv) != 0) {
 		*authp = rpc_autherr_badverf;
 		return SVC_DENIED;
 	}
 
 	/* Put NULL verifier */
-	svc_putu32(resv, RPC_AUTH_NULL);
-	svc_putu32(resv, 0);
+	svc_putnl(resv, RPC_AUTH_NULL);
+	svc_putnl(resv, 0);
 
 	return SVC_OK;
 

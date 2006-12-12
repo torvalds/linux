@@ -1,5 +1,5 @@
 /*
- * linux/drivers/leds/locomo.c
+ * linux/drivers/leds/leds-locomo.c
  *
  * Copyright (C) 2005 John Lenz <lenz@cs.wisc.edu>
  *

@@ -1,16 +1,19 @@
-Intel 830M/845G/852GM/855GM/865G/915G Framebuffer driver
+Intel 830M/845G/852GM/855GM/865G/915G/945G Framebuffer driver
 ================================================================
 
 A. Introduction
-	This is a framebuffer driver for various Intel 810/815 compatible
+	This is a framebuffer driver for various Intel 8xx/9xx compatible
 graphics devices.  These would include:
 
 	Intel 830M
-	Intel 810E845G
+	Intel 845G
 	Intel 852GM
 	Intel 855GM
 	Intel 865G
 	Intel 915G
+	Intel 915GM
+	Intel 945G
+	Intel 945GM
 
 B.  List of available options
 
@@ -78,18 +81,26 @@ C. Kernel booting
 Separate each option/option-pair by commas (,) and the option from its value
 with an equals sign (=) as in the following:
 
-video=i810fb:option1,option2=value2
+video=intelfb:option1,option2=value2
 
 Sample Usage
 ------------
 
 In /etc/lilo.conf, add the line:
 
-append="video=intelfb:800x600-32@75,accel,hwcursor,vram=8"
+append="video=intelfb:mode=800x600-32@75,accel,hwcursor,vram=8"
 
 This will initialize the framebuffer to 800x600 at 32bpp and 75Hz. The
 framebuffer will use 8 MB of System RAM. hw acceleration of text and cursor
 will be enabled.
+
+Remarks
+-------
+
+If setting this parameter doesn't work (you stay in a 80x25 text-mode),
+you might need to set the "vga=<mode>" parameter too - see vesafb.txt
+in this directory.
+
 
 D.  Module options
 

@@ -71,8 +71,7 @@ static struct irq_chip mainstone_irq_chip = {
 	.unmask		= mainstone_unmask_irq,
 };
 
-static void mainstone_irq_handler(unsigned int irq, struct irqdesc *desc,
-				  struct pt_regs *regs)
+static void mainstone_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long pending = MST_INTSETCLR & mainstone_irq_enabled;
 	do {
@@ -80,7 +79,7 @@ static void mainstone_irq_handler(unsigned int irq, struct irqdesc *desc,
 		if (likely(pending)) {
 			irq = MAINSTONE_IRQ(0) + __ffs(pending);
 			desc = irq_desc + irq;
-			desc_handle_irq(irq, desc, regs);
+			desc_handle_irq(irq, desc);
 		}
 		pending = MST_INTSETCLR & mainstone_irq_enabled;
 	} while (pending);
@@ -95,7 +94,7 @@ static void __init mainstone_init_irq(void)
 	/* setup extra Mainstone irqs */
 	for(irq = MAINSTONE_IRQ(0); irq <= MAINSTONE_IRQ(15); irq++) {
 		set_irq_chip(irq, &mainstone_irq_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		if (irq == MAINSTONE_IRQ(10) || irq == MAINSTONE_IRQ(14))
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE | IRQF_NOAUTOEN);
 		else
@@ -279,7 +278,7 @@ static void mainstone_backlight_power(int on)
 	}
 }
 
-static struct pxafb_mach_info toshiba_ltm04c380k __initdata = {
+static struct pxafb_mode_info toshiba_ltm04c380k_mode = {
 	.pixclock		= 50000,
 	.xres			= 640,
 	.yres			= 480,
@@ -291,12 +290,9 @@ static struct pxafb_mach_info toshiba_ltm04c380k __initdata = {
 	.upper_margin		= 0,
 	.lower_margin		= 0,
 	.sync			= FB_SYNC_HOR_HIGH_ACT|FB_SYNC_VERT_HIGH_ACT,
-	.lccr0			= LCCR0_Act,
-	.lccr3			= LCCR3_PCP,
-	.pxafb_backlight_power	= mainstone_backlight_power,
 };
 
-static struct pxafb_mach_info toshiba_ltm035a776c __initdata = {
+static struct pxafb_mode_info toshiba_ltm035a776c_mode = {
 	.pixclock		= 110000,
 	.xres			= 240,
 	.yres			= 320,
@@ -308,12 +304,16 @@ static struct pxafb_mach_info toshiba_ltm035a776c __initdata = {
 	.upper_margin		= 1,
 	.lower_margin		= 10,
 	.sync			= FB_SYNC_HOR_HIGH_ACT|FB_SYNC_VERT_HIGH_ACT,
+};
+
+static struct pxafb_mach_info mainstone_pxafb_info = {
+	.num_modes      	= 1,
 	.lccr0			= LCCR0_Act,
 	.lccr3			= LCCR3_PCP,
 	.pxafb_backlight_power	= mainstone_backlight_power,
 };
 
-static int mainstone_mci_init(struct device *dev, irqreturn_t (*mstone_detect_int)(int, void *, struct pt_regs *), void *data)
+static int mainstone_mci_init(struct device *dev, irq_handler_t mstone_detect_int, void *data)
 {
 	int err;
 
@@ -448,9 +448,11 @@ static void __init mainstone_init(void)
 	/* reading Mainstone's "Virtual Configuration Register"
 	   might be handy to select LCD type here */
 	if (0)
-		set_pxa_fb_info(&toshiba_ltm04c380k);
+		mainstone_pxafb_info.modes = &toshiba_ltm04c380k_mode;
 	else
-		set_pxa_fb_info(&toshiba_ltm035a776c);
+		mainstone_pxafb_info.modes = &toshiba_ltm035a776c_mode;
+
+	set_pxa_fb_info(&mainstone_pxafb_info);
 
 	pxa_set_mci_info(&mainstone_mci_platform_data);
 	pxa_set_ficp_info(&mainstone_ficp_platform_data);

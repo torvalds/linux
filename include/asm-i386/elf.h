@@ -91,7 +91,7 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 	pr_reg[7] = regs->xds;				\
 	pr_reg[8] = regs->xes;				\
 	savesegment(fs,pr_reg[9]);			\
-	savesegment(gs,pr_reg[10]);			\
+	pr_reg[10] = regs->xgs;				\
 	pr_reg[11] = regs->orig_eax;			\
 	pr_reg[12] = regs->eip;				\
 	pr_reg[13] = regs->xcs;				\
@@ -112,7 +112,7 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
    For the moment, we have only optimizations for the Intel generations,
    but that could change... */
 
-#define ELF_PLATFORM  (system_utsname.machine)
+#define ELF_PLATFORM  (utsname()->machine)
 
 #define SET_PERSONALITY(ex, ibcs2) do { } while (0)
 

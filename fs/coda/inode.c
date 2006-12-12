@@ -38,12 +38,12 @@ static void coda_clear_inode(struct inode *);
 static void coda_put_super(struct super_block *);
 static int coda_statfs(struct dentry *dentry, struct kstatfs *buf);
 
-static kmem_cache_t * coda_inode_cachep;
+static struct kmem_cache * coda_inode_cachep;
 
 static struct inode *coda_alloc_inode(struct super_block *sb)
 {
 	struct coda_inode_info *ei;
-	ei = (struct coda_inode_info *)kmem_cache_alloc(coda_inode_cachep, SLAB_KERNEL);
+	ei = (struct coda_inode_info *)kmem_cache_alloc(coda_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	memset(&ei->c_fid, 0, sizeof(struct CodaFid));
@@ -58,7 +58,7 @@ static void coda_destroy_inode(struct inode *inode)
 	kmem_cache_free(coda_inode_cachep, ITOC(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct coda_inode_info *ei = (struct coda_inode_info *) foo;
 
@@ -80,8 +80,7 @@ int coda_init_inodecache(void)
 
 void coda_destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(coda_inode_cachep))
-		printk(KERN_INFO "coda_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(coda_inode_cachep);
 }
 
 static int coda_remount(struct super_block *sb, int *flags, char *data)
@@ -120,7 +119,7 @@ static int get_device_index(struct coda_mount_data *data)
 	file = fget(data->fd);
 	inode = NULL;
 	if(file)
-		inode = file->f_dentry->d_inode;
+		inode = file->f_path.dentry->d_inode;
 	
 	if(!inode || !S_ISCHR(inode->i_mode) ||
 	   imajor(inode) != CODA_PSDEV_MAJOR) {

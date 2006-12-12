@@ -71,7 +71,7 @@ xfs_page_trace(
 	int		tag,
 	struct inode	*inode,
 	struct page	*page,
-	int		mask)
+	unsigned long	pgoff)
 {
 	xfs_inode_t	*ip;
 	bhv_vnode_t	*vp = vn_from_inode(inode);
@@ -91,7 +91,7 @@ xfs_page_trace(
 		(void *)ip,
 		(void *)inode,
 		(void *)page,
-		(void *)((unsigned long)mask),
+		(void *)pgoff,
 		(void *)((unsigned long)((ip->i_d.di_size >> 32) & 0xffffffff)),
 		(void *)((unsigned long)(ip->i_d.di_size & 0xffffffff)),
 		(void *)((unsigned long)((isize >> 32) & 0xffffffff)),
@@ -105,7 +105,7 @@ xfs_page_trace(
 		(void *)NULL);
 }
 #else
-#define xfs_page_trace(tag, inode, page, mask)
+#define xfs_page_trace(tag, inode, page, pgoff)
 #endif
 
 /*
@@ -149,9 +149,10 @@ xfs_destroy_ioend(
  */
 STATIC void
 xfs_end_bio_delalloc(
-	void			*data)
+	struct work_struct	*work)
 {
-	xfs_ioend_t		*ioend = data;
+	xfs_ioend_t		*ioend =
+		container_of(work, xfs_ioend_t, io_work);
 
 	xfs_destroy_ioend(ioend);
 }
@@ -161,9 +162,10 @@ xfs_end_bio_delalloc(
  */
 STATIC void
 xfs_end_bio_written(
-	void			*data)
+	struct work_struct	*work)
 {
-	xfs_ioend_t		*ioend = data;
+	xfs_ioend_t		*ioend =
+		container_of(work, xfs_ioend_t, io_work);
 
 	xfs_destroy_ioend(ioend);
 }
@@ -176,9 +178,10 @@ xfs_end_bio_written(
  */
 STATIC void
 xfs_end_bio_unwritten(
-	void			*data)
+	struct work_struct	*work)
 {
-	xfs_ioend_t		*ioend = data;
+	xfs_ioend_t		*ioend =
+		container_of(work, xfs_ioend_t, io_work);
 	bhv_vnode_t		*vp = ioend->io_vnode;
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
@@ -220,11 +223,11 @@ xfs_alloc_ioend(
 	ioend->io_size = 0;
 
 	if (type == IOMAP_UNWRITTEN)
-		INIT_WORK(&ioend->io_work, xfs_end_bio_unwritten, ioend);
+		INIT_WORK(&ioend->io_work, xfs_end_bio_unwritten);
 	else if (type == IOMAP_DELAY)
-		INIT_WORK(&ioend->io_work, xfs_end_bio_delalloc, ioend);
+		INIT_WORK(&ioend->io_work, xfs_end_bio_delalloc);
 	else
-		INIT_WORK(&ioend->io_work, xfs_end_bio_written, ioend);
+		INIT_WORK(&ioend->io_work, xfs_end_bio_written);
 
 	return ioend;
 }
@@ -1197,7 +1200,7 @@ xfs_vm_releasepage(
 		.nr_to_write = 1,
 	};
 
-	xfs_page_trace(XFS_RELEASEPAGE_ENTER, inode, page, gfp_mask);
+	xfs_page_trace(XFS_RELEASEPAGE_ENTER, inode, page, 0);
 
 	if (!page_has_buffers(page))
 		return 0;
@@ -1356,7 +1359,6 @@ xfs_end_io_direct(
 		ioend->io_size = size;
 		xfs_finish_ioend(ioend);
 	} else {
-		ASSERT(size >= 0);
 		xfs_destroy_ioend(ioend);
 	}
 
@@ -1404,7 +1406,7 @@ xfs_vm_direct_IO(
 			xfs_end_io_direct);
 	}
 
-	if (unlikely(ret <= 0 && iocb->private))
+	if (unlikely(ret != -EIOCBQUEUED && iocb->private))
 		xfs_destroy_ioend(iocb->private);
 	return ret;
 }

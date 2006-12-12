@@ -177,27 +177,19 @@ struct pxa2xx_udc {
 
 static struct pxa2xx_udc *the_controller;
 
-/* one GPIO should be used to detect VBUS from the host */
-static inline int is_vbus_present(void)
+static inline int pxa_gpio_get(unsigned gpio)
 {
-	if (!the_controller->mach->udc_is_connected)
-		return 1;
-	return the_controller->mach->udc_is_connected();
+	return (GPLR(gpio) & GPIO_bit(gpio)) != 0;
 }
 
-/* one GPIO should control a D+ pullup, so host sees this device (or not) */
-static inline void pullup_off(void)
+static inline void pxa_gpio_set(unsigned gpio, int is_on)
 {
-	if (!the_controller->mach->udc_command)
-		return;
-	the_controller->mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
-}
+	int mask = GPIO_bit(gpio);
 
-static inline void pullup_on(void)
-{
-	if (!the_controller->mach->udc_command)
-		return;
-	the_controller->mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
+	if (is_on)
+		GPSR(gpio) = mask;
+	else
+		GPCR(gpio) = mask;
 }
 
 /*-------------------------------------------------------------------------*/

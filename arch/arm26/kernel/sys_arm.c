@@ -283,7 +283,7 @@ out:
 }
 
 /* FIXME - see if this is correct for arm26 */
-long execve(const char *filename, char **argv, char **envp)
+int kernel_execve(const char *filename, char *const argv[], char *const envp[])
 {
 	struct pt_regs regs;
         int ret;
@@ -320,4 +320,4 @@ long execve(const char *filename, char **argv, char **envp)
         return ret;
 }
 
-EXPORT_SYMBOL(execve);
+EXPORT_SYMBOL(kernel_execve);

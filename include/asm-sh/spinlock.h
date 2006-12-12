@@ -88,7 +88,14 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 	__raw_spin_unlock(&rw->lock);
 }
 
-#define __raw_read_trylock(lock) generic__raw_read_trylock(lock)
+static inline int __raw_read_trylock(raw_rwlock_t *lock)
+{
+	atomic_t *count = (atomic_t*)lock;
+	if (atomic_dec_return(count) >= 0)
+		return 1;
+	atomic_inc(count);
+	return 0;
+}
 
 static inline int __raw_write_trylock(raw_rwlock_t *rw)
 {
@@ -99,5 +106,9 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 
 	return 0;
 }
+
+#define _raw_spin_relax(lock)	cpu_relax()
+#define _raw_read_relax(lock)	cpu_relax()
+#define _raw_write_relax(lock)	cpu_relax()
 
 #endif /* __ASM_SH_SPINLOCK_H */

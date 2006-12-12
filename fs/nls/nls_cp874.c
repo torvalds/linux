@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp874.c
+ * linux/fs/nls/nls_cp874.c
  *
  * Charset cp874 translation tables.
  * Generated automatically from the Unicode and charset

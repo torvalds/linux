@@ -1,0 +1,54 @@
+menu "PS3 Platform Options"
+	depends on PPC_PS3
+
+config PS3_HTAB_SIZE
+	depends on PPC_PS3
+	int "PS3 Platform pagetable size"
+	range 18 20
+	default 20
+	help
+	  This option is only for experts who may have the desire to fine
+	  tune the pagetable size on their system.  The value here is
+	  expressed as the log2 of the page table size.  Valid values are
+	  18, 19, and 20, corresponding to 256KB, 512KB and 1MB respectively.
+
+	  If unsure, choose the default (20) with the confidence that your
+	  system will have optimal runtime performance.
+
+config PS3_DYNAMIC_DMA
+	depends on PPC_PS3 && EXPERIMENTAL
+	bool "PS3 Platform dynamic DMA page table management"
+	default n
+	help
+	  This option will enable kernel support to take advantage of the
+	  per device dynamic DMA page table management provided by the Cell
+	  processor's IO Controller.  This support incurs some runtime
+	  overhead and also slightly increases kernel memory usage.  The
+	  current implementation should be considered experimental.
+
+	  This support is mainly for Linux kernel development.  If unsure,
+	  say N.
+
+config PS3_USE_LPAR_ADDR
+	depends on PPC_PS3 && EXPERIMENTAL
+	bool "PS3 use lpar address space"
+	default y
+	help
+	  This option is solely for experimentation by experts.  Disables
+	  translation of lpar addresses.  SPE support currently won't work
+	  without this set to y.
+
+	  If you have any doubt, choose the default y.
+
+config PS3_VUART
+	depends on PPC_PS3
+	bool "PS3 Virtual UART support"
+	default y
+	help
+	  Include support for the PS3 Virtual UART.
+
+	  This support is required for several system services
+	  including the System Manager and AV Settings.  In
+	  general, all users will say Y.
+
+endmenu

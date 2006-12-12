@@ -149,7 +149,7 @@ static int v3020_set_time(struct device *dev, struct rtc_time *dt)
 	return 0;
 }
 
-static struct rtc_class_ops v3020_rtc_ops = {
+static const struct rtc_class_ops v3020_rtc_ops = {
 	.read_time	= v3020_read_time,
 	.set_time	= v3020_set_time,
 };
@@ -167,9 +167,6 @@ static int rtc_probe(struct platform_device *pdev)
 		return -EBUSY;
 
 	if (pdev->resource[0].flags != IORESOURCE_MEM)
-		return -EBUSY;
-
-	if (pdev == NULL)
 		return -EBUSY;
 
 	chip = kzalloc(sizeof *chip, GFP_KERNEL);
@@ -198,9 +195,9 @@ static int rtc_probe(struct platform_device *pdev)
 	 * are all disabled */
 	v3020_set_reg(chip, V3020_STATUS_0, 0x0);
 
-	dev_info(&pdev->dev, "Chip available at physical address 0x%p,"
+	dev_info(&pdev->dev, "Chip available at physical address 0x%llx,"
 		"data connected to D%d\n",
-		(void*)pdev->resource[0].start,
+		(unsigned long long)pdev->resource[0].start,
 		chip->leftshift);
 
 	platform_set_drvdata(pdev, chip);

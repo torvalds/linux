@@ -217,7 +217,7 @@ static int      mc32_command(struct net_device *dev, u16 cmd, void *data, int le
 static int	mc32_open(struct net_device *dev);
 static void	mc32_timeout(struct net_device *dev);
 static int	mc32_send_packet(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t mc32_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t mc32_interrupt(int irq, void *dev_id);
 static int	mc32_close(struct net_device *dev);
 static struct	net_device_stats *mc32_get_stats(struct net_device *dev);
 static void	mc32_set_multicast_list(struct net_device *dev);
@@ -1316,18 +1316,13 @@ static void mc32_tx_ring(struct net_device *dev)
  *
  */
 
-static irqreturn_t mc32_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t mc32_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct mc32_local *lp;
 	int ioaddr, status, boguscount = 0;
 	int rx_event = 0;
 	int tx_event = 0;
-
-	if (dev == NULL) {
-		printk(KERN_WARNING "%s: irq %d for unknown device.\n", cardname, irq);
-		return IRQ_NONE;
-	}
 
 	ioaddr = dev->base_addr;
 	lp = netdev_priv(dev);
@@ -1664,7 +1659,7 @@ int __init init_module(void)
  *	transmit operations are allowed to start scribbling into memory.
  */
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	unregister_netdev(this_device);
 	cleanup_card(this_device);

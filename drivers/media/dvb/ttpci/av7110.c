@@ -1383,8 +1383,10 @@ static void dvb_unregister(struct av7110 *av7110)
 	dvb_dmxdev_release(&av7110->dmxdev);
 	dvb_dmx_release(&av7110->demux);
 
-	if (av7110->fe != NULL)
+	if (av7110->fe != NULL) {
 		dvb_unregister_frontend(av7110->fe);
+		dvb_frontend_detach(av7110->fe);
+	}
 	dvb_unregister_device(av7110->osd_dev);
 	av7110_av_unregister(av7110);
 	av7110_ca_unregister(av7110);
@@ -1699,9 +1701,13 @@ static int alps_tdlb7_tuner_set_params(struct dvb_frontend* fe, struct dvb_front
 
 static int alps_tdlb7_request_firmware(struct dvb_frontend* fe, const struct firmware **fw, char* name)
 {
+#if defined(CONFIG_DVB_SP8870) || defined(CONFIG_DVB_SP8870_MODULE)
 	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
 
 	return request_firmware(fw, name, &av7110->dev->pci->dev);
+#else
+	return -EINVAL;
+#endif
 }
 
 static struct sp8870_config alps_tdlb7_config = {
@@ -2077,7 +2083,7 @@ static int frontend_init(struct av7110 *av7110)
 	if (av7110->dev->pci->subsystem_vendor == 0x110a) {
 		switch(av7110->dev->pci->subsystem_device) {
 		case 0x0000: // Fujitsu/Siemens DVB-Cable (ves1820/Philips CD1516(??))
-			av7110->fe = ves1820_attach(&philips_cd1516_config,
+			av7110->fe = dvb_attach(ves1820_attach, &philips_cd1516_config,
 						    &av7110->i2c_adap, read_pwm(av7110));
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = philips_cd1516_tuner_set_params;
@@ -2092,7 +2098,7 @@ static int frontend_init(struct av7110 *av7110)
 		case 0x1002: // Hauppauge/TT WinTV DVB-S rev1.3SE
 
 			// try the ALPS BSRV2 first of all
-			av7110->fe = ves1x93_attach(&alps_bsrv2_config, &av7110->i2c_adap);
+			av7110->fe = dvb_attach(ves1x93_attach, &alps_bsrv2_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = alps_bsrv2_tuner_set_params;
 				av7110->fe->ops.diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
@@ -2103,7 +2109,7 @@ static int frontend_init(struct av7110 *av7110)
 			}
 
 			// try the ALPS BSRU6 now
-			av7110->fe = stv0299_attach(&alps_bsru6_config, &av7110->i2c_adap);
+			av7110->fe = dvb_attach(stv0299_attach, &alps_bsru6_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
 				av7110->fe->tuner_priv = &av7110->i2c_adap;
@@ -2116,7 +2122,7 @@ static int frontend_init(struct av7110 *av7110)
 			}
 
 			// Try the grundig 29504-451
-			av7110->fe = tda8083_attach(&grundig_29504_451_config, &av7110->i2c_adap);
+			av7110->fe = dvb_attach(tda8083_attach, &grundig_29504_451_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = grundig_29504_451_tuner_set_params;
 				av7110->fe->ops.diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
@@ -2130,7 +2136,7 @@ static int frontend_init(struct av7110 *av7110)
 			switch(av7110->dev->pci->subsystem_device) {
 			case 0x0000:
 				/* Siemens DVB-C (full-length card) VES1820/Philips CD1516 */
-				av7110->fe = ves1820_attach(&philips_cd1516_config, &av7110->i2c_adap,
+				av7110->fe = dvb_attach(ves1820_attach, &philips_cd1516_config, &av7110->i2c_adap,
 							read_pwm(av7110));
 				if (av7110->fe) {
 					av7110->fe->ops.tuner_ops.set_params = philips_cd1516_tuner_set_params;
@@ -2138,7 +2144,7 @@ static int frontend_init(struct av7110 *av7110)
 				break;
 			case 0x0003:
 				/* Hauppauge DVB-C 2.1 VES1820/ALPS TDBE2 */
-				av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap,
+				av7110->fe = dvb_attach(ves1820_attach, &alps_tdbe2_config, &av7110->i2c_adap,
 							read_pwm(av7110));
 				if (av7110->fe) {
 					av7110->fe->ops.tuner_ops.set_params = alps_tdbe2_tuner_set_params;
@@ -2148,17 +2154,24 @@ static int frontend_init(struct av7110 *av7110)
 			break;
 
 		case 0x0001: // Hauppauge/TT Nexus-T premium rev1.X
-
-			// ALPS TDLB7
-			av7110->fe = sp8870_attach(&alps_tdlb7_config, &av7110->i2c_adap);
+			// try ALPS TDLB7 first, then Grundig 29504-401
+			av7110->fe = dvb_attach(sp8870_attach, &alps_tdlb7_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = alps_tdlb7_tuner_set_params;
+				break;
 			}
+			/* fall-thru */
+
+		case 0x0008: // Hauppauge/TT DVB-T
+			// Grundig 29504-401
+			av7110->fe = dvb_attach(l64781_attach, &grundig_29504_401_config, &av7110->i2c_adap);
+			if (av7110->fe)
+				av7110->fe->ops.tuner_ops.set_params = grundig_29504_401_tuner_set_params;
 			break;
 
 		case 0x0002: // Hauppauge/TT DVB-C premium rev2.X
 
-			av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap, read_pwm(av7110));
+			av7110->fe = dvb_attach(ves1820_attach, &alps_tdbe2_config, &av7110->i2c_adap, read_pwm(av7110));
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = alps_tdbe2_tuner_set_params;
 			}
@@ -2166,7 +2179,7 @@ static int frontend_init(struct av7110 *av7110)
 
 		case 0x0004: // Galaxis DVB-S rev1.3
 			/* ALPS BSRV2 */
-			av7110->fe = ves1x93_attach(&alps_bsrv2_config, &av7110->i2c_adap);
+			av7110->fe = dvb_attach(ves1x93_attach, &alps_bsrv2_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = alps_bsrv2_tuner_set_params;
 				av7110->fe->ops.diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
@@ -2178,7 +2191,7 @@ static int frontend_init(struct av7110 *av7110)
 
 		case 0x0006: /* Fujitsu-Siemens DVB-S rev 1.6 */
 			/* Grundig 29504-451 */
-			av7110->fe = tda8083_attach(&grundig_29504_451_config, &av7110->i2c_adap);
+			av7110->fe = dvb_attach(tda8083_attach, &grundig_29504_451_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = grundig_29504_451_tuner_set_params;
 				av7110->fe->ops.diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
@@ -2188,17 +2201,9 @@ static int frontend_init(struct av7110 *av7110)
 			}
 			break;
 
-		case 0x0008: // Hauppauge/TT DVB-T
-
-			av7110->fe = l64781_attach(&grundig_29504_401_config, &av7110->i2c_adap);
-			if (av7110->fe) {
-				av7110->fe->ops.tuner_ops.set_params = grundig_29504_401_tuner_set_params;
-			}
-			break;
-
 		case 0x000A: // Hauppauge/TT Nexus-CA rev1.X
 
-			av7110->fe = stv0297_attach(&nexusca_stv0297_config, &av7110->i2c_adap);
+			av7110->fe = dvb_attach(stv0297_attach, &nexusca_stv0297_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = nexusca_stv0297_tuner_set_params;
 
@@ -2214,12 +2219,12 @@ static int frontend_init(struct av7110 *av7110)
 
 		case 0x000E: /* Hauppauge/TT Nexus-S rev 2.3 */
 			/* ALPS BSBE1 */
-			av7110->fe = stv0299_attach(&alps_bsbe1_config, &av7110->i2c_adap);
+			av7110->fe = dvb_attach(stv0299_attach, &alps_bsbe1_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = alps_bsbe1_tuner_set_params;
 				av7110->fe->tuner_priv = &av7110->i2c_adap;
 
-				if (lnbp21_attach(av7110->fe, &av7110->i2c_adap, 0, 0)) {
+				if (dvb_attach(lnbp21_attach, av7110->fe, &av7110->i2c_adap, 0, 0) == NULL) {
 					printk("dvb-ttpci: LNBP21 not found!\n");
 					if (av7110->fe->ops.release)
 						av7110->fe->ops.release(av7110->fe);
@@ -2255,8 +2260,7 @@ static int frontend_init(struct av7110 *av7110)
 		ret = dvb_register_frontend(&av7110->dvb_adapter, av7110->fe);
 		if (ret < 0) {
 			printk("av7110: Frontend registration failed!\n");
-			if (av7110->fe->ops.release)
-				av7110->fe->ops.release(av7110->fe);
+			dvb_frontend_detach(av7110->fe);
 			av7110->fe = NULL;
 		}
 	}
@@ -2823,8 +2827,8 @@ MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 
 static struct saa7146_extension av7110_extension = {
-	.name		= "dvb\0",
-	.flags		= SAA7146_I2C_SHORT_DELAY,
+	.name		= "dvb",
+	.flags		= SAA7146_USE_I2C_IRQ,
 
 	.module		= THIS_MODULE,
 	.pci_tbl	= &pci_tbl[0],

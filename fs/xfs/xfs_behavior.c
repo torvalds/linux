@@ -110,26 +110,6 @@ bhv_remove_not_first(bhv_head_t *bhp, bhv_desc_t *bdp)
 }
 
 /*
- * Look for a specific ops vector on the specified behavior chain.
- * Return the associated behavior descriptor.  Or NULL, if not found.
- */
-bhv_desc_t *
-bhv_lookup(bhv_head_t *bhp, void *ops)
-{
-	bhv_desc_t	*curdesc;
-
-	for (curdesc = bhp->bh_first;
-	     curdesc != NULL;
-	     curdesc = curdesc->bd_next) {
-
-		if (curdesc->bd_ops == ops)
-			return curdesc;
-	}
-
-	return NULL;
-}
-
-/*
  * Looks for the first behavior within a specified range of positions.
  * Return the associated behavior descriptor.  Or NULL, if none found.
  */

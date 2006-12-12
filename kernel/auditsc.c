@@ -64,6 +64,7 @@
 #include <linux/tty.h>
 #include <linux/selinux.h>
 #include <linux/binfmts.h>
+#include <linux/highmem.h>
 #include <linux/syscalls.h>
 
 #include "audit.h"
@@ -278,8 +279,11 @@ static int audit_filter_rules(struct task_struct *tsk,
 			result = audit_comparator(tsk->pid, f->op, f->val);
 			break;
 		case AUDIT_PPID:
-			if (ctx)
+			if (ctx) {
+				if (!ctx->ppid)
+					ctx->ppid = sys_getppid();
 				result = audit_comparator(ctx->ppid, f->op, f->val);
+			}
 			break;
 		case AUDIT_UID:
 			result = audit_comparator(tsk->uid, f->op, f->val);
@@ -727,7 +731,7 @@ static inline void audit_free_context(struct audit_context *context)
 		printk(KERN_ERR "audit: freed %d contexts\n", count);
 }
 
-static void audit_log_task_context(struct audit_buffer *ab)
+void audit_log_task_context(struct audit_buffer *ab)
 {
 	char *ctx = NULL;
 	ssize_t len = 0;
@@ -756,6 +760,8 @@ error_path:
 	return;
 }
 
+EXPORT_SYMBOL(audit_log_task_context);
+
 static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 {
 	char name[sizeof(tsk->comm)];
@@ -775,8 +781,8 @@ static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk
 			if ((vma->vm_flags & VM_EXECUTABLE) &&
 			    vma->vm_file) {
 				audit_log_d_path(ab, "exe=",
-						 vma->vm_file->f_dentry,
-						 vma->vm_file->f_vfsmnt);
+						 vma->vm_file->f_path.dentry,
+						 vma->vm_file->f_path.mnt);
 				break;
 			}
 			vma = vma->vm_next;
@@ -795,7 +801,8 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 	/* tsk == current */
 	context->pid = tsk->pid;
-	context->ppid = sys_getppid();	/* sic.  tsk == current in all cases */
+	if (!context->ppid)
+		context->ppid = sys_getppid();
 	context->uid = tsk->uid;
 	context->gid = tsk->gid;
 	context->euid = tsk->euid;
@@ -817,10 +824,14 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		audit_log_format(ab, " success=%s exit=%ld", 
 				 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",
 				 context->return_code);
+
+	mutex_lock(&tty_mutex);
+	read_lock(&tasklist_lock);
 	if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
 		tty = tsk->signal->tty->name;
 	else
 		tty = "(none)";
+	read_unlock(&tasklist_lock);
 	audit_log_format(ab,
 		  " a0=%lx a1=%lx a2=%lx a3=%lx items=%d"
 		  " ppid=%d pid=%d auid=%u uid=%u gid=%u"
@@ -838,6 +849,9 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		  context->gid,
 		  context->euid, context->suid, context->fsuid,
 		  context->egid, context->sgid, context->fsgid, tty);
+
+	mutex_unlock(&tty_mutex);
+
 	audit_log_task_info(ab, tsk);
 	if (context->filterkey) {
 		audit_log_format(ab, " key=");
@@ -1132,6 +1146,7 @@ void audit_syscall_entry(int arch, int major,
 	context->ctime      = CURRENT_TIME;
 	context->in_syscall = 1;
 	context->auditable  = !!(state == AUDIT_RECORD_CONTEXT);
+	context->ppid       = 0;
 }
 
 /**
@@ -1347,7 +1362,13 @@ void __audit_inode_child(const char *dname, const struct inode *inode,
 		}
 
 update_context:
-	idx = context->name_count++;
+	idx = context->name_count;
+	if (context->name_count == AUDIT_NAMES) {
+		printk(KERN_DEBUG "name_count maxed and losing %s\n",
+			found_name ?: "(null)");
+		return;
+	}
+	context->name_count++;
 #if AUDIT_DEBUG
 	context->ino_count++;
 #endif
@@ -1365,7 +1386,16 @@ update_context:
 	/* A parent was not found in audit_names, so copy the inode data for the
 	 * provided parent. */
 	if (!found_name) {
-		idx = context->name_count++;
+		idx = context->name_count;
+		if (context->name_count == AUDIT_NAMES) {
+			printk(KERN_DEBUG
+				"name_count maxed and losing parent inode data: dev=%02x:%02x, inode=%lu",
+				MAJOR(parent->i_sb->s_dev),
+				MINOR(parent->i_sb->s_dev),
+				parent->i_ino);
+			return;
+		}
+		context->name_count++;
 #if AUDIT_DEBUG
 		context->ino_count++;
 #endif
@@ -1461,6 +1491,8 @@ uid_t audit_get_loginuid(struct audit_context *ctx)
 {
 	return ctx ? ctx->loginuid : -1;
 }
+
+EXPORT_SYMBOL(audit_get_loginuid);
 
 /**
  * __audit_mq_open - record audit data for a POSIX MQ open

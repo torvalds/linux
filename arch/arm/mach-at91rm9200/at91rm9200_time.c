@@ -30,6 +30,8 @@
 #include <asm/io.h>
 #include <asm/mach/time.h>
 
+#include <asm/arch/at91_st.h>
+
 static unsigned long last_crtr;
 
 /*
@@ -65,13 +67,13 @@ static unsigned long at91rm9200_gettimeoffset(void)
 /*
  * IRQ handler for the timer.
  */
-static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id)
 {
 	if (at91_sys_read(AT91_ST_SR) & AT91_ST_PITS) {	/* This is a shared interrupt */
 		write_seqlock(&xtime_lock);
 
 		while (((read_CRTR() - last_crtr) & AT91_ST_ALMV) >= LATCH) {
-			timer_tick(regs);
+			timer_tick();
 			last_crtr = (last_crtr + LATCH) & AT91_ST_ALMV;
 		}
 
@@ -98,6 +100,9 @@ void at91rm9200_timer_reset(void)
 
 	/* Set Period Interval timer */
 	at91_sys_write(AT91_ST_PIMR, LATCH);
+
+	/* Clear any pending interrupts */
+	(void) at91_sys_read(AT91_ST_SR);
 
 	/* Enable Period Interval Timer interrupt */
 	at91_sys_write(AT91_ST_IER, AT91_ST_PITS);

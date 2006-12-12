@@ -17,10 +17,11 @@
  */
 
 #define dbgarg(cmd, fmt, arg...) \
-		if (vfd->debug & V4L2_DEBUG_IOCTL_ARG)			\
+		if (vfd->debug & V4L2_DEBUG_IOCTL_ARG) {		\
 			printk (KERN_DEBUG "%s: ",  vfd->name);		\
 			v4l_printk_ioctl(cmd);				\
-			printk (KERN_DEBUG "%s: " fmt, vfd->name, ## arg);
+			printk (KERN_DEBUG "%s: " fmt, vfd->name, ## arg); \
+		}
 
 #define dbgarg2(fmt, arg...) \
 		if (vfd->debug & V4L2_DEBUG_IOCTL_ARG)			\
@@ -104,7 +105,7 @@ static DEFINE_MUTEX(videodev_lock);
 
 struct video_device* video_devdata(struct file *file)
 {
-	return video_device[iminor(file->f_dentry->d_inode)];
+	return video_device[iminor(file->f_path.dentry->d_inode)];
 }
 
 /*
@@ -341,7 +342,7 @@ static void dbgbuf(unsigned int cmd, struct video_device *vfd,
 
 	dbgarg (cmd, "%02ld:%02d:%02d.%08ld index=%d, type=%s, "
 		"bytesused=%d, flags=0x%08d, "
-		"field=%0d, sequence=%d, memory=%s, offset/userptr=0x%08lx\n",
+		"field=%0d, sequence=%d, memory=%s, offset/userptr=0x%08lx, length=%d\n",
 			(p->timestamp.tv_sec/3600),
 			(int)(p->timestamp.tv_sec/60)%60,
 			(int)(p->timestamp.tv_sec%60),
@@ -351,7 +352,7 @@ static void dbgbuf(unsigned int cmd, struct video_device *vfd,
 			p->bytesused,p->flags,
 			p->field,p->sequence,
 			prt_names(p->memory,v4l2_memory_names),
-			p->m.userptr);
+			p->m.userptr, p->length);
 	dbgarg2 ("timecode= %02d:%02d:%02d type=%d, "
 		"flags=0x%08d, frames=%d, userbits=0x%08x\n",
 			tc->hours,tc->minutes,tc->seconds,
@@ -368,9 +369,13 @@ static inline void dbgrect(struct video_device *vfd, char *s,
 static inline void v4l_print_pix_fmt (struct video_device *vfd,
 						struct v4l2_pix_format *fmt)
 {
-	dbgarg2 ("width=%d, height=%d, format=0x%08x, field=%s, "
+	dbgarg2 ("width=%d, height=%d, format=%c%c%c%c, field=%s, "
 		"bytesperline=%d sizeimage=%d, colorspace=%d\n",
-		fmt->width,fmt->height,fmt->pixelformat,
+		fmt->width,fmt->height,
+		(fmt->pixelformat & 0xff),
+		(fmt->pixelformat >>  8) & 0xff,
+		(fmt->pixelformat >> 16) & 0xff,
+		(fmt->pixelformat >> 24) & 0xff,
 		prt_names(fmt->field,v4l2_field_names_FIXME),
 		fmt->bytesperline,fmt->sizeimage,fmt->colorspace);
 };
@@ -426,6 +431,10 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 				!(vfd->debug | V4L2_DEBUG_IOCTL_ARG)) {
 		v4l_print_ioctl(vfd->name, cmd);
 	}
+
+	if (_IOC_TYPE(cmd)=='v')
+		return v4l_compat_translate_ioctl(inode,file,cmd,arg,
+						__video_do_ioctl);
 
 	switch(cmd) {
 	/* --- capabilities ------------------------------------------ */
@@ -525,12 +534,13 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		}
 		if (!ret)
 			dbgarg (cmd, "index=%d, type=%d, flags=%d, "
-					"description=%s,"
-					" pixelformat=0x%8x\n",
+					"pixelformat=%c%c%c%c, description='%s'\n",
 					f->index, f->type, f->flags,
-					f->description,
-					f->pixelformat);
-
+					(f->pixelformat & 0xff),
+					(f->pixelformat >>  8) & 0xff,
+					(f->pixelformat >> 16) & 0xff,
+					(f->pixelformat >> 24) & 0xff,
+					f->description);
 		break;
 	}
 	case VIDIOC_G_FMT:
@@ -739,13 +749,13 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_DQBUF:
 	{
 		struct v4l2_buffer *p=arg;
-		if (!vfd->vidioc_qbuf)
+		if (!vfd->vidioc_dqbuf)
 			break;
 		ret = check_fmt (vfd, p->type);
 		if (ret)
 			break;
 
-		ret=vfd->vidioc_qbuf(file, fh, p);
+		ret=vfd->vidioc_dqbuf(file, fh, p);
 		if (!ret)
 			dbgbuf(cmd,vfd,p);
 		break;
@@ -828,20 +838,85 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_ENUMSTD:
 	{
 		struct v4l2_standard *p = arg;
-		unsigned int index = p->index;
+		v4l2_std_id id = vfd->tvnorms,curr_id=0;
+		unsigned int index = p->index,i;
 
-		if (!vfd->tvnormsize) {
-			printk (KERN_WARNING "%s: no TV norms defined!\n",
-						vfd->name);
-			break;
-		}
-
-		if (index < 0 || index >= vfd->tvnormsize) {
+		if (index<0) {
 			ret=-EINVAL;
 			break;
 		}
-		v4l2_video_std_construct(p, vfd->tvnorms[p->index].id,
-					 vfd->tvnorms[p->index].name);
+
+		/* Return norm array on a canonical way */
+		for (i=0;i<= index && id; i++) {
+			if ( (id & V4L2_STD_PAL) == V4L2_STD_PAL) {
+				curr_id = V4L2_STD_PAL;
+			} else if ( (id & V4L2_STD_PAL_BG) == V4L2_STD_PAL_BG) {
+				curr_id = V4L2_STD_PAL_BG;
+			} else if ( (id & V4L2_STD_PAL_DK) == V4L2_STD_PAL_DK) {
+				curr_id = V4L2_STD_PAL_DK;
+			} else if ( (id & V4L2_STD_PAL_B) == V4L2_STD_PAL_B) {
+				curr_id = V4L2_STD_PAL_B;
+			} else if ( (id & V4L2_STD_PAL_B1) == V4L2_STD_PAL_B1) {
+				curr_id = V4L2_STD_PAL_B1;
+			} else if ( (id & V4L2_STD_PAL_G) == V4L2_STD_PAL_G) {
+				curr_id = V4L2_STD_PAL_G;
+			} else if ( (id & V4L2_STD_PAL_H) == V4L2_STD_PAL_H) {
+				curr_id = V4L2_STD_PAL_H;
+			} else if ( (id & V4L2_STD_PAL_I) == V4L2_STD_PAL_I) {
+				curr_id = V4L2_STD_PAL_I;
+			} else if ( (id & V4L2_STD_PAL_D) == V4L2_STD_PAL_D) {
+				curr_id = V4L2_STD_PAL_D;
+			} else if ( (id & V4L2_STD_PAL_D1) == V4L2_STD_PAL_D1) {
+				curr_id = V4L2_STD_PAL_D1;
+			} else if ( (id & V4L2_STD_PAL_K) == V4L2_STD_PAL_K) {
+				curr_id = V4L2_STD_PAL_K;
+			} else if ( (id & V4L2_STD_PAL_M) == V4L2_STD_PAL_M) {
+				curr_id = V4L2_STD_PAL_M;
+			} else if ( (id & V4L2_STD_PAL_N) == V4L2_STD_PAL_N) {
+				curr_id = V4L2_STD_PAL_N;
+			} else if ( (id & V4L2_STD_PAL_Nc) == V4L2_STD_PAL_Nc) {
+				curr_id = V4L2_STD_PAL_Nc;
+			} else if ( (id & V4L2_STD_PAL_60) == V4L2_STD_PAL_60) {
+				curr_id = V4L2_STD_PAL_60;
+			} else if ( (id & V4L2_STD_NTSC) == V4L2_STD_NTSC) {
+				curr_id = V4L2_STD_NTSC;
+			} else if ( (id & V4L2_STD_NTSC_M) == V4L2_STD_NTSC_M) {
+				curr_id = V4L2_STD_NTSC_M;
+			} else if ( (id & V4L2_STD_NTSC_M_JP) == V4L2_STD_NTSC_M_JP) {
+				curr_id = V4L2_STD_NTSC_M_JP;
+			} else if ( (id & V4L2_STD_NTSC_443) == V4L2_STD_NTSC_443) {
+				curr_id = V4L2_STD_NTSC_443;
+			} else if ( (id & V4L2_STD_NTSC_M_KR) == V4L2_STD_NTSC_M_KR) {
+				curr_id = V4L2_STD_NTSC_M_KR;
+			} else if ( (id & V4L2_STD_SECAM) == V4L2_STD_SECAM) {
+				curr_id = V4L2_STD_SECAM;
+			} else if ( (id & V4L2_STD_SECAM_DK) == V4L2_STD_SECAM_DK) {
+				curr_id = V4L2_STD_SECAM_DK;
+			} else if ( (id & V4L2_STD_SECAM_B) == V4L2_STD_SECAM_B) {
+				curr_id = V4L2_STD_SECAM_B;
+			} else if ( (id & V4L2_STD_SECAM_D) == V4L2_STD_SECAM_D) {
+				curr_id = V4L2_STD_SECAM_D;
+			} else if ( (id & V4L2_STD_SECAM_G) == V4L2_STD_SECAM_G) {
+				curr_id = V4L2_STD_SECAM_G;
+			} else if ( (id & V4L2_STD_SECAM_H) == V4L2_STD_SECAM_H) {
+				curr_id = V4L2_STD_SECAM_H;
+			} else if ( (id & V4L2_STD_SECAM_K) == V4L2_STD_SECAM_K) {
+				curr_id = V4L2_STD_SECAM_K;
+			} else if ( (id & V4L2_STD_SECAM_K1) == V4L2_STD_SECAM_K1) {
+				curr_id = V4L2_STD_SECAM_K1;
+			} else if ( (id & V4L2_STD_SECAM_L) == V4L2_STD_SECAM_L) {
+				curr_id = V4L2_STD_SECAM_L;
+			} else if ( (id & V4L2_STD_SECAM_LC) == V4L2_STD_SECAM_LC) {
+				curr_id = V4L2_STD_SECAM_LC;
+			} else {
+				break;
+			}
+			id &= ~curr_id;
+		}
+		if (i<=index)
+			return -EINVAL;
+
+		v4l2_video_std_construct(p, curr_id,v4l2_norm_to_name(curr_id));
 		p->index = index;
 
 		dbgarg (cmd, "index=%d, id=%Ld, name=%s, fps=%d/%d, "
@@ -867,39 +942,23 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	}
 	case VIDIOC_S_STD:
 	{
-		v4l2_std_id *id = arg;
-		unsigned int i;
-
-		if (!vfd->tvnormsize) {
-			printk (KERN_WARNING "%s: no TV norms defined!\n",
-						vfd->name);
-			break;
-		}
+		v4l2_std_id *id = arg,norm;
 
 		dbgarg (cmd, "value=%Lu\n", (long long unsigned) *id);
 
-		/* First search for exact match */
-		for (i = 0; i < vfd->tvnormsize; i++)
-			if (*id == vfd->tvnorms[i].id)
-				break;
-		/* Then for a generic video std that contains desired std */
-		if (i == vfd->tvnormsize)
-			for (i = 0; i < vfd->tvnormsize; i++)
-				if (*id & vfd->tvnorms[i].id)
-					break;
-		if (i == vfd->tvnormsize) {
+		norm = (*id) & vfd->tvnorms;
+		if ( vfd->tvnorms && !norm)	/* Check if std is supported */
 			break;
-		}
 
 		/* Calls the specific handler */
 		if (vfd->vidioc_s_std)
-			ret=vfd->vidioc_s_std(file, fh, i);
+			ret=vfd->vidioc_s_std(file, fh, &norm);
 		else
 			ret=-EINVAL;
 
 		/* Updates standard information */
-		if (!ret)
-			vfd->current_norm=*id;
+		if (ret>=0)
+			vfd->current_norm=norm;
 
 		break;
 	}
@@ -1087,9 +1146,13 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_AUDIO:
 	{
 		struct v4l2_audio *p=arg;
+		__u32 index=p->index;
 
 		if (!vfd->vidioc_g_audio)
 			break;
+
+		memset(p,0,sizeof(*p));
+		p->index=index;
 		dbgarg(cmd, "Get for index=%d\n", p->index);
 		ret=vfd->vidioc_g_audio(file, fh, p);
 		if (!ret)
@@ -1283,9 +1346,23 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_PARM:
 	{
 		struct v4l2_streamparm *p=arg;
-		if (!vfd->vidioc_g_parm)
-			break;
-		ret=vfd->vidioc_g_parm(file, fh, p);
+		if (vfd->vidioc_g_parm) {
+			ret=vfd->vidioc_g_parm(file, fh, p);
+		} else {
+			struct v4l2_standard s;
+
+			if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+				return -EINVAL;
+
+			v4l2_video_std_construct(&s, vfd->current_norm,
+						 v4l2_norm_to_name(vfd->current_norm));
+
+			memset(p,0,sizeof(*p));
+
+			p->parm.capture.timeperframe = s.frameperiod;
+			ret=0;
+		}
+
 		dbgarg (cmd, "type=%d\n", p->type);
 		break;
 	}
@@ -1301,8 +1378,14 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_TUNER:
 	{
 		struct v4l2_tuner *p=arg;
+		__u32 index=p->index;
+
 		if (!vfd->vidioc_g_tuner)
 			break;
+
+		memset(p,0,sizeof(*p));
+		p->index=index;
+
 		ret=vfd->vidioc_g_tuner(file, fh, p);
 		if (!ret)
 			dbgarg (cmd, "index=%d, name=%s, type=%d, "
@@ -1335,6 +1418,9 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_frequency *p=arg;
 		if (!vfd->vidioc_g_frequency)
 			break;
+
+		memset(p,0,sizeof(*p));
+
 		ret=vfd->vidioc_g_frequency(file, fh, p);
 		if (!ret)
 			dbgarg (cmd, "tuner=%d, type=%d, frequency=%d\n",
@@ -1368,12 +1454,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		ret=vfd->vidioc_log_status(file, fh);
 		break;
 	}
-
-	/* --- Others --------------------------------------------- */
-
-	default:
-		ret=v4l_compat_translate_ioctl(inode,file,cmd,arg,__video_do_ioctl);
-	}
+	} /* switch */
 
 	if (vfd->debug & V4L2_DEBUG_IOCTL_ARG) {
 		if (ret<0) {

@@ -125,6 +125,7 @@ void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trigger)
 		write_unlock_irqrestore(&led_cdev->trigger->leddev_list_lock, flags);
 		if (led_cdev->trigger->deactivate)
 			led_cdev->trigger->deactivate(led_cdev);
+		led_set_brightness(led_cdev, LED_OFF);
 	}
 	if (trigger) {
 		write_lock_irqsave(&trigger->leddev_list_lock, flags);

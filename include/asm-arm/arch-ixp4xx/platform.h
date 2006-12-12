@@ -86,8 +86,26 @@ struct ixp4xx_i2c_pins {
 	unsigned long scl_pin;
 };
 
+/*
+ * This structure provide a means for the board setup code
+ * to give information to th pata_ixp4xx driver. It is
+ * passed as platform_data.
+ */
+struct ixp4xx_pata_data {
+	volatile u32	*cs0_cfg;
+	volatile u32	*cs1_cfg;
+	unsigned long	cs0_bits;
+	unsigned long	cs1_bits;
+	void __iomem	*cs0;
+	void __iomem	*cs1;
+};
 
 struct sys_timer;
+
+/*
+ * Frequency of clock used for primary clocksource
+ */
+extern unsigned long ixp4xx_timer_freq;
 
 /*
  * Functions used by platform-level setup code

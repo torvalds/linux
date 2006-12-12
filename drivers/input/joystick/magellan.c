@@ -82,15 +82,13 @@ static int magellan_crunch_nibbles(unsigned char *data, int count)
 	return 0;
 }
 
-static void magellan_process_packet(struct magellan* magellan, struct pt_regs *regs)
+static void magellan_process_packet(struct magellan* magellan)
 {
 	struct input_dev *dev = magellan->dev;
 	unsigned char *data = magellan->data;
 	int i, t;
 
 	if (!magellan->idx) return;
-
-	input_regs(dev, regs);
 
 	switch (magellan->data[0]) {
 
@@ -115,12 +113,12 @@ static void magellan_process_packet(struct magellan* magellan, struct pt_regs *r
 }
 
 static irqreturn_t magellan_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct magellan* magellan = serio_get_drvdata(serio);
 
 	if (data == '\r') {
-		magellan_process_packet(magellan, regs);
+		magellan_process_packet(magellan);
 		magellan->idx = 0;
 	} else {
 		if (magellan->idx < MAGELLAN_MAX_LENGTH)
@@ -159,7 +157,7 @@ static int magellan_connect(struct serio *serio, struct serio_driver *drv)
 	magellan = kzalloc(sizeof(struct magellan), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!magellan || !input_dev)
-		goto fail;
+		goto fail1;
 
 	magellan->dev = input_dev;
 	snprintf(magellan->phys, sizeof(magellan->phys), "%s/input0", serio->phys);
@@ -185,13 +183,17 @@ static int magellan_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device(magellan->dev);
+	err = input_register_device(magellan->dev);
+	if (err)
+		goto fail3;
+
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
 	kfree(magellan);
 	return err;
 }
@@ -229,8 +231,7 @@ static struct serio_driver magellan_drv = {
 
 static int __init magellan_init(void)
 {
-	serio_register_driver(&magellan_drv);
-	return 0;
+	return serio_register_driver(&magellan_drv);
 }
 
 static void __exit magellan_exit(void)

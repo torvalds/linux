@@ -21,7 +21,7 @@ struct xterm_wait {
 	int new_fd;
 };
 
-static irqreturn_t xterm_interrupt(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t xterm_interrupt(int irq, void *data)
 {
 	struct xterm_wait *xterm = data;
 	int fd;

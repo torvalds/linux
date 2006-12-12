@@ -55,13 +55,6 @@ extern dma_addr_t bad_dma_address;
 extern struct dma_mapping_ops* dma_ops;
 extern int iommu_merge;
 
-static inline int valid_dma_direction(int dma_direction)
-{
-	return ((dma_direction == DMA_BIDIRECTIONAL) ||
-		(dma_direction == DMA_TO_DEVICE) ||
-		(dma_direction == DMA_FROM_DEVICE));
-}
-
 static inline int dma_mapping_error(dma_addr_t dma_addr)
 {
 	if (dma_ops->mapping_error)
@@ -187,12 +180,13 @@ static inline int dma_get_cache_alignment(void)
 	return boot_cpu_data.x86_clflush_size;
 }
 
-#define dma_is_consistent(h) 1
+#define dma_is_consistent(d, h) 1
 
 extern int dma_set_mask(struct device *dev, u64 mask);
 
 static inline void
-dma_cache_sync(void *vaddr, size_t size, enum dma_data_direction dir)
+dma_cache_sync(struct device *dev, void *vaddr, size_t size,
+	enum dma_data_direction dir)
 {
 	flush_write_buffers();
 }

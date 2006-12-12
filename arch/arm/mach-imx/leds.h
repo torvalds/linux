@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-imx/leds.h
+ * arch/arm/mach-imx/leds.h
  *
  * Copyright (c) 2004 Sascha Hauer <sascha@saschahauer.de>
  *

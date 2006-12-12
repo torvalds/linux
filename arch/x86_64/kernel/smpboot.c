@@ -60,6 +60,7 @@
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
 #include <asm/numa.h>
+#include <asm/genapic.h>
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
@@ -581,12 +582,16 @@ void __cpuinit start_secondary(void)
 	 * smp_call_function().
 	 */
 	lock_ipi_call_lock();
+	spin_lock(&vector_lock);
 
+	/* Setup the per cpu irq handling data structures */
+	__setup_vector_irq(smp_processor_id());
 	/*
 	 * Allow the master to continue.
 	 */
 	cpu_set(smp_processor_id(), cpu_online_map);
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+	spin_unlock(&vector_lock);
 	unlock_ipi_call_lock();
 
 	cpu_idle();
@@ -749,14 +754,16 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 }
 
 struct create_idle {
+	struct work_struct work;
 	struct task_struct *idle;
 	struct completion done;
 	int cpu;
 };
 
-void do_fork_idle(void *_c_idle)
+void do_fork_idle(struct work_struct *work)
 {
-	struct create_idle *c_idle = _c_idle;
+	struct create_idle *c_idle =
+		container_of(work, struct create_idle, work);
 
 	c_idle->idle = fork_idle(c_idle->cpu);
 	complete(&c_idle->done);
@@ -771,10 +778,10 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 	int timeout;
 	unsigned long start_rip;
 	struct create_idle c_idle = {
+		.work = __WORK_INITIALIZER(c_idle.work, do_fork_idle),
 		.cpu = cpu,
 		.done = COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
 	};
-	DECLARE_WORK(work, do_fork_idle, &c_idle);
 
 	/* allocate memory for gdts of secondary cpus. Hotplug is considered */
 	if (!cpu_gdt_descr[cpu].address &&
@@ -799,7 +806,6 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 				cpu, node);
 	}
 
-
 	alternatives_smp_switch(1);
 
 	c_idle.idle = get_idle_for_cpu(cpu);
@@ -822,9 +828,9 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 	 * thread.
 	 */
 	if (!keventd_up() || current_is_keventd())
-		work.func(work.data);
+		c_idle.work.func(&c_idle.work);
 	else {
-		schedule_work(&work);
+		schedule_work(&c_idle.work);
 		wait_for_completion(&c_idle.done);
 	}
 
@@ -1164,6 +1170,13 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 	while (!cpu_isset(cpu, cpu_online_map))
 		cpu_relax();
+
+	if (num_online_cpus() > 8 && genapic == &apic_flat) {
+		printk(KERN_WARNING
+		       "flat APIC routing can't be used with > 8 cpus\n");
+		BUG();
+	}
+
 	err = 0;
 
 	return err;
@@ -1246,8 +1259,10 @@ int __cpu_disable(void)
 	local_irq_disable();
 	remove_siblinginfo(cpu);
 
+	spin_lock(&vector_lock);
 	/* It's now safe to remove this processor from the online map */
 	cpu_clear(cpu, cpu_online_map);
+	spin_unlock(&vector_lock);
 	remove_cpu_from_maps();
 	fixup_irqs(cpu_online_map);
 	return 0;

@@ -20,7 +20,7 @@ unsigned long ext3_count_free (struct buffer_head * map, unsigned int numchars)
 	unsigned int i;
 	unsigned long sum = 0;
 
-	if (!map) 
+	if (!map)
 		return (0);
 	for (i = 0; i < numchars; i++)
 		sum += nibblemap[map->b_data[i] & 0xf] +

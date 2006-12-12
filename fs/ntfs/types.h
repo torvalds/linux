@@ -62,11 +62,6 @@ typedef s64 USN;
 typedef sle64 leUSN;
 
 typedef enum {
-	FALSE = 0,
-	TRUE = 1
-} BOOL;
-
-typedef enum {
 	CASE_SENSITIVE = 0,
 	IGNORE_CASE = 1,
 } IGNORE_CASE_BOOL;

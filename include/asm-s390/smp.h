@@ -18,6 +18,7 @@
 
 #include <asm/lowcore.h>
 #include <asm/sigp.h>
+#include <asm/ptrace.h>
 
 /*
   s390 specific smp.c headers
@@ -56,7 +57,7 @@ static inline __u16 hard_smp_processor_id(void)
 {
         __u16 cpu_address;
  
-        __asm__ ("stap %0\n" : "=m" (cpu_address));
+	asm volatile("stap %0" : "=m" (cpu_address));
         return cpu_address;
 }
 
@@ -101,6 +102,13 @@ smp_call_function_on(void (*func) (void *info), void *info,
 	func(info);
 	return 0;
 }
+
+static inline void smp_send_stop(void)
+{
+	/* Disable all interrupts/machine checks */
+	__load_psw_mask(PSW_KERNEL_BITS & ~PSW_MASK_MCHECK);
+}
+
 #define smp_cpu_not_running(cpu)	1
 #define smp_get_cpu(cpu) ({ 0; })
 #define smp_put_cpu(cpu) ({ 0; })

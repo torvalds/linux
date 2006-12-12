@@ -284,7 +284,7 @@ static void rx_dma_buf_pt_init(pc300_t *, int);
 static void rx_dma_buf_init(pc300_t *, int);
 static void tx_dma_buf_check(pc300_t *, int);
 static void rx_dma_buf_check(pc300_t *, int);
-static irqreturn_t cpc_intr(int, void *, struct pt_regs *);
+static irqreturn_t cpc_intr(int, void *);
 static struct net_device_stats *cpc_get_stats(struct net_device *);
 static int clock_rate_calc(uclong, uclong, int *);
 static uclong detect_ram(pc300_t *);
@@ -2016,7 +2016,6 @@ static void sca_intr(pc300_t * card)
 			pc300ch_t *chan = &card->chan[ch];
 			pc300dev_t *d = &chan->d;
 			struct net_device *dev = d->dev;
-			hdlc_device *hdlc = dev_to_hdlc(dev);
 
 			spin_lock(&card->card_lock);
 
@@ -2049,8 +2048,8 @@ static void sca_intr(pc300_t * card)
 							}
 							cpc_net_rx(dev);
 							/* Discard invalid frames */
-							hdlc->stats.rx_errors++;
-							hdlc->stats.rx_over_errors++;
+							hdlc_stats(dev)->rx_errors++;
+							hdlc_stats(dev)->rx_over_errors++;
 							chan->rx_first_bd = 0;
 							chan->rx_last_bd = N_DMA_RX_BUF - 1;
 							rx_dma_start(card, ch);
@@ -2116,8 +2115,8 @@ static void sca_intr(pc300_t * card)
 										   card->hw.cpld_reg2) &
 								   ~ (CPLD_REG2_FALC_LED1 << (2 * ch)));
 						}
-						hdlc->stats.tx_errors++;
-						hdlc->stats.tx_fifo_errors++;
+						hdlc_stats(dev)->tx_errors++;
+						hdlc_stats(dev)->tx_fifo_errors++;
 						sca_tx_intr(d);
 					}
 				}
@@ -2364,7 +2363,7 @@ static void falc_intr(pc300_t * card)
 	}
 }
 
-static irqreturn_t cpc_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cpc_intr(int irq, void *dev_id)
 {
 	pc300_t *card;
 	volatile ucchar plx_status;
@@ -2534,7 +2533,6 @@ static int cpc_change_mtu(struct net_device *dev, int new_mtu)
 
 static int cpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	hdlc_device *hdlc = dev_to_hdlc(dev);
 	pc300dev_t *d = (pc300dev_t *) dev->priv;
 	pc300ch_t *chan = (pc300ch_t *) d->chan;
 	pc300_t *card = (pc300_t *) chan->card;
@@ -2552,10 +2550,10 @@ static int cpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		case SIOCGPC300CONF:
 #ifdef CONFIG_PC300_MLPPP
 			if (conf->proto != PC300_PROTO_MLPPP) {
-				conf->proto = hdlc->proto.id;
+				conf->proto = /* FIXME hdlc->proto.id */ 0;
 			}
 #else
-			conf->proto = hdlc->proto.id;
+			conf->proto = /* FIXME hdlc->proto.id */ 0;
 #endif
 			memcpy(&conf_aux.conf, conf, sizeof(pc300chconf_t));
 			memcpy(&conf_aux.hw, &card->hw, sizeof(pc300hw_t));
@@ -2588,12 +2586,12 @@ static int cpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 					}
 				} else {
 					memcpy(conf, &conf_aux.conf, sizeof(pc300chconf_t));
-					hdlc->proto.id = conf->proto;
+					/* FIXME hdlc->proto.id = conf->proto; */
 				}
 			}
 #else
 			memcpy(conf, &conf_aux.conf, sizeof(pc300chconf_t));
-			hdlc->proto.id = conf->proto;
+			/* FIXME hdlc->proto.id = conf->proto; */
 #endif
 			return 0;
 		case SIOCGPC300STATUS:
@@ -2606,7 +2604,7 @@ static int cpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		case SIOCGPC300UTILSTATS:
 			{
 				if (!arg) {	/* clear statistics */
-					memset(&hdlc->stats, 0, sizeof(struct net_device_stats));
+					memset(hdlc_stats(dev), 0, sizeof(struct net_device_stats));
 					if (card->hw.type == PC300_TE) {
 						memset(&chan->falc, 0, sizeof(falc_t));
 					}
@@ -2617,7 +2615,7 @@ static int cpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 					pc300stats.hw_type = card->hw.type;
 					pc300stats.line_on = card->chan[ch].d.line_on;
 					pc300stats.line_off = card->chan[ch].d.line_off;
-					memcpy(&pc300stats.gen_stats, &hdlc->stats,
+					memcpy(&pc300stats.gen_stats, hdlc_stats(dev),
 					       sizeof(struct net_device_stats));
 					if (card->hw.type == PC300_TE)
 						memcpy(&pc300stats.te_stats,&chan->falc,sizeof(falc_t));
@@ -2869,7 +2867,6 @@ static int ch_config(pc300dev_t * d)
 	uclong clktype = chan->conf.phys_settings.clock_type;
 	ucshort encoding = chan->conf.proto_settings.encoding;
 	ucshort parity = chan->conf.proto_settings.parity;   
-	int tmc, br;
 	ucchar md0, md2;
     
 	/* Reset the channel */
@@ -2942,8 +2939,12 @@ static int ch_config(pc300dev_t * d)
 		case PC300_RSV:
 		case PC300_X21:
 			if (clktype == CLOCK_INT || clktype == CLOCK_TXINT) {
+				int tmc, br;
+
 				/* Calculate the clkrate parameters */
 				tmc = clock_rate_calc(clkrate, card->hw.clock, &br);
+				if (tmc < 0)
+					return -EIO;
 				cpc_writeb(scabase + M_REG(TMCT, ch), tmc);
 				cpc_writeb(scabase + M_REG(TXS, ch),
 					   (TXS_DTRXC | TXS_IBRG | br));
@@ -3099,14 +3100,16 @@ static int cpc_attach(struct net_device *dev, unsigned short encoding,
 	return 0;
 }
 
-static void cpc_opench(pc300dev_t * d)
+static int cpc_opench(pc300dev_t * d)
 {
 	pc300ch_t *chan = (pc300ch_t *) d->chan;
 	pc300_t *card = (pc300_t *) chan->card;
-	int ch = chan->channel;
+	int ch = chan->channel, rc;
 	void __iomem *scabase = card->hw.scabase;
 
-	ch_config(d);
+	rc = ch_config(d);
+	if (rc)
+		return rc;
 
 	rx_config(d);
 
@@ -3115,6 +3118,8 @@ static void cpc_opench(pc300dev_t * d)
 	/* Assert RTS and DTR */
 	cpc_writeb(scabase + M_REG(CTL, ch),
 		   cpc_readb(scabase + M_REG(CTL, ch)) & ~(CTL_RTS | CTL_DTR));
+
+	return 0;
 }
 
 static void cpc_closech(pc300dev_t * d)
@@ -3147,7 +3152,6 @@ static void cpc_closech(pc300dev_t * d)
 
 int cpc_open(struct net_device *dev)
 {
-	hdlc_device *hdlc = dev_to_hdlc(dev);
 	pc300dev_t *d = (pc300dev_t *) dev->priv;
 	struct ifreq ifr;
 	int result;
@@ -3156,12 +3160,14 @@ int cpc_open(struct net_device *dev)
 	printk("pc300: cpc_open");
 #endif
 
+#ifdef FIXME
 	if (hdlc->proto.id == IF_PROTO_PPP) {
 		d->if_ptr = &hdlc->state.ppp.pppdev;
 	}
+#endif
 
 	result = hdlc_open(dev);
-	if (hdlc->proto.id == IF_PROTO_PPP) {
+	if (/* FIXME hdlc->proto.id == IF_PROTO_PPP*/ 0) {
 		dev->priv = d;
 	}
 	if (result) {
@@ -3169,14 +3175,20 @@ int cpc_open(struct net_device *dev)
 	}
 
 	sprintf(ifr.ifr_name, "%s", dev->name);
-	cpc_opench(d);
+	result = cpc_opench(d);
+	if (result)
+		goto err_out;
+
 	netif_start_queue(dev);
 	return 0;
+
+err_out:
+	hdlc_close(dev);
+	return result;
 }
 
 static int cpc_close(struct net_device *dev)
 {
-	hdlc_device *hdlc = dev_to_hdlc(dev);
 	pc300dev_t *d = (pc300dev_t *) dev->priv;
 	pc300ch_t *chan = (pc300ch_t *) d->chan;
 	pc300_t *card = (pc300_t *) chan->card;
@@ -3193,7 +3205,7 @@ static int cpc_close(struct net_device *dev)
 	CPC_UNLOCK(card, flags);
 
 	hdlc_close(dev);
-	if (hdlc->proto.id == IF_PROTO_PPP) {
+	if (/* FIXME hdlc->proto.id == IF_PROTO_PPP*/ 0) {
 		d->if_ptr = NULL;
 	}
 #ifdef CONFIG_PC300_MLPPP

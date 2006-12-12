@@ -35,6 +35,7 @@
 #include <linux/socket.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
+#include <linux/audit.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
@@ -47,7 +48,8 @@
 #include "netlabel_unlabeled.h"
 
 /* Accept unlabeled packets flag */
-static atomic_t netlabel_unlabel_accept_flg = ATOMIC_INIT(0);
+static DEFINE_SPINLOCK(netlabel_unlabel_acceptflg_lock);
+static u8 netlabel_unlabel_acceptflg = 0;
 
 /* NetLabel Generic NETLINK CIPSOv4 family */
 static struct genl_family netlbl_unlabel_gnl_family = {
@@ -62,6 +64,41 @@ static struct genl_family netlbl_unlabel_gnl_family = {
 static struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1] = {
 	[NLBL_UNLABEL_A_ACPTFLG] = { .type = NLA_U8 },
 };
+
+/*
+ * Helper Functions
+ */
+
+/**
+ * netlbl_unlabel_acceptflg_set - Set the unlabeled accept flag
+ * @value: desired value
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Set the value of the unlabeled accept flag to @value.
+ *
+ */
+static void netlbl_unlabel_acceptflg_set(u8 value,
+					 struct netlbl_audit *audit_info)
+{
+	struct audit_buffer *audit_buf;
+	u8 old_val;
+
+	rcu_read_lock();
+	old_val = netlabel_unlabel_acceptflg;
+	spin_lock(&netlabel_unlabel_acceptflg_lock);
+	netlabel_unlabel_acceptflg = value;
+	spin_unlock(&netlabel_unlabel_acceptflg_lock);
+	rcu_read_unlock();
+
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_ALLOW,
+					      audit_info);
+	if (audit_buf != NULL) {
+		audit_log_format(audit_buf,
+				 " unlbl_accept=%u old=%u", value, old_val);
+		audit_log_end(audit_buf);
+	}
+}
 
 /*
  * NetLabel Command Handlers
@@ -79,18 +116,19 @@ static struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1] = {
  */
 static int netlbl_unlabel_accept(struct sk_buff *skb, struct genl_info *info)
 {
-	int ret_val = -EINVAL;
 	u8 value;
+	struct netlbl_audit audit_info;
 
 	if (info->attrs[NLBL_UNLABEL_A_ACPTFLG]) {
 		value = nla_get_u8(info->attrs[NLBL_UNLABEL_A_ACPTFLG]);
 		if (value == 1 || value == 0) {
-			atomic_set(&netlabel_unlabel_accept_flg, value);
-			ret_val = 0;
+			netlbl_netlink_auditinfo(skb, &audit_info);
+			netlbl_unlabel_acceptflg_set(value, &audit_info);
+			return 0;
 		}
 	}
 
-	return ret_val;
+	return -EINVAL;
 }
 
 /**
@@ -109,29 +147,27 @@ static int netlbl_unlabel_list(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *ans_skb;
 	void *data;
 
-	ans_skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
 		goto list_failure;
-	data = netlbl_netlink_hdr_put(ans_skb,
-				      info->snd_pid,
-				      info->snd_seq,
-				      netlbl_unlabel_gnl_family.id,
-				      0,
-				      NLBL_UNLABEL_C_LIST);
+	data = genlmsg_put_reply(ans_skb, info, &netlbl_unlabel_gnl_family,
+				 0, NLBL_UNLABEL_C_LIST);
 	if (data == NULL) {
 		ret_val = -ENOMEM;
 		goto list_failure;
 	}
 
+	rcu_read_lock();
 	ret_val = nla_put_u8(ans_skb,
 			     NLBL_UNLABEL_A_ACPTFLG,
-			     atomic_read(&netlabel_unlabel_accept_flg));
+			     netlabel_unlabel_acceptflg);
+	rcu_read_unlock();
 	if (ret_val != 0)
 		goto list_failure;
 
 	genlmsg_end(ans_skb, data);
 
-	ret_val = genlmsg_unicast(ans_skb, info->snd_pid);
+	ret_val = genlmsg_reply(ans_skb, info);
 	if (ret_val != 0)
 		goto list_failure;
 	return 0;
@@ -211,10 +247,17 @@ int netlbl_unlabel_genl_init(void)
  */
 int netlbl_unlabel_getattr(struct netlbl_lsm_secattr *secattr)
 {
-	if (atomic_read(&netlabel_unlabel_accept_flg) == 1)
-		return netlbl_secattr_init(secattr);
+	int ret_val;
 
-	return -ENOMSG;
+	rcu_read_lock();
+	if (netlabel_unlabel_acceptflg == 1) {
+		netlbl_secattr_init(secattr);
+		ret_val = 0;
+	} else
+		ret_val = -ENOMSG;
+	rcu_read_unlock();
+
+	return ret_val;
 }
 
 /**
@@ -229,16 +272,23 @@ int netlbl_unlabel_defconf(void)
 {
 	int ret_val;
 	struct netlbl_dom_map *entry;
+	struct netlbl_audit audit_info;
+
+	/* Only the kernel is allowed to call this function and the only time
+	 * it is called is at bootup before the audit subsystem is reporting
+	 * messages so don't worry to much about these values. */
+	security_task_getsecid(current, &audit_info.secid);
+	audit_info.loginuid = 0;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL)
 		return -ENOMEM;
 	entry->type = NETLBL_NLTYPE_UNLABELED;
-	ret_val = netlbl_domhsh_add_default(entry);
+	ret_val = netlbl_domhsh_add_default(entry, &audit_info);
 	if (ret_val != 0)
 		return ret_val;
 
-	atomic_set(&netlabel_unlabel_accept_flg, 1);
+	netlbl_unlabel_acceptflg_set(1, &audit_info);
 
 	return 0;
 }

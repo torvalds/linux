@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp863.c
+ * linux/fs/nls/nls_cp863.c
  *
  * Charset cp863 translation tables.
  * Generated automatically from the Unicode and charset

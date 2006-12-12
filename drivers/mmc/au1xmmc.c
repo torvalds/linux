@@ -750,7 +750,7 @@ static void au1xmmc_dma_callback(int irq, void *dev_id)
 #define STATUS_DATA_IN  (SD_STATUS_NE)
 #define STATUS_DATA_OUT (SD_STATUS_TH)
 
-static irqreturn_t au1xmmc_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t au1xmmc_irq(int irq, void *dev_id)
 {
 
 	u32 status;
@@ -875,7 +875,7 @@ static void au1xmmc_init_dma(struct au1xmmc_host *host)
 	host->rx_chan = rxchan;
 }
 
-struct mmc_host_ops au1xmmc_ops = {
+static const struct mmc_host_ops au1xmmc_ops = {
 	.request	= au1xmmc_request,
 	.set_ios	= au1xmmc_set_ios,
 };

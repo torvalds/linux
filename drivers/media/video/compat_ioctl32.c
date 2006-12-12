@@ -58,6 +58,7 @@ static int put_video_tuner32(struct video_tuner *kp, struct video_tuner32 __user
 	return 0;
 }
 
+
 struct video_buffer32 {
 	compat_caddr_t base;
 	compat_int_t height, width, depth, bytesperline;
@@ -117,7 +118,7 @@ static int native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = file->f_op->unlocked_ioctl(file, cmd, arg);
 	else if (file->f_op->ioctl) {
 		lock_kernel();
-		ret = file->f_op->ioctl(file->f_dentry->d_inode, file, cmd, arg);
+		ret = file->f_op->ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
 		unlock_kernel();
 	}
 
@@ -618,6 +619,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		struct video_buffer vb;
 		struct video_window vw;
 		struct video_code vc;
+		struct video_audio va;
 #endif
 		struct v4l2_format v2f;
 		struct v4l2_buffer v2b;
@@ -635,31 +637,31 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	/* First, convert the command. */
 	switch(cmd) {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
-	case VIDIOCGTUNER32: cmd = VIDIOCGTUNER; break;
-	case VIDIOCSTUNER32: cmd = VIDIOCSTUNER; break;
-	case VIDIOCGWIN32: cmd = VIDIOCGWIN; break;
-	case VIDIOCGFBUF32: cmd = VIDIOCGFBUF; break;
-	case VIDIOCSFBUF32: cmd = VIDIOCSFBUF; break;
-	case VIDIOCGFREQ32: cmd = VIDIOCGFREQ; break;
-	case VIDIOCSFREQ32: cmd = VIDIOCSFREQ; break;
-	case VIDIOCSMICROCODE32: cmd = VIDIOCSMICROCODE; break;
+	case VIDIOCGTUNER32: realcmd = cmd = VIDIOCGTUNER; break;
+	case VIDIOCSTUNER32: realcmd = cmd = VIDIOCSTUNER; break;
+	case VIDIOCGWIN32: realcmd = cmd = VIDIOCGWIN; break;
+	case VIDIOCGFBUF32: realcmd = cmd = VIDIOCGFBUF; break;
+	case VIDIOCSFBUF32: realcmd = cmd = VIDIOCSFBUF; break;
+	case VIDIOCGFREQ32: realcmd = cmd = VIDIOCGFREQ; break;
+	case VIDIOCSFREQ32: realcmd = cmd = VIDIOCSFREQ; break;
+	case VIDIOCSMICROCODE32: realcmd = cmd = VIDIOCSMICROCODE; break;
 #endif
-	case VIDIOC_G_FMT32: cmd = VIDIOC_G_FMT; break;
-	case VIDIOC_S_FMT32: cmd = VIDIOC_S_FMT; break;
-	case VIDIOC_QUERYBUF32: cmd = VIDIOC_QUERYBUF; break;
-	case VIDIOC_QBUF32: cmd = VIDIOC_QBUF; break;
-	case VIDIOC_DQBUF32: cmd = VIDIOC_DQBUF; break;
-	case VIDIOC_STREAMON32: cmd = VIDIOC_STREAMON; break;
-	case VIDIOC_STREAMOFF32: cmd = VIDIOC_STREAMOFF; break;
-	case VIDIOC_G_FBUF32: cmd = VIDIOC_G_FBUF; break;
-	case VIDIOC_S_FBUF32: cmd = VIDIOC_S_FBUF; break;
-	case VIDIOC_OVERLAY32: cmd = VIDIOC_OVERLAY; break;
+	case VIDIOC_G_FMT32: realcmd = cmd = VIDIOC_G_FMT; break;
+	case VIDIOC_S_FMT32: realcmd = cmd = VIDIOC_S_FMT; break;
+	case VIDIOC_QUERYBUF32: realcmd = cmd = VIDIOC_QUERYBUF; break;
+	case VIDIOC_QBUF32: realcmd = cmd = VIDIOC_QBUF; break;
+	case VIDIOC_DQBUF32: realcmd = cmd = VIDIOC_DQBUF; break;
+	case VIDIOC_STREAMON32: realcmd = cmd = VIDIOC_STREAMON; break;
+	case VIDIOC_STREAMOFF32: realcmd = cmd = VIDIOC_STREAMOFF; break;
+	case VIDIOC_G_FBUF32: realcmd = cmd = VIDIOC_G_FBUF; break;
+	case VIDIOC_S_FBUF32: realcmd = cmd = VIDIOC_S_FBUF; break;
+	case VIDIOC_OVERLAY32: realcmd = cmd = VIDIOC_OVERLAY; break;
 	case VIDIOC_ENUMSTD32: realcmd = VIDIOC_ENUMSTD; break;
 	case VIDIOC_ENUMINPUT32: realcmd = VIDIOC_ENUMINPUT; break;
-	case VIDIOC_S_CTRL32: cmd = VIDIOC_S_CTRL; break;
-	case VIDIOC_G_INPUT32: cmd = VIDIOC_G_INPUT; break;
-	case VIDIOC_S_INPUT32: cmd = VIDIOC_S_INPUT; break;
-	case VIDIOC_TRY_FMT32: cmd = VIDIOC_TRY_FMT; break;
+	case VIDIOC_S_CTRL32: realcmd = cmd = VIDIOC_S_CTRL; break;
+	case VIDIOC_G_INPUT32: realcmd = cmd = VIDIOC_G_INPUT; break;
+	case VIDIOC_S_INPUT32: realcmd = cmd = VIDIOC_S_INPUT; break;
+	case VIDIOC_TRY_FMT32: realcmd = cmd = VIDIOC_TRY_FMT; break;
 	};
 
 	switch(cmd) {
@@ -676,6 +678,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		compatible_arg = 0;
 		break;
 
+
 	case VIDIOCSFREQ:
 #endif
 	case VIDIOC_S_INPUT:
@@ -683,7 +686,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	case VIDIOC_STREAMON:
 	case VIDIOC_STREAMOFF:
 		err = get_user(karg.vx, (u32 __user *)up);
-		compatible_arg = 0;
+		compatible_arg = 1;
 		break;
 
 	case VIDIOC_S_FBUF:
@@ -739,6 +742,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	case VIDIOC_G_FBUF:
 	case VIDIOC_G_INPUT:
 		compatible_arg = 0;
+		break;
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case VIDIOCSMICROCODE:
 		err = microcode32(&karg.vc, up);
@@ -755,7 +759,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		mm_segment_t old_fs = get_fs();
 
 		set_fs(KERNEL_DS);
-		err = native_ioctl(file, realcmd, (unsigned long)&karg);
+		err = native_ioctl(file, realcmd, (unsigned long) &karg);
 		set_fs(old_fs);
 	}
 	if(err == 0) {
@@ -772,6 +776,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		case VIDIOCGFBUF:
 			err = put_video_buffer32(&karg.vb, up);
 			break;
+
 #endif
 		case VIDIOC_G_FBUF:
 			err = put_v4l2_framebuffer32(&karg.v2fb, up);
@@ -841,10 +846,14 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOCSFBUF32:
 	case VIDIOCGFREQ32:
 	case VIDIOCSFREQ32:
+	case VIDIOCGAUDIO:
+	case VIDIOCSAUDIO:
 #endif
 	case VIDIOC_QUERYCAP:
 	case VIDIOC_ENUM_FMT:
 	case VIDIOC_G_FMT32:
+	case VIDIOC_CROPCAP:
+	case VIDIOC_S_CROP:
 	case VIDIOC_S_FMT32:
 	case VIDIOC_REQBUFS:
 	case VIDIOC_QUERYBUF32:
@@ -882,8 +891,6 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOCSPICT:
 	case VIDIOCCAPTURE:
 	case VIDIOCKEY:
-	case VIDIOCGAUDIO:
-	case VIDIOCSAUDIO:
 	case VIDIOCSYNC:
 	case VIDIOCMCAPTURE:
 	case VIDIOCGMBUF:

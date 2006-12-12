@@ -518,7 +518,7 @@ struct depca_private {
 */
 static int depca_open(struct net_device *dev);
 static int depca_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t depca_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t depca_interrupt(int irq, void *dev_id);
 static int depca_close(struct net_device *dev);
 static int depca_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void depca_tx_timeout(struct net_device *dev);
@@ -965,7 +965,7 @@ static int depca_start_xmit(struct sk_buff *skb, struct net_device *dev)
 /*
 ** The DEPCA interrupt handler.
 */
-static irqreturn_t depca_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t depca_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct depca_private *lp;
@@ -1252,24 +1252,22 @@ static void set_multicast_list(struct net_device *dev)
 	struct depca_private *lp = (struct depca_private *) dev->priv;
 	u_long ioaddr = dev->base_addr;
 
-	if (dev) {
-		netif_stop_queue(dev);
-		while (lp->tx_old != lp->tx_new);	/* Wait for the ring to empty */
+	netif_stop_queue(dev);
+	while (lp->tx_old != lp->tx_new);	/* Wait for the ring to empty */
 
-		STOP_DEPCA;	/* Temporarily stop the depca.  */
-		depca_init_ring(dev);	/* Initialize the descriptor rings */
+	STOP_DEPCA;	/* Temporarily stop the depca.  */
+	depca_init_ring(dev);	/* Initialize the descriptor rings */
 
-		if (dev->flags & IFF_PROMISC) {	/* Set promiscuous mode */
-			lp->init_block.mode |= PROM;
-		} else {
-			SetMulticastFilter(dev);
-			lp->init_block.mode &= ~PROM;	/* Unset promiscuous mode */
-		}
-
-		LoadCSRs(dev);	/* Reload CSR3 */
-		InitRestartDepca(dev);	/* Resume normal operation. */
-		netif_start_queue(dev);	/* Unlock the TX ring */
+	if (dev->flags & IFF_PROMISC) {	/* Set promiscuous mode */
+		lp->init_block.mode |= PROM;
+	} else {
+		SetMulticastFilter(dev);
+		lp->init_block.mode &= ~PROM;	/* Unset promiscuous mode */
 	}
+
+	LoadCSRs(dev);	/* Reload CSR3 */
+	InitRestartDepca(dev);	/* Resume normal operation. */
+	netif_start_queue(dev);	/* Unlock the TX ring */
 }
 
 /*

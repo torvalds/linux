@@ -211,7 +211,7 @@ static void mfc3_change_mode( struct parport *p, int m)
 
 static int use_cnt = 0;
 
-static irqreturn_t mfc3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mfc3_interrupt(int irq, void *dev_id)
 {
 	int i;
 
@@ -219,7 +219,7 @@ static irqreturn_t mfc3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		if (this_port[i] != NULL)
 			if (pia(this_port[i])->crb & 128) { /* Board caused interrupt */
 				dummy = pia(this_port[i])->pprb; /* clear irq bit */
-				parport_generic_irq(irq, this_port[i], regs);
+				parport_generic_irq(irq, this_port[i]);
 			}
 	return IRQ_HANDLED;
 }

@@ -608,6 +608,22 @@ void __init macfb_setup(char *options)
 	}
 }
 
+static void __init iounmap_macfb(void)
+{
+	if (valkyrie_cmap_regs)
+		iounmap(valkyrie_cmap_regs);
+	if (dafb_cmap_regs)
+		iounmap(dafb_cmap_regs);
+	if (v8_brazil_cmap_regs)
+		iounmap(v8_brazil_cmap_regs);
+	if (rbv_cmap_regs)
+		iounmap(rbv_cmap_regs);
+	if (civic_cmap_regs)
+		iounmap(civic_cmap_regs);
+	if (csc_cmap_regs)
+		iounmap(csc_cmap_regs);
+}
+
 static int __init macfb_init(void)
 {
 	int video_cmap_len, video_is_nubus = 0;
@@ -962,6 +978,10 @@ static int __init macfb_init(void)
 	if (!err)
 		printk("fb%d: %s frame buffer device\n",
 		       fb_info.node, fb_info.fix.id);
+	else {
+		iounmap(fb_info.screen_base);
+		iounmap_macfb();
+	}
 	return err;
 }
 

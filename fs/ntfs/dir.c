@@ -1101,7 +1101,7 @@ static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	s64 ia_pos, ia_start, prev_ia_pos, bmp_pos;
 	loff_t fpos, i_size;
-	struct inode *bmp_vi, *vdir = filp->f_dentry->d_inode;
+	struct inode *bmp_vi, *vdir = filp->f_path.dentry->d_inode;
 	struct super_block *sb = vdir->i_sb;
 	ntfs_inode *ndir = NTFS_I(vdir);
 	ntfs_volume *vol = NTFS_SB(sb);
@@ -1136,9 +1136,9 @@ static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if (fpos == 1) {
 		ntfs_debug("Calling filldir for .. with len 2, fpos 0x1, "
 				"inode 0x%lx, DT_DIR.",
-				(unsigned long)parent_ino(filp->f_dentry));
+				(unsigned long)parent_ino(filp->f_path.dentry));
 		rc = filldir(dirent, "..", 2, fpos,
-				parent_ino(filp->f_dentry), DT_DIR);
+				parent_ino(filp->f_path.dentry), DT_DIR);
 		if (rc)
 			goto done;
 		fpos++;
@@ -1149,8 +1149,7 @@ static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	 * Allocate a buffer to store the current name being processed
 	 * converted to format determined by current NLS.
 	 */
-	name = (u8*)kmalloc(NTFS_MAX_NAME_LEN * NLS_MAX_CHARSET_SIZE + 1,
-			GFP_NOFS);
+	name = kmalloc(NTFS_MAX_NAME_LEN * NLS_MAX_CHARSET_SIZE + 1, GFP_NOFS);
 	if (unlikely(!name)) {
 		err = -ENOMEM;
 		goto err_out;
@@ -1191,7 +1190,7 @@ static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	 * map the mft record without deadlocking.
 	 */
 	rc = le32_to_cpu(ctx->attr->data.resident.value_length);
-	ir = (INDEX_ROOT*)kmalloc(rc, GFP_NOFS);
+	ir = kmalloc(rc, GFP_NOFS);
 	if (unlikely(!ir)) {
 		err = -ENOMEM;
 		goto err_out;

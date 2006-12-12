@@ -64,6 +64,7 @@ struct msp_state {
 	u8 has_sound_processing;
 	u8 has_virtual_dolby_surround;
 	u8 has_dolby_pro_logic;
+	u8 force_btsc;
 
 	int radio;
 	int opmode;

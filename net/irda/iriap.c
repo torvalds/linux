@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
+#include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
@@ -172,7 +173,7 @@ struct iriap_cb *iriap_open(__u8 slsap_sel, int mode, void *priv,
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
 
-	self = kmalloc(sizeof(struct iriap_cb), GFP_ATOMIC);
+	self = kzalloc(sizeof(*self), GFP_ATOMIC);
 	if (!self) {
 		IRDA_WARNING("%s: Unable to kmalloc!\n", __FUNCTION__);
 		return NULL;
@@ -181,7 +182,6 @@ struct iriap_cb *iriap_open(__u8 slsap_sel, int mode, void *priv,
 	/*
 	 *  Initialize instance
 	 */
-	memset(self, 0, sizeof(struct iriap_cb));
 
 	self->magic = IAS_MAGIC;
 	self->mode = mode;
@@ -345,10 +345,11 @@ static void iriap_disconnect_request(struct iriap_cb *self)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IAS_MAGIC, return;);
 
-	tx_skb = alloc_skb(64, GFP_ATOMIC);
+	tx_skb = alloc_skb(LMP_MAX_HEADER, GFP_ATOMIC);
 	if (tx_skb == NULL) {
-		IRDA_DEBUG(0, "%s(), Could not allocate an sk_buff of length %d\n", 
-			__FUNCTION__, 64);
+		IRDA_DEBUG(0,
+			   "%s(), Could not allocate an sk_buff of length %d\n",
+			   __FUNCTION__, LMP_MAX_HEADER);
 		return;
 	}
 
@@ -450,12 +451,12 @@ static void iriap_getvaluebyclass_confirm(struct iriap_cb *self,
 	n = 2;
 
 	/* Get length, MSB first */
-	len = be16_to_cpu(get_unaligned((__u16 *)(fp+n))); n += 2;
+	len = be16_to_cpu(get_unaligned((__be16 *)(fp+n))); n += 2;
 
 	IRDA_DEBUG(4, "%s(), len=%d\n", __FUNCTION__, len);
 
 	/* Get object ID, MSB first */
-	obj_id = be16_to_cpu(get_unaligned((__u16 *)(fp+n))); n += 2;
+	obj_id = be16_to_cpu(get_unaligned((__be16 *)(fp+n))); n += 2;
 
 	type = fp[n++];
 	IRDA_DEBUG(4, "%s(), Value type = %d\n", __FUNCTION__, type);
@@ -505,7 +506,7 @@ static void iriap_getvaluebyclass_confirm(struct iriap_cb *self,
 		value = irias_new_string_value(fp+n);
 		break;
 	case IAS_OCT_SEQ:
-		value_len = be16_to_cpu(get_unaligned((__u16 *)(fp+n)));
+		value_len = be16_to_cpu(get_unaligned((__be16 *)(fp+n)));
 		n += 2;
 
 		/* Will truncate to IAS_MAX_OCTET_STRING bytes */
@@ -543,7 +544,7 @@ static void iriap_getvaluebyclass_response(struct iriap_cb *self,
 {
 	struct sk_buff *tx_skb;
 	int n;
-	__u32 tmp_be32;
+	__be32 tmp_be32;
 	__be16 tmp_be16;
 	__u8 *fp;
 
@@ -701,7 +702,7 @@ void iriap_send_ack(struct iriap_cb *self)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IAS_MAGIC, return;);
 
-	tx_skb = alloc_skb(64, GFP_ATOMIC);
+	tx_skb = alloc_skb(LMP_MAX_HEADER + 1, GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 

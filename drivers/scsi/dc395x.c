@@ -1219,7 +1219,7 @@ static void dump_register_info(struct AdapterCtlBlk *acb,
 			    	srb, srb->cmd, srb->cmd->pid,
 				srb->cmd->cmnd[0], srb->cmd->device->id,
 			       	srb->cmd->device->lun);
-		printk("  sglist=%p cnt=%i idx=%i len=%i\n",
+		printk("  sglist=%p cnt=%i idx=%i len=%zu\n",
 		       srb->segment_x, srb->sg_count, srb->sg_index,
 		       srb->total_xfer_length);
 		printk("  state=0x%04x status=0x%02x phase=0x%02x (%sconn.)\n",
@@ -1813,10 +1813,9 @@ static void dc395x_handle_interrupt(struct AdapterCtlBlk *acb,
 }
 
 
-static irqreturn_t dc395x_interrupt(int irq, void *dev_id,
-		struct pt_regs *regs)
+static irqreturn_t dc395x_interrupt(int irq, void *dev_id)
 {
-	struct AdapterCtlBlk *acb = (struct AdapterCtlBlk *)dev_id;
+	struct AdapterCtlBlk *acb = dev_id;
 	u16 scsi_status;
 	u8 dma_status;
 	irqreturn_t handled = IRQ_NONE;
@@ -4949,7 +4948,7 @@ static struct pci_driver dc395x_driver = {
  **/
 static int __init dc395x_module_init(void)
 {
-	return pci_module_init(&dc395x_driver);
+	return pci_register_driver(&dc395x_driver);
 }
 
 

@@ -107,6 +107,9 @@
 #define __raw_writew(v, a)	__writew(v, (void __iomem *)(a))
 #define __raw_writel(v, a)	__writel(v, (void __iomem *)(a))
 
+void __raw_writesl(unsigned long addr, const void *data, int longlen);
+void __raw_readsl(unsigned long addr, void *data, int longlen);
+
 /*
  * The platform header files may define some of these macros to use
  * the inlined versions where appropriate.  These macros may also be
@@ -131,6 +134,9 @@
 #ifdef __raw_writel
 # define writel(v,a)	({ __raw_writel((v),(a)); mb(); })
 #endif
+
+#define writesl __raw_writesl
+#define readsl  __raw_readsl
 
 #define readb_relaxed(a) readb(a)
 #define readw_relaxed(a) readw(a)
@@ -209,8 +215,14 @@ static inline void ctrl_outl(unsigned int b, unsigned long addr)
         *(volatile unsigned long*)addr = b;
 }
 
+static inline void ctrl_delay(void)
+{
+	ctrl_inw(P2SEG);
+}
+
 #define IO_SPACE_LIMIT 0xffffffff
 
+#ifdef CONFIG_MMU
 /*
  * Change virtual addresses to physical addresses and vv.
  * These are trivial on the 1:1 Linux/SuperH mapping
@@ -224,6 +236,10 @@ static inline void *phys_to_virt(unsigned long address)
 {
 	return (void *)P1SEGADDR(address);
 }
+#else
+#define phys_to_virt(address)	((void *)(address))
+#define virt_to_phys(address)	((unsigned long)(address))
+#endif
 
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt
@@ -287,22 +303,6 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 	__ioremap((offset), (size), (flags))
 #define iounmap(addr)					\
 	__iounmap((addr))
-
-static inline int check_signature(char __iomem *io_addr,
-			const unsigned char *signature, int length)
-{
-	int retval = 0;
-	do {
-		if (readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-	retval = 1;
-out:
-	return retval;
-}
 
 /*
  * The caches on some architectures aren't dma-coherent and have need to

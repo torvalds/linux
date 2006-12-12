@@ -25,7 +25,7 @@
 #undef _CACHE
 #undef MULTI_CACHE
 
-#if defined(CONFIG_CPU_ARM610) || defined(CONFIG_CPU_ARM710)
+#if defined(CONFIG_CPU_CACHE_V3)
 # ifdef _CACHE
 #  define MULTI_CACHE 1
 # else
@@ -33,7 +33,7 @@
 # endif
 #endif
 
-#if defined(CONFIG_CPU_ARM720T)
+#if defined(CONFIG_CPU_CACHE_V4)
 # ifdef _CACHE
 #  define MULTI_CACHE 1
 # else
@@ -54,7 +54,23 @@
 # endif
 #endif
 
-#if defined(CONFIG_CPU_SA110) || defined(CONFIG_CPU_SA1100)
+#if defined(CONFIG_CPU_ARM940T)
+# ifdef _CACHE
+#  define MULTI_CACHE 1
+# else
+#  define _CACHE arm940
+# endif
+#endif
+
+#if defined(CONFIG_CPU_ARM946E)
+# ifdef _CACHE
+#  define MULTI_CACHE 1
+# else
+#  define _CACHE arm946
+# endif
+#endif
+
+#if defined(CONFIG_CPU_CACHE_V4WB)
 # ifdef _CACHE
 #  define MULTI_CACHE 1
 # else

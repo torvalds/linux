@@ -84,7 +84,7 @@ unsigned long __generic_copy_to_user(void __user *to, const void *from,
 		"	.even\n"
 		"20:	lsl.l	#2,%0\n"
 		"50:	add.l	%5,%0\n"
-		"	jra	7b\n"
+		"	jra	8b\n"
 		"	.previous\n"
 		"\n"
 		"	.section __ex_table,\"a\"\n"

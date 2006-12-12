@@ -3,7 +3,6 @@
  * Licensed under the GPL
  */
 
-#include "linux/config.h"
 #include "linux/posix_types.h"
 #include "linux/tty.h"
 #include "linux/tty_flip.h"
@@ -108,9 +107,10 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 	return line_open(vts, tty);
 }
 
+/* Set in an initcall, checked in an exitcall */
 static int con_init_done = 0;
 
-static struct tty_operations console_ops = {
+static const struct tty_operations console_ops = {
 	.open 	 		= con_open,
 	.close 	 		= line_close,
 	.write 	 		= line_write,

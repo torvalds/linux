@@ -84,6 +84,7 @@ static void uhci_finish_suspend(struct uhci_hcd *uhci, int port,
 		unsigned long port_addr)
 {
 	int status;
+	int i;
 
 	if (inw(port_addr) & (USBPORTSC_SUSP | USBPORTSC_RD)) {
 		CLR_RH_PORTSTAT(USBPORTSC_SUSP | USBPORTSC_RD);
@@ -92,9 +93,14 @@ static void uhci_finish_suspend(struct uhci_hcd *uhci, int port,
 
 		/* The controller won't actually turn off the RD bit until
 		 * it has had a chance to send a low-speed EOP sequence,
-		 * which takes 3 bit times (= 2 microseconds).  We'll delay
-		 * slightly longer for good luck. */
-		udelay(4);
+		 * which is supposed to take 3 bit times (= 2 microseconds).
+		 * Experiments show that some controllers take longer, so
+		 * we'll poll for completion. */
+		for (i = 0; i < 10; ++i) {
+			if (!(inw(port_addr) & USBPORTSC_RD))
+				break;
+			udelay(1);
+		}
 	}
 	clear_bit(port, &uhci->resuming_ports);
 }
@@ -170,7 +176,7 @@ static int uhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 
 	spin_lock_irqsave(&uhci->lock, flags);
 
-	uhci_scan_schedule(uhci, NULL);
+	uhci_scan_schedule(uhci);
 	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) || uhci->dead)
 		goto done;
 	uhci_check_ports(uhci);

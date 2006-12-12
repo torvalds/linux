@@ -29,9 +29,13 @@ ENTRY(v4_flush_user_cache_all)
  *	Clean and invalidate the entire cache.
  */
 ENTRY(v4_flush_kern_cache_all)
+#ifdef CPU_CP15
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c7, 0		@ flush ID cache
 	mov	pc, lr
+#else
+	/* FALLTHROUGH */
+#endif
 
 /*
  *	flush_user_cache_range(start, end, flags)
@@ -44,9 +48,13 @@ ENTRY(v4_flush_kern_cache_all)
  *	- flags	- vma_area_struct flags describing address space
  */
 ENTRY(v4_flush_user_cache_range)
+#ifdef CPU_CP15
 	mov	ip, #0
 	mcreq	p15, 0, ip, c7, c7, 0		@ flush ID cache
 	mov	pc, lr
+#else
+	/* FALLTHROUGH */
+#endif
 
 /*
  *	coherent_kern_range(start, end)
@@ -108,8 +116,10 @@ ENTRY(v4_dma_inv_range)
  *	- end	 - virtual end address
  */
 ENTRY(v4_dma_flush_range)
+#ifdef CPU_CP15
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c7, 0		@ flush ID cache
+#endif
 	/* FALLTHROUGH */
 
 /*

@@ -158,7 +158,7 @@ cpc700_init_IRQ(void)
  * Find the highest IRQ that generating an interrupt, if any.
  */
 int
-cpc700_get_irq(struct pt_regs *regs)
+cpc700_get_irq(void)
 {
 	int irq = 0;
 	u_int irq_status, irq_test = 1;

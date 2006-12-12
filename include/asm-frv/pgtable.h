@@ -176,8 +176,6 @@ do {							\
 } while(0)
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
-#define set_pte_atomic(pteptr, pteval)		set_pte((pteptr), (pteval))
-
 /*
  * pgd_offset() returns a (pgd_t *)
  * pgd_index() is used get the offset into the pgd page's array of pgd_t's;

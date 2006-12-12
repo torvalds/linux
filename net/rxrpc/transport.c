@@ -31,7 +31,6 @@
 #endif
 #include <linux/errqueue.h>
 #include <asm/uaccess.h>
-#include <asm/checksum.h>
 #include "internal.h"
 
 struct errormsg {
@@ -381,11 +380,10 @@ static int rxrpc_incoming_msg(struct rxrpc_transport *trans,
 
 		/* allocate a new message record */
 		ret = -ENOMEM;
-		msg = kmalloc(sizeof(struct rxrpc_message), GFP_KERNEL);
+		msg = kmemdup(jumbomsg, sizeof(struct rxrpc_message), GFP_KERNEL);
 		if (!msg)
 			goto error;
 
-		memcpy(msg, jumbomsg, sizeof(*msg));
 		list_add_tail(&msg->link, msgq);
 
 		/* adjust the jumbo packet */

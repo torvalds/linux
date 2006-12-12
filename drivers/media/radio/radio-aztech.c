@@ -1,5 +1,6 @@
 /* radio-aztech.c - Aztech radio card driver for Linux 2.2
  *
+ * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
  * Adapted to support the Video for Linux API by
  * Russell Kroll <rkroll@exploits.org>.  Based on original tuner code by:
  *
@@ -30,9 +31,30 @@
 #include <linux/delay.h>	/* udelay			*/
 #include <asm/io.h>		/* outb, outb_p			*/
 #include <asm/uaccess.h>	/* copy to/from user		*/
-#include <linux/videodev.h>	/* kernel radio structs		*/
+#include <linux/videodev2.h>	/* kernel radio structs		*/
 #include <media/v4l2-common.h>
-#include <linux/config.h>	/* CONFIG_RADIO_AZTECH_PORT 	*/
+
+#include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
+#define RADIO_VERSION KERNEL_VERSION(0,0,2)
+
+static struct v4l2_queryctrl radio_qctrl[] = {
+	{
+		.id            = V4L2_CID_AUDIO_MUTE,
+		.name          = "Mute",
+		.minimum       = 0,
+		.maximum       = 1,
+		.default_value = 1,
+		.type          = V4L2_CTRL_TYPE_BOOLEAN,
+	},{
+		.id            = V4L2_CID_AUDIO_VOLUME,
+		.name          = "Volume",
+		.minimum       = 0,
+		.maximum       = 0xff,
+		.step          = 1,
+		.default_value = 0xff,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+	}
+};
 
 /* acceptable ports: 0x350 (JP3 shorted), 0x358 (JP3 open) */
 
@@ -166,81 +188,121 @@ static int az_do_ioctl(struct inode *inode, struct file *file,
 
 	switch(cmd)
 	{
-		case VIDIOCGCAP:
+		case VIDIOC_QUERYCAP:
 		{
-			struct video_capability *v = arg;
+			struct v4l2_capability *v = arg;
 			memset(v,0,sizeof(*v));
-			v->type=VID_TYPE_TUNER;
-			v->channels=1;
-			v->audios=1;
-			strcpy(v->name, "Aztech Radio");
+			strlcpy(v->driver, "radio-aztech", sizeof (v->driver));
+			strlcpy(v->card, "Aztech Radio", sizeof (v->card));
+			sprintf(v->bus_info,"ISA");
+			v->version = RADIO_VERSION;
+			v->capabilities = V4L2_CAP_TUNER;
+
 			return 0;
 		}
-		case VIDIOCGTUNER:
+		case VIDIOC_G_TUNER:
 		{
-			struct video_tuner *v = arg;
-			if(v->tuner)	/* Only 1 tuner */
+			struct v4l2_tuner *v = arg;
+
+			if (v->index > 0)
 				return -EINVAL;
+
+			memset(v,0,sizeof(*v));
+			strcpy(v->name, "FM");
+			v->type = V4L2_TUNER_RADIO;
+
 			v->rangelow=(87*16000);
 			v->rangehigh=(108*16000);
-			v->flags=VIDEO_TUNER_LOW;
-			v->mode=VIDEO_MODE_AUTO;
-			v->signal=0xFFFF*az_getsigstr(az);
+			v->rxsubchans =V4L2_TUNER_SUB_MONO|V4L2_TUNER_SUB_STEREO;
+			v->capability=V4L2_TUNER_CAP_LOW;
 			if(az_getstereo(az))
-				v->flags|=VIDEO_TUNER_STEREO_ON;
-			strcpy(v->name, "FM");
+				v->audmode = V4L2_TUNER_MODE_STEREO;
+			else
+				v->audmode = V4L2_TUNER_MODE_MONO;
+			v->signal=0xFFFF*az_getsigstr(az);
+
 			return 0;
 		}
-		case VIDIOCSTUNER:
+		case VIDIOC_S_TUNER:
 		{
-			struct video_tuner *v = arg;
-			if(v->tuner!=0)
+			struct v4l2_tuner *v = arg;
+
+			if (v->index > 0)
 				return -EINVAL;
+
 			return 0;
 		}
-		case VIDIOCGFREQ:
+		case VIDIOC_S_FREQUENCY:
 		{
-			unsigned long *freq = arg;
-			*freq = az->curfreq;
-			return 0;
-		}
-		case VIDIOCSFREQ:
-		{
-			unsigned long *freq = arg;
-			az->curfreq = *freq;
+			struct v4l2_frequency *f = arg;
+
+			az->curfreq = f->frequency;
 			az_setfreq(az, az->curfreq);
 			return 0;
 		}
-		case VIDIOCGAUDIO:
+		case VIDIOC_G_FREQUENCY:
 		{
-			struct video_audio *v = arg;
-			memset(v,0, sizeof(*v));
-			v->flags|=VIDEO_AUDIO_MUTABLE|VIDEO_AUDIO_VOLUME;
-			if(az->stereo)
-				v->mode=VIDEO_SOUND_STEREO;
-			else
-				v->mode=VIDEO_SOUND_MONO;
-			v->volume=az->curvol;
-			v->step=16384;
-			strcpy(v->name, "Radio");
-			return 0;
-		}
-		case VIDIOCSAUDIO:
-		{
-			struct video_audio *v = arg;
-			if(v->audio)
-				return -EINVAL;
-			az->curvol=v->volume;
+			struct v4l2_frequency *f = arg;
 
-			az->stereo=(v->mode&VIDEO_SOUND_STEREO)?1:0;
-			if(v->flags&VIDEO_AUDIO_MUTE)
-				az_setvol(az,0);
-			else
-				az_setvol(az,az->curvol);
+			f->type = V4L2_TUNER_RADIO;
+			f->frequency = az->curfreq;
+
 			return 0;
 		}
+
+		case VIDIOC_QUERYCTRL:
+		{
+			struct v4l2_queryctrl *qc = arg;
+			int i;
+
+			for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
+				if (qc->id && qc->id == radio_qctrl[i].id) {
+					memcpy(qc, &(radio_qctrl[i]),
+								sizeof(*qc));
+					return (0);
+				}
+			}
+			return -EINVAL;
+		}
+		case VIDIOC_G_CTRL:
+		{
+			struct v4l2_control *ctrl= arg;
+
+			switch (ctrl->id) {
+				case V4L2_CID_AUDIO_MUTE:
+					if (az->curvol==0)
+						ctrl->value=1;
+					else
+						ctrl->value=0;
+					return (0);
+				case V4L2_CID_AUDIO_VOLUME:
+					ctrl->value=az->curvol * 6554;
+					return (0);
+			}
+			return -EINVAL;
+		}
+		case VIDIOC_S_CTRL:
+		{
+			struct v4l2_control *ctrl= arg;
+
+			switch (ctrl->id) {
+				case V4L2_CID_AUDIO_MUTE:
+					if (ctrl->value) {
+						az_setvol(az,0);
+					} else {
+						az_setvol(az,az->curvol);
+					}
+					return (0);
+				case V4L2_CID_AUDIO_VOLUME:
+					az_setvol(az,ctrl->value);
+					return (0);
+			}
+			return -EINVAL;
+		}
+
 		default:
-			return -ENOIOCTLCMD;
+			return v4l_compat_translate_ioctl(inode,file,cmd,arg,
+							  az_do_ioctl);
 	}
 }
 
@@ -266,7 +328,7 @@ static struct video_device aztech_radio=
 	.owner		= THIS_MODULE,
 	.name		= "Aztech radio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= VID_HARDWARE_AZTECH,
+	.hardware	= 0,
 	.fops           = &aztech_fops,
 };
 

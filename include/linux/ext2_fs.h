@@ -165,41 +165,49 @@ struct ext2_group_desc
 #define	EXT2_N_BLOCKS			(EXT2_TIND_BLOCK + 1)
 
 /*
- * Inode flags
+ * Inode flags (GETFLAGS/SETFLAGS)
  */
-#define	EXT2_SECRM_FL			0x00000001 /* Secure deletion */
-#define	EXT2_UNRM_FL			0x00000002 /* Undelete */
-#define	EXT2_COMPR_FL			0x00000004 /* Compress file */
-#define EXT2_SYNC_FL			0x00000008 /* Synchronous updates */
-#define EXT2_IMMUTABLE_FL		0x00000010 /* Immutable file */
-#define EXT2_APPEND_FL			0x00000020 /* writes to file may only append */
-#define EXT2_NODUMP_FL			0x00000040 /* do not dump file */
-#define EXT2_NOATIME_FL			0x00000080 /* do not update atime */
+#define	EXT2_SECRM_FL			FS_SECRM_FL	/* Secure deletion */
+#define	EXT2_UNRM_FL			FS_UNRM_FL	/* Undelete */
+#define	EXT2_COMPR_FL			FS_COMPR_FL	/* Compress file */
+#define EXT2_SYNC_FL			FS_SYNC_FL	/* Synchronous updates */
+#define EXT2_IMMUTABLE_FL		FS_IMMUTABLE_FL	/* Immutable file */
+#define EXT2_APPEND_FL			FS_APPEND_FL	/* writes to file may only append */
+#define EXT2_NODUMP_FL			FS_NODUMP_FL	/* do not dump file */
+#define EXT2_NOATIME_FL			FS_NOATIME_FL	/* do not update atime */
 /* Reserved for compression usage... */
-#define EXT2_DIRTY_FL			0x00000100
-#define EXT2_COMPRBLK_FL		0x00000200 /* One or more compressed clusters */
-#define EXT2_NOCOMP_FL			0x00000400 /* Don't compress */
-#define EXT2_ECOMPR_FL			0x00000800 /* Compression error */
+#define EXT2_DIRTY_FL			FS_DIRTY_FL
+#define EXT2_COMPRBLK_FL		FS_COMPRBLK_FL	/* One or more compressed clusters */
+#define EXT2_NOCOMP_FL			FS_NOCOMP_FL	/* Don't compress */
+#define EXT2_ECOMPR_FL			FS_ECOMPR_FL	/* Compression error */
 /* End compression flags --- maybe not all used */	
-#define EXT2_BTREE_FL			0x00001000 /* btree format dir */
-#define EXT2_INDEX_FL			0x00001000 /* hash-indexed directory */
-#define EXT2_IMAGIC_FL			0x00002000 /* AFS directory */
-#define EXT2_JOURNAL_DATA_FL		0x00004000 /* Reserved for ext3 */
-#define EXT2_NOTAIL_FL			0x00008000 /* file tail should not be merged */
-#define EXT2_DIRSYNC_FL			0x00010000 /* dirsync behaviour (directories only) */
-#define EXT2_TOPDIR_FL			0x00020000 /* Top of directory hierarchies*/
-#define EXT2_RESERVED_FL		0x80000000 /* reserved for ext2 lib */
+#define EXT2_BTREE_FL			FS_BTREE_FL	/* btree format dir */
+#define EXT2_INDEX_FL			FS_INDEX_FL	/* hash-indexed directory */
+#define EXT2_IMAGIC_FL			FS_IMAGIC_FL	/* AFS directory */
+#define EXT2_JOURNAL_DATA_FL		FS_JOURNAL_DATA_FL /* Reserved for ext3 */
+#define EXT2_NOTAIL_FL			FS_NOTAIL_FL	/* file tail should not be merged */
+#define EXT2_DIRSYNC_FL			FS_DIRSYNC_FL	/* dirsync behaviour (directories only) */
+#define EXT2_TOPDIR_FL			FS_TOPDIR_FL	/* Top of directory hierarchies*/
+#define EXT2_RESERVED_FL		FS_RESERVED_FL	/* reserved for ext2 lib */
 
-#define EXT2_FL_USER_VISIBLE		0x0003DFFF /* User visible flags */
-#define EXT2_FL_USER_MODIFIABLE		0x000380FF /* User modifiable flags */
+#define EXT2_FL_USER_VISIBLE		FS_FL_USER_VISIBLE	/* User visible flags */
+#define EXT2_FL_USER_MODIFIABLE		FS_FL_USER_MODIFIABLE	/* User modifiable flags */
 
 /*
  * ioctl commands
  */
-#define	EXT2_IOC_GETFLAGS		_IOR('f', 1, long)
-#define	EXT2_IOC_SETFLAGS		_IOW('f', 2, long)
-#define	EXT2_IOC_GETVERSION		_IOR('v', 1, long)
-#define	EXT2_IOC_SETVERSION		_IOW('v', 2, long)
+#define	EXT2_IOC_GETFLAGS		FS_IOC_GETFLAGS
+#define	EXT2_IOC_SETFLAGS		FS_IOC_SETFLAGS
+#define	EXT2_IOC_GETVERSION		FS_IOC_GETVERSION
+#define	EXT2_IOC_SETVERSION		FS_IOC_SETVERSION
+
+/*
+ * ioctl commands in 32 bit emulation
+ */
+#define EXT2_IOC32_GETFLAGS		FS_IOC32_GETFLAGS
+#define EXT2_IOC32_SETFLAGS		FS_IOC32_SETFLAGS
+#define EXT2_IOC32_GETVERSION		FS_IOC32_GETVERSION
+#define EXT2_IOC32_SETVERSION		FS_IOC32_SETVERSION
 
 /*
  * Structure of an inode on the disk

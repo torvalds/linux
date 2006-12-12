@@ -61,14 +61,13 @@ static int ipathfs_mknod(struct inode *dir, struct dentry *dentry,
 	inode->i_mode = mode;
 	inode->i_uid = 0;
 	inode->i_gid = 0;
-	inode->i_blksize = PAGE_CACHE_SIZE;
 	inode->i_blocks = 0;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	inode->u.generic_ip = data;
+	inode->i_private = data;
 	if ((mode & S_IFMT) == S_IFDIR) {
 		inode->i_op = &simple_dir_inode_operations;
-		inode->i_nlink++;
-		dir->i_nlink++;
+		inc_nlink(inode);
+		inc_nlink(dir);
 	}
 
 	inode->i_fop = fops;
@@ -119,7 +118,7 @@ static ssize_t atomic_counters_read(struct file *file, char __user *buf,
 	u16 i;
 	struct ipath_devdata *dd;
 
-	dd = file->f_dentry->d_inode->u.generic_ip;
+	dd = file->f_path.dentry->d_inode->i_private;
 
 	for (i = 0; i < NUM_COUNTERS; i++)
 		counters[i] = ipath_snap_cntr(dd, i);
@@ -139,7 +138,7 @@ static ssize_t atomic_node_info_read(struct file *file, char __user *buf,
 	struct ipath_devdata *dd;
 	u64 guid;
 
-	dd = file->f_dentry->d_inode->u.generic_ip;
+	dd = file->f_path.dentry->d_inode->i_private;
 
 	guid = be64_to_cpu(dd->ipath_guid);
 
@@ -178,7 +177,7 @@ static ssize_t atomic_port_info_read(struct file *file, char __user *buf,
 	u32 tmp, tmp2;
 	struct ipath_devdata *dd;
 
-	dd = file->f_dentry->d_inode->u.generic_ip;
+	dd = file->f_path.dentry->d_inode->i_private;
 
 	/* so we only initialize non-zero fields. */
 	memset(portinfo, 0, sizeof portinfo);
@@ -325,7 +324,7 @@ static ssize_t flash_read(struct file *file, char __user *buf,
 		goto bail;
 	}
 
-	dd = file->f_dentry->d_inode->u.generic_ip;
+	dd = file->f_path.dentry->d_inode->i_private;
 	if (ipath_eeprom_read(dd, pos, tmp, count)) {
 		ipath_dev_err(dd, "failed to read from flash\n");
 		ret = -ENXIO;
@@ -357,18 +356,15 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 
 	pos = *ppos;
 
-	if ( pos < 0) {
+	if (pos != 0) {
 		ret = -EINVAL;
 		goto bail;
 	}
 
-	if (pos >= sizeof(struct ipath_flash)) {
-		ret = 0;
+	if (count != sizeof(struct ipath_flash)) {
+		ret = -EINVAL;
 		goto bail;
 	}
-
-	if (count > sizeof(struct ipath_flash) - pos)
-		count = sizeof(struct ipath_flash) - pos;
 
 	tmp = kmalloc(count, GFP_KERNEL);
 	if (!tmp) {
@@ -381,7 +377,7 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 		goto bail_tmp;
 	}
 
-	dd = file->f_dentry->d_inode->u.generic_ip;
+	dd = file->f_path.dentry->d_inode->i_private;
 	if (ipath_eeprom_write(dd, pos, tmp, count)) {
 		ret = -ENXIO;
 		ipath_dev_err(dd, "failed to write to flash\n");

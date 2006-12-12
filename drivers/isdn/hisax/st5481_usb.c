@@ -125,7 +125,7 @@ void st5481_ph_command(struct st5481_adapter *adapter, unsigned int command)
  * Call the user provided completion routine and try
  * to send the next request.
  */
-static void usb_ctrl_complete(struct urb *urb, struct pt_regs *regs)
+static void usb_ctrl_complete(struct urb *urb)
 {
 	struct st5481_adapter *adapter = urb->context;
 	struct st5481_ctrl *ctrl = &adapter->ctrl;
@@ -179,7 +179,7 @@ static void usb_ctrl_complete(struct urb *urb, struct pt_regs *regs)
  * Decode the register values and schedule a private event.
  * Called at interrupt.
  */
-static void usb_int_complete(struct urb *urb, struct pt_regs *regs)
+static void usb_int_complete(struct urb *urb)
 {
 	u8 *data = urb->transfer_buffer;
 	u8 irqbyte;
@@ -483,7 +483,7 @@ void st5481_release_isocpipes(struct urb* urb[2])
  * called 50 times per second with 20 ISOC descriptors. 
  * Called at interrupt.
  */
-static void usb_in_complete(struct urb *urb, struct pt_regs *regs)
+static void usb_in_complete(struct urb *urb)
 {
 	struct st5481_in *in = urb->context;
 	unsigned char *ptr;

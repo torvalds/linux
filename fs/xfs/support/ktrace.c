@@ -75,7 +75,7 @@ ktrace_alloc(int nentries, unsigned int __nocast sleep)
 							    sleep);
 	} else {
 		ktep = (ktrace_entry_t*)kmem_zalloc((nentries * sizeof(*ktep)),
-							    sleep);
+							    sleep | KM_LARGE);
 	}
 
 	if (ktep == NULL) {

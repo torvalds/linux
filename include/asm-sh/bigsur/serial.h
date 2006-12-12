@@ -1,5 +1,5 @@
 /*
- * include/asm-sh/serial-bigsur.h
+ * include/asm-sh/bigsur/serial.h
  *
  * Configuration details for Big Sur 16550 based serial ports 
  * i.e. HD64465, PCMCIA, etc.

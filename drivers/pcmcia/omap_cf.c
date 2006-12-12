@@ -67,6 +67,7 @@ struct omap_cf_socket {
 	struct platform_device	*pdev;
 	unsigned long		phys_cf;
 	u_int			irq;
+	struct resource		iomem;
 };
 
 #define	POLL_INTERVAL		(2 * HZ)
@@ -101,7 +102,7 @@ static void omap_cf_timer(unsigned long _cf)
  * claim the card's IRQ.  It may also detect some card insertions, but
  * not removals; it can't always eliminate timer irqs.
  */
-static irqreturn_t omap_cf_irq(int irq, void *_cf, struct pt_regs *r)
+static irqreturn_t omap_cf_irq(int irq, void *_cf)
 {
 	omap_cf_timer((unsigned long)_cf);
 	return IRQ_HANDLED;
@@ -112,16 +113,14 @@ static int omap_cf_get_status(struct pcmcia_socket *s, u_int *sp)
 	if (!sp)
 		return -EINVAL;
 
-	/* FIXME power management should probably be board-specific:
-	 *  - 3VCARD vs XVCARD (OSK only handles 3VCARD)
-	 *  - POWERON (switched on/off by set_socket)
-	 */
+	/* NOTE CF is always 3VCARD */
 	if (omap_cf_present()) {
 		struct omap_cf_socket	*cf;
 
 		*sp = SS_READY | SS_DETECT | SS_POWERON | SS_3VCARD;
 		cf = container_of(s, struct omap_cf_socket, socket);
-		s->irq.AssignedIRQ = cf->irq;
+		s->irq.AssignedIRQ = 0;
+		s->pci_irq = cf->irq;
 	} else
 		*sp = 0;
 	return 0;
@@ -132,7 +131,7 @@ omap_cf_set_socket(struct pcmcia_socket *sock, struct socket_state_t *s)
 {
 	u16		control;
 
-	/* FIXME some non-OSK boards will support power switching */
+	/* REVISIT some non-OSK boards may support power switching */
 	switch (s->Vcc) {
 	case 0:
 	case 33:
@@ -204,7 +203,7 @@ static struct pccard_operations omap_cf_ops = {
  * "what chipselect is used".  Boards could want more.
  */
 
-static int __init omap_cf_probe(struct device *dev)
+static int __devinit omap_cf_probe(struct device *dev)
 {
 	unsigned		seg;
 	struct omap_cf_socket	*cf;
@@ -253,6 +252,9 @@ static int __init omap_cf_probe(struct device *dev)
 	default:
 		goto  fail1;
 	}
+	cf->iomem.start = cf->phys_cf;
+	cf->iomem.end = cf->iomem.end + SZ_8K - 1;
+	cf->iomem.flags = IORESOURCE_MEM;
 
 	/* pcmcia layer only remaps "real" memory */
 	cf->socket.io_offset = (unsigned long)
@@ -296,6 +298,7 @@ static int __init omap_cf_probe(struct device *dev)
 	cf->socket.features = SS_CAP_PCCARD | SS_CAP_STATIC_MAP
 				| SS_CAP_MEM_ALIGN;
 	cf->socket.map_size = SZ_2K;
+	cf->socket.io[0].res = &cf->iomem;
 
 	status = pcmcia_register_socket(&cf->socket);
 	if (status < 0)
@@ -306,9 +309,10 @@ static int __init omap_cf_probe(struct device *dev)
 	return 0;
 
 fail2:
-	iounmap((void __iomem *) cf->socket.io_offset);
 	release_mem_region(cf->phys_cf, SZ_8K);
 fail1:
+	if (cf->socket.io_offset)
+		iounmap((void __iomem *) cf->socket.io_offset);
 	free_irq(irq, cf);
 fail0:
 	kfree(cf);
@@ -334,15 +338,15 @@ static struct device_driver omap_cf_driver = {
 	.bus		= &platform_bus_type,
 	.probe		= omap_cf_probe,
 	.remove		= __devexit_p(omap_cf_remove),
-	.suspend 	= pcmcia_socket_dev_suspend,
-	.resume 	= pcmcia_socket_dev_resume,
+	.suspend	= pcmcia_socket_dev_suspend,
+	.resume		= pcmcia_socket_dev_resume,
 };
 
 static int __init omap_cf_init(void)
 {
 	if (cpu_is_omap16xx())
-		driver_register(&omap_cf_driver);
-	return 0;
+		return driver_register(&omap_cf_driver);
+	return -ENODEV;
 }
 
 static void __exit omap_cf_exit(void)

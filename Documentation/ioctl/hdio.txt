@@ -203,7 +203,7 @@ HDIO_SET_MULTCOUNT		change IDE blockmode
 
 	  Source code comments read:
 
-	    This is tightly woven into the driver->do_special can not
+	    This is tightly woven into the driver->do_special cannot
 	    touch.  DON'T do it again until a total personality rewrite
 	    is committed.
 

@@ -7,17 +7,17 @@ void set_pending_irq(unsigned int irq, cpumask_t mask)
 	unsigned long flags;
 
 	spin_lock_irqsave(&desc->lock, flags);
-	desc->move_irq = 1;
+	desc->status |= IRQ_MOVE_PENDING;
 	irq_desc[irq].pending_mask = mask;
 	spin_unlock_irqrestore(&desc->lock, flags);
 }
 
-void move_native_irq(int irq)
+void move_masked_irq(int irq)
 {
 	struct irq_desc *desc = irq_desc + irq;
 	cpumask_t tmp;
 
-	if (likely(!desc->move_irq))
+	if (likely(!(desc->status & IRQ_MOVE_PENDING)))
 		return;
 
 	/*
@@ -28,7 +28,7 @@ void move_native_irq(int irq)
 		return;
 	}
 
-	desc->move_irq = 0;
+	desc->status &= ~IRQ_MOVE_PENDING;
 
 	if (unlikely(cpus_empty(irq_desc[irq].pending_mask)))
 		return;
@@ -48,15 +48,29 @@ void move_native_irq(int irq)
 	 * when an active trigger is comming in. This could
 	 * cause some ioapics to mal-function.
 	 * Being paranoid i guess!
+	 *
+	 * For correct operation this depends on the caller
+	 * masking the irqs.
 	 */
 	if (likely(!cpus_empty(tmp))) {
-		if (likely(!(desc->status & IRQ_DISABLED)))
-			desc->chip->disable(irq);
-
 		desc->chip->set_affinity(irq,tmp);
-
-		if (likely(!(desc->status & IRQ_DISABLED)))
-			desc->chip->enable(irq);
 	}
 	cpus_clear(irq_desc[irq].pending_mask);
 }
+
+void move_native_irq(int irq)
+{
+	struct irq_desc *desc = irq_desc + irq;
+
+	if (likely(!(desc->status & IRQ_MOVE_PENDING)))
+		return;
+
+	if (likely(!(desc->status & IRQ_DISABLED)))
+		desc->chip->disable(irq);
+
+	move_masked_irq(irq);
+
+	if (likely(!(desc->status & IRQ_DISABLED)))
+		desc->chip->enable(irq);
+}
+

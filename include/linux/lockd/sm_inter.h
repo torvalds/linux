@@ -28,7 +28,8 @@ struct nsm_args {
 	u32		prog;		/* RPC callback info */
 	u32		vers;
 	u32		proc;
-	u32		proto;		/* protocol (udp/tcp) plus server/client flag */
+
+	char *		mon_name;
 };
 
 /*
@@ -41,6 +42,6 @@ struct nsm_res {
 
 int		nsm_monitor(struct nlm_host *);
 int		nsm_unmonitor(struct nlm_host *);
-extern u32	nsm_local_state;
+extern int	nsm_local_state;
 
 #endif /* LINUX_LOCKD_SM_INTER_H */

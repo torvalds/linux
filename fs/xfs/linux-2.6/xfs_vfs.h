@@ -79,7 +79,7 @@ typedef enum {
 #define VFS_RDONLY		0x0001	/* read-only vfs */
 #define VFS_GRPID		0x0002	/* group-ID assigned from directory */
 #define VFS_DMI			0x0004	/* filesystem has the DMI enabled */
-#define VFS_UMOUNT		0x0008	/* unmount in progress */
+/* ---- VFS_UMOUNT ----		0x0008	-- unneeded, fixed via kthread APIs */
 #define VFS_32BITINODES		0x0010	/* do not use inums above 32 bits */
 #define VFS_END			0x0010	/* max flag */
 

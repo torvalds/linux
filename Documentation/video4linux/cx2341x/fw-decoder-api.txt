@@ -102,7 +102,7 @@ Param[0]
 Name 	CX2341X_DEC_GET_XFER_INFO
 Enum 	9/0x09
 Description
-	This API call may be used to detect an end of stream condtion.
+	This API call may be used to detect an end of stream condition.
 Result[0]
 	Stream type
 Result[1]

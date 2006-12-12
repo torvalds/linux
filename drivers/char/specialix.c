@@ -182,12 +182,6 @@ static int sx_poll = HZ;
 #define RS_EVENT_WRITE_WAKEUP	0
 
 static struct tty_driver *specialix_driver;
-static unsigned char * tmp_buf;
-
-static unsigned long baud_table[] =  {
-	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
-	9600, 19200, 38400, 57600, 115200, 0,
-};
 
 static struct specialix_board sx_board[SX_NBOARD] =  {
 	{ 0, SX_IOBASE1,  9, },
@@ -201,7 +195,7 @@ static struct specialix_port sx_port[SX_NBOARD * SX_NPORT];
 
 #ifdef SPECIALIX_TIMER
 static struct timer_list missed_irq_timer;
-static irqreturn_t sx_interrupt(int irq, void * dev_id, struct pt_regs * regs);
+static irqreturn_t sx_interrupt(int irq, void * dev_id);
 #endif
 
 
@@ -898,7 +892,7 @@ static inline void sx_check_modem(struct specialix_board * bp)
 
 
 /* The main interrupt processing routine */
-static irqreturn_t sx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sx_interrupt(int irq, void *dev_id)
 {
 	unsigned char status;
 	unsigned char ack;
@@ -913,7 +907,7 @@ static irqreturn_t sx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	spin_lock_irqsave(&bp->lock, flags);
 
 	dprintk (SX_DEBUG_FLOW, "enter %s port %d room: %ld\n", __FUNCTION__, port_No(sx_get_port(bp, "INT")), SERIAL_XMIT_SIZE - sx_get_port(bp, "ITN")->xmit_cnt - 1);
-	if (!bp || !(bp->flags & SX_BOARD_ACTIVE)) {
+	if (!(bp->flags & SX_BOARD_ACTIVE)) {
 		dprintk (SX_DEBUG_IRQ, "sx: False interrupt. irq %d.\n", irq);
 		spin_unlock_irqrestore(&bp->lock, flags);
 		func_exit();
@@ -1087,24 +1081,16 @@ static void sx_change_speed(struct specialix_board *bp, struct specialix_port *p
 		port->MSVR =  (sx_in(bp, CD186x_MSVR) & MSVR_RTS);
 	spin_unlock_irqrestore(&bp->lock, flags);
 	dprintk (SX_DEBUG_TERMIOS, "sx: got MSVR=%02x.\n", port->MSVR);
-	baud = C_BAUD(tty);
+	baud = tty_get_baud_rate(tty);
 
-	if (baud & CBAUDEX) {
-		baud &= ~CBAUDEX;
-		if (baud < 1 || baud > 2)
-			port->tty->termios->c_cflag &= ~CBAUDEX;
-		else
-			baud += 15;
-	}
-	if (baud == 15) {
+	if (baud == 38400) {
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-			baud ++;
+			baud = 57600;
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-			baud += 2;
+			baud = 115200;
 	}
 
-
-	if (!baud_table[baud]) {
+	if (!baud) {
 		/* Drop DTR & exit */
 		dprintk (SX_DEBUG_TERMIOS, "Dropping DTR...  Hmm....\n");
 		if (!SX_CRTSCTS (tty)) {
@@ -1134,7 +1120,7 @@ static void sx_change_speed(struct specialix_board *bp, struct specialix_port *p
 		                  "This is an untested option, please be carefull.\n",
 		                  port_No (port), tmp);
 	else
-		tmp = (((SX_OSCFREQ + baud_table[baud]/2) / baud_table[baud] +
+		tmp = (((SX_OSCFREQ + baud/2) / baud +
 		         CD186x_TPC/2) / CD186x_TPC);
 
 	if ((tmp < 0x10) && time_before(again, jiffies)) {
@@ -1159,11 +1145,9 @@ static void sx_change_speed(struct specialix_board *bp, struct specialix_port *p
 	sx_out(bp, CD186x_RBPRL, tmp & 0xff);
 	sx_out(bp, CD186x_TBPRL, tmp & 0xff);
 	spin_unlock_irqrestore(&bp->lock, flags);
-	if (port->custom_divisor) {
+	if (port->custom_divisor)
 		baud = (SX_OSCFREQ + port->custom_divisor/2) / port->custom_divisor;
-		baud = ( baud + 5 ) / 10;
-	} else
-		baud = (baud_table[baud] + 5) / 10;   /* Estimated CPS */
+	baud = (baud + 5) / 10;		/* Estimated CPS */
 
 	/* Two timer ticks seems enough to wakeup something like SLIP driver */
 	tmp = ((baud + HZ/2) / HZ) * 2 - CD186x_NFIFO;
@@ -1682,7 +1666,7 @@ static int sx_write(struct tty_struct * tty,
 
 	bp = port_Board(port);
 
-	if (!port->xmit_buf || !tmp_buf) {
+	if (!port->xmit_buf) {
 		func_exit();
 		return 0;
 	}
@@ -2277,9 +2261,10 @@ static void sx_start(struct tty_struct * tty)
  * 	do_sx_hangup() -> tty->hangup() -> sx_hangup()
  *
  */
-static void do_sx_hangup(void *private_)
+static void do_sx_hangup(struct work_struct *work)
 {
-	struct specialix_port	*port = (struct specialix_port *) private_;
+	struct specialix_port	*port =
+		container_of(work, struct specialix_port, tqueue_hangup);
 	struct tty_struct	*tty;
 
 	func_enter();
@@ -2326,7 +2311,7 @@ static void sx_hangup(struct tty_struct * tty)
 }
 
 
-static void sx_set_termios(struct tty_struct * tty, struct termios * old_termios)
+static void sx_set_termios(struct tty_struct * tty, struct ktermios * old_termios)
 {
 	struct specialix_port *port = (struct specialix_port *)tty->driver_data;
 	unsigned long flags;
@@ -2352,9 +2337,10 @@ static void sx_set_termios(struct tty_struct * tty, struct termios * old_termios
 }
 
 
-static void do_softint(void *private_)
+static void do_softint(struct work_struct *work)
 {
-	struct specialix_port	*port = (struct specialix_port *) private_;
+	struct specialix_port	*port =
+		container_of(work, struct specialix_port, tqueue);
 	struct tty_struct	*tty;
 
 	func_enter();
@@ -2372,7 +2358,7 @@ static void do_softint(void *private_)
 	func_exit();
 }
 
-static struct tty_operations sx_ops = {
+static const struct tty_operations sx_ops = {
 	.open  = sx_open,
 	.close = sx_close,
 	.write = sx_write,
@@ -2406,12 +2392,6 @@ static int sx_init_drivers(void)
 		return 1;
 	}
 
-	if (!(tmp_buf = (unsigned char *) get_zeroed_page(GFP_KERNEL))) {
-		printk(KERN_ERR "sx: Couldn't get free page.\n");
-		put_tty_driver(specialix_driver);
-		func_exit();
-		return 1;
-	}
 	specialix_driver->owner = THIS_MODULE;
 	specialix_driver->name = "ttyW";
 	specialix_driver->major = SPECIALIX_NORMAL_MAJOR;
@@ -2420,12 +2400,13 @@ static int sx_init_drivers(void)
 	specialix_driver->init_termios = tty_std_termios;
 	specialix_driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	specialix_driver->init_termios.c_ispeed = 9600;
+	specialix_driver->init_termios.c_ospeed = 9600;
 	specialix_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(specialix_driver, &sx_ops);
 
 	if ((error = tty_register_driver(specialix_driver))) {
 		put_tty_driver(specialix_driver);
-		free_page((unsigned long)tmp_buf);
 		printk(KERN_ERR "sx: Couldn't register specialix IO8+ driver, error = %d\n",
 		       error);
 		func_exit();
@@ -2434,8 +2415,8 @@ static int sx_init_drivers(void)
 	memset(sx_port, 0, sizeof(sx_port));
 	for (i = 0; i < SX_NPORT * SX_NBOARD; i++) {
 		sx_port[i].magic = SPECIALIX_MAGIC;
-		INIT_WORK(&sx_port[i].tqueue, do_softint, &sx_port[i]);
-		INIT_WORK(&sx_port[i].tqueue_hangup, do_sx_hangup, &sx_port[i]);
+		INIT_WORK(&sx_port[i].tqueue, do_softint);
+		INIT_WORK(&sx_port[i].tqueue_hangup, do_sx_hangup);
 		sx_port[i].close_delay = 50 * HZ/100;
 		sx_port[i].closing_wait = 3000 * HZ/100;
 		init_waitqueue_head(&sx_port[i].open_wait);
@@ -2451,7 +2432,6 @@ static void sx_release_drivers(void)
 {
 	func_enter();
 
-	free_page((unsigned long)tmp_buf);
 	tty_unregister_driver(specialix_driver);
 	put_tty_driver(specialix_driver);
 	func_exit();
@@ -2497,7 +2477,7 @@ static int __init specialix_init(void)
 				i++;
 				continue;
 			}
-			pdev = pci_find_device (PCI_VENDOR_ID_SPECIALIX,
+			pdev = pci_get_device (PCI_VENDOR_ID_SPECIALIX,
 			                        PCI_DEVICE_ID_SPECIALIX_IO8,
 			                        pdev);
 			if (!pdev) break;
@@ -2513,6 +2493,9 @@ static int __init specialix_init(void)
 			if (!sx_probe(&sx_board[i]))
 				found ++;
 		}
+		/* May exit pci_get sequence early with lots of boards */
+		if (pdev != NULL)
+			pci_dev_put(pdev);
 	}
 #endif
 

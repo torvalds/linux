@@ -1215,7 +1215,7 @@ dasd_eckd_build_cp(struct dasd_device * device, struct request *req)
 		dst = page_address(bv->bv_page) + bv->bv_offset;
 		if (dasd_page_cache) {
 			char *copy = kmem_cache_alloc(dasd_page_cache,
-						      SLAB_DMA | __GFP_NOWARN);
+						      GFP_DMA | __GFP_NOWARN);
 			if (copy && rq_data_dir(req) == WRITE)
 				memcpy(copy + bv->bv_offset, dst, bv->bv_len);
 			if (copy)
@@ -1266,7 +1266,7 @@ dasd_eckd_build_cp(struct dasd_device * device, struct request *req)
 			recid++;
 		}
 	}
-	if (req->flags & REQ_FAILFAST)
+	if (req->cmd_flags & REQ_FAILFAST)
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->device = device;
 	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */

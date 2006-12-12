@@ -22,10 +22,9 @@
 #include <asm/auxio.h>
 #include <asm/sfafsr.h>
 #include <asm/pil.h>
+#include <asm/unistd.h>
 
 #define curptr      g6
-
-#define NR_SYSCALLS 300      /* Each OS is different... */
 
 	.text
 	.align		32
@@ -598,7 +597,12 @@ __spitfire_cee_trap_continue:
 1:	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
 
-2:	mov		%l4, %o1
+2:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call	trace_hardirqs_off
+	 nop
+#endif
+	mov		%l4, %o1
 	mov		%l5, %o2
 	call		spitfire_access_error
 	 add		%sp, PTREGS_OFF, %o0
@@ -825,6 +829,10 @@ do_cheetah_plus_data_parity:
 	wrpr		%g0, 15, %pil
 	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call		trace_hardirqs_off
+	 nop
+#endif
 	mov		0x0, %o0
 	call		cheetah_plus_parity_error
 	 add		%sp, PTREGS_OFF, %o1
@@ -856,6 +864,10 @@ do_cheetah_plus_insn_parity:
 	wrpr		%g0, 15, %pil
 	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call		trace_hardirqs_off
+	 nop
+#endif
 	mov		0x1, %o0
 	call		cheetah_plus_parity_error
 	 add		%sp, PTREGS_OFF, %o1
@@ -1184,6 +1196,10 @@ c_fast_ecc:
 	wrpr		%g0, 15, %pil
 	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call		trace_hardirqs_off
+	 nop
+#endif
 	mov		%l4, %o1
 	mov		%l5, %o2
 	call		cheetah_fecc_handler
@@ -1212,6 +1228,10 @@ c_cee:
 	wrpr		%g0, 15, %pil
 	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call		trace_hardirqs_off
+	 nop
+#endif
 	mov		%l4, %o1
 	mov		%l5, %o2
 	call		cheetah_cee_handler
@@ -1240,6 +1260,10 @@ c_deferred:
 	wrpr		%g0, 15, %pil
 	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call		trace_hardirqs_off
+	 nop
+#endif
 	mov		%l4, %o1
 	mov		%l5, %o2
 	call		cheetah_deferred_handler

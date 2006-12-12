@@ -82,7 +82,7 @@ static inline unsigned int
 hash_by_src(const struct ip_conntrack_tuple *tuple)
 {
 	/* Original src, to ensure we map it consistently if poss. */
-	return jhash_3words(tuple->src.ip, tuple->src.u.all,
+	return jhash_3words((__force u32)tuple->src.ip, tuple->src.u.all,
 			    tuple->dst.protonum, 0) % ip_nat_htable_size;
 }
 
@@ -190,7 +190,7 @@ find_best_ips_proto(struct ip_conntrack_tuple *tuple,
 		    const struct ip_conntrack *conntrack,
 		    enum ip_nat_manip_type maniptype)
 {
-	u_int32_t *var_ipp;
+	__be32 *var_ipp;
 	/* Host order */
 	u_int32_t minip, maxip, j;
 
@@ -217,7 +217,7 @@ find_best_ips_proto(struct ip_conntrack_tuple *tuple,
 	 * like this), even across reboots. */
 	minip = ntohl(range->min_ip);
 	maxip = ntohl(range->max_ip);
-	j = jhash_2words(tuple->src.ip, tuple->dst.ip, 0);
+	j = jhash_2words((__force u32)tuple->src.ip, (__force u32)tuple->dst.ip, 0);
 	*var_ipp = htonl(minip + j % (maxip - minip + 1));
 }
 
@@ -362,12 +362,10 @@ manip_pkt(u_int16_t proto,
 	iph = (void *)(*pskb)->data + iphdroff;
 
 	if (maniptype == IP_NAT_MANIP_SRC) {
-		iph->check = nf_csum_update(~iph->saddr, target->src.ip,
-					    iph->check);
+		nf_csum_replace4(&iph->check, iph->saddr, target->src.ip);
 		iph->saddr = target->src.ip;
 	} else {
-		iph->check = nf_csum_update(~iph->daddr, target->dst.ip,
-					    iph->check);
+		nf_csum_replace4(&iph->check, iph->daddr, target->dst.ip);
 		iph->daddr = target->dst.ip;
 	}
 	return 1;
@@ -534,9 +532,9 @@ int
 ip_nat_port_range_to_nfattr(struct sk_buff *skb, 
 			    const struct ip_nat_range *range)
 {
-	NFA_PUT(skb, CTA_PROTONAT_PORT_MIN, sizeof(u_int16_t),
+	NFA_PUT(skb, CTA_PROTONAT_PORT_MIN, sizeof(__be16),
 		&range->min.tcp.port);
-	NFA_PUT(skb, CTA_PROTONAT_PORT_MAX, sizeof(u_int16_t),
+	NFA_PUT(skb, CTA_PROTONAT_PORT_MAX, sizeof(__be16),
 		&range->max.tcp.port);
 
 	return 0;
@@ -555,7 +553,7 @@ ip_nat_port_nfattr_to_range(struct nfattr *tb[], struct ip_nat_range *range)
 	if (tb[CTA_PROTONAT_PORT_MIN-1]) {
 		ret = 1;
 		range->min.tcp.port = 
-			*(u_int16_t *)NFA_DATA(tb[CTA_PROTONAT_PORT_MIN-1]);
+			*(__be16 *)NFA_DATA(tb[CTA_PROTONAT_PORT_MIN-1]);
 	}
 	
 	if (!tb[CTA_PROTONAT_PORT_MAX-1]) {
@@ -564,7 +562,7 @@ ip_nat_port_nfattr_to_range(struct nfattr *tb[], struct ip_nat_range *range)
 	} else {
 		ret = 1;
 		range->max.tcp.port = 
-			*(u_int16_t *)NFA_DATA(tb[CTA_PROTONAT_PORT_MAX-1]);
+			*(__be16 *)NFA_DATA(tb[CTA_PROTONAT_PORT_MAX-1]);
 	}
 
 	return ret;

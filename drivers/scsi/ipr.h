@@ -28,6 +28,7 @@
 
 #include <linux/types.h>
 #include <linux/completion.h>
+#include <linux/libata.h>
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <scsi/scsi.h>
@@ -36,8 +37,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.1.4"
-#define IPR_DRIVER_DATE "(August 2, 2006)"
+#define IPR_DRIVER_VERSION "2.3.0"
+#define IPR_DRIVER_DATE "(November 8, 2006)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -53,6 +54,8 @@
  */
 #define IPR_NUM_BASE_CMD_BLKS				100
 
+#define PCI_DEVICE_ID_IBM_OBSIDIAN_E	0x0339
+
 #define IPR_SUBS_DEV_ID_2780	0x0264
 #define IPR_SUBS_DEV_ID_5702	0x0266
 #define IPR_SUBS_DEV_ID_5703	0x0278
@@ -65,7 +68,11 @@
 #define IPR_SUBS_DEV_ID_571F	0x02D5
 #define IPR_SUBS_DEV_ID_572A	0x02C1
 #define IPR_SUBS_DEV_ID_572B	0x02C2
+#define IPR_SUBS_DEV_ID_572F	0x02C3
 #define IPR_SUBS_DEV_ID_575B	0x030D
+#define IPR_SUBS_DEV_ID_575C	0x0338
+#define IPR_SUBS_DEV_ID_57B7	0x0360
+#define IPR_SUBS_DEV_ID_57B8	0x02C2
 
 #define IPR_NAME				"ipr"
 
@@ -97,6 +104,7 @@
 #define IPR_IOASC_IOA_WAS_RESET			0x10000001
 #define IPR_IOASC_PCI_ACCESS_ERROR			0x10000002
 
+#define IPR_DEFAULT_MAX_ERROR_DUMP			984
 #define IPR_NUM_LOG_HCAMS				2
 #define IPR_NUM_CFG_CHG_HCAMS				2
 #define IPR_NUM_HCAMS	(IPR_NUM_LOG_HCAMS + IPR_NUM_CFG_CHG_HCAMS)
@@ -730,6 +738,64 @@ struct ipr_hostrcb_type_17_error {
 	u32 data[476];
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hostrcb_config_element {
+	u8 type_status;
+#define IPR_PATH_CFG_TYPE_MASK	0xF0
+#define IPR_PATH_CFG_NOT_EXIST	0x00
+#define IPR_PATH_CFG_IOA_PORT		0x10
+#define IPR_PATH_CFG_EXP_PORT		0x20
+#define IPR_PATH_CFG_DEVICE_PORT	0x30
+#define IPR_PATH_CFG_DEVICE_LUN	0x40
+
+#define IPR_PATH_CFG_STATUS_MASK	0x0F
+#define IPR_PATH_CFG_NO_PROB		0x00
+#define IPR_PATH_CFG_DEGRADED		0x01
+#define IPR_PATH_CFG_FAILED		0x02
+#define IPR_PATH_CFG_SUSPECT		0x03
+#define IPR_PATH_NOT_DETECTED		0x04
+#define IPR_PATH_INCORRECT_CONN	0x05
+
+	u8 cascaded_expander;
+	u8 phy;
+	u8 link_rate;
+#define IPR_PHY_LINK_RATE_MASK	0x0F
+
+	__be32 wwid[2];
+}__attribute__((packed, aligned (4)));
+
+struct ipr_hostrcb_fabric_desc {
+	__be16 length;
+	u8 ioa_port;
+	u8 cascaded_expander;
+	u8 phy;
+	u8 path_state;
+#define IPR_PATH_ACTIVE_MASK		0xC0
+#define IPR_PATH_NO_INFO		0x00
+#define IPR_PATH_ACTIVE			0x40
+#define IPR_PATH_NOT_ACTIVE		0x80
+
+#define IPR_PATH_STATE_MASK		0x0F
+#define IPR_PATH_STATE_NO_INFO	0x00
+#define IPR_PATH_HEALTHY		0x01
+#define IPR_PATH_DEGRADED		0x02
+#define IPR_PATH_FAILED			0x03
+
+	__be16 num_entries;
+	struct ipr_hostrcb_config_element elem[1];
+}__attribute__((packed, aligned (4)));
+
+#define for_each_fabric_cfg(fabric, cfg) \
+		for (cfg = (fabric)->elem; \
+			cfg < ((fabric)->elem + be16_to_cpu((fabric)->num_entries)); \
+			cfg++)
+
+struct ipr_hostrcb_type_20_error {
+	u8 failure_reason[64];
+	u8 reserved[3];
+	u8 num_entries;
+	struct ipr_hostrcb_fabric_desc desc[1];
+}__attribute__((packed, aligned (4)));
+
 struct ipr_hostrcb_error {
 	__be32 failing_dev_ioasc;
 	struct ipr_res_addr failing_dev_res_addr;
@@ -746,6 +812,7 @@ struct ipr_hostrcb_error {
 		struct ipr_hostrcb_type_13_error type_13_error;
 		struct ipr_hostrcb_type_14_error type_14_error;
 		struct ipr_hostrcb_type_17_error type_17_error;
+		struct ipr_hostrcb_type_20_error type_20_error;
 	} u;
 }__attribute__((packed, aligned (4)));
 
@@ -785,6 +852,7 @@ struct ipr_hcam {
 #define IPR_HOST_RCB_OVERLAY_ID_14				0x14
 #define IPR_HOST_RCB_OVERLAY_ID_16				0x16
 #define IPR_HOST_RCB_OVERLAY_ID_17				0x17
+#define IPR_HOST_RCB_OVERLAY_ID_20				0x20
 #define IPR_HOST_RCB_OVERLAY_ID_DEFAULT			0xFF
 
 	u8 reserved1[3];
@@ -804,6 +872,7 @@ struct ipr_hostrcb {
 	struct ipr_hcam hcam;
 	dma_addr_t hostrcb_dma;
 	struct list_head queue;
+	struct ipr_ioa_cfg *ioa_cfg;
 };
 
 /* IPR smart dump table structures */
@@ -849,6 +918,13 @@ struct ipr_bus_attributes {
 	u32 max_xfer_rate;
 };
 
+struct ipr_sata_port {
+	struct ipr_ioa_cfg *ioa_cfg;
+	struct ata_port *ap;
+	struct ipr_resource_entry *res;
+	struct ipr_ioasa_gata ioasa;
+};
+
 struct ipr_resource_entry {
 	struct ipr_config_table_entry cfgte;
 	u8 needs_sync_complete:1;
@@ -858,6 +934,7 @@ struct ipr_resource_entry {
 	u8 resetting_device:1;
 
 	struct scsi_device *sdev;
+	struct ipr_sata_port *sata_port;
 	struct list_head queue;
 };
 
@@ -928,10 +1005,11 @@ struct ipr_trace_entry {
 	u32 time;
 
 	u8 op_code;
+	u8 ata_op_code;
 	u8 type;
 #define IPR_TRACE_START			0x00
 #define IPR_TRACE_FINISH		0xff
-	u16 cmd_index;
+	u8 cmd_index;
 
 	__be32 res_handle;
 	union {
@@ -1073,6 +1151,7 @@ struct ipr_ioa_cfg {
 
 	struct ipr_cmnd *reset_cmd;
 
+	struct ata_host ata_host;
 	char ipr_cmd_label[8];
 #define IPR_CMD_LABEL		"ipr_cmnd"
 	struct ipr_cmnd *ipr_cmnd_list[IPR_NUM_CMD_BLKS];
@@ -1085,6 +1164,7 @@ struct ipr_cmnd {
 	struct ipr_ioadl_desc ioadl[IPR_NUM_IOADL_ENTRIES];
 	struct list_head queue;
 	struct scsi_cmnd *scsi_cmd;
+	struct ata_queued_cmd *qc;
 	struct completion completion;
 	struct timer_list timer;
 	void (*done) (struct ipr_cmnd *);
@@ -1269,6 +1349,17 @@ struct ipr_ucode_image_header {
 			##__VA_ARGS__, (ioa_cfg)->host->host_no,	\
 			(res).bus, (res).target, (res).lun);		\
 	}								\
+}
+
+#define ipr_hcam_err(hostrcb, fmt, ...)					\
+{													\
+	if (ipr_is_device(&(hostrcb)->hcam.u.error.failing_dev_res_addr)) {		\
+		ipr_ra_err((hostrcb)->ioa_cfg,							\
+				(hostrcb)->hcam.u.error.failing_dev_res_addr,			\
+				fmt, ##__VA_ARGS__);							\
+	} else {											\
+		dev_err(&(hostrcb)->ioa_cfg->pdev->dev, fmt, ##__VA_ARGS__);		\
+	}												\
 }
 
 #define ipr_trace ipr_dbg("%s: %s: Line: %d\n",\

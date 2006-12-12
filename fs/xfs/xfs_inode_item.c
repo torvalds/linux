@@ -743,21 +743,6 @@ xfs_inode_item_committed(
 }
 
 /*
- * The transaction with the inode locked has aborted.  The inode
- * must not be dirty within the transaction (unless we're forcibly
- * shutting down).  We simply unlock just as if the transaction
- * had been cancelled.
- */
-STATIC void
-xfs_inode_item_abort(
-	xfs_inode_log_item_t	*iip)
-{
-	xfs_inode_item_unlock(iip);
-	return;
-}
-
-
-/*
  * This gets called by xfs_trans_push_ail(), when IOP_TRYLOCK
  * failed to get the inode flush lock but did get the inode locked SHARED.
  * Here we're trying to see if the inode buffer is incore, and if so whether it's
@@ -915,7 +900,6 @@ STATIC struct xfs_item_ops xfs_inode_item_ops = {
 	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_inode_item_committed,
 	.iop_push	= (void(*)(xfs_log_item_t*))xfs_inode_item_push,
-	.iop_abort	= (void(*)(xfs_log_item_t*))xfs_inode_item_abort,
 	.iop_pushbuf	= (void(*)(xfs_log_item_t*))xfs_inode_item_pushbuf,
 	.iop_committing = (void(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_inode_item_committing

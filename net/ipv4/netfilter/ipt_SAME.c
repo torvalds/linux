@@ -34,7 +34,11 @@
 #include <net/protocol.h>
 #include <net/checksum.h>
 #include <linux/netfilter_ipv4.h>
+#ifdef CONFIG_NF_NAT_NEEDED
+#include <net/netfilter/nf_nat_rule.h>
+#else
 #include <linux/netfilter_ipv4/ip_nat_rule.h>
+#endif
 #include <linux/netfilter_ipv4/ipt_SAME.h>
 
 MODULE_LICENSE("GPL");
@@ -135,7 +139,8 @@ same_target(struct sk_buff **pskb,
 {
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
-	u_int32_t tmpip, aindex, new_ip;
+	u_int32_t tmpip, aindex;
+	__be32 new_ip;
 	const struct ipt_same_info *same = targinfo;
 	struct ip_nat_range newrange;
 	const struct ip_conntrack_tuple *t;
@@ -151,11 +156,17 @@ same_target(struct sk_buff **pskb,
 	   Here we calculate the index in same->iparray which
 	   holds the ipaddress we should use */
 	
+#ifdef CONFIG_NF_NAT_NEEDED
+	tmpip = ntohl(t->src.u3.ip);
+
+	if (!(same->info & IPT_SAME_NODST))
+		tmpip += ntohl(t->dst.u3.ip);
+#else
 	tmpip = ntohl(t->src.ip);
 
 	if (!(same->info & IPT_SAME_NODST))
 		tmpip += ntohl(t->dst.ip);
-	
+#endif
 	aindex = tmpip % same->ipnum;
 
 	new_ip = htonl(same->iparray[aindex]);

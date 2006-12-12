@@ -108,4 +108,55 @@ config TOUCHSCREEN_HP600
 	  To compile this driver as a module, choose M here: the
 	  module will be called hp680_ts_input.
 
+config TOUCHSCREEN_PENMOUNT
+	tristate "Penmount serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Penmount serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called penmount.
+
+config TOUCHSCREEN_TOUCHRIGHT
+	tristate "Touchright serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Touchright serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called touchright.
+
+config TOUCHSCREEN_TOUCHWIN
+	tristate "Touchwin serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Touchwin serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called touchwin.
+
+config TOUCHSCREEN_UCB1400
+	tristate "Philips UCB1400 touchscreen"
+	select AC97_BUS
+	help
+	  This enables support for the Philips UCB1400 touchscreen interface.
+	  The UCB1400 is an AC97 audio codec.  The touchscreen interface
+	  will be initialized only after the ALSA subsystem has been
+	  brought up and the UCB1400 detected.  You therefore have to
+	  configure ALSA support as well (either built-in or modular,
+	  independently of whether this driver is itself built-in or
+	  modular) for this driver to work.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ucb1400_ts.
+
 endif

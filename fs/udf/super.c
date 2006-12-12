@@ -107,12 +107,12 @@ static struct file_system_type udf_fstype = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
-static kmem_cache_t * udf_inode_cachep;
+static struct kmem_cache * udf_inode_cachep;
 
 static struct inode *udf_alloc_inode(struct super_block *sb)
 {
 	struct udf_inode_info *ei;
-	ei = (struct udf_inode_info *)kmem_cache_alloc(udf_inode_cachep, SLAB_KERNEL);
+	ei = (struct udf_inode_info *)kmem_cache_alloc(udf_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 
@@ -130,7 +130,7 @@ static void udf_destroy_inode(struct inode *inode)
 	kmem_cache_free(udf_inode_cachep, UDF_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct udf_inode_info *ei = (struct udf_inode_info *) foo;
 
@@ -156,8 +156,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(udf_inode_cachep))
-		printk(KERN_INFO "udf_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(udf_inode_cachep);
 }
 
 /* Superblock operations */
@@ -1622,6 +1621,11 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 		goto error_out;
 	}
 
+	if (UDF_SB_PARTFLAGS(sb, UDF_SB_PARTITION(sb)) & UDF_PART_FLAG_READ_ONLY) {
+		printk("UDF-fs: Partition marked readonly; forcing readonly mount\n");
+		sb->s_flags |= MS_RDONLY;
+	}
+
 	if ( udf_find_fileset(sb, &fileset, &rootdir) )
 	{
 		printk("UDF-fs: No fileset found\n");
@@ -1705,7 +1709,7 @@ void udf_error(struct super_block *sb, const char *function,
 		sb->s_dirt = 1;
 	}
 	va_start(args, fmt);
-	vsprintf(error_buf, fmt, args);
+	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
 	va_end(args);
 	printk (KERN_CRIT "UDF-fs error (device %s): %s: %s\n",
 		sb->s_id, function, error_buf);
@@ -1717,7 +1721,7 @@ void udf_warning(struct super_block *sb, const char *function,
 	va_list args;
 
 	va_start (args, fmt);
-	vsprintf(error_buf, fmt, args);
+	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
 	va_end(args);
 	printk(KERN_WARNING "UDF-fs warning (device %s): %s: %s\n",
 		sb->s_id, function, error_buf);

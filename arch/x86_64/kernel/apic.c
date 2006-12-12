@@ -46,6 +46,7 @@ int apic_calibrate_pmtmr __initdata;
 
 int disable_apic_timer __initdata;
 
+static struct resource *ioapic_resources;
 static struct resource lapic_resource = {
 	.name = "Local APIC",
 	.flags = IORESOURCE_MEM | IORESOURCE_BUSY,
@@ -139,7 +140,6 @@ void clear_local_APIC(void)
 		apic_write(APIC_LVTERR, APIC_LVT_MASKED);
 	if (maxlvt >= 4)
 		apic_write(APIC_LVTPC, APIC_LVT_MASKED);
-	v = GET_APIC_VERSION(apic_read(APIC_LVR));
 	apic_write(APIC_ESR, 0);
 	apic_read(APIC_ESR);
 }
@@ -458,9 +458,12 @@ static struct {
 static int lapic_suspend(struct sys_device *dev, pm_message_t state)
 {
 	unsigned long flags;
+	int maxlvt;
 
 	if (!apic_pm_state.active)
 		return 0;
+
+	maxlvt = get_maxlvt();
 
 	apic_pm_state.apic_id = apic_read(APIC_ID);
 	apic_pm_state.apic_taskpri = apic_read(APIC_TASKPRI);
@@ -468,13 +471,17 @@ static int lapic_suspend(struct sys_device *dev, pm_message_t state)
 	apic_pm_state.apic_dfr = apic_read(APIC_DFR);
 	apic_pm_state.apic_spiv = apic_read(APIC_SPIV);
 	apic_pm_state.apic_lvtt = apic_read(APIC_LVTT);
-	apic_pm_state.apic_lvtpc = apic_read(APIC_LVTPC);
+	if (maxlvt >= 4)
+		apic_pm_state.apic_lvtpc = apic_read(APIC_LVTPC);
 	apic_pm_state.apic_lvt0 = apic_read(APIC_LVT0);
 	apic_pm_state.apic_lvt1 = apic_read(APIC_LVT1);
 	apic_pm_state.apic_lvterr = apic_read(APIC_LVTERR);
 	apic_pm_state.apic_tmict = apic_read(APIC_TMICT);
 	apic_pm_state.apic_tdcr = apic_read(APIC_TDCR);
-	apic_pm_state.apic_thmr = apic_read(APIC_LVTTHMR);
+#ifdef CONFIG_X86_MCE_INTEL
+	if (maxlvt >= 5)
+		apic_pm_state.apic_thmr = apic_read(APIC_LVTTHMR);
+#endif
 	local_irq_save(flags);
 	disable_local_APIC();
 	local_irq_restore(flags);
@@ -485,9 +492,12 @@ static int lapic_resume(struct sys_device *dev)
 {
 	unsigned int l, h;
 	unsigned long flags;
+	int maxlvt;
 
 	if (!apic_pm_state.active)
 		return 0;
+
+	maxlvt = get_maxlvt();
 
 	local_irq_save(flags);
 	rdmsr(MSR_IA32_APICBASE, l, h);
@@ -502,8 +512,12 @@ static int lapic_resume(struct sys_device *dev)
 	apic_write(APIC_SPIV, apic_pm_state.apic_spiv);
 	apic_write(APIC_LVT0, apic_pm_state.apic_lvt0);
 	apic_write(APIC_LVT1, apic_pm_state.apic_lvt1);
-	apic_write(APIC_LVTTHMR, apic_pm_state.apic_thmr);
-	apic_write(APIC_LVTPC, apic_pm_state.apic_lvtpc);
+#ifdef CONFIG_X86_MCE_INTEL
+	if (maxlvt >= 5)
+		apic_write(APIC_LVTTHMR, apic_pm_state.apic_thmr);
+#endif
+	if (maxlvt >= 4)
+		apic_write(APIC_LVTPC, apic_pm_state.apic_lvtpc);
 	apic_write(APIC_LVTT, apic_pm_state.apic_lvtt);
 	apic_write(APIC_TDCR, apic_pm_state.apic_tdcr);
 	apic_write(APIC_TMICT, apic_pm_state.apic_tmict);
@@ -606,23 +620,47 @@ static struct resource * __init ioapic_setup_resources(void)
 	n = IOAPIC_RESOURCE_NAME_SIZE + sizeof(struct resource);
 	n *= nr_ioapics;
 
-	res = alloc_bootmem(n);
+	mem = alloc_bootmem(n);
+	res = (void *)mem;
 
-	if (!res)
-		return NULL;
+	if (mem != NULL) {
+		memset(mem, 0, n);
+		mem += sizeof(struct resource) * nr_ioapics;
 
-	memset(res, 0, n);
-	mem = (void *)&res[nr_ioapics];
-
-	for (i = 0; i < nr_ioapics; i++) {
-		res[i].name = mem;
-		res[i].flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-		snprintf(mem, IOAPIC_RESOURCE_NAME_SIZE, "IOAPIC %u", i);
-		mem += IOAPIC_RESOURCE_NAME_SIZE;
+		for (i = 0; i < nr_ioapics; i++) {
+			res[i].name = mem;
+			res[i].flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+			sprintf(mem,  "IOAPIC %u", i);
+			mem += IOAPIC_RESOURCE_NAME_SIZE;
+		}
 	}
+
+	ioapic_resources = res;
 
 	return res;
 }
+
+static int __init ioapic_insert_resources(void)
+{
+	int i;
+	struct resource *r = ioapic_resources;
+
+	if (!r) {
+		printk("IO APIC resources could be not be allocated.\n");
+		return -1;
+	}
+
+	for (i = 0; i < nr_ioapics; i++) {
+		insert_resource(&iomem_resource, r);
+		r++;
+	}
+
+	return 0;
+}
+
+/* Insert the IO APIC resources after PCI initialization has occured to handle
+ * IO APICS that are mapped in on a BAR in PCI space. */
+late_initcall(ioapic_insert_resources);
 #endif
 
 void __init init_apic_mappings(void)
@@ -673,10 +711,9 @@ void __init init_apic_mappings(void)
 					__fix_to_virt(idx), ioapic_phys);
 			idx++;
 
-			if (ioapic_res) {
+			if (ioapic_res != NULL) {
 				ioapic_res->start = ioapic_phys;
 				ioapic_res->end = ioapic_phys + (4 * 1024) - 1;
-				insert_resource(&iomem_resource, ioapic_res);
 				ioapic_res++;
 			}
 		}
@@ -698,10 +735,9 @@ void __init init_apic_mappings(void)
 
 static void __setup_APIC_LVTT(unsigned int clocks)
 {
-	unsigned int lvtt_value, tmp_value, ver;
+	unsigned int lvtt_value, tmp_value;
 	int cpu = smp_processor_id();
 
-	ver = GET_APIC_VERSION(apic_read(APIC_LVR));
 	lvtt_value = APIC_LVT_TIMER_PERIODIC | LOCAL_TIMER_VECTOR;
 
 	if (cpu_isset(cpu, timer_interrupt_broadcast_ipi_mask))
@@ -939,14 +975,14 @@ void setup_APIC_extened_lvt(unsigned char lvt_off, unsigned char vector,
  * value into /proc/profile.
  */
 
-void smp_local_timer_interrupt(struct pt_regs *regs)
+void smp_local_timer_interrupt(void)
 {
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 #ifdef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 	if (apic_runs_main_timer > 1 && smp_processor_id() == boot_cpu_id)
-		main_timer_handler(regs);
+		main_timer_handler();
 	/*
 	 * We take the 'long' return path, and there every subsystem
 	 * grabs the appropriate locks (kernel lock/ irq lock).
@@ -969,6 +1005,8 @@ void smp_local_timer_interrupt(struct pt_regs *regs)
  */
 void smp_apic_timer_interrupt(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
 	/*
 	 * the NMI deadlock-detector uses this.
 	 */
@@ -986,8 +1024,9 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
 	 */
 	exit_idle();
 	irq_enter();
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 /*

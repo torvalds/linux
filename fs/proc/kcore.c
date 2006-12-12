@@ -22,6 +22,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+#define CORE_STR "CORE"
 
 static int open_kcore(struct inode * inode, struct file * filp)
 {
@@ -82,10 +83,11 @@ static size_t get_kcore_size(int *nphdr, size_t *elf_buflen)
 	}
 	*elf_buflen =	sizeof(struct elfhdr) + 
 			(*nphdr + 2)*sizeof(struct elf_phdr) + 
-			3 * (sizeof(struct elf_note) + 4) +
-			sizeof(struct elf_prstatus) +
-			sizeof(struct elf_prpsinfo) +
-			sizeof(struct task_struct);
+			3 * ((sizeof(struct elf_note)) +
+			     roundup(sizeof(CORE_STR), 4)) +
+			roundup(sizeof(struct elf_prstatus), 4) +
+			roundup(sizeof(struct elf_prpsinfo), 4) +
+			roundup(sizeof(struct task_struct), 4);
 	*elf_buflen = PAGE_ALIGN(*elf_buflen);
 	return size + *elf_buflen;
 }
@@ -100,7 +102,7 @@ static int notesize(struct memelfnote *en)
 	int sz;
 
 	sz = sizeof(struct elf_note);
-	sz += roundup(strlen(en->name), 4);
+	sz += roundup((strlen(en->name) + 1), 4);
 	sz += roundup(en->datasz, 4);
 
 	return sz;
@@ -116,7 +118,7 @@ static char *storenote(struct memelfnote *men, char *bufp)
 
 #define DUMP_WRITE(addr,nr) do { memcpy(bufp,addr,nr); bufp += nr; } while(0)
 
-	en.n_namesz = strlen(men->name);
+	en.n_namesz = strlen(men->name) + 1;
 	en.n_descsz = men->datasz;
 	en.n_type = men->type;
 
@@ -210,7 +212,7 @@ static void elf_kcore_store_hdr(char *bufp, int nphdr, int dataoff)
 	nhdr->p_offset	= offset;
 
 	/* set up the process status */
-	notes[0].name = "CORE";
+	notes[0].name = CORE_STR;
 	notes[0].type = NT_PRSTATUS;
 	notes[0].datasz = sizeof(struct elf_prstatus);
 	notes[0].data = &prstatus;
@@ -221,7 +223,7 @@ static void elf_kcore_store_hdr(char *bufp, int nphdr, int dataoff)
 	bufp = storenote(&notes[0], bufp);
 
 	/* set up the process info */
-	notes[1].name	= "CORE";
+	notes[1].name	= CORE_STR;
 	notes[1].type	= NT_PRPSINFO;
 	notes[1].datasz	= sizeof(struct elf_prpsinfo);
 	notes[1].data	= &prpsinfo;
@@ -238,7 +240,7 @@ static void elf_kcore_store_hdr(char *bufp, int nphdr, int dataoff)
 	bufp = storenote(&notes[1], bufp);
 
 	/* set up the task structure */
-	notes[2].name	= "CORE";
+	notes[2].name	= CORE_STR;
 	notes[2].type	= NT_TASKSTRUCT;
 	notes[2].datasz	= sizeof(struct task_struct);
 	notes[2].data	= current;
@@ -279,12 +281,11 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 		tsz = elf_buflen - *fpos;
 		if (buflen < tsz)
 			tsz = buflen;
-		elf_buf = kmalloc(elf_buflen, GFP_ATOMIC);
+		elf_buf = kzalloc(elf_buflen, GFP_ATOMIC);
 		if (!elf_buf) {
 			read_unlock(&kclist_lock);
 			return -ENOMEM;
 		}
-		memset(elf_buf, 0, elf_buflen);
 		elf_kcore_store_hdr(elf_buf, nphdr, elf_buflen);
 		read_unlock(&kclist_lock);
 		if (copy_to_user(buffer, elf_buf + *fpos, tsz)) {
@@ -330,10 +331,9 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 			unsigned long curstart = start;
 			unsigned long cursize = tsz;
 
-			elf_buf = kmalloc(tsz, GFP_KERNEL);
+			elf_buf = kzalloc(tsz, GFP_KERNEL);
 			if (!elf_buf)
 				return -ENOMEM;
-			memset(elf_buf, 0, tsz);
 
 			read_lock(&vmlist_lock);
 			for (m=vmlist; m && cursize; m=m->next) {

@@ -44,14 +44,15 @@
 #include <linux/compat.h>
 
 #include "csr1212.h"
-#include "ieee1394.h"
-#include "ieee1394_types.h"
-#include "ieee1394_core.h"
-#include "nodemgr.h"
-#include "hosts.h"
 #include "highlevel.h"
-#include "iso.h"
+#include "hosts.h"
+#include "ieee1394.h"
+#include "ieee1394_core.h"
+#include "ieee1394_hotplug.h"
 #include "ieee1394_transactions.h"
+#include "ieee1394_types.h"
+#include "iso.h"
+#include "nodemgr.h"
 #include "raw1394.h"
 #include "raw1394-private.h"
 
@@ -66,7 +67,7 @@
 #define DBGMSG(fmt, args...) \
 printk(KERN_INFO "raw1394:" fmt "\n" , ## args)
 #else
-#define DBGMSG(fmt, args...)
+#define DBGMSG(fmt, args...) do {} while (0)
 #endif
 
 static LIST_HEAD(host_info_list);
@@ -98,6 +99,21 @@ static struct hpsb_address_ops arm_ops = {
 
 static void queue_complete_cb(struct pending_request *req);
 
+#include <asm/current.h>
+static void print_old_iso_deprecation(void)
+{
+	static pid_t p;
+
+	if (p == current->pid)
+		return;
+	p = current->pid;
+	printk(KERN_WARNING "raw1394: WARNING - Program \"%s\" uses unsupported"
+	       " isochronous request types which will be removed in a next"
+	       " kernel release\n", current->comm);
+	printk(KERN_WARNING "raw1394: Update your software to use libraw1394's"
+	       " newer interface\n");
+}
+
 static struct pending_request *__alloc_pending_request(gfp_t flags)
 {
 	struct pending_request *req;
@@ -111,7 +127,7 @@ static struct pending_request *__alloc_pending_request(gfp_t flags)
 
 static inline struct pending_request *alloc_pending_request(void)
 {
-	return __alloc_pending_request(SLAB_KERNEL);
+	return __alloc_pending_request(GFP_KERNEL);
 }
 
 static void free_pending_request(struct pending_request *req)
@@ -132,10 +148,9 @@ static void free_pending_request(struct pending_request *req)
 static void __queue_complete_req(struct pending_request *req)
 {
 	struct file_info *fi = req->file_info;
-	list_move_tail(&req->list, &fi->req_complete);
 
-	up(&fi->complete_sem);
-	wake_up_interruptible(&fi->poll_wait_complete);
+	list_move_tail(&req->list, &fi->req_complete);
+ 	wake_up(&fi->wait_complete);
 }
 
 static void queue_complete_req(struct pending_request *req)
@@ -259,7 +274,7 @@ static void host_reset(struct hpsb_host *host)
 	if (hi != NULL) {
 		list_for_each_entry(fi, &hi->file_info_list, list) {
 			if (fi->notification == RAW1394_NOTIFY_ON) {
-				req = __alloc_pending_request(SLAB_ATOMIC);
+				req = __alloc_pending_request(GFP_ATOMIC);
 
 				if (req != NULL) {
 					req->file_info = fi;
@@ -306,13 +321,13 @@ static void iso_receive(struct hpsb_host *host, int channel, quadlet_t * data,
 			if (!(fi->listen_channels & (1ULL << channel)))
 				continue;
 
-			req = __alloc_pending_request(SLAB_ATOMIC);
+			req = __alloc_pending_request(GFP_ATOMIC);
 			if (!req)
 				break;
 
 			if (!ibs) {
 				ibs = kmalloc(sizeof(*ibs) + length,
-					      SLAB_ATOMIC);
+					      GFP_ATOMIC);
 				if (!ibs) {
 					kfree(req);
 					break;
@@ -367,13 +382,13 @@ static void fcp_request(struct hpsb_host *host, int nodeid, int direction,
 			if (!fi->fcp_buffer)
 				continue;
 
-			req = __alloc_pending_request(SLAB_ATOMIC);
+			req = __alloc_pending_request(GFP_ATOMIC);
 			if (!req)
 				break;
 
 			if (!ibs) {
 				ibs = kmalloc(sizeof(*ibs) + length,
-					      SLAB_ATOMIC);
+					      GFP_ATOMIC);
 				if (!ibs) {
 					kfree(req);
 					break;
@@ -463,13 +478,36 @@ raw1394_compat_read(const char __user *buf, struct raw1394_request *r)
 
 #endif
 
+/* get next completed request  (caller must hold fi->reqlists_lock) */
+static inline struct pending_request *__next_complete_req(struct file_info *fi)
+{
+	struct list_head *lh;
+	struct pending_request *req = NULL;
+
+	if (!list_empty(&fi->req_complete)) {
+		lh = fi->req_complete.next;
+		list_del(lh);
+		req = list_entry(lh, struct pending_request, list);
+	}
+	return req;
+}
+
+/* atomically get next completed request */
+static struct pending_request *next_complete_req(struct file_info *fi)
+{
+	unsigned long flags;
+	struct pending_request *req;
+
+	spin_lock_irqsave(&fi->reqlists_lock, flags);
+	req = __next_complete_req(fi);
+	spin_unlock_irqrestore(&fi->reqlists_lock, flags);
+	return req;
+}
 
 static ssize_t raw1394_read(struct file *file, char __user * buffer,
 			    size_t count, loff_t * offset_is_ignored)
 {
-	unsigned long flags;
 	struct file_info *fi = (struct file_info *)file->private_data;
-	struct list_head *lh;
 	struct pending_request *req;
 	ssize_t ret;
 
@@ -487,21 +525,20 @@ static ssize_t raw1394_read(struct file *file, char __user * buffer,
 	}
 
 	if (file->f_flags & O_NONBLOCK) {
-		if (down_trylock(&fi->complete_sem)) {
+		if (!(req = next_complete_req(fi)))
 			return -EAGAIN;
-		}
 	} else {
-		if (down_interruptible(&fi->complete_sem)) {
+		/*
+		 * NB: We call the macro wait_event_interruptible() with a
+		 * condition argument with side effect.  This is only possible
+		 * because the side effect does not occur until the condition
+		 * became true, and wait_event_interruptible() won't evaluate
+		 * the condition again after that.
+		 */
+		if (wait_event_interruptible(fi->wait_complete,
+					     (req = next_complete_req(fi))))
 			return -ERESTARTSYS;
-		}
 	}
-
-	spin_lock_irqsave(&fi->reqlists_lock, flags);
-	lh = fi->req_complete.next;
-	list_del(lh);
-	spin_unlock_irqrestore(&fi->reqlists_lock, flags);
-
-	req = list_entry(lh, struct pending_request, list);
 
 	if (req->req.length) {
 		if (copy_to_user(int2ptr(req->req.recvb), req->data,
@@ -571,7 +608,7 @@ static int state_initialized(struct file_info *fi, struct pending_request *req)
 	switch (req->req.type) {
 	case RAW1394_REQ_LIST_CARDS:
 		spin_lock_irqsave(&host_info_lock, flags);
-		khl = kmalloc(sizeof(*khl) * host_count, SLAB_ATOMIC);
+		khl = kmalloc(sizeof(*khl) * host_count, GFP_ATOMIC);
 
 		if (khl) {
 			req->req.misc = host_count;
@@ -1023,7 +1060,7 @@ static int arm_read(struct hpsb_host *host, int nodeid, quadlet_t * buffer,
 	}
 	if (arm_addr->notification_options & ARM_READ) {
 		DBGMSG("arm_read -> entering notification-section");
-		req = __alloc_pending_request(SLAB_ATOMIC);
+		req = __alloc_pending_request(GFP_ATOMIC);
 		if (!req) {
 			DBGMSG("arm_read -> rcode_conflict_error");
 			spin_unlock_irqrestore(&host_info_lock, irqflags);
@@ -1042,7 +1079,7 @@ static int arm_read(struct hpsb_host *host, int nodeid, quadlet_t * buffer,
 			    sizeof(struct arm_response) +
 			    sizeof(struct arm_request_response);
 		}
-		req->data = kmalloc(size, SLAB_ATOMIC);
+		req->data = kmalloc(size, GFP_ATOMIC);
 		if (!(req->data)) {
 			free_pending_request(req);
 			DBGMSG("arm_read -> rcode_conflict_error");
@@ -1176,7 +1213,7 @@ static int arm_write(struct hpsb_host *host, int nodeid, int destid,
 	}
 	if (arm_addr->notification_options & ARM_WRITE) {
 		DBGMSG("arm_write -> entering notification-section");
-		req = __alloc_pending_request(SLAB_ATOMIC);
+		req = __alloc_pending_request(GFP_ATOMIC);
 		if (!req) {
 			DBGMSG("arm_write -> rcode_conflict_error");
 			spin_unlock_irqrestore(&host_info_lock, irqflags);
@@ -1187,7 +1224,7 @@ static int arm_write(struct hpsb_host *host, int nodeid, int destid,
 		    sizeof(struct arm_request) + sizeof(struct arm_response) +
 		    (length) * sizeof(byte_t) +
 		    sizeof(struct arm_request_response);
-		req->data = kmalloc(size, SLAB_ATOMIC);
+		req->data = kmalloc(size, GFP_ATOMIC);
 		if (!(req->data)) {
 			free_pending_request(req);
 			DBGMSG("arm_write -> rcode_conflict_error");
@@ -1378,7 +1415,7 @@ static int arm_lock(struct hpsb_host *host, int nodeid, quadlet_t * store,
 	if (arm_addr->notification_options & ARM_LOCK) {
 		byte_t *buf1, *buf2;
 		DBGMSG("arm_lock -> entering notification-section");
-		req = __alloc_pending_request(SLAB_ATOMIC);
+		req = __alloc_pending_request(GFP_ATOMIC);
 		if (!req) {
 			DBGMSG("arm_lock -> rcode_conflict_error");
 			spin_unlock_irqrestore(&host_info_lock, irqflags);
@@ -1386,7 +1423,7 @@ static int arm_lock(struct hpsb_host *host, int nodeid, quadlet_t * store,
 							   The request may be retried */
 		}
 		size = sizeof(struct arm_request) + sizeof(struct arm_response) + 3 * sizeof(*store) + sizeof(struct arm_request_response);	/* maximum */
-		req->data = kmalloc(size, SLAB_ATOMIC);
+		req->data = kmalloc(size, GFP_ATOMIC);
 		if (!(req->data)) {
 			free_pending_request(req);
 			DBGMSG("arm_lock -> rcode_conflict_error");
@@ -1606,7 +1643,7 @@ static int arm_lock64(struct hpsb_host *host, int nodeid, octlet_t * store,
 	if (arm_addr->notification_options & ARM_LOCK) {
 		byte_t *buf1, *buf2;
 		DBGMSG("arm_lock64 -> entering notification-section");
-		req = __alloc_pending_request(SLAB_ATOMIC);
+		req = __alloc_pending_request(GFP_ATOMIC);
 		if (!req) {
 			spin_unlock_irqrestore(&host_info_lock, irqflags);
 			DBGMSG("arm_lock64 -> rcode_conflict_error");
@@ -1614,7 +1651,7 @@ static int arm_lock64(struct hpsb_host *host, int nodeid, octlet_t * store,
 							   The request may be retried */
 		}
 		size = sizeof(struct arm_request) + sizeof(struct arm_response) + 3 * sizeof(*store) + sizeof(struct arm_request_response);	/* maximum */
-		req->data = kmalloc(size, SLAB_ATOMIC);
+		req->data = kmalloc(size, GFP_ATOMIC);
 		if (!(req->data)) {
 			free_pending_request(req);
 			spin_unlock_irqrestore(&host_info_lock, irqflags);
@@ -1715,7 +1752,7 @@ static int arm_register(struct file_info *fi, struct pending_request *req)
 		return (-EINVAL);
 	}
 	/* addr-list-entry for fileinfo */
-	addr = kmalloc(sizeof(*addr), SLAB_KERNEL);
+	addr = kmalloc(sizeof(*addr), GFP_KERNEL);
 	if (!addr) {
 		req->req.length = 0;
 		return (-ENOMEM);
@@ -1752,6 +1789,7 @@ static int arm_register(struct file_info *fi, struct pending_request *req)
 	addr->notification_options |= addr->client_transactions;
 	addr->recvb = req->req.recvb;
 	addr->rec_length = (u16) ((req->req.misc >> 16) & 0xFFFF);
+
 	spin_lock_irqsave(&host_info_lock, flags);
 	hi = find_host_info(fi->host);
 	same_host = 0;
@@ -1777,9 +1815,9 @@ static int arm_register(struct file_info *fi, struct pending_request *req)
 	}
 	if (same_host) {
 		/* addressrange occupied by same host */
+		spin_unlock_irqrestore(&host_info_lock, flags);
 		vfree(addr->addr_space_buffer);
 		kfree(addr);
-		spin_unlock_irqrestore(&host_info_lock, flags);
 		return (-EALREADY);
 	}
 	/* another host with valid address-entry containing same addressrange */
@@ -1807,6 +1845,8 @@ static int arm_register(struct file_info *fi, struct pending_request *req)
 			}
 		}
 	}
+	spin_unlock_irqrestore(&host_info_lock, flags);
+
 	if (another_host) {
 		DBGMSG("another hosts entry is valid -> SUCCESS");
 		if (copy_to_user(int2ptr(req->req.recvb),
@@ -1815,11 +1855,11 @@ static int arm_register(struct file_info *fi, struct pending_request *req)
 			       " address-range-entry is invalid -> EFAULT !!!\n");
 			vfree(addr->addr_space_buffer);
 			kfree(addr);
-			spin_unlock_irqrestore(&host_info_lock, flags);
 			return (-EFAULT);
 		}
 		free_pending_request(req);	/* immediate success or fail */
 		/* INSERT ENTRY */
+		spin_lock_irqsave(&host_info_lock, flags);
 		list_add_tail(&addr->addr_list, &fi->addr_list);
 		spin_unlock_irqrestore(&host_info_lock, flags);
 		return sizeof(struct raw1394_request);
@@ -1830,15 +1870,15 @@ static int arm_register(struct file_info *fi, struct pending_request *req)
 				    req->req.address + req->req.length);
 	if (retval) {
 		/* INSERT ENTRY */
+		spin_lock_irqsave(&host_info_lock, flags);
 		list_add_tail(&addr->addr_list, &fi->addr_list);
+		spin_unlock_irqrestore(&host_info_lock, flags);
 	} else {
 		DBGMSG("arm_register failed errno: %d \n", retval);
 		vfree(addr->addr_space_buffer);
 		kfree(addr);
-		spin_unlock_irqrestore(&host_info_lock, flags);
 		return (-EALREADY);
 	}
-	spin_unlock_irqrestore(&host_info_lock, flags);
 	free_pending_request(req);	/* immediate success or fail */
 	return sizeof(struct raw1394_request);
 }
@@ -1904,10 +1944,10 @@ static int arm_unregister(struct file_info *fi, struct pending_request *req)
 	if (another_host) {
 		DBGMSG("delete entry from list -> success");
 		list_del(&addr->addr_list);
+		spin_unlock_irqrestore(&host_info_lock, flags);
 		vfree(addr->addr_space_buffer);
 		kfree(addr);
 		free_pending_request(req);	/* immediate success or fail */
-		spin_unlock_irqrestore(&host_info_lock, flags);
 		return sizeof(struct raw1394_request);
 	}
 	retval =
@@ -1949,23 +1989,19 @@ static int arm_get_buf(struct file_info *fi, struct pending_request *req)
 		    (arm_addr->end > req->req.address)) {
 			if (req->req.address + req->req.length <= arm_addr->end) {
 				offset = req->req.address - arm_addr->start;
+				spin_unlock_irqrestore(&host_info_lock, flags);
 
 				DBGMSG
 				    ("arm_get_buf copy_to_user( %08X, %p, %u )",
 				     (u32) req->req.recvb,
 				     arm_addr->addr_space_buffer + offset,
 				     (u32) req->req.length);
-
 				if (copy_to_user
 				    (int2ptr(req->req.recvb),
 				     arm_addr->addr_space_buffer + offset,
-				     req->req.length)) {
-					spin_unlock_irqrestore(&host_info_lock,
-							       flags);
+				     req->req.length))
 					return (-EFAULT);
-				}
 
-				spin_unlock_irqrestore(&host_info_lock, flags);
 				/* We have to free the request, because we
 				 * queue no response, and therefore nobody
 				 * will free it. */
@@ -2005,24 +2041,23 @@ static int arm_set_buf(struct file_info *fi, struct pending_request *req)
 		    (arm_addr->end > req->req.address)) {
 			if (req->req.address + req->req.length <= arm_addr->end) {
 				offset = req->req.address - arm_addr->start;
+				spin_unlock_irqrestore(&host_info_lock, flags);
 
 				DBGMSG
 				    ("arm_set_buf copy_from_user( %p, %08X, %u )",
 				     arm_addr->addr_space_buffer + offset,
 				     (u32) req->req.sendb,
 				     (u32) req->req.length);
-
 				if (copy_from_user
 				    (arm_addr->addr_space_buffer + offset,
 				     int2ptr(req->req.sendb),
-				     req->req.length)) {
-					spin_unlock_irqrestore(&host_info_lock,
-							       flags);
+				     req->req.length))
 					return (-EFAULT);
-				}
 
-				spin_unlock_irqrestore(&host_info_lock, flags);
-				free_pending_request(req);	/* we have to free the request, because we queue no response, and therefore nobody will free it */
+				/* We have to free the request, because we
+				 * queue no response, and therefore nobody
+				 * will free it. */
+				free_pending_request(req);
 				return sizeof(struct raw1394_request);
 			} else {
 				DBGMSG("arm_set_buf request exceeded mapping");
@@ -2083,7 +2118,7 @@ static int write_phypacket(struct file_info *fi, struct pending_request *req)
 static int get_config_rom(struct file_info *fi, struct pending_request *req)
 {
 	int ret = sizeof(struct raw1394_request);
-	quadlet_t *data = kmalloc(req->req.length, SLAB_KERNEL);
+	quadlet_t *data = kmalloc(req->req.length, GFP_KERNEL);
 	int status;
 
 	if (!data)
@@ -2113,7 +2148,7 @@ static int get_config_rom(struct file_info *fi, struct pending_request *req)
 static int update_config_rom(struct file_info *fi, struct pending_request *req)
 {
 	int ret = sizeof(struct raw1394_request);
-	quadlet_t *data = kmalloc(req->req.length, SLAB_KERNEL);
+	quadlet_t *data = kmalloc(req->req.length, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 	if (copy_from_user(data, int2ptr(req->req.sendb), req->req.length)) {
@@ -2272,6 +2307,7 @@ static int state_connected(struct file_info *fi, struct pending_request *req)
 		return sizeof(struct raw1394_request);
 
 	case RAW1394_REQ_ISO_SEND:
+		print_old_iso_deprecation();
 		return handle_iso_send(fi, req, node);
 
 	case RAW1394_REQ_ARM_REGISTER:
@@ -2290,6 +2326,7 @@ static int state_connected(struct file_info *fi, struct pending_request *req)
 		return reset_notification(fi, req);
 
 	case RAW1394_REQ_ISO_LISTEN:
+		print_old_iso_deprecation();
 		handle_iso_listen(fi, req);
 		return sizeof(struct raw1394_request);
 
@@ -2423,7 +2460,7 @@ static void queue_rawiso_event(struct file_info *fi)
 	/* only one ISO activity event may be in the queue */
 	if (!__rawiso_event_in_queue(fi)) {
 		struct pending_request *req =
-		    __alloc_pending_request(SLAB_ATOMIC);
+		    __alloc_pending_request(GFP_ATOMIC);
 
 		if (req) {
 			req->file_info = fi;
@@ -2744,7 +2781,7 @@ static unsigned int raw1394_poll(struct file *file, poll_table * pt)
 	unsigned int mask = POLLOUT | POLLWRNORM;
 	unsigned long flags;
 
-	poll_wait(file, &fi->poll_wait_complete, pt);
+	poll_wait(file, &fi->wait_complete, pt);
 
 	spin_lock_irqsave(&fi->reqlists_lock, flags);
 	if (!list_empty(&fi->req_complete)) {
@@ -2759,7 +2796,7 @@ static int raw1394_open(struct inode *inode, struct file *file)
 {
 	struct file_info *fi;
 
-	fi = kzalloc(sizeof(*fi), SLAB_KERNEL);
+	fi = kzalloc(sizeof(*fi), GFP_KERNEL);
 	if (!fi)
 		return -ENOMEM;
 
@@ -2769,9 +2806,8 @@ static int raw1394_open(struct inode *inode, struct file *file)
 	fi->state = opened;
 	INIT_LIST_HEAD(&fi->req_pending);
 	INIT_LIST_HEAD(&fi->req_complete);
-	sema_init(&fi->complete_sem, 0);
 	spin_lock_init(&fi->reqlists_lock);
-	init_waitqueue_head(&fi->poll_wait_complete);
+	init_waitqueue_head(&fi->wait_complete);
 	INIT_LIST_HEAD(&fi->addr_list);
 
 	file->private_data = fi;
@@ -2784,7 +2820,7 @@ static int raw1394_release(struct inode *inode, struct file *file)
 	struct file_info *fi = file->private_data;
 	struct list_head *lh;
 	struct pending_request *req;
-	int done = 0, i, fail = 0;
+	int i, fail;
 	int retval = 0;
 	struct list_head *entry;
 	struct arm_addr *addr = NULL;
@@ -2864,25 +2900,28 @@ static int raw1394_release(struct inode *inode, struct file *file)
 		       "error(s) occurred \n");
 	}
 
-	while (!done) {
+	for (;;) {
+		/* This locked section guarantees that neither
+		 * complete nor pending requests exist once i!=0 */
 		spin_lock_irqsave(&fi->reqlists_lock, flags);
-
-		while (!list_empty(&fi->req_complete)) {
-			lh = fi->req_complete.next;
-			list_del(lh);
-
-			req = list_entry(lh, struct pending_request, list);
-
+		while ((req = __next_complete_req(fi)))
 			free_pending_request(req);
-		}
 
-		if (list_empty(&fi->req_pending))
-			done = 1;
-
+		i = list_empty(&fi->req_pending);
 		spin_unlock_irqrestore(&fi->reqlists_lock, flags);
 
-		if (!done)
-			down_interruptible(&fi->complete_sem);
+		if (i)
+			break;
+		/*
+		 * Sleep until more requests can be freed.
+		 *
+		 * NB: We call the macro wait_event() with a condition argument
+		 * with side effect.  This is only possible because the side
+		 * effect does not occur until the condition became true, and
+		 * wait_event() won't evaluate the condition again after that.
+		 */
+		wait_event(fi->wait_complete, (req = next_complete_req(fi)));
+		free_pending_request(req);
 	}
 
 	/* Remove any sub-trees left by user space programs */
@@ -2948,12 +2987,8 @@ static struct ieee1394_device_id raw1394_id_table[] = {
 MODULE_DEVICE_TABLE(ieee1394, raw1394_id_table);
 
 static struct hpsb_protocol_driver raw1394_driver = {
-	.name = "raw1394 Driver",
+	.name = "raw1394",
 	.id_table = raw1394_id_table,
-	.driver = {
-		   .name = "raw1394",
-		   .bus = &ieee1394_bus_type,
-		   },
 };
 
 /******************************************************************************/

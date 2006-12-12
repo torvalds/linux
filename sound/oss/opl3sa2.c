@@ -1,5 +1,5 @@
 /*
- * sound/opl3sa2.c
+ * sound/oss/opl3sa2.c
  *
  * A low level driver for Yamaha OPL3-SA2 and SA3 cards.
  * NOTE: All traces of the name OPL3-SAx have now (December 2000) been

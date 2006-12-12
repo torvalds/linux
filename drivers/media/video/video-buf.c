@@ -365,7 +365,12 @@ videobuf_iolock(struct videobuf_queue* q, struct videobuf_buffer *vb,
 		if (NULL == fbuf)
 			return -EINVAL;
 		/* FIXME: need sanity checks for vb->boff */
-		bus   = (dma_addr_t)fbuf->base + vb->boff;
+		/*
+		 * Using a double cast to avoid compiler warnings when
+		 * building for PAE. Compiler doesn't like direct casting
+		 * of a 32 bit ptr to 64 bit integer.
+		 */
+		bus   = (dma_addr_t)(unsigned long)fbuf->base + vb->boff;
 		pages = PAGE_ALIGN(vb->size) >> PAGE_SHIFT;
 		err = videobuf_dma_init_overlay(&vb->dma,PCI_DMA_FROMDEVICE,
 						bus, pages);

@@ -63,6 +63,13 @@
  *
  * Removed console_lock, enabled interrupts across all console operations
  * 13 March 2001, Andrew Morton
+ *
+ * Fixed UTF-8 mode so alternate charset modes always work according
+ * to control sequences interpreted in do_con_trol function
+ * preserving backward VT100 semigraphics compatibility,
+ * malformed UTF sequences represented as sequences of replacement glyphs,
+ * original codes or '?' as a last resort if replacement glyph is undefined
+ * by Adam Tla/lka <atlka@pg.gda.pl>, Aug 2006
  */
 
 #include <linux/module.h>
@@ -99,12 +106,13 @@
 #define MAX_NR_CON_DRIVER 16
 
 #define CON_DRIVER_FLAG_MODULE 1
-#define CON_DRIVER_FLAG_INIT 2
+#define CON_DRIVER_FLAG_INIT   2
+#define CON_DRIVER_FLAG_ATTR   4
 
 struct con_driver {
 	const struct consw *con;
 	const char *desc;
-	struct class_device *class_dev;
+	struct device *dev;
 	int node;
 	int first;
 	int last;
@@ -128,16 +136,8 @@ const struct consw *conswitchp;
 #define DEFAULT_BELL_PITCH	750
 #define DEFAULT_BELL_DURATION	(HZ/8)
 
-extern void vcs_make_devfs(struct tty_struct *tty);
-extern void vcs_remove_devfs(struct tty_struct *tty);
-
-extern void console_map_init(void);
-#ifdef CONFIG_PROM_CONSOLE
-extern void prom_con_init(void);
-#endif
-#ifdef CONFIG_MDA_CONSOLE
-extern int mda_console_init(void);
-#endif
+extern void vcs_make_sysfs(struct tty_struct *tty);
+extern void vcs_remove_sysfs(struct tty_struct *tty);
 
 struct vc vc_cons [MAX_NR_CONSOLES];
 
@@ -152,10 +152,10 @@ static void gotoxy(struct vc_data *vc, int new_x, int new_y);
 static void save_cur(struct vc_data *vc);
 static void reset_terminal(struct vc_data *vc, int do_clear);
 static void con_flush_chars(struct tty_struct *tty);
-static void set_vesa_blanking(char __user *p);
+static int set_vesa_blanking(char __user *p);
 static void set_cursor(struct vc_data *vc);
 static void hide_cursor(struct vc_data *vc);
-static void console_callback(void *ignored);
+static void console_callback(struct work_struct *ignored);
 static void blank_screen_t(unsigned long dummy);
 static void set_palette(struct vc_data *vc);
 
@@ -174,7 +174,7 @@ static int vesa_blank_mode; /* 0:none 1:suspendV 2:suspendH 3:powerdown */
 static int blankinterval = 10*60*HZ;
 static int vesa_off_interval;
 
-static DECLARE_WORK(console_work, console_callback, NULL);
+static DECLARE_WORK(console_work, console_callback);
 
 /*
  * fg_console is the current virtual console,
@@ -730,7 +730,8 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	    visual_init(vc, currcons, 1);
 	    if (!*vc->vc_uni_pagedir_loc)
 		con_set_default_unimap(vc);
-	    vc->vc_screenbuf = kmalloc(vc->vc_screenbuf_size, GFP_KERNEL);
+	    if (!vc->vc_kmalloced)
+		vc->vc_screenbuf = kmalloc(vc->vc_screenbuf_size, GFP_KERNEL);
 	    if (!vc->vc_screenbuf) {
 		kfree(vc);
 		vc_cons[currcons].d = NULL;
@@ -878,14 +879,24 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 	return err;
 }
 
+int vc_lock_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
+{
+	int rc;
 
-void vc_disallocate(unsigned int currcons)
+	acquire_console_sem();
+	rc = vc_resize(vc, cols, lines);
+	release_console_sem();
+	return rc;
+}
+
+void vc_deallocate(unsigned int currcons)
 {
 	WARN_CONSOLE_UNLOCKED();
 
 	if (vc_cons_allocated(currcons)) {
 		struct vc_data *vc = vc_cons[currcons].d;
 		vc->vc_sw->con_deinit(vc);
+		put_pid(vc->vt_pid);
 		module_put(vc->vc_sw->owner);
 		if (vc->vc_kmalloced)
 			kfree(vc->vc_screenbuf);
@@ -2005,17 +2016,23 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 		/* Do no translation at all in control states */
 		if (vc->vc_state != ESnormal) {
 			tc = c;
-		} else if (vc->vc_utf) {
+		} else if (vc->vc_utf && !vc->vc_disp_ctrl) {
 		    /* Combine UTF-8 into Unicode */
-		    /* Incomplete characters silently ignored */
+		    /* Malformed sequences as sequences of replacement glyphs */
+rescan_last_byte:
 		    if(c > 0x7f) {
-			if (vc->vc_utf_count > 0 && (c & 0xc0) == 0x80) {
-				vc->vc_utf_char = (vc->vc_utf_char << 6) | (c & 0x3f);
-				vc->vc_utf_count--;
-				if (vc->vc_utf_count == 0)
-				    tc = c = vc->vc_utf_char;
-				else continue;
+			if (vc->vc_utf_count) {
+			       if ((c & 0xc0) == 0x80) {
+				       vc->vc_utf_char = (vc->vc_utf_char << 6) | (c & 0x3f);
+       				       if (--vc->vc_utf_count) {
+					       vc->vc_npar++;
+				   	       continue;
+       				       }
+				       tc = c = vc->vc_utf_char;
+			       } else
+				       goto replacement_glyph;
 			} else {
+				vc->vc_npar = 0;
 				if ((c & 0xe0) == 0xc0) {
 				    vc->vc_utf_count = 1;
 				    vc->vc_utf_char = (c & 0x1f);
@@ -2032,14 +2049,15 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 				    vc->vc_utf_count = 5;
 				    vc->vc_utf_char = (c & 0x01);
 				} else
-				    vc->vc_utf_count = 0;
+	    			    goto replacement_glyph;
 				continue;
 			      }
 		    } else {
+		      if (vc->vc_utf_count)
+	  		      goto replacement_glyph;
 		      tc = c;
-		      vc->vc_utf_count = 0;
 		    }
-		} else {	/* no utf */
+		} else {	/* no utf or alternate charset mode */
 		  tc = vc->vc_translate[vc->vc_toggle_meta ? (c | 0x80) : c];
 		}
 
@@ -2054,31 +2072,33 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
                  * direct-to-font zone in UTF-8 mode.
                  */
                 ok = tc && (c >= 32 ||
-			    (!vc->vc_utf && !(((vc->vc_disp_ctrl ? CTRL_ALWAYS
-						: CTRL_ACTION) >> c) & 1)))
+			    !(vc->vc_disp_ctrl ? (CTRL_ALWAYS >> c) & 1 :
+				  vc->vc_utf || ((CTRL_ACTION >> c) & 1)))
 			&& (c != 127 || vc->vc_disp_ctrl)
 			&& (c != 128+27);
 
 		if (vc->vc_state == ESnormal && ok) {
 			/* Now try to find out how to display it */
 			tc = conv_uni_to_pc(vc, tc);
-			if ( tc == -4 ) {
+			if (tc & ~charmask) {
+				if ( tc == -4 ) {
                                 /* If we got -4 (not found) then see if we have
                                    defined a replacement character (U+FFFD) */
-                                tc = conv_uni_to_pc(vc, 0xfffd);
+replacement_glyph:
+                                	tc = conv_uni_to_pc(vc, 0xfffd);
+					if (!(tc & ~charmask))
+						goto display_glyph;
+                        	} else if ( tc != -3 )
+                                	continue; /* nothing to display */
+                                /* no hash table or no replacement --
+				 * hope for the best */
+				if ( c & ~charmask )
+					tc = '?';
+				else
+					tc = c;
+			}
 
-				/* One reason for the -4 can be that we just
-				   did a clear_unimap();
-				   try at least to show something. */
-				if (tc == -4)
-				     tc = c;
-                        } else if ( tc == -3 ) {
-                                /* Bad hash table -- hope for the best */
-                                tc = c;
-                        }
-			if (tc & ~charmask)
-                                continue; /* Conversion failed */
-
+display_glyph:
 			if (vc->vc_need_wrap || vc->vc_decim)
 				FLUSH
 			if (vc->vc_need_wrap) {
@@ -2101,6 +2121,15 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 			} else {
 				vc->vc_x++;
 				draw_to = (vc->vc_pos += 2);
+			}
+			if (vc->vc_utf_count) {
+				if (vc->vc_npar) {
+					vc->vc_npar--;
+					goto display_glyph;
+				}
+				vc->vc_utf_count = 0;
+				c = orig;
+				goto rescan_last_byte;
 			}
 			continue;
 		}
@@ -2125,7 +2154,7 @@ out:
  * with other console code and prevention of re-entrancy is
  * ensured with console_sem.
  */
-static void console_callback(void *ignored)
+static void console_callback(struct work_struct *ignored)
 {
 	acquire_console_sem();
 
@@ -2340,7 +2369,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			ret = __put_user(data, p);
 			break;
 		case TIOCL_SETVESABLANK:
-			set_vesa_blanking(p);
+			ret = set_vesa_blanking(p);
 			break;
 		case TIOCL_GETKMSGREDIRECT:
 			data = kmsg_redirect;
@@ -2498,7 +2527,7 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 				tty->winsize.ws_col = vc_cons[currcons].d->vc_cols;
 			}
 			release_console_sem();
-			vcs_make_devfs(tty);
+			vcs_make_sysfs(tty);
 			return ret;
 		}
 	}
@@ -2511,7 +2540,7 @@ static int con_open(struct tty_struct *tty, struct file *filp)
  * and taking a ref against the tty while we're in the process of forgetting
  * about it and cleaning things up.
  *
- * This is because vcs_remove_devfs() can sleep and will drop the BKL.
+ * This is because vcs_remove_sysfs() can sleep and will drop the BKL.
  */
 static void con_close(struct tty_struct *tty, struct file *filp)
 {
@@ -2524,7 +2553,7 @@ static void con_close(struct tty_struct *tty, struct file *filp)
 			vc->vc_tty = NULL;
 		tty->driver_data = NULL;
 		release_console_sem();
-		vcs_remove_devfs(tty);
+		vcs_remove_sysfs(tty);
 		mutex_unlock(&tty_mutex);
 		/*
 		 * tty_mutex is released, but we still hold BKL, so there is
@@ -2639,7 +2668,7 @@ static int __init con_init(void)
 }
 console_initcall(con_init);
 
-static struct tty_operations con_ops = {
+static const struct tty_operations con_ops = {
 	.open = con_open,
 	.close = con_close,
 	.write = con_write,
@@ -2994,10 +3023,10 @@ static inline int vt_unbind(struct con_driver *con)
 }
 #endif /* CONFIG_VT_HW_CONSOLE_BINDING */
 
-static ssize_t store_bind(struct class_device *class_device,
+static ssize_t store_bind(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
-	struct con_driver *con = class_get_devdata(class_device);
+	struct con_driver *con = dev_get_drvdata(dev);
 	int bind = simple_strtoul(buf, NULL, 0);
 
 	if (bind)
@@ -3008,17 +3037,19 @@ static ssize_t store_bind(struct class_device *class_device,
 	return count;
 }
 
-static ssize_t show_bind(struct class_device *class_device, char *buf)
+static ssize_t show_bind(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
-	struct con_driver *con = class_get_devdata(class_device);
+	struct con_driver *con = dev_get_drvdata(dev);
 	int bind = con_is_bound(con->con);
 
 	return snprintf(buf, PAGE_SIZE, "%i\n", bind);
 }
 
-static ssize_t show_name(struct class_device *class_device, char *buf)
+static ssize_t show_name(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
-	struct con_driver *con = class_get_devdata(class_device);
+	struct con_driver *con = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%s %s\n",
 			(con->flag & CON_DRIVER_FLAG_MODULE) ? "(M)" : "(S)",
@@ -3026,30 +3057,42 @@ static ssize_t show_name(struct class_device *class_device, char *buf)
 
 }
 
-static struct class_device_attribute class_device_attrs[] = {
+static struct device_attribute device_attrs[] = {
 	__ATTR(bind, S_IRUGO|S_IWUSR, show_bind, store_bind),
 	__ATTR(name, S_IRUGO, show_name, NULL),
 };
 
-static int vtconsole_init_class_device(struct con_driver *con)
+static int vtconsole_init_device(struct con_driver *con)
 {
 	int i;
+	int error = 0;
 
-	class_set_devdata(con->class_dev, con);
-	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
-		class_device_create_file(con->class_dev,
-					 &class_device_attrs[i]);
+	con->flag |= CON_DRIVER_FLAG_ATTR;
+	dev_set_drvdata(con->dev, con);
+	for (i = 0; i < ARRAY_SIZE(device_attrs); i++) {
+		error = device_create_file(con->dev, &device_attrs[i]);
+		if (error)
+			break;
+	}
 
-	return 0;
+	if (error) {
+		while (--i >= 0)
+			device_remove_file(con->dev, &device_attrs[i]);
+		con->flag &= ~CON_DRIVER_FLAG_ATTR;
+	}
+
+	return error;
 }
 
-static void vtconsole_deinit_class_device(struct con_driver *con)
+static void vtconsole_deinit_device(struct con_driver *con)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
-		class_device_remove_file(con->class_dev,
-					 &class_device_attrs[i]);
+	if (con->flag & CON_DRIVER_FLAG_ATTR) {
+		for (i = 0; i < ARRAY_SIZE(device_attrs); i++)
+			device_remove_file(con->dev, &device_attrs[i]);
+		con->flag &= ~CON_DRIVER_FLAG_ATTR;
+	}
 }
 
 /**
@@ -3135,19 +3178,19 @@ int register_con_driver(const struct consw *csw, int first, int last)
 	if (retval)
 		goto err;
 
-	con_driver->class_dev = class_device_create(vtconsole_class, NULL,
-						    MKDEV(0, con_driver->node),
-						    NULL, "vtcon%i",
-						    con_driver->node);
+	con_driver->dev = device_create(vtconsole_class, NULL,
+					MKDEV(0, con_driver->node),
+					"vtcon%i", con_driver->node);
 
-	if (IS_ERR(con_driver->class_dev)) {
-		printk(KERN_WARNING "Unable to create class_device for %s; "
+	if (IS_ERR(con_driver->dev)) {
+		printk(KERN_WARNING "Unable to create device for %s; "
 		       "errno = %ld\n", con_driver->desc,
-		       PTR_ERR(con_driver->class_dev));
-		con_driver->class_dev = NULL;
+		       PTR_ERR(con_driver->dev));
+		con_driver->dev = NULL;
 	} else {
-		vtconsole_init_class_device(con_driver);
+		vtconsole_init_device(con_driver);
 	}
+
 err:
 	release_console_sem();
 	module_put(owner);
@@ -3181,12 +3224,12 @@ int unregister_con_driver(const struct consw *csw)
 
 		if (con_driver->con == csw &&
 		    con_driver->flag & CON_DRIVER_FLAG_MODULE) {
-			vtconsole_deinit_class_device(con_driver);
-			class_device_destroy(vtconsole_class,
-					     MKDEV(0, con_driver->node));
+			vtconsole_deinit_device(con_driver);
+			device_destroy(vtconsole_class,
+				       MKDEV(0, con_driver->node));
 			con_driver->con = NULL;
 			con_driver->desc = NULL;
-			con_driver->class_dev = NULL;
+			con_driver->dev = NULL;
 			con_driver->node = 0;
 			con_driver->flag = 0;
 			con_driver->first = 0;
@@ -3244,19 +3287,18 @@ static int __init vtconsole_class_init(void)
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
 		struct con_driver *con = &registered_con_driver[i];
 
-		if (con->con && !con->class_dev) {
-			con->class_dev =
-				class_device_create(vtconsole_class, NULL,
-						    MKDEV(0, con->node), NULL,
-						    "vtcon%i", con->node);
+		if (con->con && !con->dev) {
+			con->dev = device_create(vtconsole_class, NULL,
+						 MKDEV(0, con->node),
+						 "vtcon%i", con->node);
 
-			if (IS_ERR(con->class_dev)) {
+			if (IS_ERR(con->dev)) {
 				printk(KERN_WARNING "Unable to create "
-				       "class_device for %s; errno = %ld\n",
-				       con->desc, PTR_ERR(con->class_dev));
-				con->class_dev = NULL;
+				       "device for %s; errno = %ld\n",
+				       con->desc, PTR_ERR(con->dev));
+				con->dev = NULL;
 			} else {
-				vtconsole_init_class_device(con);
+				vtconsole_init_device(con);
 			}
 		}
 	}
@@ -3271,11 +3313,15 @@ postcore_initcall(vtconsole_class_init);
  *	Screen blanking
  */
 
-static void set_vesa_blanking(char __user *p)
+static int set_vesa_blanking(char __user *p)
 {
-    unsigned int mode;
-    get_user(mode, p + 1);
-    vesa_blank_mode = (mode < 4) ? mode : 0;
+	unsigned int mode;
+
+	if (get_user(mode, p + 1))
+		return -EFAULT;
+
+	vesa_blank_mode = (mode < 4) ? mode : 0;
+	return 0;
 }
 
 void do_blank_screen(int entering_gfx)
@@ -3765,6 +3811,7 @@ EXPORT_SYMBOL(default_blu);
 EXPORT_SYMBOL(update_region);
 EXPORT_SYMBOL(redraw_screen);
 EXPORT_SYMBOL(vc_resize);
+EXPORT_SYMBOL(vc_lock_resize);
 EXPORT_SYMBOL(fg_console);
 EXPORT_SYMBOL(console_blank_hook);
 EXPORT_SYMBOL(console_blanked);

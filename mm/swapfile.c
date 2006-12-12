@@ -427,34 +427,48 @@ void free_swap_and_cache(swp_entry_t entry)
 
 #ifdef CONFIG_SOFTWARE_SUSPEND
 /*
- * Find the swap type that corresponds to given device (if any)
+ * Find the swap type that corresponds to given device (if any).
  *
- * This is needed for software suspend and is done in such a way that inode
- * aliasing is allowed.
+ * @offset - number of the PAGE_SIZE-sized block of the device, starting
+ * from 0, in which the swap header is expected to be located.
+ *
+ * This is needed for the suspend to disk (aka swsusp).
  */
-int swap_type_of(dev_t device)
+int swap_type_of(dev_t device, sector_t offset)
 {
+	struct block_device *bdev = NULL;
 	int i;
+
+	if (device)
+		bdev = bdget(device);
 
 	spin_lock(&swap_lock);
 	for (i = 0; i < nr_swapfiles; i++) {
-		struct inode *inode;
+		struct swap_info_struct *sis = swap_info + i;
 
-		if (!(swap_info[i].flags & SWP_WRITEOK))
+		if (!(sis->flags & SWP_WRITEOK))
 			continue;
 
-		if (!device) {
+		if (!bdev) {
 			spin_unlock(&swap_lock);
 			return i;
 		}
-		inode = swap_info[i].swap_file->f_dentry->d_inode;
-		if (S_ISBLK(inode->i_mode) &&
-		    device == MKDEV(imajor(inode), iminor(inode))) {
-			spin_unlock(&swap_lock);
-			return i;
+		if (bdev == sis->bdev) {
+			struct swap_extent *se;
+
+			se = list_entry(sis->extent_list.next,
+					struct swap_extent, list);
+			if (se->start_block == offset) {
+				spin_unlock(&swap_lock);
+				bdput(bdev);
+				return i;
+			}
 		}
 	}
 	spin_unlock(&swap_lock);
+	if (bdev)
+		bdput(bdev);
+
 	return -ENODEV;
 }
 
@@ -931,6 +945,23 @@ sector_t map_swap_page(struct swap_info_struct *sis, pgoff_t offset)
 	}
 }
 
+#ifdef CONFIG_SOFTWARE_SUSPEND
+/*
+ * Get the (PAGE_SIZE) block corresponding to given offset on the swapdev
+ * corresponding to given index in swap_info (swap type).
+ */
+sector_t swapdev_block(int swap_type, pgoff_t offset)
+{
+	struct swap_info_struct *sis;
+
+	if (swap_type >= nr_swapfiles)
+		return 0;
+
+	sis = swap_info + swap_type;
+	return (sis->flags & SWP_WRITEOK) ? map_swap_page(sis, offset) : 0;
+}
+#endif /* CONFIG_SOFTWARE_SUSPEND */
+
 /*
  * Free all of a swapdev's extent information
  */
@@ -1274,10 +1305,13 @@ static void *swap_start(struct seq_file *swap, loff_t *pos)
 
 	mutex_lock(&swapon_mutex);
 
+	if (!l)
+		return SEQ_START_TOKEN;
+
 	for (i = 0; i < nr_swapfiles; i++, ptr++) {
 		if (!(ptr->flags & SWP_USED) || !ptr->swap_map)
 			continue;
-		if (!l--)
+		if (!--l)
 			return ptr;
 	}
 
@@ -1286,10 +1320,17 @@ static void *swap_start(struct seq_file *swap, loff_t *pos)
 
 static void *swap_next(struct seq_file *swap, void *v, loff_t *pos)
 {
-	struct swap_info_struct *ptr = v;
+	struct swap_info_struct *ptr;
 	struct swap_info_struct *endptr = swap_info + nr_swapfiles;
 
-	for (++ptr; ptr < endptr; ptr++) {
+	if (v == SEQ_START_TOKEN)
+		ptr = swap_info;
+	else {
+		ptr = v;
+		ptr++;
+	}
+
+	for (; ptr < endptr; ptr++) {
 		if (!(ptr->flags & SWP_USED) || !ptr->swap_map)
 			continue;
 		++*pos;
@@ -1310,14 +1351,16 @@ static int swap_show(struct seq_file *swap, void *v)
 	struct file *file;
 	int len;
 
-	if (v == swap_info)
-		seq_puts(swap, "Filename\t\t\t\tType\t\tSize\tUsed\tPriority\n");
+	if (ptr == SEQ_START_TOKEN) {
+		seq_puts(swap,"Filename\t\t\t\tType\t\tSize\tUsed\tPriority\n");
+		return 0;
+	}
 
 	file = ptr->swap_file;
-	len = seq_path(swap, file->f_vfsmnt, file->f_dentry, " \t\n\\");
+	len = seq_path(swap, file->f_path.mnt, file->f_path.dentry, " \t\n\\");
 	seq_printf(swap, "%*s%s\t%u\t%u\t%d\n",
 		       len < 40 ? 40 - len : 1, " ",
-		       S_ISBLK(file->f_dentry->d_inode->i_mode) ?
+		       S_ISBLK(file->f_path.dentry->d_inode->i_mode) ?
 				"partition" : "file\t",
 		       ptr->pages << (PAGE_SHIFT - 10),
 		       ptr->inuse_pages << (PAGE_SHIFT - 10),
@@ -1325,7 +1368,7 @@ static int swap_show(struct seq_file *swap, void *v)
 	return 0;
 }
 
-static struct seq_operations swaps_op = {
+static const struct seq_operations swaps_op = {
 	.start =	swap_start,
 	.next =		swap_next,
 	.stop =		swap_stop,
@@ -1337,7 +1380,7 @@ static int swaps_open(struct inode *inode, struct file *file)
 	return seq_open(file, &swaps_op);
 }
 
-static struct file_operations proc_swaps_operations = {
+static const struct file_operations proc_swaps_operations = {
 	.open		= swaps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1540,6 +1583,11 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		error = -EINVAL;
 		if (!maxpages)
 			goto bad_swap;
+		if (swapfilesize && maxpages > swapfilesize) {
+			printk(KERN_WARNING
+			       "Swap area shorter than signature indicates\n");
+			goto bad_swap;
+		}
 		if (swap_header->info.nr_badpages && S_ISREG(inode->i_mode))
 			goto bad_swap;
 		if (swap_header->info.nr_badpages > MAX_SWAP_BADPAGES)
@@ -1567,12 +1615,6 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 			goto bad_swap;
 	}
 
-	if (swapfilesize && maxpages > swapfilesize) {
-		printk(KERN_WARNING
-		       "Swap area shorter than signature indicates\n");
-		error = -EINVAL;
-		goto bad_swap;
-	}
 	if (nr_good_pages) {
 		p->swap_map[0] = SWAP_MAP_BAD;
 		p->max = maxpages;
@@ -1723,13 +1765,14 @@ get_swap_info_struct(unsigned type)
  */
 int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
 {
-	int ret = 0, i = 1 << page_cluster;
+	int our_page_cluster = page_cluster;
+	int ret = 0, i = 1 << our_page_cluster;
 	unsigned long toff;
 	struct swap_info_struct *swapdev = swp_type(entry) + swap_info;
 
-	if (!page_cluster)	/* no readahead */
+	if (!our_page_cluster)	/* no readahead */
 		return 0;
-	toff = (swp_offset(entry) >> page_cluster) << page_cluster;
+	toff = (swp_offset(entry) >> our_page_cluster) << our_page_cluster;
 	if (!toff)		/* first page is swap header */
 		toff++, i--;
 	*offset = toff;

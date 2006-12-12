@@ -31,6 +31,7 @@
 #include <asm/utrap.h>
 #include <asm/perfctr.h>
 #include <asm/a.out.h>
+#include <asm/unistd.h>
 
 /* #define DEBUG_UNIMP_SYSCALL */
 
@@ -712,13 +713,13 @@ asmlinkage long sys_getdomainname(char __user *name, int len)
 
  	down_read(&uts_sem);
  	
-	nlen = strlen(system_utsname.domainname) + 1;
+	nlen = strlen(utsname()->domainname) + 1;
 	err = -EINVAL;
 	if (nlen > len)
 		goto out;
 
 	err = -EFAULT;
-	if (!copy_to_user(name, system_utsname.domainname, nlen))
+	if (!copy_to_user(name, utsname()->domainname, nlen))
 		err = 0;
 
 out:
@@ -962,4 +963,24 @@ asmlinkage long sys_perfctr(int opcode, unsigned long arg0, unsigned long arg1, 
 		break;
 	};
 	return err;
+}
+
+/*
+ * Do a system call from kernel instead of calling sys_execve so we
+ * end up with proper pt_regs.
+ */
+int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+{
+	long __res;
+	register long __g1 __asm__ ("g1") = __NR_execve;
+	register long __o0 __asm__ ("o0") = (long)(filename);
+	register long __o1 __asm__ ("o1") = (long)(argv);
+	register long __o2 __asm__ ("o2") = (long)(envp);
+	asm volatile ("t 0x6d\n\t"
+		      "sub %%g0, %%o0, %0\n\t"
+		      "movcc %%xcc, %%o0, %0\n\t"
+		      : "=r" (__res), "=&r" (__o0)
+		      : "1" (__o0), "r" (__o1), "r" (__o2), "r" (__g1)
+		      : "cc");
+	return __res;
 }

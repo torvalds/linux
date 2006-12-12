@@ -24,6 +24,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #ifdef __sun__
 #define CURS_MACROS
@@ -48,7 +49,7 @@
 
 #define TR(params) _tracef params
 
-#define ESC 27
+#define KEY_ESC 27
 #define TAB 9
 #define MAX_LEN 2048
 #define BUF_SIZE (10*1024)
@@ -86,63 +87,111 @@
 #define ACS_DARROW 'v'
 #endif
 
-/*
- * Attribute names
- */
-#define screen_attr                   attributes[0]
-#define shadow_attr                   attributes[1]
-#define dialog_attr                   attributes[2]
-#define title_attr                    attributes[3]
-#define border_attr                   attributes[4]
-#define button_active_attr            attributes[5]
-#define button_inactive_attr          attributes[6]
-#define button_key_active_attr        attributes[7]
-#define button_key_inactive_attr      attributes[8]
-#define button_label_active_attr      attributes[9]
-#define button_label_inactive_attr    attributes[10]
-#define inputbox_attr                 attributes[11]
-#define inputbox_border_attr          attributes[12]
-#define searchbox_attr                attributes[13]
-#define searchbox_title_attr          attributes[14]
-#define searchbox_border_attr         attributes[15]
-#define position_indicator_attr       attributes[16]
-#define menubox_attr                  attributes[17]
-#define menubox_border_attr           attributes[18]
-#define item_attr                     attributes[19]
-#define item_selected_attr            attributes[20]
-#define tag_attr                      attributes[21]
-#define tag_selected_attr             attributes[22]
-#define tag_key_attr                  attributes[23]
-#define tag_key_selected_attr         attributes[24]
-#define check_attr                    attributes[25]
-#define check_selected_attr           attributes[26]
-#define uarrow_attr                   attributes[27]
-#define darrow_attr                   attributes[28]
+/* error return codes */
+#define ERRDISPLAYTOOSMALL (KEY_MAX + 1)
 
-/* number of attributes */
-#define ATTRIBUTE_COUNT               29
+/*
+ *   Color definitions
+ */
+struct dialog_color {
+	chtype atr;	/* Color attribute */
+	int fg;		/* foreground */
+	int bg;		/* background */
+	int hl;		/* highlight this item */
+};
+
+struct dialog_info {
+	const char *backtitle;
+	struct dialog_color screen;
+	struct dialog_color shadow;
+	struct dialog_color dialog;
+	struct dialog_color title;
+	struct dialog_color border;
+	struct dialog_color button_active;
+	struct dialog_color button_inactive;
+	struct dialog_color button_key_active;
+	struct dialog_color button_key_inactive;
+	struct dialog_color button_label_active;
+	struct dialog_color button_label_inactive;
+	struct dialog_color inputbox;
+	struct dialog_color inputbox_border;
+	struct dialog_color searchbox;
+	struct dialog_color searchbox_title;
+	struct dialog_color searchbox_border;
+	struct dialog_color position_indicator;
+	struct dialog_color menubox;
+	struct dialog_color menubox_border;
+	struct dialog_color item;
+	struct dialog_color item_selected;
+	struct dialog_color tag;
+	struct dialog_color tag_selected;
+	struct dialog_color tag_key;
+	struct dialog_color tag_key_selected;
+	struct dialog_color check;
+	struct dialog_color check_selected;
+	struct dialog_color uarrow;
+	struct dialog_color darrow;
+};
 
 /*
  * Global variables
  */
-extern bool use_colors;
-extern bool use_shadow;
-
-extern chtype attributes[];
-
-extern const char *backtitle;
+extern struct dialog_info dlg;
+extern char dialog_input_result[];
 
 /*
  * Function prototypes
  */
-extern void create_rc(const char *filename);
-extern int parse_rc(void);
 
-void init_dialog(void);
+/* item list as used by checklist and menubox */
+void item_reset(void);
+void item_make(const char *fmt, ...);
+void item_add_str(const char *fmt, ...);
+void item_set_tag(char tag);
+void item_set_data(void *p);
+void item_set_selected(int val);
+int item_activate_selected(void);
+void *item_data(void);
+char item_tag(void);
+
+/* item list manipulation for lxdialog use */
+#define MAXITEMSTR 200
+struct dialog_item {
+	char str[MAXITEMSTR];	/* promtp displayed */
+	char tag;
+	void *data;	/* pointer to menu item - used by menubox+checklist */
+	int selected;	/* Set to 1 by dialog_*() function if selected. */
+};
+
+/* list of lialog_items */
+struct dialog_list {
+	struct dialog_item node;
+	struct dialog_list *next;
+};
+
+extern struct dialog_list *item_cur;
+extern struct dialog_list item_nil;
+extern struct dialog_list *item_head;
+
+int item_count(void);
+void item_set(int n);
+int item_n(void);
+const char *item_str(void);
+int item_is_selected(void);
+int item_is_tag(char tag);
+#define item_foreach() \
+	for (item_cur = item_head ? item_head: item_cur; \
+	     item_cur && (item_cur != &item_nil); item_cur = item_cur->next)
+
+/* generic key handlers */
+int on_key_esc(WINDOW *win);
+int on_key_resize(void);
+
+void init_dialog(const char *backtitle);
+void reset_dialog(void);
 void end_dialog(void);
 void attr_clear(WINDOW * win, int height, int width, chtype attr);
 void dialog_clear(void);
-void color_setup(void);
 void print_autowrap(WINDOW * win, const char *prompt, int width, int y, int x);
 void print_button(WINDOW * win, const char *label, int y, int x, int selected);
 void print_title(WINDOW *dialog, const char *title, int width);
@@ -155,12 +204,10 @@ int dialog_yesno(const char *title, const char *prompt, int height, int width);
 int dialog_msgbox(const char *title, const char *prompt, int height,
 		  int width, int pause);
 int dialog_textbox(const char *title, const char *file, int height, int width);
-int dialog_menu(const char *title, const char *prompt, int height, int width,
-		int menu_height, const char *choice, int item_no,
-		const char *const *items);
+int dialog_menu(const char *title, const char *prompt,
+		const void *selected, int *s_scroll);
 int dialog_checklist(const char *title, const char *prompt, int height,
-		     int width, int list_height, int item_no,
-		     const char *const *items);
+		     int width, int list_height);
 extern char dialog_input_result[];
 int dialog_inputbox(const char *title, const char *prompt, int height,
 		    int width, const char *init);

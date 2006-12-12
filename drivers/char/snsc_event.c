@@ -36,7 +36,7 @@ DECLARE_TASKLET(sn_sysctl_event, scdrv_event, 0);
  * destination.
  */
 static irqreturn_t
-scdrv_event_interrupt(int irq, void *subch_data, struct pt_regs *regs)
+scdrv_event_interrupt(int irq, void *subch_data)
 {
 	struct subch_data_s *sd = subch_data;
 	unsigned long flags;
@@ -220,7 +220,7 @@ scdrv_dispatch_event(char *event, int len)
 			       " Sending SIGPWR to init...\n");
 
 		/* give a SIGPWR signal to init proc */
-		kill_proc(1, SIGPWR, 0);
+		kill_cad_pid(SIGPWR, 0);
 	} else {
 		/* print to system log */
 		printk("%s|$(0x%x)%s\n", severity, esp_code, desc);

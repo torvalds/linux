@@ -114,3 +114,25 @@ full_search:
 	}
 }
 
+
+/*
+ * You really shouldn't be using read() or write() on /dev/mem.  This
+ * might go away in the future.
+ */
+int valid_phys_addr_range(unsigned long addr, size_t size)
+{
+	if (addr + size > __pa(high_memory))
+		return 0;
+
+	return 1;
+}
+
+/*
+ * We don't use supersection mappings for mmap() on /dev/mem, which
+ * means that we can't map the memory area above the 4G barrier into
+ * userspace.
+ */
+int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
+{
+	return !(pfn + (size >> PAGE_SHIFT) > 0x00100000);
+}

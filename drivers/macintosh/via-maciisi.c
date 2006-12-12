@@ -84,8 +84,8 @@ static int maciisi_init(void);
 static int maciisi_send_request(struct adb_request* req, int sync);
 static void maciisi_sync(struct adb_request *req);
 static int maciisi_write(struct adb_request* req);
-static irqreturn_t maciisi_interrupt(int irq, void* arg, struct pt_regs* regs);
-static void maciisi_input(unsigned char *buf, int nb, struct pt_regs *regs);
+static irqreturn_t maciisi_interrupt(int irq, void* arg);
+static void maciisi_input(unsigned char *buf, int nb);
 static int maciisi_init_via(void);
 static void maciisi_poll(void);
 static int maciisi_start(void);
@@ -421,7 +421,7 @@ maciisi_poll(void)
 
 	local_irq_save(flags);
 	if (via[IFR] & SR_INT) {
-		maciisi_interrupt(0, NULL, NULL);
+		maciisi_interrupt(0, NULL);
 	}
 	else /* avoid calling this function too quickly in a loop */
 		udelay(ADB_DELAY);
@@ -433,7 +433,7 @@ maciisi_poll(void)
    register is either full or empty. In practice, I have no idea what
    it means :( */
 static irqreturn_t
-maciisi_interrupt(int irq, void* arg, struct pt_regs* regs)
+maciisi_interrupt(int irq, void* arg)
 {
 	int status;
 	struct adb_request *req;
@@ -612,7 +612,7 @@ maciisi_interrupt(int irq, void* arg, struct pt_regs* regs)
 			/* Obviously, we got it */
 			reading_reply = 0;
 		} else {
-			maciisi_input(maciisi_rbuf, reply_ptr - maciisi_rbuf, regs);
+			maciisi_input(maciisi_rbuf, reply_ptr - maciisi_rbuf);
 		}
 		maciisi_state = idle;
 		status = via[B] & (TIP|TREQ);
@@ -657,7 +657,7 @@ maciisi_interrupt(int irq, void* arg, struct pt_regs* regs)
 }
 
 static void
-maciisi_input(unsigned char *buf, int nb, struct pt_regs *regs)
+maciisi_input(unsigned char *buf, int nb)
 {
 #ifdef DEBUG_MACIISI_ADB
     int i;
@@ -665,7 +665,7 @@ maciisi_input(unsigned char *buf, int nb, struct pt_regs *regs)
 
     switch (buf[0]) {
     case ADB_PACKET:
-	    adb_input(buf+2, nb-2, regs, buf[1] & 0x40);
+	    adb_input(buf+2, nb-2, buf[1] & 0x40);
 	    break;
     default:
 #ifdef DEBUG_MACIISI_ADB

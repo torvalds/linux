@@ -70,7 +70,7 @@ unsigned long event_scan_interval;
  * has to include <linux/interrupt.h> (to get irqreturn_t), which
  * causes all sorts of problems.  -- paulus
  */
-extern irqreturn_t xmon_irq(int, void *, struct pt_regs *);
+extern irqreturn_t xmon_irq(int, void *);
 
 extern unsigned long loops_per_jiffy;
 
@@ -335,12 +335,11 @@ chrp_event_scan(unsigned long unused)
 		  jiffies + event_scan_interval);
 }
 
-static void chrp_8259_cascade(unsigned int irq, struct irq_desc *desc,
-			      struct pt_regs *regs)
+static void chrp_8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	unsigned int cascade_irq = i8259_irq(regs);
+	unsigned int cascade_irq = i8259_irq();
 	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq, regs);
+		generic_handle_irq(cascade_irq);
 	desc->chip->eoi(irq);
 }
 
@@ -478,8 +477,10 @@ static void __init chrp_find_8259(void)
 		       " address, polling\n");
 
 	i8259_init(pic, chrp_int_ack);
-	if (ppc_md.get_irq == NULL)
+	if (ppc_md.get_irq == NULL) {
 		ppc_md.get_irq = i8259_irq;
+		irq_set_default_host(i8259_get_host());
+	}
 	if (chrp_mpic != NULL) {
 		cascade_irq = irq_of_parse_and_map(pic, 0);
 		if (cascade_irq == NO_IRQ)
@@ -587,7 +588,6 @@ static int __init chrp_probe(void)
 	ISA_DMA_THRESHOLD = ~0L;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
-	isa_io_base = CHRP_ISA_IO_BASE;		/* default value */
 
 	return 1;
 }
@@ -599,7 +599,6 @@ define_machine(chrp) {
 	.init			= chrp_init2,
 	.show_cpuinfo		= chrp_show_cpuinfo,
 	.init_IRQ		= chrp_init_IRQ,
-	.pcibios_fixup		= chrp_pcibios_fixup,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,

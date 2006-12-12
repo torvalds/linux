@@ -14,60 +14,54 @@
 #ifdef __GNUC__
 
 #ifdef __s390x__
-static __inline__ __u64 ___arch__swab64p(const __u64 *x)
+static inline __u64 ___arch__swab64p(const __u64 *x)
 {
 	__u64 result;
 
-	__asm__ __volatile__ (
-		"   lrvg %0,%1"
-		: "=d" (result) : "m" (*x) );
+	asm volatile("lrvg %0,%1" : "=d" (result) : "m" (*x));
 	return result;
 }
 
-static __inline__ __u64 ___arch__swab64(__u64 x)
+static inline __u64 ___arch__swab64(__u64 x)
 {
 	__u64 result;
 
-	__asm__ __volatile__ (
-		"   lrvgr %0,%1"
-		: "=d" (result) : "d" (x) );
+	asm volatile("lrvgr %0,%1" : "=d" (result) : "d" (x));
 	return result;
 }
 
-static __inline__ void ___arch__swab64s(__u64 *x)
+static inline void ___arch__swab64s(__u64 *x)
 {
 	*x = ___arch__swab64p(x);
 }
 #endif /* __s390x__ */
 
-static __inline__ __u32 ___arch__swab32p(const __u32 *x)
+static inline __u32 ___arch__swab32p(const __u32 *x)
 {
 	__u32 result;
 	
-	__asm__ __volatile__ (
+	asm volatile(
 #ifndef __s390x__
-		"        icm   %0,8,3(%1)\n"
-		"        icm   %0,4,2(%1)\n"
-		"        icm   %0,2,1(%1)\n"
-		"        ic    %0,0(%1)"
-		: "=&d" (result) : "a" (x), "m" (*x) : "cc" );
+		"	icm	%0,8,3(%1)\n"
+		"	icm	%0,4,2(%1)\n"
+		"	icm	%0,2,1(%1)\n"
+		"	ic	%0,0(%1)"
+		: "=&d" (result) : "a" (x), "m" (*x) : "cc");
 #else /* __s390x__ */
-		"   lrv  %0,%1"
-		: "=d" (result) : "m" (*x) );
+		"	lrv	%0,%1"
+		: "=d" (result) : "m" (*x));
 #endif /* __s390x__ */
 	return result;
 }
 
-static __inline__ __u32 ___arch__swab32(__u32 x)
+static inline __u32 ___arch__swab32(__u32 x)
 {
 #ifndef __s390x__
 	return ___arch__swab32p(&x);
 #else /* __s390x__ */
 	__u32 result;
 	
-	__asm__ __volatile__ (
-		"   lrvr  %0,%1"
-		: "=d" (result) : "d" (x) );
+	asm volatile("lrvr  %0,%1" : "=d" (result) : "d" (x));
 	return result;
 #endif /* __s390x__ */
 }
@@ -81,14 +75,14 @@ static __inline__ __u16 ___arch__swab16p(const __u16 *x)
 {
 	__u16 result;
 	
-	__asm__ __volatile__ (
+	asm volatile(
 #ifndef __s390x__
-		"        icm   %0,2,1(%1)\n"
-		"        ic    %0,0(%1)\n"
-		: "=&d" (result) : "a" (x), "m" (*x) : "cc" );
+		"	icm	%0,2,1(%1)\n"
+		"	ic	%0,0(%1)\n"
+		: "=&d" (result) : "a" (x), "m" (*x) : "cc");
 #else /* __s390x__ */
-		"   lrvh %0,%1"
-		: "=d" (result) : "m" (*x) );
+		"	lrvh	%0,%1"
+		: "=d" (result) : "m" (*x));
 #endif /* __s390x__ */
 	return result;
 }

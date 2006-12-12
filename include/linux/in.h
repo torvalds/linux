@@ -40,10 +40,12 @@ enum {
 
   IPPROTO_ESP = 50,            /* Encapsulation Security Payload protocol */
   IPPROTO_AH = 51,             /* Authentication Header protocol       */
+  IPPROTO_BEETPH = 94,	       /* IP option pseudo header for BEET */
   IPPROTO_PIM    = 103,		/* Protocol Independent Multicast	*/
 
   IPPROTO_COMP   = 108,                /* Compression Header protocol */
   IPPROTO_SCTP   = 132,		/* Stream Control Transport Protocol	*/
+  IPPROTO_UDPLITE = 136,	/* UDP-Lite (RFC 3828)			*/
 
   IPPROTO_RAW	 = 255,		/* Raw IP packets			*/
   IPPROTO_MAX
@@ -123,17 +125,17 @@ struct ip_mreqn
 };
 
 struct ip_mreq_source {
-	__u32		imr_multiaddr;
-	__u32		imr_interface;
-	__u32		imr_sourceaddr;
+	__be32		imr_multiaddr;
+	__be32		imr_interface;
+	__be32		imr_sourceaddr;
 };
 
 struct ip_msfilter {
-	__u32		imsf_multiaddr;
-	__u32		imsf_interface;
+	__be32		imsf_multiaddr;
+	__be32		imsf_interface;
 	__u32		imsf_fmode;
 	__u32		imsf_numsrc;
-	__u32		imsf_slist[1];
+	__be32		imsf_slist[1];
 };
 
 #define IP_MSFILTER_SIZE(numsrc) \

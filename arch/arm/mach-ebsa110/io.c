@@ -28,7 +28,7 @@
 #include <asm/io.h>
 #include <asm/page.h>
 
-static void __iomem *__isamem_convert_addr(void __iomem *addr)
+static void __iomem *__isamem_convert_addr(const volatile void __iomem *addr)
 {
 	u32 ret, a = (u32 __force) addr;
 
@@ -63,7 +63,7 @@ static void __iomem *__isamem_convert_addr(void __iomem *addr)
 /*
  * read[bwl] and write[bwl]
  */
-u8 __readb(void __iomem *addr)
+u8 __readb(const volatile void __iomem *addr)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 	u32 ret;
@@ -75,7 +75,7 @@ u8 __readb(void __iomem *addr)
 	return ret;
 }
 
-u16 __readw(void __iomem *addr)
+u16 __readw(const volatile void __iomem *addr)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
@@ -85,7 +85,7 @@ u16 __readw(void __iomem *addr)
 	return __raw_readw(a);
 }
 
-u32 __readl(void __iomem *addr)
+u32 __readl(const volatile void __iomem *addr)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 	u32 ret;

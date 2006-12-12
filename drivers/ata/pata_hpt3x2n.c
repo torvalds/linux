@@ -334,13 +334,13 @@ static struct scsi_host_template hpt3x2n_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
 };
 
@@ -372,7 +372,7 @@ static struct ata_port_operations hpt3x2n_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= hpt3x2n_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -560,16 +560,17 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	return ata_pci_init_one(dev, port_info, 2);
 }
 
-static struct pci_device_id hpt3x2n[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_TTI, PCI_DEVICE_ID_TTI_HPT366), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TTI, PCI_DEVICE_ID_TTI_HPT372), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TTI, PCI_DEVICE_ID_TTI_HPT302), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TTI, PCI_DEVICE_ID_TTI_HPT372N), },
-	{ 0, },
+static const struct pci_device_id hpt3x2n[] = {
+	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT366), },
+	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT372), },
+	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT302), },
+	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT372N), },
+
+	{ },
 };
 
 static struct pci_driver hpt3x2n_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= hpt3x2n,
 	.probe 		= hpt3x2n_init_one,
 	.remove		= ata_pci_remove_one
@@ -580,12 +581,10 @@ static int __init hpt3x2n_init(void)
 	return pci_register_driver(&hpt3x2n_pci_driver);
 }
 
-
 static void __exit hpt3x2n_exit(void)
 {
 	pci_unregister_driver(&hpt3x2n_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for the Highpoint HPT3x2n/30x");

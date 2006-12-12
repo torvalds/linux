@@ -332,7 +332,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 	if (ap->pflags & ATA_PFLAG_LOADING)
 		ap->pflags &= ~ATA_PFLAG_LOADING;
 	else if (ap->pflags & ATA_PFLAG_SCSI_HOTPLUG)
-		queue_work(ata_aux_wq, &ap->hotplug_task);
+		queue_delayed_work(ata_aux_wq, &ap->hotplug_task, 0);
 
 	if (ap->pflags & ATA_PFLAG_RECOVERED)
 		ata_port_printk(ap, KERN_INFO, "EH complete\n");
@@ -1136,19 +1136,21 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 		break;
 
 	case ATA_DEV_ATAPI:
-		tmp = atapi_eh_request_sense(qc->dev,
-					     qc->scsicmd->sense_buffer);
-		if (!tmp) {
-			/* ATA_QCFLAG_SENSE_VALID is used to tell
-			 * atapi_qc_complete() that sense data is
-			 * already valid.
-			 *
-			 * TODO: interpret sense data and set
-			 * appropriate err_mask.
-			 */
-			qc->flags |= ATA_QCFLAG_SENSE_VALID;
-		} else
-			qc->err_mask |= tmp;
+		if (!(qc->ap->pflags & ATA_PFLAG_FROZEN)) {
+			tmp = atapi_eh_request_sense(qc->dev,
+						     qc->scsicmd->sense_buffer);
+			if (!tmp) {
+				/* ATA_QCFLAG_SENSE_VALID is used to
+				 * tell atapi_qc_complete() that sense
+				 * data is already valid.
+				 *
+				 * TODO: interpret sense data and set
+				 * appropriate err_mask.
+				 */
+				qc->flags |= ATA_QCFLAG_SENSE_VALID;
+			} else
+				qc->err_mask |= tmp;
+		}
 	}
 
 	if (qc->err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT | AC_ERR_ATA_BUS))
@@ -1433,16 +1435,39 @@ static void ata_eh_report(struct ata_port *ap)
 	}
 
 	for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
+		static const char *dma_str[] = {
+			[DMA_BIDIRECTIONAL]	= "bidi",
+			[DMA_TO_DEVICE]		= "out",
+			[DMA_FROM_DEVICE]	= "in",
+			[DMA_NONE]		= "",
+		};
 		struct ata_queued_cmd *qc = __ata_qc_from_tag(ap, tag);
+		struct ata_taskfile *cmd = &qc->tf, *res = &qc->result_tf;
+		unsigned int nbytes;
 
 		if (!(qc->flags & ATA_QCFLAG_FAILED) || !qc->err_mask)
 			continue;
 
-		ata_dev_printk(qc->dev, KERN_ERR, "tag %d cmd 0x%x "
-			       "Emask 0x%x stat 0x%x err 0x%x (%s)\n",
-			       qc->tag, qc->tf.command, qc->err_mask,
-			       qc->result_tf.command, qc->result_tf.feature,
-			       ata_err_string(qc->err_mask));
+		nbytes = qc->nbytes;
+		if (!nbytes)
+			nbytes = qc->nsect << 9;
+
+		ata_dev_printk(qc->dev, KERN_ERR,
+			"cmd %02x/%02x:%02x:%02x:%02x:%02x/%02x:%02x:%02x:%02x:%02x/%02x "
+			"tag %d cdb 0x%x data %u %s\n         "
+			"res %02x/%02x:%02x:%02x:%02x:%02x/%02x:%02x:%02x:%02x:%02x/%02x "
+			"Emask 0x%x (%s)\n",
+			cmd->command, cmd->feature, cmd->nsect,
+			cmd->lbal, cmd->lbam, cmd->lbah,
+			cmd->hob_feature, cmd->hob_nsect,
+			cmd->hob_lbal, cmd->hob_lbam, cmd->hob_lbah,
+			cmd->device, qc->tag, qc->cdb[0], nbytes,
+			dma_str[qc->dma_dir],
+			res->command, res->feature, res->nsect,
+			res->lbal, res->lbam, res->lbah,
+			res->hob_feature, res->hob_nsect,
+			res->hob_lbal, res->hob_lbam, res->hob_lbah,
+			res->device, qc->err_mask, ata_err_string(qc->err_mask));
 	}
 }
 
@@ -1515,7 +1540,11 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	if (prereset) {
 		rc = prereset(ap);
 		if (rc) {
-			ata_port_printk(ap, KERN_ERR,
+			if (rc == -ENOENT) {
+				ata_port_printk(ap, KERN_DEBUG, "port disabled. ignoring.\n");
+				ap->eh_context.i.action &= ~ATA_EH_RESET_MASK;
+			} else
+				ata_port_printk(ap, KERN_ERR,
 					"prereset failed (errno=%d)\n", rc);
 			return rc;
 		}
@@ -1630,10 +1659,13 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 	DPRINTK("ENTER\n");
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		unsigned int action;
+		unsigned int action, readid_flags = 0;
 
 		dev = &ap->device[i];
 		action = ata_eh_dev_action(dev);
+
+		if (ehc->i.flags & ATA_EHI_DID_RESET)
+			readid_flags |= ATA_READID_POSTRESET;
 
 		if (action & ATA_EH_REVALIDATE && ata_dev_ready(dev)) {
 			if (ata_port_offline(ap)) {
@@ -1642,12 +1674,16 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 			}
 
 			ata_eh_about_to_do(ap, dev, ATA_EH_REVALIDATE);
-			rc = ata_dev_revalidate(dev,
-					ehc->i.flags & ATA_EHI_DID_RESET);
+			rc = ata_dev_revalidate(dev, readid_flags);
 			if (rc)
 				break;
 
 			ata_eh_done(ap, dev, ATA_EH_REVALIDATE);
+
+			/* Configuration may have changed, reconfigure
+			 * transfer mode.
+			 */
+			ehc->i.flags |= ATA_EHI_SETMODE;
 
 			/* schedule the scsi_rescan_device() here */
 			queue_work(ata_aux_wq, &(ap->scsi_rescan_task));
@@ -1656,18 +1692,35 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 			   ata_class_enabled(ehc->classes[dev->devno])) {
 			dev->class = ehc->classes[dev->devno];
 
-			rc = ata_dev_read_id(dev, &dev->class, 1, dev->id);
-			if (rc == 0)
-				rc = ata_dev_configure(dev, 1);
+			rc = ata_dev_read_id(dev, &dev->class, readid_flags,
+					     dev->id);
+			if (rc == 0) {
+				ehc->i.flags |= ATA_EHI_PRINTINFO;
+				rc = ata_dev_configure(dev);
+				ehc->i.flags &= ~ATA_EHI_PRINTINFO;
+			} else if (rc == -ENOENT) {
+				/* IDENTIFY was issued to non-existent
+				 * device.  No need to reset.  Just
+				 * thaw and kill the device.
+				 */
+				ata_eh_thaw_port(ap);
+				dev->class = ATA_DEV_UNKNOWN;
+				rc = 0;
+			}
 
 			if (rc) {
 				dev->class = ATA_DEV_UNKNOWN;
 				break;
 			}
 
-			spin_lock_irqsave(ap->lock, flags);
-			ap->pflags |= ATA_PFLAG_SCSI_HOTPLUG;
-			spin_unlock_irqrestore(ap->lock, flags);
+			if (ata_dev_enabled(dev)) {
+				spin_lock_irqsave(ap->lock, flags);
+				ap->pflags |= ATA_PFLAG_SCSI_HOTPLUG;
+				spin_unlock_irqrestore(ap->lock, flags);
+
+				/* new device discovered, configure xfermode */
+				ehc->i.flags |= ATA_EHI_SETMODE;
+			}
 		}
 	}
 
@@ -1983,13 +2036,14 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	if (rc)
 		goto dev_fail;
 
-	/* configure transfer mode if the port has been reset */
-	if (ehc->i.flags & ATA_EHI_DID_RESET) {
+	/* configure transfer mode if necessary */
+	if (ehc->i.flags & ATA_EHI_SETMODE) {
 		rc = ata_set_mode(ap, &dev);
 		if (rc) {
 			down_xfermask = 1;
 			goto dev_fail;
 		}
+		ehc->i.flags &= ~ATA_EHI_SETMODE;
 	}
 
 	/* suspend devices */

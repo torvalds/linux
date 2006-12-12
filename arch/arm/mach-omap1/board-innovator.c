@@ -159,9 +159,11 @@ static struct resource innovator_kp_resources[] = {
 };
 
 static struct omap_kp_platform_data innovator_kp_data = {
-	.rows	= 8,
-	.cols	= 8,
-	.keymap = innovator_keymap,
+	.rows		= 8,
+	.cols		= 8,
+	.keymap		= innovator_keymap,
+	.keymapsize	= ARRAY_SIZE(innovator_keymap),
+	.delay		= 4,
 };
 
 static struct platform_device innovator_kp_device = {

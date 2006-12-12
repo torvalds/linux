@@ -3,6 +3,8 @@
  *
  * 2004-2005 (c) Tundra Semiconductor Corp.
  * Author: Alex Bounine (alexandreb@tundra.com)
+ * Author: Roy Zang (tie-fei.zang@freescale.com)
+ * 	   Add pci interrupt router host
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -48,6 +50,8 @@
 
 u32 tsi108_pci_cfg_base;
 u32 tsi108_csr_vir_base;
+static struct device_node *pci_irq_node;
+static struct irq_host *pci_irq_host;
 
 extern u32 get_vir_csrbase(void);
 extern u32 tsi108_read_reg(u32 reg_offset);
@@ -378,6 +382,38 @@ static struct irq_chip tsi108_pci_irq = {
 	.unmask = tsi108_pci_irq_enable,
 };
 
+static int pci_irq_host_xlate(struct irq_host *h, struct device_node *ct,
+			    u32 *intspec, unsigned int intsize,
+			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
+{
+	*out_hwirq = intspec[0];
+	*out_flags = IRQ_TYPE_LEVEL_HIGH;
+	return 0;
+}
+
+static int pci_irq_host_map(struct irq_host *h, unsigned int virq,
+			  irq_hw_number_t hw)
+{	unsigned int irq;
+	DBG("%s(%d, 0x%lx)\n", __FUNCTION__, virq, hw);
+	if ((virq >= 1) && (virq <= 4)){
+		irq = virq + IRQ_PCI_INTAD_BASE - 1;
+		get_irq_desc(irq)->status |= IRQ_LEVEL;
+		set_irq_chip(irq, &tsi108_pci_irq);
+	}
+	return 0;
+}
+
+static int pci_irq_host_match(struct irq_host *h, struct device_node *node)
+{
+	return pci_irq_node == node;
+}
+
+static struct irq_host_ops pci_irq_host_ops = {
+	.match = pci_irq_host_match,
+	.map = pci_irq_host_map,
+	.xlate = pci_irq_host_xlate,
+};
+
 /*
  * Exported functions
  */
@@ -391,25 +427,24 @@ static struct irq_chip tsi108_pci_irq = {
  * to the MPIC.
  */
 
-void __init tsi108_pci_int_init(void)
+void __init tsi108_pci_int_init(struct device_node *node)
 {
-	u_int i;
-
 	DBG("Tsi108_pci_int_init: initializing PCI interrupts\n");
 
-	for (i = 0; i < NUM_PCI_IRQS; i++) {
-		irq_desc[i + IRQ_PCI_INTAD_BASE].chip = &tsi108_pci_irq;
-		irq_desc[i + IRQ_PCI_INTAD_BASE].status |= IRQ_LEVEL;
+	pci_irq_node = of_node_get(node);
+	pci_irq_host = irq_alloc_host(IRQ_HOST_MAP_LEGACY, 0, &pci_irq_host_ops, 0);
+	if (pci_irq_host == NULL) {
+		printk(KERN_ERR "pci_irq_host: failed to allocate irq host !\n");
+		return;
 	}
 
 	init_pci_source();
 }
 
-void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc,
-			    struct pt_regs *regs)
+void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int cascade_irq = get_pci_source();
 	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq, regs);
+		generic_handle_irq(cascade_irq);
 	desc->chip->eoi(irq);
 }

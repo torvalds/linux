@@ -170,8 +170,20 @@ void dma_free_coherent(struct device *dev, size_t size,
 }
 EXPORT_SYMBOL(dma_free_coherent);
 
+static int forbid_dac __read_mostly;
+
 int dma_supported(struct device *dev, u64 mask)
 {
+#ifdef CONFIG_PCI
+	if (mask > 0xffffffff && forbid_dac > 0) {
+
+
+
+		printk(KERN_INFO "PCI: Disallowing DAC for device %s\n", dev->bus_id);
+		return 0;
+	}
+#endif
+
 	if (dma_ops->dma_supported)
 		return dma_ops->dma_supported(dev, mask);
 
@@ -231,57 +243,69 @@ EXPORT_SYMBOL(dma_set_mask);
    allowed  overwrite iommu off workarounds for specific chipsets.
    soft	 Use software bounce buffering (default for Intel machines)
    noaperture Don't touch the aperture for AGP.
+   allowdac Allow DMA >4GB
+   nodac    Forbid DMA >4GB
+   panic    Force panic when IOMMU overflows
 */
 __init int iommu_setup(char *p)
 {
-    iommu_merge = 1;
+	iommu_merge = 1;
 
 	if (!p)
 		return -EINVAL;
 
-    while (*p) {
-	    if (!strncmp(p,"off",3))
-		    no_iommu = 1;
-	    /* gart_parse_options has more force support */
-	    if (!strncmp(p,"force",5))
-		    force_iommu = 1;
-	    if (!strncmp(p,"noforce",7)) {
-		    iommu_merge = 0;
-		    force_iommu = 0;
-	    }
+	while (*p) {
+		if (!strncmp(p,"off",3))
+			no_iommu = 1;
+		/* gart_parse_options has more force support */
+		if (!strncmp(p,"force",5))
+			force_iommu = 1;
+		if (!strncmp(p,"noforce",7)) {
+			iommu_merge = 0;
+			force_iommu = 0;
+		}
 
-	    if (!strncmp(p, "biomerge",8)) {
-		    iommu_bio_merge = 4096;
-		    iommu_merge = 1;
-		    force_iommu = 1;
-	    }
-	    if (!strncmp(p, "panic",5))
-		    panic_on_overflow = 1;
-	    if (!strncmp(p, "nopanic",7))
-		    panic_on_overflow = 0;
-	    if (!strncmp(p, "merge",5)) {
-		    iommu_merge = 1;
-		    force_iommu = 1;
-	    }
-	    if (!strncmp(p, "nomerge",7))
-		    iommu_merge = 0;
-	    if (!strncmp(p, "forcesac",8))
-		    iommu_sac_force = 1;
+		if (!strncmp(p, "biomerge",8)) {
+			iommu_bio_merge = 4096;
+			iommu_merge = 1;
+			force_iommu = 1;
+		}
+		if (!strncmp(p, "panic",5))
+			panic_on_overflow = 1;
+		if (!strncmp(p, "nopanic",7))
+			panic_on_overflow = 0;
+		if (!strncmp(p, "merge",5)) {
+			iommu_merge = 1;
+			force_iommu = 1;
+		}
+		if (!strncmp(p, "nomerge",7))
+			iommu_merge = 0;
+		if (!strncmp(p, "forcesac",8))
+			iommu_sac_force = 1;
+		if (!strncmp(p, "allowdac", 8))
+			forbid_dac = 0;
+		if (!strncmp(p, "nodac", 5))
+			forbid_dac = -1;
 
 #ifdef CONFIG_SWIOTLB
-	    if (!strncmp(p, "soft",4))
-		    swiotlb = 1;
+		if (!strncmp(p, "soft",4))
+			swiotlb = 1;
 #endif
 
 #ifdef CONFIG_IOMMU
-	    gart_parse_options(p);
+		gart_parse_options(p);
 #endif
 
-	    p += strcspn(p, ",");
-	    if (*p == ',')
-		    ++p;
-    }
-    return 0;
+#ifdef CONFIG_CALGARY_IOMMU
+		if (!strncmp(p, "calgary", 7))
+			use_calgary = 1;
+#endif /* CONFIG_CALGARY_IOMMU */
+
+		p += strcspn(p, ",");
+		if (*p == ',')
+			++p;
+	}
+	return 0;
 }
 early_param("iommu", iommu_setup);
 

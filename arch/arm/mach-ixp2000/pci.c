@@ -32,7 +32,7 @@
 
 #include <asm/mach/pci.h>
 
-static int pci_master_aborts = 0;
+static volatile int pci_master_aborts = 0;
 
 static int clear_master_aborts(void);
 

@@ -192,6 +192,7 @@
  *		04 Aug 2003	macro		Converted to the DMA API.
  *		14 Aug 2004	macro		Fix device names reported.
  *		14 Jun 2005	macro		Use irqreturn_t.
+ *		23 Oct 2006	macro		Big-endian host support.
  */
 
 /* Include files */
@@ -218,8 +219,8 @@
 
 /* Version information string should be updated prior to each new release!  */
 #define DRV_NAME "defxx"
-#define DRV_VERSION "v1.08"
-#define DRV_RELDATE "2005/06/14"
+#define DRV_VERSION "v1.09"
+#define DRV_RELDATE "2006/10/23"
 
 static char version[] __devinitdata =
 	DRV_NAME ": " DRV_VERSION " " DRV_RELDATE
@@ -248,8 +249,7 @@ static int		dfx_close(struct net_device *dev);
 static void		dfx_int_pr_halt_id(DFX_board_t *bp);
 static void		dfx_int_type_0_process(DFX_board_t *bp);
 static void		dfx_int_common(struct net_device *dev);
-static irqreturn_t	dfx_interrupt(int irq, void *dev_id,
-				      struct pt_regs *regs);
+static irqreturn_t	dfx_interrupt(int irq, void *dev_id);
 
 static struct		net_device_stats *dfx_ctl_get_stats(struct net_device *dev);
 static void		dfx_ctl_set_multicast_list(struct net_device *dev);
@@ -860,6 +860,7 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 		       print_name);
 		return(DFX_K_FAILURE);
 	}
+	data = cpu_to_le32(data);
 	memcpy(&bp->factory_mac_addr[0], &data, sizeof(u32));
 
 	if (dfx_hw_port_ctrl_req(bp, PI_PCTRL_M_MLA, PI_PDATA_A_MLA_K_HI, 0,
@@ -868,6 +869,7 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 		       print_name);
 		return(DFX_K_FAILURE);
 	}
+	data = cpu_to_le32(data);
 	memcpy(&bp->factory_mac_addr[4], &data, sizeof(u16));
 
 	/*
@@ -1086,27 +1088,23 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 		}
 
 	/*
-	 * Set base address of Descriptor Block and bring adapter to DMA_AVAILABLE state
+	 * Set the base address of Descriptor Block and bring adapter
+	 * to DMA_AVAILABLE state.
 	 *
-	 * Note: We also set the literal and data swapping requirements in this
-	 *	     command.  Since this driver presently runs on Intel platforms
-	 *		 which are Little Endian, we'll tell the adapter to byte swap
-	 *		 data only.  This code will need to change when we support
-	 *		 Big Endian systems (eg. PowerPC).
+	 * Note: We also set the literal and data swapping requirements
+	 *       in this command.
 	 *
-	 * Assumption: 32-bit physical address of descriptor block is 8Kbyte
-	 *             aligned.  That is, bits 0-12 of the address must be zero.
+	 * Assumption: 32-bit physical address of descriptor block
+	 *       is 8Kbyte aligned.
 	 */
-
-	if (dfx_hw_port_ctrl_req(bp,
-							PI_PCTRL_M_INIT,
-							(u32) (bp->descr_block_phys | PI_PDATA_A_INIT_M_BSWAP_DATA),
-							0,
-							NULL) != DFX_K_SUCCESS)
-		{
-		printk("%s: Could not set descriptor block address!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
-		}
+	if (dfx_hw_port_ctrl_req(bp, PI_PCTRL_M_INIT,
+				 (u32)(bp->descr_block_phys |
+				       PI_PDATA_A_INIT_M_BSWAP_INIT),
+				 0, NULL) != DFX_K_SUCCESS) {
+		printk("%s: Could not set descriptor block address!\n",
+		       bp->dev->name);
+		return DFX_K_FAILURE;
+	}
 
 	/* Set transmit flush timeout value */
 
@@ -1693,7 +1691,6 @@ static void dfx_int_common(struct net_device *dev)
  * Arguments:
  *   irq	- interrupt vector
  *   dev_id	- pointer to device information
- *	 regs	- pointer to registers structure
  *
  * Functional Description:
  *   This routine calls the interrupt processing routine for this adapter.  It
@@ -1716,7 +1713,7 @@ static void dfx_int_common(struct net_device *dev)
  *   Interrupts are disabled, then reenabled at the adapter.
  */
 
-static irqreturn_t dfx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t dfx_interrupt(int irq, void *dev_id)
 {
 	struct net_device	*dev = dev_id;
 	DFX_board_t		*bp;	/* private board structure pointer */

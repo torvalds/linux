@@ -1793,7 +1793,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		memset(i,0,sizeof(*i));
 		i->index    = n;
 		i->type     = V4L2_INPUT_TYPE_CAMERA;
-		i->audioset = 0;
+		i->audioset = 1;
 		if (i->index == bttv_tvcards[btv->c.type].tuner) {
 			sprintf(i->name, "Television");
 			i->type  = V4L2_INPUT_TYPE_TUNER;
@@ -2431,6 +2431,14 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		fbuf->bytesperline  = btv->fbuf.fmt.bytesperline;
 		if (fh->ovfmt)
 			fbuf->depth = fh->ovfmt->depth;
+		else {
+			if (fbuf->width)
+				fbuf->depth   = ((fbuf->bytesperline<<3)
+						  + (fbuf->width-1) )
+						  /fbuf->width;
+			else
+				fbuf->depth = 0;
+		}
 		return 0;
 	}
 	case VIDIOCSFBUF:
@@ -3745,7 +3753,7 @@ bttv_irq_switch_vbi(struct bttv *btv)
 	spin_unlock(&btv->s_lock);
 }
 
-static irqreturn_t bttv_irq(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t bttv_irq(int irq, void *dev_id)
 {
 	u32 stat,astat;
 	u32 dstat;
@@ -4186,6 +4194,7 @@ static void __devexit bttv_remove(struct pci_dev *pci_dev)
 	return;
 }
 
+#ifdef CONFIG_PM
 static int bttv_suspend(struct pci_dev *pci_dev, pm_message_t state)
 {
 	struct bttv *btv = pci_get_drvdata(pci_dev);
@@ -4266,6 +4275,7 @@ static int bttv_resume(struct pci_dev *pci_dev)
 	spin_unlock_irqrestore(&btv->s_lock,flags);
 	return 0;
 }
+#endif
 
 static struct pci_device_id bttv_pci_tbl[] = {
 	{PCI_VENDOR_ID_BROOKTREE, PCI_DEVICE_ID_BT848,
@@ -4286,8 +4296,10 @@ static struct pci_driver bttv_pci_driver = {
 	.id_table = bttv_pci_tbl,
 	.probe    = bttv_probe,
 	.remove   = __devexit_p(bttv_remove),
+#ifdef CONFIG_PM
 	.suspend  = bttv_suspend,
 	.resume   = bttv_resume,
+#endif
 };
 
 static int bttv_init_module(void)

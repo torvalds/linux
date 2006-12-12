@@ -15,6 +15,8 @@
 #ifndef LINUX_NBD_H
 #define LINUX_NBD_H
 
+#include <linux/types.h>
+
 #define NBD_SET_SOCK	_IO( 0xab, 0 )
 #define NBD_SET_BLKSIZE	_IO( 0xab, 1 )
 #define NBD_SET_SIZE	_IO( 0xab, 2 )
@@ -62,6 +64,7 @@ struct nbd_device {
 	struct gendisk *disk;
 	int blksize;
 	u64 bytesize;
+	pid_t pid; /* pid of nbd-client, if attached */
 };
 
 #endif

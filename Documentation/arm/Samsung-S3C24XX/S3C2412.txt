@@ -80,7 +80,7 @@ RTC
 Watchdog
 --------
 
-  The watchdog harware is the same as the S3C2410, and is supported by
+  The watchdog hardware is the same as the S3C2410, and is supported by
   the s3c2410_wdt driver.
 
 

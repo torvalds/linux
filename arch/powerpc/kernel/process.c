@@ -341,13 +341,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 static int instructions_to_print = 16;
 
-#ifdef CONFIG_PPC64
-#define BAD_PC(pc)	((REGION_ID(pc) != KERNEL_REGION_ID) && \
-		         (REGION_ID(pc) != VMALLOC_REGION_ID))
-#else
-#define BAD_PC(pc)	((pc) < KERNELBASE)
-#endif
-
 static void show_instructions(struct pt_regs *regs)
 {
 	int i;
@@ -366,7 +359,8 @@ static void show_instructions(struct pt_regs *regs)
 		 * bad address because the pc *should* only be a
 		 * kernel address.
 		 */
-		if (BAD_PC(pc) || __get_user(instr, (unsigned int __user *)pc)) {
+		if (!__kernel_text_address(pc) ||
+		     __get_user(instr, (unsigned int __user *)pc)) {
 			printk("XXXXXXXX ");
 		} else {
 			if (regs->nip == pc)
@@ -424,7 +418,7 @@ void show_regs(struct pt_regs * regs)
 	printk("NIP: "REG" LR: "REG" CTR: "REG"\n",
 	       regs->nip, regs->link, regs->ctr);
 	printk("REGS: %p TRAP: %04lx   %s  (%s)\n",
-	       regs, regs->trap, print_tainted(), system_utsname.release);
+	       regs, regs->trap, print_tainted(), init_utsname()->release);
 	printk("MSR: "REG" ", regs->msr);
 	printbits(regs->msr, msr_bits);
 	printk("  CR: %08lX  XER: %08lX\n", regs->ccr, regs->xer);

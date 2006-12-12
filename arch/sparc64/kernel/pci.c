@@ -646,13 +646,4 @@ int pci_domain_nr(struct pci_bus *pbus)
 }
 EXPORT_SYMBOL(pci_domain_nr);
 
-int pcibios_prep_mwi(struct pci_dev *dev)
-{
-	/* We set correct PCI_CACHE_LINE_SIZE register values for every
-	 * device probed on this platform.  So there is nothing to check
-	 * and this always succeeds.
-	 */
-	return 0;
-}
-
 #endif /* !(CONFIG_PCI) */

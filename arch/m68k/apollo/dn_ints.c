@@ -6,7 +6,7 @@
 
 void dn_process_int(unsigned int irq, struct pt_regs *fp)
 {
-	m68k_handle_int(irq, fp);
+	__m68k_handle_int(irq, fp);
 
 	*(volatile unsigned char *)(pica)=0x20;
 	*(volatile unsigned char *)(picb)=0x20;

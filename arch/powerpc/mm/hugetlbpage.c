@@ -146,6 +146,11 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 	return hugepte_offset(hpdp, addr);
 }
 
+int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+{
+	return 0;
+}
+
 static void free_hugepte_range(struct mmu_gather *tlb, hugepd_t *hpdp)
 {
 	pte_t *hugepte = hugepd_page(*hpdp);
@@ -480,9 +485,6 @@ static int open_high_hpage_areas(struct mm_struct *mm, u16 newareas)
 
 	mm->context.high_htlb_areas |= newareas;
 
-	/* update the paca copy of the context struct */
-	get_paca()->context = mm->context;
-
 	/* the context change must make it to memory before the flush,
 	 * so that further SLB misses do the right thing. */
 	mb();
@@ -494,11 +496,15 @@ static int open_high_hpage_areas(struct mm_struct *mm, u16 newareas)
 	return 0;
 }
 
-int prepare_hugepage_range(unsigned long addr, unsigned long len)
+int prepare_hugepage_range(unsigned long addr, unsigned long len, pgoff_t pgoff)
 {
 	int err = 0;
 
-	if ( (addr+len) < addr )
+	if (pgoff & (~HPAGE_MASK >> PAGE_SHIFT))
+		return -EINVAL;
+	if (len & ~HPAGE_MASK)
+		return -EINVAL;
+	if (addr & ~HPAGE_MASK)
 		return -EINVAL;
 
 	if (addr < 0x100000000UL)
@@ -1041,7 +1047,7 @@ repeat:
 	return err;
 }
 
-static void zero_ctor(void *addr, kmem_cache_t *cache, unsigned long flags)
+static void zero_ctor(void *addr, struct kmem_cache *cache, unsigned long flags)
 {
 	memset(addr, 0, kmem_cache_size(cache));
 }

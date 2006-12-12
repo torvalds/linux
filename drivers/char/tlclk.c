@@ -193,7 +193,7 @@ static DEFINE_SPINLOCK(event_lock);
 
 static int tlclk_major = TLCLK_MAJOR;
 
-static irqreturn_t tlclk_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t tlclk_interrupt(int irq, void *dev_id);
 
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 
@@ -792,15 +792,14 @@ static int __init tlclk_init(void)
 	ret = misc_register(&tlclk_miscdev);
 	if (ret < 0) {
 		printk(KERN_ERR "tlclk: misc_register returns %d.\n", ret);
-		ret = -EBUSY;
 		goto out3;
 	}
 
 	tlclk_device = platform_device_register_simple("telco_clock",
 				-1, NULL, 0);
-	if (!tlclk_device) {
+	if (IS_ERR(tlclk_device)) {
 		printk(KERN_ERR "tlclk: platform_device_register failed.\n");
-		ret = -EBUSY;
+		ret = PTR_ERR(tlclk_device);
 		goto out4;
 	}
 
@@ -856,7 +855,7 @@ static void switchover_timeout(unsigned long data)
 	wake_up(&wq);
 }
 
-static irqreturn_t tlclk_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t tlclk_interrupt(int irq, void *dev_id)
 {
 	unsigned long flags;
 

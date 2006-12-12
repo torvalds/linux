@@ -613,7 +613,7 @@ static void snd_via82xx_channel_reset(struct via82xx *chip, struct viadev *viade
  *  Interrupt handler
  *  Used for 686 and 8233A
  */
-static irqreturn_t snd_via686_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_via686_interrupt(int irq, void *dev_id)
 {
 	struct via82xx *chip = dev_id;
 	unsigned int status;
@@ -623,7 +623,7 @@ static irqreturn_t snd_via686_interrupt(int irq, void *dev_id, struct pt_regs *r
 	if (! (status & chip->intr_mask)) {
 		if (chip->rmidi)
 			/* check mpu401 interrupt */
-			return snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data, regs);
+			return snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data);
 		return IRQ_NONE;
 	}
 
@@ -659,7 +659,7 @@ static irqreturn_t snd_via686_interrupt(int irq, void *dev_id, struct pt_regs *r
 /*
  *  Interrupt handler
  */
-static irqreturn_t snd_via8233_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_via8233_interrupt(int irq, void *dev_id)
 {
 	struct via82xx *chip = dev_id;
 	unsigned int status;
@@ -2185,9 +2185,9 @@ static int snd_via82xx_suspend(struct pci_dev *pci, pm_message_t state)
 		chip->capture_src_saved[1] = inb(chip->port + VIA_REG_CAPTURE_CHANNEL + 0x10);
 	}
 
-	pci_set_power_state(pci, PCI_D3hot);
 	pci_disable_device(pci);
 	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
 }
 
@@ -2197,9 +2197,15 @@ static int snd_via82xx_resume(struct pci_dev *pci)
 	struct via82xx *chip = card->private_data;
 	int i;
 
-	pci_restore_state(pci);
-	pci_enable_device(pci);
 	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "via82xx: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
+	pci_set_master(pci);
 
 	snd_via82xx_chip_init(chip);
 

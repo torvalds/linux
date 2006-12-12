@@ -17,6 +17,14 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -600,7 +608,7 @@ config MVME147_SCC
 
 config SERIAL167
 	bool "CD2401 support for MVME166/7 serial ports"
-	depends on MVME16x && BROKEN
+	depends on MVME16x
 	help
 	  This is the driver for the serial ports on the Motorola MVME166,
 	  167, and 172 boards.  Everyone using one of these boards should say

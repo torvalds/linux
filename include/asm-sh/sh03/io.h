@@ -33,14 +33,6 @@
 #define IRL3_IPR_POS	0
 #define IRL3_PRIORITY	4
 
-
-extern unsigned long sh03_isa_port2addr(unsigned long offset);
-
-extern void setup_sh03(void);
-extern void init_sh03_IRQ(void);
-extern void heartbeat_sh03(void);
-
-extern void sh03_rtc_gettimeofday(struct timeval *tv);
-extern int sh03_rtc_settimeofday(const struct timeval *tv);
+void heartbeat_sh03(void);
 
 #endif /* _ASM_SH_IO_SH03_H */

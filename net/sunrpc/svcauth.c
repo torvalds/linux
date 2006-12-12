@@ -35,14 +35,14 @@ static struct auth_ops	*authtab[RPC_AUTH_MAXFLAVOR] = {
 };
 
 int
-svc_authenticate(struct svc_rqst *rqstp, u32 *authp)
+svc_authenticate(struct svc_rqst *rqstp, __be32 *authp)
 {
 	rpc_authflavor_t	flavor;
 	struct auth_ops		*aops;
 
 	*authp = rpc_auth_ok;
 
-	flavor = ntohl(svc_getu32(&rqstp->rq_arg.head[0]));
+	flavor = svc_getnl(&rqstp->rq_arg.head[0]);
 
 	dprintk("svc: svc_authenticate (%d)\n", flavor);
 
@@ -119,13 +119,15 @@ EXPORT_SYMBOL(svc_auth_unregister);
 #define	DN_HASHMASK	(DN_HASHMAX-1)
 
 static struct hlist_head	auth_domain_table[DN_HASHMAX];
-static spinlock_t	auth_domain_lock = SPIN_LOCK_UNLOCKED;
+static spinlock_t	auth_domain_lock =
+	__SPIN_LOCK_UNLOCKED(auth_domain_lock);
 
 void auth_domain_put(struct auth_domain *dom)
 {
 	if (atomic_dec_and_lock(&dom->ref.refcount, &auth_domain_lock)) {
 		hlist_del(&dom->hash);
 		dom->flavour->domain_release(dom);
+		spin_unlock(&auth_domain_lock);
 	}
 }
 
@@ -147,10 +149,8 @@ auth_domain_lookup(char *name, struct auth_domain *new)
 			return hp;
 		}
 	}
-	if (new) {
+	if (new)
 		hlist_add_head(&new->hash, head);
-		kref_get(&new->ref);
-	}
 	spin_unlock(&auth_domain_lock);
 	return new;
 }

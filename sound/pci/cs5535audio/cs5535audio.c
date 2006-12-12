@@ -203,8 +203,7 @@ static void process_bm1_irq(struct cs5535audio *cs5535au)
 	}
 }
 
-static irqreturn_t snd_cs5535audio_interrupt(int irq, void *dev_id,
-					     struct pt_regs *regs)
+static irqreturn_t snd_cs5535audio_interrupt(int irq, void *dev_id)
 {
 	u16 acc_irq_stat;
 	u8 bm_stat;

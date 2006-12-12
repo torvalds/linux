@@ -131,7 +131,7 @@ static struct quota_format_type *quota_formats;	/* List of registered formats */
 static struct quota_module_name module_names[] = INIT_QUOTA_MODULE_NAMES;
 
 /* SLAB cache for dquot structures */
-static kmem_cache_t *dquot_cachep;
+static struct kmem_cache *dquot_cachep;
 
 int register_quota_format(struct quota_format_type *fmt)
 {
@@ -600,7 +600,7 @@ static struct dquot *get_empty_dquot(struct super_block *sb, int type)
 {
 	struct dquot *dquot;
 
-	dquot = kmem_cache_alloc(dquot_cachep, SLAB_NOFS);
+	dquot = kmem_cache_alloc(dquot_cachep, GFP_NOFS);
 	if(!dquot)
 		return NODQUOT;
 
@@ -694,9 +694,9 @@ restart:
 	file_list_lock();
 	list_for_each(p, &sb->s_files) {
 		struct file *filp = list_entry(p, struct file, f_u.fu_list);
-		struct inode *inode = filp->f_dentry->d_inode;
+		struct inode *inode = filp->f_path.dentry->d_inode;
 		if (filp->f_mode & FMODE_WRITE && dqinit_needed(inode, type)) {
-			struct dentry *dentry = dget(filp->f_dentry);
+			struct dentry *dentry = dget(filp->f_path.dentry);
 			file_list_unlock();
 			sb->dq_op->initialize(inode, type);
 			dput(dentry);
@@ -828,18 +828,23 @@ static inline int need_print_warning(struct dquot *dquot)
 static void print_warning(struct dquot *dquot, const char warntype)
 {
 	char *msg = NULL;
+	struct tty_struct *tty;
 	int flag = (warntype == BHARDWARN || warntype == BSOFTLONGWARN) ? DQ_BLKS_B :
 	  ((warntype == IHARDWARN || warntype == ISOFTLONGWARN) ? DQ_INODES_B : 0);
 
 	if (!need_print_warning(dquot) || (flag && test_and_set_bit(flag, &dquot->dq_flags)))
 		return;
 
-	tty_write_message(current->signal->tty, dquot->dq_sb->s_id);
+	mutex_lock(&tty_mutex);
+	tty = get_current_tty();
+	if (!tty)
+		goto out_lock;
+	tty_write_message(tty, dquot->dq_sb->s_id);
 	if (warntype == ISOFTWARN || warntype == BSOFTWARN)
-		tty_write_message(current->signal->tty, ": warning, ");
+		tty_write_message(tty, ": warning, ");
 	else
-		tty_write_message(current->signal->tty, ": write failed, ");
-	tty_write_message(current->signal->tty, quotatypes[dquot->dq_type]);
+		tty_write_message(tty, ": write failed, ");
+	tty_write_message(tty, quotatypes[dquot->dq_type]);
 	switch (warntype) {
 		case IHARDWARN:
 			msg = " file limit reached.\r\n";
@@ -860,7 +865,9 @@ static void print_warning(struct dquot *dquot, const char warntype)
 			msg = " block quota exceeded.\r\n";
 			break;
 	}
-	tty_write_message(current->signal->tty, msg);
+	tty_write_message(tty, msg);
+out_lock:
+	mutex_unlock(&tty_mutex);
 }
 
 static inline void flush_warnings(struct dquot **dquots, char *warntype)

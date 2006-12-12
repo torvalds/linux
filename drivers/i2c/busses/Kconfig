@@ -74,12 +74,19 @@ config I2C_AMD8111
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-amd8111.
 
+config I2C_AT91
+	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
+	depends on I2C && ARCH_AT91 && EXPERIMENTAL
+	help
+	  This supports the use of the I2C interface on Atmel AT91
+	  processors.
+
 config I2C_AU1550
-	tristate "Au1550 SMBus interface"
-	depends on I2C && SOC_AU1550
+	tristate "Au1550/Au1200 SMBus interface"
+	depends on I2C && (SOC_AU1550 || SOC_AU1200)
 	help
 	  If you say yes to this option, support will be included for the
-	  Au1550 SMBus interface.
+	  Au1550 and Au1200 SMBus interface.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-au1550.
@@ -125,6 +132,7 @@ config I2C_I801
 	    ICH7
 	    ESB2
 	    ICH8
+	    ICH9
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -195,11 +203,11 @@ config I2C_IBM_IIC
 	  will be called i2c-ibm_iic.
 
 config I2C_IOP3XX
-	tristate "Intel IOP3xx and IXP4xx on-chip I2C interface"
-	depends on (ARCH_IOP3XX || ARCH_IXP4XX) && I2C
+	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
+	depends on (ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX || ARCH_IOP13XX) && I2C
 	help
 	  Say Y here if you want to use the IIC bus controller on
-	  the Intel IOP3xx I/O Processors or IXP4xx Network Processors.
+	  the Intel IOPx3xx I/O Processors or IXP4xx Network Processors.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-iop3xx.
@@ -207,18 +215,6 @@ config I2C_IOP3XX
 config I2C_ISA
 	tristate
 	depends on I2C
-
-config I2C_ITE
-	tristate "ITE I2C Adapter"
-	depends on I2C && MIPS_ITE8172
-	select I2C_ALGOITE
-	help
-	  This supports the ITE8172 I2C peripheral found on some MIPS
-	  systems. Say Y if you have one of these. You should also say Y for
-	  the ITE I2C driver algorithm support above.
-
-	  This support is also available as a module.  If so, the module 
-	  will be called i2c-ite.
 
 config I2C_IXP4XX
 	tristate "IXP4xx GPIO-Based I2C Interface"
@@ -287,6 +283,16 @@ config I2C_OCORES
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-ocores.
 
+config I2C_OMAP
+	tristate "OMAP I2C adapter"
+	depends on I2C && ARCH_OMAP
+	default y if MACH_OMAP_H3 || MACH_OMAP_OSK
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Texas Instruments OMAP1/2 family of processors.
+	  Like OMAP1510/1610/1710/5912 and OMAP242x.
+	  For details see http://www.ti.com/omap.
+
 config I2C_PARPORT
 	tristate "Parallel port adapter"
 	depends on I2C && PARPORT
@@ -323,10 +329,10 @@ config I2C_PARPORT_LIGHT
 
 	  This driver is a light version of i2c-parport.  It doesn't depend
 	  on the parport driver, and uses direct I/O access instead.  This
-	  might be prefered on embedded systems where wasting memory for
+	  might be preferred on embedded systems where wasting memory for
 	  the clean but heavy parport handling is not an option.  The
 	  drawback is a reduced portability and the impossibility to
-	  dasiy-chain other parallel port devices.
+	  daisy-chain other parallel port devices.
 	  
 	  Don't say Y here if you said Y or M to i2c-parport.  Saying M to
 	  both is possible but both modules should not be loaded at the same
@@ -470,6 +476,17 @@ config I2C_STUB
 
 	  If you don't know what to do here, definitely say N.
 
+config I2C_VERSATILE
+	tristate "ARM Versatile/Realview I2C bus support"
+	depends on I2C && (ARCH_VERSATILE || ARCH_REALVIEW)
+	select I2C_ALGOBIT
+	help
+	  Say yes if you want to support the I2C serial bus on ARMs Versatile
+	  range of platforms.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-versatile.
+
 config I2C_VIA
 	tristate "VIA 82C586B"
 	depends on I2C && PCI && EXPERIMENTAL
@@ -482,19 +499,19 @@ config I2C_VIA
 	  will be called i2c-via.
 
 config I2C_VIAPRO
-	tristate "VIA 82C596/82C686/823x"
+	tristate "VIA 82C596/82C686/82xx"
 	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the VIA
-	  82C596/82C686/823x I2C interfaces.  Specifically, the following 
+	  82C596/82C686/82xx I2C interfaces.  Specifically, the following
 	  chipsets are supported:
-	  82C596A/B
-	  82C686A/B
-	  8231
-	  8233
-	  8233A
-	  8235
-	  8237
+	    VT82C596A/B
+	    VT82C686A/B
+	    VT8231
+	    VT8233/A
+	    VT8235
+	    VT8237R/A
+	    VT8251
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-viapro.
@@ -536,5 +553,24 @@ config I2C_MV64XXX
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mv64xxx.
+
+config I2C_PNX
+	tristate "I2C bus support for Philips PNX targets"
+	depends on ARCH_PNX4008 && I2C
+	help
+	  This driver supports the Philips IP3204 I2C IP block master and/or
+	  slave controller
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-pnx.
+
+config I2C_PNX_EARLY
+	bool "Early initialization for I2C on PNXxxxx"
+	depends on I2C_PNX=y
+	help
+	  Under certain circumstances one may need to make sure I2C on PNXxxxx
+	  is initialized earlier than some other driver that depends on it
+	  (for instance, that might be USB in case of PNX4008). With this
+	  option turned on you can guarantee that.
 
 endmenu

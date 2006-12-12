@@ -42,7 +42,7 @@
 
 
 #define DRV_NAME "pata_pcmcia"
-#define DRV_VERSION "0.2.9"
+#define DRV_VERSION "0.2.11"
 
 /*
  *	Private data structure to glue stuff together
@@ -62,13 +62,13 @@ static struct scsi_host_template pcmcia_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
 };
 
@@ -87,7 +87,7 @@ static struct ata_port_operations pcmcia_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer_noirq,
 
 	.irq_handler	= ata_interrupt,
@@ -154,19 +154,12 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	tuple.TupleOffset = 0;
 	tuple.TupleDataMax = 255;
 	tuple.Attributes = 0;
-	tuple.DesiredTuple = CISTPL_CONFIG;
-
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(pdev, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(pdev, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(pdev, &tuple, &stk->parse));
-	pdev->conf.ConfigBase = stk->parse.config.base;
-	pdev->conf.Present = stk->parse.config.rmask[0];
 
 	/* See if we have a manufacturer identifier. Use it to set is_kme for
 	   vendor quirks */
-	tuple.DesiredTuple = CISTPL_MANFID;
-	if (!pcmcia_get_first_tuple(pdev, &tuple) && !pcmcia_get_tuple_data(pdev, &tuple) && !pcmcia_parse_tuple(pdev, &tuple, &stk->parse))
-			is_kme = ((stk->parse.manfid.manf == MANFID_KME) && ((stk->parse.manfid.card == PRODID_KME_KXLC005_A) || (stk->parse.manfid.card == PRODID_KME_KXLC005_B)));
+	is_kme = ((pdev->manf_id == MANFID_KME) &&
+		  ((pdev->card_id == PRODID_KME_KXLC005_A) ||
+		   (pdev->card_id == PRODID_KME_KXLC005_B)));
 
 	/* Not sure if this is right... look up the current Vcc */
 	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(pdev, &stk->conf));
@@ -355,7 +348,11 @@ static struct pcmcia_device_id pcmcia_devices[] = {
 	PCMCIA_DEVICE_PROD_ID12("SAMSUNG", "04/05/06", 0x43d74cb4, 0x6a22777d),
 	PCMCIA_DEVICE_PROD_ID12("SMI VENDOR", "SMI PRODUCT", 0x30896c92, 0x703cc5f6),
 	PCMCIA_DEVICE_PROD_ID12("TOSHIBA", "MK2001MPL", 0xb4585a1a, 0x3489e003),
+	PCMCIA_DEVICE_PROD_ID1("TRANSCEND    512M   ", 0xd0909443),
+	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS1GCF80", 0x709b1bf1, 0x2a54d4b1),
+	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS4GCF120", 0x709b1bf1, 0xf54a91c8),
 	PCMCIA_DEVICE_PROD_ID12("WIT", "IDE16", 0x244e5994, 0x3e232852),
+	PCMCIA_DEVICE_PROD_ID12("WEIDA", "TWTTI", 0xcc7cf69c, 0x212bb918),
 	PCMCIA_DEVICE_PROD_ID1("STI Flash", 0xe4a13209),
 	PCMCIA_DEVICE_PROD_ID12("STI", "Flash 5.0", 0xbf2df18d, 0x8cb57a0e),
 	PCMCIA_MFC_DEVICE_PROD_ID12(1, "SanDisk", "ConnectPlus", 0x7a954bd9, 0x74be00c6),

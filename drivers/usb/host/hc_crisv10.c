@@ -188,7 +188,7 @@ static DEFINE_TIMER(bulk_eot_timer, NULL, 0, 0);
 #define CHECK_ALIGN(x) if (((__u32)(x)) & 0x00000003) \
 {panic("Alignment check (DWORD) failed at %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);}
 
-#define SLAB_FLAG     (in_interrupt() ? SLAB_ATOMIC : SLAB_KERNEL)
+#define SLAB_FLAG     (in_interrupt() ? GFP_ATOMIC : GFP_KERNEL)
 #define KMALLOC_FLAG  (in_interrupt() ? GFP_ATOMIC : GFP_KERNEL)
 
 /* Most helpful debugging aid */
@@ -275,13 +275,13 @@ static volatile USB_SB_Desc_t TxIntrSB_zout __attribute__ ((aligned (4)));
 static int zout_buffer[4] __attribute__ ((aligned (4)));
 
 /* Cache for allocating new EP and SB descriptors. */
-static kmem_cache_t *usb_desc_cache;
+static struct kmem_cache *usb_desc_cache;
 
 /* Cache for the registers allocated in the top half. */
-static kmem_cache_t *top_half_reg_cache;
+static struct kmem_cache *top_half_reg_cache;
 
 /* Cache for the data allocated in the isoc descr top half. */
-static kmem_cache_t *isoc_compl_cache;
+static struct kmem_cache *isoc_compl_cache;
 
 static struct usb_bus *etrax_usb_bus;
 
@@ -478,9 +478,9 @@ static int etrax_usb_submit_urb(struct urb *urb, unsigned mem_flags);
 static int etrax_usb_unlink_urb(struct urb *urb, int status);
 static int etrax_usb_get_frame_number(struct usb_device *usb_dev);
 
-static irqreturn_t etrax_usb_tx_interrupt(int irq, void *vhc, struct pt_regs *regs);
-static irqreturn_t etrax_usb_rx_interrupt(int irq, void *vhc, struct pt_regs *regs);
-static irqreturn_t etrax_usb_hc_interrupt_top_half(int irq, void *vhc, struct pt_regs *regs);
+static irqreturn_t etrax_usb_tx_interrupt(int irq, void *vhc);
+static irqreturn_t etrax_usb_rx_interrupt(int irq, void *vhc);
+static irqreturn_t etrax_usb_hc_interrupt_top_half(int irq, void *vhc);
 static void etrax_usb_hc_interrupt_bottom_half(void *data);
 
 static void etrax_usb_isoc_descr_interrupt_bottom_half(void *data);
@@ -1573,7 +1573,7 @@ static int etrax_usb_get_frame_number(struct usb_device *usb_dev)
 	return (*R_USB_FM_NUMBER & 0x7ff);
 }
 
-static irqreturn_t etrax_usb_tx_interrupt(int irq, void *vhc, struct pt_regs *regs)
+static irqreturn_t etrax_usb_tx_interrupt(int irq, void *vhc)
 {
 	DBFENTER;
 
@@ -1743,7 +1743,7 @@ static irqreturn_t etrax_usb_tx_interrupt(int irq, void *vhc, struct pt_regs *re
 
 		*R_DMA_CH8_SUB3_CLR_INTR = IO_STATE(R_DMA_CH8_SUB3_CLR_INTR, clr_descr, do);
 
-		comp_data = (usb_isoc_complete_data_t*)kmem_cache_alloc(isoc_compl_cache, SLAB_ATOMIC);
+		comp_data = (usb_isoc_complete_data_t*)kmem_cache_alloc(isoc_compl_cache, GFP_ATOMIC);
 		assert(comp_data != NULL);
 
                 INIT_WORK(&comp_data->usb_bh, etrax_usb_isoc_descr_interrupt_bottom_half, comp_data);
@@ -1839,7 +1839,7 @@ static void etrax_usb_isoc_descr_interrupt_bottom_half(void *data)
 
 
 
-static irqreturn_t etrax_usb_rx_interrupt(int irq, void *vhc, struct pt_regs *regs)
+static irqreturn_t etrax_usb_rx_interrupt(int irq, void *vhc)
 {
 	struct urb *urb;
 	etrax_urb_priv_t *urb_priv;
@@ -3010,7 +3010,7 @@ static void etrax_usb_add_to_isoc_sb_list(struct urb *urb, int epid)
 			if (!urb->iso_frame_desc[i].length)
 				continue;
 
-			next_sb_desc = (USB_SB_Desc_t*)kmem_cache_alloc(usb_desc_cache, SLAB_ATOMIC);
+			next_sb_desc = (USB_SB_Desc_t*)kmem_cache_alloc(usb_desc_cache, GFP_ATOMIC);
 			assert(next_sb_desc != NULL);
 
 			if (urb->iso_frame_desc[i].length > 0) {
@@ -3063,7 +3063,7 @@ static void etrax_usb_add_to_isoc_sb_list(struct urb *urb, int epid)
 		if (TxIsocEPList[epid].sub == 0) {
 			dbg_isoc("Isoc traffic not already running, allocating SB");
 
-			next_sb_desc = (USB_SB_Desc_t*)kmem_cache_alloc(usb_desc_cache, SLAB_ATOMIC);
+			next_sb_desc = (USB_SB_Desc_t*)kmem_cache_alloc(usb_desc_cache, GFP_ATOMIC);
 			assert(next_sb_desc != NULL);
 
 			next_sb_desc->command = (IO_STATE(USB_SB_command, tt, in) |
@@ -3280,7 +3280,7 @@ static void etrax_usb_complete_urb(struct urb *urb, int status)
 
 
 
-static irqreturn_t etrax_usb_hc_interrupt_top_half(int irq, void *vhc, struct pt_regs *regs)
+static irqreturn_t etrax_usb_hc_interrupt_top_half(int irq, void *vhc)
 {
 	usb_interrupt_registers_t *reg;
 	unsigned long flags;
@@ -3317,7 +3317,7 @@ static irqreturn_t etrax_usb_hc_interrupt_top_half(int irq, void *vhc, struct pt
 
 	restore_flags(flags);
 
-	reg = (usb_interrupt_registers_t *)kmem_cache_alloc(top_half_reg_cache, SLAB_ATOMIC);
+	reg = (usb_interrupt_registers_t *)kmem_cache_alloc(top_half_reg_cache, GFP_ATOMIC);
 
 	assert(reg != NULL);
 

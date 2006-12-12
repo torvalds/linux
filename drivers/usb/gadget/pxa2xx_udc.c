@@ -43,11 +43,11 @@
 #include <linux/mm.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/irq.h>
 
 #include <asm/byteorder.h>
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/mach-types.h>
 #include <asm/unaligned.h>
@@ -110,7 +110,7 @@ static int use_dma = 1;
 module_param(use_dma, bool, 0);
 MODULE_PARM_DESC (use_dma, "true to use dma");
 
-static void dma_nodesc_handler (int dmach, void *_ep, struct pt_regs *r);
+static void dma_nodesc_handler (int dmach, void *_ep);
 static void kick_dma(struct pxa2xx_ep *ep, struct pxa2xx_request *req);
 
 #ifdef USE_OUT_DMA
@@ -149,6 +149,39 @@ MODULE_PARM_DESC (fifo_mode, "pxa2xx udc fifo mode");
 
 static void pxa2xx_ep_fifo_flush (struct usb_ep *ep);
 static void nuke (struct pxa2xx_ep *, int status);
+
+/* one GPIO should be used to detect VBUS from the host */
+static int is_vbus_present(void)
+{
+	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
+
+	if (mach->gpio_vbus)
+		return pxa_gpio_get(mach->gpio_vbus);
+	if (mach->udc_is_connected)
+		return mach->udc_is_connected();
+	return 1;
+}
+
+/* one GPIO should control a D+ pullup, so host sees this device (or not) */
+static void pullup_off(void)
+{
+	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
+
+	if (mach->gpio_pullup)
+		pxa_gpio_set(mach->gpio_pullup, 0);
+	else if (mach->udc_command)
+		mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
+}
+
+static void pullup_on(void)
+{
+	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
+
+	if (mach->gpio_pullup)
+		pxa_gpio_set(mach->gpio_pullup, 1);
+	else if (mach->udc_command)
+		mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
+}
 
 static void pio_irq_enable(int bEndpointAddress)
 {
@@ -795,7 +828,7 @@ static void cancel_dma(struct pxa2xx_ep *ep)
 }
 
 /* dma channel stopped ... normal tx end (IN), or on error (IN/OUT) */
-static void dma_nodesc_handler(int dmach, void *_ep, struct pt_regs *r)
+static void dma_nodesc_handler(int dmach, void *_ep)
 {
 	struct pxa2xx_ep	*ep = _ep;
 	struct pxa2xx_request	*req;
@@ -1691,7 +1724,7 @@ EXPORT_SYMBOL(usb_gadget_unregister_driver);
  */
 
 static irqreturn_t
-lubbock_vbus_irq(int irq, void *_dev, struct pt_regs *r)
+lubbock_vbus_irq(int irq, void *_dev)
 {
 	struct pxa2xx_udc	*dev = _dev;
 	int			vbus;
@@ -1720,6 +1753,15 @@ lubbock_vbus_irq(int irq, void *_dev, struct pt_regs *r)
 }
 
 #endif
+
+static irqreturn_t udc_vbus_irq(int irq, void *_dev)
+{
+	struct pxa2xx_udc	*dev = _dev;
+	int			vbus = pxa_gpio_get(dev->mach->gpio_vbus);
+
+	pxa2xx_udc_vbus_session(&dev->gadget, vbus);
+	return IRQ_HANDLED;
+}
 
 
 /*-------------------------------------------------------------------------*/
@@ -2041,7 +2083,7 @@ static void handle_ep(struct pxa2xx_ep *ep)
  * could cause usb protocol errors.
  */
 static irqreturn_t
-pxa2xx_udc_irq(int irq, void *_dev, struct pt_regs *r)
+pxa2xx_udc_irq(int irq, void *_dev)
 {
 	struct pxa2xx_udc	*dev = _dev;
 	int			handled;
@@ -2430,6 +2472,7 @@ static struct pxa2xx_udc memory = {
 #define PXA210_B1		0x00000123
 #define PXA210_B0		0x00000122
 #define IXP425_A0		0x000001c1
+#define IXP425_B0		0x000001f1
 #define IXP465_AD		0x00000200
 
 /*
@@ -2438,7 +2481,7 @@ static struct pxa2xx_udc memory = {
 static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 {
 	struct pxa2xx_udc *dev = &memory;
-	int retval, out_dma = 1;
+	int retval, out_dma = 1, vbus_irq;
 	u32 chiprev;
 
 	/* insist on Intel/ARM/XScale */
@@ -2467,6 +2510,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 		break;
 #elif	defined(CONFIG_ARCH_IXP4XX)
 	case IXP425_A0:
+	case IXP425_B0:
 	case IXP465_AD:
 		dev->has_cfr = 1;
 		out_dma = 0;
@@ -2502,6 +2546,16 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	/* other non-static parts of init */
 	dev->dev = &pdev->dev;
 	dev->mach = pdev->dev.platform_data;
+	if (dev->mach->gpio_vbus) {
+		vbus_irq = IRQ_GPIO(dev->mach->gpio_vbus & GPIO_MD_MASK_NR);
+		pxa_gpio_mode((dev->mach->gpio_vbus & GPIO_MD_MASK_NR)
+				| GPIO_IN);
+		set_irq_type(vbus_irq, IRQT_BOTHEDGE);
+	} else
+		vbus_irq = 0;
+	if (dev->mach->gpio_pullup)
+		pxa_gpio_mode((dev->mach->gpio_pullup & GPIO_MD_MASK_NR)
+				| GPIO_OUT | GPIO_DFLT_LOW);
 
 	init_timer(&dev->timer);
 	dev->timer.function = udc_watchdog;
@@ -2557,8 +2611,19 @@ lubbock_fail0:
 		HEX_DISPLAY(dev->stats.irqs);
 		LUB_DISC_BLNK_LED &= 0xff;
 #endif
-	}
+	} else
 #endif
+	if (vbus_irq) {
+		retval = request_irq(vbus_irq, udc_vbus_irq,
+				SA_INTERRUPT | SA_SAMPLE_RANDOM,
+				driver_name, dev);
+		if (retval != 0) {
+			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
+				driver_name, vbus_irq, retval);
+			free_irq(IRQ_USB, dev);
+			return -EBUSY;
+		}
+	}
 	create_proc_files();
 
 	return 0;
@@ -2587,6 +2652,8 @@ static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
 		free_irq(LUBBOCK_USB_IRQ, dev);
 	}
 #endif
+	if (dev->mach->gpio_vbus)
+		free_irq(IRQ_GPIO(dev->mach->gpio_vbus), dev);
 	platform_set_drvdata(pdev, NULL);
 	the_controller = NULL;
 	return 0;

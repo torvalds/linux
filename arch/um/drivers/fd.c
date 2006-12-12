@@ -12,6 +12,7 @@
 #include "user_util.h"
 #include "chan_user.h"
 #include "os.h"
+#include "um_malloc.h"
 
 struct fd_chan {
 	int fd;
@@ -20,7 +21,7 @@ struct fd_chan {
 	char str[sizeof("1234567890\0")];
 };
 
-static void *fd_init(char *str, int device, struct chan_opts *opts)
+static void *fd_init(char *str, int device, const struct chan_opts *opts)
 {
 	struct fd_chan *data;
 	char *end;
@@ -77,7 +78,7 @@ static void fd_close(int fd, void *d)
 	}
 }
 
-struct chan_ops fd_ops = {
+const struct chan_ops fd_ops = {
 	.type		= "fd",
 	.init		= fd_init,
 	.open		= fd_open,

@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/rheap.c
+ * include/asm-ppc/rheap.h
  *
  * Header file for the implementation of a remote heap.
  *
@@ -61,6 +61,10 @@ extern int rh_attach_region(rh_info_t * info, void *start, int size);
 
 /* Detach a free region */
 extern void *rh_detach_region(rh_info_t * info, void *start, int size);
+
+/* Allocate the given size from the remote heap (with alignment) */
+extern void *rh_alloc_align(rh_info_t * info, int size, int alignment,
+		const char *owner);
 
 /* Allocate the given size from the remote heap */
 extern void *rh_alloc(rh_info_t * info, int size, const char *owner);

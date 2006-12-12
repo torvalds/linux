@@ -941,7 +941,7 @@ struct IsdnCardState {
 	int		(*cardmsg) (struct IsdnCardState *, int, void *);
 	void		(*setstack_d) (struct PStack *, struct IsdnCardState *);
 	void		(*DC_Close) (struct IsdnCardState *);
-	int		(*irq_func) (int, void *, struct pt_regs *);
+	int		(*irq_func) (int, void *);
 	int		(*auxcmd) (struct IsdnCardState *, isdn_ctrl *);
 	struct Channel	channel[2+MAX_WAITING_CALLS];
 	struct BCState	bcs[2+MAX_WAITING_CALLS];
@@ -1139,12 +1139,6 @@ struct IsdnCardState {
 #define  CARD_HFC_SX 0
 #endif
 
-#ifdef  CONFIG_HISAX_AMD7930
-#define CARD_AMD7930 1
-#else
-#define CARD_AMD7930 0
-#endif
-
 #ifdef	CONFIG_HISAX_NICCY
 #define	CARD_NICCY 1
 #ifndef ISDN_CHIP_ISAC
@@ -1316,7 +1310,18 @@ void dlogframe(struct IsdnCardState *cs, struct sk_buff *skb, int dir);
 void iecpy(u_char * dest, u_char * iestart, int ieoffset);
 #endif	/* __KERNEL__ */
 
-#define HZDELAY(jiffs) {int tout = jiffs; while (tout--) udelay(1000000/HZ);}
+/*
+ * Busywait delay for `jiffs' jiffies
+ */
+#define HZDELAY(jiffs) do {					\
+		int tout = jiffs;				\
+								\
+		while (tout--) {				\
+			int loops = USEC_PER_SEC / HZ;		\
+			while (loops--)				\
+				udelay(1);			\
+		}						\
+	} while (0)
 
 int ll_run(struct IsdnCardState *cs, int addfeatures);
 int CallcNew(void);

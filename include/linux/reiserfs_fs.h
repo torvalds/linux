@@ -739,7 +739,7 @@ struct block_head {
 #define PUT_B_FREE_SPACE(p_s_bh,val)  do { set_blkh_free_space(B_BLK_HEAD(p_s_bh),val); } while (0)
 
 /* Get right delimiting key. -- little endian */
-#define B_PRIGHT_DELIM_KEY(p_s_bh)   (&(blk_right_delim_key(B_BLK_HEAD(p_s_bh))
+#define B_PRIGHT_DELIM_KEY(p_s_bh)   (&(blk_right_delim_key(B_BLK_HEAD(p_s_bh))))
 
 /* Does the buffer contain a disk leaf. */
 #define B_IS_ITEMS_LEVEL(p_s_bh)     (B_LEVEL(p_s_bh) == DISK_LEAF_NODE_LEVEL)
@@ -807,21 +807,19 @@ struct stat_data_v1 {
 #define set_sd_v1_first_direct_byte(sdp,v) \
                                 ((sdp)->sd_first_direct_byte = cpu_to_le32(v))
 
-#include <linux/ext2_fs.h>
-
 /* inode flags stored in sd_attrs (nee sd_reserved) */
 
 /* we want common flags to have the same values as in ext2,
    so chattr(1) will work without problems */
-#define REISERFS_IMMUTABLE_FL EXT2_IMMUTABLE_FL
-#define REISERFS_APPEND_FL    EXT2_APPEND_FL
-#define REISERFS_SYNC_FL      EXT2_SYNC_FL
-#define REISERFS_NOATIME_FL   EXT2_NOATIME_FL
-#define REISERFS_NODUMP_FL    EXT2_NODUMP_FL
-#define REISERFS_SECRM_FL     EXT2_SECRM_FL
-#define REISERFS_UNRM_FL      EXT2_UNRM_FL
-#define REISERFS_COMPR_FL     EXT2_COMPR_FL
-#define REISERFS_NOTAIL_FL    EXT2_NOTAIL_FL
+#define REISERFS_IMMUTABLE_FL FS_IMMUTABLE_FL
+#define REISERFS_APPEND_FL    FS_APPEND_FL
+#define REISERFS_SYNC_FL      FS_SYNC_FL
+#define REISERFS_NOATIME_FL   FS_NOATIME_FL
+#define REISERFS_NODUMP_FL    FS_NODUMP_FL
+#define REISERFS_SECRM_FL     FS_SECRM_FL
+#define REISERFS_UNRM_FL      FS_UNRM_FL
+#define REISERFS_COMPR_FL     FS_COMPR_FL
+#define REISERFS_NOTAIL_FL    FS_NOTAIL_FL
 
 /* persistent flags that file inherits from the parent directory */
 #define REISERFS_INHERIT_MASK ( REISERFS_IMMUTABLE_FL |	\
@@ -1161,7 +1159,7 @@ znodes are the way! */
 #define PATH_READA	0x1	/* do read ahead */
 #define PATH_READA_BACK 0x2	/* read backwards */
 
-struct path {
+struct treepath {
 	int path_length;	/* Length of the array above.   */
 	int reada;
 	struct path_element path_elements[EXTENDED_MAX_HEIGHT];	/* Array of the path elements.  */
@@ -1171,7 +1169,7 @@ struct path {
 #define pos_in_item(path) ((path)->pos_in_item)
 
 #define INITIALIZE_PATH(var) \
-struct path var = {.path_length = ILLEGAL_PATH_ELEMENT_OFFSET, .reada = 0,}
+struct treepath var = {.path_length = ILLEGAL_PATH_ELEMENT_OFFSET, .reada = 0,}
 
 /* Get path element by path and path position. */
 #define PATH_OFFSET_PELEMENT(p_s_path,n_offset)  ((p_s_path)->path_elements +(n_offset))
@@ -1329,7 +1327,7 @@ struct tree_balance {
 	int need_balance_dirty;
 	struct super_block *tb_sb;
 	struct reiserfs_transaction_handle *transaction_handle;
-	struct path *tb_path;
+	struct treepath *tb_path;
 	struct buffer_head *L[MAX_HEIGHT];	/* array of left neighbors of nodes in the path */
 	struct buffer_head *R[MAX_HEIGHT];	/* array of right neighbors of nodes in the path */
 	struct buffer_head *FL[MAX_HEIGHT];	/* array of fathers of the left  neighbors      */
@@ -1795,41 +1793,41 @@ static inline void copy_key(struct reiserfs_key *to,
 	memcpy(to, from, KEY_SIZE);
 }
 
-int comp_items(const struct item_head *stored_ih, const struct path *p_s_path);
-const struct reiserfs_key *get_rkey(const struct path *p_s_chk_path,
+int comp_items(const struct item_head *stored_ih, const struct treepath *p_s_path);
+const struct reiserfs_key *get_rkey(const struct treepath *p_s_chk_path,
 				    const struct super_block *p_s_sb);
 int search_by_key(struct super_block *, const struct cpu_key *,
-		  struct path *, int);
+		  struct treepath *, int);
 #define search_item(s,key,path) search_by_key (s, key, path, DISK_LEAF_NODE_LEVEL)
 int search_for_position_by_key(struct super_block *p_s_sb,
 			       const struct cpu_key *p_s_cpu_key,
-			       struct path *p_s_search_path);
+			       struct treepath *p_s_search_path);
 extern void decrement_bcount(struct buffer_head *p_s_bh);
-void decrement_counters_in_path(struct path *p_s_search_path);
-void pathrelse(struct path *p_s_search_path);
-int reiserfs_check_path(struct path *p);
-void pathrelse_and_restore(struct super_block *s, struct path *p_s_search_path);
+void decrement_counters_in_path(struct treepath *p_s_search_path);
+void pathrelse(struct treepath *p_s_search_path);
+int reiserfs_check_path(struct treepath *p);
+void pathrelse_and_restore(struct super_block *s, struct treepath *p_s_search_path);
 
 int reiserfs_insert_item(struct reiserfs_transaction_handle *th,
-			 struct path *path,
+			 struct treepath *path,
 			 const struct cpu_key *key,
 			 struct item_head *ih,
 			 struct inode *inode, const char *body);
 
 int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th,
-			     struct path *path,
+			     struct treepath *path,
 			     const struct cpu_key *key,
 			     struct inode *inode,
 			     const char *body, int paste_size);
 
 int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
-			   struct path *path,
+			   struct treepath *path,
 			   struct cpu_key *key,
 			   struct inode *inode,
 			   struct page *page, loff_t new_file_size);
 
 int reiserfs_delete_item(struct reiserfs_transaction_handle *th,
-			 struct path *path,
+			 struct treepath *path,
 			 const struct cpu_key *key,
 			 struct inode *inode, struct buffer_head *p_s_un_bh);
 
@@ -1860,7 +1858,7 @@ void padd_item(char *item, int total_length, int length);
 #define GET_BLOCK_NO_DANGLE   16	/* don't leave any transactions running */
 
 int restart_transaction(struct reiserfs_transaction_handle *th,
-			struct inode *inode, struct path *path);
+			struct inode *inode, struct treepath *path);
 void reiserfs_read_locked_inode(struct inode *inode,
 				struct reiserfs_iget_args *args);
 int reiserfs_find_actor(struct inode *inode, void *p);
@@ -1907,7 +1905,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr);
 /* namei.c */
 void set_de_name_and_namelen(struct reiserfs_dir_entry *de);
 int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,
-			struct path *path, struct reiserfs_dir_entry *de);
+			struct treepath *path, struct reiserfs_dir_entry *de);
 struct dentry *reiserfs_get_parent(struct dentry *);
 /* procfs.c */
 
@@ -1958,9 +1956,9 @@ extern const struct file_operations reiserfs_dir_operations;
 
 /* tail_conversion.c */
 int direct2indirect(struct reiserfs_transaction_handle *, struct inode *,
-		    struct path *, struct buffer_head *, loff_t);
+		    struct treepath *, struct buffer_head *, loff_t);
 int indirect2direct(struct reiserfs_transaction_handle *, struct inode *,
-		    struct page *, struct path *, const struct cpu_key *,
+		    struct page *, struct treepath *, const struct cpu_key *,
 		    loff_t, char *);
 void reiserfs_unmap_buffer(struct buffer_head *);
 
@@ -2047,7 +2045,7 @@ struct __reiserfs_blocknr_hint {
 	struct inode *inode;	/* inode passed to allocator, if we allocate unf. nodes */
 	long block;		/* file offset, in blocks */
 	struct in_core_key key;
-	struct path *path;	/* search path, used by allocator to deternine search_start by
+	struct treepath *path;	/* search path, used by allocator to deternine search_start by
 				 * various ways */
 	struct reiserfs_transaction_handle *th;	/* transaction handle is needed to log super blocks and
 						 * bitmap blocks changes  */
@@ -2075,6 +2073,10 @@ void reiserfs_init_alloc_options(struct super_block *s);
  */
 __le32 reiserfs_choose_packing(struct inode *dir);
 
+int reiserfs_init_bitmap_cache(struct super_block *sb);
+void reiserfs_free_bitmap_cache(struct super_block *sb);
+void reiserfs_cache_bitmap_metadata(struct super_block *sb, struct buffer_head *bh, struct reiserfs_bitmap_info *info);
+struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb, unsigned int bitmap);
 int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value);
 void reiserfs_free_block(struct reiserfs_transaction_handle *th, struct inode *,
 			 b_blocknr_t, int for_unformatted);
@@ -2099,7 +2101,7 @@ static inline int reiserfs_new_form_blocknrs(struct tree_balance *tb,
 static inline int reiserfs_new_unf_blocknrs(struct reiserfs_transaction_handle
 					    *th, struct inode *inode,
 					    b_blocknr_t * new_blocknrs,
-					    struct path *path, long block)
+					    struct treepath *path, long block)
 {
 	reiserfs_blocknr_hint_t hint = {
 		.th = th,
@@ -2116,7 +2118,7 @@ static inline int reiserfs_new_unf_blocknrs(struct reiserfs_transaction_handle
 static inline int reiserfs_new_unf_blocknrs2(struct reiserfs_transaction_handle
 					     *th, struct inode *inode,
 					     b_blocknr_t * new_blocknrs,
-					     struct path *path, long block)
+					     struct treepath *path, long block)
 {
 	reiserfs_blocknr_hint_t hint = {
 		.th = th,
@@ -2163,15 +2165,24 @@ __u32 r5_hash(const signed char *msg, int len);
 /* prototypes from ioctl.c */
 int reiserfs_ioctl(struct inode *inode, struct file *filp,
 		   unsigned int cmd, unsigned long arg);
+long reiserfs_compat_ioctl(struct file *filp,
+		   unsigned int cmd, unsigned long arg);
 
 /* ioctl's command */
 #define REISERFS_IOC_UNPACK		_IOW(0xCD,1,long)
 /* define following flags to be the same as in ext2, so that chattr(1),
    lsattr(1) will work with us. */
-#define REISERFS_IOC_GETFLAGS		EXT2_IOC_GETFLAGS
-#define REISERFS_IOC_SETFLAGS		EXT2_IOC_SETFLAGS
-#define REISERFS_IOC_GETVERSION		EXT2_IOC_GETVERSION
-#define REISERFS_IOC_SETVERSION		EXT2_IOC_SETVERSION
+#define REISERFS_IOC_GETFLAGS		FS_IOC_GETFLAGS
+#define REISERFS_IOC_SETFLAGS		FS_IOC_SETFLAGS
+#define REISERFS_IOC_GETVERSION		FS_IOC_GETVERSION
+#define REISERFS_IOC_SETVERSION		FS_IOC_SETVERSION
+
+/* the 32 bit compat definitions with int argument */
+#define REISERFS_IOC32_UNPACK		_IOW(0xCD, 1, int)
+#define REISERFS_IOC32_GETFLAGS		FS_IOC32_GETFLAGS
+#define REISERFS_IOC32_SETFLAGS		FS_IOC32_SETFLAGS
+#define REISERFS_IOC32_GETVERSION	FS_IOC32_GETVERSION
+#define REISERFS_IOC32_SETVERSION	FS_IOC32_SETVERSION
 
 /* Locking primitives */
 /* Right now we are still falling back to (un)lock_kernel, but eventually that

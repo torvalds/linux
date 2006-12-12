@@ -178,7 +178,7 @@ the driver to that device.
 
 A driver's probe() may return a negative errno value to indicate that
 the driver did not bind to this device, in which case it should have
-released all reasources it allocated.
+released all resources it allocated.
 
 	int 	(*remove)	(struct device * dev);
 

@@ -647,9 +647,12 @@ static struct {
 static int lapic_suspend(struct sys_device *dev, pm_message_t state)
 {
 	unsigned long flags;
+	int maxlvt;
 
 	if (!apic_pm_state.active)
 		return 0;
+
+	maxlvt = get_maxlvt();
 
 	apic_pm_state.apic_id = apic_read(APIC_ID);
 	apic_pm_state.apic_taskpri = apic_read(APIC_TASKPRI);
@@ -657,13 +660,17 @@ static int lapic_suspend(struct sys_device *dev, pm_message_t state)
 	apic_pm_state.apic_dfr = apic_read(APIC_DFR);
 	apic_pm_state.apic_spiv = apic_read(APIC_SPIV);
 	apic_pm_state.apic_lvtt = apic_read(APIC_LVTT);
-	apic_pm_state.apic_lvtpc = apic_read(APIC_LVTPC);
+	if (maxlvt >= 4)
+		apic_pm_state.apic_lvtpc = apic_read(APIC_LVTPC);
 	apic_pm_state.apic_lvt0 = apic_read(APIC_LVT0);
 	apic_pm_state.apic_lvt1 = apic_read(APIC_LVT1);
 	apic_pm_state.apic_lvterr = apic_read(APIC_LVTERR);
 	apic_pm_state.apic_tmict = apic_read(APIC_TMICT);
 	apic_pm_state.apic_tdcr = apic_read(APIC_TDCR);
-	apic_pm_state.apic_thmr = apic_read(APIC_LVTTHMR);
+#ifdef CONFIG_X86_MCE_P4THERMAL
+	if (maxlvt >= 5)
+		apic_pm_state.apic_thmr = apic_read(APIC_LVTTHMR);
+#endif
 	
 	local_irq_save(flags);
 	disable_local_APIC();
@@ -675,9 +682,12 @@ static int lapic_resume(struct sys_device *dev)
 {
 	unsigned int l, h;
 	unsigned long flags;
+	int maxlvt;
 
 	if (!apic_pm_state.active)
 		return 0;
+
+	maxlvt = get_maxlvt();
 
 	local_irq_save(flags);
 
@@ -700,8 +710,12 @@ static int lapic_resume(struct sys_device *dev)
 	apic_write(APIC_SPIV, apic_pm_state.apic_spiv);
 	apic_write(APIC_LVT0, apic_pm_state.apic_lvt0);
 	apic_write(APIC_LVT1, apic_pm_state.apic_lvt1);
-	apic_write(APIC_LVTTHMR, apic_pm_state.apic_thmr);
-	apic_write(APIC_LVTPC, apic_pm_state.apic_lvtpc);
+#ifdef CONFIG_X86_MCE_P4THERMAL
+	if (maxlvt >= 5)
+		apic_write(APIC_LVTTHMR, apic_pm_state.apic_thmr);
+#endif
+	if (maxlvt >= 4)
+		apic_write(APIC_LVTPC, apic_pm_state.apic_lvtpc);
 	apic_write(APIC_LVTT, apic_pm_state.apic_lvtt);
 	apic_write(APIC_TDCR, apic_pm_state.apic_tdcr);
 	apic_write(APIC_TMICT, apic_pm_state.apic_tmict);
@@ -1193,11 +1207,11 @@ EXPORT_SYMBOL(switch_ipi_to_APIC_timer);
  * value into /proc/profile.
  */
 
-inline void smp_local_timer_interrupt(struct pt_regs * regs)
+inline void smp_local_timer_interrupt(void)
 {
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 #ifdef CONFIG_SMP
-	update_process_times(user_mode_vm(regs));
+	update_process_times(user_mode_vm(get_irq_regs()));
 #endif
 
 	/*
@@ -1223,6 +1237,7 @@ inline void smp_local_timer_interrupt(struct pt_regs * regs)
 
 fastcall void smp_apic_timer_interrupt(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	int cpu = smp_processor_id();
 
 	/*
@@ -1241,12 +1256,13 @@ fastcall void smp_apic_timer_interrupt(struct pt_regs *regs)
 	 * interrupt lock, which is the WrongThing (tm) to do.
 	 */
 	irq_enter();
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 #ifndef CONFIG_SMP
-static void up_apic_timer_interrupt_call(struct pt_regs *regs)
+static void up_apic_timer_interrupt_call(void)
 {
 	int cpu = smp_processor_id();
 
@@ -1255,11 +1271,11 @@ static void up_apic_timer_interrupt_call(struct pt_regs *regs)
 	 */
 	per_cpu(irq_stat, cpu).apic_timer_irqs++;
 
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 }
 #endif
 
-void smp_send_timer_broadcast_ipi(struct pt_regs *regs)
+void smp_send_timer_broadcast_ipi(void)
 {
 	cpumask_t mask;
 
@@ -1272,7 +1288,7 @@ void smp_send_timer_broadcast_ipi(struct pt_regs *regs)
 		 * We can directly call the apic timer interrupt handler
 		 * in UP case. Minus all irq related functions
 		 */
-		up_apic_timer_interrupt_call(regs);
+		up_apic_timer_interrupt_call();
 #endif
 	}
 }

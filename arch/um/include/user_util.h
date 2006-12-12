@@ -52,7 +52,6 @@ extern int linux_main(int argc, char **argv);
 extern void set_cmdline(char *cmd);
 extern void input_cb(void (*proc)(void *), void *arg, int arg_len);
 extern int get_pty(void);
-extern void *um_kmalloc(int size);
 extern int switcheroo(int fd, int prot, void *from, void *to, int size);
 extern void do_exec(int old_pid, int new_pid);
 extern void tracer_panic(char *msg, ...)

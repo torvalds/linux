@@ -70,7 +70,7 @@ Written by Gerard Roudier <groudier@free.fr>
 15. SCSI problem troubleshooting
       15.1 Problem tracking
       15.2 Understanding hardware error reports
-16. Synchonous transfer negotiation tables
+16. Synchronous transfer negotiation tables
       16.1 Synchronous timings for 53C875 and 53C860 Ultra-SCSI controllers
       16.2 Synchronous timings for fast SCSI-2 53C8XX controllers
 17. Serial NVRAM support (by Richard Waltham)
@@ -96,10 +96,10 @@ The original driver has been written for 386bsd and FreeBSD by:
 It is now available as a bundle of 2 drivers:
 
 - ncr53c8xx generic driver that supports all the SYM53C8XX family including 
-  the ealiest 810 rev. 1, the latest 896 (2 channel LVD SCSI controller) and
+  the earliest 810 rev. 1, the latest 896 (2 channel LVD SCSI controller) and
   the new 895A (1 channel LVD SCSI controller).
 - sym53c8xx enhanced driver (a.k.a. 896 drivers) that drops support of oldest 
-  chips in order to gain advantage of new features, as LOAD/STORE intructions 
+  chips in order to gain advantage of new features, as LOAD/STORE instructions 
   available since the 810A and hardware phase mismatch available with the 
   896 and the 895A.
 
@@ -115,7 +115,7 @@ SCSI standard documentations are available at SYMBIOS ftp server:
 
           ftp://ftp.symbios.com/
 
-Usefull SCSI tools written by Eric Youngdale are available at tsx-11:
+Useful SCSI tools written by Eric Youngdale are available at tsx-11:
 
           ftp://tsx-11.mit.edu/pub/linux/ALPHA/scsi/scsiinfo-X.Y.tar.gz
           ftp://tsx-11.mit.edu/pub/linux/ALPHA/scsi/scsidev-X.Y.tar.gz
@@ -207,7 +207,7 @@ The 896 and the 895A allows handling of the phase mismatch context from
 SCRIPTS (avoids the phase mismatch interrupt that stops the SCSI processor 
 until the C code has saved the context of the transfer).
 Implementing this without using LOAD/STORE instructions would be painfull 
-and I did'nt even want to try it.
+and I didn't even want to try it.
 
 The 896 chip supports 64 bit PCI transactions and addressing, while the 
 895A supports 32 bit PCI transactions and 64 bit addressing.
@@ -631,8 +631,8 @@ string variable using 'insmod'.
 
 A boot setup command for the ncr53c8xx (sym53c8xx) driver begins with the 
 driver name "ncr53c8xx="(sym53c8xx). The kernel syntax parser then expects 
-an optionnal list of integers separated with comma followed by an optional 
-list of  comma-separated strings. Example of boot setup command under lilo 
+an optional list of integers separated with comma followed by an optional 
+list of comma-separated strings. Example of boot setup command under lilo 
 prompt:
 
 lilo: linux root=/dev/hda2 ncr53c8xx=tags:4,sync:10,debug:0x200
@@ -778,7 +778,7 @@ port address 0x1400.
   Some scsi boards use a 875 (ultra wide) and only supply narrow connectors.
   If you have connected a wide device with a 50 pins to 68 pins cable 
   converter, any accepted wide negotiation will break further data transfers.
-  In such a case, using "wide:0" in the bootup command will be helpfull. 
+  In such a case, using "wide:0" in the bootup command will be helpful. 
 
 10.2.14 Differential mode
         diff:0	never set up diff mode
@@ -899,7 +899,7 @@ boot setup can be:
     ncr53c8xx=safe:y,mpar:y
     ncr53c8xx=safe:y
 
-My personnal system works flawlessly with the following equivalent setup:
+My personal system works flawlessly with the following equivalent setup:
 
    ncr53c8xx=mpar:y,spar:y,disc:y,specf:1,fsn:n,ultra:2,fsn:n,revprob:n,verb:1\
              tags:32,sync:12,debug:0,burst:7,led:1,wide:1,settle:2,diff:0,irqm:0
@@ -1151,7 +1151,7 @@ Driver files:
 
 New driver versions are made available separately in order to allow testing 
 changes and new features prior to including them into the linux kernel 
-distribution. The following URL provides informations on latest avalaible 
+distribution. The following URL provides information on latest available 
 patches: 
 
       ftp://ftp.tux.org/pub/people/gerard-roudier/README
@@ -1382,7 +1382,7 @@ SCSI standards, chip cores functionnals and internal driver data structures.
 You are not required to decode and understand them, unless you want to help 
 maintain the driver code.
 
-16. Synchonous transfer negotiation tables
+16. Synchronous transfer negotiation tables
 
 Tables below have been created by calling the routine the driver uses
 for synchronisation negotiation timing calculation and chip setting.

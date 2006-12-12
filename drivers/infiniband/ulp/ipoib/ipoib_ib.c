@@ -355,6 +355,11 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	tx_req->skb = skb;
 	addr = dma_map_single(priv->ca->dma_device, skb->data, skb->len,
 			      DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(addr))) {
+		++priv->stats.tx_errors;
+		dev_kfree_skb_any(skb);
+		return;
+	}
 	pci_unmap_addr_set(tx_req, mapping, addr);
 
 	if (unlikely(post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
@@ -395,10 +400,11 @@ static void __ipoib_reap_ah(struct net_device *dev)
 	spin_unlock_irq(&priv->tx_lock);
 }
 
-void ipoib_reap_ah(void *dev_ptr)
+void ipoib_reap_ah(struct work_struct *work)
 {
-	struct net_device *dev = dev_ptr;
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv =
+		container_of(work, struct ipoib_dev_priv, ah_reap_task.work);
+	struct net_device *dev = priv->dev;
 
 	__ipoib_reap_ah(dev);
 
@@ -608,10 +614,11 @@ int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 	return 0;
 }
 
-void ipoib_ib_dev_flush(void *_dev)
+void ipoib_ib_dev_flush(struct work_struct *work)
 {
-	struct net_device *dev = (struct net_device *)_dev;
-	struct ipoib_dev_priv *priv = netdev_priv(dev), *cpriv;
+	struct ipoib_dev_priv *cpriv, *priv =
+		container_of(work, struct ipoib_dev_priv, flush_task);
+	struct net_device *dev = priv->dev;
 
 	if (!test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags) ) {
 		ipoib_dbg(priv, "Not flushing - IPOIB_FLAG_INITIALIZED not set.\n");
@@ -633,14 +640,14 @@ void ipoib_ib_dev_flush(void *_dev)
 	 */
 	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags)) {
 		ipoib_ib_dev_up(dev);
-		ipoib_mcast_restart_task(dev);
+		ipoib_mcast_restart_task(&priv->restart_task);
 	}
 
 	mutex_lock(&priv->vlan_mutex);
 
 	/* Flush any child interfaces too */
 	list_for_each_entry(cpriv, &priv->child_intfs, list)
-		ipoib_ib_dev_flush(cpriv->dev);
+		ipoib_ib_dev_flush(&cpriv->flush_task);
 
 	mutex_unlock(&priv->vlan_mutex);
 }
@@ -667,10 +674,11 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
  * change async notification is available.
  */
 
-void ipoib_pkey_poll(void *dev_ptr)
+void ipoib_pkey_poll(struct work_struct *work)
 {
-	struct net_device *dev = dev_ptr;
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv =
+		container_of(work, struct ipoib_dev_priv, pkey_task.work);
+	struct net_device *dev = priv->dev;
 
 	ipoib_pkey_dev_check_presence(dev);
 

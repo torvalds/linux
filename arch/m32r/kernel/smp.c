@@ -101,7 +101,7 @@ void smp_call_function_interrupt(void);
 
 void smp_send_timer(void);
 void smp_ipi_timer_interrupt(struct pt_regs *);
-void smp_local_timer_interrupt(struct pt_regs *);
+void smp_local_timer_interrupt(void);
 
 void send_IPI_allbutself(int, int);
 static void send_IPI_mask(cpumask_t, int, int);
@@ -231,7 +231,7 @@ void smp_flush_tlb_all(void)
 	local_irq_save(flags);
 	__flush_tlb_all();
 	local_irq_restore(flags);
-	smp_call_function(flush_tlb_all_ipi, 0, 1, 1);
+	smp_call_function(flush_tlb_all_ipi, NULL, 1, 1);
 	preempt_enable();
 }
 
@@ -734,9 +734,12 @@ void smp_send_timer(void)
  *==========================================================================*/
 void smp_ipi_timer_interrupt(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs;
+	old_regs = set_irq_regs(regs);
 	irq_enter();
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 /*==========================================================================*
@@ -762,9 +765,9 @@ void smp_ipi_timer_interrupt(struct pt_regs *regs)
  * ---------- --- --------------------------------------------------------
  * 2003-06-24 hy  use per_cpu structure.
  *==========================================================================*/
-void smp_local_timer_interrupt(struct pt_regs *regs)
+void smp_local_timer_interrupt(void)
 {
-	int user = user_mode(regs);
+	int user = user_mode(get_irq_regs());
 	int cpu_id = smp_processor_id();
 
 	/*
@@ -774,7 +777,7 @@ void smp_local_timer_interrupt(struct pt_regs *regs)
 	 * useful with a profiling multiplier != 1
 	 */
 
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 
 	if (--per_cpu(prof_counter, cpu_id) <= 0) {
 		/*

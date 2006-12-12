@@ -1,0 +1,20 @@
+What:           /debug/pktcdvd/pktcdvd[0-7]
+Date:           Oct. 2006
+KernelVersion:  2.6.19
+Contact:        Thomas Maier <balagi@justmail.de>
+Description:
+
+debugfs interface
+-----------------
+
+The pktcdvd module (packet writing driver) creates
+these files in debugfs:
+
+/debug/pktcdvd/pktcdvd[0-7]/
+    info            (0444) Lots of human readable driver
+                           statistics and infos. Multiple lines!
+
+Example:
+-------
+
+cat /debug/pktcdvd/pktcdvd0/info

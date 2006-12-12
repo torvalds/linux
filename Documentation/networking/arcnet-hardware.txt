@@ -139,7 +139,7 @@ And now to the cabling.  What you can connect together:
 
 5. An active hub to passive hub.
 
-Remember, that you can not connect two passive hubs together.  The power loss
+Remember that you cannot connect two passive hubs together.  The power loss
 implied by such a connection is too high for the net to operate reliably.
 
 An example of a typical ARCnet network:

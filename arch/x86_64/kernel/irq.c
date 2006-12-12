@@ -74,7 +74,8 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 #endif
-		seq_printf(p, " %14s", irq_desc[i].chip->typename);
+		seq_printf(p, " %8s", irq_desc[i].chip->name);
+		seq_printf(p, "-%-8s", irq_desc[i].name);
 
 		seq_printf(p, "  %s", action->name);
 		for (action=action->next; action; action = action->next)
@@ -102,24 +103,30 @@ skip:
  * handlers).
  */
 asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
-{	
-	/* high bit used in ret_from_ code  */
-	unsigned irq = ~regs->orig_rax;
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
 
-	if (unlikely(irq >= NR_IRQS)) {
-		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
-					__FUNCTION__, irq);
-		BUG();
-	}
+	/* high bit used in ret_from_ code  */
+	unsigned vector = ~regs->orig_rax;
+	unsigned irq;
 
 	exit_idle();
 	irq_enter();
+	irq = __get_cpu_var(vector_irq)[vector];
+
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	stack_overflow_check(regs);
 #endif
-	__do_IRQ(irq, regs);
+
+	if (likely(irq < NR_IRQS))
+		generic_handle_irq(irq);
+	else if (printk_ratelimit())
+		printk(KERN_EMERG "%s: %d.%d No irq handler for vector\n",
+			__func__, smp_processor_id(), vector);
+
 	irq_exit();
 
+	set_irq_regs(old_regs);
 	return 1;
 }
 

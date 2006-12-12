@@ -546,7 +546,7 @@ static inline void hdlc_xpr_irq(struct fritz_bcs *bcs)
 	}
 	bcs->tx_cnt = 0;
 	bcs->tx_skb = NULL;
-	B_L1L2(bcs, PH_DATA | CONFIRM, (void *) skb->truesize);
+	B_L1L2(bcs, PH_DATA | CONFIRM, (void *)(unsigned long)skb->truesize);
 	dev_kfree_skb_irq(skb);
 }
 
@@ -635,7 +635,7 @@ static void fritz_b_l2l1(struct hisax_if *ifc, int pr, void *arg)
 		hdlc_fill_fifo(bcs);
 		break;
 	case PH_ACTIVATE | REQUEST:
-		mode = (int) arg;
+		mode = (long) arg;
 		DBG(4,"B%d,PH_ACTIVATE_REQUEST %d", bcs->channel + 1, mode);
 		modehdlc(bcs, mode);
 		B_L1L2(bcs, PH_ACTIVATE | INDICATION, NULL);
@@ -651,7 +651,7 @@ static void fritz_b_l2l1(struct hisax_if *ifc, int pr, void *arg)
 // ----------------------------------------------------------------------
 
 static irqreturn_t
-fcpci2_irq(int intno, void *dev, struct pt_regs *regs)
+fcpci2_irq(int intno, void *dev)
 {
 	struct fritz_adapter *adapter = dev;
 	unsigned char val;
@@ -671,7 +671,7 @@ fcpci2_irq(int intno, void *dev, struct pt_regs *regs)
 }
 
 static irqreturn_t
-fcpci_irq(int intno, void *dev, struct pt_regs *regs)
+fcpci_irq(int intno, void *dev)
 {
 	struct fritz_adapter *adapter = dev;
 	unsigned char sval;
@@ -841,11 +841,9 @@ new_adapter(void)
 	struct hisax_b_if *b_if[2];
 	int i;
 
-	adapter = kmalloc(sizeof(struct fritz_adapter), GFP_KERNEL);
+	adapter = kzalloc(sizeof(struct fritz_adapter), GFP_KERNEL);
 	if (!adapter)
 		return NULL;
-
-	memset(adapter, 0, sizeof(struct fritz_adapter));
 
 	adapter->isac.hisax_d_if.owner = THIS_MODULE;
 	adapter->isac.hisax_d_if.ifc.priv = &adapter->isac;
@@ -998,18 +996,15 @@ static int __init hisax_fcpcipnp_init(void)
 
 	retval = pci_register_driver(&fcpci_driver);
 	if (retval)
-		goto out;
+		return retval;
 #ifdef __ISAPNP__
 	retval = pnp_register_driver(&fcpnp_driver);
-	if (retval < 0)
-		goto out_unregister_pci;
+	if (retval < 0) {
+		pci_unregister_driver(&fcpci_driver);
+		return retval;
+	}
 #endif
 	return 0;
-
- out_unregister_pci:
-	pci_unregister_driver(&fcpci_driver);
- out:
-	return retval;
 }
 
 static void __exit hisax_fcpcipnp_exit(void)

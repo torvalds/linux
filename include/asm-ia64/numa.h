@@ -69,6 +69,8 @@ extern void unmap_cpu_from_node(int cpu, int nid);
 
 
 #else /* !CONFIG_NUMA */
+#define map_cpu_to_node(cpu, nid)	do{}while(0)
+#define unmap_cpu_from_node(cpu, nid)	do{}while(0)
 
 #define paddr_to_nid(addr)	0
 

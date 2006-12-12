@@ -50,11 +50,10 @@ MODULE_PARM_DESC(ip_list_perms, "permissions on /proc/net/ipt_recent/* files");
 MODULE_PARM_DESC(ip_list_uid,"owner of /proc/net/ipt_recent/* files");
 MODULE_PARM_DESC(ip_list_gid,"owning group of /proc/net/ipt_recent/* files");
 
-
 struct recent_entry {
 	struct list_head	list;
 	struct list_head	lru_list;
-	u_int32_t		addr;
+	__be32			addr;
 	u_int8_t		ttl;
 	u_int8_t		index;
 	u_int16_t		nstamps;
@@ -85,17 +84,17 @@ static struct file_operations	recent_fops;
 static u_int32_t hash_rnd;
 static int hash_rnd_initted;
 
-static unsigned int recent_entry_hash(u_int32_t addr)
+static unsigned int recent_entry_hash(__be32 addr)
 {
 	if (!hash_rnd_initted) {
 		get_random_bytes(&hash_rnd, 4);
 		hash_rnd_initted = 1;
 	}
-	return jhash_1word(addr, hash_rnd) & (ip_list_hash_size - 1);
+	return jhash_1word((__force u32)addr, hash_rnd) & (ip_list_hash_size - 1);
 }
 
 static struct recent_entry *
-recent_entry_lookup(const struct recent_table *table, u_int32_t addr, u_int8_t ttl)
+recent_entry_lookup(const struct recent_table *table, __be32 addr, u_int8_t ttl)
 {
 	struct recent_entry *e;
 	unsigned int h;
@@ -116,7 +115,7 @@ static void recent_entry_remove(struct recent_table *t, struct recent_entry *e)
 }
 
 static struct recent_entry *
-recent_entry_init(struct recent_table *t, u_int32_t addr, u_int8_t ttl)
+recent_entry_init(struct recent_table *t, __be32 addr, u_int8_t ttl)
 {
 	struct recent_entry *e;
 
@@ -178,7 +177,7 @@ ipt_recent_match(const struct sk_buff *skb,
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;
 	struct recent_entry *e;
-	u_int32_t addr;
+	__be32 addr;
 	u_int8_t ttl;
 	int ret = info->invert;
 
@@ -402,11 +401,11 @@ static int recent_seq_open(struct inode *inode, struct file *file)
 static ssize_t recent_proc_write(struct file *file, const char __user *input,
 				 size_t size, loff_t *loff)
 {
-	struct proc_dir_entry *pde = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	struct recent_table *t = pde->data;
 	struct recent_entry *e;
 	char buf[sizeof("+255.255.255.255")], *c = buf;
-	u_int32_t addr;
+	__be32 addr;
 	int add;
 
 	if (size > sizeof(buf))

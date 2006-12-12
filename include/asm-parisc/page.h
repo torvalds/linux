@@ -26,24 +26,10 @@
 
 struct page;
 
-extern void purge_kernel_dcache_page(unsigned long);
-extern void copy_user_page_asm(void *to, void *from);
-extern void clear_user_page_asm(void *page, unsigned long vaddr);
-
-static inline void
-copy_user_page(void *vto, void *vfrom, unsigned long vaddr, struct page *pg)
-{
-	copy_user_page_asm(vto, vfrom);
-	flush_kernel_dcache_page_asm(vto);
-	/* XXX: ppc flushes icache too, should we? */
-}
-
-static inline void
-clear_user_page(void *page, unsigned long vaddr, struct page *pg)
-{
-	purge_kernel_dcache_page((unsigned long)page);
-	clear_user_page_asm(page, vaddr);
-}
+void copy_user_page_asm(void *to, void *from);
+void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
+			   struct page *pg);
+void clear_user_page(void *page, unsigned long vaddr, struct page *pg);
 
 /*
  * These are used to make use of C type-checking..

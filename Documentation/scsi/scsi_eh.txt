@@ -75,7 +75,7 @@ with the command.
 
  - otherwise
 	scsi_eh_scmd_add(scmd, 0) is invoked for the command.  See
-	[1-3] for details of this funciton.
+	[1-3] for details of this function.
 
 
 [1-2-2] Completing a scmd w/ timeout
@@ -160,7 +160,7 @@ ways.
  - Fine-grained EH callbacks
 	LLDD can implement fine-grained EH callbacks and let SCSI
 	midlayer drive error handling and call appropriate callbacks.
-	This will be dicussed further in [2-1].
+	This will be discussed further in [2-1].
 
  - eh_strategy_handler() callback
 	This is one big callback which should perform whole error
@@ -194,7 +194,7 @@ lower layers and lower layers are ready to process or fail the scmd
 again.
 
  To achieve these goals, EH performs recovery actions with increasing
-severity.  Some actions are performed by issueing SCSI commands and
+severity.  Some actions are performed by issuing SCSI commands and
 others are performed by invoking one of the following fine-grained
 hostt EH callbacks.  Callbacks may be omitted and omitted ones are
 considered to fail always.

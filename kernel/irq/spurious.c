@@ -16,7 +16,7 @@ static int irqfixup __read_mostly;
 /*
  * Recovery handler for misrouted interrupts.
  */
-static int misrouted_irq(int irq, struct pt_regs *regs)
+static int misrouted_irq(int irq)
 {
 	int i;
 	int ok = 0;
@@ -49,7 +49,7 @@ static int misrouted_irq(int irq, struct pt_regs *regs)
 		while (action) {
 			/* Only shared IRQ handlers are safe to call */
 			if (action->flags & IRQF_SHARED) {
-				if (action->handler(i, action->dev_id, regs) ==
+				if (action->handler(i, action->dev_id) ==
 						IRQ_HANDLED)
 					ok = 1;
 			}
@@ -70,7 +70,7 @@ static int misrouted_irq(int irq, struct pt_regs *regs)
 			 */
 			work = 1;
 			spin_unlock(&desc->lock);
-			handle_IRQ_event(i, regs, action);
+			handle_IRQ_event(i, action);
 			spin_lock(&desc->lock);
 			desc->status &= ~IRQ_PENDING;
 		}
@@ -136,7 +136,7 @@ report_bad_irq(unsigned int irq, struct irq_desc *desc, irqreturn_t action_ret)
 }
 
 void note_interrupt(unsigned int irq, struct irq_desc *desc,
-		    irqreturn_t action_ret, struct pt_regs *regs)
+		    irqreturn_t action_ret)
 {
 	if (unlikely(action_ret != IRQ_HANDLED)) {
 		desc->irqs_unhandled++;
@@ -147,7 +147,7 @@ void note_interrupt(unsigned int irq, struct irq_desc *desc,
 	if (unlikely(irqfixup)) {
 		/* Don't punish working computers */
 		if ((irqfixup == 2 && irq == 0) || action_ret == IRQ_NONE) {
-			int ok = misrouted_irq(irq, regs);
+			int ok = misrouted_irq(irq);
 			if (action_ret == IRQ_NONE)
 				desc->irqs_unhandled -= ok;
 		}

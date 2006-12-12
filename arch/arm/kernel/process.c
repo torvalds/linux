@@ -221,16 +221,26 @@ void __show_regs(struct pt_regs *regs)
 		processor_modes[processor_mode(regs)],
 		thumb_mode(regs) ? " (T)" : "",
 		get_fs() == get_ds() ? "kernel" : "user");
+#if CONFIG_CPU_CP15
 	{
-		unsigned int ctrl, transbase, dac;
+		unsigned int ctrl;
 		  __asm__ (
 		"	mrc p15, 0, %0, c1, c0\n"
-		"	mrc p15, 0, %1, c2, c0\n"
-		"	mrc p15, 0, %2, c3, c0\n"
-		: "=r" (ctrl), "=r" (transbase), "=r" (dac));
-		printk("Control: %04X  Table: %08X  DAC: %08X\n",
-		  	ctrl, transbase, dac);
+		: "=r" (ctrl));
+		printk("Control: %04X\n", ctrl);
 	}
+#ifdef CONFIG_CPU_CP15_MMU
+	{
+		unsigned int transbase, dac;
+		  __asm__ (
+		"	mrc p15, 0, %0, c2, c0\n"
+		"	mrc p15, 0, %1, c3, c0\n"
+		: "=r" (transbase), "=r" (dac));
+		printk("Table: %08X  DAC: %08X\n",
+		  	transbase, dac);
+	}
+#endif
+#endif
 }
 
 void show_regs(struct pt_regs * regs)
@@ -268,67 +278,6 @@ void show_fpregs(struct user_fp *regs)
 	printk("FPSR: %08lx FPCR: %08lx\n",
 		(unsigned long)regs->fpsr,
 		(unsigned long)regs->fpcr);
-}
-
-/*
- * Task structure and kernel stack allocation.
- */
-struct thread_info_list {
-	unsigned long *head;
-	unsigned int nr;
-};
-
-static DEFINE_PER_CPU(struct thread_info_list, thread_info_list) = { NULL, 0 };
-
-#define EXTRA_TASK_STRUCT	4
-
-struct thread_info *alloc_thread_info(struct task_struct *task)
-{
-	struct thread_info *thread = NULL;
-
-	if (EXTRA_TASK_STRUCT) {
-		struct thread_info_list *th = &get_cpu_var(thread_info_list);
-		unsigned long *p = th->head;
-
-		if (p) {
-			th->head = (unsigned long *)p[0];
-			th->nr -= 1;
-		}
-		put_cpu_var(thread_info_list);
-
-		thread = (struct thread_info *)p;
-	}
-
-	if (!thread)
-		thread = (struct thread_info *)
-			   __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
-
-#ifdef CONFIG_DEBUG_STACK_USAGE
-	/*
-	 * The stack must be cleared if you want SYSRQ-T to
-	 * give sensible stack usage information
-	 */
-	if (thread)
-		memzero(thread, THREAD_SIZE);
-#endif
-	return thread;
-}
-
-void free_thread_info(struct thread_info *thread)
-{
-	if (EXTRA_TASK_STRUCT) {
-		struct thread_info_list *th = &get_cpu_var(thread_info_list);
-		if (th->nr < EXTRA_TASK_STRUCT) {
-			unsigned long *p = (unsigned long *)thread;
-			p[0] = (unsigned long)th->head;
-			th->head = p;
-			th->nr += 1;
-			put_cpu_var(thread_info_list);
-			return;
-		}
-		put_cpu_var(thread_info_list);
-	}
-	free_pages((unsigned long)thread, THREAD_SIZE_ORDER);
 }
 
 /*

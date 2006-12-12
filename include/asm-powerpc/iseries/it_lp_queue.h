@@ -72,7 +72,7 @@ struct hvlpevent_queue {
 extern struct hvlpevent_queue hvlpevent_queue;
 
 extern int hvlpevent_is_pending(void);
-extern void process_hvlpevents(struct pt_regs *);
+extern void process_hvlpevents(void);
 extern void setup_hvlpevent_queue(void);
 
 #endif /* _ASM_POWERPC_ISERIES_IT_LP_QUEUE_H */

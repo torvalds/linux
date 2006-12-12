@@ -174,9 +174,6 @@ typedef unsigned long pgprot_t;
 
 #endif /* STRICT_MM_TYPECHECKS */
 
-/* the upper-most page table pointer */
-extern pmd_t *top_pmd;
-
 #endif /* CONFIG_MMU */
 
 #include <asm/memory.h>

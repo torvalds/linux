@@ -43,10 +43,10 @@ typedef enum {
 extern runlist_element *ntfs_cluster_alloc(ntfs_volume *vol,
 		const VCN start_vcn, const s64 count, const LCN start_lcn,
 		const NTFS_CLUSTER_ALLOCATION_ZONES zone,
-		const BOOL is_extension);
+		const bool is_extension);
 
 extern s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn,
-		s64 count, ntfs_attr_search_ctx *ctx, const BOOL is_rollback);
+		s64 count, ntfs_attr_search_ctx *ctx, const bool is_rollback);
 
 /**
  * ntfs_cluster_free - free clusters on an ntfs volume
@@ -86,7 +86,7 @@ extern s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn,
  * success and -errno on error.
  *
  * WARNING: If @ctx is supplied, regardless of whether success or failure is
- *	    returned, you need to check IS_ERR(@ctx->mrec) and if TRUE the @ctx
+ *	    returned, you need to check IS_ERR(@ctx->mrec) and if 'true' the @ctx
  *	    is no longer valid, i.e. you need to either call
  *	    ntfs_attr_reinit_search_ctx() or ntfs_attr_put_search_ctx() on it.
  *	    In that case PTR_ERR(@ctx->mrec) will give you the error code for
@@ -107,7 +107,7 @@ extern s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn,
 static inline s64 ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn,
 		s64 count, ntfs_attr_search_ctx *ctx)
 {
-	return __ntfs_cluster_free(ni, start_vcn, count, ctx, FALSE);
+	return __ntfs_cluster_free(ni, start_vcn, count, ctx, false);
 }
 
 extern int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,

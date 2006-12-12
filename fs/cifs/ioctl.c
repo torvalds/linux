@@ -22,7 +22,6 @@
  */
 
 #include <linux/fs.h>
-#include <linux/ext2_fs.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
@@ -74,7 +73,7 @@ int cifs_ioctl (struct inode * inode, struct file * filep,
 			}
 			break;
 #ifdef CONFIG_CIFS_POSIX
-		case EXT2_IOC_GETFLAGS:
+		case FS_IOC_GETFLAGS:
 			if(CIFS_UNIX_EXTATTR_CAP & caps) {
 				if (pSMBFile == NULL)
 					break;
@@ -82,12 +81,12 @@ int cifs_ioctl (struct inode * inode, struct file * filep,
 					&ExtAttrBits, &ExtAttrMask);
 				if(rc == 0)
 					rc = put_user(ExtAttrBits &
-						EXT2_FL_USER_VISIBLE,
+						FS_FL_USER_VISIBLE,
 						(int __user *)arg);
 			}
 			break;
 
-		case EXT2_IOC_SETFLAGS:
+		case FS_IOC_SETFLAGS:
 			if(CIFS_UNIX_EXTATTR_CAP & caps) {
 				if(get_user(ExtAttrBits,(int __user *)arg)) {
 					rc = -EFAULT;

@@ -82,14 +82,16 @@ iop3xx_i2c_enable(struct i2c_algo_iop3xx_data *iop3xx_adap)
 
 	/* 
 	 * Every time unit enable is asserted, GPOD needs to be cleared
-	 * on IOP321 to avoid data corruption on the bus.
+	 * on IOP3XX to avoid data corruption on the bus.
 	 */
-#ifdef CONFIG_ARCH_IOP321
-#define IOP321_GPOD_I2C0    0x00c0  /* clear these bits to enable ch0 */
-#define IOP321_GPOD_I2C1    0x0030  /* clear these bits to enable ch1 */
-
-	*IOP321_GPOD &= (iop3xx_adap->id == 0) ? ~IOP321_GPOD_I2C0 : 
-		~IOP321_GPOD_I2C1;
+#ifdef CONFIG_PLAT_IOP
+	if (iop3xx_adap->id == 0) {
+		gpio_line_set(IOP3XX_GPIO_LINE(7), GPIO_LOW);
+		gpio_line_set(IOP3XX_GPIO_LINE(6), GPIO_LOW);
+	} else {
+		gpio_line_set(IOP3XX_GPIO_LINE(5), GPIO_LOW);
+		gpio_line_set(IOP3XX_GPIO_LINE(4), GPIO_LOW);
+	}
 #endif
 	/* NB SR bits not same position as CR IE bits :-( */
 	iop3xx_adap->SR_enabled = 
@@ -118,7 +120,7 @@ iop3xx_i2c_transaction_cleanup(struct i2c_algo_iop3xx_data *iop3xx_adap)
  * Then it passes the SR flags of interest to BH via adap data
  */
 static irqreturn_t 
-iop3xx_i2c_irq_handler(int this_irq, void *dev_id, struct pt_regs *regs) 
+iop3xx_i2c_irq_handler(int this_irq, void *dev_id) 
 {
 	struct i2c_algo_iop3xx_data *iop3xx_adap = dev_id;
 	u32 sr = __raw_readl(iop3xx_adap->ioaddr + SR_OFFSET);
@@ -401,7 +403,7 @@ iop3xx_i2c_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm iop3xx_i2c_algo = {
+static const struct i2c_algorithm iop3xx_i2c_algo = {
 	.master_xfer	= iop3xx_i2c_master_xfer,
 	.algo_control	= iop3xx_i2c_algo_control,
 	.functionality	= iop3xx_i2c_func,

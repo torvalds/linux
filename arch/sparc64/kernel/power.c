@@ -4,8 +4,6 @@
  * Copyright (C) 1999 David S. Miller (davem@redhat.com)
  */
 
-#define __KERNEL_SYSCALLS__
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -14,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/pm.h>
+#include <linux/syscalls.h>
 
 #include <asm/system.h>
 #include <asm/auxio.h>
@@ -36,7 +35,7 @@ static void __iomem *power_reg;
 static DECLARE_WAIT_QUEUE_HEAD(powerd_wait);
 static int button_pressed;
 
-static irqreturn_t power_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t power_handler(int irq, void *dev_id)
 {
 	if (button_pressed == 0) {
 		button_pressed = 1;
@@ -98,7 +97,7 @@ again:
 
 	/* Ok, down we go... */
 	button_pressed = 0;
-	if (execve("/sbin/shutdown", argv, envp) < 0) {
+	if (kernel_execve("/sbin/shutdown", argv, envp) < 0) {
 		printk("powerd: shutdown execution failed\n");
 		add_wait_queue(&powerd_wait, &wait);
 		goto again;

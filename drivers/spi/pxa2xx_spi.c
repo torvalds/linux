@@ -49,6 +49,14 @@ MODULE_LICENSE("GPL");
 #define RESET_DMA_CHANNEL (DCSR_NODESC | DMA_INT_MASK)
 #define IS_DMA_ALIGNED(x) (((u32)(x)&0x07)==0)
 
+/* for testing SSCR1 changes that require SSP restart, basically
+ * everything except the service and interrupt enables */
+#define SSCR1_CHANGE_MASK (SSCR1_TTELP | SSCR1_TTE | SSCR1_EBCEI | SSCR1_SCFR \
+				| SSCR1_ECRA | SSCR1_ECRB | SSCR1_SCLKDIR \
+				| SSCR1_RWOT | SSCR1_TRAIL | SSCR1_PINTE \
+				| SSCR1_STRF | SSCR1_EFWR |SSCR1_RFT \
+				| SSCR1_TFT | SSCR1_SPH | SSCR1_SPO | SSCR1_LBM)
+
 #define DEFINE_SSP_REG(reg, off) \
 static inline u32 read_##reg(void *p) { return __raw_readl(p + (off)); } \
 static inline void write_##reg(u32 v, void *p) { __raw_writel(v, p + (off)); }
@@ -123,8 +131,8 @@ struct driver_data {
 	u8 n_bytes;
 	u32 dma_width;
 	int cs_change;
-	void (*write)(struct driver_data *drv_data);
-	void (*read)(struct driver_data *drv_data);
+	int (*write)(struct driver_data *drv_data);
+	int (*read)(struct driver_data *drv_data);
 	irqreturn_t (*transfer_handler)(struct driver_data *drv_data);
 	void (*cs_control)(u32 command);
 };
@@ -132,7 +140,6 @@ struct driver_data {
 struct chip_data {
 	u32 cr0;
 	u32 cr1;
-	u32 to;
 	u32 psp;
 	u32 timeout;
 	u8 n_bytes;
@@ -143,12 +150,12 @@ struct chip_data {
 	u8 enable_dma;
 	u8 bits_per_word;
 	u32 speed_hz;
-	void (*write)(struct driver_data *drv_data);
-	void (*read)(struct driver_data *drv_data);
+	int (*write)(struct driver_data *drv_data);
+	int (*read)(struct driver_data *drv_data);
 	void (*cs_control)(u32 command);
 };
 
-static void pump_messages(void *data);
+static void pump_messages(struct work_struct *work);
 
 static int flush(struct driver_data *drv_data)
 {
@@ -166,114 +173,118 @@ static int flush(struct driver_data *drv_data)
 	return limit;
 }
 
-static void restore_state(struct driver_data *drv_data)
-{
-	void *reg = drv_data->ioaddr;
-
-	/* Clear status and disable clock */
-	write_SSSR(drv_data->clear_sr, reg);
-	write_SSCR0(drv_data->cur_chip->cr0 & ~SSCR0_SSE, reg);
-
-	/* Load the registers */
-	write_SSCR1(drv_data->cur_chip->cr1, reg);
-	write_SSCR0(drv_data->cur_chip->cr0, reg);
-	if (drv_data->ssp_type != PXA25x_SSP) {
-		write_SSTO(0, reg);
-		write_SSPSP(drv_data->cur_chip->psp, reg);
-	}
-}
-
 static void null_cs_control(u32 command)
 {
 }
 
-static void null_writer(struct driver_data *drv_data)
+static int null_writer(struct driver_data *drv_data)
 {
 	void *reg = drv_data->ioaddr;
 	u8 n_bytes = drv_data->n_bytes;
 
-	while ((read_SSSR(reg) & SSSR_TNF)
-			&& (drv_data->tx < drv_data->tx_end)) {
-		write_SSDR(0, reg);
-		drv_data->tx += n_bytes;
-	}
+	if (((read_SSSR(reg) & 0x00000f00) == 0x00000f00)
+		|| (drv_data->tx == drv_data->tx_end))
+		return 0;
+
+	write_SSDR(0, reg);
+	drv_data->tx += n_bytes;
+
+	return 1;
 }
 
-static void null_reader(struct driver_data *drv_data)
+static int null_reader(struct driver_data *drv_data)
 {
 	void *reg = drv_data->ioaddr;
 	u8 n_bytes = drv_data->n_bytes;
 
 	while ((read_SSSR(reg) & SSSR_RNE)
-			&& (drv_data->rx < drv_data->rx_end)) {
+		&& (drv_data->rx < drv_data->rx_end)) {
 		read_SSDR(reg);
 		drv_data->rx += n_bytes;
 	}
+
+	return drv_data->rx == drv_data->rx_end;
 }
 
-static void u8_writer(struct driver_data *drv_data)
+static int u8_writer(struct driver_data *drv_data)
 {
 	void *reg = drv_data->ioaddr;
 
-	while ((read_SSSR(reg) & SSSR_TNF)
-			&& (drv_data->tx < drv_data->tx_end)) {
-		write_SSDR(*(u8 *)(drv_data->tx), reg);
-		++drv_data->tx;
-	}
+	if (((read_SSSR(reg) & 0x00000f00) == 0x00000f00)
+		|| (drv_data->tx == drv_data->tx_end))
+		return 0;
+
+	write_SSDR(*(u8 *)(drv_data->tx), reg);
+	++drv_data->tx;
+
+	return 1;
 }
 
-static void u8_reader(struct driver_data *drv_data)
+static int u8_reader(struct driver_data *drv_data)
 {
 	void *reg = drv_data->ioaddr;
 
 	while ((read_SSSR(reg) & SSSR_RNE)
-			&& (drv_data->rx < drv_data->rx_end)) {
+		&& (drv_data->rx < drv_data->rx_end)) {
 		*(u8 *)(drv_data->rx) = read_SSDR(reg);
 		++drv_data->rx;
 	}
+
+	return drv_data->rx == drv_data->rx_end;
 }
 
-static void u16_writer(struct driver_data *drv_data)
+static int u16_writer(struct driver_data *drv_data)
 {
 	void *reg = drv_data->ioaddr;
 
-	while ((read_SSSR(reg) & SSSR_TNF)
-			&& (drv_data->tx < drv_data->tx_end)) {
-		write_SSDR(*(u16 *)(drv_data->tx), reg);
-		drv_data->tx += 2;
-	}
+	if (((read_SSSR(reg) & 0x00000f00) == 0x00000f00)
+		|| (drv_data->tx == drv_data->tx_end))
+		return 0;
+
+	write_SSDR(*(u16 *)(drv_data->tx), reg);
+	drv_data->tx += 2;
+
+	return 1;
 }
 
-static void u16_reader(struct driver_data *drv_data)
+static int u16_reader(struct driver_data *drv_data)
 {
 	void *reg = drv_data->ioaddr;
 
 	while ((read_SSSR(reg) & SSSR_RNE)
-			&& (drv_data->rx < drv_data->rx_end)) {
+		&& (drv_data->rx < drv_data->rx_end)) {
 		*(u16 *)(drv_data->rx) = read_SSDR(reg);
 		drv_data->rx += 2;
 	}
+
+	return drv_data->rx == drv_data->rx_end;
 }
-static void u32_writer(struct driver_data *drv_data)
+
+static int u32_writer(struct driver_data *drv_data)
 {
 	void *reg = drv_data->ioaddr;
 
-	while ((read_SSSR(reg) & SSSR_TNF)
-			&& (drv_data->tx < drv_data->tx_end)) {
-		write_SSDR(*(u32 *)(drv_data->tx), reg);
-		drv_data->tx += 4;
-	}
+	if (((read_SSSR(reg) & 0x00000f00) == 0x00000f00)
+		|| (drv_data->tx == drv_data->tx_end))
+		return 0;
+
+	write_SSDR(*(u32 *)(drv_data->tx), reg);
+	drv_data->tx += 4;
+
+	return 1;
 }
 
-static void u32_reader(struct driver_data *drv_data)
+static int u32_reader(struct driver_data *drv_data)
 {
 	void *reg = drv_data->ioaddr;
 
 	while ((read_SSSR(reg) & SSSR_RNE)
-			&& (drv_data->rx < drv_data->rx_end)) {
+		&& (drv_data->rx < drv_data->rx_end)) {
 		*(u32 *)(drv_data->rx) = read_SSDR(reg);
 		drv_data->rx += 4;
 	}
+
+	return drv_data->rx == drv_data->rx_end;
 }
 
 static void *next_transfer(struct driver_data *drv_data)
@@ -409,166 +420,134 @@ static int wait_dma_channel_stop(int channel)
 	return limit;
 }
 
-static void dma_handler(int channel, void *data, struct pt_regs *regs)
+void dma_error_stop(struct driver_data *drv_data, const char *msg)
+{
+	void *reg = drv_data->ioaddr;
+
+	/* Stop and reset */
+	DCSR(drv_data->rx_channel) = RESET_DMA_CHANNEL;
+	DCSR(drv_data->tx_channel) = RESET_DMA_CHANNEL;
+	write_SSSR(drv_data->clear_sr, reg);
+	write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
+	if (drv_data->ssp_type != PXA25x_SSP)
+		write_SSTO(0, reg);
+	flush(drv_data);
+	write_SSCR0(read_SSCR0(reg) & ~SSCR0_SSE, reg);
+
+	unmap_dma_buffers(drv_data);
+
+	dev_err(&drv_data->pdev->dev, "%s\n", msg);
+
+	drv_data->cur_msg->state = ERROR_STATE;
+	tasklet_schedule(&drv_data->pump_transfers);
+}
+
+static void dma_transfer_complete(struct driver_data *drv_data)
+{
+	void *reg = drv_data->ioaddr;
+	struct spi_message *msg = drv_data->cur_msg;
+
+	/* Clear and disable interrupts on SSP and DMA channels*/
+	write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
+	write_SSSR(drv_data->clear_sr, reg);
+	DCSR(drv_data->tx_channel) = RESET_DMA_CHANNEL;
+	DCSR(drv_data->rx_channel) = RESET_DMA_CHANNEL;
+
+	if (wait_dma_channel_stop(drv_data->rx_channel) == 0)
+		dev_err(&drv_data->pdev->dev,
+			"dma_handler: dma rx channel stop failed\n");
+
+	if (wait_ssp_rx_stall(drv_data->ioaddr) == 0)
+		dev_err(&drv_data->pdev->dev,
+			"dma_transfer: ssp rx stall failed\n");
+
+	unmap_dma_buffers(drv_data);
+
+	/* update the buffer pointer for the amount completed in dma */
+	drv_data->rx += drv_data->len -
+			(DCMD(drv_data->rx_channel) & DCMD_LENGTH);
+
+	/* read trailing data from fifo, it does not matter how many
+	 * bytes are in the fifo just read until buffer is full
+	 * or fifo is empty, which ever occurs first */
+	drv_data->read(drv_data);
+
+	/* return count of what was actually read */
+	msg->actual_length += drv_data->len -
+				(drv_data->rx_end - drv_data->rx);
+
+	/* Release chip select if requested, transfer delays are
+	 * handled in pump_transfers */
+	if (drv_data->cs_change)
+		drv_data->cs_control(PXA2XX_CS_DEASSERT);
+
+	/* Move to next transfer */
+	msg->state = next_transfer(drv_data);
+
+	/* Schedule transfer tasklet */
+	tasklet_schedule(&drv_data->pump_transfers);
+}
+
+static void dma_handler(int channel, void *data)
 {
 	struct driver_data *drv_data = data;
-	struct spi_message *msg = drv_data->cur_msg;
-	void *reg = drv_data->ioaddr;
 	u32 irq_status = DCSR(channel) & DMA_INT_MASK;
-	u32 trailing_sssr = 0;
 
 	if (irq_status & DCSR_BUSERR) {
 
-		/* Disable interrupts, clear status and reset DMA */
-		write_SSCR0(read_SSCR0(reg) & ~SSCR0_SSE, reg);
-		write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
-		if (drv_data->ssp_type != PXA25x_SSP)
-			write_SSTO(0, reg);
-		write_SSSR(drv_data->clear_sr, reg);
-		DCSR(drv_data->rx_channel) = RESET_DMA_CHANNEL;
-		DCSR(drv_data->tx_channel) = RESET_DMA_CHANNEL;
-
-		if (flush(drv_data) == 0)
-			dev_err(&drv_data->pdev->dev,
-					"dma_handler: flush fail\n");
-
-		unmap_dma_buffers(drv_data);
-
 		if (channel == drv_data->tx_channel)
-			dev_err(&drv_data->pdev->dev,
-				"dma_handler: bad bus address on "
-				"tx channel %d, source %x target = %x\n",
-				channel, DSADR(channel), DTADR(channel));
+			dma_error_stop(drv_data,
+					"dma_handler: "
+					"bad bus address on tx channel");
 		else
-			dev_err(&drv_data->pdev->dev,
-				"dma_handler: bad bus address on "
-				"rx channel %d, source %x target = %x\n",
-				channel, DSADR(channel), DTADR(channel));
-
-		msg->state = ERROR_STATE;
-		tasklet_schedule(&drv_data->pump_transfers);
+			dma_error_stop(drv_data,
+					"dma_handler: "
+					"bad bus address on rx channel");
+		return;
 	}
 
 	/* PXA255x_SSP has no timeout interrupt, wait for tailing bytes */
-	if ((drv_data->ssp_type == PXA25x_SSP)
-		&& (channel == drv_data->tx_channel)
-		&& (irq_status & DCSR_ENDINTR)) {
+	if ((channel == drv_data->tx_channel)
+		&& (irq_status & DCSR_ENDINTR)
+		&& (drv_data->ssp_type == PXA25x_SSP)) {
 
 		/* Wait for rx to stall */
 		if (wait_ssp_rx_stall(drv_data->ioaddr) == 0)
 			dev_err(&drv_data->pdev->dev,
 				"dma_handler: ssp rx stall failed\n");
 
-		/* Clear and disable interrupts on SSP and DMA channels*/
-		write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
-		write_SSSR(drv_data->clear_sr, reg);
-		DCSR(drv_data->tx_channel) = RESET_DMA_CHANNEL;
-		DCSR(drv_data->rx_channel) = RESET_DMA_CHANNEL;
-		if (wait_dma_channel_stop(drv_data->rx_channel) == 0)
-			dev_err(&drv_data->pdev->dev,
-				"dma_handler: dma rx channel stop failed\n");
-
-		unmap_dma_buffers(drv_data);
-
-		/* Read trailing bytes */
-		/* Calculate number of trailing bytes, read them */
-		trailing_sssr = read_SSSR(reg);
-		if ((trailing_sssr & 0xf008) != 0xf000) {
-			drv_data->rx = drv_data->rx_end -
-					(((trailing_sssr >> 12) & 0x0f) + 1);
-			drv_data->read(drv_data);
-		}
-		msg->actual_length += drv_data->len;
-
-		/* Release chip select if requested, transfer delays are
-		 * handled in pump_transfers */
-		if (drv_data->cs_change)
-			drv_data->cs_control(PXA2XX_CS_DEASSERT);
-
-		/* Move to next transfer */
-		msg->state = next_transfer(drv_data);
-
-		/* Schedule transfer tasklet */
-		tasklet_schedule(&drv_data->pump_transfers);
+		/* finish this transfer, start the next */
+		dma_transfer_complete(drv_data);
 	}
 }
 
 static irqreturn_t dma_transfer(struct driver_data *drv_data)
 {
 	u32 irq_status;
-	u32 trailing_sssr = 0;
-	struct spi_message *msg = drv_data->cur_msg;
 	void *reg = drv_data->ioaddr;
 
 	irq_status = read_SSSR(reg) & drv_data->mask_sr;
 	if (irq_status & SSSR_ROR) {
-		/* Clear and disable interrupts on SSP and DMA channels*/
-		write_SSCR0(read_SSCR0(reg) & ~SSCR0_SSE, reg);
-		write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
-		if (drv_data->ssp_type != PXA25x_SSP)
-			write_SSTO(0, reg);
-		write_SSSR(drv_data->clear_sr, reg);
-		DCSR(drv_data->tx_channel) = RESET_DMA_CHANNEL;
-		DCSR(drv_data->rx_channel) = RESET_DMA_CHANNEL;
-		unmap_dma_buffers(drv_data);
-
-		if (flush(drv_data) == 0)
-			dev_err(&drv_data->pdev->dev,
-					"dma_transfer: flush fail\n");
-
-		dev_warn(&drv_data->pdev->dev, "dma_transfer: fifo overun\n");
-
-		drv_data->cur_msg->state = ERROR_STATE;
-		tasklet_schedule(&drv_data->pump_transfers);
-
+		dma_error_stop(drv_data, "dma_transfer: fifo overrun");
 		return IRQ_HANDLED;
 	}
 
 	/* Check for false positive timeout */
-	if ((irq_status & SSSR_TINT) && DCSR(drv_data->tx_channel) & DCSR_RUN) {
+	if ((irq_status & SSSR_TINT)
+		&& (DCSR(drv_data->tx_channel) & DCSR_RUN)) {
 		write_SSSR(SSSR_TINT, reg);
 		return IRQ_HANDLED;
 	}
 
 	if (irq_status & SSSR_TINT || drv_data->rx == drv_data->rx_end) {
 
-		/* Clear and disable interrupts on SSP and DMA channels*/
-		write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
+		/* Clear and disable timeout interrupt, do the rest in
+		 * dma_transfer_complete */
 		if (drv_data->ssp_type != PXA25x_SSP)
 			write_SSTO(0, reg);
-		write_SSSR(drv_data->clear_sr, reg);
-		DCSR(drv_data->tx_channel) = RESET_DMA_CHANNEL;
-		DCSR(drv_data->rx_channel) = RESET_DMA_CHANNEL;
 
-		if (wait_dma_channel_stop(drv_data->rx_channel) == 0)
-			dev_err(&drv_data->pdev->dev,
-				"dma_transfer: dma rx channel stop failed\n");
-
-		if (wait_ssp_rx_stall(drv_data->ioaddr) == 0)
-			dev_err(&drv_data->pdev->dev,
-				"dma_transfer: ssp rx stall failed\n");
-
-		unmap_dma_buffers(drv_data);
-
-		/* Calculate number of trailing bytes, read them */
-		trailing_sssr = read_SSSR(reg);
-		if ((trailing_sssr & 0xf008) != 0xf000) {
-			drv_data->rx = drv_data->rx_end -
-					(((trailing_sssr >> 12) & 0x0f) + 1);
-			drv_data->read(drv_data);
-		}
-		msg->actual_length += drv_data->len;
-
-		/* Release chip select if requested, transfer delays are
-		 * handled in pump_transfers */
-		if (drv_data->cs_change)
-			drv_data->cs_control(PXA2XX_CS_DEASSERT);
-
-		/* Move to next transfer */
-		msg->state = next_transfer(drv_data);
-
-		/* Schedule transfer tasklet */
-		tasklet_schedule(&drv_data->pump_transfers);
+		/* finish this transfer, start the next */
+		dma_transfer_complete(drv_data);
 
 		return IRQ_HANDLED;
 	}
@@ -577,89 +556,103 @@ static irqreturn_t dma_transfer(struct driver_data *drv_data)
 	return IRQ_NONE;
 }
 
+static void int_error_stop(struct driver_data *drv_data, const char* msg)
+{
+	void *reg = drv_data->ioaddr;
+
+	/* Stop and reset SSP */
+	write_SSSR(drv_data->clear_sr, reg);
+	write_SSCR1(read_SSCR1(reg) & ~drv_data->int_cr1, reg);
+	if (drv_data->ssp_type != PXA25x_SSP)
+		write_SSTO(0, reg);
+	flush(drv_data);
+	write_SSCR0(read_SSCR0(reg) & ~SSCR0_SSE, reg);
+
+	dev_err(&drv_data->pdev->dev, "%s\n", msg);
+
+	drv_data->cur_msg->state = ERROR_STATE;
+	tasklet_schedule(&drv_data->pump_transfers);
+}
+
+static void int_transfer_complete(struct driver_data *drv_data)
+{
+	void *reg = drv_data->ioaddr;
+
+	/* Stop SSP */
+	write_SSSR(drv_data->clear_sr, reg);
+	write_SSCR1(read_SSCR1(reg) & ~drv_data->int_cr1, reg);
+	if (drv_data->ssp_type != PXA25x_SSP)
+		write_SSTO(0, reg);
+
+	/* Update total byte transfered return count actual bytes read */
+	drv_data->cur_msg->actual_length += drv_data->len -
+				(drv_data->rx_end - drv_data->rx);
+
+	/* Release chip select if requested, transfer delays are
+	 * handled in pump_transfers */
+	if (drv_data->cs_change)
+		drv_data->cs_control(PXA2XX_CS_DEASSERT);
+
+	/* Move to next transfer */
+	drv_data->cur_msg->state = next_transfer(drv_data);
+
+	/* Schedule transfer tasklet */
+	tasklet_schedule(&drv_data->pump_transfers);
+}
+
 static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 {
-	struct spi_message *msg = drv_data->cur_msg;
 	void *reg = drv_data->ioaddr;
-	unsigned long limit = loops_per_jiffy << 1;
-	u32 irq_status;
+
 	u32 irq_mask = (read_SSCR1(reg) & SSCR1_TIE) ?
 			drv_data->mask_sr : drv_data->mask_sr & ~SSSR_TFS;
 
-	while ((irq_status = read_SSSR(reg) & irq_mask)) {
+	u32 irq_status = read_SSSR(reg) & irq_mask;
 
-		if (irq_status & SSSR_ROR) {
+	if (irq_status & SSSR_ROR) {
+		int_error_stop(drv_data, "interrupt_transfer: fifo overrun");
+		return IRQ_HANDLED;
+	}
 
-			/* Clear and disable interrupts */
-			write_SSCR0(read_SSCR0(reg) & ~SSCR0_SSE, reg);
-			write_SSCR1(read_SSCR1(reg) & ~drv_data->int_cr1, reg);
-			if (drv_data->ssp_type != PXA25x_SSP)
-				write_SSTO(0, reg);
-			write_SSSR(drv_data->clear_sr, reg);
-
-			if (flush(drv_data) == 0)
-				dev_err(&drv_data->pdev->dev,
-					"interrupt_transfer: flush fail\n");
-
-			/* Stop the SSP */
-
-			dev_warn(&drv_data->pdev->dev,
-					"interrupt_transfer: fifo overun\n");
-
-			msg->state = ERROR_STATE;
-			tasklet_schedule(&drv_data->pump_transfers);
-
+	if (irq_status & SSSR_TINT) {
+		write_SSSR(SSSR_TINT, reg);
+		if (drv_data->read(drv_data)) {
+			int_transfer_complete(drv_data);
 			return IRQ_HANDLED;
 		}
+	}
 
-		/* Look for false positive timeout */
-		if ((irq_status & SSSR_TINT)
-				&& (drv_data->rx < drv_data->rx_end))
-			write_SSSR(SSSR_TINT, reg);
-
-		/* Pump data */
-		drv_data->read(drv_data);
-		drv_data->write(drv_data);
-
-		if (drv_data->tx == drv_data->tx_end) {
-			/* Disable tx interrupt */
-			write_SSCR1(read_SSCR1(reg) & ~SSCR1_TIE, reg);
-			irq_mask = drv_data->mask_sr & ~SSSR_TFS;
-
-			/* PXA25x_SSP has no timeout, read trailing bytes */
-			if (drv_data->ssp_type == PXA25x_SSP) {
-				while ((read_SSSR(reg) & SSSR_BSY) && limit--)
-					drv_data->read(drv_data);
-
-				if (limit == 0)
-					dev_err(&drv_data->pdev->dev,
-						"interrupt_transfer: "
-						"trailing byte read failed\n");
-			}
+	/* Drain rx fifo, Fill tx fifo and prevent overruns */
+	do {
+		if (drv_data->read(drv_data)) {
+			int_transfer_complete(drv_data);
+			return IRQ_HANDLED;
 		}
+	} while (drv_data->write(drv_data));
 
-		if ((irq_status & SSSR_TINT)
-				|| (drv_data->rx == drv_data->rx_end)) {
+	if (drv_data->read(drv_data)) {
+		int_transfer_complete(drv_data);
+		return IRQ_HANDLED;
+	}
 
-			/* Clear timeout */
-			write_SSCR1(read_SSCR1(reg) & ~drv_data->int_cr1, reg);
-			if (drv_data->ssp_type != PXA25x_SSP)
-				write_SSTO(0, reg);
-			write_SSSR(drv_data->clear_sr, reg);
-
-			/* Update total byte transfered */
-			msg->actual_length += drv_data->len;
-
-			/* Release chip select if requested, transfer delays are
-			 * handled in pump_transfers */
-			if (drv_data->cs_change)
-				drv_data->cs_control(PXA2XX_CS_DEASSERT);
-
-			/* Move to next transfer */
-			msg->state = next_transfer(drv_data);
-
-			/* Schedule transfer tasklet */
-			tasklet_schedule(&drv_data->pump_transfers);
+	if (drv_data->tx == drv_data->tx_end) {
+		write_SSCR1(read_SSCR1(reg) & ~SSCR1_TIE, reg);
+		/* PXA25x_SSP has no timeout, read trailing bytes */
+		if (drv_data->ssp_type == PXA25x_SSP) {
+			if (!wait_ssp_rx_stall(reg))
+			{
+				int_error_stop(drv_data, "interrupt_transfer: "
+						"rx stall failed");
+				return IRQ_HANDLED;
+			}
+			if (!drv_data->read(drv_data))
+			{
+				int_error_stop(drv_data,
+						"interrupt_transfer: "
+						"trailing byte read failed");
+				return IRQ_HANDLED;
+			}
+			int_transfer_complete(drv_data);
 		}
 	}
 
@@ -667,9 +660,9 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ssp_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ssp_int(int irq, void *dev_id)
 {
-	struct driver_data *drv_data = (struct driver_data *)dev_id;
+	struct driver_data *drv_data = dev_id;
 	void *reg = drv_data->ioaddr;
 
 	if (!drv_data->cur_msg) {
@@ -681,13 +674,109 @@ static irqreturn_t ssp_int(int irq, void *dev_id, struct pt_regs *regs)
 		write_SSSR(drv_data->clear_sr, reg);
 
 		dev_err(&drv_data->pdev->dev, "bad message state "
-				"in interrupt handler");
+			"in interrupt handler\n");
 
 		/* Never fail */
 		return IRQ_HANDLED;
 	}
 
 	return drv_data->transfer_handler(drv_data);
+}
+
+int set_dma_burst_and_threshold(struct chip_data *chip, struct spi_device *spi,
+				u8 bits_per_word, u32 *burst_code,
+				u32 *threshold)
+{
+	struct pxa2xx_spi_chip *chip_info =
+			(struct pxa2xx_spi_chip *)spi->controller_data;
+	int bytes_per_word;
+	int burst_bytes;
+	int thresh_words;
+	int req_burst_size;
+	int retval = 0;
+
+	/* Set the threshold (in registers) to equal the same amount of data
+	 * as represented by burst size (in bytes).  The computation below
+	 * is (burst_size rounded up to nearest 8 byte, word or long word)
+	 * divided by (bytes/register); the tx threshold is the inverse of
+	 * the rx, so that there will always be enough data in the rx fifo
+	 * to satisfy a burst, and there will always be enough space in the
+	 * tx fifo to accept a burst (a tx burst will overwrite the fifo if
+	 * there is not enough space), there must always remain enough empty
+	 * space in the rx fifo for any data loaded to the tx fifo.
+	 * Whenever burst_size (in bytes) equals bits/word, the fifo threshold
+	 * will be 8, or half the fifo;
+	 * The threshold can only be set to 2, 4 or 8, but not 16, because
+	 * to burst 16 to the tx fifo, the fifo would have to be empty;
+	 * however, the minimum fifo trigger level is 1, and the tx will
+	 * request service when the fifo is at this level, with only 15 spaces.
+	 */
+
+	/* find bytes/word */
+	if (bits_per_word <= 8)
+		bytes_per_word = 1;
+	else if (bits_per_word <= 16)
+		bytes_per_word = 2;
+	else
+		bytes_per_word = 4;
+
+	/* use struct pxa2xx_spi_chip->dma_burst_size if available */
+	if (chip_info)
+		req_burst_size = chip_info->dma_burst_size;
+	else {
+		switch (chip->dma_burst_size) {
+		default:
+			/* if the default burst size is not set,
+			 * do it now */
+			chip->dma_burst_size = DCMD_BURST8;
+		case DCMD_BURST8:
+			req_burst_size = 8;
+			break;
+		case DCMD_BURST16:
+			req_burst_size = 16;
+			break;
+		case DCMD_BURST32:
+			req_burst_size = 32;
+			break;
+		}
+	}
+	if (req_burst_size <= 8) {
+		*burst_code = DCMD_BURST8;
+		burst_bytes = 8;
+	} else if (req_burst_size <= 16) {
+		if (bytes_per_word == 1) {
+			/* don't burst more than 1/2 the fifo */
+			*burst_code = DCMD_BURST8;
+			burst_bytes = 8;
+			retval = 1;
+		} else {
+			*burst_code = DCMD_BURST16;
+			burst_bytes = 16;
+		}
+	} else {
+		if (bytes_per_word == 1) {
+			/* don't burst more than 1/2 the fifo */
+			*burst_code = DCMD_BURST8;
+			burst_bytes = 8;
+			retval = 1;
+		} else if (bytes_per_word == 2) {
+			/* don't burst more than 1/2 the fifo */
+			*burst_code = DCMD_BURST16;
+			burst_bytes = 16;
+			retval = 1;
+		} else {
+			*burst_code = DCMD_BURST32;
+			burst_bytes = 32;
+		}
+	}
+
+	thresh_words = burst_bytes / bytes_per_word;
+
+	/* thresh_words will be between 2 and 8 */
+	*threshold = (SSCR1_RxTresh(thresh_words) & SSCR1_RFT)
+			| (SSCR1_TxTresh(16-thresh_words) & SSCR1_TFT);
+
+	return retval;
 }
 
 static void pump_transfers(unsigned long data)
@@ -702,6 +791,9 @@ static void pump_transfers(unsigned long data)
 	u8 bits = 0;
 	u32 speed = 0;
 	u32 cr0;
+	u32 cr1;
+	u32 dma_thresh = drv_data->cur_chip->dma_threshold;
+	u32 dma_burst = drv_data->cur_chip->dma_burst_size;
 
 	/* Get current state information */
 	message = drv_data->cur_msg;
@@ -731,6 +823,16 @@ static void pump_transfers(unsigned long data)
 			udelay(previous->delay_usecs);
 	}
 
+	/* Check transfer length */
+	if (transfer->len > 8191)
+	{
+		dev_warn(&drv_data->pdev->dev, "pump_transfers: transfer "
+				"length greater than 8191\n");
+		message->status = -EINVAL;
+		giveback(drv_data);
+		return;
+	}
+
 	/* Setup the transfer state based on the type of transfer */
 	if (flush(drv_data) == 0) {
 		dev_err(&drv_data->pdev->dev, "pump_transfers: flush failed\n");
@@ -747,17 +849,15 @@ static void pump_transfers(unsigned long data)
 	drv_data->rx_end = drv_data->rx + transfer->len;
 	drv_data->rx_dma = transfer->rx_dma;
 	drv_data->tx_dma = transfer->tx_dma;
-	drv_data->len = transfer->len;
+	drv_data->len = transfer->len & DCMD_LENGTH;
 	drv_data->write = drv_data->tx ? chip->write : null_writer;
 	drv_data->read = drv_data->rx ? chip->read : null_reader;
 	drv_data->cs_change = transfer->cs_change;
 
 	/* Change speed and bit per word on a per transfer */
+	cr0 = chip->cr0;
 	if (transfer->speed_hz || transfer->bits_per_word) {
 
-		/* Disable clock */
-		write_SSCR0(chip->cr0 & ~SSCR0_SSE, reg);
-		cr0 = chip->cr0;
 		bits = chip->bits_per_word;
 		speed = chip->speed_hz;
 
@@ -796,15 +896,24 @@ static void pump_transfers(unsigned long data)
 			drv_data->write = drv_data->write != null_writer ?
 						u32_writer : null_writer;
 		}
+		/* if bits/word is changed in dma mode, then must check the
+		 * thresholds and burst also */
+		if (chip->enable_dma) {
+			if (set_dma_burst_and_threshold(chip, message->spi,
+							bits, &dma_burst,
+							&dma_thresh))
+				if (printk_ratelimit())
+					dev_warn(&message->spi->dev,
+						"pump_transfer: "
+						"DMA burst size reduced to "
+						"match bits_per_word\n");
+		}
 
 		cr0 = clk_div
 			| SSCR0_Motorola
 			| SSCR0_DataSize(bits > 16 ? bits - 16 : bits)
 			| SSCR0_SSE
 			| (bits > 16 ? SSCR0_EDSS : 0);
-
-		/* Start it back up */
-		write_SSCR0(cr0, reg);
 	}
 
 	message->state = RUNNING_STATE;
@@ -823,13 +932,13 @@ static void pump_transfers(unsigned long data)
 			/* No target address increment */
 			DCMD(drv_data->rx_channel) = DCMD_FLOWSRC
 							| drv_data->dma_width
-							| chip->dma_burst_size
+							| dma_burst
 							| drv_data->len;
 		else
 			DCMD(drv_data->rx_channel) = DCMD_INCTRGADDR
 							| DCMD_FLOWSRC
 							| drv_data->dma_width
-							| chip->dma_burst_size
+							| dma_burst
 							| drv_data->len;
 
 		/* Setup tx DMA Channel */
@@ -840,13 +949,13 @@ static void pump_transfers(unsigned long data)
 			/* No source address increment */
 			DCMD(drv_data->tx_channel) = DCMD_FLOWTRG
 							| drv_data->dma_width
-							| chip->dma_burst_size
+							| dma_burst
 							| drv_data->len;
 		else
 			DCMD(drv_data->tx_channel) = DCMD_INCSRCADDR
 							| DCMD_FLOWTRG
 							| drv_data->dma_width
-							| chip->dma_burst_size
+							| dma_burst
 							| drv_data->len;
 
 		/* Enable dma end irqs on SSP to detect end of transfer */
@@ -856,16 +965,11 @@ static void pump_transfers(unsigned long data)
 		/* Fix me, need to handle cs polarity */
 		drv_data->cs_control(PXA2XX_CS_ASSERT);
 
-		/* Go baby, go */
+		/* Clear status and start DMA engine */
+		cr1 = chip->cr1 | dma_thresh | drv_data->dma_cr1;
 		write_SSSR(drv_data->clear_sr, reg);
 		DCSR(drv_data->rx_channel) |= DCSR_RUN;
 		DCSR(drv_data->tx_channel) |= DCSR_RUN;
-		if (drv_data->ssp_type != PXA25x_SSP)
-			write_SSTO(chip->timeout, reg);
-		write_SSCR1(chip->cr1
-				| chip->dma_threshold
-				| drv_data->dma_cr1,
-				reg);
 	} else {
 		/* Ensure we have the correct interrupt handler	*/
 		drv_data->transfer_handler = interrupt_transfer;
@@ -873,20 +977,32 @@ static void pump_transfers(unsigned long data)
 		/* Fix me, need to handle cs polarity */
 		drv_data->cs_control(PXA2XX_CS_ASSERT);
 
-		/* Go baby, go */
+		/* Clear status  */
+		cr1 = chip->cr1 | chip->threshold | drv_data->int_cr1;
 		write_SSSR(drv_data->clear_sr, reg);
+	}
+
+	/* see if we need to reload the config registers */
+	if ((read_SSCR0(reg) != cr0)
+		|| (read_SSCR1(reg) & SSCR1_CHANGE_MASK) !=
+			(cr1 & SSCR1_CHANGE_MASK)) {
+
+		write_SSCR0(cr0 & ~SSCR0_SSE, reg);
 		if (drv_data->ssp_type != PXA25x_SSP)
 			write_SSTO(chip->timeout, reg);
-		write_SSCR1(chip->cr1
-				| chip->threshold
-				| drv_data->int_cr1,
-				reg);
+		write_SSCR1(cr1, reg);
+		write_SSCR0(cr0, reg);
+	} else {
+		if (drv_data->ssp_type != PXA25x_SSP)
+			write_SSTO(chip->timeout, reg);
+		write_SSCR1(cr1, reg);
 	}
 }
 
-static void pump_messages(void *data)
+static void pump_messages(struct work_struct *work)
 {
-	struct driver_data *drv_data = data;
+	struct driver_data *drv_data =
+		container_of(work, struct driver_data, pump_messages);
 	unsigned long flags;
 
 	/* Lock queue and check for queue work */
@@ -914,9 +1030,9 @@ static void pump_messages(void *data)
 						struct spi_transfer,
 						transfer_list);
 
-	/* Setup the SSP using the per chip configuration */
+	/* prepare to setup the SSP, in pump_transfers, using the per
+	 * chip configuration */
 	drv_data->cur_chip = spi_get_ctldata(drv_data->cur_msg->spi);
-	restore_state(drv_data);
 
 	/* Mark as busy and launch transfers */
 	tasklet_schedule(&drv_data->pump_transfers);
@@ -962,61 +1078,75 @@ static int setup(struct spi_device *spi)
 		spi->bits_per_word = 8;
 
 	if (drv_data->ssp_type != PXA25x_SSP
-			&& (spi->bits_per_word < 4 || spi->bits_per_word > 32))
+		&& (spi->bits_per_word < 4 || spi->bits_per_word > 32)) {
+		dev_err(&spi->dev, "failed setup: ssp_type=%d, bits/wrd=%d "
+				"b/w not 4-32 for type non-PXA25x_SSP\n",
+				drv_data->ssp_type, spi->bits_per_word);
 		return -EINVAL;
-	else if (spi->bits_per_word < 4 || spi->bits_per_word > 16)
+	}
+	else if (drv_data->ssp_type == PXA25x_SSP
+			&& (spi->bits_per_word < 4
+				|| spi->bits_per_word > 16)) {
+		dev_err(&spi->dev, "failed setup: ssp_type=%d, bits/wrd=%d "
+				"b/w not 4-16 for type PXA25x_SSP\n",
+				drv_data->ssp_type, spi->bits_per_word);
 		return -EINVAL;
+	}
 
-	/* Only alloc (or use chip_info) on first setup */
+	/* Only alloc on first setup */
 	chip = spi_get_ctldata(spi);
-	if (chip == NULL) {
+	if (!chip) {
 		chip = kzalloc(sizeof(struct chip_data), GFP_KERNEL);
-		if (!chip)
+		if (!chip) {
+			dev_err(&spi->dev,
+				"failed setup: can't allocate chip data\n");
 			return -ENOMEM;
+		}
 
 		chip->cs_control = null_cs_control;
 		chip->enable_dma = 0;
-		chip->timeout = SSP_TIMEOUT(1000);
+		chip->timeout = 1000;
 		chip->threshold = SSCR1_RxTresh(1) | SSCR1_TxTresh(1);
 		chip->dma_burst_size = drv_data->master_info->enable_dma ?
 					DCMD_BURST8 : 0;
-
-		chip_info = spi->controller_data;
 	}
 
+	/* protocol drivers may change the chip settings, so...
+	 * if chip_info exists, use it */
+	chip_info = spi->controller_data;
+
 	/* chip_info isn't always needed */
+	chip->cr1 = 0;
 	if (chip_info) {
 		if (chip_info->cs_control)
 			chip->cs_control = chip_info->cs_control;
 
-		chip->timeout = SSP_TIMEOUT(chip_info->timeout_microsecs);
+		chip->timeout = chip_info->timeout;
 
-		chip->threshold = SSCR1_RxTresh(chip_info->rx_threshold)
-					| SSCR1_TxTresh(chip_info->tx_threshold);
+		chip->threshold = (SSCR1_RxTresh(chip_info->rx_threshold) &
+								SSCR1_RFT) |
+				(SSCR1_TxTresh(chip_info->tx_threshold) &
+								SSCR1_TFT);
 
 		chip->enable_dma = chip_info->dma_burst_size != 0
 					&& drv_data->master_info->enable_dma;
 		chip->dma_threshold = 0;
 
-		if (chip->enable_dma) {
-			if (chip_info->dma_burst_size <= 8) {
-				chip->dma_threshold = SSCR1_RxTresh(8)
-							| SSCR1_TxTresh(8);
-				chip->dma_burst_size = DCMD_BURST8;
-			} else if (chip_info->dma_burst_size <= 16) {
-				chip->dma_threshold = SSCR1_RxTresh(16)
-							| SSCR1_TxTresh(16);
-				chip->dma_burst_size = DCMD_BURST16;
-			} else {
-				chip->dma_threshold = SSCR1_RxTresh(32)
-							| SSCR1_TxTresh(32);
-				chip->dma_burst_size = DCMD_BURST32;
-			}
-		}
-
-
 		if (chip_info->enable_loopback)
 			chip->cr1 = SSCR1_LBM;
+	}
+
+	/* set dma burst and threshold outside of chip_info path so that if
+	 * chip_info goes away after setting chip->enable_dma, the
+	 * burst and threshold can still respond to changes in bits_per_word */
+	if (chip->enable_dma) {
+		/* set up legal burst and threshold for dma */
+		if (set_dma_burst_and_threshold(chip, spi, spi->bits_per_word,
+						&chip->dma_burst_size,
+						&chip->dma_threshold)) {
+			dev_warn(&spi->dev, "in setup: DMA burst size reduced "
+					"to match bits_per_word\n");
+		}
 	}
 
 	if (drv_data->ioaddr == SSP1_VIRT)
@@ -1026,7 +1156,11 @@ static int setup(struct spi_device *spi)
 	else if (drv_data->ioaddr == SSP3_VIRT)
 		clk_div = SSP3_SerClkDiv(spi->max_speed_hz);
 	else
+	{
+		dev_err(&spi->dev, "failed setup: unknown IO address=0x%p\n",
+			drv_data->ioaddr);
 		return -ENODEV;
+	}
 	chip->speed_hz = spi->max_speed_hz;
 
 	chip->cr0 = clk_div
@@ -1070,7 +1204,6 @@ static int setup(struct spi_device *spi)
 		chip->write = u32_writer;
 	} else {
 		dev_err(&spi->dev, "invalid wordsize\n");
-		kfree(chip);
 		return -ENODEV;
 	}
 	chip->bits_per_word = spi->bits_per_word;
@@ -1098,7 +1231,7 @@ static int init_queue(struct driver_data *drv_data)
 	tasklet_init(&drv_data->pump_transfers,
 			pump_transfers,	(unsigned long)drv_data);
 
-	INIT_WORK(&drv_data->pump_messages, pump_messages, drv_data);
+	INIT_WORK(&drv_data->pump_messages, pump_messages);
 	drv_data->workqueue = create_singlethread_workqueue(
 					drv_data->master->cdev.dev->bus_id);
 	if (drv_data->workqueue == NULL)
@@ -1161,6 +1294,12 @@ static int destroy_queue(struct driver_data *drv_data)
 	int status;
 
 	status = stop_queue(drv_data);
+	/* we are unloading the module or failing to load (only two calls
+	 * to this routine), and neither call can handle a return value.
+	 * However, destroy_workqueue calls flush_workqueue, and that will
+	 * block until all work is done.  If the reason that stop_queue
+	 * timed out is that the work will never finish, then it does no
+	 * good to call destroy_workqueue, so return anyway. */
 	if (status != 0)
 		return status;
 
@@ -1359,7 +1498,16 @@ static int pxa2xx_spi_remove(struct platform_device *pdev)
 	/* Remove the queue */
 	status = destroy_queue(drv_data);
 	if (status != 0)
-		return status;
+		/* the kernel does not check the return status of this
+		 * this routine (mod->exit, within the kernel).  Therefore
+		 * nothing is gained by returning from here, the module is
+		 * going away regardless, and we should not leave any more
+		 * resources allocated than necessary.  We cannot free the
+		 * message memory in drv_data->queue, but we can release the
+		 * resources below.  I think the kernel should honor -EBUSY
+		 * returns but... */
+		dev_err(&pdev->dev, "pxa2xx_spi_remove: workqueue will not "
+			"complete, message memory not freed\n");
 
 	/* Disable the SSP at the peripheral and SOC level */
 	write_SSCR0(0, drv_data->ioaddr);

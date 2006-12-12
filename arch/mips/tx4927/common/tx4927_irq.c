@@ -64,20 +64,12 @@
 #define TX4927_IRQ_NEST4       ( 1 <<  9 )
 
 #define TX4927_IRQ_CP0_INIT     ( 1 << 10 )
-#define TX4927_IRQ_CP0_STARTUP  ( 1 << 11 )
-#define TX4927_IRQ_CP0_SHUTDOWN ( 1 << 12 )
 #define TX4927_IRQ_CP0_ENABLE   ( 1 << 13 )
 #define TX4927_IRQ_CP0_DISABLE  ( 1 << 14 )
-#define TX4927_IRQ_CP0_MASK     ( 1 << 15 )
-#define TX4927_IRQ_CP0_ENDIRQ   ( 1 << 16 )
 
 #define TX4927_IRQ_PIC_INIT     ( 1 << 20 )
-#define TX4927_IRQ_PIC_STARTUP  ( 1 << 21 )
-#define TX4927_IRQ_PIC_SHUTDOWN ( 1 << 22 )
 #define TX4927_IRQ_PIC_ENABLE   ( 1 << 23 )
 #define TX4927_IRQ_PIC_DISABLE  ( 1 << 24 )
-#define TX4927_IRQ_PIC_MASK     ( 1 << 25 )
-#define TX4927_IRQ_PIC_ENDIRQ   ( 1 << 26 )
 
 #define TX4927_IRQ_ALL         0xffffffff
 #endif
@@ -87,19 +79,11 @@ static const u32 tx4927_irq_debug_flag = (TX4927_IRQ_NONE
 					  | TX4927_IRQ_INFO
 					  | TX4927_IRQ_WARN | TX4927_IRQ_EROR
 //                                       | TX4927_IRQ_CP0_INIT
-//                                       | TX4927_IRQ_CP0_STARTUP
-//                                       | TX4927_IRQ_CP0_SHUTDOWN
 //                                       | TX4927_IRQ_CP0_ENABLE
-//                                       | TX4927_IRQ_CP0_DISABLE
-//                                       | TX4927_IRQ_CP0_MASK
 //                                       | TX4927_IRQ_CP0_ENDIRQ
 //                                       | TX4927_IRQ_PIC_INIT
-//                                       | TX4927_IRQ_PIC_STARTUP
-//                                       | TX4927_IRQ_PIC_SHUTDOWN
 //                                       | TX4927_IRQ_PIC_ENABLE
 //                                       | TX4927_IRQ_PIC_DISABLE
-//                                       | TX4927_IRQ_PIC_MASK
-//                                       | TX4927_IRQ_PIC_ENDIRQ
 //                                       | TX4927_IRQ_INIT
 //                                       | TX4927_IRQ_NEST1
 //                                       | TX4927_IRQ_NEST2
@@ -124,49 +108,32 @@ static const u32 tx4927_irq_debug_flag = (TX4927_IRQ_NONE
  * Forwad definitions for all pic's
  */
 
-static unsigned int tx4927_irq_cp0_startup(unsigned int irq);
-static void tx4927_irq_cp0_shutdown(unsigned int irq);
 static void tx4927_irq_cp0_enable(unsigned int irq);
 static void tx4927_irq_cp0_disable(unsigned int irq);
-static void tx4927_irq_cp0_mask_and_ack(unsigned int irq);
-static void tx4927_irq_cp0_end(unsigned int irq);
 
-static unsigned int tx4927_irq_pic_startup(unsigned int irq);
-static void tx4927_irq_pic_shutdown(unsigned int irq);
 static void tx4927_irq_pic_enable(unsigned int irq);
 static void tx4927_irq_pic_disable(unsigned int irq);
-static void tx4927_irq_pic_mask_and_ack(unsigned int irq);
-static void tx4927_irq_pic_end(unsigned int irq);
 
 /*
  * Kernel structs for all pic's
  */
 
-static DEFINE_SPINLOCK(tx4927_cp0_lock);
-static DEFINE_SPINLOCK(tx4927_pic_lock);
-
 #define TX4927_CP0_NAME "TX4927-CP0"
 static struct irq_chip tx4927_irq_cp0_type = {
 	.typename	= TX4927_CP0_NAME,
-	.startup	= tx4927_irq_cp0_startup,
-	.shutdown	= tx4927_irq_cp0_shutdown,
-	.enable		= tx4927_irq_cp0_enable,
-	.disable	= tx4927_irq_cp0_disable,
-	.ack		= tx4927_irq_cp0_mask_and_ack,
-	.end		= tx4927_irq_cp0_end,
-	.set_affinity	= NULL
+	.ack		= tx4927_irq_cp0_disable,
+	.mask		= tx4927_irq_cp0_disable,
+	.mask_ack	= tx4927_irq_cp0_disable,
+	.unmask		= tx4927_irq_cp0_enable,
 };
 
 #define TX4927_PIC_NAME "TX4927-PIC"
 static struct irq_chip tx4927_irq_pic_type = {
 	.typename	= TX4927_PIC_NAME,
-	.startup	= tx4927_irq_pic_startup,
-	.shutdown	= tx4927_irq_pic_shutdown,
-	.enable		= tx4927_irq_pic_enable,
-	.disable	= tx4927_irq_pic_disable,
-	.ack		= tx4927_irq_pic_mask_and_ack,
-	.end		= tx4927_irq_pic_end,
-	.set_affinity	= NULL
+	.ack		= tx4927_irq_pic_disable,
+	.mask		= tx4927_irq_pic_disable,
+	.mask_ack	= tx4927_irq_pic_disable,
+	.unmask		= tx4927_irq_pic_enable,
 };
 
 #define TX4927_PIC_ACTION(s) { no_action, 0, CPU_MASK_NONE, s, NULL, NULL }
@@ -211,8 +178,6 @@ tx4927_irq_cp0_modify(unsigned cp0_reg, unsigned clr_bits, unsigned set_bits)
 			break;
 		}
 	}
-
-	return;
 }
 
 static void __init tx4927_irq_cp0_init(void)
@@ -222,82 +187,23 @@ static void __init tx4927_irq_cp0_init(void)
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_CP0_INIT, "beg=%d end=%d\n",
 			   TX4927_IRQ_CP0_BEG, TX4927_IRQ_CP0_END);
 
-	for (i = TX4927_IRQ_CP0_BEG; i <= TX4927_IRQ_CP0_END; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = 0;
-		irq_desc[i].depth = 1;
-		irq_desc[i].chip = &tx4927_irq_cp0_type;
-	}
-
-	return;
-}
-
-static unsigned int tx4927_irq_cp0_startup(unsigned int irq)
-{
-	TX4927_IRQ_DPRINTK(TX4927_IRQ_CP0_STARTUP, "irq=%d \n", irq);
-
-	tx4927_irq_cp0_enable(irq);
-
-	return (0);
-}
-
-static void tx4927_irq_cp0_shutdown(unsigned int irq)
-{
-	TX4927_IRQ_DPRINTK(TX4927_IRQ_CP0_SHUTDOWN, "irq=%d \n", irq);
-
-	tx4927_irq_cp0_disable(irq);
-
-	return;
+	for (i = TX4927_IRQ_CP0_BEG; i <= TX4927_IRQ_CP0_END; i++)
+		set_irq_chip_and_handler(i, &tx4927_irq_cp0_type,
+					 handle_level_irq);
 }
 
 static void tx4927_irq_cp0_enable(unsigned int irq)
 {
-	unsigned long flags;
-
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_CP0_ENABLE, "irq=%d \n", irq);
 
-	spin_lock_irqsave(&tx4927_cp0_lock, flags);
-
 	tx4927_irq_cp0_modify(CCP0_STATUS, 0, tx4927_irq_cp0_mask(irq));
-
-	spin_unlock_irqrestore(&tx4927_cp0_lock, flags);
-
-	return;
 }
 
 static void tx4927_irq_cp0_disable(unsigned int irq)
 {
-	unsigned long flags;
-
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_CP0_DISABLE, "irq=%d \n", irq);
 
-	spin_lock_irqsave(&tx4927_cp0_lock, flags);
-
 	tx4927_irq_cp0_modify(CCP0_STATUS, tx4927_irq_cp0_mask(irq), 0);
-
-	spin_unlock_irqrestore(&tx4927_cp0_lock, flags);
-
-	return;
-}
-
-static void tx4927_irq_cp0_mask_and_ack(unsigned int irq)
-{
-	TX4927_IRQ_DPRINTK(TX4927_IRQ_CP0_MASK, "irq=%d \n", irq);
-
-	tx4927_irq_cp0_disable(irq);
-
-	return;
-}
-
-static void tx4927_irq_cp0_end(unsigned int irq)
-{
-	TX4927_IRQ_DPRINTK(TX4927_IRQ_CP0_ENDIRQ, "irq=%d \n", irq);
-
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
-		tx4927_irq_cp0_enable(irq);
-	}
-
-	return;
 }
 
 /*
@@ -418,105 +324,39 @@ static void tx4927_irq_pic_modify(unsigned pic_reg, unsigned clr_bits,
 	val &= (~clr_bits);
 	val |= (set_bits);
 	TX4927_WR(pic_reg, val);
-
-	return;
 }
 
 static void __init tx4927_irq_pic_init(void)
 {
-	unsigned long flags;
 	int i;
 
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_PIC_INIT, "beg=%d end=%d\n",
 			   TX4927_IRQ_PIC_BEG, TX4927_IRQ_PIC_END);
 
-	for (i = TX4927_IRQ_PIC_BEG; i <= TX4927_IRQ_PIC_END; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = 0;
-		irq_desc[i].depth = 2;
-		irq_desc[i].chip = &tx4927_irq_pic_type;
-	}
+	for (i = TX4927_IRQ_PIC_BEG; i <= TX4927_IRQ_PIC_END; i++)
+		set_irq_chip_and_handler(i, &tx4927_irq_pic_type,
+					 handle_level_irq);
 
 	setup_irq(TX4927_IRQ_NEST_PIC_ON_CP0, &tx4927_irq_pic_action);
 
-	spin_lock_irqsave(&tx4927_pic_lock, flags);
-
 	TX4927_WR(0xff1ff640, 0x6);	/* irq level mask -- only accept hightest */
 	TX4927_WR(0xff1ff600, TX4927_RD(0xff1ff600) | 0x1);	/* irq enable */
-
-	spin_unlock_irqrestore(&tx4927_pic_lock, flags);
-
-	return;
-}
-
-static unsigned int tx4927_irq_pic_startup(unsigned int irq)
-{
-	TX4927_IRQ_DPRINTK(TX4927_IRQ_PIC_STARTUP, "irq=%d\n", irq);
-
-	tx4927_irq_pic_enable(irq);
-
-	return (0);
-}
-
-static void tx4927_irq_pic_shutdown(unsigned int irq)
-{
-	TX4927_IRQ_DPRINTK(TX4927_IRQ_PIC_SHUTDOWN, "irq=%d\n", irq);
-
-	tx4927_irq_pic_disable(irq);
-
-	return;
 }
 
 static void tx4927_irq_pic_enable(unsigned int irq)
 {
-	unsigned long flags;
-
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_PIC_ENABLE, "irq=%d\n", irq);
-
-	spin_lock_irqsave(&tx4927_pic_lock, flags);
 
 	tx4927_irq_pic_modify(tx4927_irq_pic_addr(irq), 0,
 			      tx4927_irq_pic_mask(irq));
-
-	spin_unlock_irqrestore(&tx4927_pic_lock, flags);
-
-	return;
 }
 
 static void tx4927_irq_pic_disable(unsigned int irq)
 {
-	unsigned long flags;
-
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_PIC_DISABLE, "irq=%d\n", irq);
-
-	spin_lock_irqsave(&tx4927_pic_lock, flags);
 
 	tx4927_irq_pic_modify(tx4927_irq_pic_addr(irq),
 			      tx4927_irq_pic_mask(irq), 0);
-
-	spin_unlock_irqrestore(&tx4927_pic_lock, flags);
-
-	return;
-}
-
-static void tx4927_irq_pic_mask_and_ack(unsigned int irq)
-{
-	TX4927_IRQ_DPRINTK(TX4927_IRQ_PIC_MASK, "irq=%d\n", irq);
-
-	tx4927_irq_pic_disable(irq);
-
-	return;
-}
-
-static void tx4927_irq_pic_end(unsigned int irq)
-{
-	TX4927_IRQ_DPRINTK(TX4927_IRQ_PIC_ENDIRQ, "irq=%d\n", irq);
-
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
-		tx4927_irq_pic_enable(irq);
-	}
-
-	return;
 }
 
 /*
@@ -533,8 +373,6 @@ void __init tx4927_irq_init(void)
 	tx4927_irq_pic_init();
 
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_INIT, "+\n");
-
-	return;
 }
 
 static int tx4927_irq_nested(void)
@@ -576,24 +414,24 @@ static int tx4927_irq_nested(void)
 	return (sw_irq);
 }
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause();
 
 	if (pending & STATUSF_IP7)			/* cpu timer */
-		do_IRQ(TX4927_IRQ_CPU_TIMER, regs);
+		do_IRQ(TX4927_IRQ_CPU_TIMER);
 	else if (pending & STATUSF_IP2) {		/* tx4927 pic */
 		unsigned int irq = tx4927_irq_nested();
 
 		if (unlikely(irq == 0)) {
-			spurious_interrupt(regs);
+			spurious_interrupt();
 			return;
 		}
-		do_IRQ(irq, regs);
+		do_IRQ(irq);
 	} else if (pending & STATUSF_IP0)		/* user line 0 */
-		do_IRQ(TX4927_IRQ_USER0, regs);
+		do_IRQ(TX4927_IRQ_USER0);
 	else if (pending & STATUSF_IP1)			/* user line 1 */
-		do_IRQ(TX4927_IRQ_USER1, regs);
+		do_IRQ(TX4927_IRQ_USER1);
 	else
-		spurious_interrupt(regs);
+		spurious_interrupt();
 }

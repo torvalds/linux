@@ -984,9 +984,9 @@ void isdn_net_write_super(isdn_net_local *lp, struct sk_buff *skb)
 /*
  * called from tq_immediate
  */
-static void isdn_net_softint(void *private)
+static void isdn_net_softint(struct work_struct *work)
 {
-	isdn_net_local *lp = private;
+	isdn_net_local *lp = container_of(work, isdn_net_local, tqueue);
 	struct sk_buff *skb;
 
 	spin_lock_bh(&lp->xmit_lock);
@@ -1614,8 +1614,8 @@ isdn_net_ciscohdlck_slarp_send_reply(isdn_net_local *lp)
 	struct sk_buff *skb;
 	unsigned char *p;
 	struct in_device *in_dev = NULL;
-	u32 addr = 0;		/* local ipv4 address */
-	u32 mask = 0;		/* local netmask */
+	__be32 addr = 0;		/* local ipv4 address */
+	__be32 mask = 0;		/* local netmask */
 
 	if ((in_dev = lp->netdev->dev.ip_ptr) != NULL) {
 		/* take primary(first) address of interface */
@@ -2542,17 +2542,15 @@ isdn_net_new(char *name, struct net_device *master)
 		printk(KERN_WARNING "isdn_net: interface %s already exists\n", name);
 		return NULL;
 	}
-	if (!(netdev = (isdn_net_dev *) kmalloc(sizeof(isdn_net_dev), GFP_KERNEL))) {
+	if (!(netdev = kzalloc(sizeof(isdn_net_dev), GFP_KERNEL))) {
 		printk(KERN_WARNING "isdn_net: Could not allocate net-device\n");
 		return NULL;
 	}
-	memset(netdev, 0, sizeof(isdn_net_dev));
-	if (!(netdev->local = (isdn_net_local *) kmalloc(sizeof(isdn_net_local), GFP_KERNEL))) {
+	if (!(netdev->local = kzalloc(sizeof(isdn_net_local), GFP_KERNEL))) {
 		printk(KERN_WARNING "isdn_net: Could not allocate device locals\n");
 		kfree(netdev);
 		return NULL;
 	}
-	memset(netdev->local, 0, sizeof(isdn_net_local));
 	if (name == NULL)
 		strcpy(netdev->local->name, "         ");
 	else
@@ -2596,7 +2594,7 @@ isdn_net_new(char *name, struct net_device *master)
 	netdev->local->netdev = netdev;
 	netdev->local->next = netdev->local;
 
-	INIT_WORK(&netdev->local->tqueue, (void *)(void *) isdn_net_softint, netdev->local);
+	INIT_WORK(&netdev->local->tqueue, isdn_net_softint);
 	spin_lock_init(&netdev->local->xmit_lock);
 
 	netdev->local->isdn_device = -1;

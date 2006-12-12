@@ -7,15 +7,14 @@
  * Hitachi SolutionEngine Support.
  *
  */
-
 #include <linux/init.h>
-#include <linux/irq.h>
-
-#include <linux/hdreg.h>
-#include <linux/ide.h>
+#include <asm/machvec.h>
+#include <asm/se.h>
 #include <asm/io.h>
-#include <asm/se/se.h>
-#include <asm/se/smc37c93x.h>
+#include <asm/smc37c93x.h>
+
+void heartbeat_se(void);
+void init_se_IRQ(void);
 
 /*
  * Configure the Super I/O chip
@@ -26,7 +25,8 @@ static void __init smsc_config(int index, int data)
 	outb_p(data, DATA_PORT);
 }
 
-static void __init init_smsc(void)
+/* XXX: Another candidate for a more generic cchip machine vector */
+static void __init smsc_setup(char **cmdline_p)
 {
 	outb_p(CONFIG_ENTER, CONFIG_PORT);
 	outb_p(CONFIG_ENTER, CONFIG_PORT);
@@ -69,16 +69,46 @@ static void __init init_smsc(void)
 	outb_p(CONFIG_EXIT, CONFIG_PORT);
 }
 
-const char *get_system_type(void)
-{
-	return "SolutionEngine";
-}
-
 /*
- * Initialize the board
+ * The Machine Vector
  */
-void __init platform_setup(void)
-{
-	init_smsc();
-	/* XXX: RTC setting comes here */
-}
+struct sh_machine_vector mv_se __initmv = {
+	.mv_name		= "SolutionEngine",
+	.mv_setup		= smsc_setup,
+#if defined(CONFIG_CPU_SH4)
+	.mv_nr_irqs		= 48,
+#elif defined(CONFIG_CPU_SUBTYPE_SH7708)
+	.mv_nr_irqs		= 32,
+#elif defined(CONFIG_CPU_SUBTYPE_SH7709)
+	.mv_nr_irqs		= 61,
+#elif defined(CONFIG_CPU_SUBTYPE_SH7705)
+	.mv_nr_irqs		= 86,
+#endif
+
+	.mv_inb			= se_inb,
+	.mv_inw			= se_inw,
+	.mv_inl			= se_inl,
+	.mv_outb		= se_outb,
+	.mv_outw		= se_outw,
+	.mv_outl		= se_outl,
+
+	.mv_inb_p		= se_inb_p,
+	.mv_inw_p		= se_inw,
+	.mv_inl_p		= se_inl,
+	.mv_outb_p		= se_outb_p,
+	.mv_outw_p		= se_outw,
+	.mv_outl_p		= se_outl,
+
+	.mv_insb		= se_insb,
+	.mv_insw		= se_insw,
+	.mv_insl		= se_insl,
+	.mv_outsb		= se_outsb,
+	.mv_outsw		= se_outsw,
+	.mv_outsl		= se_outsl,
+
+	.mv_init_irq		= init_se_IRQ,
+#ifdef CONFIG_HEARTBEAT
+	.mv_heartbeat		= heartbeat_se,
+#endif
+};
+ALIAS_MV(se)

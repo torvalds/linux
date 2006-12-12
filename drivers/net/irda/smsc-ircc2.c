@@ -196,7 +196,7 @@ static void smsc_ircc_dma_xmit(struct smsc_ircc_cb *self, int bofs);
 static void smsc_ircc_dma_xmit_complete(struct smsc_ircc_cb *self);
 static void smsc_ircc_change_speed(struct smsc_ircc_cb *self, u32 speed);
 static void smsc_ircc_set_sir_speed(struct smsc_ircc_cb *self, u32 speed);
-static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id);
 static irqreturn_t smsc_ircc_interrupt_sir(struct net_device *dev);
 static void smsc_ircc_sir_start(struct smsc_ircc_cb *self);
 #if SMSC_IRCC2_C_SIR_STOP
@@ -1455,7 +1455,7 @@ static void smsc_ircc_sir_receive(struct smsc_ircc_cb *self)
  *    An interrupt from the chip has arrived. Time to do some work
  *
  */
-static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct smsc_ircc_cb *self;
@@ -1520,7 +1520,7 @@ static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id, struct pt_regs *re
 }
 
 /*
- * Function irport_interrupt_sir (irq, dev_id, regs)
+ * Function irport_interrupt_sir (irq, dev_id)
  *
  *    Interrupt handler for SIR modes
  */
@@ -2354,6 +2354,26 @@ static int __init smsc_superio_lpc(unsigned short cfg_base)
 #define PCIID_VENDOR_INTEL 0x8086
 #define PCIID_VENDOR_ALI 0x10b9
 static struct smsc_ircc_subsystem_configuration subsystem_configurations[] __initdata = {
+	/*
+	 * Subsystems needing entries:
+	 * 0x10b9:0x1533 0x103c:0x0850 HP nx9010 family
+	 * 0x10b9:0x1533 0x0e11:0x005a Compaq nc4000 family
+	 * 0x8086:0x24cc 0x0e11:0x002a HP nx9000 family
+	 */
+	{
+		/* Guessed entry */
+		.vendor = PCIID_VENDOR_INTEL, /* Intel 82801DBM LPC bridge */
+		.device = 0x24cc,
+		.subvendor = 0x103c,
+		.subdevice = 0x08bc,
+		.sir_io = 0x02f8,
+		.fir_io = 0x0130,
+		.fir_irq = 0x05,
+		.fir_dma = 0x03,
+		.cfg_base = 0x004e,
+		.preconfigure = preconfigure_through_82801,
+		.name = "HP nx5000 family",
+	},
 	{
 		.vendor = PCIID_VENDOR_INTEL, /* Intel 82801DBM LPC bridge */
 		.device = 0x24cc,
@@ -2366,7 +2386,7 @@ static struct smsc_ircc_subsystem_configuration subsystem_configurations[] __ini
 		.fir_dma = 0x03,
 		.cfg_base = 0x004e,
 		.preconfigure = preconfigure_through_82801,
-		.name = "HP nc8000",
+		.name = "HP nc8000 family",
 	},
 	{
 		.vendor = PCIID_VENDOR_INTEL, /* Intel 82801DBM LPC bridge */
@@ -2379,7 +2399,21 @@ static struct smsc_ircc_subsystem_configuration subsystem_configurations[] __ini
 		.fir_dma = 0x03,
 		.cfg_base = 0x004e,
 		.preconfigure = preconfigure_through_82801,
-		.name = "HP nc6000",
+		.name = "HP nc6000 family",
+	},
+	{
+		.vendor = PCIID_VENDOR_INTEL, /* Intel 82801DBM LPC bridge */
+		.device = 0x24cc,
+		.subvendor = 0x0e11,
+		.subdevice = 0x0860,
+		/* I assume these are the same for x1000 as for the others */
+		.sir_io = 0x02e8,
+		.fir_io = 0x02f8,
+		.fir_irq = 0x07,
+		.fir_dma = 0x03,
+		.cfg_base = 0x002e,
+		.preconfigure = preconfigure_through_82801,
+		.name = "Compaq x1000 family",
 	},
 	{
 		/* Intel 82801DB/DBL (ICH4/ICH4-L) LPC Interface Bridge */

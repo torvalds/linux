@@ -11,7 +11,7 @@
 
 #include <linux/errno.h>
 #include <linux/mm.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/futex.h>
 
 #ifndef __s390x__
@@ -28,6 +28,9 @@
 #define SLR	"slgr"
 #endif
 
+extern size_t copy_from_user_pt(size_t n, const void __user *from, void *to);
+extern size_t copy_to_user_pt(size_t n, void __user *to, const void *from);
+
 size_t copy_from_user_std(size_t size, const void __user *ptr, void *x)
 {
 	unsigned long tmp1, tmp2;
@@ -35,52 +38,45 @@ size_t copy_from_user_std(size_t size, const void __user *ptr, void *x)
 	tmp1 = -256UL;
 	asm volatile(
 		"0: mvcp  0(%0,%2),0(%1),%3\n"
-		"   jz    5f\n"
+		"   jz    8f\n"
 		"1:"ALR"  %0,%3\n"
 		"   la    %1,256(%1)\n"
 		"   la    %2,256(%2)\n"
 		"2: mvcp  0(%0,%2),0(%1),%3\n"
 		"   jnz   1b\n"
-		"   j     5f\n"
+		"   j     8f\n"
 		"3: la    %4,255(%1)\n"	/* %4 = ptr + 255 */
 		"  "LHI"  %3,-4096\n"
 		"   nr    %4,%3\n"	/* %4 = (ptr + 255) & -4096 */
 		"  "SLR"  %4,%1\n"
 		"  "CLR"  %0,%4\n"	/* copy crosses next page boundary? */
-		"   jnh   6f\n"
+		"   jnh   5f\n"
 		"4: mvcp  0(%4,%2),0(%1),%3\n"
 		"  "SLR"  %0,%4\n"
-		"   j     6f\n"
-		"5:"SLR"  %0,%0\n"
-		"6: \n"
-		EX_TABLE(0b,3b) EX_TABLE(2b,3b) EX_TABLE(4b,6b)
+		"  "ALR"  %2,%4\n"
+		"5:"LHI"  %4,-1\n"
+		"  "ALR"  %4,%0\n"	/* copy remaining size, subtract 1 */
+		"   bras  %3,7f\n"	/* memset loop */
+		"   xc    0(1,%2),0(%2)\n"
+		"6: xc    0(256,%2),0(%2)\n"
+		"   la    %2,256(%2)\n"
+		"7:"AHI"  %4,-256\n"
+		"   jnm   6b\n"
+		"   ex    %4,0(%3)\n"
+		"   j     9f\n"
+		"8:"SLR"  %0,%0\n"
+		"9: \n"
+		EX_TABLE(0b,3b) EX_TABLE(2b,3b) EX_TABLE(4b,5b)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
 		: : "cc", "memory");
 	return size;
 }
 
-size_t copy_from_user_std_small(size_t size, const void __user *ptr, void *x)
+size_t copy_from_user_std_check(size_t size, const void __user *ptr, void *x)
 {
-	unsigned long tmp1, tmp2;
-
-	tmp1 = 0UL;
-	asm volatile(
-		"0: mvcp  0(%0,%2),0(%1),%3\n"
-		"  "SLR"  %0,%0\n"
-		"   j     3f\n"
-		"1: la    %4,255(%1)\n" /* %4 = ptr + 255 */
-		"  "LHI"  %3,-4096\n"
-		"   nr    %4,%3\n"	/* %4 = (ptr + 255) & -4096 */
-		"  "SLR"  %4,%1\n"
-		"  "CLR"  %0,%4\n"	/* copy crosses next page boundary? */
-		"   jnh   3f\n"
-		"2: mvcp  0(%4,%2),0(%1),%3\n"
-		"  "SLR"  %0,%4\n"
-		"3:\n"
-		EX_TABLE(0b,1b) EX_TABLE(2b,3b)
-		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
-		: : "cc", "memory");
-	return size;
+	if (size <= 1024)
+		return copy_from_user_std(size, ptr, x);
+	return copy_from_user_pt(size, ptr, x);
 }
 
 size_t copy_to_user_std(size_t size, void __user *ptr, const void *x)
@@ -114,28 +110,11 @@ size_t copy_to_user_std(size_t size, void __user *ptr, const void *x)
 	return size;
 }
 
-size_t copy_to_user_std_small(size_t size, void __user *ptr, const void *x)
+size_t copy_to_user_std_check(size_t size, void __user *ptr, const void *x)
 {
-	unsigned long tmp1, tmp2;
-
-	tmp1 = 0UL;
-	asm volatile(
-		"0: mvcs  0(%0,%1),0(%2),%3\n"
-		"  "SLR"  %0,%0\n"
-		"   j     3f\n"
-		"1: la    %4,255(%1)\n" /* ptr + 255 */
-		"  "LHI"  %3,-4096\n"
-		"   nr    %4,%3\n"	/* (ptr + 255) & -4096UL */
-		"  "SLR"  %4,%1\n"
-		"  "CLR"  %0,%4\n"	/* copy crosses next page boundary? */
-		"   jnh   3f\n"
-		"2: mvcs  0(%4,%1),0(%2),%3\n"
-		"  "SLR"  %0,%4\n"
-		"3:\n"
-		EX_TABLE(0b,1b) EX_TABLE(2b,3b)
-		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
-		: : "cc", "memory");
-	return size;
+	if (size <= 1024)
+		return copy_to_user_std(size, ptr, x);
+	return copy_to_user_pt(size, ptr, x);
 }
 
 size_t copy_in_user_std(size_t size, void __user *to, const void __user *from)
@@ -279,7 +258,7 @@ int futex_atomic_op(int op, int __user *uaddr, int oparg, int *old)
 {
 	int oldval = 0, newval, ret;
 
-	inc_preempt_count();
+	pagefault_disable();
 
 	switch (op) {
 	case FUTEX_OP_SET:
@@ -305,7 +284,7 @@ int futex_atomic_op(int op, int __user *uaddr, int oparg, int *old)
 	default:
 		ret = -ENOSYS;
 	}
-	dec_preempt_count();
+	pagefault_enable();
 	*old = oldval;
 	return ret;
 }
@@ -327,10 +306,10 @@ int futex_atomic_cmpxchg(int __user *uaddr, int oldval, int newval)
 }
 
 struct uaccess_ops uaccess_std = {
-	.copy_from_user = copy_from_user_std,
-	.copy_from_user_small = copy_from_user_std_small,
-	.copy_to_user = copy_to_user_std,
-	.copy_to_user_small = copy_to_user_std_small,
+	.copy_from_user = copy_from_user_std_check,
+	.copy_from_user_small = copy_from_user_std,
+	.copy_to_user = copy_to_user_std_check,
+	.copy_to_user_small = copy_to_user_std,
 	.copy_in_user = copy_in_user_std,
 	.clear_user = clear_user_std,
 	.strnlen_user = strnlen_user_std,

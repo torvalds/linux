@@ -243,7 +243,8 @@ struct v4l2_pix_format
 #define V4L2_PIX_FMT_YUV420  v4l2_fourcc('Y','U','1','2') /* 12  YUV 4:2:0     */
 #define V4L2_PIX_FMT_YYUV    v4l2_fourcc('Y','Y','U','V') /* 16  YUV 4:2:2     */
 #define V4L2_PIX_FMT_HI240   v4l2_fourcc('H','I','2','4') /*  8  8-bit color   */
-#define V4L2_PIX_FMT_HM12    v4l2_fourcc('H','M','1','2') /*  8  YUV 4:1:1 16x16 macroblocks */
+#define V4L2_PIX_FMT_HM12    v4l2_fourcc('H','M','1','2') /*  8  YUV 4:2:0 16x16 macroblocks */
+#define V4L2_PIX_FMT_RGB444  v4l2_fourcc('R','4','4','4') /* 16  xxxxrrrr ggggbbbb */
 
 /* see http://www.siliconimaging.com/RGB%20Bayer.htm */
 #define V4L2_PIX_FMT_SBGGR8  v4l2_fourcc('B','A','8','1') /*  8  BGBG.. GRGR.. */
@@ -275,6 +276,82 @@ struct v4l2_fmtdesc
 };
 
 #define V4L2_FMT_FLAG_COMPRESSED 0x0001
+
+#if 1
+	/* Experimental Frame Size and frame rate enumeration */
+/*
+ *	F R A M E   S I Z E   E N U M E R A T I O N
+ */
+enum v4l2_frmsizetypes
+{
+	V4L2_FRMSIZE_TYPE_DISCRETE	= 1,
+	V4L2_FRMSIZE_TYPE_CONTINUOUS	= 2,
+	V4L2_FRMSIZE_TYPE_STEPWISE	= 3,
+};
+
+struct v4l2_frmsize_discrete
+{
+	__u32			width;		/* Frame width [pixel] */
+	__u32			height;		/* Frame height [pixel] */
+};
+
+struct v4l2_frmsize_stepwise
+{
+	__u32			min_width;	/* Minimum frame width [pixel] */
+	__u32			max_width;	/* Maximum frame width [pixel] */
+	__u32			step_width;	/* Frame width step size [pixel] */
+	__u32			min_height;	/* Minimum frame height [pixel] */
+	__u32			max_height;	/* Maximum frame height [pixel] */
+	__u32			step_height;	/* Frame height step size [pixel] */
+};
+
+struct v4l2_frmsizeenum
+{
+	__u32			index;		/* Frame size number */
+	__u32			pixel_format;	/* Pixel format */
+	__u32			type;		/* Frame size type the device supports. */
+
+	union {					/* Frame size */
+		struct v4l2_frmsize_discrete	discrete;
+		struct v4l2_frmsize_stepwise	stepwise;
+	};
+
+	__u32   reserved[2];			/* Reserved space for future use */
+};
+
+/*
+ *	F R A M E   R A T E   E N U M E R A T I O N
+ */
+enum v4l2_frmivaltypes
+{
+	V4L2_FRMIVAL_TYPE_DISCRETE	= 1,
+	V4L2_FRMIVAL_TYPE_CONTINUOUS	= 2,
+	V4L2_FRMIVAL_TYPE_STEPWISE	= 3,
+};
+
+struct v4l2_frmival_stepwise
+{
+	struct v4l2_fract	min;		/* Minimum frame interval [s] */
+	struct v4l2_fract	max;		/* Maximum frame interval [s] */
+	struct v4l2_fract	step;		/* Frame interval step size [s] */
+};
+
+struct v4l2_frmivalenum
+{
+	__u32			index;		/* Frame format index */
+	__u32			pixel_format;	/* Pixel format */
+	__u32			width;		/* Frame width */
+	__u32			height;		/* Frame height */
+	__u32			type;		/* Frame interval type the device supports. */
+
+	union {					/* Frame interval */
+		struct v4l2_fract		discrete;
+		struct v4l2_frmival_stepwise	stepwise;
+	};
+
+	__u32	reserved[2];			/* Reserved space for future use */
+};
+#endif
 
 /*
  *	T I M E C O D E
@@ -1135,7 +1212,8 @@ struct v4l2_sliced_vbi_cap
 				 (equals frame lines 313-336 for 625 line video
 				  standards, 263-286 for 525 line standards) */
 	__u16   service_lines[2][24];
-	__u32   reserved[4];    /* must be 0 */
+	enum v4l2_buf_type type;
+	__u32   reserved[3];    /* must be 0 */
 };
 
 struct v4l2_sliced_vbi_data
@@ -1242,12 +1320,16 @@ struct v4l2_streamparm
 #define VIDIOC_G_PRIORITY       _IOR  ('V', 67, enum v4l2_priority)
 #define VIDIOC_S_PRIORITY       _IOW  ('V', 68, enum v4l2_priority)
 #if 1
-#define VIDIOC_G_SLICED_VBI_CAP _IOR  ('V', 69, struct v4l2_sliced_vbi_cap)
+#define VIDIOC_G_SLICED_VBI_CAP _IOWR ('V', 69, struct v4l2_sliced_vbi_cap)
 #endif
 #define VIDIOC_LOG_STATUS       _IO   ('V', 70)
 #define VIDIOC_G_EXT_CTRLS	_IOWR ('V', 71, struct v4l2_ext_controls)
 #define VIDIOC_S_EXT_CTRLS	_IOWR ('V', 72, struct v4l2_ext_controls)
 #define VIDIOC_TRY_EXT_CTRLS	_IOWR ('V', 73, struct v4l2_ext_controls)
+#if 1
+#define VIDIOC_ENUM_FRAMESIZES	_IOWR ('V', 74, struct v4l2_frmsizeenum)
+#define VIDIOC_ENUM_FRAMEINTERVALS	_IOWR ('V', 75, struct v4l2_frmivalenum)
+#endif
 
 #ifdef __OLD_VIDIOC_
 /* for compatibility, will go away some day */

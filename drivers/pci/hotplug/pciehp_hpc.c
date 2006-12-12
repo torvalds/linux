@@ -222,7 +222,7 @@ static struct php_ctlr_state_s *php_ctlr_list_head; /* HPC state linked list */
 static int ctlr_seq_num = 0;	/* Controller sequence # */
 static spinlock_t list_lock;
 
-static irqreturn_t pcie_isr(int IRQ, void *dev_id, struct pt_regs *regs);
+static irqreturn_t pcie_isr(int IRQ, void *dev_id);
 
 static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int seconds);
 
@@ -239,7 +239,7 @@ static void int_poll_timeout(unsigned long lphp_ctlr)
 	}
 
 	/* Poll for interrupt events.  regs == NULL => polling */
-	pcie_isr( 0, (void *)php_ctlr, NULL );
+	pcie_isr( 0, (void *)php_ctlr );
 
 	init_timer(&php_ctlr->int_poll_timer);
 
@@ -718,8 +718,6 @@ static void hpc_release_ctlr(struct controller *ctrl)
 		if (php_ctlr->irq) {
 			free_irq(php_ctlr->irq, ctrl);
 			php_ctlr->irq = 0;
-			if (!pcie_mch_quirk) 
-				pci_disable_msi(php_ctlr->pci_dev);
 		}
 	}
 	if (php_ctlr->pci_dev) 
@@ -863,7 +861,7 @@ static int hpc_power_off_slot(struct slot * slot)
 	return retval;
 }
 
-static irqreturn_t pcie_isr(int IRQ, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pcie_isr(int IRQ, void *dev_id)
 {
 	struct controller *ctrl = NULL;
 	struct php_ctlr_state_s *php_ctlr;
@@ -1402,6 +1400,8 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 		pdev->subsystem_vendor, pdev->subsystem_device);
 
 	mutex_init(&ctrl->crit_sect);
+	mutex_init(&ctrl->ctrl_lock);
+
 	/* setup wait queue */
 	init_waitqueue_head(&ctrl->queue);
 

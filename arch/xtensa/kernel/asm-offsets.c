@@ -87,6 +87,11 @@ int main(void)
 	DEFINE(MM_CONTEXT, offsetof (struct mm_struct, context));
 	BLANK();
 	DEFINE(PT_SINGLESTEP_BIT, PT_SINGLESTEP_BIT);
+
+	/* constants */
+	DEFINE(_CLONE_VM, CLONE_VM);
+	DEFINE(_CLONE_UNTRACED, CLONE_UNTRACED);
+
 	return 0;
 }
 

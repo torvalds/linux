@@ -1,5 +1,5 @@
 /*
- * oprofile/op_model_7450.c
+ * arch/powerpc/oprofile/op_model_7450.c
  *
  * Freescale 745x/744x oprofile support, based on fsl_booke support
  * Copyright (C) 2004 Anton Blanchard <anton@au.ibm.com>, IBM
@@ -81,7 +81,7 @@ static void pmc_stop_ctrs(void)
 
 /* Configures the counters on this CPU based on the global
  * settings */
-static void fsl7450_cpu_setup(void *unused)
+static void fsl7450_cpu_setup(struct op_counter_config *ctr)
 {
 	/* freeze all counters */
 	pmc_stop_ctrs();

@@ -30,9 +30,10 @@ detailed description):
 	- ACPI sounds
 	- temperature sensors
 	- Experimental: embedded controller register dump
-	- Experimental: LCD brightness control
-	- Experimental: volume control
+	- LCD brightness control
+	- Volume control
 	- Experimental: fan speed, fan enable/disable
+	- Experimental: WAN enable and disable
 
 A compatibility table by model and feature is maintained on the web
 site, http://ibm-acpi.sf.net/. I appreciate any success or failure
@@ -52,40 +53,7 @@ Installation
 
 If you are compiling this driver as included in the Linux kernel
 sources, simply enable the CONFIG_ACPI_IBM option (Power Management /
-ACPI / IBM ThinkPad Laptop Extras). The rest of this section describes
-how to install this driver when downloaded from the web site.
-
-First, you need to get a kernel with ACPI support up and running.
-Please refer to http://acpi.sourceforge.net/ for help with this
-step. How successful you will be depends a lot on you ThinkPad model,
-the kernel you are using and any additional patches applied. The
-kernel provided with your distribution may not be good enough. I
-needed to compile a 2.6.7 kernel with the 20040715 ACPI patch to get
-ACPI working reliably on my ThinkPad X40. Old ThinkPad models may not
-be supported at all.
-
-Assuming you have the basic ACPI support working (e.g. you can see the
-/proc/acpi directory), follow the following steps to install this
-driver:
-
-	- unpack the archive:
-
-		tar xzvf ibm-acpi-x.y.tar.gz; cd ibm-acpi-x.y
-
-	- compile the driver:
-
-		make
-
-	- install the module in your kernel modules directory:
-
-		make install
-
-	- load the module:
-
-		modprobe ibm_acpi
-
-After loading the module, check the "dmesg" output for any error messages.
-
+ACPI / IBM ThinkPad Laptop Extras).
 
 Features
 --------
@@ -450,7 +418,7 @@ his laptop (the location of sensors may vary on other models):
 
 No commands can be written to this file.
 
-EXPERIMENTAL: Embedded controller reigster dump -- /proc/acpi/ibm/ecdump
+EXPERIMENTAL: Embedded controller register dump -- /proc/acpi/ibm/ecdump
 ------------------------------------------------------------------------
 
 This feature is marked EXPERIMENTAL because the implementation
@@ -523,13 +491,8 @@ registers contain the current battery capacity, etc. If you experiment
 with this, do send me your results (including some complete dumps with
 a description of the conditions when they were taken.)
 
-EXPERIMENTAL: LCD brightness control -- /proc/acpi/ibm/brightness
------------------------------------------------------------------
-
-This feature is marked EXPERIMENTAL because the implementation
-directly accesses hardware registers and may not work as expected. USE
-WITH CAUTION! To use this feature, you need to supply the
-experimental=1 parameter when loading the module.
+LCD brightness control -- /proc/acpi/ibm/brightness
+---------------------------------------------------
 
 This feature allows software control of the LCD brightness on ThinkPad
 models which don't have a hardware brightness slider. The available
@@ -542,13 +505,8 @@ commands are:
 The <level> number range is 0 to 7, although not all of them may be
 distinct. The current brightness level is shown in the file.
 
-EXPERIMENTAL: Volume control -- /proc/acpi/ibm/volume
------------------------------------------------------
-
-This feature is marked EXPERIMENTAL because the implementation
-directly accesses hardware registers and may not work as expected. USE
-WITH CAUTION! To use this feature, you need to supply the
-experimental=1 parameter when loading the module.
+Volume control -- /proc/acpi/ibm/volume
+---------------------------------------
 
 This feature allows volume control on ThinkPad models which don't have
 a hardware volume knob. The available commands are:
@@ -611,6 +569,23 @@ with the following command:
 
 	echo 'level <level>' > /proc/acpi/ibm/thermal
 
+EXPERIMENTAL: WAN -- /proc/acpi/ibm/wan
+---------------------------------------
+
+This feature is marked EXPERIMENTAL because the implementation
+directly accesses hardware registers and may not work as expected. USE
+WITH CAUTION! To use this feature, you need to supply the
+experimental=1 parameter when loading the module.
+
+This feature shows the presence and current state of a WAN (Sierra
+Wireless EV-DO) device. If WAN is installed, the following commands can
+be used:
+
+	echo enable > /proc/acpi/ibm/wan
+	echo disable > /proc/acpi/ibm/wan
+
+It was tested on a Lenovo Thinkpad X60. It should probably work on other
+Thinkpad models which come with this module installed.
 
 Multiple Commands, Module Parameters
 ------------------------------------

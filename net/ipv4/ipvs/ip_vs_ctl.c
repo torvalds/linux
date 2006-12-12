@@ -221,10 +221,10 @@ static void update_defense_level(void)
  *	Timer for checking the defense
  */
 #define DEFENSE_TIMER_PERIOD	1*HZ
-static void defense_work_handler(void *data);
-static DECLARE_WORK(defense_work, defense_work_handler, NULL);
+static void defense_work_handler(struct work_struct *work);
+static DECLARE_DELAYED_WORK(defense_work, defense_work_handler);
 
-static void defense_work_handler(void *data)
+static void defense_work_handler(struct work_struct *work)
 {
 	update_defense_level();
 	if (atomic_read(&ip_vs_dropentry))
@@ -283,7 +283,7 @@ static atomic_t ip_vs_nullsvc_counter = ATOMIC_INIT(0);
  *	Returns hash value for virtual service
  */
 static __inline__ unsigned
-ip_vs_svc_hashkey(unsigned proto, __u32 addr, __u16 port)
+ip_vs_svc_hashkey(unsigned proto, __be32 addr, __be16 port)
 {
 	register unsigned porth = ntohs(port);
 
@@ -365,7 +365,7 @@ static int ip_vs_svc_unhash(struct ip_vs_service *svc)
  *	Get service by {proto,addr,port} in the service table.
  */
 static __inline__ struct ip_vs_service *
-__ip_vs_service_get(__u16 protocol, __u32 vaddr, __u16 vport)
+__ip_vs_service_get(__u16 protocol, __be32 vaddr, __be16 vport)
 {
 	unsigned hash;
 	struct ip_vs_service *svc;
@@ -410,7 +410,7 @@ static __inline__ struct ip_vs_service *__ip_vs_svc_fwm_get(__u32 fwmark)
 }
 
 struct ip_vs_service *
-ip_vs_service_get(__u32 fwmark, __u16 protocol, __u32 vaddr, __u16 vport)
+ip_vs_service_get(__u32 fwmark, __u16 protocol, __be32 vaddr, __be16 vport)
 {
 	struct ip_vs_service *svc;
 
@@ -480,7 +480,7 @@ __ip_vs_unbind_svc(struct ip_vs_dest *dest)
 /*
  *	Returns hash value for real service
  */
-static __inline__ unsigned ip_vs_rs_hashkey(__u32 addr, __u16 port)
+static __inline__ unsigned ip_vs_rs_hashkey(__be32 addr, __be16 port)
 {
 	register unsigned porth = ntohs(port);
 
@@ -531,7 +531,7 @@ static int ip_vs_rs_unhash(struct ip_vs_dest *dest)
  *	Lookup real service by <proto,addr,port> in the real service table.
  */
 struct ip_vs_dest *
-ip_vs_lookup_real_service(__u16 protocol, __u32 daddr, __u16 dport)
+ip_vs_lookup_real_service(__u16 protocol, __be32 daddr, __be16 dport)
 {
 	unsigned hash;
 	struct ip_vs_dest *dest;
@@ -562,7 +562,7 @@ ip_vs_lookup_real_service(__u16 protocol, __u32 daddr, __u16 dport)
  *	Lookup destination by {addr,port} in the given service
  */
 static struct ip_vs_dest *
-ip_vs_lookup_dest(struct ip_vs_service *svc, __u32 daddr, __u16 dport)
+ip_vs_lookup_dest(struct ip_vs_service *svc, __be32 daddr, __be16 dport)
 {
 	struct ip_vs_dest *dest;
 
@@ -591,7 +591,7 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, __u32 daddr, __u16 dport)
  *  scheduling.
  */
 static struct ip_vs_dest *
-ip_vs_trash_get_dest(struct ip_vs_service *svc, __u32 daddr, __u16 dport)
+ip_vs_trash_get_dest(struct ip_vs_service *svc, __be32 daddr, __be16 dport)
 {
 	struct ip_vs_dest *dest, *nxt;
 
@@ -773,8 +773,8 @@ static int
 ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user *udest)
 {
 	struct ip_vs_dest *dest;
-	__u32 daddr = udest->addr;
-	__u16 dport = udest->port;
+	__be32 daddr = udest->addr;
+	__be16 dport = udest->port;
 	int ret;
 
 	EnterFunction(2);
@@ -879,8 +879,8 @@ static int
 ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user *udest)
 {
 	struct ip_vs_dest *dest;
-	__u32 daddr = udest->addr;
-	__u16 dport = udest->port;
+	__be32 daddr = udest->addr;
+	__be16 dport = udest->port;
 
 	EnterFunction(2);
 
@@ -991,8 +991,8 @@ static int
 ip_vs_del_dest(struct ip_vs_service *svc,struct ip_vs_dest_user *udest)
 {
 	struct ip_vs_dest *dest;
-	__u32 daddr = udest->addr;
-	__u16 dport = udest->port;
+	__be32 daddr = udest->addr;
+	__be16 dport = udest->port;
 
 	EnterFunction(2);
 

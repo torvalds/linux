@@ -272,10 +272,11 @@ EXPORT_SYMBOL(snd_hda_queue_unsol_event);
 /*
  * process queueud unsolicited events
  */
-static void process_unsol_events(void *data)
+static void process_unsol_events(struct work_struct *work)
 {
-	struct hda_bus *bus = data;
-	struct hda_bus_unsolicited *unsol = bus->unsol;
+	struct hda_bus_unsolicited *unsol =
+		container_of(work, struct hda_bus_unsolicited, work);
+	struct hda_bus *bus = unsol->bus;
 	struct hda_codec *codec;
 	unsigned int rp, caddr, res;
 
@@ -314,7 +315,8 @@ static int init_unsol_queue(struct hda_bus *bus)
 		kfree(unsol);
 		return -ENOMEM;
 	}
-	INIT_WORK(&unsol->work, process_unsol_events, bus);
+	INIT_WORK(&unsol->work, process_unsol_events);
+	unsol->bus = bus;
 	bus->unsol = unsol;
 	return 0;
 }

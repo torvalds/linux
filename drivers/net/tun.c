@@ -288,11 +288,10 @@ static inline size_t iov_total(const struct iovec *iv, unsigned long count)
 	return len;
 }
 
-/* Writev */
-static ssize_t tun_chr_writev(struct file * file, const struct iovec *iv,
-			      unsigned long count, loff_t *pos)
+static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
+			      unsigned long count, loff_t pos)
 {
-	struct tun_struct *tun = file->private_data;
+	struct tun_struct *tun = iocb->ki_filp->private_data;
 
 	if (!tun)
 		return -EBADFD;
@@ -300,14 +299,6 @@ static ssize_t tun_chr_writev(struct file * file, const struct iovec *iv,
 	DBG(KERN_INFO "%s: tun_chr_write %ld\n", tun->dev->name, count);
 
 	return tun_get_user(tun, (struct iovec *) iv, iov_total(iv, count));
-}
-
-/* Write */
-static ssize_t tun_chr_write(struct file * file, const char __user * buf,
-			     size_t count, loff_t *pos)
-{
-	struct iovec iv = { (void __user *) buf, count };
-	return tun_chr_writev(file, &iv, 1, pos);
 }
 
 /* Put packet to the user space buffer */
@@ -343,10 +334,10 @@ static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
 	return total;
 }
 
-/* Readv */
-static ssize_t tun_chr_readv(struct file *file, const struct iovec *iv,
-			    unsigned long count, loff_t *pos)
+static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
+			    unsigned long count, loff_t pos)
 {
+	struct file *file = iocb->ki_filp;
 	struct tun_struct *tun = file->private_data;
 	DECLARE_WAITQUEUE(wait, current);
 	struct sk_buff *skb;
@@ -424,14 +415,6 @@ static ssize_t tun_chr_readv(struct file *file, const struct iovec *iv,
 	remove_wait_queue(&tun->read_wait, &wait);
 
 	return ret;
-}
-
-/* Read */
-static ssize_t tun_chr_read(struct file * file, char __user * buf,
-			    size_t count, loff_t *pos)
-{
-	struct iovec iv = { buf, count };
-	return tun_chr_readv(file, &iv, 1, pos);
 }
 
 static void tun_setup(struct net_device *dev)
@@ -714,7 +697,7 @@ static int tun_chr_fasync(int fd, struct file *file, int on)
 		return ret;
 
 	if (on) {
-		ret = f_setown(file, current->pid, 0);
+		ret = __f_setown(file, task_pid(current), PIDTYPE_PID, 0);
 		if (ret)
 			return ret;
 		tun->flags |= TUN_FASYNC;
@@ -764,10 +747,10 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 static struct file_operations tun_fops = {
 	.owner	= THIS_MODULE,
 	.llseek = no_llseek,
-	.read	= tun_chr_read,
-	.readv	= tun_chr_readv,
-	.write	= tun_chr_write,
-	.writev = tun_chr_writev,
+	.read  = do_sync_read,
+	.aio_read  = tun_chr_aio_read,
+	.write = do_sync_write,
+	.aio_write = tun_chr_aio_write,
 	.poll	= tun_chr_poll,
 	.ioctl	= tun_chr_ioctl,
 	.open	= tun_chr_open,

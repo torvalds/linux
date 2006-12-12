@@ -243,7 +243,7 @@ int of_set_property(struct device_node *dp, const char *name, void *val, int len
 			void *old_val = prop->value;
 			int ret;
 
-			ret = prom_setprop(dp->node, name, val, len);
+			ret = prom_setprop(dp->node, (char *) name, val, len);
 			err = -EINVAL;
 			if (ret >= 0) {
 				prop->value = new_val;
@@ -477,7 +477,10 @@ static struct property * __init build_one_prop(phandle node, char *prev, char *s
 			p->length = 0;
 		} else {
 			p->value = prom_early_alloc(p->length + 1);
-			prom_getproperty(node, p->name, p->value, p->length);
+			len = prom_getproperty(node, p->name, p->value,
+					       p->length);
+			if (len <= 0)
+				p->length = 0;
 			((unsigned char *)p->value)[p->length] = '\0';
 		}
 	}

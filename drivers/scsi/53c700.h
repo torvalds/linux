@@ -57,7 +57,7 @@ struct NCR_700_Host_Parameters;
 struct Scsi_Host *NCR_700_detect(struct scsi_host_template *,
 		struct NCR_700_Host_Parameters *, struct device *);
 int NCR_700_release(struct Scsi_Host *host);
-irqreturn_t NCR_700_intr(int, void *, struct pt_regs *);
+irqreturn_t NCR_700_intr(int, void *);
 
 
 enum NCR_700_Host_State {
@@ -415,31 +415,31 @@ struct NCR_700_Host_Parameters {
 #define NCR_710_MIN_XFERP	0
 #define NCR_700_MIN_PERIOD	25 /* for SDTR message, 100ns */
 
-#define script_patch_32(script, symbol, value) \
+#define script_patch_32(dev, script, symbol, value) \
 { \
 	int i; \
 	for(i=0; i< (sizeof(A_##symbol##_used) / sizeof(__u32)); i++) { \
 		__u32 val = bS_to_cpu((script)[A_##symbol##_used[i]]) + value; \
 		(script)[A_##symbol##_used[i]] = bS_to_host(val); \
-		dma_cache_sync(&(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
+		dma_cache_sync((dev), &(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
 		DEBUG((" script, patching %s at %d to 0x%lx\n", \
 		       #symbol, A_##symbol##_used[i], (value))); \
 	} \
 }
 
-#define script_patch_32_abs(script, symbol, value) \
+#define script_patch_32_abs(dev, script, symbol, value) \
 { \
 	int i; \
 	for(i=0; i< (sizeof(A_##symbol##_used) / sizeof(__u32)); i++) { \
 		(script)[A_##symbol##_used[i]] = bS_to_host(value); \
-		dma_cache_sync(&(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
+		dma_cache_sync((dev), &(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
 		DEBUG((" script, patching %s at %d to 0x%lx\n", \
 		       #symbol, A_##symbol##_used[i], (value))); \
 	} \
 }
 
 /* Used for patching the SCSI ID in the SELECT instruction */
-#define script_patch_ID(script, symbol, value) \
+#define script_patch_ID(dev, script, symbol, value) \
 { \
 	int i; \
 	for(i=0; i< (sizeof(A_##symbol##_used) / sizeof(__u32)); i++) { \
@@ -447,13 +447,13 @@ struct NCR_700_Host_Parameters {
 		val &= 0xff00ffff; \
 		val |= ((value) & 0xff) << 16; \
 		(script)[A_##symbol##_used[i]] = bS_to_host(val); \
-		dma_cache_sync(&(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
+		dma_cache_sync((dev), &(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
 		DEBUG((" script, patching ID field %s at %d to 0x%x\n", \
 		       #symbol, A_##symbol##_used[i], val)); \
 	} \
 }
 
-#define script_patch_16(script, symbol, value) \
+#define script_patch_16(dev, script, symbol, value) \
 { \
 	int i; \
 	for(i=0; i< (sizeof(A_##symbol##_used) / sizeof(__u32)); i++) { \
@@ -461,7 +461,7 @@ struct NCR_700_Host_Parameters {
 		val &= 0xffff0000; \
 		val |= ((value) & 0xffff); \
 		(script)[A_##symbol##_used[i]] = bS_to_host(val); \
-		dma_cache_sync(&(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
+		dma_cache_sync((dev), &(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
 		DEBUG((" script, patching short field %s at %d to 0x%x\n", \
 		       #symbol, A_##symbol##_used[i], val)); \
 	} \

@@ -63,14 +63,6 @@ unsigned int DMA_MODE_WRITE;
 
 int have_of = 1;
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
-dev_t boot_dev;
-#endif /* CONFIG_PPC_MULTIPLATFORM */
-
-#ifdef CONFIG_MAGIC_SYSRQ
-unsigned long SYSRQ_KEY = 0x54;
-#endif /* CONFIG_MAGIC_SYSRQ */
-
 #ifdef CONFIG_VGA_CONSOLE
 unsigned long vgacon_remap_base;
 #endif
@@ -95,6 +87,7 @@ int ucache_bsize;
 unsigned long __init early_init(unsigned long dt_ptr)
 {
 	unsigned long offset = reloc_offset();
+	struct cpu_spec *spec;
 
 	/* First zero the BSS -- use memset_io, some platforms don't have
 	 * caches on yet */
@@ -104,8 +97,11 @@ unsigned long __init early_init(unsigned long dt_ptr)
 	 * Identify the CPU type and fix up code sections
 	 * that depend on which cpu we have.
 	 */
-	identify_cpu(offset, 0);
-	do_cpu_ftr_fixups(offset);
+	spec = identify_cpu(offset, mfspr(SPRN_PVR));
+
+	do_feature_fixups(spec->cpu_features,
+			  PTRRELOC(&__start___ftr_fixup),
+			  PTRRELOC(&__stop___ftr_fixup));
 
 	return KERNELBASE + offset;
 }
@@ -242,11 +238,10 @@ void __init setup_arch(char **cmdline_p)
 
 	smp_setup_cpu_maps();
 
-#ifdef CONFIG_XMON_DEFAULT
-	xmon_init(1);
-#endif
 	/* Register early console */
 	register_early_udbg_console();
+
+	xmon_setup();
 
 #if defined(CONFIG_KGDB)
 	if (ppc_md.kgdb_map_scc)
@@ -283,9 +278,6 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = klimit;
-
-	if (do_early_xmon)
-		debugger(NULL);
 
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();

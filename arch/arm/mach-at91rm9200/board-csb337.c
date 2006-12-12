@@ -34,20 +34,11 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
 
 #include "generic.h"
 
-static void __init csb337_init_irq(void)
-{
-	/* Initialize AIC controller */
-	at91rm9200_init_irq(NULL);
-
-	/* Set up the GPIO interrupts */
-	at91_gpio_irq_setup(BGA_GPIO_BANKS);
-}
 
 /*
  * Serial port configuration.
@@ -62,16 +53,19 @@ static struct at91_uart_config __initdata csb337_uart_config = {
 
 static void __init csb337_map_io(void)
 {
-	at91rm9200_map_io();
-
-	/* Initialize clocks: 3.6864 MHz crystal */
-	at91_clock_init(3686400);
+	/* Initialize processor: 3.6864 MHz crystal */
+	at91rm9200_initialize(3686400, AT91RM9200_BGA);
 
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PB0, AT91_PIN_PB1);
 
 	/* Setup the serial ports and console */
 	at91_init_serial(&csb337_uart_config);
+}
+
+static void __init csb337_init_irq(void)
+{
+	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata csb337_eth_data = {
@@ -105,7 +99,7 @@ static struct at91_cf_data __initdata csb337_cf_data = {
 
 static struct at91_mmc_data __initdata csb337_mmc_data = {
 	.det_pin	= AT91_PIN_PD5,
-	.is_b		= 0,
+	.slot_b		= 0,
 	.wire4		= 1,
 	.wp_pin		= AT91_PIN_PD6,
 };

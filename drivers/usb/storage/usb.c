@@ -49,7 +49,7 @@
 
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -97,6 +97,9 @@
 #endif
 #ifdef CONFIG_USB_STORAGE_ALAUDA
 #include "alauda.h"
+#endif
+#ifdef CONFIG_USB_STORAGE_KARMA
+#include "karma.h"
 #endif
 
 /* Some informational data */
@@ -646,6 +649,14 @@ static int get_transport(struct us_data *us)
 		break;
 #endif
 
+#ifdef CONFIG_USB_STORAGE_KARMA
+	case US_PR_KARMA:
+		us->transport_name = "Rio Karma/Bulk";
+		us->transport = rio_karma_transport;
+		us->transport_reset = usb_stor_Bulk_reset;
+		break;
+#endif
+
 	default:
 		return -EIO;
 	}
@@ -729,18 +740,16 @@ static int get_pipes(struct us_data *us)
 		ep = &altsetting->endpoint[i].desc;
 
 		/* Is it a BULK endpoint? */
-		if ((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-				== USB_ENDPOINT_XFER_BULK) {
+		if (usb_endpoint_xfer_bulk(ep)) {
 			/* BULK in or out? */
-			if (ep->bEndpointAddress & USB_DIR_IN)
+			if (usb_endpoint_dir_in(ep))
 				ep_in = ep;
 			else
 				ep_out = ep;
 		}
 
 		/* Is it an interrupt endpoint? */
-		else if ((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-				== USB_ENDPOINT_XFER_INT) {
+		else if (usb_endpoint_xfer_int(ep)) {
 			ep_int = ep;
 		}
 	}

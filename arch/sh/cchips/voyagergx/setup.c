@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <asm/io.h>
-#include <asm/rts7751r2d/voyagergx_reg.h>
+#include <asm/voyagergx.h>
 
 static int __init setup_voyagergx(void)
 {

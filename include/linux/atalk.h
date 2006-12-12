@@ -88,15 +88,7 @@ static inline struct atalk_sock *at_sk(struct sock *sk)
 #include <asm/byteorder.h>
 
 struct ddpehdr {
-#ifdef __LITTLE_ENDIAN_BITFIELD
-	__u16	deh_len:10,
-		deh_hops:4,
-		deh_pad:2;
-#else
-	__u16	deh_pad:2,
-		deh_hops:4,
-		deh_len:10;
-#endif
+	__be16	deh_len_hops;	/* lower 10 bits are length, next 4 - hops */
 	__be16	deh_sum;
 	__be16	deh_dnet;
 	__be16	deh_snet;
@@ -111,36 +103,6 @@ static __inline__ struct ddpehdr *ddp_hdr(struct sk_buff *skb)
 {
 	return (struct ddpehdr *)skb->h.raw;
 }
-
-/*
- *	Don't drop the struct into the struct above.  You'll get some
- *	surprise padding.
- */
-struct ddpebits {
-#ifdef __LITTLE_ENDIAN_BITFIELD
-	__u16	deh_len:10,
-		deh_hops:4,
-		deh_pad:2;
-#else
-	__u16	deh_pad:2,
-		deh_hops:4,
-		deh_len:10;
-#endif
-};
-
-/* Short form header */
-struct ddpshdr {
-#ifdef __LITTLE_ENDIAN_BITFIELD
-	__u16	dsh_len:10,
-		dsh_pad:6;
-#else
-	__u16	dsh_pad:6,
-		dsh_len:10;
-#endif
-	__u8	dsh_dport;
-	__u8	dsh_sport;
-	/* And netatalk apps expect to stick the type in themselves */
-};
 
 /* AppleTalk AARP headers */
 struct elapaarp {

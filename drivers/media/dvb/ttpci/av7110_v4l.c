@@ -32,7 +32,6 @@
 #include <linux/fs.h>
 #include <linux/timer.h>
 #include <linux/poll.h>
-#include <linux/byteorder/swabb.h>
 #include <linux/smp_lock.h>
 
 #include "av7110.h"
@@ -922,7 +921,7 @@ static struct saa7146_ext_vv av7110_vv_data_st = {
 static struct saa7146_ext_vv av7110_vv_data_c = {
 	.inputs		= 1,
 	.audios		= 1,
-	.capabilities	= V4L2_CAP_TUNER | V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_OUTPUT,
+	.capabilities	= V4L2_CAP_TUNER | V4L2_CAP_SLICED_VBI_OUTPUT,
 	.flags		= SAA7146_USE_PORT_B_FOR_VBI,
 
 	.stds		= &standard[0],

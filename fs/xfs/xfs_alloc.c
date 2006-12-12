@@ -1477,8 +1477,10 @@ xfs_alloc_ag_vextent_small(
 	/*
 	 * Can't allocate from the freelist for some reason.
 	 */
-	else
+	else {
+		fbno = NULLAGBLOCK;
 		flen = 0;
+	}
 	/*
 	 * Can't do the allocation, give up.
 	 */
@@ -2021,7 +2023,7 @@ xfs_alloc_get_freelist(
 	/*
 	 * Get the block number and update the data structures.
 	 */
-	bno = INT_GET(agfl->agfl_bno[be32_to_cpu(agf->agf_flfirst)], ARCH_CONVERT);
+	bno = be32_to_cpu(agfl->agfl_bno[be32_to_cpu(agf->agf_flfirst)]);
 	be32_add(&agf->agf_flfirst, 1);
 	xfs_trans_brelse(tp, agflbp);
 	if (be32_to_cpu(agf->agf_flfirst) == XFS_AGFL_SIZE(mp))
@@ -2108,7 +2110,7 @@ xfs_alloc_put_freelist(
 {
 	xfs_agf_t		*agf;	/* a.g. freespace structure */
 	xfs_agfl_t		*agfl;	/* a.g. free block array */
-	xfs_agblock_t		*blockp;/* pointer to array entry */
+	__be32			*blockp;/* pointer to array entry */
 	int			error;
 #ifdef XFS_ALLOC_TRACE
 	static char		fname[] = "xfs_alloc_put_freelist";
@@ -2132,7 +2134,7 @@ xfs_alloc_put_freelist(
 	pag->pagf_flcount++;
 	ASSERT(be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp));
 	blockp = &agfl->agfl_bno[be32_to_cpu(agf->agf_fllast)];
-	INT_SET(*blockp, ARCH_CONVERT, bno);
+	*blockp = cpu_to_be32(bno);
 	TRACE_MODAGF(NULL, agf, XFS_AGF_FLLAST | XFS_AGF_FLCOUNT);
 	xfs_alloc_log_agf(tp, agbp, XFS_AGF_FLLAST | XFS_AGF_FLCOUNT);
 	xfs_trans_log_buf(tp, agflbp,

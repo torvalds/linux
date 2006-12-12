@@ -34,7 +34,7 @@ Next you should configure your network interface with a command similar to :
 
 	ifconfig eth0 172.22.3.18
                       ^^^^^^^^^^^
-		     Your IP Adress
+		     Your IP Address
 
 Then you may have to modify the default routing table with command :
 

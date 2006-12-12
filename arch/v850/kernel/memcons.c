@@ -30,7 +30,7 @@ static DEFINE_SPINLOCK(memcons_lock);
 
 static size_t write (const char *buf, size_t len)
 {
-	int flags;
+	unsigned long flags;
 	char *point;
 
 	spin_lock_irqsave (memcons_lock, flags);
@@ -104,7 +104,7 @@ int memcons_tty_chars_in_buffer (struct tty_struct *tty)
 	return 0;
 }
 
-static struct tty_operations ops = {
+static const struct tty_operations ops = {
 	.open = memcons_tty_open,
 	.write = memcons_tty_write,
 	.write_room = memcons_tty_write_room,

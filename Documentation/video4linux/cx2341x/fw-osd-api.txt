@@ -97,7 +97,7 @@ Result[0]
 Result[1]
 	top left vertical offset
 Result[2]
-	bottom right hotizontal offset
+	bottom right horizontal offset
 Result[3]
 	bottom right vertical offset
 

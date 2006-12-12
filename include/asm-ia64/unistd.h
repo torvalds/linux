@@ -286,7 +286,8 @@
 /* 1294, 1295 reserved for pselect/ppoll */
 #define __NR_unshare			1296
 #define __NR_splice			1297
-/* 1298, 1299 reserved for set_robust_list/get_robust_list */
+#define __NR_set_robust_list		1298
+#define __NR_get_robust_list		1299
 #define __NR_sync_file_range		1300
 #define __NR_tee			1301
 #define __NR_vmsplice			1302
@@ -317,78 +318,6 @@
 #include <linux/compiler.h>
 
 extern long __ia64_syscall (long a0, long a1, long a2, long a3, long a4, long nr);
-
-#ifdef __KERNEL_SYSCALLS__
-
-#include <linux/compiler.h>
-#include <linux/string.h>
-#include <linux/signal.h>
-#include <asm/ptrace.h>
-#include <linux/stringify.h>
-#include <linux/syscalls.h>
-
-static inline long
-open (const char * name, int mode, int flags)
-{
-	return sys_open(name, mode, flags);
-}
-
-static inline long
-dup (int fd)
-{
-	return sys_dup(fd);
-}
-
-static inline long
-close (int fd)
-{
-	return sys_close(fd);
-}
-
-static inline off_t
-lseek (int fd, off_t off, int whence)
-{
-	return sys_lseek(fd, off, whence);
-}
-
-static inline void
-_exit (int value)
-{
-	sys_exit(value);
-}
-
-#define exit(x) _exit(x)
-
-static inline long
-write (int fd, const char * buf, size_t nr)
-{
-	return sys_write(fd, buf, nr);
-}
-
-static inline long
-read (int fd, char * buf, size_t nr)
-{
-	return sys_read(fd, buf, nr);
-}
-
-
-static inline long
-setsid (void)
-{
-	return sys_setsid();
-}
-
-static inline pid_t
-waitpid (int pid, int * wait_stat, int flags)
-{
-	return sys_wait4(pid, wait_stat, flags, NULL);
-}
-
-
-extern int execve (const char *filename, char *const av[], char *const ep[]);
-extern pid_t clone (unsigned long flags, void *sp);
-
-#endif /* __KERNEL_SYSCALLS__ */
 
 asmlinkage unsigned long sys_mmap(
 				unsigned long addr, unsigned long len,

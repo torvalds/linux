@@ -65,6 +65,7 @@ cpumask_t cpu_sibling_map[NR_CPUS] = { [0 ... NR_CPUS-1] = CPU_MASK_NONE };
 
 EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(cpu_possible_map);
+EXPORT_SYMBOL(cpu_sibling_map);
 
 /* SMP operations for this machine */
 struct smp_ops_t *smp_ops;
@@ -115,7 +116,7 @@ void __devinit smp_generic_kick_cpu(int nr)
 }
 #endif
 
-void smp_message_recv(int msg, struct pt_regs *regs)
+void smp_message_recv(int msg)
 {
 	switch(msg) {
 	case PPC_MSG_CALL_FUNCTION:
@@ -127,11 +128,11 @@ void smp_message_recv(int msg, struct pt_regs *regs)
 		break;
 	case PPC_MSG_DEBUGGER_BREAK:
 		if (crash_ipi_function_ptr) {
-			crash_ipi_function_ptr(regs);
+			crash_ipi_function_ptr(get_irq_regs());
 			break;
 		}
 #ifdef CONFIG_DEBUGGER
-		debugger_ipi(regs);
+		debugger_ipi(get_irq_regs());
 		break;
 #endif /* CONFIG_DEBUGGER */
 		/* FALLTHROUGH */

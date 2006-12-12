@@ -43,12 +43,17 @@ int pvr2_ctrl_set_mask_value(struct pvr2_ctrl *cptr,int mask,int val)
 			if (cptr->info->type == pvr2_ctl_bitmask) {
 				mask &= cptr->info->def.type_bitmask.valid_bits;
 			} else if (cptr->info->type == pvr2_ctl_int) {
-				if (val < cptr->info->def.type_int.min_value) {
-					break;
+				int lim;
+				lim = cptr->info->def.type_int.min_value;
+				if (cptr->info->get_min_value) {
+					cptr->info->get_min_value(cptr,&lim);
 				}
-				if (val > cptr->info->def.type_int.max_value) {
-					break;
+				if (val < lim) break;
+				lim = cptr->info->def.type_int.max_value;
+				if (cptr->info->get_max_value) {
+					cptr->info->get_max_value(cptr,&lim);
 				}
+				if (val > lim) break;
 			} else if (cptr->info->type == pvr2_ctl_enum) {
 				if (val >= cptr->info->def.type_enum.count) {
 					break;
@@ -91,7 +96,9 @@ int pvr2_ctrl_get_max(struct pvr2_ctrl *cptr)
 	int ret = 0;
 	if (!cptr) return 0;
 	LOCK_TAKE(cptr->hdw->big_lock); do {
-		if (cptr->info->type == pvr2_ctl_int) {
+		if (cptr->info->get_max_value) {
+			cptr->info->get_max_value(cptr,&ret);
+		} else if (cptr->info->type == pvr2_ctl_int) {
 			ret = cptr->info->def.type_int.max_value;
 		}
 	} while(0); LOCK_GIVE(cptr->hdw->big_lock);
@@ -105,7 +112,9 @@ int pvr2_ctrl_get_min(struct pvr2_ctrl *cptr)
 	int ret = 0;
 	if (!cptr) return 0;
 	LOCK_TAKE(cptr->hdw->big_lock); do {
-		if (cptr->info->type == pvr2_ctl_int) {
+		if (cptr->info->get_min_value) {
+			cptr->info->get_min_value(cptr,&ret);
+		} else if (cptr->info->type == pvr2_ctl_int) {
 			ret = cptr->info->def.type_int.min_value;
 		}
 	} while(0); LOCK_GIVE(cptr->hdw->big_lock);

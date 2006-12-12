@@ -46,7 +46,7 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 	nsect = req->current_nr_sectors;
 	buf = req->buffer;
 
-	if (!(req->flags & REQ_CMD))
+	if (!blk_fs_request(req))
 		return 0;
 
 	if (block + nsect > get_capacity(req->rq_disk))
@@ -69,7 +69,7 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 		return 1;
 
 	default:
-		printk(KERN_NOTICE "Unknown request %ld\n", rq_data_dir(req));
+		printk(KERN_NOTICE "Unknown request %u\n", rq_data_dir(req));
 		return 0;
 	}
 }

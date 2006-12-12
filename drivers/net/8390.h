@@ -35,7 +35,7 @@ extern void ei_poll(struct net_device *dev);
 extern void NS8390_init(struct net_device *dev, int startp);
 extern int ei_open(struct net_device *dev);
 extern int ei_close(struct net_device *dev);
-extern irqreturn_t ei_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+extern irqreturn_t ei_interrupt(int irq, void *dev_id);
 extern struct net_device *__alloc_ei_netdev(int size);
 static inline struct net_device *alloc_ei_netdev(void)
 {
@@ -107,35 +107,14 @@ struct ei_device {
  *      - removed AMIGA_PCMCIA from this list, handled as ISA io now
  */
 
-#if defined(CONFIG_MAC) ||  \
-    defined(CONFIG_ZORRO8390) || defined(CONFIG_ZORRO8390_MODULE) || \
-    defined(CONFIG_HYDRA) || defined(CONFIG_HYDRA_MODULE)
-#define EI_SHIFT(x)	(ei_local->reg_offset[x])
-#undef inb
-#undef inb_p
-#undef outb
-#undef outb_p
+#ifndef ei_inb
+#define ei_inb(_p)	inb(_p)
+#define ei_outb(_v,_p)	outb(_v,_p)
+#define ei_inb_p(_p)	inb_p(_p)
+#define ei_outb_p(_v,_p) outb_p(_v,_p)
+#endif
 
-#define inb(port)   in_8(port)
-#define outb(val,port)  out_8(port,val)
-#define inb_p(port)   in_8(port)
-#define outb_p(val,port)  out_8(port,val)
-
-#elif defined(CONFIG_ARM_ETHERH) || defined(CONFIG_ARM_ETHERH_MODULE)
-#define EI_SHIFT(x)	(ei_local->reg_offset[x])
-#undef inb
-#undef inb_p
-#undef outb
-#undef outb_p
-
-#define inb(_p)		readb(_p)
-#define outb(_v,_p)	writeb(_v,_p)
-#define inb_p(_p)	inb(_p)
-#define outb_p(_v,_p)	outb(_v,_p)
-
-#elif defined(CONFIG_NE_H8300) || defined(CONFIG_NE_H8300_MODULE)
-#define EI_SHIFT(x)	(ei_local->reg_offset[x])
-#else
+#ifndef EI_SHIFT
 #define EI_SHIFT(x)	(x)
 #endif
 

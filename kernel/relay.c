@@ -95,7 +95,7 @@ int relay_mmap_buf(struct rchan_buf *buf, struct vm_area_struct *vma)
  *	@buf: the buffer struct
  *	@size: total size of the buffer
  *
- *	Returns a pointer to the resulting buffer, NULL if unsuccessful. The
+ *	Returns a pointer to the resulting buffer, %NULL if unsuccessful. The
  *	passed in size will get page aligned, if it isn't already.
  */
 static void *relay_alloc_buf(struct rchan_buf *buf, size_t *size)
@@ -132,10 +132,9 @@ depopulate:
 
 /**
  *	relay_create_buf - allocate and initialize a channel buffer
- *	@alloc_size: size of the buffer to allocate
- *	@n_subbufs: number of sub-buffers in the channel
+ *	@chan: the relay channel
  *
- *	Returns channel buffer if successful, NULL otherwise
+ *	Returns channel buffer if successful, %NULL otherwise.
  */
 struct rchan_buf *relay_create_buf(struct rchan *chan)
 {
@@ -163,6 +162,7 @@ free_buf:
 
 /**
  *	relay_destroy_channel - free the channel struct
+ *	@kref: target kernel reference that contains the relay channel
  *
  *	Should only be called from kref_put().
  */
@@ -194,6 +194,7 @@ void relay_destroy_buf(struct rchan_buf *buf)
 
 /**
  *	relay_remove_buf - remove a channel buffer
+ *	@kref: target kernel reference that contains the relay buffer
  *
  *	Removes the file from the fileystem, which also frees the
  *	rchan_buf_struct and the channel buffer.  Should only be called from
@@ -307,9 +308,10 @@ static struct rchan_callbacks default_channel_callbacks = {
  *	reason waking is deferred is that calling directly from write
  *	causes problems if you're writing from say the scheduler.
  */
-static void wakeup_readers(void *private)
+static void wakeup_readers(struct work_struct *work)
 {
-	struct rchan_buf *buf = private;
+	struct rchan_buf *buf =
+		container_of(work, struct rchan_buf, wake_readers.work);
 	wake_up_interruptible(&buf->read_wait);
 }
 
@@ -327,7 +329,7 @@ static inline void __relay_reset(struct rchan_buf *buf, unsigned int init)
 	if (init) {
 		init_waitqueue_head(&buf->read_wait);
 		kref_init(&buf->kref);
-		INIT_WORK(&buf->wake_readers, NULL, NULL);
+		INIT_DELAYED_WORK(&buf->wake_readers, NULL);
 	} else {
 		cancel_delayed_work(&buf->wake_readers);
 		flush_scheduled_work();
@@ -374,7 +376,7 @@ void relay_reset(struct rchan *chan)
 }
 EXPORT_SYMBOL_GPL(relay_reset);
 
-/**
+/*
  *	relay_open_buf - create a new relay channel buffer
  *
  *	Internal - used by relay_open().
@@ -448,12 +450,12 @@ static inline void setup_callbacks(struct rchan *chan,
 /**
  *	relay_open - create a new relay channel
  *	@base_filename: base name of files to create
- *	@parent: dentry of parent directory, NULL for root directory
+ *	@parent: dentry of parent directory, %NULL for root directory
  *	@subbuf_size: size of sub-buffers
  *	@n_subbufs: number of sub-buffers
  *	@cb: client callback functions
  *
- *	Returns channel pointer if successful, NULL otherwise.
+ *	Returns channel pointer if successful, %NULL otherwise.
  *
  *	Creates a channel buffer for each cpu using the sizes and
  *	attributes specified.  The created channel buffer files
@@ -548,7 +550,8 @@ size_t relay_switch_subbuf(struct rchan_buf *buf, size_t length)
 			buf->padding[old_subbuf];
 		smp_mb();
 		if (waitqueue_active(&buf->read_wait)) {
-			PREPARE_WORK(&buf->wake_readers, wakeup_readers, buf);
+			PREPARE_DELAYED_WORK(&buf->wake_readers,
+					     wakeup_readers);
 			schedule_delayed_work(&buf->wake_readers, 1);
 		}
 	}
@@ -585,7 +588,7 @@ EXPORT_SYMBOL_GPL(relay_switch_subbuf);
  *	subbufs_consumed should be the number of sub-buffers newly consumed,
  *	not the total consumed.
  *
- *	NOTE: kernel clients don't need to call this function if the channel
+ *	NOTE: Kernel clients don't need to call this function if the channel
  *	mode is 'overwrite'.
  */
 void relay_subbufs_consumed(struct rchan *chan,
@@ -641,7 +644,7 @@ EXPORT_SYMBOL_GPL(relay_close);
  *	relay_flush - close the channel
  *	@chan: the channel
  *
- *	Flushes all channel buffers i.e. forces buffer switch.
+ *	Flushes all channel buffers, i.e. forces buffer switch.
  */
 void relay_flush(struct rchan *chan)
 {
@@ -669,7 +672,7 @@ EXPORT_SYMBOL_GPL(relay_flush);
  */
 static int relay_file_open(struct inode *inode, struct file *filp)
 {
-	struct rchan_buf *buf = inode->u.generic_ip;
+	struct rchan_buf *buf = inode->i_private;
 	kref_get(&buf->kref);
 	filp->private_data = buf;
 
@@ -729,7 +732,7 @@ static int relay_file_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-/**
+/*
  *	relay_file_read_consume - update the consumed count for the buffer
  */
 static void relay_file_read_consume(struct rchan_buf *buf,
@@ -756,7 +759,7 @@ static void relay_file_read_consume(struct rchan_buf *buf,
 	}
 }
 
-/**
+/*
  *	relay_file_read_avail - boolean, are there unconsumed bytes available?
  */
 static int relay_file_read_avail(struct rchan_buf *buf, size_t read_pos)
@@ -793,6 +796,8 @@ static int relay_file_read_avail(struct rchan_buf *buf, size_t read_pos)
 
 /**
  *	relay_file_read_subbuf_avail - return bytes available in sub-buffer
+ *	@read_pos: file read position
+ *	@buf: relay channel buffer
  */
 static size_t relay_file_read_subbuf_avail(size_t read_pos,
 					   struct rchan_buf *buf)
@@ -818,6 +823,8 @@ static size_t relay_file_read_subbuf_avail(size_t read_pos,
 
 /**
  *	relay_file_read_start_pos - find the first available byte to read
+ *	@read_pos: file read position
+ *	@buf: relay channel buffer
  *
  *	If the read_pos is in the middle of padding, return the
  *	position of the first actually available byte, otherwise
@@ -844,6 +851,9 @@ static size_t relay_file_read_start_pos(size_t read_pos,
 
 /**
  *	relay_file_read_end_pos - return the new read position
+ *	@read_pos: file read position
+ *	@buf: relay channel buffer
+ *	@count: number of bytes to be read
  */
 static size_t relay_file_read_end_pos(struct rchan_buf *buf,
 				      size_t read_pos,
@@ -865,7 +875,7 @@ static size_t relay_file_read_end_pos(struct rchan_buf *buf,
 	return end_pos;
 }
 
-/**
+/*
  *	subbuf_read_actor - read up to one subbuf's worth of data
  */
 static int subbuf_read_actor(size_t read_start,
@@ -879,7 +889,7 @@ static int subbuf_read_actor(size_t read_start,
 
 	from = buf->start + read_start;
 	ret = avail;
-	if (copy_to_user(desc->arg.data, from, avail)) {
+	if (copy_to_user(desc->arg.buf, from, avail)) {
 		desc->error = -EFAULT;
 		ret = 0;
 	}
@@ -890,7 +900,7 @@ static int subbuf_read_actor(size_t read_start,
 	return ret;
 }
 
-/**
+/*
  *	subbuf_send_actor - send up to one subbuf's worth of data
  */
 static int subbuf_send_actor(size_t read_start,
@@ -933,30 +943,23 @@ typedef int (*subbuf_actor_t) (size_t read_start,
 			       read_descriptor_t *desc,
 			       read_actor_t actor);
 
-/**
+/*
  *	relay_file_read_subbufs - read count bytes, bridging subbuf boundaries
  */
 static inline ssize_t relay_file_read_subbufs(struct file *filp,
 					      loff_t *ppos,
-					      size_t count,
 					      subbuf_actor_t subbuf_actor,
 					      read_actor_t actor,
-					      void *target)
+					      read_descriptor_t *desc)
 {
 	struct rchan_buf *buf = filp->private_data;
 	size_t read_start, avail;
-	read_descriptor_t desc;
 	int ret;
 
-	if (!count)
+	if (!desc->count)
 		return 0;
 
-	desc.written = 0;
-	desc.count = count;
-	desc.arg.data = target;
-	desc.error = 0;
-
-	mutex_lock(&filp->f_dentry->d_inode->i_mutex);
+	mutex_lock(&filp->f_path.dentry->d_inode->i_mutex);
 	do {
 		if (!relay_file_read_avail(buf, *ppos))
 			break;
@@ -966,19 +969,19 @@ static inline ssize_t relay_file_read_subbufs(struct file *filp,
 		if (!avail)
 			break;
 
-		avail = min(desc.count, avail);
-		ret = subbuf_actor(read_start, buf, avail, &desc, actor);
-		if (desc.error < 0)
+		avail = min(desc->count, avail);
+		ret = subbuf_actor(read_start, buf, avail, desc, actor);
+		if (desc->error < 0)
 			break;
 
 		if (ret) {
 			relay_file_read_consume(buf, read_start, ret);
 			*ppos = relay_file_read_end_pos(buf, read_start, ret);
 		}
-	} while (desc.count && ret);
-	mutex_unlock(&filp->f_dentry->d_inode->i_mutex);
+	} while (desc->count && ret);
+	mutex_unlock(&filp->f_path.dentry->d_inode->i_mutex);
 
-	return desc.written;
+	return desc->written;
 }
 
 static ssize_t relay_file_read(struct file *filp,
@@ -986,8 +989,13 @@ static ssize_t relay_file_read(struct file *filp,
 			       size_t count,
 			       loff_t *ppos)
 {
-	return relay_file_read_subbufs(filp, ppos, count, subbuf_read_actor,
-				       NULL, buffer);
+	read_descriptor_t desc;
+	desc.written = 0;
+	desc.count = count;
+	desc.arg.buf = buffer;
+	desc.error = 0;
+	return relay_file_read_subbufs(filp, ppos, subbuf_read_actor,
+				       NULL, &desc);
 }
 
 static ssize_t relay_file_sendfile(struct file *filp,
@@ -996,11 +1004,16 @@ static ssize_t relay_file_sendfile(struct file *filp,
 				   read_actor_t actor,
 				   void *target)
 {
-	return relay_file_read_subbufs(filp, ppos, count, subbuf_send_actor,
-				       actor, target);
+	read_descriptor_t desc;
+	desc.written = 0;
+	desc.count = count;
+	desc.arg.data = target;
+	desc.error = 0;
+	return relay_file_read_subbufs(filp, ppos, subbuf_send_actor,
+				       actor, &desc);
 }
 
-struct file_operations relay_file_operations = {
+const struct file_operations relay_file_operations = {
 	.open		= relay_file_open,
 	.poll		= relay_file_poll,
 	.mmap		= relay_file_mmap,

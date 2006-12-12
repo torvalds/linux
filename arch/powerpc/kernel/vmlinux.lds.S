@@ -33,6 +33,7 @@ SECTIONS
 
 	/* Text and gots */
 	.text : {
+		_text = .;
 		*(.text .text.*)
 		SCHED_TEXT
 		LOCK_TEXT
@@ -61,11 +62,7 @@ SECTIONS
 		__stop___ex_table = .;
 	}
 
-	__bug_table : {
-		__start___bug_table = .;
-		*(__bug_table)
-		__stop___bug_table = .;
-	}
+	BUG_TABLE
 
 /*
  * Init sections discarded at runtime
@@ -108,13 +105,7 @@ SECTIONS
 
 	.initcall.init : {
 		__initcall_start = .;
-		*(.initcall1.init)
-		*(.initcall2.init)
-		*(.initcall3.init)
-		*(.initcall4.init)
-		*(.initcall5.init)
-		*(.initcall6.init)
-		*(.initcall7.init)
+		INITCALLS
 		__initcall_end = .;
 		}
 
@@ -132,6 +123,14 @@ SECTIONS
 		*(__ftr_fixup)
 		__stop___ftr_fixup = .;
 	}
+#ifdef CONFIG_PPC64
+	. = ALIGN(8);
+	__fw_ftr_fixup : {
+		__start___fw_ftr_fixup = .;
+		*(__fw_ftr_fixup)
+		__stop___fw_ftr_fixup = .;
+	}
+#endif
 
 	. = ALIGN(PAGE_SIZE);
 	.init.ramfs : {

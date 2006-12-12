@@ -30,6 +30,7 @@
 #include <linux/if_packet.h>
 
 #ifdef __KERNEL__
+#include <linux/timer.h>
 #include <asm/atomic.h>
 #include <asm/cache.h>
 #include <asm/byteorder.h>
@@ -38,7 +39,6 @@
 #include <linux/percpu.h>
 #include <linux/dmaengine.h>
 
-struct divert_blk;
 struct vlan_group;
 struct ethtool_ops;
 struct netpoll_info;
@@ -67,6 +67,10 @@ struct netpoll_info;
 #define NET_RX_CN_HIGH		4   /* The storm is here */
 #define NET_RX_BAD		5  /* packet dropped due to kernel error */
 
+/* NET_XMIT_CN is special. It does not guarantee that this packet is lost. It
+ * indicates that the device will soon be dropping packets, or already drops
+ * some packets of the same priority; prompting us to send less aggressively. */
+#define net_xmit_eval(e)	((e) == NET_XMIT_CN? 0 : (e))
 #define net_xmit_errno(e)	((e) != NET_XMIT_CN ? -ENOBUFS : 0)
 
 #endif
@@ -93,8 +97,10 @@ struct netpoll_info;
 #endif
 #endif
 
-#if !defined(CONFIG_NET_IPIP) && \
-    !defined(CONFIG_IPV6) && !defined(CONFIG_IPV6_MODULE)
+#if !defined(CONFIG_NET_IPIP) && !defined(CONFIG_NET_IPIP_MODULE) && \
+    !defined(CONFIG_NET_IPGRE) &&  !defined(CONFIG_NET_IPGRE_MODULE) && \
+    !defined(CONFIG_IPV6_SIT) && !defined(CONFIG_IPV6_SIT_MODULE) && \
+    !defined(CONFIG_IPV6_TUNNEL) && !defined(CONFIG_IPV6_TUNNEL_MODULE)
 #define MAX_HEADER LL_MAX_HEADER
 #else
 #define MAX_HEADER (LL_MAX_HEADER + 48)
@@ -187,13 +193,20 @@ struct hh_cache
 {
 	struct hh_cache *hh_next;	/* Next entry			     */
 	atomic_t	hh_refcnt;	/* number of users                   */
-	unsigned short  hh_type;	/* protocol identifier, f.e ETH_P_IP
+/*
+ * We want hh_output, hh_len, hh_lock and hh_data be a in a separate
+ * cache line on SMP.
+ * They are mostly read, but hh_refcnt may be changed quite frequently,
+ * incurring cache line ping pongs.
+ */
+	__be16		hh_type ____cacheline_aligned_in_smp;
+					/* protocol identifier, f.e ETH_P_IP
                                          *  NOTE:  For VLANs, this will be the
                                          *  encapuslated type. --BLG
                                          */
-	int		hh_len;		/* length of header */
+	u16		hh_len;		/* length of header */
 	int		(*hh_output)(struct sk_buff *skb);
-	rwlock_t	hh_lock;
+	seqlock_t	hh_lock;
 
 	/* cached hardware header; allow for machine alignment needs.        */
 #define HH_DATA_MOD	16
@@ -334,7 +347,6 @@ struct net_device
 
 
 	struct net_device_stats* (*get_stats)(struct net_device *dev);
-	struct iw_statistics*	(*get_wireless_stats)(struct net_device *dev);
 
 	/* List of functions to handle Wireless Extensions (instead of ioctl).
 	 * See <net/iw_handler.h> for details. Jean II */
@@ -515,11 +527,6 @@ struct net_device
 
 	/* bridge stuff */
 	struct net_bridge_port	*br_port;
-
-#ifdef CONFIG_NET_DIVERT
-	/* this will get initialized at each interface type init routine */
-	struct divert_blk	*divert;
-#endif /* CONFIG_NET_DIVERT */
 
 	/* class/net/name entry */
 	struct class_device	class_dev;
@@ -1016,7 +1023,8 @@ static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 }
 
 /* On bonding slaves other than the currently active slave, suppress
- * duplicates except for 802.3ad ETH_P_SLOW and alb non-mcast/bcast.
+ * duplicates except for 802.3ad ETH_P_SLOW, alb non-mcast/bcast, and
+ * ARP on active-backup slaves with arp_validate enabled.
  */
 static inline int skb_bond_should_drop(struct sk_buff *skb)
 {
@@ -1025,6 +1033,10 @@ static inline int skb_bond_should_drop(struct sk_buff *skb)
 
 	if (master &&
 	    (dev->priv_flags & IFF_SLAVE_INACTIVE)) {
+		if ((dev->priv_flags & IFF_SLAVE_NEEDARP) &&
+		    skb->protocol == __constant_htons(ETH_P_ARP))
+			return 0;
+
 		if (master->priv_flags & IFF_MASTER_ALB) {
 			if (skb->pkt_type != PACKET_BROADCAST &&
 			    skb->pkt_type != PACKET_MULTICAST)

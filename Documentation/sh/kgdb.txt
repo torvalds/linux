@@ -69,7 +69,7 @@ might specify the halt option:
 
   kgdb=halt
 
-Boot the TARGET machinem, which will appear to hang. 
+Boot the TARGET machine, which will appear to hang. 
 
 On your DEVELOPMENT machine, cd to the source directory and run the gdb
 program.  (This is likely to be a cross GDB which runs on your host but

@@ -780,8 +780,7 @@ static int snd_emu10k1x_dev_free(struct snd_device *device)
 	return snd_emu10k1x_free(chip);
 }
 
-static irqreturn_t snd_emu10k1x_interrupt(int irq, void *dev_id,
-					  struct pt_regs *regs)
+static irqreturn_t snd_emu10k1x_interrupt(int irq, void *dev_id)
 {
 	unsigned int status;
 

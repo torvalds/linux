@@ -31,6 +31,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/kdebug.h>
+#include <asm/s390_ext.h>
 
 #ifndef CONFIG_64BIT
 #define __FAIL_ADDR_MASK 0x7ffff000
@@ -353,8 +354,9 @@ no_context:
 */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if (tsk->pid == 1) {
+	if (is_init(tsk)) {
 		yield();
+		down_read(&mm->mmap_sem);
 		goto survive;
 	}
 	printk("VM: killing process %s\n", tsk->comm);
@@ -393,6 +395,7 @@ void do_dat_exception(struct pt_regs *regs, unsigned long error_code)
 /*
  * 'pfault' pseudo page faults routines.
  */
+static ext_int_info_t ext_int_pfault;
 static int pfault_disable = 0;
 
 static int __init nopfault(char *str)
@@ -421,22 +424,15 @@ int pfault_init(void)
 		  __PF_RES_FIELD };
         int rc;
 
-	if (pfault_disable)
+	if (!MACHINE_IS_VM || pfault_disable)
 		return -1;
-        __asm__ __volatile__(
-                "    diag  %1,%0,0x258\n"
-		"0:  j     2f\n"
-		"1:  la    %0,8\n"
+	asm volatile(
+		"	diag	%1,%0,0x258\n"
+		"0:	j	2f\n"
+		"1:	la	%0,8\n"
 		"2:\n"
-		".section __ex_table,\"a\"\n"
-		"   .align 4\n"
-#ifndef CONFIG_64BIT
-		"   .long  0b,1b\n"
-#else /* CONFIG_64BIT */
-		"   .quad  0b,1b\n"
-#endif /* CONFIG_64BIT */
-		".previous"
-                : "=d" (rc) : "a" (&refbk), "m" (refbk) : "cc" );
+		EX_TABLE(0b,1b)
+		: "=d" (rc) : "a" (&refbk), "m" (refbk) : "cc");
         __ctl_set_bit(0, 9);
         return rc;
 }
@@ -446,25 +442,18 @@ void pfault_fini(void)
 	pfault_refbk_t refbk =
 	{ 0x258, 1, 5, 2, 0ULL, 0ULL, 0ULL, 0ULL };
 
-	if (pfault_disable)
+	if (!MACHINE_IS_VM || pfault_disable)
 		return;
 	__ctl_clear_bit(0,9);
-        __asm__ __volatile__(
-                "    diag  %0,0,0x258\n"
+	asm volatile(
+		"	diag	%0,0,0x258\n"
 		"0:\n"
-		".section __ex_table,\"a\"\n"
-		"   .align 4\n"
-#ifndef CONFIG_64BIT
-		"   .long  0b,0b\n"
-#else /* CONFIG_64BIT */
-		"   .quad  0b,0b\n"
-#endif /* CONFIG_64BIT */
-		".previous"
-		: : "a" (&refbk), "m" (refbk) : "cc" );
+		EX_TABLE(0b,0b)
+		: : "a" (&refbk), "m" (refbk) : "cc");
 }
 
 asmlinkage void
-pfault_interrupt(struct pt_regs *regs, __u16 error_code)
+pfault_interrupt(__u16 error_code)
 {
 	struct task_struct *tsk;
 	__u16 subcode;
@@ -513,5 +502,25 @@ pfault_interrupt(struct pt_regs *regs, __u16 error_code)
 			set_tsk_need_resched(tsk);
 	}
 }
-#endif
 
+void __init pfault_irq_init(void)
+{
+	if (!MACHINE_IS_VM)
+		return;
+
+	/*
+	 * Try to get pfault pseudo page faults going.
+	 */
+	if (register_early_external_interrupt(0x2603, pfault_interrupt,
+					      &ext_int_pfault) != 0)
+		panic("Couldn't request external interrupt 0x2603");
+
+	if (pfault_init() == 0)
+		return;
+
+	/* Tough luck, no pfault. */
+	pfault_disable = 1;
+	unregister_early_external_interrupt(0x2603, pfault_interrupt,
+					    &ext_int_pfault);
+}
+#endif

@@ -13,7 +13,7 @@ Table of contents
 - Using NTFS volume and stripe sets
   - The Device-Mapper driver
   - The Software RAID / MD driver
-  - Limitiations when using the MD driver
+  - Limitations when using the MD driver
 - ChangeLog
 
 
@@ -43,7 +43,7 @@ There is plenty of additional information on the linux-ntfs web site
 at http://linux-ntfs.sourceforge.net/
 
 The web site has a lot of additional information, such as a comprehensive
-FAQ, documentation on the NTFS on-disk format, informaiton on the Linux-NTFS
+FAQ, documentation on the NTFS on-disk format, information on the Linux-NTFS
 userspace utilities, etc.
 
 
@@ -337,7 +337,7 @@ Finally, for a mirrored volume, i.e. raid level 1, the table would look like
 this (note all values are in 512-byte sectors):
 
 --- cut here ---
-# Ofs Size   Raid   Log  Number Region Should Number Source  Start Taget  Start
+# Ofs Size   Raid   Log  Number Region Should Number Source  Start Target Start
 # in  of the type   type of log size   sync?  of     Device  in    Device in
 # vol volume		 params		     mirrors	     Device	  Device
 0    2056320 mirror core 2	16     nosync 2	   /dev/hda1 0   /dev/hdb1 0
@@ -383,14 +383,14 @@ Software RAID / MD driver.  For which you need to set up your /etc/raidtab
 appropriately (see man 5 raidtab).
 
 Linear volume sets, i.e. linear raid, as well as stripe sets, i.e. raid level
-0, have been tested and work fine (though see section "Limitiations when using
+0, have been tested and work fine (though see section "Limitations when using
 the MD driver with NTFS volumes" especially if you want to use linear raid).
 Even though untested, there is no reason why mirrors, i.e. raid level 1, and
 stripes with parity, i.e. raid level 5, should not work, too.
 
 You have to use the "persistent-superblock 0" option for each raid-disk in the
 NTFS volume/stripe you are configuring in /etc/raidtab as the persistent
-superblock used by the MD driver would damange the NTFS volume.
+superblock used by the MD driver would damage the NTFS volume.
 
 Windows by default uses a stripe chunk size of 64k, so you probably want the
 "chunk-size 64k" option for each raid-disk, too.
@@ -435,7 +435,7 @@ setup correctly to avoid the possibility of causing damage to the data on the
 ntfs volume.
 
 
-Limitiations when using the Software RAID / MD driver
+Limitations when using the Software RAID / MD driver
 -----------------------------------------------------
 
 Using the md driver will not work properly if any of your NTFS partitions have
@@ -599,7 +599,7 @@ Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 	- Major bug fixes for reading files and volumes in corner cases which
 	  were being hit by Windows 2k/XP users.
 2.1.2:
-	- Major bug fixes aleviating the hangs in statfs experienced by some
+	- Major bug fixes alleviating the hangs in statfs experienced by some
 	  users.
 2.1.1:
 	- Update handling of compressed files so people no longer get the

@@ -14,6 +14,8 @@
 #include <linux/wait.h>
 #include <asm/atomic.h>
 
+#ifdef CONFIG_BLOCK
+
 enum bh_state_bits {
 	BH_Uptodate,	/* Contains valid data */
 	BH_Dirty,	/* Is dirty */
@@ -67,6 +69,8 @@ struct buffer_head {
 	bh_end_io_t *b_end_io;		/* I/O completion */
  	void *b_private;		/* reserved for b_end_io */
 	struct list_head b_assoc_buffers; /* associated with another mapping */
+	struct address_space *b_assoc_map;	/* mapping this buffer is
+						   associated with */
 	atomic_t b_count;		/* users using this buffer_head */
 };
 
@@ -190,9 +194,7 @@ extern int buffer_heads_over_limit;
  * Generic address_space_operations implementations for buffer_head-backed
  * address_spaces.
  */
-int try_to_release_page(struct page * page, gfp_t gfp_mask);
 void block_invalidatepage(struct page *page, unsigned long offset);
-void do_invalidatepage(struct page *page, unsigned long offset);
 int block_write_full_page(struct page *page, get_block_t *get_block,
 				struct writeback_control *wbc);
 int block_read_full_page(struct page*, get_block_t*);
@@ -302,4 +304,19 @@ static inline void lock_buffer(struct buffer_head *bh)
 		__lock_buffer(bh);
 }
 
+extern int __set_page_dirty_buffers(struct page *page);
+
+#else /* CONFIG_BLOCK */
+
+static inline void buffer_init(void) {}
+static inline int try_to_free_buffers(struct page *page) { return 1; }
+static inline int sync_blockdev(struct block_device *bdev) { return 0; }
+static inline int inode_has_buffers(struct inode *inode) { return 0; }
+static inline void invalidate_inode_buffers(struct inode *inode) {}
+static inline int remove_inode_buffers(struct inode *inode) { return 1; }
+static inline int sync_mapping_buffers(struct address_space *mapping) { return 0; }
+static inline void invalidate_bdev(struct block_device *bdev, int destroy_dirty_buffers) {}
+
+
+#endif /* CONFIG_BLOCK */
 #endif /* _LINUX_BUFFER_HEAD_H */

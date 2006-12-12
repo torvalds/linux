@@ -44,8 +44,8 @@ static ssize_t default_write_file(struct file *file, const char __user *buf,
 
 static int default_open(struct inode *inode, struct file *file)
 {
-	if (inode->u.generic_ip)
-		file->private_data = inode->u.generic_ip;
+	if (inode->i_private)
+		file->private_data = inode->i_private;
 
 	return 0;
 }
@@ -64,7 +64,6 @@ static struct inode *get_inode(struct super_block *sb, int mode, dev_t dev)
 		inode->i_mode = mode;
 		inode->i_uid = 0;
 		inode->i_gid = 0;
-		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		switch (mode & S_IFMT) {
@@ -79,7 +78,7 @@ static struct inode *get_inode(struct super_block *sb, int mode, dev_t dev)
 			inode->i_fop = &simple_dir_operations;
 
 			/* directory inodes start off with i_nlink == 2 (for "." entry) */
-			inode->i_nlink++;
+			inc_nlink(inode);
 			break;
 		}
 	}
@@ -112,7 +111,7 @@ static int mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
 	res = mknod(dir, dentry, mode, 0);
 	if (!res)
-		dir->i_nlink++;
+		inc_nlink(dir);
 	return res;
 }
 
@@ -194,7 +193,7 @@ static int create_by_name(const char *name, mode_t mode,
  *          directory dentry if set.  If this paramater is NULL, then the
  *          file will be created in the root of the securityfs filesystem.
  * @data: a pointer to something that the caller will want to get to later
- *        on.  The inode.u.generic_ip pointer will point to this value on
+ *        on.  The inode.i_private pointer will point to this value on
  *        the open() call.
  * @fops: a pointer to a struct file_operations that should be used for
  *        this file.
@@ -240,7 +239,7 @@ struct dentry *securityfs_create_file(const char *name, mode_t mode,
 		if (fops)
 			dentry->d_inode->i_fop = fops;
 		if (data)
-			dentry->d_inode->u.generic_ip = data;
+			dentry->d_inode->i_private = data;
 	}
 exit:
 	return dentry;

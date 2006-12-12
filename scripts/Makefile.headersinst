@@ -97,7 +97,7 @@ quiet_cmd_unifdef	  = UNIFDEF $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
 				   | $(HDRSED) > $@ || :
 
 quiet_cmd_check		  = CHECK   $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/.check.%,$(_dst)/%,$@)
-      cmd_check		  = $(srctree)/scripts/hdrcheck.sh		\
+      cmd_check		  = $(CONFIG_SHELL) $(srctree)/scripts/hdrcheck.sh \
                               $(INSTALL_HDR_PATH)/include $(subst /.check.,/,$@) $@
 
 quiet_cmd_remove	  = REMOVE  $(_dst)/$@
@@ -168,7 +168,7 @@ $(objhdr-y) $(header-y) $(unifdef-y): $(KBUILDFILES)
 	$(call cmd,gen)
 
 else
-$(objhdr-y) :		$(INSTALL_HDR_PATH)/$(_dst)/%.h: $(srctree)/$(obj)/%.h $(KBUILDFILES)
+$(objhdr-y) :		$(INSTALL_HDR_PATH)/$(_dst)/%.h: $(objtree)/$(obj)/%.h $(KBUILDFILES)
 	$(call cmd,o_hdr_install)
 
 $(header-y) :		$(INSTALL_HDR_PATH)/$(_dst)/%.h: $(srctree)/$(obj)/%.h $(KBUILDFILES)

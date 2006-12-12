@@ -4,7 +4,7 @@
  * Copyright (C) 2002 by Theodore Ts'o
  *
  * This file is released under the GPL v2.
- * 
+ *
  * This file may be redistributed under the terms of the GNU Public
  * License.
  */
@@ -80,11 +80,11 @@ static void str2hashbuf(const char *msg, int len, __u32 *buf, int num)
  * Returns the hash of a filename.  If len is 0 and name is NULL, then
  * this function can be used to test whether or not a hash version is
  * supported.
- * 
+ *
  * The seed is an 4 longword (32 bits) "secret" which can be used to
  * uniquify a hash.  If the seed is all zero's, then some default seed
  * may be used.
- * 
+ *
  * A particular hash version specifies whether or not the seed is
  * represented, and whether or not the returned hash is 32 bits or 64
  * bits.  32 bit hashes will return 0 for the minor hash.
@@ -95,7 +95,7 @@ int ext3fs_dirhash(const char *name, int len, struct dx_hash_info *hinfo)
 	__u32	minor_hash = 0;
 	const char	*p;
 	int		i;
-	__u32 		in[8], buf[4];
+	__u32		in[8], buf[4];
 
 	/* Initialize the default seed for the hash checksum functions */
 	buf[0] = 0x67452301;

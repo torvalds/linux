@@ -85,8 +85,6 @@ typedef enum {
 #define VN_BHV_HEAD(vp)			((bhv_head_t *)(&((vp)->v_bh)))
 #define vn_bhv_head_init(bhp,name)	bhv_head_init(bhp,name)
 #define vn_bhv_remove(bhp,bdp)		bhv_remove(bhp,bdp)
-#define vn_bhv_lookup(bhp,ops)		bhv_lookup(bhp,ops)
-#define vn_bhv_lookup_unlocked(bhp,ops) bhv_lookup_unlocked(bhp,ops)
 
 /*
  * Vnode to Linux inode mapping.

@@ -10,7 +10,7 @@ provides a convenient connection point for a mouse and switch-type joysticks.
 The ikbd processor also maintains a time-of-day clock with one second
 resolution.
 The ikbd has been designed to be general enough that it can be used with a
-ariety of new computer products. Product variations in a number of
+variety of new computer products. Product variations in a number of
 keyswitches, mouse resolution, etc. can be accommodated.
 The ikbd communicates with the main processor over a high speed bi-directional
 serial interface. It can function in a variety of modes to facilitate
@@ -30,7 +30,7 @@ is obtained by ORing 0x80 with the make code.
 The special codes 0xF6 through 0xFF are reserved for use as follows:
     0xF6            status report
     0xF7            absolute mouse position record
-    0xF8-0xFB       relative mouse position records(lsbs determind by
+    0xF8-0xFB       relative mouse position records (lsbs determined by
                      mouse button states)
     0xFC            time-of-day
     0xFD            joystick report (both sticks)
@@ -84,7 +84,7 @@ selected.
 4.2 Absolute Position reporting
 
 The ikbd can also maintain absolute mouse position. Commands exist for
-reseting the mouse position, setting X/Y scaling, and interrogating the
+resetting the mouse position, setting X/Y scaling, and interrogating the
 current mouse position.
 
 4.3 Mouse Cursor Key Mode
@@ -103,7 +103,7 @@ LEFT=0x74 & RIGHT=0x75).
 
 5.1 Joystick Event Reporting
 
-In this mode, the ikbd generates a record whever the joystick position is
+In this mode, the ikbd generates a record whenever the joystick position is
 changed (i.e. for each opening or closing of a joystick switch or trigger).
 
 The joystick event record is two bytes of the form:
@@ -277,8 +277,8 @@ default to 1 at RESET (or power-up).
 9.7 SET MOUSE SCALE
 
     0x0C
-    X                   ; horizontal mouse ticks per internel X
-    Y                   ; vertical mouse ticks per internel Y
+    X                   ; horizontal mouse ticks per internal X
+    Y                   ; vertical mouse ticks per internal Y
 
 This command sets the scale factor for the ABSOLUTE MOUSE POSITIONING mode.
 In this mode, the specified number of mouse phase changes ('clicks') must
@@ -323,7 +323,7 @@ mouse position.
     0x0F
 
 This command makes the origin of the Y axis to be at the bottom of the
-logical coordinate system internel to the ikbd for all relative or absolute
+logical coordinate system internal to the ikbd for all relative or absolute
 mouse motion. This causes mouse motion toward the user to be negative in sign
 and away from the user to be positive.
 
@@ -406,7 +406,7 @@ INTERROGATION MODE.
 9.18 SET JOYSTICK MONITORING
 
     0x17
-    rate                ; time between samples in hundreths of a second
+    rate                ; time between samples in hundredths of a second
     Returns: (in packets of two as long as in mode)
             %000000xy   ; where y is JOYSTICK1 Fire button
                         ; and x is JOYSTICK0 Fire button
@@ -522,7 +522,7 @@ controller memory. The time between data bytes must be less than 20ms.
             0x20        ; memory access
             { data }    ; 6 data bytes starting at ADR
 
-This comand permits the host to read from the ikbd controller memory.
+This command permits the host to read from the ikbd controller memory.
 
 9.26 CONTROLLER EXECUTE
 
@@ -597,8 +597,8 @@ mode or FIRE BUTTON MONITORING mode.
 
 10. SCAN CODES
 
-The key scan codes return by the ikbd are chosen to simplify the
-implementaion of GSX.
+The key scan codes returned by the ikbd are chosen to simplify the
+implementation of GSX.
 
 GSX Standard Keyboard Mapping.
 

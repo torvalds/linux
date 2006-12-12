@@ -29,8 +29,8 @@ static int jffs_mark_obsolete(struct jffs_fmcontrol *fmc, __u32 fm_offset);
 static struct jffs_fm *jffs_alloc_fm(void);
 static void jffs_free_fm(struct jffs_fm *n);
 
-extern kmem_cache_t     *fm_cache;
-extern kmem_cache_t     *node_cache;
+extern struct kmem_cache     *fm_cache;
+extern struct kmem_cache     *node_cache;
 
 #if CONFIG_JFFS_FS_VERBOSE > 0
 void
@@ -94,8 +94,7 @@ jffs_build_begin(struct jffs_control *c, int unit)
 	struct mtd_info *mtd;
 	
 	D3(printk("jffs_build_begin()\n"));
-	fmc = (struct jffs_fmcontrol *)kmalloc(sizeof(struct jffs_fmcontrol),
-					       GFP_KERNEL);
+	fmc = kmalloc(sizeof(*fmc), GFP_KERNEL);
 	if (!fmc) {
 		D(printk("jffs_build_begin(): Allocation of "
 			 "struct jffs_fmcontrol failed!\n"));
@@ -486,8 +485,7 @@ jffs_add_node(struct jffs_node *node)
 
 	D3(printk("jffs_add_node(): ino = %u\n", node->ino));
 
-	ref = (struct jffs_node_ref *)kmalloc(sizeof(struct jffs_node_ref),
-					      GFP_KERNEL);
+	ref = kmalloc(sizeof(*ref), GFP_KERNEL);
 	if (!ref)
 		return -ENOMEM;
 

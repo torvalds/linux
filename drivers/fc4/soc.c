@@ -334,7 +334,7 @@ update_out:
 	}
 }
 
-static irqreturn_t soc_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t soc_intr(int irq, void *dev_id)
 {
 	u32 cmd;
 	unsigned long flags;

@@ -4,16 +4,16 @@
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -67,7 +67,7 @@
 #include <linux/kthread.h>
 #include <linux/buffer_head.h>		/* for sync_blockdev() */
 #include <linux/bio.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include "jfs_incore.h"
@@ -337,7 +337,7 @@ int lmLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
  * PARAMETER:	cd	- commit descriptor
  *
  * RETURN:	end-of-log address
- *			
+ *
  * serialization: LOG_LOCK() held on entry/exit
  */
 static int
@@ -554,7 +554,7 @@ lmWriteRecord(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
  * PARAMETER:	log
  *
  * RETURN:	0
- *			
+ *
  * serialization: LOG_LOCK() held on entry/exit
  */
 static int lmNextPage(struct jfs_log * log)
@@ -656,7 +656,7 @@ static int lmNextPage(struct jfs_log * log)
  *	page number - redrive pageout of the page at the head of
  *	pageout queue until full page has been written.
  *
- * RETURN:	
+ * RETURN:
  *
  * NOTE:
  *	LOGGC_LOCK serializes log group commit queue, and
@@ -920,10 +920,10 @@ static void lmPostGC(struct lbuf * bp)
  *	this code is called again.
  *
  * PARAMETERS:	log	- log structure
- * 		hard_sync - 1 to force all metadata to be written
+ *		hard_sync - 1 to force all metadata to be written
  *
  * RETURN:	0
- *			
+ *
  * serialization: LOG_LOCK() held on entry/exit
  */
 static int lmLogSync(struct jfs_log * log, int hard_sync)
@@ -1052,7 +1052,7 @@ static int lmLogSync(struct jfs_log * log, int hard_sync)
  * FUNCTION:	write log SYNCPT record for specified log
  *
  * PARAMETERS:	log	  - log structure
- * 		hard_sync - set to 1 to force metadata to be written
+ *		hard_sync - set to 1 to force metadata to be written
  */
 void jfs_syncpt(struct jfs_log *log, int hard_sync)
 {	LOG_LOCK(log);
@@ -1067,7 +1067,7 @@ void jfs_syncpt(struct jfs_log *log, int hard_sync)
  *	insert filesystem in the active list of the log.
  *
  * PARAMETER:	ipmnt	- file system mount inode
- *		iplog 	- log inode (out)
+ *		iplog	- log inode (out)
  *
  * RETURN:
  *
@@ -1082,7 +1082,7 @@ int lmLogOpen(struct super_block *sb)
 
 	if (sbi->flag & JFS_NOINTEGRITY)
 		return open_dummy_log(sb);
-	
+
 	if (sbi->mntflag & JFS_INLINELOG)
 		return open_inline_log(sb);
 
@@ -1131,7 +1131,7 @@ int lmLogOpen(struct super_block *sb)
 
 	log->bdev = bdev;
 	memcpy(log->uuid, sbi->loguuid, sizeof(log->uuid));
-	
+
 	/*
 	 * initialize log:
 	 */
@@ -1253,13 +1253,13 @@ static int open_dummy_log(struct super_block *sb)
  *	initialize the log from log superblock.
  *	set the log state in the superblock to LOGMOUNT and
  *	write SYNCPT log record.
- *		
+ *
  * PARAMETER:	log	- log structure
  *
  * RETURN:	0	- if ok
  *		-EINVAL	- bad log magic number or superblock dirty
  *		error returned from logwait()
- *			
+ *
  * serialization: single first open thread
  */
 int lmLogInit(struct jfs_log * log)
@@ -1297,7 +1297,7 @@ int lmLogInit(struct jfs_log * log)
 
 	if (!test_bit(log_INLINELOG, &log->flag))
 		log->l2bsize = L2LOGPSIZE;
-	
+
 	/* check for disabled journaling to disk */
 	if (log->no_integrity) {
 		/*
@@ -1651,7 +1651,7 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
  * PARAMETER:	log	- log inode
  *
  * RETURN:	0	- success
- *			
+ *
  * serialization: single last close thread
  */
 int lmLogShutdown(struct jfs_log * log)
@@ -1677,7 +1677,7 @@ int lmLogShutdown(struct jfs_log * log)
 	lrd.type = cpu_to_le16(LOG_SYNCPT);
 	lrd.length = 0;
 	lrd.log.syncpt.sync = 0;
-	
+
 	lsn = lmWriteRecord(log, NULL, &lrd, NULL);
 	bp = log->bp;
 	lp = (struct logpage *) bp->l_ldata;
@@ -1703,7 +1703,7 @@ int lmLogShutdown(struct jfs_log * log)
 	jfs_info("lmLogShutdown: lsn:0x%x page:%d eor:%d",
 		 lsn, log->page, log->eor);
 
-      out:    
+      out:
 	/*
 	 * shutdown per log i/o
 	 */
@@ -1769,7 +1769,7 @@ static int lmLogFileSystem(struct jfs_log * log, struct jfs_sb_info *sbi,
 			lbmFree(bpsuper);
 			return -EIO;
 		}
-		
+
 	}
 
 	/*

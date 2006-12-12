@@ -31,6 +31,7 @@
 #include <linux/delay.h>
 #include <linux/completion.h>
 #include <linux/pagevec.h>
+#include <linux/freezer.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include "cifspdu.h"
@@ -109,7 +110,7 @@ static int ipv6_connect(struct sockaddr_in6 *psin_server,
 	 * wake up waiters on reconnection? - (not needed currently)
 	 */
 
-int
+static int
 cifs_reconnect(struct TCP_Server_Info *server)
 {
 	int rc = 0;
@@ -771,13 +772,18 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 	separator[0] = ',';
 	separator[1] = 0; 
 
-	memset(vol->source_rfc1001_name,0x20,15);
-	for(i=0;i < strnlen(system_utsname.nodename,15);i++) {
-		/* does not have to be a perfect mapping since the field is
-		informational, only used for servers that do not support
-		port 445 and it can be overridden at mount time */
-		vol->source_rfc1001_name[i] = 
-			toupper(system_utsname.nodename[i]);
+	if (Local_System_Name[0] != 0)
+		memcpy(vol->source_rfc1001_name, Local_System_Name,15);
+	else {
+		char *nodename = utsname()->nodename;
+		int n = strnlen(nodename,15);
+		memset(vol->source_rfc1001_name,0x20,15);
+		for(i=0 ; i < n ; i++) {
+			/* does not have to be perfect mapping since field is
+			informational, only used for servers that do not support
+			port 445 and it can be overridden at mount time */
+			vol->source_rfc1001_name[i] = toupper(nodename[i]);
+		}
 	}
 	vol->source_rfc1001_name[15] = 0;
 	/* null target name indicates to use *SMBSERVR default called name
@@ -817,10 +823,13 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 		} else if (strnicmp(data, "nouser_xattr",12) == 0) {
 			vol->no_xattr = 1;
 		} else if (strnicmp(data, "user", 4) == 0) {
-			if (!value || !*value) {
+			if (!value) {
 				printk(KERN_WARNING
 				       "CIFS: invalid or missing username\n");
 				return 1;	/* needs_arg; */
+			} else if(!*value) {
+				/* null user, ie anonymous, authentication */
+				vol->nullauth = 1;
 			}
 			if (strnlen(value, 200) < 200) {
 				vol->username = value;
@@ -1637,6 +1646,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		/* BB fixme parse for domain name here */
 		cFYI(1, ("Username: %s ", volume_info.username));
 
+	} else if (volume_info.nullauth) {
+		cFYI(1,("null user"));
 	} else {
 		cifserror("No username specified");
         /* In userspace mount helper we can get user name from alternate
@@ -2153,7 +2164,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 				  32, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bytes_returned =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, system_utsname.release,
+		    cifs_strtoUCS((__le16 *) bcc_ptr, utsname()->release,
 				  32, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bcc_ptr += 2;
@@ -2180,8 +2191,8 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 		}
 		strcpy(bcc_ptr, "Linux version ");
 		bcc_ptr += strlen("Linux version ");
-		strcpy(bcc_ptr, system_utsname.release);
-		bcc_ptr += strlen(system_utsname.release) + 1;
+		strcpy(bcc_ptr, utsname()->release);
+		bcc_ptr += strlen(utsname()->release) + 1;
 		strcpy(bcc_ptr, CIFS_NETWORK_OPSYS);
 		bcc_ptr += strlen(CIFS_NETWORK_OPSYS) + 1;
 	}
@@ -2445,7 +2456,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 				  32, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bytes_returned =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, system_utsname.release, 32,
+		    cifs_strtoUCS((__le16 *) bcc_ptr, utsname()->release, 32,
 				  nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bcc_ptr += 2;	/* null terminate Linux version */
@@ -2462,8 +2473,8 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	} else {		/* ASCII */
 		strcpy(bcc_ptr, "Linux version ");
 		bcc_ptr += strlen("Linux version ");
-		strcpy(bcc_ptr, system_utsname.release);
-		bcc_ptr += strlen(system_utsname.release) + 1;
+		strcpy(bcc_ptr, utsname()->release);
+		bcc_ptr += strlen(utsname()->release) + 1;
 		strcpy(bcc_ptr, CIFS_NETWORK_OPSYS);
 		bcc_ptr += strlen(CIFS_NETWORK_OPSYS) + 1;
 		bcc_ptr++;	/* empty domain field */
@@ -2836,7 +2847,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 				  32, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bytes_returned =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, system_utsname.release, 32,
+		    cifs_strtoUCS((__le16 *) bcc_ptr, utsname()->release, 32,
 				  nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bcc_ptr += 2;	/* null term version string */
@@ -2888,8 +2899,8 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 
 		strcpy(bcc_ptr, "Linux version ");
 		bcc_ptr += strlen("Linux version ");
-		strcpy(bcc_ptr, system_utsname.release);
-		bcc_ptr += strlen(system_utsname.release) + 1;
+		strcpy(bcc_ptr, utsname()->release);
+		bcc_ptr += strlen(utsname()->release) + 1;
 		strcpy(bcc_ptr, CIFS_NETWORK_OPSYS);
 		bcc_ptr += strlen(CIFS_NETWORK_OPSYS) + 1;
 		bcc_ptr++;	/* null domain */
@@ -3215,7 +3226,9 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 			}
 			/* else do not bother copying these informational fields */
 		}
-		if(smb_buffer_response->WordCount == 3)
+		if((smb_buffer_response->WordCount == 3) ||
+			 (smb_buffer_response->WordCount == 7))
+			/* field is in same location */
 			tcon->Flags = le16_to_cpu(pSMBr->OptionalSupport);
 		else
 			tcon->Flags = 0;
@@ -3312,19 +3325,21 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 		first_time = 1;
 	}
 	if (!rc) {
+		pSesInfo->flags = 0;
 		pSesInfo->capabilities = pSesInfo->server->capabilities;
 		if(linuxExtEnabled == 0)
 			pSesInfo->capabilities &= (~CAP_UNIX);
 	/*	pSesInfo->sequence_number = 0;*/
-		cFYI(1,("Security Mode: 0x%x Capabilities: 0x%x Time Zone: %d",
+		cFYI(1,("Security Mode: 0x%x Capabilities: 0x%x TimeAdjust: %d",
 			pSesInfo->server->secMode,
 			pSesInfo->server->capabilities,
-			pSesInfo->server->timeZone));
+			pSesInfo->server->timeAdj));
 		if(experimEnabled < 2)
 			rc = CIFS_SessSetup(xid, pSesInfo,
 					    first_time, nls_info);
 		else if (extended_security
-				&& (pSesInfo->capabilities & CAP_EXTENDED_SECURITY)
+				&& (pSesInfo->capabilities 
+					& CAP_EXTENDED_SECURITY)
 				&& (pSesInfo->server->secType == NTLMSSP)) {
 			rc = -EOPNOTSUPP;
 		} else if (extended_security
@@ -3338,7 +3353,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 			if (!rc) {
 				if(ntlmv2_flag) {
 					char * v2_response;
-					cFYI(1,("Can use more secure NTLM version 2 password hash"));
+					cFYI(1,("more secure NTLM ver2 hash"));
 					if(CalcNTLMv2_partial_mac_key(pSesInfo, 
 						nls_info)) {
 						rc = -ENOMEM;

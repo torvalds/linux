@@ -12,8 +12,8 @@
  */
 typedef union
 {
-	__u32		a4;
-	__u32		a6[4];
+	__be32		a4;
+	__be32		a6[4];
 } xfrm_address_t;
 
 /* Ident of a specific xfrm_state. It is used on input to lookup
@@ -23,7 +23,7 @@ typedef union
 struct xfrm_id
 {
 	xfrm_address_t	daddr;
-	__u32		spi;
+	__be32		spi;
 	__u8		proto;
 };
 
@@ -49,10 +49,10 @@ struct xfrm_selector
 {
 	xfrm_address_t	daddr;
 	xfrm_address_t	saddr;
-	__u16	dport;
-	__u16	dport_mask;
-	__u16	sport;
-	__u16	sport_mask;
+	__be16	dport;
+	__be16	dport_mask;
+	__be16	sport;
+	__be16	sport_mask;
 	__u16	family;
 	__u8	prefixlen_d;
 	__u8	prefixlen_s;
@@ -129,7 +129,8 @@ enum
 #define XFRM_MODE_TUNNEL 1
 #define XFRM_MODE_ROUTEOPTIMIZATION 2
 #define XFRM_MODE_IN_TRIGGER 3
-#define XFRM_MODE_MAX 4
+#define XFRM_MODE_BEET 4
+#define XFRM_MODE_MAX 5
 
 /* Netlink configuration messages.  */
 enum {
@@ -210,8 +211,8 @@ struct xfrm_user_tmpl {
 
 struct xfrm_encap_tmpl {
 	__u16		encap_type;
-	__u16		encap_sport;
-	__u16		encap_dport;
+	__be16		encap_sport;
+	__be16		encap_dport;
 	xfrm_address_t	encap_oa;
 };
 
@@ -281,14 +282,16 @@ struct xfrm_usersa_info {
 
 struct xfrm_usersa_id {
 	xfrm_address_t			daddr;
-	__u32				spi;
+	__be32				spi;
 	__u16				family;
 	__u8				proto;
 };
 
 struct xfrm_aevent_id {
 	struct xfrm_usersa_id		sa_id;
+	xfrm_address_t			saddr;
 	__u32				flags;
+	__u32				reqid;
 };
 
 struct xfrm_userspi_info {
@@ -354,7 +357,7 @@ struct xfrm_user_report {
 #define XFRMGRP_EXPIRE		2
 #define XFRMGRP_SA		4
 #define XFRMGRP_POLICY		8
-#define XFRMGRP_REPORT		0x10
+#define XFRMGRP_REPORT		0x20
 #endif
 
 enum xfrm_nlgroups {

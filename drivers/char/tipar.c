@@ -224,14 +224,16 @@ probe_ti_parallel(int minor)
 {
 	int i;
 	int seq[] = { 0x00, 0x20, 0x10, 0x30 };
+	int data;
 
 	for (i = 3; i >= 0; i--) {
 		outbyte(3, minor);
 		outbyte(i, minor);
 		udelay(delay);
+		data = inbyte(minor) & 0x30;
 		pr_debug("tipar: Probing -> %i: 0x%02x 0x%02x\n", i,
-			data & 0x30, seq[i]);
-		if ((inbyte(minor) & 0x30) != seq[i]) {
+			data, seq[i]);
+		if (data != seq[i]) {
 			outbyte(3, minor);
 			return -1;
 		}
@@ -283,7 +285,7 @@ static ssize_t
 tipar_write (struct file *file, const char __user *buf, size_t count,
 		loff_t * ppos)
 {
-	unsigned int minor = iminor(file->f_dentry->d_inode) - TIPAR_MINOR;
+	unsigned int minor = iminor(file->f_path.dentry->d_inode) - TIPAR_MINOR;
 	ssize_t n;
 
 	parport_claim_or_block(table[minor].dev);
@@ -311,7 +313,7 @@ static ssize_t
 tipar_read(struct file *file, char __user *buf, size_t count, loff_t * ppos)
 {
 	int b = 0;
-	unsigned int minor = iminor(file->f_dentry->d_inode) - TIPAR_MINOR;
+	unsigned int minor = iminor(file->f_path.dentry->d_inode) - TIPAR_MINOR;
 	ssize_t retval = 0;
 	ssize_t n = 0;
 

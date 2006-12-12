@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 
 #include <asm/io.h>
+#include <asm/irq_regs.h>
 #include <asm/hwrpb.h>
 #include <asm/smp.h>
 #include <asm/err_common.h>
@@ -229,7 +230,7 @@ ev6_process_logout_frame(struct el_common *mchk_header, int print)
 }
 
 void
-ev6_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
+ev6_machine_check(u64 vector, u64 la_ptr)
 {
 	struct el_common *mchk_header = (struct el_common *)la_ptr;
 
@@ -260,7 +261,7 @@ ev6_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
 		       (unsigned int)vector, (int)smp_processor_id());
 		
 		ev6_process_logout_frame(mchk_header, 1);
-		dik_show_regs(regs, NULL);
+		dik_show_regs(get_irq_regs(), NULL);
 
 		err_print_prefix = saved_err_prefix;
 	}

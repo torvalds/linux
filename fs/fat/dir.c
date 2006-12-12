@@ -20,6 +20,7 @@
 #include <linux/dirent.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
+#include <linux/compat.h>
 #include <asm/uaccess.h>
 
 static inline loff_t fat_make_i_pos(struct super_block *sb,
@@ -578,7 +579,7 @@ parse_record:
 	if (!memcmp(de->name, MSDOS_DOT, MSDOS_NAME))
 		inum = inode->i_ino;
 	else if (!memcmp(de->name, MSDOS_DOTDOT, MSDOS_NAME)) {
-		inum = parent_ino(filp->f_dentry);
+		inum = parent_ino(filp->f_path.dentry);
 	} else {
 		loff_t i_pos = fat_make_i_pos(sb, bh, de);
 		struct inode *tmp = fat_iget(sb, i_pos);
@@ -642,12 +643,12 @@ out:
 
 static int fat_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	return __fat_readdir(inode, filp, dirent, filldir, 0, 0);
 }
 
 static int fat_ioctl_filldir(void *__buf, const char *name, int name_len,
-			     loff_t offset, ino_t ino, unsigned int d_type)
+			     loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct fat_ioctl_filldir_callback *buf = __buf;
 	struct dirent __user *d1 = buf->dirent;
@@ -741,10 +742,65 @@ static int fat_dir_ioctl(struct inode * inode, struct file * filp,
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+#define	VFAT_IOCTL_READDIR_BOTH32	_IOR('r', 1, struct compat_dirent[2])
+#define	VFAT_IOCTL_READDIR_SHORT32	_IOR('r', 2, struct compat_dirent[2])
+
+static long fat_compat_put_dirent32(struct dirent *d,
+				    struct compat_dirent __user *d32)
+{
+        if (!access_ok(VERIFY_WRITE, d32, sizeof(struct compat_dirent)))
+                return -EFAULT;
+
+        __put_user(d->d_ino, &d32->d_ino);
+        __put_user(d->d_off, &d32->d_off);
+        __put_user(d->d_reclen, &d32->d_reclen);
+        if (__copy_to_user(d32->d_name, d->d_name, d->d_reclen))
+		return -EFAULT;
+
+        return 0;
+}
+
+static long fat_compat_dir_ioctl(struct file *file, unsigned cmd,
+				 unsigned long arg)
+{
+	struct compat_dirent __user *p = compat_ptr(arg);
+	int ret;
+	mm_segment_t oldfs = get_fs();
+	struct dirent d[2];
+
+	switch (cmd) {
+	case VFAT_IOCTL_READDIR_BOTH32:
+		cmd = VFAT_IOCTL_READDIR_BOTH;
+		break;
+	case VFAT_IOCTL_READDIR_SHORT32:
+		cmd = VFAT_IOCTL_READDIR_SHORT;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	set_fs(KERNEL_DS);
+	lock_kernel();
+	ret = fat_dir_ioctl(file->f_path.dentry->d_inode, file,
+			    cmd, (unsigned long) &d);
+	unlock_kernel();
+	set_fs(oldfs);
+	if (ret >= 0) {
+		ret |= fat_compat_put_dirent32(&d[0], p);
+		ret |= fat_compat_put_dirent32(&d[1], p + 1);
+	}
+	return ret;
+}
+#endif /* CONFIG_COMPAT */
+
 const struct file_operations fat_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= fat_readdir,
 	.ioctl		= fat_dir_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= fat_compat_dir_ioctl,
+#endif
 	.fsync		= file_fsync,
 };
 

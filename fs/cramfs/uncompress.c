@@ -68,11 +68,10 @@ int cramfs_uncompress_init(void)
 	return 0;
 }
 
-int cramfs_uncompress_exit(void)
+void cramfs_uncompress_exit(void)
 {
 	if (!--initialized) {
 		zlib_inflateEnd(&stream);
 		vfree(stream.workspace);
 	}
-	return 0;
 }

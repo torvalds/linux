@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
+#include <asm/pda.h>
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -56,7 +57,7 @@ extern void cpu_uninit(void);
  * from the initial startup. We map APIC_BASE very early in page_setup(),
  * so this is correct in the x86 case.
  */
-#define raw_smp_processor_id() (current_thread_info()->cpu)
+#define raw_smp_processor_id() (read_pda(cpu_number))
 
 extern cpumask_t cpu_callout_map;
 extern cpumask_t cpu_callin_map;
@@ -82,6 +83,7 @@ static inline int hard_smp_processor_id(void)
 #endif
 #endif
 
+extern int safe_smp_processor_id(void);
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 extern unsigned int num_processors;
@@ -90,6 +92,7 @@ extern unsigned int num_processors;
 
 #else /* CONFIG_SMP */
 
+#define safe_smp_processor_id()		0
 #define cpu_physical_id(cpu)		boot_cpu_physical_apicid
 
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
@@ -97,6 +100,9 @@ extern unsigned int num_processors;
 #endif
 
 #ifndef __ASSEMBLY__
+
+extern u8 apicid_2_node[];
+
 #ifdef CONFIG_X86_LOCAL_APIC
 static __inline int logical_smp_processor_id(void)
 {

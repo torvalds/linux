@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/mm.h>
+#include <linux/fs.h>
 #include <linux/uio.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -447,15 +448,15 @@ loff_t mbcs_sram_llseek(struct file * filp, loff_t off, int whence)
 	loff_t newpos;
 
 	switch (whence) {
-	case 0:		/* SEEK_SET */
+	case SEEK_SET:
 		newpos = off;
 		break;
 
-	case 1:		/* SEEK_CUR */
+	case SEEK_CUR:
 		newpos = filp->f_pos + off;
 		break;
 
-	case 2:		/* SEEK_END */
+	case SEEK_END:
 		newpos = MBCS_SRAM_SIZE + off;
 		break;
 
@@ -515,11 +516,10 @@ int mbcs_gscr_mmap(struct file *fp, struct vm_area_struct *vma)
  * mbcs_completion_intr_handler - Primary completion handler.
  * @irq: irq
  * @arg: soft struct for device
- * @ep: regs
  *
  */
 static irqreturn_t
-mbcs_completion_intr_handler(int irq, void *arg, struct pt_regs *ep)
+mbcs_completion_intr_handler(int irq, void *arg)
 {
 	struct mbcs_soft *soft = (struct mbcs_soft *)arg;
 	void *mmr_base;

@@ -43,7 +43,7 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/time.h>
 
-extern char * __init prom_getcmdline(void);
+extern char * prom_getcmdline(void);
 extern void __init board_setup(void);
 extern void au1000_restart(char *);
 extern void au1000_halt(void);

@@ -31,8 +31,8 @@ struct cifs_sid {
 } __attribute__((packed));
 
 /* everyone */
-extern const struct cifs_sid sid_everyone;
+/* extern const struct cifs_sid sid_everyone;*/
 /* group users */
-extern const struct cifs_sid sid_user;
+/* extern const struct cifs_sid sid_user;*/
 
 #endif /* _CIFSACL_H */

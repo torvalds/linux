@@ -322,6 +322,9 @@ struct rb_node *rb_next(struct rb_node *node)
 {
 	struct rb_node *parent;
 
+	if (rb_parent(node) == node)
+		return NULL;
+
 	/* If we have a right-hand child, go down and then left as far
 	   as we can. */
 	if (node->rb_right) {
@@ -347,6 +350,9 @@ EXPORT_SYMBOL(rb_next);
 struct rb_node *rb_prev(struct rb_node *node)
 {
 	struct rb_node *parent;
+
+	if (rb_parent(node) == node)
+		return NULL;
 
 	/* If we have a left-hand child, go down and then right as far
 	   as we can. */

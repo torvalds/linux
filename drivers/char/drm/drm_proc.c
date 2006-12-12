@@ -510,7 +510,7 @@ static int drm__vma_info(char *buf, char **start, off_t offset, int request,
 			       vma->vm_flags & VM_MAYSHARE ? 's' : 'p',
 			       vma->vm_flags & VM_LOCKED ? 'l' : '-',
 			       vma->vm_flags & VM_IO ? 'i' : '-',
-			       VM_OFFSET(vma));
+			       vma->vm_pgoff << PAGE_SHIFT);
 
 #if defined(__i386__)
 		pgprot = pgprot_val(vma->vm_page_prot);

@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_base.c
+ * linux/fs/nls/nls_base.c
  *
  * Native language support--charsets and unicode translations.
  * By Gordon Chaffee 1996, 1997
@@ -163,8 +163,6 @@ int register_nls(struct nls_table * nls)
 {
 	struct nls_table ** tmp = &tables;
 
-	if (!nls)
-		return -EINVAL;
 	if (nls->next)
 		return -EBUSY;
 

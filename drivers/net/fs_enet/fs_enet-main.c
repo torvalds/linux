@@ -441,7 +441,7 @@ static void fs_enet_tx(struct net_device *dev)
  * This is called from the MPC core interrupt.
  */
 static irqreturn_t
-fs_enet_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+fs_enet_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct fs_enet_private *fep;
@@ -667,7 +667,7 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 static int fs_request_irq(struct net_device *dev, int irq, const char *name,
-		irqreturn_t (*irqf)(int irq, void *dev_id, struct pt_regs *regs))
+		irq_handler_t irqf)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 
@@ -779,7 +779,8 @@ static int fs_init_phy(struct net_device *dev)
 	fep->oldspeed = 0;
 	fep->oldduplex = -1;
 	if(fep->fpi->bus_id)
-		phydev = phy_connect(dev, fep->fpi->bus_id, &fs_adjust_link, 0);
+		phydev = phy_connect(dev, fep->fpi->bus_id, &fs_adjust_link, 0,
+				PHY_INTERFACE_MODE_MII);
 	else {
 		printk("No phy bus ID specified in BSP code\n");
 		return -EINVAL;
@@ -944,12 +945,13 @@ extern int fs_mii_connect(struct net_device *dev);
 extern void fs_mii_disconnect(struct net_device *dev);
 
 static struct net_device *fs_init_instance(struct device *dev,
-		const struct fs_platform_info *fpi)
+		struct fs_platform_info *fpi)
 {
 	struct net_device *ndev = NULL;
 	struct fs_enet_private *fep = NULL;
 	int privsize, i, r, err = 0, registered = 0;
 
+	fpi->fs_no = fs_get_id(fpi);
 	/* guard */
 	if ((unsigned int)fpi->fs_no >= FS_MAX_INDEX)
 		return ERR_PTR(-EINVAL);
@@ -971,7 +973,7 @@ static struct net_device *fs_init_instance(struct device *dev,
 	dev_set_drvdata(dev, ndev);
 	fep->fpi = fpi;
 	if (fpi->init_ioports)
-		fpi->init_ioports();
+		fpi->init_ioports((struct fs_platform_info *)fpi);
 
 #ifdef CONFIG_FS_ENET_HAS_FEC
 	if (fs_get_fec_index(fpi->fs_no) >= 0)

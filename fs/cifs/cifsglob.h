@@ -153,7 +153,7 @@ struct TCP_Server_Info {
 	char sessid[4];		/* unique token id for this session */
 	/* (returned on Negotiate */
 	int capabilities; /* allow selective disabling of caps by smb sess */
-	__u16 timeZone;
+	int timeAdj;  /* Adjust for difference in server time zone in sec */
 	__u16 CurrentMid;         /* multiplex id - rotating counter */
 	char cryptKey[CIFS_CRYPTO_KEY_SIZE];
 	/* 16th byte of RFC1001 workstation name is always null */
@@ -203,9 +203,14 @@ struct cifsSesInfo {
 	char * domainName;
 	char * password;
 };
-/* session flags */
+/* no more than one of the following three session flags may be set */
 #define CIFS_SES_NT4 1
-
+#define CIFS_SES_OS2 2
+#define CIFS_SES_W9X 4
+/* following flag is set for old servers such as OS2 (and Win95?)
+   which do not negotiate NTLM or POSIX dialects, but instead
+   negotiate one of the older LANMAN dialects */
+#define CIFS_SES_LANMAN 8
 /*
  * there is one of these for each connection to a resource on a particular
  * session 
@@ -512,7 +517,8 @@ require use of the stronger protocol */
  * This list helps improve performance and eliminate the messages indicating
  * that we had a communications error talking to the server in this list. 
  */
-GLOBAL_EXTERN struct servers_not_supported *NotSuppList;	/*@z4a */
+/* Feature not supported */
+/* GLOBAL_EXTERN struct servers_not_supported *NotSuppList; */
 
 /*
  * The following is a hash table of all the users we know about.
@@ -568,7 +574,6 @@ GLOBAL_EXTERN unsigned int lookupCacheEnabled;
 GLOBAL_EXTERN unsigned int extended_security;	/* if on, session setup sent 
 				with more secure ntlmssp2 challenge/resp */
 GLOBAL_EXTERN unsigned int sign_CIFS_PDUs;  /* enable smb packet signing */
-GLOBAL_EXTERN unsigned int secFlags;
 GLOBAL_EXTERN unsigned int linuxExtEnabled;/*enable Linux/Unix CIFS extensions*/
 GLOBAL_EXTERN unsigned int CIFSMaxBufSize;  /* max size not including hdr */
 GLOBAL_EXTERN unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */

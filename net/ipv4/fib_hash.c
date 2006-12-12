@@ -45,13 +45,13 @@
 
 #include "fib_lookup.h"
 
-static kmem_cache_t *fn_hash_kmem __read_mostly;
-static kmem_cache_t *fn_alias_kmem __read_mostly;
+static struct kmem_cache *fn_hash_kmem __read_mostly;
+static struct kmem_cache *fn_alias_kmem __read_mostly;
 
 struct fib_node {
 	struct hlist_node	fn_hash;
 	struct list_head	fn_alias;
-	u32			fn_key;
+	__be32			fn_key;
 };
 
 struct fn_zone {
@@ -64,7 +64,7 @@ struct fn_zone {
 #define FZ_HASHMASK(fz)		((fz)->fz_hashmask)
 
 	int			fz_order;	/* Zone order		*/
-	u32			fz_mask;
+	__be32			fz_mask;
 #define FZ_MASK(fz)		((fz)->fz_mask)
 };
 
@@ -77,7 +77,7 @@ struct fn_hash {
 	struct fn_zone	*fn_zone_list;
 };
 
-static inline u32 fn_hash(u32 key, struct fn_zone *fz)
+static inline u32 fn_hash(__be32 key, struct fn_zone *fz)
 {
 	u32 h = ntohl(key)>>(32 - fz->fz_order);
 	h ^= (h>>20);
@@ -87,7 +87,7 @@ static inline u32 fn_hash(u32 key, struct fn_zone *fz)
 	return h;
 }
 
-static inline u32 fz_key(u32 dst, struct fn_zone *fz)
+static inline __be32 fz_key(__be32 dst, struct fn_zone *fz)
 {
 	return dst & FZ_MASK(fz);
 }
@@ -254,7 +254,7 @@ fn_hash_lookup(struct fib_table *tb, const struct flowi *flp, struct fib_result 
 		struct hlist_head *head;
 		struct hlist_node *node;
 		struct fib_node *f;
-		u32 k = fz_key(flp->fl4_dst, fz);
+		__be32 k = fz_key(flp->fl4_dst, fz);
 
 		head = &fz->fz_hash[fn_hash(k, fz)];
 		hlist_for_each_entry(f, node, head, fn_hash) {
@@ -365,7 +365,7 @@ static inline void fib_insert_node(struct fn_zone *fz, struct fib_node *f)
 }
 
 /* Return the node in FZ matching KEY. */
-static struct fib_node *fib_find_node(struct fn_zone *fz, u32 key)
+static struct fib_node *fib_find_node(struct fn_zone *fz, __be32 key)
 {
 	struct hlist_head *head = &fz->fz_hash[fn_hash(key, fz)];
 	struct hlist_node *node;
@@ -387,7 +387,7 @@ static int fn_hash_insert(struct fib_table *tb, struct fib_config *cfg)
 	struct fn_zone *fz;
 	struct fib_info *fi;
 	u8 tos = cfg->fc_tos;
-	u32 key;
+	__be32 key;
 	int err;
 
 	if (cfg->fc_dst_len > 32)
@@ -485,13 +485,13 @@ static int fn_hash_insert(struct fib_table *tb, struct fib_config *cfg)
 		goto out;
 
 	err = -ENOBUFS;
-	new_fa = kmem_cache_alloc(fn_alias_kmem, SLAB_KERNEL);
+	new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
 	if (new_fa == NULL)
 		goto out;
 
 	new_f = NULL;
 	if (!f) {
-		new_f = kmem_cache_alloc(fn_hash_kmem, SLAB_KERNEL);
+		new_f = kmem_cache_alloc(fn_hash_kmem, GFP_KERNEL);
 		if (new_f == NULL)
 			goto out_free_new_fa;
 
@@ -541,7 +541,7 @@ static int fn_hash_delete(struct fib_table *tb, struct fib_config *cfg)
 	struct fib_node *f;
 	struct fib_alias *fa, *fa_to_delete;
 	struct fn_zone *fz;
-	u32 key;
+	__be32 key;
 
 	if (cfg->fc_dst_len > 32)
 		return -EINVAL;
@@ -966,7 +966,7 @@ static void fib_seq_stop(struct seq_file *seq, void *v)
 	read_unlock(&fib_hash_lock);
 }
 
-static unsigned fib_flag_trans(int type, u32 mask, struct fib_info *fi)
+static unsigned fib_flag_trans(int type, __be32 mask, struct fib_info *fi)
 {
 	static const unsigned type2flags[RTN_MAX + 1] = {
 		[7] = RTF_REJECT, [8] = RTF_REJECT,
@@ -975,7 +975,7 @@ static unsigned fib_flag_trans(int type, u32 mask, struct fib_info *fi)
 
 	if (fi && fi->fib_nh->nh_gw)
 		flags |= RTF_GATEWAY;
-	if (mask == 0xFFFFFFFF)
+	if (mask == htonl(0xFFFFFFFF))
 		flags |= RTF_HOST;
 	flags |= RTF_UP;
 	return flags;
@@ -991,7 +991,7 @@ static int fib_seq_show(struct seq_file *seq, void *v)
 {
 	struct fib_iter_state *iter;
 	char bf[128];
-	u32 prefix, mask;
+	__be32 prefix, mask;
 	unsigned flags;
 	struct fib_node *f;
 	struct fib_alias *fa;

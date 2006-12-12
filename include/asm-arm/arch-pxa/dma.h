@@ -56,7 +56,7 @@ for (									\
 
 int pxa_request_dma (char *name,
 			 pxa_dma_prio prio,
-			 void (*irq_handler)(int, void *, struct pt_regs *),
+			 void (*irq_handler)(int, void *),
 			 void *data);
 
 void pxa_free_dma (int dma_ch);

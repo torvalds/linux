@@ -27,6 +27,7 @@ show up in /proc/sys/kernel:
 - hotplug
 - java-appletviewer           [ binfmt_java, obsolete ]
 - java-interpreter            [ binfmt_java, obsolete ]
+- kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
 - modprobe                    ==> Documentation/kmod.txt
 - msgmax
@@ -86,7 +87,7 @@ valid for 30 seconds.
 core_pattern:
 
 core_pattern is used to specify a core dumpfile pattern name.
-. max length 64 characters; default value is "core"
+. max length 128 characters; default value is "core"
 . core_pattern is used as a pattern template for the output filename;
   certain string patterns (beginning with '%') are substituted with
   their actual values.
@@ -105,6 +106,9 @@ core_pattern is used to specify a core dumpfile pattern name.
 	%h	hostname
 	%e	executable filename
 	%<OTHER> both are dropped
+. If the first character of the pattern is a '|', the kernel will treat
+  the rest of the pattern as a command to run.  The core dump will be
+  written to the standard input of that program instead of to a file.
 
 ==============================================================
 
@@ -164,6 +168,13 @@ l2cr: (PPC only)
 
 This flag controls the L2 cache of G3 processor boards. If
 0, the cache is disabled. Enabled if nonzero.
+
+==============================================================
+
+kstack_depth_to_print: (X86 only)
+
+Controls the number of words to print when dumping the raw
+kernel stack.
 
 ==============================================================
 

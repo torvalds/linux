@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/completion.h>
+#include <linux/freezer.h>
 #include "cell.h"
 #include "volume.h"
 #include "kafstimod.h"

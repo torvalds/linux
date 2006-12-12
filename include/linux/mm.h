@@ -16,6 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/debug_locks.h>
 #include <linux/backing-dev.h>
+#include <linux/mm_types.h>
 
 struct mempolicy;
 struct anon_vma;
@@ -113,6 +114,8 @@ struct vm_area_struct {
 #endif
 };
 
+extern struct kmem_cache *vm_area_cachep;
+
 /*
  * This struct defines the per-mm list of VMAs for uClinux. If CONFIG_MMU is
  * disabled, then there's a single shared list of VMAs maintained by the
@@ -198,6 +201,7 @@ struct vm_operations_struct {
 	void (*open)(struct vm_area_struct * area);
 	void (*close)(struct vm_area_struct * area);
 	struct page * (*nopage)(struct vm_area_struct * area, unsigned long address, int *type);
+	unsigned long (*nopfn)(struct vm_area_struct * area, unsigned long address);
 	int (*populate)(struct vm_area_struct * area, unsigned long address, unsigned long len, pgprot_t prot, unsigned long pgoff, int nonblock);
 
 	/* notification that a previously read-only page is about to become
@@ -214,62 +218,6 @@ struct vm_operations_struct {
 
 struct mmu_gather;
 struct inode;
-
-/*
- * Each physical page in the system has a struct page associated with
- * it to keep track of whatever it is we are using the page for at the
- * moment. Note that we have no way to track which tasks are using
- * a page, though if it is a pagecache page, rmap structures can tell us
- * who is mapping it.
- */
-struct page {
-	unsigned long flags;		/* Atomic flags, some possibly
-					 * updated asynchronously */
-	atomic_t _count;		/* Usage count, see below. */
-	atomic_t _mapcount;		/* Count of ptes mapped in mms,
-					 * to show when page is mapped
-					 * & limit reverse map searches.
-					 */
-	union {
-	    struct {
-		unsigned long private;		/* Mapping-private opaque data:
-					 	 * usually used for buffer_heads
-						 * if PagePrivate set; used for
-						 * swp_entry_t if PageSwapCache;
-						 * indicates order in the buddy
-						 * system if PG_buddy is set.
-						 */
-		struct address_space *mapping;	/* If low bit clear, points to
-						 * inode address_space, or NULL.
-						 * If page mapped as anonymous
-						 * memory, low bit is set, and
-						 * it points to anon_vma object:
-						 * see PAGE_MAPPING_ANON below.
-						 */
-	    };
-#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
-	    spinlock_t ptl;
-#endif
-	};
-	pgoff_t index;			/* Our offset within mapping. */
-	struct list_head lru;		/* Pageout list, eg. active_list
-					 * protected by zone->lru_lock !
-					 */
-	/*
-	 * On machines where all RAM is mapped into kernel address space,
-	 * we can simply calculate the virtual address. On machines with
-	 * highmem some memory is mapped into kernel virtual memory
-	 * dynamically, so we need a place to store that address.
-	 * Note that this field could be 16 bits on x86 ... ;)
-	 *
-	 * Architectures with slow multiplication can define
-	 * WANT_PAGE_VIRTUAL in asm/page.h
-	 */
-#if defined(WANT_PAGE_VIRTUAL)
-	void *virtual;			/* Kernel virtual address (NULL if
-					   not kmapped, ie. highmem) */
-#endif /* WANT_PAGE_VIRTUAL */
-};
 
 #define page_private(page)		((page)->private)
 #define set_page_private(page, v)	((page)->private = (v))
@@ -346,6 +294,24 @@ void put_page(struct page *page);
 void put_pages_list(struct list_head *pages);
 
 void split_page(struct page *page, unsigned int order);
+
+/*
+ * Compound pages have a destructor function.  Provide a
+ * prototype for that function and accessor functions.
+ * These are _only_ valid on the head of a PG_compound page.
+ */
+typedef void compound_page_dtor(struct page *);
+
+static inline void set_compound_page_dtor(struct page *page,
+						compound_page_dtor *dtor)
+{
+	page[1].lru.next = (void *)dtor;
+}
+
+static inline compound_page_dtor *get_compound_page_dtor(struct page *page)
+{
+	return (compound_page_dtor *)page[1].lru.next;
+}
 
 /*
  * Multiple processes may "see" the same page. E.g. for untouched
@@ -450,7 +416,9 @@ void split_page(struct page *page, unsigned int order);
  * We are going to use the flags for the page to node mapping if its in
  * there.  This includes the case where there is no node, so it is implicit.
  */
-#define FLAGS_HAS_NODE		(NODES_WIDTH > 0 || NODES_SHIFT == 0)
+#if !(NODES_WIDTH > 0 || NODES_SHIFT == 0)
+#define NODE_NOT_IN_PAGE_FLAGS
+#endif
 
 #ifndef PFN_SECTION_SHIFT
 #define PFN_SECTION_SHIFT 0
@@ -465,13 +433,18 @@ void split_page(struct page *page, unsigned int order);
 #define NODES_PGSHIFT		(NODES_PGOFF * (NODES_WIDTH != 0))
 #define ZONES_PGSHIFT		(ZONES_PGOFF * (ZONES_WIDTH != 0))
 
-/* NODE:ZONE or SECTION:ZONE is used to lookup the zone from a page. */
-#if FLAGS_HAS_NODE
-#define ZONETABLE_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
+/* NODE:ZONE or SECTION:ZONE is used to ID a zone for the buddy allcator */
+#ifdef NODE_NOT_IN_PAGEFLAGS
+#define ZONEID_SHIFT		(SECTIONS_SHIFT + ZONES_SHIFT)
 #else
-#define ZONETABLE_SHIFT		(SECTIONS_SHIFT + ZONES_SHIFT)
+#define ZONEID_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
 #endif
-#define ZONETABLE_PGSHIFT	ZONES_PGSHIFT
+
+#if ZONES_WIDTH > 0
+#define ZONEID_PGSHIFT		ZONES_PGSHIFT
+#else
+#define ZONEID_PGSHIFT		NODES_PGOFF
+#endif
 
 #if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
 #error SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
@@ -480,37 +453,50 @@ void split_page(struct page *page, unsigned int order);
 #define ZONES_MASK		((1UL << ZONES_WIDTH) - 1)
 #define NODES_MASK		((1UL << NODES_WIDTH) - 1)
 #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
-#define ZONETABLE_MASK		((1UL << ZONETABLE_SHIFT) - 1)
+#define ZONEID_MASK		((1UL << ZONEID_SHIFT) - 1)
 
 static inline enum zone_type page_zonenum(struct page *page)
 {
 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
 }
 
-struct zone;
-extern struct zone *zone_table[];
-
+/*
+ * The identification function is only used by the buddy allocator for
+ * determining if two pages could be buddies. We are not really
+ * identifying a zone since we could be using a the section number
+ * id if we have not node id available in page flags.
+ * We guarantee only that it will return the same value for two
+ * combinable pages in a zone.
+ */
 static inline int page_zone_id(struct page *page)
 {
-	return (page->flags >> ZONETABLE_PGSHIFT) & ZONETABLE_MASK;
+	BUILD_BUG_ON(ZONEID_PGSHIFT == 0 && ZONEID_MASK);
+	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
 }
+
+static inline int zone_to_nid(struct zone *zone)
+{
+#ifdef CONFIG_NUMA
+	return zone->node;
+#else
+	return 0;
+#endif
+}
+
+#ifdef NODE_NOT_IN_PAGE_FLAGS
+extern int page_to_nid(struct page *page);
+#else
+static inline int page_to_nid(struct page *page)
+{
+	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
+}
+#endif
+
 static inline struct zone *page_zone(struct page *page)
 {
-	return zone_table[page_zone_id(page)];
+	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
 }
 
-static inline unsigned long zone_to_nid(struct zone *zone)
-{
-	return zone->zone_pgdat->node_id;
-}
-
-static inline unsigned long page_to_nid(struct page *page)
-{
-	if (FLAGS_HAS_NODE)
-		return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
-	else
-		return zone_to_nid(page_zone(page));
-}
 static inline unsigned long page_to_section(struct page *page)
 {
 	return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
@@ -527,6 +513,7 @@ static inline void set_page_node(struct page *page, unsigned long node)
 	page->flags &= ~(NODES_MASK << NODES_PGSHIFT);
 	page->flags |= (node & NODES_MASK) << NODES_PGSHIFT;
 }
+
 static inline void set_page_section(struct page *page, unsigned long section)
 {
 	page->flags &= ~(SECTIONS_MASK << SECTIONS_PGSHIFT);
@@ -545,11 +532,6 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
  * Some inline functions in vmstat.h depend on page_zone()
  */
 #include <linux/vmstat.h>
-
-#ifndef CONFIG_DISCONTIGMEM
-/* The array of struct pages - for discontigmem use pgdat->lmem_map */
-extern struct page *mem_map;
-#endif
 
 static __always_inline void *lowmem_page_address(struct page *page)
 {
@@ -648,6 +630,13 @@ static inline int page_mapped(struct page *page)
  */
 #define NOPAGE_SIGBUS	(NULL)
 #define NOPAGE_OOM	((struct page *) (-1))
+#define NOPAGE_REFAULT	((struct page *) (-2))	/* Return to userspace, rerun */
+
+/*
+ * Error return values for the *_nopfn functions
+ */
+#define NOPFN_SIGBUS	((unsigned long) -1)
+#define NOPFN_OOM	((unsigned long) -2)
 
 /*
  * Different kinds of faults, as returned by handle_mm_fault().
@@ -792,7 +781,9 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm, unsigned long 
 		int len, int write, int force, struct page **pages, struct vm_area_struct **vmas);
 void print_bad_pte(struct vm_area_struct *, pte_t, unsigned long);
 
-int __set_page_dirty_buffers(struct page *page);
+extern int try_to_release_page(struct page * page, gfp_t gfp_mask);
+extern void do_invalidatepage(struct page *page, unsigned long offset);
+
 int __set_page_dirty_nobuffers(struct page *page);
 int redirty_page_for_writepage(struct writeback_control *wbc,
 				struct page *page);
@@ -937,6 +928,56 @@ extern void free_area_init(unsigned long * zones_size);
 extern void free_area_init_node(int nid, pg_data_t *pgdat,
 	unsigned long * zones_size, unsigned long zone_start_pfn, 
 	unsigned long *zholes_size);
+#ifdef CONFIG_ARCH_POPULATES_NODE_MAP
+/*
+ * With CONFIG_ARCH_POPULATES_NODE_MAP set, an architecture may initialise its
+ * zones, allocate the backing mem_map and account for memory holes in a more
+ * architecture independent manner. This is a substitute for creating the
+ * zone_sizes[] and zholes_size[] arrays and passing them to
+ * free_area_init_node()
+ *
+ * An architecture is expected to register range of page frames backed by
+ * physical memory with add_active_range() before calling
+ * free_area_init_nodes() passing in the PFN each zone ends at. At a basic
+ * usage, an architecture is expected to do something like
+ *
+ * unsigned long max_zone_pfns[MAX_NR_ZONES] = {max_dma, max_normal_pfn,
+ * 							 max_highmem_pfn};
+ * for_each_valid_physical_page_range()
+ * 	add_active_range(node_id, start_pfn, end_pfn)
+ * free_area_init_nodes(max_zone_pfns);
+ *
+ * If the architecture guarantees that there are no holes in the ranges
+ * registered with add_active_range(), free_bootmem_active_regions()
+ * will call free_bootmem_node() for each registered physical page range.
+ * Similarly sparse_memory_present_with_active_regions() calls
+ * memory_present() for each range when SPARSEMEM is enabled.
+ *
+ * See mm/page_alloc.c for more information on each function exposed by
+ * CONFIG_ARCH_POPULATES_NODE_MAP
+ */
+extern void free_area_init_nodes(unsigned long *max_zone_pfn);
+extern void add_active_range(unsigned int nid, unsigned long start_pfn,
+					unsigned long end_pfn);
+extern void shrink_active_range(unsigned int nid, unsigned long old_end_pfn,
+						unsigned long new_end_pfn);
+extern void push_node_boundaries(unsigned int nid, unsigned long start_pfn,
+					unsigned long end_pfn);
+extern void remove_all_active_ranges(void);
+extern unsigned long absent_pages_in_range(unsigned long start_pfn,
+						unsigned long end_pfn);
+extern void get_pfn_range_for_nid(unsigned int nid,
+			unsigned long *start_pfn, unsigned long *end_pfn);
+extern unsigned long find_min_pfn_with_active_regions(void);
+extern unsigned long find_max_pfn_with_active_regions(void);
+extern void free_bootmem_with_active_regions(int nid,
+						unsigned long max_low_pfn);
+extern void sparse_memory_present_with_active_regions(int nid);
+#ifndef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+extern int early_pfn_to_nid(unsigned long pfn);
+#endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
+#endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
+extern void set_dma_reserve(unsigned long new_dma_reserve);
 extern void memmap_init_zone(unsigned long, int, unsigned long, unsigned long);
 extern void setup_per_zone_pages_min(void);
 extern void mem_init(void);
@@ -1097,12 +1138,7 @@ static inline void vm_stat_account(struct mm_struct *mm,
 
 #ifndef CONFIG_DEBUG_PAGEALLOC
 static inline void
-kernel_map_pages(struct page *page, int numpages, int enable)
-{
-	if (!PageHighMem(page) && !enable)
-		debug_check_no_locks_freed(page_address(page),
-					   numpages * PAGE_SIZE);
-}
+kernel_map_pages(struct page *page, int numpages, int enable) {}
 #endif
 
 extern struct vm_area_struct *get_gate_vma(struct task_struct *tsk);
@@ -1113,9 +1149,6 @@ int in_gate_area(struct task_struct *task, unsigned long addr);
 int in_gate_area_no_task(unsigned long addr);
 #define in_gate_area(task, addr) ({(void)task; in_gate_area_no_task(addr);})
 #endif	/* __HAVE_ARCH_GATE_AREA */
-
-/* /proc/<pid>/oom_adj set to -17 protects from the oom-killer */
-#define OOM_DISABLE -17
 
 int drop_caches_sysctl_handler(struct ctl_table *, int, struct file *,
 					void __user *, size_t *, loff_t *);
@@ -1130,7 +1163,7 @@ void drop_slab(void);
 extern int randomize_va_space;
 #endif
 
-const char *arch_vma_name(struct vm_area_struct *vma);
+__attribute__((weak)) const char *arch_vma_name(struct vm_area_struct *vma);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

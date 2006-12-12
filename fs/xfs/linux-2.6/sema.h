@@ -29,8 +29,6 @@
 
 typedef struct semaphore sema_t;
 
-#define init_sema(sp, val, c, d)	sema_init(sp, val)
-#define initsema(sp, val)		sema_init(sp, val)
 #define initnsema(sp, val, name)	sema_init(sp, val)
 #define psema(sp, b)			down(sp)
 #define vsema(sp)			up(sp)

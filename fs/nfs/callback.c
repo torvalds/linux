@@ -58,7 +58,6 @@ module_param_call(callback_tcpport, param_set_port, param_get_int,
  */
 static void nfs_callback_svc(struct svc_rqst *rqstp)
 {
-	struct svc_serv *serv = rqstp->rq_server;
 	int err;
 
 	__module_get(THIS_MODULE);
@@ -80,7 +79,7 @@ static void nfs_callback_svc(struct svc_rqst *rqstp)
 		/*
 		 * Listen for a request on the socket
 		 */
-		err = svc_recv(serv, rqstp, MAX_SCHEDULE_TIMEOUT);
+		err = svc_recv(rqstp, MAX_SCHEDULE_TIMEOUT);
 		if (err == -EAGAIN || err == -EINTR)
 			continue;
 		if (err < 0) {
@@ -91,7 +90,7 @@ static void nfs_callback_svc(struct svc_rqst *rqstp)
 		}
 		dprintk("%s: request from %u.%u.%u.%u\n", __FUNCTION__,
 				NIPQUAD(rqstp->rq_addr.sin_addr.s_addr));
-		svc_process(serv, rqstp);
+		svc_process(rqstp);
 	}
 
 	svc_exit_thread(rqstp);
@@ -116,7 +115,7 @@ int nfs_callback_up(void)
 		goto out;
 	init_completion(&nfs_callback_info.started);
 	init_completion(&nfs_callback_info.stopped);
-	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE);
+	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE, NULL);
 	ret = -ENOMEM;
 	if (!serv)
 		goto out_err;

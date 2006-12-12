@@ -71,14 +71,13 @@ static struct irq_chip kev7a400_cpld_chip = {
 };
 
 
-static void kev7a400_cpld_handler (unsigned int irq, struct irqdesc *desc,
-				  struct pt_regs *regs)
+static void kev7a400_cpld_handler (unsigned int irq, struct irq_desc *desc)
 {
 	u32 mask = CPLD_LATCHED_INTS;
 	irq = IRQ_KEV7A400_CPLD;
 	for (; mask; mask >>= 1, ++irq) {
 		if (mask & 1)
-			desc[irq].handle (irq, desc, regs);
+			desc[irq].handle (irq, desc);
 	}
 }
 
@@ -89,7 +88,7 @@ void __init lh7a40x_init_board_irq (void)
 	for (irq = IRQ_KEV7A400_CPLD;
 	     irq < IRQ_KEV7A400_CPLD + NR_IRQ_BOARD; ++irq) {
 		set_irq_chip (irq, &kev7a400_cpld_chip);
-		set_irq_handler (irq, do_edge_IRQ);
+		set_irq_handler (irq, handle_edge_irq);
 		set_irq_flags (irq, IRQF_VALID);
 	}
 	set_irq_chained_handler (IRQ_CPLD, kev7a400_cpld_handler);

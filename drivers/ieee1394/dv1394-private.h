@@ -460,7 +460,7 @@ struct video_card {
 	int dma_running;
 
 	/*
-	  3) the sleeping semaphore 'sem' - this is used from process context only,
+	  3) the sleeping mutex 'mtx' - this is used from process context only,
 	  to serialize various operations on the video_card. Even though only one
 	  open() is allowed, we still need to prevent multiple threads of execution
 	  from entering calls like read, write, ioctl, etc.
@@ -468,9 +468,9 @@ struct video_card {
 	  I honestly can't think of a good reason to use dv1394 from several threads
 	  at once, but we need to serialize anyway to prevent oopses =).
 
-	  NOTE: if you need both spinlock and sem, take sem first to avoid deadlock!
+	  NOTE: if you need both spinlock and mtx, take mtx first to avoid deadlock!
 	 */
-	struct semaphore sem;
+	struct mutex mtx;
 
 	/* people waiting for buffer space, please form a line here... */
 	wait_queue_head_t waitq;

@@ -23,7 +23,7 @@
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-asmlinkage unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum);
+asmlinkage __wsum csum_partial(const void *buff, int len, __wsum sum);
 
 /*
  * the same as csum_partial, but copies from src while it
@@ -33,35 +33,37 @@ asmlinkage unsigned int csum_partial(const unsigned char * buff, int len, unsign
  * better 64-bit) boundary
  */
 
-asmlinkage unsigned int csum_partial_copy_generic(const unsigned char *src, unsigned char *dst,
-						  int len, int sum, int *src_err_ptr, int *dst_err_ptr);
+asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst,
+					    int len, __wsum sum,
+					    int *src_err_ptr, int *dst_err_ptr);
 
 /*
  *	Note: when you get a NULL pointer exception here this means someone
- *	passed in an incorrect kernel address to one of these functions. 
- *	
- *	If you use these functions directly please don't forget the 
+ *	passed in an incorrect kernel address to one of these functions.
+ *
+ *	If you use these functions directly please don't forget the
  *	access_ok().
  */
-static __inline__
-unsigned int csum_partial_copy_nocheck (const unsigned char *src, unsigned char *dst,
-					int len, int sum)
+static inline
+__wsum csum_partial_copy_nocheck(const void *src, void *dst,
+				 int len, __wsum sum)
 {
-	return csum_partial_copy_generic ( src, dst, len, sum, NULL, NULL);
+	return csum_partial_copy_generic(src, dst, len, sum, NULL, NULL);
 }
 
-static __inline__
-unsigned int csum_partial_copy_from_user (const unsigned char *src, unsigned char *dst,
-						int len, int sum, int *err_ptr)
+static inline
+__wsum csum_partial_copy_from_user(const void __user *src, void *dst,
+				   int len, __wsum sum, int *err_ptr)
 {
-	return csum_partial_copy_generic ( src, dst, len, sum, err_ptr, NULL);
+	return csum_partial_copy_generic((__force const void *)src, dst,
+					len, sum, err_ptr, NULL);
 }
 
 /*
  *	Fold a partial checksum
  */
 
-static __inline__ unsigned int csum_fold(unsigned int sum)
+static inline __sum16 csum_fold(__wsum sum)
 {
 	unsigned int __dummy;
 	__asm__("swap.w %0, %1\n\t"
@@ -74,7 +76,7 @@ static __inline__ unsigned int csum_fold(unsigned int sum)
 		: "=r" (sum), "=&r" (__dummy)
 		: "0" (sum)
 		: "t");
-	return sum;
+	return (__force __sum16)sum;
 }
 
 /*
@@ -84,7 +86,7 @@ static __inline__ unsigned int csum_fold(unsigned int sum)
  *      i386 version by Jorge Cwik <jorge@laser.satlink.net>, adapted
  *      for linux by * Arnt Gulbrandsen.
  */
-static __inline__ unsigned short ip_fast_csum(unsigned char * iph, unsigned int ihl)
+static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
 	unsigned int sum, __dummy0, __dummy1;
 
@@ -112,16 +114,15 @@ static __inline__ unsigned short ip_fast_csum(unsigned char * iph, unsigned int 
 	return	csum_fold(sum);
 }
 
-static __inline__ unsigned long csum_tcpudp_nofold(unsigned long saddr,
-						   unsigned long daddr,
-						   unsigned short len,
-						   unsigned short proto,
-						   unsigned int sum) 
+static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+					unsigned short len,
+					unsigned short proto,
+					__wsum sum)
 {
 #ifdef __LITTLE_ENDIAN__
-	unsigned long len_proto = (ntohs(len)<<16)+proto*256;
+	unsigned long len_proto = (proto + len) << 8;
 #else
-	unsigned long len_proto = (proto<<16)+len;
+	unsigned long len_proto = proto + len;
 #endif
 	__asm__("clrt\n\t"
 		"addc	%0, %1\n\t"
@@ -132,6 +133,7 @@ static __inline__ unsigned long csum_tcpudp_nofold(unsigned long saddr,
 		: "=r" (sum), "=r" (len_proto)
 		: "r" (daddr), "r" (saddr), "1" (len_proto), "0" (sum)
 		: "t");
+
 	return sum;
 }
 
@@ -139,31 +141,28 @@ static __inline__ unsigned long csum_tcpudp_nofold(unsigned long saddr,
  * computes the checksum of the TCP/UDP pseudo-header
  * returns a 16-bit checksum, already complemented
  */
-static __inline__ unsigned short int csum_tcpudp_magic(unsigned long saddr,
-						       unsigned long daddr,
-						       unsigned short len,
-						       unsigned short proto,
-						       unsigned int sum) 
+static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
+					unsigned short len,
+					unsigned short proto,
+					__wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
+	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
 }
 
 /*
  * this routine is used for miscellaneous IP-like checksums, mainly
  * in icmp.c
  */
-
-static __inline__ unsigned short ip_compute_csum(unsigned char * buff, int len)
+static inline __sum16 ip_compute_csum(const void *buff, int len)
 {
-    return csum_fold (csum_partial(buff, len, 0));
+    return csum_fold(csum_partial(buff, len, 0));
 }
 
 #define _HAVE_ARCH_IPV6_CSUM
-static __inline__ unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
-						     struct in6_addr *daddr,
-						     __u32 len,
-						     unsigned short proto,
-						     unsigned int sum) 
+static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+				      const struct in6_addr *daddr,
+				      __u32 len, unsigned short proto,
+				      __wsum sum)
 {
 	unsigned int __dummy;
 	__asm__("clrt\n\t"
@@ -188,28 +187,29 @@ static __inline__ unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
 		"movt	%1\n\t"
 		"add	%1, %0\n"
 		: "=r" (sum), "=&r" (__dummy)
-		: "r" (saddr), "r" (daddr), 
+		: "r" (saddr), "r" (daddr),
 		  "r" (htonl(len)), "r" (htonl(proto)), "0" (sum)
 		: "t");
 
 	return csum_fold(sum);
 }
 
-/* 
+/*
  *	Copy and checksum to user
  */
 #define HAVE_CSUM_COPY_USER
-static __inline__ unsigned int csum_and_copy_to_user (const unsigned char *src,
-						      unsigned char __user *dst,
-						      int len, int sum,
-						      int *err_ptr)
+static inline __wsum csum_and_copy_to_user(const void *src,
+					   void __user *dst,
+					   int len, __wsum sum,
+					   int *err_ptr)
 {
 	if (access_ok(VERIFY_WRITE, dst, len))
-		return csum_partial_copy_generic(src, dst, len, sum, NULL, err_ptr);
+		return csum_partial_copy_generic((__force const void *)src,
+						dst, len, sum, NULL, err_ptr);
 
 	if (len)
 		*err_ptr = -EFAULT;
 
-	return -1; /* invalid checksum */
+	return (__force __wsum)-1; /* invalid checksum */
 }
 #endif /* __ASM_SH_CHECKSUM_H */

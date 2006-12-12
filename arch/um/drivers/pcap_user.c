@@ -12,6 +12,7 @@
 #include "net_user.h"
 #include "pcap_user.h"
 #include "user.h"
+#include "um_malloc.h"
 
 #define MAX_PACKET (ETH_MAX_PACKET + ETH_HEADER_OTHER)
 
@@ -120,7 +121,7 @@ int pcap_user_read(int fd, void *buffer, int len, struct pcap_data *pri)
 	return(hdata.len);
 }
 
-struct net_user_info pcap_user_info = {
+const struct net_user_info pcap_user_info = {
 	.init		= pcap_user_init,
 	.open		= pcap_open,
 	.close	 	= NULL,

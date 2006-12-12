@@ -46,9 +46,9 @@
 #include <asm/page.h>
 #include <asm/system.h>
 
+#include <asm/ropes.h>
 #include <asm/hardware.h>	/* for register_parisc_driver() stuff */
 #include <asm/parisc-device.h>
-#include <asm/iosapic.h>	/* for iosapic_register() */
 #include <asm/io.h>		/* read/write stuff */
 
 #undef DEBUG_LBA	/* general stuff */
@@ -100,112 +100,9 @@
 
 #define MODULE_NAME "LBA"
 
-#define LBA_FUNC_ID	0x0000	/* function id */
-#define LBA_FCLASS	0x0008	/* function class, bist, header, rev... */
-#define LBA_CAPABLE	0x0030	/* capabilities register */
-
-#define LBA_PCI_CFG_ADDR	0x0040	/* poke CFG address here */
-#define LBA_PCI_CFG_DATA	0x0048	/* read or write data here */
-
-#define LBA_PMC_MTLT	0x0050	/* Firmware sets this - read only. */
-#define LBA_FW_SCRATCH	0x0058	/* Firmware writes the PCI bus number here. */
-#define LBA_ERROR_ADDR	0x0070	/* On error, address gets logged here */
-
-#define LBA_ARB_MASK	0x0080	/* bit 0 enable arbitration. PAT/PDC enables */
-#define LBA_ARB_PRI	0x0088	/* firmware sets this. */
-#define LBA_ARB_MODE	0x0090	/* firmware sets this. */
-#define LBA_ARB_MTLT	0x0098	/* firmware sets this. */
-
-#define LBA_MOD_ID	0x0100	/* Module ID. PDC_PAT_CELL reports 4 */
-
-#define LBA_STAT_CTL	0x0108	/* Status & Control */
-#define   LBA_BUS_RESET		0x01	/*  Deassert PCI Bus Reset Signal */
-#define   CLEAR_ERRLOG		0x10	/*  "Clear Error Log" cmd */
-#define   CLEAR_ERRLOG_ENABLE	0x20	/*  "Clear Error Log" Enable */
-#define   HF_ENABLE	0x40	/*    enable HF mode (default is -1 mode) */
-
-#define LBA_LMMIO_BASE	0x0200	/* < 4GB I/O address range */
-#define LBA_LMMIO_MASK	0x0208
-
-#define LBA_GMMIO_BASE	0x0210	/* > 4GB I/O address range */
-#define LBA_GMMIO_MASK	0x0218
-
-#define LBA_WLMMIO_BASE	0x0220	/* All < 4GB ranges under the same *SBA* */
-#define LBA_WLMMIO_MASK	0x0228
-
-#define LBA_WGMMIO_BASE	0x0230	/* All > 4GB ranges under the same *SBA* */
-#define LBA_WGMMIO_MASK	0x0238
-
-#define LBA_IOS_BASE	0x0240	/* I/O port space for this LBA */
-#define LBA_IOS_MASK	0x0248
-
-#define LBA_ELMMIO_BASE	0x0250	/* Extra LMMIO range */
-#define LBA_ELMMIO_MASK	0x0258
-
-#define LBA_EIOS_BASE	0x0260	/* Extra I/O port space */
-#define LBA_EIOS_MASK	0x0268
-
-#define LBA_GLOBAL_MASK	0x0270	/* Mercury only: Global Address Mask */
-#define LBA_DMA_CTL	0x0278	/* firmware sets this */
-
-#define LBA_IBASE	0x0300	/* SBA DMA support */
-#define LBA_IMASK	0x0308
-
-/* FIXME: ignore DMA Hint stuff until we can measure performance */
-#define LBA_HINT_CFG	0x0310
-#define LBA_HINT_BASE	0x0380	/* 14 registers at every 8 bytes. */
-
-#define LBA_BUS_MODE	0x0620
-
-/* ERROR regs are needed for config cycle kluges */
-#define LBA_ERROR_CONFIG 0x0680
-#define     LBA_SMART_MODE 0x20
-#define LBA_ERROR_STATUS 0x0688
-#define LBA_ROPE_CTL     0x06A0
-
-#define LBA_IOSAPIC_BASE	0x800 /* Offset of IRQ logic */
-
 /* non-postable I/O port space, densely packed */
 #define LBA_PORT_BASE	(PCI_F_EXTEND | 0xfee00000UL)
 static void __iomem *astro_iop_base __read_mostly;
-
-#define ELROY_HVERS	0x782
-#define MERCURY_HVERS	0x783
-#define QUICKSILVER_HVERS	0x784
-
-static inline int IS_ELROY(struct parisc_device *d)
-{
-	return (d->id.hversion == ELROY_HVERS);
-}
-
-static inline int IS_MERCURY(struct parisc_device *d)
-{
-	return (d->id.hversion == MERCURY_HVERS);
-}
-
-static inline int IS_QUICKSILVER(struct parisc_device *d)
-{
-	return (d->id.hversion == QUICKSILVER_HVERS);
-}
-
-
-/*
-** lba_device: Per instance Elroy data structure
-*/
-struct lba_device {
-	struct pci_hba_data hba;
-
-	spinlock_t	lba_lock;
-	void		*iosapic_obj;
-
-#ifdef CONFIG_64BIT
-	void __iomem *	iop_base;    /* PA_VIEW - for IO port accessor funcs */
-#endif
-
-	int		flags;       /* state/functionality enabled */
-	int		hw_rev;      /* HW revision of chip */
-};
-
 
 static u32 lba_t32;
 
@@ -1542,8 +1439,8 @@ lba_driver_probe(struct parisc_device *dev)
 		default: version = "TR4+";
 		}
 
-		printk(KERN_INFO "%s version %s (0x%x) found at 0x%lx\n",
-			MODULE_NAME, version, func_class & 0xf, dev->hpa.start);
+		printk(KERN_INFO "Elroy version %s (0x%x) found at 0x%lx\n",
+		       version, func_class & 0xf, dev->hpa.start);
 
 		if (func_class < 2) {
 			printk(KERN_WARNING "Can't support LBA older than "
@@ -1563,14 +1460,18 @@ lba_driver_probe(struct parisc_device *dev)
 		}
 
 	} else if (IS_MERCURY(dev) || IS_QUICKSILVER(dev)) {
+		int major, minor;
+
 		func_class &= 0xff;
-		version = kmalloc(6, GFP_KERNEL);
-		snprintf(version, 6, "TR%d.%d",(func_class >> 4),(func_class & 0xf));
+		major = func_class >> 4, minor = func_class & 0xf;
+
 		/* We could use one printk for both Elroy and Mercury,
                  * but for the mask for func_class.
                  */ 
-		printk(KERN_INFO "%s version %s (0x%x) found at 0x%lx\n",
-		       MODULE_NAME, version, func_class & 0xff, dev->hpa.start);
+		printk(KERN_INFO "%s version TR%d.%d (0x%x) found at 0x%lx\n",
+		       IS_MERCURY(dev) ? "Mercury" : "Quicksilver", major,
+		       minor, func_class, dev->hpa.start);
+
 		cfg_ops = &mercury_cfg_ops;
 	} else {
 		printk(KERN_ERR "Unknown LBA found at 0x%lx\n", dev->hpa.start);
@@ -1600,6 +1501,7 @@ lba_driver_probe(struct parisc_device *dev)
 	lba_dev->hba.dev = dev;
 	lba_dev->iosapic_obj = tmp_obj;  /* save interrupt handle */
 	lba_dev->hba.iommu = sba_get_iommu(dev);  /* get iommu data */
+	parisc_set_drvdata(dev, lba_dev);
 
 	/* ------------ Second : initialize common stuff ---------- */
 	pci_bios = &lba_bios_ops;

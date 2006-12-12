@@ -26,16 +26,16 @@ codepage_convert(const __u8 *codepage, volatile __u8 * addr, unsigned long nr)
 {
 	if (nr-- <= 0)
 		return;
-        __asm__ __volatile__(
-		"   bras 1,1f\n"
-		"   tr   0(1,%0),0(%2)\n"
-                "0: tr   0(256,%0),0(%2)\n"
-		"   la   %0,256(%0)\n"
-		"1: ahi  %1,-256\n"
-		"   jnm  0b\n"
-		"   ex   %1,0(1)"
-                : "+&a" (addr), "+&a" (nr)
-                : "a" (codepage) : "cc", "memory", "1" );
+	asm volatile(
+		"	bras	1,1f\n"
+		"	tr	0(1,%0),0(%2)\n"
+		"0:	tr	0(256,%0),0(%2)\n"
+		"	la	%0,256(%0)\n"
+		"1:	ahi	%1,-256\n"
+		"	jnm	0b\n"
+		"	ex	%1,0(1)"
+		: "+&a" (addr), "+&a" (nr)
+		: "a" (codepage) : "cc", "memory", "1");
 }
 
 #define ASCEBC(addr,nr) codepage_convert(_ascebc, addr, nr)

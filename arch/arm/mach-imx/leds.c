@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-imx/leds.h
+ * linux/arch/arm/mach-imx/leds.c
  *
  * Copyright (C) 2004 Sascha Hauer <sascha@saschahauer.de>
  *

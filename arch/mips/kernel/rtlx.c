@@ -61,16 +61,16 @@ static int sp_stopping = 0;
 
 extern void *vpe_get_shared(int index);
 
-static void rtlx_dispatch(struct pt_regs *regs)
+static void rtlx_dispatch(void)
 {
-	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_RTLX_IRQ, regs);
+	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_RTLX_IRQ);
 }
 
 
 /* Interrupt handler may be called before rtlx_init has otherwise had
    a chance to run.
 */
-static irqreturn_t rtlx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t rtlx_interrupt(int irq, void *dev_id)
 {
 	int i;
 
@@ -415,7 +415,7 @@ static unsigned int file_poll(struct file *file, poll_table * wait)
 	int minor;
 	unsigned int mask = 0;
 
-	minor = iminor(file->f_dentry->d_inode);
+	minor = iminor(file->f_path.dentry->d_inode);
 
 	poll_wait(file, &channel_wqs[minor].rt_queue, wait);
 	poll_wait(file, &channel_wqs[minor].lx_queue, wait);
@@ -437,7 +437,7 @@ static unsigned int file_poll(struct file *file, poll_table * wait)
 static ssize_t file_read(struct file *file, char __user * buffer, size_t count,
 			 loff_t * ppos)
 {
-	int minor = iminor(file->f_dentry->d_inode);
+	int minor = iminor(file->f_path.dentry->d_inode);
 
 	/* data available? */
 	if (!rtlx_read_poll(minor, (file->f_flags & O_NONBLOCK) ? 0 : 1)) {
@@ -454,7 +454,7 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 	struct rtlx_channel *rt;
 	DECLARE_WAITQUEUE(wait, current);
 
-	minor = iminor(file->f_dentry->d_inode);
+	minor = iminor(file->f_path.dentry->d_inode);
 	rt = &rtlx->channel[minor];
 
 	/* any space left... */

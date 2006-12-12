@@ -112,14 +112,14 @@ exit:
 	return err;
 }
 
-static void zd1201_usbfree(struct urb *urb, struct pt_regs *regs)
+static void zd1201_usbfree(struct urb *urb)
 {
 	struct zd1201 *zd = urb->context;
 
 	switch(urb->status) {
 		case -EILSEQ:
 		case -ENODEV:
-		case -ETIMEDOUT:
+		case -ETIME:
 		case -ENOENT:
 		case -EPIPE:
 		case -EOVERFLOW:
@@ -177,7 +177,7 @@ static int zd1201_docmd(struct zd1201 *zd, int cmd, int parm0,
 }
 
 /* Callback after sending out a packet */
-static void zd1201_usbtx(struct urb *urb, struct pt_regs *regs)
+static void zd1201_usbtx(struct urb *urb)
 {
 	struct zd1201 *zd = urb->context;
 	netif_wake_queue(zd->dev);
@@ -185,7 +185,7 @@ static void zd1201_usbtx(struct urb *urb, struct pt_regs *regs)
 }
 
 /* Incoming data */
-static void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
+static void zd1201_usbrx(struct urb *urb)
 {
 	struct zd1201 *zd = urb->context;
 	int free = 0;
@@ -193,15 +193,13 @@ static void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
 	struct sk_buff *skb;
 	unsigned char type;
 
-	if (!zd) {
-		free = 1;
-		goto exit;
-	}
+	if (!zd)
+		return;
 
 	switch(urb->status) {
 		case -EILSEQ:
 		case -ENODEV:
-		case -ETIMEDOUT:
+		case -ETIME:
 		case -ENOENT:
 		case -EPIPE:
 		case -EOVERFLOW:
@@ -1218,7 +1216,7 @@ static int zd1201_set_essid(struct net_device *dev,
 		return -EINVAL;
 	if (data->length < 1)
 		data->length = 1;
-	zd->essidlen = data->length-1;
+	zd->essidlen = data->length;
 	memset(zd->essid, 0, IW_ESSID_MAX_SIZE+1);
 	memcpy(zd->essid, essid, data->length);
 	return zd1201_join(zd, zd->essid, zd->essidlen);
@@ -1830,10 +1828,8 @@ err_start:
 	/* Leave the device in reset state */
 	zd1201_docmd(zd, ZD1201_CMDCODE_INIT, 0, 0, 0);
 err_zd:
-	if (zd->tx_urb)
-		usb_free_urb(zd->tx_urb);
-	if (zd->rx_urb)
-		usb_free_urb(zd->rx_urb);
+	usb_free_urb(zd->tx_urb);
+	usb_free_urb(zd->rx_urb);
 	kfree(zd);
 	return err;
 }

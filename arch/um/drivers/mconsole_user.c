@@ -14,6 +14,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include "user.h"
+#include "sysdep/ptrace.h"
 #include "mconsole.h"
 #include "umid.h"
 #include "user_util.h"
@@ -131,6 +132,10 @@ int mconsole_get_request(int fd, struct mc_request *req)
 int mconsole_reply_len(struct mc_request *req, const char *str, int total,
 		       int err, int more)
 {
+	/* XXX This is a stack consumption problem.  It'd be nice to
+	 * make it global and serialize access to it, but there are a
+	 * ton of callers to this function.
+	 */
 	struct mconsole_reply reply;
 	int len, n;
 

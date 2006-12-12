@@ -14,6 +14,7 @@
 
 #include "gigaset.h"
 #include <linux/crc-ccitt.h>
+#include <linux/bitrev.h>
 
 /* access methods for isowbuf_t */
 /* ============================ */
@@ -487,7 +488,7 @@ static inline int trans_buildframe(struct isowbuf_t *iwb,
 	gig_dbg(DEBUG_STREAM, "put %d bytes", count);
 	write = atomic_read(&iwb->write);
 	do {
-		c = gigaset_invtab[*in++];
+		c = bitrev8(*in++);
 		iwb->data[write++] = c;
 		write %= BAS_OUTBUFSIZE;
 	} while (--count > 0);
@@ -876,7 +877,7 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 	while (count > 0) {
 		dst = skb_put(skb, count < dobytes ? count : dobytes);
 		while (count > 0 && dobytes > 0) {
-			*dst++ = gigaset_invtab[*src++];
+			*dst++ = bitrev8(*src++);
 			count--;
 			dobytes--;
 		}

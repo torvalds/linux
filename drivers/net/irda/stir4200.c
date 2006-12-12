@@ -15,8 +15,7 @@
 *
 *	This program is free software; you can redistribute it and/or modify
 *	it under the terms of the GNU General Public License as published by
-*	the Free Software Foundation; either version 2 of the License, or
-*	(at your option) any later version.
+*	the Free Software Foundation; either version 2 of the License.
 *
 *	This program is distributed in the hope that it will be useful,
 *	but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -51,6 +50,7 @@
 #include <linux/usb.h>
 #include <linux/crc32.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 #include <net/irda/irda.h>
 #include <net/irda/irlap.h>
 #include <net/irda/irda_device.h>
@@ -149,8 +149,6 @@ enum StirFifoCtlMask {
 	FIFOCTL_DIR = 0x10,
 	FIFOCTL_CLR = 0x08,
 	FIFOCTL_EMPTY = 0x04,
-	FIFOCTL_RXERR = 0x02,
-	FIFOCTL_TXERR = 0x01,
 };
 
 enum StirDiagMask {
@@ -615,19 +613,6 @@ static int fifo_txwait(struct stir_cb *stir, int space)
 
 		pr_debug("fifo status 0x%lx count %lu\n", status, count);
 
-		/* error when receive/transmit fifo gets confused */
-		if (status & FIFOCTL_RXERR) {
-			stir->stats.rx_fifo_errors++;
-			stir->stats.rx_errors++;
-			break;
-		}
-
-		if (status & FIFOCTL_TXERR) {
-			stir->stats.tx_fifo_errors++;
-			stir->stats.tx_errors++;
-			break;
-		}
-
 		/* is fifo receiving already, or empty */
 		if (!(status & FIFOCTL_DIR)
 		    || (status & FIFOCTL_EMPTY))
@@ -819,7 +804,7 @@ static int stir_transmit_thread(void *arg)
  * Wakes up every ms (usb round trip) with wrapped 
  * data.
  */
-static void stir_rcv_irq(struct urb *urb, struct pt_regs *regs)
+static void stir_rcv_irq(struct urb *urb)
 {
 	struct stir_cb *stir = urb->context;
 	int err;

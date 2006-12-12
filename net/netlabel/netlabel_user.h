@@ -34,6 +34,7 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/capability.h>
+#include <linux/audit.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
 #include <net/netlabel.h>
@@ -41,38 +42,24 @@
 /* NetLabel NETLINK helper functions */
 
 /**
- * netlbl_netlink_hdr_put - Write the NETLINK buffers into a sk_buff
+ * netlbl_netlink_auditinfo - Fetch the audit information from a NETLINK msg
  * @skb: the packet
- * @pid: the PID of the receipient
- * @seq: the sequence number
- * @type: the generic NETLINK message family type
- * @cmd: command
- *
- * Description:
- * Write both a NETLINK nlmsghdr structure and a Generic NETLINK genlmsghdr
- * struct to the packet.  Returns a pointer to the start of the payload buffer
- * on success or NULL on failure.
- *
+ * @audit_info: NetLabel audit information
  */
-static inline void *netlbl_netlink_hdr_put(struct sk_buff *skb,
-					   u32 pid,
-					   u32 seq,
-					   int type,
-					   int flags,
-					   u8 cmd)
+static inline void netlbl_netlink_auditinfo(struct sk_buff *skb,
+					    struct netlbl_audit *audit_info)
 {
-	return genlmsg_put(skb,
-			   pid,
-			   seq,
-			   type,
-			   0,
-			   flags,
-			   cmd,
-			   NETLBL_PROTO_VERSION);
+	audit_info->secid = NETLINK_CB(skb).sid;
+	audit_info->loginuid = NETLINK_CB(skb).loginuid;
 }
 
 /* NetLabel NETLINK I/O functions */
 
 int netlbl_netlink_init(void);
+
+/* NetLabel Audit Functions */
+
+struct audit_buffer *netlbl_audit_start_common(int type,
+					      struct netlbl_audit *audit_info);
 
 #endif

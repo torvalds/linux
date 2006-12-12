@@ -71,55 +71,65 @@ static void smp_task_done(struct sas_task *task)
 static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 			    void *resp, int resp_size)
 {
-	int res;
-	struct sas_task *task = sas_alloc_task(GFP_KERNEL);
+	int res, retry;
+	struct sas_task *task = NULL;
 	struct sas_internal *i =
 		to_sas_internal(dev->port->ha->core.shost->transportt);
 
-	if (!task)
-		return -ENOMEM;
+	for (retry = 0; retry < 3; retry++) {
+		task = sas_alloc_task(GFP_KERNEL);
+		if (!task)
+			return -ENOMEM;
 
-	task->dev = dev;
-	task->task_proto = dev->tproto;
-	sg_init_one(&task->smp_task.smp_req, req, req_size);
-	sg_init_one(&task->smp_task.smp_resp, resp, resp_size);
+		task->dev = dev;
+		task->task_proto = dev->tproto;
+		sg_init_one(&task->smp_task.smp_req, req, req_size);
+		sg_init_one(&task->smp_task.smp_resp, resp, resp_size);
 
-	task->task_done = smp_task_done;
+		task->task_done = smp_task_done;
 
-	task->timer.data = (unsigned long) task;
-	task->timer.function = smp_task_timedout;
-	task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
-	add_timer(&task->timer);
+		task->timer.data = (unsigned long) task;
+		task->timer.function = smp_task_timedout;
+		task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
+		add_timer(&task->timer);
 
-	res = i->dft->lldd_execute_task(task, 1, GFP_KERNEL);
+		res = i->dft->lldd_execute_task(task, 1, GFP_KERNEL);
 
-	if (res) {
-		del_timer(&task->timer);
-		SAS_DPRINTK("executing SMP task failed:%d\n", res);
-		goto ex_err;
-	}
-
-	wait_for_completion(&task->completion);
-	res = -ETASK;
-	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
-		SAS_DPRINTK("smp task timed out or aborted\n");
-		i->dft->lldd_abort_task(task);
-		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-			SAS_DPRINTK("SMP task aborted and not done\n");
+		if (res) {
+			del_timer(&task->timer);
+			SAS_DPRINTK("executing SMP task failed:%d\n", res);
 			goto ex_err;
 		}
+
+		wait_for_completion(&task->completion);
+		res = -ETASK;
+		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+			SAS_DPRINTK("smp task timed out or aborted\n");
+			i->dft->lldd_abort_task(task);
+			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+				SAS_DPRINTK("SMP task aborted and not done\n");
+				goto ex_err;
+			}
+		}
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		    task->task_status.stat == SAM_GOOD) {
+			res = 0;
+			break;
+		} else {
+			SAS_DPRINTK("%s: task to dev %016llx response: 0x%x "
+				    "status 0x%x\n", __FUNCTION__,
+				    SAS_ADDR(dev->sas_addr),
+				    task->task_status.resp,
+				    task->task_status.stat);
+			sas_free_task(task);
+			task = NULL;
+		}
 	}
-	if (task->task_status.resp == SAS_TASK_COMPLETE &&
-	    task->task_status.stat == SAM_GOOD)
-		res = 0;
-	else
-		SAS_DPRINTK("%s: task to dev %016llx response: 0x%x "
-			    "status 0x%x\n", __FUNCTION__,
-			    SAS_ADDR(dev->sas_addr),
-			    task->task_status.resp,
-			    task->task_status.stat);
 ex_err:
-	sas_free_task(task);
+	BUG_ON(retry == 3 && task != NULL);
+	if (task != NULL) {
+		sas_free_task(task);
+	}
 	return res;
 }
 
@@ -587,10 +597,15 @@ static struct domain_device *sas_ex_discover_end_dev(
 	child->iproto = phy->attached_iproto;
 	memcpy(child->sas_addr, phy->attached_sas_addr, SAS_ADDR_SIZE);
 	sas_hash_addr(child->hashed_sas_addr, child->sas_addr);
-	phy->port = sas_port_alloc(&parent->rphy->dev, phy_id);
-	BUG_ON(!phy->port);
-	/* FIXME: better error handling*/
-	BUG_ON(sas_port_add(phy->port) != 0);
+	if (!phy->port) {
+		phy->port = sas_port_alloc(&parent->rphy->dev, phy_id);
+		if (unlikely(!phy->port))
+			goto out_err;
+		if (unlikely(sas_port_add(phy->port) != 0)) {
+			sas_port_free(phy->port);
+			goto out_err;
+		}
+	}
 	sas_ex_get_linkrate(parent, child, phy);
 
 	if ((phy->attached_tproto & SAS_PROTO_STP) || phy->attached_sata_dev) {
@@ -605,8 +620,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 			SAS_DPRINTK("report phy sata to %016llx:0x%x returned "
 				    "0x%x\n", SAS_ADDR(parent->sas_addr),
 				    phy_id, res);
-			kfree(child);
-			return NULL;
+			goto out_free;
 		}
 		memcpy(child->frame_rcvd, &child->sata_dev.rps_resp.rps.fis,
 		       sizeof(struct dev_to_host_fis));
@@ -617,14 +631,14 @@ static struct domain_device *sas_ex_discover_end_dev(
 				    "%016llx:0x%x returned 0x%x\n",
 				    SAS_ADDR(child->sas_addr),
 				    SAS_ADDR(parent->sas_addr), phy_id, res);
-			kfree(child);
-			return NULL;
+			goto out_free;
 		}
 	} else if (phy->attached_tproto & SAS_PROTO_SSP) {
 		child->dev_type = SAS_END_DEV;
 		rphy = sas_end_device_alloc(phy->port);
 		/* FIXME: error handling */
-		BUG_ON(!rphy);
+		if (unlikely(!rphy))
+			goto out_free;
 		child->tproto = phy->attached_tproto;
 		sas_init_dev(child);
 
@@ -641,9 +655,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 				    "at %016llx:0x%x returned 0x%x\n",
 				    SAS_ADDR(child->sas_addr),
 				    SAS_ADDR(parent->sas_addr), phy_id, res);
-			/* FIXME: this kfrees list elements without removing them */
-			//kfree(child);
-			return NULL;
+			goto out_list_del;
 		}
 	} else {
 		SAS_DPRINTK("target proto 0x%x at %016llx:0x%x not handled\n",
@@ -653,6 +665,16 @@ static struct domain_device *sas_ex_discover_end_dev(
 
 	list_add_tail(&child->siblings, &parent_ex->children);
 	return child;
+
+ out_list_del:
+	list_del(&child->dev_list_node);
+	sas_rphy_free(rphy);
+ out_free:
+	sas_port_delete(phy->port);
+ out_err:
+	phy->port = NULL;
+	kfree(child);
+	return NULL;
 }
 
 static struct domain_device *sas_ex_discover_expander(

@@ -162,9 +162,9 @@ static char *version =
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
-#include <asm/io.h>
 #include <asm/dma.h>
 
 
@@ -410,7 +410,7 @@ static int     eth16i_close(struct net_device *dev);
 static int     eth16i_tx(struct sk_buff *skb, struct net_device *dev);
 static void    eth16i_rx(struct net_device *dev);
 static void    eth16i_timeout(struct net_device *dev);
-static irqreturn_t eth16i_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t eth16i_interrupt(int irq, void *dev_id);
 static void    eth16i_reset(struct net_device *dev);
 static void    eth16i_timeout(struct net_device *dev);
 static void    eth16i_skip_packet(struct net_device *dev);
@@ -1226,7 +1226,7 @@ static void eth16i_rx(struct net_device *dev)
 	} /* while */
 }
 
-static irqreturn_t eth16i_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t eth16i_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct eth16i_local *lp;
@@ -1475,7 +1475,7 @@ int __init init_module(void)
 	return -ENXIO;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	int this_dev;
 

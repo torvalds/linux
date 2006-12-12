@@ -44,12 +44,13 @@
 #define HCI_NOTIFY_VOICE_SETTING	3
 
 /* HCI device types */
-#define HCI_VHCI	0
+#define HCI_VIRTUAL	0
 #define HCI_USB		1
 #define HCI_PCCARD	2
 #define HCI_UART	3
 #define HCI_RS232	4
 #define HCI_PCI		5
+#define HCI_SDIO	6
 
 /* HCI device quirks */
 enum {
@@ -296,6 +297,7 @@ struct hci_cp_host_buffer_size {
 
 /* Link Control */
 #define OGF_LINK_CTL	0x01 
+
 #define OCF_CREATE_CONN		0x0005
 struct hci_cp_create_conn {
 	bdaddr_t bdaddr;
@@ -304,6 +306,11 @@ struct hci_cp_create_conn {
 	__u8     pscan_mode;
 	__le16   clock_offset;
 	__u8     role_switch;
+} __attribute__ ((packed));
+
+#define OCF_CREATE_CONN_CANCEL	0x0008
+struct hci_cp_create_conn_cancel {
+	bdaddr_t bdaddr;
 } __attribute__ ((packed));
 
 #define OCF_ACCEPT_CONN_REQ	0x0009
@@ -338,6 +345,8 @@ struct hci_cp_inquiry {
 } __attribute__ ((packed));
 
 #define OCF_INQUIRY_CANCEL	0x0002
+
+#define OCF_EXIT_PERIODIC_INQ	0x0004
 
 #define OCF_LINK_KEY_REPLY	0x000B
 struct hci_cp_link_key_reply {

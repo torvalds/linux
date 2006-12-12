@@ -1,5 +1,5 @@
 /*
- * asm-generic/mutex-null.h
+ * include/asm-generic/mutex-null.h
  *
  * Generic implementation of the mutex fastpath, based on NOP :-)
  *

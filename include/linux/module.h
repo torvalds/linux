@@ -6,7 +6,6 @@
  * Rewritten by Richard Henderson <rth@tamu.edu> Dec 1996
  * Rewritten again by Rusty Russell, 2002
  */
-#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/stat.h>
@@ -232,17 +231,17 @@ enum module_state
 };
 
 /* Similar stuff for section attributes. */
-#define MODULE_SECT_NAME_LEN 32
 struct module_sect_attr
 {
 	struct module_attribute mattr;
-	char name[MODULE_SECT_NAME_LEN];
+	char *name;
 	unsigned long address;
 };
 
 struct module_sect_attrs
 {
 	struct attribute_group grp;
+	int nsections;
 	struct module_sect_attr attrs[0];
 };
 
@@ -264,6 +263,7 @@ struct module
 	struct module_attribute *modinfo_attrs;
 	const char *version;
 	const char *srcversion;
+	struct kobject *drivers_dir;
 
 	/* Exported symbols */
 	const struct kernel_symbol *syms;
@@ -317,8 +317,14 @@ struct module
 	/* Am I unsafe to unload? */
 	int unsafe;
 
-	/* Am I GPL-compatible */
-	int license_gplok;
+	unsigned int taints;	/* same bits as kernel:tainted */
+
+#ifdef CONFIG_GENERIC_BUG
+	/* Support for BUG */
+	struct list_head bug_list;
+	struct bug_entry *bug_table;
+	unsigned num_bugs;
+#endif
 
 #ifdef CONFIG_MODULE_UNLOAD
 	/* Reference counts */
@@ -411,17 +417,7 @@ static inline int try_module_get(struct module *module)
 	return ret;
 }
 
-static inline void module_put(struct module *module)
-{
-	if (module) {
-		unsigned int cpu = get_cpu();
-		local_dec(&module->ref[cpu].count);
-		/* Maybe they're waiting for us to drop reference? */
-		if (unlikely(!module_is_live(module)))
-			wake_up_process(module->waiter);
-		put_cpu();
-	}
-}
+extern void module_put(struct module *module);
 
 #else /*!CONFIG_MODULE_UNLOAD*/
 static inline int try_module_get(struct module *module)

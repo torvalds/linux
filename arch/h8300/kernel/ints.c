@@ -1,5 +1,5 @@
 /*
- * linux/arch/h8300/platform/h8300h/ints.c
+ * linux/arch/h8300/kernel/ints.c
  *
  * Yoshinori Sato <ysato@users.sourceforge.jp>
  *

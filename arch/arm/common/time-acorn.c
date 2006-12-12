@@ -67,10 +67,10 @@ void __init ioctime_init(void)
 }
 
 static irqreturn_t
-ioc_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+ioc_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
-	timer_tick(regs);
+	timer_tick();
 	write_sequnlock(&xtime_lock);
 	return IRQ_HANDLED;
 }

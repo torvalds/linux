@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp932.c
+ * linux/fs/nls/nls_cp932.c
  *
  * Charset cp932 translation tables.
  * This translation table was generated automatically, the

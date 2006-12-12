@@ -1628,7 +1628,7 @@ stall:
 		handled = 1; \
 		}
 
-static irqreturn_t goku_irq(int irq, void *_dev, struct pt_regs *r)
+static irqreturn_t goku_irq(int irq, void *_dev)
 {
 	struct goku_udc			*dev = _dev;
 	struct goku_udc_regs __iomem	*regs = dev->regs;
@@ -1864,7 +1864,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* alloc, and start init */
-	dev = kmalloc (sizeof *dev, SLAB_KERNEL);
+	dev = kmalloc (sizeof *dev, GFP_KERNEL);
 	if (dev == NULL){
 		pr_debug("enomem %s\n", pci_name(pdev));
 		retval = -ENOMEM;

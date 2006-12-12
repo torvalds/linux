@@ -635,7 +635,7 @@ static int imxmci_cpu_driven_data(struct imxmci_host *host, unsigned int *pstat)
 	return trans_done;
 }
 
-static void imxmci_dma_irq(int dma, void *devid, struct pt_regs *regs)
+static void imxmci_dma_irq(int dma, void *devid)
 {
 	struct imxmci_host *host = devid;
 	uint32_t stat = MMC_STATUS;
@@ -646,7 +646,7 @@ static void imxmci_dma_irq(int dma, void *devid, struct pt_regs *regs)
 	tasklet_schedule(&host->tasklet);
 }
 
-static irqreturn_t imxmci_irq(int irq, void *devid, struct pt_regs *regs)
+static irqreturn_t imxmci_irq(int irq, void *devid)
 {
 	struct imxmci_host *host = devid;
 	uint32_t stat = MMC_STATUS;
@@ -877,7 +877,7 @@ static void imxmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 }
 
-static struct mmc_host_ops imxmci_ops = {
+static const struct mmc_host_ops imxmci_ops = {
 	.request	= imxmci_request,
 	.set_ios	= imxmci_set_ios,
 };
@@ -956,7 +956,7 @@ static int imxmci_probe(struct platform_device *pdev)
 	mmc->f_min = 150000;
 	mmc->f_max = CLK_RATE/2;
 	mmc->ocr_avail = MMC_VDD_32_33;
-	mmc->caps |= MMC_CAP_4_BIT_DATA;
+	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_BYTEBLOCK;
 
 	/* MMC core transfer sizes tunable parameters */
 	mmc->max_hw_segs = 64;

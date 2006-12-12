@@ -1,7 +1,7 @@
 /*
  * Copyright 2002 Momentum Computer
  * Author: mdharm@momenco.com
- * Copyright (C) 2004 Ralf Baechle <ralf@linux-mips.org>
+ * Copyright (C) 2004, 06 Ralf Baechle <ralf@linux-mips.org>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -15,7 +15,6 @@
 #include <linux/mv643xx.h>
 #include <linux/sched.h>
 
-#include <asm/ptrace.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/marvell.h>
@@ -68,52 +67,10 @@ static inline void unmask_mv64340_irq(unsigned int irq)
 }
 
 /*
- * Enables the IRQ on Marvell Chip
- */
-static void enable_mv64340_irq(unsigned int irq)
-{
-	unmask_mv64340_irq(irq);
-}
-
-/*
- * Initialize the IRQ on Marvell Chip
- */
-static unsigned int startup_mv64340_irq(unsigned int irq)
-{
-	unmask_mv64340_irq(irq);
-	return 0;
-}
-
-/*
- * Disables the IRQ on Marvell Chip
- */
-static void disable_mv64340_irq(unsigned int irq)
-{
-	mask_mv64340_irq(irq);
-}
-
-/*
- * Masks and ACKs an IRQ
- */
-static void mask_and_ack_mv64340_irq(unsigned int irq)
-{
-	mask_mv64340_irq(irq);
-}
-
-/*
- * End IRQ processing
- */
-static void end_mv64340_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		unmask_mv64340_irq(irq);
-}
-
-/*
  * Interrupt handler for interrupts coming from the Marvell chip.
  * It could be built in ethernet ports etc...
  */
-void ll_mv64340_irq(struct pt_regs *regs)
+void ll_mv64340_irq(void)
 {
 	unsigned int irq_src_low, irq_src_high;
  	unsigned int irq_mask_low, irq_mask_high;
@@ -129,34 +86,26 @@ void ll_mv64340_irq(struct pt_regs *regs)
 	irq_src_high &= irq_mask_high;
 
 	if (irq_src_low)
-		do_IRQ(ls1bit32(irq_src_low) + irq_base, regs);
+		do_IRQ(ls1bit32(irq_src_low) + irq_base);
 	else
-		do_IRQ(ls1bit32(irq_src_high) + irq_base + 32, regs);
+		do_IRQ(ls1bit32(irq_src_high) + irq_base + 32);
 }
-
-#define shutdown_mv64340_irq	disable_mv64340_irq
 
 struct irq_chip mv64340_irq_type = {
 	.typename = "MV-64340",
-	.startup = startup_mv64340_irq,
-	.shutdown = shutdown_mv64340_irq,
-	.enable = enable_mv64340_irq,
-	.disable = disable_mv64340_irq,
-	.ack = mask_and_ack_mv64340_irq,
-	.end = end_mv64340_irq,
+	.ack = mask_mv64340_irq,
+	.mask = mask_mv64340_irq,
+	.mask_ack = mask_mv64340_irq,
+	.unmask = unmask_mv64340_irq,
 };
 
 void __init mv64340_irq_init(unsigned int base)
 {
 	int i;
 
-	/* Reset irq handlers pointers to NULL */
-	for (i = base; i < base + 64; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = 0;
-		irq_desc[i].depth = 2;
-		irq_desc[i].chip = &mv64340_irq_type;
-	}
+	for (i = base; i < base + 64; i++)
+		set_irq_chip_and_handler(i, &mv64340_irq_type,
+					 handle_level_irq);
 
 	irq_base = base;
 }

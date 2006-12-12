@@ -505,8 +505,13 @@ static void port_timeout(unsigned long ref)
 	struct port *p_ptr = tipc_port_lock(ref);
 	struct sk_buff *buf = NULL;
 
-	if (!p_ptr || !p_ptr->publ.connected)
+	if (!p_ptr)
 		return;
+
+	if (!p_ptr->publ.connected) {
+		tipc_port_unlock(p_ptr);
+		return;
+	}
 
 	/* Last probe answered ? */
 	if (p_ptr->probing_state == PROBING) {
@@ -1131,11 +1136,12 @@ int tipc_publish(u32 ref, unsigned int scope, struct tipc_name_seq const *seq)
 	int res = -EINVAL;
 
 	p_ptr = tipc_port_lock(ref);
+	if (!p_ptr)
+		return -EINVAL;
+
 	dbg("tipc_publ %u, p_ptr = %x, conn = %x, scope = %x, "
 	    "lower = %u, upper = %u\n",
 	    ref, p_ptr, p_ptr->publ.connected, scope, seq->lower, seq->upper);
-	if (!p_ptr)
-		return -EINVAL;
 	if (p_ptr->publ.connected)
 		goto exit;
 	if (seq->lower > seq->upper)

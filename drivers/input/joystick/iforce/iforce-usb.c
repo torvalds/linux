@@ -74,7 +74,7 @@ void iforce_usb_xmit(struct iforce *iforce)
 	spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 }
 
-static void iforce_usb_irq(struct urb *urb, struct pt_regs *regs)
+static void iforce_usb_irq(struct urb *urb)
 {
 	struct iforce *iforce = urb->context;
 	int status;
@@ -96,7 +96,7 @@ static void iforce_usb_irq(struct urb *urb, struct pt_regs *regs)
 	}
 
 	iforce_process_packet(iforce,
-		(iforce->data[0] << 8) | (urb->actual_length - 1), iforce->data + 1, regs);
+		(iforce->data[0] << 8) | (urb->actual_length - 1), iforce->data + 1);
 
 exit:
 	status = usb_submit_urb (urb, GFP_ATOMIC);
@@ -105,7 +105,7 @@ exit:
 		     __FUNCTION__, status);
 }
 
-static void iforce_usb_out(struct urb *urb, struct pt_regs *regs)
+static void iforce_usb_out(struct urb *urb)
 {
 	struct iforce *iforce = urb->context;
 
@@ -119,7 +119,7 @@ static void iforce_usb_out(struct urb *urb, struct pt_regs *regs)
 	wake_up(&iforce->wait);
 }
 
-static void iforce_usb_ctrl(struct urb *urb, struct pt_regs *regs)
+static void iforce_usb_ctrl(struct urb *urb)
 {
 	struct iforce *iforce = urb->context;
 	if (urb->status) return;
@@ -178,9 +178,9 @@ static int iforce_usb_probe(struct usb_interface *intf,
 
 fail:
 	if (iforce) {
-		if (iforce->irq) usb_free_urb(iforce->irq);
-		if (iforce->out) usb_free_urb(iforce->out);
-		if (iforce->ctrl) usb_free_urb(iforce->ctrl);
+		usb_free_urb(iforce->irq);
+		usb_free_urb(iforce->out);
+		usb_free_urb(iforce->ctrl);
 		kfree(iforce);
 	}
 

@@ -147,8 +147,7 @@ static struct pci_driver arcmsr_pci_driver = {
 	.shutdown		= arcmsr_shutdown
 };
 
-static irqreturn_t arcmsr_do_interrupt(int irq, void *dev_id,
-	struct pt_regs *regs)
+static irqreturn_t arcmsr_do_interrupt(int irq, void *dev_id)
 {
 	irqreturn_t handle_state;
 	struct AdapterControlBlock *acb;

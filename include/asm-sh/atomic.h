@@ -14,59 +14,16 @@ typedef struct { volatile int counter; } atomic_t;
 #define atomic_read(v)		((v)->counter)
 #define atomic_set(v,i)		((v)->counter = (i))
 
+#include <linux/compiler.h>
 #include <asm/system.h>
 
-/*
- * To get proper branch prediction for the main line, we must branch
- * forward to code at the end of this object's .text section, then
- * branch back to restart the operation.
- */
-
-static __inline__ void atomic_add(int i, atomic_t * v)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	*(long *)v += i;
-	local_irq_restore(flags);
-}
-
-static __inline__ void atomic_sub(int i, atomic_t *v)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	*(long *)v -= i;
-	local_irq_restore(flags);
-}
-
-static __inline__ int atomic_add_return(int i, atomic_t * v)
-{
-	unsigned long temp, flags;
-
-	local_irq_save(flags);
-	temp = *(long *)v;
-	temp += i;
-	*(long *)v = temp;
-	local_irq_restore(flags);
-
-	return temp;
-}
+#ifdef CONFIG_CPU_SH4A
+#include <asm/atomic-llsc.h>
+#else
+#include <asm/atomic-irq.h>
+#endif
 
 #define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
-
-static __inline__ int atomic_sub_return(int i, atomic_t * v)
-{
-	unsigned long temp, flags;
-
-	local_irq_save(flags);
-	temp = *(long *)v;
-	temp -= i;
-	*(long *)v = temp;
-	local_irq_restore(flags);
-
-	return temp;
-}
 
 #define atomic_dec_return(v) atomic_sub_return(1,(v))
 #define atomic_inc_return(v) atomic_add_return(1,(v))
@@ -117,24 +74,6 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 	return ret != u;
 }
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
-
-static __inline__ void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	*(long *)v &= ~mask;
-	local_irq_restore(flags);
-}
-
-static __inline__ void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	*(long *)v |= mask;
-	local_irq_restore(flags);
-}
 
 /* Atomic operations are already serializing on SH */
 #define smp_mb__before_atomic_dec()	barrier()

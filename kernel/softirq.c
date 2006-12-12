@@ -574,8 +574,6 @@ static int __cpuinit cpu_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_UP_PREPARE:
-		BUG_ON(per_cpu(tasklet_vec, hotcpu).list);
-		BUG_ON(per_cpu(tasklet_hi_vec, hotcpu).list);
 		p = kthread_create(ksoftirqd, hcpu, "ksoftirqd/%d", hotcpu);
 		if (IS_ERR(p)) {
 			printk("ksoftirqd for %i failed\n", hotcpu);
@@ -612,7 +610,9 @@ static struct notifier_block __cpuinitdata cpu_nfb = {
 __init int spawn_ksoftirqd(void)
 {
 	void *cpu = (void *)(long)smp_processor_id();
-	cpu_callback(&cpu_nfb, CPU_UP_PREPARE, cpu);
+	int err = cpu_callback(&cpu_nfb, CPU_UP_PREPARE, cpu);
+
+	BUG_ON(err == NOTIFY_BAD);
 	cpu_callback(&cpu_nfb, CPU_ONLINE, cpu);
 	register_cpu_notifier(&cpu_nfb);
 	return 0;

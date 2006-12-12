@@ -798,7 +798,7 @@ static struct pci_ops pci_sun4v_ops = {
 static void pbm_scan_bus(struct pci_controller_info *p,
 			 struct pci_pbm_info *pbm)
 {
-	struct pcidev_cookie *cookie = kmalloc(sizeof(*cookie), GFP_KERNEL);
+	struct pcidev_cookie *cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
 
 	if (!cookie) {
 		prom_printf("%s: Critical allocation failure.\n", pbm->name);
@@ -806,7 +806,6 @@ static void pbm_scan_bus(struct pci_controller_info *p,
 	}
 
 	/* All we care about is the PBM. */
-	memset(cookie, 0, sizeof(*cookie));
 	cookie->pbm = pbm;
 
 	pbm->pci_bus = pci_scan_bus(pbm->pci_first_busno, p->pci_ops, pbm);
@@ -1048,12 +1047,11 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	/* Allocate and initialize the free area map.  */
 	sz = num_tsb_entries / 8;
 	sz = (sz + 7UL) & ~7UL;
-	iommu->arena.map = kmalloc(sz, GFP_KERNEL);
+	iommu->arena.map = kzalloc(sz, GFP_KERNEL);
 	if (!iommu->arena.map) {
 		prom_printf("PCI_IOMMU: Error, kmalloc(arena.map) failed.\n");
 		prom_halt();
 	}
-	memset(iommu->arena.map, 0, sz);
 	iommu->arena.limit = num_tsb_entries;
 
 	sz = probe_existing_entries(pbm, iommu);
@@ -1164,24 +1162,20 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 		per_cpu(pci_iommu_batch, i).pglist = (u64 *) page;
 	}
 
-	p = kmalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
+	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
 	if (!p)
 		goto fatal_memory_error;
 
-	memset(p, 0, sizeof(*p));
-
-	iommu = kmalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
 	if (!iommu)
 		goto fatal_memory_error;
 
-	memset(iommu, 0, sizeof(*iommu));
 	p->pbm_A.iommu = iommu;
 
-	iommu = kmalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
 	if (!iommu)
 		goto fatal_memory_error;
 
-	memset(iommu, 0, sizeof(*iommu));
 	p->pbm_B.iommu = iommu;
 
 	p->next = pci_controller_root;

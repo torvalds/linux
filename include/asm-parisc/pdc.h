@@ -774,8 +774,6 @@ int pdc_sti_call(unsigned long func, unsigned long flags,
                  unsigned long inptr, unsigned long outputr,
                  unsigned long glob_cfg);
 
-extern void pdc_init(void);
-
 static inline char * os_id_to_string(u16 os_id) {
 	switch(os_id) {
 	case OS_ID_NONE:	return "No OS";

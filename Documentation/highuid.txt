@@ -57,7 +57,7 @@ What's left to be done for 32-bit UIDs on all Linux architectures:
 
   Other filesystems have not been checked yet.
 
-- The ncpfs and smpfs filesystems can not presently use 32-bit UIDs in
+- The ncpfs and smpfs filesystems cannot presently use 32-bit UIDs in
   all ioctl()s. Some new ioctl()s have been added with 32-bit UIDs, but
   more are needed. (as well as new user<->kernel data structures)
 

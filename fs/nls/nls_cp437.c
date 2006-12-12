@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp437.c
+ * linux/fs/nls/nls_cp437.c
  *
  * Charset cp437 translation tables.
  * Generated automatically from the Unicode and charset

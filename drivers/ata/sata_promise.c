@@ -46,20 +46,19 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_promise"
-#define DRV_VERSION	"1.04"
+#define DRV_VERSION	"1.05"
 
 
 enum {
 	PDC_PKT_SUBMIT		= 0x40, /* Command packet pointer addr */
 	PDC_INT_SEQMASK		= 0x40,	/* Mask of asserted SEQ INTs */
-	PDC_TBG_MODE		= 0x41,	/* TBG mode */
 	PDC_FLASH_CTL		= 0x44, /* Flash control register */
-	PDC_PCI_CTL		= 0x48, /* PCI control and status register */
 	PDC_GLOBAL_CTL		= 0x48, /* Global control/status (per port) */
 	PDC_CTLSTAT		= 0x60,	/* IDE control and status (per port) */
 	PDC_SATA_PLUG_CSR	= 0x6C, /* SATA Plug control/status reg */
 	PDC2_SATA_PLUG_CSR	= 0x60, /* SATAII Plug control/status reg */
-	PDC_SLEW_CTL		= 0x470, /* slew rate control reg */
+	PDC_TBG_MODE		= 0x41C, /* TBG mode (not SATAII) */
+	PDC_SLEW_CTL		= 0x470, /* slew rate control reg (not SATAII) */
 
 	PDC_ERR_MASK		= (1<<19) | (1<<20) | (1<<21) | (1<<22) |
 				  (1<<8) | (1<<9) | (1<<10),
@@ -67,17 +66,22 @@ enum {
 	board_2037x		= 0,	/* FastTrak S150 TX2plus */
 	board_20319		= 1,	/* FastTrak S150 TX4 */
 	board_20619		= 2,	/* FastTrak TX4000 */
-	board_20771		= 3,	/* FastTrak TX2300 */
-	board_2057x		= 4,	/* SATAII150 Tx2plus */
-	board_40518		= 5,	/* SATAII150 Tx4 */
+	board_2057x		= 3,	/* SATAII150 Tx2plus */
+	board_40518		= 4,	/* SATAII150 Tx4 */
 
 	PDC_HAS_PATA		= (1 << 1), /* PDC20375/20575 has PATA */
 
+	/* PDC_CTLSTAT bit definitions */
+	PDC_DMA_ENABLE		= (1 << 7),
+	PDC_IRQ_DISABLE		= (1 << 10),
 	PDC_RESET		= (1 << 11), /* HDMA reset */
 
-	PDC_COMMON_FLAGS	= ATA_FLAG_NO_LEGACY | ATA_FLAG_SRST |
+	PDC_COMMON_FLAGS	= ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_NO_ATAPI |
 				  ATA_FLAG_PIO_POLLING,
+
+	/* hp->flags bits */
+	PDC_FLAG_GEN_II		= (1 << 0),
 };
 
 
@@ -87,24 +91,27 @@ struct pdc_port_priv {
 };
 
 struct pdc_host_priv {
-	int			hotplug_offset;
+	unsigned long		flags;
 };
 
 static u32 pdc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void pdc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
-static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t pdc_interrupt (int irq, void *dev_instance);
 static void pdc_eng_timeout(struct ata_port *ap);
 static int pdc_port_start(struct ata_port *ap);
 static void pdc_port_stop(struct ata_port *ap);
 static void pdc_pata_phy_reset(struct ata_port *ap);
-static void pdc_sata_phy_reset(struct ata_port *ap);
 static void pdc_qc_prep(struct ata_queued_cmd *qc);
 static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
 static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
 static void pdc_irq_clear(struct ata_port *ap);
 static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc);
 static void pdc_host_stop(struct ata_host *host);
+static void pdc_freeze(struct ata_port *ap);
+static void pdc_thaw(struct ata_port *ap);
+static void pdc_error_handler(struct ata_port *ap);
+static void pdc_post_internal_cmd(struct ata_queued_cmd *qc);
 
 
 static struct scsi_host_template pdc_ata_sht = {
@@ -133,11 +140,12 @@ static const struct ata_port_operations pdc_sata_ops = {
 	.exec_command		= pdc_exec_command_mmio,
 	.dev_select		= ata_std_dev_select,
 
-	.phy_reset		= pdc_sata_phy_reset,
-
 	.qc_prep		= pdc_qc_prep,
 	.qc_issue		= pdc_qc_issue_prot,
-	.eng_timeout		= pdc_eng_timeout,
+	.freeze			= pdc_freeze,
+	.thaw			= pdc_thaw,
+	.error_handler		= pdc_error_handler,
+	.post_internal_cmd	= pdc_post_internal_cmd,
 	.data_xfer		= ata_mmio_data_xfer,
 	.irq_handler		= pdc_interrupt,
 	.irq_clear		= pdc_irq_clear,
@@ -195,21 +203,11 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_20619 */
 	{
 		.sht		= &pdc_ata_sht,
-		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS,
+		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SRST | ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
 		.port_ops	= &pdc_pata_ops,
-	},
-
-	/* board_20771 */
-	{
-		.sht		= &pdc_ata_sht,
-		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
-		.pio_mask	= 0x1f, /* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
-		.port_ops	= &pdc_sata_ops,
 	},
 
 	/* board_2057x */
@@ -234,49 +232,25 @@ static const struct ata_port_info pdc_port_info[] = {
 };
 
 static const struct pci_device_id pdc_ata_pci_tbl[] = {
-	{ PCI_VENDOR_ID_PROMISE, 0x3371, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3570, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3571, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3373, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3375, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3376, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3574, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2057x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3d75, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2057x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3d73, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3371), board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3373), board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3375), board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3376), board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3570), board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3571), board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3574), board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3577), board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3d73), board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3d75), board_2057x },
 
-	{ PCI_VENDOR_ID_PROMISE, 0x3318, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20319 },
-	{ PCI_VENDOR_ID_PROMISE, 0x3319, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20319 },
-	{ PCI_VENDOR_ID_PROMISE, 0x3515, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20319 },
-	{ PCI_VENDOR_ID_PROMISE, 0x3519, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20319 },
-	{ PCI_VENDOR_ID_PROMISE, 0x3d17, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20319 },
-	{ PCI_VENDOR_ID_PROMISE, 0x3d18, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_40518 },
+	{ PCI_VDEVICE(PROMISE, 0x3318), board_20319 },
+	{ PCI_VDEVICE(PROMISE, 0x3319), board_20319 },
+	{ PCI_VDEVICE(PROMISE, 0x3515), board_20319 },
+	{ PCI_VDEVICE(PROMISE, 0x3519), board_20319 },
+	{ PCI_VDEVICE(PROMISE, 0x3d17), board_40518 },
+	{ PCI_VDEVICE(PROMISE, 0x3d18), board_40518 },
 
-	{ PCI_VENDOR_ID_PROMISE, 0x6629, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20619 },
-
-/* TODO: remove all associated board_20771 code, as it completely
- * duplicates board_2037x code, unless reason for separation can be
- * divined.
- */
-#if 0
-	{ PCI_VENDOR_ID_PROMISE, 0x3570, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20771 },
-#endif
+	{ PCI_VDEVICE(PROMISE, 0x6629), board_20619 },
 
 	{ }	/* terminate list */
 };
@@ -293,6 +267,7 @@ static struct pci_driver pdc_ata_pci_driver = {
 static int pdc_port_start(struct ata_port *ap)
 {
 	struct device *dev = ap->host->dev;
+	struct pdc_host_priv *hp = ap->host->private_data;
 	struct pdc_port_priv *pp;
 	int rc;
 
@@ -313,6 +288,16 @@ static int pdc_port_start(struct ata_port *ap)
 	}
 
 	ap->private_data = pp;
+
+	/* fix up PHYMODE4 align timing */
+	if ((hp->flags & PDC_FLAG_GEN_II) && sata_scr_valid(ap)) {
+		void __iomem *mmio = (void __iomem *) ap->ioaddr.scr_addr;
+		unsigned int tmp;
+
+		tmp = readl(mmio + 0x014);
+		tmp = (tmp & ~3) | 1;	/* set bits 1:0 = 0:1 */
+		writel(tmp, mmio + 0x014);
+	}
 
 	return 0;
 
@@ -368,16 +353,10 @@ static void pdc_reset_port(struct ata_port *ap)
 	readl(mmio);	/* flush */
 }
 
-static void pdc_sata_phy_reset(struct ata_port *ap)
-{
-	pdc_reset_port(ap);
-	sata_phy_reset(ap);
-}
-
 static void pdc_pata_cbl_detect(struct ata_port *ap)
 {
 	u8 tmp;
-	void __iomem *mmio = (void *) ap->ioaddr.cmd_addr + PDC_CTLSTAT + 0x03;
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr + PDC_CTLSTAT + 0x03;
 
 	tmp = readb(mmio);
 
@@ -439,6 +418,61 @@ static void pdc_qc_prep(struct ata_queued_cmd *qc)
 	default:
 		break;
 	}
+}
+
+static void pdc_freeze(struct ata_port *ap)
+{
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr;
+	u32 tmp;
+
+	tmp = readl(mmio + PDC_CTLSTAT);
+	tmp |= PDC_IRQ_DISABLE;
+	tmp &= ~PDC_DMA_ENABLE;
+	writel(tmp, mmio + PDC_CTLSTAT);
+	readl(mmio + PDC_CTLSTAT); /* flush */
+}
+
+static void pdc_thaw(struct ata_port *ap)
+{
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr;
+	u32 tmp;
+
+	/* clear IRQ */
+	readl(mmio + PDC_INT_SEQMASK);
+
+	/* turn IRQ back on */
+	tmp = readl(mmio + PDC_CTLSTAT);
+	tmp &= ~PDC_IRQ_DISABLE;
+	writel(tmp, mmio + PDC_CTLSTAT);
+	readl(mmio + PDC_CTLSTAT); /* flush */
+}
+
+static void pdc_error_handler(struct ata_port *ap)
+{
+	ata_reset_fn_t hardreset;
+
+	if (!(ap->pflags & ATA_PFLAG_FROZEN))
+		pdc_reset_port(ap);
+
+	hardreset = NULL;
+	if (sata_scr_valid(ap))
+		hardreset = sata_std_hardreset;
+
+	/* perform recovery */
+	ata_do_eh(ap, ata_std_prereset, ata_std_softreset, hardreset,
+		  ata_std_postreset);
+}
+
+static void pdc_post_internal_cmd(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+
+	if (qc->flags & ATA_QCFLAG_FAILED)
+		qc->err_mask |= AC_ERR_OTHER;
+
+	/* make DMA engine forget about the failed command */
+	if (qc->err_mask)
+		pdc_reset_port(ap);
 }
 
 static void pdc_eng_timeout(struct ata_port *ap)
@@ -515,7 +549,7 @@ static void pdc_irq_clear(struct ata_port *ap)
 	readl(mmio + PDC_INT_SEQMASK);
 }
 
-static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t pdc_interrupt (int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct ata_port *ap;
@@ -647,8 +681,13 @@ static void pdc_host_init(unsigned int chip_id, struct ata_probe_ent *pe)
 {
 	void __iomem *mmio = pe->mmio_base;
 	struct pdc_host_priv *hp = pe->private_data;
-	int hotplug_offset = hp->hotplug_offset;
+	int hotplug_offset;
 	u32 tmp;
+
+	if (hp->flags & PDC_FLAG_GEN_II)
+		hotplug_offset = PDC2_SATA_PLUG_CSR;
+	else
+		hotplug_offset = PDC_SATA_PLUG_CSR;
 
 	/*
 	 * Except for the hotplug stuff, this is voodoo from the
@@ -656,9 +695,11 @@ static void pdc_host_init(unsigned int chip_id, struct ata_probe_ent *pe)
 	 * "TODO: figure out why we do this"
 	 */
 
-	/* change FIFO_SHD to 8 dwords, enable BMR_BURST */
+	/* enable BMR_BURST, maybe change FIFO_SHD to 8 dwords */
 	tmp = readl(mmio + PDC_FLASH_CTL);
-	tmp |= 0x12000;	/* bit 16 (fifo 8 dw) and 13 (bmr burst?) */
+	tmp |= 0x02000;	/* bit 13 (enable bmr burst) */
+	if (!(hp->flags & PDC_FLAG_GEN_II))
+		tmp |= 0x10000;	/* bit 16 (fifo threshold at 8 dw) */
 	writel(tmp, mmio + PDC_FLASH_CTL);
 
 	/* clear plug/unplug flags for all ports */
@@ -668,6 +709,10 @@ static void pdc_host_init(unsigned int chip_id, struct ata_probe_ent *pe)
 	/* mask plug/unplug ints */
 	tmp = readl(mmio + hotplug_offset);
 	writel(tmp | 0xff0000, mmio + hotplug_offset);
+
+	/* don't initialise TBG or SLEW on 2nd generation chips */
+	if (hp->flags & PDC_FLAG_GEN_II)
+		return;
 
 	/* reduce TBG clock to 133 Mhz. */
 	tmp = readl(mmio + PDC_TBG_MODE);
@@ -738,8 +783,6 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		goto err_out_free_ent;
 	}
 
-	/* Set default hotplug offset */
-	hp->hotplug_offset = PDC_SATA_PLUG_CSR;
 	probe_ent->private_data = hp;
 
 	probe_ent->sht		= pdc_port_info[board_idx].sht;
@@ -762,8 +805,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	/* notice 4-port boards */
 	switch (board_idx) {
 	case board_40518:
-		/* Override hotplug offset for SATAII150 */
-		hp->hotplug_offset = PDC2_SATA_PLUG_CSR;
+		hp->flags |= PDC_FLAG_GEN_II;
 		/* Fall through */
 	case board_20319:
        		probe_ent->n_ports = 4;
@@ -775,13 +817,9 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		probe_ent->port[3].scr_addr = base + 0x700;
 		break;
 	case board_2057x:
-		/* Override hotplug offset for SATAII150 */
-		hp->hotplug_offset = PDC2_SATA_PLUG_CSR;
+		hp->flags |= PDC_FLAG_GEN_II;
 		/* Fall through */
 	case board_2037x:
-		probe_ent->n_ports = 2;
-		break;
-	case board_20771:
 		probe_ent->n_ports = 2;
 		break;
 	case board_20619:

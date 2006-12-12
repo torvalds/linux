@@ -30,6 +30,7 @@
 #include <asm/byteorder.h>
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
+#include <asm/firmware.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
@@ -41,11 +42,9 @@
 unsigned long pci_probe_only = 1;
 int pci_assign_all_buses = 0;
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 static void fixup_resource(struct resource *res, struct pci_dev *dev);
 static void do_bus_setup(struct pci_bus *bus);
 static void phbs_remap_io(void);
-#endif
 
 /* pci_io_base -- the base address from which io bars are offsets.
  * This is the lowest I/O base address (so bar values are always positive),
@@ -62,7 +61,7 @@ void iSeries_pcibios_init(void);
 
 LIST_HEAD(hose_list);
 
-struct dma_mapping_ops pci_dma_ops;
+struct dma_mapping_ops *pci_dma_ops;
 EXPORT_SYMBOL(pci_dma_ops);
 
 int global_phb_number;		/* Global phb counter */
@@ -198,18 +197,27 @@ struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
 	pci_setup_pci_controller(phb);
 	phb->arch_data = dev;
 	phb->is_dynamic = mem_init_done;
-	if (dev)
-		PHB_SET_NODE(phb, of_node_to_nid(dev));
+	if (dev) {
+		int nid = of_node_to_nid(dev);
+
+		if (nid < 0 || !node_online(nid))
+			nid = -1;
+
+		PHB_SET_NODE(phb, nid);
+	}
 	return phb;
 }
 
 void pcibios_free_controller(struct pci_controller *phb)
 {
+	spin_lock(&hose_spinlock);
+	list_del(&phb->list_node);
+	spin_unlock(&hose_spinlock);
+
 	if (phb->is_dynamic)
 		kfree(phb);
 }
 
-#ifndef CONFIG_PPC_ISERIES
 void __devinit pcibios_claim_one_bus(struct pci_bus *b)
 {
 	struct pci_dev *dev;
@@ -238,12 +246,13 @@ static void __init pcibios_claim_of_setup(void)
 {
 	struct pci_bus *b;
 
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return;
+
 	list_for_each_entry(b, &pci_root_buses, node)
 		pcibios_claim_one_bus(b);
 }
-#endif
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 static u32 get_int_prop(struct device_node *np, const char *name, u32 def)
 {
 	const u32 *prop;
@@ -321,7 +330,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	struct pci_dev *dev;
 	const char *type;
 
-	dev = kmalloc(sizeof(struct pci_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct pci_dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
 	type = get_property(node, "device_type", NULL);
@@ -330,7 +339,6 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 
 	DBG("    create device, devfn: %x, type: %s\n", devfn, type);
 
-	memset(dev, 0, sizeof(struct pci_dev));
 	dev->bus = bus;
 	dev->sysdata = node;
 	dev->dev.parent = bus->bridge;
@@ -498,7 +506,6 @@ void __devinit of_scan_pci_bridge(struct device_node *node,
 		pci_scan_child_bus(bus);
 }
 EXPORT_SYMBOL(of_scan_pci_bridge);
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 void __devinit scan_phb(struct pci_controller *hose)
 {
@@ -509,7 +516,7 @@ void __devinit scan_phb(struct pci_controller *hose)
 
 	DBG("Scanning PHB %s\n", node ? node->full_name : "<NO NAME>");
 
-	bus = pci_create_bus(NULL, hose->first_busno, hose->ops, node);
+	bus = pci_create_bus(hose->parent, hose->first_busno, hose->ops, node);
 	if (bus == NULL) {
 		printk(KERN_ERR "Failed to create bus for PCI domain %04x\n",
 		       hose->global_number);
@@ -532,7 +539,7 @@ void __devinit scan_phb(struct pci_controller *hose)
 	}
 
 	mode = PCI_PROBE_NORMAL;
-#ifdef CONFIG_PPC_MULTIPLATFORM
+
 	if (node && ppc_md.pci_probe_mode)
 		mode = ppc_md.pci_probe_mode(bus);
 	DBG("    probe mode: %d\n", mode);
@@ -540,7 +547,7 @@ void __devinit scan_phb(struct pci_controller *hose)
 		bus->subordinate = hose->last_busno;
 		of_scan_bus(node, bus);
 	}
-#endif /* CONFIG_PPC_MULTIPLATFORM */
+
 	if (mode == PCI_PROBE_NORMAL)
 		hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
 }
@@ -554,9 +561,8 @@ static int __init pcibios_init(void)
 	 */
 	ppc_md.phys_mem_access_prot = pci_phys_mem_access_prot;
 
-#ifdef CONFIG_PPC_ISERIES
-	iSeries_pcibios_init(); 
-#endif
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		iSeries_pcibios_init();
 
 	printk(KERN_DEBUG "PCI: Probing PCI hardware\n");
 
@@ -566,15 +572,15 @@ static int __init pcibios_init(void)
 		pci_bus_add_devices(hose->bus);
 	}
 
-#ifndef CONFIG_PPC_ISERIES
-	if (pci_probe_only)
-		pcibios_claim_of_setup();
-	else
-		/* FIXME: `else' will be removed when
-		   pci_assign_unassigned_resources() is able to work
-		   correctly with [partially] allocated PCI tree. */
-		pci_assign_unassigned_resources();
-#endif /* !CONFIG_PPC_ISERIES */
+	if (!firmware_has_feature(FW_FEATURE_ISERIES)) {
+		if (pci_probe_only)
+			pcibios_claim_of_setup();
+		else
+			/* FIXME: `else' will be removed when
+			   pci_assign_unassigned_resources() is able to work
+			   correctly with [partially] allocated PCI tree. */
+			pci_assign_unassigned_resources();
+	}
 
 	/* Call machine dependent final fixup */
 	if (ppc_md.pcibios_fixup)
@@ -585,10 +591,9 @@ static int __init pcibios_init(void)
 	if (ppc64_isabridge_dev != NULL)
 		printk(KERN_DEBUG "ISA bridge at %s\n", pci_name(ppc64_isabridge_dev));
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
-	/* map in PCI I/O space */
-	phbs_remap_io();
-#endif
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		/* map in PCI I/O space */
+		phbs_remap_io();
 
 	printk(KERN_DEBUG "PCI: Probing PCI hardware done\n");
 
@@ -637,13 +642,13 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
  */
 int pci_domain_nr(struct pci_bus *bus)
 {
-#ifdef CONFIG_PPC_ISERIES
-	return 0;
-#else
-	struct pci_controller *hose = pci_bus_to_host(bus);
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return 0;
+	else {
+		struct pci_controller *hose = pci_bus_to_host(bus);
 
-	return hose->global_number;
-#endif
+		return hose->global_number;
+	}
 }
 
 EXPORT_SYMBOL(pci_domain_nr);
@@ -651,12 +656,12 @@ EXPORT_SYMBOL(pci_domain_nr);
 /* Decide whether to display the domain number in /proc */
 int pci_proc_domain(struct pci_bus *bus)
 {
-#ifdef CONFIG_PPC_ISERIES
-	return 0;
-#else
-	struct pci_controller *hose = pci_bus_to_host(bus);
-	return hose->buid;
-#endif
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return 0;
+	else {
+		struct pci_controller *hose = pci_bus_to_host(bus);
+		return hose->buid;
+	}
 }
 
 /*
@@ -677,7 +682,7 @@ int pci_proc_domain(struct pci_bus *bus)
  * Returns negative error code on failure, zero on success.
  */
 static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
-					       unsigned long *offset,
+					       resource_size_t *offset,
 					       enum pci_mmap_state mmap_state)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
@@ -689,7 +694,9 @@ static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
 
 	/* If memory, add on the PCI bridge address offset */
 	if (mmap_state == pci_mmap_mem) {
+#if 0 /* See comment in pci_resource_to_user() for why this is disabled */
 		*offset += hose->pci_mem_offset;
+#endif
 		res_bit = IORESOURCE_MEM;
 	} else {
 		io_offset = (unsigned long)hose->io_base_virt - pci_io_base;
@@ -756,9 +763,6 @@ static pgprot_t __pci_mmap_set_pgprot(struct pci_dev *dev, struct resource *rp,
 		prot &= ~_PAGE_GUARDED;
 	else
 		prot |= _PAGE_GUARDED;
-
-	printk(KERN_DEBUG "PCI map for %s:%lx, prot: %lx\n", pci_name(dev), rp->start,
-	       prot);
 
 	return __pgprot(prot);
 }
@@ -827,7 +831,7 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state, int write_combine)
 {
-	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
+	resource_size_t offset = vma->vm_pgoff << PAGE_SHIFT;
 	struct resource *rp;
 	int ret;
 
@@ -864,8 +868,6 @@ void pcibios_add_platform_entries(struct pci_dev *pdev)
 {
 	device_create_file(&pdev->dev, &dev_attr_devspec);
 }
-
-#ifdef CONFIG_PPC_MULTIPLATFORM
 
 #define ISA_SPACE_MASK 0x1
 #define ISA_SPACE_IO 0x1
@@ -967,11 +969,7 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 		res = NULL;
 		pci_space = ranges[0];
 		pci_addr = ((unsigned long)ranges[1] << 32) | ranges[2];
-
-		cpu_phys_addr = ranges[3];
-		if (na >= 2)
-			cpu_phys_addr = (cpu_phys_addr << 32) | ranges[4];
-
+		cpu_phys_addr = of_translate_address(dev, &ranges[3]);
 		size = ((unsigned long)ranges[na+3] << 32) | ranges[na+4];
 		ranges += np;
 		if (size == 0)
@@ -1137,7 +1135,7 @@ int unmap_bus_range(struct pci_bus *bus)
 	
 	if (get_bus_io_range(bus, &start_phys, &start_virt, &size))
 		return 1;
-	if (iounmap_explicit((void __iomem *) start_virt, size))
+	if (__iounmap_explicit((void __iomem *) start_virt, size))
 		return 1;
 
 	return 0;
@@ -1205,23 +1203,52 @@ void __devinit pcibios_fixup_device_resources(struct pci_dev *dev,
 }
 EXPORT_SYMBOL(pcibios_fixup_device_resources);
 
+void __devinit pcibios_setup_new_device(struct pci_dev *dev)
+{
+	struct dev_archdata *sd = &dev->dev.archdata;
+
+	sd->of_node = pci_device_to_OF_node(dev);
+
+	DBG("PCI device %s OF node: %s\n", pci_name(dev),
+	    sd->of_node ? sd->of_node->full_name : "<none>");
+
+	sd->dma_ops = pci_dma_ops;
+#ifdef CONFIG_NUMA
+	sd->numa_node = pcibus_to_node(dev->bus);
+#else
+	sd->numa_node = -1;
+#endif
+	if (ppc_md.pci_dma_dev_setup)
+		ppc_md.pci_dma_dev_setup(dev);
+}
+EXPORT_SYMBOL(pcibios_setup_new_device);
 
 static void __devinit do_bus_setup(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
-	ppc_md.iommu_bus_setup(bus);
+	if (ppc_md.pci_dma_bus_setup)
+		ppc_md.pci_dma_bus_setup(bus);
 
 	list_for_each_entry(dev, &bus->devices, bus_list)
-		ppc_md.iommu_dev_setup(dev);
+		pcibios_setup_new_device(dev);
 
-	if (ppc_md.irq_bus_setup)
-		ppc_md.irq_bus_setup(bus);
+	/* Read default IRQs and fixup if necessary */
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		pci_read_irq_line(dev);
+		if (ppc_md.pci_irq_fixup)
+			ppc_md.pci_irq_fixup(dev);
+	}
 }
 
 void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev = bus->self;
+	struct device_node *np;
+
+	np = pci_bus_to_OF_node(bus);
+
+	DBG("pcibios_fixup_bus(%s)\n", np ? np->full_name : "<???>");
 
 	if (dev && pci_probe_only &&
 	    (dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
@@ -1305,20 +1332,41 @@ EXPORT_SYMBOL(pci_read_irq_line);
 
 void pci_resource_to_user(const struct pci_dev *dev, int bar,
 			  const struct resource *rsrc,
-			  u64 *start, u64 *end)
+			  resource_size_t *start, resource_size_t *end)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	unsigned long offset = 0;
+	resource_size_t offset = 0;
 
 	if (hose == NULL)
 		return;
 
 	if (rsrc->flags & IORESOURCE_IO)
-		offset = pci_io_base - (unsigned long)hose->io_base_virt +
-			hose->io_base_phys;
+		offset = (unsigned long)hose->io_base_virt - pci_io_base;
 
-	*start = rsrc->start + offset;
-	*end = rsrc->end + offset;
+	/* We pass a fully fixed up address to userland for MMIO instead of
+	 * a BAR value because X is lame and expects to be able to use that
+	 * to pass to /dev/mem !
+	 *
+	 * That means that we'll have potentially 64 bits values where some
+	 * userland apps only expect 32 (like X itself since it thinks only
+	 * Sparc has 64 bits MMIO) but if we don't do that, we break it on
+	 * 32 bits CHRPs :-(
+	 *
+	 * Hopefully, the sysfs insterface is immune to that gunk. Once X
+	 * has been fixed (and the fix spread enough), we can re-enable the
+	 * 2 lines below and pass down a BAR value to userland. In that case
+	 * we'll also have to re-enable the matching code in
+	 * __pci_mmap_make_offset().
+	 *
+	 * BenH.
+	 */
+#if 0
+	else if (rsrc->flags & IORESOURCE_MEM)
+		offset = hose->pci_mem_offset;
+#endif
+
+	*start = rsrc->start - offset;
+	*end = rsrc->end - offset;
 }
 
 struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
@@ -1334,8 +1382,6 @@ struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
 	}
 	return NULL;
 }
-
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 unsigned long pci_address_to_pio(phys_addr_t address)
 {

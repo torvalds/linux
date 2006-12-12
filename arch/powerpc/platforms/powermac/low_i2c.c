@@ -342,7 +342,7 @@ static void kw_i2c_handle_interrupt(struct pmac_i2c_host_kw *host, u8 isr)
 }
 
 /* Interrupt handler */
-static irqreturn_t kw_i2c_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t kw_i2c_irq(int irq, void *dev_id)
 {
 	struct pmac_i2c_host_kw *host = dev_id;
 	unsigned long flags;

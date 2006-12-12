@@ -1,5 +1,5 @@
 /*
- * linux/fs/hfs/part_tbl.c
+ * linux/fs/hfsplus/part_tbl.c
  *
  * Copyright (C) 1996-1997  Paul H. Hargrove
  * This file may be distributed under the terms of the GNU General Public License.

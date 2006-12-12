@@ -94,6 +94,8 @@
 #define OMAP24XX_GPIO_SYSCONFIG		0x0010
 #define OMAP24XX_GPIO_SYSSTATUS		0x0014
 #define OMAP24XX_GPIO_IRQSTATUS1	0x0018
+#define OMAP24XX_GPIO_IRQSTATUS2	0x0028
+#define OMAP24XX_GPIO_IRQENABLE2	0x002c
 #define OMAP24XX_GPIO_IRQENABLE1	0x001c
 #define OMAP24XX_GPIO_CTRL		0x0030
 #define OMAP24XX_GPIO_OE		0x0034
@@ -109,8 +111,6 @@
 #define OMAP24XX_GPIO_SETWKUENA		0x0084
 #define OMAP24XX_GPIO_CLEARDATAOUT	0x0090
 #define OMAP24XX_GPIO_SETDATAOUT	0x0094
-
-#define OMAP_MPUIO_MASK		(~OMAP_MAX_GPIO_LINES & 0xff)
 
 struct gpio_bank {
 	void __iomem *base;
@@ -216,11 +216,13 @@ static inline int gpio_valid(int gpio)
 {
 	if (gpio < 0)
 		return -1;
+#ifndef CONFIG_ARCH_OMAP24XX
 	if (OMAP_GPIO_IS_MPUIO(gpio)) {
-		if ((gpio & OMAP_MPUIO_MASK) > 16)
+		if (gpio >= OMAP_MAX_GPIO_LINES + 16)
 			return -1;
 		return 0;
 	}
+#endif
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap15xx() && gpio < 16)
 		return 0;
@@ -408,7 +410,7 @@ static inline void set_24xx_gpio_triggering(void __iomem *base, int gpio, int tr
 		trigger & __IRQT_RISEDGE);
 	MOD_REG_BIT(OMAP24XX_GPIO_FALLINGDETECT, gpio_bit,
 		trigger & __IRQT_FALEDGE);
-	/* FIXME: Possibly do 'set_irq_handler(j, do_level_IRQ)' if only level
+	/* FIXME: Possibly do 'set_irq_handler(j, handle_level_irq)' if only level
 	 * triggering requested. */
 }
 
@@ -529,6 +531,10 @@ static void _clear_gpio_irqbank(struct gpio_bank *bank, int gpio_mask)
 		return;
 	}
 	__raw_writel(gpio_mask, reg);
+
+	/* Workaround for clearing DSP GPIO interrupts to allow retention */
+	if (cpu_is_omap2420())
+		__raw_writel(gpio_mask, bank->base + OMAP24XX_GPIO_IRQSTATUS2);
 }
 
 static inline void _clear_gpio_irqstatus(struct gpio_bank *bank, int gpio)
@@ -662,6 +668,14 @@ static int _set_gpio_wakeup(struct gpio_bank *bank, int gpio, int enable)
 	}
 }
 
+static void _reset_gpio(struct gpio_bank *bank, int gpio)
+{
+	_set_gpio_direction(bank, get_gpio_index(gpio), 1);
+	_set_gpio_irqenable(bank, gpio, 0);
+	_clear_gpio_irqstatus(bank, gpio);
+	_set_gpio_triggering(bank, get_gpio_index(gpio), IRQT_NOEDGE);
+}
+
 /* Use disable_irq_wake() and enable_irq_wake() functions from drivers */
 static int gpio_wake_enable(unsigned int irq, unsigned int enable)
 {
@@ -672,9 +686,7 @@ static int gpio_wake_enable(unsigned int irq, unsigned int enable)
 	if (check_gpio(gpio) < 0)
 		return -ENODEV;
 	bank = get_gpio_bank(gpio);
-	spin_lock(&bank->lock);
 	retval = _set_gpio_wakeup(bank, get_gpio_index(gpio), enable);
-	spin_unlock(&bank->lock);
 
 	return retval;
 }
@@ -696,7 +708,9 @@ int omap_request_gpio(int gpio)
 	}
 	bank->reserved_map |= (1 << get_gpio_index(gpio));
 
-	/* Set trigger to none. You need to enable the trigger after request_irq */
+	/* Set trigger to none. You need to enable the desired trigger with
+	 * request_irq() or set_irq_type().
+	 */
 	_set_gpio_triggering(bank, get_gpio_index(gpio), IRQT_NOEDGE);
 
 #ifdef CONFIG_ARCH_OMAP15XX
@@ -756,9 +770,7 @@ void omap_free_gpio(int gpio)
 	}
 #endif
 	bank->reserved_map &= ~(1 << get_gpio_index(gpio));
-	_set_gpio_direction(bank, get_gpio_index(gpio), 1);
-	_set_gpio_irqenable(bank, gpio, 0);
-	_clear_gpio_irqstatus(bank, gpio);
+	_reset_gpio(bank, gpio);
 	spin_unlock(&bank->lock);
 }
 
@@ -771,8 +783,7 @@ void omap_free_gpio(int gpio)
  * line's interrupt handler has been run, we may miss some nested
  * interrupts.
  */
-static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
-			     struct pt_regs *regs)
+static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	void __iomem *isr_reg = NULL;
 	u32 isr;
@@ -842,7 +853,7 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 
 		gpio_irq = bank->virtual_irq_start;
 		for (; isr != 0; isr >>= 1, gpio_irq++) {
-			struct irqdesc *d;
+			struct irq_desc *d;
 			int irq_mask;
 			if (!(isr & 1))
 				continue;
@@ -870,7 +881,7 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 				continue;
 			}
 
-			desc_handle_irq(gpio_irq, d, regs);
+			desc_handle_irq(gpio_irq, d);
 
 			if (unlikely((d->status & IRQ_PENDING) && !d->depth)) {
 				irq_mask = 1 <<
@@ -896,6 +907,14 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 	if (!unmasked)
 		desc->chip->unmask(irq);
 
+}
+
+static void gpio_irq_shutdown(unsigned int irq)
+{
+	unsigned int gpio = irq - IH_GPIO_BASE;
+	struct gpio_bank *bank = get_gpio_bank(gpio);
+
+	_reset_gpio(bank, gpio);
 }
 
 static void gpio_ack_irq(unsigned int irq)
@@ -946,6 +965,7 @@ static void mpuio_unmask_irq(unsigned int irq)
 
 static struct irq_chip gpio_irq_chip = {
 	.name		= "GPIO",
+	.shutdown	= gpio_irq_shutdown,
 	.ack		= gpio_ack_irq,
 	.mask		= gpio_mask_irq,
 	.unmask		= gpio_unmask_irq,
@@ -985,7 +1005,7 @@ static int __init _omap_gpio_init(void)
 		else
 			clk_enable(gpio_ick);
 		gpio_fck = clk_get(NULL, "gpios_fck");
-		if (IS_ERR(gpio_ick))
+		if (IS_ERR(gpio_fck))
 			printk("Could not get gpios_fck\n");
 		else
 			clk_enable(gpio_fck);
@@ -1072,7 +1092,7 @@ static int __init _omap_gpio_init(void)
 				set_irq_chip(j, &mpuio_irq_chip);
 			else
 				set_irq_chip(j, &gpio_irq_chip);
-			set_irq_handler(j, do_simple_IRQ);
+			set_irq_handler(j, handle_simple_irq);
 			set_irq_flags(j, IRQF_VALID);
 		}
 		set_irq_chained_handler(bank->irq, gpio_irq_handler);
@@ -1144,8 +1164,8 @@ static int omap_gpio_resume(struct sys_device *dev)
 			wake_set = bank->base + OMAP1610_GPIO_SET_WAKEUPENA;
 			break;
 		case METHOD_GPIO_24XX:
-			wake_clear = bank->base + OMAP1610_GPIO_CLEAR_WAKEUPENA;
-			wake_set = bank->base + OMAP1610_GPIO_SET_WAKEUPENA;
+			wake_clear = bank->base + OMAP24XX_GPIO_CLEARWKUENA;
+			wake_set = bank->base + OMAP24XX_GPIO_SETWKUENA;
 			break;
 		default:
 			continue;

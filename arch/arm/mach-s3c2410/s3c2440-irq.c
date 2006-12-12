@@ -42,11 +42,10 @@
 /* WDT/AC97 */
 
 static void s3c_irq_demux_wdtac97(unsigned int irq,
-				  struct irqdesc *desc,
-				  struct pt_regs *regs)
+				  struct irq_desc *desc)
 {
 	unsigned int subsrc, submsk;
-	struct irqdesc *mydesc;
+	struct irq_desc *mydesc;
 
 	/* read the current pending interrupts, and the mask
 	 * for what it is available */
@@ -61,11 +60,11 @@ static void s3c_irq_demux_wdtac97(unsigned int irq,
 	if (subsrc != 0) {
 		if (subsrc & 1) {
 			mydesc = irq_desc + IRQ_S3C2440_WDT;
-			desc_handle_irq(IRQ_S3C2440_WDT, mydesc, regs);
+			desc_handle_irq(IRQ_S3C2440_WDT, mydesc);
 		}
 		if (subsrc & 2) {
 			mydesc = irq_desc + IRQ_S3C2440_AC97;
-			desc_handle_irq(IRQ_S3C2440_AC97, mydesc, regs);
+			desc_handle_irq(IRQ_S3C2440_AC97, mydesc);
 		}
 	}
 }
@@ -91,7 +90,7 @@ s3c_irq_wdtac97_ack(unsigned int irqno)
 	s3c_irqsub_maskack(irqno, INTMSK_WDT, 3<<13);
 }
 
-static struct irqchip s3c_irq_wdtac97 = {
+static struct irq_chip s3c_irq_wdtac97 = {
 	.mask	    = s3c_irq_wdtac97_mask,
 	.unmask	    = s3c_irq_wdtac97_unmask,
 	.ack	    = s3c_irq_wdtac97_ack,
@@ -106,12 +105,12 @@ static int s3c2440_irq_add(struct sys_device *sysdev)
 	/* add new chained handler for wdt, ac7 */
 
 	set_irq_chip(IRQ_WDT, &s3c_irq_level_chip);
-	set_irq_handler(IRQ_WDT, do_level_IRQ);
+	set_irq_handler(IRQ_WDT, handle_level_irq);
 	set_irq_chained_handler(IRQ_WDT, s3c_irq_demux_wdtac97);
 
 	for (irqno = IRQ_S3C2440_WDT; irqno <= IRQ_S3C2440_AC97; irqno++) {
 		set_irq_chip(irqno, &s3c_irq_wdtac97);
-		set_irq_handler(irqno, do_level_IRQ);
+		set_irq_handler(irqno, handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
@@ -119,7 +118,7 @@ static int s3c2440_irq_add(struct sys_device *sysdev)
 }
 
 static struct sysdev_driver s3c2440_irq_driver = {
-	.add	= s3c2440_irq_add,
+	.add		= s3c2440_irq_add,
 };
 
 static int s3c2440_irq_init(void)

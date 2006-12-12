@@ -18,7 +18,9 @@ enum audiochip {
 	AUDIO_CHIP_TDA9874,
 	AUDIO_CHIP_PIC16C54,
 	/* Provided by msp3400.c */
-	AUDIO_CHIP_MSP34XX
+	AUDIO_CHIP_MSP34XX,
+	/* Provided by wm8775.c */
+	AUDIO_CHIP_WM8775
 };
 
 #endif /* AUDIOCHIP_H */

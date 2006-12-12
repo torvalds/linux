@@ -77,7 +77,6 @@ unsigned long long monotonic_base;
 struct vxtime_data __vxtime __section_vxtime;	/* for vsyscalls */
 
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
-unsigned long __wall_jiffies __section_wall_jiffies = INITIAL_JIFFIES;
 struct timespec __xtime __section_xtime;
 struct timezone __sys_tz __section_sys_tz;
 
@@ -119,7 +118,7 @@ unsigned int (*do_gettimeoffset)(void) = do_gettimeoffset_tsc;
 
 void do_gettimeofday(struct timeval *tv)
 {
-	unsigned long seq, t;
+	unsigned long seq;
  	unsigned int sec, usec;
 
 	do {
@@ -136,10 +135,7 @@ void do_gettimeofday(struct timeval *tv)
 		   be found. Note when you fix it here you need to do the same
 		   in arch/x86_64/kernel/vsyscall.c and export all needed
 		   variables in vmlinux.lds. -AK */ 
-
-		t = (jiffies - wall_jiffies) * USEC_PER_TICK +
-			do_gettimeoffset();
-		usec += t;
+		usec += do_gettimeoffset();
 
 	} while (read_seqretry(&xtime_lock, seq));
 
@@ -165,8 +161,7 @@ int do_settimeofday(struct timespec *tv)
 
 	write_seqlock_irq(&xtime_lock);
 
-	nsec -= do_gettimeoffset() * NSEC_PER_USEC +
-		(jiffies - wall_jiffies) * NSEC_PER_TICK;
+	nsec -= do_gettimeoffset() * NSEC_PER_USEC;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -307,20 +302,20 @@ unsigned long long monotonic_clock(void)
 }
 EXPORT_SYMBOL(monotonic_clock);
 
-static noinline void handle_lost_ticks(int lost, struct pt_regs *regs)
+static noinline void handle_lost_ticks(int lost)
 {
 	static long lost_count;
 	static int warned;
 	if (report_lost_ticks) {
 		printk(KERN_WARNING "time.c: Lost %d timer tick(s)! ", lost);
-		print_symbol("rip %s)\n", regs->rip);
+		print_symbol("rip %s)\n", get_irq_regs()->rip);
 	}
 
 	if (lost_count == 1000 && !warned) {
 		printk(KERN_WARNING "warning: many lost ticks.\n"
 		       KERN_WARNING "Your time source seems to be instable or "
 		   		"some driver is hogging interupts\n");
-		print_symbol("rip %s\n", regs->rip);
+		print_symbol("rip %s\n", get_irq_regs()->rip);
 		if (vxtime.mode == VXTIME_TSC && vxtime.hpet_address) {
 			printk(KERN_WARNING "Falling back to HPET\n");
 			if (hpet_use_timer)
@@ -344,7 +339,7 @@ static noinline void handle_lost_ticks(int lost, struct pt_regs *regs)
 #endif
 }
 
-void main_timer_handler(struct pt_regs *regs)
+void main_timer_handler(void)
 {
 	static unsigned long rtc_update = 0;
 	unsigned long tsc;
@@ -415,18 +410,18 @@ void main_timer_handler(struct pt_regs *regs)
 				(((long) offset << US_SCALE) / vxtime.tsc_quot) - 1;
 	}
 
-	if (lost > 0) {
-		handle_lost_ticks(lost, regs);
-		jiffies += lost;
-	}
+	if (lost > 0)
+		handle_lost_ticks(lost);
+	else
+		lost = 0;
 
 /*
  * Do the timer stuff.
  */
 
-	do_timer(regs);
+	do_timer(lost + 1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 
 /*
@@ -436,7 +431,7 @@ void main_timer_handler(struct pt_regs *regs)
  */
 
 	if (!using_apic_timer)
-		smp_local_timer_interrupt(regs);
+		smp_local_timer_interrupt();
 
 /*
  * If we have an externally synchronized Linux clock, then update CMOS clock
@@ -455,11 +450,11 @@ void main_timer_handler(struct pt_regs *regs)
 	write_sequnlock(&xtime_lock);
 }
 
-static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	if (apic_runs_main_timer > 1)
 		return IRQ_HANDLED;
-	main_timer_handler(regs);
+	main_timer_handler();
 	if (using_apic_timer)
 		smp_send_timer_broadcast_ipi();
 	return IRQ_HANDLED;
@@ -568,7 +563,7 @@ static unsigned int cpufreq_delayed_issched = 0;
 static unsigned int cpufreq_init = 0;
 static struct work_struct cpufreq_delayed_get_work;
 
-static void handle_cpufreq_delayed_get(void *v)
+static void handle_cpufreq_delayed_get(struct work_struct *v)
 {
 	unsigned int cpu;
 	for_each_online_cpu(cpu) {
@@ -644,7 +639,7 @@ static struct notifier_block time_cpufreq_notifier_block = {
 
 static int __init cpufreq_tsc(void)
 {
-	INIT_WORK(&cpufreq_delayed_get_work, handle_cpufreq_delayed_get, NULL);
+	INIT_WORK(&cpufreq_delayed_get_work, handle_cpufreq_delayed_get);
 	if (!cpufreq_register_notifier(&time_cpufreq_notifier_block,
 				       CPUFREQ_TRANSITION_NOTIFIER))
 		cpufreq_init = 1;
@@ -881,15 +876,6 @@ static struct irqaction irq0 = {
 	timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL
 };
 
-static int __cpuinit
-time_cpu_notifier(struct notifier_block *nb, unsigned long action, void *hcpu)
-{
-	unsigned cpu = (unsigned long) hcpu;
-	if (action == CPU_ONLINE)
-		vsyscall_set_cpu(cpu);
-	return NOTIFY_DONE;
-}
-
 void __init time_init(void)
 {
 	if (nohpet)
@@ -930,8 +916,6 @@ void __init time_init(void)
 	vxtime.last_tsc = get_cycles_sync();
 	set_cyc2ns_scale(cpu_khz);
 	setup_irq(0, &irq0);
-	hotcpu_notifier(time_cpu_notifier, 0);
-	time_cpu_notifier(NULL, CPU_ONLINE, (void *)(long)smp_processor_id());
 
 #ifndef CONFIG_SMP
 	time_init_gtod();
@@ -953,7 +937,7 @@ __cpuinit int unsynchronized_tsc(void)
  	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
 #ifdef CONFIG_ACPI
 		/* But TSC doesn't tick in C3 so don't use it there */
-		if (acpi_fadt.length > 0 && acpi_fadt.plvl3_lat < 100)
+		if (acpi_fadt.length > 0 && acpi_fadt.plvl3_lat < 1000)
 			return 1;
 #endif
  		return 0;
@@ -1071,7 +1055,6 @@ static int timer_resume(struct sys_device *dev)
 		vxtime.last_tsc = get_cycles_sync();
 	write_sequnlock_irqrestore(&xtime_lock,flags);
 	jiffies += sleep_length;
-	wall_jiffies += sleep_length;
 	monotonic_base += sleep_length * (NSEC_PER_SEC/HZ);
 	touch_softlockup_watchdog();
 	return 0;
@@ -1343,7 +1326,7 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	}
 	if (call_rtc_interrupt) {
 		rtc_int_flag |= (RTC_IRQF | (RTC_NUM_INTS << 8));
-		rtc_interrupt(rtc_int_flag, dev_id, regs);
+		rtc_interrupt(rtc_int_flag, dev_id);
 	}
 	return IRQ_HANDLED;
 }

@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp850.c
+ * linux/fs/nls/nls_cp850.c
  *
  * Charset cp850 translation tables.
  * Generated automatically from the Unicode and charset

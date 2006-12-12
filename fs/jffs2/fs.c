@@ -263,7 +263,6 @@ void jffs2_read_inode (struct inode *inode)
 
 	inode->i_nlink = f->inocache->nlink;
 
-	inode->i_blksize = PAGE_SIZE;
 	inode->i_blocks = (inode->i_size + 511) >> 9;
 
 	switch (inode->i_mode & S_IFMT) {
@@ -278,13 +277,13 @@ void jffs2_read_inode (struct inode *inode)
 
 		for (fd=f->dents; fd; fd = fd->next) {
 			if (fd->type == DT_DIR && fd->ino)
-				inode->i_nlink++;
+				inc_nlink(inode);
 		}
 		/* and '..' */
-		inode->i_nlink++;
+		inc_nlink(inode);
 		/* Root dir gets i_nlink 3 for some reason */
 		if (inode->i_ino == 1)
-			inode->i_nlink++;
+			inc_nlink(inode);
 
 		inode->i_op = &jffs2_dir_inode_operations;
 		inode->i_fop = &jffs2_dir_operations;
@@ -449,7 +448,6 @@ struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_i
 	inode->i_atime = inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
 	ri->atime = ri->mtime = ri->ctime = cpu_to_je32(I_SEC(inode->i_mtime));
 
-	inode->i_blksize = PAGE_SIZE;
 	inode->i_blocks = 0;
 	inode->i_size = 0;
 

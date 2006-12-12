@@ -8,8 +8,8 @@
  * See detailed comments in the file linux/bitmap.h describing the
  * data type on which these nodemasks are based.
  *
- * For details of nodemask_scnprintf() and nodemask_parse(),
- * see bitmap_scnprintf() and bitmap_parse() in lib/bitmap.c.
+ * For details of nodemask_scnprintf() and nodemask_parse_user(),
+ * see bitmap_scnprintf() and bitmap_parse_user() in lib/bitmap.c.
  * For details of nodelist_scnprintf() and nodelist_parse(), see
  * bitmap_scnlistprintf() and bitmap_parselist(), also in bitmap.c.
  * For details of node_remap(), see bitmap_bitremap in lib/bitmap.c.
@@ -51,7 +51,7 @@
  * unsigned long *nodes_addr(mask)	Array of unsigned long's in mask
  *
  * int nodemask_scnprintf(buf, len, mask) Format nodemask for printing
- * int nodemask_parse(ubuf, ulen, mask)	Parse ascii string as nodemask
+ * int nodemask_parse_user(ubuf, ulen, mask)	Parse ascii string as nodemask
  * int nodelist_scnprintf(buf, len, mask) Format nodemask as list for printing
  * int nodelist_parse(buf, map)		Parse ascii string as nodelist
  * int node_remap(oldbit, old, new)	newbit = map(old, new)(oldbit)
@@ -288,12 +288,12 @@ static inline int __nodemask_scnprintf(char *buf, int len,
 	return bitmap_scnprintf(buf, len, srcp->bits, nbits);
 }
 
-#define nodemask_parse(ubuf, ulen, dst) \
-			__nodemask_parse((ubuf), (ulen), &(dst), MAX_NUMNODES)
-static inline int __nodemask_parse(const char __user *buf, int len,
+#define nodemask_parse_user(ubuf, ulen, dst) \
+		__nodemask_parse_user((ubuf), (ulen), &(dst), MAX_NUMNODES)
+static inline int __nodemask_parse_user(const char __user *buf, int len,
 					nodemask_t *dstp, int nbits)
 {
-	return bitmap_parse(buf, len, dstp->bits, nbits);
+	return bitmap_parse_user(buf, len, dstp->bits, nbits);
 }
 
 #define nodelist_scnprintf(buf, len, src) \
@@ -352,6 +352,7 @@ extern nodemask_t node_possible_map;
 #define node_possible(node)	node_isset((node), node_possible_map)
 #define first_online_node	first_node(node_online_map)
 #define next_online_node(nid)	next_node((nid), node_online_map)
+int highest_possible_node_id(void);
 #else
 #define num_online_nodes()	1
 #define num_possible_nodes()	1
@@ -359,6 +360,7 @@ extern nodemask_t node_possible_map;
 #define node_possible(node)	((node) == 0)
 #define first_online_node	0
 #define next_online_node(nid)	(MAX_NUMNODES)
+#define highest_possible_node_id()	0
 #endif
 
 #define any_online_node(mask)			\

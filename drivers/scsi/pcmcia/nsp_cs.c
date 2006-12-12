@@ -80,7 +80,6 @@ static int       free_ports = 0;
 module_param(free_ports, bool, 0);
 MODULE_PARM_DESC(free_ports, "Release IO ports after configuration? (default: 0 (=no))");
 
-/* /usr/src/linux/drivers/scsi/hosts.h */
 static struct scsi_host_template nsp_driver_template = {
 	.proc_name	         = "nsp_cs",
 	.proc_info		 = nsp_proc_info,
@@ -184,7 +183,7 @@ static void nsp_cs_dmessage(const char *func, int line, int mask, char *fmt, ...
  * Clenaup parameters and call done() functions.
  * You must be set SCpnt->result before call this function.
  */
-static void nsp_scsi_done(Scsi_Cmnd *SCpnt)
+static void nsp_scsi_done(struct scsi_cmnd *SCpnt)
 {
 	nsp_hw_data *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
 
@@ -193,7 +192,8 @@ static void nsp_scsi_done(Scsi_Cmnd *SCpnt)
 	SCpnt->scsi_done(SCpnt);
 }
 
-static int nsp_queuecommand(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
+static int nsp_queuecommand(struct scsi_cmnd *SCpnt,
+			    void (*done)(struct scsi_cmnd *))
 {
 #ifdef NSP_DEBUG
 	/*unsigned int host_id = SCpnt->device->host->this_id;*/
@@ -366,7 +366,7 @@ static int nsphw_init(nsp_hw_data *data)
 /*
  * Start selection phase
  */
-static int nsphw_start_selection(Scsi_Cmnd *SCpnt)
+static int nsphw_start_selection(struct scsi_cmnd *SCpnt)
 {
 	unsigned int  host_id	 = SCpnt->device->host->this_id;
 	unsigned int  base	 = SCpnt->device->host->io_port;
@@ -447,7 +447,7 @@ static struct nsp_sync_table nsp_sync_table_20M[] = {
 /*
  * setup synchronous data transfer mode
  */
-static int nsp_analyze_sdtr(Scsi_Cmnd *SCpnt)
+static int nsp_analyze_sdtr(struct scsi_cmnd *SCpnt)
 {
 	unsigned char	       target = scmd_id(SCpnt);
 //	unsigned char	       lun    = SCpnt->device->lun;
@@ -505,7 +505,7 @@ static int nsp_analyze_sdtr(Scsi_Cmnd *SCpnt)
 /*
  * start ninja hardware timer
  */
-static void nsp_start_timer(Scsi_Cmnd *SCpnt, int time)
+static void nsp_start_timer(struct scsi_cmnd *SCpnt, int time)
 {
 	unsigned int base = SCpnt->device->host->io_port;
 	nsp_hw_data *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
@@ -518,7 +518,8 @@ static void nsp_start_timer(Scsi_Cmnd *SCpnt, int time)
 /*
  * wait for bus phase change
  */
-static int nsp_negate_signal(Scsi_Cmnd *SCpnt, unsigned char mask, char *str)
+static int nsp_negate_signal(struct scsi_cmnd *SCpnt, unsigned char mask,
+			     char *str)
 {
 	unsigned int  base = SCpnt->device->host->io_port;
 	unsigned char reg;
@@ -545,9 +546,9 @@ static int nsp_negate_signal(Scsi_Cmnd *SCpnt, unsigned char mask, char *str)
 /*
  * expect Ninja Irq
  */
-static int nsp_expect_signal(Scsi_Cmnd	   *SCpnt,
-			     unsigned char  current_phase,
-			     unsigned char  mask)
+static int nsp_expect_signal(struct scsi_cmnd *SCpnt,
+			     unsigned char current_phase,
+			     unsigned char mask)
 {
 	unsigned int  base	 = SCpnt->device->host->io_port;
 	int	      time_out;
@@ -580,7 +581,7 @@ static int nsp_expect_signal(Scsi_Cmnd	   *SCpnt,
 /*
  * transfer SCSI message
  */
-static int nsp_xfer(Scsi_Cmnd *SCpnt, int phase)
+static int nsp_xfer(struct scsi_cmnd *SCpnt, int phase)
 {
 	unsigned int  base = SCpnt->device->host->io_port;
 	nsp_hw_data  *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
@@ -620,7 +621,7 @@ static int nsp_xfer(Scsi_Cmnd *SCpnt, int phase)
 /*
  * get extra SCSI data from fifo
  */
-static int nsp_dataphase_bypass(Scsi_Cmnd *SCpnt)
+static int nsp_dataphase_bypass(struct scsi_cmnd *SCpnt)
 {
 	nsp_hw_data *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
 	unsigned int count;
@@ -652,7 +653,7 @@ static int nsp_dataphase_bypass(Scsi_Cmnd *SCpnt)
 /*
  * accept reselection
  */
-static int nsp_reselected(Scsi_Cmnd *SCpnt)
+static int nsp_reselected(struct scsi_cmnd *SCpnt)
 {
 	unsigned int  base    = SCpnt->device->host->io_port;
 	unsigned int  host_id = SCpnt->device->host->this_id;
@@ -691,7 +692,7 @@ static int nsp_reselected(Scsi_Cmnd *SCpnt)
 /*
  * count how many data transferd
  */
-static int nsp_fifo_count(Scsi_Cmnd *SCpnt)
+static int nsp_fifo_count(struct scsi_cmnd *SCpnt)
 {
 	unsigned int base = SCpnt->device->host->io_port;
 	unsigned int count;
@@ -718,7 +719,7 @@ static int nsp_fifo_count(Scsi_Cmnd *SCpnt)
 /*
  * read data in DATA IN phase
  */
-static void nsp_pio_read(Scsi_Cmnd *SCpnt)
+static void nsp_pio_read(struct scsi_cmnd *SCpnt)
 {
 	unsigned int  base      = SCpnt->device->host->io_port;
 	unsigned long mmio_base = SCpnt->device->host->base;
@@ -813,7 +814,7 @@ static void nsp_pio_read(Scsi_Cmnd *SCpnt)
 /*
  * write data in DATA OUT phase
  */
-static void nsp_pio_write(Scsi_Cmnd *SCpnt)
+static void nsp_pio_write(struct scsi_cmnd *SCpnt)
 {
 	unsigned int  base      = SCpnt->device->host->io_port;
 	unsigned long mmio_base = SCpnt->device->host->base;
@@ -906,7 +907,7 @@ static void nsp_pio_write(Scsi_Cmnd *SCpnt)
 /*
  * setup synchronous/asynchronous data transfer mode
  */
-static int nsp_nexus(Scsi_Cmnd *SCpnt)
+static int nsp_nexus(struct scsi_cmnd *SCpnt)
 {
 	unsigned int   base   = SCpnt->device->host->io_port;
 	unsigned char  target = scmd_id(SCpnt);
@@ -949,11 +950,11 @@ static int nsp_nexus(Scsi_Cmnd *SCpnt)
 /*
  * interrupt handler
  */
-static irqreturn_t nspintr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t nspintr(int irq, void *dev_id)
 {
 	unsigned int   base;
 	unsigned char  irq_status, irq_phase, phase;
-	Scsi_Cmnd     *tmpSC;
+	struct scsi_cmnd *tmpSC;
 	unsigned char  target, lun;
 	unsigned int  *sync_neg;
 	int            i, tmp;
@@ -1531,7 +1532,7 @@ nsp_proc_info(
 /*---------------------------------------------------------------*/
 
 /*
-static int nsp_eh_abort(Scsi_Cmnd *SCpnt)
+static int nsp_eh_abort(struct scsi_cmnd *SCpnt)
 {
 	nsp_dbg(NSP_DEBUG_BUSRESET, "SCpnt=0x%p", SCpnt);
 
@@ -1559,7 +1560,7 @@ static int nsp_bus_reset(nsp_hw_data *data)
 	return SUCCESS;
 }
 
-static int nsp_eh_bus_reset(Scsi_Cmnd *SCpnt)
+static int nsp_eh_bus_reset(struct scsi_cmnd *SCpnt)
 {
 	nsp_hw_data *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
 
@@ -1568,7 +1569,7 @@ static int nsp_eh_bus_reset(Scsi_Cmnd *SCpnt)
 	return nsp_bus_reset(data);
 }
 
-static int nsp_eh_host_reset(Scsi_Cmnd *SCpnt)
+static int nsp_eh_host_reset(struct scsi_cmnd *SCpnt)
 {
 	nsp_hw_data *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
 
@@ -1684,16 +1685,10 @@ static int nsp_cs_config(struct pcmcia_device *link)
 
 	nsp_dbg(NSP_DEBUG_INIT, "in");
 
-	tuple.DesiredTuple    = CISTPL_CONFIG;
 	tuple.Attributes      = 0;
 	tuple.TupleData	      = tuple_data;
 	tuple.TupleDataMax    = sizeof(tuple_data);
 	tuple.TupleOffset     = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	CS_CHECK(GetTupleData,	pcmcia_get_tuple_data(link, &tuple));
-	CS_CHECK(ParseTuple,	pcmcia_parse_tuple(link, &tuple, &parse));
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present    = parse.config.rmask[0];
 
 	/* Look up the current Vcc */
 	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &conf));

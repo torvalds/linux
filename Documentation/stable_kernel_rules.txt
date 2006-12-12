@@ -4,7 +4,7 @@ Rules on what kind of patches are accepted, and which ones are not, into the
 "-stable" tree:
 
  - It must be obviously correct and tested.
- - It can not be bigger than 100 lines, with context.
+ - It cannot be bigger than 100 lines, with context.
  - It must fix only one thing.
  - It must fix a real bug that bothers people (not a, "This could be a
    problem..." type thing).
@@ -14,7 +14,7 @@ Rules on what kind of patches are accepted, and which ones are not, into the
    critical.
  - No "theoretical race condition" issues, unless an explanation of how the
    race can be exploited is also provided.
- - It can not contain any "trivial" fixes in it (spelling changes,
+ - It cannot contain any "trivial" fixes in it (spelling changes,
    whitespace cleanups, etc).
  - It must be accepted by the relevant subsystem maintainer.
  - It must follow the Documentation/SubmittingPatches rules.
@@ -50,7 +50,7 @@ Review cycle:
    Contact the kernel security team for more details on this procedure.
 
 
-Review committe:
+Review committee:
 
  - This is made up of a number of kernel developers who have volunteered for
    this task, and a few that haven't.

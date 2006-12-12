@@ -324,13 +324,13 @@ static boolean DAC960_CreateAuxiliaryStructures(DAC960_Controller_T *Controller)
       Command->Next = Controller->FreeCommands;
       Controller->FreeCommands = Command;
       Controller->Commands[CommandIdentifier-1] = Command;
-      ScatterGatherCPU = pci_pool_alloc(ScatterGatherPool, SLAB_ATOMIC,
+      ScatterGatherCPU = pci_pool_alloc(ScatterGatherPool, GFP_ATOMIC,
 							&ScatterGatherDMA);
       if (ScatterGatherCPU == NULL)
 	  return DAC960_Failure(Controller, "AUXILIARY STRUCTURE CREATION");
 
       if (RequestSensePool != NULL) {
-  	  RequestSenseCPU = pci_pool_alloc(RequestSensePool, SLAB_ATOMIC,
+  	  RequestSenseCPU = pci_pool_alloc(RequestSensePool, GFP_ATOMIC,
 						&RequestSenseDMA);
   	  if (RequestSenseCPU == NULL) {
                 pci_pool_free(ScatterGatherPool, ScatterGatherCPU,
@@ -770,7 +770,7 @@ static void DAC960_P_QueueCommand(DAC960_Command_T *Command)
 static void DAC960_ExecuteCommand(DAC960_Command_T *Command)
 {
   DAC960_Controller_T *Controller = Command->Controller;
-  DECLARE_COMPLETION(Completion);
+  DECLARE_COMPLETION_ONSTACK(Completion);
   unsigned long flags;
   Command->Completion = &Completion;
 
@@ -2698,8 +2698,7 @@ DAC960_DetectController(struct pci_dev *PCI_Device,
 {
   struct DAC960_privdata *privdata =
 	  	(struct DAC960_privdata *)entry->driver_data;
-  irqreturn_t (*InterruptHandler)(int, void *, struct pt_regs *) =
-	  	privdata->InterruptHandler;
+  irq_handler_t InterruptHandler = privdata->InterruptHandler;
   unsigned int MemoryWindowSize = privdata->MemoryWindowSize;
   DAC960_Controller_T *Controller = NULL;
   unsigned char DeviceFunction = PCI_Device->devfn;
@@ -3331,7 +3330,7 @@ static int DAC960_process_queue(DAC960_Controller_T *Controller, struct request_
 		Command->DmaDirection = PCI_DMA_TODEVICE;
 		Command->CommandType = DAC960_WriteCommand;
 	}
-	Command->Completion = Request->waiting;
+	Command->Completion = Request->end_io_data;
 	Command->LogicalDriveNumber = (long)Request->rq_disk->private_data;
 	Command->BlockNumber = Request->sector;
 	Command->BlockCount = Request->nr_sectors;
@@ -5253,10 +5252,9 @@ static void DAC960_V2_ProcessCompletedCommand(DAC960_Command_T *Command)
 */
 
 static irqreturn_t DAC960_GEM_InterruptHandler(int IRQ_Channel,
-				       void *DeviceIdentifier,
-				       struct pt_regs *InterruptRegisters)
+				       void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   DAC960_V2_StatusMailbox_T *NextStatusMailbox;
   unsigned long flags;
@@ -5295,10 +5293,9 @@ static irqreturn_t DAC960_GEM_InterruptHandler(int IRQ_Channel,
 */
 
 static irqreturn_t DAC960_BA_InterruptHandler(int IRQ_Channel,
-				       void *DeviceIdentifier,
-				       struct pt_regs *InterruptRegisters)
+				       void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   DAC960_V2_StatusMailbox_T *NextStatusMailbox;
   unsigned long flags;
@@ -5338,10 +5335,9 @@ static irqreturn_t DAC960_BA_InterruptHandler(int IRQ_Channel,
 */
 
 static irqreturn_t DAC960_LP_InterruptHandler(int IRQ_Channel,
-				       void *DeviceIdentifier,
-				       struct pt_regs *InterruptRegisters)
+				       void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   DAC960_V2_StatusMailbox_T *NextStatusMailbox;
   unsigned long flags;
@@ -5381,10 +5377,9 @@ static irqreturn_t DAC960_LP_InterruptHandler(int IRQ_Channel,
 */
 
 static irqreturn_t DAC960_LA_InterruptHandler(int IRQ_Channel,
-				       void *DeviceIdentifier,
-				       struct pt_regs *InterruptRegisters)
+				       void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   DAC960_V1_StatusMailbox_T *NextStatusMailbox;
   unsigned long flags;
@@ -5420,10 +5415,9 @@ static irqreturn_t DAC960_LA_InterruptHandler(int IRQ_Channel,
 */
 
 static irqreturn_t DAC960_PG_InterruptHandler(int IRQ_Channel,
-				       void *DeviceIdentifier,
-				       struct pt_regs *InterruptRegisters)
+				       void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   DAC960_V1_StatusMailbox_T *NextStatusMailbox;
   unsigned long flags;
@@ -5459,10 +5453,9 @@ static irqreturn_t DAC960_PG_InterruptHandler(int IRQ_Channel,
 */
 
 static irqreturn_t DAC960_PD_InterruptHandler(int IRQ_Channel,
-				       void *DeviceIdentifier,
-				       struct pt_regs *InterruptRegisters)
+				       void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   unsigned long flags;
 
@@ -5498,10 +5491,9 @@ static irqreturn_t DAC960_PD_InterruptHandler(int IRQ_Channel,
 */
 
 static irqreturn_t DAC960_P_InterruptHandler(int IRQ_Channel,
-				      void *DeviceIdentifier,
-				      struct pt_regs *InterruptRegisters)
+				      void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   unsigned long flags;
 

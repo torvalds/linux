@@ -1,0 +1,12 @@
+if SH_HS7751RVOIP
+
+menu "HS7751RVoIP options"
+
+config HS7751RVOIP_CODEC
+	bool "Support VoIP Codec section"
+	help
+	  Selecting this option will support CODEC section.
+
+endmenu
+
+endif

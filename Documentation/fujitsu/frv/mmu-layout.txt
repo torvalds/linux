@@ -233,7 +233,7 @@ related kernel services:
      (*) __debug_mmu.iamr[]
      (*) __debug_mmu.damr[]
 
-	 These receive the current IAMR and DAMR contents. These can be viewed with with the _amr
+	 These receive the current IAMR and DAMR contents. These can be viewed with the _amr
 	 GDB macro:
 
 		(gdb) _amr

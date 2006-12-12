@@ -390,14 +390,18 @@ static struct ib_mr *c2_reg_phys_mr(struct ib_pd *ib_pd,
 	}
 
 	mr = kmalloc(sizeof(*mr), GFP_KERNEL);
-	if (!mr)
+	if (!mr) {
+		vfree(page_list);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	mr->pd = to_c2pd(ib_pd);
 	pr_debug("%s - page shift %d, pbl_depth %d, total_len %u, "
 		"*iova_start %llx, first pa %llx, last pa %llx\n",
 		__FUNCTION__, page_shift, pbl_depth, total_len,
-		*iova_start, page_list[0], page_list[pbl_depth-1]);
+		(unsigned long long) *iova_start,
+	       	(unsigned long long) page_list[0],
+	       	(unsigned long long) page_list[pbl_depth-1]);
   	err = c2_nsmr_register_phys_kern(to_c2dev(ib_pd->device), page_list,
  					 (1 << page_shift), pbl_depth,
 					 total_len, 0, iova_start,
@@ -753,20 +757,17 @@ static struct net_device *c2_pseudo_netdev_init(struct c2_dev *c2dev)
 
 int c2_register_device(struct c2_dev *dev)
 {
-	int ret;
+	int ret = -ENOMEM;
 	int i;
 
 	/* Register pseudo network device */
 	dev->pseudo_netdev = c2_pseudo_netdev_init(dev);
-	if (dev->pseudo_netdev) {
-		ret = register_netdev(dev->pseudo_netdev);
-		if (ret) {
-			printk(KERN_ERR PFX
-				"Unable to register netdev, ret = %d\n", ret);
-			free_netdev(dev->pseudo_netdev);
-			return ret;
-		}
-	}
+	if (!dev->pseudo_netdev)
+		goto out3;
+
+	ret = register_netdev(dev->pseudo_netdev);
+	if (ret)
+		goto out2;
 
 	pr_debug("%s:%u\n", __FUNCTION__, __LINE__);
 	strlcpy(dev->ibdev.name, "amso%d", IB_DEVICE_NAME_MAX);
@@ -844,21 +845,25 @@ int c2_register_device(struct c2_dev *dev)
 
 	ret = ib_register_device(&dev->ibdev);
 	if (ret)
-		return ret;
+		goto out1;
 
 	for (i = 0; i < ARRAY_SIZE(c2_class_attributes); ++i) {
 		ret = class_device_create_file(&dev->ibdev.class_dev,
 					       c2_class_attributes[i]);
-		if (ret) {
-			unregister_netdev(dev->pseudo_netdev);
-			free_netdev(dev->pseudo_netdev);
-			ib_unregister_device(&dev->ibdev);
-			return ret;
-		}
+		if (ret)
+			goto out0;
 	}
+	goto out3;
 
-	pr_debug("%s:%u\n", __FUNCTION__, __LINE__);
-	return 0;
+out0:
+	ib_unregister_device(&dev->ibdev);
+out1:
+	unregister_netdev(dev->pseudo_netdev);
+out2:
+	free_netdev(dev->pseudo_netdev);
+out3:
+	pr_debug("%s:%u ret=%d\n", __FUNCTION__, __LINE__, ret);
+	return ret;
 }
 
 void c2_unregister_device(struct c2_dev *dev)

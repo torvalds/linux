@@ -16,7 +16,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
-#include <linux/page-flags.h>
+#include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
 #include <linux/sysctl.h>
@@ -92,8 +92,8 @@ static int appldata_timer_active;
  * Work queue
  */
 static struct workqueue_struct *appldata_wq;
-static void appldata_work_fn(void *data);
-static DECLARE_WORK(appldata_work, appldata_work_fn, NULL);
+static void appldata_work_fn(struct work_struct *work);
+static DECLARE_WORK(appldata_work, appldata_work_fn);
 
 
 /*
@@ -109,7 +109,7 @@ static LIST_HEAD(appldata_ops_list);
  *
  * schedule work and reschedule timer
  */
-static void appldata_timer_function(unsigned long data, struct pt_regs *regs)
+static void appldata_timer_function(unsigned long data)
 {
 	P_DEBUG("   -= Timer =-\n");
 	P_DEBUG("CPU: %i, expire_count: %i\n", smp_processor_id(),
@@ -125,7 +125,7 @@ static void appldata_timer_function(unsigned long data, struct pt_regs *regs)
  *
  * call data gathering function for each (active) module
  */
-static void appldata_work_fn(void *data)
+static void appldata_work_fn(struct work_struct *work)
 {
 	struct list_head *lh;
 	struct appldata_ops *ops;
@@ -157,12 +157,12 @@ int appldata_diag(char record_nr, u16 function, unsigned long buffer,
 		.prod_nr    = {0xD3, 0xC9, 0xD5, 0xE4,
 			       0xE7, 0xD2, 0xD9},	/* "LINUXKR" */
 		.prod_fn    = 0xD5D3,			/* "NL" */
-		.record_nr  = record_nr,
 		.version_nr = 0xF2F6,			/* "26" */
 		.release_nr = 0xF0F1,			/* "01" */
-		.mod_lvl    = (mod_lvl[0]) << 8 | mod_lvl[1],
 	};
 
+	id.record_nr = record_nr;
+	id.mod_lvl = (mod_lvl[0]) << 8 | mod_lvl[1];
 	return appldata_asm(&id, function, (void *) buffer, length);
 }
 /************************ timer, work, DIAG <END> ****************************/
@@ -310,6 +310,7 @@ appldata_interval_handler(ctl_table *ctl, int write, struct file *filp,
 	if (copy_from_user(buf, buffer, len > sizeof(buf) ? sizeof(buf) : len)) {
 		return -EFAULT;
 	}
+	interval = 0;
 	sscanf(buf, "%i", &interval);
 	if (interval <= 0) {
 		P_ERROR("Timer CPU interval has to be > 0!\n");
@@ -560,7 +561,6 @@ appldata_offline_cpu(int cpu)
 	spin_unlock(&appldata_timer_lock);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int __cpuinit
 appldata_cpu_notify(struct notifier_block *self,
 		    unsigned long action, void *hcpu)
@@ -581,7 +581,6 @@ appldata_cpu_notify(struct notifier_block *self,
 static struct notifier_block appldata_nb = {
 	.notifier_call = appldata_cpu_notify,
 };
-#endif
 
 /*
  * appldata_init()

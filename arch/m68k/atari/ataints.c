@@ -332,6 +332,9 @@ static void atari_shutdown_irq(unsigned int irq)
 	atari_disable_irq(irq);
 	atari_turnoff_irq(irq);
 	m68k_irq_shutdown(irq);
+
+	if (irq == IRQ_AUTO_4)
+	    vectors[VEC_INT4] = falcon_hblhandler;
 }
 
 static struct irq_controller atari_irq_controller = {
@@ -356,7 +359,7 @@ static struct irq_controller atari_irq_controller = {
 
 void __init atari_init_IRQ(void)
 {
-	m68k_setup_user_interrupt(VEC_USER, 192, NULL);
+	m68k_setup_user_interrupt(VEC_USER, NUM_ATARI_SOURCES - IRQ_USER, NULL);
 	m68k_setup_irq_controller(&atari_irq_controller, 1, NUM_ATARI_SOURCES - 1);
 
 	/* Initialize the MFP(s) */
@@ -403,8 +406,10 @@ void __init atari_init_IRQ(void)
 		 * gets overruns)
 		 */
 
-		if (!MACH_IS_HADES)
+		if (!MACH_IS_HADES) {
 			vectors[VEC_INT2] = falcon_hblhandler;
+			vectors[VEC_INT4] = falcon_hblhandler;
+		}
 	}
 
 	if (ATARIHW_PRESENT(PCM_8BIT) && ATARIHW_PRESENT(MICROWIRE)) {

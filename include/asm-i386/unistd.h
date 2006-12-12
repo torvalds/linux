@@ -324,107 +324,11 @@
 #define __NR_vmsplice		316
 #define __NR_move_pages		317
 #define __NR_getcpu		318
+#define __NR_epoll_pwait	319
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 319
-
-/*
- * user-visible error numbers are in the range -1 - -128: see
- * <asm-i386/errno.h>
- */
-#define __syscall_return(type, res) \
-do { \
-	if ((unsigned long)(res) >= (unsigned long)(-(128 + 1))) { \
-		errno = -(res); \
-		res = -1; \
-	} \
-	return (type) (res); \
-} while (0)
-
-/* XXX - _foo needs to be __foo, while __NR_bar could be _NR_bar. */
-#define _syscall0(type,name) \
-type name(void) \
-{ \
-long __res; \
-__asm__ volatile ("int $0x80" \
-	: "=a" (__res) \
-	: "0" (__NR_##name)); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall1(type,name,type1,arg1) \
-type name(type1 arg1) \
-{ \
-long __res; \
-__asm__ volatile ("push %%ebx ; movl %2,%%ebx ; int $0x80 ; pop %%ebx" \
-	: "=a" (__res) \
-	: "0" (__NR_##name),"ri" ((long)(arg1)) : "memory"); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall2(type,name,type1,arg1,type2,arg2) \
-type name(type1 arg1,type2 arg2) \
-{ \
-long __res; \
-__asm__ volatile ("push %%ebx ; movl %2,%%ebx ; int $0x80 ; pop %%ebx" \
-	: "=a" (__res) \
-	: "0" (__NR_##name),"ri" ((long)(arg1)),"c" ((long)(arg2)) \
-	: "memory"); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall3(type,name,type1,arg1,type2,arg2,type3,arg3) \
-type name(type1 arg1,type2 arg2,type3 arg3) \
-{ \
-long __res; \
-__asm__ volatile ("push %%ebx ; movl %2,%%ebx ; int $0x80 ; pop %%ebx" \
-	: "=a" (__res) \
-	: "0" (__NR_##name),"ri" ((long)(arg1)),"c" ((long)(arg2)), \
-		  "d" ((long)(arg3)) : "memory"); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall4(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4) \
-type name (type1 arg1, type2 arg2, type3 arg3, type4 arg4) \
-{ \
-long __res; \
-__asm__ volatile ("push %%ebx ; movl %2,%%ebx ; int $0x80 ; pop %%ebx" \
-	: "=a" (__res) \
-	: "0" (__NR_##name),"ri" ((long)(arg1)),"c" ((long)(arg2)), \
-	  "d" ((long)(arg3)),"S" ((long)(arg4)) : "memory"); \
-__syscall_return(type,__res); \
-} 
-
-#define _syscall5(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4, \
-	  type5,arg5) \
-type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5) \
-{ \
-long __res; \
-__asm__ volatile ("push %%ebx ; movl %2,%%ebx ; movl %1,%%eax ; " \
-                  "int $0x80 ; pop %%ebx" \
-	: "=a" (__res) \
-	: "i" (__NR_##name),"ri" ((long)(arg1)),"c" ((long)(arg2)), \
-	  "d" ((long)(arg3)),"S" ((long)(arg4)),"D" ((long)(arg5)) \
-	: "memory"); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall6(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4, \
-	  type5,arg5,type6,arg6) \
-type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6) \
-{ \
-long __res; \
-  struct { long __a1; long __a6; } __s = { (long)arg1, (long)arg6 }; \
-__asm__ volatile ("push %%ebp ; push %%ebx ; movl 4(%2),%%ebp ; " \
-                  "movl 0(%2),%%ebx ; movl %1,%%eax ; int $0x80 ; " \
-                  "pop %%ebx ;  pop %%ebp" \
-	: "=a" (__res) \
-	: "i" (__NR_##name),"0" ((long)(&__s)),"c" ((long)(arg2)), \
-	  "d" ((long)(arg3)),"S" ((long)(arg4)),"D" ((long)(arg5)) \
-	: "memory"); \
-__syscall_return(type,__res); \
-}
+#define NR_syscalls 320
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
@@ -449,45 +353,6 @@ __syscall_return(type,__res); \
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
-
-#ifdef __KERNEL_SYSCALLS__
-
-#include <linux/compiler.h>
-#include <linux/types.h>
-#include <linux/linkage.h>
-#include <asm/ptrace.h>
-
-/*
- * we need this inline - forking from kernel space will result
- * in NO COPY ON WRITE (!!!), until an execve is executed. This
- * is no problem, but for the stack. This is handled by not letting
- * main() use the stack at all after fork(). Thus, no function
- * calls - which means inline code for fork too, as otherwise we
- * would use the stack upon exit from 'fork()'.
- *
- * Actually only pause and fork are needed inline, so that there
- * won't be any messing with the stack from main(), but we define
- * some others too.
- */
-static inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp)
-
-asmlinkage int sys_modify_ldt(int func, void __user *ptr, unsigned long bytecount);
-asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
-			unsigned long prot, unsigned long flags,
-			unsigned long fd, unsigned long pgoff);
-asmlinkage int sys_execve(struct pt_regs regs);
-asmlinkage int sys_clone(struct pt_regs regs);
-asmlinkage int sys_fork(struct pt_regs regs);
-asmlinkage int sys_vfork(struct pt_regs regs);
-asmlinkage int sys_pipe(unsigned long __user *fildes);
-asmlinkage long sys_iopl(unsigned long unused);
-struct sigaction;
-asmlinkage long sys_rt_sigaction(int sig,
-				const struct sigaction __user *act,
-				struct sigaction __user *oact,
-				size_t sigsetsize);
-
-#endif /* __KERNEL_SYSCALLS__ */
 
 /*
  * "Conditional" syscalls

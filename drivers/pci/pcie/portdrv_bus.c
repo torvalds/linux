@@ -24,6 +24,7 @@ struct bus_type pcie_port_bus_type = {
 	.suspend	= pcie_port_bus_suspend,
 	.resume		= pcie_port_bus_resume, 
 };
+EXPORT_SYMBOL_GPL(pcie_port_bus_type);
 
 static int pcie_port_bus_match(struct device *dev, struct device_driver *drv)
 {

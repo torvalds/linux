@@ -25,6 +25,7 @@ struct sharpsl_charger_machinfo {
 	void (*measure_temp)(int);
 	void (*presuspend)(void);
 	void (*postsuspend)(void);
+	void (*earlyresume)(void);
 	unsigned long (*read_devdata)(int);
 #define SHARPSL_BATT_VOLT       1
 #define SHARPSL_BATT_TEMP       2
@@ -99,7 +100,7 @@ extern struct sharpsl_pm_status sharpsl_pm;
 
 void sharpsl_battery_kick(void);
 void sharpsl_pm_led(int val);
-irqreturn_t sharpsl_ac_isr(int irq, void *dev_id, struct pt_regs *fp);
-irqreturn_t sharpsl_chrg_full_isr(int irq, void *dev_id, struct pt_regs *fp);
-irqreturn_t sharpsl_fatal_isr(int irq, void *dev_id, struct pt_regs *fp);
+irqreturn_t sharpsl_ac_isr(int irq, void *dev_id);
+irqreturn_t sharpsl_chrg_full_isr(int irq, void *dev_id);
+irqreturn_t sharpsl_fatal_isr(int irq, void *dev_id);
 

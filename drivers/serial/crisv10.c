@@ -804,8 +804,8 @@ static struct e100_serial rs_table[] = {
 
 #define NR_PORTS (sizeof(rs_table)/sizeof(struct e100_serial))
 
-static struct termios *serial_termios[NR_PORTS];
-static struct termios *serial_termios_locked[NR_PORTS];
+static struct ktermios *serial_termios[NR_PORTS];
+static struct ktermios *serial_termios_locked[NR_PORTS];
 #ifdef CONFIG_ETRAX_SERIAL_FAST_TIMER
 static struct fast_timer fast_timers[NR_PORTS];
 #endif
@@ -2346,7 +2346,7 @@ start_receive(struct e100_serial *info)
 */
 
 static irqreturn_t
-tr_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+tr_interrupt(int irq, void *dev_id)
 {
 	struct e100_serial *info;
 	unsigned long ireg;
@@ -2395,7 +2395,7 @@ tr_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 /* dma input channel interrupt handler */
 
 static irqreturn_t
-rec_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+rec_interrupt(int irq, void *dev_id)
 {
 	struct e100_serial *info;
 	unsigned long ireg;
@@ -3054,7 +3054,7 @@ static void handle_ser_tx_interrupt(struct e100_serial *info)
  * ser_int duration: just sending: 8-15 us normally, up to 73 us
  */
 static irqreturn_t
-ser_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+ser_interrupt(int irq, void *dev_id)
 {
 	static volatile int tx_started = 0;
 	struct e100_serial *info;
@@ -4223,7 +4223,7 @@ rs_ioctl(struct tty_struct *tty, struct file * file,
 }
 
 static void
-rs_set_termios(struct tty_struct *tty, struct termios *old_termios)
+rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
 
@@ -4825,7 +4825,7 @@ show_serial_version(void)
 
 /* rs_init inits the driver at boot (using the module_init chain) */
 
-static struct tty_operations rs_ops = {
+static const struct tty_operations rs_ops = {
 	.open = rs_open,
 	.close = rs_close,
 	.write = rs_write,
@@ -4877,6 +4877,8 @@ rs_init(void)
 	driver->init_termios = tty_std_termios;
 	driver->init_termios.c_cflag =
 		B115200 | CS8 | CREAD | HUPCL | CLOCAL; /* is normally B9600 default... */
+	driver->init_termios.c_ispeed = 115200;
+	driver->init_termios.c_ospeed = 115200;
 	driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	driver->termios = serial_termios;
 	driver->termios_locked = serial_termios_locked;

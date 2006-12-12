@@ -35,8 +35,9 @@ enum pid_type
  *
  * Holding a reference to struct pid solves both of these problems.
  * It is small so holding a reference does not consume a lot of
- * resources, and since a new struct pid is allocated when the numeric
- * pid value is reused we don't mistakenly refer to new processes.
+ * resources, and since a new struct pid is allocated when the numeric pid
+ * value is reused (when pids wrap around) we don't mistakenly refer to new
+ * processes.
  */
 
 struct pid
@@ -68,6 +69,8 @@ extern struct task_struct *FASTCALL(pid_task(struct pid *pid, enum pid_type));
 extern struct task_struct *FASTCALL(get_pid_task(struct pid *pid,
 						enum pid_type));
 
+extern struct pid *get_task_pid(struct task_struct *task, enum pid_type type);
+
 /*
  * attach_pid() and detach_pid() must be called with the tasklist_lock
  * write-held.
@@ -76,6 +79,8 @@ extern int FASTCALL(attach_pid(struct task_struct *task,
 				enum pid_type type, int nr));
 
 extern void FASTCALL(detach_pid(struct task_struct *task, enum pid_type));
+extern void FASTCALL(transfer_pid(struct task_struct *old,
+				  struct task_struct *new, enum pid_type));
 
 /*
  * look up a PID in the hash table. Must be called with the tasklist_lock
@@ -87,33 +92,42 @@ extern struct pid *FASTCALL(find_pid(int nr));
  * Lookup a PID in the hash table, and return with it's count elevated.
  */
 extern struct pid *find_get_pid(int nr);
+extern struct pid *find_ge_pid(int nr);
 
 extern struct pid *alloc_pid(void);
 extern void FASTCALL(free_pid(struct pid *pid));
 
-#define pid_next(task, type)					\
-	((task)->pids[(type)].node.next)
+static inline pid_t pid_nr(struct pid *pid)
+{
+	pid_t nr = 0;
+	if (pid)
+		nr = pid->nr;
+	return nr;
+}
 
-#define pid_next_task(task, type) 				\
-	hlist_entry(pid_next(task, type), struct task_struct,	\
-			pids[(type)].node)
 
-
-/* We could use hlist_for_each_entry_rcu here but it takes more arguments
- * than the do_each_task_pid/while_each_task_pid.  So we roll our own
- * to preserve the existing interface.
- */
 #define do_each_task_pid(who, type, task)				\
-	if ((task = find_task_by_pid_type(type, who))) {		\
-		prefetch(pid_next(task, type));				\
-		do {
+	do {								\
+		struct hlist_node *pos___;				\
+		struct pid *pid___ = find_pid(who);			\
+		if (pid___ != NULL)					\
+			hlist_for_each_entry_rcu((task), pos___,	\
+				&pid___->tasks[type], pids[type].node) {
 
 #define while_each_task_pid(who, type, task)				\
-		} while (pid_next(task, type) &&  ({			\
-				task = pid_next_task(task, type);	\
-				rcu_dereference(task);			\
-				prefetch(pid_next(task, type));		\
-				1; }) );				\
-	}
+			}						\
+	} while (0)
+
+
+#define do_each_pid_task(pid, type, task)				\
+	do {								\
+		struct hlist_node *pos___;				\
+		if (pid != NULL)					\
+			hlist_for_each_entry_rcu((task), pos___,	\
+				&pid->tasks[type], pids[type].node) {
+
+#define while_each_pid_task(pid, type, task)				\
+			}						\
+	} while (0)
 
 #endif /* _LINUX_PID_H */

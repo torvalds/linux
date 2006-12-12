@@ -126,6 +126,7 @@ extern void smp_send_reschedule (int cpu);
 extern void lock_ipi_calllock(void);
 extern void unlock_ipi_calllock(void);
 extern void identify_siblings (struct cpuinfo_ia64 *);
+extern int is_multithreading_enabled(void);
 
 #else
 

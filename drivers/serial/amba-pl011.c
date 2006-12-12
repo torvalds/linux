@@ -107,12 +107,7 @@ static void pl011_enable_ms(struct uart_port *port)
 	writew(uap->im, uap->port.membase + UART011_IMSC);
 }
 
-static void
-#ifdef SUPPORT_SYSRQ
-pl011_rx_chars(struct uart_amba_port *uap, struct pt_regs *regs)
-#else
-pl011_rx_chars(struct uart_amba_port *uap)
-#endif
+static void pl011_rx_chars(struct uart_amba_port *uap)
 {
 	struct tty_struct *tty = uap->port.info->tty;
 	unsigned int status, ch, flag, max_count = 256;
@@ -150,7 +145,7 @@ pl011_rx_chars(struct uart_amba_port *uap)
 				flag = TTY_FRAME;
 		}
 
-		if (uart_handle_sysrq_char(&uap->port, ch & 255, regs))
+		if (uart_handle_sysrq_char(&uap->port, ch & 255))
 			goto ignore_char;
 
 		uart_insert_char(&uap->port, ch, UART011_DR_OE, ch, flag);
@@ -218,7 +213,7 @@ static void pl011_modem_status(struct uart_amba_port *uap)
 	wake_up_interruptible(&uap->port.info->delta_msr_wait);
 }
 
-static irqreturn_t pl011_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pl011_int(int irq, void *dev_id)
 {
 	struct uart_amba_port *uap = dev_id;
 	unsigned int status, pass_counter = AMBA_ISR_PASS_LIMIT;
@@ -234,11 +229,7 @@ static irqreturn_t pl011_int(int irq, void *dev_id, struct pt_regs *regs)
 			       uap->port.membase + UART011_ICR);
 
 			if (status & (UART011_RTIS|UART011_RXIS))
-#ifdef SUPPORT_SYSRQ
-				pl011_rx_chars(uap, regs);
-#else
 				pl011_rx_chars(uap);
-#endif
 			if (status & (UART011_DSRMIS|UART011_DCDMIS|
 				      UART011_CTSMIS|UART011_RIMIS))
 				pl011_modem_status(uap);
@@ -421,8 +412,8 @@ static void pl011_shutdown(struct uart_port *port)
 }
 
 static void
-pl011_set_termios(struct uart_port *port, struct termios *termios,
-		     struct termios *old)
+pl011_set_termios(struct uart_port *port, struct ktermios *termios,
+		     struct ktermios *old)
 {
 	unsigned int lcr_h, old_cr;
 	unsigned long flags;

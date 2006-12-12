@@ -29,8 +29,6 @@
 #include <asm/sections.h>
 #include <asm/system.h>
 
-extern unsigned long wall_jiffies;
-
 volatile int time_keeper_id = 0; /* smp_processor_id() of time-keeper */
 
 #ifdef CONFIG_IA64_DEBUG_IRQ
@@ -47,7 +45,7 @@ static struct time_interpolator itc_interpolator = {
 };
 
 static irqreturn_t
-timer_interrupt (int irq, void *dev_id, struct pt_regs *regs)
+timer_interrupt (int irq, void *dev_id)
 {
 	unsigned long new_itm;
 
@@ -55,7 +53,7 @@ timer_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 		return IRQ_HANDLED;
 	}
 
-	platform_timer_interrupt(irq, dev_id, regs);
+	platform_timer_interrupt(irq, dev_id);
 
 	new_itm = local_cpu_data->itm_next;
 
@@ -63,10 +61,10 @@ timer_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 		printk(KERN_ERR "Oops: timer tick before it's due (itc=%lx,itm=%lx)\n",
 		       ia64_get_itc(), new_itm);
 
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 
 	while (1) {
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode(get_irq_regs()));
 
 		new_itm += local_cpu_data->itm_delta;
 
@@ -78,7 +76,7 @@ timer_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 			 * xtime_lock.
 			 */
 			write_seqlock(&xtime_lock);
-			do_timer(regs);
+			do_timer(1);
 			local_cpu_data->itm_next = new_itm;
 			write_sequnlock(&xtime_lock);
 		} else
@@ -86,6 +84,12 @@ timer_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 
 		if (time_after(new_itm, ia64_get_itc()))
 			break;
+
+		/*
+		 * Allow IPIs to interrupt the timer loop.
+		 */
+		local_irq_enable();
+		local_irq_disable();
 	}
 
 	do {

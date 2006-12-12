@@ -284,6 +284,14 @@ static int samplerate = 100;
 
 module_param(ixjdebug, int, 0);
 
+static struct pci_device_id ixj_pci_tbl[] __devinitdata = {
+	{ PCI_VENDOR_ID_QUICKNET, PCI_DEVICE_ID_QUICKNET_XJ,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ }
+};
+
+MODULE_DEVICE_TABLE(pci, ixj_pci_tbl);
+
 /************************************************************************
 *
 * ixjdebug meanings are now bit mapped instead of level based
@@ -2739,7 +2747,7 @@ static void alaw2ulaw(unsigned char *buff, unsigned long len)
 static ssize_t ixj_read(struct file * file_p, char __user *buf, size_t length, loff_t * ppos)
 {
 	unsigned long i = *ppos;
-	IXJ * j = get_ixj(NUM(file_p->f_dentry->d_inode));
+	IXJ * j = get_ixj(NUM(file_p->f_path.dentry->d_inode));
 
 	DECLARE_WAITQUEUE(wait, current);
 
@@ -2796,7 +2804,7 @@ static ssize_t ixj_enhanced_read(struct file * file_p, char __user *buf, size_t 
 {
 	int pre_retval;
 	ssize_t read_retval = 0;
-	IXJ *j = get_ixj(NUM(file_p->f_dentry->d_inode));
+	IXJ *j = get_ixj(NUM(file_p->f_path.dentry->d_inode));
 
 	pre_retval = ixj_PreRead(j, 0L);
 	switch (pre_retval) {
@@ -2875,7 +2883,7 @@ static ssize_t ixj_enhanced_write(struct file * file_p, const char __user *buf, 
 	int pre_retval;
 	ssize_t write_retval = 0;
 
-	IXJ *j = get_ixj(NUM(file_p->f_dentry->d_inode));
+	IXJ *j = get_ixj(NUM(file_p->f_path.dentry->d_inode));
 
 	pre_retval = ixj_PreWrite(j, 0L);
 	switch (pre_retval) {
@@ -4574,7 +4582,7 @@ static unsigned int ixj_poll(struct file *file_p, poll_table * wait)
 {
 	unsigned int mask = 0;
 
-	IXJ *j = get_ixj(NUM(file_p->f_dentry->d_inode));
+	IXJ *j = get_ixj(NUM(file_p->f_path.dentry->d_inode));
 
 	poll_wait(file_p, &(j->poll_q), wait);
 	if (j->read_buffer_ready > 0)
@@ -6649,7 +6657,7 @@ static int ixj_ioctl(struct inode *inode, struct file *file_p, unsigned int cmd,
 
 static int ixj_fasync(int fd, struct file *file_p, int mode)
 {
-	IXJ *j = get_ixj(NUM(file_p->f_dentry->d_inode));
+	IXJ *j = get_ixj(NUM(file_p->f_path.dentry->d_inode));
 
 	return fasync_helper(fd, file_p, mode, &j->async_queue);
 }
@@ -7683,7 +7691,8 @@ static int __init ixj_probe_pci(int *cnt)
 	IXJ *j = NULL;
 
 	for (i = 0; i < IXJMAX - *cnt; i++) {
-		pci = pci_find_device(0x15E2, 0x0500, pci);
+		pci = pci_find_device(PCI_VENDOR_ID_QUICKNET,
+				      PCI_DEVICE_ID_QUICKNET_XJ, pci);
 		if (!pci)
 			break;
 

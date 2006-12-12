@@ -48,12 +48,12 @@ Module Usage
 
 	Module insertion:
 	# insmod sstfb.o
-	  you should see some strange output frome the board: 
+	  you should see some strange output from the board: 
 	  a big blue square, a green and a red small squares and a vertical
-	  white rectangle. why ? the function's name is self explanatory :
+	  white rectangle. why? the function's name is self-explanatory:
 	  "sstfb_test()"...
 	  (if you don't have a second monitor, you'll have to plug your monitor
-	  directely to the 2D videocard to see what you're typing)
+	  directly to the 2D videocard to see what you're typing)
 	# con2fb /dev/fbx /dev/ttyx
 	  bind a tty to the new frame buffer. if you already have a frame
 	  buffer driver, the voodoo fb will likely be /dev/fb1. if not, 
@@ -72,12 +72,12 @@ Module Usage
 
 Kernel/Modules Options
 
-	You can pass some otions to sstfb module, and via the kernel command
-	line when the driver is compiled in :
+	You can pass some options to the sstfb module, and via the kernel 
+	command line when the driver is compiled in:
 	for module : insmod sstfb.o option1=value1 option2=value2 ...
 	in kernel :  video=sstfb:option1,option2:value2,option3 ...
 	
-	sstfb supports the folowing options :
+	sstfb supports the following options :
 
 Module		Kernel		Description
 
@@ -95,11 +95,11 @@ inverse=1	inverse		Supposed to enable inverse console.
 
 clipping=1	clipping	Enable or disable clipping.
 clipping=0	noclipping	With clipping enabled, all offscreen
-				reads and writes are disgarded.
+				reads and writes are discarded.
 				Default: enable clipping.
 
 gfxclk=x	gfxclk:x	Force graphic clock frequency (in MHz).
-				Be carefull with this option, it may be
+				Be careful with this option, it may be
 				DANGEROUS.
 				Default: auto 
 					50Mhz for Voodoo 1,
@@ -137,23 +137,23 @@ Bugs
 	- The driver is 16 bpp only, 24/32 won't work.
 	- The driver is not your_favorite_toy-safe. this includes SMP...
           [Actually from inspection it seems to be safe - Alan]
-	- when using XFree86 FBdev (X over fbdev) you may see strange color
+	- When using XFree86 FBdev (X over fbdev) you may see strange color
 	patterns at the border of your windows (the pixels lose the lowest
-	byte -> basicaly the blue component nd some of the green) . I'm unable
+	byte -> basically the blue component and some of the green). I'm unable
 	to reproduce this with XFree86-3.3, but one of the testers has this
-	problem with XFree86-4. apparently recent Xfree86-4.x solve this
+	problem with XFree86-4. Apparently recent Xfree86-4.x solve this
 	problem.
 	- I didn't really test changing the palette, so you may find some weird
 	things when playing with that.
-	- Sometimes the driver will not recognise the DAC , and the
-        initialisation will fail. this is specificaly true for
-	voodoo 2 boards , but it should be solved in recent versions. please
-	contact me .
-	- the 24/32 is not likely to work anytime soon , knowing that the
-	hardware does ... unusual thigs in 24/32 bpp
-	- When used with anther video board, current limitations of linux
-	console subsystem can cause some troubles, specificaly, you should
-	disable software scrollback , as it can oops badly ...
+	- Sometimes the driver will not recognise the DAC, and the
+        initialisation will fail. This is specifically true for
+	voodoo 2 boards, but it should be solved in recent versions. Please
+	contact me.
+	- The 24/32 is not likely to work anytime soon, knowing that the
+	hardware does ... unusual things in 24/32 bpp.
+	- When used with another video board, current limitations of the linux
+	console subsystem can cause some troubles, specifically, you should
+	disable software scrollback, as it can oops badly ...
 
 Todo
 
@@ -161,7 +161,7 @@ Todo
 	- Buy more coffee.
 	- test/port to other arch.
 	- try to add panning using tweeks with front and back buffer .
-	- try to implement accel on voodoo2 , this board can actualy do a 
+	- try to implement accel on voodoo2, this board can actually do a 
 	  lot in 2D even if it was sold as a 3D only board ...
 
 ghoz.

@@ -1,5 +1,5 @@
 /*
- * sound/uart401.c
+ * sound/oss/uart401.c
  *
  * MPU-401 UART driver (formerly uart401_midi.c)
  *
@@ -96,7 +96,7 @@ static void uart401_input_loop(uart401_devc * devc)
 		printk(KERN_WARNING "Too much work in interrupt on uart401 (0x%X). UART jabbering ??\n", devc->base);
 }
 
-irqreturn_t uart401intr(int irq, void *dev_id, struct pt_regs *dummy)
+irqreturn_t uart401intr(int irq, void *dev_id)
 {
 	uart401_devc *devc = dev_id;
 

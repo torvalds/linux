@@ -85,6 +85,9 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 config DMI
 	bool
 	default y
@@ -92,6 +95,19 @@ config DMI
 config AUDIT_ARCH
 	bool
 	default y
+
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
 
 source "init/Kconfig"
 
@@ -119,7 +135,7 @@ endchoice
 
 choice
 	prompt "Processor family"
-	default MK8
+	default GENERIC_CPU
 
 config MK8
 	bool "AMD-Opteron/Athlon64"
@@ -127,16 +143,31 @@ config MK8
 	  Optimize for AMD Opteron/Athlon64/Hammer/K8 CPUs.
 
 config MPSC
-       bool "Intel EM64T"
+       bool "Intel P4 / older Netburst based Xeon"
        help
-	  Optimize for Intel Pentium 4 and Xeon CPUs with Intel
-	  Extended Memory 64 Technology(EM64T). For details see
+	  Optimize for Intel Pentium 4 and older Nocona/Dempsey Xeon CPUs
+	  with Intel Extended Memory 64 Technology(EM64T). For details see
 	  <http://www.intel.com/technology/64bitextensions/>.
+	  Note the the latest Xeons (Xeon 51xx and 53xx) are not based on the
+          Netburst core and shouldn't use this option. You can distingush them
+	  using the cpu family field
+	  in /proc/cpuinfo. Family 15 is a older Xeon, Family 6 a newer one
+	  (this rule only applies to system that support EM64T)
+
+config MCORE2
+	bool "Intel Core2 / newer Xeon"
+	help
+	  Optimize for Intel Core2 and newer Xeons (51xx)
+	  You can distingush the newer Xeons from the older ones using
+	  the cpu family field in /proc/cpuinfo. 15 is a older Xeon
+	  (use CONFIG_MPSC then), 6 is a newer one. This rule only
+	  applies to CPUs that support EM64T.
 
 config GENERIC_CPU
 	bool "Generic-x86-64"
 	help
 	  Generic x86-64 CPU.
+	  Run equally well on all x86-64 CPUs.
 
 endchoice
 
@@ -146,12 +177,12 @@ endchoice
 config X86_L1_CACHE_BYTES
 	int
 	default "128" if GENERIC_CPU || MPSC
-	default "64" if MK8
+	default "64" if MK8 || MCORE2
 
 config X86_L1_CACHE_SHIFT
 	int
 	default "7" if GENERIC_CPU || MPSC
-	default "6" if MK8
+	default "6" if MK8 || MCORE2
 
 config X86_INTERNODE_CACHE_BYTES
 	int
@@ -168,6 +199,7 @@ config X86_GOOD_APIC
 
 config MICROCODE
 	tristate "/dev/cpu/microcode - Intel CPU microcode support"
+	select FW_LOADER
 	---help---
 	  If you say Y here the 'File systems' section, you will be
 	  able to update the microcode on Intel processors. You will
@@ -182,6 +214,11 @@ config MICROCODE
 	  module will be called microcode.
 	  If you use modprobe or kmod you may also want to add the line
 	  'alias char-major-10-184 microcode' to your /etc/modules.conf file.
+
+config MICROCODE_OLD_INTERFACE
+	bool
+	depends on MICROCODE
+	default y
 
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"
@@ -301,7 +338,7 @@ config K8_NUMA
        help
 	 Enable K8 NUMA node topology detection.  You should say Y here if
 	 you have a multi processor AMD K8 system. This uses an old
-	 method to read the NUMA configurtion directly from the builtin
+	 method to read the NUMA configuration directly from the builtin
 	 Northbridge of Opteron. It is recommended to use X86_64_ACPI_NUMA
 	 instead, which also takes priority if both are compiled in.   
 
@@ -335,11 +372,6 @@ config ARCH_DISCONTIGMEM_ENABLE
        depends on NUMA
        default y
 
-
-config ARCH_DISCONTIGMEM_ENABLE
-	def_bool y
-	depends on NUMA
-
 config ARCH_DISCONTIGMEM_DEFAULT
 	def_bool y
 	depends on NUMA
@@ -357,6 +389,10 @@ config ARCH_FLATMEM_ENABLE
 	depends on !NUMA
 
 source "mm/Kconfig"
+
+config MEMORY_HOTPLUG_RESERVE
+	def_bool y
+	depends on (MEMORY_HOTPLUG && DISCONTIGMEM)
 
 config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool y
@@ -440,6 +476,17 @@ config CALGARY_IOMMU
 	  properly to set up their DMA buffers.  The IOMMU can be
 	  turned off at boot time with the iommu=off parameter.
 	  Normally the kernel will make the right choice by itself.
+	  If unsure, say Y.
+
+config CALGARY_IOMMU_ENABLED_BY_DEFAULT
+	bool "Should Calgary be enabled by default?"
+	default y
+	depends on CALGARY_IOMMU
+	help
+	  Should Calgary be enabled by default? if you choose 'y', Calgary
+	  will be used (if it exists). If you choose 'n', Calgary will not be
+	  used even if it exists. If you choose 'n' and would like to use
+	  Calgary anyway, pass 'iommu=calgary' on the kernel command line.
 	  If unsure, say Y.
 
 # need this always selected by IOMMU for the VIA workaround
@@ -537,7 +584,7 @@ config SECCOMP
 	  If unsure, say Y. Only embedded should say N here.
 
 config CC_STACKPROTECTOR
-	bool "Enable -fstack-protector buffer overflow detection (EXPRIMENTAL)"
+	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 	help
          This option turns on the -fstack-protector GCC feature. This
@@ -677,7 +724,7 @@ source "arch/x86_64/oprofile/Kconfig"
 
 config KPROBES
 	bool "Kprobes (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && MODULES
+	depends on KALLSYMS && EXPERIMENTAL && MODULES
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes

@@ -373,8 +373,7 @@ static int corkscrew_start_xmit(struct sk_buff *skb,
 static int corkscrew_rx(struct net_device *dev);
 static void corkscrew_timeout(struct net_device *dev);
 static int boomerang_rx(struct net_device *dev);
-static irqreturn_t corkscrew_interrupt(int irq, void *dev_id,
-				    struct pt_regs *regs);
+static irqreturn_t corkscrew_interrupt(int irq, void *dev_id);
 static int corkscrew_close(struct net_device *dev);
 static void update_stats(int addr, struct net_device *dev);
 static struct net_device_stats *corkscrew_get_stats(struct net_device *dev);
@@ -1116,8 +1115,7 @@ static int corkscrew_start_xmit(struct sk_buff *skb,
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread. */
 
-static irqreturn_t corkscrew_interrupt(int irq, void *dev_id,
-				    struct pt_regs *regs)
+static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 {
 	/* Use the now-standard shared IRQ implementation. */
 	struct net_device *dev = dev_id;

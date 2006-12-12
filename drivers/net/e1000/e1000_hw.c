@@ -1,25 +1,24 @@
 /*******************************************************************************
 
-  
-  Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
-  
-  This program is free software; you can redistribute it and/or modify it 
-  under the terms of the GNU General Public License as published by the Free 
-  Software Foundation; either version 2 of the License, or (at your option) 
-  any later version.
-  
-  This program is distributed in the hope that it will be useful, but WITHOUT 
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
+  Intel PRO/1000 Linux driver
+  Copyright(c) 1999 - 2006 Intel Corporation.
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms and conditions of the GNU General Public License,
+  version 2, as published by the Free Software Foundation.
+
+  This program is distributed in the hope it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
-  
+
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59 
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-  
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
-  
+  this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+
+  The full GNU General Public License is included in this distribution in
+  the file called "COPYING".
+
   Contact Information:
   Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
@@ -34,6 +33,63 @@
 
 #include "e1000_hw.h"
 
+static int32_t e1000_swfw_sync_acquire(struct e1000_hw *hw, uint16_t mask);
+static void e1000_swfw_sync_release(struct e1000_hw *hw, uint16_t mask);
+static int32_t e1000_read_kmrn_reg(struct e1000_hw *hw, uint32_t reg_addr, uint16_t *data);
+static int32_t e1000_write_kmrn_reg(struct e1000_hw *hw, uint32_t reg_addr, uint16_t data);
+static int32_t e1000_get_software_semaphore(struct e1000_hw *hw);
+static void e1000_release_software_semaphore(struct e1000_hw *hw);
+
+static uint8_t e1000_arc_subsystem_valid(struct e1000_hw *hw);
+static int32_t e1000_check_downshift(struct e1000_hw *hw);
+static int32_t e1000_check_polarity(struct e1000_hw *hw, e1000_rev_polarity *polarity);
+static void e1000_clear_hw_cntrs(struct e1000_hw *hw);
+static void e1000_clear_vfta(struct e1000_hw *hw);
+static int32_t e1000_commit_shadow_ram(struct e1000_hw *hw);
+static int32_t e1000_config_dsp_after_link_change(struct e1000_hw *hw, boolean_t link_up);
+static int32_t e1000_config_fc_after_link_up(struct e1000_hw *hw);
+static int32_t e1000_detect_gig_phy(struct e1000_hw *hw);
+static int32_t e1000_erase_ich8_4k_segment(struct e1000_hw *hw, uint32_t bank);
+static int32_t e1000_get_auto_rd_done(struct e1000_hw *hw);
+static int32_t e1000_get_cable_length(struct e1000_hw *hw, uint16_t *min_length, uint16_t *max_length);
+static int32_t e1000_get_hw_eeprom_semaphore(struct e1000_hw *hw);
+static int32_t e1000_get_phy_cfg_done(struct e1000_hw *hw);
+static int32_t e1000_get_software_flag(struct e1000_hw *hw);
+static int32_t e1000_ich8_cycle_init(struct e1000_hw *hw);
+static int32_t e1000_ich8_flash_cycle(struct e1000_hw *hw, uint32_t timeout);
+static int32_t e1000_id_led_init(struct e1000_hw *hw);
+static int32_t e1000_init_lcd_from_nvm_config_region(struct e1000_hw *hw, uint32_t cnf_base_addr, uint32_t cnf_size);
+static int32_t e1000_init_lcd_from_nvm(struct e1000_hw *hw);
+static void e1000_init_rx_addrs(struct e1000_hw *hw);
+static void e1000_initialize_hardware_bits(struct e1000_hw *hw);
+static boolean_t e1000_is_onboard_nvm_eeprom(struct e1000_hw *hw);
+static int32_t e1000_kumeran_lock_loss_workaround(struct e1000_hw *hw);
+static int32_t e1000_mng_enable_host_if(struct e1000_hw *hw);
+static int32_t e1000_mng_host_if_write(struct e1000_hw *hw, uint8_t *buffer, uint16_t length, uint16_t offset, uint8_t *sum);
+static int32_t e1000_mng_write_cmd_header(struct e1000_hw* hw, struct e1000_host_mng_command_header* hdr);
+static int32_t e1000_mng_write_commit(struct e1000_hw *hw);
+static int32_t e1000_phy_ife_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
+static int32_t e1000_phy_igp_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
+static int32_t e1000_read_eeprom_eerd(struct e1000_hw *hw, uint16_t offset, uint16_t words, uint16_t *data);
+static int32_t e1000_write_eeprom_eewr(struct e1000_hw *hw, uint16_t offset, uint16_t words, uint16_t *data);
+static int32_t e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int eerd);
+static int32_t e1000_phy_m88_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
+static void e1000_put_hw_eeprom_semaphore(struct e1000_hw *hw);
+static int32_t e1000_read_ich8_byte(struct e1000_hw *hw, uint32_t index, uint8_t *data);
+static int32_t e1000_verify_write_ich8_byte(struct e1000_hw *hw, uint32_t index, uint8_t byte);
+static int32_t e1000_write_ich8_byte(struct e1000_hw *hw, uint32_t index, uint8_t byte);
+static int32_t e1000_read_ich8_word(struct e1000_hw *hw, uint32_t index, uint16_t *data);
+static int32_t e1000_read_ich8_data(struct e1000_hw *hw, uint32_t index, uint32_t size, uint16_t *data);
+static int32_t e1000_write_ich8_data(struct e1000_hw *hw, uint32_t index, uint32_t size, uint16_t data);
+static int32_t e1000_read_eeprom_ich8(struct e1000_hw *hw, uint16_t offset, uint16_t words, uint16_t *data);
+static int32_t e1000_write_eeprom_ich8(struct e1000_hw *hw, uint16_t offset, uint16_t words, uint16_t *data);
+static void e1000_release_software_flag(struct e1000_hw *hw);
+static int32_t e1000_set_d3_lplu_state(struct e1000_hw *hw, boolean_t active);
+static int32_t e1000_set_d0_lplu_state(struct e1000_hw *hw, boolean_t active);
+static int32_t e1000_set_pci_ex_no_snoop(struct e1000_hw *hw, uint32_t no_snoop);
+static void e1000_set_pci_express_master_disable(struct e1000_hw *hw);
+static int32_t e1000_wait_autoneg(struct e1000_hw *hw);
+static void e1000_write_reg_io(struct e1000_hw *hw, uint32_t offset, uint32_t value);
 static int32_t e1000_set_phy_type(struct e1000_hw *hw);
 static void e1000_phy_init_script(struct e1000_hw *hw);
 static int32_t e1000_setup_copper_link(struct e1000_hw *hw);
@@ -70,68 +126,9 @@ static int32_t e1000_polarity_reversal_workaround(struct e1000_hw *hw);
 static int32_t e1000_set_phy_mode(struct e1000_hw *hw);
 static int32_t e1000_host_if_read_cookie(struct e1000_hw *hw, uint8_t *buffer);
 static uint8_t e1000_calculate_mng_checksum(char *buffer, uint32_t length);
-static uint8_t e1000_arc_subsystem_valid(struct e1000_hw *hw);
-static int32_t e1000_check_downshift(struct e1000_hw *hw);
-static int32_t e1000_check_polarity(struct e1000_hw *hw, uint16_t *polarity);
-static void e1000_clear_hw_cntrs(struct e1000_hw *hw);
-static void e1000_clear_vfta(struct e1000_hw *hw);
-static int32_t e1000_commit_shadow_ram(struct e1000_hw *hw);
-static int32_t e1000_config_dsp_after_link_change(struct e1000_hw *hw,
-						  boolean_t link_up);
-static int32_t e1000_config_fc_after_link_up(struct e1000_hw *hw);
-static int32_t e1000_detect_gig_phy(struct e1000_hw *hw);
-static int32_t e1000_get_auto_rd_done(struct e1000_hw *hw);
-static int32_t e1000_get_cable_length(struct e1000_hw *hw,
-				      uint16_t *min_length,
-				      uint16_t *max_length);
-static int32_t e1000_get_hw_eeprom_semaphore(struct e1000_hw *hw);
-static int32_t e1000_get_phy_cfg_done(struct e1000_hw *hw);
-static int32_t e1000_id_led_init(struct e1000_hw * hw);
-static void e1000_init_rx_addrs(struct e1000_hw *hw);
-static boolean_t e1000_is_onboard_nvm_eeprom(struct e1000_hw *hw);
-static int32_t e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int eerd);
-static void e1000_put_hw_eeprom_semaphore(struct e1000_hw *hw);
-static int32_t e1000_read_eeprom_eerd(struct e1000_hw *hw, uint16_t offset,
-				      uint16_t words, uint16_t *data);
-static int32_t e1000_set_d0_lplu_state(struct e1000_hw *hw, boolean_t active);
-static int32_t e1000_set_d3_lplu_state(struct e1000_hw *hw, boolean_t active);
-static int32_t e1000_wait_autoneg(struct e1000_hw *hw);
-
-static void e1000_write_reg_io(struct e1000_hw *hw, uint32_t offset,
-			       uint32_t value);
-
-#define E1000_WRITE_REG_IO(a, reg, val) \
-	    e1000_write_reg_io((a), E1000_##reg, val)
 static int32_t e1000_configure_kmrn_for_10_100(struct e1000_hw *hw,
                                                uint16_t duplex);
 static int32_t e1000_configure_kmrn_for_1000(struct e1000_hw *hw);
-
-static int32_t e1000_erase_ich8_4k_segment(struct e1000_hw *hw,
-					   uint32_t segment);
-static int32_t e1000_get_software_flag(struct e1000_hw *hw);
-static int32_t e1000_get_software_semaphore(struct e1000_hw *hw);
-static int32_t e1000_init_lcd_from_nvm(struct e1000_hw *hw);
-static int32_t e1000_kumeran_lock_loss_workaround(struct e1000_hw *hw);
-static int32_t e1000_read_eeprom_ich8(struct e1000_hw *hw, uint16_t offset,
-				      uint16_t words, uint16_t *data);
-static int32_t e1000_read_ich8_byte(struct e1000_hw *hw, uint32_t index,
-				    uint8_t* data);
-static int32_t e1000_read_ich8_word(struct e1000_hw *hw, uint32_t index,
-				    uint16_t *data);
-static int32_t e1000_read_kmrn_reg(struct e1000_hw *hw, uint32_t reg_addr,
-				   uint16_t *data);
-static void e1000_release_software_flag(struct e1000_hw *hw);
-static void e1000_release_software_semaphore(struct e1000_hw *hw);
-static int32_t e1000_set_pci_ex_no_snoop(struct e1000_hw *hw,
-					 uint32_t no_snoop);
-static int32_t e1000_verify_write_ich8_byte(struct e1000_hw *hw,
-					    uint32_t index, uint8_t byte);
-static int32_t e1000_write_eeprom_ich8(struct e1000_hw *hw, uint16_t offset,
-				       uint16_t words, uint16_t *data);
-static int32_t e1000_write_ich8_byte(struct e1000_hw *hw, uint32_t index,
-				     uint8_t data);
-static int32_t e1000_write_kmrn_reg(struct e1000_hw *hw, uint32_t reg_addr,
-				    uint16_t data);
 
 /* IGP cable length table */
 static const
@@ -156,13 +153,12 @@ uint16_t e1000_igp_2_cable_length_table[IGP02E1000_AGC_LENGTH_TABLE_SIZE] =
       83, 89, 95, 100, 105, 109, 113, 116, 119, 122, 124,
       104, 109, 114, 118, 121, 124};
 
-
 /******************************************************************************
  * Set the phy type member in the hw struct.
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-int32_t
+static int32_t
 e1000_set_phy_type(struct e1000_hw *hw)
 {
     DEBUGFUNC("e1000_set_phy_type");
@@ -207,7 +203,6 @@ e1000_set_phy_type(struct e1000_hw *hw)
 
     return E1000_SUCCESS;
 }
-
 
 /******************************************************************************
  * IGP phy init script - initializes the GbE PHY
@@ -390,6 +385,7 @@ e1000_set_mac_type(struct e1000_hw *hw)
     case E1000_DEV_ID_82571EB_FIBER:
     case E1000_DEV_ID_82571EB_SERDES:
     case E1000_DEV_ID_82571EB_QUAD_COPPER:
+    case E1000_DEV_ID_82571EB_QUAD_COPPER_LOWPROFILE:
             hw->mac_type = e1000_82571;
         break;
     case E1000_DEV_ID_82572EI_COPPER:
@@ -413,6 +409,8 @@ e1000_set_mac_type(struct e1000_hw *hw)
     case E1000_DEV_ID_ICH8_IGP_AMT:
     case E1000_DEV_ID_ICH8_IGP_C:
     case E1000_DEV_ID_ICH8_IFE:
+    case E1000_DEV_ID_ICH8_IFE_GT:
+    case E1000_DEV_ID_ICH8_IFE_G:
     case E1000_DEV_ID_ICH8_IGP_M:
         hw->mac_type = e1000_ich8lan;
         break;
@@ -667,18 +665,11 @@ e1000_reset_hw(struct e1000_hw *hw)
                 E1000_WRITE_FLUSH(hw);
             }
             /* fall through */
-        case e1000_82571:
-        case e1000_82572:
-        case e1000_ich8lan:
-        case e1000_80003es2lan:
+        default:
+            /* Auto read done will delay 5ms or poll based on mac type */
             ret_val = e1000_get_auto_rd_done(hw);
             if (ret_val)
-                /* We don't want to continue accessing MAC registers. */
                 return ret_val;
-            break;
-        default:
-            /* Wait for EEPROM reload (it happens automatically) */
-            msleep(5);
             break;
     }
 
@@ -722,6 +713,123 @@ e1000_reset_hw(struct e1000_hw *hw)
 }
 
 /******************************************************************************
+ *
+ * Initialize a number of hardware-dependent bits
+ *
+ * hw: Struct containing variables accessed by shared code
+ *
+ * This function contains hardware limitation workarounds for PCI-E adapters
+ *
+ *****************************************************************************/
+static void
+e1000_initialize_hardware_bits(struct e1000_hw *hw)
+{
+    if ((hw->mac_type >= e1000_82571) && (!hw->initialize_hw_bits_disable)) {
+        /* Settings common to all PCI-express silicon */
+        uint32_t reg_ctrl, reg_ctrl_ext;
+        uint32_t reg_tarc0, reg_tarc1;
+        uint32_t reg_tctl;
+        uint32_t reg_txdctl, reg_txdctl1;
+
+        /* link autonegotiation/sync workarounds */
+        reg_tarc0 = E1000_READ_REG(hw, TARC0);
+        reg_tarc0 &= ~((1 << 30)|(1 << 29)|(1 << 28)|(1 << 27));
+
+        /* Enable not-done TX descriptor counting */
+        reg_txdctl = E1000_READ_REG(hw, TXDCTL);
+        reg_txdctl |= E1000_TXDCTL_COUNT_DESC;
+        E1000_WRITE_REG(hw, TXDCTL, reg_txdctl);
+        reg_txdctl1 = E1000_READ_REG(hw, TXDCTL1);
+        reg_txdctl1 |= E1000_TXDCTL_COUNT_DESC;
+        E1000_WRITE_REG(hw, TXDCTL1, reg_txdctl1);
+
+        switch (hw->mac_type) {
+            case e1000_82571:
+            case e1000_82572:
+                /* Clear PHY TX compatible mode bits */
+                reg_tarc1 = E1000_READ_REG(hw, TARC1);
+                reg_tarc1 &= ~((1 << 30)|(1 << 29));
+
+                /* link autonegotiation/sync workarounds */
+                reg_tarc0 |= ((1 << 26)|(1 << 25)|(1 << 24)|(1 << 23));
+
+                /* TX ring control fixes */
+                reg_tarc1 |= ((1 << 26)|(1 << 25)|(1 << 24));
+
+                /* Multiple read bit is reversed polarity */
+                reg_tctl = E1000_READ_REG(hw, TCTL);
+                if (reg_tctl & E1000_TCTL_MULR)
+                    reg_tarc1 &= ~(1 << 28);
+                else
+                    reg_tarc1 |= (1 << 28);
+
+                E1000_WRITE_REG(hw, TARC1, reg_tarc1);
+                break;
+            case e1000_82573:
+                reg_ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+                reg_ctrl_ext &= ~(1 << 23);
+                reg_ctrl_ext |= (1 << 22);
+
+                /* TX byte count fix */
+                reg_ctrl = E1000_READ_REG(hw, CTRL);
+                reg_ctrl &= ~(1 << 29);
+
+                E1000_WRITE_REG(hw, CTRL_EXT, reg_ctrl_ext);
+                E1000_WRITE_REG(hw, CTRL, reg_ctrl);
+                break;
+            case e1000_80003es2lan:
+                /* improve small packet performace for fiber/serdes */
+                if ((hw->media_type == e1000_media_type_fiber) ||
+                    (hw->media_type == e1000_media_type_internal_serdes)) {
+                    reg_tarc0 &= ~(1 << 20);
+                }
+
+                /* Multiple read bit is reversed polarity */
+                reg_tctl = E1000_READ_REG(hw, TCTL);
+                reg_tarc1 = E1000_READ_REG(hw, TARC1);
+                if (reg_tctl & E1000_TCTL_MULR)
+                    reg_tarc1 &= ~(1 << 28);
+                else
+                    reg_tarc1 |= (1 << 28);
+
+                E1000_WRITE_REG(hw, TARC1, reg_tarc1);
+                break;
+            case e1000_ich8lan:
+                /* Reduce concurrent DMA requests to 3 from 4 */
+                if ((hw->revision_id < 3) ||
+                    ((hw->device_id != E1000_DEV_ID_ICH8_IGP_M_AMT) &&
+                     (hw->device_id != E1000_DEV_ID_ICH8_IGP_M)))
+                    reg_tarc0 |= ((1 << 29)|(1 << 28));
+
+                reg_ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+                reg_ctrl_ext |= (1 << 22);
+                E1000_WRITE_REG(hw, CTRL_EXT, reg_ctrl_ext);
+
+                /* workaround TX hang with TSO=on */
+                reg_tarc0 |= ((1 << 27)|(1 << 26)|(1 << 24)|(1 << 23));
+
+                /* Multiple read bit is reversed polarity */
+                reg_tctl = E1000_READ_REG(hw, TCTL);
+                reg_tarc1 = E1000_READ_REG(hw, TARC1);
+                if (reg_tctl & E1000_TCTL_MULR)
+                    reg_tarc1 &= ~(1 << 28);
+                else
+                    reg_tarc1 |= (1 << 28);
+
+                /* workaround TX hang with TSO=on */
+                reg_tarc1 |= ((1 << 30)|(1 << 26)|(1 << 24));
+
+                E1000_WRITE_REG(hw, TARC1, reg_tarc1);
+                break;
+            default:
+                break;
+        }
+
+        E1000_WRITE_REG(hw, TARC0, reg_tarc0);
+    }
+}
+
+/******************************************************************************
  * Performs basic configuration of the adapter.
  *
  * hw - Struct containing variables accessed by shared code
@@ -749,14 +857,13 @@ e1000_init_hw(struct e1000_hw *hw)
     DEBUGFUNC("e1000_init_hw");
 
     /* force full DMA clock frequency for 10/100 on ICH8 A0-B0 */
-    if (hw->mac_type == e1000_ich8lan) {
-        reg_data = E1000_READ_REG(hw, TARC0);
-        reg_data |= 0x30000000;
-        E1000_WRITE_REG(hw, TARC0, reg_data);
-
-        reg_data = E1000_READ_REG(hw, STATUS);
-        reg_data &= ~0x80000000;
-        E1000_WRITE_REG(hw, STATUS, reg_data);
+    if ((hw->mac_type == e1000_ich8lan) &&
+        ((hw->revision_id < 3) ||
+         ((hw->device_id != E1000_DEV_ID_ICH8_IGP_M_AMT) &&
+          (hw->device_id != E1000_DEV_ID_ICH8_IGP_M)))) {
+            reg_data = E1000_READ_REG(hw, STATUS);
+            reg_data &= ~0x80000000;
+            E1000_WRITE_REG(hw, STATUS, reg_data);
     }
 
     /* Initialize Identification LED */
@@ -768,6 +875,9 @@ e1000_init_hw(struct e1000_hw *hw)
 
     /* Set the media type and TBI compatibility */
     e1000_set_media_type(hw);
+
+    /* Must be called after e1000_set_media_type because media_type is used */
+    e1000_initialize_hardware_bits(hw);
 
     /* Disabling VLAN filtering. */
     DEBUGOUT("Initializing the IEEE VLAN\n");
@@ -860,17 +970,6 @@ e1000_init_hw(struct e1000_hw *hw)
     if (hw->mac_type > e1000_82544) {
         ctrl = E1000_READ_REG(hw, TXDCTL);
         ctrl = (ctrl & ~E1000_TXDCTL_WTHRESH) | E1000_TXDCTL_FULL_TX_DESC_WB;
-        switch (hw->mac_type) {
-        default:
-            break;
-        case e1000_82571:
-        case e1000_82572:
-        case e1000_82573:
-        case e1000_ich8lan:
-        case e1000_80003es2lan:
-            ctrl |= E1000_TXDCTL_COUNT_DESC;
-            break;
-        }
         E1000_WRITE_REG(hw, TXDCTL, ctrl);
     }
 
@@ -908,8 +1007,6 @@ e1000_init_hw(struct e1000_hw *hw)
     case e1000_ich8lan:
         ctrl = E1000_READ_REG(hw, TXDCTL1);
         ctrl = (ctrl & ~E1000_TXDCTL_WTHRESH) | E1000_TXDCTL_FULL_TX_DESC_WB;
-        if (hw->mac_type >= e1000_82571)
-            ctrl |= E1000_TXDCTL_COUNT_DESC;
         E1000_WRITE_REG(hw, TXDCTL1, ctrl);
         break;
     }
@@ -1018,11 +1115,11 @@ e1000_setup_link(struct e1000_hw *hw)
      * control setting, then the variable hw->fc will
      * be initialized based on a value in the EEPROM.
      */
-    if (hw->fc == e1000_fc_default) {
+    if (hw->fc == E1000_FC_DEFAULT) {
         switch (hw->mac_type) {
         case e1000_ich8lan:
         case e1000_82573:
-            hw->fc = e1000_fc_full;
+            hw->fc = E1000_FC_FULL;
             break;
         default:
             ret_val = e1000_read_eeprom(hw, EEPROM_INIT_CONTROL2_REG,
@@ -1032,12 +1129,12 @@ e1000_setup_link(struct e1000_hw *hw)
                 return -E1000_ERR_EEPROM;
             }
             if ((eeprom_data & EEPROM_WORD0F_PAUSE_MASK) == 0)
-                hw->fc = e1000_fc_none;
+                hw->fc = E1000_FC_NONE;
             else if ((eeprom_data & EEPROM_WORD0F_PAUSE_MASK) ==
                     EEPROM_WORD0F_ASM_DIR)
-                hw->fc = e1000_fc_tx_pause;
+                hw->fc = E1000_FC_TX_PAUSE;
             else
-                hw->fc = e1000_fc_full;
+                hw->fc = E1000_FC_FULL;
             break;
         }
     }
@@ -1047,10 +1144,10 @@ e1000_setup_link(struct e1000_hw *hw)
      * hub or switch with different Flow Control capabilities.
      */
     if (hw->mac_type == e1000_82542_rev2_0)
-        hw->fc &= (~e1000_fc_tx_pause);
+        hw->fc &= (~E1000_FC_TX_PAUSE);
 
     if ((hw->mac_type < e1000_82543) && (hw->report_tx_early == 1))
-        hw->fc &= (~e1000_fc_rx_pause);
+        hw->fc &= (~E1000_FC_RX_PAUSE);
 
     hw->original_fc = hw->fc;
 
@@ -1102,7 +1199,7 @@ e1000_setup_link(struct e1000_hw *hw)
      * ability to transmit pause frames in not enabled, then these
      * registers will be set to 0.
      */
-    if (!(hw->fc & e1000_fc_tx_pause)) {
+    if (!(hw->fc & E1000_FC_TX_PAUSE)) {
         E1000_WRITE_REG(hw, FCRTL, 0);
         E1000_WRITE_REG(hw, FCRTH, 0);
     } else {
@@ -1149,11 +1246,11 @@ e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
     if (hw->mac_type == e1000_82571 || hw->mac_type == e1000_82572)
         E1000_WRITE_REG(hw, SCTL, E1000_DISABLE_SERDES_LOOPBACK);
 
-    /* On adapters with a MAC newer than 82544, SW Defineable pin 1 will be
+    /* On adapters with a MAC newer than 82544, SWDP 1 will be
      * set when the optics detect a signal. On older adapters, it will be
      * cleared when there is a signal.  This applies to fiber media only.
-     * If we're on serdes media, adjust the output amplitude to value set in
-     * the EEPROM.
+     * If we're on serdes media, adjust the output amplitude to value
+     * set in the EEPROM.
      */
     ctrl = E1000_READ_REG(hw, CTRL);
     if (hw->media_type == e1000_media_type_fiber)
@@ -1189,11 +1286,11 @@ e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
      *      3:  Both Rx and TX flow control (symmetric) are enabled.
      */
     switch (hw->fc) {
-    case e1000_fc_none:
+    case E1000_FC_NONE:
         /* Flow control is completely disabled by a software over-ride. */
         txcw = (E1000_TXCW_ANE | E1000_TXCW_FD);
         break;
-    case e1000_fc_rx_pause:
+    case E1000_FC_RX_PAUSE:
         /* RX Flow control is enabled and TX Flow control is disabled by a
          * software over-ride. Since there really isn't a way to advertise
          * that we are capable of RX Pause ONLY, we will advertise that we
@@ -1202,13 +1299,13 @@ e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
          */
         txcw = (E1000_TXCW_ANE | E1000_TXCW_FD | E1000_TXCW_PAUSE_MASK);
         break;
-    case e1000_fc_tx_pause:
+    case E1000_FC_TX_PAUSE:
         /* TX Flow control is enabled, and RX Flow control is disabled, by a
          * software over-ride.
          */
         txcw = (E1000_TXCW_ANE | E1000_TXCW_FD | E1000_TXCW_ASM_DIR);
         break;
-    case e1000_fc_full:
+    case E1000_FC_FULL:
         /* Flow control (both RX and TX) is enabled by a software over-ride. */
         txcw = (E1000_TXCW_ANE | E1000_TXCW_FD | E1000_TXCW_PAUSE_MASK);
         break;
@@ -2124,13 +2221,13 @@ e1000_phy_setup_autoneg(struct e1000_hw *hw)
      *          in the EEPROM is used.
      */
     switch (hw->fc) {
-    case e1000_fc_none: /* 0 */
+    case E1000_FC_NONE: /* 0 */
         /* Flow control (RX & TX) is completely disabled by a
          * software over-ride.
          */
         mii_autoneg_adv_reg &= ~(NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
         break;
-    case e1000_fc_rx_pause: /* 1 */
+    case E1000_FC_RX_PAUSE: /* 1 */
         /* RX Flow control is enabled, and TX Flow control is
          * disabled, by a software over-ride.
          */
@@ -2142,14 +2239,14 @@ e1000_phy_setup_autoneg(struct e1000_hw *hw)
          */
         mii_autoneg_adv_reg |= (NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
         break;
-    case e1000_fc_tx_pause: /* 2 */
+    case E1000_FC_TX_PAUSE: /* 2 */
         /* TX Flow control is enabled, and RX Flow control is
          * disabled, by a software over-ride.
          */
         mii_autoneg_adv_reg |= NWAY_AR_ASM_DIR;
         mii_autoneg_adv_reg &= ~NWAY_AR_PAUSE;
         break;
-    case e1000_fc_full: /* 3 */
+    case E1000_FC_FULL: /* 3 */
         /* Flow control (both RX and TX) is enabled by a software
          * over-ride.
          */
@@ -2193,7 +2290,7 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
     DEBUGFUNC("e1000_phy_force_speed_duplex");
 
     /* Turn off Flow control if we are forcing speed and duplex. */
-    hw->fc = e1000_fc_none;
+    hw->fc = E1000_FC_NONE;
 
     DEBUGOUT1("hw->fc = %d\n", hw->fc);
 
@@ -2273,6 +2370,7 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 
         /* Need to reset the PHY or these changes will be ignored */
         mii_ctrl_reg |= MII_CR_RESET;
+
     /* Disable MDI-X support for 10/100 */
     } else if (hw->phy_type == e1000_phy_ife) {
         ret_val = e1000_read_phy_reg(hw, IFE_PHY_MDIX_CONTROL, &phy_data);
@@ -2285,6 +2383,7 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
         ret_val = e1000_write_phy_reg(hw, IFE_PHY_MDIX_CONTROL, phy_data);
         if (ret_val)
             return ret_val;
+
     } else {
         /* Clear Auto-Crossover to force MDI manually.  IGP requires MDI
          * forced whenever speed or duplex are forced.
@@ -2547,18 +2646,18 @@ e1000_force_mac_fc(struct e1000_hw *hw)
      */
 
     switch (hw->fc) {
-    case e1000_fc_none:
+    case E1000_FC_NONE:
         ctrl &= (~(E1000_CTRL_TFCE | E1000_CTRL_RFCE));
         break;
-    case e1000_fc_rx_pause:
+    case E1000_FC_RX_PAUSE:
         ctrl &= (~E1000_CTRL_TFCE);
         ctrl |= E1000_CTRL_RFCE;
         break;
-    case e1000_fc_tx_pause:
+    case E1000_FC_TX_PAUSE:
         ctrl &= (~E1000_CTRL_RFCE);
         ctrl |= E1000_CTRL_TFCE;
         break;
-    case e1000_fc_full:
+    case E1000_FC_FULL:
         ctrl |= (E1000_CTRL_TFCE | E1000_CTRL_RFCE);
         break;
     default:
@@ -2657,14 +2756,14 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
              *   LOCAL DEVICE  |   LINK PARTNER
              * PAUSE | ASM_DIR | PAUSE | ASM_DIR | NIC Resolution
              *-------|---------|-------|---------|--------------------
-             *   0   |    0    |  DC   |   DC    | e1000_fc_none
-             *   0   |    1    |   0   |   DC    | e1000_fc_none
-             *   0   |    1    |   1   |    0    | e1000_fc_none
-             *   0   |    1    |   1   |    1    | e1000_fc_tx_pause
-             *   1   |    0    |   0   |   DC    | e1000_fc_none
-             *   1   |   DC    |   1   |   DC    | e1000_fc_full
-             *   1   |    1    |   0   |    0    | e1000_fc_none
-             *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
+             *   0   |    0    |  DC   |   DC    | E1000_FC_NONE
+             *   0   |    1    |   0   |   DC    | E1000_FC_NONE
+             *   0   |    1    |   1   |    0    | E1000_FC_NONE
+             *   0   |    1    |   1   |    1    | E1000_FC_TX_PAUSE
+             *   1   |    0    |   0   |   DC    | E1000_FC_NONE
+             *   1   |   DC    |   1   |   DC    | E1000_FC_FULL
+             *   1   |    1    |   0   |    0    | E1000_FC_NONE
+             *   1   |    1    |   0   |    1    | E1000_FC_RX_PAUSE
              *
              */
             /* Are both PAUSE bits set to 1?  If so, this implies
@@ -2676,7 +2775,7 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
              *   LOCAL DEVICE  |   LINK PARTNER
              * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
              *-------|---------|-------|---------|--------------------
-             *   1   |   DC    |   1   |   DC    | e1000_fc_full
+             *   1   |   DC    |   1   |   DC    | E1000_FC_FULL
              *
              */
             if ((mii_nway_adv_reg & NWAY_AR_PAUSE) &&
@@ -2687,11 +2786,11 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
                  * ONLY. Hence, we must now check to see if we need to
                  * turn OFF  the TRANSMISSION of PAUSE frames.
                  */
-                if (hw->original_fc == e1000_fc_full) {
-                    hw->fc = e1000_fc_full;
+                if (hw->original_fc == E1000_FC_FULL) {
+                    hw->fc = E1000_FC_FULL;
                     DEBUGOUT("Flow Control = FULL.\n");
                 } else {
-                    hw->fc = e1000_fc_rx_pause;
+                    hw->fc = E1000_FC_RX_PAUSE;
                     DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
                 }
             }
@@ -2700,14 +2799,14 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
              *   LOCAL DEVICE  |   LINK PARTNER
              * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
              *-------|---------|-------|---------|--------------------
-             *   0   |    1    |   1   |    1    | e1000_fc_tx_pause
+             *   0   |    1    |   1   |    1    | E1000_FC_TX_PAUSE
              *
              */
             else if (!(mii_nway_adv_reg & NWAY_AR_PAUSE) &&
                      (mii_nway_adv_reg & NWAY_AR_ASM_DIR) &&
                      (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
                      (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
-                hw->fc = e1000_fc_tx_pause;
+                hw->fc = E1000_FC_TX_PAUSE;
                 DEBUGOUT("Flow Control = TX PAUSE frames only.\n");
             }
             /* For transmitting PAUSE frames ONLY.
@@ -2715,14 +2814,14 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
              *   LOCAL DEVICE  |   LINK PARTNER
              * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
              *-------|---------|-------|---------|--------------------
-             *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
+             *   1   |    1    |   0   |    1    | E1000_FC_RX_PAUSE
              *
              */
             else if ((mii_nway_adv_reg & NWAY_AR_PAUSE) &&
                      (mii_nway_adv_reg & NWAY_AR_ASM_DIR) &&
                      !(mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
                      (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
-                hw->fc = e1000_fc_rx_pause;
+                hw->fc = E1000_FC_RX_PAUSE;
                 DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
             }
             /* Per the IEEE spec, at this point flow control should be
@@ -2745,13 +2844,13 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
              * be asked to delay transmission of packets than asking
              * our link partner to pause transmission of frames.
              */
-            else if ((hw->original_fc == e1000_fc_none ||
-                      hw->original_fc == e1000_fc_tx_pause) ||
+            else if ((hw->original_fc == E1000_FC_NONE ||
+                      hw->original_fc == E1000_FC_TX_PAUSE) ||
                       hw->fc_strict_ieee) {
-                hw->fc = e1000_fc_none;
+                hw->fc = E1000_FC_NONE;
                 DEBUGOUT("Flow Control = NONE.\n");
             } else {
-                hw->fc = e1000_fc_rx_pause;
+                hw->fc = E1000_FC_RX_PAUSE;
                 DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
             }
 
@@ -2766,7 +2865,7 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
             }
 
             if (duplex == HALF_DUPLEX)
-                hw->fc = e1000_fc_none;
+                hw->fc = E1000_FC_NONE;
 
             /* Now we call a subroutine to actually force the MAC
              * controller to use the correct flow control settings.
@@ -3417,9 +3516,8 @@ e1000_read_phy_reg(struct e1000_hw *hw,
     return ret_val;
 }
 
-int32_t
-e1000_read_phy_reg_ex(struct e1000_hw *hw,
-                      uint32_t reg_addr,
+static int32_t
+e1000_read_phy_reg_ex(struct e1000_hw *hw, uint32_t reg_addr,
                       uint16_t *phy_data)
 {
     uint32_t i;
@@ -3499,8 +3597,7 @@ e1000_read_phy_reg_ex(struct e1000_hw *hw,
 * data - data to write to the PHY
 ******************************************************************************/
 int32_t
-e1000_write_phy_reg(struct e1000_hw *hw,
-                    uint32_t reg_addr,
+e1000_write_phy_reg(struct e1000_hw *hw, uint32_t reg_addr,
                     uint16_t phy_data)
 {
     uint32_t ret_val;
@@ -3557,10 +3654,9 @@ e1000_write_phy_reg(struct e1000_hw *hw,
     return ret_val;
 }
 
-int32_t
-e1000_write_phy_reg_ex(struct e1000_hw *hw,
-                    uint32_t reg_addr,
-                    uint16_t phy_data)
+static int32_t
+e1000_write_phy_reg_ex(struct e1000_hw *hw, uint32_t reg_addr,
+                       uint16_t phy_data)
 {
     uint32_t i;
     uint32_t mdic = 0;
@@ -3711,7 +3807,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
             swfw = E1000_SWFW_PHY0_SM;
         }
         if (e1000_swfw_sync_acquire(hw, swfw)) {
-            e1000_release_software_semaphore(hw);
+            DEBUGOUT("Unable to acquire swfw sync\n");
             return -E1000_ERR_SWFW_SYNC;
         }
         /* Read the device control register and assert the E1000_CTRL_PHY_RST
@@ -3734,6 +3830,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
 
         if (hw->mac_type >= e1000_82571)
             mdelay(10);
+
         e1000_swfw_sync_release(hw, swfw);
     } else {
         /* Read the Extended Device Control Register, assert the PHY_RESET_DIR
@@ -3776,7 +3873,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 *
-* Sets bit 15 of the MII Control regiser
+* Sets bit 15 of the MII Control register
 ******************************************************************************/
 int32_t
 e1000_phy_reset(struct e1000_hw *hw)
@@ -3792,15 +3889,14 @@ e1000_phy_reset(struct e1000_hw *hw)
     if (ret_val)
         return E1000_SUCCESS;
 
-    switch (hw->mac_type) {
-    case e1000_82541_rev_2:
-    case e1000_82571:
-    case e1000_82572:
-    case e1000_ich8lan:
+    switch (hw->phy_type) {
+    case e1000_phy_igp:
+    case e1000_phy_igp_2:
+    case e1000_phy_igp_3:
+    case e1000_phy_ife:
         ret_val = e1000_phy_hw_reset(hw);
         if (ret_val)
             return ret_val;
-
         break;
     default:
         ret_val = e1000_read_phy_reg(hw, PHY_CTRL, &phy_data);
@@ -3849,14 +3945,15 @@ e1000_phy_powerdown_workaround(struct e1000_hw *hw)
         E1000_WRITE_REG(hw, PHY_CTRL, reg | E1000_PHY_CTRL_GBE_DISABLE |
                         E1000_PHY_CTRL_NOND0A_GBE_DISABLE);
 
-        /* Write VR power-down enable */
+        /* Write VR power-down enable - bits 9:8 should be 10b */
         e1000_read_phy_reg(hw, IGP3_VR_CTRL, &phy_data);
-        e1000_write_phy_reg(hw, IGP3_VR_CTRL, phy_data |
-                            IGP3_VR_CTRL_MODE_SHUT);
+        phy_data |= (1 << 9);
+        phy_data &= ~(1 << 8);
+        e1000_write_phy_reg(hw, IGP3_VR_CTRL, phy_data);
 
         /* Read it back and test */
         e1000_read_phy_reg(hw, IGP3_VR_CTRL, &phy_data);
-        if ((phy_data & IGP3_VR_CTRL_MODE_SHUT) || retry)
+        if (((phy_data & IGP3_VR_CTRL_MODE_MASK) == IGP3_VR_CTRL_MODE_SHUT) || retry)
             break;
 
         /* Issue PHY reset and repeat at most one more time */
@@ -3936,7 +4033,7 @@ e1000_kumeran_lock_loss_workaround(struct e1000_hw *hw)
 *
 * hw - Struct containing variables accessed by shared code
 ******************************************************************************/
-int32_t
+static int32_t
 e1000_detect_gig_phy(struct e1000_hw *hw)
 {
     int32_t phy_init_status, ret_val;
@@ -3944,6 +4041,9 @@ e1000_detect_gig_phy(struct e1000_hw *hw)
     boolean_t match = FALSE;
 
     DEBUGFUNC("e1000_detect_gig_phy");
+
+    if (hw->phy_id != 0)
+        return E1000_SUCCESS;
 
     /* The 82571 firmware may still be configuring the PHY.  In this
      * case, we cannot access the PHY until the configuration is done.  So
@@ -4061,7 +4161,8 @@ e1000_phy_igp_get_info(struct e1000_hw *hw,
                        struct e1000_phy_info *phy_info)
 {
     int32_t ret_val;
-    uint16_t phy_data, polarity, min_length, max_length, average;
+    uint16_t phy_data, min_length, max_length, average;
+    e1000_rev_polarity polarity;
 
     DEBUGFUNC("e1000_phy_igp_get_info");
 
@@ -4086,8 +4187,8 @@ e1000_phy_igp_get_info(struct e1000_hw *hw,
     if (ret_val)
         return ret_val;
 
-    phy_info->mdix_mode = (phy_data & IGP01E1000_PSSR_MDIX) >>
-                          IGP01E1000_PSSR_MDIX_SHIFT;
+    phy_info->mdix_mode = (e1000_auto_x_mode)((phy_data & IGP01E1000_PSSR_MDIX) >>
+                          IGP01E1000_PSSR_MDIX_SHIFT);
 
     if ((phy_data & IGP01E1000_PSSR_SPEED_MASK) ==
        IGP01E1000_PSSR_SPEED_1000MBPS) {
@@ -4096,10 +4197,12 @@ e1000_phy_igp_get_info(struct e1000_hw *hw,
         if (ret_val)
             return ret_val;
 
-        phy_info->local_rx = (phy_data & SR_1000T_LOCAL_RX_STATUS) >>
-                             SR_1000T_LOCAL_RX_STATUS_SHIFT;
-        phy_info->remote_rx = (phy_data & SR_1000T_REMOTE_RX_STATUS) >>
-                              SR_1000T_REMOTE_RX_STATUS_SHIFT;
+        phy_info->local_rx = ((phy_data & SR_1000T_LOCAL_RX_STATUS) >>
+                             SR_1000T_LOCAL_RX_STATUS_SHIFT) ?
+                             e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
+        phy_info->remote_rx = ((phy_data & SR_1000T_REMOTE_RX_STATUS) >>
+                              SR_1000T_REMOTE_RX_STATUS_SHIFT) ?
+                              e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
 
         /* Get cable length */
         ret_val = e1000_get_cable_length(hw, &min_length, &max_length);
@@ -4135,7 +4238,8 @@ e1000_phy_ife_get_info(struct e1000_hw *hw,
                        struct e1000_phy_info *phy_info)
 {
     int32_t ret_val;
-    uint16_t phy_data, polarity;
+    uint16_t phy_data;
+    e1000_rev_polarity polarity;
 
     DEBUGFUNC("e1000_phy_ife_get_info");
 
@@ -4146,8 +4250,9 @@ e1000_phy_ife_get_info(struct e1000_hw *hw,
     if (ret_val)
         return ret_val;
     phy_info->polarity_correction =
-                        (phy_data & IFE_PSC_AUTO_POLARITY_DISABLE) >>
-                        IFE_PSC_AUTO_POLARITY_DISABLE_SHIFT;
+                        ((phy_data & IFE_PSC_AUTO_POLARITY_DISABLE) >>
+                        IFE_PSC_AUTO_POLARITY_DISABLE_SHIFT) ?
+                        e1000_polarity_reversal_disabled : e1000_polarity_reversal_enabled;
 
     if (phy_info->polarity_correction == e1000_polarity_reversal_enabled) {
         ret_val = e1000_check_polarity(hw, &polarity);
@@ -4155,8 +4260,9 @@ e1000_phy_ife_get_info(struct e1000_hw *hw,
             return ret_val;
     } else {
         /* Polarity is forced. */
-        polarity = (phy_data & IFE_PSC_FORCE_POLARITY) >>
-                       IFE_PSC_FORCE_POLARITY_SHIFT;
+        polarity = ((phy_data & IFE_PSC_FORCE_POLARITY) >>
+                     IFE_PSC_FORCE_POLARITY_SHIFT) ?
+                     e1000_rev_polarity_reversed : e1000_rev_polarity_normal;
     }
     phy_info->cable_polarity = polarity;
 
@@ -4164,9 +4270,9 @@ e1000_phy_ife_get_info(struct e1000_hw *hw,
     if (ret_val)
         return ret_val;
 
-    phy_info->mdix_mode =
-                     (phy_data & (IFE_PMC_AUTO_MDIX | IFE_PMC_FORCE_MDIX)) >>
-                     IFE_PMC_MDIX_MODE_SHIFT;
+    phy_info->mdix_mode = (e1000_auto_x_mode)
+                     ((phy_data & (IFE_PMC_AUTO_MDIX | IFE_PMC_FORCE_MDIX)) >>
+                     IFE_PMC_MDIX_MODE_SHIFT);
 
     return E1000_SUCCESS;
 }
@@ -4182,7 +4288,8 @@ e1000_phy_m88_get_info(struct e1000_hw *hw,
                        struct e1000_phy_info *phy_info)
 {
     int32_t ret_val;
-    uint16_t phy_data, polarity;
+    uint16_t phy_data;
+    e1000_rev_polarity polarity;
 
     DEBUGFUNC("e1000_phy_m88_get_info");
 
@@ -4195,11 +4302,14 @@ e1000_phy_m88_get_info(struct e1000_hw *hw,
         return ret_val;
 
     phy_info->extended_10bt_distance =
-        (phy_data & M88E1000_PSCR_10BT_EXT_DIST_ENABLE) >>
-        M88E1000_PSCR_10BT_EXT_DIST_ENABLE_SHIFT;
+        ((phy_data & M88E1000_PSCR_10BT_EXT_DIST_ENABLE) >>
+        M88E1000_PSCR_10BT_EXT_DIST_ENABLE_SHIFT) ?
+        e1000_10bt_ext_dist_enable_lower : e1000_10bt_ext_dist_enable_normal;
+
     phy_info->polarity_correction =
-        (phy_data & M88E1000_PSCR_POLARITY_REVERSAL) >>
-        M88E1000_PSCR_POLARITY_REVERSAL_SHIFT;
+        ((phy_data & M88E1000_PSCR_POLARITY_REVERSAL) >>
+        M88E1000_PSCR_POLARITY_REVERSAL_SHIFT) ?
+        e1000_polarity_reversal_disabled : e1000_polarity_reversal_enabled;
 
     /* Check polarity status */
     ret_val = e1000_check_polarity(hw, &polarity);
@@ -4211,15 +4321,15 @@ e1000_phy_m88_get_info(struct e1000_hw *hw,
     if (ret_val)
         return ret_val;
 
-    phy_info->mdix_mode = (phy_data & M88E1000_PSSR_MDIX) >>
-                          M88E1000_PSSR_MDIX_SHIFT;
+    phy_info->mdix_mode = (e1000_auto_x_mode)((phy_data & M88E1000_PSSR_MDIX) >>
+                          M88E1000_PSSR_MDIX_SHIFT);
 
     if ((phy_data & M88E1000_PSSR_SPEED) == M88E1000_PSSR_1000MBS) {
         /* Cable Length Estimation and Local/Remote Receiver Information
          * are only valid at 1000 Mbps.
          */
         if (hw->phy_type != e1000_phy_gg82563) {
-            phy_info->cable_length = ((phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
+            phy_info->cable_length = (e1000_cable_length)((phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
                                       M88E1000_PSSR_CABLE_LENGTH_SHIFT);
         } else {
             ret_val = e1000_read_phy_reg(hw, GG82563_PHY_DSP_DISTANCE,
@@ -4227,18 +4337,20 @@ e1000_phy_m88_get_info(struct e1000_hw *hw,
             if (ret_val)
                 return ret_val;
 
-            phy_info->cable_length = phy_data & GG82563_DSPD_CABLE_LENGTH;
+            phy_info->cable_length = (e1000_cable_length)(phy_data & GG82563_DSPD_CABLE_LENGTH);
         }
 
         ret_val = e1000_read_phy_reg(hw, PHY_1000T_STATUS, &phy_data);
         if (ret_val)
             return ret_val;
 
-        phy_info->local_rx = (phy_data & SR_1000T_LOCAL_RX_STATUS) >>
-                             SR_1000T_LOCAL_RX_STATUS_SHIFT;
+        phy_info->local_rx = ((phy_data & SR_1000T_LOCAL_RX_STATUS) >>
+                             SR_1000T_LOCAL_RX_STATUS_SHIFT) ?
+                             e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
+        phy_info->remote_rx = ((phy_data & SR_1000T_REMOTE_RX_STATUS) >>
+                              SR_1000T_REMOTE_RX_STATUS_SHIFT) ?
+                              e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
 
-        phy_info->remote_rx = (phy_data & SR_1000T_REMOTE_RX_STATUS) >>
-                              SR_1000T_REMOTE_RX_STATUS_SHIFT;
     }
 
     return E1000_SUCCESS;
@@ -4441,9 +4553,9 @@ e1000_init_eeprom_params(struct e1000_hw *hw)
         eeprom->use_eewr = FALSE;
         break;
     case e1000_ich8lan:
-    {
+        {
         int32_t  i = 0;
-        uint32_t flash_size = E1000_READ_ICH8_REG(hw, ICH8_FLASH_GFPREG);
+        uint32_t flash_size = E1000_READ_ICH_FLASH_REG(hw, ICH_FLASH_GFPREG);
 
         eeprom->type = e1000_eeprom_ich8;
         eeprom->use_eerd = FALSE;
@@ -4459,16 +4571,18 @@ e1000_init_eeprom_params(struct e1000_hw *hw)
             }
         }
 
-        hw->flash_base_addr = (flash_size & ICH8_GFPREG_BASE_MASK) *
-                              ICH8_FLASH_SECTOR_SIZE;
+        hw->flash_base_addr = (flash_size & ICH_GFPREG_BASE_MASK) *
+                              ICH_FLASH_SECTOR_SIZE;
 
-        hw->flash_bank_size = ((flash_size >> 16) & ICH8_GFPREG_BASE_MASK) + 1;
-        hw->flash_bank_size -= (flash_size & ICH8_GFPREG_BASE_MASK);
-        hw->flash_bank_size *= ICH8_FLASH_SECTOR_SIZE;
+        hw->flash_bank_size = ((flash_size >> 16) & ICH_GFPREG_BASE_MASK) + 1;
+        hw->flash_bank_size -= (flash_size & ICH_GFPREG_BASE_MASK);
+
+        hw->flash_bank_size *= ICH_FLASH_SECTOR_SIZE;
+
         hw->flash_bank_size /= 2 * sizeof(uint16_t);
 
         break;
-    }
+        }
     default:
         break;
     }
@@ -4800,7 +4914,7 @@ e1000_release_eeprom(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-int32_t
+static int32_t
 e1000_spi_eeprom_ready(struct e1000_hw *hw)
 {
     uint16_t retry_count = 0;
@@ -4854,44 +4968,43 @@ e1000_read_eeprom(struct e1000_hw *hw,
 {
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     uint32_t i = 0;
-    int32_t ret_val;
 
     DEBUGFUNC("e1000_read_eeprom");
+
+    /* If eeprom is not yet detected, do so now */
+    if (eeprom->word_size == 0)
+        e1000_init_eeprom_params(hw);
 
     /* A check for invalid values:  offset too large, too many words, and not
      * enough words.
      */
     if ((offset >= eeprom->word_size) || (words > eeprom->word_size - offset) ||
        (words == 0)) {
-        DEBUGOUT("\"words\" parameter out of bounds\n");
+        DEBUGOUT2("\"words\" parameter out of bounds. Words = %d, size = %d\n", offset, eeprom->word_size);
         return -E1000_ERR_EEPROM;
     }
 
-    /* FLASH reads without acquiring the semaphore are safe */
+    /* EEPROM's that don't use EERD to read require us to bit-bang the SPI
+     * directly. In this case, we need to acquire the EEPROM so that
+     * FW or other port software does not interrupt.
+     */
     if (e1000_is_onboard_nvm_eeprom(hw) == TRUE &&
         hw->eeprom.use_eerd == FALSE) {
-        switch (hw->mac_type) {
-        case e1000_80003es2lan:
-            break;
-        default:
-            /* Prepare the EEPROM for reading  */
-            if (e1000_acquire_eeprom(hw) != E1000_SUCCESS)
-                return -E1000_ERR_EEPROM;
-            break;
-        }
+        /* Prepare the EEPROM for bit-bang reading */
+        if (e1000_acquire_eeprom(hw) != E1000_SUCCESS)
+            return -E1000_ERR_EEPROM;
     }
 
-    if (eeprom->use_eerd == TRUE) {
-        ret_val = e1000_read_eeprom_eerd(hw, offset, words, data);
-        if ((e1000_is_onboard_nvm_eeprom(hw) == TRUE) ||
-            (hw->mac_type != e1000_82573))
-            e1000_release_eeprom(hw);
-        return ret_val;
-    }
+    /* Eerd register EEPROM access requires no eeprom aquire/release */
+    if (eeprom->use_eerd == TRUE)
+        return e1000_read_eeprom_eerd(hw, offset, words, data);
 
+    /* ICH EEPROM access is done via the ICH flash controller */
     if (eeprom->type == e1000_eeprom_ich8)
         return e1000_read_eeprom_ich8(hw, offset, words, data);
 
+    /* Set up the SPI or Microwire EEPROM for bit-bang reading.  We have
+     * acquired the EEPROM at this point, so any returns should relase it */
     if (eeprom->type == e1000_eeprom_spi) {
         uint16_t word_in;
         uint8_t read_opcode = EEPROM_READ_OPCODE_SPI;
@@ -5206,6 +5319,10 @@ e1000_write_eeprom(struct e1000_hw *hw,
 
     DEBUGFUNC("e1000_write_eeprom");
 
+    /* If eeprom is not yet detected, do so now */
+    if (eeprom->word_size == 0)
+        e1000_init_eeprom_params(hw);
+
     /* A check for invalid values:  offset too large, too many words, and not
      * enough words.
      */
@@ -5248,7 +5365,7 @@ e1000_write_eeprom(struct e1000_hw *hw,
  * data - pointer to array of 8 bit words to be written to the EEPROM
  *
  *****************************************************************************/
-int32_t
+static int32_t
 e1000_write_eeprom_spi(struct e1000_hw *hw,
                        uint16_t offset,
                        uint16_t words,
@@ -5314,7 +5431,7 @@ e1000_write_eeprom_spi(struct e1000_hw *hw,
  * data - pointer to array of 16 bit words to be written to the EEPROM
  *
  *****************************************************************************/
-int32_t
+static int32_t
 e1000_write_eeprom_microwire(struct e1000_hw *hw,
                              uint16_t offset,
                              uint16_t words,
@@ -5411,10 +5528,8 @@ e1000_commit_shadow_ram(struct e1000_hw *hw)
     int32_t error = E1000_SUCCESS;
     uint32_t old_bank_offset = 0;
     uint32_t new_bank_offset = 0;
-    uint32_t sector_retries = 0;
     uint8_t low_byte = 0;
     uint8_t high_byte = 0;
-    uint8_t temp_byte = 0;
     boolean_t sector_write_failed = FALSE;
 
     if (hw->mac_type == e1000_82573) {
@@ -5467,90 +5582,95 @@ e1000_commit_shadow_ram(struct e1000_hw *hw)
             e1000_erase_ich8_4k_segment(hw, 0);
         }
 
-        do {
-            sector_write_failed = FALSE;
-            /* Loop for every byte in the shadow RAM,
-             * which is in units of words. */
-            for (i = 0; i < E1000_SHADOW_RAM_WORDS; i++) {
-                /* Determine whether to write the value stored
-                 * in the other NVM bank or a modified value stored
-                 * in the shadow RAM */
-                if (hw->eeprom_shadow_ram[i].modified == TRUE) {
-                    low_byte = (uint8_t)hw->eeprom_shadow_ram[i].eeprom_word;
-                    e1000_read_ich8_byte(hw, (i << 1) + old_bank_offset,
-                                         &temp_byte);
-                    udelay(100);
-                    error = e1000_verify_write_ich8_byte(hw,
-                                                 (i << 1) + new_bank_offset,
-                                                 low_byte);
-                    if (error != E1000_SUCCESS)
-                        sector_write_failed = TRUE;
+        sector_write_failed = FALSE;
+        /* Loop for every byte in the shadow RAM,
+         * which is in units of words. */
+        for (i = 0; i < E1000_SHADOW_RAM_WORDS; i++) {
+            /* Determine whether to write the value stored
+             * in the other NVM bank or a modified value stored
+             * in the shadow RAM */
+            if (hw->eeprom_shadow_ram[i].modified == TRUE) {
+                low_byte = (uint8_t)hw->eeprom_shadow_ram[i].eeprom_word;
+                udelay(100);
+                error = e1000_verify_write_ich8_byte(hw,
+                            (i << 1) + new_bank_offset, low_byte);
+
+                if (error != E1000_SUCCESS)
+                    sector_write_failed = TRUE;
+                else {
                     high_byte =
                         (uint8_t)(hw->eeprom_shadow_ram[i].eeprom_word >> 8);
-                    e1000_read_ich8_byte(hw, (i << 1) + old_bank_offset + 1,
-                                         &temp_byte);
                     udelay(100);
-                } else {
-                    e1000_read_ich8_byte(hw, (i << 1) + old_bank_offset,
-                                         &low_byte);
-                    udelay(100);
-                    error = e1000_verify_write_ich8_byte(hw,
-                                 (i << 1) + new_bank_offset, low_byte);
-                    if (error != E1000_SUCCESS)
-                        sector_write_failed = TRUE;
+                }
+            } else {
+                e1000_read_ich8_byte(hw, (i << 1) + old_bank_offset,
+                                     &low_byte);
+                udelay(100);
+                error = e1000_verify_write_ich8_byte(hw,
+                            (i << 1) + new_bank_offset, low_byte);
+
+                if (error != E1000_SUCCESS)
+                    sector_write_failed = TRUE;
+                else {
                     e1000_read_ich8_byte(hw, (i << 1) + old_bank_offset + 1,
                                          &high_byte);
+                    udelay(100);
                 }
+            }
 
+            /* If the write of the low byte was successful, go ahread and
+             * write the high byte while checking to make sure that if it
+             * is the signature byte, then it is handled properly */
+            if (sector_write_failed == FALSE) {
                 /* If the word is 0x13, then make sure the signature bits
                  * (15:14) are 11b until the commit has completed.
                  * This will allow us to write 10b which indicates the
                  * signature is valid.  We want to do this after the write
                  * has completed so that we don't mark the segment valid
                  * while the write is still in progress */
-                if (i == E1000_ICH8_NVM_SIG_WORD)
-                    high_byte = E1000_ICH8_NVM_SIG_MASK | high_byte;
+                if (i == E1000_ICH_NVM_SIG_WORD)
+                    high_byte = E1000_ICH_NVM_SIG_MASK | high_byte;
 
                 error = e1000_verify_write_ich8_byte(hw,
-                             (i << 1) + new_bank_offset + 1, high_byte);
+                            (i << 1) + new_bank_offset + 1, high_byte);
                 if (error != E1000_SUCCESS)
                     sector_write_failed = TRUE;
 
-                if (sector_write_failed == FALSE) {
-                    /* Clear the now not used entry in the cache */
-                    hw->eeprom_shadow_ram[i].modified = FALSE;
-                    hw->eeprom_shadow_ram[i].eeprom_word = 0xFFFF;
-                }
+            } else {
+                /* If the write failed then break from the loop and
+                 * return an error */
+                break;
+            }
+        }
+
+        /* Don't bother writing the segment valid bits if sector
+         * programming failed. */
+        if (sector_write_failed == FALSE) {
+            /* Finally validate the new segment by setting bit 15:14
+             * to 10b in word 0x13 , this can be done without an
+             * erase as well since these bits are 11 to start with
+             * and we need to change bit 14 to 0b */
+            e1000_read_ich8_byte(hw,
+                                 E1000_ICH_NVM_SIG_WORD * 2 + 1 + new_bank_offset,
+                                 &high_byte);
+            high_byte &= 0xBF;
+            error = e1000_verify_write_ich8_byte(hw,
+                        E1000_ICH_NVM_SIG_WORD * 2 + 1 + new_bank_offset, high_byte);
+            /* And invalidate the previously valid segment by setting
+             * its signature word (0x13) high_byte to 0b. This can be
+             * done without an erase because flash erase sets all bits
+             * to 1's. We can write 1's to 0's without an erase */
+            if (error == E1000_SUCCESS) {
+                error = e1000_verify_write_ich8_byte(hw,
+                            E1000_ICH_NVM_SIG_WORD * 2 + 1 + old_bank_offset, 0);
             }
 
-            /* Don't bother writing the segment valid bits if sector
-             * programming failed. */
-            if (sector_write_failed == FALSE) {
-                /* Finally validate the new segment by setting bit 15:14
-                 * to 10b in word 0x13 , this can be done without an
-                 * erase as well since these bits are 11 to start with
-                 * and we need to change bit 14 to 0b */
-                e1000_read_ich8_byte(hw,
-                    E1000_ICH8_NVM_SIG_WORD * 2 + 1 + new_bank_offset,
-                    &high_byte);
-                high_byte &= 0xBF;
-                error = e1000_verify_write_ich8_byte(hw,
-                            E1000_ICH8_NVM_SIG_WORD * 2 + 1 + new_bank_offset,
-                            high_byte);
-                if (error != E1000_SUCCESS)
-                    sector_write_failed = TRUE;
-
-                /* And invalidate the previously valid segment by setting
-                 * its signature word (0x13) high_byte to 0b. This can be
-                 * done without an erase because flash erase sets all bits
-                 * to 1's. We can write 1's to 0's without an erase */
-                error = e1000_verify_write_ich8_byte(hw,
-                            E1000_ICH8_NVM_SIG_WORD * 2 + 1 + old_bank_offset,
-                            0);
-                if (error != E1000_SUCCESS)
-                    sector_write_failed = TRUE;
+            /* Clear the now not used entry in the cache */
+            for (i = 0; i < E1000_SHADOW_RAM_WORDS; i++) {
+                hw->eeprom_shadow_ram[i].modified = FALSE;
+                hw->eeprom_shadow_ram[i].eeprom_word = 0xFFFF;
             }
-        } while (++sector_retries < 10 && sector_write_failed == TRUE);
+        }
     }
 
     return error;
@@ -5638,99 +5758,6 @@ e1000_init_rx_addrs(struct e1000_hw *hw)
         E1000_WRITE_FLUSH(hw);
     }
 }
-
-/******************************************************************************
- * Updates the MAC's list of multicast addresses.
- *
- * hw - Struct containing variables accessed by shared code
- * mc_addr_list - the list of new multicast addresses
- * mc_addr_count - number of addresses
- * pad - number of bytes between addresses in the list
- * rar_used_count - offset where to start adding mc addresses into the RAR's
- *
- * The given list replaces any existing list. Clears the last 15 receive
- * address registers and the multicast table. Uses receive address registers
- * for the first 15 multicast addresses, and hashes the rest into the
- * multicast table.
- *****************************************************************************/
-#if 0
-void
-e1000_mc_addr_list_update(struct e1000_hw *hw,
-                          uint8_t *mc_addr_list,
-                          uint32_t mc_addr_count,
-                          uint32_t pad,
-                          uint32_t rar_used_count)
-{
-    uint32_t hash_value;
-    uint32_t i;
-    uint32_t num_rar_entry;
-    uint32_t num_mta_entry;
-
-    DEBUGFUNC("e1000_mc_addr_list_update");
-
-    /* Set the new number of MC addresses that we are being requested to use. */
-    hw->num_mc_addrs = mc_addr_count;
-
-    /* Clear RAR[1-15] */
-    DEBUGOUT(" Clearing RAR[1-15]\n");
-    num_rar_entry = E1000_RAR_ENTRIES;
-    if (hw->mac_type == e1000_ich8lan)
-        num_rar_entry = E1000_RAR_ENTRIES_ICH8LAN;
-    /* Reserve a spot for the Locally Administered Address to work around
-     * an 82571 issue in which a reset on one port will reload the MAC on
-     * the other port. */
-    if ((hw->mac_type == e1000_82571) && (hw->laa_is_present == TRUE))
-        num_rar_entry -= 1;
-
-    for (i = rar_used_count; i < num_rar_entry; i++) {
-        E1000_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
-        E1000_WRITE_FLUSH(hw);
-        E1000_WRITE_REG_ARRAY(hw, RA, ((i << 1) + 1), 0);
-        E1000_WRITE_FLUSH(hw);
-    }
-
-    /* Clear the MTA */
-    DEBUGOUT(" Clearing MTA\n");
-    num_mta_entry = E1000_NUM_MTA_REGISTERS;
-    if (hw->mac_type == e1000_ich8lan)
-        num_mta_entry = E1000_NUM_MTA_REGISTERS_ICH8LAN;
-    for (i = 0; i < num_mta_entry; i++) {
-        E1000_WRITE_REG_ARRAY(hw, MTA, i, 0);
-        E1000_WRITE_FLUSH(hw);
-    }
-
-    /* Add the new addresses */
-    for (i = 0; i < mc_addr_count; i++) {
-        DEBUGOUT(" Adding the multicast addresses:\n");
-        DEBUGOUT7(" MC Addr #%d =%.2X %.2X %.2X %.2X %.2X %.2X\n", i,
-                  mc_addr_list[i * (ETH_LENGTH_OF_ADDRESS + pad)],
-                  mc_addr_list[i * (ETH_LENGTH_OF_ADDRESS + pad) + 1],
-                  mc_addr_list[i * (ETH_LENGTH_OF_ADDRESS + pad) + 2],
-                  mc_addr_list[i * (ETH_LENGTH_OF_ADDRESS + pad) + 3],
-                  mc_addr_list[i * (ETH_LENGTH_OF_ADDRESS + pad) + 4],
-                  mc_addr_list[i * (ETH_LENGTH_OF_ADDRESS + pad) + 5]);
-
-        hash_value = e1000_hash_mc_addr(hw,
-                                        mc_addr_list +
-                                        (i * (ETH_LENGTH_OF_ADDRESS + pad)));
-
-        DEBUGOUT1(" Hash value = 0x%03X\n", hash_value);
-
-        /* Place this multicast address in the RAR if there is room, *
-         * else put it in the MTA
-         */
-        if (rar_used_count < num_rar_entry) {
-            e1000_rar_set(hw,
-                          mc_addr_list + (i * (ETH_LENGTH_OF_ADDRESS + pad)),
-                          rar_used_count);
-            rar_used_count++;
-        } else {
-            e1000_mta_set(hw, hash_value);
-        }
-    }
-    DEBUGOUT("MC Update Complete\n");
-}
-#endif  /*  0  */
 
 /******************************************************************************
  * Hashes an address to determine its location in the multicast table
@@ -5822,6 +5849,7 @@ e1000_mta_set(struct e1000_hw *hw,
     hash_reg = (hash_value >> 5) & 0x7F;
     if (hw->mac_type == e1000_ich8lan)
         hash_reg &= 0x1F;
+
     hash_bit = hash_value & 0x1F;
 
     mta = E1000_READ_REG_ARRAY(hw, MTA, hash_reg);
@@ -6007,6 +6035,7 @@ e1000_id_led_init(struct e1000_hw * hw)
         else
             eeprom_data = ID_LED_DEFAULT;
     }
+
     for (i = 0; i < 4; i++) {
         temp = (eeprom_data >> (i << 2)) & led_mask;
         switch (temp) {
@@ -6290,7 +6319,7 @@ e1000_led_off(struct e1000_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-void
+static void
 e1000_clear_hw_cntrs(struct e1000_hw *hw)
 {
     volatile uint32_t temp;
@@ -6539,6 +6568,8 @@ e1000_tbi_adjust_stats(struct e1000_hw *hw,
 void
 e1000_get_bus_info(struct e1000_hw *hw)
 {
+    int32_t ret_val;
+    uint16_t pci_ex_link_status;
     uint32_t status;
 
     switch (hw->mac_type) {
@@ -6548,18 +6579,25 @@ e1000_get_bus_info(struct e1000_hw *hw)
         hw->bus_speed = e1000_bus_speed_unknown;
         hw->bus_width = e1000_bus_width_unknown;
         break;
+    case e1000_82571:
     case e1000_82572:
     case e1000_82573:
-        hw->bus_type = e1000_bus_type_pci_express;
-        hw->bus_speed = e1000_bus_speed_2500;
-        hw->bus_width = e1000_bus_width_pciex_1;
-        break;
-    case e1000_82571:
-    case e1000_ich8lan:
     case e1000_80003es2lan:
         hw->bus_type = e1000_bus_type_pci_express;
         hw->bus_speed = e1000_bus_speed_2500;
-        hw->bus_width = e1000_bus_width_pciex_4;
+        ret_val = e1000_read_pcie_cap_reg(hw,
+                                      PCI_EX_LINK_STATUS,
+                                      &pci_ex_link_status);
+        if (ret_val)
+            hw->bus_width = e1000_bus_width_unknown;
+        else
+            hw->bus_width = (pci_ex_link_status & PCI_EX_LINK_WIDTH_MASK) >>
+                          PCI_EX_LINK_WIDTH_SHIFT;
+        break;
+    case e1000_ich8lan:
+        hw->bus_type = e1000_bus_type_pci_express;
+        hw->bus_speed = e1000_bus_speed_2500;
+        hw->bus_width = e1000_bus_width_pciex_1;
         break;
     default:
         status = E1000_READ_REG(hw, STATUS);
@@ -6593,25 +6631,6 @@ e1000_get_bus_info(struct e1000_hw *hw)
         break;
     }
 }
-/******************************************************************************
- * Reads a value from one of the devices registers using port I/O (as opposed
- * memory mapped I/O). Only 82544 and newer devices support port I/O.
- *
- * hw - Struct containing variables accessed by shared code
- * offset - offset to read from
- *****************************************************************************/
-#if 0
-uint32_t
-e1000_read_reg_io(struct e1000_hw *hw,
-                  uint32_t offset)
-{
-    unsigned long io_addr = hw->io_base;
-    unsigned long io_data = hw->io_base + 4;
-
-    e1000_io_write(hw, io_addr, offset);
-    return e1000_io_read(hw, io_data);
-}
-#endif  /*  0  */
 
 /******************************************************************************
  * Writes a value to one of the devices registers using port I/O (as opposed to
@@ -6632,7 +6651,6 @@ e1000_write_reg_io(struct e1000_hw *hw,
     e1000_io_write(hw, io_addr, offset);
     e1000_io_write(hw, io_data, value);
 }
-
 
 /******************************************************************************
  * Estimates the cable length.
@@ -6842,7 +6860,7 @@ e1000_get_cable_length(struct e1000_hw *hw,
  *****************************************************************************/
 static int32_t
 e1000_check_polarity(struct e1000_hw *hw,
-                     uint16_t *polarity)
+                     e1000_rev_polarity *polarity)
 {
     int32_t ret_val;
     uint16_t phy_data;
@@ -6856,8 +6874,10 @@ e1000_check_polarity(struct e1000_hw *hw,
                                      &phy_data);
         if (ret_val)
             return ret_val;
-        *polarity = (phy_data & M88E1000_PSSR_REV_POLARITY) >>
-                    M88E1000_PSSR_REV_POLARITY_SHIFT;
+        *polarity = ((phy_data & M88E1000_PSSR_REV_POLARITY) >>
+                     M88E1000_PSSR_REV_POLARITY_SHIFT) ?
+                     e1000_rev_polarity_reversed : e1000_rev_polarity_normal;
+
     } else if (hw->phy_type == e1000_phy_igp ||
               hw->phy_type == e1000_phy_igp_3 ||
               hw->phy_type == e1000_phy_igp_2) {
@@ -6879,19 +6899,22 @@ e1000_check_polarity(struct e1000_hw *hw,
                 return ret_val;
 
             /* Check the polarity bits */
-            *polarity = (phy_data & IGP01E1000_PHY_POLARITY_MASK) ? 1 : 0;
+            *polarity = (phy_data & IGP01E1000_PHY_POLARITY_MASK) ?
+                         e1000_rev_polarity_reversed : e1000_rev_polarity_normal;
         } else {
             /* For 10 Mbps, read the polarity bit in the status register. (for
              * 100 Mbps this bit is always 0) */
-            *polarity = phy_data & IGP01E1000_PSSR_POLARITY_REVERSED;
+            *polarity = (phy_data & IGP01E1000_PSSR_POLARITY_REVERSED) ?
+                         e1000_rev_polarity_reversed : e1000_rev_polarity_normal;
         }
     } else if (hw->phy_type == e1000_phy_ife) {
         ret_val = e1000_read_phy_reg(hw, IFE_PHY_EXTENDED_STATUS_CONTROL,
                                      &phy_data);
         if (ret_val)
             return ret_val;
-        *polarity = (phy_data & IFE_PESC_POLARITY_REVERSED) >>
-                           IFE_PESC_POLARITY_REVERSED_SHIFT;
+        *polarity = ((phy_data & IFE_PESC_POLARITY_REVERSED) >>
+                     IFE_PESC_POLARITY_REVERSED_SHIFT) ?
+                     e1000_rev_polarity_reversed : e1000_rev_polarity_normal;
     }
     return E1000_SUCCESS;
 }
@@ -7259,7 +7282,7 @@ e1000_set_d3_lplu_state(struct e1000_hw *hw,
         } else if (hw->smart_speed == e1000_smart_speed_off) {
             ret_val = e1000_read_phy_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
                                          &phy_data);
-	    if (ret_val)
+            if (ret_val)
                 return ret_val;
 
             phy_data &= ~IGP01E1000_PSCFR_SMART_SPEED;
@@ -7369,7 +7392,7 @@ e1000_set_d0_lplu_state(struct e1000_hw *hw,
         } else if (hw->smart_speed == e1000_smart_speed_off) {
             ret_val = e1000_read_phy_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
                                          &phy_data);
-	    if (ret_val)
+            if (ret_val)
                 return ret_val;
 
             phy_data &= ~IGP01E1000_PSCFR_SMART_SPEED;
@@ -7475,7 +7498,7 @@ e1000_set_vco_speed(struct e1000_hw *hw)
  *
  * returns: - E1000_SUCCESS .
  ****************************************************************************/
-int32_t
+static int32_t
 e1000_host_if_read_cookie(struct e1000_hw * hw, uint8_t *buffer)
 {
     uint8_t i;
@@ -7686,7 +7709,7 @@ e1000_check_mng_mode(struct e1000_hw *hw)
  ****************************************************************************/
 int32_t
 e1000_mng_write_dhcp_info(struct e1000_hw * hw, uint8_t *buffer,
-			  uint16_t length)
+                          uint16_t length)
 {
     int32_t ret_val;
     struct e1000_host_mng_command_header hdr;
@@ -7716,7 +7739,7 @@ e1000_mng_write_dhcp_info(struct e1000_hw * hw, uint8_t *buffer,
  *
  * returns  - checksum of buffer contents.
  ****************************************************************************/
-uint8_t
+static uint8_t
 e1000_calculate_mng_checksum(char *buffer, uint32_t length)
 {
     uint8_t sum = 0;
@@ -7914,32 +7937,6 @@ e1000_set_pci_express_master_disable(struct e1000_hw *hw)
     E1000_WRITE_REG(hw, CTRL, ctrl);
 }
 
-/***************************************************************************
- *
- * Enables PCI-Express master access.
- *
- * hw: Struct containing variables accessed by shared code
- *
- * returns: - none.
- *
- ***************************************************************************/
-#if 0
-void
-e1000_enable_pciex_master(struct e1000_hw *hw)
-{
-    uint32_t ctrl;
-
-    DEBUGFUNC("e1000_enable_pciex_master");
-
-    if (hw->bus_type != e1000_bus_type_pci_express)
-        return;
-
-    ctrl = E1000_READ_REG(hw, CTRL);
-    ctrl &= ~E1000_CTRL_GIO_MASTER_DISABLE;
-    E1000_WRITE_REG(hw, CTRL, ctrl);
-}
-#endif  /*  0  */
-
 /*******************************************************************************
  *
  * Disables PCI-Express master access and verifies there are no pending requests
@@ -8063,7 +8060,6 @@ e1000_get_phy_cfg_done(struct e1000_hw *hw)
                 msleep(1);
             timeout--;
         }
-
         if (!timeout) {
             DEBUGOUT("MNG configuration cycle has not completed.\n");
             return -E1000_ERR_RESET;
@@ -8172,8 +8168,9 @@ e1000_get_software_semaphore(struct e1000_hw *hw)
 
     DEBUGFUNC("e1000_get_software_semaphore");
 
-    if (hw->mac_type != e1000_80003es2lan)
+    if (hw->mac_type != e1000_80003es2lan) {
         return E1000_SUCCESS;
+    }
 
     while (timeout) {
         swsm = E1000_READ_REG(hw, SWSM);
@@ -8206,8 +8203,9 @@ e1000_release_software_semaphore(struct e1000_hw *hw)
 
     DEBUGFUNC("e1000_release_software_semaphore");
 
-    if (hw->mac_type != e1000_80003es2lan)
+    if (hw->mac_type != e1000_80003es2lan) {
         return;
+    }
 
     swsm = E1000_READ_REG(hw, SWSM);
     /* Release the SW semaphores.*/
@@ -8241,7 +8239,7 @@ e1000_check_phy_reset_block(struct e1000_hw *hw)
     if (hw->mac_type > e1000_82547_rev_2)
         manc = E1000_READ_REG(hw, MANC);
     return (manc & E1000_MANC_BLK_PHY_RST_ON_IDE) ?
-	    E1000_BLK_PHY_RESET : E1000_SUCCESS;
+        E1000_BLK_PHY_RESET : E1000_SUCCESS;
 }
 
 static uint8_t
@@ -8377,66 +8375,6 @@ e1000_release_software_flag(struct e1000_hw *hw)
     return;
 }
 
-/***************************************************************************
- *
- * Disable dynamic power down mode in ife PHY.
- * It can be used to workaround band-gap problem.
- *
- * hw: Struct containing variables accessed by shared code
- *
- ***************************************************************************/
-#if 0
-int32_t
-e1000_ife_disable_dynamic_power_down(struct e1000_hw *hw)
-{
-    uint16_t phy_data;
-    int32_t ret_val = E1000_SUCCESS;
-
-    DEBUGFUNC("e1000_ife_disable_dynamic_power_down");
-
-    if (hw->phy_type == e1000_phy_ife) {
-        ret_val = e1000_read_phy_reg(hw, IFE_PHY_SPECIAL_CONTROL, &phy_data);
-        if (ret_val)
-            return ret_val;
-
-        phy_data |=  IFE_PSC_DISABLE_DYNAMIC_POWER_DOWN;
-        ret_val = e1000_write_phy_reg(hw, IFE_PHY_SPECIAL_CONTROL, phy_data);
-    }
-
-    return ret_val;
-}
-#endif  /*  0  */
-
-/***************************************************************************
- *
- * Enable dynamic power down mode in ife PHY.
- * It can be used to workaround band-gap problem.
- *
- * hw: Struct containing variables accessed by shared code
- *
- ***************************************************************************/
-#if 0
-int32_t
-e1000_ife_enable_dynamic_power_down(struct e1000_hw *hw)
-{
-    uint16_t phy_data;
-    int32_t ret_val = E1000_SUCCESS;
-
-    DEBUGFUNC("e1000_ife_enable_dynamic_power_down");
-
-    if (hw->phy_type == e1000_phy_ife) {
-        ret_val = e1000_read_phy_reg(hw, IFE_PHY_SPECIAL_CONTROL, &phy_data);
-        if (ret_val)
-            return ret_val;
-
-        phy_data &=  ~IFE_PSC_DISABLE_DYNAMIC_POWER_DOWN;
-        ret_val = e1000_write_phy_reg(hw, IFE_PHY_SPECIAL_CONTROL, phy_data);
-    }
-
-    return ret_val;
-}
-#endif  /*  0  */
-
 /******************************************************************************
  * Reads a 16 bit word or words from the EEPROM using the ICH8's flash access
  * register.
@@ -8558,7 +8496,7 @@ e1000_ich8_cycle_init(struct e1000_hw *hw)
 
     DEBUGFUNC("e1000_ich8_cycle_init");
 
-    hsfsts.regval = E1000_READ_ICH8_REG16(hw, ICH8_FLASH_HSFSTS);
+    hsfsts.regval = E1000_READ_ICH_FLASH_REG16(hw, ICH_FLASH_HSFSTS);
 
     /* May be check the Flash Des Valid bit in Hw status */
     if (hsfsts.hsf_status.fldesvalid == 0) {
@@ -8571,7 +8509,7 @@ e1000_ich8_cycle_init(struct e1000_hw *hw)
     hsfsts.hsf_status.flcerr = 1;
     hsfsts.hsf_status.dael = 1;
 
-    E1000_WRITE_ICH8_REG16(hw, ICH8_FLASH_HSFSTS, hsfsts.regval);
+    E1000_WRITE_ICH_FLASH_REG16(hw, ICH_FLASH_HSFSTS, hsfsts.regval);
 
     /* Either we should have a hardware SPI cycle in progress bit to check
      * against, in order to start a new cycle or FDONE bit should be changed
@@ -8586,13 +8524,13 @@ e1000_ich8_cycle_init(struct e1000_hw *hw)
         /* There is no cycle running at present, so we can start a cycle */
         /* Begin by setting Flash Cycle Done. */
         hsfsts.hsf_status.flcdone = 1;
-        E1000_WRITE_ICH8_REG16(hw, ICH8_FLASH_HSFSTS, hsfsts.regval);
+        E1000_WRITE_ICH_FLASH_REG16(hw, ICH_FLASH_HSFSTS, hsfsts.regval);
         error = E1000_SUCCESS;
     } else {
         /* otherwise poll for sometime so the current cycle has a chance
          * to end before giving up. */
-        for (i = 0; i < ICH8_FLASH_COMMAND_TIMEOUT; i++) {
-            hsfsts.regval = E1000_READ_ICH8_REG16(hw, ICH8_FLASH_HSFSTS);
+        for (i = 0; i < ICH_FLASH_COMMAND_TIMEOUT; i++) {
+            hsfsts.regval = E1000_READ_ICH_FLASH_REG16(hw, ICH_FLASH_HSFSTS);
             if (hsfsts.hsf_status.flcinprog == 0) {
                 error = E1000_SUCCESS;
                 break;
@@ -8603,7 +8541,7 @@ e1000_ich8_cycle_init(struct e1000_hw *hw)
             /* Successful in waiting for previous cycle to timeout,
              * now set the Flash Cycle Done. */
             hsfsts.hsf_status.flcdone = 1;
-            E1000_WRITE_ICH8_REG16(hw, ICH8_FLASH_HSFSTS, hsfsts.regval);
+            E1000_WRITE_ICH_FLASH_REG16(hw, ICH_FLASH_HSFSTS, hsfsts.regval);
         } else {
             DEBUGOUT("Flash controller busy, cannot get access");
         }
@@ -8625,13 +8563,13 @@ e1000_ich8_flash_cycle(struct e1000_hw *hw, uint32_t timeout)
     uint32_t i = 0;
 
     /* Start a cycle by writing 1 in Flash Cycle Go in Hw Flash Control */
-    hsflctl.regval = E1000_READ_ICH8_REG16(hw, ICH8_FLASH_HSFCTL);
+    hsflctl.regval = E1000_READ_ICH_FLASH_REG16(hw, ICH_FLASH_HSFCTL);
     hsflctl.hsf_ctrl.flcgo = 1;
-    E1000_WRITE_ICH8_REG16(hw, ICH8_FLASH_HSFCTL, hsflctl.regval);
+    E1000_WRITE_ICH_FLASH_REG16(hw, ICH_FLASH_HSFCTL, hsflctl.regval);
 
     /* wait till FDONE bit is set to 1 */
     do {
-        hsfsts.regval = E1000_READ_ICH8_REG16(hw, ICH8_FLASH_HSFSTS);
+        hsfsts.regval = E1000_READ_ICH_FLASH_REG16(hw, ICH_FLASH_HSFSTS);
         if (hsfsts.hsf_status.flcdone == 1)
             break;
         udelay(1);
@@ -8665,10 +8603,10 @@ e1000_read_ich8_data(struct e1000_hw *hw, uint32_t index,
     DEBUGFUNC("e1000_read_ich8_data");
 
     if (size < 1  || size > 2 || data == 0x0 ||
-        index > ICH8_FLASH_LINEAR_ADDR_MASK)
+        index > ICH_FLASH_LINEAR_ADDR_MASK)
         return error;
 
-    flash_linear_address = (ICH8_FLASH_LINEAR_ADDR_MASK & index) +
+    flash_linear_address = (ICH_FLASH_LINEAR_ADDR_MASK & index) +
                            hw->flash_base_addr;
 
     do {
@@ -8678,25 +8616,25 @@ e1000_read_ich8_data(struct e1000_hw *hw, uint32_t index,
         if (error != E1000_SUCCESS)
             break;
 
-        hsflctl.regval = E1000_READ_ICH8_REG16(hw, ICH8_FLASH_HSFCTL);
+        hsflctl.regval = E1000_READ_ICH_FLASH_REG16(hw, ICH_FLASH_HSFCTL);
         /* 0b/1b corresponds to 1 or 2 byte size, respectively. */
         hsflctl.hsf_ctrl.fldbcount = size - 1;
-        hsflctl.hsf_ctrl.flcycle = ICH8_CYCLE_READ;
-        E1000_WRITE_ICH8_REG16(hw, ICH8_FLASH_HSFCTL, hsflctl.regval);
+        hsflctl.hsf_ctrl.flcycle = ICH_CYCLE_READ;
+        E1000_WRITE_ICH_FLASH_REG16(hw, ICH_FLASH_HSFCTL, hsflctl.regval);
 
         /* Write the last 24 bits of index into Flash Linear address field in
          * Flash Address */
         /* TODO: TBD maybe check the index against the size of flash */
 
-        E1000_WRITE_ICH8_REG(hw, ICH8_FLASH_FADDR, flash_linear_address);
+        E1000_WRITE_ICH_FLASH_REG(hw, ICH_FLASH_FADDR, flash_linear_address);
 
-        error = e1000_ich8_flash_cycle(hw, ICH8_FLASH_COMMAND_TIMEOUT);
+        error = e1000_ich8_flash_cycle(hw, ICH_FLASH_COMMAND_TIMEOUT);
 
         /* Check if FCERR is set to 1, if set to 1, clear it and try the whole
          * sequence a few more times, else read in (shift in) the Flash Data0,
          * the order is least significant byte first msb to lsb */
         if (error == E1000_SUCCESS) {
-            flash_data = E1000_READ_ICH8_REG(hw, ICH8_FLASH_FDATA0);
+            flash_data = E1000_READ_ICH_FLASH_REG(hw, ICH_FLASH_FDATA0);
             if (size == 1) {
                 *data = (uint8_t)(flash_data & 0x000000FF);
             } else if (size == 2) {
@@ -8706,9 +8644,9 @@ e1000_read_ich8_data(struct e1000_hw *hw, uint32_t index,
         } else {
             /* If we've gotten here, then things are probably completely hosed,
              * but if the error condition is detected, it won't hurt to give
-             * it another try...ICH8_FLASH_CYCLE_REPEAT_COUNT times.
+             * it another try...ICH_FLASH_CYCLE_REPEAT_COUNT times.
              */
-            hsfsts.regval = E1000_READ_ICH8_REG16(hw, ICH8_FLASH_HSFSTS);
+            hsfsts.regval = E1000_READ_ICH_FLASH_REG16(hw, ICH_FLASH_HSFSTS);
             if (hsfsts.hsf_status.flcerr == 1) {
                 /* Repeat for some time before giving up. */
                 continue;
@@ -8717,7 +8655,7 @@ e1000_read_ich8_data(struct e1000_hw *hw, uint32_t index,
                 break;
             }
         }
-    } while (count++ < ICH8_FLASH_CYCLE_REPEAT_COUNT);
+    } while (count++ < ICH_FLASH_CYCLE_REPEAT_COUNT);
 
     return error;
 }
@@ -8744,10 +8682,10 @@ e1000_write_ich8_data(struct e1000_hw *hw, uint32_t index, uint32_t size,
     DEBUGFUNC("e1000_write_ich8_data");
 
     if (size < 1  || size > 2 || data > size * 0xff ||
-        index > ICH8_FLASH_LINEAR_ADDR_MASK)
+        index > ICH_FLASH_LINEAR_ADDR_MASK)
         return error;
 
-    flash_linear_address = (ICH8_FLASH_LINEAR_ADDR_MASK & index) +
+    flash_linear_address = (ICH_FLASH_LINEAR_ADDR_MASK & index) +
                            hw->flash_base_addr;
 
     do {
@@ -8757,34 +8695,34 @@ e1000_write_ich8_data(struct e1000_hw *hw, uint32_t index, uint32_t size,
         if (error != E1000_SUCCESS)
             break;
 
-        hsflctl.regval = E1000_READ_ICH8_REG16(hw, ICH8_FLASH_HSFCTL);
+        hsflctl.regval = E1000_READ_ICH_FLASH_REG16(hw, ICH_FLASH_HSFCTL);
         /* 0b/1b corresponds to 1 or 2 byte size, respectively. */
         hsflctl.hsf_ctrl.fldbcount = size -1;
-        hsflctl.hsf_ctrl.flcycle = ICH8_CYCLE_WRITE;
-        E1000_WRITE_ICH8_REG16(hw, ICH8_FLASH_HSFCTL, hsflctl.regval);
+        hsflctl.hsf_ctrl.flcycle = ICH_CYCLE_WRITE;
+        E1000_WRITE_ICH_FLASH_REG16(hw, ICH_FLASH_HSFCTL, hsflctl.regval);
 
         /* Write the last 24 bits of index into Flash Linear address field in
          * Flash Address */
-        E1000_WRITE_ICH8_REG(hw, ICH8_FLASH_FADDR, flash_linear_address);
+        E1000_WRITE_ICH_FLASH_REG(hw, ICH_FLASH_FADDR, flash_linear_address);
 
         if (size == 1)
             flash_data = (uint32_t)data & 0x00FF;
         else
             flash_data = (uint32_t)data;
 
-        E1000_WRITE_ICH8_REG(hw, ICH8_FLASH_FDATA0, flash_data);
+        E1000_WRITE_ICH_FLASH_REG(hw, ICH_FLASH_FDATA0, flash_data);
 
         /* check if FCERR is set to 1 , if set to 1, clear it and try the whole
          * sequence a few more times else done */
-        error = e1000_ich8_flash_cycle(hw, ICH8_FLASH_COMMAND_TIMEOUT);
+        error = e1000_ich8_flash_cycle(hw, ICH_FLASH_COMMAND_TIMEOUT);
         if (error == E1000_SUCCESS) {
             break;
         } else {
             /* If we're here, then things are most likely completely hosed,
              * but if the error condition is detected, it won't hurt to give
-             * it another try...ICH8_FLASH_CYCLE_REPEAT_COUNT times.
+             * it another try...ICH_FLASH_CYCLE_REPEAT_COUNT times.
              */
-            hsfsts.regval = E1000_READ_ICH8_REG16(hw, ICH8_FLASH_HSFSTS);
+            hsfsts.regval = E1000_READ_ICH_FLASH_REG16(hw, ICH_FLASH_HSFSTS);
             if (hsfsts.hsf_status.flcerr == 1) {
                 /* Repeat for some time before giving up. */
                 continue;
@@ -8793,7 +8731,7 @@ e1000_write_ich8_data(struct e1000_hw *hw, uint32_t index, uint32_t size,
                 break;
             }
         }
-    } while (count++ < ICH8_FLASH_CYCLE_REPEAT_COUNT);
+    } while (count++ < ICH_FLASH_CYCLE_REPEAT_COUNT);
 
     return error;
 }
@@ -8832,20 +8770,22 @@ static int32_t
 e1000_verify_write_ich8_byte(struct e1000_hw *hw, uint32_t index, uint8_t byte)
 {
     int32_t error = E1000_SUCCESS;
-    int32_t program_retries;
-    uint8_t temp_byte;
+    int32_t program_retries = 0;
 
-    e1000_write_ich8_byte(hw, index, byte);
-    udelay(100);
+    DEBUGOUT2("Byte := %2.2X Offset := %d\n", byte, index);
 
-    for (program_retries = 0; program_retries < 100; program_retries++) {
-        e1000_read_ich8_byte(hw, index, &temp_byte);
-        if (temp_byte == byte)
-            break;
-        udelay(10);
-        e1000_write_ich8_byte(hw, index, byte);
-        udelay(100);
+    error = e1000_write_ich8_byte(hw, index, byte);
+
+    if (error != E1000_SUCCESS) {
+        for (program_retries = 0; program_retries < 100; program_retries++) {
+            DEBUGOUT2("Retrying \t Byte := %2.2X Offset := %d\n", byte, index);
+            error = e1000_write_ich8_byte(hw, index, byte);
+            udelay(100);
+            if (error == E1000_SUCCESS)
+                break;
+        }
     }
+
     if (program_retries == 100)
         error = E1000_ERR_EEPROM;
 
@@ -8886,63 +8826,51 @@ e1000_read_ich8_word(struct e1000_hw *hw, uint32_t index, uint16_t *data)
 }
 
 /******************************************************************************
- * Writes a word to the NVM using the ICH8 flash access registers.
+ * Erases the bank specified. Each bank may be a 4, 8 or 64k block. Banks are 0
+ * based.
  *
  * hw - pointer to e1000_hw structure
- * index - The starting byte index of the word to read.
- * data - The word to write to the NVM.
+ * bank - 0 for first bank, 1 for second bank
+ *
+ * Note that this function may actually erase as much as 8 or 64 KBytes.  The
+ * amount of NVM used in each bank is a *minimum* of 4 KBytes, but in fact the
+ * bank size may be 4, 8 or 64 KBytes
  *****************************************************************************/
-#if 0
 int32_t
-e1000_write_ich8_word(struct e1000_hw *hw, uint32_t index, uint16_t data)
-{
-    int32_t status = E1000_SUCCESS;
-    status = e1000_write_ich8_data(hw, index, 2, data);
-    return status;
-}
-#endif  /*  0  */
-
-/******************************************************************************
- * Erases the bank specified. Each bank is a 4k block. Segments are 0 based.
- * segment N is 4096 * N + flash_reg_addr.
- *
- * hw - pointer to e1000_hw structure
- * segment - 0 for first segment, 1 for second segment, etc.
- *****************************************************************************/
-static int32_t
-e1000_erase_ich8_4k_segment(struct e1000_hw *hw, uint32_t segment)
+e1000_erase_ich8_4k_segment(struct e1000_hw *hw, uint32_t bank)
 {
     union ich8_hws_flash_status hsfsts;
     union ich8_hws_flash_ctrl hsflctl;
     uint32_t flash_linear_address;
     int32_t  count = 0;
     int32_t  error = E1000_ERR_EEPROM;
-    int32_t  iteration, seg_size;
-    int32_t  sector_size;
+    int32_t  iteration;
+    int32_t  sub_sector_size = 0;
+    int32_t  bank_size;
     int32_t  j = 0;
     int32_t  error_flag = 0;
 
-    hsfsts.regval = E1000_READ_ICH8_REG16(hw, ICH8_FLASH_HSFSTS);
+    hsfsts.regval = E1000_READ_ICH_FLASH_REG16(hw, ICH_FLASH_HSFSTS);
 
     /* Determine HW Sector size: Read BERASE bits of Hw flash Status register */
     /* 00: The Hw sector is 256 bytes, hence we need to erase 16
      *     consecutive sectors.  The start index for the nth Hw sector can be
-     *     calculated as = segment * 4096 + n * 256
+     *     calculated as bank * 4096 + n * 256
      * 01: The Hw sector is 4K bytes, hence we need to erase 1 sector.
      *     The start index for the nth Hw sector can be calculated
-     *     as = segment * 4096
-     * 10: Error condition
-     * 11: The Hw sector size is much bigger than the size asked to
-     *     erase...error condition */
+     *     as bank * 4096
+     * 10: The HW sector is 8K bytes
+     * 11: The Hw sector size is 64K bytes */
     if (hsfsts.hsf_status.berasesz == 0x0) {
         /* Hw sector size 256 */
-        sector_size = seg_size = ICH8_FLASH_SEG_SIZE_256;
-        iteration = ICH8_FLASH_SECTOR_SIZE / ICH8_FLASH_SEG_SIZE_256;
+        sub_sector_size = ICH_FLASH_SEG_SIZE_256;
+        bank_size = ICH_FLASH_SECTOR_SIZE;
+        iteration = ICH_FLASH_SECTOR_SIZE / ICH_FLASH_SEG_SIZE_256;
     } else if (hsfsts.hsf_status.berasesz == 0x1) {
-        sector_size = seg_size = ICH8_FLASH_SEG_SIZE_4K;
+        bank_size = ICH_FLASH_SEG_SIZE_4K;
         iteration = 1;
     } else if (hsfsts.hsf_status.berasesz == 0x3) {
-        sector_size = seg_size = ICH8_FLASH_SEG_SIZE_64K;
+        bank_size = ICH_FLASH_SEG_SIZE_64K;
         iteration = 1;
     } else {
         return error;
@@ -8960,28 +8888,27 @@ e1000_erase_ich8_4k_segment(struct e1000_hw *hw, uint32_t segment)
 
             /* Write a value 11 (block Erase) in Flash Cycle field in Hw flash
              * Control */
-            hsflctl.regval = E1000_READ_ICH8_REG16(hw, ICH8_FLASH_HSFCTL);
-            hsflctl.hsf_ctrl.flcycle = ICH8_CYCLE_ERASE;
-            E1000_WRITE_ICH8_REG16(hw, ICH8_FLASH_HSFCTL, hsflctl.regval);
+            hsflctl.regval = E1000_READ_ICH_FLASH_REG16(hw, ICH_FLASH_HSFCTL);
+            hsflctl.hsf_ctrl.flcycle = ICH_CYCLE_ERASE;
+            E1000_WRITE_ICH_FLASH_REG16(hw, ICH_FLASH_HSFCTL, hsflctl.regval);
 
             /* Write the last 24 bits of an index within the block into Flash
              * Linear address field in Flash Address.  This probably needs to
-             * be calculated here based off the on-chip segment size and the
-             * software segment size assumed (4K) */
-            /* TBD */
-            flash_linear_address = segment * sector_size + j * seg_size;
-            flash_linear_address &= ICH8_FLASH_LINEAR_ADDR_MASK;
+             * be calculated here based off the on-chip erase sector size and
+             * the software bank size (4, 8 or 64 KBytes) */
+            flash_linear_address = bank * bank_size + j * sub_sector_size;
             flash_linear_address += hw->flash_base_addr;
+            flash_linear_address &= ICH_FLASH_LINEAR_ADDR_MASK;
 
-            E1000_WRITE_ICH8_REG(hw, ICH8_FLASH_FADDR, flash_linear_address);
+            E1000_WRITE_ICH_FLASH_REG(hw, ICH_FLASH_FADDR, flash_linear_address);
 
-            error = e1000_ich8_flash_cycle(hw, 1000000);
+            error = e1000_ich8_flash_cycle(hw, ICH_FLASH_ERASE_TIMEOUT);
             /* Check if FCERR is set to 1.  If 1, clear it and try the whole
              * sequence a few more times else Done */
             if (error == E1000_SUCCESS) {
                 break;
             } else {
-                hsfsts.regval = E1000_READ_ICH8_REG16(hw, ICH8_FLASH_HSFSTS);
+                hsfsts.regval = E1000_READ_ICH_FLASH_REG16(hw, ICH_FLASH_HSFSTS);
                 if (hsfsts.hsf_status.flcerr == 1) {
                     /* repeat for some time before giving up */
                     continue;
@@ -8990,7 +8917,7 @@ e1000_erase_ich8_4k_segment(struct e1000_hw *hw, uint32_t segment)
                     break;
                 }
             }
-        } while ((count < ICH8_FLASH_CYCLE_REPEAT_COUNT) && !error_flag);
+        } while ((count < ICH_FLASH_CYCLE_REPEAT_COUNT) && !error_flag);
         if (error_flag == 1)
             break;
     }
@@ -8998,44 +8925,6 @@ e1000_erase_ich8_4k_segment(struct e1000_hw *hw, uint32_t segment)
         error = E1000_SUCCESS;
     return error;
 }
-
-/******************************************************************************
- *
- * Reverse duplex setting without breaking the link.
- *
- * hw: Struct containing variables accessed by shared code
- *
- *****************************************************************************/
-#if 0
-int32_t
-e1000_duplex_reversal(struct e1000_hw *hw)
-{
-    int32_t ret_val;
-    uint16_t phy_data;
-
-    if (hw->phy_type != e1000_phy_igp_3)
-        return E1000_SUCCESS;
-
-    ret_val = e1000_read_phy_reg(hw, PHY_CTRL, &phy_data);
-    if (ret_val)
-        return ret_val;
-
-    phy_data ^= MII_CR_FULL_DUPLEX;
-
-    ret_val = e1000_write_phy_reg(hw, PHY_CTRL, phy_data);
-    if (ret_val)
-        return ret_val;
-
-    ret_val = e1000_read_phy_reg(hw, IGP3E1000_PHY_MISC_CTRL, &phy_data);
-    if (ret_val)
-        return ret_val;
-
-    phy_data |= IGP3_PHY_MISC_DUPLEX_MANUAL_SET;
-    ret_val = e1000_write_phy_reg(hw, IGP3E1000_PHY_MISC_CTRL, phy_data);
-
-    return ret_val;
-}
-#endif  /*  0  */
 
 static int32_t
 e1000_init_lcd_from_nvm_config_region(struct e1000_hw *hw,
@@ -9071,6 +8960,14 @@ e1000_init_lcd_from_nvm_config_region(struct e1000_hw *hw,
 }
 
 
+/******************************************************************************
+ * This function initializes the PHY from the NVM on ICH8 platforms. This
+ * is needed due to an issue where the NVM configuration is not properly
+ * autoloaded after power transitions. Therefore, after each PHY reset, we
+ * will load the configuration data out of the NVM manually.
+ *
+ * hw: Struct containing variables accessed by shared code
+ *****************************************************************************/
 static int32_t
 e1000_init_lcd_from_nvm(struct e1000_hw *hw)
 {
@@ -9120,6 +9017,4 @@ e1000_init_lcd_from_nvm(struct e1000_hw *hw)
 
     return E1000_SUCCESS;
 }
-
-
 

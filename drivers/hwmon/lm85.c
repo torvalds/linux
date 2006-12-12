@@ -1025,6 +1025,89 @@ static int lm85_attach_adapter(struct i2c_adapter *adapter)
 	return i2c_probe(adapter, &addr_data, lm85_detect);
 }
 
+static struct attribute *lm85_attributes[] = {
+	&dev_attr_fan1_input.attr,
+	&dev_attr_fan2_input.attr,
+	&dev_attr_fan3_input.attr,
+	&dev_attr_fan4_input.attr,
+	&dev_attr_fan1_min.attr,
+	&dev_attr_fan2_min.attr,
+	&dev_attr_fan3_min.attr,
+	&dev_attr_fan4_min.attr,
+	&dev_attr_pwm1.attr,
+	&dev_attr_pwm2.attr,
+	&dev_attr_pwm3.attr,
+	&dev_attr_pwm1_enable.attr,
+	&dev_attr_pwm2_enable.attr,
+	&dev_attr_pwm3_enable.attr,
+	&dev_attr_in0_input.attr,
+	&dev_attr_in1_input.attr,
+	&dev_attr_in2_input.attr,
+	&dev_attr_in3_input.attr,
+	&dev_attr_in0_min.attr,
+	&dev_attr_in1_min.attr,
+	&dev_attr_in2_min.attr,
+	&dev_attr_in3_min.attr,
+	&dev_attr_in0_max.attr,
+	&dev_attr_in1_max.attr,
+	&dev_attr_in2_max.attr,
+	&dev_attr_in3_max.attr,
+	&dev_attr_temp1_input.attr,
+	&dev_attr_temp2_input.attr,
+	&dev_attr_temp3_input.attr,
+	&dev_attr_temp1_min.attr,
+	&dev_attr_temp2_min.attr,
+	&dev_attr_temp3_min.attr,
+	&dev_attr_temp1_max.attr,
+	&dev_attr_temp2_max.attr,
+	&dev_attr_temp3_max.attr,
+	&dev_attr_vrm.attr,
+	&dev_attr_cpu0_vid.attr,
+	&dev_attr_alarms.attr,
+	&dev_attr_pwm1_auto_channels.attr,
+	&dev_attr_pwm2_auto_channels.attr,
+	&dev_attr_pwm3_auto_channels.attr,
+	&dev_attr_pwm1_auto_pwm_min.attr,
+	&dev_attr_pwm2_auto_pwm_min.attr,
+	&dev_attr_pwm3_auto_pwm_min.attr,
+	&dev_attr_pwm1_auto_pwm_minctl.attr,
+	&dev_attr_pwm2_auto_pwm_minctl.attr,
+	&dev_attr_pwm3_auto_pwm_minctl.attr,
+	&dev_attr_pwm1_auto_pwm_freq.attr,
+	&dev_attr_pwm2_auto_pwm_freq.attr,
+	&dev_attr_pwm3_auto_pwm_freq.attr,
+	&dev_attr_temp1_auto_temp_off.attr,
+	&dev_attr_temp2_auto_temp_off.attr,
+	&dev_attr_temp3_auto_temp_off.attr,
+	&dev_attr_temp1_auto_temp_min.attr,
+	&dev_attr_temp2_auto_temp_min.attr,
+	&dev_attr_temp3_auto_temp_min.attr,
+	&dev_attr_temp1_auto_temp_max.attr,
+	&dev_attr_temp2_auto_temp_max.attr,
+	&dev_attr_temp3_auto_temp_max.attr,
+	&dev_attr_temp1_auto_temp_crit.attr,
+	&dev_attr_temp2_auto_temp_crit.attr,
+	&dev_attr_temp3_auto_temp_crit.attr,
+
+	NULL
+};
+
+static const struct attribute_group lm85_group = {
+	.attrs = lm85_attributes,
+};
+
+static struct attribute *lm85_attributes_opt[] = {
+	&dev_attr_in4_input.attr,
+	&dev_attr_in4_min.attr,
+	&dev_attr_in4_max.attr,
+
+	NULL
+};
+
+static const struct attribute_group lm85_group_opt = {
+	.attrs = lm85_attributes_opt,
+};
+
 static int lm85_detect(struct i2c_adapter *adapter, int address,
 		int kind)
 {
@@ -1163,87 +1246,33 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
 	lm85_init_client(new_client);
 
 	/* Register sysfs hooks */
-	data->class_dev = hwmon_device_register(&new_client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &lm85_group)))
 		goto ERROR2;
-	}
-
-	device_create_file(&new_client->dev, &dev_attr_fan1_input);
-	device_create_file(&new_client->dev, &dev_attr_fan2_input);
-	device_create_file(&new_client->dev, &dev_attr_fan3_input);
-	device_create_file(&new_client->dev, &dev_attr_fan4_input);
-	device_create_file(&new_client->dev, &dev_attr_fan1_min);
-	device_create_file(&new_client->dev, &dev_attr_fan2_min);
-	device_create_file(&new_client->dev, &dev_attr_fan3_min);
-	device_create_file(&new_client->dev, &dev_attr_fan4_min);
-	device_create_file(&new_client->dev, &dev_attr_pwm1);
-	device_create_file(&new_client->dev, &dev_attr_pwm2);
-	device_create_file(&new_client->dev, &dev_attr_pwm3);
-	device_create_file(&new_client->dev, &dev_attr_pwm1_enable);
-	device_create_file(&new_client->dev, &dev_attr_pwm2_enable);
-	device_create_file(&new_client->dev, &dev_attr_pwm3_enable);
-	device_create_file(&new_client->dev, &dev_attr_in0_input);
-	device_create_file(&new_client->dev, &dev_attr_in1_input);
-	device_create_file(&new_client->dev, &dev_attr_in2_input);
-	device_create_file(&new_client->dev, &dev_attr_in3_input);
-	device_create_file(&new_client->dev, &dev_attr_in0_min);
-	device_create_file(&new_client->dev, &dev_attr_in1_min);
-	device_create_file(&new_client->dev, &dev_attr_in2_min);
-	device_create_file(&new_client->dev, &dev_attr_in3_min);
-	device_create_file(&new_client->dev, &dev_attr_in0_max);
-	device_create_file(&new_client->dev, &dev_attr_in1_max);
-	device_create_file(&new_client->dev, &dev_attr_in2_max);
-	device_create_file(&new_client->dev, &dev_attr_in3_max);
-	device_create_file(&new_client->dev, &dev_attr_temp1_input);
-	device_create_file(&new_client->dev, &dev_attr_temp2_input);
-	device_create_file(&new_client->dev, &dev_attr_temp3_input);
-	device_create_file(&new_client->dev, &dev_attr_temp1_min);
-	device_create_file(&new_client->dev, &dev_attr_temp2_min);
-	device_create_file(&new_client->dev, &dev_attr_temp3_min);
-	device_create_file(&new_client->dev, &dev_attr_temp1_max);
-	device_create_file(&new_client->dev, &dev_attr_temp2_max);
-	device_create_file(&new_client->dev, &dev_attr_temp3_max);
-	device_create_file(&new_client->dev, &dev_attr_vrm);
-	device_create_file(&new_client->dev, &dev_attr_cpu0_vid);
-	device_create_file(&new_client->dev, &dev_attr_alarms);
-	device_create_file(&new_client->dev, &dev_attr_pwm1_auto_channels);
-	device_create_file(&new_client->dev, &dev_attr_pwm2_auto_channels);
-	device_create_file(&new_client->dev, &dev_attr_pwm3_auto_channels);
-	device_create_file(&new_client->dev, &dev_attr_pwm1_auto_pwm_min);
-	device_create_file(&new_client->dev, &dev_attr_pwm2_auto_pwm_min);
-	device_create_file(&new_client->dev, &dev_attr_pwm3_auto_pwm_min);
-	device_create_file(&new_client->dev, &dev_attr_pwm1_auto_pwm_minctl);
-	device_create_file(&new_client->dev, &dev_attr_pwm2_auto_pwm_minctl);
-	device_create_file(&new_client->dev, &dev_attr_pwm3_auto_pwm_minctl);
-	device_create_file(&new_client->dev, &dev_attr_pwm1_auto_pwm_freq);
-	device_create_file(&new_client->dev, &dev_attr_pwm2_auto_pwm_freq);
-	device_create_file(&new_client->dev, &dev_attr_pwm3_auto_pwm_freq);
-	device_create_file(&new_client->dev, &dev_attr_temp1_auto_temp_off);
-	device_create_file(&new_client->dev, &dev_attr_temp2_auto_temp_off);
-	device_create_file(&new_client->dev, &dev_attr_temp3_auto_temp_off);
-	device_create_file(&new_client->dev, &dev_attr_temp1_auto_temp_min);
-	device_create_file(&new_client->dev, &dev_attr_temp2_auto_temp_min);
-	device_create_file(&new_client->dev, &dev_attr_temp3_auto_temp_min);
-	device_create_file(&new_client->dev, &dev_attr_temp1_auto_temp_max);
-	device_create_file(&new_client->dev, &dev_attr_temp2_auto_temp_max);
-	device_create_file(&new_client->dev, &dev_attr_temp3_auto_temp_max);
-	device_create_file(&new_client->dev, &dev_attr_temp1_auto_temp_crit);
-	device_create_file(&new_client->dev, &dev_attr_temp2_auto_temp_crit);
-	device_create_file(&new_client->dev, &dev_attr_temp3_auto_temp_crit);
 
 	/* The ADT7463 has an optional VRM 10 mode where pin 21 is used
 	   as a sixth digital VID input rather than an analog input. */
 	data->vid = lm85_read_value(new_client, LM85_REG_VID);
-	if (!(kind == adt7463 && (data->vid & 0x80))) {
-		device_create_file(&new_client->dev, &dev_attr_in4_input);
-		device_create_file(&new_client->dev, &dev_attr_in4_min);
-		device_create_file(&new_client->dev, &dev_attr_in4_max);
+	if (!(kind == adt7463 && (data->vid & 0x80)))
+		if ((err = device_create_file(&new_client->dev,
+					&dev_attr_in4_input))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_in4_min))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_in4_max)))
+			goto ERROR3;
+
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto ERROR3;
 	}
 
 	return 0;
 
 	/* Error out and cleanup code */
+    ERROR3:
+	sysfs_remove_group(&new_client->dev.kobj, &lm85_group);
+	sysfs_remove_group(&new_client->dev.kobj, &lm85_group_opt);
     ERROR2:
 	i2c_detach_client(new_client);
     ERROR1:
@@ -1256,6 +1285,8 @@ static int lm85_detach_client(struct i2c_client *client)
 {
 	struct lm85_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &lm85_group);
+	sysfs_remove_group(&client->dev.kobj, &lm85_group_opt);
 	i2c_detach_client(client);
 	kfree(data);
 	return 0;

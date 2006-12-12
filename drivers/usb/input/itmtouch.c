@@ -36,7 +36,11 @@
  *
  * 1.2.1  09/03/2005 (HCE) hc@mivu.no
  *   Code cleanup and adjusting syntax to start matching kernel standards
- *
+ * 
+ * 1.2.2  10/05/2006 (MJA) massad@gmail.com
+ *   Flag for detecting if the screen was being touch was incorrectly 
+ *   inverted, so no touch events were being detected. 	
+ *   
  *****************************************************************************/
 
 #include <linux/kernel.h>
@@ -53,7 +57,7 @@
 #define USB_PRODUCT_ID_TOUCHPANEL	0xf9e9
 
 #define DRIVER_AUTHOR "Hans-Christian Egtvedt <hc@mivu.no>"
-#define DRIVER_VERSION "v1.2.1"
+#define DRIVER_VERSION "v1.2.2"
 #define DRIVER_DESC "USB ITM Inc Touch Panel Driver"
 #define DRIVER_LICENSE "GPL"
 
@@ -76,7 +80,7 @@ static struct usb_device_id itmtouch_ids [] = {
 	{ }
 };
 
-static void itmtouch_irq(struct urb *urb, struct pt_regs *regs)
+static void itmtouch_irq(struct urb *urb)
 {
 	struct itmtouch_dev *itmtouch = urb->context;
 	unsigned char *data = urb->transfer_buffer;
@@ -87,7 +91,7 @@ static void itmtouch_irq(struct urb *urb, struct pt_regs *regs)
 	case 0:
 		/* success */
 		break;
-	case -ETIMEDOUT:
+	case -ETIME:
 		/* this urb is timing out */
 		dbg("%s - urb timed out - was the device unplugged?",
 		    __FUNCTION__);
@@ -105,10 +109,8 @@ static void itmtouch_irq(struct urb *urb, struct pt_regs *regs)
 		goto exit;
 	}
 
-	input_regs(dev, regs);
-
 	/* if pressure has been released, then don't report X/Y */
-	if (data[7] & 0x20) {
+	if (!(data[7] & 0x20)) {
 		input_report_abs(dev, ABS_X, (data[0] & 0x1F) << 7 | (data[3] & 0x7F));
 		input_report_abs(dev, ABS_Y, (data[1] & 0x1F) << 7 | (data[4] & 0x7F));
 	}

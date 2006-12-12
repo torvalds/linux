@@ -141,8 +141,9 @@ struct infinipath_stats {
 	 * packets if ipath not configured, etc.)
 	 */
 	__u64 sps_krdrops;
+	__u64 sps_txeparity; /* PIO buffer parity error, recovered */
 	/* pad for future growth */
-	__u64 __sps_pad[46];
+	__u64 __sps_pad[45];
 };
 
 /*
@@ -185,6 +186,9 @@ typedef enum _ipath_ureg {
 #define IPATH_RUNTIME_PCIE	0x2
 #define IPATH_RUNTIME_FORCE_WC_ORDER	0x4
 #define IPATH_RUNTIME_RCVHDR_COPY	0x8
+#define IPATH_RUNTIME_MASTER	0x10
+#define IPATH_RUNTIME_PBC_REWRITE 0x20
+#define IPATH_RUNTIME_LOOSE_DMA_ALIGN 0x40
 
 /*
  * This structure is returned by ipath_userinit() immediately after
@@ -202,7 +206,8 @@ struct ipath_base_info {
 	/* version of software, for feature checking. */
 	__u32 spi_sw_version;
 	/* InfiniPath port assigned, goes into sent packets */
-	__u32 spi_port;
+	__u16 spi_port;
+	__u16 spi_subport;
 	/*
 	 * IB MTU, packets IB data must be less than this.
 	 * The MTU is in bytes, and will be a multiple of 4 bytes.
@@ -218,7 +223,7 @@ struct ipath_base_info {
 	__u32 spi_tidcnt;
 	/* size of the TID Eager list in infinipath, in entries */
 	__u32 spi_tidegrcnt;
-	/* size of a single receive header queue entry. */
+	/* size of a single receive header queue entry in words. */
 	__u32 spi_rcvhdrent_size;
 	/*
 	 * Count of receive header queue entries allocated.
@@ -310,6 +315,12 @@ struct ipath_base_info {
 	__u32 spi_filler_for_align;
 	/* address of readonly memory copy of the rcvhdrq tail register. */
 	__u64 spi_rcvhdr_tailaddr;
+
+	/* shared memory pages for subports if IPATH_RUNTIME_MASTER is set */
+	__u64 spi_subport_uregbase;
+	__u64 spi_subport_rcvegrbuf;
+	__u64 spi_subport_rcvhdr_base;
+
 } __attribute__ ((aligned(8)));
 
 
@@ -328,12 +339,12 @@ struct ipath_base_info {
 
 /*
  * Minor version differences are always compatible
- * a within a major version, however if if user software is larger
+ * a within a major version, however if user software is larger
  * than driver software, some new features and/or structure fields
  * may not be implemented; the user code must deal with this if it
- * cares, or it must abort after initialization reports the difference
+ * cares, or it must abort after initialization reports the difference.
  */
-#define IPATH_USER_SWMINOR 2
+#define IPATH_USER_SWMINOR 3
 
 #define IPATH_USER_SWVERSION ((IPATH_USER_SWMAJOR<<16) | IPATH_USER_SWMINOR)
 
@@ -379,7 +390,16 @@ struct ipath_user_info {
 	 */
 	__u32 spu_rcvhdrsize;
 
-	__u64 spu_unused; /* kept for compatible layout */
+	/*
+	 * If two or more processes wish to share a port, each process
+	 * must set the spu_subport_cnt and spu_subport_id to the same
+	 * values.  The only restriction on the spu_subport_id is that
+	 * it be unique for a given node.
+	 */
+	__u16 spu_subport_cnt;
+	__u16 spu_subport_id;
+
+	__u32 spu_unused; /* kept for compatible layout */
 
 	/*
 	 * address of struct base_info to write to
@@ -392,19 +412,25 @@ struct ipath_user_info {
 
 #define IPATH_CMD_MIN		16
 
-#define IPATH_CMD_USER_INIT	16	/* set up userspace */
+#define __IPATH_CMD_USER_INIT	16	/* old set up userspace (for old user code) */
 #define IPATH_CMD_PORT_INFO	17	/* find out what resources we got */
 #define IPATH_CMD_RECV_CTRL	18	/* control receipt of packets */
 #define IPATH_CMD_TID_UPDATE	19	/* update expected TID entries */
 #define IPATH_CMD_TID_FREE	20	/* free expected TID entries */
 #define IPATH_CMD_SET_PART_KEY	21	/* add partition key */
+#define IPATH_CMD_SLAVE_INFO	22	/* return info on slave processes */
+#define IPATH_CMD_ASSIGN_PORT	23	/* allocate HCA and port */
+#define IPATH_CMD_USER_INIT 	24	/* set up userspace */
 
-#define IPATH_CMD_MAX		21
+#define IPATH_CMD_MAX		24
 
 struct ipath_port_info {
 	__u32 num_active;	/* number of active units */
 	__u32 unit;		/* unit (chip) assigned to caller */
-	__u32 port;		/* port on unit assigned to caller */
+	__u16 port;		/* port on unit assigned to caller */
+	__u16 subport;		/* subport on unit assigned to caller */
+	__u16 num_ports;	/* number of ports available on unit */
+	__u16 num_subports;	/* number of subport slaves opened on port */
 };
 
 struct ipath_tid_info {
@@ -435,6 +461,8 @@ struct ipath_cmd {
 		__u32 recv_ctrl;
 		/* partition key to set */
 		__u16 part_key;
+		/* user address of __u32 bitmask of active slaves */
+		__u64 slave_mask_addr;
 	} cmd;
 };
 
@@ -596,6 +624,10 @@ struct infinipath_counters {
 
 /* K_PktFlags bits */
 #define INFINIPATH_KPF_INTR 0x1
+#define INFINIPATH_KPF_SUBPORT_MASK 0x3
+#define INFINIPATH_KPF_SUBPORT_SHIFT 1
+
+#define INFINIPATH_MAX_SUBPORT	4
 
 /* SendPIO per-buffer control */
 #define INFINIPATH_SP_TEST    0x40
@@ -610,7 +642,7 @@ struct ipath_header {
 	/*
 	 * Version - 4 bits, Port - 4 bits, TID - 10 bits and Offset -
 	 * 14 bits before ECO change ~28 Dec 03.  After that, Vers 4,
-	 * Port 3, TID 11, offset 14.
+	 * Port 4, TID 11, offset 13.
 	 */
 	__le32 ver_port_tid_offset;
 	__le16 chksum;

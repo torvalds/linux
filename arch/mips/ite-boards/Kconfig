@@ -1,8 +1,0 @@
-config IT8172_REVC
-	bool "Support for older IT8172 (Rev C)"
-	depends on MIPS_ITE8172
-	help
-	  Say Y here to support the older, Revision C version of the Integrated
-	  Technology Express, Inc. ITE8172 SBC.  Vendor page at
-	  <http://www.ite.com.tw/ia/brief_it8172bsp.htm>; picture of the
-	  board at <http://www.mvista.com/partners/semiconductor/ite.html>.

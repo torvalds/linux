@@ -9,6 +9,7 @@
 #include <linux/buffer_head.h>
 #include <linux/kernel.h>
 #include <linux/pagemap.h>
+#include <linux/vmalloc.h>
 #include <linux/reiserfs_fs_sb.h>
 #include <linux/reiserfs_fs_i.h>
 #include <linux/quotaops.h>
@@ -50,16 +51,15 @@ static inline void get_bit_address(struct super_block *s,
 {
 	/* It is in the bitmap block number equal to the block
 	 * number divided by the number of bits in a block. */
-	*bmap_nr = block / (s->s_blocksize << 3);
+	*bmap_nr = block >> (s->s_blocksize_bits + 3);
 	/* Within that bitmap block it is located at bit offset *offset. */
 	*offset = block & ((s->s_blocksize << 3) - 1);
-	return;
 }
 
 #ifdef CONFIG_REISERFS_CHECK
 int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 {
-	int i, j;
+	int bmap, offset;
 
 	if (block == 0 || block >= SB_BLOCK_COUNT(s)) {
 		reiserfs_warning(s,
@@ -68,36 +68,32 @@ int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 		return 0;
 	}
 
-	/* it can't be one of the bitmap blocks */
-	for (i = 0; i < SB_BMAP_NR(s); i++)
-		if (block == SB_AP_BITMAP(s)[i].bh->b_blocknr) {
+	get_bit_address(s, block, &bmap, &offset);
+
+	/* Old format filesystem? Unlikely, but the bitmaps are all up front so
+	 * we need to account for it. */
+	if (unlikely(test_bit(REISERFS_OLD_FORMAT,
+			      &(REISERFS_SB(s)->s_properties)))) {
+		b_blocknr_t bmap1 = REISERFS_SB(s)->s_sbh->b_blocknr + 1;
+		if (block >= bmap1 && block <= bmap1 + SB_BMAP_NR(s)) {
+			reiserfs_warning(s, "vs: 4019: is_reusable: "
+					 "bitmap block %lu(%u) can't be freed or reused",
+					 block, SB_BMAP_NR(s));
+			return 0;
+		}
+	} else {
+		if (offset == 0) {
 			reiserfs_warning(s, "vs: 4020: is_reusable: "
 					 "bitmap block %lu(%u) can't be freed or reused",
 					 block, SB_BMAP_NR(s));
 			return 0;
 		}
-
-	get_bit_address(s, block, &i, &j);
-
-	if (i >= SB_BMAP_NR(s)) {
-		reiserfs_warning(s,
-				 "vs-4030: is_reusable: there is no so many bitmap blocks: "
-				 "block=%lu, bitmap_nr=%d", block, i);
-		return 0;
 	}
 
-	if ((bit_value == 0 &&
-	     reiserfs_test_le_bit(j, SB_AP_BITMAP(s)[i].bh->b_data)) ||
-	    (bit_value == 1 &&
-	     reiserfs_test_le_bit(j, SB_AP_BITMAP(s)[i].bh->b_data) == 0)) {
+	if (bmap >= SB_BMAP_NR(s)) {
 		reiserfs_warning(s,
-				 "vs-4040: is_reusable: corresponding bit of block %lu does not "
-				 "match required value (i==%d, j==%d) test_bit==%d",
-				 block, i, j, reiserfs_test_le_bit(j,
-								   SB_AP_BITMAP
-								   (s)[i].bh->
-								   b_data));
-
+				 "vs-4030: is_reusable: there is no so many bitmap blocks: "
+				 "block=%lu, bitmap_nr=%d", block, bmap);
 		return 0;
 	}
 
@@ -141,6 +137,7 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 {
 	struct super_block *s = th->t_super;
 	struct reiserfs_bitmap_info *bi = &SB_AP_BITMAP(s)[bmap_n];
+	struct buffer_head *bh;
 	int end, next;
 	int org = *beg;
 
@@ -159,22 +156,25 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 				 bmap_n);
 		return 0;
 	}
-	if (buffer_locked(bi->bh)) {
-		PROC_INFO_INC(s, scan_bitmap.wait);
-		__wait_on_buffer(bi->bh);
-	}
+
+	bh = reiserfs_read_bitmap_block(s, bmap_n);
+	if (bh == NULL)
+		return 0;
 
 	while (1) {
 	      cont:
-		if (bi->free_count < min)
+		if (bi->free_count < min) {
+			brelse(bh);
 			return 0;	// No free blocks in this bitmap
+		}
 
 		/* search for a first zero bit -- beggining of a window */
 		*beg = reiserfs_find_next_zero_le_bit
-		    ((unsigned long *)(bi->bh->b_data), boundary, *beg);
+		    ((unsigned long *)(bh->b_data), boundary, *beg);
 
 		if (*beg + min > boundary) {	/* search for a zero bit fails or the rest of bitmap block
 						 * cannot contain a zero window of minimum size */
+			brelse(bh);
 			return 0;
 		}
 
@@ -183,7 +183,7 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 		/* first zero bit found; we check next bits */
 		for (end = *beg + 1;; end++) {
 			if (end >= *beg + max || end >= boundary
-			    || reiserfs_test_le_bit(end, bi->bh->b_data)) {
+			    || reiserfs_test_le_bit(end, bh->b_data)) {
 				next = end;
 				break;
 			}
@@ -197,12 +197,12 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 		 * (end) points to one bit after the window end */
 		if (end - *beg >= min) {	/* it seems we have found window of proper size */
 			int i;
-			reiserfs_prepare_for_journal(s, bi->bh, 1);
+			reiserfs_prepare_for_journal(s, bh, 1);
 			/* try to set all blocks used checking are they still free */
 			for (i = *beg; i < end; i++) {
 				/* It seems that we should not check in journal again. */
 				if (reiserfs_test_and_set_le_bit
-				    (i, bi->bh->b_data)) {
+				    (i, bh->b_data)) {
 					/* bit was set by another process
 					 * while we slept in prepare_for_journal() */
 					PROC_INFO_INC(s, scan_bitmap.stolen);
@@ -214,17 +214,16 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 					/* otherwise we clear all bit were set ... */
 					while (--i >= *beg)
 						reiserfs_test_and_clear_le_bit
-						    (i, bi->bh->b_data);
-					reiserfs_restore_prepared_buffer(s,
-									 bi->
-									 bh);
+						    (i, bh->b_data);
+					reiserfs_restore_prepared_buffer(s, bh);
 					*beg = org;
 					/* ... and search again in current block from beginning */
 					goto cont;
 				}
 			}
 			bi->free_count -= (end - *beg);
-			journal_mark_dirty(th, s, bi->bh);
+			journal_mark_dirty(th, s, bh);
+			brelse(bh);
 
 			/* free block count calculation */
 			reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s),
@@ -266,9 +265,20 @@ static int bmap_hash_id(struct super_block *s, u32 id)
  */
 static inline int block_group_used(struct super_block *s, u32 id)
 {
-	int bm;
-	bm = bmap_hash_id(s, id);
-	if (SB_AP_BITMAP(s)[bm].free_count > ((s->s_blocksize << 3) * 60 / 100)) {
+	int bm = bmap_hash_id(s, id);
+	struct reiserfs_bitmap_info *info = &SB_AP_BITMAP(s)[bm];
+
+	/* If we don't have cached information on this bitmap block, we're
+	 * going to have to load it later anyway. Loading it here allows us
+	 * to make a better decision. This favors long-term performace gain
+	 * with a better on-disk layout vs. a short term gain of skipping the
+	 * read and potentially having a bad placement. */
+	if (info->first_zero_hint == 0) {
+		struct buffer_head *bh = reiserfs_read_bitmap_block(s, bm);
+		brelse(bh);
+	}
+
+	if (info->free_count > ((s->s_blocksize << 3) * 60 / 100)) {
 		return 0;
 	}
 	return 1;
@@ -373,7 +383,7 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 {
 	struct super_block *s = th->t_super;
 	struct reiserfs_super_block *rs;
-	struct buffer_head *sbh;
+	struct buffer_head *sbh, *bmbh;
 	struct reiserfs_bitmap_info *apbi;
 	int nr, offset;
 
@@ -394,16 +404,21 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 		return;
 	}
 
-	reiserfs_prepare_for_journal(s, apbi[nr].bh, 1);
+	bmbh = reiserfs_read_bitmap_block(s, nr);
+	if (!bmbh)
+		return;
+
+	reiserfs_prepare_for_journal(s, bmbh, 1);
 
 	/* clear bit for the given block in bit map */
-	if (!reiserfs_test_and_clear_le_bit(offset, apbi[nr].bh->b_data)) {
+	if (!reiserfs_test_and_clear_le_bit(offset, bmbh->b_data)) {
 		reiserfs_warning(s, "vs-4080: reiserfs_free_block: "
 				 "free_block (%s:%lu)[dev:blocknr]: bit already cleared",
 				 reiserfs_bdevname(s), block);
 	}
 	apbi[nr].free_count++;
-	journal_mark_dirty(th, s, apbi[nr].bh);
+	journal_mark_dirty(th, s, bmbh);
+	brelse(bmbh);
 
 	reiserfs_prepare_for_journal(s, sbh, 1);
 	/* update super block */
@@ -693,7 +708,7 @@ static void oid_groups(reiserfs_blocknr_hint_t * hint)
  */
 static int get_left_neighbor(reiserfs_blocknr_hint_t * hint)
 {
-	struct path *path;
+	struct treepath *path;
 	struct buffer_head *bh;
 	struct item_head *ih;
 	int pos_in_item;
@@ -1019,7 +1034,6 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 	b_blocknr_t finish = SB_BLOCK_COUNT(s) - 1;
 	int passno = 0;
 	int nr_allocated = 0;
-	int bigalloc = 0;
 
 	determine_prealloc_size(hint);
 	if (!hint->formatted_node) {
@@ -1046,28 +1060,9 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 				hint->preallocate = hint->prealloc_size = 0;
 		}
 		/* for unformatted nodes, force large allocations */
-		bigalloc = amount_needed;
 	}
 
 	do {
-		/* in bigalloc mode, nr_allocated should stay zero until
-		 * the entire allocation is filled
-		 */
-		if (unlikely(bigalloc && nr_allocated)) {
-			reiserfs_warning(s, "bigalloc is %d, nr_allocated %d\n",
-					 bigalloc, nr_allocated);
-			/* reset things to a sane value */
-			bigalloc = amount_needed - nr_allocated;
-		}
-		/*
-		 * try pass 0 and pass 1 looking for a nice big
-		 * contiguous allocation.  Then reset and look
-		 * for anything you can find.
-		 */
-		if (passno == 2 && bigalloc) {
-			passno = 0;
-			bigalloc = 0;
-		}
 		switch (passno++) {
 		case 0:	/* Search from hint->search_start to end of disk */
 			start = hint->search_start;
@@ -1105,8 +1100,7 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 								 new_blocknrs +
 								 nr_allocated,
 								 start, finish,
-								 bigalloc ?
-								 bigalloc : 1,
+								 1,
 								 amount_needed -
 								 nr_allocated,
 								 hint->
@@ -1262,4 +1256,90 @@ int reiserfs_can_fit_pages(struct super_block *sb	/* superblock of filesystem
 	spin_unlock(&REISERFS_SB(sb)->bitmap_lock);
 
 	return space > 0 ? space : 0;
+}
+
+void reiserfs_cache_bitmap_metadata(struct super_block *sb,
+                                    struct buffer_head *bh,
+                                    struct reiserfs_bitmap_info *info)
+{
+	unsigned long *cur = (unsigned long *)(bh->b_data + bh->b_size);
+
+	info->first_zero_hint = 1 << (sb->s_blocksize_bits + 3);
+
+	while (--cur >= (unsigned long *)bh->b_data) {
+		int base = ((char *)cur - bh->b_data) << 3;
+
+		/* 0 and ~0 are special, we can optimize for them */
+		if (*cur == 0) {
+			info->first_zero_hint = base;
+			info->free_count += BITS_PER_LONG;
+		} else if (*cur != ~0L) {       /* A mix, investigate */
+			int b;
+			for (b = BITS_PER_LONG - 1; b >= 0; b--) {
+				if (!reiserfs_test_le_bit(b, cur)) {
+					info->first_zero_hint = base + b;
+					info->free_count++;
+				}
+			}
+		}
+	}
+	/* The first bit must ALWAYS be 1 */
+	BUG_ON(info->first_zero_hint == 0);
+}
+
+struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
+                                               unsigned int bitmap)
+{
+	b_blocknr_t block = (sb->s_blocksize << 3) * bitmap;
+	struct reiserfs_bitmap_info *info = SB_AP_BITMAP(sb) + bitmap;
+	struct buffer_head *bh;
+
+	/* Way old format filesystems had the bitmaps packed up front.
+	 * I doubt there are any of these left, but just in case... */
+	if (unlikely(test_bit(REISERFS_OLD_FORMAT,
+	                      &(REISERFS_SB(sb)->s_properties))))
+		block = REISERFS_SB(sb)->s_sbh->b_blocknr + 1 + bitmap;
+	else if (bitmap == 0)
+		block = (REISERFS_DISK_OFFSET_IN_BYTES >> sb->s_blocksize_bits) + 1;
+
+	bh = sb_bread(sb, block);
+	if (bh == NULL)
+		reiserfs_warning(sb, "sh-2029: %s: bitmap block (#%u) "
+		                 "reading failed", __FUNCTION__, block);
+	else {
+		if (buffer_locked(bh)) {
+			PROC_INFO_INC(sb, scan_bitmap.wait);
+			__wait_on_buffer(bh);
+		}
+		BUG_ON(!buffer_uptodate(bh));
+		BUG_ON(atomic_read(&bh->b_count) == 0);
+
+		if (info->first_zero_hint == 0)
+			reiserfs_cache_bitmap_metadata(sb, bh, info);
+	}
+
+	return bh;
+}
+
+int reiserfs_init_bitmap_cache(struct super_block *sb)
+{
+	struct reiserfs_bitmap_info *bitmap;
+
+	bitmap = vmalloc(sizeof (*bitmap) * SB_BMAP_NR(sb));
+	if (bitmap == NULL)
+		return -ENOMEM;
+
+	memset(bitmap, 0, sizeof (*bitmap) * SB_BMAP_NR(sb));
+
+	SB_AP_BITMAP(sb) = bitmap;
+
+	return 0;
+}
+
+void reiserfs_free_bitmap_cache(struct super_block *sb)
+{
+	if (SB_AP_BITMAP(sb)) {
+		vfree(SB_AP_BITMAP(sb));
+		SB_AP_BITMAP(sb) = NULL;
+	}
 }

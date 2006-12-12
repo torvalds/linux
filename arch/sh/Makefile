@@ -13,16 +13,14 @@
 # for "archclean" and "archdep" for cleaning up and making dependencies for
 # this architecture
 #
-
-cflags-y				:= -mb
-cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	:= -ml
-
 isa-y					:= any
+isa-$(CONFIG_SH_DSP)			:= sh
 isa-$(CONFIG_CPU_SH2)			:= sh2
+isa-$(CONFIG_CPU_SH2A)			:= sh2a
 isa-$(CONFIG_CPU_SH3)			:= sh3
 isa-$(CONFIG_CPU_SH4)			:= sh4
 isa-$(CONFIG_CPU_SH4A)			:= sh4a
-isa-$(CONFIG_CPU_SH2A)			:= sh2a
+isa-$(CONFIG_CPU_SH4AL_DSP)		:= sh4al
 
 isa-$(CONFIG_SH_DSP)			:= $(isa-y)-dsp
 
@@ -30,17 +28,22 @@ ifndef CONFIG_MMU
 isa-y			:= $(isa-y)-nommu
 endif
 
+ifndef CONFIG_SH_DSP
 ifndef CONFIG_SH_FPU
 isa-y			:= $(isa-y)-nofpu
 endif
+endif
 
-cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),)
-
-cflags-$(CONFIG_CPU_SH2)		+= -m2
-cflags-$(CONFIG_CPU_SH3)		+= -m3
-cflags-$(CONFIG_CPU_SH4)		+= -m4 \
+cflags-$(CONFIG_CPU_SH2)		:= -m2
+cflags-$(CONFIG_CPU_SH3)		:= -m3
+cflags-$(CONFIG_CPU_SH4)		:= -m4 \
 	$(call cc-option,-mno-implicit-fp,-m4-nofpu)
-cflags-$(CONFIG_CPU_SH4A)		+= $(call cc-option,-m4a-nofpu,)
+cflags-$(CONFIG_CPU_SH4A)		:= -m4a $(call cc-option,-m4a-nofpu,)
+
+cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
+cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
+
+cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),) -ffreestanding
 
 cflags-$(CONFIG_SH_DSP)			+= -Wa,-dsp
 cflags-$(CONFIG_SH_KGDB)		+= -g
@@ -55,7 +58,9 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .comment -R .stab -R .stabstr -S
 # never be used by anyone. Use a board-specific defconfig that has a
 # reasonable chance of being current instead.
 #
-KBUILD_DEFCONFIG := rts7751r2d_defconfig
+KBUILD_DEFCONFIG := r7780rp_defconfig
+
+KBUILD_IMAGE	:= arch/sh/boot/zImage
 
 #
 # Choosing incompatible machines durings configuration will result in
@@ -79,24 +84,19 @@ head-y := arch/sh/kernel/head.o arch/sh/kernel/init_task.o
 LIBGCC := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
 
 core-y				+= arch/sh/kernel/ arch/sh/mm/
+core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
 
 # Boards
 machdir-$(CONFIG_SH_SOLUTION_ENGINE)		:= se/770x
 machdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	:= se/7751
 machdir-$(CONFIG_SH_7300_SOLUTION_ENGINE)	:= se/7300
+machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	:= se/7343
 machdir-$(CONFIG_SH_73180_SOLUTION_ENGINE)	:= se/73180
-machdir-$(CONFIG_SH_STB1_HARP)			:= harp
-machdir-$(CONFIG_SH_STB1_OVERDRIVE)		:= overdrive
 machdir-$(CONFIG_SH_HP6XX)			:= hp6xx
-machdir-$(CONFIG_SH_CQREEK)			:= cqreek
-machdir-$(CONFIG_SH_DMIDA)			:= dmida
 machdir-$(CONFIG_SH_EC3104)			:= ec3104
 machdir-$(CONFIG_SH_SATURN)			:= saturn
 machdir-$(CONFIG_SH_DREAMCAST)			:= dreamcast
-machdir-$(CONFIG_SH_CAT68701)			:= cat68701
 machdir-$(CONFIG_SH_BIGSUR)			:= bigsur
-machdir-$(CONFIG_SH_SH2000)			:= sh2000
-machdir-$(CONFIG_SH_ADX)			:= adx
 machdir-$(CONFIG_SH_MPC1211)			:= mpc1211
 machdir-$(CONFIG_SH_SH03)			:= sh03
 machdir-$(CONFIG_SH_SECUREEDGE5410)		:= snapgear
@@ -104,16 +104,18 @@ machdir-$(CONFIG_SH_HS7751RVOIP)		:= renesas/hs7751rvoip
 machdir-$(CONFIG_SH_RTS7751R2D)			:= renesas/rts7751r2d
 machdir-$(CONFIG_SH_7751_SYSTEMH)		:= renesas/systemh
 machdir-$(CONFIG_SH_EDOSK7705)			:= renesas/edosk7705
+machdir-$(CONFIG_SH_R7780RP)			:= renesas/r7780rp
+machdir-$(CONFIG_SH_7710VOIPGW)			:= renesas/sh7710voipgw
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		:= superh/microdev
+machdir-$(CONFIG_SH_LANDISK)			:= landisk
+machdir-$(CONFIG_SH_TITAN)			:= titan
+machdir-$(CONFIG_SH_SHMIN)			:= shmin
+machdir-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= se/7206
+machdir-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= se/7619
 machdir-$(CONFIG_SH_UNKNOWN)			:= unknown
 
 incdir-y			:= $(notdir $(machdir-y))
-
-incdir-$(CONFIG_SH_SOLUTION_ENGINE)		:= se
-incdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	:= se7751
-incdir-$(CONFIG_SH_7300_SOLUTION_ENGINE)        := se7300
-incdir-$(CONFIG_SH_73180_SOLUTION_ENGINE)	:= se73180
-incdir-$(CONFIG_SH_HP600)			:= hp6xx
+incdir-$(CONFIG_SH_HP6XX)			:= hp6xx
 
 ifneq ($(machdir-y),)
 core-y				+= arch/sh/boards/$(machdir-y)/
@@ -125,6 +127,7 @@ core-$(CONFIG_HD64465)		+= arch/sh/cchips/hd6446x/hd64465/
 core-$(CONFIG_VOYAGERGX)	+= arch/sh/cchips/voyagergx/
 
 cpuincdir-$(CONFIG_CPU_SH2)	:= cpu-sh2
+cpuincdir-$(CONFIG_CPU_SH2A)	:= cpu-sh2a
 cpuincdir-$(CONFIG_CPU_SH3)	:= cpu-sh3
 cpuincdir-$(CONFIG_CPU_SH4)	:= cpu-sh4
 
@@ -137,17 +140,14 @@ boot := arch/sh/boot
 
 CPPFLAGS_vmlinux.lds := -traditional
 
-ifneq ($(KBUILD_SRC),)
 incdir-prefix	:= $(srctree)/include/asm-sh/
-else
-incdir-prefix	:=
-endif
 
 #	Update machine arch and proc symlinks if something which affects
 #	them changed.  We use .arch and .mach to indicate when they were
 #	updated last, otherwise make uses the target directory mtime.
 
-include/asm-sh/.cpu: $(wildcard include/config/cpu/*.h) include/config/auto.conf
+include/asm-sh/.cpu: $(wildcard include/config/cpu/*.h) \
+		     include/config/auto.conf FORCE
 	@echo '  SYMLINK include/asm-sh/cpu -> include/asm-sh/$(cpuincdir-y)'
 	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
 	$(Q)ln -fsn $(incdir-prefix)$(cpuincdir-y) include/asm-sh/cpu
@@ -157,7 +157,8 @@ include/asm-sh/.cpu: $(wildcard include/config/cpu/*.h) include/config/auto.conf
 #	don't, just reference the parent directory so the semantics are
 #	kept roughly the same.
 
-include/asm-sh/.mach: $(wildcard include/config/sh/*.h) include/config/auto.conf
+include/asm-sh/.mach: $(wildcard include/config/sh/*.h) \
+		      include/config/auto.conf FORCE
 	@echo -n '  SYMLINK include/asm-sh/mach -> '
 	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
 	$(Q)if [ -d $(incdir-prefix)$(incdir-y) ]; then \
@@ -170,7 +171,7 @@ include/asm-sh/.mach: $(wildcard include/config/sh/*.h) include/config/auto.conf
 	fi
 	@touch $@
 
-archprepare: maketools include/asm-sh/.cpu include/asm-sh/.mach
+archprepare: include/asm-sh/.cpu include/asm-sh/.mach maketools
 
 PHONY += maketools FORCE
 maketools:  include/linux/version.h FORCE
@@ -178,7 +179,7 @@ maketools:  include/linux/version.h FORCE
 
 all: zImage
 
-zImage: vmlinux
+zImage uImage uImage.srec vmlinux.srec: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 compressed: zImage
@@ -189,6 +190,8 @@ archclean:
 CLEAN_FILES += include/asm-sh/machtypes.h
 
 define archhelp
-	@echo '  zImage 	           - Compressed kernel image (arch/sh/boot/zImage)'
+	@echo '* zImage 	           - Compressed kernel image'
+	@echo '  vmlinux.srec	           - Create an ELF S-record'
+	@echo '  uImage  	           - Create a bootable image for U-Boot'
+	@echo '  uImage.srec  	           - Create an S-record for U-Boot'
 endef
-

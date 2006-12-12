@@ -30,9 +30,21 @@ struct cx24123_config
 
 	/* Need to set device param for start_dma */
 	int (*set_ts_params)(struct dvb_frontend* fe, int is_punctured);
+
+	/* 0 = LNB voltage normal, 1 = LNB voltage inverted */
+	int lnb_polarity;
 };
 
+#if defined(CONFIG_DVB_CX24123) || (defined(CONFIG_DVB_CX24123_MODULE) && defined(MODULE))
 extern struct dvb_frontend* cx24123_attach(const struct cx24123_config* config,
 					   struct i2c_adapter* i2c);
+#else
+static inline struct dvb_frontend* cx24123_attach(const struct cx24123_config* config,
+						  struct i2c_adapter* i2c)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	return NULL;
+}
+#endif // CONFIG_DVB_CX24123
 
 #endif /* CX24123_H */

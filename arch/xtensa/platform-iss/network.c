@@ -34,7 +34,7 @@
 #include <linux/timer.h>
 #include <linux/platform_device.h>
 
-#include <xtensa/simcall.h>
+#include <asm/platform/simcall.h>
 
 #define DRIVER_NAME "iss-netdev"
 #define ETH_MAX_PACKET 1500
@@ -201,7 +201,7 @@ static void dev_ip_addr(void *d, char *buf, char *bin_buf)
 	struct net_device *dev = d;
 	struct in_device *ip = dev->ip_ptr;
 	struct in_ifaddr *in;
-	u32 addr;
+	__be32 addr;
 
 	if ((ip == NULL) || ((in = ip->ifa_list) == NULL)) {
 		printk(KERN_WARNING "Device not assigned an IP address!\n");

@@ -520,7 +520,7 @@ static snd_pcm_uframes_t snd_fm801_capture_pointer(struct snd_pcm_substream *sub
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
-static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id)
 {
 	struct fm801 *chip = dev_id;
 	unsigned short status;
@@ -561,7 +561,7 @@ static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id, struct pt_regs *re
 		snd_pcm_period_elapsed(chip->capture_substream);
 	}
 	if (chip->rmidi && (status & FM801_IRQ_MPU))
-		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data, regs);
+		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data);
 	if (status & FM801_IRQ_VOLUME)
 		;/* TODO */
 
@@ -1531,9 +1531,9 @@ static int snd_fm801_suspend(struct pci_dev *pci, pm_message_t state)
 		chip->saved_regs[i] = inw(chip->port + saved_regs[i]);
 	/* FIXME: tea575x suspend */
 
-	pci_set_power_state(pci, PCI_D3hot);
 	pci_disable_device(pci);
 	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
 }
 
@@ -1543,9 +1543,14 @@ static int snd_fm801_resume(struct pci_dev *pci)
 	struct fm801 *chip = card->private_data;
 	int i;
 
-	pci_restore_state(pci);
-	pci_enable_device(pci);
 	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "fm801: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
 	pci_set_master(pci);
 
 	snd_fm801_chip_init(chip, 1);

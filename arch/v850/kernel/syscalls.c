@@ -33,6 +33,7 @@
 #include <asm/uaccess.h>
 #include <asm/ipc.h>
 #include <asm/semaphore.h>
+#include <asm/unistd.h>
 
 /*
  * sys_ipc() is the de-multiplexer for the SysV IPC calls..
@@ -193,4 +194,23 @@ unsigned long sys_mmap (unsigned long addr, size_t len,
 	err = do_mmap2 (addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
 out:
 	return err;
+}
+
+/*
+ * Do a system call from kernel instead of calling sys_execve so we
+ * end up with proper pt_regs.
+ */
+int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+{
+	register char *__a __asm__ ("r6") = filename;
+	register void *__b __asm__ ("r7") = argv;
+	register void *__c __asm__ ("r8") = envp;
+	register unsigned long __syscall __asm__ ("r12") = __NR_execve;
+	register unsigned long __ret __asm__ ("r10");
+	__asm__ __volatile__ ("trap 0"
+			: "=r" (__ret), "=r" (__syscall)
+			: "1" (__syscall), "r" (__a), "r" (__b), "r" (__c)
+			: "r1", "r5", "r11", "r13", "r14",
+			  "r15", "r16", "r17", "r18", "r19");
+	return __ret;
 }

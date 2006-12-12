@@ -399,7 +399,9 @@ static int cx22702_read_signal_strength(struct dvb_frontend* fe, u16* signal_str
 {
 	struct cx22702_state* state = fe->demodulator_priv;
 
-	*signal_strength = cx22702_readreg (state, 0x23);
+	u16 rs_ber = 0;
+	rs_ber = cx22702_readreg (state, 0x23);
+	*signal_strength = (rs_ber << 8) | rs_ber;
 
 	return 0;
 }

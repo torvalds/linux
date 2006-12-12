@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_iso8859-15.c
+ * linux/fs/nls/nls_iso8859-15.c
  *
  * Charset iso8859-15 translation tables.
  * The Unicode to charset table has only exact mappings.

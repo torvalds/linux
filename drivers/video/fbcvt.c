@@ -57,7 +57,7 @@ struct fb_cvt_data {
 	u32 status;
 };
 
-static int fb_cvt_vbi_tab[] = {
+static const unsigned char fb_cvt_vbi_tab[] = {
 	4,        /* 4:3      */
 	5,        /* 16:9     */
 	6,        /* 16:10    */

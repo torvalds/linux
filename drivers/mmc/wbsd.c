@@ -4,8 +4,9 @@
  *  Copyright (C) 2004-2005 Pierre Ossman, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or (at
+ * your option) any later version.
  *
  *
  * Warning!
@@ -1020,7 +1021,7 @@ static int wbsd_get_ro(struct mmc_host *mmc)
 	return csr & WBSD_WRPT;
 }
 
-static struct mmc_host_ops wbsd_ops = {
+static const struct mmc_host_ops wbsd_ops = {
 	.request	= wbsd_request,
 	.set_ios	= wbsd_set_ios,
 	.get_ro		= wbsd_get_ro,
@@ -1255,7 +1256,7 @@ end:
  * Interrupt handling
  */
 
-static irqreturn_t wbsd_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t wbsd_irq(int irq, void *dev_id)
 {
 	struct wbsd_host *host = dev_id;
 	int isr;
@@ -1323,7 +1324,7 @@ static int __devinit wbsd_alloc_mmc(struct device *dev)
 	mmc->f_min = 375000;
 	mmc->f_max = 24000000;
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
-	mmc->caps = MMC_CAP_4_BIT_DATA;
+	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MULTIWRITE | MMC_CAP_BYTEBLOCK;
 
 	spin_lock_init(&host->lock);
 
@@ -1487,7 +1488,7 @@ static void __devinit wbsd_request_dma(struct wbsd_host *host, int dma)
 	/*
 	 * Translate the address to a physical address.
 	 */
-	host->dma_addr = dma_map_single(host->mmc->dev, host->dma_buffer,
+	host->dma_addr = dma_map_single(mmc_dev(host->mmc), host->dma_buffer,
 		WBSD_DMA_SIZE, DMA_BIDIRECTIONAL);
 
 	/*
@@ -1511,7 +1512,7 @@ kfree:
 	 */
 	BUG_ON(1);
 
-	dma_unmap_single(host->mmc->dev, host->dma_addr,
+	dma_unmap_single(mmc_dev(host->mmc), host->dma_addr,
 		WBSD_DMA_SIZE, DMA_BIDIRECTIONAL);
 	host->dma_addr = (dma_addr_t)NULL;
 
@@ -1529,7 +1530,7 @@ err:
 static void __devexit wbsd_release_dma(struct wbsd_host *host)
 {
 	if (host->dma_addr) {
-		dma_unmap_single(host->mmc->dev, host->dma_addr,
+		dma_unmap_single(mmc_dev(host->mmc), host->dma_addr,
 			WBSD_DMA_SIZE, DMA_BIDIRECTIONAL);
 	}
 	kfree(host->dma_buffer);

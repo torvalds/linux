@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_iso8859-2.c
+ * linux/fs/nls/nls_iso8859-2.c
  *
  * Charset iso8859-2 translation tables.
  * Generated automatically from the Unicode and charset

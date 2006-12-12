@@ -15,6 +15,7 @@
 #include <linux/kref.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/xdr.h>
+#include <linux/sunrpc/msg_prot.h>
 
 extern unsigned int xprt_udp_slot_table_entries;
 extern unsigned int xprt_tcp_slot_table_entries;
@@ -22,13 +23,6 @@ extern unsigned int xprt_tcp_slot_table_entries;
 #define RPC_MIN_SLOT_TABLE	(2U)
 #define RPC_DEF_SLOT_TABLE	(16U)
 #define RPC_MAX_SLOT_TABLE	(128U)
-
-/*
- * RPC call and reply header size as number of 32bit words (verifier
- * size computed separately)
- */
-#define RPC_CALLHDRSIZE		6
-#define RPC_REPHDRSIZE		4
 
 /*
  * Parameters for choosing a free port
@@ -79,7 +73,7 @@ struct rpc_rqst {
 	 * This is the private part
 	 */
 	struct rpc_task *	rq_task;	/* RPC task data */
-	__u32			rq_xid;		/* request XID */
+	__be32			rq_xid;		/* request XID */
 	int			rq_cong;	/* has incremented xprt->cong */
 	int			rq_received;	/* receive completed */
 	u32			rq_seqno;	/* gss seq no. used on req. */
@@ -112,7 +106,6 @@ struct rpc_rqst {
 
 struct rpc_xprt_ops {
 	void		(*set_buffer_size)(struct rpc_xprt *xprt, size_t sndsize, size_t rcvsize);
-	char *		(*print_addr)(struct rpc_xprt *xprt, enum rpc_display_format_t format);
 	int		(*reserve_xprt)(struct rpc_task *task);
 	void		(*release_xprt)(struct rpc_xprt *xprt, struct rpc_task *task);
 	void		(*rpcbind)(struct rpc_task *task);
@@ -132,8 +125,6 @@ struct rpc_xprt_ops {
 struct rpc_xprt {
 	struct kref		kref;		/* Reference count */
 	struct rpc_xprt_ops *	ops;		/* transport methods */
-	struct socket *		sock;		/* BSD socket layer */
-	struct sock *		inet;		/* INET layer */
 
 	struct rpc_timeout	timeout;	/* timeout parms */
 	struct sockaddr_storage	addr;		/* server address */
@@ -142,9 +133,6 @@ struct rpc_xprt {
 
 	unsigned long		cong;		/* current congestion */
 	unsigned long		cwnd;		/* congestion window */
-
-	size_t			rcvsize,	/* transport rcv buffer size */
-				sndsize;	/* transport send buffer size */
 
 	size_t			max_payload;	/* largest RPC payload size,
 						   in bytes */
@@ -164,27 +152,11 @@ struct rpc_xprt {
 				resvport   : 1; /* use a reserved port */
 
 	/*
-	 * XID
-	 */
-	__u32			xid;		/* Next XID value to use */
-
-	/*
-	 * State of TCP reply receive stuff
-	 */
-	u32			tcp_recm,	/* Fragment header */
-				tcp_xid,	/* Current XID */
-				tcp_reclen,	/* fragment length */
-				tcp_offset;	/* fragment offset */
-	unsigned long		tcp_copied,	/* copied to request */
-				tcp_flags;
-	/*
 	 * Connection of transports
 	 */
 	unsigned long		connect_timeout,
 				bind_timeout,
 				reestablish_timeout;
-	struct work_struct	connect_worker;
-	unsigned short		port;
 
 	/*
 	 * Disconnection of idle transports
@@ -199,8 +171,8 @@ struct rpc_xprt {
 	 */
 	spinlock_t		transport_lock;	/* lock transport info */
 	spinlock_t		reserve_lock;	/* lock slot table */
+	u32			xid;		/* Next XID value to use */
 	struct rpc_task *	snd_task;	/* Task blocked in send */
-
 	struct list_head	recv;
 
 	struct {
@@ -216,17 +188,8 @@ struct rpc_xprt {
 					bklog_u;	/* backlog queue utilization */
 	} stat;
 
-	void			(*old_data_ready)(struct sock *, int);
-	void			(*old_state_change)(struct sock *);
-	void			(*old_write_space)(struct sock *);
-
 	char *			address_strings[RPC_DISPLAY_MAX];
 };
-
-#define XPRT_LAST_FRAG		(1 << 0)
-#define XPRT_COPY_RECM		(1 << 1)
-#define XPRT_COPY_XID		(1 << 2)
-#define XPRT_COPY_DATA		(1 << 3)
 
 #ifdef __KERNEL__
 
@@ -253,7 +216,7 @@ void			xprt_release(struct rpc_task *task);
 struct rpc_xprt *	xprt_get(struct rpc_xprt *xprt);
 void			xprt_put(struct rpc_xprt *xprt);
 
-static inline u32 *xprt_skip_transport_header(struct rpc_xprt *xprt, u32 *p)
+static inline __be32 *xprt_skip_transport_header(struct rpc_xprt *xprt, __be32 *p)
 {
 	return p + xprt->tsh_size;
 }
@@ -268,7 +231,7 @@ void			xprt_wait_for_buffer_space(struct rpc_task *task);
 void			xprt_write_space(struct rpc_xprt *xprt);
 void			xprt_update_rtt(struct rpc_task *task);
 void			xprt_adjust_cwnd(struct rpc_task *task, int result);
-struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, u32 xid);
+struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid);
 void			xprt_complete_rqst(struct rpc_task *task, int copied);
 void			xprt_release_rqst_cong(struct rpc_task *task);
 void			xprt_disconnect(struct rpc_xprt *xprt);
@@ -276,8 +239,8 @@ void			xprt_disconnect(struct rpc_xprt *xprt);
 /*
  * Socket transport setup operations
  */
-int			xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to);
-int			xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to);
+struct rpc_xprt *	xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to);
+struct rpc_xprt *	xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to);
 
 /*
  * Reserved bit positions in xprt->state

@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_euc-jp.c
+ * linux/fs/nls/nls_euc-jp.c
  *
  * Added `OSF/JVC Recommended Code Set Conversion Specification
  * between Japanese EUC and Shift-JIS' support: <hirofumi@mail.parknet.co.jp>

@@ -75,7 +75,7 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	u8 key[5],cmd[2] = { DIBUSB_REQ_POLL_REMOTE, 0x35 }, data,toggle,custom;
 	u16 raw;
 	int i;
-	struct dibusb_state *st = d->priv;
+	struct dibusb_device_state *st = d->priv;
 
 	dvb_usb_generic_rw(d,cmd,2,key,5,0);
 
@@ -135,7 +135,7 @@ static int nova_t_read_mac_address (struct dvb_usb_device *d, u8 mac[6])
 }
 
 /* USB Driver stuff */
-static struct dvb_usb_properties nova_t_properties;
+static struct dvb_usb_device_properties nova_t_properties;
 
 static int nova_t_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
@@ -151,21 +151,42 @@ static struct usb_device_id nova_t_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, nova_t_table);
 
-static struct dvb_usb_properties nova_t_properties = {
-	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
-	.pid_filter_count = 32,
+static struct dvb_usb_device_properties nova_t_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl = CYPRESS_FX2,
-	.firmware = "dvb-usb-nova-t-usb2-01.fw",
+	.firmware = "dvb-usb-nova-t-usb2-02.fw",
 
-	.size_of_priv     = sizeof(struct dibusb_state),
+	.num_adapters     = 1,
+	.adapter          = {
+		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+			.pid_filter_count = 32,
 
-	.streaming_ctrl   = dibusb2_0_streaming_ctrl,
-	.pid_filter       = dibusb_pid_filter,
-	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.streaming_ctrl   = dibusb2_0_streaming_ctrl,
+			.pid_filter       = dibusb_pid_filter,
+			.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.frontend_attach  = dibusb_dib3000mc_frontend_attach,
+			.tuner_attach     = dibusb_dib3000mc_tuner_attach,
+
+			/* parameter for the MPEG2-data transfer */
+					.stream = {
+						.type = USB_BULK,
+				.count = 7,
+				.endpoint = 0x06,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
+
+			.size_of_priv     = sizeof(struct dibusb_state),
+		}
+	},
+	.size_of_priv     = sizeof(struct dibusb_device_state),
+
 	.power_ctrl       = dibusb2_0_power_ctrl,
-	.frontend_attach  = dibusb_dib3000mc_frontend_attach,
-	.tuner_attach     = dibusb_dib3000mc_tuner_attach,
 	.read_mac_address = nova_t_read_mac_address,
 
 	.rc_interval      = 100,
@@ -176,17 +197,6 @@ static struct dvb_usb_properties nova_t_properties = {
 	.i2c_algo         = &dibusb_i2c_algo,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
-	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
-		.count = 7,
-		.endpoint = 0x06,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
 
 	.num_device_descs = 1,
 	.devices = {

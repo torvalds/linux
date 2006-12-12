@@ -119,7 +119,7 @@ static unsigned int ipt_snat_target(struct sk_buff **pskb,
 }
 
 /* Before 2.6.11 we did implicit source NAT if required. Warn about change. */
-static void warn_if_extra_mangle(u32 dstip, u32 srcip)
+static void warn_if_extra_mangle(__be32 dstip, __be32 srcip)
 {
 	static int warned = 0;
 	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = dstip } } };
@@ -205,7 +205,7 @@ alloc_null_binding(struct ip_conntrack *conntrack,
 	   per-proto parts (hence not IP_NAT_RANGE_PROTO_SPECIFIED).
 	   Use reply in case it's already been mangled (eg local packet).
 	*/
-	u_int32_t ip
+	__be32 ip
 		= (HOOK2MANIP(hooknum) == IP_NAT_MANIP_SRC
 		   ? conntrack->tuplehash[IP_CT_DIR_REPLY].tuple.dst.ip
 		   : conntrack->tuplehash[IP_CT_DIR_REPLY].tuple.src.ip);
@@ -222,7 +222,7 @@ alloc_null_binding_confirmed(struct ip_conntrack *conntrack,
                              struct ip_nat_info *info,
                              unsigned int hooknum)
 {
-	u_int32_t ip
+	__be32 ip
 		= (HOOK2MANIP(hooknum) == IP_NAT_MANIP_SRC
 		   ? conntrack->tuplehash[IP_CT_DIR_REPLY].tuple.dst.ip
 		   : conntrack->tuplehash[IP_CT_DIR_REPLY].tuple.src.ip);

@@ -35,8 +35,9 @@ enum tda10046_agc {
 	TDA10046_AGC_DEFAULT,		/* original configuration */
 	TDA10046_AGC_IFO_AUTO_NEG,	/* IF AGC only, automatic, negtive */
 	TDA10046_AGC_IFO_AUTO_POS,	/* IF AGC only, automatic, positive */
-	TDA10046_AGC_TDA827X,		/* IF AGC only, special setup for tda827x */
-	TDA10046_AGC_TDA827X_GPL,	/* same as above, but GPIOs 0 */
+	TDA10046_AGC_TDA827X_GP11,	/* IF AGC only, special setup for tda827x */
+	TDA10046_AGC_TDA827X_GP00,	/* same as above, but GPIOs 0 */
+	TDA10046_AGC_TDA827X_GP01,	/* same as above, but GPIO3=0 GPIO1=1*/
 };
 
 enum tda10046_if {
@@ -71,12 +72,33 @@ struct tda1004x_config
 	int (*request_firmware)(struct dvb_frontend* fe, const struct firmware **fw, char* name);
 };
 
+#if defined(CONFIG_DVB_TDA1004X) || (defined(CONFIG_DVB_TDA1004X_MODULE) && defined(MODULE))
 extern struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 					    struct i2c_adapter* i2c);
 
 extern struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 					    struct i2c_adapter* i2c);
+#else
+static inline struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
+					    struct i2c_adapter* i2c)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	return NULL;
+}
+static inline struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
+					    struct i2c_adapter* i2c)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	return NULL;
+}
+#endif // CONFIG_DVB_TDA1004X
 
-extern int tda1004x_write_byte(struct dvb_frontend* fe, int reg, int data);
+static inline int tda1004x_writereg(struct dvb_frontend *fe, u8 reg, u8 val) {
+	int r = 0;
+	u8 buf[] = {reg, val};
+	if (fe->ops.write)
+		r = fe->ops.write(fe, buf, 2);
+	return r;
+}
 
 #endif // TDA1004X_H

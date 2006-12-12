@@ -35,7 +35,7 @@
 #include <linux/ide.h>
 #include <asm/io.h>
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
+#ifdef CONFIG_PPC_CHRP
 #include <asm/processor.h>
 #endif
 
@@ -248,7 +248,7 @@ static struct via_isa_bridge *via_config_find(struct pci_dev **isa)
 	u8 t;
 
 	for (via_config = via_isa_bridges; via_config->id; via_config++)
-		if ((*isa = pci_find_device(PCI_VENDOR_ID_VIA +
+		if ((*isa = pci_get_device(PCI_VENDOR_ID_VIA +
 			!!(via_config->flags & VIA_BAD_ID),
 			via_config->id, NULL))) {
 
@@ -256,6 +256,7 @@ static struct via_isa_bridge *via_config_find(struct pci_dev **isa)
 			if (t >= via_config->rev_min &&
 			    t <= via_config->rev_max)
 				break;
+			pci_dev_put(*isa);
 		}
 
 	return via_config;
@@ -281,10 +282,11 @@ static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const 
 	 * Find the ISA bridge to see how good the IDE is.
 	 */
 	via_config = via_config_find(&isa);
-	if (!via_config->id) {
-		printk(KERN_WARNING "VP_IDE: Unknown VIA SouthBridge, disabling DMA.\n");
-		return -ENODEV;
-	}
+
+	/* We checked this earlier so if it fails here deeep badness
+	   is involved */
+
+	BUG_ON(!via_config->id);
 
 	/*
 	 * Setup or disable Clk66 if appropriate
@@ -361,6 +363,7 @@ static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const 
 		via_dma[via_config->flags & VIA_UDMA],
 		pci_name(dev));
 
+	pci_dev_put(isa);
 	return 0;
 }
 
@@ -439,7 +442,7 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 	hwif->speedproc = &via_set_drive;
 
 
-#if defined(CONFIG_PPC_CHRP) && defined(CONFIG_PPC32)
+#ifdef CONFIG_PPC_CHRP
 	if(machine_is(chrp) && _chrp_type == _CHRP_Pegasos) {
 		hwif->irq = hwif->channel ? 15 : 14;
 	}
@@ -491,6 +494,17 @@ static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {
 
 static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
+	struct pci_dev *isa = NULL;
+	struct via_isa_bridge *via_config;
+	/*
+	 * Find the ISA bridge and check we know what it is.
+	 */
+	via_config = via_config_find(&isa);
+	pci_dev_put(isa);
+	if (!via_config->id) {
+		printk(KERN_WARNING "VP_IDE: Unknown VIA SouthBridge, disabling DMA.\n");
+		return -ENODEV;
+	}
 	return ide_setup_pci_device(dev, &via82cxxx_chipsets[id->driver_data]);
 }
 

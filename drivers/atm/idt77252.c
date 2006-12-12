@@ -135,7 +135,7 @@ static int idt77252_change_qos(struct atm_vcc *vcc, struct atm_qos *qos,
 			       int flags);
 static int idt77252_proc_read(struct atm_dev *dev, loff_t * pos,
 			      char *page);
-static void idt77252_softint(void *dev_id);
+static void idt77252_softint(struct work_struct *work);
 
 
 static struct atmdev_ops idt77252_ops =
@@ -642,11 +642,9 @@ alloc_scq(struct idt77252_dev *card, int class)
 {
 	struct scq_info *scq;
 
-	scq = (struct scq_info *) kmalloc(sizeof(struct scq_info), GFP_KERNEL);
+	scq = kzalloc(sizeof(struct scq_info), GFP_KERNEL);
 	if (!scq)
 		return NULL;
-	memset(scq, 0, sizeof(struct scq_info));
-
 	scq->base = pci_alloc_consistent(card->pcidev, SCQ_SIZE,
 					 &scq->paddr);
 	if (scq->base == NULL) {
@@ -2142,11 +2140,9 @@ idt77252_init_est(struct vc_map *vc, int pcr)
 {
 	struct rate_estimator *est;
 
-	est = kmalloc(sizeof(struct rate_estimator), GFP_KERNEL);
+	est = kzalloc(sizeof(struct rate_estimator), GFP_KERNEL);
 	if (!est)
 		return NULL;
-	memset(est, 0, sizeof(*est));
-
 	est->maxcps = pcr < 0 ? -pcr : pcr;
 	est->cps = est->maxcps;
 	est->avcps = est->cps << 5;
@@ -2451,14 +2447,12 @@ idt77252_open(struct atm_vcc *vcc)
 
 	index = VPCI2VC(card, vpi, vci);
 	if (!card->vcs[index]) {
-		card->vcs[index] = kmalloc(sizeof(struct vc_map), GFP_KERNEL);
+		card->vcs[index] = kzalloc(sizeof(struct vc_map), GFP_KERNEL);
 		if (!card->vcs[index]) {
 			printk("%s: can't alloc vc in open()\n", card->name);
 			up(&card->mutex);
 			return -ENOMEM;
 		}
-		memset(card->vcs[index], 0, sizeof(struct vc_map));
-
 		card->vcs[index]->card = card;
 		card->vcs[index]->index = index;
 
@@ -2780,7 +2774,7 @@ idt77252_collect_stat(struct idt77252_dev *card)
 }
 
 static irqreturn_t
-idt77252_interrupt(int irq, void *dev_id, struct pt_regs *ptregs)
+idt77252_interrupt(int irq, void *dev_id)
 {
 	struct idt77252_dev *card = dev_id;
 	u32 stat;
@@ -2872,9 +2866,10 @@ out:
 }
 
 static void
-idt77252_softint(void *dev_id)
+idt77252_softint(struct work_struct *work)
 {
-	struct idt77252_dev *card = dev_id;
+	struct idt77252_dev *card =
+		container_of(work, struct idt77252_dev, tqueue);
 	u32 stat;
 	int done;
 
@@ -2926,13 +2921,11 @@ open_card_oam(struct idt77252_dev *card)
 		for (vci = 3; vci < 5; vci++) {
 			index = VPCI2VC(card, vpi, vci);
 
-			vc = kmalloc(sizeof(struct vc_map), GFP_KERNEL);
+			vc = kzalloc(sizeof(struct vc_map), GFP_KERNEL);
 			if (!vc) {
 				printk("%s: can't alloc vc\n", card->name);
 				return -ENOMEM;
 			}
-			memset(vc, 0, sizeof(struct vc_map));
-
 			vc->index = index;
 			card->vcs[index] = vc;
 
@@ -2995,12 +2988,11 @@ open_card_ubr0(struct idt77252_dev *card)
 {
 	struct vc_map *vc;
 
-	vc = kmalloc(sizeof(struct vc_map), GFP_KERNEL);
+	vc = kzalloc(sizeof(struct vc_map), GFP_KERNEL);
 	if (!vc) {
 		printk("%s: can't alloc vc\n", card->name);
 		return -ENOMEM;
 	}
-	memset(vc, 0, sizeof(struct vc_map));
 	card->vcs[0] = vc;
 	vc->class = SCHED_UBR0;
 
@@ -3695,20 +3687,18 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 		goto err_out_disable_pdev;
 	}
 
-	card = kmalloc(sizeof(struct idt77252_dev), GFP_KERNEL);
+	card = kzalloc(sizeof(struct idt77252_dev), GFP_KERNEL);
 	if (!card) {
 		printk("idt77252-%d: can't allocate private data\n", index);
 		err = -ENOMEM;
 		goto err_out_disable_pdev;
 	}
-	memset(card, 0, sizeof(struct idt77252_dev));
-
 	card->revision = revision;
 	card->index = index;
 	card->pcidev = pcidev;
 	sprintf(card->name, "idt77252-%d", card->index);
 
-	INIT_WORK(&card->tqueue, idt77252_softint, (void *)card);
+	INIT_WORK(&card->tqueue, idt77252_softint);
 
 	membase = pci_resource_start(pcidev, 1);
 	srambase = pci_resource_start(pcidev, 2);

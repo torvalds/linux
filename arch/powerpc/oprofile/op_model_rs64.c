@@ -102,7 +102,7 @@ static void rs64_reg_setup(struct op_counter_config *ctr,
 	/* XXX setup user and kernel profiling */
 }
 
-static void rs64_cpu_setup(void *unused)
+static void rs64_cpu_setup(struct op_counter_config *ctr)
 {
 	unsigned int mmcr0;
 

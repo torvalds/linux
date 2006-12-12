@@ -415,8 +415,8 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	iscsi_solicit_data_init(conn, ctask, r2t);
 
 	tcp_ctask->exp_r2tsn = r2tsn + 1;
-	tcp_ctask->xmstate |= XMSTATE_SOL_HDR;
 	__kfifo_put(tcp_ctask->r2tqueue, (void*)&r2t, sizeof(void*));
+	tcp_ctask->xmstate |= XMSTATE_SOL_HDR;
 	list_move_tail(&ctask->running, &conn->xmitqueue);
 
 	scsi_queue_work(session->host, &conn->xmitwork);
@@ -1627,9 +1627,12 @@ static int iscsi_send_sol_pdu(struct iscsi_conn *conn,
 	if (tcp_ctask->xmstate & XMSTATE_SOL_HDR) {
 		tcp_ctask->xmstate &= ~XMSTATE_SOL_HDR;
 		tcp_ctask->xmstate |= XMSTATE_SOL_DATA;
-		if (!tcp_ctask->r2t)
+		if (!tcp_ctask->r2t) {
+			spin_lock_bh(&session->lock);
 			__kfifo_get(tcp_ctask->r2tqueue, (void*)&tcp_ctask->r2t,
 				    sizeof(void*));
+			spin_unlock_bh(&session->lock);
+		}
 send_hdr:
 		r2t = tcp_ctask->r2t;
 		dtask = &r2t->dtask;
@@ -1816,21 +1819,14 @@ iscsi_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
-	int digest = 0;
-
-	if (conn->hdrdgst_en || conn->datadgst_en)
-		digest = 1;
 
 	iscsi_tcp_release_conn(conn);
 	iscsi_conn_teardown(cls_conn);
 
-	/* now free tcp_conn */
-	if (digest) {
-		if (tcp_conn->tx_hash.tfm)
-			crypto_free_hash(tcp_conn->tx_hash.tfm);
-		if (tcp_conn->rx_hash.tfm)
-			crypto_free_hash(tcp_conn->rx_hash.tfm);
-	}
+	if (tcp_conn->tx_hash.tfm)
+		crypto_free_hash(tcp_conn->tx_hash.tfm);
+	if (tcp_conn->rx_hash.tfm)
+		crypto_free_hash(tcp_conn->rx_hash.tfm);
 
 	kfree(tcp_conn);
 }

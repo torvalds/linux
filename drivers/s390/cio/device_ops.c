@@ -50,7 +50,6 @@ ccw_device_clear(struct ccw_device *cdev, unsigned long intparm)
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state != DEV_STATE_ONLINE &&
-	    cdev->private->state != DEV_STATE_WAIT4IO &&
 	    cdev->private->state != DEV_STATE_W4SENSE)
 		return -EINVAL;
 	sch = to_subchannel(cdev->dev.parent);
@@ -155,7 +154,6 @@ ccw_device_halt(struct ccw_device *cdev, unsigned long intparm)
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state != DEV_STATE_ONLINE &&
-	    cdev->private->state != DEV_STATE_WAIT4IO &&
 	    cdev->private->state != DEV_STATE_W4SENSE)
 		return -EINVAL;
 	sch = to_subchannel(cdev->dev.parent);
@@ -216,6 +214,9 @@ ccw_device_call_handler(struct ccw_device *cdev)
 	      (stctl & SCSW_STCTL_PRIM_STATUS)))
 		return 0;
 
+	/* Clear pending timers for device driver initiated I/O. */
+	if (ending_status)
+		ccw_device_set_timeout(cdev, 0);
 	/*
 	 * Now we are ready to call the device driver interrupt handler.
 	 */
@@ -285,10 +286,10 @@ ccw_device_wake_up(struct ccw_device *cdev, unsigned long ip, struct irb *irb)
 		 if (cdev->private->flags.doverify ||
 			 cdev->private->state == DEV_STATE_VERIFY)
 			 cdev->private->intparm = -EAGAIN;
-		 if ((irb->scsw.dstat & DEV_STAT_UNIT_CHECK) &&
-		     !(irb->ecw[0] &
-		       (SNS0_CMD_REJECT | SNS0_INTERVENTION_REQ)))
-			 cdev->private->intparm = -EAGAIN;
+		else if ((irb->scsw.dstat & DEV_STAT_UNIT_CHECK) &&
+			 !(irb->ecw[0] &
+			   (SNS0_CMD_REJECT | SNS0_INTERVENTION_REQ)))
+			cdev->private->intparm = -EAGAIN;
 		else if ((irb->scsw.dstat & DEV_STAT_ATTENTION) &&
 			 (irb->scsw.dstat & DEV_STAT_DEV_END) &&
 			 (irb->scsw.dstat & DEV_STAT_UNIT_EXCEP))
@@ -309,12 +310,15 @@ __ccw_device_retry_loop(struct ccw_device *cdev, struct ccw1 *ccw, long magic, _
 
 	sch = to_subchannel(cdev->dev.parent);
 	do {
+		ccw_device_set_timeout(cdev, 60 * HZ);
 		ret = cio_start (sch, ccw, lpm);
+		if (ret != 0)
+			ccw_device_set_timeout(cdev, 0);
 		if (ret == -EBUSY) {
 			/* Try again later. */
-			spin_unlock_irq(&sch->lock);
+			spin_unlock_irq(sch->lock);
 			msleep(10);
-			spin_lock_irq(&sch->lock);
+			spin_lock_irq(sch->lock);
 			continue;
 		}
 		if (ret != 0)
@@ -322,12 +326,12 @@ __ccw_device_retry_loop(struct ccw_device *cdev, struct ccw1 *ccw, long magic, _
 			break;
 		/* Wait for end of request. */
 		cdev->private->intparm = magic;
-		spin_unlock_irq(&sch->lock);
+		spin_unlock_irq(sch->lock);
 		wait_event(cdev->private->wait_q,
 			   (cdev->private->intparm == -EIO) ||
 			   (cdev->private->intparm == -EAGAIN) ||
 			   (cdev->private->intparm == 0));
-		spin_lock_irq(&sch->lock);
+		spin_lock_irq(sch->lock);
 		/* Check at least for channel end / device end */
 		if (cdev->private->intparm == -EIO) {
 			/* Non-retryable error. */
@@ -338,9 +342,9 @@ __ccw_device_retry_loop(struct ccw_device *cdev, struct ccw1 *ccw, long magic, _
 			/* Success. */
 			break;
 		/* Try again later. */
-		spin_unlock_irq(&sch->lock);
+		spin_unlock_irq(sch->lock);
 		msleep(10);
-		spin_lock_irq(&sch->lock);
+		spin_lock_irq(sch->lock);
 	} while (1);
 
 	return ret;
@@ -385,7 +389,7 @@ read_dev_chars (struct ccw_device *cdev, void **buffer, int length)
 		return ret;
 	}
 
-	spin_lock_irq(&sch->lock);
+	spin_lock_irq(sch->lock);
 	/* Save interrupt handler. */
 	handler = cdev->handler;
 	/* Temporarily install own handler. */
@@ -402,7 +406,7 @@ read_dev_chars (struct ccw_device *cdev, void **buffer, int length)
 
 	/* Restore interrupt handler. */
 	cdev->handler = handler;
-	spin_unlock_irq(&sch->lock);
+	spin_unlock_irq(sch->lock);
 
 	clear_normalized_cda (rdc_ccw);
 	kfree(rdc_ccw);
@@ -459,7 +463,7 @@ read_conf_data_lpm (struct ccw_device *cdev, void **buffer, int *length, __u8 lp
 	rcd_ccw->count = ciw->count;
 	rcd_ccw->flags = CCW_FLAG_SLI;
 
-	spin_lock_irq(&sch->lock);
+	spin_lock_irq(sch->lock);
 	/* Save interrupt handler. */
 	handler = cdev->handler;
 	/* Temporarily install own handler. */
@@ -476,7 +480,7 @@ read_conf_data_lpm (struct ccw_device *cdev, void **buffer, int *length, __u8 lp
 
 	/* Restore interrupt handler. */
 	cdev->handler = handler;
-	spin_unlock_irq(&sch->lock);
+	spin_unlock_irq(sch->lock);
 
  	/*
  	 * on success we update the user input parms
@@ -533,7 +537,7 @@ ccw_device_stlck(struct ccw_device *cdev)
 		kfree(buf);
 		return -ENOMEM;
 	}
-	spin_lock_irqsave(&sch->lock, flags);
+	spin_lock_irqsave(sch->lock, flags);
 	ret = cio_enable_subchannel(sch, 3);
 	if (ret)
 		goto out_unlock;
@@ -555,9 +559,9 @@ ccw_device_stlck(struct ccw_device *cdev)
 		goto out_unlock;
 	}
 	cdev->private->irb.scsw.actl |= SCSW_ACTL_START_PEND;
-	spin_unlock_irqrestore(&sch->lock, flags);
+	spin_unlock_irqrestore(sch->lock, flags);
 	wait_event(cdev->private->wait_q, cdev->private->irb.scsw.actl == 0);
-	spin_lock_irqsave(&sch->lock, flags);
+	spin_lock_irqsave(sch->lock, flags);
 	cio_disable_subchannel(sch); //FIXME: return code?
 	if ((cdev->private->irb.scsw.dstat !=
 	     (DEV_STAT_CHN_END|DEV_STAT_DEV_END)) ||
@@ -568,7 +572,7 @@ ccw_device_stlck(struct ccw_device *cdev)
 out_unlock:
 	kfree(buf);
 	kfree(buf2);
-	spin_unlock_irqrestore(&sch->lock, flags);
+	spin_unlock_irqrestore(sch->lock, flags);
 	return ret;
 }
 
@@ -586,13 +590,13 @@ ccw_device_get_chp_desc(struct ccw_device *cdev, int chp_no)
 int
 _ccw_device_get_subchannel_number(struct ccw_device *cdev)
 {
-	return cdev->private->sch_no;
+	return cdev->private->schid.sch_no;
 }
 
 int
 _ccw_device_get_device_number(struct ccw_device *cdev)
 {
-	return cdev->private->devno;
+	return cdev->private->dev_id.devno;
 }
 
 

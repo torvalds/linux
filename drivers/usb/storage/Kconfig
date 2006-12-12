@@ -8,8 +8,7 @@ comment "may also be needed; see USB_STORAGE Help for more information"
 
 config USB_STORAGE
 	tristate "USB Mass Storage support"
-	depends on USB
-	select SCSI
+	depends on USB && SCSI
 	---help---
 	  Say Y here if you want to connect USB mass storage devices to your
 	  computer's USB port. This is the driver you need for USB
@@ -18,7 +17,7 @@ config USB_STORAGE
 	  similar devices. This driver may also be used for some cameras
 	  and card readers.
 
-	  This option 'selects' (turns on, enables) 'SCSI', but you
+	  This option depends on 'SCSI' support being enabled, but you
 	  probably also need 'SCSI device support: SCSI disk support'
 	  (BLK_DEV_SD) for most USB storage devices.
 
@@ -120,7 +119,7 @@ config USB_STORAGE_ALAUDA
 	  Say Y here to include additional code to support the Olympus MAUSB-10
 	  and Fujifilm DPC-R1 USB Card reader/writer devices.
 
-	  These devices are based on the Alauda chip and support support both
+	  These devices are based on the Alauda chip and support both
 	  XD and SmartMedia cards.
 
 config USB_STORAGE_ONETOUCH
@@ -134,6 +133,18 @@ config USB_STORAGE_ONETOUCH
 	  hard drive's as an input device. An action can be associated with
 	  this input in any keybinding software. (e.g. gnome's keyboard short-
 	  cuts)
+
+config USB_STORAGE_KARMA
+	bool "Support for Rio Karma music player"
+	depends on USB_STORAGE
+	help
+	  Say Y here to include additional code to support the Rio Karma
+	  USB interface.
+
+	  This code places the Rio Karma into mass storage mode, enabling
+	  it to be mounted as an ordinary filesystem. Performing an eject
+	  on the resulting scsi device node returns the Karma to normal
+	  operation.
 
 config USB_LIBUSUAL
 	bool "The shared table of common (or usual) storage devices"

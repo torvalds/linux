@@ -39,12 +39,15 @@
 #include <linux/seq_file.h>
 #include <linux/times.h>
 #include <linux/profile.h>
+#include <linux/utsname.h>
 #include <linux/blkdev.h>
 #include <linux/hugetlb.h>
 #include <linux/jiffies.h>
 #include <linux/sysrq.h>
 #include <linux/vmalloc.h>
 #include <linux/crash_dump.h>
+#include <linux/pid_namespace.h>
+#include <linux/compile.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -91,7 +94,7 @@ static int loadavg_read_proc(char *page, char **start, off_t off,
 		LOAD_INT(a), LOAD_FRAC(a),
 		LOAD_INT(b), LOAD_FRAC(b),
 		LOAD_INT(c), LOAD_FRAC(c),
-		nr_running(), nr_threads, last_pid);
+		nr_running(), nr_threads, current->nsproxy->pid_ns->last_pid);
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 
@@ -251,8 +254,15 @@ static int version_read_proc(char *page, char **start, off_t off,
 {
 	int len;
 
-	strcpy(page, linux_banner);
-	len = strlen(page);
+	/* FIXED STRING! Don't touch! */
+	len = snprintf(page, PAGE_SIZE,
+		"%s version %s"
+		" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
+		" (" LINUX_COMPILER ")"
+		" %s\n",
+		utsname()->sysname,
+		utsname()->release,
+		utsname()->version);
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 
@@ -277,12 +287,15 @@ static int devinfo_show(struct seq_file *f, void *v)
 		if (i == 0)
 			seq_printf(f, "Character devices:\n");
 		chrdev_show(f, i);
-	} else {
+	}
+#ifdef CONFIG_BLOCK
+	else {
 		i -= CHRDEV_MAJOR_HASH_SIZE;
 		if (i == 0)
 			seq_printf(f, "\nBlock devices:\n");
 		blkdev_show(f, i);
 	}
+#endif
 	return 0;
 }
 
@@ -355,6 +368,7 @@ static int stram_read_proc(char *page, char **start, off_t off,
 }
 #endif
 
+#ifdef CONFIG_BLOCK
 extern struct seq_operations partitions_op;
 static int partitions_open(struct inode *inode, struct file *file)
 {
@@ -378,6 +392,7 @@ static struct file_operations proc_diskstats_operations = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
+#endif
 
 #ifdef CONFIG_MODULES
 extern struct seq_operations modules_op;
@@ -641,7 +656,7 @@ static ssize_t write_sysrq_trigger(struct file *file, const char __user *buf,
 
 		if (get_user(c, buf))
 			return -EFAULT;
-		__handle_sysrq(c, NULL, NULL, 0);
+		__handle_sysrq(c, NULL, 0);
 	}
 	return count;
 }
@@ -690,12 +705,16 @@ void __init proc_misc_init(void)
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	/* And now for trickier ones */
+#ifdef CONFIG_PRINTK
 	entry = create_proc_entry("kmsg", S_IRUSR, &proc_root);
 	if (entry)
 		entry->proc_fops = &proc_kmsg_operations;
+#endif
 	create_seq_entry("devices", 0, &proc_devinfo_operations);
 	create_seq_entry("cpuinfo", 0, &proc_cpuinfo_operations);
+#ifdef CONFIG_BLOCK
 	create_seq_entry("partitions", 0, &proc_partitions_operations);
+#endif
 	create_seq_entry("stat", 0, &proc_stat_operations);
 	create_seq_entry("interrupts", 0, &proc_interrupts_operations);
 #ifdef CONFIG_SLAB
@@ -707,7 +726,9 @@ void __init proc_misc_init(void)
 	create_seq_entry("buddyinfo",S_IRUGO, &fragmentation_file_operations);
 	create_seq_entry("vmstat",S_IRUGO, &proc_vmstat_file_operations);
 	create_seq_entry("zoneinfo",S_IRUGO, &proc_zoneinfo_file_operations);
+#ifdef CONFIG_BLOCK
 	create_seq_entry("diskstats", 0, &proc_diskstats_operations);
+#endif
 #ifdef CONFIG_MODULES
 	create_seq_entry("modules", 0, &proc_modules_operations);
 #endif

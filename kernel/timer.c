@@ -41,12 +41,6 @@
 #include <asm/timex.h>
 #include <asm/io.h>
 
-#ifdef CONFIG_TIME_INTERPOLATION
-static void time_interpolator_update(long delta_nsec);
-#else
-#define time_interpolator_update(x)
-#endif
-
 u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
@@ -85,6 +79,138 @@ typedef struct tvec_t_base_s tvec_base_t;
 tvec_base_t boot_tvec_bases;
 EXPORT_SYMBOL(boot_tvec_bases);
 static DEFINE_PER_CPU(tvec_base_t *, tvec_bases) = &boot_tvec_bases;
+
+/**
+ * __round_jiffies - function to round jiffies to a full second
+ * @j: the time in (absolute) jiffies that should be rounded
+ * @cpu: the processor number on which the timeout will happen
+ *
+ * __round_jiffies rounds an absolute time in the future (in jiffies)
+ * up or down to (approximately) full seconds. This is useful for timers
+ * for which the exact time they fire does not matter too much, as long as
+ * they fire approximately every X seconds.
+ *
+ * By rounding these timers to whole seconds, all such timers will fire
+ * at the same time, rather than at various times spread out. The goal
+ * of this is to have the CPU wake up less, which saves power.
+ *
+ * The exact rounding is skewed for each processor to avoid all
+ * processors firing at the exact same time, which could lead
+ * to lock contention or spurious cache line bouncing.
+ *
+ * The return value is the rounded version of the "j" parameter.
+ */
+unsigned long __round_jiffies(unsigned long j, int cpu)
+{
+	int rem;
+	unsigned long original = j;
+
+	/*
+	 * We don't want all cpus firing their timers at once hitting the
+	 * same lock or cachelines, so we skew each extra cpu with an extra
+	 * 3 jiffies. This 3 jiffies came originally from the mm/ code which
+	 * already did this.
+	 * The skew is done by adding 3*cpunr, then round, then subtract this
+	 * extra offset again.
+	 */
+	j += cpu * 3;
+
+	rem = j % HZ;
+
+	/*
+	 * If the target jiffie is just after a whole second (which can happen
+	 * due to delays of the timer irq, long irq off times etc etc) then
+	 * we should round down to the whole second, not up. Use 1/4th second
+	 * as cutoff for this rounding as an extreme upper bound for this.
+	 */
+	if (rem < HZ/4) /* round down */
+		j = j - rem;
+	else /* round up */
+		j = j - rem + HZ;
+
+	/* now that we have rounded, subtract the extra skew again */
+	j -= cpu * 3;
+
+	if (j <= jiffies) /* rounding ate our timeout entirely; */
+		return original;
+	return j;
+}
+EXPORT_SYMBOL_GPL(__round_jiffies);
+
+/**
+ * __round_jiffies_relative - function to round jiffies to a full second
+ * @j: the time in (relative) jiffies that should be rounded
+ * @cpu: the processor number on which the timeout will happen
+ *
+ * __round_jiffies_relative rounds a time delta  in the future (in jiffies)
+ * up or down to (approximately) full seconds. This is useful for timers
+ * for which the exact time they fire does not matter too much, as long as
+ * they fire approximately every X seconds.
+ *
+ * By rounding these timers to whole seconds, all such timers will fire
+ * at the same time, rather than at various times spread out. The goal
+ * of this is to have the CPU wake up less, which saves power.
+ *
+ * The exact rounding is skewed for each processor to avoid all
+ * processors firing at the exact same time, which could lead
+ * to lock contention or spurious cache line bouncing.
+ *
+ * The return value is the rounded version of the "j" parameter.
+ */
+unsigned long __round_jiffies_relative(unsigned long j, int cpu)
+{
+	/*
+	 * In theory the following code can skip a jiffy in case jiffies
+	 * increments right between the addition and the later subtraction.
+	 * However since the entire point of this function is to use approximate
+	 * timeouts, it's entirely ok to not handle that.
+	 */
+	return  __round_jiffies(j + jiffies, cpu) - jiffies;
+}
+EXPORT_SYMBOL_GPL(__round_jiffies_relative);
+
+/**
+ * round_jiffies - function to round jiffies to a full second
+ * @j: the time in (absolute) jiffies that should be rounded
+ *
+ * round_jiffies rounds an absolute time in the future (in jiffies)
+ * up or down to (approximately) full seconds. This is useful for timers
+ * for which the exact time they fire does not matter too much, as long as
+ * they fire approximately every X seconds.
+ *
+ * By rounding these timers to whole seconds, all such timers will fire
+ * at the same time, rather than at various times spread out. The goal
+ * of this is to have the CPU wake up less, which saves power.
+ *
+ * The return value is the rounded version of the "j" parameter.
+ */
+unsigned long round_jiffies(unsigned long j)
+{
+	return __round_jiffies(j, raw_smp_processor_id());
+}
+EXPORT_SYMBOL_GPL(round_jiffies);
+
+/**
+ * round_jiffies_relative - function to round jiffies to a full second
+ * @j: the time in (relative) jiffies that should be rounded
+ *
+ * round_jiffies_relative rounds a time delta  in the future (in jiffies)
+ * up or down to (approximately) full seconds. This is useful for timers
+ * for which the exact time they fire does not matter too much, as long as
+ * they fire approximately every X seconds.
+ *
+ * By rounding these timers to whole seconds, all such timers will fire
+ * at the same time, rather than at various times spread out. The goal
+ * of this is to have the CPU wake up less, which saves power.
+ *
+ * The return value is the rounded version of the "j" parameter.
+ */
+unsigned long round_jiffies_relative(unsigned long j)
+{
+	return __round_jiffies_relative(j, raw_smp_processor_id());
+}
+EXPORT_SYMBOL_GPL(round_jiffies_relative);
+
 
 static inline void set_running_timer(tvec_base_t *base,
 					struct timer_list *timer)
@@ -136,7 +262,7 @@ static void internal_add_timer(tvec_base_t *base, struct timer_list *timer)
 	list_add_tail(&timer->entry, vec);
 }
 
-/***
+/**
  * init_timer - initialize a timer.
  * @timer: the timer to be initialized
  *
@@ -175,6 +301,7 @@ static inline void detach_timer(struct timer_list *timer,
  */
 static tvec_base_t *lock_timer_base(struct timer_list *timer,
 					unsigned long *flags)
+	__acquires(timer->base->lock)
 {
 	tvec_base_t *base;
 
@@ -235,7 +362,7 @@ int __mod_timer(struct timer_list *timer, unsigned long expires)
 
 EXPORT_SYMBOL(__mod_timer);
 
-/***
+/**
  * add_timer_on - start a timer on a particular CPU
  * @timer: the timer to be added
  * @cpu: the CPU to start it on
@@ -255,9 +382,10 @@ void add_timer_on(struct timer_list *timer, int cpu)
 }
 
 
-/***
+/**
  * mod_timer - modify a timer's timeout
  * @timer: the timer to be modified
+ * @expires: new timeout in jiffies
  *
  * mod_timer is a more efficient way to update the expire field of an
  * active timer (if the timer is inactive it will be activated)
@@ -291,7 +419,7 @@ int mod_timer(struct timer_list *timer, unsigned long expires)
 
 EXPORT_SYMBOL(mod_timer);
 
-/***
+/**
  * del_timer - deactive a timer.
  * @timer: the timer to be deactivated
  *
@@ -323,7 +451,10 @@ int del_timer(struct timer_list *timer)
 EXPORT_SYMBOL(del_timer);
 
 #ifdef CONFIG_SMP
-/*
+/**
+ * try_to_del_timer_sync - Try to deactivate a timer
+ * @timer: timer do del
+ *
  * This function tries to deactivate a timer. Upon successful (ret >= 0)
  * exit the timer is not queued and the handler is not running on any CPU.
  *
@@ -351,7 +482,7 @@ out:
 	return ret;
 }
 
-/***
+/**
  * del_timer_sync - deactivate a timer and wait for the handler to finish.
  * @timer: the timer to be deactivated
  *
@@ -401,15 +532,15 @@ static int cascade(tvec_base_t *base, tvec_t *tv, int index)
 	return index;
 }
 
-/***
+#define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
+
+/**
  * __run_timers - run all expired timers (if any) on this CPU.
  * @base: the timer vector to be processed.
  *
  * This function cascades all vectors and executes all expired timer
  * vectors.
  */
-#define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
-
 static inline void __run_timers(tvec_base_t *base)
 {
 	struct timer_list *timer;
@@ -563,12 +694,6 @@ found:
 
 /******************************************************************/
 
-/*
- * Timekeeping variables
- */
-unsigned long tick_usec = TICK_USEC; 		/* USER_HZ period (usec) */
-unsigned long tick_nsec = TICK_NSEC;		/* ACTHZ period (nsec) */
-
 /* 
  * The current time 
  * wall_to_monotonic is what we need to add to xtime (or xtime corrected 
@@ -582,209 +707,6 @@ struct timespec wall_to_monotonic __attribute__ ((aligned (16)));
 
 EXPORT_SYMBOL(xtime);
 
-/* Don't completely fail for HZ > 500.  */
-int tickadj = 500/HZ ? : 1;		/* microsecs */
-
-
-/*
- * phase-lock loop variables
- */
-/* TIME_ERROR prevents overwriting the CMOS clock */
-int time_state = TIME_OK;		/* clock synchronization status	*/
-int time_status = STA_UNSYNC;		/* clock status bits		*/
-long time_offset;			/* time adjustment (us)		*/
-long time_constant = 2;			/* pll time constant		*/
-long time_tolerance = MAXFREQ;		/* frequency tolerance (ppm)	*/
-long time_precision = 1;		/* clock precision (us)		*/
-long time_maxerror = NTP_PHASE_LIMIT;	/* maximum error (us)		*/
-long time_esterror = NTP_PHASE_LIMIT;	/* estimated error (us)		*/
-long time_freq = (((NSEC_PER_SEC + HZ/2) % HZ - HZ/2) << SHIFT_USEC) / NSEC_PER_USEC;
-					/* frequency offset (scaled ppm)*/
-static long time_adj;			/* tick adjust (scaled 1 / HZ)	*/
-long time_reftime;			/* time at last adjustment (s)	*/
-long time_adjust;
-long time_next_adjust;
-
-/*
- * this routine handles the overflow of the microsecond field
- *
- * The tricky bits of code to handle the accurate clock support
- * were provided by Dave Mills (Mills@UDEL.EDU) of NTP fame.
- * They were originally developed for SUN and DEC kernels.
- * All the kudos should go to Dave for this stuff.
- *
- */
-static void second_overflow(void)
-{
-	long ltemp;
-
-	/* Bump the maxerror field */
-	time_maxerror += time_tolerance >> SHIFT_USEC;
-	if (time_maxerror > NTP_PHASE_LIMIT) {
-		time_maxerror = NTP_PHASE_LIMIT;
-		time_status |= STA_UNSYNC;
-	}
-
-	/*
-	 * Leap second processing. If in leap-insert state at the end of the
-	 * day, the system clock is set back one second; if in leap-delete
-	 * state, the system clock is set ahead one second. The microtime()
-	 * routine or external clock driver will insure that reported time is
-	 * always monotonic. The ugly divides should be replaced.
-	 */
-	switch (time_state) {
-	case TIME_OK:
-		if (time_status & STA_INS)
-			time_state = TIME_INS;
-		else if (time_status & STA_DEL)
-			time_state = TIME_DEL;
-		break;
-	case TIME_INS:
-		if (xtime.tv_sec % 86400 == 0) {
-			xtime.tv_sec--;
-			wall_to_monotonic.tv_sec++;
-			/*
-			 * The timer interpolator will make time change
-			 * gradually instead of an immediate jump by one second
-			 */
-			time_interpolator_update(-NSEC_PER_SEC);
-			time_state = TIME_OOP;
-			clock_was_set();
-			printk(KERN_NOTICE "Clock: inserting leap second "
-					"23:59:60 UTC\n");
-		}
-		break;
-	case TIME_DEL:
-		if ((xtime.tv_sec + 1) % 86400 == 0) {
-			xtime.tv_sec++;
-			wall_to_monotonic.tv_sec--;
-			/*
-			 * Use of time interpolator for a gradual change of
-			 * time
-			 */
-			time_interpolator_update(NSEC_PER_SEC);
-			time_state = TIME_WAIT;
-			clock_was_set();
-			printk(KERN_NOTICE "Clock: deleting leap second "
-					"23:59:59 UTC\n");
-		}
-		break;
-	case TIME_OOP:
-		time_state = TIME_WAIT;
-		break;
-	case TIME_WAIT:
-		if (!(time_status & (STA_INS | STA_DEL)))
-		time_state = TIME_OK;
-	}
-
-	/*
-	 * Compute the phase adjustment for the next second. In PLL mode, the
-	 * offset is reduced by a fixed factor times the time constant. In FLL
-	 * mode the offset is used directly. In either mode, the maximum phase
-	 * adjustment for each second is clamped so as to spread the adjustment
-	 * over not more than the number of seconds between updates.
-	 */
-	ltemp = time_offset;
-	if (!(time_status & STA_FLL))
-		ltemp = shift_right(ltemp, SHIFT_KG + time_constant);
-	ltemp = min(ltemp, (MAXPHASE / MINSEC) << SHIFT_UPDATE);
-	ltemp = max(ltemp, -(MAXPHASE / MINSEC) << SHIFT_UPDATE);
-	time_offset -= ltemp;
-	time_adj = ltemp << (SHIFT_SCALE - SHIFT_HZ - SHIFT_UPDATE);
-
-	/*
-	 * Compute the frequency estimate and additional phase adjustment due
-	 * to frequency error for the next second.
-	 */
-	ltemp = time_freq;
-	time_adj += shift_right(ltemp,(SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE));
-
-#if HZ == 100
-	/*
-	 * Compensate for (HZ==100) != (1 << SHIFT_HZ).  Add 25% and 3.125% to
-	 * get 128.125; => only 0.125% error (p. 14)
-	 */
-	time_adj += shift_right(time_adj, 2) + shift_right(time_adj, 5);
-#endif
-#if HZ == 250
-	/*
-	 * Compensate for (HZ==250) != (1 << SHIFT_HZ).  Add 1.5625% and
-	 * 0.78125% to get 255.85938; => only 0.05% error (p. 14)
-	 */
-	time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
-#endif
-#if HZ == 1000
-	/*
-	 * Compensate for (HZ==1000) != (1 << SHIFT_HZ).  Add 1.5625% and
-	 * 0.78125% to get 1023.4375; => only 0.05% error (p. 14)
-	 */
-	time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
-#endif
-}
-
-/*
- * Returns how many microseconds we need to add to xtime this tick
- * in doing an adjustment requested with adjtime.
- */
-static long adjtime_adjustment(void)
-{
-	long time_adjust_step;
-
-	time_adjust_step = time_adjust;
-	if (time_adjust_step) {
-		/*
-		 * We are doing an adjtime thing.  Prepare time_adjust_step to
-		 * be within bounds.  Note that a positive time_adjust means we
-		 * want the clock to run faster.
-		 *
-		 * Limit the amount of the step to be in the range
-		 * -tickadj .. +tickadj
-		 */
-		time_adjust_step = min(time_adjust_step, (long)tickadj);
-		time_adjust_step = max(time_adjust_step, (long)-tickadj);
-	}
-	return time_adjust_step;
-}
-
-/* in the NTP reference this is called "hardclock()" */
-static void update_ntp_one_tick(void)
-{
-	long time_adjust_step;
-
-	time_adjust_step = adjtime_adjustment();
-	if (time_adjust_step)
-		/* Reduce by this step the amount of time left  */
-		time_adjust -= time_adjust_step;
-
-	/* Changes by adjtime() do not take effect till next tick. */
-	if (time_next_adjust != 0) {
-		time_adjust = time_next_adjust;
-		time_next_adjust = 0;
-	}
-}
-
-/*
- * Return how long ticks are at the moment, that is, how much time
- * update_wall_time_one_tick will add to xtime next time we call it
- * (assuming no calls to do_adjtimex in the meantime).
- * The return value is in fixed-point nanoseconds shifted by the
- * specified number of bits to the right of the binary point.
- * This function has no side-effects.
- */
-u64 current_tick_length(void)
-{
-	long delta_nsec;
-	u64 ret;
-
-	/* calculate the finest interval NTP will allow.
-	 *    ie: nanosecond value shifted by (SHIFT_SCALE - 10)
-	 */
-	delta_nsec = tick_nsec + adjtime_adjustment() * 1000;
-	ret = (u64)delta_nsec << TICK_LENGTH_SHIFT;
-	ret += (s64)time_adj << (TICK_LENGTH_SHIFT - (SHIFT_SCALE - 10));
-
-	return ret;
-}
 
 /* XXX - all of this timekeeping code should be later moved to time.c */
 #include <linux/clocksource.h>
@@ -924,7 +846,7 @@ static int change_clocksource(void)
 		clock = new;
 		clock->cycle_last = now;
 		printk(KERN_INFO "Time: %s clocksource has been installed.\n",
-					clock->name);
+		       clock->name);
 		return 1;
 	} else if (clock->update_callback) {
 		return clock->update_callback();
@@ -932,7 +854,10 @@ static int change_clocksource(void)
 	return 0;
 }
 #else
-#define change_clocksource() (0)
+static inline int change_clocksource(void)
+{
+	return 0;
+}
 #endif
 
 /**
@@ -961,21 +886,24 @@ void __init timekeeping_init(void)
 	unsigned long flags;
 
 	write_seqlock_irqsave(&xtime_lock, flags);
+
+	ntp_clear();
+
 	clock = clocksource_get_next();
 	clocksource_calculate_interval(clock, tick_nsec);
 	clock->cycle_last = clocksource_read(clock);
-	ntp_clear();
+
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 }
 
 
 static int timekeeping_suspended;
-/*
+/**
  * timekeeping_resume - Resumes the generic timekeeping subsystem.
  * @dev:	unused
  *
  * This is for the generic clocksource timekeeping.
- * xtime/wall_to_monotonic/jiffies/wall_jiffies/etc are
+ * xtime/wall_to_monotonic/jiffies/etc are
  * still managed by arch specific suspend/resume code.
  */
 static int timekeeping_resume(struct sys_device *dev)
@@ -1027,7 +955,8 @@ device_initcall(timekeeping_init_device);
  * If the error is already larger, we look ahead even further
  * to compensate for late or lost adjustments.
  */
-static __always_inline int clocksource_bigadjust(s64 error, s64 *interval, s64 *offset)
+static __always_inline int clocksource_bigadjust(s64 error, s64 *interval,
+						 s64 *offset)
 {
 	s64 tick_error, i;
 	u32 look_ahead, adj;
@@ -1051,7 +980,8 @@ static __always_inline int clocksource_bigadjust(s64 error, s64 *interval, s64 *
 	 * Now calculate the error in (1 << look_ahead) ticks, but first
 	 * remove the single look ahead already included in the error.
 	 */
-	tick_error = current_tick_length() >> (TICK_LENGTH_SHIFT - clock->shift + 1);
+	tick_error = current_tick_length() >>
+		(TICK_LENGTH_SHIFT - clock->shift + 1);
 	tick_error -= clock->xtime_interval >> 1;
 	error = ((error - tick_error) >> look_ahead) + tick_error;
 
@@ -1103,10 +1033,11 @@ static void clocksource_adjust(struct clocksource *clock, s64 offset)
 	clock->mult += adj;
 	clock->xtime_interval += interval;
 	clock->xtime_nsec -= offset;
-	clock->error -= (interval - offset) << (TICK_LENGTH_SHIFT - clock->shift);
+	clock->error -= (interval - offset) <<
+			(TICK_LENGTH_SHIFT - clock->shift);
 }
 
-/*
+/**
  * update_wall_time - Uses the current clocksource to increment the wall time
  *
  * Called from the timer interrupt, must hold a write on xtime_lock.
@@ -1144,8 +1075,6 @@ static void update_wall_time(void)
 		/* interpolator bits */
 		time_interpolator_update(clock->xtime_interval
 						>> clock->shift);
-		/* increment the NTP state machine */
-		update_ntp_one_tick();
 
 		/* accumulate error between NTP and clock interval */
 		clock->error += current_tick_length();
@@ -1217,18 +1146,13 @@ static inline void calc_load(unsigned long ticks)
 	unsigned long active_tasks; /* fixed-point */
 	static int count = LOAD_FREQ;
 
-	count -= ticks;
-	if (count < 0) {
-		count += LOAD_FREQ;
-		active_tasks = count_active_tasks();
+	active_tasks = count_active_tasks();
+	for (count -= ticks; count < 0; count += LOAD_FREQ) {
 		CALC_LOAD(avenrun[0], EXP_1, active_tasks);
 		CALC_LOAD(avenrun[1], EXP_5, active_tasks);
 		CALC_LOAD(avenrun[2], EXP_15, active_tasks);
 	}
 }
-
-/* jiffies at the most recent update of wall time */
-unsigned long wall_jiffies = INITIAL_JIFFIES;
 
 /*
  * This read-write spinlock protects us from races in SMP while
@@ -1265,12 +1189,8 @@ void run_local_timers(void)
  * Called by the timer interrupt. xtime_lock must already be taken
  * by the timer IRQ!
  */
-static inline void update_times(void)
+static inline void update_times(unsigned long ticks)
 {
-	unsigned long ticks;
-
-	ticks = jiffies - wall_jiffies;
-	wall_jiffies += ticks;
 	update_wall_time();
 	calc_load(ticks);
 }
@@ -1281,12 +1201,10 @@ static inline void update_times(void)
  * jiffies is defined in the linker script...
  */
 
-void do_timer(struct pt_regs *regs)
+void do_timer(unsigned long ticks)
 {
-	jiffies_64++;
-	/* prevent loading jiffies before storing new jiffies_64 value. */
-	barrier();
-	update_times();
+	jiffies_64 += ticks;
+	update_times(ticks);
 }
 
 #ifdef __ARCH_WANT_SYS_ALARM
@@ -1470,8 +1388,9 @@ asmlinkage long sys_gettid(void)
 	return current->pid;
 }
 
-/*
+/**
  * sys_sysinfo - fill in sysinfo struct
+ * @info: pointer to buffer to fill
  */ 
 asmlinkage long sys_sysinfo(struct sysinfo __user *info)
 {
@@ -1688,8 +1607,10 @@ static struct notifier_block __cpuinitdata timers_nb = {
 
 void __init init_timers(void)
 {
-	timer_cpu_notify(&timers_nb, (unsigned long)CPU_UP_PREPARE,
+	int err = timer_cpu_notify(&timers_nb, (unsigned long)CPU_UP_PREPARE,
 				(void *)(long)smp_processor_id());
+
+	BUG_ON(err == NOTIFY_BAD);
 	register_cpu_notifier(&timers_nb);
 	open_softirq(TIMER_SOFTIRQ, run_timer_softirq, NULL);
 }
@@ -1774,7 +1695,7 @@ unsigned long time_interpolator_get_offset(void)
 #define INTERPOLATOR_ADJUST 65536
 #define INTERPOLATOR_MAX_SKIP 10*INTERPOLATOR_ADJUST
 
-static void time_interpolator_update(long delta_nsec)
+void time_interpolator_update(long delta_nsec)
 {
 	u64 counter;
 	unsigned long offset;

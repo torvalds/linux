@@ -16,6 +16,7 @@
 #include <linux/leds.h>
 #include <linux/err.h>
 #include <asm/io.h>
+#include <linux/nsc_gpio.h>
 #include <linux/scx200_gpio.h>
 
 #define DRVNAME "net48xx-led"
@@ -26,10 +27,7 @@ static struct platform_device *pdev;
 static void net48xx_error_led_set(struct led_classdev *led_cdev,
 		enum led_brightness value)
 {
-	if (value)
-		scx200_gpio_set_high(NET48XX_ERROR_LED_GPIO);
-	else
-		scx200_gpio_set_low(NET48XX_ERROR_LED_GPIO);
+	scx200_gpio_ops.gpio_set(NET48XX_ERROR_LED_GPIO, value ? 1 : 0);
 }
 
 static struct led_classdev net48xx_error_led = {
@@ -81,7 +79,8 @@ static int __init net48xx_led_init(void)
 {
 	int ret;
 
-	if (!scx200_gpio_present()) {
+	/* small hack, but scx200_gpio doesn't set .dev if the probe fails */
+	if (!scx200_gpio_ops.dev) {
 		ret = -ENODEV;
 		goto out;
 	}

@@ -212,7 +212,7 @@ static void ld_usb_delete(struct ld_usb *dev)
 /**
  *	ld_usb_interrupt_in_callback
  */
-static void ld_usb_interrupt_in_callback(struct urb *urb, struct pt_regs *regs)
+static void ld_usb_interrupt_in_callback(struct urb *urb)
 {
 	struct ld_usb *dev = urb->context;
 	size_t *actual_buffer;
@@ -264,7 +264,7 @@ exit:
 /**
  *	ld_usb_interrupt_out_callback
  */
-static void ld_usb_interrupt_out_callback(struct urb *urb, struct pt_regs *regs)
+static void ld_usb_interrupt_out_callback(struct urb *urb)
 {
 	struct ld_usb *dev = urb->context;
 
@@ -589,7 +589,7 @@ exit:
 }
 
 /* file operations needed when we register this driver */
-static struct file_operations ld_usb_fops = {
+static const struct file_operations ld_usb_fops = {
 	.owner =	THIS_MODULE,
 	.read  =	ld_usb_read,
 	.write =	ld_usb_write,
@@ -657,15 +657,11 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 
-		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
+		if (usb_endpoint_is_int_in(endpoint))
 			dev->interrupt_in_endpoint = endpoint;
-		}
 
-		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
+		if (usb_endpoint_is_int_out(endpoint))
 			dev->interrupt_out_endpoint = endpoint;
-		}
 	}
 	if (dev->interrupt_in_endpoint == NULL) {
 		dev_err(&intf->dev, "Interrupt in endpoint not found\n");

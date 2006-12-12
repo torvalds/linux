@@ -28,7 +28,6 @@
 #ifndef _CPQPHP_H
 #define _CPQPHP_H
 
-#include "pci_hotplug.h"
 #include <linux/interrupt.h>
 #include <asm/io.h>		/* for read? and write? functions */
 #include <linux/delay.h>	/* for delays */
@@ -409,7 +408,7 @@ extern void cpqhp_remove_debugfs_files		(struct controller *ctrl);
 
 /* controller functions */
 extern void	cpqhp_pushbutton_thread		(unsigned long event_pointer);
-extern irqreturn_t cpqhp_ctrl_intr		(int IRQ, void *data, struct pt_regs *regs);
+extern irqreturn_t cpqhp_ctrl_intr		(int IRQ, void *data);
 extern int	cpqhp_find_available_resources	(struct controller *ctrl, void __iomem *rom_start);
 extern int	cpqhp_event_start_thread	(void);
 extern void	cpqhp_event_stop_thread		(void);

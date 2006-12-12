@@ -23,6 +23,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/bug.h>
 
 #include <asm/system.h>
 #include <asm/page.h>
@@ -173,10 +174,12 @@ int module_finalize(const Elf_Ehdr *hdr,
 					    lseg, lseg + locks->sh_size,
 					    tseg, tseg + text->sh_size);
 	}
-	return 0;
+
+	return module_bug_finalize(hdr, sechdrs, me);
 }
 
 void module_arch_cleanup(struct module *mod)
 {
 	alternatives_smp_module_del(mod);
+	module_bug_cleanup(mod);
 }

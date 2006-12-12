@@ -138,12 +138,12 @@ static const unsigned int net_debug = NET_DEBUG;
 #define PLIP_NIBBLE_WAIT        3000
 
 /* Bottom halves */
-static void plip_kick_bh(struct net_device *dev);
-static void plip_bh(struct net_device *dev);
-static void plip_timer_bh(struct net_device *dev);
+static void plip_kick_bh(struct work_struct *work);
+static void plip_bh(struct work_struct *work);
+static void plip_timer_bh(struct work_struct *work);
 
 /* Interrupt handler */
-static void plip_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static void plip_interrupt(int irq, void *dev_id);
 
 /* Functions for DEV methods */
 static int plip_tx_packet(struct sk_buff *skb, struct net_device *dev);
@@ -207,9 +207,10 @@ struct plip_local {
 
 struct net_local {
 	struct net_device_stats enet_stats;
+	struct net_device *dev;
 	struct work_struct immediate;
-	struct work_struct deferred;
-	struct work_struct timer;
+	struct delayed_work deferred;
+	struct delayed_work timer;
 	struct plip_local snd_data;
 	struct plip_local rcv_data;
 	struct pardevice *pardev;
@@ -306,11 +307,11 @@ plip_init_netdev(struct net_device *dev)
 	nl->nibble	= PLIP_NIBBLE_WAIT;
 
 	/* Initialize task queue structures */
-	INIT_WORK(&nl->immediate, (void (*)(void *))plip_bh, dev);
-	INIT_WORK(&nl->deferred, (void (*)(void *))plip_kick_bh, dev);
+	INIT_WORK(&nl->immediate, plip_bh);
+	INIT_DELAYED_WORK(&nl->deferred, plip_kick_bh);
 
 	if (dev->irq == -1)
-		INIT_WORK(&nl->timer, (void (*)(void *))plip_timer_bh, dev);
+		INIT_DELAYED_WORK(&nl->timer, plip_timer_bh);
 
 	spin_lock_init(&nl->lock);
 }
@@ -319,9 +320,10 @@ plip_init_netdev(struct net_device *dev)
    This routine is kicked by do_timer().
    Request `plip_bh' to be invoked. */
 static void
-plip_kick_bh(struct net_device *dev)
+plip_kick_bh(struct work_struct *work)
 {
-	struct net_local *nl = netdev_priv(dev);
+	struct net_local *nl =
+		container_of(work, struct net_local, deferred.work);
 
 	if (nl->is_deferred)
 		schedule_work(&nl->immediate);
@@ -362,9 +364,9 @@ static const plip_func connection_state_table[] =
 
 /* Bottom half handler of PLIP. */
 static void
-plip_bh(struct net_device *dev)
+plip_bh(struct work_struct *work)
 {
-	struct net_local *nl = netdev_priv(dev);
+	struct net_local *nl = container_of(work, struct net_local, immediate);
 	struct plip_local *snd = &nl->snd_data;
 	struct plip_local *rcv = &nl->rcv_data;
 	plip_func f;
@@ -372,20 +374,21 @@ plip_bh(struct net_device *dev)
 
 	nl->is_deferred = 0;
 	f = connection_state_table[nl->connection];
-	if ((r = (*f)(dev, nl, snd, rcv)) != OK
-	    && (r = plip_bh_timeout_error(dev, nl, snd, rcv, r)) != OK) {
+	if ((r = (*f)(nl->dev, nl, snd, rcv)) != OK
+	    && (r = plip_bh_timeout_error(nl->dev, nl, snd, rcv, r)) != OK) {
 		nl->is_deferred = 1;
 		schedule_delayed_work(&nl->deferred, 1);
 	}
 }
 
 static void
-plip_timer_bh(struct net_device *dev)
+plip_timer_bh(struct work_struct *work)
 {
-	struct net_local *nl = netdev_priv(dev);
+	struct net_local *nl =
+		container_of(work, struct net_local, timer.work);
 
 	if (!(atomic_read (&nl->kill_timer))) {
-		plip_interrupt (-1, dev, NULL);
+		plip_interrupt (-1, nl->dev);
 
 		schedule_delayed_work(&nl->timer, 1);
 	}
@@ -902,17 +905,12 @@ plip_error(struct net_device *dev, struct net_local *nl,
 
 /* Handle the parallel port interrupts. */
 static void
-plip_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+plip_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct net_local *nl;
 	struct plip_local *rcv;
 	unsigned char c0;
-
-	if (dev == NULL) {
-		printk(KERN_DEBUG "plip_interrupt: irq %d for unknown device.\n", irq);
-		return;
-	}
 
 	nl = netdev_priv(dev);
 	rcv = &nl->rcv_data;
@@ -1289,6 +1287,7 @@ static void plip_attach (struct parport *port)
 		}
 
 		nl = netdev_priv(dev);
+		nl->dev = dev;
 		nl->pardev = parport_register_device(port, name, plip_preempt,
 						 plip_wakeup, plip_interrupt,
 						 0, dev);

@@ -522,12 +522,13 @@ void ack_bad_irq(unsigned int virt_irq)
 }
 
 #ifndef CONFIG_SMP
-extern irqreturn_t timer_interrupt(int, void *, struct pt_regs *);
+extern irqreturn_t timer_interrupt(int, void *);
 
 void timer_irq(int irq, struct pt_regs *regs)
 {
 	unsigned long clr_mask = 1 << irq;
 	unsigned long tick_mask = tick_ops->softint_mask;
+	struct pt_regs *old_regs;
 
 	if (get_softint() & tick_mask) {
 		irq = 0;
@@ -535,21 +536,25 @@ void timer_irq(int irq, struct pt_regs *regs)
 	}
 	clear_softint(clr_mask);
 
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 
 	kstat_this_cpu.irqs[0]++;
-	timer_interrupt(irq, NULL, regs);
+	timer_interrupt(irq, NULL);
 
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 #endif
 
 void handler_irq(int irq, struct pt_regs *regs)
 {
 	struct ino_bucket *bucket;
+	struct pt_regs *old_regs;
 
 	clear_softint(1 << irq);
 
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 
 	/* Sliiiick... */
@@ -558,12 +563,13 @@ void handler_irq(int irq, struct pt_regs *regs)
 		struct ino_bucket *next = __bucket(bucket->irq_chain);
 
 		bucket->irq_chain = 0;
-		__do_IRQ(bucket->virt_irq, regs);
+		__do_IRQ(bucket->virt_irq);
 
 		bucket = next;
 	}
 
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 struct sun5_timer {

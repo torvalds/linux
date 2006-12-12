@@ -38,18 +38,18 @@ static int gt64111_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	switch (size) {
 	case 4:
 		PCI_CFG_SET(devfn, where);
-		*val = GALILEO_INL(GT_PCI0_CFGDATA_OFS);
+		*val = GT_READ(GT_PCI0_CFGDATA_OFS);
 		return PCIBIOS_SUCCESSFUL;
 
 	case 2:
 		PCI_CFG_SET(devfn, (where & ~0x3));
-		*val = GALILEO_INL(GT_PCI0_CFGDATA_OFS)
+		*val = GT_READ(GT_PCI0_CFGDATA_OFS)
 		    >> ((where & 3) * 8);
 		return PCIBIOS_SUCCESSFUL;
 
 	case 1:
 		PCI_CFG_SET(devfn, (where & ~0x3));
-		*val = GALILEO_INL(GT_PCI0_CFGDATA_OFS)
+		*val = GT_READ(GT_PCI0_CFGDATA_OFS)
 		    >> ((where & 3) * 8);
 		return PCIBIOS_SUCCESSFUL;
 	}
@@ -68,25 +68,25 @@ static int gt64111_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	switch (size) {
 	case 4:
 		PCI_CFG_SET(devfn, where);
-		GALILEO_OUTL(val, GT_PCI0_CFGDATA_OFS);
+		GT_WRITE(GT_PCI0_CFGDATA_OFS, val);
 
 		return PCIBIOS_SUCCESSFUL;
 
 	case 2:
 		PCI_CFG_SET(devfn, (where & ~0x3));
-		tmp = GALILEO_INL(GT_PCI0_CFGDATA_OFS);
+		tmp = GT_READ(GT_PCI0_CFGDATA_OFS);
 		tmp &= ~(0xffff << ((where & 0x3) * 8));
 		tmp |= (val << ((where & 0x3) * 8));
-		GALILEO_OUTL(tmp, GT_PCI0_CFGDATA_OFS);
+		GT_WRITE(GT_PCI0_CFGDATA_OFS, tmp);
 
 		return PCIBIOS_SUCCESSFUL;
 
 	case 1:
 		PCI_CFG_SET(devfn, (where & ~0x3));
-		tmp = GALILEO_INL(GT_PCI0_CFGDATA_OFS);
+		tmp = GT_READ(GT_PCI0_CFGDATA_OFS);
 		tmp &= ~(0xff << ((where & 0x3) * 8));
 		tmp |= (val << ((where & 0x3) * 8));
-		GALILEO_OUTL(tmp, GT_PCI0_CFGDATA_OFS);
+		GT_WRITE(GT_PCI0_CFGDATA_OFS, tmp);
 
 		return PCIBIOS_SUCCESSFUL;
 	}

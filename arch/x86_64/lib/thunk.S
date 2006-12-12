@@ -5,7 +5,6 @@
  * Subject to the GNU public license, v.2. No warranty of any kind.
  */
 
-	#include <linux/config.h>
 	#include <linux/linkage.h>
 	#include <asm/dwarf2.h>
 	#include <asm/calling.h>			

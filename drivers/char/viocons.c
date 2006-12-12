@@ -947,7 +947,7 @@ static void vioHandleData(struct HvLpEvent *event)
 				 */
 				continue;
 			} else if (vio_sysrq_pressed) {
-				handle_sysrq(cevent->data[index], NULL, tty);
+				handle_sysrq(cevent->data[index], tty);
 				vio_sysrq_pressed = 0;
 				/*
 				 * continue because we don't want to add
@@ -1047,7 +1047,7 @@ static int send_open(HvLpIndex remoteLp, void *sem)
 			0, 0, 0, 0);
 }
 
-static struct tty_operations serial_ops = {
+static const struct tty_operations serial_ops = {
 	.open = viotty_open,
 	.close = viotty_close,
 	.write = viotty_write,

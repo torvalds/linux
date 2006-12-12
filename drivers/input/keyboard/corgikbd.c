@@ -129,7 +129,7 @@ static inline void corgikbd_reset_col(int col)
  */
 
 /* Scan the hardware keyboard and push any changes up through the input layer */
-static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data, struct pt_regs *regs)
+static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data)
 {
 	unsigned int row, col, rowd;
 	unsigned long flags;
@@ -139,9 +139,6 @@ static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data, struct pt_regs
 		return;
 
 	spin_lock_irqsave(&corgikbd_data->lock, flags);
-
-	if (regs)
-		input_regs(corgikbd_data->input, regs);
 
 	num_pressed = 0;
 	for (col = 0; col < KB_COLS; col++) {
@@ -191,14 +188,14 @@ static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data, struct pt_regs
 /*
  * corgi keyboard interrupt handler.
  */
-static irqreturn_t corgikbd_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t corgikbd_interrupt(int irq, void *dev_id)
 {
 	struct corgikbd *corgikbd_data = dev_id;
 
 	if (!timer_pending(&corgikbd_data->timer)) {
 		/** wait chattering delay **/
 		udelay(20);
-		corgikbd_scankeyboard(corgikbd_data, regs);
+		corgikbd_scankeyboard(corgikbd_data);
 	}
 
 	return IRQ_HANDLED;
@@ -210,7 +207,7 @@ static irqreturn_t corgikbd_interrupt(int irq, void *dev_id, struct pt_regs *reg
 static void corgikbd_timer_callback(unsigned long data)
 {
 	struct corgikbd *corgikbd_data = (struct corgikbd *) data;
-	corgikbd_scankeyboard(corgikbd_data, NULL);
+	corgikbd_scankeyboard(corgikbd_data);
 }
 
 /*
@@ -294,15 +291,12 @@ static int __init corgikbd_probe(struct platform_device *pdev)
 {
 	struct corgikbd *corgikbd;
 	struct input_dev *input_dev;
-	int i;
+	int i, err = -ENOMEM;
 
 	corgikbd = kzalloc(sizeof(struct corgikbd), GFP_KERNEL);
 	input_dev = input_allocate_device();
-	if (!corgikbd || !input_dev) {
-		kfree(corgikbd);
-		input_free_device(input_dev);
-		return -ENOMEM;
-	}
+	if (!corgikbd || !input_dev)
+		goto fail;
 
 	platform_set_drvdata(pdev, corgikbd);
 
@@ -344,7 +338,9 @@ static int __init corgikbd_probe(struct platform_device *pdev)
 	set_bit(SW_TABLET_MODE, input_dev->swbit);
 	set_bit(SW_HEADPHONE_INSERT, input_dev->swbit);
 
-	input_register_device(corgikbd->input);
+	err = input_register_device(corgikbd->input);
+	if (err)
+		goto fail;
 
 	mod_timer(&corgikbd->htimer, jiffies + msecs_to_jiffies(HINGE_SCAN_INTERVAL));
 
@@ -365,6 +361,10 @@ static int __init corgikbd_probe(struct platform_device *pdev)
 	pxa_gpio_mode(CORGI_GPIO_AK_INT | GPIO_IN);
 
 	return 0;
+
+ fail:	input_free_device(input_dev);
+	kfree(corgikbd);
+	return err;
 }
 
 static int corgikbd_remove(struct platform_device *pdev)

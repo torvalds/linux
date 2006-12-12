@@ -20,6 +20,7 @@
 #include <linux/proc_fs.h>
 #include <linux/sched.h>	/* for cond_resched */
 #include <linux/mm.h>
+#include <linux/ctype.h>
 
 #include <asm/sections.h>
 
@@ -30,14 +31,14 @@
 #endif
 
 /* These will be re-linked against their real values during the second link stage */
-extern unsigned long kallsyms_addresses[] __attribute__((weak));
-extern unsigned long kallsyms_num_syms __attribute__((weak,section("data")));
-extern u8 kallsyms_names[] __attribute__((weak));
+extern const unsigned long kallsyms_addresses[] __attribute__((weak));
+extern const unsigned long kallsyms_num_syms __attribute__((weak));
+extern const u8 kallsyms_names[] __attribute__((weak));
 
-extern u8 kallsyms_token_table[] __attribute__((weak));
-extern u16 kallsyms_token_index[] __attribute__((weak));
+extern const u8 kallsyms_token_table[] __attribute__((weak));
+extern const u16 kallsyms_token_index[] __attribute__((weak));
 
-extern unsigned long kallsyms_markers[] __attribute__((weak));
+extern const unsigned long kallsyms_markers[] __attribute__((weak));
 
 static inline int is_kernel_inittext(unsigned long addr)
 {
@@ -69,12 +70,21 @@ static inline int is_kernel(unsigned long addr)
 	return in_gate_area_no_task(addr);
 }
 
+static int is_ksym_addr(unsigned long addr)
+{
+	if (all_var)
+		return is_kernel(addr);
+
+	return is_kernel_text(addr) || is_kernel_inittext(addr) ||
+		is_kernel_extratext(addr);
+}
+
 /* expand a compressed symbol data into the resulting uncompressed string,
    given the offset to where the symbol is in the compressed stream */
 static unsigned int kallsyms_expand_symbol(unsigned int off, char *result)
 {
 	int len, skipped_first = 0;
-	u8 *tptr, *data;
+	const u8 *tptr, *data;
 
 	/* get the compressed symbol length from the first symbol byte */
 	data = &kallsyms_names[off];
@@ -122,7 +132,7 @@ static char kallsyms_get_symbol_type(unsigned int off)
  * kallsyms array */
 static unsigned int get_symbol_offset(unsigned long pos)
 {
-	u8 *name;
+	const u8 *name;
 	int i;
 
 	/* use the closest marker we have. We have markers every 256 positions,
@@ -154,7 +164,73 @@ unsigned long kallsyms_lookup_name(const char *name)
 	}
 	return module_kallsyms_lookup_name(name);
 }
-EXPORT_SYMBOL_GPL(kallsyms_lookup_name);
+
+static unsigned long get_symbol_pos(unsigned long addr,
+				    unsigned long *symbolsize,
+				    unsigned long *offset)
+{
+	unsigned long symbol_start = 0, symbol_end = 0;
+	unsigned long i, low, high, mid;
+
+	/* This kernel should never had been booted. */
+	BUG_ON(!kallsyms_addresses);
+
+	/* do a binary search on the sorted kallsyms_addresses array */
+	low = 0;
+	high = kallsyms_num_syms;
+
+	while (high - low > 1) {
+		mid = (low + high) / 2;
+		if (kallsyms_addresses[mid] <= addr)
+			low = mid;
+		else
+			high = mid;
+	}
+
+	/*
+	 * search for the first aliased symbol. Aliased
+	 * symbols are symbols with the same address
+	 */
+	while (low && kallsyms_addresses[low-1] == kallsyms_addresses[low])
+		--low;
+
+	symbol_start = kallsyms_addresses[low];
+
+	/* Search for next non-aliased symbol */
+	for (i = low + 1; i < kallsyms_num_syms; i++) {
+		if (kallsyms_addresses[i] > symbol_start) {
+			symbol_end = kallsyms_addresses[i];
+			break;
+		}
+	}
+
+	/* if we found no next symbol, we use the end of the section */
+	if (!symbol_end) {
+		if (is_kernel_inittext(addr))
+			symbol_end = (unsigned long)_einittext;
+		else if (all_var)
+			symbol_end = (unsigned long)_end;
+		else
+			symbol_end = (unsigned long)_etext;
+	}
+
+	*symbolsize = symbol_end - symbol_start;
+	*offset = addr - symbol_start;
+
+	return low;
+}
+
+/*
+ * Lookup an address but don't bother to find any names.
+ */
+int kallsyms_lookup_size_offset(unsigned long addr, unsigned long *symbolsize,
+				unsigned long *offset)
+{
+	if (is_ksym_addr(addr))
+		return !!get_symbol_pos(addr, symbolsize, offset);
+
+	return !!module_address_lookup(addr, symbolsize, offset, NULL);
+}
 
 /*
  * Lookup an address
@@ -168,57 +244,18 @@ const char *kallsyms_lookup(unsigned long addr,
 			    unsigned long *offset,
 			    char **modname, char *namebuf)
 {
-	unsigned long i, low, high, mid;
 	const char *msym;
-
-	/* This kernel should never had been booted. */
-	BUG_ON(!kallsyms_addresses);
 
 	namebuf[KSYM_NAME_LEN] = 0;
 	namebuf[0] = 0;
 
-	if ((all_var && is_kernel(addr)) ||
-	    (!all_var && (is_kernel_text(addr) || is_kernel_inittext(addr) ||
-				is_kernel_extratext(addr)))) {
-		unsigned long symbol_end = 0;
+	if (is_ksym_addr(addr)) {
+		unsigned long pos;
 
-		/* do a binary search on the sorted kallsyms_addresses array */
-		low = 0;
-		high = kallsyms_num_syms;
-
-		while (high-low > 1) {
-			mid = (low + high) / 2;
-			if (kallsyms_addresses[mid] <= addr) low = mid;
-			else high = mid;
-		}
-
-		/* search for the first aliased symbol. Aliased symbols are
-		   symbols with the same address */
-		while (low && kallsyms_addresses[low - 1] == kallsyms_addresses[low])
-			--low;
-
+		pos = get_symbol_pos(addr, symbolsize, offset);
 		/* Grab name */
-		kallsyms_expand_symbol(get_symbol_offset(low), namebuf);
-
-		/* Search for next non-aliased symbol */
-		for (i = low + 1; i < kallsyms_num_syms; i++) {
-			if (kallsyms_addresses[i] > kallsyms_addresses[low]) {
-				symbol_end = kallsyms_addresses[i];
-				break;
-			}
-		}
-
-		/* if we found no next symbol, we use the end of the section */
-		if (!symbol_end) {
-			if (is_kernel_inittext(addr))
-				symbol_end = (unsigned long)_einittext;
-			else
-				symbol_end = all_var ? (unsigned long)_end : (unsigned long)_etext;
-		}
-
-		*symbolsize = symbol_end - kallsyms_addresses[low];
+		kallsyms_expand_symbol(get_symbol_offset(pos), namebuf);
 		*modname = NULL;
-		*offset = addr - kallsyms_addresses[low];
 		return namebuf;
 	}
 
@@ -265,13 +302,6 @@ struct kallsym_iter
 	char name[KSYM_NAME_LEN+1];
 };
 
-/* Only label it "global" if it is exported. */
-static void upcase_if_global(struct kallsym_iter *iter)
-{
-	if (is_exported(iter->name, iter->owner))
-		iter->type += 'A' - 'a';
-}
-
 static int get_ksymbol_mod(struct kallsym_iter *iter)
 {
 	iter->owner = module_get_kallsym(iter->pos - kallsyms_num_syms,
@@ -280,7 +310,10 @@ static int get_ksymbol_mod(struct kallsym_iter *iter)
 	if (iter->owner == NULL)
 		return 0;
 
-	upcase_if_global(iter);
+	/* Label it "global" if it is exported, "local" if not exported. */
+	iter->type = is_exported(iter->name, iter->owner)
+		? toupper(iter->type) : tolower(iter->type);
+
 	return 1;
 }
 
@@ -365,7 +398,7 @@ static int s_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static struct seq_operations kallsyms_op = {
+static const struct seq_operations kallsyms_op = {
 	.start = s_start,
 	.next = s_next,
 	.stop = s_stop,
@@ -400,7 +433,7 @@ static int kallsyms_release(struct inode *inode, struct file *file)
 	return seq_release(inode, file);
 }
 
-static struct file_operations kallsyms_operations = {
+static const struct file_operations kallsyms_operations = {
 	.open = kallsyms_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

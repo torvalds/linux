@@ -25,7 +25,7 @@ u_long cpuctrl_physaddr;
 u_long timer_physaddr;
 u_long apollo_model;
 
-extern void dn_sched_init(irqreturn_t (*handler)(int,void *,struct pt_regs *));
+extern void dn_sched_init(irq_handler_t handler);
 extern void dn_init_IRQ(void);
 extern unsigned long dn_gettimeoffset(void);
 extern int dn_dummy_hwclk(int, struct rtc_time *);
@@ -38,7 +38,7 @@ extern irqreturn_t dn_process_int(int irq, struct pt_regs *fp);
 #ifdef CONFIG_HEARTBEAT
 static void dn_heartbeat(int on);
 #endif
-static irqreturn_t dn_timer_int(int irq,void *, struct pt_regs *);
+static irqreturn_t dn_timer_int(int irq,void *);
 static void dn_get_model(char *model);
 static const char *apollo_models[] = {
 	[APOLLO_DN3000-APOLLO_DN3000] = "DN3000 (Otter)",
@@ -174,13 +174,13 @@ void config_apollo(void) {
 
 }
 
-irqreturn_t dn_timer_int(int irq, void *dev_id, struct pt_regs *fp)
+irqreturn_t dn_timer_int(int irq, void *dev_id)
 {
-	irqreturn_t (*timer_handler)(int, void *, struct pt_regs *) = dev_id;
+	irq_handler_t timer_handler = dev_id;
 
 	volatile unsigned char x;
 
-	timer_handler(irq, dev_id, fp);
+	timer_handler(irq, dev_id);
 
 	x=*(volatile unsigned char *)(timer+3);
 	x=*(volatile unsigned char *)(timer+5);
@@ -188,8 +188,8 @@ irqreturn_t dn_timer_int(int irq, void *dev_id, struct pt_regs *fp)
 	return IRQ_HANDLED;
 }
 
-void dn_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *)) {
-
+void dn_sched_init(irq_handler_t timer_routine)
+{
 	/* program timer 1 */
 	*(volatile unsigned char *)(timer+3)=0x01;
 	*(volatile unsigned char *)(timer+1)=0x40;

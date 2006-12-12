@@ -46,11 +46,11 @@ struct arpt_arp {
 	struct arpt_devaddr_info tgt_devaddr;
 
 	/* ARP operation code. */
-	u_int16_t arpop, arpop_mask;
+	__be16 arpop, arpop_mask;
 
 	/* ARP hardware address and protocol address format. */
-	u_int16_t arhrd, arhrd_mask;
-	u_int16_t arpro, arpro_mask;
+	__be16 arhrd, arhrd_mask;
+	__be16 arpro, arpro_mask;
 
 	/* The protocol address length is only accepted if it is 4
 	 * so there is no use in offering a way to do filtering on it.
@@ -112,19 +112,20 @@ struct arpt_entry
  * New IP firewall options for [gs]etsockopt at the RAW IP level.
  * Unlike BSD Linux inherits IP options so you don't have to use a raw
  * socket for this. Instead we check rights in the calls.
+ *
+ * ATTENTION: check linux/in.h before adding new number here.
  */
-#define ARPT_CTL_OFFSET		32
-#define ARPT_BASE_CTL		(XT_BASE_CTL+ARPT_CTL_OFFSET)
+#define ARPT_BASE_CTL		96
 
-#define ARPT_SO_SET_REPLACE		(XT_SO_SET_REPLACE+ARPT_CTL_OFFSET)
-#define ARPT_SO_SET_ADD_COUNTERS	(XT_SO_SET_ADD_COUNTERS+ARPT_CTL_OFFSET)
-#define ARPT_SO_SET_MAX			(XT_SO_SET_MAX+ARPT_CTL_OFFSET)
+#define ARPT_SO_SET_REPLACE		(ARPT_BASE_CTL)
+#define ARPT_SO_SET_ADD_COUNTERS	(ARPT_BASE_CTL + 1)
+#define ARPT_SO_SET_MAX			ARPT_SO_SET_ADD_COUNTERS
 
-#define ARPT_SO_GET_INFO		(XT_SO_GET_INFO+ARPT_CTL_OFFSET)
-#define ARPT_SO_GET_ENTRIES		(XT_SO_GET_ENTRIES+ARPT_CTL_OFFSET)
-/* #define ARPT_SO_GET_REVISION_MATCH	XT_SO_GET_REVISION_MATCH  */
-#define ARPT_SO_GET_REVISION_TARGET	(XT_SO_GET_REVISION_TARGET+ARPT_CTL_OFFSET)
-#define ARPT_SO_GET_MAX			(XT_SO_GET_REVISION_TARGET+ARPT_CTL_OFFSET)
+#define ARPT_SO_GET_INFO		(ARPT_BASE_CTL)
+#define ARPT_SO_GET_ENTRIES		(ARPT_BASE_CTL + 1)
+/* #define ARPT_SO_GET_REVISION_MATCH	(APRT_BASE_CTL + 2) */
+#define ARPT_SO_GET_REVISION_TARGET	(ARPT_BASE_CTL + 3)
+#define ARPT_SO_GET_MAX			(ARPT_SO_GET_REVISION_TARGET)
 
 /* CONTINUE verdict for targets */
 #define ARPT_CONTINUE XT_CONTINUE

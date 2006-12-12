@@ -100,13 +100,12 @@ service_call(sclp_cmdw_t command, void *sccb)
 {
 	int cc;
 
-	__asm__ __volatile__(
-		"   .insn rre,0xb2200000,%1,%2\n"  /* servc %1,%2 */
-		"   ipm	  %0\n"
-		"   srl	  %0,28"
-		: "=&d" (cc)
-		: "d" (command), "a" (__pa(sccb))
-		: "cc", "memory" );
+	asm volatile(
+		"	.insn	rre,0xb2200000,%1,%2\n"  /* servc %1,%2 */
+		"	ipm	%0\n"
+		"	srl	%0,28"
+		: "=&d" (cc) : "d" (command), "a" (__pa(sccb))
+		: "cc", "memory");
 	if (cc == 3)
 		return -EIO;
 	if (cc == 2)
@@ -325,7 +324,7 @@ __sclp_find_req(u32 sccb)
  * Prepare read event data request if necessary. Start processing of next
  * request on queue. */
 static void
-sclp_interrupt_handler(struct pt_regs *regs, __u16 code)
+sclp_interrupt_handler(__u16 code)
 {
 	struct sclp_req *req;
 	u32 finished_sccb;
@@ -360,16 +359,6 @@ sclp_interrupt_handler(struct pt_regs *regs, __u16 code)
 	sclp_process_queue();
 }
 
-/* Return current Time-Of-Day clock. */
-static inline u64
-sclp_get_clock(void)
-{
-	u64 result;
-
-	asm volatile ("STCK 0(%1)" : "=m" (result) : "a" (&(result)) : "cc");
-	return result;
-}
-
 /* Convert interval in jiffies to TOD ticks. */
 static inline u64
 sclp_tod_from_jiffies(unsigned long jiffies)
@@ -382,7 +371,6 @@ sclp_tod_from_jiffies(unsigned long jiffies)
 void
 sclp_sync_wait(void)
 {
-	unsigned long psw_mask;
 	unsigned long flags;
 	unsigned long cr0, cr0_sync;
 	u64 timeout;
@@ -392,7 +380,7 @@ sclp_sync_wait(void)
 	timeout = 0;
 	if (timer_pending(&sclp_request_timer)) {
 		/* Get timeout TOD value */
-		timeout = sclp_get_clock() +
+		timeout = get_clock() +
 			  sclp_tod_from_jiffies(sclp_request_timer.expires -
 						jiffies);
 	}
@@ -406,13 +394,12 @@ sclp_sync_wait(void)
 	cr0_sync |= 0x00000200;
 	cr0_sync &= 0xFFFFF3AC;
 	__ctl_load(cr0_sync, 0, 0);
-	asm volatile ("STOSM 0(%1),0x01"
-		      : "=m" (psw_mask) : "a" (&psw_mask) : "memory");
+	__raw_local_irq_stosm(0x01);
 	/* Loop until driver state indicates finished request */
 	while (sclp_running_state != sclp_running_state_idle) {
 		/* Check for expired request timer */
 		if (timer_pending(&sclp_request_timer) &&
-		    sclp_get_clock() > timeout &&
+		    get_clock() > timeout &&
 		    del_timer(&sclp_request_timer))
 			sclp_request_timer.function(sclp_request_timer.data);
 		barrier();
@@ -756,7 +743,7 @@ EXPORT_SYMBOL(sclp_reactivate);
 /* Handler for external interruption used during initialization. Modify
  * request state to done. */
 static void
-sclp_check_handler(struct pt_regs *regs, __u16 code)
+sclp_check_handler(__u16 code)
 {
 	u32 finished_sccb;
 

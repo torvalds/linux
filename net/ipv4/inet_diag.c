@@ -36,8 +36,8 @@
 static const struct inet_diag_handler **inet_diag_table;
 
 struct inet_diag_entry {
-	u32 *saddr;
-	u32 *daddr;
+	__be32 *saddr;
+	__be32 *daddr;
 	u16 sport;
 	u16 dport;
 	u16 family;
@@ -294,7 +294,7 @@ out:
 	return err;
 }
 
-static int bitstring_match(const u32 *a1, const u32 *a2, int bits)
+static int bitstring_match(const __be32 *a1, const __be32 *a2, int bits)
 {
 	int words = bits >> 5;
 
@@ -305,8 +305,8 @@ static int bitstring_match(const u32 *a1, const u32 *a2, int bits)
 			return 0;
 	}
 	if (bits) {
-		__u32 w1, w2;
-		__u32 mask;
+		__be32 w1, w2;
+		__be32 mask;
 
 		w1 = a1[words];
 		w2 = a2[words];
@@ -352,7 +352,7 @@ static int inet_diag_bc_run(const void *bc, int len,
 		case INET_DIAG_BC_S_COND:
 		case INET_DIAG_BC_D_COND: {
 			struct inet_diag_hostcond *cond;
-			u32 *addr;
+			__be32 *addr;
 
 			cond = (struct inet_diag_hostcond *)(op + 1);
 			if (cond->port != -1 &&

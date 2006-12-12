@@ -472,14 +472,14 @@ int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 		printk("pll: %s: div=%d | buf=0x%02x,0x%02x,0x%02x,0x%02x\n",
 		       desc->name, div, buf[0], buf[1], buf[2], buf[3]);
 
-	return 0;
+	// calculate the frequency we set it to
+	return (div * desc->entries[i].stepsize) - desc->entries[i].offset;
 }
 EXPORT_SYMBOL(dvb_pll_configure);
 
 static int dvb_pll_release(struct dvb_frontend *fe)
 {
-	if (fe->tuner_priv)
-		kfree(fe->tuner_priv);
+	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
 	return 0;
 }
@@ -489,9 +489,13 @@ static int dvb_pll_sleep(struct dvb_frontend *fe)
 	struct dvb_pll_priv *priv = fe->tuner_priv;
 	u8 buf[4];
 	struct i2c_msg msg =
-		{ .addr = priv->pll_i2c_address, .flags = 0, .buf = buf, .len = sizeof(buf) };
+		{ .addr = priv->pll_i2c_address, .flags = 0,
+		  .buf = buf, .len = sizeof(buf) };
 	int i;
 	int result;
+
+	if (priv->i2c == NULL)
+		return -EINVAL;
 
 	for (i = 0; i < priv->pll_desc->count; i++) {
 		if (priv->pll_desc->entries[i].limit == 0)
@@ -514,16 +518,16 @@ static int dvb_pll_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int dvb_pll_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int dvb_pll_set_params(struct dvb_frontend *fe,
+			      struct dvb_frontend_parameters *params)
 {
 	struct dvb_pll_priv *priv = fe->tuner_priv;
 	u8 buf[4];
 	struct i2c_msg msg =
-		{ .addr = priv->pll_i2c_address, .flags = 0, .buf = buf, .len = sizeof(buf) };
+		{ .addr = priv->pll_i2c_address, .flags = 0,
+		  .buf = buf, .len = sizeof(buf) };
 	int result;
-	u32 div;
-	int i;
-	u32 bandwidth = 0;
+	u32 bandwidth = 0, frequency = 0;
 
 	if (priv->i2c == NULL)
 		return -EINVAL;
@@ -533,8 +537,11 @@ static int dvb_pll_set_params(struct dvb_frontend *fe, struct dvb_frontend_param
 		bandwidth = params->u.ofdm.bandwidth;
 	}
 
-	if ((result = dvb_pll_configure(priv->pll_desc, buf, params->frequency, bandwidth)) != 0)
+	if ((result = dvb_pll_configure(priv->pll_desc, buf,
+					params->frequency, bandwidth)) < 0)
 		return result;
+	else
+		frequency = result;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -542,26 +549,19 @@ static int dvb_pll_set_params(struct dvb_frontend *fe, struct dvb_frontend_param
 		return result;
 	}
 
-	// calculate the frequency we set it to
-	for (i = 0; i < priv->pll_desc->count; i++) {
-		if (params->frequency > priv->pll_desc->entries[i].limit)
-			continue;
-		break;
-	}
-	div = (params->frequency + priv->pll_desc->entries[i].offset) / priv->pll_desc->entries[i].stepsize;
-	priv->frequency = (div * priv->pll_desc->entries[i].stepsize) - priv->pll_desc->entries[i].offset;
+	priv->frequency = frequency;
 	priv->bandwidth = bandwidth;
 
 	return 0;
 }
 
-static int dvb_pll_calc_regs(struct dvb_frontend *fe, struct dvb_frontend_parameters *params, u8 *buf, int buf_len)
+static int dvb_pll_calc_regs(struct dvb_frontend *fe,
+			     struct dvb_frontend_parameters *params,
+			     u8 *buf, int buf_len)
 {
 	struct dvb_pll_priv *priv = fe->tuner_priv;
 	int result;
-	u32 div;
-	int i;
-	u32 bandwidth = 0;
+	u32 bandwidth = 0, frequency = 0;
 
 	if (buf_len < 5)
 		return -EINVAL;
@@ -571,18 +571,15 @@ static int dvb_pll_calc_regs(struct dvb_frontend *fe, struct dvb_frontend_parame
 		bandwidth = params->u.ofdm.bandwidth;
 	}
 
-	if ((result = dvb_pll_configure(priv->pll_desc, buf+1, params->frequency, bandwidth)) != 0)
+	if ((result = dvb_pll_configure(priv->pll_desc, buf+1,
+					params->frequency, bandwidth)) < 0)
 		return result;
+	else
+		frequency = result;
+
 	buf[0] = priv->pll_i2c_address;
 
-	// calculate the frequency we set it to
-	for (i = 0; i < priv->pll_desc->count; i++) {
-		if (params->frequency > priv->pll_desc->entries[i].limit)
-			continue;
-		break;
-	}
-	div = (params->frequency + priv->pll_desc->entries[i].offset) / priv->pll_desc->entries[i].stepsize;
-	priv->frequency = (div * priv->pll_desc->entries[i].stepsize) - priv->pll_desc->entries[i].offset;
+	priv->frequency = frequency;
 	priv->bandwidth = bandwidth;
 
 	return 5;
@@ -611,10 +608,13 @@ static struct dvb_tuner_ops dvb_pll_tuner_ops = {
 	.get_bandwidth = dvb_pll_get_bandwidth,
 };
 
-int dvb_pll_attach(struct dvb_frontend *fe, int pll_addr, struct i2c_adapter *i2c, struct dvb_pll_desc *desc)
+struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
+				    struct i2c_adapter *i2c,
+				    struct dvb_pll_desc *desc)
 {
 	u8 b1 [] = { 0 };
-	struct i2c_msg msg = { .addr = pll_addr, .flags = I2C_M_RD, .buf = b1, .len = 1 };
+	struct i2c_msg msg = { .addr = pll_addr, .flags = I2C_M_RD,
+			       .buf = b1, .len = 1 };
 	struct dvb_pll_priv *priv = NULL;
 	int ret;
 
@@ -624,26 +624,28 @@ int dvb_pll_attach(struct dvb_frontend *fe, int pll_addr, struct i2c_adapter *i2
 
 		ret = i2c_transfer (i2c, &msg, 1);
 		if (ret != 1)
-			return -1;
+			return NULL;
 		if (fe->ops.i2c_gate_ctrl)
 			     fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	priv = kzalloc(sizeof(struct dvb_pll_priv), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
+		return NULL;
 
 	priv->pll_i2c_address = pll_addr;
 	priv->i2c = i2c;
 	priv->pll_desc = desc;
 
-	memcpy(&fe->ops.tuner_ops, &dvb_pll_tuner_ops, sizeof(struct dvb_tuner_ops));
+	memcpy(&fe->ops.tuner_ops, &dvb_pll_tuner_ops,
+	       sizeof(struct dvb_tuner_ops));
+
 	strncpy(fe->ops.tuner_ops.info.name, desc->name, 128);
 	fe->ops.tuner_ops.info.frequency_min = desc->min;
 	fe->ops.tuner_ops.info.frequency_min = desc->max;
 
 	fe->tuner_priv = priv;
-	return 0;
+	return fe;
 }
 EXPORT_SYMBOL(dvb_pll_attach);
 

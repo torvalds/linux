@@ -12,10 +12,6 @@
 #endif /* CONFIG_QDIO_DEBUG */
 #define QDIO_USE_PROCESSING_STATE
 
-#ifdef CONFIG_QDIO_PERF_STATS
-#define QDIO_PERFORMANCE_STATS
-#endif /* CONFIG_QDIO_PERF_STATS */
-
 #define QDIO_MINIMAL_BH_RELIEF_TIME 16
 #define QDIO_TIMER_POLL_VALUE 1
 #define IQDIO_TIMER_POLL_VALUE 1
@@ -236,7 +232,7 @@ enum qdio_irq_states {
 #define QDIO_PRINT_EMERG(x...) do { } while (0)
 #endif
 
-#define HEXDUMP16(importance,header,ptr) \
+#define QDIO_HEXDUMP16(importance,header,ptr) \
 QDIO_PRINT_##importance(header "%02x %02x %02x %02x  " \
 			"%02x %02x %02x %02x  %02x %02x %02x %02x  " \
 			"%02x %02x %02x %02x\n",*(((char*)ptr)), \
@@ -274,12 +270,11 @@ do_sqbs(unsigned long sch, unsigned char state, int queue,
        register unsigned long _sch asm ("1") = sch;
        unsigned long _queuestart = ((unsigned long)queue << 32) | *start;
 
-       asm volatile (
-              " .insn rsy,0xeb000000008A,%1,0,0(%2)\n\t"
-              : "+d" (_ccq), "+d" (_queuestart)
-              : "d" ((unsigned long)state), "d" (_sch)
-              : "memory", "cc"
-       );
+       asm volatile(
+	       "	.insn	rsy,0xeb000000008A,%1,0,0(%2)"
+	       : "+d" (_ccq), "+d" (_queuestart)
+	       : "d" ((unsigned long)state), "d" (_sch)
+	       : "memory", "cc");
        *count = _ccq & 0xff;
        *start = _queuestart & 0xff;
 
@@ -299,12 +294,11 @@ do_eqbs(unsigned long sch, unsigned char *state, int queue,
 	unsigned long _queuestart = ((unsigned long)queue << 32) | *start;
 	unsigned long _state = 0;
 
-	asm volatile (
-	      " .insn rrf,0xB99c0000,%1,%2,0,0  \n\t"
-	      : "+d" (_ccq), "+d" (_queuestart), "+d" (_state)
-	      : "d" (_sch)
-	      : "memory", "cc"
-	);
+	asm volatile(
+		"	.insn	rrf,0xB99c0000,%1,%2,0,0"
+		: "+d" (_ccq), "+d" (_queuestart), "+d" (_state)
+		: "d" (_sch)
+		: "memory", "cc" );
 	*count = _ccq & 0xff;
 	*start = _queuestart & 0xff;
 	*state = _state & 0xff;
@@ -319,69 +313,35 @@ do_eqbs(unsigned long sch, unsigned char *state, int queue,
 static inline int
 do_siga_sync(struct subchannel_id schid, unsigned int mask1, unsigned int mask2)
 {
+	register unsigned long reg0 asm ("0") = 2;
+	register struct subchannel_id reg1 asm ("1") = schid;
+	register unsigned long reg2 asm ("2") = mask1;
+	register unsigned long reg3 asm ("3") = mask2;
 	int cc;
 
-#ifndef CONFIG_64BIT
-	asm volatile (
-		"lhi	0,2	\n\t"
-		"lr	1,%1	\n\t"
-		"lr	2,%2	\n\t"
-		"lr	3,%3	\n\t"
-		"siga   0	\n\t"
-		"ipm	%0	\n\t"
-		"srl	%0,28	\n\t"
+	asm volatile(
+		"	siga	0\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
 		: "=d" (cc)
-		: "d" (schid), "d" (mask1), "d" (mask2)
-		: "cc", "0", "1", "2", "3"
-		);
-#else /* CONFIG_64BIT */
-	asm volatile (
-		"lghi	0,2	\n\t"
-		"llgfr	1,%1	\n\t"
-		"llgfr	2,%2	\n\t"
-		"llgfr	3,%3	\n\t"
-		"siga   0	\n\t"
-		"ipm	%0	\n\t"
-		"srl	%0,28	\n\t"
-		: "=d" (cc)
-		: "d" (schid), "d" (mask1), "d" (mask2)
-		: "cc", "0", "1", "2", "3"
-		);
-#endif /* CONFIG_64BIT */
+		: "d" (reg0), "d" (reg1), "d" (reg2), "d" (reg3) : "cc");
 	return cc;
 }
 
 static inline int
 do_siga_input(struct subchannel_id schid, unsigned int mask)
 {
+	register unsigned long reg0 asm ("0") = 1;
+	register struct subchannel_id reg1 asm ("1") = schid;
+	register unsigned long reg2 asm ("2") = mask;
 	int cc;
 
-#ifndef CONFIG_64BIT
-	asm volatile (
-		"lhi	0,1	\n\t"
-		"lr	1,%1	\n\t"
-		"lr	2,%2	\n\t"
-		"siga   0	\n\t"
-		"ipm	%0	\n\t"
-		"srl	%0,28	\n\t"
+	asm volatile(
+		"	siga	0\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
 		: "=d" (cc)
-		: "d" (schid), "d" (mask)
-		: "cc", "0", "1", "2", "memory"
-		);
-#else /* CONFIG_64BIT */
-	asm volatile (
-		"lghi	0,1	\n\t"
-		"llgfr	1,%1	\n\t"
-		"llgfr	2,%2	\n\t"
-		"siga   0	\n\t"
-		"ipm	%0	\n\t"
-		"srl	%0,28	\n\t"
-		: "=d" (cc)
-		: "d" (schid), "d" (mask)
-		: "cc", "0", "1", "2", "memory"
-		);
-#endif /* CONFIG_64BIT */
-	
+		: "d" (reg0), "d" (reg1), "d" (reg2) : "cc", "memory");
 	return cc;
 }
 
@@ -389,93 +349,35 @@ static inline int
 do_siga_output(unsigned long schid, unsigned long mask, __u32 *bb,
 	       unsigned int fc)
 {
+	register unsigned long __fc asm("0") = fc;
+	register unsigned long __schid asm("1") = schid;
+	register unsigned long __mask asm("2") = mask;
 	int cc;
-	__u32 busy_bit;
 
-#ifndef CONFIG_64BIT
-	asm volatile (
-		"lhi	0,0	\n\t"
-		"lr	1,%2	\n\t"
-		"lr	2,%3	\n\t"
-		"siga	0	\n\t"
-		"0:"
-		"ipm	%0	\n\t"
-		"srl	%0,28	\n\t"
-		"srl	0,31	\n\t"
-		"lr	%1,0	\n\t"
-		"1:	\n\t"
-		".section .fixup,\"ax\"\n\t"
-		"2:	\n\t"
-		"lhi	%0,%4	\n\t"
-		"bras	1,3f	\n\t"
-		".long 1b	\n\t"
-		"3:	\n\t"
-		"l	1,0(1)	\n\t"
-		"br	1	\n\t"
-		".previous	\n\t"
-		".section __ex_table,\"a\"\n\t"
-		".align 4	\n\t"
-		".long	0b,2b	\n\t"
-		".previous	\n\t"
-		: "=d" (cc), "=d" (busy_bit)
-		: "d" (schid), "d" (mask),
-		"i" (QDIO_SIGA_ERROR_ACCESS_EXCEPTION)
-		: "cc", "0", "1", "2", "memory"
-		);
-#else /* CONFIG_64BIT */
-	asm volatile (
-        	"llgfr  0,%5    \n\t"
-                "lgr    1,%2    \n\t"
-		"llgfr	2,%3	\n\t"
-		"siga	0	\n\t"
-		"0:"
-		"ipm	%0	\n\t"
-		"srl	%0,28	\n\t"
-		"srl	0,31	\n\t"
-		"llgfr	%1,0	\n\t"
-		"1:	\n\t"
-		".section .fixup,\"ax\"\n\t"
-		"lghi	%0,%4	\n\t"
-		"jg	1b	\n\t"
-		".previous\n\t"
-		".section __ex_table,\"a\"\n\t"
-		".align 8	\n\t"
-		".quad	0b,1b	\n\t"
-		".previous	\n\t"
-		: "=d" (cc), "=d" (busy_bit)
-		: "d" (schid), "d" (mask),
-		"i" (QDIO_SIGA_ERROR_ACCESS_EXCEPTION), "d" (fc)
-		: "cc", "0", "1", "2", "memory"
-		);
-#endif /* CONFIG_64BIT */
-	
-	(*bb) = busy_bit;
+	asm volatile(
+		"	siga	0\n"
+		"0:	ipm	%0\n"
+		"	srl	%0,28\n"
+		"1:\n"
+		EX_TABLE(0b,1b)
+		: "=d" (cc), "+d" (__fc), "+d" (__schid), "+d" (__mask)
+		: "0" (QDIO_SIGA_ERROR_ACCESS_EXCEPTION)
+		: "cc", "memory");
+	(*bb) = ((unsigned int) __fc) >> 31;
 	return cc;
 }
 
 static inline unsigned long
 do_clear_global_summary(void)
 {
+	register unsigned long __fn asm("1") = 3;
+	register unsigned long __tmp asm("2");
+	register unsigned long __time asm("3");
 
-	unsigned long time;
-
-#ifndef CONFIG_64BIT
-	asm volatile (
-		"lhi	1,3	\n\t"
-		".insn	rre,0xb2650000,2,0	\n\t"
-		"lr	%0,3	\n\t"
-		: "=d" (time) : : "cc", "1", "2", "3"
-		);
-#else /* CONFIG_64BIT */
-	asm volatile (
-		"lghi	1,3	\n\t"
-		".insn	rre,0xb2650000,2,0	\n\t"
-		"lgr	%0,3	\n\t"
-		: "=d" (time) : : "cc", "1", "2", "3"
-		);
-#endif /* CONFIG_64BIT */
-	
-	return time;
+	asm volatile(
+		"	.insn	rre,0xb2650000,2,0"
+		: "+d" (__fn), "=d" (__tmp), "=d" (__time));
+	return __time;
 }
 	
 /*
@@ -503,27 +405,23 @@ do_clear_global_summary(void)
 #define CHSC_FLAG_SIGA_SYNC_DONE_ON_THININTS 0x08
 #define CHSC_FLAG_SIGA_SYNC_DONE_ON_OUTB_PCIS 0x04
 
-#ifdef QDIO_PERFORMANCE_STATS
 struct qdio_perf_stats {
-	unsigned int tl_runs;
+	unsigned long tl_runs;
 
-	unsigned int siga_outs;
-	unsigned int siga_ins;
-	unsigned int siga_syncs;
-	unsigned int pcis;
-	unsigned int thinints;
-	unsigned int fast_reqs;
+	unsigned long siga_outs;
+	unsigned long siga_ins;
+	unsigned long siga_syncs;
+	unsigned long pcis;
+	unsigned long thinints;
+	unsigned long fast_reqs;
 
 	__u64 start_time_outbound;
-	unsigned int outbound_cnt;
-	unsigned int outbound_time;
+	unsigned long outbound_cnt;
+	unsigned long outbound_time;
 	__u64 start_time_inbound;
-	unsigned int inbound_cnt;
-	unsigned int inbound_time;
+	unsigned long inbound_cnt;
+	unsigned long inbound_time;
 };
-#endif /* QDIO_PERFORMANCE_STATS */
-
-#define atomic_swap(a,b) xchg((int*)a.counter,b)
 
 /* unlikely as the later the better */
 #define SYNC_MEMORY if (unlikely(q->siga_sync)) qdio_siga_sync_q(q)

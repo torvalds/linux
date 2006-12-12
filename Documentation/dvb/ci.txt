@@ -32,7 +32,7 @@ This application requires the following to function properly as of now.
 	  descrambler to function,
 	  eg: $ ca_zap channels.conf "TMC"
 
-	(d) Hopeflly Enjoy your favourite subscribed channel as you do with
+	(d) Hopefully enjoy your favourite subscribed channel as you do with
 	  a FTA card.
 
 (3) Currently ca_zap, and dst_test, both are meant for demonstration
@@ -65,13 +65,13 @@ Modules that have been tested by this driver at present are
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 With the High Level CI approach any new card with almost any random
 architecture can be implemented with this style, the definitions
-insidethe switch statement can be easily adapted for any card, thereby
+inside the switch statement can be easily adapted for any card, thereby
 eliminating the need for any additional ioctls.
 
 The disadvantage is that the driver/hardware has to manage the rest. For
 the application programmer it would be as simple as sending/receiving an
 array to/from the CI ioctls as defined in the Linux DVB API. No changes
-have been made in the API to accomodate this feature.
+have been made in the API to accommodate this feature.
 
 
 * Why the need for another CI interface ?
@@ -102,7 +102,7 @@ This CI interface follows the CI high level interface, which is not
 implemented by most applications. Hence this area is revisited.
 
 This CI interface is quite different in the case that it tries to
-accomodate all other CI based devices, that fall into the other categories
+accommodate all other CI based devices, that fall into the other categories.
 
 This means that this CI interface handles the EN50221 style tags in the
 Application layer only and no session management is taken care of by the

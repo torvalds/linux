@@ -183,7 +183,7 @@ static int cpu5wdt_ioctl(struct inode *inode, struct file *file, unsigned int cm
 			}
 			break;
 		default:
-    			return -ENOIOCTLCMD;
+    			return -ENOTTY;
 	}
 	return 0;
 }

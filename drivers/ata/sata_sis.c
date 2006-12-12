@@ -67,12 +67,12 @@ static u32 sis_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 
 static const struct pci_device_id sis_pci_tbl[] = {
-	{ PCI_VENDOR_ID_SI, 0x180, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sis_180 },
-	{ PCI_VENDOR_ID_SI, 0x181, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sis_180 },
-	{ PCI_VENDOR_ID_SI, 0x182, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sis_180 },
+	{ PCI_VDEVICE(SI, 0x180), sis_180 },
+	{ PCI_VDEVICE(SI, 0x181), sis_180 },
+	{ PCI_VDEVICE(SI, 0x182), sis_180 },
+
 	{ }	/* terminate list */
 };
-
 
 static struct pci_driver sis_pci_driver = {
 	.name			= DRV_NAME,
@@ -173,7 +173,7 @@ static u32 sis_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg)
 	if ((pdev->device == 0x182) || (pmr & SIS_PMR_COMBINED))
 		pci_read_config_dword(pdev, cfg_addr+0x10, &val2);
 
-	return val|val2;
+	return (val|val2) &  0xfffffffb; /* avoid problems with powerdowned ports */
 }
 
 static void sis_scr_cfg_write (struct ata_port *ap, unsigned int scr, u32 val)
@@ -212,7 +212,7 @@ static u32 sis_scr_read (struct ata_port *ap, unsigned int sc_reg)
 	if ((pdev->device == 0x182) || (pmr & SIS_PMR_COMBINED))
 		val2 = inl(ap->ioaddr.scr_addr + (sc_reg * 4) + 0x10);
 
-	return val | val2;
+	return (val | val2) &  0xfffffffb;
 }
 
 static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
@@ -239,8 +239,8 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	static int printed_version;
 	struct ata_probe_ent *probe_ent = NULL;
 	int rc;
-	u32 genctl;
-	struct ata_port_info *ppi[2];
+	u32 genctl, val;
+	struct ata_port_info pi = sis_port_info, *ppi[2] = { &pi, &pi };
 	int pci_dev_busy = 0;
 	u8 pmr;
 	u8 port2_start;
@@ -265,45 +265,51 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto err_out_regions;
 
-	ppi[0] = ppi[1] = &sis_port_info;
-	probe_ent = ata_pci_init_native_mode(pdev, ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
-	if (!probe_ent) {
-		rc = -ENOMEM;
-		goto err_out_regions;
-	}
-
 	/* check and see if the SCRs are in IO space or PCI cfg space */
 	pci_read_config_dword(pdev, SIS_GENCTL, &genctl);
 	if ((genctl & GENCTL_IOMAPPED_SCR) == 0)
-		probe_ent->port_flags |= SIS_FLAG_CFGSCR;
+		pi.flags |= SIS_FLAG_CFGSCR;
 
 	/* if hardware thinks SCRs are in IO space, but there are
 	 * no IO resources assigned, change to PCI cfg space.
 	 */
-	if ((!(probe_ent->port_flags & SIS_FLAG_CFGSCR)) &&
+	if ((!(pi.flags & SIS_FLAG_CFGSCR)) &&
 	    ((pci_resource_start(pdev, SIS_SCR_PCI_BAR) == 0) ||
 	     (pci_resource_len(pdev, SIS_SCR_PCI_BAR) < 128))) {
 		genctl &= ~GENCTL_IOMAPPED_SCR;
 		pci_write_config_dword(pdev, SIS_GENCTL, genctl);
-		probe_ent->port_flags |= SIS_FLAG_CFGSCR;
+		pi.flags |= SIS_FLAG_CFGSCR;
 	}
 
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
 	if (ent->device != 0x182) {
 		if ((pmr & SIS_PMR_COMBINED) == 0) {
 			dev_printk(KERN_INFO, &pdev->dev,
-				   "Detected SiS 180/181 chipset in SATA mode\n");
+				   "Detected SiS 180/181/964 chipset in SATA mode\n");
 			port2_start = 64;
 		}
 		else {
 			dev_printk(KERN_INFO, &pdev->dev,
 				   "Detected SiS 180/181 chipset in combined mode\n");
 			port2_start=0;
+			pi.flags |= ATA_FLAG_SLAVE_POSS;
 		}
 	}
 	else {
-		dev_printk(KERN_INFO, &pdev->dev, "Detected SiS 182 chipset\n");
+		pci_read_config_dword ( pdev, 0x6C, &val);
+		if (val & (1L << 31)) {
+			dev_printk(KERN_INFO, &pdev->dev, "Detected SiS 182/965 chipset\n");
+			pi.flags |= ATA_FLAG_SLAVE_POSS;
+		}
+		else
+			dev_printk(KERN_INFO, &pdev->dev, "Detected SiS 182/965L chipset\n");
 		port2_start = 0x20;
+	}
+
+	probe_ent = ata_pci_init_native_mode(pdev, ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
+	if (!probe_ent) {
+		rc = -ENOMEM;
+		goto err_out_regions;
 	}
 
 	if (!(probe_ent->port_flags & SIS_FLAG_CFGSCR)) {

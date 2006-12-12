@@ -57,7 +57,7 @@ the two.
 
 The PCI bus layer freely accesses the fields of struct device. It knows about
 the structure of struct pci_dev, and it should know the structure of struct
-device. Individual PCI device drivers that have been converted the the current
+device. Individual PCI device drivers that have been converted to the current
 driver model generally do not and should not touch the fields of struct device,
 unless there is a strong compelling reason to do so.
 

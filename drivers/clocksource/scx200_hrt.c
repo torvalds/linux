@@ -63,7 +63,7 @@ static struct clocksource cs_hrt = {
 
 static int __init init_hrt_clocksource(void)
 {
-	/* Make sure scx200 has initializedd the configuration block */
+	/* Make sure scx200 has initialized the configuration block */
 	if (!scx200_cb_present())
 		return -ENODEV;
 
@@ -76,7 +76,7 @@ static int __init init_hrt_clocksource(void)
 	}
 
 	/* write timer config */
-	outb(HR_TMEN | (mhz27) ? HR_TMCLKSEL : 0,
+	outb(HR_TMEN | (mhz27 ? HR_TMCLKSEL : 0),
 	     scx200_cb_base + SCx200_TMCNFG_OFFSET);
 
 	if (mhz27) {

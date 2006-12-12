@@ -163,11 +163,7 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
 #define SET_NETDEV_DEV(net, pdev)	do{} while(0)
 #endif
 
-#if LINUX_VERSION_CODE >= 0x2051c
 #define ace_sync_irq(irq)	synchronize_irq(irq)
-#else
-#define ace_sync_irq(irq)	synchronize_irq()
-#endif
 
 #ifndef offset_in_page
 #define offset_in_page(ptr)	((unsigned long)(ptr) & ~PAGE_MASK)
@@ -2148,7 +2144,7 @@ static inline void ace_tx_int(struct net_device *dev,
 }
 
 
-static irqreturn_t ace_interrupt(int irq, void *dev_id, struct pt_regs *ptregs)
+static irqreturn_t ace_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct ace_private *ap = netdev_priv(dev);

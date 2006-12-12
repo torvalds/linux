@@ -24,6 +24,7 @@
 #include <linux/vfs.h>
 #include <linux/parser.h>
 #include <linux/uio.h>
+#include <linux/writeback.h>
 #include <asm/unaligned.h>
 
 #ifndef CONFIG_FAT_DEFAULT_IOCHARSET
@@ -50,14 +51,14 @@ static int fat_add_cluster(struct inode *inode)
 	return err;
 }
 
-static int __fat_get_blocks(struct inode *inode, sector_t iblock,
-			    unsigned long *max_blocks,
-			    struct buffer_head *bh_result, int create)
+static inline int __fat_get_block(struct inode *inode, sector_t iblock,
+				  unsigned long *max_blocks,
+				  struct buffer_head *bh_result, int create)
 {
 	struct super_block *sb = inode->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
-	sector_t phys;
 	unsigned long mapped_blocks;
+	sector_t phys;
 	int err, offset;
 
 	err = fat_bmap(inode, iblock, &phys, &mapped_blocks);
@@ -73,7 +74,7 @@ static int __fat_get_blocks(struct inode *inode, sector_t iblock,
 
 	if (iblock != MSDOS_I(inode)->mmu_private >> sb->s_blocksize_bits) {
 		fat_fs_panic(sb, "corrupted file size (i_pos %lld, %lld)",
-			     MSDOS_I(inode)->i_pos, MSDOS_I(inode)->mmu_private);
+			MSDOS_I(inode)->i_pos, MSDOS_I(inode)->mmu_private);
 		return -EIO;
 	}
 
@@ -93,32 +94,27 @@ static int __fat_get_blocks(struct inode *inode, sector_t iblock,
 	err = fat_bmap(inode, iblock, &phys, &mapped_blocks);
 	if (err)
 		return err;
+
 	BUG_ON(!phys);
 	BUG_ON(*max_blocks != mapped_blocks);
 	set_buffer_new(bh_result);
 	map_bh(bh_result, sb, phys);
-	return 0;
-}
 
-static int fat_get_blocks(struct inode *inode, sector_t iblock,
-			  struct buffer_head *bh_result, int create)
-{
-	struct super_block *sb = inode->i_sb;
-	int err;
-	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
-
-	err = __fat_get_blocks(inode, iblock, &max_blocks, bh_result, create);
-	if (err)
-		return err;
-	bh_result->b_size = max_blocks << sb->s_blocksize_bits;
 	return 0;
 }
 
 static int fat_get_block(struct inode *inode, sector_t iblock,
 			 struct buffer_head *bh_result, int create)
 {
-	unsigned long max_blocks = 1;
-	return __fat_get_blocks(inode, iblock, &max_blocks, bh_result, create);
+	struct super_block *sb = inode->i_sb;
+	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
+	int err;
+
+	err = __fat_get_block(inode, iblock, &max_blocks, bh_result, create);
+	if (err)
+		return err;
+	bh_result->b_size = max_blocks << sb->s_blocksize_bits;
+	return 0;
 }
 
 static int fat_writepage(struct page *page, struct writeback_control *wbc)
@@ -188,7 +184,7 @@ static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
 	 * condition of fat_get_block() and ->truncate().
 	 */
 	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				  offset, nr_segs, fat_get_blocks, NULL);
+				  offset, nr_segs, fat_get_block, NULL);
 }
 
 static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
@@ -375,8 +371,6 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 			inode->i_flags |= S_IMMUTABLE;
 	}
 	MSDOS_I(inode)->i_attrs = de->attr & ATTR_UNUSED;
-	/* this is as close to the truth as we can get ... */
-	inode->i_blksize = sbi->cluster_size;
 	inode->i_blocks = ((inode->i_size + (sbi->cluster_size - 1))
 			   & ~((loff_t)sbi->cluster_size - 1)) >> 9;
 	inode->i_mtime.tv_sec =
@@ -390,7 +384,7 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 				      le16_to_cpu(de->cdate)) + secs;
 		inode->i_ctime.tv_nsec = csecs * 10000000;
 		inode->i_atime.tv_sec =
-			date_dos2unix(le16_to_cpu(0), le16_to_cpu(de->adate));
+			date_dos2unix(0, le16_to_cpu(de->adate));
 		inode->i_atime.tv_nsec = 0;
 	} else
 		inode->i_ctime = inode->i_atime = inode->i_mtime;
@@ -483,12 +477,12 @@ static void fat_put_super(struct super_block *sb)
 	kfree(sbi);
 }
 
-static kmem_cache_t *fat_inode_cachep;
+static struct kmem_cache *fat_inode_cachep;
 
 static struct inode *fat_alloc_inode(struct super_block *sb)
 {
 	struct msdos_inode_info *ei;
-	ei = kmem_cache_alloc(fat_inode_cachep, SLAB_KERNEL);
+	ei = kmem_cache_alloc(fat_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -499,7 +493,7 @@ static void fat_destroy_inode(struct inode *inode)
 	kmem_cache_free(fat_inode_cachep, MSDOS_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct msdos_inode_info *ei = (struct msdos_inode_info *)foo;
 
@@ -528,8 +522,7 @@ static int __init fat_init_inodecache(void)
 
 static void __exit fat_destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(fat_inode_cachep))
-		printk(KERN_INFO "fat_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(fat_inode_cachep);
 }
 
 static int fat_remount(struct super_block *sb, int *flags, char *data)
@@ -861,7 +854,7 @@ enum {
 	Opt_charset, Opt_shortname_lower, Opt_shortname_win95,
 	Opt_shortname_winnt, Opt_shortname_mixed, Opt_utf8_no, Opt_utf8_yes,
 	Opt_uni_xl_no, Opt_uni_xl_yes, Opt_nonumtail_no, Opt_nonumtail_yes,
-	Opt_obsolate, Opt_err,
+	Opt_obsolate, Opt_flush, Opt_err,
 };
 
 static match_table_t fat_tokens = {
@@ -893,7 +886,8 @@ static match_table_t fat_tokens = {
 	{Opt_obsolate, "cvf_format=%20s"},
 	{Opt_obsolate, "cvf_options=%100s"},
 	{Opt_obsolate, "posix"},
-	{Opt_err, NULL}
+	{Opt_flush, "flush"},
+	{Opt_err, NULL},
 };
 static match_table_t msdos_tokens = {
 	{Opt_nodots, "nodots"},
@@ -1034,6 +1028,9 @@ static int parse_options(char *options, int is_vfat, int silent, int *debug,
 				return 0;
 			opts->codepage = option;
 			break;
+		case Opt_flush:
+			opts->flush = 1;
+			break;
 
 		/* msdos specific */
 		case Opt_dots:
@@ -1137,7 +1134,6 @@ static int fat_read_root(struct inode *inode)
 		MSDOS_I(inode)->i_start = 0;
 		inode->i_size = sbi->dir_entries * sizeof(struct msdos_dir_entry);
 	}
-	inode->i_blksize = sbi->cluster_size;
 	inode->i_blocks = ((inode->i_size + (sbi->cluster_size - 1))
 			   & ~((loff_t)sbi->cluster_size - 1)) >> 9;
 	MSDOS_I(inode)->i_logstart = 0;
@@ -1168,11 +1164,10 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	long error;
 	char buf[50];
 
-	sbi = kmalloc(sizeof(struct msdos_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct msdos_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 	sb->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(struct msdos_sb_info));
 
 	sb->s_flags |= MS_NODIRATIME;
 	sb->s_magic = MSDOS_SUPER_MAGIC;
@@ -1434,6 +1429,56 @@ out_fail:
 }
 
 EXPORT_SYMBOL_GPL(fat_fill_super);
+
+/*
+ * helper function for fat_flush_inodes.  This writes both the inode
+ * and the file data blocks, waiting for in flight data blocks before
+ * the start of the call.  It does not wait for any io started
+ * during the call
+ */
+static int writeback_inode(struct inode *inode)
+{
+
+	int ret;
+	struct address_space *mapping = inode->i_mapping;
+	struct writeback_control wbc = {
+	       .sync_mode = WB_SYNC_NONE,
+	      .nr_to_write = 0,
+	};
+	/* if we used WB_SYNC_ALL, sync_inode waits for the io for the
+	* inode to finish.  So WB_SYNC_NONE is sent down to sync_inode
+	* and filemap_fdatawrite is used for the data blocks
+	*/
+	ret = sync_inode(inode, &wbc);
+	if (!ret)
+	       ret = filemap_fdatawrite(mapping);
+	return ret;
+}
+
+/*
+ * write data and metadata corresponding to i1 and i2.  The io is
+ * started but we do not wait for any of it to finish.
+ *
+ * filemap_flush is used for the block device, so if there is a dirty
+ * page for a block already in flight, we will not wait and start the
+ * io over again
+ */
+int fat_flush_inodes(struct super_block *sb, struct inode *i1, struct inode *i2)
+{
+	int ret = 0;
+	if (!MSDOS_SB(sb)->options.flush)
+		return 0;
+	if (i1)
+		ret = writeback_inode(i1);
+	if (!ret && i2)
+		ret = writeback_inode(i2);
+	if (!ret) {
+		struct address_space *mapping = sb->s_bdev->bd_inode->i_mapping;
+		ret = filemap_flush(mapping);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(fat_flush_inodes);
 
 static int __init init_fat_fs(void)
 {

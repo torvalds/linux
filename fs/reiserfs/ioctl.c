@@ -9,6 +9,7 @@
 #include <asm/uaccess.h>
 #include <linux/pagemap.h>
 #include <linux/smp_lock.h>
+#include <linux/compat.h>
 
 static int reiserfs_unpack(struct inode *inode, struct file *filp);
 
@@ -93,6 +94,40 @@ int reiserfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		return -ENOTTY;
 	}
 }
+
+#ifdef CONFIG_COMPAT
+long reiserfs_compat_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	int ret;
+
+	/* These are just misnamed, they actually get/put from/to user an int */
+	switch (cmd) {
+	case REISERFS_IOC32_UNPACK:
+		cmd = REISERFS_IOC_UNPACK;
+		break;
+	case REISERFS_IOC32_GETFLAGS:
+		cmd = REISERFS_IOC_GETFLAGS;
+		break;
+	case REISERFS_IOC32_SETFLAGS:
+		cmd = REISERFS_IOC_SETFLAGS;
+		break;
+	case REISERFS_IOC32_GETVERSION:
+		cmd = REISERFS_IOC_GETVERSION;
+		break;
+	case REISERFS_IOC32_SETVERSION:
+		cmd = REISERFS_IOC_SETVERSION;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+	lock_kernel();
+	ret = reiserfs_ioctl(inode, file, cmd, (unsigned long) compat_ptr(arg));
+	unlock_kernel();
+	return ret;
+}
+#endif
 
 /*
 ** reiserfs_unpack

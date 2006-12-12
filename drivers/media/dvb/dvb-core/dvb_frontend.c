@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/list.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/jiffies.h>
 #include <asm/processor.h>
 
@@ -348,7 +348,7 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 
 static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 {
-	fe_status_t s;
+	fe_status_t s = 0;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 
 	/* if we've got no parameters, just keep idling */
@@ -1014,6 +1014,13 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 	if ((ret = dvb_generic_open (inode, file)) < 0)
 		return ret;
 
+	if (fe->ops.ts_bus_ctrl) {
+		if ((ret = fe->ops.ts_bus_ctrl (fe, 1)) < 0) {
+			dvb_generic_release (inode, file);
+			return ret;
+		}
+	}
+
 	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
 
 		/* normal tune mode when opened R/W */
@@ -1042,6 +1049,9 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 
 	if ((file->f_flags & O_ACCMODE) != O_RDONLY)
 		fepriv->release_jiffies = jiffies;
+
+	if (fe->ops.ts_bus_ctrl)
+		fe->ops.ts_bus_ctrl (fe, 0);
 
 	return dvb_generic_release (inode, file);
 }
@@ -1105,18 +1115,42 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 	mutex_lock(&frontend_mutex);
 	dvb_unregister_device (fepriv->dvbdev);
 	dvb_frontend_stop (fe);
-	if (fe->ops.tuner_ops.release) {
-		fe->ops.tuner_ops.release(fe);
-		if (fe->ops.i2c_gate_ctrl)
-			fe->ops.i2c_gate_ctrl(fe, 0);
-	}
-	if (fe->ops.release)
-		fe->ops.release(fe);
-	else
-		printk("dvb_frontend: Demodulator (%s) does not have a release callback!\n", fe->ops.info.name);
+
 	/* fe is invalid now */
 	kfree(fepriv);
 	mutex_unlock(&frontend_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(dvb_unregister_frontend);
+
+#ifdef CONFIG_DVB_CORE_ATTACH
+void dvb_frontend_detach(struct dvb_frontend* fe)
+{
+	void *ptr;
+
+	if (fe->ops.release_sec) {
+		fe->ops.release_sec(fe);
+		symbol_put_addr(fe->ops.release_sec);
+	}
+	if (fe->ops.tuner_ops.release) {
+		fe->ops.tuner_ops.release(fe);
+		symbol_put_addr(fe->ops.tuner_ops.release);
+	}
+	ptr = (void*)fe->ops.release;
+	if (ptr) {
+		fe->ops.release(fe);
+		symbol_put_addr(ptr);
+	}
+}
+#else
+void dvb_frontend_detach(struct dvb_frontend* fe)
+{
+	if (fe->ops.release_sec)
+		fe->ops.release_sec(fe);
+	if (fe->ops.tuner_ops.release)
+		fe->ops.tuner_ops.release(fe);
+	if (fe->ops.release)
+		fe->ops.release(fe);
+}
+#endif
+EXPORT_SYMBOL(dvb_frontend_detach);

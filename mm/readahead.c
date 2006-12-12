@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/pagevec.h>
 
 void default_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
@@ -38,6 +39,7 @@ file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping)
 	ra->ra_pages = mapping->backing_dev_info->ra_pages;
 	ra->prev_page = -1;
 }
+EXPORT_SYMBOL_GPL(file_ra_state_init);
 
 /*
  * Return max readahead size for this inode in number-of-pages.
@@ -147,15 +149,10 @@ int read_cache_pages(struct address_space *mapping, struct list_head *pages,
 		if (!pagevec_add(&lru_pvec, page))
 			__pagevec_lru_add(&lru_pvec);
 		if (ret) {
-			while (!list_empty(pages)) {
-				struct page *victim;
-
-				victim = list_to_page(pages);
-				list_del(&victim->lru);
-				page_cache_release(victim);
-			}
+			put_pages_list(pages);
 			break;
 		}
+		task_io_account_read(PAGE_CACHE_SIZE);
 	}
 	pagevec_lru_add(&lru_pvec);
 	return ret;
@@ -172,6 +169,8 @@ static int read_pages(struct address_space *mapping, struct file *filp,
 
 	if (mapping->a_ops->readpages) {
 		ret = mapping->a_ops->readpages(filp, mapping, pages, nr_pages);
+		/* Clean up the remaining pages */
+		put_pages_list(pages);
 		goto out;
 	}
 
@@ -453,7 +452,7 @@ static int make_ahead_window(struct address_space *mapping, struct file *filp,
  *
  * Note that @filp is purely used for passing on to the ->readpage[s]()
  * handler: it may refer to a different file from @mapping (so we may not use
- * @filp->f_mapping or @filp->f_dentry->d_inode here).
+ * @filp->f_mapping or @filp->f_path.dentry->d_inode here).
  * Also, @ra may not be equal to &@filp->f_ra.
  *
  */

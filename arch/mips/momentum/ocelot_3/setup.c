@@ -4,7 +4,7 @@
  * BRIEF MODULE DESCRIPTION
  * Momentum Computer Ocelot-3 board dependent boot routines
  *
- * Copyright (C) 1996, 1997, 01, 05  Ralf Baechle
+ * Copyright (C) 1996, 1997, 01, 05 - 06  Ralf Baechle
  * Copyright (C) 2000 RidgeRun, Inc.
  * Copyright (C) 2001 Red Hat, Inc.
  * Copyright (C) 2002 Momentum Computer
@@ -67,7 +67,6 @@
 #include <asm/irq.h>
 #include <asm/pci.h>
 #include <asm/processor.h>
-#include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/mc146818rtc.h>
 #include <asm/tlbflush.h>

@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s3c2410/s3c2440-irq.c
+/* linux/arch/arm/mach-s3c2410/s3c244x-irq.c
  *
  * Copyright (c) 2003,2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
@@ -42,11 +42,10 @@
 /* camera irq */
 
 static void s3c_irq_demux_cam(unsigned int irq,
-			      struct irqdesc *desc,
-			      struct pt_regs *regs)
+			      struct irq_desc *desc)
 {
 	unsigned int subsrc, submsk;
-	struct irqdesc *mydesc;
+	struct irq_desc *mydesc;
 
 	/* read the current pending interrupts, and the mask
 	 * for what it is available */
@@ -61,11 +60,11 @@ static void s3c_irq_demux_cam(unsigned int irq,
 	if (subsrc != 0) {
 		if (subsrc & 1) {
 			mydesc = irq_desc + IRQ_S3C2440_CAM_C;
-			desc_handle_irq(IRQ_S3C2440_CAM_C, mydesc, regs);
+			desc_handle_irq(IRQ_S3C2440_CAM_C, mydesc);
 		}
 		if (subsrc & 2) {
 			mydesc = irq_desc + IRQ_S3C2440_CAM_P;
-			desc_handle_irq(IRQ_S3C2440_CAM_P, mydesc, regs);
+			desc_handle_irq(IRQ_S3C2440_CAM_P, mydesc);
 		}
 	}
 }
@@ -90,7 +89,7 @@ s3c_irq_cam_ack(unsigned int irqno)
 	s3c_irqsub_maskack(irqno, INTMSK_CAM, 3<<11);
 }
 
-static struct irqchip s3c_irq_cam = {
+static struct irq_chip s3c_irq_cam = {
 	.mask	    = s3c_irq_cam_mask,
 	.unmask	    = s3c_irq_cam_unmask,
 	.ack	    = s3c_irq_cam_ack,
@@ -101,18 +100,18 @@ static int s3c244x_irq_add(struct sys_device *sysdev)
 	unsigned int irqno;
 
 	set_irq_chip(IRQ_NFCON, &s3c_irq_level_chip);
-	set_irq_handler(IRQ_NFCON, do_level_IRQ);
+	set_irq_handler(IRQ_NFCON, handle_level_irq);
 	set_irq_flags(IRQ_NFCON, IRQF_VALID);
 
 	/* add chained handler for camera */
 
 	set_irq_chip(IRQ_CAM, &s3c_irq_level_chip);
-	set_irq_handler(IRQ_CAM, do_level_IRQ);
+	set_irq_handler(IRQ_CAM, handle_level_irq);
 	set_irq_chained_handler(IRQ_CAM, s3c_irq_demux_cam);
 
 	for (irqno = IRQ_S3C2440_CAM_C; irqno <= IRQ_S3C2440_CAM_P; irqno++) {
 		set_irq_chip(irqno, &s3c_irq_cam);
-		set_irq_handler(irqno, do_level_IRQ);
+		set_irq_handler(irqno, handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
@@ -120,7 +119,9 @@ static int s3c244x_irq_add(struct sys_device *sysdev)
 }
 
 static struct sysdev_driver s3c2440_irq_driver = {
-	.add	= s3c244x_irq_add,
+	.add		= s3c244x_irq_add,
+	.suspend	= s3c24xx_irq_suspend,
+	.resume		= s3c24xx_irq_resume,
 };
 
 static int s3c2440_irq_init(void)
@@ -131,8 +132,11 @@ static int s3c2440_irq_init(void)
 arch_initcall(s3c2440_irq_init);
 
 static struct sysdev_driver s3c2442_irq_driver = {
-	.add	= s3c244x_irq_add,
+	.add		= s3c244x_irq_add,
+	.suspend	= s3c24xx_irq_suspend,
+	.resume		= s3c24xx_irq_resume,
 };
+
 
 static int s3c2442_irq_init(void)
 {

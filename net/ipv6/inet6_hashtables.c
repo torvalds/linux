@@ -57,14 +57,14 @@ EXPORT_SYMBOL(__inet6_hash);
  */
 struct sock *__inet6_lookup_established(struct inet_hashinfo *hashinfo,
 					   const struct in6_addr *saddr,
-					   const u16 sport,
+					   const __be16 sport,
 					   const struct in6_addr *daddr,
 					   const u16 hnum,
 					   const int dif)
 {
 	struct sock *sk;
 	const struct hlist_node *node;
-	const __u32 ports = INET_COMBINED_PORTS(sport, hnum);
+	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
@@ -82,7 +82,7 @@ struct sock *__inet6_lookup_established(struct inet_hashinfo *hashinfo,
 	sk_for_each(sk, node, &(head + hashinfo->ehash_size)->chain) {
 		const struct inet_timewait_sock *tw = inet_twsk(sk);
 
-		if(*((__u32 *)&(tw->tw_dport))	== ports	&&
+		if(*((__portpair *)&(tw->tw_dport))	== ports	&&
 		   sk->sk_family		== PF_INET6) {
 			const struct inet6_timewait_sock *tw6 = inet6_twsk(sk);
 
@@ -146,8 +146,8 @@ struct sock *inet6_lookup_listener(struct inet_hashinfo *hashinfo,
 EXPORT_SYMBOL_GPL(inet6_lookup_listener);
 
 struct sock *inet6_lookup(struct inet_hashinfo *hashinfo,
-			  const struct in6_addr *saddr, const u16 sport,
-			  const struct in6_addr *daddr, const u16 dport,
+			  const struct in6_addr *saddr, const __be16 sport,
+			  const struct in6_addr *daddr, const __be16 dport,
 			  const int dif)
 {
 	struct sock *sk;
@@ -171,7 +171,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	const struct in6_addr *daddr = &np->rcv_saddr;
 	const struct in6_addr *saddr = &np->daddr;
 	const int dif = sk->sk_bound_dev_if;
-	const u32 ports = INET_COMBINED_PORTS(inet->dport, lport);
+	const __portpair ports = INET_COMBINED_PORTS(inet->dport, lport);
 	const unsigned int hash = inet6_ehashfn(daddr, inet->num, saddr,
 						inet->dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
@@ -188,7 +188,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 
 		tw = inet_twsk(sk2);
 
-		if(*((__u32 *)&(tw->tw_dport)) == ports		 &&
+		if(*((__portpair *)&(tw->tw_dport)) == ports		 &&
 		   sk2->sk_family	       == PF_INET6	 &&
 		   ipv6_addr_equal(&tw6->tw_v6_daddr, saddr)	 &&
 		   ipv6_addr_equal(&tw6->tw_v6_rcv_saddr, daddr) &&

@@ -6,7 +6,6 @@
  *  Copyright (C) 2006, Timesys Corp., Thomas Gleixner <tglx@timesys.com>
  *
  */
-#include <linux/config.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -14,6 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/sysdev.h>
 #include <linux/timer.h>
+#include <linux/freezer.h>
 
 #include "rtmutex.h"
 

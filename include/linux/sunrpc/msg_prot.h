@@ -1,5 +1,5 @@
 /*
- * linux/include/net/sunrpc/msg_prot.h
+ * linux/include/linux/sunrpc/msg_prot.h
  *
  * Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>
  */
@@ -10,6 +10,9 @@
 #ifdef __KERNEL__ /* user programs should get these from the rpc header files */
 
 #define RPC_VERSION 2
+
+/* size of an XDR encoding unit in bytes, i.e. 32bit */
+#define XDR_UNIT	(4)
 
 /* spec defines authentication flavor as an unsigned 32 bit integer */
 typedef u32	rpc_authflavor_t;
@@ -34,6 +37,9 @@ enum rpc_auth_flavors {
 	RPC_AUTH_GSS_SPKMP = 390011,
 };
 
+/* Maximum size (in bytes) of an rpc credential or verifier */
+#define RPC_MAX_AUTH_SIZE (400)
+
 enum rpc_msg_type {
 	RPC_CALL = 0,
 	RPC_REPLY = 1
@@ -50,7 +56,9 @@ enum rpc_accept_stat {
 	RPC_PROG_MISMATCH = 2,
 	RPC_PROC_UNAVAIL = 3,
 	RPC_GARBAGE_ARGS = 4,
-	RPC_SYSTEM_ERR = 5
+	RPC_SYSTEM_ERR = 5,
+	/* internal use only */
+	RPC_DROP_REPLY = 60000,
 };
 
 enum rpc_reject_stat {
@@ -95,11 +103,45 @@ enum rpc_auth_stat {
  * 2GB.
  */
 
-typedef u32	rpc_fraghdr;
+typedef __be32	rpc_fraghdr;
 
 #define	RPC_LAST_STREAM_FRAGMENT	(1U << 31)
 #define	RPC_FRAGMENT_SIZE_MASK		(~RPC_LAST_STREAM_FRAGMENT)
 #define	RPC_MAX_FRAGMENT_SIZE		((1U << 31) - 1)
+
+/*
+ * RPC call and reply header size as number of 32bit words (verifier
+ * size computed separately, see below)
+ */
+#define RPC_CALLHDRSIZE		(6)
+#define RPC_REPHDRSIZE		(4)
+
+
+/*
+ * Maximum RPC header size, including authentication,
+ * as number of 32bit words (see RFCs 1831, 1832).
+ *
+ *	xid			    1 xdr unit = 4 bytes
+ *	mtype			    1
+ *	rpc_version		    1
+ *	program			    1
+ *	prog_version		    1
+ *	procedure		    1
+ *	cred {
+ *	    flavor		    1
+ *	    length		    1
+ *	    body<RPC_MAX_AUTH_SIZE> 100 xdr units = 400 bytes
+ *	}
+ *	verf {
+ *	    flavor		    1
+ *	    length		    1
+ *	    body<RPC_MAX_AUTH_SIZE> 100 xdr units = 400 bytes
+ *	}
+ *	TOTAL			    210 xdr units = 840 bytes
+ */
+#define RPC_MAX_HEADER_WITH_AUTH \
+	(RPC_CALLHDRSIZE + 2*(2+RPC_MAX_AUTH_SIZE/4))
+
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_MSGPROT_H_ */

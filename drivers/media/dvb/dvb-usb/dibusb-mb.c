@@ -14,35 +14,35 @@
  */
 #include "dibusb.h"
 
-static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_device *d)
+static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct dib3000_config demod_cfg;
-	struct dibusb_state *st = d->priv;
+	struct dibusb_state *st = adap->priv;
 
 	demod_cfg.demod_address = 0x8;
 
-	if ((d->fe = dib3000mb_attach(&demod_cfg,&d->i2c_adap,&st->ops)) == NULL) {
-		d->fe->ops.tuner_ops.init = dvb_usb_tuner_init_i2c;
-		d->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
+	if ((adap->fe = dib3000mb_attach(&demod_cfg,&adap->dev->i2c_adap,&st->ops)) == NULL)
 		return -ENODEV;
-	}
 
-	d->tuner_pass_ctrl = st->ops.tuner_pass_ctrl;
+	adap->fe->ops.tuner_ops.init       = dvb_usb_tuner_init_i2c;
+	adap->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
+
+	adap->tuner_pass_ctrl = st->ops.tuner_pass_ctrl;
 
 	return 0;
 }
 
-static int dibusb_thomson_tuner_attach(struct dvb_usb_device *d)
+static int dibusb_thomson_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	d->pll_addr = 0x61;
-	d->pll_desc = &dvb_pll_tua6010xs;
+	adap->pll_addr = 0x61;
+	adap->pll_desc = &dvb_pll_tua6010xs;
 	return 0;
 }
 
 /* Some of the Artec 1.1 device aren't equipped with the default tuner
  * (Thomson Cable), but with a Panasonic ENV77H11D5.  This function figures
  * this out. */
-static int dibusb_tuner_probe_and_attach(struct dvb_usb_device *d)
+static int dibusb_tuner_probe_and_attach(struct dvb_usb_adapter *adap)
 {
 	u8 b[2] = { 0,0 }, b2[1];
 	int ret = 0;
@@ -54,36 +54,36 @@ static int dibusb_tuner_probe_and_attach(struct dvb_usb_device *d)
 	/* the Panasonic sits on I2C addrass 0x60, the Thomson on 0x61 */
 	msg[0].addr = msg[1].addr = 0x60;
 
-	if (d->tuner_pass_ctrl)
-		d->tuner_pass_ctrl(d->fe,1,msg[0].addr);
+	if (adap->tuner_pass_ctrl)
+		adap->tuner_pass_ctrl(adap->fe,1,msg[0].addr);
 
-	if (i2c_transfer (&d->i2c_adap, msg, 2) != 2) {
+	if (i2c_transfer(&adap->dev->i2c_adap, msg, 2) != 2) {
 		err("tuner i2c write failed.");
 		ret = -EREMOTEIO;
 	}
 
-	if (d->tuner_pass_ctrl)
-		d->tuner_pass_ctrl(d->fe,0,msg[0].addr);
+	if (adap->tuner_pass_ctrl)
+		adap->tuner_pass_ctrl(adap->fe,0,msg[0].addr);
 
 	if (b2[0] == 0xfe) {
 		info("This device has the Thomson Cable onboard. Which is default.");
-		dibusb_thomson_tuner_attach(d);
+		dibusb_thomson_tuner_attach(adap);
 	} else {
 		u8 bpll[4] = { 0x0b, 0xf5, 0x85, 0xab };
 		info("This device has the Panasonic ENV77H11D5 onboard.");
-		d->pll_addr = 0x60;
-		memcpy(d->pll_init,bpll,4);
-		d->pll_desc = &dvb_pll_tda665x;
+		adap->pll_addr = 0x60;
+		memcpy(adap->pll_init,bpll,4);
+		adap->pll_desc = &dvb_pll_tda665x;
 	}
 
 	return ret;
 }
 
 /* USB Driver stuff */
-static struct dvb_usb_properties dibusb1_1_properties;
-static struct dvb_usb_properties dibusb1_1_an2235_properties;
-static struct dvb_usb_properties dibusb2_0b_properties;
-static struct dvb_usb_properties artec_t1_usb2_properties;
+static struct dvb_usb_device_properties dibusb1_1_properties;
+static struct dvb_usb_device_properties dibusb1_1_an2235_properties;
+static struct dvb_usb_device_properties dibusb2_0b_properties;
+static struct dvb_usb_device_properties artec_t1_usb2_properties;
 
 static int dibusb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
@@ -150,42 +150,50 @@ static struct usb_device_id dibusb_dib3000mb_table [] = {
 };
 MODULE_DEVICE_TABLE (usb, dibusb_dib3000mb_table);
 
-static struct dvb_usb_properties dibusb1_1_properties = {
-	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
-	.pid_filter_count = 16,
+static struct dvb_usb_device_properties dibusb1_1_properties = {
+	.caps =  DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl = CYPRESS_AN2135,
 
 	.firmware = "dvb-usb-dibusb-5.0.0.11.fw",
 
-	.size_of_priv     = sizeof(struct dibusb_state),
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+			.pid_filter_count = 16,
 
-	.streaming_ctrl   = dibusb_streaming_ctrl,
-	.pid_filter       = dibusb_pid_filter,
-	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.streaming_ctrl   = dibusb_streaming_ctrl,
+			.pid_filter       = dibusb_pid_filter,
+			.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.frontend_attach  = dibusb_dib3000mb_frontend_attach,
+			.tuner_attach     = dibusb_tuner_probe_and_attach,
+
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 7,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
+			.size_of_priv     = sizeof(struct dibusb_state),
+		}
+	},
+
 	.power_ctrl       = dibusb_power_ctrl,
-	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_tuner_probe_and_attach,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
-	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
-		.count = 7,
-		.endpoint = 0x02,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
 
 	.num_device_descs = 9,
 	.devices = {
@@ -228,42 +236,48 @@ static struct dvb_usb_properties dibusb1_1_properties = {
 	}
 };
 
-static struct dvb_usb_properties dibusb1_1_an2235_properties = {
-	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
-	.pid_filter_count = 16,
-
+static struct dvb_usb_device_properties dibusb1_1_an2235_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = CYPRESS_AN2235,
 
 	.firmware = "dvb-usb-dibusb-an2235-01.fw",
 
-	.size_of_priv     = sizeof(struct dibusb_state),
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.caps = DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_ADAP_HAS_PID_FILTER,
+			.pid_filter_count = 16,
 
-	.streaming_ctrl   = dibusb_streaming_ctrl,
-	.pid_filter       = dibusb_pid_filter,
-	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.streaming_ctrl   = dibusb_streaming_ctrl,
+			.pid_filter       = dibusb_pid_filter,
+			.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.frontend_attach  = dibusb_dib3000mb_frontend_attach,
+			.tuner_attach     = dibusb_tuner_probe_and_attach,
+
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 7,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
+			.size_of_priv     = sizeof(struct dibusb_state),
+		},
+	},
 	.power_ctrl       = dibusb_power_ctrl,
-	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_tuner_probe_and_attach,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
-	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
-		.count = 7,
-		.endpoint = 0x02,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
 
 #ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
 	.num_device_descs = 2,
@@ -272,8 +286,8 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 #endif
 	.devices = {
 		{	"Artec T1 USB1.1 TVBOX with AN2235",
-			{ &dibusb_dib3000mb_table[20], NULL },
 			{ &dibusb_dib3000mb_table[21], NULL },
+			{ &dibusb_dib3000mb_table[22], NULL },
 		},
 #ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
 		{	"Artec T1 USB1.1 TVBOX with AN2235 (faulty USB IDs)",
@@ -285,42 +299,49 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 	}
 };
 
-static struct dvb_usb_properties dibusb2_0b_properties = {
-	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
-	.pid_filter_count = 16,
+static struct dvb_usb_device_properties dibusb2_0b_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl = CYPRESS_FX2,
 
 	.firmware = "dvb-usb-adstech-usb2-02.fw",
 
-	.size_of_priv     = sizeof(struct dibusb_state),
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+			.pid_filter_count = 16,
 
-	.streaming_ctrl   = dibusb2_0_streaming_ctrl,
-	.pid_filter       = dibusb_pid_filter,
-	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.streaming_ctrl   = dibusb2_0_streaming_ctrl,
+			.pid_filter       = dibusb_pid_filter,
+			.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.frontend_attach  = dibusb_dib3000mb_frontend_attach,
+			.tuner_attach     = dibusb_thomson_tuner_attach,
+
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 7,
+				.endpoint = 0x06,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
+			.size_of_priv     = sizeof(struct dibusb_state),
+		}
+	},
 	.power_ctrl       = dibusb2_0_power_ctrl,
-	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_thomson_tuner_attach,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
-	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
-		.count = 7,
-		.endpoint = 0x06,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
 
 	.num_device_descs = 2,
 	.devices = {
@@ -336,42 +357,48 @@ static struct dvb_usb_properties dibusb2_0b_properties = {
 	}
 };
 
-static struct dvb_usb_properties artec_t1_usb2_properties = {
-	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
-	.pid_filter_count = 16,
+static struct dvb_usb_device_properties artec_t1_usb2_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl = CYPRESS_FX2,
 
 	.firmware = "dvb-usb-dibusb-6.0.0.8.fw",
 
-	.size_of_priv     = sizeof(struct dibusb_state),
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+			.pid_filter_count = 16,
 
-	.streaming_ctrl   = dibusb2_0_streaming_ctrl,
-	.pid_filter       = dibusb_pid_filter,
-	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.streaming_ctrl   = dibusb2_0_streaming_ctrl,
+			.pid_filter       = dibusb_pid_filter,
+			.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.frontend_attach  = dibusb_dib3000mb_frontend_attach,
+			.tuner_attach     = dibusb_tuner_probe_and_attach,
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 7,
+				.endpoint = 0x06,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
+			.size_of_priv     = sizeof(struct dibusb_state),
+		}
+	},
 	.power_ctrl       = dibusb2_0_power_ctrl,
-	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_tuner_probe_and_attach,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
-	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
-		.count = 7,
-		.endpoint = 0x06,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
 
 	.num_device_descs = 1,
 	.devices = {

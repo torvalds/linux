@@ -35,7 +35,7 @@ static inline struct hostfs_inode_info *HOSTFS_I(struct inode *inode)
 	return(list_entry(inode, struct hostfs_inode_info, vfs_inode));
 }
 
-#define FILE_HOSTFS_I(file) HOSTFS_I((file)->f_dentry->d_inode)
+#define FILE_HOSTFS_I(file) HOSTFS_I((file)->f_path.dentry->d_inode)
 
 int hostfs_d_delete(struct dentry *dentry)
 {
@@ -156,7 +156,6 @@ static int read_name(struct inode *ino, char *name)
 	ino->i_mode = i_mode;
 	ino->i_nlink = i_nlink;
 	ino->i_size = i_size;
-	ino->i_blksize = i_blksize;
 	ino->i_blocks = i_blocks;
 	return(0);
 }
@@ -326,7 +325,7 @@ int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
 	unsigned long long next, ino;
 	int error, len;
 
-	name = dentry_name(file->f_dentry, 0);
+	name = dentry_name(file->f_path.dentry, 0);
 	if(name == NULL) return(-ENOMEM);
 	dir = open_dir(name, &error);
 	kfree(name);
@@ -367,7 +366,7 @@ int hostfs_file_open(struct inode *ino, struct file *file)
 	if(w)
 		r = 1;
 
-	name = dentry_name(file->f_dentry, 0);
+	name = dentry_name(file->f_path.dentry, 0);
 	if(name == NULL)
 		return(-ENOMEM);
 
@@ -386,13 +385,11 @@ int hostfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 
 static const struct file_operations hostfs_file_fops = {
 	.llseek		= generic_file_llseek,
-	.read		= generic_file_read,
+	.read		= do_sync_read,
 	.sendfile	= generic_file_sendfile,
 	.aio_read	= generic_file_aio_read,
 	.aio_write	= generic_file_aio_write,
-	.readv		= generic_file_readv,
-	.writev		= generic_file_writev,
-	.write		= generic_file_write,
+	.write		= do_sync_write,
 	.mmap		= generic_file_mmap,
 	.open		= hostfs_file_open,
 	.release	= NULL,

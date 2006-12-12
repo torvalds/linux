@@ -228,6 +228,28 @@ static int multipath_issue_flush(request_queue_t *q, struct gendisk *disk,
 	rcu_read_unlock();
 	return ret;
 }
+static int multipath_congested(void *data, int bits)
+{
+	mddev_t *mddev = data;
+	multipath_conf_t *conf = mddev_to_conf(mddev);
+	int i, ret = 0;
+
+	rcu_read_lock();
+	for (i = 0; i < mddev->raid_disks ; i++) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
+		if (rdev && !test_bit(Faulty, &rdev->flags)) {
+			request_queue_t *q = bdev_get_queue(rdev->bdev);
+
+			ret |= bdi_congested(&q->backing_dev_info, bits);
+			/* Just like multipath_map, we just check the
+			 * first available device
+			 */
+			break;
+		}
+	}
+	rcu_read_unlock();
+	return ret;
+}
 
 /*
  * Careful, this can execute in IRQ contexts as well!
@@ -253,8 +275,9 @@ static void multipath_error (mddev_t *mddev, mdk_rdev_t *rdev)
 			char b[BDEVNAME_SIZE];
 			clear_bit(In_sync, &rdev->flags);
 			set_bit(Faulty, &rdev->flags);
-			mddev->sb_dirty = 1;
+			set_bit(MD_CHANGE_DEVS, &mddev->flags);
 			conf->working_disks--;
+			mddev->degraded++;
 			printk(KERN_ALERT "multipath: IO failure on %s,"
 				" disabling IO path. \n	Operation continuing"
 				" on %d IO paths.\n",
@@ -314,6 +337,7 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 				blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
 			conf->working_disks++;
+			mddev->degraded--;
 			rdev->raid_disk = path;
 			set_bit(In_sync, &rdev->flags);
 			rcu_assign_pointer(p->rdev, rdev);
@@ -470,7 +494,6 @@ static int multipath_run (mddev_t *mddev)
 	}
 
 	conf->raid_disks = mddev->raid_disks;
-	mddev->sb_dirty = 1;
 	conf->mddev = mddev;
 	spin_lock_init(&conf->device_lock);
 	INIT_LIST_HEAD(&conf->retry_list);
@@ -480,7 +503,7 @@ static int multipath_run (mddev_t *mddev)
 			mdname(mddev));
 		goto out_free_conf;
 	}
-	mddev->degraded = conf->raid_disks = conf->working_disks;
+	mddev->degraded = conf->raid_disks - conf->working_disks;
 
 	conf->pool = mempool_create_kzalloc_pool(NR_RESERVED_BUFS,
 						 sizeof(struct multipath_bh));
@@ -510,6 +533,8 @@ static int multipath_run (mddev_t *mddev)
 
 	mddev->queue->unplug_fn = multipath_unplug;
 	mddev->queue->issue_flush_fn = multipath_issue_flush;
+	mddev->queue->backing_dev_info.congested_fn = multipath_congested;
+	mddev->queue->backing_dev_info.congested_data = mddev;
 
 	return 0;
 

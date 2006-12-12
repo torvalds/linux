@@ -42,7 +42,7 @@
 #define DRV_RELDATE	"11/24/03"
 #define DRV_AUTHOR	"David S. Miller (davem@redhat.com)"
 
-static char version[] __initdata =
+static char version[] =
 	DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " " DRV_AUTHOR "\n";
 
 MODULE_VERSION(DRV_VERSION);
@@ -888,7 +888,7 @@ static void bigmac_rx(struct bigmac *bp)
 		printk(KERN_NOTICE "%s: Memory squeeze, deferring packet.\n", bp->dev->name);
 }
 
-static irqreturn_t bigmac_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t bigmac_interrupt(int irq, void *dev_id)
 {
 	struct bigmac *bp = (struct bigmac *) dev_id;
 	u32 qec_status, bmac_status;

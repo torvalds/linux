@@ -1,3 +1,14 @@
+/*
+ * sound/oss/sh_dac_audio.c
+ *
+ * SH DAC based sound :(
+ *
+ *  Copyright (C) 2004,2005  Andriy Skulysh
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ */
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -6,18 +17,17 @@
 #include <linux/fs.h>
 #include <linux/sound.h>
 #include <linux/soundcard.h>
+#include <linux/interrupt.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
-#include <linux/interrupt.h>
-
+#include <asm/clock.h>
 #include <asm/cpu/dac.h>
-
-#ifdef MACH_HP600
-#include <asm/hp6xx/hp6xx.h>
-#include <asm/hd64461/hd64461.h>
-#endif
+#include <asm/cpu/timer.h>
+#include <asm/machvec.h>
+#include <asm/hp6xx.h>
+#include <asm/hd64461.h>
 
 #define MODNAME "sh_dac_audio"
 
@@ -25,11 +35,6 @@
 
 #define TMU1_TCR_INIT	0x0020	/* Clock/4, rising edge; interrupt on */
 #define TMU1_TSTR_INIT  0x02	/* Bit to turn on TMU1 */
-
-#define TMU_TSTR	0xfffffe92
-#define TMU1_TCOR	0xfffffea0
-#define TMU1_TCNT	0xfffffea4
-#define TMU1_TCR	0xfffffea8
 
 #define BUFFER_SIZE 48000
 
@@ -71,34 +76,37 @@ static void dac_audio_sync(void)
 
 static void dac_audio_start(void)
 {
-#ifdef MACH_HP600
-	u16 v;
-	v = inw(HD64461_GPADR);
-	v &= ~HD64461_GPADR_SPEAKER;
-	outw(v, HD64461_GPADR);
-#endif
+	if (mach_is_hp6xx()) {
+		u16 v = inw(HD64461_GPADR);
+		v &= ~HD64461_GPADR_SPEAKER;
+		outw(v, HD64461_GPADR);
+	}
+
 	sh_dac_enable(CONFIG_SOUND_SH_DAC_AUDIO_CHANNEL);
 	ctrl_outw(TMU1_TCR_INIT, TMU1_TCR);
 }
 static void dac_audio_stop(void)
 {
-#ifdef MACH_HP600
-	u16 v;
-#endif
 	dac_audio_stop_timer();
-#ifdef MACH_HP600
-	v = inw(HD64461_GPADR);
-	v |= HD64461_GPADR_SPEAKER;
-	outw(v, HD64461_GPADR);
-#endif
+
+	if (mach_is_hp6xx()) {
+		u16 v = inw(HD64461_GPADR);
+		v |= HD64461_GPADR_SPEAKER;
+		outw(v, HD64461_GPADR);
+	}
+
+ 	sh_dac_output(0, CONFIG_SOUND_SH_DAC_AUDIO_CHANNEL);
 	sh_dac_disable(CONFIG_SOUND_SH_DAC_AUDIO_CHANNEL);
 }
 
 static void dac_audio_set_rate(void)
 {
 	unsigned long interval;
+ 	struct clk *clk;
 
-	interval = (current_cpu_data.module_clock / 4) / rate;
+ 	clk = clk_get("module_clk");
+ 	interval = (clk_get_rate(clk) / 4) / rate;
+ 	clk_put(clk);
 	ctrl_outl(interval, TMU1_TCOR);
 	ctrl_outl(interval, TMU1_TCNT);
 }
@@ -255,7 +263,7 @@ struct file_operations dac_audio_fops = {
       .release =	dac_audio_release,
 };
 
-static irqreturn_t timer1_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t timer1_interrupt(int irq, void *dev)
 {
 	unsigned long timer_status;
 

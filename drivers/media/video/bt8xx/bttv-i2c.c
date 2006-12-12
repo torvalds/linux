@@ -8,6 +8,9 @@
 			   & Marcus Metzler (mocm@thp.uni-koeln.de)
     (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
 
+    (c) 2005 Mauro Carvalho Chehab <mchehab@infradead.org>
+	- Multituner support and i2c address binding
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -45,9 +48,17 @@ static int i2c_debug;
 static int i2c_hw;
 static int i2c_scan;
 module_param(i2c_debug, int, 0644);
+MODULE_PARM_DESC(i2c_hw,"configure i2c debug level");
 module_param(i2c_hw,    int, 0444);
+MODULE_PARM_DESC(i2c_hw,"force use of hardware i2c support, "
+			"instead of software bitbang");
 module_param(i2c_scan,  int, 0444);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
+
+static unsigned int i2c_udelay = 5;
+module_param(i2c_udelay, int, 0444);
+MODULE_PARM_DESC(i2c_udelay,"soft i2c delay at insmod time, in usecs "
+		"(should be 5 or higher). Lower value means higher bus speed.");
 
 /* ----------------------------------------------------------------------- */
 /* I2C functions - bitbanging adapter (software i2c)                       */
@@ -100,7 +111,6 @@ static struct i2c_algo_bit_data bttv_i2c_algo_bit_template = {
 	.getsda  = bttv_bit_getsda,
 	.getscl  = bttv_bit_getscl,
 	.udelay  = 16,
-	.mdelay  = 10,
 	.timeout = 200,
 };
 
@@ -426,6 +436,11 @@ int __devinit init_bttv_i2c(struct bttv *btv)
 		       sizeof(bttv_i2c_adap_hw_template));
 	} else {
 		/* bt848 */
+	/* Prevents usage of invalid delay values */
+		if (i2c_udelay<5)
+			i2c_udelay=5;
+		bttv_i2c_algo_bit_template.udelay=i2c_udelay;
+
 		memcpy(&btv->c.i2c_adap, &bttv_i2c_adap_sw_template,
 		       sizeof(bttv_i2c_adap_sw_template));
 		memcpy(&btv->i2c_algo, &bttv_i2c_algo_bit_template,
@@ -464,11 +479,7 @@ int __devexit fini_bttv_i2c(struct bttv *btv)
 	if (0 != btv->i2c_rc)
 		return 0;
 
-	if (btv->use_i2c_hw) {
-		return i2c_del_adapter(&btv->c.i2c_adap);
-	} else {
-		return i2c_bit_del_bus(&btv->c.i2c_adap);
-	}
+	return i2c_del_adapter(&btv->c.i2c_adap);
 }
 
 /*

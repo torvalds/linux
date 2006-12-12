@@ -35,6 +35,7 @@
 #include <asm/hvconsole.h>
 #include <asm/vio.h>
 #include <asm/prom.h>
+#include <asm/firmware.h>
 
 #include "hvc_console.h"
 
@@ -119,6 +120,9 @@ static struct vio_driver hvc_vio_driver = {
 static int hvc_vio_init(void)
 {
 	int rc;
+
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return -EIO;
 
 	/* Register as a vio device to receive callbacks */
 	rc = vio_register_driver(&hvc_vio_driver);

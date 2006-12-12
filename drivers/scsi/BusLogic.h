@@ -237,10 +237,7 @@ enum BusLogic_BIOS_DiskGeometryTranslation {
   Define a Boolean data type.
 */
 
-typedef enum {
-	false,
-	true
-} PACKED boolean;
+typedef bool boolean;
 
 /*
   Define a 10^18 Statistics Byte Counter data type.
@@ -1350,7 +1347,7 @@ static int BusLogic_BIOSDiskParameters(struct scsi_device *, struct block_device
 static int BusLogic_ProcDirectoryInfo(struct Scsi_Host *, char *, char **, off_t, int, int);
 static int BusLogic_SlaveConfigure(struct scsi_device *);
 static void BusLogic_QueueCompletedCCB(struct BusLogic_CCB *);
-static irqreturn_t BusLogic_InterruptHandler(int, void *, struct pt_regs *);
+static irqreturn_t BusLogic_InterruptHandler(int, void *);
 static int BusLogic_ResetHostAdapter(struct BusLogic_HostAdapter *, boolean HardReset);
 static void BusLogic_Message(enum BusLogic_MessageLevel, char *, struct BusLogic_HostAdapter *, ...);
 static int __init BusLogic_Setup(char *);

@@ -1,5 +1,5 @@
-/* Copyright (c) 2004 Coraid, Inc.  See COPYING for GPL terms. */
-#define VERSION "22"
+/* Copyright (c) 2006 Coraid, Inc.  See COPYING for GPL terms. */
+#define VERSION "32"
 #define AOE_MAJOR 152
 #define DEVICE_NAME "aoe"
 
@@ -65,7 +65,7 @@ struct aoe_atahdr {
 struct aoe_cfghdr {
 	__be16 bufcnt;
 	__be16 fwver;
-	unsigned char res;
+	unsigned char scnt;
 	unsigned char aoeccmd;
 	unsigned char cslen[2];
 };
@@ -78,12 +78,14 @@ enum {
 	DEVFL_GDALLOC = (1<<4),	/* need to alloc gendisk */
 	DEVFL_PAUSE = (1<<5),
 	DEVFL_NEWSIZE = (1<<6),	/* need to update dev size in block layer */
+	DEVFL_MAXBCNT = (1<<7), /* d->maxbcnt is not changeable */
+	DEVFL_KICKME = (1<<8),
 
 	BUFFL_FAIL = 1,
 };
 
 enum {
-	MAXATADATA = 1024,
+	DEFAULTBCNT = 2 * 512,	/* 2 sectors */
 	NPERSHELF = 16,		/* number of slots per shelf address */
 	FREETAG = -1,
 	MIN_BUFS = 8,
@@ -107,11 +109,9 @@ struct frame {
 	ulong waited;
 	struct buf *buf;
 	char *bufaddr;
-	int writedatalen;
-	int ndata;
-
-	/* largest possible */
-	unsigned char data[sizeof(struct aoe_hdr) + sizeof(struct aoe_atahdr)];
+	ulong bcnt;
+	sector_t lba;
+	struct sk_buff *skb;
 };
 
 struct aoedev {
@@ -121,9 +121,12 @@ struct aoedev {
 	ulong sysminor;
 	ulong aoemajor;
 	ulong aoeminor;
-	ulong nopen;		/* (bd_openers isn't available without sleeping) */
-	ulong rttavg;		/* round trip average of requests/responses */
+	u16 nopen;		/* (bd_openers isn't available without sleeping) */
+	u16 lasttag;		/* last tag sent */
+	u16 rttavg;		/* round trip average of requests/responses */
+	u16 mintimer;
 	u16 fw_ver;		/* version of blade's firmware */
+	u16 maxbcnt;
 	struct work_struct work;/* disk create work struct */
 	struct gendisk *gd;
 	request_queue_t blkq;
@@ -137,8 +140,8 @@ struct aoedev {
 	mempool_t *bufpool;	/* for deadlock-free Buf allocation */
 	struct list_head bufq;	/* queue of bios to work on */
 	struct buf *inprocess;	/* the one we're currently working on */
-	ulong lasttag;		/* last tag sent */
-	ulong nframes;		/* number of frames below */
+	ushort lostjumbo;
+	ushort nframes;		/* number of frames below */
 	struct frame *frames;
 };
 
@@ -156,7 +159,8 @@ void aoecmd_work(struct aoedev *d);
 void aoecmd_cfg(ushort aoemajor, unsigned char aoeminor);
 void aoecmd_ata_rsp(struct sk_buff *);
 void aoecmd_cfg_rsp(struct sk_buff *);
-void aoecmd_sleepwork(void *vp);
+void aoecmd_sleepwork(struct work_struct *);
+struct sk_buff *new_skb(ulong);
 
 int aoedev_init(void);
 void aoedev_exit(void);

@@ -6,7 +6,6 @@
  */
 #include <linux/compiler.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/prefetch.h>
 #include <asm/page.h>
 
@@ -361,6 +360,11 @@ __must_check unsigned long clear_user(void __user *mem, unsigned long len);
 __must_check unsigned long __clear_user(void __user *mem, unsigned long len);
 
 __must_check long __copy_from_user_inatomic(void *dst, const void __user *src, unsigned size);
-#define __copy_to_user_inatomic copy_user_generic
+
+static __must_check __always_inline int
+__copy_to_user_inatomic(void __user *dst, const void *src, unsigned size)
+{
+	return copy_user_generic((__force void *)dst, src, size);
+}
 
 #endif /* __X86_64_UACCESS_H */

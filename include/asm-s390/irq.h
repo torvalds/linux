@@ -19,8 +19,5 @@ enum interruption_class {
 	NR_IRQS,
 };
 
-#define touch_nmi_watchdog() do { } while(0)
-
 #endif /* __KERNEL__ */
 #endif
-

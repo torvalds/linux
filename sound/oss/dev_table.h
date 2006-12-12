@@ -352,22 +352,8 @@ struct sound_timer_operations
 	void (*arm_timer)(int dev, long time);
 };
 
-#ifdef _DEV_TABLE_C_   
-struct audio_operations *audio_devs[MAX_AUDIO_DEV];
-int num_audiodevs;
-struct mixer_operations *mixer_devs[MAX_MIXER_DEV];
-int num_mixers;
-struct synth_operations *synth_devs[MAX_SYNTH_DEV+MAX_MIDI_DEV];
-int num_synths;
-struct midi_operations *midi_devs[MAX_MIDI_DEV];
-int num_midis;
-
 extern struct sound_timer_operations default_sound_timer;
-struct sound_timer_operations *sound_timer_devs[MAX_TIMER_DEV] = {
-	&default_sound_timer, NULL
-}; 
-int num_sound_timers = 1;
-#else
+
 extern struct audio_operations *audio_devs[MAX_AUDIO_DEV];
 extern int num_audiodevs;
 extern struct mixer_operations *mixer_devs[MAX_MIXER_DEV];
@@ -378,7 +364,6 @@ extern struct midi_operations *midi_devs[MAX_MIDI_DEV];
 extern int num_midis;
 extern struct sound_timer_operations * sound_timer_devs[MAX_TIMER_DEV];
 extern int num_sound_timers;
-#endif	/* _DEV_TABLE_C_ */
 
 extern int sound_map_buffer (int dev, struct dma_buffparms *dmap, buffmem_desc *info);
 void sound_timer_init (struct sound_lowlev_timer *t, char *name);

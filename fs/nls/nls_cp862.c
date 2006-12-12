@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp862.c
+ * linux/fs/nls/nls_cp862.c
  *
  * Charset cp862 translation tables.
  * Generated automatically from the Unicode and charset

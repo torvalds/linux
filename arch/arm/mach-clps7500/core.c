@@ -57,7 +57,7 @@ static void cl7500_unmask_irq_a(unsigned int irq)
 	iomd_writeb(val | mask, IOMD_IRQMASKA);
 }
 
-static struct irqchip clps7500_a_chip = {
+static struct irq_chip clps7500_a_chip = {
 	.ack	= cl7500_ack_irq_a,
 	.mask	= cl7500_mask_irq_a,
 	.unmask	= cl7500_unmask_irq_a,
@@ -81,7 +81,7 @@ static void cl7500_unmask_irq_b(unsigned int irq)
 	iomd_writeb(val | mask, IOMD_IRQMASKB);
 }
 
-static struct irqchip clps7500_b_chip = {
+static struct irq_chip clps7500_b_chip = {
 	.ack	= cl7500_mask_irq_b,
 	.mask	= cl7500_mask_irq_b,
 	.unmask	= cl7500_unmask_irq_b,
@@ -105,7 +105,7 @@ static void cl7500_unmask_irq_c(unsigned int irq)
 	iomd_writeb(val | mask, IOMD_IRQMASKC);
 }
 
-static struct irqchip clps7500_c_chip = {
+static struct irq_chip clps7500_c_chip = {
 	.ack	= cl7500_mask_irq_c,
 	.mask	= cl7500_mask_irq_c,
 	.unmask	= cl7500_unmask_irq_c,
@@ -129,7 +129,7 @@ static void cl7500_unmask_irq_d(unsigned int irq)
 	iomd_writeb(val | mask, IOMD_IRQMASKD);
 }
 
-static struct irqchip clps7500_d_chip = {
+static struct irq_chip clps7500_d_chip = {
 	.ack	= cl7500_mask_irq_d,
 	.mask	= cl7500_mask_irq_d,
 	.unmask	= cl7500_unmask_irq_d,
@@ -153,7 +153,7 @@ static void cl7500_unmask_irq_dma(unsigned int irq)
 	iomd_writeb(val | mask, IOMD_DMAMASK);
 }
 
-static struct irqchip clps7500_dma_chip = {
+static struct irq_chip clps7500_dma_chip = {
 	.ack	= cl7500_mask_irq_dma,
 	.mask	= cl7500_mask_irq_dma,
 	.unmask	= cl7500_unmask_irq_dma,
@@ -177,7 +177,7 @@ static void cl7500_unmask_irq_fiq(unsigned int irq)
 	iomd_writeb(val | mask, IOMD_FIQMASK);
 }
 
-static struct irqchip clps7500_fiq_chip = {
+static struct irq_chip clps7500_fiq_chip = {
 	.ack	= cl7500_mask_irq_fiq,
 	.mask	= cl7500_mask_irq_fiq,
 	.unmask	= cl7500_unmask_irq_fiq,
@@ -187,7 +187,7 @@ static void cl7500_no_action(unsigned int irq)
 {
 }
 
-static struct irqchip clps7500_no_chip = {
+static struct irq_chip clps7500_no_chip = {
 	.ack	= cl7500_no_action,
 	.mask	= cl7500_no_action,
 	.unmask	= cl7500_no_action,
@@ -214,43 +214,43 @@ static void __init clps7500_init_irq(void)
 		switch (irq) {
 		case 0 ... 7:
 			set_irq_chip(irq, &clps7500_a_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 
 		case 8 ... 15:
 			set_irq_chip(irq, &clps7500_b_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 
 		case 16 ... 22:
 			set_irq_chip(irq, &clps7500_dma_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 
 		case 24 ... 31:
 			set_irq_chip(irq, &clps7500_c_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 
 		case 40 ... 47:
 			set_irq_chip(irq, &clps7500_d_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 
 		case 48 ... 55:
 			set_irq_chip(irq, &clps7500_no_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 
 		case 64 ... 72:
 			set_irq_chip(irq, &clps7500_fiq_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 		}
@@ -292,11 +292,11 @@ extern void ioctime_init(void);
 extern unsigned long ioc_timer_gettimeoffset(void);
 
 static irqreturn_t
-clps7500_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+clps7500_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
 
-	timer_tick(regs);
+	timer_tick();
 
 	/* Why not using do_leds interface?? */
 	{

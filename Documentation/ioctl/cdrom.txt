@@ -735,7 +735,7 @@ CDROM_DISC_STATUS		Get disc type, etc.
 	    Ok, this is where problems start.  The current interface for
 	    the CDROM_DISC_STATUS ioctl is flawed.  It makes the false
 	    assumption that CDs are all CDS_DATA_1 or all CDS_AUDIO, etc.
-	    Unfortunatly, while this is often the case, it is also
+	    Unfortunately, while this is often the case, it is also
 	    very common for CDs to have some tracks with data, and some
 	    tracks with audio.	Just because I feel like it, I declare
 	    the following to be the best way to cope.  If the CD has

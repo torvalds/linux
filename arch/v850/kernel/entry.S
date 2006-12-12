@@ -195,7 +195,7 @@
 	sst.w	lp, PTO+PT_GPR(GPR_LP)[ep];				      \
 	type ## _STATE_SAVER
 /* Pop a register state pushed by PUSH_STATE, except for the stack pointer,
-   from the the stack.  */
+   from the stack.  */
 #define POP_STATE(type)							      \
 	mov	sp, ep;							      \
 	type ## _STATE_RESTORER;					      \

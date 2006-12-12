@@ -12,7 +12,7 @@ by locks is indeterminate, including linked lists.
 ---
 
 The complicated ia64 MCA process.  All of this is mandated by Intel's
-specification for ia64 SAL, error recovery and and unwind, it is not as
+specification for ia64 SAL, error recovery and unwind, it is not as
 if we have a choice here.
 
 * MCA occurs on one cpu, usually due to a double bit memory error.
@@ -94,7 +94,7 @@ if we have a choice here.
 
 INIT is less complicated than MCA.  Pressing the nmi button or using
 the equivalent command on the management console sends INIT to all
-cpus.  SAL picks one one of the cpus as the monarch and the rest are
+cpus.  SAL picks one of the cpus as the monarch and the rest are
 slaves.  All the OS INIT handlers are entered at approximately the same
 time.  The OS monarch prints the state of all tasks and returns, after
 which the slaves return and the system resumes.

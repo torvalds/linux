@@ -285,9 +285,9 @@ typedef char ioctl_struct[308];
 #define DM_DEV_SET_GEOMETRY	_IOWR(DM_IOCTL, DM_DEV_SET_GEOMETRY_CMD, struct dm_ioctl)
 
 #define DM_VERSION_MAJOR	4
-#define DM_VERSION_MINOR	7
+#define DM_VERSION_MINOR	11
 #define DM_VERSION_PATCHLEVEL	0
-#define DM_VERSION_EXTRA	"-ioctl (2006-06-24)"
+#define DM_VERSION_EXTRA	"-ioctl (2006-10-12)"
 
 /* Status bits */
 #define DM_READONLY_FLAG	(1 << 0) /* In/Out */
@@ -322,5 +322,10 @@ typedef char ioctl_struct[308];
  * Set this to avoid attempting to freeze any filesystem when suspending.
  */
 #define DM_SKIP_LOCKFS_FLAG	(1 << 10) /* In */
+
+/*
+ * Set this to suspend without flushing queued ios.
+ */
+#define DM_NOFLUSH_FLAG		(1 << 11) /* In */
 
 #endif				/* _LINUX_DM_IOCTL_H */

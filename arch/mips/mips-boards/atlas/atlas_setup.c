@@ -77,7 +77,7 @@ static void __init serial_init(void)
 #else
 	s.iobase = ATLAS_UART_REGS_BASE+3;
 #endif
-	s.irq = ATLASINT_UART;
+	s.irq = ATLAS_INT_UART;
 	s.uartclk = ATLAS_BASE_BAUD * 16;
 	s.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_AUTO_IRQ;
 	s.iotype = UPIO_PORT;

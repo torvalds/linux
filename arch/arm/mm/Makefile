@@ -6,7 +6,7 @@ obj-y				:= consistent.o extable.o fault.o init.o \
 				   iomap.o
 
 obj-$(CONFIG_MMU)		+= fault-armv.o flush.o ioremap.o mmap.o \
-				   mm-armv.o
+				   pgd.o mmu.o
 
 ifneq ($(CONFIG_MMU),y)
 obj-y				+= nommu.o
@@ -17,6 +17,7 @@ obj-$(CONFIG_MODULES)		+= proc-syms.o
 obj-$(CONFIG_ALIGNMENT_TRAP)	+= alignment.o
 obj-$(CONFIG_DISCONTIGMEM)	+= discontig.o
 
+obj-$(CONFIG_CPU_ABRT_NOMMU)	+= abort-nommu.o
 obj-$(CONFIG_CPU_ABRT_EV4)	+= abort-ev4.o
 obj-$(CONFIG_CPU_ABRT_EV4T)	+= abort-ev4t.o
 obj-$(CONFIG_CPU_ABRT_LV4T)	+= abort-lv4t.o
@@ -33,7 +34,7 @@ obj-$(CONFIG_CPU_CACHE_V6)	+= cache-v6.o
 obj-$(CONFIG_CPU_COPY_V3)	+= copypage-v3.o
 obj-$(CONFIG_CPU_COPY_V4WT)	+= copypage-v4wt.o
 obj-$(CONFIG_CPU_COPY_V4WB)	+= copypage-v4wb.o
-obj-$(CONFIG_CPU_COPY_V6)	+= copypage-v6.o mmu.o
+obj-$(CONFIG_CPU_COPY_V6)	+= copypage-v6.o context.o
 obj-$(CONFIG_CPU_SA1100)	+= copypage-v4mc.o
 obj-$(CONFIG_CPU_XSCALE)	+= copypage-xscale.o
 obj-$(CONFIG_CPU_XSC3)		+= copypage-xsc3.o
@@ -46,11 +47,16 @@ obj-$(CONFIG_CPU_TLB_V6)	+= tlb-v6.o
 
 obj-$(CONFIG_CPU_ARM610)	+= proc-arm6_7.o
 obj-$(CONFIG_CPU_ARM710)	+= proc-arm6_7.o
+obj-$(CONFIG_CPU_ARM7TDMI)	+= proc-arm7tdmi.o
 obj-$(CONFIG_CPU_ARM720T)	+= proc-arm720.o
+obj-$(CONFIG_CPU_ARM740T)	+= proc-arm740.o
+obj-$(CONFIG_CPU_ARM9TDMI)	+= proc-arm9tdmi.o
 obj-$(CONFIG_CPU_ARM920T)	+= proc-arm920.o
 obj-$(CONFIG_CPU_ARM922T)	+= proc-arm922.o
 obj-$(CONFIG_CPU_ARM925T)	+= proc-arm925.o
 obj-$(CONFIG_CPU_ARM926T)	+= proc-arm926.o
+obj-$(CONFIG_CPU_ARM940T)	+= proc-arm940.o
+obj-$(CONFIG_CPU_ARM946E)	+= proc-arm946.o
 obj-$(CONFIG_CPU_ARM1020)	+= proc-arm1020.o
 obj-$(CONFIG_CPU_ARM1020E)	+= proc-arm1020e.o
 obj-$(CONFIG_CPU_ARM1022)	+= proc-arm1022.o

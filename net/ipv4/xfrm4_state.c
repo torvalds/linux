@@ -29,9 +29,9 @@ __xfrm4_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	x->sel.daddr.a4 = fl->fl4_dst;
 	x->sel.saddr.a4 = fl->fl4_src;
 	x->sel.dport = xfrm_flowi_dport(fl);
-	x->sel.dport_mask = ~0;
+	x->sel.dport_mask = htons(0xffff);
 	x->sel.sport = xfrm_flowi_sport(fl);
-	x->sel.sport_mask = ~0;
+	x->sel.sport_mask = htons(0xffff);
 	x->sel.prefixlen_d = 32;
 	x->sel.prefixlen_s = 32;
 	x->sel.proto = fl->proto;

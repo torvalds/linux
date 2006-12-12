@@ -14,11 +14,19 @@
 #include <asm/cpu/addrspace.h>
 
 /* Memory segments (32bit Privileged mode addresses)  */
+#ifndef CONFIG_CPU_SH2A
 #define P0SEG		0x00000000
 #define P1SEG		0x80000000
 #define P2SEG		0xa0000000
 #define P3SEG		0xc0000000
 #define P4SEG		0xe0000000
+#else
+#define P0SEG		0x00000000
+#define P1SEG		0x00000000
+#define P2SEG		0x20000000
+#define P3SEG		0x00000000
+#define P4SEG 		0x80000000
+#endif
 
 /* Returns the privileged segment base of a given address  */
 #define PXSEG(a)	(((unsigned long)(a)) & 0xe0000000)

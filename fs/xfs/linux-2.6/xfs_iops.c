@@ -553,13 +553,13 @@ xfs_vn_follow_link(
 	ASSERT(dentry);
 	ASSERT(nd);
 
-	link = (char *)kmalloc(MAXPATHLEN+1, GFP_KERNEL);
+	link = kmalloc(MAXPATHLEN+1, GFP_KERNEL);
 	if (!link) {
 		nd_set_link(nd, ERR_PTR(-ENOMEM));
 		return NULL;
 	}
 
-	uio = (uio_t *)kmalloc(sizeof(uio_t), GFP_KERNEL);
+	uio = kmalloc(sizeof(uio_t), GFP_KERNEL);
 	if (!uio) {
 		kfree(link);
 		nd_set_link(nd, ERR_PTR(-ENOMEM));
@@ -623,12 +623,27 @@ xfs_vn_getattr(
 {
 	struct inode	*inode = dentry->d_inode;
 	bhv_vnode_t	*vp = vn_from_inode(inode);
-	int		error = 0;
+	bhv_vattr_t	vattr = { .va_mask = XFS_AT_STAT };
+	int		error;
 
-	if (unlikely(vp->v_flag & VMODIFIED))
-		error = vn_revalidate(vp);
-	if (!error)
-		generic_fillattr(inode, stat);
+	error = bhv_vop_getattr(vp, &vattr, ATTR_LAZY, NULL);
+	if (likely(!error)) {
+		stat->size = i_size_read(inode);
+		stat->dev = inode->i_sb->s_dev;
+		stat->rdev = (vattr.va_rdev == 0) ? 0 :
+				MKDEV(sysv_major(vattr.va_rdev) & 0x1ff,
+				      sysv_minor(vattr.va_rdev));
+		stat->mode = vattr.va_mode;
+		stat->nlink = vattr.va_nlink;
+		stat->uid = vattr.va_uid;
+		stat->gid = vattr.va_gid;
+		stat->ino = vattr.va_nodeid;
+		stat->atime = vattr.va_atime;
+		stat->mtime = vattr.va_mtime;
+		stat->ctime = vattr.va_ctime;
+		stat->blocks = vattr.va_nblocks;
+		stat->blksize = vattr.va_blocksize;
+	}
 	return -error;
 }
 

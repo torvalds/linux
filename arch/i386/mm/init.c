@@ -192,8 +192,6 @@ static inline int page_kills_ppro(unsigned long pagenr)
 	return 0;
 }
 
-extern int is_available_memory(efi_memory_desc_t *);
-
 int page_is_ram(unsigned long pagenr)
 {
 	int i;
@@ -493,6 +491,7 @@ int __init set_kernel_exec(unsigned long vaddr, int enable)
 		pte->pte_high &= ~(1 << (_PAGE_BIT_NX - 32));
 	else
 		pte->pte_high |= 1 << (_PAGE_BIT_NX - 32);
+	pte_update_defer(&init_mm, vaddr, pte);
 	__flush_tlb_all();
 out:
 	return ret;
@@ -568,8 +567,7 @@ void __init mem_init(void)
 	int bad_ppro;
 
 #ifdef CONFIG_FLATMEM
-	if (!mem_map)
-		BUG();
+	BUG_ON(!mem_map);
 #endif
 	
 	bad_ppro = ppro_with_ram_bug();
@@ -699,8 +697,8 @@ int remove_memory(u64 start, u64 size)
 #endif
 #endif
 
-kmem_cache_t *pgd_cache;
-kmem_cache_t *pmd_cache;
+struct kmem_cache *pgd_cache;
+struct kmem_cache *pmd_cache;
 
 void __init pgtable_cache_init(void)
 {

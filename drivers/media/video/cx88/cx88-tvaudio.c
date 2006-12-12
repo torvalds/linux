@@ -52,7 +52,6 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/delay.h>
-#include <linux/config.h>
 #include <linux/kthread.h>
 
 #include "cx88.h"
@@ -138,29 +137,12 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 {
 	u32 volume;
 
-#ifndef CONFIG_VIDEO_CX88_ALSA
 	/* restart dma; This avoids buzz in NICAM and is good in others  */
 	cx88_stop_audio_dma(core);
-#endif
 	cx_write(AUD_RATE_THRES_DMD, 0x000000C0);
-#ifndef CONFIG_VIDEO_CX88_ALSA
 	cx88_start_audio_dma(core);
-#endif
 
-	if (cx88_boards[core->board].blackbird) {
-		/* sets sound input from external adc */
-		switch (core->board) {
-		case CX88_BOARD_HAUPPAUGE_ROSLYN:
-		case CX88_BOARD_KWORLD_MCE200_DELUXE:
-		case CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT:
-		case CX88_BOARD_PIXELVIEW_PLAYTV_P7000:
-		case CX88_BOARD_ASUS_PVR_416:
-			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
-			break;
-		default:
-			cx_set(AUD_CTL, EN_I2SIN_ENABLE);
-		}
-
+	if (cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD) {
 		cx_write(AUD_I2SINPUTCNTL, 4);
 		cx_write(AUD_BAUDRATE, 1);
 		/* 'pass-thru mode': this enables the i2s output to the mpeg encoder */
@@ -169,7 +151,7 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 		cx_write(AUD_I2SCNTL, 0);
 		/* cx_write(AUD_APB_IN_RATE_ADJ, 0); */
 	}
-	if ((always_analog) || (!cx88_boards[core->board].blackbird)) {
+	if ((always_analog) || (!(cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD))) {
 		ctl |= EN_DAC_ENABLE;
 		cx_write(AUD_CTL, ctl);
 	}

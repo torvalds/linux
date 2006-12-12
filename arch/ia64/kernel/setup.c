@@ -43,6 +43,8 @@
 #include <linux/initrd.h>
 #include <linux/pm.h>
 #include <linux/cpufreq.h>
+#include <linux/kexec.h>
+#include <linux/crash_dump.h>
 
 #include <asm/ia32.h>
 #include <asm/machvec.h>
@@ -54,7 +56,6 @@
 #include <asm/processor.h>
 #include <asm/sal.h>
 #include <asm/sections.h>
-#include <asm/serial.h>
 #include <asm/setup.h>
 #include <asm/smp.h>
 #include <asm/system.h>
@@ -253,6 +254,41 @@ reserve_memory (void)
 	efi_memmap_init(&rsvd_region[n].start, &rsvd_region[n].end);
 	n++;
 
+#ifdef CONFIG_KEXEC
+	/* crashkernel=size@offset specifies the size to reserve for a crash
+	 * kernel.(offset is ingored for keep compatibility with other archs)
+	 * By reserving this memory we guarantee that linux never set's it
+	 * up as a DMA target.Useful for holding code to do something
+	 * appropriate after a kernel panic.
+	 */
+	{
+		char *from = strstr(saved_command_line, "crashkernel=");
+		unsigned long base, size;
+		if (from) {
+			size = memparse(from + 12, &from);
+			if (size) {
+				sort_regions(rsvd_region, n);
+				base = kdump_find_rsvd_region(size,
+				rsvd_region, n);
+				if (base != ~0UL) {
+					rsvd_region[n].start =
+						(unsigned long)__va(base);
+					rsvd_region[n].end =
+						(unsigned long)__va(base + size);
+					n++;
+					crashk_res.start = base;
+					crashk_res.end = base + size - 1;
+				}
+			}
+		}
+		efi_memmap_res.start = ia64_boot_param->efi_memmap;
+                efi_memmap_res.end = efi_memmap_res.start +
+                        ia64_boot_param->efi_memmap_size;
+                boot_param_res.start = __pa(ia64_boot_param);
+                boot_param_res.end = boot_param_res.start +
+                        sizeof(*ia64_boot_param);
+	}
+#endif
 	/* end of memory marker */
 	rsvd_region[n].start = ~0UL;
 	rsvd_region[n].end   = ~0UL;
@@ -263,6 +299,7 @@ reserve_memory (void)
 
 	sort_regions(rsvd_region, num_rsvd_regions);
 }
+
 
 /**
  * find_initrd - get initrd parameters from the boot parameter structure
@@ -458,6 +495,8 @@ setup_arch (char **cmdline_p)
 	cpu_init();	/* initialize the bootstrap CPU */
 	mmu_context_init();	/* initialize context_id bitmap */
 
+	check_sal_cache_flush();
+
 #ifdef CONFIG_ACPI
 	acpi_boot_init();
 #endif
@@ -509,19 +548,13 @@ show_cpuinfo (struct seq_file *m, void *v)
 		{ 1UL << 1, "spontaneous deferral"},
 		{ 1UL << 2, "16-byte atomic ops" }
 	};
-	char family[32], features[128], *cp, sep;
+	char features[128], *cp, sep;
 	struct cpuinfo_ia64 *c = v;
 	unsigned long mask;
 	unsigned long proc_freq;
 	int i;
 
 	mask = c->features;
-
-	switch (c->family) {
-	      case 0x07:	memcpy(family, "Itanium", 8); break;
-	      case 0x1f:	memcpy(family, "Itanium 2", 10); break;
-	      default:		sprintf(family, "%u", c->family); break;
-	}
 
 	/* build the feature string: */
 	memcpy(features, " standard", 10);
@@ -553,8 +586,9 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   "processor  : %d\n"
 		   "vendor     : %s\n"
 		   "arch       : IA-64\n"
-		   "family     : %s\n"
+		   "family     : %u\n"
 		   "model      : %u\n"
+		   "model name : %s\n"
 		   "revision   : %u\n"
 		   "archrev    : %u\n"
 		   "features   :%s\n"	/* don't change this---it _is_ right! */
@@ -563,7 +597,8 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   "cpu MHz    : %lu.%06lu\n"
 		   "itc MHz    : %lu.%06lu\n"
 		   "BogoMIPS   : %lu.%02lu\n",
-		   cpunum, c->vendor, family, c->model, c->revision, c->archrev,
+		   cpunum, c->vendor, c->family, c->model,
+		   c->model_name, c->revision, c->archrev,
 		   features, c->ppn, c->number,
 		   proc_freq / 1000, proc_freq % 1000,
 		   c->itc_freq / 1000000, c->itc_freq % 1000000,
@@ -611,6 +646,31 @@ struct seq_operations cpuinfo_op = {
 	.show =		show_cpuinfo
 };
 
+static char brandname[128];
+
+static char * __cpuinit
+get_model_name(__u8 family, __u8 model)
+{
+	char brand[128];
+
+	if (ia64_pal_get_brand_info(brand)) {
+		if (family == 0x7)
+			memcpy(brand, "Merced", 7);
+		else if (family == 0x1f) switch (model) {
+			case 0: memcpy(brand, "McKinley", 9); break;
+			case 1: memcpy(brand, "Madison", 8); break;
+			case 2: memcpy(brand, "Madison up to 9M cache", 23); break;
+		} else
+			memcpy(brand, "Unknown", 8);
+	}
+	if (brandname[0] == '\0')
+		return strcpy(brandname, brand);
+	else if (strcmp(brandname, brand) == 0)
+		return brandname;
+	else
+		return kstrdup(brand, GFP_KERNEL);
+}
+
 static void __cpuinit
 identify_cpu (struct cpuinfo_ia64 *c)
 {
@@ -640,7 +700,6 @@ identify_cpu (struct cpuinfo_ia64 *c)
 	pal_status_t status;
 	unsigned long impl_va_msb = 50, phys_addr_size = 44;	/* Itanium defaults */
 	int i;
-
 	for (i = 0; i < 5; ++i)
 		cpuid.bits[i] = ia64_get_cpuid(i);
 
@@ -663,6 +722,7 @@ identify_cpu (struct cpuinfo_ia64 *c)
 	c->family = cpuid.field.family;
 	c->archrev = cpuid.field.archrev;
 	c->features = cpuid.field.features;
+	c->model_name = get_model_name(c->family, c->model);
 
 	status = ia64_pal_vm_summary(&vm1, &vm2);
 	if (status == PAL_STATUS_SUCCESS) {

@@ -1,6 +1,6 @@
 
 /*
- * sound/pas2_mixer.c
+ * sound/oss/pas2_mixer.c
  *
  * Mixer routines for the Pro Audio Spectrum cards.
  */

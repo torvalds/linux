@@ -333,11 +333,11 @@ cmpxchg is basically the following function performed atomically:
 
 unsigned long _cmpxchg(unsigned long *A, unsigned long *B, unsigned long *C)
 {
-        unsigned long T = *A;
-        if (*A == *B) {
-                *A = *C;
-        }
-        return T;
+	unsigned long T = *A;
+	if (*A == *B) {
+		*A = *C;
+	}
+	return T;
 }
 #define cmpxchg(a,b,c) _cmpxchg(&a,&b,&c)
 
@@ -582,7 +582,7 @@ contention).
 try_to_take_rt_mutex is used every time the task tries to grab a mutex in the
 slow path.  The first thing that is done here is an atomic setting of
 the "Has Waiters" flag of the mutex's owner field.  Yes, this could really
-be false, because if the the mutex has no owner, there are no waiters and
+be false, because if the mutex has no owner, there are no waiters and
 the current task also won't have any waiters.  But we don't have the lock
 yet, so we assume we are going to be a waiter.  The reason for this is to
 play nice for those architectures that do have CMPXCHG.  By setting this flag
@@ -735,7 +735,7 @@ do have CMPXCHG, that check is done in the fast path, but it is still needed
 in the slow path too.  If a waiter of a mutex woke up because of a signal
 or timeout between the time the owner failed the fast path CMPXCHG check and
 the grabbing of the wait_lock, the mutex may not have any waiters, thus the
-owner still needs to make this check. If there are no waiters than the mutex
+owner still needs to make this check. If there are no waiters then the mutex
 owner field is set to NULL, the wait_lock is released and nothing more is
 needed.
 

@@ -12,8 +12,6 @@
  * Initial Version 04-23-1999 by Helge Deller <deller@gmx.de>
  */
 
-#include <linux/config.h>	/* for CONFIG_SMP */
-
 #include <asm/asm-offsets.h>
 #include <asm/psw.h>
 #include <asm/pdc.h>

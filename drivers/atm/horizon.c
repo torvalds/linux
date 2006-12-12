@@ -1382,23 +1382,12 @@ static inline void rx_data_av_handler (hrz_dev * dev) {
 
 /********** interrupt handler **********/
 
-static irqreturn_t interrupt_handler(int irq, void *dev_id,
-					struct pt_regs *pt_regs) {
+static irqreturn_t interrupt_handler(int irq, void *dev_id) {
   hrz_dev * dev = (hrz_dev *) dev_id;
   u32 int_source;
   unsigned int irq_ok;
-  (void) pt_regs;
   
   PRINTD (DBG_FLOW, "interrupt_handler: %p", dev_id);
-  
-  if (!dev_id) {
-    PRINTD (DBG_IRQ|DBG_ERR, "irq with NULL dev_id: %d", irq);
-    return IRQ_NONE;
-  }
-  if (irq != dev->irq) {
-    PRINTD (DBG_IRQ|DBG_ERR, "irq mismatch: %d", irq);
-    return IRQ_NONE;
-  }
   
   // definitely for us
   irq_ok = 0;
@@ -1800,7 +1789,7 @@ static inline void CLOCK_IT (const hrz_dev *dev, u32 ctrl)
 	WRITE_IT_WAIT(dev, ctrl | SEEPROM_SK);
 }
 
-static u16 __init read_bia (const hrz_dev * dev, u16 addr)
+static u16 __devinit read_bia (const hrz_dev * dev, u16 addr)
 {
   u32 ctrl = rd_regl (dev, CONTROL_0_REG);
   
@@ -2719,15 +2708,13 @@ static int __devinit hrz_probe(struct pci_dev *pci_dev, const struct pci_device_
 		goto out_disable;
 	}
 
-	dev = kmalloc(sizeof(hrz_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(hrz_dev), GFP_KERNEL);
 	if (!dev) {
 		// perhaps we should be nice: deregister all adapters and abort?
 		PRINTD(DBG_ERR, "out of memory");
 		err = -ENOMEM;
 		goto out_release;
 	}
-
-	memset(dev, 0, sizeof(hrz_dev));
 
 	pci_set_drvdata(pci_dev, dev);
 
@@ -2945,8 +2932,8 @@ static int __init hrz_module_init (void) {
 
 static void __exit hrz_module_exit (void) {
   PRINTD (DBG_FLOW, "cleanup_module");
-  
-  return pci_unregister_driver(&hrz_driver);
+
+  pci_unregister_driver(&hrz_driver);
 }
 
 module_init(hrz_module_init);

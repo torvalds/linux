@@ -24,7 +24,7 @@ char qla2x00_version_str[40];
 /*
  * SRB allocation cache
  */
-static kmem_cache_t *srb_cachep;
+static struct kmem_cache *srb_cachep;
 
 /*
  * Ioctl related information.
@@ -61,9 +61,9 @@ MODULE_PARM_DESC(ql2xallocfwdump,
 		"during HBA initialization.  Memory allocation requirements "
 		"vary by ISP type.  Default is 1 - allocate memory.");
 
-int extended_error_logging;
-module_param(extended_error_logging, int, S_IRUGO|S_IRUSR);
-MODULE_PARM_DESC(extended_error_logging,
+int ql2xextended_error_logging;
+module_param(ql2xextended_error_logging, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(ql2xextended_error_logging,
 		"Option to enable extended error logging, "
 		"Default is 0 - no logging. 1 - log errors.");
 
@@ -77,11 +77,26 @@ MODULE_PARM_DESC(ql2xfdmienable,
 		"Enables FDMI registratons "
 		"Default is 0 - no FDMI. 1 - perfom FDMI.");
 
+#define MAX_Q_DEPTH    32
+static int ql2xmaxqdepth = MAX_Q_DEPTH;
+module_param(ql2xmaxqdepth, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xmaxqdepth,
+		"Maximum queue depth to report for target devices.");
+
+int ql2xqfullrampup = 120;
+module_param(ql2xqfullrampup, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xqfullrampup,
+		"Number of seconds to wait to begin to ramp-up the queue "
+		"depth for a device after a queue-full condition has been "
+		"detected.  Default is 120 seconds.");
+
 /*
  * SCSI host template entry points
  */
 static int qla2xxx_slave_configure(struct scsi_device * device);
 static int qla2xxx_slave_alloc(struct scsi_device *);
+static int qla2xxx_scan_finished(struct Scsi_Host *, unsigned long time);
+static void qla2xxx_scan_start(struct Scsi_Host *);
 static void qla2xxx_slave_destroy(struct scsi_device *);
 static int qla2x00_queuecommand(struct scsi_cmnd *cmd,
 		void (*fn)(struct scsi_cmnd *));
@@ -111,6 +126,8 @@ static struct scsi_host_template qla2x00_driver_template = {
 
 	.slave_alloc		= qla2xxx_slave_alloc,
 	.slave_destroy		= qla2xxx_slave_destroy,
+	.scan_finished		= qla2xxx_scan_finished,
+	.scan_start		= qla2xxx_scan_start,
 	.change_queue_depth	= qla2x00_change_queue_depth,
 	.change_queue_type	= qla2x00_change_queue_type,
 	.this_id		= -1,
@@ -274,7 +291,7 @@ qla24xx_pci_info_str(struct scsi_qla_host *ha, char *str)
 	return str;
 }
 
-char *
+static char *
 qla2x00_fw_version_str(struct scsi_qla_host *ha, char *str)
 {
 	char un_str[10];
@@ -312,7 +329,7 @@ qla2x00_fw_version_str(struct scsi_qla_host *ha, char *str)
 	return (str);
 }
 
-char *
+static char *
 qla24xx_fw_version_str(struct scsi_qla_host *ha, char *str)
 {
 	sprintf(str, "%d.%02d.%02d ", ha->fw_major_version,
@@ -589,6 +606,23 @@ qla2x00_wait_for_loop_ready(scsi_qla_host_t *ha)
 	return (return_status);
 }
 
+static void
+qla2x00_block_error_handler(struct scsi_cmnd *cmnd)
+{
+	struct Scsi_Host *shost = cmnd->device->host;
+	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
+	unsigned long flags;
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	while (rport->port_state == FC_PORTSTATE_BLOCKED) {
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		msleep(1000);
+		spin_lock_irqsave(shost->host_lock, flags);
+	}
+	spin_unlock_irqrestore(shost->host_lock, flags);
+	return;
+}
+
 /**************************************************************************
 * qla2xxx_eh_abort
 *
@@ -604,7 +638,7 @@ qla2x00_wait_for_loop_ready(scsi_qla_host_t *ha)
 * Note:
 *    Only return FAILED if command not returned by firmware.
 **************************************************************************/
-int
+static int
 qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
@@ -614,6 +648,8 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	unsigned long serial;
 	unsigned long flags;
 	int wait = 0;
+
+	qla2x00_block_error_handler(cmd);
 
 	if (!CMD_SP(cmd))
 		return SUCCESS;
@@ -739,7 +775,7 @@ qla2x00_eh_wait_for_pending_target_commands(scsi_qla_host_t *ha, unsigned int t)
 *    SUCCESS/FAILURE (defined as macro in scsi.h).
 *
 **************************************************************************/
-int
+static int
 qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
@@ -747,6 +783,8 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	int ret;
 	unsigned int id, lun;
 	unsigned long serial;
+
+	qla2x00_block_error_handler(cmd);
 
 	ret = FAILED;
 
@@ -868,7 +906,7 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *ha)
 *    SUCCESS/FAILURE (defined as macro in scsi.h).
 *
 **************************************************************************/
-int
+static int
 qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
@@ -876,6 +914,8 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 	int ret;
 	unsigned int id, lun;
 	unsigned long serial;
+
+	qla2x00_block_error_handler(cmd);
 
 	ret = FAILED;
 
@@ -927,7 +967,7 @@ eh_bus_reset_done:
 *
 * Note:
 **************************************************************************/
-int
+static int
 qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
@@ -935,6 +975,8 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	int ret;
 	unsigned int id, lun;
 	unsigned long serial;
+
+	qla2x00_block_error_handler(cmd);
 
 	ret = FAILED;
 
@@ -1079,9 +1121,9 @@ qla2xxx_slave_configure(struct scsi_device *sdev)
 	struct fc_rport *rport = starget_to_rport(sdev->sdev_target);
 
 	if (sdev->tagged_supported)
-		scsi_activate_tcq(sdev, 32);
+		scsi_activate_tcq(sdev, ha->max_q_depth);
 	else
-		scsi_deactivate_tcq(sdev, 32);
+		scsi_deactivate_tcq(sdev, ha->max_q_depth);
 
 	rport->dev_loss_tmo = ha->port_down_retry_count + 5;
 
@@ -1328,6 +1370,29 @@ qla24xx_disable_intrs(scsi_qla_host_t *ha)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
+static void
+qla2xxx_scan_start(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = (scsi_qla_host_t *)shost->hostdata;
+
+	set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
+	set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
+	set_bit(RSCN_UPDATE, &ha->dpc_flags);
+}
+
+static int
+qla2xxx_scan_finished(struct Scsi_Host *shost, unsigned long time)
+{
+	scsi_qla_host_t *ha = (scsi_qla_host_t *)shost->hostdata;
+
+	if (!ha->host)
+		return 1;
+	if (time > ha->loop_reset_delay * HZ)
+		return 1;
+
+	return atomic_read(&ha->loop_state) == LOOP_READY;
+}
+
 /*
  * PCI driver interface
  */
@@ -1339,10 +1404,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct Scsi_Host *host;
 	scsi_qla_host_t *ha;
 	unsigned long	flags = 0;
-	unsigned long	wait_switch = 0;
 	char pci_info[20];
 	char fw_str[30];
-	fc_port_t *fcport;
 	struct scsi_host_template *sht;
 
 	if (pci_enable_device(pdev))
@@ -1385,8 +1448,12 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->prev_topology = 0;
 	ha->init_cb_size = sizeof(init_cb_t);
 	ha->mgmt_svr_loop_id = MANAGEMENT_SERVER;
-	ha->link_data_rate = LDR_UNKNOWN;
+	ha->link_data_rate = PORT_SPEED_UNKNOWN;
 	ha->optrom_size = OPTROM_SIZE_2300;
+
+	ha->max_q_depth = MAX_Q_DEPTH;
+	if (ql2xmaxqdepth != 0 && ql2xmaxqdepth <= 0xffffU)
+		ha->max_q_depth = ql2xmaxqdepth;
 
 	/* Assign ISP specific operations. */
 	ha->isp_ops.pci_config		= qla2100_pci_config;
@@ -1589,29 +1656,18 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ha->isp_ops.enable_intrs(ha);
 
-	/* v2.19.5b6 */
-	/*
-	 * Wait around max loop_reset_delay secs for the devices to come
-	 * on-line. We don't want Linux scanning before we are ready.
-	 *
-	 */
-	for (wait_switch = jiffies + (ha->loop_reset_delay * HZ);
-	    time_before(jiffies,wait_switch) &&
-	     !(ha->device_flags & (DFLG_NO_CABLE | DFLG_FABRIC_DEVICES))
-	     && (ha->device_flags & SWITCH_FOUND) ;) {
-
-		qla2x00_check_fabric_devices(ha);
-
-		msleep(10);
-	}
-
 	pci_set_drvdata(pdev, ha);
+
 	ha->flags.init_done = 1;
+	ha->flags.online = 1;
+
 	num_hosts++;
 
 	ret = scsi_add_host(host, &pdev->dev);
 	if (ret)
 		goto probe_failed;
+
+	scsi_scan_host(host);
 
 	qla2x00_alloc_sysfs_attr(ha);
 
@@ -1626,10 +1682,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    ha->isp_ops.pci_info_str(ha, pci_info), pci_name(pdev),
 	    ha->flags.enable_64bit_addressing ? '+': '-', ha->host_no,
 	    ha->isp_ops.fw_version_str(ha, fw_str));
-
-	/* Go with fc_rport registration. */
-	list_for_each_entry(fcport, &ha->fcports, list)
-		qla2x00_reg_remote_port(ha, fcport);
 
 	return 0;
 
@@ -1687,16 +1739,16 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 	if (ha->eft)
 		qla2x00_trace_control(ha, TC_DISABLE, 0, 0);
 
+	ha->flags.online = 0;
+
 	/* Stop currently executing firmware. */
-	qla2x00_stop_firmware(ha);
+	qla2x00_try_to_stop_firmware(ha);
 
 	/* turn-off interrupts on the card */
 	if (ha->interrupts_on)
 		ha->isp_ops.disable_intrs(ha);
 
 	qla2x00_mem_free(ha);
-
-	ha->flags.online = 0;
 
 	/* Detach interrupts */
 	if (ha->host->irq)
@@ -2564,14 +2616,20 @@ qla2x00_down_timeout(struct semaphore *sema, unsigned long timeout)
 #define FW_ISP2322	3
 #define FW_ISP24XX	4
 
+#define FW_FILE_ISP21XX	"ql2100_fw.bin"
+#define FW_FILE_ISP22XX	"ql2200_fw.bin"
+#define FW_FILE_ISP2300	"ql2300_fw.bin"
+#define FW_FILE_ISP2322	"ql2322_fw.bin"
+#define FW_FILE_ISP24XX	"ql2400_fw.bin"
+
 static DECLARE_MUTEX(qla_fw_lock);
 
 static struct fw_blob qla_fw_blobs[FW_BLOBS] = {
-	{ .name = "ql2100_fw.bin", .segs = { 0x1000, 0 }, },
-	{ .name = "ql2200_fw.bin", .segs = { 0x1000, 0 }, },
-	{ .name = "ql2300_fw.bin", .segs = { 0x800, 0 }, },
-	{ .name = "ql2322_fw.bin", .segs = { 0x800, 0x1c000, 0x1e000, 0 }, },
-	{ .name = "ql2400_fw.bin", },
+	{ .name = FW_FILE_ISP21XX, .segs = { 0x1000, 0 }, },
+	{ .name = FW_FILE_ISP22XX, .segs = { 0x1000, 0 }, },
+	{ .name = FW_FILE_ISP2300, .segs = { 0x800, 0 }, },
+	{ .name = FW_FILE_ISP2322, .segs = { 0x800, 0x1c000, 0x1e000, 0 }, },
+	{ .name = FW_FILE_ISP24XX, },
 };
 
 struct fw_blob *
@@ -2666,7 +2724,7 @@ qla2x00_module_init(void)
 
 	/* Derive version string. */
 	strcpy(qla2x00_version_str, QLA2XXX_VERSION);
-	if (extended_error_logging)
+	if (ql2xextended_error_logging)
 		strcat(qla2x00_version_str, "-debug");
 
 	qla2xxx_transport_template =
@@ -2702,3 +2760,8 @@ MODULE_AUTHOR("QLogic Corporation");
 MODULE_DESCRIPTION("QLogic Fibre Channel HBA Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(QLA2XXX_VERSION);
+MODULE_FIRMWARE(FW_FILE_ISP21XX);
+MODULE_FIRMWARE(FW_FILE_ISP22XX);
+MODULE_FIRMWARE(FW_FILE_ISP2300);
+MODULE_FIRMWARE(FW_FILE_ISP2322);
+MODULE_FIRMWARE(FW_FILE_ISP24XX);

@@ -262,7 +262,7 @@ NON-STATIC CONFIGURATIONS
 Developer boards often play by different rules than product boards, and one
 example is the potential need to hotplug SPI devices and/or controllers.
 
-For those cases you might need to use use spi_busnum_to_master() to look
+For those cases you might need to use spi_busnum_to_master() to look
 up the spi bus master, and will likely need spi_new_device() to provide the
 board info based on the board that was hotplugged.  Of course, you'd later
 call at least spi_unregister_device() when that board is removed.
@@ -322,7 +322,7 @@ As soon as it enters probe(), the driver may issue I/O requests to
 the SPI device using "struct spi_message".  When remove() returns,
 the driver guarantees that it won't submit any more such messages.
 
-  - An spi_message is a sequence of of protocol operations, executed
+  - An spi_message is a sequence of protocol operations, executed
     as one atomic sequence.  SPI driver controls include:
 
       + when bidirectional reads and writes start ... by how its

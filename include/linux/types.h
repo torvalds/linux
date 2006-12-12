@@ -33,6 +33,8 @@ typedef __kernel_clockid_t	clockid_t;
 typedef __kernel_mqd_t		mqd_t;
 
 #ifdef __KERNEL__
+typedef _Bool			bool;
+
 typedef __kernel_uid32_t	uid_t;
 typedef __kernel_gid32_t	gid_t;
 typedef __kernel_uid16_t        uid16_t;
@@ -126,17 +128,27 @@ typedef		__s64		int64_t;
 
 /* this is a special 64bit data type that is 8-byte aligned */
 #define aligned_u64 unsigned long long __attribute__((aligned(8)))
+#define aligned_be64 __be64 __attribute__((aligned(8)))
+#define aligned_le64 __le64 __attribute__((aligned(8)))
 
-/*
+/**
  * The type used for indexing onto a disc or disc partition.
- * If required, asm/types.h can override it and define
- * HAVE_SECTOR_T
+ *
+ * Linux always considers sectors to be 512 bytes long independently
+ * of the devices real block size.
  */
-#ifndef HAVE_SECTOR_T
+#ifdef CONFIG_LBD
+typedef u64 sector_t;
+#else
 typedef unsigned long sector_t;
 #endif
 
-#ifndef HAVE_BLKCNT_T
+/*
+ * The type of the inode's block count.
+ */
+#ifdef CONFIG_LSF
+typedef u64 blkcnt_t;
+#else
 typedef unsigned long blkcnt_t;
 #endif
 
@@ -174,6 +186,8 @@ typedef __u32 __bitwise __be32;
 typedef __u64 __bitwise __le64;
 typedef __u64 __bitwise __be64;
 #endif
+typedef __u16 __bitwise __sum16;
+typedef __u32 __bitwise __wsum;
 
 #ifdef __KERNEL__
 typedef unsigned __bitwise__ gfp_t;

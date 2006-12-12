@@ -24,6 +24,8 @@
 
 #define RX_COPY_THRESHOLD  		256
 
+#define TG3_RX_INTERNAL_RING_SZ_5906	32
+
 #define RX_STD_MAX_SIZE			1536
 #define RX_STD_MAX_SIZE_5705		512
 #define RX_JUMBO_MAX_SIZE		0xdeadbeef /* XXX */
@@ -129,6 +131,7 @@
 #define  CHIPREV_ID_5752_A0_HW		 0x5000
 #define  CHIPREV_ID_5752_A0		 0x6000
 #define  CHIPREV_ID_5752_A1		 0x6001
+#define  CHIPREV_ID_5906_A1		 0xc001
 #define  GET_ASIC_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 12)
 #define   ASIC_REV_5700			 0x07
 #define   ASIC_REV_5701			 0x00
@@ -141,6 +144,7 @@
 #define   ASIC_REV_5714			 0x09
 #define   ASIC_REV_5755			 0x0a
 #define   ASIC_REV_5787			 0x0b
+#define   ASIC_REV_5906			 0x0c
 #define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
 #define   CHIPREV_5700_AX		 0x70
 #define   CHIPREV_5700_BX		 0x71
@@ -646,7 +650,8 @@
 #define  SNDDATAI_SCTRL_FORCE_ZERO	 0x00000010
 #define SNDDATAI_STATSENAB		0x00000c0c
 #define SNDDATAI_STATSINCMASK		0x00000c10
-/* 0xc14 --> 0xc80 unused */
+#define ISO_PKT_TX			0x00000c20
+/* 0xc24 --> 0xc80 unused */
 #define SNDDATAI_COS_CNT_0		0x00000c80
 #define SNDDATAI_COS_CNT_1		0x00000c84
 #define SNDDATAI_COS_CNT_2		0x00000c88
@@ -997,11 +1002,13 @@
 #define BUFMGR_MB_MACRX_LOW_WATER	0x00004414
 #define  DEFAULT_MB_MACRX_LOW_WATER	  0x00000020
 #define  DEFAULT_MB_MACRX_LOW_WATER_5705  0x00000010
+#define  DEFAULT_MB_MACRX_LOW_WATER_5906  0x00000004
 #define  DEFAULT_MB_MACRX_LOW_WATER_JUMBO 0x00000098
 #define  DEFAULT_MB_MACRX_LOW_WATER_JUMBO_5780 0x0000004b
 #define BUFMGR_MB_HIGH_WATER		0x00004418
 #define  DEFAULT_MB_HIGH_WATER		 0x00000060
 #define  DEFAULT_MB_HIGH_WATER_5705	 0x00000060
+#define  DEFAULT_MB_HIGH_WATER_5906	 0x00000010
 #define  DEFAULT_MB_HIGH_WATER_JUMBO	 0x0000017c
 #define  DEFAULT_MB_HIGH_WATER_JUMBO_5780 0x00000096
 #define BUFMGR_RX_MB_ALLOC_REQ		0x0000441c
@@ -1138,7 +1145,12 @@
 #define TX_CPU_STATE			0x00005404
 #define TX_CPU_PGMCTR			0x0000541c
 
+#define VCPU_STATUS			0x00005100
+#define  VCPU_STATUS_INIT_DONE		 0x04000000
+#define  VCPU_STATUS_DRV_RESET		 0x08000000
+
 /* Mailboxes */
+#define GRCMBOX_BASE			0x00005600
 #define GRCMBOX_INTERRUPT_0		0x00005800 /* 64-bit */
 #define GRCMBOX_INTERRUPT_1		0x00005808 /* 64-bit */
 #define GRCMBOX_INTERRUPT_2		0x00005810 /* 64-bit */
@@ -1398,7 +1410,10 @@
 #define GRC_EEPROM_CTRL			0x00006840
 #define GRC_MDI_CTRL			0x00006844
 #define GRC_SEEPROM_DELAY		0x00006848
-/* 0x684c --> 0x6c00 unused */
+/* 0x684c --> 0x6890 unused */
+#define GRC_VCPU_EXT_CTRL		0x00006890
+#define GRC_VCPU_EXT_CTRL_HALT_CPU	 0x00400000
+#define GRC_VCPU_EXT_CTRL_DISABLE_WOL	 0x20000000
 #define GRC_FASTBOOT_PC			0x00006894	/* 5752, 5755, 5787 */
 
 /* 0x6c00 --> 0x7000 unused */
@@ -1485,9 +1500,17 @@
 #define NVRAM_WRITE1			0x00007028
 /* 0x702c --> 0x7400 unused */
 
-/* 0x7400 --> 0x8000 unused */
+/* 0x7400 --> 0x7c00 unused */
+#define PCIE_TRANSACTION_CFG		0x00007c04
+#define PCIE_TRANS_CFG_1SHOT_MSI	 0x20000000
+#define PCIE_TRANS_CFG_LOM		 0x00000020
+
 
 #define TG3_EEPROM_MAGIC		0x669955aa
+#define TG3_EEPROM_MAGIC_FW		0xa5000000
+#define TG3_EEPROM_MAGIC_FW_MSK		0xff000000
+#define TG3_EEPROM_MAGIC_HW		0xabcd
+#define TG3_EEPROM_MAGIC_HW_MSK		0xffff
 
 /* 32K Window into NIC internal memory */
 #define NIC_SRAM_WIN_BASE		0x00008000
@@ -1537,6 +1560,7 @@
 #define  FWCMD_NICDRV_FIX_DMAR		 0x00000005
 #define  FWCMD_NICDRV_FIX_DMAW		 0x00000006
 #define  FWCMD_NICDRV_ALIVE2		 0x0000000d
+#define  FWCMD_NICDRV_ALIVE3		 0x0000000e
 #define NIC_SRAM_FW_CMD_LEN_MBOX	0x00000b7c
 #define NIC_SRAM_FW_CMD_DATA_MBOX	0x00000b80
 #define NIC_SRAM_FW_ASF_STATUS_MBOX	0x00000c00
@@ -1604,6 +1628,7 @@
 #define MII_TG3_DSP_RW_PORT		0x15 /* DSP coefficient read/write port */
 
 #define MII_TG3_DSP_ADDRESS		0x17 /* DSP address register */
+#define MII_TG3_EPHY_PTEST		0x17 /* 5906 PHY register */
 
 #define MII_TG3_AUX_CTRL		0x18 /* auxilliary control register */
 
@@ -1617,6 +1642,8 @@
 #define MII_TG3_AUX_STAT_100FULL	0x0500
 #define MII_TG3_AUX_STAT_1000HALF	0x0600
 #define MII_TG3_AUX_STAT_1000FULL	0x0700
+#define MII_TG3_AUX_STAT_100		0x0008
+#define MII_TG3_AUX_STAT_FULL		0x0001
 
 #define MII_TG3_ISTAT			0x1a /* IRQ status register */
 #define MII_TG3_IMASK			0x1b /* IRQ mask register */
@@ -1626,6 +1653,9 @@
 #define MII_TG3_INT_SPEEDCHG		0x0004
 #define MII_TG3_INT_DUPLEXCHG		0x0008
 #define MII_TG3_INT_ANEG_PAGE_RX	0x0400
+
+#define MII_TG3_EPHY_TEST		0x1f /* 5906 PHY register */
+#define MII_TG3_EPHY_SHADOW_EN		0x80
 
 /* There are two ways to manage the TX descriptors on the tigon3.
  * Either the descriptors are in host DMA'able memory, or they
@@ -2203,7 +2233,7 @@ struct tg3 {
 #define TG3_FLG2_PCI_EXPRESS		0x00000200
 #define TG3_FLG2_ASF_NEW_HANDSHAKE	0x00000400
 #define TG3_FLG2_HW_AUTONEG		0x00000800
-#define TG3_FLG2_PHY_JUST_INITTED	0x00001000
+#define TG3_FLG2_IS_NIC			0x00001000
 #define TG3_FLG2_PHY_SERDES		0x00002000
 #define TG3_FLG2_CAPACITIVE_COUPLING	0x00004000
 #define TG3_FLG2_FLASH			0x00008000
@@ -2235,6 +2265,12 @@ struct tg3 {
 	u32				timer_offset;
 	u16				asf_counter;
 	u16				asf_multiplier;
+
+	/* 1 second counter for transient serdes link events */
+	u32				serdes_counter;
+#define SERDES_AN_TIMEOUT_5704S		2
+#define SERDES_PARALLEL_DET_TIMEOUT	1
+#define SERDES_AN_TIMEOUT_5714S		1
 
 	struct tg3_link_config		link_config;
 	struct tg3_bufmgr_config	bufmgr_config;
@@ -2276,6 +2312,8 @@ struct tg3 {
 #define PHY_ID_BCM5780			0x60008350
 #define PHY_ID_BCM5755			0xbc050cc0
 #define PHY_ID_BCM5787			0xbc050ce0
+#define PHY_ID_BCM5756			0xbc050ed0
+#define PHY_ID_BCM5906			0xdc00ac40
 #define PHY_ID_BCM8002			0x60010140
 #define PHY_ID_INVALID			0xffffffff
 #define PHY_ID_REV_MASK			0x0000000f
@@ -2302,7 +2340,8 @@ struct tg3 {
 	 (X) == PHY_ID_BCM5705 || (X) == PHY_ID_BCM5750 || \
 	 (X) == PHY_ID_BCM5752 || (X) == PHY_ID_BCM5714 || \
 	 (X) == PHY_ID_BCM5780 || (X) == PHY_ID_BCM5787 || \
-	 (X) == PHY_ID_BCM5755 || (X) == PHY_ID_BCM8002)
+	 (X) == PHY_ID_BCM5755 || (X) == PHY_ID_BCM5756 || \
+	 (X) == PHY_ID_BCM5906 || (X) == PHY_ID_BCM8002)
 
 	struct tg3_hw_stats		*hw_stats;
 	dma_addr_t			stats_mapping;

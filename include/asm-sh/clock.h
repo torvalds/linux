@@ -4,6 +4,7 @@
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/seq_file.h>
+#include <linux/clk.h>
 
 struct clk;
 
@@ -18,7 +19,7 @@ struct clk_ops {
 struct clk {
 	struct list_head	node;
 	const char		*name;
-
+	int			id;
 	struct module		*owner;
 
 	struct clk		*parent;
@@ -40,17 +41,9 @@ void arch_init_clk_ops(struct clk_ops **, int type);
 int clk_init(void);
 
 int __clk_enable(struct clk *);
-int clk_enable(struct clk *);
-
 void __clk_disable(struct clk *);
-void clk_disable(struct clk *);
 
-int clk_set_rate(struct clk *, unsigned long rate);
-unsigned long clk_get_rate(struct clk *);
 void clk_recalc_rate(struct clk *);
-
-struct clk *clk_get(const char *id);
-void clk_put(struct clk *);
 
 int clk_register(struct clk *);
 void clk_unregister(struct clk *);
@@ -58,4 +51,3 @@ void clk_unregister(struct clk *);
 int show_clocks(struct seq_file *m);
 
 #endif /* __ASM_SH_CLOCK_H */
-

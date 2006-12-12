@@ -596,9 +596,7 @@ static struct snd_pcm_ops snd_ad1889_capture_ops = {
 };
 
 static irqreturn_t
-snd_ad1889_interrupt(int irq, 
-		     void *dev_id, 
-		     struct pt_regs *regs)
+snd_ad1889_interrupt(int irq, void *dev_id)
 {
 	unsigned long st;
 	struct snd_ad1889 *chip = dev_id;

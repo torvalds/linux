@@ -820,7 +820,6 @@ static struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
 	.getsda = zoran_i2c_getsda,
 	.getscl = zoran_i2c_getscl,
 	.udelay = 10,
-	.mdelay = 0,
 	.timeout = 100,
 };
 
@@ -850,7 +849,7 @@ zoran_register_i2c (struct zoran *zr)
 static void
 zoran_unregister_i2c (struct zoran *zr)
 {
-	i2c_bit_del_bus((&zr->i2c_adapter));
+	i2c_del_adapter(&zr->i2c_adapter);
 }
 
 /* Check a zoran_params struct for correctness, insert default params */
@@ -1279,9 +1278,7 @@ find_zr36057 (void)
 
 	zoran_num = 0;
 	while (zoran_num < BUZ_MAX &&
-	       (dev =
-		pci_find_device(PCI_VENDOR_ID_ZORAN,
-				PCI_DEVICE_ID_ZORAN_36057, dev)) != NULL) {
+	       (dev = pci_get_device(PCI_VENDOR_ID_ZORAN, PCI_DEVICE_ID_ZORAN_36057, dev)) != NULL) {
 		card_num = card[zoran_num];
 		zr = &zoran[zoran_num];
 		memset(zr, 0, sizeof(struct zoran));	// Just in case if previous cycle failed
@@ -1542,7 +1539,8 @@ find_zr36057 (void)
 				goto zr_detach_vfe;
 			}
 		}
-
+		/* Success so keep the pci_dev referenced */
+		pci_dev_get(zr->pci_dev);
 		zoran_num++;
 		continue;
 
@@ -1564,6 +1562,9 @@ find_zr36057 (void)
 		iounmap(zr->zr36057_mem);
 		continue;
 	}
+	if (dev)	/* Clean up ref count on early exit */
+		pci_dev_put(dev);
+
 	if (zoran_num == 0) {
 		dprintk(1, KERN_INFO "No known MJPEG cards found.\n");
 	}
@@ -1621,10 +1622,10 @@ init_dc10_cards (void)
 	dprintk(5, KERN_DEBUG "Jotti is een held!\n");
 
 	/* some mainboards might not do PCI-PCI data transfer well */
-	if (pci_pci_problems & PCIPCI_FAIL) {
+	if (pci_pci_problems & (PCIPCI_FAIL|PCIAGP_FAIL|PCIPCI_ALIMAGIK)) {
 		dprintk(1,
 			KERN_WARNING
-			"%s: chipset may not support reliable PCI-PCI DMA\n",
+			"%s: chipset does not support reliable PCI-PCI DMA\n",
 			ZORAN_NAME);
 	}
 
@@ -1632,7 +1633,7 @@ init_dc10_cards (void)
 	for (i = 0; i < zoran_num; i++) {
 		struct zoran *zr = &zoran[i];
 
-		if (pci_pci_problems & PCIPCI_NATOMA && zr->revision <= 1) {
+		if ((pci_pci_problems & PCIPCI_NATOMA) && zr->revision <= 1) {
 			zr->jpg_buffers.need_contiguous = 1;
 			dprintk(1,
 				KERN_INFO

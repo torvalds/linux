@@ -50,7 +50,7 @@ static void option_rx_throttle(struct usb_serial_port *port);
 static void option_rx_unthrottle(struct usb_serial_port *port);
 static int  option_write_room(struct usb_serial_port *port);
 
-static void option_instat_callback(struct urb *urb, struct pt_regs *regs);
+static void option_instat_callback(struct urb *urb);
 
 static int option_write(struct usb_serial_port *port,
 			const unsigned char *buf, int count);
@@ -59,7 +59,7 @@ static int  option_chars_in_buffer(struct usb_serial_port *port);
 static int  option_ioctl(struct usb_serial_port *port, struct file *file,
 			unsigned int cmd, unsigned long arg);
 static void option_set_termios(struct usb_serial_port *port,
-				struct termios *old);
+				struct ktermios *old);
 static void option_break_ctl(struct usb_serial_port *port, int break_state);
 static int  option_tiocmget(struct usb_serial_port *port, struct file *file);
 static int  option_tiocmset(struct usb_serial_port *port, struct file *file,
@@ -230,7 +230,7 @@ static void option_break_ctl(struct usb_serial_port *port, int break_state)
 }
 
 static void option_set_termios(struct usb_serial_port *port,
-			struct termios *old_termios)
+			struct ktermios *old_termios)
 {
 	dbg("%s", __FUNCTION__);
 
@@ -337,7 +337,7 @@ static int option_write(struct usb_serial_port *port,
 	return count;
 }
 
-static void option_indat_callback(struct urb *urb, struct pt_regs *regs)
+static void option_indat_callback(struct urb *urb)
 {
 	int err;
 	int endpoint;
@@ -374,7 +374,7 @@ static void option_indat_callback(struct urb *urb, struct pt_regs *regs)
 	return;
 }
 
-static void option_outdat_callback(struct urb *urb, struct pt_regs *regs)
+static void option_outdat_callback(struct urb *urb)
 {
 	struct usb_serial_port *port;
 
@@ -385,7 +385,7 @@ static void option_outdat_callback(struct urb *urb, struct pt_regs *regs)
 	usb_serial_port_softint(port);
 }
 
-static void option_instat_callback(struct urb *urb, struct pt_regs *regs)
+static void option_instat_callback(struct urb *urb)
 {
 	int err;
 	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
@@ -565,7 +565,7 @@ static void option_close(struct usb_serial_port *port, struct file *filp)
 /* Helper functions used by option_setup_urbs */
 static struct urb *option_setup_urb(struct usb_serial *serial, int endpoint,
 		int dir, void *ctx, char *buf, int len,
-		void (*callback)(struct urb *, struct pt_regs *regs))
+		void (*callback)(struct urb *))
 {
 	struct urb *urb;
 

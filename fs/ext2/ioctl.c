@@ -11,6 +11,8 @@
 #include <linux/capability.h>
 #include <linux/time.h>
 #include <linux/sched.h>
+#include <linux/compat.h>
+#include <linux/smp_lock.h>
 #include <asm/current.h>
 #include <asm/uaccess.h>
 
@@ -42,6 +44,7 @@ int ext2_ioctl (struct inode * inode, struct file * filp, unsigned int cmd,
 		if (!S_ISDIR(inode->i_mode))
 			flags &= ~EXT2_DIRSYNC_FL;
 
+		mutex_lock(&inode->i_mutex);
 		oldflags = ei->i_flags;
 
 		/*
@@ -51,13 +54,16 @@ int ext2_ioctl (struct inode * inode, struct file * filp, unsigned int cmd,
 		 * This test looks nicer. Thanks to Pauline Middelink
 		 */
 		if ((flags ^ oldflags) & (EXT2_APPEND_FL | EXT2_IMMUTABLE_FL)) {
-			if (!capable(CAP_LINUX_IMMUTABLE))
+			if (!capable(CAP_LINUX_IMMUTABLE)) {
+				mutex_unlock(&inode->i_mutex);
 				return -EPERM;
+			}
 		}
 
 		flags = flags & EXT2_FL_USER_MODIFIABLE;
 		flags |= oldflags & ~EXT2_FL_USER_MODIFIABLE;
 		ei->i_flags = flags;
+		mutex_unlock(&inode->i_mutex);
 
 		ext2_set_inode_flags(inode);
 		inode->i_ctime = CURRENT_TIME_SEC;
@@ -80,3 +86,33 @@ int ext2_ioctl (struct inode * inode, struct file * filp, unsigned int cmd,
 		return -ENOTTY;
 	}
 }
+
+#ifdef CONFIG_COMPAT
+long ext2_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	int ret;
+
+	/* These are just misnamed, they actually get/put from/to user an int */
+	switch (cmd) {
+	case EXT2_IOC32_GETFLAGS:
+		cmd = EXT2_IOC_GETFLAGS;
+		break;
+	case EXT2_IOC32_SETFLAGS:
+		cmd = EXT2_IOC_SETFLAGS;
+		break;
+	case EXT2_IOC32_GETVERSION:
+		cmd = EXT2_IOC_GETVERSION;
+		break;
+	case EXT2_IOC32_SETVERSION:
+		cmd = EXT2_IOC_SETVERSION;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+	lock_kernel();
+	ret = ext2_ioctl(inode, file, cmd, (unsigned long) compat_ptr(arg));
+	unlock_kernel();
+	return ret;
+}
+#endif

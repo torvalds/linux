@@ -94,8 +94,8 @@ static struct i2o_exec_wait *i2o_exec_wait_alloc(void)
 };
 
 /**
- *	i2o_exec_wait_free - Free a i2o_exec_wait struct
- *	@i2o_exec_wait: I2O wait data which should be cleaned up
+ *	i2o_exec_wait_free - Free an i2o_exec_wait struct
+ *	@wait: I2O wait data which should be cleaned up
  */
 static void i2o_exec_wait_free(struct i2o_exec_wait *wait)
 {
@@ -105,7 +105,7 @@ static void i2o_exec_wait_free(struct i2o_exec_wait *wait)
 /**
  * 	i2o_msg_post_wait_mem - Post and wait a message with DMA buffers
  *	@c: controller
- *	@m: message to post
+ *	@msg: message to post
  *	@timeout: time in seconds to wait
  *	@dma: i2o_dma struct of the DMA buffer to free on failure
  *
@@ -124,10 +124,10 @@ static void i2o_exec_wait_free(struct i2o_exec_wait *wait)
 int i2o_msg_post_wait_mem(struct i2o_controller *c, struct i2o_message *msg,
 			  unsigned long timeout, struct i2o_dma *dma)
 {
-	DECLARE_WAIT_QUEUE_HEAD(wq);
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 	struct i2o_exec_wait *wait;
 	static u32 tcntxt = 0x80000000;
-	long flags;
+	unsigned long flags;
 	int rc = 0;
 
 	wait = i2o_exec_wait_alloc();
@@ -269,6 +269,7 @@ static int i2o_msg_post_wait_complete(struct i2o_controller *c, u32 m,
 /**
  *	i2o_exec_show_vendor_id - Displays Vendor ID of controller
  *	@d: device of which the Vendor ID should be displayed
+ *	@attr: device_attribute to display
  *	@buf: buffer into which the Vendor ID should be printed
  *
  *	Returns number of bytes printed into buffer.
@@ -290,6 +291,7 @@ static ssize_t i2o_exec_show_vendor_id(struct device *d,
 /**
  *	i2o_exec_show_product_id - Displays Product ID of controller
  *	@d: device of which the Product ID should be displayed
+ *	@attr: device_attribute to display
  *	@buf: buffer into which the Product ID should be printed
  *
  *	Returns number of bytes printed into buffer.
@@ -325,13 +327,24 @@ static DEVICE_ATTR(product_id, S_IRUGO, i2o_exec_show_product_id, NULL);
 static int i2o_exec_probe(struct device *dev)
 {
 	struct i2o_device *i2o_dev = to_i2o_device(dev);
+	int rc;
 
-	i2o_event_register(i2o_dev, &i2o_exec_driver, 0, 0xffffffff);
+	rc = i2o_event_register(i2o_dev, &i2o_exec_driver, 0, 0xffffffff);
+	if (rc) goto err_out;
 
-	device_create_file(dev, &dev_attr_vendor_id);
-	device_create_file(dev, &dev_attr_product_id);
+	rc = device_create_file(dev, &dev_attr_vendor_id);
+	if (rc) goto err_evtreg;
+	rc = device_create_file(dev, &dev_attr_product_id);
+	if (rc) goto err_vid;
 
 	return 0;
+
+err_vid:
+	device_remove_file(dev, &dev_attr_vendor_id);
+err_evtreg:
+	i2o_event_register(to_i2o_device(dev), &i2o_exec_driver, 0, 0);
+err_out:
+	return rc;
 };
 
 /**
@@ -354,14 +367,16 @@ static int i2o_exec_remove(struct device *dev)
 
 /**
  *	i2o_exec_lct_modified - Called on LCT NOTIFY reply
- *	@c: I2O controller on which the LCT has modified
+ *	@work: work struct for a specific controller
  *
  *	This function handles asynchronus LCT NOTIFY replies. It parses the
  *	new LCT and if the buffer for the LCT was to small sends a LCT NOTIFY
  *	again, otherwise send LCT NOTIFY to get informed on next LCT change.
  */
-static void i2o_exec_lct_modified(struct i2o_exec_lct_notify_work *work)
+static void i2o_exec_lct_modified(struct work_struct *_work)
 {
+	struct i2o_exec_lct_notify_work *work =
+		container_of(_work, struct i2o_exec_lct_notify_work, work);
 	u32 change_ind = 0;
 	struct i2o_controller *c = work->c;
 
@@ -428,8 +443,7 @@ static int i2o_exec_reply(struct i2o_controller *c, u32 m,
 
 		work->c = c;
 
-		INIT_WORK(&work->work, (void (*)(void *))i2o_exec_lct_modified,
-			  work);
+		INIT_WORK(&work->work, i2o_exec_lct_modified);
 		queue_work(i2o_exec_driver.event_queue, &work->work);
 		return 1;
 	}
@@ -449,13 +463,15 @@ static int i2o_exec_reply(struct i2o_controller *c, u32 m,
 
 /**
  *	i2o_exec_event - Event handling function
- *	@evt: Event which occurs
+ *	@work: Work item in occurring event
  *
  *	Handles events send by the Executive device. At the moment does not do
  *	anything useful.
  */
-static void i2o_exec_event(struct i2o_event *evt)
+static void i2o_exec_event(struct work_struct *work)
 {
+	struct i2o_event *evt = container_of(work, struct i2o_event, work);
+
 	if (likely(evt->i2o_dev))
 		osm_debug("Event received from device: %d\n",
 			  evt->i2o_dev->lct_data.tid);

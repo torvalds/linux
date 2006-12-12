@@ -22,88 +22,44 @@
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
-#ifndef __s390x__
-
 static inline void clear_page(void *page)
 {
-	register_pair rp;
-
-	rp.subreg.even = (unsigned long) page;
-	rp.subreg.odd = (unsigned long) 4096;
-        asm volatile ("   slr  1,1\n"
-		      "   mvcl %0,0"
-		      : "+&a" (rp) : : "memory", "cc", "1" );
+	register unsigned long reg1 asm ("1") = 0;
+	register void *reg2 asm ("2") = page;
+	register unsigned long reg3 asm ("3") = 4096;
+	asm volatile(
+		"	mvcl	2,0"
+		: "+d" (reg2), "+d" (reg3) : "d" (reg1) : "memory", "cc");
 }
 
 static inline void copy_page(void *to, void *from)
 {
-        if (MACHINE_HAS_MVPG)
-		asm volatile ("   sr   0,0\n"
-			      "   mvpg %0,%1"
-			      : : "a" ((void *)(to)), "a" ((void *)(from))
-			      : "memory", "cc", "0" );
-	else
-		asm volatile ("   mvc  0(256,%0),0(%1)\n"
-			      "   mvc  256(256,%0),256(%1)\n"
-			      "   mvc  512(256,%0),512(%1)\n"
-			      "   mvc  768(256,%0),768(%1)\n"
-			      "   mvc  1024(256,%0),1024(%1)\n"
-			      "   mvc  1280(256,%0),1280(%1)\n"
-			      "   mvc  1536(256,%0),1536(%1)\n"
-			      "   mvc  1792(256,%0),1792(%1)\n"
-			      "   mvc  2048(256,%0),2048(%1)\n"
-			      "   mvc  2304(256,%0),2304(%1)\n"
-			      "   mvc  2560(256,%0),2560(%1)\n"
-			      "   mvc  2816(256,%0),2816(%1)\n"
-			      "   mvc  3072(256,%0),3072(%1)\n"
-			      "   mvc  3328(256,%0),3328(%1)\n"
-			      "   mvc  3584(256,%0),3584(%1)\n"
-			      "   mvc  3840(256,%0),3840(%1)\n"
-			      : : "a"((void *)(to)),"a"((void *)(from)) 
-			      : "memory" );
+	if (MACHINE_HAS_MVPG) {
+		register unsigned long reg0 asm ("0") = 0;
+		asm volatile(
+			"	mvpg	%0,%1"
+			: : "a" (to), "a" (from), "d" (reg0)
+			: "memory", "cc");
+	} else
+		asm volatile(
+			"	mvc	0(256,%0),0(%1)\n"
+			"	mvc	256(256,%0),256(%1)\n"
+			"	mvc	512(256,%0),512(%1)\n"
+			"	mvc	768(256,%0),768(%1)\n"
+			"	mvc	1024(256,%0),1024(%1)\n"
+			"	mvc	1280(256,%0),1280(%1)\n"
+			"	mvc	1536(256,%0),1536(%1)\n"
+			"	mvc	1792(256,%0),1792(%1)\n"
+			"	mvc	2048(256,%0),2048(%1)\n"
+			"	mvc	2304(256,%0),2304(%1)\n"
+			"	mvc	2560(256,%0),2560(%1)\n"
+			"	mvc	2816(256,%0),2816(%1)\n"
+			"	mvc	3072(256,%0),3072(%1)\n"
+			"	mvc	3328(256,%0),3328(%1)\n"
+			"	mvc	3584(256,%0),3584(%1)\n"
+			"	mvc	3840(256,%0),3840(%1)\n"
+			: : "a" (to), "a" (from) : "memory");
 }
-
-#else /* __s390x__ */
-
-static inline void clear_page(void *page)
-{
-        asm volatile ("   lgr  2,%0\n"
-                      "   lghi 3,4096\n"
-                      "   slgr 1,1\n"
-                      "   mvcl 2,0"
-                      : : "a" ((void *) (page))
-		      : "memory", "cc", "1", "2", "3" );
-}
-
-static inline void copy_page(void *to, void *from)
-{
-        if (MACHINE_HAS_MVPG)
-		asm volatile ("   sgr  0,0\n"
-			      "   mvpg %0,%1"
-			      : : "a" ((void *)(to)), "a" ((void *)(from))
-			      : "memory", "cc", "0" );
-	else
-		asm volatile ("   mvc  0(256,%0),0(%1)\n"
-			      "   mvc  256(256,%0),256(%1)\n"
-			      "   mvc  512(256,%0),512(%1)\n"
-			      "   mvc  768(256,%0),768(%1)\n"
-			      "   mvc  1024(256,%0),1024(%1)\n"
-			      "   mvc  1280(256,%0),1280(%1)\n"
-			      "   mvc  1536(256,%0),1536(%1)\n"
-			      "   mvc  1792(256,%0),1792(%1)\n"
-			      "   mvc  2048(256,%0),2048(%1)\n"
-			      "   mvc  2304(256,%0),2304(%1)\n"
-			      "   mvc  2560(256,%0),2560(%1)\n"
-			      "   mvc  2816(256,%0),2816(%1)\n"
-			      "   mvc  3072(256,%0),3072(%1)\n"
-			      "   mvc  3328(256,%0),3328(%1)\n"
-			      "   mvc  3584(256,%0),3584(%1)\n"
-			      "   mvc  3840(256,%0),3840(%1)\n"
-			      : : "a"((void *)(to)),"a"((void *)(from)) 
-			      : "memory" );
-}
-
-#endif /* __s390x__ */
 
 #define clear_user_page(page, vaddr, pg)	clear_page(page)
 #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
@@ -159,7 +115,7 @@ extern unsigned int default_storage_key;
 static inline void
 page_set_storage_key(unsigned long addr, unsigned int skey)
 {
-	asm volatile ( "sske %0,%1" : : "d" (skey), "a" (addr) );
+	asm volatile("sske %0,%1" : : "d" (skey), "a" (addr));
 }
 
 static inline unsigned int
@@ -167,9 +123,28 @@ page_get_storage_key(unsigned long addr)
 {
 	unsigned int skey;
 
-	asm volatile ( "iske %0,%1" : "=d" (skey) : "a" (addr), "0" (0) );
-
+	asm volatile("iske %0,%1" : "=d" (skey) : "a" (addr), "0" (0));
 	return skey;
+}
+
+extern unsigned long max_pfn;
+
+static inline int pfn_valid(unsigned long pfn)
+{
+	unsigned long dummy;
+	int ccode;
+
+	if (pfn >= max_pfn)
+		return 0;
+
+	asm volatile(
+		"	lra	%0,0(%2)\n"
+		"	ipm	%1\n"
+		"	srl	%1,28\n"
+		: "=d" (dummy), "=d" (ccode)
+		: "a" (pfn << PAGE_SHIFT)
+		: "cc");
+	return !ccode;
 }
 
 #endif /* !__ASSEMBLY__ */
@@ -182,8 +157,7 @@ page_get_storage_key(unsigned long addr)
 #define __pa(x)                 (unsigned long)(x)
 #define __va(x)                 (void *)(unsigned long)(x)
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
-
-#define pfn_valid(pfn)		((pfn) < max_mapnr)
+#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \

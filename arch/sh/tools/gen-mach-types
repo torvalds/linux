@@ -20,8 +20,6 @@ END	{
 	  printf("#ifndef __ASM_SH_MACHTYPES_H\n");
 	  printf("#define __ASM_SH_MACHTYPES_H\n");
 	  printf("\n");
-	  printf("#include <linux/config.h>\n");
-	  printf("\n");
 	  printf("/*\n");
 	  printf(" * We'll use the following MACH_xxx defs for placeholders for the time\n");
 	  printf(" * being .. these will all go away once sh_machtype is assigned per-board.\n");

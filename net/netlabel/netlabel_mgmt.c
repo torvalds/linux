@@ -87,10 +87,13 @@ static int netlbl_mgmt_add(struct sk_buff *skb, struct genl_info *info)
 	struct netlbl_dom_map *entry = NULL;
 	size_t tmp_size;
 	u32 tmp_val;
+	struct netlbl_audit audit_info;
 
 	if (!info->attrs[NLBL_MGMT_A_DOMAIN] ||
 	    !info->attrs[NLBL_MGMT_A_PROTOCOL])
 		goto add_failure;
+
+	netlbl_netlink_auditinfo(skb, &audit_info);
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL) {
@@ -108,7 +111,7 @@ static int netlbl_mgmt_add(struct sk_buff *skb, struct genl_info *info)
 
 	switch (entry->type) {
 	case NETLBL_NLTYPE_UNLABELED:
-		ret_val = netlbl_domhsh_add(entry);
+		ret_val = netlbl_domhsh_add(entry, &audit_info);
 		break;
 	case NETLBL_NLTYPE_CIPSOV4:
 		if (!info->attrs[NLBL_MGMT_A_CV4DOI])
@@ -125,7 +128,7 @@ static int netlbl_mgmt_add(struct sk_buff *skb, struct genl_info *info)
 			rcu_read_unlock();
 			goto add_failure;
 		}
-		ret_val = netlbl_domhsh_add(entry);
+		ret_val = netlbl_domhsh_add(entry, &audit_info);
 		rcu_read_unlock();
 		break;
 	default:
@@ -156,12 +159,15 @@ add_failure:
 static int netlbl_mgmt_remove(struct sk_buff *skb, struct genl_info *info)
 {
 	char *domain;
+	struct netlbl_audit audit_info;
 
 	if (!info->attrs[NLBL_MGMT_A_DOMAIN])
 		return -EINVAL;
 
+	netlbl_netlink_auditinfo(skb, &audit_info);
+
 	domain = nla_data(info->attrs[NLBL_MGMT_A_DOMAIN]);
-	return netlbl_domhsh_remove(domain);
+	return netlbl_domhsh_remove(domain, &audit_info);
 }
 
 /**
@@ -182,12 +188,9 @@ static int netlbl_mgmt_listall_cb(struct netlbl_dom_map *entry, void *arg)
 	struct netlbl_domhsh_walk_arg *cb_arg = arg;
 	void *data;
 
-	data = netlbl_netlink_hdr_put(cb_arg->skb,
-				      NETLINK_CB(cb_arg->nl_cb->skb).pid,
-				      cb_arg->seq,
-				      netlbl_mgmt_gnl_family.id,
-				      NLM_F_MULTI,
-				      NLBL_MGMT_C_LISTALL);
+	data = genlmsg_put(cb_arg->skb, NETLINK_CB(cb_arg->nl_cb->skb).pid,
+			   cb_arg->seq, &netlbl_mgmt_gnl_family,
+			   NLM_F_MULTI, NLBL_MGMT_C_LISTALL);
 	if (data == NULL)
 		goto listall_cb_failure;
 
@@ -264,9 +267,12 @@ static int netlbl_mgmt_adddef(struct sk_buff *skb, struct genl_info *info)
 	int ret_val = -EINVAL;
 	struct netlbl_dom_map *entry = NULL;
 	u32 tmp_val;
+	struct netlbl_audit audit_info;
 
 	if (!info->attrs[NLBL_MGMT_A_PROTOCOL])
 		goto adddef_failure;
+
+	netlbl_netlink_auditinfo(skb, &audit_info);
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL) {
@@ -277,7 +283,7 @@ static int netlbl_mgmt_adddef(struct sk_buff *skb, struct genl_info *info)
 
 	switch (entry->type) {
 	case NETLBL_NLTYPE_UNLABELED:
-		ret_val = netlbl_domhsh_add_default(entry);
+		ret_val = netlbl_domhsh_add_default(entry, &audit_info);
 		break;
 	case NETLBL_NLTYPE_CIPSOV4:
 		if (!info->attrs[NLBL_MGMT_A_CV4DOI])
@@ -294,7 +300,7 @@ static int netlbl_mgmt_adddef(struct sk_buff *skb, struct genl_info *info)
 			rcu_read_unlock();
 			goto adddef_failure;
 		}
-		ret_val = netlbl_domhsh_add_default(entry);
+		ret_val = netlbl_domhsh_add_default(entry, &audit_info);
 		rcu_read_unlock();
 		break;
 	default:
@@ -322,7 +328,11 @@ adddef_failure:
  */
 static int netlbl_mgmt_removedef(struct sk_buff *skb, struct genl_info *info)
 {
-	return netlbl_domhsh_remove_default();
+	struct netlbl_audit audit_info;
+
+	netlbl_netlink_auditinfo(skb, &audit_info);
+
+	return netlbl_domhsh_remove_default(&audit_info);
 }
 
 /**
@@ -343,15 +353,11 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 	void *data;
 	struct netlbl_dom_map *entry;
 
-	ans_skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
 		return -ENOMEM;
-	data = netlbl_netlink_hdr_put(ans_skb,
-				      info->snd_pid,
-				      info->snd_seq,
-				      netlbl_mgmt_gnl_family.id,
-				      0,
-				      NLBL_MGMT_C_LISTDEF);
+	data = genlmsg_put_reply(ans_skb, info, &netlbl_mgmt_gnl_family,
+				 0, NLBL_MGMT_C_LISTDEF);
 	if (data == NULL)
 		goto listdef_failure;
 
@@ -377,7 +383,7 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 
 	genlmsg_end(ans_skb, data);
 
-	ret_val = genlmsg_unicast(ans_skb, info->snd_pid);
+	ret_val = genlmsg_reply(ans_skb, info);
 	if (ret_val != 0)
 		goto listdef_failure;
 	return 0;
@@ -409,12 +415,9 @@ static int netlbl_mgmt_protocols_cb(struct sk_buff *skb,
 	int ret_val = -ENOMEM;
 	void *data;
 
-	data = netlbl_netlink_hdr_put(skb,
-				      NETLINK_CB(cb->skb).pid,
-				      cb->nlh->nlmsg_seq,
-				      netlbl_mgmt_gnl_family.id,
-				      NLM_F_MULTI,
-				      NLBL_MGMT_C_PROTOCOLS);
+	data = genlmsg_put(skb, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq,
+			   &netlbl_mgmt_gnl_family, NLM_F_MULTI,
+			   NLBL_MGMT_C_PROTOCOLS);
 	if (data == NULL)
 		goto protocols_cb_failure;
 
@@ -479,15 +482,11 @@ static int netlbl_mgmt_version(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *ans_skb = NULL;
 	void *data;
 
-	ans_skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
 		return -ENOMEM;
-	data = netlbl_netlink_hdr_put(ans_skb,
-				      info->snd_pid,
-				      info->snd_seq,
-				      netlbl_mgmt_gnl_family.id,
-				      0,
-				      NLBL_MGMT_C_VERSION);
+	data = genlmsg_put_reply(ans_skb, info, &netlbl_mgmt_gnl_family,
+				 0, NLBL_MGMT_C_VERSION);
 	if (data == NULL)
 		goto version_failure;
 
@@ -499,7 +498,7 @@ static int netlbl_mgmt_version(struct sk_buff *skb, struct genl_info *info)
 
 	genlmsg_end(ans_skb, data);
 
-	ret_val = genlmsg_unicast(ans_skb, info->snd_pid);
+	ret_val = genlmsg_reply(ans_skb, info);
 	if (ret_val != 0)
 		goto version_failure;
 	return 0;

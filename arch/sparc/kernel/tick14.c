@@ -55,7 +55,7 @@ void install_obp_ticker(void)
 	linux_lvl14[3] =  obp_lvl14[3]; 
 }
 
-void claim_ticker14(irqreturn_t (*handler)(int, void *, struct pt_regs *),
+void claim_ticker14(irq_handler_t handler,
 		    int irq_nr, unsigned int timeout )
 {
 	int cpu = smp_processor_id();

@@ -21,16 +21,16 @@
 
 #include <asm/mips-boards/atlasint.h>
 
-#define PCIA		ATLASINT_PCIA
-#define PCIB		ATLASINT_PCIB
-#define PCIC		ATLASINT_PCIC
-#define PCID		ATLASINT_PCID
-#define INTA		ATLASINT_INTA
-#define INTB		ATLASINT_INTB
-#define ETH		ATLASINT_ETH
-#define INTC		ATLASINT_INTC
-#define SCSI		ATLASINT_SCSI
-#define INTD		ATLASINT_INTD
+#define PCIA		ATLAS_INT_PCIA
+#define PCIB		ATLAS_INT_PCIB
+#define PCIC		ATLAS_INT_PCIC
+#define PCID		ATLAS_INT_PCID
+#define INTA		ATLAS_INT_INTA
+#define INTB		ATLAS_INT_INTB
+#define ETH		ATLAS_INT_ETH
+#define INTC		ATLAS_INT_INTC
+#define SCSI		ATLAS_INT_SCSI
+#define INTD		ATLAS_INT_INTD
 
 static char irq_tab[][5] __initdata = {
 	/*      INTA    INTB    INTC    INTD */

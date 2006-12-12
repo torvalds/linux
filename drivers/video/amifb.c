@@ -1144,7 +1144,7 @@ static void amifb_deinit(void);
 	 */
 
 static int flash_cursor(void);
-static irqreturn_t amifb_interrupt(int irq, void *dev_id, struct pt_regs *fp);
+static irqreturn_t amifb_interrupt(int irq, void *dev_id);
 static u_long chipalloc(u_long size);
 static void chipfree(void);
 
@@ -2407,10 +2407,10 @@ default_chipset:
 						   fb_info.fix.smem_len);
 	if (!videomemory) {
 		printk("amifb: WARNING! unable to map videomem cached writethrough\n");
-		videomemory = ZTWO_VADDR(fb_info.fix.smem_start);
-	}
+		fb_info.screen_base = (char *)ZTWO_VADDR(fb_info.fix.smem_start);
+	} else
+		fb_info.screen_base = (char *)videomemory;
 
-	fb_info.screen_base = (char *)videomemory;
 	memset(dummysprite, 0, DUMMYSPRITEMEMSIZE);
 
 	/*
@@ -2453,6 +2453,8 @@ static void amifb_deinit(void)
 {
 	fb_dealloc_cmap(&fb_info.cmap);
 	chipfree();
+	if (videomemory)
+		iounmap((void*)videomemory);
 	release_mem_region(CUSTOM_PHYSADDR+0xe0, 0x120);
 	custom.dmacon = DMAF_ALL | DMAF_MASTER;
 }
@@ -2492,7 +2494,7 @@ static int flash_cursor(void)
 	 * VBlank Display Interrupt
 	 */
 
-static irqreturn_t amifb_interrupt(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t amifb_interrupt(int irq, void *dev_id)
 {
 	if (do_vmode_pan || do_vmode_full)
 		ami_update_display();

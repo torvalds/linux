@@ -34,9 +34,6 @@
  *
  * I/O functions returns -1 on error, 0 on EOF
  */
-#define OS_SEEK_SET 0
-#define OS_SEEK_CUR 1
-#define OS_SEEK_END 2
 struct _OsFileHandle_;
 typedef long (  * OsFileIo)  (struct _OsFileHandle_    *handle,
                                 void                     *buffer,

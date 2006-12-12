@@ -153,23 +153,7 @@ static void __init find_max_pfn_node(int nid)
 	 */
 	if (node_start_pfn[nid] > max_pfn)
 		node_start_pfn[nid] = max_pfn;
-	if (node_start_pfn[nid] > node_end_pfn[nid])
-		BUG();
-}
-
-/* Find the owning node for a pfn. */
-int early_pfn_to_nid(unsigned long pfn)
-{
-	int nid;
-
-	for_each_node(nid) {
-		if (node_end_pfn[nid] == 0)
-			break;
-		if (node_start_pfn[nid] <= pfn && node_end_pfn[nid] >= pfn)
-			return nid;
-	}
-
-	return 0;
+	BUG_ON(node_start_pfn[nid] > node_end_pfn[nid]);
 }
 
 /* 
@@ -184,7 +168,7 @@ static void __init allocate_pgdat(int nid)
 	if (nid && node_has_online_mem(nid))
 		NODE_DATA(nid) = (pg_data_t *)node_remap_start_vaddr[nid];
 	else {
-		NODE_DATA(nid) = (pg_data_t *)(__va(min_low_pfn << PAGE_SHIFT));
+		NODE_DATA(nid) = (pg_data_t *)(pfn_to_kaddr(min_low_pfn));
 		min_low_pfn += PFN_UP(sizeof(pg_data_t));
 	}
 }
@@ -227,6 +211,8 @@ static unsigned long calculate_numa_remap_pages(void)
 	unsigned long pfn;
 
 	for_each_online_node(nid) {
+		unsigned old_end_pfn = node_end_pfn[nid];
+
 		/*
 		 * The acpi/srat node info can show hot-add memroy zones
 		 * where memory could be added but not currently present.
@@ -276,6 +262,7 @@ static unsigned long calculate_numa_remap_pages(void)
 
 		node_end_pfn[nid] -= size;
 		node_remap_start_pfn[nid] = node_end_pfn[nid];
+		shrink_active_range(nid, old_end_pfn, node_end_pfn[nid]);
 	}
 	printk("Reserving total of %ld pages for numa KVA remap\n",
 			reserve_pages);
@@ -369,45 +356,23 @@ void __init numa_kva_reserve(void)
 void __init zone_sizes_init(void)
 {
 	int nid;
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+	max_zone_pfns[ZONE_DMA] =
+		virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
 
-
-	for_each_online_node(nid) {
-		unsigned long zones_size[MAX_NR_ZONES] = {0, };
-		unsigned long *zholes_size;
-		unsigned int max_dma;
-
-		unsigned long low = max_low_pfn;
-		unsigned long start = node_start_pfn[nid];
-		unsigned long high = node_end_pfn[nid];
-
-		max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-
-		if (node_has_online_mem(nid)){
-			if (start > low) {
-#ifdef CONFIG_HIGHMEM
-				BUG_ON(start > high);
-				zones_size[ZONE_HIGHMEM] = high - start;
-#endif
-			} else {
-				if (low < max_dma)
-					zones_size[ZONE_DMA] = low;
-				else {
-					BUG_ON(max_dma > low);
-					BUG_ON(low > high);
-					zones_size[ZONE_DMA] = max_dma;
-					zones_size[ZONE_NORMAL] = low - max_dma;
-#ifdef CONFIG_HIGHMEM
-					zones_size[ZONE_HIGHMEM] = high - low;
-#endif
-				}
-			}
+	/* If SRAT has not registered memory, register it now */
+	if (find_max_pfn_with_active_regions() == 0) {
+		for_each_online_node(nid) {
+			if (node_has_online_mem(nid))
+				add_active_range(nid, node_start_pfn[nid],
+							node_end_pfn[nid]);
 		}
-
-		zholes_size = get_zholes_size(nid);
-
-		free_area_init_node(nid, NODE_DATA(nid), zones_size, start,
-				zholes_size);
 	}
+
+	free_area_init_nodes(max_zone_pfns);
 	return;
 }
 

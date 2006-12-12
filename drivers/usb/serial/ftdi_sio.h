@@ -55,6 +55,9 @@
 /* iPlus device */
 #define FTDI_IPLUS_PID 0xD070 /* Product Id */
 
+/* DMX4ALL DMX Interfaces */
+#define FTDI_DMX4ALL 0xC850
+
 /* www.crystalfontz.com devices - thanx for providing free devices for evaluation ! */
 /* they use the ftdi chipset for the USB interface and the vendor id is the same */
 #define FTDI_XF_632_PID 0xFC08	/* 632: 16x2 Character Display */
@@ -111,6 +114,7 @@
 #define SEALEVEL_2102_PID	0x2102	/* SeaLINK+485 (2102) */
 #define SEALEVEL_2103_PID	0x2103	/* SeaLINK+232I (2103) */
 #define SEALEVEL_2104_PID	0x2104	/* SeaLINK+485I (2104) */
+#define SEALEVEL_2106_PID	0x9020	/* SeaLINK+422 (2106) */
 #define SEALEVEL_2201_1_PID	0x2211	/* SeaPORT+2/232 (2201) Port 1 */
 #define SEALEVEL_2201_2_PID	0x2221	/* SeaPORT+2/232 (2201) Port 2 */
 #define SEALEVEL_2202_1_PID	0x2212	/* SeaPORT+2/485 (2202) Port 1 */
@@ -174,9 +178,15 @@
 #define FTDI_ASK_RDR400_PID	0xC991	/* ASK RDR 400 series card reader */
 
 /*
+ * FTDI USB UART chips used in construction projects from the
+ * Elektor Electronics magazine (http://elektor-electronics.co.uk)
+ */
+#define ELEKTOR_VID		0x0C7D
+#define ELEKTOR_FT323R_PID	0x0005	/* RFID-Reader, issue 09-2006 */
+
+/*
  * DSS-20 Sync Station for Sony Ericsson P800
  */
- 
 #define FTDI_DSS20_PID          0xFC82  
 
 /*
@@ -471,6 +481,15 @@
  * Gamma Scout (http://gamma-scout.com/). Submitted by rsc@runtux.com.
  */
 #define FTDI_GAMMA_SCOUT_PID		0xD678	/* Gamma Scout online */
+
+/*
+ * Tactrix OpenPort (ECU) devices.
+ * OpenPort 1.3M submitted by Donour Sizemore.
+ * OpenPort 1.3S and 1.3U submitted by Ian Abbott.
+ */
+#define FTDI_TACTRIX_OPENPORT_13M_PID	0xCC48	/* OpenPort 1.3 Mitsubishi */
+#define FTDI_TACTRIX_OPENPORT_13S_PID	0xCC49	/* OpenPort 1.3 Subaru */
+#define FTDI_TACTRIX_OPENPORT_13U_PID	0xCC4A	/* OpenPort 1.3 Universal */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */

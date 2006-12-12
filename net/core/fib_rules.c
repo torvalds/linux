@@ -8,7 +8,6 @@
  * Authors:	Thomas Graf <tgraf@suug.ch>
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -108,6 +107,22 @@ out:
 
 EXPORT_SYMBOL_GPL(fib_rules_unregister);
 
+static int fib_rule_match(struct fib_rule *rule, struct fib_rules_ops *ops,
+			  struct flowi *fl, int flags)
+{
+	int ret = 0;
+
+	if (rule->ifindex && (rule->ifindex != fl->iif))
+		goto out;
+
+	if ((rule->mark ^ fl->mark) & rule->mark_mask)
+		goto out;
+
+	ret = ops->match(rule, fl, flags);
+out:
+	return (rule->flags & FIB_RULE_INVERT) ? !ret : ret;
+}
+
 int fib_rules_lookup(struct fib_rules_ops *ops, struct flowi *fl,
 		     int flags, struct fib_lookup_arg *arg)
 {
@@ -117,10 +132,7 @@ int fib_rules_lookup(struct fib_rules_ops *ops, struct flowi *fl,
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(rule, ops->rules_list, list) {
-		if (rule->ifindex && (rule->ifindex != fl->iif))
-			continue;
-
-		if (!ops->match(rule, fl, flags))
+		if (!fib_rule_match(rule, ops, fl, flags))
 			continue;
 
 		err = ops->action(rule, fl, flags, arg);
@@ -179,6 +191,18 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		if (dev)
 			rule->ifindex = dev->ifindex;
 	}
+
+	if (tb[FRA_FWMARK]) {
+		rule->mark = nla_get_u32(tb[FRA_FWMARK]);
+		if (rule->mark)
+			/* compatibility: if the mark value is non-zero all bits
+			 * are compared unless a mask is explicitly specified.
+			 */
+			rule->mark_mask = 0xFFFFFFFF;
+	}
+
+	if (tb[FRA_FWMASK])
+		rule->mark_mask = nla_get_u32(tb[FRA_FWMASK]);
 
 	rule->action = frh->action;
 	rule->flags = frh->flags;
@@ -251,6 +275,14 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		    nla_strcmp(tb[FRA_IFNAME], rule->ifname))
 			continue;
 
+		if (tb[FRA_FWMARK] &&
+		    (rule->mark != nla_get_u32(tb[FRA_FWMARK])))
+			continue;
+
+		if (tb[FRA_FWMASK] &&
+		    (rule->mark_mask != nla_get_u32(tb[FRA_FWMASK])))
+			continue;
+
 		if (!ops->compare(rule, frh, tb))
 			continue;
 
@@ -272,6 +304,22 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 errout:
 	rules_ops_put(ops);
 	return err;
+}
+
+static inline size_t fib_rule_nlmsg_size(struct fib_rules_ops *ops,
+					 struct fib_rule *rule)
+{
+	size_t payload = NLMSG_ALIGN(sizeof(struct fib_rule_hdr))
+			 + nla_total_size(IFNAMSIZ) /* FRA_IFNAME */
+			 + nla_total_size(4) /* FRA_PRIORITY */
+			 + nla_total_size(4) /* FRA_TABLE */
+			 + nla_total_size(4) /* FRA_FWMARK */
+			 + nla_total_size(4); /* FRA_FWMASK */
+
+	if (ops->nlmsg_payload)
+		payload += ops->nlmsg_payload(rule);
+
+	return payload;
 }
 
 static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
@@ -298,6 +346,12 @@ static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
 
 	if (rule->pref)
 		NLA_PUT_U32(skb, FRA_PRIORITY, rule->pref);
+
+	if (rule->mark)
+		NLA_PUT_U32(skb, FRA_FWMARK, rule->mark);
+
+	if (rule->mark_mask || rule->mark)
+		NLA_PUT_U32(skb, FRA_FWMASK, rule->mark_mask);
 
 	if (ops->fill(rule, skb, nlh, frh) < 0)
 		goto nla_put_failure;
@@ -346,15 +400,13 @@ static void notify_rule_change(int event, struct fib_rule *rule,
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = nlmsg_new(fib_rule_nlmsg_size(ops, rule), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
 
 	err = fib_nl_fill_rule(skb, rule, pid, nlh->nlmsg_seq, event, 0, ops);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in fib_rule_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, pid, ops->nlgroup, nlh, GFP_KERNEL);
 errout:

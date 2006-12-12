@@ -105,7 +105,7 @@ static DEFINE_SPINLOCK(mfc_unres_lock);
    In this case data path is free of exclusive locks at all.
  */
 
-static kmem_cache_t *mrt_cachep __read_mostly;
+static struct kmem_cache *mrt_cachep __read_mostly;
 
 static int ip_mr_forward(struct sk_buff *skb, struct mfc_cache *cache, int local);
 static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert);
@@ -462,7 +462,7 @@ static int vif_add(struct vifctl *vifc, int mrtsock)
 	return 0;
 }
 
-static struct mfc_cache *ipmr_cache_find(__u32 origin, __u32 mcastgrp)
+static struct mfc_cache *ipmr_cache_find(__be32 origin, __be32 mcastgrp)
 {
 	int line=MFC_HASH(mcastgrp,origin);
 	struct mfc_cache *c;
@@ -1097,7 +1097,7 @@ static struct notifier_block ip_mr_notifier={
  *	important for multicast video.
  */
  
-static void ip_encap(struct sk_buff *skb, u32 saddr, u32 daddr)
+static void ip_encap(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 {
 	struct iphdr *iph = (struct iphdr *)skb_push(skb,sizeof(struct iphdr));
 
@@ -1493,7 +1493,7 @@ static int pim_rcv(struct sk_buff * skb)
         if (pim->type != ((PIM_VERSION<<4)|(PIM_REGISTER)) ||
 	    (pim->flags&PIM_NULL_REGISTER) ||
 	    (ip_compute_csum((void *)pim, sizeof(*pim)) != 0 && 
-	     (u16)csum_fold(skb_checksum(skb, 0, skb->len, 0)))) 
+	     csum_fold(skb_checksum(skb, 0, skb->len, 0))))
 		goto drop;
 
 	/* check if the inner packet is destined to mcast group */

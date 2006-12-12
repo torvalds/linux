@@ -242,7 +242,7 @@ static u32 sis96x_func(struct i2c_adapter *adapter)
 	    I2C_FUNC_SMBUS_PROC_CALL;
 }
 
-static struct i2c_algorithm smbus_algorithm = {
+static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer	= sis96x_access,
 	.functionality	= sis96x_func,
 };

@@ -580,7 +580,7 @@ static int snd_sonicvibes_trigger(struct sonicvibes * sonic, int what, int cmd)
 	return result;
 }
 
-static irqreturn_t snd_sonicvibes_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_sonicvibes_interrupt(int irq, void *dev_id)
 {
 	struct sonicvibes *sonic = dev_id;
 	unsigned char status;
@@ -601,7 +601,7 @@ static irqreturn_t snd_sonicvibes_interrupt(int irq, void *dev_id, struct pt_reg
 	}
 	if (sonic->rmidi) {
 		if (status & SV_MIDI_IRQ)
-			snd_mpu401_uart_interrupt(irq, sonic->rmidi->private_data, regs);
+			snd_mpu401_uart_interrupt(irq, sonic->rmidi->private_data);
 	}
 	if (status & SV_UD_IRQ) {
 		unsigned char udreg;

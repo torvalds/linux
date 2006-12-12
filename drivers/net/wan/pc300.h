@@ -100,6 +100,7 @@
 #define	_PC300_H
 
 #include <linux/hdlc.h>
+#include <net/syncppp.h>
 #include "hd64572.h"
 #include "pc300-falc-lh.h"
 

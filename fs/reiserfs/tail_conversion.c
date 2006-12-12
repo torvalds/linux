@@ -15,7 +15,7 @@
 /* path points to first direct item of the file regarless of how many of
    them are there */
 int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
-		    struct path *path, struct buffer_head *unbh,
+		    struct treepath *path, struct buffer_head *unbh,
 		    loff_t tail_offset)
 {
 	struct super_block *sb = inode->i_sb;
@@ -171,7 +171,7 @@ void reiserfs_unmap_buffer(struct buffer_head *bh)
    what we expect from it (number of cut bytes). But when tail remains
    in the unformatted node, we set mode to SKIP_BALANCING and unlock
    inode */
-int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_inode, struct page *page, struct path *p_s_path,	/* path to the indirect item. */
+int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_inode, struct page *page, struct treepath *p_s_path,	/* path to the indirect item. */
 		    const struct cpu_key *p_s_item_key,	/* Key to look for unformatted node pointer to be cut. */
 		    loff_t n_new_file_size,	/* New file size. */
 		    char *p_c_mode)

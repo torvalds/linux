@@ -25,7 +25,7 @@
 
 #include "dasd_int.h"
 
-kmem_cache_t *dasd_page_cache;
+struct kmem_cache *dasd_page_cache;
 EXPORT_SYMBOL_GPL(dasd_page_cache);
 
 /*
@@ -202,6 +202,8 @@ dasd_feature_list(char *str, char **endp)
 			features |= DASD_FEATURE_READONLY;
 		else if (len == 4 && !strncmp(str, "diag", 4))
 			features |= DASD_FEATURE_USEDIAG;
+		else if (len == 6 && !strncmp(str, "erplog", 6))
+			features |= DASD_FEATURE_ERPLOG;
 		else {
 			MESSAGE(KERN_WARNING,
 				"unsupported feature: %*s, "
@@ -684,26 +686,77 @@ dasd_ro_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
-	int ro_flag;
+	int val;
+	char *endp;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
-	ro_flag = buf[0] == '1';
+
+	val = simple_strtoul(buf, &endp, 0);
+	if (((endp + 1) < (buf + count)) || (val > 1))
+		return -EINVAL;
+
 	spin_lock(&dasd_devmap_lock);
-	if (ro_flag)
+	if (val)
 		devmap->features |= DASD_FEATURE_READONLY;
 	else
 		devmap->features &= ~DASD_FEATURE_READONLY;
 	if (devmap->device)
 		devmap->device->features = devmap->features;
 	if (devmap->device && devmap->device->gdp)
-		set_disk_ro(devmap->device->gdp, ro_flag);
+		set_disk_ro(devmap->device->gdp, val);
 	spin_unlock(&dasd_devmap_lock);
 	return count;
 }
 
 static DEVICE_ATTR(readonly, 0644, dasd_ro_show, dasd_ro_store);
+/*
+ * erplog controls the logging of ERP related data
+ * (e.g. failing channel programs).
+ */
+static ssize_t
+dasd_erplog_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dasd_devmap *devmap;
+	int erplog;
+
+	devmap = dasd_find_busid(dev->bus_id);
+	if (!IS_ERR(devmap))
+		erplog = (devmap->features & DASD_FEATURE_ERPLOG) != 0;
+	else
+		erplog = (DASD_FEATURE_DEFAULT & DASD_FEATURE_ERPLOG) != 0;
+	return snprintf(buf, PAGE_SIZE, erplog ? "1\n" : "0\n");
+}
+
+static ssize_t
+dasd_erplog_store(struct device *dev, struct device_attribute *attr,
+	      const char *buf, size_t count)
+{
+	struct dasd_devmap *devmap;
+	int val;
+	char *endp;
+
+	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(devmap))
+		return PTR_ERR(devmap);
+
+	val = simple_strtoul(buf, &endp, 0);
+	if (((endp + 1) < (buf + count)) || (val > 1))
+		return -EINVAL;
+
+	spin_lock(&dasd_devmap_lock);
+	if (val)
+		devmap->features |= DASD_FEATURE_ERPLOG;
+	else
+		devmap->features &= ~DASD_FEATURE_ERPLOG;
+	if (devmap->device)
+		devmap->device->features = devmap->features;
+	spin_unlock(&dasd_devmap_lock);
+	return count;
+}
+
+static DEVICE_ATTR(erplog, 0644, dasd_erplog_show, dasd_erplog_store);
 
 /*
  * use_diag controls whether the driver should use diag rather than ssch
@@ -729,17 +782,22 @@ dasd_use_diag_store(struct device *dev, struct device_attribute *attr,
 {
 	struct dasd_devmap *devmap;
 	ssize_t rc;
-	int use_diag;
+	int val;
+	char *endp;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
-	use_diag = buf[0] == '1';
+
+	val = simple_strtoul(buf, &endp, 0);
+	if (((endp + 1) < (buf + count)) || (val > 1))
+		return -EINVAL;
+
 	spin_lock(&dasd_devmap_lock);
 	/* Changing diag discipline flag is only allowed in offline state. */
 	rc = count;
 	if (!devmap->device) {
-		if (use_diag)
+		if (val)
 			devmap->features |= DASD_FEATURE_USEDIAG;
 		else
 			devmap->features &= ~DASD_FEATURE_USEDIAG;
@@ -854,14 +912,20 @@ dasd_eer_store(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
-	int rc;
+	int val, rc;
+	char *endp;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 	if (!devmap->device)
-		return count;
-	if (buf[0] == '1') {
+		return -ENODEV;
+
+	val = simple_strtoul(buf, &endp, 0);
+	if (((endp + 1) < (buf + count)) || (val > 1))
+		return -EINVAL;
+
+	if (val) {
 		rc = dasd_eer_enable(devmap->device);
 		if (rc)
 			return rc;
@@ -880,6 +944,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_uid.attr,
 	&dev_attr_use_diag.attr,
 	&dev_attr_eer_enabled.attr,
+	&dev_attr_erplog.attr,
 	NULL,
 };
 

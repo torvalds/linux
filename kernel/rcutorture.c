@@ -15,9 +15,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * Copyright (C) IBM Corporation, 2005
+ * Copyright (C) IBM Corporation, 2005, 2006
  *
  * Authors: Paul E. McKenney <paulmck@us.ibm.com>
+ *          Josh Triplett <josh@freedesktop.org>
  *
  * See also:  Documentation/RCU/torture.txt
  */
@@ -44,19 +45,25 @@
 #include <linux/delay.h>
 #include <linux/byteorder/swabb.h>
 #include <linux/stat.h>
+#include <linux/srcu.h>
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and "
+              "Josh Triplett <josh@freedesktop.org>");
 
-static int nreaders = -1;	/* # reader threads, defaults to 4*ncpus */
+static int nreaders = -1;	/* # reader threads, defaults to 2*ncpus */
+static int nfakewriters = 4;	/* # fake writer threads */
 static int stat_interval;	/* Interval between stats, in seconds. */
 				/*  Defaults to "only at end of test". */
 static int verbose;		/* Print more debug info. */
 static int test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
 static int shuffle_interval = 5; /* Interval between shuffles (in sec)*/
-static char *torture_type = "rcu"; /* What to torture. */
+static char *torture_type = "rcu"; /* What RCU implementation to torture. */
 
 module_param(nreaders, int, 0);
 MODULE_PARM_DESC(nreaders, "Number of RCU reader threads");
+module_param(nfakewriters, int, 0);
+MODULE_PARM_DESC(nfakewriters, "Number of RCU fake writer threads");
 module_param(stat_interval, int, 0);
 MODULE_PARM_DESC(stat_interval, "Number of seconds between stats printk()s");
 module_param(verbose, bool, 0);
@@ -66,7 +73,7 @@ MODULE_PARM_DESC(test_no_idle_hz, "Test support for tickless idle CPUs");
 module_param(shuffle_interval, int, 0);
 MODULE_PARM_DESC(shuffle_interval, "Number of seconds between shuffles");
 module_param(torture_type, charp, 0);
-MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh)");
+MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh, srcu)");
 
 #define TORTURE_FLAG "-torture:"
 #define PRINTK_STRING(s) \
@@ -80,6 +87,7 @@ static char printk_buf[4096];
 
 static int nrealreaders;
 static struct task_struct *writer_task;
+static struct task_struct **fakewriter_tasks;
 static struct task_struct **reader_tasks;
 static struct task_struct *stats_task;
 static struct task_struct *shuffler_task;
@@ -104,11 +112,12 @@ static DEFINE_PER_CPU(long [RCU_TORTURE_PIPE_LEN + 1], rcu_torture_count) =
 static DEFINE_PER_CPU(long [RCU_TORTURE_PIPE_LEN + 1], rcu_torture_batch) =
 	{ 0 };
 static atomic_t rcu_torture_wcount[RCU_TORTURE_PIPE_LEN + 1];
-atomic_t n_rcu_torture_alloc;
-atomic_t n_rcu_torture_alloc_fail;
-atomic_t n_rcu_torture_free;
-atomic_t n_rcu_torture_mberror;
-atomic_t n_rcu_torture_error;
+static atomic_t n_rcu_torture_alloc;
+static atomic_t n_rcu_torture_alloc_fail;
+static atomic_t n_rcu_torture_free;
+static atomic_t n_rcu_torture_mberror;
+static atomic_t n_rcu_torture_error;
+static struct list_head rcu_torture_removed;
 
 /*
  * Allocate an element from the rcu_tortures pool.
@@ -145,7 +154,7 @@ rcu_torture_free(struct rcu_torture *p)
 
 struct rcu_random_state {
 	unsigned long rrs_state;
-	unsigned long rrs_count;
+	long rrs_count;
 };
 
 #define RCU_RANDOM_MULT 39916801  /* prime */
@@ -158,7 +167,7 @@ struct rcu_random_state {
  * Crude but fast random-number generator.  Uses a linear congruential
  * generator, with occasional help from get_random_bytes().
  */
-static long
+static unsigned long
 rcu_random(struct rcu_random_state *rrsp)
 {
 	long refresh;
@@ -180,9 +189,11 @@ struct rcu_torture_ops {
 	void (*init)(void);
 	void (*cleanup)(void);
 	int (*readlock)(void);
+	void (*readdelay)(struct rcu_random_state *rrsp);
 	void (*readunlock)(int idx);
 	int (*completed)(void);
 	void (*deferredfree)(struct rcu_torture *p);
+	void (*sync)(void);
 	int (*stats)(char *page);
 	char *name;
 };
@@ -192,13 +203,25 @@ static struct rcu_torture_ops *cur_ops = NULL;
  * Definitions for rcu torture testing.
  */
 
-static int rcu_torture_read_lock(void)
+static int rcu_torture_read_lock(void) __acquires(RCU)
 {
 	rcu_read_lock();
 	return 0;
 }
 
-static void rcu_torture_read_unlock(int idx)
+static void rcu_read_delay(struct rcu_random_state *rrsp)
+{
+	long delay;
+	const long longdelay = 200;
+
+	/* We want there to be long-running readers, but not all the time. */
+
+	delay = rcu_random(rrsp) % (nrealreaders * 2 * longdelay);
+	if (!delay)
+		udelay(longdelay);
+}
+
+static void rcu_torture_read_unlock(int idx) __releases(RCU)
 {
 	rcu_read_unlock();
 }
@@ -239,24 +262,65 @@ static struct rcu_torture_ops rcu_ops = {
 	.init = NULL,
 	.cleanup = NULL,
 	.readlock = rcu_torture_read_lock,
+	.readdelay = rcu_read_delay,
 	.readunlock = rcu_torture_read_unlock,
 	.completed = rcu_torture_completed,
 	.deferredfree = rcu_torture_deferred_free,
+	.sync = synchronize_rcu,
 	.stats = NULL,
 	.name = "rcu"
+};
+
+static void rcu_sync_torture_deferred_free(struct rcu_torture *p)
+{
+	int i;
+	struct rcu_torture *rp;
+	struct rcu_torture *rp1;
+
+	cur_ops->sync();
+	list_add(&p->rtort_free, &rcu_torture_removed);
+	list_for_each_entry_safe(rp, rp1, &rcu_torture_removed, rtort_free) {
+		i = rp->rtort_pipe_count;
+		if (i > RCU_TORTURE_PIPE_LEN)
+			i = RCU_TORTURE_PIPE_LEN;
+		atomic_inc(&rcu_torture_wcount[i]);
+		if (++rp->rtort_pipe_count >= RCU_TORTURE_PIPE_LEN) {
+			rp->rtort_mbtest = 0;
+			list_del(&rp->rtort_free);
+			rcu_torture_free(rp);
+		}
+	}
+}
+
+static void rcu_sync_torture_init(void)
+{
+	INIT_LIST_HEAD(&rcu_torture_removed);
+}
+
+static struct rcu_torture_ops rcu_sync_ops = {
+	.init = rcu_sync_torture_init,
+	.cleanup = NULL,
+	.readlock = rcu_torture_read_lock,
+	.readdelay = rcu_read_delay,
+	.readunlock = rcu_torture_read_unlock,
+	.completed = rcu_torture_completed,
+	.deferredfree = rcu_sync_torture_deferred_free,
+	.sync = synchronize_rcu,
+	.stats = NULL,
+	.name = "rcu_sync"
 };
 
 /*
  * Definitions for rcu_bh torture testing.
  */
 
-static int rcu_bh_torture_read_lock(void)
+static int rcu_bh_torture_read_lock(void) __acquires(RCU_BH)
 {
 	rcu_read_lock_bh();
 	return 0;
 }
 
-static void rcu_bh_torture_read_unlock(int idx)
+static void rcu_bh_torture_read_unlock(int idx) __releases(RCU_BH)
 {
 	rcu_read_unlock_bh();
 }
@@ -271,19 +335,176 @@ static void rcu_bh_torture_deferred_free(struct rcu_torture *p)
 	call_rcu_bh(&p->rtort_rcu, rcu_torture_cb);
 }
 
+struct rcu_bh_torture_synchronize {
+	struct rcu_head head;
+	struct completion completion;
+};
+
+static void rcu_bh_torture_wakeme_after_cb(struct rcu_head *head)
+{
+	struct rcu_bh_torture_synchronize *rcu;
+
+	rcu = container_of(head, struct rcu_bh_torture_synchronize, head);
+	complete(&rcu->completion);
+}
+
+static void rcu_bh_torture_synchronize(void)
+{
+	struct rcu_bh_torture_synchronize rcu;
+
+	init_completion(&rcu.completion);
+	call_rcu_bh(&rcu.head, rcu_bh_torture_wakeme_after_cb);
+	wait_for_completion(&rcu.completion);
+}
+
 static struct rcu_torture_ops rcu_bh_ops = {
 	.init = NULL,
 	.cleanup = NULL,
 	.readlock = rcu_bh_torture_read_lock,
+	.readdelay = rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock = rcu_bh_torture_read_unlock,
 	.completed = rcu_bh_torture_completed,
 	.deferredfree = rcu_bh_torture_deferred_free,
+	.sync = rcu_bh_torture_synchronize,
 	.stats = NULL,
 	.name = "rcu_bh"
 };
 
+static struct rcu_torture_ops rcu_bh_sync_ops = {
+	.init = rcu_sync_torture_init,
+	.cleanup = NULL,
+	.readlock = rcu_bh_torture_read_lock,
+	.readdelay = rcu_read_delay,  /* just reuse rcu's version. */
+	.readunlock = rcu_bh_torture_read_unlock,
+	.completed = rcu_bh_torture_completed,
+	.deferredfree = rcu_sync_torture_deferred_free,
+	.sync = rcu_bh_torture_synchronize,
+	.stats = NULL,
+	.name = "rcu_bh_sync"
+};
+
+/*
+ * Definitions for srcu torture testing.
+ */
+
+static struct srcu_struct srcu_ctl;
+
+static void srcu_torture_init(void)
+{
+	init_srcu_struct(&srcu_ctl);
+	rcu_sync_torture_init();
+}
+
+static void srcu_torture_cleanup(void)
+{
+	synchronize_srcu(&srcu_ctl);
+	cleanup_srcu_struct(&srcu_ctl);
+}
+
+static int srcu_torture_read_lock(void) __acquires(&srcu_ctl)
+{
+	return srcu_read_lock(&srcu_ctl);
+}
+
+static void srcu_read_delay(struct rcu_random_state *rrsp)
+{
+	long delay;
+	const long uspertick = 1000000 / HZ;
+	const long longdelay = 10;
+
+	/* We want there to be long-running readers, but not all the time. */
+
+	delay = rcu_random(rrsp) % (nrealreaders * 2 * longdelay * uspertick);
+	if (!delay)
+		schedule_timeout_interruptible(longdelay);
+}
+
+static void srcu_torture_read_unlock(int idx) __releases(&srcu_ctl)
+{
+	srcu_read_unlock(&srcu_ctl, idx);
+}
+
+static int srcu_torture_completed(void)
+{
+	return srcu_batches_completed(&srcu_ctl);
+}
+
+static void srcu_torture_synchronize(void)
+{
+	synchronize_srcu(&srcu_ctl);
+}
+
+static int srcu_torture_stats(char *page)
+{
+	int cnt = 0;
+	int cpu;
+	int idx = srcu_ctl.completed & 0x1;
+
+	cnt += sprintf(&page[cnt], "%s%s per-CPU(idx=%d):",
+		       torture_type, TORTURE_FLAG, idx);
+	for_each_possible_cpu(cpu) {
+		cnt += sprintf(&page[cnt], " %d(%d,%d)", cpu,
+			       per_cpu_ptr(srcu_ctl.per_cpu_ref, cpu)->c[!idx],
+			       per_cpu_ptr(srcu_ctl.per_cpu_ref, cpu)->c[idx]);
+	}
+	cnt += sprintf(&page[cnt], "\n");
+	return cnt;
+}
+
+static struct rcu_torture_ops srcu_ops = {
+	.init = srcu_torture_init,
+	.cleanup = srcu_torture_cleanup,
+	.readlock = srcu_torture_read_lock,
+	.readdelay = srcu_read_delay,
+	.readunlock = srcu_torture_read_unlock,
+	.completed = srcu_torture_completed,
+	.deferredfree = rcu_sync_torture_deferred_free,
+	.sync = srcu_torture_synchronize,
+	.stats = srcu_torture_stats,
+	.name = "srcu"
+};
+
+/*
+ * Definitions for sched torture testing.
+ */
+
+static int sched_torture_read_lock(void)
+{
+	preempt_disable();
+	return 0;
+}
+
+static void sched_torture_read_unlock(int idx)
+{
+	preempt_enable();
+}
+
+static int sched_torture_completed(void)
+{
+	return 0;
+}
+
+static void sched_torture_synchronize(void)
+{
+	synchronize_sched();
+}
+
+static struct rcu_torture_ops sched_ops = {
+	.init = rcu_sync_torture_init,
+	.cleanup = NULL,
+	.readlock = sched_torture_read_lock,
+	.readdelay = rcu_read_delay,  /* just reuse rcu's version. */
+	.readunlock = sched_torture_read_unlock,
+	.completed = sched_torture_completed,
+	.deferredfree = rcu_sync_torture_deferred_free,
+	.sync = sched_torture_synchronize,
+	.stats = NULL,
+	.name = "sched"
+};
+
 static struct rcu_torture_ops *torture_ops[] =
-	{ &rcu_ops, &rcu_bh_ops, NULL };
+	{ &rcu_ops, &rcu_sync_ops, &rcu_bh_ops, &rcu_bh_sync_ops, &srcu_ops,
+	  &sched_ops, NULL };
 
 /*
  * RCU torture writer kthread.  Repeatedly substitutes a new structure
@@ -330,6 +551,30 @@ rcu_torture_writer(void *arg)
 }
 
 /*
+ * RCU torture fake writer kthread.  Repeatedly calls sync, with a random
+ * delay between calls.
+ */
+static int
+rcu_torture_fakewriter(void *arg)
+{
+	DEFINE_RCU_RANDOM(rand);
+
+	VERBOSE_PRINTK_STRING("rcu_torture_fakewriter task started");
+	set_user_nice(current, 19);
+
+	do {
+		schedule_timeout_uninterruptible(1 + rcu_random(&rand)%10);
+		udelay(rcu_random(&rand) & 0x3ff);
+		cur_ops->sync();
+	} while (!kthread_should_stop() && !fullstop);
+
+	VERBOSE_PRINTK_STRING("rcu_torture_fakewriter task stopping");
+	while (!kthread_should_stop())
+		schedule_timeout_uninterruptible(1);
+	return 0;
+}
+
+/*
  * RCU torture reader kthread.  Repeatedly dereferences rcu_torture_current,
  * incrementing the corresponding element of the pipeline array.  The
  * counter in the element should never be greater than 1, otherwise, the
@@ -359,7 +604,7 @@ rcu_torture_reader(void *arg)
 		}
 		if (p->rtort_mbtest == 0)
 			atomic_inc(&n_rcu_torture_mberror);
-		udelay(rcu_random(&rand) & 0x7f);
+		cur_ops->readdelay(&rand);
 		preempt_disable();
 		pipe_count = p->rtort_pipe_count;
 		if (pipe_count > RCU_TORTURE_PIPE_LEN) {
@@ -483,7 +728,7 @@ static int rcu_idle_cpu;	/* Force all torture tasks off this CPU */
 /* Shuffle tasks such that we allow @rcu_idle_cpu to become idle. A special case
  * is when @rcu_idle_cpu = -1, when we allow the tasks to run on all CPUs.
  */
-void rcu_torture_shuffle_tasks(void)
+static void rcu_torture_shuffle_tasks(void)
 {
 	cpumask_t tmp_mask = CPU_MASK_ALL;
 	int i;
@@ -505,6 +750,12 @@ void rcu_torture_shuffle_tasks(void)
 		for (i = 0; i < nrealreaders; i++)
 			if (reader_tasks[i])
 				set_cpus_allowed(reader_tasks[i], tmp_mask);
+	}
+
+	if (fakewriter_tasks != NULL) {
+		for (i = 0; i < nfakewriters; i++)
+			if (fakewriter_tasks[i])
+				set_cpus_allowed(fakewriter_tasks[i], tmp_mask);
 	}
 
 	if (writer_task)
@@ -540,11 +791,12 @@ rcu_torture_shuffle(void *arg)
 static inline void
 rcu_torture_print_module_parms(char *tag)
 {
-	printk(KERN_ALERT "%s" TORTURE_FLAG "--- %s: nreaders=%d "
+	printk(KERN_ALERT "%s" TORTURE_FLAG
+		"--- %s: nreaders=%d nfakewriters=%d "
 		"stat_interval=%d verbose=%d test_no_idle_hz=%d "
 		"shuffle_interval = %d\n",
-		torture_type, tag, nrealreaders, stat_interval, verbose,
-		test_no_idle_hz, shuffle_interval);
+		torture_type, tag, nrealreaders, nfakewriters,
+		stat_interval, verbose, test_no_idle_hz, shuffle_interval);
 }
 
 static void
@@ -578,6 +830,19 @@ rcu_torture_cleanup(void)
 		reader_tasks = NULL;
 	}
 	rcu_torture_current = NULL;
+
+	if (fakewriter_tasks != NULL) {
+		for (i = 0; i < nfakewriters; i++) {
+			if (fakewriter_tasks[i] != NULL) {
+				VERBOSE_PRINTK_STRING(
+					"Stopping rcu_torture_fakewriter task");
+				kthread_stop(fakewriter_tasks[i]);
+			}
+			fakewriter_tasks[i] = NULL;
+		}
+		kfree(fakewriter_tasks);
+		fakewriter_tasks = NULL;
+	}
 
 	if (stats_task != NULL) {
 		VERBOSE_PRINTK_STRING("Stopping rcu_torture_stats task");
@@ -666,7 +931,25 @@ rcu_torture_init(void)
 		writer_task = NULL;
 		goto unwind;
 	}
-	reader_tasks = kmalloc(nrealreaders * sizeof(reader_tasks[0]),
+	fakewriter_tasks = kzalloc(nfakewriters * sizeof(fakewriter_tasks[0]),
+	                           GFP_KERNEL);
+	if (fakewriter_tasks == NULL) {
+		VERBOSE_PRINTK_ERRSTRING("out of memory");
+		firsterr = -ENOMEM;
+		goto unwind;
+	}
+	for (i = 0; i < nfakewriters; i++) {
+		VERBOSE_PRINTK_STRING("Creating rcu_torture_fakewriter task");
+		fakewriter_tasks[i] = kthread_run(rcu_torture_fakewriter, NULL,
+		                                  "rcu_torture_fakewriter");
+		if (IS_ERR(fakewriter_tasks[i])) {
+			firsterr = PTR_ERR(fakewriter_tasks[i]);
+			VERBOSE_PRINTK_ERRSTRING("Failed to create fakewriter");
+			fakewriter_tasks[i] = NULL;
+			goto unwind;
+		}
+	}
+	reader_tasks = kzalloc(nrealreaders * sizeof(reader_tasks[0]),
 			       GFP_KERNEL);
 	if (reader_tasks == NULL) {
 		VERBOSE_PRINTK_ERRSTRING("out of memory");

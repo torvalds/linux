@@ -32,7 +32,7 @@ static struct usb_driver navman_driver = {
 	.no_dynamic_id = 	1,
 };
 
-static void navman_read_int_callback(struct urb *urb, struct pt_regs *regs)
+static void navman_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
@@ -95,8 +95,7 @@ static void navman_close(struct usb_serial_port *port, struct file *filp)
 {
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (port->interrupt_in_urb)
-		usb_kill_urb(port->interrupt_in_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 }
 
 static int navman_write(struct usb_serial_port *port,

@@ -63,6 +63,7 @@
 #include <asm/ibmebus.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
+#include <asm/hvcall.h>
 
 extern int ehca_debug_level;
 
@@ -117,7 +118,7 @@ extern int ehca_debug_level;
 		unsigned int l = (unsigned int)(len); \
 		unsigned char *deb = (unsigned char*)(adr);	\
 		for (x = 0; x < l; x += 16) { \
-			printk("EHCA_DMP:%s" format \
+			printk("EHCA_DMP:%s " format \
 			       " adr=%p ofs=%04x %016lx %016lx\n", \
 			       __FUNCTION__, ##args, deb, x, \
 			       *((u64 *)&deb[0]), *((u64 *)&deb[8])); \

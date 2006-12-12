@@ -829,7 +829,7 @@ struct rr_private
  */
 static int rr_init(struct net_device *dev);
 static int rr_init1(struct net_device *dev);
-static irqreturn_t rr_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t rr_interrupt(int irq, void *dev_id);
 
 static int rr_open(struct net_device *dev);
 static int rr_start_xmit(struct sk_buff *skb, struct net_device *dev);

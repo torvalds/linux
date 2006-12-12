@@ -247,10 +247,13 @@ static struct resource h3_kp_resources[] = {
 };
 
 static struct omap_kp_platform_data h3_kp_data = {
-	.rows	= 8,
-	.cols	= 8,
-	.keymap = h3_keymap,
-	.rep	= 1,
+	.rows		= 8,
+	.cols		= 8,
+	.keymap		= h3_keymap,
+	.keymapsize	= ARRAY_SIZE(h3_keymap),
+	.rep		= 1,
+	.delay		= 9,
+	.dbounce	= 1,
 };
 
 static struct platform_device h3_kp_device = {
@@ -320,7 +323,8 @@ static int h3_transceiver_mode(struct device *dev, int mode)
 
 	cancel_delayed_work(&irda_config->gpio_expa);
 	PREPARE_WORK(&irda_config->gpio_expa, set_trans_mode, &mode);
-	schedule_work(&irda_config->gpio_expa);
+#error this is not permitted - mode is an argument variable
+	schedule_delayed_work(&irda_config->gpio_expa, 0);
 
 	return 0;
 }

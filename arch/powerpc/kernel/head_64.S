@@ -33,10 +33,9 @@
 #include <asm/hvcall.h>
 #include <asm/iseries/lpar_map.h>
 #include <asm/thread_info.h>
+#include <asm/firmware.h>
 
-#ifdef CONFIG_PPC_ISERIES
 #define DO_SOFT_DISABLE
-#endif
 
 /*
  * We layout physical memory as follows:
@@ -73,13 +72,11 @@
 	.text
 	.globl  _stext
 _stext:
-#ifdef CONFIG_PPC_MULTIPLATFORM
 _GLOBAL(__start)
 	/* NOP this out unconditionally */
 BEGIN_FTR_SECTION
 	b	.__start_initialization_multiplatform
 END_FTR_SECTION(0, 1)
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 	/* Catch branch to 0 in real mode */
 	trap
@@ -307,7 +304,9 @@ exception_marker:
 	std	r9,_LINK(r1);						   \
 	mfctr	r10;			/* save CTR in stackframe	*/ \
 	std	r10,_CTR(r1);						   \
+	lbz	r10,PACASOFTIRQEN(r13);				   \
 	mfspr	r11,SPRN_XER;		/* save XER in stackframe	*/ \
+	std	r10,SOFTE(r1);						   \
 	std	r11,_XER(r1);						   \
 	li	r9,(n)+1;						   \
 	std	r9,_TRAP(r1);		/* set trap number		*/ \
@@ -342,6 +341,34 @@ label##_pSeries:					\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
 
 
+#define MASKABLE_EXCEPTION_PSERIES(n, label)				\
+	. = n;								\
+	.globl label##_pSeries;						\
+label##_pSeries:							\
+	HMT_MEDIUM;							\
+	mtspr	SPRN_SPRG1,r13;		/* save r13 */			\
+	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
+	std	r9,PACA_EXGEN+EX_R9(r13);	/* save r9, r10 */	\
+	std	r10,PACA_EXGEN+EX_R10(r13);				\
+	lbz	r10,PACASOFTIRQEN(r13);					\
+	mfcr	r9;							\
+	cmpwi	r10,0;							\
+	beq	masked_interrupt;					\
+	mfspr	r10,SPRN_SPRG1;						\
+	std	r10,PACA_EXGEN+EX_R13(r13);				\
+	std	r11,PACA_EXGEN+EX_R11(r13);				\
+	std	r12,PACA_EXGEN+EX_R12(r13);				\
+	clrrdi	r12,r13,32;		/* get high part of &label */	\
+	mfmsr	r10;							\
+	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
+	LOAD_HANDLER(r12,label##_common)				\
+	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI;				\
+	mtspr	SPRN_SRR0,r12;						\
+	mfspr	r12,SPRN_SRR1;		/* and SRR1 */			\
+	mtspr	SPRN_SRR1,r10;						\
+	rfid;								\
+	b	.	/* prevent speculative execution */
+
 #define STD_EXCEPTION_ISERIES(n, label, area)		\
 	.globl label##_iSeries;				\
 label##_iSeries:					\
@@ -357,39 +384,38 @@ label##_iSeries:							\
 	HMT_MEDIUM;							\
 	mtspr	SPRN_SPRG1,r13;		/* save r13 */			\
 	EXCEPTION_PROLOG_ISERIES_1(PACA_EXGEN);				\
-	lbz	r10,PACAPROCENABLED(r13);				\
+	lbz	r10,PACASOFTIRQEN(r13);					\
 	cmpwi	0,r10,0;						\
 	beq-	label##_iSeries_masked;					\
 	EXCEPTION_PROLOG_ISERIES_2;					\
 	b	label##_common;						\
 
-#ifdef DO_SOFT_DISABLE
+#ifdef CONFIG_PPC_ISERIES
 #define DISABLE_INTS				\
-	lbz	r10,PACAPROCENABLED(r13);	\
 	li	r11,0;				\
-	std	r10,SOFTE(r1);			\
+	stb	r11,PACASOFTIRQEN(r13);		\
+BEGIN_FW_FTR_SECTION;				\
+	stb	r11,PACAHARDIRQEN(r13);		\
+END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES);	\
+BEGIN_FW_FTR_SECTION;				\
 	mfmsr	r10;				\
-	stb	r11,PACAPROCENABLED(r13);	\
 	ori	r10,r10,MSR_EE;			\
-	mtmsrd	r10,1
+	mtmsrd	r10,1;				\
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 
-#define ENABLE_INTS				\
-	lbz	r10,PACAPROCENABLED(r13);	\
-	mfmsr	r11;				\
-	std	r10,SOFTE(r1);			\
-	ori	r11,r11,MSR_EE;			\
-	mtmsrd	r11,1
+#else
+#define DISABLE_INTS				\
+	li	r11,0;				\
+	stb	r11,PACASOFTIRQEN(r13);		\
+	stb	r11,PACAHARDIRQEN(r13)
 
-#else	/* hard enable/disable interrupts */
-#define DISABLE_INTS
+#endif /* CONFIG_PPC_ISERIES */
 
 #define ENABLE_INTS				\
 	ld	r12,_MSR(r1);			\
 	mfmsr	r11;				\
 	rlwimi	r11,r12,0,MSR_EE;		\
 	mtmsrd	r11,1
-
-#endif
 
 #define STD_EXCEPTION_COMMON(trap, label, hdlr)		\
 	.align	7;					\
@@ -477,7 +503,7 @@ BEGIN_FTR_SECTION
 	rlwimi	r13,r12,16,0x20
 	mfcr	r12
 	cmpwi	r13,0x2c
-	beq	.do_stab_bolted_pSeries
+	beq	do_stab_bolted_pSeries
 	mtcrf	0x80,r12
 	mfspr	r12,SPRN_SPRG2
 END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
@@ -531,11 +557,11 @@ instruction_access_slb_pSeries:
 	mfspr	r12,SPRN_SRR1		/* and SRR1 */
 	b	.slb_miss_realmode	/* Rel. branch works in real mode */
 
-	STD_EXCEPTION_PSERIES(0x500, hardware_interrupt)
+	MASKABLE_EXCEPTION_PSERIES(0x500, hardware_interrupt)
 	STD_EXCEPTION_PSERIES(0x600, alignment)
 	STD_EXCEPTION_PSERIES(0x700, program_check)
 	STD_EXCEPTION_PSERIES(0x800, fp_unavailable)
-	STD_EXCEPTION_PSERIES(0x900, decrementer)
+	MASKABLE_EXCEPTION_PSERIES(0x900, decrementer)
 	STD_EXCEPTION_PSERIES(0xa00, trap_0a)
 	STD_EXCEPTION_PSERIES(0xb00, trap_0b)
 
@@ -587,10 +613,27 @@ system_call_pSeries:
 /*** pSeries interrupt support ***/
 
 	/* moved from 0xf00 */
-	STD_EXCEPTION_PSERIES(., performance_monitor)
+	MASKABLE_EXCEPTION_PSERIES(., performance_monitor)
+
+/*
+ * An interrupt came in while soft-disabled; clear EE in SRR1,
+ * clear paca->hard_enabled and return.
+ */
+masked_interrupt:
+	stb	r10,PACAHARDIRQEN(r13)
+	mtcrf	0x80,r9
+	ld	r9,PACA_EXGEN+EX_R9(r13)
+	mfspr	r10,SPRN_SRR1
+	rldicl	r10,r10,48,1		/* clear MSR_EE */
+	rotldi	r10,r10,16
+	mtspr	SPRN_SRR1,r10
+	ld	r10,PACA_EXGEN+EX_R10(r13)
+	mfspr	r13,SPRN_SPRG1
+	rfid
+	b	.
 
 	.align	7
-_GLOBAL(do_stab_bolted_pSeries)
+do_stab_bolted_pSeries:
 	mtcrf	0x80,r12
 	mfspr	r12,SPRN_SPRG2
 	EXCEPTION_PROLOG_PSERIES(PACA_EXSLB, .do_stab_bolted)
@@ -782,7 +825,7 @@ system_reset_iSeries:
 
 	cmpwi	0,r23,0
 	beq	iSeries_secondary_smp_loop	/* Loop until told to go */
-	bne	.__secondary_start		/* Loop until told to go */
+	bne	__secondary_start		/* Loop until told to go */
 iSeries_secondary_smp_loop:
 	/* Let the Hypervisor know we are alive */
 	/* 8002 is a call to HvCallCfg::getLps, a harmless Hypervisor function */
@@ -803,7 +846,6 @@ iSeries_secondary_smp_loop:
 	b	1b			/* If SMP not configured, secondaries
 					 * loop forever */
 
-	.globl decrementer_iSeries_masked
 decrementer_iSeries_masked:
 	/* We may not have a valid TOC pointer in here. */
 	li	r11,1
@@ -814,7 +856,6 @@ decrementer_iSeries_masked:
 	mtspr	SPRN_DEC,r12
 	/* fall through */
 
-	.globl hardware_interrupt_iSeries_masked
 hardware_interrupt_iSeries_masked:
 	mtcrf	0x80,r9		/* Restore regs */
 	ld	r12,PACALPPACAPTR(r13)
@@ -916,10 +957,18 @@ bad_stack:
  * any task or sent any task a signal, you should use
  * ret_from_except or ret_from_except_lite instead of this.
  */
+fast_exc_return_irq:			/* restores irq state too */
+	ld	r3,SOFTE(r1)
+	ld	r12,_MSR(r1)
+	stb	r3,PACASOFTIRQEN(r13)	/* restore paca->soft_enabled */
+	rldicl	r4,r12,49,63		/* get MSR_EE to LSB */
+	stb	r4,PACAHARDIRQEN(r13)	/* restore paca->hard_enabled */
+	b	1f
+
 	.globl	fast_exception_return
 fast_exception_return:
 	ld	r12,_MSR(r1)
-	ld	r11,_NIP(r1)
+1:	ld	r11,_NIP(r1)
 	andi.	r3,r12,MSR_RI		/* check if RI is set */
 	beq-	unrecov_fer
 
@@ -942,7 +991,8 @@ fast_exception_return:
 	REST_8GPRS(2, r1)
 
 	mfmsr	r10
-	clrrdi	r10,r10,2		/* clear RI (LE is 0 already) */
+	rldicl	r10,r10,48,1		/* clear EE */
+	rldicr	r10,r10,16,61		/* clear RI (LE is 0 already) */
 	mtmsrd	r10,1
 
 	mtspr	SPRN_SRR1,r12
@@ -1036,7 +1086,7 @@ slb_miss_fault:
 	li	r5,0
 	std	r4,_DAR(r1)
 	std	r5,_DSISR(r1)
-	b	.handle_page_fault
+	b	handle_page_fault
 
 unrecov_user_slb:
 	EXCEPTION_PROLOG_COMMON(0x4200, PACA_EXGEN)
@@ -1071,8 +1121,10 @@ _GLOBAL(slb_miss_realmode)
 	ld	r3,PACA_EXSLB+EX_R3(r13)
 	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
 #ifdef CONFIG_PPC_ISERIES
+BEGIN_FW_FTR_SECTION
 	ld	r11,PACALPPACAPTR(r13)
 	ld	r11,LPPACASRR0(r11)		/* get SRR0 value */
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif /* CONFIG_PPC_ISERIES */
 
 	mtlr	r10
@@ -1087,8 +1139,10 @@ _GLOBAL(slb_miss_realmode)
 .machine	pop
 
 #ifdef CONFIG_PPC_ISERIES
+BEGIN_FW_FTR_SECTION
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r12
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif /* CONFIG_PPC_ISERIES */
 	ld	r9,PACA_EXSLB+EX_R9(r13)
 	ld	r10,PACA_EXSLB+EX_R10(r13)
@@ -1160,12 +1214,13 @@ program_check_common:
 	.globl fp_unavailable_common
 fp_unavailable_common:
 	EXCEPTION_PROLOG_COMMON(0x800, PACA_EXGEN)
-	bne	.load_up_fpu		/* if from user, just load it up */
+	bne	1f			/* if from user, just load it up */
 	bl	.save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ENABLE_INTS
 	bl	.kernel_fp_unavailable_exception
 	BUG_OPCODE
+1:	b	.load_up_fpu
 
 	.align	7
 	.globl altivec_unavailable_common
@@ -1265,10 +1320,10 @@ _GLOBAL(do_hash_page)
 	std	r4,_DSISR(r1)
 
 	andis.	r0,r4,0xa450		/* weird error? */
-	bne-	.handle_page_fault	/* if not, try to insert a HPTE */
+	bne-	handle_page_fault	/* if not, try to insert a HPTE */
 BEGIN_FTR_SECTION
 	andis.	r0,r4,0x0020		/* Is it a segment table fault? */
-	bne-	.do_ste_alloc		/* If so handle it */
+	bne-	do_ste_alloc		/* If so handle it */
 END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 
 	/*
@@ -1301,6 +1356,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 	cmpdi	r3,0			/* see if hash_page succeeded */
 
 #ifdef DO_SOFT_DISABLE
+BEGIN_FW_FTR_SECTION
 	/*
 	 * If we had interrupts soft-enabled at the point where the
 	 * DSI/ISI occurred, and an interrupt came in during hash_page,
@@ -1309,7 +1365,17 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 	 * because ret_from_except_lite will check for and handle pending
 	 * interrupts if necessary.
 	 */
-	beq	.ret_from_except_lite
+	beq	13f
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
+#endif
+BEGIN_FW_FTR_SECTION
+	/*
+	 * Here we have interrupts hard-disabled, so it is sufficient
+	 * to restore paca->{soft,hard}_enable and get out.
+	 */
+	beq	fast_exc_return_irq	/* Return from exception on success */
+END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
+
 	/* For a hash failure, we don't bother re-enabling interrupts */
 	ble-	12f
 
@@ -1321,28 +1387,24 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 	ld	r3,SOFTE(r1)
 	bl	.local_irq_restore
 	b	11f
-#else
-	beq	fast_exception_return   /* Return from exception on success */
-	ble-	12f			/* Failure return from hash_page */
-
-	/* fall through */
-#endif
 
 /* Here we have a page fault that hash_page can't handle. */
-_GLOBAL(handle_page_fault)
+handle_page_fault:
 	ENABLE_INTS
 11:	ld	r4,_DAR(r1)
 	ld	r5,_DSISR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_page_fault
 	cmpdi	r3,0
-	beq+	.ret_from_except_lite
+	beq+	13f
 	bl	.save_nvgprs
 	mr	r5,r3
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	lwz	r4,_DAR(r1)
 	bl	.bad_page_fault
 	b	.ret_from_except
+
+13:	b	.ret_from_except_lite
 
 /* We have a page fault that hash_page could handle but HV refused
  * the PTE insertion
@@ -1354,11 +1416,11 @@ _GLOBAL(handle_page_fault)
 	b	.ret_from_except
 
 	/* here we have a segment miss */
-_GLOBAL(do_ste_alloc)
+do_ste_alloc:
 	bl	.ste_allocate		/* try to insert stab entry */
 	cmpdi	r3,0
-	beq+	fast_exception_return
-	b	.handle_page_fault
+	bne-	handle_page_fault
+	b	fast_exception_return
 
 /*
  * r13 points to the PACA, r9 contains the saved CR,
@@ -1540,7 +1602,7 @@ _GLOBAL(generic_secondary_smp_init)
 	ld	r1,PACAEMERGSP(r13)
 	subi	r1,r1,STACK_FRAME_OVERHEAD
 
-	b	.__secondary_start
+	b	__secondary_start
 #endif
 
 #ifdef CONFIG_PPC_ISERIES
@@ -1563,11 +1625,6 @@ _STATIC(__start_initialization_iSeries)
 	li	r0,0
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
 
-	LOAD_REG_IMMEDIATE(r3,cpu_specs)
-	LOAD_REG_IMMEDIATE(r4,cur_cpu_spec)
-	li	r5,0
-	bl	.identify_cpu
-
 	LOAD_REG_IMMEDIATE(r2,__toc_start)
 	addi	r2,r2,0x4000
 	addi	r2,r2,0x4000
@@ -1580,7 +1637,6 @@ _STATIC(__start_initialization_iSeries)
 	b	.start_here_common
 #endif /* CONFIG_PPC_ISERIES */
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 
 _STATIC(__mmu_off)
 	mfmsr	r3
@@ -1606,13 +1662,11 @@ _STATIC(__mmu_off)
  *
  */
 _GLOBAL(__start_initialization_multiplatform)
-#ifdef CONFIG_PPC_MULTIPLATFORM
 	/*
 	 * Are we booted from a PROM Of-type client-interface ?
 	 */
 	cmpldi	cr0,r5,0
 	bne	.__boot_from_prom		/* yes -> prom */
-#endif
 
 	/* Save parameters */
 	mr	r31,r3
@@ -1629,6 +1683,8 @@ _GLOBAL(__start_initialization_multiplatform)
 	cmpwi	r0,0x3c		/* 970FX */
 	beq	1f
 	cmpwi	r0,0x44		/* 970MP */
+	beq	1f
+	cmpwi	r0,0x45		/* 970GX */
 	bne	2f
 1:	bl	.__cpu_preinit_ppc970
 2:
@@ -1639,7 +1695,6 @@ _GLOBAL(__start_initialization_multiplatform)
 	bl	.__mmu_off
 	b	.__after_prom_start
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 _STATIC(__boot_from_prom)
 	/* Save parameters */
 	mr	r31,r3
@@ -1679,7 +1734,6 @@ _STATIC(__boot_from_prom)
 	bl	.prom_init
 	/* We never return */
 	trap
-#endif
 
 /*
  * At this point, r3 contains the physical address we are running at,
@@ -1734,8 +1788,6 @@ _STATIC(__after_prom_start)
 	sub	r5,r5,r27
 	bl	.copy_and_flush		/* copy the rest */
 	b	.start_here_multiplatform
-
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 /*
  * Copy routine used to copy the kernel to start at physical address 0
@@ -1819,7 +1871,7 @@ _GLOBAL(pmac_secondary_start)
 	ld	r1,PACAEMERGSP(r13)
 	subi	r1,r1,STACK_FRAME_OVERHEAD
 
-	b	.__secondary_start
+	b	__secondary_start
 
 #endif /* CONFIG_PPC_PMAC */
 
@@ -1836,7 +1888,7 @@ _GLOBAL(pmac_secondary_start)
  *   r13   = paca virtual address
  *   SPRG3 = paca virtual address
  */
-_GLOBAL(__secondary_start)
+__secondary_start:
 	/* Set thread priority to MEDIUM */
 	HMT_MEDIUM
 
@@ -1860,9 +1912,16 @@ _GLOBAL(__secondary_start)
 	/* enable MMU and jump to start_secondary */
 	LOAD_REG_ADDR(r3, .start_secondary_prolog)
 	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL)
-#ifdef DO_SOFT_DISABLE
+#ifdef CONFIG_PPC_ISERIES
+BEGIN_FW_FTR_SECTION
 	ori	r4,r4,MSR_EE
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif
+BEGIN_FW_FTR_SECTION
+	stb	r7,PACASOFTIRQEN(r13)
+	stb	r7,PACAHARDIRQEN(r13)
+END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
+
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
 	rfid
@@ -1894,7 +1953,6 @@ _GLOBAL(enable_64b_mode)
 	isync
 	blr
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 /*
  * This is where the main kernel code starts.
  */
@@ -1945,13 +2003,6 @@ _STATIC(start_here_multiplatform)
 	addi	r2,r2,0x4000
 	add	r2,r2,r26
 
-	LOAD_REG_IMMEDIATE(r3, cpu_specs)
-	add	r3,r3,r26
-	LOAD_REG_IMMEDIATE(r4,cur_cpu_spec)
-	add	r4,r4,r26
-	mr	r5,r26
-	bl	.identify_cpu
-
 	/* Do very early kernel initializations, including initial hash table,
 	 * stab and slb setup before we turn on relocation.	*/
 
@@ -1965,7 +2016,6 @@ _STATIC(start_here_multiplatform)
 	mtspr	SPRN_SRR1,r4
 	rfid
 	b	.	/* prevent speculative execution */
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 	
 	/* This is where all platforms converge execution */
 _STATIC(start_here_common)
@@ -1981,12 +2031,6 @@ _STATIC(start_here_common)
 	li	r0,0
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
 
-	/* Apply the CPUs-specific fixups (nop out sections not relevant
-	 * to this CPU
-	 */
-	li	r3,0
-	bl	.do_cpu_ftr_fixups
-
 	/* ptr to current */
 	LOAD_REG_IMMEDIATE(r4, init_task)
 	std	r4,PACACURRENT(r13)
@@ -1999,13 +2043,18 @@ _STATIC(start_here_common)
 
 	/* Load up the kernel context */
 5:
-#ifdef DO_SOFT_DISABLE
 	li	r5,0
-	stb	r5,PACAPROCENABLED(r13)	/* Soft Disabled */
+	stb	r5,PACASOFTIRQEN(r13)	/* Soft Disabled */
+#ifdef CONFIG_PPC_ISERIES
+BEGIN_FW_FTR_SECTION
 	mfmsr	r5
 	ori	r5,r5,MSR_EE		/* Hard Enabled */
 	mtmsrd	r5
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif
+BEGIN_FW_FTR_SECTION
+	stb	r5,PACAHARDIRQEN(r13)
+END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
 
 	bl .start_kernel
 

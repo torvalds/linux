@@ -19,7 +19,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <asm/semaphore.h>
@@ -40,8 +39,6 @@ struct pvr2_sysfs {
 #endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
 	struct pvr2_sysfs_ctl_item *item_first;
 	struct pvr2_sysfs_ctl_item *item_last;
-	struct sysfs_ops kops;
-	struct kobj_type ktype;
 	struct class_device_attribute attr_v4l_minor_number;
 	struct class_device_attribute attr_unit_number;
 	int v4l_minor_number_created_ok;

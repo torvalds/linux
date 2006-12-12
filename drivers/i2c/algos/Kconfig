@@ -38,26 +38,9 @@ config I2C_ALGOPCA
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-algo-pca.
 
-config I2C_ALGOITE
-	tristate "ITE I2C Algorithm"
-	depends on MIPS_ITE8172 && I2C
-	help
-	  This supports the use of the ITE8172 I2C interface found on some MIPS
-	  systems. Say Y if you have one of these. You should also say Y for
-	  the ITE I2C peripheral driver support below.
-
-	  This support is also available as a module.  If so, the module 
-	  will be called i2c-algo-ite.
-
 config I2C_ALGO8XX
 	tristate "MPC8xx CPM I2C interface"
 	depends on 8xx && I2C
-
-config I2C_ALGO_SIBYTE
-	tristate "SiByte SMBus interface"
-	depends on SIBYTE_SB1xxx_SOC && I2C
-	help
-	  Supports the SiByte SOC on-chip I2C interfaces (2 channels).
 
 config I2C_ALGO_SGI
 	tristate "I2C SGI interfaces"

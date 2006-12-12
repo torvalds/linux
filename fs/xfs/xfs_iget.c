@@ -50,7 +50,7 @@ void
 xfs_ihash_init(xfs_mount_t *mp)
 {
 	__uint64_t	icount;
-	uint		i, flags = KM_SLEEP | KM_MAYFAIL;
+	uint		i;
 
 	if (!mp->m_ihsize) {
 		icount = mp->m_maxicount ? mp->m_maxicount :
@@ -61,14 +61,13 @@ xfs_ihash_init(xfs_mount_t *mp)
 					(64 * NBPP) / sizeof(xfs_ihash_t));
 	}
 
-	while (!(mp->m_ihash = (xfs_ihash_t *)kmem_zalloc(mp->m_ihsize *
-						sizeof(xfs_ihash_t), flags))) {
-		if ((mp->m_ihsize >>= 1) <= NBPP)
-			flags = KM_SLEEP;
-	}
-	for (i = 0; i < mp->m_ihsize; i++) {
+	mp->m_ihash = kmem_zalloc_greedy(&mp->m_ihsize,
+					 NBPC * sizeof(xfs_ihash_t),
+					 mp->m_ihsize * sizeof(xfs_ihash_t),
+					 KM_SLEEP | KM_MAYFAIL | KM_LARGE);
+	mp->m_ihsize /= sizeof(xfs_ihash_t);
+	for (i = 0; i < mp->m_ihsize; i++)
 		rwlock_init(&(mp->m_ihash[i].ih_lock));
-	}
 }
 
 /*
@@ -77,7 +76,7 @@ xfs_ihash_init(xfs_mount_t *mp)
 void
 xfs_ihash_free(xfs_mount_t *mp)
 {
-	kmem_free(mp->m_ihash, mp->m_ihsize*sizeof(xfs_ihash_t));
+	kmem_free(mp->m_ihash, mp->m_ihsize * sizeof(xfs_ihash_t));
 	mp->m_ihash = NULL;
 }
 
@@ -95,7 +94,7 @@ xfs_chash_init(xfs_mount_t *mp)
 	mp->m_chsize = min_t(uint, mp->m_chsize, mp->m_ihsize);
 	mp->m_chash = (xfs_chash_t *)kmem_zalloc(mp->m_chsize
 						 * sizeof(xfs_chash_t),
-						 KM_SLEEP);
+						 KM_SLEEP | KM_LARGE);
 	for (i = 0; i < mp->m_chsize; i++) {
 		spinlock_init(&mp->m_chash[i].ch_lock,"xfshash");
 	}
@@ -216,7 +215,7 @@ again:
 			 * If INEW is set this inode is being set up
 			 * we need to pause and try again.
 			 */
-			if (ip->i_flags & XFS_INEW) {
+			if (xfs_iflags_test(ip, XFS_INEW)) {
 				read_unlock(&ih->ih_lock);
 				delay(1);
 				XFS_STATS_INC(xs_ig_frecycle);
@@ -231,11 +230,41 @@ again:
 				 * on its way out of the system,
 				 * we need to pause and try again.
 				 */
-				if (ip->i_flags & XFS_IRECLAIM) {
+				if (xfs_iflags_test(ip, XFS_IRECLAIM)) {
 					read_unlock(&ih->ih_lock);
 					delay(1);
 					XFS_STATS_INC(xs_ig_frecycle);
 
+					goto again;
+				}
+				ASSERT(xfs_iflags_test(ip, XFS_IRECLAIMABLE));
+
+				/*
+				 * If lookup is racing with unlink, then we
+				 * should return an error immediately so we
+				 * don't remove it from the reclaim list and
+				 * potentially leak the inode.
+				 */
+				if ((ip->i_d.di_mode == 0) &&
+				    !(flags & XFS_IGET_CREATE)) {
+					read_unlock(&ih->ih_lock);
+					return ENOENT;
+				}
+
+				/*
+				 * There may be transactions sitting in the
+				 * incore log buffers or being flushed to disk
+				 * at this time.  We can't clear the
+				 * XFS_IRECLAIMABLE flag until these
+				 * transactions have hit the disk, otherwise we
+				 * will void the guarantee the flag provides
+				 * xfs_iunpin()
+				 */
+				if (xfs_ipincount(ip)) {
+					read_unlock(&ih->ih_lock);
+					xfs_log_force(mp, 0,
+						XFS_LOG_FORCE|XFS_LOG_SYNC);
+					XFS_STATS_INC(xs_ig_frecycle);
 					goto again;
 				}
 
@@ -244,7 +273,7 @@ again:
 
 				XFS_STATS_INC(xs_ig_found);
 
-				ip->i_flags &= ~XFS_IRECLAIMABLE;
+				xfs_iflags_clear(ip, XFS_IRECLAIMABLE);
 				version = ih->ih_version;
 				read_unlock(&ih->ih_lock);
 				xfs_ihash_promote(ih, ip, version);
@@ -290,16 +319,15 @@ again:
 
 finish_inode:
 			if (ip->i_d.di_mode == 0) {
-				if (!(flags & IGET_CREATE))
+				if (!(flags & XFS_IGET_CREATE))
 					return ENOENT;
 				xfs_iocore_inode_reinit(ip);
 			}
-	
+
 			if (lock_flags != 0)
 				xfs_ilock(ip, lock_flags);
 
-			ip->i_flags &= ~XFS_ISTALE;
-
+			xfs_iflags_clear(ip, XFS_ISTALE);
 			vn_trace_exit(vp, "xfs_iget.found",
 						(inst_t *)__return_address);
 			goto return_ip;
@@ -320,21 +348,20 @@ finish_inode:
 	 * Read the disk inode attributes into a new inode structure and get
 	 * a new vnode for it. This should also initialize i_ino and i_mount.
 	 */
-	error = xfs_iread(mp, tp, ino, &ip, bno);
-	if (error) {
+	error = xfs_iread(mp, tp, ino, &ip, bno,
+			  (flags & XFS_IGET_BULKSTAT) ? XFS_IMAP_BULKSTAT : 0);
+	if (error)
 		return error;
-	}
 
 	vn_trace_exit(vp, "xfs_iget.alloc", (inst_t *)__return_address);
 
 	xfs_inode_lock_init(ip, vp);
 	xfs_iocore_inode_init(ip);
 
-	if (lock_flags != 0) {
+	if (lock_flags)
 		xfs_ilock(ip, lock_flags);
-	}
-		
-	if ((ip->i_d.di_mode == 0) && !(flags & IGET_CREATE)) {
+
+	if ((ip->i_d.di_mode == 0) && !(flags & XFS_IGET_CREATE)) {
 		xfs_idestroy(ip);
 		return ENOENT;
 	}
@@ -369,8 +396,7 @@ finish_inode:
 	ih->ih_next = ip;
 	ip->i_udquot = ip->i_gdquot = NULL;
 	ih->ih_version++;
-	ip->i_flags |= XFS_INEW;
-
+	xfs_iflags_set(ip, XFS_INEW);
 	write_unlock(&ih->ih_lock);
 
 	/*
@@ -548,7 +574,7 @@ xfs_inode_lock_init(
 	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", vp->v_number);
 	init_waitqueue_head(&ip->i_ipin_wait);
 	atomic_set(&ip->i_pincount, 0);
-	init_sema(&ip->i_flock, 1, "xfsfino", vp->v_number);
+	initnsema(&ip->i_flock, 1, "xfsfino");
 }
 
 /*
@@ -621,7 +647,7 @@ xfs_iput_new(xfs_inode_t	*ip,
 	vn_trace_entry(vp, "xfs_iput_new", (inst_t *)__return_address);
 
 	if ((ip->i_d.di_mode == 0)) {
-		ASSERT(!(ip->i_flags & XFS_IRECLAIMABLE));
+		ASSERT(!xfs_iflags_test(ip, XFS_IRECLAIMABLE));
 		vn_mark_bad(vp);
 	}
 	if (inode->i_state & I_NEW)
@@ -679,6 +705,7 @@ xfs_ireclaim(xfs_inode_t *ip)
 	/*
 	 * Free all memory associated with the inode.
 	 */
+	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
 	xfs_idestroy(ip);
 }
 

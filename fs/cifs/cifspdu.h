@@ -26,7 +26,8 @@
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 #define LANMAN_PROT 0
-#define CIFS_PROT   1
+#define LANMAN2_PROT 1
+#define CIFS_PROT   2
 #else
 #define CIFS_PROT   0
 #endif
@@ -408,6 +409,8 @@ typedef struct negotiate_req {
 
 /* Dialect index is 13 for LANMAN */
 
+#define MIN_TZ_ADJ (15 * 60) /* minimum grid for timezones in seconds */
+
 typedef struct lanman_neg_rsp {
 	struct smb_hdr hdr;	/* wct = 13 */
 	__le16 DialectIndex;
@@ -417,7 +420,10 @@ typedef struct lanman_neg_rsp {
 	__le16 MaxNumberVcs;
 	__le16 RawMode;
 	__le32 SessionKey;
-	__le32 ServerTime;
+	struct {
+		__le16 Time;
+		__le16 Date;
+	} __attribute__((packed)) SrvTime;
 	__le16 ServerTimeZone;
 	__le16 EncryptionKeyLength;
 	__le16 Reserved;
@@ -574,6 +580,12 @@ typedef union smb_com_session_setup_andx {
 
 /* format of NLTMv2 Response ie "case sensitive password" hash when NTLMv2 */
 
+#define NTLMSSP_SERVER_TYPE	1
+#define NTLMSSP_DOMAIN_TYPE	2
+#define NTLMSSP_FQ_DOMAIN_TYPE	3
+#define NTLMSSP_DNS_DOMAIN_TYPE	4
+#define NTLMSSP_DNS_PARENT_TYPE	5
+
 struct ntlmssp2_name {
 	__le16 type;
 	__le16 length;
@@ -587,7 +599,7 @@ struct ntlmv2_resp {
 	__le64  time;
 	__u64  client_chal; /* random */
 	__u32  reserved2;
-	struct ntlmssp2_name names[1];
+	struct ntlmssp2_name names[2];
 	/* array of name entries could follow ending in minimum 4 byte struct */
 } __attribute__((packed));
 
@@ -674,7 +686,7 @@ typedef union smb_com_tree_disconnect {	/* as an altetnative can use flag on
 typedef struct smb_com_close_req {
 	struct smb_hdr hdr;	/* wct = 3 */
 	__u16 FileID;
-	__u32 LastWriteTime;	/* should be zero */
+	__u32 LastWriteTime;	/* should be zero or -1 */
 	__u16 ByteCount;	/* 0 */
 } __attribute__((packed)) CLOSE_REQ;
 

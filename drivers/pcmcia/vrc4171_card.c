@@ -514,7 +514,7 @@ static inline unsigned int get_events(int slot)
 	return events;
 }
 
-static irqreturn_t pccard_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pccard_interrupt(int irq, void *dev_id)
 {
 	vrc4171_socket_t *socket;
 	unsigned int events;

@@ -1000,6 +1000,9 @@ int ocfs2_register_net_handlers(struct ocfs2_super *osb)
 {
 	int status = 0;
 
+	if (ocfs2_mount_local(osb))
+		return 0;
+
 	status = o2net_register_handler(OCFS2_MESSAGE_TYPE_RESPONSE,
 					osb->net_key,
 					sizeof(struct ocfs2_response_msg),

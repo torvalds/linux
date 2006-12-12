@@ -289,6 +289,8 @@ static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 	struct pnp_resource_table * cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
 	int err;
 
+	if (!cfg)
+		return -ENOMEM;
 	acard->cap = pnp_request_card_device(card, id->devs[0].id, NULL);
 	if (acard->cap == NULL) {
 		kfree(cfg);

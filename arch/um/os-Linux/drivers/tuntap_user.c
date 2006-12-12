@@ -205,7 +205,7 @@ static int tuntap_set_mtu(int mtu, void *data)
 	return(mtu);
 }
 
-struct net_user_info tuntap_user_info = {
+const struct net_user_info tuntap_user_info = {
 	.init		= tuntap_user_init,
 	.open		= tuntap_open,
 	.close	 	= tuntap_close,

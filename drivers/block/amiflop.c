@@ -209,7 +209,7 @@ static int fd_device[4] = { 0, 0, 0, 0 };
 
 /* Milliseconds timer */
 
-static irqreturn_t ms_isr(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t ms_isr(int irq, void *dummy)
 {
 	ms_busy = -1;
 	wake_up(&ms_wait);
@@ -560,7 +560,7 @@ static unsigned long fd_get_drive_id(int drive)
 	return (id);
 }
 
-static irqreturn_t fd_block_done(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t fd_block_done(int irq, void *dummy)
 {
 	if (block_flag)
 		custom.dsklen = 0x4000;
@@ -1709,9 +1709,12 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	return get_disk(unit[drive].gendisk);
 }
 
-int __init amiga_floppy_init(void)
+static int __init amiga_floppy_init(void)
 {
 	int i, ret;
+
+	if (!MACH_IS_AMIGA)
+		return -ENXIO;
 
 	if (!AMIGAHW_PRESENT(AMI_FLOPPY))
 		return -ENXIO;
@@ -1809,14 +1812,8 @@ out_blkdev:
 	return ret;
 }
 
+module_init(amiga_floppy_init);
 #ifdef MODULE
-
-int init_module(void)
-{
-	if (!MACH_IS_AMIGA)
-		return -ENXIO;
-	return amiga_floppy_init();
-}
 
 #if 0 /* not safe to unload */
 void cleanup_module(void)

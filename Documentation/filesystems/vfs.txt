@@ -410,7 +410,7 @@ otherwise noted.
 
   put_link: called by the VFS to release resources allocated by
   	follow_link().  The cookie returned by follow_link() is passed
-  	to to this method as the last parameter.  It is used by
+  	to this method as the last parameter.  It is used by
   	filesystems such as NFS where page cache is not stable
   	(i.e. page that was installed when the symbolic link walk
   	started might not be in the page cache at the end of the
@@ -699,9 +699,9 @@ This describes how the VFS can manipulate an open file. As of kernel
 struct file_operations {
 	loff_t (*llseek) (struct file *, loff_t, int);
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
-	ssize_t (*aio_read) (struct kiocb *, char __user *, size_t, loff_t);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
-	ssize_t (*aio_write) (struct kiocb *, const char __user *, size_t, loff_t);
+	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
+	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	int (*readdir) (struct file *, void *, filldir_t);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	int (*ioctl) (struct inode *, struct file *, unsigned int, unsigned long);

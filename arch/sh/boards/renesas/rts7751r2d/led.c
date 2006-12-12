@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/led_rts7751r2d.c
+ * linux/arch/sh/boards/renesas/rts7751r2d/led.c
  *
  * Copyright (C) Atom Create Engineering Co., Ltd.
  *
@@ -8,15 +8,9 @@
  *
  * This file contains Renesas Technology Sales RTS7751R2D specific LED code.
  */
-
-#include <asm/io.h>
-#include <asm/rts7751r2d/rts7751r2d.h>
-
-extern unsigned int debug_counter;
-
-#ifdef CONFIG_HEARTBEAT
-
+#include <linux/io.h>
 #include <linux/sched.h>
+#include <asm/rts7751r2d.h>
 
 /* Cycle the LED's in the clasic Knightriger/Sun pattern */
 void heartbeat_rts7751r2d(void)
@@ -47,20 +41,4 @@ void heartbeat_rts7751r2d(void)
 		up = 1;
 	else
 		bit--;
-}
-#endif /* CONFIG_HEARTBEAT */
-
-void rts7751r2d_led(unsigned short value)
-{
-	ctrl_outw(value, PA_OUTPORT);
-}
-
-void debug_led_disp(void)
-{
-	unsigned short value;
-
-	value = (unsigned short)debug_counter++;
-	rts7751r2d_led(value);
-	if (value == 0xff)
-		debug_counter = 0;
 }

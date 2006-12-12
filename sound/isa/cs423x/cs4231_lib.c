@@ -920,7 +920,7 @@ static void snd_cs4231_overrange(struct snd_cs4231 *chip)
 		chip->capture_substream->runtime->overrange++;
 }
 
-irqreturn_t snd_cs4231_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t snd_cs4231_interrupt(int irq, void *dev_id)
 {
 	struct snd_cs4231 *chip = dev_id;
 	unsigned char status;

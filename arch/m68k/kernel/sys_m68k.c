@@ -27,6 +27,7 @@
 #include <asm/traps.h>
 #include <asm/ipc.h>
 #include <asm/page.h>
+#include <asm/unistd.h>
 
 /*
  * sys_pipe() is the normal C calling standard for creating
@@ -662,4 +663,19 @@ out:
 asmlinkage int sys_getpagesize(void)
 {
 	return PAGE_SIZE;
+}
+
+/*
+ * Do a system call from kernel instead of calling sys_execve so we
+ * end up with proper pt_regs.
+ */
+int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+{
+	register long __res asm ("%d0") = __NR_execve;
+	register long __a asm ("%d1") = (long)(filename);
+	register long __b asm ("%d2") = (long)(argv);
+	register long __c asm ("%d3") = (long)(envp);
+	asm volatile ("trap  #0" : "+d" (__res)
+			: "d" (__a), "d" (__b), "d" (__c));
+	return __res;
 }

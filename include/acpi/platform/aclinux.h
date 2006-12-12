@@ -64,7 +64,7 @@
 /* Host-dependent types and defines */
 
 #define ACPI_MACHINE_WIDTH          BITS_PER_LONG
-#define acpi_cache_t                        kmem_cache_t
+#define acpi_cache_t                        struct kmem_cache
 #define acpi_spinlock                   spinlock_t *
 #define ACPI_EXPORT_SYMBOL(symbol)  EXPORT_SYMBOL(symbol);
 #define strtoul                     simple_strtoul

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2001 Jens Axboe <axboe@suse.de>
+ * Copyright (C) 2001 Jens Axboe <axboe@kernel.dk>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -30,7 +30,7 @@
 
 #define BIO_POOL_SIZE 256
 
-static kmem_cache_t *bio_slab __read_mostly;
+static struct kmem_cache *bio_slab __read_mostly;
 
 #define BIOVEC_NR_POOLS 6
 
@@ -44,7 +44,7 @@ mempool_t *bio_split_pool __read_mostly;
 struct biovec_slab {
 	int nr_vecs;
 	char *name; 
-	kmem_cache_t *slab;
+	struct kmem_cache *slab;
 };
 
 /*
@@ -79,7 +79,6 @@ static struct bio_set *fs_bio_set;
 static inline struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned long *idx, struct bio_set *bs)
 {
 	struct bio_vec *bvl;
-	struct biovec_slab *bp;
 
 	/*
 	 * see comment near bvec_array define!
@@ -98,10 +97,12 @@ static inline struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned lon
 	 * idx now points to the pool we want to allocate from
 	 */
 
-	bp = bvec_slabs + *idx;
 	bvl = mempool_alloc(bs->bvec_pools[*idx], gfp_mask);
-	if (bvl)
+	if (bvl) {
+		struct biovec_slab *bp = bvec_slabs + *idx;
+
 		memset(bvl, 0, bp->nr_vecs * sizeof(struct bio_vec));
+	}
 
 	return bvl;
 }
@@ -166,7 +167,7 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 
 		bio_init(bio);
 		if (likely(nr_iovecs)) {
-			unsigned long idx;
+			unsigned long idx = 0; /* shut up gcc */
 
 			bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx, bs);
 			if (unlikely(!bvl)) {
@@ -559,10 +560,8 @@ struct bio *bio_copy_user(request_queue_t *q, unsigned long uaddr,
 			break;
 		}
 
-		if (bio_add_pc_page(q, bio, page, bytes, 0) < bytes) {
-			ret = -EINVAL;
+		if (bio_add_pc_page(q, bio, page, bytes, 0) < bytes)
 			break;
-		}
 
 		len -= bytes;
 	}
@@ -621,10 +620,9 @@ static struct bio *__bio_map_user_iov(request_queue_t *q,
 
 		nr_pages += end - start;
 		/*
-		 * transfer and buffer must be aligned to at least hardsector
-		 * size for now, in the future we can relax this restriction
+		 * buffer must be aligned to at least hardsector size for now
 		 */
-		if ((uaddr & queue_dma_alignment(q)) || (len & queue_dma_alignment(q)))
+		if (uaddr & queue_dma_alignment(q))
 			return ERR_PTR(-EINVAL);
 	}
 
@@ -750,7 +748,6 @@ struct bio *bio_map_user_iov(request_queue_t *q, struct block_device *bdev,
 			     int write_to_vm)
 {
 	struct bio *bio;
-	int len = 0, i;
 
 	bio = __bio_map_user_iov(q, bdev, iov, iov_count, write_to_vm);
 
@@ -765,18 +762,7 @@ struct bio *bio_map_user_iov(request_queue_t *q, struct block_device *bdev,
 	 */
 	bio_get(bio);
 
-	for (i = 0; i < iov_count; i++)
-		len += iov[i].iov_len;
-
-	if (bio->bi_size == len)
-		return bio;
-
-	/*
-	 * don't support partial mappings
-	 */
-	bio_endio(bio, bio->bi_size, 0);
-	bio_unmap_user(bio);
-	return ERR_PTR(-EINVAL);
+	return bio;
 }
 
 static void __bio_unmap_user(struct bio *bio)
@@ -954,16 +940,16 @@ static void bio_release_pages(struct bio *bio)
  * run one bio_put() against the BIO.
  */
 
-static void bio_dirty_fn(void *data);
+static void bio_dirty_fn(struct work_struct *work);
 
-static DECLARE_WORK(bio_dirty_work, bio_dirty_fn, NULL);
+static DECLARE_WORK(bio_dirty_work, bio_dirty_fn);
 static DEFINE_SPINLOCK(bio_dirty_lock);
 static struct bio *bio_dirty_list;
 
 /*
  * This runs in process context
  */
-static void bio_dirty_fn(void *data)
+static void bio_dirty_fn(struct work_struct *work)
 {
 	unsigned long flags;
 	struct bio *bio;
@@ -1142,7 +1128,7 @@ static int biovec_create_pools(struct bio_set *bs, int pool_entries, int scale)
 		struct biovec_slab *bp = bvec_slabs + i;
 		mempool_t **bvp = bs->bvec_pools + i;
 
-		if (i >= scale)
+		if (pool_entries > 1 && i >= scale)
 			pool_entries >>= 1;
 
 		*bvp = mempool_create_slab_pool(pool_entries, bp->slab);

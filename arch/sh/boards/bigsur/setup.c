@@ -41,31 +41,7 @@
 //		Big Sur Init Routines	
 /*===========================================================*/
 
-const char *get_system_type(void)
-{
-	return "Big Sur";
-}
-
-/*
- * The Machine Vector
- */
-extern void heartbeat_bigsur(void);
-extern void init_bigsur_IRQ(void);
-
-struct sh_machine_vector mv_bigsur __initmv = {
-	.mv_nr_irqs		= NR_IRQS,     // Defined in <asm/irq.h>
-
-	.mv_isa_port2addr	= bigsur_isa_port2addr,
-	.mv_irq_demux       	= bigsur_irq_demux,
-
-	.mv_init_irq		= init_bigsur_IRQ,
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat		= heartbeat_bigsur,
-#endif
-};
-ALIAS_MV(bigsur)
-
-int __init platform_setup(void)
+static void __init bigsur_setup(char **cmdline_p)
 {
 	/* Mask all 2nd level IRQ's */
 	outb(-1,BIGSUR_IMR0);
@@ -89,7 +65,24 @@ int __init platform_setup(void)
 	outw(1, BIGSUR_ETHR+0xe);
 	/* set the IO port to BIGSUR_ETHER_IOPORT */
 	outw(BIGSUR_ETHER_IOPORT<<3, BIGSUR_ETHR+0x2);
-
-	return 0;
 }
 
+/*
+ * The Machine Vector
+ */
+extern void heartbeat_bigsur(void);
+extern void init_bigsur_IRQ(void);
+
+struct sh_machine_vector mv_bigsur __initmv = {
+	.mv_name		= "Big Sur",
+	.mv_setup		= bigsur_setup,
+
+	.mv_isa_port2addr	= bigsur_isa_port2addr,
+	.mv_irq_demux       	= bigsur_irq_demux,
+
+	.mv_init_irq		= init_bigsur_IRQ,
+#ifdef CONFIG_HEARTBEAT
+	.mv_heartbeat		= heartbeat_bigsur,
+#endif
+};
+ALIAS_MV(bigsur)

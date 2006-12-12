@@ -12,12 +12,14 @@
  *  published by the Free Software Foundation.
  */
 
+#include <linux/fb.h>
+
 /*
  * This structure describes the machine which we are running on.
  * It is set in linux/arch/arm/mach-pxa/machine_name.c and used in the probe routine
  * of linux/drivers/video/pxafb.c
  */
-struct pxafb_mach_info {
+struct pxafb_mode_info {
 	u_long		pixclock;
 
 	u_short		xres;
@@ -34,6 +36,14 @@ struct pxafb_mach_info {
 	u_char		sync;
 
 	u_int		cmap_greyscale:1,
+			unused:31;
+};
+
+struct pxafb_mach_info {
+	struct pxafb_mode_info *modes;
+	unsigned int num_modes;
+
+	u_int		fixed_modes:1,
 			cmap_inverse:1,
 			cmap_static:1,
 			unused:29;
@@ -62,7 +72,7 @@ struct pxafb_mach_info {
 	u_int		lccr3;
 
 	void (*pxafb_backlight_power)(int);
-	void (*pxafb_lcd_power)(int);
+	void (*pxafb_lcd_power)(int, struct fb_var_screeninfo *);
 
 };
 void set_pxa_fb_info(struct pxafb_mach_info *hard_pxa_fb_info);

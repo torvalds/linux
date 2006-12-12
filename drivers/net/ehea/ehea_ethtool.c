@@ -238,7 +238,7 @@ static void ehea_get_ethtool_stats(struct net_device *dev,
 	data[i++] = port->port_res[0].swqe_refill_th;
 	data[i++] = port->resets;
 
-	cb6 = kzalloc(H_CB_ALIGNMENT, GFP_KERNEL);
+	cb6 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb6) {
 		ehea_error("no mem for cb6");
 		return;

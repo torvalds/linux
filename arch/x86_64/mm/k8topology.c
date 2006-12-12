@@ -149,6 +149,9 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 		
 		nodes[nodeid].start = base; 
 		nodes[nodeid].end = limit;
+		e820_register_active_regions(nodeid,
+				nodes[nodeid].start >> PAGE_SHIFT,
+				nodes[nodeid].end >> PAGE_SHIFT);
 
 		prevbase = base;
 

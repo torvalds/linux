@@ -93,8 +93,8 @@ pcibios_fixup_new_pci_devices(struct pci_bus *bus, int fix_bus)
 		if (list_empty(&dev->global_list)) {
 			int i;
 
-			/* Need to setup IOMMU tables */
-			ppc_md.iommu_dev_setup(dev);
+			/* Fill device archdata and setup iommu table */
+			pcibios_setup_new_device(dev);
 
 			if(fix_bus)
 				pcibios_fixup_device_resources(dev, bus);
@@ -195,7 +195,7 @@ struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 	phb = pcibios_alloc_controller(dn);
 	if (!phb)
 		return NULL;
-	setup_phb(dn, phb);
+	rtas_setup_phb(phb);
 	pci_process_bridge_OF_ranges(phb, dn, 0);
 
 	pci_setup_phb_io_dynamic(phb, primary);

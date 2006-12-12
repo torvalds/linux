@@ -28,7 +28,7 @@ static int mon_stat_open(struct inode *inode, struct file *file)
 	if ((sp = kmalloc(sizeof(struct snap), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
 
-	mbus = inode->u.generic_ip;
+	mbus = inode->i_private;
 
 	sp->slen = snprintf(sp->str, STAT_BUF_SIZE,
 	    "nreaders %d events %u text_lost %u\n",
@@ -62,7 +62,7 @@ static int mon_stat_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct file_operations mon_fops_stat = {
+const struct file_operations mon_fops_stat = {
 	.owner =	THIS_MODULE,
 	.open =		mon_stat_open,
 	.llseek =	no_llseek,

@@ -20,8 +20,10 @@
 #include <linux/types.h>
 
 #include <asm/inst.h>
+#include <asm/irq_regs.h>
 #include <asm/mipsregs.h>
 #include <asm/page.h>
+#include <asm/ptrace.h>
 #include <asm/system.h>
 #include <asm/traps.h>
 #include <asm/uaccess.h>
@@ -150,10 +152,10 @@ int dec_kn01_be_handler(struct pt_regs *regs, int is_fixup)
 	return dec_kn01_be_backend(regs, is_fixup, 0);
 }
 
-irqreturn_t dec_kn01_be_interrupt(int irq, void *dev_id,
-				    struct pt_regs *regs)
+irqreturn_t dec_kn01_be_interrupt(int irq, void *dev_id)
 {
 	volatile u16 *csr = (void *)CKSEG1ADDR(KN01_SLOT_BASE + KN01_CSR);
+	struct pt_regs *regs = get_irq_regs();
 	int action;
 
 	if (!(*csr & KN01_CSR_MEMERR))

@@ -40,8 +40,6 @@
 #define DEBUGP
 #endif
 
-#define ASSERT_READ_LOCK(x)
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("iptables target for CLUSTERIP");
@@ -52,7 +50,7 @@ struct clusterip_config {
 	atomic_t entries;			/* number of entries/rules
 						 * referencing us */
 
-	u_int32_t clusterip;			/* the IP address */
+	__be32 clusterip;			/* the IP address */
 	u_int8_t clustermac[ETH_ALEN];		/* the MAC address */
 	struct net_device *dev;			/* device */
 	u_int16_t num_total_nodes;		/* total number of nodes */
@@ -119,11 +117,10 @@ clusterip_config_entry_put(struct clusterip_config *c)
 }
 
 static struct clusterip_config *
-__clusterip_config_find(u_int32_t clusterip)
+__clusterip_config_find(__be32 clusterip)
 {
 	struct list_head *pos;
 
-	ASSERT_READ_LOCK(&clusterip_lock);
 	list_for_each(pos, &clusterip_configs) {
 		struct clusterip_config *c = list_entry(pos, 
 					struct clusterip_config, list);
@@ -136,7 +133,7 @@ __clusterip_config_find(u_int32_t clusterip)
 }
 
 static inline struct clusterip_config *
-clusterip_config_find_get(u_int32_t clusterip, int entry)
+clusterip_config_find_get(__be32 clusterip, int entry)
 {
 	struct clusterip_config *c;
 
@@ -166,11 +163,10 @@ clusterip_config_init_nodelist(struct clusterip_config *c,
 }
 
 static struct clusterip_config *
-clusterip_config_init(struct ipt_clusterip_tgt_info *i, u_int32_t ip,
+clusterip_config_init(struct ipt_clusterip_tgt_info *i, __be32 ip,
 			struct net_device *dev)
 {
 	struct clusterip_config *c;
-	char buffer[16];
 
 	c = kzalloc(sizeof(*c), GFP_ATOMIC);
 	if (!c)
@@ -187,12 +183,17 @@ clusterip_config_init(struct ipt_clusterip_tgt_info *i, u_int32_t ip,
 	atomic_set(&c->entries, 1);
 
 #ifdef CONFIG_PROC_FS
-	/* create proc dir entry */
-	sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(ip));
-	c->pde = create_proc_entry(buffer, S_IWUSR|S_IRUSR, clusterip_procdir);
-	if (!c->pde) {
-		kfree(c);
-		return NULL;
+	{
+		char buffer[16];
+
+		/* create proc dir entry */
+		sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(ip));
+		c->pde = create_proc_entry(buffer, S_IWUSR|S_IRUSR,
+					   clusterip_procdir);
+		if (!c->pde) {
+			kfree(c);
+			return NULL;
+		}
 	}
 	c->pde->proc_fops = &clusterip_proc_fops;
 	c->pde->data = c;
@@ -205,6 +206,7 @@ clusterip_config_init(struct ipt_clusterip_tgt_info *i, u_int32_t ip,
 	return c;
 }
 
+#ifdef CONFIG_PROC_FS
 static int
 clusterip_add_node(struct clusterip_config *c, u_int16_t nodenum)
 {
@@ -232,6 +234,7 @@ clusterip_del_node(struct clusterip_config *c, u_int16_t nodenum)
 
 	return 1;
 }
+#endif
 
 static inline u_int32_t
 clusterip_hashfn(struct sk_buff *skb, struct clusterip_config *config)
@@ -387,7 +390,7 @@ checkentry(const char *tablename,
 		return 0;
 
 	}
-	if (e->ip.dmsk.s_addr != 0xffffffff
+	if (e->ip.dmsk.s_addr != htonl(0xffffffff)
 	    || e->ip.dst.s_addr == 0) {
 		printk(KERN_ERR "CLUSTERIP: Please specify destination IP\n");
 		return 0;
@@ -476,9 +479,9 @@ static struct ipt_target clusterip_tgt = {
 /* hardcoded for 48bit ethernet and 32bit ipv4 addresses */
 struct arp_payload {
 	u_int8_t src_hw[ETH_ALEN];
-	u_int32_t src_ip;
+	__be32 src_ip;
 	u_int8_t dst_hw[ETH_ALEN];
-	u_int32_t dst_ip;
+	__be32 dst_ip;
 } __attribute__ ((packed));
 
 #ifdef CLUSTERIP_DEBUG
@@ -680,7 +683,7 @@ static ssize_t clusterip_proc_write(struct file *file, const char __user *input,
 {
 #define PROC_WRITELEN	10
 	char buffer[PROC_WRITELEN+1];
-	struct proc_dir_entry *pde = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	struct clusterip_config *c = pde->data;
 	unsigned long nodenum;
 
@@ -737,8 +740,10 @@ static int __init ipt_clusterip_init(void)
 		CLUSTERIP_VERSION);
 	return 0;
 
+#ifdef CONFIG_PROC_FS
 cleanup_hook:
 	nf_unregister_hook(&cip_arp_ops);
+#endif /* CONFIG_PROC_FS */
 cleanup_target:
 	ipt_unregister_target(&clusterip_tgt);
 	return ret;

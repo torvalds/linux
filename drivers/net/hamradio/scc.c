@@ -200,7 +200,7 @@ static void z8530_init(void);
 
 static void init_channel(struct scc_channel *scc);
 static void scc_key_trx (struct scc_channel *scc, char tx);
-static irqreturn_t scc_isr(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t scc_isr(int irq, void *dev_id);
 static void scc_init_timer(struct scc_channel *scc);
 
 static int scc_net_alloc(const char *name, struct scc_channel *scc);
@@ -626,7 +626,7 @@ static void scc_isr_dispatch(struct scc_channel *scc, int vector)
 
 #define SCC_IRQTIMEOUT 30000
 
-static irqreturn_t scc_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t scc_isr(int irq, void *dev_id)
 {
 	unsigned char vector;	
 	struct scc_channel *scc;
@@ -1540,11 +1540,6 @@ static int scc_net_alloc(const char *name, struct scc_channel *scc)
 /* *			    Network driver methods		      * */
 /* ******************************************************************** */
 
-static unsigned char ax25_bcast[AX25_ADDR_LEN] =
-{'Q' << 1, 'S' << 1, 'T' << 1, ' ' << 1, ' ' << 1, ' ' << 1, '0' << 1};
-static unsigned char ax25_nocall[AX25_ADDR_LEN] =
-{'L' << 1, 'I' << 1, 'N' << 1, 'U' << 1, 'X' << 1, ' ' << 1, '1' << 1};
-
 /* ----> Initialize device <----- */
 
 static void scc_net_setup(struct net_device *dev)
@@ -1562,8 +1557,8 @@ static void scc_net_setup(struct net_device *dev)
 	dev->do_ioctl        = scc_net_ioctl;
 	dev->tx_timeout      = NULL;
 
-	memcpy(dev->broadcast, ax25_bcast,  AX25_ADDR_LEN);
-	memcpy(dev->dev_addr,  ax25_nocall, AX25_ADDR_LEN);
+	memcpy(dev->broadcast, &ax25_bcast,  AX25_ADDR_LEN);
+	memcpy(dev->dev_addr,  &ax25_defaddr, AX25_ADDR_LEN);
  
 	dev->flags      = 0;
 

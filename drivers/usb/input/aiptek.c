@@ -396,7 +396,7 @@ static int aiptek_convert_from_2s_complement(unsigned char c)
  * replaced with the input_sync() method (which emits EV_SYN.)
  */
 
-static void aiptek_irq(struct urb *urb, struct pt_regs *regs)
+static void aiptek_irq(struct urb *urb)
 {
 	struct aiptek *aiptek = urb->context;
 	unsigned char *data = aiptek->data;
@@ -442,8 +442,6 @@ static void aiptek_irq(struct urb *urb, struct pt_regs *regs)
 			aiptek->diagnostic =
 			    AIPTEK_DIAGNOSTIC_SENDING_RELATIVE_IN_ABSOLUTE;
 		} else {
-			input_regs(inputdev, regs);
-
 			x = aiptek_convert_from_2s_complement(data[2]);
 			y = aiptek_convert_from_2s_complement(data[3]);
 
@@ -488,8 +486,6 @@ static void aiptek_irq(struct urb *urb, struct pt_regs *regs)
 			    (aiptek->curSetting.pointerMode)) {
 				aiptek->diagnostic = AIPTEK_DIAGNOSTIC_TOOL_DISALLOWED;
 		} else {
-			input_regs(inputdev, regs);
-
 			x = le16_to_cpu(get_unaligned((__le16 *) (data + 1)));
 			y = le16_to_cpu(get_unaligned((__le16 *) (data + 3)));
 			z = le16_to_cpu(get_unaligned((__le16 *) (data + 6)));
@@ -568,7 +564,6 @@ static void aiptek_irq(struct urb *urb, struct pt_regs *regs)
 			(aiptek->curSetting.pointerMode)) {
 			aiptek->diagnostic = AIPTEK_DIAGNOSTIC_TOOL_DISALLOWED;
 		} else {
-			input_regs(inputdev, regs);
 			x = le16_to_cpu(get_unaligned((__le16 *) (data + 1)));
 			y = le16_to_cpu(get_unaligned((__le16 *) (data + 3)));
 
@@ -631,8 +626,6 @@ static void aiptek_irq(struct urb *urb, struct pt_regs *regs)
 		z = le16_to_cpu(get_unaligned((__le16 *) (data + 4)));
 
 		if (dv != 0) {
-			input_regs(inputdev, regs);
-
 			/* If we've not already sent a tool_button_?? code, do
 			 * so now. Then set FIRED_BIT so it won't be resent unless
 			 * the user forces FIRED_BIT off.
@@ -681,8 +674,6 @@ static void aiptek_irq(struct urb *urb, struct pt_regs *regs)
 		macro = data[3];
 
 		if (dv != 0) {
-			input_regs(inputdev, regs);
-
 			/* If we've not already sent a tool_button_?? code, do
 			 * so now. Then set FIRED_BIT so it won't be resent unless
 			 * the user forces FIRED_BIT off.
@@ -726,8 +717,6 @@ static void aiptek_irq(struct urb *urb, struct pt_regs *regs)
 	 */
 	else if (data[0] == 6) {
 		macro = le16_to_cpu(get_unaligned((__le16 *) (data + 1)));
-		input_regs(inputdev, regs);
-
 		if (macro > 0) {
 			input_report_key(inputdev, macroKeyEvents[macro - 1],
 					 0);
@@ -1999,7 +1988,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		goto fail1;
 
 	aiptek->data = usb_buffer_alloc(usbdev, AIPTEK_PACKET_LENGTH,
-					SLAB_ATOMIC, &aiptek->data_dma);
+					GFP_ATOMIC, &aiptek->data_dma);
 	if (!aiptek->data)
 		goto fail1;
 

@@ -29,9 +29,9 @@ __xfrm6_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	ipv6_addr_copy((struct in6_addr *)&x->sel.daddr, &fl->fl6_dst);
 	ipv6_addr_copy((struct in6_addr *)&x->sel.saddr, &fl->fl6_src);
 	x->sel.dport = xfrm_flowi_dport(fl);
-	x->sel.dport_mask = ~0;
+	x->sel.dport_mask = htons(0xffff);
 	x->sel.sport = xfrm_flowi_sport(fl);
-	x->sel.sport_mask = ~0;
+	x->sel.sport_mask = htons(0xffff);
 	x->sel.prefixlen_d = 128;
 	x->sel.prefixlen_s = 128;
 	x->sel.proto = fl->proto;

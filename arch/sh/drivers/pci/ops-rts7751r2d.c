@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/pci-rts7751r2d.c
+ * linux/arch/sh/drivers/pci/ops-rts7751r2d.c
  *
  * Author:  Ian DaSilva (idasilva@mvista.com)
  *
@@ -10,29 +10,24 @@
  *
  * PCI initialization for the Renesas SH7751R RTS7751R2D board
  */
-
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/delay.h>
 #include <linux/pci.h>
-#include <linux/module.h>
+#include <linux/io.h>
+#include <asm/rts7751r2d.h>
+#include "pci-sh4.h"
 
-#include <asm/io.h>
-#include "pci-sh7751.h"
-#include <asm/rts7751r2d/rts7751r2d.h>
+static u8 rts7751r2d_irq_tab[] __initdata = {
+	IRQ_PCISLOT1,
+	IRQ_PCISLOT2,
+	IRQ_PCMCIA,
+	IRQ_PCIETH,
+};
 
-int __init pcibios_map_platform_irq(u8 slot, u8 pin)
+int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
-        switch (slot) {
-	case 0: return IRQ_PCISLOT1;	/* PCI Extend slot #1 */
-	case 1: return IRQ_PCISLOT2;	/* PCI Extend slot #2 */
-	case 2: return IRQ_PCMCIA;	/* PCI Cardbus Bridge */
-	case 3: return IRQ_PCIETH;	/* Realtek Ethernet controller */
-	default:
-		printk("PCI: Bad IRQ mapping request for slot %d\n", slot);
-		return -1;
-	}
+	return rts7751r2d_irq_tab[slot];
 }
 
 static struct resource sh7751_io_resource = {
@@ -52,12 +47,12 @@ static struct resource sh7751_mem_resource = {
 extern struct pci_ops sh7751_pci_ops;
 
 struct pci_channel board_pci_channels[] = {
-	{ &sh7751_pci_ops, &sh7751_io_resource, &sh7751_mem_resource, 0, 0xff },
+	{ &sh4_pci_ops, &sh7751_io_resource, &sh7751_mem_resource, 0, 0xff },
 	{ NULL, NULL, NULL, 0, 0 },
 };
 EXPORT_SYMBOL(board_pci_channels);
 
-static struct sh7751_pci_address_map sh7751_pci_map = {
+static struct sh4_pci_address_map sh7751_pci_map = {
 	.window0	= {
 		.base	= SH7751_CS3_BASE_ADDR,
 		.size	= 0x04000000,
@@ -68,7 +63,7 @@ static struct sh7751_pci_address_map sh7751_pci_map = {
 		.size	= 0x00000000,	/* Unused */
 	},
 
-	.flags	= SH7751_PCIC_NO_RESET,
+	.flags	= SH4_PCIC_NO_RESET,
 };
 
 int __init pcibios_init_platform(void)

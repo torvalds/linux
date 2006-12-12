@@ -51,6 +51,8 @@ struct iommu_table {
 #define TCE_TABLE_SIZE_4M		6
 #define TCE_TABLE_SIZE_8M		7
 
+extern int use_calgary;
+
 #ifdef CONFIG_CALGARY_IOMMU
 extern int calgary_iommu_init(void);
 extern void detect_calgary(void);

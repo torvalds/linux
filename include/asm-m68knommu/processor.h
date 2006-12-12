@@ -1,5 +1,5 @@
 /*
- * include/asm-m68k/processor.h
+ * include/asm-m68knommu/processor.h
  *
  * Copyright (C) 1995 Hamish Macdonald
  */

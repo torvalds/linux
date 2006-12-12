@@ -28,7 +28,7 @@
 #include "types.h"
 #include "volume.h"
 
-extern BOOL ntfs_mark_quotas_out_of_date(ntfs_volume *vol);
+extern bool ntfs_mark_quotas_out_of_date(ntfs_volume *vol);
 
 #endif /* NTFS_RW */
 

@@ -408,7 +408,7 @@ void snd_mixart_msg_tasklet(unsigned long arg)
 }
 
 
-irqreturn_t snd_mixart_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t snd_mixart_interrupt(int irq, void *dev_id)
 {
 	struct mixart_mgr *mgr = dev_id;
 	int err;

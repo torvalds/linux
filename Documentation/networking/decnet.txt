@@ -82,7 +82,7 @@ ethernet address of your ethernet card has to be set according to the DECnet
 address of the node in order for it to be autoconfigured (and then appear in
 /proc/net/decnet_dev). There is a utility available at the above
 FTP sites called dn2ethaddr which can compute the correct ethernet
-address to use. The address can be set by ifconfig either before at
+address to use. The address can be set by ifconfig either before or
 at the time the device is brought up. If you are using RedHat you can
 add the line:
 

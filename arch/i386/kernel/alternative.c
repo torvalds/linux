@@ -1,4 +1,5 @@
 #include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <asm/alternative.h>
@@ -123,6 +124,20 @@ static unsigned char** find_nop_table(void)
 
 #endif /* CONFIG_X86_64 */
 
+static void nop_out(void *insns, unsigned int len)
+{
+	unsigned char **noptable = find_nop_table();
+
+	while (len > 0) {
+		unsigned int noplen = len;
+		if (noplen > ASM_NOP_MAX)
+			noplen = ASM_NOP_MAX;
+		memcpy(insns, noptable[noplen], noplen);
+		insns += noplen;
+		len -= noplen;
+	}
+}
+
 extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 extern struct alt_instr __smp_alt_instructions[], __smp_alt_instructions_end[];
 extern u8 *__smp_locks[], *__smp_locks_end[];
@@ -137,10 +152,9 @@ extern u8 __smp_alt_begin[], __smp_alt_end[];
 
 void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 {
-	unsigned char **noptable = find_nop_table();
 	struct alt_instr *a;
 	u8 *instr;
-	int diff, i, k;
+	int diff;
 
 	DPRINTK("%s: alt table %p -> %p\n", __FUNCTION__, start, end);
 	for (a = start; a < end; a++) {
@@ -158,13 +172,7 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 #endif
 		memcpy(instr, a->replacement, a->replacementlen);
 		diff = a->instrlen - a->replacementlen;
-		/* Pad the rest with nops */
-		for (i = a->replacementlen; diff > 0; diff -= k, i += k) {
-			k = diff;
-			if (k > ASM_NOP_MAX)
-				k = ASM_NOP_MAX;
-			memcpy(a->instr + i, noptable[k], k);
-		}
+		nop_out(instr + a->replacementlen, diff);
 	}
 }
 
@@ -208,7 +216,6 @@ static void alternatives_smp_lock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 
 static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 {
-	unsigned char **noptable = find_nop_table();
 	u8 **ptr;
 
 	for (ptr = start; ptr < end; ptr++) {
@@ -216,7 +223,7 @@ static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end
 			continue;
 		if (*ptr > text_end)
 			continue;
-		**ptr = noptable[1][0];
+		nop_out(*ptr, 1);
 	};
 }
 
@@ -342,8 +349,43 @@ void alternatives_smp_switch(int smp)
 
 #endif
 
+#ifdef CONFIG_PARAVIRT
+void apply_paravirt(struct paravirt_patch *start, struct paravirt_patch *end)
+{
+	struct paravirt_patch *p;
+
+	for (p = start; p < end; p++) {
+		unsigned int used;
+
+		used = paravirt_ops.patch(p->instrtype, p->clobbers, p->instr,
+					  p->len);
+#ifdef CONFIG_DEBUG_PARAVIRT
+		{
+		int i;
+		/* Deliberately clobber regs using "not %reg" to find bugs. */
+		for (i = 0; i < 3; i++) {
+			if (p->len - used >= 2 && (p->clobbers & (1 << i))) {
+				memcpy(p->instr + used, "\xf7\xd0", 2);
+				p->instr[used+1] |= i;
+				used += 2;
+			}
+		}
+		}
+#endif
+		/* Pad the rest with nops */
+		nop_out(p->instr + used, p->len - used);
+	}
+
+	/* Sync to be conservative, in case we patched following instructions */
+	sync_core();
+}
+extern struct paravirt_patch __start_parainstructions[],
+	__stop_parainstructions[];
+#endif	/* CONFIG_PARAVIRT */
+
 void __init alternative_instructions(void)
 {
+	unsigned long flags;
 	if (no_replacement) {
 		printk(KERN_INFO "(SMP-)alternatives turned off\n");
 		free_init_pages("SMP alternatives",
@@ -351,6 +393,8 @@ void __init alternative_instructions(void)
 				(unsigned long)__smp_alt_end);
 		return;
 	}
+
+	local_irq_save(flags);
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
 
 	/* switch to patch-once-at-boottime-only mode and free the
@@ -386,4 +430,6 @@ void __init alternative_instructions(void)
 		alternatives_smp_switch(0);
 	}
 #endif
+ 	apply_paravirt(__start_parainstructions, __stop_parainstructions);
+	local_irq_restore(flags);
 }

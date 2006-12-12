@@ -32,10 +32,6 @@ config DEBUG_USER
 	      8 - SIGSEGV faults
 	     16 - SIGBUS faults
 
-config DEBUG_WAITQ
-	bool "Wait queue debugging"
-	depends on DEBUG_KERNEL
-
 config DEBUG_ERRORS
 	bool "Verbose kernel error messages"
 	depends on DEBUG_KERNEL

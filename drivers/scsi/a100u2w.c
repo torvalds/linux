@@ -1013,7 +1013,7 @@ static void inia100SCBPost(BYTE * pHcb, BYTE * pScb)
 /*
  * Interrupt handler (main routine of the driver)
  */
-static irqreturn_t inia100_intr(int irqno, void *devid, struct pt_regs *regs)
+static irqreturn_t inia100_intr(int irqno, void *devid)
 {
 	struct Scsi_Host *host = (struct Scsi_Host *)devid;
 	ORC_HCS *pHcb = (ORC_HCS *)host->hostdata;
@@ -1187,7 +1187,7 @@ static struct pci_driver inia100_pci_driver = {
 
 static int __init inia100_init(void)
 {
-	return pci_module_init(&inia100_pci_driver);
+	return pci_register_driver(&inia100_pci_driver);
 }
 
 static void __exit inia100_exit(void)

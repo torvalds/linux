@@ -12,11 +12,13 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 #include "user.h"
 #include "user_util.h"
 #include "kern_util.h"
 #include "net_user.h"
 #include "os.h"
+#include "um_malloc.h"
 
 int tap_open_common(void *dev, char *gate_addr)
 {

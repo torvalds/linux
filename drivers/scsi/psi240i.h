@@ -309,7 +309,7 @@ typedef struct _IDENTIFY_DATA2 {
 #endif	// PSI_EIDE_SCSIOP
 
 // function prototypes
-int Psi240i_Command			(Scsi_Cmnd *SCpnt);
-int Psi240i_Abort			(Scsi_Cmnd *SCpnt);
-int Psi240i_Reset			(Scsi_Cmnd *SCpnt, unsigned int flags);
+int Psi240i_Command(struct scsi_cmnd *SCpnt);
+int Psi240i_Abort(struct scsi_cmnd *SCpnt);
+int Psi240i_Reset(struct scsi_cmnd *SCpnt, unsigned int flags);
 #endif

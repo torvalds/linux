@@ -58,10 +58,10 @@
 #define CIPSO_V4_MAP_PASS             2
 
 /* limits */
-#define CIPSO_V4_MAX_REM_LVLS         256
+#define CIPSO_V4_MAX_REM_LVLS         255
 #define CIPSO_V4_INV_LVL              0x80000000
 #define CIPSO_V4_MAX_LOC_LVLS         (CIPSO_V4_INV_LVL - 1)
-#define CIPSO_V4_MAX_REM_CATS         65536
+#define CIPSO_V4_MAX_REM_CATS         65534
 #define CIPSO_V4_INV_CAT              0x80000000
 #define CIPSO_V4_MAX_LOC_CATS         (CIPSO_V4_INV_CAT - 1)
 
@@ -128,7 +128,9 @@ extern int cipso_v4_rbm_strictvalid;
 
 #ifdef CONFIG_NETLABEL
 int cipso_v4_doi_add(struct cipso_v4_doi *doi_def);
-int cipso_v4_doi_remove(u32 doi, void (*callback) (struct rcu_head * head));
+int cipso_v4_doi_remove(u32 doi,
+			struct netlbl_audit *audit_info,
+			void (*callback) (struct rcu_head * head));
 struct cipso_v4_doi *cipso_v4_doi_getdef(u32 doi);
 int cipso_v4_doi_walk(u32 *skip_cnt,
 		     int (*callback) (struct cipso_v4_doi *doi_def, void *arg),
@@ -143,6 +145,7 @@ static inline int cipso_v4_doi_add(struct cipso_v4_doi *doi_def)
 }
 
 static inline int cipso_v4_doi_remove(u32 doi,
+				    struct netlbl_audit *audit_info,
 				    void (*callback) (struct rcu_head * head))
 {
 	return 0;

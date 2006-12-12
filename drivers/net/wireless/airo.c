@@ -49,6 +49,7 @@
 #include <asm/uaccess.h>
 #include <net/ieee80211.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include "airo.h"
 
@@ -1120,8 +1121,7 @@ static void mpi_receive_802_3(struct airo_info *ai);
 static void mpi_receive_802_11(struct airo_info *ai);
 static int waitbusy (struct airo_info *ai);
 
-static irqreturn_t airo_interrupt( int irq, void* dev_id, struct pt_regs
-			    *regs);
+static irqreturn_t airo_interrupt( int irq, void* dev_id);
 static int airo_thread(void *data);
 static void timer_func( struct net_device *dev );
 static int airo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -2898,6 +2898,8 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 		goto err_out_map;
 	}
 	ai->wifidev = init_wifidev(ai, dev);
+	if (!ai->wifidev)
+		goto err_out_reg;
 
 	set_bit(FLAG_REGISTERED,&ai->flags);
 	airo_print_info(dev->name, "MAC enabled %x:%x:%x:%x:%x:%x",
@@ -2909,11 +2911,18 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 		for( i = 0; i < MAX_FIDS; i++ )
 			ai->fids[i] = transmit_allocate(ai,AIRO_DEF_MTU,i>=MAX_FIDS/2);
 
-	setup_proc_entry( dev, dev->priv ); /* XXX check for failure */
+	if (setup_proc_entry(dev, dev->priv) < 0)
+		goto err_out_wifi;
+
 	netif_start_queue(dev);
 	SET_MODULE_OWNER(dev);
 	return dev;
 
+err_out_wifi:
+	unregister_netdev(ai->wifidev);
+	free_netdev(ai->wifidev);
+err_out_reg:
+	unregister_netdev(dev);
 err_out_map:
 	if (test_bit(FLAG_MPI,&ai->flags) && pci) {
 		pci_free_consistent(pci, PCI_SHARED_LEN, ai->shared, ai->shared_dma);
@@ -3090,7 +3099,8 @@ static int airo_thread(void *data) {
 						set_bit(JOB_AUTOWEP, &ai->jobs);
 						break;
 					}
-					if (!kthread_should_stop()) {
+					if (!kthread_should_stop() &&
+					    !freezing(current)) {
 						unsigned long wake_at;
 						if (!ai->expires || !ai->scan_timeout) {
 							wake_at = max(ai->expires,
@@ -3102,7 +3112,8 @@ static int airo_thread(void *data) {
 						schedule_timeout(wake_at - jiffies);
 						continue;
 					}
-				} else if (!kthread_should_stop()) {
+				} else if (!kthread_should_stop() &&
+					   !freezing(current)) {
 					schedule();
 					continue;
 				}
@@ -3151,7 +3162,7 @@ static int airo_thread(void *data) {
 	return 0;
 }
 
-static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
+static irqreturn_t airo_interrupt ( int irq, void* dev_id) {
 	struct net_device *dev = (struct net_device *)dev_id;
 	u16 status;
 	u16 fid;
@@ -4496,91 +4507,128 @@ static int setup_proc_entry( struct net_device *dev,
 	apriv->proc_entry = create_proc_entry(apriv->proc_name,
 					      S_IFDIR|airo_perm,
 					      airo_entry);
-        apriv->proc_entry->uid = proc_uid;
-        apriv->proc_entry->gid = proc_gid;
-        apriv->proc_entry->owner = THIS_MODULE;
+	if (!apriv->proc_entry)
+		goto fail;
+	apriv->proc_entry->uid = proc_uid;
+	apriv->proc_entry->gid = proc_gid;
+	apriv->proc_entry->owner = THIS_MODULE;
 
 	/* Setup the StatsDelta */
 	entry = create_proc_entry("StatsDelta",
 				  S_IFREG | (S_IRUGO&proc_perm),
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_stats_delta;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_statsdelta_ops);
 
 	/* Setup the Stats */
 	entry = create_proc_entry("Stats",
 				  S_IFREG | (S_IRUGO&proc_perm),
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_stats;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_stats_ops);
 
 	/* Setup the Status */
 	entry = create_proc_entry("Status",
 				  S_IFREG | (S_IRUGO&proc_perm),
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_status;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_status_ops);
 
 	/* Setup the Config */
 	entry = create_proc_entry("Config",
 				  S_IFREG | proc_perm,
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_config;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_config_ops);
 
 	/* Setup the SSID */
 	entry = create_proc_entry("SSID",
 				  S_IFREG | proc_perm,
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_ssid;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_SSID_ops);
 
 	/* Setup the APList */
 	entry = create_proc_entry("APList",
 				  S_IFREG | proc_perm,
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_aplist;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_APList_ops);
 
 	/* Setup the BSSList */
 	entry = create_proc_entry("BSSList",
 				  S_IFREG | proc_perm,
 				  apriv->proc_entry);
+	if (!entry)
+		goto fail_bsslist;
 	entry->uid = proc_uid;
 	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_BSSList_ops);
 
 	/* Setup the WepKey */
 	entry = create_proc_entry("WepKey",
 				  S_IFREG | proc_perm,
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_wepkey;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_wepkey_ops);
 
 	return 0;
+
+fail_wepkey:
+	remove_proc_entry("BSSList", apriv->proc_entry);
+fail_bsslist:
+	remove_proc_entry("APList", apriv->proc_entry);
+fail_aplist:
+	remove_proc_entry("SSID", apriv->proc_entry);
+fail_ssid:
+	remove_proc_entry("Config", apriv->proc_entry);
+fail_config:
+	remove_proc_entry("Status", apriv->proc_entry);
+fail_status:
+	remove_proc_entry("Stats", apriv->proc_entry);
+fail_stats:
+	remove_proc_entry("StatsDelta", apriv->proc_entry);
+fail_stats_delta:
+	remove_proc_entry(apriv->proc_name, airo_entry);
+fail:
+	return -ENOMEM;
 }
 
 static int takedown_proc_entry( struct net_device *dev,
@@ -5659,25 +5707,40 @@ static int airo_pci_resume(struct pci_dev *pdev)
 
 static int __init airo_init_module( void )
 {
-	int i, have_isa_dev = 0;
+	int i;
+#if 0
+	int have_isa_dev = 0;
+#endif
 
 	airo_entry = create_proc_entry("aironet",
 				       S_IFDIR | airo_perm,
 				       proc_root_driver);
-        airo_entry->uid = proc_uid;
-        airo_entry->gid = proc_gid;
+
+	if (airo_entry) {
+		airo_entry->uid = proc_uid;
+		airo_entry->gid = proc_gid;
+	}
 
 	for( i = 0; i < 4 && io[i] && irq[i]; i++ ) {
 		airo_print_info("", "Trying to configure ISA adapter at irq=%d "
 			"io=0x%x", irq[i], io[i] );
 		if (init_airo_card( irq[i], io[i], 0, NULL ))
+#if 0
 			have_isa_dev = 1;
+#else
+			/* do nothing */ ;
+#endif
 	}
 
 #ifdef CONFIG_PCI
 	airo_print_info("", "Probing for PCI adapters");
-	pci_register_driver(&airo_driver);
+	i = pci_register_driver(&airo_driver);
 	airo_print_info("", "Finished probing for PCI adapters");
+
+	if (i) {
+		remove_proc_entry("aironet", proc_root_driver);
+		return i;
+	}
 #endif
 
 	/* Always exit with success, as we are a library module
@@ -5868,7 +5931,7 @@ static int airo_set_essid(struct net_device *dev,
 		int	index = (dwrq->flags & IW_ENCODE_INDEX) - 1;
 
 		/* Check the size of the string */
-		if(dwrq->length > IW_ESSID_MAX_SIZE+1) {
+		if(dwrq->length > IW_ESSID_MAX_SIZE) {
 			return -E2BIG ;
 		}
 		/* Check if index is valid */
@@ -5880,7 +5943,7 @@ static int airo_set_essid(struct net_device *dev,
 		memset(SSID_rid.ssids[index].ssid, 0,
 		       sizeof(SSID_rid.ssids[index].ssid));
 		memcpy(SSID_rid.ssids[index].ssid, extra, dwrq->length);
-		SSID_rid.ssids[index].len = dwrq->length - 1;
+		SSID_rid.ssids[index].len = dwrq->length;
 	}
 	SSID_rid.len = sizeof(SSID_rid);
 	/* Write it to the card */
@@ -5910,7 +5973,6 @@ static int airo_get_essid(struct net_device *dev,
 
 	/* Get the current SSID */
 	memcpy(extra, status_rid.SSID, status_rid.SSIDlen);
-	extra[status_rid.SSIDlen] = '\0';
 	/* If none, we may want to get the one that was set */
 
 	/* Push it out ! */
@@ -5990,7 +6052,7 @@ static int airo_set_nick(struct net_device *dev,
 	struct airo_info *local = dev->priv;
 
 	/* Check the size of the string */
-	if(dwrq->length > 16 + 1) {
+	if(dwrq->length > 16) {
 		return -E2BIG;
 	}
 	readConfigRid(local, 1);
@@ -6015,7 +6077,7 @@ static int airo_get_nick(struct net_device *dev,
 	readConfigRid(local, 1);
 	strncpy(extra, local->config.nodeName, 16);
 	extra[16] = '\0';
-	dwrq->length = strlen(extra) + 1;
+	dwrq->length = strlen(extra);
 
 	return 0;
 }
@@ -6767,9 +6829,9 @@ static int airo_set_retry(struct net_device *dev,
 	}
 	readConfigRid(local, 1);
 	if(vwrq->flags & IW_RETRY_LIMIT) {
-		if(vwrq->flags & IW_RETRY_MAX)
+		if(vwrq->flags & IW_RETRY_LONG)
 			local->config.longRetryLimit = vwrq->value;
-		else if (vwrq->flags & IW_RETRY_MIN)
+		else if (vwrq->flags & IW_RETRY_SHORT)
 			local->config.shortRetryLimit = vwrq->value;
 		else {
 			/* No modifier : set both */
@@ -6805,14 +6867,14 @@ static int airo_get_retry(struct net_device *dev,
 	if((vwrq->flags & IW_RETRY_TYPE) == IW_RETRY_LIFETIME) {
 		vwrq->flags = IW_RETRY_LIFETIME;
 		vwrq->value = (int)local->config.txLifetime * 1024;
-	} else if((vwrq->flags & IW_RETRY_MAX)) {
-		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
+	} else if((vwrq->flags & IW_RETRY_LONG)) {
+		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
 		vwrq->value = (int)local->config.longRetryLimit;
 	} else {
 		vwrq->flags = IW_RETRY_LIMIT;
 		vwrq->value = (int)local->config.shortRetryLimit;
 		if((int)local->config.shortRetryLimit != (int)local->config.longRetryLimit)
-			vwrq->flags |= IW_RETRY_MIN;
+			vwrq->flags |= IW_RETRY_SHORT;
 	}
 
 	return 0;
@@ -6990,6 +7052,7 @@ static int airo_set_power(struct net_device *dev,
 			local->config.rmode |= RXMODE_BC_MC_ADDR;
 			set_bit (FLAG_COMMIT, &local->flags);
 		case IW_POWER_ON:
+			/* This is broken, fixme ;-) */
 			break;
 		default:
 			return -EINVAL;

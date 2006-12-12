@@ -76,7 +76,7 @@
  */
 #define is_real_interrupt(irq)	((irq) != 0)
 
-#include <asm/serial.h>
+#define BASE_BAUD	115200
 
 /* Standard COM flags */
 #define STD_COM_FLAGS (UPF_BOOT_AUTOCONF | UPF_SKIP_TEST)
@@ -86,7 +86,6 @@
  * standard enumeration mechanism.   Platforms that can find all
  * serial ports via mechanisms like ACPI or PCI need not supply it.
  */
-#undef SERIAL_PORT_DFNS
 #if defined(CONFIG_PLAT_USRV)
 
 #define SERIAL_PORT_DFNS						\
@@ -109,7 +108,7 @@
 #endif /* !CONFIG_PLAT_USRV */
 
 static struct old_serial_port old_serial_port[] = {
-	SERIAL_PORT_DFNS	/* defined in asm/serial.h */
+	SERIAL_PORT_DFNS
 };
 
 #define UART_NR	ARRAY_SIZE(old_serial_port)
@@ -324,8 +323,7 @@ static void m32r_sio_enable_ms(struct uart_port *port)
 	serial_out(up, UART_IER, up->ier);
 }
 
-static void receive_chars(struct uart_sio_port *up, int *status,
-			  struct pt_regs *regs)
+static void receive_chars(struct uart_sio_port *up, int *status)
 {
 	struct tty_struct *tty = up->port.info->tty;
 	unsigned char ch;
@@ -379,7 +377,7 @@ static void receive_chars(struct uart_sio_port *up, int *status,
 			else if (*status & UART_LSR_FE)
 				flag = TTY_FRAME;
 		}
-		if (uart_handle_sysrq_char(&up->port, ch, regs))
+		if (uart_handle_sysrq_char(&up->port, ch))
 			goto ignore_char;
 		if ((*status & up->port.ignore_status_mask) == 0)
 			tty_insert_flip_char(tty, ch, flag);
@@ -440,12 +438,12 @@ static void transmit_chars(struct uart_sio_port *up)
  * This handles the interrupt from one port.
  */
 static inline void m32r_sio_handle_port(struct uart_sio_port *up,
-	unsigned int status, struct pt_regs *regs)
+	unsigned int status)
 {
 	DEBUG_INTR("status = %x...", status);
 
 	if (status & 0x04)
-		receive_chars(up, &status, regs);
+		receive_chars(up, &status);
 	if (status & 0x01)
 		transmit_chars(up);
 }
@@ -464,8 +462,7 @@ static inline void m32r_sio_handle_port(struct uart_sio_port *up,
  * This means we need to loop through all ports. checking that they
  * don't have an interrupt pending.
  */
-static irqreturn_t m32r_sio_interrupt(int irq, void *dev_id,
-	struct pt_regs *regs)
+static irqreturn_t m32r_sio_interrupt(int irq, void *dev_id)
 {
 	struct irq_info *i = dev_id;
 	struct list_head *l, *end = NULL;
@@ -493,7 +490,7 @@ static irqreturn_t m32r_sio_interrupt(int irq, void *dev_id,
 		sts = sio_in(up, SIOSTS);
 		if (sts & 0x5) {
 			spin_lock(&up->port.lock);
-			m32r_sio_handle_port(up, sts, regs);
+			m32r_sio_handle_port(up, sts);
 			spin_unlock(&up->port.lock);
 
 			end = NULL;
@@ -593,7 +590,7 @@ static void m32r_sio_timeout(unsigned long data)
 	sts = sio_in(up, SIOSTS);
 	if (sts & 0x5) {
 		spin_lock(&up->port.lock);
-		m32r_sio_handle_port(up, sts, NULL);
+		m32r_sio_handle_port(up, sts);
 		spin_unlock(&up->port.lock);
 	}
 
@@ -702,7 +699,7 @@ static unsigned int m32r_sio_get_divisor(struct uart_port *port,
 }
 
 static void m32r_sio_set_termios(struct uart_port *port,
-	struct termios *termios, struct termios *old)
+	struct ktermios *termios, struct ktermios *old)
 {
 	struct uart_sio_port *up = (struct uart_sio_port *)port;
 	unsigned char cval = 0;

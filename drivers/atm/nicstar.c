@@ -214,7 +214,7 @@ static void __devinit ns_init_card_error(ns_dev *card, int error);
 static scq_info *get_scq(int size, u32 scd);
 static void free_scq(scq_info *scq, struct atm_vcc *vcc);
 static void push_rxbufs(ns_dev *, struct sk_buff *);
-static irqreturn_t ns_irq_handler(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t ns_irq_handler(int irq, void *dev_id);
 static int ns_open(struct atm_vcc *vcc);
 static void ns_close(struct atm_vcc *vcc);
 static void fill_tst(ns_dev *card, int n, vc_map *vc);
@@ -1194,7 +1194,7 @@ static void push_rxbufs(ns_dev *card, struct sk_buff *skb)
 
 
 
-static irqreturn_t ns_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ns_irq_handler(int irq, void *dev_id)
 {
    u32 stat_r;
    ns_dev *card;
@@ -2759,7 +2759,7 @@ static int ns_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
 {
    ns_dev *card;
    pool_levels pl;
-   int btype;
+   long btype;
    unsigned long flags;
 
    card = dev->dev_data;
@@ -2859,7 +2859,7 @@ static int ns_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
       case NS_ADJBUFLEV:
          if (!capable(CAP_NET_ADMIN))
 	    return -EPERM;
-         btype = (int) arg;	/* an int is the same size as a pointer */
+         btype = (long) arg;	/* a long is the same size as a pointer or bigger */
          switch (btype)
 	 {
 	    case NS_BUFTYPE_SMALL:

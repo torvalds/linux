@@ -586,11 +586,11 @@ static unsigned int __devinit init_chipset_ali15x3 (struct pci_dev *dev, const c
 {
 	unsigned long flags;
 	u8 tmpbyte;
-	struct pci_dev *north = pci_find_slot(0, PCI_DEVFN(0,0));
+	struct pci_dev *north = pci_get_slot(dev->bus, PCI_DEVFN(0,0));
 
 	pci_read_config_byte(dev, PCI_REVISION_ID, &m5229_revision);
 
-	isa_dev = pci_find_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
+	isa_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
 
 #if defined(DISPLAY_ALI_TIMINGS) && defined(CONFIG_PROC_FS)
 	if (!ali_proc) {
@@ -613,8 +613,7 @@ static unsigned int __devinit init_chipset_ali15x3 (struct pci_dev *dev, const c
 		 * clear bit 7
 		 */
 		pci_write_config_byte(dev, 0x4b, tmpbyte & 0x7F);
-		local_irq_restore(flags);
-		return 0;
+		goto out;
 	}
 
 	/*
@@ -637,10 +636,8 @@ static unsigned int __devinit init_chipset_ali15x3 (struct pci_dev *dev, const c
 	 * box without a device at 0:0.0. The ALi bridge will be at
 	 * 0:0.0 so if we didn't find one we know what is cooking.
 	 */
-	if (north && north->vendor != PCI_VENDOR_ID_AL) {
-		local_irq_restore(flags);
-	        return 0;
-	}
+	if (north && north->vendor != PCI_VENDOR_ID_AL)
+		goto out;
 
 	if (m5229_revision < 0xC5 && isa_dev)
 	{	
@@ -661,6 +658,9 @@ static unsigned int __devinit init_chipset_ali15x3 (struct pci_dev *dev, const c
 			pci_write_config_byte(isa_dev, 0x79, tmpbyte | 0x02);
 		}
 	}
+out:
+	pci_dev_put(north);
+	pci_dev_put(isa_dev);
 	local_irq_restore(flags);
 	return 0;
 }

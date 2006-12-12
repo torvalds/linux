@@ -28,8 +28,10 @@
 #include <asm/mach-types.h>
 
 #include <asm/hardware.h>
+#include <asm/arch/at91_pmc.h>
+#include <asm/arch/cpu.h>
 
-#include "generic.h"
+#include "clock.h"
 
 
 /*
@@ -38,23 +40,16 @@
  * PLLB be used at other rates (on boards that don't need USB), etc.
  */
 
-struct clk {
-	const char	*name;		/* unique clock name */
-	const char	*function;	/* function of the clock */
-	struct device	*dev;		/* device associated with function */
-	unsigned long	rate_hz;
-	struct clk	*parent;
-	u32		pmc_mask;
-	void		(*mode)(struct clk *, int);
-	unsigned	id:2;		/* PCK0..3, or 32k/main/a/b */
-	unsigned	primary:1;
-	unsigned	pll:1;
-	unsigned	programmable:1;
-	u16		users;
-};
+#define clk_is_primary(x)	((x)->type & CLK_TYPE_PRIMARY)
+#define clk_is_programmable(x)	((x)->type & CLK_TYPE_PROGRAMMABLE)
+#define clk_is_peripheral(x)	((x)->type & CLK_TYPE_PERIPHERAL)
+#define clk_is_sys(x)		((x)->type & CLK_TYPE_SYSTEM)
 
-static spinlock_t	clk_lock;
-static u32		at91_pllb_usb_init;
+
+static LIST_HEAD(clocks);
+static DEFINE_SPINLOCK(clk_lock);
+
+static u32 at91_pllb_usb_init;
 
 /*
  * Four primary clock sources:  two crystal oscillators (32K, main), and
@@ -67,21 +62,20 @@ static struct clk clk32k = {
 	.rate_hz	= AT91_SLOW_CLOCK,
 	.users		= 1,		/* always on */
 	.id		= 0,
-	.primary	= 1,
+	.type		= CLK_TYPE_PRIMARY,
 };
 static struct clk main_clk = {
 	.name		= "main",
 	.pmc_mask	= AT91_PMC_MOSCS,	/* in PMC_SR */
 	.id		= 1,
-	.primary	= 1,
+	.type		= CLK_TYPE_PRIMARY,
 };
 static struct clk plla = {
 	.name		= "plla",
 	.parent		= &main_clk,
 	.pmc_mask	= AT91_PMC_LOCKA,	/* in PMC_SR */
 	.id		= 2,
-	.primary	= 1,
-	.pll		= 1,
+	.type		= CLK_TYPE_PRIMARY | CLK_TYPE_PLL,
 };
 
 static void pllb_mode(struct clk *clk, int is_on)
@@ -94,6 +88,7 @@ static void pllb_mode(struct clk *clk, int is_on)
 	} else
 		value = 0;
 
+	// REVISIT: Add work-around for AT91RM9200 Errata #26 ?
 	at91_sys_write(AT91_CKGR_PLLBR, value);
 
 	do {
@@ -107,8 +102,7 @@ static struct clk pllb = {
 	.pmc_mask	= AT91_PMC_LOCKB,	/* in PMC_SR */
 	.mode		= pllb_mode,
 	.id		= 3,
-	.primary	= 1,
-	.pll		= 1,
+	.type		= CLK_TYPE_PRIMARY | CLK_TYPE_PLL,
 };
 
 static void pmc_sys_mode(struct clk *clk, int is_on)
@@ -123,50 +117,13 @@ static void pmc_sys_mode(struct clk *clk, int is_on)
 static struct clk udpck = {
 	.name		= "udpck",
 	.parent		= &pllb,
-	.pmc_mask	= AT91_PMC_UDP,
 	.mode		= pmc_sys_mode,
 };
 static struct clk uhpck = {
 	.name		= "uhpck",
 	.parent		= &pllb,
-	.pmc_mask	= AT91_PMC_UHP,
 	.mode		= pmc_sys_mode,
 };
-
-#ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS
-/*
- * The four programmable clocks can be parented by any primary clock.
- * You must configure pin multiplexing to bring these signals out.
- */
-static struct clk pck0 = {
-	.name		= "pck0",
-	.pmc_mask	= AT91_PMC_PCK0,
-	.mode		= pmc_sys_mode,
-	.programmable	= 1,
-	.id		= 0,
-};
-static struct clk pck1 = {
-	.name		= "pck1",
-	.pmc_mask	= AT91_PMC_PCK1,
-	.mode		= pmc_sys_mode,
-	.programmable	= 1,
-	.id		= 1,
-};
-static struct clk pck2 = {
-	.name		= "pck2",
-	.pmc_mask	= AT91_PMC_PCK2,
-	.mode		= pmc_sys_mode,
-	.programmable	= 1,
-	.id		= 2,
-};
-static struct clk pck3 = {
-	.name		= "pck3",
-	.pmc_mask	= AT91_PMC_PCK3,
-	.mode		= pmc_sys_mode,
-	.programmable	= 1,
-	.id		= 3,
-};
-#endif	/* CONFIG_AT91_PROGRAMMABLE_CLOCKS */
 
 
 /*
@@ -187,131 +144,21 @@ static void pmc_periph_mode(struct clk *clk, int is_on)
 		at91_sys_write(AT91_PMC_PCDR, clk->pmc_mask);
 }
 
-static struct clk udc_clk = {
-	.name		= "udc_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_UDP,
-	.mode		= pmc_periph_mode,
-};
-static struct clk ohci_clk = {
-	.name		= "ohci_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_UHP,
-	.mode		= pmc_periph_mode,
-};
-static struct clk ether_clk = {
-	.name		= "ether_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_EMAC,
-	.mode		= pmc_periph_mode,
-};
-static struct clk mmc_clk = {
-	.name		= "mci_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_MCI,
-	.mode		= pmc_periph_mode,
-};
-static struct clk twi_clk = {
-	.name		= "twi_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_TWI,
-	.mode		= pmc_periph_mode,
-};
-static struct clk usart0_clk = {
-	.name		= "usart0_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_US0,
-	.mode		= pmc_periph_mode,
-};
-static struct clk usart1_clk = {
-	.name		= "usart1_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_US1,
-	.mode		= pmc_periph_mode,
-};
-static struct clk usart2_clk = {
-	.name		= "usart2_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_US2,
-	.mode		= pmc_periph_mode,
-};
-static struct clk usart3_clk = {
-	.name		= "usart3_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_US3,
-	.mode		= pmc_periph_mode,
-};
-static struct clk spi_clk = {
-	.name		= "spi0_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_SPI,
-	.mode		= pmc_periph_mode,
-};
-static struct clk pioA_clk = {
-	.name		= "pioA_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_PIOA,
-	.mode		= pmc_periph_mode,
-};
-static struct clk pioB_clk = {
-	.name		= "pioB_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_PIOB,
-	.mode		= pmc_periph_mode,
-};
-static struct clk pioC_clk = {
-	.name		= "pioC_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_PIOC,
-	.mode		= pmc_periph_mode,
-};
-static struct clk pioD_clk = {
-	.name		= "pioD_clk",
-	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_PIOD,
-	.mode		= pmc_periph_mode,
-};
+static struct clk __init *at91_css_to_clk(unsigned long css)
+{
+	switch (css) {
+		case AT91_PMC_CSS_SLOW:
+			return &clk32k;
+		case AT91_PMC_CSS_MAIN:
+			return &main_clk;
+		case AT91_PMC_CSS_PLLA:
+			return &plla;
+		case AT91_PMC_CSS_PLLB:
+			return &pllb;
+	}
 
-static struct clk *const clock_list[] = {
-	/* four primary clocks -- MUST BE FIRST! */
-	&clk32k,
-	&main_clk,
-	&plla,
-	&pllb,
-
-	/* PLLB children (USB) */
-	&udpck,
-	&uhpck,
-
-#ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS
-	/* programmable clocks */
-	&pck0,
-	&pck1,
-	&pck2,
-	&pck3,
-#endif	/* CONFIG_AT91_PROGRAMMABLE_CLOCKS */
-
-	/* MCK and peripherals */
-	&mck,
-	&usart0_clk,
-	&usart1_clk,
-	&usart2_clk,
-	&usart3_clk,
-	&mmc_clk,
-	&udc_clk,
-	&twi_clk,
-	&spi_clk,
-	&pioA_clk,
-	&pioB_clk,
-	&pioC_clk,
-	&pioD_clk,
-	// ssc0..ssc2
-	// tc0..tc5
-	// irq0..irq6
-	&ohci_clk,
-	&ether_clk,
-};
-
+	return NULL;
+}
 
 /*
  * Associate a particular clock with a function (eg, "uart") and device.
@@ -329,14 +176,12 @@ void __init at91_clock_associate(const char *id, struct device *dev, const char 
 	clk->dev = dev;
 }
 
-/* clocks are all static for now; no refcounting necessary */
+/* clocks cannot be de-registered no refcounting necessary */
 struct clk *clk_get(struct device *dev, const char *id)
 {
-	int i;
+	struct clk *clk;
 
-	for (i = 0; i < ARRAY_SIZE(clock_list); i++) {
-		struct clk *clk = clock_list[i];
-
+	list_for_each_entry(clk, &clocks, node) {
 		if (strcmp(id, clk->name) == 0)
 			return clk;
 		if (clk->function && (dev == clk->dev) && strcmp(id, clk->function) == 0)
@@ -424,7 +269,7 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 	unsigned	prescale;
 	unsigned long	actual;
 
-	if (!clk->programmable)
+	if (!clk_is_programmable(clk))
 		return -EINVAL;
 	spin_lock_irqsave(&clk_lock, flags);
 
@@ -446,7 +291,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	unsigned	prescale;
 	unsigned long	actual;
 
-	if (!clk->programmable)
+	if (!clk_is_programmable(clk))
 		return -EINVAL;
 	if (clk->users)
 		return -EBUSY;
@@ -484,7 +329,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 
 	if (clk->users)
 		return -EBUSY;
-	if (!parent->primary || !clk->programmable)
+	if (!clk_is_primary(parent) || !clk_is_programmable(clk))
 		return -EINVAL;
 	spin_lock_irqsave(&clk_lock, flags);
 
@@ -497,6 +342,18 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 }
 EXPORT_SYMBOL(clk_set_parent);
 
+/* establish PCK0..PCK3 parentage and rate */
+static void init_programmable_clock(struct clk *clk)
+{
+	struct clk	*parent;
+	u32		pckr;
+
+	pckr = at91_sys_read(AT91_PMC_PCKR(clk->id));
+	parent = at91_css_to_clk(pckr & AT91_PMC_CSS);
+	clk->parent = parent;
+	clk->rate_hz = parent->rate_hz / (1 << ((pckr >> 2) & 3));
+}
+
 #endif	/* CONFIG_AT91_PROGRAMMABLE_CLOCKS */
 
 /*------------------------------------------------------------------------*/
@@ -506,6 +363,7 @@ EXPORT_SYMBOL(clk_set_parent);
 static int at91_clk_show(struct seq_file *s, void *unused)
 {
 	u32		scsr, pcsr, sr;
+	struct clk	*clk;
 	unsigned	i;
 
 	seq_printf(s, "SCSR = %8x\n", scsr = at91_sys_read(AT91_PMC_SCSR));
@@ -523,9 +381,8 @@ static int at91_clk_show(struct seq_file *s, void *unused)
 
 	seq_printf(s, "\n");
 
-	for (i = 0; i < ARRAY_SIZE(clock_list); i++) {
-		char		*state;
-		struct clk	*clk = clock_list[i];
+	list_for_each_entry(clk, &clocks, node) {
+		char	*state;
 
 		if (clk->mode == pmc_sys_mode)
 			state = (scsr & clk->pmc_mask) ? "on" : "off";
@@ -567,6 +424,34 @@ static int __init at91_clk_debugfs_init(void)
 postcore_initcall(at91_clk_debugfs_init);
 
 #endif
+
+/*------------------------------------------------------------------------*/
+
+/* Register a new clock */
+int __init clk_register(struct clk *clk)
+{
+	if (clk_is_peripheral(clk)) {
+		clk->parent = &mck;
+		clk->mode = pmc_periph_mode;
+		list_add_tail(&clk->node, &clocks);
+	}
+	else if (clk_is_sys(clk)) {
+		clk->parent = &mck;
+		clk->mode = pmc_sys_mode;
+
+		list_add_tail(&clk->node, &clocks);
+	}
+#ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS
+	else if (clk_is_programmable(clk)) {
+		clk->mode = pmc_sys_mode;
+		init_programmable_clock(clk);
+		list_add_tail(&clk->node, &clocks);
+	}
+#endif
+
+	return 0;
+}
+
 
 /*------------------------------------------------------------------------*/
 
@@ -640,20 +525,17 @@ fail:
 	return 0;
 }
 
-
 /*
  * Several unused clocks may be active.  Turn them off.
  */
-static void at91_periphclk_reset(void)
+static void __init at91_periphclk_reset(void)
 {
 	unsigned long reg;
-	int i;
+	struct clk *clk;
 
 	reg = at91_sys_read(AT91_PMC_PCSR);
 
-	for (i = 0; i < ARRAY_SIZE(clock_list); i++) {
-		struct clk	*clk = clock_list[i];
-
+	list_for_each_entry(clk, &clocks, node) {
 		if (clk->mode != pmc_periph_mode)
 			continue;
 
@@ -664,11 +546,25 @@ static void at91_periphclk_reset(void)
 	at91_sys_write(AT91_PMC_PCDR, reg);
 }
 
+static struct clk *const standard_pmc_clocks[] __initdata = {
+	/* four primary clocks */
+	&clk32k,
+	&main_clk,
+	&plla,
+	&pllb,
+
+	/* PLLB children (USB) */
+	&udpck,
+	&uhpck,
+
+	/* MCK */
+	&mck
+};
+
 int __init at91_clock_init(unsigned long main_clock)
 {
 	unsigned tmp, freq, mckr;
-
-	spin_lock_init(&clk_lock);
+	int i;
 
 	/*
 	 * When the bootloader initialized the main oscillator correctly,
@@ -697,9 +593,21 @@ int __init at91_clock_init(unsigned long main_clock)
 	 */
 	at91_pllb_usb_init = at91_pll_calc(main_clock, 48000000 * 2) | AT91_PMC_USB96M;
 	pllb.rate_hz = at91_pll_rate(&pllb, main_clock, at91_pllb_usb_init);
-	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_UHP | AT91_PMC_UDP);
+	if (cpu_is_at91rm9200()) {
+		uhpck.pmc_mask = AT91RM9200_PMC_UHP;
+		udpck.pmc_mask = AT91RM9200_PMC_UDP;
+		at91_sys_write(AT91_PMC_SCDR, AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP);
+		at91_sys_write(AT91_PMC_SCER, AT91RM9200_PMC_MCKUDP);
+	} else if (cpu_is_at91sam9260()) {
+		uhpck.pmc_mask = AT91SAM926x_PMC_UHP;
+		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
+		at91_sys_write(AT91_PMC_SCDR, AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP);
+	} else if (cpu_is_at91sam9261()) {
+		uhpck.pmc_mask = (AT91SAM926x_PMC_UHP | AT91_PMC_HCK0);
+		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
+		at91_sys_write(AT91_PMC_SCDR, AT91SAM926x_PMC_UHP | AT91_PMC_HCK0 | AT91SAM926x_PMC_UDP);
+	}
 	at91_sys_write(AT91_CKGR_PLLBR, 0);
-	at91_sys_write(AT91_PMC_SCER, AT91_PMC_MCKUDP);
 
 	udpck.rate_hz = at91_usb_rate(&pllb, pllb.rate_hz, at91_pllb_usb_init);
 	uhpck.rate_hz = at91_usb_rate(&pllb, pllb.rate_hz, at91_pllb_usb_init);
@@ -709,10 +617,14 @@ int __init at91_clock_init(unsigned long main_clock)
 	 * For now, assume this parentage won't change.
 	 */
 	mckr = at91_sys_read(AT91_PMC_MCKR);
-	mck.parent = clock_list[mckr & AT91_PMC_CSS];
+	mck.parent = at91_css_to_clk(mckr & AT91_PMC_CSS);
 	freq = mck.parent->rate_hz;
 	freq /= (1 << ((mckr >> 2) & 3));		/* prescale */
 	mck.rate_hz = freq / (1 + ((mckr >> 8) & 3));	/* mdiv */
+
+	/* Register the PMC's standard clocks */
+	for (i = 0; i < ARRAY_SIZE(standard_pmc_clocks); i++)
+		list_add_tail(&standard_pmc_clocks[i]->node, &clocks);
 
 	/* MCK and CPU clock are "always on" */
 	clk_enable(&mck);
@@ -722,35 +634,8 @@ int __init at91_clock_init(unsigned long main_clock)
 		(unsigned) main_clock / 1000000,
 		((unsigned) main_clock % 1000000) / 1000);
 
-#ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS
-	/* establish PCK0..PCK3 parentage */
-	for (tmp = 0; tmp < ARRAY_SIZE(clock_list); tmp++) {
-		struct clk	*clk = clock_list[tmp], *parent;
-		u32		pckr;
-
-		if (!clk->programmable)
-			continue;
-
-		pckr = at91_sys_read(AT91_PMC_PCKR(clk->id));
-		parent = clock_list[pckr & AT91_PMC_CSS];
-		clk->parent = parent;
-		clk->rate_hz = parent->rate_hz / (1 << ((pckr >> 2) & 3));
-
-		if (clk->users == 0) {
-			/* not being used, so switch it off */
-			at91_sys_write(AT91_PMC_SCDR, clk->pmc_mask);
-		}
-	}
-#else
 	/* disable all programmable clocks */
 	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK0 | AT91_PMC_PCK1 | AT91_PMC_PCK2 | AT91_PMC_PCK3);
-#endif
-
-	/* enable the PIO clocks */
-	clk_enable(&pioA_clk);
-	clk_enable(&pioB_clk);
-	clk_enable(&pioC_clk);
-	clk_enable(&pioD_clk);
 
 	/* disable all other unused peripheral clocks */
 	at91_periphclk_reset();

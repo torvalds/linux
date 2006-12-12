@@ -1,5 +1,5 @@
 /*
- * sound/dmabuf.c
+ * sound/oss/dmabuf.c
  *
  * The DMA buffer manager for digitized voice applications
  */
@@ -25,6 +25,7 @@
 #define BE_CONSERVATIVE
 #define SAMPLE_ROUNDUP 0
 
+#include <linux/mm.h>
 #include "sound_config.h"
 
 #define DMAP_FREE_ON_CLOSE      0
@@ -926,6 +927,7 @@ int DMAbuf_start_dma(int dev, unsigned long physaddr, int count, int dma_mode)
 	sound_start_dma(dmap, physaddr, count, dma_mode);
 	return count;
 }
+EXPORT_SYMBOL(DMAbuf_start_dma);
 
 static int local_start_dma(struct audio_operations *adev, unsigned long physaddr, int count, int dma_mode)
 {
@@ -1055,6 +1057,8 @@ void DMAbuf_outputintr(int dev, int notify_only)
 		do_outputintr(dev, notify_only);
 	spin_unlock_irqrestore(&dmap->lock,flags);
 }
+EXPORT_SYMBOL(DMAbuf_outputintr);
+
 /* called with dmap->lock held in irq context */
 static void do_inputintr(int dev)
 {
@@ -1154,36 +1158,7 @@ void DMAbuf_inputintr(int dev)
 		do_inputintr(dev);
 	spin_unlock_irqrestore(&dmap->lock,flags);
 }
-
-int DMAbuf_open_dma(int dev)
-{
-	/*
-	 *    NOTE!  This routine opens only the primary DMA channel (output).
-	 */
-	struct audio_operations *adev = audio_devs[dev];
-	int err;
-
-	if ((err = open_dmap(adev, OPEN_READWRITE, adev->dmap_out)) < 0)
-		return -EBUSY;
-	dma_init_buffers(adev->dmap_out);
-	adev->dmap_out->flags |= DMA_ALLOC_DONE;
-	adev->dmap_out->fragment_size = adev->dmap_out->buffsize;
-
-	if (adev->dmap_out->dma >= 0) {
-		unsigned long flags;
-
-		flags=claim_dma_lock();
-		clear_dma_ff(adev->dmap_out->dma);
-		disable_dma(adev->dmap_out->dma);
-		release_dma_lock(flags);
-	}
-	return 0;
-}
-
-void DMAbuf_close_dma(int dev)
-{
-	close_dmap(audio_devs[dev], audio_devs[dev]->dmap_out);
-}
+EXPORT_SYMBOL(DMAbuf_inputintr);
 
 void DMAbuf_init(int dev, int dma1, int dma2)
 {
@@ -1191,12 +1166,6 @@ void DMAbuf_init(int dev, int dma1, int dma2)
 	/*
 	 * NOTE! This routine could be called several times.
 	 */
-
-	/* drag in audio_syms.o */
-	{
-		extern char audio_syms_symbol;
-		audio_syms_symbol = 0;
-	}
 
 	if (adev && adev->dmap_out == NULL) {
 		if (adev->d == NULL)

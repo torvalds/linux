@@ -51,6 +51,7 @@
 #include <linux/rtc.h>
 #include <linux/jiffies.h>
 #include <linux/posix-timers.h>
+#include <linux/irq.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -116,8 +117,6 @@ u64 tb_to_ns_scale;
 unsigned tb_to_ns_shift;
 
 struct gettimeofday_struct do_gtod;
-
-extern unsigned long wall_jiffies;
 
 extern struct timezone sys_tz;
 static long timezone_offset;
@@ -221,11 +220,8 @@ static void account_process_time(struct pt_regs *regs)
  */
 struct cpu_purr_data {
 	int	initialized;			/* thread is running */
-	u64	tb0;			/* timebase at origin time */
-	u64	purr0;			/* PURR at origin time */
 	u64	tb;			/* last TB value read */
 	u64	purr;			/* last PURR value read */
-	u64	stolen;			/* stolen time so far */
 	spinlock_t lock;
 };
 
@@ -235,10 +231,8 @@ static void snapshot_tb_and_purr(void *data)
 {
 	struct cpu_purr_data *p = &__get_cpu_var(cpu_purr_data);
 
-	p->tb0 = mftb();
-	p->purr0 = mfspr(SPRN_PURR);
-	p->tb = p->tb0;
-	p->purr = 0;
+	p->tb = mftb();
+	p->purr = mfspr(SPRN_PURR);
 	wmb();
 	p->initialized = 1;
 }
@@ -259,37 +253,24 @@ void snapshot_timebases(void)
 
 void calculate_steal_time(void)
 {
-	u64 tb, purr, t0;
+	u64 tb, purr;
 	s64 stolen;
-	struct cpu_purr_data *p0, *pme, *phim;
-	int cpu;
+	struct cpu_purr_data *pme;
 
 	if (!cpu_has_feature(CPU_FTR_PURR))
 		return;
-	cpu = smp_processor_id();
-	pme = &per_cpu(cpu_purr_data, cpu);
+	pme = &per_cpu(cpu_purr_data, smp_processor_id());
 	if (!pme->initialized)
 		return;		/* this can happen in early boot */
-	p0 = &per_cpu(cpu_purr_data, cpu & ~1);
-	phim = &per_cpu(cpu_purr_data, cpu ^ 1);
-	spin_lock(&p0->lock);
+	spin_lock(&pme->lock);
 	tb = mftb();
-	purr = mfspr(SPRN_PURR) - pme->purr0;
-	if (!phim->initialized || !cpu_online(cpu ^ 1)) {
-		stolen = (tb - pme->tb) - (purr - pme->purr);
-	} else {
-		t0 = pme->tb0;
-		if (phim->tb0 < t0)
-			t0 = phim->tb0;
-		stolen = phim->tb - t0 - phim->purr - purr - p0->stolen;
-	}
-	if (stolen > 0) {
+	purr = mfspr(SPRN_PURR);
+	stolen = (tb - pme->tb) - (purr - pme->purr);
+	if (stolen > 0)
 		account_steal_time(current, stolen);
-		p0->stolen += stolen;
-	}
 	pme->tb = tb;
 	pme->purr = purr;
-	spin_unlock(&p0->lock);
+	spin_unlock(&pme->lock);
 }
 
 /*
@@ -298,30 +279,17 @@ void calculate_steal_time(void)
  */
 static void snapshot_purr(void)
 {
-	int cpu;
-	u64 purr;
-	struct cpu_purr_data *p0, *pme, *phim;
+	struct cpu_purr_data *pme;
 	unsigned long flags;
 
 	if (!cpu_has_feature(CPU_FTR_PURR))
 		return;
-	cpu = smp_processor_id();
-	pme = &per_cpu(cpu_purr_data, cpu);
-	p0 = &per_cpu(cpu_purr_data, cpu & ~1);
-	phim = &per_cpu(cpu_purr_data, cpu ^ 1);
-	spin_lock_irqsave(&p0->lock, flags);
-	pme->tb = pme->tb0 = mftb();
-	purr = mfspr(SPRN_PURR);
-	if (!phim->initialized) {
-		pme->purr = 0;
-		pme->purr0 = purr;
-	} else {
-		/* set p->purr and p->purr0 for no change in p0->stolen */
-		pme->purr = phim->tb - phim->tb0 - phim->purr - p0->stolen;
-		pme->purr0 = purr - pme->purr;
-	}
+	pme = &per_cpu(cpu_purr_data, smp_processor_id());
+	spin_lock_irqsave(&pme->lock, flags);
+	pme->tb = mftb();
+	pme->purr = mfspr(SPRN_PURR);
 	pme->initialized = 1;
-	spin_unlock_irqrestore(&p0->lock, flags);
+	spin_unlock_irqrestore(&pme->lock, flags);
 }
 
 #endif /* CONFIG_PPC_SPLPAR */
@@ -645,6 +613,7 @@ static void iSeries_tb_recal(void)
  */
 void timer_interrupt(struct pt_regs * regs)
 {
+	struct pt_regs *old_regs;
 	int next_dec;
 	int cpu = smp_processor_id();
 	unsigned long ticks;
@@ -655,13 +624,15 @@ void timer_interrupt(struct pt_regs * regs)
 		do_IRQ(regs);
 #endif
 
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 	calculate_steal_time();
 
 #ifdef CONFIG_PPC_ISERIES
-	get_lppaca()->int_dword.fields.decr_int = 0;
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		get_lppaca()->int_dword.fields.decr_int = 0;
 #endif
 
 	while ((ticks = tb_ticks_since(per_cpu(last_jiffy, cpu)))
@@ -693,7 +664,7 @@ void timer_interrupt(struct pt_regs * regs)
 		tb_next_jiffy = tb_last_jiffy + tb_ticks_per_jiffy;
 		if (per_cpu(last_jiffy, cpu) >= tb_next_jiffy) {
 			tb_last_jiffy = tb_next_jiffy;
-			do_timer(regs);
+			do_timer(1);
 			timer_recalc_offset(tb_last_jiffy);
 			timer_check_rtc();
 		}
@@ -704,8 +675,8 @@ void timer_interrupt(struct pt_regs * regs)
 	set_dec(next_dec);
 
 #ifdef CONFIG_PPC_ISERIES
-	if (hvlpevent_is_pending())
-		process_hvlpevents(regs);
+	if (firmware_has_feature(FW_FEATURE_ISERIES) && hvlpevent_is_pending())
+		process_hvlpevents();
 #endif
 
 #ifdef CONFIG_PPC64
@@ -717,6 +688,7 @@ void timer_interrupt(struct pt_regs * regs)
 #endif
 
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 void wakeup_decrementer(void)
@@ -803,7 +775,7 @@ int do_settimeofday(struct timespec *tv)
 	 * settimeofday to perform this operation.
 	 */
 #ifdef CONFIG_PPC_ISERIES
-	if (first_settimeofday) {
+	if (firmware_has_feature(FW_FEATURE_ISERIES) && first_settimeofday) {
 		iSeries_tb_recal();
 		first_settimeofday = 0;
 	}
@@ -816,11 +788,6 @@ int do_settimeofday(struct timespec *tv)
 	/*
 	 * Subtract off the number of nanoseconds since the
 	 * beginning of the last tick.
-	 * Note that since we don't increment jiffies_64 anywhere other
-	 * than in do_timer (since we don't have a lost tick problem),
-	 * wall_jiffies will always be the same as jiffies,
-	 * and therefore the (jiffies - wall_jiffies) computation
-	 * has been removed.
 	 */
 	tb_delta = tb_ticks_since(tb_last_jiffy);
 	tb_delta = mulhdu(tb_delta, do_gtod.varp->tb_to_xs); /* in xsec */

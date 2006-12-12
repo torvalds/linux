@@ -100,9 +100,9 @@ static int i2c_gpio_set(struct ipath_devdata *dd,
 	gpioval = &dd->ipath_gpio_out;
 	read_val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_extctrl);
 	if (line == i2c_line_scl)
-		mask = ipath_gpio_scl;
+		mask = dd->ipath_gpio_scl;
 	else
-		mask = ipath_gpio_sda;
+		mask = dd->ipath_gpio_sda;
 
 	if (new_line_state == i2c_line_high)
 		/* tri-state the output rather than force high */
@@ -119,12 +119,12 @@ static int i2c_gpio_set(struct ipath_devdata *dd,
 		write_val = 0x0UL;
 
 	if (line == i2c_line_scl) {
-		write_val <<= ipath_gpio_scl_num;
-		*gpioval = *gpioval & ~(1UL << ipath_gpio_scl_num);
+		write_val <<= dd->ipath_gpio_scl_num;
+		*gpioval = *gpioval & ~(1UL << dd->ipath_gpio_scl_num);
 		*gpioval |= write_val;
 	} else {
-		write_val <<= ipath_gpio_sda_num;
-		*gpioval = *gpioval & ~(1UL << ipath_gpio_sda_num);
+		write_val <<= dd->ipath_gpio_sda_num;
+		*gpioval = *gpioval & ~(1UL << dd->ipath_gpio_sda_num);
 		*gpioval |= write_val;
 	}
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_out, *gpioval);
@@ -157,9 +157,9 @@ static int i2c_gpio_get(struct ipath_devdata *dd,
 	read_val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_extctrl);
 	/* config line to be an input */
 	if (line == i2c_line_scl)
-		mask = ipath_gpio_scl;
+		mask = dd->ipath_gpio_scl;
 	else
-		mask = ipath_gpio_sda;
+		mask = dd->ipath_gpio_sda;
 	write_val = read_val & ~mask;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_extctrl, write_val);
 	read_val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_extstatus);
@@ -187,6 +187,7 @@ bail:
 static void i2c_wait_for_writes(struct ipath_devdata *dd)
 {
 	(void)ipath_read_kreg32(dd, dd->ipath_kregs->kr_scratch);
+	rmb();
 }
 
 static void scl_out(struct ipath_devdata *dd, u8 bit)

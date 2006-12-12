@@ -7,6 +7,7 @@
  *                    Monroe Williams (monroe@pobox.com)
  *
  * Supports 3COM HomeConnect PC Digital WebCam
+ * Supports Compro PS39U WebCam
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,6 +61,8 @@
 /* Define these values to match your device */
 #define USB_VICAM_VENDOR_ID	0x04c1
 #define USB_VICAM_PRODUCT_ID	0x009d
+#define USB_COMPRO_VENDOR_ID	0x0602
+#define USB_COMPRO_PRODUCT_ID	0x1001
 
 #define VICAM_BYTES_PER_PIXEL   3
 #define VICAM_MAX_READ_SIZE     (512*242+128)
@@ -1254,6 +1257,7 @@ static struct video_device vicam_template = {
 /* table of devices that work with this driver */
 static struct usb_device_id vicam_table[] = {
 	{USB_DEVICE(USB_VICAM_VENDOR_ID, USB_VICAM_PRODUCT_ID)},
+	{USB_DEVICE(USB_COMPRO_VENDOR_ID, USB_COMPRO_PRODUCT_ID)},
 	{}			/* Terminating entry */
 };
 

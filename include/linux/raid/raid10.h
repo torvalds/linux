@@ -16,7 +16,6 @@ struct r10_private_data_s {
 	mddev_t			*mddev;
 	mirror_info_t		*mirrors;
 	int			raid_disks;
-	int			working_disks;
 	spinlock_t		device_lock;
 
 	/* geometry */

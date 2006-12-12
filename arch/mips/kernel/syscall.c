@@ -231,7 +231,7 @@ out:
  */
 asmlinkage int sys_uname(struct old_utsname __user * name)
 {
-	if (name && !copy_to_user(name, &system_utsname, sizeof (*name)))
+	if (name && !copy_to_user(name, utsname(), sizeof (*name)))
 		return 0;
 	return -EFAULT;
 }
@@ -248,22 +248,27 @@ asmlinkage int sys_olduname(struct oldold_utsname __user * name)
 	if (!access_ok(VERIFY_WRITE,name,sizeof(struct oldold_utsname)))
 		return -EFAULT;
 
-	error = __copy_to_user(&name->sysname,&system_utsname.sysname,__OLD_UTS_LEN);
-	error -= __put_user(0,name->sysname+__OLD_UTS_LEN);
-	error -= __copy_to_user(&name->nodename,&system_utsname.nodename,__OLD_UTS_LEN);
-	error -= __put_user(0,name->nodename+__OLD_UTS_LEN);
-	error -= __copy_to_user(&name->release,&system_utsname.release,__OLD_UTS_LEN);
-	error -= __put_user(0,name->release+__OLD_UTS_LEN);
-	error -= __copy_to_user(&name->version,&system_utsname.version,__OLD_UTS_LEN);
-	error -= __put_user(0,name->version+__OLD_UTS_LEN);
-	error -= __copy_to_user(&name->machine,&system_utsname.machine,__OLD_UTS_LEN);
-	error = __put_user(0,name->machine+__OLD_UTS_LEN);
+	error = __copy_to_user(&name->sysname, &utsname()->sysname,
+			       __OLD_UTS_LEN);
+	error -= __put_user(0, name->sysname + __OLD_UTS_LEN);
+	error -= __copy_to_user(&name->nodename, &utsname()->nodename,
+				__OLD_UTS_LEN);
+	error -= __put_user(0, name->nodename + __OLD_UTS_LEN);
+	error -= __copy_to_user(&name->release, &utsname()->release,
+				__OLD_UTS_LEN);
+	error -= __put_user(0, name->release + __OLD_UTS_LEN);
+	error -= __copy_to_user(&name->version, &utsname()->version,
+				__OLD_UTS_LEN);
+	error -= __put_user(0, name->version + __OLD_UTS_LEN);
+	error -= __copy_to_user(&name->machine, &utsname()->machine,
+				__OLD_UTS_LEN);
+	error = __put_user(0, name->machine + __OLD_UTS_LEN);
 	error = error ? -EFAULT : 0;
 
 	return error;
 }
 
-void sys_set_thread_area(unsigned long addr)
+asmlinkage int sys_set_thread_area(unsigned long addr)
 {
 	struct thread_info *ti = task_thread_info(current);
 
@@ -271,6 +276,8 @@ void sys_set_thread_area(unsigned long addr)
 
 	/* If some future MIPS implementation has this register in hardware,
 	 * we will need to update it here (and in context switches).  */
+
+	return 0;
 }
 
 asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)
@@ -398,4 +405,33 @@ asmlinkage int sys_cachectl(char *addr, int nbytes, int op)
 asmlinkage void bad_stack(void)
 {
 	do_exit(SIGSEGV);
+}
+
+/*
+ * Do a system call from kernel instead of calling sys_execve so we
+ * end up with proper pt_regs.
+ */
+int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+{
+	register unsigned long __a0 asm("$4") = (unsigned long) filename;
+	register unsigned long __a1 asm("$5") = (unsigned long) argv;
+	register unsigned long __a2 asm("$6") = (unsigned long) envp;
+	register unsigned long __a3 asm("$7");
+	unsigned long __v0;
+
+	__asm__ volatile ("					\n"
+	"	.set	noreorder				\n"
+	"	li	$2, %5		# __NR_execve		\n"
+	"	syscall						\n"
+	"	move	%0, $2					\n"
+	"	.set	reorder					\n"
+	: "=&r" (__v0), "=r" (__a3)
+	: "r" (__a0), "r" (__a1), "r" (__a2), "i" (__NR_execve)
+	: "$2", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$24",
+	  "memory");
+
+	if (__a3 == 0)
+		return __v0;
+
+	return -__v0;
 }

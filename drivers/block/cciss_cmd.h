@@ -55,6 +55,7 @@
 #define I2O_INT_MASK            0x34
 #define I2O_IBPOST_Q            0x40
 #define I2O_OBPOST_Q            0x44
+#define I2O_DMA1_CFG		0x214
 
 //Configuration Table
 #define CFGTBL_ChangeReq        0x00000001l
@@ -88,7 +89,7 @@ typedef union _u64bit
 //###########################################################################
 //STRUCTURES
 //###########################################################################
-#define CISS_MAX_LUN	16	
+#define CISS_MAX_LUN	1024
 #define CISS_MAX_PHYS_LUN	1024
 // SCSI-3 Cmmands 
 
@@ -118,11 +119,34 @@ typedef struct _ReadCapdata_struct
   BYTE block_size[4];	// Size of blocks in bytes
 } ReadCapdata_struct;
 
-// 12 byte commands not implemented in firmware yet. 
-// #define CCISS_READ 	0xa8	// Read(12)
-// #define CCISS_WRITE	0xaa	// Write(12)
- #define CCISS_READ   0x28    // Read(10)
- #define CCISS_WRITE  0x2a    // Write(10)
+#define CCISS_READ_CAPACITY_16 0x9e /* Read Capacity 16 */
+
+/* service action to differentiate a 16 byte read capacity from
+   other commands that use the 0x9e SCSI op code */
+
+#define CCISS_READ_CAPACITY_16_SERVICE_ACT 0x10
+
+typedef struct _ReadCapdata_struct_16
+{
+	BYTE total_size[8];   /* Total size in blocks */
+	BYTE block_size[4];   /* Size of blocks in bytes */
+	BYTE prot_en:1;       /* protection enable bit */
+	BYTE rto_en:1;        /* reference tag own enable bit */
+	BYTE reserved:6;      /* reserved bits */
+	BYTE reserved2[18];   /* reserved bytes per spec */
+} ReadCapdata_struct_16;
+
+/* Define the supported read/write commands for cciss based controllers */
+
+#define CCISS_READ_10   0x28    /* Read(10)  */
+#define CCISS_WRITE_10  0x2a    /* Write(10) */
+#define CCISS_READ_16   0x88    /* Read(16)  */
+#define CCISS_WRITE_16  0x8a    /* Write(16) */
+
+/* Define the CDB lengths supported by cciss based controllers */
+
+#define CDB_LEN10	10
+#define CDB_LEN16	16
 
 // BMIC commands 
 #define BMIC_READ 0x26

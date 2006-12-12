@@ -1,5 +1,5 @@
 /*
- * arch/mips/vr41xx/nec-cmbvr4133/pci_fixup.c
+ * arch/mips/pci/fixup-vr4133.c
  *
  * The NEC CMB-VR4133 Board specific PCI fixups.
  *

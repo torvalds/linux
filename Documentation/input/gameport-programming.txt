@@ -18,8 +18,8 @@ Make sure struct gameport is initialized to 0 in all other fields. The
 gameport generic code will take care of the rest.
 
 If your hardware supports more than one io address, and your driver can
-choose which one program the hardware to, starting from the more exotic
-addresses is preferred, because the likelyhood of clashing with the standard
+choose which one to program the hardware to, starting from the more exotic
+addresses is preferred, because the likelihood of clashing with the standard
 0x201 address is smaller.
 
 Eg. if your driver supports addresses 0x200, 0x208, 0x210 and 0x218, then

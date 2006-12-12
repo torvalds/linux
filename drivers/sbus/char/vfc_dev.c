@@ -610,7 +610,7 @@ static int vfc_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned int map_size, ret, map_offset;
 	struct vfc_dev *dev;
 	
-	dev = vfc_get_dev_ptr(iminor(file->f_dentry->d_inode));
+	dev = vfc_get_dev_ptr(iminor(file->f_path.dentry->d_inode));
 	if(dev == NULL)
 		return -ENODEV;
 

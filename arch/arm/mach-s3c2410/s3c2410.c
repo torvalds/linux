@@ -8,17 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Modifications:
- *     16-May-2003 BJD  Created initial version
- *     16-Aug-2003 BJD  Fixed header files and copyright, added URL
- *     05-Sep-2003 BJD  Moved to kernel v2.6
- *     18-Jan-2004 BJD  Added serial port configuration
- *     21-Aug-2004 BJD  Added new struct s3c2410_board handler
- *     28-Sep-2004 BJD  Updates for new serial port bits
- *     04-Nov-2004 BJD  Updated UART configuration process
- *     10-Jan-2005 BJD  Removed s3c2410_clock_tick_rate
- *     13-Aug-2005 DA   Removed UART from initial I/O mappings
 */
 
 #include <linux/kernel.h>

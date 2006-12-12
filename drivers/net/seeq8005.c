@@ -83,7 +83,7 @@ static int seeq8005_probe1(struct net_device *dev, int ioaddr);
 static int seeq8005_open(struct net_device *dev);
 static void seeq8005_timeout(struct net_device *dev);
 static int seeq8005_send_packet(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t seeq8005_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t seeq8005_interrupt(int irq, void *dev_id);
 static void seeq8005_rx(struct net_device *dev);
 static int seeq8005_close(struct net_device *dev);
 static struct net_device_stats *seeq8005_get_stats(struct net_device *dev);
@@ -437,7 +437,7 @@ inline void wait_for_buffer(struct net_device * dev)
 
 /* The typical workload of the driver:
    Handle the network interface interrupts. */
-static irqreturn_t seeq8005_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t seeq8005_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct net_local *lp;
@@ -750,7 +750,7 @@ int __init init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	unregister_netdev(dev_seeq);
 	release_region(dev_seeq->base_addr, SEEQ8005_IO_EXTENT);

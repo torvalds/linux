@@ -56,6 +56,7 @@
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <asm/timer.h>
+#include <asm/time.h>
 
 #include "mach_time.h"
 
@@ -75,8 +76,6 @@ int pit_latch_buggy;              /* extern */
 
 unsigned int cpu_khz;	/* Detected as we calibrate the TSC */
 EXPORT_SYMBOL(cpu_khz);
-
-extern unsigned long wall_jiffies;
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
@@ -118,10 +117,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 	/* gets recalled with irq locally disabled */
 	/* XXX - does irqsave resolve this? -johnstul */
 	spin_lock_irqsave(&rtc_lock, flags);
-	if (efi_enabled)
-		retval = efi_set_rtc_mmss(nowtime);
-	else
-		retval = mach_set_rtc_mmss(nowtime);
+	retval = set_wallclock(nowtime);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return retval;
@@ -163,7 +159,7 @@ EXPORT_SYMBOL(profile_pc);
  * Time Stamp Counter value at the time of the timer interrupt, so that
  * we later on can estimate the time of day more exactly.
  */
-irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	/*
 	 * Here we are in the timer irq handler. We just have irqs locally
@@ -190,7 +186,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	}
 #endif
 
-	do_timer_interrupt_hook(regs);
+	do_timer_interrupt_hook();
 
 
 	if (MCA_bus) {
@@ -203,15 +199,15 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		high bit of the PPI port B (0x61).  Note that some PS/2s,
 		notably the 55SX, work fine if this is removed.  */
 
-		irq = inb_p( 0x61 );	/* read the current state */
-		outb_p( irq|0x80, 0x61 );	/* reset the IRQ */
+		u8 irq_v = inb_p( 0x61 );	/* read the current state */
+		outb_p( irq_v|0x80, 0x61 );	/* reset the IRQ */
 	}
 
 	write_sequnlock(&xtime_lock);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	if (using_apic_timer)
-		smp_send_timer_broadcast_ipi(regs);
+		smp_send_timer_broadcast_ipi();
 #endif
 
 	return IRQ_HANDLED;
@@ -225,10 +221,7 @@ unsigned long get_cmos_time(void)
 
 	spin_lock_irqsave(&rtc_lock, flags);
 
-	if (efi_enabled)
-		retval = efi_get_time();
-	else
-		retval = mach_get_cmos_time();
+	retval = get_wallclock();
 
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
@@ -329,7 +322,6 @@ static int timer_resume(struct sys_device *dev)
 	do_settimeofday(&ts);
 	write_seqlock_irqsave(&xtime_lock, flags);
 	jiffies_64 += sleep_length;
-	wall_jiffies += sleep_length;
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 	touch_softlockup_watchdog();
 	return 0;
@@ -373,7 +365,7 @@ static void __init hpet_time_init(void)
 		printk("Using HPET for base-timer\n");
 	}
 
-	time_init_hook();
+	do_time_init();
 }
 #endif
 
@@ -395,5 +387,5 @@ void __init time_init(void)
 
 	do_settimeofday(&ts);
 
-	time_init_hook();
+	do_time_init();
 }

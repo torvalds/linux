@@ -39,7 +39,8 @@ typedef void (*dm_dtr_fn) (struct dm_target *ti);
  * The map function must return:
  * < 0: error
  * = 0: The target will handle the io by resubmitting it later
- * > 0: simple remap complete
+ * = 1: simple remap complete
+ * = 2: The target wants to push back the io
  */
 typedef int (*dm_map_fn) (struct dm_target *ti, struct bio *bio,
 			  union map_info *map_context);
@@ -50,13 +51,16 @@ typedef int (*dm_map_fn) (struct dm_target *ti, struct bio *bio,
  * 0   : ended successfully
  * 1   : for some reason the io has still not completed (eg,
  *       multipath target might want to requeue a failed io).
+ * 2   : The target wants to push back the io
  */
 typedef int (*dm_endio_fn) (struct dm_target *ti,
 			    struct bio *bio, int error,
 			    union map_info *map_context);
 
+typedef void (*dm_flush_fn) (struct dm_target *ti);
 typedef void (*dm_presuspend_fn) (struct dm_target *ti);
 typedef void (*dm_postsuspend_fn) (struct dm_target *ti);
+typedef int (*dm_preresume_fn) (struct dm_target *ti);
 typedef void (*dm_resume_fn) (struct dm_target *ti);
 
 typedef int (*dm_status_fn) (struct dm_target *ti, status_type_t status_type,
@@ -64,7 +68,16 @@ typedef int (*dm_status_fn) (struct dm_target *ti, status_type_t status_type,
 
 typedef int (*dm_message_fn) (struct dm_target *ti, unsigned argc, char **argv);
 
+typedef int (*dm_ioctl_fn) (struct dm_target *ti, struct inode *inode,
+			    struct file *filp, unsigned int cmd,
+			    unsigned long arg);
+
 void dm_error(const char *message);
+
+/*
+ * Combine device limits.
+ */
+void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev);
 
 /*
  * Constructors should call these functions to ensure destination devices
@@ -86,11 +99,14 @@ struct target_type {
 	dm_dtr_fn dtr;
 	dm_map_fn map;
 	dm_endio_fn end_io;
+	dm_flush_fn flush;
 	dm_presuspend_fn presuspend;
 	dm_postsuspend_fn postsuspend;
+	dm_preresume_fn preresume;
 	dm_resume_fn resume;
 	dm_status_fn status;
 	dm_message_fn message;
+	dm_ioctl_fn ioctl;
 };
 
 struct io_restrictions {
@@ -159,7 +175,7 @@ void *dm_get_mdptr(struct mapped_device *md);
 /*
  * A device can still be used while suspended, but I/O is deferred.
  */
-int dm_suspend(struct mapped_device *md, int with_lockfs);
+int dm_suspend(struct mapped_device *md, unsigned suspend_flags);
 int dm_resume(struct mapped_device *md);
 
 /*
@@ -174,6 +190,7 @@ int dm_wait_event(struct mapped_device *md, int event_nr);
 const char *dm_device_name(struct mapped_device *md);
 struct gendisk *dm_disk(struct mapped_device *md);
 int dm_suspended(struct mapped_device *md);
+int dm_noflush_suspending(struct dm_target *ti);
 
 /*
  * Geometry functions.

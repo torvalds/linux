@@ -32,8 +32,8 @@ struct in6_addr
 	union 
 	{
 		__u8		u6_addr8[16];
-		__u16		u6_addr16[8];
-		__u32		u6_addr32[4];
+		__be16		u6_addr16[8];
+		__be32		u6_addr32[4];
 	} in6_u;
 #define s6_addr			in6_u.u6_addr8
 #define s6_addr16		in6_u.u6_addr16
@@ -53,8 +53,8 @@ extern const struct in6_addr in6addr_loopback;
 
 struct sockaddr_in6 {
 	unsigned short int	sin6_family;    /* AF_INET6 */
-	__u16			sin6_port;      /* Transport layer port # */
-	__u32			sin6_flowinfo;  /* IPv6 flow information */
+	__be16			sin6_port;      /* Transport layer port # */
+	__be32			sin6_flowinfo;  /* IPv6 flow information */
 	struct in6_addr		sin6_addr;      /* IPv6 address */
 	__u32			sin6_scope_id;  /* scope id (new in RFC2553) */
 };
@@ -72,7 +72,7 @@ struct ipv6_mreq {
 struct in6_flowlabel_req
 {
 	struct in6_addr	flr_dst;
-	__u32	flr_label;
+	__be32	flr_label;
 	__u8	flr_action;
 	__u8	flr_share;
 	__u16	flr_flags;
@@ -225,7 +225,7 @@ struct in6_flowlabel_req
 #endif
 
 /*
- * Netfilter
+ * Netfilter (1)
  *
  * Following socket options are used in ip6_tables;
  * see include/linux/netfilter_ipv6/ip6_tables.h.
@@ -239,5 +239,15 @@ struct in6_flowlabel_req
  */
 #define IPV6_RECVTCLASS		66
 #define IPV6_TCLASS		67
+
+/*
+ * Netfilter (2)
+ *
+ * Following socket options are used in ip6_tables;
+ * see include/linux/netfilter_ipv6/ip6_tables.h.
+ *
+ * IP6T_SO_GET_REVISION_MATCH	68
+ * IP6T_SO_GET_REVISION_TARGET	69
+ */
 
 #endif

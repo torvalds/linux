@@ -151,7 +151,6 @@ struct spu_priv1_collapsed {
 	u64 mfc_fir_chkstp_enable_RW;
 	u64 smf_sbi_signal_sel;
 	u64 smf_ato_signal_sel;
-	u64 mfc_sdr_RW;
 	u64 tlb_index_hint_RO;
 	u64 tlb_index_W;
 	u64 tlb_vpn_RW;

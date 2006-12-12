@@ -11,7 +11,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -119,7 +118,4 @@ define_machine(mpc834x_itx) {
 	.time_init		= mpc83xx_time_init,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
-#ifdef CONFIG_PCI
-	.pcibios_fixup		= mpc83xx_pcibios_fixup,
-#endif
 };

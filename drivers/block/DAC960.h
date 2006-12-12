@@ -71,7 +71,7 @@
   Define a Boolean data type.
 */
 
-typedef enum { false, true } __attribute__ ((packed)) boolean;
+typedef bool boolean;
 
 
 /*
@@ -2175,7 +2175,7 @@ static char
 struct DAC960_privdata {
 	DAC960_HardwareType_T	HardwareType;
 	DAC960_FirmwareType_T	FirmwareType;
-	irqreturn_t (*InterruptHandler)(int, void *, struct pt_regs *);
+	irq_handler_t		InterruptHandler;
 	unsigned int		MemoryWindowSize;
 };
 
@@ -4379,8 +4379,8 @@ static inline void DAC960_P_To_PD_TranslateEnquiry(void *Enquiry)
 static inline void DAC960_P_To_PD_TranslateDeviceState(void *DeviceState)
 {
   memcpy(DeviceState + 2, DeviceState + 3, 1);
-  memcpy(DeviceState + 4, DeviceState + 5, 2);
-  memcpy(DeviceState + 6, DeviceState + 8, 4);
+  memmove(DeviceState + 4, DeviceState + 5, 2);
+  memmove(DeviceState + 6, DeviceState + 8, 4);
 }
 
 static inline
@@ -4412,12 +4412,12 @@ static void DAC960_FinalizeController(DAC960_Controller_T *);
 static void DAC960_V1_QueueReadWriteCommand(DAC960_Command_T *);
 static void DAC960_V2_QueueReadWriteCommand(DAC960_Command_T *); 
 static void DAC960_RequestFunction(struct request_queue *);
-static irqreturn_t DAC960_BA_InterruptHandler(int, void *, struct pt_regs *);
-static irqreturn_t DAC960_LP_InterruptHandler(int, void *, struct pt_regs *);
-static irqreturn_t DAC960_LA_InterruptHandler(int, void *, struct pt_regs *);
-static irqreturn_t DAC960_PG_InterruptHandler(int, void *, struct pt_regs *);
-static irqreturn_t DAC960_PD_InterruptHandler(int, void *, struct pt_regs *);
-static irqreturn_t DAC960_P_InterruptHandler(int, void *, struct pt_regs *);
+static irqreturn_t DAC960_BA_InterruptHandler(int, void *);
+static irqreturn_t DAC960_LP_InterruptHandler(int, void *);
+static irqreturn_t DAC960_LA_InterruptHandler(int, void *);
+static irqreturn_t DAC960_PG_InterruptHandler(int, void *);
+static irqreturn_t DAC960_PD_InterruptHandler(int, void *);
+static irqreturn_t DAC960_P_InterruptHandler(int, void *);
 static void DAC960_V1_QueueMonitoringCommand(DAC960_Command_T *);
 static void DAC960_V2_QueueMonitoringCommand(DAC960_Command_T *);
 static void DAC960_MonitoringTimerFunction(unsigned long);

@@ -69,11 +69,13 @@ typedef struct dasd_information2_t {
  * 0x01: readonly (ro)
  * 0x02: use diag discipline (diag)
  * 0x04: set the device initially online (internal use only)
+ * 0x08: enable ERP related logging
  */
 #define DASD_FEATURE_DEFAULT	     0x00
 #define DASD_FEATURE_READONLY	     0x01
 #define DASD_FEATURE_USEDIAG	     0x02
 #define DASD_FEATURE_INITIAL_ONLINE  0x04
+#define DASD_FEATURE_ERPLOG	     0x08
 
 #define DASD_PARTN_BITS 2
 

@@ -29,17 +29,6 @@ struct pt_regs;
 #endif /* __ASSEMBLY__ */
 
 
-#ifdef CONFIG_PCI
-#define _IO_BASE	isa_io_base
-#define _ISA_MEM_BASE	isa_mem_base
-#define PCI_DRAM_OFFSET	pci_dram_offset
-#else
-#define _IO_BASE	0
-#define _ISA_MEM_BASE	0
-#define PCI_DRAM_OFFSET	0
-#endif
-
-
 /* ======================================================================== */
 /* PPC Sys devices definition                                               */
 /* ======================================================================== */
@@ -415,7 +404,7 @@ struct mpc52xx_cdm {
 #ifndef __ASSEMBLY__
 
 extern void mpc52xx_init_irq(void);
-extern int mpc52xx_get_irq(struct pt_regs *regs);
+extern int mpc52xx_get_irq(void);
 
 extern unsigned long mpc52xx_find_end_of_memory(void);
 extern void mpc52xx_set_bat(void);

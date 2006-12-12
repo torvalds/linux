@@ -100,9 +100,9 @@ static int sirdev_tx_complete_fsm(struct sir_dev *dev)
  * Both must be unlocked/restarted on completion - but only on final exit.
  */
 
-static void sirdev_config_fsm(void *data)
+static void sirdev_config_fsm(struct work_struct *work)
 {
-	struct sir_dev *dev = data;
+	struct sir_dev *dev = container_of(work, struct sir_dev, fsm.work.work);
 	struct sir_fsm *fsm = &dev->fsm;
 	int next_state;
 	int ret = -1;
@@ -309,8 +309,8 @@ int sirdev_schedule_request(struct sir_dev *dev, int initial_state, unsigned par
 	fsm->param = param;
 	fsm->result = 0;
 
-	INIT_WORK(&fsm->work, sirdev_config_fsm, dev);
-	queue_work(irda_sir_wq, &fsm->work);
+	INIT_DELAYED_WORK(&fsm->work, sirdev_config_fsm);
+	queue_delayed_work(irda_sir_wq, &fsm->work, 0);
 	return 0;
 }
 

@@ -41,9 +41,9 @@
 
 #include <linux/pagemap.h>
 
-#define VIA_PGDN(x)             (((unsigned long)(x)) & PAGE_MASK)
-#define VIA_PGOFF(x)            (((unsigned long)(x)) & ~PAGE_MASK)
-#define VIA_PFN(x)              ((unsigned long)(x) >> PAGE_SHIFT)
+#define VIA_PGDN(x)	     (((unsigned long)(x)) & PAGE_MASK)
+#define VIA_PGOFF(x)	    (((unsigned long)(x)) & ~PAGE_MASK)
+#define VIA_PFN(x)	      ((unsigned long)(x) >> PAGE_SHIFT)
 
 typedef struct _drm_via_descriptor {
 	uint32_t mem_addr;
@@ -121,19 +121,19 @@ via_map_blit_for_device(struct pci_dev *pdev,
 		
 		while (line_len > 0) {
 
-                        remaining_len = min(PAGE_SIZE-VIA_PGOFF(cur_mem), line_len);
+			remaining_len = min(PAGE_SIZE-VIA_PGOFF(cur_mem), line_len);
 			line_len -= remaining_len;
 
 			if (mode == 1) {
-                                desc_ptr->mem_addr = 
+				desc_ptr->mem_addr = 
 					dma_map_page(&pdev->dev, 
 						     vsg->pages[VIA_PFN(cur_mem) - 
 								VIA_PFN(first_addr)],
 						     VIA_PGOFF(cur_mem), remaining_len, 
 						     vsg->direction);
-                                desc_ptr->dev_addr = cur_fb;
+				desc_ptr->dev_addr = cur_fb;
 				
-                                desc_ptr->size = remaining_len;
+				desc_ptr->size = remaining_len;
 				desc_ptr->next = (uint32_t) next;
 				next = dma_map_single(&pdev->dev, desc_ptr, sizeof(*desc_ptr), 
 						      DMA_TO_DEVICE);
@@ -162,7 +162,7 @@ via_map_blit_for_device(struct pci_dev *pdev,
 
 /*
  * Function that frees up all resources for a blit. It is usable even if the 
- * blit info has only be partially built as long as the status enum is consistent
+ * blit info has only been partially built as long as the status enum is consistent
  * with the actual status of the used resources.
  */
 
@@ -238,8 +238,11 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
 		return DRM_ERR(ENOMEM);
 	memset(vsg->pages, 0, sizeof(struct page *) * vsg->num_pages);
 	down_read(&current->mm->mmap_sem);
-	ret = get_user_pages(current, current->mm, (unsigned long) xfer->mem_addr,
-			     vsg->num_pages, vsg->direction, 0, vsg->pages, NULL);
+	ret = get_user_pages(current, current->mm,
+			     (unsigned long)xfer->mem_addr,
+			     vsg->num_pages,
+			     (vsg->direction == DMA_FROM_DEVICE),
+			     0, vsg->pages, NULL);
 
 	up_read(&current->mm->mmap_sem);
 	if (ret != vsg->num_pages) {
@@ -475,9 +478,15 @@ via_dmablit_timer(unsigned long data)
 	if (!timer_pending(&blitq->poll_timer)) {
 		blitq->poll_timer.expires = jiffies+1;
 		add_timer(&blitq->poll_timer);
-	}
-	via_dmablit_handler(dev, engine, 0);
 
+	       /*
+		* Rerun handler to delete timer if engines are off, and
+		* to shorten abort latency. This is a little nasty.
+		*/
+
+	       via_dmablit_handler(dev, engine, 0);
+
+	}
 }
 
 
@@ -491,9 +500,9 @@ via_dmablit_timer(unsigned long data)
 
 
 static void 
-via_dmablit_workqueue(void *data)
+via_dmablit_workqueue(struct work_struct *work)
 {
-	drm_via_blitq_t *blitq = (drm_via_blitq_t *) data;
+	drm_via_blitq_t *blitq = container_of(work, drm_via_blitq_t, wq);
 	drm_device_t *dev = blitq->dev;
 	unsigned long irqsave;
 	drm_via_sg_info_t *cur_sg;
@@ -562,7 +571,7 @@ via_init_dmablit(drm_device_t *dev)
 			DRM_INIT_WAITQUEUE(blitq->blit_queue + j);
 		}
 		DRM_INIT_WAITQUEUE(&blitq->busy_queue);
-		INIT_WORK(&blitq->wq, via_dmablit_workqueue, blitq);
+		INIT_WORK(&blitq->wq, via_dmablit_workqueue);
 		init_timer(&blitq->poll_timer);
 		blitq->poll_timer.function = &via_dmablit_timer;
 		blitq->poll_timer.data = (unsigned long) blitq;
@@ -597,15 +606,27 @@ via_build_sg_info(drm_device_t *dev, drm_via_sg_info_t *vsg, drm_via_dmablit_t *
 	 * (Not a big limitation anyway.)
 	 */
 
-	if (((xfer->mem_stride - xfer->line_length) >= PAGE_SIZE) ||
-	    (xfer->mem_stride > 2048*4)) {
+	if ((xfer->mem_stride - xfer->line_length) >= PAGE_SIZE) {
 		DRM_ERROR("Too large system memory stride. Stride: %d, "
 			  "Length: %d\n", xfer->mem_stride, xfer->line_length);
 		return DRM_ERR(EINVAL);
 	}
 
-	if (xfer->num_lines > 2048) {
-		DRM_ERROR("Too many PCI DMA bitblt lines.\n");
+	if ((xfer->mem_stride == xfer->line_length) &&
+	   (xfer->fb_stride == xfer->line_length)) {
+		xfer->mem_stride *= xfer->num_lines;
+		xfer->line_length = xfer->mem_stride;
+		xfer->fb_stride = xfer->mem_stride;
+		xfer->num_lines = 1;
+	}
+
+	/*
+	 * Don't lock an arbitrary large number of pages, since that causes a
+	 * DOS security hole.
+	 */
+
+	if (xfer->num_lines > 2048 || (xfer->num_lines*xfer->mem_stride > (2048*2048*4))) {
+		DRM_ERROR("Too large PCI DMA bitblt.\n");
 		return DRM_ERR(EINVAL);
 	}		
 
@@ -628,16 +649,17 @@ via_build_sg_info(drm_device_t *dev, drm_via_sg_info_t *vsg, drm_via_dmablit_t *
 
 #ifdef VIA_BUGFREE
 	if ((((unsigned long)xfer->mem_addr & 3) != ((unsigned long)xfer->fb_addr & 3)) ||
-	    ((xfer->mem_stride & 3) != (xfer->fb_stride & 3))) {
+	    ((xfer->num_lines > 1) && ((xfer->mem_stride & 3) != (xfer->fb_stride & 3)))) {
 		DRM_ERROR("Invalid DRM bitblt alignment.\n");
-	        return DRM_ERR(EINVAL);
+		return DRM_ERR(EINVAL);
 	}
 #else
 	if ((((unsigned long)xfer->mem_addr & 15) ||
-	    ((unsigned long)xfer->fb_addr & 3)) || (xfer->mem_stride & 15) ||
-	    (xfer->fb_stride & 3)) {
+	      ((unsigned long)xfer->fb_addr & 3)) ||
+	   ((xfer->num_lines > 1) && 
+	   ((xfer->mem_stride & 15) || (xfer->fb_stride & 3)))) {
 		DRM_ERROR("Invalid DRM bitblt alignment.\n");
-	        return DRM_ERR(EINVAL);
+		return DRM_ERR(EINVAL);
 	}	
 #endif
 
@@ -715,7 +737,7 @@ via_dmablit(drm_device_t *dev, drm_via_dmablit_t *xfer)
 	drm_via_private_t *dev_priv = (drm_via_private_t *)dev->dev_private;
 	drm_via_sg_info_t *vsg;
 	drm_via_blitq_t *blitq;
-        int ret;
+	int ret;
 	int engine;
 	unsigned long irqsave;
 
@@ -756,7 +778,7 @@ via_dmablit(drm_device_t *dev, drm_via_dmablit_t *xfer)
 
 /*
  * Sync on a previously submitted blit. Note that the X server use signals extensively, and
- * that there is a very big proability that this IOCTL will be interrupted by a signal. In that
+ * that there is a very big probability that this IOCTL will be interrupted by a signal. In that
  * case it returns with -EAGAIN for the signal to be delivered. 
  * The caller should then reissue the IOCTL. This is similar to what is being done for drmGetLock().
  */

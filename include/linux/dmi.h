@@ -27,7 +27,8 @@ enum dmi_device_type {
 	DMI_DEV_TYPE_ETHERNET,
 	DMI_DEV_TYPE_TOKENRING,
 	DMI_DEV_TYPE_SOUND,
-	DMI_DEV_TYPE_IPMI = -1
+	DMI_DEV_TYPE_IPMI = -1,
+	DMI_DEV_TYPE_OEM_STRING = -2
 };
 
 struct dmi_header {
@@ -68,6 +69,7 @@ extern struct dmi_device * dmi_find_device(int type, const char *name,
 	struct dmi_device *from);
 extern void dmi_scan_machine(void);
 extern int dmi_get_year(int field);
+extern int dmi_name_in_vendors(char *str);
 
 #else
 
@@ -76,6 +78,7 @@ static inline char * dmi_get_system_info(int field) { return NULL; }
 static inline struct dmi_device * dmi_find_device(int type, const char *name,
 	struct dmi_device *from) { return NULL; }
 static inline int dmi_get_year(int year) { return 0; }
+static inline int dmi_name_in_vendors(char *s) { return 0; }
 
 #endif
 

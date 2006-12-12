@@ -116,9 +116,11 @@ static drm_ioctl_desc_t drm_ioctls[] = {
 	[DRM_IOCTL_NR(DRM_IOCTL_SG_FREE)] = {drm_sg_free, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
 
 	[DRM_IOCTL_NR(DRM_IOCTL_WAIT_VBLANK)] = {drm_wait_vblank, 0},
+
+	[DRM_IOCTL_NR(DRM_IOCTL_UPDATE_DRAW)] = {drm_update_drawable_info, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
 };
 
-#define DRIVER_IOCTL_COUNT	DRM_ARRAY_SIZE( drm_ioctls )
+#define DRIVER_IOCTL_COUNT	ARRAY_SIZE( drm_ioctls )
 
 /**
  * Take down the DRM device.
@@ -151,16 +153,29 @@ int drm_lastclose(drm_device_t * dev)
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 
+	/* Free drawable information memory */
+	for (i = 0; i < dev->drw_bitfield_length / sizeof(*dev->drw_bitfield);
+	     i++) {
+		drm_drawable_info_t *info = drm_get_drawable_info(dev, i);
+
+		if (info) {
+			drm_free(info->rects, info->num_rects *
+				 sizeof(drm_clip_rect_t), DRM_MEM_BUFS);
+			drm_free(info, sizeof(*info), DRM_MEM_BUFS);
+		}
+	}
+
 	mutex_lock(&dev->struct_mutex);
 	del_timer(&dev->timer);
 
 	/* Clear pid list */
-	for (i = 0; i < DRM_HASH_SIZE; i++) {
-		for (pt = dev->magiclist[i].head; pt; pt = next) {
-			next = pt->next;
+	if (dev->magicfree.next) {
+		list_for_each_entry_safe(pt, next, &dev->magicfree, head) {
+			list_del(&pt->head);
+			drm_ht_remove_item(&dev->magiclist, &pt->hash_item);
 			drm_free(pt, sizeof(*pt), DRM_MEM_MAGIC);
 		}
-		dev->magiclist[i].head = dev->magiclist[i].tail = NULL;
+		drm_ht_remove(&dev->magiclist);
 	}
 
 	/* Clear AGP information */
@@ -299,6 +314,7 @@ static void drm_cleanup(drm_device_t * dev)
 	if (dev->maplist) {
 		drm_free(dev->maplist, sizeof(*dev->maplist), DRM_MEM_MAPS);
 		dev->maplist = NULL;
+		drm_ht_remove(&dev->map_hash);
 	}
 
 	drm_ctxbitmap_cleanup(dev);

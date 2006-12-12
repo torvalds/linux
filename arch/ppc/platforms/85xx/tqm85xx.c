@@ -137,9 +137,9 @@ tqm85xx_setup_arch(void)
 
 	mdata->irq[0] = MPC85xx_IRQ_EXT8;
 	mdata->irq[1] = MPC85xx_IRQ_EXT8;
-	mdata->irq[2] = -1;
+	mdata->irq[2] = PHY_POLL;
 	mdata->irq[3] = MPC85xx_IRQ_EXT8;
-	mdata->irq[31] = -1;
+	mdata->irq[31] = PHY_POLL;
 
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
@@ -181,10 +181,10 @@ tqm85xx_setup_arch(void)
 }
 
 #ifdef CONFIG_MPC8560
-static irqreturn_t cpm2_cascade(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cpm2_cascade(int irq, void *dev_id)
 {
-	while ((irq = cpm2_get_irq(regs)) >= 0)
-		__do_IRQ(irq, regs);
+	while ((irq = cpm2_get_irq()) >= 0)
+		__do_IRQ(irq);
 	return IRQ_HANDLED;
 }
 

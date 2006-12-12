@@ -36,7 +36,7 @@ void __adfs_error(struct super_block *sb, const char *function, const char *fmt,
 	va_list args;
 
 	va_start(args, fmt);
-	vsprintf(error_buf, fmt, args);
+	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
 	va_end(args);
 
 	printk(KERN_CRIT "ADFS-fs error (device %s)%s%s: %s\n",
@@ -212,12 +212,12 @@ static int adfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static kmem_cache_t *adfs_inode_cachep;
+static struct kmem_cache *adfs_inode_cachep;
 
 static struct inode *adfs_alloc_inode(struct super_block *sb)
 {
 	struct adfs_inode_info *ei;
-	ei = (struct adfs_inode_info *)kmem_cache_alloc(adfs_inode_cachep, SLAB_KERNEL);
+	ei = (struct adfs_inode_info *)kmem_cache_alloc(adfs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -228,7 +228,7 @@ static void adfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(adfs_inode_cachep, ADFS_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct adfs_inode_info *ei = (struct adfs_inode_info *) foo;
 
@@ -251,8 +251,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(adfs_inode_cachep))
-		printk(KERN_INFO "adfs_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(adfs_inode_cachep);
 }
 
 static struct super_operations adfs_sops = {
@@ -339,11 +338,10 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_flags |= MS_NODIRATIME;
 
-	asb = kmalloc(sizeof(*asb), GFP_KERNEL);
+	asb = kzalloc(sizeof(*asb), GFP_KERNEL);
 	if (!asb)
 		return -ENOMEM;
 	sb->s_fs_info = asb;
-	memset(asb, 0, sizeof(*asb));
 
 	/* set default options */
 	asb->s_uid = 0;

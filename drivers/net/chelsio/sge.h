@@ -43,14 +43,10 @@
 #include <linux/interrupt.h>
 #include <asm/byteorder.h>
 
-#ifndef IRQ_RETVAL
-#define IRQ_RETVAL(x)
-typedef void irqreturn_t;
-#endif
-
-typedef irqreturn_t (*intr_handler_t)(int, void *, struct pt_regs *);
-
 struct sge_intr_counts {
+	unsigned int rx_drops;        /* # of packets dropped due to no mem */
+	unsigned int pure_rsps;        /* # of non-payload responses */
+	unsigned int unhandled_irqs;   /* # of unhandled interrupts */
 	unsigned int respQ_empty;      /* # times respQ empty */
 	unsigned int respQ_overflow;   /* # respQ overflow (fatal) */
 	unsigned int freelistQ_empty;  /* # times freelist empty */
@@ -58,24 +54,16 @@ struct sge_intr_counts {
 	unsigned int pkt_mismatch;
 	unsigned int cmdQ_full[3];     /* not HW IRQ, host cmdQ[] full */
 	unsigned int cmdQ_restarted[3];/* # of times cmdQ X was restarted */
-	unsigned int ethernet_pkts;    /* # of Ethernet packets received */
-	unsigned int offload_pkts;     /* # of offload packets received */
-	unsigned int offload_bundles;  /* # of offload pkt bundles delivered */
-	unsigned int pure_rsps;        /* # of non-payload responses */
-	unsigned int unhandled_irqs;   /* # of unhandled interrupts */
-	unsigned int tx_ipfrags;
-	unsigned int tx_reg_pkts;
-	unsigned int tx_lso_pkts;
-	unsigned int tx_do_cksum;
 };
 
 struct sge_port_stats {
-	unsigned long rx_cso_good;     /* # of successful RX csum offloads */
-	unsigned long tx_cso;          /* # of TX checksum offloads */
-	unsigned long vlan_xtract;     /* # of VLAN tag extractions */
-	unsigned long vlan_insert;     /* # of VLAN tag extractions */
-	unsigned long tso;             /* # of TSO requests */
-	unsigned long rx_drops;        /* # of packets dropped due to no mem */
+	u64 rx_packets;      /* # of Ethernet packets received */
+	u64 rx_cso_good;     /* # of successful RX csum offloads */
+	u64 tx_packets;      /* # of TX packets */
+	u64 tx_cso;          /* # of TX checksum offloads */
+	u64 tx_tso;          /* # of TSO requests */
+	u64 vlan_xtract;     /* # of VLAN tag extractions */
+	u64 vlan_insert;     /* # of VLAN tag insertions */
 };
 
 struct sk_buff;
@@ -88,7 +76,9 @@ struct sge *t1_sge_create(struct adapter *, struct sge_params *);
 int t1_sge_configure(struct sge *, struct sge_params *);
 int t1_sge_set_coalesce_params(struct sge *, struct sge_params *);
 void t1_sge_destroy(struct sge *);
-intr_handler_t t1_select_intr_handler(adapter_t *adapter);
+irqreturn_t t1_interrupt(int irq, void *cookie);
+int t1_poll(struct net_device *, int *);
+
 int t1_start_xmit(struct sk_buff *skb, struct net_device *dev);
 void t1_set_vlan_accel(struct adapter *adapter, int on_off);
 void t1_sge_start(struct sge *);
@@ -97,7 +87,11 @@ int t1_sge_intr_error_handler(struct sge *);
 void t1_sge_intr_enable(struct sge *);
 void t1_sge_intr_disable(struct sge *);
 void t1_sge_intr_clear(struct sge *);
-const struct sge_intr_counts *t1_sge_get_intr_counts(struct sge *sge);
-const struct sge_port_stats *t1_sge_get_port_stats(struct sge *sge, int port);
+const struct sge_intr_counts *t1_sge_get_intr_counts(const struct sge *sge);
+void t1_sge_get_port_stats(const struct sge *sge, int port, struct sge_port_stats *);
+void t1_sched_set_max_avail_bytes(struct sge *, unsigned int);
+void t1_sched_set_drain_bits_per_us(struct sge *, unsigned int, unsigned int);
+unsigned int t1_sched_update_parms(struct sge *, unsigned int, unsigned int,
+			   unsigned int);
 
 #endif /* _CXGB_SGE_H_ */

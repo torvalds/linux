@@ -274,7 +274,7 @@ static struct au1100fb_panel known_lcd_panels[] =
 		.bpp = 16,
 		.control_base =	0x0004886A |
 			LCD_CONTROL_DEFAULT_PO | LCD_CONTROL_DEFAULT_SBPPF |
-			LCD_CONTROL_BPP_16,
+			LCD_CONTROL_BPP_16 | LCD_CONTROL_SBB_4,
 		.clkcontrol_base = 0x00020000,
 		.horztiming = 0x005aff1f,
 		.verttiming = 0x16000e57,

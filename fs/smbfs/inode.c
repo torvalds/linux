@@ -50,12 +50,12 @@ static void smb_put_super(struct super_block *);
 static int  smb_statfs(struct dentry *, struct kstatfs *);
 static int  smb_show_options(struct seq_file *, struct vfsmount *);
 
-static kmem_cache_t *smb_inode_cachep;
+static struct kmem_cache *smb_inode_cachep;
 
 static struct inode *smb_alloc_inode(struct super_block *sb)
 {
 	struct smb_inode_info *ei;
-	ei = (struct smb_inode_info *)kmem_cache_alloc(smb_inode_cachep, SLAB_KERNEL);
+	ei = (struct smb_inode_info *)kmem_cache_alloc(smb_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -66,7 +66,7 @@ static void smb_destroy_inode(struct inode *inode)
 	kmem_cache_free(smb_inode_cachep, SMB_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct smb_inode_info *ei = (struct smb_inode_info *) foo;
 	unsigned long flagmask = SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR;
@@ -89,8 +89,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(smb_inode_cachep))
-		printk(KERN_INFO "smb_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(smb_inode_cachep);
 }
 
 static int smb_remount(struct super_block *sb, int *flags, char *data)
@@ -167,7 +166,6 @@ smb_get_inode_attr(struct inode *inode, struct smb_fattr *fattr)
 	fattr->f_mtime	= inode->i_mtime;
 	fattr->f_ctime	= inode->i_ctime;
 	fattr->f_atime	= inode->i_atime;
-	fattr->f_blksize= inode->i_blksize;
 	fattr->f_blocks	= inode->i_blocks;
 
 	fattr->attr	= SMB_I(inode)->attr;
@@ -201,7 +199,6 @@ smb_set_inode_attr(struct inode *inode, struct smb_fattr *fattr)
 	inode->i_uid	= fattr->f_uid;
 	inode->i_gid	= fattr->f_gid;
 	inode->i_ctime	= fattr->f_ctime;
-	inode->i_blksize= fattr->f_blksize;
 	inode->i_blocks = fattr->f_blocks;
 	inode->i_size	= fattr->f_size;
 	inode->i_mtime	= fattr->f_mtime;

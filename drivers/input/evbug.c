@@ -42,10 +42,12 @@ static char evbug_name[] = "evbug";
 
 static void evbug_event(struct input_handle *handle, unsigned int type, unsigned int code, int value)
 {
-	printk(KERN_DEBUG "evbug.c: Event. Dev: %s, Type: %d, Code: %d, Value: %d\n", handle->dev->phys, type, code, value);
+	printk(KERN_DEBUG "evbug.c: Event. Dev: %s, Type: %d, Code: %d, Value: %d\n",
+		handle->dev->phys, type, code, value);
 }
 
-static struct input_handle *evbug_connect(struct input_handler *handler, struct input_dev *dev, struct input_device_id *id)
+static struct input_handle *evbug_connect(struct input_handler *handler, struct input_dev *dev,
+					  const struct input_device_id *id)
 {
 	struct input_handle *handle;
 
@@ -72,7 +74,7 @@ static void evbug_disconnect(struct input_handle *handle)
 	kfree(handle);
 }
 
-static struct input_device_id evbug_ids[] = {
+static const struct input_device_id evbug_ids[] = {
 	{ .driver_info = 1 },	/* Matches all devices */
 	{ },			/* Terminating zero entry */
 };
@@ -89,8 +91,7 @@ static struct input_handler evbug_handler = {
 
 static int __init evbug_init(void)
 {
-	input_register_handler(&evbug_handler);
-	return 0;
+	return input_register_handler(&evbug_handler);
 }
 
 static void __exit evbug_exit(void)

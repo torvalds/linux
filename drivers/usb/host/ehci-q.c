@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001-2004 by David Brownell
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -31,7 +31,7 @@
  * ISO traffic uses "ISO TD" (itd, and sitd) records, and (along with
  * interrupts) needs careful scheduling.  Performance improvements can be
  * an ongoing challenge.  That's in "ehci-sched.c".
- * 
+ *
  * USB 1.1 devices are handled (a) by "companion" OHCI or UHCI root hubs,
  * or otherwise through transaction translators (TTs) in USB 2.0 hubs using
  * (b) special fields in qh entries or (c) split iso entries.  TTs will
@@ -199,7 +199,7 @@ static void qtd_copy_status (
 				&& ((token & QTD_STS_MMF) != 0
 					|| QTD_CERR(token) == 0)
 				&& (!ehci_is_TDI(ehci)
-                	                || urb->dev->tt->hub !=
+			                || urb->dev->tt->hub !=
 					   ehci_to_hcd(ehci)->self.root_hub)) {
 #ifdef DEBUG
 			struct usb_device *tt = urb->dev->tt->hub;
@@ -214,7 +214,7 @@ static void qtd_copy_status (
 }
 
 static void
-ehci_urb_done (struct ehci_hcd *ehci, struct urb *urb, struct pt_regs *regs)
+ehci_urb_done (struct ehci_hcd *ehci, struct urb *urb)
 __releases(ehci->lock)
 __acquires(ehci->lock)
 {
@@ -262,7 +262,7 @@ __acquires(ehci->lock)
 
 	/* complete() can reenter this HCD */
 	spin_unlock (&ehci->lock);
-	usb_hcd_giveback_urb (ehci_to_hcd(ehci), urb, regs);
+	usb_hcd_giveback_urb (ehci_to_hcd(ehci), urb);
 	spin_lock (&ehci->lock);
 }
 
@@ -279,7 +279,7 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh);
  */
 #define HALT_BIT __constant_cpu_to_le32(QTD_STS_HALT)
 static unsigned
-qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh, struct pt_regs *regs)
+qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	struct ehci_qtd		*last = NULL, *end = qh->dummy;
 	struct list_head	*entry, *tmp;
@@ -317,7 +317,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh, struct pt_regs *regs)
 		/* clean up any state from previous QTD ...*/
 		if (last) {
 			if (likely (last->urb != urb)) {
-				ehci_urb_done (ehci, last->urb, regs);
+				ehci_urb_done (ehci, last->urb);
 				count++;
 			}
 			ehci_qtd_free (ehci, last);
@@ -364,7 +364,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh, struct pt_regs *regs)
 			 */
 			if (likely (urb->status == -EINPROGRESS))
 				continue;
-			
+
 			/* issue status after short control reads */
 			if (unlikely (do_status != 0)
 					&& QTD_PID (token) == 0 /* OUT */) {
@@ -388,7 +388,7 @@ halt:
 				wmb ();
 			}
 		}
- 
+
 		/* remove it from the queue */
 		spin_lock (&urb->lock);
 		qtd_copy_status (ehci, urb, qtd->length, token);
@@ -407,7 +407,7 @@ halt:
 
 	/* last urb's completion might still need calling */
 	if (likely (last != NULL)) {
-		ehci_urb_done (ehci, last->urb, regs);
+		ehci_urb_done (ehci, last->urb);
 		count++;
 		ehci_qtd_free (ehci, last);
 	}
@@ -518,7 +518,7 @@ qh_urb_transaction (
 		/* for zero length DATA stages, STATUS is always IN */
 		if (len == 0)
 			token |= (1 /* "in" */ << 8);
-	} 
+	}
 
 	/*
 	 * data transfer stage:  buffer setup
@@ -759,7 +759,7 @@ qh_make (
 		}
 		break;
 	default:
- 		dbg ("bogus dev %p speed %d", urb->dev, urb->dev->speed);
+		dbg ("bogus dev %p speed %d", urb->dev, urb->dev->speed);
 done:
 		qh_put (qh);
 		return NULL;
@@ -962,7 +962,7 @@ submit_async (
 
 /* the async qh for the qtds being reclaimed are now unlinked from the HC */
 
-static void end_unlink_async (struct ehci_hcd *ehci, struct pt_regs *regs)
+static void end_unlink_async (struct ehci_hcd *ehci)
 {
 	struct ehci_qh		*qh = ehci->reclaim;
 	struct ehci_qh		*next;
@@ -972,7 +972,7 @@ static void end_unlink_async (struct ehci_hcd *ehci, struct pt_regs *regs)
 	// qh->hw_next = cpu_to_le32 (qh->qh_dma);
 	qh->qh_state = QH_STATE_IDLE;
 	qh->qh_next.qh = NULL;
-	qh_put (qh);			// refcount from reclaim 
+	qh_put (qh);			// refcount from reclaim
 
 	/* other unlink(s) may be pending (in QH_STATE_UNLINK_WAIT) */
 	next = qh->reclaim;
@@ -980,7 +980,7 @@ static void end_unlink_async (struct ehci_hcd *ehci, struct pt_regs *regs)
 	ehci->reclaim_ready = 0;
 	qh->reclaim = NULL;
 
-	qh_completions (ehci, qh, regs);
+	qh_completions (ehci, qh);
 
 	if (!list_empty (&qh->qtd_list)
 			&& HC_IS_RUNNING (ehci_to_hcd(ehci)->state))
@@ -1031,7 +1031,7 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			timer_action_done (ehci, TIMER_ASYNC_OFF);
 		}
 		return;
-	} 
+	}
 
 	qh->qh_state = QH_STATE_UNLINK;
 	ehci->reclaim = qh = qh_get (qh);
@@ -1046,9 +1046,9 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	if (unlikely (ehci_to_hcd(ehci)->state == HC_STATE_HALT)) {
 		/* if (unlikely (qh->reclaim != 0))
-		 * 	this will recurse, probably not much
+		 *	this will recurse, probably not much
 		 */
-		end_unlink_async (ehci, NULL);
+		end_unlink_async (ehci);
 		return;
 	}
 
@@ -1061,8 +1061,7 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 /*-------------------------------------------------------------------------*/
 
-static void
-scan_async (struct ehci_hcd *ehci, struct pt_regs *regs)
+static void scan_async (struct ehci_hcd *ehci)
 {
 	struct ehci_qh		*qh;
 	enum ehci_timer_action	action = TIMER_IO_WATCHDOG;
@@ -1086,7 +1085,7 @@ rescan:
 				 */
 				qh = qh_get (qh);
 				qh->stamp = ehci->stamp;
-				temp = qh_completions (ehci, qh, regs);
+				temp = qh_completions (ehci, qh);
 				qh_put (qh);
 				if (temp != 0) {
 					goto rescan;

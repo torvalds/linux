@@ -24,10 +24,9 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 	struct page *page;
 	unsigned int size;
 
-	tree = kmalloc(sizeof(*tree), GFP_KERNEL);
+	tree = kzalloc(sizeof(*tree), GFP_KERNEL);
 	if (!tree)
 		return NULL;
-	memset(tree, 0, sizeof(*tree));
 
 	init_MUTEX(&tree->tree_lock);
 	spin_lock_init(&tree->hash_lock);

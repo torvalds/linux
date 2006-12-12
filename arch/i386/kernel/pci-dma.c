@@ -75,7 +75,7 @@ EXPORT_SYMBOL(dma_free_coherent);
 int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
 				dma_addr_t device_addr, size_t size, int flags)
 {
-	void __iomem *mem_base;
+	void __iomem *mem_base = NULL;
 	int pages = size >> PAGE_SHIFT;
 	int bitmap_size = (pages + 31)/32;
 
@@ -92,14 +92,12 @@ int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
 	if (!mem_base)
 		goto out;
 
-	dev->dma_mem = kmalloc(sizeof(struct dma_coherent_mem), GFP_KERNEL);
+	dev->dma_mem = kzalloc(sizeof(struct dma_coherent_mem), GFP_KERNEL);
 	if (!dev->dma_mem)
 		goto out;
-	memset(dev->dma_mem, 0, sizeof(struct dma_coherent_mem));
-	dev->dma_mem->bitmap = kmalloc(bitmap_size, GFP_KERNEL);
+	dev->dma_mem->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
 	if (!dev->dma_mem->bitmap)
 		goto free1_out;
-	memset(dev->dma_mem->bitmap, 0, bitmap_size);
 
 	dev->dma_mem->virt_base = mem_base;
 	dev->dma_mem->device_base = device_addr;
@@ -114,6 +112,8 @@ int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
  free1_out:
 	kfree(dev->dma_mem->bitmap);
  out:
+	if (mem_base)
+		iounmap(mem_base);
 	return 0;
 }
 EXPORT_SYMBOL(dma_declare_coherent_memory);

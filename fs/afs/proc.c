@@ -775,6 +775,7 @@ static int afs_proc_cell_servers_release(struct inode *inode,
  * first item
  */
 static void *afs_proc_cell_servers_start(struct seq_file *m, loff_t *_pos)
+	__acquires(m->private->sv_lock)
 {
 	struct list_head *_p;
 	struct afs_cell *cell = m->private;
@@ -823,6 +824,7 @@ static void *afs_proc_cell_servers_next(struct seq_file *p, void *v,
  * clean up after reading from the cells list
  */
 static void afs_proc_cell_servers_stop(struct seq_file *p, void *v)
+	__releases(p->private->sv_lock)
 {
 	struct afs_cell *cell = p->private;
 

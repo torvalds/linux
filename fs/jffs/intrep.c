@@ -66,6 +66,7 @@
 #include <linux/smp_lock.h>
 #include <linux/time.h>
 #include <linux/ctype.h>
+#include <linux/freezer.h>
 
 #include "intrep.h"
 #include "jffs_fm.h"
@@ -488,13 +489,11 @@ jffs_create_file(struct jffs_control *c,
 {
 	struct jffs_file *f;
 
-	if (!(f = (struct jffs_file *)kmalloc(sizeof(struct jffs_file),
-					      GFP_KERNEL))) {
+	if (!(f = kzalloc(sizeof(*f), GFP_KERNEL))) {
 		D(printk("jffs_create_file(): Failed!\n"));
 		return NULL;
 	}
 	no_jffs_file++;
-	memset(f, 0, sizeof(struct jffs_file));
 	f->ino = raw_inode->ino;
 	f->pino = raw_inode->pino;
 	f->nlink = raw_inode->nlink;
@@ -516,7 +515,7 @@ jffs_create_control(struct super_block *sb)
 
 	D2(printk("jffs_create_control()\n"));
 
-	if (!(c = (struct jffs_control *)kmalloc(s, GFP_KERNEL))) {
+	if (!(c = kmalloc(s, GFP_KERNEL))) {
 		goto fail_control;
 	}
 	DJM(no_jffs_control++);
@@ -524,7 +523,7 @@ jffs_create_control(struct super_block *sb)
 	c->gc_task = NULL;
 	c->hash_len = JFFS_HASH_SIZE;
 	s = sizeof(struct list_head) * c->hash_len;
-	if (!(c->hash = (struct list_head *)kmalloc(s, GFP_KERNEL))) {
+	if (!(c->hash = kmalloc(s, GFP_KERNEL))) {
 		goto fail_hash;
 	}
 	DJM(no_hash++);
@@ -593,8 +592,7 @@ jffs_add_virtual_root(struct jffs_control *c)
 	D2(printk("jffs_add_virtual_root(): "
 		  "Creating a virtual root directory.\n"));
 
-	if (!(root = (struct jffs_file *)kmalloc(sizeof(struct jffs_file),
-						 GFP_KERNEL))) {
+	if (!(root = kzalloc(sizeof(struct jffs_file), GFP_KERNEL))) {
 		return -ENOMEM;
 	}
 	no_jffs_file++;
@@ -606,7 +604,6 @@ jffs_add_virtual_root(struct jffs_control *c)
 	DJM(no_jffs_node++);
 	memset(node, 0, sizeof(struct jffs_node));
 	node->ino = JFFS_MIN_INO;
-	memset(root, 0, sizeof(struct jffs_file));
 	root->ino = JFFS_MIN_INO;
 	root->mode = S_IFDIR | S_IRWXU | S_IRGRP
 		     | S_IXGRP | S_IROTH | S_IXOTH;

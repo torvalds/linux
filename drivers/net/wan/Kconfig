@@ -57,44 +57,6 @@ config COSA
 	  The driver will be compiled as a module: the
 	  module will be called cosa.
 
-config DSCC4
-	tristate "Etinc PCISYNC serial board support"
-	depends on WAN && PCI && m
-	help
-	  Driver for Etinc PCISYNC boards based on the Infineon (ex. Siemens)
-	  DSCC4 chipset.
-
-	  This is supposed to work with the four port card. Take a look at
-	  <http://www.cogenit.fr/dscc4/> for further information about the
-	  driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dscc4.
-
-config DSCC4_PCISYNC
-	bool "Etinc PCISYNC features"
-	depends on DSCC4
-	help
-	  Due to Etinc's design choice for its PCISYNC cards, some operations
-	  are only allowed on specific ports of the DSCC4. This option is the
-	  only way for the driver to know that it shouldn't return a success
-	  code for these operations.
-
-	  Please say Y if your card is an Etinc's PCISYNC.
-
-config DSCC4_PCI_RST
-	bool "Hard reset support"
-	depends on DSCC4
-	help
-	  Various DSCC4 bugs forbid any reliable software reset of the ASIC.
-	  As a replacement, some vendors provide a way to assert the PCI #RST
-	  pin of DSCC4 through the GPIO port of the card. If you choose Y,
-	  the driver will make use of this feature before module removal
-	  (i.e. rmmod). The feature is known to be available on Commtech's
-	  cards. Contact your manufacturer for details.
-
-	  Say Y if your card supports this feature.
-
 #
 # Lan Media's board. Currently 1000, 1200, 5200, 5245
 #
@@ -127,7 +89,7 @@ config LANMEDIA
 # There is no way to detect a Sealevel board. Force it modular
 config SEALEVEL_4021
 	tristate "Sealevel Systems 4021 support"
-	depends on WAN && ISA && m && ISA_DMA_API
+	depends on WAN && ISA && m && ISA_DMA_API && INET
 	help
 	  This is a driver for the Sealevel Systems ACB 56 serial I/O adapter.
 
@@ -154,7 +116,7 @@ config HDLC
 	  If unsure, say N.
 
 config HDLC_RAW
-	bool "Raw HDLC support"
+	tristate "Raw HDLC support"
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting raw HDLC over WAN connections.
@@ -162,7 +124,7 @@ config HDLC_RAW
 	  If unsure, say N.
 
 config HDLC_RAW_ETH
-	bool "Raw HDLC Ethernet device support"
+	tristate "Raw HDLC Ethernet device support"
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting raw HDLC Ethernet device emulation
@@ -173,7 +135,7 @@ config HDLC_RAW_ETH
 	  If unsure, say N.
 
 config HDLC_CISCO
-	bool "Cisco HDLC support"
+	tristate "Cisco HDLC support"
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting Cisco HDLC over WAN connections.
@@ -181,7 +143,7 @@ config HDLC_CISCO
 	  If unsure, say N.
 
 config HDLC_FR
-	bool "Frame Relay support"
+	tristate "Frame Relay support"
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting Frame Relay over WAN connections.
@@ -189,7 +151,7 @@ config HDLC_FR
 	  If unsure, say N.
 
 config HDLC_PPP
-	bool "Synchronous Point-to-Point Protocol (PPP) support"
+	tristate "Synchronous Point-to-Point Protocol (PPP) support"
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting PPP over WAN connections.
@@ -197,7 +159,7 @@ config HDLC_PPP
 	  If unsure, say N.
 
 config HDLC_X25
-	bool "X.25 protocol support"
+	tristate "X.25 protocol support"
 	depends on HDLC && (LAPB=m && HDLC=m || LAPB=y)
 	help
 	  Generic HDLC driver supporting X.25 over WAN connections.
@@ -323,6 +285,44 @@ config FARSYNC
 	  To compile this driver as a module, choose M here: the
 	  module will be called farsync.
 
+config DSCC4
+	tristate "Etinc PCISYNC serial board support"
+	depends on HDLC && PCI && m
+	help
+	  Driver for Etinc PCISYNC boards based on the Infineon (ex. Siemens)
+	  DSCC4 chipset.
+
+	  This is supposed to work with the four port card. Take a look at
+	  <http://www.cogenit.fr/dscc4/> for further information about the
+	  driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dscc4.
+
+config DSCC4_PCISYNC
+	bool "Etinc PCISYNC features"
+	depends on DSCC4
+	help
+	  Due to Etinc's design choice for its PCISYNC cards, some operations
+	  are only allowed on specific ports of the DSCC4. This option is the
+	  only way for the driver to know that it shouldn't return a success
+	  code for these operations.
+
+	  Please say Y if your card is an Etinc's PCISYNC.
+
+config DSCC4_PCI_RST
+	bool "Hard reset support"
+	depends on DSCC4
+	help
+	  Various DSCC4 bugs forbid any reliable software reset of the ASIC.
+	  As a replacement, some vendors provide a way to assert the PCI #RST
+	  pin of DSCC4 through the GPIO port of the card. If you choose Y,
+	  the driver will make use of this feature before module removal
+	  (i.e. rmmod). The feature is known to be available on Commtech's
+	  cards. Contact your manufacturer for details.
+
+	  Say Y if your card supports this feature.
+
 config DLCI
 	tristate "Frame Relay DLCI support"
 	depends on WAN
@@ -382,7 +382,7 @@ config SDLA
 
 # Wan router core.
 config WAN_ROUTER_DRIVERS
-	bool "WAN router drivers"
+	tristate "WAN router drivers"
 	depends on WAN && WAN_ROUTER
 	---help---
 	  Connect LAN to WAN via Linux box.
@@ -393,7 +393,8 @@ config WAN_ROUTER_DRIVERS
 	  <file:Documentation/networking/wan-router.txt>.
 
 	  Note that the answer to this question won't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
+	  kernel except for how subordinate drivers may be built:
+	  saying N will just cause the configurator to skip all
 	  the questions about WAN router drivers.
 
 	  If unsure, say N.

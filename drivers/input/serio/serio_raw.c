@@ -250,7 +250,7 @@ static struct file_operations serio_raw_fops = {
  *********************************************************************/
 
 static irqreturn_t serio_raw_interrupt(struct serio *serio, unsigned char data,
-					unsigned int dfl, struct pt_regs *regs)
+					unsigned int dfl)
 {
 	struct serio_raw *serio_raw = serio_get_drvdata(serio);
 	struct serio_raw_list *list;
@@ -297,7 +297,7 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 
 	serio_raw->dev.minor = PSMOUSE_MINOR;
 	serio_raw->dev.name = serio_raw->name;
-	serio_raw->dev.dev = &serio->dev;
+	serio_raw->dev.parent = &serio->dev;
 	serio_raw->dev.fops = &serio_raw_fops;
 
 	err = misc_register(&serio_raw->dev);
@@ -389,8 +389,7 @@ static struct serio_driver serio_raw_drv = {
 
 static int __init serio_raw_init(void)
 {
-	serio_register_driver(&serio_raw_drv);
-	return 0;
+	return serio_register_driver(&serio_raw_drv);
 }
 
 static void __exit serio_raw_exit(void)

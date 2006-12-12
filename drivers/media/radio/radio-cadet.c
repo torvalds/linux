@@ -25,20 +25,28 @@
  *
  * 2003-01-31	Alan Cox <alan@redhat.com>
  *		Cleaned up locking, delay code, general odds and ends
+ *
+ * 2006-07-30	Hans J. Koch <koch@hjk-az.de>
+ *		Changed API to V4L2
  */
 
+#include <linux/version.h>
 #include <linux/module.h>	/* Modules 			*/
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/
 #include <asm/io.h>		/* outb, outb_p			*/
 #include <asm/uaccess.h>	/* copy to/from user		*/
-#include <linux/videodev.h>	/* kernel radio structs		*/
+#include <linux/videodev2.h>	/* V4L2 API defs		*/
 #include <media/v4l2-common.h>
 #include <linux/param.h>
 #include <linux/pnp.h>
 
 #define RDS_BUFFER 256
+#define RDS_RX_FLAG 1
+#define MBS_RX_FLAG 2
+
+#define CADET_VERSION KERNEL_VERSION(0,3,3)
 
 static int io=-1;		/* default to isapnp activation */
 static int radio_nr = -1;
@@ -61,44 +69,24 @@ static int cadet_probe(void);
  */
 static __u16 sigtable[2][4]={{5,10,30,150},{28,40,63,1000}};
 
-static int cadet_getrds(void)
+
+static int
+cadet_getstereo(void)
 {
-	int rdsstat=0;
-
-	spin_lock(&cadet_io_lock);
-	outb(3,io);                 /* Select Decoder Control/Status */
-	outb(inb(io+1)&0x7f,io+1);  /* Reset RDS detection */
-	spin_unlock(&cadet_io_lock);
-
-	msleep(100);
-
-	spin_lock(&cadet_io_lock);
-	outb(3,io);                 /* Select Decoder Control/Status */
-	if((inb(io+1)&0x80)!=0) {
-		rdsstat|=VIDEO_TUNER_RDS_ON;
-	}
-	if((inb(io+1)&0x10)!=0) {
-		rdsstat|=VIDEO_TUNER_MBS_ON;
-	}
-	spin_unlock(&cadet_io_lock);
-	return rdsstat;
-}
-
-static int cadet_getstereo(void)
-{
-	int ret = 0;
+	int ret = V4L2_TUNER_SUB_MONO;
 	if(curtuner != 0)	/* Only FM has stereo capability! */
-		return 0;
+		return V4L2_TUNER_SUB_MONO;
 
 	spin_lock(&cadet_io_lock);
 	outb(7,io);          /* Select tuner control */
 	if( (inb(io+1) & 0x40) == 0)
-		ret = 1;
+		ret = V4L2_TUNER_SUB_STEREO;
 	spin_unlock(&cadet_io_lock);
 	return ret;
 }
 
-static unsigned cadet_gettune(void)
+static unsigned
+cadet_gettune(void)
 {
 	int curvol,i;
 	unsigned fifo=0;
@@ -135,7 +123,8 @@ static unsigned cadet_gettune(void)
 	return fifo;
 }
 
-static unsigned cadet_getfreq(void)
+static unsigned
+cadet_getfreq(void)
 {
 	int i;
 	unsigned freq=0,test,fifo=0;
@@ -167,7 +156,8 @@ static unsigned cadet_getfreq(void)
 	return freq;
 }
 
-static void cadet_settune(unsigned fifo)
+static void
+cadet_settune(unsigned fifo)
 {
 	int i;
 	unsigned test;
@@ -195,7 +185,8 @@ static void cadet_settune(unsigned fifo)
 	spin_unlock(&cadet_io_lock);
 }
 
-static void cadet_setfreq(unsigned freq)
+static void
+cadet_setfreq(unsigned freq)
 {
 	unsigned fifo;
 	int i,j,test;
@@ -255,7 +246,8 @@ static void cadet_setfreq(unsigned freq)
 }
 
 
-static int cadet_getvol(void)
+static int
+cadet_getvol(void)
 {
 	int ret = 0;
 
@@ -270,7 +262,8 @@ static int cadet_getvol(void)
 }
 
 
-static void cadet_setvol(int vol)
+static void
+cadet_setvol(int vol)
 {
 	spin_lock(&cadet_io_lock);
 	outb(7,io);                /* Select tuner control */
@@ -281,7 +274,8 @@ static void cadet_setvol(int vol)
 	spin_unlock(&cadet_io_lock);
 }
 
-static void cadet_handler(unsigned long data)
+static void
+cadet_handler(unsigned long data)
 {
 	/*
 	 * Service the RDS fifo
@@ -322,8 +316,8 @@ static void cadet_handler(unsigned long data)
 
 
 
-static ssize_t cadet_read(struct file *file, char __user *data,
-			  size_t count, loff_t *ppos)
+static ssize_t
+cadet_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	int i=0;
 	unsigned char readbuf[RDS_BUFFER];
@@ -359,128 +353,156 @@ static int cadet_do_ioctl(struct inode *inode, struct file *file,
 {
 	switch(cmd)
 	{
-		case VIDIOCGCAP:
+		case VIDIOC_QUERYCAP:
 		{
-			struct video_capability *v = arg;
-			memset(v,0,sizeof(*v));
-			v->type=VID_TYPE_TUNER;
-			v->channels=2;
-			v->audios=1;
-			strcpy(v->name, "ADS Cadet");
+			struct v4l2_capability *cap = arg;
+			memset(cap,0,sizeof(*cap));
+			cap->capabilities =
+				V4L2_CAP_TUNER |
+				V4L2_CAP_READWRITE;
+			cap->version = CADET_VERSION;
+			strcpy(cap->driver, "ADS Cadet");
+			strcpy(cap->card, "ADS Cadet");
 			return 0;
 		}
-		case VIDIOCGTUNER:
+		case VIDIOC_G_TUNER:
 		{
-			struct video_tuner *v = arg;
-			if((v->tuner<0)||(v->tuner>1)) {
+			struct v4l2_tuner *t = arg;
+			memset(t,0,sizeof(*t));
+			t->type = V4L2_TUNER_RADIO;
+			switch (t->index)
+			{
+				case 0: strcpy(t->name, "FM");
+					t->capability = V4L2_TUNER_CAP_STEREO;
+					t->rangelow = 1400;     /* 87.5 MHz */
+					t->rangehigh = 1728;    /* 108.0 MHz */
+					t->rxsubchans=cadet_getstereo();
+					switch (t->rxsubchans){
+						case V4L2_TUNER_SUB_MONO:
+							t->audmode = V4L2_TUNER_MODE_MONO;
+							break;
+						case V4L2_TUNER_SUB_STEREO:
+							t->audmode = V4L2_TUNER_MODE_STEREO;
+							break;
+						default: ;
+					}
+					break;
+				case 1: strcpy(t->name, "AM");
+					t->capability = V4L2_TUNER_CAP_LOW;
+					t->rangelow = 8320;      /* 520 kHz */
+					t->rangehigh = 26400;    /* 1650 kHz */
+					t->rxsubchans = V4L2_TUNER_SUB_MONO;
+					t->audmode = V4L2_TUNER_MODE_MONO;
+					break;
+				default:
+					return -EINVAL;
+			}
+
+			t->signal = sigstrength; /* We might need to modify scaling of this */
+			return 0;
+		}
+		case VIDIOC_S_TUNER:
+		{
+			struct v4l2_tuner *t = arg;
+			if((t->index != 0)&&(t->index != 1))
+				return -EINVAL;
+
+			curtuner = t->index;
+			return 0;
+		}
+		case VIDIOC_G_FREQUENCY:
+		{
+			struct v4l2_frequency *f = arg;
+			memset(f,0,sizeof(*f));
+			f->tuner = curtuner;
+			f->type = V4L2_TUNER_RADIO;
+			f->frequency = cadet_getfreq();
+			return 0;
+		}
+		case VIDIOC_S_FREQUENCY:
+		{
+			struct v4l2_frequency *f = arg;
+			if (f->type != V4L2_TUNER_RADIO){
 				return -EINVAL;
 			}
-			switch(v->tuner) {
-				case 0:
-				strcpy(v->name,"FM");
-				v->rangelow=1400;     /* 87.5 MHz */
-				v->rangehigh=1728;    /* 108.0 MHz */
-				v->flags=0;
-				v->mode=0;
-				v->mode|=VIDEO_MODE_AUTO;
-				v->signal=sigstrength;
-				if(cadet_getstereo()==1) {
-					v->flags|=VIDEO_TUNER_STEREO_ON;
-				}
-				v->flags|=cadet_getrds();
-				break;
-				case 1:
-				strcpy(v->name,"AM");
-				v->rangelow=8320;      /* 520 kHz */
-				v->rangehigh=26400;    /* 1650 kHz */
-				v->flags=0;
-				v->flags|=VIDEO_TUNER_LOW;
-				v->mode=0;
-				v->mode|=VIDEO_MODE_AUTO;
-				v->signal=sigstrength;
-				break;
-			}
-			return 0;
-		}
-		case VIDIOCSTUNER:
-		{
-			struct video_tuner *v = arg;
-			if((v->tuner<0)||(v->tuner>1)) {
+			if((curtuner==0)&&((f->frequency<1400)||(f->frequency>1728))) {
 				return -EINVAL;
 			}
-			curtuner=v->tuner;
-			return 0;
-		}
-		case VIDIOCGFREQ:
-		{
-			unsigned long *freq = arg;
-			*freq = cadet_getfreq();
-			return 0;
-		}
-		case VIDIOCSFREQ:
-		{
-			unsigned long *freq = arg;
-			if((curtuner==0)&&((*freq<1400)||(*freq>1728))) {
+			if((curtuner==1)&&((f->frequency<8320)||(f->frequency>26400))) {
 				return -EINVAL;
 			}
-			if((curtuner==1)&&((*freq<8320)||(*freq>26400))) {
-				return -EINVAL;
-			}
-			cadet_setfreq(*freq);
+			cadet_setfreq(f->frequency);
 			return 0;
 		}
-		case VIDIOCGAUDIO:
+		case VIDIOC_G_CTRL:
 		{
-			struct video_audio *v = arg;
-			memset(v,0, sizeof(*v));
-			v->flags=VIDEO_AUDIO_MUTABLE|VIDEO_AUDIO_VOLUME;
-			if(cadet_getstereo()==0) {
-				v->mode=VIDEO_SOUND_MONO;
-			} else {
-				v->mode=VIDEO_SOUND_STEREO;
+			struct v4l2_control *c = arg;
+			switch (c->id){
+				case V4L2_CID_AUDIO_MUTE: /* TODO: Handle this correctly */
+					c->value = (cadet_getvol() == 0);
+					break;
+				case V4L2_CID_AUDIO_VOLUME:
+					c->value = cadet_getvol();
+					break;
+				default:
+					return -EINVAL;
 			}
-			v->volume=cadet_getvol();
-			v->step=0xffff;
-			strcpy(v->name, "Radio");
 			return 0;
 		}
-		case VIDIOCSAUDIO:
+		case VIDIOC_S_CTRL:
 		{
-			struct video_audio *v = arg;
-			if(v->audio)
-				return -EINVAL;
-			cadet_setvol(v->volume);
-			if(v->flags&VIDEO_AUDIO_MUTE)
-				cadet_setvol(0);
-			else
-				cadet_setvol(0xffff);
+			struct v4l2_control *c = arg;
+			switch (c->id){
+				case V4L2_CID_AUDIO_MUTE: /* TODO: Handle this correctly */
+					if (c->value) cadet_setvol(0);
+						else cadet_setvol(0xffff);
+					break;
+				case V4L2_CID_AUDIO_VOLUME:
+					cadet_setvol(c->value);
+					break;
+				default:
+					return -EINVAL;
+			}
 			return 0;
 		}
+
 		default:
 			return -ENOIOCTLCMD;
 	}
 }
 
-static int cadet_ioctl(struct inode *inode, struct file *file,
+static int
+cadet_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(inode, file, cmd, arg, cadet_do_ioctl);
 }
 
-static int cadet_open(struct inode *inode, struct file *file)
+static int
+cadet_open(struct inode *inode, struct file *file)
 {
-	if(users)
-		return -EBUSY;
 	users++;
-	init_waitqueue_head(&read_queue);
+	if (1 == users) init_waitqueue_head(&read_queue);
 	return 0;
 }
 
-static int cadet_release(struct inode *inode, struct file *file)
+static int
+cadet_release(struct inode *inode, struct file *file)
 {
-	del_timer_sync(&readtimer);
-	rdsstat=0;
 	users--;
+	if (0 == users){
+		del_timer_sync(&readtimer);
+		rdsstat=0;
+	}
+	return 0;
+}
+
+static unsigned int
+cadet_poll(struct file *file, struct poll_table_struct *wait)
+{
+	poll_wait(file,&read_queue,wait);
+	if(rdsin != rdsout)
+		return POLLIN | POLLRDNORM;
 	return 0;
 }
 
@@ -491,6 +513,7 @@ static struct file_operations cadet_fops = {
 	.release       	= cadet_release,
 	.read		= cadet_read,
 	.ioctl		= cadet_ioctl,
+	.poll		= cadet_poll,
 	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
@@ -500,7 +523,6 @@ static struct video_device cadet_radio=
 	.owner		= THIS_MODULE,
 	.name		= "Cadet radio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= VID_HARDWARE_CADET,
 	.fops           = &cadet_fops,
 };
 

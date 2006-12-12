@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2001-2004 by David Brownell
  * Copyright (c) 2003 Michal Sojka, for high-speed iso transfers
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -613,7 +613,7 @@ static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 /*-------------------------------------------------------------------------*/
 
 static int check_period (
-	struct ehci_hcd *ehci, 
+	struct ehci_hcd *ehci,
 	unsigned	frame,
 	unsigned	uframe,
 	unsigned	period,
@@ -629,7 +629,7 @@ static int check_period (
 
 	/*
 	 * 80% periodic == 100 usec/uframe available
-	 * convert "usecs we need" to "max already claimed" 
+	 * convert "usecs we need" to "max already claimed"
 	 */
 	usecs = 100 - usecs;
 
@@ -659,14 +659,14 @@ static int check_period (
 }
 
 static int check_intr_schedule (
-	struct ehci_hcd		*ehci, 
+	struct ehci_hcd		*ehci,
 	unsigned		frame,
 	unsigned		uframe,
 	const struct ehci_qh	*qh,
 	__le32			*c_maskp
 )
 {
-    	int		retval = -ENOSPC;
+	int		retval = -ENOSPC;
 	u8		mask = 0;
 
 	if (qh->c_usecs && uframe >= 6)		/* FSTN territory? */
@@ -701,7 +701,7 @@ static int check_intr_schedule (
 	/* Make sure this tt's buffer is also available for CSPLITs.
 	 * We pessimize a bit; probably the typical full speed case
 	 * doesn't need the second CSPLIT.
-	 * 
+	 *
 	 * NOTE:  both SPLIT and CSPLIT could be checked in just
 	 * one smart pass...
 	 */
@@ -728,7 +728,7 @@ done:
  */
 static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	int 		status;
+	int		status;
 	unsigned	uframe;
 	__le32		c_mask;
 	unsigned	frame;		/* 0..(qh->period - 1), or NO_FRAME */
@@ -784,7 +784,7 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		ehci_dbg (ehci, "reused qh %p schedule\n", qh);
 
 	/* stuff into the periodic schedule */
- 	status = qh_link_periodic (ehci, qh);
+	status = qh_link_periodic (ehci, qh);
 done:
 	return status;
 }
@@ -1553,8 +1553,7 @@ itd_link_urb (
 static unsigned
 itd_complete (
 	struct ehci_hcd	*ehci,
-	struct ehci_itd	*itd,
-	struct pt_regs	*regs
+	struct ehci_itd	*itd
 ) {
 	struct urb				*urb = itd->urb;
 	struct usb_iso_packet_descriptor	*desc;
@@ -1613,7 +1612,7 @@ itd_complete (
 
 	/* give urb back to the driver ... can be out-of-order */
 	dev = urb->dev;
-	ehci_urb_done (ehci, urb, regs);
+	ehci_urb_done (ehci, urb);
 	urb = NULL;
 
 	/* defer stopping schedule; completion can submit */
@@ -1681,7 +1680,7 @@ static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
 		status = -ESHUTDOWN;
 	else
 		status = iso_stream_schedule (ehci, urb, stream);
- 	if (likely (status == 0))
+	if (likely (status == 0))
 		itd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
@@ -1738,7 +1737,7 @@ sitd_sched_init (
 		if (packet->buf1 != (buf & ~(u64)0x0fff))
 			packet->cross = 1;
 
-		/* OUT uses multiple start-splits */ 
+		/* OUT uses multiple start-splits */
 		if (stream->bEndpointAddress & USB_DIR_IN)
 			continue;
 		length = (length + 187) / 188;
@@ -1925,13 +1924,12 @@ sitd_link_urb (
 /*-------------------------------------------------------------------------*/
 
 #define	SITD_ERRS (SITD_STS_ERR | SITD_STS_DBE | SITD_STS_BABBLE \
-	       			| SITD_STS_XACT | SITD_STS_MMF)
+				| SITD_STS_XACT | SITD_STS_MMF)
 
 static unsigned
 sitd_complete (
 	struct ehci_hcd		*ehci,
-	struct ehci_sitd	*sitd,
-	struct pt_regs		*regs
+	struct ehci_sitd	*sitd
 ) {
 	struct urb				*urb = sitd->urb;
 	struct usb_iso_packet_descriptor	*desc;
@@ -1978,7 +1976,7 @@ sitd_complete (
 
 	/* give urb back to the driver */
 	dev = urb->dev;
-	ehci_urb_done (ehci, urb, regs);
+	ehci_urb_done (ehci, urb);
 	urb = NULL;
 
 	/* defer stopping schedule; completion can submit */
@@ -2043,7 +2041,7 @@ static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
 		status = -ESHUTDOWN;
 	else
 		status = iso_stream_schedule (ehci, urb, stream);
- 	if (status == 0)
+	if (status == 0)
 		sitd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
@@ -2065,8 +2063,7 @@ sitd_submit (struct ehci_hcd *ehci, struct urb *urb, gfp_t mem_flags)
 static inline unsigned
 sitd_complete (
 	struct ehci_hcd		*ehci,
-	struct ehci_sitd	*sitd,
-	struct pt_regs		*regs
+	struct ehci_sitd	*sitd
 ) {
 	ehci_err (ehci, "sitd_complete %p?\n", sitd);
 	return 0;
@@ -2077,7 +2074,7 @@ sitd_complete (
 /*-------------------------------------------------------------------------*/
 
 static void
-scan_periodic (struct ehci_hcd *ehci, struct pt_regs *regs)
+scan_periodic (struct ehci_hcd *ehci)
 {
 	unsigned	frame, clock, now_uframe, mod;
 	unsigned	modified;
@@ -2131,7 +2128,7 @@ restart:
 				temp.qh = qh_get (q.qh);
 				type = Q_NEXT_TYPE (q.qh->hw_next);
 				q = q.qh->qh_next;
-				modified = qh_completions (ehci, temp.qh, regs);
+				modified = qh_completions (ehci, temp.qh);
 				if (unlikely (list_empty (&temp.qh->qtd_list)))
 					intr_deschedule (ehci, temp.qh);
 				qh_put (temp.qh);
@@ -2169,7 +2166,7 @@ restart:
 				*hw_p = q.itd->hw_next;
 				type = Q_NEXT_TYPE (q.itd->hw_next);
 				wmb();
-				modified = itd_complete (ehci, q.itd, regs);
+				modified = itd_complete (ehci, q.itd);
 				q = *q_p;
 				break;
 			case Q_TYPE_SITD:
@@ -2185,7 +2182,7 @@ restart:
 				*hw_p = q.sitd->hw_next;
 				type = Q_NEXT_TYPE (q.sitd->hw_next);
 				wmb();
-				modified = sitd_complete (ehci, q.sitd, regs);
+				modified = sitd_complete (ehci, q.sitd);
 				q = *q_p;
 				break;
 			default:
@@ -2226,5 +2223,5 @@ restart:
 			now_uframe++;
 			now_uframe %= mod;
 		}
-	} 
+	}
 }

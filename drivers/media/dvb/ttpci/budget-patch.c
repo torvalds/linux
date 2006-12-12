@@ -325,7 +325,7 @@ static void frontend_init(struct budget_patch* budget)
 	case 0x1013: // SATELCO Multimedia PCI
 
 		// try the ALPS BSRV2 first of all
-		budget->dvb_frontend = ves1x93_attach(&alps_bsrv2_config, &budget->i2c_adap);
+		budget->dvb_frontend = dvb_attach(ves1x93_attach, &alps_bsrv2_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsrv2_tuner_set_params;
 			budget->dvb_frontend->ops.diseqc_send_master_cmd = budget_patch_diseqc_send_master_cmd;
@@ -335,7 +335,7 @@ static void frontend_init(struct budget_patch* budget)
 		}
 
 		// try the ALPS BSRU6 now
-		budget->dvb_frontend = stv0299_attach(&alps_bsru6_config, &budget->i2c_adap);
+		budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsru6_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
 			budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
@@ -347,7 +347,7 @@ static void frontend_init(struct budget_patch* budget)
 		}
 
 		// Try the grundig 29504-451
-		budget->dvb_frontend = tda8083_attach(&grundig_29504_451_config, &budget->i2c_adap);
+		budget->dvb_frontend = dvb_attach(tda8083_attach, &grundig_29504_451_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = grundig_29504_451_tuner_set_params;
 			budget->dvb_frontend->ops.diseqc_send_master_cmd = budget_diseqc_send_master_cmd;
@@ -367,8 +367,7 @@ static void frontend_init(struct budget_patch* budget)
 	} else {
 		if (dvb_register_frontend(&budget->dvb_adapter, budget->dvb_frontend)) {
 			printk("budget-av: Frontend registration failed!\n");
-			if (budget->dvb_frontend->ops.release)
-				budget->dvb_frontend->ops.release(budget->dvb_frontend);
+			dvb_frontend_detach(budget->dvb_frontend);
 			budget->dvb_frontend = NULL;
 		}
 	}
@@ -501,14 +500,14 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 
 /*      New design (By Emard)
 **      this rps1 code will copy internal HS event to GPIO3 pin.
-**      GPIO3 is in budget-patch hardware connectd to port B VSYNC
+**      GPIO3 is in budget-patch hardware connected to port B VSYNC
 
 **      HS is an internal event of 7146, accessible with RPS
 **      and temporarily raised high every n lines
 **      (n in defined in the RPS_THRESH1 counter threshold)
 **      I think HS is raised high on the beginning of the n-th line
 **      and remains high until this n-th line that triggered
-**      it is completely received. When the receiption of n-th line
+**      it is completely received. When the reception of n-th line
 **      ends, HS is lowered.
 
 **      To transmit data over DMA, 7146 needs changing state at
@@ -542,7 +541,7 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 **      hardware debug note: a working budget card (including budget patch)
 **      with vpeirq() interrupt setup in mode "0x90" (every 64K) will
 **      generate 3 interrupts per 25-Hz DMA frame of 2*188*512 bytes
-**      and that means 3*25=75 Hz of interrupt freqency, as seen by
+**      and that means 3*25=75 Hz of interrupt frequency, as seen by
 **      watch cat /proc/interrupts
 **
 **      If this frequency is 3x lower (and data received in the DMA
@@ -551,7 +550,7 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 **      this means VSYNC line is not connected in the hardware.
 **      (check soldering pcb and pins)
 **      The same behaviour of missing VSYNC can be duplicated on budget
-**      cards, by seting DD1_INIT trigger mode 7 in 3rd nibble.
+**      cards, by setting DD1_INIT trigger mode 7 in 3rd nibble.
 */
 
 	// Setup RPS1 "program" (p35)
@@ -627,8 +626,10 @@ static int budget_patch_detach (struct saa7146_dev* dev)
 	struct budget_patch *budget = (struct budget_patch*) dev->ext_priv;
 	int err;
 
-	if (budget->dvb_frontend) dvb_unregister_frontend(budget->dvb_frontend);
-
+	if (budget->dvb_frontend) {
+		dvb_unregister_frontend(budget->dvb_frontend);
+		dvb_frontend_detach(budget->dvb_frontend);
+	}
 	err = ttpci_budget_deinit (budget);
 
 	kfree (budget);
@@ -647,7 +648,7 @@ static void __exit budget_patch_exit(void)
 }
 
 static struct saa7146_extension budget_extension = {
-	.name           = "budget_patch dvb\0",
+	.name           = "budget_patch dvb",
 	.flags          = 0,
 
 	.module         = THIS_MODULE,

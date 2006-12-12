@@ -175,8 +175,8 @@ dev_hint
    - If a device node is already occupied, registration will fail and
      the webcam is not available.
    - You can have up to 64 video devices; be sure to make enough device
-     nodes in /dev if you want to spread the numbers (this does not apply
-     to devfs). After /dev/video9 comes /dev/video10 (not /dev/videoA).
+     nodes in /dev if you want to spread the numbers.
+     After /dev/video9 comes /dev/video10 (not /dev/videoA).
    - If a camera does not match any dev_hint, it will simply get assigned
      the first available device node, just as it used to be.
 

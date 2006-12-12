@@ -338,6 +338,34 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id, void
 }
 
 /*
+ * look up a superblock on which quota ops will be performed
+ * - use the name of a block device to find the superblock thereon
+ */
+static inline struct super_block *quotactl_block(const char __user *special)
+{
+#ifdef CONFIG_BLOCK
+	struct block_device *bdev;
+	struct super_block *sb;
+	char *tmp = getname(special);
+
+	if (IS_ERR(tmp))
+		return ERR_PTR(PTR_ERR(tmp));
+	bdev = lookup_bdev(tmp);
+	putname(tmp);
+	if (IS_ERR(bdev))
+		return ERR_PTR(PTR_ERR(bdev));
+	sb = get_super(bdev);
+	bdput(bdev);
+	if (!sb)
+		return ERR_PTR(-ENODEV);
+
+	return sb;
+#else
+	return ERR_PTR(-ENODEV);
+#endif
+}
+
+/*
  * This is the system call interface. This communicates with
  * the user-level programs. Currently this only supports diskquota
  * calls. Maybe we need to add the process quotas etc. in the future,
@@ -347,25 +375,15 @@ asmlinkage long sys_quotactl(unsigned int cmd, const char __user *special, qid_t
 {
 	uint cmds, type;
 	struct super_block *sb = NULL;
-	struct block_device *bdev;
-	char *tmp;
 	int ret;
 
 	cmds = cmd >> SUBCMDSHIFT;
 	type = cmd & SUBCMDMASK;
 
 	if (cmds != Q_SYNC || special) {
-		tmp = getname(special);
-		if (IS_ERR(tmp))
-			return PTR_ERR(tmp);
-		bdev = lookup_bdev(tmp);
-		putname(tmp);
-		if (IS_ERR(bdev))
-			return PTR_ERR(bdev);
-		sb = get_super(bdev);
-		bdput(bdev);
-		if (!sb)
-			return -ENODEV;
+		sb = quotactl_block(special);
+		if (IS_ERR(sb))
+			return PTR_ERR(sb);
 	}
 
 	ret = check_quotactl_valid(sb, type, cmds, id);

@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/platforms/powerpmc250.h
+ * arch/ppc/platforms/powerpmc250.h
  *
  * Definitions for Force PowerPMC-250 board support
  *

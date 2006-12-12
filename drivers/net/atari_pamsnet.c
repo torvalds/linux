@@ -163,7 +163,7 @@ static int pamsnet_close(struct net_device *dev);
 static struct net_device_stats *net_get_stats(struct net_device *dev);
 static void pamsnet_tick(unsigned long);
 
-static irqreturn_t pamsnet_intr(int irq, void *data, struct pt_regs *fp);
+static irqreturn_t pamsnet_intr(int irq, void *data);
 
 static DEFINE_TIMER(pamsnet_timer, pamsnet_tick, 0, 0);
 
@@ -494,7 +494,6 @@ static irqreturn_t
 pamsnet_intr(irq, data, fp)
 	int irq;
 	void *data;
-	struct pt_regs *fp;
 {
 	return IRQ_HANDLED;
 }

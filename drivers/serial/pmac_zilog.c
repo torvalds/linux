@@ -204,8 +204,7 @@ static void pmz_maybe_update_regs(struct uart_pmac_port *uap)
 	}
 }
 
-static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap,
-					    struct pt_regs *regs)
+static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 {
 	struct tty_struct *tty = NULL;
 	unsigned char ch, r1, drop, error, flag;
@@ -267,7 +266,7 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap,
 		if (uap->port.sysrq) {
 			int swallow;
 			spin_unlock(&uap->port.lock);
-			swallow = uart_handle_sysrq_char(&uap->port, ch, regs);
+			swallow = uart_handle_sysrq_char(&uap->port, ch);
 			spin_lock(&uap->port.lock);
 			if (swallow)
 				goto next_char;
@@ -335,7 +334,7 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap,
 	return tty;
 }
 
-static void pmz_status_handle(struct uart_pmac_port *uap, struct pt_regs *regs)
+static void pmz_status_handle(struct uart_pmac_port *uap)
 {
 	unsigned char status;
 
@@ -438,7 +437,7 @@ ack_tx_int:
 }
 
 /* Hrm... we register that twice, fixme later.... */
-static irqreturn_t pmz_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pmz_interrupt(int irq, void *dev_id)
 {
 	struct uart_pmac_port *uap = dev_id;
 	struct uart_pmac_port *uap_a;
@@ -462,9 +461,9 @@ static irqreturn_t pmz_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		write_zsreg(uap_a, R0, RES_H_IUS);
 		zssync(uap_a);		
        		if (r3 & CHAEXT)
-       			pmz_status_handle(uap_a, regs);
+       			pmz_status_handle(uap_a);
 		if (r3 & CHARxIP)
-			tty = pmz_receive_chars(uap_a, regs);
+			tty = pmz_receive_chars(uap_a);
        		if (r3 & CHATxIP)
        			pmz_transmit_chars(uap_a);
 	        rc = IRQ_HANDLED;
@@ -482,9 +481,9 @@ static irqreturn_t pmz_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		write_zsreg(uap_b, R0, RES_H_IUS);
 		zssync(uap_b);
        		if (r3 & CHBEXT)
-       			pmz_status_handle(uap_b, regs);
+       			pmz_status_handle(uap_b);
        	       	if (r3 & CHBRxIP)
-       			tty = pmz_receive_chars(uap_b, regs);
+       			tty = pmz_receive_chars(uap_b);
        		if (r3 & CHBTxIP)
        			pmz_transmit_chars(uap_b);
 	       	rc = IRQ_HANDLED;
@@ -1263,8 +1262,8 @@ static void pmz_irda_setup(struct uart_pmac_port *uap, unsigned long *baud)
 }
 
 
-static void __pmz_set_termios(struct uart_port *port, struct termios *termios,
-			      struct termios *old)
+static void __pmz_set_termios(struct uart_port *port, struct ktermios *termios,
+			      struct ktermios *old)
 {
 	struct uart_pmac_port *uap = to_pmz(port);
 	unsigned long baud;
@@ -1274,7 +1273,7 @@ static void __pmz_set_termios(struct uart_port *port, struct termios *termios,
 	if (ZS_IS_ASLEEP(uap))
 		return;
 
-	memcpy(&uap->termios_cache, termios, sizeof(struct termios));
+	memcpy(&uap->termios_cache, termios, sizeof(struct ktermios));
 
 	/* XXX Check which revs of machines actually allow 1 and 4Mb speeds
 	 * on the IR dongle. Note that the IRTTY driver currently doesn't know
@@ -1314,8 +1313,8 @@ static void __pmz_set_termios(struct uart_port *port, struct termios *termios,
 }
 
 /* The port lock is not held.  */
-static void pmz_set_termios(struct uart_port *port, struct termios *termios,
-			    struct termios *old)
+static void pmz_set_termios(struct uart_port *port, struct ktermios *termios,
+			    struct ktermios *old)
 {
 	struct uart_pmac_port *uap = to_pmz(port);
 	unsigned long flags;

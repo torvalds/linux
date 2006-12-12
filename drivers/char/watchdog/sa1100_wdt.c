@@ -90,7 +90,7 @@ static struct watchdog_info ident = {
 static int sa1100dog_ioctl(struct inode *inode, struct file *file,
 	unsigned int cmd, unsigned long arg)
 {
-	int ret = -ENOIOCTLCMD;
+	int ret = -ENOTTY;
 	int time;
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;

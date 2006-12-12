@@ -57,11 +57,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		- Default: 1
 		- For auto-loading more than one card, specify this
 		  option together with snd-card-X aliases.
-    device_mode
-		- permission mask for dynamic sound device filesystem
-		- This is available only when DEVFS is enabled
-		- Default: 0666
-		- E.g.: device_mode=0660
 
   
   Module snd-pcm-oss
@@ -758,7 +753,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     position_fix - Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size)
     single_cmd  - Use single immediate commands to communicate with
 		codecs (for debugging only)
-    disable_msi - Disable Message Signaled Interrupt (MSI)
+    enable_msi	- Enable Message Signaled Interrupt (MSI) (default = off)
 
     This module supports one card and autoprobe.
 
@@ -960,7 +955,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		  dmx6fire, dsp24, dsp24_value, dsp24_71, ez8,
 		  phase88, mediastation
     omni	- Omni I/O support for MidiMan M-Audio Delta44/66
-    cs8427_timeout - reset timeout for the CS8427 chip (S/PDIF transciever)
+    cs8427_timeout - reset timeout for the CS8427 chip (S/PDIF transceiver)
                      in msec resolution, default value is 500 (0.5 sec)
 
     This module supports multiple cards and autoprobe. Note: The consumer part
@@ -1268,8 +1263,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Note: on some notebooks the buffer address cannot be detected
     automatically, or causes hang-up during initialization.
-    In such a case, specify the buffer top address explicity via
-    buffer_top option.
+    In such a case, specify the buffer top address explicitly via
+    the buffer_top option.
     For example,
       Sony F250: buffer_top=0x25a800
       Sony F270: buffer_top=0x272800
@@ -1887,7 +1882,7 @@ options snd-ens1371 index=1
 # OSS/Free portion
 alias sound-slot-0 snd-interwave
 alias sound-slot-1 snd-ens1371
------ /etc/moprobe.conf
+----- /etc/modprobe.conf
 
 In this example, the interwave card is always loaded as the first card
 (index 0) and ens1371 as the second (index 1).
@@ -1913,21 +1908,6 @@ playback, respectively.
 
 Please note that the device mapping above may be varied via the module
 options of snd-pcm-oss module.
-
-
-DEVFS support
-=============
-
-The ALSA driver fully supports the devfs extension.
-You should add lines below to your devfsd.conf file:
-
-LOOKUP snd MODLOAD ACTION snd
-REGISTER ^sound/.* PERMISSIONS root.audio 660
-REGISTER ^snd/.* PERMISSIONS root.audio 660
-
-Warning: These lines assume that you have the audio group in your system.
-         Otherwise replace audio word with another group name (root for
-         example).
 
 
 Proc interfaces (/proc/asound)

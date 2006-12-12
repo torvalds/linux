@@ -45,7 +45,7 @@ static u_int NumSources;
 static int open_pic_irq_offset;
 static volatile OpenPIC_Source __iomem *ISR[NR_IRQS];
 static int openpic_cascade_irq = -1;
-static int (*openpic_cascade_fn)(struct pt_regs *);
+static int (*openpic_cascade_fn)(void);
 
 /* Global Operations */
 static void openpic_disable_8259_pass_through(void);
@@ -54,7 +54,7 @@ static void openpic_set_spurious(u_int vector);
 #ifdef CONFIG_SMP
 /* Interprocessor Interrupts */
 static void openpic_initipi(u_int ipi, u_int pri, u_int vector);
-static irqreturn_t openpic_ipi_action(int cpl, void *dev_id, struct pt_regs *);
+static irqreturn_t openpic_ipi_action(int cpl, void *dev_id);
 #endif
 
 /* Timer Interrupts */
@@ -700,7 +700,7 @@ static struct irqaction openpic_cascade_irqaction = {
 
 void __init
 openpic_hookup_cascade(u_int irq, char *name,
-	int (*cascade_fn)(struct pt_regs *))
+	int (*cascade_fn)(void))
 {
 	openpic_cascade_irq = irq;
 	openpic_cascade_fn = cascade_fn;
@@ -857,16 +857,16 @@ static void openpic_end_ipi(unsigned int irq_nr)
 {
 }
 
-static irqreturn_t openpic_ipi_action(int cpl, void *dev_id, struct pt_regs *regs)
+static irqreturn_t openpic_ipi_action(int cpl, void *dev_id)
 {
-	smp_message_recv(cpl-OPENPIC_VEC_IPI-open_pic_irq_offset, regs);
+	smp_message_recv(cpl-OPENPIC_VEC_IPI-open_pic_irq_offset);
 	return IRQ_HANDLED;
 }
 
 #endif /* CONFIG_SMP */
 
 int
-openpic_get_irq(struct pt_regs *regs)
+openpic_get_irq(void)
 {
 	int irq = openpic_irq();
 
@@ -876,7 +876,7 @@ openpic_get_irq(struct pt_regs *regs)
 	 * This should move to irq.c eventually.  -- paulus
 	 */
 	if (irq == openpic_cascade_irq && openpic_cascade_fn != NULL) {
-		int cirq = openpic_cascade_fn(regs);
+		int cirq = openpic_cascade_fn();
 
 		/* Allow for the cascade being shared with other devices */
 		if (cirq != -1) {

@@ -76,17 +76,15 @@ static inline void scllo(struct i2c_algo_bit_data *adap)
  * Raise scl line, and do checking for delays. This is necessary for slower
  * devices.
  */
-static inline int sclhi(struct i2c_algo_bit_data *adap)
+static int sclhi(struct i2c_algo_bit_data *adap)
 {
 	unsigned long start;
 
 	setscl(adap,1);
 
 	/* Not all adapters have scl sense line... */
-	if (adap->getscl == NULL ) {
-		udelay(adap->udelay);
-		return 0;
-	}
+	if (!adap->getscl)
+		goto done;
 
 	start=jiffies;
 	while (! getscl(adap) ) {	
@@ -101,6 +99,8 @@ static inline int sclhi(struct i2c_algo_bit_data *adap)
 		cond_resched();
 	}
 	DEBSTAT(printk(KERN_DEBUG "needed %ld jiffies\n", jiffies-start));
+
+done:
 	udelay(adap->udelay);
 	return 0;
 } 
@@ -121,7 +121,6 @@ static void i2c_repstart(struct i2c_algo_bit_data *adap)
 	DEBPROTO(printk(" Sr "));
 	setsda(adap,1);
 	sclhi(adap);
-	udelay(adap->udelay);
 	
 	sdalo(adap);
 	scllo(adap);
@@ -306,7 +305,7 @@ bailout:
  * 0 chip did not answer
  * -x transmission error
  */
-static inline int try_address(struct i2c_adapter *i2c_adap,
+static int try_address(struct i2c_adapter *i2c_adap,
 		       unsigned char addr, int retries)
 {
 	struct i2c_algo_bit_data *adap = i2c_adap->algo_data;
@@ -354,15 +353,11 @@ static int sendbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 			return (retval<0)? retval : -EFAULT;
 			        /* got a better one ?? */
 		}
-#if 0
-		/* from asm/delay.h */
-		__delay(adap->mdelay * (loops_per_sec / 1000) );
-#endif
 	}
 	return wrcount;
 }
 
-static inline int readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
+static int readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 {
 	int inval;
 	int rdcount=0;   	/* counts bytes read */
@@ -412,7 +407,7 @@ static inline int readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
  * -x an error occurred (like: -EREMOTEIO if the device did not answer, or
  *	-ETIMEDOUT, for example if the lines are stuck...) 
  */
-static inline int bit_doAddress(struct i2c_adapter *i2c_adap, struct i2c_msg *msg) 
+static int bit_doAddress(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 {
 	unsigned short flags = msg->flags;
 	unsigned short nak_ok = msg->flags & I2C_M_IGNORE_NAK;
@@ -517,7 +512,7 @@ static u32 bit_func(struct i2c_adapter *adap)
 
 /* -----exported algorithm data: -------------------------------------	*/
 
-static struct i2c_algorithm i2c_bit_algo = {
+static const struct i2c_algorithm i2c_bit_algo = {
 	.master_xfer	= bit_xfer,
 	.functionality	= bit_func,
 };
@@ -545,15 +540,7 @@ int i2c_bit_add_bus(struct i2c_adapter *adap)
 
 	return i2c_add_adapter(adap);
 }
-
-
-int i2c_bit_del_bus(struct i2c_adapter *adap)
-{
-	return i2c_del_adapter(adap);
-}
-
 EXPORT_SYMBOL(i2c_bit_add_bus);
-EXPORT_SYMBOL(i2c_bit_del_bus);
 
 MODULE_AUTHOR("Simon G. Vogl <simon@tk.uni-linz.ac.at>");
 MODULE_DESCRIPTION("I2C-Bus bit-banging algorithm");

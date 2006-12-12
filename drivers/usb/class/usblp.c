@@ -154,6 +154,7 @@ struct usblp {
 	unsigned char		used;			/* True if open */
 	unsigned char		present;		/* True if not disconnected */
 	unsigned char		bidir;			/* interface is bidirectional */
+	unsigned char		sleeping;		/* interface is suspended */
 	unsigned char		*device_id_string;	/* IEEE 1284 DEVICE ID string (ptr) */
 							/* first 2 bytes are (big-endian) length */
 };
@@ -183,6 +184,7 @@ static void usblp_dump(struct usblp *usblp) {
 	dbg("quirks=%d", usblp->quirks);
 	dbg("used=%d", usblp->used);
 	dbg("bidir=%d", usblp->bidir);
+	dbg("sleeping=%d", usblp->sleeping);
 	dbg("device_id_string=\"%s\"",
 		usblp->device_id_string ?
 			usblp->device_id_string + 2 :
@@ -271,7 +273,7 @@ static int proto_bias = -1;
  * URB callback.
  */
 
-static void usblp_bulk_read(struct urb *urb, struct pt_regs *regs)
+static void usblp_bulk_read(struct urb *urb)
 {
 	struct usblp *usblp = urb->context;
 
@@ -288,7 +290,7 @@ unplug:
 	wake_up_interruptible(&usblp->wait);
 }
 
-static void usblp_bulk_write(struct urb *urb, struct pt_regs *regs)
+static void usblp_bulk_write(struct urb *urb)
 {
 	struct usblp *usblp = urb->context;
 
@@ -336,6 +338,20 @@ static int usblp_check_status(struct usblp *usblp, int err)
 		info("usblp%d: %s", usblp->minor, usblp_messages[newerr]);
 
 	return newerr;
+}
+
+static int handle_bidir (struct usblp *usblp)
+{
+	if (usblp->bidir && usblp->used && !usblp->sleeping) {
+		usblp->readcount = 0;
+		usblp->readurb->dev = usblp->dev;
+		if (usb_submit_urb(usblp->readurb, GFP_KERNEL) < 0) {
+			usblp->used = 0;
+			return -EIO;
+		}
+	}
+
+	return 0;
 }
 
 /*
@@ -390,14 +406,9 @@ static int usblp_open(struct inode *inode, struct file *file)
 	usblp->writeurb->status = 0;
 	usblp->readurb->status = 0;
 
-	if (usblp->bidir) {
-		usblp->readcount = 0;
-		usblp->readurb->dev = usblp->dev;
-		if (usb_submit_urb(usblp->readurb, GFP_KERNEL) < 0) {
-			retval = -EIO;
-			usblp->used = 0;
-			file->private_data = NULL;
-		}
+	if (handle_bidir(usblp) < 0) {
+		file->private_data = NULL;
+		retval = -EIO;
 	}
 out:
 	mutex_unlock (&usblp_mutex);
@@ -456,6 +467,11 @@ static long usblp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	down (&usblp->sem);
 	if (!usblp->present) {
+		retval = -ENODEV;
+		goto done;
+	}
+
+	if (usblp->sleeping) {
 		retval = -ENODEV;
 		goto done;
 	}
@@ -658,6 +674,11 @@ static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t 
 			return -ENODEV;
 		}
 
+		if (usblp->sleeping) {
+			up (&usblp->sem);
+			return writecount ? writecount : -ENODEV;
+		}
+
 		if (usblp->writeurb->status != 0) {
 			if (usblp->quirks & USBLP_QUIRK_BIDIR) {
 				if (!usblp->wcomplete)
@@ -701,6 +722,7 @@ static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t 
 		usblp->wcomplete = 0;
 		err = usb_submit_urb(usblp->writeurb, GFP_KERNEL);
 		if (err) {
+			usblp->wcomplete = 1;
 			if (err != -ENOMEM)
 				count = -EIO;
 			else
@@ -745,6 +767,11 @@ static ssize_t usblp_read(struct file *file, char __user *buffer, size_t count, 
 	}
 
 	if (!usblp->present) {
+		count = -ENODEV;
+		goto done;
+	}
+
+	if (usblp->sleeping) {
 		count = -ENODEV;
 		goto done;
 	}
@@ -813,7 +840,7 @@ static unsigned int usblp_quirks (__u16 vendor, __u16 product)
 	return 0;
 }
 
-static struct file_operations usblp_fops = {
+static const struct file_operations usblp_fops = {
 	.owner =	THIS_MODULE,
 	.read =		usblp_read,
 	.write =	usblp_write,
@@ -927,7 +954,9 @@ static int usblp_probe(struct usb_interface *intf,
 
 	/* Retrieve and store the device ID string. */
 	usblp_cache_device_id_string(usblp);
-	device_create_file(&intf->dev, &dev_attr_ieee1284_id);
+	retval = device_create_file(&intf->dev, &dev_attr_ieee1284_id);
+	if (retval)
+		goto abort_intfdata;
 
 #ifdef DEBUG
 	usblp_check_status(usblp, 0);
@@ -1021,18 +1050,13 @@ static int usblp_select_alts(struct usblp *usblp)
 		for (e = 0; e < ifd->desc.bNumEndpoints; e++) {
 			epd = &ifd->endpoint[e].desc;
 
-			if ((epd->bmAttributes&USB_ENDPOINT_XFERTYPE_MASK)!=
-			    USB_ENDPOINT_XFER_BULK)
-				continue;
-
-			if (!(epd->bEndpointAddress & USB_ENDPOINT_DIR_MASK)) {
+			if (usb_endpoint_is_bulk_out(epd))
 				if (!epwrite)
 					epwrite = epd;
 
-			} else {
+			if (usb_endpoint_is_bulk_in(epd))
 				if (!epread)
 					epread = epd;
-			}
 		}
 
 		/* Ignore buggy hardware without the right endpoints. */
@@ -1170,6 +1194,39 @@ static void usblp_disconnect(struct usb_interface *intf)
 	mutex_unlock (&usblp_mutex);
 }
 
+static int usblp_suspend (struct usb_interface *intf, pm_message_t message)
+{
+	struct usblp *usblp = usb_get_intfdata (intf);
+
+	/* this races against normal access and open */
+	mutex_lock (&usblp_mutex);
+	down (&usblp->sem);
+	/* we take no more IO */
+	usblp->sleeping = 1;
+	usblp_unlink_urbs(usblp);
+	up (&usblp->sem);
+	mutex_unlock (&usblp_mutex);
+
+	return 0;
+}
+
+static int usblp_resume (struct usb_interface *intf)
+{
+	struct usblp *usblp = usb_get_intfdata (intf);
+	int r;
+
+	mutex_lock (&usblp_mutex);
+	down (&usblp->sem);
+
+	usblp->sleeping = 0;
+	r = handle_bidir (usblp);
+
+	up (&usblp->sem);
+	mutex_unlock (&usblp_mutex);
+
+	return r;
+}
+
 static struct usb_device_id usblp_ids [] = {
 	{ USB_DEVICE_INFO(7, 1, 1) },
 	{ USB_DEVICE_INFO(7, 1, 2) },
@@ -1186,6 +1243,8 @@ static struct usb_driver usblp_driver = {
 	.name =		"usblp",
 	.probe =	usblp_probe,
 	.disconnect =	usblp_disconnect,
+	.suspend =	usblp_suspend,
+	.resume =	usblp_resume,
 	.id_table =	usblp_ids,
 };
 

@@ -1,5 +1,5 @@
 /*
- * sound/v_midi.c
+ * sound/oss/v_midi.c
  *
  * The low level driver for the Sound Blaster DS chips.
  *

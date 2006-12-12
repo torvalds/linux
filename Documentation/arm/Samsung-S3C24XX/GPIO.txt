@@ -24,7 +24,7 @@ Headers
   header include/asm-arm/arch-s3c2410/hardware.h which can be
   included by #include <asm/arch/hardware.h>
 
-  A useful ammount of documentation can be found in the hardware
+  A useful amount of documentation can be found in the hardware
   header on how the GPIO functions (and others) work.
 
   Whilst a number of these functions do make some checks on what

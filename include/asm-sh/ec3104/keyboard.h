@@ -6,8 +6,6 @@ extern char ec3104_kbd_unexpected_up(unsigned char);
 extern void ec3104_kbd_leds(unsigned char);
 extern void ec3104_kbd_init_hw(void);
 
-#define SYSRQ_KEY 0x54
-
 #define kbd_sysrq_xlate ec3104_kbd_sysrq_xlate
 #define kbd_setkeycode ec3104_kbd_setkeycode
 #define kbd_getkeycode ec3104_kbd_getkeycode

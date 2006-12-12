@@ -1,17 +1,17 @@
 config DVB_AV7110
 	tristate "AV7110 cards"
 	depends on DVB_CORE && PCI && I2C && VIDEO_V4L1
-	select FW_LOADER
+	select FW_LOADER if !DVB_AV7110_FIRMWARE
 	select VIDEO_SAA7146_VV
 	select DVB_PLL
-	select DVB_VES1820
-	select DVB_VES1X93
-	select DVB_STV0299
-	select DVB_TDA8083
-	select DVB_SP8870
-	select DVB_STV0297
-	select DVB_L64781
-	select DVB_LNBP21
+	select DVB_VES1820 if !DVB_FE_CUSTOMISE
+	select DVB_VES1X93 if !DVB_FE_CUSTOMISE
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_TDA8083 if !DVB_FE_CUSTOMISE
+	select DVB_SP8870 if !DVB_FE_CUSTOMISE
+	select DVB_STV0297 if !DVB_FE_CUSTOMISE
+	select DVB_L64781 if !DVB_FE_CUSTOMISE
+	select DVB_LNBP21 if !DVB_FE_CUSTOMISE
 	help
 	  Support for SAA7146 and AV7110 based DVB cards as produced
 	  by Fujitsu-Siemens, Technotrend, Hauppauge and others.
@@ -63,14 +63,16 @@ config DVB_BUDGET
 	depends on DVB_CORE && PCI && I2C && VIDEO_V4L1
 	select VIDEO_SAA7146
 	select DVB_PLL
-	select DVB_STV0299
-	select DVB_VES1X93
-	select DVB_VES1820
-	select DVB_L64781
-	select DVB_TDA8083
-	select DVB_TDA10021
-	select DVB_S5H1420
-	select DVB_LNBP21
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_VES1X93 if !DVB_FE_CUSTOMISE
+	select DVB_VES1820 if !DVB_FE_CUSTOMISE
+	select DVB_L64781 if !DVB_FE_CUSTOMISE
+	select DVB_TDA8083 if !DVB_FE_CUSTOMISE
+	select DVB_TDA10021 if !DVB_FE_CUSTOMISE
+	select DVB_S5H1420 if !DVB_FE_CUSTOMISE
+	select DVB_TDA10086 if !DVB_FE_CUSTOMISE
+	select DVB_TDA826X if !DVB_FE_CUSTOMISE
+	select DVB_LNBP21 if !DVB_FE_CUSTOMISE
 	help
 	  Support for simple SAA7146 based DVB cards
 	  (so called Budget- or Nova-PCI cards) without onboard
@@ -86,10 +88,11 @@ config DVB_BUDGET_CI
 	depends on DVB_CORE && PCI && I2C && VIDEO_V4L1
 	select VIDEO_SAA7146
 	select DVB_PLL
-	select DVB_STV0297
-	select DVB_STV0299
-	select DVB_TDA1004X
-	select DVB_LNBP21
+	select DVB_STV0297 if !DVB_FE_CUSTOMISE
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_TDA1004X if !DVB_FE_CUSTOMISE
+	select DVB_LNBP21 if !DVB_FE_CUSTOMISE
+	select VIDEO_IR
 	help
 	  Support for simple SAA7146 based DVB cards
 	  (so called Budget- or Nova-PCI cards) without onboard
@@ -108,9 +111,10 @@ config DVB_BUDGET_AV
 	depends on DVB_CORE && PCI && I2C && VIDEO_V4L1
 	select VIDEO_SAA7146_VV
 	select DVB_PLL
-	select DVB_STV0299
-	select DVB_TDA1004X
-	select DVB_TDA10021
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_TDA1004X if !DVB_FE_CUSTOMISE
+	select DVB_TDA10021 if !DVB_FE_CUSTOMISE
+	select DVB_TUA6100 if !DVB_FE_CUSTOMISE
 	select FW_LOADER
 	help
 	  Support for simple SAA7146 based DVB cards
@@ -127,9 +131,9 @@ config DVB_BUDGET_PATCH
 	depends on DVB_CORE && DVB_BUDGET && VIDEO_V4L1
 	select DVB_AV7110
 	select DVB_PLL
-	select DVB_STV0299
-	select DVB_VES1X93
-	select DVB_TDA8083
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_VES1X93 if !DVB_FE_CUSTOMISE
+	select DVB_TDA8083 if !DVB_FE_CUSTOMISE
 	help
 	  Support for Budget Patch (full TS) modification on
 	  SAA7146+AV7110 based cards (DVB-S cards). This

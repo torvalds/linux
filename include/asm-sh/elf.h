@@ -1,6 +1,10 @@
 #ifndef __ASM_SH_ELF_H
 #define __ASM_SH_ELF_H
 
+#include <asm/auxvec.h>
+#include <asm/ptrace.h>
+#include <asm/user.h>
+
 /* SH relocation types  */
 #define	R_SH_NONE		0
 #define	R_SH_DIR32		1
@@ -46,9 +50,6 @@
  * ELF register definitions..
  */
 
-#include <asm/ptrace.h>
-#include <asm/user.h>
-
 typedef unsigned long elf_greg_t;
 
 #define ELF_NGREG (sizeof (struct pt_regs) / sizeof(elf_greg_t))
@@ -73,7 +74,7 @@ typedef struct user_fpu_struct elf_fpregset_t;
 #define ELF_ARCH	EM_SH
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE	4096
+#define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical
    use of this is to invoke "./ld.so someprog" to test out a new version of
@@ -91,7 +92,7 @@ typedef struct user_fpu_struct elf_fpregset_t;
    instruction set this CPU supports.  This could be done in user space,
    but it's not easy, and we've already done it here.  */
 
-#define ELF_HWCAP	(0)
+#define ELF_HWCAP	(boot_cpu_data.flags)
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in
@@ -118,5 +119,25 @@ extern int dump_task_fpu (struct task_struct *, elf_fpregset_t *);
 #define ELF_CORE_COPY_TASK_REGS(tsk, elf_regs) dump_task_regs(tsk, elf_regs)
 #define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs) dump_task_fpu(tsk, elf_fpregs)
 #endif
+
+#ifdef CONFIG_VSYSCALL
+/* vDSO has arch_setup_additional_pages */
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES
+struct linux_binprm;
+extern int arch_setup_additional_pages(struct linux_binprm *bprm,
+				       int executable_stack);
+
+extern unsigned int vdso_enabled;
+extern void __kernel_vsyscall;
+
+#define VDSO_BASE		((unsigned long)current->mm->context.vdso)
+#define VDSO_SYM(x)		(VDSO_BASE + (unsigned long)(x))
+
+#define ARCH_DLINFO						\
+do {								\
+	if (vdso_enabled)					\
+		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_BASE);	\
+} while (0)
+#endif /* CONFIG_VSYSCALL */
 
 #endif /* __ASM_SH_ELF_H */

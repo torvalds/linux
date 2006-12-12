@@ -25,7 +25,6 @@ void (*flush_cache_range)(struct vm_area_struct *vma, unsigned long start,
 void (*flush_cache_page)(struct vm_area_struct *vma, unsigned long page,
 	unsigned long pfn);
 void (*flush_icache_range)(unsigned long start, unsigned long end);
-void (*flush_icache_page)(struct vm_area_struct *vma, struct page *page);
 
 /* MIPS specific cache operations */
 void (*flush_cache_sigtramp)(unsigned long addr);
@@ -33,6 +32,7 @@ void (*local_flush_data_cache_page)(void * addr);
 void (*flush_data_cache_page)(unsigned long addr);
 void (*flush_icache_all)(void);
 
+EXPORT_SYMBOL_GPL(local_flush_data_cache_page);
 EXPORT_SYMBOL(flush_data_cache_page);
 
 #ifdef CONFIG_DMA_NONCOHERENT
@@ -70,6 +70,8 @@ void __flush_dcache_page(struct page *page)
 	struct address_space *mapping = page_mapping(page);
 	unsigned long addr;
 
+	if (PageHighMem(page))
+		return;
 	if (mapping && !mapping_mapped(mapping)) {
 		SetPageDcacheDirty(page);
 		return;
@@ -91,16 +93,16 @@ void __update_cache(struct vm_area_struct *vma, unsigned long address,
 {
 	struct page *page;
 	unsigned long pfn, addr;
+	int exec = (vma->vm_flags & VM_EXEC) && !cpu_has_ic_fills_f_dc;
 
 	pfn = pte_pfn(pte);
-	if (pfn_valid(pfn) && (page = pfn_to_page(pfn), page_mapping(page)) &&
-	    Page_dcache_dirty(page)) {
-		if (pages_do_alias((unsigned long)page_address(page),
-		                   address & PAGE_MASK)) {
-			addr = (unsigned long) page_address(page);
+	if (unlikely(!pfn_valid(pfn)))
+		return;
+	page = pfn_to_page(pfn);
+	if (page_mapping(page) && Page_dcache_dirty(page)) {
+		addr = (unsigned long) page_address(page);
+		if (exec || pages_do_alias(addr, address & PAGE_MASK))
 			flush_data_cache_page(addr);
-		}
-
 		ClearPageDcacheDirty(page);
 	}
 }

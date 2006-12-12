@@ -133,6 +133,7 @@ static int info_idx = -1;
 
 /* console rotation */
 static int rotate;
+static int fbcon_has_sysfs;
 
 static const struct consw fb_con;
 
@@ -203,7 +204,7 @@ static struct class_device *fbcon_class_device;
  */
 static int vbl_detected;
 
-static irqreturn_t fb_vbl_detect(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t fb_vbl_detect(int irq, void *dummy)
 {
 	vbl_detected++;
 	return IRQ_HANDLED;
@@ -382,9 +383,9 @@ static void fbcon_update_softback(struct vc_data *vc)
 		softback_top = 0;
 }
 
-static void fb_flashcursor(void *private)
+static void fb_flashcursor(struct work_struct *work)
 {
-	struct fb_info *info = private;
+	struct fb_info *info = container_of(work, struct fb_info, queue);
 	struct fbcon_ops *ops = info->fbcon_par;
 	struct display *p;
 	struct vc_data *vc = NULL;
@@ -396,9 +397,8 @@ static void fb_flashcursor(void *private)
 		vc = vc_cons[ops->currcon].d;
 
 	if (!vc || !CON_IS_VISIBLE(vc) ||
-	    fbcon_is_inactive(vc, info) ||
  	    registered_fb[con2fb_map[vc->vc_num]] != info ||
-	    vc_cons[ops->currcon].d->vc_deccm != 1) {
+	    vc->vc_deccm != 1) {
 		release_console_sem();
 		return;
 	}
@@ -414,7 +414,7 @@ static void fb_flashcursor(void *private)
 
 #if defined(CONFIG_ATARI) || defined(CONFIG_MAC)
 static int cursor_blink_rate;
-static irqreturn_t fb_vbl_handler(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t fb_vbl_handler(int irq, void *dev_id)
 {
 	struct fb_info *info = dev_id;
 
@@ -442,7 +442,7 @@ static void fbcon_add_cursor_timer(struct fb_info *info)
 	if ((!info->queue.func || info->queue.func == fb_flashcursor) &&
 	    !(ops->flags & FBCON_FLAGS_CURSOR_TIMER)) {
 		if (!info->queue.func)
-			INIT_WORK(&info->queue, fb_flashcursor, info);
+			INIT_WORK(&info->queue, fb_flashcursor);
 
 		init_timer(&ops->cursor_timer);
 		ops->cursor_timer.function = cursor_timer_handler;
@@ -2166,7 +2166,12 @@ static int fbcon_switch(struct vc_data *vc)
 			fbcon_del_cursor_timer(old_info);
 	}
 
-	fbcon_add_cursor_timer(info);
+	if (fbcon_is_inactive(vc, info) ||
+	    ops->blank_state != FB_BLANK_UNBLANK)
+		fbcon_del_cursor_timer(info);
+	else
+		fbcon_add_cursor_timer(info);
+
 	set_blitting_type(vc, info);
 	ops->cursor_reset = 1;
 
@@ -2276,10 +2281,11 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
 			update_screen(vc);
 	}
 
-	if (!blank)
-		fbcon_add_cursor_timer(info);
-	else
+	if (fbcon_is_inactive(vc, info) ||
+	    ops->blank_state != FB_BLANK_UNBLANK)
 		fbcon_del_cursor_timer(info);
+	else
+		fbcon_add_cursor_timer(info);
 
 	return 0;
 }
@@ -3161,11 +3167,26 @@ static struct class_device_attribute class_device_attrs[] = {
 
 static int fbcon_init_class_device(void)
 {
-	int i;
+	int i, error = 0;
 
-	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
-		class_device_create_file(fbcon_class_device,
-					 &class_device_attrs[i]);
+	fbcon_has_sysfs = 1;
+
+	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++) {
+		error = class_device_create_file(fbcon_class_device,
+						 &class_device_attrs[i]);
+
+		if (error)
+			break;
+	}
+
+	if (error) {
+		while (--i >= 0)
+			class_device_remove_file(fbcon_class_device,
+						 &class_device_attrs[i]);
+
+		fbcon_has_sysfs = 0;
+	}
+
 	return 0;
 }
 
@@ -3225,7 +3246,10 @@ static void fbcon_exit(void)
 			module_put(info->fbops->owner);
 
 			if (info->fbcon_par) {
+				struct fbcon_ops *ops = info->fbcon_par;
+
 				fbcon_del_cursor_timer(info);
+				kfree(ops->cursor_src);
 				kfree(info->fbcon_par);
 				info->fbcon_par = NULL;
 			}
@@ -3271,9 +3295,13 @@ static void __exit fbcon_deinit_class_device(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
-		class_device_remove_file(fbcon_class_device,
-					 &class_device_attrs[i]);
+	if (fbcon_has_sysfs) {
+		for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
+			class_device_remove_file(fbcon_class_device,
+						 &class_device_attrs[i]);
+
+		fbcon_has_sysfs = 0;
+	}
 }
 
 static void __exit fb_console_exit(void)

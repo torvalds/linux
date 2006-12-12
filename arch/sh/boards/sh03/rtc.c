@@ -10,9 +10,10 @@
 #include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/bcd.h>
-#include <asm/io.h>
 #include <linux/rtc.h>
 #include <linux/spinlock.h>
+#include <asm/io.h>
+#include <asm/rtc.h>
 
 #define RTC_BASE	0xb0000000
 #define RTC_SEC1	(RTC_BASE + 0)
@@ -34,8 +35,6 @@
 #define RTC_BUSY	1
 #define RTC_STOP	2
 
-extern void (*rtc_get_time)(struct timespec *);
-extern int (*rtc_set_time)(const time_t);
 extern spinlock_t rtc_lock;
 
 unsigned long get_cmos_time(void)
@@ -128,6 +127,6 @@ int sh03_rtc_settimeofday(const time_t secs)
 
 void sh03_time_init(void)
 {
-	rtc_get_time = sh03_rtc_gettimeofday;
-	rtc_set_time = sh03_rtc_settimeofday;
+	rtc_sh_get_time = sh03_rtc_gettimeofday;
+	rtc_sh_set_time = sh03_rtc_settimeofday;
 }

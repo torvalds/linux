@@ -105,6 +105,8 @@
 /* Maximum msec timeout value storeable in a long int */
 #define EP_MAX_MSTIMEO min(1000ULL * MAX_SCHEDULE_TIMEOUT / HZ, (LONG_MAX - 999ULL) / HZ)
 
+#define EP_MAX_EVENTS (INT_MAX / sizeof(struct epoll_event))
+
 
 struct epoll_filefd {
 	struct file *file;
@@ -281,10 +283,10 @@ static struct mutex epmutex;
 static struct poll_safewake psw;
 
 /* Slab cache used to allocate "struct epitem" */
-static kmem_cache_t *epi_cache __read_mostly;
+static struct kmem_cache *epi_cache __read_mostly;
 
 /* Slab cache used to allocate "struct eppoll_entry" */
-static kmem_cache_t *pwq_cache __read_mostly;
+static struct kmem_cache *pwq_cache __read_mostly;
 
 /* Virtual fs used to allocate inodes for eventpoll files */
 static struct vfsmount *eventpoll_mnt __read_mostly;
@@ -497,7 +499,7 @@ void eventpoll_release_file(struct file *file)
  */
 asmlinkage long sys_epoll_create(int size)
 {
-	int error, fd;
+	int error, fd = -1;
 	struct eventpoll *ep;
 	struct inode *inode;
 	struct file *file;
@@ -640,7 +642,6 @@ eexit_1:
 	return error;
 }
 
-#define MAX_EVENTS (INT_MAX / sizeof(struct epoll_event))
 
 /*
  * Implement the event wait interface for the eventpoll file. It is the kernel
@@ -657,7 +658,7 @@ asmlinkage long sys_epoll_wait(int epfd, struct epoll_event __user *events,
 		     current, epfd, events, maxevents, timeout));
 
 	/* The maximum number of event must be greater than zero */
-	if (maxevents <= 0 || maxevents > MAX_EVENTS)
+	if (maxevents <= 0 || maxevents > EP_MAX_EVENTS)
 		return -EINVAL;
 
 	/* Verify that the area passed by the user is writeable */
@@ -699,6 +700,55 @@ eexit_1:
 }
 
 
+#ifdef TIF_RESTORE_SIGMASK
+
+/*
+ * Implement the event wait interface for the eventpoll file. It is the kernel
+ * part of the user space epoll_pwait(2).
+ */
+asmlinkage long sys_epoll_pwait(int epfd, struct epoll_event __user *events,
+		int maxevents, int timeout, const sigset_t __user *sigmask,
+		size_t sigsetsize)
+{
+	int error;
+	sigset_t ksigmask, sigsaved;
+
+	/*
+	 * If the caller wants a certain signal mask to be set during the wait,
+	 * we apply it here.
+	 */
+	if (sigmask) {
+		if (sigsetsize != sizeof(sigset_t))
+			return -EINVAL;
+		if (copy_from_user(&ksigmask, sigmask, sizeof(ksigmask)))
+			return -EFAULT;
+		sigdelsetmask(&ksigmask, sigmask(SIGKILL) | sigmask(SIGSTOP));
+		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
+	}
+
+	error = sys_epoll_wait(epfd, events, maxevents, timeout);
+
+	/*
+	 * If we changed the signal mask, we need to restore the original one.
+	 * In case we've got a signal while waiting, we do not restore the
+	 * signal mask yet, and we allow do_signal() to deliver the signal on
+	 * the way back to userspace, before the signal mask is restored.
+	 */
+	if (sigmask) {
+		if (error == -EINTR) {
+			memcpy(&current->saved_sigmask, &sigsaved,
+				sizeof(sigsaved));
+			set_thread_flag(TIF_RESTORE_SIGMASK);
+		} else
+			sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+	}
+
+	return error;
+}
+
+#endif /* #ifdef TIF_RESTORE_SIGMASK */
+
+
 /*
  * Creates the file descriptor to be used by the epoll interface.
  */
@@ -720,9 +770,10 @@ static int ep_getfd(int *efd, struct inode **einode, struct file **efile,
 
 	/* Allocates an inode from the eventpoll file system */
 	inode = ep_eventpoll_inode();
-	error = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	if (IS_ERR(inode)) {
+		error = PTR_ERR(inode);
 		goto eexit_2;
+	}
 
 	/* Allocates a free descriptor to plug the file onto */
 	error = get_unused_fd();
@@ -744,8 +795,8 @@ static int ep_getfd(int *efd, struct inode **einode, struct file **efile,
 		goto eexit_4;
 	dentry->d_op = &eventpollfs_dentry_operations;
 	d_add(dentry, inode);
-	file->f_vfsmnt = mntget(eventpoll_mnt);
-	file->f_dentry = dentry;
+	file->f_path.mnt = mntget(eventpoll_mnt);
+	file->f_path.dentry = dentry;
 	file->f_mapping = inode->i_mapping;
 
 	file->f_pos = 0;
@@ -910,7 +961,7 @@ static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 	struct epitem *epi = ep_item_from_epqueue(pt);
 	struct eppoll_entry *pwq;
 
-	if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, SLAB_KERNEL))) {
+	if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, GFP_KERNEL))) {
 		init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
 		pwq->whead = whead;
 		pwq->base = epi;
@@ -953,7 +1004,7 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 	struct ep_pqueue epq;
 
 	error = -ENOMEM;
-	if (!(epi = kmem_cache_alloc(epi_cache, SLAB_KERNEL)))
+	if (!(epi = kmem_cache_alloc(epi_cache, GFP_KERNEL)))
 		goto eexit_1;
 
 	/* Item initialization follow here ... */
@@ -1590,7 +1641,6 @@ static struct inode *ep_eventpoll_inode(void)
 	inode->i_uid = current->fsuid;
 	inode->i_gid = current->fsgid;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	inode->i_blksize = PAGE_SIZE;
 	return inode;
 
 eexit_1:

@@ -601,10 +601,9 @@ void __init gart_iommu_init(void)
 	    (!force_iommu && end_pfn <= MAX_DMA32_PFN) ||
 	    !iommu_aperture ||
 	    (no_agp && init_k8_gatt(&info) < 0)) {
-		printk(KERN_INFO "PCI-DMA: Disabling IOMMU.\n");
 		if (end_pfn > MAX_DMA32_PFN) {
 			printk(KERN_ERR "WARNING more than 4GB of memory "
-					"but IOMMU not available.\n"
+					"but GART IOMMU not available.\n"
 			       KERN_ERR "WARNING 32bit PCI may malfunction.\n");
 		}
 		return;

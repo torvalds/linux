@@ -1488,7 +1488,7 @@ static void bug_int(struct atm_dev *dev,unsigned long reason)
 }
 
 
-static irqreturn_t eni_int(int irq,void *dev_id,struct pt_regs *regs)
+static irqreturn_t eni_int(int irq,void *dev_id)
 {
 	struct atm_dev *dev;
 	struct eni_dev *eni_dev;

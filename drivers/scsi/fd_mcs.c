@@ -281,7 +281,7 @@ static struct fd_mcs_adapters_struct fd_mcs_adapters[] = {
 
 #define FD_BRDS ARRAY_SIZE(fd_mcs_adapters)
 
-static irqreturn_t fd_mcs_intr(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t fd_mcs_intr(int irq, void *dev_id);
 
 static unsigned long addresses[] = { 0xc8000, 0xca000, 0xce000, 0xde000 };
 static unsigned short ports[] = { 0x140, 0x150, 0x160, 0x170 };
@@ -294,6 +294,7 @@ static struct Scsi_Host *hosts[FD_MAX_HOSTS + 1] = { NULL };
 static int user_fifo_count = 0;
 static int user_fifo_size = 0;
 
+#ifndef MODULE
 static int __init fd_mcs_setup(char *str)
 {
 	static int done_setup = 0;
@@ -311,6 +312,7 @@ static int __init fd_mcs_setup(char *str)
 }
 
 __setup("fd_mcs=", fd_mcs_setup);
+#endif /* !MODULE */
 
 static void print_banner(struct Scsi_Host *shpnt)
 {
@@ -617,7 +619,7 @@ static void my_done(struct Scsi_Host *shpnt, int error)
 }
 
 /* only my_done needs to be protected  */
-static irqreturn_t fd_mcs_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t fd_mcs_intr(int irq, void *dev_id)
 {
 	unsigned long flags;
 	int status;

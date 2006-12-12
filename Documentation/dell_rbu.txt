@@ -4,7 +4,7 @@ for updating BIOS images on Dell servers and desktops.
 
 Scope:
 This document discusses the functionality of the rbu driver only.
-It does not cover the support needed from aplications to enable the BIOS to
+It does not cover the support needed from applications to enable the BIOS to
 update itself with the image downloaded in to the memory.
 
 Overview:
@@ -16,8 +16,8 @@ OpenManage and Dell Update packages (DUP).
 Libsmbios can also be used to update BIOS on Dell systems go to
 http://linux.dell.com/libsmbios/ for details.
 
-Dell_RBU driver supports BIOS update using the monilothic image and packetized
-image methods. In case of moniolithic the driver allocates a contiguous chunk
+Dell_RBU driver supports BIOS update using the monolithic image and packetized
+image methods. In case of monolithic the driver allocates a contiguous chunk
 of physical pages having the BIOS image. In case of packetized the app
 using the driver breaks the image in to packets of fixed sizes and the driver
 would place each packet in contiguous physical memory. The driver also
@@ -41,7 +41,7 @@ The driver supports two types of update mechanism; monolithic and packetized.
 These update mechanism depends upon the BIOS currently running on the system.
 Most of the Dell systems support a monolithic update where the BIOS image is
 copied to a single contiguous block of physical memory.
-In case of packet mechanism the single memory can be broken in smaller chuks
+In case of packet mechanism the single memory can be broken in smaller chunks
 of contiguous memory and the BIOS image is scattered in these packets.
 
 By default the driver uses monolithic memory for the update type. This can be
@@ -52,11 +52,11 @@ echo packet > /sys/devices/platform/dell_rbu/image_type
 In packet update mode the packet size has to be given before any packets can
 be downloaded. It is done as below
 echo XXXX > /sys/devices/platform/dell_rbu/packet_size
-In the packet update mechanism, the user neesd to create a new file having
+In the packet update mechanism, the user needs to create a new file having
 packets of data arranged back to back. It can be done as follows
 The user creates packets header, gets the chunk of the BIOS image and
-placs it next to the packetheader; now, the packetheader + BIOS image chunk
-added to geather should match the specified packet_size. This makes one
+places it next to the packetheader; now, the packetheader + BIOS image chunk
+added together should match the specified packet_size. This makes one
 packet, the user needs to create more such packets out of the entire BIOS
 image file and then arrange all these packets back to back in to one single
 file.
@@ -93,8 +93,8 @@ read back the image downloaded.
 NOTE:
 This driver requires a patch for firmware_class.c which has the modified
 request_firmware_nowait function.
-Also after updating the BIOS image an user mdoe application neeeds to execute
-code which message the BIOS update request to the BIOS. So on the next reboot
-the BIOS knows about the new image downloaded and it updates it self.
-Also don't unload the rbu drive if the image has to be updated.
+Also after updating the BIOS image a user mode application needs to execute
+code which sends the BIOS update request to the BIOS. So on the next reboot
+the BIOS knows about the new image downloaded and it updates itself.
+Also don't unload the rbu driver if the image has to be updated.
 

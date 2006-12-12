@@ -202,8 +202,9 @@ ENTRY(csum_partial_copy_generic)
 	cmp/pz	r6		! Jump if we had at least two bytes.
 	bt/s	1f
 	 clrt
+	add	#2,r6		! r6 was < 2.	Deal with it.
 	bra	4f
-	 add	#2,r6		! r6 was < 2.	Deal with it.
+	 mov	r6,r2
 
 3:	! Handle different src and dest alignments.
 	! This is not common, so simple byte by byte copy will do.

@@ -95,6 +95,7 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/bitops.h>
 #include <asm/byteorder.h>
 #include <asm/atomic.h>
@@ -110,15 +111,15 @@
 #include <linux/compat.h>
 #include <linux/cdev.h>
 
-#include "ieee1394.h"
-#include "ieee1394_types.h"
-#include "nodemgr.h"
-#include "hosts.h"
-#include "ieee1394_core.h"
-#include "highlevel.h"
 #include "dv1394.h"
 #include "dv1394-private.h"
-
+#include "highlevel.h"
+#include "hosts.h"
+#include "ieee1394.h"
+#include "ieee1394_core.h"
+#include "ieee1394_hotplug.h"
+#include "ieee1394_types.h"
+#include "nodemgr.h"
 #include "ohci1394.h"
 
 /* DEBUG LEVELS:
@@ -136,13 +137,13 @@
 #if DV1394_DEBUG_LEVEL >= 2
 #define irq_printk( args... ) printk( args )
 #else
-#define irq_printk( args... )
+#define irq_printk( args... ) do {} while (0)
 #endif
 
 #if DV1394_DEBUG_LEVEL >= 1
 #define debug_printk( args... ) printk( args)
 #else
-#define debug_printk( args... )
+#define debug_printk( args... ) do {} while (0)
 #endif
 
 /* issue a dummy PCI read to force the preceding write
@@ -247,7 +248,7 @@ static void frame_delete(struct frame *f)
 
    Frame_prepare() must be called OUTSIDE the video->spinlock.
    However, frame_prepare() must still be serialized, so
-   it should be called WITH the video->sem taken.
+   it should be called WITH the video->mtx taken.
  */
 
 static void frame_prepare(struct video_card *video, unsigned int this_frame)
@@ -1271,7 +1272,7 @@ static int dv1394_mmap(struct file *file, struct vm_area_struct *vma)
 	int retval = -EINVAL;
 
 	/* serialize mmap */
-	down(&video->sem);
+	mutex_lock(&video->mtx);
 
 	if ( ! video_card_initialized(video) ) {
 		retval = do_dv1394_init_default(video);
@@ -1281,7 +1282,7 @@ static int dv1394_mmap(struct file *file, struct vm_area_struct *vma)
 
 	retval = dma_region_mmap(&video->dv_buf, file, vma);
 out:
-	up(&video->sem);
+	mutex_unlock(&video->mtx);
 	return retval;
 }
 
@@ -1337,17 +1338,17 @@ static ssize_t dv1394_write(struct file *file, const char __user *buffer, size_t
 
 	/* serialize this to prevent multi-threaded mayhem */
 	if (file->f_flags & O_NONBLOCK) {
-		if (down_trylock(&video->sem))
+		if (!mutex_trylock(&video->mtx))
 			return -EAGAIN;
 	} else {
-		if (down_interruptible(&video->sem))
+		if (mutex_lock_interruptible(&video->mtx))
 			return -ERESTARTSYS;
 	}
 
 	if ( !video_card_initialized(video) ) {
 		ret = do_dv1394_init_default(video);
 		if (ret) {
-			up(&video->sem);
+			mutex_unlock(&video->mtx);
 			return ret;
 		}
 	}
@@ -1418,7 +1419,7 @@ static ssize_t dv1394_write(struct file *file, const char __user *buffer, size_t
 
 	remove_wait_queue(&video->waitq, &wait);
 	set_current_state(TASK_RUNNING);
-	up(&video->sem);
+	mutex_unlock(&video->mtx);
 	return ret;
 }
 
@@ -1434,17 +1435,17 @@ static ssize_t dv1394_read(struct file *file,  char __user *buffer, size_t count
 
 	/* serialize this to prevent multi-threaded mayhem */
 	if (file->f_flags & O_NONBLOCK) {
-		if (down_trylock(&video->sem))
+		if (!mutex_trylock(&video->mtx))
 			return -EAGAIN;
 	} else {
-		if (down_interruptible(&video->sem))
+		if (mutex_lock_interruptible(&video->mtx))
 			return -ERESTARTSYS;
 	}
 
 	if ( !video_card_initialized(video) ) {
 		ret = do_dv1394_init_default(video);
 		if (ret) {
-			up(&video->sem);
+			mutex_unlock(&video->mtx);
 			return ret;
 		}
 		video->continuity_counter = -1;
@@ -1526,7 +1527,7 @@ static ssize_t dv1394_read(struct file *file,  char __user *buffer, size_t count
 
 	remove_wait_queue(&video->waitq, &wait);
 	set_current_state(TASK_RUNNING);
-	up(&video->sem);
+	mutex_unlock(&video->mtx);
 	return ret;
 }
 
@@ -1535,27 +1536,20 @@ static ssize_t dv1394_read(struct file *file,  char __user *buffer, size_t count
 
 static long dv1394_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct video_card *video;
+	struct video_card *video = file_to_video_card(file);
 	unsigned long flags;
 	int ret = -EINVAL;
 	void __user *argp = (void __user *)arg;
 
 	DECLARE_WAITQUEUE(wait, current);
 
-	lock_kernel();
-	video = file_to_video_card(file);
-
 	/* serialize this to prevent multi-threaded mayhem */
 	if (file->f_flags & O_NONBLOCK) {
-		if (down_trylock(&video->sem)) {
-			unlock_kernel();
+		if (!mutex_trylock(&video->mtx))
 			return -EAGAIN;
-		}
 	} else {
-		if (down_interruptible(&video->sem)) {
-			unlock_kernel();
+		if (mutex_lock_interruptible(&video->mtx))
 			return -ERESTARTSYS;
-		}
 	}
 
 	switch(cmd)
@@ -1778,8 +1772,7 @@ static long dv1394_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
  out:
-	up(&video->sem);
-	unlock_kernel();
+	mutex_unlock(&video->mtx);
 	return ret;
 }
 
@@ -2187,12 +2180,8 @@ static struct ieee1394_device_id dv1394_id_table[] = {
 MODULE_DEVICE_TABLE(ieee1394, dv1394_id_table);
 
 static struct hpsb_protocol_driver dv1394_driver = {
-	.name		= "DV/1394 Driver",
+	.name		= "dv1394",
 	.id_table	= dv1394_id_table,
-	.driver         = {
-		.name	= "dv1394",
-		.bus	= &ieee1394_bus_type,
-	},
 };
 
 
@@ -2253,7 +2242,7 @@ static int dv1394_init(struct ti_ohci *ohci, enum pal_or_ntsc format, enum modes
 	clear_bit(0, &video->open);
 	spin_lock_init(&video->spinlock);
 	video->dma_running = 0;
-	init_MUTEX(&video->sem);
+	mutex_init(&video->mtx);
 	init_waitqueue_head(&video->waitq);
 	video->fasync = NULL;
 
@@ -2585,6 +2574,10 @@ static void __exit dv1394_exit_module(void)
 static int __init dv1394_init_module(void)
 {
 	int ret;
+
+	printk(KERN_WARNING
+	       "WARNING: The dv1394 driver is unsupported and will be removed "
+	       "from Linux soon. Use raw1394 instead.\n");
 
 	cdev_init(&dv1394_cdev, &dv1394_fops);
 	dv1394_cdev.owner = THIS_MODULE;

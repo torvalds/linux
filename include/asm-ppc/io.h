@@ -26,17 +26,11 @@
 
 #if defined(CONFIG_4xx)
 #include <asm/ibm4xx.h>
-#elif defined(CONFIG_PPC_MPC52xx)
-#include <asm/mpc52xx.h>
 #elif defined(CONFIG_8xx)
 #include <asm/mpc8xx.h>
 #elif defined(CONFIG_8260)
 #include <asm/mpc8260.h>
-#elif defined(CONFIG_83xx)
-#include <asm/mpc83xx.h>
-#elif defined(CONFIG_85xx)
-#include <asm/mpc85xx.h>
-#elif defined(CONFIG_APUS)
+#elif defined(CONFIG_APUS) || !defined(CONFIG_PCI)
 #define _IO_BASE	0
 #define _ISA_MEM_BASE	0
 #define PCI_DRAM_OFFSET 0
@@ -237,6 +231,14 @@ static inline void __raw_writel(__u32 b, volatile void __iomem *addr)
 #define insl(port, buf, nl)	_insl_ns((port)+___IO_BASE, (buf), (nl))
 #define outsl(port, buf, nl)	_outsl_ns((port)+___IO_BASE, (buf), (nl))
 
+#define readsb(a, b, n)		_insb((a), (b), (n))
+#define readsw(a, b, n)		_insw_ns((a), (b), (n))
+#define readsl(a, b, n)		_insl_ns((a), (b), (n))
+#define writesb(a, b, n)	_outsb((a),(b),(n))
+#define writesw(a, b, n)	_outsw_ns((a),(b),(n))
+#define writesl(a, b, n)	_outsl_ns((a),(b),(n))
+
+
 /*
  * On powermacs and 8xx we will get a machine check exception 
  * if we try to read data from a non-existent I/O port. Because
@@ -327,12 +329,12 @@ __do_out_asm(outl, "stwbrx")
 #define inl_p(port)		inl((port))
 #define outl_p(val, port)	outl((val), (port))
 
-extern void _insb(volatile u8 __iomem *port, void *buf, long count);
-extern void _outsb(volatile u8 __iomem *port, const void *buf, long count);
-extern void _insw_ns(volatile u16 __iomem *port, void *buf, long count);
-extern void _outsw_ns(volatile u16 __iomem *port, const void *buf, long count);
-extern void _insl_ns(volatile u32 __iomem *port, void *buf, long count);
-extern void _outsl_ns(volatile u32 __iomem *port, const void *buf, long count);
+extern void _insb(const volatile u8 __iomem *addr, void *buf, long count);
+extern void _outsb(volatile u8 __iomem *addr,const void *buf,long count);
+extern void _insw_ns(const volatile u16 __iomem *addr, void *buf, long count);
+extern void _outsw_ns(volatile u16 __iomem *addr, const void *buf, long count);
+extern void _insl_ns(const volatile u32 __iomem *addr, void *buf, long count);
+extern void _outsl_ns(volatile u32 __iomem *addr, const void *buf, long count);
 
 
 #define IO_SPACE_LIMIT ~0
@@ -438,22 +440,6 @@ extern inline void * phys_to_virt(unsigned long address)
 #define iobarrier_rw() eieio()
 #define iobarrier_r()  eieio()
 #define iobarrier_w()  eieio()
-
-static inline int check_signature(volatile void __iomem * io_addr,
-	const unsigned char *signature, int length)
-{
-	int retval = 0;
-	do {
-		if (readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-	retval = 1;
-out:
-	return retval;
-}
 
 /*
  * Here comes the ppc implementation of the IOMAP 

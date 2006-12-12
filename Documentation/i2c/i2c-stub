@@ -6,9 +6,12 @@ This module is a very simple fake I2C/SMBus driver.  It implements four
 types of SMBus commands: write quick, (r/w) byte, (r/w) byte data, and
 (r/w) word data.
 
+You need to provide a chip address as a module parameter when loading
+this driver, which will then only react to SMBus commands to this address.
+
 No hardware is needed nor associated with this module.  It will accept write
-quick commands to all addresses; it will respond to the other commands (also
-to all addresses) by reading from or writing to an array in memory.  It will
+quick commands to one address; it will respond to the other commands (also
+to one address) by reading from or writing to an array in memory.  It will
 also spam the kernel logs for every command it handles.
 
 A pointer register with auto-increment is implemented for all byte
@@ -21,6 +24,11 @@ The typical use-case is like this:
 	3. load the target sensors chip driver module
 	4. observe its behavior in the kernel log
 
+PARAMETERS:
+
+int chip_addr:
+	The SMBus address to emulate a chip at.
+
 CAVEATS:
 
 There are independent arrays for byte/data and word/data commands.  Depending
@@ -32,6 +40,9 @@ stub could lock it up.  Use i2cset to unlock it.
 If the hardware for your driver has banked registers (e.g. Winbond sensors
 chips) this module will not work well - although it could be extended to
 support that pretty easily.
+
+Only one chip address is supported - although this module could be
+extended to support more.
 
 If you spam it hard enough, printk can be lossy.  This module really wants
 something like relayfs.

@@ -8,7 +8,7 @@ interfaces, but have similar sorts of communication needs. The two big
 examples for this are power devices (especially uninterruptable power
 supplies) and monitor control on higher end monitors.
 
-To support these disparite requirements, the Linux USB system provides
+To support these disparate requirements, the Linux USB system provides
 HID events to two separate interfaces:
 * the input subsystem, which converts HID events into normal input
 device interfaces (such as keyboard, mouse and joystick) and a
@@ -118,7 +118,7 @@ index, the ioctl returns -1 and sets errno to -EINVAL.
 HIDIOCGDEVINFO - struct hiddev_devinfo (read)
 Gets a hiddev_devinfo structure which describes the device.
 
-HIDIOCGSTRING - struct struct hiddev_string_descriptor (read/write)
+HIDIOCGSTRING - struct hiddev_string_descriptor (read/write)
 Gets a string descriptor from the device. The caller must fill in the
 "index" field to indicate which descriptor should be returned.
 

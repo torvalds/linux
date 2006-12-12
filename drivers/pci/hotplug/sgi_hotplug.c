@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/proc_fs.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
@@ -29,7 +30,6 @@
 #include <asm/sn/types.h>
 
 #include "../pci.h"
-#include "pci_hotplug.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("SGI (prarit@sgi.com, dickie@sgi.com, habeck@sgi.com)");
@@ -205,21 +205,6 @@ static struct hotplug_slot * sn_hp_destroy(void)
 	return bss_hotplug_slot;
 }
 
-static void sn_bus_alloc_data(struct pci_dev *dev)
-{
-	struct pci_bus *subordinate_bus;
-	struct pci_dev *child;
-
-	sn_pci_fixup_slot(dev);
-
-	/* Recursively sets up the sn_irq_info structs */
-	if (dev->subordinate) {
-		subordinate_bus = dev->subordinate;
-		list_for_each_entry(child, &subordinate_bus->devices, bus_list)
-			sn_bus_alloc_data(child);
-	}
-}
-
 static void sn_bus_free_data(struct pci_dev *dev)
 {
 	struct pci_bus *subordinate_bus;
@@ -337,6 +322,11 @@ static int sn_slot_disable(struct hotplug_slot *bss_hotplug_slot,
 	return rc;
 }
 
+/*
+ * Power up and configure the slot via a SAL call to PROM.
+ * Scan slot (and any children), do any platform specific fixup,
+ * and find device driver.
+ */
 static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 {
 	struct slot *slot = bss_hotplug_slot->private;
@@ -345,6 +335,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 	int func, num_funcs;
 	int new_ppb = 0;
 	int rc;
+	void pcibios_fixup_device_resources(struct pci_dev *);
 
 	/* Serialize the Linux PCI infrastructure */
 	mutex_lock(&sn_hotplug_mutex);
@@ -367,9 +358,6 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 		return -ENODEV;
 	}
 
-	sn_pci_controller_fixup(pci_domain_nr(slot->pci_bus),
-				slot->pci_bus->number,
-				slot->pci_bus);
 	/*
 	 * Map SN resources for all functions on the card
 	 * to the Linux PCI interface and tell the drivers
@@ -380,6 +368,13 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 				   PCI_DEVFN(slot->device_num + 1,
 					     PCI_FUNC(func)));
 		if (dev) {
+			/* Need to do slot fixup on PPB before fixup of children
+			 * (PPB's pcidev_info needs to be in pcidev_info list
+			 * before child's SN_PCIDEV_INFO() call to setup
+			 * pdi_host_pcidev_info).
+			 */
+			pcibios_fixup_device_resources(dev);
+			sn_pci_fixup_slot(dev);
 			if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
 				unsigned char sec_bus;
 				pci_read_config_byte(dev, PCI_SECONDARY_BUS,
@@ -387,12 +382,8 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 				new_bus = pci_add_new_bus(dev->bus, dev,
 							  sec_bus);
 				pci_scan_child_bus(new_bus);
-				sn_pci_controller_fixup(pci_domain_nr(new_bus),
-							new_bus->number,
-							new_bus);
 				new_ppb = 1;
 			}
-			sn_bus_alloc_data(dev);
 			pci_dev_put(dev);
 		}
 	}

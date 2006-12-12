@@ -34,6 +34,7 @@
 #include <asm/pcic.h>
 #include <asm/timer.h>
 #include <asm/uaccess.h>
+#include <asm/irq_regs.h>
 
 
 unsigned int pcic_pin_to_irq(unsigned int pin, char *name);
@@ -708,13 +709,13 @@ static void pcic_clear_clock_irq(void)
 	pcic_timer_dummy = readl(pcic0.pcic_regs+PCI_SYS_LIMIT);
 }
 
-static irqreturn_t pcic_timer_handler (int irq, void *h, struct pt_regs *regs)
+static irqreturn_t pcic_timer_handler (int irq, void *h)
 {
 	write_seqlock(&xtime_lock);	/* Dummy, to show that we remember */
 	pcic_clear_clock_irq();
-	do_timer(regs);
+	do_timer(1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 	write_sequnlock(&xtime_lock);
 	return IRQ_HANDLED;
@@ -765,8 +766,6 @@ static __inline__ unsigned long do_gettimeoffset(void)
 	return count;
 }
 
-extern unsigned long wall_jiffies;
-
 static void pci_do_gettimeofday(struct timeval *tv)
 {
 	unsigned long flags;
@@ -775,25 +774,16 @@ static void pci_do_gettimeofday(struct timeval *tv)
 	unsigned long max_ntp_tick = tick_usec - tickadj;
 
 	do {
-		unsigned long lost;
-
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
 		usec = do_gettimeoffset();
-		lost = jiffies - wall_jiffies;
 
 		/*
 		 * If time_adjust is negative then NTP is slowing the clock
 		 * so make sure not to go into next possible interval.
 		 * Better to lose some accuracy than have time go backwards..
 		 */
-		if (unlikely(time_adjust < 0)) {
+		if (unlikely(time_adjust < 0))
 			usec = min(usec, max_ntp_tick);
-
-			if (lost)
-				usec += lost * max_ntp_tick;
-		}
-		else if (unlikely(lost))
-			usec += lost * tick_usec;
 
 		sec = xtime.tv_sec;
 		usec += (xtime.tv_nsec / 1000);
@@ -819,8 +809,7 @@ static int pci_do_settimeofday(struct timespec *tv)
 	 * wall time.  Discover what correction gettimeofday() would have
 	 * made, and then undo it!
 	 */
-	tv->tv_nsec -= 1000 * (do_gettimeoffset() + 
-				(jiffies - wall_jiffies) * (USEC_PER_SEC / HZ));
+	tv->tv_nsec -= 1000 * do_gettimeoffset();
 	while (tv->tv_nsec < 0) {
 		tv->tv_nsec += NSEC_PER_SEC;
 		tv->tv_sec--;

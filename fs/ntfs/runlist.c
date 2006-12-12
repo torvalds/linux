@@ -149,10 +149,10 @@ static inline runlist_element *ntfs_rl_realloc_nofail(runlist_element *rl,
  *
  * It is up to the caller to serialize access to the runlists @dst and @src.
  *
- * Return: TRUE   Success, the runlists can be merged.
- *	   FALSE  Failure, the runlists cannot be merged.
+ * Return: true   Success, the runlists can be merged.
+ *	   false  Failure, the runlists cannot be merged.
  */
-static inline BOOL ntfs_are_rl_mergeable(runlist_element *dst,
+static inline bool ntfs_are_rl_mergeable(runlist_element *dst,
 		runlist_element *src)
 {
 	BUG_ON(!dst);
@@ -160,19 +160,19 @@ static inline BOOL ntfs_are_rl_mergeable(runlist_element *dst,
 
 	/* We can merge unmapped regions even if they are misaligned. */
 	if ((dst->lcn == LCN_RL_NOT_MAPPED) && (src->lcn == LCN_RL_NOT_MAPPED))
-		return TRUE;
+		return true;
 	/* If the runs are misaligned, we cannot merge them. */
 	if ((dst->vcn + dst->length) != src->vcn)
-		return FALSE;
+		return false;
 	/* If both runs are non-sparse and contiguous, we can merge them. */
 	if ((dst->lcn >= 0) && (src->lcn >= 0) &&
 			((dst->lcn + dst->length) == src->lcn))
-		return TRUE;
+		return true;
 	/* If we are merging two holes, we can merge them. */
 	if ((dst->lcn == LCN_HOLE) && (src->lcn == LCN_HOLE))
-		return TRUE;
+		return true;
 	/* Cannot merge. */
-	return FALSE;
+	return false;
 }
 
 /**
@@ -218,7 +218,7 @@ static inline void __ntfs_rl_merge(runlist_element *dst, runlist_element *src)
 static inline runlist_element *ntfs_rl_append(runlist_element *dst,
 		int dsize, runlist_element *src, int ssize, int loc)
 {
-	BOOL right = FALSE;	/* Right end of @src needs merging. */
+	bool right = false;	/* Right end of @src needs merging. */
 	int marker;		/* End of the inserted runs. */
 
 	BUG_ON(!dst);
@@ -285,8 +285,8 @@ static inline runlist_element *ntfs_rl_append(runlist_element *dst,
 static inline runlist_element *ntfs_rl_insert(runlist_element *dst,
 		int dsize, runlist_element *src, int ssize, int loc)
 {
-	BOOL left = FALSE;	/* Left end of @src needs merging. */
-	BOOL disc = FALSE;	/* Discontinuity between @dst and @src. */
+	bool left = false;	/* Left end of @src needs merging. */
+	bool disc = false;	/* Discontinuity between @dst and @src. */
 	int marker;		/* End of the inserted runs. */
 
 	BUG_ON(!dst);
@@ -382,8 +382,8 @@ static inline runlist_element *ntfs_rl_replace(runlist_element *dst,
 		int dsize, runlist_element *src, int ssize, int loc)
 {
 	signed delta;
-	BOOL left = FALSE;	/* Left end of @src needs merging. */
-	BOOL right = FALSE;	/* Right end of @src needs merging. */
+	bool left = false;	/* Left end of @src needs merging. */
+	bool right = false;	/* Right end of @src needs merging. */
 	int tail;		/* Start of tail of @dst. */
 	int marker;		/* End of the inserted runs. */
 
@@ -620,8 +620,8 @@ runlist_element *ntfs_runlists_merge(runlist_element *drl,
 		;
 
 	{
-	BOOL start;
-	BOOL finish;
+	bool start;
+	bool finish;
 	int ds = dend + 1;		/* Number of elements in drl & srl */
 	int ss = sfinal - sstart + 1;
 
@@ -635,7 +635,7 @@ runlist_element *ntfs_runlists_merge(runlist_element *drl,
 	if (finish && !drl[dins].length)
 		ss++;
 	if (marker && (drl[dins].vcn + drl[dins].length > srl[send - 1].vcn))
-		finish = FALSE;
+		finish = false;
 #if 0
 	ntfs_debug("dfinal = %i, dend = %i", dfinal, dend);
 	ntfs_debug("sstart = %i, sfinal = %i, send = %i", sstart, sfinal, send);
@@ -1134,7 +1134,7 @@ int ntfs_get_size_for_mapping_pairs(const ntfs_volume *vol,
 {
 	LCN prev_lcn;
 	int rls;
-	BOOL the_end = FALSE;
+	bool the_end = false;
 
 	BUG_ON(first_vcn < 0);
 	BUG_ON(last_vcn < -1);
@@ -1168,7 +1168,7 @@ int ntfs_get_size_for_mapping_pairs(const ntfs_volume *vol,
 			s64 s1 = last_vcn + 1;
 			if (unlikely(rl[1].vcn > s1))
 				length = s1 - rl->vcn;
-			the_end = TRUE;
+			the_end = true;
 		}
 		delta = first_vcn - rl->vcn;
 		/* Header byte + length. */
@@ -1204,7 +1204,7 @@ int ntfs_get_size_for_mapping_pairs(const ntfs_volume *vol,
 			s64 s1 = last_vcn + 1;
 			if (unlikely(rl[1].vcn > s1))
 				length = s1 - rl->vcn;
-			the_end = TRUE;
+			the_end = true;
 		}
 		/* Header byte + length. */
 		rls += 1 + ntfs_get_nr_significant_bytes(length);
@@ -1327,7 +1327,7 @@ int ntfs_mapping_pairs_build(const ntfs_volume *vol, s8 *dst,
 	LCN prev_lcn;
 	s8 *dst_max, *dst_next;
 	int err = -ENOSPC;
-	BOOL the_end = FALSE;
+	bool the_end = false;
 	s8 len_len, lcn_len;
 
 	BUG_ON(first_vcn < 0);
@@ -1370,7 +1370,7 @@ int ntfs_mapping_pairs_build(const ntfs_volume *vol, s8 *dst,
 			s64 s1 = last_vcn + 1;
 			if (unlikely(rl[1].vcn > s1))
 				length = s1 - rl->vcn;
-			the_end = TRUE;
+			the_end = true;
 		}
 		delta = first_vcn - rl->vcn;
 		/* Write length. */
@@ -1422,7 +1422,7 @@ int ntfs_mapping_pairs_build(const ntfs_volume *vol, s8 *dst,
 			s64 s1 = last_vcn + 1;
 			if (unlikely(rl[1].vcn > s1))
 				length = s1 - rl->vcn;
-			the_end = TRUE;
+			the_end = true;
 		}
 		/* Write length. */
 		len_len = ntfs_write_significant_bytes(dst + 1, dst_max,
@@ -1541,7 +1541,7 @@ int ntfs_rl_truncate_nolock(const ntfs_volume *vol, runlist *const runlist,
 	 */
 	if (rl->length) {
 		runlist_element *trl;
-		BOOL is_end;
+		bool is_end;
 
 		ntfs_debug("Shrinking runlist.");
 		/* Determine the runlist size. */
@@ -1555,11 +1555,11 @@ int ntfs_rl_truncate_nolock(const ntfs_volume *vol, runlist *const runlist,
 		 * If a run was partially truncated, make the following runlist
 		 * element a terminator.
 		 */
-		is_end = FALSE;
+		is_end = false;
 		if (rl->length) {
 			rl++;
 			if (!rl->length)
-				is_end = TRUE;
+				is_end = true;
 			rl->vcn = new_length;
 			rl->length = 0;
 		}
@@ -1648,7 +1648,7 @@ int ntfs_rl_punch_nolock(const ntfs_volume *vol, runlist *const runlist,
 	s64 delta;
 	runlist_element *rl, *rl_end, *rl_real_end, *trl;
 	int old_size;
-	BOOL lcn_fixup = FALSE;
+	bool lcn_fixup = false;
 
 	ntfs_debug("Entering for start 0x%llx, length 0x%llx.",
 			(long long)start, (long long)length);
@@ -1862,7 +1862,7 @@ split_end:
 		if (rl->lcn >= 0) {
 			rl->lcn -= delta;
 			/* Need this in case the lcn just became negative. */
-			lcn_fixup = TRUE;
+			lcn_fixup = true;
 		}
 		rl->length += delta;
 		goto split_end;

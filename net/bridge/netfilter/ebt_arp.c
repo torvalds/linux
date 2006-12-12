@@ -35,10 +35,10 @@ static int ebt_filter_arp(const struct sk_buff *skb, const struct net_device *in
 		return EBT_NOMATCH;
 
 	if (info->bitmask & (EBT_ARP_SRC_IP | EBT_ARP_DST_IP)) {
-		uint32_t _addr, *ap;
+		__be32 _addr, *ap;
 
 		/* IPv4 addresses are always 4 bytes */
-		if (ah->ar_pln != sizeof(uint32_t))
+		if (ah->ar_pln != sizeof(__be32))
 			return EBT_NOMATCH;
 		if (info->bitmask & EBT_ARP_SRC_IP) {
 			ap = skb_header_pointer(skb, sizeof(struct arphdr) +
@@ -53,7 +53,7 @@ static int ebt_filter_arp(const struct sk_buff *skb, const struct net_device *in
 
 		if (info->bitmask & EBT_ARP_DST_IP) {
 			ap = skb_header_pointer(skb, sizeof(struct arphdr) +
-						2*ah->ar_hln+sizeof(uint32_t),
+						2*ah->ar_hln+sizeof(__be32),
 						sizeof(_addr), &_addr);
 			if (ap == NULL)
 				return EBT_NOMATCH;

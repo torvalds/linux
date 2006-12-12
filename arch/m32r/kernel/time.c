@@ -35,10 +35,9 @@
 
 #ifdef CONFIG_SMP
 extern void send_IPI_allbutself(int, int);
-extern void smp_local_timer_interrupt(struct pt_regs *);
+extern void smp_local_timer_interrupt(void);
 #endif
 
-extern unsigned long wall_jiffies;
 #define TICK_SIZE	(tick_nsec / 1000)
 
 /*
@@ -108,24 +107,17 @@ void do_gettimeofday(struct timeval *tv)
 	unsigned long max_ntp_tick = tick_usec - tickadj;
 
 	do {
-		unsigned long lost;
-
 		seq = read_seqbegin(&xtime_lock);
 
 		usec = do_gettimeoffset();
-		lost = jiffies - wall_jiffies;
 
 		/*
 		 * If time_adjust is negative then NTP is slowing the clock
 		 * so make sure not to go into next possible interval.
 		 * Better to lose some accuracy than have time go backwards..
 		 */
-		if (unlikely(time_adjust < 0)) {
+		if (unlikely(time_adjust < 0))
 			usec = min(usec, max_ntp_tick);
-			if (lost)
-				usec += lost * max_ntp_tick;
-		} else if (unlikely(lost))
-			usec += lost * tick_usec;
 
 		sec = xtime.tv_sec;
 		usec += (xtime.tv_nsec / 1000);
@@ -158,7 +150,6 @@ int do_settimeofday(struct timespec *tv)
 	 * made, and then undo it!
 	 */
 	nsec -= do_gettimeoffset() * NSEC_PER_USEC;
-	nsec -= (jiffies - wall_jiffies) * TICK_NSEC;
 
 	wtm_sec = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -197,15 +188,15 @@ static long last_rtc_update = 0;
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 #ifndef CONFIG_SMP
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 #endif
-	do_timer(regs);
+	do_timer(1);
 
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 	/*
 	 * If we have an externally synchronized Linux clock, then update
@@ -230,7 +221,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	   a hack, so don't look closely for now.. */
 
 #ifdef CONFIG_SMP
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 	smp_send_timer();
 #endif
 

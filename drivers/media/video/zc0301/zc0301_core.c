@@ -303,7 +303,7 @@ int zc0301_i2c_write(struct zc0301_device* cam, u16 address, u16 value)
 
 /*****************************************************************************/
 
-static void zc0301_urb_complete(struct urb *urb, struct pt_regs* regs)
+static void zc0301_urb_complete(struct urb *urb)
 {
 	struct zc0301_device* cam = urb->context;
 	struct zc0301_frame_t** f;
@@ -489,7 +489,7 @@ static int zc0301_start_transfer(struct zc0301_device* cam)
 	return 0;
 
 free_urbs:
-	for (i = 0; (i < ZC0301_URBS) &&  cam->urb[i]; i++)
+	for (i = 0; i < ZC0301_URBS; i++)
 		usb_free_urb(cam->urb[i]);
 
 free_buffers:

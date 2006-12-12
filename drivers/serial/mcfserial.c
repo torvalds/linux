@@ -60,7 +60,8 @@ struct timer_list mcfrs_timer_struct;
 #if defined(CONFIG_HW_FEITH)
 #define	CONSOLE_BAUD_RATE	38400
 #define	DEFAULT_CBAUD		B38400
-#elif defined(CONFIG_MOD5272) || defined(CONFIG_M5208EVB) || defined(CONFIG_M5329EVB)
+#elif defined(CONFIG_MOD5272) || defined(CONFIG_M5208EVB) || \
+      defined(CONFIG_M5329EVB) || defined(CONFIG_GILBARCO)
 #define CONSOLE_BAUD_RATE 	115200
 #define DEFAULT_CBAUD		B115200
 #elif defined(CONFIG_ARNEWSH) || defined(CONFIG_FREESCALE) || \
@@ -109,12 +110,30 @@ static struct mcf_serial mcfrs_table[] = {
 		.irq = IRQBASE,
 		.flags = ASYNC_BOOT_AUTOCONF,
 	},
+#ifdef MCFUART_BASE2
 	{  /* ttyS1 */
 		.magic = 0,
 		.addr = (volatile unsigned char *) (MCF_MBAR+MCFUART_BASE2),
 		.irq = IRQBASE+1,
 		.flags = ASYNC_BOOT_AUTOCONF,
 	},
+#endif
+#ifdef MCFUART_BASE3
+	{  /* ttyS2 */
+		.magic = 0,
+		.addr = (volatile unsigned char *) (MCF_MBAR+MCFUART_BASE3),
+		.irq = IRQBASE+2,
+		.flags = ASYNC_BOOT_AUTOCONF,
+	},
+#endif
+#ifdef MCFUART_BASE4
+	{  /* ttyS3 */
+		.magic = 0,
+		.addr = (volatile unsigned char *) (MCF_MBAR+MCFUART_BASE4),
+		.irq = IRQBASE+3,
+		.flags = ASYNC_BOOT_AUTOCONF,
+	},
+#endif
 };
 
 
@@ -385,7 +404,7 @@ static inline void transmit_chars(struct mcf_serial *info)
 /*
  * This is the serial driver's generic interrupt routine
  */
-irqreturn_t mcfrs_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t mcfrs_interrupt(int irq, void *dev_id)
 {
 	struct mcf_serial	*info;
 	unsigned char		isr;
@@ -1113,7 +1132,7 @@ static int mcfrs_ioctl(struct tty_struct *tty, struct file * file,
 	return 0;
 }
 
-static void mcfrs_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void mcfrs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct mcf_serial *info = (struct mcf_serial *)tty->driver_data;
 
@@ -1516,6 +1535,22 @@ static void mcfrs_irqinit(struct mcf_serial *info)
 	imrp = (volatile unsigned long *) (MCF_MBAR + MCFICM_INTC0 +
 		MCFINTC_IMRL);
 	*imrp &= ~((1 << (info->irq - MCFINT_VECBASE)) | 1);
+#if defined(CONFIG_M527x)
+	{
+		/*
+		 * External Pin Mask Setting & Enable External Pin for Interface
+		 * mrcbis@aliceposta.it
+        	 */
+		unsigned short *serpin_enable_mask;
+		serpin_enable_mask = (MCF_IPSBAR + MCF_GPIO_PAR_UART);
+		if (info->line == 0)
+			*serpin_enable_mask |= UART0_ENABLE_MASK;
+		else if (info->line == 1)
+			*serpin_enable_mask |= UART1_ENABLE_MASK;
+		else if (info->line == 2)
+			*serpin_enable_mask |= UART2_ENABLE_MASK;
+	}
+#endif
 #elif defined(CONFIG_M520x)
 	volatile unsigned char *icrp, *uartp;
 	volatile unsigned long *imrp;
@@ -1666,7 +1701,7 @@ static void show_serial_version(void)
 	printk(mcfrs_drivername);
 }
 
-static struct tty_operations mcfrs_ops = {
+static const struct tty_operations mcfrs_ops = {
 	.open = mcfrs_open,
 	.close = mcfrs_close,
 	.write = mcfrs_write,
@@ -1713,7 +1748,7 @@ mcfrs_init(void)
 	/* Initialize the tty_driver structure */
 	mcfrs_serial_driver->owner = THIS_MODULE;
 	mcfrs_serial_driver->name = "ttyS";
-	mcfrs_serial_driver->driver_name = "serial";
+	mcfrs_serial_driver->driver_name = "mcfserial";
 	mcfrs_serial_driver->major = TTY_MAJOR;
 	mcfrs_serial_driver->minor_start = 64;
 	mcfrs_serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
@@ -1797,10 +1832,23 @@ void mcfrs_init_console(void)
 	uartp[MCFUART_UMR] = MCFUART_MR1_PARITYNONE | MCFUART_MR1_CS8;
 	uartp[MCFUART_UMR] = MCFUART_MR2_STOP1;
 
+#ifdef	CONFIG_M5272
+{
+	/*
+	 * For the MCF5272, also compute the baudrate fraction.
+	 */
+	int fraction = MCF_BUSCLK - (clk * 32 * mcfrs_console_baud);
+	fraction *= 16;
+	fraction /= (32 * mcfrs_console_baud);
+	uartp[MCFUART_UFPD] = (fraction & 0xf);		/* set fraction */
+	clk = (MCF_BUSCLK / mcfrs_console_baud) / 32;
+}
+#else
 	clk = ((MCF_BUSCLK / mcfrs_console_baud) + 16) / 32; /* set baud */
+#endif
+
 	uartp[MCFUART_UBG1] = (clk & 0xff00) >> 8;  /* set msb baud */
 	uartp[MCFUART_UBG2] = (clk & 0xff);  /* set lsb baud */
-
 	uartp[MCFUART_UCSR] = MCFUART_UCSR_RXCLKTIMER | MCFUART_UCSR_TXCLKTIMER;
 	uartp[MCFUART_UCR] = MCFUART_UCR_RXENABLE | MCFUART_UCR_TXENABLE;
 

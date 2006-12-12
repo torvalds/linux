@@ -270,10 +270,9 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 }
 EXPORT_SYMBOL(kmem_cache_create);
 
-int kmem_cache_destroy(struct kmem_cache *c)
+void kmem_cache_destroy(struct kmem_cache *c)
 {
 	slob_free(c, sizeof(struct kmem_cache));
-	return 0;
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
 

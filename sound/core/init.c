@@ -33,10 +33,10 @@
 #include <sound/control.h>
 #include <sound/info.h>
 
-struct snd_shutdown_f_ops {
-	struct file_operations f_ops;
-	struct snd_shutdown_f_ops *next;
-};
+static DEFINE_SPINLOCK(shutdown_lock);
+static LIST_HEAD(shutdown_files);
+
+static struct file_operations snd_shutdown_f_ops;
 
 static unsigned int snd_cards_lock;	/* locked for registering/using */
 struct snd_card *snd_cards[SNDRV_CARDS];
@@ -198,6 +198,25 @@ static ssize_t snd_disconnect_write(struct file *file, const char __user *buf,
 	return -ENODEV;
 }
 
+static int snd_disconnect_release(struct inode *inode, struct file *file)
+{
+	struct snd_monitor_file *df = NULL, *_df;
+
+	spin_lock(&shutdown_lock);
+	list_for_each_entry(_df, &shutdown_files, shutdown_list) {
+		if (_df->file == file) {
+			df = _df;
+			break;
+		}
+	}
+	spin_unlock(&shutdown_lock);
+
+	if (likely(df))
+		return df->disconnected_f_op->release(inode, file);
+
+	panic("%s(%p, %p) failed!", __FUNCTION__, inode, file);
+}
+
 static unsigned int snd_disconnect_poll(struct file * file, poll_table * wait)
 {
 	return POLLERR | POLLNVAL;
@@ -219,6 +238,22 @@ static int snd_disconnect_fasync(int fd, struct file *file, int on)
 	return -ENODEV;
 }
 
+static struct file_operations snd_shutdown_f_ops =
+{
+	.owner = 	THIS_MODULE,
+	.llseek =	snd_disconnect_llseek,
+	.read = 	snd_disconnect_read,
+	.write =	snd_disconnect_write,
+	.release =	snd_disconnect_release,
+	.poll =		snd_disconnect_poll,
+	.unlocked_ioctl = snd_disconnect_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = snd_disconnect_ioctl,
+#endif
+	.mmap =		snd_disconnect_mmap,
+	.fasync =	snd_disconnect_fasync
+};
+
 /**
  *  snd_card_disconnect - disconnect all APIs from the file-operations (user space)
  *  @card: soundcard structure
@@ -234,9 +269,6 @@ int snd_card_disconnect(struct snd_card *card)
 {
 	struct snd_monitor_file *mfile;
 	struct file *file;
-	struct snd_shutdown_f_ops *s_f_ops;
-	struct file_operations *f_ops;
-	const struct file_operations *old_f_ops;
 	int err;
 
 	spin_lock(&card->files_lock);
@@ -261,34 +293,14 @@ int snd_card_disconnect(struct snd_card *card)
 
 		/* it's critical part, use endless loop */
 		/* we have no room to fail */
-		s_f_ops = kmalloc(sizeof(struct snd_shutdown_f_ops), GFP_ATOMIC);
-		if (s_f_ops == NULL)
-			panic("Atomic allocation failed for snd_shutdown_f_ops!");
+		mfile->disconnected_f_op = mfile->file->f_op;
 
-		f_ops = &s_f_ops->f_ops;
+		spin_lock(&shutdown_lock);
+		list_add(&mfile->shutdown_list, &shutdown_files);
+		spin_unlock(&shutdown_lock);
 
-		memset(f_ops, 0, sizeof(*f_ops));
-		f_ops->owner = file->f_op->owner;
-		f_ops->release = file->f_op->release;
-		f_ops->llseek = snd_disconnect_llseek;
-		f_ops->read = snd_disconnect_read;
-		f_ops->write = snd_disconnect_write;
-		f_ops->poll = snd_disconnect_poll;
-		f_ops->unlocked_ioctl = snd_disconnect_ioctl;
-#ifdef CONFIG_COMPAT
-		f_ops->compat_ioctl = snd_disconnect_ioctl;
-#endif
-		f_ops->mmap = snd_disconnect_mmap;
-		f_ops->fasync = snd_disconnect_fasync;
-
-		s_f_ops->next = card->s_f_ops;
-		card->s_f_ops = s_f_ops;
-		
-		f_ops = fops_get(f_ops);
-
-		old_f_ops = file->f_op;
-		file->f_op = f_ops;	/* must be atomic */
-		fops_put(old_f_ops);
+		fops_get(&snd_shutdown_f_ops);
+		mfile->file->f_op = &snd_shutdown_f_ops;
 		
 		mfile = mfile->next;
 	}
@@ -326,8 +338,6 @@ EXPORT_SYMBOL(snd_card_disconnect);
  */
 static int snd_card_do_free(struct snd_card *card)
 {
-	struct snd_shutdown_f_ops *s_f_ops;
-
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
 	if (snd_mixer_oss_notify_callback)
 		snd_mixer_oss_notify_callback(card, SND_MIXER_OSS_NOTIFY_FREE);
@@ -351,11 +361,8 @@ static int snd_card_do_free(struct snd_card *card)
 		snd_printk(KERN_WARNING "unable to free card info\n");
 		/* Not fatal error */
 	}
-	while (card->s_f_ops) {
-		s_f_ops = card->s_f_ops;
-		card->s_f_ops = s_f_ops->next;
-		kfree(s_f_ops);
-	}
+	if (card->dev)
+		device_unregister(card->dev);
 	kfree(card);
 	return 0;
 }
@@ -490,6 +497,12 @@ int snd_card_register(struct snd_card *card)
 	int err;
 
 	snd_assert(card != NULL, return -EINVAL);
+	if (!card->dev) {
+		card->dev = device_create(sound_class, card->parent, 0,
+					  "card%i", card->number);
+		if (IS_ERR(card->dev))
+			card->dev = NULL;
+	}
 	if ((err = snd_device_register_all(card)) < 0)
 		return err;
 	mutex_lock(&snd_card_mutex);
@@ -670,6 +683,7 @@ int snd_card_file_add(struct snd_card *card, struct file *file)
 	if (mfile == NULL)
 		return -ENOMEM;
 	mfile->file = file;
+	mfile->disconnected_f_op = NULL;
 	mfile->next = NULL;
 	spin_lock(&card->files_lock);
 	if (card->shutdown) {
@@ -715,6 +729,12 @@ int snd_card_file_remove(struct snd_card *card, struct file *file)
 		}
 		pfile = mfile;
 		mfile = mfile->next;
+	}
+	if (mfile && mfile->disconnected_f_op) {
+		fops_put(mfile->disconnected_f_op);
+		spin_lock(&shutdown_lock);
+		list_del(&mfile->shutdown_list);
+		spin_unlock(&shutdown_lock);
 	}
 	if (card->files == NULL)
 		last_close = 1;

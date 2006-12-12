@@ -1545,7 +1545,7 @@ static struct fb_ops au1200fb_fb_ops = {
 
 /*-------------------------------------------------------------------------*/
 
-static irqreturn_t au1200fb_handle_irq(int irq, void* dev_id, struct pt_regs *regs)
+static irqreturn_t au1200fb_handle_irq(int irq, void* dev_id)
 {
 	/* Nothing to do for now, just clear any pending interrupt */
 	lcd->intstatus = lcd->intstatus;

@@ -328,8 +328,8 @@ struct mxser_struct {
 	int xmit_tail;
 	int xmit_cnt;
 	struct work_struct tqueue;
-	struct termios normal_termios;
-	struct termios callout_termios;
+	struct ktermios normal_termios;
+	struct ktermios callout_termios;
 	wait_queue_head_t open_wait;
 	wait_queue_head_t close_wait;
 	wait_queue_head_t delta_msr_wait;
@@ -364,8 +364,8 @@ static int mxserBoardCAP[MXSER_BOARDS] = {
 static struct tty_driver *mxvar_sdriver;
 static struct mxser_struct mxvar_table[MXSER_PORTS];
 static struct tty_struct *mxvar_tty[MXSER_PORTS + 1];
-static struct termios *mxvar_termios[MXSER_PORTS + 1];
-static struct termios *mxvar_termios_locked[MXSER_PORTS + 1];
+static struct ktermios *mxvar_termios[MXSER_PORTS + 1];
+static struct ktermios *mxvar_termios_locked[MXSER_PORTS + 1];
 static struct mxser_log mxvar_log;
 static int mxvar_diagflag;
 static unsigned char mxser_msr[MXSER_PORTS + 1];
@@ -389,7 +389,7 @@ static int mxser_init(void);
 /* static void   mxser_poll(unsigned long); */
 static int mxser_get_ISA_conf(int, struct mxser_hwconf *);
 static int mxser_get_PCI_conf(int, int, int, struct mxser_hwconf *);
-static void mxser_do_softint(void *);
+static void mxser_do_softint(struct work_struct *);
 static int mxser_open(struct tty_struct *, struct file *);
 static void mxser_close(struct tty_struct *, struct file *);
 static int mxser_write(struct tty_struct *, const unsigned char *, int);
@@ -402,19 +402,19 @@ static int mxser_ioctl(struct tty_struct *, struct file *, uint, ulong);
 static int mxser_ioctl_special(unsigned int, void __user *);
 static void mxser_throttle(struct tty_struct *);
 static void mxser_unthrottle(struct tty_struct *);
-static void mxser_set_termios(struct tty_struct *, struct termios *);
+static void mxser_set_termios(struct tty_struct *, struct ktermios *);
 static void mxser_stop(struct tty_struct *);
 static void mxser_start(struct tty_struct *);
 static void mxser_hangup(struct tty_struct *);
 static void mxser_rs_break(struct tty_struct *, int);
-static irqreturn_t mxser_interrupt(int, void *, struct pt_regs *);
+static irqreturn_t mxser_interrupt(int, void *);
 static void mxser_receive_chars(struct mxser_struct *, int *);
 static void mxser_transmit_chars(struct mxser_struct *);
 static void mxser_check_modem_status(struct mxser_struct *, int);
 static int mxser_block_til_ready(struct tty_struct *, struct file *, struct mxser_struct *);
 static int mxser_startup(struct mxser_struct *);
 static void mxser_shutdown(struct mxser_struct *);
-static int mxser_change_speed(struct mxser_struct *, struct termios *old_termios);
+static int mxser_change_speed(struct mxser_struct *, struct ktermios *old_termios);
 static int mxser_get_serial_info(struct mxser_struct *, struct serial_struct __user *);
 static int mxser_set_serial_info(struct mxser_struct *, struct serial_struct __user *);
 static int mxser_get_lsr_info(struct mxser_struct *, unsigned int __user *);
@@ -453,7 +453,7 @@ static int CheckIsMoxaMust(int io)
 
 /* above is modified by Victor Yu. 08-15-2002 */
 
-static struct tty_operations mxser_ops = {
+static const struct tty_operations mxser_ops = {
 	.open = mxser_open,
 	.close = mxser_close,
 	.write = mxser_write,
@@ -515,6 +515,7 @@ static void __exit mxser_module_exit(void)
 			if (pdev != NULL) {	/* PCI */
 				release_region(pci_resource_start(pdev, 2), pci_resource_len(pdev, 2));
 				release_region(pci_resource_start(pdev, 3), pci_resource_len(pdev, 3));
+				pci_dev_put(pdev);
 			} else {
 				release_region(mxsercfg[i].ioaddr[0], 8 * mxsercfg[i].ports);
 				release_region(mxsercfg[i].vector, 1);
@@ -556,7 +557,7 @@ static int mxser_initbrd(int board, struct mxser_hwconf *hwconf)
 	n = board * MXSER_PORTS_PER_BOARD;
 	info = &mxvar_table[n];
 	/*if (verbose) */  {
-		printk(KERN_DEBUG "        ttyM%d - ttyM%d ",
+		printk(KERN_DEBUG "        ttyMI%d - ttyMI%d ",
 			n, n + hwconf->ports - 1);
 		printk(" max. baud rate = %d bps.\n",
 			hwconf->MaxCanSetBaudRate[0]);
@@ -590,7 +591,7 @@ static int mxser_initbrd(int board, struct mxser_hwconf *hwconf)
 		info->custom_divisor = hwconf->baud_base[i] * 16;
 		info->close_delay = 5 * HZ / 10;
 		info->closing_wait = 30 * HZ;
-		INIT_WORK(&info->tqueue, mxser_do_softint, info);
+		INIT_WORK(&info->tqueue, mxser_do_softint);
 		info->normal_termios = mxvar_sdriver->init_termios;
 		init_waitqueue_head(&info->open_wait);
 		init_waitqueue_head(&info->close_wait);
@@ -717,7 +718,7 @@ static int mxser_init(void)
 	/* Initialize the tty_driver structure */
 	memset(mxvar_sdriver, 0, sizeof(struct tty_driver));
 	mxvar_sdriver->magic = TTY_DRIVER_MAGIC;
-	mxvar_sdriver->name = "ttyM";
+	mxvar_sdriver->name = "ttyMI";
 	mxvar_sdriver->major = ttymajor;
 	mxvar_sdriver->minor_start = 0;
 	mxvar_sdriver->num = MXSER_PORTS + 1;
@@ -725,6 +726,8 @@ static int mxser_init(void)
 	mxvar_sdriver->subtype = SERIAL_TYPE_NORMAL;
 	mxvar_sdriver->init_termios = tty_std_termios;
 	mxvar_sdriver->init_termios.c_cflag = B9600|CS8|CREAD|HUPCL|CLOCAL;
+	mxvar_sdriver->init_termios.c_ispeed = 9600;
+	mxvar_sdriver->init_termios.c_ospeed = 9600;
 	mxvar_sdriver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(mxvar_sdriver, &mxser_ops);
 	mxvar_sdriver->ttys = mxvar_tty;
@@ -839,9 +842,9 @@ static int mxser_init(void)
 	index = 0;
 	b = 0;
 	while (b < n) {
-		pdev = pci_find_device(mxser_pcibrds[b].vendor,
+		pdev = pci_get_device(mxser_pcibrds[b].vendor,
 				mxser_pcibrds[b].device, pdev);
-			if (pdev == NULL) {
+		if (pdev == NULL) {
 			b++;
 			continue;
 		}
@@ -893,6 +896,9 @@ static int mxser_init(void)
 			if (mxser_initbrd(m, &hwconf) < 0)
 				continue;
 			m++;
+			/* Keep an extra reference if we succeeded. It will
+			   be returned at unload time */
+			pci_dev_get(pdev);
 		}
 	}
 #endif
@@ -917,9 +923,10 @@ static int mxser_init(void)
 	return 0;
 }
 
-static void mxser_do_softint(void *private_)
+static void mxser_do_softint(struct work_struct *work)
 {
-	struct mxser_struct *info = private_;
+	struct mxser_struct *info =
+		container_of(work, struct mxser_struct, tqueue);
 	struct tty_struct *tty;
 
 	tty = info->tty;
@@ -993,7 +1000,7 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 		mxser_change_speed(info, NULL);
 	}
 
-	info->session = current->signal->session;
+	info->session = process_session(current);
 	info->pgrp = process_group(current);
 
 	/*
@@ -1744,7 +1751,7 @@ static void mxser_unthrottle(struct tty_struct *tty)
 	/* MX_UNLOCK(&info->slock); */
 }
 
-static void mxser_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void mxser_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
@@ -1916,7 +1923,7 @@ static void mxser_rs_break(struct tty_struct *tty, int break_state)
 /*
  * This is the serial driver's generic interrupt routine
  */
-static irqreturn_t mxser_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 {
 	int status, iir, i;
 	struct mxser_struct *info;
@@ -2536,7 +2543,7 @@ static void mxser_shutdown(struct mxser_struct *info)
  * This routine is called to set the UART divisor registers to match
  * the specified baud rate for a serial port.
  */
-static int mxser_change_speed(struct mxser_struct *info, struct termios *old_termios)
+static int mxser_change_speed(struct mxser_struct *info, struct ktermios *old_termios)
 {
 	unsigned cflag, cval, fcr;
 	int ret = 0;
@@ -2554,71 +2561,7 @@ static int mxser_change_speed(struct mxser_struct *info, struct termios *old_ter
 #define B921600 (B460800 +1)
 #endif
 	if (mxser_set_baud_method[info->port] == 0) {
-		switch (cflag & (CBAUD | CBAUDEX)) {
-		case B921600:
-			baud = 921600;
-			break;
-		case B460800:
-			baud = 460800;
-			break;
-		case B230400:
-			baud = 230400;
-			break;
-		case B115200:
-			baud = 115200;
-			break;
-		case B57600:
-			baud = 57600;
-			break;
-		case B38400:
-			baud = 38400;
-			break;
-		case B19200:
-			baud = 19200;
-			break;
-		case B9600:
-			baud = 9600;
-			break;
-		case B4800:
-			baud = 4800;
-			break;
-		case B2400:
-			baud = 2400;
-			break;
-		case B1800:
-			baud = 1800;
-			break;
-		case B1200:
-			baud = 1200;
-			break;
-		case B600:
-			baud = 600;
-			break;
-		case B300:
-			baud = 300;
-			break;
-		case B200:
-			baud = 200;
-			break;
-		case B150:
-			baud = 150;
-			break;
-		case B134:
-			baud = 134;
-			break;
-		case B110:
-			baud = 110;
-			break;
-		case B75:
-			baud = 75;
-			break;
-		case B50:
-			baud = 50;
-			break;
-		default:
-			baud = 0;
-			break;
-		}
+		baud = tty_get_baud_rate(info->tty);
 		mxser_set_baud(info, baud);
 	}
 

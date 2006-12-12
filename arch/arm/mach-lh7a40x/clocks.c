@@ -8,7 +8,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/cpufreq.h>
 #include <asm/hardware.h>
 #include <asm/arch/clocks.h>

@@ -123,9 +123,6 @@ struct resource standard_io_resources[] = {
 		.flags = IORESOURCE_BUSY | IORESOURCE_IO }
 };
 
-#define STANDARD_IO_RESOURCES \
-	(sizeof standard_io_resources / sizeof standard_io_resources[0])
-
 #define IORESOURCE_RAM (IORESOURCE_BUSY | IORESOURCE_MEM)
 
 struct resource data_resource = {
@@ -171,9 +168,6 @@ static struct resource adapter_rom_resources[] = {
 	{ .name = "Adapter ROM", .start = 0, .end = 0,
 		.flags = IORESOURCE_ROM }
 };
-
-#define ADAPTER_ROM_RESOURCES \
-	(sizeof adapter_rom_resources / sizeof adapter_rom_resources[0])
 
 static struct resource video_rom_resource = {
 	.name = "Video ROM",
@@ -245,7 +239,8 @@ static void __init probe_roms(void)
 	}
 
 	/* check for adapter roms on 2k boundaries */
-	for (i = 0; i < ADAPTER_ROM_RESOURCES && start < upper; start += 2048) {
+	for (i = 0; i < ARRAY_SIZE(adapter_rom_resources) && start < upper;
+	     start += 2048) {
 		rom = isa_bus_to_virt(start);
 		if (!romsignature(rom))
 			continue;
@@ -292,7 +287,8 @@ contig_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	if (bootmap == -1L)
 		panic("Cannot find bootmem map of size %ld\n",bootmap_size);
 	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, end_pfn);
-	e820_bootmem_free(NODE_DATA(0), 0, end_pfn << PAGE_SHIFT);
+	e820_register_active_regions(0, start_pfn, end_pfn);
+	free_bootmem_with_active_regions(0, end_pfn);
 	reserve_bootmem(bootmap, bootmap_size);
 } 
 #endif
@@ -384,6 +380,7 @@ void __init setup_arch(char **cmdline_p)
 
 	finish_e820_parsing();
 
+	e820_register_active_regions(0, 0, -1UL);
 	/*
 	 * partially used pages are not usable - thus
 	 * we are rounding upwards:
@@ -413,6 +410,9 @@ void __init setup_arch(char **cmdline_p)
 	max_low_pfn = end_pfn;
 	max_pfn = end_pfn;
 	high_memory = (void *)__va(end_pfn * PAGE_SIZE - 1) + 1;
+
+	/* Remove active ranges so rediscovery with NUMA-awareness happens */
+	remove_all_active_ranges();
 
 #ifdef CONFIG_ACPI_NUMA
 	/*
@@ -471,8 +471,7 @@ void __init setup_arch(char **cmdline_p)
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (end_pfn << PAGE_SHIFT)) {
 			reserve_bootmem_generic(INITRD_START, INITRD_SIZE);
-			initrd_start =
-				INITRD_START ? INITRD_START + PAGE_OFFSET : 0;
+			initrd_start = INITRD_START + PAGE_OFFSET;
 			initrd_end = initrd_start+INITRD_SIZE;
 		}
 		else {
@@ -532,7 +531,7 @@ void __init setup_arch(char **cmdline_p)
 	{
 	unsigned i;
 	/* request I/O space for devices used on all i[345]86 PCs */
-	for (i = 0; i < STANDARD_IO_RESOURCES; i++)
+	for (i = 0; i < ARRAY_SIZE(standard_io_resources); i++)
 		request_resource(&ioport_resource, &standard_io_resources[i]);
 	}
 
@@ -732,11 +731,8 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	/* Fix cpuid4 emulation for more */
 	num_cache_leaves = 3;
 
-	/* When there is only one core no need to synchronize RDTSC */
-	if (num_possible_cpus() == 1)
-	        set_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
-	else
-	        clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+	/* RDTSC can be speculated around */
+	clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
 }
 
 static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
@@ -835,6 +831,15 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 			set_bit(X86_FEATURE_ARCH_PERFMON, &c->x86_capability);
 	}
 
+	if (cpu_has_ds) {
+		unsigned int l1, l2;
+		rdmsr(MSR_IA32_MISC_ENABLE, l1, l2);
+		if (!(l1 & (1<<11)))
+			set_bit(X86_FEATURE_BTS, c->x86_capability);
+		if (!(l1 & (1<<12)))
+			set_bit(X86_FEATURE_PEBS, c->x86_capability);
+	}
+
 	n = c->extended_cpuid_level;
 	if (n >= 0x80000008) {
 		unsigned eax = cpuid_eax(0x80000008);
@@ -854,7 +859,10 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
 	if (c->x86 == 6)
 		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
-	set_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+	if (c->x86 == 15)
+		set_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+	else
+		clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
  	c->x86_max_cores = intel_num_cpu_cores(c);
 
 	srat_detect_node();

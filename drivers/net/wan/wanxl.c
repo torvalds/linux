@@ -244,7 +244,7 @@ static inline void wanxl_rx_intr(card_t *card)
 
 
 
-static irqreturn_t wanxl_intr(int irq, void* dev_id, struct pt_regs *regs)
+static irqreturn_t wanxl_intr(int irq, void* dev_id)
 {
         card_t *card = dev_id;
         int i;

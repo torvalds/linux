@@ -54,6 +54,7 @@ config VIDEO_V4L1_COMPAT
 
 config VIDEO_V4L2
 	bool
+	depends on VIDEO_DEV
 	default y
 
 source "drivers/media/video/Kconfig"
@@ -66,6 +67,7 @@ source "drivers/media/common/Kconfig"
 
 config VIDEO_TUNER
 	tristate
+	depends on I2C
 
 config VIDEO_BUF
 	tristate
@@ -81,6 +83,7 @@ config VIDEO_IR
 
 config VIDEO_TVEEPROM
 	tristate
+	depends on I2C
 
 config USB_DABUSB
 	tristate "DABUSB driver"

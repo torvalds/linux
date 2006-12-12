@@ -373,7 +373,7 @@ static inline void ser12_rx(struct net_device *dev, struct baycom_state *bc)
 
 /* --------------------------------------------------------------------- */
 
-static irqreturn_t ser12_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct baycom_state *bc = netdev_priv(dev);

@@ -22,7 +22,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_DESCRIPTION("iptables addrtype match");
 
-static inline int match_type(u_int32_t addr, u_int16_t mask)
+static inline int match_type(__be32 addr, u_int16_t mask)
 {
 	return !!(mask & (1 << inet_addr_type(addr)));
 }

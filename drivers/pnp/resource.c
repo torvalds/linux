@@ -348,7 +348,7 @@ int pnp_check_mem(struct pnp_dev * dev, int idx)
 	return 1;
 }
 
-static irqreturn_t pnp_test_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pnp_test_handler(int irq, void *dev_id)
 {
 	return IRQ_HANDLED;
 }

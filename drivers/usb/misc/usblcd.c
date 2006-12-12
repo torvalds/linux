@@ -165,7 +165,7 @@ static int lcd_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 	return 0;
 }
 
-static void lcd_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void lcd_write_bulk_callback(struct urb *urb)
 {
 	struct usb_lcd *dev;
 
@@ -239,7 +239,7 @@ error:
 	return retval;
 }
 
-static struct file_operations lcd_fops = {
+static const struct file_operations lcd_fops = {
         .owner =        THIS_MODULE,
         .read =         lcd_read,
         .write =        lcd_write,
@@ -290,9 +290,7 @@ static int lcd_probe(struct usb_interface *interface, const struct usb_device_id
 		endpoint = &iface_desc->endpoint[i].desc;
 
 		if (!dev->bulk_in_endpointAddr &&
-		    (endpoint->bEndpointAddress & USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-					== USB_ENDPOINT_XFER_BULK)) {
+		    usb_endpoint_is_bulk_in(endpoint)) {
 			/* we found a bulk in endpoint */
 			buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
 			dev->bulk_in_size = buffer_size;
@@ -305,9 +303,7 @@ static int lcd_probe(struct usb_interface *interface, const struct usb_device_id
 		}
 
 		if (!dev->bulk_out_endpointAddr &&
-		    !(endpoint->bEndpointAddress & USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-					== USB_ENDPOINT_XFER_BULK)) {
+		    usb_endpoint_is_bulk_out(endpoint)) {
 			/* we found a bulk out endpoint */
 			dev->bulk_out_endpointAddr = endpoint->bEndpointAddress;
 		}

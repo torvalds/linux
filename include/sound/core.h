@@ -89,9 +89,9 @@ struct snd_device {
 struct snd_monitor_file {
 	struct file *file;
 	struct snd_monitor_file *next;
+	const struct file_operations *disconnected_f_op;
+	struct list_head shutdown_list;
 };
-
-struct snd_shutdown_f_ops;	/* define it later in init.c */
 
 /* main structure for soundcard */
 
@@ -132,6 +132,7 @@ struct snd_card {
 	int shutdown;			/* this card is going down */
 	int free_on_last_close;		/* free in context of file_release */
 	wait_queue_head_t shutdown_sleep;
+	struct device *parent;
 	struct device *dev;
 
 #ifdef CONFIG_PM
@@ -187,13 +188,14 @@ struct snd_minor {
 	int device;			/* device number */
 	const struct file_operations *f_ops;	/* file operations */
 	void *private_data;		/* private data for f_ops->open */
-	struct class_device *class_dev;	/* class device for sysfs */
+	struct device *dev;		/* device for sysfs */
 };
 
 /* sound.c */
 
 extern int snd_major;
 extern int snd_ecards_limit;
+extern struct class *sound_class;
 
 void snd_request_card(int card);
 
@@ -203,7 +205,7 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 int snd_unregister_device(int type, struct snd_card *card, int dev);
 void *snd_lookup_minor_data(unsigned int minor, int type);
 int snd_add_device_sysfs_file(int type, struct snd_card *card, int dev,
-			      const struct class_device_attribute *attr);
+			      struct device_attribute *attr);
 
 #ifdef CONFIG_SND_OSSEMUL
 int snd_register_oss_device(int type, struct snd_card *card, int dev,
@@ -255,7 +257,7 @@ int snd_card_file_add(struct snd_card *card, struct file *file);
 int snd_card_file_remove(struct snd_card *card, struct file *file);
 
 #ifndef snd_card_set_dev
-#define snd_card_set_dev(card,devptr) ((card)->dev = (devptr))
+#define snd_card_set_dev(card,devptr) ((card)->parent = (devptr))
 #endif
 
 /* device.c */

@@ -130,7 +130,7 @@ static void ray_update_parm(struct net_device *dev, UCHAR objid, UCHAR *value, i
 static void verify_dl_startup(u_long);
 
 /* Prototypes for interrpt time functions **********************************/
-static irqreturn_t ray_interrupt (int reg, void *dev_id, struct pt_regs *regs);
+static irqreturn_t ray_interrupt (int reg, void *dev_id);
 static void clear_interrupt(ray_dev_t *local);
 static void rx_deauthenticate(ray_dev_t *local, struct rcs __iomem *prcs, 
                        unsigned int pkt_addr, int rx_len);
@@ -408,11 +408,8 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 #define MAX_TUPLE_SIZE 128
 static int ray_config(struct pcmcia_device *link)
 {
-    tuple_t tuple;
-    cisparse_t parse;
     int last_fn = 0, last_ret = 0;
     int i;
-    u_char buf[MAX_TUPLE_SIZE];
     win_req_t req;
     memreq_t mem;
     struct net_device *dev = (struct net_device *)link->priv;
@@ -420,29 +417,12 @@ static int ray_config(struct pcmcia_device *link)
 
     DEBUG(1, "ray_config(0x%p)\n", link);
 
-    /* This reads the card's CONFIG tuple to find its configuration regs */
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    tuple.TupleData = buf;
-    tuple.TupleDataMax = MAX_TUPLE_SIZE;
-    tuple.TupleOffset = 0;
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-    link->conf.ConfigBase = parse.config.base;
-    link->conf.Present = parse.config.rmask[0];
-
     /* Determine card type and firmware version */
-    buf[0] = buf[MAX_TUPLE_SIZE - 1] = 0;
-    tuple.DesiredTuple = CISTPL_VERS_1;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    tuple.TupleData = buf;
-    tuple.TupleDataMax = MAX_TUPLE_SIZE;
-    tuple.TupleOffset = 2;
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-
-    for (i=0; i<tuple.TupleDataLen - 4; i++) 
-        if (buf[i] == 0) buf[i] = ' ';
-    printk(KERN_INFO "ray_cs Detected: %s\n",buf);
+    printk(KERN_INFO "ray_cs Detected: %s%s%s%s\n",
+	   link->prod_id[0] ? link->prod_id[0] : " ",
+	   link->prod_id[1] ? link->prod_id[1] : " ",
+	   link->prod_id[2] ? link->prod_id[2] : " ",
+	   link->prod_id[3] ? link->prod_id[3] : " ");
 
     /* Now allocate an interrupt line.  Note that this does not
        actually assign a handler to the interrupt.
@@ -1173,7 +1153,7 @@ static int ray_set_essid(struct net_device *dev,
 		return -EOPNOTSUPP;
 	} else {
 		/* Check the size of the string */
-		if(dwrq->length > IW_ESSID_MAX_SIZE + 1) {
+		if(dwrq->length > IW_ESSID_MAX_SIZE) {
 			return -E2BIG;
 		}
 
@@ -1198,7 +1178,6 @@ static int ray_get_essid(struct net_device *dev,
 
 	/* Get the essid that was set */
 	memcpy(extra, local->sparm.b5.a_current_ess_id, IW_ESSID_MAX_SIZE);
-	extra[IW_ESSID_MAX_SIZE] = '\0';
 
 	/* Push it out ! */
 	dwrq->length = strlen(extra);
@@ -1940,7 +1919,7 @@ static void set_multicast_list(struct net_device *dev)
 /*=============================================================================
  * All routines below here are run at interrupt time.
 =============================================================================*/
-static irqreturn_t ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t ray_interrupt(int irq, void *dev_id)
 {
     struct net_device *dev = (struct net_device *)dev_id;
     struct pcmcia_device *link;

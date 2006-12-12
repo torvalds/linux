@@ -32,6 +32,7 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
+#include <linux/interrupt.h>
 
 #include <asm/io.h>
 
@@ -160,7 +161,7 @@ intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 		return 1;
 
 	/* Find the bridge device.  It is always 0:0.0 */
-	if (!(bridge_dev = pci_find_slot(0, PCI_DEVFN(0, 0)))) {
+	if (!(bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0)))) {
 		ERR_MSG("cannot find bridge device\n");
 		return 1;
 	}
@@ -168,6 +169,8 @@ intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 	/* Get the fb aperture size and "stolen" memory amount. */
 	tmp = 0;
 	pci_read_config_word(bridge_dev, INTEL_GMCH_CTRL, &tmp);
+	pci_dev_put(bridge_dev);
+
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_INTEL_915G:
 	case PCI_DEVICE_ID_INTEL_915GM:
@@ -368,7 +371,13 @@ intelfbhw_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	offset += dinfo->fb.offset << 12;
 
-	OUTREG(DSPABASE, offset);
+	dinfo->vsync.pan_offset = offset;
+	if ((var->activate & FB_ACTIVATE_VBL) && !intelfbhw_enable_irq(dinfo, 0)) {
+		dinfo->vsync.pan_display = 1;
+	} else {
+		dinfo->vsync.pan_display = 0;
+		OUTREG(DSPABASE, offset);
+	}
 
 	return 0;
 }
@@ -585,6 +594,11 @@ intelfbhw_read_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 	hw->fw_blc_0 = INREG(FW_BLC_0);
 	hw->fw_blc_1 = INREG(FW_BLC_1);
 
+	hw->hwstam = INREG16(HWSTAM);
+	hw->ier = INREG16(IER);
+	hw->iir = INREG16(IIR);
+	hw->imr = INREG16(IMR);
+
 	return 0;
 }
 
@@ -613,6 +627,7 @@ static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2, int lvd
 	return vco / p;
 }
 
+#if REGDUMP
 static void
 intelfbhw_get_p1p2(struct intelfb_info *dinfo, int dpll, int *o_p1, int *o_p2)
 {
@@ -638,6 +653,7 @@ intelfbhw_get_p1p2(struct intelfb_info *dinfo, int dpll, int *o_p1, int *o_p2)
 	*o_p1 = p1;
 	*o_p2 = p2;
 }
+#endif
 
 
 void
@@ -648,7 +664,7 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	int index = dinfo->pll_index;
 	DBG_MSG("intelfbhw_print_hw_state\n");
 
-	if (!hw || !dinfo)
+	if (!hw)
 		return;
 	/* Read in as much of the HW state as possible. */
 	printk("hw state dump start\n");
@@ -794,6 +810,10 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	printk("	FW_BLC_0		0x%08x\n", hw->fw_blc_0);
 	printk("	FW_BLC_1		0x%08x\n", hw->fw_blc_1);
 
+	printk("	HWSTAM			0x%04x\n", hw->hwstam);
+	printk("	IER			0x%04x\n", hw->ier);
+	printk("	IIR			0x%04x\n", hw->iir);
+	printk("	IMR			0x%04x\n", hw->imr);
 	printk("hw state dump end\n");
 #endif
 }
@@ -1931,4 +1951,120 @@ intelfbhw_cursor_reset(struct intelfb_info *dinfo) {
 		}
 		addr += 16;
 	}
+}
+
+static irqreturn_t
+intelfbhw_irq(int irq, void *dev_id) {
+	int handled = 0;
+	u16 tmp;
+	struct intelfb_info *dinfo = (struct intelfb_info *)dev_id;
+
+	spin_lock(&dinfo->int_lock);
+
+	tmp = INREG16(IIR);
+	tmp &= VSYNC_PIPE_A_INTERRUPT;
+
+	if (tmp == 0) {
+		spin_unlock(&dinfo->int_lock);
+		return IRQ_RETVAL(handled);
+	}
+
+	OUTREG16(IIR, tmp);
+
+	if (tmp & VSYNC_PIPE_A_INTERRUPT) {
+		dinfo->vsync.count++;
+		if (dinfo->vsync.pan_display) {
+			dinfo->vsync.pan_display = 0;
+			OUTREG(DSPABASE, dinfo->vsync.pan_offset);
+		}
+		wake_up_interruptible(&dinfo->vsync.wait);
+		handled = 1;
+	}
+
+	spin_unlock(&dinfo->int_lock);
+
+	return IRQ_RETVAL(handled);
+}
+
+int
+intelfbhw_enable_irq(struct intelfb_info *dinfo, int reenable) {
+
+	if (!test_and_set_bit(0, &dinfo->irq_flags)) {
+		if (request_irq(dinfo->pdev->irq, intelfbhw_irq, SA_SHIRQ, "intelfb", dinfo)) {
+			clear_bit(0, &dinfo->irq_flags);
+			return -EINVAL;
+		}
+
+		spin_lock_irq(&dinfo->int_lock);
+		OUTREG16(HWSTAM, 0xfffe);
+		OUTREG16(IMR, 0x0);
+		OUTREG16(IER, VSYNC_PIPE_A_INTERRUPT);
+		spin_unlock_irq(&dinfo->int_lock);
+	} else if (reenable) {
+		u16 ier;
+
+		spin_lock_irq(&dinfo->int_lock);
+		ier = INREG16(IER);
+		if ((ier & VSYNC_PIPE_A_INTERRUPT)) {
+			DBG_MSG("someone disabled the IRQ [%08X]\n", ier);
+			OUTREG(IER, VSYNC_PIPE_A_INTERRUPT);
+		}
+		spin_unlock_irq(&dinfo->int_lock);
+	}
+	return 0;
+}
+
+void
+intelfbhw_disable_irq(struct intelfb_info *dinfo) {
+	u16 tmp;
+
+	if (test_and_clear_bit(0, &dinfo->irq_flags)) {
+		if (dinfo->vsync.pan_display) {
+			dinfo->vsync.pan_display = 0;
+			OUTREG(DSPABASE, dinfo->vsync.pan_offset);
+		}
+		spin_lock_irq(&dinfo->int_lock);
+		OUTREG16(HWSTAM, 0xffff);
+		OUTREG16(IMR, 0xffff);
+		OUTREG16(IER, 0x0);
+
+		tmp = INREG16(IIR);
+		OUTREG16(IIR, tmp);
+		spin_unlock_irq(&dinfo->int_lock);
+
+		free_irq(dinfo->pdev->irq, dinfo);
+	}
+}
+
+int
+intelfbhw_wait_for_vsync(struct intelfb_info *dinfo, u32 pipe) {
+	struct intelfb_vsync *vsync;
+	unsigned int count;
+	int ret;
+
+	switch (pipe) {
+		case 0:
+			vsync = &dinfo->vsync;
+			break;
+		default:
+			return -ENODEV;
+	}
+
+	ret = intelfbhw_enable_irq(dinfo, 0);
+	if (ret) {
+		return ret;
+	}
+
+	count = vsync->count;
+	ret = wait_event_interruptible_timeout(vsync->wait, count != vsync->count, HZ/10);
+	if (ret < 0) {
+		return ret;
+	}
+	if (ret == 0) {
+		intelfbhw_enable_irq(dinfo, 1);
+		DBG_MSG("wait_for_vsync timed out!\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 }

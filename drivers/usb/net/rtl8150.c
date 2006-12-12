@@ -208,7 +208,7 @@ static int set_registers(rtl8150_t * dev, u16 indx, u16 size, void *data)
 			       indx, 0, data, size, 500);
 }
 
-static void ctrl_callback(struct urb *urb, struct pt_regs *regs)
+static void ctrl_callback(struct urb *urb)
 {
 	rtl8150_t *dev;
 
@@ -415,7 +415,7 @@ static inline struct sk_buff *pull_skb(rtl8150_t *dev)
 	return NULL;
 }
 
-static void read_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void read_bulk_callback(struct urb *urb)
 {
 	rtl8150_t *dev;
 	unsigned pkt_len, res;
@@ -438,7 +438,7 @@ static void read_bulk_callback(struct urb *urb, struct pt_regs *regs)
 		break;
 	case -ENOENT:
 		return;	/* the urb is in unlink state */
-	case -ETIMEDOUT:
+	case -ETIME:
 		warn("may be reset is needed?..");
 		goto goon;
 	default:
@@ -525,7 +525,7 @@ tlsched:
 	tasklet_schedule(&dev->tl);
 }
 
-static void write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void write_bulk_callback(struct urb *urb)
 {
 	rtl8150_t *dev;
 
@@ -541,7 +541,7 @@ static void write_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	netif_wake_queue(dev->netdev);
 }
 
-static void intr_callback(struct urb *urb, struct pt_regs *regs)
+static void intr_callback(struct urb *urb)
 {
 	rtl8150_t *dev;
 	__u8 *d;
@@ -587,7 +587,7 @@ static void intr_callback(struct urb *urb, struct pt_regs *regs)
 	}
 
 resubmit:
-	status = usb_submit_urb (urb, SLAB_ATOMIC);
+	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status == -ENODEV)
 		netif_device_detach(dev->netdev);
 	else if (status)
@@ -617,11 +617,11 @@ static int rtl8150_resume(struct usb_interface *intf)
 	if (netif_running(dev->netdev)) {
 		dev->rx_urb->status = 0;
 		dev->rx_urb->actual_length = 0;
-		read_bulk_callback(dev->rx_urb, NULL);
+		read_bulk_callback(dev->rx_urb);
 
 		dev->intr_urb->status = 0;
 		dev->intr_urb->actual_length = 0;
-		intr_callback(dev->intr_urb, NULL);
+		intr_callback(dev->intr_urb);
 	}
 	return 0;
 }

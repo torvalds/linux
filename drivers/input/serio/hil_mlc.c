@@ -162,10 +162,10 @@ static void hil_mlc_send_polls(hil_mlc *mlc) {
 		if (did != (p & HIL_PKT_ADDR_MASK) >> 8) {
 			if (drv == NULL || drv->interrupt == NULL) goto skip;
 
-			drv->interrupt(serio, 0, 0, NULL);
-			drv->interrupt(serio, HIL_ERR_INT >> 16, 0, NULL);
-			drv->interrupt(serio, HIL_PKT_CMD >> 8,  0, NULL);
-			drv->interrupt(serio, HIL_CMD_POL + cnt, 0, NULL);
+			drv->interrupt(serio, 0, 0);
+			drv->interrupt(serio, HIL_ERR_INT >> 16, 0);
+			drv->interrupt(serio, HIL_PKT_CMD >> 8,  0);
+			drv->interrupt(serio, HIL_CMD_POL + cnt, 0);
 		skip:
 			did = (p & HIL_PKT_ADDR_MASK) >> 8;
 			serio = did ? mlc->serio[mlc->di_map[did-1]] : NULL;
@@ -174,10 +174,10 @@ static void hil_mlc_send_polls(hil_mlc *mlc) {
 		}
 		cnt++; i++;
 		if (drv == NULL || drv->interrupt == NULL) continue;
-		drv->interrupt(serio, (p >> 24), 0, NULL);
-		drv->interrupt(serio, (p >> 16) & 0xff, 0, NULL);
-		drv->interrupt(serio, (p >> 8) & ~HIL_PKT_ADDR_MASK, 0, NULL);
-		drv->interrupt(serio, p & 0xff, 0, NULL);
+		drv->interrupt(serio, (p >> 24), 0);
+		drv->interrupt(serio, (p >> 16) & 0xff, 0);
+		drv->interrupt(serio, (p >> 8) & ~HIL_PKT_ADDR_MASK, 0);
+		drv->interrupt(serio, p & 0xff, 0);
 	}
 }
 
@@ -391,23 +391,23 @@ static int hilse_operate(hil_mlc *mlc, int repoll) {
 }
 
 #define FUNC(funct, funct_arg, zero_rc, neg_rc, pos_rc) \
-{ HILSE_FUNC,		{ func: &funct }, funct_arg, zero_rc, neg_rc, pos_rc },
+{ HILSE_FUNC,		{ .func = funct }, funct_arg, zero_rc, neg_rc, pos_rc },
 #define OUT(pack) \
-{ HILSE_OUT,		{ packet: pack }, 0, HILSEN_NEXT, HILSEN_DOZE, 0 },
+{ HILSE_OUT,		{ .packet = pack }, 0, HILSEN_NEXT, HILSEN_DOZE, 0 },
 #define CTS \
-{ HILSE_CTS,		{ packet: 0    }, 0, HILSEN_NEXT | HILSEN_SCHED | HILSEN_BREAK, HILSEN_DOZE, 0 },
+{ HILSE_CTS,		{ .packet = 0    }, 0, HILSEN_NEXT | HILSEN_SCHED | HILSEN_BREAK, HILSEN_DOZE, 0 },
 #define EXPECT(comp, to, got, got_wrong, timed_out) \
-{ HILSE_EXPECT,		{ packet: comp }, to, got, got_wrong, timed_out },
+{ HILSE_EXPECT,		{ .packet = comp }, to, got, got_wrong, timed_out },
 #define EXPECT_LAST(comp, to, got, got_wrong, timed_out) \
-{ HILSE_EXPECT_LAST,	{ packet: comp }, to, got, got_wrong, timed_out },
+{ HILSE_EXPECT_LAST,	{ .packet = comp }, to, got, got_wrong, timed_out },
 #define EXPECT_DISC(comp, to, got, got_wrong, timed_out) \
-{ HILSE_EXPECT_DISC,	{ packet: comp }, to, got, got_wrong, timed_out },
+{ HILSE_EXPECT_DISC,	{ .packet = comp }, to, got, got_wrong, timed_out },
 #define IN(to, got, got_error, timed_out) \
-{ HILSE_IN,		{ packet: 0    }, to, got, got_error, timed_out },
+{ HILSE_IN,		{ .packet = 0    }, to, got, got_error, timed_out },
 #define OUT_DISC(pack) \
-{ HILSE_OUT_DISC,	{ packet: pack }, 0, 0, 0, 0 },
+{ HILSE_OUT_DISC,	{ .packet = pack }, 0, 0, 0, 0 },
 #define OUT_LAST(pack) \
-{ HILSE_OUT_LAST,	{ packet: pack }, 0, 0, 0, 0 },
+{ HILSE_OUT_LAST,	{ .packet = pack }, 0, 0, 0, 0 },
 
 struct hilse_node hil_mlc_se[HILSEN_END] = {
 
@@ -780,16 +780,16 @@ static int hil_mlc_serio_write(struct serio *serio, unsigned char c) {
 	while ((last != idx) && (*last == 0)) last--;
 
 	while (idx != last) {
-		drv->interrupt(serio, 0, 0, NULL);
-		drv->interrupt(serio, HIL_ERR_INT >> 16, 0, NULL);
-		drv->interrupt(serio, 0, 0, NULL);
-		drv->interrupt(serio, *idx, 0, NULL);
+		drv->interrupt(serio, 0, 0);
+		drv->interrupt(serio, HIL_ERR_INT >> 16, 0);
+		drv->interrupt(serio, 0, 0);
+		drv->interrupt(serio, *idx, 0);
 		idx++;
 	}
-	drv->interrupt(serio, 0, 0, NULL);
-	drv->interrupt(serio, HIL_ERR_INT >> 16, 0, NULL);
-	drv->interrupt(serio, HIL_PKT_CMD >> 8, 0, NULL);
-	drv->interrupt(serio, *idx, 0, NULL);
+	drv->interrupt(serio, 0, 0);
+	drv->interrupt(serio, HIL_ERR_INT >> 16, 0);
+	drv->interrupt(serio, HIL_PKT_CMD >> 8, 0);
+	drv->interrupt(serio, *idx, 0);
 	
 	mlc->serio_oidx[map->didx] = 0;
 	mlc->serio_opacket[map->didx] = 0;

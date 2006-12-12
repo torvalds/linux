@@ -134,10 +134,24 @@
 #define INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT 40
 #define INFINIPATH_HWE_RXEMEMPARITYERR_MASK 0x7FULL
 #define INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT 44
-#define INFINIPATH_HWE_RXDSYNCMEMPARITYERR  0x0000000400000000ULL
-#define INFINIPATH_HWE_MEMBISTFAILED        0x0040000000000000ULL
 #define INFINIPATH_HWE_IBCBUSTOSPCPARITYERR 0x4000000000000000ULL
 #define INFINIPATH_HWE_IBCBUSFRSPCPARITYERR 0x8000000000000000ULL
+/* txe mem parity errors (shift by INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT) */
+#define INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF	0x1ULL
+#define INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC	0x2ULL
+#define INFINIPATH_HWE_TXEMEMPARITYERR_PIOLAUNCHFIFO 0x4ULL
+/* rxe mem parity errors (shift by INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT) */
+#define INFINIPATH_HWE_RXEMEMPARITYERR_RCVBUF   0x01ULL
+#define INFINIPATH_HWE_RXEMEMPARITYERR_LOOKUPQ  0x02ULL
+#define INFINIPATH_HWE_RXEMEMPARITYERR_EAGERTID 0x04ULL
+#define INFINIPATH_HWE_RXEMEMPARITYERR_EXPTID   0x08ULL
+#define INFINIPATH_HWE_RXEMEMPARITYERR_FLAGBUF  0x10ULL
+#define INFINIPATH_HWE_RXEMEMPARITYERR_DATAINFO 0x20ULL
+#define INFINIPATH_HWE_RXEMEMPARITYERR_HDRINFO  0x40ULL
+/* waldo specific -- find the rest in ipath_6110.c */
+#define INFINIPATH_HWE_RXDSYNCMEMPARITYERR  0x0000000400000000ULL
+/* monty specific -- find the rest in ipath_6120.c */
+#define INFINIPATH_HWE_MEMBISTFAILED	0x0040000000000000ULL
 
 /* kr_hwdiagctrl bits */
 #define INFINIPATH_DC_FORCETXEMEMPARITYERR_MASK 0xFULL
@@ -209,9 +223,9 @@
 
 /* combination link status states that we use with some frequency */
 #define IPATH_IBSTATE_MASK ((INFINIPATH_IBCS_LINKTRAININGSTATE_MASK \
-		<< INFINIPATH_IBCS_LINKSTATE_SHIFT) | \
+		<< INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) | \
 		(INFINIPATH_IBCS_LINKSTATE_MASK \
-		<<INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT))
+		<<INFINIPATH_IBCS_LINKSTATE_SHIFT))
 #define IPATH_IBSTATE_INIT ((INFINIPATH_IBCS_L_STATE_INIT \
 		<< INFINIPATH_IBCS_LINKSTATE_SHIFT) | \
 		(INFINIPATH_IBCS_LT_STATE_LINKUP \
@@ -302,19 +316,23 @@
 
 typedef u64 ipath_err_t;
 
+/* The following change with the type of device, so
+ * need to be part of the ipath_devdata struct, or
+ * we could have problems plugging in devices of
+ * different types (e.g. one HT, one PCIE)
+ * in one system, to be managed by one driver.
+ * On the other hand, this file is may also be included
+ * by other code, so leave the declarations here
+ * temporarily. Minor footprint issue if common-model
+ * linker used, none if C89+ linker used.
+ */
+
 /* mask of defined bits for various registers */
 extern u64 infinipath_i_bitsextant;
 extern ipath_err_t infinipath_e_bitsextant, infinipath_hwe_bitsextant;
 
 /* masks that are different in various chips, or only exist in some chips */
 extern u32 infinipath_i_rcvavail_mask, infinipath_i_rcvurg_mask;
-
-/*
- * register bits for selecting i2c direction and values, used for I2C serial
- * flash
- */
-extern u16 ipath_gpio_sda_num, ipath_gpio_scl_num;
-extern u64 ipath_gpio_sda, ipath_gpio_scl;
 
 /*
  * These are the infinipath general register numbers (not offsets).

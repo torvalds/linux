@@ -60,6 +60,21 @@ static int raid0_issue_flush(request_queue_t *q, struct gendisk *disk,
 	return ret;
 }
 
+static int raid0_congested(void *data, int bits)
+{
+	mddev_t *mddev = data;
+	raid0_conf_t *conf = mddev_to_conf(mddev);
+	mdk_rdev_t **devlist = conf->strip_zone[0].dev;
+	int i, ret = 0;
+
+	for (i = 0; i < mddev->raid_disks && !ret ; i++) {
+		request_queue_t *q = bdev_get_queue(devlist[i]->bdev);
+
+		ret |= bdi_congested(&q->backing_dev_info, bits);
+	}
+	return ret;
+}
+
 
 static int create_strip_zones (mddev_t *mddev)
 {
@@ -236,6 +251,8 @@ static int create_strip_zones (mddev_t *mddev)
 	mddev->queue->unplug_fn = raid0_unplug;
 
 	mddev->queue->issue_flush_fn = raid0_issue_flush;
+	mddev->queue->backing_dev_info.congested_fn = raid0_congested;
+	mddev->queue->backing_dev_info.congested_data = mddev;
 
 	printk("raid0: done.\n");
 	return 0;

@@ -46,7 +46,7 @@
 extern void dec_machine_restart(char *command);
 extern void dec_machine_halt(void);
 extern void dec_machine_power_off(void);
-extern irqreturn_t dec_intr_halt(int irq, void *dev_id, struct pt_regs *regs);
+extern irqreturn_t dec_intr_halt(int irq, void *dev_id);
 
 unsigned long dec_kn_slot_base, dec_kn_slot_size;
 
@@ -760,4 +760,10 @@ void __init arch_init_irq(void)
 	/* Register the HALT interrupt. */
 	if (dec_interrupt[DEC_IRQ_HALT] >= 0)
 		setup_irq(dec_interrupt[DEC_IRQ_HALT], &haltirq);
+}
+
+asmlinkage unsigned int dec_irq_dispatch(unsigned int irq)
+{
+	do_IRQ(irq);
+	return 0;
 }

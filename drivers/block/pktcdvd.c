@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2000 Jens Axboe <axboe@suse.de>
  * Copyright (C) 2001-2004 Peter Osterlund <petero2@telia.com>
+ * Copyright (C) 2006 Thomas Maier <balagi@justmail.de>
  *
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.
@@ -54,13 +55,17 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/miscdevice.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/mutex.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsi.h>
+#include <linux/debugfs.h>
+#include <linux/device.h>
 
 #include <asm/uaccess.h>
+
+#define DRIVER_NAME	"pktcdvd"
 
 #if PACKET_DEBUG
 #define DPRINTK(fmt, args...) printk(KERN_NOTICE fmt, ##args)
@@ -80,16 +85,431 @@
 
 static struct pktcdvd_device *pkt_devs[MAX_WRITERS];
 static struct proc_dir_entry *pkt_proc;
-static int pkt_major;
+static int pktdev_major;
+static int write_congestion_on  = PKT_WRITE_CONGESTION_ON;
+static int write_congestion_off = PKT_WRITE_CONGESTION_OFF;
 static struct mutex ctl_mutex;	/* Serialize open/close/setup/teardown */
 static mempool_t *psd_pool;
+
+static struct class	*class_pktcdvd = NULL;    /* /sys/class/pktcdvd */
+static struct dentry	*pkt_debugfs_root = NULL; /* /debug/pktcdvd */
+
+/* forward declaration */
+static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev);
+static int pkt_remove_dev(dev_t pkt_dev);
+static int pkt_seq_show(struct seq_file *m, void *p);
+
+
+
+/*
+ * create and register a pktcdvd kernel object.
+ */
+static struct pktcdvd_kobj* pkt_kobj_create(struct pktcdvd_device *pd,
+					const char* name,
+					struct kobject* parent,
+					struct kobj_type* ktype)
+{
+	struct pktcdvd_kobj *p;
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return NULL;
+	kobject_set_name(&p->kobj, "%s", name);
+	p->kobj.parent = parent;
+	p->kobj.ktype = ktype;
+	p->pd = pd;
+	if (kobject_register(&p->kobj) != 0)
+		return NULL;
+	return p;
+}
+/*
+ * remove a pktcdvd kernel object.
+ */
+static void pkt_kobj_remove(struct pktcdvd_kobj *p)
+{
+	if (p)
+		kobject_unregister(&p->kobj);
+}
+/*
+ * default release function for pktcdvd kernel objects.
+ */
+static void pkt_kobj_release(struct kobject *kobj)
+{
+	kfree(to_pktcdvdkobj(kobj));
+}
+
+
+/**********************************************************
+ *
+ * sysfs interface for pktcdvd
+ * by (C) 2006  Thomas Maier <balagi@justmail.de>
+ *
+ **********************************************************/
+
+#define DEF_ATTR(_obj,_name,_mode) \
+	static struct attribute _obj = { \
+		.name = _name, .owner = THIS_MODULE, .mode = _mode }
+
+/**********************************************************
+  /sys/class/pktcdvd/pktcdvd[0-7]/
+                     stat/reset
+                     stat/packets_started
+                     stat/packets_finished
+                     stat/kb_written
+                     stat/kb_read
+                     stat/kb_read_gather
+                     write_queue/size
+                     write_queue/congestion_off
+                     write_queue/congestion_on
+ **********************************************************/
+
+DEF_ATTR(kobj_pkt_attr_st1, "reset", 0200);
+DEF_ATTR(kobj_pkt_attr_st2, "packets_started", 0444);
+DEF_ATTR(kobj_pkt_attr_st3, "packets_finished", 0444);
+DEF_ATTR(kobj_pkt_attr_st4, "kb_written", 0444);
+DEF_ATTR(kobj_pkt_attr_st5, "kb_read", 0444);
+DEF_ATTR(kobj_pkt_attr_st6, "kb_read_gather", 0444);
+
+static struct attribute *kobj_pkt_attrs_stat[] = {
+	&kobj_pkt_attr_st1,
+	&kobj_pkt_attr_st2,
+	&kobj_pkt_attr_st3,
+	&kobj_pkt_attr_st4,
+	&kobj_pkt_attr_st5,
+	&kobj_pkt_attr_st6,
+	NULL
+};
+
+DEF_ATTR(kobj_pkt_attr_wq1, "size", 0444);
+DEF_ATTR(kobj_pkt_attr_wq2, "congestion_off", 0644);
+DEF_ATTR(kobj_pkt_attr_wq3, "congestion_on",  0644);
+
+static struct attribute *kobj_pkt_attrs_wqueue[] = {
+	&kobj_pkt_attr_wq1,
+	&kobj_pkt_attr_wq2,
+	&kobj_pkt_attr_wq3,
+	NULL
+};
+
+/* declares a char buffer[64] _dbuf, copies data from
+ * _b with length _l into it and ensures that _dbuf ends
+ * with a \0 character.
+ */
+#define DECLARE_BUF_AS_STRING(_dbuf, _b, _l) \
+	char _dbuf[64]; int dlen = (_l) < 0 ? 0 : (_l); \
+	if (dlen >= sizeof(_dbuf)) dlen = sizeof(_dbuf)-1; \
+	memcpy(_dbuf, _b, dlen); _dbuf[dlen] = 0
+
+static ssize_t kobj_pkt_show(struct kobject *kobj,
+			struct attribute *attr, char *data)
+{
+	struct pktcdvd_device *pd = to_pktcdvdkobj(kobj)->pd;
+	int n = 0;
+	int v;
+	if (strcmp(attr->name, "packets_started") == 0) {
+		n = sprintf(data, "%lu\n", pd->stats.pkt_started);
+
+	} else if (strcmp(attr->name, "packets_finished") == 0) {
+		n = sprintf(data, "%lu\n", pd->stats.pkt_ended);
+
+	} else if (strcmp(attr->name, "kb_written") == 0) {
+		n = sprintf(data, "%lu\n", pd->stats.secs_w >> 1);
+
+	} else if (strcmp(attr->name, "kb_read") == 0) {
+		n = sprintf(data, "%lu\n", pd->stats.secs_r >> 1);
+
+	} else if (strcmp(attr->name, "kb_read_gather") == 0) {
+		n = sprintf(data, "%lu\n", pd->stats.secs_rg >> 1);
+
+	} else if (strcmp(attr->name, "size") == 0) {
+		spin_lock(&pd->lock);
+		v = pd->bio_queue_size;
+		spin_unlock(&pd->lock);
+		n = sprintf(data, "%d\n", v);
+
+	} else if (strcmp(attr->name, "congestion_off") == 0) {
+		spin_lock(&pd->lock);
+		v = pd->write_congestion_off;
+		spin_unlock(&pd->lock);
+		n = sprintf(data, "%d\n", v);
+
+	} else if (strcmp(attr->name, "congestion_on") == 0) {
+		spin_lock(&pd->lock);
+		v = pd->write_congestion_on;
+		spin_unlock(&pd->lock);
+		n = sprintf(data, "%d\n", v);
+	}
+	return n;
+}
+
+static void init_write_congestion_marks(int* lo, int* hi)
+{
+	if (*hi > 0) {
+		*hi = max(*hi, 500);
+		*hi = min(*hi, 1000000);
+		if (*lo <= 0)
+			*lo = *hi - 100;
+		else {
+			*lo = min(*lo, *hi - 100);
+			*lo = max(*lo, 100);
+		}
+	} else {
+		*hi = -1;
+		*lo = -1;
+	}
+}
+
+static ssize_t kobj_pkt_store(struct kobject *kobj,
+			struct attribute *attr,
+			const char *data, size_t len)
+{
+	struct pktcdvd_device *pd = to_pktcdvdkobj(kobj)->pd;
+	int val;
+	DECLARE_BUF_AS_STRING(dbuf, data, len); /* ensure sscanf scans a string */
+
+	if (strcmp(attr->name, "reset") == 0 && dlen > 0) {
+		pd->stats.pkt_started = 0;
+		pd->stats.pkt_ended = 0;
+		pd->stats.secs_w = 0;
+		pd->stats.secs_rg = 0;
+		pd->stats.secs_r = 0;
+
+	} else if (strcmp(attr->name, "congestion_off") == 0
+		   && sscanf(dbuf, "%d", &val) == 1) {
+		spin_lock(&pd->lock);
+		pd->write_congestion_off = val;
+		init_write_congestion_marks(&pd->write_congestion_off,
+					&pd->write_congestion_on);
+		spin_unlock(&pd->lock);
+
+	} else if (strcmp(attr->name, "congestion_on") == 0
+		   && sscanf(dbuf, "%d", &val) == 1) {
+		spin_lock(&pd->lock);
+		pd->write_congestion_on = val;
+		init_write_congestion_marks(&pd->write_congestion_off,
+					&pd->write_congestion_on);
+		spin_unlock(&pd->lock);
+	}
+	return len;
+}
+
+static struct sysfs_ops kobj_pkt_ops = {
+	.show = kobj_pkt_show,
+	.store = kobj_pkt_store
+};
+static struct kobj_type kobj_pkt_type_stat = {
+	.release = pkt_kobj_release,
+	.sysfs_ops = &kobj_pkt_ops,
+	.default_attrs = kobj_pkt_attrs_stat
+};
+static struct kobj_type kobj_pkt_type_wqueue = {
+	.release = pkt_kobj_release,
+	.sysfs_ops = &kobj_pkt_ops,
+	.default_attrs = kobj_pkt_attrs_wqueue
+};
+
+static void pkt_sysfs_dev_new(struct pktcdvd_device *pd)
+{
+	if (class_pktcdvd) {
+		pd->clsdev = class_device_create(class_pktcdvd,
+					NULL, pd->pkt_dev,
+					NULL, "%s", pd->name);
+		if (IS_ERR(pd->clsdev))
+			pd->clsdev = NULL;
+	}
+	if (pd->clsdev) {
+		pd->kobj_stat = pkt_kobj_create(pd, "stat",
+					&pd->clsdev->kobj,
+					&kobj_pkt_type_stat);
+		pd->kobj_wqueue = pkt_kobj_create(pd, "write_queue",
+					&pd->clsdev->kobj,
+					&kobj_pkt_type_wqueue);
+	}
+}
+
+static void pkt_sysfs_dev_remove(struct pktcdvd_device *pd)
+{
+	pkt_kobj_remove(pd->kobj_stat);
+	pkt_kobj_remove(pd->kobj_wqueue);
+	if (class_pktcdvd)
+		class_device_destroy(class_pktcdvd, pd->pkt_dev);
+}
+
+
+/********************************************************************
+  /sys/class/pktcdvd/
+                     add            map block device
+                     remove         unmap packet dev
+                     device_map     show mappings
+ *******************************************************************/
+
+static void class_pktcdvd_release(struct class *cls)
+{
+	kfree(cls);
+}
+static ssize_t class_pktcdvd_show_map(struct class *c, char *data)
+{
+	int n = 0;
+	int idx;
+	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
+	for (idx = 0; idx < MAX_WRITERS; idx++) {
+		struct pktcdvd_device *pd = pkt_devs[idx];
+		if (!pd)
+			continue;
+		n += sprintf(data+n, "%s %u:%u %u:%u\n",
+			pd->name,
+			MAJOR(pd->pkt_dev), MINOR(pd->pkt_dev),
+			MAJOR(pd->bdev->bd_dev),
+			MINOR(pd->bdev->bd_dev));
+	}
+	mutex_unlock(&ctl_mutex);
+	return n;
+}
+
+static ssize_t class_pktcdvd_store_add(struct class *c, const char *buf,
+					size_t count)
+{
+	unsigned int major, minor;
+	DECLARE_BUF_AS_STRING(dbuf, buf, count);
+	if (sscanf(dbuf, "%u:%u", &major, &minor) == 2) {
+		pkt_setup_dev(MKDEV(major, minor), NULL);
+		return count;
+	}
+	return -EINVAL;
+}
+
+static ssize_t class_pktcdvd_store_remove(struct class *c, const char *buf,
+					size_t count)
+{
+	unsigned int major, minor;
+	DECLARE_BUF_AS_STRING(dbuf, buf, count);
+	if (sscanf(dbuf, "%u:%u", &major, &minor) == 2) {
+		pkt_remove_dev(MKDEV(major, minor));
+		return count;
+	}
+	return -EINVAL;
+}
+
+static struct class_attribute class_pktcdvd_attrs[] = {
+ __ATTR(add,            0200, NULL, class_pktcdvd_store_add),
+ __ATTR(remove,         0200, NULL, class_pktcdvd_store_remove),
+ __ATTR(device_map,     0444, class_pktcdvd_show_map, NULL),
+ __ATTR_NULL
+};
+
+
+static int pkt_sysfs_init(void)
+{
+	int ret = 0;
+
+	/*
+	 * create control files in sysfs
+	 * /sys/class/pktcdvd/...
+	 */
+	class_pktcdvd = kzalloc(sizeof(*class_pktcdvd), GFP_KERNEL);
+	if (!class_pktcdvd)
+		return -ENOMEM;
+	class_pktcdvd->name = DRIVER_NAME;
+	class_pktcdvd->owner = THIS_MODULE;
+	class_pktcdvd->class_release = class_pktcdvd_release;
+	class_pktcdvd->class_attrs = class_pktcdvd_attrs;
+	ret = class_register(class_pktcdvd);
+	if (ret) {
+		kfree(class_pktcdvd);
+		class_pktcdvd = NULL;
+		printk(DRIVER_NAME": failed to create class pktcdvd\n");
+		return ret;
+	}
+	return 0;
+}
+
+static void pkt_sysfs_cleanup(void)
+{
+	if (class_pktcdvd)
+		class_destroy(class_pktcdvd);
+	class_pktcdvd = NULL;
+}
+
+/********************************************************************
+  entries in debugfs
+
+  /debugfs/pktcdvd[0-7]/
+			info
+
+ *******************************************************************/
+
+static int pkt_debugfs_seq_show(struct seq_file *m, void *p)
+{
+	return pkt_seq_show(m, p);
+}
+
+static int pkt_debugfs_fops_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pkt_debugfs_seq_show, inode->i_private);
+}
+
+static struct file_operations debug_fops = {
+	.open		= pkt_debugfs_fops_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.owner		= THIS_MODULE,
+};
+
+static void pkt_debugfs_dev_new(struct pktcdvd_device *pd)
+{
+	if (!pkt_debugfs_root)
+		return;
+	pd->dfs_f_info = NULL;
+	pd->dfs_d_root = debugfs_create_dir(pd->name, pkt_debugfs_root);
+	if (IS_ERR(pd->dfs_d_root)) {
+		pd->dfs_d_root = NULL;
+		return;
+	}
+	pd->dfs_f_info = debugfs_create_file("info", S_IRUGO,
+				pd->dfs_d_root, pd, &debug_fops);
+	if (IS_ERR(pd->dfs_f_info)) {
+		pd->dfs_f_info = NULL;
+		return;
+	}
+}
+
+static void pkt_debugfs_dev_remove(struct pktcdvd_device *pd)
+{
+	if (!pkt_debugfs_root)
+		return;
+	if (pd->dfs_f_info)
+		debugfs_remove(pd->dfs_f_info);
+	pd->dfs_f_info = NULL;
+	if (pd->dfs_d_root)
+		debugfs_remove(pd->dfs_d_root);
+	pd->dfs_d_root = NULL;
+}
+
+static void pkt_debugfs_init(void)
+{
+	pkt_debugfs_root = debugfs_create_dir(DRIVER_NAME, NULL);
+	if (IS_ERR(pkt_debugfs_root)) {
+		pkt_debugfs_root = NULL;
+		return;
+	}
+}
+
+static void pkt_debugfs_cleanup(void)
+{
+	if (!pkt_debugfs_root)
+		return;
+	debugfs_remove(pkt_debugfs_root);
+	pkt_debugfs_root = NULL;
+}
+
+/* ----------------------------------------------------------*/
 
 
 static void pkt_bio_finished(struct pktcdvd_device *pd)
 {
 	BUG_ON(atomic_read(&pd->cdrw.pending_bios) <= 0);
 	if (atomic_dec_and_test(&pd->cdrw.pending_bios)) {
-		VPRINTK("pktcdvd: queue empty\n");
+		VPRINTK(DRIVER_NAME": queue empty\n");
 		atomic_set(&pd->iosched.attention, 1);
 		wake_up(&pd->wqueue);
 	}
@@ -348,7 +768,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	request_queue_t *q;
 	struct request *rq;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	int err = 0;
 
 	q = bdev_get_queue(pd->bdev);
@@ -365,17 +785,17 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 	rq->sense = sense;
 	memset(sense, 0, sizeof(sense));
 	rq->sense_len = 0;
-	rq->flags |= REQ_BLOCK_PC | REQ_HARDBARRIER;
+	rq->cmd_type = REQ_TYPE_BLOCK_PC;
+	rq->cmd_flags |= REQ_HARDBARRIER;
 	if (cgc->quiet)
-		rq->flags |= REQ_QUIET;
+		rq->cmd_flags |= REQ_QUIET;
 	memcpy(rq->cmd, cgc->cmd, CDROM_PACKET_SIZE);
 	if (sizeof(rq->cmd) > CDROM_PACKET_SIZE)
 		memset(rq->cmd + CDROM_PACKET_SIZE, 0, sizeof(rq->cmd) - CDROM_PACKET_SIZE);
 	rq->cmd_len = COMMAND_SIZE(rq->cmd[0]);
 
 	rq->ref_count++;
-	rq->flags |= REQ_NOMERGE;
-	rq->waiting = &wait;
+	rq->end_io_data = &wait;
 	rq->end_io = blk_end_sync_rq;
 	elv_add_request(q, rq, ELEVATOR_INSERT_BACK, 1);
 	generic_unplug_device(q);
@@ -400,7 +820,7 @@ static void pkt_dump_sense(struct packet_command *cgc)
 	int i;
 	struct request_sense *sense = cgc->sense;
 
-	printk("pktcdvd:");
+	printk(DRIVER_NAME":");
 	for (i = 0; i < CDROM_PACKET_SIZE; i++)
 		printk(" %02x", cgc->cmd[i]);
 	printk(" - ");
@@ -528,7 +948,7 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 				need_write_seek = 0;
 			if (need_write_seek && reads_queued) {
 				if (atomic_read(&pd->cdrw.pending_bios) > 0) {
-					VPRINTK("pktcdvd: write, waiting\n");
+					VPRINTK(DRIVER_NAME": write, waiting\n");
 					break;
 				}
 				pkt_flush_cache(pd);
@@ -537,7 +957,7 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 		} else {
 			if (!reads_queued && writes_queued) {
 				if (atomic_read(&pd->cdrw.pending_bios) > 0) {
-					VPRINTK("pktcdvd: read, waiting\n");
+					VPRINTK(DRIVER_NAME": read, waiting\n");
 					break;
 				}
 				pd->iosched.writing = 1;
@@ -600,7 +1020,7 @@ static int pkt_set_segment_merging(struct pktcdvd_device *pd, request_queue_t *q
 		set_bit(PACKET_MERGE_SEGS, &pd->flags);
 		return 0;
 	} else {
-		printk("pktcdvd: cdrom max_phys_segments too small\n");
+		printk(DRIVER_NAME": cdrom max_phys_segments too small\n");
 		return -EIO;
 	}
 }
@@ -891,6 +1311,7 @@ static int pkt_handle_queue(struct pktcdvd_device *pd)
 	sector_t zone = 0; /* Suppress gcc warning */
 	struct pkt_rb_node *node, *first_node;
 	struct rb_node *n;
+	int wakeup;
 
 	VPRINTK("handle_queue\n");
 
@@ -963,7 +1384,13 @@ try_next_bio:
 		pkt->write_size += bio->bi_size / CD_FRAMESIZE;
 		spin_unlock(&pkt->lock);
 	}
+	/* check write congestion marks, and if bio_queue_size is
+	   below, wake up any waiters */
+	wakeup = (pd->write_congestion_on > 0
+	 		&& pd->bio_queue_size <= pd->write_congestion_off);
 	spin_unlock(&pd->lock);
+	if (wakeup)
+		blk_clear_queue_congested(pd->disk->queue, WRITE);
 
 	pkt->sleep_time = max(PACKET_WAIT_TIME, 1);
 	pkt_set_state(pkt, PACKET_WAITING_STATE);
@@ -1049,7 +1476,7 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 	for (f = 0; f < pkt->frames; f++)
 		if (!bio_add_page(pkt->w_bio, bvec[f].bv_page, CD_FRAMESIZE, bvec[f].bv_offset))
 			BUG();
-	VPRINTK("pktcdvd: vcnt=%d\n", pkt->w_bio->bi_vcnt);
+	VPRINTK(DRIVER_NAME": vcnt=%d\n", pkt->w_bio->bi_vcnt);
 
 	atomic_set(&pkt->io_wait, 1);
 	pkt->w_bio->bi_rw = WRITE;
@@ -1286,7 +1713,7 @@ work_to_do:
 
 static void pkt_print_settings(struct pktcdvd_device *pd)
 {
-	printk("pktcdvd: %s packets, ", pd->settings.fp ? "Fixed" : "Variable");
+	printk(DRIVER_NAME": %s packets, ", pd->settings.fp ? "Fixed" : "Variable");
 	printk("%u blocks, ", pd->settings.size >> 2);
 	printk("Mode-%c disc\n", pd->settings.block_mode == 8 ? '1' : '2');
 }
@@ -1471,7 +1898,7 @@ static int pkt_set_write_settings(struct pktcdvd_device *pd)
 		/*
 		 * paranoia
 		 */
-		printk("pktcdvd: write mode wrong %d\n", wp->data_block_type);
+		printk(DRIVER_NAME": write mode wrong %d\n", wp->data_block_type);
 		return 1;
 	}
 	wp->packet_size = cpu_to_be32(pd->settings.size >> 2);
@@ -1515,7 +1942,7 @@ static int pkt_writable_track(struct pktcdvd_device *pd, track_information *ti)
 	if (ti->rt == 1 && ti->blank == 0)
 		return 1;
 
-	printk("pktcdvd: bad state %d-%d-%d\n", ti->rt, ti->blank, ti->packet);
+	printk(DRIVER_NAME": bad state %d-%d-%d\n", ti->rt, ti->blank, ti->packet);
 	return 0;
 }
 
@@ -1533,7 +1960,7 @@ static int pkt_writable_disc(struct pktcdvd_device *pd, disc_information *di)
 		case 0x12: /* DVD-RAM */
 			return 1;
 		default:
-			VPRINTK("pktcdvd: Wrong disc profile (%x)\n", pd->mmc3_profile);
+			VPRINTK(DRIVER_NAME": Wrong disc profile (%x)\n", pd->mmc3_profile);
 			return 0;
 	}
 
@@ -1542,22 +1969,22 @@ static int pkt_writable_disc(struct pktcdvd_device *pd, disc_information *di)
 	 * but i'm not sure, should we leave this to user apps? probably.
 	 */
 	if (di->disc_type == 0xff) {
-		printk("pktcdvd: Unknown disc. No track?\n");
+		printk(DRIVER_NAME": Unknown disc. No track?\n");
 		return 0;
 	}
 
 	if (di->disc_type != 0x20 && di->disc_type != 0) {
-		printk("pktcdvd: Wrong disc type (%x)\n", di->disc_type);
+		printk(DRIVER_NAME": Wrong disc type (%x)\n", di->disc_type);
 		return 0;
 	}
 
 	if (di->erasable == 0) {
-		printk("pktcdvd: Disc not erasable\n");
+		printk(DRIVER_NAME": Disc not erasable\n");
 		return 0;
 	}
 
 	if (di->border_status == PACKET_SESSION_RESERVED) {
-		printk("pktcdvd: Can't write to last track (reserved)\n");
+		printk(DRIVER_NAME": Can't write to last track (reserved)\n");
 		return 0;
 	}
 
@@ -1593,12 +2020,12 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 
 	track = 1; /* (di.last_track_msb << 8) | di.last_track_lsb; */
 	if ((ret = pkt_get_track_info(pd, track, 1, &ti))) {
-		printk("pktcdvd: failed get_track\n");
+		printk(DRIVER_NAME": failed get_track\n");
 		return ret;
 	}
 
 	if (!pkt_writable_track(pd, &ti)) {
-		printk("pktcdvd: can't write to this track\n");
+		printk(DRIVER_NAME": can't write to this track\n");
 		return -EROFS;
 	}
 
@@ -1608,11 +2035,11 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 	 */
 	pd->settings.size = be32_to_cpu(ti.fixed_packet_size) << 2;
 	if (pd->settings.size == 0) {
-		printk("pktcdvd: detected zero packet size!\n");
+		printk(DRIVER_NAME": detected zero packet size!\n");
 		return -ENXIO;
 	}
 	if (pd->settings.size > PACKET_MAX_SECTORS) {
-		printk("pktcdvd: packet size is too big\n");
+		printk(DRIVER_NAME": packet size is too big\n");
 		return -EROFS;
 	}
 	pd->settings.fp = ti.fp;
@@ -1654,7 +2081,7 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 			pd->settings.block_mode = PACKET_BLOCK_MODE2;
 			break;
 		default:
-			printk("pktcdvd: unknown data mode\n");
+			printk(DRIVER_NAME": unknown data mode\n");
 			return -EROFS;
 	}
 	return 0;
@@ -1688,10 +2115,10 @@ static int pkt_write_caching(struct pktcdvd_device *pd, int set)
 	cgc.buflen = cgc.cmd[8] = 2 + ((buf[0] << 8) | (buf[1] & 0xff));
 	ret = pkt_mode_select(pd, &cgc);
 	if (ret) {
-		printk("pktcdvd: write caching control failed\n");
+		printk(DRIVER_NAME": write caching control failed\n");
 		pkt_dump_sense(&cgc);
 	} else if (!ret && set)
-		printk("pktcdvd: enabled write caching on %s\n", pd->name);
+		printk(DRIVER_NAME": enabled write caching on %s\n", pd->name);
 	return ret;
 }
 
@@ -1805,11 +2232,11 @@ static int pkt_media_speed(struct pktcdvd_device *pd, unsigned *speed)
 	}
 
 	if (!buf[6] & 0x40) {
-		printk("pktcdvd: Disc type is not CD-RW\n");
+		printk(DRIVER_NAME": Disc type is not CD-RW\n");
 		return 1;
 	}
 	if (!buf[6] & 0x4) {
-		printk("pktcdvd: A1 values on media are not valid, maybe not CDRW?\n");
+		printk(DRIVER_NAME": A1 values on media are not valid, maybe not CDRW?\n");
 		return 1;
 	}
 
@@ -1829,14 +2256,14 @@ static int pkt_media_speed(struct pktcdvd_device *pd, unsigned *speed)
 			*speed = us_clv_to_speed[sp];
 			break;
 		default:
-			printk("pktcdvd: Unknown disc sub-type %d\n",st);
+			printk(DRIVER_NAME": Unknown disc sub-type %d\n",st);
 			return 1;
 	}
 	if (*speed) {
-		printk("pktcdvd: Max. media speed: %d\n",*speed);
+		printk(DRIVER_NAME": Max. media speed: %d\n",*speed);
 		return 0;
 	} else {
-		printk("pktcdvd: Unknown speed %d for sub-type %d\n",sp,st);
+		printk(DRIVER_NAME": Unknown speed %d for sub-type %d\n",sp,st);
 		return 1;
 	}
 }
@@ -1847,7 +2274,7 @@ static int pkt_perform_opc(struct pktcdvd_device *pd)
 	struct request_sense sense;
 	int ret;
 
-	VPRINTK("pktcdvd: Performing OPC\n");
+	VPRINTK(DRIVER_NAME": Performing OPC\n");
 
 	init_cdrom_command(&cgc, NULL, 0, CGC_DATA_NONE);
 	cgc.sense = &sense;
@@ -1865,12 +2292,12 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 	unsigned int write_speed, media_write_speed, read_speed;
 
 	if ((ret = pkt_probe_settings(pd))) {
-		VPRINTK("pktcdvd: %s failed probe\n", pd->name);
+		VPRINTK(DRIVER_NAME": %s failed probe\n", pd->name);
 		return ret;
 	}
 
 	if ((ret = pkt_set_write_settings(pd))) {
-		DPRINTK("pktcdvd: %s failed saving write settings\n", pd->name);
+		DPRINTK(DRIVER_NAME": %s failed saving write settings\n", pd->name);
 		return -EIO;
 	}
 
@@ -1882,26 +2309,26 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 		case 0x13: /* DVD-RW */
 		case 0x1a: /* DVD+RW */
 		case 0x12: /* DVD-RAM */
-			DPRINTK("pktcdvd: write speed %ukB/s\n", write_speed);
+			DPRINTK(DRIVER_NAME": write speed %ukB/s\n", write_speed);
 			break;
 		default:
 			if ((ret = pkt_media_speed(pd, &media_write_speed)))
 				media_write_speed = 16;
 			write_speed = min(write_speed, media_write_speed * 177);
-			DPRINTK("pktcdvd: write speed %ux\n", write_speed / 176);
+			DPRINTK(DRIVER_NAME": write speed %ux\n", write_speed / 176);
 			break;
 	}
 	read_speed = write_speed;
 
 	if ((ret = pkt_set_speed(pd, write_speed, read_speed))) {
-		DPRINTK("pktcdvd: %s couldn't set write speed\n", pd->name);
+		DPRINTK(DRIVER_NAME": %s couldn't set write speed\n", pd->name);
 		return -EIO;
 	}
 	pd->write_speed = write_speed;
 	pd->read_speed = read_speed;
 
 	if ((ret = pkt_perform_opc(pd))) {
-		DPRINTK("pktcdvd: %s Optimum Power Calibration failed\n", pd->name);
+		DPRINTK(DRIVER_NAME": %s Optimum Power Calibration failed\n", pd->name);
 	}
 
 	return 0;
@@ -1929,7 +2356,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, int write)
 		goto out_putdev;
 
 	if ((ret = pkt_get_last_written(pd, &lba))) {
-		printk("pktcdvd: pkt_get_last_written failed\n");
+		printk(DRIVER_NAME": pkt_get_last_written failed\n");
 		goto out_unclaim;
 	}
 
@@ -1959,11 +2386,11 @@ static int pkt_open_dev(struct pktcdvd_device *pd, int write)
 
 	if (write) {
 		if (!pkt_grow_pktlist(pd, CONFIG_CDROM_PKTCDVD_BUFFERS)) {
-			printk("pktcdvd: not enough memory for buffers\n");
+			printk(DRIVER_NAME": not enough memory for buffers\n");
 			ret = -ENOMEM;
 			goto out_unclaim;
 		}
-		printk("pktcdvd: %lukB available on disc\n", lba << 1);
+		printk(DRIVER_NAME": %lukB available on disc\n", lba << 1);
 	}
 
 	return 0;
@@ -1983,7 +2410,7 @@ out:
 static void pkt_release_dev(struct pktcdvd_device *pd, int flush)
 {
 	if (flush && pkt_flush_cache(pd))
-		DPRINTK("pktcdvd: %s not flushing cache\n", pd->name);
+		DPRINTK(DRIVER_NAME": %s not flushing cache\n", pd->name);
 
 	pkt_lock_door(pd, 0);
 
@@ -2006,7 +2433,7 @@ static int pkt_open(struct inode *inode, struct file *file)
 	struct pktcdvd_device *pd = NULL;
 	int ret;
 
-	VPRINTK("pktcdvd: entering open\n");
+	VPRINTK(DRIVER_NAME": entering open\n");
 
 	mutex_lock(&ctl_mutex);
 	pd = pkt_find_dev_from_minor(iminor(inode));
@@ -2040,7 +2467,7 @@ static int pkt_open(struct inode *inode, struct file *file)
 out_dec:
 	pd->refcnt--;
 out:
-	VPRINTK("pktcdvd: failed open (%d)\n", ret);
+	VPRINTK(DRIVER_NAME": failed open (%d)\n", ret);
 	mutex_unlock(&ctl_mutex);
 	return ret;
 }
@@ -2088,7 +2515,7 @@ static int pkt_make_request(request_queue_t *q, struct bio *bio)
 
 	pd = q->queuedata;
 	if (!pd) {
-		printk("pktcdvd: %s incorrect request queue\n", bdevname(bio->bi_bdev, b));
+		printk(DRIVER_NAME": %s incorrect request queue\n", bdevname(bio->bi_bdev, b));
 		goto end_io;
 	}
 
@@ -2110,13 +2537,13 @@ static int pkt_make_request(request_queue_t *q, struct bio *bio)
 	}
 
 	if (!test_bit(PACKET_WRITABLE, &pd->flags)) {
-		printk("pktcdvd: WRITE for ro device %s (%llu)\n",
+		printk(DRIVER_NAME": WRITE for ro device %s (%llu)\n",
 			pd->name, (unsigned long long)bio->bi_sector);
 		goto end_io;
 	}
 
 	if (!bio->bi_size || (bio->bi_size % CD_FRAMESIZE)) {
-		printk("pktcdvd: wrong bio size\n");
+		printk(DRIVER_NAME": wrong bio size\n");
 		goto end_io;
 	}
 
@@ -2175,6 +2602,23 @@ static int pkt_make_request(request_queue_t *q, struct bio *bio)
 		}
 	}
 	spin_unlock(&pd->cdrw.active_list_lock);
+
+ 	/*
+	 * Test if there is enough room left in the bio work queue
+	 * (queue size >= congestion on mark).
+	 * If not, wait till the work queue size is below the congestion off mark.
+	 */
+	spin_lock(&pd->lock);
+	if (pd->write_congestion_on > 0
+	    && pd->bio_queue_size >= pd->write_congestion_on) {
+		blk_set_queue_congested(q, WRITE);
+		do {
+			spin_unlock(&pd->lock);
+			congestion_wait(WRITE, HZ);
+			spin_lock(&pd->lock);
+		} while(pd->bio_queue_size > pd->write_congestion_off);
+	}
+	spin_unlock(&pd->lock);
 
 	/*
 	 * No matching packet found. Store the bio in the work queue.
@@ -2295,6 +2739,9 @@ static int pkt_seq_show(struct seq_file *m, void *p)
 	seq_printf(m, "\tstate:\t\t\ti:%d ow:%d rw:%d ww:%d rec:%d fin:%d\n",
 		   states[0], states[1], states[2], states[3], states[4], states[5]);
 
+	seq_printf(m, "\twrite congestion marks:\toff=%d on=%d\n",
+			pd->write_congestion_off,
+			pd->write_congestion_on);
 	return 0;
 }
 
@@ -2319,7 +2766,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	struct block_device *bdev;
 
 	if (pd->pkt_dev == dev) {
-		printk("pktcdvd: Recursive setup not allowed\n");
+		printk(DRIVER_NAME": Recursive setup not allowed\n");
 		return -EBUSY;
 	}
 	for (i = 0; i < MAX_WRITERS; i++) {
@@ -2327,11 +2774,11 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 		if (!pd2)
 			continue;
 		if (pd2->bdev->bd_dev == dev) {
-			printk("pktcdvd: %s already setup\n", bdevname(pd2->bdev, b));
+			printk(DRIVER_NAME": %s already setup\n", bdevname(pd2->bdev, b));
 			return -EBUSY;
 		}
 		if (pd2->pkt_dev == dev) {
-			printk("pktcdvd: Can't chain pktcdvd devices\n");
+			printk(DRIVER_NAME": Can't chain pktcdvd devices\n");
 			return -EBUSY;
 		}
 	}
@@ -2354,7 +2801,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	atomic_set(&pd->cdrw.pending_bios, 0);
 	pd->cdrw.thread = kthread_run(kcdrwd, pd, "%s", pd->name);
 	if (IS_ERR(pd->cdrw.thread)) {
-		printk("pktcdvd: can't start kernel thread\n");
+		printk(DRIVER_NAME": can't start kernel thread\n");
 		ret = -ENOMEM;
 		goto out_mem;
 	}
@@ -2364,7 +2811,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 		proc->data = pd;
 		proc->proc_fops = &pkt_proc_fops;
 	}
-	DPRINTK("pktcdvd: writer %s mapped to %s\n", pd->name, bdevname(bdev, b));
+	DPRINTK(DRIVER_NAME": writer %s mapped to %s\n", pd->name, bdevname(bdev, b));
 	return 0;
 
 out_mem:
@@ -2401,7 +2848,7 @@ static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 		return blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
 
 	default:
-		VPRINTK("pktcdvd: Unknown ioctl for %s (%x)\n", pd->name, cmd);
+		VPRINTK(DRIVER_NAME": Unknown ioctl for %s (%x)\n", pd->name, cmd);
 		return -ENOTTY;
 	}
 
@@ -2434,35 +2881,32 @@ static struct block_device_operations pktcdvd_ops = {
 /*
  * Set up mapping from pktcdvd device to CD-ROM device.
  */
-static int pkt_setup_dev(struct pkt_ctrl_command *ctrl_cmd)
+static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 {
 	int idx;
 	int ret = -ENOMEM;
 	struct pktcdvd_device *pd;
 	struct gendisk *disk;
-	dev_t dev = new_decode_dev(ctrl_cmd->dev);
+
+	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 
 	for (idx = 0; idx < MAX_WRITERS; idx++)
 		if (!pkt_devs[idx])
 			break;
 	if (idx == MAX_WRITERS) {
-		printk("pktcdvd: max %d writers supported\n", MAX_WRITERS);
-		return -EBUSY;
+		printk(DRIVER_NAME": max %d writers supported\n", MAX_WRITERS);
+		ret = -EBUSY;
+		goto out_mutex;
 	}
 
 	pd = kzalloc(sizeof(struct pktcdvd_device), GFP_KERNEL);
 	if (!pd)
-		return ret;
+		goto out_mutex;
 
 	pd->rb_pool = mempool_create_kmalloc_pool(PKT_RB_POOL_SIZE,
 						  sizeof(struct pkt_rb_node));
 	if (!pd->rb_pool)
 		goto out_mem;
-
-	disk = alloc_disk(1);
-	if (!disk)
-		goto out_mem;
-	pd->disk = disk;
 
 	INIT_LIST_HEAD(&pd->cdrw.pkt_free_list);
 	INIT_LIST_HEAD(&pd->cdrw.pkt_active_list);
@@ -2470,15 +2914,22 @@ static int pkt_setup_dev(struct pkt_ctrl_command *ctrl_cmd)
 
 	spin_lock_init(&pd->lock);
 	spin_lock_init(&pd->iosched.lock);
-	sprintf(pd->name, "pktcdvd%d", idx);
+	sprintf(pd->name, DRIVER_NAME"%d", idx);
 	init_waitqueue_head(&pd->wqueue);
 	pd->bio_queue = RB_ROOT;
 
-	disk->major = pkt_major;
+	pd->write_congestion_on  = write_congestion_on;
+	pd->write_congestion_off = write_congestion_off;
+
+	disk = alloc_disk(1);
+	if (!disk)
+		goto out_mem;
+	pd->disk = disk;
+	disk->major = pktdev_major;
 	disk->first_minor = idx;
 	disk->fops = &pktcdvd_ops;
 	disk->flags = GENHD_FL_REMOVABLE;
-	sprintf(disk->disk_name, "pktcdvd%d", idx);
+	strcpy(disk->disk_name, pd->name);
 	disk->private_data = pd;
 	disk->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!disk->queue)
@@ -2490,8 +2941,15 @@ static int pkt_setup_dev(struct pkt_ctrl_command *ctrl_cmd)
 		goto out_new_dev;
 
 	add_disk(disk);
+
+	pkt_sysfs_dev_new(pd);
+	pkt_debugfs_dev_new(pd);
+
 	pkt_devs[idx] = pd;
-	ctrl_cmd->pkt_dev = new_encode_dev(pd->pkt_dev);
+	if (pkt_dev)
+		*pkt_dev = pd->pkt_dev;
+
+	mutex_unlock(&ctl_mutex);
 	return 0;
 
 out_new_dev:
@@ -2502,17 +2960,22 @@ out_mem:
 	if (pd->rb_pool)
 		mempool_destroy(pd->rb_pool);
 	kfree(pd);
+out_mutex:
+	mutex_unlock(&ctl_mutex);
+	printk(DRIVER_NAME": setup of pktcdvd device failed\n");
 	return ret;
 }
 
 /*
  * Tear down mapping from pktcdvd device to CD-ROM device.
  */
-static int pkt_remove_dev(struct pkt_ctrl_command *ctrl_cmd)
+static int pkt_remove_dev(dev_t pkt_dev)
 {
 	struct pktcdvd_device *pd;
 	int idx;
-	dev_t pkt_dev = new_decode_dev(ctrl_cmd->pkt_dev);
+	int ret = 0;
+
+	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 
 	for (idx = 0; idx < MAX_WRITERS; idx++) {
 		pd = pkt_devs[idx];
@@ -2520,37 +2983,50 @@ static int pkt_remove_dev(struct pkt_ctrl_command *ctrl_cmd)
 			break;
 	}
 	if (idx == MAX_WRITERS) {
-		DPRINTK("pktcdvd: dev not setup\n");
-		return -ENXIO;
+		DPRINTK(DRIVER_NAME": dev not setup\n");
+		ret = -ENXIO;
+		goto out;
 	}
 
-	if (pd->refcnt > 0)
-		return -EBUSY;
-
+	if (pd->refcnt > 0) {
+		ret = -EBUSY;
+		goto out;
+	}
 	if (!IS_ERR(pd->cdrw.thread))
 		kthread_stop(pd->cdrw.thread);
+
+	pkt_devs[idx] = NULL;
+
+	pkt_debugfs_dev_remove(pd);
+	pkt_sysfs_dev_remove(pd);
 
 	blkdev_put(pd->bdev);
 
 	remove_proc_entry(pd->name, pkt_proc);
-	DPRINTK("pktcdvd: writer %s unmapped\n", pd->name);
+	DPRINTK(DRIVER_NAME": writer %s unmapped\n", pd->name);
 
 	del_gendisk(pd->disk);
 	blk_cleanup_queue(pd->disk->queue);
 	put_disk(pd->disk);
 
-	pkt_devs[idx] = NULL;
 	mempool_destroy(pd->rb_pool);
 	kfree(pd);
 
 	/* This is safe: open() is still holding a reference. */
 	module_put(THIS_MODULE);
-	return 0;
+
+out:
+	mutex_unlock(&ctl_mutex);
+	return ret;
 }
 
 static void pkt_get_status(struct pkt_ctrl_command *ctrl_cmd)
 {
-	struct pktcdvd_device *pd = pkt_find_dev_from_minor(ctrl_cmd->dev_index);
+	struct pktcdvd_device *pd;
+
+	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
+
+	pd = pkt_find_dev_from_minor(ctrl_cmd->dev_index);
 	if (pd) {
 		ctrl_cmd->dev = new_encode_dev(pd->bdev->bd_dev);
 		ctrl_cmd->pkt_dev = new_encode_dev(pd->pkt_dev);
@@ -2559,6 +3035,8 @@ static void pkt_get_status(struct pkt_ctrl_command *ctrl_cmd)
 		ctrl_cmd->pkt_dev = 0;
 	}
 	ctrl_cmd->num_devices = MAX_WRITERS;
+
+	mutex_unlock(&ctl_mutex);
 }
 
 static int pkt_ctl_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
@@ -2566,6 +3044,7 @@ static int pkt_ctl_ioctl(struct inode *inode, struct file *file, unsigned int cm
 	void __user *argp = (void __user *)arg;
 	struct pkt_ctrl_command ctrl_cmd;
 	int ret = 0;
+	dev_t pkt_dev = 0;
 
 	if (cmd != PACKET_CTRL_CMD)
 		return -ENOTTY;
@@ -2577,21 +3056,16 @@ static int pkt_ctl_ioctl(struct inode *inode, struct file *file, unsigned int cm
 	case PKT_CTRL_CMD_SETUP:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-		ret = pkt_setup_dev(&ctrl_cmd);
-		mutex_unlock(&ctl_mutex);
+		ret = pkt_setup_dev(new_decode_dev(ctrl_cmd.dev), &pkt_dev);
+		ctrl_cmd.pkt_dev = new_encode_dev(pkt_dev);
 		break;
 	case PKT_CTRL_CMD_TEARDOWN:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-		ret = pkt_remove_dev(&ctrl_cmd);
-		mutex_unlock(&ctl_mutex);
+		ret = pkt_remove_dev(new_decode_dev(ctrl_cmd.pkt_dev));
 		break;
 	case PKT_CTRL_CMD_STATUS:
-		mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 		pkt_get_status(&ctrl_cmd);
-		mutex_unlock(&ctl_mutex);
 		break;
 	default:
 		return -ENOTTY;
@@ -2610,7 +3084,7 @@ static struct file_operations pkt_ctl_fops = {
 
 static struct miscdevice pkt_misc = {
 	.minor 		= MISC_DYNAMIC_MINOR,
-	.name  		= "pktcdvd",
+	.name  		= DRIVER_NAME,
 	.fops  		= &pkt_ctl_fops
 };
 
@@ -2618,33 +3092,42 @@ static int __init pkt_init(void)
 {
 	int ret;
 
+	mutex_init(&ctl_mutex);
+
 	psd_pool = mempool_create_kmalloc_pool(PSD_POOL_SIZE,
 					sizeof(struct packet_stacked_data));
 	if (!psd_pool)
 		return -ENOMEM;
 
-	ret = register_blkdev(pkt_major, "pktcdvd");
+	ret = register_blkdev(pktdev_major, DRIVER_NAME);
 	if (ret < 0) {
-		printk("pktcdvd: Unable to register block device\n");
+		printk(DRIVER_NAME": Unable to register block device\n");
 		goto out2;
 	}
-	if (!pkt_major)
-		pkt_major = ret;
+	if (!pktdev_major)
+		pktdev_major = ret;
+
+	ret = pkt_sysfs_init();
+	if (ret)
+		goto out;
+
+	pkt_debugfs_init();
 
 	ret = misc_register(&pkt_misc);
 	if (ret) {
-		printk("pktcdvd: Unable to register misc device\n");
-		goto out;
+		printk(DRIVER_NAME": Unable to register misc device\n");
+		goto out_misc;
 	}
 
-	mutex_init(&ctl_mutex);
-
-	pkt_proc = proc_mkdir("pktcdvd", proc_root_driver);
+	pkt_proc = proc_mkdir(DRIVER_NAME, proc_root_driver);
 
 	return 0;
 
+out_misc:
+	pkt_debugfs_cleanup();
+	pkt_sysfs_cleanup();
 out:
-	unregister_blkdev(pkt_major, "pktcdvd");
+	unregister_blkdev(pktdev_major, DRIVER_NAME);
 out2:
 	mempool_destroy(psd_pool);
 	return ret;
@@ -2652,9 +3135,13 @@ out2:
 
 static void __exit pkt_exit(void)
 {
-	remove_proc_entry("pktcdvd", proc_root_driver);
+	remove_proc_entry(DRIVER_NAME, proc_root_driver);
 	misc_deregister(&pkt_misc);
-	unregister_blkdev(pkt_major, "pktcdvd");
+
+	pkt_debugfs_cleanup();
+	pkt_sysfs_cleanup();
+
+	unregister_blkdev(pktdev_major, DRIVER_NAME);
 	mempool_destroy(psd_pool);
 }
 

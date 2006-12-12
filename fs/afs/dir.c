@@ -30,7 +30,7 @@ static int afs_dir_readdir(struct file *file, void *dirent, filldir_t filldir);
 static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd);
 static int afs_d_delete(struct dentry *dentry);
 static int afs_dir_lookup_filldir(void *_cookie, const char *name, int nlen,
-				  loff_t fpos, ino_t ino, unsigned dtype);
+				  loff_t fpos, u64 ino, unsigned dtype);
 
 const struct file_operations afs_dir_file_operations = {
 	.open		= afs_dir_open,
@@ -211,8 +211,8 @@ static int afs_dir_open(struct inode *inode, struct file *file)
 {
 	_enter("{%lu}", inode->i_ino);
 
-	BUG_ON(sizeof(union afs_dir_block) != 2048);
-	BUG_ON(sizeof(union afs_dirent) != 32);
+	BUILD_BUG_ON(sizeof(union afs_dir_block) != 2048);
+	BUILD_BUG_ON(sizeof(union afs_dirent) != 32);
 
 	if (AFS_FS_I(inode)->flags & AFS_VNODE_DELETED)
 		return -ENOENT;
@@ -392,10 +392,10 @@ static int afs_dir_readdir(struct file *file, void *cookie, filldir_t filldir)
 	unsigned fpos;
 	int ret;
 
-	_enter("{%Ld,{%lu}}", file->f_pos, file->f_dentry->d_inode->i_ino);
+	_enter("{%Ld,{%lu}}", file->f_pos, file->f_path.dentry->d_inode->i_ino);
 
 	fpos = file->f_pos;
-	ret = afs_dir_iterate(file->f_dentry->d_inode, &fpos, cookie, filldir);
+	ret = afs_dir_iterate(file->f_path.dentry->d_inode, &fpos, cookie, filldir);
 	file->f_pos = fpos;
 
 	_leave(" = %d", ret);
@@ -409,7 +409,7 @@ static int afs_dir_readdir(struct file *file, void *cookie, filldir_t filldir)
  *   uniquifier through dtype
  */
 static int afs_dir_lookup_filldir(void *_cookie, const char *name, int nlen,
-				  loff_t fpos, ino_t ino, unsigned dtype)
+				  loff_t fpos, u64 ino, unsigned dtype)
 {
 	struct afs_dir_lookup_cookie *cookie = _cookie;
 
@@ -446,8 +446,8 @@ static struct dentry *afs_dir_lookup(struct inode *dir, struct dentry *dentry,
 	_enter("{%lu},%p{%s}", dir->i_ino, dentry, dentry->d_name.name);
 
 	/* insanity checks first */
-	BUG_ON(sizeof(union afs_dir_block) != 2048);
-	BUG_ON(sizeof(union afs_dirent) != 32);
+	BUILD_BUG_ON(sizeof(union afs_dir_block) != 2048);
+	BUILD_BUG_ON(sizeof(union afs_dirent) != 32);
 
 	if (dentry->d_name.len > 255) {
 		_leave(" = -ENAMETOOLONG");

@@ -16,24 +16,26 @@
 #include <asm/processor.h>
 #include <linux/stringify.h>
 
-#if XCHAL_INT_LEVEL(XCHAL_TIMER0_INTERRUPT) == 1
+#define _INTLEVEL(x)	XCHAL_INT ## x ## _LEVEL
+#define INTLEVEL(x)	_INTLEVEL(x)
+
+#if INTLEVEL(XCHAL_TIMER0_INTERRUPT) == 1
 # define LINUX_TIMER     0
-#elif XCHAL_INT_LEVEL(XCHAL_TIMER1_INTERRUPT) == 1
+# define LINUX_TIMER_INT XCHAL_TIMER0_INTERRUPT
+#elif INTLEVEL(XCHAL_TIMER1_INTERRUPT) == 1
 # define LINUX_TIMER     1
-#elif XCHAL_INT_LEVEL(XCHAL_TIMER2_INTERRUPT) == 1
+# define LINUX_TIMER_INT XCHAL_TIMER1_INTERRUPT
+#elif INTLEVEL(XCHAL_TIMER2_INTERRUPT) == 1
 # define LINUX_TIMER     2
+# define LINUX_TIMER_INT XCHAL_TIMER2_INTERRUPT
 #else
 # error "Bad timer number for Linux configurations!"
 #endif
 
-#define LINUX_TIMER_INT         XCHAL_TIMER_INTERRUPT(LINUX_TIMER)
 #define LINUX_TIMER_MASK        (1L << LINUX_TIMER_INT)
 
 #define CLOCK_TICK_RATE 	1193180	/* (everyone is using this value) */
 #define CLOCK_TICK_FACTOR       20 /* Factor of both 10^6 and CLOCK_TICK_RATE */
-#define FINETUNE ((((((long)LATCH * HZ - CLOCK_TICK_RATE) << SHIFT_HZ) * \
-	(1000000/CLOCK_TICK_FACTOR) / (CLOCK_TICK_RATE/CLOCK_TICK_FACTOR)) \
-		<< (SHIFT_SCALE-SHIFT_HZ)) / HZ)
 
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 extern unsigned long ccount_per_jiffy;
@@ -63,8 +65,8 @@ extern cycles_t cacheflush_time;
 
 #define WSR_CCOUNT(r)	  __asm__("wsr %0,"__stringify(CCOUNT) :: "a" (r))
 #define RSR_CCOUNT(r)	  __asm__("rsr %0,"__stringify(CCOUNT) : "=a" (r))
-#define WSR_CCOMPARE(x,r) __asm__("wsr %0,"__stringify(CCOMPARE_0)"+"__stringify(x) :: "a"(r))
-#define RSR_CCOMPARE(x,r) __asm__("rsr %0,"__stringify(CCOMPARE_0)"+"__stringify(x) : "=a"(r))
+#define WSR_CCOMPARE(x,r) __asm__("wsr %0,"__stringify(CCOMPARE)"+"__stringify(x) :: "a"(r))
+#define RSR_CCOMPARE(x,r) __asm__("rsr %0,"__stringify(CCOMPARE)"+"__stringify(x) : "=a"(r))
 
 static inline unsigned long get_ccount (void)
 {

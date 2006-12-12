@@ -13,7 +13,6 @@
  *  Mikael Pettersson	: PM converted to driver model. Disable/enable API.
  */
 
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -23,6 +22,7 @@
 #include <linux/percpu.h>
 #include <linux/dmi.h>
 #include <linux/kprobes.h>
+#include <linux/cpumask.h>
 
 #include <asm/smp.h>
 #include <asm/nmi.h>
@@ -30,6 +30,9 @@
 #include <asm/intel_arch_perfmon.h>
 
 #include "mach_traps.h"
+
+int unknown_nmi_panic;
+int nmi_watchdog_enabled;
 
 /* perfctr_nmi_owner tracks the ownership of the perfctr registers:
  * evtsel_nmi_owner tracks the ownership of the event selection
@@ -39,6 +42,8 @@
  */
 static DEFINE_PER_CPU(unsigned long, perfctr_nmi_owner);
 static DEFINE_PER_CPU(unsigned long, evntsel_nmi_owner[3]);
+
+static cpumask_t backtrace_mask = CPU_MASK_NONE;
 
 /* this number is calculated from Intel's MSR_P4_CRU_ESCR5 register and it's
  * offset from MSR_P4_BSU_ESCR0.  It will be the max for all platforms (for now)
@@ -190,6 +195,8 @@ static __cpuinit inline int nmi_known_cpu(void)
 	return 0;
 }
 
+static int endflag __initdata = 0;
+
 #ifdef CONFIG_SMP
 /* The performance counters used by NMI_LOCAL_APIC don't trigger when
  * the CPU is idle. To make sure the NMI watchdog really ticks on all
@@ -197,7 +204,6 @@ static __cpuinit inline int nmi_known_cpu(void)
  */
 static __init void nmi_cpu_busy(void *data)
 {
-	volatile int *endflag = data;
 	local_irq_enable_in_hardirq();
 	/* Intentionally don't use cpu_relax here. This is
 	   to make sure that the performance counter really ticks,
@@ -205,23 +211,22 @@ static __init void nmi_cpu_busy(void *data)
 	   pause instruction. On a real HT machine this is fine because
 	   all other CPUs are busy with "useless" delay loops and don't
 	   care if they get somewhat less cycles. */
-	while (*endflag == 0)
-		barrier();
+	while (endflag == 0)
+		mb();
 }
 #endif
 
 static int __init check_nmi_watchdog(void)
 {
-	volatile int endflag = 0;
 	unsigned int *prev_nmi_count;
 	int cpu;
 
 	/* Enable NMI watchdog for newer systems.
-           Actually it should be safe for most systems before 2004 too except
-	   for some IBM systems that corrupt registers when NMI happens
-	   during SMM. Unfortunately we don't have more exact information
- 	   on these and use this coarse check. */
-	if (nmi_watchdog == NMI_DEFAULT && dmi_get_year(DMI_BIOS_DATE) >= 2004)
+	   Probably safe on most older systems too, but let's be careful.
+	   IBM ThinkPads use INT10 inside SMM and that allows early NMI inside SMM
+	   which hangs the system. Disable watchdog for all thinkpads */
+	if (nmi_watchdog == NMI_DEFAULT && dmi_get_year(DMI_BIOS_DATE) >= 2004 &&
+		!dmi_name_in_vendors("ThinkPad"))
 		nmi_watchdog = NMI_LOCAL_APIC;
 
 	if ((nmi_watchdog == NMI_NONE) || (nmi_watchdog == NMI_DEFAULT))
@@ -865,14 +870,16 @@ static unsigned int
 
 void touch_nmi_watchdog (void)
 {
-	int i;
+	if (nmi_watchdog > 0) {
+		unsigned cpu;
 
-	/*
-	 * Just reset the alert counters, (other CPUs might be
-	 * spinning on locks we hold):
-	 */
-	for_each_possible_cpu(i)
-		alert_counter[i] = 0;
+		/*
+		 * Just reset the alert counters, (other CPUs might be
+		 * spinning on locks we hold):
+		 */
+		for_each_present_cpu (cpu)
+			alert_counter[cpu] = 0;
+	}
 
 	/*
 	 * Tickle the softlockup detector too:
@@ -903,6 +910,16 @@ __kprobes int nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 			== NOTIFY_STOP) {
 		rc = 1;
 		touched = 1;
+	}
+
+	if (cpu_isset(cpu, backtrace_mask)) {
+		static DEFINE_SPINLOCK(lock);	/* Serialise the printks */
+
+		spin_lock(&lock);
+		printk("NMI backtrace for cpu %d\n", cpu);
+		dump_stack();
+		spin_unlock(&lock);
+		cpu_clear(cpu, backtrace_mask);
 	}
 
 	sum = per_cpu(irq_stat, cpu).apic_timer_irqs;
@@ -1030,6 +1047,19 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 }
 
 #endif
+
+void __trigger_all_cpu_backtrace(void)
+{
+	int i;
+
+	backtrace_mask = cpu_online_map;
+	/* Wait for up to 10 seconds for all CPUs to do the backtrace */
+	for (i = 0; i < 10 * 1000; i++) {
+		if (cpus_empty(backtrace_mask))
+			break;
+		mdelay(1);
+	}
+}
 
 EXPORT_SYMBOL(nmi_active);
 EXPORT_SYMBOL(nmi_watchdog);

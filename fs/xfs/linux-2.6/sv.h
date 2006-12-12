@@ -53,8 +53,6 @@ static inline void _sv_wait(sv_t *sv, spinlock_t *lock, int state,
 	remove_wait_queue(&sv->waiters, &wait);
 }
 
-#define init_sv(sv,type,name,flag) \
-	init_waitqueue_head(&(sv)->waiters)
 #define sv_init(sv,flag,name) \
 	init_waitqueue_head(&(sv)->waiters)
 #define sv_destroy(sv) \

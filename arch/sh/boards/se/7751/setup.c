@@ -1,4 +1,4 @@
-/* 
+/*
  * linux/arch/sh/kernel/setup_7751se.c
  *
  * Copyright (C) 2000  Kazumoto Kojima
@@ -8,81 +8,16 @@
  * Modified for 7751 Solution Engine by
  * Ian da Silva and Jeremy Siegel, 2001.
  */
-
 #include <linux/init.h>
-#include <linux/irq.h>
-
-#include <linux/hdreg.h>
-#include <linux/ide.h>
+#include <asm/machvec.h>
+#include <asm/se7751.h>
 #include <asm/io.h>
-#include <asm/se7751/se7751.h>
+
+void heartbeat_7751se(void);
+void init_7751se_IRQ(void);
 
 #ifdef CONFIG_SH_KGDB
 #include <asm/kgdb.h>
-#endif
-
-/*
- * Configure the Super I/O chip
- */
-#if 0
-/* Leftover code from regular Solution Engine, for reference. */
-/* The SH7751 Solution Engine has a different SuperIO. */
-static void __init smsc_config(int index, int data)
-{
-	outb_p(index, INDEX_PORT);
-	outb_p(data, DATA_PORT);
-}
-
-static void __init init_smsc(void)
-{
-	outb_p(CONFIG_ENTER, CONFIG_PORT);
-	outb_p(CONFIG_ENTER, CONFIG_PORT);
-
-	/* FDC */
-	smsc_config(CURRENT_LDN_INDEX, LDN_FDC);
-	smsc_config(ACTIVATE_INDEX, 0x01);
-	smsc_config(IRQ_SELECT_INDEX, 6); /* IRQ6 */
-
-	/* IDE1 */
-	smsc_config(CURRENT_LDN_INDEX, LDN_IDE1);
-	smsc_config(ACTIVATE_INDEX, 0x01);
-	smsc_config(IRQ_SELECT_INDEX, 14); /* IRQ14 */
-
-	/* AUXIO (GPIO): to use IDE1 */
-	smsc_config(CURRENT_LDN_INDEX, LDN_AUXIO);
-	smsc_config(GPIO46_INDEX, 0x00); /* nIOROP */
-	smsc_config(GPIO47_INDEX, 0x00); /* nIOWOP */
-
-	/* COM1 */
-	smsc_config(CURRENT_LDN_INDEX, LDN_COM1);
-	smsc_config(ACTIVATE_INDEX, 0x01);
-	smsc_config(IO_BASE_HI_INDEX, 0x03);
-	smsc_config(IO_BASE_LO_INDEX, 0xf8);
-	smsc_config(IRQ_SELECT_INDEX, 4); /* IRQ4 */
-
-	/* COM2 */
-	smsc_config(CURRENT_LDN_INDEX, LDN_COM2);
-	smsc_config(ACTIVATE_INDEX, 0x01);
-	smsc_config(IO_BASE_HI_INDEX, 0x02);
-	smsc_config(IO_BASE_LO_INDEX, 0xf8);
-	smsc_config(IRQ_SELECT_INDEX, 3); /* IRQ3 */
-
-	/* RTC */
-	smsc_config(CURRENT_LDN_INDEX, LDN_RTC);
-	smsc_config(ACTIVATE_INDEX, 0x01);
-	smsc_config(IRQ_SELECT_INDEX, 8); /* IRQ8 */
-
-	/* XXX: PARPORT, KBD, and MOUSE will come here... */
-	outb_p(CONFIG_EXIT, CONFIG_PORT);
-}
-#endif
-
-const char *get_system_type(void)
-{
-	return "7751 SolutionEngine";
-}
-
-#ifdef CONFIG_SH_KGDB
 static int kgdb_uart_setup(void);
 static struct kgdb_sermap kgdb_uart_sermap = 
 { "ttyS", 0, kgdb_uart_setup, NULL };
@@ -91,7 +26,7 @@ static struct kgdb_sermap kgdb_uart_sermap =
 /*
  * Initialize the board
  */
-void __init platform_setup(void)
+static void __init sh7751se_setup(char **cmdline_p)
 {
 	/* Call init_smsc() replacement to set up SuperIO. */
 	/* XXX: RTC setting comes here */
@@ -225,3 +160,37 @@ static int kgdb_uart_setup(void)
 	return 0;
 }
 #endif /* CONFIG_SH_KGDB */
+
+
+/*
+ * The Machine Vector
+ */
+
+struct sh_machine_vector mv_7751se __initmv = {
+	.mv_name		= "7751 SolutionEngine",
+	.mv_setup		= sh7751se_setup,
+	.mv_nr_irqs		= 72,
+
+	.mv_inb			= sh7751se_inb,
+	.mv_inw			= sh7751se_inw,
+	.mv_inl			= sh7751se_inl,
+	.mv_outb		= sh7751se_outb,
+	.mv_outw		= sh7751se_outw,
+	.mv_outl		= sh7751se_outl,
+
+	.mv_inb_p		= sh7751se_inb_p,
+	.mv_inw_p		= sh7751se_inw,
+	.mv_inl_p		= sh7751se_inl,
+	.mv_outb_p		= sh7751se_outb_p,
+	.mv_outw_p		= sh7751se_outw,
+	.mv_outl_p		= sh7751se_outl,
+
+	.mv_insl		= sh7751se_insl,
+	.mv_outsl		= sh7751se_outsl,
+
+	.mv_init_irq		= init_7751se_IRQ,
+#ifdef CONFIG_HEARTBEAT
+	.mv_heartbeat		= heartbeat_7751se,
+#endif
+};
+ALIAS_MV(7751se)

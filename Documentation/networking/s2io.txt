@@ -126,7 +126,7 @@ However, you may want to set PCI latency timer to 248.
 #setpci -d 17d5:* LATENCY_TIMER=f8
 For detailed description of the PCI registers, please see Xframe User Guide.
 b. Use 2-buffer mode. This results in large performance boost on
-on certain platforms(eg. SGI Altix, IBM xSeries).
+certain platforms(eg. SGI Altix, IBM xSeries).
 c. Ensure Receive Checksum offload is enabled. Use "ethtool -K ethX" command to 
 set/verify this option.
 d. Enable NAPI feature(in kernel configuration Device Drivers ---> Network 

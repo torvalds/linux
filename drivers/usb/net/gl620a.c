@@ -106,7 +106,7 @@ static inline int gl_control_write(struct usbnet *dev, u8 request, u16 value)
 	return retval;
 }
 
-static void gl_interrupt_complete(struct urb *urb, struct pt_regs *regs)
+static void gl_interrupt_complete(struct urb *urb)
 {
 	int status = urb->status;
 

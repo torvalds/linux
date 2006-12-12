@@ -268,7 +268,7 @@ static int vr41xx_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long 
 	return 0;
 }
 
-static irqreturn_t elapsedtime_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t elapsedtime_interrupt(int irq, void *dev_id)
 {
 	struct platform_device *pdev = (struct platform_device *)dev_id;
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
@@ -280,7 +280,7 @@ static irqreturn_t elapsedtime_interrupt(int irq, void *dev_id, struct pt_regs *
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t rtclong1_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t rtclong1_interrupt(int irq, void *dev_id)
 {
 	struct platform_device *pdev = (struct platform_device *)dev_id;
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
@@ -296,7 +296,7 @@ static irqreturn_t rtclong1_interrupt(int irq, void *dev_id, struct pt_regs *reg
 	return IRQ_HANDLED;
 }
 
-static struct rtc_class_ops vr41xx_rtc_ops = {
+static const struct rtc_class_ops vr41xx_rtc_ops = {
 	.release	= vr41xx_rtc_release,
 	.ioctl		= vr41xx_rtc_ioctl,
 	.read_time	= vr41xx_rtc_read_time,

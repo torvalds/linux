@@ -65,18 +65,15 @@ avmcard *b1_alloc_card(int nr_controllers)
 	avmctrl_info *cinfo;
 	int i;
 
-	card = kmalloc(sizeof(*card), GFP_KERNEL);
+	card = kzalloc(sizeof(*card), GFP_KERNEL);
 	if (!card)
 		return NULL;
 
-	memset(card, 0, sizeof(*card));
-
-        cinfo = kmalloc(sizeof(*cinfo) * nr_controllers, GFP_KERNEL);
+	cinfo = kzalloc(sizeof(*cinfo) * nr_controllers, GFP_KERNEL);
 	if (!cinfo) {
 		kfree(card);
 		return NULL;
 	}
-	memset(cinfo, 0, sizeof(*cinfo) * nr_controllers);
 
 	card->ctrlinfo = cinfo;
 	for (i = 0; i < nr_controllers; i++) {
@@ -485,7 +482,7 @@ void b1_parse_version(avmctrl_info *cinfo)
 
 /* ------------------------------------------------------------- */
 
-irqreturn_t b1_interrupt(int interrupt, void *devptr, struct pt_regs *regs)
+irqreturn_t b1_interrupt(int interrupt, void *devptr)
 {
 	avmcard *card = devptr;
 	avmctrl_info *cinfo = &card->ctrlinfo[0];
@@ -718,12 +715,11 @@ avmcard_dma_alloc(char *name, struct pci_dev *pdev, long rsize, long ssize)
 	avmcard_dmainfo *p;
 	void *buf;
 
-	p = kmalloc(sizeof(avmcard_dmainfo), GFP_KERNEL);
+	p = kzalloc(sizeof(avmcard_dmainfo), GFP_KERNEL);
 	if (!p) {
 		printk(KERN_WARNING "%s: no memory.\n", name);
 		goto err;
 	}
-	memset(p, 0, sizeof(avmcard_dmainfo));
 
 	p->recvbuf.size = rsize;
 	buf = pci_alloc_consistent(pdev, rsize, &p->recvbuf.dmaaddr);

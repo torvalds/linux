@@ -32,6 +32,37 @@ IR_KEYTAB_TYPE ir_codes_empty[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_empty);
 
+/* Michal Majchrowicz <mmajchrowicz@gmail.com> */
+IR_KEYTAB_TYPE ir_codes_proteus_2309[IR_KEYTAB_SIZE] = {
+	/* numeric */
+	[ 0x00 ] = KEY_0,
+	[ 0x01 ] = KEY_1,
+	[ 0x02 ] = KEY_2,
+	[ 0x03 ] = KEY_3,
+	[ 0x04 ] = KEY_4,
+	[ 0x05 ] = KEY_5,
+	[ 0x06 ] = KEY_6,
+	[ 0x07 ] = KEY_7,
+	[ 0x08 ] = KEY_8,
+	[ 0x09 ] = KEY_9,
+
+	[ 0x5c ] = KEY_POWER,     /* power       */
+	[ 0x20 ] = KEY_F,         /* full screen */
+	[ 0x0f ] = KEY_BACKSPACE, /* recall      */
+	[ 0x1b ] = KEY_ENTER,     /* mute        */
+	[ 0x41 ] = KEY_RECORD,    /* record      */
+	[ 0x43 ] = KEY_STOP,      /* stop        */
+	[ 0x16 ] = KEY_S,
+	[ 0x1a ] = KEY_Q,         /* off         */
+	[ 0x2e ] = KEY_RED,
+	[ 0x1f ] = KEY_DOWN,      /* channel -   */
+	[ 0x1c ] = KEY_UP,        /* channel +   */
+	[ 0x10 ] = KEY_LEFT,      /* volume -    */
+	[ 0x1e ] = KEY_RIGHT,     /* volume +    */
+	[ 0x14 ] = KEY_F1,
+};
+
+EXPORT_SYMBOL_GPL(ir_codes_proteus_2309);
 /* Matt Jesson <dvb@jesson.eclipse.co.uk */
 IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE] = {
 	[ 0x28 ] = KEY_0,         //'0' / 'enter'
@@ -1473,3 +1504,106 @@ IR_KEYTAB_TYPE ir_codes_npgtech[IR_KEYTAB_SIZE] = {
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_npgtech);
+
+/* Norwood Micro (non-Pro) TV Tuner
+   By Peter Naulls <peter@chocky.org>
+   Key comments are the functions given in the manual */
+IR_KEYTAB_TYPE ir_codes_norwood[IR_KEYTAB_SIZE] = {
+	/* Keys 0 to 9 */
+	[ 0x20 ] = KEY_0,
+	[ 0x21 ] = KEY_1,
+	[ 0x22 ] = KEY_2,
+	[ 0x23 ] = KEY_3,
+	[ 0x24 ] = KEY_4,
+	[ 0x25 ] = KEY_5,
+	[ 0x26 ] = KEY_6,
+	[ 0x27 ] = KEY_7,
+	[ 0x28 ] = KEY_8,
+	[ 0x29 ] = KEY_9,
+
+	[ 0x78 ] = KEY_TUNER,             /* Video Source        */
+	[ 0x2c ] = KEY_EXIT,              /* Open/Close software */
+	[ 0x2a ] = KEY_SELECT,            /* 2 Digit Select      */
+	[ 0x69 ] = KEY_AGAIN,             /* Recall              */
+
+	[ 0x32 ] = KEY_BRIGHTNESSUP,      /* Brightness increase */
+	[ 0x33 ] = KEY_BRIGHTNESSDOWN,    /* Brightness decrease */
+	[ 0x6b ] = KEY_KPPLUS,            /* (not named >>>>>)   */
+	[ 0x6c ] = KEY_KPMINUS,           /* (not named <<<<<)   */
+
+	[ 0x2d ] = KEY_MUTE,              /* Mute                */
+	[ 0x30 ] = KEY_VOLUMEUP,          /* Volume up           */
+	[ 0x31 ] = KEY_VOLUMEDOWN,        /* Volume down         */
+	[ 0x60 ] = KEY_CHANNELUP,         /* Channel up          */
+	[ 0x61 ] = KEY_CHANNELDOWN,       /* Channel down        */
+
+	[ 0x3f ] = KEY_RECORD,            /* Record              */
+	[ 0x37 ] = KEY_PLAY,              /* Play                */
+	[ 0x36 ] = KEY_PAUSE,             /* Pause               */
+	[ 0x2b ] = KEY_STOP,              /* Stop                */
+	[ 0x67 ] = KEY_FASTFORWARD,       /* Foward              */
+	[ 0x66 ] = KEY_REWIND,            /* Rewind              */
+	[ 0x3e ] = KEY_SEARCH,            /* Auto Scan           */
+	[ 0x2e ] = KEY_CAMERA,            /* Capture Video       */
+	[ 0x6d ] = KEY_MENU,              /* Show/Hide Control   */
+	[ 0x2f ] = KEY_ZOOM,              /* Full Screen         */
+	[ 0x34 ] = KEY_RADIO,             /* FM                  */
+	[ 0x65 ] = KEY_POWER,             /* Computer power      */
+};
+
+EXPORT_SYMBOL_GPL(ir_codes_norwood);
+
+/* From reading the following remotes:
+ * Zenith Universal 7 / TV Mode 807 / VCR Mode 837
+ * Hauppauge (from NOVA-CI-s box product)
+ * This is a "middle of the road" approach, differences are noted
+ */
+IR_KEYTAB_TYPE ir_codes_budget_ci_old[IR_KEYTAB_SIZE] = {
+	[ 0x00 ] = KEY_0,
+	[ 0x01 ] = KEY_1,
+	[ 0x02 ] = KEY_2,
+	[ 0x03 ] = KEY_3,
+	[ 0x04 ] = KEY_4,
+	[ 0x05 ] = KEY_5,
+	[ 0x06 ] = KEY_6,
+	[ 0x07 ] = KEY_7,
+	[ 0x08 ] = KEY_8,
+	[ 0x09 ] = KEY_9,
+	[ 0x0a ] = KEY_ENTER,
+	[ 0x0b ] = KEY_RED,
+	[ 0x0c ] = KEY_POWER,             /* RADIO on Hauppauge */
+	[ 0x0d ] = KEY_MUTE,
+	[ 0x0f ] = KEY_A,                 /* TV on Hauppauge */
+	[ 0x10 ] = KEY_VOLUMEUP,
+	[ 0x11 ] = KEY_VOLUMEDOWN,
+	[ 0x14 ] = KEY_B,
+	[ 0x1c ] = KEY_UP,
+	[ 0x1d ] = KEY_DOWN,
+	[ 0x1e ] = KEY_OPTION,            /* RESERVED on Hauppauge */
+	[ 0x1f ] = KEY_BREAK,
+	[ 0x20 ] = KEY_CHANNELUP,
+	[ 0x21 ] = KEY_CHANNELDOWN,
+	[ 0x22 ] = KEY_PREVIOUS,          /* Prev. Ch on Zenith, SOURCE on Hauppauge */
+	[ 0x24 ] = KEY_RESTART,
+	[ 0x25 ] = KEY_OK,
+	[ 0x26 ] = KEY_CYCLEWINDOWS,      /* MINIMIZE on Hauppauge */
+	[ 0x28 ] = KEY_ENTER,             /* VCR mode on Zenith */
+	[ 0x29 ] = KEY_PAUSE,
+	[ 0x2b ] = KEY_RIGHT,
+	[ 0x2c ] = KEY_LEFT,
+	[ 0x2e ] = KEY_MENU,              /* FULL SCREEN on Hauppauge */
+	[ 0x30 ] = KEY_SLOW,
+	[ 0x31 ] = KEY_PREVIOUS,          /* VCR mode on Zenith */
+	[ 0x32 ] = KEY_REWIND,
+	[ 0x34 ] = KEY_FASTFORWARD,
+	[ 0x35 ] = KEY_PLAY,
+	[ 0x36 ] = KEY_STOP,
+	[ 0x37 ] = KEY_RECORD,
+	[ 0x38 ] = KEY_TUNER,             /* TV/VCR on Zenith */
+	[ 0x3a ] = KEY_C,
+	[ 0x3c ] = KEY_EXIT,
+	[ 0x3d ] = KEY_POWER2,
+	[ 0x3e ] = KEY_TUNER,
+};
+
+EXPORT_SYMBOL_GPL(ir_codes_budget_ci_old);

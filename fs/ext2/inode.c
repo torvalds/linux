@@ -1094,7 +1094,6 @@ void ext2_read_inode (struct inode * inode)
 		brelse (bh);
 		goto bad_inode;
 	}
-	inode->i_blksize = PAGE_SIZE;	/* This is the optimal IO size (for stat), not the fs block size */
 	inode->i_blocks = le32_to_cpu(raw_inode->i_blocks);
 	ei->i_flags = le32_to_cpu(raw_inode->i_flags);
 	ei->i_faddr = le32_to_cpu(raw_inode->i_faddr);

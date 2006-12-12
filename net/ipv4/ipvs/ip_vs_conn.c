@@ -44,7 +44,7 @@
 static struct list_head *ip_vs_conn_tab;
 
 /*  SLAB cache for IPVS connections */
-static kmem_cache_t *ip_vs_conn_cachep __read_mostly;
+static struct kmem_cache *ip_vs_conn_cachep __read_mostly;
 
 /*  counter for current IPVS connections */
 static atomic_t ip_vs_conn_count = ATOMIC_INIT(0);
@@ -115,9 +115,9 @@ static inline void ct_write_unlock_bh(unsigned key)
 /*
  *	Returns hash value for IPVS connection entry
  */
-static unsigned int ip_vs_conn_hashkey(unsigned proto, __u32 addr, __u16 port)
+static unsigned int ip_vs_conn_hashkey(unsigned proto, __be32 addr, __be16 port)
 {
-	return jhash_3words(addr, port, proto, ip_vs_conn_rnd)
+	return jhash_3words((__force u32)addr, (__force u32)port, proto, ip_vs_conn_rnd)
 		& IP_VS_CONN_TAB_MASK;
 }
 
@@ -188,7 +188,7 @@ static inline int ip_vs_conn_unhash(struct ip_vs_conn *cp)
  *	d_addr, d_port: pkt dest address (load balancer)
  */
 static inline struct ip_vs_conn *__ip_vs_conn_in_get
-(int protocol, __u32 s_addr, __u16 s_port, __u32 d_addr, __u16 d_port)
+(int protocol, __be32 s_addr, __be16 s_port, __be32 d_addr, __be16 d_port)
 {
 	unsigned hash;
 	struct ip_vs_conn *cp;
@@ -215,7 +215,7 @@ static inline struct ip_vs_conn *__ip_vs_conn_in_get
 }
 
 struct ip_vs_conn *ip_vs_conn_in_get
-(int protocol, __u32 s_addr, __u16 s_port, __u32 d_addr, __u16 d_port)
+(int protocol, __be32 s_addr, __be16 s_port, __be32 d_addr, __be16 d_port)
 {
 	struct ip_vs_conn *cp;
 
@@ -234,7 +234,7 @@ struct ip_vs_conn *ip_vs_conn_in_get
 
 /* Get reference to connection template */
 struct ip_vs_conn *ip_vs_ct_in_get
-(int protocol, __u32 s_addr, __u16 s_port, __u32 d_addr, __u16 d_port)
+(int protocol, __be32 s_addr, __be16 s_port, __be32 d_addr, __be16 d_port)
 {
 	unsigned hash;
 	struct ip_vs_conn *cp;
@@ -274,7 +274,7 @@ struct ip_vs_conn *ip_vs_ct_in_get
  *	d_addr, d_port: pkt dest address (foreign host)
  */
 struct ip_vs_conn *ip_vs_conn_out_get
-(int protocol, __u32 s_addr, __u16 s_port, __u32 d_addr, __u16 d_port)
+(int protocol, __be32 s_addr, __be16 s_port, __be32 d_addr, __be16 d_port)
 {
 	unsigned hash;
 	struct ip_vs_conn *cp, *ret=NULL;
@@ -324,7 +324,7 @@ void ip_vs_conn_put(struct ip_vs_conn *cp)
 /*
  *	Fill a no_client_port connection with a client port number
  */
-void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __u16 cport)
+void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport)
 {
 	if (ip_vs_conn_unhash(cp)) {
 		spin_lock(&cp->lock);
@@ -508,10 +508,10 @@ int ip_vs_check_template(struct ip_vs_conn *ct)
 		/*
 		 * Invalidate the connection template
 		 */
-		if (ct->vport != 65535) {
+		if (ct->vport != htons(0xffff)) {
 			if (ip_vs_conn_unhash(ct)) {
-				ct->dport = 65535;
-				ct->vport = 65535;
+				ct->dport = htons(0xffff);
+				ct->vport = htons(0xffff);
 				ct->cport = 0;
 				ip_vs_conn_hash(ct);
 			}
@@ -596,8 +596,8 @@ void ip_vs_conn_expire_now(struct ip_vs_conn *cp)
  *	Create a new connection entry and hash it into the ip_vs_conn_tab
  */
 struct ip_vs_conn *
-ip_vs_conn_new(int proto, __u32 caddr, __u16 cport, __u32 vaddr, __u16 vport,
-	       __u32 daddr, __u16 dport, unsigned flags,
+ip_vs_conn_new(int proto, __be32 caddr, __be16 cport, __be32 vaddr, __be16 vport,
+	       __be32 daddr, __be16 dport, unsigned flags,
 	       struct ip_vs_dest *dest)
 {
 	struct ip_vs_conn *cp;

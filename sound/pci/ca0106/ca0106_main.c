@@ -1058,8 +1058,7 @@ static int snd_ca0106_dev_free(struct snd_device *device)
 	return snd_ca0106_free(chip);
 }
 
-static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id,
-					  struct pt_regs *regs)
+static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id)
 {
 	unsigned int status;
 

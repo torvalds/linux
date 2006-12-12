@@ -136,7 +136,7 @@ config MTDRAM_ABS_POS
 
 config MTD_BLOCK2MTD
 	tristate "MTD using block device"
-	depends on MTD
+	depends on MTD && BLOCK
 	help
 	  This driver allows a block device to appear as an MTD. It would
 	  generally be used in the following cases:

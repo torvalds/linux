@@ -6,7 +6,6 @@
 #ifndef __MCONSOLE_KERN_H__
 #define __MCONSOLE_KERN_H__
 
-#include "linux/config.h"
 #include "linux/list.h"
 #include "mconsole.h"
 
@@ -15,6 +14,7 @@ struct mconsole_entry {
 	struct mc_request request;
 };
 
+/* All these methods are called in process context. */
 struct mc_device {
 	struct list_head list;
 	char *name;

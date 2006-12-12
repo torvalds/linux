@@ -59,7 +59,7 @@
 #define LCCR3_INVALID_CONFIG_MASK (LCCR3_HSP|LCCR3_VSP|LCCR3_PCD|LCCR3_BPP)
 
 static void (*pxafb_backlight_power)(int);
-static void (*pxafb_lcd_power)(int);
+static void (*pxafb_lcd_power)(int, struct fb_var_screeninfo *);
 
 static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *);
 static void set_ctrlr_state(struct pxafb_info *fbi, u_int state);
@@ -214,6 +214,48 @@ extern unsigned int get_clk_frequency_khz(int info);
 #endif
 
 /*
+ * Select the smallest mode that allows the desired resolution to be
+ * displayed. If desired parameters can be rounded up.
+ */
+static struct pxafb_mode_info *pxafb_getmode(struct pxafb_mach_info *mach, struct fb_var_screeninfo *var)
+{
+	struct pxafb_mode_info *mode = NULL;
+	struct pxafb_mode_info *modelist = mach->modes;
+	unsigned int best_x = 0xffffffff, best_y = 0xffffffff;
+	unsigned int i;
+
+	for (i = 0 ; i < mach->num_modes ; i++) {
+		if (modelist[i].xres >= var->xres && modelist[i].yres >= var->yres &&
+				modelist[i].xres < best_x && modelist[i].yres < best_y &&
+				modelist[i].bpp >= var->bits_per_pixel ) {
+			best_x = modelist[i].xres;
+			best_y = modelist[i].yres;
+			mode = &modelist[i];
+		}
+	}
+
+	return mode;
+}
+
+static void pxafb_setmode(struct fb_var_screeninfo *var, struct pxafb_mode_info *mode)
+{
+	var->xres		= mode->xres;
+	var->yres		= mode->yres;
+	var->bits_per_pixel	= mode->bpp;
+	var->pixclock		= mode->pixclock;
+	var->hsync_len		= mode->hsync_len;
+	var->left_margin	= mode->left_margin;
+	var->right_margin	= mode->right_margin;
+	var->vsync_len		= mode->vsync_len;
+	var->upper_margin	= mode->upper_margin;
+	var->lower_margin	= mode->lower_margin;
+	var->sync		= mode->sync;
+	var->grayscale		= mode->cmap_greyscale;
+	var->xres_virtual 	= var->xres;
+	var->yres_virtual	= var->yres;
+}
+
+/*
  *  pxafb_check_var():
  *    Get the video params out of 'var'. If a value doesn't fit, round it up,
  *    if it's too big, return -EINVAL.
@@ -225,15 +267,29 @@ extern unsigned int get_clk_frequency_khz(int info);
 static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct pxafb_info *fbi = (struct pxafb_info *)info;
+	struct pxafb_mach_info *inf = fbi->dev->platform_data;
 
 	if (var->xres < MIN_XRES)
 		var->xres = MIN_XRES;
 	if (var->yres < MIN_YRES)
 		var->yres = MIN_YRES;
-	if (var->xres > fbi->max_xres)
-		return -EINVAL;
-	if (var->yres > fbi->max_yres)
-		return -EINVAL;
+
+	if (inf->fixed_modes) {
+		struct pxafb_mode_info *mode;
+
+		mode = pxafb_getmode(inf, var);
+		if (!mode)
+			return -EINVAL;
+		pxafb_setmode(var, mode);
+	} else {
+		if (var->xres > inf->modes->xres)
+			return -EINVAL;
+		if (var->yres > inf->modes->yres)
+			return -EINVAL;
+		if (var->bits_per_pixel > inf->modes->bpp)
+			return -EINVAL;
+	}
+
 	var->xres_virtual =
 		max(var->xres_virtual, var->xres);
 	var->yres_virtual =
@@ -693,7 +749,7 @@ static inline void __pxafb_lcd_power(struct pxafb_info *fbi, int on)
 	pr_debug("pxafb: LCD power o%s\n", on ? "n" : "ff");
 
 	if (pxafb_lcd_power)
-		pxafb_lcd_power(on);
+		pxafb_lcd_power(on, &fbi->fb.var);
 }
 
 static void pxafb_setup_gpio(struct pxafb_info *fbi)
@@ -790,7 +846,7 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 /*
  *  pxafb_handle_irq: Handle 'LCD DONE' interrupts.
  */
-static irqreturn_t pxafb_handle_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pxafb_handle_irq(int irq, void *dev_id)
 {
 	struct pxafb_info *fbi = dev_id;
 	unsigned int lcsr = LCSR;
@@ -869,9 +925,11 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 		 * registers.
 		 */
 		if (old_state == C_ENABLE) {
+			__pxafb_lcd_power(fbi, 0);
 			pxafb_disable_controller(fbi);
 			pxafb_setup_gpio(fbi);
 			pxafb_enable_controller(fbi);
+			__pxafb_lcd_power(fbi, 1);
 		}
 		break;
 
@@ -906,9 +964,10 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
  * Our LCD controller task (which is called when we blank or unblank)
  * via keventd.
  */
-static void pxafb_task(void *dummy)
+static void pxafb_task(struct work_struct *work)
 {
-	struct pxafb_info *fbi = dummy;
+	struct pxafb_info *fbi =
+		container_of(work, struct pxafb_info, task);
 	u_int state = xchg(&fbi->task_state, -1);
 
 	set_ctrlr_state(fbi, state);
@@ -1049,6 +1108,8 @@ static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
 	struct pxafb_info *fbi;
 	void *addr;
 	struct pxafb_mach_info *inf = dev->platform_data;
+	struct pxafb_mode_info *mode = inf->modes;
+	int i, smemlen;
 
 	/* Alloc the pxafb_info and pseudo_palette in one step */
 	fbi = kmalloc(sizeof(struct pxafb_info) + sizeof(u32) * 16, GFP_KERNEL);
@@ -1082,34 +1143,24 @@ static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
 	addr = addr + sizeof(struct pxafb_info);
 	fbi->fb.pseudo_palette	= addr;
 
-	fbi->max_xres			= inf->xres;
-	fbi->fb.var.xres		= inf->xres;
-	fbi->fb.var.xres_virtual	= inf->xres;
-	fbi->max_yres			= inf->yres;
-	fbi->fb.var.yres		= inf->yres;
-	fbi->fb.var.yres_virtual	= inf->yres;
-	fbi->max_bpp			= inf->bpp;
-	fbi->fb.var.bits_per_pixel	= inf->bpp;
-	fbi->fb.var.pixclock		= inf->pixclock;
-	fbi->fb.var.hsync_len		= inf->hsync_len;
-	fbi->fb.var.left_margin		= inf->left_margin;
-	fbi->fb.var.right_margin	= inf->right_margin;
-	fbi->fb.var.vsync_len		= inf->vsync_len;
-	fbi->fb.var.upper_margin	= inf->upper_margin;
-	fbi->fb.var.lower_margin	= inf->lower_margin;
-	fbi->fb.var.sync		= inf->sync;
-	fbi->fb.var.grayscale		= inf->cmap_greyscale;
+	pxafb_setmode(&fbi->fb.var, mode);
+
 	fbi->cmap_inverse		= inf->cmap_inverse;
 	fbi->cmap_static		= inf->cmap_static;
+
 	fbi->lccr0			= inf->lccr0;
 	fbi->lccr3			= inf->lccr3;
 	fbi->state			= C_STARTUP;
 	fbi->task_state			= (u_char)-1;
-	fbi->fb.fix.smem_len		= fbi->max_xres * fbi->max_yres *
-					  fbi->max_bpp / 8;
+
+	for (i = 0; i < inf->num_modes; i++) {
+		smemlen = mode[i].xres * mode[i].yres * mode[i].bpp / 8;
+		if (smemlen > fbi->fb.fix.smem_len)
+			fbi->fb.fix.smem_len = smemlen;
+	}
 
 	init_waitqueue_head(&fbi->ctrlr_wait);
-	INIT_WORK(&fbi->task, pxafb_task, fbi);
+	INIT_WORK(&fbi->task, pxafb_task);
 	init_MUTEX(&fbi->ctrlr_sem);
 
 	return fbi;
@@ -1307,12 +1358,12 @@ int __init pxafb_probe(struct platform_device *dev)
 	    (inf->lccr0 & LCCR0_SDS) == LCCR0_Dual)
                 dev_warn(&dev->dev, "Dual panel only valid in passive mode\n");
         if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Pas &&
-             (inf->upper_margin || inf->lower_margin))
+             (inf->modes->upper_margin || inf->modes->lower_margin))
                 dev_warn(&dev->dev, "Upper and lower margins must be 0 in passive mode\n");
 #endif
 
-	dev_dbg(&dev->dev, "got a %dx%dx%d LCD\n",inf->xres, inf->yres, inf->bpp);
-	if (inf->xres == 0 || inf->yres == 0 || inf->bpp == 0) {
+	dev_dbg(&dev->dev, "got a %dx%dx%d LCD\n",inf->modes->xres, inf->modes->yres, inf->modes->bpp);
+	if (inf->modes->xres == 0 || inf->modes->yres == 0 || inf->modes->bpp == 0) {
 		dev_err(&dev->dev, "Invalid resolution or bit depth\n");
 		ret = -EINVAL;
 		goto failed;

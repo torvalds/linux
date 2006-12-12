@@ -4,7 +4,7 @@ Introduction
 -------------------------
 The aacraid driver adds support for Adaptec (http://www.adaptec.com)
 RAID controllers. This is a major rewrite from the original
-Adaptec supplied driver. It has signficantly cleaned up both the code
+Adaptec supplied driver. It has significantly cleaned up both the code
 and the running binary size (the module is less than half the size of
 the original).
 

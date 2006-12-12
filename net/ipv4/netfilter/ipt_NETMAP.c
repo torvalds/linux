@@ -15,7 +15,11 @@
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
+#ifdef CONFIG_NF_NAT_NEEDED
+#include <net/netfilter/nf_nat_rule.h>
+#else
 #include <linux/netfilter_ipv4/ip_nat_rule.h>
+#endif
 
 #define MODULENAME "NETMAP"
 MODULE_LICENSE("GPL");
@@ -58,7 +62,7 @@ target(struct sk_buff **pskb,
 {
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
-	u_int32_t new_ip, netmask;
+	__be32 new_ip, netmask;
 	const struct ip_nat_multi_range_compat *mr = targinfo;
 	struct ip_nat_range newrange;
 

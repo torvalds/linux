@@ -84,7 +84,7 @@ FILES
    /ibox
        The  second  SPU  to CPU communication mailbox. This file is similar to
        the first mailbox file, but can be read in blocking I/O mode,  and  the
-       poll  familiy of system calls can be used to wait for it.  The possible
+       poll  family of system calls can be used to wait for it.  The  possible
        operations on an open ibox file are:
 
        read(2)
@@ -105,7 +105,7 @@ FILES
 
 
    /wbox
-       The CPU to SPU communation mailbox. It is write-only can can be written
+       The CPU to SPU communation mailbox. It is write-only and can be written
        in  units  of  32  bits. If the mailbox is full, write() will block and
        poll can be used to wait for it becoming  empty  again.   The  possible
        operations  on  an open wbox file are: write(2) If a count smaller than
@@ -210,7 +210,7 @@ FILES
    /signal2
        The two signal notification channels of an SPU.  These  are  read-write
        files  that  operate  on  a 32 bit word.  Writing to one of these files
-       triggers an interrupt on the SPU. The  value  writting  to  the  signal
+       triggers an interrupt on the SPU.  The  value  written  to  the  signal
        files can be read from the SPU through a channel read or from host user
        space through the file.  After the value has been read by the  SPU,  it
        is  reset  to zero.  The possible operations on an open signal1 or sig-
@@ -359,7 +359,7 @@ ERRORS
        EFAULT npc is not a valid pointer or status is neither NULL nor a valid
               pointer.
 
-       EINTR  A signal occured while spu_run was in progress.  The  npc  value
+       EINTR  A signal occurred while spu_run was in progress.  The npc  value
               has  been updated to the new program counter value if necessary.
 
        EINVAL fd is not a file descriptor returned from spu_create(2).

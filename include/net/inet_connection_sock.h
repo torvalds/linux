@@ -18,6 +18,7 @@
 #include <linux/compiler.h>
 #include <linux/string.h>
 #include <linux/timer.h>
+#include <linux/poll.h>
 
 #include <net/inet_sock.h>
 #include <net/request_sock.h>
@@ -36,7 +37,8 @@ struct tcp_congestion_ops;
  * (i.e. things that depend on the address family)
  */
 struct inet_connection_sock_af_ops {
-	int	    (*queue_xmit)(struct sk_buff *skb, int ipfragok);
+	int	    (*queue_xmit)(struct sk_buff *skb, struct sock *sk,
+				  int ipfragok);
 	void	    (*send_check)(struct sock *sk, int len,
 				  struct sk_buff *skb);
 	int	    (*rebuild_header)(struct sock *sk);
@@ -45,7 +47,8 @@ struct inet_connection_sock_af_ops {
 				      struct request_sock *req,
 				      struct dst_entry *dst);
 	int	    (*remember_stamp)(struct sock *sk);
-	__u16	    net_header_len;
+	u16	    net_header_len;
+	u16	    sockaddr_len;
 	int	    (*setsockopt)(struct sock *sk, int level, int optname, 
 				  char __user *optval, int optlen);
 	int	    (*getsockopt)(struct sock *sk, int level, int optname, 
@@ -57,7 +60,6 @@ struct inet_connection_sock_af_ops {
 				int level, int optname,
 				char __user *optval, int __user *optlen);
 	void	    (*addr2sockaddr)(struct sock *sk, struct sockaddr *);
-	int sockaddr_len;
 };
 
 /** inet_connection_sock - INET connection oriented sock
@@ -238,9 +240,9 @@ extern struct sock *inet_csk_accept(struct sock *sk, int flags, int *err);
 
 extern struct request_sock *inet_csk_search_req(const struct sock *sk,
 						struct request_sock ***prevp,
-						const __u16 rport,
-						const __u32 raddr,
-						const __u32 laddr);
+						const __be16 rport,
+						const __be32 raddr,
+						const __be32 laddr);
 extern int inet_csk_bind_conflict(const struct sock *sk,
 				  const struct inet_bind_bucket *tb);
 extern int inet_csk_get_port(struct inet_hashinfo *hashinfo,

@@ -229,7 +229,7 @@
 
    In a second step of the driver development, the following improvement has
    been applied: The first approach limited the number of devices to 7, far
-   fewer than the 15 that it could usem then it just maped ldn -> 
+   fewer than the 15 that it could use, then it just mapped ldn -> 
    (ldn/8,ldn%8) for pun,lun.  We ended up with a real mishmash of puns
    and luns, but it all seemed to work.
 
@@ -254,12 +254,12 @@
    device to be existant, but it has no ldn assigned, it gets a ldn out of 7 
    to 14. The numbers are assigned in cyclic order. Therefore it takes 8 
    dynamical reassignments on the SCSI-devices, until a certain device 
-   loses its ldn again. This assures, that dynamical remapping is avoided 
+   loses its ldn again. This assures that dynamical remapping is avoided 
    during intense I/O between up to 15 SCSI-devices (means pun,lun 
-   combinations). A further advantage of this method is, that people who
+   combinations). A further advantage of this method is that people who
    build their kernel without probing on all luns will get what they expect,
    because the driver just won't assign everything with lun>0 when 
-   multpile lun probing is inactive.
+   multiple lun probing is inactive.
  
    2.4 SCSI-Device Order
    ---------------------
@@ -309,9 +309,9 @@
    2.6 Abort & Reset Commands
    --------------------------
    These are implemented with busy waiting for interrupt to arrive.
-   ibmmca_reset() and ibmmca_abort() do not work sufficently well
-   up to now and need still a lot of development work. But, this seems
-   to be even a problem with other SCSI-low level drivers, too. However,
+   ibmmca_reset() and ibmmca_abort() do not work sufficiently well
+   up to now and need still a lot of development work. This seems
+   to be a problem with other low-level SCSI drivers too, however
    this should be no excuse.
 
    2.7 Disk Geometry
@@ -461,7 +461,7 @@
       This needs the RD-Bit to be disabled on IM_OTHER_SCSI_CMD_CMD which 
       allows data to be written from the system to the device. It is a
       necessary step to be allowed to set blocksize of SCSI-tape-drives and 
-      the tape-speed, whithout confusing the SCSI-Subsystem.
+      the tape-speed, without confusing the SCSI-Subsystem.
    2) The recognition of a tape is included in the check_devices routine.
       This is done by checking for TYPE_TAPE, that is already defined in
       the kernel-scsi-environment. The markup of a tape is done in the 
@@ -684,8 +684,8 @@
       not like sending commands to non-existing SCSI-devices and will react
       with a command error as a sign of protest. While this error is not
       present on IBM SCSI Adapter w/cache, it appears on IBM Integrated SCSI
-      Adapters. Therefore, I implemented a workarround to forgive those 
-      adapters their protests, but it is marked up in the statisctis, so
+      Adapters. Therefore, I implemented a workaround to forgive those 
+      adapters their protests, but it is marked up in the statistics, so
       after a successful boot, you can see in /proc/scsi/ibmmca/<host_number>
       how often the command errors have been forgiven to the SCSI-subsystem.
       If the number is bigger than 0, you have a SCSI subsystem of older
@@ -710,8 +710,8 @@
       of troubles with some controllers and after I wanted to apply some
       extensions, it jumped out in the same situation, on my w/cache, as like 
       on D. Weinehalls' Model 56, having integrated SCSI. This gave me the 
-      descissive hint to move the code-part out and declare it global. Now,
-      it seems to work by far much better an more stable. Let us see, what
+      decisive hint to move the code-part out and declare it global. Now
+      it seems to work far better and more stable. Let us see what
       the world thinks of it...
    3) By the way, only Sony DAT-drives seem to show density code 0x13. A
       test with a HP drive gave right results, so the problem is vendor-
@@ -778,15 +778,15 @@
 	 not accept this, as they stick quite near to ANSI-SCSI and report
 	 a COMMAND_ERROR message which causes the driver to panic. The main
 	 problem was located around the INQUIRY command. Now, for all the
-	 mentioned commands, the buffersize, sent to the adapter is at 
+	 mentioned commands, the buffersize sent to the adapter is at 
 	 maximum 255 which seems to be a quite reasonable solution. 
-	 TEST_UNIT_READY gets a buffersize of 0 to make sure, that no 
+	 TEST_UNIT_READY gets a buffersize of 0 to make sure that no 
 	 data is transferred in order to avoid any possible command failure.
-      2) On unsuccessful TEST_UNIT_READY, the midlevel-driver has to send
-         a REQUEST_SENSE in order to see, where the problem is located. This
+      2) On unsuccessful TEST_UNIT_READY, the mid-level driver has to send
+         a REQUEST_SENSE in order to see where the problem is located. This
 	 REQUEST_SENSE may have various length in its answer-buffer. IBM
-	 SCSI-subsystems report a command failure, if the returned buffersize
-	 is different from the sent buffersize, but this can be supressed by
+	 SCSI-subsystems report a command failure if the returned buffersize
+	 is different from the sent buffersize, but this can be suppressed by
 	 a special bit, which is now done and problems seem to be solved.
    2) Code adaption to all kernel-releases. Now, the 3.2 code compiles on 
       2.0.x, 2.1.x, 2.2.x and 2.3.x kernel releases without any code-changes.
@@ -822,10 +822,10 @@
    A long period of collecting bugreports from all corners of the world
    now lead to the following corrections to the code:
    1) SCSI-2 F/W support crashed with a COMMAND ERROR. The reason for this 
-      was, that it is possible to disbale Fast-SCSI for the external bus.
-      The feature-control command, where this crash appeared regularly tried
+      was that it is possible to disable Fast-SCSI for the external bus.
+      The feature-control command, where this crash appeared regularly, tried
       to set the maximum speed of 10MHz synchronous transfer speed and that
-      reports a COMMAND ERROR, if external bus Fast-SCSI is disabled. Now,
+      reports a COMMAND ERROR if external bus Fast-SCSI is disabled. Now,
       the feature-command probes down from maximum speed until the adapter 
       stops to complain, which is at the same time the maximum possible
       speed selected in the reference program. So, F/W external can run at
@@ -920,7 +920,7 @@
       completed in such a way, that they are now completely conform to the
       demands in the technical description of IBM. Main candidates were the
       DEVICE_INQUIRY, REQUEST_SENSE and DEVICE_CAPACITY commands. They must
-      be tranferred by bypassing the internal command buffer of the adapter
+      be transferred by bypassing the internal command buffer of the adapter
       or else the response can be a random result. GET_POS_INFO would be more
       safe in usage, if one could use the SUPRESS_EXCEPTION_SHORT, but this
       is not allowed by the technical references of IBM. (Sorry, folks, the
@@ -1086,7 +1086,7 @@
    
      Q: "Reset SCSI-devices at boottime" halts the system at boottime, why?
      A: This is only tested with the IBM SCSI Adapter w/cache. It is not
-        yet prooved to run on other adapters, however you may be lucky.
+        yet proven to run on other adapters, however you may be lucky.
 	In version 3.1d this has been hugely improved and should work better,
 	now. Normally you really won't need to activate this flag in the
 	kernel configuration, as all post 1989 SCSI-devices should accept
@@ -1104,7 +1104,7 @@
 	The parameter 'normal' sets the new industry standard, starting
 	from pun 0, scanning up to pun 6. This allows you to change your 
 	opinion still after having already compiled the kernel.
-     Q: Why I cannot find the IBM MCA SCSI support in the config menue?
+     Q: Why can't I find IBM MCA SCSI support in the config menu?
      A: You have to activate MCA bus support, first.
      Q: Where can I find the latest info about this driver?
      A: See the file MAINTAINERS for the current WWW-address, which offers
@@ -1156,7 +1156,7 @@
         Guide) what has to be done for reset, we still share the bad shape of
 	the reset functions with all other low level SCSI-drivers. 
 	Astonishingly, reset works in most cases quite ok, but the harddisks
-	won't run in synchonous mode anymore after a reset, until you reboot.
+	won't run in synchronous mode anymore after a reset, until you reboot.
      Q: Why does my XXX w/Cache adapter not use read-prefetch?
      A: Ok, that is not completely possible. If a cache is present, the 
         adapter tries to use it internally. Explicitly, one can use the cache

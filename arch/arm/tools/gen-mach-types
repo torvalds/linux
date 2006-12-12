@@ -28,7 +28,6 @@ END	{
 	  printf(" */\n\n");
 	  printf("#ifndef __ASM_ARM_MACH_TYPE_H\n");
 	  printf("#define __ASM_ARM_MACH_TYPE_H\n\n");
-	  printf("#include <linux/config.h>\n\n");
 	  printf("#ifndef __ASSEMBLY__\n");
 	  printf("/* The type of machine we're running on */\n");
 	  printf("extern unsigned int __machine_arch_type;\n");

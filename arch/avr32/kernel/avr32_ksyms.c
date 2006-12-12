@@ -7,11 +7,12 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/module.h>
 
 #include <asm/checksum.h>
 #include <asm/uaccess.h>
-#include <asm/delay.h>
 
 /*
  * GCC functions
@@ -53,3 +54,11 @@ EXPORT_SYMBOL(find_next_zero_bit);
 EXPORT_SYMBOL(find_first_bit);
 EXPORT_SYMBOL(find_next_bit);
 EXPORT_SYMBOL(generic_find_next_zero_le_bit);
+
+/* I/O primitives (lib/io-*.S) */
+EXPORT_SYMBOL(__raw_readsb);
+EXPORT_SYMBOL(__raw_readsw);
+EXPORT_SYMBOL(__raw_readsl);
+EXPORT_SYMBOL(__raw_writesb);
+EXPORT_SYMBOL(__raw_writesw);
+EXPORT_SYMBOL(__raw_writesl);

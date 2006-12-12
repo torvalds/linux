@@ -24,8 +24,8 @@ The SA1100 serial port had its major/minor numbers officially assigned:
 >                   7 = /dev/cusa2                Callout device for ttySA2
 >
 
-If you're not using devfs, you must create those inodes in /dev
-on the root filesystem used by your SA1100-based device:
+You must create those inodes in /dev on the root filesystem used
+by your SA1100-based device:
 
 	mknod ttySA0 c 204 5
 	mknod ttySA1 c 204 6

@@ -46,6 +46,7 @@
 #include <asm/pgtable.h>
 #include <asm/pcic.h>
 #include <asm/cacheflush.h>
+#include <asm/irq_regs.h>
 
 #ifdef CONFIG_SMP
 #define SMP_NOP2 "nop; nop;\n\t"
@@ -133,8 +134,8 @@ static void irq_panic(void)
     prom_halt();
 }
 
-void (*sparc_init_timers)(irqreturn_t (*)(int, void *,struct pt_regs *)) =
-    (void (*)(irqreturn_t (*)(int, void *,struct pt_regs *))) irq_panic;
+void (*sparc_init_timers)(irq_handler_t ) =
+    (void (*)(irq_handler_t )) irq_panic;
 
 /*
  * Dave Redman (djhr@tadpole.co.uk)
@@ -319,12 +320,14 @@ void unexpected_irq(int irq, void *dev_id, struct pt_regs * regs)
 
 void handler_irq(int irq, struct pt_regs * regs)
 {
+	struct pt_regs *old_regs;
 	struct irqaction * action;
 	int cpu = smp_processor_id();
 #ifdef CONFIG_SMP
 	extern void smp4m_irq_rotate(int cpu);
 #endif
 
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 	disable_pil_irq(irq);
 #ifdef CONFIG_SMP
@@ -338,27 +341,31 @@ void handler_irq(int irq, struct pt_regs * regs)
 	do {
 		if (!action || !action->handler)
 			unexpected_irq(irq, NULL, regs);
-		action->handler(irq, action->dev_id, regs);
+		action->handler(irq, action->dev_id);
 		action = action->next;
 	} while (action);
 	sparc_irq[irq].flags &= ~SPARC_IRQ_INPROGRESS;
 	enable_pil_irq(irq);
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 #ifdef CONFIG_BLK_DEV_FD
-extern void floppy_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+extern void floppy_interrupt(int irq, void *dev_id);
 
 void sparc_floppy_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
+	struct pt_regs *old_regs;
 	int cpu = smp_processor_id();
 
+	old_regs = set_irq_regs(regs);
 	disable_pil_irq(irq);
 	irq_enter();
 	kstat_cpu(cpu).irqs[irq]++;
-	floppy_interrupt(irq, dev_id, regs);
+	floppy_interrupt(irq, dev_id);
 	irq_exit();
 	enable_pil_irq(irq);
+	set_irq_regs(old_regs);
 	// XXX Eek, it's totally changed with preempt_count() and such
 	// if (softirq_pending(cpu))
 	//	do_softirq();
@@ -369,7 +376,7 @@ void sparc_floppy_irq(int irq, void *dev_id, struct pt_regs *regs)
  * thus no sharing possible.
  */
 int request_fast_irq(unsigned int irq,
-		     irqreturn_t (*handler)(int, void *, struct pt_regs *),
+		     irq_handler_t handler,
 		     unsigned long irqflags, const char *devname)
 {
 	struct irqaction *action;
@@ -468,7 +475,7 @@ out:
 }
 
 int request_irq(unsigned int irq,
-		irqreturn_t (*handler)(int, void *, struct pt_regs *),
+		irq_handler_t handler,
 		unsigned long irqflags, const char * devname, void *dev_id)
 {
 	struct irqaction * action, **actionp;
@@ -478,7 +485,7 @@ int request_irq(unsigned int irq,
 	
 	if (sparc_cpu_model == sun4d) {
 		extern int sun4d_request_irq(unsigned int, 
-					     irqreturn_t (*)(int, void *, struct pt_regs *),
+					     irq_handler_t ,
 					     unsigned long, const char *, void *);
 		return sun4d_request_irq(irq, handler, irqflags, devname, dev_id);
 	}

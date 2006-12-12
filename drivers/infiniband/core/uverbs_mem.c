@@ -179,9 +179,10 @@ void ib_umem_release(struct ib_device *dev, struct ib_umem *umem)
 	up_write(&current->mm->mmap_sem);
 }
 
-static void ib_umem_account(void *work_ptr)
+static void ib_umem_account(struct work_struct *_work)
 {
-	struct ib_umem_account_work *work = work_ptr;
+	struct ib_umem_account_work *work =
+		container_of(_work, struct ib_umem_account_work, work);
 
 	down_write(&work->mm->mmap_sem);
 	work->mm->locked_vm -= work->diff;
@@ -216,7 +217,7 @@ void ib_umem_release_on_close(struct ib_device *dev, struct ib_umem *umem)
 		return;
 	}
 
-	INIT_WORK(&work->work, ib_umem_account, work);
+	INIT_WORK(&work->work, ib_umem_account);
 	work->mm   = mm;
 	work->diff = PAGE_ALIGN(umem->length + umem->offset) >> PAGE_SHIFT;
 

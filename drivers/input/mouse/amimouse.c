@@ -36,7 +36,7 @@ MODULE_LICENSE("GPL");
 static int amimouse_lastx, amimouse_lasty;
 static struct input_dev *amimouse_dev;
 
-static irqreturn_t amimouse_interrupt(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t amimouse_interrupt(int irq, void *dummy)
 {
 	unsigned short joy0dat, potgor;
 	int nx, ny, dx, dy;
@@ -58,8 +58,6 @@ static irqreturn_t amimouse_interrupt(int irq, void *dummy, struct pt_regs *fp)
 	amimouse_lasty = ny;
 
 	potgor = amiga_custom.potgor;
-
-	input_regs(amimouse_dev, fp);
 
 	input_report_rel(amimouse_dev, REL_X, dx);
 	input_report_rel(amimouse_dev, REL_Y, dy);
@@ -97,10 +95,13 @@ static void amimouse_close(struct input_dev *dev)
 
 static int __init amimouse_init(void)
 {
+	int err;
+
 	if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(AMI_MOUSE))
 		return -ENODEV;
 
-	if (!(amimouse_dev = input_allocate_device()))
+	amimouse_dev = input_allocate_device();
+	if (!amimouse_dev)
 		return -ENOMEM;
 
 	amimouse_dev->name = "Amiga mouse";
@@ -116,7 +117,11 @@ static int __init amimouse_init(void)
 	amimouse_dev->open = amimouse_open;
 	amimouse_dev->close = amimouse_close;
 
-	input_register_device(amimouse_dev);
+	err = input_register_device(amimouse_dev);
+	if (err) {
+		input_free_device(amimouse_dev);
+		return err;
+	}
 
 	return 0;
 }

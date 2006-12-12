@@ -153,10 +153,10 @@ add:
 
 If the thread is needed for writing the image to storage, you should
 instead set the PF_NOFREEZE process flag when creating the thread (and
-be very carefull).
+be very careful).
 
 
-Q: What is the difference between between "platform", "shutdown" and
+Q: What is the difference between "platform", "shutdown" and
 "firmware" in /sys/power/disk?
 
 A:
@@ -175,8 +175,8 @@ reliable.
 Q: I do not understand why you have such strong objections to idea of
 selective suspend.
 
-A: Do selective suspend during runtime power managment, that's okay. But
-its useless for suspend-to-disk. (And I do not see how you could use
+A: Do selective suspend during runtime power management, that's okay. But
+it's useless for suspend-to-disk. (And I do not see how you could use
 it for suspend-to-ram, I hope you do not want that).
 
 Lets see, so you suggest to
@@ -211,7 +211,7 @@ slowness may not matter to you. It can always be fixed later.
 For devices like disk it does matter, you do not want to spindown for
 FREEZE.
 
-Q: After resuming, system is paging heavilly, leading to very bad interactivity.
+Q: After resuming, system is paging heavily, leading to very bad interactivity.
 
 A: Try running
 
@@ -297,20 +297,12 @@ system is shut down or suspended. Additionally use the encrypted
 suspend image to prevent sensitive data from being stolen after
 resume.
 
-Q: Why can't we suspend to a swap file?
+Q: Can I suspend to a swap file?
 
-A: Because accessing swap file needs the filesystem mounted, and
-filesystem might do something wrong (like replaying the journal)
-during mount.
-
-There are few ways to get that fixed:
-
-1) Probably could be solved by modifying every filesystem to support
-some kind of "really read-only!" option. Patches welcome.
-
-2) suspend2 gets around that by storing absolute positions in on-disk
-image (and blocksize), with resume parameter pointing directly to
-suspend header.
+A: Generally, yes, you can.  However, it requires you to use the "resume=" and
+"resume_offset=" kernel command line parameters, so the resume from a swap file
+cannot be initiated from an initrd or initramfs image.  See
+swsusp-and-swap-files.txt for details.
 
 Q: Is there a maximum system RAM size that is supported by swsusp?
 

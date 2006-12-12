@@ -34,8 +34,7 @@ extern void cpu_die(void);
 #ifdef CONFIG_SMP
 
 extern void smp_send_debugger_break(int cpu);
-struct pt_regs;
-extern void smp_message_recv(int, struct pt_regs *);
+extern void smp_message_recv(int);
 
 #ifdef CONFIG_HOTPLUG_CPU
 extern void fixup_irqs(cpumask_t map);

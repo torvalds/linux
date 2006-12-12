@@ -59,69 +59,43 @@
 		.endm
 
 #ifdef CONFIG_SMP
+#ifdef CONFIG_MIPS_MT_SMTC
+#define PTEBASE_SHIFT	19	/* TCBIND */
+#else
+#define PTEBASE_SHIFT	23	/* CONTEXT */
+#endif
 		.macro	get_saved_sp	/* SMP variation */
-#ifdef CONFIG_32BIT
 #ifdef CONFIG_MIPS_MT_SMTC
-		.set	mips32
-		mfc0	k0, CP0_TCBIND;
-		.set	mips0
-		lui	k1, %hi(kernelsp)
-		srl	k0, k0, 19
-		/* No need to shift down and up to clear bits 0-1 */
+		mfc0	k0, CP0_TCBIND
 #else
-		mfc0	k0, CP0_CONTEXT
-		lui	k1, %hi(kernelsp)
-		srl	k0, k0, 23
+		MFC0	k0, CP0_CONTEXT
 #endif
-		addu	k1, k0
-		LONG_L	k1, %lo(kernelsp)(k1)
-#endif
-#ifdef CONFIG_64BIT
-#ifdef CONFIG_MIPS_MT_SMTC
-		.set	mips64
-		mfc0	k0, CP0_TCBIND;
-		.set	mips0
-		lui	k0, %highest(kernelsp)
-		dsrl	k1, 19
-		/* No need to shift down and up to clear bits 0-2 */
+#if defined(CONFIG_BUILD_ELF64) || (defined(CONFIG_64BIT) && __GNUC__ < 4)
+		lui	k1, %highest(kernelsp)
+		daddiu	k1, %higher(kernelsp)
+		dsll	k1, 16
+		daddiu	k1, %hi(kernelsp)
+		dsll	k1, 16
 #else
-		MFC0	k1, CP0_CONTEXT
-		lui	k0, %highest(kernelsp)
-		dsrl	k1, 23
-		daddiu	k0, %higher(kernelsp)
-		dsll	k0, k0, 16
-		daddiu	k0, %hi(kernelsp)
-		dsll	k0, k0, 16
-#endif /* CONFIG_MIPS_MT_SMTC */
-		daddu	k1, k1, k0
+		lui	k1, %hi(kernelsp)
+#endif
+		LONG_SRL	k0, PTEBASE_SHIFT
+		LONG_ADDU	k1, k0
 		LONG_L	k1, %lo(kernelsp)(k1)
-#endif /* CONFIG_64BIT */
 		.endm
 
 		.macro	set_saved_sp stackp temp temp2
-#ifdef CONFIG_32BIT
 #ifdef CONFIG_MIPS_MT_SMTC
 		mfc0	\temp, CP0_TCBIND
-		srl	\temp, 19
-#else
-		mfc0	\temp, CP0_CONTEXT
-		srl	\temp, 23
-#endif
-#endif
-#ifdef CONFIG_64BIT
-#ifdef CONFIG_MIPS_MT_SMTC
-		mfc0	\temp, CP0_TCBIND
-		dsrl	\temp, 19
 #else
 		MFC0	\temp, CP0_CONTEXT
-		dsrl	\temp, 23
 #endif
-#endif
+		LONG_SRL	\temp, PTEBASE_SHIFT
 		LONG_S	\stackp, kernelsp(\temp)
 		.endm
 #else
 		.macro	get_saved_sp	/* Uniprocessor variation */
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_BUILD_ELF64) || (defined(CONFIG_64BIT) && __GNUC__ < 4)
 		lui	k1, %highest(kernelsp)
 		daddiu	k1, %higher(kernelsp)
 		dsll	k1, k1, 16

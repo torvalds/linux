@@ -176,7 +176,7 @@ static int keyspan_load_tester(struct usb_keyspan* dev, int bits_needed)
 /*
  * Routine that handles all the logic needed to parse out the message from the remote.
  */
-static void keyspan_check_data(struct usb_keyspan *remote, struct pt_regs *regs)
+static void keyspan_check_data(struct usb_keyspan *remote)
 {
 	int i;
 	int found = 0;
@@ -311,7 +311,6 @@ static void keyspan_check_data(struct usb_keyspan *remote, struct pt_regs *regs)
 			__FUNCTION__, message.system, message.button, message.toggle);
 
 		if (message.toggle != remote->toggle) {
-			input_regs(remote->input, regs);
 			input_report_key(remote->input, keyspan_key_table[message.button], 1);
 			input_report_key(remote->input, keyspan_key_table[message.button], 0);
 			input_sync(remote->input);
@@ -361,7 +360,7 @@ static int keyspan_setup(struct usb_device* dev)
 /*
  * Routine used to handle a new message that has come in.
  */
-static void keyspan_irq_recv(struct urb *urb, struct pt_regs *regs)
+static void keyspan_irq_recv(struct urb *urb)
 {
 	struct usb_keyspan *dev = urb->context;
 	int retval;
@@ -385,7 +384,7 @@ static void keyspan_irq_recv(struct urb *urb, struct pt_regs *regs)
 	if (debug)
 		keyspan_print(dev);
 
-	keyspan_check_data(dev, regs);
+	keyspan_check_data(dev);
 
 resubmit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
@@ -420,8 +419,7 @@ static struct usb_endpoint_descriptor *keyspan_get_in_endpoint(struct usb_host_i
 	for (i = 0; i < iface->desc.bNumEndpoints; ++i) {
 		endpoint = &iface->endpoint[i].desc;
 
-		if ((endpoint->bEndpointAddress & USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
+		if (usb_endpoint_is_int_in(endpoint)) {
 			/* we found our interrupt in endpoint */
 			return endpoint;
 		}
@@ -458,7 +456,7 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	remote->in_endpoint = endpoint;
 	remote->toggle = -1;	/* Set to -1 so we will always not match the toggle from the first remote message. */
 
-	remote->in_buffer = usb_buffer_alloc(udev, RECV_SIZE, SLAB_ATOMIC, &remote->in_dma);
+	remote->in_buffer = usb_buffer_alloc(udev, RECV_SIZE, GFP_ATOMIC, &remote->in_dma);
 	if (!remote->in_buffer) {
 		retval = -ENOMEM;
 		goto fail1;

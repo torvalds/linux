@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-pnx4008/platfrom.h
+ * include/asm-arm/arch-pnx4008/platform.h
  *
  * PNX4008 Base addresses - header file
  *

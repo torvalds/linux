@@ -160,8 +160,7 @@ static unsigned long omap_mpu_timer_gettimeoffset(void)
  * Latency during the interrupt is calculated using timer1.
  * Both timer0 and timer1 are counting at 6MHz (P2 6.5MHz).
  */
-static irqreturn_t omap_mpu_timer_interrupt(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t omap_mpu_timer_interrupt(int irq, void *dev_id)
 {
 	unsigned long now, latency;
 
@@ -169,7 +168,7 @@ static irqreturn_t omap_mpu_timer_interrupt(int irq, void *dev_id,
 	now = 0 - omap_mpu_timer_read(0);
 	latency = MPU_TICKS_PER_SEC / HZ - omap_mpu_timer_read(1);
 	omap_mpu_timer_last = now - latency;
-	timer_tick(regs);
+	timer_tick();
 	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
@@ -182,8 +181,7 @@ static struct irqaction omap_mpu_timer_irq = {
 };
 
 static unsigned long omap_mpu_timer1_overflows;
-static irqreturn_t omap_mpu_timer1_interrupt(int irq, void *dev_id,
-					     struct pt_regs *regs)
+static irqreturn_t omap_mpu_timer1_interrupt(int irq, void *dev_id)
 {
 	omap_mpu_timer1_overflows++;
 	return IRQ_HANDLED;

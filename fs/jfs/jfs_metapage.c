@@ -4,16 +4,16 @@
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -74,7 +74,7 @@ static inline void lock_metapage(struct metapage *mp)
 }
 
 #define METAPOOL_MIN_PAGES 32
-static kmem_cache_t *metapage_cache;
+static struct kmem_cache *metapage_cache;
 static mempool_t *metapage_mempool;
 
 #define MPS_PER_PAGE (PAGE_CACHE_SIZE >> L2PSIZE)
@@ -180,7 +180,7 @@ static inline void remove_metapage(struct page *page, struct metapage *mp)
 
 #endif
 
-static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct metapage *mp = (struct metapage *)foo;
 
@@ -257,7 +257,7 @@ static sector_t metapage_get_blocks(struct inode *inode, sector_t lblock,
 	int rc = 0;
 	int xflag;
 	s64 xaddr;
-	sector_t file_blocks = (inode->i_size + inode->i_blksize - 1) >>
+	sector_t file_blocks = (inode->i_size + inode->i_sb->s_blocksize - 1) >>
 			       inode->i_blkbits;
 
 	if (lblock >= file_blocks)
@@ -461,7 +461,7 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 				goto add_failed;
 		if (!bio->bi_size)
 			goto dump_bio;
-		
+
 		submit_bio(WRITE, bio);
 	}
 	if (redirty)
@@ -648,7 +648,7 @@ struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,
 			jfs_err("logical_size = %d, size = %d",
 				mp->logical_size, size);
 			dump_stack();
-			goto unlock; 
+			goto unlock;
 		}
 		mp->count++;
 		lock_metapage(mp);
@@ -658,7 +658,7 @@ struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,
 					  "__get_metapage: using a "
 					  "discarded metapage");
 				discard_metapage(mp);
-				goto unlock; 
+				goto unlock;
 			}
 			clear_bit(META_discard, &mp->flag);
 		}

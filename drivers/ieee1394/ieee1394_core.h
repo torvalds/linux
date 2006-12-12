@@ -1,12 +1,15 @@
-
 #ifndef _IEEE1394_CORE_H
 #define _IEEE1394_CORE_H
 
-#include <linux/slab.h>
+#include <linux/device.h>
+#include <linux/fs.h>
+#include <linux/list.h>
+#include <linux/skbuff.h>
+#include <linux/types.h>
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
-#include "hosts.h"
 
+#include "hosts.h"
+#include "ieee1394_types.h"
 
 struct hpsb_packet {
 	/* This struct is basically read-only for hosts with the exception of
@@ -58,7 +61,6 @@ struct hpsb_packet {
 	size_t header_size;
 	size_t data_size;
 
-
 	struct hpsb_host *host;
 	unsigned int generation;
 
@@ -80,7 +82,7 @@ struct hpsb_packet {
 
 /* Set a task for when a packet completes */
 void hpsb_set_packet_complete_task(struct hpsb_packet *packet,
-		void (*routine)(void *), void *data);
+				   void (*routine)(void *), void *data);
 
 static inline struct hpsb_packet *driver_packet(struct list_head *l)
 {
@@ -91,7 +93,6 @@ void abort_timedouts(unsigned long __opaque);
 
 struct hpsb_packet *hpsb_alloc_packet(size_t data_size);
 void hpsb_free_packet(struct hpsb_packet *packet);
-
 
 /*
  * Generation counter for the complete 1394 subsystem.  Generation gets
@@ -204,15 +205,19 @@ void hpsb_packet_received(struct hpsb_host *host, quadlet_t *data, size_t size,
 #define IEEE1394_MINOR_BLOCK_EXPERIMENTAL 15
 
 #define IEEE1394_CORE_DEV	  MKDEV(IEEE1394_MAJOR, 0)
-#define IEEE1394_RAW1394_DEV	  MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16)
-#define IEEE1394_VIDEO1394_DEV	  MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_VIDEO1394 * 16)
-#define IEEE1394_DV1394_DEV	  MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16)
-#define IEEE1394_EXPERIMENTAL_DEV MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_EXPERIMENTAL * 16)
+#define IEEE1394_RAW1394_DEV	  MKDEV(IEEE1394_MAJOR, \
+					IEEE1394_MINOR_BLOCK_RAW1394 * 16)
+#define IEEE1394_VIDEO1394_DEV	  MKDEV(IEEE1394_MAJOR, \
+					IEEE1394_MINOR_BLOCK_VIDEO1394 * 16)
+#define IEEE1394_DV1394_DEV	  MKDEV(IEEE1394_MAJOR, \
+					IEEE1394_MINOR_BLOCK_DV1394 * 16)
+#define IEEE1394_EXPERIMENTAL_DEV MKDEV(IEEE1394_MAJOR, \
+					IEEE1394_MINOR_BLOCK_EXPERIMENTAL * 16)
 
 /* return the index (within a minor number block) of a file */
 static inline unsigned char ieee1394_file_to_instance(struct file *file)
 {
-	return file->f_dentry->d_inode->i_cindex;
+	return file->f_path.dentry->d_inode->i_cindex;
 }
 
 extern int hpsb_disable_irm;
@@ -223,4 +228,3 @@ extern struct class hpsb_host_class;
 extern struct class *hpsb_protocol_class;
 
 #endif /* _IEEE1394_CORE_H */
-

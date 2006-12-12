@@ -1,5 +1,5 @@
 /*
- * driver/char/hw_random/omap-rng.c
+ * drivers/char/hw_random/omap-rng.c
  *
  * RNG driver for TI OMAP CPU family
  *

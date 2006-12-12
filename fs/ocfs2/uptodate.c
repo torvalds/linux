@@ -69,7 +69,7 @@ struct ocfs2_meta_cache_item {
 	sector_t	c_block;
 };
 
-static kmem_cache_t *ocfs2_uptodate_cachep = NULL;
+static struct kmem_cache *ocfs2_uptodate_cachep = NULL;
 
 void ocfs2_metadata_cache_init(struct inode *inode)
 {

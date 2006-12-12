@@ -266,7 +266,7 @@ EXPORT_SYMBOL(bt878_stop);
 /* Interrupt service routine */
 /*****************************/
 
-static irqreturn_t bt878_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t bt878_irq(int irq, void *dev_id)
 {
 	u32 stat, astat, mask;
 	int count;

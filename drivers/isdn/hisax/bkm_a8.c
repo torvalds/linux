@@ -140,7 +140,7 @@ set_ipac_active(struct IsdnCardState *cs, u_int active)
 #include "hscx_irq.c"
 
 static irqreturn_t
-bkm_interrupt_ipac(int intno, void *dev_id, struct pt_regs *regs)
+bkm_interrupt_ipac(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char ista, val, icnt = 5;

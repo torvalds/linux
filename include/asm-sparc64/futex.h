@@ -45,7 +45,7 @@ static inline int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
 		oparg = 1 << oparg;
 
-	inc_preempt_count();
+	pagefault_disable();
 
 	switch (op) {
 	case FUTEX_OP_SET:
@@ -67,7 +67,7 @@ static inline int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 		ret = -ENOSYS;
 	}
 
-	dec_preempt_count();
+	pagefault_enable();
 
 	if (!ret) {
 		switch (cmp) {
@@ -87,24 +87,22 @@ static inline int
 futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 {
 	__asm__ __volatile__(
-	"\n1:	lduwa	[%2] %%asi, %0\n"
-	"2:	casa	[%2] %%asi, %0, %1\n"
-	"3:\n"
+	"\n1:	casa	[%3] %%asi, %2, %0\n"
+	"2:\n"
 	"	.section .fixup,#alloc,#execinstr\n"
 	"	.align	4\n"
-	"4:	ba	3b\n"
-	"	 mov	%3, %0\n"
+	"3:	ba	2b\n"
+	"	 mov	%4, %0\n"
 	"	.previous\n"
 	"	.section __ex_table,\"a\"\n"
 	"	.align	4\n"
-	"	.word	1b, 4b\n"
-	"	.word	2b, 4b\n"
+	"	.word	1b, 3b\n"
 	"	.previous\n"
-	: "=&r" (oldval)
-	: "r" (newval), "r" (uaddr), "i" (-EFAULT)
+	: "=r" (newval)
+	: "0" (newval), "r" (oldval), "r" (uaddr), "i" (-EFAULT)
 	: "memory");
 
-	return oldval;
+	return newval;
 }
 
 #endif /* !(_SPARC64_FUTEX_H) */

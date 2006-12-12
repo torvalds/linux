@@ -97,7 +97,7 @@ static ahd_device_setup_t ahd_aic7901A_setup;
 static ahd_device_setup_t ahd_aic7902_setup;
 static ahd_device_setup_t ahd_aic790X_setup;
 
-struct ahd_pci_identity ahd_pci_ident_table [] =
+static struct ahd_pci_identity ahd_pci_ident_table [] =
 {
 	/* aic7901 based controllers */
 	{
@@ -109,7 +109,13 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 	{
 		ID_AHA_29320ALP,
 		ID_ALL_MASK,
-		"Adaptec 29320ALP Ultra320 SCSI adapter",
+		"Adaptec 29320ALP PCIx Ultra320 SCSI adapter",
+		ahd_aic7901_setup
+	},
+	{
+		ID_AHA_29320LPE,
+		ID_ALL_MASK,
+		"Adaptec 29320LPE PCIe Ultra320 SCSI adapter",
 		ahd_aic7901_setup
 	},
 	/* aic7901A based controllers */
@@ -201,7 +207,7 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 	}
 };
 
-const u_int ahd_num_pci_devs = ARRAY_SIZE(ahd_pci_ident_table);
+static const u_int ahd_num_pci_devs = ARRAY_SIZE(ahd_pci_ident_table);
 		
 #define	DEVCONFIG		0x40
 #define		PCIXINITPAT	0x0000E000ul
@@ -245,6 +251,7 @@ static int	ahd_check_extport(struct ahd_softc *ahd);
 static void	ahd_configure_termination(struct ahd_softc *ahd,
 					  u_int adapter_control);
 static void	ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat);
+static void	ahd_pci_intr(struct ahd_softc *ahd);
 
 struct ahd_pci_identity *
 ahd_find_pci_device(ahd_dev_softc_t pci)
@@ -757,7 +764,7 @@ static const char *pci_status_strings[] =
 	"%s: Address or Write Phase Parity Error Detected in %s.\n"
 };
 
-void
+static void
 ahd_pci_intr(struct ahd_softc *ahd)
 {
 	uint8_t		pci_status[8];

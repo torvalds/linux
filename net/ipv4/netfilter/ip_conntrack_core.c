@@ -40,9 +40,6 @@
 
 /* ip_conntrack_lock protects the main hash table, protocol/helper/expected
    registrations, conntrack timers*/
-#define ASSERT_READ_LOCK(x)
-#define ASSERT_WRITE_LOCK(x)
-
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <linux/netfilter_ipv4/ip_conntrack_protocol.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
@@ -68,8 +65,8 @@ static LIST_HEAD(helpers);
 unsigned int ip_conntrack_htable_size __read_mostly = 0;
 int ip_conntrack_max __read_mostly;
 struct list_head *ip_conntrack_hash __read_mostly;
-static kmem_cache_t *ip_conntrack_cachep __read_mostly;
-static kmem_cache_t *ip_conntrack_expect_cachep __read_mostly;
+static struct kmem_cache *ip_conntrack_cachep __read_mostly;
+static struct kmem_cache *ip_conntrack_expect_cachep __read_mostly;
 struct ip_conntrack ip_conntrack_untracked;
 unsigned int ip_ct_log_invalid __read_mostly;
 static LIST_HEAD(unconfirmed);
@@ -149,8 +146,8 @@ static unsigned int ip_conntrack_hash_rnd;
 static u_int32_t __hash_conntrack(const struct ip_conntrack_tuple *tuple,
 			    unsigned int size, unsigned int rnd)
 {
-	return (jhash_3words(tuple->src.ip,
-	                     (tuple->dst.ip ^ tuple->dst.protonum),
+	return (jhash_3words((__force u32)tuple->src.ip,
+	                     ((__force u32)tuple->dst.ip ^ tuple->dst.protonum),
 	                     (tuple->src.u.all | (tuple->dst.u.all << 16)),
 	                     rnd) % size);
 }
@@ -201,7 +198,6 @@ ip_ct_invert_tuple(struct ip_conntrack_tuple *inverse,
 /* ip_conntrack_expect helper functions */
 void ip_ct_unlink_expect(struct ip_conntrack_expect *exp)
 {
-	ASSERT_WRITE_LOCK(&ip_conntrack_lock);
 	IP_NF_ASSERT(!timer_pending(&exp->timeout));
 	list_del(&exp->list);
 	CONNTRACK_STAT_INC(expect_delete);
@@ -225,22 +221,22 @@ __ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple)
 	struct ip_conntrack_expect *i;
 	
 	list_for_each_entry(i, &ip_conntrack_expect_list, list) {
-		if (ip_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask)) {
-			atomic_inc(&i->use);
+		if (ip_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask))
 			return i;
-		}
 	}
 	return NULL;
 }
 
 /* Just find a expectation corresponding to a tuple. */
 struct ip_conntrack_expect *
-ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple)
+ip_conntrack_expect_find_get(const struct ip_conntrack_tuple *tuple)
 {
 	struct ip_conntrack_expect *i;
 	
 	read_lock_bh(&ip_conntrack_lock);
 	i = __ip_conntrack_expect_find(tuple);
+	if (i)
+		atomic_inc(&i->use);
 	read_unlock_bh(&ip_conntrack_lock);
 
 	return i;
@@ -294,7 +290,6 @@ static void
 clean_from_lists(struct ip_conntrack *ct)
 {
 	DEBUGP("clean_from_lists(%p)\n", ct);
-	ASSERT_WRITE_LOCK(&ip_conntrack_lock);
 	list_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
 	list_del(&ct->tuplehash[IP_CT_DIR_REPLY].list);
 
@@ -373,7 +368,6 @@ __ip_conntrack_find(const struct ip_conntrack_tuple *tuple,
 	struct ip_conntrack_tuple_hash *h;
 	unsigned int hash = hash_conntrack(tuple);
 
-	ASSERT_READ_LOCK(&ip_conntrack_lock);
 	list_for_each_entry(h, &ip_conntrack_hash[hash], list) {
 		if (tuplehash_to_ctrack(h) != ignored_conntrack &&
 		    ip_ct_tuple_equal(tuple, &h->tuple)) {
@@ -1169,9 +1163,9 @@ void __ip_ct_refresh_acct(struct ip_conntrack *ct,
 int ip_ct_port_tuple_to_nfattr(struct sk_buff *skb,
 			       const struct ip_conntrack_tuple *tuple)
 {
-	NFA_PUT(skb, CTA_PROTO_SRC_PORT, sizeof(u_int16_t),
+	NFA_PUT(skb, CTA_PROTO_SRC_PORT, sizeof(__be16),
 		&tuple->src.u.tcp.port);
-	NFA_PUT(skb, CTA_PROTO_DST_PORT, sizeof(u_int16_t),
+	NFA_PUT(skb, CTA_PROTO_DST_PORT, sizeof(__be16),
 		&tuple->dst.u.tcp.port);
 	return 0;
 
@@ -1186,9 +1180,9 @@ int ip_ct_port_nfattr_to_tuple(struct nfattr *tb[],
 		return -EINVAL;
 
 	t->src.u.tcp.port =
-		*(u_int16_t *)NFA_DATA(tb[CTA_PROTO_SRC_PORT-1]);
+		*(__be16 *)NFA_DATA(tb[CTA_PROTO_SRC_PORT-1]);
 	t->dst.u.tcp.port =
-		*(u_int16_t *)NFA_DATA(tb[CTA_PROTO_DST_PORT-1]);
+		*(__be16 *)NFA_DATA(tb[CTA_PROTO_DST_PORT-1]);
 
 	return 0;
 }

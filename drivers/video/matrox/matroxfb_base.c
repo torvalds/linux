@@ -198,7 +198,7 @@ static void matroxfb_crtc1_panpos(WPMINFO2) {
 	}
 }
 
-static irqreturn_t matrox_irq(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t matrox_irq(int irq, void *dev_id)
 {
 	u_int32_t status;
 	int handled = 0;
@@ -2277,10 +2277,13 @@ static void __init matroxfb_init_params(void) {
 	}
 }
 
-static void __init matrox_init(void) {
+static int __init matrox_init(void) {
+	int err;
+
 	matroxfb_init_params();
-	pci_register_driver(&matroxfb_driver);
+	err = pci_register_driver(&matroxfb_driver);
 	dev = -1;	/* accept all new devices... */
+	return err;
 }
 
 /* **************************** exit-time only **************************** */
@@ -2437,6 +2440,7 @@ static int __initdata initialized = 0;
 static int __init matroxfb_init(void)
 {
 	char *option = NULL;
+	int err = 0;
 
 	DBG(__FUNCTION__)
 
@@ -2448,11 +2452,11 @@ static int __init matroxfb_init(void)
 		return -ENXIO;
 	if (!initialized) {
 		initialized = 1;
-		matrox_init();
+		err = matrox_init();
 	}
 	hotplug = 1;
 	/* never return failure, user can hotplug matrox later... */
-	return 0;
+	return err;
 }
 
 module_init(matroxfb_init);

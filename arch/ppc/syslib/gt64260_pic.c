@@ -110,9 +110,6 @@ gt64260_init_irq(void)
  *  This function returns the lowest interrupt number of all interrupts that
  *  are currently asserted.
  *
- * Input Variable(s):
- *  struct pt_regs*	not used
- *
  * Output Variable(s):
  *  None.
  *
@@ -120,7 +117,7 @@ gt64260_init_irq(void)
  *  int	<interrupt number> or -2 (bogus interrupt)
  */
 int
-gt64260_get_irq(struct pt_regs *regs)
+gt64260_get_irq(void)
 {
 	int irq;
 	int irq_gpp;
@@ -229,7 +226,7 @@ gt64260_mask_irq(unsigned int irq)
 }
 
 static irqreturn_t
-gt64260_cpu_error_int_handler(int irq, void *dev_id, struct pt_regs *regs)
+gt64260_cpu_error_int_handler(int irq, void *dev_id)
 {
 	printk(KERN_ERR "gt64260_cpu_error_int_handler: %s 0x%08x\n",
 		"Error on CPU interface - Cause regiser",
@@ -250,7 +247,7 @@ gt64260_cpu_error_int_handler(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 static irqreturn_t
-gt64260_pci_error_int_handler(int irq, void *dev_id, struct pt_regs *regs)
+gt64260_pci_error_int_handler(int irq, void *dev_id)
 {
 	u32 val;
 	unsigned int pci_bus = (unsigned int)dev_id;

@@ -75,7 +75,7 @@
 #define AUDIT_DAEMON_CONFIG     1203    /* Daemon config change */
 
 #define AUDIT_SYSCALL		1300	/* Syscall event */
-#define AUDIT_FS_WATCH		1301	/* Filesystem watch event */
+/* #define AUDIT_FS_WATCH	1301	 * Deprecated */
 #define AUDIT_PATH		1302	/* Filename path information */
 #define AUDIT_IPC		1303	/* IPC record */
 #define AUDIT_SOCKETCALL	1304	/* sys_socketcall arguments */
@@ -88,6 +88,7 @@
 #define AUDIT_MQ_SENDRECV	1313	/* POSIX MQ send/receive record type */
 #define AUDIT_MQ_NOTIFY		1314	/* POSIX MQ notify record type */
 #define AUDIT_MQ_GETSETATTR	1315	/* POSIX MQ get/set attribute record type */
+#define AUDIT_KERNEL_OTHER	1316	/* For use by 3rd party modules */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
@@ -95,6 +96,15 @@
 #define AUDIT_MAC_POLICY_LOAD	1403	/* Policy file load */
 #define AUDIT_MAC_STATUS	1404	/* Changed enforcing,permissive,off */
 #define AUDIT_MAC_CONFIG_CHANGE	1405	/* Changes to booleans */
+#define AUDIT_MAC_UNLBL_ALLOW	1406	/* NetLabel: allow unlabeled traffic */
+#define AUDIT_MAC_CIPSOV4_ADD	1407	/* NetLabel: add CIPSOv4 DOI entry */
+#define AUDIT_MAC_CIPSOV4_DEL	1408	/* NetLabel: del CIPSOv4 DOI entry */
+#define AUDIT_MAC_MAP_ADD	1409	/* NetLabel: add LSM domain mapping */
+#define AUDIT_MAC_MAP_DEL	1410	/* NetLabel: del LSM domain mapping */
+#define AUDIT_MAC_IPSEC_ADDSA	1411	/* Add a XFRM state */
+#define AUDIT_MAC_IPSEC_DELSA	1412	/* Delete a XFRM state */
+#define AUDIT_MAC_IPSEC_ADDSPD	1413	/* Add a XFRM policy */
+#define AUDIT_MAC_IPSEC_DELSPD	1414	/* Delete a XFRM policy */
 
 #define AUDIT_FIRST_KERN_ANOM_MSG   1700
 #define AUDIT_LAST_KERN_ANOM_MSG    1799
@@ -371,6 +381,7 @@ extern void auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec *t, unsigned int *serial);
 extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 extern uid_t audit_get_loginuid(struct audit_context *ctx);
+extern void audit_log_task_context(struct audit_buffer *ab);
 extern int __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern int __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
 extern int audit_bprm(struct linux_binprm *bprm);
@@ -443,6 +454,7 @@ extern int audit_n_rules;
 #define audit_inode_update(i) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })
+#define audit_log_task_context(b) do { ; } while (0)
 #define audit_ipc_obj(i) ({ 0; })
 #define audit_ipc_set_perm(q,u,g,m) ({ 0; })
 #define audit_bprm(p) ({ 0; })

@@ -1,5 +1,5 @@
 
-configfs - Userspace-driven kernel object configuation.
+configfs - Userspace-driven kernel object configuration.
 
 Joel Becker <joel.becker@oracle.com>
 
@@ -209,7 +209,7 @@ will happen for write(2).
 
 [struct config_group]
 
-A config_item cannot live in a vaccum.  The only way one can be created
+A config_item cannot live in a vacuum.  The only way one can be created
 is via mkdir(2) on a config_group.  This will trigger creation of a
 child item.
 
@@ -254,7 +254,7 @@ using the group _init() functions on the group.
 
 Finally, when userspace calls rmdir(2) on the item or group,
 ct_group_ops->drop_item() is called.  As a config_group is also a
-config_item, it is not necessary for a seperate drop_group() method.
+config_item, it is not necessary for a separate drop_group() method.
 The subsystem must config_item_put() the reference that was initialized
 upon item allocation.  If a subsystem has no work to do, it may omit
 the ct_group_ops->drop_item() method, and configfs will call
@@ -275,7 +275,7 @@ directory is not empty.
 
 [struct configfs_subsystem]
 
-A subsystem must register itself, ususally at module_init time.  This
+A subsystem must register itself, usually at module_init time.  This
 tells configfs to make the subsystem appear in the file tree.
 
 	struct configfs_subsystem {
@@ -406,7 +406,7 @@ that condition is met.
 
 Far better would be an explicit action notifying the subsystem that the
 config_item is ready to go.  More importantly, an explicit action allows
-the subsystem to provide feedback as to whether the attibutes are
+the subsystem to provide feedback as to whether the attributes are
 initialized in a way that makes sense.  configfs provides this as
 committable items.
 
@@ -422,7 +422,7 @@ support mkdir(2) or rmdir(2) either.  It only allows rename(2).  The
 "pending" directory does allow mkdir(2) and rmdir(2).  An item is
 created in the "pending" directory.  Its attributes can be modified at
 will.  Userspace commits the item by renaming it into the "live"
-directory.  At this point, the subsystem recieves the ->commit_item()
+directory.  At this point, the subsystem receives the ->commit_item()
 callback.  If all required attributes are filled to satisfaction, the
 method returns zero and the item is moved to the "live" directory.
 

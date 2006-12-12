@@ -187,7 +187,7 @@ struct rx_desc {
 struct dmfe_board_info {
 	u32 chip_id;			/* Chip vendor/Device ID */
 	u32 chip_revision;		/* Chip revision */
-	struct DEVICE *next_dev;	/* next device */
+	struct DEVICE *dev;		/* net device */
 	struct pci_dev *pdev;		/* PCI device */
 	spinlock_t lock;
 
@@ -300,7 +300,7 @@ static struct net_device_stats * dmfe_get_stats(struct DEVICE *);
 static void dmfe_set_filter_mode(struct DEVICE *);
 static const struct ethtool_ops netdev_ethtool_ops;
 static u16 read_srom_word(long ,int);
-static irqreturn_t dmfe_interrupt(int , void *, struct pt_regs *);
+static irqreturn_t dmfe_interrupt(int , void *);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void poll_dmfe (struct net_device *dev);
 #endif
@@ -399,6 +399,8 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	/* Init system & device */
 	db = netdev_priv(dev);
 
+	db->dev = dev;
+
 	/* Allocate Tx/Rx descriptor memory */
 	db->desc_pool_ptr = pci_alloc_consistent(pdev, sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20, &db->desc_pool_dma_ptr);
 	db->buf_pool_ptr = pci_alloc_consistent(pdev, TX_BUF_ALLOC * TX_DESC_CNT + 4, &db->buf_pool_dma_ptr);
@@ -426,6 +428,7 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	dev->poll_controller = &poll_dmfe;
 #endif
 	dev->ethtool_ops = &netdev_ethtool_ops;
+	netif_carrier_off(db->dev);
 	spin_lock_init(&db->lock);
 
 	pci_read_config_dword(pdev, 0x50, &pci_pmr);
@@ -735,7 +738,7 @@ static int dmfe_stop(struct DEVICE *dev)
  *	receive the packet to upper layer, free the transmitted packet
  */
 
-static irqreturn_t dmfe_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t dmfe_interrupt(int irq, void *dev_id)
 {
 	struct DEVICE *dev = dev_id;
 	struct dmfe_board_info *db = netdev_priv(dev);
@@ -806,7 +809,7 @@ static void poll_dmfe (struct net_device *dev)
 	/* disable_irq here is not very nice, but with the lockless
 	   interrupt handler we have no other choice. */
 	disable_irq(dev->irq);
-	dmfe_interrupt (dev->irq, dev, NULL);
+	dmfe_interrupt (dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif
@@ -1050,6 +1053,7 @@ static void netdev_get_drvinfo(struct net_device *dev,
 
 static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
+	.get_link               = ethtool_op_get_link,
 };
 
 /*
@@ -1144,6 +1148,7 @@ static void dmfe_timer(unsigned long data)
 		/* Link Failed */
 		DMFE_DBUG(0, "Link Failed", tmp_cr12);
 		db->link_failed = 1;
+		netif_carrier_off(db->dev);
 
 		/* For Force 10/100M Half/Full mode: Enable Auto-Nego mode */
 		/* AUTO or force 1M Homerun/Longrun don't need */
@@ -1166,6 +1171,8 @@ static void dmfe_timer(unsigned long data)
 			if ( (db->media_mode & DMFE_AUTO) &&
 				dmfe_sense_speed(db) )
 				db->link_failed = 1;
+			else
+				netif_carrier_on(db->dev);
 			dmfe_process_mode(db);
 			/* SHOW_MEDIA_TYPE(db->op_mode); */
 		}

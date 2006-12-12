@@ -21,9 +21,15 @@
 #define _IEEE1394_NODEMGR_H
 
 #include <linux/device.h>
-#include "csr1212.h"
+#include <asm/types.h>
+
 #include "ieee1394_core.h"
-#include "ieee1394_hotplug.h"
+#include "ieee1394_types.h"
+
+struct csr1212_csr;
+struct csr1212_keyval;
+struct hpsb_host;
+struct ieee1394_device_id;
 
 /* '1' '3' '9' '4' in ASCII */
 #define IEEE1394_BUSID_MAGIC	__constant_cpu_to_be32(0x31333934)
@@ -44,7 +50,6 @@ struct bus_options {
 	u16	max_rec;	/* Maximum packet size node can receive */
 };
 
-
 #define UNIT_DIRECTORY_VENDOR_ID		0x01
 #define UNIT_DIRECTORY_MODEL_ID			0x02
 #define UNIT_DIRECTORY_SPECIFIER_ID		0x04
@@ -59,8 +64,8 @@ struct bus_options {
  * unit directory for each of these protocols.
  */
 struct unit_directory {
-	struct node_entry *ne;  /* The node which this directory belongs to */
-	octlet_t address;       /* Address of the unit directory on the node */
+	struct node_entry *ne;	/* The node which this directory belongs to */
+	octlet_t address;	/* Address of the unit directory on the node */
 	u8 flags;		/* Indicates which entries were read */
 
 	quadlet_t vendor_id;
@@ -79,11 +84,10 @@ struct unit_directory {
 	int length;		/* Number of quadlets */
 
 	struct device device;
-
 	struct class_device class_dev;
 
 	struct csr1212_keyval *ud_kv;
-	u32 lun;                /* logical unit number immediate value */
+	u32 lun;		/* logical unit number immediate value */
 };
 
 struct node_entry {
@@ -103,10 +107,8 @@ struct node_entry {
 	const char *vendor_oui;
 
 	u32 capabilities;
-	struct hpsb_tlabel_pool *tpool;
 
 	struct device device;
-
 	struct class_device class_dev;
 
 	/* Means this node is not attached anymore */
@@ -142,7 +144,12 @@ struct hpsb_protocol_driver {
 	struct device_driver driver;
 };
 
-int hpsb_register_protocol(struct hpsb_protocol_driver *driver);
+int __hpsb_register_protocol(struct hpsb_protocol_driver *, struct module *);
+static inline int hpsb_register_protocol(struct hpsb_protocol_driver *driver)
+{
+	return __hpsb_register_protocol(driver, THIS_MODULE);
+}
+
 void hpsb_unregister_protocol(struct hpsb_protocol_driver *driver);
 
 static inline int hpsb_node_entry_valid(struct node_entry *ne)
@@ -153,8 +160,8 @@ static inline int hpsb_node_entry_valid(struct node_entry *ne)
 /*
  * This will fill in the given, pre-initialised hpsb_packet with the current
  * information from the node entry (host, node ID, generation number).  It will
- * return false if the node owning the GUID is not accessible (and not modify the
- * hpsb_packet) and return true otherwise.
+ * return false if the node owning the GUID is not accessible (and not modify
+ * the hpsb_packet) and return true otherwise.
  *
  * Note that packet sending may still fail in hpsb_send_packet if a bus reset
  * happens while you are trying to set up the packet (due to obsolete generation
@@ -170,15 +177,12 @@ int hpsb_node_write(struct node_entry *ne, u64 addr,
 int hpsb_node_lock(struct node_entry *ne, u64 addr,
 		   int extcode, quadlet_t *data, quadlet_t arg);
 
-
 /* Iterate the hosts, calling a given function with supplied data for each
  * host. */
 int nodemgr_for_each_host(void *__data, int (*cb)(struct hpsb_host *, void *));
 
-
 int init_ieee1394_nodemgr(void);
 void cleanup_ieee1394_nodemgr(void);
-
 
 /* The template for a host device */
 extern struct device nodemgr_dev_template_host;

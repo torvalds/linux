@@ -160,7 +160,7 @@ static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	default:
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	}
 
 	return 0;

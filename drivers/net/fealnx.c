@@ -434,7 +434,7 @@ static void reset_timer(unsigned long data);
 static void tx_timeout(struct net_device *dev);
 static void init_ring(struct net_device *dev);
 static int start_tx(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t intr_handler(int irq, void *dev_instance);
 static int netdev_rx(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static void __set_rx_mode(struct net_device *dev);
@@ -1453,7 +1453,7 @@ static void reset_rx_descriptors(struct net_device *dev)
 
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread. */
-static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs)
+static irqreturn_t intr_handler(int irq, void *dev_instance)
 {
 	struct net_device *dev = (struct net_device *) dev_instance;
 	struct netdev_private *np = netdev_priv(dev);

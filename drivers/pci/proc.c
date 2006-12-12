@@ -23,7 +23,7 @@ static loff_t
 proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 {
 	loff_t new = -1;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 
 	mutex_lock(&inode->i_mutex);
 	switch (whence) {
@@ -48,7 +48,7 @@ proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 static ssize_t
 proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
-	const struct inode *ino = file->f_dentry->d_inode;
+	const struct inode *ino = file->f_path.dentry->d_inode;
 	const struct proc_dir_entry *dp = PDE(ino);
 	struct pci_dev *dev = dp->data;
 	unsigned int pos = *ppos;
@@ -130,7 +130,7 @@ proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *pp
 static ssize_t
 proc_bus_pci_write(struct file *file, const char __user *buf, size_t nbytes, loff_t *ppos)
 {
-	const struct inode *ino = file->f_dentry->d_inode;
+	const struct inode *ino = file->f_path.dentry->d_inode;
 	const struct proc_dir_entry *dp = PDE(ino);
 	struct pci_dev *dev = dp->data;
 	int pos = *ppos;
@@ -245,7 +245,7 @@ static int proc_bus_pci_ioctl(struct inode *inode, struct file *file, unsigned i
 #ifdef HAVE_PCI_MMAP
 static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	const struct proc_dir_entry *dp = PDE(inode);
 	struct pci_dev *dev = dp->data;
 	struct pci_filp_private *fpriv = file->private_data;

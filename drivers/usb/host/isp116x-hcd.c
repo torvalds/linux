@@ -418,7 +418,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
   processed urbs.
 */
 static void finish_request(struct isp116x *isp116x, struct isp116x_ep *ep,
-			   struct urb *urb, struct pt_regs *regs)
+			   struct urb *urb)
 __releases(isp116x->lock) __acquires(isp116x->lock)
 {
 	unsigned i;
@@ -432,7 +432,7 @@ __releases(isp116x->lock) __acquires(isp116x->lock)
 	urb_dbg(urb, "Finish");
 
 	spin_unlock(&isp116x->lock);
-	usb_hcd_giveback_urb(isp116x_to_hcd(isp116x), urb, regs);
+	usb_hcd_giveback_urb(isp116x_to_hcd(isp116x), urb);
 	spin_lock(&isp116x->lock);
 
 	/* take idle endpoints out of the schedule */
@@ -568,7 +568,7 @@ static void start_atl_transfers(struct isp116x *isp116x)
 /*
   Finish the processed transfers
 */
-static void finish_atl_transfers(struct isp116x *isp116x, struct pt_regs *regs)
+static void finish_atl_transfers(struct isp116x *isp116x)
 {
 	struct isp116x_ep *ep;
 	struct urb *urb;
@@ -590,12 +590,12 @@ static void finish_atl_transfers(struct isp116x *isp116x, struct pt_regs *regs)
 		   occured, while URB_SHORT_NOT_OK was set */
 		if (urb && urb->status != -EINPROGRESS
 		    && ep->nextpid != USB_PID_ACK)
-			finish_request(isp116x, ep, urb, regs);
+			finish_request(isp116x, ep, urb);
 	}
 	atomic_dec(&isp116x->atl_finishing);
 }
 
-static irqreturn_t isp116x_irq(struct usb_hcd *hcd, struct pt_regs *regs)
+static irqreturn_t isp116x_irq(struct usb_hcd *hcd)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	u16 irqstat;
@@ -608,7 +608,7 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 
 	if (irqstat & (HCuPINT_ATL | HCuPINT_SOF)) {
 		ret = IRQ_HANDLED;
-		finish_atl_transfers(isp116x, regs);
+		finish_atl_transfers(isp116x);
 	}
 
 	if (irqstat & HCuPINT_OPR) {
@@ -824,7 +824,7 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 	spin_lock(&urb->lock);
 	if (urb->status != -EINPROGRESS) {
 		spin_unlock(&urb->lock);
-		finish_request(isp116x, ep, urb, NULL);
+		finish_request(isp116x, ep, urb);
 		ret = 0;
 		goto fail;
 	}
@@ -870,7 +870,7 @@ static int isp116x_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 			}
 
 	if (urb)
-		finish_request(isp116x, ep, urb, NULL);
+		finish_request(isp116x, ep, urb);
 
 	spin_unlock_irqrestore(&isp116x->lock, flags);
 	return 0;
@@ -1204,10 +1204,10 @@ static int isp116x_show_dbg(struct seq_file *s, void *unused)
 
 static int isp116x_open_seq(struct inode *inode, struct file *file)
 {
-	return single_open(file, isp116x_show_dbg, inode->u.generic_ip);
+	return single_open(file, isp116x_show_dbg, inode->i_private);
 }
 
-static struct file_operations isp116x_debug_fops = {
+static const struct file_operations isp116x_debug_fops = {
 	.open = isp116x_open_seq,
 	.read = seq_read,
 	.llseek = seq_lseek,

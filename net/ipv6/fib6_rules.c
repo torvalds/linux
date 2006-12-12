@@ -13,7 +13,6 @@
  *	Ville Nuorvala		<vnuorval@tcs.hut.fi>
  */
 
-#include <linux/config.h>
 #include <linux/netdevice.h>
 
 #include <net/fib_rules.h>
@@ -26,10 +25,6 @@ struct fib6_rule
 	struct fib_rule		common;
 	struct rt6key		src;
 	struct rt6key		dst;
-#ifdef CONFIG_IPV6_ROUTE_FWMARK
-	u32			fwmark;
-	u32			fwmask;
-#endif
 	u8			tclass;
 };
 
@@ -68,7 +63,7 @@ struct dst_entry *fib6_rule_lookup(struct flowi *fl, int flags,
 		fib_rule_put(arg.rule);
 
 	if (arg.result)
-		return (struct dst_entry *) arg.result;
+		return arg.result;
 
 	dst_hold(&ip6_null_entry.u.dst);
 	return &ip6_null_entry.u.dst;
@@ -118,32 +113,26 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 {
 	struct fib6_rule *r = (struct fib6_rule *) rule;
 
-	if (!ipv6_prefix_equal(&fl->fl6_dst, &r->dst.addr, r->dst.plen))
+	if (r->dst.plen &&
+	    !ipv6_prefix_equal(&fl->fl6_dst, &r->dst.addr, r->dst.plen))
 		return 0;
 
-	if ((flags & RT6_LOOKUP_F_HAS_SADDR) &&
-	    !ipv6_prefix_equal(&fl->fl6_src, &r->src.addr, r->src.plen))
-		return 0;
+	if (r->src.plen) {
+		if (!(flags & RT6_LOOKUP_F_HAS_SADDR) ||
+		    !ipv6_prefix_equal(&fl->fl6_src, &r->src.addr, r->src.plen))
+			return 0;
+	}
 
 	if (r->tclass && r->tclass != ((ntohl(fl->fl6_flowlabel) >> 20) & 0xff))
 		return 0;
-
-#ifdef CONFIG_IPV6_ROUTE_FWMARK
-	if ((r->fwmark ^ fl->fl6_fwmark) & r->fwmask)
-		return 0;
-#endif
 
 	return 1;
 }
 
 static struct nla_policy fib6_rule_policy[FRA_MAX+1] __read_mostly = {
-	[FRA_IFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
-	[FRA_PRIORITY]	= { .type = NLA_U32 },
+	FRA_GENERIC_POLICY,
 	[FRA_SRC]	= { .len = sizeof(struct in6_addr) },
 	[FRA_DST]	= { .len = sizeof(struct in6_addr) },
-	[FRA_FWMARK]	= { .type = NLA_U32 },
-	[FRA_FWMASK]	= { .type = NLA_U32 },
-	[FRA_TABLE]	= { .type = NLA_U32 },
 };
 
 static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
@@ -153,8 +142,7 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	int err = -EINVAL;
 	struct fib6_rule *rule6 = (struct fib6_rule *) rule;
 
-	if (frh->src_len > 128 || frh->dst_len > 128 ||
-	    (frh->tos & ~IPV6_FLOWINFO_MASK))
+	if (frh->src_len > 128 || frh->dst_len > 128)
 		goto errout;
 
 	if (rule->action == FR_ACT_TO_TBL) {
@@ -174,23 +162,6 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	if (tb[FRA_DST])
 		nla_memcpy(&rule6->dst.addr, tb[FRA_DST],
 			   sizeof(struct in6_addr));
-
-#ifdef CONFIG_IPV6_ROUTE_FWMARK
-	if (tb[FRA_FWMARK]) {
-		rule6->fwmark = nla_get_u32(tb[FRA_FWMARK]);
-		if (rule6->fwmark) {
-			/*
-			 * if the mark value is non-zero,
-			 * all bits are compared by default
-			 * unless a mask is explicitly specified.
-			 */
-			rule6->fwmask = 0xFFFFFFFF;
-		}
-	}
-
-	if (tb[FRA_FWMASK])
-		rule6->fwmask = nla_get_u32(tb[FRA_FWMASK]);
-#endif
 
 	rule6->src.plen = frh->src_len;
 	rule6->dst.plen = frh->dst_len;
@@ -223,14 +194,6 @@ static int fib6_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 	    nla_memcmp(tb[FRA_DST], &rule6->dst.addr, sizeof(struct in6_addr)))
 		return 0;
 
-#ifdef CONFIG_IPV6_ROUTE_FWMARK
-	if (tb[FRA_FWMARK] && (rule6->fwmark != nla_get_u32(tb[FRA_FWMARK])))
-		return 0;
-
-	if (tb[FRA_FWMASK] && (rule6->fwmask != nla_get_u32(tb[FRA_FWMASK])))
-		return 0;
-#endif
-
 	return 1;
 }
 
@@ -252,14 +215,6 @@ static int fib6_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 		NLA_PUT(skb, FRA_SRC, sizeof(struct in6_addr),
 			&rule6->src.addr);
 
-#ifdef CONFIG_IPV6_ROUTE_FWMARK
-	if (rule6->fwmark)
-		NLA_PUT_U32(skb, FRA_FWMARK, rule6->fwmark);
-
-	if (rule6->fwmask || rule6->fwmark)
-		NLA_PUT_U32(skb, FRA_FWMASK, rule6->fwmask);
-#endif
-
 	return 0;
 
 nla_put_failure:
@@ -276,6 +231,12 @@ static u32 fib6_rule_default_pref(void)
 	return 0x3FFF;
 }
 
+static size_t fib6_rule_nlmsg_payload(struct fib_rule *rule)
+{
+	return nla_total_size(16) /* dst */
+	       + nla_total_size(16); /* src */
+}
+
 static struct fib_rules_ops fib6_rules_ops = {
 	.family			= AF_INET6,
 	.rule_size		= sizeof(struct fib6_rule),
@@ -285,6 +246,7 @@ static struct fib_rules_ops fib6_rules_ops = {
 	.compare		= fib6_rule_compare,
 	.fill			= fib6_rule_fill,
 	.default_pref		= fib6_rule_default_pref,
+	.nlmsg_payload		= fib6_rule_nlmsg_payload,
 	.nlgroup		= RTNLGRP_IPV6_RULE,
 	.policy			= fib6_rule_policy,
 	.rules_list		= &fib6_rules,

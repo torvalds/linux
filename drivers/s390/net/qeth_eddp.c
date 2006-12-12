@@ -258,7 +258,7 @@ qeth_eddp_create_segment_hdrs(struct qeth_eddp_context *ctx,
 
 static inline void
 qeth_eddp_copy_data_tcp(char *dst, struct qeth_eddp_data *eddp, int len,
-			u32 *hcsum)
+			__wsum *hcsum)
 {
 	struct skb_frag_struct *frag;
 	int left_in_frag;
@@ -305,7 +305,7 @@ qeth_eddp_copy_data_tcp(char *dst, struct qeth_eddp_data *eddp, int len,
 static inline void
 qeth_eddp_create_segment_data_tcp(struct qeth_eddp_context *ctx,
 				  struct qeth_eddp_data *eddp, int data_len,
-				  u32 hcsum)
+				  __wsum hcsum)
 {
 	u8 *page;
 	int page_remainder;
@@ -349,10 +349,10 @@ qeth_eddp_create_segment_data_tcp(struct qeth_eddp_context *ctx,
 	((struct tcphdr *)eddp->th_in_ctx)->check = csum_fold(hcsum);
 }
 
-static inline u32
+static inline __wsum
 qeth_eddp_check_tcp4_hdr(struct qeth_eddp_data *eddp, int data_len)
 {
-	u32 phcsum; /* pseudo header checksum */
+	__wsum phcsum; /* pseudo header checksum */
 
 	QETH_DBF_TEXT(trace, 5, "eddpckt4");
 	eddp->th.tcp.h.check = 0;
@@ -363,11 +363,11 @@ qeth_eddp_check_tcp4_hdr(struct qeth_eddp_data *eddp, int data_len)
 	return csum_partial((u8 *)&eddp->th, eddp->thl, phcsum);
 }
 
-static inline u32
+static inline __wsum
 qeth_eddp_check_tcp6_hdr(struct qeth_eddp_data *eddp, int data_len)
 {
-	u32 proto;
-	u32 phcsum; /* pseudo header checksum */
+	__be32 proto;
+	__wsum phcsum; /* pseudo header checksum */
 
 	QETH_DBF_TEXT(trace, 5, "eddpckt6");
 	eddp->th.tcp.h.check = 0;
@@ -405,7 +405,7 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 {
 	struct tcphdr *tcph;
 	int data_len;
-	u32 hcsum;
+	__wsum hcsum;
 
 	QETH_DBF_TEXT(trace, 5, "eddpftcp");
 	eddp->skb_offset = sizeof(struct qeth_hdr) + eddp->nhl + eddp->thl;
@@ -433,22 +433,22 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 			eddp->qh.hdr.l3.length = data_len + eddp->nhl +
 						 eddp->thl;
 		/* prepare ip hdr */
-		if (eddp->skb->protocol == ETH_P_IP){
-			eddp->nh.ip4.h.tot_len = data_len + eddp->nhl +
-						 eddp->thl;
+		if (eddp->skb->protocol == htons(ETH_P_IP)){
+			eddp->nh.ip4.h.tot_len = htons(data_len + eddp->nhl +
+						 eddp->thl);
 			eddp->nh.ip4.h.check = 0;
 			eddp->nh.ip4.h.check =
 				ip_fast_csum((u8 *)&eddp->nh.ip4.h,
 						eddp->nh.ip4.h.ihl);
 		} else
-			eddp->nh.ip6.h.payload_len = data_len + eddp->thl;
+			eddp->nh.ip6.h.payload_len = htons(data_len + eddp->thl);
 		/* prepare tcp hdr */
 		if (data_len == (eddp->skb->len - eddp->skb_offset)){
 			/* last segment -> set FIN and PSH flags */
 			eddp->th.tcp.h.fin = tcph->fin;
 			eddp->th.tcp.h.psh = tcph->psh;
 		}
-		if (eddp->skb->protocol == ETH_P_IP)
+		if (eddp->skb->protocol == htons(ETH_P_IP))
 			hcsum = qeth_eddp_check_tcp4_hdr(eddp, data_len);
 		else
 			hcsum = qeth_eddp_check_tcp6_hdr(eddp, data_len);
@@ -458,9 +458,9 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 		if (eddp->skb_offset >= eddp->skb->len)
 			break;
 		/* prepare headers for next round */
-		if (eddp->skb->protocol == ETH_P_IP)
-			eddp->nh.ip4.h.id++;
-		eddp->th.tcp.h.seq += data_len;
+		if (eddp->skb->protocol == htons(ETH_P_IP))
+			eddp->nh.ip4.h.id = htons(ntohs(eddp->nh.ip4.h.id) + 1);
+		eddp->th.tcp.h.seq = htonl(ntohl(eddp->th.tcp.h.seq) + data_len);
 	}
 }
 
@@ -472,7 +472,7 @@ qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 
 	QETH_DBF_TEXT(trace, 5, "eddpficx");
 	/* create our segmentation headers and copy original headers */
-	if (skb->protocol == ETH_P_IP)
+	if (skb->protocol == htons(ETH_P_IP))
 		eddp = qeth_eddp_create_eddp_data(qhdr, (u8 *)skb->nh.iph,
 				skb->nh.iph->ihl*4,
 				(u8 *)skb->h.th, skb->h.th->doff*4);
@@ -490,7 +490,7 @@ qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 		memcpy(&eddp->mac, eth_hdr(skb), ETH_HLEN);
 #ifdef CONFIG_QETH_VLAN
 		if (eddp->mac.h_proto == __constant_htons(ETH_P_8021Q)) {
-			eddp->vlan[0] = __constant_htons(skb->protocol);
+			eddp->vlan[0] = skb->protocol;
 			eddp->vlan[1] = htons(vlan_tx_tag_get(skb));
 		}
 #endif /* CONFIG_QETH_VLAN */
@@ -588,11 +588,11 @@ qeth_eddp_create_context_tcp(struct qeth_card *card, struct sk_buff *skb,
 	struct qeth_eddp_context *ctx = NULL;
 
 	QETH_DBF_TEXT(trace, 5, "creddpct");
-	if (skb->protocol == ETH_P_IP)
+	if (skb->protocol == htons(ETH_P_IP))
 		ctx = qeth_eddp_create_context_generic(card, skb,
 			sizeof(struct qeth_hdr) + skb->nh.iph->ihl*4 +
 			skb->h.th->doff*4);
-	else if (skb->protocol == ETH_P_IPV6)
+	else if (skb->protocol == htons(ETH_P_IPV6))
 		ctx = qeth_eddp_create_context_generic(card, skb,
 			sizeof(struct qeth_hdr) + sizeof(struct ipv6hdr) +
 			skb->h.th->doff*4);

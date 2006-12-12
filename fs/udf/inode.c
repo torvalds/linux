@@ -916,8 +916,6 @@ __udf_read_inode(struct inode *inode)
 	 *      i_nlink = 1
 	 *      i_op = NULL;
 	 */
-	inode->i_blksize = PAGE_SIZE;
-
 	bh = udf_read_ptagged(inode->i_sb, UDF_I_LOCATION(inode), 0, &ident);
 
 	if (!bh)
@@ -1167,7 +1165,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 			inode->i_op = &udf_dir_inode_operations;
 			inode->i_fop = &udf_dir_operations;
 			inode->i_mode |= S_IFDIR;
-			inode->i_nlink ++;
+			inc_nlink(inode);
 			break;
 		}
 		case ICBTAG_FILE_TYPE_REALTIME:

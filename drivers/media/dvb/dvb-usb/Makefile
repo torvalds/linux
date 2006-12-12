@@ -1,4 +1,4 @@
-dvb-usb-objs = dvb-usb-firmware.o dvb-usb-init.o dvb-usb-urb.o dvb-usb-i2c.o dvb-usb-dvb.o dvb-usb-remote.o
+dvb-usb-objs = dvb-usb-firmware.o dvb-usb-init.o dvb-usb-urb.o dvb-usb-i2c.o dvb-usb-dvb.o dvb-usb-remote.o usb-urb.o
 obj-$(CONFIG_DVB_USB) += dvb-usb.o
 
 dvb-usb-vp7045-objs = vp7045.o vp7045-fe.o
@@ -35,5 +35,11 @@ obj-$(CONFIG_DVB_USB_DIGITV) += dvb-usb-digitv.o
 
 dvb-usb-cxusb-objs = cxusb.o
 obj-$(CONFIG_DVB_USB_CXUSB) += dvb-usb-cxusb.o
+
+dvb-usb-ttusb2-objs = ttusb2.o
+obj-$(CONFIG_DVB_USB_TTUSB2) += dvb-usb-ttusb2.o
+
+dvb-usb-dib0700-objs = dib0700_core.o dib0700_devices.o
+obj-$(CONFIG_DVB_USB_DIB0700) += dvb-usb-dib0700.o
 
 EXTRA_CFLAGS = -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/

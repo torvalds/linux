@@ -176,9 +176,9 @@ out_ok:
 }
 
 static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-		                int type, int code, int offset, __u32 info)
+		                int type, int code, int offset, __be32 info)
 {
-	u32 spi;
+	__be32 spi;
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
 	struct ipv6_comp_hdr *ipcomph = (struct ipv6_comp_hdr*)(skb->data+offset);
 	struct xfrm_state *x;
@@ -199,6 +199,7 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 {
 	struct xfrm_state *t = NULL;
+	u8 mode = XFRM_MODE_TUNNEL;
 
 	t = xfrm_state_alloc();
 	if (!t)
@@ -212,7 +213,9 @@ static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 	memcpy(t->id.daddr.a6, x->id.daddr.a6, sizeof(struct in6_addr));
 	memcpy(&t->sel, &x->sel, sizeof(t->sel));
 	t->props.family = AF_INET6;
-	t->props.mode = XFRM_MODE_TUNNEL;
+	if (x->props.mode == XFRM_MODE_BEET)
+		mode = x->props.mode;
+	t->props.mode = mode;
 	memcpy(t->props.saddr.a6, x->props.saddr.a6, sizeof(struct in6_addr));
 
 	if (xfrm_init_state(t))
@@ -234,7 +237,7 @@ static int ipcomp6_tunnel_attach(struct xfrm_state *x)
 {
 	int err = 0;
 	struct xfrm_state *t = NULL;
-	u32 spi;
+	__be32 spi;
 
 	spi = xfrm6_tunnel_spi_lookup((xfrm_address_t *)&x->props.saddr);
 	if (spi)

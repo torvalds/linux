@@ -10,7 +10,6 @@
  *		"A Kernel Model for Precision Timekeeping" by Dave Mills
  */
 
-#include <linux/config.h> /* CONFIG_HEARTBEAT */
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -51,7 +50,7 @@ static irqreturn_t timer_interrupt (int irq, void *dummy, struct pt_regs *regs)
 	if (mach_tick)
 	  mach_tick ();
 
-	do_timer (regs);
+	do_timer (1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif

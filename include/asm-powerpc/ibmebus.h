@@ -44,7 +44,6 @@
 #include <linux/mod_devicetable.h>
 #include <asm/of_device.h>
 
-extern struct dma_mapping_ops ibmebus_dma_ops;
 extern struct bus_type ibmebus_bus_type;
 
 struct ibmebus_dev {	
@@ -65,7 +64,7 @@ void ibmebus_unregister_driver(struct ibmebus_driver *drv);
 
 int ibmebus_request_irq(struct ibmebus_dev *dev,
 			u32 ist, 
-			irqreturn_t (*handler)(int, void*, struct pt_regs *),
+			irq_handler_t handler,
 			unsigned long irq_flags, const char * devname,
 			void *dev_id);
 void ibmebus_free_irq(struct ibmebus_dev *dev, u32 ist, void *dev_id);

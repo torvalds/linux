@@ -38,13 +38,23 @@
 #include "ipath_kernel.h"
 
 /**
- * ipath_unordered_wc - indicate whether write combining is ordered
+ * ipath_enable_wc - enable write combining for MMIO writes to the device
+ * @dd: infinipath device
  *
- * PowerPC systems (at least those in the 970 processor family)
- * write partially filled store buffers in address order, but will write
- * completely filled store buffers in "random" order, and therefore must
- * have serialization for correctness with current InfiniPath chips.
+ * Nothing to do on PowerPC, so just return without error.
+ */
+int ipath_enable_wc(struct ipath_devdata *dd)
+{
+	return 0;
+}
+
+/**
+ * ipath_unordered_wc - indicate whether write combining is unordered
  *
+ * Because our performance depends on our ability to do write
+ * combining mmio writes in the most efficient way, we need to
+ * know if we are on a processor that may reorder stores when
+ * write combining.
  */
 int ipath_unordered_wc(void)
 {

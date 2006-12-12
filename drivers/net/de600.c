@@ -43,7 +43,6 @@ static const char version[] = "de600.c: $Revision: 1.41-2.5 $,  Bjorn Ekwall (bj
  * modify the following "#define": (see <asm/io.h> for more info)
 #define REALLY_SLOW_IO
  */
-#define SLOW_IO_BY_JUMPING /* Looks "better" than dummy write to port 0x80 :-) */
 
 /* use 0 for production, 1 for verification, >2 for debug */
 #ifdef DE600_DEBUG
@@ -258,18 +257,12 @@ static int de600_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * Handle the network interface interrupts.
  */
 
-static irqreturn_t de600_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t de600_interrupt(int irq, void *dev_id)
 {
 	struct net_device	*dev = dev_id;
 	u8		irq_status;
 	int		retrig = 0;
 	int		boguscount = 0;
-
-	/* This might just as well be deleted now, no crummy drivers present :-) */
-	if ((dev == NULL) || (DE600_IRQ != irq)) {
-		printk(KERN_ERR "%s: bogus interrupt %d\n", dev?dev->name:"DE-600", irq);
-		return IRQ_NONE;
-	}
 
 	spin_lock(&de600_lock);
 

@@ -349,6 +349,9 @@ struct input_absinfo {
 
 #define KEY_BATTERY		236
 
+#define KEY_BLUETOOTH		237
+#define KEY_WLAN		238
+
 #define KEY_UNKNOWN		240
 
 #define BTN_MISC		0x100
@@ -645,6 +648,7 @@ struct input_absinfo {
 #define BUS_USB			0x03
 #define BUS_HIL			0x04
 #define BUS_BLUETOOTH		0x05
+#define BUS_VIRTUAL		0x06
 
 #define BUS_ISA			0x10
 #define BUS_I8042		0x11
@@ -659,7 +663,7 @@ struct input_absinfo {
 #define BUS_GSC			0x1A
 
 /*
- * Values describing the status of an effect
+ * Values describing the status of a force-feedback effect
  */
 #define FF_STATUS_STOPPED	0x00
 #define FF_STATUS_PLAYING	0x01
@@ -667,98 +671,167 @@ struct input_absinfo {
 
 /*
  * Structures used in ioctls to upload effects to a device
- * The first structures are not passed directly by using ioctls.
- * They are sub-structures of the actually sent structure (called ff_effect)
+ * They are pieces of a bigger structure (called ff_effect)
  */
 
+/*
+ * All duration values are expressed in ms. Values above 32767 ms (0x7fff)
+ * should not be used and have unspecified results.
+ */
+
+/**
+ * struct ff_replay - defines scheduling of the force-feedback effect
+ * @length: duration of the effect
+ * @delay: delay before effect should start playing
+ */
 struct ff_replay {
-	__u16 length; /* Duration of an effect in ms. All other times are also expressed in ms */
-	__u16 delay;  /* Time to wait before to start playing an effect */
+	__u16 length;
+	__u16 delay;
 };
 
+/**
+ * struct ff_trigger - defines what triggers the force-feedback effect
+ * @button: number of the button triggering the effect
+ * @interval: controls how soon the effect can be re-triggered
+ */
 struct ff_trigger {
-	__u16 button;   /* Number of button triggering an effect */
-	__u16 interval; /* Time to wait before an effect can be re-triggered (ms) */
+	__u16 button;
+	__u16 interval;
 };
 
+/**
+ * struct ff_envelope - generic force-feedback effect envelope
+ * @attack_length: duration of the attack (ms)
+ * @attack_level: level at the beginning of the attack
+ * @fade_length: duration of fade (ms)
+ * @fade_level: level at the end of fade
+ *
+ * The @attack_level and @fade_level are absolute values; when applying
+ * envelope force-feedback core will convert to positive/negative
+ * value based on polarity of the default level of the effect.
+ * Valid range for the attack and fade levels is 0x0000 - 0x7fff
+ */
 struct ff_envelope {
-	__u16 attack_length;	/* Duration of attack (ms) */
-	__u16 attack_level;	/* Level at beginning of attack */
-	__u16 fade_length;	/* Duration of fade (ms) */
-	__u16 fade_level;	/* Level at end of fade */
+	__u16 attack_length;
+	__u16 attack_level;
+	__u16 fade_length;
+	__u16 fade_level;
 };
 
-/* FF_CONSTANT */
+/**
+ * struct ff_constant_effect - defines parameters of a constant force-feedback effect
+ * @level: strength of the effect; may be negative
+ * @envelope: envelope data
+ */
 struct ff_constant_effect {
-	__s16 level;	    /* Strength of effect. Negative values are OK */
+	__s16 level;
 	struct ff_envelope envelope;
 };
 
-/* FF_RAMP */
+/**
+ * struct ff_ramp_effect - defines parameters of a ramp force-feedback effect
+ * @start_level: beginning strength of the effect; may be negative
+ * @end_level: final strength of the effect; may be negative
+ * @envelope: envelope data
+ */
 struct ff_ramp_effect {
 	__s16 start_level;
 	__s16 end_level;
 	struct ff_envelope envelope;
 };
 
-/* FF_SPRING of FF_FRICTION */
+/**
+ * struct ff_condition_effect - defines a spring or friction force-feedback effect
+ * @right_saturation: maximum level when joystick moved all way to the right
+ * @left_saturation: same for the left side
+ * @right_coeff: controls how fast the force grows when the joystick moves
+ *	to the right
+ * @left_coeff: same for the left side
+ * @deadband: size of the dead zone, where no force is produced
+ * @center: position of the dead zone
+ */
 struct ff_condition_effect {
-	__u16 right_saturation; /* Max level when joystick is on the right */
-	__u16 left_saturation;  /* Max level when joystick in on the left */
+	__u16 right_saturation;
+	__u16 left_saturation;
 
-	__s16 right_coeff;	/* Indicates how fast the force grows when the
-				   joystick moves to the right */
-	__s16 left_coeff;	/* Same for left side */
+	__s16 right_coeff;
+	__s16 left_coeff;
 
-	__u16 deadband;	/* Size of area where no force is produced */
-	__s16 center;	/* Position of dead zone */
-
+	__u16 deadband;
+	__s16 center;
 };
 
-/* FF_PERIODIC */
+/**
+ * struct ff_periodic_effect - defines parameters of a periodic force-feedback effect
+ * @waveform: kind of the effect (wave)
+ * @period: period of the wave (ms)
+ * @magnitude: peak value
+ * @offset: mean value of the wave (roughly)
+ * @phase: 'horizontal' shift
+ * @envelope: envelope data
+ * @custom_len: number of samples (FF_CUSTOM only)
+ * @custom_data: buffer of samples (FF_CUSTOM only)
+ *
+ * Known waveforms - FF_SQUARE, FF_TRIANGLE, FF_SINE, FF_SAW_UP,
+ * FF_SAW_DOWN, FF_CUSTOM. The exact syntax FF_CUSTOM is undefined
+ * for the time being as no driver supports it yet.
+ *
+ * Note: the data pointed by custom_data is copied by the driver.
+ * You can therefore dispose of the memory after the upload/update.
+ */
 struct ff_periodic_effect {
-	__u16 waveform;	/* Kind of wave (sine, square...) */
-	__u16 period;	/* in ms */
-	__s16 magnitude;	/* Peak value */
-	__s16 offset;	/* Mean value of wave (roughly) */
-	__u16 phase;		/* 'Horizontal' shift */
+	__u16 waveform;
+	__u16 period;
+	__s16 magnitude;
+	__s16 offset;
+	__u16 phase;
 
 	struct ff_envelope envelope;
 
-/* Only used if waveform == FF_CUSTOM */
-	__u32 custom_len;	/* Number of samples */
-	__s16 *custom_data;	/* Buffer of samples */
-/* Note: the data pointed by custom_data is copied by the driver. You can
- * therefore dispose of the memory after the upload/update */
+	__u32 custom_len;
+	__s16 *custom_data;
 };
 
-/* FF_RUMBLE */
-/* Some rumble pads have two motors of different weight.
-   strong_magnitude represents the magnitude of the vibration generated
-   by the heavy motor.
-*/
+/**
+ * struct ff_rumble_effect - defines parameters of a periodic force-feedback effect
+ * @strong_magnitude: magnitude of the heavy motor
+ * @weak_magnitude: magnitude of the light one
+ *
+ * Some rumble pads have two motors of different weight. Strong_magnitude
+ * represents the magnitude of the vibration generated by the heavy one.
+ */
 struct ff_rumble_effect {
-	__u16 strong_magnitude;  /* Magnitude of the heavy motor */
-	__u16 weak_magnitude;    /* Magnitude of the light one */
+	__u16 strong_magnitude;
+	__u16 weak_magnitude;
 };
 
-/*
- * Structure sent through ioctl from the application to the driver
+/**
+ * struct ff_effect - defines force feedback effect
+ * @type: type of the effect (FF_CONSTANT, FF_PERIODIC, FF_RAMP, FF_SPRING,
+ *	FF_FRICTION, FF_DAMPER, FF_RUMBLE, FF_INERTIA, or FF_CUSTOM)
+ * @id: an unique id assigned to an effect
+ * @direction: direction of the effect
+ * @trigger: trigger conditions (struct ff_trigger)
+ * @replay: scheduling of the effect (struct ff_replay)
+ * @u: effect-specific structure (one of ff_constant_effect, ff_ramp_effect,
+ *	ff_periodic_effect, ff_condition_effect, ff_rumble_effect) further
+ *	defining effect parameters
+ *
+ * This structure is sent through ioctl from the application to the driver.
+ * To create a new effect aplication should set its @id to -1; the kernel
+ * will return assigned @id which can later be used to update or delete
+ * this effect.
+ *
+ * Direction of the effect is encoded as follows:
+ *	0 deg -> 0x0000 (down)
+ *	90 deg -> 0x4000 (left)
+ *	180 deg -> 0x8000 (up)
+ *	270 deg -> 0xC000 (right)
  */
 struct ff_effect {
 	__u16 type;
-/* Following field denotes the unique id assigned to an effect.
- * If user sets if to -1, a new effect is created, and its id is returned in the same field
- * Else, the user sets it to the effect id it wants to update.
- */
 	__s16 id;
-
-	__u16 direction;	/* Direction. 0 deg -> 0x0000 (down)
-					     90 deg -> 0x4000 (left)
-					    180 deg -> 0x8000 (up)
-					    270 deg -> 0xC000 (right)
-				*/
-
+	__u16 direction;
 	struct ff_trigger trigger;
 	struct ff_replay replay;
 
@@ -784,6 +857,9 @@ struct ff_effect {
 #define FF_INERTIA	0x56
 #define FF_RAMP		0x57
 
+#define FF_EFFECT_MIN	FF_RUMBLE
+#define FF_EFFECT_MAX	FF_RAMP
+
 /*
  * Force feedback periodic effect types
  */
@@ -794,6 +870,9 @@ struct ff_effect {
 #define FF_SAW_UP	0x5b
 #define FF_SAW_DOWN	0x5c
 #define FF_CUSTOM	0x5d
+
+#define FF_WAVEFORM_MIN	FF_SQUARE
+#define FF_WAVEFORM_MAX	FF_CUSTOM
 
 /*
  * Set ff device properties
@@ -864,16 +943,16 @@ struct input_dev {
 	unsigned long sndbit[NBITS(SND_MAX)];
 	unsigned long ffbit[NBITS(FF_MAX)];
 	unsigned long swbit[NBITS(SW_MAX)];
-	int ff_effects_max;
 
 	unsigned int keycodemax;
 	unsigned int keycodesize;
 	void *keycode;
 
+	struct ff_device *ff;
+
 	unsigned int repeat_key;
 	struct timer_list timer;
 
-	struct pt_regs *regs;
 	int state;
 
 	int sync;
@@ -895,8 +974,6 @@ struct input_dev {
 	void (*close)(struct input_dev *dev);
 	int (*flush)(struct input_dev *dev, struct file *file);
 	int (*event)(struct input_dev *dev, unsigned int type, unsigned int code, int value);
-	int (*upload_effect)(struct input_dev *dev, struct ff_effect *effect);
-	int (*erase_effect)(struct input_dev *dev, int effect_id);
 
 	struct input_handle *grab;
 
@@ -904,9 +981,6 @@ struct input_dev {
 	unsigned int users;
 
 	struct class_device cdev;
-	struct device *dev;	/* will be removed soon */
-
-	int dynalloc;	/* temporarily */
 
 	struct list_head	h_list;
 	struct list_head	node;
@@ -985,16 +1059,16 @@ struct input_handler {
 	void *private;
 
 	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
-	struct input_handle* (*connect)(struct input_handler *handler, struct input_dev *dev, struct input_device_id *id);
+	struct input_handle* (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);
 	void (*disconnect)(struct input_handle *handle);
 	void (*start)(struct input_handle *handle);
 
 	const struct file_operations *fops;
 	int minor;
-	char *name;
+	const char *name;
 
-	struct input_device_id *id_table;
-	struct input_device_id *blacklist;
+	const struct input_device_id *id_table;
+	const struct input_device_id *blacklist;
 
 	struct list_head	h_list;
 	struct list_head	node;
@@ -1005,7 +1079,7 @@ struct input_handle {
 	void *private;
 
 	int open;
-	char *name;
+	const char *name;
 
 	struct input_dev *dev;
 	struct input_handler *handler;
@@ -1018,12 +1092,6 @@ struct input_handle {
 #define to_handler(n) container_of(n,struct input_handler,node);
 #define to_handle(n) container_of(n,struct input_handle,d_node)
 #define to_handle_h(n) container_of(n,struct input_handle,h_node)
-
-static inline void init_input_dev(struct input_dev *dev)
-{
-	INIT_LIST_HEAD(&dev->h_list);
-	INIT_LIST_HEAD(&dev->node);
-}
 
 struct input_dev *input_allocate_device(void);
 void input_free_device(struct input_dev *dev);
@@ -1041,7 +1109,7 @@ static inline void input_put_device(struct input_dev *dev)
 int input_register_device(struct input_dev *);
 void input_unregister_device(struct input_dev *);
 
-void input_register_handler(struct input_handler *);
+int input_register_handler(struct input_handler *);
 void input_unregister_handler(struct input_handler *);
 
 int input_grab_device(struct input_handle *);
@@ -1070,11 +1138,6 @@ static inline void input_report_abs(struct input_dev *dev, unsigned int code, in
 	input_event(dev, EV_ABS, code, value);
 }
 
-static inline void input_report_ff(struct input_dev *dev, unsigned int code, int value)
-{
-	input_event(dev, EV_FF, code, value);
-}
-
 static inline void input_report_ff_status(struct input_dev *dev, unsigned int code, int value)
 {
 	input_event(dev, EV_FF_STATUS, code, value);
@@ -1085,15 +1148,9 @@ static inline void input_report_switch(struct input_dev *dev, unsigned int code,
 	input_event(dev, EV_SW, code, !!value);
 }
 
-static inline void input_regs(struct input_dev *dev, struct pt_regs *regs)
-{
-	dev->regs = regs;
-}
-
 static inline void input_sync(struct input_dev *dev)
 {
 	input_event(dev, EV_SYN, SYN_REPORT, 0);
-	dev->regs = NULL;
 }
 
 static inline void input_set_abs_params(struct input_dev *dev, int axis, int min, int max, int fuzz, int flat)
@@ -1107,6 +1164,62 @@ static inline void input_set_abs_params(struct input_dev *dev, int axis, int min
 }
 
 extern struct class input_class;
+
+/**
+ * struct ff_device - force-feedback part of an input device
+ * @upload: Called to upload an new effect into device
+ * @erase: Called to erase an effect from device
+ * @playback: Called to request device to start playing specified effect
+ * @set_gain: Called to set specified gain
+ * @set_autocenter: Called to auto-center device
+ * @destroy: called by input core when parent input device is being
+ *	destroyed
+ * @private: driver-specific data, will be freed automatically
+ * @ffbit: bitmap of force feedback capabilities truly supported by
+ *	device (not emulated like ones in input_dev->ffbit)
+ * @mutex: mutex for serializing access to the device
+ * @max_effects: maximum number of effects supported by device
+ * @effects: pointer to an array of effects currently loaded into device
+ * @effect_owners: array of effect owners; when file handle owning
+ *	an effect gets closed the effcet is automatically erased
+ *
+ * Every force-feedback device must implement upload() and playback()
+ * methods; erase() is optional. set_gain() and set_autocenter() need
+ * only be implemented if driver sets up FF_GAIN and FF_AUTOCENTER
+ * bits.
+ */
+struct ff_device {
+	int (*upload)(struct input_dev *dev, struct ff_effect *effect,
+		      struct ff_effect *old);
+	int (*erase)(struct input_dev *dev, int effect_id);
+
+	int (*playback)(struct input_dev *dev, int effect_id, int value);
+	void (*set_gain)(struct input_dev *dev, u16 gain);
+	void (*set_autocenter)(struct input_dev *dev, u16 magnitude);
+
+	void (*destroy)(struct ff_device *);
+
+	void *private;
+
+	unsigned long ffbit[NBITS(FF_MAX)];
+
+	struct mutex mutex;
+
+	int max_effects;
+	struct ff_effect *effects;
+	struct file *effect_owners[];
+};
+
+int input_ff_create(struct input_dev *dev, int max_effects);
+void input_ff_destroy(struct input_dev *dev);
+
+int input_ff_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
+
+int input_ff_upload(struct input_dev *dev, struct ff_effect *effect, struct file *file);
+int input_ff_erase(struct input_dev *dev, int effect_id, struct file *file);
+
+int input_ff_create_memless(struct input_dev *dev, void *data,
+		int (*play_effect)(struct input_dev *, void *, struct ff_effect *));
 
 #endif
 #endif

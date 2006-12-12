@@ -16,8 +16,8 @@
 #define PTRACE_KILL		   8
 #define PTRACE_SINGLESTEP	   9
 
-#define PTRACE_ATTACH		0x10
-#define PTRACE_DETACH		0x11
+#define PTRACE_ATTACH		  16
+#define PTRACE_DETACH		  17
 
 #define PTRACE_SYSCALL		  24
 

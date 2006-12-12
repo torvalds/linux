@@ -23,7 +23,7 @@
 
 /* Define the number of blocks we need to account to a transaction to
  * modify one block of data.
- * 
+ *
  * We may have to touch one inode, one bitmap buffer, up to three
  * indirection blocks, the group and superblock summaries, and the data
  * block to complete the transaction.  */
@@ -88,16 +88,16 @@
 #endif
 
 int
-ext3_mark_iloc_dirty(handle_t *handle, 
+ext3_mark_iloc_dirty(handle_t *handle,
 		     struct inode *inode,
 		     struct ext3_iloc *iloc);
 
-/* 
+/*
  * On success, We end up with an outstanding reference count against
- * iloc->bh.  This _must_ be cleaned up later. 
+ * iloc->bh.  This _must_ be cleaned up later.
  */
 
-int ext3_reserve_inode_write(handle_t *handle, struct inode *inode, 
+int ext3_reserve_inode_write(handle_t *handle, struct inode *inode,
 			struct ext3_iloc *iloc);
 
 int ext3_mark_inode_dirty(handle_t *handle, struct inode *inode);
@@ -109,74 +109,32 @@ int ext3_mark_inode_dirty(handle_t *handle, struct inode *inode);
  * been done yet.
  */
 
-void ext3_journal_abort_handle(const char *caller, const char *err_fn,
-		struct buffer_head *bh, handle_t *handle, int err);
-
-static inline int
-__ext3_journal_get_undo_access(const char *where, handle_t *handle,
-				struct buffer_head *bh)
-{
-	int err = journal_get_undo_access(handle, bh);
-	if (err)
-		ext3_journal_abort_handle(where, __FUNCTION__, bh, handle,err);
-	return err;
-}
-
-static inline int
-__ext3_journal_get_write_access(const char *where, handle_t *handle,
-				struct buffer_head *bh)
-{
-	int err = journal_get_write_access(handle, bh);
-	if (err)
-		ext3_journal_abort_handle(where, __FUNCTION__, bh, handle,err);
-	return err;
-}
-
-static inline void
-ext3_journal_release_buffer(handle_t *handle, struct buffer_head *bh)
+static inline void ext3_journal_release_buffer(handle_t *handle,
+						struct buffer_head *bh)
 {
 	journal_release_buffer(handle, bh);
 }
 
-static inline int
-__ext3_journal_forget(const char *where, handle_t *handle, struct buffer_head *bh)
-{
-	int err = journal_forget(handle, bh);
-	if (err)
-		ext3_journal_abort_handle(where, __FUNCTION__, bh, handle,err);
-	return err;
-}
+void ext3_journal_abort_handle(const char *caller, const char *err_fn,
+		struct buffer_head *bh, handle_t *handle, int err);
 
-static inline int
-__ext3_journal_revoke(const char *where, handle_t *handle,
-		      unsigned long blocknr, struct buffer_head *bh)
-{
-	int err = journal_revoke(handle, blocknr, bh);
-	if (err)
-		ext3_journal_abort_handle(where, __FUNCTION__, bh, handle,err);
-	return err;
-}
+int __ext3_journal_get_undo_access(const char *where, handle_t *handle,
+				struct buffer_head *bh);
 
-static inline int
-__ext3_journal_get_create_access(const char *where,
-				 handle_t *handle, struct buffer_head *bh)
-{
-	int err = journal_get_create_access(handle, bh);
-	if (err)
-		ext3_journal_abort_handle(where, __FUNCTION__, bh, handle,err);
-	return err;
-}
+int __ext3_journal_get_write_access(const char *where, handle_t *handle,
+				struct buffer_head *bh);
 
-static inline int
-__ext3_journal_dirty_metadata(const char *where,
-			      handle_t *handle, struct buffer_head *bh)
-{
-	int err = journal_dirty_metadata(handle, bh);
-	if (err)
-		ext3_journal_abort_handle(where, __FUNCTION__, bh, handle,err);
-	return err;
-}
+int __ext3_journal_forget(const char *where, handle_t *handle,
+				struct buffer_head *bh);
 
+int __ext3_journal_revoke(const char *where, handle_t *handle,
+				unsigned long blocknr, struct buffer_head *bh);
+
+int __ext3_journal_get_create_access(const char *where,
+				handle_t *handle, struct buffer_head *bh);
+
+int __ext3_journal_dirty_metadata(const char *where,
+				handle_t *handle, struct buffer_head *bh);
 
 #define ext3_journal_get_undo_access(handle, bh) \
 	__ext3_journal_get_undo_access(__FUNCTION__, (handle), (bh))

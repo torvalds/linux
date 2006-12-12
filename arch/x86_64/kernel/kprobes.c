@@ -224,7 +224,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
 	mutex_lock(&kprobe_mutex);
-	free_insn_slot(p->ainsn.insn);
+	free_insn_slot(p->ainsn.insn, 0);
 	mutex_unlock(&kprobe_mutex);
 }
 
@@ -270,20 +270,19 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe *rp,
 				      struct pt_regs *regs)
 {
 	unsigned long *sara = (unsigned long *)regs->rsp;
-        struct kretprobe_instance *ri;
+	struct kretprobe_instance *ri;
 
-        if ((ri = get_free_rp_inst(rp)) != NULL) {
-                ri->rp = rp;
-                ri->task = current;
+	if ((ri = get_free_rp_inst(rp)) != NULL) {
+		ri->rp = rp;
+		ri->task = current;
 		ri->ret_addr = (kprobe_opcode_t *) *sara;
 
 		/* Replace the return addr with trampoline addr */
 		*sara = (unsigned long) &kretprobe_trampoline;
-
-                add_rp_inst(ri);
-        } else {
-                rp->nmissed++;
-        }
+		add_rp_inst(ri);
+	} else {
+		rp->nmissed++;
+	}
 }
 
 int __kprobes kprobe_handler(struct pt_regs *regs)
@@ -405,14 +404,15 @@ no_kprobe:
  */
 int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 {
-        struct kretprobe_instance *ri = NULL;
-        struct hlist_head *head;
-        struct hlist_node *node, *tmp;
+	struct kretprobe_instance *ri = NULL;
+	struct hlist_head *head, empty_rp;
+	struct hlist_node *node, *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address =(unsigned long)&kretprobe_trampoline;
 
+	INIT_HLIST_HEAD(&empty_rp);
 	spin_lock_irqsave(&kretprobe_lock, flags);
-        head = kretprobe_inst_table_head(current);
+	head = kretprobe_inst_table_head(current);
 
 	/*
 	 * It is possible to have multiple instances associated with a given
@@ -423,20 +423,20 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	 * We can handle this because:
 	 *     - instances are always inserted at the head of the list
 	 *     - when multiple return probes are registered for the same
-         *       function, the first instance's ret_addr will point to the
+	 *       function, the first instance's ret_addr will point to the
 	 *       real return address, and all the rest will point to
 	 *       kretprobe_trampoline
 	 */
 	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
-                if (ri->task != current)
+		if (ri->task != current)
 			/* another task is sharing our hash bucket */
-                        continue;
+			continue;
 
 		if (ri->rp && ri->rp->handler)
 			ri->rp->handler(ri, regs);
 
 		orig_ret_address = (unsigned long)ri->ret_addr;
-		recycle_rp_inst(ri);
+		recycle_rp_inst(ri, &empty_rp);
 
 		if (orig_ret_address != trampoline_address)
 			/*
@@ -454,12 +454,16 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	spin_unlock_irqrestore(&kretprobe_lock, flags);
 	preempt_enable_no_resched();
 
-        /*
-         * By returning a non-zero value, we are telling
-         * kprobe_handler() that we don't want the post_handler
+	hlist_for_each_entry_safe(ri, node, tmp, &empty_rp, hlist) {
+		hlist_del(&ri->hlist);
+		kfree(ri);
+	}
+	/*
+	 * By returning a non-zero value, we are telling
+	 * kprobe_handler() that we don't want the post_handler
 	 * to run (and have re-enabled preemption)
-         */
-        return 1;
+	 */
+	return 1;
 }
 
 /*

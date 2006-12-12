@@ -297,7 +297,7 @@ static int mwave_ioctl(struct inode *inode, struct file *file,
 				" ipcnum %x, usIntCount %x\n",
 				ipcnum,
 				pDrvData->IPCs[ipcnum].usIntCount);
-			if (ipcnum > ARRAY_SIZE(pDrvData->IPCs)) {
+			if (ipcnum >= ARRAY_SIZE(pDrvData->IPCs)) {
 				PRINTK_ERROR(KERN_ERR_MWAVE
 						"mwavedd::mwave_ioctl:"
 						" IOCTL_MW_GET_IPC: Error:"
@@ -355,7 +355,7 @@ static int mwave_ioctl(struct inode *inode, struct file *file,
 				"mwavedd::mwave_ioctl IOCTL_MW_UNREGISTER_IPC"
 				" ipcnum %x\n",
 				ipcnum);
-			if (ipcnum > ARRAY_SIZE(pDrvData->IPCs)) {
+			if (ipcnum >= ARRAY_SIZE(pDrvData->IPCs)) {
 				PRINTK_ERROR(KERN_ERR_MWAVE
 						"mwavedd::mwave_ioctl:"
 						" IOCTL_MW_UNREGISTER_IPC:"

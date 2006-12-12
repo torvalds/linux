@@ -531,7 +531,7 @@ static u8 hpc_readcmdtoindex (u8 cmd, u8 index)
 *
 * Action:  issue a READ command to HPC
 *
-* Input:   pslot   - can not be NULL for READ_ALLSTAT
+* Input:   pslot   - cannot be NULL for READ_ALLSTAT
 *          pstatus - can be NULL for READ_ALLSTAT
 *
 * Return   0 or error codes

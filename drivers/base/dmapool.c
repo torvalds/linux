@@ -126,7 +126,7 @@ dma_pool_create (const char *name, struct device *dev,
 	} else if (allocation < size)
 		return NULL;
 
-	if (!(retval = kmalloc (sizeof *retval, SLAB_KERNEL)))
+	if (!(retval = kmalloc (sizeof *retval, GFP_KERNEL)))
 		return retval;
 
 	strlcpy (retval->name, name, sizeof retval->name);
@@ -141,11 +141,20 @@ dma_pool_create (const char *name, struct device *dev,
 	init_waitqueue_head (&retval->waitq);
 
 	if (dev) {
+		int ret;
+
 		down (&pools_lock);
 		if (list_empty (&dev->dma_pools))
-			device_create_file (dev, &dev_attr_pools);
+			ret = device_create_file (dev, &dev_attr_pools);
+		else
+			ret = 0;
 		/* note:  not currently insisting "name" be unique */
-		list_add (&retval->pools, &dev->dma_pools);
+		if (!ret)
+			list_add (&retval->pools, &dev->dma_pools);
+		else {
+			kfree(retval);
+			retval = NULL;
+		}
 		up (&pools_lock);
 	} else
 		INIT_LIST_HEAD (&retval->pools);
@@ -288,7 +297,7 @@ restart:
 			}
 		}
 	}
-	if (!(page = pool_alloc_page (pool, SLAB_ATOMIC))) {
+	if (!(page = pool_alloc_page (pool, GFP_ATOMIC))) {
 		if (mem_flags & __GFP_WAIT) {
 			DECLARE_WAITQUEUE (wait, current);
 

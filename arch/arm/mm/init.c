@@ -25,54 +25,58 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
+#include "mm.h"
 
-extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
-extern void _stext, _text, _etext, __data_start, _end, __init_begin, __init_end;
+extern void _text, _etext, __data_start, _end, __init_begin, __init_end;
 extern unsigned long phys_initrd_start;
 extern unsigned long phys_initrd_size;
 
 /*
- * The sole use of this is to pass memory configuration
- * data from paging_init to mem_init.
+ * This is used to pass memory configuration data from paging_init
+ * to mem_init, and by show_mem() to skip holes in the memory map.
  */
-static struct meminfo meminfo __initdata = { 0, };
+static struct meminfo meminfo = { 0, };
 
-/*
- * empty_zero_page is a special page that is used for
- * zero-initialized data and COW.
- */
-struct page *empty_zero_page;
+#define for_each_nodebank(iter,mi,no)			\
+	for (iter = 0; iter < mi->nr_banks; iter++)	\
+		if (mi->bank[iter].node == no)
 
 void show_mem(void)
 {
 	int free = 0, total = 0, reserved = 0;
-	int shared = 0, cached = 0, slab = 0, node;
+	int shared = 0, cached = 0, slab = 0, node, i;
+	struct meminfo * mi = &meminfo;
 
 	printk("Mem-info:\n");
 	show_free_areas();
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 
 	for_each_online_node(node) {
-		struct page *page, *end;
+		for_each_nodebank (i,mi,node) {
+			unsigned int pfn1, pfn2;
+			struct page *page, *end;
 
-		page = NODE_MEM_MAP(node);
-		end  = page + NODE_DATA(node)->node_spanned_pages;
+			pfn1 = mi->bank[i].start >> PAGE_SHIFT;
+			pfn2 = (mi->bank[i].size + mi->bank[i].start) >> PAGE_SHIFT;
 
-		do {
-			total++;
-			if (PageReserved(page))
-				reserved++;
-			else if (PageSwapCache(page))
-				cached++;
-			else if (PageSlab(page))
-				slab++;
-			else if (!page_count(page))
-				free++;
-			else
-				shared += page_count(page) - 1;
-			page++;
-		} while (page < end);
+			page = NODE_MEM_MAP(node) + pfn1;
+			end  = NODE_MEM_MAP(node) + pfn2;
+
+			do {
+				total++;
+				if (PageReserved(page))
+					reserved++;
+				else if (PageSwapCache(page))
+					cached++;
+				else if (PageSlab(page))
+					slab++;
+				else if (!page_count(page))
+					free++;
+				else
+					shared += page_count(page) - 1;
+				page++;
+			} while (page < end);
+		}
 	}
 
 	printk("%d pages of RAM\n", total);
@@ -82,20 +86,6 @@ void show_mem(void)
 	printk("%d pages shared\n", shared);
 	printk("%d pages swap cached\n", cached);
 }
-
-static inline pmd_t *pmd_off(pgd_t *pgd, unsigned long virt)
-{
-	return pmd_offset(pgd, virt);
-}
-
-static inline pmd_t *pmd_off_k(unsigned long virt)
-{
-	return pmd_off(pgd_offset_k(virt), virt);
-}
-
-#define for_each_nodebank(iter,mi,no)			\
-	for (iter = 0; iter < mi->nr_banks; iter++)	\
-		if (mi->bank[iter].node == no)
 
 /*
  * FIXME: We really want to avoid allocating the bootmap bitmap
@@ -176,61 +166,19 @@ static int __init check_initrd(struct meminfo *mi)
 	return initrd_node;
 }
 
-/*
- * Reserve the various regions of node 0
- */
-static __init void reserve_node_zero(pg_data_t *pgdat)
+static inline void map_memory_bank(struct membank *bank)
 {
-	unsigned long res_size = 0;
+#ifdef CONFIG_MMU
+	struct map_desc map;
 
-	/*
-	 * Register the kernel text and data with bootmem.
-	 * Note that this can only be in node 0.
-	 */
-#ifdef CONFIG_XIP_KERNEL
-	reserve_bootmem_node(pgdat, __pa(&__data_start), &_end - &__data_start);
-#else
-	reserve_bootmem_node(pgdat, __pa(&_stext), &_end - &_stext);
+	map.pfn = __phys_to_pfn(bank->start);
+	map.virtual = __phys_to_virt(bank->start);
+	map.length = bank->size;
+	map.type = MT_MEMORY;
+
+	create_mapping(&map);
 #endif
-
-	/*
-	 * Reserve the page tables.  These are already in use,
-	 * and can only be in node 0.
-	 */
-	reserve_bootmem_node(pgdat, __pa(swapper_pg_dir),
-			     PTRS_PER_PGD * sizeof(pgd_t));
-
-	/*
-	 * Hmm... This should go elsewhere, but we really really need to
-	 * stop things allocating the low memory; ideally we need a better
-	 * implementation of GFP_DMA which does not assume that DMA-able
-	 * memory starts at zero.
-	 */
-	if (machine_is_integrator() || machine_is_cintegrator())
-		res_size = __pa(swapper_pg_dir) - PHYS_OFFSET;
-
-	/*
-	 * These should likewise go elsewhere.  They pre-reserve the
-	 * screen memory region at the start of main system memory.
-	 */
-	if (machine_is_edb7211())
-		res_size = 0x00020000;
-	if (machine_is_p720t())
-		res_size = 0x00014000;
-
-#ifdef CONFIG_SA1111
-	/*
-	 * Because of the SA1111 DMA bug, we want to preserve our
-	 * precious DMA-able memory...
-	 */
-	res_size = __pa(swapper_pg_dir) - PHYS_OFFSET;
-#endif
-	if (res_size)
-		reserve_bootmem_node(pgdat, PHYS_OFFSET, res_size);
 }
-
-void __init build_mem_type_table(void);
-void __init create_mapping(struct map_desc *md);
 
 static unsigned long __init
 bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
@@ -248,23 +196,18 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	 * Calculate the pfn range, and map the memory banks for this node.
 	 */
 	for_each_nodebank(i, mi, node) {
+		struct membank *bank = &mi->bank[i];
 		unsigned long start, end;
-		struct map_desc map;
 
-		start = mi->bank[i].start >> PAGE_SHIFT;
-		end = (mi->bank[i].start + mi->bank[i].size) >> PAGE_SHIFT;
+		start = bank->start >> PAGE_SHIFT;
+		end = (bank->start + bank->size) >> PAGE_SHIFT;
 
 		if (start_pfn > start)
 			start_pfn = start;
 		if (end_pfn < end)
 			end_pfn = end;
 
-		map.pfn = __phys_to_pfn(mi->bank[i].start);
-		map.virtual = __phys_to_virt(mi->bank[i].start);
-		map.length = mi->bank[i].size;
-		map.type = MT_MEMORY;
-
-		create_mapping(&map);
+		map_memory_bank(bank);
 	}
 
 	/*
@@ -346,9 +289,9 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	return end_pfn;
 }
 
-static void __init bootmem_init(struct meminfo *mi)
+void __init bootmem_init(struct meminfo *mi)
 {
-	unsigned long addr, memend_pfn = 0;
+	unsigned long memend_pfn = 0;
 	int node, initrd_node, i;
 
 	/*
@@ -359,26 +302,6 @@ static void __init bootmem_init(struct meminfo *mi)
 			mi->bank[i].node = -1;
 
 	memcpy(&meminfo, mi, sizeof(meminfo));
-
-	/*
-	 * Clear out all the mappings below the kernel image.
-	 */
-	for (addr = 0; addr < MODULE_START; addr += PGDIR_SIZE)
-		pmd_clear(pmd_off_k(addr));
-#ifdef CONFIG_XIP_KERNEL
-	/* The XIP kernel is mapped in the module area -- skip over it */
-	addr = ((unsigned long)&_etext + PGDIR_SIZE - 1) & PGDIR_MASK;
-#endif
-	for ( ; addr < PAGE_OFFSET; addr += PGDIR_SIZE)
-		pmd_clear(pmd_off_k(addr));
-
-	/*
-	 * Clear out all the kernel space mappings, except for the first
-	 * memory bank, up to the end of the vmalloc region.
-	 */
-	for (addr = __phys_to_virt(mi->bank[0].start + mi->bank[0].size);
-	     addr < VMALLOC_END; addr += PGDIR_SIZE)
-		pmd_clear(pmd_off_k(addr));
 
 	/*
 	 * Locate which node contains the ramdisk image, if any.
@@ -411,114 +334,6 @@ static void __init bootmem_init(struct meminfo *mi)
 	 * the system, not the maximum PFN.
 	 */
 	max_pfn = max_low_pfn = memend_pfn - PHYS_PFN_OFFSET;
-}
-
-/*
- * Set up device the mappings.  Since we clear out the page tables for all
- * mappings above VMALLOC_END, we will remove any debug device mappings.
- * This means you have to be careful how you debug this function, or any
- * called function.  This means you can't use any function or debugging
- * method which may touch any device, otherwise the kernel _will_ crash.
- */
-static void __init devicemaps_init(struct machine_desc *mdesc)
-{
-	struct map_desc map;
-	unsigned long addr;
-	void *vectors;
-
-	/*
-	 * Allocate the vector page early.
-	 */
-	vectors = alloc_bootmem_low_pages(PAGE_SIZE);
-	BUG_ON(!vectors);
-
-	for (addr = VMALLOC_END; addr; addr += PGDIR_SIZE)
-		pmd_clear(pmd_off_k(addr));
-
-	/*
-	 * Map the kernel if it is XIP.
-	 * It is always first in the modulearea.
-	 */
-#ifdef CONFIG_XIP_KERNEL
-	map.pfn = __phys_to_pfn(CONFIG_XIP_PHYS_ADDR & PGDIR_MASK);
-	map.virtual = MODULE_START;
-	map.length = ((unsigned long)&_etext - map.virtual + ~PGDIR_MASK) & PGDIR_MASK;
-	map.type = MT_ROM;
-	create_mapping(&map);
-#endif
-
-	/*
-	 * Map the cache flushing regions.
-	 */
-#ifdef FLUSH_BASE
-	map.pfn = __phys_to_pfn(FLUSH_BASE_PHYS);
-	map.virtual = FLUSH_BASE;
-	map.length = SZ_1M;
-	map.type = MT_CACHECLEAN;
-	create_mapping(&map);
-#endif
-#ifdef FLUSH_BASE_MINICACHE
-	map.pfn = __phys_to_pfn(FLUSH_BASE_PHYS + SZ_1M);
-	map.virtual = FLUSH_BASE_MINICACHE;
-	map.length = SZ_1M;
-	map.type = MT_MINICLEAN;
-	create_mapping(&map);
-#endif
-
-	/*
-	 * Create a mapping for the machine vectors at the high-vectors
-	 * location (0xffff0000).  If we aren't using high-vectors, also
-	 * create a mapping at the low-vectors virtual address.
-	 */
-	map.pfn = __phys_to_pfn(virt_to_phys(vectors));
-	map.virtual = 0xffff0000;
-	map.length = PAGE_SIZE;
-	map.type = MT_HIGH_VECTORS;
-	create_mapping(&map);
-
-	if (!vectors_high()) {
-		map.virtual = 0;
-		map.type = MT_LOW_VECTORS;
-		create_mapping(&map);
-	}
-
-	/*
-	 * Ask the machine support to map in the statically mapped devices.
-	 */
-	if (mdesc->map_io)
-		mdesc->map_io();
-
-	/*
-	 * Finally flush the caches and tlb to ensure that we're in a
-	 * consistent state wrt the writebuffer.  This also ensures that
-	 * any write-allocated cache lines in the vector page are written
-	 * back.  After this point, we can start to touch devices again.
-	 */
-	local_flush_tlb_all();
-	flush_cache_all();
-}
-
-/*
- * paging_init() sets up the page tables, initialises the zone memory
- * maps, and sets up the zero page, bad page and bad page tables.
- */
-void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
-{
-	void *zero_page;
-
-	build_mem_type_table();
-	bootmem_init(mi);
-	devicemaps_init(mdesc);
-
-	top_pmd = pmd_off_k(0xffff0000);
-
-	/*
-	 * allocate the zero page.  Note that we count on this going ok.
-	 */
-	zero_page = alloc_bootmem_low_pages(PAGE_SIZE);
-	memzero(zero_page, PAGE_SIZE);
-	empty_zero_page = virt_to_page(zero_page);
-	flush_dcache_page(empty_zero_page);
 }
 
 static inline void free_area(unsigned long addr, unsigned long end, char *s)

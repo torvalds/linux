@@ -124,7 +124,7 @@ sync_fs:		no	no	read
 write_super_lockfs:	?
 unlockfs:		?
 statfs:			no	no	no
-remount_fs:		no	yes	maybe		(see below)
+remount_fs:		yes	yes	maybe		(see below)
 clear_inode:		no
 umount_begin:		yes	no	no
 show_options:		no				(vfsmount->sem)
@@ -356,10 +356,9 @@ The last two are called only from check_disk_change().
 prototypes:
 	loff_t (*llseek) (struct file *, loff_t, int);
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
-	ssize_t (*aio_read) (struct kiocb *, char __user *, size_t, loff_t);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
-	ssize_t (*aio_write) (struct kiocb *, const char __user *, size_t,
-			loff_t);
+	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
+	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	int (*readdir) (struct file *, void *, filldir_t);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	int (*ioctl) (struct inode *, struct file *, unsigned int,

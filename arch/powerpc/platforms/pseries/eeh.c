@@ -225,6 +225,7 @@ static void __eeh_mark_slot (struct device_node *dn, int mode_flag)
 
 void eeh_mark_slot (struct device_node *dn, int mode_flag)
 {
+	struct pci_dev *dev;
 	dn = find_device_pe (dn);
 
 	/* Back up one, since config addrs might be shared */
@@ -232,6 +233,12 @@ void eeh_mark_slot (struct device_node *dn, int mode_flag)
 		dn = dn->parent;
 
 	PCI_DN(dn)->eeh_mode |= mode_flag;
+
+	/* Mark the pci device too */
+	dev = PCI_DN(dn)->pcidev;
+	if (dev)
+		dev->error_state = pci_channel_io_frozen;
+
 	__eeh_mark_slot (dn->child, mode_flag);
 }
 
@@ -330,6 +337,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 			printk (KERN_ERR "EEH: Device driver ignored %d bad reads, panicing\n",
 			        pdn->eeh_check_count);
 			dump_stack();
+			msleep(5000);
 			
 			/* re-read the slot reset state */
 			if (read_slot_reset_state(pdn, rets) != 0)

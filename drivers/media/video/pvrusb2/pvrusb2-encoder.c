@@ -317,7 +317,7 @@ int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 
 	if (ret) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Failed to configure cx32416");
+			   "Failed to configure cx23416");
 		return ret;
 	}
 
@@ -337,7 +337,7 @@ int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 
 	if (ret) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Failed to initialize cx32416 video input");
+			   "Failed to initialize cx23416 video input");
 		return ret;
 	}
 

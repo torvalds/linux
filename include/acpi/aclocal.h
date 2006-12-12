@@ -708,7 +708,7 @@ struct acpi_bit_register_info {
  * must be preserved.
  */
 #define ACPI_PM1_STATUS_PRESERVED_BITS          0x0800	/* Bit 11 */
-#define ACPI_PM1_CONTROL_PRESERVED_BITS         0x0201	/* Bit 9, Bit 0 (SCI_EN) */
+#define ACPI_PM1_CONTROL_PRESERVED_BITS         0x0200	/* Bit 9 (whatever) */
 
 /*
  * Register IDs

@@ -102,7 +102,7 @@ linux-1.1.x and fairly stable since linux-1.2.x, and are also in FreeBSD
     The hardware RAID devices sold by Adaptec are *NOT* supported by this
     driver (and will people please stop emailing me about them, they are
     a totally separate beast from the bare SCSI controllers and this driver
-    can not be retrofitted in any sane manner to support the hardware RAID
+    cannot be retrofitted in any sane manner to support the hardware RAID
     features on those cards - Doug Ledford).
     
 
@@ -241,7 +241,7 @@ linux-1.1.x and fairly stable since linux-1.2.x, and are also in FreeBSD
         that instead of dumping the register contents on the card, this
 	option dumps the contents of the sequencer program RAM.  This gives
 	the ability to verify that the instructions downloaded to the
-	card's sequencer are indeed what they are suppossed to be.  Again,
+	card's sequencer are indeed what they are supposed to be.  Again,
 	unless you have documentation to tell you how to interpret these
 	numbers, then it is totally useless.
 	
@@ -256,7 +256,7 @@ linux-1.1.x and fairly stable since linux-1.2.x, and are also in FreeBSD
 	      En/Disable High Byte LVD Termination
 
 	The upper 2 bits that deal with LVD termination only apply to Ultra2
-	controllers.  Futhermore, due to the current Ultra2 controller
+	controllers.  Furthermore, due to the current Ultra2 controller
 	designs, these bits are tied together such that setting either bit
 	enables both low and high byte LVD termination.  It is not possible
 	to only set high or low byte LVD termination in this manner.  This is
@@ -317,7 +317,7 @@ linux-1.1.x and fairly stable since linux-1.2.x, and are also in FreeBSD
 	initial DEVCONFIG values for each of your aic7xxx controllers as
 	they are listed, and also record what the machine is detecting as
 	the proper termination on your controllers.  NOTE: the order in
-	which the initial DEVCONFIG values are printed out is not gauranteed
+	which the initial DEVCONFIG values are printed out is not guaranteed
 	to be the same order as the SCSI controllers are registered.  The
 	above option and this option both work on the order of the SCSI
 	controllers as they are registered, so make sure you match the right
@@ -436,7 +436,7 @@ linux-1.1.x and fairly stable since linux-1.2.x, and are also in FreeBSD
     the commas to periods, insmod won't interpret this as more than one
     string and write junk into our binary image.  I consider it a bug in
     the insmod program that even if you wrap your string in quotes (quotes
-    that pass the shell mind you and that insmod sees) it still treates
+    that pass the shell mind you and that insmod sees) it still treats
     a comma inside of those quotes as starting a new variable, resulting
     in memory scribbles if you don't switch the commas to periods.
 

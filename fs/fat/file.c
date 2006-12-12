@@ -13,6 +13,8 @@
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
+#include <linux/backing-dev.h>
+#include <linux/blkdev.h>
 
 int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		      unsigned int cmd, unsigned long arg)
@@ -90,7 +92,7 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		}
 
 		/* This MUST be done before doing anything irreversible... */
-		err = notify_change(filp->f_dentry, &ia);
+		err = notify_change(filp->f_path.dentry, &ia);
 		if (err)
 			goto up;
 
@@ -112,15 +114,24 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 	}
 }
 
+static int fat_file_release(struct inode *inode, struct file *filp)
+{
+	if ((filp->f_mode & FMODE_WRITE) &&
+	     MSDOS_SB(inode->i_sb)->options.flush) {
+		fat_flush_inodes(inode->i_sb, inode, NULL);
+		congestion_wait(WRITE, HZ/10);
+	}
+	return 0;
+}
+
 const struct file_operations fat_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
-	.readv		= generic_file_readv,
-	.writev		= generic_file_writev,
 	.aio_read	= generic_file_aio_read,
 	.aio_write	= generic_file_aio_write,
 	.mmap		= generic_file_mmap,
+	.release	= fat_file_release,
 	.ioctl		= fat_generic_ioctl,
 	.fsync		= file_fsync,
 	.sendfile	= generic_file_sendfile,
@@ -289,9 +300,20 @@ void fat_truncate(struct inode *inode)
 	lock_kernel();
 	fat_free(inode, nr_clusters);
 	unlock_kernel();
+	fat_flush_inodes(inode->i_sb, inode, NULL);
 }
+
+int fat_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+{
+	struct inode *inode = dentry->d_inode;
+	generic_fillattr(inode, stat);
+	stat->blksize = MSDOS_SB(inode->i_sb)->cluster_size;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fat_getattr);
 
 struct inode_operations fat_file_inode_operations = {
 	.truncate	= fat_truncate,
 	.setattr	= fat_notify_change,
+	.getattr	= fat_getattr,
 };

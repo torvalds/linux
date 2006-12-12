@@ -40,15 +40,11 @@
 #include <linux/if_pppox.h>
 #include <linux/mtio.h>
 #include <linux/cdrom.h>
-#include <linux/loop.h>
 #include <linux/auto_fs.h>
 #include <linux/auto_fs4.h>
 #include <linux/tty.h>
 #include <linux/vt_kern.h>
 #include <linux/fb.h>
-#include <linux/ext2_fs.h>
-#include <linux/ext3_jbd.h>
-#include <linux/ext3_fs.h>
 #include <linux/videodev.h>
 #include <linux/netdevice.h>
 #include <linux/raw.h>
@@ -60,12 +56,10 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/serial.h>
-#include <linux/reiserfs_fs.h>
 #include <linux/if_tun.h>
 #include <linux/ctype.h>
 #include <linux/ioctl32.h>
 #include <linux/syscalls.h>
-#include <linux/ncp_fs.h>
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <linux/wireless.h>
@@ -113,7 +107,6 @@
 #include <linux/nbd.h>
 #include <linux/random.h>
 #include <linux/filter.h>
-#include <linux/msdos_fs.h>
 #include <linux/pktcdvd.h>
 
 #include <linux/hiddev.h>
@@ -123,21 +116,6 @@
 #include <linux/dvb/frontend.h>
 #include <linux/dvb/video.h>
 #include <linux/lp.h>
-
-/* Aiee. Someone does not find a difference between int and long */
-#define EXT2_IOC32_GETFLAGS               _IOR('f', 1, int)
-#define EXT2_IOC32_SETFLAGS               _IOW('f', 2, int)
-#define EXT3_IOC32_GETVERSION             _IOR('f', 3, int)
-#define EXT3_IOC32_SETVERSION             _IOW('f', 4, int)
-#define EXT3_IOC32_GETRSVSZ               _IOR('f', 5, int)
-#define EXT3_IOC32_SETRSVSZ               _IOW('f', 6, int)
-#define EXT3_IOC32_GROUP_EXTEND           _IOW('f', 7, unsigned int)
-#ifdef CONFIG_JBD_DEBUG
-#define EXT3_IOC32_WAIT_FOR_READONLY      _IOR('f', 99, int)
-#endif
-
-#define EXT2_IOC32_GETVERSION             _IOR('v', 1, int)
-#define EXT2_IOC32_SETVERSION             _IOW('v', 2, int)
 
 static int do_ioctl32_pointer(unsigned int fd, unsigned int cmd,
 			      unsigned long arg, struct file *f)
@@ -174,34 +152,6 @@ static int rw_long(unsigned int fd, unsigned int cmd, unsigned long arg)
 	if (!err && put_user(val, argptr))
 		return -EFAULT;
 	return err;
-}
-
-static int do_ext2_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	/* These are just misnamed, they actually get/put from/to user an int */
-	switch (cmd) {
-	case EXT2_IOC32_GETFLAGS: cmd = EXT2_IOC_GETFLAGS; break;
-	case EXT2_IOC32_SETFLAGS: cmd = EXT2_IOC_SETFLAGS; break;
-	case EXT2_IOC32_GETVERSION: cmd = EXT2_IOC_GETVERSION; break;
-	case EXT2_IOC32_SETVERSION: cmd = EXT2_IOC_SETVERSION; break;
-	}
-	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
-}
-
-static int do_ext3_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	/* These are just misnamed, they actually get/put from/to user an int */
-	switch (cmd) {
-	case EXT3_IOC32_GETVERSION: cmd = EXT3_IOC_GETVERSION; break;
-	case EXT3_IOC32_SETVERSION: cmd = EXT3_IOC_SETVERSION; break;
-	case EXT3_IOC32_GETRSVSZ: cmd = EXT3_IOC_GETRSVSZ; break;
-	case EXT3_IOC32_SETRSVSZ: cmd = EXT3_IOC_SETRSVSZ; break;
-	case EXT3_IOC32_GROUP_EXTEND: cmd = EXT3_IOC_GROUP_EXTEND; break;
-#ifdef CONFIG_JBD_DEBUG
-	case EXT3_IOC32_WAIT_FOR_READONLY: cmd = EXT3_IOC_WAIT_FOR_READONLY; break;
-#endif
-	}
-	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
 }
 
 struct compat_video_event {
@@ -261,8 +211,10 @@ static int do_video_stillpicture(unsigned int fd, unsigned int cmd, unsigned lon
 	up_native =
 		compat_alloc_user_space(sizeof(struct video_still_picture));
 
-	put_user(compat_ptr(fp), &up_native->iFrame);
-	put_user(size, &up_native->size);
+	err =  put_user(compat_ptr(fp), &up_native->iFrame);
+	err |= put_user(size, &up_native->size);
+	if (err)
+		return -EFAULT;
 
 	err = sys_ioctl(fd, cmd, (unsigned long) up_native);
 
@@ -286,8 +238,10 @@ static int do_video_set_spu_palette(unsigned int fd, unsigned int cmd, unsigned 
 	err |= get_user(length, &up->length);
 
 	up_native = compat_alloc_user_space(sizeof(struct video_spu_palette));
-	put_user(compat_ptr(palp), &up_native->palette);
-	put_user(length, &up_native->length);
+	err  = put_user(compat_ptr(palp), &up_native->palette);
+	err |= put_user(length, &up_native->length);
+	if (err)
+		return -EFAULT;
 
 	err = sys_ioctl(fd, cmd, (unsigned long) up_native);
 
@@ -694,6 +648,7 @@ out:
 }
 #endif
 
+#ifdef CONFIG_BLOCK
 struct hd_geometry32 {
 	unsigned char heads;
 	unsigned char sectors;
@@ -918,6 +873,7 @@ static int sg_grt_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 	}
 	return err;
 }
+#endif /* CONFIG_BLOCK */
 
 struct sock_fprog32 {
 	unsigned short	len;
@@ -1041,6 +997,7 @@ static int ppp_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 }
 
 
+#ifdef CONFIG_BLOCK
 struct mtget32 {
 	compat_long_t	mt_type;
 	compat_long_t	mt_resid;
@@ -1213,80 +1170,14 @@ static int cdrom_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long ar
 
 	return err;
 }
-
-struct loop_info32 {
-	compat_int_t	lo_number;      /* ioctl r/o */
-	compat_dev_t	lo_device;      /* ioctl r/o */
-	compat_ulong_t	lo_inode;       /* ioctl r/o */
-	compat_dev_t	lo_rdevice;     /* ioctl r/o */
-	compat_int_t	lo_offset;
-	compat_int_t	lo_encrypt_type;
-	compat_int_t	lo_encrypt_key_size;    /* ioctl w/o */
-	compat_int_t	lo_flags;       /* ioctl r/o */
-	char		lo_name[LO_NAME_SIZE];
-	unsigned char	lo_encrypt_key[LO_KEY_SIZE]; /* ioctl w/o */
-	compat_ulong_t	lo_init[2];
-	char		reserved[4];
-};
-
-static int loop_status(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	mm_segment_t old_fs = get_fs();
-	struct loop_info l;
-	struct loop_info32 __user *ul;
-	int err = -EINVAL;
-
-	ul = compat_ptr(arg);
-	switch(cmd) {
-	case LOOP_SET_STATUS:
-		err = get_user(l.lo_number, &ul->lo_number);
-		err |= __get_user(l.lo_device, &ul->lo_device);
-		err |= __get_user(l.lo_inode, &ul->lo_inode);
-		err |= __get_user(l.lo_rdevice, &ul->lo_rdevice);
-		err |= __copy_from_user(&l.lo_offset, &ul->lo_offset,
-		        8 + (unsigned long)l.lo_init - (unsigned long)&l.lo_offset);
-		if (err) {
-			err = -EFAULT;
-		} else {
-			set_fs (KERNEL_DS);
-			err = sys_ioctl (fd, cmd, (unsigned long)&l);
-			set_fs (old_fs);
-		}
-		break;
-	case LOOP_GET_STATUS:
-		set_fs (KERNEL_DS);
-		err = sys_ioctl (fd, cmd, (unsigned long)&l);
-		set_fs (old_fs);
-		if (!err) {
-			err = put_user(l.lo_number, &ul->lo_number);
-			err |= __put_user(l.lo_device, &ul->lo_device);
-			err |= __put_user(l.lo_inode, &ul->lo_inode);
-			err |= __put_user(l.lo_rdevice, &ul->lo_rdevice);
-			err |= __copy_to_user(&ul->lo_offset, &l.lo_offset,
-				(unsigned long)l.lo_init - (unsigned long)&l.lo_offset);
-			if (err)
-				err = -EFAULT;
-		}
-		break;
-	default: {
-		static int count;
-		if (++count <= 20)
-			printk("%s: Unknown loop ioctl cmd, fd(%d) "
-			       "cmd(%08x) arg(%08lx)\n",
-			       __FUNCTION__, fd, cmd, arg);
-	}
-	}
-	return err;
-}
-
-extern int tty_ioctl(struct inode * inode, struct file * file, unsigned int cmd, unsigned long arg);
+#endif /* CONFIG_BLOCK */
 
 #ifdef CONFIG_VT
 
 static int vt_check(struct file *file)
 {
 	struct tty_struct *tty;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	
 	if (file->f_op->ioctl != tty_ioctl)
 		return -EINVAL;
@@ -1607,6 +1498,7 @@ ret_einval(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return -EINVAL;
 }
 
+#ifdef CONFIG_BLOCK
 static int broken_blkgetsize(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
 	/* The mkswap binary hard codes it to Intel value :-((( */
@@ -1641,12 +1533,14 @@ static int blkpg_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long ar
 
 	return sys_ioctl(fd, cmd, (unsigned long)a);
 }
+#endif
 
 static int ioc_settimeout(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
 	return rw_long(fd, AUTOFS_IOC_SETTIMEOUT, arg);
 }
 
+#ifdef CONFIG_BLOCK
 /* Fix sizeof(sizeof()) breakage */
 #define BLKBSZGET_32   _IOR(0x12,112,int)
 #define BLKBSZSET_32   _IOW(0x12,113,int)
@@ -1667,6 +1561,7 @@ static int do_blkgetsize64(unsigned int fd, unsigned int cmd,
 {
        return sys_ioctl(fd, BLKGETSIZE64, (unsigned long)compat_ptr(arg));
 }
+#endif
 
 /* Bluetooth ioctls */
 #define HCIUARTSETPROTO	_IOW('U', 200, int)
@@ -1687,6 +1582,7 @@ static int do_blkgetsize64(unsigned int fd, unsigned int cmd,
 #define HIDPGETCONNLIST	_IOR('H', 210, int)
 #define HIDPGETCONNINFO	_IOR('H', 211, int)
 
+#ifdef CONFIG_BLOCK
 struct floppy_struct32 {
 	compat_uint_t	size;
 	compat_uint_t	sect;
@@ -2011,6 +1907,7 @@ out:
 	kfree(karg);
 	return err;
 }
+#endif
 
 struct mtd_oob_buf32 {
 	u_int32_t start;
@@ -2052,61 +1949,7 @@ static int mtd_rw_oob(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return err;
 }	
 
-#define	VFAT_IOCTL_READDIR_BOTH32	_IOR('r', 1, struct compat_dirent[2])
-#define	VFAT_IOCTL_READDIR_SHORT32	_IOR('r', 2, struct compat_dirent[2])
-
-static long
-put_dirent32 (struct dirent *d, struct compat_dirent __user *d32)
-{
-        if (!access_ok(VERIFY_WRITE, d32, sizeof(struct compat_dirent)))
-                return -EFAULT;
-
-        __put_user(d->d_ino, &d32->d_ino);
-        __put_user(d->d_off, &d32->d_off);
-        __put_user(d->d_reclen, &d32->d_reclen);
-        if (__copy_to_user(d32->d_name, d->d_name, d->d_reclen))
-		return -EFAULT;
-
-        return 0;
-}
-
-static int vfat_ioctl32(unsigned fd, unsigned cmd, unsigned long arg)
-{
-	struct compat_dirent __user *p = compat_ptr(arg);
-	int ret;
-	mm_segment_t oldfs = get_fs();
-	struct dirent d[2];
-
-	switch(cmd)
-	{
-        	case VFAT_IOCTL_READDIR_BOTH32:
-                	cmd = VFAT_IOCTL_READDIR_BOTH;
-                	break;
-        	case VFAT_IOCTL_READDIR_SHORT32:
-                	cmd = VFAT_IOCTL_READDIR_SHORT;
-                	break;
-	}
-
-	set_fs(KERNEL_DS);
-	ret = sys_ioctl(fd,cmd,(unsigned long)&d);
-	set_fs(oldfs);
-	if (ret >= 0) {
-		ret |= put_dirent32(&d[0], p);
-		ret |= put_dirent32(&d[1], p + 1);
-	}
-	return ret;
-}
-
-#define REISERFS_IOC_UNPACK32               _IOW(0xCD,1,int)
-
-static int reiserfs_ioctl32(unsigned fd, unsigned cmd, unsigned long ptr)
-{
-        if (cmd == REISERFS_IOC_UNPACK32)
-                cmd = REISERFS_IOC_UNPACK;
-
-        return sys_ioctl(fd,cmd,ptr);
-}
-
+#ifdef CONFIG_BLOCK
 struct raw32_config_request
 {
         compat_int_t    raw_minor;
@@ -2171,6 +2014,7 @@ static int raw_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
         }
         return ret;
 }
+#endif /* CONFIG_BLOCK */
 
 struct serial_struct32 {
         compat_int_t    type;
@@ -2203,16 +2047,19 @@ static int serial_struct_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
         struct serial_struct ss;
         mm_segment_t oldseg = get_fs();
         __u32 udata;
+	unsigned int base;
 
         if (cmd == TIOCSSERIAL) {
                 if (!access_ok(VERIFY_READ, ss32, sizeof(SS32)))
                         return -EFAULT;
                 if (__copy_from_user(&ss, ss32, offsetof(SS32, iomem_base)))
 			return -EFAULT;
-                __get_user(udata, &ss32->iomem_base);
+                if (__get_user(udata, &ss32->iomem_base))
+			return -EFAULT;
                 ss.iomem_base = compat_ptr(udata);
-                __get_user(ss.iomem_reg_shift, &ss32->iomem_reg_shift);
-                __get_user(ss.port_high, &ss32->port_high);
+                if (__get_user(ss.iomem_reg_shift, &ss32->iomem_reg_shift) ||
+		    __get_user(ss.port_high, &ss32->port_high))
+			return -EFAULT;
                 ss.iomap_base = 0UL;
         }
         set_fs(KERNEL_DS);
@@ -2223,12 +2070,12 @@ static int serial_struct_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
                         return -EFAULT;
                 if (__copy_to_user(ss32,&ss,offsetof(SS32,iomem_base)))
 			return -EFAULT;
-                __put_user((unsigned long)ss.iomem_base  >> 32 ?
-                            0xffffffff : (unsigned)(unsigned long)ss.iomem_base,
-                            &ss32->iomem_base);
-                __put_user(ss.iomem_reg_shift, &ss32->iomem_reg_shift);
-                __put_user(ss.port_high, &ss32->port_high);
-
+		base = (unsigned long)ss.iomem_base  >> 32 ?
+			0xffffffff : (unsigned)(unsigned long)ss.iomem_base;
+		if (__put_user(base, &ss32->iomem_base) ||
+		    __put_user(ss.iomem_reg_shift, &ss32->iomem_reg_shift) ||
+		    __put_user(ss.port_high, &ss32->port_high))
+			return -EFAULT;
         }
         return err;
 }
@@ -2507,193 +2354,6 @@ static int rtc_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
 	}
 }
 
-#if defined(CONFIG_NCP_FS) || defined(CONFIG_NCP_FS_MODULE)
-struct ncp_ioctl_request_32 {
-	u32 function;
-	u32 size;
-	compat_caddr_t data;
-};
-
-struct ncp_fs_info_v2_32 {
-	s32 version;
-	u32 mounted_uid;
-	u32 connection;
-	u32 buffer_size;
-
-	u32 volume_number;
-	u32 directory_id;
-
-	u32 dummy1;
-	u32 dummy2;
-	u32 dummy3;
-};
-
-struct ncp_objectname_ioctl_32
-{
-	s32		auth_type;
-	u32		object_name_len;
-	compat_caddr_t	object_name;	/* an userspace data, in most cases user name */
-};
-
-struct ncp_privatedata_ioctl_32
-{
-	u32		len;
-	compat_caddr_t	data;		/* ~1000 for NDS */
-};
-
-#define	NCP_IOC_NCPREQUEST_32		_IOR('n', 1, struct ncp_ioctl_request_32)
-#define NCP_IOC_GETMOUNTUID2_32		_IOW('n', 2, u32)
-#define NCP_IOC_GET_FS_INFO_V2_32	_IOWR('n', 4, struct ncp_fs_info_v2_32)
-#define NCP_IOC_GETOBJECTNAME_32	_IOWR('n', 9, struct ncp_objectname_ioctl_32)
-#define NCP_IOC_SETOBJECTNAME_32	_IOR('n', 9, struct ncp_objectname_ioctl_32)
-#define NCP_IOC_GETPRIVATEDATA_32	_IOWR('n', 10, struct ncp_privatedata_ioctl_32)
-#define NCP_IOC_SETPRIVATEDATA_32	_IOR('n', 10, struct ncp_privatedata_ioctl_32)
-
-static int do_ncp_ncprequest(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	struct ncp_ioctl_request_32 n32;
-	struct ncp_ioctl_request __user *p = compat_alloc_user_space(sizeof(*p));
-
-	if (copy_from_user(&n32, compat_ptr(arg), sizeof(n32)) ||
-	    put_user(n32.function, &p->function) ||
-	    put_user(n32.size, &p->size) ||
-	    put_user(compat_ptr(n32.data), &p->data))
-		return -EFAULT;
-
-	return sys_ioctl(fd, NCP_IOC_NCPREQUEST, (unsigned long)p);
-}
-
-static int do_ncp_getmountuid2(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	mm_segment_t old_fs = get_fs();
-	__kernel_uid_t kuid;
-	int err;
-
-	cmd = NCP_IOC_GETMOUNTUID2;
-
-	set_fs(KERNEL_DS);
-	err = sys_ioctl(fd, cmd, (unsigned long)&kuid);
-	set_fs(old_fs);
-
-	if (!err)
-		err = put_user(kuid,
-			       (unsigned int __user *) compat_ptr(arg));
-
-	return err;
-}
-
-static int do_ncp_getfsinfo2(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	mm_segment_t old_fs = get_fs();
-	struct ncp_fs_info_v2_32 n32;
-	struct ncp_fs_info_v2 n;
-	int err;
-
-	if (copy_from_user(&n32, compat_ptr(arg), sizeof(n32)))
-		return -EFAULT;
-	if (n32.version != NCP_GET_FS_INFO_VERSION_V2)
-		return -EINVAL;
-	n.version = NCP_GET_FS_INFO_VERSION_V2;
-
-	set_fs(KERNEL_DS);
-	err = sys_ioctl(fd, NCP_IOC_GET_FS_INFO_V2, (unsigned long)&n);
-	set_fs(old_fs);
-
-	if (!err) {
-		n32.version = n.version;
-		n32.mounted_uid = n.mounted_uid;
-		n32.connection = n.connection;
-		n32.buffer_size = n.buffer_size;
-		n32.volume_number = n.volume_number;
-		n32.directory_id = n.directory_id;
-		n32.dummy1 = n.dummy1;
-		n32.dummy2 = n.dummy2;
-		n32.dummy3 = n.dummy3;
-		err = copy_to_user(compat_ptr(arg), &n32, sizeof(n32)) ? -EFAULT : 0;
-	}
-	return err;
-}
-
-static int do_ncp_getobjectname(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	struct ncp_objectname_ioctl_32 n32, __user *p32 = compat_ptr(arg);
-	struct ncp_objectname_ioctl __user *p = compat_alloc_user_space(sizeof(*p));
-	s32 auth_type;
-	u32 name_len;
-	int err;
-
-	if (copy_from_user(&n32, p32, sizeof(n32)) ||
-	    put_user(n32.object_name_len, &p->object_name_len) ||
-	    put_user(compat_ptr(n32.object_name), &p->object_name))
-		return -EFAULT;
-
-	err = sys_ioctl(fd, NCP_IOC_GETOBJECTNAME, (unsigned long)p);
-        if (err)
-		return err;
-
-	if (get_user(auth_type, &p->auth_type) ||
-	    put_user(auth_type, &p32->auth_type) ||
-	    get_user(name_len, &p->object_name_len) ||
-	    put_user(name_len, &p32->object_name_len))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int do_ncp_setobjectname(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	struct ncp_objectname_ioctl_32 n32, __user *p32 = compat_ptr(arg);
-	struct ncp_objectname_ioctl __user *p = compat_alloc_user_space(sizeof(*p));
-
-	if (copy_from_user(&n32, p32, sizeof(n32)) ||
-	    put_user(n32.auth_type, &p->auth_type) ||
-	    put_user(n32.object_name_len, &p->object_name_len) ||
-	    put_user(compat_ptr(n32.object_name), &p->object_name))
-		return -EFAULT;
-
-	return sys_ioctl(fd, NCP_IOC_SETOBJECTNAME, (unsigned long)p);
-}
-
-static int do_ncp_getprivatedata(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	struct ncp_privatedata_ioctl_32 n32, __user *p32 = compat_ptr(arg);
-	struct ncp_privatedata_ioctl __user *p =
-		compat_alloc_user_space(sizeof(*p));
-	u32 len;
-	int err;
-
-	if (copy_from_user(&n32, p32, sizeof(n32)) ||
-	    put_user(n32.len, &p->len) ||
-	    put_user(compat_ptr(n32.data), &p->data))
-		return -EFAULT;
-
-	err = sys_ioctl(fd, NCP_IOC_GETPRIVATEDATA, (unsigned long)p);
-        if (err)
-		return err;
-
-	if (get_user(len, &p->len) ||
-	    put_user(len, &p32->len))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int do_ncp_setprivatedata(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	struct ncp_privatedata_ioctl_32 n32;
-	struct ncp_privatedata_ioctl_32 __user *p32 = compat_ptr(arg);
-	struct ncp_privatedata_ioctl __user *p =
-		compat_alloc_user_space(sizeof(*p));
-
-	if (copy_from_user(&n32, p32, sizeof(n32)) ||
-	    put_user(n32.len, &p->len) ||
-	    put_user(compat_ptr(n32.data), &p->data))
-		return -EFAULT;
-
-	return sys_ioctl(fd, NCP_IOC_SETPRIVATEDATA, (unsigned long)p);
-}
-#endif
-
 static int
 lp_timeout_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
@@ -2744,6 +2404,7 @@ HANDLE_IOCTL(SIOCGIFMAP, dev_ifsioc)
 HANDLE_IOCTL(SIOCSIFMAP, dev_ifsioc)
 HANDLE_IOCTL(SIOCGIFADDR, dev_ifsioc)
 HANDLE_IOCTL(SIOCSIFADDR, dev_ifsioc)
+HANDLE_IOCTL(SIOCSIFHWBROADCAST, dev_ifsioc)
 
 /* ioctls used by appletalk ddp.c */
 HANDLE_IOCTL(SIOCATALKDIFADDR, dev_ifsioc)
@@ -2777,6 +2438,7 @@ HANDLE_IOCTL(SIOCBRDELIF, dev_ifsioc)
 HANDLE_IOCTL(SIOCRTMSG, ret_einval)
 HANDLE_IOCTL(SIOCGSTAMP, do_siocgstamp)
 #endif
+#ifdef CONFIG_BLOCK
 HANDLE_IOCTL(HDIO_GETGEO, hdio_getgeo)
 HANDLE_IOCTL(BLKRAGET, w_long)
 HANDLE_IOCTL(BLKGETSIZE, w_long)
@@ -2784,13 +2446,17 @@ HANDLE_IOCTL(0x1260, broken_blkgetsize)
 HANDLE_IOCTL(BLKFRAGET, w_long)
 HANDLE_IOCTL(BLKSECTGET, w_long)
 HANDLE_IOCTL(BLKPG, blkpg_ioctl_trans)
-HANDLE_IOCTL(HDIO_GET_KEEPSETTINGS, hdio_ioctl_trans)
 HANDLE_IOCTL(HDIO_GET_UNMASKINTR, hdio_ioctl_trans)
-HANDLE_IOCTL(HDIO_GET_DMA, hdio_ioctl_trans)
-HANDLE_IOCTL(HDIO_GET_32BIT, hdio_ioctl_trans)
 HANDLE_IOCTL(HDIO_GET_MULTCOUNT, hdio_ioctl_trans)
+HANDLE_IOCTL(HDIO_GET_KEEPSETTINGS, hdio_ioctl_trans)
+HANDLE_IOCTL(HDIO_GET_32BIT, hdio_ioctl_trans)
 HANDLE_IOCTL(HDIO_GET_NOWERR, hdio_ioctl_trans)
+HANDLE_IOCTL(HDIO_GET_DMA, hdio_ioctl_trans)
 HANDLE_IOCTL(HDIO_GET_NICE, hdio_ioctl_trans)
+HANDLE_IOCTL(HDIO_GET_WCACHE, hdio_ioctl_trans)
+HANDLE_IOCTL(HDIO_GET_ACOUSTIC, hdio_ioctl_trans)
+HANDLE_IOCTL(HDIO_GET_ADDRESS, hdio_ioctl_trans)
+HANDLE_IOCTL(HDIO_GET_BUSSTATE, hdio_ioctl_trans)
 HANDLE_IOCTL(FDSETPRM32, fd_ioctl_trans)
 HANDLE_IOCTL(FDDEFPRM32, fd_ioctl_trans)
 HANDLE_IOCTL(FDGETPRM32, fd_ioctl_trans)
@@ -2802,16 +2468,17 @@ HANDLE_IOCTL(FDGETFDCSTAT32, fd_ioctl_trans)
 HANDLE_IOCTL(FDWERRORGET32, fd_ioctl_trans)
 HANDLE_IOCTL(SG_IO,sg_ioctl_trans)
 HANDLE_IOCTL(SG_GET_REQUEST_TABLE, sg_grt_trans)
+#endif
 HANDLE_IOCTL(PPPIOCGIDLE32, ppp_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSCOMPRESS32, ppp_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSPASS32, ppp_sock_fprog_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSACTIVE32, ppp_sock_fprog_ioctl_trans)
+#ifdef CONFIG_BLOCK
 HANDLE_IOCTL(MTIOCGET32, mt_ioctl_trans)
 HANDLE_IOCTL(MTIOCPOS32, mt_ioctl_trans)
 HANDLE_IOCTL(CDROMREADAUDIO, cdrom_ioctl_trans)
 HANDLE_IOCTL(CDROM_SEND_PACKET, cdrom_ioctl_trans)
-HANDLE_IOCTL(LOOP_SET_STATUS, loop_status)
-HANDLE_IOCTL(LOOP_GET_STATUS, loop_status)
+#endif
 #define AUTOFS_IOC_SETTIMEOUT32 _IOWR(0x93,0x64,unsigned int)
 HANDLE_IOCTL(AUTOFS_IOC_SETTIMEOUT32, ioc_settimeout)
 #ifdef CONFIG_VT
@@ -2820,19 +2487,6 @@ HANDLE_IOCTL(GIO_FONTX, do_fontx_ioctl)
 HANDLE_IOCTL(PIO_UNIMAP, do_unimap_ioctl)
 HANDLE_IOCTL(GIO_UNIMAP, do_unimap_ioctl)
 HANDLE_IOCTL(KDFONTOP, do_kdfontop_ioctl)
-#endif
-HANDLE_IOCTL(EXT2_IOC32_GETFLAGS, do_ext2_ioctl)
-HANDLE_IOCTL(EXT2_IOC32_SETFLAGS, do_ext2_ioctl)
-HANDLE_IOCTL(EXT2_IOC32_GETVERSION, do_ext2_ioctl)
-HANDLE_IOCTL(EXT2_IOC32_SETVERSION, do_ext2_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_GETVERSION, do_ext3_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_SETVERSION, do_ext3_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_GETRSVSZ, do_ext3_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_SETRSVSZ, do_ext3_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_GROUP_EXTEND, do_ext3_ioctl)
-COMPATIBLE_IOCTL(EXT3_IOC_GROUP_ADD)
-#ifdef CONFIG_JBD_DEBUG
-HANDLE_IOCTL(EXT3_IOC32_WAIT_FOR_READONLY, do_ext3_ioctl)
 #endif
 /* One SMB ioctl needs translations. */
 #define SMB_IOC_GETMOUNTUID_32 _IOR('u', 1, compat_uid_t)
@@ -2863,16 +2517,14 @@ HANDLE_IOCTL(SONET_SETFRAMING, do_atm_ioctl)
 HANDLE_IOCTL(SONET_GETFRAMING, do_atm_ioctl)
 HANDLE_IOCTL(SONET_GETFRSENSE, do_atm_ioctl)
 /* block stuff */
+#ifdef CONFIG_BLOCK
 HANDLE_IOCTL(BLKBSZGET_32, do_blkbszget)
 HANDLE_IOCTL(BLKBSZSET_32, do_blkbszset)
 HANDLE_IOCTL(BLKGETSIZE64_32, do_blkgetsize64)
-/* vfat */
-HANDLE_IOCTL(VFAT_IOCTL_READDIR_BOTH32, vfat_ioctl32)
-HANDLE_IOCTL(VFAT_IOCTL_READDIR_SHORT32, vfat_ioctl32)
-HANDLE_IOCTL(REISERFS_IOC_UNPACK32, reiserfs_ioctl32)
 /* Raw devices */
 HANDLE_IOCTL(RAW_SETBIND, raw_ioctl)
 HANDLE_IOCTL(RAW_GETBIND, raw_ioctl)
+#endif
 /* Serial */
 HANDLE_IOCTL(TIOCGSERIAL, serial_struct_ioctl)
 HANDLE_IOCTL(TIOCSSERIAL, serial_struct_ioctl)
@@ -2919,16 +2571,6 @@ HANDLE_IOCTL(RTC_IRQP_READ32, rtc_ioctl)
 HANDLE_IOCTL(RTC_IRQP_SET32, rtc_ioctl)
 HANDLE_IOCTL(RTC_EPOCH_READ32, rtc_ioctl)
 HANDLE_IOCTL(RTC_EPOCH_SET32, rtc_ioctl)
-
-#if defined(CONFIG_NCP_FS) || defined(CONFIG_NCP_FS_MODULE)
-HANDLE_IOCTL(NCP_IOC_NCPREQUEST_32, do_ncp_ncprequest)
-HANDLE_IOCTL(NCP_IOC_GETMOUNTUID2_32, do_ncp_getmountuid2)
-HANDLE_IOCTL(NCP_IOC_GET_FS_INFO_V2_32, do_ncp_getfsinfo2)
-HANDLE_IOCTL(NCP_IOC_GETOBJECTNAME_32, do_ncp_getobjectname)
-HANDLE_IOCTL(NCP_IOC_SETOBJECTNAME_32, do_ncp_setobjectname)
-HANDLE_IOCTL(NCP_IOC_GETPRIVATEDATA_32, do_ncp_getprivatedata)
-HANDLE_IOCTL(NCP_IOC_SETPRIVATEDATA_32, do_ncp_setprivatedata)
-#endif
 
 /* dvb */
 HANDLE_IOCTL(VIDEO_GET_EVENT, do_video_get_event)

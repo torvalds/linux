@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp869.c
+ * linux/fs/nls/nls_cp869.c
  *
  * Charset cp869 translation tables.
  * Generated automatically from the Unicode and charset

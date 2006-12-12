@@ -84,7 +84,7 @@ struct dst_entry
 struct dst_ops
 {
 	unsigned short		family;
-	unsigned short		protocol;
+	__be16			protocol;
 	unsigned		gc_thresh;
 
 	int			(*gc)(void);
@@ -98,7 +98,7 @@ struct dst_ops
 	int			entry_size;
 
 	atomic_t		entries;
-	kmem_cache_t 		*kmem_cachep;
+	struct kmem_cache 		*kmem_cachep;
 };
 
 #ifdef __KERNEL__

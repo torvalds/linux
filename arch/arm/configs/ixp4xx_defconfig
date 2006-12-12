@@ -206,10 +206,8 @@ CONFIG_BINFMT_ELF=y
 #
 # Power management options
 #
-CONFIG_PM=y
-CONFIG_PM_LEGACY=y
-# CONFIG_PM_DEBUG is not set
-CONFIG_APM=y
+# CONFIG_PM is not set
+# CONFIG_APM is not set
 
 #
 # Networking
@@ -1245,7 +1243,6 @@ CONFIG_DEBUG_BUGVERBOSE=y
 CONFIG_FRAME_POINTER=y
 # CONFIG_RCU_TORTURE_TEST is not set
 # CONFIG_DEBUG_USER is not set
-# CONFIG_DEBUG_WAITQ is not set
 CONFIG_DEBUG_ERRORS=y
 CONFIG_DEBUG_LL=y
 # CONFIG_DEBUG_ICEDCC is not set

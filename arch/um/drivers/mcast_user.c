@@ -23,6 +23,7 @@
 #include "user_util.h"
 #include "user.h"
 #include "os.h"
+#include "um_malloc.h"
 
 #define MAX_PACKET (ETH_MAX_PACKET + ETH_HEADER_OTHER)
 
@@ -152,7 +153,7 @@ static int mcast_set_mtu(int mtu, void *data)
 	return(mtu);
 }
 
-struct net_user_info mcast_user_info = {
+const struct net_user_info mcast_user_info = {
 	.init		= mcast_user_init,
 	.open		= mcast_open,
 	.close	 	= mcast_close,

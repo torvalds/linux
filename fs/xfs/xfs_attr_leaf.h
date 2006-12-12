@@ -130,6 +130,19 @@ typedef struct xfs_attr_leafblock {
 #define XFS_ATTR_INCOMPLETE	(1 << XFS_ATTR_INCOMPLETE_BIT)
 
 /*
+ * Conversion macros for converting namespace bits from argument flags
+ * to ondisk flags.
+ */
+#define XFS_ATTR_NSP_ARGS_MASK		(ATTR_ROOT | ATTR_SECURE)
+#define XFS_ATTR_NSP_ONDISK_MASK	(XFS_ATTR_ROOT | XFS_ATTR_SECURE)
+#define XFS_ATTR_NSP_ONDISK(flags)	((flags) & XFS_ATTR_NSP_ONDISK_MASK)
+#define XFS_ATTR_NSP_ARGS(flags)	((flags) & XFS_ATTR_NSP_ARGS_MASK)
+#define XFS_ATTR_NSP_ARGS_TO_ONDISK(x)	(((x) & ATTR_ROOT ? XFS_ATTR_ROOT : 0) |\
+					 ((x) & ATTR_SECURE ? XFS_ATTR_SECURE : 0))
+#define XFS_ATTR_NSP_ONDISK_TO_ARGS(x)	(((x) & XFS_ATTR_ROOT ? ATTR_ROOT : 0) |\
+					 ((x) & XFS_ATTR_SECURE ? ATTR_SECURE : 0))
+
+/*
  * Alignment for namelist and valuelist entries (since they are mixed
  * there can be only one alignment value)
  */
@@ -196,16 +209,26 @@ static inline int xfs_attr_leaf_entsize_local_max(int bsize)
  * Structure used to pass context around among the routines.
  *========================================================================*/
 
+
+struct xfs_attr_list_context;
+
+typedef int (*put_listent_func_t)(struct xfs_attr_list_context *, struct attrnames *,
+				      char *, int, int, char *);
+
 typedef struct xfs_attr_list_context {
-	struct xfs_inode		*dp;	/* inode */
-	struct attrlist_cursor_kern	*cursor;/* position in list */
-	struct attrlist			*alist;	/* output buffer */
-	int				count;	/* num used entries */
-	int				dupcnt;	/* count dup hashvals seen */
-	int				bufsize;/* total buffer size */
-	int				firstu;	/* first used byte in buffer */
-	int				flags;	/* from VOP call */
-	int				resynch;/* T/F: resynch with cursor */
+	struct xfs_inode		*dp;		/* inode */
+	struct attrlist_cursor_kern	*cursor;	/* position in list */
+	struct attrlist			*alist;		/* output buffer */
+	int				seen_enough;	/* T/F: seen enough of list? */
+	int				count;		/* num used entries */
+	int				dupcnt;		/* count dup hashvals seen */
+	int				bufsize;	/* total buffer size */
+	int				firstu;		/* first used byte in buffer */
+	int				flags;		/* from VOP call */
+	int				resynch;	/* T/F: resynch with cursor */
+	int				put_value;	/* T/F: need value for listent */
+	put_listent_func_t		put_listent;	/* list output fmt function */
+	int				index;		/* index into output buffer */
 } xfs_attr_list_context_t;
 
 /*

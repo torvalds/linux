@@ -63,7 +63,6 @@
 #define MAX_PCI_DEVICES 10
 #define MAX_TOTAL_DEVICES 20
 
-#include <linux/config.h>	
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
@@ -87,7 +86,6 @@
 
 #include <linux/vmalloc.h>
 #include <linux/init.h>
-#include <asm/serial.h>
 
 #include <linux/delay.h>
 #include <linux/ioctl.h>
@@ -103,8 +101,10 @@
 #include <linux/hdlc.h>
 #include <linux/dma-mapping.h>
 
-#ifdef CONFIG_HDLC_MODULE
-#define CONFIG_HDLC 1
+#if defined(CONFIG_HDLC) || (defined(CONFIG_HDLC_MODULE) && defined(CONFIG_SYNCLINK_MODULE))
+#define SYNCLINK_GENERIC_HDLC 1
+#else
+#define SYNCLINK_GENERIC_HDLC 0
 #endif
 
 #define GET_USER(error,value,addr) error = get_user(value,addr)
@@ -135,8 +135,8 @@ static MGSL_PARAMS default_params = {
 };
 
 #define SHARED_MEM_ADDRESS_SIZE 0x40000
-#define BUFFERLISTSIZE (PAGE_SIZE)
-#define DMABUFFERSIZE (PAGE_SIZE)
+#define BUFFERLISTSIZE 4096
+#define DMABUFFERSIZE 4096
 #define MAXRXFRAMES 7
 
 typedef struct _DMABUFFERENTRY
@@ -322,7 +322,7 @@ struct mgsl_struct {
 	int dosyncppp;
 	spinlock_t netlock;
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	struct net_device *netdev;
 #endif
 };
@@ -730,7 +730,7 @@ static void usc_loopmode_send_done( struct mgsl_struct * info );
 
 static int mgsl_ioctl_common(struct mgsl_struct *info, unsigned int cmd, unsigned long arg);
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 #define dev_to_port(D) (dev_to_hdlc(D)->priv)
 static void hdlcdev_tx_done(struct mgsl_struct *info);
 static void hdlcdev_rx(struct mgsl_struct *info, char *buf, int size);
@@ -804,7 +804,7 @@ static int save_tx_buffer_request(struct mgsl_struct *info,const char *Buffer, u
 /*
  * Bottom half interrupt handlers
  */
-static void mgsl_bh_handler(void* Context);
+static void mgsl_bh_handler(struct work_struct *work);
 static void mgsl_bh_receive(struct mgsl_struct *info);
 static void mgsl_bh_transmit(struct mgsl_struct *info);
 static void mgsl_bh_status(struct mgsl_struct *info);
@@ -1073,9 +1073,10 @@ static int mgsl_bh_action(struct mgsl_struct *info)
 /*
  * 	Perform bottom half processing of work items queued by ISR.
  */
-static void mgsl_bh_handler(void* Context)
+static void mgsl_bh_handler(struct work_struct *work)
 {
-	struct mgsl_struct *info = (struct mgsl_struct*)Context;
+	struct mgsl_struct *info =
+		container_of(work, struct mgsl_struct, task);
 	int action;
 
 	if (!info)
@@ -1278,7 +1279,7 @@ static void mgsl_isr_transmit_status( struct mgsl_struct *info )
 		info->drop_rts_on_tx_done = 0;
 	}
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	if (info->netcount)
 		hdlcdev_tx_done(info);
 	else 
@@ -1343,7 +1344,7 @@ static void mgsl_isr_io_pin( struct mgsl_struct *info )
 				info->input_signal_events.dcd_up++;
 			} else
 				info->input_signal_events.dcd_down++;
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 			if (info->netcount) {
 				if (status & MISCSTATUS_DCD)
 					netif_carrier_on(info->netdev);
@@ -1700,11 +1701,10 @@ static void mgsl_isr_transmit_dma( struct mgsl_struct *info )
  * 
  * 	irq		interrupt number that caused interrupt
  * 	dev_id		device ID supplied during interrupt registration
- * 	regs		interrupted processor context
  * 	
  * Return Value: None
  */
-static irqreturn_t mgsl_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t mgsl_interrupt(int irq, void *dev_id)
 {
 	struct mgsl_struct * info;
 	u16 UscVector;
@@ -3060,7 +3060,7 @@ static int mgsl_ioctl_common(struct mgsl_struct *info, unsigned int cmd, unsigne
  * 	
  * Return Value:		None
  */
-static void mgsl_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void mgsl_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
 	unsigned long flags;
@@ -4315,7 +4315,7 @@ static void mgsl_add_device( struct mgsl_struct *info )
 		     	info->max_frame_size );
 	}
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	hdlcdev_init(info);
 #endif
 
@@ -4340,7 +4340,7 @@ static struct mgsl_struct* mgsl_allocate_device(void)
 	} else {
 		memset(info, 0, sizeof(struct mgsl_struct));
 		info->magic = MGSL_MAGIC;
-		INIT_WORK(&info->task, mgsl_bh_handler, info);
+		INIT_WORK(&info->task, mgsl_bh_handler);
 		info->max_frame_size = 4096;
 		info->close_delay = 5*HZ/10;
 		info->closing_wait = 30*HZ;
@@ -4360,7 +4360,7 @@ static struct mgsl_struct* mgsl_allocate_device(void)
 
 }	/* end of mgsl_allocate_device()*/
 
-static struct tty_operations mgsl_ops = {
+static const struct tty_operations mgsl_ops = {
 	.open = mgsl_open,
 	.close = mgsl_close,
 	.write = mgsl_write,
@@ -4405,6 +4405,8 @@ static int mgsl_init_tty(void)
 	serial_driver->init_termios = tty_std_termios;
 	serial_driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	serial_driver->init_termios.c_ispeed = 9600;
+	serial_driver->init_termios.c_ospeed = 9600;
 	serial_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(serial_driver, &mgsl_ops);
 	if ((rc = tty_register_driver(serial_driver)) < 0) {
@@ -4473,7 +4475,7 @@ static void synclink_cleanup(void)
 
 	info = mgsl_device_list;
 	while(info) {
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 		hdlcdev_exit(info);
 #endif
 		mgsl_release_resources(info);
@@ -6647,7 +6649,7 @@ static int mgsl_get_rx_frame(struct mgsl_struct *info)
 				return_frame = 1;
 		}
 		framesize = 0;
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 		{
 			struct net_device_stats *stats = hdlc_stats(info->netdev);
 			stats->rx_errors++;
@@ -6723,7 +6725,7 @@ static int mgsl_get_rx_frame(struct mgsl_struct *info)
 						*ptmp);
 			}
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 			if (info->netcount)
 				hdlcdev_rx(info,info->intermediate_rxbuffer,framesize);
 			else
@@ -7627,7 +7629,7 @@ static void mgsl_tx_timeout(unsigned long context)
 
 	spin_unlock_irqrestore(&info->irq_spinlock,flags);
 	
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 	if (info->netcount)
 		hdlcdev_tx_done(info);
 	else
@@ -7703,7 +7705,7 @@ static int usc_loopmode_active( struct mgsl_struct * info)
  	return usc_InReg( info, CCSR ) & BIT7 ? 1 : 0 ;
 }
 
-#ifdef CONFIG_HDLC
+#if SYNCLINK_GENERIC_HDLC
 
 /**
  * called by generic HDLC layer when protocol selected (PPP, frame relay, etc.)

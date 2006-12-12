@@ -17,8 +17,8 @@ arch/s390/crypto directory.
 2. Probing for availability of MSA
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 It should be possible to use Kernels with the z990 crypto implementations both
-on machines with MSA available an on those without MSA (pre z990 or z990
-without MSA). Therefore a simple probing mechanisms has been implemented:
+on machines with MSA available and on those without MSA (pre z990 or z990
+without MSA). Therefore a simple probing mechanism has been implemented:
 In the init function of each crypto module the availability of MSA and of the
 respective crypto algorithm in particular will be tested. If the algorithm is
 available the module will load and register its algorithm with the crypto API.
@@ -26,7 +26,7 @@ available the module will load and register its algorithm with the crypto API.
 If the respective crypto algorithm is not available, the init function will
 return -ENOSYS. In that case a fallback to the standard software implementation
 of the crypto algorithm must be taken ( -> the standard crypto modules are
-also build when compiling the kernel).
+also built when compiling the kernel).
 
 
 3. Ensuring z990 crypto module preference
@@ -61,9 +61,9 @@ Example:	z990 crypto instruction for SHA1 algorithm is available
 		-> when the sha1 algorithm is requested through the crypto API
 		(which has a module autoloader) the z990 module will be loaded.
 
-TBD:	a userspace module probin mechanism
+TBD:	a userspace module probing mechanism
 	something like 'probe sha1 sha1_z990 sha1' in modprobe.conf
-	-> try module sha1_z990, if it fails to load load standard module sha1
+	-> try module sha1_z990, if it fails to load standard module sha1
 	the 'probe' statement is currently not supported in modprobe.conf
 
 
@@ -75,8 +75,8 @@ name of the respective module is given in square brackets.
 
 - SHA1 Digest Algorithm [sha1 -> sha1_z990]
 - DES Encrypt/Decrypt Algorithm (64bit key) [des -> des_z990]
-- Tripple DES Encrypt/Decrypt Algorithm (128bit key) [des3_ede128 -> des_z990]
-- Tripple DES Encrypt/Decrypt Algorithm (192bit key) [des3_ede -> des_z990]
+- Triple DES Encrypt/Decrypt Algorithm (128bit key) [des3_ede128 -> des_z990]
+- Triple DES Encrypt/Decrypt Algorithm (192bit key) [des3_ede -> des_z990]
 
 In order to load, for example, the sha1_z990 module when the sha1 algorithm is
 requested (see 3.2.) add 'alias sha1 sha1_z990' to /etc/modprobe.conf.

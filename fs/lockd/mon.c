@@ -24,13 +24,13 @@ static struct rpc_program	nsm_program;
 /*
  * Local NSM state
  */
-u32				nsm_local_state;
+int				nsm_local_state;
 
 /*
  * Common procedure for SM_MON/SM_UNMON calls
  */
 static int
-nsm_mon_unmon(struct nlm_host *host, u32 proc, struct nsm_res *res)
+nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
 {
 	struct rpc_clnt	*clnt;
 	int		status;
@@ -46,10 +46,11 @@ nsm_mon_unmon(struct nlm_host *host, u32 proc, struct nsm_res *res)
 		goto out;
 	}
 
-	args.addr = host->h_addr.sin_addr.s_addr;
-	args.proto= (host->h_proto<<1) | host->h_server;
+	memset(&args, 0, sizeof(args));
+	args.mon_name = nsm->sm_name;
+	args.addr = nsm->sm_addr.sin_addr.s_addr;
 	args.prog = NLM_PROGRAM;
-	args.vers = host->h_version;
+	args.vers = 3;
 	args.proc = NLMPROC_NSM_NOTIFY;
 	memset(res, 0, sizeof(*res));
 
@@ -70,17 +71,22 @@ nsm_mon_unmon(struct nlm_host *host, u32 proc, struct nsm_res *res)
 int
 nsm_monitor(struct nlm_host *host)
 {
+	struct nsm_handle *nsm = host->h_nsmhandle;
 	struct nsm_res	res;
 	int		status;
 
 	dprintk("lockd: nsm_monitor(%s)\n", host->h_name);
+	BUG_ON(nsm == NULL);
 
-	status = nsm_mon_unmon(host, SM_MON, &res);
+	if (nsm->sm_monitored)
+		return 0;
+
+	status = nsm_mon_unmon(nsm, SM_MON, &res);
 
 	if (status < 0 || res.status != 0)
 		printk(KERN_NOTICE "lockd: cannot monitor %s\n", host->h_name);
 	else
-		host->h_monitored = 1;
+		nsm->sm_monitored = 1;
 	return status;
 }
 
@@ -90,16 +96,26 @@ nsm_monitor(struct nlm_host *host)
 int
 nsm_unmonitor(struct nlm_host *host)
 {
+	struct nsm_handle *nsm = host->h_nsmhandle;
 	struct nsm_res	res;
-	int		status;
+	int		status = 0;
 
-	dprintk("lockd: nsm_unmonitor(%s)\n", host->h_name);
+	if (nsm == NULL)
+		return 0;
+	host->h_nsmhandle = NULL;
 
-	status = nsm_mon_unmon(host, SM_UNMON, &res);
-	if (status < 0)
-		printk(KERN_NOTICE "lockd: cannot unmonitor %s\n", host->h_name);
-	else
-		host->h_monitored = 0;
+	if (atomic_read(&nsm->sm_count) == 1
+	 && nsm->sm_monitored && !nsm->sm_sticky) {
+		dprintk("lockd: nsm_unmonitor(%s)\n", host->h_name);
+
+		status = nsm_mon_unmon(nsm, SM_UNMON, &res);
+		if (status < 0)
+			printk(KERN_NOTICE "lockd: cannot unmonitor %s\n",
+					host->h_name);
+		else
+			nsm->sm_monitored = 0;
+	}
+	nsm_release(nsm);
 	return status;
 }
 
@@ -132,10 +148,10 @@ nsm_create(void)
  * XDR functions for NSM.
  */
 
-static u32 *
-xdr_encode_common(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
+static __be32 *
+xdr_encode_common(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 {
-	char	buffer[20];
+	char	buffer[20], *name;
 
 	/*
 	 * Use the dotted-quad IP address of the remote host as
@@ -143,9 +159,14 @@ xdr_encode_common(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
 	 * hostname first for whatever remote hostname it receives,
 	 * so this works alright.
 	 */
-	sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(argp->addr));
-	if (!(p = xdr_encode_string(p, buffer))
-	 || !(p = xdr_encode_string(p, system_utsname.nodename)))
+	if (nsm_use_hostnames) {
+		name = argp->mon_name;
+	} else {
+		sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(argp->addr));
+		name = buffer;
+	}
+	if (!(p = xdr_encode_string(p, name))
+	 || !(p = xdr_encode_string(p, utsname()->nodename)))
 		return ERR_PTR(-EIO);
 	*p++ = htonl(argp->prog);
 	*p++ = htonl(argp->vers);
@@ -155,21 +176,23 @@ xdr_encode_common(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
 }
 
 static int
-xdr_encode_mon(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
+xdr_encode_mon(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 {
 	p = xdr_encode_common(rqstp, p, argp);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
+
+	/* Surprise - there may even be room for an IPv6 address now */
 	*p++ = argp->addr;
-	*p++ = argp->vers;
-	*p++ = argp->proto;
+	*p++ = 0;
+	*p++ = 0;
 	*p++ = 0;
 	rqstp->rq_slen = xdr_adjust_iovec(rqstp->rq_svec, p);
 	return 0;
 }
 
 static int
-xdr_encode_unmon(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
+xdr_encode_unmon(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 {
 	p = xdr_encode_common(rqstp, p, argp);
 	if (IS_ERR(p))
@@ -179,7 +202,7 @@ xdr_encode_unmon(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
 }
 
 static int
-xdr_decode_stat_res(struct rpc_rqst *rqstp, u32 *p, struct nsm_res *resp)
+xdr_decode_stat_res(struct rpc_rqst *rqstp, __be32 *p, struct nsm_res *resp)
 {
 	resp->status = ntohl(*p++);
 	resp->state = ntohl(*p++);
@@ -189,7 +212,7 @@ xdr_decode_stat_res(struct rpc_rqst *rqstp, u32 *p, struct nsm_res *resp)
 }
 
 static int
-xdr_decode_stat(struct rpc_rqst *rqstp, u32 *p, struct nsm_res *resp)
+xdr_decode_stat(struct rpc_rqst *rqstp, __be32 *p, struct nsm_res *resp)
 {
 	resp->state = ntohl(*p++);
 	return 0;

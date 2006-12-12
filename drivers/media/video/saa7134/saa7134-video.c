@@ -43,12 +43,16 @@ static unsigned int gbuffers      = 8;
 static unsigned int noninterlaced = 1;
 static unsigned int gbufsize      = 720*576*4;
 static unsigned int gbufsize_max  = 720*576*4;
+static char secam[] = "--";
 module_param(video_debug, int, 0644);
 MODULE_PARM_DESC(video_debug,"enable debug messages [video]");
 module_param(gbuffers, int, 0444);
 MODULE_PARM_DESC(gbuffers,"number of capture buffers, range 2-32");
 module_param(noninterlaced, int, 0644);
 MODULE_PARM_DESC(noninterlaced,"capture non interlaced video");
+module_param_string(secam, secam, sizeof(secam), 0644);
+MODULE_PARM_DESC(secam, "force SECAM variant, either DK,L or Lc");
+
 
 #define dprintk(fmt, arg...)	if (video_debug) \
 	printk(KERN_DEBUG "%s/video: " fmt, dev->name , ## arg)
@@ -279,7 +283,43 @@ static struct saa7134_tvnorm tvnorms[] = {
 		.id            = V4L2_STD_SECAM,
 		NORM_625_50,
 
-		.sync_control  = 0x18, /* old: 0x58, */
+		.sync_control  = 0x18,
+		.luma_control  = 0x1b,
+		.chroma_ctrl1  = 0xd1,
+		.chroma_gain   = 0x80,
+		.chroma_ctrl2  = 0x00,
+		.vgate_misc    = 0x1c,
+
+	},{
+		.name          = "SECAM-DK",
+		.id            = V4L2_STD_SECAM_DK,
+		NORM_625_50,
+
+		.sync_control  = 0x18,
+		.luma_control  = 0x1b,
+		.chroma_ctrl1  = 0xd1,
+		.chroma_gain   = 0x80,
+		.chroma_ctrl2  = 0x00,
+		.vgate_misc    = 0x1c,
+
+	},{
+		.name          = "SECAM-L",
+		.id            = V4L2_STD_SECAM_L,
+		NORM_625_50,
+
+		.sync_control  = 0x18,
+		.luma_control  = 0x1b,
+		.chroma_ctrl1  = 0xd1,
+		.chroma_gain   = 0x80,
+		.chroma_ctrl2  = 0x00,
+		.vgate_misc    = 0x1c,
+
+	},{
+		.name          = "SECAM-Lc",
+		.id            = V4L2_STD_SECAM_LC,
+		NORM_625_50,
+
+		.sync_control  = 0x18,
 		.luma_control  = 0x1b,
 		.chroma_ctrl1  = 0xd1,
 		.chroma_gain   = 0x80,
@@ -1769,6 +1809,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 	{
 		v4l2_std_id *id = arg;
 		unsigned int i;
+		v4l2_std_id fixup;
 
 		for (i = 0; i < TVNORMS; i++)
 			if (*id == tvnorms[i].id)
@@ -1779,7 +1820,22 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 					break;
 		if (i == TVNORMS)
 			return -EINVAL;
-
+		if ((*id & V4L2_STD_SECAM) && (secam[0] != '-')) {
+			if (secam[0] == 'L' || secam[0] == 'l') {
+				if (secam[1] == 'C' || secam[1] == 'c')
+					fixup = V4L2_STD_SECAM_LC;
+				else
+					fixup = V4L2_STD_SECAM_L;
+			} else {
+				if (secam[0] == 'D' || secam[0] == 'd')
+					fixup = V4L2_STD_SECAM_DK;
+				else
+					fixup = V4L2_STD_SECAM;
+			}
+			for (i = 0; i < TVNORMS; i++)
+				if (fixup == tvnorms[i].id)
+					break;
+		}
 		mutex_lock(&dev->lock);
 		if (res_check(fh, RESOURCE_OVERLAY)) {
 			spin_lock_irqsave(&dev->slock,flags);
@@ -2192,7 +2248,11 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 		t->type = V4L2_TUNER_RADIO;
 
 		saa7134_i2c_call_clients(dev, VIDIOC_G_TUNER, t);
-
+		if (dev->input->amux == TV) {
+			t->signal = 0xf800 - ((saa_readb(0x581) & 0x1f) << 11);
+			t->rxsubchans = (saa_readb(0x529) & 0x08) ?
+					V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
+		}
 		return 0;
 	}
 	case VIDIOC_S_TUNER:

@@ -33,7 +33,7 @@ struct snd_hwdep_dsp_image32 {
 static int snd_hwdep_dsp_load_compat(struct snd_hwdep *hw,
 				     struct snd_hwdep_dsp_image32 __user *src)
 {
-	struct snd_hwdep_dsp_image *dst;
+	struct snd_hwdep_dsp_image __user *dst;
 	compat_caddr_t ptr;
 	u32 val;
 

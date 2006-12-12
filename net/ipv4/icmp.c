@@ -104,7 +104,7 @@ struct icmp_bxm {
 
 	struct {
 		struct icmphdr icmph;
-		__u32	       times[3];
+		__be32	       times[3];
 	} data;
 	int head_len;
 	struct ip_options replyopts;
@@ -332,7 +332,7 @@ static int icmp_glue_bits(void *from, char *to, int offset, int len, int odd,
 			  struct sk_buff *skb)
 {
 	struct icmp_bxm *icmp_param = (struct icmp_bxm *)from;
-	unsigned int csum;
+	__wsum csum;
 
 	csum = skb_copy_and_csum_bits(icmp_param->skb,
 				      icmp_param->offset + offset,
@@ -356,7 +356,7 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 		ip_flush_pending_frames(icmp_socket->sk);
 	else if ((skb = skb_peek(&icmp_socket->sk->sk_write_queue)) != NULL) {
 		struct icmphdr *icmph = skb->h.icmph;
-		unsigned int csum = 0;
+		__wsum csum = 0;
 		struct sk_buff *skb1;
 
 		skb_queue_walk(&icmp_socket->sk->sk_write_queue, skb1) {
@@ -381,7 +381,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipcm_cookie ipc;
 	struct rtable *rt = (struct rtable *)skb->dst;
-	u32 daddr;
+	__be32 daddr;
 
 	if (ip_options_echo(&icmp_param->replyopts, skb))
 		return;
@@ -430,14 +430,14 @@ out_unlock:
  *			MUST reply to only the first fragment.
  */
 
-void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
+void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 {
 	struct iphdr *iph;
 	int room;
 	struct icmp_bxm icmp_param;
 	struct rtable *rt = (struct rtable *)skb_in->dst;
 	struct ipcm_cookie ipc;
-	u32 saddr;
+	__be32 saddr;
 	u8  tos;
 
 	if (!rt)
@@ -895,7 +895,7 @@ static void icmp_address_reply(struct sk_buff *skb)
 	if (in_dev->ifa_list &&
 	    IN_DEV_LOG_MARTIANS(in_dev) &&
 	    IN_DEV_FORWARD(in_dev)) {
-		u32 _mask, *mp;
+		__be32 _mask, *mp;
 
 		mp = skb_header_pointer(skb, 0, sizeof(_mask), &_mask);
 		BUG_ON(mp == NULL);
@@ -931,7 +931,7 @@ int icmp_rcv(struct sk_buff *skb)
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
-		if (!(u16)csum_fold(skb->csum))
+		if (!csum_fold(skb->csum))
 			break;
 		/* fall through */
 	case CHECKSUM_NONE:

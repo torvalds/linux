@@ -28,6 +28,15 @@ nreaders	This is the number of RCU reading threads supported.
 		To properly exercise RCU implementations with preemptible
 		read-side critical sections.
 
+nfakewriters	This is the number of RCU fake writer threads to run.  Fake
+		writer threads repeatedly use the synchronous "wait for
+		current readers" function of the interface selected by
+		torture_type, with a delay between calls to allow for various
+		different numbers of writers running in parallel.
+		nfakewriters defaults to 4, which provides enough parallelism
+		to trigger special cases caused by multiple writers, such as
+		the synchronize_srcu() early return optimization.
+
 stat_interval	The number of seconds between output of torture
 		statistics (via printk()).  Regardless of the interval,
 		statistics are printed when the module is unloaded.
@@ -44,9 +53,12 @@ test_no_idle_hz	Whether or not to test the ability of RCU to operate in
 		a kernel that disables the scheduling-clock interrupt to
 		idle CPUs.  Boolean parameter, "1" to test, "0" otherwise.
 
-torture_type	The type of RCU to test: "rcu" for the rcu_read_lock()
-		API, "rcu_bh" for the rcu_read_lock_bh() API, and "srcu"
-		for the "srcu_read_lock()" API.
+torture_type	The type of RCU to test: "rcu" for the rcu_read_lock() API,
+		"rcu_sync" for rcu_read_lock() with synchronous reclamation,
+		"rcu_bh" for the rcu_read_lock_bh() API, "rcu_bh_sync" for
+		rcu_read_lock_bh() with synchronous reclamation, "srcu" for
+		the "srcu_read_lock()" API, and "sched" for the use of
+		preempt_disable() together with synchronize_sched().
 
 verbose		Enable debug printk()s.  Default is disabled.
 
@@ -117,6 +129,21 @@ o	"Free-Block Circulation": Shows the number of torture structures
 	passes through a grace period.  The last entry should be zero,
 	as it is only incremented if a torture structure's counter
 	somehow gets incremented farther than it should.
+
+Different implementations of RCU can provide implementation-specific
+additional information.  For example, SRCU provides the following:
+
+	srcu-torture: rtc: f8cf46a8 ver: 355 tfle: 0 rta: 356 rtaf: 0 rtf: 346 rtmbe: 0
+	srcu-torture: Reader Pipe:  559738 939 0 0 0 0 0 0 0 0 0
+	srcu-torture: Reader Batch:  560434 243 0 0 0 0 0 0 0 0
+	srcu-torture: Free-Block Circulation:  355 354 353 352 351 350 349 348 347 346 0
+	srcu-torture: per-CPU(idx=1): 0(0,1) 1(0,1) 2(0,0) 3(0,1)
+
+The first four lines are similar to those for RCU.  The last line shows
+the per-CPU counter state.  The numbers in parentheses are the values
+of the "old" and "current" counters for the corresponding CPU.  The
+"idx" value maps the "old" and "current" values to the underlying array,
+and is useful for debugging.
 
 
 USAGE

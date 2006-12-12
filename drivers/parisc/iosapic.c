@@ -50,12 +50,12 @@
 **
 ** PA Firmware
 ** -----------
-** PA-RISC platforms have two fundementally different types of firmware.
+** PA-RISC platforms have two fundamentally different types of firmware.
 ** For PCI devices, "Legacy" PDC initializes the "INTERRUPT_LINE" register
 ** and BARs similar to a traditional PC BIOS.
 ** The newer "PAT" firmware supports PDC calls which return tables.
-** PAT firmware only initializes PCI Console and Boot interface.
-** With these tables, the OS can progam all other PCI devices.
+** PAT firmware only initializes the PCI Console and Boot interface.
+** With these tables, the OS can program all other PCI devices.
 **
 ** One such PAT PDC call returns the "Interrupt Routing Table" (IRT).
 ** The IRT maps each PCI slot's INTA-D "output" line to an I/O SAPIC
@@ -146,7 +146,7 @@
 #include <asm/superio.h>
 #endif
 
-#include <asm/iosapic.h>
+#include <asm/ropes.h>
 #include "./iosapic_private.h"
 
 #define MODULE_NAME "iosapic"
@@ -692,6 +692,7 @@ static void iosapic_end_irq(unsigned int irq)
 	DBG(KERN_DEBUG "end_irq(%d): eoi(%p, 0x%x)\n", irq,
 			vi->eoi_addr, vi->eoi_data);
 	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
+	cpu_end_irq(irq);
 }
 
 static unsigned int iosapic_startup_irq(unsigned int irq)
@@ -728,7 +729,7 @@ static struct hw_interrupt_type iosapic_interrupt_type = {
 	.shutdown =	iosapic_disable_irq,
 	.enable =	iosapic_enable_irq,
 	.disable =	iosapic_disable_irq,
-	.ack =		no_ack_irq,
+	.ack =		cpu_ack_irq,
 	.end =		iosapic_end_irq,
 #ifdef CONFIG_SMP
 	.set_affinity =	iosapic_set_affinity_irq,

@@ -48,7 +48,7 @@
 
 static void iser_cq_tasklet_fn(unsigned long data);
 static void iser_cq_callback(struct ib_cq *cq, void *cq_context);
-static void iser_comp_error_worker(void *data);
+static void iser_comp_error_worker(struct work_struct *work);
 
 static void iser_cq_event_callback(struct ib_event *cause, void *context)
 {
@@ -480,8 +480,7 @@ int iser_conn_init(struct iser_conn **ibconn)
 	init_waitqueue_head(&ib_conn->wait);
 	atomic_set(&ib_conn->post_recv_buf_count, 0);
 	atomic_set(&ib_conn->post_send_buf_count, 0);
-	INIT_WORK(&ib_conn->comperror_work, iser_comp_error_worker,
-		  ib_conn);
+	INIT_WORK(&ib_conn->comperror_work, iser_comp_error_worker);
 	INIT_LIST_HEAD(&ib_conn->conn_list);
 	spin_lock_init(&ib_conn->lock);
 
@@ -571,6 +570,8 @@ void iser_conn_release(struct iser_conn *ib_conn)
 	/* on EVENT_ADDR_ERROR there's no device yet for this conn */
 	if (device != NULL)
 		iser_device_try_release(device);
+	if (ib_conn->iser_conn)
+		ib_conn->iser_conn->ib_conn = NULL;
 	kfree(ib_conn);
 }
 
@@ -694,7 +695,7 @@ int iser_post_recv(struct iser_desc *rx_desc)
 	struct iser_dto   *recv_dto = &rx_desc->dto;
 
 	/* Retrieve conn */
-	ib_conn = recv_dto->conn->ib_conn;
+	ib_conn = recv_dto->ib_conn;
 
 	iser_dto_to_iov(recv_dto, iov, 2);
 
@@ -727,7 +728,7 @@ int iser_post_send(struct iser_desc *tx_desc)
 	struct iser_conn  *ib_conn;
 	struct iser_dto   *dto = &tx_desc->dto;
 
-	ib_conn = dto->conn->ib_conn;
+	ib_conn = dto->ib_conn;
 
 	iser_dto_to_iov(dto, iov, MAX_REGD_BUF_VECTOR_LEN);
 
@@ -752,9 +753,10 @@ int iser_post_send(struct iser_desc *tx_desc)
 	return ret_val;
 }
 
-static void iser_comp_error_worker(void *data)
+static void iser_comp_error_worker(struct work_struct *work)
 {
-	struct iser_conn *ib_conn = data;
+	struct iser_conn *ib_conn =
+		container_of(work, struct iser_conn, comperror_work);
 
 	/* getting here when the state is UP means that the conn is being *
 	 * terminated asynchronously from the iSCSI layer's perspective.  */
@@ -774,7 +776,7 @@ static void iser_comp_error_worker(void *data)
 static void iser_handle_comp_error(struct iser_desc *desc)
 {
 	struct iser_dto  *dto     = &desc->dto;
-	struct iser_conn *ib_conn = dto->conn->ib_conn;
+	struct iser_conn *ib_conn = dto->ib_conn;
 
 	iser_dto_buffs_release(dto);
 

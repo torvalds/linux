@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * (C) 2001 - 2005 Tensilica Inc.
+ * (C) 2001 - 2006 Tensilica Inc.
  */
 
 #ifndef _XTENSA_CACHEFLUSH_H

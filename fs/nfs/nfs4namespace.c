@@ -7,8 +7,6 @@
  * NFSv4 namespace
  */
 
-#include <linux/config.h>
-
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>

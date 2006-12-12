@@ -27,7 +27,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt366"
-#define DRV_VERSION	"0.5"
+#define DRV_VERSION	"0.5.3"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -222,9 +222,17 @@ static u32 hpt36x_find_mode(struct ata_port *ap, int speed)
 
 static int hpt36x_pre_reset(struct ata_port *ap)
 {
+	static const struct pci_bits hpt36x_enable_bits[] = {
+		{ 0x50, 1, 0x04, 0x04 },
+		{ 0x54, 1, 0x04, 0x04 }
+	};
+
 	u8 ata66;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
+	if (!pci_test_config_bits(pdev, &hpt36x_enable_bits[ap->port_no]))
+		return -ENOENT;
+		
 	pci_read_config_byte(pdev, 0x5A, &ata66);
 	if (ata66 & (1 << ap->port_no))
 		ap->cbl = ATA_CBL_PATA40;
@@ -322,14 +330,16 @@ static struct scsi_host_template hpt36x_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 /*
@@ -360,7 +370,7 @@ static struct ata_port_operations hpt366_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -370,6 +380,27 @@ static struct ata_port_operations hpt366_port_ops = {
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
 };
+
+/**
+ *	hpt36x_init_chipset	-	common chip setup
+ *	@dev: PCI device
+ *
+ *	Perform the chip setup work that must be done at both init and
+ *	resume time
+ */
+
+static void hpt36x_init_chipset(struct pci_dev *dev)
+{
+	u8 drive_fast;
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, (L1_CACHE_BYTES / 4));
+	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x78);
+	pci_write_config_byte(dev, PCI_MIN_GNT, 0x08);
+	pci_write_config_byte(dev, PCI_MAX_LAT, 0x08);
+
+	pci_read_config_byte(dev, 0x51, &drive_fast);
+	if (drive_fast & 0x80)
+		pci_write_config_byte(dev, 0x51, drive_fast & ~0x80);
+}
 
 /**
  *	hpt36x_init_one		-	Initialise an HPT366/368
@@ -406,7 +437,6 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	u32 class_rev;
 	u32 reg1;
-	u8 drive_fast;
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
 	class_rev &= 0xFF;
@@ -416,20 +446,13 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (class_rev > 2)
 			return -ENODEV;
 
-	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, (L1_CACHE_BYTES / 4));
-	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x78);
-	pci_write_config_byte(dev, PCI_MIN_GNT, 0x08);
-	pci_write_config_byte(dev, PCI_MAX_LAT, 0x08);
-
-	pci_read_config_byte(dev, 0x51, &drive_fast);
-	if (drive_fast & 0x80)
-		pci_write_config_byte(dev, 0x51, drive_fast & ~0x80);
+	hpt36x_init_chipset(dev);
 
 	pci_read_config_dword(dev, 0x40,  &reg1);
 
 	/* PCI clocking determines the ATA timing values to use */
 	/* info_hpt366 is safe against re-entry so we can scribble on it */
-	switch(reg1 & 0x700) {
+	switch((reg1 & 0x700) >> 8) {
 		case 5:
 			info_hpt366.private_data = &hpt366_40;
 			break;
@@ -444,16 +467,25 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	return ata_pci_init_one(dev, port_info, 2);
 }
 
-static struct pci_device_id hpt36x[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_TTI, PCI_DEVICE_ID_TTI_HPT366), },
-	{ 0, },
+static int hpt36x_reinit_one(struct pci_dev *dev)
+{
+	hpt36x_init_chipset(dev);
+	return ata_pci_device_resume(dev);
+}
+
+
+static const struct pci_device_id hpt36x[] = {
+	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT366), },
+	{ },
 };
 
 static struct pci_driver hpt36x_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= hpt36x,
 	.probe 		= hpt36x_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= hpt36x_reinit_one,
 };
 
 static int __init hpt36x_init(void)
@@ -461,12 +493,10 @@ static int __init hpt36x_init(void)
 	return pci_register_driver(&hpt36x_pci_driver);
 }
 
-
 static void __exit hpt36x_exit(void)
 {
 	pci_unregister_driver(&hpt36x_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for the Highpoint HPT366/368");

@@ -53,19 +53,9 @@ void __init tx4927_time_init(void);
 void dump_cp0(char *key);
 
 
-void (*__wbflush) (void);
-
-static void tx4927_write_buffer_flush(void)
-{
-	__asm__ __volatile__
-	    ("sync\n\t" "nop\n\t" "loop: bc0f loop\n\t" "nop\n\t");
-}
-
-
 void __init plat_mem_setup(void)
 {
 	board_time_init = tx4927_time_init;
-	__wbflush = tx4927_write_buffer_flush;
 
 #ifdef CONFIG_TOSHIBA_RBTX4927
 	{
@@ -121,8 +111,6 @@ void print_cp0(char *key, int num, char *name, u32 val)
 	printk("%s cp0:%02d:%s=0x%08x\n", key, num, name, val);
 	return;
 }
-
-indent: Standard input:25: Error:Unexpected end of file
 
 void
 dump_cp0(char *key)

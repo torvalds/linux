@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/netlink.h>
+#include <linux/jiffies.h>
 
 /* ========================================================================
  *         Netlink Messages and Attributes Interface (As Seen On TV)
@@ -500,14 +501,15 @@ static inline struct nlmsghdr *nlmsg_put_answer(struct sk_buff *skb,
 
 /**
  * nlmsg_new - Allocate a new netlink message
- * @size: maximum size of message
+ * @payload: size of the message payload
  * @flags: the type of memory to allocate.
  *
- * Use NLMSG_GOODSIZE if size isn't know and you need a good default size.
+ * Use NLMSG_DEFAULT_SIZE if the size of the payload isn't known
+ * and a good default is needed.
  */
-static inline struct sk_buff *nlmsg_new(int size, gfp_t flags)
+static inline struct sk_buff *nlmsg_new(size_t payload, gfp_t flags)
 {
-	return alloc_skb(size, flags);
+	return alloc_skb(nlmsg_total_size(payload), flags);
 }
 
 /**
@@ -828,8 +830,14 @@ static inline int nla_put_msecs(struct sk_buff *skb, int attrtype,
 #define NLA_PUT_U16(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, u16, attrtype, value)
 
+#define NLA_PUT_LE16(skb, attrtype, value) \
+	NLA_PUT_TYPE(skb, __le16, attrtype, value)
+
 #define NLA_PUT_U32(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, u32, attrtype, value)
+
+#define NLA_PUT_BE32(skb, attrtype, value) \
+	NLA_PUT_TYPE(skb, __be32, attrtype, value)
 
 #define NLA_PUT_U64(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, u64, attrtype, value)
@@ -853,12 +861,30 @@ static inline u32 nla_get_u32(struct nlattr *nla)
 }
 
 /**
+ * nla_get_be32 - return payload of __be32 attribute
+ * @nla: __be32 netlink attribute
+ */
+static inline __be32 nla_get_be32(struct nlattr *nla)
+{
+	return *(__be32 *) nla_data(nla);
+}
+
+/**
  * nla_get_u16 - return payload of u16 attribute
  * @nla: u16 netlink attribute
  */
 static inline u16 nla_get_u16(struct nlattr *nla)
 {
 	return *(u16 *) nla_data(nla);
+}
+
+/**
+ * nla_get_le16 - return payload of __le16 attribute
+ * @nla: __le16 netlink attribute
+ */
+static inline __le16 nla_get_le16(struct nlattr *nla)
+{
+	return *(__le16 *) nla_data(nla);
 }
 
 /**

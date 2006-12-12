@@ -211,6 +211,14 @@ int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *);
 /* Store the v4l minor device number */
 void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *,int);
 
+/* Direct read/write access to chip's registers:
+   chip_id - unique id of chip (e.g. I2C_DRIVERD_xxxx)
+   reg_id  - register number to access
+   setFl   - true to set the register, false to read it
+   val_ptr - storage location for source / result. */
+int pvr2_hdw_register_access(struct pvr2_hdw *,
+			     u32 chip_id,unsigned long reg_id,
+			     int setFl,u32 *val_ptr);
 
 /* The following entry points are all lower level things you normally don't
    want to worry about. */

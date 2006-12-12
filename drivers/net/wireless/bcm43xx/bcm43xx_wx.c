@@ -47,9 +47,6 @@
 #define BCM43xx_WX_VERSION	18
 
 #define MAX_WX_STRING		80
-/* FIXME: the next line is a guess as to what the maximum RSSI value might be */
-#define RX_RSSI_MAX		60
-
 
 static int bcm43xx_wx_get_name(struct net_device *net_dev,
                                struct iw_request_info *info,
@@ -334,7 +331,7 @@ static int bcm43xx_wx_get_nick(struct net_device *net_dev,
 	size_t len;
 
 	mutex_lock(&bcm->mutex);
-	len = strlen(bcm->nick) + 1;
+	len = strlen(bcm->nick);
 	memcpy(extra, bcm->nick, len);
 	data->data.length = (__u16)len;
 	data->data.flags = 1;
@@ -693,6 +690,7 @@ static int bcm43xx_wx_set_swencryption(struct net_device *net_dev,
 	bcm->ieee->host_encrypt = !!on;
 	bcm->ieee->host_decrypt = !!on;
 	bcm->ieee->host_build_iv = !on;
+	bcm->ieee->host_strip_iv_icv = !on;
 	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 	mutex_unlock(&bcm->mutex);
 
@@ -847,7 +845,7 @@ static struct iw_statistics *bcm43xx_get_wireless_stats(struct net_device *net_d
 	unsigned long flags;
 
 	wstats = &bcm->stats.wstats;
-	if (!mac->associated) {
+	if (!mac->associnfo.associated) {
 		wstats->miss.beacon = 0;
 //		bcm->ieee->ieee_stats.tx_retry_limit_exceeded = 0; // FIXME: should this be cleared here?
 		wstats->discard.retries = 0;

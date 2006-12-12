@@ -326,15 +326,24 @@ static int ide_replace_subdriver(ide_drive_t *drive, const char *driver)
 {
 	struct device *dev = &drive->gendev;
 	int ret = 1;
+	int err;
 
 	down_write(&dev->bus->subsys.rwsem);
 	device_release_driver(dev);
 	/* FIXME: device can still be in use by previous driver */
 	strlcpy(drive->driver_req, driver, sizeof(drive->driver_req));
-	device_attach(dev);
+	err = device_attach(dev);
+	if (err < 0)
+		printk(KERN_WARNING "IDE: %s: device_attach error: %d\n",
+			__FUNCTION__, err);
 	drive->driver_req[0] = 0;
-	if (dev->driver == NULL)
-		device_attach(dev);
+	if (dev->driver == NULL) {
+		err = device_attach(dev);
+		if (err < 0)
+			printk(KERN_WARNING
+				"IDE: %s: device_attach(2) error: %d\n",
+				__FUNCTION__, err);
+	}
 	if (dev->driver && !strcmp(dev->driver->name, driver))
 		ret = 0;
 	up_write(&dev->bus->subsys.rwsem);
@@ -526,7 +535,12 @@ static int proc_print_driver(struct device_driver *drv, void *data)
 
 static int ide_drivers_show(struct seq_file *s, void *p)
 {
-	bus_for_each_drv(&ide_bus_type, NULL, s, proc_print_driver);
+	int err;
+
+	err = bus_for_each_drv(&ide_bus_type, NULL, s, proc_print_driver);
+	if (err < 0)
+		printk(KERN_WARNING "IDE: %s: bus_for_each_drv error: %d\n",
+			__FUNCTION__, err);
 	return 0;
 }
 

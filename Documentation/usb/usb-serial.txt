@@ -13,7 +13,6 @@ CONFIGURATION
   Currently the driver can handle up to 256 different serial interfaces at
   one time. 
 
-  If you are not using devfs:
     The major number that the driver uses is 188 so to use the driver,
     create the following nodes:
 	mknod /dev/ttyUSB0 c 188 0
@@ -25,10 +24,6 @@ CONFIGURATION
 		.
 	mknod /dev/ttyUSB254 c 188 254
 	mknod /dev/ttyUSB255 c 188 255
-
-  If you are using devfs:
-    The devices supported by this driver will show up as
-    /dev/usb/tts/{0,1,...}
 
   When the device is connected and recognized by the driver, the driver
   will print to the system log, which node(s) the device has been bound
@@ -180,7 +175,7 @@ Keyspan USA-series Serial Adapters
   
   Current status:
     The USA-18X, USA-28X, USA-19, USA-19W and USA-49W are supported and
-    have been pretty throughly tested at various baud rates with 8-N-1
+    have been pretty thoroughly tested at various baud rates with 8-N-1
     character settings.  Other character lengths and parity setups are
     presently untested.
 
@@ -228,7 +223,7 @@ Cypress M8 CY4601 Family Serial Driver
 		-Cypress HID->COM RS232 adapter
 	
 		Note: Cypress Semiconductor claims no affiliation with the
-			the hid->com device.
+			hid->com device.
 
 	Most devices using chipsets under the CY4601 family should
      work with the driver.  As long as they stay true to the CY4601
@@ -258,7 +253,7 @@ Cypress M8 CY4601 Family Serial Driver
 	together without hacking the adapter to set the line high.
 
 	The driver is smp safe.  Performance with the driver is rather low when using
-	it for transfering files.  This is being worked on, but I would be willing to
+	it for transferring files.  This is being worked on, but I would be willing to
 	accept patches.  An urb queue or packet buffer would likely fit the bill here.
 
 	If you have any questions, problems, patches, feature requests, etc. you can
@@ -277,7 +272,7 @@ Digi AccelePort Driver
   work under SMP with the uhci driver.
 
   The driver is generally working, though we still have a few more ioctls
-  to implement and final testing and debugging to do.  The paralled port
+  to implement and final testing and debugging to do.  The parallel port
   on the USB 2 is supported as a serial to parallel converter; in other
   words, it appears as another USB serial port on Linux, even though
   physically it is really a parallel port.  The Digi Acceleport USB 8
@@ -302,7 +297,7 @@ Belkin USB Serial Adapter F5U103
       Parity       N,E,O,M,S
       Handshake    None, Software (XON/XOFF), Hardware (CTSRTS,CTSDTR)*
       Break        Set and clear
-      Line contrl  Input/Output query and control **
+      Line control Input/Output query and control **
 
       *  Hardware input flow control is only enabled for firmware
          levels above 2.06.  Read source code comments describing Belkin
@@ -314,7 +309,7 @@ Belkin USB Serial Adapter F5U103
          automatic hardware flow control.
 
   TO DO List:
-    -- Add true modem contol line query capability.  Currently tracks the
+    -- Add true modem control line query capability.  Currently tracks the
        states reported by the interrupt and the states requested.
     -- Add error reporting back to application for UART error conditions.
     -- Add support for flush ioctls.
@@ -427,12 +422,11 @@ Options supported:
   debug			- extra verbose debugging info
   			  (default: 0; nonzero enables)
   use_lowlatency	- use low_latency flag to speed up tty layer
-			  when reading from from the device.
+			  when reading from the device.
 			  (default: 0; nonzero enables)
 
   See http://www.uuhaus.de/linux/palmconnect.html for up-to-date
   information on this driver.
-
 
 Generic Serial driver
 

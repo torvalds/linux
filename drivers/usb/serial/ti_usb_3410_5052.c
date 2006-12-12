@@ -161,14 +161,14 @@ static void ti_throttle(struct usb_serial_port *port);
 static void ti_unthrottle(struct usb_serial_port *port);
 static int ti_ioctl(struct usb_serial_port *port, struct file *file, unsigned int cmd, unsigned long arg);
 static void ti_set_termios(struct usb_serial_port *port,
-	struct termios *old_termios);
+	struct ktermios *old_termios);
 static int ti_tiocmget(struct usb_serial_port *port, struct file *file);
 static int ti_tiocmset(struct usb_serial_port *port, struct file *file,
 	unsigned int set, unsigned int clear);
 static void ti_break(struct usb_serial_port *port, int break_state);
-static void ti_interrupt_callback(struct urb *urb, struct pt_regs *regs);
-static void ti_bulk_in_callback(struct urb *urb, struct pt_regs *regs);
-static void ti_bulk_out_callback(struct urb *urb, struct pt_regs *regs);
+static void ti_interrupt_callback(struct urb *urb);
+static void ti_bulk_in_callback(struct urb *urb);
+static void ti_bulk_out_callback(struct urb *urb);
 
 static void ti_recv(struct device *dev, struct tty_struct *tty,
 	unsigned char *data, int length);
@@ -228,6 +228,7 @@ static int product_5052_count;
 /* null entry */
 static struct usb_device_id ti_id_table_3410[1+TI_EXTRA_VID_PID_COUNT+1] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
+	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 };
 
 static struct usb_device_id ti_id_table_5052[4+TI_EXTRA_VID_PID_COUNT+1] = {
@@ -239,6 +240,7 @@ static struct usb_device_id ti_id_table_5052[4+TI_EXTRA_VID_PID_COUNT+1] = {
 
 static struct usb_device_id ti_id_table_combined[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
+	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5152_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_EEPROM_PRODUCT_ID) },
@@ -459,13 +461,12 @@ static int ti_startup(struct usb_serial *serial)
 
 	/* set up port structures */
 	for (i = 0; i < serial->num_ports; ++i) {
-		tport = kmalloc(sizeof(struct ti_port), GFP_KERNEL);
+		tport = kzalloc(sizeof(struct ti_port), GFP_KERNEL);
 		if (tport == NULL) {
 			dev_err(&dev->dev, "%s - out of memory\n", __FUNCTION__);
 			status = -ENOMEM;
 			goto free_tports;
 		}
-		memset(tport, 0, sizeof(struct ti_port));
 		spin_lock_init(&tport->tp_lock);
 		tport->tp_uart_base_addr = (i == 0 ? TI_UART1_BASE_ADDR : TI_UART2_BASE_ADDR);
 		tport->tp_flags = low_latency ? ASYNC_LOW_LATENCY : 0;
@@ -880,7 +881,7 @@ static int ti_ioctl(struct usb_serial_port *port, struct file *file,
 
 
 static void ti_set_termios(struct usb_serial_port *port,
-	struct termios *old_termios)
+	struct ktermios *old_termios)
 {
 	struct ti_port *tport = usb_get_serial_port_data(port);
 	struct tty_struct *tty = port->tty;
@@ -1098,7 +1099,7 @@ static void ti_break(struct usb_serial_port *port, int break_state)
 }
 
 
-static void ti_interrupt_callback(struct urb *urb, struct pt_regs *regs)
+static void ti_interrupt_callback(struct urb *urb)
 {
 	struct ti_device *tdev = (struct ti_device *)urb->context;
 	struct usb_serial_port *port;
@@ -1178,7 +1179,7 @@ exit:
 }
 
 
-static void ti_bulk_in_callback(struct urb *urb, struct pt_regs *regs)
+static void ti_bulk_in_callback(struct urb *urb)
 {
 	struct ti_port *tport = (struct ti_port *)urb->context;
 	struct usb_serial_port *port = tport->tp_port;
@@ -1241,7 +1242,7 @@ exit:
 }
 
 
-static void ti_bulk_out_callback(struct urb *urb, struct pt_regs *regs)
+static void ti_bulk_out_callback(struct urb *urb)
 {
 	struct ti_port *tport = (struct ti_port *)urb->context;
 	struct usb_serial_port *port = tport->tp_port;

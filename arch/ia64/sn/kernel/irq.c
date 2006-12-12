@@ -117,7 +117,10 @@ struct sn_irq_info *sn_retarget_vector(struct sn_irq_info *sn_irq_info,
 				       nasid_t nasid, int slice)
 {
 	int vector;
+	int cpuid;
+#ifdef CONFIG_SMP
 	int cpuphys;
+#endif
 	int64_t bridge;
 	int local_widget, status;
 	nasid_t local_nasid;
@@ -146,7 +149,6 @@ struct sn_irq_info *sn_retarget_vector(struct sn_irq_info *sn_irq_info,
 	vector = sn_irq_info->irq_irq;
 	/* Free the old PROM new_irq_info structure */
 	sn_intr_free(local_nasid, local_widget, new_irq_info);
-	/* Update kernels new_irq_info with new target info */
 	unregister_intr_pda(new_irq_info);
 
 	/* allocate a new PROM new_irq_info struct */
@@ -160,8 +162,10 @@ struct sn_irq_info *sn_retarget_vector(struct sn_irq_info *sn_irq_info,
 		return NULL;
 	}
 
-	cpuphys = nasid_slice_to_cpuid(nasid, slice);
-	new_irq_info->irq_cpuid = cpuphys;
+	/* Update kernels new_irq_info with new target info */
+	cpuid = nasid_slice_to_cpuid(new_irq_info->irq_nasid,
+				     new_irq_info->irq_slice);
+	new_irq_info->irq_cpuid = cpuid;
 	register_intr_pda(new_irq_info);
 
 	pci_provider = sn_pci_provider[new_irq_info->irq_bridge_type];
@@ -180,6 +184,7 @@ struct sn_irq_info *sn_retarget_vector(struct sn_irq_info *sn_irq_info,
 	call_rcu(&sn_irq_info->rcu, sn_irq_info_free);
 
 #ifdef CONFIG_SMP
+	cpuphys = cpu_physical_id(cpuid);
 	set_irq_affinity_info((vector & 0xff), cpuphys, 0);
 #endif
 
@@ -201,7 +206,7 @@ static void sn_set_affinity_irq(unsigned int irq, cpumask_t mask)
 }
 
 struct hw_interrupt_type irq_type_sn = {
-	.typename	= "SN hub",
+	.name		= "SN hub",
 	.startup	= sn_startup_irq,
 	.shutdown	= sn_shutdown_irq,
 	.enable		= sn_enable_irq,
@@ -299,6 +304,9 @@ void sn_irq_fixup(struct pci_dev *pci_dev, struct sn_irq_info *sn_irq_info)
 	nasid_t nasid = sn_irq_info->irq_nasid;
 	int slice = sn_irq_info->irq_slice;
 	int cpu = nasid_slice_to_cpuid(nasid, slice);
+#ifdef CONFIG_SMP
+	int cpuphys;
+#endif
 
 	pci_dev_get(pci_dev);
 	sn_irq_info->irq_cpuid = cpu;
@@ -311,6 +319,10 @@ void sn_irq_fixup(struct pci_dev *pci_dev, struct sn_irq_info *sn_irq_info)
 	spin_unlock(&sn_irq_info_lock);
 
 	register_intr_pda(sn_irq_info);
+#ifdef CONFIG_SMP
+	cpuphys = cpu_physical_id(cpu);
+	set_irq_affinity_info(sn_irq_info->irq_irq, cpuphys, 0);
+#endif
 }
 
 void sn_irq_unfixup(struct pci_dev *pci_dev)

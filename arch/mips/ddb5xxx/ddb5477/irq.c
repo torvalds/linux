@@ -153,8 +153,7 @@ u8 i8259_interrupt_ack(void)
  * the first level int-handler will jump here if it is a vrc5477 irq
  */
 #define	NUM_5477_IRQS	32
-static void
-vrc5477_irq_dispatch(struct pt_regs *regs)
+static void vrc5477_irq_dispatch(void)
 {
 	u32 intStatus;
 	u32 bitmask;
@@ -178,7 +177,7 @@ vrc5477_irq_dispatch(struct pt_regs *regs)
 		/* check for i8259 interrupts */
 		if (intStatus & (1 << VRC5477_I8259_CASCADE)) {
 			int i8259_irq = i8259_interrupt_ack();
-			do_IRQ(I8259_IRQ_BASE + i8259_irq, regs);
+			do_IRQ(I8259_IRQ_BASE + i8259_irq);
 			return;
 		}
 	}
@@ -186,7 +185,7 @@ vrc5477_irq_dispatch(struct pt_regs *regs)
 	for (i=0, bitmask=1; i<= NUM_5477_IRQS; bitmask <<=1, i++) {
 		/* do we need to "and" with the int mask? */
 		if (intStatus & bitmask) {
-			do_IRQ(VRC5477_IRQ_BASE + i, regs);
+			do_IRQ(VRC5477_IRQ_BASE + i);
 			return;
 		}
 	}
@@ -194,18 +193,18 @@ vrc5477_irq_dispatch(struct pt_regs *regs)
 
 #define VR5477INTS (STATUSF_IP2|STATUSF_IP3|STATUSF_IP4|STATUSF_IP5|STATUSF_IP6)
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_cause() & read_c0_status();
 
 	if (pending & STATUSF_IP7)
-		do_IRQ(CPU_IRQ_BASE + 7, regs);
+		do_IRQ(CPU_IRQ_BASE + 7);
 	else if (pending & VR5477INTS)
-		vrc5477_irq_dispatch(regs);
+		vrc5477_irq_dispatch();
 	else if (pending & STATUSF_IP0)
-		do_IRQ(CPU_IRQ_BASE, regs);
+		do_IRQ(CPU_IRQ_BASE);
 	else if (pending & STATUSF_IP1)
-		do_IRQ(CPU_IRQ_BASE + 1, regs);
+		do_IRQ(CPU_IRQ_BASE + 1);
 	else
-		spurious_interrupt(regs);
+		spurious_interrupt();
 }

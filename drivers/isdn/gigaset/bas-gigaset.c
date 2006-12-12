@@ -192,7 +192,7 @@ static char *get_usb_statmsg(int status)
 		return "bit stuffing error, timeout, or unknown USB error";
 	case -EILSEQ:
 		return "CRC mismatch, timeout, or unknown USB error";
-	case -ETIMEDOUT:
+	case -ETIME:
 		return "timed out";
 	case -EPIPE:
 		return "endpoint stalled";
@@ -454,7 +454,7 @@ inline static int update_basstate(struct bas_cardstate *ucs,
  *	urb	USB request block
  *		urb->context = inbuf structure for controller state
  */
-static void read_ctrl_callback(struct urb *urb, struct pt_regs *regs)
+static void read_ctrl_callback(struct urb *urb)
 {
 	struct inbuf_t *inbuf = urb->context;
 	struct cardstate *cs = inbuf->cs;
@@ -572,7 +572,7 @@ static int atread_submit(struct cardstate *cs, int timeout)
 			     ucs->rcvbuf, ucs->rcvbuf_size,
 			     read_ctrl_callback, cs->inbuf);
 
-	if ((ret = usb_submit_urb(ucs->urb_cmd_in, SLAB_ATOMIC)) != 0) {
+	if ((ret = usb_submit_urb(ucs->urb_cmd_in, GFP_ATOMIC)) != 0) {
 		update_basstate(ucs, 0, BS_ATRDPEND);
 		dev_err(cs->dev, "could not submit HD_READ_ATMESSAGE: %s\n",
 			get_usb_rcmsg(ret));
@@ -596,7 +596,7 @@ static int atread_submit(struct cardstate *cs, int timeout)
  *	urb	USB request block
  *		urb->context = controller state structure
  */
-static void read_int_callback(struct urb *urb, struct pt_regs *regs)
+static void read_int_callback(struct urb *urb)
 {
 	struct cardstate *cs = urb->context;
 	struct bas_cardstate *ucs = cs->hw.bas;
@@ -747,7 +747,7 @@ static void read_int_callback(struct urb *urb, struct pt_regs *regs)
 	check_pending(ucs);
 
 resubmit:
-	rc = usb_submit_urb(urb, SLAB_ATOMIC);
+	rc = usb_submit_urb(urb, GFP_ATOMIC);
 	if (unlikely(rc != 0 && rc != -ENODEV)) {
 		dev_err(cs->dev, "could not resubmit interrupt URB: %s\n",
 			get_usb_rcmsg(rc));
@@ -762,7 +762,7 @@ resubmit:
  *	urb	USB request block of completed request
  *		urb->context = bc_state structure
  */
-static void read_iso_callback(struct urb *urb, struct pt_regs *regs)
+static void read_iso_callback(struct urb *urb)
 {
 	struct bc_state *bcs;
 	struct bas_bc_state *ubc;
@@ -807,7 +807,7 @@ static void read_iso_callback(struct urb *urb, struct pt_regs *regs)
 			urb->number_of_packets = BAS_NUMFRAMES;
 			gig_dbg(DEBUG_ISO, "%s: isoc read overrun/resubmit",
 				__func__);
-			rc = usb_submit_urb(urb, SLAB_ATOMIC);
+			rc = usb_submit_urb(urb, GFP_ATOMIC);
 			if (unlikely(rc != 0 && rc != -ENODEV)) {
 				dev_err(bcs->cs->dev,
 					"could not resubmit isochronous read "
@@ -827,7 +827,7 @@ static void read_iso_callback(struct urb *urb, struct pt_regs *regs)
  *	urb	USB request block of completed request
  *		urb->context = isow_urbctx_t structure
  */
-static void write_iso_callback(struct urb *urb, struct pt_regs *regs)
+static void write_iso_callback(struct urb *urb)
 {
 	struct isow_urbctx_t *ucx;
 	struct bas_bc_state *ubc;
@@ -900,7 +900,7 @@ static int starturbs(struct bc_state *bcs)
 		}
 
 		dump_urb(DEBUG_ISO, "Initial isoc read", urb);
-		if ((rc = usb_submit_urb(urb, SLAB_ATOMIC)) != 0)
+		if ((rc = usb_submit_urb(urb, GFP_ATOMIC)) != 0)
 			goto error;
 	}
 
@@ -935,7 +935,7 @@ static int starturbs(struct bc_state *bcs)
 	/* submit two URBs, keep third one */
 	for (k = 0; k < 2; ++k) {
 		dump_urb(DEBUG_ISO, "Initial isoc write", urb);
-		rc = usb_submit_urb(ubc->isoouturbs[k].urb, SLAB_ATOMIC);
+		rc = usb_submit_urb(ubc->isoouturbs[k].urb, GFP_ATOMIC);
 		if (rc != 0)
 			goto error;
 	}
@@ -1042,7 +1042,7 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 		return 0;	/* no data to send */
 	urb->number_of_packets = nframe;
 
-	rc = usb_submit_urb(urb, SLAB_ATOMIC);
+	rc = usb_submit_urb(urb, GFP_ATOMIC);
 	if (unlikely(rc)) {
 		if (rc == -ENODEV)
 			/* device removed - give up silently */
@@ -1341,7 +1341,7 @@ static void read_iso_tasklet(unsigned long data)
 		urb->dev = bcs->cs->hw.bas->udev;
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->number_of_packets = BAS_NUMFRAMES;
-		rc = usb_submit_urb(urb, SLAB_ATOMIC);
+		rc = usb_submit_urb(urb, GFP_ATOMIC);
 		if (unlikely(rc != 0 && rc != -ENODEV)) {
 			dev_err(cs->dev,
 				"could not resubmit isochronous read URB: %s\n",
@@ -1415,7 +1415,7 @@ static void req_timeout(unsigned long data)
  *	urb	USB request block of completed request
  *		urb->context = hardware specific controller state structure
  */
-static void write_ctrl_callback(struct urb *urb, struct pt_regs *regs)
+static void write_ctrl_callback(struct urb *urb)
 {
 	struct bas_cardstate *ucs = urb->context;
 	int rc;
@@ -1458,7 +1458,7 @@ static void write_ctrl_callback(struct urb *urb, struct pt_regs *regs)
 			   ucs->retry_ctrl);
 		/* urb->dev is clobbered by USB subsystem */
 		urb->dev = ucs->udev;
-		rc = usb_submit_urb(urb, SLAB_ATOMIC);
+		rc = usb_submit_urb(urb, GFP_ATOMIC);
 		if (unlikely(rc)) {
 			dev_err(&ucs->interface->dev,
 				"could not resubmit request 0x%02x: %s\n",
@@ -1517,7 +1517,7 @@ static int req_submit(struct bc_state *bcs, int req, int val, int timeout)
 			     (unsigned char*) &ucs->dr_ctrl, NULL, 0,
 			     write_ctrl_callback, ucs);
 	ucs->retry_ctrl = 0;
-	ret = usb_submit_urb(ucs->urb_ctrl, SLAB_ATOMIC);
+	ret = usb_submit_urb(ucs->urb_ctrl, GFP_ATOMIC);
 	if (unlikely(ret)) {
 		dev_err(bcs->cs->dev, "could not submit request 0x%02x: %s\n",
 			req, get_usb_rcmsg(ret));
@@ -1661,7 +1661,7 @@ static void complete_cb(struct cardstate *cs)
  *	urb	USB request block of completed request
  *		urb->context = controller state structure
  */
-static void write_command_callback(struct urb *urb, struct pt_regs *regs)
+static void write_command_callback(struct urb *urb)
 {
 	struct cardstate *cs = urb->context;
 	struct bas_cardstate *ucs = cs->hw.bas;
@@ -1763,7 +1763,7 @@ static int atwrite_submit(struct cardstate *cs, unsigned char *buf, int len)
 			     usb_sndctrlpipe(ucs->udev, 0),
 			     (unsigned char*) &ucs->dr_cmd_out, buf, len,
 			     write_command_callback, cs);
-	rc = usb_submit_urb(ucs->urb_cmd_out, SLAB_ATOMIC);
+	rc = usb_submit_urb(ucs->urb_cmd_out, GFP_ATOMIC);
 	if (unlikely(rc)) {
 		update_basstate(ucs, 0, BS_ATWRPEND);
 		dev_err(cs->dev, "could not submit HD_WRITE_ATMESSAGE: %s\n",
@@ -2218,21 +2218,21 @@ static int gigaset_probe(struct usb_interface *interface,
 	 * - three for the different uses of the default control pipe
 	 * - three for each isochronous pipe
 	 */
-	if (!(ucs->urb_int_in = usb_alloc_urb(0, SLAB_KERNEL)) ||
-	    !(ucs->urb_cmd_in = usb_alloc_urb(0, SLAB_KERNEL)) ||
-	    !(ucs->urb_cmd_out = usb_alloc_urb(0, SLAB_KERNEL)) ||
-	    !(ucs->urb_ctrl = usb_alloc_urb(0, SLAB_KERNEL)))
+	if (!(ucs->urb_int_in = usb_alloc_urb(0, GFP_KERNEL)) ||
+	    !(ucs->urb_cmd_in = usb_alloc_urb(0, GFP_KERNEL)) ||
+	    !(ucs->urb_cmd_out = usb_alloc_urb(0, GFP_KERNEL)) ||
+	    !(ucs->urb_ctrl = usb_alloc_urb(0, GFP_KERNEL)))
 		goto allocerr;
 
 	for (j = 0; j < 2; ++j) {
 		ubc = cs->bcs[j].hw.bas;
 		for (i = 0; i < BAS_OUTURBS; ++i)
 			if (!(ubc->isoouturbs[i].urb =
-			      usb_alloc_urb(BAS_NUMFRAMES, SLAB_KERNEL)))
+			      usb_alloc_urb(BAS_NUMFRAMES, GFP_KERNEL)))
 				goto allocerr;
 		for (i = 0; i < BAS_INURBS; ++i)
 			if (!(ubc->isoinurbs[i] =
-			      usb_alloc_urb(BAS_NUMFRAMES, SLAB_KERNEL)))
+			      usb_alloc_urb(BAS_NUMFRAMES, GFP_KERNEL)))
 				goto allocerr;
 	}
 
@@ -2246,7 +2246,7 @@ static int gigaset_probe(struct usb_interface *interface,
 					(endpoint->bEndpointAddress) & 0x0f),
 			 ucs->int_in_buf, 3, read_int_callback, cs,
 			 endpoint->bInterval);
-	if ((rc = usb_submit_urb(ucs->urb_int_in, SLAB_KERNEL)) != 0) {
+	if ((rc = usb_submit_urb(ucs->urb_int_in, GFP_KERNEL)) != 0) {
 		dev_err(cs->dev, "could not submit interrupt URB: %s\n",
 			get_usb_rcmsg(rc));
 		goto error;

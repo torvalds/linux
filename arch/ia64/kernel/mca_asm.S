@@ -1025,18 +1025,13 @@ ia64_old_stack:
 
 ia64_set_kernel_registers:
 	add temp3=MCA_SP_OFFSET, r3
-	add temp4=MCA_SOS_OFFSET+SOS(OS_GP), r3
 	mov b0=r2		// save return address
 	GET_IA64_MCA_DATA(temp1)
 	;;
-	add temp4=temp4, temp1	// &struct ia64_sal_os_state.os_gp
 	add r12=temp1, temp3	// kernel stack pointer on MCA/INIT stack
 	add r13=temp1, r3	// set current to start of MCA/INIT stack
 	add r20=temp1, r3	// physical start of MCA/INIT stack
 	;;
-	ld8 r1=[temp4]		// OS GP from SAL OS state
-	;;
-	DATA_PA_TO_VA(r1,temp1)
 	DATA_PA_TO_VA(r12,temp2)
 	DATA_PA_TO_VA(r13,temp3)
 	;;
@@ -1067,6 +1062,10 @@ ia64_set_kernel_registers:
 	mov cr.itir=r18
 	mov cr.ifa=r13
 	mov r20=IA64_TR_CURRENT_STACK
+
+	movl r17=FPSR_DEFAULT
+	;;
+	mov.m ar.fpsr=r17			// set ar.fpsr to kernel default value
 	;;
 	itr.d dtr[r20]=r21
 	;;

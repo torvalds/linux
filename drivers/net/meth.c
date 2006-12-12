@@ -33,7 +33,6 @@
 #include <asm/ip32/ip32_ints.h>
 
 #include <asm/io.h>
-#include <asm/checksum.h>
 #include <asm/scatterlist.h>
 #include <linux/dma-mapping.h>
 
@@ -92,7 +91,7 @@ struct meth_private {
 };
 
 static void meth_tx_timeout(struct net_device *dev);
-static irqreturn_t meth_interrupt(int irq, void *dev_id, struct pt_regs *pregs);
+static irqreturn_t meth_interrupt(int irq, void *dev_id);
 
 /* global, initialized in ip32-setup.c */
 char o2meth_eaddr[8]={0,0,0,0,0,0,0,0};
@@ -569,7 +568,7 @@ static void meth_error(struct net_device* dev, unsigned status)
 /*
  * The typical interrupt entry point
  */
-static irqreturn_t meth_interrupt(int irq, void *dev_id, struct pt_regs *pregs)
+static irqreturn_t meth_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct meth_private *priv = (struct meth_private *) dev->priv;

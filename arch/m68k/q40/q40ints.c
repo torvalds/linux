@@ -125,9 +125,9 @@ void q40_mksound(unsigned int hz, unsigned int ticks)
 	sound_ticks = ticks << 1;
 }
 
-static irqreturn_t (*q40_timer_routine)(int, void *, struct pt_regs *);
+static irq_handler_t q40_timer_routine;
 
-static irqreturn_t q40_timer_int (int irq, void * dev, struct pt_regs * regs)
+static irqreturn_t q40_timer_int (int irq, void * dev)
 {
 	ql_ticks = ql_ticks ? 0 : 1;
 	if (sound_ticks) {
@@ -138,11 +138,11 @@ static irqreturn_t q40_timer_int (int irq, void * dev, struct pt_regs * regs)
 	}
 
 	if (!ql_ticks)
-		q40_timer_routine(irq, dev, regs);
+		q40_timer_routine(irq, dev);
 	return IRQ_HANDLED;
 }
 
-void q40_sched_init (irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
+void q40_sched_init (irq_handler_t timer_routine)
 {
 	int timer_irq;
 
@@ -218,11 +218,11 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 	switch (irq) {
 	case 4:
 	case 6:
-		m68k_handle_int(Q40_IRQ_SAMPLE, fp);
+		__m68k_handle_int(Q40_IRQ_SAMPLE, fp);
 		return;
 	}
 	if (mir & Q40_IRQ_FRAME_MASK) {
-		m68k_handle_int(Q40_IRQ_FRAME, fp);
+		__m68k_handle_int(Q40_IRQ_FRAME, fp);
 		master_outb(-1, FRAME_CLEAR_REG);
 	}
 	if ((mir & Q40_IRQ_SER_MASK) || (mir & Q40_IRQ_EXT_MASK)) {
@@ -257,7 +257,7 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 					goto iirq;
 				}
 				q40_state[irq] |= IRQ_INPROGRESS;
-				m68k_handle_int(irq, fp);
+				__m68k_handle_int(irq, fp);
 				q40_state[irq] &= ~IRQ_INPROGRESS;
 
 				/* naively enable everything, if that fails than    */
@@ -288,7 +288,7 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 	mir = master_inb(IIRQ_REG);
 	/* should test whether keyboard irq is really enabled, doing it in defhand */
 	if (mir & Q40_IRQ_KEYB_MASK)
-		m68k_handle_int(Q40_IRQ_KEYBOARD, fp);
+		__m68k_handle_int(Q40_IRQ_KEYBOARD, fp);
 
 	return;
 }

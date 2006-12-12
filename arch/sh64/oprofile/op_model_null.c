@@ -1,5 +1,5 @@
 /*
- * arch/sh/oprofile/op_model_null.c
+ * arch/sh64/oprofile/op_model_null.c
  *
  * Copyright (C) 2003  Paul Mundt
  *

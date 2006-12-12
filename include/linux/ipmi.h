@@ -148,6 +148,13 @@ struct ipmi_lan_addr
 #define IPMI_BMC_CHANNEL  0xf
 #define IPMI_NUM_CHANNELS 0x10
 
+/*
+ * Used to signify an "all channel" bitmask.  This is more than the
+ * actual number of channels because this is used in userland and
+ * will cover us if the number of channels is extended.
+ */
+#define IPMI_CHAN_ALL     (~0)
+
 
 /*
  * A raw IPMI message without any addressing.  This covers both
@@ -201,6 +208,15 @@ struct kernel_ipmi_msg
    code as the first byte of the incoming data, unlike a response. */
 
 
+/*
+ * Modes for ipmi_set_maint_mode() and the userland IOCTL.  The AUTO
+ * setting is the default and means it will be set on certain
+ * commands.  Hard setting it on and off will override automatic
+ * operation.
+ */
+#define IPMI_MAINTENANCE_MODE_AUTO	0
+#define IPMI_MAINTENANCE_MODE_OFF	1
+#define IPMI_MAINTENANCE_MODE_ON	2
 
 #ifdef __KERNEL__
 
@@ -350,18 +366,50 @@ int ipmi_request_supply_msgs(ipmi_user_t          user,
 
 /*
  * When commands come in to the SMS, the user can register to receive
- * them.  Only one user can be listening on a specific netfn/cmd pair
+ * them.  Only one user can be listening on a specific netfn/cmd/chan tuple
  * at a time, you will get an EBUSY error if the command is already
  * registered.  If a command is received that does not have a user
  * registered, the driver will automatically return the proper
- * error.
+ * error.  Channels are specified as a bitfield, use IPMI_CHAN_ALL to
+ * mean all channels.
  */
 int ipmi_register_for_cmd(ipmi_user_t   user,
 			  unsigned char netfn,
-			  unsigned char cmd);
+			  unsigned char cmd,
+			  unsigned int  chans);
 int ipmi_unregister_for_cmd(ipmi_user_t   user,
 			    unsigned char netfn,
-			    unsigned char cmd);
+			    unsigned char cmd,
+			    unsigned int  chans);
+
+/*
+ * Go into a mode where the driver will not autonomously attempt to do
+ * things with the interface.  It will still respond to attentions and
+ * interrupts, and it will expect that commands will complete.  It
+ * will not automatcially check for flags, events, or things of that
+ * nature.
+ *
+ * This is primarily used for firmware upgrades.  The idea is that
+ * when you go into firmware upgrade mode, you do this operation
+ * and the driver will not attempt to do anything but what you tell
+ * it or what the BMC asks for.
+ *
+ * Note that if you send a command that resets the BMC, the driver
+ * will still expect a response from that command.  So the BMC should
+ * reset itself *after* the response is sent.  Resetting before the
+ * response is just silly.
+ *
+ * If in auto maintenance mode, the driver will automatically go into
+ * maintenance mode for 30 seconds if it sees a cold reset, a warm
+ * reset, or a firmware NetFN.  This means that code that uses only
+ * firmware NetFN commands to do upgrades will work automatically
+ * without change, assuming it sends a message every 30 seconds or
+ * less.
+ *
+ * See the IPMI_MAINTENANCE_MODE_xxx defines for what the mode means.
+ */
+int ipmi_get_maintenance_mode(ipmi_user_t user);
+int ipmi_set_maintenance_mode(ipmi_user_t user, int mode);
 
 /*
  * Allow run-to-completion mode to be set for the interface of
@@ -571,6 +619,36 @@ struct ipmi_cmdspec
 #define IPMICTL_UNREGISTER_FOR_CMD	_IOR(IPMI_IOC_MAGIC, 15,	\
 					     struct ipmi_cmdspec)
 
+/*
+ * Register to get commands from other entities on specific channels.
+ * This way, you can only listen on specific channels, or have messages
+ * from some channels go to one place and other channels to someplace
+ * else.  The chans field is a bitmask, (1 << channel) for each channel.
+ * It may be IPMI_CHAN_ALL for all channels.
+ */
+struct ipmi_cmdspec_chans
+{
+	unsigned int netfn;
+	unsigned int cmd;
+	unsigned int chans;
+};
+
+/*
+ * Register to receive a specific command on specific channels.  error values:
+ *   - EFAULT - an address supplied was invalid.
+ *   - EBUSY - One of the netfn/cmd/chans supplied was already in use.
+ *   - ENOMEM - could not allocate memory for the entry.
+ */
+#define IPMICTL_REGISTER_FOR_CMD_CHANS	_IOR(IPMI_IOC_MAGIC, 28,	\
+					     struct ipmi_cmdspec_chans)
+/*
+ * Unregister some netfn/cmd/chans.  error values:
+ *  - EFAULT - an address supplied was invalid.
+ *  - ENOENT - None of the netfn/cmd/chans were found registered for this user.
+ */
+#define IPMICTL_UNREGISTER_FOR_CMD_CHANS _IOR(IPMI_IOC_MAGIC, 29,	\
+					     struct ipmi_cmdspec_chans)
+
 /* 
  * Set whether this interface receives events.  Note that the first
  * user registered for events will get all pending events for the
@@ -615,5 +693,12 @@ struct ipmi_timing_parms
 					     struct ipmi_timing_parms)
 #define IPMICTL_GET_TIMING_PARMS_CMD	_IOR(IPMI_IOC_MAGIC, 23, \
 					     struct ipmi_timing_parms)
+
+/*
+ * Set the maintenance mode.  See ipmi_set_maintenance_mode() above
+ * for a description of what this does.
+ */
+#define IPMICTL_GET_MAINTENANCE_MODE_CMD	_IOR(IPMI_IOC_MAGIC, 30, int)
+#define IPMICTL_SET_MAINTENANCE_MODE_CMD	_IOW(IPMI_IOC_MAGIC, 31, int)
 
 #endif /* __LINUX_IPMI_H */

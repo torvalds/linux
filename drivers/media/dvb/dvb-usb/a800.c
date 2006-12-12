@@ -26,6 +26,14 @@ static int a800_power_ctrl(struct dvb_usb_device *d, int onoff)
 	return 0;
 }
 
+/* assure to put cold to 0 for iManufacturer == 1 */
+static int a800_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
+	struct dvb_usb_device_description **desc, int *cold)
+{
+	*cold = udev->descriptor.iManufacturer != 1;
+	return 0;
+}
+
 static struct dvb_usb_rc_key a800_rc_keys[] = {
 	{ 0x02, 0x01, KEY_PROG1 },       /* SOURCE */
 	{ 0x02, 0x00, KEY_POWER },       /* POWER */
@@ -81,7 +89,7 @@ static int a800_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 }
 
 /* USB Driver stuff */
-static struct dvb_usb_properties a800_properties;
+static struct dvb_usb_device_properties a800_properties;
 
 static int a800_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
@@ -97,22 +105,42 @@ static struct usb_device_id a800_table [] = {
 };
 MODULE_DEVICE_TABLE (usb, a800_table);
 
-static struct dvb_usb_properties a800_properties = {
-	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
-	.pid_filter_count = 32,
+static struct dvb_usb_device_properties a800_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl = CYPRESS_FX2,
-
 	.firmware = "dvb-usb-avertv-a800-02.fw",
 
-	.size_of_priv     = sizeof(struct dibusb_state),
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+			.pid_filter_count = 32,
+			.streaming_ctrl   = dibusb2_0_streaming_ctrl,
+			.pid_filter       = dibusb_pid_filter,
+			.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
 
-	.streaming_ctrl   = dibusb2_0_streaming_ctrl,
-	.pid_filter       = dibusb_pid_filter,
-	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.frontend_attach  = dibusb_dib3000mc_frontend_attach,
+			.tuner_attach     = dibusb_dib3000mc_tuner_attach,
+
+			/* parameter for the MPEG2-data transfer */
+					.stream = {
+						.type = USB_BULK,
+				.count = 7,
+				.endpoint = 0x06,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
+
+			.size_of_priv     = sizeof(struct dibusb_state),
+		},
+	},
+
 	.power_ctrl       = a800_power_ctrl,
-	.frontend_attach  = dibusb_dib3000mc_frontend_attach,
-	.tuner_attach     = dibusb_dib3000mc_tuner_attach,
+	.identify_state   = a800_identify_state,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = a800_rc_keys,
@@ -122,18 +150,6 @@ static struct dvb_usb_properties a800_properties = {
 	.i2c_algo         = &dibusb_i2c_algo,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
-	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
-		.count = 7,
-		.endpoint = 0x06,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
-
 	.num_device_descs = 1,
 	.devices = {
 		{   "AVerMedia AverTV DVB-T USB 2.0 (A800)",

@@ -99,8 +99,10 @@ static int jtcp_sendmsg(struct kiocb *iocb, struct sock *sk,
 }
 
 static struct jprobe tcp_send_probe = {
-	.kp = { .addr = (kprobe_opcode_t *) &tcp_sendmsg, },
-	.entry = (kprobe_opcode_t *) &jtcp_sendmsg,
+	.kp = {
+		.symbol_name	= "tcp_sendmsg",
+	},
+	.entry	= JPROBE_ENTRY(jtcp_sendmsg),
 };
 
 
@@ -154,6 +156,8 @@ static __init int tcpprobe_init(void)
 	init_waitqueue_head(&tcpw.wait);
 	spin_lock_init(&tcpw.lock);
 	tcpw.fifo = kfifo_alloc(bufsize, GFP_KERNEL, &tcpw.lock);
+	if (IS_ERR(tcpw.fifo))
+		return PTR_ERR(tcpw.fifo);
 
 	if (!proc_net_fops_create(procname, S_IRUSR, &tcpprobe_fops))
 		goto err0;

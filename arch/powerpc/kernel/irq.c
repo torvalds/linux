@@ -64,8 +64,9 @@
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/udbg.h>
-#ifdef CONFIG_PPC_ISERIES
+#ifdef CONFIG_PPC64
 #include <asm/paca.h>
+#include <asm/firmware.h>
 #endif
 
 int __irq_offset_value;
@@ -95,6 +96,74 @@ extern atomic_t ipi_sent;
 EXPORT_SYMBOL(irq_desc);
 
 int distribute_irqs = 1;
+
+static inline unsigned long get_hard_enabled(void)
+{
+	unsigned long enabled;
+
+	__asm__ __volatile__("lbz %0,%1(13)"
+	: "=r" (enabled) : "i" (offsetof(struct paca_struct, hard_enabled)));
+
+	return enabled;
+}
+
+static inline void set_soft_enabled(unsigned long enable)
+{
+	__asm__ __volatile__("stb %0,%1(13)"
+	: : "r" (enable), "i" (offsetof(struct paca_struct, soft_enabled)));
+}
+
+void local_irq_restore(unsigned long en)
+{
+	/*
+	 * get_paca()->soft_enabled = en;
+	 * Is it ever valid to use local_irq_restore(0) when soft_enabled is 1?
+	 * That was allowed before, and in such a case we do need to take care
+	 * that gcc will set soft_enabled directly via r13, not choose to use
+	 * an intermediate register, lest we're preempted to a different cpu.
+	 */
+	set_soft_enabled(en);
+	if (!en)
+		return;
+
+	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
+		/*
+		 * Do we need to disable preemption here?  Not really: in the
+		 * unlikely event that we're preempted to a different cpu in
+		 * between getting r13, loading its lppaca_ptr, and loading
+		 * its any_int, we might call iseries_handle_interrupts without
+		 * an interrupt pending on the new cpu, but that's no disaster,
+		 * is it?  And the business of preempting us off the old cpu
+		 * would itself involve a local_irq_restore which handles the
+		 * interrupt to that cpu.
+		 *
+		 * But use "local_paca->lppaca_ptr" instead of "get_lppaca()"
+		 * to avoid any preemption checking added into get_paca().
+		 */
+		if (local_paca->lppaca_ptr->int_dword.any_int)
+			iseries_handle_interrupts();
+		return;
+	}
+
+	/*
+	 * if (get_paca()->hard_enabled) return;
+	 * But again we need to take care that gcc gets hard_enabled directly
+	 * via r13, not choose to use an intermediate register, lest we're
+	 * preempted to a different cpu in between the two instructions.
+	 */
+	if (get_hard_enabled())
+		return;
+
+	/*
+	 * Need to hard-enable interrupts here.  Since currently disabled,
+	 * no need to take further asm precautions against preemption; but
+	 * use local_paca instead of get_paca() to avoid preemption checking.
+	 */
+	local_paca->hard_enabled = en;
+	if ((int)mfspr(SPRN_DEC) < 0)
+		mtspr(SPRN_DEC, 1);
+	hard_irq_enable();
+}
 #endif /* CONFIG_PPC64 */
 
 int show_interrupts(struct seq_file *p, void *v)
@@ -187,6 +256,7 @@ void fixup_irqs(cpumask_t map)
 
 void do_IRQ(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	unsigned int irq;
 #ifdef CONFIG_IRQSTACKS
 	struct thread_info *curtp, *irqtp;
@@ -216,7 +286,7 @@ void do_IRQ(struct pt_regs *regs)
 	 * The value -2 is for buggy hardware and means that this IRQ
 	 * has already been handled. -- Tom
 	 */
-	irq = ppc_md.get_irq(regs);
+	irq = ppc_md.get_irq();
 
 	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE) {
 #ifdef CONFIG_IRQSTACKS
@@ -230,21 +300,23 @@ void do_IRQ(struct pt_regs *regs)
 				handler = &__do_IRQ;
 			irqtp->task = curtp->task;
 			irqtp->flags = 0;
-			call_handle_irq(irq, desc, regs, irqtp, handler);
+			call_handle_irq(irq, desc, irqtp, handler);
 			irqtp->task = NULL;
 			if (irqtp->flags)
 				set_bits(irqtp->flags, &curtp->flags);
 		} else
 #endif
-			generic_handle_irq(irq, regs);
+			generic_handle_irq(irq);
 	} else if (irq != NO_IRQ_IGNORE)
 		/* That's not SMP safe ... but who cares ? */
 		ppc_spurious_interrupts++;
 
         irq_exit();
+	set_irq_regs(old_regs);
 
 #ifdef CONFIG_PPC_ISERIES
-	if (get_lppaca()->int_dword.fields.decr_int) {
+	if (firmware_has_feature(FW_FEATURE_ISERIES) &&
+			get_lppaca()->int_dword.fields.decr_int) {
 		get_lppaca()->int_dword.fields.decr_int = 0;
 		/* Signal a fake decrementer interrupt */
 		timer_interrupt(regs);
@@ -570,8 +642,8 @@ unsigned int irq_create_mapping(struct irq_host *host,
 }
 EXPORT_SYMBOL_GPL(irq_create_mapping);
 
-extern unsigned int irq_create_of_mapping(struct device_node *controller,
-					  u32 *intspec, unsigned int intsize)
+unsigned int irq_create_of_mapping(struct device_node *controller,
+				   u32 *intspec, unsigned int intsize)
 {
 	struct irq_host *host;
 	irq_hw_number_t hwirq;
@@ -624,10 +696,14 @@ EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
 
 void irq_dispose_mapping(unsigned int virq)
 {
-	struct irq_host *host = irq_map[virq].host;
+	struct irq_host *host;
 	irq_hw_number_t hwirq;
 	unsigned long flags;
 
+	if (virq == NO_IRQ)
+		return;
+
+	host = irq_map[virq].host;
 	WARN_ON (host == NULL);
 	if (host == NULL)
 		return;
@@ -777,7 +853,6 @@ unsigned int irq_alloc_virt(struct irq_host *host,
 {
 	unsigned long flags;
 	unsigned int i, j, found = NO_IRQ;
-	unsigned int limit = irq_virq_count - count;
 
 	if (count == 0 || count > (irq_virq_count - NUM_ISA_INTERRUPTS))
 		return NO_IRQ;
@@ -794,14 +869,16 @@ unsigned int irq_alloc_virt(struct irq_host *host,
 	/* Look for count consecutive numbers in the allocatable
 	 * (non-legacy) space
 	 */
-	for (i = NUM_ISA_INTERRUPTS; i <= limit; ) {
-		for (j = i; j < (i + count); j++)
-			if (irq_map[j].host != NULL) {
-				i = j + 1;
-				continue;
-			}
-		found = i;
-		break;
+	for (i = NUM_ISA_INTERRUPTS, j = 0; i < irq_virq_count; i++) {
+		if (irq_map[i].host != NULL)
+			j = 0;
+		else
+			j++;
+
+		if (j == count) {
+			found = i - count + 1;
+			break;
+		}
 	}
 	if (found == NO_IRQ) {
 		spin_unlock_irqrestore(&irq_big_lock, flags);

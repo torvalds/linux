@@ -325,9 +325,9 @@ static void user_reader_timeout(unsigned long ptr)
 	schedule_work(&chip->work);
 }
 
-static void timeout_work(void *ptr)
+static void timeout_work(struct work_struct *work)
 {
-	struct tpm_chip *chip = ptr;
+	struct tpm_chip *chip = container_of(work, struct tpm_chip, work);
 
 	down(&chip->buffer_mutex);
 	atomic_set(&chip->data_pending, 0);
@@ -1105,7 +1105,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 	init_MUTEX(&chip->tpm_mutex);
 	INIT_LIST_HEAD(&chip->list);
 
-	INIT_WORK(&chip->work, timeout_work, chip);
+	INIT_WORK(&chip->work, timeout_work);
 
 	init_timer(&chip->user_read_timer);
 	chip->user_read_timer.function = user_reader_timeout;
@@ -1130,7 +1130,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 	scnprintf(devname, DEVNAME_SIZE, "%s%d", "tpm", chip->dev_num);
 	chip->vendor.miscdev.name = devname;
 
-	chip->vendor.miscdev.dev = dev;
+	chip->vendor.miscdev.parent = dev;
 	chip->dev = get_device(dev);
 
 	if (misc_register(&chip->vendor.miscdev)) {
@@ -1153,7 +1153,15 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 
 	spin_unlock(&driver_lock);
 
-	sysfs_create_group(&dev->kobj, chip->vendor.attr_group);
+	if (sysfs_create_group(&dev->kobj, chip->vendor.attr_group)) {
+		list_del(&chip->list);
+		misc_deregister(&chip->vendor.miscdev);
+		put_device(dev);
+		clear_bit(chip->dev_num, dev_mask);
+		kfree(chip);
+		kfree(devname);
+		return NULL;
+	}
 
 	chip->bios_dir = tpm_bios_log_setup(devname);
 

@@ -7,11 +7,9 @@ obj-y				+= pci.o
 #
 # PCI bus host bridge specific code
 #
-obj-$(CONFIG_ITE_BOARD_GEN)	+= ops-it8172.o
 obj-$(CONFIG_MIPS_BONITO64)	+= ops-bonito64.o
 obj-$(CONFIG_MIPS_GT64111)	+= ops-gt64111.o
 obj-$(CONFIG_MIPS_GT64120)	+= ops-gt64120.o
-obj-$(CONFIG_MIPS_GT96100)	+= ops-gt96100.o
 obj-$(CONFIG_PCI_MARVELL)	+= ops-marvell.o
 obj-$(CONFIG_MIPS_MSC)		+= ops-msc.o
 obj-$(CONFIG_MIPS_NILE4)	+= ops-nile4.o
@@ -28,10 +26,7 @@ obj-$(CONFIG_DDB5477)		+= fixup-ddb5477.o pci-ddb5477.o ops-ddb5477.o
 obj-$(CONFIG_LASAT)		+= pci-lasat.o
 obj-$(CONFIG_MIPS_ATLAS)	+= fixup-atlas.o
 obj-$(CONFIG_MIPS_COBALT)	+= fixup-cobalt.o
-obj-$(CONFIG_MIPS_EV96100)	+= fixup-ev64120.o
-obj-$(CONFIG_MIPS_EV96100)	+= fixup-ev96100.o pci-ev96100.o
-obj-$(CONFIG_MIPS_ITE8172)	+= fixup-ite8172g.o
-obj-$(CONFIG_MIPS_IVR)		+= fixup-ivr.o
+obj-$(CONFIG_MIPS_EV64120)	+= pci-ev64120.o
 obj-$(CONFIG_SOC_AU1500)	+= fixup-au1000.o ops-au1000.o
 obj-$(CONFIG_SOC_AU1550)	+= fixup-au1000.o ops-au1000.o
 obj-$(CONFIG_SOC_PNX8550)	+= fixup-pnx8550.o ops-pnx8550.o
@@ -48,7 +43,7 @@ obj-$(CONFIG_SGI_IP32)		+= fixup-ip32.o ops-mace.o pci-ip32.o
 obj-$(CONFIG_SIBYTE_SB1250)	+= fixup-sb1250.o pci-sb1250.o
 obj-$(CONFIG_SIBYTE_BCM112X)	+= fixup-sb1250.o pci-sb1250.o
 obj-$(CONFIG_SIBYTE_BCM1x80)	+= pci-bcm1480.o pci-bcm1480ht.o
-obj-$(CONFIG_SNI_RM200_PCI)	+= fixup-sni.o ops-sni.o
+obj-$(CONFIG_SNI_RM)		+= fixup-sni.o ops-sni.o
 obj-$(CONFIG_TANBAC_TB0219)	+= fixup-tb0219.o
 obj-$(CONFIG_TANBAC_TB0226)	+= fixup-tb0226.o
 obj-$(CONFIG_TANBAC_TB0287)	+= fixup-tb0287.o

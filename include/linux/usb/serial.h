@@ -218,7 +218,7 @@ struct usb_serial_driver {
 	int  (*write)		(struct usb_serial_port *port, const unsigned char *buf, int count);
 	int  (*write_room)	(struct usb_serial_port *port);
 	int  (*ioctl)		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
-	void (*set_termios)	(struct usb_serial_port *port, struct termios * old);
+	void (*set_termios)	(struct usb_serial_port *port, struct ktermios * old);
 	void (*break_ctl)	(struct usb_serial_port *port, int break_state);
 	int  (*chars_in_buffer)	(struct usb_serial_port *port);
 	void (*throttle)	(struct usb_serial_port *port);
@@ -226,10 +226,10 @@ struct usb_serial_driver {
 	int  (*tiocmget)	(struct usb_serial_port *port, struct file *file);
 	int  (*tiocmset)	(struct usb_serial_port *port, struct file *file, unsigned int set, unsigned int clear);
 
-	void (*read_int_callback)(struct urb *urb, struct pt_regs *regs);
-	void (*write_int_callback)(struct urb *urb, struct pt_regs *regs);
-	void (*read_bulk_callback)(struct urb *urb, struct pt_regs *regs);
-	void (*write_bulk_callback)(struct urb *urb, struct pt_regs *regs);
+	void (*read_int_callback)(struct urb *urb);
+	void (*write_int_callback)(struct urb *urb);
+	void (*read_bulk_callback)(struct urb *urb);
+	void (*write_bulk_callback)(struct urb *urb);
 };
 #define to_usb_serial_driver(d) container_of(d, struct usb_serial_driver, driver)
 
@@ -262,8 +262,8 @@ extern int usb_serial_generic_write (struct usb_serial_port *port, const unsigne
 extern void usb_serial_generic_close (struct usb_serial_port *port, struct file *filp);
 extern int usb_serial_generic_write_room (struct usb_serial_port *port);
 extern int usb_serial_generic_chars_in_buffer (struct usb_serial_port *port);
-extern void usb_serial_generic_read_bulk_callback (struct urb *urb, struct pt_regs *regs);
-extern void usb_serial_generic_write_bulk_callback (struct urb *urb, struct pt_regs *regs);
+extern void usb_serial_generic_read_bulk_callback (struct urb *urb);
+extern void usb_serial_generic_write_bulk_callback (struct urb *urb);
 extern void usb_serial_generic_shutdown (struct usb_serial *serial);
 extern int usb_serial_generic_register (int debug);
 extern void usb_serial_generic_deregister (void);

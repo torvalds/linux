@@ -48,9 +48,6 @@ void __init setup_platform(void)
 	at32_sm_init();
 	at32_clock_init();
 	at32_portmux_init();
-
-	/* FIXME: This doesn't belong here */
-	at32_setup_serial_console(1);
 }
 
 static int __init pdc_probe(struct platform_device *pdev)

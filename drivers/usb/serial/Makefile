@@ -11,12 +11,14 @@ usbserial-obj-$(CONFIG_USB_EZUSB)		+= ezusb.o
 
 usbserial-objs	:= usb-serial.o generic.o bus.o $(usbserial-obj-y)
 
+obj-$(CONFIG_USB_SERIAL_AIRCABLE)		+= aircable.o
 obj-$(CONFIG_USB_SERIAL_AIRPRIME)		+= airprime.o
 obj-$(CONFIG_USB_SERIAL_ARK3116)		+= ark3116.o
 obj-$(CONFIG_USB_SERIAL_BELKIN)			+= belkin_sa.o
 obj-$(CONFIG_USB_SERIAL_CP2101)			+= cp2101.o
 obj-$(CONFIG_USB_SERIAL_CYBERJACK)		+= cyberjack.o
 obj-$(CONFIG_USB_SERIAL_CYPRESS_M8)		+= cypress_m8.o
+obj-$(CONFIG_USB_SERIAL_DEBUG)			+= usb_debug.o
 obj-$(CONFIG_USB_SERIAL_DIGI_ACCELEPORT)	+= digi_acceleport.o
 obj-$(CONFIG_USB_SERIAL_EDGEPORT)		+= io_edgeport.o
 obj-$(CONFIG_USB_SERIAL_EDGEPORT_TI)		+= io_ti.o
@@ -33,6 +35,8 @@ obj-$(CONFIG_USB_SERIAL_KEYSPAN_PDA)		+= keyspan_pda.o
 obj-$(CONFIG_USB_SERIAL_KLSI)			+= kl5kusb105.o
 obj-$(CONFIG_USB_SERIAL_KOBIL_SCT)		+= kobil_sct.o
 obj-$(CONFIG_USB_SERIAL_MCT_U232)		+= mct_u232.o
+obj-$(CONFIG_USB_SERIAL_MOS7720)		+= mos7720.o
+obj-$(CONFIG_USB_SERIAL_MOS7840)		+= mos7840.o
 obj-$(CONFIG_USB_SERIAL_NAVMAN)			+= navman.o
 obj-$(CONFIG_USB_SERIAL_OMNINET)		+= omninet.o
 obj-$(CONFIG_USB_SERIAL_OPTION)			+= option.o

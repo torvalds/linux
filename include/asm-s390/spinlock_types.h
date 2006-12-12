@@ -6,16 +6,16 @@
 #endif
 
 typedef struct {
-	volatile unsigned int lock;
+	volatile unsigned int owner_cpu;
+	volatile unsigned int owner_pc;
 } __attribute__ ((aligned (4))) raw_spinlock_t;
 
 #define __RAW_SPIN_LOCK_UNLOCKED	{ 0 }
 
 typedef struct {
 	volatile unsigned int lock;
-	volatile unsigned int owner_pc;
 } raw_rwlock_t;
 
-#define __RAW_RW_LOCK_UNLOCKED		{ 0, 0 }
+#define __RAW_RW_LOCK_UNLOCKED		{ 0 }
 
 #endif

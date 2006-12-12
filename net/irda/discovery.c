@@ -32,6 +32,7 @@
 
 #include <linux/string.h>
 #include <linux/socket.h>
+#include <linux/fs.h>
 #include <linux/seq_file.h>
 
 #include <net/irda/irda.h>

@@ -192,7 +192,7 @@ struct iser_regd_buf {
 
 struct iser_dto {
 	struct iscsi_iser_cmd_task *ctask;
-	struct iscsi_iser_conn     *conn;
+	struct iser_conn *ib_conn;
 	int                        notify_enable;
 
 	/* vector of registered buffers */
@@ -283,7 +283,7 @@ struct iser_global {
 	struct mutex      connlist_mutex;
 	struct list_head  connlist;		/* all iSER IB connections */
 
-	kmem_cache_t *desc_cache;
+	struct kmem_cache *desc_cache;
 };
 
 extern struct iser_global ig;
@@ -355,4 +355,11 @@ int  iser_post_send(struct iser_desc *tx_desc);
 
 int iser_conn_state_comp(struct iser_conn *ib_conn,
 			 enum iser_ib_conn_state comp);
+
+int iser_dma_map_task_data(struct iscsi_iser_cmd_task *iser_ctask,
+			    struct iser_data_buf       *data,
+			    enum   iser_data_dir       iser_dir,
+			    enum   dma_data_direction  dma_dir);
+
+void iser_dma_unmap_task_data(struct iscsi_iser_cmd_task *iser_ctask);
 #endif

@@ -24,6 +24,7 @@
 #include <linux/errno.h>
 #include <linux/skbuff.h>
 #include <linux/usb.h>
+#include <linux/workqueue.h>
 #include <net/ieee80211.h>
 
 #include "zd_def.h"
@@ -46,11 +47,17 @@ static struct usb_device_id usb_ids[] = {
 	{ USB_DEVICE(0x0586, 0x3402), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x0b3b, 0x5630), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x0b05, 0x170c), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x1435, 0x0711), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0586, 0x3409), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0b3b, 0x1630), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0586, 0x3401), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x14ea, 0xab13), .driver_info = DEVICE_ZD1211 },
 	/* ZD1211B */
 	{ USB_DEVICE(0x0ace, 0x1215), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x157e, 0x300d), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x079b, 0x0062), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x1582, 0x6003), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x050d, 0x705c), .driver_info = DEVICE_ZD1211B },
 	/* "Driverless" devices that need ejecting */
 	{ USB_DEVICE(0x0ace, 0x2011), .driver_info = DEVICE_INSTALLER },
 	{}
@@ -365,15 +372,6 @@ error:
 	return r;
 }
 
-static void disable_read_regs_int(struct zd_usb *usb)
-{
-	struct zd_usb_interrupt *intr = &usb->intr;
-
-	spin_lock(&intr->lock);
-	intr->read_regs_enabled = 0;
-	spin_unlock(&intr->lock);
-}
-
 #define urb_dev(urb) (&(urb)->dev->dev)
 
 static inline void handle_regs_int(struct urb *urb)
@@ -407,7 +405,7 @@ static inline void handle_retry_failed_int(struct urb *urb)
 }
 
 
-static void int_urb_complete(struct urb *urb, struct pt_regs *pt_regs)
+static void int_urb_complete(struct urb *urb)
 {
 	int r;
 	struct usb_int_header *hdr;
@@ -595,6 +593,8 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 		unsigned int l, k, n;
 		for (i = 0, l = 0;; i++) {
 			k = le16_to_cpu(get_unaligned(&length_info->length[i]));
+			if (k == 0)
+				return;
 			n = l+k;
 			if (n > length)
 				return;
@@ -608,7 +608,7 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 	}
 }
 
-static void rx_urb_complete(struct urb *urb, struct pt_regs *pt_regs)
+static void rx_urb_complete(struct urb *urb)
 {
 	struct zd_usb *usb;
 	struct zd_usb_rx *rx;
@@ -778,7 +778,7 @@ void zd_usb_disable_rx(struct zd_usb *usb)
 	spin_unlock_irqrestore(&rx->lock, flags);
 }
 
-static void tx_urb_complete(struct urb *urb, struct pt_regs *pt_regs)
+static void tx_urb_complete(struct urb *urb)
 {
 	int r;
 
@@ -1112,26 +1112,36 @@ static struct usb_driver driver = {
 	.disconnect	= disconnect,
 };
 
+struct workqueue_struct *zd_workqueue;
+
 static int __init usb_init(void)
 {
 	int r;
 
-	pr_debug("usb_init()\n");
+	pr_debug("%s usb_init()\n", driver.name);
+
+	zd_workqueue = create_singlethread_workqueue(driver.name);
+	if (zd_workqueue == NULL) {
+		printk(KERN_ERR "%s couldn't create workqueue\n", driver.name);
+		return -ENOMEM;
+	}
 
 	r = usb_register(&driver);
 	if (r) {
-		printk(KERN_ERR "usb_register() failed. Error number %d\n", r);
+		printk(KERN_ERR "%s usb_register() failed. Error number %d\n",
+		       driver.name, r);
 		return r;
 	}
 
-	pr_debug("zd1211rw initialized\n");
+	pr_debug("%s initialized\n", driver.name);
 	return 0;
 }
 
 static void __exit usb_exit(void)
 {
-	pr_debug("usb_exit()\n");
+	pr_debug("%s usb_exit()\n", driver.name);
 	usb_deregister(&driver);
+	destroy_workqueue(zd_workqueue);
 }
 
 module_init(usb_init);
@@ -1146,10 +1156,19 @@ static void prepare_read_regs_int(struct zd_usb *usb)
 {
 	struct zd_usb_interrupt *intr = &usb->intr;
 
-	spin_lock(&intr->lock);
+	spin_lock_irq(&intr->lock);
 	intr->read_regs_enabled = 1;
 	INIT_COMPLETION(intr->read_regs.completion);
-	spin_unlock(&intr->lock);
+	spin_unlock_irq(&intr->lock);
+}
+
+static void disable_read_regs_int(struct zd_usb *usb)
+{
+	struct zd_usb_interrupt *intr = &usb->intr;
+
+	spin_lock_irq(&intr->lock);
+	intr->read_regs_enabled = 0;
+	spin_unlock_irq(&intr->lock);
 }
 
 static int get_results(struct zd_usb *usb, u16 *values,
@@ -1161,7 +1180,7 @@ static int get_results(struct zd_usb *usb, u16 *values,
 	struct read_regs_int *rr = &intr->read_regs;
 	struct usb_int_regs *regs = (struct usb_int_regs *)rr->buffer;
 
-	spin_lock(&intr->lock);
+	spin_lock_irq(&intr->lock);
 
 	r = -EIO;
 	/* The created block size seems to be larger than expected.
@@ -1194,7 +1213,7 @@ static int get_results(struct zd_usb *usb, u16 *values,
 
 	r = 0;
 error_unlock:
-	spin_unlock(&intr->lock);
+	spin_unlock_irq(&intr->lock);
 	return r;
 }
 

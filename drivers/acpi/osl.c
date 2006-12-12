@@ -50,6 +50,7 @@ ACPI_MODULE_NAME("osl")
 struct acpi_os_dpc {
 	acpi_osd_exec_callback function;
 	void *context;
+	struct work_struct work;
 };
 
 #ifdef CONFIG_ACPI_CUSTOM_DSDT
@@ -237,7 +238,7 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
 	return AE_OK;
 }
 
-static irqreturn_t acpi_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t acpi_irq(int irq, void *dev_id)
 {
 	return (*acpi_irq_handler) (acpi_irq_context) ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -564,12 +565,9 @@ void acpi_os_derive_pci_id(acpi_handle rhandle,	/* upper bound  */
 	acpi_os_derive_pci_id_2(rhandle, chandle, id, &is_bridge, &bus_number);
 }
 
-static void acpi_os_execute_deferred(void *context)
+static void acpi_os_execute_deferred(struct work_struct *work)
 {
-	struct acpi_os_dpc *dpc = NULL;
-
-
-	dpc = (struct acpi_os_dpc *)context;
+	struct acpi_os_dpc *dpc = container_of(work, struct acpi_os_dpc, work);
 	if (!dpc) {
 		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
 		return;
@@ -602,7 +600,6 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 {
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
-	struct work_struct *task;
 
 	ACPI_FUNCTION_TRACE("os_queue_for_execution");
 
@@ -615,28 +612,22 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 
 	/*
 	 * Allocate/initialize DPC structure.  Note that this memory will be
-	 * freed by the callee.  The kernel handles the tq_struct list  in a
+	 * freed by the callee.  The kernel handles the work_struct list  in a
 	 * way that allows us to also free its memory inside the callee.
 	 * Because we may want to schedule several tasks with different
 	 * parameters we can't use the approach some kernel code uses of
-	 * having a static tq_struct.
-	 * We can save time and code by allocating the DPC and tq_structs
-	 * from the same memory.
+	 * having a static work_struct.
 	 */
 
-	dpc =
-	    kmalloc(sizeof(struct acpi_os_dpc) + sizeof(struct work_struct),
-		    GFP_ATOMIC);
+	dpc = kmalloc(sizeof(struct acpi_os_dpc), GFP_ATOMIC);
 	if (!dpc)
 		return_ACPI_STATUS(AE_NO_MEMORY);
 
 	dpc->function = function;
 	dpc->context = context;
 
-	task = (void *)(dpc + 1);
-	INIT_WORK(task, acpi_os_execute_deferred, (void *)dpc);
-
-	if (!queue_work(kacpid_wq, task)) {
+	INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+	if (!queue_work(kacpid_wq, &dpc->work)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Call to queue_work() failed.\n"));
 		kfree(dpc);
@@ -1079,7 +1070,7 @@ acpi_status acpi_os_purge_cache(acpi_cache_t * cache)
 
 acpi_status acpi_os_delete_cache(acpi_cache_t * cache)
 {
-	(void)kmem_cache_destroy(cache);
+	kmem_cache_destroy(cache);
 	return (AE_OK);
 }
 

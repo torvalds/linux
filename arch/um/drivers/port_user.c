@@ -19,6 +19,7 @@
 #include "chan_user.h"
 #include "port.h"
 #include "os.h"
+#include "um_malloc.h"
 
 struct port_chan {
 	int raw;
@@ -27,7 +28,7 @@ struct port_chan {
 	char dev[sizeof("32768\0")];
 };
 
-static void *port_init(char *str, int device, struct chan_opts *opts)
+static void *port_init(char *str, int device, const struct chan_opts *opts)
 {
 	struct port_chan *data;
 	void *kern_data;
@@ -100,7 +101,7 @@ static void port_close(int fd, void *d)
 	os_close_file(fd);
 }
 
-struct chan_ops port_ops = {
+const struct chan_ops port_ops = {
 	.type		= "port",
 	.init		= port_init,
 	.open		= port_open,

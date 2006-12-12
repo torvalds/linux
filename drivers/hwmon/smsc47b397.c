@@ -176,9 +176,6 @@ sysfs_temp(2);
 sysfs_temp(3);
 sysfs_temp(4);
 
-#define device_create_file_temp(client, num) \
-	device_create_file(&client->dev, &dev_attr_temp##num##_input)
-
 /* FAN: 1 RPM/bit
    REG: count of 90kHz pulses / revolution */
 static int fan_from_reg(u16 reg)
@@ -205,8 +202,22 @@ sysfs_fan(2);
 sysfs_fan(3);
 sysfs_fan(4);
 
-#define device_create_file_fan(client, num) \
-	device_create_file(&client->dev, &dev_attr_fan##num##_input)
+static struct attribute *smsc47b397_attributes[] = {
+	&dev_attr_temp1_input.attr,
+	&dev_attr_temp2_input.attr,
+	&dev_attr_temp3_input.attr,
+	&dev_attr_temp4_input.attr,
+	&dev_attr_fan1_input.attr,
+	&dev_attr_fan2_input.attr,
+	&dev_attr_fan3_input.attr,
+	&dev_attr_fan4_input.attr,
+
+	NULL
+};
+
+static const struct attribute_group smsc47b397_group = {
+	.attrs = smsc47b397_attributes,
+};
 
 static int smsc47b397_detach_client(struct i2c_client *client)
 {
@@ -214,6 +225,7 @@ static int smsc47b397_detach_client(struct i2c_client *client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &smsc47b397_group);
 
 	if ((err = i2c_detach_client(client)))
 		return err;
@@ -228,6 +240,7 @@ static int smsc47b397_detect(struct i2c_adapter *adapter);
 
 static struct i2c_driver smsc47b397_driver = {
 	.driver = {
+		.owner	= THIS_MODULE,
 		.name	= "smsc47b397",
 	},
 	.attach_adapter	= smsc47b397_detect,
@@ -267,24 +280,19 @@ static int smsc47b397_detect(struct i2c_adapter *adapter)
 	if ((err = i2c_attach_client(new_client)))
 		goto error_free;
 
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &smsc47b397_group)))
+		goto error_detach;
+
 	data->class_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
-		goto error_detach;
+		goto error_remove;
 	}
-
-	device_create_file_temp(new_client, 1);
-	device_create_file_temp(new_client, 2);
-	device_create_file_temp(new_client, 3);
-	device_create_file_temp(new_client, 4);
-
-	device_create_file_fan(new_client, 1);
-	device_create_file_fan(new_client, 2);
-	device_create_file_fan(new_client, 3);
-	device_create_file_fan(new_client, 4);
 
 	return 0;
 
+error_remove:
+	sysfs_remove_group(&new_client->dev.kobj, &smsc47b397_group);
 error_detach:
 	i2c_detach_client(new_client);
 error_free:

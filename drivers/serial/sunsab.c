@@ -108,8 +108,7 @@ static __inline__ void sunsab_cec_wait(struct uart_sunsab_port *up)
 
 static struct tty_struct *
 receive_chars(struct uart_sunsab_port *up,
-	      union sab82532_irq_status *stat,
-	      struct pt_regs *regs)
+	      union sab82532_irq_status *stat)
 {
 	struct tty_struct *tty = NULL;
 	unsigned char buf[32];
@@ -161,7 +160,7 @@ receive_chars(struct uart_sunsab_port *up,
 		unsigned char ch = buf[i], flag;
 
 		if (tty == NULL) {
-			uart_handle_sysrq_char(&up->port, ch, regs);
+			uart_handle_sysrq_char(&up->port, ch);
 			continue;
 		}
 
@@ -208,7 +207,7 @@ receive_chars(struct uart_sunsab_port *up,
 				flag = TTY_FRAME;
 		}
 
-		if (uart_handle_sysrq_char(&up->port, ch, regs))
+		if (uart_handle_sysrq_char(&up->port, ch))
 			continue;
 
 		if ((stat->sreg.isr0 & (up->port.ignore_status_mask & 0xff)) == 0 &&
@@ -301,7 +300,7 @@ static void check_status(struct uart_sunsab_port *up,
 	wake_up_interruptible(&up->port.info->delta_msr_wait);
 }
 
-static irqreturn_t sunsab_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sunsab_interrupt(int irq, void *dev_id)
 {
 	struct uart_sunsab_port *up = dev_id;
 	struct tty_struct *tty;
@@ -321,7 +320,7 @@ static irqreturn_t sunsab_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		if ((status.sreg.isr0 & (SAB82532_ISR0_TCD | SAB82532_ISR0_TIME |
 					 SAB82532_ISR0_RFO | SAB82532_ISR0_RPF)) ||
 		    (status.sreg.isr1 & SAB82532_ISR1_BRK))
-			tty = receive_chars(up, &status, regs);
+			tty = receive_chars(up, &status);
 		if ((status.sreg.isr0 & SAB82532_ISR0_CDSC) ||
 		    (status.sreg.isr1 & SAB82532_ISR1_CSC))
 			check_status(up, &status);
@@ -350,7 +349,7 @@ static irqreturn_t sunsab_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 					 SAB82532_ISR0_RFO | SAB82532_ISR0_RPF)) ||
 		    (status.sreg.isr1 & SAB82532_ISR1_BRK))
 
-			tty = receive_chars(up, &status, regs);
+			tty = receive_chars(up, &status);
 		if ((status.sreg.isr0 & SAB82532_ISR0_CDSC) ||
 		    (status.sreg.isr1 & (SAB82532_ISR1_BRK | SAB82532_ISR1_CSC)))
 			check_status(up, &status);
@@ -787,8 +786,8 @@ static void sunsab_convert_to_sab(struct uart_sunsab_port *up, unsigned int cfla
 }
 
 /* port->lock is not held.  */
-static void sunsab_set_termios(struct uart_port *port, struct termios *termios,
-			       struct termios *old)
+static void sunsab_set_termios(struct uart_port *port, struct ktermios *termios,
+			       struct ktermios *old)
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
 	unsigned long flags;

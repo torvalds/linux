@@ -94,7 +94,6 @@ struct autofs_wait_queue {
 
 struct autofs_sb_info {
 	u32 magic;
-	struct dentry *root;
 	int pipefd;
 	struct file *pipe;
 	pid_t oz_pgrp;
@@ -151,7 +150,8 @@ static inline int autofs4_ispending(struct dentry *dentry)
 
 static inline void autofs4_copy_atime(struct file *src, struct file *dst)
 {
-	dst->f_dentry->d_inode->i_atime = src->f_dentry->d_inode->i_atime;
+	dst->f_path.dentry->d_inode->i_atime =
+		src->f_path.dentry->d_inode->i_atime;
 	return;
 }
 
@@ -229,4 +229,4 @@ out:
 }
 
 void autofs4_dentry_release(struct dentry *);
-
+extern void autofs4_kill_sb(struct super_block *);

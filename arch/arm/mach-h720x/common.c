@@ -101,14 +101,14 @@ static void inline unmask_gpio_irq(u32 irq)
 
 static void
 h720x_gpio_handler(unsigned int mask, unsigned int irq,
-                 struct irqdesc *desc, struct pt_regs *regs)
+                 struct irq_desc *desc)
 {
 	IRQDBG("%s irq: %d\n",__FUNCTION__,irq);
 	desc = irq_desc + irq;
 	while (mask) {
 		if (mask & 1) {
 			IRQDBG("handling irq %d\n", irq);
-			desc_handle_irq(irq, desc, regs);
+			desc_handle_irq(irq, desc);
 		}
 		irq++;
 		desc++;
@@ -117,73 +117,68 @@ h720x_gpio_handler(unsigned int mask, unsigned int irq,
 }
 
 static void
-h720x_gpioa_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
-			struct pt_regs *regs)
+h720x_gpioa_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 {
 	unsigned int mask, irq;
 
 	mask = CPU_REG(GPIO_A_VIRT,GPIO_STAT);
 	irq = IRQ_CHAINED_GPIOA(0);
 	IRQDBG("%s mask: 0x%08x irq: %d\n",__FUNCTION__,mask,irq);
-	h720x_gpio_handler(mask, irq, desc, regs);
+	h720x_gpio_handler(mask, irq, desc);
 }
 
 static void
-h720x_gpiob_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
-			struct pt_regs *regs)
+h720x_gpiob_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 {
 	unsigned int mask, irq;
 	mask = CPU_REG(GPIO_B_VIRT,GPIO_STAT);
 	irq = IRQ_CHAINED_GPIOB(0);
 	IRQDBG("%s mask: 0x%08x irq: %d\n",__FUNCTION__,mask,irq);
-	h720x_gpio_handler(mask, irq, desc, regs);
+	h720x_gpio_handler(mask, irq, desc);
 }
 
 static void
-h720x_gpioc_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
-			struct pt_regs *regs)
+h720x_gpioc_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 {
 	unsigned int mask, irq;
 
 	mask = CPU_REG(GPIO_C_VIRT,GPIO_STAT);
 	irq = IRQ_CHAINED_GPIOC(0);
 	IRQDBG("%s mask: 0x%08x irq: %d\n",__FUNCTION__,mask,irq);
-	h720x_gpio_handler(mask, irq, desc, regs);
+	h720x_gpio_handler(mask, irq, desc);
 }
 
 static void
-h720x_gpiod_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
-			struct pt_regs *regs)
+h720x_gpiod_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 {
 	unsigned int mask, irq;
 
 	mask = CPU_REG(GPIO_D_VIRT,GPIO_STAT);
 	irq = IRQ_CHAINED_GPIOD(0);
 	IRQDBG("%s mask: 0x%08x irq: %d\n",__FUNCTION__,mask,irq);
-	h720x_gpio_handler(mask, irq, desc, regs);
+	h720x_gpio_handler(mask, irq, desc);
 }
 
 #ifdef CONFIG_CPU_H7202
 static void
-h720x_gpioe_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
-			struct pt_regs *regs)
+h720x_gpioe_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 {
 	unsigned int mask, irq;
 
 	mask = CPU_REG(GPIO_E_VIRT,GPIO_STAT);
 	irq = IRQ_CHAINED_GPIOE(0);
 	IRQDBG("%s mask: 0x%08x irq: %d\n",__FUNCTION__,mask,irq);
-	h720x_gpio_handler(mask, irq, desc, regs);
+	h720x_gpio_handler(mask, irq, desc);
 }
 #endif
 
-static struct irqchip h720x_global_chip = {
+static struct irq_chip h720x_global_chip = {
 	.ack = mask_global_irq,
 	.mask = mask_global_irq,
 	.unmask = unmask_global_irq,
 };
 
-static struct irqchip h720x_gpio_chip = {
+static struct irq_chip h720x_gpio_chip = {
 	.ack = ack_gpio_irq,
 	.mask = mask_gpio_irq,
 	.unmask = unmask_gpio_irq,
@@ -208,14 +203,14 @@ void __init h720x_init_irq (void)
 	/* Initialize global IRQ's, fast path */
 	for (irq = 0; irq < NR_GLBL_IRQS; irq++) {
 		set_irq_chip(irq, &h720x_global_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	/* Initialize multiplexed IRQ's, slow path */
 	for (irq = IRQ_CHAINED_GPIOA(0) ; irq <= IRQ_CHAINED_GPIOD(31); irq++) {
 		set_irq_chip(irq, &h720x_gpio_chip);
-		set_irq_handler(irq, do_edge_IRQ);
+		set_irq_handler(irq, handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID );
 	}
 	set_irq_chained_handler(IRQ_GPIOA, h720x_gpioa_demux_handler);
@@ -226,7 +221,7 @@ void __init h720x_init_irq (void)
 #ifdef CONFIG_CPU_H7202
 	for (irq = IRQ_CHAINED_GPIOE(0) ; irq <= IRQ_CHAINED_GPIOE(31); irq++) {
 		set_irq_chip(irq, &h720x_gpio_chip);
-		set_irq_handler(irq, do_edge_IRQ);
+		set_irq_handler(irq, handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID );
 	}
 	set_irq_chained_handler(IRQ_GPIOE, h720x_gpioe_demux_handler);

@@ -32,7 +32,7 @@ config JOYSTICK_ANALOG
 	  module will be called analog.
 
 config JOYSTICK_A3D
-	tristate "Assasin 3D and MadCatz Panther devices"
+	tristate "Assassin 3D and MadCatz Panther devices"
 	select GAMEPORT
 	help
 	  Say Y here if you have an FPGaming or MadCatz controller using the

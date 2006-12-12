@@ -998,6 +998,7 @@ static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 	}
 	/* done polling */
 	hwgroup->polling = 0;
+	hwgroup->resetting = 0;
 	return ide_stopped;
 }
 
@@ -1057,6 +1058,7 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 		}
 	}
 	hwgroup->polling = 0;	/* done polling */
+	hwgroup->resetting = 0; /* done reset attempt */
 	return ide_stopped;
 }
 
@@ -1143,6 +1145,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 
 	/* For an ATAPI device, first try an ATAPI SRST. */
 	if (drive->media != ide_disk && !do_not_try_atapi) {
+		hwgroup->resetting = 1;
 		pre_reset(drive);
 		SELECT_DRIVE(drive);
 		udelay (20);
@@ -1168,6 +1171,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		return ide_stopped;
 	}
 
+	hwgroup->resetting = 1;
 	/*
 	 * Note that we also set nIEN while resetting the device,
 	 * to mask unwanted interrupts from the interface during the reset.

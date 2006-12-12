@@ -225,7 +225,7 @@ xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
 	skb_put(skb, (msg->size - msg->leadin_ignore - msg->tailout_ignore));
 
 	/*
-	 * Move the data over from the the other side.
+	 * Move the data over from the other side.
 	 */
 	if ((XPNET_VERSION_MINOR(msg->version) == 1) &&
 						(msg->embedded_bytes != 0)) {

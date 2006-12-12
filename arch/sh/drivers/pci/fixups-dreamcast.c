@@ -1,10 +1,10 @@
 /*
- * arch/sh/pci/fixups-dreamcast.c
+ * arch/sh/drivers/pci/fixups-dreamcast.c
  *
  * PCI fixups for the Sega Dreamcast
  *
  * Copyright (C) 2001, 2002  M. R. Brown
- * Copyright (C) 2002, 2003  Paul Mundt
+ * Copyright (C) 2002, 2003, 2006  Paul Mundt
  *
  * This file originally bore the message (with enclosed-$):
  *	Id: pci.c,v 1.3 2003/05/04 19:29:46 lethal Exp
@@ -45,36 +45,16 @@ static void __init gapspci_fixup_resources(struct pci_dev *dev)
 		printk("PCI: Failed resource fixup\n");
 	}
 }
-
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, gapspci_fixup_resources);
 
-void __init pcibios_fixup_bus(struct pci_bus *bus)
+int __init pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	/* 
-	 * We don't have any sub bus to fix up, and this is a rather
-	 * stupid place to put general device fixups. Don't do it.
-	 * Use the pcibios_fixups table or suffer the consequences.
+	/*
+	 * The interrupt routing semantics here are quite trivial.
+	 *
+	 * We basically only support one interrupt, so we only bother
+	 * updating a device's interrupt line with this single shared
+	 * interrupt. Keeps routing quite simple, doesn't it?
 	 */
+	return GAPSPCI_IRQ;
 }
-
-void __init pcibios_fixup_irqs(void)
-{
-	struct pci_dev *dev = 0;
-
-	for_each_pci_dev(dev) {
-		/*
-		 * The interrupt routing semantics here are quite trivial.
-		 *
-		 * We basically only support one interrupt, so we only bother
-		 * updating a device's interrupt line with this single shared
-		 * interrupt. Keeps routing quite simple, doesn't it?
-		 */
-		printk(KERN_NOTICE "PCI: Fixing up IRQ routing for device %s\n",
-		       pci_name(dev));
-
-		dev->irq = GAPSPCI_IRQ;
-
-		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
-	}
-}
-

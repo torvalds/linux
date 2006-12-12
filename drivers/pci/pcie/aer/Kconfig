@@ -1,0 +1,12 @@
+#
+# PCI Express Root Port Device AER Configuration
+#
+
+config PCIEAER
+	boolean "Root Port Advanced Error Reporting support"
+	depends on PCIEPORTBUS && ACPI
+	default y
+	help
+	  This enables PCI Express Root Port Advanced Error Reporting
+	  (AER) driver support. Error reporting messages sent to Root
+	  Port will be handled by PCI Express AER driver.

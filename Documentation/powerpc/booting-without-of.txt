@@ -6,6 +6,8 @@
     IBM Corp.
 (c) 2005 Becky Bruce <becky.bruce at freescale.com>,
     Freescale Semiconductor, FSL SOC and 32-bit additions
+(c) 2006 MontaVista Software, Inc.
+    Flash chip node definition
 
    May 18, 2005: Rev 0.1 - Initial draft, no chapter III yet.
 
@@ -33,13 +35,13 @@
                          - Change version 16 format to always align
                            property data to 4 bytes. Since tokens are
                            already aligned, that means no specific
-                           required alignement between property size
+                           required alignment between property size
                            and property data. The old style variable
                            alignment would make it impossible to do
                            "simple" insertion of properties using
                            memove (thanks Milton for
                            noticing). Updated kernel patch as well
-			 - Correct a few more alignement constraints
+			 - Correct a few more alignment constraints
 			 - Add a chapter about the device-tree
                            compiler and the textural representation of
                            the tree that can be "compiled" by dtc.
@@ -145,7 +147,7 @@ it with special cases.
                 in case you are entering the kernel with MMU enabled
                 and a non-1:1 mapping.
 
-                r5 : NULL (as to differenciate with method a)
+                r5 : NULL (as to differentiate with method a)
 
         Note about SMP entry: Either your firmware puts your other
         CPUs in some sleep loop or spin loop in ROM where you can get
@@ -245,7 +247,7 @@ the block to RAM before passing it to the kernel.
 ---------
 
    The kernel is entered with r3 pointing to an area of memory that is
-   roughtly described in include/asm-powerpc/prom.h by the structure
+   roughly described in include/asm-powerpc/prom.h by the structure
    boot_param_header:
 
 struct boot_param_header {
@@ -335,7 +337,7 @@ struct boot_param_header {
      "compact" format for the tree itself that is however not backward
      compatible. You should always generate a structure of the highest
      version defined at the time of your implementation. Currently
-     that is version 16, unless you explicitely aim at being backward
+     that is version 16, unless you explicitly aim at being backward
      compatible.
 
    - last_comp_version
@@ -418,9 +420,9 @@ zero terminated string and is mandatory for version 1 to 3 of the
 format definition (as it is in Open Firmware). Version 0x10 makes it
 optional as it can generate it from the unit name defined below.
 
-There is also a "unit name" that is used to differenciate nodes with
+There is also a "unit name" that is used to differentiate nodes with
 the same name at the same level, it is usually made of the node
-name's, the "@" sign, and a "unit address", which definition is
+names, the "@" sign, and a "unit address", which definition is
 specific to the bus type the node sits on.
 
 The unit name doesn't exist as a property per-se but is included in
@@ -550,11 +552,11 @@ Here's the basic structure of a single node:
      * [child nodes if any]
      * token OF_DT_END_NODE (that is 0x00000002)
 
-So the node content can be summmarised as a start token, a full path,
-a list of properties, a list of child node and an end token. Every
+So the node content can be summarised as a start token, a full path,
+a list of properties, a list of child nodes, and an end token. Every
 child node is a full node structure itself as defined above.
 
-4) Device tree 'strings" block
+4) Device tree "strings" block
 
 In order to save space, property names, which are generally redundant,
 are stored separately in the "strings" block. This block is simply the
@@ -573,7 +575,7 @@ implementation of Open Firmware or an implementation compatible with
 the Open Firmware client interface, those properties will be created
 by the trampoline code in the kernel's prom_init() file. For example,
 that's where you'll have to add code to detect your board model and
-set the platform number. However, when using the flatenned device-tree
+set the platform number. However, when using the flattened device-tree
 entry point, there is no prom_init() pass, and thus you have to
 provide those properties yourself.
 
@@ -630,12 +632,11 @@ like address space bits, you'll have to add a bus translator to the
 prom_parse.c file of the recent kernels for your bus type.
 
 The "reg" property only defines addresses and sizes (if #size-cells
-is
-non-0) within a given bus. In order to translate addresses upward
+is non-0) within a given bus. In order to translate addresses upward
 (that is into parent bus addresses, and possibly into cpu physical
 addresses), all busses must contain a "ranges" property. If the
 "ranges" property is missing at a given level, it's assumed that
-translation isn't possible. The format of the "ranges" proprety for a
+translation isn't possible. The format of the "ranges" property for a
 bus is a list of:
 
 	bus address, parent bus address, size
@@ -689,7 +690,7 @@ is present).
 4) Note about node and property names and character set
 -------------------------------------------------------
 
-While open firmware provides more flexibe usage of 8859-1, this
+While open firmware provides more flexible usage of 8859-1, this
 specification enforces more strict rules. Nodes and properties should
 be comprised only of ASCII characters 'a' to 'z', '0' to
 '9', ',', '.', '_', '+', '#', '?', and '-'. Node names additionally
@@ -732,12 +733,12 @@ address which can extend beyond that limit.
       that typically get driven by the same platform code in the
       kernel, you would use a different "model" property but put a
       value in "compatible". The kernel doesn't directly use that
-      value (see /chosen/linux,platform for how the kernel choses a
+      value (see /chosen/linux,platform for how the kernel chooses a
       platform type) but it is generally useful.
 
   The root node is also generally where you add additional properties
   specific to your board like the serial number if any, that sort of
-  thing. it is recommended that if you add any "custom" property whose
+  thing. It is recommended that if you add any "custom" property whose
   name may clash with standard defined ones, you prefix them with your
   vendor name and a comma.
 
@@ -817,7 +818,7 @@ address which can extend beyond that limit.
       your board. It's a list of addresses/sizes concatenated
       together, with the number of cells of each defined by the
       #address-cells and #size-cells of the root node. For example,
-      with both of these properties beeing 2 like in the example given
+      with both of these properties being 2 like in the example given
       earlier, a 970 based machine with 6Gb of RAM could typically
       have a "reg" property here that looks like:
 
@@ -855,7 +856,7 @@ address which can extend beyond that limit.
       console device if any. Typically, if you have serial devices on
       your board, you may want to put the full path to the one set as
       the default console in the firmware here, for the kernel to pick
-      it up as it's own default console. If you look at the funciton
+      it up as its own default console. If you look at the function
       set_preferred_console() in arch/ppc64/kernel/setup.c, you'll see
       that the kernel tries to find out the default console and has
       knowledge of various types like 8250 serial ports. You may want
@@ -970,7 +971,7 @@ device-tree in another format. The currently supported formats are:
      - "asm": assembly language file. This is a file that can be
        sourced by gas to generate a device-tree "blob". That file can
        then simply be added to your Makefile. Additionally, the
-       assembly file exports some symbols that can be use
+       assembly file exports some symbols that can be used.
 
 
 The syntax of the dtc tool is
@@ -984,10 +985,10 @@ generated. Supported versions are 1,2,3 and 16. The default is
 currently version 3 but that may change in the future to version 16.
 
 Additionally, dtc performs various sanity checks on the tree, like the
-uniqueness of linux,phandle properties, validity of strings, etc...
+uniqueness of linux, phandle properties, validity of strings, etc...
 
 The format of the .dts "source" file is "C" like, supports C and C++
-style commments.
+style comments.
 
 / {
 }
@@ -1069,13 +1070,13 @@ while all this has been defined and implemented.
     around. It contains no internal offsets or pointers for this
     purpose.
 
-  - An example of code for iterating nodes & retreiving properties
+  - An example of code for iterating nodes & retrieving properties
     directly from the flattened tree format can be found in the kernel
     file arch/ppc64/kernel/prom.c, look at scan_flat_dt() function,
-    it's usage in early_init_devtree(), and the corresponding various
+    its usage in early_init_devtree(), and the corresponding various
     early_init_dt_scan_*() callbacks. That code can be re-used in a
     GPL bootloader, and as the author of that code, I would be happy
-    do discuss possible free licencing to any vendor who wishes to
+    to discuss possible free licencing to any vendor who wishes to
     integrate all or part of this code into a non-GPL bootloader.
 
 
@@ -1125,7 +1126,7 @@ should have the following properties:
 	- interrupt-parent : contains the phandle of the interrupt
           controller which handles interrupts for this device
 	- interrupts : a list of tuples representing the interrupt
-          number and the interrupt sense and level for each interupt
+          number and the interrupt sense and level for each interrupt
           for this device.
 
 This information is used by the kernel to build the interrupt table
@@ -1441,6 +1442,295 @@ platforms are moved over to use the flattened-device-tree model.
                descriptor-types-mask = <012b0ebf>;
        };
 
+   h) Board Control and Status (BCSR)
+
+   Required properties:
+
+    - device_type : Should be "board-control"
+    - reg : Offset and length of the register set for the device
+
+    Example:
+
+	bcsr@f8000000 {
+		device_type = "board-control";
+		reg = <f8000000 8000>;
+	};
+
+   i) Freescale QUICC Engine module (QE)
+   This represents qe module that is installed on PowerQUICC II Pro.
+   Hopefully it will merge backward compatibility with CPM/CPM2.
+   Basically, it is a bus of devices, that could act more or less
+   as a complete entity (UCC, USB etc ). All of them should be siblings on
+   the "root" qe node, using the common properties from there.
+   The description below applies to the the qe of MPC8360 and
+   more nodes and properties would be extended in the future.
+
+   i) Root QE device
+
+   Required properties:
+   - device_type : should be "qe";
+   - model : precise model of the QE, Can be "QE", "CPM", or "CPM2"
+   - reg : offset and length of the device registers.
+   - bus-frequency : the clock frequency for QUICC Engine.
+
+   Recommended properties
+   - brg-frequency : the internal clock source frequency for baud-rate
+     generators in Hz.
+
+   Example:
+	qe@e0100000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <2>;
+		device_type = "qe";
+		model = "QE";
+		ranges = <0 e0100000 00100000>;
+		reg = <e0100000 480>;
+		brg-frequency = <0>;
+		bus-frequency = <179A7B00>;
+	}
+
+
+   ii) SPI (Serial Peripheral Interface)
+
+   Required properties:
+   - device_type : should be "spi".
+   - compatible : should be "fsl_spi".
+   - mode : the spi operation mode, it can be "cpu" or "qe".
+   - reg : Offset and length of the register set for the device
+   - interrupts : <a b> where a is the interrupt number and b is a
+     field that represents an encoding of the sense and level
+     information for the interrupt.  This should be encoded based on
+     the information in section 2) depending on the type of interrupt
+     controller you have.
+   - interrupt-parent : the phandle for the interrupt controller that
+     services interrupts for this device.
+
+   Example:
+	spi@4c0 {
+		device_type = "spi";
+		compatible = "fsl_spi";
+		reg = <4c0 40>;
+		interrupts = <82 0>;
+		interrupt-parent = <700>;
+		mode = "cpu";
+	};
+
+
+   iii) USB (Universal Serial Bus Controller)
+
+   Required properties:
+   - device_type : should be "usb".
+   - compatible : could be "qe_udc" or "fhci-hcd".
+   - mode : the could be "host" or "slave".
+   - reg : Offset and length of the register set for the device
+   - interrupts : <a b> where a is the interrupt number and b is a
+     field that represents an encoding of the sense and level
+     information for the interrupt.  This should be encoded based on
+     the information in section 2) depending on the type of interrupt
+     controller you have.
+   - interrupt-parent : the phandle for the interrupt controller that
+     services interrupts for this device.
+
+   Example(slave):
+	usb@6c0 {
+		device_type = "usb";
+		compatible = "qe_udc";
+		reg = <6c0 40>;
+		interrupts = <8b 0>;
+		interrupt-parent = <700>;
+		mode = "slave";
+	};
+
+
+   iv) UCC (Unified Communications Controllers)
+
+   Required properties:
+   - device_type : should be "network", "hldc", "uart", "transparent"
+    "bisync" or "atm".
+   - compatible : could be "ucc_geth" or "fsl_atm" and so on.
+   - model : should be "UCC".
+   - device-id : the ucc number(1-8), corresponding to UCCx in UM.
+   - reg : Offset and length of the register set for the device
+   - interrupts : <a b> where a is the interrupt number and b is a
+     field that represents an encoding of the sense and level
+     information for the interrupt.  This should be encoded based on
+     the information in section 2) depending on the type of interrupt
+     controller you have.
+   - interrupt-parent : the phandle for the interrupt controller that
+     services interrupts for this device.
+   - pio-handle : The phandle for the Parallel I/O port configuration.
+   - rx-clock : represents the UCC receive clock source.
+     0x00 : clock source is disabled;
+     0x1~0x10 : clock source is BRG1~BRG16 respectively;
+     0x11~0x28: clock source is QE_CLK1~QE_CLK24 respectively.
+   - tx-clock: represents the UCC transmit clock source;
+     0x00 : clock source is disabled;
+     0x1~0x10 : clock source is BRG1~BRG16 respectively;
+     0x11~0x28: clock source is QE_CLK1~QE_CLK24 respectively.
+
+   Required properties for network device_type:
+   - mac-address : list of bytes representing the ethernet address.
+   - phy-handle : The phandle for the PHY connected to this controller.
+
+   Example:
+	ucc@2000 {
+		device_type = "network";
+		compatible = "ucc_geth";
+		model = "UCC";
+		device-id = <1>;
+		reg = <2000 200>;
+		interrupts = <a0 0>;
+		interrupt-parent = <700>;
+		mac-address = [ 00 04 9f 00 23 23 ];
+		rx-clock = "none";
+		tx-clock = "clk9";
+		phy-handle = <212000>;
+		pio-handle = <140001>;
+	};
+
+
+   v) Parallel I/O Ports
+
+   This node configures Parallel I/O ports for CPUs with QE support.
+   The node should reside in the "soc" node of the tree.  For each
+   device that using parallel I/O ports, a child node should be created.
+   See the definition of the Pin configuration nodes below for more
+   information.
+
+   Required properties:
+   - device_type : should be "par_io".
+   - reg : offset to the register set and its length.
+   - num-ports : number of Parallel I/O ports
+
+   Example:
+	par_io@1400 {
+		reg = <1400 100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		device_type = "par_io";
+		num-ports = <7>;
+		ucc_pin@01 {
+			......
+		};
+
+
+   vi) Pin configuration nodes
+
+   Required properties:
+   - linux,phandle : phandle of this node; likely referenced by a QE
+     device.
+   - pio-map : array of pin configurations.  Each pin is defined by 6
+     integers.  The six numbers are respectively: port, pin, dir,
+     open_drain, assignment, has_irq.
+     - port : port number of the pin; 0-6 represent port A-G in UM.
+     - pin : pin number in the port.
+     - dir : direction of the pin, should encode as follows:
+
+	0 = The pin is disabled
+	1 = The pin is an output
+	2 = The pin is an input
+	3 = The pin is I/O
+
+     - open_drain : indicates the pin is normal or wired-OR:
+
+	0 = The pin is actively driven as an output
+	1 = The pin is an open-drain driver. As an output, the pin is
+	    driven active-low, otherwise it is three-stated.
+
+     - assignment : function number of the pin according to the Pin Assignment
+       tables in User Manual.  Each pin can have up to 4 possible functions in
+       QE and two options for CPM.
+     - has_irq : indicates if the pin is used as source of exteral
+       interrupts.
+
+   Example:
+	ucc_pin@01 {
+		linux,phandle = <140001>;
+		pio-map = <
+		/* port  pin  dir  open_drain  assignment  has_irq */
+			0  3  1  0  1  0 	/* TxD0 */
+			0  4  1  0  1  0 	/* TxD1 */
+			0  5  1  0  1  0 	/* TxD2 */
+			0  6  1  0  1  0 	/* TxD3 */
+			1  6  1  0  3  0 	/* TxD4 */
+			1  7  1  0  1  0 	/* TxD5 */
+			1  9  1  0  2  0 	/* TxD6 */
+			1  a  1  0  2  0 	/* TxD7 */
+			0  9  2  0  1  0 	/* RxD0 */
+			0  a  2  0  1  0 	/* RxD1 */
+			0  b  2  0  1  0 	/* RxD2 */
+			0  c  2  0  1  0 	/* RxD3 */
+			0  d  2  0  1  0 	/* RxD4 */
+			1  1  2  0  2  0 	/* RxD5 */
+			1  0  2  0  2  0 	/* RxD6 */
+			1  4  2  0  2  0 	/* RxD7 */
+			0  7  1  0  1  0 	/* TX_EN */
+			0  8  1  0  1  0 	/* TX_ER */
+			0  f  2  0  1  0 	/* RX_DV */
+			0  10 2  0  1  0 	/* RX_ER */
+			0  0  2  0  1  0 	/* RX_CLK */
+			2  9  1  0  3  0 	/* GTX_CLK - CLK10 */
+			2  8  2  0  1  0>;	/* GTX125 - CLK9 */
+	};
+
+   vii) Multi-User RAM (MURAM)
+
+   Required properties:
+   - device_type : should be "muram".
+   - mode : the could be "host" or "slave".
+   - ranges : Should be defined as specified in 1) to describe the
+      translation of MURAM addresses.
+   - data-only : sub-node which defines the address area under MURAM
+      bus that can be allocated as data/parameter
+
+   Example:
+
+	muram@10000 {
+		device_type = "muram";
+		ranges = <0 00010000 0000c000>;
+
+		data-only@0{
+			reg = <0 c000>;
+		};
+	};
+
+    g) Flash chip nodes
+
+    Flash chips (Memory Technology Devices) are often used for solid state
+    file systems on embedded devices.
+
+    Required properties:
+
+     - device_type : has to be "rom"
+     - compatible : Should specify what this ROM device is compatible with
+       (i.e. "onenand"). Currently, this is most likely to be "direct-mapped"
+       (which corresponds to the MTD physmap mapping driver).
+     - regs : Offset and length of the register set (or memory mapping) for
+       the device.
+
+    Recommended properties :
+
+     - bank-width : Width of the flash data bus in bytes. Required
+       for the NOR flashes (compatible == "direct-mapped" and others) ONLY.
+     - partitions : Several pairs of 32-bit values where the first value is
+       partition's offset from the start of the device and the second one is
+       partition size in bytes with LSB used to signify a read only
+       partititon (so, the parition size should always be an even number).
+     - partition-names : The list of concatenated zero terminated strings
+       representing the partition names.
+
+   Example:
+
+ 	flash@ff000000 {
+ 		device_type = "rom";
+ 		compatible = "direct-mapped";
+ 		regs = <ff000000 01000000>;
+ 		bank-width = <4>;
+ 		partitions = <00000000 00f80000
+ 			      00f80000 00080001>;
+ 		partition-names = "fs\0firmware";
+ 	};
 
    More devices will be defined as this spec matures.
 

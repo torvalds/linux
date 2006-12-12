@@ -109,7 +109,7 @@ static int alloc_fresh_huge_page(void)
 	if (nid == MAX_NUMNODES)
 		nid = first_node(node_online_map);
 	if (page) {
-		page[1].lru.next = (void *)free_huge_page;	/* dtor */
+		set_compound_page_dtor(page, free_huge_page);
 		spin_lock(&hugetlb_lock);
 		nr_huge_pages++;
 		nr_huge_pages_node[page_to_nid(page)]++;
@@ -344,7 +344,6 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 			entry = *src_pte;
 			ptepage = pte_page(entry);
 			get_page(ptepage);
-			add_mm_counter(dst, file_rss, HPAGE_SIZE / PAGE_SIZE);
 			set_huge_pte_at(dst, addr, dst_pte, entry);
 		}
 		spin_unlock(&src->page_table_lock);
@@ -356,27 +355,33 @@ nomem:
 	return -ENOMEM;
 }
 
-void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
-			  unsigned long end)
+void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+			    unsigned long end)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long address;
 	pte_t *ptep;
 	pte_t pte;
 	struct page *page;
+	struct page *tmp;
+	/*
+	 * A page gathering list, protected by per file i_mmap_lock. The
+	 * lock is used to avoid list corruption from multiple unmapping
+	 * of the same page since we are using page->lru.
+	 */
+	LIST_HEAD(page_list);
 
 	WARN_ON(!is_vm_hugetlb_page(vma));
 	BUG_ON(start & ~HPAGE_MASK);
 	BUG_ON(end & ~HPAGE_MASK);
 
 	spin_lock(&mm->page_table_lock);
-
-	/* Update high watermark before we lower rss */
-	update_hiwater_rss(mm);
-
 	for (address = start; address < end; address += HPAGE_SIZE) {
 		ptep = huge_pte_offset(mm, address);
 		if (!ptep)
+			continue;
+
+		if (huge_pmd_unshare(mm, &address, ptep))
 			continue;
 
 		pte = huge_ptep_get_and_clear(mm, address, ptep);
@@ -384,12 +389,32 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 			continue;
 
 		page = pte_page(pte);
-		put_page(page);
-		add_mm_counter(mm, file_rss, (int) -(HPAGE_SIZE / PAGE_SIZE));
+		list_add(&page->lru, &page_list);
 	}
-
 	spin_unlock(&mm->page_table_lock);
 	flush_tlb_range(vma, start, end);
+	list_for_each_entry_safe(page, tmp, &page_list, lru) {
+		list_del(&page->lru);
+		put_page(page);
+	}
+}
+
+void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+			  unsigned long end)
+{
+	/*
+	 * It is undesirable to test vma->vm_file as it should be non-null
+	 * for valid hugetlb area. However, vm_file will be NULL in the error
+	 * cleanup path of do_mmap_pgoff. When hugetlbfs ->mmap method fails,
+	 * do_mmap_pgoff() nullifies vma->vm_file before calling this function
+	 * to clean up. Since no pte has actually been setup, it is safe to
+	 * do nothing in this case.
+	 */
+	if (vma->vm_file) {
+		spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
+		__unmap_hugepage_range(vma, start, end);
+		spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
+	}
 }
 
 static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -454,6 +479,9 @@ int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 retry:
 	page = find_lock_page(mapping, idx);
 	if (!page) {
+		size = i_size_read(mapping->host) >> HPAGE_SHIFT;
+		if (idx >= size)
+			goto out;
 		if (hugetlb_get_quota(mapping))
 			goto out;
 		page = alloc_huge_page(vma, address);
@@ -488,7 +516,6 @@ retry:
 	if (!pte_none(*ptep))
 		goto backout;
 
-	add_mm_counter(mm, file_rss, HPAGE_SIZE / PAGE_SIZE);
 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
 				&& (vma->vm_flags & VM_SHARED)));
 	set_huge_pte_at(mm, address, ptep, new_pte);
@@ -626,10 +653,13 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 	BUG_ON(address >= end);
 	flush_cache_range(vma, address, end);
 
+	spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
 	spin_lock(&mm->page_table_lock);
 	for (; address < end; address += HPAGE_SIZE) {
 		ptep = huge_pte_offset(mm, address);
 		if (!ptep)
+			continue;
+		if (huge_pmd_unshare(mm, &address, ptep))
 			continue;
 		if (!pte_none(*ptep)) {
 			pte = huge_ptep_get_and_clear(mm, address, ptep);
@@ -639,6 +669,7 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 		}
 	}
 	spin_unlock(&mm->page_table_lock);
+	spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
 
 	flush_tlb_range(vma, start, end);
 }

@@ -560,7 +560,7 @@ static struct clk osc_ck = {		/* (*12, *13, 19.2, *26, 38.4)MHz */
 	.name		= "osc_ck",
 	.rate		= 26000000,		/* fixed up in clock init */
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				RATE_FIXED | ALWAYS_ENABLED | RATE_PROPAGATES,
+				RATE_FIXED | RATE_PROPAGATES,
 };
 
 /* With out modem likely 12MHz, with modem likely 13MHz */
@@ -1368,7 +1368,8 @@ static struct clk mcbsp5_fck = {
 };
 
 static struct clk mcspi1_ick = {
-	.name		= "mcspi1_ick",
+	.name		= "mcspi_ick",
+	.id		= 1,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.enable_reg	= (void __iomem *)&CM_ICLKEN1_CORE,
@@ -1377,7 +1378,8 @@ static struct clk mcspi1_ick = {
 };
 
 static struct clk mcspi1_fck = {
-	.name		= "mcspi1_fck",
+	.name		= "mcspi_fck",
+	.id		= 1,
 	.parent		= &func_48m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.enable_reg	= (void __iomem *)&CM_FCLKEN1_CORE,
@@ -1386,7 +1388,8 @@ static struct clk mcspi1_fck = {
 };
 
 static struct clk mcspi2_ick = {
-	.name		= "mcspi2_ick",
+	.name		= "mcspi_ick",
+	.id		= 2,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.enable_reg	= (void __iomem *)&CM_ICLKEN1_CORE,
@@ -1395,7 +1398,8 @@ static struct clk mcspi2_ick = {
 };
 
 static struct clk mcspi2_fck = {
-	.name		= "mcspi2_fck",
+	.name		= "mcspi_fck",
+	.id		= 2,
 	.parent		= &func_48m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.enable_reg	= (void __iomem *)&CM_FCLKEN1_CORE,
@@ -1404,7 +1408,8 @@ static struct clk mcspi2_fck = {
 };
 
 static struct clk mcspi3_ick = {
-	.name		= "mcspi3_ick",
+	.name		= "mcspi_ick",
+	.id		= 3,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X,
 	.enable_reg	= (void __iomem *)&CM_ICLKEN2_CORE,
@@ -1413,7 +1418,8 @@ static struct clk mcspi3_ick = {
 };
 
 static struct clk mcspi3_fck = {
-	.name		= "mcspi3_fck",
+	.name		= "mcspi_fck",
+	.id		= 3,
 	.parent		= &func_48m_ck,
 	.flags		= CLOCK_IN_OMAP243X,
 	.enable_reg	= (void __iomem *)&CM_FCLKEN2_CORE,

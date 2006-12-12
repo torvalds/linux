@@ -70,4 +70,14 @@ extern unsigned int nmi_watchdog;
 #define NMI_LOCAL_APIC	2
 #define NMI_INVALID	3
 
+struct ctl_table;
+struct file;
+extern int proc_nmi_enabled(struct ctl_table *, int , struct file *,
+			void __user *, size_t *, loff_t *);
+
+extern int unknown_nmi_panic;
+
+void __trigger_all_cpu_backtrace(void);
+#define trigger_all_cpu_backtrace() __trigger_all_cpu_backtrace()
+
 #endif /* ASM_NMI_H */

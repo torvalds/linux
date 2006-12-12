@@ -26,7 +26,7 @@
  *	ERR_PTR(error).  In the end of sequence they return %NULL. ->show()
  *	returns 0 in case of success and negative number in case of error.
  */
-int seq_open(struct file *file, struct seq_operations *op)
+int seq_open(struct file *file, const struct seq_operations *op)
 {
 	struct seq_file *p = file->private_data;
 
@@ -269,7 +269,7 @@ EXPORT_SYMBOL(seq_lseek);
 /**
  *	seq_release -	free the structures associated with sequential file.
  *	@file: file in question
- *	@inode: file->f_dentry->d_inode
+ *	@inode: file->f_path.dentry->d_inode
  *
  *	Frees the structures associated with sequential file; can be used
  *	as ->f_op->release() if you don't have private data to destroy.
@@ -408,7 +408,7 @@ EXPORT_SYMBOL(single_open);
 
 int single_release(struct inode *inode, struct file *file)
 {
-	struct seq_operations *op = ((struct seq_file *)file->private_data)->op;
+	const struct seq_operations *op = ((struct seq_file *)file->private_data)->op;
 	int res = seq_release(inode, file);
 	kfree(op);
 	return res;

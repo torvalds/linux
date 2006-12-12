@@ -32,6 +32,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/irq.h>
 
 #include <linux/kbd_kern.h>
 #include <linux/kbd_diacr.h>
@@ -77,7 +78,7 @@ void compute_shiftstate(void);
 	k_slock,	k_dead2,	k_brl,		k_ignore
 
 typedef void (k_handler_fn)(struct vc_data *vc, unsigned char value,
-			    char up_flag, struct pt_regs *regs);
+			    char up_flag);
 static k_handler_fn K_HANDLERS;
 static k_handler_fn *k_handler[16] = { K_HANDLERS };
 
@@ -88,7 +89,7 @@ static k_handler_fn *k_handler[16] = { K_HANDLERS };
 	fn_boot_it,	fn_caps_on,	fn_compose,	fn_SAK,\
 	fn_dec_console, fn_inc_console, fn_spawn_con,	fn_bare_num
 
-typedef void (fn_handler_fn)(struct vc_data *vc, struct pt_regs *regs);
+typedef void (fn_handler_fn)(struct vc_data *vc);
 static fn_handler_fn FN_HANDLERS;
 static fn_handler_fn *fn_handler[] = { FN_HANDLERS };
 
@@ -108,7 +109,11 @@ const int NR_TYPES = ARRAY_SIZE(max_vals);
 struct kbd_struct kbd_table[MAX_NR_CONSOLES];
 static struct kbd_struct *kbd = kbd_table;
 
-int spawnpid, spawnsig;
+struct vt_spawn_console vt_spawn_con = {
+	.lock = SPIN_LOCK_UNLOCKED,
+	.pid  = NULL,
+	.sig  = 0,
+};
 
 /*
  * Variables exported for vt.c
@@ -424,7 +429,7 @@ static unsigned int handle_diacr(struct vc_data *vc, unsigned int ch)
 /*
  * Special function handlers
  */
-static void fn_enter(struct vc_data *vc, struct pt_regs *regs)
+static void fn_enter(struct vc_data *vc)
 {
 	if (diacr) {
 		if (kbd->kbdmode == VC_UNICODE)
@@ -438,27 +443,28 @@ static void fn_enter(struct vc_data *vc, struct pt_regs *regs)
 		put_queue(vc, 10);
 }
 
-static void fn_caps_toggle(struct vc_data *vc, struct pt_regs *regs)
+static void fn_caps_toggle(struct vc_data *vc)
 {
 	if (rep)
 		return;
 	chg_vc_kbd_led(kbd, VC_CAPSLOCK);
 }
 
-static void fn_caps_on(struct vc_data *vc, struct pt_regs *regs)
+static void fn_caps_on(struct vc_data *vc)
 {
 	if (rep)
 		return;
 	set_vc_kbd_led(kbd, VC_CAPSLOCK);
 }
 
-static void fn_show_ptregs(struct vc_data *vc, struct pt_regs *regs)
+static void fn_show_ptregs(struct vc_data *vc)
 {
+	struct pt_regs *regs = get_irq_regs();
 	if (regs)
 		show_regs(regs);
 }
 
-static void fn_hold(struct vc_data *vc, struct pt_regs *regs)
+static void fn_hold(struct vc_data *vc)
 {
 	struct tty_struct *tty = vc->vc_tty;
 
@@ -476,12 +482,12 @@ static void fn_hold(struct vc_data *vc, struct pt_regs *regs)
 		stop_tty(tty);
 }
 
-static void fn_num(struct vc_data *vc, struct pt_regs *regs)
+static void fn_num(struct vc_data *vc)
 {
 	if (vc_kbd_mode(kbd,VC_APPLIC))
 		applkey(vc, 'P', 1);
 	else
-		fn_bare_num(vc, regs);
+		fn_bare_num(vc);
 }
 
 /*
@@ -490,19 +496,19 @@ static void fn_num(struct vc_data *vc, struct pt_regs *regs)
  * Bind this to NumLock if you prefer that the NumLock key always
  * changes the NumLock flag.
  */
-static void fn_bare_num(struct vc_data *vc, struct pt_regs *regs)
+static void fn_bare_num(struct vc_data *vc)
 {
 	if (!rep)
 		chg_vc_kbd_led(kbd, VC_NUMLOCK);
 }
 
-static void fn_lastcons(struct vc_data *vc, struct pt_regs *regs)
+static void fn_lastcons(struct vc_data *vc)
 {
 	/* switch to the last used console, ChN */
 	set_console(last_console);
 }
 
-static void fn_dec_console(struct vc_data *vc, struct pt_regs *regs)
+static void fn_dec_console(struct vc_data *vc)
 {
 	int i, cur = fg_console;
 
@@ -519,7 +525,7 @@ static void fn_dec_console(struct vc_data *vc, struct pt_regs *regs)
 	set_console(i);
 }
 
-static void fn_inc_console(struct vc_data *vc, struct pt_regs *regs)
+static void fn_inc_console(struct vc_data *vc)
 {
 	int i, cur = fg_console;
 
@@ -536,7 +542,7 @@ static void fn_inc_console(struct vc_data *vc, struct pt_regs *regs)
 	set_console(i);
 }
 
-static void fn_send_intr(struct vc_data *vc, struct pt_regs *regs)
+static void fn_send_intr(struct vc_data *vc)
 {
 	struct tty_struct *tty = vc->vc_tty;
 
@@ -546,44 +552,48 @@ static void fn_send_intr(struct vc_data *vc, struct pt_regs *regs)
 	con_schedule_flip(tty);
 }
 
-static void fn_scroll_forw(struct vc_data *vc, struct pt_regs *regs)
+static void fn_scroll_forw(struct vc_data *vc)
 {
 	scrollfront(vc, 0);
 }
 
-static void fn_scroll_back(struct vc_data *vc, struct pt_regs *regs)
+static void fn_scroll_back(struct vc_data *vc)
 {
 	scrollback(vc, 0);
 }
 
-static void fn_show_mem(struct vc_data *vc, struct pt_regs *regs)
+static void fn_show_mem(struct vc_data *vc)
 {
 	show_mem();
 }
 
-static void fn_show_state(struct vc_data *vc, struct pt_regs *regs)
+static void fn_show_state(struct vc_data *vc)
 {
 	show_state();
 }
 
-static void fn_boot_it(struct vc_data *vc, struct pt_regs *regs)
+static void fn_boot_it(struct vc_data *vc)
 {
 	ctrl_alt_del();
 }
 
-static void fn_compose(struct vc_data *vc, struct pt_regs *regs)
+static void fn_compose(struct vc_data *vc)
 {
 	dead_key_next = 1;
 }
 
-static void fn_spawn_con(struct vc_data *vc, struct pt_regs *regs)
+static void fn_spawn_con(struct vc_data *vc)
 {
-	if (spawnpid)
-		if (kill_proc(spawnpid, spawnsig, 1))
-			spawnpid = 0;
+	spin_lock(&vt_spawn_con.lock);
+	if (vt_spawn_con.pid)
+		if (kill_pid(vt_spawn_con.pid, vt_spawn_con.sig, 1)) {
+			put_pid(vt_spawn_con.pid);
+			vt_spawn_con.pid = NULL;
+		}
+	spin_unlock(&vt_spawn_con.lock);
 }
 
-static void fn_SAK(struct vc_data *vc, struct pt_regs *regs)
+static void fn_SAK(struct vc_data *vc)
 {
 	struct tty_struct *tty = vc->vc_tty;
 
@@ -596,7 +606,7 @@ static void fn_SAK(struct vc_data *vc, struct pt_regs *regs)
 	reset_vc(vc);
 }
 
-static void fn_null(struct vc_data *vc, struct pt_regs *regs)
+static void fn_null(struct vc_data *vc)
 {
 	compute_shiftstate();
 }
@@ -604,11 +614,11 @@ static void fn_null(struct vc_data *vc, struct pt_regs *regs)
 /*
  * Special key handlers
  */
-static void k_ignore(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_ignore(struct vc_data *vc, unsigned char value, char up_flag)
 {
 }
 
-static void k_spec(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_spec(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	if (up_flag)
 		return;
@@ -618,15 +628,15 @@ static void k_spec(struct vc_data *vc, unsigned char value, char up_flag, struct
 	     kbd->kbdmode == VC_MEDIUMRAW) &&
 	     value != KVAL(K_SAK))
 		return;		/* SAK is allowed even in raw mode */
-	fn_handler[value](vc, regs);
+	fn_handler[value](vc);
 }
 
-static void k_lowercase(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_lowercase(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	printk(KERN_ERR "keyboard.c: k_lowercase was called - impossible\n");
 }
 
-static void k_unicode(struct vc_data *vc, unsigned int value, char up_flag, struct pt_regs *regs)
+static void k_unicode(struct vc_data *vc, unsigned int value, char up_flag)
 {
 	if (up_flag)
 		return;		/* no action, if this is a key release */
@@ -650,41 +660,41 @@ static void k_unicode(struct vc_data *vc, unsigned int value, char up_flag, stru
  * dead keys modifying the same character. Very useful
  * for Vietnamese.
  */
-static void k_deadunicode(struct vc_data *vc, unsigned int value, char up_flag, struct pt_regs *regs)
+static void k_deadunicode(struct vc_data *vc, unsigned int value, char up_flag)
 {
 	if (up_flag)
 		return;
 	diacr = (diacr ? handle_diacr(vc, value) : value);
 }
 
-static void k_self(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_self(struct vc_data *vc, unsigned char value, char up_flag)
 {
-	k_unicode(vc, value, up_flag, regs);
+	k_unicode(vc, value, up_flag);
 }
 
-static void k_dead2(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_dead2(struct vc_data *vc, unsigned char value, char up_flag)
 {
-	k_deadunicode(vc, value, up_flag, regs);
+	k_deadunicode(vc, value, up_flag);
 }
 
 /*
  * Obsolete - for backwards compatibility only
  */
-static void k_dead(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_dead(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	static const unsigned char ret_diacr[NR_DEAD] = {'`', '\'', '^', '~', '"', ',' };
 	value = ret_diacr[value];
-	k_deadunicode(vc, value, up_flag, regs);
+	k_deadunicode(vc, value, up_flag);
 }
 
-static void k_cons(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_cons(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	if (up_flag)
 		return;
 	set_console(value);
 }
 
-static void k_fn(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_fn(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	unsigned v;
 
@@ -698,16 +708,16 @@ static void k_fn(struct vc_data *vc, unsigned char value, char up_flag, struct p
 		printk(KERN_ERR "k_fn called with value=%d\n", value);
 }
 
-static void k_cur(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_cur(struct vc_data *vc, unsigned char value, char up_flag)
 {
-	static const char *cur_chars = "BDCA";
+	static const char cur_chars[] = "BDCA";
 
 	if (up_flag)
 		return;
 	applkey(vc, cur_chars[value], vc_kbd_mode(kbd, VC_CKMODE));
 }
 
-static void k_pad(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_pad(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	static const char pad_chars[] = "0123456789+-*/\015,.?()#";
 	static const char app_map[] = "pqrstuvwxylSRQMnnmPQS";
@@ -725,34 +735,34 @@ static void k_pad(struct vc_data *vc, unsigned char value, char up_flag, struct 
 		switch (value) {
 			case KVAL(K_PCOMMA):
 			case KVAL(K_PDOT):
-				k_fn(vc, KVAL(K_REMOVE), 0, regs);
+				k_fn(vc, KVAL(K_REMOVE), 0);
 				return;
 			case KVAL(K_P0):
-				k_fn(vc, KVAL(K_INSERT), 0, regs);
+				k_fn(vc, KVAL(K_INSERT), 0);
 				return;
 			case KVAL(K_P1):
-				k_fn(vc, KVAL(K_SELECT), 0, regs);
+				k_fn(vc, KVAL(K_SELECT), 0);
 				return;
 			case KVAL(K_P2):
-				k_cur(vc, KVAL(K_DOWN), 0, regs);
+				k_cur(vc, KVAL(K_DOWN), 0);
 				return;
 			case KVAL(K_P3):
-				k_fn(vc, KVAL(K_PGDN), 0, regs);
+				k_fn(vc, KVAL(K_PGDN), 0);
 				return;
 			case KVAL(K_P4):
-				k_cur(vc, KVAL(K_LEFT), 0, regs);
+				k_cur(vc, KVAL(K_LEFT), 0);
 				return;
 			case KVAL(K_P6):
-				k_cur(vc, KVAL(K_RIGHT), 0, regs);
+				k_cur(vc, KVAL(K_RIGHT), 0);
 				return;
 			case KVAL(K_P7):
-				k_fn(vc, KVAL(K_FIND), 0, regs);
+				k_fn(vc, KVAL(K_FIND), 0);
 				return;
 			case KVAL(K_P8):
-				k_cur(vc, KVAL(K_UP), 0, regs);
+				k_cur(vc, KVAL(K_UP), 0);
 				return;
 			case KVAL(K_P9):
-				k_fn(vc, KVAL(K_PGUP), 0, regs);
+				k_fn(vc, KVAL(K_PGUP), 0);
 				return;
 			case KVAL(K_P5):
 				applkey(vc, 'G', vc_kbd_mode(kbd, VC_APPLIC));
@@ -764,7 +774,7 @@ static void k_pad(struct vc_data *vc, unsigned char value, char up_flag, struct 
 		put_queue(vc, 10);
 }
 
-static void k_shift(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_shift(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	int old_state = shift_state;
 
@@ -805,7 +815,7 @@ static void k_shift(struct vc_data *vc, unsigned char value, char up_flag, struc
 	}
 }
 
-static void k_meta(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_meta(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	if (up_flag)
 		return;
@@ -817,7 +827,7 @@ static void k_meta(struct vc_data *vc, unsigned char value, char up_flag, struct
 		put_queue(vc, value | 0x80);
 }
 
-static void k_ascii(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_ascii(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	int base;
 
@@ -839,16 +849,16 @@ static void k_ascii(struct vc_data *vc, unsigned char value, char up_flag, struc
 		npadch = npadch * base + value;
 }
 
-static void k_lock(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_lock(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	if (up_flag || rep)
 		return;
 	chg_vc_kbd_lock(kbd, value);
 }
 
-static void k_slock(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_slock(struct vc_data *vc, unsigned char value, char up_flag)
 {
-	k_shift(vc, value, up_flag, regs);
+	k_shift(vc, value, up_flag);
 	if (up_flag || rep)
 		return;
 	chg_vc_kbd_slock(kbd, value);
@@ -868,25 +878,25 @@ static unsigned brl_nbchords = 1;
 MODULE_PARM_DESC(brl_nbchords, "Number of chords that produce a braille pattern (0 for dead chords)");
 module_param(brl_nbchords, uint, 0644);
 
-static void k_brlcommit(struct vc_data *vc, unsigned int pattern, char up_flag, struct pt_regs *regs)
+static void k_brlcommit(struct vc_data *vc, unsigned int pattern, char up_flag)
 {
 	static unsigned long chords;
 	static unsigned committed;
 
 	if (!brl_nbchords)
-		k_deadunicode(vc, BRL_UC_ROW | pattern, up_flag, regs);
+		k_deadunicode(vc, BRL_UC_ROW | pattern, up_flag);
 	else {
 		committed |= pattern;
 		chords++;
 		if (chords == brl_nbchords) {
-			k_unicode(vc, BRL_UC_ROW | committed, up_flag, regs);
+			k_unicode(vc, BRL_UC_ROW | committed, up_flag);
 			chords = 0;
 			committed = 0;
 		}
 	}
 }
 
-static void k_brl(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_brl(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	static unsigned pressed,committing;
 	static unsigned long releasestart;
@@ -898,7 +908,7 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag, struct 
 	}
 
 	if (!value) {
-		k_unicode(vc, BRL_UC_ROW, up_flag, regs);
+		k_unicode(vc, BRL_UC_ROW, up_flag);
 		return;
 	}
 
@@ -915,13 +925,13 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag, struct 
 			pressed &= ~(1 << (value - 1));
 			if (!pressed) {
 				if (committing) {
-					k_brlcommit(vc, committing, 0, regs);
+					k_brlcommit(vc, committing, 0);
 					committing = 0;
 				}
 			}
 		} else {
 			if (committing) {
-				k_brlcommit(vc, committing, 0, regs);
+				k_brlcommit(vc, committing, 0);
 				committing = 0;
 			}
 			pressed &= ~(1 << (value - 1));
@@ -1125,8 +1135,7 @@ static void kbd_rawcode(unsigned char data)
 		put_queue(vc, data);
 }
 
-static void kbd_keycode(unsigned int keycode, int down,
-			int hw_raw, struct pt_regs *regs)
+static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 {
 	struct vc_data *vc = vc_cons[fg_console].d;
 	unsigned short keysym, *key_map;
@@ -1173,7 +1182,7 @@ static void kbd_keycode(unsigned int keycode, int down,
 	if (sysrq_down && !down && keycode == sysrq_alt_use)
 		sysrq_down = 0;
 	if (sysrq_down && down && !rep) {
-		handle_sysrq(kbd_sysrq_xlate[keycode], regs, tty);
+		handle_sysrq(kbd_sysrq_xlate[keycode], tty);
 		return;
 	}
 #endif
@@ -1259,7 +1268,7 @@ static void kbd_keycode(unsigned int keycode, int down,
 		}
 	}
 
-	(*k_handler[type])(vc, keysym & 0xff, !down, regs);
+	(*k_handler[type])(vc, keysym & 0xff, !down);
 
 	if (type != KT_SLOCK)
 		kbd->slockstate = 0;
@@ -1271,7 +1280,7 @@ static void kbd_event(struct input_handle *handle, unsigned int event_type,
 	if (event_type == EV_MSC && event_code == MSC_RAW && HW_RAW(handle->dev))
 		kbd_rawcode(value);
 	if (event_type == EV_KEY)
-		kbd_keycode(event_code, value, HW_RAW(handle->dev), handle->dev->regs);
+		kbd_keycode(event_code, value, HW_RAW(handle->dev));
 	tasklet_schedule(&keyboard_tasklet);
 	do_poke_blanked_console = 1;
 	schedule_console_callback();
@@ -1285,7 +1294,7 @@ static void kbd_event(struct input_handle *handle, unsigned int event_type,
  */
 static struct input_handle *kbd_connect(struct input_handler *handler,
 					struct input_dev *dev,
-					struct input_device_id *id)
+					const struct input_device_id *id)
 {
 	struct input_handle *handle;
 	int i;
@@ -1334,7 +1343,7 @@ static void kbd_start(struct input_handle *handle)
 	tasklet_enable(&keyboard_tasklet);
 }
 
-static struct input_device_id kbd_ids[] = {
+static const struct input_device_id kbd_ids[] = {
 	{
                 .flags = INPUT_DEVICE_ID_MATCH_EVBIT,
                 .evbit = { BIT(EV_KEY) },
@@ -1362,6 +1371,7 @@ static struct input_handler kbd_handler = {
 int __init kbd_init(void)
 {
 	int i;
+	int error;
 
         for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		kbd_table[i].ledflagstate = KBD_DEFLEDS;
@@ -1373,7 +1383,9 @@ int __init kbd_init(void)
 		kbd_table[i].kbdmode = VC_XLATE;
 	}
 
-	input_register_handler(&kbd_handler);
+	error = input_register_handler(&kbd_handler);
+	if (error)
+		return error;
 
 	tasklet_enable(&keyboard_tasklet);
 	tasklet_schedule(&keyboard_tasklet);

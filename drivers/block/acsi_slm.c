@@ -246,7 +246,7 @@ static int slm_getstats( char *buffer, int device );
 static ssize_t slm_read( struct file* file, char *buf, size_t count, loff_t
                          *ppos );
 static void start_print( int device );
-static irqreturn_t slm_interrupt(int irc, void *data, struct pt_regs *fp);
+static irqreturn_t slm_interrupt(int irc, void *data);
 static void slm_test_ready( unsigned long dummy );
 static void set_dma_addr( unsigned long paddr );
 static unsigned long get_dma_addr( void );
@@ -363,7 +363,7 @@ static ssize_t slm_read( struct file *file, char *buf, size_t count,
 						 loff_t *ppos )
 
 {
-	struct inode *node = file->f_dentry->d_inode;
+	struct inode *node = file->f_path.dentry->d_inode;
 	unsigned long page;
 	int length;
 	int end;
@@ -452,7 +452,7 @@ static void start_print( int device )
 
 /* Only called when an error happened or at the end of a page */
 
-static irqreturn_t slm_interrupt(int irc, void *data, struct pt_regs *fp)
+static irqreturn_t slm_interrupt(int irc, void *data)
 
 {	unsigned long	addr;
 	int				stat;
@@ -618,7 +618,7 @@ static ssize_t slm_write( struct file *file, const char *buf, size_t count,
 						  loff_t *ppos )
 
 {
-	struct inode *node = file->f_dentry->d_inode;
+	struct inode *node = file->f_path.dentry->d_inode;
 	int		device = iminor(node);
 	int		n, filled, w, h;
 

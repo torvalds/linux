@@ -108,6 +108,9 @@ enum { US_DO_ALL_FLAGS };
 #ifdef CONFIG_USB_STORAGE_ALAUDA
 #define US_PR_ALAUDA    0xf4		/* Alauda chipsets */
 #endif
+#ifdef CONFIG_USB_STORAGE_KARMA
+#define US_PR_KARMA     0xf5		/* Rio Karma */
+#endif
 
 #define US_PR_DEVICE	0xff		/* Use device's value */
 

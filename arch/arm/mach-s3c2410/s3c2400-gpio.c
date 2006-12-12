@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s3c2410/gpio.c
+/* linux/arch/arm/mach-s3c2410/s3c2400-gpio.c
  *
  * Copyright (c) 2006 Lucas Correia Villa Real <lucasvr@gobolinux.org>
  *

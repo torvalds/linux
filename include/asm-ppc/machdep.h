@@ -43,7 +43,7 @@ struct machdep_calls {
 	/* Optional, may be NULL. */
 	unsigned int	(*irq_canonicalize)(unsigned int irq);
 	void		(*init_IRQ)(void);
-	int		(*get_irq)(struct pt_regs *);
+	int		(*get_irq)(void);
 	
 	/* A general init function, called by ppc_init in init/main.c.
 	   May be NULL. DEPRECATED ! */

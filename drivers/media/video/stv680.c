@@ -516,16 +516,45 @@ stv680_file(frames_read, framecount, "%d\n");
 stv680_file(packets_dropped, dropped, "%d\n");
 stv680_file(decoding_errors, error, "%d\n");
 
-static void stv680_create_sysfs_files(struct video_device *vdev)
+static int stv680_create_sysfs_files(struct video_device *vdev)
 {
-	video_device_create_file(vdev, &class_device_attr_model);
-	video_device_create_file(vdev, &class_device_attr_in_use);
-	video_device_create_file(vdev, &class_device_attr_streaming);
-	video_device_create_file(vdev, &class_device_attr_palette);
-	video_device_create_file(vdev, &class_device_attr_frames_total);
-	video_device_create_file(vdev, &class_device_attr_frames_read);
-	video_device_create_file(vdev, &class_device_attr_packets_dropped);
-	video_device_create_file(vdev, &class_device_attr_decoding_errors);
+	int rc;
+
+	rc = video_device_create_file(vdev, &class_device_attr_model);
+	if (rc) goto err;
+	rc = video_device_create_file(vdev, &class_device_attr_in_use);
+	if (rc) goto err_model;
+	rc = video_device_create_file(vdev, &class_device_attr_streaming);
+	if (rc) goto err_inuse;
+	rc = video_device_create_file(vdev, &class_device_attr_palette);
+	if (rc) goto err_stream;
+	rc = video_device_create_file(vdev, &class_device_attr_frames_total);
+	if (rc) goto err_pal;
+	rc = video_device_create_file(vdev, &class_device_attr_frames_read);
+	if (rc) goto err_framtot;
+	rc = video_device_create_file(vdev, &class_device_attr_packets_dropped);
+	if (rc) goto err_framread;
+	rc = video_device_create_file(vdev, &class_device_attr_decoding_errors);
+	if (rc) goto err_dropped;
+
+	return 0;
+
+err_dropped:
+	video_device_remove_file(vdev, &class_device_attr_packets_dropped);
+err_framread:
+	video_device_remove_file(vdev, &class_device_attr_frames_read);
+err_framtot:
+	video_device_remove_file(vdev, &class_device_attr_frames_total);
+err_pal:
+	video_device_remove_file(vdev, &class_device_attr_palette);
+err_stream:
+	video_device_remove_file(vdev, &class_device_attr_streaming);
+err_inuse:
+	video_device_remove_file(vdev, &class_device_attr_in_use);
+err_model:
+	video_device_remove_file(vdev, &class_device_attr_model);
+err:
+	return rc;
 }
 
 static void stv680_remove_sysfs_files(struct video_device *vdev)
@@ -582,7 +611,7 @@ static int stv680_set_pict (struct usb_stv *stv680, struct video_picture *p)
 	return 0;
 }
 
-static void stv680_video_irq (struct urb *urb, struct pt_regs *regs)
+static void stv680_video_irq (struct urb *urb)
 {
 	struct usb_stv *stv680 = urb->context;
 	int length = urb->actual_length;
@@ -658,7 +687,7 @@ static int stv680_start_stream (struct usb_stv *stv680)
 		stv680->sbuf[i].data = kmalloc (stv680->rawbufsize, GFP_KERNEL);
 		if (stv680->sbuf[i].data == NULL) {
 			PDEBUG (0, "STV(e): Could not kmalloc raw data buffer %i", i);
-			return -1;
+			goto nomem_err;
 		}
 	}
 
@@ -669,7 +698,7 @@ static int stv680_start_stream (struct usb_stv *stv680)
 		stv680->scratch[i].data = kmalloc (stv680->rawbufsize, GFP_KERNEL);
 		if (stv680->scratch[i].data == NULL) {
 			PDEBUG (0, "STV(e): Could not kmalloc raw scratch buffer %i", i);
-			return -1;
+			goto nomem_err;
 		}
 		stv680->scratch[i].state = BUFFER_UNUSED;
 	}
@@ -677,7 +706,7 @@ static int stv680_start_stream (struct usb_stv *stv680)
 	for (i = 0; i < STV680_NUMSBUF; i++) {
 		urb = usb_alloc_urb (0, GFP_KERNEL);
 		if (!urb)
-			return -ENOMEM;
+			goto nomem_err;
 
 		/* sbuf is urb->transfer_buffer, later gets memcpyed to scratch */
 		usb_fill_bulk_urb (urb, stv680->udev,
@@ -692,6 +721,21 @@ static int stv680_start_stream (struct usb_stv *stv680)
 
 	stv680->framecount = 0;
 	return 0;
+
+ nomem_err:
+	for (i = 0; i < STV680_NUMSCRATCH; i++) {
+		kfree(stv680->scratch[i].data);
+		stv680->scratch[i].data = NULL;
+	}
+	for (i = 0; i < STV680_NUMSBUF; i++) {
+		usb_kill_urb(stv680->urb[i]);
+		usb_free_urb(stv680->urb[i]);
+		stv680->urb[i] = NULL;
+		kfree(stv680->sbuf[i].data);
+		stv680->sbuf[i].data = NULL;
+	}
+	return -ENOMEM;
+
 }
 
 static int stv680_stop_stream (struct usb_stv *stv680)
@@ -1418,9 +1462,13 @@ static int stv680_probe (struct usb_interface *intf, const struct usb_device_id 
 	PDEBUG (0, "STV(i): registered new video device: video%d", stv680->vdev->minor);
 
 	usb_set_intfdata (intf, stv680);
-	stv680_create_sysfs_files(stv680->vdev);
+	retval = stv680_create_sysfs_files(stv680->vdev);
+	if (retval)
+		goto error_unreg;
 	return 0;
 
+error_unreg:
+	video_unregister_device(stv680->vdev);
 error_vdev:
 	video_device_release(stv680->vdev);
 error:

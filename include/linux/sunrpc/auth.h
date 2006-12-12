@@ -20,9 +20,6 @@
 /* size of the nodename buffer */
 #define UNX_MAXNODENAME	32
 
-/* Maximum size (in bytes) of an rpc credential or verifier */
-#define RPC_MAX_AUTH_SIZE (400)
-
 /* Work around the lack of a VFS credential */
 struct auth_cred {
 	uid_t	uid;
@@ -109,13 +106,13 @@ struct rpc_credops {
 	void			(*crdestroy)(struct rpc_cred *);
 
 	int			(*crmatch)(struct auth_cred *, struct rpc_cred *, int);
-	u32 *			(*crmarshal)(struct rpc_task *, u32 *);
+	__be32 *		(*crmarshal)(struct rpc_task *, __be32 *);
 	int			(*crrefresh)(struct rpc_task *);
-	u32 *			(*crvalidate)(struct rpc_task *, u32 *);
+	__be32 *		(*crvalidate)(struct rpc_task *, __be32 *);
 	int			(*crwrap_req)(struct rpc_task *, kxdrproc_t,
-						void *, u32 *, void *);
+						void *, __be32 *, void *);
 	int			(*crunwrap_resp)(struct rpc_task *, kxdrproc_t,
-						void *, u32 *, void *);
+						void *, __be32 *, void *);
 };
 
 extern struct rpc_authops	authunix_ops;
@@ -134,10 +131,10 @@ struct rpc_cred *	rpcauth_bindcred(struct rpc_task *);
 void			rpcauth_holdcred(struct rpc_task *);
 void			put_rpccred(struct rpc_cred *);
 void			rpcauth_unbindcred(struct rpc_task *);
-u32 *			rpcauth_marshcred(struct rpc_task *, u32 *);
-u32 *			rpcauth_checkverf(struct rpc_task *, u32 *);
-int			rpcauth_wrap_req(struct rpc_task *task, kxdrproc_t encode, void *rqstp, u32 *data, void *obj);
-int			rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp, u32 *data, void *obj);
+__be32 *		rpcauth_marshcred(struct rpc_task *, __be32 *);
+__be32 *		rpcauth_checkverf(struct rpc_task *, __be32 *);
+int			rpcauth_wrap_req(struct rpc_task *task, kxdrproc_t encode, void *rqstp, __be32 *data, void *obj);
+int			rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp, __be32 *data, void *obj);
 int			rpcauth_refreshcred(struct rpc_task *);
 void			rpcauth_invalcred(struct rpc_task *);
 int			rpcauth_uptodatecred(struct rpc_task *);

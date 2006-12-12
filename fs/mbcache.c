@@ -85,7 +85,7 @@ struct mb_cache {
 #ifndef MB_CACHE_INDEXES_COUNT
 	int				c_indexes_count;
 #endif
-	kmem_cache_t			*c_entry_cache;
+	struct kmem_cache			*c_entry_cache;
 	struct list_head		*c_block_hash;
 	struct list_head		*c_indexes_hash[0];
 };
@@ -160,6 +160,7 @@ __mb_cache_entry_forget(struct mb_cache_entry *ce, gfp_t gfp_mask)
 
 static void
 __mb_cache_entry_release_unlock(struct mb_cache_entry *ce)
+	__releases(mb_cache_spinlock)
 {
 	/* Wake up all processes queuing for this cache entry. */
 	if (ce->e_queued)

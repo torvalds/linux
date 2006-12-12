@@ -382,18 +382,6 @@ xfs_qm_dquot_logitem_unlock(
 
 
 /*
- * The transaction with the dquot locked has aborted.  The dquot
- * must not be dirty within the transaction.  We simply unlock just
- * as if the transaction had been cancelled.
- */
-STATIC void
-xfs_qm_dquot_logitem_abort(
-	xfs_dq_logitem_t    *ql)
-{
-	xfs_qm_dquot_logitem_unlock(ql);
-}
-
-/*
  * this needs to stamp an lsn into the dquot, I think.
  * rpc's that look at user dquot's would then have to
  * push on the dependency recorded in the dquot
@@ -426,7 +414,6 @@ STATIC struct xfs_item_ops xfs_dquot_item_ops = {
 	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_qm_dquot_logitem_committed,
 	.iop_push	= (void(*)(xfs_log_item_t*))xfs_qm_dquot_logitem_push,
-	.iop_abort	= (void(*)(xfs_log_item_t*))xfs_qm_dquot_logitem_abort,
 	.iop_pushbuf	= (void(*)(xfs_log_item_t*))
 					xfs_qm_dquot_logitem_pushbuf,
 	.iop_committing = (void(*)(xfs_log_item_t*, xfs_lsn_t))
@@ -559,17 +546,6 @@ xfs_qm_qoff_logitem_committed(xfs_qoff_logitem_t *qf, xfs_lsn_t lsn)
 }
 
 /*
- * The transaction of which this QUOTAOFF is a part has been aborted.
- * Just clean up after ourselves.
- * Shouldn't this never happen in the case of qoffend logitems? XXX
- */
-STATIC void
-xfs_qm_qoff_logitem_abort(xfs_qoff_logitem_t *qf)
-{
-	kmem_free(qf, sizeof(xfs_qoff_logitem_t));
-}
-
-/*
  * There isn't much you can do to push on an quotaoff item.  It is simply
  * stuck waiting for the log to be flushed to disk.
  */
@@ -644,7 +620,6 @@ STATIC struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
 	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_qm_qoffend_logitem_committed,
 	.iop_push	= (void(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_push,
-	.iop_abort	= (void(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_abort,
 	.iop_pushbuf	= NULL,
 	.iop_committing = (void(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_qm_qoffend_logitem_committing
@@ -667,7 +642,6 @@ STATIC struct xfs_item_ops xfs_qm_qoff_logitem_ops = {
 	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_qm_qoff_logitem_committed,
 	.iop_push	= (void(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_push,
-	.iop_abort	= (void(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_abort,
 	.iop_pushbuf	= NULL,
 	.iop_committing = (void(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_qm_qoff_logitem_committing

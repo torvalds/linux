@@ -110,7 +110,7 @@ static void not_configged_free(void *data)
 	       "UML\n");
 }
 
-static struct chan_ops not_configged_ops = {
+static const struct chan_ops not_configged_ops = {
 	.init		= not_configged_init,
 	.open		= not_configged_open,
 	.close		= not_configged_close,
@@ -373,7 +373,7 @@ int console_write_chan(struct list_head *chans, const char *buf, int len)
 }
 
 int console_open_chan(struct line *line, struct console *co,
-		      struct chan_opts *opts)
+		      const struct chan_opts *opts)
 {
 	int err;
 
@@ -494,10 +494,10 @@ int chan_config_string(struct list_head *chans, char *str, int size,
 
 struct chan_type {
 	char *key;
-	struct chan_ops *ops;
+	const struct chan_ops *ops;
 };
 
-static struct chan_type chan_table[] = {
+static const struct chan_type chan_table[] = {
 	{ "fd", &fd_ops },
 
 #ifdef CONFIG_NULL_CHAN
@@ -534,10 +534,10 @@ static struct chan_type chan_table[] = {
 };
 
 static struct chan *parse_chan(struct line *line, char *str, int device,
-			       struct chan_opts *opts)
+			       const struct chan_opts *opts)
 {
-	struct chan_type *entry;
-	struct chan_ops *ops;
+	const struct chan_type *entry;
+	const struct chan_ops *ops;
 	struct chan *chan;
 	void *data;
 	int i;
@@ -582,7 +582,7 @@ static struct chan *parse_chan(struct line *line, char *str, int device,
 }
 
 int parse_chan_pair(char *str, struct line *line, int device,
-		    struct chan_opts *opts)
+		    const struct chan_opts *opts)
 {
 	struct list_head *chans = &line->chan_list;
 	struct chan *new, *chan;
@@ -638,7 +638,7 @@ int chan_out_fd(struct list_head *chans)
 	return -1;
 }
 
-void chan_interrupt(struct list_head *chans, struct work_struct *task,
+void chan_interrupt(struct list_head *chans, struct delayed_work *task,
 		    struct tty_struct *tty, int irq)
 {
 	struct list_head *ele, *next;

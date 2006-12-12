@@ -117,7 +117,7 @@ static int irtty_change_speed(struct sir_dev *dev, unsigned speed)
 {
 	struct sirtty_cb *priv = dev->priv;
 	struct tty_struct *tty;
-        struct termios old_termios;
+        struct ktermios old_termios;
 	int cflag;
 
 	IRDA_ASSERT(priv != NULL, return -1;);
@@ -318,7 +318,7 @@ static void irtty_write_wakeup(struct tty_struct *tty)
 
 static inline void irtty_stop_receiver(struct tty_struct *tty, int stop)
 {
-	struct termios old_termios;
+	struct ktermios old_termios;
 	int cflag;
 
 	lock_kernel();

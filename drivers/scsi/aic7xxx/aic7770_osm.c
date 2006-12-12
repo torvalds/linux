@@ -132,7 +132,8 @@ static struct eisa_device_id aic7770_ids[] = {
 	{ "ADP7770", 5 }, /* AIC7770 generic */
 	{ "" }
 };
-  
+MODULE_DEVICE_TABLE(eisa, aic7770_ids);
+
 static struct eisa_driver aic7770_driver = {
 	.id_table	= aic7770_ids,
 	.driver = {

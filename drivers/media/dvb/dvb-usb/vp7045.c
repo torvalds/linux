@@ -125,7 +125,25 @@ static struct dvb_usb_rc_key vp7045_rc_keys[] = {
 	{ 0x00, 0x00, KEY_TAB }, /* Tab */
 	{ 0x00, 0x48, KEY_INFO }, /* Preview */
 	{ 0x00, 0x04, KEY_LIST }, /* RecordList */
-	{ 0x00, 0x0f, KEY_TEXT } /* Teletext */
+	{ 0x00, 0x0f, KEY_TEXT }, /* Teletext */
+	{ 0x00, 0x41, KEY_PREVIOUSSONG },
+	{ 0x00, 0x42, KEY_NEXTSONG },
+	{ 0x00, 0x4b, KEY_UP },
+	{ 0x00, 0x51, KEY_DOWN },
+	{ 0x00, 0x4e, KEY_LEFT },
+	{ 0x00, 0x52, KEY_RIGHT },
+	{ 0x00, 0x4f, KEY_ENTER },
+	{ 0x00, 0x13, KEY_CANCEL },
+	{ 0x00, 0x4a, KEY_CLEAR },
+	{ 0x00, 0x54, KEY_PRINT }, /* Capture */
+	{ 0x00, 0x43, KEY_SUBTITLE }, /* Subtitle/CC */
+	{ 0x00, 0x08, KEY_VIDEO }, /* A/V */
+	{ 0x00, 0x07, KEY_SLEEP }, /* Hibernate */
+	{ 0x00, 0x45, KEY_ZOOM }, /* Zoom+ */
+	{ 0x00, 0x18, KEY_RED},
+	{ 0x00, 0x53, KEY_GREEN},
+	{ 0x00, 0x5e, KEY_YELLOW},
+	{ 0x00, 0x5f, KEY_BLUE}
 };
 
 static int vp7045_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
@@ -169,31 +187,31 @@ static int vp7045_read_mac_addr(struct dvb_usb_device *d,u8 mac[6])
 	return vp7045_read_eeprom(d,mac, 6, MAC_0_ADDR);
 }
 
-static int vp7045_frontend_attach(struct dvb_usb_device *d)
+static int vp7045_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	u8 buf[255] = { 0 };
 
-	vp7045_usb_op(d,VENDOR_STRING_READ,NULL,0,buf,20,0);
+	vp7045_usb_op(adap->dev,VENDOR_STRING_READ,NULL,0,buf,20,0);
 	buf[10] = '\0';
 	deb_info("firmware says: %s ",buf);
 
-	vp7045_usb_op(d,PRODUCT_STRING_READ,NULL,0,buf,20,0);
+	vp7045_usb_op(adap->dev,PRODUCT_STRING_READ,NULL,0,buf,20,0);
 	buf[10] = '\0';
 	deb_info("%s ",buf);
 
-	vp7045_usb_op(d,FW_VERSION_READ,NULL,0,buf,20,0);
+	vp7045_usb_op(adap->dev,FW_VERSION_READ,NULL,0,buf,20,0);
 	buf[10] = '\0';
 	deb_info("v%s\n",buf);
 
 /*	Dump the EEPROM */
 /*	vp7045_read_eeprom(d,buf, 255, FX2_ID_ADDR); */
 
-	d->fe = vp7045_fe_attach(d);
+	adap->fe = vp7045_fe_attach(adap->dev);
 
 	return 0;
 }
 
-static struct dvb_usb_properties vp7045_properties;
+static struct dvb_usb_device_properties vp7045_properties;
 
 static int vp7045_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
@@ -210,32 +228,34 @@ static struct usb_device_id vp7045_usb_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, vp7045_usb_table);
 
-static struct dvb_usb_properties vp7045_properties = {
-	.caps = 0,
-
+static struct dvb_usb_device_properties vp7045_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-vp7045-01.fw",
 
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.frontend_attach  = vp7045_frontend_attach,
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 7,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
+		}
+	},
 	.power_ctrl       = vp7045_power_ctrl,
-	.frontend_attach  = vp7045_frontend_attach,
 	.read_mac_address = vp7045_read_mac_addr,
 
 	.rc_interval      = 400,
 	.rc_key_map       = vp7045_rc_keys,
 	.rc_key_map_size  = ARRAY_SIZE(vp7045_rc_keys),
 	.rc_query         = vp7045_rc_query,
-
-	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
-		.count = 7,
-		.endpoint = 0x02,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
 
 	.num_device_descs = 2,
 	.devices = {

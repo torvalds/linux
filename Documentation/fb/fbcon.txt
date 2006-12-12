@@ -163,7 +163,7 @@ from the console layer before unloading the driver.  The VGA driver cannot be
 unloaded if it is still bound to the console layer. (See
 Documentation/console/console.txt for more information).
 
-This is more complicated in the case of the the framebuffer console (fbcon),
+This is more complicated in the case of the framebuffer console (fbcon),
 because fbcon is an intermediate layer between the console and the drivers:
 
 console ---> fbcon ---> fbdev drivers ---> hardware

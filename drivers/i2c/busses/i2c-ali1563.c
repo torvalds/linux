@@ -367,7 +367,7 @@ static void ali1563_shutdown(struct pci_dev *dev)
 	release_region(ali1563_smba,ALI1563_SMB_IOSIZE);
 }
 
-static struct i2c_algorithm ali1563_algorithm = {
+static const struct i2c_algorithm ali1563_algorithm = {
 	.smbus_xfer	= ali1563_access,
 	.functionality	= ali1563_func,
 };

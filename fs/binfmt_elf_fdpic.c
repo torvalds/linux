@@ -40,9 +40,6 @@
 #include <asm/pgalloc.h>
 
 typedef char *elf_caddr_t;
-#ifndef elf_addr_t
-#define elf_addr_t unsigned long
-#endif
 
 #if 0
 #define kdebug(fmt, ...) printk("FDPIC "fmt"\n" ,##__VA_ARGS__ )
@@ -858,7 +855,7 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 
 dynamic_error:
 	printk("ELF FDPIC %s with invalid DYNAMIC section (inode=%lu)\n",
-	       what, file->f_dentry->d_inode->i_ino);
+	       what, file->f_path.dentry->d_inode->i_ino);
 	return -ELIBBAD;
 }
 
@@ -1189,7 +1186,7 @@ static int maydump(struct vm_area_struct *vma)
 
 	/* Dump shared memory only if mapped from an anonymous file. */
 	if (vma->vm_flags & VM_SHARED) {
-		if (vma->vm_file->f_dentry->d_inode->i_nlink == 0) {
+		if (vma->vm_file->f_path.dentry->d_inode->i_nlink == 0) {
 			kdcore("%08lx: %08lx: no (share)", vma->vm_start, vma->vm_flags);
 			return 1;
 		}
@@ -1325,7 +1322,7 @@ static void fill_prstatus(struct elf_prstatus *prstatus,
 	prstatus->pr_pid = p->pid;
 	prstatus->pr_ppid = p->parent->pid;
 	prstatus->pr_pgrp = process_group(p);
-	prstatus->pr_sid = p->signal->session;
+	prstatus->pr_sid = process_session(p);
 	if (thread_group_leader(p)) {
 		/*
 		 * This is the record for the group leader.  Add in the
@@ -1374,7 +1371,7 @@ static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 	psinfo->pr_pid = p->pid;
 	psinfo->pr_ppid = p->parent->pid;
 	psinfo->pr_pgrp = process_group(p);
-	psinfo->pr_sid = p->signal->session;
+	psinfo->pr_sid = process_session(p);
 
 	i = p->state ? ffz(~p->state) + 1 : 0;
 	psinfo->pr_state = i;
@@ -1597,20 +1594,19 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 
 	if (signr) {
 		struct elf_thread_status *tmp;
-		read_lock(&tasklist_lock);
+		rcu_read_lock();
 		do_each_thread(g,p)
 			if (current->mm == p->mm && current != p) {
 				tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
 				if (!tmp) {
-					read_unlock(&tasklist_lock);
+					rcu_read_unlock();
 					goto cleanup;
 				}
-				INIT_LIST_HEAD(&tmp->list);
 				tmp->thread = p;
 				list_add(&tmp->list, &thread_list);
 			}
 		while_each_thread(g,p);
-		read_unlock(&tasklist_lock);
+		rcu_read_unlock();
 		list_for_each(t, &thread_list) {
 			struct elf_thread_status *tmp;
 			int sz;

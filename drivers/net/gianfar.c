@@ -9,7 +9,7 @@
  * Author: Andy Fleming
  * Maintainer: Kumar Gala
  *
- * Copyright (c) 2002-2004 Freescale Semiconductor, Inc.
+ * Copyright (c) 2002-2006 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -119,9 +119,9 @@ struct sk_buff *gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp);
 static struct net_device_stats *gfar_get_stats(struct net_device *dev);
 static int gfar_set_mac_address(struct net_device *dev);
 static int gfar_change_mtu(struct net_device *dev, int new_mtu);
-static irqreturn_t gfar_error(int irq, void *dev_id, struct pt_regs *regs);
-static irqreturn_t gfar_transmit(int irq, void *dev_id, struct pt_regs *regs);
-static irqreturn_t gfar_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t gfar_error(int irq, void *dev_id);
+static irqreturn_t gfar_transmit(int irq, void *dev_id);
+static irqreturn_t gfar_interrupt(int irq, void *dev_id);
 static void adjust_link(struct net_device *dev);
 static void init_registers(struct net_device *dev);
 static int init_phy(struct net_device *dev);
@@ -132,6 +132,9 @@ static void gfar_set_multi(struct net_device *dev);
 static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr);
 #ifdef CONFIG_GFAR_NAPI
 static int gfar_poll(struct net_device *dev, int *budget);
+#endif
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void gfar_netpoll(struct net_device *dev);
 #endif
 int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit);
 static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb, int length);
@@ -259,6 +262,9 @@ static int gfar_probe(struct platform_device *pdev)
 #ifdef CONFIG_GFAR_NAPI
 	dev->poll = gfar_poll;
 	dev->weight = GFAR_DEV_WEIGHT;
+#endif
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = gfar_netpoll;
 #endif
 	dev->stop = gfar_close;
 	dev->get_stats = gfar_get_stats;
@@ -392,6 +398,38 @@ static int gfar_remove(struct platform_device *pdev)
 }
 
 
+/* Reads the controller's registers to determine what interface
+ * connects it to the PHY.
+ */
+static phy_interface_t gfar_get_interface(struct net_device *dev)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	u32 ecntrl = gfar_read(&priv->regs->ecntrl);
+
+	if (ecntrl & ECNTRL_SGMII_MODE)
+		return PHY_INTERFACE_MODE_SGMII;
+
+	if (ecntrl & ECNTRL_TBI_MODE) {
+		if (ecntrl & ECNTRL_REDUCED_MODE)
+			return PHY_INTERFACE_MODE_RTBI;
+		else
+			return PHY_INTERFACE_MODE_TBI;
+	}
+
+	if (ecntrl & ECNTRL_REDUCED_MODE) {
+		if (ecntrl & ECNTRL_REDUCED_MII_MODE)
+			return PHY_INTERFACE_MODE_RMII;
+		else
+			return PHY_INTERFACE_MODE_RGMII;
+	}
+
+	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT)
+		return PHY_INTERFACE_MODE_GMII;
+
+	return PHY_INTERFACE_MODE_MII;
+}
+
+
 /* Initializes driver's PHY state, and attaches to the PHY.
  * Returns 0 on success.
  */
@@ -403,6 +441,7 @@ static int init_phy(struct net_device *dev)
 		SUPPORTED_1000baseT_Full : 0;
 	struct phy_device *phydev;
 	char phy_id[BUS_ID_SIZE];
+	phy_interface_t interface;
 
 	priv->oldlink = 0;
 	priv->oldspeed = 0;
@@ -410,7 +449,9 @@ static int init_phy(struct net_device *dev)
 
 	snprintf(phy_id, BUS_ID_SIZE, PHY_ID_FMT, priv->einfo->bus_id, priv->einfo->phy_id);
 
-	phydev = phy_connect(dev, phy_id, &adjust_link, 0);
+	interface = gfar_get_interface(dev);
+
+	phydev = phy_connect(dev, phy_id, &adjust_link, 0, interface);
 
 	if (IS_ERR(phydev)) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
@@ -1173,7 +1214,7 @@ static void gfar_timeout(struct net_device *dev)
 }
 
 /* Interrupt Handler for Transmit complete */
-static irqreturn_t gfar_transmit(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t gfar_transmit(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct gfar_private *priv = netdev_priv(dev);
@@ -1305,7 +1346,7 @@ static inline void count_errors(unsigned short status, struct gfar_private *priv
 	}
 }
 
-irqreturn_t gfar_receive(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t gfar_receive(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct gfar_private *priv = netdev_priv(dev);
@@ -1536,8 +1577,35 @@ static int gfar_poll(struct net_device *dev, int *budget)
 }
 #endif
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/*
+ * Polling 'interrupt' - used by things like netconsole to send skbs
+ * without having to re-enable interrupts. It's not called while
+ * the interrupt routine is executing.
+ */
+static void gfar_netpoll(struct net_device *dev)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+
+	/* If the device has multiple interrupts, run tx/rx */
+	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
+		disable_irq(priv->interruptTransmit);
+		disable_irq(priv->interruptReceive);
+		disable_irq(priv->interruptError);
+		gfar_interrupt(priv->interruptTransmit, dev);
+		enable_irq(priv->interruptError);
+		enable_irq(priv->interruptReceive);
+		enable_irq(priv->interruptTransmit);
+	} else {
+		disable_irq(priv->interruptTransmit);
+		gfar_interrupt(priv->interruptTransmit, dev);
+		enable_irq(priv->interruptTransmit);
+	}
+}
+#endif
+
 /* The interrupt handler for devices with one interrupt */
-static irqreturn_t gfar_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t gfar_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct gfar_private *priv = netdev_priv(dev);
@@ -1550,11 +1618,11 @@ static irqreturn_t gfar_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	/* Check for reception */
 	if ((events & IEVENT_RXF0) || (events & IEVENT_RXB0))
-		gfar_receive(irq, dev_id, regs);
+		gfar_receive(irq, dev_id);
 
 	/* Check for transmit completion */
 	if ((events & IEVENT_TXF) || (events & IEVENT_TXB))
-		gfar_transmit(irq, dev_id, regs);
+		gfar_transmit(irq, dev_id);
 
 	/* Update error statistics */
 	if (events & IEVENT_TXE) {
@@ -1578,7 +1646,7 @@ static irqreturn_t gfar_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		priv->stats.rx_errors++;
 		priv->extra_stats.rx_bsy++;
 
-		gfar_receive(irq, dev_id, regs);
+		gfar_receive(irq, dev_id);
 
 #ifndef CONFIG_GFAR_NAPI
 		/* Clear the halt bit in RSTAT */
@@ -1857,7 +1925,7 @@ static void gfar_set_mac_for_addr(struct net_device *dev, int num, u8 *addr)
 }
 
 /* GFAR error interrupt handler */
-static irqreturn_t gfar_error(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t gfar_error(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct gfar_private *priv = netdev_priv(dev);
@@ -1898,7 +1966,7 @@ static irqreturn_t gfar_error(int irq, void *dev_id, struct pt_regs *regs)
 		priv->stats.rx_errors++;
 		priv->extra_stats.rx_bsy++;
 
-		gfar_receive(irq, dev_id, regs);
+		gfar_receive(irq, dev_id);
 
 #ifndef CONFIG_GFAR_NAPI
 		/* Clear the halt bit in RSTAT */

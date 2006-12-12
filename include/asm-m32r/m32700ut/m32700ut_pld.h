@@ -1,5 +1,5 @@
 /*
- * include/asm/m32700ut/m32700ut_pld.h
+ * include/asm-m32r/m32700ut/m32700ut_pld.h
  *
  * Definitions for Programable Logic Device(PLD) on M32700UT board.
  *

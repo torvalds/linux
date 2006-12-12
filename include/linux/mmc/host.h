@@ -74,8 +74,8 @@ struct mmc_card;
 struct device;
 
 struct mmc_host {
-	struct device		*dev;
-	struct class_device	class_dev;
+	struct device		*parent;
+	struct device		class_dev;
 	int			index;
 	const struct mmc_host_ops *ops;
 	unsigned int		f_min;
@@ -85,6 +85,8 @@ struct mmc_host {
 	unsigned long		caps;		/* Host capabilities */
 
 #define MMC_CAP_4_BIT_DATA	(1 << 0)	/* Can the host do 4 bit transfers */
+#define MMC_CAP_MULTIWRITE	(1 << 1)	/* Can accurately report bytes sent to card on error */
+#define MMC_CAP_BYTEBLOCK	(1 << 2)	/* Can do non-log2 block sizes */
 
 	/* host specific block data */
 	unsigned int		max_seg_size;	/* see blk_queue_max_segment_size */
@@ -108,7 +110,7 @@ struct mmc_host {
 	struct mmc_card		*card_busy;	/* the MMC card claiming host */
 	struct mmc_card		*card_selected;	/* the selected MMC card */
 
-	struct work_struct	detect;
+	struct delayed_work	detect;
 
 	unsigned long		private[0] ____cacheline_aligned;
 };
@@ -123,8 +125,8 @@ static inline void *mmc_priv(struct mmc_host *host)
 	return (void *)host->private;
 }
 
-#define mmc_dev(x)	((x)->dev)
-#define mmc_hostname(x)	((x)->class_dev.class_id)
+#define mmc_dev(x)	((x)->parent)
+#define mmc_hostname(x)	((x)->class_dev.bus_id)
 
 extern int mmc_suspend_host(struct mmc_host *, pm_message_t);
 extern int mmc_resume_host(struct mmc_host *);

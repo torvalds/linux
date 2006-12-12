@@ -34,6 +34,7 @@ struct thread_info {
 						   0-0xFFFFFFFF for kernel-thread
 						*/
 	struct restart_block	restart_block;
+	struct pt_regs		*regs;
 };
 
 /*

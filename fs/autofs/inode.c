@@ -20,10 +20,19 @@
 #include "autofs_i.h"
 #include <linux/module.h>
 
-static void autofs_put_super(struct super_block *sb)
+void autofs_kill_sb(struct super_block *sb)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(sb);
 	unsigned int n;
+
+	/*
+	 * In the event of a failure in get_sb_nodev the superblock
+	 * info is not present so nothing else has been setup, so
+	 * just call kill_anon_super when we are called from
+	 * deactivate_super.
+	 */
+	if (!sbi)
+		goto out_kill_sb;
 
 	if ( !sbi->catatonic )
 		autofs_catatonic_mode(sbi); /* Free wait queues, close pipe */
@@ -36,14 +45,15 @@ static void autofs_put_super(struct super_block *sb)
 
 	kfree(sb->s_fs_info);
 
+out_kill_sb:
 	DPRINTK(("autofs: shutting down\n"));
+	kill_anon_super(sb);
 }
 
 static void autofs_read_inode(struct inode *inode);
 
 static struct super_operations autofs_sops = {
 	.read_inode	= autofs_read_inode,
-	.put_super	= autofs_put_super,
 	.statfs		= simple_statfs,
 };
 
@@ -129,15 +139,15 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	struct autofs_sb_info *sbi;
 	int minproto, maxproto;
 
-	sbi = kmalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if ( !sbi )
 		goto fail_unlock;
-	memset(sbi, 0, sizeof(*sbi));
 	DPRINTK(("autofs: starting up, sbi = %p\n",sbi));
 
 	s->s_fs_info = sbi;
 	sbi->magic = AUTOFS_SBI_MAGIC;
-	sbi->catatonic = 0;
+	sbi->pipe = NULL;
+	sbi->catatonic = 1;
 	sbi->exp_timeout = 0;
 	sbi->oz_pgrp = process_group(current);
 	autofs_initialize_hash(&sbi->dirhash);
@@ -181,6 +191,7 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	if ( !pipe->f_op || !pipe->f_op->write )
 		goto fail_fput;
 	sbi->pipe = pipe;
+	sbi->catatonic = 0;
 
 	/*
 	 * Success! Install the root dentry now to indicate completion.
@@ -199,6 +210,7 @@ fail_iput:
 	iput(root_inode);
 fail_free:
 	kfree(sbi);
+	s->s_fs_info = NULL;
 fail_unlock:
 	return -EINVAL;
 }
@@ -217,7 +229,6 @@ static void autofs_read_inode(struct inode *inode)
 	inode->i_nlink = 2;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	inode->i_blocks = 0;
-	inode->i_blksize = 1024;
 
 	if ( ino == AUTOFS_ROOT_INO ) {
 		inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO | S_IWUSR;
@@ -242,7 +253,7 @@ static void autofs_read_inode(struct inode *inode)
 		
 		inode->i_op = &autofs_symlink_inode_operations;
 		sl = &sbi->symlink[n];
-		inode->u.generic_ip = sl;
+		inode->i_private = sl;
 		inode->i_mode = S_IFLNK | S_IRWXUGO;
 		inode->i_mtime.tv_sec = inode->i_ctime.tv_sec = sl->mtime;
 		inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec = 0;

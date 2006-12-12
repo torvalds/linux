@@ -87,14 +87,10 @@ extern int arch_unwind_init_running(struct unwind_frame_info *,
 
 static inline int arch_unw_user_mode(const struct unwind_frame_info *info)
 {
-#if 0 /* This can only work when selector register saves/restores
-         are properly annotated (and tracked in UNW_REGISTER_INFO). */
-	return user_mode(&info->regs);
-#else
-	return (long)info->regs.rip >= 0
+	return user_mode(&info->regs)
+	       || (long)info->regs.rip >= 0
 	       || (info->regs.rip >= VSYSCALL_START && info->regs.rip < VSYSCALL_END)
 	       || (long)info->regs.rsp >= 0;
-#endif
 }
 
 #else

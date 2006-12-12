@@ -782,7 +782,7 @@ static int vino_i2c_add_bus(void)
 
 static int vino_i2c_del_bus(void)
 {
-	return i2c_sgi_del_bus(&vino_i2c_adapter);
+	return i2c_del_adapter(&vino_i2c_adapter);
 }
 
 static int i2c_camera_command(unsigned int cmd, void *arg)
@@ -2325,7 +2325,7 @@ static void vino_capture_tasklet(unsigned long channel) {
 	}
 }
 
-static irqreturn_t vino_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t vino_interrupt(int irq, void *dev_id)
 {
 	u32 ctrl, intr;
 	unsigned int fc_a, fc_b;
@@ -4404,7 +4404,6 @@ static struct video_device v4l_device_template = {
 	.name		= "NOT SET",
 	//.type		= VID_TYPE_CAPTURE | VID_TYPE_SUBCAPTURE |
 	//	VID_TYPE_CLIPPING | VID_TYPE_SCALES, VID_TYPE_OVERLAY
-	.hardware	= VID_HARDWARE_VINO,
 	.fops		= &vino_fops,
 	.minor		= -1,
 };

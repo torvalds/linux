@@ -2,6 +2,10 @@
 # Makefile for RTC class/drivers.
 #
 
+ifeq ($(CONFIG_RTC_DEBUG),y)
+	EXTRA_CFLAGS		+= -DDEBUG
+endif
+
 obj-$(CONFIG_RTC_LIB)		+= rtc-lib.o
 obj-$(CONFIG_RTC_HCTOSYS)	+= hctosys.o
 obj-$(CONFIG_RTC_CLASS)		+= rtc-core.o
@@ -17,6 +21,7 @@ obj-$(CONFIG_RTC_DRV_TEST)	+= rtc-test.o
 obj-$(CONFIG_RTC_DRV_DS1307)	+= rtc-ds1307.o
 obj-$(CONFIG_RTC_DRV_DS1672)	+= rtc-ds1672.o
 obj-$(CONFIG_RTC_DRV_DS1742)	+= rtc-ds1742.o
+obj-$(CONFIG_RTC_DRV_OMAP)	+= rtc-omap.o
 obj-$(CONFIG_RTC_DRV_PCF8563)	+= rtc-pcf8563.o
 obj-$(CONFIG_RTC_DRV_PCF8583)	+= rtc-pcf8583.o
 obj-$(CONFIG_RTC_DRV_RS5C372)	+= rtc-rs5c372.o
@@ -30,4 +35,5 @@ obj-$(CONFIG_RTC_DRV_VR41XX)	+= rtc-vr41xx.o
 obj-$(CONFIG_RTC_DRV_PL031)	+= rtc-pl031.o
 obj-$(CONFIG_RTC_DRV_MAX6902)	+= rtc-max6902.o
 obj-$(CONFIG_RTC_DRV_V3020)	+= rtc-v3020.o
-obj-$(CONFIG_RTC_DRV_AT91)	+= rtc-at91.o
+obj-$(CONFIG_RTC_DRV_AT91RM9200)+= rtc-at91rm9200.o
+obj-$(CONFIG_RTC_DRV_SH)	+= rtc-sh.o

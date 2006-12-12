@@ -4843,8 +4843,7 @@ static int os_scsi_tape_close(struct inode * inode, struct file * filp)
 static int osst_ioctl(struct inode * inode,struct file * file,
 	 unsigned int cmd_in, unsigned long arg)
 {
-	int		      i, cmd_nr, cmd_type, retval = 0;
-	unsigned int	      blk;
+	int		      i, cmd_nr, cmd_type, blk, retval = 0;
 	struct st_modedef   * STm;
 	struct st_partstat  * STps;
 	struct osst_request * SRpnt = NULL;
@@ -5207,12 +5206,12 @@ static struct osst_buffer * new_tape_buffer( int from_initialization, int need_d
 		priority = GFP_KERNEL;
 
 	i = sizeof(struct osst_buffer) + (osst_max_sg_segs - 1) * sizeof(struct scatterlist);
-	tb = (struct osst_buffer *)kmalloc(i, priority);
+	tb = kzalloc(i, priority);
 	if (!tb) {
 		printk(KERN_NOTICE "osst :I: Can't allocate new tape buffer.\n");
 		return NULL;
 	}
-	memset(tb, 0, i);
+
 	tb->sg_segs = tb->orig_sg_segs = 0;
 	tb->use_sg = max_sg;
 	tb->in_use = 1;
@@ -5575,9 +5574,9 @@ static ssize_t osst_version_show(struct device_driver *ddd, char *buf)
 
 static DRIVER_ATTR(version, S_IRUGO, osst_version_show, NULL);
 
-static void osst_create_driverfs_files(struct device_driver *driverfs)
+static int osst_create_driverfs_files(struct device_driver *driverfs)
 {
-	driver_create_file(driverfs, &driver_attr_version);
+	return driver_create_file(driverfs, &driver_attr_version);
 }
 
 static void osst_remove_driverfs_files(struct device_driver *driverfs)
@@ -5663,50 +5662,70 @@ CLASS_DEVICE_ATTR(file_count, S_IRUGO, osst_filemark_cnt_show, NULL);
 
 static struct class *osst_sysfs_class;
 
-static int osst_sysfs_valid = 0;
-
-static void osst_sysfs_init(void)
+static int osst_sysfs_init(void)
 {
 	osst_sysfs_class = class_create(THIS_MODULE, "onstream_tape");
-	if ( IS_ERR(osst_sysfs_class) )
-		printk(KERN_WARNING "osst :W: Unable to register sysfs class\n");
-	else
-		osst_sysfs_valid = 1;
-}
-
-static void osst_sysfs_add(dev_t dev, struct device *device, struct osst_tape * STp, char * name)
-{
-	struct class_device *osst_class_member;
-
-	if (!osst_sysfs_valid) return;
-
-	osst_class_member = class_device_create(osst_sysfs_class, NULL, dev, device, "%s", name);
-	if (IS_ERR(osst_class_member)) {
-		printk(KERN_WARNING "osst :W: Unable to add sysfs class member %s\n", name);
-		return;
+	if (IS_ERR(osst_sysfs_class)) {
+		printk(KERN_ERR "osst :W: Unable to register sysfs class\n");
+		return PTR_ERR(osst_sysfs_class);
 	}
-	class_set_devdata(osst_class_member, STp);
-	class_device_create_file(osst_class_member, &class_device_attr_ADR_rev);
-	class_device_create_file(osst_class_member, &class_device_attr_media_version);
-	class_device_create_file(osst_class_member, &class_device_attr_capacity);
-	class_device_create_file(osst_class_member, &class_device_attr_BOT_frame);
-	class_device_create_file(osst_class_member, &class_device_attr_EOD_frame);
-	class_device_create_file(osst_class_member, &class_device_attr_file_count);
+
+	return 0;
 }
 
 static void osst_sysfs_destroy(dev_t dev)
 {
-	if (!osst_sysfs_valid) return; 
-
 	class_device_destroy(osst_sysfs_class, dev);
+}
+
+static int osst_sysfs_add(dev_t dev, struct device *device, struct osst_tape * STp, char * name)
+{
+	struct class_device *osst_class_member;
+	int err;
+
+	osst_class_member = class_device_create(osst_sysfs_class, NULL, dev,
+						device, "%s", name);
+	if (IS_ERR(osst_class_member)) {
+		printk(KERN_WARNING "osst :W: Unable to add sysfs class member %s\n", name);
+		return PTR_ERR(osst_class_member);
+	}
+
+	class_set_devdata(osst_class_member, STp);
+	err = class_device_create_file(osst_class_member,
+				       &class_device_attr_ADR_rev);
+	if (err)
+		goto err_out;
+	err = class_device_create_file(osst_class_member,
+				       &class_device_attr_media_version);
+	if (err)
+		goto err_out;
+	err = class_device_create_file(osst_class_member,
+				       &class_device_attr_capacity);
+	if (err)
+		goto err_out;
+	err = class_device_create_file(osst_class_member,
+				       &class_device_attr_BOT_frame);
+	if (err)
+		goto err_out;
+	err = class_device_create_file(osst_class_member,
+				       &class_device_attr_EOD_frame);
+	if (err)
+		goto err_out;
+	err = class_device_create_file(osst_class_member,
+				       &class_device_attr_file_count);
+	if (err)
+		goto err_out;
+
+	return 0;
+
+err_out:
+	osst_sysfs_destroy(dev);
+	return err;
 }
 
 static void osst_sysfs_cleanup(void)
 {
-	if (osst_sysfs_valid) {
-		class_destroy(osst_sysfs_class);
-		osst_sysfs_valid = 0;
-	}
+	class_destroy(osst_sysfs_class);
 }
 
 /*
@@ -5721,7 +5740,7 @@ static int osst_probe(struct device *dev)
 	struct st_partstat * STps;
 	struct osst_buffer * buffer;
 	struct gendisk	   * drive;
-	int		     i, dev_num;
+	int		     i, dev_num, err = -ENODEV;
 
 	if (SDp->type != TYPE_TAPE || !osst_supports(SDp))
 		return -ENODEV;
@@ -5849,13 +5868,20 @@ static int osst_probe(struct device *dev)
 	init_MUTEX(&tpnt->lock);
 	osst_nr_dev++;
 	write_unlock(&os_scsi_tapes_lock);
+
 	{
 		char name[8];
+
 		/*  Rewind entry  */
-		osst_sysfs_add(MKDEV(OSST_MAJOR, dev_num), dev, tpnt, tape_name(tpnt));
+		err = osst_sysfs_add(MKDEV(OSST_MAJOR, dev_num), dev, tpnt, tape_name(tpnt));
+		if (err)
+			goto out_free_buffer;
+
 		/*  No-rewind entry  */
 		snprintf(name, 8, "%s%s", "n", tape_name(tpnt));
-		osst_sysfs_add(MKDEV(OSST_MAJOR, dev_num + 128), dev, tpnt, name);
+		err = osst_sysfs_add(MKDEV(OSST_MAJOR, dev_num + 128), dev, tpnt, name);
+		if (err)
+			goto out_free_sysfs1;
 	}
 
 	sdev_printk(KERN_INFO, SDp,
@@ -5864,9 +5890,13 @@ static int osst_probe(struct device *dev)
 
 	return 0;
 
+out_free_sysfs1:
+	osst_sysfs_destroy(MKDEV(OSST_MAJOR, dev_num));
+out_free_buffer:
+	kfree(buffer);
 out_put_disk:
         put_disk(drive);
-        return -ENODEV;
+        return err;
 };
 
 static int osst_remove(struct device *dev)
@@ -5903,19 +5933,39 @@ static int osst_remove(struct device *dev)
 
 static int __init init_osst(void) 
 {
+	int err;
+
 	printk(KERN_INFO "osst :I: Tape driver with OnStream support version %s\nosst :I: %s\n", osst_version, cvsid);
 
 	validate_options();
-	osst_sysfs_init();
 
-	if ((register_chrdev(OSST_MAJOR,"osst", &osst_fops) < 0) || scsi_register_driver(&osst_template.gendrv)) {
+	err = osst_sysfs_init();
+	if (err)
+		return err;
+
+	err = register_chrdev(OSST_MAJOR, "osst", &osst_fops);
+	if (err < 0) {
 		printk(KERN_ERR "osst :E: Unable to register major %d for OnStream tapes\n", OSST_MAJOR);
-		osst_sysfs_cleanup();
-		return 1;
+		goto err_out;
 	}
-	osst_create_driverfs_files(&osst_template.gendrv);
+
+	err = scsi_register_driver(&osst_template.gendrv);
+	if (err)
+		goto err_out_chrdev;
+
+	err = osst_create_driverfs_files(&osst_template.gendrv);
+	if (err)
+		goto err_out_scsidrv;
 
 	return 0;
+
+err_out_scsidrv:
+	scsi_unregister_driver(&osst_template.gendrv);
+err_out_chrdev:
+	unregister_chrdev(OSST_MAJOR, "osst");
+err_out:
+	osst_sysfs_cleanup();
+	return err;
 }
 
 static void __exit exit_osst (void)

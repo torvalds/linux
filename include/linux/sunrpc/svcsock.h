@@ -20,8 +20,9 @@ struct svc_sock {
 	struct socket *		sk_sock;	/* berkeley socket layer */
 	struct sock *		sk_sk;		/* INET layer */
 
+	struct svc_pool *	sk_pool;	/* current pool iff queued */
 	struct svc_serv *	sk_server;	/* service for this socket */
-	unsigned int		sk_inuse;	/* use count */
+	atomic_t		sk_inuse;	/* use count */
 	unsigned long		sk_flags;
 #define	SK_BUSY		0			/* enqueued/receiving */
 #define	SK_CONN		1			/* conn pending */
@@ -31,9 +32,12 @@ struct svc_sock {
 #define	SK_DEAD		6			/* socket closed */
 #define	SK_CHNGBUF	7			/* need to change snd/rcv buffer sizes */
 #define	SK_DEFERRED	8			/* request on sk_deferred */
+#define	SK_OLD		9			/* used for temp socket aging mark+sweep */
+#define	SK_DETACHED	10			/* detached from tempsocks list */
 
-	int			sk_reserved;	/* space on outq that is reserved */
+	atomic_t    	    	sk_reserved;	/* space on outq that is reserved */
 
+	spinlock_t		sk_defer_lock;	/* protects sk_deferred */
 	struct list_head	sk_deferred;	/* deferred requests that need to
 						 * be revisted */
 	struct mutex		sk_mutex;	/* to serialize sending data */
@@ -50,6 +54,9 @@ struct svc_sock {
 	int			sk_reclen;	/* length of record */
 	int			sk_tcplen;	/* current read length */
 	time_t			sk_lastrecv;	/* time of last received request */
+
+	/* cache of various info for TCP sockets */
+	void			*sk_info_authunix;
 };
 
 /*
@@ -57,9 +64,14 @@ struct svc_sock {
  */
 int		svc_makesock(struct svc_serv *, int, unsigned short);
 void		svc_delete_socket(struct svc_sock *);
-int		svc_recv(struct svc_serv *, struct svc_rqst *, long);
+int		svc_recv(struct svc_rqst *, long);
 int		svc_send(struct svc_rqst *);
 void		svc_drop(struct svc_rqst *);
 void		svc_sock_update_bufs(struct svc_serv *serv);
+int		svc_sock_names(char *buf, struct svc_serv *serv, char *toclose);
+int		svc_addsock(struct svc_serv *serv,
+			    int fd,
+			    char *name_return,
+			    int *proto);
 
 #endif /* SUNRPC_SVCSOCK_H */

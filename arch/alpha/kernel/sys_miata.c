@@ -33,7 +33,7 @@
 
 
 static void 
-miata_srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
+miata_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
 
@@ -56,7 +56,7 @@ miata_srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
 	if (irq >= 16)
 		irq = irq + 8;
 
-	handle_irq(irq, regs);
+	handle_irq(irq);
 }
 
 static void __init
@@ -183,11 +183,15 @@ miata_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 	if((slot == 7) && (PCI_FUNC(dev->devfn) == 3)) {
 		u8 irq=0;
-
-		if(pci_read_config_byte(pci_find_slot(dev->bus->number, dev->devfn & ~(7)), 0x40,&irq)!=PCIBIOS_SUCCESSFUL)
+		struct pci_dev *pdev = pci_get_slot(dev->bus, dev->devfn & ~7);
+		if(pdev == NULL || pci_read_config_byte(pdev, 0x40,&irq) != PCIBIOS_SUCCESSFUL) {
+			pci_dev_put(pdev);
 			return -1;
-		else	
+		}
+		else	{
+			pci_dev_put(pdev);
 			return irq;
+		}
 	}
 
 	return COMMON_TABLE_LOOKUP;

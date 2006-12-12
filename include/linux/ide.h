@@ -251,7 +251,8 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 
 #include <asm/ide.h>
 
-#ifndef MAX_HWIFS
+#if !defined(MAX_HWIFS) || defined(CONFIG_EMBEDDED)
+#undef MAX_HWIFS
 #define MAX_HWIFS	CONFIG_IDE_MAX_HWIFS
 #endif
 
@@ -773,11 +774,12 @@ typedef struct hwif_s {
 	unsigned long	dma_status;	/* dma status register */
 	unsigned long	dma_vendor3;	/* dma vendor 3 register */
 	unsigned long	dma_prdtable;	/* actual prd table address */
-	unsigned long	dma_base2;	/* extended base addr for dma ports */
 
-	unsigned	dma_extra;	/* extra addr for dma ports */
 	unsigned long	config_data;	/* for use by chipset-specific code */
 	unsigned long	select_data;	/* for use by chipset-specific code */
+
+	unsigned long	extra_base;	/* extra addr for dma ports */
+	unsigned	extra_ports;	/* number of extra dma ports */
 
 	unsigned	noprobe    : 1;	/* don't probe for this interface */
 	unsigned	present    : 1;	/* this interface exists */
@@ -794,6 +796,7 @@ typedef struct hwif_s {
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 	unsigned	no_io_32bit : 1; /* 1 = can not do 32-bit IO ops */
 	unsigned	err_stops_fifo : 1; /* 1=data FIFO is cleared by an error */
+	unsigned	atapi_irq_bogon : 1; /* Generates spurious DMA interrupts in PIO mode */
 
 	struct device	gendev;
 	struct completion gendev_rel_comp; /* To deal with device release() */
@@ -801,8 +804,6 @@ typedef struct hwif_s {
 	void		*hwif_data;	/* extra hwif data */
 
 	unsigned dma;
-
-	void (*led_act)(void *data, int rw);
 } ____cacheline_internodealigned_in_smp ide_hwif_t;
 
 /*
@@ -823,6 +824,9 @@ typedef struct hwgroup_s {
 	unsigned int sleeping	: 1;
 		/* BOOL: polling active & poll_timeout field valid */
 	unsigned int polling	: 1;
+	 	/* BOOL: in a polling reset situation. Must not trigger another reset yet */
+	unsigned int resetting  : 1;
+
 		/* current drive */
 	ide_drive_t *drive;
 		/* ptr to current hwif in linked-list */
@@ -1180,7 +1184,7 @@ extern void ide_stall_queue(ide_drive_t *drive, unsigned long timeout);
 
 extern int ide_spin_wait_hwgroup(ide_drive_t *);
 extern void ide_timer_expiry(unsigned long);
-extern irqreturn_t ide_intr(int irq, void *dev_id, struct pt_regs *regs);
+extern irqreturn_t ide_intr(int irq, void *dev_id);
 extern void do_ide_request(request_queue_t *);
 
 void ide_init_disk(struct gendisk *, ide_drive_t *);
@@ -1190,7 +1194,6 @@ extern int ideprobe_init(void);
 extern void ide_scan_pcibus(int scan_direction) __init;
 extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *owner);
 #define ide_pci_register_driver(d) __ide_pci_register_driver(d, THIS_MODULE)
-extern void ide_pci_unregister_driver(struct pci_driver *driver);
 void ide_pci_setup_ports(struct pci_dev *, struct ide_pci_device_s *, int, ata_index_t *);
 extern void ide_setup_pci_noise (struct pci_dev *dev, struct ide_pci_device_s *d);
 

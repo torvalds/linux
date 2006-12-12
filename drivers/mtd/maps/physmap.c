@@ -62,7 +62,7 @@ static int physmap_flash_remove(struct platform_device *dev)
 	}
 
 	if (info->map.virt != NULL)
-		iounmap((void *)info->map.virt);
+		iounmap(info->map.virt);
 
 	if (info->res != NULL) {
 		release_resource(info->res);

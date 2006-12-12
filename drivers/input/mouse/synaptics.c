@@ -216,13 +216,13 @@ static void synaptics_pass_pt_packet(struct serio *ptport, unsigned char *packet
 	struct psmouse *child = serio_get_drvdata(ptport);
 
 	if (child && child->state == PSMOUSE_ACTIVATED) {
-		serio_interrupt(ptport, packet[1], 0, NULL);
-		serio_interrupt(ptport, packet[4], 0, NULL);
-		serio_interrupt(ptport, packet[5], 0, NULL);
+		serio_interrupt(ptport, packet[1], 0);
+		serio_interrupt(ptport, packet[4], 0);
+		serio_interrupt(ptport, packet[5], 0);
 		if (child->pktsize == 4)
-			serio_interrupt(ptport, packet[2], 0, NULL);
+			serio_interrupt(ptport, packet[2], 0);
 	} else
-		serio_interrupt(ptport, packet[1], 0, NULL);
+		serio_interrupt(ptport, packet[1], 0);
 }
 
 static void synaptics_pt_activate(struct psmouse *psmouse)
@@ -430,11 +430,11 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 
 static int synaptics_validate_byte(unsigned char packet[], int idx, unsigned char pkt_type)
 {
-	static unsigned char newabs_mask[]	= { 0xC8, 0x00, 0x00, 0xC8, 0x00 };
-	static unsigned char newabs_rel_mask[]	= { 0xC0, 0x00, 0x00, 0xC0, 0x00 };
-	static unsigned char newabs_rslt[]	= { 0x80, 0x00, 0x00, 0xC0, 0x00 };
-	static unsigned char oldabs_mask[]	= { 0xC0, 0x60, 0x00, 0xC0, 0x60 };
-	static unsigned char oldabs_rslt[]	= { 0xC0, 0x00, 0x00, 0x80, 0x00 };
+	static const unsigned char newabs_mask[]	= { 0xC8, 0x00, 0x00, 0xC8, 0x00 };
+	static const unsigned char newabs_rel_mask[]	= { 0xC0, 0x00, 0x00, 0xC0, 0x00 };
+	static const unsigned char newabs_rslt[]	= { 0x80, 0x00, 0x00, 0xC0, 0x00 };
+	static const unsigned char oldabs_mask[]	= { 0xC0, 0x60, 0x00, 0xC0, 0x60 };
+	static const unsigned char oldabs_rslt[]	= { 0xC0, 0x00, 0x00, 0x80, 0x00 };
 
 	if (idx < 0 || idx > 4)
 		return 0;
@@ -469,12 +469,9 @@ static unsigned char synaptics_detect_pkt_type(struct psmouse *psmouse)
 	return SYN_NEWABS_STRICT;
 }
 
-static psmouse_ret_t synaptics_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
+static psmouse_ret_t synaptics_process_byte(struct psmouse *psmouse)
 {
-	struct input_dev *dev = psmouse->dev;
 	struct synaptics_data *priv = psmouse->private;
-
-	input_regs(dev, regs);
 
 	if (psmouse->pktcnt >= 6) { /* Full packet received */
 		if (unlikely(priv->pkt_type == SYN_NEWABS))

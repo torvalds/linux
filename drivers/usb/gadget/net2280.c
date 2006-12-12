@@ -2,7 +2,7 @@
  * Driver for the PLX NET2280 USB device controller.
  * Specs and errata are available from <http://www.plxtech.com>.
  *
- * PLX Technology Inc. (formerly NetChip Technology) supported the 
+ * PLX Technology Inc. (formerly NetChip Technology) supported the
  * development of this driver.
  *
  *
@@ -26,7 +26,8 @@
  * Copyright (C) 2003 David Brownell
  * Copyright (C) 2003-2005 PLX Technology, Inc.
  *
- * Modified Seth Levy 2005 PLX Technology, Inc. to provide compatibility with 2282 chip
+ * Modified Seth Levy 2005 PLX Technology, Inc. to provide compatibility
+ *	with 2282 chip
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -85,7 +86,7 @@ static const char driver_name [] = "net2280";
 static const char driver_desc [] = DRIVER_DESC;
 
 static const char ep0name [] = "ep0";
-static const char *ep_name [] = {
+static const char *const ep_name [] = {
 	ep0name,
 	"ep-a", "ep-b", "ep-c", "ep-d",
 	"ep-e", "ep-f",
@@ -225,7 +226,9 @@ net2280_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	if (!ep->is_in)
 		writel ((1 << SET_NAK_OUT_PACKETS), &ep->regs->ep_rsp);
 	else if (dev->pdev->device != 0x2280) {
-		/* Added for 2282, Don't use nak packets on an in endpoint, this was ignored on 2280 */
+		/* Added for 2282, Don't use nak packets on an in endpoint,
+		 * this was ignored on 2280
+		 */
 		writel ((1 << CLEAR_NAK_OUT_PACKETS)
 			| (1 << CLEAR_NAK_OUT_PACKETS_MODE), &ep->regs->ep_rsp);
 	}
@@ -288,7 +291,7 @@ static int handshake (u32 __iomem *ptr, u32 mask, u32 done, int usec)
 	return -ETIMEDOUT;
 }
 
-static struct usb_ep_ops net2280_ep_ops;
+static const struct usb_ep_ops net2280_ep_ops;
 
 static void ep_reset (struct net2280_regs __iomem *regs, struct net2280_ep *ep)
 {
@@ -449,34 +452,15 @@ net2280_free_request (struct usb_ep *_ep, struct usb_request *_req)
 
 /*-------------------------------------------------------------------------*/
 
-#undef USE_KMALLOC
-
-/* many common platforms have dma-coherent caches, which means that it's
- * safe to use kmalloc() memory for all i/o buffers without using any
- * cache flushing calls.  (unless you're trying to share cache lines
- * between dma and non-dma activities, which is a slow idea in any case.)
+/*
+ * dma-coherent memory allocation (for dma-capable endpoints)
  *
- * other platforms need more care, with 2.5 having a moderately general
- * solution (which falls down for allocations smaller than one page)
- * that improves significantly on the 2.4 PCI allocators by removing
- * the restriction that memory never be freed in_interrupt().
+ * NOTE: the dma_*_coherent() API calls suck.  Most implementations are
+ * (a) page-oriented, so small buffers lose big; and (b) asymmetric with
+ * respect to calls with irqs disabled:  alloc is safe, free is not.
+ * We currently work around (b), but not (a).
  */
-#if	defined(CONFIG_X86)
-#define USE_KMALLOC
 
-#elif	defined(CONFIG_PPC) && !defined(CONFIG_NOT_COHERENT_CACHE)
-#define USE_KMALLOC
-
-#elif	defined(CONFIG_MIPS) && !defined(CONFIG_DMA_NONCOHERENT)
-#define USE_KMALLOC
-
-/* FIXME there are other cases, including an x86-64 one ...  */
-#endif
-
-/* allocating buffers this way eliminates dma mapping overhead, which
- * on some platforms will mean eliminating a per-io buffer copy.  with
- * some kinds of system caches, further tweaks may still be needed.
- */
 static void *
 net2280_alloc_buffer (
 	struct usb_ep		*_ep,
@@ -493,43 +477,71 @@ net2280_alloc_buffer (
 		return NULL;
 	*dma = DMA_ADDR_INVALID;
 
-#if	defined(USE_KMALLOC)
-	retval = kmalloc(bytes, gfp_flags);
-	if (retval)
-		*dma = virt_to_phys(retval);
-#else
-	if (ep->dma) {
-		/* the main problem with this call is that it wastes memory
-		 * on typical 1/N page allocations: it allocates 1-N pages.
-		 */
-#warning Using dma_alloc_coherent even with buffers smaller than a page.
+	if (ep->dma)
 		retval = dma_alloc_coherent(&ep->dev->pdev->dev,
 				bytes, dma, gfp_flags);
-	} else
+	else
 		retval = kmalloc(bytes, gfp_flags);
-#endif
 	return retval;
 }
+
+static DEFINE_SPINLOCK(buflock);
+static LIST_HEAD(buffers);
+
+struct free_record {
+	struct list_head	list;
+	struct device		*dev;
+	unsigned		bytes;
+	dma_addr_t		dma;
+};
+
+static void do_free(unsigned long ignored)
+{
+	spin_lock_irq(&buflock);
+	while (!list_empty(&buffers)) {
+		struct free_record	*buf;
+
+		buf = list_entry(buffers.next, struct free_record, list);
+		list_del(&buf->list);
+		spin_unlock_irq(&buflock);
+
+		dma_free_coherent(buf->dev, buf->bytes, buf, buf->dma);
+
+		spin_lock_irq(&buflock);
+	}
+	spin_unlock_irq(&buflock);
+}
+
+static DECLARE_TASKLET(deferred_free, do_free, 0);
 
 static void
 net2280_free_buffer (
 	struct usb_ep *_ep,
-	void *buf,
+	void *address,
 	dma_addr_t dma,
 	unsigned bytes
 ) {
 	/* free memory into the right allocator */
-#ifndef	USE_KMALLOC
 	if (dma != DMA_ADDR_INVALID) {
 		struct net2280_ep	*ep;
+		struct free_record	*buf = address;
+		unsigned long		flags;
 
 		ep = container_of(_ep, struct net2280_ep, ep);
 		if (!_ep)
 			return;
-		dma_free_coherent(&ep->dev->pdev->dev, bytes, buf, dma);
+
+		ep = container_of (_ep, struct net2280_ep, ep);
+		buf->dev = &ep->dev->pdev->dev;
+		buf->bytes = bytes;
+		buf->dma = dma;
+
+		spin_lock_irqsave(&buflock, flags);
+		list_add_tail(&buf->list, &buffers);
+		tasklet_schedule(&deferred_free);
+		spin_unlock_irqrestore(&buflock, flags);
 	} else
-#endif
-		kfree (buf);
+		kfree (address);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -737,7 +749,8 @@ fill_dma_desc (struct net2280_ep *ep, struct net2280_request *req, int valid)
 	 */
 	if (ep->is_in)
 		dmacount |= (1 << DMA_DIRECTION);
-	if ((!ep->is_in && (dmacount % ep->ep.maxpacket) != 0) || ep->dev->pdev->device != 0x2280)
+	if ((!ep->is_in && (dmacount % ep->ep.maxpacket) != 0)
+			|| ep->dev->pdev->device != 0x2280)
 		dmacount |= (1 << END_OF_CHAIN);
 
 	req->valid = valid;
@@ -812,7 +825,7 @@ static void start_dma (struct net2280_ep *ep, struct net2280_request *req)
 
 	/* previous OUT packet might have been short */
 	if (!ep->is_in && ((tmp = readl (&ep->regs->ep_stat))
-		 		& (1 << NAK_OUT_PACKETS)) != 0) {
+				& (1 << NAK_OUT_PACKETS)) != 0) {
 		writel ((1 << SHORT_PACKET_TRANSFERRED_INTERRUPT),
 			&ep->regs->ep_stat);
 
@@ -1027,6 +1040,7 @@ net2280_queue (struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 	} /* else the irq handler advances the queue. */
 
+	ep->responded = 1;
 	if (req)
 		list_add_tail (&req->queue, &ep->queue);
 done:
@@ -1373,7 +1387,7 @@ net2280_fifo_flush (struct usb_ep *_ep)
 	(void) readl (&ep->regs->ep_rsp);
 }
 
-static struct usb_ep_ops net2280_ep_ops = {
+static const struct usb_ep_ops net2280_ep_ops = {
 	.enable		= net2280_enable,
 	.disable	= net2280_disable,
 
@@ -1631,7 +1645,7 @@ show_registers (struct device *_dev, struct device_attribute *attr, char *buf)
 	}
 
 	/* Indexed Registers */
-		// none yet 
+		// none yet
 
 	/* Statistics */
 	t = scnprintf (next, size, "\nirqs:  ");
@@ -1691,11 +1705,11 @@ show_queues (struct device *_dev, struct device_attribute *attr, char *buf)
 				({ char *val;
 				 switch (d->bmAttributes & 0x03) {
 				 case USB_ENDPOINT_XFER_BULK:
-				 	val = "bulk"; break;
+					val = "bulk"; break;
 				 case USB_ENDPOINT_XFER_INT:
-				 	val = "intr"; break;
+					val = "intr"; break;
 				 default:
-				 	val = "iso"; break;
+					val = "iso"; break;
 				 }; val; }),
 				le16_to_cpu (d->wMaxPacketSize) & 0x1fff,
 				ep->dma ? "dma" : "pio", ep->fifo_size
@@ -1761,8 +1775,8 @@ static DEVICE_ATTR (queues, S_IRUGO, show_queues, NULL);
 
 #else
 
-#define device_create_file(a,b)	do {} while (0)
-#define device_remove_file	device_create_file
+#define device_create_file(a,b)	(0)
+#define device_remove_file(a,b)	do { } while (0)
 
 #endif
 
@@ -1808,8 +1822,8 @@ extern int net2280_set_fifo_mode (struct usb_gadget *gadget, int mode);
  * net2280_set_fifo_mode - change allocation of fifo buffers
  * @gadget: access to the net2280 device that will be updated
  * @mode: 0 for default, four 1kB buffers (ep-a through ep-d);
- * 	1 for two 2kB buffers (ep-a and ep-b only);
- * 	2 for one 2kB buffer (ep-a) and two 1kB ones (ep-b, ep-c).
+ *	1 for two 2kB buffers (ep-a and ep-b only);
+ *	2 for one 2kB buffer (ep-a) and two 1kB ones (ep-b, ep-c).
  *
  * returns zero on success, else negative errno.  when this succeeds,
  * the contents of gadget->ep_list may have changed.
@@ -2031,8 +2045,10 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 		return retval;
 	}
 
-	device_create_file (&dev->pdev->dev, &dev_attr_function);
-	device_create_file (&dev->pdev->dev, &dev_attr_queues);
+	retval = device_create_file (&dev->pdev->dev, &dev_attr_function);
+	if (retval) goto err_unbind;
+	retval = device_create_file (&dev->pdev->dev, &dev_attr_queues);
+	if (retval) goto err_func;
 
 	/* ... then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
@@ -2047,6 +2063,14 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 
 	/* pci writes may still be posted */
 	return 0;
+
+err_func:
+	device_remove_file (&dev->pdev->dev, &dev_attr_function);
+err_unbind:
+	driver->unbind (&dev->gadget);
+	dev->gadget.dev.driver = NULL;
+	dev->driver = NULL;
+	return retval;
 }
 EXPORT_SYMBOL (usb_gadget_register_driver);
 
@@ -2165,7 +2189,8 @@ static void handle_ep_small (struct net2280_ep *ep)
 					ep->stopped = 1;
 					set_halt (ep);
 					mode = 2;
-				} else if (!req && !ep->stopped)
+				} else if (ep->responded &&
+						!req && !ep->stopped)
 					write_fifo (ep, NULL);
 			}
 		} else {
@@ -2180,7 +2205,7 @@ static void handle_ep_small (struct net2280_ep *ep)
 			} else if (((t & (1 << DATA_OUT_PING_TOKEN_INTERRUPT))
 					&& req
 					&& req->req.actual == req->req.length)
-					|| !req) {
+					|| (ep->responded && !req)) {
 				ep->dev->protocol_stall = 1;
 				set_halt (ep);
 				ep->stopped = 1;
@@ -2241,7 +2266,8 @@ static void handle_ep_small (struct net2280_ep *ep)
 				req->td->dmacount = 0;
 				t = readl (&ep->regs->ep_avail);
 				dma_done (ep, req, count,
-					(ep->out_overflow || t) ? -EOVERFLOW : 0);
+					(ep->out_overflow || t)
+						? -EOVERFLOW : 0);
 			}
 
 			/* also flush to prevent erratum 0106 trouble */
@@ -2411,7 +2437,7 @@ static void handle_stat0_irqs (struct net2280 *dev, u32 stat)
 			, &ep->regs->ep_stat);
 		u.raw [0] = readl (&dev->usb->setup0123);
 		u.raw [1] = readl (&dev->usb->setup4567);
-		
+
 		cpu_to_le32s (&u.raw [0]);
 		cpu_to_le32s (&u.raw [1]);
 
@@ -2445,6 +2471,7 @@ static void handle_stat0_irqs (struct net2280 *dev, u32 stat)
 		/* we made the hardware handle most lowlevel requests;
 		 * everything else goes uplevel to the gadget code.
 		 */
+		ep->responded = 1;
 		switch (u.r.bRequest) {
 		case USB_REQ_GET_STATUS: {
 			struct net2280_ep	*e;
@@ -2513,6 +2540,7 @@ delegate:
 				u.r.bRequestType, u.r.bRequest,
 				w_value, w_index, w_length,
 				readl (&ep->regs->ep_cfg));
+			ep->responded = 0;
 			spin_unlock (&dev->lock);
 			tmp = dev->driver->setup (&dev->gadget, &u.r);
 			spin_lock (&dev->lock);
@@ -2578,14 +2606,16 @@ static void handle_stat1_irqs (struct net2280 *dev, u32 stat)
 
 	/* VBUS disconnect is indicated by VBUS_PIN and VBUS_INTERRUPT set.
 	 * Root Port Reset is indicated by ROOT_PORT_RESET_INTERRRUPT set and
-	 * both HIGH_SPEED and FULL_SPEED clear (as ROOT_PORT_RESET_INTERRUPT 
+	 * both HIGH_SPEED and FULL_SPEED clear (as ROOT_PORT_RESET_INTERRUPT
 	 * only indicates a change in the reset state).
 	 */
 	if (stat & tmp) {
 		writel (tmp, &dev->regs->irqstat1);
-		if ((((stat & (1 << ROOT_PORT_RESET_INTERRUPT)) && 
-				((readl (&dev->usb->usbstat) & mask) == 0))
-				|| ((readl (&dev->usb->usbctl) & (1 << VBUS_PIN)) == 0) 
+		if ((((stat & (1 << ROOT_PORT_RESET_INTERRUPT))
+					&& ((readl (&dev->usb->usbstat) & mask)
+							== 0))
+				|| ((readl (&dev->usb->usbctl)
+					& (1 << VBUS_PIN)) == 0)
 			    ) && ( dev->gadget.speed != USB_SPEED_UNKNOWN)) {
 			DEBUG (dev, "disconnect %s\n",
 					dev->driver->driver.name);
@@ -2737,7 +2767,7 @@ static void handle_stat1_irqs (struct net2280 *dev, u32 stat)
 		DEBUG (dev, "unhandled irqstat1 %08x\n", stat);
 }
 
-static irqreturn_t net2280_irq (int irq, void *_dev, struct pt_regs * r)
+static irqreturn_t net2280_irq (int irq, void *_dev)
 {
 	struct net2280		*dev = _dev;
 
@@ -2831,7 +2861,7 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* alloc, and start init */
-	dev = kzalloc (sizeof *dev, SLAB_KERNEL);
+	dev = kzalloc (sizeof *dev, GFP_KERNEL);
 	if (dev == NULL){
 		retval = -ENOMEM;
 		goto done;
@@ -2852,7 +2882,7 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* now all the pci goodies ... */
 	if (pci_enable_device (pdev) < 0) {
-   	        retval = -ENODEV;
+	        retval = -ENODEV;
 		goto done;
 	}
 	dev->enabled = 1;
@@ -2869,6 +2899,10 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 		goto done;
 	}
 	dev->region = 1;
+
+	/* FIXME provide firmware download interface to put
+	 * 8051 code into the chip, e.g. to turn on PCI PM.
+	 */
 
 	base = ioremap_nocache (resource, len);
 	if (base == NULL) {
@@ -2954,8 +2988,10 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 				: "disabled");
 	the_controller = dev;
 
-	device_register (&dev->gadget.dev);
-	device_create_file (&pdev->dev, &dev_attr_registers);
+	retval = device_register (&dev->gadget.dev);
+	if (retval) goto done;
+	retval = device_create_file (&pdev->dev, &dev_attr_registers);
+	if (retval) goto done;
 
 	return 0;
 
@@ -2984,16 +3020,16 @@ static void net2280_shutdown (struct pci_dev *pdev)
 
 /*-------------------------------------------------------------------------*/
 
-static struct pci_device_id pci_ids [] = { {
-	.class = 	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
-	.class_mask = 	~0,
+static const struct pci_device_id pci_ids [] = { {
+	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
+	.class_mask =	~0,
 	.vendor =	0x17cc,
 	.device =	0x2280,
 	.subvendor =	PCI_ANY_ID,
 	.subdevice =	PCI_ANY_ID,
 }, {
-	.class = 	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
-	.class_mask = 	~0,
+	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
+	.class_mask =	~0,
 	.vendor =	0x17cc,
 	.device =	0x2282,
 	.subvendor =	PCI_ANY_ID,

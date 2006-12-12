@@ -725,7 +725,7 @@ static int serdma_reg_access(struct cs4297a_state *s, u64 data)
         serdma_t *d = &s->dma_dac;
         u64 *data_p;
         unsigned swptr;
-        int flags;
+        unsigned long flags;
         serdma_descr_t *descr;
 
         if (s->reg_request) {
@@ -2505,7 +2505,7 @@ static /*const */ struct file_operations cs4297a_audio_fops = {
 	.release	= cs4297a_release,
 };
 
-static void cs4297a_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static void cs4297a_interrupt(int irq, void *dev_id)
 {
 	struct cs4297a_state *s = (struct cs4297a_state *) dev_id;
         u32 status;

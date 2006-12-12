@@ -69,34 +69,28 @@
  * zero to MAXTC, the PLL will converge in 15 minutes to 16 hours,
  * respectively.
  */
-#define SHIFT_KG 6		/* phase factor (shift) */
-#define SHIFT_KF 16		/* PLL frequency factor (shift) */
-#define SHIFT_KH 2		/* FLL frequency factor (shift) */
-#define MAXTC 6			/* maximum time constant (shift) */
+#define SHIFT_PLL	4	/* PLL frequency factor (shift) */
+#define SHIFT_FLL	2	/* FLL frequency factor (shift) */
+#define MAXTC		10	/* maximum time constant (shift) */
 
 /*
- * The SHIFT_SCALE define establishes the decimal point of the time_phase
- * variable which serves as an extension to the low-order bits of the
- * system clock variable. The SHIFT_UPDATE define establishes the decimal
- * point of the time_offset variable which represents the current offset
- * with respect to standard time. The FINENSEC define represents 1 nsec in
- * scaled units.
+ * The SHIFT_UPDATE define establishes the decimal point of the
+ * time_offset variable which represents the current offset with
+ * respect to standard time.
  *
  * SHIFT_USEC defines the scaling (shift) of the time_freq and
  * time_tolerance variables, which represent the current frequency
  * offset and maximum frequency tolerance.
- *
- * FINENSEC is 1 ns in SHIFT_UPDATE units of the time_phase variable.
  */
-#define SHIFT_SCALE 22		/* phase scale (shift) */
-#define SHIFT_UPDATE (SHIFT_KG + MAXTC) /* time offset scale (shift) */
+#define SHIFT_UPDATE (SHIFT_HZ + 1) /* time offset scale (shift) */
 #define SHIFT_USEC 16		/* frequency offset scale (shift) */
-#define FINENSEC (1L << (SHIFT_SCALE - 10)) /* ~1 ns in phase units */
+#define SHIFT_NSEC 12		/* kernel frequency offset scale */
 
 #define MAXPHASE 512000L        /* max phase error (us) */
 #define MAXFREQ (512L << SHIFT_USEC)  /* max frequency error (ppm) */
-#define MINSEC 16L              /* min interval between updates (s) */
-#define MAXSEC 1200L            /* max interval between updates (s) */
+#define MAXFREQ_NSEC (512000L << SHIFT_NSEC) /* max frequency error (ppb) */
+#define MINSEC 256		/* min interval between updates (s) */
+#define MAXSEC 2048		/* max interval between updates (s) */
 #define	NTP_PHASE_LIMIT	(MAXPHASE << 5)	/* beyond max. dispersion */
 
 /*
@@ -204,33 +198,15 @@ extern int tickadj;			/* amount of adjustment per tick */
 /*
  * phase-lock loop variables
  */
-extern int time_state;		/* clock status */
 extern int time_status;		/* clock synchronization status bits */
-extern long time_offset;	/* time adjustment (us) */
-extern long time_constant;	/* pll time constant */
-extern long time_tolerance;	/* frequency tolerance (ppm) */
-extern long time_precision;	/* clock precision (us) */
 extern long time_maxerror;	/* maximum error */
 extern long time_esterror;	/* estimated error */
 
 extern long time_freq;		/* frequency offset (scaled ppm) */
-extern long time_reftime;	/* time at last adjustment (s) */
 
 extern long time_adjust;	/* The amount of adjtime left */
-extern long time_next_adjust;	/* Value for time_adjust at next tick */
 
-/**
- * ntp_clear - Clears the NTP state variables
- *
- * Must be called while holding a write on the xtime_lock
- */
-static inline void ntp_clear(void)
-{
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
-}
+extern void ntp_clear(void);
 
 /**
  * ntp_synced - Returns 1 if the NTP status is not UNSYNC
@@ -294,11 +270,15 @@ extern void register_time_interpolator(struct time_interpolator *);
 extern void unregister_time_interpolator(struct time_interpolator *);
 extern void time_interpolator_reset(void);
 extern unsigned long time_interpolator_get_offset(void);
+extern void time_interpolator_update(long delta_nsec);
 
 #else /* !CONFIG_TIME_INTERPOLATION */
 
-static inline void
-time_interpolator_reset(void)
+static inline void time_interpolator_reset(void)
+{
+}
+
+static inline void time_interpolator_update(long delta_nsec)
 {
 }
 
@@ -309,7 +289,12 @@ time_interpolator_reset(void)
 /* Returns how long ticks are at present, in ns / 2^(SHIFT_SCALE-10). */
 extern u64 current_tick_length(void);
 
+extern void second_overflow(void);
+extern void update_ntp_one_tick(void);
 extern int do_adjtimex(struct timex *);
+
+/* Don't use! Compatibility define for existing users. */
+#define tickadj	(500/HZ ? : 1)
 
 #endif /* KERNEL */
 

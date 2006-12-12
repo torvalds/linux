@@ -15,7 +15,7 @@ Main Scheduling Methods
 void load_balance(runqueue_t *this_rq, int idle)
 	Attempts to pull tasks from one cpu to another to balance cpu usage,
 	if needed.  This method is called explicitly if the runqueues are
-	inbalanced or periodically by the timer tick.  Prior to calling,
+	imbalanced or periodically by the timer tick.  Prior to calling,
 	the current runqueue must be locked and interrupts disabled.
 
 void schedule()

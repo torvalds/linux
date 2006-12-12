@@ -254,7 +254,7 @@ for(i=0;i<TYPE_1_IRQS;i++)
 return 0;
 }
 
-static irqreturn_t aurora_interrupt(int irq, void * dev_id, struct pt_regs * regs);
+static irqreturn_t aurora_interrupt(int irq, void * dev_id);
 
 /* Main probing routine, also sets irq. */
 static int aurora_probe(void)
@@ -689,7 +689,7 @@ static void aurora_check_modem(struct Aurora_board const * bp, int chip)
 }
 
 /* The main interrupt processing routine */
-static irqreturn_t aurora_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+static irqreturn_t aurora_interrupt(int irq, void * dev_id)
 {
 	unsigned char status;
 	unsigned char ack,chip/*,chip_id*/;
@@ -2187,7 +2187,7 @@ static void do_softint(void *private_)
 #endif
 }
 
-static struct tty_operations aurora_ops = {
+static const struct tty_operations aurora_ops = {
 	.open  = aurora_open,
 	.close = aurora_close,
 	.write = aurora_write,

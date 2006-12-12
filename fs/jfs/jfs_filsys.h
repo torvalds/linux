@@ -3,16 +3,16 @@
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef _H_JFS_FILSYS
@@ -21,46 +21,37 @@
 /*
  *	jfs_filsys.h
  *
- * file system (implementation-dependent) constants 
+ * file system (implementation-dependent) constants
  *
- * refer to <limits.h> for system wide implementation-dependent constants 
+ * refer to <limits.h> for system wide implementation-dependent constants
  */
 
 /*
  *	 file system option (superblock flag)
  */
-/* mount time flag to disable journaling to disk */
-#define JFS_NOINTEGRITY 0x00000010
+
+/* directory option */
+#define JFS_UNICODE	0x00000001	/* unicode name */
 
 /* mount time flags for error handling */
 #define JFS_ERR_REMOUNT_RO 0x00000002   /* remount read-only */
 #define JFS_ERR_CONTINUE   0x00000004   /* continue */
 #define JFS_ERR_PANIC      0x00000008   /* panic */
 
+/* Quota support */
 #define	JFS_USRQUOTA	0x00000010
 #define	JFS_GRPQUOTA	0x00000020
 
-/* platform option (conditional compilation) */
-#define JFS_AIX		0x80000000	/* AIX support */
-/*	POSIX name/directory  support */
-
-#define JFS_OS2		0x40000000	/* OS/2 support */
-/*	case-insensitive name/directory support */
-
-#define JFS_DFS		0x20000000	/* DCE DFS LFS support */
-
-#define JFS_LINUX      	0x10000000	/* Linux support */
-/*	case-sensitive name/directory support */
-
-/* directory option */
-#define JFS_UNICODE	0x00000001	/* unicode name */
+/* mount time flag to disable journaling to disk */
+#define JFS_NOINTEGRITY 0x00000040
 
 /* commit option */
 #define	JFS_COMMIT	0x00000f00	/* commit option mask */
 #define	JFS_GROUPCOMMIT	0x00000100	/* group (of 1) commit */
 #define	JFS_LAZYCOMMIT	0x00000200	/* lazy commit */
-#define	JFS_TMPFS	0x00000400	/* temporary file system - 
+#define	JFS_TMPFS	0x00000400	/* temporary file system -
 					 * do not log/commit:
+					 * Never implemented
 					 */
 
 /* log logical volume option */
@@ -74,16 +65,25 @@
 #define JFS_SPARSE	0x00020000	/* sparse regular file */
 
 /* DASD Limits		F226941 */
-#define JFS_DASD_ENABLED	0x00040000	/* DASD limits enabled */
-#define	JFS_DASD_PRIME		0x00080000	/* Prime DASD usage on boot */
+#define JFS_DASD_ENABLED 0x00040000	/* DASD limits enabled */
+#define	JFS_DASD_PRIME	0x00080000	/* Prime DASD usage on boot */
 
 /* big endian flag */
-#define	JFS_SWAP_BYTES		0x00100000	/* running on big endian computer */
+#define	JFS_SWAP_BYTES	0x00100000	/* running on big endian computer */
 
 /* Directory index */
-#define JFS_DIR_INDEX		0x00200000	/* Persistant index for */
-						/* directory entries    */
+#define JFS_DIR_INDEX	0x00200000	/* Persistent index for */
 
+/* platform options */
+#define JFS_LINUX	0x10000000	/* Linux support */
+#define JFS_DFS		0x20000000	/* DCE DFS LFS support */
+/*	Never implemented */
+
+#define JFS_OS2		0x40000000	/* OS/2 support */
+/*	case-insensitive name/directory support */
+
+#define JFS_AIX		0x80000000	/* AIX support */
+/*	POSIX name/directory  support - Never implemented*/
 
 /*
  *	buffer cache configuration
@@ -196,7 +196,7 @@
 					 * followed by 1st extent of map
 					 */
 #define AITBL_OFF	(AIMAP_OFF + (SIZE_OF_MAP_PAGE << 1))
-					/* 
+					/*
 					 * 1st extent of aggregate inode table
 					 */
 #define SUPER2_OFF	(AITBL_OFF + INODE_EXTENT_SIZE)
@@ -270,13 +270,13 @@
  */
 #define FM_CLEAN 0x00000000	/* file system is unmounted and clean */
 #define FM_MOUNT 0x00000001	/* file system is mounted cleanly */
-#define FM_DIRTY 0x00000002	/* file system was not unmounted and clean 
-				 * when mounted or 
+#define FM_DIRTY 0x00000002	/* file system was not unmounted and clean
+				 * when mounted or
 				 * commit failure occurred while being mounted:
-				 * fsck() must be run to repair 
+				 * fsck() must be run to repair
 				 */
 #define	FM_LOGREDO 0x00000004	/* log based recovery (logredo()) failed:
-				 * fsck() must be run to repair 
+				 * fsck() must be run to repair
 				 */
 #define	FM_EXTENDFS 0x00000008	/* file system extendfs() in progress */
 

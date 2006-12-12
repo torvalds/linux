@@ -74,7 +74,7 @@ struct irport_cb {
 	/* For piggyback drivers */
 	void *priv;                
 	void (*change_speed)(void *priv, __u32 speed);
-	int (*interrupt)(int irq, void *dev_id, struct pt_regs *regs);
+	irqreturn_t (*interrupt)(int irq, void *dev_id);
 };
 
 #endif /* IRPORT_H */

@@ -30,7 +30,65 @@ struct new_utsname {
 	char domainname[65];
 };
 
-extern struct new_utsname system_utsname;
+#ifdef __KERNEL__
+
+#include <linux/sched.h>
+#include <linux/kref.h>
+#include <linux/nsproxy.h>
+#include <asm/atomic.h>
+
+struct uts_namespace {
+	struct kref kref;
+	struct new_utsname name;
+};
+extern struct uts_namespace init_uts_ns;
+
+static inline void get_uts_ns(struct uts_namespace *ns)
+{
+	kref_get(&ns->kref);
+}
+
+#ifdef CONFIG_UTS_NS
+extern int unshare_utsname(unsigned long unshare_flags,
+				struct uts_namespace **new_uts);
+extern int copy_utsname(int flags, struct task_struct *tsk);
+extern void free_uts_ns(struct kref *kref);
+
+static inline void put_uts_ns(struct uts_namespace *ns)
+{
+	kref_put(&ns->kref, free_uts_ns);
+}
+#else
+static inline int unshare_utsname(unsigned long unshare_flags,
+			struct uts_namespace **new_uts)
+{
+	if (unshare_flags & CLONE_NEWUTS)
+		return -EINVAL;
+
+	return 0;
+}
+
+static inline int copy_utsname(int flags, struct task_struct *tsk)
+{
+	return 0;
+}
+static inline void put_uts_ns(struct uts_namespace *ns)
+{
+}
+#endif
+
+static inline struct new_utsname *utsname(void)
+{
+	return &current->nsproxy->uts_ns->name;
+}
+
+static inline struct new_utsname *init_utsname(void)
+{
+	return &init_uts_ns.name;
+}
 
 extern struct rw_semaphore uts_sem;
-#endif
+
+#endif /* __KERNEL__ */
+
+#endif /* _LINUX_UTSNAME_H */

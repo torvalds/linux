@@ -82,12 +82,17 @@ struct sol_stat64 {
 
 static inline int putstat(struct sol_stat __user *ubuf, struct kstat *kbuf)
 {
+	u32 ino;
+
 	if (kbuf->size > MAX_NON_LFS ||
 	    !sysv_valid_dev(kbuf->dev) ||
 	    !sysv_valid_dev(kbuf->rdev))
 		return -EOVERFLOW;
+	ino = kbuf->ino;
+	if (sizeof(ino) < sizeof(kbuf->ino) && ino != kbuf->ino)
+		return -EOVERFLOW;
 	if (put_user (sysv_encode_dev(kbuf->dev), &ubuf->st_dev)	||
-	    __put_user (kbuf->ino, &ubuf->st_ino)		||
+	    __put_user (ino, &ubuf->st_ino)				||
 	    __put_user (kbuf->mode, &ubuf->st_mode)		||
 	    __put_user (kbuf->nlink, &ubuf->st_nlink)	||
 	    __put_user (kbuf->uid, &ubuf->st_uid)		||
@@ -444,7 +449,7 @@ asmlinkage int solaris_fstatvfs(unsigned int fd, u32 buf)
 	error = -EBADF;
 	file = fget(fd);
 	if (file) {
-		error = report_statvfs(file->f_vfsmnt, file->f_dentry->d_inode, buf);
+		error = report_statvfs(file->f_path.mnt, file->f_path.dentry->d_inode, buf);
 		fput(file);
 	}
 
@@ -476,7 +481,7 @@ asmlinkage int solaris_fstatvfs64(unsigned int fd, u32 buf)
 	file = fget(fd);
 	if (file) {
 		lock_kernel();
-		error = report_statvfs64(file->f_vfsmnt, file->f_dentry->d_inode, buf);
+		error = report_statvfs64(file->f_path.mnt, file->f_path.dentry->d_inode, buf);
 		unlock_kernel();
 		fput(file);
 	}

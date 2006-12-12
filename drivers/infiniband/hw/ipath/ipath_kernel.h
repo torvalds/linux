@@ -39,6 +39,8 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <asm/io.h>
 
 #include "ipath_common.h"
@@ -62,7 +64,7 @@ struct ipath_portdata {
 	/* rcvhdrq base, needs mmap before useful */
 	void *port_rcvhdrq;
 	/* kernel virtual address where hdrqtail is updated */
-	volatile __le64 *port_rcvhdrtail_kvaddr;
+	void *port_rcvhdrtail_kvaddr;
 	/*
 	 * temp buffer for expected send setup, allocated at open, instead
 	 * of each setup call
@@ -79,8 +81,8 @@ struct ipath_portdata {
 	dma_addr_t port_rcvhdrq_phys;
 	dma_addr_t port_rcvhdrqtailaddr_phys;
 	/*
-	 * number of opens on this instance (0 or 1; ignoring forks, dup,
-	 * etc. for now)
+	 * number of opens (including slave subports) on this instance
+	 * (ignoring forks, dup, etc. for now)
 	 */
 	int port_cnt;
 	/*
@@ -89,6 +91,10 @@ struct ipath_portdata {
 	 */
 	/* instead of calculating it */
 	unsigned port_port;
+	/* non-zero if port is being shared. */
+	u16 port_subport_cnt;
+	/* non-zero if port is being shared. */
+	u16 port_subport_id;
 	/* chip offset of PIO buffers for this port */
 	u32 port_piobufs;
 	/* how many alloc_pages() chunks in port_rcvegrbuf_pages */
@@ -121,6 +127,16 @@ struct ipath_portdata {
 	u16 port_pkeys[4];
 	/* so file ops can get at unit */
 	struct ipath_devdata *port_dd;
+	/* A page of memory for rcvhdrhead, rcvegrhead, rcvegrtail * N */
+	void *subport_uregbase;
+	/* An array of pages for the eager receive buffers * N */
+	void *subport_rcvegrbuf;
+	/* An array of pages for the eager header queue entries * N */
+	void *subport_rcvhdr_base;
+	/* The version of the library which opened this port */
+	u32 userversion;
+	/* Bitmask of active slaves */
+	u32 active_slaves;
 };
 
 struct sk_buff;
@@ -130,6 +146,11 @@ struct sk_buff;
  */
 struct _ipath_layer {
 	void *l_arg;
+};
+
+struct ipath_skbinfo {
+	struct sk_buff *skb;
+	dma_addr_t phys;
 };
 
 struct ipath_devdata {
@@ -154,7 +175,7 @@ struct ipath_devdata {
 	/* ipath_cfgports pointers */
 	struct ipath_portdata **ipath_pd;
 	/* sk_buffs used by port 0 eager receive queue */
-	struct sk_buff **ipath_port0_skbs;
+	struct ipath_skbinfo *ipath_port0_skbinfo;
 	/* kvirt address of 1st 2k pio buffer */
 	void __iomem *ipath_pio2kbase;
 	/* kvirt address of 1st 4k pio buffer */
@@ -192,6 +213,8 @@ struct ipath_devdata {
 	void (*ipath_f_setextled)(struct ipath_devdata *, u64, u64);
 	/* fill out chip-specific fields */
 	int (*ipath_f_get_base_info)(struct ipath_portdata *, void *);
+	/* free irq */
+	void (*ipath_f_free_irq)(struct ipath_devdata *);
 	struct ipath_ibdev *verbs_dev;
 	struct timer_list verbs_timer;
 	/* total dwords sent (summed from counter) */
@@ -307,6 +330,8 @@ struct ipath_devdata {
 	/* so we can rewrite it after a chip reset */
 	u32 ipath_pcibar1;
 
+	/* interrupt number */
+	int ipath_irq;
 	/* HT/PCI Vendor ID (here for NodeInfo) */
 	u16 ipath_vendorid;
 	/* HT/PCI Device ID (here for NodeInfo) */
@@ -315,12 +340,16 @@ struct ipath_devdata {
 	u8 ipath_ht_slave_off;
 	/* for write combining settings */
 	unsigned long ipath_wc_cookie;
+	unsigned long ipath_wc_base;
+	unsigned long ipath_wc_len;
 	/* ref count for each pkey */
 	atomic_t ipath_pkeyrefs[4];
 	/* shadow copy of all exptids physaddr; used only by funcsim */
 	u64 *ipath_tidsimshadow;
 	/* shadow copy of struct page *'s for exp tid pages */
 	struct page **ipath_pageshadow;
+	/* shadow copy of dma handles for exp tid pages */
+	dma_addr_t *ipath_physshadow;
 	/* lock to workaround chip bug 9437 */
 	spinlock_t ipath_tid_lock;
 
@@ -402,6 +431,9 @@ struct ipath_devdata {
 	unsigned long ipath_rcvctrl;
 	/* shadow kr_sendctrl */
 	unsigned long ipath_sendctrl;
+	/* ports waiting for PIOavail intr */
+	unsigned long ipath_portpiowait;
+	unsigned long ipath_lastcancel; /* to not count armlaunch after cancel */
 
 	/* value we put in kr_rcvhdrcnt */
 	u32 ipath_rcvhdrcnt;
@@ -465,8 +497,6 @@ struct ipath_devdata {
 	u32 ipath_htwidth;
 	/* HT speed (200,400,800,1000) from HT config */
 	u32 ipath_htspeed;
-	/* ports waiting for PIOavail intr */
-	unsigned long ipath_portpiowait;
 	/*
 	 * number of sequential ibcstatus change for polling active/quiet
 	 * (i.e., link not coming up).
@@ -510,8 +540,47 @@ struct ipath_devdata {
 	u32 ipath_lli_counter;
 	/* local link integrity errors */
 	u32 ipath_lli_errors;
+	/*
+	 * Above counts only cases where _successive_ LocalLinkIntegrity
+	 * errors were seen in the receive headers of kern-packets.
+	 * Below are the three (monotonically increasing) counters
+	 * maintained via GPIO interrupts on iba6120-rev2.
+	 */
+	u32 ipath_rxfc_unsupvl_errs;
+	u32 ipath_overrun_thresh_errs;
+	u32 ipath_lli_errs;
+
+	/*
+	 * Not all devices managed by a driver instance are the same
+	 * type, so these fields must be per-device.
+	 */
+	u64 ipath_i_bitsextant;
+	ipath_err_t ipath_e_bitsextant;
+	ipath_err_t ipath_hwe_bitsextant;
+
+	/*
+	 * Below should be computable from number of ports,
+	 * since they are never modified.
+	 */
+	u32 ipath_i_rcvavail_mask;
+	u32 ipath_i_rcvurg_mask;
+
+	/*
+	 * Register bits for selecting i2c direction and values, used for
+	 * I2C serial flash.
+	 */
+	u16 ipath_gpio_sda_num;
+	u16 ipath_gpio_scl_num;
+	u64 ipath_gpio_sda;
+	u64 ipath_gpio_scl;
 };
 
+/* Private data for file operations */
+struct ipath_filedata {
+	struct ipath_portdata *pd;
+	unsigned subport;
+	unsigned tidcursor;
+};
 extern struct list_head ipath_dev_list;
 extern spinlock_t ipath_devs_lock;
 extern struct ipath_devdata *ipath_lookup(int unit);
@@ -521,6 +590,7 @@ int ipath_enable_wc(struct ipath_devdata *dd);
 void ipath_disable_wc(struct ipath_devdata *dd);
 int ipath_count_units(int *npresentp, int *nupp, u32 *maxportsp);
 void ipath_shutdown_device(struct ipath_devdata *);
+void ipath_disarm_senderrbufs(struct ipath_devdata *);
 
 struct file_operations;
 int ipath_cdev_init(int minor, char *name, struct file_operations *fops,
@@ -540,7 +610,7 @@ struct sk_buff *ipath_alloc_skb(struct ipath_devdata *dd, gfp_t);
 
 extern int ipath_diag_inuse;
 
-irqreturn_t ipath_intr(int irq, void *devid, struct pt_regs *regs);
+irqreturn_t ipath_intr(int irq, void *devid);
 void ipath_decode_err(char *buf, size_t blen, ipath_err_t err);
 #if __IPATH_INFO || __IPATH_DBG
 extern const char *ipath_ibcstatus_str[];
@@ -572,7 +642,11 @@ int ipath_set_lid(struct ipath_devdata *, u32, u8);
 int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 
 /* for use in system calls, where we want to know device type, etc. */
-#define port_fp(fp) ((struct ipath_portdata *) (fp)->private_data)
+#define port_fp(fp) ((struct ipath_filedata *)(fp)->private_data)->pd
+#define subport_fp(fp) \
+	((struct ipath_filedata *)(fp)->private_data)->subport
+#define tidcursor_fp(fp) \
+	((struct ipath_filedata *)(fp)->private_data)->tidcursor
 
 /*
  * values for ipath_flags
@@ -612,6 +686,15 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 		/* can miss port0 rx interrupts */
 #define IPATH_POLL_RX_INTR  0x40000
 #define IPATH_DISABLED      0x80000 /* administratively disabled */
+		/* Use GPIO interrupts for new counters */
+#define IPATH_GPIO_ERRINTRS 0x100000
+
+/* Bits in GPIO for the added interrupts */
+#define IPATH_GPIO_PORT0_BIT 2
+#define IPATH_GPIO_RXUVL_BIT 3
+#define IPATH_GPIO_OVRUN_BIT 4
+#define IPATH_GPIO_LLI_BIT 5
+#define IPATH_GPIO_ERRINTR_MASK 0x38
 
 /* portdata flag bit offsets */
 		/* waiting for a packet to arrive */
@@ -790,13 +873,17 @@ int ipath_device_create_group(struct device *, struct ipath_devdata *);
 void ipath_device_remove_group(struct device *, struct ipath_devdata *);
 int ipath_expose_reset(struct device *);
 
-int ipath_diagpkt_add(void);
-void ipath_diagpkt_remove(void);
-
 int ipath_init_ipathfs(void);
 void ipath_exit_ipathfs(void);
 int ipathfs_add_device(struct ipath_devdata *);
 int ipathfs_remove_device(struct ipath_devdata *);
+
+/*
+ * dma_addr wrappers - all 0's invalid for hw
+ */
+dma_addr_t ipath_map_page(struct pci_dev *, struct page *, unsigned long,
+			  size_t, int);
+dma_addr_t ipath_map_single(struct pci_dev *, void *, size_t, int);
 
 /*
  * Flush write combining store buffers (if present) and perform a write
@@ -854,5 +941,21 @@ extern struct mutex ipath_mutex;
 # define ipath_cdbg(which,fmt,...)
 
 #endif /* _IPATH_DEBUGGING */
+
+/*
+ * this is used for formatting hw error messages...
+ */
+struct ipath_hwerror_msgs {
+	u64 mask;
+	const char *msg;
+};
+
+#define INFINIPATH_HWE_MSG(a, b) { .mask = INFINIPATH_HWE_##a, .msg = b }
+
+/* in ipath_intr.c... */
+void ipath_format_hwerrors(u64 hwerrs,
+			   const struct ipath_hwerror_msgs *hwerrmsgs,
+			   size_t nhwerrmsgs,
+			   char *msg, size_t lmsg);
 
 #endif				/* _IPATH_KERNEL_H */

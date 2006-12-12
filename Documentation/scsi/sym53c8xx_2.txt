@@ -67,7 +67,7 @@ under Linux is contained in 2 files named sym_glue.h and sym_glue.c.
 Other drivers files are intended not to depend on the Operating System 
 on which the driver is used.
 
-The history of this driver can be summerized as follows:
+The history of this driver can be summarized as follows:
 
 1993: ncr driver written for 386bsd and FreeBSD by:
           Wolfgang Stanglmeier        <wolf@cologne.de>
@@ -609,7 +609,7 @@ appropriate mailing lists or news-groups.  Send me a copy in order to
 be sure I will receive it.  Obviously, a bug in the driver code is
 possible.
 
-  My cyrrent email address: Gerard Roudier <groudier@free.fr>
+  My current email address: Gerard Roudier <groudier@free.fr>
 
 Allowing disconnections is important if you use several devices on
 your SCSI bus but often causes problems with buggy devices.
@@ -684,7 +684,7 @@ Field H : SCNTL3 Scsi Control Register 3
           Contains the setting of timing values for both asynchronous and 
           synchronous data transfers. 
 Field I : SCNTL4 Scsi Control Register 4
-          Only meaninful for 53C1010 Ultra3 controllers.
+          Only meaningful for 53C1010 Ultra3 controllers.
 
 Understanding Fields J, K, L and dumps requires to have good knowledge of 
 SCSI standards, chip cores functionnals and internal driver data structures.

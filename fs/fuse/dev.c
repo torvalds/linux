@@ -19,7 +19,7 @@
 
 MODULE_ALIAS_MISCDEV(FUSE_MINOR);
 
-static kmem_cache_t *fuse_req_cachep;
+static struct kmem_cache *fuse_req_cachep;
 
 static struct fuse_conn *fuse_get_conn(struct file *file)
 {
@@ -41,7 +41,7 @@ static void fuse_request_init(struct fuse_req *req)
 
 struct fuse_req *fuse_request_alloc(void)
 {
-	struct fuse_req *req = kmem_cache_alloc(fuse_req_cachep, SLAB_KERNEL);
+	struct fuse_req *req = kmem_cache_alloc(fuse_req_cachep, GFP_KERNEL);
 	if (req)
 		fuse_request_init(req);
 	return req;
@@ -212,6 +212,7 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
  * Called with fc->lock, unlocks it
  */
 static void request_end(struct fuse_conn *fc, struct fuse_req *req)
+	__releases(fc->lock)
 {
 	void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
 	req->end = NULL;
@@ -640,6 +641,7 @@ static void request_wait(struct fuse_conn *fc)
  */
 static int fuse_read_interrupt(struct fuse_conn *fc, struct fuse_req *req,
 			       const struct iovec *iov, unsigned long nr_segs)
+	__releases(fc->lock)
 {
 	struct fuse_copy_state cs;
 	struct fuse_in_header ih;
@@ -678,14 +680,15 @@ static int fuse_read_interrupt(struct fuse_conn *fc, struct fuse_req *req,
  * request_end().  Otherwise add it to the processing list, and set
  * the 'sent' flag.
  */
-static ssize_t fuse_dev_readv(struct file *file, const struct iovec *iov,
-			      unsigned long nr_segs, loff_t *off)
+static ssize_t fuse_dev_read(struct kiocb *iocb, const struct iovec *iov,
+			      unsigned long nr_segs, loff_t pos)
 {
 	int err;
 	struct fuse_req *req;
 	struct fuse_in *in;
 	struct fuse_copy_state cs;
 	unsigned reqsize;
+	struct file *file = iocb->ki_filp;
 	struct fuse_conn *fc = fuse_get_conn(file);
 	if (!fc)
 		return -EPERM;
@@ -759,15 +762,6 @@ static ssize_t fuse_dev_readv(struct file *file, const struct iovec *iov,
 	return err;
 }
 
-static ssize_t fuse_dev_read(struct file *file, char __user *buf,
-			     size_t nbytes, loff_t *off)
-{
-	struct iovec iov;
-	iov.iov_len = nbytes;
-	iov.iov_base = buf;
-	return fuse_dev_readv(file, &iov, 1, off);
-}
-
 /* Look up request on processing list by unique ID */
 static struct fuse_req *request_find(struct fuse_conn *fc, u64 unique)
 {
@@ -812,15 +806,15 @@ static int copy_out_args(struct fuse_copy_state *cs, struct fuse_out *out,
  * it from the list and copy the rest of the buffer to the request.
  * The request is finished by calling request_end()
  */
-static ssize_t fuse_dev_writev(struct file *file, const struct iovec *iov,
-			       unsigned long nr_segs, loff_t *off)
+static ssize_t fuse_dev_write(struct kiocb *iocb, const struct iovec *iov,
+			       unsigned long nr_segs, loff_t pos)
 {
 	int err;
 	unsigned nbytes = iov_length(iov, nr_segs);
 	struct fuse_req *req;
 	struct fuse_out_header oh;
 	struct fuse_copy_state cs;
-	struct fuse_conn *fc = fuse_get_conn(file);
+	struct fuse_conn *fc = fuse_get_conn(iocb->ki_filp);
 	if (!fc)
 		return -EPERM;
 
@@ -894,15 +888,6 @@ static ssize_t fuse_dev_writev(struct file *file, const struct iovec *iov,
  err_finish:
 	fuse_copy_finish(&cs);
 	return err;
-}
-
-static ssize_t fuse_dev_write(struct file *file, const char __user *buf,
-			      size_t nbytes, loff_t *off)
-{
-	struct iovec iov;
-	iov.iov_len = nbytes;
-	iov.iov_base = (char __user *) buf;
-	return fuse_dev_writev(file, &iov, 1, off);
 }
 
 static unsigned fuse_dev_poll(struct file *file, poll_table *wait)
@@ -1039,10 +1024,10 @@ static int fuse_dev_fasync(int fd, struct file *file, int on)
 const struct file_operations fuse_dev_operations = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
-	.read		= fuse_dev_read,
-	.readv		= fuse_dev_readv,
-	.write		= fuse_dev_write,
-	.writev		= fuse_dev_writev,
+	.read		= do_sync_read,
+	.aio_read	= fuse_dev_read,
+	.write		= do_sync_write,
+	.aio_write	= fuse_dev_write,
 	.poll		= fuse_dev_poll,
 	.release	= fuse_dev_release,
 	.fasync		= fuse_dev_fasync,

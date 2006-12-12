@@ -6,10 +6,10 @@
  */
 
 #include <linux/fs.h>
-#include <linux/ext2_fs.h>
 #include <linux/ctype.h>
 #include <linux/capability.h>
 #include <linux/time.h>
+#include <linux/sched.h>
 #include <asm/current.h>
 #include <asm/uaccess.h>
 
@@ -22,13 +22,13 @@ static struct {
 	long jfs_flag;
 	long ext2_flag;
 } jfs_map[] = {
-	{JFS_NOATIME_FL, EXT2_NOATIME_FL},
-	{JFS_DIRSYNC_FL, EXT2_DIRSYNC_FL},
-	{JFS_SYNC_FL, EXT2_SYNC_FL},
-	{JFS_SECRM_FL, EXT2_SECRM_FL},
-	{JFS_UNRM_FL, EXT2_UNRM_FL},
-	{JFS_APPEND_FL, EXT2_APPEND_FL},
-	{JFS_IMMUTABLE_FL, EXT2_IMMUTABLE_FL},
+	{JFS_NOATIME_FL,	FS_NOATIME_FL},
+	{JFS_DIRSYNC_FL,	FS_DIRSYNC_FL},
+	{JFS_SYNC_FL,		FS_SYNC_FL},
+	{JFS_SECRM_FL,		FS_SECRM_FL},
+	{JFS_UNRM_FL,		FS_UNRM_FL},
+	{JFS_APPEND_FL,		FS_APPEND_FL},
+	{JFS_IMMUTABLE_FL,	FS_IMMUTABLE_FL},
 	{0, 0},
 };
 

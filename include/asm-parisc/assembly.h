@@ -29,7 +29,8 @@
 #define LDREGX  ldd,s
 #define LDREGM	ldd,mb
 #define STREGM	std,ma
-#define SHRREG  shrd
+#define SHRREG	shrd
+#define SHLREG	shld
 #define RP_OFFSET	16
 #define FRAME_SIZE	128
 #define CALLEE_REG_FRAME_SIZE	144
@@ -39,7 +40,8 @@
 #define LDREGX  ldwx,s
 #define LDREGM	ldwm
 #define STREGM	stwm
-#define SHRREG  shr
+#define SHRREG	shr
+#define SHLREG	shlw
 #define RP_OFFSET	20
 #define FRAME_SIZE	64
 #define CALLEE_REG_FRAME_SIZE	128

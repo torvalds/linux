@@ -13,12 +13,25 @@ Supported chips:
                        from Super I/O config space (8 I/O ports)
     Datasheet: Publicly available at the ITE website
                http://www.ite.com.tw/
+  * IT8716F
+    Prefix: 'it8716'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+    Datasheet: Publicly available at the ITE website
+               http://www.ite.com.tw/product_info/file/pc/IT8716F_V0.3.ZIP
+  * IT8718F
+    Prefix: 'it8718'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+    Datasheet: Publicly available at the ITE website
+               http://www.ite.com.tw/product_info/file/pc/IT8718F_V0.2.zip
+               http://www.ite.com.tw/product_info/file/pc/IT8718F_V0%203_(for%20C%20version).zip
   * SiS950   [clone of IT8705F]
     Prefix: 'it87'
     Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: No longer be available
 
-Author: Christophe Gauthron <chrisg@0-in.com>
+Authors:
+    Christophe Gauthron <chrisg@0-in.com>
+    Jean Delvare <khali@linux-fr.org>
 
 
 Module Parameters
@@ -43,26 +56,46 @@ Module Parameters
 Description
 -----------
 
-This driver implements support for the IT8705F, IT8712F and SiS950 chips.
-
-This driver also supports IT8712F, which adds SMBus access, and a VID
-input, used to report the Vcore voltage of the Pentium processor.
-The IT8712F additionally features VID inputs.
+This driver implements support for the IT8705F, IT8712F, IT8716F,
+IT8718F and SiS950 chips.
 
 These chips are 'Super I/O chips', supporting floppy disks, infrared ports,
 joysticks and other miscellaneous stuff. For hardware monitoring, they
 include an 'environment controller' with 3 temperature sensors, 3 fan
 rotation speed sensors, 8 voltage sensors, and associated alarms.
 
+The IT8712F and IT8716F additionally feature VID inputs, used to report
+the Vcore voltage of the processor. The early IT8712F have 5 VID pins,
+the IT8716F and late IT8712F have 6. They are shared with other functions
+though, so the functionality may not be available on a given system.
+The driver dumbly assume it is there.
+
+The IT8718F also features VID inputs (up to 8 pins) but the value is
+stored in the Super-I/O configuration space. Due to technical limitations,
+this value can currently only be read once at initialization time, so
+the driver won't notice and report changes in the VID value. The two
+upper VID bits share their pins with voltage inputs (in5 and in6) so you
+can't have both on a given board.
+
+The IT8716F, IT8718F and later IT8712F revisions have support for
+2 additional fans. They are not yet supported by the driver.
+
+The IT8716F and IT8718F, and late IT8712F and IT8705F also have optional
+16-bit tachometer counters for fans 1 to 3. This is better (no more fan
+clock divider mess) but not compatible with the older chips and
+revisions. For now, the driver only uses the 16-bit mode on the
+IT8716F and IT8718F.
+
 Temperatures are measured in degrees Celsius. An alarm is triggered once
 when the Overtemperature Shutdown limit is crossed.
 
 Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
-triggered if the rotation speed has dropped below a programmable limit. Fan
-readings can be divided by a programmable divider (1, 2, 4 or 8) to give the
-readings more range or accuracy. Not all RPM values can accurately be
-represented, so some rounding is done. With a divider of 2, the lowest
-representable value is around 2600 RPM.
+triggered if the rotation speed has dropped below a programmable limit. When
+16-bit tachometer counters aren't used, fan readings can be divided by
+a programmable divider (1, 2, 4 or 8) to give the readings more range or
+accuracy. With a divider of 2, the lowest representable value is around
+2600 RPM. Not all RPM values can accurately be represented, so some rounding
+is done.
 
 Voltage sensors (also known as IN sensors) report their values in volts. An
 alarm is triggered if the voltage has crossed a programmable minimum or
@@ -71,9 +104,9 @@ zero'; this is important for negative voltage measurements. All voltage
 inputs can measure voltages between 0 and 4.08 volts, with a resolution of
 0.016 volt. The battery voltage in8 does not have limit registers.
 
-The VID lines (IT8712F only) encode the core voltage value: the voltage
-level your processor should work with. This is hardcoded by the mainboard
-and/or processor itself. It is a value in volts.
+The VID lines (IT8712F/IT8716F/IT8718F) encode the core voltage value:
+the voltage level your processor should work with. This is hardcoded by
+the mainboard and/or processor itself. It is a value in volts.
 
 If an alarm triggers, it will remain triggered until the hardware register
 is read at least once. This means that the cause for the alarm may already

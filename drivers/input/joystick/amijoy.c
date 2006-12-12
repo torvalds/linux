@@ -57,7 +57,7 @@ static DEFINE_MUTEX(amijoy_mutex);
 static struct input_dev *amijoy_dev[2];
 static char *amijoy_phys[2] = { "amijoy/input0", "amijoy/input1" };
 
-static irqreturn_t amijoy_interrupt(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t amijoy_interrupt(int irq, void *dummy)
 {
 	int i, data = 0, button = 0;
 
@@ -68,8 +68,6 @@ static irqreturn_t amijoy_interrupt(int irq, void *dummy, struct pt_regs *fp)
 				case 0: data = ~amiga_custom.joy0dat; button = (~ciaa.pra >> 6) & 1; break;
 				case 1: data = ~amiga_custom.joy1dat; button = (~ciaa.pra >> 7) & 1; break;
 			}
-
-			input_regs(amijoy_dev[i], fp);
 
 			input_report_key(amijoy_dev[i], BTN_TRIGGER, button);
 
@@ -149,7 +147,11 @@ static int __init amijoy_init(void)
 			amijoy_dev[i]->absmax[ABS_X + j] = 1;
 		}
 
-		input_register_device(amijoy_dev[i]);
+		err = input_register_device(amijoy_dev[i]);
+		if (err) {
+			input_free_device(amijoy_dev[i]);
+			goto fail;
+		}
 	}
 	return 0;
 

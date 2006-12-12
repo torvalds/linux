@@ -56,6 +56,9 @@ endef
 # gcc support functions
 # See documentation in Documentation/kbuild/makefiles.txt
 
+# output directory for tests below
+TMPOUT := $(if $(KBUILD_EXTMOD),$(firstword $(KBUILD_EXTMOD))/)
+
 # as-option
 # Usage: cflags-y += $(call as-option, -Wa$(comma)-isa=foo,)
 
@@ -66,9 +69,11 @@ as-option = $(shell if $(CC) $(CFLAGS) $(1) -Wa,-Z -c -o /dev/null \
 # as-instr
 # Usage: cflags-y += $(call as-instr, instr, option1, option2)
 
-as-instr = $(shell if echo -e "$(1)" | $(AS) >/dev/null 2>&1 -W -Z -o astest$$$$.out ; \
-		   then echo "$(2)"; else echo "$(3)"; fi; \
-	           rm -f astest$$$$.out)
+as-instr = $(shell if echo -e "$(1)" | \
+		      $(CC) $(AFLAGS) -c -xassembler - \
+			    -o $(TMPOUT)astest$$$$.out > /dev/null 2>&1; \
+		   then rm $(TMPOUT)astest$$$$.out; echo "$(2)"; \
+		   else echo "$(3)"; fi)
 
 # cc-option
 # Usage: cflags-y += $(call cc-option, -march=winchip-c6, -march=i586)
@@ -97,10 +102,10 @@ cc-ifversion = $(shell if [ $(call cc-version, $(CC)) $(1) $(2) ]; then \
 
 # ld-option
 # Usage: ldflags += $(call ld-option, -Wl$(comma)--hash-style=both)
-ld-option = $(shell if $(CC) $(1) \
-			     -nostdlib -o ldtest$$$$.out -xc /dev/null \
-             > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi; \
-	     rm -f ldtest$$$$.out)
+ld-option = $(shell if $(CC) $(1) -nostdlib -xc /dev/null \
+			     -o $(TMPOUT)ldtest$$$$.out > /dev/null 2>&1; \
+             then rm $(TMPOUT)ldtest$$$$.out; echo "$(1)"; \
+             else echo "$(2)"; fi)
 
 ###
 # Shorthand for $(Q)$(MAKE) -f scripts/Makefile.build obj=

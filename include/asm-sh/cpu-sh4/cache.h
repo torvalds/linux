@@ -22,7 +22,9 @@
 #define CCR_CACHE_ICE	0x0100	/* Instruction Cache Enable */
 #define CCR_CACHE_ICI	0x0800	/* IC Invalidate */
 #define CCR_CACHE_IIX	0x8000	/* IC Index Enable */
+#ifndef CONFIG_CPU_SH4A
 #define CCR_CACHE_EMODE	0x80000000	/* EMODE Enable */
+#endif
 
 /* Default CCR setup: 8k+16k-byte cache,P1-wb,enable */
 #define CCR_CACHE_ENABLE	(CCR_CACHE_OCE|CCR_CACHE_ICE)

@@ -52,16 +52,19 @@ static struct intc intc0 = {
 asmlinkage void do_IRQ(int level, struct pt_regs *regs)
 {
 	struct irq_desc *desc;
+	struct pt_regs *old_regs;
 	unsigned int irq;
 	unsigned long status_reg;
 
 	local_irq_disable();
 
+	old_regs = set_irq_regs(regs);
+
 	irq_enter();
 
 	irq = intc_readl(&intc0, INTCAUSE0 - 4 * level);
 	desc = irq_desc + irq;
-	desc->handle_irq(irq, desc, regs);
+	desc->handle_irq(irq, desc);
 
 	/*
 	 * Clear all interrupt level masks so that we may handle
@@ -75,6 +78,8 @@ asmlinkage void do_IRQ(int level, struct pt_regs *regs)
 	sysreg_write(SR, status_reg);
 
 	irq_exit();
+
+	set_irq_regs(old_regs);
 }
 
 void __init init_IRQ(void)
@@ -131,3 +136,7 @@ fail:
 	panic("Interrupt controller initialization failed!\n");
 }
 
+unsigned long intc_get_pending(int group)
+{
+	return intc_readl(&intc0, INTREQ0 + 4 * group);
+}

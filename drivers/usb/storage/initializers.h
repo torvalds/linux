@@ -47,4 +47,3 @@ int usb_stor_euscsi_init(struct us_data *us);
 /* This function is required to activate all four slots on the UCR-61S2B
  * flash reader */
 int usb_stor_ucr61s2b_init(struct us_data *us);
-int rio_karma_init(struct us_data *us);

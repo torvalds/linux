@@ -90,6 +90,9 @@ extern IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_pinnacle_color[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_hauppauge_new[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_npgtech[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_norwood[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_proteus_2309[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_budget_ci_old[IR_KEYTAB_SIZE];
 
 #endif
 

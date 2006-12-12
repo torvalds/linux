@@ -1,5 +1,5 @@
 /*
- * arch/xtensa/kernel/platform.c
+ * arch/xtensa/kernel/module.c
  *
  * Module support.
  *

@@ -44,7 +44,7 @@ struct voyager_SUS *voyager_SUS = NULL;
 
 #ifdef CONFIG_SMP
 static void
-voyager_dump(int dummy1, struct pt_regs *dummy2, struct tty_struct *dummy3)
+voyager_dump(int dummy1, struct tty_struct *dummy3)
 {
 	/* get here via a sysrq */
 	voyager_smp_dump();
@@ -87,7 +87,7 @@ voyager_detect(struct voyager_bios_info *bios)
 }
 
 void
-voyager_system_interrupt(int cpl, void *dev_id, struct pt_regs *regs)
+voyager_system_interrupt(int cpl, void *dev_id)
 {
 	printk("Voyager: detected system interrupt\n");
 }
@@ -166,7 +166,7 @@ voyager_memory_detect(int region, __u32 *start, __u32 *length)
  * off the timer tick to the SMP code, since the VIC doesn't have an
  * internal timer (The QIC does, but that's another story). */
 void
-voyager_timer_interrupt(struct pt_regs *regs)
+voyager_timer_interrupt(void)
 {
 	if((jiffies & 0x3ff) == 0) {
 
@@ -202,7 +202,7 @@ voyager_timer_interrupt(struct pt_regs *regs)
 		}
 	}
 #ifdef CONFIG_SMP
-	smp_vic_timer_interrupt(regs);
+	smp_vic_timer_interrupt();
 #endif
 }
 

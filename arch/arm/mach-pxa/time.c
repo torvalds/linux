@@ -75,7 +75,7 @@ static int match_posponed;
 #endif
 
 static irqreturn_t
-pxa_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+pxa_timer_interrupt(int irq, void *dev_id)
 {
 	int next_match;
 
@@ -105,7 +105,7 @@ pxa_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * exactly one tick period which should be a pretty rare event.
 	 */
 	do {
-		timer_tick(regs);
+		timer_tick();
 		OSSR = OSSR_M0;  /* Clear match on timer 0 */
 		next_match = (OSMR0 += LATCH);
 	} while( (signed long)(next_match - OSCR) <= 8 );
@@ -124,6 +124,7 @@ static struct irqaction pxa_timer_irq = {
 static void __init pxa_timer_init(void)
 {
 	struct timespec tv;
+	unsigned long flags;
 
 	set_rtc = pxa_set_rtc;
 
@@ -132,12 +133,12 @@ static void __init pxa_timer_init(void)
 	do_settimeofday(&tv);
 
 	OIER = 0;		/* disable any timer interrupts */
-	OSCR = LATCH*2;		/* push OSCR out of the way */
-	OSMR0 = LATCH;		/* set initial match */
 	OSSR = 0xf;		/* clear status on all timers */
 	setup_irq(IRQ_OST0, &pxa_timer_irq);
+	local_irq_save(flags);
 	OIER = OIER_E0;		/* enable match on timer 0 to cause interrupts */
-	OSCR = 0;		/* initialize free-running timer */
+	OSMR0 = OSCR + LATCH;	/* set initial match */
+	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_NO_IDLE_HZ
@@ -157,13 +158,13 @@ static void pxa_dyn_tick_reprogram(unsigned long ticks)
 }
 
 static irqreturn_t
-pxa_dyn_tick_handler(int irq, void *dev_id, struct pt_regs *regs)
+pxa_dyn_tick_handler(int irq, void *dev_id)
 {
 	if (match_posponed) {
 		match_posponed = 0;
 		OSMR0 = initial_match;
 		if ( (signed long)(initial_match - OSCR) <= 8 )
-			return pxa_timer_interrupt(irq, dev_id, regs);
+			return pxa_timer_interrupt(irq, dev_id);
 	}
 	return IRQ_NONE;
 }

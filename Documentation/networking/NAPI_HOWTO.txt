@@ -35,7 +35,7 @@ Legend:
 packets out of the rx ring. Note from this that the lower the
 load the more we could clean up the rxring
 "Ndone" == is the converse of "Done". Note again, that the higher
-the load the more times we couldnt clean up the rxring.
+the load the more times we couldn't clean up the rxring.
 
 Observe that:
 when the NIC receives 890Kpackets/sec only 17 rx interrupts are generated. 
@@ -95,8 +95,8 @@ There are two types of event register ACK mechanisms.
 		Move all to dev->poll()
 
 C) Ability to detect new work correctly.
-NAPI works by shutting down event interrupts when theres work and
-turning them on when theres none. 
+NAPI works by shutting down event interrupts when there's work and
+turning them on when there's none. 
 New packets might show up in the small window while interrupts were being 
 re-enabled (refer to appendix 2).  A packet might sneak in during the period 
 we are enabling interrupts. We only get to know about such a packet when the 
@@ -114,7 +114,7 @@ Locking rules and environmental guarantees
 only one CPU can pick the initial interrupt and hence the initial
 netif_rx_schedule(dev);
 - The core layer invokes devices to send packets in a round robin format.
-This implies receive is totaly lockless because of the guarantee only that 
+This implies receive is totally lockless because of the guarantee that only 
 one CPU is executing it.
 -  contention can only be the result of some other CPU accessing the rx
 ring. This happens only in close() and suspend() (when these methods
@@ -510,7 +510,7 @@ static int my_poll (struct net_device *dev, int *budget)
 			an interrupt will be generated */
                         goto done;
 	}
-	/* done! at least thats what it looks like ;->
+	/* done! at least that's what it looks like ;->
 	if new packets came in after our last check on status bits
 	they'll be caught by the while check and we go back and clear them 
 	since we havent exceeded our quota */
@@ -535,11 +535,11 @@ done:
         * 1. it can race with disabling irqs in irq handler (which are done to 
 	* schedule polls)
         * 2. it can race with dis/enabling irqs in other poll threads
-        * 3. if an irq raised after the begining of the outer  beginning 
-        * loop(marked in the code above), it will be immediately
+        * 3. if an irq raised after the beginning of the outer beginning 
+        * loop (marked in the code above), it will be immediately
         * triggered here.
         *
-        * Summarizing: the logic may results in some redundant irqs both
+        * Summarizing: the logic may result in some redundant irqs both
         * due to races in masking and due to too late acking of already
         * processed irqs. The good news: no events are ever lost.
         */
@@ -601,7 +601,7 @@ a)
 	
 5) dev->close() and dev->suspend() issues
 ==========================================
-The driver writter neednt worry about this. The top net layer takes
+The driver writer needn't worry about this; the top net layer takes
 care of it.
 
 6) Adding new Stats to /proc 
@@ -622,9 +622,9 @@ FC should be programmed to apply in the case when the system cant pull out
 packets fast enough i.e send a pause only when you run out of rx buffers.
 Note FC in itself is a good solution but we have found it to not be
 much of a commodity feature (both in NICs and switches) and hence falls
-under the same category as using NIC based mitigation. Also experiments
-indicate that its much harder to resolve the resource allocation
-issue (aka lazy receiving that NAPI offers) and hence quantify its usefullness
+under the same category as using NIC based mitigation. Also, experiments
+indicate that it's much harder to resolve the resource allocation
+issue (aka lazy receiving that NAPI offers) and hence quantify its usefulness
 proved harder. In any case, FC works even better with NAPI but is not
 necessary.
 
@@ -678,10 +678,10 @@ routine:
 CSR5 bit of interest is only the rx status. 
 If you look at the last if statement: 
 you just finished grabbing all the packets from the rx ring .. you check if
-status bit says theres more packets just in ... it says none; you then
+status bit says there are more packets just in ... it says none; you then
 enable rx interrupts again; if a new packet just came in during this check,
 we are counting that CSR5 will be set in that small window of opportunity
-and that by re-enabling interrupts, we would actually triger an interrupt
+and that by re-enabling interrupts, we would actually trigger an interrupt
 to register the new packet for processing.
 
 [The above description nay be very verbose, if you have better wording 

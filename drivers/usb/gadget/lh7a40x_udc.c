@@ -83,7 +83,6 @@ static int lh7a40x_queue(struct usb_ep *ep, struct usb_request *, gfp_t);
 static int lh7a40x_dequeue(struct usb_ep *ep, struct usb_request *);
 static int lh7a40x_set_halt(struct usb_ep *ep, int);
 static int lh7a40x_fifo_status(struct usb_ep *ep);
-static int lh7a40x_fifo_status(struct usb_ep *ep);
 static void lh7a40x_fifo_flush(struct usb_ep *ep);
 static void lh7a40x_ep0_kick(struct lh7a40x_udc *dev, struct lh7a40x_ep *ep);
 static void lh7a40x_handle_ep0(struct lh7a40x_udc *dev, u32 intr);
@@ -922,7 +921,7 @@ static void lh7a40x_reset_intr(struct lh7a40x_udc *dev)
 /*
  *	lh7a40x usb client interrupt handler.
  */
-static irqreturn_t lh7a40x_udc_irq(int irq, void *_dev, struct pt_regs *r)
+static irqreturn_t lh7a40x_udc_irq(int irq, void *_dev)
 {
 	struct lh7a40x_udc *dev = _dev;
 

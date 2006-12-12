@@ -1,5 +1,5 @@
 /*
- * sound/sb_mixer.h
+ * sound/oss/sb_mixer.h
  * 
  * Definitions for the SB Pro and SB16 mixers
  */

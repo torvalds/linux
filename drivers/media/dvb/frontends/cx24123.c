@@ -45,9 +45,6 @@ struct cx24123_state
 
 	struct dvb_frontend frontend;
 
-	u32 lastber;
-	u16 snr;
-
 	/* Some PLL specifics for tuning */
 	u32 VCAarg;
 	u32 VGAarg;
@@ -194,7 +191,7 @@ static struct {
 	{0x06, 0x31}, /* MPEG (default) */
 	{0x0b, 0x00}, /* Freq search start point (default) */
 	{0x0c, 0x00}, /* Demodulator sample gain (default) */
-	{0x0d, 0x02}, /* Frequency search range = Fsymbol / 4 (default) */
+	{0x0d, 0x7f}, /* Force driver to shift until the maximum (+-10 MHz) */
 	{0x0e, 0x03}, /* Default non-inverted, FEC 3/4 (default) */
 	{0x0f, 0xfe}, /* FEC search mask (all supported codes) */
 	{0x10, 0x01}, /* Default search inversion, no repeat (default) */
@@ -223,8 +220,9 @@ static struct {
 	{0x44, 0x00}, /* Constellation (default) */
 	{0x45, 0x00}, /* Symbol count (default) */
 	{0x46, 0x0d}, /* Symbol rate estimator on (default) */
-	{0x56, 0x41}, /* Various (default) */
+	{0x56, 0xc1}, /* Error Counter = Viterbi BER */
 	{0x57, 0xff}, /* Error Counter Window (default) */
+	{0x5c, 0x20}, /* Acquisition AFC Expiration window (default is 0x10) */
 	{0x67, 0x83}, /* Non-DCII symbol clock */
 };
 
@@ -320,6 +318,12 @@ static int cx24123_set_fec(struct cx24123_state* state, fe_code_rate_t fec)
 
 	if ( (fec < FEC_NONE) || (fec > FEC_AUTO) )
 		fec = FEC_AUTO;
+
+	/* Set the soft decision threshold */
+	if(fec == FEC_1_2)
+		cx24123_writereg(state, 0x43, cx24123_readreg(state, 0x43) | 0x01);
+	else
+		cx24123_writereg(state, 0x43, cx24123_readreg(state, 0x43) & ~0x01);
 
 	switch (fec) {
 	case FEC_1_2:
@@ -549,8 +553,8 @@ static int cx24123_pll_calculate(struct dvb_frontend* fe, struct dvb_frontend_pa
 	ndiv = ( ((p->frequency * vco_div * 10) / (2 * XTAL / 1000)) / 32) & 0x1ff;
 	adiv = ( ((p->frequency * vco_div * 10) / (2 * XTAL / 1000)) % 32) & 0x1f;
 
-	if (adiv == 0)
-		ndiv++;
+	if (adiv == 0 && ndiv > 0)
+		ndiv--;
 
 	/* control bits 11, refdiv 11, charge pump polarity 1, charge pump current, ndiv, adiv */
 	state->pllarg = (3 << 19) | (3 << 17) | (1 << 16) | (pump << 14) | (ndiv << 5) | adiv;
@@ -657,6 +661,10 @@ static int cx24123_initfe(struct dvb_frontend* fe)
 	for (i = 0; i < sizeof(cx24123_regdata) / sizeof(cx24123_regdata[0]); i++)
 		cx24123_writereg(state, cx24123_regdata[i].reg, cx24123_regdata[i].data);
 
+	/* Set the LNB polarity */
+	if(state->config->lnb_polarity)
+		cx24123_writereg(state, 0x32, cx24123_readreg(state, 0x32) | 0x02);
+
 	return 0;
 }
 
@@ -674,6 +682,9 @@ static int cx24123_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage
 	case SEC_VOLTAGE_18:
 		dprintk("%s: setting voltage 18V\n", __FUNCTION__);
 		return cx24123_writereg(state, 0x29, val | 0x80);
+	case SEC_VOLTAGE_OFF:
+		/* already handled in cx88-dvb */
+		return 0;
 	default:
 		return -EINVAL;
 	};
@@ -776,13 +787,15 @@ static int cx24123_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	if (lock & 0x01)
 		*status |= FE_HAS_SIGNAL;
 	if (sync & 0x02)
-		*status |= FE_HAS_CARRIER;
+		*status |= FE_HAS_CARRIER;	/* Phase locked */
 	if (sync & 0x04)
 		*status |= FE_HAS_VITERBI;
+
+	/* Reed-Solomon Status */
 	if (sync & 0x08)
 		*status |= FE_HAS_SYNC;
 	if (sync & 0x80)
-		*status |= FE_HAS_LOCK;
+		*status |= FE_HAS_LOCK;		/*Full Sync */
 
 	return 0;
 }
@@ -795,29 +808,13 @@ static int cx24123_read_ber(struct dvb_frontend* fe, u32* ber)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
 
-	state->lastber =
-		((cx24123_readreg(state, 0x1c) & 0x3f) << 16) |
+	/* The true bit error rate is this value divided by
+	   the window size (set as 256 * 255) */
+	*ber = ((cx24123_readreg(state, 0x1c) & 0x3f) << 16) |
 		(cx24123_readreg(state, 0x1d) << 8 |
-		cx24123_readreg(state, 0x1e));
+		 cx24123_readreg(state, 0x1e));
 
-	/* Do the signal quality processing here, it's derived from the BER. */
-	/* Scale the BER from a 24bit to a SNR 16 bit where higher = better */
-	if (state->lastber < 5000)
-		state->snr = 655*100;
-	else if ( (state->lastber >=   5000) && (state->lastber <  55000) )
-		state->snr = 655*90;
-	else if ( (state->lastber >=  55000) && (state->lastber < 150000) )
-		state->snr = 655*80;
-	else if ( (state->lastber >= 150000) && (state->lastber < 250000) )
-		state->snr = 655*70;
-	else if ( (state->lastber >= 250000) && (state->lastber < 450000) )
-		state->snr = 655*65;
-	else
-		state->snr = 0;
-
-	dprintk("%s:  BER = %d, S/N index = %d\n",__FUNCTION__,state->lastber, state->snr);
-
-	*ber = state->lastber;
+	dprintk("%s:  BER = %d\n",__FUNCTION__,*ber);
 
 	return 0;
 }
@@ -825,6 +822,7 @@ static int cx24123_read_ber(struct dvb_frontend* fe, u32* ber)
 static int cx24123_read_signal_strength(struct dvb_frontend* fe, u16* signal_strength)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
+
 	*signal_strength = cx24123_readreg(state, 0x3b) << 8; /* larger = better */
 
 	dprintk("%s:  Signal strength = %d\n",__FUNCTION__,*signal_strength);
@@ -835,19 +833,13 @@ static int cx24123_read_signal_strength(struct dvb_frontend* fe, u16* signal_str
 static int cx24123_read_snr(struct dvb_frontend* fe, u16* snr)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
-	*snr = state->snr;
+
+	/* Inverted raw Es/N0 count, totally bogus but better than the
+	   BER threshold. */
+	*snr = 65535 - (((u16)cx24123_readreg(state, 0x18) << 8) |
+			 (u16)cx24123_readreg(state, 0x19));
 
 	dprintk("%s:  read S/N index = %d\n",__FUNCTION__,*snr);
-
-	return 0;
-}
-
-static int cx24123_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
-{
-	struct cx24123_state *state = fe->demodulator_priv;
-	*ucblocks = state->lastber;
-
-	dprintk("%s:  ucblocks (ber) = %d\n",__FUNCTION__,*ucblocks);
 
 	return 0;
 }
@@ -922,6 +914,29 @@ static int cx24123_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 	return 0;
 }
 
+static int cx24123_tune(struct dvb_frontend* fe,
+			struct dvb_frontend_parameters* params,
+			unsigned int mode_flags,
+			int *delay,
+			fe_status_t *status)
+{
+	int retval = 0;
+
+	if (params != NULL)
+		retval = cx24123_set_frontend(fe, params);
+
+	if (!(mode_flags & FE_TUNE_MODE_ONESHOT))
+		cx24123_read_status(fe, status);
+	*delay = HZ/10;
+
+	return retval;
+}
+
+static int cx24123_get_algo(struct dvb_frontend *fe)
+{
+	return 1; //FE_ALGO_HW
+}
+
 static void cx24123_release(struct dvb_frontend* fe)
 {
 	struct cx24123_state* state = fe->demodulator_priv;
@@ -949,8 +964,6 @@ struct dvb_frontend* cx24123_attach(const struct cx24123_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	state->lastber = 0;
-	state->snr = 0;
 	state->VCAarg = 0;
 	state->VGAarg = 0;
 	state->bandselectarg = 0;
@@ -1003,11 +1016,12 @@ static struct dvb_frontend_ops cx24123_ops = {
 	.read_ber = cx24123_read_ber,
 	.read_signal_strength = cx24123_read_signal_strength,
 	.read_snr = cx24123_read_snr,
-	.read_ucblocks = cx24123_read_ucblocks,
 	.diseqc_send_master_cmd = cx24123_send_diseqc_msg,
 	.diseqc_send_burst = cx24123_diseqc_send_burst,
 	.set_tone = cx24123_set_tone,
 	.set_voltage = cx24123_set_voltage,
+	.tune = cx24123_tune,
+	.get_frontend_algo = cx24123_get_algo,
 };
 
 module_param(debug, int, 0644);

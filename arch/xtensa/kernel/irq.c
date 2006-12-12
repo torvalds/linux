@@ -4,7 +4,7 @@
  * Xtensa built-in interrupt controller and some generic functions copied
  * from i386.
  *
- * Copyright (C) 2002 - 2005 Tensilica, Inc.
+ * Copyright (C) 2002 - 2006 Tensilica, Inc.
  * Copyright (C) 1992, 1998 Linus Torvalds, Ingo Molnar
  *
  *
@@ -21,11 +21,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/platform.h>
-
-static void enable_xtensa_irq(unsigned int irq);
-static void disable_xtensa_irq(unsigned int irq);
-static void mask_and_ack_xtensa(unsigned int irq);
-static void end_xtensa_irq(unsigned int irq);
 
 static unsigned int cached_irq_mask;
 
@@ -46,8 +41,16 @@ void ack_bad_irq(unsigned int irq)
  * handlers).
  */
 
-unsigned int  do_IRQ(int irq, struct pt_regs *regs)
+asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
+	struct irq_desc *desc = irq_desc + irq;
+
+	if (irq >= NR_IRQS) {
+		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
+				__FUNCTION__, irq);
+	}
+
 	irq_enter();
 
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
@@ -63,12 +66,10 @@ unsigned int  do_IRQ(int irq, struct pt_regs *regs)
 			       sp - sizeof(struct thread_info));
 	}
 #endif
-
-	__do_IRQ(irq, regs);
+	desc->handle_irq(irq, desc);
 
 	irq_exit();
-
-	return 1;
+	set_irq_regs(old_regs);
 }
 
 /*
@@ -118,72 +119,68 @@ skip:
 	}
 	return 0;
 }
-/* shutdown is same as "disable" */
-#define shutdown_xtensa_irq disable_xtensa_irq
 
-static unsigned int startup_xtensa_irq(unsigned int irq)
-{
-	enable_xtensa_irq(irq);
-	return 0;               /* never anything pending */
-}
-
-static struct hw_interrupt_type xtensa_irq_type = {
-	"Xtensa-IRQ",
-	startup_xtensa_irq,
-	shutdown_xtensa_irq,
-	enable_xtensa_irq,
-	disable_xtensa_irq,
-	mask_and_ack_xtensa,
-	end_xtensa_irq
-};
-
-static inline void mask_irq(unsigned int irq)
+static void xtensa_irq_mask(unsigned int irq)
 {
 	cached_irq_mask &= ~(1 << irq);
 	set_sr (cached_irq_mask, INTENABLE);
 }
 
-static inline void unmask_irq(unsigned int irq)
+static void xtensa_irq_unmask(unsigned int irq)
 {
 	cached_irq_mask |= 1 << irq;
 	set_sr (cached_irq_mask, INTENABLE);
 }
 
-static void disable_xtensa_irq(unsigned int irq)
+static void xtensa_irq_ack(unsigned int irq)
 {
-	unsigned long flags;
-	local_save_flags(flags);
-	mask_irq(irq);
-	local_irq_restore(flags);
+	set_sr(1 << irq, INTCLEAR);
 }
 
-static void enable_xtensa_irq(unsigned int irq)
+static int xtensa_irq_retrigger(unsigned int irq)
 {
-	unsigned long flags;
-	local_save_flags(flags);
-	unmask_irq(irq);
-	local_irq_restore(flags);
+	set_sr (1 << irq, INTSET);
+	return 1;
 }
 
-static void mask_and_ack_xtensa(unsigned int irq)
-{
-        disable_xtensa_irq(irq);
-}
 
-static void end_xtensa_irq(unsigned int irq)
-{
-        enable_xtensa_irq(irq);
-}
-
+static struct irq_chip xtensa_irq_chip = {
+	.name		= "xtensa",
+	.mask		= xtensa_irq_mask,
+	.unmask		= xtensa_irq_unmask,
+	.ack		= xtensa_irq_ack,
+	.retrigger	= xtensa_irq_retrigger,
+};
 
 void __init init_IRQ(void)
 {
-	int i;
+	int index;
 
-	for (i=0; i < XTENSA_NR_IRQS; i++)
-		irq_desc[i].chip = &xtensa_irq_type;
+	for (index = 0; index < XTENSA_NR_IRQS; index++) {
+		int mask = 1 << index;
+
+		if (mask & XCHAL_INTTYPE_MASK_SOFTWARE)
+			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+						 handle_simple_irq);
+
+		else if (mask & XCHAL_INTTYPE_MASK_EXTERN_EDGE)
+			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+						 handle_edge_irq);
+
+		else if (mask & XCHAL_INTTYPE_MASK_EXTERN_LEVEL)
+			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+						 handle_level_irq);
+
+		else if (mask & XCHAL_INTTYPE_MASK_TIMER)
+			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+						 handle_edge_irq);
+
+		else	/* XCHAL_INTTYPE_MASK_WRITE_ERROR */
+			/* XCHAL_INTTYPE_MASK_NMI */
+
+			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+						 handle_level_irq);
+	}
 
 	cached_irq_mask = 0;
-
-	platform_init_irq();
 }

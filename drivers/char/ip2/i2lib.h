@@ -332,7 +332,7 @@ static int  i2QueueCommands(int, i2ChanStrPtr, int, int, cmdSyntaxPtr,...);
 static int  i2GetStatus(i2ChanStrPtr, int);
 static int  i2Input(i2ChanStrPtr);
 static int  i2InputFlush(i2ChanStrPtr);
-static int  i2Output(i2ChanStrPtr, const char *, int, int);
+static int  i2Output(i2ChanStrPtr, const char *, int);
 static int  i2OutputFree(i2ChanStrPtr);
 static int  i2ServiceBoard(i2eBordStrPtr);
 static void i2DrainOutput(i2ChanStrPtr, int);

@@ -117,7 +117,9 @@ void irlap_send_snrm_frame(struct irlap_cb *self, struct qos_info *qos)
 	IRDA_ASSERT(self->magic == LAP_MAGIC, return;);
 
 	/* Allocate frame */
-	tx_skb = alloc_skb(64, GFP_ATOMIC);
+	tx_skb = alloc_skb(sizeof(struct snrm_frame) +
+			   IRLAP_NEGOCIATION_PARAMS_LEN,
+			   GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 
@@ -136,7 +138,7 @@ void irlap_send_snrm_frame(struct irlap_cb *self, struct qos_info *qos)
 	 *  If we are establishing a connection then insert QoS paramerters
 	 */
 	if (qos) {
-		skb_put(tx_skb, 9); /* 21 left */
+		skb_put(tx_skb, 9); /* 25 left */
 		frame->saddr = cpu_to_le32(self->saddr);
 		frame->daddr = cpu_to_le32(self->daddr);
 
@@ -210,7 +212,9 @@ void irlap_send_ua_response_frame(struct irlap_cb *self, struct qos_info *qos)
 	IRDA_ASSERT(self->magic == LAP_MAGIC, return;);
 
 	/* Allocate frame */
-	tx_skb = alloc_skb(64, GFP_ATOMIC);
+	tx_skb = alloc_skb(sizeof(struct ua_frame) +
+			   IRLAP_NEGOCIATION_PARAMS_LEN,
+			   GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 
@@ -245,23 +249,23 @@ void irlap_send_ua_response_frame(struct irlap_cb *self, struct qos_info *qos)
 void irlap_send_dm_frame( struct irlap_cb *self)
 {
 	struct sk_buff *tx_skb = NULL;
-	__u8 *frame;
+	struct dm_frame *frame;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == LAP_MAGIC, return;);
 
-	tx_skb = alloc_skb(32, GFP_ATOMIC);
+	tx_skb = alloc_skb(sizeof(struct dm_frame), GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 
-	frame = skb_put(tx_skb, 2);
+	frame = (struct dm_frame *)skb_put(tx_skb, 2);
 
 	if (self->state == LAP_NDM)
-		frame[0] = CBROADCAST;
+		frame->caddr = CBROADCAST;
 	else
-		frame[0] = self->caddr;
+		frame->caddr = self->caddr;
 
-	frame[1] = DM_RSP | PF_BIT;
+	frame->control = DM_RSP | PF_BIT;
 
 	irlap_queue_xmit(self, tx_skb);
 }
@@ -275,21 +279,21 @@ void irlap_send_dm_frame( struct irlap_cb *self)
 void irlap_send_disc_frame(struct irlap_cb *self)
 {
 	struct sk_buff *tx_skb = NULL;
-	__u8 *frame;
+	struct disc_frame *frame;
 
 	IRDA_DEBUG(3, "%s()\n", __FUNCTION__);
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == LAP_MAGIC, return;);
 
-	tx_skb = alloc_skb(16, GFP_ATOMIC);
+	tx_skb = alloc_skb(sizeof(struct disc_frame), GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 
-	frame = skb_put(tx_skb, 2);
+	frame = (struct disc_frame *)skb_put(tx_skb, 2);
 
-	frame[0] = self->caddr | CMD_FRAME;
-	frame[1] = DISC_CMD | PF_BIT;
+	frame->caddr = self->caddr | CMD_FRAME;
+	frame->control = DISC_CMD | PF_BIT;
 
 	irlap_queue_xmit(self, tx_skb);
 }
@@ -315,7 +319,8 @@ void irlap_send_discovery_xid_frame(struct irlap_cb *self, int S, __u8 s,
 	IRDA_ASSERT(self->magic == LAP_MAGIC, return;);
 	IRDA_ASSERT(discovery != NULL, return;);
 
-	tx_skb = alloc_skb(64, GFP_ATOMIC);
+	tx_skb = alloc_skb(sizeof(struct xid_frame) + IRLAP_DISCOVERY_INFO_LEN,
+			   GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 
@@ -573,18 +578,18 @@ static void irlap_recv_discovery_xid_cmd(struct irlap_cb *self,
 void irlap_send_rr_frame(struct irlap_cb *self, int command)
 {
 	struct sk_buff *tx_skb;
-	__u8 *frame;
+	struct rr_frame *frame;
 
-	tx_skb = alloc_skb(16, GFP_ATOMIC);
+	tx_skb = alloc_skb(sizeof(struct rr_frame), GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 
-	frame = skb_put(tx_skb, 2);
+	frame = (struct rr_frame *)skb_put(tx_skb, 2);
 
-	frame[0] = self->caddr;
-	frame[0] |= (command) ? CMD_FRAME : 0;
+	frame->caddr = self->caddr;
+	frame->caddr |= (command) ? CMD_FRAME : 0;
 
-	frame[1] = RR | PF_BIT | (self->vr << 5);
+	frame->control = RR | PF_BIT | (self->vr << 5);
 
 	irlap_queue_xmit(self, tx_skb);
 }
@@ -598,16 +603,16 @@ void irlap_send_rr_frame(struct irlap_cb *self, int command)
 void irlap_send_rd_frame(struct irlap_cb *self)
 {
 	struct sk_buff *tx_skb;
-	__u8 *frame;
+	struct rd_frame *frame;
 
-	tx_skb = alloc_skb(16, GFP_ATOMIC);
+	tx_skb = alloc_skb(sizeof(struct rd_frame), GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 
-	frame = skb_put(tx_skb, 2);
+	frame = (struct rd_frame *)skb_put(tx_skb, 2);
 
-	frame[0] = self->caddr;
-	frame[1] = RD_RSP | PF_BIT;
+	frame->caddr = self->caddr;
+	frame->caddr = RD_RSP | PF_BIT;
 
 	irlap_queue_xmit(self, tx_skb);
 }
@@ -1214,7 +1219,7 @@ void irlap_send_test_frame(struct irlap_cb *self, __u8 caddr, __u32 daddr,
 	struct test_frame *frame;
 	__u8 *info;
 
-	tx_skb = alloc_skb(cmd->len+sizeof(struct test_frame), GFP_ATOMIC);
+	tx_skb = alloc_skb(cmd->len + sizeof(struct test_frame), GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 

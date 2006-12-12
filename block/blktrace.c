@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Jens Axboe <axboe@suse.de>
+ * Copyright (C) 2006 Jens Axboe <axboe@kernel.dk>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -22,10 +22,34 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
+#include <linux/time.h>
 #include <asm/uaccess.h>
 
 static DEFINE_PER_CPU(unsigned long long, blk_trace_cpu_offset) = { 0, };
 static unsigned int blktrace_seq __read_mostly = 1;
+
+/*
+ * Send out a notify message.
+ */
+static void trace_note(struct blk_trace *bt, pid_t pid, int action,
+		       const void *data, size_t len)
+{
+	struct blk_io_trace *t;
+
+	t = relay_reserve(bt->rchan, sizeof(*t) + len);
+	if (t) {
+		const int cpu = smp_processor_id();
+
+		t->magic = BLK_IO_TRACE_MAGIC | BLK_IO_TRACE_VERSION;
+		t->time = sched_clock() - per_cpu(blk_trace_cpu_offset, cpu);
+		t->device = bt->dev;
+		t->action = action;
+		t->pid = pid;
+		t->cpu = cpu;
+		t->pdu_len = len;
+		memcpy((void *) t + sizeof(*t), data, len);
+	}
+}
 
 /*
  * Send out a notify for this process, if we haven't done so since a trace
@@ -33,19 +57,23 @@ static unsigned int blktrace_seq __read_mostly = 1;
  */
 static void trace_note_tsk(struct blk_trace *bt, struct task_struct *tsk)
 {
-	struct blk_io_trace *t;
+	tsk->btrace_seq = blktrace_seq;
+	trace_note(bt, tsk->pid, BLK_TN_PROCESS, tsk->comm, sizeof(tsk->comm));
+}
 
-	t = relay_reserve(bt->rchan, sizeof(*t) + sizeof(tsk->comm));
-	if (t) {
-		t->magic = BLK_IO_TRACE_MAGIC | BLK_IO_TRACE_VERSION;
-		t->device = bt->dev;
-		t->action = BLK_TC_ACT(BLK_TC_NOTIFY);
-		t->pid = tsk->pid;
-		t->cpu = smp_processor_id();
-		t->pdu_len = sizeof(tsk->comm);
-		memcpy((void *) t + sizeof(*t), tsk->comm, t->pdu_len);
-		tsk->btrace_seq = blktrace_seq;
-	}
+static void trace_note_time(struct blk_trace *bt)
+{
+	struct timespec now;
+	unsigned long flags;
+	u32 words[2];
+
+	getnstimeofday(&now);
+	words[0] = now.tv_sec;
+	words[1] = now.tv_nsec;
+
+	local_irq_save(flags);
+	trace_note(bt, 0, BLK_TN_TIMESTAMP, words, sizeof(words));
+	local_irq_restore(flags);
 }
 
 static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
@@ -69,7 +97,7 @@ static u32 ddir_act[2] __read_mostly = { BLK_TC_ACT(BLK_TC_READ), BLK_TC_ACT(BLK
 /*
  * Bio action bits of interest
  */
-static u32 bio_act[5] __read_mostly = { 0, BLK_TC_ACT(BLK_TC_BARRIER), BLK_TC_ACT(BLK_TC_SYNC), 0, BLK_TC_ACT(BLK_TC_AHEAD) };
+static u32 bio_act[9] __read_mostly = { 0, BLK_TC_ACT(BLK_TC_BARRIER), BLK_TC_ACT(BLK_TC_SYNC), 0, BLK_TC_ACT(BLK_TC_AHEAD), 0, 0, 0, BLK_TC_ACT(BLK_TC_META) };
 
 /*
  * More could be added as needed, taking care to increment the decrementer
@@ -81,6 +109,8 @@ static u32 bio_act[5] __read_mostly = { 0, BLK_TC_ACT(BLK_TC_BARRIER), BLK_TC_AC
 	(((rw) & (1 << BIO_RW_SYNC)) >> (BIO_RW_SYNC - 1))
 #define trace_ahead_bit(rw)	\
 	(((rw) & (1 << BIO_RW_AHEAD)) << (2 - BIO_RW_AHEAD))
+#define trace_meta_bit(rw)	\
+	(((rw) & (1 << BIO_RW_META)) >> (BIO_RW_META - 3))
 
 /*
  * The worker for the various blk_add_trace*() types. Fills out a
@@ -103,6 +133,7 @@ void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	what |= bio_act[trace_barrier_bit(rw)];
 	what |= bio_act[trace_sync_bit(rw)];
 	what |= bio_act[trace_ahead_bit(rw)];
+	what |= bio_act[trace_meta_bit(rw)];
 
 	pid = tsk->pid;
 	if (unlikely(act_log_check(bt, what, sector, pid)))
@@ -217,7 +248,7 @@ static int blk_trace_remove(request_queue_t *q)
 
 static int blk_dropped_open(struct inode *inode, struct file *filp)
 {
-	filp->private_data = inode->u.generic_ip;
+	filp->private_data = inode->i_private;
 
 	return 0;
 }
@@ -363,8 +394,7 @@ err:
 	if (bt) {
 		if (bt->dropped_file)
 			debugfs_remove(bt->dropped_file);
-		if (bt->sequence)
-			free_percpu(bt->sequence);
+		free_percpu(bt->sequence);
 		if (bt->rchan)
 			relay_close(bt->rchan);
 		kfree(bt);
@@ -391,6 +421,8 @@ static int blk_trace_startstop(request_queue_t *q, int start)
 			blktrace_seq++;
 			smp_mb();
 			bt->trace_state = Blktrace_running;
+
+			trace_note_time(bt);
 			ret = 0;
 		}
 	} else {
@@ -450,8 +482,10 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
  **/
 void blk_trace_shutdown(request_queue_t *q)
 {
-	blk_trace_startstop(q, 0);
-	blk_trace_remove(q);
+	if (q->blk_trace) {
+		blk_trace_startstop(q, 0);
+		blk_trace_remove(q);
+	}
 }
 
 /*
@@ -471,6 +505,9 @@ static void blk_check_time(unsigned long long *t)
 	*t -= (a + b) / 2;
 }
 
+/*
+ * calibrate our inter-CPU timings
+ */
 static void blk_trace_check_cpu_time(void *data)
 {
 	unsigned long long *t;
@@ -486,20 +523,6 @@ static void blk_trace_check_cpu_time(void *data)
 	blk_check_time(t);
 
 	put_cpu();
-}
-
-/*
- * Call blk_trace_check_cpu_time() on each CPU to calibrate our inter-CPU
- * timings
- */
-static void blk_trace_calibrate_offsets(void)
-{
-	unsigned long flags;
-
-	smp_call_function(blk_trace_check_cpu_time, NULL, 1, 1);
-	local_irq_save(flags);
-	blk_trace_check_cpu_time(NULL);
-	local_irq_restore(flags);
 }
 
 static void blk_trace_set_ht_offsets(void)
@@ -530,7 +553,7 @@ static void blk_trace_set_ht_offsets(void)
 static __init int blk_trace_init(void)
 {
 	mutex_init(&blk_tree_mutex);
-	blk_trace_calibrate_offsets();
+	on_each_cpu(blk_trace_check_cpu_time, NULL, 1, 1);
 	blk_trace_set_ht_offsets();
 
 	return 0;

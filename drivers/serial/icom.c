@@ -844,8 +844,7 @@ static void process_interrupt(u16 port_int_reg,
 	spin_unlock(&icom_port->uart_port.lock);
 }
 
-static irqreturn_t icom_interrupt(int irq, void *dev_id,
-				  struct pt_regs *regs)
+static irqreturn_t icom_interrupt(int irq, void *dev_id)
 {
 	void __iomem * int_reg;
 	u32 adapter_interrupts;
@@ -1088,8 +1087,8 @@ static void icom_close(struct uart_port *port)
 }
 
 static void icom_set_termios(struct uart_port *port,
-			     struct termios *termios,
-			     struct termios *old_termios)
+			     struct ktermios *termios,
+			     struct ktermios *old_termios)
 {
 	int baud;
 	unsigned cflag, iflag;

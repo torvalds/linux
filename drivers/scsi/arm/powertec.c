@@ -112,10 +112,8 @@ powertecscsi_terminator_ctl(struct Scsi_Host *host, int on_off)
  * Purpose  : handle interrupts from Powertec SCSI card
  * Params   : irq    - interrupt number
  *	      dev_id - user-defined (Scsi_Host structure)
- *	      regs   - processor registers at interrupt
  */
-static irqreturn_t
-powertecscsi_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t powertecscsi_intr(int irq, void *dev_id)
 {
 	struct powertec_info *info = dev_id;
 

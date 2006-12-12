@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2000-2004 by David Brownell
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -70,7 +70,7 @@
  * 2002-08-06	Handling for bulk and interrupt transfers is mostly shared;
  *	only scheduling is different, no arbitrary limitations.
  * 2002-07-25	Sanity check PCI reads, mostly for better cardbus support,
- * 	clean up HC run state handshaking.
+ *	clean up HC run state handshaking.
  * 2002-05-24	Preliminary FS/LS interrupts, using scheduling shortcuts
  * 2002-05-11	Clear TT errors for FS/LS ctrl/bulk.  Fill in some other
  *	missing pieces:  enabling 64bit dma, handoff from BIOS/SMM.
@@ -125,6 +125,11 @@ MODULE_PARM_DESC (log2_irq_thresh, "log2 IRQ latency, 1-64 microframes");
 static unsigned park = 0;
 module_param (park, uint, S_IRUGO);
 MODULE_PARM_DESC (park, "park setting; 1-3 back-to-back async packets");
+
+/* for flakey hardware, ignore overcurrent indicators */
+static int ignore_oc = 0;
+module_param (ignore_oc, bool, S_IRUGO);
+MODULE_PARM_DESC (ignore_oc, "ignore bogus hardware overcurrent indications");
 
 #define	INTR_MASK (STS_IAA | STS_FATAL | STS_PCD | STS_ERR | STS_INT)
 
@@ -254,7 +259,7 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 
 /*-------------------------------------------------------------------------*/
 
-static void ehci_work(struct ehci_hcd *ehci, struct pt_regs *regs);
+static void ehci_work(struct ehci_hcd *ehci);
 
 #include "ehci-hub.c"
 #include "ehci-mem.c"
@@ -273,7 +278,6 @@ static void ehci_watchdog (unsigned long param)
 	/* lost IAA irqs wedge things badly; seen with a vt8235 */
 	if (ehci->reclaim) {
 		u32		status = readl (&ehci->regs->status);
-
 		if (status & STS_IAA) {
 			ehci_vdbg (ehci, "lost IAA\n");
 			COUNT (ehci->stats.lost_iaa);
@@ -284,29 +288,28 @@ static void ehci_watchdog (unsigned long param)
 
  	/* stop async processing after it's idled a bit */
 	if (test_bit (TIMER_ASYNC_OFF, &ehci->actions))
- 		start_unlink_async (ehci, ehci->async);
+		start_unlink_async (ehci, ehci->async);
 
 	/* ehci could run by timer, without IRQs ... */
-	ehci_work (ehci, NULL);
+	ehci_work (ehci);
 
 	spin_unlock_irqrestore (&ehci->lock, flags);
 }
 
-/* Reboot notifiers kick in for silicon on any bus (not just pci, etc).
+/* ehci_shutdown kick in for silicon on any bus (not just pci, etc).
  * This forcibly disables dma and IRQs, helping kexec and other cases
  * where the next system software may expect clean state.
  */
-static int
-ehci_reboot (struct notifier_block *self, unsigned long code, void *null)
+static void
+ehci_shutdown (struct usb_hcd *hcd)
 {
-	struct ehci_hcd		*ehci;
+	struct ehci_hcd	*ehci;
 
-	ehci = container_of (self, struct ehci_hcd, reboot_notifier);
+	ehci = hcd_to_ehci (hcd);
 	(void) ehci_halt (ehci);
 
 	/* make BIOS/etc use companion controller during reboot */
 	writel (0, &ehci->regs->configured_flag);
-	return 0;
 }
 
 static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
@@ -331,11 +334,11 @@ static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
  * ehci_work is called from some interrupts, timers, and so on.
  * it calls driver completion functions, after dropping ehci->lock.
  */
-static void ehci_work (struct ehci_hcd *ehci, struct pt_regs *regs)
+static void ehci_work (struct ehci_hcd *ehci)
 {
 	timer_action_done (ehci, TIMER_IO_WATCHDOG);
 	if (ehci->reclaim_ready)
-		end_unlink_async (ehci, regs);
+		end_unlink_async (ehci);
 
 	/* another CPU may drop ehci->lock during a schedule scan while
 	 * it reports urb completions.  this flag guards against bogus
@@ -344,9 +347,9 @@ static void ehci_work (struct ehci_hcd *ehci, struct pt_regs *regs)
 	if (ehci->scanning)
 		return;
 	ehci->scanning = 1;
-	scan_async (ehci, regs);
+	scan_async (ehci);
 	if (ehci->next_uframe != -1)
-		scan_periodic (ehci, regs);
+		scan_periodic (ehci);
 	ehci->scanning = 0;
 
 	/* the IO watchdog guards against hardware or driver bugs that
@@ -381,14 +384,13 @@ static void ehci_stop (struct usb_hcd *hcd)
 
 	/* let companion controllers work when we aren't */
 	writel (0, &ehci->regs->configured_flag);
-	unregister_reboot_notifier (&ehci->reboot_notifier);
 
 	remove_debug_files (ehci);
 
 	/* root hub is shut down separately (first, when possible) */
 	spin_lock_irq (&ehci->lock);
 	if (ehci->async)
-		ehci_work (ehci, NULL);
+		ehci_work (ehci);
 	spin_unlock_irq (&ehci->lock);
 	ehci_mem_cleanup (ehci);
 
@@ -427,7 +429,7 @@ static int ehci_init(struct usb_hcd *hcd)
 
 	/* controllers may cache some of the periodic schedule ... */
 	hcc_params = readl(&ehci->caps->hcc_params);
-	if (HCC_ISOC_CACHE(hcc_params)) 	// full frame cache
+	if (HCC_ISOC_CACHE(hcc_params))		// full frame cache
 		ehci->i_thresh = 8;
 	else					// N microframes cached
 		ehci->i_thresh = 2 + HCC_ISOC_THRES(hcc_params);
@@ -483,9 +485,6 @@ static int ehci_init(struct usb_hcd *hcd)
 	}
 	ehci->command = temp;
 
-	ehci->reboot_notifier.notifier_call = ehci_reboot;
-	register_reboot_notifier(&ehci->reboot_notifier);
-
 	return 0;
 }
 
@@ -499,7 +498,6 @@ static int ehci_run (struct usb_hcd *hcd)
 
 	/* EHCI spec section 4.1 */
 	if ((retval = ehci_reset(ehci)) != 0) {
-		unregister_reboot_notifier(&ehci->reboot_notifier);
 		ehci_mem_cleanup(ehci);
 		return retval;
 	}
@@ -548,9 +546,10 @@ static int ehci_run (struct usb_hcd *hcd)
 
 	temp = HC_VERSION(readl (&ehci->caps->hc_capbase));
 	ehci_info (ehci,
-		"USB %x.%x started, EHCI %x.%02x, driver %s\n",
+		"USB %x.%x started, EHCI %x.%02x, driver %s%s\n",
 		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),
-		temp >> 8, temp & 0xff, DRIVER_VERSION);
+		temp >> 8, temp & 0xff, DRIVER_VERSION,
+		ignore_oc ? ", overcurrent ignored" : "");
 
 	writel (INTR_MASK, &ehci->regs->intr_enable); /* Turn On Interrupts */
 
@@ -565,7 +564,7 @@ static int ehci_run (struct usb_hcd *hcd)
 
 /*-------------------------------------------------------------------------*/
 
-static irqreturn_t ehci_irq (struct usb_hcd *hcd, struct pt_regs *regs)
+static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			status;
@@ -620,9 +619,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd, struct pt_regs *regs)
 		unsigned	i = HCS_N_PORTS (ehci->hcs_params);
 
 		/* resume root hub? */
-		status = readl (&ehci->regs->command);
-		if (!(status & CMD_RUN))
-			writel (status | CMD_RUN, &ehci->regs->command);
+		if (!(readl(&ehci->regs->command) & CMD_RUN))
+			usb_hcd_resume_root_hub(hcd);
 
 		while (i--) {
 			int pstatus = readl (&ehci->regs->port_status [i]);
@@ -639,7 +637,6 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd, struct pt_regs *regs)
 			 */
 			ehci->reset_done [i] = jiffies + msecs_to_jiffies (20);
 			ehci_dbg (ehci, "port %d remote wakeup\n", i + 1);
-			usb_hcd_resume_root_hub(hcd);
 		}
 	}
 
@@ -662,7 +659,7 @@ dead:
 	}
 
 	if (bh)
-		ehci_work (ehci, regs);
+		ehci_work (ehci);
 	spin_unlock (&ehci->lock);
 	return IRQ_HANDLED;
 }
@@ -730,7 +727,7 @@ static void unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	/* bypass IAA if the hc can't care */
 	} else if (!HC_IS_RUNNING (ehci_to_hcd(ehci)->state) && ehci->reclaim)
-		end_unlink_async (ehci, NULL);
+		end_unlink_async (ehci);
 
 	/* something else might have unlinked the qh by now */
 	if (qh->qh_state == QH_STATE_LINKED)
@@ -767,7 +764,7 @@ static int ehci_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 			intr_deschedule (ehci, qh);
 			/* FALL THROUGH */
 		case QH_STATE_IDLE:
-			qh_completions (ehci, qh, NULL);
+			qh_completions (ehci, qh);
 			break;
 		default:
 			ehci_dbg (ehci, "bogus qh %p state %d\n",

@@ -25,7 +25,7 @@
 int ocfs2_prepare_write_nolock(struct inode *inode, struct page *page,
 			       unsigned from, unsigned to);
 
-struct ocfs2_journal_handle *ocfs2_start_walk_page_trans(struct inode *inode,
+handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
 							 struct page *page,
 							 unsigned from,
 							 unsigned to);

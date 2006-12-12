@@ -357,7 +357,7 @@ static int dma_and_signal_ce_msg(char *ce_msg,
  */
 static int shutdown(void)
 {
-	int rc = kill_proc(1, SIGINT, 1);
+	int rc = kill_cad_pid(SIGINT, 1);
 
 	if (rc) {
 		printk(KERN_ALERT "mf.c: SIGINT to init failed (%d), "
@@ -513,7 +513,7 @@ static void handle_ack(struct io_mf_lp_event *event)
  * parse it enough to know if it is an interrupt or an
  * acknowledge.
  */
-static void hv_handler(struct HvLpEvent *event, struct pt_regs *regs)
+static void hv_handler(struct HvLpEvent *event)
 {
 	if ((event != NULL) && (event->xType == HvLpEvent_Type_MachineFac)) {
 		if (hvlpevent_is_ack(event))
@@ -847,7 +847,7 @@ static int mf_get_boot_rtc(struct rtc_time *tm)
 	/* We need to poll here as we are not yet taking interrupts */
 	while (rtc_data.busy) {
 		if (hvlpevent_is_pending())
-			process_hvlpevents(NULL);
+			process_hvlpevents();
 	}
 	return rtc_set_tm(rtc_data.rc, rtc_data.ce_msg.ce_msg, tm);
 }
@@ -1178,7 +1178,7 @@ static ssize_t proc_mf_change_vmlinux(struct file *file,
 				      const char __user *buf,
 				      size_t count, loff_t *ppos)
 {
-	struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
 	ssize_t rc;
 	dma_addr_t dma_addr;
 	char *page;

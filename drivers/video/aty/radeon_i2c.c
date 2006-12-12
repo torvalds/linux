@@ -16,8 +16,6 @@
 #include "radeonfb.h"
 #include "../edid.h"
 
-#define RADEON_DDC 	0x50
-
 static void radeon_gpio_setscl(void* data, int state)
 {
 	struct radeon_i2c_chan 	*chan = data;
@@ -122,124 +120,32 @@ void radeon_create_i2c_busses(struct radeonfb_info *rinfo)
 void radeon_delete_i2c_busses(struct radeonfb_info *rinfo)
 {
 	if (rinfo->i2c[0].rinfo)
-		i2c_bit_del_bus(&rinfo->i2c[0].adapter);
+		i2c_del_adapter(&rinfo->i2c[0].adapter);
 	rinfo->i2c[0].rinfo = NULL;
 
 	if (rinfo->i2c[1].rinfo)
-		i2c_bit_del_bus(&rinfo->i2c[1].adapter);
+		i2c_del_adapter(&rinfo->i2c[1].adapter);
 	rinfo->i2c[1].rinfo = NULL;
 
 	if (rinfo->i2c[2].rinfo)
-		i2c_bit_del_bus(&rinfo->i2c[2].adapter);
+		i2c_del_adapter(&rinfo->i2c[2].adapter);
 	rinfo->i2c[2].rinfo = NULL;
 
 	if (rinfo->i2c[3].rinfo)
-		i2c_bit_del_bus(&rinfo->i2c[3].adapter);
+		i2c_del_adapter(&rinfo->i2c[3].adapter);
 	rinfo->i2c[3].rinfo = NULL;
 }
 
-
-static u8 *radeon_do_probe_i2c_edid(struct radeon_i2c_chan *chan)
-{
-	u8 start = 0x0;
-	struct i2c_msg msgs[] = {
-		{
-			.addr	= RADEON_DDC,
-			.len	= 1,
-			.buf	= &start,
-		}, {
-			.addr	= RADEON_DDC,
-			.flags	= I2C_M_RD,
-			.len	= EDID_LENGTH,
-		},
-	};
-	u8 *buf;
-
-	buf = kmalloc(EDID_LENGTH, GFP_KERNEL);
-	if (!buf) {
-		dev_warn(&chan->rinfo->pdev->dev, "Out of memory!\n");
-		return NULL;
-	}
-	msgs[1].buf = buf;
-
-	if (i2c_transfer(&chan->adapter, msgs, 2) == 2)
-		return buf;
-	dev_dbg(&chan->rinfo->pdev->dev, "Unable to read EDID block.\n");
-	kfree(buf);
-	return NULL;
-}
-
-
-int radeon_probe_i2c_connector(struct radeonfb_info *rinfo, int conn, u8 **out_edid)
+int radeon_probe_i2c_connector(struct radeonfb_info *rinfo, int conn,
+			       u8 **out_edid)
 {
 	u32 reg = rinfo->i2c[conn-1].ddc_reg;
-	u8 *edid = NULL;
-	int i, j;
+	u8 *edid;
 
-	OUTREG(reg, INREG(reg) & 
+	OUTREG(reg, INREG(reg) &
 			~(VGA_DDC_DATA_OUTPUT | VGA_DDC_CLK_OUTPUT));
 
-	OUTREG(reg, INREG(reg) & ~(VGA_DDC_CLK_OUT_EN));
-	(void)INREG(reg);
-
-	for (i = 0; i < 3; i++) {
-		/* For some old monitors we need the
-		 * following process to initialize/stop DDC
-		 */
-		OUTREG(reg, INREG(reg) & ~(VGA_DDC_DATA_OUT_EN));
-		(void)INREG(reg);
-		msleep(13);
-
-		OUTREG(reg, INREG(reg) & ~(VGA_DDC_CLK_OUT_EN));
-		(void)INREG(reg);
-		for (j = 0; j < 5; j++) {
-			msleep(10);
-			if (INREG(reg) & VGA_DDC_CLK_INPUT)
-				break;
-		}
-		if (j == 5)
-			continue;
-
-		OUTREG(reg, INREG(reg) | VGA_DDC_DATA_OUT_EN);
-		(void)INREG(reg);
-		msleep(15);
-		OUTREG(reg, INREG(reg) | VGA_DDC_CLK_OUT_EN);
-		(void)INREG(reg);
-		msleep(15);
-		OUTREG(reg, INREG(reg) & ~(VGA_DDC_DATA_OUT_EN));
-		(void)INREG(reg);
-		msleep(15);
-
-		/* Do the real work */
-		edid = radeon_do_probe_i2c_edid(&rinfo->i2c[conn-1]);
-
-		OUTREG(reg, INREG(reg) | 
-				(VGA_DDC_DATA_OUT_EN | VGA_DDC_CLK_OUT_EN));
-		(void)INREG(reg);
-		msleep(15);
-		
-		OUTREG(reg, INREG(reg) & ~(VGA_DDC_CLK_OUT_EN));
-		(void)INREG(reg);
-		for (j = 0; j < 10; j++) {
-			msleep(10);
-			if (INREG(reg) & VGA_DDC_CLK_INPUT)
-				break;
-		}
-
-		OUTREG(reg, INREG(reg) & ~(VGA_DDC_DATA_OUT_EN));
-		(void)INREG(reg);
-		msleep(15);
-		OUTREG(reg, INREG(reg) |
-				(VGA_DDC_DATA_OUT_EN | VGA_DDC_CLK_OUT_EN));
-		(void)INREG(reg);
-		if (edid)
-			break;
-	}
-	/* Release the DDC lines when done or the Apple Cinema HD display
-	 * will switch off
-	 */
-	OUTREG(reg, INREG(reg) & ~(VGA_DDC_CLK_OUT_EN | VGA_DDC_DATA_OUT_EN));
-	(void)INREG(reg);
+	edid = fb_ddc_read(&rinfo->i2c[conn-1].adapter);
 
 	if (out_edid)
 		*out_edid = edid;

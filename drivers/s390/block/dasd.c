@@ -54,7 +54,7 @@ static void dasd_flush_request_queue(struct dasd_device *);
 static void dasd_int_handler(struct ccw_device *, unsigned long, struct irb *);
 static int dasd_flush_ccw_queue(struct dasd_device *, int);
 static void dasd_tasklet(struct dasd_device *);
-static void do_kick_device(void *data);
+static void do_kick_device(struct work_struct *);
 
 /*
  * SECTION: Operations on the device structure.
@@ -100,7 +100,7 @@ dasd_alloc_device(void)
 		     (unsigned long) device);
 	INIT_LIST_HEAD(&device->ccw_queue);
 	init_timer(&device->timer);
-	INIT_WORK(&device->kick_work, do_kick_device, device);
+	INIT_WORK(&device->kick_work, do_kick_device);
 	device->state = DASD_STATE_NEW;
 	device->target = DASD_STATE_NEW;
 
@@ -203,6 +203,7 @@ dasd_state_basic_to_known(struct dasd_device * device)
 	rc = dasd_flush_ccw_queue(device, 1);
 	if (rc)
 		return rc;
+	dasd_clear_timer(device);
 
 	DBF_DEV_EVENT(DBF_EMERG, device, "%p debug area deleted", device);
 	if (device->debug_area != NULL) {
@@ -406,11 +407,9 @@ dasd_change_state(struct dasd_device *device)
  * event daemon.
  */
 static void
-do_kick_device(void *data)
+do_kick_device(struct work_struct *work)
 {
-	struct dasd_device *device;
-
-	device = (struct dasd_device *) data;
+	struct dasd_device *device = container_of(work, struct dasd_device, kick_work);
 	dasd_change_state(device);
 	dasd_schedule_bh(device);
 	dasd_put_device(device);
@@ -1051,10 +1050,10 @@ dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		}
 	} else {		/* error */
 		memcpy(&cqr->irb, irb, sizeof (struct irb));
-#ifdef ERP_DEBUG
-		/* dump sense data */
-		dasd_log_sense(cqr, irb);
-#endif
+		if (device->features & DASD_FEATURE_ERPLOG) {
+			/* dump sense data */
+			dasd_log_sense(cqr, irb);
+		}
 		switch (era) {
 		case dasd_era_fatal:
 			cqr->status = DASD_CQR_FAILED;
@@ -1263,15 +1262,21 @@ __dasd_check_expire(struct dasd_device * device)
 	if (list_empty(&device->ccw_queue))
 		return;
 	cqr = list_entry(device->ccw_queue.next, struct dasd_ccw_req, list);
-	if (cqr->status == DASD_CQR_IN_IO && cqr->expires != 0) {
-		if (time_after_eq(jiffies, cqr->expires + cqr->starttime)) {
+	if ((cqr->status == DASD_CQR_IN_IO && cqr->expires != 0) &&
+	    (time_after_eq(jiffies, cqr->expires + cqr->starttime))) {
+		if (device->discipline->term_IO(cqr) != 0) {
+			/* Hmpf, try again in 5 sec */
+			dasd_set_timer(device, 5*HZ);
+			DEV_MESSAGE(KERN_ERR, device,
+				    "internal error - timeout (%is) expired "
+				    "for cqr %p, termination failed, "
+				    "retrying in 5s",
+				    (cqr->expires/HZ), cqr);
+		} else {
 			DEV_MESSAGE(KERN_ERR, device,
 				    "internal error - timeout (%is) expired "
 				    "for cqr %p (%i retries left)",
 				    (cqr->expires/HZ), cqr, cqr->retries);
-			if (device->discipline->term_IO(cqr) != 0)
-				/* Hmpf, try again in 1/10 sec */
-				dasd_set_timer(device, 10);
 		}
 	}
 }

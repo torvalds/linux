@@ -1,7 +1,3 @@
-config VIDEO_CX88_VP3054
-	tristate
-	depends on VIDEO_CX88_DVB && DVB_MT352
-
 config VIDEO_CX88
 	tristate "Conexant 2388x (bt878 successor) support"
 	depends on VIDEO_DEV && PCI && I2C
@@ -52,6 +48,15 @@ config VIDEO_CX88_DVB
 	depends on VIDEO_CX88 && DVB_CORE
 	select VIDEO_BUF_DVB
 	select DVB_PLL
+	select DVB_MT352 if !DVB_FE_CUSTOMISE
+	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
+	select DVB_OR51132 if !DVB_FE_CUSTOMISE
+	select DVB_CX22702 if !DVB_FE_CUSTOMISE
+	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
+	select DVB_TUNER_LGH06XF if !DVB_FE_CUSTOMISE
+	select DVB_NXT200X if !DVB_FE_CUSTOMISE
+	select DVB_CX24123 if !DVB_FE_CUSTOMISE
+	select DVB_ISL6421 if !DVB_FE_CUSTOMISE
 	---help---
 	  This adds support for DVB/ATSC cards based on the
 	  Conexant 2388x chip.
@@ -59,101 +64,12 @@ config VIDEO_CX88_DVB
 	  To compile this driver as a module, choose M here: the
 	  module will be called cx88-dvb.
 
-	  You must also select one or more DVB/ATSC demodulators.
-	  If you are unsure which you need, choose all of them.
-
-config VIDEO_CX88_DVB_ALL_FRONTENDS
-	bool "Build all supported frontends for cx2388x based TV cards"
-	default y
-	depends on VIDEO_CX88_DVB
-	select DVB_MT352
-	select VIDEO_CX88_VP3054
-	select DVB_ZL10353
-	select DVB_OR51132
-	select DVB_CX22702
-	select DVB_LGDT330X
-	select DVB_NXT200X
-	select DVB_CX24123
-	select DVB_ISL6421
-	---help---
-	  This builds cx88-dvb with all currently supported frontend
-	  demodulators.  If you wish to tweak your configuration, and
-	  only include support for the hardware that you need, choose N here.
-
-	  If you are unsure, choose Y.
-
-config VIDEO_CX88_DVB_MT352
-	bool "Zarlink MT352 DVB-T Support"
-	default y
-	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
-	select DVB_MT352
+config VIDEO_CX88_VP3054
+	tristate "VP-3054 Secondary I2C Bus Support"
+	default m
+	depends on VIDEO_CX88_DVB && DVB_MT352
 	---help---
 	  This adds DVB-T support for cards based on the
-	  Connexant 2388x chip and the MT352 demodulator.
-
-config VIDEO_CX88_DVB_VP3054
-	bool "VP-3054 Secondary I2C Bus Support"
-	default y
-	depends on VIDEO_CX88_DVB_MT352
-	select VIDEO_CX88_VP3054
-	---help---
-	  This adds DVB-T support for cards based on the
-	  Connexant 2388x chip and the MT352 demodulator,
+	  Conexant 2388x chip and the MT352 demodulator,
 	  which also require support for the VP-3054
 	  Secondary I2C bus, such at DNTV Live! DVB-T Pro.
-
-config VIDEO_CX88_DVB_ZL10353
-	bool "Zarlink ZL10353 DVB-T Support"
-	default y
-	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
-	select DVB_ZL10353
-	---help---
-	  This adds DVB-T support for cards based on the
-	  Connexant 2388x chip and the ZL10353 demodulator,
-	  successor to the Zarlink MT352.
-
-config VIDEO_CX88_DVB_OR51132
-	bool "OR51132 ATSC Support"
-	default y
-	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
-	select DVB_OR51132
-	---help---
-	  This adds ATSC 8VSB and QAM64/256 support for cards based on the
-	  Connexant 2388x chip and the OR51132 demodulator.
-
-config VIDEO_CX88_DVB_CX22702
-	bool "Conexant CX22702 DVB-T Support"
-	default y
-	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
-	select DVB_CX22702
-	---help---
-	  This adds DVB-T support for cards based on the
-	  Connexant 2388x chip and the CX22702 demodulator.
-
-config VIDEO_CX88_DVB_LGDT330X
-	bool "LG Electronics DT3302/DT3303 ATSC Support"
-	default y
-	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
-	select DVB_LGDT330X
-	---help---
-	  This adds ATSC 8VSB and QAM64/256 support for cards based on the
-	  Connexant 2388x chip and the LGDT3302/LGDT3303 demodulator.
-
-config VIDEO_CX88_DVB_NXT200X
-	bool "NXT2002/NXT2004 ATSC Support"
-	default y
-	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
-	select DVB_NXT200X
-	---help---
-	  This adds ATSC 8VSB and QAM64/256 support for cards based on the
-	  Connexant 2388x chip and the NXT2002/NXT2004 demodulator.
-
-config VIDEO_CX88_DVB_CX24123
-	bool "Conexant CX24123 DVB-S Support"
-	default y
-	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
-	select DVB_CX24123
-	select DVB_ISL6421
-	---help---
-	  This adds DVB-S support for cards based on the
-	  Connexant 2388x chip and the CX24123 demodulator.

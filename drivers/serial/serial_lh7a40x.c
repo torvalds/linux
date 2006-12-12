@@ -135,12 +135,7 @@ static void lh7a40xuart_enable_ms (struct uart_port* port)
 	BIT_SET (port, UART_R_INTEN, ModemInt);
 }
 
-static void
-#ifdef SUPPORT_SYSRQ
-lh7a40xuart_rx_chars (struct uart_port* port, struct pt_regs* regs)
-#else
-lh7a40xuart_rx_chars (struct uart_port* port)
-#endif
+static void lh7a40xuart_rx_chars (struct uart_port* port)
 {
 	struct tty_struct* tty = port->info->tty;
 	int cbRxMax = 256;	/* (Gross) limit on receive */
@@ -177,7 +172,7 @@ lh7a40xuart_rx_chars (struct uart_port* port)
 				flag = TTY_FRAME;
 		}
 
-		if (uart_handle_sysrq_char (port, (unsigned char) data, regs))
+		if (uart_handle_sysrq_char (port, (unsigned char) data))
 			continue;
 
 		uart_insert_char(port, data, RxOverrunError, data, flag);
@@ -248,8 +243,7 @@ static void lh7a40xuart_modem_status (struct uart_port* port)
 	wake_up_interruptible (&port->info->delta_msr_wait);
 }
 
-static irqreturn_t lh7a40xuart_int (int irq, void* dev_id,
-				    struct pt_regs* regs)
+static irqreturn_t lh7a40xuart_int (int irq, void* dev_id)
 {
 	struct uart_port* port = dev_id;
 	unsigned int cLoopLimit = ISR_LOOP_LIMIT;
@@ -258,11 +252,7 @@ static irqreturn_t lh7a40xuart_int (int irq, void* dev_id,
 
 	do {
 		if (isr & (RxInt | RxTimeoutInt))
-#ifdef SUPPORT_SYSRQ
-			lh7a40xuart_rx_chars(port, regs);
-#else
 			lh7a40xuart_rx_chars(port);
-#endif
 		if (isr & ModemInt)
 			lh7a40xuart_modem_status (port);
 		if (isr & TxInt)
@@ -358,8 +348,8 @@ static void lh7a40xuart_shutdown (struct uart_port* port)
 }
 
 static void lh7a40xuart_set_termios (struct uart_port* port,
-				     struct termios* termios,
-				     struct termios* old)
+				     struct ktermios* termios,
+				     struct ktermios* old)
 {
 	unsigned int con;
 	unsigned int inten;

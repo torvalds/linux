@@ -165,7 +165,7 @@ complicated cases.
 * Signal handling
 
 The delivery of (asynchronous) signals must be delayed until fsys-mode
-is exited.  This is acomplished with the help of the lower-privilege
+is exited.  This is accomplished with the help of the lower-privilege
 transfer trap: arch/ia64/kernel/process.c:do_notify_resume_user()
 checks whether the interrupted task was in fsys-mode and, if so, sets
 PSR.lp and returns immediately.  When fsys-mode is exited via the

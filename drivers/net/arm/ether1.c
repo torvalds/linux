@@ -68,7 +68,7 @@ static unsigned int net_debug = NET_DEBUG;
 
 static int ether1_open(struct net_device *dev);
 static int ether1_sendpacket(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t ether1_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t ether1_interrupt(int irq, void *dev_id);
 static int ether1_close(struct net_device *dev);
 static struct net_device_stats *ether1_getstats(struct net_device *dev);
 static void ether1_setmulticastlist(struct net_device *dev);
@@ -254,7 +254,7 @@ ether1_readbuffer (struct net_device *dev, void *data, unsigned int start, unsig
 	} while (thislen);
 }
 
-static int __init
+static int __devinit
 ether1_ramtest(struct net_device *dev, unsigned char byte)
 {
 	unsigned char *buffer = kmalloc (BUFFER_SIZE, GFP_KERNEL);
@@ -308,7 +308,7 @@ ether1_reset (struct net_device *dev)
 	return BUS_16;
 }
 
-static int __init
+static int __devinit
 ether1_init_2(struct net_device *dev)
 {
 	int i;
@@ -908,7 +908,7 @@ ether1_recv_done (struct net_device *dev)
 }
 
 static irqreturn_t
-ether1_interrupt (int irq, void *dev_id, struct pt_regs *regs)
+ether1_interrupt (int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	int status;
@@ -986,7 +986,7 @@ ether1_setmulticastlist (struct net_device *dev)
 
 /* ------------------------------------------------------------------------- */
 
-static void __init ether1_banner(void)
+static void __devinit ether1_banner(void)
 {
 	static unsigned int version_printed = 0;
 

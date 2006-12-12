@@ -160,7 +160,10 @@ extern const char gfar_driver_version[];
 
 #define ECNTRL_INIT_SETTINGS	0x00001000
 #define ECNTRL_TBI_MODE         0x00000020
+#define ECNTRL_REDUCED_MODE	0x00000010
 #define ECNTRL_R100		0x00000008
+#define ECNTRL_REDUCED_MII_MODE	0x00000004
+#define ECNTRL_SGMII_MODE	0x00000002
 
 #define MRBLR_INIT_SETTINGS	DEFAULT_RX_BUFFER_SIZE
 
@@ -754,7 +757,7 @@ static inline void gfar_write(volatile unsigned __iomem *addr, u32 val)
 	out_be32(addr, val);
 }
 
-extern irqreturn_t gfar_receive(int irq, void *dev_id, struct pt_regs *regs);
+extern irqreturn_t gfar_receive(int irq, void *dev_id);
 extern int startup_gfar(struct net_device *dev);
 extern void stop_gfar(struct net_device *dev);
 extern void gfar_halt(struct net_device *dev);

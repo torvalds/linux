@@ -54,7 +54,7 @@ static int simeth_close(struct net_device *dev);
 static int simeth_tx(struct sk_buff *skb, struct net_device *dev);
 static int simeth_rx(struct net_device *dev);
 static struct net_device_stats *simeth_get_stats(struct net_device *dev);
-static irqreturn_t simeth_interrupt(int irq, void *dev_id, struct pt_regs * regs);
+static irqreturn_t simeth_interrupt(int irq, void *dev_id);
 static void set_multicast_list(struct net_device *dev);
 static int simeth_device_event(struct notifier_block *this,unsigned long event, void *ptr);
 
@@ -87,7 +87,7 @@ static int simeth_debug;		/* set to 1 to get debug information */
  */
 static struct notifier_block simeth_dev_notifier = {
 	simeth_device_event,
-	0
+	NULL
 };
 
 
@@ -320,7 +320,7 @@ simeth_device_event(struct notifier_block *this,unsigned long event, void *ptr)
 	}
 
 	printk(KERN_INFO "simeth_device_event: %s ipaddr=0x%x\n",
-	       dev->name, htonl(ifa->ifa_local));
+	       dev->name, ntohl(ifa->ifa_local));
 
 	/*
 	 * XXX Fix me
@@ -331,7 +331,7 @@ simeth_device_event(struct notifier_block *this,unsigned long event, void *ptr)
 	local = dev->priv;
 	/* now do it for real */
 	r = event == NETDEV_UP ?
-		netdev_attach(local->simfd, dev->irq, htonl(ifa->ifa_local)):
+		netdev_attach(local->simfd, dev->irq, ntohl(ifa->ifa_local)):
 		netdev_detach(local->simfd);
 
 	printk(KERN_INFO "simeth: netdev_attach/detach: event=%s ->%d\n",
@@ -497,7 +497,7 @@ simeth_rx(struct net_device *dev)
  * Interrupt handler (Yes, we can do it too !!!)
  */
 static irqreturn_t
-simeth_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+simeth_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 

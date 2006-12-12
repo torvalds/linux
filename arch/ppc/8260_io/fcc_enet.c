@@ -140,7 +140,7 @@ typedef struct {
 static int fcc_enet_open(struct net_device *dev);
 static int fcc_enet_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int fcc_enet_rx(struct net_device *dev);
-static irqreturn_t fcc_enet_interrupt(int irq, void *dev_id, struct pt_regs *);
+static irqreturn_t fcc_enet_interrupt(int irq, void *dev_id);
 static int fcc_enet_close(struct net_device *dev);
 static struct net_device_stats *fcc_enet_get_stats(struct net_device *dev);
 /* static void set_multicast_list(struct net_device *dev); */
@@ -385,6 +385,7 @@ struct fcc_enet_private {
 	phy_info_t	*phy;
 	struct work_struct phy_relink;
 	struct work_struct phy_display_config;
+	struct net_device *dev;
 
 	uint	sequence_done;
 
@@ -524,7 +525,7 @@ fcc_enet_timeout(struct net_device *dev)
 
 /* The interrupt handler. */
 static irqreturn_t
-fcc_enet_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+fcc_enet_interrupt(int irq, void * dev_id)
 {
 	struct	net_device *dev = dev_id;
 	volatile struct	fcc_enet_private *cep;
@@ -1391,10 +1392,11 @@ static phy_info_t *phy_info[] = {
 	NULL
 };
 
-static void mii_display_status(void *data)
+static void mii_display_status(struct work_struct *work)
 {
-	struct net_device *dev = data;
-	volatile struct fcc_enet_private *fep = dev->priv;
+	volatile struct fcc_enet_private *fep =
+		container_of(work, struct fcc_enet_private, phy_relink);
+	struct net_device *dev = fep->dev;
 	uint s = fep->phy_status;
 
 	if (!fep->link && !fep->old_link) {
@@ -1428,10 +1430,12 @@ static void mii_display_status(void *data)
 	printk(".\n");
 }
 
-static void mii_display_config(void *data)
+static void mii_display_config(struct work_struct *work)
 {
-	struct net_device *dev = data;
-	volatile struct fcc_enet_private *fep = dev->priv;
+	volatile struct fcc_enet_private *fep =
+		container_of(work, struct fcc_enet_private,
+			     phy_display_config);
+	struct net_device *dev = fep->dev;
 	uint s = fep->phy_status;
 
 	printk("%s: config: auto-negotiation ", dev->name);
@@ -1563,7 +1567,7 @@ mii_discover_phy(uint mii_reg, struct net_device *dev)
 #ifdef PHY_INTERRUPT
 /* This interrupt occurs when the PHY detects a link change. */
 static irqreturn_t
-mii_link_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+mii_link_interrupt(int irq, void * dev_id)
 {
 	struct	net_device *dev = dev_id;
 	struct fcc_enet_private *fep = dev->priv;
@@ -1758,8 +1762,9 @@ static int __init fec_enet_init(void)
 		cep->phy_id_done = 0;
 		cep->phy_addr = fip->fc_phyaddr;
 		mii_queue(dev, mk_mii_read(MII_PHYSID1), mii_discover_phy);
-		INIT_WORK(&cep->phy_relink, mii_display_status, dev);
-		INIT_WORK(&cep->phy_display_config, mii_display_config, dev);
+		INIT_WORK(&cep->phy_relink, mii_display_status);
+		INIT_WORK(&cep->phy_display_config, mii_display_config);
+		cep->dev = dev;
 #endif	/* CONFIG_USE_MDIO */
 
 		fip++;

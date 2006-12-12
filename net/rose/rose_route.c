@@ -396,7 +396,7 @@ int rose_add_loopback_neigh(void)
 int rose_add_loopback_node(rose_address *address)
 {
 	struct rose_node *rose_node;
-	unsigned int err = 0;
+	int err = 0;
 
 	spin_lock_bh(&rose_node_list_lock);
 
@@ -432,7 +432,7 @@ int rose_add_loopback_node(rose_address *address)
 out:
 	spin_unlock_bh(&rose_node_list_lock);
 
-	return 0;
+	return err;
 }
 
 /*

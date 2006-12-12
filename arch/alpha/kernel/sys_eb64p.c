@@ -80,7 +80,7 @@ static struct hw_interrupt_type eb64p_irq_type = {
 };
 
 static void 
-eb64p_device_interrupt(unsigned long vector, struct pt_regs *regs)
+eb64p_device_interrupt(unsigned long vector)
 {
 	unsigned long pld;
 	unsigned int i;
@@ -97,9 +97,9 @@ eb64p_device_interrupt(unsigned long vector, struct pt_regs *regs)
 		pld &= pld - 1;	/* clear least bit set */
 
 		if (i == 5) {
-			isa_device_interrupt(vector, regs);
+			isa_device_interrupt(vector);
 		} else {
-			handle_irq(16 + i, regs);
+			handle_irq(16 + i);
 		}
 	}
 }

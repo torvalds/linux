@@ -200,8 +200,8 @@ static struct net_device_stats *ifb_get_stats(struct net_device *dev)
 
 	pr_debug("tasklets stats %ld:%ld:%ld:%ld:%ld:%ld:%ld:%ld:%ld \n",
 		dp->st_task_enter, dp->st_txq_refl_try, dp->st_rxq_enter,
-		dp->st_rx2tx_tran dp->st_rxq_notenter, dp->st_rx_frm_egr,
-		dp->st_rx_frm_ing, dp->st_rxq_check, dp->st_rxq_rsch );
+		dp->st_rx2tx_tran, dp->st_rxq_notenter, dp->st_rx_frm_egr,
+		dp->st_rx_frm_ing, dp->st_rxq_check, dp->st_rxq_rsch);
 
 	return stats;
 }

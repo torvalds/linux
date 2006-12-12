@@ -142,7 +142,7 @@ static void ati_remote2_close(struct input_dev *idev)
 	usb_kill_urb(ar2->urb[1]);
 }
 
-static void ati_remote2_input_mouse(struct ati_remote2 *ar2, struct pt_regs *regs)
+static void ati_remote2_input_mouse(struct ati_remote2 *ar2)
 {
 	struct input_dev *idev = ar2->idev;
 	u8 *data = ar2->buf[0];
@@ -157,7 +157,6 @@ static void ati_remote2_input_mouse(struct ati_remote2 *ar2, struct pt_regs *reg
 	if (!((1 << data[0]) & mode_mask))
 		return;
 
-	input_regs(idev, regs);
 	input_event(idev, EV_REL, REL_X, (s8) data[1]);
 	input_event(idev, EV_REL, REL_Y, (s8) data[2]);
 	input_sync(idev);
@@ -174,7 +173,7 @@ static int ati_remote2_lookup(unsigned int hw_code)
 	return -1;
 }
 
-static void ati_remote2_input_key(struct ati_remote2 *ar2, struct pt_regs *regs)
+static void ati_remote2_input_key(struct ati_remote2 *ar2)
 {
 	struct input_dev *idev = ar2->idev;
 	u8 *data = ar2->buf[1];
@@ -245,19 +244,18 @@ static void ati_remote2_input_key(struct ati_remote2 *ar2, struct pt_regs *regs)
 		return;
 	}
 
-	input_regs(idev, regs);
 	input_event(idev, EV_KEY, ati_remote2_key_table[index].key_code, data[1]);
 	input_sync(idev);
 }
 
-static void ati_remote2_complete_mouse(struct urb *urb, struct pt_regs *regs)
+static void ati_remote2_complete_mouse(struct urb *urb)
 {
 	struct ati_remote2 *ar2 = urb->context;
 	int r;
 
 	switch (urb->status) {
 	case 0:
-		ati_remote2_input_mouse(ar2, regs);
+		ati_remote2_input_mouse(ar2);
 		break;
 	case -ENOENT:
 	case -EILSEQ:
@@ -277,14 +275,14 @@ static void ati_remote2_complete_mouse(struct urb *urb, struct pt_regs *regs)
 			"%s(): usb_submit_urb() = %d\n", __FUNCTION__, r);
 }
 
-static void ati_remote2_complete_key(struct urb *urb, struct pt_regs *regs)
+static void ati_remote2_complete_key(struct urb *urb)
 {
 	struct ati_remote2 *ar2 = urb->context;
 	int r;
 
 	switch (urb->status) {
 	case 0:
-		ati_remote2_input_key(ar2, regs);
+		ati_remote2_input_key(ar2);
 		break;
 	case -ENOENT:
 	case -EILSEQ:
@@ -374,8 +372,7 @@ static void ati_remote2_urb_cleanup(struct ati_remote2 *ar2)
 	int i;
 
 	for (i = 0; i < 2; i++) {
-		if (ar2->urb[i])
-			usb_free_urb(ar2->urb[i]);
+		usb_free_urb(ar2->urb[i]);
 
 		if (ar2->buf[i])
 			usb_buffer_free(ar2->udev, 4, ar2->buf[i], ar2->buf_dma[i]);

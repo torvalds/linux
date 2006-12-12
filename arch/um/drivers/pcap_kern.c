@@ -46,7 +46,7 @@ static int pcap_write(int fd, struct sk_buff **skb, struct uml_net_private *lp)
 	return(-EPERM);
 }
 
-static struct net_kern_info pcap_kern_info = {
+static const struct net_kern_info pcap_kern_info = {
 	.init			= pcap_init,
 	.protocol		= eth_protocol,
 	.read			= pcap_read,
@@ -109,4 +109,4 @@ static int register_pcap(void)
 	return 0;
 }
 
-__initcall(register_pcap);
+late_initcall(register_pcap);

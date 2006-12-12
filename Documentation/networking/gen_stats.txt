@@ -79,8 +79,8 @@ Rate Estimator:
 
 0) Prepare an estimator attribute. Most likely this would be in user
    space. The value of this TLV should contain a tc_estimator structure.
-   As usual, such a TLV nees to be 32 bit aligned and therefore the
-   length needs to be appropriately set etc. The estimator interval
+   As usual, such a TLV needs to be 32 bit aligned and therefore the
+   length needs to be appropriately set, etc. The estimator interval
    and ewma log need to be converted to the appropriate values.
    tc_estimator.c::tc_setup_estimator() is advisable to be used as the
    conversion routine. It does a few clever things. It takes a time
@@ -103,8 +103,8 @@ In the kernel when setting up:
    else
        failed
 
-From now on, everytime you dump my_rate_est_stats it will contain
-uptodate info.
+From now on, every time you dump my_rate_est_stats it will contain
+up-to-date info.
 
 Once you are done, call gen_kill_estimator(my_basicstats,
 my_rate_est_stats) Make sure that my_basicstats and my_rate_est_stats

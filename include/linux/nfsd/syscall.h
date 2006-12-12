@@ -38,21 +38,6 @@
 #define NFSCTL_GETFD		7	/* get an fh by path (used by mountd) */
 #define	NFSCTL_GETFS		8	/* get an fh by path with max FH len */
 
-/*
- * Macros used to set version
- */
-#define NFSCTL_VERSET(_cltbits, _v)   ((_cltbits) |=  (1 << (_v)))
-#define NFSCTL_VERUNSET(_cltbits, _v) ((_cltbits) &= ~(1 << (_v)))
-#define NFSCTL_VERISSET(_cltbits, _v) ((_cltbits) & (1 << (_v)))
-
-#if defined(CONFIG_NFSD_V4)
-#define	NFSCTL_VERALL	(0x1c /* 0b011100 */)
-#elif defined(CONFIG_NFSD_V3)
-#define	NFSCTL_VERALL	(0x0c /* 0b001100 */)
-#else
-#define	NFSCTL_VERALL	(0x04 /* 0b000100 */)
-#endif
-
 /* SVC */
 struct nfsctl_svc {
 	unsigned short		svc_port;
@@ -133,8 +118,6 @@ extern int		exp_addclient(struct nfsctl_client *ncp);
 extern int		exp_delclient(struct nfsctl_client *ncp);
 extern int		exp_export(struct nfsctl_export *nxp);
 extern int		exp_unexport(struct nfsctl_export *nxp);
-
-extern unsigned int nfsd_versbits;
 
 #endif /* __KERNEL__ */
 

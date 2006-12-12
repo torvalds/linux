@@ -166,7 +166,7 @@ static struct hlist_head *dn_find_list(struct sock *sk)
 	if (scp->addr.sdn_flags & SDF_WILD)
 		return hlist_empty(&dn_wild_sk) ? &dn_wild_sk : NULL;
 
-	return &dn_sk_hash[scp->addrloc & DN_SK_HASH_MASK];
+	return &dn_sk_hash[dn_ntohs(scp->addrloc) & DN_SK_HASH_MASK];
 }
 
 /* 
@@ -180,7 +180,7 @@ static int check_port(__le16 port)
 	if (port == 0)
 		return -1;
 
-	sk_for_each(sk, node, &dn_sk_hash[port & DN_SK_HASH_MASK]) {
+	sk_for_each(sk, node, &dn_sk_hash[dn_ntohs(port) & DN_SK_HASH_MASK]) {
 		struct dn_scp *scp = DN_SK(sk);
 		if (scp->addrloc == port)
 			return -1;
@@ -194,12 +194,12 @@ static unsigned short port_alloc(struct sock *sk)
 static unsigned short port = 0x2000;
 	unsigned short i_port = port;
 
-	while(check_port(++port) != 0) {
+	while(check_port(dn_htons(++port)) != 0) {
 		if (port == i_port)
 			return 0;
 	}
 
-	scp->addrloc = port;
+	scp->addrloc = dn_htons(port);
 
 	return 1;
 }
@@ -418,7 +418,7 @@ struct sock *dn_find_by_skb(struct sk_buff *skb)
 	struct dn_scp *scp;
 
 	read_lock(&dn_hash_lock);
-	sk_for_each(sk, node, &dn_sk_hash[cb->dst_port & DN_SK_HASH_MASK]) {
+	sk_for_each(sk, node, &dn_sk_hash[dn_ntohs(cb->dst_port) & DN_SK_HASH_MASK]) {
 		scp = DN_SK(sk);
 		if (cb->src != dn_saddr2dn(&scp->peer))
 			continue;
@@ -1016,13 +1016,14 @@ static void dn_access_copy(struct sk_buff *skb, struct accessdata_dn *acc)
 
 static void dn_user_copy(struct sk_buff *skb, struct optdata_dn *opt)
 {
-        unsigned char *ptr = skb->data;
-        
-        opt->opt_optl   = *ptr++;
-        opt->opt_status = 0;
-        memcpy(opt->opt_data, ptr, opt->opt_optl);
-        skb_pull(skb, dn_ntohs(opt->opt_optl) + 1);
+	unsigned char *ptr = skb->data;
+	u16 len = *ptr++; /* yes, it's 8bit on the wire */
 
+	BUG_ON(len > 16); /* we've checked the contents earlier */
+	opt->opt_optl   = dn_htons(len);
+	opt->opt_status = 0;
+	memcpy(opt->opt_data, ptr, len);
+	skb_pull(skb, len + 1);
 }
 
 static struct sk_buff *dn_wait_for_connect(struct sock *sk, long *timeo)
@@ -1178,8 +1179,10 @@ static int dn_getname(struct socket *sock, struct sockaddr *uaddr,int *uaddr_len
 	if (peer) {
 		if ((sock->state != SS_CONNECTED && 
 		     sock->state != SS_CONNECTING) && 
-		    scp->accept_mode == ACC_IMMED)
+		    scp->accept_mode == ACC_IMMED) {
+		    	release_sock(sk);
 			return -ENOTCONN;
+		}
 
 		memcpy(sa, &scp->peer, sizeof(struct sockaddr_dn));
 	} else {

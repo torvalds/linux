@@ -1,6 +1,6 @@
 /*
  *  net/dccp/timer.c
- * 
+ *
  *  An implementation of the DCCP protocol
  *  Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
@@ -15,15 +15,10 @@
 
 #include "dccp.h"
 
-static void dccp_write_timer(unsigned long data);
-static void dccp_keepalive_timer(unsigned long data);
-static void dccp_delack_timer(unsigned long data);
-
-void dccp_init_xmit_timers(struct sock *sk)
-{
-	inet_csk_init_xmit_timers(sk, &dccp_write_timer, &dccp_delack_timer,
-				  &dccp_keepalive_timer);
-}
+/* sysctl variables governing numbers of retransmission attempts */
+int  sysctl_dccp_request_retries	__read_mostly = TCP_SYN_RETRIES;
+int  sysctl_dccp_retries1		__read_mostly = TCP_RETR1;
+int  sysctl_dccp_retries2		__read_mostly = TCP_RETR2;
 
 static void dccp_write_err(struct sock *sk)
 {
@@ -44,11 +39,10 @@ static int dccp_write_timeout(struct sock *sk)
 	if (sk->sk_state == DCCP_REQUESTING || sk->sk_state == DCCP_PARTOPEN) {
 		if (icsk->icsk_retransmits != 0)
 			dst_negative_advice(&sk->sk_dst_cache);
-		retry_until = icsk->icsk_syn_retries ? :
-			    /* FIXME! */ 3 /* FIXME! sysctl_tcp_syn_retries */;
+		retry_until = icsk->icsk_syn_retries ?
+			    : sysctl_dccp_request_retries;
 	} else {
-		if (icsk->icsk_retransmits >=
-		     /* FIXME! sysctl_tcp_retries1 */ 5 /* FIXME! */) {
+		if (icsk->icsk_retransmits >= sysctl_dccp_retries1) {
 			/* NOTE. draft-ietf-tcpimpl-pmtud-01.txt requires pmtu
 			   black hole detection. :-(
 
@@ -72,7 +66,7 @@ static int dccp_write_timeout(struct sock *sk)
 			dst_negative_advice(&sk->sk_dst_cache);
 		}
 
-		retry_until = /* FIXME! */ 15 /* FIXME! sysctl_tcp_retries2 */;
+		retry_until = sysctl_dccp_retries2;
 		/*
 		 * FIXME: see tcp_write_timout and tcp_out_of_resources
 		 */
@@ -86,53 +80,6 @@ static int dccp_write_timeout(struct sock *sk)
 	return 0;
 }
 
-/* This is the same as tcp_delack_timer, sans prequeue & mem_reclaim stuff */
-static void dccp_delack_timer(unsigned long data)
-{
-	struct sock *sk = (struct sock *)data;
-	struct inet_connection_sock *icsk = inet_csk(sk);
-
-	bh_lock_sock(sk);
-	if (sock_owned_by_user(sk)) {
-		/* Try again later. */
-		icsk->icsk_ack.blocked = 1;
-		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKLOCKED);
-		sk_reset_timer(sk, &icsk->icsk_delack_timer,
-			       jiffies + TCP_DELACK_MIN);
-		goto out;
-	}
-
-	if (sk->sk_state == DCCP_CLOSED ||
-	    !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
-		goto out;
-	if (time_after(icsk->icsk_ack.timeout, jiffies)) {
-		sk_reset_timer(sk, &icsk->icsk_delack_timer,
-			       icsk->icsk_ack.timeout);
-		goto out;
-	}
-
-	icsk->icsk_ack.pending &= ~ICSK_ACK_TIMER;
-
-	if (inet_csk_ack_scheduled(sk)) {
-		if (!icsk->icsk_ack.pingpong) {
-			/* Delayed ACK missed: inflate ATO. */
-			icsk->icsk_ack.ato = min(icsk->icsk_ack.ato << 1,
-						 icsk->icsk_rto);
-		} else {
-			/* Delayed ACK missed: leave pingpong mode and
-			 * deflate ATO.
-			 */
-			icsk->icsk_ack.pingpong = 0;
-			icsk->icsk_ack.ato = TCP_ATO_MIN;
-		}
-		dccp_send_ack(sk);
-		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKS);
-	}
-out:
-	bh_unlock_sock(sk);
-	sock_put(sk);
-}
-
 /*
  *	The DCCP retransmit timer.
  */
@@ -142,7 +89,7 @@ static void dccp_retransmit_timer(struct sock *sk)
 
 	/* retransmit timer is used for feature negotiation throughout
 	 * connection.  In this case, no packet is re-transmitted, but rather an
-	 * ack is generated and pending changes are splaced into its options.
+	 * ack is generated and pending changes are placed into its options.
 	 */
 	if (sk->sk_send_head == NULL) {
 		dccp_pr_debug("feat negotiation retransmit timeout %p\n", sk);
@@ -154,12 +101,14 @@ static void dccp_retransmit_timer(struct sock *sk)
 	/*
 	 * sk->sk_send_head has to have one skb with
 	 * DCCP_SKB_CB(skb)->dccpd_type set to one of the retransmittable DCCP
-	 * packet types (REQUEST, RESPONSE, the ACK in the 3way handshake
-	 * (PARTOPEN timer), etc).
-	 */
+	 * packet types. The only packets eligible for retransmission are:
+	 *	-- Requests in client-REQUEST  state (sec. 8.1.1)
+	 *	-- Acks     in client-PARTOPEN state (sec. 8.1.5)
+	 *	-- CloseReq in server-CLOSEREQ state (sec. 8.3)
+	 *	-- Close    in   node-CLOSING  state (sec. 8.3)                */
 	BUG_TRAP(sk->sk_send_head != NULL);
 
-	/* 
+	/*
 	 * More than than 4MSL (8 minutes) has passed, a RESET(aborted) was
 	 * sent, no need to retransmit, this sock is dead.
 	 */
@@ -194,7 +143,7 @@ backoff:
 	icsk->icsk_rto = min(icsk->icsk_rto << 1, DCCP_RTO_MAX);
 	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, icsk->icsk_rto,
 				  DCCP_RTO_MAX);
-	if (icsk->icsk_retransmits > 3 /* FIXME: sysctl_dccp_retries1 */)
+	if (icsk->icsk_retransmits > sysctl_dccp_retries1)
 		__sk_dst_reset(sk);
 out:;
 }
@@ -251,7 +200,7 @@ static void dccp_keepalive_timer(unsigned long data)
 	/* Only process if socket is not in use. */
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
-		/* Try again later. */ 
+		/* Try again later. */
 		inet_csk_reset_keepalive_timer(sk, HZ / 20);
 		goto out;
 	}
@@ -263,4 +212,57 @@ static void dccp_keepalive_timer(unsigned long data)
 out:
 	bh_unlock_sock(sk);
 	sock_put(sk);
+}
+
+/* This is the same as tcp_delack_timer, sans prequeue & mem_reclaim stuff */
+static void dccp_delack_timer(unsigned long data)
+{
+	struct sock *sk = (struct sock *)data;
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	bh_lock_sock(sk);
+	if (sock_owned_by_user(sk)) {
+		/* Try again later. */
+		icsk->icsk_ack.blocked = 1;
+		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKLOCKED);
+		sk_reset_timer(sk, &icsk->icsk_delack_timer,
+			       jiffies + TCP_DELACK_MIN);
+		goto out;
+	}
+
+	if (sk->sk_state == DCCP_CLOSED ||
+	    !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
+		goto out;
+	if (time_after(icsk->icsk_ack.timeout, jiffies)) {
+		sk_reset_timer(sk, &icsk->icsk_delack_timer,
+			       icsk->icsk_ack.timeout);
+		goto out;
+	}
+
+	icsk->icsk_ack.pending &= ~ICSK_ACK_TIMER;
+
+	if (inet_csk_ack_scheduled(sk)) {
+		if (!icsk->icsk_ack.pingpong) {
+			/* Delayed ACK missed: inflate ATO. */
+			icsk->icsk_ack.ato = min(icsk->icsk_ack.ato << 1,
+						 icsk->icsk_rto);
+		} else {
+			/* Delayed ACK missed: leave pingpong mode and
+			 * deflate ATO.
+			 */
+			icsk->icsk_ack.pingpong = 0;
+			icsk->icsk_ack.ato = TCP_ATO_MIN;
+		}
+		dccp_send_ack(sk);
+		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKS);
+	}
+out:
+	bh_unlock_sock(sk);
+	sock_put(sk);
+}
+
+void dccp_init_xmit_timers(struct sock *sk)
+{
+	inet_csk_init_xmit_timers(sk, &dccp_write_timer, &dccp_delack_timer,
+				  &dccp_keepalive_timer);
 }

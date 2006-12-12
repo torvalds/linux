@@ -140,7 +140,6 @@ static struct i2c_algo_bit_data sav_i2c_bit_data = {
 	.getsda		= bit_savi2c_getsda,
 	.getscl		= bit_savi2c_getscl,
 	.udelay		= CYCLE_DELAY,
-	.mdelay		= CYCLE_DELAY,
 	.timeout	= TIMEOUT
 };
 
@@ -174,7 +173,7 @@ static int __devinit savage4_probe(struct pci_dev *dev, const struct pci_device_
 
 static void __devexit savage4_remove(struct pci_dev *dev)
 {
-	i2c_bit_del_bus(&savage4_i2c_adapter);
+	i2c_del_adapter(&savage4_i2c_adapter);
 	iounmap(ioaddr);
 }
 

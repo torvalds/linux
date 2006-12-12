@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp1250.c
+ * linux/fs/nls/nls_cp1250.c
  *
  * Charset cp1250 translation tables.
  * Generated automatically from the Unicode and charset

@@ -30,7 +30,6 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 
-#include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/pci/bridge.h>
 #include <asm/sn/addrs.h>
@@ -129,7 +128,7 @@ static int ms1bit(unsigned long x)
  * Kanoj 05.13.00
  */
 
-static void ip27_do_irq_mask0(struct pt_regs *regs)
+static void ip27_do_irq_mask0(void)
 {
 	int irq, swlevel;
 	hubreg_t pend0, mask0;
@@ -164,13 +163,13 @@ static void ip27_do_irq_mask0(struct pt_regs *regs)
 		struct slice_data *si = cpu_data[cpu].data;
 
 		irq = si->level_to_irq[swlevel];
-		do_IRQ(irq, regs);
+		do_IRQ(irq);
 	}
 
 	LOCAL_HUB_L(PI_INT_PEND0);
 }
 
-static void ip27_do_irq_mask1(struct pt_regs *regs)
+static void ip27_do_irq_mask1(void)
 {
 	int irq, swlevel;
 	hubreg_t pend1, mask1;
@@ -190,17 +189,17 @@ static void ip27_do_irq_mask1(struct pt_regs *regs)
 	/* "map" swlevel to irq */
 	irq = si->level_to_irq[swlevel];
 	LOCAL_HUB_CLR_INTR(swlevel);
-	do_IRQ(irq, regs);
+	do_IRQ(irq);
 
 	LOCAL_HUB_L(PI_INT_PEND1);
 }
 
-static void ip27_prof_timer(struct pt_regs *regs)
+static void ip27_prof_timer(void)
 {
 	panic("CPU %d got a profiling interrupt", smp_processor_id());
 }
 
-static void ip27_hub_error(struct pt_regs *regs)
+static void ip27_hub_error(void)
 {
 	panic("CPU %d got a hub error interrupt", smp_processor_id());
 }
@@ -333,57 +332,19 @@ static inline void disable_bridge_irq(unsigned int irq)
 	intr_disconnect_level(cpu, swlevel);
 }
 
-static void mask_and_ack_bridge_irq(unsigned int irq)
-{
-	disable_bridge_irq(irq);
-}
-
-static void end_bridge_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)) &&
-	    irq_desc[irq].action)
-		enable_bridge_irq(irq);
-}
-
 static struct irq_chip bridge_irq_type = {
 	.typename	= "bridge",
 	.startup	= startup_bridge_irq,
 	.shutdown	= shutdown_bridge_irq,
-	.enable		= enable_bridge_irq,
-	.disable	= disable_bridge_irq,
-	.ack		= mask_and_ack_bridge_irq,
-	.end		= end_bridge_irq,
+	.ack		= disable_bridge_irq,
+	.mask		= disable_bridge_irq,
+	.mask_ack	= disable_bridge_irq,
+	.unmask		= enable_bridge_irq,
 };
-
-static unsigned long irq_map[NR_IRQS / BITS_PER_LONG];
-
-int allocate_irqno(void)
-{
-	int irq;
-
-again:
-	irq = find_first_zero_bit(irq_map, NR_IRQS);
-
-	if (irq >= NR_IRQS)
-		return -ENOSPC;
-
-	if (test_and_set_bit(irq, irq_map))
-		goto again;
-
-	return irq;
-}
-
-void free_irqno(unsigned int irq)
-{
-	clear_bit(irq, irq_map);
-}
 
 void __devinit register_bridge_irq(unsigned int irq)
 {
-	irq_desc[irq].status	= IRQ_DISABLED;
-	irq_desc[irq].action	= 0;
-	irq_desc[irq].depth	= 1;
-	irq_desc[irq].chip	= &bridge_irq_type;
+	set_irq_chip_and_handler(irq, &bridge_irq_type, handle_level_irq);
 }
 
 int __devinit request_bridge_irq(struct bridge_controller *bc)
@@ -418,22 +379,22 @@ int __devinit request_bridge_irq(struct bridge_controller *bc)
 	return irq;
 }
 
-extern void ip27_rt_timer_interrupt(struct pt_regs *regs);
+extern void ip27_rt_timer_interrupt(void);
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned long pending = read_c0_cause() & read_c0_status();
 
 	if (pending & CAUSEF_IP4)
-		ip27_rt_timer_interrupt(regs);
+		ip27_rt_timer_interrupt();
 	else if (pending & CAUSEF_IP2)	/* PI_INT_PEND_0 or CC_PEND_{A|B} */
-		ip27_do_irq_mask0(regs);
+		ip27_do_irq_mask0();
 	else if (pending & CAUSEF_IP3)	/* PI_INT_PEND_1 */
-		ip27_do_irq_mask1(regs);
+		ip27_do_irq_mask1();
 	else if (pending & CAUSEF_IP5)
-		ip27_prof_timer(regs);
+		ip27_prof_timer();
 	else if (pending & CAUSEF_IP6)
-		ip27_hub_error(regs);
+		ip27_hub_error();
 }
 
 void __init arch_init_irq(void)

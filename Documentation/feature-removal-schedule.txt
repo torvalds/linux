@@ -29,34 +29,45 @@ Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	drivers that were depending on OBSOLETE_OSS_DRIVER
-        (config options already removed)
-When:	before 2.6.19
-Why:	OSS drivers with ALSA replacements
-Who:	Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
 What:	raw1394: requests of type RAW1394_REQ_ISO_SEND, RAW1394_REQ_ISO_LISTEN
-When:	November 2006
-Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
-	more efficient.  You should really be using libraw1394 for raw1394
-	access anyway.
-Who:	Jody McIntyre <scjody@modernduck.com>
+When:	June 2007
+Why:	Deprecated in favour of the more efficient and robust rawiso interface.
+	Affected are applications which use the deprecated part of libraw1394
+	(raw1394_iso_write, raw1394_start_iso_write, raw1394_start_iso_rcv,
+	raw1394_stop_iso_rcv) or bypass	libraw1394.
+Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 ---------------------------
 
-What:	sbp2: module parameter "force_inquiry_hack"
-When:	July 2006
-Why:	Superceded by parameter "workarounds". Both parameters are meant to be
-	used ad-hoc and for single devices only, i.e. not in modprobe.conf,
-	therefore the impact of this feature replacement should be low.
+What:	dv1394 driver (CONFIG_IEEE1394_DV1394)
+When:	June 2007
+Why:	Replaced by raw1394 + userspace libraries, notably libiec61883.  This
+	shift of application support has been indicated on www.linux1394.org
+	and developers' mailinglists for quite some time.  Major applications
+	have been converted, with the exception of ffmpeg and hence xine.
+	Piped output of dvgrab2 is a partial equivalent to dv1394.
+Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
+
+---------------------------
+
+What:	ieee1394 core's unused exports (CONFIG_IEEE1394_EXPORT_FULL_API)
+When:	January 2007
+Why:	There are no projects known to use these exported symbols, except
+	dfg1394 (uses one symbol whose functionality is core-internal now).
+Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
+
+---------------------------
+
+What:	ieee1394's *_oui sysfs attributes (CONFIG_IEEE1394_OUI_DB)
+When:	January 2007
+Files:	drivers/ieee1394/: oui.db, oui2c.sh
+Why:	big size, little value
 Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 ---------------------------
 
 What:	Video4Linux API 1 ioctls and video_decoder.h from Video devices.
-When:	July 2006
+When:	December 2006
 Why:	V4L1 AP1 was replaced by V4L2 API. during migration from 2.4 to 2.6
 	series. The old API have lots of drawbacks and don't provide enough
 	means to work with all video and audio standards. The newer API is
@@ -87,18 +98,6 @@ Who:	Dominik Brodowski <linux@brodo.de>
 
 ---------------------------
 
-What:	ip_queue and ip6_queue (old ipv4-only and ipv6-only netfilter queue)
-When:	December 2005
-Why:	This interface has been obsoleted by the new layer3-independent
-	"nfnetlink_queue".  The Kernel interface is compatible, so the old
-	ip[6]tables "QUEUE" targets still work and will transparently handle
-	all packets into nfnetlink queue number 0.  Userspace users will have
-	to link against API-compatible library on top of libnfnetlink_queue 
-	instead of the current 'libipq'.
-Who:	Harald Welte <laforge@netfilter.org>
-
----------------------------
-
 What:	remove EXPORT_SYMBOL(kernel_thread)
 When:	August 2006
 Files:	arch/*/kernel/*_ksyms.c
@@ -116,15 +115,6 @@ Why:	Config option is there to see if gcc is good enough. (in january
         2006). If it is, the behavior should just be the default. If it's not,
 	the option should just go away entirely.
 Who:    Arjan van de Ven
-
----------------------------
-
-What:	START_ARRAY ioctl for md
-When:	July 2006
-Files:	drivers/md/md.c
-Why:	Not reliable by design - can fail when most needed.
-	Alternatives exist
-Who:	NeilBrown <neilb@suse.de>
 
 ---------------------------
 
@@ -190,7 +180,7 @@ Who:	Greg Kroah-Hartman <gregkh@suse.de>
 ---------------------------
 
 What:	USB driver API moves to EXPORT_SYMBOL_GPL
-When:	Febuary 2008
+When:	February 2008
 Files:	include/linux/usb.h, drivers/usb/core/driver.c
 Why:	The USB subsystem has changed a lot over time, and it has been
 	possible to create userspace USB drivers using usbfs/libusb/gadgetfs
@@ -217,67 +207,12 @@ Who:	Nick Piggin <npiggin@suse.de>
 
 ---------------------------
 
-What:	Support for the MIPS EV96100 evaluation board
-When:	September 2006
-Why:	Does no longer build since at least November 15, 2003, apparently
-	no userbase left.
-Who:	Ralf Baechle <ralf@linux-mips.org>
-
----------------------------
-
-What:	Support for the Momentum / PMC-Sierra Jaguar ATX evaluation board
-When:	September 2006
-Why:	Does no longer build since quite some time, and was never popular,
-	due to the platform being replaced by successor models.  Apparently
-	no user base left.  It also is one of the last users of
-	WANT_PAGE_VIRTUAL.
-Who:	Ralf Baechle <ralf@linux-mips.org>
-
----------------------------
-
-What:	Support for the Momentum Ocelot, Ocelot 3, Ocelot C and Ocelot G
-When:	September 2006
-Why:	Some do no longer build and apparently there is no user base left
-	for these platforms.
-Who:	Ralf Baechle <ralf@linux-mips.org>
-
----------------------------
-
-What:	Support for MIPS Technologies' Altas and SEAD evaluation board
-When:	September 2006
-Why:	Some do no longer build and apparently there is no user base left
-	for these platforms.  Hardware out of production since several years.
-Who:	Ralf Baechle <ralf@linux-mips.org>
-
----------------------------
-
-What:	Support for the IT8172-based platforms, ITE 8172G and Globespan IVR
-When:	September 2006
-Why:	Code does no longer build since at least 2.6.0,  apparently there is
-	no user base left for these platforms.  Hardware out of production
-	since several years and hardly a trace of the manufacturer left on
-	the net.
-Who:	Ralf Baechle <ralf@linux-mips.org>
-
----------------------------
-
 What:	Interrupt only SA_* flags
 When:	Januar 2007
 Why:	The interrupt related SA_* flags are replaced by IRQF_* to move them
 	out of the signal namespace.
 
 Who:	Thomas Gleixner <tglx@linutronix.de>
-
----------------------------
-
-What:	i2c-ite and i2c-algo-ite drivers
-When:	September 2006
-Why:	These drivers never compiled since they were added to the kernel
-	tree 5 years ago. This feature removal can be reevaluated if
-	someone shows interest in the drivers, fixes them and takes over
-	maintenance.
-	http://marc.theaimsgroup.com/?l=linux-mips&m=115040510817448
-Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
@@ -297,27 +232,30 @@ Who:	Patrick McHardy <kaber@trash.net>
 
 ---------------------------
 
-What:	frame diverter
-When:	November 2006
-Why:	The frame diverter is included in most distribution kernels, but is
-	broken. It does not correctly handle many things:
-	- IPV6
-	- non-linear skb's
-	- network device RCU on removal
-	- input frames not correctly checked for protocol errors
-	It also adds allocation overhead even if not enabled.
-	It is not clear if anyone is still using it.
-Who:	Stephen Hemminger <shemminger@osdl.org>
-
----------------------------
-
-
 What:	PHYSDEVPATH, PHYSDEVBUS, PHYSDEVDRIVER in the uevent environment
-When:	Oktober 2008
+When:	October 2008
 Why:	The stacking of class devices makes these values misleading and
 	inconsistent.
 	Class devices should not carry any of these properties, and bus
 	devices have SUBSYTEM and DRIVER as a replacement.
 Who:	Kay Sievers <kay.sievers@suse.de>
+
+---------------------------
+
+What:	i2c-isa
+When:	December 2006
+Why:	i2c-isa is a non-sense and doesn't fit in the device driver
+	model. Drivers relying on it are better implemented as platform
+	drivers.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:	IPv4 only connection tracking/NAT/helpers
+When:	2.6.22
+Why:	The new layer 3 independant connection tracking replaces the old
+	IPv4 only version. After some stabilization of the new code the
+	old one will be removed.
+Who:	Patrick McHardy <kaber@trash.net>
 
 ---------------------------

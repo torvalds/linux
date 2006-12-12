@@ -3,37 +3,29 @@
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-
-#include <asm/mipsregs.h>
-#include <asm/ptrace.h>
-#include <asm/hardirq.h>
-#include <asm/div64.h>
-#include <asm/cpu.h>
-#include <asm/time.h>
-
 #include <linux/interrupt.h>
 #include <linux/mc146818rtc.h>
 #include <linux/timex.h>
+
 #include <asm/mipsregs.h>
 #include <asm/ptrace.h>
 #include <asm/hardirq.h>
-#include <asm/irq.h>
 #include <asm/div64.h>
 #include <asm/cpu.h>
 #include <asm/time.h>
+#include <asm/irq.h>
 #include <asm/mc146818-time.h>
 #include <asm/msc01_ic.h>
+#include <asm/smp.h>
 
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
 #include <asm/mips-boards/simint.h>
-#include <asm/mc146818-time.h>
-#include <asm/smp.h>
 
 
 unsigned long cpu_khz;
 
-irqreturn_t sim_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t sim_timer_interrupt(int irq, void *dev_id)
 {
 #ifdef CONFIG_SMP
 	int cpu = smp_processor_id();
@@ -44,7 +36,7 @@ irqreturn_t sim_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 */
 #ifndef CONFIG_MIPS_MT_SMTC
 	if (cpu == 0) {
-		timer_interrupt(irq, dev_id, regs);
+		timer_interrupt(irq, dev_id);
 	}
 	else {
 		/* Everyone else needs to reset the timer int here as
@@ -84,7 +76,7 @@ irqreturn_t sim_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	irq_enable_hazard();
 	evpe(vpflags);
 
-	if(cpu_data[cpu].vpe_id == 0) timer_interrupt(irq, dev_id, regs);
+	if(cpu_data[cpu].vpe_id == 0) timer_interrupt(irq, dev_id);
 	else write_c0_compare (read_c0_count() + ( mips_hpt_frequency/HZ));
 	smtc_timer_broadcast(cpu_data[cpu].vpe_id);
 
@@ -93,17 +85,17 @@ irqreturn_t sim_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/*
 	 * every CPU should do profiling and process accounting
 	 */
- 	local_timer_interrupt (irq, dev_id, regs);
+ 	local_timer_interrupt (irq, dev_id);
 	return IRQ_HANDLED;
 #else
-	return timer_interrupt (irq, dev_id, regs);
+	return timer_interrupt (irq, dev_id);
 #endif
 }
 
 
 
 /*
- * Estimate CPU frequency.  Sets mips_counter_frequency as a side-effect
+ * Estimate CPU frequency.  Sets mips_hpt_frequency as a side-effect
  */
 static unsigned int __init estimate_cpu_frequency(void)
 {
@@ -177,9 +169,9 @@ void __init sim_time_init(void)
 
 static int mips_cpu_timer_irq;
 
-static void mips_timer_dispatch (struct pt_regs *regs)
+static void mips_timer_dispatch(void)
 {
-	do_IRQ (mips_cpu_timer_irq, regs);
+	do_IRQ(mips_cpu_timer_irq);
 }
 
 
@@ -204,7 +196,8 @@ void __init plat_timer_setup(struct irqaction *irq)
 	   on seperate cpu's the first one tries to handle the second interrupt.
 	   The effect is that the int remains disabled on the second cpu.
 	   Mark the interrupt with IRQ_PER_CPU to avoid any confusion */
-	irq_desc[mips_cpu_timer_irq].status |= IRQ_PER_CPU;
+	irq_desc[mips_cpu_timer_irq].flags |= IRQ_PER_CPU;
+	set_irq_handler(mips_cpu_timer_irq, handle_percpu_irq);
 #endif
 
 	/* to generate the first timer interrupt */

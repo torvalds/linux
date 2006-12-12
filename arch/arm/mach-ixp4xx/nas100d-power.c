@@ -24,7 +24,7 @@
 
 #include <asm/mach-types.h>
 
-static irqreturn_t nas100d_reset_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t nas100d_reset_handler(int irq, void *dev_id)
 {
 	/* Signal init to do the ctrlaltdel action, this will bypass init if
 	 * it hasn't started and do a kernel_restart.

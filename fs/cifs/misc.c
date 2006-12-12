@@ -153,7 +153,7 @@ cifs_buf_get(void)
    albeit slightly larger than necessary and maxbuffersize 
    defaults to this and can not be bigger */
 	ret_buf =
-	    (struct smb_hdr *) mempool_alloc(cifs_req_poolp, SLAB_KERNEL | SLAB_NOFS);
+	    (struct smb_hdr *) mempool_alloc(cifs_req_poolp, GFP_KERNEL | GFP_NOFS);
 
 	/* clear the first few header bytes */
 	/* for most paths, more is cleared in header_assemble */
@@ -192,7 +192,7 @@ cifs_small_buf_get(void)
    albeit slightly larger than necessary and maxbuffersize 
    defaults to this and can not be bigger */
 	ret_buf =
-	    (struct smb_hdr *) mempool_alloc(cifs_sm_req_poolp, SLAB_KERNEL | SLAB_NOFS);
+	    (struct smb_hdr *) mempool_alloc(cifs_sm_req_poolp, GFP_KERNEL | GFP_NOFS);
 	if (ret_buf) {
 	/* No need to clear memory here, cleared in header assemble */
 	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
@@ -389,7 +389,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 	return;
 }
 
-int
+static int
 checkSMBhdr(struct smb_hdr *smb, __u16 mid)
 {
 	/* Make sure that this really is an SMB, that it is a response, 
@@ -418,26 +418,42 @@ checkSMBhdr(struct smb_hdr *smb, __u16 mid)
 }
 
 int
-checkSMB(struct smb_hdr *smb, __u16 mid, int length)
+checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length)
 {
 	__u32 len = smb->smb_buf_length;
 	__u32 clc_len;  /* calculated length */
 	cFYI(0, ("checkSMB Length: 0x%x, smb_buf_length: 0x%x", length, len));
-	if (((unsigned int)length < 2 + sizeof (struct smb_hdr)) ||
-	    (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4)) {
-		if ((unsigned int)length < 2 + sizeof (struct smb_hdr)) {
-			if (((unsigned int)length >= 
-				sizeof (struct smb_hdr) - 1)
+
+	if (length < 2 + sizeof (struct smb_hdr)) {
+		if ((length >= sizeof (struct smb_hdr) - 1)
 			    && (smb->Status.CifsError != 0)) {
-				smb->WordCount = 0;
-				/* some error cases do not return wct and bcc */
+			smb->WordCount = 0;
+			/* some error cases do not return wct and bcc */
+			return 0;
+		} else if ((length == sizeof(struct smb_hdr) + 1) && 
+				(smb->WordCount == 0)) {
+			char * tmp = (char *)smb;
+			/* Need to work around a bug in two servers here */
+			/* First, check if the part of bcc they sent was zero */
+			if (tmp[sizeof(struct smb_hdr)] == 0) {
+				/* some servers return only half of bcc
+				 * on simple responses (wct, bcc both zero)
+				 * in particular have seen this on
+				 * ulogoffX and FindClose. This leaves
+				 * one byte of bcc potentially unitialized
+				 */
+				/* zero rest of bcc */
+				tmp[sizeof(struct smb_hdr)+1] = 0;
 				return 0;
-			} else {
-				cERROR(1, ("Length less than smb header size"));
 			}
+			cERROR(1,("rcvd invalid byte count (bcc)"));
+		} else {
+			cERROR(1, ("Length less than smb header size"));
 		}
-		if (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4)
-			cERROR(1, ("smb length greater than MaxBufSize, mid=%d",
+		return 1;
+	}
+	if (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
+		cERROR(1, ("smb length greater than MaxBufSize, mid=%d",
 				   smb->Mid));
 		return 1;
 	}
@@ -446,7 +462,7 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 		return 1;
 	clc_len = smbCalcSize_LE(smb);
 
-	if(4 + len != (unsigned int)length) {
+	if(4 + len != length) {
 		cERROR(1, ("Length read does not match RFC1001 length %d",len));
 		return 1;
 	}

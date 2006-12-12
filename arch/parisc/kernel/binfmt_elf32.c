@@ -75,7 +75,6 @@ struct elf_prpsinfo32
 	char	pr_psargs[ELF_PRARGSZ];	/* initial part of arg list */
 };
 
-#define elf_addr_t	unsigned int
 #define init_elf_binfmt init_elf32_binfmt
 
 #define ELF_PLATFORM  ("PARISC32\0")
@@ -87,7 +86,7 @@ struct elf_prpsinfo32
  */
 
 #define SET_PERSONALITY(ex, ibcs2) \
-	current->personality = PER_LINUX32; \
+	set_thread_flag(TIF_32BIT); \
 	current->thread.map_base = DEFAULT_MAP_BASE32; \
 	current->thread.task_size = DEFAULT_TASK_SIZE32 \
 
@@ -102,25 +101,3 @@ cputime_to_compat_timeval(const cputime_t cputime, struct compat_timeval *value)
 }
 
 #include "../../../fs/binfmt_elf.c"
-
-/* Set up a separate execution domain for ELF32 binaries running
- * on an ELF64 kernel */
-
-static struct exec_domain parisc32_exec_domain = { 
-	.name = "Linux/ELF32",
-	.pers_low = PER_LINUX32,
-	.pers_high = PER_LINUX32,
-};      
-
-static int __init parisc32_exec_init(void)
-{
-	/* steal the identity signal mappings from the default domain */
-	parisc32_exec_domain.signal_map = default_exec_domain.signal_map;
-	parisc32_exec_domain.signal_invmap = default_exec_domain.signal_invmap;
-
-	register_exec_domain(&parisc32_exec_domain);
-
-	return 0;
-}
-
-__initcall(parisc32_exec_init);

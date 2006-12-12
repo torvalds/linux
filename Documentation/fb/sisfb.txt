@@ -72,7 +72,7 @@ information. Additionally, "modinfo sisfb" gives an overview over all
 supported options including some explanation.
 
 The desired display mode can be specified using the keyword "mode" with
-a parameter in one of the follwing formats:
+a parameter in one of the following formats:
   - XxYxDepth or
   - XxY-Depth or
   - XxY-Depth@Rate or

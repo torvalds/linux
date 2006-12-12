@@ -230,7 +230,7 @@ static void mux_read(struct uart_port *port)
 				continue;
 		}
 
-		if (uart_handle_sysrq_char(port, data & 0xffu, NULL))
+		if (uart_handle_sysrq_char(port, data & 0xffu))
 			continue;
 
 		tty_insert_flip_char(tty, data & 0xFF, TTY_NORMAL);
@@ -273,8 +273,8 @@ static void mux_shutdown(struct uart_port *port)
  * The Serial Mux does not support this function.
  */
 static void
-mux_set_termios(struct uart_port *port, struct termios *termios,
-	        struct termios *old)
+mux_set_termios(struct uart_port *port, struct ktermios *termios,
+	        struct ktermios *old)
 {
 }
 
@@ -521,6 +521,8 @@ static void __exit mux_exit(void)
 
 	for (i = 0; i < port_cnt; i++) {
 		uart_remove_one_port(&mux_driver, &mux_ports[i]);
+		if (mux_ports[i].membase)
+			iounmap(mux_ports[i].membase);
 	}
 
 	uart_unregister_driver(&mux_driver);

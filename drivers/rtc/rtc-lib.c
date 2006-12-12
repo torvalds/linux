@@ -94,12 +94,12 @@ EXPORT_SYMBOL(rtc_time_to_tm);
 int rtc_valid_tm(struct rtc_time *tm)
 {
 	if (tm->tm_year < 70
-		|| tm->tm_mon >= 12
+		|| ((unsigned)tm->tm_mon) >= 12
 		|| tm->tm_mday < 1
 		|| tm->tm_mday > rtc_month_days(tm->tm_mon, tm->tm_year + 1900)
-		|| tm->tm_hour >= 24
-		|| tm->tm_min >= 60
-		|| tm->tm_sec >= 60)
+		|| ((unsigned)tm->tm_hour) >= 24
+		|| ((unsigned)tm->tm_min) >= 60
+		|| ((unsigned)tm->tm_sec) >= 60)
 		return -EINVAL;
 
 	return 0;
@@ -116,5 +116,86 @@ int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time)
 	return 0;
 }
 EXPORT_SYMBOL(rtc_tm_to_time);
+
+
+/* Merge the valid (i.e. non-negative) fields of alarm into the current
+ * time.  If the valid alarm fields are earlier than the equivalent
+ * fields in the time, carry one into the least significant invalid
+ * field, so that the alarm expiry is in the future.  It assumes that the
+ * least significant invalid field is more significant than the most
+ * significant valid field, and that the seconds field is valid.
+ *
+ * This is used by alarms that take relative (rather than absolute)
+ * times, and/or have a simple binary second counter instead of
+ * day/hour/minute/sec registers.
+ */
+void rtc_merge_alarm(struct rtc_time *now, struct rtc_time *alarm)
+{
+	int *alarmp = &alarm->tm_sec;
+	int *timep = &now->tm_sec;
+	int carry_into, i;
+
+	/* Ignore everything past the 6th element (tm_year). */
+	for (i = 5; i > 0; i--) {
+		if (alarmp[i] < 0)
+			alarmp[i] = timep[i];
+		else
+			break;
+	}
+
+	/* No carry needed if all fields are valid. */
+	if (i == 5)
+		return;
+
+	for (carry_into = i + 1; i >= 0; i--) {
+		if (alarmp[i] < timep[i])
+			break;
+
+		if (alarmp[i] > timep[i])
+			return;
+	}
+
+	switch (carry_into) {
+		case 1:
+			alarm->tm_min++;
+
+			if (alarm->tm_min < 60)
+				return;
+
+			alarm->tm_min = 0;
+			/* fall-through */
+
+		case 2:
+			alarm->tm_hour++;
+
+			if (alarm->tm_hour < 60)
+				return;
+
+			alarm->tm_hour = 0;
+			/* fall-through */
+
+		case 3:
+			alarm->tm_mday++;
+
+			if (alarm->tm_mday <= rtc_days_in_month[alarm->tm_mon])
+				return;
+
+			alarm->tm_mday = 1;
+			/* fall-through */
+
+		case 4:
+			alarm->tm_mon++;
+
+			if (alarm->tm_mon <= 12)
+				return;
+
+			alarm->tm_mon = 1;
+			/* fall-through */
+
+		case 5:
+			alarm->tm_year++;
+	}
+}
+EXPORT_SYMBOL(rtc_merge_alarm);
 
 MODULE_LICENSE("GPL");

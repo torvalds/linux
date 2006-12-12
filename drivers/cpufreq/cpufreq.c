@@ -42,7 +42,7 @@ static DEFINE_SPINLOCK(cpufreq_driver_lock);
 
 /* internal prototypes */
 static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event);
-static void handle_update(void *data);
+static void handle_update(struct work_struct *work);
 
 /**
  * Two notifier lists: the "policy" list is involved in the
@@ -52,8 +52,14 @@ static void handle_update(void *data);
  * The mutex locks both lists.
  */
 static BLOCKING_NOTIFIER_HEAD(cpufreq_policy_notifier_list);
-static BLOCKING_NOTIFIER_HEAD(cpufreq_transition_notifier_list);
+static struct srcu_notifier_head cpufreq_transition_notifier_list;
 
+static int __init init_cpufreq_transition_notifier_list(void)
+{
+	srcu_init_notifier_head(&cpufreq_transition_notifier_list);
+	return 0;
+}
+pure_initcall(init_cpufreq_transition_notifier_list);
 
 static LIST_HEAD(cpufreq_governor_list);
 static DEFINE_MUTEX (cpufreq_governor_mutex);
@@ -262,14 +268,14 @@ void cpufreq_notify_transition(struct cpufreq_freqs *freqs, unsigned int state)
 				freqs->old = policy->cur;
 			}
 		}
-		blocking_notifier_call_chain(&cpufreq_transition_notifier_list,
+		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
 				CPUFREQ_PRECHANGE, freqs);
 		adjust_jiffies(CPUFREQ_PRECHANGE, freqs);
 		break;
 
 	case CPUFREQ_POSTCHANGE:
 		adjust_jiffies(CPUFREQ_POSTCHANGE, freqs);
-		blocking_notifier_call_chain(&cpufreq_transition_notifier_list,
+		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
 				CPUFREQ_POSTCHANGE, freqs);
 		if (likely(policy) && likely(policy->cpu == freqs->cpu))
 			policy->cur = freqs->new;
@@ -659,7 +665,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	mutex_init(&policy->lock);
 	mutex_lock(&policy->lock);
 	init_completion(&policy->kobj_unregister);
-	INIT_WORK(&policy->update, handle_update, (void *)(long)cpu);
+	INIT_WORK(&policy->update, handle_update);
 
 	/* call driver. From then on the cpufreq must be able
 	 * to accept all calls to ->verify and ->setpolicy for this CPU
@@ -889,9 +895,11 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 }
 
 
-static void handle_update(void *data)
+static void handle_update(struct work_struct *work)
 {
-	unsigned int cpu = (unsigned int)(long)data;
+	struct cpufreq_policy *policy =
+		container_of(work, struct cpufreq_policy, update);
+	unsigned int cpu = policy->cpu;
 	dprintk("handle_update for cpu %u called\n", cpu);
 	cpufreq_update_policy(cpu);
 }
@@ -994,7 +1002,7 @@ static int cpufreq_suspend(struct sys_device * sysdev, pm_message_t pmsg)
 	unsigned int cur_freq = 0;
 	struct cpufreq_policy *cpu_policy;
 
-	dprintk("resuming cpu %u\n", cpu);
+	dprintk("suspending cpu %u\n", cpu);
 
 	if (!cpu_online(cpu))
 		return 0;
@@ -1049,7 +1057,7 @@ static int cpufreq_suspend(struct sys_device * sysdev, pm_message_t pmsg)
 		freqs.old = cpu_policy->cur;
 		freqs.new = cur_freq;
 
-		blocking_notifier_call_chain(&cpufreq_transition_notifier_list,
+		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
 				    CPUFREQ_SUSPENDCHANGE, &freqs);
 		adjust_jiffies(CPUFREQ_SUSPENDCHANGE, &freqs);
 
@@ -1130,7 +1138,7 @@ static int cpufreq_resume(struct sys_device * sysdev)
 			freqs.old = cpu_policy->cur;
 			freqs.new = cur_freq;
 
-			blocking_notifier_call_chain(
+			srcu_notifier_call_chain(
 					&cpufreq_transition_notifier_list,
 					CPUFREQ_RESUMECHANGE, &freqs);
 			adjust_jiffies(CPUFREQ_RESUMECHANGE, &freqs);
@@ -1176,7 +1184,7 @@ int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list)
 
 	switch (list) {
 	case CPUFREQ_TRANSITION_NOTIFIER:
-		ret = blocking_notifier_chain_register(
+		ret = srcu_notifier_chain_register(
 				&cpufreq_transition_notifier_list, nb);
 		break;
 	case CPUFREQ_POLICY_NOTIFIER:
@@ -1208,7 +1216,7 @@ int cpufreq_unregister_notifier(struct notifier_block *nb, unsigned int list)
 
 	switch (list) {
 	case CPUFREQ_TRANSITION_NOTIFIER:
-		ret = blocking_notifier_chain_unregister(
+		ret = srcu_notifier_chain_unregister(
 				&cpufreq_transition_notifier_list, nb);
 		break;
 	case CPUFREQ_POLICY_NOTIFIER:
@@ -1529,7 +1537,6 @@ int cpufreq_update_policy(unsigned int cpu)
 }
 EXPORT_SYMBOL(cpufreq_update_policy);
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int cpufreq_cpu_callback(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
@@ -1569,7 +1576,6 @@ static struct notifier_block __cpuinitdata cpufreq_cpu_notifier =
 {
     .notifier_call = cpufreq_cpu_callback,
 };
-#endif /* CONFIG_HOTPLUG_CPU */
 
 /*********************************************************************
  *               REGISTER / UNREGISTER CPUFREQ DRIVER                *

@@ -27,6 +27,7 @@
 #include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/writeback.h>

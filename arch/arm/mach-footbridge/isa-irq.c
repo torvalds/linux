@@ -49,7 +49,7 @@ static void isa_unmask_pic_lo_irq(unsigned int irq)
 	outb(inb(PIC_MASK_LO) & ~mask, PIC_MASK_LO);
 }
 
-static struct irqchip isa_lo_chip = {
+static struct irq_chip isa_lo_chip = {
 	.ack	= isa_ack_pic_lo_irq,
 	.mask	= isa_mask_pic_lo_irq,
 	.unmask = isa_unmask_pic_lo_irq,
@@ -78,24 +78,24 @@ static void isa_unmask_pic_hi_irq(unsigned int irq)
 	outb(inb(PIC_MASK_HI) & ~mask, PIC_MASK_HI);
 }
 
-static struct irqchip isa_hi_chip = {
+static struct irq_chip isa_hi_chip = {
 	.ack	= isa_ack_pic_hi_irq,
 	.mask	= isa_mask_pic_hi_irq,
 	.unmask = isa_unmask_pic_hi_irq,
 };
 
 static void
-isa_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+isa_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int isa_irq = *(unsigned char *)PCIIACK_BASE;
 
 	if (isa_irq < _ISA_IRQ(0) || isa_irq >= _ISA_IRQ(16)) {
-		do_bad_IRQ(isa_irq, desc, regs);
+		do_bad_IRQ(isa_irq, desc);
 		return;
 	}
 
 	desc = irq_desc + isa_irq;
-	desc_handle_irq(isa_irq, desc, regs);
+	desc_handle_irq(isa_irq, desc);
 }
 
 static struct irqaction irq_cascade = {
@@ -150,13 +150,13 @@ void __init isa_init_irq(unsigned int host_irq)
 	if (host_irq != (unsigned int)-1) {
 		for (irq = _ISA_IRQ(0); irq < _ISA_IRQ(8); irq++) {
 			set_irq_chip(irq, &isa_lo_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
 
 		for (irq = _ISA_IRQ(8); irq < _ISA_IRQ(16); irq++) {
 			set_irq_chip(irq, &isa_hi_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
 

@@ -55,7 +55,7 @@ static int ds1672_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	}
 
 	dev_dbg(&client->dev,
-		"%s: raw read data - counters=%02x,%02x,%02x,%02x\n"
+		"%s: raw read data - counters=%02x,%02x,%02x,%02x\n",
 		__FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
 
 	time = (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
@@ -96,7 +96,7 @@ static int ds1672_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	unsigned long secs;
 
 	dev_dbg(&client->dev,
-		"%s: secs=%d, mins=%d, hours=%d, ",
+		"%s: secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
 		__FUNCTION__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
@@ -156,7 +156,7 @@ static ssize_t show_control(struct device *dev, struct device_attribute *attr, c
 }
 static DEVICE_ATTR(control, S_IRUGO, show_control, NULL);
 
-static struct rtc_class_ops ds1672_rtc_ops = {
+static const struct rtc_class_ops ds1672_rtc_ops = {
 	.read_time	= ds1672_rtc_read_time,
 	.set_time	= ds1672_rtc_set_time,
 	.set_mmss	= ds1672_rtc_set_mmss,
@@ -199,7 +199,7 @@ static int ds1672_probe(struct i2c_adapter *adapter, int address, int kind)
 	struct i2c_client *client;
 	struct rtc_device *rtc;
 
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
+	dev_dbg(adapter->class_dev.dev, "%s\n", __FUNCTION__);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
@@ -237,16 +237,21 @@ static int ds1672_probe(struct i2c_adapter *adapter, int address, int kind)
 	/* read control register */
 	err = ds1672_get_control(client, &control);
 	if (err)
-		goto exit_detach;
+		goto exit_devreg;
 
 	if (control & DS1672_REG_CONTROL_EOSC)
 		dev_warn(&client->dev, "Oscillator not enabled. "
 					"Set time to enable.\n");
 
 	/* Register sysfs hooks */
-	device_create_file(&client->dev, &dev_attr_control);
+	err = device_create_file(&client->dev, &dev_attr_control);
+	if (err)
+		goto exit_devreg;
 
 	return 0;
+
+exit_devreg:
+	rtc_device_unregister(rtc);
 
 exit_detach:
 	i2c_detach_client(client);

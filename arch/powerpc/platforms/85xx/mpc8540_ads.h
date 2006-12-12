@@ -1,5 +1,5 @@
 /*
- * arch/ppc/platforms/85xx/mpc8540_ads.h
+ * arch/powerpc/platforms/85xx/mpc8540_ads.h
  *
  * MPC8540ADS board definitions
  *

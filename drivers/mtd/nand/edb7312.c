@@ -199,7 +199,7 @@ static void __exit ep7312_cleanup(void)
 	nand_release(ap7312_mtd);
 
 	/* Release io resource */
-	iounmap((void *)this->IO_ADDR_R);
+	iounmap(this->IO_ADDR_R);
 
 	/* Free the MTD device structure */
 	kfree(ep7312_mtd);

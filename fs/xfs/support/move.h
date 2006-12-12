@@ -65,6 +65,6 @@ struct uio {
 typedef struct uio uio_t;
 typedef struct iovec iovec_t;
 
-extern int	uio_read (caddr_t, size_t, uio_t *);
+extern int	xfs_uio_read (caddr_t, size_t, uio_t *);
 
 #endif  /* __XFS_SUPPORT_MOVE_H__ */

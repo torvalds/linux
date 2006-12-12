@@ -25,8 +25,6 @@
 
 #define F_SETOWN	24	/*  for sockets. */
 #define F_GETOWN	23	/*  for sockets. */
-#define F_SETSIG	10	/*  for sockets. */
-#define F_GETSIG	11	/*  for sockets. */
 
 #ifndef __mips64
 #define F_GETLK64	33	/*  using 'struct flock64' */

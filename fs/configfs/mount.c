@@ -38,7 +38,7 @@
 
 struct vfsmount * configfs_mount = NULL;
 struct super_block * configfs_sb = NULL;
-kmem_cache_t *configfs_dir_cachep;
+struct kmem_cache *configfs_dir_cachep;
 static int configfs_mnt_count = 0;
 
 static struct super_operations configfs_ops = {
@@ -84,7 +84,7 @@ static int configfs_fill_super(struct super_block *sb, void *data, int silent)
 		inode->i_op = &configfs_dir_inode_operations;
 		inode->i_fop = &configfs_dir_operations;
 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
-		inode->i_nlink++;
+		inc_nlink(inode);
 	} else {
 		pr_debug("configfs: could not get root inode\n");
 		return -ENOMEM;

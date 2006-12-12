@@ -105,7 +105,7 @@ static u32* cx88_risc_field(u32 *rp, struct scatterlist *sglist,
 			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
 			offset+=bpl;
 		} else {
-			/* scanline needs to be splitted */
+			/* scanline needs to be split */
 			todo = bpl;
 			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|
 					    (sg_dma_len(sg)-offset));
@@ -658,13 +658,6 @@ static unsigned int inline norm_fsc8(struct cx88_tvnorm *norm)
 	return (norm->id & V4L2_STD_625_50) ? pal : ntsc;
 }
 
-static unsigned int inline norm_notchfilter(struct cx88_tvnorm *norm)
-{
-	return (norm->id & V4L2_STD_625_50)
-		? HLNotchFilter135PAL
-		: HLNotchFilter135NTSC;
-}
-
 static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
 {
 	/* Should always be Line Draw Time / (4*FSC) */
@@ -792,6 +785,11 @@ int cx88_start_audio_dma(struct cx88_core *core)
 {
 	/* constant 128 made buzz in analog Nicam-stereo for bigger fifo_size */
 	int bpl = cx88_sram_channels[SRAM_CH25].fifo_size/4;
+
+	/* If downstream RISC is enabled, bail out; ALSA is managing DMA */
+	if (cx_read(MO_AUD_DMACNTRL) & 0x10)
+		return 0;
+
 	/* setup fifo + format */
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH25], bpl, 0);
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH26], bpl, 0);
@@ -801,11 +799,16 @@ int cx88_start_audio_dma(struct cx88_core *core)
 
 	/* start dma */
 	cx_write(MO_AUD_DMACNTRL, 0x0003); /* Up and Down fifo enable */
+
 	return 0;
 }
 
 int cx88_stop_audio_dma(struct cx88_core *core)
 {
+	/* If downstream RISC is enabled, bail out; ALSA is managing DMA */
+	if (cx_read(MO_AUD_DMACNTRL) & 0x10)
+		return 0;
+
 	/* stop dma */
 	cx_write(MO_AUD_DMACNTRL, 0x0000);
 
@@ -927,7 +930,7 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 	// htotal
 	tmp64 = norm_htotal(norm) * (u64)vdec_clock;
 	do_div(tmp64, fsc8);
-	htotal = (u32)tmp64 | (norm_notchfilter(norm) << 11);
+	htotal = (u32)tmp64 | (HLNotchFilter4xFsc << 11);
 	dprintk(1,"set_tvnorm: MO_HTOTAL        0x%08x [old=0x%08x,htotal=%d]\n",
 		htotal, cx_read(MO_HTOTAL), (u32)tmp64);
 	cx_write(MO_HTOTAL, htotal);
@@ -1123,6 +1126,7 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 
 	/* init hardware */
 	cx88_reset(core);
+	cx88_card_setup_pre_i2c(core);
 	cx88_i2c_init(core,pci);
 	cx88_call_i2c_clients (core, TUNER_SET_STANDBY, NULL);
 	cx88_card_setup(core);
@@ -1149,7 +1153,7 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 	mutex_lock(&devlist);
 	cx88_ir_fini(core);
 	if (0 == core->i2c_rc)
-		i2c_bit_del_bus(&core->i2c_adap);
+		i2c_del_adapter(&core->i2c_adap);
 	list_del(&core->devlist);
 	iounmap(core->lmmio);
 	cx88_devcount--;

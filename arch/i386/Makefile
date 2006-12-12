@@ -26,10 +26,12 @@ endif
 
 LDFLAGS		:= -m elf_i386
 OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
-LDFLAGS_vmlinux :=
+ifdef CONFIG_RELOCATABLE
+LDFLAGS_vmlinux := --emit-relocs
+endif
 CHECKFLAGS	+= -D__i386__
 
-CFLAGS += -pipe -msoft-float
+CFLAGS += -pipe -msoft-float -mregparm=3
 
 # prevent gcc from keeping the stack 16 byte aligned
 CFLAGS += $(call cc-option,-mpreferred-stack-boundary=2)
@@ -37,10 +39,12 @@ CFLAGS += $(call cc-option,-mpreferred-stack-boundary=2)
 # CPU-specific tuning. Anything which can be shared with UML should go here.
 include $(srctree)/arch/i386/Makefile.cpu
 
-cflags-$(CONFIG_REGPARM) += -mregparm=3
-
 # temporary until string.h is fixed
 cflags-y += -ffreestanding
+
+# this works around some issues with generating unwind tables in older gccs
+# newer gccs do it by default
+cflags-y += -maccumulate-outgoing-args
 
 # Disable unit-at-a-time mode on pre-gcc-4.0 compilers, it makes gcc use
 # a lot more stack due to the lack of sharing of stacklots:
@@ -51,8 +55,8 @@ cflags-y += $(call as-instr,.cfi_startproc\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
 AFLAGS += $(call as-instr,.cfi_startproc\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
 
 # is .cfi_signal_frame supported too?
-cflags-y += $(call as-instr,.cfi_startproc\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
-AFLAGS += $(call as-instr,.cfi_startproc\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
+cflags-y += $(call as-instr,.cfi_startproc\n.cfi_signal_frame\n.cfi_endproc,-DCONFIG_AS_CFI_SIGNAL_FRAME=1,)
+AFLAGS += $(call as-instr,.cfi_startproc\n.cfi_signal_frame\n.cfi_endproc,-DCONFIG_AS_CFI_SIGNAL_FRAME=1,)
 
 CFLAGS += $(cflags-y)
 

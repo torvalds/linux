@@ -980,9 +980,11 @@ static void print_linkstatus(struct net_device *dev, u16 status)
 }
 
 /* Search scan results for requested BSSID, join it if found */
-static void orinoco_join_ap(struct net_device *dev)
+static void orinoco_join_ap(struct work_struct *work)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv =
+		container_of(work, struct orinoco_private, join_work);
+	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
 	int err;
 	unsigned long flags;
@@ -1055,9 +1057,11 @@ static void orinoco_join_ap(struct net_device *dev)
 }
 
 /* Send new BSSID to userspace */
-static void orinoco_send_wevents(struct net_device *dev)
+static void orinoco_send_wevents(struct work_struct *work)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv =
+		container_of(work, struct orinoco_private, wevent_work);
+	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
 	union iwreq_data wrqu;
 	int err;
@@ -1864,9 +1868,11 @@ __orinoco_set_multicast_list(struct net_device *dev)
 
 /* This must be called from user context, without locks held - use
  * schedule_work() */
-static void orinoco_reset(struct net_device *dev)
+static void orinoco_reset(struct work_struct *work)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv =
+		container_of(work, struct orinoco_private, reset_work);
+	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
 	int err;
 	unsigned long flags;
@@ -1952,9 +1958,9 @@ static void __orinoco_ev_wterr(struct net_device *dev, hermes_t *hw)
 	       dev->name);
 }
 
-irqreturn_t orinoco_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t orinoco_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *)dev_id;
+	struct net_device *dev = dev_id;
 	struct orinoco_private *priv = netdev_priv(dev);
 	hermes_t *hw = &priv->hw;
 	int count = MAX_IRQLOOPS_PER_IRQ;
@@ -2434,9 +2440,9 @@ struct net_device *alloc_orinocodev(int sizeof_card,
 	priv->hw_unavailable = 1; /* orinoco_init() must clear this
 				   * before anything else touches the
 				   * hardware */
-	INIT_WORK(&priv->reset_work, (void (*)(void *))orinoco_reset, dev);
-	INIT_WORK(&priv->join_work, (void (*)(void *))orinoco_join_ap, dev);
-	INIT_WORK(&priv->wevent_work, (void (*)(void *))orinoco_send_wevents, dev);
+	INIT_WORK(&priv->reset_work, orinoco_reset);
+	INIT_WORK(&priv->join_work, orinoco_join_ap);
+	INIT_WORK(&priv->wevent_work, orinoco_send_wevents);
 
 	netif_carrier_off(dev);
 	priv->last_linkstatus = 0xffff;
@@ -2457,6 +2463,7 @@ void free_orinocodev(struct net_device *dev)
 /* Wireless extensions                                              */
 /********************************************************************/
 
+/* Return : < 0 -> error code ; >= 0 -> length */
 static int orinoco_hw_get_essid(struct orinoco_private *priv, int *active,
 				char buf[IW_ESSID_MAX_SIZE+1])
 {
@@ -2501,9 +2508,9 @@ static int orinoco_hw_get_essid(struct orinoco_private *priv, int *active,
 	len = le16_to_cpu(essidbuf.len);
 	BUG_ON(len > IW_ESSID_MAX_SIZE);
 
-	memset(buf, 0, IW_ESSID_MAX_SIZE+1);
+	memset(buf, 0, IW_ESSID_MAX_SIZE);
 	memcpy(buf, p, len);
-	buf[len] = '\0';
+	err = len;
 
  fail_unlock:
 	orinoco_unlock(priv, &flags);
@@ -3027,17 +3034,18 @@ static int orinoco_ioctl_getessid(struct net_device *dev,
 
 	if (netif_running(dev)) {
 		err = orinoco_hw_get_essid(priv, &active, essidbuf);
-		if (err)
+		if (err < 0)
 			return err;
+		erq->length = err;
 	} else {
 		if (orinoco_lock(priv, &flags) != 0)
 			return -EBUSY;
-		memcpy(essidbuf, priv->desired_essid, IW_ESSID_MAX_SIZE + 1);
+		memcpy(essidbuf, priv->desired_essid, IW_ESSID_MAX_SIZE);
+		erq->length = strlen(priv->desired_essid);
 		orinoco_unlock(priv, &flags);
 	}
 
 	erq->flags = 1;
-	erq->length = strlen(essidbuf) + 1;
 
 	return 0;
 }
@@ -3075,10 +3083,10 @@ static int orinoco_ioctl_getnick(struct net_device *dev,
 	if (orinoco_lock(priv, &flags) != 0)
 		return -EBUSY;
 
-	memcpy(nickbuf, priv->nick, IW_ESSID_MAX_SIZE+1);
+	memcpy(nickbuf, priv->nick, IW_ESSID_MAX_SIZE);
 	orinoco_unlock(priv, &flags);
 
-	nrq->length = strlen(nickbuf)+1;
+	nrq->length = strlen(priv->nick);
 
 	return 0;
 }
@@ -3575,14 +3583,14 @@ static int orinoco_ioctl_getretry(struct net_device *dev,
 		rrq->value = lifetime * 1000;	/* ??? */
 	} else {
 		/* By default, display the min number */
-		if ((rrq->flags & IW_RETRY_MAX)) {
-			rrq->flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
+		if ((rrq->flags & IW_RETRY_LONG)) {
+			rrq->flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
 			rrq->value = long_limit;
 		} else {
 			rrq->flags = IW_RETRY_LIMIT;
 			rrq->value = short_limit;
 			if(short_limit != long_limit)
-				rrq->flags |= IW_RETRY_MIN;
+				rrq->flags |= IW_RETRY_SHORT;
 		}
 	}
 
@@ -3606,7 +3614,7 @@ static int orinoco_ioctl_reset(struct net_device *dev,
 		printk(KERN_DEBUG "%s: Forcing reset!\n", dev->name);
 
 		/* Firmware reset */
-		orinoco_reset(dev);
+		orinoco_reset(&priv->reset_work);
 	} else {
 		printk(KERN_DEBUG "%s: Force scheduling reset!\n", dev->name);
 
@@ -4152,7 +4160,7 @@ static int orinoco_ioctl_commit(struct net_device *dev,
 		return 0;
 
 	if (priv->broken_disableport) {
-		orinoco_reset(dev);
+		orinoco_reset(&priv->reset_work);
 		return 0;
 	}
 

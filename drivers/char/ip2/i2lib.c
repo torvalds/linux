@@ -84,8 +84,8 @@ static void iiSendPendingMail(i2eBordStrPtr);
 static void serviceOutgoingFifo(i2eBordStrPtr);
 
 // Functions defined in ip2.c as part of interrupt handling
-static void do_input(void *);
-static void do_status(void *);
+static void do_input(struct work_struct *);
+static void do_status(struct work_struct *);
 
 //***************
 //* Debug  Data *
@@ -331,8 +331,8 @@ i2InitChannels ( i2eBordStrPtr pB, int nChannels, i2ChanStrPtr pCh)
 		pCh->ClosingWaitTime  = 30*HZ;
 
 		// Initialize task queue objects
-		INIT_WORK(&pCh->tqueue_input, do_input, pCh);
-		INIT_WORK(&pCh->tqueue_status, do_status, pCh);
+		INIT_WORK(&pCh->tqueue_input, do_input);
+		INIT_WORK(&pCh->tqueue_status, do_status);
 
 #ifdef IP2DEBUG_TRACE
 		pCh->trace = ip2trace;
@@ -1007,7 +1007,7 @@ i2InputAvailable(i2ChanStrPtr pCh)
 // applications that one cannot break out of.
 //******************************************************************************
 static int
-i2Output(i2ChanStrPtr pCh, const char *pSource, int count, int user )
+i2Output(i2ChanStrPtr pCh, const char *pSource, int count)
 {
 	i2eBordStrPtr pB;
 	unsigned char *pInsert;
@@ -1016,11 +1016,10 @@ i2Output(i2ChanStrPtr pCh, const char *pSource, int count, int user )
 	unsigned short channel;
 	unsigned short stuffIndex;
 	unsigned long flags;
-	int rc = 0;
 
 	int bailout = 10;
 
-	ip2trace (CHANN, ITRC_OUTPUT, ITRC_ENTER, 2, count, user );
+	ip2trace (CHANN, ITRC_OUTPUT, ITRC_ENTER, 2, count, 0 );
 
 	// Ensure channel structure seems real
 	if ( !i2Validate ( pCh ) ) 
@@ -1087,12 +1086,7 @@ i2Output(i2ChanStrPtr pCh, const char *pSource, int count, int user )
 			DATA_COUNT_OF(pInsert)  = amountToMove;
 
 			// Move the data
-			if ( user ) {
-				rc = copy_from_user((char*)(DATA_OF(pInsert)), pSource,
-						amountToMove );
-			} else {
-				memcpy( (char*)(DATA_OF(pInsert)), pSource, amountToMove );
-			}
+			memcpy( (char*)(DATA_OF(pInsert)), pSource, amountToMove );
 			// Adjust pointers and indices
 			pSource					+= amountToMove;
 			pCh->Obuf_char_count	+= amountToMove;
@@ -1578,7 +1572,7 @@ i2StripFifo(i2eBordStrPtr pB)
 #ifdef USE_IQ
 			schedule_work(&pCh->tqueue_input);
 #else
-			do_input(pCh);
+			do_input(&pCh->tqueue_input);
 #endif
 
 			// Note we do not need to maintain any flow-control credits at this
@@ -1815,7 +1809,7 @@ i2StripFifo(i2eBordStrPtr pB)
 #ifdef USE_IQ
 						schedule_work(&pCh->tqueue_status);
 #else
-						do_status(pCh);
+						do_status(&pCh->tqueue_status);
 #endif
 					}
 				}

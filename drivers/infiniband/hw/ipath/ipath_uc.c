@@ -246,6 +246,10 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	struct ib_reth *reth;
 	int header_in_data;
 
+	/* Validate the SLID. See Ch. 9.6.1.5 */
+	if (unlikely(be16_to_cpu(hdr->lrh[3]) != qp->remote_ah_attr.dlid))
+		goto done;
+
 	/* Check for GRH */
 	if (!has_grh) {
 		ohdr = &hdr->u.oth;
@@ -440,7 +444,7 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			int ok;
 
 			/* Check rkey */
-			ok = ipath_rkey_ok(dev, &qp->r_sge, qp->r_len,
+			ok = ipath_rkey_ok(qp, &qp->r_sge, qp->r_len,
 					   vaddr, rkey,
 					   IB_ACCESS_REMOTE_WRITE);
 			if (unlikely(!ok)) {

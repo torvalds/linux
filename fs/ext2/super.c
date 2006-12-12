@@ -135,12 +135,12 @@ static void ext2_put_super (struct super_block * sb)
 	return;
 }
 
-static kmem_cache_t * ext2_inode_cachep;
+static struct kmem_cache * ext2_inode_cachep;
 
 static struct inode *ext2_alloc_inode(struct super_block *sb)
 {
 	struct ext2_inode_info *ei;
-	ei = (struct ext2_inode_info *)kmem_cache_alloc(ext2_inode_cachep, SLAB_KERNEL);
+	ei = (struct ext2_inode_info *)kmem_cache_alloc(ext2_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 #ifdef CONFIG_EXT2_FS_POSIX_ACL
@@ -156,7 +156,7 @@ static void ext2_destroy_inode(struct inode *inode)
 	kmem_cache_free(ext2_inode_cachep, EXT2_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct ext2_inode_info *ei = (struct ext2_inode_info *) foo;
 
@@ -184,8 +184,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(ext2_inode_cachep))
-		printk(KERN_INFO "ext2_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(ext2_inode_cachep);
 }
 
 static void ext2_clear_inode(struct inode *inode)
@@ -365,7 +364,6 @@ static int parse_options (char * options,
 {
 	char * p;
 	substring_t args[MAX_OPT_ARGS];
-	unsigned long kind = EXT2_MOUNT_ERRORS_CONT;
 	int option;
 
 	if (!options)
@@ -405,13 +403,19 @@ static int parse_options (char * options,
 			/* *sb_block = match_int(&args[0]); */
 			break;
 		case Opt_err_panic:
-			kind = EXT2_MOUNT_ERRORS_PANIC;
+			clear_opt (sbi->s_mount_opt, ERRORS_CONT);
+			clear_opt (sbi->s_mount_opt, ERRORS_RO);
+			set_opt (sbi->s_mount_opt, ERRORS_PANIC);
 			break;
 		case Opt_err_ro:
-			kind = EXT2_MOUNT_ERRORS_RO;
+			clear_opt (sbi->s_mount_opt, ERRORS_CONT);
+			clear_opt (sbi->s_mount_opt, ERRORS_PANIC);
+			set_opt (sbi->s_mount_opt, ERRORS_RO);
 			break;
 		case Opt_err_cont:
-			kind = EXT2_MOUNT_ERRORS_CONT;
+			clear_opt (sbi->s_mount_opt, ERRORS_RO);
+			clear_opt (sbi->s_mount_opt, ERRORS_PANIC);
+			set_opt (sbi->s_mount_opt, ERRORS_CONT);
 			break;
 		case Opt_nouid32:
 			set_opt (sbi->s_mount_opt, NO_UID32);
@@ -490,7 +494,6 @@ static int parse_options (char * options,
 			return 0;
 		}
 	}
-	sbi->s_mount_opt |= kind;
 	return 1;
 }
 
@@ -544,17 +547,24 @@ static int ext2_check_descriptors (struct super_block * sb)
 	int i;
 	int desc_block = 0;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
-	unsigned long block = le32_to_cpu(sbi->s_es->s_first_data_block);
+	unsigned long first_block = le32_to_cpu(sbi->s_es->s_first_data_block);
+	unsigned long last_block;
 	struct ext2_group_desc * gdp = NULL;
 
 	ext2_debug ("Checking group descriptors");
 
 	for (i = 0; i < sbi->s_groups_count; i++)
 	{
+		if (i == sbi->s_groups_count - 1)
+			last_block = le32_to_cpu(sbi->s_es->s_blocks_count) - 1;
+		else
+			last_block = first_block +
+				(EXT2_BLOCKS_PER_GROUP(sb) - 1);
+
 		if ((i % EXT2_DESC_PER_BLOCK(sb)) == 0)
 			gdp = (struct ext2_group_desc *) sbi->s_group_desc[desc_block++]->b_data;
-		if (le32_to_cpu(gdp->bg_block_bitmap) < block ||
-		    le32_to_cpu(gdp->bg_block_bitmap) >= block + EXT2_BLOCKS_PER_GROUP(sb))
+		if (le32_to_cpu(gdp->bg_block_bitmap) < first_block ||
+		    le32_to_cpu(gdp->bg_block_bitmap) > last_block)
 		{
 			ext2_error (sb, "ext2_check_descriptors",
 				    "Block bitmap for group %d"
@@ -562,8 +572,8 @@ static int ext2_check_descriptors (struct super_block * sb)
 				    i, (unsigned long) le32_to_cpu(gdp->bg_block_bitmap));
 			return 0;
 		}
-		if (le32_to_cpu(gdp->bg_inode_bitmap) < block ||
-		    le32_to_cpu(gdp->bg_inode_bitmap) >= block + EXT2_BLOCKS_PER_GROUP(sb))
+		if (le32_to_cpu(gdp->bg_inode_bitmap) < first_block ||
+		    le32_to_cpu(gdp->bg_inode_bitmap) > last_block)
 		{
 			ext2_error (sb, "ext2_check_descriptors",
 				    "Inode bitmap for group %d"
@@ -571,9 +581,9 @@ static int ext2_check_descriptors (struct super_block * sb)
 				    i, (unsigned long) le32_to_cpu(gdp->bg_inode_bitmap));
 			return 0;
 		}
-		if (le32_to_cpu(gdp->bg_inode_table) < block ||
-		    le32_to_cpu(gdp->bg_inode_table) + sbi->s_itb_per_group >=
-		    block + EXT2_BLOCKS_PER_GROUP(sb))
+		if (le32_to_cpu(gdp->bg_inode_table) < first_block ||
+		    le32_to_cpu(gdp->bg_inode_table) + sbi->s_itb_per_group >
+		    last_block)
 		{
 			ext2_error (sb, "ext2_check_descriptors",
 				    "Inode table for group %d"
@@ -581,14 +591,12 @@ static int ext2_check_descriptors (struct super_block * sb)
 				    i, (unsigned long) le32_to_cpu(gdp->bg_inode_table));
 			return 0;
 		}
-		block += EXT2_BLOCKS_PER_GROUP(sb);
+		first_block += EXT2_BLOCKS_PER_GROUP(sb);
 		gdp++;
 	}
 	return 1;
 }
 
-#define log2(n) ffz(~(n))
- 
 /*
  * Maximal file size.  There is a direct, and {,double-,triple-}indirect
  * block limit, and also a limit of (2^32 - 1) 512-byte sectors in i_blocks.
@@ -648,11 +656,10 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	int i, j;
 	__le32 features;
 
-	sbi = kmalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 	sb->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(*sbi));
 
 	/*
 	 * See what the current blocksize for the device is, and
@@ -710,6 +717,8 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 		set_opt(sbi->s_mount_opt, ERRORS_PANIC);
 	else if (le16_to_cpu(sbi->s_es->s_errors) == EXT2_ERRORS_RO)
 		set_opt(sbi->s_mount_opt, ERRORS_RO);
+	else
+		set_opt(sbi->s_mount_opt, ERRORS_CONT);
 
 	sbi->s_resuid = le16_to_cpu(es->s_def_resuid);
 	sbi->s_resgid = le16_to_cpu(es->s_def_resgid);
@@ -823,9 +832,9 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_sbh = bh;
 	sbi->s_mount_state = le16_to_cpu(es->s_state);
 	sbi->s_addr_per_block_bits =
-		log2 (EXT2_ADDR_PER_BLOCK(sb));
+		ilog2 (EXT2_ADDR_PER_BLOCK(sb));
 	sbi->s_desc_per_block_bits =
-		log2 (EXT2_DESC_PER_BLOCK(sb));
+		ilog2 (EXT2_DESC_PER_BLOCK(sb));
 
 	if (sb->s_magic != EXT2_SUPER_MAGIC)
 		goto cantfind_ext2;
@@ -861,10 +870,9 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (EXT2_BLOCKS_PER_GROUP(sb) == 0)
 		goto cantfind_ext2;
-	sbi->s_groups_count = (le32_to_cpu(es->s_blocks_count) -
-				        le32_to_cpu(es->s_first_data_block) +
-				       EXT2_BLOCKS_PER_GROUP(sb) - 1) /
-				       EXT2_BLOCKS_PER_GROUP(sb);
+ 	sbi->s_groups_count = ((le32_to_cpu(es->s_blocks_count) -
+ 				le32_to_cpu(es->s_first_data_block) - 1)
+ 					/ EXT2_BLOCKS_PER_GROUP(sb)) + 1;
 	db_count = (sbi->s_groups_count + EXT2_DESC_PER_BLOCK(sb) - 1) /
 		   EXT2_DESC_PER_BLOCK(sb);
 	sbi->s_group_desc = kmalloc (db_count * sizeof (struct buffer_head *), GFP_KERNEL);
@@ -1080,8 +1088,10 @@ static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
+	struct ext2_super_block *es = sbi->s_es;
 	unsigned long overhead;
 	int i;
+	u64 fsid;
 
 	if (test_opt (sb, MINIX_DF))
 		overhead = 0;
@@ -1094,7 +1104,7 @@ static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 		 * All of the blocks before first_data_block are
 		 * overhead
 		 */
-		overhead = le32_to_cpu(sbi->s_es->s_first_data_block);
+		overhead = le32_to_cpu(es->s_first_data_block);
 
 		/*
 		 * Add the overhead attributed to the superblock and
@@ -1115,14 +1125,18 @@ static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 
 	buf->f_type = EXT2_SUPER_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
-	buf->f_blocks = le32_to_cpu(sbi->s_es->s_blocks_count) - overhead;
+	buf->f_blocks = le32_to_cpu(es->s_blocks_count) - overhead;
 	buf->f_bfree = ext2_count_free_blocks(sb);
-	buf->f_bavail = buf->f_bfree - le32_to_cpu(sbi->s_es->s_r_blocks_count);
-	if (buf->f_bfree < le32_to_cpu(sbi->s_es->s_r_blocks_count))
+	buf->f_bavail = buf->f_bfree - le32_to_cpu(es->s_r_blocks_count);
+	if (buf->f_bfree < le32_to_cpu(es->s_r_blocks_count))
 		buf->f_bavail = 0;
-	buf->f_files = le32_to_cpu(sbi->s_es->s_inodes_count);
-	buf->f_ffree = ext2_count_free_inodes (sb);
+	buf->f_files = le32_to_cpu(es->s_inodes_count);
+	buf->f_ffree = ext2_count_free_inodes(sb);
 	buf->f_namelen = EXT2_NAME_LEN;
+	fsid = le64_to_cpup((void *)es->s_uuid) ^
+	       le64_to_cpup((void *)es->s_uuid + sizeof(u64));
+	buf->f_fsid.val[0] = fsid & 0xFFFFFFFFUL;
+	buf->f_fsid.val[1] = (fsid >> 32) & 0xFFFFFFFFUL;
 	return 0;
 }
 

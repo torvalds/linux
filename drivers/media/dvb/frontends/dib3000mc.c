@@ -1,725 +1,722 @@
 /*
- * Frontend driver for mobile DVB-T demodulator DiBcom 3000P/M-C
- * DiBcom (http://www.dibcom.fr/)
+ * Driver for DiBcom DiB3000MC/P-demodulator.
  *
+ * Copyright (C) 2004-6 DiBcom (http://www.dibcom.fr/)
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
  *
- * based on GPL code from DiBCom, which has
+ * This code is partially based on the previous dib3000mc.c .
  *
- * Copyright (C) 2004 Amaury Demol for DiBcom (ademol@dibcom.fr)
- *
- *	This program is free software; you can redistribute it and/or
+ * This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
  *	published by the Free Software Foundation, version 2.
- *
- * Acknowledgements
- *
- *  Amaury Demol (ademol@dibcom.fr) from DiBcom for providing specs and driver
- *  sources, on which this driver (and the dvb-dibusb) are based.
- *
- * see Documentation/dvb/README.dibusb for more information
- *
  */
+
 #include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/string.h>
-#include <linux/slab.h>
+#include <linux/i2c.h>
+//#include <linux/init.h>
+//#include <linux/delay.h>
+//#include <linux/string.h>
+//#include <linux/slab.h>
 
-#include "dib3000-common.h"
-#include "dib3000mc_priv.h"
-#include "dib3000.h"
+#include "dvb_frontend.h"
 
-/* Version information */
-#define DRIVER_VERSION "0.1"
-#define DRIVER_DESC "DiBcom 3000M-C DVB-T demodulator"
-#define DRIVER_AUTHOR "Patrick Boettcher, patrick.boettcher@desy.de"
+#include "dib3000mc.h"
 
-#ifdef CONFIG_DVB_DIBCOM_DEBUG
 static int debug;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info,2=xfer,4=setfe,8=getfe,16=stat (|-able)).");
-#endif
-#define deb_info(args...) dprintk(0x01,args)
-#define deb_xfer(args...) dprintk(0x02,args)
-#define deb_setf(args...) dprintk(0x04,args)
-#define deb_getf(args...) dprintk(0x08,args)
-#define deb_stat(args...) dprintk(0x10,args)
+MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
 
-static int dib3000mc_set_impulse_noise(struct dib3000_state * state, int mode,
-	fe_transmit_mode_t transmission_mode, fe_bandwidth_t bandwidth)
+#define dprintk(args...) do { if (debug) { printk(KERN_DEBUG "DiB3000MC/P:"); printk(args); } } while (0)
+
+struct dib3000mc_state {
+	struct dvb_frontend demod;
+	struct dib3000mc_config *cfg;
+
+	u8 i2c_addr;
+	struct i2c_adapter *i2c_adap;
+
+	struct dibx000_i2c_master i2c_master;
+
+	u32 timf;
+
+	fe_bandwidth_t current_bandwidth;
+
+	u16 dev_id;
+};
+
+static u16 dib3000mc_read_word(struct dib3000mc_state *state, u16 reg)
 {
-	switch (transmission_mode) {
-		case TRANSMISSION_MODE_2K:
-			wr_foreach(dib3000mc_reg_fft,dib3000mc_fft_modes[0]);
-			break;
-		case TRANSMISSION_MODE_8K:
-			wr_foreach(dib3000mc_reg_fft,dib3000mc_fft_modes[1]);
-			break;
-		default:
-			break;
+	u8 wb[2] = { (reg >> 8) | 0x80, reg & 0xff };
+	u8 rb[2];
+	struct i2c_msg msg[2] = {
+		{ .addr = state->i2c_addr >> 1, .flags = 0,        .buf = wb, .len = 2 },
+		{ .addr = state->i2c_addr >> 1, .flags = I2C_M_RD, .buf = rb, .len = 2 },
+	};
+
+	if (i2c_transfer(state->i2c_adap, msg, 2) != 2)
+		dprintk("i2c read error on %d\n",reg);
+
+	return (rb[0] << 8) | rb[1];
+}
+
+static int dib3000mc_write_word(struct dib3000mc_state *state, u16 reg, u16 val)
+{
+	u8 b[4] = {
+		(reg >> 8) & 0xff, reg & 0xff,
+		(val >> 8) & 0xff, val & 0xff,
+	};
+	struct i2c_msg msg = {
+		.addr = state->i2c_addr >> 1, .flags = 0, .buf = b, .len = 4
+	};
+	return i2c_transfer(state->i2c_adap, &msg, 1) != 1 ? -EREMOTEIO : 0;
+}
+
+
+static int dib3000mc_identify(struct dib3000mc_state *state)
+{
+	u16 value;
+	if ((value = dib3000mc_read_word(state, 1025)) != 0x01b3) {
+		dprintk("-E-  DiB3000MC/P: wrong Vendor ID (read=0x%x)\n",value);
+		return -EREMOTEIO;
 	}
 
-	switch (bandwidth) {
-/*		case BANDWIDTH_5_MHZ:
-			wr_foreach(dib3000mc_reg_impulse_noise,dib3000mc_impluse_noise[0]);
-			break; */
-		case BANDWIDTH_6_MHZ:
-			wr_foreach(dib3000mc_reg_impulse_noise,dib3000mc_impluse_noise[1]);
-			break;
-		case BANDWIDTH_7_MHZ:
-			wr_foreach(dib3000mc_reg_impulse_noise,dib3000mc_impluse_noise[2]);
-			break;
-		case BANDWIDTH_8_MHZ:
-			wr_foreach(dib3000mc_reg_impulse_noise,dib3000mc_impluse_noise[3]);
-			break;
-		default:
-			break;
+	value = dib3000mc_read_word(state, 1026);
+	if (value != 0x3001 && value != 0x3002) {
+		dprintk("-E-  DiB3000MC/P: wrong Device ID (%x)\n",value);
+		return -EREMOTEIO;
 	}
+	state->dev_id = value;
+
+	dprintk("-I-  found DiB3000MC/P: %x\n",state->dev_id);
+
+	return 0;
+}
+
+static int dib3000mc_set_timing(struct dib3000mc_state *state, s16 nfft, u8 bw, u8 update_offset)
+{
+	u32 timf;
+
+	if (state->timf == 0) {
+		timf = 1384402; // default value for 8MHz
+		if (update_offset)
+			msleep(200); // first time we do an update
+	} else
+		timf = state->timf;
+
+	timf *= (BW_INDEX_TO_KHZ(bw) / 1000);
+
+	if (update_offset) {
+		s16 tim_offs = dib3000mc_read_word(state, 416);
+
+		if (tim_offs &  0x2000)
+			tim_offs -= 0x4000;
+
+		if (nfft == 0)
+			tim_offs *= 4;
+
+		timf += tim_offs;
+		state->timf = timf / (BW_INDEX_TO_KHZ(bw) / 1000);
+	}
+
+	dprintk("timf: %d\n", timf);
+
+	dib3000mc_write_word(state, 23, timf >> 16);
+	dib3000mc_write_word(state, 24, timf & 0xffff);
+
+	return 0;
+}
+
+static int dib3000mc_setup_pwm_state(struct dib3000mc_state *state)
+{
+	u16 reg_51, reg_52 = state->cfg->agc->setup & 0xfefb;
+    if (state->cfg->pwm3_inversion) {
+		reg_51 =  (2 << 14) | (0 << 10) | (7 << 6) | (2 << 2) | (2 << 0);
+		reg_52 |= (1 << 2);
+	} else {
+		reg_51 = (2 << 14) | (4 << 10) | (7 << 6) | (2 << 2) | (2 << 0);
+		reg_52 |= (1 << 8);
+	}
+	dib3000mc_write_word(state, 51, reg_51);
+	dib3000mc_write_word(state, 52, reg_52);
+
+    if (state->cfg->use_pwm3)
+		dib3000mc_write_word(state, 245, (1 << 3) | (1 << 0));
+	else
+		dib3000mc_write_word(state, 245, 0);
+
+    dib3000mc_write_word(state, 1040, 0x3);
+	return 0;
+}
+
+static int dib3000mc_set_output_mode(struct dib3000mc_state *state, int mode)
+{
+	int    ret = 0;
+	u16 fifo_threshold = 1792;
+	u16 outreg = 0;
+	u16 outmode = 0;
+	u16 elecout = 1;
+	u16 smo_reg = dib3000mc_read_word(state, 206) & 0x0010; /* keep the pid_parse bit */
+
+	dprintk("-I-  Setting output mode for demod %p to %d\n",
+			&state->demod, mode);
 
 	switch (mode) {
-		case 0: /* no impulse */ /* fall through */
-			wr_foreach(dib3000mc_reg_imp_noise_ctl,dib3000mc_imp_noise_ctl[0]);
+		case OUTMODE_HIGH_Z:  // disable
+			elecout = 0;
 			break;
-		case 1: /* new algo */
-			wr_foreach(dib3000mc_reg_imp_noise_ctl,dib3000mc_imp_noise_ctl[1]);
-			set_or(DIB3000MC_REG_IMP_NOISE_55,DIB3000MC_IMP_NEW_ALGO(0)); /* gives 1<<10 */
+		case OUTMODE_MPEG2_PAR_GATED_CLK:   // STBs with parallel gated clock
+			outmode = 0;
 			break;
-		default: /* old algo */
-			wr_foreach(dib3000mc_reg_imp_noise_ctl,dib3000mc_imp_noise_ctl[3]);
+		case OUTMODE_MPEG2_PAR_CONT_CLK:    // STBs with parallel continues clock
+			outmode = 1;
+			break;
+		case OUTMODE_MPEG2_SERIAL:          // STBs with serial input
+			outmode = 2;
+			break;
+		case OUTMODE_MPEG2_FIFO:            // e.g. USB feeding
+			elecout = 3;
+			/*ADDR @ 206 :
+			P_smo_error_discard  [1;6:6] = 0
+			P_smo_rs_discard     [1;5:5] = 0
+			P_smo_pid_parse      [1;4:4] = 0
+			P_smo_fifo_flush     [1;3:3] = 0
+			P_smo_mode           [2;2:1] = 11
+			P_smo_ovf_prot       [1;0:0] = 0
+			*/
+			smo_reg |= 3 << 1;
+			fifo_threshold = 512;
+			outmode = 5;
+			break;
+		case OUTMODE_DIVERSITY:
+			outmode = 4;
+			elecout = 1;
+			break;
+		default:
+			dprintk("Unhandled output_mode passed to be set for demod %p\n",&state->demod);
+			outmode = 0;
 			break;
 	}
-	return 0;
+
+	if ((state->cfg->output_mpeg2_in_188_bytes))
+		smo_reg |= (1 << 5); // P_smo_rs_discard     [1;5:5] = 1
+
+	outreg = dib3000mc_read_word(state, 244) & 0x07FF;
+	outreg |= (outmode << 11);
+	ret |= dib3000mc_write_word(state,  244, outreg);
+	ret |= dib3000mc_write_word(state,  206, smo_reg);   /*smo_ mode*/
+	ret |= dib3000mc_write_word(state,  207, fifo_threshold); /* synchronous fread */
+	ret |= dib3000mc_write_word(state, 1040, elecout);         /* P_out_cfg */
+	return ret;
 }
 
-static int dib3000mc_set_timing(struct dib3000_state *state, int upd_offset,
-		fe_transmit_mode_t fft, fe_bandwidth_t bw)
+static int dib3000mc_set_bandwidth(struct dvb_frontend *demod, u8 bw)
 {
-	u16 timf_msb,timf_lsb;
-	s32 tim_offset,tim_sgn;
-	u64 comp1,comp2,comp=0;
+	struct dib3000mc_state *state = demod->demodulator_priv;
+	u16 bw_cfg[6] = { 0 };
+	u16 imp_bw_cfg[3] = { 0 };
+	u16 reg;
 
-	switch (bw) {
-		case BANDWIDTH_8_MHZ: comp = DIB3000MC_CLOCK_REF*8; break;
-		case BANDWIDTH_7_MHZ: comp = DIB3000MC_CLOCK_REF*7; break;
-		case BANDWIDTH_6_MHZ: comp = DIB3000MC_CLOCK_REF*6; break;
-		default: err("unknown bandwidth (%d)",bw); break;
-	}
-	timf_msb = (comp >> 16) & 0xff;
-	timf_lsb = (comp & 0xffff);
-
-	// Update the timing offset ;
-	if (upd_offset > 0) {
-		if (!state->timing_offset_comp_done) {
-			msleep(200);
-			state->timing_offset_comp_done = 1;
-		}
-		tim_offset = rd(DIB3000MC_REG_TIMING_OFFS_MSB);
-		if ((tim_offset & 0x2000) == 0x2000)
-			tim_offset |= 0xC000;
-		if (fft == TRANSMISSION_MODE_2K)
-			tim_offset <<= 2;
-		state->timing_offset += tim_offset;
-	}
-
-	tim_offset = state->timing_offset;
-	if (tim_offset < 0) {
-		tim_sgn = 1;
-		tim_offset = -tim_offset;
-	} else
-		tim_sgn = 0;
-
-	comp1 =  (u32)tim_offset * (u32)timf_lsb ;
-	comp2 =  (u32)tim_offset * (u32)timf_msb ;
-	comp  = ((comp1 >> 16) + comp2) >> 7;
-
-	if (tim_sgn == 0)
-		comp = (u32)(timf_msb << 16) + (u32) timf_lsb + comp;
-	else
-		comp = (u32)(timf_msb << 16) + (u32) timf_lsb - comp ;
-
-	timf_msb = (comp >> 16) & 0xff;
-	timf_lsb = comp & 0xffff;
-
-	wr(DIB3000MC_REG_TIMING_FREQ_MSB,timf_msb);
-	wr(DIB3000MC_REG_TIMING_FREQ_LSB,timf_lsb);
-	return 0;
-}
-
-static int dib3000mc_init_auto_scan(struct dib3000_state *state, fe_bandwidth_t bw, int boost)
-{
-	if (boost) {
-		wr(DIB3000MC_REG_SCAN_BOOST,DIB3000MC_SCAN_BOOST_ON);
-	} else {
-		wr(DIB3000MC_REG_SCAN_BOOST,DIB3000MC_SCAN_BOOST_OFF);
-	}
+/* settings here are for 27.7MHz */
 	switch (bw) {
 		case BANDWIDTH_8_MHZ:
-			wr_foreach(dib3000mc_reg_bandwidth,dib3000mc_bandwidth_8mhz);
+			bw_cfg[0] = 0x0019; bw_cfg[1] = 0x5c30; bw_cfg[2] = 0x0054; bw_cfg[3] = 0x88a0; bw_cfg[4] = 0x01a6; bw_cfg[5] = 0xab20;
+			imp_bw_cfg[0] = 0x04db; imp_bw_cfg[1] = 0x00db; imp_bw_cfg[2] = 0x00b7;
 			break;
+
 		case BANDWIDTH_7_MHZ:
-			wr_foreach(dib3000mc_reg_bandwidth,dib3000mc_bandwidth_7mhz);
+			bw_cfg[0] = 0x001c; bw_cfg[1] = 0xfba5; bw_cfg[2] = 0x0060; bw_cfg[3] = 0x9c25; bw_cfg[4] = 0x01e3; bw_cfg[5] = 0x0cb7;
+			imp_bw_cfg[0] = 0x04c0; imp_bw_cfg[1] = 0x00c0; imp_bw_cfg[2] = 0x00a0;
 			break;
+
 		case BANDWIDTH_6_MHZ:
-			wr_foreach(dib3000mc_reg_bandwidth,dib3000mc_bandwidth_6mhz);
+			bw_cfg[0] = 0x0021; bw_cfg[1] = 0xd040; bw_cfg[2] = 0x0070; bw_cfg[3] = 0xb62b; bw_cfg[4] = 0x0233; bw_cfg[5] = 0x8ed5;
+			imp_bw_cfg[0] = 0x04a5; imp_bw_cfg[1] = 0x00a5; imp_bw_cfg[2] = 0x0089;
 			break;
-/*		case BANDWIDTH_5_MHZ:
-			wr_foreach(dib3000mc_reg_bandwidth,dib3000mc_bandwidth_5mhz);
-			break;*/
-		case BANDWIDTH_AUTO:
-			return -EOPNOTSUPP;
-		default:
-			err("unknown bandwidth value (%d).",bw);
-			return -EINVAL;
+
+		case 255 /* BANDWIDTH_5_MHZ */:
+			bw_cfg[0] = 0x0028; bw_cfg[1] = 0x9380; bw_cfg[2] = 0x0087; bw_cfg[3] = 0x4100; bw_cfg[4] = 0x02a4; bw_cfg[5] = 0x4500;
+			imp_bw_cfg[0] = 0x0489; imp_bw_cfg[1] = 0x0089; imp_bw_cfg[2] = 0x0072;
+			break;
+
+		default: return -EINVAL;
 	}
-	if (boost) {
-		u32 timeout = (rd(DIB3000MC_REG_BW_TIMOUT_MSB) << 16) +
-			rd(DIB3000MC_REG_BW_TIMOUT_LSB);
-		timeout *= 85; timeout >>= 7;
-		wr(DIB3000MC_REG_BW_TIMOUT_MSB,(timeout >> 16) & 0xffff);
-		wr(DIB3000MC_REG_BW_TIMOUT_LSB,timeout & 0xffff);
-	}
+
+	for (reg = 6; reg < 12; reg++)
+		dib3000mc_write_word(state, reg, bw_cfg[reg - 6]);
+	dib3000mc_write_word(state, 12, 0x0000);
+	dib3000mc_write_word(state, 13, 0x03e8);
+	dib3000mc_write_word(state, 14, 0x0000);
+	dib3000mc_write_word(state, 15, 0x03f2);
+	dib3000mc_write_word(state, 16, 0x0001);
+	dib3000mc_write_word(state, 17, 0xb0d0);
+	// P_sec_len
+	dib3000mc_write_word(state, 18, 0x0393);
+	dib3000mc_write_word(state, 19, 0x8700);
+
+	for (reg = 55; reg < 58; reg++)
+		dib3000mc_write_word(state, reg, imp_bw_cfg[reg - 55]);
+
+	// Timing configuration
+	dib3000mc_set_timing(state, 0, bw, 0);
+
 	return 0;
 }
 
-static int dib3000mc_set_adp_cfg(struct dib3000_state *state, fe_modulation_t con)
+static u16 impulse_noise_val[29] =
+
 {
-	switch (con) {
-		case QAM_64:
-			wr_foreach(dib3000mc_reg_adp_cfg,dib3000mc_adp_cfg[2]);
-			break;
-		case QAM_16:
-			wr_foreach(dib3000mc_reg_adp_cfg,dib3000mc_adp_cfg[1]);
-			break;
-		case QPSK:
-			wr_foreach(dib3000mc_reg_adp_cfg,dib3000mc_adp_cfg[0]);
-			break;
-		case QAM_AUTO:
-			break;
-		default:
-			warn("unkown constellation.");
-			break;
-	}
-	return 0;
-}
+	0x38, 0x6d9, 0x3f28, 0x7a7, 0x3a74, 0x196, 0x32a, 0x48c, 0x3ffe, 0x7f3,
+	0x2d94, 0x76, 0x53d, 0x3ff8, 0x7e3, 0x3320, 0x76, 0x5b3, 0x3feb, 0x7d2,
+	0x365e, 0x76, 0x48c, 0x3ffe, 0x5b3, 0x3feb, 0x76, 0x0000, 0xd
+};
 
-static int dib3000mc_set_general_cfg(struct dib3000_state *state, struct dvb_frontend_parameters *fep, int *auto_val)
+static void dib3000mc_set_impulse_noise(struct dib3000mc_state *state, u8 mode, s16 nfft)
 {
-	struct dvb_ofdm_parameters *ofdm = &fep->u.ofdm;
-	fe_code_rate_t fe_cr = FEC_NONE;
-	u8 fft=0, guard=0, qam=0, alpha=0, sel_hp=0, cr=0, hrch=0;
-	int seq;
+	u16 i;
+	for (i = 58; i < 87; i++)
+		dib3000mc_write_word(state, i, impulse_noise_val[i-58]);
 
-	switch (ofdm->transmission_mode) {
-		case TRANSMISSION_MODE_2K: fft = DIB3000_TRANSMISSION_MODE_2K; break;
-		case TRANSMISSION_MODE_8K: fft = DIB3000_TRANSMISSION_MODE_8K; break;
-		case TRANSMISSION_MODE_AUTO: break;
-		default: return -EINVAL;
-	}
-	switch (ofdm->guard_interval) {
-		case GUARD_INTERVAL_1_32: guard = DIB3000_GUARD_TIME_1_32; break;
-		case GUARD_INTERVAL_1_16: guard = DIB3000_GUARD_TIME_1_16; break;
-		case GUARD_INTERVAL_1_8:  guard = DIB3000_GUARD_TIME_1_8; break;
-		case GUARD_INTERVAL_1_4:  guard = DIB3000_GUARD_TIME_1_4; break;
-		case GUARD_INTERVAL_AUTO: break;
-		default: return -EINVAL;
-	}
-	switch (ofdm->constellation) {
-		case QPSK:   qam = DIB3000_CONSTELLATION_QPSK; break;
-		case QAM_16: qam = DIB3000_CONSTELLATION_16QAM; break;
-		case QAM_64: qam = DIB3000_CONSTELLATION_64QAM; break;
-		case QAM_AUTO: break;
-		default: return -EINVAL;
-	}
-	switch (ofdm->hierarchy_information) {
-		case HIERARCHY_NONE: /* fall through */
-		case HIERARCHY_1: alpha = DIB3000_ALPHA_1; break;
-		case HIERARCHY_2: alpha = DIB3000_ALPHA_2; break;
-		case HIERARCHY_4: alpha = DIB3000_ALPHA_4; break;
-		case HIERARCHY_AUTO: break;
-		default: return -EINVAL;
-	}
-	if (ofdm->hierarchy_information == HIERARCHY_NONE) {
-		hrch   = DIB3000_HRCH_OFF;
-		sel_hp = DIB3000_SELECT_HP;
-		fe_cr  = ofdm->code_rate_HP;
-	} else if (ofdm->hierarchy_information != HIERARCHY_AUTO) {
-		hrch   = DIB3000_HRCH_ON;
-		sel_hp = DIB3000_SELECT_LP;
-		fe_cr  = ofdm->code_rate_LP;
-	}
-	switch (fe_cr) {
-		case FEC_1_2: cr = DIB3000_FEC_1_2; break;
-		case FEC_2_3: cr = DIB3000_FEC_2_3; break;
-		case FEC_3_4: cr = DIB3000_FEC_3_4; break;
-		case FEC_5_6: cr = DIB3000_FEC_5_6; break;
-		case FEC_7_8: cr = DIB3000_FEC_7_8; break;
-		case FEC_NONE: break;
-		case FEC_AUTO: break;
-		default: return -EINVAL;
+	if (nfft == 1) {
+		dib3000mc_write_word(state, 58, 0x3b);
+		dib3000mc_write_word(state, 84, 0x00);
+		dib3000mc_write_word(state, 85, 0x8200);
 	}
 
-	wr(DIB3000MC_REG_DEMOD_PARM,DIB3000MC_DEMOD_PARM(alpha,qam,guard,fft));
-	wr(DIB3000MC_REG_HRCH_PARM,DIB3000MC_HRCH_PARM(sel_hp,cr,hrch));
+	dib3000mc_write_word(state, 34, 0x1294);
+	dib3000mc_write_word(state, 35, 0x1ff8);
+	if (mode == 1)
+		dib3000mc_write_word(state, 55, dib3000mc_read_word(state, 55) | (1 << 10));
+}
 
-	switch (fep->inversion) {
-		case INVERSION_OFF:
-			wr(DIB3000MC_REG_SET_DDS_FREQ_MSB,DIB3000MC_DDS_FREQ_MSB_INV_OFF);
-			break;
-		case INVERSION_AUTO: /* fall through */
-		case INVERSION_ON:
-			wr(DIB3000MC_REG_SET_DDS_FREQ_MSB,DIB3000MC_DDS_FREQ_MSB_INV_ON);
-			break;
-		default:
-			return -EINVAL;
+static int dib3000mc_init(struct dvb_frontend *demod)
+{
+	struct dib3000mc_state *state = demod->demodulator_priv;
+	struct dibx000_agc_config *agc = state->cfg->agc;
+
+	// Restart Configuration
+	dib3000mc_write_word(state, 1027, 0x8000);
+	dib3000mc_write_word(state, 1027, 0x0000);
+
+	// power up the demod + mobility configuration
+	dib3000mc_write_word(state, 140, 0x0000);
+	dib3000mc_write_word(state, 1031, 0);
+
+	if (state->cfg->mobile_mode) {
+		dib3000mc_write_word(state, 139,  0x0000);
+		dib3000mc_write_word(state, 141,  0x0000);
+		dib3000mc_write_word(state, 175,  0x0002);
+		dib3000mc_write_word(state, 1032, 0x0000);
+	} else {
+		dib3000mc_write_word(state, 139,  0x0001);
+		dib3000mc_write_word(state, 141,  0x0000);
+		dib3000mc_write_word(state, 175,  0x0000);
+		dib3000mc_write_word(state, 1032, 0x012C);
 	}
+	dib3000mc_write_word(state, 1033, 0x0000);
 
-	seq = dib3000_seq
-		[ofdm->transmission_mode == TRANSMISSION_MODE_AUTO]
-		[ofdm->guard_interval == GUARD_INTERVAL_AUTO]
-		[fep->inversion == INVERSION_AUTO];
+	// P_clk_cfg
+	dib3000mc_write_word(state, 1037, 0x3130);
 
-	deb_setf("seq? %d\n", seq);
-	wr(DIB3000MC_REG_SEQ_TPS,DIB3000MC_SEQ_TPS(seq,1));
-	*auto_val = ofdm->constellation == QAM_AUTO ||
-			ofdm->hierarchy_information == HIERARCHY_AUTO ||
-			ofdm->guard_interval == GUARD_INTERVAL_AUTO ||
-			ofdm->transmission_mode == TRANSMISSION_MODE_AUTO ||
-			fe_cr == FEC_AUTO ||
-			fep->inversion == INVERSION_AUTO;
+	// other configurations
+
+	// P_ctrl_sfreq
+	dib3000mc_write_word(state, 33, (5 << 0));
+	dib3000mc_write_word(state, 88, (1 << 10) | (0x10 << 0));
+
+	// Phase noise control
+	// P_fft_phacor_inh, P_fft_phacor_cpe, P_fft_powrange
+	dib3000mc_write_word(state, 99, (1 << 9) | (0x20 << 0));
+
+	if (state->cfg->phase_noise_mode == 0)
+		dib3000mc_write_word(state, 111, 0x00);
+	else
+		dib3000mc_write_word(state, 111, 0x02);
+
+	// P_agc_global
+	dib3000mc_write_word(state, 50, 0x8000);
+
+	// agc setup misc
+	dib3000mc_setup_pwm_state(state);
+
+	// P_agc_counter_lock
+	dib3000mc_write_word(state, 53, 0x87);
+	// P_agc_counter_unlock
+	dib3000mc_write_word(state, 54, 0x87);
+
+	/* agc */
+	dib3000mc_write_word(state, 36, state->cfg->max_time);
+	dib3000mc_write_word(state, 37, (state->cfg->agc_command1 << 13) | (state->cfg->agc_command2 << 12) | (0x1d << 0));
+	dib3000mc_write_word(state, 38, state->cfg->pwm3_value);
+	dib3000mc_write_word(state, 39, state->cfg->ln_adc_level);
+
+	// set_agc_loop_Bw
+	dib3000mc_write_word(state, 40, 0x0179);
+	dib3000mc_write_word(state, 41, 0x03f0);
+
+	dib3000mc_write_word(state, 42, agc->agc1_max);
+	dib3000mc_write_word(state, 43, agc->agc1_min);
+	dib3000mc_write_word(state, 44, agc->agc2_max);
+	dib3000mc_write_word(state, 45, agc->agc2_min);
+	dib3000mc_write_word(state, 46, (agc->agc1_pt1 << 8) | agc->agc1_pt2);
+	dib3000mc_write_word(state, 47, (agc->agc1_slope1 << 8) | agc->agc1_slope2);
+	dib3000mc_write_word(state, 48, (agc->agc2_pt1 << 8) | agc->agc2_pt2);
+	dib3000mc_write_word(state, 49, (agc->agc2_slope1 << 8) | agc->agc2_slope2);
+
+// Begin: TimeOut registers
+	// P_pha3_thres
+	dib3000mc_write_word(state, 110, 3277);
+	// P_timf_alpha = 6, P_corm_alpha = 6, P_corm_thres = 0x80
+	dib3000mc_write_word(state,  26, 0x6680);
+	// lock_mask0
+	dib3000mc_write_word(state, 1, 4);
+	// lock_mask1
+	dib3000mc_write_word(state, 2, 4);
+	// lock_mask2
+	dib3000mc_write_word(state, 3, 0x1000);
+	// P_search_maxtrial=1
+	dib3000mc_write_word(state, 5, 1);
+
+	dib3000mc_set_bandwidth(&state->demod, BANDWIDTH_8_MHZ);
+
+	// div_lock_mask
+	dib3000mc_write_word(state,  4, 0x814);
+
+	dib3000mc_write_word(state, 21, (1 << 9) | 0x164);
+	dib3000mc_write_word(state, 22, 0x463d);
+
+	// Spurious rm cfg
+	// P_cspu_regul, P_cspu_win_cut
+	dib3000mc_write_word(state, 120, 0x200f);
+	// P_adp_selec_monit
+	dib3000mc_write_word(state, 134, 0);
+
+	// Fec cfg
+	dib3000mc_write_word(state, 195, 0x10);
+
+	// diversity register: P_dvsy_sync_wait..
+	dib3000mc_write_word(state, 180, 0x2FF0);
+
+	// Impulse noise configuration
+	dib3000mc_set_impulse_noise(state, 0, 1);
+
+	// output mode set-up
+	dib3000mc_set_output_mode(state, OUTMODE_HIGH_Z);
+
+	/* close the i2c-gate */
+	dib3000mc_write_word(state, 769, (1 << 7) );
+
 	return 0;
 }
+
+static int dib3000mc_sleep(struct dvb_frontend *demod)
+{
+	struct dib3000mc_state *state = demod->demodulator_priv;
+
+	dib3000mc_write_word(state, 1031, 0xFFFF);
+	dib3000mc_write_word(state, 1032, 0xFFFF);
+	dib3000mc_write_word(state, 1033, 0xFFF0);
+
+    return 0;
+}
+
+static void dib3000mc_set_adp_cfg(struct dib3000mc_state *state, s16 qam)
+{
+	u16 cfg[4] = { 0 },reg;
+	switch (qam) {
+		case 0:
+			cfg[0] = 0x099a; cfg[1] = 0x7fae; cfg[2] = 0x0333; cfg[3] = 0x7ff0;
+			break;
+		case 1:
+			cfg[0] = 0x023d; cfg[1] = 0x7fdf; cfg[2] = 0x00a4; cfg[3] = 0x7ff0;
+			break;
+		case 2:
+			cfg[0] = 0x0148; cfg[1] = 0x7ff0; cfg[2] = 0x00a4; cfg[3] = 0x7ff8;
+			break;
+	}
+	for (reg = 129; reg < 133; reg++)
+		dib3000mc_write_word(state, reg, cfg[reg - 129]);
+}
+
+static void dib3000mc_set_channel_cfg(struct dib3000mc_state *state, struct dibx000_ofdm_channel *chan, u16 seq)
+{
+	u16 tmp;
+
+	dib3000mc_set_timing(state, chan->nfft, chan->Bw, 0);
+
+//	if (boost)
+//		dib3000mc_write_word(state, 100, (11 << 6) + 6);
+//	else
+		dib3000mc_write_word(state, 100, (16 << 6) + 9);
+
+	dib3000mc_write_word(state, 1027, 0x0800);
+	dib3000mc_write_word(state, 1027, 0x0000);
+
+	//Default cfg isi offset adp
+	dib3000mc_write_word(state, 26,  0x6680);
+	dib3000mc_write_word(state, 29,  0x1273);
+	dib3000mc_write_word(state, 33,       5);
+	dib3000mc_set_adp_cfg(state, 1);
+	dib3000mc_write_word(state, 133,  15564);
+
+	dib3000mc_write_word(state, 12 , 0x0);
+	dib3000mc_write_word(state, 13 , 0x3e8);
+	dib3000mc_write_word(state, 14 , 0x0);
+	dib3000mc_write_word(state, 15 , 0x3f2);
+
+	dib3000mc_write_word(state, 93,0);
+	dib3000mc_write_word(state, 94,0);
+	dib3000mc_write_word(state, 95,0);
+	dib3000mc_write_word(state, 96,0);
+	dib3000mc_write_word(state, 97,0);
+	dib3000mc_write_word(state, 98,0);
+
+	dib3000mc_set_impulse_noise(state, 0, chan->nfft);
+
+	tmp = ((chan->nfft & 0x1) << 7) | (chan->guard << 5) | (chan->nqam << 3) | chan->vit_alpha;
+	dib3000mc_write_word(state, 0, tmp);
+
+	dib3000mc_write_word(state, 5, seq);
+
+	tmp = (chan->vit_hrch << 4) | (chan->vit_select_hp);
+	if (!chan->vit_hrch || (chan->vit_hrch && chan->vit_select_hp))
+		tmp |= chan->vit_code_rate_hp << 1;
+	else
+		tmp |= chan->vit_code_rate_lp << 1;
+	dib3000mc_write_word(state, 181, tmp);
+
+	// diversity synchro delay
+	tmp = dib3000mc_read_word(state, 180) & 0x000f;
+	tmp |= ((chan->nfft == 0) ? 64 : 256) * ((1 << (chan->guard)) * 3 / 2) << 4; // add 50% SFN margin
+	dib3000mc_write_word(state, 180, tmp);
+
+	// restart demod
+	tmp = dib3000mc_read_word(state, 0);
+	dib3000mc_write_word(state, 0, tmp | (1 << 9));
+	dib3000mc_write_word(state, 0, tmp);
+
+	msleep(30);
+
+	dib3000mc_set_impulse_noise(state, state->cfg->impulse_noise_mode, chan->nfft);
+}
+
+static int dib3000mc_autosearch_start(struct dvb_frontend *demod, struct dibx000_ofdm_channel *chan)
+{
+	struct dib3000mc_state *state = demod->demodulator_priv;
+	u16 reg;
+//	u32 val;
+	struct dibx000_ofdm_channel fchan;
+
+	INIT_OFDM_CHANNEL(&fchan);
+	fchan = *chan;
+
+
+	/* a channel for autosearch */
+	fchan.nfft = 1; fchan.guard = 0; fchan.nqam = 2;
+	fchan.vit_alpha = 1; fchan.vit_code_rate_hp = 2; fchan.vit_code_rate_lp = 2;
+	fchan.vit_hrch = 0; fchan.vit_select_hp = 1;
+
+	dib3000mc_set_channel_cfg(state, &fchan, 7);
+
+	reg = dib3000mc_read_word(state, 0);
+	dib3000mc_write_word(state, 0, reg | (1 << 8));
+	dib3000mc_read_word(state, 511);
+	dib3000mc_write_word(state, 0, reg);
+
+	return 0;
+}
+
+static int dib3000mc_autosearch_is_irq(struct dvb_frontend *demod)
+{
+	struct dib3000mc_state *state = demod->demodulator_priv;
+	u16 irq_pending = dib3000mc_read_word(state, 511);
+
+	if (irq_pending & 0x1) // failed
+		return 1;
+
+	if (irq_pending & 0x2) // succeeded
+		return 2;
+
+	return 0; // still pending
+}
+
+static int dib3000mc_tune(struct dvb_frontend *demod, struct dibx000_ofdm_channel *ch)
+{
+	struct dib3000mc_state *state = demod->demodulator_priv;
+
+	// ** configure demod **
+	dib3000mc_set_channel_cfg(state, ch, 0);
+
+	// activates isi
+	dib3000mc_write_word(state, 29, 0x1073);
+
+	dib3000mc_set_adp_cfg(state, (u8)ch->nqam);
+
+	if (ch->nfft == 1) {
+		dib3000mc_write_word(state, 26, 38528);
+		dib3000mc_write_word(state, 33, 8);
+	} else {
+		dib3000mc_write_word(state, 26, 30336);
+		dib3000mc_write_word(state, 33, 6);
+	}
+
+	if (dib3000mc_read_word(state, 509) & 0x80)
+		dib3000mc_set_timing(state, ch->nfft, ch->Bw, 1);
+
+	return 0;
+}
+
+struct i2c_adapter * dib3000mc_get_tuner_i2c_master(struct dvb_frontend *demod, int gating)
+{
+	struct dib3000mc_state *st = demod->demodulator_priv;
+	return dibx000_get_i2c_adapter(&st->i2c_master, DIBX000_I2C_INTERFACE_TUNER, gating);
+}
+
+EXPORT_SYMBOL(dib3000mc_get_tuner_i2c_master);
 
 static int dib3000mc_get_frontend(struct dvb_frontend* fe,
-				  struct dvb_frontend_parameters *fep)
+				struct dvb_frontend_parameters *fep)
 {
-	struct dib3000_state* state = fe->demodulator_priv;
-	struct dvb_ofdm_parameters *ofdm = &fep->u.ofdm;
-	fe_code_rate_t *cr;
-	u16 tps_val,cr_val;
-	int inv_test1,inv_test2;
-	u32 dds_val, threshold = 0x1000000;
+	struct dib3000mc_state *state = fe->demodulator_priv;
+	u16 tps = dib3000mc_read_word(state,458);
 
-	if (!(rd(DIB3000MC_REG_LOCK_507) & DIB3000MC_LOCK_507))
-		return 0;
+	fep->inversion = INVERSION_AUTO;
 
-	dds_val = (rd(DIB3000MC_REG_DDS_FREQ_MSB) << 16) + rd(DIB3000MC_REG_DDS_FREQ_LSB);
-	deb_getf("DDS_FREQ: %6x\n",dds_val);
-	if (dds_val < threshold)
-		inv_test1 = 0;
-	else if (dds_val == threshold)
-		inv_test1 = 1;
-	else
-		inv_test1 = 2;
+	fep->u.ofdm.bandwidth = state->current_bandwidth;
 
-	dds_val = (rd(DIB3000MC_REG_SET_DDS_FREQ_MSB) << 16) + rd(DIB3000MC_REG_SET_DDS_FREQ_LSB);
-	deb_getf("DDS_SET_FREQ: %6x\n",dds_val);
-	if (dds_val < threshold)
-		inv_test2 = 0;
-	else if (dds_val == threshold)
-		inv_test2 = 1;
-	else
-		inv_test2 = 2;
-
-	fep->inversion =
-		((inv_test2 == 2) && (inv_test1==1 || inv_test1==0)) ||
-		((inv_test2 == 0) && (inv_test1==1 || inv_test1==2)) ?
-		INVERSION_ON : INVERSION_OFF;
-
-	deb_getf("inversion %d %d, %d\n", inv_test2, inv_test1, fep->inversion);
-
-	fep->frequency = state->last_tuned_freq;
-	fep->u.ofdm.bandwidth= state->last_tuned_bw;
-
-	tps_val = rd(DIB3000MC_REG_TUNING_PARM);
-
-	switch (DIB3000MC_TP_QAM(tps_val)) {
-		case DIB3000_CONSTELLATION_QPSK:
-			deb_getf("QPSK ");
-			ofdm->constellation = QPSK;
-			break;
-		case DIB3000_CONSTELLATION_16QAM:
-			deb_getf("QAM16 ");
-			ofdm->constellation = QAM_16;
-			break;
-		case DIB3000_CONSTELLATION_64QAM:
-			deb_getf("QAM64 ");
-			ofdm->constellation = QAM_64;
-			break;
-		default:
-			err("Unexpected constellation returned by TPS (%d)", tps_val);
-			break;
+	switch ((tps >> 8) & 0x1) {
+		case 0: fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_2K; break;
+		case 1: fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_8K; break;
 	}
 
-	if (DIB3000MC_TP_HRCH(tps_val)) {
-		deb_getf("HRCH ON ");
-		cr = &ofdm->code_rate_LP;
-		ofdm->code_rate_HP = FEC_NONE;
-		switch (DIB3000MC_TP_ALPHA(tps_val)) {
-			case DIB3000_ALPHA_0:
-				deb_getf("HIERARCHY_NONE ");
-				ofdm->hierarchy_information = HIERARCHY_NONE;
-				break;
-			case DIB3000_ALPHA_1:
-				deb_getf("HIERARCHY_1 ");
-				ofdm->hierarchy_information = HIERARCHY_1;
-				break;
-			case DIB3000_ALPHA_2:
-				deb_getf("HIERARCHY_2 ");
-				ofdm->hierarchy_information = HIERARCHY_2;
-				break;
-			case DIB3000_ALPHA_4:
-				deb_getf("HIERARCHY_4 ");
-				ofdm->hierarchy_information = HIERARCHY_4;
-				break;
-			default:
-				err("Unexpected ALPHA value returned by TPS (%d)", tps_val);
-				break;
-		}
-		cr_val = DIB3000MC_TP_FEC_CR_LP(tps_val);
-	} else {
-		deb_getf("HRCH OFF ");
-		cr = &ofdm->code_rate_HP;
-		ofdm->code_rate_LP = FEC_NONE;
-		ofdm->hierarchy_information = HIERARCHY_NONE;
-		cr_val = DIB3000MC_TP_FEC_CR_HP(tps_val);
+	switch (tps & 0x3) {
+		case 0: fep->u.ofdm.guard_interval = GUARD_INTERVAL_1_32; break;
+		case 1: fep->u.ofdm.guard_interval = GUARD_INTERVAL_1_16; break;
+		case 2: fep->u.ofdm.guard_interval = GUARD_INTERVAL_1_8; break;
+		case 3: fep->u.ofdm.guard_interval = GUARD_INTERVAL_1_4; break;
 	}
 
-	switch (cr_val) {
-		case DIB3000_FEC_1_2:
-			deb_getf("FEC_1_2 ");
-			*cr = FEC_1_2;
-			break;
-		case DIB3000_FEC_2_3:
-			deb_getf("FEC_2_3 ");
-			*cr = FEC_2_3;
-			break;
-		case DIB3000_FEC_3_4:
-			deb_getf("FEC_3_4 ");
-			*cr = FEC_3_4;
-			break;
-		case DIB3000_FEC_5_6:
-			deb_getf("FEC_5_6 ");
-			*cr = FEC_4_5;
-			break;
-		case DIB3000_FEC_7_8:
-			deb_getf("FEC_7_8 ");
-			*cr = FEC_7_8;
-			break;
-		default:
-			err("Unexpected FEC returned by TPS (%d)", tps_val);
-			break;
+	switch ((tps >> 13) & 0x3) {
+		case 0: fep->u.ofdm.constellation = QPSK; break;
+		case 1: fep->u.ofdm.constellation = QAM_16; break;
+		case 2:
+		default: fep->u.ofdm.constellation = QAM_64; break;
 	}
 
-	switch (DIB3000MC_TP_GUARD(tps_val)) {
-		case DIB3000_GUARD_TIME_1_32:
-			deb_getf("GUARD_INTERVAL_1_32 ");
-			ofdm->guard_interval = GUARD_INTERVAL_1_32;
-			break;
-		case DIB3000_GUARD_TIME_1_16:
-			deb_getf("GUARD_INTERVAL_1_16 ");
-			ofdm->guard_interval = GUARD_INTERVAL_1_16;
-			break;
-		case DIB3000_GUARD_TIME_1_8:
-			deb_getf("GUARD_INTERVAL_1_8 ");
-			ofdm->guard_interval = GUARD_INTERVAL_1_8;
-			break;
-		case DIB3000_GUARD_TIME_1_4:
-			deb_getf("GUARD_INTERVAL_1_4 ");
-			ofdm->guard_interval = GUARD_INTERVAL_1_4;
-			break;
-		default:
-			err("Unexpected Guard Time returned by TPS (%d)", tps_val);
-			break;
+	/* as long as the frontend_param structure is fixed for hierarchical transmission I refuse to use it */
+	/* (tps >> 12) & 0x1 == hrch is used, (tps >> 9) & 0x7 == alpha */
+
+	fep->u.ofdm.hierarchy_information = HIERARCHY_NONE;
+	switch ((tps >> 5) & 0x7) {
+		case 1: fep->u.ofdm.code_rate_HP = FEC_1_2; break;
+		case 2: fep->u.ofdm.code_rate_HP = FEC_2_3; break;
+		case 3: fep->u.ofdm.code_rate_HP = FEC_3_4; break;
+		case 5: fep->u.ofdm.code_rate_HP = FEC_5_6; break;
+		case 7:
+		default: fep->u.ofdm.code_rate_HP = FEC_7_8; break;
+
 	}
 
-	switch (DIB3000MC_TP_FFT(tps_val)) {
-		case DIB3000_TRANSMISSION_MODE_2K:
-			deb_getf("TRANSMISSION_MODE_2K ");
-			ofdm->transmission_mode = TRANSMISSION_MODE_2K;
-			break;
-		case DIB3000_TRANSMISSION_MODE_8K:
-			deb_getf("TRANSMISSION_MODE_8K ");
-			ofdm->transmission_mode = TRANSMISSION_MODE_8K;
-			break;
-		default:
-			err("unexpected transmission mode return by TPS (%d)", tps_val);
-			break;
+	switch ((tps >> 2) & 0x7) {
+		case 1: fep->u.ofdm.code_rate_LP = FEC_1_2; break;
+		case 2: fep->u.ofdm.code_rate_LP = FEC_2_3; break;
+		case 3: fep->u.ofdm.code_rate_LP = FEC_3_4; break;
+		case 5: fep->u.ofdm.code_rate_LP = FEC_5_6; break;
+		case 7:
+		default: fep->u.ofdm.code_rate_LP = FEC_7_8; break;
 	}
-	deb_getf("\n");
 
 	return 0;
 }
 
 static int dib3000mc_set_frontend(struct dvb_frontend* fe,
-				  struct dvb_frontend_parameters *fep, int tuner)
+				struct dvb_frontend_parameters *fep)
 {
-	struct dib3000_state* state = fe->demodulator_priv;
-	struct dvb_ofdm_parameters *ofdm = &fep->u.ofdm;
-	int search_state,auto_val;
-	u16 val;
+	struct dib3000mc_state *state = fe->demodulator_priv;
+	struct dibx000_ofdm_channel ch;
 
-	if (tuner && fe->ops.tuner_ops.set_params) { /* initial call from dvb */
+	INIT_OFDM_CHANNEL(&ch);
+	FEP2DIB(fep,&ch);
+
+	state->current_bandwidth = fep->u.ofdm.bandwidth;
+	dib3000mc_set_bandwidth(fe, fep->u.ofdm.bandwidth);
+
+	if (fe->ops.tuner_ops.set_params) {
 		fe->ops.tuner_ops.set_params(fe, fep);
-		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
-
-		state->last_tuned_freq = fep->frequency;
-	//	if (!scanboost) {
-			dib3000mc_set_timing(state,0,ofdm->transmission_mode,ofdm->bandwidth);
-			dib3000mc_init_auto_scan(state, ofdm->bandwidth, 0);
-			state->last_tuned_bw = ofdm->bandwidth;
-
-			wr_foreach(dib3000mc_reg_agc_bandwidth,dib3000mc_agc_bandwidth);
-			wr(DIB3000MC_REG_RESTART,DIB3000MC_RESTART_AGC);
-			wr(DIB3000MC_REG_RESTART,DIB3000MC_RESTART_OFF);
-
-			/* Default cfg isi offset adp */
-			wr_foreach(dib3000mc_reg_offset,dib3000mc_offset[0]);
-
-			wr(DIB3000MC_REG_ISI,DIB3000MC_ISI_DEFAULT | DIB3000MC_ISI_INHIBIT);
-			dib3000mc_set_adp_cfg(state,ofdm->constellation);
-			wr(DIB3000MC_REG_UNK_133,DIB3000MC_UNK_133);
-
-			wr_foreach(dib3000mc_reg_bandwidth_general,dib3000mc_bandwidth_general);
-			/* power smoothing */
-			if (ofdm->bandwidth != BANDWIDTH_8_MHZ) {
-				wr_foreach(dib3000mc_reg_bw,dib3000mc_bw[0]);
-			} else {
-				wr_foreach(dib3000mc_reg_bw,dib3000mc_bw[3]);
-			}
-			auto_val = 0;
-			dib3000mc_set_general_cfg(state,fep,&auto_val);
-			dib3000mc_set_impulse_noise(state,0,ofdm->constellation,ofdm->bandwidth);
-
-			val = rd(DIB3000MC_REG_DEMOD_PARM);
-			wr(DIB3000MC_REG_DEMOD_PARM,val|DIB3000MC_DEMOD_RST_DEMOD_ON);
-			wr(DIB3000MC_REG_DEMOD_PARM,val);
-	//	}
-		msleep(70);
-
-		/* something has to be auto searched */
-		if (auto_val) {
-			int as_count=0;
-
-			deb_setf("autosearch enabled.\n");
-
-			val = rd(DIB3000MC_REG_DEMOD_PARM);
-			wr(DIB3000MC_REG_DEMOD_PARM,val | DIB3000MC_DEMOD_RST_AUTO_SRCH_ON);
-			wr(DIB3000MC_REG_DEMOD_PARM,val);
-
-			while ((search_state = dib3000_search_status(
-						rd(DIB3000MC_REG_AS_IRQ),1)) < 0 && as_count++ < 100)
-				msleep(10);
-
-			deb_info("search_state after autosearch %d after %d checks\n",search_state,as_count);
-
-			if (search_state == 1) {
-				struct dvb_frontend_parameters feps;
-				if (dib3000mc_get_frontend(fe, &feps) == 0) {
-					deb_setf("reading tuning data from frontend succeeded.\n");
-					return dib3000mc_set_frontend(fe, &feps, 0);
-				}
-			}
-		} else {
-			dib3000mc_set_impulse_noise(state,0,ofdm->transmission_mode,ofdm->bandwidth);
-			wr(DIB3000MC_REG_ISI,DIB3000MC_ISI_DEFAULT|DIB3000MC_ISI_ACTIVATE);
-			dib3000mc_set_adp_cfg(state,ofdm->constellation);
-
-			/* set_offset_cfg */
-			wr_foreach(dib3000mc_reg_offset,
-					dib3000mc_offset[(ofdm->transmission_mode == TRANSMISSION_MODE_8K)+1]);
-		}
-	} else { /* second call, after autosearch (fka: set_WithKnownParams) */
-//		dib3000mc_set_timing(state,1,ofdm->transmission_mode,ofdm->bandwidth);
-
-		auto_val = 0;
-		dib3000mc_set_general_cfg(state,fep,&auto_val);
-		if (auto_val)
-			deb_info("auto_val is true, even though an auto search was already performed.\n");
-
-		dib3000mc_set_impulse_noise(state,0,ofdm->constellation,ofdm->bandwidth);
-
-		val = rd(DIB3000MC_REG_DEMOD_PARM);
-		wr(DIB3000MC_REG_DEMOD_PARM,val | DIB3000MC_DEMOD_RST_AUTO_SRCH_ON);
-		wr(DIB3000MC_REG_DEMOD_PARM,val);
-
-		msleep(30);
-
-		wr(DIB3000MC_REG_ISI,DIB3000MC_ISI_DEFAULT|DIB3000MC_ISI_ACTIVATE);
-			dib3000mc_set_adp_cfg(state,ofdm->constellation);
-		wr_foreach(dib3000mc_reg_offset,
-				dib3000mc_offset[(ofdm->transmission_mode == TRANSMISSION_MODE_8K)+1]);
+		msleep(100);
 	}
-	return 0;
+
+	if (fep->u.ofdm.transmission_mode == TRANSMISSION_MODE_AUTO ||
+		fep->u.ofdm.guard_interval    == GUARD_INTERVAL_AUTO ||
+		fep->u.ofdm.constellation     == QAM_AUTO ||
+		fep->u.ofdm.code_rate_HP      == FEC_AUTO) {
+		int i = 100, found;
+
+		dib3000mc_autosearch_start(fe, &ch);
+		do {
+			msleep(1);
+			found = dib3000mc_autosearch_is_irq(fe);
+		} while (found == 0 && i--);
+
+		dprintk("autosearch returns: %d\n",found);
+		if (found == 0 || found == 1)
+			return 0; // no channel found
+
+		dib3000mc_get_frontend(fe, fep);
+		FEP2DIB(fep,&ch);
+	}
+
+	/* make this a config parameter */
+	dib3000mc_set_output_mode(state, OUTMODE_MPEG2_FIFO);
+
+	return dib3000mc_tune(fe, &ch);
 }
 
-static int dib3000mc_fe_init(struct dvb_frontend* fe, int mobile_mode)
+static int dib3000mc_read_status(struct dvb_frontend *fe, fe_status_t *stat)
 {
-	struct dib3000_state *state = fe->demodulator_priv;
-	deb_info("init start\n");
-
-	state->timing_offset = 0;
-	state->timing_offset_comp_done = 0;
-
-	wr(DIB3000MC_REG_RESTART,DIB3000MC_RESTART_CONFIG);
-	wr(DIB3000MC_REG_RESTART,DIB3000MC_RESTART_OFF);
-	wr(DIB3000MC_REG_CLK_CFG_1,DIB3000MC_CLK_CFG_1_POWER_UP);
-	wr(DIB3000MC_REG_CLK_CFG_2,DIB3000MC_CLK_CFG_2_PUP_MOBILE);
-	wr(DIB3000MC_REG_CLK_CFG_3,DIB3000MC_CLK_CFG_3_POWER_UP);
-	wr(DIB3000MC_REG_CLK_CFG_7,DIB3000MC_CLK_CFG_7_INIT);
-
-	wr(DIB3000MC_REG_RST_UNC,DIB3000MC_RST_UNC_OFF);
-	wr(DIB3000MC_REG_UNK_19,DIB3000MC_UNK_19);
-
-	wr(33,5);
-	wr(36,81);
-	wr(DIB3000MC_REG_UNK_88,DIB3000MC_UNK_88);
-
-	wr(DIB3000MC_REG_UNK_99,DIB3000MC_UNK_99);
-	wr(DIB3000MC_REG_UNK_111,DIB3000MC_UNK_111_PH_N_MODE_0); /* phase noise algo off */
-
-	/* mobile mode - portable reception */
-	wr_foreach(dib3000mc_reg_mobile_mode,dib3000mc_mobile_mode[1]);
-
-/* TUNER_PANASONIC_ENV57H12D5: */
-	wr_foreach(dib3000mc_reg_agc_bandwidth,dib3000mc_agc_bandwidth);
-	wr_foreach(dib3000mc_reg_agc_bandwidth_general,dib3000mc_agc_bandwidth_general);
-	wr_foreach(dib3000mc_reg_agc,dib3000mc_agc_tuner[1]);
-
-	wr(DIB3000MC_REG_UNK_110,DIB3000MC_UNK_110);
-	wr(26,0x6680);
-	wr(DIB3000MC_REG_UNK_1,DIB3000MC_UNK_1);
-	wr(DIB3000MC_REG_UNK_2,DIB3000MC_UNK_2);
-	wr(DIB3000MC_REG_UNK_3,DIB3000MC_UNK_3);
-	wr(DIB3000MC_REG_SEQ_TPS,DIB3000MC_SEQ_TPS_DEFAULT);
-
-	wr_foreach(dib3000mc_reg_bandwidth,dib3000mc_bandwidth_8mhz);
-	wr_foreach(dib3000mc_reg_bandwidth_general,dib3000mc_bandwidth_general);
-
-	wr(DIB3000MC_REG_UNK_4,DIB3000MC_UNK_4);
-
-	wr(DIB3000MC_REG_SET_DDS_FREQ_MSB,DIB3000MC_DDS_FREQ_MSB_INV_OFF);
-	wr(DIB3000MC_REG_SET_DDS_FREQ_LSB,DIB3000MC_DDS_FREQ_LSB);
-
-	dib3000mc_set_timing(state,0,TRANSMISSION_MODE_8K,BANDWIDTH_8_MHZ);
-//	wr_foreach(dib3000mc_reg_timing_freq,dib3000mc_timing_freq[3]);
-
-	wr(DIB3000MC_REG_UNK_120,DIB3000MC_UNK_120);
-	wr(DIB3000MC_REG_UNK_134,DIB3000MC_UNK_134);
-	wr(DIB3000MC_REG_FEC_CFG,DIB3000MC_FEC_CFG);
-
-	wr(DIB3000MC_REG_DIVERSITY3,DIB3000MC_DIVERSITY3_IN_OFF);
-
-	dib3000mc_set_impulse_noise(state,0,TRANSMISSION_MODE_8K,BANDWIDTH_8_MHZ);
-
-/* output mode control, just the MPEG2_SLAVE */
-//	set_or(DIB3000MC_REG_OUTMODE,DIB3000MC_OM_SLAVE);
-	wr(DIB3000MC_REG_OUTMODE,DIB3000MC_OM_SLAVE);
-	wr(DIB3000MC_REG_SMO_MODE,DIB3000MC_SMO_MODE_SLAVE);
-	wr(DIB3000MC_REG_FIFO_THRESHOLD,DIB3000MC_FIFO_THRESHOLD_SLAVE);
-	wr(DIB3000MC_REG_ELEC_OUT,DIB3000MC_ELEC_OUT_SLAVE);
-
-/* MPEG2_PARALLEL_CONTINUOUS_CLOCK
-	wr(DIB3000MC_REG_OUTMODE,
-		DIB3000MC_SET_OUTMODE(DIB3000MC_OM_PAR_CONT_CLK,
-			rd(DIB3000MC_REG_OUTMODE)));
-
-	wr(DIB3000MC_REG_SMO_MODE,
-			DIB3000MC_SMO_MODE_DEFAULT |
-			DIB3000MC_SMO_MODE_188);
-
-	wr(DIB3000MC_REG_FIFO_THRESHOLD,DIB3000MC_FIFO_THRESHOLD_DEFAULT);
-	wr(DIB3000MC_REG_ELEC_OUT,DIB3000MC_ELEC_OUT_DIV_OUT_ON);
-*/
-
-/* diversity */
-	wr(DIB3000MC_REG_DIVERSITY1,DIB3000MC_DIVERSITY1_DEFAULT);
-	wr(DIB3000MC_REG_DIVERSITY2,DIB3000MC_DIVERSITY2_DEFAULT);
-
-	set_and(DIB3000MC_REG_DIVERSITY3,DIB3000MC_DIVERSITY3_IN_OFF);
-
-	set_or(DIB3000MC_REG_CLK_CFG_7,DIB3000MC_CLK_CFG_7_DIV_IN_OFF);
-
-	deb_info("init end\n");
-	return 0;
-}
-static int dib3000mc_read_status(struct dvb_frontend* fe, fe_status_t *stat)
-{
-	struct dib3000_state* state = fe->demodulator_priv;
-	u16 lock = rd(DIB3000MC_REG_LOCKING);
+	struct dib3000mc_state *state = fe->demodulator_priv;
+	u16 lock = dib3000mc_read_word(state, 509);
 
 	*stat = 0;
-	if (DIB3000MC_AGC_LOCK(lock))
+
+	if (lock & 0x8000)
 		*stat |= FE_HAS_SIGNAL;
-	if (DIB3000MC_CARRIER_LOCK(lock))
+	if (lock & 0x3000)
 		*stat |= FE_HAS_CARRIER;
-	if (DIB3000MC_TPS_LOCK(lock))
+	if (lock & 0x0100)
 		*stat |= FE_HAS_VITERBI;
-	if (DIB3000MC_MPEG_SYNC_LOCK(lock))
-		*stat |= (FE_HAS_SYNC | FE_HAS_LOCK);
-
-	deb_stat("actual status is %2x fifo_level: %x,244: %x, 206: %x, 207: %x, 1040: %x\n",*stat,rd(510),rd(244),rd(206),rd(207),rd(1040));
+	if (lock & 0x0010)
+		*stat |= FE_HAS_SYNC;
+	if (lock & 0x0008)
+		*stat |= FE_HAS_LOCK;
 
 	return 0;
 }
 
-static int dib3000mc_read_ber(struct dvb_frontend* fe, u32 *ber)
+static int dib3000mc_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	struct dib3000_state* state = fe->demodulator_priv;
-	*ber = ((rd(DIB3000MC_REG_BER_MSB) << 16) | rd(DIB3000MC_REG_BER_LSB));
+	struct dib3000mc_state *state = fe->demodulator_priv;
+	*ber = (dib3000mc_read_word(state, 500) << 16) | dib3000mc_read_word(state, 501);
 	return 0;
 }
 
-static int dib3000mc_read_unc_blocks(struct dvb_frontend* fe, u32 *unc)
+static int dib3000mc_read_unc_blocks(struct dvb_frontend *fe, u32 *unc)
 {
-	struct dib3000_state* state = fe->demodulator_priv;
-
-	*unc = rd(DIB3000MC_REG_PACKET_ERRORS);
+	struct dib3000mc_state *state = fe->demodulator_priv;
+	*unc = dib3000mc_read_word(state, 508);
 	return 0;
 }
 
-/* see dib3000mb.c for calculation comments */
-static int dib3000mc_read_signal_strength(struct dvb_frontend* fe, u16 *strength)
+static int dib3000mc_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
-	struct dib3000_state* state = fe->demodulator_priv;
-	u16 val = rd(DIB3000MC_REG_SIGNAL_NOISE_LSB);
-	*strength = (((val >> 6) & 0xff) << 8) + (val & 0x3f);
-
-	deb_stat("signal: mantisse = %d, exponent = %d\n",(*strength >> 8) & 0xff, *strength & 0xff);
+	struct dib3000mc_state *state = fe->demodulator_priv;
+	u16 val = dib3000mc_read_word(state, 392);
+	*strength = 65535 - val;
 	return 0;
 }
 
-/* see dib3000mb.c for calculation comments */
 static int dib3000mc_read_snr(struct dvb_frontend* fe, u16 *snr)
 {
-	struct dib3000_state* state = fe->demodulator_priv;
-	u16 val = rd(DIB3000MC_REG_SIGNAL_NOISE_LSB),
-		val2 = rd(DIB3000MC_REG_SIGNAL_NOISE_MSB);
-	u16 sig,noise;
-
-	sig =   (((val >> 6) & 0xff) << 8) + (val & 0x3f);
-	noise = (((val >> 4) & 0xff) << 8) + ((val & 0xf) << 2) + ((val2 >> 14) & 0x3);
-	if (noise == 0)
-		*snr = 0xffff;
-	else
-		*snr = (u16) sig/noise;
-
-	deb_stat("signal: mantisse = %d, exponent = %d\n",(sig >> 8) & 0xff, sig & 0xff);
-	deb_stat("noise:  mantisse = %d, exponent = %d\n",(noise >> 8) & 0xff, noise & 0xff);
-	deb_stat("snr: %d\n",*snr);
-	return 0;
-}
-
-static int dib3000mc_sleep(struct dvb_frontend* fe)
-{
-	struct dib3000_state* state = fe->demodulator_priv;
-
-	set_or(DIB3000MC_REG_CLK_CFG_7,DIB3000MC_CLK_CFG_7_PWR_DOWN);
-	wr(DIB3000MC_REG_CLK_CFG_1,DIB3000MC_CLK_CFG_1_POWER_DOWN);
-	wr(DIB3000MC_REG_CLK_CFG_2,DIB3000MC_CLK_CFG_2_POWER_DOWN);
-	wr(DIB3000MC_REG_CLK_CFG_3,DIB3000MC_CLK_CFG_3_POWER_DOWN);
+	*snr = 0x0000;
 	return 0;
 }
 
@@ -729,185 +726,145 @@ static int dib3000mc_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_fr
 	return 0;
 }
 
-static int dib3000mc_fe_init_nonmobile(struct dvb_frontend* fe)
+static void dib3000mc_release(struct dvb_frontend *fe)
 {
-	return dib3000mc_fe_init(fe, 0);
-}
-
-static int dib3000mc_set_frontend_and_tuner(struct dvb_frontend* fe, struct dvb_frontend_parameters *fep)
-{
-	return dib3000mc_set_frontend(fe, fep, 1);
-}
-
-static void dib3000mc_release(struct dvb_frontend* fe)
-{
-	struct dib3000_state *state = fe->demodulator_priv;
+	struct dib3000mc_state *state = fe->demodulator_priv;
+	dibx000_exit_i2c_master(&state->i2c_master);
 	kfree(state);
 }
 
-/* pid filter and transfer stuff */
-static int dib3000mc_pid_control(struct dvb_frontend *fe,int index, int pid,int onoff)
+int dib3000mc_pid_control(struct dvb_frontend *fe, int index, int pid,int onoff)
 {
-	struct dib3000_state *state = fe->demodulator_priv;
-	pid = (onoff ? pid | DIB3000_ACTIVATE_PID_FILTERING : 0);
-	wr(index+DIB3000MC_REG_FIRST_PID,pid);
+	struct dib3000mc_state *state = fe->demodulator_priv;
+	dib3000mc_write_word(state, 212 + index,  onoff ? (1 << 13) | pid : 0);
 	return 0;
 }
+EXPORT_SYMBOL(dib3000mc_pid_control);
 
-static int dib3000mc_fifo_control(struct dvb_frontend *fe, int onoff)
+int dib3000mc_pid_parse(struct dvb_frontend *fe, int onoff)
 {
-	struct dib3000_state *state = fe->demodulator_priv;
-	u16 tmp = rd(DIB3000MC_REG_SMO_MODE);
+	struct dib3000mc_state *state = fe->demodulator_priv;
+	u16 tmp = dib3000mc_read_word(state, 206) & ~(1 << 4);
+	tmp |= (onoff << 4);
+	return dib3000mc_write_word(state, 206, tmp);
+}
+EXPORT_SYMBOL(dib3000mc_pid_parse);
 
-	deb_xfer("%s fifo\n",onoff ? "enabling" : "disabling");
+void dib3000mc_set_config(struct dvb_frontend *fe, struct dib3000mc_config *cfg)
+{
+	struct dib3000mc_state *state = fe->demodulator_priv;
+	state->cfg = cfg;
+}
+EXPORT_SYMBOL(dib3000mc_set_config);
 
-	if (onoff) {
-		deb_xfer("%d %x\n",tmp & DIB3000MC_SMO_MODE_FIFO_UNFLUSH,tmp & DIB3000MC_SMO_MODE_FIFO_UNFLUSH);
-		wr(DIB3000MC_REG_SMO_MODE,tmp & DIB3000MC_SMO_MODE_FIFO_UNFLUSH);
-	} else {
-		deb_xfer("%d %x\n",tmp | DIB3000MC_SMO_MODE_FIFO_FLUSH,tmp | DIB3000MC_SMO_MODE_FIFO_FLUSH);
-		wr(DIB3000MC_REG_SMO_MODE,tmp | DIB3000MC_SMO_MODE_FIFO_FLUSH);
+int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib3000mc_config cfg[])
+{
+	struct dib3000mc_state st = { .i2c_adap = i2c };
+	int k;
+	u8 new_addr;
+
+	static u8 DIB3000MC_I2C_ADDRESS[] = {20,22,24,26};
+
+	for (k = no_of_demods-1; k >= 0; k--) {
+		st.cfg = &cfg[k];
+
+		/* designated i2c address */
+		new_addr          = DIB3000MC_I2C_ADDRESS[k];
+		st.i2c_addr = new_addr;
+		if (dib3000mc_identify(&st) != 0) {
+			st.i2c_addr = default_addr;
+			if (dib3000mc_identify(&st) != 0) {
+				dprintk("-E-  DiB3000P/MC #%d: not identified\n", k);
+				return -ENODEV;
+			}
+		}
+
+		dib3000mc_set_output_mode(&st, OUTMODE_MPEG2_PAR_CONT_CLK);
+
+		// set new i2c address and force divstr (Bit 1) to value 0 (Bit 0)
+		dib3000mc_write_word(&st, 1024, (new_addr << 3) | 0x1);
+		st.i2c_addr = new_addr;
+	}
+
+	for (k = 0; k < no_of_demods; k++) {
+		st.cfg = &cfg[k];
+		st.i2c_addr = DIB3000MC_I2C_ADDRESS[k];
+
+		dib3000mc_write_word(&st, 1024, st.i2c_addr << 3);
+
+		/* turn off data output */
+		dib3000mc_set_output_mode(&st, OUTMODE_HIGH_Z);
 	}
 	return 0;
 }
-
-static int dib3000mc_pid_parse(struct dvb_frontend *fe, int onoff)
-{
-	struct dib3000_state *state = fe->demodulator_priv;
-	u16 tmp = rd(DIB3000MC_REG_SMO_MODE);
-
-	deb_xfer("%s pid parsing\n",onoff ? "enabling" : "disabling");
-
-	if (onoff) {
-		wr(DIB3000MC_REG_SMO_MODE,tmp | DIB3000MC_SMO_MODE_PID_PARSE);
-	} else {
-		wr(DIB3000MC_REG_SMO_MODE,tmp & DIB3000MC_SMO_MODE_NO_PID_PARSE);
-	}
-	return 0;
-}
-
-static int dib3000mc_tuner_pass_ctrl(struct dvb_frontend *fe, int onoff, u8 pll_addr)
-{
-	struct dib3000_state *state = fe->demodulator_priv;
-	if (onoff) {
-		wr(DIB3000MC_REG_TUNER, DIB3000_TUNER_WRITE_ENABLE(pll_addr));
-	} else {
-		wr(DIB3000MC_REG_TUNER, DIB3000_TUNER_WRITE_DISABLE(pll_addr));
-	}
-	return 0;
-}
-
-static int dib3000mc_demod_init(struct dib3000_state *state)
-{
-	u16 default_addr = 0x0a;
-	/* first init */
-	if (state->config.demod_address != default_addr) {
-		deb_info("initializing the demod the first time. Setting demod addr to 0x%x\n",default_addr);
-		wr(DIB3000MC_REG_ELEC_OUT,DIB3000MC_ELEC_OUT_DIV_OUT_ON);
-		wr(DIB3000MC_REG_OUTMODE,DIB3000MC_OM_PAR_CONT_CLK);
-
-		wr(DIB3000MC_REG_RST_I2C_ADDR,
-			DIB3000MC_DEMOD_ADDR(default_addr) |
-			DIB3000MC_DEMOD_ADDR_ON);
-
-		state->config.demod_address = default_addr;
-
-		wr(DIB3000MC_REG_RST_I2C_ADDR,
-			DIB3000MC_DEMOD_ADDR(default_addr));
-	} else
-		deb_info("demod is already initialized. Demod addr: 0x%x\n",state->config.demod_address);
-	return 0;
-}
-
+EXPORT_SYMBOL(dib3000mc_i2c_enumeration);
 
 static struct dvb_frontend_ops dib3000mc_ops;
 
-struct dvb_frontend* dib3000mc_attach(const struct dib3000_config* config,
-				      struct i2c_adapter* i2c, struct dib_fe_xfer_ops *xfer_ops)
+struct dvb_frontend * dib3000mc_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib3000mc_config *cfg)
 {
-	struct dib3000_state* state = NULL;
-	u16 devid;
+	struct dvb_frontend *demod;
+	struct dib3000mc_state *st;
+	st = kzalloc(sizeof(struct dib3000mc_state), GFP_KERNEL);
+	if (st == NULL)
+		return NULL;
 
-	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct dib3000_state), GFP_KERNEL);
-	if (state == NULL)
+	st->cfg = cfg;
+	st->i2c_adap = i2c_adap;
+	st->i2c_addr = i2c_addr;
+
+	demod                   = &st->demod;
+	demod->demodulator_priv = st;
+	memcpy(&st->demod.ops, &dib3000mc_ops, sizeof(struct dvb_frontend_ops));
+
+	if (dib3000mc_identify(st) != 0)
 		goto error;
 
-	/* setup the state */
-	state->i2c = i2c;
-	memcpy(&state->config,config,sizeof(struct dib3000_config));
+	dibx000_init_i2c_master(&st->i2c_master, DIB3000MC, st->i2c_adap, st->i2c_addr);
 
-	/* check for the correct demod */
-	if (rd(DIB3000_REG_MANUFACTOR_ID) != DIB3000_I2C_ID_DIBCOM)
-		goto error;
+	dib3000mc_write_word(st, 1037, 0x3130);
 
-	devid = rd(DIB3000_REG_DEVICE_ID);
-	if (devid != DIB3000MC_DEVICE_ID && devid != DIB3000P_DEVICE_ID)
-		goto error;
-
-	switch (devid) {
-		case DIB3000MC_DEVICE_ID:
-			info("Found a DiBcom 3000M-C, interesting...");
-			break;
-		case DIB3000P_DEVICE_ID:
-			info("Found a DiBcom 3000P.");
-			break;
-	}
-
-	/* create dvb_frontend */
-	memcpy(&state->frontend.ops, &dib3000mc_ops, sizeof(struct dvb_frontend_ops));
-	state->frontend.demodulator_priv = state;
-
-	/* set the xfer operations */
-	xfer_ops->pid_parse = dib3000mc_pid_parse;
-	xfer_ops->fifo_ctrl = dib3000mc_fifo_control;
-	xfer_ops->pid_ctrl = dib3000mc_pid_control;
-	xfer_ops->tuner_pass_ctrl = dib3000mc_tuner_pass_ctrl;
-
-	dib3000mc_demod_init(state);
-
-	return &state->frontend;
+	return demod;
 
 error:
-	kfree(state);
+	kfree(st);
 	return NULL;
 }
 EXPORT_SYMBOL(dib3000mc_attach);
 
 static struct dvb_frontend_ops dib3000mc_ops = {
-
 	.info = {
-		.name			= "DiBcom 3000P/M-C DVB-T",
-		.type			= FE_OFDM,
-		.frequency_min		= 44250000,
-		.frequency_max		= 867250000,
-		.frequency_stepsize	= 62500,
+		.name = "DiBcom 3000MC/P",
+		.type = FE_OFDM,
+		.frequency_min      = 44250000,
+		.frequency_max      = 867250000,
+		.frequency_stepsize = 62500,
 		.caps = FE_CAN_INVERSION_AUTO |
-				FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
-				FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
-				FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 | FE_CAN_QAM_AUTO |
-				FE_CAN_TRANSMISSION_MODE_AUTO |
-				FE_CAN_GUARD_INTERVAL_AUTO |
-				FE_CAN_RECOVER |
-				FE_CAN_HIERARCHY_AUTO,
+			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
+			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
+			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 | FE_CAN_QAM_AUTO |
+			FE_CAN_TRANSMISSION_MODE_AUTO |
+			FE_CAN_GUARD_INTERVAL_AUTO |
+			FE_CAN_RECOVER |
+			FE_CAN_HIERARCHY_AUTO,
 	},
 
-	.release = dib3000mc_release,
+	.release              = dib3000mc_release,
 
-	.init = dib3000mc_fe_init_nonmobile,
-	.sleep = dib3000mc_sleep,
+	.init                 = dib3000mc_init,
+	.sleep                = dib3000mc_sleep,
 
-	.set_frontend = dib3000mc_set_frontend_and_tuner,
-	.get_frontend = dib3000mc_get_frontend,
-	.get_tune_settings = dib3000mc_fe_get_tune_settings,
+	.set_frontend         = dib3000mc_set_frontend,
+	.get_tune_settings    = dib3000mc_fe_get_tune_settings,
+	.get_frontend         = dib3000mc_get_frontend,
 
-	.read_status = dib3000mc_read_status,
-	.read_ber = dib3000mc_read_ber,
+	.read_status          = dib3000mc_read_status,
+	.read_ber             = dib3000mc_read_ber,
 	.read_signal_strength = dib3000mc_read_signal_strength,
-	.read_snr = dib3000mc_read_snr,
-	.read_ucblocks = dib3000mc_read_unc_blocks,
+	.read_snr             = dib3000mc_read_snr,
+	.read_ucblocks        = dib3000mc_read_unc_blocks,
 };
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
+MODULE_DESCRIPTION("Driver for the DiBcom 3000MC/P COFDM demodulator");
 MODULE_LICENSE("GPL");

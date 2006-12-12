@@ -278,7 +278,7 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 }
 
 static int
-mv64xxx_i2c_intr(int irq, void *dev_id, struct pt_regs *regs)
+mv64xxx_i2c_intr(int irq, void *dev_id)
 {
 	struct mv64xxx_i2c_data	*drv_data = dev_id;
 	unsigned long	flags;
@@ -431,7 +431,7 @@ mv64xxx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	return num;
 }
 
-static struct i2c_algorithm mv64xxx_i2c_algo = {
+static const struct i2c_algorithm mv64xxx_i2c_algo = {
 	.master_xfer = mv64xxx_i2c_xfer,
 	.functionality = mv64xxx_i2c_functionality,
 };

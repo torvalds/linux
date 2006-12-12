@@ -12,72 +12,26 @@
 #include <net/genetlink.h>
 
 #ifdef CONFIG_TASKSTATS
-extern kmem_cache_t *taskstats_cache;
+extern struct kmem_cache *taskstats_cache;
 extern struct mutex taskstats_exit_mutex;
-
-static inline void taskstats_exit_free(struct taskstats *tidstats)
-{
-	if (tidstats)
-		kmem_cache_free(taskstats_cache, tidstats);
-}
 
 static inline void taskstats_tgid_init(struct signal_struct *sig)
 {
-	spin_lock_init(&sig->stats_lock);
 	sig->stats = NULL;
-}
-
-static inline void taskstats_tgid_alloc(struct signal_struct *sig)
-{
-	struct taskstats *stats;
-	unsigned long flags;
-
-	stats = kmem_cache_zalloc(taskstats_cache, SLAB_KERNEL);
-	if (!stats)
-		return;
-
-	spin_lock_irqsave(&sig->stats_lock, flags);
-	if (!sig->stats) {
-		sig->stats = stats;
-		stats = NULL;
-	}
-	spin_unlock_irqrestore(&sig->stats_lock, flags);
-
-	if (stats)
-		kmem_cache_free(taskstats_cache, stats);
 }
 
 static inline void taskstats_tgid_free(struct signal_struct *sig)
 {
-	struct taskstats *stats = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&sig->stats_lock, flags);
-	if (sig->stats) {
-		stats = sig->stats;
-		sig->stats = NULL;
-	}
-	spin_unlock_irqrestore(&sig->stats_lock, flags);
-	if (stats)
-		kmem_cache_free(taskstats_cache, stats);
+	if (sig->stats)
+		kmem_cache_free(taskstats_cache, sig->stats);
 }
 
-extern void taskstats_exit_alloc(struct taskstats **, unsigned int *);
-extern void taskstats_exit_send(struct task_struct *, struct taskstats *, int, unsigned int);
+extern void taskstats_exit(struct task_struct *, int group_dead);
 extern void taskstats_init_early(void);
-extern void taskstats_tgid_alloc(struct signal_struct *);
 #else
-static inline void taskstats_exit_alloc(struct taskstats **ptidstats, unsigned int *mycpu)
-{}
-static inline void taskstats_exit_free(struct taskstats *ptidstats)
-{}
-static inline void taskstats_exit_send(struct task_struct *tsk,
-				       struct taskstats *tidstats,
-				       int group_dead, unsigned int cpu)
+static inline void taskstats_exit(struct task_struct *tsk, int group_dead)
 {}
 static inline void taskstats_tgid_init(struct signal_struct *sig)
-{}
-static inline void taskstats_tgid_alloc(struct signal_struct *sig)
 {}
 static inline void taskstats_tgid_free(struct signal_struct *sig)
 {}

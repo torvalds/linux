@@ -137,11 +137,11 @@ static struct hfcusb_symbolic_list urb_errlist[] = {
 	{-ENXIO, "URB already queued"},
 	{-EFBIG, "Too much ISO frames requested"},
 	{-ENOSR, "Buffer error (overrun)"},
-	{-EPIPE, "Specified endpoint is stalled (device not responding)"},
+	{-EPIPE, "Specified endpoint is stalled"},
 	{-EOVERFLOW, "Babble (bad cable?)"},
 	{-EPROTO, "Bit-stuff error (bad cable?)"},
-	{-EILSEQ, "CRC/Timeout"},
-	{-ETIMEDOUT, "NAK (device does not respond)"},
+	{-EILSEQ, "CRC or missing token"},
+	{-ETIME, "Device did not respond"},
 	{-ESHUTDOWN, "Device unplugged"},
 	{-1, NULL}
 };

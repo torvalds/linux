@@ -1776,7 +1776,7 @@ static void idetape_create_request_sense_cmd (idetape_pc_t *pc)
 static void idetape_init_rq(struct request *rq, u8 cmd)
 {
 	memset(rq, 0, sizeof(*rq));
-	rq->flags = REQ_SPECIAL;
+	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->cmd[0] = cmd;
 }
 
@@ -2423,8 +2423,8 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 #if IDETAPE_DEBUG_LOG
 #if 0
 	if (tape->debug_level >= 5)
-		printk(KERN_INFO "ide-tape: rq_status: %d, "
-			"dev: %s, cmd: %ld, errors: %d\n", rq->rq_status,
+		printk(KERN_INFO "ide-tape:  %d, "
+			"dev: %s, cmd: %ld, errors: %d\n",
 			 rq->rq_disk->disk_name, rq->cmd[0], rq->errors);
 #endif
 	if (tape->debug_level >= 2)
@@ -2433,12 +2433,12 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 			rq->sector, rq->nr_sectors, rq->current_nr_sectors);
 #endif /* IDETAPE_DEBUG_LOG */
 
-	if ((rq->flags & REQ_SPECIAL) == 0) {
+	if (!blk_special_request(rq)) {
 		/*
 		 * We do not support buffer cache originated requests.
 		 */
 		printk(KERN_NOTICE "ide-tape: %s: Unsupported request in "
-			"request queue (%ld)\n", drive->name, rq->flags);
+			"request queue (%d)\n", drive->name, rq->cmd_type);
 		ide_end_request(drive, 0, 0);
 		return ide_stopped;
 	}
@@ -2764,16 +2764,16 @@ static void idetape_add_stage_tail (ide_drive_t *drive,idetape_stage_t *stage)
  */
 static void idetape_wait_for_request (ide_drive_t *drive, struct request *rq)
 {
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	idetape_tape_t *tape = drive->driver_data;
 
 #if IDETAPE_DEBUG_BUGS
-	if (rq == NULL || (rq->flags & REQ_SPECIAL) == 0) {
+	if (rq == NULL || !blk_special_request(rq)) {
 		printk (KERN_ERR "ide-tape: bug: Trying to sleep on non-valid request\n");
 		return;
 	}
 #endif /* IDETAPE_DEBUG_BUGS */
-	rq->waiting = &wait;
+	rq->end_io_data = &wait;
 	rq->end_io = blk_end_sync_rq;
 	spin_unlock_irq(&tape->spinlock);
 	wait_for_completion(&wait);

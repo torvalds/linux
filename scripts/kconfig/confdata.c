@@ -517,7 +517,7 @@ int conf_write(const char *name)
 	fclose(out);
 
 	if (*tmpname) {
-		strcat(dirname, name ? name : conf_get_configname());
+		strcat(dirname, basename);
 		strcat(dirname, ".old");
 		rename(newname, dirname);
 		if (rename(tmpname, newname))

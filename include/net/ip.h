@@ -45,7 +45,7 @@ struct inet_skb_parm
 
 struct ipcm_cookie
 {
-	u32			addr;
+	__be32			addr;
 	int			oif;
 	struct ip_options	*opt;
 };
@@ -86,7 +86,7 @@ extern int		igmp_mc_proc_init(void);
  */
 
 extern int		ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
-					      u32 saddr, u32 daddr,
+					      __be32 saddr, __be32 daddr,
 					      struct ip_options *opt);
 extern int		ip_rcv(struct sk_buff *skb, struct net_device *dev,
 			       struct packet_type *pt, struct net_device *orig_dev);
@@ -97,7 +97,7 @@ extern int		ip_mc_output(struct sk_buff *skb);
 extern int		ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *));
 extern int		ip_do_nat(struct sk_buff *skb);
 extern void		ip_send_check(struct iphdr *ip);
-extern int		ip_queue_xmit(struct sk_buff *skb, int ipfragok);
+extern int		ip_queue_xmit(struct sk_buff *skb, struct sock *sk, int ipfragok);
 extern void		ip_init(void);
 extern int		ip_append_data(struct sock *sk,
 				       int getfrag(void *from, char *to, int offset, int len,
@@ -123,7 +123,7 @@ extern int		ip4_datagram_connect(struct sock *sk,
  *      multicast packets.
  */
 
-static inline void ip_tr_mc_map(u32 addr, char *buf)
+static inline void ip_tr_mc_map(__be32 addr, char *buf)
 {
 	buf[0]=0xC0;
 	buf[1]=0x00;
@@ -135,7 +135,7 @@ static inline void ip_tr_mc_map(u32 addr, char *buf)
 
 struct ip_reply_arg {
 	struct kvec iov[1];   
-	u32 	    csum; 
+	__wsum 	    csum;
 	int	    csumoffset; /* u16 offset of csum in iov[0].iov_base */
 				/* -1 if not needed */ 
 }; 
@@ -192,9 +192,9 @@ extern void ipfrag_init(void);
 static inline
 int ip_decrease_ttl(struct iphdr *iph)
 {
-	u32 check = iph->check;
-	check += htons(0x0100);
-	iph->check = check + (check>=0xFFFF);
+	u32 check = (__force u32)iph->check;
+	check += (__force u32)htons(0x0100);
+	iph->check = (__force __sum16)(check + (check>=0xFFFF));
 	return --iph->ttl;
 }
 
@@ -238,9 +238,9 @@ static inline void ip_select_ident_more(struct iphdr *iph, struct dst_entry *dst
  *	Map a multicast IP onto multicast MAC for type ethernet.
  */
 
-static inline void ip_eth_mc_map(u32 addr, char *buf)
+static inline void ip_eth_mc_map(__be32 naddr, char *buf)
 {
-	addr=ntohl(addr);
+	__u32 addr=ntohl(naddr);
 	buf[0]=0x01;
 	buf[1]=0x00;
 	buf[2]=0x5e;
@@ -256,13 +256,14 @@ static inline void ip_eth_mc_map(u32 addr, char *buf)
  *	Leave P_Key as 0 to be filled in by driver.
  */
 
-static inline void ip_ib_mc_map(u32 addr, char *buf)
+static inline void ip_ib_mc_map(__be32 naddr, char *buf)
 {
+	__u32 addr;
 	buf[0]  = 0;		/* Reserved */
 	buf[1]  = 0xff;		/* Multicast QPN */
 	buf[2]  = 0xff;
 	buf[3]  = 0xff;
-	addr    = ntohl(addr);
+	addr    = ntohl(naddr);
 	buf[4]  = 0xff;
 	buf[5]  = 0x12;		/* link local scope */
 	buf[6]  = 0x40;		/* IPv4 signature */
@@ -335,7 +336,7 @@ extern int ip_net_unreachable(struct sk_buff *skb);
  *	Functions provided by ip_options.c
  */
  
-extern void ip_options_build(struct sk_buff *skb, struct ip_options *opt, u32 daddr, struct rtable *rt, int is_frag);
+extern void ip_options_build(struct sk_buff *skb, struct ip_options *opt, __be32 daddr, struct rtable *rt, int is_frag);
 extern int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb);
 extern void ip_options_fragment(struct sk_buff *skb);
 extern int ip_options_compile(struct ip_options *opt, struct sk_buff *skb);
@@ -363,8 +364,8 @@ extern int	ip_ra_control(struct sock *sk, unsigned char on, void (*destructor)(s
 
 extern int 	ip_recv_error(struct sock *sk, struct msghdr *msg, int len);
 extern void	ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err, 
-			      u16 port, u32 info, u8 *payload);
-extern void	ip_local_error(struct sock *sk, int err, u32 daddr, u16 dport,
+			      __be16 port, u32 info, u8 *payload);
+extern void	ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 dport,
 			       u32 info);
 
 /* sysctl helpers - any sysctl which holds a value that ends up being
@@ -375,8 +376,7 @@ int ipv4_doint_and_flush(ctl_table *ctl, int write,
 			 size_t *lenp, loff_t *ppos);
 int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 				  void __user *oldval, size_t __user *oldlenp,
-				  void __user *newval, size_t newlen, 
-				  void **context);
+				  void __user *newval, size_t newlen);
 #ifdef CONFIG_PROC_FS
 extern int ip_misc_proc_init(void);
 #endif

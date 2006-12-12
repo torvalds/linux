@@ -30,20 +30,43 @@ typedef struct {
 
 #ifdef __KERNEL__
 
+#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
+
 #define __CS_LOOP(ptr, op_val, op_string) ({				\
 	typeof(ptr->counter) old_val, new_val;				\
-        __asm__ __volatile__("   l     %0,0(%3)\n"			\
-                             "0: lr    %1,%0\n"				\
-                             op_string "  %1,%4\n"			\
-                             "   cs    %0,%1,0(%3)\n"			\
-                             "   jl    0b"				\
-                             : "=&d" (old_val), "=&d" (new_val),	\
-			       "=m" (((atomic_t *)(ptr))->counter)	\
-			     : "a" (ptr), "d" (op_val),			\
-			       "m" (((atomic_t *)(ptr))->counter)	\
-			     : "cc", "memory" );			\
+	asm volatile(							\
+		"	l	%0,%2\n"				\
+		"0:	lr	%1,%0\n"				\
+		op_string "	%1,%3\n"				\
+		"	cs	%0,%1,%2\n"				\
+		"	jl	0b"					\
+		: "=&d" (old_val), "=&d" (new_val),			\
+		  "=Q" (((atomic_t *)(ptr))->counter)			\
+		: "d" (op_val),	 "Q" (((atomic_t *)(ptr))->counter)	\
+		: "cc", "memory");					\
 	new_val;							\
 })
+
+#else /* __GNUC__ */
+
+#define __CS_LOOP(ptr, op_val, op_string) ({				\
+	typeof(ptr->counter) old_val, new_val;				\
+	asm volatile(							\
+		"	l	%0,0(%3)\n"				\
+		"0:	lr	%1,%0\n"				\
+		op_string "	%1,%4\n"				\
+		"	cs	%0,%1,0(%3)\n"				\
+		"	jl	0b"					\
+		: "=&d" (old_val), "=&d" (new_val),			\
+		  "=m" (((atomic_t *)(ptr))->counter)			\
+		: "a" (ptr), "d" (op_val),				\
+		  "m" (((atomic_t *)(ptr))->counter)			\
+		: "cc", "memory");					\
+	new_val;							\
+})
+
+#endif /* __GNUC__ */
+
 #define atomic_read(v)          ((v)->counter)
 #define atomic_set(v,i)         (((v)->counter) = (i))
 
@@ -81,10 +104,19 @@ static __inline__ void atomic_set_mask(unsigned long mask, atomic_t * v)
 
 static __inline__ int atomic_cmpxchg(atomic_t *v, int old, int new)
 {
-	__asm__ __volatile__("  cs   %0,%3,0(%2)\n"
-			     : "+d" (old), "=m" (v->counter)
-			     : "a" (v), "d" (new), "m" (v->counter)
-			     : "cc", "memory" );
+#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
+	asm volatile(
+		"	cs	%0,%2,%1"
+		: "+d" (old), "=Q" (v->counter)
+		: "d" (new), "Q" (v->counter)
+		: "cc", "memory");
+#else /* __GNUC__ */
+	asm volatile(
+		"	cs	%0,%3,0(%2)"
+		: "+d" (old), "=m" (v->counter)
+		: "a" (v), "d" (new), "m" (v->counter)
+		: "cc", "memory");
+#endif /* __GNUC__ */
 	return old;
 }
 
@@ -113,20 +145,43 @@ typedef struct {
 } __attribute__ ((aligned (8))) atomic64_t;
 #define ATOMIC64_INIT(i)  { (i) }
 
+#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
+
 #define __CSG_LOOP(ptr, op_val, op_string) ({				\
 	typeof(ptr->counter) old_val, new_val;				\
-        __asm__ __volatile__("   lg    %0,0(%3)\n"			\
-                             "0: lgr   %1,%0\n"				\
-                             op_string "  %1,%4\n"			\
-                             "   csg   %0,%1,0(%3)\n"			\
-                             "   jl    0b"				\
-                             : "=&d" (old_val), "=&d" (new_val),	\
-			       "=m" (((atomic_t *)(ptr))->counter)	\
-			     : "a" (ptr), "d" (op_val),			\
-			       "m" (((atomic_t *)(ptr))->counter)	\
-			     : "cc", "memory" );			\
+	asm volatile(							\
+		"	lg	%0,%2\n"				\
+		"0:	lgr	%1,%0\n"				\
+		op_string "	%1,%3\n"				\
+		"	csg	%0,%1,%2\n"				\
+		"	jl	0b"					\
+		: "=&d" (old_val), "=&d" (new_val),			\
+		  "=Q" (((atomic_t *)(ptr))->counter)			\
+		: "d" (op_val),	"Q" (((atomic_t *)(ptr))->counter)	\
+		: "cc", "memory" );					\
 	new_val;							\
 })
+
+#else /* __GNUC__ */
+
+#define __CSG_LOOP(ptr, op_val, op_string) ({				\
+	typeof(ptr->counter) old_val, new_val;				\
+	asm volatile(							\
+		"	lg	%0,0(%3)\n"				\
+		"0:	lgr	%1,%0\n"				\
+		op_string "	%1,%4\n"				\
+		"	csg	%0,%1,0(%3)\n"				\
+		"	jl	0b"					\
+		: "=&d" (old_val), "=&d" (new_val),			\
+		  "=m" (((atomic_t *)(ptr))->counter)			\
+		: "a" (ptr), "d" (op_val),				\
+		  "m" (((atomic_t *)(ptr))->counter)			\
+		: "cc", "memory" );					\
+	new_val;							\
+})
+
+#endif /* __GNUC__ */
+
 #define atomic64_read(v)          ((v)->counter)
 #define atomic64_set(v,i)         (((v)->counter) = (i))
 
@@ -163,10 +218,19 @@ static __inline__ void atomic64_set_mask(unsigned long mask, atomic64_t * v)
 static __inline__ long long atomic64_cmpxchg(atomic64_t *v,
 					     long long old, long long new)
 {
-	__asm__ __volatile__("  csg  %0,%3,0(%2)\n"
-			     : "+d" (old), "=m" (v->counter)
-			     : "a" (v), "d" (new), "m" (v->counter)
-			     : "cc", "memory" );
+#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
+	asm volatile(
+		"	csg	%0,%2,%1"
+		: "+d" (old), "=Q" (v->counter)
+		: "d" (new), "Q" (v->counter)
+		: "cc", "memory");
+#else /* __GNUC__ */
+	asm volatile(
+		"	csg	%0,%3,0(%2)"
+		: "+d" (old), "=m" (v->counter)
+		: "a" (v), "d" (new), "m" (v->counter)
+		: "cc", "memory");
+#endif /* __GNUC__ */
 	return old;
 }
 

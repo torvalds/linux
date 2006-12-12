@@ -227,7 +227,7 @@ configuration options are available on the command line:
 * media=rj45           - specify media type
    or media=bnc
    or media=aui
-   or medai=auto
+   or media=auto
 * duplex=full          - specify forced half/full/autonegotiate duplex
    or duplex=half
    or duplex=auto
@@ -248,7 +248,7 @@ c) The driver's hardware probe routine is designed to avoid
    with device probing.  To avoid this behaviour, add one
    to the `io=' module parameter.  This doesn't actually change
    the I/O address, but it is a flag to tell the driver
-   topartially initialise the hardware before trying to
+   to partially initialise the hardware before trying to
    identify the card.  This could be dangerous if you are
    not sure that there is a cs89x0 card at the provided address.
 
@@ -584,7 +584,7 @@ of four ways after installing and or configuring the CS8900/20-based adapter:
 
     1.) The system does not boot properly (or at all).
 
-    2.) The driver can not communicate with the adapter, reporting an "Adapter
+    2.) The driver cannot communicate with the adapter, reporting an "Adapter
         not found" error message.
 
     3.) You cannot connect to the network or the driver will not load.
@@ -620,8 +620,8 @@ I/O Address    	Device                        IRQ      Device
                                                 12       Mouse (PS/2)                              
 Memory Address  Device                          13       Math Coprocessor
 --------------  ---------------------           14       Hard Disk controller
-A000-BFFF	EGA Graphics Adpater
-A000-C7FF	VGA Graphics Adpater
+A000-BFFF	EGA Graphics Adapter
+A000-C7FF	VGA Graphics Adapter
 B000-BFFF	Mono Graphics Adapter
 B800-BFFF	Color Graphics Adapter
 E000-FFFF	AT BIOS
@@ -684,7 +684,7 @@ ethernet@crystal.cirrus.com) and request that you be registered for automatic
 software-update notification.
 
 Cirrus Logic maintains a web page at http://www.cirrus.com with the
-the latest drivers and technical publications.
+latest drivers and technical publications.
 
 
 6.4 Current maintainer

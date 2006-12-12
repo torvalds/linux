@@ -41,7 +41,16 @@ struct cx22702_config
 	u8 output_mode;
 };
 
+#if defined(CONFIG_DVB_CX22702) || (defined(CONFIG_DVB_CX22702_MODULE) && defined(MODULE))
 extern struct dvb_frontend* cx22702_attach(const struct cx22702_config* config,
 					   struct i2c_adapter* i2c);
+#else
+static inline struct dvb_frontend* cx22702_attach(const struct cx22702_config* config,
+					   struct i2c_adapter* i2c)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	return NULL;
+}
+#endif // CONFIG_DVB_CX22702
 
 #endif // CX22702_H

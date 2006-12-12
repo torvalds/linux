@@ -50,7 +50,7 @@ static int umt_mt352_demod_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int umt_mt352_frontend_attach(struct dvb_usb_device *d)
+static int umt_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct mt352_config umt_config;
 
@@ -58,21 +58,21 @@ static int umt_mt352_frontend_attach(struct dvb_usb_device *d)
 	umt_config.demod_init = umt_mt352_demod_init;
 	umt_config.demod_address = 0xf;
 
-	d->fe = mt352_attach(&umt_config, &d->i2c_adap);
+	adap->fe = dvb_attach(mt352_attach, &umt_config, &adap->dev->i2c_adap);
 
 	return 0;
 }
 
-static int umt_tuner_attach (struct dvb_usb_device *d)
+static int umt_tuner_attach (struct dvb_usb_adapter *adap)
 {
-	d->pll_addr = 0x61;
-	d->pll_desc = &dvb_pll_tua6034;
-	d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	adap->pll_addr = 0x61;
+	adap->pll_desc = &dvb_pll_tua6034;
+	adap->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 	return 0;
 }
 
 /* USB Driver stuff */
-static struct dvb_usb_properties umt_properties;
+static struct dvb_usb_device_properties umt_properties;
 
 static int umt_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
@@ -90,33 +90,39 @@ static struct usb_device_id umt_table [] = {
 };
 MODULE_DEVICE_TABLE (usb, umt_table);
 
-static struct dvb_usb_properties umt_properties = {
+static struct dvb_usb_device_properties umt_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-umt-010-02.fw",
 
-	.size_of_priv     = sizeof(struct dibusb_state),
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.streaming_ctrl   = dibusb2_0_streaming_ctrl,
+			.frontend_attach  = umt_mt352_frontend_attach,
+			.tuner_attach     = umt_tuner_attach,
 
-	.streaming_ctrl   = dibusb2_0_streaming_ctrl,
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 20,
+				.endpoint = 0x06,
+				.u = {
+					.bulk = {
+						.buffersize = 512,
+					}
+				}
+			},
+
+			.size_of_priv     = sizeof(struct dibusb_state),
+		}
+	},
 	.power_ctrl       = dibusb_power_ctrl,
-	.frontend_attach  = umt_mt352_frontend_attach,
-	.tuner_attach     = umt_tuner_attach,
 
 	.i2c_algo         = &dibusb_i2c_algo,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
-	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
-		.count = 20,
-		.endpoint = 0x06,
-		.u = {
-			.bulk = {
-				.buffersize = 512,
-			}
-		}
-	},
 
 	.num_device_descs = 1,
 	.devices = {

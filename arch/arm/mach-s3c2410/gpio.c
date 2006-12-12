@@ -3,7 +3,7 @@
  * Copyright (c) 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C2410 GPIO support
+ * S3C24XX GPIO support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,21 +18,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Changelog
- *	13-Sep-2004  BJD  Implemented change of MISCCR
- *	14-Sep-2004  BJD  Added getpin call
- *	14-Sep-2004  BJD  Fixed bug in setpin() call
- *	30-Sep-2004  BJD  Fixed cfgpin() mask bug
- *	01-Oct-2004  BJD  Added getcfg() to get pin configuration
- *	01-Oct-2004  BJD  Fixed mask bug in pullup() call
- *	01-Oct-2004  BJD  Added getirq() to turn pin into irqno
- *	04-Oct-2004  BJD  Added irq filter controls for GPIO
- *	05-Nov-2004  BJD  EXPORT_SYMBOL() added for all code
- *	13-Mar-2005  BJD  Updates for __iomem
- *	26-Oct-2005  BJD  Added generic configuration types
- *	15-Jan-2006  LCVR Added support for the S3C2400
- */
+*/
 
 
 #include <linux/kernel.h>
@@ -177,3 +163,22 @@ unsigned int s3c2410_modify_misccr(unsigned int clear, unsigned int change)
 }
 
 EXPORT_SYMBOL(s3c2410_modify_misccr);
+
+int s3c2410_gpio_getirq(unsigned int pin)
+{
+	if (pin < S3C2410_GPF0 || pin > S3C2410_GPG15)
+		return -1;	/* not valid interrupts */
+
+	if (pin < S3C2410_GPG0 && pin > S3C2410_GPF7)
+		return -1;	/* not valid pin */
+
+	if (pin < S3C2410_GPF4)
+		return (pin - S3C2410_GPF0) + IRQ_EINT0;
+
+	if (pin < S3C2410_GPG0)
+		return (pin - S3C2410_GPF4) + IRQ_EINT4;
+
+	return (pin - S3C2410_GPG0) + IRQ_EINT8;
+}
+
+EXPORT_SYMBOL(s3c2410_gpio_getirq);

@@ -161,7 +161,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start, unsigned long en
 					 bootmap_start >> PAGE_SHIFT, 
 					 start_pfn, end_pfn); 
 
-	e820_bootmem_free(NODE_DATA(nodeid), start, end);
+	free_bootmem_with_active_regions(nodeid, end);
 
 	reserve_bootmem_node(NODE_DATA(nodeid), nodedata_phys, pgdat_size); 
 	reserve_bootmem_node(NODE_DATA(nodeid), bootmap_start, bootmap_pages<<PAGE_SHIFT);
@@ -175,13 +175,11 @@ void __init setup_node_bootmem(int nodeid, unsigned long start, unsigned long en
 void __init setup_node_zones(int nodeid)
 { 
 	unsigned long start_pfn, end_pfn, memmapsize, limit;
-	unsigned long zones[MAX_NR_ZONES];
-	unsigned long holes[MAX_NR_ZONES];
 
  	start_pfn = node_start_pfn(nodeid);
  	end_pfn = node_end_pfn(nodeid);
 
-	Dprintk(KERN_INFO "Setting up node %d %lx-%lx\n",
+	Dprintk(KERN_INFO "Setting up memmap for node %d %lx-%lx\n",
 		nodeid, start_pfn, end_pfn);
 
 	/* Try to allocate mem_map at end to not fill up precious <4GB
@@ -195,10 +193,6 @@ void __init setup_node_zones(int nodeid)
 				round_down(limit - memmapsize, PAGE_SIZE), 
 				limit);
 #endif
-
-	size_zones(zones, holes, start_pfn, end_pfn);
-	free_area_init_node(nodeid, NODE_DATA(nodeid), zones,
-			    start_pfn, holes);
 } 
 
 void __init numa_init_array(void)
@@ -259,8 +253,11 @@ static int __init numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
  		printk(KERN_ERR "No NUMA hash function found. Emulation disabled.\n");
  		return -1;
  	}
- 	for_each_online_node(i)
+ 	for_each_online_node(i) {
+		e820_register_active_regions(i, nodes[i].start >> PAGE_SHIFT,
+						nodes[i].end >> PAGE_SHIFT);
  		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
+	}
  	numa_init_array();
  	return 0;
 }
@@ -299,6 +296,7 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	for (i = 0; i < NR_CPUS; i++)
 		numa_set_node(i, 0);
 	node_to_cpumask[0] = cpumask_of_cpu(0);
+	e820_register_active_regions(0, start_pfn, end_pfn);
 	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
 }
 
@@ -340,12 +338,19 @@ static void __init arch_sparse_init(void)
 void __init paging_init(void)
 { 
 	int i;
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
+	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
+	max_zone_pfns[ZONE_NORMAL] = end_pfn;
 
 	arch_sparse_init();
 
 	for_each_online_node(i) {
 		setup_node_zones(i); 
 	}
+
+	free_area_init_nodes(max_zone_pfns);
 } 
 
 static __init int numa_setup(char *opt)

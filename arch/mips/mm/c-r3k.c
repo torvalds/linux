@@ -268,26 +268,6 @@ static void r3k_flush_data_cache_page(unsigned long addr)
 {
 }
 
-static void r3k_flush_icache_page(struct vm_area_struct *vma, struct page *page)
-{
-	struct mm_struct *mm = vma->vm_mm;
-	unsigned long physpage;
-
-	if (cpu_context(smp_processor_id(), mm) == 0)
-		return;
-
-	if (!(vma->vm_flags & VM_EXEC))
-		return;
-
-#ifdef DEBUG_CACHE
-	printk("cpage[%d,%08lx]", cpu_context(smp_processor_id(), mm), page);
-#endif
-
-	physpage = (unsigned long) page_address(page);
-	if (physpage)
-		r3k_flush_icache_range(physpage, physpage + PAGE_SIZE);
-}
-
 static void r3k_flush_cache_sigtramp(unsigned long addr)
 {
 	unsigned long flags;
@@ -335,7 +315,6 @@ void __init r3k_cache_init(void)
 	flush_cache_mm = r3k_flush_cache_mm;
 	flush_cache_range = r3k_flush_cache_range;
 	flush_cache_page = r3k_flush_cache_page;
-	flush_icache_page = r3k_flush_icache_page;
 	flush_icache_range = r3k_flush_icache_range;
 
 	flush_cache_sigtramp = r3k_flush_cache_sigtramp;

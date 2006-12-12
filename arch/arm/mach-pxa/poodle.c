@@ -197,7 +197,7 @@ static struct platform_device poodle_ts_device = {
  */
 static struct pxamci_platform_data poodle_mci_platform_data;
 
-static int poodle_mci_init(struct device *dev, irqreturn_t (*poodle_detect_int)(int, void *, struct pt_regs *), void *data)
+static int poodle_mci_init(struct device *dev, irq_handler_t poodle_detect_int, void *data)
 {
 	int err;
 
@@ -296,27 +296,25 @@ static struct pxa2xx_udc_mach_info udc_info __initdata = {
 
 
 /* PXAFB device */
-static struct pxafb_mach_info poodle_fb_info __initdata = {
+static struct pxafb_mode_info poodle_fb_mode = {
 	.pixclock	= 144700,
-
 	.xres		= 320,
 	.yres		= 240,
 	.bpp		= 16,
-
 	.hsync_len	= 7,
 	.left_margin	= 11,
 	.right_margin	= 30,
-
 	.vsync_len	= 2,
 	.upper_margin	= 2,
 	.lower_margin	= 0,
 	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+};
 
+static struct pxafb_mach_info poodle_fb_info = {
+	.modes		= &poodle_fb_mode,
+	.num_modes	= 1,
 	.lccr0		= LCCR0_Act | LCCR0_Sngl | LCCR0_Color,
 	.lccr3		= 0,
-
-	.pxafb_backlight_power	= NULL,
-	.pxafb_lcd_power	= NULL,
 };
 
 static struct platform_device *devices[] __initdata = {

@@ -103,7 +103,7 @@ static void adbdev_init(void);
 static int try_handler_change(int, int);
 
 static struct adb_handler {
-	void (*handler)(unsigned char *, int, struct pt_regs *, int);
+	void (*handler)(unsigned char *, int, int);
 	int original_address;
 	int handler_id;
 	int busy;
@@ -267,12 +267,12 @@ adb_probe_task(void *x)
 }
 
 static void
-__adb_probe_task(void *data)
+__adb_probe_task(struct work_struct *bullshit)
 {
 	adb_probe_task_pid = kernel_thread(adb_probe_task, NULL, SIGCHLD | CLONE_KERNEL);
 }
 
-static DECLARE_WORK(adb_reset_work, __adb_probe_task, NULL);
+static DECLARE_WORK(adb_reset_work, __adb_probe_task);
 
 int
 adb_reset_bus(void)
@@ -522,7 +522,7 @@ bail:
     the handler_id id it doesn't match. */
 int
 adb_register(int default_id, int handler_id, struct adb_ids *ids,
-	     void (*handler)(unsigned char *, int, struct pt_regs *, int))
+	     void (*handler)(unsigned char *, int, int))
 {
 	int i;
 
@@ -570,13 +570,13 @@ adb_unregister(int index)
 }
 
 void
-adb_input(unsigned char *buf, int nb, struct pt_regs *regs, int autopoll)
+adb_input(unsigned char *buf, int nb, int autopoll)
 {
 	int i, id;
 	static int dump_adb_input = 0;
 	unsigned long flags;
 	
-	void (*handler)(unsigned char *, int, struct pt_regs *, int);
+	void (*handler)(unsigned char *, int, int);
 
 	/* We skip keystrokes and mouse moves when the sleep process
 	 * has been started. We stop autopoll, but this is another security
@@ -597,7 +597,7 @@ adb_input(unsigned char *buf, int nb, struct pt_regs *regs, int autopoll)
 		adb_handler[id].busy = 1;
 	write_unlock_irqrestore(&adb_handler_lock, flags);
 	if (handler != NULL) {
-		(*handler)(buf, nb, regs, autopoll);
+		(*handler)(buf, nb, autopoll);
 		wmb();
 		adb_handler[id].busy = 0;
 	}

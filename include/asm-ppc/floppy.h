@@ -38,14 +38,14 @@ static int virtual_dma_mode;
 static int doing_vdma;
 static struct fd_dma_ops *fd_ops;
 
-static irqreturn_t floppy_hardint(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t floppy_hardint(int irq, void *dev_id)
 {
 	unsigned char st;
 	int lcount;
 	char *lptr;
 
 	if (!doing_vdma)
-		return floppy_interrupt(irq, dev_id, regs);
+		return floppy_interrupt(irq, dev_id);
 
 
 	st = 1;
@@ -69,7 +69,7 @@ static irqreturn_t floppy_hardint(int irq, void *dev_id, struct pt_regs * regs)
 		virtual_dma_residue += virtual_dma_count;
 		virtual_dma_count=0;
 		doing_vdma = 0;
-		floppy_interrupt(irq, dev_id, regs);
+		floppy_interrupt(irq, dev_id);
 		return IRQ_HANDLED;
 	}
 	return IRQ_HANDLED;

@@ -180,7 +180,6 @@ static int i2c_register_bus(struct pci_dev *dev, struct s_i2c_bus *p, void __iom
 	p->algo.getsda	  = bit_s3via_getsda;
 	p->algo.getscl	  = bit_s3via_getscl;
 	p->algo.udelay	  = CYCLE_DELAY;
-	p->algo.mdelay	  = CYCLE_DELAY;
 	p->algo.timeout	  = TIMEOUT;
 	p->algo.data	  = p;
 	p->mmvga	  = mmvga;
@@ -213,7 +212,7 @@ static void prosavage_remove(struct pci_dev *dev)
 		if (chip->i2c_bus[i].adap_ok == 0)
 			continue;
 
-		ret = i2c_bit_del_bus(&chip->i2c_bus[i].adap);
+		ret = i2c_del_adapter(&chip->i2c_bus[i].adap);
 	        if (ret) {
 			dev_err(&dev->dev, "%s not removed\n",
 				chip->i2c_bus[i].adap.name);

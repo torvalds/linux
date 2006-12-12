@@ -114,9 +114,9 @@ static void irda_usb_change_speed_xbofs(struct irda_usb_cb *self);
 static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *dev);
 static int irda_usb_open(struct irda_usb_cb *self);
 static void irda_usb_close(struct irda_usb_cb *self);
-static void speed_bulk_callback(struct urb *urb, struct pt_regs *regs);
-static void write_bulk_callback(struct urb *urb, struct pt_regs *regs);
-static void irda_usb_receive(struct urb *urb, struct pt_regs *regs);
+static void speed_bulk_callback(struct urb *urb);
+static void write_bulk_callback(struct urb *urb);
+static void irda_usb_receive(struct urb *urb);
 static void irda_usb_rx_defer_expired(unsigned long data);
 static int irda_usb_net_open(struct net_device *dev);
 static int irda_usb_net_close(struct net_device *dev);
@@ -343,7 +343,7 @@ static void irda_usb_change_speed_xbofs(struct irda_usb_cb *self)
  * Speed URB callback
  * Now, we can only get called for the speed URB.
  */
-static void speed_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void speed_bulk_callback(struct urb *urb)
 {
 	struct irda_usb_cb *self = urb->context;
 	
@@ -562,7 +562,7 @@ drop:
 /*
  * Note : this function will be called only for tx_urb...
  */
-static void write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void write_bulk_callback(struct urb *urb)
 {
 	unsigned long flags;
 	struct sk_buff *skb = urb->context;
@@ -671,10 +671,8 @@ static void irda_usb_net_timeout(struct net_device *netdev)
 			 * Jean II */
 			done = 1;
 			break;
-		case -ECONNABORTED:		/* -103 */
-		case -ECONNRESET:		/* -104 */
-		case -ETIMEDOUT:		/* -110 */
-		case -ENOENT:			/* -2 (urb unlinked by us)  */
+		case -ECONNRESET:
+		case -ENOENT:			/* urb unlinked by us */
 		default:			/* ??? - Play safe */
 			urb->status = 0;
 			netif_wake_queue(self->netdev);
@@ -712,10 +710,8 @@ static void irda_usb_net_timeout(struct net_device *netdev)
 			 * Jean II */
 			done = 1;
 			break;
-		case -ECONNABORTED:		/* -103 */
-		case -ECONNRESET:		/* -104 */
-		case -ETIMEDOUT:		/* -110 */
-		case -ENOENT:			/* -2 (urb unlinked by us)  */
+		case -ECONNRESET:
+		case -ENOENT:			/* urb unlinked by us */
 		default:			/* ??? - Play safe */
 			if(skb != NULL) {
 				dev_kfree_skb_any(skb);
@@ -813,7 +809,7 @@ static void irda_usb_submit(struct irda_usb_cb *self, struct sk_buff *skb, struc
  *     Called by the USB subsystem when a frame has been received
  *
  */
-static void irda_usb_receive(struct urb *urb, struct pt_regs *regs)
+static void irda_usb_receive(struct urb *urb)
 {
 	struct sk_buff *skb = (struct sk_buff *) urb->context;
 	struct irda_usb_cb *self; 
@@ -845,14 +841,14 @@ static void irda_usb_receive(struct urb *urb, struct pt_regs *regs)
 			self->stats.rx_crc_errors++;	
 			/* Also precursor to a hot-unplug on UHCI. */
 			/* Fallthrough... */
-		case -ECONNRESET:		/* -104 */
+		case -ECONNRESET:
 			/* Random error, if I remember correctly */
 			/* uhci_cleanup_unlink() is going to kill the Rx
 			 * URB just after we return. No problem, at this
 			 * point the URB will be idle ;-) - Jean II */
-		case -ESHUTDOWN:		/* -108 */
+		case -ESHUTDOWN:
 			/* That's usually a hot-unplug. Submit will fail... */
-		case -ETIMEDOUT:		/* -110 */
+		case -ETIME:
 			/* Usually precursor to a hot-unplug on OHCI. */
 		default:
 			self->stats.rx_errors++;
@@ -1797,10 +1793,8 @@ err_out_3:
 err_out_2:
 	usb_free_urb(self->tx_urb);
 err_out_1:
-	for (i = 0; i < self->max_rx_urb; i++) {
-		if (self->rx_urb[i])
-			usb_free_urb(self->rx_urb[i]);
-	}
+	for (i = 0; i < self->max_rx_urb; i++)
+		usb_free_urb(self->rx_urb[i]);
 	free_netdev(net);
 err_out:
 	return ret;

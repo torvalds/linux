@@ -375,6 +375,46 @@ of information is needed by the kernel developers to help track down the
 problem.
 
 
+Managing bug reports
+--------------------
+
+One of the best ways to put into practice your hacking skills is by fixing
+bugs reported by other people. Not only you will help to make the kernel
+more stable, you'll learn to fix real world problems and you will improve
+your skills, and other developers will be aware of your presence. Fixing
+bugs is one of the best ways to earn merit amongst the developers, because
+not many people like wasting time fixing other people's bugs.
+
+To work in the already reported bug reports, go to http://bugzilla.kernel.org.
+If you want to be advised of the future bug reports, you can subscribe to the
+bugme-new mailing list (only new bug reports are mailed here) or to the
+bugme-janitor mailing list (every change in the bugzilla is mailed here)
+
+	http://lists.osdl.org/mailman/listinfo/bugme-new
+	http://lists.osdl.org/mailman/listinfo/bugme-janitors
+
+
+
+Managing bug reports
+--------------------
+
+One of the best ways to put into practice your hacking skills is by fixing
+bugs reported by other people. Not only you will help to make the kernel
+more stable, you'll learn to fix real world problems and you will improve
+your skills, and other developers will be aware of your presence. Fixing
+bugs is one of the best ways to get merits among other developers, because
+not many people like wasting time fixing other people's bugs.
+
+To work in the already reported bug reports, go to http://bugzilla.kernel.org.
+If you want to be advised of the future bug reports, you can subscribe to the
+bugme-new mailing list (only new bug reports are mailed here) or to the
+bugme-janitor mailing list (every change in the bugzilla is mailed here)
+
+	http://lists.osdl.org/mailman/listinfo/bugme-new
+	http://lists.osdl.org/mailman/listinfo/bugme-janitors
+
+
+
 Mailing lists
 -------------
 

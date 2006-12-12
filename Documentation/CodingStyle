@@ -35,11 +35,36 @@ In short, 8-char indents make things easier to read, and have the added
 benefit of warning you when you're nesting your functions too deep.
 Heed that warning.
 
+The preferred way to ease multiple indentation levels in a switch statement is
+to align the "switch" and its subordinate "case" labels in the same column
+instead of "double-indenting" the "case" labels.  E.g.:
+
+	switch (suffix) {
+	case 'G':
+	case 'g':
+		mem <<= 30;
+		break;
+	case 'M':
+	case 'm':
+		mem <<= 20;
+		break;
+	case 'K':
+	case 'k':
+		mem <<= 10;
+		/* fall through */
+	default:
+		break;
+	}
+
+
 Don't put multiple statements on a single line unless you have
 something to hide:
 
 	if (condition) do_this;
 	  do_something_everytime;
+
+Don't put multiple assignments on a single line either.  Kernel coding style
+is super simple.  Avoid tricky expressions.
 
 Outside of comments, documentation and except in Kconfig, spaces are never
 used for indentation, and the above example is deliberately broken.
@@ -69,7 +94,7 @@ void fun(int a, int b, int c)
 		next_statement;
 }
 
-		Chapter 3: Placing Braces
+		Chapter 3: Placing Braces and Spaces
 
 The other issue that always comes up in C styling is the placement of
 braces.  Unlike the indent size, there are few technical reasons to
@@ -79,6 +104,20 @@ brace last on the line, and put the closing brace first, thusly:
 
 	if (x is true) {
 		we do y
+	}
+
+This applies to all non-function statement blocks (if, switch, for,
+while, do).  E.g.:
+
+	switch (action) {
+	case KOBJ_ADD:
+		return "add";
+	case KOBJ_REMOVE:
+		return "remove";
+	case KOBJ_CHANGE:
+		return "change";
+	default:
+		return NULL;
 	}
 
 However, there is one special case, namely functions: they have the
@@ -121,6 +160,49 @@ supply of new-lines on your screen is not a renewable resource (think
 25-line terminal screens here), you have more empty lines to put
 comments on.
 
+		3.1:  Spaces
+
+Linux kernel style for use of spaces depends (mostly) on
+function-versus-keyword usage.  Use a space after (most) keywords.  The
+notable exceptions are sizeof, typeof, alignof, and __attribute__, which look
+somewhat like functions (and are usually used with parentheses in Linux,
+although they are not required in the language, as in: "sizeof info" after
+"struct fileinfo info;" is declared).
+
+So use a space after these keywords:
+	if, switch, case, for, do, while
+but not with sizeof, typeof, alignof, or __attribute__.  E.g.,
+	s = sizeof(struct file);
+
+Do not add spaces around (inside) parenthesized expressions.  This example is
+*bad*:
+
+	s = sizeof( struct file );
+
+When declaring pointer data or a function that returns a pointer type, the
+preferred use of '*' is adjacent to the data name or function name and not
+adjacent to the type name.  Examples:
+
+	char *linux_banner;
+	unsigned long long memparse(char *ptr, char **retptr);
+	char *match_strdup(substring_t *s);
+
+Use one space around (on each side of) most binary and ternary operators,
+such as any of these:
+
+	=  +  -  <  >  *  /  %  |  &  ^  <=  >=  ==  !=  ?  :
+
+but no space after unary operators:
+	&  *  +  -  ~  !  sizeof  typeof  alignof  __attribute__  defined
+
+no space before the postfix increment & decrement unary operators:
+	++  --
+
+no space after the prefix increment & decrement unary operators:
+	++  --
+
+and no space around the '.' and "->" structure member operators.
+
 
 		Chapter 4: Naming
 
@@ -152,7 +234,7 @@ variable that is used to hold a temporary value.
 
 If you are afraid to mix up your local variable names, you have another
 problem, which is called the function-growth-hormone-imbalance syndrome.
-See next chapter.
+See chapter 6 (Functions).
 
 
 		Chapter 5: Typedefs
@@ -258,6 +340,20 @@ generally easily keep track of about 7 different things, anything more
 and it gets confused.  You know you're brilliant, but maybe you'd like
 to understand what you did 2 weeks from now.
 
+In source files, separate functions with one blank line.  If the function is
+exported, the EXPORT* macro for it should follow immediately after the closing
+function brace line.  E.g.:
+
+int system_is_up(void)
+{
+	return system_state == SYSTEM_RUNNING;
+}
+EXPORT_SYMBOL(system_is_up);
+
+In function prototypes, include parameter names with their data types.
+Although this is not required by the C language, it is preferred in Linux
+because it is a simple way to add valuable information for the reader.
+
 
 		Chapter 7: Centralized exiting of functions
 
@@ -306,15 +402,35 @@ time to explain badly written code.
 Generally, you want your comments to tell WHAT your code does, not HOW.
 Also, try to avoid putting comments inside a function body: if the
 function is so complex that you need to separately comment parts of it,
-you should probably go back to chapter 5 for a while.  You can make
+you should probably go back to chapter 6 for a while.  You can make
 small comments to note or warn about something particularly clever (or
 ugly), but try to avoid excess.  Instead, put the comments at the head
 of the function, telling people what it does, and possibly WHY it does
 it.
 
-When commenting the kernel API functions, please use the kerneldoc format.
+When commenting the kernel API functions, please use the kernel-doc format.
 See the files Documentation/kernel-doc-nano-HOWTO.txt and scripts/kernel-doc
 for details.
+
+Linux style for comments is the C89 "/* ... */" style.
+Don't use C99-style "// ..." comments.
+
+The preferred style for long (multi-line) comments is:
+
+	/*
+	 * This is the preferred style for multi-line
+	 * comments in the Linux kernel source code.
+	 * Please use it consistently.
+	 *
+	 * Description:  A column of asterisks on the left side,
+	 * with beginning and ending almost-blank lines.
+	 */
+
+It's also important to comment data, whether they are basic types or derived
+types.  To this end, use just one data declaration per line (no commas for
+multiple data declarations).  This leaves you room for a small comment on each
+item, explaining its use.
+
 
 		Chapter 9: You've made a mess of it
 
@@ -532,6 +648,40 @@ appears outweighs the potential value of the hint that tells gcc to do
 something it would have done anyway.
 
 
+		Chapter 16: Function return values and names
+
+Functions can return values of many different kinds, and one of the
+most common is a value indicating whether the function succeeded or
+failed.  Such a value can be represented as an error-code integer
+(-Exxx = failure, 0 = success) or a "succeeded" boolean (0 = failure,
+non-zero = success).
+
+Mixing up these two sorts of representations is a fertile source of
+difficult-to-find bugs.  If the C language included a strong distinction
+between integers and booleans then the compiler would find these mistakes
+for us... but it doesn't.  To help prevent such bugs, always follow this
+convention:
+
+	If the name of a function is an action or an imperative command,
+	the function should return an error-code integer.  If the name
+	is a predicate, the function should return a "succeeded" boolean.
+
+For example, "add work" is a command, and the add_work() function returns 0
+for success or -EBUSY for failure.  In the same way, "PCI device present" is
+a predicate, and the pci_dev_present() function returns 1 if it succeeds in
+finding a matching device or 0 if it doesn't.
+
+All EXPORTed functions must respect this convention, and so should all
+public functions.  Private (static) functions need not, but it is
+recommended that they do.
+
+Functions whose return value is the actual result of a computation, rather
+than an indication of whether the computation succeeded, are not subject to
+this rule.  Generally they indicate failure by returning some out-of-range
+result.  Typical examples would be functions that return pointers; they use
+NULL or the ERR_PTR mechanism to report failure.
+
+
 
 		Appendix I: References
 
@@ -557,4 +707,4 @@ Kernel CodingStyle, by greg@kroah.com at OLS 2002:
 http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/
 
 --
-Last updated on 30 April 2006.
+Last updated on 2006-December-06.

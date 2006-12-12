@@ -29,7 +29,8 @@
 #include <linux/percpu.h>
 #include <asm/break.h>
 
-#define MAX_INSN_SIZE   16
+#define __ARCH_WANT_KPROBES_INSN_SLOT
+#define MAX_INSN_SIZE   1
 #define BREAK_INST	(long)(__IA64_BREAK_KPROBE << 6)
 
 typedef union cmp_inst {
@@ -94,7 +95,7 @@ struct kprobe_ctlblk {
 #define IP_RELATIVE_PREDICT_OPCODE	(7)
 #define LONG_BRANCH_OPCODE		(0xC)
 #define LONG_CALL_OPCODE		(0xD)
-#define arch_remove_kprobe(p)		do {} while (0)
+#define flush_insn_slot(p)		do { } while (0)
 
 typedef struct kprobe_opcode {
 	bundle_t bundle;
@@ -108,7 +109,7 @@ struct fnptr {
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {
 	/* copy of the instruction to be emulated */
-	kprobe_opcode_t insn;
+	kprobe_opcode_t *insn;
  #define INST_FLAG_FIX_RELATIVE_IP_ADDR		1
  #define INST_FLAG_FIX_BRANCH_REG		2
  #define INST_FLAG_BREAK_INST			4
@@ -125,6 +126,6 @@ static inline void jprobe_return(void)
 }
 extern void invalidate_stacked_regs(void);
 extern void flush_register_stack(void);
-extern void flush_insn_slot(struct kprobe *p);
+extern void arch_remove_kprobe(struct kprobe *p);
 
 #endif				/* _ASM_KPROBES_H */

@@ -183,7 +183,7 @@ static int acq_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	}
 
 	default:
-	  return -ENOIOCTLCMD;
+	  return -ENOTTY;
 	}
 }
 

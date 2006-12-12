@@ -38,6 +38,7 @@
 #include <linux/dmi.h>
 #include <linux/moduleparam.h>
 #include <linux/sched.h>	/* need_resched() */
+#include <linux/latency.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -218,6 +219,23 @@ static void acpi_safe_halt(void)
 
 static atomic_t c3_cpu_count;
 
+/* Common C-state entry for C2, C3, .. */
+static void acpi_cstate_enter(struct acpi_processor_cx *cstate)
+{
+	if (cstate->space_id == ACPI_CSTATE_FFH) {
+		/* Call into architectural FFH based C-state */
+		acpi_processor_ffh_cstate_enter(cstate);
+	} else {
+		int unused;
+		/* IO port based C-state */
+		inb(cstate->address);
+		/* Dummy wait op - must do something useless after P_LVL2 read
+		   because chipsets cannot guarantee that STPCLK# signal
+		   gets asserted in time to freeze execution properly. */
+		unused = inl(acpi_fadt.xpm_tmr_blk.address);
+	}
+}
+
 static void acpi_processor_idle(void)
 {
 	struct acpi_processor *pr = NULL;
@@ -360,11 +378,7 @@ static void acpi_processor_idle(void)
 		/* Get start time (ticks) */
 		t1 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Invoke C2 */
-		inb(cx->address);
-		/* Dummy wait op - must do something useless after P_LVL2 read
-		   because chipsets cannot guarantee that STPCLK# signal
-		   gets asserted in time to freeze execution properly. */
-		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
+		acpi_cstate_enter(cx);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
 
@@ -400,9 +414,7 @@ static void acpi_processor_idle(void)
 		/* Get start time (ticks) */
 		t1 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Invoke C3 */
-		inb(cx->address);
-		/* Dummy wait op (see above) */
-		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
+		acpi_cstate_enter(cx);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
 		if (pr->flags.bm_check) {
@@ -453,7 +465,8 @@ static void acpi_processor_idle(void)
 	 */
 	if (cx->promotion.state &&
 	    ((cx->promotion.state - pr->power.states) <= max_cstate)) {
-		if (sleep_ticks > cx->promotion.threshold.ticks) {
+		if (sleep_ticks > cx->promotion.threshold.ticks &&
+		  cx->promotion.state->latency <= system_latency_constraint()) {
 			cx->promotion.count++;
 			cx->demotion.count = 0;
 			if (cx->promotion.count >=
@@ -494,8 +507,10 @@ static void acpi_processor_idle(void)
       end:
 	/*
 	 * Demote if current state exceeds max_cstate
+	 * or if the latency of the current state is unacceptable
 	 */
-	if ((pr->power.state - pr->power.states) > max_cstate) {
+	if ((pr->power.state - pr->power.states) > max_cstate ||
+		pr->power.state->latency > system_latency_constraint()) {
 		if (cx->demotion.state)
 			next_state = cx->demotion.state;
 	}
@@ -624,20 +639,16 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	return 0;
 }
 
-static int acpi_processor_get_power_info_default_c1(struct acpi_processor *pr)
+static int acpi_processor_get_power_info_default(struct acpi_processor *pr)
 {
-
-	/* Zero initialize all the C-states info. */
-	memset(pr->power.states, 0, sizeof(pr->power.states));
-
-	/* set the first C-State to C1 */
-	pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
-
-	/* the C0 state only exists as a filler in our array,
-	 * and all processors need to support C1 */
+	if (!pr->power.states[ACPI_STATE_C1].valid) {
+		/* set the first C-State to C1 */
+		/* all processors need to support C1 */
+		pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
+		pr->power.states[ACPI_STATE_C1].valid = 1;
+	}
+	/* the C0 state only exists as a filler in our array */
 	pr->power.states[ACPI_STATE_C0].valid = 1;
-	pr->power.states[ACPI_STATE_C1].valid = 1;
-
 	return 0;
 }
 
@@ -654,12 +665,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 	if (nocst)
 		return -ENODEV;
 
-	current_count = 1;
-
-	/* Zero initialize C2 onwards and prepare for fresh CST lookup */
-	for (i = 2; i < ACPI_PROCESSOR_MAX_POWER; i++)
-		memset(&(pr->power.states[i]), 0, 
-				sizeof(struct acpi_processor_cx));
+	current_count = 0;
 
 	status = acpi_evaluate_object(pr->handle, "_CST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -714,22 +720,39 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		    (reg->space_id != ACPI_ADR_SPACE_FIXED_HARDWARE))
 			continue;
 
-		cx.address = (reg->space_id == ACPI_ADR_SPACE_FIXED_HARDWARE) ?
-		    0 : reg->address;
-
 		/* There should be an easy way to extract an integer... */
 		obj = (union acpi_object *)&(element->package.elements[1]);
 		if (obj->type != ACPI_TYPE_INTEGER)
 			continue;
 
 		cx.type = obj->integer.value;
+		/*
+		 * Some buggy BIOSes won't list C1 in _CST -
+		 * Let acpi_processor_get_power_info_default() handle them later
+		 */
+		if (i == 1 && cx.type != ACPI_STATE_C1)
+			current_count++;
 
-		if ((cx.type != ACPI_STATE_C1) &&
-		    (reg->space_id != ACPI_ADR_SPACE_SYSTEM_IO))
-			continue;
+		cx.address = reg->address;
+		cx.index = current_count + 1;
 
-		if ((cx.type < ACPI_STATE_C2) || (cx.type > ACPI_STATE_C3))
-			continue;
+		cx.space_id = ACPI_CSTATE_SYSTEMIO;
+		if (reg->space_id == ACPI_ADR_SPACE_FIXED_HARDWARE) {
+			if (acpi_processor_ffh_cstate_probe
+					(pr->id, &cx, reg) == 0) {
+				cx.space_id = ACPI_CSTATE_FFH;
+			} else if (cx.type != ACPI_STATE_C1) {
+				/*
+				 * C1 is a special case where FIXED_HARDWARE
+				 * can be handled in non-MWAIT way as well.
+				 * In that case, save this _CST entry info.
+				 * That is, we retain space_id of SYSTEM_IO for
+				 * halt based C1.
+				 * Otherwise, ignore this info and continue.
+				 */
+				continue;
+			}
+		}
 
 		obj = (union acpi_object *)&(element->package.elements[2]);
 		if (obj->type != ACPI_TYPE_INTEGER)
@@ -934,11 +957,17 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 	/* NOTE: the idle thread may not be running while calling
 	 * this function */
 
-	/* Adding C1 state */
-	acpi_processor_get_power_info_default_c1(pr);
+	/* Zero initialize all the C-states info. */
+	memset(pr->power.states, 0, sizeof(pr->power.states));
+
 	result = acpi_processor_get_power_info_cst(pr);
 	if (result == -ENODEV)
-		acpi_processor_get_power_info_fadt(pr);
+		result = acpi_processor_get_power_info_fadt(pr);
+
+	if (result)
+		return result;
+
+	acpi_processor_get_power_info_default(pr);
 
 	pr->power.count = acpi_processor_power_verify(pr);
 
@@ -1009,9 +1038,11 @@ static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 
 	seq_printf(seq, "active state:            C%zd\n"
 		   "max_cstate:              C%d\n"
-		   "bus master activity:     %08x\n",
+		   "bus master activity:     %08x\n"
+		   "maximum allowed latency: %d usec\n",
 		   pr->power.state ? pr->power.state - pr->power.states : 0,
-		   max_cstate, (unsigned)pr->power.bm_activity);
+		   max_cstate, (unsigned)pr->power.bm_activity,
+		   system_latency_constraint());
 
 	seq_puts(seq, "states:\n");
 
@@ -1077,7 +1108,31 @@ static const struct file_operations acpi_processor_power_fops = {
 	.release = single_release,
 };
 
-int acpi_processor_power_init(struct acpi_processor *pr,
+#ifdef CONFIG_SMP
+static void smp_callback(void *v)
+{
+	/* we already woke the CPU up, nothing more to do */
+}
+
+/*
+ * This function gets called when a part of the kernel has a new latency
+ * requirement.  This means we need to get all processors out of their C-state,
+ * and then recalculate a new suitable C-state. Just do a cross-cpu IPI; that
+ * wakes them all right up.
+ */
+static int acpi_processor_latency_notify(struct notifier_block *b,
+		unsigned long l, void *v)
+{
+	smp_call_function(smp_callback, NULL, 0, 1);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block acpi_processor_latency_notifier = {
+	.notifier_call = acpi_processor_latency_notify,
+};
+#endif
+
+int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 			      struct acpi_device *device)
 {
 	acpi_status status = 0;
@@ -1093,6 +1148,9 @@ int acpi_processor_power_init(struct acpi_processor *pr,
 			       "ACPI: processor limited to max C-state %d\n",
 			       max_cstate);
 		first_run++;
+#ifdef CONFIG_SMP
+		register_latency_notifier(&acpi_processor_latency_notifier);
+#endif
 	}
 
 	if (!pr)
@@ -1164,6 +1222,9 @@ int acpi_processor_power_exit(struct acpi_processor *pr,
 		 * copies of pm_idle before proceeding.
 		 */
 		cpu_idle_wait();
+#ifdef CONFIG_SMP
+		unregister_latency_notifier(&acpi_processor_latency_notifier);
+#endif
 	}
 
 	return 0;

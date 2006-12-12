@@ -24,7 +24,7 @@
 #include <linux/highmem.h>
 #include <linux/bootmem.h>
 #include <linux/pagemap.h>
-
+#include <linux/proc_fs.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -77,26 +77,30 @@ void show_mem(void)
 	printk("%d pages swap cached\n",cached);
 }
 
+#ifdef CONFIG_MMU
 static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
-	pgd = swapper_pg_dir + pgd_index(addr);
+	pgd = pgd_offset_k(addr);
 	if (pgd_none(*pgd)) {
 		pgd_ERROR(*pgd);
 		return;
 	}
 
-	pmd = pmd_offset(pgd, addr);
-	if (pmd_none(*pmd)) {
-		pte = (pte_t *)get_zeroed_page(GFP_ATOMIC);
-		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE | _PAGE_USER));
-		if (pte != pte_offset_kernel(pmd, 0)) {
-			pmd_ERROR(*pmd);
-			return;
-		}
+	pud = pud_alloc(NULL, pgd, addr);
+	if (unlikely(!pud)) {
+		pud_ERROR(*pud);
+		return;
+	}
+
+	pmd = pmd_alloc(NULL, pud, addr);
+	if (unlikely(!pmd)) {
+		pmd_ERROR(*pmd);
+		return;
 	}
 
 	pte = pte_offset_kernel(pmd, addr);
@@ -136,6 +140,7 @@ void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 
 	set_pte_phys(address, phys, prot);
 }
+#endif	/* CONFIG_MMU */
 
 /* References to section boundaries */
 
@@ -144,9 +149,6 @@ extern char __init_begin, __init_end;
 
 /*
  * paging_init() sets up the page tables
- *
- * This routines also unmaps the page at virtual kernel address 0, so
- * that we can trap those pesky NULL-reference errors in the kernel.
  */
 void __init paging_init(void)
 {
@@ -169,14 +171,11 @@ void __init paging_init(void)
 	 */
 	{
 		unsigned long max_dma, low, start_pfn;
-		pgd_t *pg_dir;
-		int i;
 
-		/* We don't need kernel mapping as hardware support that. */
-		pg_dir = swapper_pg_dir;
-
-		for (i = 0; i < PTRS_PER_PGD; i++)
-			pgd_val(pg_dir[i]) = 0;
+		/* We don't need to map the kernel through the TLB, as
+		 * it is permanatly mapped using P1. So clear the
+		 * entire pgd. */
+		memset(swapper_pg_dir, 0, sizeof(swapper_pg_dir));
 
 		/* Turn on the MMU */
 		enable_mmu();
@@ -195,6 +194,10 @@ void __init paging_init(void)
 		}
 	}
 
+	/* Set an initial value for the MMU.TTB so we don't have to
+	 * check for a null value. */
+	set_TTB(swapper_pg_dir);
+
 #elif defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4)
 	/*
 	 * If we don't have CONFIG_MMU set and the processor in question
@@ -212,9 +215,10 @@ void __init paging_init(void)
 	free_area_init_node(0, NODE_DATA(0), zones_size, __MEMORY_START >> PAGE_SHIFT, 0);
 }
 
+static struct kcore_list kcore_mem, kcore_vmalloc;
+
 void __init mem_init(void)
 {
-	extern unsigned long empty_zero_page[1024];
 	int codesize, reservedpages, datasize, initsize;
 	int tmp;
 	extern unsigned long memory_start;
@@ -237,8 +241,13 @@ void __init mem_init(void)
 	 * Setup wrappers for copy/clear_page(), these will get overridden
 	 * later in the boot process if a better method is available.
 	 */
+#ifdef CONFIG_MMU
 	copy_page = copy_page_slow;
 	clear_page = clear_page_slow;
+#else
+	copy_page = copy_page_nommu;
+	clear_page = clear_page_nommu;
+#endif
 
 	/* this will put all low memory onto the freelists */
 	totalram_pages += free_all_bootmem_node(NODE_DATA(0));
@@ -254,7 +263,12 @@ void __init mem_init(void)
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
 	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
 
-	printk("Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, %dk init)\n",
+	kclist_add(&kcore_mem, __va(0), max_low_pfn << PAGE_SHIFT);
+	kclist_add(&kcore_vmalloc, (void *)VMALLOC_START,
+		   VMALLOC_END - VMALLOC_START);
+
+	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, "
+	       "%dk reserved, %dk data, %dk init)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
 		max_mapnr << (PAGE_SHIFT-10),
 		codesize >> 10,
@@ -263,6 +277,9 @@ void __init mem_init(void)
 		initsize >> 10);
 
 	p3_cache_init();
+
+	/* Initialize the vDSO */
+	vsyscall_init();
 }
 
 void free_initmem(void)

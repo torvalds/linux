@@ -30,6 +30,7 @@
 #include <media/tveeprom.h>
 #include <media/video-buf.h>
 #include <media/cx2341x.h>
+#include <media/audiochip.h>
 #include <media/video-buf-dvb.h>
 
 #include "btcx-risc.h"
@@ -39,12 +40,6 @@
 #include <linux/mutex.h>
 #define CX88_VERSION_CODE KERNEL_VERSION(0,0,6)
 
-#ifndef TRUE
-# define TRUE (1==1)
-#endif
-#ifndef FALSE
-# define FALSE (1==0)
-#endif
 #define UNSET (-1U)
 
 #define CX88_MAXBOARDS 8
@@ -71,6 +66,17 @@ enum cx88_deemph_type {
 	FM_NO_DEEMPH = 0,
 	FM_DEEMPH_50,
 	FM_DEEMPH_75
+};
+
+enum cx88_board_type {
+	CX88_BOARD_NONE = 0,
+	CX88_MPEG_DVB,
+	CX88_MPEG_BLACKBIRD
+};
+
+enum cx8802_board_access {
+	CX8802_DRVCTL_SHARED    = 1,
+	CX8802_DRVCTL_EXCLUSIVE = 2,
 };
 
 /* ----------------------------------------------------------- */
@@ -197,6 +203,10 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_NPGTECH_REALTV_TOP10FM  50
 #define CX88_BOARD_WINFAST_DTV2000H        51
 #define CX88_BOARD_GENIATECH_DVBS          52
+#define CX88_BOARD_HAUPPAUGE_HVR3000       53
+#define CX88_BOARD_NORWOOD_MICRO           54
+#define CX88_BOARD_TE_DTV_250_OEM_SWANN    55
+#define CX88_BOARD_HAUPPAUGE_HVR1300       56
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -215,6 +225,7 @@ struct cx88_input {
 	enum cx88_itype type;
 	unsigned int    vmux;
 	u32             gpio0, gpio1, gpio2, gpio3;
+	unsigned int    extadc:1;
 };
 
 struct cx88_board {
@@ -226,8 +237,8 @@ struct cx88_board {
 	int                     tda9887_conf;
 	struct cx88_input       input[MAX_CX88_INPUT];
 	struct cx88_input       radio;
-	unsigned int            blackbird:1;
-	unsigned int            dvb:1;
+	enum cx88_board_type    mpeg;
+	enum audiochip          audio_chip;
 };
 
 struct cx88_subid {
@@ -325,6 +336,7 @@ struct cx88_core {
 
 	/* cx88-video needs to access cx8802 for hybrid tuner pll access. */
 	struct cx8802_dev          *dvbdev;
+	enum cx88_board_type       active_type_id;
 };
 
 struct cx8800_dev;
@@ -400,6 +412,31 @@ struct cx8802_suspend_state {
 	int                        disabled;
 };
 
+struct cx8802_driver {
+	struct cx88_core *core;
+	struct list_head devlist;
+
+	/* Type of driver and access required */
+	enum cx88_board_type type_id;
+	enum cx8802_board_access hw_access;
+
+	/* MPEG 8802 internal only */
+	int (*suspend)(struct pci_dev *pci_dev, pm_message_t state);
+	int (*resume)(struct pci_dev *pci_dev);
+
+	/* MPEG 8802 -> mini driver - Driver probe and configuration */
+	int (*probe)(struct cx8802_driver *drv);
+	int (*remove)(struct cx8802_driver *drv);
+
+	/* MPEG 8802 -> mini driver - Access for hardware control */
+	int (*advise_acquire)(struct cx8802_driver *drv);
+	int (*advise_release)(struct cx8802_driver *drv);
+
+	/* MPEG 8802 <- mini driver - Access for hardware control */
+	int (*request_acquire)(struct cx8802_driver *drv);
+	int (*request_release)(struct cx8802_driver *drv);
+};
+
 struct cx8802_dev {
 	struct cx88_core           *core;
 	spinlock_t                 slock;
@@ -434,6 +471,9 @@ struct cx8802_dev {
 
 	/* mpeg params */
 	struct cx2341x_mpeg_params params;
+
+	/* List of attached drivers */
+	struct cx8802_driver       drvlist;
 };
 
 /* ----------------------------------------------------------- */
@@ -545,6 +585,7 @@ extern const unsigned int cx88_idcount;
 
 extern void cx88_card_list(struct cx88_core *core, struct pci_dev *pci);
 extern void cx88_card_setup(struct cx88_core *core);
+extern void cx88_card_setup_pre_i2c(struct cx88_core *core);
 
 /* ----------------------------------------------------------- */
 /* cx88-tvaudio.c                                              */
@@ -564,6 +605,11 @@ void cx88_newstation(struct cx88_core *core);
 void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t);
 void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual);
 int cx88_audio_thread(void *data);
+
+int cx8802_register_driver(struct cx8802_driver *drv);
+int cx8802_unregister_driver(struct cx8802_driver *drv);
+struct cx8802_dev * cx8802_get_device(struct inode *inode);
+struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board_type btype);
 
 /* ----------------------------------------------------------- */
 /* cx88-input.c                                                */
@@ -593,6 +639,13 @@ extern int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 				void *arg, v4l2_kioctl driver_ioctl);
 extern const u32 cx88_user_ctrls[];
 extern int cx8800_ctrl_query(struct v4l2_queryctrl *qctrl);
+
+/* ----------------------------------------------------------- */
+/* cx88-blackbird.c                                            */
+/* used by cx88-ivtv ioctl emulation layer                     */
+extern int (*cx88_ioctl_hook)(struct inode *inode, struct file *file,
+			      unsigned int cmd, void *arg);
+extern unsigned int (*cx88_ioctl_translator)(unsigned int cmd);
 
 /*
  * Local variables:

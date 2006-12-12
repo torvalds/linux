@@ -151,9 +151,9 @@ So that you can load and unload Kprobes-based instrumentation modules,
 make sure "Loadable module support" (CONFIG_MODULES) and "Module
 unloading" (CONFIG_MODULE_UNLOAD) are set to "y".
 
-You may also want to ensure that CONFIG_KALLSYMS and perhaps even
-CONFIG_KALLSYMS_ALL are set to "y", since kallsyms_lookup_name()
-is a handy, version-independent way to find a function's address.
+Also make sure that CONFIG_KALLSYMS and perhaps even CONFIG_KALLSYMS_ALL
+are set to "y", since kallsyms_lookup_name() is used by the in-kernel
+kprobe address resolution code.
 
 If you need to insert a probe in the middle of a function, you may find
 it useful to "Compile the kernel with debug info" (CONFIG_DEBUG_INFO),
@@ -178,6 +178,27 @@ is single-stepped, Kprobe calls kp->post_handler.  If a fault
 occurs during execution of kp->pre_handler or kp->post_handler,
 or during single-stepping of the probed instruction, Kprobes calls
 kp->fault_handler.  Any or all handlers can be NULL.
+
+NOTE:
+1. With the introduction of the "symbol_name" field to struct kprobe,
+the probepoint address resolution will now be taken care of by the kernel.
+The following will now work:
+
+	kp.symbol_name = "symbol_name";
+
+(64-bit powerpc intricacies such as function descriptors are handled
+transparently)
+
+2. Use the "offset" field of struct kprobe if the offset into the symbol
+to install a probepoint is known. This field is used to calculate the
+probepoint.
+
+3. Specify either the kprobe "symbol_name" OR the "addr". If both are
+specified, kprobe registration will fail with -EINVAL.
+
+4. With CISC architectures (such as i386 and x86_64), the kprobes code
+does not validate if the kprobe.addr is at an instruction boundary.
+Use "offset" with caution.
 
 register_kprobe() returns 0 on success, or a negative errno otherwise.
 
@@ -225,6 +246,12 @@ control to Kprobes.)  If the probed function is declared asmlinkage,
 fastcall, or anything else that affects how args are passed, the
 handler's declaration must match.
 
+NOTE: A macro JPROBE_ENTRY is provided to handle architecture-specific
+aliasing of jp->entry. In the interest of portability, it is advised
+to use:
+
+	jp->entry = JPROBE_ENTRY(handler);
+
 register_jprobe() returns 0 on success, or a negative errno otherwise.
 
 4.3 register_kretprobe
@@ -251,6 +278,11 @@ of interest:
 - ret_addr: the return address
 - rp: points to the corresponding kretprobe object
 - task: points to the corresponding task struct
+
+The regs_return_value(regs) macro provides a simple abstraction to
+extract the return value from the appropriate register as defined by
+the architecture's ABI.
+
 The handler's return value is currently ignored.
 
 4.4 unregister_*probe
@@ -369,7 +401,6 @@ stack trace and selected i386 registers when do_fork() is called.
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/kprobes.h>
-#include <linux/kallsyms.h>
 #include <linux/sched.h>
 
 /*For each probe you need to allocate a kprobe structure*/
@@ -403,32 +434,31 @@ int handler_fault(struct kprobe *p, struct pt_regs *regs, int trapnr)
 	return 0;
 }
 
-int init_module(void)
+static int __init kprobe_init(void)
 {
 	int ret;
 	kp.pre_handler = handler_pre;
 	kp.post_handler = handler_post;
 	kp.fault_handler = handler_fault;
-	kp.addr = (kprobe_opcode_t*) kallsyms_lookup_name("do_fork");
-	/* register the kprobe now */
-	if (!kp.addr) {
-		printk("Couldn't find %s to plant kprobe\n", "do_fork");
-		return -1;
-	}
-	if ((ret = register_kprobe(&kp) < 0)) {
+	kp.symbol_name = "do_fork";
+
+	ret = register_kprobe(&kp);
+	if (ret < 0) {
 		printk("register_kprobe failed, returned %d\n", ret);
-		return -1;
+		return ret;
 	}
 	printk("kprobe registered\n");
 	return 0;
 }
 
-void cleanup_module(void)
+static void __exit kprobe_exit(void)
 {
 	unregister_kprobe(&kp);
 	printk("kprobe unregistered\n");
 }
 
+module_init(kprobe_init)
+module_exit(kprobe_exit)
 MODULE_LICENSE("GPL");
 ----- cut here -----
 
@@ -463,7 +493,6 @@ the arguments of do_fork().
 #include <linux/fs.h>
 #include <linux/uio.h>
 #include <linux/kprobes.h>
-#include <linux/kallsyms.h>
 
 /*
  * Jumper probe for do_fork.
@@ -485,17 +514,13 @@ long jdo_fork(unsigned long clone_flags, unsigned long stack_start,
 }
 
 static struct jprobe my_jprobe = {
-	.entry = (kprobe_opcode_t *) jdo_fork
+	.entry = JPROBE_ENTRY(jdo_fork)
 };
 
-int init_module(void)
+static int __init jprobe_init(void)
 {
 	int ret;
-	my_jprobe.kp.addr = (kprobe_opcode_t *) kallsyms_lookup_name("do_fork");
-	if (!my_jprobe.kp.addr) {
-		printk("Couldn't find %s to plant jprobe\n", "do_fork");
-		return -1;
-	}
+	my_jprobe.kp.symbol_name = "do_fork";
 
 	if ((ret = register_jprobe(&my_jprobe)) <0) {
 		printk("register_jprobe failed, returned %d\n", ret);
@@ -506,12 +531,14 @@ int init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+static void __exit jprobe_exit(void)
 {
 	unregister_jprobe(&my_jprobe);
 	printk("jprobe unregistered\n");
 }
 
+module_init(jprobe_init)
+module_exit(jprobe_exit)
 MODULE_LICENSE("GPL");
 ----- cut here -----
 
@@ -530,16 +557,13 @@ report failed calls to sys_open().
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/kprobes.h>
-#include <linux/kallsyms.h>
 
 static const char *probed_func = "sys_open";
 
 /* Return-probe handler: If the probed function fails, log the return value. */
 static int ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	// Substitute the appropriate register name for your architecture --
-	// e.g., regs->rax for x86_64, regs->gpr[3] for ppc64.
-	int retval = (int) regs->eax;
+	int retval = regs_return_value(regs);
 	if (retval < 0) {
 		printk("%s returns %d\n", probed_func, retval);
 	}
@@ -552,15 +576,11 @@ static struct kretprobe my_kretprobe = {
 	.maxactive = 20
 };
 
-int init_module(void)
+static int __init kretprobe_init(void)
 {
 	int ret;
-	my_kretprobe.kp.addr =
-		(kprobe_opcode_t *) kallsyms_lookup_name(probed_func);
-	if (!my_kretprobe.kp.addr) {
-		printk("Couldn't find %s to plant return probe\n", probed_func);
-		return -1;
-	}
+	my_kretprobe.kp.symbol_name = (char *)probed_func;
+
 	if ((ret = register_kretprobe(&my_kretprobe)) < 0) {
 		printk("register_kretprobe failed, returned %d\n", ret);
 		return -1;
@@ -569,7 +589,7 @@ int init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+static void __exit kretprobe_exit(void)
 {
 	unregister_kretprobe(&my_kretprobe);
 	printk("kretprobe unregistered\n");
@@ -578,6 +598,8 @@ void cleanup_module(void)
 		my_kretprobe.nmissed, probed_func);
 }
 
+module_init(kretprobe_init)
+module_exit(kretprobe_exit)
 MODULE_LICENSE("GPL");
 ----- cut here -----
 
@@ -590,3 +612,5 @@ messages.)
 For additional information on Kprobes, refer to the following URLs:
 http://www-106.ibm.com/developerworks/library/l-kprobes.html?ca=dgr-lnxw42Kprobe
 http://www.redhat.com/magazine/005mar05/features/kprobes/
+http://www-users.cs.umn.edu/~boutcher/kprobes/
+http://www.linuxsymposium.org/2006/linuxsymposium_procv2.pdf (pages 101-115)

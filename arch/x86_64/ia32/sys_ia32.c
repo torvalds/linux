@@ -76,6 +76,8 @@
 
 int cp_compat_stat(struct kstat *kbuf, struct compat_stat __user *ubuf)
 {
+	compat_ino_t ino;
+
 	typeof(ubuf->st_uid) uid = 0;
 	typeof(ubuf->st_gid) gid = 0;
 	SET_UID(uid, kbuf->uid);
@@ -84,9 +86,12 @@ int cp_compat_stat(struct kstat *kbuf, struct compat_stat __user *ubuf)
 		return -EOVERFLOW;
 	if (kbuf->size >= 0x7fffffff)
 		return -EOVERFLOW;
+	ino = kbuf->ino;
+	if (sizeof(ino) < sizeof(kbuf->ino) && ino != kbuf->ino)
+		return -EOVERFLOW;
 	if (!access_ok(VERIFY_WRITE, ubuf, sizeof(struct compat_stat)) ||
 	    __put_user (old_encode_dev(kbuf->dev), &ubuf->st_dev) ||
-	    __put_user (kbuf->ino, &ubuf->st_ino) ||
+	    __put_user (ino, &ubuf->st_ino) ||
 	    __put_user (kbuf->mode, &ubuf->st_mode) ||
 	    __put_user (kbuf->nlink, &ubuf->st_nlink) ||
 	    __put_user (uid, &ubuf->st_uid) ||
@@ -648,7 +653,7 @@ sys32_pause(void)
 }
 
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_SYSCTL_SYSCALL
 struct sysctl_ia32 {
 	unsigned int	name;
 	int		nlen;
@@ -784,36 +789,36 @@ asmlinkage long sys32_olduname(struct oldold_utsname __user * name)
 
 	if (!name)
 		return -EFAULT;
-	if (!access_ok(VERIFY_WRITE,name,sizeof(struct oldold_utsname)))
+	if (!access_ok(VERIFY_WRITE, name, sizeof(struct oldold_utsname)))
 		return -EFAULT;
   
   	down_read(&uts_sem);
-	
-	err = __copy_to_user(&name->sysname,&system_utsname.sysname,
+
+	err = __copy_to_user(&name->sysname,&utsname()->sysname,
 				__OLD_UTS_LEN);
 	err |= __put_user(0,name->sysname+__OLD_UTS_LEN);
-	err |= __copy_to_user(&name->nodename,&system_utsname.nodename,
+	err |= __copy_to_user(&name->nodename,&utsname()->nodename,
 				__OLD_UTS_LEN);
 	err |= __put_user(0,name->nodename+__OLD_UTS_LEN);
-	err |= __copy_to_user(&name->release,&system_utsname.release,
+	err |= __copy_to_user(&name->release,&utsname()->release,
 				__OLD_UTS_LEN);
 	err |= __put_user(0,name->release+__OLD_UTS_LEN);
-	err |= __copy_to_user(&name->version,&system_utsname.version,
+	err |= __copy_to_user(&name->version,&utsname()->version,
 				__OLD_UTS_LEN);
 	err |= __put_user(0,name->version+__OLD_UTS_LEN);
-	 { 
-		 char *arch = "x86_64";
-		 if (personality(current->personality) == PER_LINUX32)
-			 arch = "i686";
+	{
+		char *arch = "x86_64";
+		if (personality(current->personality) == PER_LINUX32)
+			arch = "i686";
 		 
-		 err |= __copy_to_user(&name->machine,arch,strlen(arch)+1);
-	 }
-	
-	 up_read(&uts_sem);
-	 
-	 err = err ? -EFAULT : 0;
-	 
-	 return err;
+		err |= __copy_to_user(&name->machine, arch, strlen(arch)+1);
+	}
+
+	up_read(&uts_sem);
+
+	err = err ? -EFAULT : 0;
+
+	return err;
 }
 
 long sys32_uname(struct old_utsname __user * name)
@@ -822,7 +827,7 @@ long sys32_uname(struct old_utsname __user * name)
 	if (!name)
 		return -EFAULT;
 	down_read(&uts_sem);
-	err=copy_to_user(name, &system_utsname, sizeof (*name));
+	err = copy_to_user(name, utsname(), sizeof (*name));
 	up_read(&uts_sem);
 	if (personality(current->personality) == PER_LINUX32) 
 		err |= copy_to_user(&name->machine, "i686", 5);

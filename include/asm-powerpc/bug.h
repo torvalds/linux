@@ -13,22 +13,25 @@
 
 #ifndef __ASSEMBLY__
 
-struct bug_entry {
-	unsigned long	bug_addr;
-	long		line;
-	const char	*file;
-	const char	*function;
-};
-
-struct bug_entry *find_bug(unsigned long bugaddr);
-
-/*
- * If this bit is set in the line number it means that the trap
- * is for WARN_ON rather than BUG or BUG_ON.
- */
-#define BUG_WARNING_TRAP	0x1000000
-
 #ifdef CONFIG_BUG
+
+/* _EMIT_BUG_ENTRY expects args %0,%1,%2,%3 to be FILE, LINE, flags and
+   sizeof(struct bug_entry), respectively */
+#ifdef CONFIG_DEBUG_BUGVERBOSE
+#define _EMIT_BUG_ENTRY				\
+	".section __bug_table,\"a\"\n"		\
+	"2:\t" PPC_LONG "1b, %0\n"		\
+	"\t.short %1, %2\n"			\
+	".org 2b+%3\n"				\
+	".previous\n"
+#else
+#define _EMIT_BUG_ENTRY				\
+	".section __bug_table,\"a\"\n"		\
+	"2:\t" PPC_LONG "1b\n"			\
+	"\t.short %2\n"				\
+	".org 2b+%3\n"				\
+	".previous\n"
+#endif
 
 /*
  * BUG_ON() and WARN_ON() do their best to cooperate with compile-time
@@ -36,13 +39,13 @@ struct bug_entry *find_bug(unsigned long bugaddr);
  * some compiler versions may not produce optimal results.
  */
 
-#define BUG() do {							 \
-	__asm__ __volatile__(						 \
-		"1:	twi 31,0,0\n"					 \
-		".section __bug_table,\"a\"\n"				 \
-		"\t"PPC_LONG"	1b,%0,%1,%2\n"				 \
-		".previous"						 \
-		: : "i" (__LINE__), "i" (__FILE__), "i" (__FUNCTION__)); \
+#define BUG() do {						\
+	__asm__ __volatile__(					\
+		"1:	twi 31,0,0\n"				\
+		_EMIT_BUG_ENTRY					\
+		: : "i" (__FILE__), "i" (__LINE__),		\
+		    "i" (0), "i"  (sizeof(struct bug_entry)));	\
+	for(;;) ;						\
 } while (0)
 
 #define BUG_ON(x) do {						\
@@ -51,40 +54,39 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 			BUG();					\
 	} else {						\
 		__asm__ __volatile__(				\
-		"1:	"PPC_TLNEI"	%0,0\n"			\
-		".section __bug_table,\"a\"\n"			\
-		"\t"PPC_LONG"	1b,%1,%2,%3\n"			\
-		".previous"					\
-		: : "r" ((long)(x)), "i" (__LINE__),		\
-		    "i" (__FILE__), "i" (__FUNCTION__));	\
+		"1:	"PPC_TLNEI"	%4,0\n"			\
+		_EMIT_BUG_ENTRY					\
+		: : "i" (__FILE__), "i" (__LINE__), "i" (0),	\
+		  "i" (sizeof(struct bug_entry)),		\
+		  "r" ((long)(x)));				\
 	}							\
 } while (0)
 
 #define __WARN() do {						\
 	__asm__ __volatile__(					\
 		"1:	twi 31,0,0\n"				\
-		".section __bug_table,\"a\"\n"			\
-		"\t"PPC_LONG"	1b,%0,%1,%2\n"			\
-		".previous"					\
-		: : "i" (__LINE__ + BUG_WARNING_TRAP),		\
-		    "i" (__FILE__), "i" (__FUNCTION__));	\
+		_EMIT_BUG_ENTRY					\
+		: : "i" (__FILE__), "i" (__LINE__),		\
+		  "i" (BUGFLAG_WARNING),			\
+		  "i" (sizeof(struct bug_entry)));		\
 } while (0)
 
-#define WARN_ON(x) do {						\
-	if (__builtin_constant_p(x)) {				\
-		if (x)						\
+#define WARN_ON(x) ({						\
+	typeof(x) __ret_warn_on = (x);				\
+	if (__builtin_constant_p(__ret_warn_on)) {		\
+		if (__ret_warn_on)				\
 			__WARN();				\
 	} else {						\
 		__asm__ __volatile__(				\
-		"1:	"PPC_TLNEI"	%0,0\n"			\
-		".section __bug_table,\"a\"\n"			\
-		"\t"PPC_LONG"	1b,%1,%2,%3\n"			\
-		".previous"					\
-		: : "r" ((long)(x)),				\
-		    "i" (__LINE__ + BUG_WARNING_TRAP),		\
-		    "i" (__FILE__), "i" (__FUNCTION__));	\
+		"1:	"PPC_TLNEI"	%4,0\n"			\
+		_EMIT_BUG_ENTRY					\
+		: : "i" (__FILE__), "i" (__LINE__),		\
+		  "i" (BUGFLAG_WARNING),			\
+		  "i" (sizeof(struct bug_entry)),		\
+		  "r" (__ret_warn_on));				\
 	}							\
-} while (0)
+	unlikely(__ret_warn_on);				\
+})
 
 #define HAVE_ARCH_BUG
 #define HAVE_ARCH_BUG_ON

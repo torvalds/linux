@@ -1,7 +1,7 @@
 Introduction
 ------------
 
-The configuration database is collection of configuration options
+The configuration database is a collection of configuration options
 organized in a tree structure:
 
 	+- Code maturity level options
@@ -110,7 +110,7 @@ applicable everywhere (see syntax).
   the indentation level, this means it ends at the first line which has
   a smaller indentation than the first line of the help text.
   "---help---" and "help" do not differ in behaviour, "---help---" is
-  used to help visually seperate configuration logic from help within
+  used to help visually separate configuration logic from help within
   the file as an aid to developers.
 
 
@@ -226,7 +226,7 @@ menuconfig:
 	"menuconfig" <symbol>
 	<config options>
 
-This is similiar to the simple config entry above, but it also gives a
+This is similar to the simple config entry above, but it also gives a
 hint to front ends, that all suboptions should be displayed as a
 separate list of options.
 

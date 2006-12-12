@@ -233,9 +233,9 @@ parport_ax88796_restore_state(struct parport *p, struct parport_state *s)
 }
 
 static irqreturn_t
-parport_ax88796_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+parport_ax88796_interrupt(int irq, void *dev_id)
 {
-        parport_generic_irq(irq, dev_id, regs);
+        parport_generic_irq(irq, dev_id);
         return IRQ_HANDLED;
 }
 

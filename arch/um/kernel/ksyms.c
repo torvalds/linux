@@ -3,7 +3,6 @@
  * Licensed under the GPL
  */
 
-#include "linux/config.h"
 #include "linux/module.h"
 #include "linux/string.h"
 #include "linux/smp_lock.h"
@@ -21,7 +20,6 @@
 #include "mem_user.h"
 #include "os.h"
 
-EXPORT_SYMBOL(stop);
 EXPORT_SYMBOL(uml_physmem);
 EXPORT_SYMBOL(set_signals);
 EXPORT_SYMBOL(get_signals);
@@ -41,12 +39,14 @@ EXPORT_SYMBOL(handle_page_fault);
 EXPORT_SYMBOL(find_iomem);
 
 #ifdef CONFIG_MODE_TT
+EXPORT_SYMBOL(stop);
 EXPORT_SYMBOL(strncpy_from_user_tt);
 EXPORT_SYMBOL(copy_from_user_tt);
 EXPORT_SYMBOL(copy_to_user_tt);
 #endif
 
 #ifdef CONFIG_MODE_SKAS
+EXPORT_SYMBOL(strnlen_user_skas);
 EXPORT_SYMBOL(strncpy_from_user_skas);
 EXPORT_SYMBOL(copy_to_user_skas);
 EXPORT_SYMBOL(copy_from_user_skas);

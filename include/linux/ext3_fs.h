@@ -216,19 +216,36 @@ struct ext3_new_group_data {
 /*
  * ioctl commands
  */
-#define	EXT3_IOC_GETFLAGS		_IOR('f', 1, long)
-#define	EXT3_IOC_SETFLAGS		_IOW('f', 2, long)
+#define	EXT3_IOC_GETFLAGS		FS_IOC_GETFLAGS
+#define	EXT3_IOC_SETFLAGS		FS_IOC_SETFLAGS
 #define	EXT3_IOC_GETVERSION		_IOR('f', 3, long)
 #define	EXT3_IOC_SETVERSION		_IOW('f', 4, long)
 #define EXT3_IOC_GROUP_EXTEND		_IOW('f', 7, unsigned long)
 #define EXT3_IOC_GROUP_ADD		_IOW('f', 8,struct ext3_new_group_input)
-#define	EXT3_IOC_GETVERSION_OLD		_IOR('v', 1, long)
-#define	EXT3_IOC_SETVERSION_OLD		_IOW('v', 2, long)
+#define	EXT3_IOC_GETVERSION_OLD		FS_IOC_GETVERSION
+#define	EXT3_IOC_SETVERSION_OLD		FS_IOC_SETVERSION
 #ifdef CONFIG_JBD_DEBUG
 #define EXT3_IOC_WAIT_FOR_READONLY	_IOR('f', 99, long)
 #endif
 #define EXT3_IOC_GETRSVSZ		_IOR('f', 5, long)
 #define EXT3_IOC_SETRSVSZ		_IOW('f', 6, long)
+
+/*
+ * ioctl commands in 32 bit emulation
+ */
+#define EXT3_IOC32_GETFLAGS		FS_IOC32_GETFLAGS
+#define EXT3_IOC32_SETFLAGS		FS_IOC32_SETFLAGS
+#define EXT3_IOC32_GETVERSION		_IOR('f', 3, int)
+#define EXT3_IOC32_SETVERSION		_IOW('f', 4, int)
+#define EXT3_IOC32_GETRSVSZ		_IOR('f', 5, int)
+#define EXT3_IOC32_SETRSVSZ		_IOW('f', 6, int)
+#define EXT3_IOC32_GROUP_EXTEND		_IOW('f', 7, unsigned int)
+#ifdef CONFIG_JBD_DEBUG
+#define EXT3_IOC32_WAIT_FOR_READONLY	_IOR('f', 99, int)
+#endif
+#define EXT3_IOC32_GETVERSION_OLD	FS_IOC32_GETVERSION
+#define EXT3_IOC32_SETVERSION_OLD	FS_IOC32_SETVERSION
+
 
 /*
  *  Mount options
@@ -460,7 +477,7 @@ struct ext3_super_block {
 	 */
 	__u8	s_prealloc_blocks;	/* Nr of blocks to try to preallocate*/
 	__u8	s_prealloc_dir_blocks;	/* Nr to preallocate for dirs */
-	__u16	s_reserved_gdt_blocks;	/* Per group desc for online growth */
+	__le16	s_reserved_gdt_blocks;	/* Per group desc for online growth */
 	/*
 	 * Journaling support valid if EXT3_FEATURE_COMPAT_HAS_JOURNAL set.
 	 */
@@ -473,7 +490,7 @@ struct ext3_super_block {
 	__u8	s_reserved_char_pad;
 	__u16	s_reserved_word_pad;
 	__le32	s_default_mount_opts;
-	__le32	s_first_meta_bg; 	/* First metablock block group */
+	__le32	s_first_meta_bg;	/* First metablock block group */
 	__u32	s_reserved[190];	/* Padding to the end of the block */
 };
 
@@ -812,6 +829,7 @@ extern void ext3_set_aops(struct inode *inode);
 /* ioctl.c */
 extern int ext3_ioctl (struct inode *, struct file *, unsigned int,
 		       unsigned long);
+extern long ext3_compat_ioctl (struct file *, unsigned int, unsigned long);
 
 /* namei.c */
 extern int ext3_orphan_add(handle_t *, struct inode *);

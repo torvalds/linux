@@ -136,7 +136,7 @@
 #define DBGMSG(fmt, args...) \
 printk(KERN_INFO "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->id , ## args)
 #else
-#define DBGMSG(fmt, args...)
+#define DBGMSG(fmt, args...) do {} while (0)
 #endif
 
 #ifdef CONFIG_IEEE1394_OHCI_DMA_DEBUG
@@ -148,8 +148,8 @@ printk(KERN_INFO "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->
 		--global_outstanding_dmas, ## args)
 static int global_outstanding_dmas = 0;
 #else
-#define OHCI_DMA_ALLOC(fmt, args...)
-#define OHCI_DMA_FREE(fmt, args...)
+#define OHCI_DMA_ALLOC(fmt, args...) do {} while (0)
+#define OHCI_DMA_FREE(fmt, args...) do {} while (0)
 #endif
 
 /* print general (card independent) information */
@@ -181,36 +181,35 @@ static int alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
 static void ohci1394_pci_remove(struct pci_dev *pdev);
 
 #ifndef __LITTLE_ENDIAN
-static unsigned hdr_sizes[] =
-{
+const static size_t hdr_sizes[] = {
 	3,	/* TCODE_WRITEQ */
 	4,	/* TCODE_WRITEB */
 	3,	/* TCODE_WRITE_RESPONSE */
-	0,	/* ??? */
+	0,	/* reserved */
 	3,	/* TCODE_READQ */
 	4,	/* TCODE_READB */
 	3,	/* TCODE_READQ_RESPONSE */
 	4,	/* TCODE_READB_RESPONSE */
-	1,	/* TCODE_CYCLE_START (???) */
+	1,	/* TCODE_CYCLE_START */
 	4,	/* TCODE_LOCK_REQUEST */
 	2,	/* TCODE_ISO_DATA */
 	4,	/* TCODE_LOCK_RESPONSE */
+		/* rest is reserved or link-internal */
 };
 
-/* Swap headers */
-static inline void packet_swab(quadlet_t *data, int tcode)
+static inline void header_le32_to_cpu(quadlet_t *data, unsigned char tcode)
 {
-	size_t size = hdr_sizes[tcode];
+	size_t size;
 
-	if (tcode > TCODE_LOCK_RESPONSE || hdr_sizes[tcode] == 0)
+	if (unlikely(tcode >= ARRAY_SIZE(hdr_sizes)))
 		return;
 
+	size = hdr_sizes[tcode];
 	while (size--)
-		data[size] = swab32(data[size]);
+		data[size] = le32_to_cpu(data[size]);
 }
 #else
-/* Don't waste cycles on same sex byte swaps */
-#define packet_swab(w,x)
+#define header_le32_to_cpu(w,x) do {} while (0)
 #endif /* !LITTLE_ENDIAN */
 
 /***********************************
@@ -469,7 +468,6 @@ static int get_nb_iso_ctx(struct ti_ohci *ohci, int reg)
 /* Global initialization */
 static void ohci_initialize(struct ti_ohci *ohci)
 {
-	char irq_buf[16];
 	quadlet_t buf;
 	int num_ports, i;
 
@@ -587,11 +585,10 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	reg_write(ohci, OHCI1394_HCControlSet, OHCI1394_HCControl_linkEnable);
 
 	buf = reg_read(ohci, OHCI1394_Version);
-	sprintf (irq_buf, "%d", ohci->dev->irq);
-	PRINT(KERN_INFO, "OHCI-1394 %d.%d (PCI): IRQ=[%s]  "
+	PRINT(KERN_INFO, "OHCI-1394 %d.%d (PCI): IRQ=[%d]  "
 	      "MMIO=[%llx-%llx]  Max Packet=[%d]  IR/IT contexts=[%d/%d]",
 	      ((((buf) >> 16) & 0xf) + (((buf) >> 20) & 0xf) * 10),
-	      ((((buf) >> 4) & 0xf) + ((buf) & 0xf) * 10), irq_buf,
+	      ((((buf) >> 4) & 0xf) + ((buf) & 0xf) * 10), ohci->dev->irq,
 	      (unsigned long long)pci_resource_start(ohci->dev, 0),
 	      (unsigned long long)pci_resource_start(ohci->dev, 0) + OHCI1394_REGISTER_SIZE - 1,
 	      ohci->max_packet_size,
@@ -701,7 +698,7 @@ static void insert_packet(struct ti_ohci *ohci,
 				d->prg_cpu[idx]->data[2] = packet->header[2];
 				d->prg_cpu[idx]->data[3] = packet->header[3];
 			}
-			packet_swab(d->prg_cpu[idx]->data, packet->tcode);
+			header_le32_to_cpu(d->prg_cpu[idx]->data, packet->tcode);
                 }
 
                 if (packet->data_size) { /* block transmit */
@@ -777,7 +774,7 @@ static void insert_packet(struct ti_ohci *ohci,
                 d->prg_cpu[idx]->data[0] = packet->speed_code<<16 |
                         (packet->header[0] & 0xFFFF);
                 d->prg_cpu[idx]->data[1] = packet->header[0] & 0xFFFF0000;
-		packet_swab(d->prg_cpu[idx]->data, packet->tcode);
+		header_le32_to_cpu(d->prg_cpu[idx]->data, packet->tcode);
 
                 d->prg_cpu[idx]->begin.control =
 			cpu_to_le32(DMA_CTL_OUTPUT_MORE |
@@ -1226,7 +1223,7 @@ static int ohci_iso_recv_init(struct hpsb_iso *iso)
 	int ctx;
 	int ret = -ENOMEM;
 
-	recv = kmalloc(sizeof(*recv), SLAB_KERNEL);
+	recv = kmalloc(sizeof(*recv), GFP_KERNEL);
 	if (!recv)
 		return -ENOMEM;
 
@@ -1919,7 +1916,7 @@ static int ohci_iso_xmit_init(struct hpsb_iso *iso)
 	int ctx;
 	int ret = -ENOMEM;
 
-	xmit = kmalloc(sizeof(*xmit), SLAB_KERNEL);
+	xmit = kmalloc(sizeof(*xmit), GFP_KERNEL);
 	if (!xmit)
 		return -ENOMEM;
 
@@ -2302,8 +2299,7 @@ static void ohci_schedule_iso_tasklets(struct ti_ohci *ohci,
 	spin_unlock_irqrestore(&ohci->iso_tasklet_list_lock, flags);
 }
 
-static irqreturn_t ohci_irq_handler(int irq, void *dev_id,
-                             struct pt_regs *regs_are_unused)
+static irqreturn_t ohci_irq_handler(int irq, void *dev_id)
 {
 	quadlet_t event, node_id;
 	struct ti_ohci *ohci = (struct ti_ohci *)dev_id;
@@ -2598,8 +2594,9 @@ static const int TCODE_SIZE[16] = {20, 0, 16, -1, 16, 20, 20, 0,
  * Determine the length of a packet in the buffer
  * Optimization suggested by Pascal Drolet <pascal.drolet@informission.ca>
  */
-static __inline__ int packet_length(struct dma_rcv_ctx *d, int idx, quadlet_t *buf_ptr,
-			 int offset, unsigned char tcode, int noswap)
+static inline int packet_length(struct dma_rcv_ctx *d, int idx,
+				quadlet_t *buf_ptr, int offset,
+				unsigned char tcode, int noswap)
 {
 	int length = -1;
 
@@ -2730,7 +2727,7 @@ static void dma_rcv_tasklet (unsigned long data)
 		 * bus reset. We always ignore it.  */
 		if (tcode != OHCI1394_TCODE_PHY) {
 			if (!ohci->no_swap_incoming)
-				packet_swab(d->spb, tcode);
+				header_le32_to_cpu(d->spb, tcode);
 			DBGMSG("Packet received from node"
 				" %d ack=0x%02X spd=%d tcode=0x%X"
 				" length=%d ctx=%d tlabel=%d",
@@ -2738,7 +2735,7 @@ static void dma_rcv_tasklet (unsigned long data)
 				(cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>16)&0x1f,
 				(cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>21)&0x3,
 				tcode, length, d->ctx,
-				(cond_le32_to_cpu(d->spb[0], ohci->no_swap_incoming)>>10)&0x3f);
+				(d->spb[0]>>10)&0x3f);
 
 			ack = (((cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>16)&0x1f)
 				== 0x11) ? 1 : 0;
@@ -3022,7 +3019,7 @@ alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
 			return -ENOMEM;
 		}
 
-		d->prg_cpu[i] = pci_pool_alloc(d->prg_pool, SLAB_KERNEL, d->prg_bus+i);
+		d->prg_cpu[i] = pci_pool_alloc(d->prg_pool, GFP_KERNEL, d->prg_bus+i);
 		OHCI_DMA_ALLOC("pool dma_rcv prg[%d]", i);
 
                 if (d->prg_cpu[i] != NULL) {
@@ -3118,7 +3115,7 @@ alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
 	OHCI_DMA_ALLOC("dma_rcv prg pool");
 
 	for (i = 0; i < d->num_desc; i++) {
-		d->prg_cpu[i] = pci_pool_alloc(d->prg_pool, SLAB_KERNEL, d->prg_bus+i);
+		d->prg_cpu[i] = pci_pool_alloc(d->prg_pool, GFP_KERNEL, d->prg_bus+i);
 		OHCI_DMA_ALLOC("pool dma_trm prg[%d]", i);
 
                 if (d->prg_cpu[i] != NULL) {
@@ -3217,6 +3214,18 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	struct hpsb_host *host;
 	struct ti_ohci *ohci;	/* shortcut to currently handled device */
 	resource_size_t ohci_base;
+
+#ifdef CONFIG_PPC_PMAC
+	/* Necessary on some machines if ohci1394 was loaded/ unloaded before */
+	if (machine_is(powermac)) {
+		struct device_node *ofn = pci_device_to_OF_node(dev);
+
+		if (ofn) {
+			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 1);
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 1);
+		}
+	}
+#endif /* CONFIG_PPC_PMAC */
 
         if (pci_enable_device(dev))
 		FAIL(-ENXIO, "Failed to enable OHCI hardware");
@@ -3506,17 +3515,14 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 #endif
 
 #ifdef CONFIG_PPC_PMAC
-	/* On UniNorth, power down the cable and turn off the chip
-	 * clock when the module is removed to save power on
-	 * laptops. Turning it back ON is done by the arch code when
-	 * pci_enable_device() is called */
-	{
-		struct device_node* of_node;
+	/* On UniNorth, power down the cable and turn off the chip clock
+	 * to save power on laptops */
+	if (machine_is(powermac)) {
+		struct device_node* ofn = pci_device_to_OF_node(ohci->dev);
 
-		of_node = pci_device_to_OF_node(ohci->dev);
-		if (of_node) {
-			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 0);
-			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, of_node, 0, 0);
+		if (ofn) {
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
+			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 0);
 		}
 	}
 #endif /* CONFIG_PPC_PMAC */
@@ -3529,45 +3535,104 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 		put_device(dev);
 }
 
-
-static int ohci1394_pci_resume (struct pci_dev *pdev)
+#ifdef CONFIG_PM
+static int ohci1394_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
+	int err;
+	struct ti_ohci *ohci = pci_get_drvdata(pdev);
+
+	printk(KERN_INFO "%s does not fully support suspend and resume yet\n",
+	       OHCI1394_DRIVER_NAME);
+
+	if (!ohci) {
+		printk(KERN_ERR "%s: tried to suspend nonexisting host\n",
+		       OHCI1394_DRIVER_NAME);
+		return -ENXIO;
+	}
+	DBGMSG("suspend called");
+
+	/* Clear the async DMA contexts and stop using the controller */
+	hpsb_bus_reset(ohci->host);
+
+	/* See ohci1394_pci_remove() for comments on this sequence */
+	reg_write(ohci, OHCI1394_ConfigROMhdr, 0);
+	reg_write(ohci, OHCI1394_BusOptions,
+		  (reg_read(ohci, OHCI1394_BusOptions) & 0x0000f007) |
+		  0x00ff0000);
+	reg_write(ohci, OHCI1394_IntMaskClear, 0xffffffff);
+	reg_write(ohci, OHCI1394_IntEventClear, 0xffffffff);
+	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, 0xffffffff);
+	reg_write(ohci, OHCI1394_IsoXmitIntEventClear, 0xffffffff);
+	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, 0xffffffff);
+	reg_write(ohci, OHCI1394_IsoRecvIntEventClear, 0xffffffff);
+	set_phy_reg(ohci, 4, ~0xc0 & get_phy_reg(ohci, 4));
+	reg_write(ohci, OHCI1394_LinkControlClear, 0xffffffff);
+	ohci_devctl(ohci->host, RESET_BUS, LONG_RESET_NO_FORCE_ROOT);
+	ohci_soft_reset(ohci);
+
+	err = pci_save_state(pdev);
+	if (err) {
+		PRINT(KERN_ERR, "pci_save_state failed with %d", err);
+		return err;
+	}
+	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (err)
+		DBGMSG("pci_set_power_state failed with %d", err);
+
+/* PowerMac suspend code comes last */
 #ifdef CONFIG_PPC_PMAC
 	if (machine_is(powermac)) {
-		struct device_node *of_node;
+		struct device_node *ofn = pci_device_to_OF_node(pdev);
 
-		/* Re-enable 1394 */
-		of_node = pci_device_to_OF_node (pdev);
-		if (of_node)
-			pmac_call_feature (PMAC_FTR_1394_ENABLE, of_node, 0, 1);
+		if (ofn)
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
 	}
 #endif /* CONFIG_PPC_PMAC */
 
-	pci_restore_state(pdev);
-	pci_enable_device(pdev);
-
 	return 0;
 }
 
-
-static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
+static int ohci1394_pci_resume(struct pci_dev *pdev)
 {
-	pci_save_state(pdev);
+	int err;
+	struct ti_ohci *ohci = pci_get_drvdata(pdev);
 
+	if (!ohci) {
+		printk(KERN_ERR "%s: tried to resume nonexisting host\n",
+		       OHCI1394_DRIVER_NAME);
+		return -ENXIO;
+	}
+	DBGMSG("resume called");
+
+/* PowerMac resume code comes first */
 #ifdef CONFIG_PPC_PMAC
 	if (machine_is(powermac)) {
-		struct device_node *of_node;
+		struct device_node *ofn = pci_device_to_OF_node(pdev);
 
-		/* Disable 1394 */
-		of_node = pci_device_to_OF_node (pdev);
-		if (of_node)
-			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 0);
+		if (ofn)
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 1);
 	}
-#endif
+#endif /* CONFIG_PPC_PMAC */
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	err = pci_enable_device(pdev);
+	if (err) {
+		PRINT(KERN_ERR, "pci_enable_device failed with %d", err);
+		return err;
+	}
+
+	/* See ohci1394_pci_probe() for comments on this sequence */
+	ohci_soft_reset(ohci);
+	reg_write(ohci, OHCI1394_HCControlSet, OHCI1394_HCControl_LPS);
+	reg_write(ohci, OHCI1394_IntEventClear, 0xffffffff);
+	reg_write(ohci, OHCI1394_IntMaskClear, 0xffffffff);
+	mdelay(50);
+	ohci_initialize(ohci);
 
 	return 0;
 }
-
+#endif /* CONFIG_PM */
 
 #define PCI_CLASS_FIREWIRE_OHCI     ((PCI_CLASS_SERIAL_FIREWIRE << 8) | 0x10)
 
@@ -3590,8 +3655,10 @@ static struct pci_driver ohci1394_pci_driver = {
 	.id_table =	ohci1394_pci_tbl,
 	.probe =	ohci1394_pci_probe,
 	.remove =	ohci1394_pci_remove,
+#ifdef CONFIG_PM
 	.resume =	ohci1394_pci_resume,
 	.suspend =	ohci1394_pci_suspend,
+#endif
 };
 
 /***********************************
@@ -3718,5 +3785,7 @@ static int __init ohci1394_init(void)
 	return pci_register_driver(&ohci1394_pci_driver);
 }
 
-module_init(ohci1394_init);
+/* Register before most other device drivers.
+ * Useful for remote debugging via physical DMA, e.g. using firescope. */
+fs_initcall(ohci1394_init);
 module_exit(ohci1394_cleanup);

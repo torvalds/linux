@@ -4,6 +4,7 @@
  * CPU init code
  *
  * Copyright (C) 2002, 2003  Paul Mundt
+ * Copyright (C) 2003  Richard Curnow
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -13,6 +14,7 @@
 #include <linux/kernel.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
+#include <asm/page.h>
 #include <asm/system.h>
 #include <asm/cacheflush.h>
 #include <asm/cache.h>
@@ -51,19 +53,29 @@ static void __init cache_init(void)
 	ccr = ctrl_inl(CCR);
 
 	/*
-	 * If the cache is already enabled .. flush it.
+	 * At this point we don't know whether the cache is enabled or not - a
+	 * bootloader may have enabled it.  There are at least 2 things that
+	 * could be dirty in the cache at this point:
+	 * 1. kernel command line set up by boot loader
+	 * 2. spilled registers from the prolog of this function
+	 * => before re-initialising the cache, we must do a purge of the whole
+	 * cache out to memory for safety.  As long as nothing is spilled
+	 * during the loop to lines that have already been done, this is safe.
+	 * - RPC
 	 */
 	if (ccr & CCR_CACHE_ENABLE) {
 		unsigned long ways, waysize, addrstart;
 
 		waysize = cpu_data->dcache.sets;
 
+#ifdef CCR_CACHE_ORA
 		/*
 		 * If the OC is already in RAM mode, we only have
 		 * half of the entries to flush..
 		 */
 		if (ccr & CCR_CACHE_ORA)
 			waysize >>= 1;
+#endif
 
 		waysize <<= cpu_data->dcache.entry_shift;
 
@@ -98,6 +110,8 @@ static void __init cache_init(void)
 	/* Force EMODE if possible */
 	if (cpu_data->dcache.ways > 1)
 		flags |= CCR_CACHE_EMODE;
+	else
+		flags &= ~CCR_CACHE_EMODE;
 #endif
 
 #ifdef CONFIG_SH_WRITETHROUGH
@@ -112,6 +126,9 @@ static void __init cache_init(void)
 	/* Turn on OCRAM -- halve the OC */
 	flags |= CCR_CACHE_ORA;
 	cpu_data->dcache.sets >>= 1;
+
+	cpu_data->dcache.way_size = cpu_data->dcache.sets *
+				    cpu_data->dcache.linesz;
 #endif
 
 	ctrl_outl(flags, CCR);
@@ -183,6 +200,10 @@ asmlinkage void __init sh_cpu_init(void)
 
 	/* Init the cache */
 	cache_init();
+
+	shm_align_mask = max_t(unsigned long,
+			       cpu_data->dcache.way_size - 1,
+			       PAGE_SIZE - 1);
 
 	/* Disable the FPU */
 	if (fpu_disabled) {

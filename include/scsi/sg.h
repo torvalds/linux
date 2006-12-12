@@ -11,26 +11,10 @@
 Original driver (sg.h):
 *       Copyright (C) 1992 Lawrence Foard
 Version 2 and 3 extensions to driver:
-*       Copyright (C) 1998 - 2003 Douglas Gilbert
+*       Copyright (C) 1998 - 2006 Douglas Gilbert
 
-    Version: 3.5.29 (20030529)
-    This version is for 2.5 series kernels.
-
-    Changes since 3.5.28 (20030308)
-	- fix bug introduced in version 3.1.24 (last segment of sgat list)
-    Changes since 3.5.27 (20020812)
-    	- remove procfs entries: hosts, host_hdr + host_strs (now in sysfs)
-	- add sysfs sg driver params: def_reserved_size, allow_dio, version
-	- new boot option: "sg_allow_dio" and module parameter: "allow_dio"
-        - multiple internal changes due to scsi subsystem rework	
-    Changes since 3.5.26 (20020708)
-	- re-add direct IO using Kai Makisara's work
-	- re-tab to 8, start using C99-isms
-	- simplify memory management
-    Changes since 3.5.25 (20020504)
-	- driverfs additions
-	- copy_to/from_user() fixes [William Stinson]
-	- disable kiobufs support
+    Version: 3.5.34 (20060920)
+    This version is for 2.6 series kernels.
 
     For a full changelog see http://www.torque.net/sg
 
@@ -40,7 +24,7 @@ Map of SG verions to the Linux kernels in which they appear:
        2.1.40            2.2.20
        3.0.x             optional version 3 sg driver for 2.2 series
        3.1.17++          2.4.0++
-       3.5.23++          2.5.0++
+       3.5.30++          2.6.0++
 
 Major new features in SG 3.x driver (cf SG 2.x drivers)
 	- SG_IO ioctl() combines function if write() and read()
@@ -51,14 +35,15 @@ Major new features in SG 3.x driver (cf SG 2.x drivers)
  data into kernel buffers and then use the CPU to copy the data into the 
  user space (vice versa for writes). That is called "indirect" IO due to 
  the double handling of data. There are two methods offered to remove the
- redundant copy: 1) direct IO which uses the kernel kiobuf mechanism and 
- 2) using the mmap() system call to map the reserve buffer (this driver has 
- one reserve buffer per fd) into the user space. Both have their advantages.
+ redundant copy: 1) direct IO and 2) using the mmap() system call to map
+ the reserve buffer (this driver has one reserve buffer per fd) into the
+ user space. Both have their advantages.
  In terms of absolute speed mmap() is faster. If speed is not a concern, 
  indirect IO should be fine. Read the documentation for more information.
 
- ** N.B. To use direct IO 'echo 1 > /proc/scsi/sg/allow_dio' may be
-         needed. That pseudo file's content is defaulted to 0. **
+ ** N.B. To use direct IO 'echo 1 > /proc/scsi/sg/allow_dio' or
+         'echo 1 > /sys/module/sg/parameters/allow_dio' is needed.
+         That attribute is 0 by default. **
  
  Historical note: this SCSI pass-through driver has been known as "sg" for 
  a decade. In broader kernel discussions "sg" is used to refer to scatter
@@ -72,20 +57,17 @@ Major new features in SG 3.x driver (cf SG 2.x drivers)
  	http://www.torque.net/sg/p/sg_v3_ho.html
  This is a rendering from DocBook source [change the extension to "sgml"
  or "xml"]. There are renderings in "ps", "pdf", "rtf" and "txt" (soon).
+ The SG_IO ioctl is now found in other parts kernel (e.g. the block layer).
+ For more information see http://www.torque.net/sg/sg_io.html
 
  The older, version 2 documents discuss the original sg interface in detail:
 	http://www.torque.net/sg/p/scsi-generic.txt
 	http://www.torque.net/sg/p/scsi-generic_long.txt
- A version of this document (potentially out of date) may also be found in
- the kernel source tree, probably at:
-        Documentation/scsi/scsi-generic.txt .
+ Also available: <kernel_source>/Documentation/scsi/scsi-generic.txt
 
  Utility and test programs are available at the sg web site. They are 
- bundled as sg_utils (for the lk 2.2 series) and sg3_utils (for the
- lk 2.4 series).
-
- There is a HOWTO on the Linux SCSI subsystem in the lk 2.4 series at:
- 	http://www.linuxdoc.org/HOWTO/SCSI-2.4-HOWTO
+ packaged as sg3_utils (for the lk 2.4 and 2.6 series) and sg_utils
+ (for the lk 2.2 series).
 */
 
 
@@ -238,13 +220,12 @@ typedef struct sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
 #define SG_GET_ACCESS_COUNT 0x2289  
 
 
-#define SG_SCATTER_SZ (8 * 4096)  /* PAGE_SIZE not available to user */
+#define SG_SCATTER_SZ (8 * 4096)
 /* Largest size (in bytes) a single scatter-gather list element can have.
-   The value must be a power of 2 and <= (PAGE_SIZE * 32) [131072 bytes on
-   i386]. The minimum value is PAGE_SIZE. If scatter-gather not supported
-   by adapter then this value is the largest data block that can be
-   read/written by a single scsi command. The user can find the value of
-   PAGE_SIZE by calling getpagesize() defined in unistd.h . */
+   The value used by the driver is 'max(SG_SCATTER_SZ, PAGE_SIZE)'.
+   This value should be a power of 2 (and may be rounded up internally).
+   If scatter-gather is not supported by adapter then this value is the
+   largest data block that can be read/written by a single scsi command. */
 
 #define SG_DEFAULT_RETRIES 0
 

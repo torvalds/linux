@@ -417,14 +417,7 @@ void vr41xx_disable_bcuint(void)
 
 EXPORT_SYMBOL(vr41xx_disable_bcuint);
 
-static unsigned int startup_sysint1_irq(unsigned int irq)
-{
-	icu1_set(MSYSINT1REG, 1 << SYSINT1_IRQ_TO_PIN(irq));
-
-	return 0; /* never anything pending */
-}
-
-static void shutdown_sysint1_irq(unsigned int irq)
+static void disable_sysint1_irq(unsigned int irq)
 {
 	icu1_clear(MSYSINT1REG, 1 << SYSINT1_IRQ_TO_PIN(irq));
 }
@@ -434,33 +427,15 @@ static void enable_sysint1_irq(unsigned int irq)
 	icu1_set(MSYSINT1REG, 1 << SYSINT1_IRQ_TO_PIN(irq));
 }
 
-#define disable_sysint1_irq	shutdown_sysint1_irq
-#define ack_sysint1_irq		shutdown_sysint1_irq
-
-static void end_sysint1_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		icu1_set(MSYSINT1REG, 1 << SYSINT1_IRQ_TO_PIN(irq));
-}
-
 static struct irq_chip sysint1_irq_type = {
 	.typename	= "SYSINT1",
-	.startup	= startup_sysint1_irq,
-	.shutdown	= shutdown_sysint1_irq,
-	.enable		= enable_sysint1_irq,
-	.disable	= disable_sysint1_irq,
-	.ack		= ack_sysint1_irq,
-	.end		= end_sysint1_irq,
+	.ack		= disable_sysint1_irq,
+	.mask		= disable_sysint1_irq,
+	.mask_ack	= disable_sysint1_irq,
+	.unmask		= enable_sysint1_irq,
 };
 
-static unsigned int startup_sysint2_irq(unsigned int irq)
-{
-	icu2_set(MSYSINT2REG, 1 << SYSINT2_IRQ_TO_PIN(irq));
-
-	return 0; /* never anything pending */
-}
-
-static void shutdown_sysint2_irq(unsigned int irq)
+static void disable_sysint2_irq(unsigned int irq)
 {
 	icu2_clear(MSYSINT2REG, 1 << SYSINT2_IRQ_TO_PIN(irq));
 }
@@ -470,23 +445,12 @@ static void enable_sysint2_irq(unsigned int irq)
 	icu2_set(MSYSINT2REG, 1 << SYSINT2_IRQ_TO_PIN(irq));
 }
 
-#define disable_sysint2_irq	shutdown_sysint2_irq
-#define ack_sysint2_irq		shutdown_sysint2_irq
-
-static void end_sysint2_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		icu2_set(MSYSINT2REG, 1 << SYSINT2_IRQ_TO_PIN(irq));
-}
-
 static struct irq_chip sysint2_irq_type = {
 	.typename	= "SYSINT2",
-	.startup	= startup_sysint2_irq,
-	.shutdown	= shutdown_sysint2_irq,
-	.enable		= enable_sysint2_irq,
-	.disable	= disable_sysint2_irq,
-	.ack		= ack_sysint2_irq,
-	.end		= end_sysint2_irq,
+	.ack		= disable_sysint2_irq,
+	.mask		= disable_sysint2_irq,
+	.mask_ack	= disable_sysint2_irq,
+	.unmask		= enable_sysint2_irq,
 };
 
 static inline int set_sysint1_assign(unsigned int irq, unsigned char assign)
@@ -635,7 +599,7 @@ int vr41xx_set_intassign(unsigned int irq, unsigned char intassign)
 
 EXPORT_SYMBOL(vr41xx_set_intassign);
 
-static int icu_get_irq(unsigned int irq, struct pt_regs *regs)
+static int icu_get_irq(unsigned int irq)
 {
 	uint16_t pend1, pend2;
 	uint16_t mask1, mask2;
@@ -723,10 +687,12 @@ static int __init vr41xx_icu_init(void)
 	icu2_write(MGIUINTHREG, 0xffff);
 
 	for (i = SYSINT1_IRQ_BASE; i <= SYSINT1_IRQ_LAST; i++)
-		irq_desc[i].chip = &sysint1_irq_type;
+		set_irq_chip_and_handler(i, &sysint1_irq_type,
+					 handle_level_irq);
 
 	for (i = SYSINT2_IRQ_BASE; i <= SYSINT2_IRQ_LAST; i++)
-		irq_desc[i].chip = &sysint2_irq_type;
+		set_irq_chip_and_handler(i, &sysint2_irq_type,
+					 handle_level_irq);
 
 	cascade_irq(INT0_IRQ, icu_get_irq);
 	cascade_irq(INT1_IRQ, icu_get_irq);

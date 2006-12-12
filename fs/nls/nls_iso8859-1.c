@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_iso8859-1.c
+ * linux/fs/nls/nls_iso8859-1.c
  *
  * Charset iso8859-1 translation tables.
  * Generated automatically from the Unicode and charset

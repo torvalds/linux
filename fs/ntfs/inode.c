@@ -137,7 +137,7 @@ static int ntfs_init_locked_inode(struct inode *vi, ntfs_attr *na)
 
 		BUG_ON(!na->name);
 		i = na->name_len * sizeof(ntfschar);
-		ni->name = (ntfschar*)kmalloc(i + sizeof(ntfschar), GFP_ATOMIC);
+		ni->name = kmalloc(i + sizeof(ntfschar), GFP_ATOMIC);
 		if (!ni->name)
 			return -ENOMEM;
 		memcpy(ni->name, na->name, i);
@@ -324,7 +324,7 @@ struct inode *ntfs_alloc_big_inode(struct super_block *sb)
 	ntfs_inode *ni;
 
 	ntfs_debug("Entering.");
-	ni = kmem_cache_alloc(ntfs_big_inode_cache, SLAB_NOFS);
+	ni = kmem_cache_alloc(ntfs_big_inode_cache, GFP_NOFS);
 	if (likely(ni != NULL)) {
 		ni->state = 0;
 		return VFS_I(ni);
@@ -349,7 +349,7 @@ static inline ntfs_inode *ntfs_alloc_extent_inode(void)
 	ntfs_inode *ni;
 
 	ntfs_debug("Entering.");
-	ni = kmem_cache_alloc(ntfs_inode_cache, SLAB_NOFS);
+	ni = kmem_cache_alloc(ntfs_inode_cache, GFP_NOFS);
 	if (likely(ni != NULL)) {
 		ni->state = 0;
 		return ni;
@@ -556,8 +556,6 @@ static int ntfs_read_locked_inode(struct inode *vi)
 
 	/* Setup the generic vfs inode parts now. */
 
-	/* This is the optimal IO size (for stat), not the fs block size. */
-	vi->i_blksize = PAGE_CACHE_SIZE;
 	/*
 	 * This is for checking whether an inode has changed w.r.t. a file so
 	 * that the file can be updated if necessary (compare with f_version).
@@ -1234,7 +1232,6 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 	base_ni = NTFS_I(base_vi);
 
 	/* Just mirror the values from the base inode. */
-	vi->i_blksize	= base_vi->i_blksize;
 	vi->i_version	= base_vi->i_version;
 	vi->i_uid	= base_vi->i_uid;
 	vi->i_gid	= base_vi->i_gid;
@@ -1504,7 +1501,6 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 	ni	= NTFS_I(vi);
 	base_ni = NTFS_I(base_vi);
 	/* Just mirror the values from the base inode. */
-	vi->i_blksize	= base_vi->i_blksize;
 	vi->i_version	= base_vi->i_version;
 	vi->i_uid	= base_vi->i_uid;
 	vi->i_gid	= base_vi->i_gid;
@@ -2305,7 +2301,7 @@ void ntfs_clear_big_inode(struct inode *vi)
 	}
 #ifdef NTFS_RW
 	if (NInoDirty(ni)) {
-		BOOL was_bad = (is_bad_inode(vi));
+		bool was_bad = (is_bad_inode(vi));
 
 		/* Committing the inode also commits all extent inodes. */
 		ntfs_commit_inode(vi);
@@ -3019,7 +3015,7 @@ int ntfs_write_inode(struct inode *vi, int sync)
 	MFT_RECORD *m;
 	STANDARD_INFORMATION *si;
 	int err = 0;
-	BOOL modified = FALSE;
+	bool modified = false;
 
 	ntfs_debug("Entering for %sinode 0x%lx.", NInoAttr(ni) ? "attr " : "",
 			vi->i_ino);
@@ -3061,7 +3057,7 @@ int ntfs_write_inode(struct inode *vi, int sync)
 				sle64_to_cpu(si->last_data_change_time),
 				(long long)sle64_to_cpu(nt));
 		si->last_data_change_time = nt;
-		modified = TRUE;
+		modified = true;
 	}
 	nt = utc2ntfs(vi->i_ctime);
 	if (si->last_mft_change_time != nt) {
@@ -3070,7 +3066,7 @@ int ntfs_write_inode(struct inode *vi, int sync)
 				sle64_to_cpu(si->last_mft_change_time),
 				(long long)sle64_to_cpu(nt));
 		si->last_mft_change_time = nt;
-		modified = TRUE;
+		modified = true;
 	}
 	nt = utc2ntfs(vi->i_atime);
 	if (si->last_access_time != nt) {
@@ -3079,7 +3075,7 @@ int ntfs_write_inode(struct inode *vi, int sync)
 				(long long)sle64_to_cpu(si->last_access_time),
 				(long long)sle64_to_cpu(nt));
 		si->last_access_time = nt;
-		modified = TRUE;
+		modified = true;
 	}
 	/*
 	 * If we just modified the standard information attribute we need to

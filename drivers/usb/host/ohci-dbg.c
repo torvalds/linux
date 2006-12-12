@@ -477,7 +477,7 @@ show_async (struct class_device *class_dev, char *buf)
 	unsigned long		flags;
 
 	bus = class_get_devdata(class_dev);
-	hcd = bus->hcpriv;
+	hcd = bus_to_hcd(bus);
 	ohci = hcd_to_ohci(hcd);
 
 	/* display control and bulk lists together, for simplicity */
@@ -505,12 +505,12 @@ show_periodic (struct class_device *class_dev, char *buf)
 	char			*next;
 	unsigned		i;
 
-	if (!(seen = kmalloc (DBG_SCHED_LIMIT * sizeof *seen, SLAB_ATOMIC)))
+	if (!(seen = kmalloc (DBG_SCHED_LIMIT * sizeof *seen, GFP_ATOMIC)))
 		return 0;
 	seen_count = 0;
 
 	bus = class_get_devdata(class_dev);
-	hcd = bus->hcpriv;
+	hcd = bus_to_hcd(bus);
 	ohci = hcd_to_ohci(hcd);
 	next = buf;
 	size = PAGE_SIZE;
@@ -607,7 +607,7 @@ show_registers (struct class_device *class_dev, char *buf)
 	u32			rdata;
 
 	bus = class_get_devdata(class_dev);
-	hcd = bus->hcpriv;
+	hcd = bus_to_hcd(bus);
 	ohci = hcd_to_ohci(hcd);
 	regs = ohci->regs;
 	next = buf;
@@ -667,6 +667,11 @@ show_registers (struct class_device *class_dev, char *buf)
 	size -= temp;
 	next += temp;
 
+	temp = scnprintf (next, size, "hub poll timer %s\n",
+			ohci_to_hcd(ohci)->poll_rh ? "ON" : "off");
+	size -= temp;
+	next += temp;
+
 	/* roothub */
 	ohci_dump_roothub (ohci, 1, &next, &size);
 
@@ -680,10 +685,11 @@ static CLASS_DEVICE_ATTR (registers, S_IRUGO, show_registers, NULL);
 static inline void create_debug_files (struct ohci_hcd *ohci)
 {
 	struct class_device *cldev = ohci_to_hcd(ohci)->self.class_dev;
+	int retval;
 
-	class_device_create_file(cldev, &class_device_attr_async);
-	class_device_create_file(cldev, &class_device_attr_periodic);
-	class_device_create_file(cldev, &class_device_attr_registers);
+	retval = class_device_create_file(cldev, &class_device_attr_async);
+	retval = class_device_create_file(cldev, &class_device_attr_periodic);
+	retval = class_device_create_file(cldev, &class_device_attr_registers);
 	ohci_dbg (ohci, "created debug files\n");
 }
 

@@ -247,7 +247,7 @@ static int proc_udc_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_udc_show, PDE(inode)->data);
 }
 
-static struct file_operations proc_ops = {
+static const struct file_operations proc_ops = {
 	.open		= proc_udc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1366,7 +1366,7 @@ static void handle_ep0(struct at91_udc *udc)
 	}
 }
 
-static irqreturn_t at91_udc_irq (int irq, void *_udc, struct pt_regs *r)
+static irqreturn_t at91_udc_irq (int irq, void *_udc)
 {
 	struct at91_udc		*udc = _udc;
 	u32			rescans = 5;
@@ -1552,7 +1552,7 @@ static struct at91_udc controller = {
 	/* ep6 and ep7 are also reserved (custom silicon might use them) */
 };
 
-static irqreturn_t at91_vbus_irq(int irq, void *_udc, struct pt_regs *r)
+static irqreturn_t at91_vbus_irq(int irq, void *_udc)
 {
 	struct at91_udc	*udc = _udc;
 	unsigned	value;
@@ -1658,7 +1658,7 @@ static int __devinit at91udc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (!request_mem_region(AT91_BASE_UDP, SZ_16K, driver_name)) {
+	if (!request_mem_region(AT91RM9200_BASE_UDP, SZ_16K, driver_name)) {
 		DBG("someone's using UDC memory\n");
 		return -EBUSY;
 	}
@@ -1720,7 +1720,7 @@ static int __devinit at91udc_probe(struct platform_device *pdev)
 fail1:
 	device_unregister(&udc->gadget.dev);
 fail0:
-	release_mem_region(AT91_BASE_UDP, SZ_16K);
+	release_mem_region(AT91RM9200_BASE_UDP, SZ_16K);
 	DBG("%s probe failed, %d\n", driver_name, retval);
 	return retval;
 }
@@ -1742,7 +1742,7 @@ static int __devexit at91udc_remove(struct platform_device *pdev)
 		free_irq(udc->board.vbus_pin, udc);
 	free_irq(udc->udp_irq, udc);
 	device_unregister(&udc->gadget.dev);
-	release_mem_region(AT91_BASE_UDP, SZ_16K);
+	release_mem_region(AT91RM9200_BASE_UDP, SZ_16K);
 
 	clk_put(udc->iclk);
 	clk_put(udc->fclk);

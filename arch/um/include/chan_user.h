@@ -20,7 +20,7 @@ enum chan_init_pri { INIT_STATIC, INIT_ALL, INIT_ONE };
 
 struct chan_ops {
 	char *type;
-	void *(*init)(char *, int, struct chan_opts *);
+	void *(*init)(char *, int, const struct chan_opts *);
 	int (*open)(int, int, int, void *, char **);
 	void (*close)(int, void *);
 	int (*read)(int, char *, void *);
@@ -31,8 +31,8 @@ struct chan_ops {
 	int winch;
 };
 
-extern struct chan_ops fd_ops, null_ops, port_ops, pts_ops, pty_ops, tty_ops,
-	xterm_ops;
+extern const struct chan_ops fd_ops, null_ops, port_ops, pts_ops, pty_ops,
+	tty_ops, xterm_ops;
 
 extern void generic_close(int fd, void *unused);
 extern int generic_read(int fd, char *c_out, void *unused);

@@ -45,6 +45,7 @@
 #include <asm/cpudata.h>
 #include <asm/uaccess.h>
 #include <asm/prom.h>
+#include <asm/irq_regs.h>
 
 DEFINE_SPINLOCK(mostek_lock);
 DEFINE_SPINLOCK(rtc_lock);
@@ -52,8 +53,6 @@ void __iomem *mstk48t02_regs = NULL;
 #ifdef CONFIG_PCI
 unsigned long ds1287_regs = 0UL;
 #endif
-
-extern unsigned long wall_jiffies;
 
 static void __iomem *mstk48t08_regs;
 static void __iomem *mstk48t59_regs;
@@ -454,7 +453,7 @@ static inline void timer_check_rtc(void)
 	}
 }
 
-irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	unsigned long ticks, compare, pstate;
 
@@ -462,10 +461,10 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 
 	do {
 #ifndef CONFIG_SMP
-		profile_tick(CPU_PROFILING, regs);
-		update_process_times(user_mode(regs));
+		profile_tick(CPU_PROFILING);
+		update_process_times(user_mode(get_irq_regs()));
 #endif
-		do_timer(regs);
+		do_timer(1);
 
 		/* Guarantee that the following sequences execute
 		 * uninterrupted.
@@ -496,7 +495,7 @@ void timer_tick_interrupt(struct pt_regs *regs)
 {
 	write_seqlock(&xtime_lock);
 
-	do_timer(regs);
+	do_timer(1);
 
 	timer_check_rtc();
 

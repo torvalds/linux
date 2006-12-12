@@ -3,7 +3,8 @@
 #include <linux/pci.h>
 #include <linux/cache.h>
 #include <linux/module.h>
-#include <asm/dma-mapping.h>
+#include <linux/dma-mapping.h>
+
 #include <asm/proto.h>
 #include <asm/swiotlb.h>
 #include <asm/dma.h>

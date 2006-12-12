@@ -1,3 +1,4 @@
+if BLOCK
 
 menu "IO Schedulers"
 
@@ -67,3 +68,5 @@ config DEFAULT_IOSCHED
 	default "noop" if DEFAULT_NOOP
 
 endmenu
+
+endif

@@ -34,6 +34,7 @@
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/sysfs.h>
 
 /*
  * Addresses to scan
@@ -240,47 +241,45 @@ sysfs_alarms(FSCHER_REG_EVENTS)
 sysfs_control(FSCHER_REG_CONTROL)
 sysfs_watchdog(FSCHER_REG_WDOG_CONTROL, FSCHER_REG_WDOG_STATE, FSCHER_REG_WDOG_PRESET)
   
-#define device_create_file_fan(client, offset) \
-do { \
-	device_create_file(&client->dev, &dev_attr_fan##offset##_status); \
-	device_create_file(&client->dev, &dev_attr_pwm##offset); \
-	device_create_file(&client->dev, &dev_attr_fan##offset##_div); \
-	device_create_file(&client->dev, &dev_attr_fan##offset##_input); \
-} while (0)
+static struct attribute *fscher_attributes[] = {
+	&dev_attr_revision.attr,
+	&dev_attr_alarms.attr,
+	&dev_attr_control.attr,
 
-#define device_create_file_temp(client, offset) \
-do { \
-	device_create_file(&client->dev, &dev_attr_temp##offset##_status); \
-	device_create_file(&client->dev, &dev_attr_temp##offset##_input); \
-} while (0)
+	&dev_attr_watchdog_status.attr,
+	&dev_attr_watchdog_control.attr,
+	&dev_attr_watchdog_preset.attr,
 
-#define device_create_file_in(client, offset) \
-do { \
-	device_create_file(&client->dev, &dev_attr_in##offset##_input); \
-} while (0)
+	&dev_attr_in0_input.attr,
+	&dev_attr_in1_input.attr,
+	&dev_attr_in2_input.attr,
 
-#define device_create_file_revision(client) \
-do { \
-	device_create_file(&client->dev, &dev_attr_revision); \
-} while (0)
+	&dev_attr_fan1_status.attr,
+	&dev_attr_fan1_div.attr,
+	&dev_attr_fan1_input.attr,
+	&dev_attr_pwm1.attr,
+	&dev_attr_fan2_status.attr,
+	&dev_attr_fan2_div.attr,
+	&dev_attr_fan2_input.attr,
+	&dev_attr_pwm2.attr,
+	&dev_attr_fan3_status.attr,
+	&dev_attr_fan3_div.attr,
+	&dev_attr_fan3_input.attr,
+	&dev_attr_pwm3.attr,
 
-#define device_create_file_alarms(client) \
-do { \
-	device_create_file(&client->dev, &dev_attr_alarms); \
-} while (0)
+	&dev_attr_temp1_status.attr,
+	&dev_attr_temp1_input.attr,
+	&dev_attr_temp2_status.attr,
+	&dev_attr_temp2_input.attr,
+	&dev_attr_temp3_status.attr,
+	&dev_attr_temp3_input.attr,
+	NULL
+};
 
-#define device_create_file_control(client) \
-do { \
-	device_create_file(&client->dev, &dev_attr_control); \
-} while (0)
+static const struct attribute_group fscher_group = {
+	.attrs = fscher_attributes,
+};
 
-#define device_create_file_watchdog(client) \
-do { \
-	device_create_file(&client->dev, &dev_attr_watchdog_status); \
-	device_create_file(&client->dev, &dev_attr_watchdog_control); \
-	device_create_file(&client->dev, &dev_attr_watchdog_preset); \
-} while (0)
-  
 /*
  * Real code
  */
@@ -342,31 +341,19 @@ static int fscher_detect(struct i2c_adapter *adapter, int address, int kind)
 	fscher_init_client(new_client);
 
 	/* Register sysfs hooks */
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &fscher_group)))
+		goto exit_detach;
+
 	data->class_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
-		goto exit_detach;
+		goto exit_remove_files;
 	}
-
-	device_create_file_revision(new_client);
-	device_create_file_alarms(new_client);
-	device_create_file_control(new_client);
-	device_create_file_watchdog(new_client);
-
-	device_create_file_in(new_client, 0);
-	device_create_file_in(new_client, 1);
-	device_create_file_in(new_client, 2);
-
-	device_create_file_fan(new_client, 1);
-	device_create_file_fan(new_client, 2);
-	device_create_file_fan(new_client, 3);
-
-	device_create_file_temp(new_client, 1);
-	device_create_file_temp(new_client, 2);
-	device_create_file_temp(new_client, 3);
 
 	return 0;
 
+exit_remove_files:
+	sysfs_remove_group(&new_client->dev.kobj, &fscher_group);
 exit_detach:
 	i2c_detach_client(new_client);
 exit_free:
@@ -381,6 +368,7 @@ static int fscher_detach_client(struct i2c_client *client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &fscher_group);
 
 	if ((err = i2c_detach_client(client)))
 		return err;

@@ -35,7 +35,6 @@
 #include <linux/kthread.h>
 
 #include <asm/byteorder.h>
-#include <asm/semaphore.h>
 
 #include "ieee1394_types.h"
 #include "ieee1394.h"
@@ -86,7 +85,7 @@ static void dump_packet(const char *text, quadlet_t *data, int size, int speed)
 	printk("\n");
 }
 #else
-#define dump_packet(a,b,c,d)
+#define dump_packet(a,b,c,d) do {} while (0)
 #endif
 
 static void abort_requests(struct hpsb_host *host);
@@ -355,10 +354,12 @@ static void build_speed_map(struct hpsb_host *host, int nodecount)
 		}
 	}
 
+#if SELFID_SPEED_UNKNOWN != IEEE1394_SPEED_MAX
 	/* assume maximum speed for 1394b PHYs, nodemgr will correct it */
 	for (n = 0; n < nodecount; n++)
-		if (speedcap[n] == 3)
+		if (speedcap[n] == SELFID_SPEED_UNKNOWN)
 			speedcap[n] = IEEE1394_SPEED_MAX;
+#endif
 }
 
 
@@ -1169,7 +1170,7 @@ static void __exit ieee1394_cleanup(void)
 	unregister_chrdev_region(IEEE1394_CORE_DEV, 256);
 }
 
-module_init(ieee1394_init);
+fs_initcall(ieee1394_init); /* same as ohci1394 */
 module_exit(ieee1394_cleanup);
 
 /* Exported symbols */
@@ -1236,10 +1237,10 @@ EXPORT_SYMBOL(highlevel_remove_host);
 /** nodemgr.c **/
 EXPORT_SYMBOL(hpsb_node_fill_packet);
 EXPORT_SYMBOL(hpsb_node_write);
-EXPORT_SYMBOL(hpsb_register_protocol);
+EXPORT_SYMBOL(__hpsb_register_protocol);
 EXPORT_SYMBOL(hpsb_unregister_protocol);
-EXPORT_SYMBOL(ieee1394_bus_type);
 #ifdef CONFIG_IEEE1394_EXPORT_FULL_API
+EXPORT_SYMBOL(ieee1394_bus_type);
 EXPORT_SYMBOL(nodemgr_for_each_host);
 #endif
 

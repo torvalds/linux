@@ -25,6 +25,14 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default n
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 config GENERIC_FIND_NEXT_BIT
 	bool
 	default y
@@ -161,8 +169,8 @@ config CLOCK_FREQ
 	  frequency, it may or may not be the same as the external clock
 	  crystal fitted to your board. Some processors have an internal
 	  PLL and can have their frequency programmed at run time, others
-	  use internal dividers. In gernal the kernel won't setup a PLL
-	  if it is fitted (there are some expections). This value will be
+	  use internal dividers. In general the kernel won't setup a PLL
+	  if it is fitted (there are some exceptions). This value will be
 	  specific to the exact CPU that you are using.
 
 config CLOCK_DIV
@@ -173,7 +181,7 @@ config CLOCK_DIV
 	  On many SoC style CPUs the master CPU clock is also used to drive 
 	  on-chip peripherals. The clock that is distributed to these
 	  peripherals is sometimes a fixed ratio of the master clock
-	  frequency. If so then set this to the divider ration of the
+	  frequency. If so then set this to the divider ratio of the
 	  master clock to the peripheral clock. If not sure then select 1.
 
 config OLDMASK
@@ -192,7 +200,7 @@ config PILOT3
 	  Support for the Palm Pilot 1000/5000, Personal/Pro and PalmIII.
 
 config XCOPILOT_BUGS
-	bool "  (X)Copilot support"
+	bool "(X)Copilot support"
 	depends on PILOT3
 	help
 	  Support the bugs of Xcopilot.
@@ -216,20 +224,20 @@ config DRAGEN2
 	  Support for the DragenEngine II board.
 
 config DIRECT_IO_ACCESS
-	bool "  Allow user to access IO directly"
+	bool "Allow user to access IO directly"
 	depends on (UCSIMM || UCDIMM || DRAGEN2)
 	help
 	  Disable the CPU internal registers protection in user mode,
           to allow a user application to read/write them.
 
 config INIT_LCD
-	bool "  Initialize LCD"
+	bool "Initialize LCD"
 	depends on (UCSIMM || UCDIMM || DRAGEN2)
 	help
 	  Initialize the LCD controller of the 68x328 processor.
 
 config MEMORY_RESERVE
-	int "  Memory reservation (MiB)"
+	int "Memory reservation (MiB)"
 	depends on (UCSIMM || UCDIMM)
 	help
 	  Reserve certain memory regions on 68x328 based boards.
@@ -409,7 +417,7 @@ config MOD5272
 	  Support for the Netburner MOD-5272 board.
 
 config ROMFS_FROM_ROM
-	bool "  ROMFS image not RAM resident"
+	bool "ROMFS image not RAM resident"
 	depends on (NETtel || SNAPGEAR)
 	help
 	  The ROMfs filesystem will stay resident in the FLASH/ROM, not be
@@ -495,7 +503,7 @@ config VECTORBASE
 	hex "Address of the base of system vectors"
 	default "0"
 	help
-	  Define the address of the the system vectors. Commonly this is
+	  Define the address of the system vectors. Commonly this is
 	  put at the start of RAM, but it doesn't have to be. On ColdFire
 	  platforms this address is programmed into the VBR register, thus
 	  actually setting the address to use.
@@ -565,7 +573,7 @@ config ROMVEC
 	depends on ROM
 	help
 	  This is almost always the same as the base of the ROM. Since on all
-	  68000 type varients the vectors are at the base of the boot device
+	  68000 type variants the vectors are at the base of the boot device
 	  on system startup.
 
 config ROMVECSIZE
@@ -574,7 +582,7 @@ config ROMVECSIZE
 	depends on ROM
 	help
 	  Define the size of the vector region in ROM. For most 68000
-	  varients this would be 0x400 bytes in size. Set to 0 if you do
+	  variants this would be 0x400 bytes in size. Set to 0 if you do
 	  not want a vector region at the start of the ROM.
 
 config ROMSTART

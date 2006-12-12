@@ -14,9 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/sysdev.h>
-#include <linux/device.h>
 #include <asm/cpu/dma.h>
-#include <asm/semaphore.h>
 
 /* The maximum address that we can perform a DMA transfer to on this platform */
 /* Don't define MAX_DMA_ADDRESS; it's useless on the SuperH and any
@@ -46,16 +44,21 @@
  * DMAC (dma_info) flags
  */
 enum {
-	DMAC_CHANNELS_CONFIGURED	= 0x00,
-	DMAC_CHANNELS_TEI_CAPABLE	= 0x01,
+	DMAC_CHANNELS_CONFIGURED	= 0x01,
+	DMAC_CHANNELS_TEI_CAPABLE	= 0x02,	/* Transfer end interrupt */
 };
 
 /*
  * DMA channel capabilities / flags
  */
 enum {
-	DMA_TEI_CAPABLE			= 0x01,
-	DMA_CONFIGURED			= 0x02,
+	DMA_CONFIGURED			= 0x01,
+
+	/*
+	 * Transfer end interrupt, inherited from DMAC.
+	 * wait_queue used in dma_wait_for_completion.
+	 */
+	DMA_TEI_CAPABLE			= 0x02,
 };
 
 extern spinlock_t dma_spin_lock;
@@ -68,27 +71,31 @@ struct dma_ops {
 
 	int (*get_residue)(struct dma_channel *chan);
 	int (*xfer)(struct dma_channel *chan);
-	void (*configure)(struct dma_channel *chan, unsigned long flags);
+	int (*configure)(struct dma_channel *chan, unsigned long flags);
+	int (*extend)(struct dma_channel *chan, unsigned long op, void *param);
 };
 
 struct dma_channel {
-	char dev_id[16];
+	char dev_id[16];		/* unique name per DMAC of channel */
 
-	unsigned int chan;		/* Physical channel number */
+	unsigned int chan;		/* DMAC channel number */
 	unsigned int vchan;		/* Virtual channel number */
+
 	unsigned int mode;
 	unsigned int count;
 
 	unsigned long sar;
 	unsigned long dar;
 
+	const char **caps;
+
 	unsigned long flags;
 	atomic_t busy;
 
-	struct semaphore sem;
 	wait_queue_head_t wait_queue;
 
 	struct sys_device dev;
+	void *priv_data;
 };
 
 struct dma_info {
@@ -102,6 +109,12 @@ struct dma_info {
 	struct dma_channel *channels;
 
 	struct list_head list;
+	int first_channel_nr;
+};
+
+struct dma_chan_caps {
+	int ch_num;
+	const char **caplist;
 };
 
 #define to_dma_channel(channel) container_of(channel, struct dma_channel, dev)
@@ -120,6 +133,8 @@ extern int dma_xfer(unsigned int chan, unsigned long from,
 #define dma_read_page(chan, from, to)	\
 	dma_read(chan, from, to, PAGE_SIZE)
 
+extern int request_dma_bycap(const char **dmac, const char **caps,
+			     const char *dev_id);
 extern int request_dma(unsigned int chan, const char *dev_id);
 extern void free_dma(unsigned int chan);
 extern int get_dma_residue(unsigned int chan);
@@ -130,6 +145,10 @@ extern void dma_configure_channel(unsigned int chan, unsigned long flags);
 
 extern int register_dmac(struct dma_info *info);
 extern void unregister_dmac(struct dma_info *info);
+extern struct dma_info *get_dma_info_by_name(const char *dmac_name);
+
+extern int dma_extend(unsigned int chan, unsigned long op, void *param);
+extern int register_chan_caps(const char *dmac, struct dma_chan_caps *capslist);
 
 #ifdef CONFIG_SYSFS
 /* arch/sh/drivers/dma/dma-sysfs.c */

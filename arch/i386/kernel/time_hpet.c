@@ -132,14 +132,20 @@ int __init hpet_enable(void)
 	 * the single HPET timer for system time.
 	 */
 #ifdef CONFIG_HPET_EMULATE_RTC
-	if (!(id & HPET_ID_NUMBER))
+	if (!(id & HPET_ID_NUMBER)) {
+		iounmap(hpet_virt_address);
+		hpet_virt_address = NULL;
 		return -1;
+	}
 #endif
 
 
 	hpet_period = hpet_readl(HPET_PERIOD);
-	if ((hpet_period < HPET_MIN_PERIOD) || (hpet_period > HPET_MAX_PERIOD))
+	if ((hpet_period < HPET_MIN_PERIOD) || (hpet_period > HPET_MAX_PERIOD)) {
+		iounmap(hpet_virt_address);
+		hpet_virt_address = NULL;
 		return -1;
+	}
 
 	/*
 	 * 64 bit math
@@ -156,8 +162,11 @@ int __init hpet_enable(void)
 
 	hpet_use_timer = id & HPET_ID_LEGSUP;
 
-	if (hpet_timer_stop_set_go(hpet_tick))
+	if (hpet_timer_stop_set_go(hpet_tick)) {
+		iounmap(hpet_virt_address);
+		hpet_virt_address = NULL;
 		return -1;
+	}
 
 	use_hpet = 1;
 
@@ -441,7 +450,7 @@ int hpet_rtc_dropped_irq(void)
 	return 1;
 }
 
-irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 {
 	struct rtc_time curr_time;
 	unsigned long rtc_int_flag = 0;
@@ -480,7 +489,7 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	}
 	if (call_rtc_interrupt) {
 		rtc_int_flag |= (RTC_IRQF | (RTC_NUM_INTS << 8));
-		rtc_interrupt(rtc_int_flag, dev_id, regs);
+		rtc_interrupt(rtc_int_flag, dev_id);
 	}
 	return IRQ_HANDLED;
 }

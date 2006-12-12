@@ -203,7 +203,7 @@ static inline unsigned int fib_info_hashfn(const struct fib_info *fi)
 	unsigned int val = fi->fib_nhs;
 
 	val ^= fi->fib_protocol;
-	val ^= fi->fib_prefsrc;
+	val ^= (__force u32)fi->fib_prefsrc;
 	val ^= fi->fib_priority;
 
 	return (val ^ (val >> 7) ^ (val >> 12)) & mask;
@@ -248,7 +248,7 @@ static inline unsigned int fib_devindex_hashfn(unsigned int val)
    Used only by redirect accept routine.
  */
 
-int ip_fib_check_default(u32 gw, struct net_device *dev)
+int ip_fib_check_default(__be32 gw, struct net_device *dev)
 {
 	struct hlist_head *head;
 	struct hlist_node *node;
@@ -273,25 +273,49 @@ int ip_fib_check_default(u32 gw, struct net_device *dev)
 	return -1;
 }
 
-void rtmsg_fib(int event, u32 key, struct fib_alias *fa,
+static inline size_t fib_nlmsg_size(struct fib_info *fi)
+{
+	size_t payload = NLMSG_ALIGN(sizeof(struct rtmsg))
+			 + nla_total_size(4) /* RTA_TABLE */
+			 + nla_total_size(4) /* RTA_DST */
+			 + nla_total_size(4) /* RTA_PRIORITY */
+			 + nla_total_size(4); /* RTA_PREFSRC */
+
+	/* space for nested metrics */
+	payload += nla_total_size((RTAX_MAX * nla_total_size(4)));
+
+	if (fi->fib_nhs) {
+		/* Also handles the special case fib_nhs == 1 */
+
+		/* each nexthop is packed in an attribute */
+		size_t nhsize = nla_total_size(sizeof(struct rtnexthop));
+
+		/* may contain flow and gateway attribute */
+		nhsize += 2 * nla_total_size(4);
+
+		/* all nexthops are packed in a nested attribute */
+		payload += nla_total_size(fi->fib_nhs * nhsize);
+	}
+
+	return payload;
+}
+
+void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 	       int dst_len, u32 tb_id, struct nl_info *info)
 {
 	struct sk_buff *skb;
-	int payload = sizeof(struct rtmsg) + 256;
 	u32 seq = info->nlh ? info->nlh->nlmsg_seq : 0;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(nlmsg_total_size(payload), GFP_KERNEL);
+	skb = nlmsg_new(fib_nlmsg_size(fa->fa_info), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
 
 	err = fib_dump_info(skb, info->pid, seq, event, tb_id,
 			    fa->fa_type, fa->fa_scope, key, dst_len,
 			    fa->fa_tos, fa->fa_info, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in fib_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, info->pid, RTNLGRP_IPV4_ROUTE,
 			  info->nlh, GFP_KERNEL);
@@ -374,7 +398,7 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 			struct nlattr *nla, *attrs = rtnh_attrs(rtnh);
 
 			nla = nla_find(attrs, attrlen, RTA_GATEWAY);
-			nh->nh_gw = nla ? nla_get_u32(nla) : 0;
+			nh->nh_gw = nla ? nla_get_be32(nla) : 0;
 #ifdef CONFIG_NET_CLS_ROUTE
 			nla = nla_find(attrs, attrlen, RTA_FLOW);
 			nh->nh_tclassid = nla ? nla_get_u32(nla) : 0;
@@ -427,7 +451,7 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
 			struct nlattr *nla, *attrs = rtnh_attrs(rtnh);
 
 			nla = nla_find(attrs, attrlen, RTA_GATEWAY);
-			if (nla && nla_get_u32(nla) != nh->nh_gw)
+			if (nla && nla_get_be32(nla) != nh->nh_gw)
 				return 1;
 #ifdef CONFIG_NET_CLS_ROUTE
 			nla = nla_find(attrs, attrlen, RTA_FLOW);
@@ -568,11 +592,11 @@ out:
 	return 0;
 }
 
-static inline unsigned int fib_laddr_hashfn(u32 val)
+static inline unsigned int fib_laddr_hashfn(__be32 val)
 {
 	unsigned int mask = (fib_hash_size - 1);
 
-	return (val ^ (val >> 7) ^ (val >> 14)) & mask;
+	return ((__force u32)val ^ ((__force u32)val >> 7) ^ ((__force u32)val >> 14)) & mask;
 }
 
 static struct hlist_head *fib_hash_alloc(int bytes)
@@ -847,7 +871,7 @@ failure:
 
 /* Note! fib_semantic_match intentionally uses  RCU list functions. */
 int fib_semantic_match(struct list_head *head, const struct flowi *flp,
-		       struct fib_result *res, __u32 zone, __u32 mask, 
+		       struct fib_result *res, __be32 zone, __be32 mask,
 			int prefixlen)
 {
 	struct fib_alias *fa;
@@ -914,8 +938,7 @@ out_fill_res:
 	res->fi = fa->fa_info;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
 	res->netmask = mask;
-	res->network = zone &
-		(0xFFFFFFFF >> (32 - prefixlen));
+	res->network = zone & inet_make_mask(prefixlen);
 #endif
 	atomic_inc(&res->fi->fib_clntref);
 	return 0;
@@ -923,13 +946,13 @@ out_fill_res:
 
 /* Find appropriate source address to this destination */
 
-u32 __fib_res_prefsrc(struct fib_result *res)
+__be32 __fib_res_prefsrc(struct fib_result *res)
 {
 	return inet_select_addr(FIB_RES_DEV(*res), FIB_RES_GW(*res), res->scope);
 }
 
 int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
-		  u32 tb_id, u8 type, u8 scope, u32 dst, int dst_len, u8 tos,
+		  u32 tb_id, u8 type, u8 scope, __be32 dst, int dst_len, u8 tos,
 		  struct fib_info *fi, unsigned int flags)
 {
 	struct nlmsghdr *nlh;
@@ -952,7 +975,7 @@ int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	rtm->rtm_protocol = fi->fib_protocol;
 
 	if (rtm->rtm_dst_len)
-		NLA_PUT_U32(skb, RTA_DST, dst);
+		NLA_PUT_BE32(skb, RTA_DST, dst);
 
 	if (fi->fib_priority)
 		NLA_PUT_U32(skb, RTA_PRIORITY, fi->fib_priority);
@@ -961,11 +984,11 @@ int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 		goto nla_put_failure;
 
 	if (fi->fib_prefsrc)
-		NLA_PUT_U32(skb, RTA_PREFSRC, fi->fib_prefsrc);
+		NLA_PUT_BE32(skb, RTA_PREFSRC, fi->fib_prefsrc);
 
 	if (fi->fib_nhs == 1) {
 		if (fi->fib_nh->nh_gw)
-			NLA_PUT_U32(skb, RTA_GATEWAY, fi->fib_nh->nh_gw);
+			NLA_PUT_BE32(skb, RTA_GATEWAY, fi->fib_nh->nh_gw);
 
 		if (fi->fib_nh->nh_oif)
 			NLA_PUT_U32(skb, RTA_OIF, fi->fib_nh->nh_oif);
@@ -993,7 +1016,7 @@ int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 			rtnh->rtnh_ifindex = nh->nh_oif;
 
 			if (nh->nh_gw)
-				NLA_PUT_U32(skb, RTA_GATEWAY, nh->nh_gw);
+				NLA_PUT_BE32(skb, RTA_GATEWAY, nh->nh_gw);
 #ifdef CONFIG_NET_CLS_ROUTE
 			if (nh->nh_tclassid)
 				NLA_PUT_U32(skb, RTA_FLOW, nh->nh_tclassid);
@@ -1018,7 +1041,7 @@ nla_put_failure:
    - device went down -> we must shutdown all nexthops going via it.
  */
 
-int fib_sync_down(u32 local, struct net_device *dev, int force)
+int fib_sync_down(__be32 local, struct net_device *dev, int force)
 {
 	int ret = 0;
 	int scope = RT_SCOPE_NOWHERE;

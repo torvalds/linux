@@ -6,7 +6,6 @@
 #include <asm-ppc/pci-bridge.h>
 #else
 
-#include <linux/config.h>
 #include <linux/pci.h>
 #include <linux/list.h>
 
@@ -26,17 +25,18 @@ struct pci_controller {
 	int node;
 	void *arch_data;
 	struct list_head list_node;
+	struct device *parent;
 
 	int first_busno;
 	int last_busno;
 
 	void __iomem *io_base_virt;
-	unsigned long io_base_phys;
+	resource_size_t io_base_phys;
 
 	/* Some machines have a non 1:1 mapping of
 	 * the PCI memory space in the CPU bus space
 	 */
-	unsigned long pci_mem_offset;
+	resource_size_t pci_mem_offset;
 	unsigned long pci_io_size;
 
 	struct pci_ops *ops;

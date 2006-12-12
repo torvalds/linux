@@ -1,0 +1,127 @@
+/*
+ * arch/arm/mach-iop33x/irq.c
+ *
+ * Generic IOP331 IRQ handling functionality
+ *
+ * Author: Dave Jiang <dave.jiang@intel.com>
+ * Copyright (C) 2003 Intel Corp.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/list.h>
+#include <asm/mach/irq.h>
+#include <asm/irq.h>
+#include <asm/hardware.h>
+#include <asm/mach-types.h>
+
+static u32 iop33x_mask0;
+static u32 iop33x_mask1;
+
+static inline void intctl0_write(u32 val)
+{
+	iop3xx_cp6_enable();
+	asm volatile("mcr p6, 0, %0, c0, c0, 0" : : "r" (val));
+	iop3xx_cp6_disable();
+}
+
+static inline void intctl1_write(u32 val)
+{
+	iop3xx_cp6_enable();
+	asm volatile("mcr p6, 0, %0, c1, c0, 0" : : "r" (val));
+	iop3xx_cp6_disable();
+}
+
+static inline void intstr0_write(u32 val)
+{
+	iop3xx_cp6_enable();
+	asm volatile("mcr p6, 0, %0, c2, c0, 0" : : "r" (val));
+	iop3xx_cp6_disable();
+}
+
+static inline void intstr1_write(u32 val)
+{
+	iop3xx_cp6_enable();
+	asm volatile("mcr p6, 0, %0, c3, c0, 0" : : "r" (val));
+	iop3xx_cp6_disable();
+}
+
+static inline void intbase_write(u32 val)
+{
+	iop3xx_cp6_enable();
+	asm volatile("mcr p6, 0, %0, c12, c0, 0" : : "r" (val));
+	iop3xx_cp6_disable();
+}
+
+static inline void intsize_write(u32 val)
+{
+	iop3xx_cp6_enable();
+	asm volatile("mcr p6, 0, %0, c13, c0, 0" : : "r" (val));
+	iop3xx_cp6_disable();
+}
+
+static void
+iop33x_irq_mask1 (unsigned int irq)
+{
+	iop33x_mask0 &= ~(1 << irq);
+	intctl0_write(iop33x_mask0);
+}
+
+static void
+iop33x_irq_mask2 (unsigned int irq)
+{
+	iop33x_mask1 &= ~(1 << (irq - 32));
+	intctl1_write(iop33x_mask1);
+}
+
+static void
+iop33x_irq_unmask1(unsigned int irq)
+{
+	iop33x_mask0 |= 1 << irq;
+	intctl0_write(iop33x_mask0);
+}
+
+static void
+iop33x_irq_unmask2(unsigned int irq)
+{
+	iop33x_mask1 |= (1 << (irq - 32));
+	intctl1_write(iop33x_mask1);
+}
+
+struct irq_chip iop33x_irqchip1 = {
+	.name	= "IOP33x-1",
+	.ack	= iop33x_irq_mask1,
+	.mask	= iop33x_irq_mask1,
+	.unmask	= iop33x_irq_unmask1,
+};
+
+struct irq_chip iop33x_irqchip2 = {
+	.name	= "IOP33x-2",
+	.ack	= iop33x_irq_mask2,
+	.mask	= iop33x_irq_mask2,
+	.unmask	= iop33x_irq_unmask2,
+};
+
+void __init iop33x_init_irq(void)
+{
+	int i;
+
+	intctl0_write(0);
+	intctl1_write(0);
+	intstr0_write(0);
+	intstr1_write(0);
+	intbase_write(0);
+	intsize_write(1);
+	if (machine_is_iq80331())
+		*IOP3XX_PCIIRSR = 0x0f;
+
+	for (i = 0; i < NR_IRQS; i++) {
+		set_irq_chip(i, (i < 32) ? &iop33x_irqchip1 : &iop33x_irqchip2);
+		set_irq_handler(i, handle_level_irq);
+		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
+	}
+}

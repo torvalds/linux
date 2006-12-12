@@ -11,7 +11,7 @@
  *  Copyright (C) 2002 Tensilica Inc.
  */
 
-#include <xtensa/coreasm.h>
+#include <asm/variant/core.h>
 
 /*
  * void *memset(void *dst, int c, size_t length)

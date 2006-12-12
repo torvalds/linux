@@ -135,7 +135,7 @@ int pccard_get_status(struct pcmcia_socket *s, struct pcmcia_device *p_dev, cs_s
 struct pcmcia_callback{
 	struct module	*owner;
 	int		(*event) (struct pcmcia_socket *s, event_t event, int priority);
-	void		(*requery) (struct pcmcia_socket *s);
+	void		(*requery) (struct pcmcia_socket *s, int new_cis);
 	int		(*suspend) (struct pcmcia_socket *s);
 	int		(*resume) (struct pcmcia_socket *s);
 };

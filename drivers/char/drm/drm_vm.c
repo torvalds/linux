@@ -59,7 +59,7 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 	drm_device_t *dev = priv->head->dev;
 	drm_map_t *map = NULL;
 	drm_map_list_t *r_list;
-	struct list_head *list;
+	drm_hash_item_t *hash;
 
 	/*
 	 * Find the right map
@@ -70,14 +70,11 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 	if (!dev->agp || !dev->agp->cant_use_aperture)
 		goto vm_nopage_error;
 
-	list_for_each(list, &dev->maplist->head) {
-		r_list = list_entry(list, drm_map_list_t, head);
-		map = r_list->map;
-		if (!map)
-			continue;
-		if (r_list->user_token == VM_OFFSET(vma))
-			break;
-	}
+	if (drm_ht_find_item(&dev->map_hash, vma->vm_pgoff << PAGE_SHIFT, &hash))
+		goto vm_nopage_error;
+
+	r_list = drm_hash_entry(hash, drm_map_list_t, hash);
+	map = r_list->map;
 
 	if (map && map->type == _DRM_AGP) {
 		unsigned long offset = address - vma->vm_start;
@@ -150,14 +147,14 @@ static __inline__ struct page *drm_do_vm_shm_nopage(struct vm_area_struct *vma,
 	if (address > vma->vm_end)
 		return NOPAGE_SIGBUS;	/* Disallow mremap */
 	if (!map)
-		return NOPAGE_OOM;	/* Nothing allocated */
+		return NOPAGE_SIGBUS;	/* Nothing allocated */
 
 	offset = address - vma->vm_start;
 	i = (unsigned long)map->handle + offset;
 	page = (map->type == _DRM_CONSISTENT) ?
 		virt_to_page((void *)i) : vmalloc_to_page((void *)i);
 	if (!page)
-		return NOPAGE_OOM;
+		return NOPAGE_SIGBUS;
 	get_page(page);
 
 	DRM_DEBUG("shm_nopage 0x%lx\n", address);
@@ -275,7 +272,7 @@ static __inline__ struct page *drm_do_vm_dma_nopage(struct vm_area_struct *vma,
 	if (address > vma->vm_end)
 		return NOPAGE_SIGBUS;	/* Disallow mremap */
 	if (!dma->pagelist)
-		return NOPAGE_OOM;	/* Nothing allocated */
+		return NOPAGE_SIGBUS;	/* Nothing allocated */
 
 	offset = address - vma->vm_start;	/* vm_[pg]off[set] should be 0 */
 	page_nr = offset >> PAGE_SHIFT;
@@ -313,7 +310,7 @@ static __inline__ struct page *drm_do_vm_sg_nopage(struct vm_area_struct *vma,
 	if (address > vma->vm_end)
 		return NOPAGE_SIGBUS;	/* Disallow mremap */
 	if (!entry->pagelist)
-		return NOPAGE_OOM;	/* Nothing allocated */
+		return NOPAGE_SIGBUS;	/* Nothing allocated */
 
 	offset = address - vma->vm_start;
 	map_offset = map->offset - (unsigned long)dev->sg->virtual;
@@ -467,7 +464,7 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	dev = priv->head->dev;
 	dma = dev->dma;
 	DRM_DEBUG("start = 0x%lx, end = 0x%lx, offset = 0x%lx\n",
-		  vma->vm_start, vma->vm_end, VM_OFFSET(vma));
+		  vma->vm_start, vma->vm_end, vma->vm_pgoff << PAGE_SHIFT);
 
 	/* Length must match exact page count */
 	if (!dma || (length >> PAGE_SHIFT) != dma->page_count) {
@@ -475,6 +472,22 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 	unlock_kernel();
+
+	if (!capable(CAP_SYS_ADMIN) &&
+	    (dma->flags & _DRM_DMA_USE_PCI_RO)) {
+		vma->vm_flags &= ~(VM_WRITE | VM_MAYWRITE);
+#if defined(__i386__) || defined(__x86_64__)
+		pgprot_val(vma->vm_page_prot) &= ~_PAGE_RW;
+#else
+		/* Ye gads this is ugly.  With more thought
+		   we could move this up higher and use
+		   `protection_map' instead.  */
+		vma->vm_page_prot =
+		    __pgprot(pte_val
+			     (pte_wrprotect
+			      (__pte(pgprot_val(vma->vm_page_prot)))));
+#endif
+	}
 
 	vma->vm_ops = &drm_vm_dma_ops;
 
@@ -521,12 +534,11 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
 	drm_map_t *map = NULL;
-	drm_map_list_t *r_list;
 	unsigned long offset = 0;
-	struct list_head *list;
+	drm_hash_item_t *hash;
 
 	DRM_DEBUG("start = 0x%lx, end = 0x%lx, offset = 0x%lx\n",
-		  vma->vm_start, vma->vm_end, VM_OFFSET(vma));
+		  vma->vm_start, vma->vm_end, vma->vm_pgoff << PAGE_SHIFT);
 
 	if (!priv->authenticated)
 		return -EACCES;
@@ -535,7 +547,7 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	 * the AGP mapped at physical address 0
 	 * --BenH.
 	 */
-	if (!VM_OFFSET(vma)
+	if (!(vma->vm_pgoff << PAGE_SHIFT)
 #if __OS_HAS_AGP
 	    && (!dev->agp
 		|| dev->agp->agp_info.device->vendor != PCI_VENDOR_ID_APPLE)
@@ -543,23 +555,12 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	    )
 		return drm_mmap_dma(filp, vma);
 
-	/* A sequential search of a linked list is
-	   fine here because: 1) there will only be
-	   about 5-10 entries in the list and, 2) a
-	   DRI client only has to do this mapping
-	   once, so it doesn't have to be optimized
-	   for performance, even if the list was a
-	   bit longer. */
-	list_for_each(list, &dev->maplist->head) {
-
-		r_list = list_entry(list, drm_map_list_t, head);
-		map = r_list->map;
-		if (!map)
-			continue;
-		if (r_list->user_token == VM_OFFSET(vma))
-			break;
+	if (drm_ht_find_item(&dev->map_hash, vma->vm_pgoff << PAGE_SHIFT, &hash)) {
+		DRM_ERROR("Could not find map\n");
+		return -EINVAL;
 	}
 
+	map = drm_hash_entry(hash, drm_map_list_t, hash)->map;
 	if (!map || ((map->flags & _DRM_RESTRICTED) && !capable(CAP_SYS_ADMIN)))
 		return -EPERM;
 
@@ -620,7 +621,7 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 		offset = dev->driver->get_reg_ofs(dev);
 #ifdef __sparc__
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		if (io_remap_pfn_range(DRM_RPR_ARG(vma) vma->vm_start,
+		if (io_remap_pfn_range(vma, vma->vm_start,
 				       (map->offset + offset) >> PAGE_SHIFT,
 				       vma->vm_end - vma->vm_start,
 				       vma->vm_page_prot))

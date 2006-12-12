@@ -29,12 +29,12 @@
  * is rather unfortunate.
  */
 static void
-neponset_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int irr;
 
 	while (1) {
-		struct irqdesc *d;
+		struct irq_desc *d;
 
 		/*
 		 * Acknowledge the parent IRQ.
@@ -69,12 +69,12 @@ neponset_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *reg
 
 			if (irr & IRR_ETHERNET) {
 				d = irq_desc + IRQ_NEPONSET_SMC9196;
-				desc_handle_irq(IRQ_NEPONSET_SMC9196, d, regs);
+				desc_handle_irq(IRQ_NEPONSET_SMC9196, d);
 			}
 
 			if (irr & IRR_USAR) {
 				d = irq_desc + IRQ_NEPONSET_USAR;
-				desc_handle_irq(IRQ_NEPONSET_USAR, d, regs);
+				desc_handle_irq(IRQ_NEPONSET_USAR, d);
 			}
 
 			desc->chip->unmask(irq);
@@ -82,7 +82,7 @@ neponset_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *reg
 
 		if (irr & IRR_SA1111) {
 			d = irq_desc + IRQ_NEPONSET_SA1111;
-			desc_handle_irq(IRQ_NEPONSET_SA1111, d, regs);
+			desc_handle_irq(IRQ_NEPONSET_SA1111, d);
 		}
 	}
 }
@@ -168,9 +168,9 @@ static int neponset_probe(struct platform_device *dev)
 	 * Setup other Neponset IRQs.  SA1111 will be done by the
 	 * generic SA1111 code.
 	 */
-	set_irq_handler(IRQ_NEPONSET_SMC9196, do_simple_IRQ);
+	set_irq_handler(IRQ_NEPONSET_SMC9196, handle_simple_irq);
 	set_irq_flags(IRQ_NEPONSET_SMC9196, IRQF_VALID | IRQF_PROBE);
-	set_irq_handler(IRQ_NEPONSET_USAR, do_simple_IRQ);
+	set_irq_handler(IRQ_NEPONSET_USAR, handle_simple_irq);
 	set_irq_flags(IRQ_NEPONSET_USAR, IRQF_VALID | IRQF_PROBE);
 
 	/*

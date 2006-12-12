@@ -192,6 +192,7 @@ static CLASS_DEVICE_ATTR(state, S_IRUGO | S_IWUSR, show_shost_state, store_shost
 shost_rd_attr(unique_id, "%u\n");
 shost_rd_attr(host_busy, "%hu\n");
 shost_rd_attr(cmd_per_lun, "%hd\n");
+shost_rd_attr(can_queue, "%hd\n");
 shost_rd_attr(sg_tablesize, "%hu\n");
 shost_rd_attr(unchecked_isa_dma, "%d\n");
 shost_rd_attr2(proc_name, hostt->proc_name, "%s\n");
@@ -200,6 +201,7 @@ static struct class_device_attribute *scsi_sysfs_shost_attrs[] = {
 	&class_device_attr_unique_id,
 	&class_device_attr_host_busy,
 	&class_device_attr_cmd_per_lun,
+	&class_device_attr_can_queue,
 	&class_device_attr_sg_tablesize,
 	&class_device_attr_unchecked_isa_dma,
 	&class_device_attr_proc_name,
@@ -216,16 +218,16 @@ static void scsi_device_cls_release(struct class_device *class_dev)
 	put_device(&sdev->sdev_gendev);
 }
 
-static void scsi_device_dev_release_usercontext(void *data)
+static void scsi_device_dev_release_usercontext(struct work_struct *work)
 {
-	struct device *dev = data;
 	struct scsi_device *sdev;
 	struct device *parent;
 	struct scsi_target *starget;
 	unsigned long flags;
 
-	parent = dev->parent;
-	sdev = to_scsi_device(dev);
+	sdev = container_of(work, struct scsi_device, ew.work);
+
+	parent = sdev->sdev_gendev.parent;
 	starget = to_scsi_target(parent);
 
 	spin_lock_irqsave(sdev->host->host_lock, flags);
@@ -256,7 +258,7 @@ static void scsi_device_dev_release_usercontext(void *data)
 static void scsi_device_dev_release(struct device *dev)
 {
 	struct scsi_device *sdp = to_scsi_device(dev);
-	execute_in_process_context(scsi_device_dev_release_usercontext, dev,
+	execute_in_process_context(scsi_device_dev_release_usercontext,
 				   &sdp->ew);
 }
 

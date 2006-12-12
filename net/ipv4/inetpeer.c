@@ -73,7 +73,7 @@
 /* Exported for inet_getid inline function.  */
 DEFINE_SPINLOCK(inet_peer_idlock);
 
-static kmem_cache_t *peer_cachep __read_mostly;
+static struct kmem_cache *peer_cachep __read_mostly;
 
 #define node_height(x) x->avl_height
 static struct inet_peer peer_fake_node = {
@@ -94,10 +94,8 @@ int inet_peer_minttl = 120 * HZ;	/* TTL under high load: 120 sec */
 int inet_peer_maxttl = 10 * 60 * HZ;	/* usual time to live: 10 min */
 
 static struct inet_peer *inet_peer_unused_head;
-/* Exported for inet_putpeer inline function.  */
-struct inet_peer **inet_peer_unused_tailp = &inet_peer_unused_head;
-DEFINE_SPINLOCK(inet_peer_unused_lock);
-#define PEER_MAX_CLEANUP_WORK 30
+static struct inet_peer **inet_peer_unused_tailp = &inet_peer_unused_head;
+static DEFINE_SPINLOCK(inet_peer_unused_lock);
 
 static void peer_check_expire(unsigned long dummy);
 static DEFINE_TIMER(peer_periodic_timer, peer_check_expire, 0, 0);
@@ -163,7 +161,7 @@ static void unlink_from_unused(struct inet_peer *p)
 	for (u = peer_root; u != peer_avl_empty; ) {		\
 		if (daddr == u->v4daddr)			\
 			break;					\
-		if (daddr < u->v4daddr)				\
+		if ((__force __u32)daddr < (__force __u32)u->v4daddr)	\
 			v = &u->avl_left;			\
 		else						\
 			v = &u->avl_right;			\
@@ -340,7 +338,8 @@ static int cleanup_once(unsigned long ttl)
 	spin_lock_bh(&inet_peer_unused_lock);
 	p = inet_peer_unused_head;
 	if (p != NULL) {
-		if (time_after(p->dtime + ttl, jiffies)) {
+		__u32 delta = (__u32)jiffies - p->dtime;
+		if (delta < ttl) {
 			/* Do not prune fresh entries. */
 			spin_unlock_bh(&inet_peer_unused_lock);
 			return -1;
@@ -368,7 +367,7 @@ static int cleanup_once(unsigned long ttl)
 }
 
 /* Called with or without local BH being disabled. */
-struct inet_peer *inet_getpeer(__u32 daddr, int create)
+struct inet_peer *inet_getpeer(__be32 daddr, int create)
 {
 	struct inet_peer *p, *n;
 	struct inet_peer **stack[PEER_MAXDEPTH], ***stackptr;
@@ -432,7 +431,7 @@ out_free:
 /* Called with local BH disabled. */
 static void peer_check_expire(unsigned long dummy)
 {
-	int i;
+	unsigned long now = jiffies;
 	int ttl;
 
 	if (peer_total >= inet_peer_threshold)
@@ -441,7 +440,10 @@ static void peer_check_expire(unsigned long dummy)
 		ttl = inet_peer_maxttl
 				- (inet_peer_maxttl - inet_peer_minttl) / HZ *
 					peer_total / inet_peer_threshold * HZ;
-	for (i = 0; i < PEER_MAX_CLEANUP_WORK && !cleanup_once(ttl); i++);
+	while (!cleanup_once(ttl)) {
+		if (jiffies != now)
+			break;
+	}
 
 	/* Trigger the timer after inet_peer_gc_mintime .. inet_peer_gc_maxtime
 	 * interval depending on the total number of entries (more entries,
@@ -454,4 +456,17 @@ static void peer_check_expire(unsigned long dummy)
 			- (inet_peer_gc_maxtime - inet_peer_gc_mintime) / HZ *
 				peer_total / inet_peer_threshold * HZ;
 	add_timer(&peer_periodic_timer);
+}
+
+void inet_putpeer(struct inet_peer *p)
+{
+	spin_lock_bh(&inet_peer_unused_lock);
+	if (atomic_dec_and_test(&p->refcnt)) {
+		p->unused_prevp = inet_peer_unused_tailp;
+		p->unused_next = NULL;
+		*inet_peer_unused_tailp = p;
+		inet_peer_unused_tailp = &p->unused_next;
+		p->dtime = (__u32)jiffies;
+	}
+	spin_unlock_bh(&inet_peer_unused_lock);
 }

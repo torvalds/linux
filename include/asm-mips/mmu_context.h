@@ -262,10 +262,10 @@ drop_mmu_context(struct mm_struct *mm, unsigned cpu)
 		/* See comments for similar code above */
 		prevvpe = dvpe();
 		oldasid = (read_c0_entryhi() & ASID_MASK);
-		if(smtc_live_asid[mytlb][oldasid]) {
-		  smtc_live_asid[mytlb][oldasid] &= ~(0x1 << cpu);
-		  if(smtc_live_asid[mytlb][oldasid] == 0)
-			smtc_flush_tlb_asid(oldasid);
+		if (smtc_live_asid[mytlb][oldasid]) {
+			smtc_live_asid[mytlb][oldasid] &= ~(0x1 << cpu);
+			if(smtc_live_asid[mytlb][oldasid] == 0)
+				smtc_flush_tlb_asid(oldasid);
 		}
 		/* See comments for similar code above */
 		write_c0_entryhi((read_c0_entryhi() & ~HW_ASID_MASK)

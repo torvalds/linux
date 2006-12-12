@@ -2,6 +2,10 @@
 #define _LINUX_CDEV_H
 #ifdef __KERNEL__
 
+#include <linux/kobject.h>
+#include <linux/kdev_t.h>
+#include <linux/list.h>
+
 struct cdev {
 	struct kobject kobj;
 	struct module *owner;
@@ -22,6 +26,8 @@ int cdev_add(struct cdev *, dev_t, unsigned);
 void cdev_del(struct cdev *);
 
 void cd_forget(struct inode *);
+
+extern struct backing_dev_info directly_mappable_cdev_bdi;
 
 #endif
 #endif

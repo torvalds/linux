@@ -37,7 +37,7 @@
 
 /* Interrupt handler */
 
-irqreturn_t emu10k1_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t emu10k1_interrupt(int irq, void *dev_id)
 {
 	struct emu10k1_card *card = (struct emu10k1_card *) dev_id;
 	u32 irqstatus, irqstatus_tmp;

@@ -15,7 +15,8 @@
 
 void show_dtlb_entry(unsigned int index)
 {
-	unsigned int tlbehi, tlbehi_save, tlbelo, mmucr, mmucr_save, flags;
+	unsigned int tlbehi, tlbehi_save, tlbelo, mmucr, mmucr_save;
+	unsigned long flags;
 
 	local_irq_save(flags);
 	mmucr_save = sysreg_read(MMUCR);
@@ -305,7 +306,8 @@ static void tlb_stop(struct seq_file *tlb, void *v)
 
 static int tlb_show(struct seq_file *tlb, void *v)
 {
-	unsigned int tlbehi, tlbehi_save, tlbelo, mmucr, mmucr_save, flags;
+	unsigned int tlbehi, tlbehi_save, tlbelo, mmucr, mmucr_save;
+	unsigned long flags;
 	unsigned long *index = v;
 
 	if (*index == 0)

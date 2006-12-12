@@ -28,7 +28,7 @@
 
 static DEFINE_SPINLOCK(afinfo_lock);
 
-struct nf_afinfo *nf_afinfo[NPROTO];
+struct nf_afinfo *nf_afinfo[NPROTO] __read_mostly;
 EXPORT_SYMBOL(nf_afinfo);
 
 int nf_register_afinfo(struct nf_afinfo *afinfo)
@@ -54,7 +54,7 @@ EXPORT_SYMBOL_GPL(nf_unregister_afinfo);
  * of skbuffs queued for userspace, and not deregister a hook unless
  * this is zero, but that sucks.  Now, we simply check when the
  * packets come back: if the hook is gone, the packet is discarded. */
-struct list_head nf_hooks[NPROTO][NF_MAX_HOOKS];
+struct list_head nf_hooks[NPROTO][NF_MAX_HOOKS] __read_mostly;
 EXPORT_SYMBOL(nf_hooks);
 static DEFINE_SPINLOCK(nf_hook_lock);
 
@@ -222,28 +222,21 @@ copy_skb:
 }
 EXPORT_SYMBOL(skb_make_writable);
 
-u_int16_t nf_csum_update(u_int32_t oldval, u_int32_t newval, u_int32_t csum)
+void nf_proto_csum_replace4(__sum16 *sum, struct sk_buff *skb,
+			    __be32 from, __be32 to, int pseudohdr)
 {
-	u_int32_t diff[] = { oldval, newval };
-
-	return csum_fold(csum_partial((char *)diff, sizeof(diff), ~csum));
-}
-EXPORT_SYMBOL(nf_csum_update);
-
-u_int16_t nf_proto_csum_update(struct sk_buff *skb,
-			       u_int32_t oldval, u_int32_t newval,
-			       u_int16_t csum, int pseudohdr)
-{
+	__be32 diff[] = { ~from, to };
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-		csum = nf_csum_update(oldval, newval, csum);
+		*sum = csum_fold(csum_partial((char *)diff, sizeof(diff),
+				~csum_unfold(*sum)));
 		if (skb->ip_summed == CHECKSUM_COMPLETE && pseudohdr)
-			skb->csum = nf_csum_update(oldval, newval, skb->csum);
+			skb->csum = ~csum_partial((char *)diff, sizeof(diff),
+						~skb->csum);
 	} else if (pseudohdr)
-		csum = ~nf_csum_update(oldval, newval, ~csum);
-
-	return csum;
+		*sum = ~csum_fold(csum_partial((char *)diff, sizeof(diff),
+				csum_unfold(*sum)));
 }
-EXPORT_SYMBOL(nf_proto_csum_update);
+EXPORT_SYMBOL(nf_proto_csum_replace4);
 
 /* This does not belong here, but locally generated errors need it if connection
    tracking in use: without this, connection may not be in hash table, and hence

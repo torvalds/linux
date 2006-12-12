@@ -45,7 +45,7 @@ static void ebsa110_unmask_irq(unsigned int irq)
 	__raw_writeb(1 << irq, IRQ_MSET);
 }
 
-static struct irqchip ebsa110_irq_chip = {
+static struct irq_chip ebsa110_irq_chip = {
 	.ack	= ebsa110_mask_irq,
 	.mask	= ebsa110_mask_irq,
 	.unmask = ebsa110_unmask_irq,
@@ -67,7 +67,7 @@ static void __init ebsa110_init_irq(void)
 
 	for (irq = 0; irq < NR_IRQS; irq++) {
 		set_irq_chip(irq, &ebsa110_irq_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 }
@@ -174,7 +174,7 @@ static unsigned long ebsa110_gettimeoffset(void)
 }
 
 static irqreturn_t
-ebsa110_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+ebsa110_timer_interrupt(int irq, void *dev_id)
 {
 	u32 count;
 
@@ -190,7 +190,7 @@ ebsa110_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	__raw_writeb(count & 0xff, PIT_T1);
 	__raw_writeb(count >> 8, PIT_T1);
 
-	timer_tick(regs);
+	timer_tick();
 
 	write_sequnlock(&xtime_lock);
 

@@ -135,6 +135,9 @@ int sctp_rcv(struct sk_buff *skb)
 
 	SCTP_INC_STATS_BH(SCTP_MIB_INSCTPPACKS);
 
+	if (skb_linearize(skb))
+		goto discard_it;
+
 	sh = (struct sctphdr *) skb->h.raw;
 
 	/* Pull up the IP and SCTP headers. */
@@ -216,12 +219,6 @@ int sctp_rcv(struct sk_buff *skb)
 			SCTP_INC_STATS_BH(SCTP_MIB_OUTOFBLUES);
 			goto discard_release;
 		}
-	}
-
-	/* SCTP seems to always need a timestamp right now (FIXME) */
-	if (skb->tstamp.off_sec == 0) {
-		__net_timestamp(skb);
-		sock_enable_timestamp(sk); 
 	}
 
 	if (!xfrm_policy_check(sk, XFRM_POLICY_IN, skb, family))
@@ -388,7 +385,7 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 			 * pmtu discovery on this transport.
 			 */
 			t->pathmtu = SCTP_DEFAULT_MINSEGMENT;
-			t->param_flags = (t->param_flags & ~SPP_HB) |
+			t->param_flags = (t->param_flags & ~SPP_PMTUD) |
 				SPP_PMTUD_DISABLE;
 		} else {
 			t->pathmtu = pmtu;
@@ -729,7 +726,7 @@ static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(const union sctp_addr *l
 	struct sctp_endpoint *ep;
 	int hash;
 
-	hash = sctp_ep_hashfn(laddr->v4.sin_port);
+	hash = sctp_ep_hashfn(ntohs(laddr->v4.sin_port));
 	head = &sctp_ep_hashtable[hash];
 	read_lock(&head->lock);
 	for (epb = head->chain; epb; epb = epb->next) {
@@ -774,6 +771,9 @@ static void __sctp_hash_established(struct sctp_association *asoc)
 /* Add an association to the hash. Local BH-safe. */
 void sctp_hash_established(struct sctp_association *asoc)
 {
+	if (asoc->temp)
+		return;
+
 	sctp_local_bh_disable();
 	__sctp_hash_established(asoc);
 	sctp_local_bh_enable();
@@ -807,6 +807,9 @@ static void __sctp_unhash_established(struct sctp_association *asoc)
 /* Remove association from the hash table.  Local BH-safe. */
 void sctp_unhash_established(struct sctp_association *asoc)
 {
+	if (asoc->temp)
+		return;
+
 	sctp_local_bh_disable();
 	__sctp_unhash_established(asoc);
 	sctp_local_bh_enable();
@@ -827,7 +830,7 @@ static struct sctp_association *__sctp_lookup_association(
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
-	hash = sctp_assoc_hashfn(local->v4.sin_port, peer->v4.sin_port);
+	hash = sctp_assoc_hashfn(ntohs(local->v4.sin_port), ntohs(peer->v4.sin_port));
 	head = &sctp_assoc_hashtable[hash];
 	read_lock(&head->lock);
 	for (epb = head->chain; epb; epb = epb->next) {
@@ -954,7 +957,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct sk_buff *skb,
 		if (!af)
 			continue;
 
-		af->from_addr_param(paddr, params.addr, ntohs(sh->source), 0);
+		af->from_addr_param(paddr, params.addr, sh->source, 0);
 
 		asoc = __sctp_lookup_association(laddr, paddr, &transport);
 		if (asoc)

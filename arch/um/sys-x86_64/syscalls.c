@@ -21,7 +21,7 @@ asmlinkage long sys_uname64(struct new_utsname __user * name)
 {
 	int err;
 	down_read(&uts_sem);
-	err = copy_to_user(name, &system_utsname, sizeof (*name));
+	err = copy_to_user(name, utsname(), sizeof (*name));
 	up_read(&uts_sem);
 	if (personality(current->personality) == PER_LINUX32)
 		err |= copy_to_user(&name->machine, "i686", 5);

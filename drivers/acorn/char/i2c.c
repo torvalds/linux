@@ -308,7 +308,6 @@ static struct i2c_algo_bit_data ioc_data = {
 	.getsda		= ioc_getsda,
 	.getscl		= ioc_getscl,
 	.udelay		= 80,
-	.mdelay		= 80,
 	.timeout	= 100
 };
 
@@ -361,7 +360,7 @@ static int __init i2c_ioc_init(void)
 	if (ret >= 0){
 		ret = misc_register(&rtc_dev);
 		if(ret < 0)
-			i2c_bit_del_bus(&ioc_ops);
+			i2c_del_adapter(&ioc_ops);
 	}
 
 	return ret;

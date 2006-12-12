@@ -222,13 +222,15 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 	u16 master_data;
 	u8 slave_data;
 	static DEFINE_SPINLOCK(tune_lock);
+	int control = 0;
 
 				 /* ISP  RTC */
-	u8 timings[][2]	= { { 0, 0 },
-			    { 0, 0 },
-			    { 1, 0 },
-			    { 2, 1 },
-			    { 2, 3 }, };
+	static const u8 timings[][2]= {
+					{ 0, 0 },
+					{ 0, 0 },
+					{ 1, 0 },
+					{ 2, 1 },
+					{ 2, 3 }, };
 
 	pio = ide_get_best_pio_mode(drive, pio, 5, NULL);
 
@@ -239,19 +241,30 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 	 */
 	spin_lock_irqsave(&tune_lock, flags);
 	pci_read_config_word(dev, master_port, &master_data);
+
+	if (pio >= 2)
+		control |= 1;	/* Programmable timing on */
+	if (drive->media == ide_disk)
+		control |= 4;	/* Prefetch, post write */
+	if (pio >= 3)
+		control |= 2;	/* IORDY */
 	if (is_slave) {
 		master_data = master_data | 0x4000;
-		if (pio > 1)
+		if (pio > 1) {
 			/* enable PPE, IE and TIME */
-			master_data = master_data | 0x0070;
+			master_data = master_data | (control << 4);
+		} else {
+			master_data &= ~0x0070;
+		}
 		pci_read_config_byte(dev, slave_port, &slave_data);
 		slave_data = slave_data & (hwif->channel ? 0x0f : 0xf0);
 		slave_data = slave_data | (((timings[pio][0] << 2) | timings[pio][1]) << (hwif->channel ? 4 : 0));
 	} else {
 		master_data = master_data & 0xccf8;
-		if (pio > 1)
+		if (pio > 1) {
 			/* enable PPE, IE and TIME */
-			master_data = master_data | 0x0007;
+			master_data = master_data | control;
+		}
 		master_data = master_data | (timings[pio][0] << 12) | (timings[pio][1] << 8);
 	}
 	pci_write_config_word(dev, master_port, master_data);
@@ -492,6 +505,10 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		/* This is a painful system best to let it self tune for now */
 		return;
 	}
+	/* ESB2 appears to generate spurious DMA interrupts in PIO mode
+	   when in native mode */
+	if (hwif->pci_dev->device == PCI_DEVICE_ID_INTEL_ESB2_18)
+		hwif->atapi_irq_bogon = 1;
 
 	hwif->autodma = 0;
 	hwif->tuneproc = &piix_tune_drive;
@@ -615,7 +632,7 @@ static void __devinit piix_check_450nx(void)
 	struct pci_dev *pdev = NULL;
 	u16 cfg;
 	u8 rev;
-	while((pdev=pci_find_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454NX, pdev))!=NULL)
+	while((pdev=pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454NX, pdev))!=NULL)
 	{
 		/* Look for 450NX PXB. Check for problem configurations
 		   A PCI quirk checks bit 6 already */

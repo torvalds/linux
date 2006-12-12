@@ -199,7 +199,7 @@ EXPORT_SYMBOL(deactivate_super);
  *	success, 0 if we had failed (superblock contents was already dead or
  *	dying when grab_super() had been called).
  */
-static int grab_super(struct super_block *s)
+static int grab_super(struct super_block *s) __releases(sb_lock)
 {
 	s->s_count++;
 	spin_unlock(&sb_lock);
@@ -220,6 +220,55 @@ static int grab_super(struct super_block *s)
 	return 0;
 }
 
+/*
+ * Superblock locking.  We really ought to get rid of these two.
+ */
+void lock_super(struct super_block * sb)
+{
+	get_fs_excl();
+	mutex_lock(&sb->s_lock);
+}
+
+void unlock_super(struct super_block * sb)
+{
+	put_fs_excl();
+	mutex_unlock(&sb->s_lock);
+}
+
+EXPORT_SYMBOL(lock_super);
+EXPORT_SYMBOL(unlock_super);
+
+/*
+ * Write out and wait upon all dirty data associated with this
+ * superblock.  Filesystem data as well as the underlying block
+ * device.  Takes the superblock lock.  Requires a second blkdev
+ * flush by the caller to complete the operation.
+ */
+void __fsync_super(struct super_block *sb)
+{
+	sync_inodes_sb(sb, 0);
+	DQUOT_SYNC(sb);
+	lock_super(sb);
+	if (sb->s_dirt && sb->s_op->write_super)
+		sb->s_op->write_super(sb);
+	unlock_super(sb);
+	if (sb->s_op->sync_fs)
+		sb->s_op->sync_fs(sb, 1);
+	sync_blockdev(sb->s_bdev);
+	sync_inodes_sb(sb, 1);
+}
+
+/*
+ * Write out and wait upon all dirty data associated with this
+ * superblock.  Filesystem data as well as the underlying block
+ * device.  Takes the superblock lock.
+ */
+int fsync_super(struct super_block *sb)
+{
+	__fsync_super(sb);
+	return sync_blockdev(sb->s_bdev);
+}
+
 /**
  *	generic_shutdown_super	-	common helper for ->kill_sb()
  *	@sb: superblock to kill
@@ -229,17 +278,17 @@ static int grab_super(struct super_block *s)
  *	that need destruction out of superblock, call generic_shutdown_super()
  *	and release aforementioned objects.  Note: dentries and inodes _are_
  *	taken care of and do not need specific handling.
+ *
+ *	Upon calling this function, the filesystem may no longer alter or
+ *	rearrange the set of dentries belonging to this super_block, nor may it
+ *	change the attachments of dentries to inodes.
  */
 void generic_shutdown_super(struct super_block *sb)
 {
-	struct dentry *root = sb->s_root;
 	struct super_operations *sop = sb->s_op;
 
-	if (root) {
-		sb->s_root = NULL;
-		shrink_dcache_parent(root);
-		shrink_dcache_sb(sb);
-		dput(root);
+	if (sb->s_root) {
+		shrink_dcache_for_umount(sb);
 		fsync_super(sb);
 		lock_super(sb);
 		sb->s_flags &= ~MS_ACTIVE;
@@ -521,7 +570,7 @@ static void mark_files_ro(struct super_block *sb)
 
 	file_list_lock();
 	list_for_each_entry(f, &sb->s_files, f_u.fu_list) {
-		if (S_ISREG(f->f_dentry->d_inode->i_mode) && file_count(f))
+		if (S_ISREG(f->f_path.dentry->d_inode->i_mode) && file_count(f))
 			f->f_mode &= ~FMODE_WRITE;
 	}
 	file_list_unlock();
@@ -540,8 +589,10 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 {
 	int retval;
 	
+#ifdef CONFIG_BLOCK
 	if (!(flags & MS_RDONLY) && bdev_read_only(sb->s_bdev))
 		return -EACCES;
+#endif
 	if (flags & MS_RDONLY)
 		acct_auto_close(sb);
 	shrink_dcache_sb(sb);
@@ -661,6 +712,7 @@ void kill_litter_super(struct super_block *sb)
 
 EXPORT_SYMBOL(kill_litter_super);
 
+#ifdef CONFIG_BLOCK
 static int set_bdev_super(struct super_block *s, void *data)
 {
 	s->s_bdev = data;
@@ -756,6 +808,7 @@ void kill_block_super(struct super_block *sb)
 }
 
 EXPORT_SYMBOL(kill_block_super);
+#endif
 
 int get_sb_nodev(struct file_system_type *fs_type,
 	int flags, void *data,

@@ -5,14 +5,26 @@ config VIDEO_PVRUSB2
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_CX2341X
-	select VIDEO_SAA711X
-	select VIDEO_MSP3400
 	---help---
 	  This is a video4linux driver for Conexant 23416 based
 	  usb2 personal video recorder devices.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pvrusb2
+
+config VIDEO_PVRUSB2_29XXX
+	bool "Hauppauge WinTV-PVR USB2 support for 29xxx model series"
+	depends on VIDEO_PVRUSB2 && EXPERIMENTAL
+	select VIDEO_SAA711X
+	select VIDEO_MSP3400
+	---help---
+	  This option enables support for WinTV-PVR USB2 devices whose
+	  model number is of the form "29xxx" (leading prefix of "29"
+	  followed by 3 digits).
+	  To see if you may need this option, examine the white
+	  sticker on the underside of your device.
+
+	  If you are in doubt, say Y.
 
 config VIDEO_PVRUSB2_24XXX
 	bool "Hauppauge WinTV-PVR USB2 support for 24xxx model series"
@@ -25,14 +37,9 @@ config VIDEO_PVRUSB2_24XXX
 	  form "24xxx" (leading prefix of "24" followed by 3 digits).
 	  To see if you may need this option, examine the white
 	  sticker on the underside of your device.  Enabling this
-	  option will not harm support for older devices, however it
-	  is a separate option because of the experimental nature of
-	  this new feature.
+	  option will not harm support for older devices.
 
-	  If you are in doubt, say N.
-
-	  Note: This feature is _very_ experimental.  You have been
-	  warned.
+	  If you are in doubt, say Y.
 
 config VIDEO_PVRUSB2_SYSFS
 	bool "pvrusb2 sysfs support (EXPERIMENTAL)"
@@ -60,3 +67,5 @@ config VIDEO_PVRUSB2_DEBUGIFC
 	  You do not need to select this option unless you plan
 	  on debugging the driver or performing a manual firmware
 	  extraction.
+
+	  If you are in doubt, say N.

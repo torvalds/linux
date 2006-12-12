@@ -8,14 +8,14 @@
  *                      Universite Pierre et Marie Curie (Paris VI)
  *  from
  *  linux/fs/minix/truncate.c   Copyright (C) 1991, 1992  Linus Torvalds
- * 
+ *
  *  ext3fs fsync primitive
  *
  *  Big-endian to little-endian byte-swapping/bitmaps by
  *        David S. Miller (davem@caip.rutgers.edu), 1995
- * 
+ *
  *  Removed unnecessary code duplication for little endian machines
- *  and excessive __inline__s. 
+ *  and excessive __inline__s.
  *        Andi Kleen, 1997
  *
  * Major simplications and cleanup - we only need to do the metadata, because

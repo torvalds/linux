@@ -5,7 +5,7 @@
 
 #include "linux/module.h"
 
-extern void __bb_init_func(void *);
+extern void __bb_init_func(void *)  __attribute__((weak));
 EXPORT_SYMBOL(__bb_init_func);
 
 /* This is defined (and referred to in profiling stub code) only by some GCC
@@ -21,14 +21,3 @@ EXPORT_SYMBOL(__gcov_init);
 
 extern void __gcov_merge_add(void *) __attribute__((weak));
 EXPORT_SYMBOL(__gcov_merge_add);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

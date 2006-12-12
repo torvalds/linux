@@ -23,6 +23,10 @@
 #include <linux/ptrace.h>
 #include <linux/signal.h>
 #include <linux/capability.h>
+#include <linux/freezer.h>
+#include <linux/pid_namespace.h>
+#include <linux/nsproxy.h>
+
 #include <asm/param.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -33,7 +37,7 @@
  * SLAB caches for signal bits.
  */
 
-static kmem_cache_t *sigqueue_cachep;
+static struct kmem_cache *sigqueue_cachep;
 
 /*
  * In POSIX a signal is sent either to a specific thread (Linux task)
@@ -267,18 +271,25 @@ static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 					 int override_rlimit)
 {
 	struct sigqueue *q = NULL;
+	struct user_struct *user;
 
-	atomic_inc(&t->user->sigpending);
+	/*
+	 * In order to avoid problems with "switch_user()", we want to make
+	 * sure that the compiler doesn't re-load "t->user"
+	 */
+	user = t->user;
+	barrier();
+	atomic_inc(&user->sigpending);
 	if (override_rlimit ||
-	    atomic_read(&t->user->sigpending) <=
+	    atomic_read(&user->sigpending) <=
 			t->signal->rlim[RLIMIT_SIGPENDING].rlim_cur)
 		q = kmem_cache_alloc(sigqueue_cachep, flags);
 	if (unlikely(q == NULL)) {
-		atomic_dec(&t->user->sigpending);
+		atomic_dec(&user->sigpending);
 	} else {
 		INIT_LIST_HEAD(&q->list);
 		q->flags = 0;
-		q->user = get_uid(t->user);
+		q->user = get_uid(user);
 	}
 	return(q);
 }
@@ -417,9 +428,8 @@ static int collect_signal(int sig, struct sigpending *list, siginfo_t *info)
 static int __dequeue_signal(struct sigpending *pending, sigset_t *mask,
 			siginfo_t *info)
 {
-	int sig = 0;
+	int sig = next_signal(pending, mask);
 
-	sig = next_signal(pending, mask);
 	if (sig) {
 		if (current->notifier) {
 			if (sigismember(current->notifier_mask, sig)) {
@@ -432,9 +442,7 @@ static int __dequeue_signal(struct sigpending *pending, sigset_t *mask,
 
 		if (!collect_signal(sig, pending, info))
 			sig = 0;
-				
 	}
-	recalc_sigpending();
 
 	return sig;
 }
@@ -451,6 +459,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 	if (!signr)
 		signr = __dequeue_signal(&tsk->signal->shared_pending,
 					 mask, info);
+	recalc_sigpending_tsk(tsk);
  	if (signr && unlikely(sig_kernel_stop(signr))) {
  		/*
  		 * Set a marker that we have dequeued a stop signal.  Our
@@ -577,7 +586,7 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	error = -EPERM;
 	if ((info == SEND_SIG_NOINFO || (!is_si_special(info) && SI_FROMUSER(info)))
 	    && ((sig != SIGCONT) ||
-		(current->signal->session != t->signal->session))
+		(process_session(current) != process_session(t)))
 	    && (current->euid ^ t->suid) && (current->euid ^ t->uid)
 	    && (current->uid ^ t->suid) && (current->uid ^ t->uid)
 	    && !capable(CAP_KILL))
@@ -1057,26 +1066,42 @@ int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 }
 
 /*
- * kill_pg_info() sends a signal to a process group: this is what the tty
+ * kill_pgrp_info() sends a signal to a process group: this is what the tty
  * control characters do (^C, ^Z etc)
  */
 
-int __kill_pg_info(int sig, struct siginfo *info, pid_t pgrp)
+int __kill_pgrp_info(int sig, struct siginfo *info, struct pid *pgrp)
 {
 	struct task_struct *p = NULL;
 	int retval, success;
 
-	if (pgrp <= 0)
-		return -EINVAL;
-
 	success = 0;
 	retval = -ESRCH;
-	do_each_task_pid(pgrp, PIDTYPE_PGID, p) {
+	do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
 		int err = group_send_sig_info(sig, info, p);
 		success |= !err;
 		retval = err;
-	} while_each_task_pid(pgrp, PIDTYPE_PGID, p);
+	} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
 	return success ? 0 : retval;
+}
+
+int kill_pgrp_info(int sig, struct siginfo *info, struct pid *pgrp)
+{
+	int retval;
+
+	read_lock(&tasklist_lock);
+	retval = __kill_pgrp_info(sig, info, pgrp);
+	read_unlock(&tasklist_lock);
+
+	return retval;
+}
+
+int __kill_pg_info(int sig, struct siginfo *info, pid_t pgrp)
+{
+	if (pgrp <= 0)
+		return -EINVAL;
+
+	return __kill_pgrp_info(sig, info, find_pid(pgrp));
 }
 
 int
@@ -1091,8 +1116,7 @@ kill_pg_info(int sig, struct siginfo *info, pid_t pgrp)
 	return retval;
 }
 
-int
-kill_proc_info(int sig, struct siginfo *info, pid_t pid)
+int kill_pid_info(int sig, struct siginfo *info, struct pid *pid)
 {
 	int error;
 	int acquired_tasklist_lock = 0;
@@ -1103,7 +1127,7 @@ kill_proc_info(int sig, struct siginfo *info, pid_t pid)
 		read_lock(&tasklist_lock);
 		acquired_tasklist_lock = 1;
 	}
-	p = find_task_by_pid(pid);
+	p = pid_task(pid, PIDTYPE_PID);
 	error = -ESRCH;
 	if (p)
 		error = group_send_sig_info(sig, info, p);
@@ -1113,8 +1137,17 @@ kill_proc_info(int sig, struct siginfo *info, pid_t pid)
 	return error;
 }
 
-/* like kill_proc_info(), but doesn't use uid/euid of "current" */
-int kill_proc_info_as_uid(int sig, struct siginfo *info, pid_t pid,
+static int kill_proc_info(int sig, struct siginfo *info, pid_t pid)
+{
+	int error;
+	rcu_read_lock();
+	error = kill_pid_info(sig, info, find_pid(pid));
+	rcu_read_unlock();
+	return error;
+}
+
+/* like kill_pid_info(), but doesn't use uid/euid of "current" */
+int kill_pid_info_as_uid(int sig, struct siginfo *info, struct pid *pid,
 		      uid_t uid, uid_t euid, u32 secid)
 {
 	int ret = -EINVAL;
@@ -1124,7 +1157,7 @@ int kill_proc_info_as_uid(int sig, struct siginfo *info, pid_t pid,
 		return ret;
 
 	read_lock(&tasklist_lock);
-	p = find_task_by_pid(pid);
+	p = pid_task(pid, PIDTYPE_PID);
 	if (!p) {
 		ret = -ESRCH;
 		goto out_unlock;
@@ -1148,7 +1181,7 @@ out_unlock:
 	read_unlock(&tasklist_lock);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(kill_proc_info_as_uid);
+EXPORT_SYMBOL_GPL(kill_pid_info_as_uid);
 
 /*
  * kill_something_info() interprets pid in interesting ways just like kill(2).
@@ -1265,6 +1298,18 @@ force_sigsegv(int sig, struct task_struct *p)
 	force_sig(SIGSEGV, p);
 	return 0;
 }
+
+int kill_pgrp(struct pid *pid, int sig, int priv)
+{
+	return kill_pgrp_info(sig, __si_special(priv), pid);
+}
+EXPORT_SYMBOL(kill_pgrp);
+
+int kill_pid(struct pid *pid, int sig, int priv)
+{
+	return kill_pid_info(sig, __si_special(priv), pid);
+}
+EXPORT_SYMBOL(kill_pid);
 
 int
 kill_pg(pid_t pgrp, int sig, int priv)
@@ -1835,8 +1880,12 @@ relock:
 		if (sig_kernel_ignore(signr)) /* Default is nothing. */
 			continue;
 
-		/* Init gets no signals it doesn't want.  */
-		if (current == child_reaper)
+		/*
+		 * Init of a pid space gets no signals it doesn't want from
+		 * within that pid space. It can of course get signals from
+		 * its parent pid space.
+		 */
+		if (current == child_reaper(current))
 			continue;
 
 		if (sig_kernel_stop(signr)) {
@@ -2576,6 +2625,11 @@ asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize)
 	return -ERESTARTNOHAND;
 }
 #endif /* __ARCH_WANT_SYS_RT_SIGSUSPEND */
+
+__attribute__((weak)) const char *arch_vma_name(struct vm_area_struct *vma)
+{
+	return NULL;
+}
 
 void __init signals_init(void)
 {

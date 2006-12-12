@@ -16,8 +16,5 @@ EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -Idrivers/media/dvb/frontends
 
 extra-cflags-$(CONFIG_VIDEO_BUF_DVB) += -DHAVE_VIDEO_BUF_DVB=1
-extra-cflags-$(CONFIG_DVB_MT352)     += -DHAVE_MT352=1
-extra-cflags-$(CONFIG_DVB_TDA1004X)  += -DHAVE_TDA1004X=1
-extra-cflags-$(CONFIG_DVB_NXT200X)   += -DHAVE_NXT200X=1
 
 EXTRA_CFLAGS += $(extra-cflags-y) $(extra-cflags-m)

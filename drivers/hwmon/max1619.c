@@ -34,6 +34,7 @@
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/sysfs.h>
 
 static unsigned short normal_i2c[] = { 0x18, 0x19, 0x1a,
 					0x29, 0x2a, 0x2b,
@@ -172,6 +173,22 @@ static DEVICE_ATTR(temp2_crit_hyst, S_IWUSR | S_IRUGO, show_temp_hyst2,
 	set_temp_hyst2);
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
+static struct attribute *max1619_attributes[] = {
+	&dev_attr_temp1_input.attr,
+	&dev_attr_temp2_input.attr,
+	&dev_attr_temp2_min.attr,
+	&dev_attr_temp2_max.attr,
+	&dev_attr_temp2_crit.attr,
+	&dev_attr_temp2_crit_hyst.attr,
+
+	&dev_attr_alarms.attr,
+	NULL
+};
+
+static const struct attribute_group max1619_group = {
+	.attrs = max1619_attributes,
+};
+
 /*
  * Real code
  */
@@ -273,22 +290,19 @@ static int max1619_detect(struct i2c_adapter *adapter, int address, int kind)
 	max1619_init_client(new_client);
 
 	/* Register sysfs hooks */
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &max1619_group)))
+		goto exit_detach;
+
 	data->class_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
-		goto exit_detach;
+		goto exit_remove_files;
 	}
-
-	device_create_file(&new_client->dev, &dev_attr_temp1_input);
-	device_create_file(&new_client->dev, &dev_attr_temp2_input);
-	device_create_file(&new_client->dev, &dev_attr_temp2_min);
-	device_create_file(&new_client->dev, &dev_attr_temp2_max);
-	device_create_file(&new_client->dev, &dev_attr_temp2_crit);
-	device_create_file(&new_client->dev, &dev_attr_temp2_crit_hyst);
-	device_create_file(&new_client->dev, &dev_attr_alarms);
 
 	return 0;
 
+exit_remove_files:
+	sysfs_remove_group(&new_client->dev.kobj, &max1619_group);
 exit_detach:
 	i2c_detach_client(new_client);
 exit_free:
@@ -318,6 +332,7 @@ static int max1619_detach_client(struct i2c_client *client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &max1619_group);
 
 	if ((err = i2c_detach_client(client)))
 		return err;

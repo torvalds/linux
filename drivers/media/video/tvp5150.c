@@ -294,7 +294,7 @@ static inline void tvp5150_selmux(struct i2c_client *c)
 	if ((decoder->route.output & TVP5150_BLACK_SCREEN) || !decoder->enable)
 		input = 8;
 
-	switch (input) {
+	switch (decoder->route.input) {
 	case TVP5150_COMPOSITE1:
 		input |= 2;
 		/* fall through */
@@ -307,6 +307,11 @@ static inline void tvp5150_selmux(struct i2c_client *c)
 		opmode=0;		/* Auto Mode */
 		break;
 	}
+
+	tvp5150_dbg( 1, "Selecting video route: route input=%i, output=%i "
+			"=> tvp5150 input=%i, opmode=%i\n",
+			decoder->route.input,decoder->route.output,
+			input, opmode );
 
 	tvp5150_write(c, TVP5150_OP_MODE_CTL, opmode);
 	tvp5150_write(c, TVP5150_VD_IN_SRC_SEL_1, input);

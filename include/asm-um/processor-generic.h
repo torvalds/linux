@@ -13,6 +13,7 @@ struct task_struct;
 #include "asm/ptrace.h"
 #include "choose-mode.h"
 #include "registers.h"
+#include "sysdep/archsetjmp.h"
 
 struct mm_struct;
 
@@ -43,8 +44,7 @@ struct thread_struct {
 #endif
 #ifdef CONFIG_MODE_SKAS
 		struct {
-			void *switch_buf;
-			void *fork_buf;
+			jmp_buf switch_buf;
 			int mm_count;
 		} skas;
 #endif
@@ -138,7 +138,7 @@ extern struct cpuinfo_um cpu_data[];
 
 #ifdef CONFIG_MODE_SKAS
 #define KSTK_REG(tsk, reg) \
-	get_thread_reg(reg, tsk->thread.mode.skas.switch_buf)
+	get_thread_reg(reg, &tsk->thread.mode.skas.switch_buf)
 #else
 #define KSTK_REG(tsk, reg) (0xbadbabe)
 #endif

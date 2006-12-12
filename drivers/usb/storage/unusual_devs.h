@@ -55,7 +55,8 @@ UNUSUAL_DEV(  0x03eb, 0x2002, 0x0100, 0x0100,
                 US_SC_DEVICE, US_PR_DEVICE, NULL,
                 US_FL_IGNORE_RESIDUE),
 
-UNUSUAL_DEV(  0x03ee, 0x6901, 0x0000, 0x0100,
+/* modified by Tobias Lorenz <tobias.lorenz@gmx.net> */
+UNUSUAL_DEV(  0x03ee, 0x6901, 0x0000, 0x0200,
 		"Mitsumi",
 		"USB FDD",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -152,6 +153,13 @@ UNUSUAL_DEV(  0x0421, 0x042e, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
 
+/* Reported by Jon Hart <Jon.Hart@web.de> */
+UNUSUAL_DEV(  0x0421, 0x0434, 0x0100, 0x0100,
+		"Nokia",
+		"E60",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
+
 /* Reported by Sumedha Swamy <sumedhaswamy@gmail.com> and
  * Einar Th. Einarsson <einarthered@gmail.com> */
 UNUSUAL_DEV(  0x0421, 0x0444, 0x0100, 0x0100,
@@ -174,6 +182,20 @@ UNUSUAL_DEV(  0x0421, 0x044e, 0x0100, 0x0100,
 		"E61",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+
+/* Reported by Bardur Arantsson <bardur@scientician.net> */
+UNUSUAL_DEV(  0x0421, 0x047c, 0x0370, 0x0370,
+		"Nokia",
+		"6131",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64 ),
+
+/* Reported by Alex Corcoles <alex@corcoles.net> */
+UNUSUAL_DEV(  0x0421, 0x0495, 0x0370, 0x0370,
+		"Nokia",
+		"6234",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64 ),
 
 /* Reported by Olaf Hering <olh@suse.de> from novell bug #105878 */
 UNUSUAL_DEV(  0x0424, 0x0fdc, 0x0210, 0x0210,
@@ -218,10 +240,12 @@ UNUSUAL_DEV(  0x0457, 0x0151, 0x0100, 0x0100,
                 US_SC_DEVICE, US_PR_DEVICE, NULL,
                 US_FL_NOT_LOCKABLE ),
 
+#ifdef CONFIG_USB_STORAGE_KARMA
 UNUSUAL_DEV(  0x045a, 0x5210, 0x0101, 0x0101,
 		"Rio",
 		"Rio Karma",
-		US_SC_SCSI, US_PR_BULK, rio_karma_init, 0),
+		US_SC_SCSI, US_PR_KARMA, rio_karma_init, 0),
+#endif
 
 /* Patch submitted by Philipp Friedrich <philipp@void.at> */
 UNUSUAL_DEV(  0x0482, 0x0100, 0x0100, 0x0100,
@@ -630,6 +654,13 @@ UNUSUAL_DEV(  0x0595, 0x4343, 0x0000, 0x2210,
 		"Fujifilm",
 		"Digital Camera EX-20 DSC",
 		US_SC_8070, US_PR_DEVICE, NULL, 0 ),
+
+/* Reported by <Hendryk.Pfeiffer@gmx.de> */
+UNUSUAL_DEV(  0x059f, 0x0643, 0x0000, 0x0000,
+		"LaCie",
+		"DVD+-RW",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_GO_SLOW ),
 
 /* Submitted by Joel Bourquard <numlock@freesurf.ch>
  * Some versions of this device need the SubClass and Protocol overrides
@@ -1205,7 +1236,7 @@ UNUSUAL_DEV( 0x0e21, 0x0520, 0x0100, 0x0100,
 		"Cowon Systems",
 		"iAUDIO M5",
 		US_SC_DEVICE, US_PR_BULK, NULL,
-		0 ),
+		US_FL_NEED_OVERRIDE ),
 
 /* Submitted by Antoine Mairesse <antoine.mairesse@free.fr> */
 UNUSUAL_DEV( 0x0ed1, 0x6660, 0x0100, 0x0300,
@@ -1254,6 +1285,13 @@ UNUSUAL_DEV(  0x0fce, 0xd008, 0x0000, 0x0000,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_NO_WP_DETECT ),
 
+/* Reported by Jan Mate <mate@fiit.stuba.sk> */
+UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
+		"Sony Ericsson",
+		"P990i",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 /* Reported by Emmanuel Vasilakis <evas@forthnet.gr> */
 UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,
 		"Sony Ericsson",
@@ -1261,15 +1299,34 @@ UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Reported by Jan Mate <mate@fiit.stuba.sk> */
+UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
+		"Sony Ericsson",
+		"P990i",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 /* Reported by Kevin Cernekee <kpc-usbdev@gelato.uiuc.edu>
  * Tested on hardware version 1.10.
  * Entry is needed only for the initializer function override.
+ * Devices with bcd > 110 seem to not need it while those
+ * with bcd < 110 appear to need it.
  */
-UNUSUAL_DEV(  0x1019, 0x0c55, 0x0110, 0x0110,
+UNUSUAL_DEV(  0x1019, 0x0c55, 0x0000, 0x0110,
 		"Desknote",
 		"UCR-61S2B",
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_ucr61s2b_init,
 		0 ),
+
+/* Reported by Jaco Kroon <jaco@kroon.co.za>
+ * The usb-storage module found on the Digitech GNX4 (and supposedly other
+ * devices) misbehaves and causes a bunch of invalid I/O errors.
+ */
+UNUSUAL_DEV(  0x1210, 0x0003, 0x0100, 0x0100,
+		"Digitech HMG",
+		"DigiTech Mass Storage",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
 
 /* Reported by Vilius Bilinkevicius <vilisas AT xxx DOT lt) */
 UNUSUAL_DEV(  0x132b, 0x000b, 0x0001, 0x0001,

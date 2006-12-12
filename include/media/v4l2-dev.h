@@ -9,7 +9,8 @@
 #ifndef _V4L2_DEV_H
 #define _V4L2_DEV_H
 
-#define OBSOLETE_OWNER 1 /* to be removed soon */
+#define OBSOLETE_OWNER   1 /* to be removed soon */
+#define OBSOLETE_DEVDATA 1 /* to be removed soon */
 
 #include <linux/poll.h>
 #include <linux/fs.h>
@@ -42,6 +43,7 @@
 
 /*  Video standard functions  */
 extern unsigned int v4l2_video_std_fps(struct v4l2_standard *vs);
+extern char *v4l2_norm_to_name(v4l2_std_id id);
 extern int v4l2_video_std_construct(struct v4l2_standard *vs,
 				    int id, char *name);
 
@@ -80,12 +82,6 @@ extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
  * 	This version moves redundant code from video device code to
  *	the common handler
  */
-struct v4l2_tvnorm {
-	char          *name;
-	v4l2_std_id   id;
-
-	void          *priv_data;
-};
 
 struct video_device
 {
@@ -103,9 +99,8 @@ struct video_device
 	int debug;	/* Activates debug level*/
 
 	/* Video standard vars */
-	int tvnormsize;	/* Size of tvnorm array */
-	v4l2_std_id current_norm; /* Current tvnorm */
-	struct v4l2_tvnorm *tvnorms;
+	v4l2_std_id tvnorms;		/* Supported tv norms */
+	v4l2_std_id current_norm;	/* Current tvnorm */
 
 	/* callbacks */
 	void (*release)(struct video_device *vfd);
@@ -210,7 +205,7 @@ struct video_device
 		/* Standard handling
 			G_STD and ENUMSTD are handled by videodev.c
 		 */
-	int (*vidioc_s_std)    (struct file *file, void *fh, v4l2_std_id a);
+	int (*vidioc_s_std) (struct file *file, void *fh, v4l2_std_id *norm);
 	int (*vidioc_querystd) (struct file *file, void *fh, v4l2_std_id *a);
 
 		/* Input handling */
@@ -338,8 +333,6 @@ extern int video_usercopy(struct inode *inode, struct file *file,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 #include <linux/mm.h>
 
-extern struct video_device* video_devdata(struct file*);
-
 #define to_video_device(cd) container_of(cd, struct video_device, class_dev)
 static inline int __must_check
 video_device_create_file(struct video_device *vfd,
@@ -370,9 +363,14 @@ static inline void video_set_drvdata(struct video_device *dev, void *data)
 {
 	dev->priv = data;
 }
+
 #endif
 
+#ifdef OBSOLETE_DEVDATA /* to be removed soon */
+/* Obsolete stuff - Still needed for radio devices and obsolete drivers */
+extern struct video_device* video_devdata(struct file*);
 extern int video_exclusive_open(struct inode *inode, struct file *file);
 extern int video_exclusive_release(struct inode *inode, struct file *file);
+#endif
 
 #endif /* _V4L2_DEV_H */

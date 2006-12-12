@@ -18,6 +18,7 @@
 #include "sigio.h"
 #include "irq_user.h"
 #include "os.h"
+#include "um_malloc.h"
 
 static struct pollfd *pollfds = NULL;
 static int pollfds_num = 0;

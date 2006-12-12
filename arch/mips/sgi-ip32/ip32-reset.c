@@ -120,7 +120,7 @@ static inline void ip32_power_button(void)
 	if (has_panicked)
 		return;
 
-	if (shuting_down || kill_proc(1, SIGINT, 1)) {
+	if (shuting_down || kill_cad_pid(SIGINT, 1)) {
 		/* No init process or button pressed twice.  */
 		ip32_machine_power_off();
 	}
@@ -135,7 +135,7 @@ static inline void ip32_power_button(void)
 	add_timer(&power_timer);
 }
 
-static irqreturn_t ip32_rtc_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ip32_rtc_int(int irq, void *dev_id)
 {
 	volatile unsigned char reg_c;
 

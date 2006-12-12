@@ -1,5 +1,5 @@
 /*
- * arch/arch/mach-ixp4xx/coyote-pci.c
+ * arch/arm/mach-ixp4xx/coyote-pci.c
  *
  * PCI setup routines for ADI Engineering Coyote platform
  *

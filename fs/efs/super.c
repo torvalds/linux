@@ -52,12 +52,12 @@ static struct pt_types sgi_pt_types[] = {
 };
 
 
-static kmem_cache_t * efs_inode_cachep;
+static struct kmem_cache * efs_inode_cachep;
 
 static struct inode *efs_alloc_inode(struct super_block *sb)
 {
 	struct efs_inode_info *ei;
-	ei = (struct efs_inode_info *)kmem_cache_alloc(efs_inode_cachep, SLAB_KERNEL);
+	ei = (struct efs_inode_info *)kmem_cache_alloc(efs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -68,7 +68,7 @@ static void efs_destroy_inode(struct inode *inode)
 	kmem_cache_free(efs_inode_cachep, INODE_INFO(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct efs_inode_info *ei = (struct efs_inode_info *) foo;
 
@@ -90,8 +90,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(efs_inode_cachep))
-		printk(KERN_INFO "efs_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(efs_inode_cachep);
 }
 
 static void efs_put_super(struct super_block *s)
@@ -248,11 +247,10 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	struct buffer_head *bh;
 	struct inode *root;
 
- 	sb = kmalloc(sizeof(struct efs_sb_info), GFP_KERNEL);
+ 	sb = kzalloc(sizeof(struct efs_sb_info), GFP_KERNEL);
 	if (!sb)
 		return -ENOMEM;
 	s->s_fs_info = sb;
-	memset(sb, 0, sizeof(struct efs_sb_info));
  
 	s->s_magic		= EFS_SUPER_MAGIC;
 	if (!sb_set_blocksize(s, EFS_BLOCKSIZE)) {

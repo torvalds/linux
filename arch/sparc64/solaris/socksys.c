@@ -96,13 +96,13 @@ static int socksys_open(struct inode * inode, struct file * filp)
 	 * No shit.  WTF is it supposed to do, anyway?
 	 *
 	 * Try instead:
-	 * d_delete(filp->f_dentry), then d_instantiate with sock inode
+	 * d_delete(filp->f_path.dentry), then d_instantiate with sock inode
 	 */
-	dentry = filp->f_dentry;
-	filp->f_dentry = dget(fcheck(fd)->f_dentry);
-	filp->f_dentry->d_inode->i_rdev = inode->i_rdev;
-	filp->f_dentry->d_inode->i_flock = inode->i_flock;
-	SOCKET_I(filp->f_dentry->d_inode)->file = filp;
+	dentry = filp->f_path.dentry;
+	filp->f_path.dentry = dget(fcheck(fd)->f_path.dentry);
+	filp->f_path.dentry->d_inode->i_rdev = inode->i_rdev;
+	filp->f_path.dentry->d_inode->i_flock = inode->i_flock;
+	SOCKET_I(filp->f_path.dentry->d_inode)->file = filp;
 	filp->f_op = &socksys_file_ops;
         sock = (struct sol_socket_struct*) 
         	mykmalloc(sizeof(struct sol_socket_struct), GFP_KERNEL);
@@ -148,7 +148,7 @@ static unsigned int socksys_poll(struct file * filp, poll_table * wait)
 	struct inode *ino;
 	unsigned int mask = 0;
 
-	ino=filp->f_dentry->d_inode;
+	ino=filp->f_path.dentry->d_inode;
 	if (ino && S_ISSOCK(ino->i_mode)) {
 		struct sol_socket_struct *sock;
 		sock = (struct sol_socket_struct*)filp->private_data;

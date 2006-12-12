@@ -20,7 +20,7 @@ Parameters
 ----------
 The driver uses the settings from the EEPROM set in the SCSI BIOS 
 setup. If there is no EEPROM, the driver uses default values.
-Both can be overriden by command line parameters (module or kernel
+Both can be overridden by command line parameters (module or kernel
 parameters).
 
 The following parameters are available:

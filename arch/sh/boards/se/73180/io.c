@@ -99,6 +99,7 @@ bad_outb(struct iop *p, unsigned char value, unsigned long port)
 	badio(inw, port);
 }
 
+#ifdef CONFIG_SMC91X
 /* MSTLANEX01 LAN at 0xb400:0000 */
 static struct iop laniop = {
 	.start = 0x300,
@@ -110,6 +111,7 @@ static struct iop laniop = {
 	.outb = simple_outb,
 	.outw = simple_outw,
 };
+#endif
 
 /* NE2000 pc card NIC */
 static struct iop neiop = {
@@ -123,6 +125,7 @@ static struct iop neiop = {
 	.outw = simple_outw,
 };
 
+#ifdef CONFIG_IDE
 /* CF in CF slot */
 static struct iop cfiop = {
 	.base = 0xb0600000,
@@ -132,12 +135,13 @@ static struct iop cfiop = {
 	.outb = pcc_outb,
 	.outw = simple_outw,
 };
+#endif
 
 static __inline__ struct iop *
 port2iop(unsigned long port)
 {
 	if (0) ;
-#if defined(CONFIG_SMC91111)
+#if defined(CONFIG_SMC91X)
 	else if (laniop.check(&laniop, port))
 		return &laniop;
 #endif

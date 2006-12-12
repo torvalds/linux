@@ -375,7 +375,7 @@ static void cw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	ops->cursor_reset = 0;
 }
 
-int cw_update_start(struct fb_info *info)
+static int cw_update_start(struct fb_info *info)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
 	u32 vxres = GETVXRES(ops->p->scrollmode, info);

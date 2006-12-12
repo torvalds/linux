@@ -13,7 +13,7 @@ hostprogs-$(CONFIG_VT)           += conmakehash
 hostprogs-$(CONFIG_PROM_CONSOLE) += conmakehash
 hostprogs-$(CONFIG_IKCONFIG)     += bin2c
 
-always		:= $(hostprogs-y)
+always		:= $(hostprogs-y) $(hostprogs-m)
 
 # The following hostprogs-y programs are only build on demand
 hostprogs-y += unifdef

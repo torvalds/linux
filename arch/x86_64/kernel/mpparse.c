@@ -35,8 +35,6 @@
 int smp_found_config;
 unsigned int __initdata maxcpus = NR_CPUS;
 
-int acpi_found_madt;
-
 /*
  * Various Linux-internal data structures created from the
  * MP-table.
@@ -152,6 +150,21 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 	}
 }
 
+static int bad_ioapic(unsigned long address)
+{
+	if (nr_ioapics >= MAX_IO_APICS) {
+		printk(KERN_ERR "ERROR: Max # of I/O APICs (%d) exceeded "
+			"(found %d)\n", MAX_IO_APICS, nr_ioapics);
+		panic("Recompile kernel with bigger MAX_IO_APICS!\n");
+	}
+	if (!address) {
+		printk(KERN_ERR "WARNING: Bogus (zero) I/O APIC address"
+			" found in table, skipping!\n");
+		return 1;
+	}
+	return 0;
+}
+
 static void __init MP_ioapic_info (struct mpc_config_ioapic *m)
 {
 	if (!(m->mpc_flags & MPC_APIC_USABLE))
@@ -159,16 +172,10 @@ static void __init MP_ioapic_info (struct mpc_config_ioapic *m)
 
 	printk("I/O APIC #%d at 0x%X.\n",
 		m->mpc_apicid, m->mpc_apicaddr);
-	if (nr_ioapics >= MAX_IO_APICS) {
-		printk(KERN_ERR "Max # of I/O APICs (%d) exceeded (found %d).\n",
-			MAX_IO_APICS, nr_ioapics);
-		panic("Recompile kernel with bigger MAX_IO_APICS!.\n");
-	}
-	if (!m->mpc_apicaddr) {
-		printk(KERN_ERR "WARNING: bogus zero I/O APIC address"
-			" found in MP table, skipping!\n");
+
+	if (bad_ioapic(m->mpc_apicaddr))
 		return;
-	}
+
 	mp_ioapics[nr_ioapics] = *m;
 	nr_ioapics++;
 }
@@ -647,16 +654,8 @@ void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 {
 	int idx = 0;
 
-	if (nr_ioapics >= MAX_IO_APICS) {
-		printk(KERN_ERR "ERROR: Max # of I/O APICs (%d) exceeded "
-			"(found %d)\n", MAX_IO_APICS, nr_ioapics);
-		panic("Recompile kernel with bigger MAX_IO_APICS!\n");
-	}
-	if (!address) {
-		printk(KERN_ERR "WARNING: Bogus (zero) I/O APIC address"
-			" found in MADT table, skipping!\n");
+	if (bad_ioapic(address))
 		return;
-	}
 
 	idx = nr_ioapics++;
 
@@ -789,20 +788,11 @@ void __init mp_config_acpi_legacy_irqs(void)
 	}
 }
 
-#define MAX_GSI_NUM	4096
-
 int mp_register_gsi(u32 gsi, int triggering, int polarity)
 {
 	int ioapic = -1;
 	int ioapic_pin = 0;
 	int idx, bit = 0;
-	static int pci_irq = 16;
-	/*
-	 * Mapping between Global System Interrupts, which
-	 * represent all possible interrupts, to the IRQs
-	 * assigned to actual devices.
-	 */
-	static int gsi_to_irq[MAX_GSI_NUM];
 
 	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
 		return gsi;
@@ -835,41 +825,10 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	if ((1<<bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
 		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
 			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
-		return gsi_to_irq[gsi];
+		return gsi;
 	}
 
 	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1<<bit);
-
-	if (triggering == ACPI_LEVEL_SENSITIVE) {
-		/*
-		 * For PCI devices assign IRQs in order, avoiding gaps
-		 * due to unused I/O APIC pins.
-		 */
-		int irq = gsi;
-		if (gsi < MAX_GSI_NUM) {
-			/*
-			 * Retain the VIA chipset work-around (gsi > 15), but
-			 * avoid a problem where the 8254 timer (IRQ0) is setup
-			 * via an override (so it's not on pin 0 of the ioapic),
-			 * and at the same time, the pin 0 interrupt is a PCI
-			 * type.  The gsi > 15 test could cause these two pins
-			 * to be shared as IRQ0, and they are not shareable.
-			 * So test for this condition, and if necessary, avoid
-			 * the pin collision.
-			 */
-			if (gsi > 15 || (gsi == 0 && !timer_uses_ioapic_pin_0))
-				gsi = pci_irq++;
-			/*
-			 * Don't assign IRQ used by ACPI SCI
-			 */
-			if (gsi == acpi_fadt.sci_int)
-				gsi = pci_irq++;
-			gsi_to_irq[irq] = gsi;
-		} else {
-			printk(KERN_ERR "GSI %u is too high\n", gsi);
-			return gsi;
-		}
-	}
 
 	io_apic_set_pci_routing(ioapic, ioapic_pin, gsi,
 		triggering == ACPI_EDGE_SENSITIVE ? 0 : 1,

@@ -30,6 +30,25 @@ static void putstr(const char *ptr);
 #include <asm/arch/uncompress.h>
 
 #ifdef CONFIG_DEBUG_ICEDCC
+
+#ifdef CONFIG_CPU_V6
+
+static void icedcc_putc(int ch)
+{
+	int status, i = 0x4000000;
+
+	do {
+		if (--i < 0)
+			return;
+
+		asm volatile ("mrc p14, 0, %0, c0, c1, 0" : "=r" (status));
+	} while (status & (1 << 29));
+
+	asm("mcr p14, 0, %0, c0, c5, 0" : : "r" (ch));
+}
+
+#else
+
 static void icedcc_putc(int ch)
 {
 	int status, i = 0x4000000;
@@ -43,6 +62,8 @@ static void icedcc_putc(int ch)
 
 	asm("mcr p14, 0, %0, c1, c0, 0" : : "r" (ch));
 }
+
+#endif
 
 #define putc(ch)	icedcc_putc(ch)
 #define flush()	do { } while (0)

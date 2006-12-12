@@ -11,13 +11,13 @@
 # this architecture
 
 # Core configuration.
-# (Use CPU=<xtensa_config> to use another default compiler.)
+# (Use VAR=<xtensa_config> to use another default compiler.)
 
-cpu-$(CONFIG_XTENSA_CPU_LINUX_BE)	:= linux_be
-cpu-$(CONFIG_XTENSA_CPU_LINUX_CUSTOM)	:= linux_custom
+variant-$(CONFIG_XTENSA_VARIANT_FSF)		:= fsf
+variant-$(CONFIG_XTENSA_VARIANT_LINUX_CUSTOM)	:= custom
 
-CPU = $(cpu-y)
-export CPU
+VARIANT = $(variant-y)
+export VARIANT
 
 # Platform configuration
 
@@ -27,8 +27,6 @@ platform-$(CONFIG_XTENSA_PLATFORM_ISS)		:= iss
 PLATFORM = $(platform-y)
 export PLATFORM
 
-CPPFLAGS	+= $(if $(KBUILD_SRC),-I$(srctree)/include/asm-xtensa/)
-CPPFLAGS	+= -Iinclude/asm
 CFLAGS		+= -pipe -mlongcalls
 
 KBUILD_DEFCONFIG := iss_defconfig
@@ -41,12 +39,12 @@ core-$(CONFIG_EMBEDDED_RAMDISK)	+= arch/xtensa/boot/ramdisk/
 
 # Test for cross compiling
 
-ifneq ($(CPU),)
+ifneq ($(VARIANT),)
   COMPILE_ARCH = $(shell uname -m)
 
   ifneq ($(COMPILE_ARCH), xtensa)
     ifndef CROSS_COMPILE
-      CROSS_COMPILE = xtensa_$(CPU)-
+      CROSS_COMPILE = xtensa_$(VARIANT)-
     endif
   endif
 endif
@@ -68,14 +66,13 @@ archinc		:= include/asm-xtensa
 
 archprepare: $(archinc)/.platform
 
-# Update machine cpu and platform symlinks if something which affects
+# Update processor variant and platform symlinks if something which affects
 # them changed.
 
 $(archinc)/.platform: $(wildcard include/config/arch/*.h) include/config/auto.conf
-	@echo '  SYMLINK $(archinc)/xtensa/config -> $(archinc)/xtensa/config-$(CPU)'
+	@echo '  SYMLINK $(archinc)/variant -> $(archinc)/variant-$(VARIANT)'
 	$(Q)mkdir -p $(archinc)
-	$(Q)mkdir -p $(archinc)/xtensa
-	$(Q)ln -fsn $(srctree)/$(archinc)/xtensa/config-$(CPU) $(archinc)/xtensa/config
+	$(Q)ln -fsn $(srctree)/$(archinc)/variant-$(VARIANT) $(archinc)/variant
 	@echo '  SYMLINK $(archinc)/platform -> $(archinc)/platform-$(PLATFORM)'
 	$(Q)ln -fsn $(srctree)/$(archinc)/platform-$(PLATFORM) $(archinc)/platform
 	@touch $@
@@ -89,7 +86,7 @@ zImage zImage.initrd: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
 CLEAN_FILES	+= arch/xtensa/vmlinux.lds                      \
-		   $(archinc)/platform $(archinc)/xtensa/config \
+		   $(archinc)/platform $(archinc)/variant	\
 		   $(archinc)/.platform
 
 define archhelp

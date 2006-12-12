@@ -97,7 +97,7 @@ a range of I/O addresses for it to use. The first RocketPort card
 requires a 68-byte contiguous block of I/O addresses, starting at one
 of the following: 0x100h, 0x140h, 0x180h, 0x200h, 0x240h, 0x280h,
 0x300h, 0x340h, 0x380h.  This I/O address must be reflected in the DIP
-switiches of *all* of the Rocketport cards.
+switches of *all* of the Rocketport cards.
 
 The second, third, and fourth RocketPort cards require a 64-byte
 contiguous block of I/O addresses, starting at one of the following
@@ -107,7 +107,7 @@ second, third, and fourth Rocketport cards (if present) are set via
 software control.  The DIP switch settings for the I/O address must be
 set to the value of the first Rocketport cards.
 
-In order to destinguish each of the card from the others, each card
+In order to distinguish each of the card from the others, each card
 must have a unique board ID set on the dip switches.  The first
 Rocketport board must be set with the DIP switches corresponding to
 the first board, the second board must be set with the DIP switches
@@ -120,7 +120,7 @@ conflict with any other cards in the system, including other
 RocketPort cards.  Below, you will find a list of commonly used I/O
 address ranges which may be in use by other devices in your system.
 On a Linux system, "cat /proc/ioports" will also be helpful in
-identifying what I/O addresses are being used by devics on your
+identifying what I/O addresses are being used by devices on your
 system.
 
 Remember, the FIRST RocketPort uses 68 I/O addresses.  So, if you set it

@@ -61,6 +61,7 @@
 #include <net/tcp_states.h>
 #include <net/route.h>
 #include <linux/atalk.h>
+#include "../core/kmap_skb.h"
 
 struct datalink_proto *ddp_dl, *aarp_dl;
 static const struct proto_ops atalk_dgram_ops;
@@ -1002,7 +1003,7 @@ static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 	return sum;
 }
 
-static unsigned short atalk_checksum(const struct sk_buff *skb, int len)
+static __be16 atalk_checksum(const struct sk_buff *skb, int len)
 {
 	unsigned long sum;
 
@@ -1010,7 +1011,7 @@ static unsigned short atalk_checksum(const struct sk_buff *skb, int len)
 	sum = atalk_sum_skb(skb, 4, len-4, 0);
 
 	/* Use 0xFFFF for 0. 0 itself means none */
-	return sum ? htons((unsigned short)sum) : 0xFFFF;
+	return sum ? htons((unsigned short)sum) : htons(0xFFFF);
 }
 
 static struct proto ddp_proto = {
@@ -1289,7 +1290,7 @@ static int handle_ip_over_ddp(struct sk_buff *skb)
 #endif
 
 static void atalk_route_packet(struct sk_buff *skb, struct net_device *dev,
-			       struct ddpehdr *ddp, struct ddpebits *ddphv,
+			       struct ddpehdr *ddp, __u16 len_hops,
 			       int origlen)
 {
 	struct atalk_route *rt;
@@ -1317,10 +1318,12 @@ static void atalk_route_packet(struct sk_buff *skb, struct net_device *dev,
 
 	/* Route the packet */
 	rt = atrtr_find(&ta);
-	if (!rt || ddphv->deh_hops == DDP_MAXHOPS)
+	/* increment hops count */
+	len_hops += 1 << 10;
+	if (!rt || !(len_hops & (15 << 10)))
 		goto free_it;
+
 	/* FIXME: use skb->cb to be able to use shared skbs */
-	ddphv->deh_hops++;
 
 	/*
 	 * Route goes through another gateway, so set the target to the
@@ -1335,11 +1338,10 @@ static void atalk_route_packet(struct sk_buff *skb, struct net_device *dev,
         /* Fix up skb->len field */
         skb_trim(skb, min_t(unsigned int, origlen,
 			    (rt->dev->hard_header_len +
-			     ddp_dl->header_length + ddphv->deh_len)));
+			     ddp_dl->header_length + (len_hops & 1023))));
 
-	/* Mend the byte order */
 	/* FIXME: use skb->cb to be able to use shared skbs */
-	*((__u16 *)ddp) = ntohs(*((__u16 *)ddphv));
+	ddp->deh_len_hops = htons(len_hops);
 
 	/*
 	 * Send the buffer onwards
@@ -1394,7 +1396,7 @@ static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct atalk_iface *atif;
 	struct sockaddr_at tosat;
         int origlen;
-        struct ddpebits ddphv;
+	__u16 len_hops;
 
 	/* Don't mangle buffer if shared */
 	if (!(skb = skb_share_check(skb, GFP_ATOMIC))) 
@@ -1406,16 +1408,11 @@ static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	ddp = ddp_hdr(skb);
 
-	/*
-	 *	Fix up the length field	[Ok this is horrible but otherwise
-	 *	I end up with unions of bit fields and messy bit field order
-	 *	compiler/endian dependencies..]
-	 */
-	*((__u16 *)&ddphv) = ntohs(*((__u16 *)ddp));
+	len_hops = ntohs(ddp->deh_len_hops);
 
 	/* Trim buffer in case of stray trailing data */
 	origlen = skb->len;
-	skb_trim(skb, min_t(unsigned int, skb->len, ddphv.deh_len));
+	skb_trim(skb, min_t(unsigned int, skb->len, len_hops & 1023));
 
 	/*
 	 * Size check to see if ddp->deh_len was crap
@@ -1430,7 +1427,7 @@ static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * valid for net byte orders all over the networking code...
 	 */
 	if (ddp->deh_sum &&
-	    atalk_checksum(skb, ddphv.deh_len) != ddp->deh_sum)
+	    atalk_checksum(skb, len_hops & 1023) != ddp->deh_sum)
 		/* Not a valid AppleTalk frame - dustbin time */
 		goto freeit;
 
@@ -1444,7 +1441,7 @@ static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		/* Not ours, so we route the packet via the correct
 		 * AppleTalk iface
 		 */
-		atalk_route_packet(skb, dev, ddp, &ddphv, origlen);
+		atalk_route_packet(skb, dev, ddp, len_hops, origlen);
 		goto out;
 	}
 
@@ -1489,7 +1486,7 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		/* Find our address */
 		struct atalk_addr *ap = atalk_find_dev_addr(dev);
 
-		if (!ap || skb->len < sizeof(struct ddpshdr))
+		if (!ap || skb->len < sizeof(__be16) || skb->len > 1023)
 			goto freeit;
 
 		/* Don't mangle buffer if shared */
@@ -1519,11 +1516,8 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		/*
 		 * Not sure about this bit...
 		 */
-		ddp->deh_len   = skb->len;
-		ddp->deh_hops  = DDP_MAXHOPS;	/* Non routable, so force a drop
-						   if we slip up later */
-		/* Mend the byte order */
-		*((__u16 *)ddp) = htons(*((__u16 *)ddp));
+		/* Non routable, so force a drop if we slip up later */
+		ddp->deh_len_hops = htons(skb->len + (DDP_MAXHOPS << 10));
 	}
 	skb->h.raw = skb->data;
 
@@ -1591,7 +1585,6 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 
 	if (usat->sat_addr.s_net || usat->sat_addr.s_node == ATADDR_ANYNODE) {
 		rt = atrtr_find(&usat->sat_addr);
-		dev = rt->dev;
 	} else {
 		struct atalk_addr at_hint;
 
@@ -1599,7 +1592,6 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 		at_hint.s_net  = at->src_net;
 
 		rt = atrtr_find(&at_hint);
-		dev = rt->dev;
 	}
 	if (!rt)
 		return -ENETUNREACH;
@@ -1622,16 +1614,7 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 	SOCK_DEBUG(sk, "SK %p: Begin build.\n", sk);
 
 	ddp = (struct ddpehdr *)skb_put(skb, sizeof(struct ddpehdr));
-	ddp->deh_pad  = 0;
-	ddp->deh_hops = 0;
-	ddp->deh_len  = len + sizeof(*ddp);
-	/*
-	 * Fix up the length field [Ok this is horrible but otherwise
-	 * I end up with unions of bit fields and messy bit field order
-	 * compiler/endian dependencies..
-	 */
-	*((__u16 *)ddp) = ntohs(*((__u16 *)ddp));
-
+	ddp->deh_len_hops  = htons(len + sizeof(*ddp));
 	ddp->deh_dnet  = usat->sat_addr.s_net;
 	ddp->deh_snet  = at->src_net;
 	ddp->deh_dnode = usat->sat_addr.s_node;
@@ -1712,8 +1695,8 @@ static int atalk_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 	struct sockaddr_at *sat = (struct sockaddr_at *)msg->msg_name;
 	struct ddpehdr *ddp;
 	int copied = 0;
+	int offset = 0;
 	int err = 0;
-        struct ddpebits ddphv;
 	struct sk_buff *skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
 						flags & MSG_DONTWAIT, &err);
 	if (!skb)
@@ -1721,25 +1704,18 @@ static int atalk_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 
 	/* FIXME: use skb->cb to be able to use shared skbs */
 	ddp = ddp_hdr(skb);
-	*((__u16 *)&ddphv) = ntohs(*((__u16 *)ddp));
+	copied = ntohs(ddp->deh_len_hops) & 1023;
 
-	if (sk->sk_type == SOCK_RAW) {
-		copied = ddphv.deh_len;
-		if (copied > size) {
-			copied = size;
-			msg->msg_flags |= MSG_TRUNC;
-		}
-
-		err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
-	} else {
-		copied = ddphv.deh_len - sizeof(*ddp);
-		if (copied > size) {
-			copied = size;
-			msg->msg_flags |= MSG_TRUNC;
-		}
-		err = skb_copy_datagram_iovec(skb, sizeof(*ddp),
-					      msg->msg_iov, copied);
+	if (sk->sk_type != SOCK_RAW) {
+		offset = sizeof(*ddp);
+		copied -= offset;
 	}
+
+	if (copied > size) {
+		copied = size;
+		msg->msg_flags |= MSG_TRUNC;
+	}
+	err = skb_copy_datagram_iovec(skb, offset, msg->msg_iov, copied);
 
 	if (!err) {
 		if (sat) {

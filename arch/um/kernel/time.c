@@ -86,16 +86,16 @@ static inline unsigned long long get_time(void)
 	return nsecs;
 }
 
-irqreturn_t um_timer(int irq, void *dev, struct pt_regs *regs)
+irqreturn_t um_timer(int irq, void *dev)
 {
 	unsigned long long nsecs;
 	unsigned long flags;
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 
-	do_timer(regs);
+	do_timer(1);
 
-	nsecs = get_time() + local_offset;
+	nsecs = get_time();
 	xtime.tv_sec = nsecs / NSEC_PER_SEC;
 	xtime.tv_nsec = nsecs - xtime.tv_sec * NSEC_PER_SEC;
 

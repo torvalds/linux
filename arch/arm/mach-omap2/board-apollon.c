@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/omap2/board-apollon.c
+ * linux/arch/arm/mach-omap2/board-apollon.c
  *
  * Copyright (C) 2005,2006 Samsung Electronics
  * Author: Kyungmin Park <kyungmin.park@samsung.com>
@@ -166,8 +166,8 @@ static struct omap_uart_config apollon_uart_config __initdata = {
 
 static struct omap_mmc_config apollon_mmc_config __initdata = {
 	.mmc [0] = {
-		.enabled 	= 0,
-		.wire4		= 0,
+		.enabled 	= 1,
+		.wire4		= 1,
 		.wp_pin		= -1,
 		.power_pin	= -1,
 		.switch_pin	= -1,
@@ -203,7 +203,7 @@ static void __init apollon_led_init(void)
 	omap_set_gpio_dataout(LED2_GPIO15, 0);
 }
 
-static irqreturn_t apollon_sw_interrupt(int irq, void *ignored, struct pt_regs *regs)
+static irqreturn_t apollon_sw_interrupt(int irq, void *ignored)
 {
 	static unsigned int led0, led1, led2;
 
@@ -256,6 +256,9 @@ static void __init omap_apollon_init(void)
 
 	/* REVISIT: where's the correct place */
 	omap_cfg_reg(W19_24XX_SYS_NIRQ);
+
+	/* Use Interal loop-back in MMC/SDIO Module Input Clock selection */
+	CONTROL_DEVCONF |= (1 << 24);
 
 	/*
  	 * Make sure the serial ports are muxed on at this point.

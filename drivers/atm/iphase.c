@@ -305,7 +305,7 @@ static void clear_lockup (struct atm_vcc *vcc, IADEV *dev) {
 **  |  R | NZ |  5-bit exponent  |        9-bit mantissa         |
 **  +----+----+------------------+-------------------------------+
 ** 
-**    R = reserverd (written as 0)
+**    R = reserved (written as 0)
 **    NZ = 0 if 0 cells/sec; 1 otherwise
 **
 **    if NZ = 1, rate = 1.mmmmmmmmm x 2^(eeeee) cells/sec
@@ -2195,7 +2195,7 @@ err_out:
 	return -ENOMEM;
 }   
    
-static irqreturn_t ia_int(int irq, void *dev_id, struct pt_regs *regs)  
+static irqreturn_t ia_int(int irq, void *dev_id)  
 {  
    struct atm_dev *dev;  
    IADEV *iadev;  

@@ -89,7 +89,7 @@ red:	green:	meaning:
 
 -	-	no frame-sync, no signal received, or signal SNAFU.
 -	on	"Everything is OK"
-on	on	Recepion is ok, but the remote end sends Remote Alarm
+on	on	Reception is ok, but the remote end sends Remote Alarm
 on	-	The interface is unconfigured
 
 -----------------------------------------------------------------
@@ -126,7 +126,7 @@ comx0/boardnum	- board number of the SliceCom in the PC (using the 'natural'
 
 Though the options below are to be set on a single interface, they apply to the
 whole board. The restriction, to use them on 'UP' interfaces, is because the 
-command sequence below could lead to unpredicable results.
+command sequence below could lead to unpredictable results.
 
 	# echo 0        >boardnum
 	# echo internal >clock_source
@@ -257,12 +257,12 @@ which begin with '//' are the comments.
 // No alarms - Everything OK
 //
 // LOS  - Loss Of Signal - No signal sensed on the input
-// AIS  - Alarm Indication Signal - The remot side sends '11111111'-s, 
+// AIS  - Alarm Indication Signal - The remote side sends '11111111'-s, 
 //	it tells, that there's an error condition, or it's not
 //	initialised.
 // AUXP - Auxiliary Pattern Indication - 01010101.. received.
 // LFA  - Loss of Frame Alignment - no frame sync received.
-// RRA  - Receive Remote Alarm - the remote end's OK, but singnals error cond.
+// RRA  - Receive Remote Alarm - the remote end's OK, but signals error cond.
 // LMFA - Loss of CRC4 Multiframe Alignment - no CRC4 multiframe sync.
 // NMF  - No Multiframe alignment Found after 400 msec - no such alarm using
 //	no-crc4 or crc4 framing, see below.
@@ -364,6 +364,6 @@ Treat them very carefully, these can cause much trouble!
 
 	# echo >lbireg 0x1d 0x21
 
-		- Swithing the loop off:
+		- Switching the loop off:
 
 	# echo >lbireg 0x1d 0x00

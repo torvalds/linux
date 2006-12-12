@@ -1715,6 +1715,15 @@ static int dst_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_paramet
 static void dst_release(struct dvb_frontend *fe)
 {
 	struct dst_state *state = fe->demodulator_priv;
+	if (state->dst_ca) {
+		dvb_unregister_device(state->dst_ca);
+#ifdef CONFIG_DVB_CORE_ATTACH
+		symbol_put(dst_ca_attach);
+#endif
+	}
+#ifdef CONFIG_DVB_CORE_ATTACH
+	symbol_put(dst_attach);
+#endif
 	kfree(state);
 }
 

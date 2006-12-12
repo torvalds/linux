@@ -32,6 +32,7 @@
 #include <linux/compiler.h>
 #include <asm/uaccess.h>
 #include <linux/slab.h>
+#include <linux/poll.h>
 
 #include <linux/device.h>
 #include <linux/moduleparam.h>
@@ -222,7 +223,6 @@ static void put_ep (struct ep_data *data)
 	/* needs no more cleanup */
 	BUG_ON (!list_empty (&data->epfiles));
 	BUG_ON (waitqueue_active (&data->wait));
-	BUG_ON (down_trylock (&data->lock) != 0);
 	kfree (data);
 }
 
@@ -342,7 +342,7 @@ fail:
 static ssize_t
 ep_io (struct ep_data *epdata, void *buf, unsigned len)
 {
-	DECLARE_COMPLETION (done);
+	DECLARE_COMPLETION_ONSTACK (done);
 	int value;
 
 	spin_lock_irq (&epdata->dev->lock);
@@ -412,7 +412,7 @@ ep_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 	/* FIXME readahead for O_NONBLOCK and poll(); careful with ZLPs */
 
 	value = -ENOMEM;
-	kbuf = kmalloc (len, SLAB_KERNEL);
+	kbuf = kmalloc (len, GFP_KERNEL);
 	if (unlikely (!kbuf))
 		goto free1;
 
@@ -456,7 +456,7 @@ ep_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	/* FIXME writebehind for O_NONBLOCK and poll(), qlen = 1 */
 
 	value = -ENOMEM;
-	kbuf = kmalloc (len, SLAB_KERNEL);
+	kbuf = kmalloc (len, GFP_KERNEL);
 	if (!kbuf)
 		goto free1;
 	if (copy_from_user (kbuf, buf, len)) {
@@ -477,6 +477,10 @@ static int
 ep_release (struct inode *inode, struct file *fd)
 {
 	struct ep_data		*data = fd->private_data;
+	int value;
+
+	if ((value = down_interruptible(&data->lock)) < 0)
+		return value;
 
 	/* clean up if this can be reopened */
 	if (data->state != STATE_EP_UNBOUND) {
@@ -485,6 +489,7 @@ ep_release (struct inode *inode, struct file *fd)
 		data->hs_desc.bDescriptorType = 0;
 		usb_ep_disable(data->ep);
 	}
+	up (&data->lock);
 	put_ep (data);
 	return 0;
 }
@@ -528,7 +533,8 @@ struct kiocb_priv {
 	struct usb_request	*req;
 	struct ep_data		*epdata;
 	void			*buf;
-	char __user		*ubuf;		/* NULL for writes */
+	const struct iovec	*iv;
+	unsigned long		nr_segs;
 	unsigned		actual;
 };
 
@@ -556,17 +562,32 @@ static int ep_aio_cancel(struct kiocb *iocb, struct io_event *e)
 static ssize_t ep_aio_read_retry(struct kiocb *iocb)
 {
 	struct kiocb_priv	*priv = iocb->private;
-	ssize_t			status = priv->actual;
+	ssize_t			len, total;
+	int			i;
 
-	/* we "retry" to get the right mm context for this: */
-	status = copy_to_user(priv->ubuf, priv->buf, priv->actual);
-	if (unlikely(0 != status))
-		status = -EFAULT;
-	else
-		status = priv->actual;
-	kfree(priv->buf);
-	kfree(priv);
-	return status;
+  	/* we "retry" to get the right mm context for this: */
+
+ 	/* copy stuff into user buffers */
+ 	total = priv->actual;
+ 	len = 0;
+ 	for (i=0; i < priv->nr_segs; i++) {
+ 		ssize_t this = min((ssize_t)(priv->iv[i].iov_len), total);
+
+ 		if (copy_to_user(priv->iv[i].iov_base, priv->buf, this)) {
+ 			if (len == 0)
+ 				len = -EFAULT;
+ 			break;
+ 		}
+
+ 		total -= this;
+ 		len += this;
+ 		if (total == 0)
+ 			break;
+ 	}
+  	kfree(priv->buf);
+  	kfree(priv);
+  	aio_put_req(iocb);
+ 	return len;
 }
 
 static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
@@ -579,7 +600,7 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 	spin_lock(&epdata->dev->lock);
 	priv->req = NULL;
 	priv->epdata = NULL;
-	if (priv->ubuf == NULL
+	if (priv->iv == NULL
 			|| unlikely(req->actual == 0)
 			|| unlikely(kiocbIsCancelled(iocb))) {
 		kfree(req->buf);
@@ -614,7 +635,8 @@ ep_aio_rwtail(
 	char		*buf,
 	size_t		len,
 	struct ep_data	*epdata,
-	char __user	*ubuf
+	const struct iovec *iv,
+	unsigned long 	nr_segs
 )
 {
 	struct kiocb_priv	*priv;
@@ -629,7 +651,8 @@ fail:
 		return value;
 	}
 	iocb->private = priv;
-	priv->ubuf = ubuf;
+	priv->iv = iv;
+	priv->nr_segs = nr_segs;
 
 	value = get_ready_ep(iocb->ki_filp->f_flags, epdata);
 	if (unlikely(value < 0)) {
@@ -669,47 +692,59 @@ fail:
 		kfree(priv);
 		put_ep(epdata);
 	} else
-		value = (ubuf ? -EIOCBRETRY : -EIOCBQUEUED);
+		value = (iv ? -EIOCBRETRY : -EIOCBQUEUED);
 	return value;
 }
 
 static ssize_t
-ep_aio_read(struct kiocb *iocb, char __user *ubuf, size_t len, loff_t o)
+ep_aio_read(struct kiocb *iocb, const struct iovec *iov,
+		unsigned long nr_segs, loff_t o)
 {
 	struct ep_data		*epdata = iocb->ki_filp->private_data;
 	char			*buf;
 
 	if (unlikely(epdata->desc.bEndpointAddress & USB_DIR_IN))
 		return -EINVAL;
-	buf = kmalloc(len, GFP_KERNEL);
+
+	buf = kmalloc(iocb->ki_left, GFP_KERNEL);
 	if (unlikely(!buf))
 		return -ENOMEM;
+
 	iocb->ki_retry = ep_aio_read_retry;
-	return ep_aio_rwtail(iocb, buf, len, epdata, ubuf);
+	return ep_aio_rwtail(iocb, buf, iocb->ki_left, epdata, iov, nr_segs);
 }
 
 static ssize_t
-ep_aio_write(struct kiocb *iocb, const char __user *ubuf, size_t len, loff_t o)
+ep_aio_write(struct kiocb *iocb, const struct iovec *iov,
+		unsigned long nr_segs, loff_t o)
 {
 	struct ep_data		*epdata = iocb->ki_filp->private_data;
 	char			*buf;
+	size_t			len = 0;
+	int			i = 0;
 
 	if (unlikely(!(epdata->desc.bEndpointAddress & USB_DIR_IN)))
 		return -EINVAL;
-	buf = kmalloc(len, GFP_KERNEL);
+
+	buf = kmalloc(iocb->ki_left, GFP_KERNEL);
 	if (unlikely(!buf))
 		return -ENOMEM;
-	if (unlikely(copy_from_user(buf, ubuf, len) != 0)) {
-		kfree(buf);
-		return -EFAULT;
+
+	for (i=0; i < nr_segs; i++) {
+		if (unlikely(copy_from_user(&buf[len], iov[i].iov_base,
+				iov[i].iov_len) != 0)) {
+			kfree(buf);
+			return -EFAULT;
+		}
+		len += iov[i].iov_len;
 	}
-	return ep_aio_rwtail(iocb, buf, len, epdata, NULL);
+	return ep_aio_rwtail(iocb, buf, len, epdata, NULL, 0);
 }
 
 /*----------------------------------------------------------------------*/
 
 /* used after endpoint configuration */
-static struct file_operations ep_io_operations = {
+static const struct file_operations ep_io_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 
@@ -741,7 +776,7 @@ ep_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	struct ep_data		*data = fd->private_data;
 	struct usb_ep		*ep;
 	u32			tag;
-	int			value;
+	int			value, length = len;
 
 	if ((value = down_interruptible (&data->lock)) < 0)
 		return value;
@@ -792,7 +827,6 @@ ep_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 			goto fail0;
 		}
 	}
-	value = len;
 
 	spin_lock_irq (&data->dev->lock);
 	if (data->dev->state == STATE_DEV_UNBOUND) {
@@ -822,8 +856,10 @@ ep_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 				data->name);
 		data->state = STATE_EP_DEFER_ENABLE;
 	}
-	if (value == 0)
+	if (value == 0) {
 		fd->f_op = &ep_io_operations;
+		value = length;
+	}
 gone:
 	spin_unlock_irq (&data->dev->lock);
 	if (value < 0) {
@@ -844,7 +880,7 @@ fail1:
 static int
 ep_open (struct inode *inode, struct file *fd)
 {
-	struct ep_data		*data = inode->u.generic_ip;
+	struct ep_data		*data = inode->i_private;
 	int			value = -EBUSY;
 
 	if (down_interruptible (&data->lock) != 0)
@@ -867,7 +903,7 @@ ep_open (struct inode *inode, struct file *fd)
 }
 
 /* used before endpoint configuration */
-static struct file_operations ep_config_operations = {
+static const struct file_operations ep_config_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 
@@ -1009,7 +1045,7 @@ ep0_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 			else {
 				len = min (len, (size_t)dev->req->actual);
 // FIXME don't call this with the spinlock held ...
-				if (copy_to_user (buf, &dev->req->buf, len))
+				if (copy_to_user (buf, dev->req->buf, len))
 					retval = -EFAULT;
 				clean_req (dev->gadget->ep0, dev->req);
 				/* NOTE userspace can't yet choose to stall */
@@ -1229,6 +1265,35 @@ dev_release (struct inode *inode, struct file *fd)
 	return 0;
 }
 
+static unsigned int
+ep0_poll (struct file *fd, poll_table *wait)
+{
+       struct dev_data         *dev = fd->private_data;
+       int                     mask = 0;
+
+       poll_wait(fd, &dev->wait, wait);
+
+       spin_lock_irq (&dev->lock);
+
+       /* report fd mode change before acting on it */
+       if (dev->setup_abort) {
+               dev->setup_abort = 0;
+               mask = POLLHUP;
+               goto out;
+       }
+
+       if (dev->state == STATE_SETUP) {
+               if (dev->setup_in || dev->setup_can_stall)
+                       mask = POLLOUT;
+       } else {
+               if (dev->ev_next != 0)
+                       mask = POLLIN;
+       }
+out:
+       spin_unlock_irq(&dev->lock);
+       return mask;
+}
+
 static int dev_ioctl (struct inode *inode, struct file *fd,
 		unsigned code, unsigned long value)
 {
@@ -1241,14 +1306,14 @@ static int dev_ioctl (struct inode *inode, struct file *fd,
 }
 
 /* used after device configuration */
-static struct file_operations ep0_io_operations = {
+static const struct file_operations ep0_io_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 
 	.read =		ep0_read,
 	.write =	ep0_write,
 	.fasync =	ep0_fasync,
-	// .poll =	ep0_poll,
+	.poll =		ep0_poll,
 	.ioctl =	dev_ioctl,
 	.release =	dev_release,
 };
@@ -1696,16 +1761,17 @@ gadgetfs_disconnect (struct usb_gadget *gadget)
 {
 	struct dev_data		*dev = get_gadget_data (gadget);
 
+	spin_lock (&dev->lock);
 	if (dev->state == STATE_UNCONNECTED) {
 		DBG (dev, "already unconnected\n");
-		return;
+		goto exit;
 	}
 	dev->state = STATE_UNCONNECTED;
 
 	INFO (dev, "disconnected\n");
-	spin_lock (&dev->lock);
 	next_event (dev, GADGETFS_DISCONNECT);
 	ep0_readable (dev);
+exit:
 	spin_unlock (&dev->lock);
 }
 
@@ -1832,7 +1898,7 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	buf += 4;
 	length -= 4;
 
-	kbuf = kmalloc (length, SLAB_KERNEL);
+	kbuf = kmalloc (length, GFP_KERNEL);
 	if (!kbuf)
 		return -ENOMEM;
 	if (copy_from_user (kbuf, buf, length)) {
@@ -1909,7 +1975,7 @@ fail:
 static int
 dev_open (struct inode *inode, struct file *fd)
 {
-	struct dev_data		*dev = inode->u.generic_ip;
+	struct dev_data		*dev = inode->i_private;
 	int			value = -EBUSY;
 
 	if (dev->state == STATE_DEV_DISABLED) {
@@ -1922,7 +1988,7 @@ dev_open (struct inode *inode, struct file *fd)
 	return value;
 }
 
-static struct file_operations dev_init_operations = {
+static const struct file_operations dev_init_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 
@@ -1966,11 +2032,10 @@ gadgetfs_make_inode (struct super_block *sb,
 		inode->i_mode = mode;
 		inode->i_uid = default_uid;
 		inode->i_gid = default_gid;
-		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime
 				= CURRENT_TIME;
-		inode->u.generic_ip = data;
+		inode->i_private = data;
 		inode->i_fop = fops;
 	}
 	return inode;

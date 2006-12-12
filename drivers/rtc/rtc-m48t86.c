@@ -138,7 +138,7 @@ static int m48t86_rtc_proc(struct device *dev, struct seq_file *seq)
 	return 0;
 }
 
-static struct rtc_class_ops m48t86_rtc_ops = {
+static const struct rtc_class_ops m48t86_rtc_ops = {
 	.read_time	= m48t86_rtc_read_time,
 	.set_time	= m48t86_rtc_set_time,
 	.proc		= m48t86_rtc_proc,

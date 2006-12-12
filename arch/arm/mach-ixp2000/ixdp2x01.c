@@ -63,7 +63,7 @@ static void ixdp2x01_irq_unmask(unsigned int irq)
 
 static u32 valid_irq_mask;
 
-static void ixdp2x01_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+static void ixdp2x01_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	u32 ex_interrupt;
 	int i;
@@ -79,17 +79,17 @@ static void ixdp2x01_irq_handler(unsigned int irq, struct irqdesc *desc, struct 
 
 	for (i = 0; i < IXP2000_BOARD_IRQS; i++) {
 		if (ex_interrupt & (1 << i)) {
-			struct irqdesc *cpld_desc;
+			struct irq_desc *cpld_desc;
 			int cpld_irq = IXP2000_BOARD_IRQ(0) + i;
 			cpld_desc = irq_desc + cpld_irq;
-			desc_handle_irq(cpld_irq, cpld_desc, regs);
+			desc_handle_irq(cpld_irq, cpld_desc);
 		}
 	}
 
 	desc->chip->unmask(irq);
 }
 
-static struct irqchip ixdp2x01_irq_chip = {
+static struct irq_chip ixdp2x01_irq_chip = {
 	.mask	= ixdp2x01_irq_mask,
 	.ack	= ixdp2x01_irq_mask,
 	.unmask	= ixdp2x01_irq_unmask
@@ -119,7 +119,7 @@ void __init ixdp2x01_init_irq(void)
 	for (irq = NR_IXP2000_IRQS; irq < NR_IXDP2X01_IRQS; irq++) {
 		if (irq & valid_irq_mask) {
 			set_irq_chip(irq, &ixdp2x01_irq_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID);
 		} else {
 			set_irq_flags(irq, 0);

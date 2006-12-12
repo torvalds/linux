@@ -61,6 +61,7 @@
 #include <asm/semaphore.h>
 #include <asm/mmu_context.h>
 #include <asm/a.out.h>
+#include <asm/compat_signal.h>
 
 asmlinkage long sys32_chown16(const char __user * filename, u16 user, u16 group)
 {
@@ -337,10 +338,15 @@ asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned 
 
 int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
 {
+	compat_ino_t ino;
 	int err;
 
 	if (stat->size > MAX_NON_LFS || !old_valid_dev(stat->dev) ||
 	    !old_valid_dev(stat->rdev))
+		return -EOVERFLOW;
+
+	ino = stat->ino;
+	if (sizeof(ino) < sizeof(stat->ino) && ino != stat->ino)
 		return -EOVERFLOW;
 
 	err  = put_user(old_encode_dev(stat->dev), &statbuf->st_dev);
@@ -1016,7 +1022,7 @@ struct __sysctl_args32 {
 
 asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
 {
-#ifndef CONFIG_SYSCTL
+#ifndef CONFIG_SYSCTL_SYSCALL
 	return -ENOSYS;
 #else
 	struct __sysctl_args32 tmp;

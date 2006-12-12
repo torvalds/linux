@@ -197,9 +197,9 @@
 	movl	temp2 = start_addr;				\
 	;;							\
 	mov	cr.iip = temp2;					\
+	movl	gp = __gp					\
 	;;							\
 	DATA_PA_TO_VA(sp, temp1);				\
-	DATA_PA_TO_VA(gp, temp2);				\
 	srlz.i;							\
 	;;							\
 	nop	1;						\

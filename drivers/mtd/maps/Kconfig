@@ -607,7 +607,7 @@ config MTD_BAST_MAXSIZE
 	default "4"
 
 config MTD_SHARP_SL
-	bool "ROM maped on Sharp SL Series"
+	bool "ROM mapped on Sharp SL Series"
 	depends on MTD && ARCH_PXA
 	help
 	  This enables access to the flash chip on the Sharp SL Series of PDAs.

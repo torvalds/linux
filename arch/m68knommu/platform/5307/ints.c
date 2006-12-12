@@ -33,7 +33,7 @@
 /*
  *	This table stores the address info for each vector handler.
  */
-irq_handler_t irq_list[SYS_IRQS];
+struct irq_entry irq_list[SYS_IRQS];
 
 #define NUM_IRQ_NODES 16
 static irq_node_t nodes[NUM_IRQ_NODES];
@@ -44,7 +44,7 @@ volatile unsigned int num_spurious;
 unsigned int local_bh_count[NR_CPUS];
 unsigned int local_irq_count[NR_CPUS];
 
-static irqreturn_t default_irq_handler(int irq, void *ptr, struct pt_regs *regs)
+static irqreturn_t default_irq_handler(int irq, void *ptr)
 {
 #if 1
 	printk(KERN_INFO "%s(%d): default irq handler vec=%d [0x%x]\n",
@@ -70,7 +70,7 @@ void __init init_IRQ(void)
 
 	for (i = 0; i < SYS_IRQS; i++) {
 		if (mach_default_handler)
-			irq_list[i].handler = (*mach_default_handler)[i];
+			irq_list[i].handler = mach_default_handler;
 		else
 			irq_list[i].handler = default_irq_handler;
 		irq_list[i].flags   = IRQ_FLG_STD;
@@ -100,7 +100,7 @@ irq_node_t *new_irq_node(void)
 
 int request_irq(
 	unsigned int irq,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	irq_handler_t handler,
 	unsigned long flags,
 	const char *devname,
 	void *dev_id)
@@ -157,7 +157,7 @@ void free_irq(unsigned int irq, void *dev_id)
 	}
 
 	if (mach_default_handler)
-		irq_list[irq].handler = (*mach_default_handler)[irq];
+		irq_list[irq].handler = mach_default_handler;
 	else
 		irq_list[irq].handler = default_irq_handler;
 	irq_list[irq].flags   = IRQ_FLG_STD;
@@ -168,8 +168,7 @@ void free_irq(unsigned int irq, void *dev_id)
 EXPORT_SYMBOL(free_irq);
 
 
-int sys_request_irq(unsigned int irq, 
-                    irqreturn_t (*handler)(int, void *, struct pt_regs *), 
+int sys_request_irq(unsigned int irq, irq_handler_t handler, 
                     unsigned long flags, const char *devname, void *dev_id)
 {
 	if (irq > IRQ7) {
@@ -211,7 +210,7 @@ void sys_free_irq(unsigned int irq, void *dev_id)
 		printk(KERN_WARNING "%s: Removing probably wrong IRQ %d from %s\n",
 		       __FUNCTION__, irq, irq_list[irq].devname);
 
-	irq_list[irq].handler = (*mach_default_handler)[irq];
+	irq_list[irq].handler = mach_default_handler;
 	irq_list[irq].flags   = 0;
 	irq_list[irq].dev_id  = NULL;
 	irq_list[irq].devname = NULL;
@@ -241,7 +240,7 @@ asmlinkage void process_int(unsigned long vec, struct pt_regs *fp)
 	if (vec >= VEC_INT1 && vec <= VEC_INT7) {
 		vec -= VEC_SPUR;
 		kstat_cpu(0).irqs[vec]++;
-		irq_list[vec].handler(vec, irq_list[vec].dev_id, fp);
+		irq_list[vec].handler(vec, irq_list[vec].dev_id);
 	} else {
 		if (mach_process_int)
 			mach_process_int(vec, fp);

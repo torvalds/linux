@@ -90,7 +90,7 @@ static int ixp2000_i2c_remove(struct platform_device *plat_dev)
 
 	platform_set_drvdata(plat_dev, NULL);
 
-	i2c_bit_del_bus(&drv_data->adapter);
+	i2c_del_adapter(&drv_data->adapter);
 
 	kfree(drv_data);
 
@@ -114,7 +114,6 @@ static int ixp2000_i2c_probe(struct platform_device *plat_dev)
 	drv_data->algo_data.getsda = ixp2000_bit_getsda;
 	drv_data->algo_data.getscl = ixp2000_bit_getscl;
 	drv_data->algo_data.udelay = 6;
-	drv_data->algo_data.mdelay = 6;
 	drv_data->algo_data.timeout = 100;
 
 	drv_data->adapter.id = I2C_HW_B_IXP2000,
