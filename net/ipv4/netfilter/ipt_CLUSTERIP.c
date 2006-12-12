@@ -447,6 +447,12 @@ checkentry(const char *tablename,
 		cipinfo->config = config;
 	}
 
+	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
+		printk(KERN_WARNING "can't load conntrack support for "
+				    "proto=%d\n", target->family);
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -460,6 +466,8 @@ static void destroy(const struct xt_target *target, void *targinfo)
 	clusterip_config_entry_put(cipinfo->config);
 
 	clusterip_config_put(cipinfo->config);
+
+	nf_ct_l3proto_module_put(target->family);
 }
 
 static struct ipt_target clusterip_tgt = {

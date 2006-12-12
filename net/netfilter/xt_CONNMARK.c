@@ -96,6 +96,11 @@ checkentry(const char *tablename,
 {
 	struct xt_connmark_target_info *matchinfo = targinfo;
 
+	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
+		printk(KERN_WARNING "can't load conntrack support for "
+				    "proto=%d\n", target->family);
+		return 0;
+	}
 	if (matchinfo->mode == XT_CONNMARK_RESTORE) {
 		if (strcmp(tablename, "mangle") != 0) {
 			printk(KERN_WARNING "CONNMARK: restore can only be "
@@ -109,6 +114,12 @@ checkentry(const char *tablename,
 		return 0;
 	}
 	return 1;
+}
+
+static void
+destroy(const struct xt_target *target, void *targinfo)
+{
+	nf_ct_l3proto_module_put(target->family);
 }
 
 #ifdef CONFIG_COMPAT
@@ -147,6 +158,7 @@ static struct xt_target xt_connmark_target[] = {
 		.name		= "CONNMARK",
 		.family		= AF_INET,
 		.checkentry	= checkentry,
+		.destroy	= destroy,
 		.target		= target,
 		.targetsize	= sizeof(struct xt_connmark_target_info),
 #ifdef CONFIG_COMPAT
@@ -160,6 +172,7 @@ static struct xt_target xt_connmark_target[] = {
 		.name		= "CONNMARK",
 		.family		= AF_INET6,
 		.checkentry	= checkentry,
+		.destroy	= destroy,
 		.target		= target,
 		.targetsize	= sizeof(struct xt_connmark_target_info),
 		.me		= THIS_MODULE
@@ -168,7 +181,6 @@ static struct xt_target xt_connmark_target[] = {
 
 static int __init xt_connmark_init(void)
 {
-	need_conntrack();
 	return xt_register_targets(xt_connmark_target,
 				   ARRAY_SIZE(xt_connmark_target));
 }
