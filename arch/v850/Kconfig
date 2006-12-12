@@ -105,17 +105,17 @@ menu "Processor type and features"
    # currently support
    config V850E_MA1
    	  bool
-	  depends RTE_CB_MA1
+	  depends on RTE_CB_MA1
 	  default y
    # Similarly for the RTE-V850E/NB85E-CB - V850E/TEG
    config V850E_TEG
    	  bool
-	  depends RTE_CB_NB85E
+	  depends on RTE_CB_NB85E
 	  default y
    # ... and the RTE-V850E/ME2-CB - V850E/ME2
    config V850E_ME2
    	  bool
-	  depends RTE_CB_ME2
+	  depends on RTE_CB_ME2
 	  default y
 
 
@@ -123,7 +123,7 @@ menu "Processor type and features"
 
    config V850E2_SIM85E2
    	  bool
-	  depends V850E2_SIM85E2C || V850E2_SIM85E2S
+	  depends on V850E2_SIM85E2C || V850E2_SIM85E2S
 	  default y
 
 
@@ -132,7 +132,7 @@ menu "Processor type and features"
    # V850E2 processors
    config V850E2
    	  bool
-	  depends V850E2_SIM85E2 || V850E2_FPGA85E2C || V850E2_ANNA
+	  depends on V850E2_SIM85E2 || V850E2_FPGA85E2C || V850E2_ANNA
 	  default y
 
 
@@ -141,7 +141,7 @@ menu "Processor type and features"
    # Boards in the RTE-x-CB series
    config RTE_CB
    	  bool
-	  depends RTE_CB_MA1 || RTE_CB_NB85E || RTE_CB_ME2
+	  depends on RTE_CB_MA1 || RTE_CB_NB85E || RTE_CB_ME2
 	  default y
 
    config RTE_CB_MULTI
@@ -149,28 +149,28 @@ menu "Processor type and features"
 	  # RTE_CB_NB85E can either have multi ROM support or not, but
 	  # other platforms (currently only RTE_CB_MA1) require it.
 	  prompt "Multi monitor ROM support" if RTE_CB_NB85E
-	  depends RTE_CB_MA1 || RTE_CB_NB85E
+	  depends on RTE_CB_MA1 || RTE_CB_NB85E
 	  default y
 
    config RTE_CB_MULTI_DBTRAP
    	  bool "Pass illegal insn trap / dbtrap to kernel"
-	  depends RTE_CB_MULTI
+	  depends on RTE_CB_MULTI
 	  default n
 
    config RTE_CB_MA1_KSRAM
    	  bool "Kernel in SRAM (limits size of kernel)"
-	  depends RTE_CB_MA1 && RTE_CB_MULTI
+	  depends on RTE_CB_MA1 && RTE_CB_MULTI
 	  default n
 
    config RTE_MB_A_PCI
    	  bool "Mother-A PCI support"
-	  depends RTE_CB
+	  depends on RTE_CB
 	  default y
 
    # The GBUS is used to talk to the RTE-MOTHER-A board
    config RTE_GBUS_INT
    	  bool
-	  depends RTE_MB_A_PCI
+	  depends on RTE_MB_A_PCI
 	  default y
 
    # The only PCI bus we support is on the RTE-MOTHER-A board
@@ -209,7 +209,7 @@ menu "Processor type and features"
 
    config ROM_KERNEL
    	  bool "Kernel in ROM"
-	  depends V850E2_ANNA || V850E_AS85EP1 || RTE_CB_ME2
+	  depends on V850E2_ANNA || V850E_AS85EP1 || RTE_CB_ME2
 
    # Some platforms pre-zero memory, in which case the kernel doesn't need to
    config ZERO_BSS
@@ -225,10 +225,10 @@ menu "Processor type and features"
 
    config V850E_HIGHRES_TIMER
    	  bool "High resolution timer support"
-	  depends V850E_TIMER_D
+	  depends on V850E_TIMER_D
    config TIME_BOOTUP
    	  bool "Time bootup"
-	  depends V850E_HIGHRES_TIMER
+	  depends on V850E_HIGHRES_TIMER
 
    config RESET_GUARD
    	  bool "Reset Guard"

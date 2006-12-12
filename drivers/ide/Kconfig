@@ -796,7 +796,7 @@ endchoice
 config BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ
        int "Maximum transfer size (KB) per request (up to 128)"
        default "128"
-       depends BLK_DEV_IDE_AU1XXX
+       depends on BLK_DEV_IDE_AU1XXX
 
 config IDE_ARM
 	def_bool ARM && (ARCH_A5K || ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)
