@@ -232,7 +232,6 @@ void __init
 paging_init (void)
 {
 	unsigned long max_dma;
-	unsigned long nid = 0;
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 
 	num_physpages = 0;
@@ -244,7 +243,7 @@ paging_init (void)
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
-	efi_memmap_walk(register_active_ranges, &nid);
+	efi_memmap_walk(register_active_ranges, NULL);
 	efi_memmap_walk(find_largest_hole, (u64 *)&max_gap);
 	if (max_gap < LARGE_GAP) {
 		vmem_map = (struct page *) 0;
