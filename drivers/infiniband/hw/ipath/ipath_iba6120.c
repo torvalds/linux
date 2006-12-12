@@ -602,7 +602,7 @@ static void ipath_pe_init_hwerrors(struct ipath_devdata *dd)
  */
 static int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
 {
-	u64 val, tmp, config1, prev_val;
+	u64 val, config1, prev_val;
 	int ret = 0;
 
 	ipath_dbg("Trying to bringup serdes\n");
@@ -633,7 +633,7 @@ static int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
 		| INFINIPATH_SERDC0_L1PWR_DN;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_serdesconfig0, val);
 	/* be sure chip saw it */
-	tmp = ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	udelay(5);		/* need pll reset set at least for a bit */
 	/*
 	 * after PLL is reset, set the per-lane Resets and TxIdle and
@@ -647,7 +647,7 @@ static int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
 		   "and txidle (%llx)\n", (unsigned long long) val);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_serdesconfig0, val);
 	/* be sure chip saw it */
-	tmp = ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	/* need PLL reset clear for at least 11 usec before lane
 	 * resets cleared; give it a few more to be sure */
 	udelay(15);

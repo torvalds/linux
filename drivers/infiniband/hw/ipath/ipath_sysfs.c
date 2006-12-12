@@ -215,15 +215,12 @@ static ssize_t store_mlid(struct device *dev,
 			  size_t count)
 {
 	struct ipath_devdata *dd = dev_get_drvdata(dev);
-	int unit;
 	u16 mlid;
 	int ret;
 
 	ret = ipath_parse_ushort(buf, &mlid);
 	if (ret < 0 || mlid < IPATH_MULTICAST_LID_BASE)
 		goto invalid;
-
-	unit = dd->ipath_unit;
 
 	dd->ipath_mlid = mlid;
 

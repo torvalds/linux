@@ -1447,7 +1447,7 @@ static void ipath_ht_tidtemplate(struct ipath_devdata *dd)
 static int ipath_ht_early_init(struct ipath_devdata *dd)
 {
 	u32 __iomem *piobuf;
-	u32 pioincr, val32, egrsize;
+	u32 pioincr, val32;
 	int i;
 
 	/*
@@ -1467,7 +1467,6 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 	 * errors interrupts if we ever see one).
 	 */
 	dd->ipath_rcvegrbufsize = dd->ipath_piosize2k;
-	egrsize = dd->ipath_rcvegrbufsize;
 
 	/*
 	 * the min() check here is currently a nop, but it may not

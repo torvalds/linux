@@ -1825,8 +1825,6 @@ void ipath_write_kreg_port(const struct ipath_devdata *dd, ipath_kreg regno,
  */
 void ipath_shutdown_device(struct ipath_devdata *dd)
 {
-	u64 val;
-
 	ipath_dbg("Shutting down the device\n");
 
 	dd->ipath_flags |= IPATH_LINKUNK;
@@ -1849,7 +1847,7 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	 */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, 0ULL);
 	/* flush it */
-	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	/*
 	 * enough for anything that's going to trickle out to have actually
 	 * done so.
