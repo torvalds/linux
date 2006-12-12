@@ -98,7 +98,8 @@ static inline void memclear_highpage_flush(struct page *page, unsigned int offse
 
 #ifndef __HAVE_ARCH_COPY_USER_HIGHPAGE
 
-static inline void copy_user_highpage(struct page *to, struct page *from, unsigned long vaddr)
+static inline void copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma)
 {
 	char *vfrom, *vto;
 

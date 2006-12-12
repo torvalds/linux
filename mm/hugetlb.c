@@ -44,14 +44,14 @@ static void clear_huge_page(struct page *page, unsigned long addr)
 }
 
 static void copy_huge_page(struct page *dst, struct page *src,
-			   unsigned long addr)
+			   unsigned long addr, struct vm_area_struct *vma)
 {
 	int i;
 
 	might_sleep();
 	for (i = 0; i < HPAGE_SIZE/PAGE_SIZE; i++) {
 		cond_resched();
-		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE);
+		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
 	}
 }
 
@@ -442,7 +442,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	spin_unlock(&mm->page_table_lock);
-	copy_huge_page(new_page, old_page, address);
+	copy_huge_page(new_page, old_page, address, vma);
 	spin_lock(&mm->page_table_lock);
 
 	ptep = huge_pte_offset(mm, address & HPAGE_MASK);
