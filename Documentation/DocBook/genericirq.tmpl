@@ -303,10 +303,10 @@ desc->status |= running;
 do {
 	if (desc->status &amp; masked)
 		desc->chip->enable();
-	desc-status &amp;= ~pending;
+	desc->status &amp;= ~pending;
 	handle_IRQ_event(desc->action);
 } while (status &amp; pending);
-desc-status &amp;= ~running;
+desc->status &amp;= ~running;
 desc->chip->end();
 		</programlisting>
 		</para>
