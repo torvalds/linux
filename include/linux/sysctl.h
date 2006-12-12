@@ -11,7 +11,7 @@
  **  the sysctl() binary interface.  Do *NOT* change the
  **  numbering of any existing values here, and do not change
  **  any numbers within any one set of values.  If you have to
- **  have to redefine an existing interface, use a new number for it.
+ **  redefine an existing interface, use a new number for it.
  **  The kernel will then return -ENOTDIR to any application using
  **  the old binary interface.
  **
