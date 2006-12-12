@@ -39,21 +39,19 @@ extern void flush_tlb_all_local(void *);
  * etc. do not do that).
  */
 
+static inline void __flush_tlb_mm(void *mmv)
+{
+	struct mm_struct *mm = (struct mm_struct *)mmv;
+	if (mm == current->active_mm)
+		load_context(mm->context);
+}
+
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
-	BUG_ON(mm == &init_mm); /* Should never happen */
-
-#ifdef CONFIG_SMP
-	flush_tlb_all();
-#else
-	if (mm) {
-		if (mm->context != 0)
-			free_sid(mm->context);
-		mm->context = alloc_sid();
-		if (mm == current->active_mm)
-			load_context(mm->context);
-	}
-#endif
+	if (mm->context != 0)
+		free_sid(mm->context);
+	mm->context = alloc_sid();
+	on_each_cpu(__flush_tlb_mm, mm, 1, 1);
 }
 
 extern __inline__ void flush_tlb_pgtables(struct mm_struct *mm, unsigned long start, unsigned long end)
