@@ -277,7 +277,7 @@ S:	Maintained
 
 ALI1563 I2C DRIVER
 P:	Rudolf Marek
-M:	r.marek@sh.cvut.cz
+M:	r.marek@assembler.cz
 L:	i2c@lm-sensors.org
 S:	Maintained
 
