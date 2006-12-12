@@ -37,10 +37,14 @@ struct tfrc_rx_info {
  * 	@tfrctx_p:	current loss event rate (5.4)
  * 	@tfrctx_rto:	estimate of RTO, equals 4*RTT (4.3)
  * 	@tfrctx_ipi:	inter-packet interval (4.6)
+ *
+ *  Note: X and X_recv are both maintained in units of 64 * bytes/second. This
+ *        enables a finer resolution of sending rates and avoids problems with
+ *        integer arithmetic; u32 is not sufficient as scaling consumes 6 bits.
  */
 struct tfrc_tx_info {
-	__u32 tfrctx_x;
-	__u32 tfrctx_x_recv;
+	__u64 tfrctx_x;
+	__u64 tfrctx_x_recv;
 	__u32 tfrctx_x_calc;
 	__u32 tfrctx_rtt;
 	__u32 tfrctx_p;

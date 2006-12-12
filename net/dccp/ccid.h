@@ -43,8 +43,6 @@ struct ccid_operations {
 						    unsigned char* value);
 	int		(*ccid_hc_rx_insert_options)(struct sock *sk,
 						     struct sk_buff *skb);
-	int		(*ccid_hc_tx_insert_options)(struct sock *sk,
-						     struct sk_buff *skb);
 	void		(*ccid_hc_tx_packet_recv)(struct sock *sk,
 						  struct sk_buff *skb);
 	int		(*ccid_hc_tx_parse_options)(struct sock *sk,
@@ -144,14 +142,6 @@ static inline int ccid_hc_rx_parse_options(struct ccid *ccid, struct sock *sk,
 	if (ccid->ccid_ops->ccid_hc_rx_parse_options != NULL)
 		rc = ccid->ccid_ops->ccid_hc_rx_parse_options(sk, option, len, idx, value);
 	return rc;
-}
-
-static inline int ccid_hc_tx_insert_options(struct ccid *ccid, struct sock *sk,
-					    struct sk_buff *skb)
-{
-	if (ccid->ccid_ops->ccid_hc_tx_insert_options != NULL)
-		return ccid->ccid_ops->ccid_hc_tx_insert_options(sk, skb);
-	return 0;
 }
 
 static inline int ccid_hc_rx_insert_options(struct ccid *ccid, struct sock *sk,

@@ -80,8 +80,6 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 
 #define DCCP_RTO_MAX ((unsigned)(120 * HZ)) /* FIXME: using TCP value */
 
-#define DCCP_XMIT_TIMEO 30000 /* Time/msecs for blocking transmit per packet */
-
 /* sysctl variables for DCCP */
 extern int  sysctl_dccp_request_retries;
 extern int  sysctl_dccp_retries1;
@@ -434,6 +432,7 @@ static inline void timeval_sub_usecs(struct timeval *tv,
 		tv->tv_sec--;
 		tv->tv_usec += USEC_PER_SEC;
 	}
+	DCCP_BUG_ON(tv->tv_sec < 0);
 }
 
 #ifdef CONFIG_SYSCTL

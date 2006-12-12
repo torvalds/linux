@@ -49,22 +49,15 @@
 #define TFRC_WIN_COUNT_PER_RTT	 4
 #define TFRC_WIN_COUNT_LIMIT	16
 
+/*
+ * 	Transmitter History data structures and declarations
+ */
 struct dccp_tx_hist_entry {
 	struct list_head dccphtx_node;
 	u64		 dccphtx_seqno:48,
-			 dccphtx_ccval:4,
 			 dccphtx_sent:1;
 	u32		 dccphtx_rtt;
 	struct timeval	 dccphtx_tstamp;
-};
-
-struct dccp_rx_hist_entry {
-	struct list_head dccphrx_node;
-	u64		 dccphrx_seqno:48,
-			 dccphrx_ccval:4,
-			 dccphrx_type:4;
-	u32		 dccphrx_ndp; /* In fact it is from 8 to 24 bits */
-	struct timeval	 dccphrx_tstamp;
 };
 
 struct dccp_tx_hist {
@@ -72,20 +65,11 @@ struct dccp_tx_hist {
 };
 
 extern struct dccp_tx_hist *dccp_tx_hist_new(const char *name);
-extern void dccp_tx_hist_delete(struct dccp_tx_hist *hist);
-
-struct dccp_rx_hist {
-	struct kmem_cache *dccprxh_slab;
-};
-
-extern struct dccp_rx_hist *dccp_rx_hist_new(const char *name);
-extern void dccp_rx_hist_delete(struct dccp_rx_hist *hist);
-extern struct dccp_rx_hist_entry *
-		dccp_rx_hist_find_data_packet(const struct list_head *list);
+extern void 		    dccp_tx_hist_delete(struct dccp_tx_hist *hist);
 
 static inline struct dccp_tx_hist_entry *
-		dccp_tx_hist_entry_new(struct dccp_tx_hist *hist,
-				       const gfp_t prio)
+			dccp_tx_hist_entry_new(struct dccp_tx_hist *hist,
+					       const gfp_t prio)
 {
 	struct dccp_tx_hist_entry *entry = kmem_cache_alloc(hist->dccptxh_slab,
 							    prio);
@@ -96,34 +80,8 @@ static inline struct dccp_tx_hist_entry *
 	return entry;
 }
 
-static inline void dccp_tx_hist_entry_delete(struct dccp_tx_hist *hist,
-					     struct dccp_tx_hist_entry *entry)
-{
-	if (entry != NULL)
-		kmem_cache_free(hist->dccptxh_slab, entry);
-}
-
-extern struct dccp_tx_hist_entry *
-			dccp_tx_hist_find_entry(const struct list_head *list,
-						const u64 seq);
-extern int dccp_rx_hist_find_entry(const struct list_head *list, const u64 seq,
-   u8 *ccval);
-
-static inline void dccp_tx_hist_add_entry(struct list_head *list,
-					  struct dccp_tx_hist_entry *entry)
-{
-	list_add(&entry->dccphtx_node, list);
-}
-
-extern void dccp_tx_hist_purge_older(struct dccp_tx_hist *hist,
-				     struct list_head *list,
-				     struct dccp_tx_hist_entry *next);
-
-extern void dccp_tx_hist_purge(struct dccp_tx_hist *hist,
-			       struct list_head *list);
-
 static inline struct dccp_tx_hist_entry *
-		dccp_tx_hist_head(struct list_head *list)
+			dccp_tx_hist_head(struct list_head *list)
 {
 	struct dccp_tx_hist_entry *head = NULL;
 
@@ -133,12 +91,55 @@ static inline struct dccp_tx_hist_entry *
 	return head;
 }
 
+extern struct dccp_tx_hist_entry *
+			dccp_tx_hist_find_entry(const struct list_head *list,
+						const u64 seq);
+
+static inline void dccp_tx_hist_add_entry(struct list_head *list,
+					  struct dccp_tx_hist_entry *entry)
+{
+	list_add(&entry->dccphtx_node, list);
+}
+
+static inline void dccp_tx_hist_entry_delete(struct dccp_tx_hist *hist,
+					     struct dccp_tx_hist_entry *entry)
+{
+	if (entry != NULL)
+		kmem_cache_free(hist->dccptxh_slab, entry);
+}
+
+extern void dccp_tx_hist_purge(struct dccp_tx_hist *hist,
+			       struct list_head *list);
+
+extern void dccp_tx_hist_purge_older(struct dccp_tx_hist *hist,
+				     struct list_head *list,
+				     struct dccp_tx_hist_entry *next);
+
+/*
+ * 	Receiver History data structures and declarations
+ */
+struct dccp_rx_hist_entry {
+	struct list_head dccphrx_node;
+	u64		 dccphrx_seqno:48,
+			 dccphrx_ccval:4,
+			 dccphrx_type:4;
+	u32		 dccphrx_ndp; /* In fact it is from 8 to 24 bits */
+	struct timeval	 dccphrx_tstamp;
+};
+
+struct dccp_rx_hist {
+	struct kmem_cache *dccprxh_slab;
+};
+
+extern struct dccp_rx_hist *dccp_rx_hist_new(const char *name);
+extern void 		dccp_rx_hist_delete(struct dccp_rx_hist *hist);
+
 static inline struct dccp_rx_hist_entry *
-		     dccp_rx_hist_entry_new(struct dccp_rx_hist *hist,
-				     	    const struct sock *sk, 
-				     	    const u32 ndp, 
-					    const struct sk_buff *skb,
-					    const gfp_t prio)
+			dccp_rx_hist_entry_new(struct dccp_rx_hist *hist,
+					       const struct sock *sk,
+				     	       const u32 ndp,
+					       const struct sk_buff *skb,
+					       const gfp_t prio)
 {
 	struct dccp_rx_hist_entry *entry = kmem_cache_alloc(hist->dccprxh_slab,
 							    prio);
@@ -156,6 +157,28 @@ static inline struct dccp_rx_hist_entry *
 	return entry;
 }
 
+static inline struct dccp_rx_hist_entry *
+			dccp_rx_hist_head(struct list_head *list)
+{
+	struct dccp_rx_hist_entry *head = NULL;
+
+	if (!list_empty(list))
+		head = list_entry(list->next, struct dccp_rx_hist_entry,
+				  dccphrx_node);
+	return head;
+}
+
+extern int dccp_rx_hist_find_entry(const struct list_head *list, const u64 seq,
+   				   u8 *ccval);
+extern struct dccp_rx_hist_entry *
+		dccp_rx_hist_find_data_packet(const struct list_head *list);
+
+extern void dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
+				    struct list_head *rx_list,
+				    struct list_head *li_list,
+				    struct dccp_rx_hist_entry *packet,
+				    u64 nonloss_seqno);
+
 static inline void dccp_rx_hist_entry_delete(struct dccp_rx_hist *hist,
 					     struct dccp_rx_hist_entry *entry)
 {
@@ -166,29 +189,12 @@ static inline void dccp_rx_hist_entry_delete(struct dccp_rx_hist *hist,
 extern void dccp_rx_hist_purge(struct dccp_rx_hist *hist,
 			       struct list_head *list);
 
-static inline struct dccp_rx_hist_entry *
-		dccp_rx_hist_head(struct list_head *list)
-{
-	struct dccp_rx_hist_entry *head = NULL;
-
-	if (!list_empty(list))
-		head = list_entry(list->next, struct dccp_rx_hist_entry,
-				  dccphrx_node);
-	return head;
-}
-
 static inline int
 	dccp_rx_hist_entry_data_packet(const struct dccp_rx_hist_entry *entry)
 {
 	return entry->dccphrx_type == DCCP_PKT_DATA ||
 	       entry->dccphrx_type == DCCP_PKT_DATAACK;
 }
-
-extern void dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
-				   struct list_head *rx_list,
-				   struct list_head *li_list,
-				   struct dccp_rx_hist_entry *packet,
-				   u64 nonloss_seqno);
 
 extern u64 dccp_rx_hist_detect_loss(struct list_head *rx_list,
 				    struct list_head *li_list, u8 *win_loss);

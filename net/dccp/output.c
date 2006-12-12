@@ -1,6 +1,6 @@
 /*
  *  net/dccp/output.c
- * 
+ *
  *  An implementation of the DCCP protocol
  *  Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
@@ -175,14 +175,12 @@ void dccp_write_space(struct sock *sk)
 /**
  * dccp_wait_for_ccid - Wait for ccid to tell us we can send a packet
  * @sk: socket to wait for
- * @timeo: for how long
  */
-static int dccp_wait_for_ccid(struct sock *sk, struct sk_buff *skb,
-			      long *timeo)
+static int dccp_wait_for_ccid(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	DEFINE_WAIT(wait);
-	long delay;
+	unsigned long delay;
 	int rc;
 
 	while (1) {
@@ -190,8 +188,6 @@ static int dccp_wait_for_ccid(struct sock *sk, struct sk_buff *skb,
 
 		if (sk->sk_err)
 			goto do_error;
-		if (!*timeo)
-			goto do_nonblock;
 		if (signal_pending(current))
 			goto do_interrupted;
 
@@ -199,12 +195,9 @@ static int dccp_wait_for_ccid(struct sock *sk, struct sk_buff *skb,
 		if (rc <= 0)
 			break;
 		delay = msecs_to_jiffies(rc);
-		if (delay > *timeo || delay < 0)
-			goto do_nonblock;
-
 		sk->sk_write_pending++;
 		release_sock(sk);
-		*timeo -= schedule_timeout(delay);
+		schedule_timeout(delay);
 		lock_sock(sk);
 		sk->sk_write_pending--;
 	}
@@ -215,11 +208,8 @@ out:
 do_error:
 	rc = -EPIPE;
 	goto out;
-do_nonblock:
-	rc = -EAGAIN;
-	goto out;
 do_interrupted:
-	rc = sock_intr_errno(*timeo);
+	rc = -EINTR;
 	goto out;
 }
 
@@ -240,8 +230,6 @@ void dccp_write_xmit(struct sock *sk, int block)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct sk_buff *skb;
-	long timeo = DCCP_XMIT_TIMEO; 	/* If a packet is taking longer than
-					   this we have other issues */
 
 	while ((skb = skb_peek(&sk->sk_write_queue))) {
 		int err = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb);
@@ -251,11 +239,9 @@ void dccp_write_xmit(struct sock *sk, int block)
 				sk_reset_timer(sk, &dp->dccps_xmit_timer,
 						msecs_to_jiffies(err)+jiffies);
 				break;
-			} else {
-				err = dccp_wait_for_ccid(sk, skb, &timeo);
-				timeo = DCCP_XMIT_TIMEO;
-			}
-			if (err)
+			} else
+				err = dccp_wait_for_ccid(sk, skb);
+			if (err && err != -EINTR)
 				DCCP_BUG("err=%d after dccp_wait_for_ccid", err);
 		}
 
@@ -281,8 +267,10 @@ void dccp_write_xmit(struct sock *sk, int block)
 			if (err)
 				DCCP_BUG("err=%d after ccid_hc_tx_packet_sent",
 					 err);
-		} else
+		} else {
+			dccp_pr_debug("packet discarded\n");
 			kfree(skb);
+		}
 	}
 }
 
@@ -350,7 +338,6 @@ EXPORT_SYMBOL_GPL(dccp_make_response);
 
 static struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
 				       const enum dccp_reset_codes code)
-				   
 {
 	struct dccp_hdr *dh;
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -431,14 +418,14 @@ static inline void dccp_connect_init(struct sock *sk)
 	
 	dccp_sync_mss(sk, dst_mtu(dst));
 
- 	/*
+	/*
 	 * SWL and AWL are initially adjusted so that they are not less than
 	 * the initial Sequence Numbers received and sent, respectively:
 	 *	SWL := max(GSR + 1 - floor(W/4), ISR),
 	 *	AWL := max(GSS - W' + 1, ISS).
 	 * These adjustments MUST be applied only at the beginning of the
 	 * connection.
- 	 */
+	 */
 	dccp_update_gss(sk, dp->dccps_iss);
 	dccp_set_seqno(&dp->dccps_awl, max48(dp->dccps_awl, dp->dccps_iss));
 

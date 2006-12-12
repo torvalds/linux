@@ -157,7 +157,7 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 	/* We don't check in the destentry if pmtu discovery is forbidden
 	 * on this route. We just assume that no packet_to_big packets
 	 * are send back when pmtu discovery is not active.
-     	 * There is a small race when the user changes this flag in the
+ 	 * There is a small race when the user changes this flag in the
 	 * route, but I think that's acceptable.
 	 */
 	if ((dst = __sk_dst_check(sk, 0)) == NULL)
@@ -467,7 +467,7 @@ static struct dst_entry* dccp_v4_route_skb(struct sock *sk,
 			    .uli_u = { .ports =
 				       { .sport = dccp_hdr(skb)->dccph_dport,
 					 .dport = dccp_hdr(skb)->dccph_sport }
-			   	     }
+				     }
 			  };
 
 	security_skb_classify_flow(skb, &fl);
@@ -595,7 +595,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct inet_request_sock *ireq;
 	struct request_sock *req;
 	struct dccp_request_sock *dreq;
- 	const __be32 service = dccp_hdr_request(skb)->dccph_req_service;
+	const __be32 service = dccp_hdr_request(skb)->dccph_req_service;
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 	__u8 reset_code = DCCP_RESET_CODE_TOO_BUSY;
 
@@ -609,7 +609,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (dccp_bad_service_code(sk, service)) {
 		reset_code = DCCP_RESET_CODE_BAD_SERVICE_CODE;
 		goto drop;
- 	}
+	}
 	/*
 	 * TW buckets are converted to open requests without
 	 * limitations, they conserve resources and peer is
@@ -644,7 +644,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	ireq->rmt_addr = skb->nh.iph->saddr;
 	ireq->opt	= NULL;
 
-	/* 
+	/*
 	 * Step 3: Process LISTEN state
 	 *
 	 * Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init Cookie
@@ -846,15 +846,15 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 	}
 
 	/* Step 2:
-	 * 	Look up flow ID in table and get corresponding socket */
+	 *	Look up flow ID in table and get corresponding socket */
 	sk = __inet_lookup(&dccp_hashinfo,
 			   skb->nh.iph->saddr, dh->dccph_sport,
 			   skb->nh.iph->daddr, dh->dccph_dport,
 			   inet_iif(skb));
 
-	/* 
+	/*
 	 * Step 2:
-	 * 	If no socket ...
+	 *	If no socket ...
 	 */
 	if (sk == NULL) {
 		dccp_pr_debug("failed to look up flow ID in table and "
@@ -862,9 +862,9 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 		goto no_dccp_socket;
 	}
 
-	/* 
+	/*
 	 * Step 2:
-	 * 	... or S.state == TIMEWAIT,
+	 *	... or S.state == TIMEWAIT,
 	 *		Generate Reset(No Connection) unless P.type == Reset
 	 *		Drop packet and return
 	 */
@@ -876,8 +876,8 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 
 	/*
 	 * RFC 4340, sec. 9.2.1: Minimum Checksum Coverage
-	 * 	o if MinCsCov = 0, only packets with CsCov = 0 are accepted
-	 * 	o if MinCsCov > 0, also accept packets with CsCov >= MinCsCov
+	 *	o if MinCsCov = 0, only packets with CsCov = 0 are accepted
+	 *	o if MinCsCov > 0, also accept packets with CsCov >= MinCsCov
 	 */
 	min_cov = dccp_sk(sk)->dccps_pcrlen;
 	if (dh->dccph_cscov && (min_cov == 0 || dh->dccph_cscov < min_cov))  {
@@ -900,7 +900,7 @@ no_dccp_socket:
 		goto discard_it;
 	/*
 	 * Step 2:
-	 * 	If no socket ...
+	 *	If no socket ...
 	 *		Generate Reset(No Connection) unless P.type == Reset
 	 *		Drop packet and return
 	 */

@@ -1,6 +1,6 @@
 /*
  *  net/dccp/timer.c
- * 
+ *
  *  An implementation of the DCCP protocol
  *  Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
@@ -102,13 +102,13 @@ static void dccp_retransmit_timer(struct sock *sk)
 	 * sk->sk_send_head has to have one skb with
 	 * DCCP_SKB_CB(skb)->dccpd_type set to one of the retransmittable DCCP
 	 * packet types. The only packets eligible for retransmission are:
-	 * 	-- Requests in client-REQUEST  state (sec. 8.1.1)
-	 * 	-- Acks     in client-PARTOPEN state (sec. 8.1.5)
-	 * 	-- CloseReq in server-CLOSEREQ state (sec. 8.3)
-	 * 	-- Close    in   node-CLOSING  state (sec. 8.3)                */
+	 *	-- Requests in client-REQUEST  state (sec. 8.1.1)
+	 *	-- Acks     in client-PARTOPEN state (sec. 8.1.5)
+	 *	-- CloseReq in server-CLOSEREQ state (sec. 8.3)
+	 *	-- Close    in   node-CLOSING  state (sec. 8.3)                */
 	BUG_TRAP(sk->sk_send_head != NULL);
 
-	/* 
+	/*
 	 * More than than 4MSL (8 minutes) has passed, a RESET(aborted) was
 	 * sent, no need to retransmit, this sock is dead.
 	 */
@@ -200,7 +200,7 @@ static void dccp_keepalive_timer(unsigned long data)
 	/* Only process if socket is not in use. */
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
-		/* Try again later. */ 
+		/* Try again later. */
 		inet_csk_reset_keepalive_timer(sk, HZ / 20);
 		goto out;
 	}
