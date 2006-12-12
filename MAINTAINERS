@@ -3427,6 +3427,12 @@ M:	bezaur@gmail.com
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
+W83793 HARDWARE MONITORING DRIVER
+P:	Rudolf Marek
+M:	r.marek@assembler.cz
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 W83L51xD SD/MMC CARD INTERFACE DRIVER
 P:	Pierre Ossman
 M:	drzeus-wbsd@drzeus.cx
