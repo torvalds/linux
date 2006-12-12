@@ -64,6 +64,16 @@ static inline int nf_ct_get_ctinfo(const struct sk_buff *skb,
 	return (ct != NULL);
 }
 
+static inline int nf_ct_l3proto_try_module_get(unsigned short l3proto)
+{
+	need_conntrack();
+	return l3proto == PF_INET ? 0 : -1;
+}
+
+static inline void nf_ct_l3proto_module_put(unsigned short l3proto)
+{
+}
+
 #else /* CONFIG_IP_NF_CONNTRACK */
 
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>

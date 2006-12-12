@@ -24,6 +24,7 @@
 #endif
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_helper.h>
+#include <net/netfilter/nf_conntrack_compat.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Martin Josefsson <gandalf@netfilter.org>");
@@ -143,13 +144,11 @@ static int check(const char *tablename,
 {
 	struct xt_helper_info *info = matchinfo;
 
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
-		printk(KERN_WARNING "can't load nf_conntrack support for "
+		printk(KERN_WARNING "can't load conntrack support for "
 				    "proto=%d\n", match->family);
 		return 0;
 	}
-#endif
 	info->name[29] = '\0';
 	return 1;
 }
@@ -157,9 +156,7 @@ static int check(const char *tablename,
 static void
 destroy(const struct xt_match *match, void *matchinfo)
 {
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	nf_ct_l3proto_module_put(match->family);
-#endif
 }
 
 static struct xt_match xt_helper_match[] = {
@@ -185,7 +182,6 @@ static struct xt_match xt_helper_match[] = {
 
 static int __init xt_helper_init(void)
 {
-	need_conntrack();
 	return xt_register_matches(xt_helper_match,
 				   ARRAY_SIZE(xt_helper_match));
 }
