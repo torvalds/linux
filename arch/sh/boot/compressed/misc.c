@@ -13,6 +13,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/addrspace.h>
+#include <asm/page.h>
 #ifdef CONFIG_SH_STANDARD_BIOS
 #include <asm/sh_bios.h>
 #endif
@@ -229,7 +230,7 @@ long* stack_start = &user_stack[STACK_SIZE];
 void decompress_kernel(void)
 {
 	output_data = 0;
-	output_ptr = P2SEGADDR((unsigned long)&_text+0x1000);
+	output_ptr = P2SEGADDR((unsigned long)&_text+PAGE_SIZE);
 	free_mem_ptr = (unsigned long)&_end;
 	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
 

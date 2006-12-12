@@ -37,7 +37,8 @@
 # define ONCHIP_NR_IRQS 144
 #elif defined(CONFIG_CPU_SUBTYPE_SH7300) || \
       defined(CONFIG_CPU_SUBTYPE_SH73180) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7343)
+      defined(CONFIG_CPU_SUBTYPE_SH7343) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7722)
 # define ONCHIP_NR_IRQS 109
 #elif defined(CONFIG_CPU_SUBTYPE_SH7780)
 # define ONCHIP_NR_IRQS 111
@@ -79,6 +80,8 @@
 # define OFFCHIP_NR_IRQS 16
 #elif defined(CONFIG_SH_7343_SOLUTION_ENGINE)
 # define OFFCHIP_NR_IRQS 12
+#elif defined(CONFIG_SH_7722_SOLUTION_ENGINE)
+# define OFFCHIP_NR_IRQS 14
 #elif defined(CONFIG_SH_UNKNOWN)
 # define OFFCHIP_NR_IRQS 16	/* Must also be last */
 #else

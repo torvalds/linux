@@ -51,7 +51,7 @@ SECTIONS
 	}
 
   . = ALIGN(PAGE_SIZE);
-  .data.page_aligned : { *(.data.idt) }
+  .data.page_aligned : { *(.data.page_aligned) }
 
   . = ALIGN(32);
   __per_cpu_start = .;

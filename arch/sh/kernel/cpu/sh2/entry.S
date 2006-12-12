@@ -177,15 +177,21 @@ interrupt_entry:
 7:	.long	do_IRQ
 8:	.long	do_exception_error
 	
-trap_entry:	
-	add	#-0x10,r9
+trap_entry:
+	/* verbose BUG trapa entry check */
+	mov	#0x3e,r8
+	cmp/ge	r8,r9
+	bf/s	1f
+	 add	#-0x10,r9
+	add	#0x10,r9
+1:	
 	shll2	r9			! TRA
 	mov	#OFF_TRA,r8
 	add	r15,r8
 	mov.l	r9,@r8
 	mov	r9,r8
 #ifdef CONFIG_TRACE_IRQFLAGS
-	mov.l	5f, r9
+	mov.l	2f, r9
 	jsr	@r9
 	 nop
 #endif
@@ -194,12 +200,8 @@ trap_entry:
 	 nop
 	
 	.align	2
-1:	.long	syscall_exit
-2:	.long	break_point_trap_software
-3:	.long	NR_syscalls
-4:	.long	sys_call_table
 #ifdef CONFIG_TRACE_IRQFLAGS
-5:	.long	trace_hardirqs_on
+2:	.long	trace_hardirqs_on
 #endif
 
 #if defined(CONFIG_SH_STANDARD_BIOS)
@@ -264,7 +266,7 @@ ENTRY(address_error_handler)
 restore_all:
 	cli
 #ifdef CONFIG_TRACE_IRQFLAGS
-	mov.l	3f, r0
+	mov.l	1f, r0
 	jsr	@r0
 	 nop
 #endif
@@ -309,20 +311,14 @@ restore_all:
 	mov.l	@r15,r15
 	rte
 	 nop
-2:
-	mov.l	1f,r8
-	mov.l	2f,r9
-	jmp	@r9
-	 lds	r8,pr
 
-	.align	2
+#ifdef CONFIG_TRACE_IRQFLAGS
+1:     .long   trace_hardirqs_off
+#endif
 $current_thread_info:
 	.long	__current_thread_info
 $cpu_mode:	
 	.long	__cpu_mode
-#ifdef CONFIG_TRACE_IRQFLAGS
-3:	.long	trace_hardirqs_off
-#endif
 		
 ! common exception handler
 #include "../../entry-common.S"

@@ -119,10 +119,19 @@ int __init detect_cpu_and_cache_system(void)
 		break;
 	case 0x3000:
 	case 0x3003:
+	case 0x3009:
 		cpu_data->type = CPU_SH7343;
 		cpu_data->icache.ways = 4;
 		cpu_data->dcache.ways = 4;
 		cpu_data->flags |= CPU_HAS_LLSC;
+		break;
+	case 0x3008:
+		if (prr == 0xa0) {
+			cpu_data->type = CPU_SH7722;
+			cpu_data->icache.ways = 4;
+			cpu_data->dcache.ways = 4;
+			cpu_data->flags |= CPU_HAS_LLSC;
+		}
 		break;
 	case 0x8000:
 		cpu_data->type = CPU_ST40RA;

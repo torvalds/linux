@@ -27,6 +27,8 @@
 #define CCN_CVR		0xff000040
 #define CCN_PRR		0xff000044
 
+const char *get_cpu_subtype(void);
+
 /*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
  *
@@ -52,8 +54,10 @@ enum cpu_type {
 	CPU_SH7760, CPU_ST40RA, CPU_ST40GX1, CPU_SH4_202, CPU_SH4_501,
 
 	/* SH-4A types */
-	CPU_SH73180, CPU_SH7343, CPU_SH7770, CPU_SH7780, CPU_SH7781,
-	CPU_SH7785,
+	CPU_SH7770, CPU_SH7780, CPU_SH7781, CPU_SH7785,
+
+	/* SH4AL-DSP types */
+	CPU_SH73180, CPU_SH7343, CPU_SH7722,
 
 	/* Unknown subtype */
 	CPU_SH_NONE

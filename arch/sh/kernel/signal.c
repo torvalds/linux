@@ -101,7 +101,7 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
  */
 
 #define MOVW(n)	 (0x9300|((n)-2))	/* Move mem word at PC+n to R3 */
-#if defined(CONFIG_CPU_SH2) || defined(CONFIG_CPU_SH2A)
+#if defined(CONFIG_CPU_SH2)
 #define TRAP_NOARG 0xc320		/* Syscall w/no args (NR in R3) */
 #else
 #define TRAP_NOARG 0xc310		/* Syscall w/no args (NR in R3) */

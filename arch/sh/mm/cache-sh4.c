@@ -107,7 +107,7 @@ void __init p3_cache_init(void)
 
 	emit_cache_params();
 
-	if (remap_area_pages(P3SEG, 0, PAGE_SIZE * 4, _PAGE_CACHABLE))
+	if (ioremap_page_range(P3SEG, P3SEG + (PAGE_SIZE * 4), 0, PAGE_KERNEL))
 		panic("%s failed.", __FUNCTION__);
 
 	for (i = 0; i < cpu_data->dcache.n_aliases; i++)

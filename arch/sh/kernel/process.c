@@ -470,9 +470,10 @@ unsigned long get_wchan(struct task_struct *p)
 	 */
 	pc = thread_saved_pc(p);
 	if (in_sched_functions(pc)) {
-		schedule_frame = ((unsigned long *)(long)p->thread.sp)[1];
-		return (unsigned long)((unsigned long *)schedule_frame)[1];
+		schedule_frame = (unsigned long)p->thread.sp;
+		return ((unsigned long *)schedule_frame)[21];
 	}
+
 	return pc;
 }
 
@@ -498,6 +499,16 @@ asmlinkage void break_point_trap_software(unsigned long r4, unsigned long r5,
 {
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 
+	/* Rewind */
 	regs->pc -= 2;
+
+#ifdef CONFIG_BUG
+	if (__kernel_text_address(instruction_pointer(regs))) {
+		u16 insn = *(u16 *)instruction_pointer(regs);
+		if (insn == TRAPA_BUG_OPCODE)
+			handle_BUG(regs);
+	}
+#endif
+
 	force_sig(SIGTRAP, current);
 }

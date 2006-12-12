@@ -508,16 +508,50 @@ struct vm_area_struct;
 extern void update_mmu_cache(struct vm_area_struct * vma,
 			     unsigned long address, pte_t pte);
 
-/* Encode and de-code a swap entry */
 /*
+ * Encode and de-code a swap entry
+ *
+ * Constraints:
+ *	_PAGE_FILE at bit 0
+ *	_PAGE_PRESENT at bit 8
+ *	_PAGE_PROTNONE at bit 9
+ *
+ * For the normal case, we encode the swap type into bits 0:7 and the
+ * swap offset into bits 10:30. For the 64-bit PTE case, we keep the
+ * preserved bits in the low 32-bits and use the upper 32 as the swap
+ * offset (along with a 5-bit type), following the same approach as x86
+ * PAE. This keeps the logic quite simple, and allows for a full 32
+ * PTE_FILE_MAX_BITS, as opposed to the 29-bits we're constrained with
+ * in the pte_low case.
+ *
+ * As is evident by the Alpha code, if we ever get a 64-bit unsigned
+ * long (swp_entry_t) to match up with the 64-bit PTEs, this all becomes
+ * much cleaner..
+ *
  * NOTE: We should set ZEROs at the position of _PAGE_PRESENT
  *       and _PAGE_PROTNONE bits
  */
-#define __swp_type(x)		((x).val & 0xff)
-#define __swp_offset(x)		((x).val >> 10)
-#define __swp_entry(type, offset) ((swp_entry_t) { (type) | ((offset) << 10) })
-#define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) >> 1 })
-#define __swp_entry_to_pte(x)	((pte_t) { (x).val << 1 })
+#ifdef CONFIG_X2TLB
+#define __swp_type(x)			((x).val & 0x1f)
+#define __swp_offset(x)			((x).val >> 5)
+#define __swp_entry(type, offset)	((swp_entry_t){ (type) | (offset) << 5})
+#define __pte_to_swp_entry(pte)		((swp_entry_t){ (pte).pte_high })
+#define __swp_entry_to_pte(x)		((pte_t){ 0, (x).val })
+
+/*
+ * Encode and decode a nonlinear file mapping entry
+ */
+#define pte_to_pgoff(pte)		((pte).pte_high)
+#define pgoff_to_pte(off)		((pte_t) { _PAGE_FILE, (off) })
+
+#define PTE_FILE_MAX_BITS		32
+#else
+#define __swp_type(x)			((x).val & 0xff)
+#define __swp_offset(x)			((x).val >> 10)
+#define __swp_entry(type, offset)	((swp_entry_t){(type) | (offset) <<10})
+
+#define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 1 })
+#define __swp_entry_to_pte(x)		((pte_t) { (x).val << 1 })
 
 /*
  * Encode and decode a nonlinear file mapping entry
@@ -525,6 +559,7 @@ extern void update_mmu_cache(struct vm_area_struct * vma,
 #define PTE_FILE_MAX_BITS	29
 #define pte_to_pgoff(pte)	(pte_val(pte) >> 1)
 #define pgoff_to_pte(off)	((pte_t) { ((off) << 1) | _PAGE_FILE })
+#endif
 
 typedef pte_t *pte_addr_t;
 
