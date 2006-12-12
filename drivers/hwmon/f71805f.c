@@ -112,6 +112,7 @@ superio_exit(int base)
 #define F71805F_REG_FAN(nr)		(0x20 + 2 * (nr))
 #define F71805F_REG_FAN_LOW(nr)		(0x28 + 2 * (nr))
 #define F71805F_REG_FAN_CTRL(nr)	(0x60 + 16 * (nr))
+#define F71805F_REG_PWM_FREQ(nr)	(0x63 + 16 * (nr))
 #define F71805F_REG_PWM_DUTY(nr)	(0x6B + 16 * (nr))
 /* temp nr from 0 to 2 (8-bit values) */
 #define F71805F_REG_TEMP(nr)		(0x1B + (nr))
@@ -153,6 +154,7 @@ struct f71805f_data {
 	u16 fan_low[3];
 	u8 fan_ctrl[3];
 	u8 pwm[3];
+	u8 pwm_freq[3];
 	u8 temp[3];
 	u8 temp_high[3];
 	u8 temp_hyst[3];
@@ -207,6 +209,28 @@ static inline u16 fan_to_reg(long rpm)
 	if (rpm < 367)
 		return 0xfff;
 	return (1500000 / rpm);
+}
+
+static inline unsigned long pwm_freq_from_reg(u8 reg)
+{
+	unsigned long clock = (reg & 0x80) ? 48000000UL : 1000000UL;
+
+	reg &= 0x7f;
+	if (reg == 0)
+		reg++;
+	return clock / (reg << 8);
+}
+
+static inline u8 pwm_freq_to_reg(unsigned long val)
+{
+	if (val >= 187500)	/* The highest we can do */
+		return 0x80;
+	if (val >= 1475)	/* Use 48 MHz clock */
+		return 0x80 | (48000000UL / (val << 8));
+	if (val < 31)		/* The lowest we can do */
+		return 0x7f;
+	else			/* Use 1 MHz clock */
+		return 1000000UL / (val << 8);
 }
 
 static inline long temp_from_reg(u8 reg)
@@ -294,6 +318,8 @@ static struct f71805f_data *f71805f_update_device(struct device *dev)
 				continue;
 			data->fan_low[nr] = f71805f_read16(data,
 					    F71805F_REG_FAN_LOW(nr));
+			data->pwm_freq[nr] = f71805f_read8(data,
+					     F71805F_REG_PWM_FREQ(nr));
 		}
 		for (nr = 0; nr < 3; nr++) {
 			data->temp_high[nr] = f71805f_read8(data,
@@ -526,6 +552,16 @@ static ssize_t show_pwm_enable(struct device *dev, struct device_attribute
 	return sprintf(buf, "%d\n", mode);
 }
 
+static ssize_t show_pwm_freq(struct device *dev, struct device_attribute
+			     *devattr, char *buf)
+{
+	struct f71805f_data *data = f71805f_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	int nr = attr->index;
+
+	return sprintf(buf, "%lu\n", pwm_freq_from_reg(data->pwm_freq[nr]));
+}
+
 static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr,
 		       const char *buf, size_t count)
 {
@@ -588,6 +624,22 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute
 				     S_IRUGO | S_IWUSR))
 			dev_dbg(dev, "chmod +w pwm%d failed\n", nr + 1);
 	}
+
+	return count;
+}
+
+static ssize_t set_pwm_freq(struct device *dev, struct device_attribute
+			    *devattr, const char *buf, size_t count)
+{
+	struct f71805f_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	int nr = attr->index;
+	unsigned long val = simple_strtoul(buf, NULL, 10);
+
+	mutex_lock(&data->update_lock);
+	data->pwm_freq[nr] = pwm_freq_to_reg(val);
+	f71805f_write8(data, F71805F_REG_PWM_FREQ(nr), data->pwm_freq[nr]);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -785,12 +837,18 @@ static SENSOR_DEVICE_ATTR(temp3_type, S_IRUGO, show_temp_type, NULL, 2);
 static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO, show_pwm, set_pwm, 0);
 static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO | S_IWUSR,
 			  show_pwm_enable, set_pwm_enable, 0);
+static SENSOR_DEVICE_ATTR(pwm1_freq, S_IRUGO | S_IWUSR,
+			  show_pwm_freq, set_pwm_freq, 0);
 static SENSOR_DEVICE_ATTR(pwm2, S_IRUGO, show_pwm, set_pwm, 1);
 static SENSOR_DEVICE_ATTR(pwm2_enable, S_IRUGO | S_IWUSR,
 			  show_pwm_enable, set_pwm_enable, 1);
+static SENSOR_DEVICE_ATTR(pwm2_freq, S_IRUGO | S_IWUSR,
+			  show_pwm_freq, set_pwm_freq, 1);
 static SENSOR_DEVICE_ATTR(pwm3, S_IRUGO, show_pwm, set_pwm, 2);
 static SENSOR_DEVICE_ATTR(pwm3_enable, S_IRUGO | S_IWUSR,
 			  show_pwm_enable, set_pwm_enable, 2);
+static SENSOR_DEVICE_ATTR(pwm3_freq, S_IRUGO | S_IWUSR,
+			  show_pwm_freq, set_pwm_freq, 2);
 
 static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0);
 static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1);
@@ -879,13 +937,14 @@ static const struct attribute_group f71805f_group = {
 	.attrs = f71805f_attributes,
 };
 
-static struct attribute *f71805f_attributes_fan[3][6] = {
+static struct attribute *f71805f_attributes_fan[3][7] = {
 	{
 		&sensor_dev_attr_fan1_input.dev_attr.attr,
 		&sensor_dev_attr_fan1_min.dev_attr.attr,
 		&sensor_dev_attr_fan1_alarm.dev_attr.attr,
 		&sensor_dev_attr_pwm1.dev_attr.attr,
 		&sensor_dev_attr_pwm1_enable.dev_attr.attr,
+		&sensor_dev_attr_pwm1_freq.dev_attr.attr,
 		NULL
 	}, {
 		&sensor_dev_attr_fan2_input.dev_attr.attr,
@@ -893,6 +952,7 @@ static struct attribute *f71805f_attributes_fan[3][6] = {
 		&sensor_dev_attr_fan2_alarm.dev_attr.attr,
 		&sensor_dev_attr_pwm2.dev_attr.attr,
 		&sensor_dev_attr_pwm2_enable.dev_attr.attr,
+		&sensor_dev_attr_pwm2_freq.dev_attr.attr,
 		NULL
 	}, {
 		&sensor_dev_attr_fan3_input.dev_attr.attr,
@@ -900,6 +960,7 @@ static struct attribute *f71805f_attributes_fan[3][6] = {
 		&sensor_dev_attr_fan3_alarm.dev_attr.attr,
 		&sensor_dev_attr_pwm3.dev_attr.attr,
 		&sensor_dev_attr_pwm3_enable.dev_attr.attr,
+		&sensor_dev_attr_pwm3_freq.dev_attr.attr,
 		NULL
 	}
 };
