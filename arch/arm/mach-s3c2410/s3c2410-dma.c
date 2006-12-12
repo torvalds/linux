@@ -132,6 +132,7 @@ static int s3c2410_dma_add(struct sys_device *sysdev)
 	return s3c24xx_dma_init_map(&s3c2410_dma_sel);
 }
 
+#if defined(CONFIG_CPU_S3C2410)
 static struct sysdev_driver s3c2410_dma_driver = {
 	.add	= s3c2410_dma_add,
 };
@@ -142,9 +143,10 @@ static int __init s3c2410_dma_init(void)
 }
 
 arch_initcall(s3c2410_dma_init);
+#endif
 
+#if defined(CONFIG_CPU_S3C2442)
 /* S3C2442 DMA contains the same selection table as the S3C2410 */
-
 static struct sysdev_driver s3c2442_dma_driver = {
 	.add	= s3c2410_dma_add,
 };
@@ -155,5 +157,5 @@ static int __init s3c2442_dma_init(void)
 }
 
 arch_initcall(s3c2442_dma_init);
-
+#endif
 
