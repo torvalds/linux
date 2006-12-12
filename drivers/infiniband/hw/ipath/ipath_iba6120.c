@@ -851,12 +851,12 @@ static int ipath_setup_pe_config(struct ipath_devdata *dd,
 	int pos, ret;
 
 	dd->ipath_msi_lo = 0;	/* used as a flag during reset processing */
-	dd->ipath_irq = pdev->irq;
 	ret = pci_enable_msi(dd->pcidev);
 	if (ret)
 		ipath_dev_err(dd, "pci_enable_msi failed: %d, "
 			      "interrupts may not work\n", ret);
 	/* continue even if it fails, we may still be OK... */
+	dd->ipath_irq = pdev->irq;
 
 	if ((pos = pci_find_capability(dd->pcidev, PCI_CAP_ID_MSI))) {
 		u16 control;
