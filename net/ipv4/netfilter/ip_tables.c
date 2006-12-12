@@ -384,6 +384,7 @@ mark_source_chains(struct xt_table_info *newinfo,
 		for (;;) {
 			struct ipt_standard_target *t
 				= (void *)ipt_get_target(e);
+			int visited = e->comefrom & (1 << hook);
 
 			if (e->comefrom & (1 << NF_IP_NUMHOOKS)) {
 				printk("iptables: loop hook %u pos %u %08X.\n",
@@ -394,11 +395,11 @@ mark_source_chains(struct xt_table_info *newinfo,
 				|= ((1 << hook) | (1 << NF_IP_NUMHOOKS));
 
 			/* Unconditional return/END. */
-			if (e->target_offset == sizeof(struct ipt_entry)
+			if ((e->target_offset == sizeof(struct ipt_entry)
 			    && (strcmp(t->target.u.user.name,
 				       IPT_STANDARD_TARGET) == 0)
 			    && t->verdict < 0
-			    && unconditional(&e->ip)) {
+			    && unconditional(&e->ip)) || visited) {
 				unsigned int oldpos, size;
 
 				if (t->verdict < -NF_MAX_VERDICT - 1) {

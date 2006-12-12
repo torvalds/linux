@@ -413,6 +413,7 @@ mark_source_chains(struct xt_table_info *newinfo,
 		unsigned int pos = newinfo->hook_entry[hook];
 		struct ip6t_entry *e
 			= (struct ip6t_entry *)(entry0 + pos);
+		int visited = e->comefrom & (1 << hook);
 
 		if (!(valid_hooks & (1 << hook)))
 			continue;
@@ -433,11 +434,11 @@ mark_source_chains(struct xt_table_info *newinfo,
 				|= ((1 << hook) | (1 << NF_IP6_NUMHOOKS));
 
 			/* Unconditional return/END. */
-			if (e->target_offset == sizeof(struct ip6t_entry)
+			if ((e->target_offset == sizeof(struct ip6t_entry)
 			    && (strcmp(t->target.u.user.name,
 				       IP6T_STANDARD_TARGET) == 0)
 			    && t->verdict < 0
-			    && unconditional(&e->ipv6)) {
+			    && unconditional(&e->ipv6)) || visited) {
 				unsigned int oldpos, size;
 
 				if (t->verdict < -NF_MAX_VERDICT - 1) {
