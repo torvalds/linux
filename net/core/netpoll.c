@@ -55,6 +55,7 @@ static void queue_process(struct work_struct *work)
 	struct netpoll_info *npinfo =
 		container_of(work, struct netpoll_info, tx_work.work);
 	struct sk_buff *skb;
+	unsigned long flags;
 
 	while ((skb = skb_dequeue(&npinfo->txq))) {
 		struct net_device *dev = skb->dev;
@@ -64,15 +65,19 @@ static void queue_process(struct work_struct *work)
 			continue;
 		}
 
-		netif_tx_lock_bh(dev);
+		local_irq_save(flags);
+		netif_tx_lock(dev);
 		if (netif_queue_stopped(dev) ||
 		    dev->hard_start_xmit(skb, dev) != NETDEV_TX_OK) {
 			skb_queue_head(&npinfo->txq, skb);
-			netif_tx_unlock_bh(dev);
+			netif_tx_unlock(dev);
+			local_irq_restore(flags);
 
 			schedule_delayed_work(&npinfo->tx_work, HZ/10);
 			return;
 		}
+		netif_tx_unlock(dev);
+		local_irq_restore(flags);
 	}
 }
 
