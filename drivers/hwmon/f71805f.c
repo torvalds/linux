@@ -122,6 +122,9 @@ superio_exit(int base)
 /* status nr from 0 to 2 */
 #define F71805F_REG_STATUS(nr)		(0x36 + (nr))
 
+/* individual register bits */
+#define FAN_CTRL_SKIP			0x80
+
 /*
  * Data structures and manipulation thereof
  */
@@ -143,7 +146,7 @@ struct f71805f_data {
 	u8 in_low[9];
 	u16 fan[3];
 	u16 fan_low[3];
-	u8 fan_enabled;		/* Read once at init time */
+	u8 fan_ctrl[3];
 	u8 temp[3];
 	u8 temp_high[3];
 	u8 temp_hyst[3];
@@ -281,9 +284,10 @@ static struct f71805f_data *f71805f_update_device(struct device *dev)
 					   F71805F_REG_IN_LOW(nr));
 		}
 		for (nr = 0; nr < 3; nr++) {
-			if (data->fan_enabled & (1 << nr))
-				data->fan_low[nr] = f71805f_read16(data,
-						    F71805F_REG_FAN_LOW(nr));
+			if (data->fan_ctrl[nr] & FAN_CTRL_SKIP)
+				continue;
+			data->fan_low[nr] = f71805f_read16(data,
+					    F71805F_REG_FAN_LOW(nr));
 		}
 		for (nr = 0; nr < 3; nr++) {
 			data->temp_high[nr] = f71805f_read8(data,
@@ -304,9 +308,10 @@ static struct f71805f_data *f71805f_update_device(struct device *dev)
 				       F71805F_REG_IN(nr));
 		}
 		for (nr = 0; nr < 3; nr++) {
-			if (data->fan_enabled & (1 << nr))
-				data->fan[nr] = f71805f_read16(data,
-						F71805F_REG_FAN(nr));
+			if (data->fan_ctrl[nr] & FAN_CTRL_SKIP)
+				continue;
+			data->fan[nr] = f71805f_read16(data,
+					F71805F_REG_FAN(nr));
 		}
 		for (nr = 0; nr < 3; nr++) {
 			data->temp[nr] = f71805f_read8(data,
@@ -798,9 +803,8 @@ static void __devinit f71805f_init_device(struct f71805f_data *data)
 	/* Fan monitoring can be disabled. If it is, we won't be polling
 	   the register values, and won't create the related sysfs files. */
 	for (i = 0; i < 3; i++) {
-		reg = f71805f_read8(data, F71805F_REG_FAN_CTRL(i));
-		if (!(reg & 0x80))
-			data->fan_enabled |= (1 << i);
+		data->fan_ctrl[i] = f71805f_read8(data,
+						  F71805F_REG_FAN_CTRL(i));
 	}
 }
 
@@ -831,7 +835,7 @@ static int __devinit f71805f_probe(struct platform_device *pdev)
 	if ((err = sysfs_create_group(&pdev->dev.kobj, &f71805f_group)))
 		goto exit_free;
 	for (i = 0; i < 3; i++) {
-		if (!(data->fan_enabled & (1 << i)))
+		if (data->fan_ctrl[i] & FAN_CTRL_SKIP)
 			continue;
 		if ((err = sysfs_create_group(&pdev->dev.kobj,
 					      &f71805f_group_fan[i])))
