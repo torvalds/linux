@@ -39,6 +39,8 @@
 #include <asm/pdc.h>
 #include <asm/pdc_chassis.h>
 #include <asm/unwind.h>
+#include <asm/tlbflush.h>
+#include <asm/cacheflush.h>
 
 #include "../math-emu/math-emu.h"	/* for handle_fpe() */
 
@@ -554,7 +556,8 @@ void handle_interruption(int code, struct pt_regs *regs)
 		/* Low-priority machine check */
 		pdc_chassis_send_status(PDC_CHASSIS_DIRECT_LPMC);
 		
-		flush_all_caches();
+		flush_cache_all();
+		flush_tlb_all();
 		cpu_lpmc(5, regs);
 		return;
 
