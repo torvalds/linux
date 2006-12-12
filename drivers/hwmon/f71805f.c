@@ -102,9 +102,9 @@ superio_exit(int base)
  * ISA constants
  */
 
-#define REGION_LENGTH		2
-#define ADDR_REG_OFFSET		0
-#define DATA_REG_OFFSET		1
+#define REGION_LENGTH		8
+#define ADDR_REG_OFFSET		5
+#define DATA_REG_OFFSET		6
 
 /*
  * Registers
@@ -1359,6 +1359,7 @@ static int __init f71805f_find(int sioaddr, unsigned short *address,
 		       "skipping\n");
 		goto exit;
 	}
+	*address &= ~(REGION_LENGTH - 1);	/* Ignore 3 LSB */
 
 	err = 0;
 	printk(KERN_INFO DRVNAME ": Found %s chip at %#x, revision %u\n",
