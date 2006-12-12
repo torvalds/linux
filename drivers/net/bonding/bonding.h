@@ -237,12 +237,13 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 #define BOND_ARP_VALIDATE_ALL		(BOND_ARP_VALIDATE_ACTIVE | \
 					 BOND_ARP_VALIDATE_BACKUP)
 
-extern inline int slave_do_arp_validate(struct bonding *bond, struct slave *slave)
+static inline int slave_do_arp_validate(struct bonding *bond,
+					struct slave *slave)
 {
 	return bond->params.arp_validate & (1 << slave->state);
 }
 
-extern inline unsigned long slave_last_rx(struct bonding *bond,
+static inline unsigned long slave_last_rx(struct bonding *bond,
 					struct slave *slave)
 {
 	if (slave_do_arp_validate(bond, slave))
