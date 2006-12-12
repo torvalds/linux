@@ -6,6 +6,10 @@ Supported chips:
     Prefix: 'f71805f'
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: Provided by Fintek on request
+  * Fintek F71872F/FG
+    Prefix: 'f71872f'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Provided by Fintek on request
 
 Author: Jean Delvare <khali@linux-fr.org>
 
@@ -30,6 +34,10 @@ source), 3 fans and 3 temperature sensors.
 This chip also has fan controlling features, using either DC or PWM, in
 three different modes (one manual, two automatic).
 
+The Fintek F71872F/FG Super I/O chip is almost the same, with two
+additional internal voltages monitored (VSB and battery). It also features
+6 VID inputs. The VID inputs are not yet supported by this driver.
+
 The driver assumes that no more than one chip is present, which seems
 reasonable.
 
@@ -41,7 +49,8 @@ Voltages are sampled by an 8-bit ADC with a LSB of 8 mV. The supported
 range is thus from 0 to 2.040 V. Voltage values outside of this range
 need external resistors. An exception is in0, which is used to monitor
 the chip's own power source (+3.3V), and is divided internally by a
-factor 2.
+factor 2. For the F71872F/FG, in9 (VSB) and in10 (battery) are also
+divided internally by a factor 2.
 
 The two LSB of the voltage limit registers are not used (always 0), so
 you can only set the limits in steps of 32 mV (before scaling).
@@ -60,9 +69,12 @@ in5     VIN5    +12V        200K     20K       11.00    1.05 V
 in6     VIN6    VCC1.5V      10K       -        1.00    1.50 V
 in7     VIN7    VCORE        10K       -        1.00   ~1.40 V (1)
 in8     VIN8    VSB5V       200K     47K        1.00    0.95 V
+in10    VSB     VSB3.3V     int.    int.        2.00    1.65 V (3)
+in9     VBAT    VBATTERY    int.    int.        2.00    1.50 V (3)
 
 (1) Depends on your hardware setup.
 (2) Obviously not correct, swapping R1 and R2 would make more sense.
+(3) F71872F/FG only.
 
 These values can be used as hints at best, as motherboard manufacturers
 are free to use a completely different setup. As a matter of fact, the
