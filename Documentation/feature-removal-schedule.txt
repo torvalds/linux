@@ -151,15 +151,6 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 
 ---------------------------
 
-What:	I2C interface of the it87 driver
-When:	January 2007
-Why:	The ISA interface is faster and should be always available. The I2C
-	probing is also known to cause trouble in at least one case (see
-	bug #5889.)
-Who:	Jean Delvare <khali@linux-fr.org>
-
----------------------------
-
 What:	Unused EXPORT_SYMBOL/EXPORT_SYMBOL_GPL exports
 	(temporary transition config option provided until then)
 	The transition config option will also be removed at the same time.
