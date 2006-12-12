@@ -1510,7 +1510,7 @@ static int __devinit icom_probe(struct pci_dev *dev,
 	}
 
 	if ( (retval = pci_request_regions(dev, "icom"))) {
-		 dev_err(&dev->dev, "pci_request_region FAILED\n");
+		 dev_err(&dev->dev, "pci_request_regions FAILED\n");
 		 pci_disable_device(dev);
 		 return retval;
 	 }
