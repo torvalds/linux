@@ -182,7 +182,7 @@ struct iser_regd_buf {
 	struct iser_mem_reg     reg;        /* memory registration info        */
 	void                    *virt_addr;
 	struct iser_device      *device;    /* device->device for dma_unmap    */
-	dma_addr_t              dma_addr;   /* if non zero, addr for dma_unmap */
+	u64                     dma_addr;   /* if non zero, addr for dma_unmap */
 	enum dma_data_direction direction;  /* direction for dma_unmap	       */
 	unsigned int            data_size;
 	atomic_t                ref_count;  /* refcount, freed when dec to 0   */
