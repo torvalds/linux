@@ -112,6 +112,7 @@ superio_exit(int base)
 #define F71805F_REG_FAN(nr)		(0x20 + 2 * (nr))
 #define F71805F_REG_FAN_LOW(nr)		(0x28 + 2 * (nr))
 #define F71805F_REG_FAN_CTRL(nr)	(0x60 + 16 * (nr))
+#define F71805F_REG_PWM_DUTY(nr)	(0x6B + 16 * (nr))
 /* temp nr from 0 to 2 (8-bit values) */
 #define F71805F_REG_TEMP(nr)		(0x1B + (nr))
 #define F71805F_REG_TEMP_HIGH(nr)	(0x54 + 2 * (nr))
@@ -124,6 +125,10 @@ superio_exit(int base)
 
 /* individual register bits */
 #define FAN_CTRL_SKIP			0x80
+#define FAN_CTRL_MODE_MASK		0x03
+#define FAN_CTRL_MODE_SPEED		0x00
+#define FAN_CTRL_MODE_TEMPERATURE	0x01
+#define FAN_CTRL_MODE_MANUAL		0x02
 
 /*
  * Data structures and manipulation thereof
@@ -147,6 +152,7 @@ struct f71805f_data {
 	u16 fan[3];
 	u16 fan_low[3];
 	u8 fan_ctrl[3];
+	u8 pwm[3];
 	u8 temp[3];
 	u8 temp_high[3];
 	u8 temp_hyst[3];
@@ -312,6 +318,10 @@ static struct f71805f_data *f71805f_update_device(struct device *dev)
 				continue;
 			data->fan[nr] = f71805f_read16(data,
 					F71805F_REG_FAN(nr));
+			data->fan_ctrl[nr] = f71805f_read8(data,
+					     F71805F_REG_FAN_CTRL(nr));
+			data->pwm[nr] = f71805f_read8(data,
+					F71805F_REG_PWM_DUTY(nr));
 		}
 		for (nr = 0; nr < 3; nr++) {
 			data->temp[nr] = f71805f_read8(data,
@@ -480,6 +490,104 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute
 	data->fan_low[nr] = fan_to_reg(val);
 	f71805f_write16(data, F71805F_REG_FAN_LOW(nr), data->fan_low[nr]);
 	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_pwm(struct device *dev, struct device_attribute *devattr,
+			char *buf)
+{
+	struct f71805f_data *data = f71805f_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	int nr = attr->index;
+
+	return sprintf(buf, "%d\n", (int)data->pwm[nr]);
+}
+
+static ssize_t show_pwm_enable(struct device *dev, struct device_attribute
+			       *devattr, char *buf)
+{
+	struct f71805f_data *data = f71805f_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	int nr = attr->index;
+	int mode;
+
+	switch (data->fan_ctrl[nr] & FAN_CTRL_MODE_MASK) {
+	case FAN_CTRL_MODE_SPEED:
+		mode = 3;
+		break;
+	case FAN_CTRL_MODE_TEMPERATURE:
+		mode = 2;
+		break;
+	default: /* MANUAL */
+		mode = 1;
+	}
+
+	return sprintf(buf, "%d\n", mode);
+}
+
+static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr,
+		       const char *buf, size_t count)
+{
+	struct f71805f_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	int nr = attr->index;
+	unsigned long val = simple_strtoul(buf, NULL, 10);
+
+	if (val > 255)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	data->pwm[nr] = val;
+	f71805f_write8(data, F71805F_REG_PWM_DUTY(nr), data->pwm[nr]);
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static struct attribute *f71805f_attr_pwm[];
+
+static ssize_t set_pwm_enable(struct device *dev, struct device_attribute
+			      *devattr, const char *buf, size_t count)
+{
+	struct f71805f_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	int nr = attr->index;
+	unsigned long val = simple_strtoul(buf, NULL, 10);
+	u8 reg;
+
+	if (val < 1 || val > 3)
+		return -EINVAL;
+
+	if (val > 1) { /* Automatic mode, user can't set PWM value */
+		if (sysfs_chmod_file(&dev->kobj, f71805f_attr_pwm[nr],
+				     S_IRUGO))
+			dev_dbg(dev, "chmod -w pwm%d failed\n", nr + 1);
+	}
+
+	mutex_lock(&data->update_lock);
+	reg = f71805f_read8(data, F71805F_REG_FAN_CTRL(nr))
+	    & ~FAN_CTRL_MODE_MASK;
+	switch (val) {
+	case 1:
+		reg |= FAN_CTRL_MODE_MANUAL;
+		break;
+	case 2:
+		reg |= FAN_CTRL_MODE_TEMPERATURE;
+		break;
+	case 3:
+		reg |= FAN_CTRL_MODE_SPEED;
+		break;
+	}
+	data->fan_ctrl[nr] = reg;
+	f71805f_write8(data, F71805F_REG_FAN_CTRL(nr), reg);
+	mutex_unlock(&data->update_lock);
+
+	if (val == 1) { /* Manual mode, user can set PWM value */
+		if (sysfs_chmod_file(&dev->kobj, f71805f_attr_pwm[nr],
+				     S_IRUGO | S_IWUSR))
+			dev_dbg(dev, "chmod +w pwm%d failed\n", nr + 1);
+	}
 
 	return count;
 }
@@ -672,6 +780,18 @@ static SENSOR_DEVICE_ATTR(temp3_max_hyst, S_IRUGO | S_IWUSR,
 		    show_temp_hyst, set_temp_hyst, 2);
 static SENSOR_DEVICE_ATTR(temp3_type, S_IRUGO, show_temp_type, NULL, 2);
 
+/* pwm (value) files are created read-only, write permission is
+   then added or removed dynamically as needed */
+static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO, show_pwm, set_pwm, 0);
+static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO | S_IWUSR,
+			  show_pwm_enable, set_pwm_enable, 0);
+static SENSOR_DEVICE_ATTR(pwm2, S_IRUGO, show_pwm, set_pwm, 1);
+static SENSOR_DEVICE_ATTR(pwm2_enable, S_IRUGO | S_IWUSR,
+			  show_pwm_enable, set_pwm_enable, 1);
+static SENSOR_DEVICE_ATTR(pwm3, S_IRUGO, show_pwm, set_pwm, 2);
+static SENSOR_DEVICE_ATTR(pwm3_enable, S_IRUGO | S_IWUSR,
+			  show_pwm_enable, set_pwm_enable, 2);
+
 static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0);
 static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1);
 static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2);
@@ -759,21 +879,27 @@ static const struct attribute_group f71805f_group = {
 	.attrs = f71805f_attributes,
 };
 
-static struct attribute *f71805f_attributes_fan[3][4] = {
+static struct attribute *f71805f_attributes_fan[3][6] = {
 	{
 		&sensor_dev_attr_fan1_input.dev_attr.attr,
 		&sensor_dev_attr_fan1_min.dev_attr.attr,
 		&sensor_dev_attr_fan1_alarm.dev_attr.attr,
+		&sensor_dev_attr_pwm1.dev_attr.attr,
+		&sensor_dev_attr_pwm1_enable.dev_attr.attr,
 		NULL
 	}, {
 		&sensor_dev_attr_fan2_input.dev_attr.attr,
 		&sensor_dev_attr_fan2_min.dev_attr.attr,
 		&sensor_dev_attr_fan2_alarm.dev_attr.attr,
+		&sensor_dev_attr_pwm2.dev_attr.attr,
+		&sensor_dev_attr_pwm2_enable.dev_attr.attr,
 		NULL
 	}, {
 		&sensor_dev_attr_fan3_input.dev_attr.attr,
 		&sensor_dev_attr_fan3_min.dev_attr.attr,
 		&sensor_dev_attr_fan3_alarm.dev_attr.attr,
+		&sensor_dev_attr_pwm3.dev_attr.attr,
+		&sensor_dev_attr_pwm3_enable.dev_attr.attr,
 		NULL
 	}
 };
@@ -782,6 +908,13 @@ static const struct attribute_group f71805f_group_fan[3] = {
 	{ .attrs = f71805f_attributes_fan[0] },
 	{ .attrs = f71805f_attributes_fan[1] },
 	{ .attrs = f71805f_attributes_fan[2] },
+};
+
+/* We also need an indexed access to pwmN files to toggle writability */
+static struct attribute *f71805f_attr_pwm[] = {
+	&sensor_dev_attr_pwm1.dev_attr.attr,
+	&sensor_dev_attr_pwm2.dev_attr.attr,
+	&sensor_dev_attr_pwm3.dev_attr.attr,
 };
 
 /*
@@ -840,6 +973,16 @@ static int __devinit f71805f_probe(struct platform_device *pdev)
 		if ((err = sysfs_create_group(&pdev->dev.kobj,
 					      &f71805f_group_fan[i])))
 			goto exit_remove_files;
+		/* If PWM is in manual mode, add write permission */
+		if (data->fan_ctrl[i] & FAN_CTRL_MODE_MANUAL) {
+			if ((err = sysfs_chmod_file(&pdev->dev.kobj,
+						    f71805f_attr_pwm[i],
+						    S_IRUGO | S_IWUSR))) {
+				dev_err(&pdev->dev, "chmod +w pwm%d failed\n",
+					i + 1);
+				goto exit_remove_files;
+			}
+		}
 	}
 
 	data->class_dev = hwmon_device_register(&pdev->dev);
