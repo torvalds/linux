@@ -990,16 +990,12 @@ e1000_probe(struct pci_dev *pdev,
 			netdev->features &= ~NETIF_F_HW_VLAN_FILTER;
 	}
 
-#ifdef NETIF_F_TSO
 	if ((adapter->hw.mac_type >= e1000_82544) &&
 	   (adapter->hw.mac_type != e1000_82547))
 		netdev->features |= NETIF_F_TSO;
 
-#ifdef NETIF_F_TSO6
 	if (adapter->hw.mac_type > e1000_82547_rev_2)
 		netdev->features |= NETIF_F_TSO6;
-#endif
-#endif
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
@@ -2626,7 +2622,6 @@ e1000_watchdog(unsigned long data)
 				E1000_WRITE_REG(&adapter->hw, TARC0, tarc0);
 			}
 
-#ifdef NETIF_F_TSO
 			/* disable TSO for pcie and 10/100 speeds, to avoid
 			 * some hardware issues */
 			if (!adapter->tso_force &&
@@ -2637,22 +2632,17 @@ e1000_watchdog(unsigned long data)
 					DPRINTK(PROBE,INFO,
 				        "10/100 speed: disabling TSO\n");
 					netdev->features &= ~NETIF_F_TSO;
-#ifdef NETIF_F_TSO6
 					netdev->features &= ~NETIF_F_TSO6;
-#endif
 					break;
 				case SPEED_1000:
 					netdev->features |= NETIF_F_TSO;
-#ifdef NETIF_F_TSO6
 					netdev->features |= NETIF_F_TSO6;
-#endif
 					break;
 				default:
 					/* oops */
 					break;
 				}
 			}
-#endif
 
 			/* enable transmits in the hardware, need to do this
 			 * after setting TARC0 */
@@ -2882,7 +2872,6 @@ static int
 e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
           struct sk_buff *skb)
 {
-#ifdef NETIF_F_TSO
 	struct e1000_context_desc *context_desc;
 	struct e1000_buffer *buffer_info;
 	unsigned int i;
@@ -2911,7 +2900,6 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 						   0);
 			cmd_length = E1000_TXD_CMD_IP;
 			ipcse = skb->h.raw - skb->data - 1;
-#ifdef NETIF_F_TSO6
 		} else if (skb->protocol == htons(ETH_P_IPV6)) {
 			skb->nh.ipv6h->payload_len = 0;
 			skb->h.th->check =
@@ -2921,7 +2909,6 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 						 IPPROTO_TCP,
 						 0);
 			ipcse = 0;
-#endif
 		}
 		ipcss = skb->nh.raw - skb->data;
 		ipcso = (void *)&(skb->nh.iph->check) - (void *)skb->data;
@@ -2954,8 +2941,6 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 
 		return TRUE;
 	}
-#endif
-
 	return FALSE;
 }
 
@@ -3013,7 +2998,6 @@ e1000_tx_map(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 	while (len) {
 		buffer_info = &tx_ring->buffer_info[i];
 		size = min(len, max_per_txd);
-#ifdef NETIF_F_TSO
 		/* Workaround for Controller erratum --
 		 * descriptor for non-tso packet in a linear SKB that follows a
 		 * tso gets written back prematurely before the data is fully
@@ -3028,7 +3012,6 @@ e1000_tx_map(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 		 * in TSO mode.  Append 4-byte sentinel desc */
 		if (unlikely(mss && !nr_frags && size == len && size > 8))
 			size -= 4;
-#endif
 		/* work-around for errata 10 and it applies
 		 * to all controllers in PCI-X mode
 		 * The fix is to make sure that the first descriptor of a
@@ -3070,12 +3053,10 @@ e1000_tx_map(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 		while (len) {
 			buffer_info = &tx_ring->buffer_info[i];
 			size = min(len, max_per_txd);
-#ifdef NETIF_F_TSO
 			/* Workaround for premature desc write-backs
 			 * in TSO mode.  Append 4-byte sentinel desc */
 			if (unlikely(mss && f == (nr_frags-1) && size == len && size > 8))
 				size -= 4;
-#endif
 			/* Workaround for potential 82544 hang in PCI-X.
 			 * Avoid terminating buffers within evenly-aligned
 			 * dwords. */
@@ -3300,7 +3281,6 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (adapter->hw.mac_type >= e1000_82571)
 		max_per_txd = 8192;
 
-#ifdef NETIF_F_TSO
 	mss = skb_shinfo(skb)->gso_size;
 	/* The controller does a simple calculation to
 	 * make sure there is enough room in the FIFO before
@@ -3354,16 +3334,10 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if ((mss) || (skb->ip_summed == CHECKSUM_PARTIAL))
 		count++;
 	count++;
-#else
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		count++;
-#endif
 
-#ifdef NETIF_F_TSO
 	/* Controller Erratum workaround */
 	if (!skb->data_len && tx_ring->last_tx_tso && !skb_is_gso(skb))
 		count++;
-#endif
 
 	count += TXD_USE_COUNT(len, max_txd_pwr);
 

@@ -3887,12 +3887,10 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	offload_type = s2io_offload_type(skb);
-#ifdef NETIF_F_TSO
 	if (offload_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6)) {
 		txdp->Control_1 |= TXD_TCP_LSO_EN;
 		txdp->Control_1 |= TXD_TCP_LSO_MSS(s2io_tcp_mss(skb));
 	}
-#endif
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		txdp->Control_2 |=
 		    (TXD_TX_CKO_IPV4_EN | TXD_TX_CKO_TCP_EN |
@@ -5750,10 +5748,8 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.set_tx_csum = s2io_ethtool_op_set_tx_csum,
 	.get_sg = ethtool_op_get_sg,
 	.set_sg = ethtool_op_set_sg,
-#ifdef NETIF_F_TSO
 	.get_tso = s2io_ethtool_op_get_tso,
 	.set_tso = s2io_ethtool_op_set_tso,
-#endif
 	.get_ufo = ethtool_op_get_ufo,
 	.set_ufo = ethtool_op_set_ufo,
 	.self_test_count = s2io_ethtool_self_test_count,
@@ -6978,12 +6974,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
 	if (sp->high_dma_flag == TRUE)
 		dev->features |= NETIF_F_HIGHDMA;
-#ifdef NETIF_F_TSO
 	dev->features |= NETIF_F_TSO;
-#endif
-#ifdef NETIF_F_TSO6
 	dev->features |= NETIF_F_TSO6;
-#endif
 	if (sp->device_type & XFRAME_II_DEVICE) {
 		dev->features |= NETIF_F_UFO;
 		dev->features |= NETIF_F_HW_CSUM;

@@ -59,17 +59,13 @@
 #include <linux/capability.h>
 #include <linux/in.h>
 #include <linux/ip.h>
-#ifdef NETIF_F_TSO6
 #include <linux/ipv6.h>
-#endif
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <net/pkt_sched.h>
 #include <linux/list.h>
 #include <linux/reboot.h>
-#ifdef NETIF_F_TSO
 #include <net/checksum.h>
-#endif
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
@@ -347,9 +343,7 @@ struct e1000_adapter {
 	boolean_t have_msi;
 #endif
 	/* to not mess up cache alignment, always add to the bottom */
-#ifdef NETIF_F_TSO
 	boolean_t tso_force;
-#endif
 	boolean_t smart_power_down;	/* phy smart power down */
 	boolean_t quad_port_a;
 	unsigned long flags;

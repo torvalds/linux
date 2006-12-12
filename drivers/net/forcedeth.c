@@ -1576,12 +1576,10 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	np->tx_skbuff[nr] = skb;
 
-#ifdef NETIF_F_TSO
 	if (skb_is_gso(skb))
 		tx_flags_extra = NV_TX2_TSO | (skb_shinfo(skb)->gso_size << NV_TX2_TSO_SHIFT);
 	else
-#endif
-	tx_flags_extra = skb->ip_summed == CHECKSUM_PARTIAL ?
+		tx_flags_extra = skb->ip_summed == CHECKSUM_PARTIAL ?
 			 NV_TX2_CHECKSUM_L3 | NV_TX2_CHECKSUM_L4 : 0;
 
 	/* vlan tag */
@@ -4475,9 +4473,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->rx_csum = 1;
 		np->txrxctl_bits |= NVREG_TXRXCTL_RXCHECK;
 		dev->features |= NETIF_F_HW_CSUM | NETIF_F_SG;
-#ifdef NETIF_F_TSO
 		dev->features |= NETIF_F_TSO;
-#endif
  	}
 
 	np->vlanctl_bits = 0;
