@@ -486,15 +486,7 @@ int i2c_pcf_add_bus(struct i2c_adapter *adap)
 
 	return rval;
 }
-
-
-int i2c_pcf_del_bus(struct i2c_adapter *adap)
-{
-	return i2c_del_adapter(adap);
-}
-
 EXPORT_SYMBOL(i2c_pcf_add_bus);
-EXPORT_SYMBOL(i2c_pcf_del_bus);
 
 MODULE_AUTHOR("Hans Berglund <hb@spacetec.no>");
 MODULE_DESCRIPTION("I2C-Bus PCF8584 algorithm");

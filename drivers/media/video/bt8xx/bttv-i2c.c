@@ -479,11 +479,7 @@ int __devexit fini_bttv_i2c(struct bttv *btv)
 	if (0 != btv->i2c_rc)
 		return 0;
 
-	if (btv->use_i2c_hw) {
-		return i2c_del_adapter(&btv->c.i2c_adap);
-	} else {
-		return i2c_bit_del_bus(&btv->c.i2c_adap);
-	}
+	return i2c_del_adapter(&btv->c.i2c_adap);
 }
 
 /*

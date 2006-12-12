@@ -124,7 +124,7 @@ static int i2c_bus_reg(struct i2c_bit_adapter* b, struct matrox_fb_info* minfo,
 
 static void i2c_bit_bus_del(struct i2c_bit_adapter* b) {
 	if (b->initialized) {
-		i2c_bit_del_bus(&b->adapter);
+		i2c_del_adapter(&b->adapter);
 		b->initialized = 0;
 	}
 }
