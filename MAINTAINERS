@@ -1504,8 +1504,10 @@ T:	git kernel.org:/pub/scm/linux/kernel/git/dtor/input.git
 S:	Maintained
 
 INOTIFY
-P:	John McCutchan and Robert Love
-M:	ttb@tentacle.dhs.org and rml@novell.com
+P:	John McCutchan
+M:	ttb@tentacle.dhs.org
+P:	Robert Love
+M:	rml@novell.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
