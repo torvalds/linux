@@ -107,25 +107,6 @@ static inline void local_irq_save_ptr(unsigned long *flags)
 
 #endif /* CONFIG_PPC64 */
 
-#define mask_irq(irq)						\
-	({							\
-	 	irq_desc_t *desc = get_irq_desc(irq);		\
-		if (desc->chip && desc->chip->disable)	\
-			desc->chip->disable(irq);		\
-	})
-#define unmask_irq(irq)						\
-	({							\
-	 	irq_desc_t *desc = get_irq_desc(irq);		\
-		if (desc->chip && desc->chip->enable)	\
-			desc->chip->enable(irq);		\
-	})
-#define ack_irq(irq)						\
-	({							\
-	 	irq_desc_t *desc = get_irq_desc(irq);		\
-		if (desc->chip && desc->chip->ack)	\
-			desc->chip->ack(irq);		\
-	})
-
 /*
  * interrupt-retrigger: should we handle this via lost interrupts and IPIs
  * or should we not care like we do now ? --BenH.

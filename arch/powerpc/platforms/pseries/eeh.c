@@ -337,6 +337,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 			printk (KERN_ERR "EEH: Device driver ignored %d bad reads, panicing\n",
 			        pdn->eeh_check_count);
 			dump_stack();
+			msleep(5000);
 			
 			/* re-read the slot reset state */
 			if (read_slot_reset_state(pdn, rets) != 0)

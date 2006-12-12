@@ -107,6 +107,11 @@ config AUDIT_ARCH
 	bool
 	default y
 
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
 config DEFAULT_UIMAGE
 	bool
 	help
@@ -478,6 +483,7 @@ config PPC_MAPLE
 	select PPC_UDBG_16550
 	select PPC_970_NAP
 	select PPC_NATIVE
+	select PPC_RTAS
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
@@ -714,7 +720,7 @@ config FORCE_MAX_ZONEORDER
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx || E200 || E500
+	depends on 4xx || 8xx || E200 || PPC_83xx || E500
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the

@@ -382,10 +382,13 @@ static irqreturn_t cbe_pm_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int __init cbe_init_pm_irq(void)
+static int __init cbe_init_pm_irq(void)
 {
 	unsigned int irq;
 	int rc, node;
+
+	if (!machine_is(cell))
+		return 0;
 
 	for_each_node(node) {
 		irq = irq_create_mapping(NULL, IIC_IRQ_IOEX_PMI |

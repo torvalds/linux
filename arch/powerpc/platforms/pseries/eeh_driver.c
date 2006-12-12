@@ -170,14 +170,19 @@ static void eeh_report_reset(struct pci_dev *dev, void *userdata)
 static void eeh_report_resume(struct pci_dev *dev, void *userdata)
 {
 	struct pci_driver *driver = dev->driver;
+	struct device_node *dn = pci_device_to_OF_node(dev);
 
 	dev->error_state = pci_channel_io_normal;
 
 	if (!driver)
 		return;
-	if (!driver->err_handler)
-		return;
-	if (!driver->err_handler->resume)
+
+	if ((PCI_DN(dn)->eeh_mode) & EEH_MODE_IRQ_DISABLED) {
+		PCI_DN(dn)->eeh_mode &= ~EEH_MODE_IRQ_DISABLED;
+		enable_irq(dev->irq);
+	}
+	if (!driver->err_handler ||
+	    !driver->err_handler->resume)
 		return;
 
 	driver->err_handler->resume(dev);
@@ -407,6 +412,8 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 
 		if (rc)
 			result = PCI_ERS_RESULT_NEED_RESET;
+		else
+			result = PCI_ERS_RESULT_RECOVERED;
 	}
 
 	/* If any device has a hard failure, then shut off everything. */

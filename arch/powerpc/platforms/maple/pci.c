@@ -562,7 +562,7 @@ void __init maple_pci_init(void)
 	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;) {
 		if (np->name == NULL)
 			continue;
-		if (strcmp(np->name, "pci") == 0) {
+		if (!strcmp(np->name, "pci") || !strcmp(np->name, "pcie")) {
 			if (add_bridge(np) == 0)
 				of_node_get(np);
 		}

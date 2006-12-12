@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <asm/of_device.h>
+#include <asm/of_platform.h>
 
 static int __init powerpc_flash_init(void)
 {

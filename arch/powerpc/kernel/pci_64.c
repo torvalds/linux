@@ -682,7 +682,7 @@ int pci_proc_domain(struct pci_bus *bus)
  * Returns negative error code on failure, zero on success.
  */
 static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
-					       unsigned long *offset,
+					       resource_size_t *offset,
 					       enum pci_mmap_state mmap_state)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
@@ -694,7 +694,9 @@ static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
 
 	/* If memory, add on the PCI bridge address offset */
 	if (mmap_state == pci_mmap_mem) {
+#if 0 /* See comment in pci_resource_to_user() for why this is disabled */
 		*offset += hose->pci_mem_offset;
+#endif
 		res_bit = IORESOURCE_MEM;
 	} else {
 		io_offset = (unsigned long)hose->io_base_virt - pci_io_base;
@@ -761,9 +763,6 @@ static pgprot_t __pci_mmap_set_pgprot(struct pci_dev *dev, struct resource *rp,
 		prot &= ~_PAGE_GUARDED;
 	else
 		prot |= _PAGE_GUARDED;
-
-	printk(KERN_DEBUG "PCI map for %s:%lx, prot: %lx\n", pci_name(dev), rp->start,
-	       prot);
 
 	return __pgprot(prot);
 }
@@ -832,7 +831,7 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state, int write_combine)
 {
-	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
+	resource_size_t offset = vma->vm_pgoff << PAGE_SHIFT;
 	struct resource *rp;
 	int ret;
 
@@ -1333,20 +1332,41 @@ EXPORT_SYMBOL(pci_read_irq_line);
 
 void pci_resource_to_user(const struct pci_dev *dev, int bar,
 			  const struct resource *rsrc,
-			  u64 *start, u64 *end)
+			  resource_size_t *start, resource_size_t *end)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	unsigned long offset = 0;
+	resource_size_t offset = 0;
 
 	if (hose == NULL)
 		return;
 
 	if (rsrc->flags & IORESOURCE_IO)
-		offset = pci_io_base - (unsigned long)hose->io_base_virt +
-			hose->io_base_phys;
+		offset = (unsigned long)hose->io_base_virt - pci_io_base;
 
-	*start = rsrc->start + offset;
-	*end = rsrc->end + offset;
+	/* We pass a fully fixed up address to userland for MMIO instead of
+	 * a BAR value because X is lame and expects to be able to use that
+	 * to pass to /dev/mem !
+	 *
+	 * That means that we'll have potentially 64 bits values where some
+	 * userland apps only expect 32 (like X itself since it thinks only
+	 * Sparc has 64 bits MMIO) but if we don't do that, we break it on
+	 * 32 bits CHRPs :-(
+	 *
+	 * Hopefully, the sysfs insterface is immune to that gunk. Once X
+	 * has been fixed (and the fix spread enough), we can re-enable the
+	 * 2 lines below and pass down a BAR value to userland. In that case
+	 * we'll also have to re-enable the matching code in
+	 * __pci_mmap_make_offset().
+	 *
+	 * BenH.
+	 */
+#if 0
+	else if (rsrc->flags & IORESOURCE_MEM)
+		offset = hose->pci_mem_offset;
+#endif
+
+	*start = rsrc->start - offset;
+	*end = rsrc->end - offset;
 }
 
 struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)

@@ -5,7 +5,8 @@ endif
 obj-$(CONFIG_MPIC)		+= mpic.o
 obj-$(CONFIG_PPC_INDIRECT_PCI)	+= indirect_pci.o
 obj-$(CONFIG_PPC_MPC106)	+= grackle.o
-obj-$(CONFIG_PPC_DCR)		+= dcr.o dcr-low.o
+obj-$(CONFIG_PPC_DCR)		+= dcr.o
+obj-$(CONFIG_PPC_DCR_NATIVE)	+= dcr-low.o
 obj-$(CONFIG_U3_DART)		+= dart_iommu.o
 obj-$(CONFIG_MMIO_NVRAM)	+= mmio_nvram.o
 obj-$(CONFIG_FSL_SOC)		+= fsl_soc.o

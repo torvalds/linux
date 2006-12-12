@@ -159,6 +159,7 @@ extern struct rtas_t rtas;
 
 extern void enter_rtas(unsigned long);
 extern int rtas_token(const char *service);
+extern int rtas_service_present(const char *service);
 extern int rtas_call(int token, int, int, int *, ...);
 extern void rtas_restart(char *cmd);
 extern void rtas_power_off(void);
@@ -220,8 +221,6 @@ extern int rtas_get_error_log_max(void);
 #define RTAS_DATA_BUF_SIZE 4096
 extern spinlock_t rtas_data_buf_lock;
 extern char rtas_data_buf[RTAS_DATA_BUF_SIZE];
-
-extern void rtas_stop_self(void);
 
 /* RMO buffer reserved for user-space RTAS use */
 extern unsigned long rtas_rmo_buf;

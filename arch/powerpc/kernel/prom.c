@@ -804,6 +804,56 @@ static unsigned long __init dt_mem_next_cell(int s, cell_t **cellp)
 	return of_read_ulong(p, s);
 }
 
+#ifdef CONFIG_PPC_PSERIES
+/*
+ * Interpret the ibm,dynamic-memory property in the
+ * /ibm,dynamic-reconfiguration-memory node.
+ * This contains a list of memory blocks along with NUMA affinity
+ * information.
+ */
+static int __init early_init_dt_scan_drconf_memory(unsigned long node)
+{
+	cell_t *dm, *ls;
+	unsigned long l, n;
+	unsigned long base, size, lmb_size, flags;
+
+	ls = (cell_t *)of_get_flat_dt_prop(node, "ibm,lmb-size", &l);
+	if (ls == NULL || l < dt_root_size_cells * sizeof(cell_t))
+		return 0;
+	lmb_size = dt_mem_next_cell(dt_root_size_cells, &ls);
+
+	dm = (cell_t *)of_get_flat_dt_prop(node, "ibm,dynamic-memory", &l);
+	if (dm == NULL || l < sizeof(cell_t))
+		return 0;
+
+	n = *dm++;	/* number of entries */
+	if (l < (n * (dt_root_addr_cells + 4) + 1) * sizeof(cell_t))
+		return 0;
+
+	for (; n != 0; --n) {
+		base = dt_mem_next_cell(dt_root_addr_cells, &dm);
+		flags = dm[3];
+		/* skip DRC index, pad, assoc. list index, flags */
+		dm += 4;
+		/* skip this block if the reserved bit is set in flags (0x80)
+		   or if the block is not assigned to this partition (0x8) */
+		if ((flags & 0x80) || !(flags & 0x8))
+			continue;
+		size = lmb_size;
+		if (iommu_is_off) {
+			if (base >= 0x80000000ul)
+				continue;
+			if ((base + size) > 0x80000000ul)
+				size = 0x80000000ul - base;
+		}
+		lmb_add(base, size);
+	}
+	lmb_dump_all();
+	return 0;
+}
+#else
+#define early_init_dt_scan_drconf_memory(node)	0
+#endif /* CONFIG_PPC_PSERIES */
 
 static int __init early_init_dt_scan_memory(unsigned long node,
 					    const char *uname, int depth, void *data)
@@ -811,6 +861,11 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
 	cell_t *reg, *endp;
 	unsigned long l;
+
+	/* Look for the ibm,dynamic-reconfiguration-memory node */
+	if (depth == 1 &&
+	    strcmp(uname, "ibm,dynamic-reconfiguration-memory") == 0)
+		return early_init_dt_scan_drconf_memory(node);
 
 	/* We are scanning "memory" nodes only */
 	if (type == NULL) {
