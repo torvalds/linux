@@ -1,0 +1,38 @@
+Kernel driver pc87427
+=====================
+
+Supported chips:
+  * National Semiconductor PC87427
+    Prefix: 'pc87427'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: http://www.winbond.com.tw/E-WINBONDHTM/partner/apc_007.html
+
+Author: Jean Delvare <khali@linux-fr.org>
+
+Thanks to Amir Habibi at Candelis for setting up a test system, and to
+Michael Kress for testing several iterations of this driver.
+
+
+Description
+-----------
+
+The National Semiconductor Super I/O chip includes complete hardware
+monitoring capabilities. It can monitor up to 18 voltages, 8 fans and
+6 temperature sensors. Only the fans are supported at the moment.
+
+This chip also has fan controlling features, which are not yet supported
+by this driver either.
+
+The driver assumes that no more than one chip is present, which seems
+reasonable.
+
+
+Fan Monitoring
+--------------
+
+Fan rotation speeds are reported as 14-bit values from a gated clock
+signal. Speeds down to 83 RPM can be measured.
+
+An alarm is triggered if the rotation speed drops below a programmable
+limit. Another alarm is triggered if the speed is too low to to be measured
+(including stalled or missing fan).

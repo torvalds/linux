@@ -353,6 +353,19 @@ config SENSORS_PC87360
 	  This driver can also be built as a module.  If so, the module
 	  will be called pc87360.
 
+config SENSORS_PC87427
+	tristate "National Semiconductor PC87427"
+	depends on HWMON && EXPERIMENTAL
+	help
+	  If you say yes here you get access to the hardware monitoring
+	  functions of the National Semiconductor PC87427 Super-I/O chip.
+	  The chip has two distinct logical devices, one for fan speed
+	  monitoring and control, and one for voltage and temperature
+	  monitoring. Only fan speed monitoring is supported right now.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called pc87427.
+
 config SENSORS_SIS5595
 	tristate "Silicon Integrated Systems Corp. SiS5595"
 	depends on HWMON && I2C && PCI && EXPERIMENTAL
