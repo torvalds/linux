@@ -84,8 +84,7 @@ unsigned long memory_start, memory_end;
 
 static inline void parse_cmdline (char ** cmdline_p, char mv_name[MV_NAME_SIZE],
 				  struct sh_machine_vector** mvp,
-				  unsigned long *mv_io_base,
-				  int *mv_mmio_enable)
+				  unsigned long *mv_io_base)
 {
 	char c = ' ', *to = command_line, *from = COMMAND_LINE;
 	int len = 0;
@@ -112,23 +111,6 @@ static inline void parse_cmdline (char ** cmdline_p, char mv_name[MV_NAME_SIZE],
 			}
 		}
 
-#ifdef CONFIG_EARLY_PRINTK
-		if (c == ' ' && !memcmp(from, "earlyprintk=", 12)) {
-			char *ep_end;
-
-			if (to != command_line)
-				to--;
-
-			from += 12;
-			ep_end = strchr(from, ' ');
-
-			setup_early_printk(from);
-			printk("early console enabled\n");
-
-			from = ep_end;
-		}
-#endif
-
 		if (c == ' ' && !memcmp(from, "sh_mv=", 6)) {
 			char* mv_end;
 			char* mv_comma;
@@ -145,7 +127,6 @@ static inline void parse_cmdline (char ** cmdline_p, char mv_name[MV_NAME_SIZE],
 				int ints[3];
 				get_options(mv_comma+1, ARRAY_SIZE(ints), ints);
 				*mv_io_base = ints[1];
-				*mv_mmio_enable = ints[2];
 				mv_len = mv_comma - from;
 			} else {
 				mv_len = mv_end - from;
@@ -158,6 +139,7 @@ static inline void parse_cmdline (char ** cmdline_p, char mv_name[MV_NAME_SIZE],
 
 			*mvp = get_mv_byname(mv_name);
 		}
+
 		c = *(from++);
 		if (!c)
 			break;
@@ -177,9 +159,8 @@ static int __init sh_mv_setup(char **cmdline_p)
 	struct sh_machine_vector *mv = NULL;
 	char mv_name[MV_NAME_SIZE] = "";
 	unsigned long mv_io_base = 0;
-	int mv_mmio_enable = 0;
 
-	parse_cmdline(cmdline_p, mv_name, &mv, &mv_io_base, &mv_mmio_enable);
+	parse_cmdline(cmdline_p, mv_name, &mv, &mv_io_base);
 
 #ifdef CONFIG_SH_UNKNOWN
 	if (mv == NULL) {
@@ -258,6 +239,7 @@ void __init setup_arch(char **cmdline_p)
 
 	sh_mv_setup(cmdline_p);
 
+
 	/*
 	 * Find the highest page frame number we have available
 	 */
@@ -304,6 +286,7 @@ void __init setup_arch(char **cmdline_p)
 		free_bootmem_node(NODE_DATA(0), PFN_PHYS(curr_pfn),
 				  PFN_PHYS(pages));
 	}
+
 
 	/*
 	 * Reserve the kernel text and
