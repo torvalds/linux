@@ -348,7 +348,7 @@ config SYSCTL_SYSCALL
 	  If unsure say Y here.
 
 config KALLSYMS
-	 bool "Load all symbols for debugging/kksymoops" if EMBEDDED
+	 bool "Load all symbols for debugging/ksymoops" if EMBEDDED
 	 default y
 	 help
 	   Say Y here to let the kernel print out symbolic crash information and
