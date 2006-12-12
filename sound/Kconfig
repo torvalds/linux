@@ -93,4 +93,12 @@ endmenu
 
 endif
 
+config AC97_BUS
+	tristate
+	help
+	  This is used to avoid config and link hard dependencies between the
+	  sound subsystem and other function drivers completely unrelated to
+	  sound although they're sharing the AC97 bus. Concerned drivers
+	  should "select" this.
+
 endmenu
