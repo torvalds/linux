@@ -38,6 +38,13 @@ void cpu_idle(void)
 
 void machine_halt(void)
 {
+	/*
+	 * Enter Stop mode. The 32 kHz oscillator will keep running so
+	 * the RTC will keep the time properly and the system will
+	 * boot quickly.
+	 */
+	asm volatile("sleep 3\n\t"
+		     "sub pc, -2");
 }
 
 void machine_power_off(void)
