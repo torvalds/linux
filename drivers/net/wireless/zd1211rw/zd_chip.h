@@ -594,49 +594,49 @@
 /*
  * Upper 16 bit contains the regulatory domain.
  */
-#define E2P_SUBID		E2P_REG(0x00)
-#define E2P_POD			E2P_REG(0x02)
-#define E2P_MAC_ADDR_P1		E2P_REG(0x04)
-#define E2P_MAC_ADDR_P2		E2P_REG(0x06)
-#define E2P_PWR_CAL_VALUE1	E2P_REG(0x08)
-#define E2P_PWR_CAL_VALUE2	E2P_REG(0x0a)
-#define E2P_PWR_CAL_VALUE3	E2P_REG(0x0c)
-#define E2P_PWR_CAL_VALUE4      E2P_REG(0x0e)
-#define E2P_PWR_INT_VALUE1	E2P_REG(0x10)
-#define E2P_PWR_INT_VALUE2	E2P_REG(0x12)
-#define E2P_PWR_INT_VALUE3	E2P_REG(0x14)
-#define E2P_PWR_INT_VALUE4	E2P_REG(0x16)
+#define E2P_SUBID		E2P_DATA(0x00)
+#define E2P_POD			E2P_DATA(0x02)
+#define E2P_MAC_ADDR_P1		E2P_DATA(0x04)
+#define E2P_MAC_ADDR_P2		E2P_DATA(0x06)
+#define E2P_PWR_CAL_VALUE1	E2P_DATA(0x08)
+#define E2P_PWR_CAL_VALUE2	E2P_DATA(0x0a)
+#define E2P_PWR_CAL_VALUE3	E2P_DATA(0x0c)
+#define E2P_PWR_CAL_VALUE4      E2P_DATA(0x0e)
+#define E2P_PWR_INT_VALUE1	E2P_DATA(0x10)
+#define E2P_PWR_INT_VALUE2	E2P_DATA(0x12)
+#define E2P_PWR_INT_VALUE3	E2P_DATA(0x14)
+#define E2P_PWR_INT_VALUE4	E2P_DATA(0x16)
 
 /* Contains a bit for each allowed channel. It gives for Europe (ETSI 0x30)
  * also only 11 channels. */
-#define E2P_ALLOWED_CHANNEL	E2P_REG(0x18)
+#define E2P_ALLOWED_CHANNEL	E2P_DATA(0x18)
 
-#define E2P_PHY_REG		E2P_REG(0x1a)
-#define E2P_DEVICE_VER		E2P_REG(0x20)
-#define E2P_36M_CAL_VALUE1	E2P_REG(0x28)
-#define E2P_36M_CAL_VALUE2      E2P_REG(0x2a)
-#define E2P_36M_CAL_VALUE3      E2P_REG(0x2c)
-#define E2P_36M_CAL_VALUE4	E2P_REG(0x2e)
-#define E2P_11A_INT_VALUE1	E2P_REG(0x30)
-#define E2P_11A_INT_VALUE2	E2P_REG(0x32)
-#define E2P_11A_INT_VALUE3	E2P_REG(0x34)
-#define E2P_11A_INT_VALUE4	E2P_REG(0x36)
-#define E2P_48M_CAL_VALUE1	E2P_REG(0x38)
-#define E2P_48M_CAL_VALUE2	E2P_REG(0x3a)
-#define E2P_48M_CAL_VALUE3	E2P_REG(0x3c)
-#define E2P_48M_CAL_VALUE4	E2P_REG(0x3e)
-#define E2P_48M_INT_VALUE1	E2P_REG(0x40)
-#define E2P_48M_INT_VALUE2	E2P_REG(0x42)
-#define E2P_48M_INT_VALUE3	E2P_REG(0x44)
-#define E2P_48M_INT_VALUE4	E2P_REG(0x46)
-#define E2P_54M_CAL_VALUE1	E2P_REG(0x48)	/* ??? */
-#define E2P_54M_CAL_VALUE2	E2P_REG(0x4a)
-#define E2P_54M_CAL_VALUE3	E2P_REG(0x4c)
-#define E2P_54M_CAL_VALUE4	E2P_REG(0x4e)
-#define E2P_54M_INT_VALUE1	E2P_REG(0x50)
-#define E2P_54M_INT_VALUE2	E2P_REG(0x52)
-#define E2P_54M_INT_VALUE3	E2P_REG(0x54)
-#define E2P_54M_INT_VALUE4	E2P_REG(0x56)
+#define E2P_PHY_REG		E2P_DATA(0x1a)
+#define E2P_DEVICE_VER		E2P_DATA(0x20)
+#define E2P_36M_CAL_VALUE1	E2P_DATA(0x28)
+#define E2P_36M_CAL_VALUE2      E2P_DATA(0x2a)
+#define E2P_36M_CAL_VALUE3      E2P_DATA(0x2c)
+#define E2P_36M_CAL_VALUE4	E2P_DATA(0x2e)
+#define E2P_11A_INT_VALUE1	E2P_DATA(0x30)
+#define E2P_11A_INT_VALUE2	E2P_DATA(0x32)
+#define E2P_11A_INT_VALUE3	E2P_DATA(0x34)
+#define E2P_11A_INT_VALUE4	E2P_DATA(0x36)
+#define E2P_48M_CAL_VALUE1	E2P_DATA(0x38)
+#define E2P_48M_CAL_VALUE2	E2P_DATA(0x3a)
+#define E2P_48M_CAL_VALUE3	E2P_DATA(0x3c)
+#define E2P_48M_CAL_VALUE4	E2P_DATA(0x3e)
+#define E2P_48M_INT_VALUE1	E2P_DATA(0x40)
+#define E2P_48M_INT_VALUE2	E2P_DATA(0x42)
+#define E2P_48M_INT_VALUE3	E2P_DATA(0x44)
+#define E2P_48M_INT_VALUE4	E2P_DATA(0x46)
+#define E2P_54M_CAL_VALUE1	E2P_DATA(0x48)	/* ??? */
+#define E2P_54M_CAL_VALUE2	E2P_DATA(0x4a)
+#define E2P_54M_CAL_VALUE3	E2P_DATA(0x4c)
+#define E2P_54M_CAL_VALUE4	E2P_DATA(0x4e)
+#define E2P_54M_INT_VALUE1	E2P_DATA(0x50)
+#define E2P_54M_INT_VALUE2	E2P_DATA(0x52)
+#define E2P_54M_INT_VALUE3	E2P_DATA(0x54)
+#define E2P_54M_INT_VALUE4	E2P_DATA(0x56)
 
 /* All 16 bit values */
 #define FW_FIRMWARE_VER         FW_REG(0)
@@ -653,20 +653,33 @@
 /* 0x2 - link led on? */
 
 enum {
-	CR_BASE_OFFSET			= 0x9000,
-	FW_START_OFFSET			= 0xee00,
-	FW_BASE_ADDR_OFFSET		= FW_START_OFFSET + 0x1d,
-	EEPROM_START_OFFSET		= 0xf800,
-	EEPROM_SIZE			= 0x800, /* words */
-	LOAD_CODE_SIZE			= 0xe, /* words */
-	LOAD_VECT_SIZE			= 0x10000 - 0xfff7, /* words */
-	EEPROM_REGS_OFFSET		= LOAD_CODE_SIZE + LOAD_VECT_SIZE,
-	EEPROM_REGS_SIZE		= 0x7e, /* words */
-	E2P_BASE_OFFSET			= EEPROM_START_OFFSET +
-		                          EEPROM_REGS_OFFSET,
-};
+	/* CONTROL REGISTERS */
+	CR_START			= 0x9000,
 
-#define FW_REG_TABLE_ADDR	USB_ADDR(FW_START_OFFSET + 0x1d)
+	/* FIRMWARE */
+	FW_START			= 0xee00,
+
+	/* The word at this offset contains the base address of the FW_REG
+	 * registers */
+	FW_REGS_ADDR_OFFSET		= 0x1d,
+
+
+	/* EEPROM */
+	E2P_START			= 0xf800,
+	E2P_LEN				= 0x800,
+
+	/* EEPROM layout */
+	E2P_LOAD_CODE_LEN		= 0xe,		/* base 0xf800 */
+	E2P_LOAD_VECT_LEN		= 0x9,		/* base 0xf80e */
+	/* E2P_DATA indexes into this */
+	E2P_DATA_LEN			= 0x7e,		/* base 0xf817 */
+	E2P_BOOT_CODE_LEN		= 0x760,	/* base 0xf895 */
+	E2P_INTR_VECT_LEN		= 0xb,		/* base 0xfff5 */
+
+	/* Some precomputed offsets into the EEPROM */
+	E2P_DATA_OFFSET			= E2P_LOAD_CODE_LEN + E2P_LOAD_VECT_LEN,
+	E2P_BOOT_CODE_OFFSET		= E2P_DATA_OFFSET + E2P_DATA_LEN,
+};
 
 enum {
 	/* indices for ofdm_cal_values */

@@ -152,10 +152,10 @@ static u16 usb_addr(struct zd_usb *usb, zd_addr_t addr)
 
 	switch (base) {
 	case CR_BASE:
-		offset += CR_BASE_OFFSET;
+		offset += CR_START;
 		break;
 	case E2P_BASE:
-		offset += E2P_BASE_OFFSET;
+		offset += E2P_START + E2P_DATA_OFFSET;
 		break;
 	case FW_BASE:
 		offset += usb->fw_base_offset;
@@ -297,14 +297,13 @@ static int handle_version_mismatch(struct usb_device *udev, u8 device_type,
 	if (r)
 		goto error;
 
-	r = upload_code(udev, ur_fw->data, ur_fw->size, FW_START_OFFSET,
-		REBOOT);
+	r = upload_code(udev, ur_fw->data, ur_fw->size, FW_START, REBOOT);
 	if (r)
 		goto error;
 
-	offset = ((EEPROM_REGS_OFFSET + EEPROM_REGS_SIZE) * sizeof(u16));
+	offset = (E2P_BOOT_CODE_OFFSET * sizeof(u16));
 	r = upload_code(udev, ub_fw->data + offset, ub_fw->size - offset,
-		E2P_BASE_OFFSET + EEPROM_REGS_SIZE, REBOOT);
+		E2P_START + E2P_BOOT_CODE_OFFSET, REBOOT);
 
 	/* At this point, the vendor driver downloads the whole firmware
 	 * image, hacks around with version IDs, and uploads it again,
@@ -333,7 +332,7 @@ static int upload_firmware(struct usb_device *udev, u8 device_type)
 	if (r)
 		goto error;
 
-	fw_bcdDevice = get_word(ub_fw->data, EEPROM_REGS_OFFSET);
+	fw_bcdDevice = get_word(ub_fw->data, E2P_DATA_OFFSET);
 
 	if (fw_bcdDevice != bcdDevice) {
 		dev_info(&udev->dev,
@@ -359,8 +358,7 @@ static int upload_firmware(struct usb_device *udev, u8 device_type)
 	if (r)
 		goto error;
 
-	r = upload_code(udev, uph_fw->data, uph_fw->size, FW_START_OFFSET,
-		        REBOOT);
+	r = upload_code(udev, uph_fw->data, uph_fw->size, FW_START, REBOOT);
 	if (r) {
 		dev_err(&udev->dev,
 			"Could not upload firmware code uph. Error number %d\n",
@@ -899,7 +897,7 @@ int zd_usb_init_hw(struct zd_usb *usb)
 
 	ZD_ASSERT(mutex_is_locked(&chip->mutex));
 	r = zd_ioread16_locked(chip, &usb->fw_base_offset,
-		        USB_REG((u16)FW_BASE_ADDR_OFFSET));
+		        USB_REG(FW_START + FW_REGS_ADDR_OFFSET));
 	if (r)
 		return r;
 	dev_dbg_f(zd_usb_dev(usb), "fw_base_offset: %#06hx\n",

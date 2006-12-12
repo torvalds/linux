@@ -55,7 +55,7 @@ enum {
 #define ZD_NULL_ADDR    ((zd_addr_t)0)
 #define USB_REG(offset)  ZD_ADDR(USB_BASE, offset)	/* word addressing */
 #define CTL_REG(offset)  ZD_ADDR(CR_BASE, offset)	/* byte addressing */
-#define E2P_REG(offset)  ZD_ADDR(E2P_BASE, offset)	/* word addressing */
+#define E2P_DATA(offset)  ZD_ADDR(E2P_BASE, offset)	/* word addressing */
 #define FW_REG(offset)   ZD_ADDR(FW_BASE, offset)	/* word addressing */
 
 static inline zd_addr_t zd_inc_word(zd_addr_t addr)
