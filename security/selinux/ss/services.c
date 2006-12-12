@@ -1916,10 +1916,9 @@ int security_sid_mls_copy(u32 sid, u32 mls_sid, u32 *new_sid)
 	newcon.user = context1->user;
 	newcon.role = context1->role;
 	newcon.type = context1->type;
-	rc = mls_copy_context(&newcon, context2);
+	rc = mls_context_cpy(&newcon, context2);
 	if (rc)
 		goto out_unlock;
-
 
 	/* Check the validity of the new context. */
 	if (!policydb_context_isvalid(&policydb, &newcon)) {
