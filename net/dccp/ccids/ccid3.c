@@ -845,8 +845,8 @@ found:
 	 * Find some p such that f(p) = fval; return 1/p [RFC 3448, 6.3.1].
 	 */
 	if (rtt == 0) {			/* would result in divide-by-zero */
-		DCCP_WARN("RTT==0, returning 1/p = 1\n");
-		return 1000000;
+		DCCP_WARN("RTT==0\n");
+		return ~0;
 	}
 
 	dccp_timestamp(sk, &tstamp);
@@ -858,7 +858,7 @@ found:
 		DCCP_WARN("X_recv==0\n");
 		if ((x_recv = hcrx->ccid3hcrx_x_recv) == 0) {
 			DCCP_BUG("stored value of X_recv is zero");
-			return 1000000;
+			return ~0;
 		}
 	}
 
