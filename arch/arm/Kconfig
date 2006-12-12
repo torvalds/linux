@@ -937,6 +937,8 @@ source "drivers/video/Kconfig"
 
 source "sound/Kconfig"
 
+source "drivers/hid/Kconfig"
+
 source "drivers/usb/Kconfig"
 
 source "drivers/mmc/Kconfig"
