@@ -488,7 +488,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 
 #define RELEVANT_IFLAG(iflag) (iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
 
-static void rs_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	unsigned int cflag = tty->termios->c_cflag;
 
