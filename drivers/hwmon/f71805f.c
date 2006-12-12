@@ -111,6 +111,7 @@ superio_exit(int base)
 /* fan nr from 0 to 2 (12-bit values, two registers) */
 #define F71805F_REG_FAN(nr)		(0x20 + 2 * (nr))
 #define F71805F_REG_FAN_LOW(nr)		(0x28 + 2 * (nr))
+#define F71805F_REG_FAN_TARGET(nr)	(0x69 + 16 * (nr))
 #define F71805F_REG_FAN_CTRL(nr)	(0x60 + 16 * (nr))
 #define F71805F_REG_PWM_FREQ(nr)	(0x63 + 16 * (nr))
 #define F71805F_REG_PWM_DUTY(nr)	(0x6B + 16 * (nr))
@@ -127,6 +128,7 @@ superio_exit(int base)
 /* individual register bits */
 #define FAN_CTRL_SKIP			0x80
 #define FAN_CTRL_DC_MODE		0x10
+#define FAN_CTRL_LATCH_FULL		0x08
 #define FAN_CTRL_MODE_MASK		0x03
 #define FAN_CTRL_MODE_SPEED		0x00
 #define FAN_CTRL_MODE_TEMPERATURE	0x01
@@ -153,6 +155,7 @@ struct f71805f_data {
 	u8 in_low[9];
 	u16 fan[3];
 	u16 fan_low[3];
+	u16 fan_target[3];
 	u8 fan_ctrl[3];
 	u8 pwm[3];
 	u8 pwm_freq[3];
@@ -324,6 +327,8 @@ static struct f71805f_data *f71805f_update_device(struct device *dev)
 				continue;
 			data->fan_low[nr] = f71805f_read16(data,
 					    F71805F_REG_FAN_LOW(nr));
+			data->fan_target[nr] = f71805f_read16(data,
+					       F71805F_REG_FAN_TARGET(nr));
 			data->pwm_freq[nr] = f71805f_read8(data,
 					     F71805F_REG_PWM_FREQ(nr));
 		}
@@ -510,6 +515,16 @@ static ssize_t show_fan_min(struct device *dev, struct device_attribute
 	return sprintf(buf, "%ld\n", fan_from_reg(data->fan_low[nr]));
 }
 
+static ssize_t show_fan_target(struct device *dev, struct device_attribute
+			       *devattr, char *buf)
+{
+	struct f71805f_data *data = f71805f_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	int nr = attr->index;
+
+	return sprintf(buf, "%ld\n", fan_from_reg(data->fan_target[nr]));
+}
+
 static ssize_t set_fan_min(struct device *dev, struct device_attribute
 			   *devattr, const char *buf, size_t count)
 {
@@ -521,6 +536,23 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute
 	mutex_lock(&data->update_lock);
 	data->fan_low[nr] = fan_to_reg(val);
 	f71805f_write16(data, F71805F_REG_FAN_LOW(nr), data->fan_low[nr]);
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t set_fan_target(struct device *dev, struct device_attribute
+			      *devattr, const char *buf, size_t count)
+{
+	struct f71805f_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	int nr = attr->index;
+	long val = simple_strtol(buf, NULL, 10);
+
+	mutex_lock(&data->update_lock);
+	data->fan_target[nr] = fan_to_reg(val);
+	f71805f_write16(data, F71805F_REG_FAN_TARGET(nr),
+			data->fan_target[nr]);
 	mutex_unlock(&data->update_lock);
 
 	return count;
@@ -822,12 +854,18 @@ static SENSOR_DEVICE_ATTR(in8_min, S_IRUGO | S_IWUSR,
 static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, show_fan, NULL, 0);
 static SENSOR_DEVICE_ATTR(fan1_min, S_IRUGO | S_IWUSR,
 			  show_fan_min, set_fan_min, 0);
+static SENSOR_DEVICE_ATTR(fan1_target, S_IRUGO | S_IWUSR,
+			  show_fan_target, set_fan_target, 0);
 static SENSOR_DEVICE_ATTR(fan2_input, S_IRUGO, show_fan, NULL, 1);
 static SENSOR_DEVICE_ATTR(fan2_min, S_IRUGO | S_IWUSR,
 			  show_fan_min, set_fan_min, 1);
+static SENSOR_DEVICE_ATTR(fan2_target, S_IRUGO | S_IWUSR,
+			  show_fan_target, set_fan_target, 1);
 static SENSOR_DEVICE_ATTR(fan3_input, S_IRUGO, show_fan, NULL, 2);
 static SENSOR_DEVICE_ATTR(fan3_min, S_IRUGO | S_IWUSR,
 			  show_fan_min, set_fan_min, 2);
+static SENSOR_DEVICE_ATTR(fan3_target, S_IRUGO | S_IWUSR,
+			  show_fan_target, set_fan_target, 2);
 
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO | S_IWUSR,
@@ -956,11 +994,12 @@ static const struct attribute_group f71805f_group = {
 	.attrs = f71805f_attributes,
 };
 
-static struct attribute *f71805f_attributes_fan[3][7] = {
+static struct attribute *f71805f_attributes_fan[3][8] = {
 	{
 		&sensor_dev_attr_fan1_input.dev_attr.attr,
 		&sensor_dev_attr_fan1_min.dev_attr.attr,
 		&sensor_dev_attr_fan1_alarm.dev_attr.attr,
+		&sensor_dev_attr_fan1_target.dev_attr.attr,
 		&sensor_dev_attr_pwm1.dev_attr.attr,
 		&sensor_dev_attr_pwm1_enable.dev_attr.attr,
 		&sensor_dev_attr_pwm1_mode.dev_attr.attr,
@@ -969,6 +1008,7 @@ static struct attribute *f71805f_attributes_fan[3][7] = {
 		&sensor_dev_attr_fan2_input.dev_attr.attr,
 		&sensor_dev_attr_fan2_min.dev_attr.attr,
 		&sensor_dev_attr_fan2_alarm.dev_attr.attr,
+		&sensor_dev_attr_fan2_target.dev_attr.attr,
 		&sensor_dev_attr_pwm2.dev_attr.attr,
 		&sensor_dev_attr_pwm2_enable.dev_attr.attr,
 		&sensor_dev_attr_pwm2_mode.dev_attr.attr,
@@ -977,6 +1017,7 @@ static struct attribute *f71805f_attributes_fan[3][7] = {
 		&sensor_dev_attr_fan3_input.dev_attr.attr,
 		&sensor_dev_attr_fan3_min.dev_attr.attr,
 		&sensor_dev_attr_fan3_alarm.dev_attr.attr,
+		&sensor_dev_attr_fan3_target.dev_attr.attr,
 		&sensor_dev_attr_pwm3.dev_attr.attr,
 		&sensor_dev_attr_pwm3_enable.dev_attr.attr,
 		&sensor_dev_attr_pwm3_mode.dev_attr.attr,
@@ -1031,6 +1072,13 @@ static void __devinit f71805f_init_device(struct f71805f_data *data)
 	for (i = 0; i < 3; i++) {
 		data->fan_ctrl[i] = f71805f_read8(data,
 						  F71805F_REG_FAN_CTRL(i));
+		/* Clear latch full bit, else "speed mode" fan speed control
+		   doesn't work */
+		if (data->fan_ctrl[i] & FAN_CTRL_LATCH_FULL) {
+			data->fan_ctrl[i] &= ~FAN_CTRL_LATCH_FULL;
+			f71805f_write8(data, F71805F_REG_FAN_CTRL(i),
+				       data->fan_ctrl[i]);
+		}
 	}
 }
 
