@@ -434,6 +434,21 @@ static __init int setup_nomca(char *s)
 }
 early_param("nomca", setup_nomca);
 
+#ifdef CONFIG_PROC_VMCORE
+/* elfcorehdr= specifies the location of elf core header
+ * stored by the crashed kernel.
+ */
+static int __init parse_elfcorehdr(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+        elfcorehdr_addr = memparse(arg, &arg);
+	return 0;
+}
+early_param("elfcorehdr", parse_elfcorehdr);
+#endif /* CONFIG_PROC_VMCORE */
+
 void __init
 setup_arch (char **cmdline_p)
 {

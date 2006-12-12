@@ -19,29 +19,11 @@
 
 #include <asm/kdebug.h>
 #include <asm/mca.h>
-#include <asm/uaccess.h>
 
 int kdump_status[NR_CPUS];
 atomic_t kdump_cpu_freezed;
 atomic_t kdump_in_progress;
 int kdump_on_init = 1;
-ssize_t
-copy_oldmem_page(unsigned long pfn, char *buf,
-		size_t csize, unsigned long offset, int userbuf)
-{
-	void  *vaddr;
-
-	if (!csize)
-		return 0;
-	vaddr = __va(pfn<<PAGE_SHIFT);
-	if (userbuf) {
-		if (copy_to_user(buf, (vaddr + offset), csize)) {
-			return -EFAULT;
-		}
-	} else
-		memcpy(buf, (vaddr + offset), csize);
-	return csize;
-}
 
 static inline Elf64_Word
 *append_elf_note(Elf64_Word *buf, char *name, unsigned type, void *data,
@@ -225,14 +207,10 @@ static ctl_table sys_table[] = {
 static int
 machine_crash_setup(void)
 {
-	char *from = strstr(saved_command_line, "elfcorehdr=");
 	static struct notifier_block kdump_init_notifier_nb = {
 		.notifier_call = kdump_init_notifier,
 	};
 	int ret;
-	if (from)
-		elfcorehdr_addr = memparse(from+11, &from);
-	saved_max_pfn = (unsigned long)-1;
 	if((ret = register_die_notifier(&kdump_init_notifier_nb)) != 0)
 		return ret;
 #ifdef CONFIG_SYSCTL
