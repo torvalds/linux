@@ -2,7 +2,7 @@
    (depending on route). */
 
 /* (C) 1999-2001 Paul `Rusty' Russell
- * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
+ * (C) 2002-2006 Netfilter Core Team <coreteam@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,7 +20,11 @@
 #include <net/checksum.h>
 #include <net/route.h>
 #include <linux/netfilter_ipv4.h>
+#ifdef CONFIG_NF_NAT_NEEDED
+#include <net/netfilter/nf_nat_rule.h>
+#else
 #include <linux/netfilter_ipv4/ip_nat_rule.h>
+#endif
 #include <linux/netfilter_ipv4/ip_tables.h>
 
 MODULE_LICENSE("GPL");
@@ -65,23 +69,33 @@ masquerade_target(struct sk_buff **pskb,
 		  const struct xt_target *target,
 		  const void *targinfo)
 {
+#ifdef CONFIG_NF_NAT_NEEDED
+	struct nf_conn_nat *nat;
+#endif
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
-	const struct ip_nat_multi_range_compat *mr;
 	struct ip_nat_range newrange;
+	const struct ip_nat_multi_range_compat *mr;
 	struct rtable *rt;
 	__be32 newsrc;
 
 	IP_NF_ASSERT(hooknum == NF_IP_POST_ROUTING);
 
 	ct = ip_conntrack_get(*pskb, &ctinfo);
+#ifdef CONFIG_NF_NAT_NEEDED
+	nat = nfct_nat(ct);
+#endif
 	IP_NF_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED
 	                    || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
 
 	/* Source address is 0.0.0.0 - locally generated packet that is
 	 * probably not supposed to be masqueraded.
 	 */
+#ifdef CONFIG_NF_NAT_NEEDED
+	if (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip == 0)
+#else
 	if (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip == 0)
+#endif
 		return NF_ACCEPT;
 
 	mr = targinfo;
@@ -93,7 +107,11 @@ masquerade_target(struct sk_buff **pskb,
 	}
 
 	write_lock_bh(&masq_lock);
+#ifdef CONFIG_NF_NAT_NEEDED
+	nat->masq_index = out->ifindex;
+#else
 	ct->nat.masq_index = out->ifindex;
+#endif
 	write_unlock_bh(&masq_lock);
 
 	/* Transfer from original range. */
@@ -109,10 +127,17 @@ masquerade_target(struct sk_buff **pskb,
 static inline int
 device_cmp(struct ip_conntrack *i, void *ifindex)
 {
+#ifdef CONFIG_NF_NAT_NEEDED
+	struct nf_conn_nat *nat = nfct_nat(i);
+#endif
 	int ret;
 
 	read_lock_bh(&masq_lock);
+#ifdef CONFIG_NF_NAT_NEEDED
+	ret = (nat->masq_index == (int)(long)ifindex);
+#else
 	ret = (i->nat.masq_index == (int)(long)ifindex);
+#endif
 	read_unlock_bh(&masq_lock);
 
 	return ret;

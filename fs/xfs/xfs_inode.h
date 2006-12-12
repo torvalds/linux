@@ -305,6 +305,47 @@ typedef struct xfs_inode {
 #endif
 } xfs_inode_t;
 
+
+/*
+ * i_flags helper functions
+ */
+static inline void
+__xfs_iflags_set(xfs_inode_t *ip, unsigned short flags)
+{
+	ip->i_flags |= flags;
+}
+
+static inline void
+xfs_iflags_set(xfs_inode_t *ip, unsigned short flags)
+{
+	spin_lock(&ip->i_flags_lock);
+	__xfs_iflags_set(ip, flags);
+	spin_unlock(&ip->i_flags_lock);
+}
+
+static inline void
+xfs_iflags_clear(xfs_inode_t *ip, unsigned short flags)
+{
+	spin_lock(&ip->i_flags_lock);
+	ip->i_flags &= ~flags;
+	spin_unlock(&ip->i_flags_lock);
+}
+
+static inline int
+__xfs_iflags_test(xfs_inode_t *ip, unsigned short flags)
+{
+	return (ip->i_flags & flags);
+}
+
+static inline int
+xfs_iflags_test(xfs_inode_t *ip, unsigned short flags)
+{
+	int ret;
+	spin_lock(&ip->i_flags_lock);
+	ret = __xfs_iflags_test(ip, flags);
+	spin_unlock(&ip->i_flags_lock);
+	return ret;
+}
 #endif	/* __KERNEL__ */
 
 

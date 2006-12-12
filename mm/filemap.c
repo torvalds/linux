@@ -75,8 +75,8 @@ generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
  *  ->mmap_sem
  *    ->lock_page		(access_process_vm)
  *
- *  ->mmap_sem
- *    ->i_mutex			(msync)
+ *  ->i_mutex			(generic_file_buffered_write)
+ *    ->mmap_sem		(fault_in_pages_readable->do_page_fault)
  *
  *  ->i_mutex
  *    ->i_alloc_sem             (various)
@@ -467,25 +467,15 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 }
 
 #ifdef CONFIG_NUMA
-struct page *page_cache_alloc(struct address_space *x)
+struct page *__page_cache_alloc(gfp_t gfp)
 {
 	if (cpuset_do_page_mem_spread()) {
 		int n = cpuset_mem_spread_node();
-		return alloc_pages_node(n, mapping_gfp_mask(x), 0);
+		return alloc_pages_node(n, gfp, 0);
 	}
-	return alloc_pages(mapping_gfp_mask(x), 0);
+	return alloc_pages(gfp, 0);
 }
-EXPORT_SYMBOL(page_cache_alloc);
-
-struct page *page_cache_alloc_cold(struct address_space *x)
-{
-	if (cpuset_do_page_mem_spread()) {
-		int n = cpuset_mem_spread_node();
-		return alloc_pages_node(n, mapping_gfp_mask(x)|__GFP_COLD, 0);
-	}
-	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD, 0);
-}
-EXPORT_SYMBOL(page_cache_alloc_cold);
+EXPORT_SYMBOL(__page_cache_alloc);
 #endif
 
 static int __sleep_on_page_lock(void *word)
@@ -826,7 +816,6 @@ struct page *
 grab_cache_page_nowait(struct address_space *mapping, unsigned long index)
 {
 	struct page *page = find_get_page(mapping, index);
-	gfp_t gfp_mask;
 
 	if (page) {
 		if (!TestSetPageLocked(page))
@@ -834,9 +823,8 @@ grab_cache_page_nowait(struct address_space *mapping, unsigned long index)
 		page_cache_release(page);
 		return NULL;
 	}
-	gfp_mask = mapping_gfp_mask(mapping) & ~__GFP_FS;
-	page = alloc_pages(gfp_mask, 0);
-	if (page && add_to_page_cache_lru(page, mapping, index, gfp_mask)) {
+	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~__GFP_FS);
+	if (page && add_to_page_cache_lru(page, mapping, index, GFP_KERNEL)) {
 		page_cache_release(page);
 		page = NULL;
 	}
@@ -1193,8 +1181,6 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 		if (pos < size) {
 			retval = generic_file_direct_IO(READ, iocb,
 						iov, pos, nr_segs);
-			if (retval > 0 && !is_sync_kiocb(iocb))
-				retval = -EIOCBQUEUED;
 			if (retval > 0)
 				*ppos = pos + retval;
 		}
@@ -1457,7 +1443,6 @@ no_cached_page:
 	 * effect.
 	 */
 	error = page_cache_read(file, pgoff);
-	grab_swap_token();
 
 	/*
 	 * The page we want has now been added to the page cache.
@@ -1884,11 +1869,10 @@ repeat:
  *	if suid or (sgid and xgrp)
  *		remove privs
  */
-int remove_suid(struct dentry *dentry)
+int should_remove_suid(struct dentry *dentry)
 {
 	mode_t mode = dentry->d_inode->i_mode;
 	int kill = 0;
-	int result = 0;
 
 	/* suid always must be killed */
 	if (unlikely(mode & S_ISUID))
@@ -1901,13 +1885,29 @@ int remove_suid(struct dentry *dentry)
 	if (unlikely((mode & S_ISGID) && (mode & S_IXGRP)))
 		kill |= ATTR_KILL_SGID;
 
-	if (unlikely(kill && !capable(CAP_FSETID))) {
-		struct iattr newattrs;
+	if (unlikely(kill && !capable(CAP_FSETID)))
+		return kill;
 
-		newattrs.ia_valid = ATTR_FORCE | kill;
-		result = notify_change(dentry, &newattrs);
-	}
-	return result;
+	return 0;
+}
+EXPORT_SYMBOL(should_remove_suid);
+
+int __remove_suid(struct dentry *dentry, int kill)
+{
+	struct iattr newattrs;
+
+	newattrs.ia_valid = ATTR_FORCE | kill;
+	return notify_change(dentry, &newattrs);
+}
+
+int remove_suid(struct dentry *dentry)
+{
+	int kill = should_remove_suid(dentry);
+
+	if (unlikely(kill))
+		return __remove_suid(dentry, kill);
+
+	return 0;
 }
 EXPORT_SYMBOL(remove_suid);
 
@@ -2045,15 +2045,14 @@ generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	 * Sync the fs metadata but not the minor inode changes and
 	 * of course not the data as we did direct DMA for the IO.
 	 * i_mutex is held, which protects generic_osync_inode() from
-	 * livelocking.
+	 * livelocking.  AIO O_DIRECT ops attempt to sync metadata here.
 	 */
-	if (written >= 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
+	if ((written >= 0 || written == -EIOCBQUEUED) &&
+	    ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
 		int err = generic_osync_inode(inode, mapping, OSYNC_METADATA);
 		if (err < 0)
 			written = err;
 	}
-	if (written == count && !is_sync_kiocb(iocb))
-		written = -EIOCBQUEUED;
 	return written;
 }
 EXPORT_SYMBOL(generic_file_direct_write);
@@ -2222,7 +2221,7 @@ __generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 				unsigned long nr_segs, loff_t *ppos)
 {
 	struct file *file = iocb->ki_filp;
-	const struct address_space * mapping = file->f_mapping;
+	struct address_space * mapping = file->f_mapping;
 	size_t ocount;		/* original count */
 	size_t count;		/* after file limit checks */
 	struct inode 	*inode = mapping->host;
@@ -2267,7 +2266,7 @@ __generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 	if (count == 0)
 		goto out;
 
-	err = remove_suid(file->f_dentry);
+	err = remove_suid(file->f_path.dentry);
 	if (err)
 		goto out;
 
@@ -2275,8 +2274,11 @@ __generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 
 	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
 	if (unlikely(file->f_flags & O_DIRECT)) {
-		written = generic_file_direct_write(iocb, iov,
-				&nr_segs, pos, ppos, count, ocount);
+		loff_t endbyte;
+		ssize_t written_buffered;
+
+		written = generic_file_direct_write(iocb, iov, &nr_segs, pos,
+							ppos, count, ocount);
 		if (written < 0 || written == count)
 			goto out;
 		/*
@@ -2285,10 +2287,46 @@ __generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 		 */
 		pos += written;
 		count -= written;
-	}
+		written_buffered = generic_file_buffered_write(iocb, iov,
+						nr_segs, pos, ppos, count,
+						written);
+		/*
+		 * If generic_file_buffered_write() retuned a synchronous error
+		 * then we want to return the number of bytes which were
+		 * direct-written, or the error code if that was zero.  Note
+		 * that this differs from normal direct-io semantics, which
+		 * will return -EFOO even if some bytes were written.
+		 */
+		if (written_buffered < 0) {
+			err = written_buffered;
+			goto out;
+		}
 
-	written = generic_file_buffered_write(iocb, iov, nr_segs,
-			pos, ppos, count, written);
+		/*
+		 * We need to ensure that the page cache pages are written to
+		 * disk and invalidated to preserve the expected O_DIRECT
+		 * semantics.
+		 */
+		endbyte = pos + written_buffered - written - 1;
+		err = do_sync_file_range(file, pos, endbyte,
+					 SYNC_FILE_RANGE_WAIT_BEFORE|
+					 SYNC_FILE_RANGE_WRITE|
+					 SYNC_FILE_RANGE_WAIT_AFTER);
+		if (err == 0) {
+			written = written_buffered;
+			invalidate_mapping_pages(mapping,
+						 pos >> PAGE_CACHE_SHIFT,
+						 endbyte >> PAGE_CACHE_SHIFT);
+		} else {
+			/*
+			 * We don't know how much we wrote, so just return
+			 * the number of bytes which were direct-written
+			 */
+		}
+	} else {
+		written = generic_file_buffered_write(iocb, iov, nr_segs,
+				pos, ppos, count, written);
+	}
 out:
 	current->backing_dev_info = NULL;
 	return written ? written : err;

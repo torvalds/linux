@@ -4,6 +4,9 @@
 
 menu "Library routines"
 
+config BITREVERSE
+	tristate
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -23,6 +26,7 @@ config CRC16
 config CRC32
 	tristate "CRC32 functions"
 	default y
+	select BITREVERSE
 	help
 	  This option is provided for the case where no in-kernel-tree
 	  modules require CRC32 functions, but a module built outside the

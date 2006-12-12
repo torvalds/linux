@@ -104,6 +104,7 @@
 #include <net/inet_connection_sock.h>
 #include <net/tcp.h>
 #include <net/udp.h>
+#include <net/udplite.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/raw.h>
@@ -204,7 +205,7 @@ int inet_listen(struct socket *sock, int backlog)
 	 * we can only allow the backlog to be adjusted.
 	 */
 	if (old_state != TCP_LISTEN) {
-		err = inet_csk_listen_start(sk, TCP_SYNQ_HSIZE);
+		err = inet_csk_listen_start(sk, backlog);
 		if (err)
 			goto out;
 	}
@@ -643,7 +644,7 @@ int inet_getname(struct socket *sock, struct sockaddr *uaddr,
 		sin->sin_port = inet->dport;
 		sin->sin_addr.s_addr = inet->daddr;
 	} else {
-		__u32 addr = inet->rcv_saddr;
+		__be32 addr = inet->rcv_saddr;
 		if (!addr)
 			addr = inet->saddr;
 		sin->sin_port = inet->sport;
@@ -994,8 +995,8 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	struct inet_sock *inet = inet_sk(sk);
 	int err;
 	struct rtable *rt;
-	__u32 old_saddr = inet->saddr;
-	__u32 new_saddr;
+	__be32 old_saddr = inet->saddr;
+	__be32 new_saddr;
 	__be32 daddr = inet->daddr;
 
 	if (inet->opt && inet->opt->srr)
@@ -1223,10 +1224,13 @@ static int __init init_ipv4_mibs(void)
 	tcp_statistics[1] = alloc_percpu(struct tcp_mib);
 	udp_statistics[0] = alloc_percpu(struct udp_mib);
 	udp_statistics[1] = alloc_percpu(struct udp_mib);
+	udplite_statistics[0] = alloc_percpu(struct udp_mib);
+	udplite_statistics[1] = alloc_percpu(struct udp_mib);
 	if (!
 	    (net_statistics[0] && net_statistics[1] && ip_statistics[0]
 	     && ip_statistics[1] && tcp_statistics[0] && tcp_statistics[1]
-	     && udp_statistics[0] && udp_statistics[1]))
+	     && udp_statistics[0] && udp_statistics[1]
+	     && udplite_statistics[0] && udplite_statistics[1]             ) )
 		return -ENOMEM;
 
 	(void) tcp_mib_init();
@@ -1313,6 +1317,8 @@ static int __init inet_init(void)
 	/* Setup TCP slab cache for open requests. */
 	tcp_init();
 
+	/* Add UDP-Lite (RFC 3828) */
+	udplite4_register();
 
 	/*
 	 *	Set the ICMP layer up

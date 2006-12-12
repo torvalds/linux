@@ -23,13 +23,14 @@ struct vm_area_struct;
 #endif
 
 struct vm_struct {
+	/* keep next,addr,size together to speedup lookups */
+	struct vm_struct	*next;
 	void			*addr;
 	unsigned long		size;
 	unsigned long		flags;
 	struct page		**pages;
 	unsigned int		nr_pages;
 	unsigned long		phys_addr;
-	struct vm_struct	*next;
 };
 
 /*
@@ -60,7 +61,8 @@ extern struct vm_struct *get_vm_area(unsigned long size, unsigned long flags);
 extern struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 					unsigned long start, unsigned long end);
 extern struct vm_struct *get_vm_area_node(unsigned long size,
-					unsigned long flags, int node);
+					  unsigned long flags, int node,
+					  gfp_t gfp_mask);
 extern struct vm_struct *remove_vm_area(void *addr);
 extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
 			struct page ***pages);

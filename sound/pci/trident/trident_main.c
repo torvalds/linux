@@ -3966,15 +3966,9 @@ int snd_trident_suspend(struct pci_dev *pci, pm_message_t state)
 	snd_ac97_suspend(trident->ac97);
 	snd_ac97_suspend(trident->ac97_sec);
 
-	switch (trident->device) {
-	case TRIDENT_DEVICE_ID_DX:
-	case TRIDENT_DEVICE_ID_NX:
-		break;			/* TODO */
-	case TRIDENT_DEVICE_ID_SI7018:
-		break;
-	}
 	pci_disable_device(pci);
 	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
 }
 
@@ -3983,9 +3977,15 @@ int snd_trident_resume(struct pci_dev *pci)
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct snd_trident *trident = card->private_data;
 
+	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
-	pci_enable_device(pci);
-	pci_set_master(pci); /* to be sure */
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "trident: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
+	pci_set_master(pci);
 
 	switch (trident->device) {
 	case TRIDENT_DEVICE_ID_DX:

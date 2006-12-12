@@ -22,9 +22,9 @@
 
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
 
-typedef unsigned (*callback_process_op_t)(void *, void *);
-typedef unsigned (*callback_decode_arg_t)(struct svc_rqst *, struct xdr_stream *, void *);
-typedef unsigned (*callback_encode_res_t)(struct svc_rqst *, struct xdr_stream *, void *);
+typedef __be32 (*callback_process_op_t)(void *, void *);
+typedef __be32 (*callback_decode_arg_t)(struct svc_rqst *, struct xdr_stream *, void *);
+typedef __be32 (*callback_encode_res_t)(struct svc_rqst *, struct xdr_stream *, void *);
 
 
 struct callback_op {
@@ -36,24 +36,24 @@ struct callback_op {
 
 static struct callback_op callback_ops[];
 
-static int nfs4_callback_null(struct svc_rqst *rqstp, void *argp, void *resp)
+static __be32 nfs4_callback_null(struct svc_rqst *rqstp, void *argp, void *resp)
 {
 	return htonl(NFS4_OK);
 }
 
-static int nfs4_decode_void(struct svc_rqst *rqstp, uint32_t *p, void *dummy)
+static int nfs4_decode_void(struct svc_rqst *rqstp, __be32 *p, void *dummy)
 {
 	return xdr_argsize_check(rqstp, p);
 }
 
-static int nfs4_encode_void(struct svc_rqst *rqstp, uint32_t *p, void *dummy)
+static int nfs4_encode_void(struct svc_rqst *rqstp, __be32 *p, void *dummy)
 {
 	return xdr_ressize_check(rqstp, p);
 }
 
-static uint32_t *read_buf(struct xdr_stream *xdr, int nbytes)
+static __be32 *read_buf(struct xdr_stream *xdr, int nbytes)
 {
-	uint32_t *p;
+	__be32 *p;
 
 	p = xdr_inline_decode(xdr, nbytes);
 	if (unlikely(p == NULL))
@@ -61,9 +61,9 @@ static uint32_t *read_buf(struct xdr_stream *xdr, int nbytes)
 	return p;
 }
 
-static unsigned decode_string(struct xdr_stream *xdr, unsigned int *len, const char **str)
+static __be32 decode_string(struct xdr_stream *xdr, unsigned int *len, const char **str)
 {
-	uint32_t *p;
+	__be32 *p;
 
 	p = read_buf(xdr, 4);
 	if (unlikely(p == NULL))
@@ -81,9 +81,9 @@ static unsigned decode_string(struct xdr_stream *xdr, unsigned int *len, const c
 	return 0;
 }
 
-static unsigned decode_fh(struct xdr_stream *xdr, struct nfs_fh *fh)
+static __be32 decode_fh(struct xdr_stream *xdr, struct nfs_fh *fh)
 {
-	uint32_t *p;
+	__be32 *p;
 
 	p = read_buf(xdr, 4);
 	if (unlikely(p == NULL))
@@ -99,9 +99,9 @@ static unsigned decode_fh(struct xdr_stream *xdr, struct nfs_fh *fh)
 	return 0;
 }
 
-static unsigned decode_bitmap(struct xdr_stream *xdr, uint32_t *bitmap)
+static __be32 decode_bitmap(struct xdr_stream *xdr, uint32_t *bitmap)
 {
-	uint32_t *p;
+	__be32 *p;
 	unsigned int attrlen;
 
 	p = read_buf(xdr, 4);
@@ -118,9 +118,9 @@ static unsigned decode_bitmap(struct xdr_stream *xdr, uint32_t *bitmap)
 	return 0;
 }
 
-static unsigned decode_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
+static __be32 decode_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
 {
-	uint32_t *p;
+	__be32 *p;
 
 	p = read_buf(xdr, 16);
 	if (unlikely(p == NULL))
@@ -129,11 +129,11 @@ static unsigned decode_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
 	return 0;
 }
 
-static unsigned decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound_hdr_arg *hdr)
+static __be32 decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound_hdr_arg *hdr)
 {
-	uint32_t *p;
+	__be32 *p;
 	unsigned int minor_version;
-	unsigned status;
+	__be32 status;
 
 	status = decode_string(xdr, &hdr->taglen, &hdr->tag);
 	if (unlikely(status != 0))
@@ -159,9 +159,9 @@ static unsigned decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compou
 	return 0;
 }
 
-static unsigned decode_op_hdr(struct xdr_stream *xdr, unsigned int *op)
+static __be32 decode_op_hdr(struct xdr_stream *xdr, unsigned int *op)
 {
-	uint32_t *p;
+	__be32 *p;
 	p = read_buf(xdr, 4);
 	if (unlikely(p == NULL))
 		return htonl(NFS4ERR_RESOURCE);
@@ -169,9 +169,9 @@ static unsigned decode_op_hdr(struct xdr_stream *xdr, unsigned int *op)
 	return 0;
 }
 
-static unsigned decode_getattr_args(struct svc_rqst *rqstp, struct xdr_stream *xdr, struct cb_getattrargs *args)
+static __be32 decode_getattr_args(struct svc_rqst *rqstp, struct xdr_stream *xdr, struct cb_getattrargs *args)
 {
-	unsigned status;
+	__be32 status;
 
 	status = decode_fh(xdr, &args->fh);
 	if (unlikely(status != 0))
@@ -183,10 +183,10 @@ out:
 	return status;
 }
 
-static unsigned decode_recall_args(struct svc_rqst *rqstp, struct xdr_stream *xdr, struct cb_recallargs *args)
+static __be32 decode_recall_args(struct svc_rqst *rqstp, struct xdr_stream *xdr, struct cb_recallargs *args)
 {
-	uint32_t *p;
-	unsigned status;
+	__be32 *p;
+	__be32 status;
 
 	args->addr = &rqstp->rq_addr;
 	status = decode_stateid(xdr, &args->stateid);
@@ -204,9 +204,9 @@ out:
 	return status;
 }
 
-static unsigned encode_string(struct xdr_stream *xdr, unsigned int len, const char *str)
+static __be32 encode_string(struct xdr_stream *xdr, unsigned int len, const char *str)
 {
-	uint32_t *p;
+	__be32 *p;
 
 	p = xdr_reserve_space(xdr, 4 + len);
 	if (unlikely(p == NULL))
@@ -217,10 +217,10 @@ static unsigned encode_string(struct xdr_stream *xdr, unsigned int len, const ch
 
 #define CB_SUPPORTED_ATTR0 (FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE)
 #define CB_SUPPORTED_ATTR1 (FATTR4_WORD1_TIME_METADATA|FATTR4_WORD1_TIME_MODIFY)
-static unsigned encode_attr_bitmap(struct xdr_stream *xdr, const uint32_t *bitmap, uint32_t **savep)
+static __be32 encode_attr_bitmap(struct xdr_stream *xdr, const uint32_t *bitmap, __be32 **savep)
 {
-	uint32_t bm[2];
-	uint32_t *p;
+	__be32 bm[2];
+	__be32 *p;
 
 	bm[0] = htonl(bitmap[0] & CB_SUPPORTED_ATTR0);
 	bm[1] = htonl(bitmap[1] & CB_SUPPORTED_ATTR1);
@@ -247,9 +247,9 @@ static unsigned encode_attr_bitmap(struct xdr_stream *xdr, const uint32_t *bitma
 	return 0;
 }
 
-static unsigned encode_attr_change(struct xdr_stream *xdr, const uint32_t *bitmap, uint64_t change)
+static __be32 encode_attr_change(struct xdr_stream *xdr, const uint32_t *bitmap, uint64_t change)
 {
-	uint32_t *p;
+	__be32 *p;
 
 	if (!(bitmap[0] & FATTR4_WORD0_CHANGE))
 		return 0;
@@ -260,9 +260,9 @@ static unsigned encode_attr_change(struct xdr_stream *xdr, const uint32_t *bitma
 	return 0;
 }
 
-static unsigned encode_attr_size(struct xdr_stream *xdr, const uint32_t *bitmap, uint64_t size)
+static __be32 encode_attr_size(struct xdr_stream *xdr, const uint32_t *bitmap, uint64_t size)
 {
-	uint32_t *p;
+	__be32 *p;
 
 	if (!(bitmap[0] & FATTR4_WORD0_SIZE))
 		return 0;
@@ -273,9 +273,9 @@ static unsigned encode_attr_size(struct xdr_stream *xdr, const uint32_t *bitmap,
 	return 0;
 }
 
-static unsigned encode_attr_time(struct xdr_stream *xdr, const struct timespec *time)
+static __be32 encode_attr_time(struct xdr_stream *xdr, const struct timespec *time)
 {
-	uint32_t *p;
+	__be32 *p;
 
 	p = xdr_reserve_space(xdr, 12);
 	if (unlikely(p == 0))
@@ -285,23 +285,23 @@ static unsigned encode_attr_time(struct xdr_stream *xdr, const struct timespec *
 	return 0;
 }
 
-static unsigned encode_attr_ctime(struct xdr_stream *xdr, const uint32_t *bitmap, const struct timespec *time)
+static __be32 encode_attr_ctime(struct xdr_stream *xdr, const uint32_t *bitmap, const struct timespec *time)
 {
 	if (!(bitmap[1] & FATTR4_WORD1_TIME_METADATA))
 		return 0;
 	return encode_attr_time(xdr,time);
 }
 
-static unsigned encode_attr_mtime(struct xdr_stream *xdr, const uint32_t *bitmap, const struct timespec *time)
+static __be32 encode_attr_mtime(struct xdr_stream *xdr, const uint32_t *bitmap, const struct timespec *time)
 {
 	if (!(bitmap[1] & FATTR4_WORD1_TIME_MODIFY))
 		return 0;
 	return encode_attr_time(xdr,time);
 }
 
-static unsigned encode_compound_hdr_res(struct xdr_stream *xdr, struct cb_compound_hdr_res *hdr)
+static __be32 encode_compound_hdr_res(struct xdr_stream *xdr, struct cb_compound_hdr_res *hdr)
 {
-	unsigned status;
+	__be32 status;
 
 	hdr->status = xdr_reserve_space(xdr, 4);
 	if (unlikely(hdr->status == NULL))
@@ -315,9 +315,9 @@ static unsigned encode_compound_hdr_res(struct xdr_stream *xdr, struct cb_compou
 	return 0;
 }
 
-static unsigned encode_op_hdr(struct xdr_stream *xdr, uint32_t op, uint32_t res)
+static __be32 encode_op_hdr(struct xdr_stream *xdr, uint32_t op, __be32 res)
 {
-	uint32_t *p;
+	__be32 *p;
 	
 	p = xdr_reserve_space(xdr, 8);
 	if (unlikely(p == NULL))
@@ -327,10 +327,10 @@ static unsigned encode_op_hdr(struct xdr_stream *xdr, uint32_t op, uint32_t res)
 	return 0;
 }
 
-static unsigned encode_getattr_res(struct svc_rqst *rqstp, struct xdr_stream *xdr, const struct cb_getattrres *res)
+static __be32 encode_getattr_res(struct svc_rqst *rqstp, struct xdr_stream *xdr, const struct cb_getattrres *res)
 {
-	uint32_t *savep = NULL;
-	unsigned status = res->status;
+	__be32 *savep = NULL;
+	__be32 status = res->status;
 	
 	if (unlikely(status != 0))
 		goto out;
@@ -353,15 +353,15 @@ out:
 	return status;
 }
 
-static unsigned process_op(struct svc_rqst *rqstp,
+static __be32 process_op(struct svc_rqst *rqstp,
 		struct xdr_stream *xdr_in, void *argp,
 		struct xdr_stream *xdr_out, void *resp)
 {
 	struct callback_op *op = &callback_ops[0];
 	unsigned int op_nr = OP_CB_ILLEGAL;
-	unsigned int status = 0;
+	__be32 status = 0;
 	long maxlen;
-	unsigned res;
+	__be32 res;
 
 	dprintk("%s: start\n", __FUNCTION__);
 	status = decode_op_hdr(xdr_in, &op_nr);
@@ -399,20 +399,20 @@ static unsigned process_op(struct svc_rqst *rqstp,
 /*
  * Decode, process and encode a COMPOUND
  */
-static int nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *resp)
+static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *resp)
 {
 	struct cb_compound_hdr_arg hdr_arg;
 	struct cb_compound_hdr_res hdr_res;
 	struct xdr_stream xdr_in, xdr_out;
-	uint32_t *p;
-	unsigned int status;
+	__be32 *p;
+	__be32 status;
 	unsigned int nops = 1;
 
 	dprintk("%s: start\n", __FUNCTION__);
 
 	xdr_init_decode(&xdr_in, &rqstp->rq_arg, rqstp->rq_arg.head[0].iov_base);
 
-	p = (uint32_t*)((char *)rqstp->rq_res.head[0].iov_base + rqstp->rq_res.head[0].iov_len);
+	p = (__be32*)((char *)rqstp->rq_res.head[0].iov_base + rqstp->rq_res.head[0].iov_len);
 	xdr_init_encode(&xdr_out, &rqstp->rq_res, p);
 
 	decode_compound_hdr_arg(&xdr_in, &hdr_arg);

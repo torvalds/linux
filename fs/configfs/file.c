@@ -134,7 +134,7 @@ configfs_read_file(struct file *file, char __user *buf, size_t count, loff_t *pp
 
 	down(&buffer->sem);
 	if (buffer->needs_read_fill) {
-		if ((retval = fill_read_buffer(file->f_dentry,buffer)))
+		if ((retval = fill_read_buffer(file->f_path.dentry,buffer)))
 			goto out;
 	}
 	pr_debug("%s: count = %zd, ppos = %lld, buf = %s\n",
@@ -222,7 +222,7 @@ configfs_write_file(struct file *file, const char __user *buf, size_t count, lof
 	down(&buffer->sem);
 	len = fill_write_buffer(buffer, buf, count);
 	if (len > 0)
-		len = flush_write_buffer(file->f_dentry, buffer, count);
+		len = flush_write_buffer(file->f_path.dentry, buffer, count);
 	if (len > 0)
 		*ppos += len;
 	up(&buffer->sem);
@@ -231,8 +231,8 @@ configfs_write_file(struct file *file, const char __user *buf, size_t count, lof
 
 static int check_perm(struct inode * inode, struct file * file)
 {
-	struct config_item *item = configfs_get_config_item(file->f_dentry->d_parent);
-	struct configfs_attribute * attr = to_attr(file->f_dentry);
+	struct config_item *item = configfs_get_config_item(file->f_path.dentry->d_parent);
+	struct configfs_attribute * attr = to_attr(file->f_path.dentry);
 	struct configfs_buffer * buffer;
 	struct configfs_item_operations * ops = NULL;
 	int error = 0;
@@ -275,13 +275,14 @@ static int check_perm(struct inode * inode, struct file * file)
 	 * it in file->private_data for easy access.
 	 */
 	buffer = kzalloc(sizeof(struct configfs_buffer),GFP_KERNEL);
-	if (buffer) {
-		init_MUTEX(&buffer->sem);
-		buffer->needs_read_fill = 1;
-		buffer->ops = ops;
-		file->private_data = buffer;
-	} else
+	if (!buffer) {
 		error = -ENOMEM;
+		goto Enomem;
+	}
+	init_MUTEX(&buffer->sem);
+	buffer->needs_read_fill = 1;
+	buffer->ops = ops;
+	file->private_data = buffer;
 	goto Done;
 
  Einval:
@@ -289,6 +290,7 @@ static int check_perm(struct inode * inode, struct file * file)
 	goto Done;
  Eaccess:
 	error = -EACCES;
+ Enomem:
 	module_put(attr->ca_owner);
  Done:
 	if (error && item)
@@ -303,8 +305,8 @@ static int configfs_open_file(struct inode * inode, struct file * filp)
 
 static int configfs_release(struct inode * inode, struct file * filp)
 {
-	struct config_item * item = to_item(filp->f_dentry->d_parent);
-	struct configfs_attribute * attr = to_attr(filp->f_dentry);
+	struct config_item * item = to_item(filp->f_path.dentry->d_parent);
+	struct configfs_attribute * attr = to_attr(filp->f_path.dentry);
 	struct module * owner = attr->ca_owner;
 	struct configfs_buffer * buffer = filp->private_data;
 

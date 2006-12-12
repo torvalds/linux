@@ -61,6 +61,7 @@
 #include <net/tcp_states.h>
 #include <net/route.h>
 #include <linux/atalk.h>
+#include "../core/kmap_skb.h"
 
 struct datalink_proto *ddp_dl, *aarp_dl;
 static const struct proto_ops atalk_dgram_ops;
@@ -1584,7 +1585,6 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 
 	if (usat->sat_addr.s_net || usat->sat_addr.s_node == ATADDR_ANYNODE) {
 		rt = atrtr_find(&usat->sat_addr);
-		dev = rt->dev;
 	} else {
 		struct atalk_addr at_hint;
 
@@ -1592,7 +1592,6 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 		at_hint.s_net  = at->src_net;
 
 		rt = atrtr_find(&at_hint);
-		dev = rt->dev;
 	}
 	if (!rt)
 		return -ENETUNREACH;

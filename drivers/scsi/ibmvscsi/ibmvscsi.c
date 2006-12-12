@@ -1213,7 +1213,7 @@ void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 			       "ibmvscsi: Re-enabling adapter!\n");
 			purge_requests(hostdata, DID_REQUEUE);
 			if ((ibmvscsi_reenable_crq_queue(&hostdata->queue,
-							hostdata) == 0) ||
+							hostdata)) ||
 			    (ibmvscsi_send_crq(hostdata,
 					       0xC001000000000000LL, 0))) {
 					atomic_set(&hostdata->request_limit,

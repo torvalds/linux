@@ -33,11 +33,12 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <asm/s390_rdev.h>
+#include <asm/reset.h>
 
 #include "ap_bus.h"
 
 /* Some prototypes. */
-static void ap_scan_bus(void *);
+static void ap_scan_bus(struct work_struct *);
 static void ap_poll_all(unsigned long);
 static void ap_poll_timeout(unsigned long);
 static int ap_poll_thread_start(void);
@@ -71,7 +72,7 @@ static struct device *ap_root_device = NULL;
 static struct workqueue_struct *ap_work_queue;
 static struct timer_list ap_config_timer;
 static int ap_config_time = AP_CONFIG_TIME;
-static DECLARE_WORK(ap_config_work, ap_scan_bus, NULL);
+static DECLARE_WORK(ap_config_work, ap_scan_bus);
 
 /**
  * Tasklet & timer for AP request polling.
@@ -431,7 +432,15 @@ static int ap_uevent (struct device *dev, char **envp, int num_envp,
 			   ap_dev->device_type);
 	if (buffer_size - length <= 0)
 		return -ENOMEM;
-	envp[1] = 0;
+	buffer += length;
+	buffer_size -= length;
+	/* Add MODALIAS= */
+	envp[1] = buffer;
+	length = scnprintf(buffer, buffer_size, "MODALIAS=ap:t%02X",
+			   ap_dev->device_type);
+	if (buffer_size - length <= 0)
+		return -ENOMEM;
+	envp[2] = NULL;
 	return 0;
 }
 
@@ -724,7 +733,7 @@ static void ap_device_release(struct device *dev)
 	kfree(ap_dev);
 }
 
-static void ap_scan_bus(void *data)
+static void ap_scan_bus(struct work_struct *unused)
 {
 	struct ap_device *ap_dev;
 	struct device *dev;
@@ -739,11 +748,16 @@ static void ap_scan_bus(void *data)
 		dev = bus_find_device(&ap_bus_type, NULL,
 				      (void *)(unsigned long)qid,
 				      __ap_scan_bus);
+		rc = ap_query_queue(qid, &queue_depth, &device_type);
+		if (dev && rc) {
+			put_device(dev);
+			device_unregister(dev);
+			continue;
+		}
 		if (dev) {
 			put_device(dev);
 			continue;
 		}
-		rc = ap_query_queue(qid, &queue_depth, &device_type);
 		if (rc)
 			continue;
 		rc = ap_init_queue(qid);
@@ -1115,6 +1129,19 @@ static void ap_poll_thread_stop(void)
 	mutex_unlock(&ap_poll_thread_mutex);
 }
 
+static void ap_reset(void)
+{
+	int i, j;
+
+	for (i = 0; i < AP_DOMAINS; i++)
+		for (j = 0; j < AP_DEVICES; j++)
+			ap_reset_queue(AP_MKQID(j, i));
+}
+
+static struct reset_call ap_reset_call = {
+	.fn = ap_reset,
+};
+
 /**
  * The module initialization code.
  */
@@ -1131,6 +1158,7 @@ int __init ap_module_init(void)
 		printk(KERN_WARNING "AP instructions not installed.\n");
 		return -ENODEV;
 	}
+	register_reset_call(&ap_reset_call);
 
 	/* Create /sys/bus/ap. */
 	rc = bus_register(&ap_bus_type);
@@ -1184,6 +1212,7 @@ out_bus:
 		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
 	bus_unregister(&ap_bus_type);
 out:
+	unregister_reset_call(&ap_reset_call);
 	return rc;
 }
 
@@ -1214,6 +1243,7 @@ void ap_module_exit(void)
 	for (i = 0; ap_bus_attrs[i]; i++)
 		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
 	bus_unregister(&ap_bus_type);
+	unregister_reset_call(&ap_reset_call);
 }
 
 #ifndef CONFIG_ZCRYPT_MONOLITHIC

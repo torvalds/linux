@@ -29,7 +29,7 @@ static struct page* ncp_file_mmap_nopage(struct vm_area_struct *area,
 				     unsigned long address, int *type)
 {
 	struct file *file = area->vm_file;
-	struct dentry *dentry = file->f_dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	struct page* page;
 	char *pg_addr;
@@ -106,7 +106,7 @@ static struct vm_operations_struct ncp_file_mmap =
 /* This is used for a general mmap of a ncp file */
 int ncp_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	
 	DPRINTK("ncp_mmap: called\n");
 

@@ -38,7 +38,6 @@
 
 #include "common.h"
 #include "resources.h"
-#include "ipcommon.h"
 #include <net/atmclip.h>
 
 
@@ -54,7 +53,7 @@ static struct atm_vcc *atmarpd;
 static struct neigh_table clip_tbl;
 static struct timer_list idle_timer;
 
-static int to_atmarpd(enum atmarp_ctrl_type type, int itf, unsigned long ip)
+static int to_atmarpd(enum atmarp_ctrl_type type, int itf, __be32 ip)
 {
 	struct sock *sk;
 	struct atmarp_ctrl *ctrl;
@@ -220,7 +219,7 @@ static void clip_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	    || memcmp(skb->data, llc_oui, sizeof (llc_oui)))
 		skb->protocol = htons(ETH_P_IP);
 	else {
-		skb->protocol = ((u16 *) skb->data)[3];
+		skb->protocol = ((__be16 *) skb->data)[3];
 		skb_pull(skb, RFC1483LLC_LEN);
 		if (skb->protocol == htons(ETH_P_ARP)) {
 			PRIV(skb->dev)->stats.rx_packets++;
@@ -430,7 +429,7 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		here = skb_push(skb, RFC1483LLC_LEN);
 		memcpy(here, llc_oui, sizeof(llc_oui));
-		((u16 *) here)[3] = skb->protocol;
+		((__be16 *) here)[3] = skb->protocol;
 	}
 	atomic_add(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
 	ATM_SKB(skb)->atm_options = vcc->atm_options;
@@ -469,8 +468,9 @@ static struct net_device_stats *clip_get_stats(struct net_device *dev)
 static int clip_mkip(struct atm_vcc *vcc, int timeout)
 {
 	struct clip_vcc *clip_vcc;
-	struct sk_buff_head copy;
 	struct sk_buff *skb;
+	struct sk_buff_head *rq;
+	unsigned long flags;
 
 	if (!vcc->push)
 		return -EBADFD;
@@ -490,10 +490,26 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 	clip_vcc->old_pop = vcc->pop;
 	vcc->push = clip_push;
 	vcc->pop = clip_pop;
-	skb_queue_head_init(&copy);
-	skb_migrate(&sk_atm(vcc)->sk_receive_queue, &copy);
+
+	rq = &sk_atm(vcc)->sk_receive_queue;
+
+	spin_lock_irqsave(&rq->lock, flags);
+	if (skb_queue_empty(rq)) {
+		skb = NULL;
+	} else {
+		/* NULL terminate the list.  */
+		rq->prev->next = NULL;
+		skb = rq->next;
+	}
+	rq->prev = rq->next = (struct sk_buff *)rq;
+	rq->qlen = 0;
+	spin_unlock_irqrestore(&rq->lock, flags);
+
 	/* re-process everything received between connection setup and MKIP */
-	while ((skb = skb_dequeue(&copy)) != NULL)
+	while (skb) {
+		struct sk_buff *next = skb->next;
+
+		skb->next = skb->prev = NULL;
 		if (!clip_devs) {
 			atm_return(vcc, skb->truesize);
 			kfree_skb(skb);
@@ -506,10 +522,13 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 			PRIV(skb->dev)->stats.rx_bytes -= len;
 			kfree_skb(skb);
 		}
+
+		skb = next;
+	}
 	return 0;
 }
 
-static int clip_setentry(struct atm_vcc *vcc, u32 ip)
+static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 {
 	struct neighbour *neigh;
 	struct atmarp_entry *entry;
@@ -752,7 +771,7 @@ static int clip_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		err = clip_mkip(vcc, arg);
 		break;
 	case ATMARP_SETENTRY:
-		err = clip_setentry(vcc, arg);
+		err = clip_setentry(vcc, (__force __be32)arg);
 		break;
 	case ATMARP_ENCAP:
 		err = clip_encap(vcc, arg);

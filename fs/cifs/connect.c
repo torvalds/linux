@@ -31,6 +31,7 @@
 #include <linux/delay.h>
 #include <linux/completion.h>
 #include <linux/pagevec.h>
+#include <linux/freezer.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include "cifspdu.h"
@@ -822,10 +823,13 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 		} else if (strnicmp(data, "nouser_xattr",12) == 0) {
 			vol->no_xattr = 1;
 		} else if (strnicmp(data, "user", 4) == 0) {
-			if (!value || !*value) {
+			if (!value) {
 				printk(KERN_WARNING
 				       "CIFS: invalid or missing username\n");
 				return 1;	/* needs_arg; */
+			} else if(!*value) {
+				/* null user, ie anonymous, authentication */
+				vol->nullauth = 1;
 			}
 			if (strnlen(value, 200) < 200) {
 				vol->username = value;
@@ -1642,6 +1646,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		/* BB fixme parse for domain name here */
 		cFYI(1, ("Username: %s ", volume_info.username));
 
+	} else if (volume_info.nullauth) {
+		cFYI(1,("null user"));
 	} else {
 		cifserror("No username specified");
         /* In userspace mount helper we can get user name from alternate

@@ -83,7 +83,10 @@ FEXPORT(syscall_exit)
 FEXPORT(restore_all)			# restore full frame
 #ifdef CONFIG_MIPS_MT_SMTC
 /* Detect and execute deferred IPI "interrupts" */
+	LONG_L	s0, TI_REGS($28)
+	LONG_S	sp, TI_REGS($28)
 	jal	deferred_smtc_ipi
+	LONG_S	s0, TI_REGS($28)
 /* Re-arm any temporarily masked interrupts not explicitly "acked" */
 	mfc0	v0, CP0_TCSTATUS
 	ori	v1, v0, TCSTATUS_IXMT

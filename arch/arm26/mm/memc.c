@@ -24,7 +24,7 @@
 
 #define MEMC_TABLE_SIZE (256*sizeof(unsigned long))
 
-kmem_cache_t *pte_cache, *pgd_cache;
+struct kmem_cache *pte_cache, *pgd_cache;
 int page_nr;
 
 /*
@@ -162,12 +162,12 @@ void __init create_memmap_holes(struct meminfo *mi)
 {
 }
 
-static void pte_cache_ctor(void *pte, kmem_cache_t *cache, unsigned long flags)
+static void pte_cache_ctor(void *pte, struct kmem_cache *cache, unsigned long flags)
 {
 	memzero(pte, sizeof(pte_t) * PTRS_PER_PTE);
 }
 
-static void pgd_cache_ctor(void *pgd, kmem_cache_t *cache, unsigned long flags)
+static void pgd_cache_ctor(void *pgd, struct kmem_cache *cache, unsigned long flags)
 {
 	memzero(pgd + MEMC_TABLE_SIZE, USER_PTRS_PER_PGD * sizeof(pgd_t));
 }

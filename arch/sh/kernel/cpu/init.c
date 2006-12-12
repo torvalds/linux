@@ -68,12 +68,14 @@ static void __init cache_init(void)
 
 		waysize = cpu_data->dcache.sets;
 
+#ifdef CCR_CACHE_ORA
 		/*
 		 * If the OC is already in RAM mode, we only have
 		 * half of the entries to flush..
 		 */
 		if (ccr & CCR_CACHE_ORA)
 			waysize >>= 1;
+#endif
 
 		waysize <<= cpu_data->dcache.entry_shift;
 

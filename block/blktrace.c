@@ -22,10 +22,34 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
+#include <linux/time.h>
 #include <asm/uaccess.h>
 
 static DEFINE_PER_CPU(unsigned long long, blk_trace_cpu_offset) = { 0, };
 static unsigned int blktrace_seq __read_mostly = 1;
+
+/*
+ * Send out a notify message.
+ */
+static void trace_note(struct blk_trace *bt, pid_t pid, int action,
+		       const void *data, size_t len)
+{
+	struct blk_io_trace *t;
+
+	t = relay_reserve(bt->rchan, sizeof(*t) + len);
+	if (t) {
+		const int cpu = smp_processor_id();
+
+		t->magic = BLK_IO_TRACE_MAGIC | BLK_IO_TRACE_VERSION;
+		t->time = sched_clock() - per_cpu(blk_trace_cpu_offset, cpu);
+		t->device = bt->dev;
+		t->action = action;
+		t->pid = pid;
+		t->cpu = cpu;
+		t->pdu_len = len;
+		memcpy((void *) t + sizeof(*t), data, len);
+	}
+}
 
 /*
  * Send out a notify for this process, if we haven't done so since a trace
@@ -33,19 +57,23 @@ static unsigned int blktrace_seq __read_mostly = 1;
  */
 static void trace_note_tsk(struct blk_trace *bt, struct task_struct *tsk)
 {
-	struct blk_io_trace *t;
+	tsk->btrace_seq = blktrace_seq;
+	trace_note(bt, tsk->pid, BLK_TN_PROCESS, tsk->comm, sizeof(tsk->comm));
+}
 
-	t = relay_reserve(bt->rchan, sizeof(*t) + sizeof(tsk->comm));
-	if (t) {
-		t->magic = BLK_IO_TRACE_MAGIC | BLK_IO_TRACE_VERSION;
-		t->device = bt->dev;
-		t->action = BLK_TC_ACT(BLK_TC_NOTIFY);
-		t->pid = tsk->pid;
-		t->cpu = smp_processor_id();
-		t->pdu_len = sizeof(tsk->comm);
-		memcpy((void *) t + sizeof(*t), tsk->comm, t->pdu_len);
-		tsk->btrace_seq = blktrace_seq;
-	}
+static void trace_note_time(struct blk_trace *bt)
+{
+	struct timespec now;
+	unsigned long flags;
+	u32 words[2];
+
+	getnstimeofday(&now);
+	words[0] = now.tv_sec;
+	words[1] = now.tv_nsec;
+
+	local_irq_save(flags);
+	trace_note(bt, 0, BLK_TN_TIMESTAMP, words, sizeof(words));
+	local_irq_restore(flags);
 }
 
 static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
@@ -366,8 +394,7 @@ err:
 	if (bt) {
 		if (bt->dropped_file)
 			debugfs_remove(bt->dropped_file);
-		if (bt->sequence)
-			free_percpu(bt->sequence);
+		free_percpu(bt->sequence);
 		if (bt->rchan)
 			relay_close(bt->rchan);
 		kfree(bt);
@@ -394,6 +421,8 @@ static int blk_trace_startstop(request_queue_t *q, int start)
 			blktrace_seq++;
 			smp_mb();
 			bt->trace_state = Blktrace_running;
+
+			trace_note_time(bt);
 			ret = 0;
 		}
 	} else {

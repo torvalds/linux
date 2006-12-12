@@ -82,6 +82,8 @@ struct pp_cam_entry {
 	struct pardevice *pdev;
 	struct parport *port;
 	struct work_struct cb_task;
+	void (*cb_func)(void *cbdata);
+	void *cb_data;
 	int open_count;
 	wait_queue_head_t wq_stream;
 	/* image state flags */
@@ -129,6 +131,20 @@ static void cpia_parport_disable_irq( struct parport *port ) {
 
 #define PARPORT_CHUNK_SIZE	PAGE_SIZE
 
+
+static void cpia_pp_run_callback(struct work_struct *work)
+{
+	void (*cb_func)(void *cbdata);
+	void *cb_data;
+	struct pp_cam_entry *cam;
+
+	cam = container_of(work, struct pp_cam_entry, cb_task);
+	cb_func = cam->cb_func;
+	cb_data = cam->cb_data;
+	work_release(work);
+
+	cb_func(cb_data);
+}
 
 /****************************************************************************
  *
@@ -664,7 +680,9 @@ static int cpia_pp_registerCallback(void *privdata, void (*cb)(void *cbdata), vo
 	int retval = 0;
 
 	if(cam->port->irq != PARPORT_IRQ_NONE) {
-		INIT_WORK(&cam->cb_task, cb, cbdata);
+		cam->cb_func = cb;
+		cam->cb_data = cbdata;
+		INIT_WORK_NAR(&cam->cb_task, cpia_pp_run_callback);
 	} else {
 		retval = -1;
 	}

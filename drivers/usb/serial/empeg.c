@@ -92,7 +92,7 @@ static int  empeg_ioctl			(struct usb_serial_port *port,
 					struct file * file,
 					unsigned int cmd,
 					unsigned long arg);
-static void empeg_set_termios		(struct usb_serial_port *port, struct termios *old_termios);
+static void empeg_set_termios		(struct usb_serial_port *port, struct ktermios *old_termios);
 static void empeg_write_bulk_callback	(struct urb *urb);
 static void empeg_read_bulk_callback	(struct urb *urb);
 
@@ -442,7 +442,7 @@ static int empeg_ioctl (struct usb_serial_port *port, struct file * file, unsign
 }
 
 
-static void empeg_set_termios (struct usb_serial_port *port, struct termios *old_termios)
+static void empeg_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 {
 
 	dbg("%s - port %d", __FUNCTION__, port->number);

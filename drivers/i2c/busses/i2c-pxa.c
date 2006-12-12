@@ -272,7 +272,8 @@ static int i2c_pxa_wait_slave(struct pxa_i2c *i2c)
 			dev_dbg(&i2c->adap.dev, "%s: %ld: ISR=%08x, ICR=%08x, IBMR=%02x\n",
 				__func__, (long)jiffies, ISR, ICR, IBMR);
 
-		if ((ISR & (ISR_UB|ISR_IBB|ISR_SAD)) == ISR_SAD ||
+		if ((ISR & (ISR_UB|ISR_IBB)) == 0 ||
+		    (ISR & ISR_SAD) != 0 ||
 		    (ICR & ICR_SCLE) == 0) {
 			if (i2c_debug > 1)
 				dev_dbg(&i2c->adap.dev, "%s: done\n", __func__);
@@ -357,133 +358,6 @@ static void i2c_pxa_reset(struct pxa_i2c *i2c)
 
 #ifdef CONFIG_I2C_PXA_SLAVE
 /*
- * I2C EEPROM emulation.
- */
-static struct i2c_eeprom_emu eeprom = {
-	.size = I2C_EEPROM_EMU_SIZE,
-	.watch = LIST_HEAD_INIT(eeprom.watch),
-};
-
-struct i2c_eeprom_emu *i2c_pxa_get_eeprom(void)
-{
-	return &eeprom;
-}
-
-int i2c_eeprom_emu_addwatcher(struct i2c_eeprom_emu *emu, void *data,
-			      unsigned int addr, unsigned int size,
-			      struct i2c_eeprom_emu_watcher *watcher)
-{
-	struct i2c_eeprom_emu_watch *watch;
-	unsigned long flags;
-
-	if (addr + size > emu->size)
-		return -EINVAL;
-
-	watch = kmalloc(sizeof(struct i2c_eeprom_emu_watch), GFP_KERNEL);
-	if (watch) {
-		watch->start = addr;
-		watch->end = addr + size - 1;
-		watch->ops = watcher;
-		watch->data = data;
-
-		local_irq_save(flags);
-		list_add(&watch->node, &emu->watch);
-		local_irq_restore(flags);
-	}
-
-	return watch ? 0 : -ENOMEM;
-}
-
-void i2c_eeprom_emu_delwatcher(struct i2c_eeprom_emu *emu, void *data,
-			       struct i2c_eeprom_emu_watcher *watcher)
-{
-	struct i2c_eeprom_emu_watch *watch, *n;
-	unsigned long flags;
-
-	list_for_each_entry_safe(watch, n, &emu->watch, node) {
-		if (watch->ops == watcher && watch->data == data) {
-			local_irq_save(flags);
-			list_del(&watch->node);
-			local_irq_restore(flags);
-			kfree(watch);
-		}
-	}
-}
-
-static void i2c_eeprom_emu_event(void *ptr, i2c_slave_event_t event)
-{
-	struct i2c_eeprom_emu *emu = ptr;
-
-	eedbg(3, "i2c_eeprom_emu_event: %d\n", event);
-
-	switch (event) {
-	case I2C_SLAVE_EVENT_START_WRITE:
-		emu->seen_start = 1;
-		eedbg(2, "i2c_eeprom: write initiated\n");
-		break;
-
-	case I2C_SLAVE_EVENT_START_READ:
-		emu->seen_start = 0;
-		eedbg(2, "i2c_eeprom: read initiated\n");
-		break;
-
-	case I2C_SLAVE_EVENT_STOP:
-		emu->seen_start = 0;
-		eedbg(2, "i2c_eeprom: received stop\n");
-		break;
-
-	default:
-		eedbg(0, "i2c_eeprom: unhandled event\n");
-		break;
-	}
-}
-
-static int i2c_eeprom_emu_read(void *ptr)
-{
-	struct i2c_eeprom_emu *emu = ptr;
-	int ret;
-
-	ret = emu->bytes[emu->ptr];
-	emu->ptr = (emu->ptr + 1) % emu->size;
-
-	return ret;
-}
-
-static void i2c_eeprom_emu_write(void *ptr, unsigned int val)
-{
-	struct i2c_eeprom_emu *emu = ptr;
-	struct i2c_eeprom_emu_watch *watch;
-
-	if (emu->seen_start != 0) {
-		eedbg(2, "i2c_eeprom_emu_write: setting ptr %02x\n", val);
-		emu->ptr = val;
-		emu->seen_start = 0;
-		return;
-	}
-
-	emu->bytes[emu->ptr] = val;
-
-	eedbg(1, "i2c_eeprom_emu_write: ptr=0x%02x, val=0x%02x\n",
-	      emu->ptr, val);
-
-	list_for_each_entry(watch, &emu->watch, node) {
-		if (!watch->ops || !watch->ops->write)
-			continue;
-		if (watch->start <= emu->ptr && watch->end >= emu->ptr)
-			watch->ops->write(watch->data, emu->ptr, val);
-	}
-
-	emu->ptr = (emu->ptr + 1) % emu->size;
-}
-
-struct i2c_slave_client eeprom_client = {
-	.data	= &eeprom,
-	.event	= i2c_eeprom_emu_event,
-	.read	= i2c_eeprom_emu_read,
-	.write	= i2c_eeprom_emu_write
-};
-
-/*
  * PXA I2C Slave mode
  */
 
@@ -492,7 +366,10 @@ static void i2c_pxa_slave_txempty(struct pxa_i2c *i2c, u32 isr)
 	if (isr & ISR_BED) {
 		/* what should we do here? */
 	} else {
-		int ret = i2c->slave->read(i2c->slave->data);
+		int ret = 0;
+
+		if (i2c->slave != NULL)
+			ret = i2c->slave->read(i2c->slave->data);
 
 		IDBR = ret;
 		ICR |= ICR_TB;   /* allow next byte */
@@ -959,11 +836,9 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	i2c->slave_addr = I2C_PXA_SLAVE_ADDR;
 
 #ifdef CONFIG_I2C_PXA_SLAVE
-	i2c->slave = &eeprom_client;
 	if (plat) {
 		i2c->slave_addr = plat->slave_addr;
-		if (plat->slave)
-			i2c->slave = plat->slave;
+		i2c->slave = plat->slave;
 	}
 #endif
 

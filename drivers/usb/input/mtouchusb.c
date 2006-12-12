@@ -164,7 +164,7 @@ static int mtouchusb_alloc_buffers(struct usb_device *udev, struct mtouch_usb *m
 	dbg("%s - called", __FUNCTION__);
 
 	mtouch->data = usb_buffer_alloc(udev, MTOUCHUSB_REPORT_DATA_SIZE,
-					SLAB_ATOMIC, &mtouch->data_dma);
+					GFP_ATOMIC, &mtouch->data_dma);
 
 	if (!mtouch->data)
 		return -1;

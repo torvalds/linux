@@ -30,7 +30,7 @@ struct dccp_hdr {
 #else
 #error  "Adjust your <asm/byteorder.h> defines"
 #endif
-	__u16	dccph_checksum;
+	__sum16	dccph_checksum;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8	dccph_x:1,
 		dccph_type:4,
@@ -175,14 +175,18 @@ enum {
 	DCCPC_CCID3 = 3,
 };
 
-/* DCCP features */
+/* DCCP features (RFC 4340 section 6.4) */
 enum {
 	DCCPF_RESERVED = 0,
 	DCCPF_CCID = 1,
+	DCCPF_SHORT_SEQNOS = 2,		/* XXX: not yet implemented */
 	DCCPF_SEQUENCE_WINDOW = 3,
+	DCCPF_ECN_INCAPABLE = 4,	/* XXX: not yet implemented */
 	DCCPF_ACK_RATIO = 5,
 	DCCPF_SEND_ACK_VECTOR = 6,
 	DCCPF_SEND_NDP_COUNT = 7,
+	DCCPF_MIN_CSUM_COVER = 8,
+	DCCPF_DATA_CHECKSUM = 9,	/* XXX: not yet implemented */
 	/* 10-127 reserved */
 	DCCPF_MIN_CCID_SPECIFIC = 128,
 	DCCPF_MAX_CCID_SPECIFIC = 255,
@@ -196,13 +200,16 @@ struct dccp_so_feat {
 };
 
 /* DCCP socket options */
-#define DCCP_SOCKOPT_PACKET_SIZE	1
+#define DCCP_SOCKOPT_PACKET_SIZE	1 /* XXX deprecated, without effect */
 #define DCCP_SOCKOPT_SERVICE		2
 #define DCCP_SOCKOPT_CHANGE_L		3
 #define DCCP_SOCKOPT_CHANGE_R		4
+#define DCCP_SOCKOPT_SEND_CSCOV		10
+#define DCCP_SOCKOPT_RECV_CSCOV		11
 #define DCCP_SOCKOPT_CCID_RX_INFO	128
 #define DCCP_SOCKOPT_CCID_TX_INFO	192
 
+/* maximum number of services provided on the same listening port */
 #define DCCP_SERVICE_LIST_MAX_LEN      32
 
 #ifdef __KERNEL__
@@ -254,6 +261,13 @@ enum {
 static inline struct dccp_hdr *dccp_hdr(const struct sk_buff *skb)
 {
 	return (struct dccp_hdr *)skb->h.raw;
+}
+
+static inline struct dccp_hdr *dccp_zeroed_hdr(struct sk_buff *skb, int headlen)
+{
+	skb->h.raw = skb_push(skb, headlen);
+	memset(skb->h.raw, 0, headlen);
+	return dccp_hdr(skb);
 }
 
 static inline struct dccp_hdr_ext *dccp_hdrx(const struct sk_buff *skb)
@@ -342,6 +356,9 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
   * @dccpms_ccid - Congestion Control Id (CCID) (section 10)
   * @dccpms_send_ack_vector - Send Ack Vector Feature (section 11.5)
   * @dccpms_send_ndp_count - Send NDP Count Feature (7.7.2)
+  * @dccpms_ack_ratio - Ack Ratio Feature (section 11.3)
+  * @dccpms_pending - List of features being negotiated
+  * @dccpms_conf -
   */
 struct dccp_minisock {
 	__u64			dccpms_sequence_window;
@@ -410,7 +427,7 @@ struct dccp_service_list {
 };
 
 #define DCCP_SERVICE_INVALID_VALUE htonl((__u32)-1)
-#define DCCP_SERVICE_CODE_IS_ABSENT 		 0
+#define DCCP_SERVICE_CODE_IS_ABSENT		0
 
 static inline int dccp_list_has_service(const struct dccp_service_list *sl,
 					const __be32 service)
@@ -419,7 +436,7 @@ static inline int dccp_list_has_service(const struct dccp_service_list *sl,
 		u32 i = sl->dccpsl_nr;
 		while (i--)
 			if (sl->dccpsl_list[i] == service)
-				return 1; 
+				return 1;
 	}
 	return 0;
 }
@@ -439,12 +456,25 @@ struct dccp_ackvec;
  * @dccps_gss - greatest sequence number sent
  * @dccps_gsr - greatest valid sequence number received
  * @dccps_gar - greatest valid ack number received on a non-Sync; initialized to %dccps_iss
+ * @dccps_service - first (passive sock) or unique (active sock) service code
+ * @dccps_service_list - second .. last service code on passive socket
  * @dccps_timestamp_time - time of latest TIMESTAMP option
  * @dccps_timestamp_echo - latest timestamp received on a TIMESTAMP option
- * @dccps_packet_size - Set thru setsockopt
- * @dccps_role - Role of this sock, one of %dccp_role
+ * @dccps_l_ack_ratio -
+ * @dccps_r_ack_ratio -
+ * @dccps_pcslen - sender   partial checksum coverage (via sockopt)
+ * @dccps_pcrlen - receiver partial checksum coverage (via sockopt)
  * @dccps_ndp_count - number of Non Data Packets since last data packet
+ * @dccps_mss_cache -
+ * @dccps_minisock -
  * @dccps_hc_rx_ackvec - rx half connection ack vector
+ * @dccps_hc_rx_ccid -
+ * @dccps_hc_tx_ccid -
+ * @dccps_options_received -
+ * @dccps_epoch -
+ * @dccps_role - Role of this sock, one of %dccp_role
+ * @dccps_hc_rx_insert_options -
+ * @dccps_hc_tx_insert_options -
  * @dccps_xmit_timer - timer for when CCID is not ready to send
  */
 struct dccp_sock {
@@ -464,9 +494,10 @@ struct dccp_sock {
 	struct dccp_service_list	*dccps_service_list;
 	struct timeval			dccps_timestamp_time;
 	__u32				dccps_timestamp_echo;
-	__u32				dccps_packet_size;
 	__u16				dccps_l_ack_ratio;
 	__u16				dccps_r_ack_ratio;
+	__u16				dccps_pcslen;
+	__u16				dccps_pcrlen;
 	unsigned long			dccps_ndp_count;
 	__u32				dccps_mss_cache;
 	struct dccp_minisock		dccps_minisock;
@@ -480,7 +511,7 @@ struct dccp_sock {
 	__u8				dccps_hc_tx_insert_options:1;
 	struct timer_list		dccps_xmit_timer;
 };
- 
+
 static inline struct dccp_sock *dccp_sk(const struct sock *sk)
 {
 	return (struct dccp_sock *)sk;

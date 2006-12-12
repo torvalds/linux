@@ -62,6 +62,7 @@ static struct pci_device_id ahd_linux_pci_id_table[] = {
 	/* aic7901 based controllers */
 	ID(ID_AHA_29320A),
 	ID(ID_AHA_29320ALP),
+	ID(ID_AHA_29320LPE),
 	/* aic7902 based controllers */
 	ID(ID_AHA_29320),
 	ID(ID_AHA_29320B),
@@ -82,7 +83,7 @@ static struct pci_device_id ahd_linux_pci_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, ahd_linux_pci_id_table);
 
-struct pci_driver aic79xx_pci_driver = {
+static struct pci_driver aic79xx_pci_driver = {
 	.name		= "aic79xx",
 	.probe		= ahd_linux_pci_dev_probe,
 	.remove		= ahd_linux_pci_dev_remove,

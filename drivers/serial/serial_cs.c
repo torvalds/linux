@@ -723,7 +723,7 @@ static int serial_config(struct pcmcia_device * link)
 	u_char *buf;
 	cisparse_t *parse;
 	cistpl_cftable_entry_t *cf;
-	int i, last_ret, last_fn;
+	int i;
 
 	DEBUG(0, "serial_config(0x%p)\n", link);
 
@@ -740,15 +740,6 @@ static int serial_config(struct pcmcia_device * link)
 	tuple->TupleOffset = 0;
 	tuple->TupleDataMax = 255;
 	tuple->Attributes = 0;
-	/* Get configuration register information */
-	tuple->DesiredTuple = CISTPL_CONFIG;
-	last_ret = first_tuple(link, tuple, parse);
-	if (last_ret != CS_SUCCESS) {
-		last_fn = ParseTuple;
-		goto cs_failed;
-	}
-	link->conf.ConfigBase = parse->config.base;
-	link->conf.Present = parse->config.rmask[0];
 
 	/* Is this a compliant multifunction card? */
 	tuple->DesiredTuple = CISTPL_LONGLINK_MFC;
@@ -757,27 +748,25 @@ static int serial_config(struct pcmcia_device * link)
 
 	/* Is this a multiport card? */
 	tuple->DesiredTuple = CISTPL_MANFID;
-	if (first_tuple(link, tuple, parse) == CS_SUCCESS) {
-		info->manfid = parse->manfid.manf;
-		info->prodid = parse->manfid.card;
+	info->manfid = link->manf_id;
+	info->prodid = link->card_id;
 
-		for (i = 0; i < ARRAY_SIZE(quirks); i++)
-			if ((quirks[i].manfid == ~0 ||
-			     quirks[i].manfid == info->manfid) &&
-			    (quirks[i].prodid == ~0 ||
-			     quirks[i].prodid == info->prodid)) {
-				info->quirk = &quirks[i];
-				break;
-			}
-	}
+	for (i = 0; i < ARRAY_SIZE(quirks); i++)
+		if ((quirks[i].manfid == ~0 ||
+		     quirks[i].manfid == info->manfid) &&
+		    (quirks[i].prodid == ~0 ||
+		     quirks[i].prodid == info->prodid)) {
+			info->quirk = &quirks[i];
+			break;
+		}
 
 	/* Another check for dual-serial cards: look for either serial or
 	   multifunction cards that ask for appropriate IO port ranges */
 	tuple->DesiredTuple = CISTPL_FUNCID;
 	if ((info->multi == 0) &&
-	    ((first_tuple(link, tuple, parse) != CS_SUCCESS) ||
-	     (parse->funcid.func == CISTPL_FUNCID_MULTI) ||
-	     (parse->funcid.func == CISTPL_FUNCID_SERIAL))) {
+	    (link->has_func_id) &&
+	    ((link->func_id == CISTPL_FUNCID_MULTI) ||
+	     (link->func_id == CISTPL_FUNCID_SERIAL))) {
 		tuple->DesiredTuple = CISTPL_CFTABLE_ENTRY;
 		if (first_tuple(link, tuple, parse) == CS_SUCCESS) {
 			if ((cf->io.nwin == 1) && (cf->io.win[0].len % 8 == 0))
@@ -814,8 +803,6 @@ static int serial_config(struct pcmcia_device * link)
 	kfree(cfg_mem);
 	return 0;
 
- cs_failed:
-	cs_error(link, last_fn, last_ret);
  failed:
 	serial_remove(link);
 	kfree(cfg_mem);
@@ -925,6 +912,30 @@ static struct pcmcia_device_id serial_ids[] = {
 	PCMCIA_DEVICE_CIS_PROD_ID123("ADVANTECH", "COMpad-32/85", "1.0", 0x96913a85, 0x8fbe92ae, 0x0877b627, "COMpad2.cis"),
 	PCMCIA_DEVICE_CIS_PROD_ID2("RS-COM 2P", 0xad20b156, "RS-COM-2P.cis"),
 	PCMCIA_DEVICE_CIS_MANF_CARD(0x0013, 0x0000, "GLOBETROTTER.cis"),
+	PCMCIA_DEVICE_PROD_ID12("ELAN DIGITAL SYSTEMS LTD, c1997.","SERIAL CARD: SL100  1.00.",0x19ca78af,0xf964f42b),
+	PCMCIA_DEVICE_PROD_ID12("ELAN DIGITAL SYSTEMS LTD, c1997.","SERIAL CARD: SL100",0x19ca78af,0x71d98e83),
+	PCMCIA_DEVICE_PROD_ID12("ELAN DIGITAL SYSTEMS LTD, c1997.","SERIAL CARD: SL232  1.00.",0x19ca78af,0x69fb7490),
+	PCMCIA_DEVICE_PROD_ID12("ELAN DIGITAL SYSTEMS LTD, c1997.","SERIAL CARD: SL232",0x19ca78af,0xb6bc0235),
+	PCMCIA_DEVICE_PROD_ID12("ELAN DIGITAL SYSTEMS LTD, c2000.","SERIAL CARD: CF232",0x63f2e0bd,0xb9e175d3),
+	PCMCIA_DEVICE_PROD_ID12("ELAN DIGITAL SYSTEMS LTD, c2000.","SERIAL CARD: CF232-5",0x63f2e0bd,0xfce33442),
+	PCMCIA_DEVICE_PROD_ID12("Elan","Serial Port: CF232",0x3beb8cf2,0x171e7190),
+	PCMCIA_DEVICE_PROD_ID12("Elan","Serial Port: CF232-5",0x3beb8cf2,0x20da4262),
+	PCMCIA_DEVICE_PROD_ID12("Elan","Serial Port: CF428",0x3beb8cf2,0xea5dd57d),
+	PCMCIA_DEVICE_PROD_ID12("Elan","Serial Port: CF500",0x3beb8cf2,0xd77255fa),
+	PCMCIA_DEVICE_PROD_ID12("Elan","Serial Port: IC232",0x3beb8cf2,0x6a709903),
+	PCMCIA_DEVICE_PROD_ID12("Elan","Serial Port: SL232",0x3beb8cf2,0x18430676),
+	PCMCIA_DEVICE_PROD_ID12("Elan","Serial Port: XL232",0x3beb8cf2,0x6f933767),
+	PCMCIA_MFC_DEVICE_PROD_ID12(0,"Elan","Serial Port: CF332",0x3beb8cf2,0x16dc1ba7),
+	PCMCIA_MFC_DEVICE_PROD_ID12(0,"Elan","Serial Port: SL332",0x3beb8cf2,0x19816c41),
+	PCMCIA_MFC_DEVICE_PROD_ID12(0,"Elan","Serial Port: SL385",0x3beb8cf2,0x64112029),
+	PCMCIA_MFC_DEVICE_PROD_ID12(0,"Elan","Serial Port: SL432",0x3beb8cf2,0x1cce7ac4),
+	PCMCIA_MFC_DEVICE_PROD_ID12(0,"Elan","Serial+Parallel Port: SP230",0x3beb8cf2,0xdb9e58bc),
+	PCMCIA_MFC_DEVICE_PROD_ID12(1,"Elan","Serial Port: CF332",0x3beb8cf2,0x16dc1ba7),
+	PCMCIA_MFC_DEVICE_PROD_ID12(1,"Elan","Serial Port: SL332",0x3beb8cf2,0x19816c41),
+	PCMCIA_MFC_DEVICE_PROD_ID12(1,"Elan","Serial Port: SL385",0x3beb8cf2,0x64112029),
+	PCMCIA_MFC_DEVICE_PROD_ID12(1,"Elan","Serial Port: SL432",0x3beb8cf2,0x1cce7ac4),
+	PCMCIA_MFC_DEVICE_PROD_ID12(2,"Elan","Serial Port: SL432",0x3beb8cf2,0x1cce7ac4),
+	PCMCIA_MFC_DEVICE_PROD_ID12(3,"Elan","Serial Port: SL432",0x3beb8cf2,0x1cce7ac4),
 	/* too generic */
 	/* PCMCIA_MFC_DEVICE_MANF_CARD(0, 0x0160, 0x0002), */
 	/* PCMCIA_MFC_DEVICE_MANF_CARD(1, 0x0160, 0x0002), */

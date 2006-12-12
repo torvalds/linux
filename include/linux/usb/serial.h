@@ -218,7 +218,7 @@ struct usb_serial_driver {
 	int  (*write)		(struct usb_serial_port *port, const unsigned char *buf, int count);
 	int  (*write_room)	(struct usb_serial_port *port);
 	int  (*ioctl)		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
-	void (*set_termios)	(struct usb_serial_port *port, struct termios * old);
+	void (*set_termios)	(struct usb_serial_port *port, struct ktermios * old);
 	void (*break_ctl)	(struct usb_serial_port *port, int break_state);
 	int  (*chars_in_buffer)	(struct usb_serial_port *port);
 	void (*throttle)	(struct usb_serial_port *port);

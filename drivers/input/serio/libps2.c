@@ -189,7 +189,7 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 		return -1;
 	}
 
-	mutex_lock_nested(&ps2dev->cmd_mutex, SINGLE_DEPTH_NESTING);
+	mutex_lock(&ps2dev->cmd_mutex);
 
 	serio_pause_rx(ps2dev->serio);
 	ps2dev->flags = command == PS2_CMD_GETID ? PS2_FLAG_WAITID : 0;
@@ -251,9 +251,9 @@ EXPORT_SYMBOL(ps2_command);
  * ps2_schedule_command(), to a PS/2 device (keyboard, mouse, etc.)
  */
 
-static void ps2_execute_scheduled_command(void *data)
+static void ps2_execute_scheduled_command(struct work_struct *work)
 {
-	struct ps2work *ps2work = data;
+	struct ps2work *ps2work = container_of(work, struct ps2work, work);
 
 	ps2_command(ps2work->ps2dev, ps2work->param, ps2work->command);
 	kfree(ps2work);
@@ -278,7 +278,7 @@ int ps2_schedule_command(struct ps2dev *ps2dev, unsigned char *param, int comman
 	ps2work->ps2dev = ps2dev;
 	ps2work->command = command;
 	memcpy(ps2work->param, param, send);
-	INIT_WORK(&ps2work->work, ps2_execute_scheduled_command, ps2work);
+	INIT_WORK(&ps2work->work, ps2_execute_scheduled_command);
 
 	if (!schedule_work(&ps2work->work)) {
 		kfree(ps2work);
@@ -296,6 +296,7 @@ EXPORT_SYMBOL(ps2_schedule_command);
 void ps2_init(struct ps2dev *ps2dev, struct serio *serio)
 {
 	mutex_init(&ps2dev->cmd_mutex);
+	lockdep_set_subclass(&ps2dev->cmd_mutex, serio->depth);
 	init_waitqueue_head(&ps2dev->wait);
 	ps2dev->serio = serio;
 }

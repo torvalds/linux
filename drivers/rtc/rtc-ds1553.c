@@ -340,7 +340,8 @@ static int __init ds1553_rtc_probe(struct platform_device *pdev)
 
 	if (pdata->irq >= 0) {
 		writeb(0, ioaddr + RTC_INTERRUPTS);
-		if (request_irq(pdata->irq, ds1553_rtc_interrupt, IRQF_SHARED,
+		if (request_irq(pdata->irq, ds1553_rtc_interrupt,
+				IRQF_DISABLED | IRQF_SHARED,
 				pdev->name, pdev) < 0) {
 			dev_warn(&pdev->dev, "interrupt not available.\n");
 			pdata->irq = -1;

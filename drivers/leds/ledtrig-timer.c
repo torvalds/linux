@@ -12,6 +12,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -123,6 +124,7 @@ static CLASS_DEVICE_ATTR(delay_off, 0644, led_delay_off_show,
 static void timer_trig_activate(struct led_classdev *led_cdev)
 {
 	struct timer_trig_data *timer_data;
+	int rc;
 
 	timer_data = kzalloc(sizeof(struct timer_trig_data), GFP_KERNEL);
 	if (!timer_data)
@@ -134,10 +136,21 @@ static void timer_trig_activate(struct led_classdev *led_cdev)
 	timer_data->timer.function = led_timer_function;
 	timer_data->timer.data = (unsigned long) led_cdev;
 
-	class_device_create_file(led_cdev->class_dev,
+	rc = class_device_create_file(led_cdev->class_dev,
 				&class_device_attr_delay_on);
-	class_device_create_file(led_cdev->class_dev,
+	if (rc) goto err_out;
+	rc = class_device_create_file(led_cdev->class_dev,
 				&class_device_attr_delay_off);
+	if (rc) goto err_out_delayon;
+
+	return;
+
+err_out_delayon:
+	class_device_remove_file(led_cdev->class_dev,
+				&class_device_attr_delay_on);
+err_out:
+	led_cdev->trigger_data = NULL;
+	kfree(timer_data);
 }
 
 static void timer_trig_deactivate(struct led_classdev *led_cdev)

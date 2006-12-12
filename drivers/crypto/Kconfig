@@ -51,4 +51,17 @@ config CRYPTO_DEV_PADLOCK_SHA
 	  If unsure say M. The compiled module will be
 	  called padlock-sha.ko
 
+config CRYPTO_DEV_GEODE
+	tristate "Support for the Geode LX AES engine"
+	depends on CRYPTO && X86_32 && PCI
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	default m
+	help
+	  Say 'Y' here to use the AMD Geode LX processor on-board AES
+	  engine for the CryptoAPI AES alogrithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called geode-aes.
+
 endmenu

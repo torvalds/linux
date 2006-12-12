@@ -186,29 +186,29 @@ static irqreturn_t locomokbd_interrupt(int irq, void *dev_id)
 static void locomokbd_timer_callback(unsigned long data)
 {
 	struct locomokbd *locomokbd = (struct locomokbd *) data;
-	locomokbd_scankeyboard(locomokbd, NULL);
+	locomokbd_scankeyboard(locomokbd);
 }
 
 static int locomokbd_probe(struct locomo_dev *dev)
 {
 	struct locomokbd *locomokbd;
 	struct input_dev *input_dev;
-	int i, ret;
+	int i, err;
 
 	locomokbd = kzalloc(sizeof(struct locomokbd), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!locomokbd || !input_dev) {
-		ret = -ENOMEM;
-		goto free;
+		err = -ENOMEM;
+		goto err_free_mem;
 	}
 
 	/* try and claim memory region */
 	if (!request_mem_region((unsigned long) dev->mapbase,
 				dev->length,
 				LOCOMO_DRIVER_NAME(dev))) {
-		ret = -EBUSY;
+		err = -EBUSY;
 		printk(KERN_ERR "locomokbd: Can't acquire access to io memory for keyboard\n");
-		goto free;
+		goto err_free_mem;
 	}
 
 	locomokbd->ldev = dev;
@@ -244,24 +244,28 @@ static int locomokbd_probe(struct locomo_dev *dev)
 	clear_bit(0, input_dev->keybit);
 
 	/* attempt to get the interrupt */
-	ret = request_irq(dev->irq[0], locomokbd_interrupt, 0, "locomokbd", locomokbd);
-	if (ret) {
+	err = request_irq(dev->irq[0], locomokbd_interrupt, 0, "locomokbd", locomokbd);
+	if (err) {
 		printk(KERN_ERR "locomokbd: Can't get irq for keyboard\n");
-		goto out;
+		goto err_release_region;
 	}
 
-	input_register_device(locomokbd->input);
+	err = input_register_device(locomokbd->input);
+	if (err)
+		goto err_free_irq;
 
 	return 0;
 
-out:
+ err_free_irq:
+	free_irq(dev->irq[0], locomokbd);
+ err_release_region:
 	release_mem_region((unsigned long) dev->mapbase, dev->length);
 	locomo_set_drvdata(dev, NULL);
-free:
+ err_free_mem:
 	input_free_device(input_dev);
 	kfree(locomokbd);
 
-	return ret;
+	return err;
 }
 
 static int locomokbd_remove(struct locomo_dev *dev)

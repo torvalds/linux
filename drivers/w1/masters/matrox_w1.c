@@ -215,6 +215,8 @@ static int __devinit matrox_w1_probe(struct pci_dev *pdev, const struct pci_devi
 	return 0;
 
 err_out_free_device:
+	if (dev->virt_addr)
+		iounmap(dev->virt_addr);
 	kfree(dev);
 
 	return err;

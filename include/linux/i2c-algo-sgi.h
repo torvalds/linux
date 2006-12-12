@@ -22,6 +22,5 @@ struct i2c_algo_sgi_data {
 };
 
 int i2c_sgi_add_bus(struct i2c_adapter *);
-int i2c_sgi_del_bus(struct i2c_adapter *);
 
 #endif /* I2C_ALGO_SGI_H */

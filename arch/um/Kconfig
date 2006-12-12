@@ -1,3 +1,8 @@
+config DEFCONFIG_LIST
+	string
+	option defconfig_list
+	default "arch/$ARCH/defconfig"
+
 # UML uses the generic IRQ sugsystem
 config GENERIC_HARDIRQS
 	bool
@@ -42,6 +47,11 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
 # Used in kernel/irq/manage.c and include/linux/irq.h
 config IRQ_RELEASE_METHOD
 	bool
@@ -52,6 +62,7 @@ menu "UML-specific options"
 config MODE_TT
 	bool "Tracing thread support (DEPRECATED)"
 	default n
+	depends on BROKEN
 	help
 	This option controls whether tracing thread support is compiled
 	into UML. This option is largely obsolete, given that skas0 provides

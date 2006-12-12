@@ -85,7 +85,7 @@ n2100_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 		irq = IRQ_IOP32X_XINT0;
 	} else if (PCI_SLOT(dev->devfn) == 2) {
 		/* RTL8110SB #2 */
-		irq = IRQ_IOP32X_XINT1;
+		irq = IRQ_IOP32X_XINT3;
 	} else if (PCI_SLOT(dev->devfn) == 3) {
 		/* Sil3512 */
 		irq = IRQ_IOP32X_XINT2;

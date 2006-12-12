@@ -49,6 +49,7 @@
 #include "dcache.h"
 #include "dlmglue.h"
 #include "extent_map.h"
+#include "file.h"
 #include "heartbeat.h"
 #include "inode.h"
 #include "journal.h"
@@ -769,7 +770,7 @@ static int ocfs2_lock_create(struct ocfs2_super *osb,
 			     int dlm_flags)
 {
 	int ret = 0;
-	enum dlm_status status;
+	enum dlm_status status = DLM_NORMAL;
 	unsigned long flags;
 
 	mlog_entry_void();
@@ -1063,10 +1064,10 @@ static void ocfs2_cluster_unlock(struct ocfs2_super *osb,
 	mlog_exit_void();
 }
 
-int ocfs2_create_new_lock(struct ocfs2_super *osb,
-			  struct ocfs2_lock_res *lockres,
-			  int ex,
-			  int local)
+static int ocfs2_create_new_lock(struct ocfs2_super *osb,
+				 struct ocfs2_lock_res *lockres,
+				 int ex,
+				 int local)
 {
 	int level =  ex ? LKM_EXMODE : LKM_PRMODE;
 	unsigned long flags;
@@ -1137,6 +1138,7 @@ int ocfs2_rw_lock(struct inode *inode, int write)
 {
 	int status, level;
 	struct ocfs2_lock_res *lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	BUG_ON(!inode);
 
@@ -1145,6 +1147,9 @@ int ocfs2_rw_lock(struct inode *inode, int write)
 	mlog(0, "inode %llu take %s RW lock\n",
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     write ? "EXMODE" : "PRMODE");
+
+	if (ocfs2_mount_local(osb))
+		return 0;
 
 	lockres = &OCFS2_I(inode)->ip_rw_lockres;
 
@@ -1163,6 +1168,7 @@ void ocfs2_rw_unlock(struct inode *inode, int write)
 {
 	int level = write ? LKM_EXMODE : LKM_PRMODE;
 	struct ocfs2_lock_res *lockres = &OCFS2_I(inode)->ip_rw_lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	mlog_entry_void();
 
@@ -1170,7 +1176,8 @@ void ocfs2_rw_unlock(struct inode *inode, int write)
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     write ? "EXMODE" : "PRMODE");
 
-	ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
+	if (!ocfs2_mount_local(osb))
+		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
 
 	mlog_exit_void();
 }
@@ -1181,6 +1188,7 @@ int ocfs2_data_lock_full(struct inode *inode,
 {
 	int status = 0, level;
 	struct ocfs2_lock_res *lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	BUG_ON(!inode);
 
@@ -1199,6 +1207,9 @@ int ocfs2_data_lock_full(struct inode *inode,
 		}
 		goto out;
 	}
+
+	if (ocfs2_mount_local(osb))
+		goto out;
 
 	lockres = &OCFS2_I(inode)->ip_data_lockres;
 
@@ -1268,6 +1279,7 @@ void ocfs2_data_unlock(struct inode *inode,
 {
 	int level = write ? LKM_EXMODE : LKM_PRMODE;
 	struct ocfs2_lock_res *lockres = &OCFS2_I(inode)->ip_data_lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	mlog_entry_void();
 
@@ -1275,7 +1287,8 @@ void ocfs2_data_unlock(struct inode *inode,
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     write ? "EXMODE" : "PRMODE");
 
-	if (!ocfs2_is_hard_readonly(OCFS2_SB(inode->i_sb)))
+	if (!ocfs2_is_hard_readonly(OCFS2_SB(inode->i_sb)) &&
+	    !ocfs2_mount_local(osb))
 		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
 
 	mlog_exit_void();
@@ -1466,8 +1479,9 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 {
 	int status = 0;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	struct ocfs2_lock_res *lockres;
+	struct ocfs2_lock_res *lockres = NULL;
 	struct ocfs2_dinode *fe;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	mlog_entry_void();
 
@@ -1482,10 +1496,12 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 	}
 	spin_unlock(&oi->ip_lock);
 
-	lockres = &oi->ip_meta_lockres;
+	if (!ocfs2_mount_local(osb)) {
+		lockres = &oi->ip_meta_lockres;
 
-	if (!ocfs2_should_refresh_lock_res(lockres))
-		goto bail;
+		if (!ocfs2_should_refresh_lock_res(lockres))
+			goto bail;
+	}
 
 	/* This will discard any caching information we might have had
 	 * for the inode metadata. */
@@ -1495,7 +1511,7 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 	 * map (directories, bitmap files, etc) */
 	ocfs2_extent_map_trunc(inode, 0);
 
-	if (ocfs2_meta_lvb_is_trustable(inode, lockres)) {
+	if (lockres && ocfs2_meta_lvb_is_trustable(inode, lockres)) {
 		mlog(0, "Trusting LVB on inode %llu\n",
 		     (unsigned long long)oi->ip_blkno);
 		ocfs2_refresh_inode_from_lvb(inode);
@@ -1542,7 +1558,8 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 
 	status = 0;
 bail_refresh:
-	ocfs2_complete_lock_res_refresh(lockres, status);
+	if (lockres)
+		ocfs2_complete_lock_res_refresh(lockres, status);
 bail:
 	mlog_exit(status);
 	return status;
@@ -1579,13 +1596,12 @@ static int ocfs2_assign_bh(struct inode *inode,
  * the result of the lock will be communicated via the callback.
  */
 int ocfs2_meta_lock_full(struct inode *inode,
-			 struct ocfs2_journal_handle *handle,
 			 struct buffer_head **ret_bh,
 			 int ex,
 			 int arg_flags)
 {
 	int status, level, dlm_flags, acquired;
-	struct ocfs2_lock_res *lockres;
+	struct ocfs2_lock_res *lockres = NULL;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct buffer_head *local_bh = NULL;
 
@@ -1606,6 +1622,9 @@ int ocfs2_meta_lock_full(struct inode *inode,
 			status = -EROFS;
 		goto bail;
 	}
+
+	if (ocfs2_mount_local(osb))
+		goto local;
 
 	if (!(arg_flags & OCFS2_META_LOCK_RECOVERY))
 		wait_event(osb->recovery_event,
@@ -1636,6 +1655,7 @@ int ocfs2_meta_lock_full(struct inode *inode,
 		wait_event(osb->recovery_event,
 			   ocfs2_node_map_is_empty(osb, &osb->recovery_map));
 
+local:
 	/*
 	 * We only see this flag if we're being called from
 	 * ocfs2_read_locked_inode(). It means we're locking an inode
@@ -1644,7 +1664,8 @@ int ocfs2_meta_lock_full(struct inode *inode,
 	 */
 	if (inode->i_state & I_NEW) {
 		status = 0;
-		ocfs2_complete_lock_res_refresh(lockres, 0);
+		if (lockres)
+			ocfs2_complete_lock_res_refresh(lockres, 0);
 		goto bail;
 	}
 
@@ -1666,12 +1687,6 @@ int ocfs2_meta_lock_full(struct inode *inode,
 			mlog_errno(status);
 			goto bail;
 		}
-	}
-
-	if (handle) {
-		status = ocfs2_handle_add_lock(handle, inode);
-		if (status < 0)
-			mlog_errno(status);
 	}
 
 bail:
@@ -1713,22 +1728,58 @@ bail:
  * the lock inversion simply.
  */
 int ocfs2_meta_lock_with_page(struct inode *inode,
-			      struct ocfs2_journal_handle *handle,
 			      struct buffer_head **ret_bh,
 			      int ex,
 			      struct page *page)
 {
 	int ret;
 
-	ret = ocfs2_meta_lock_full(inode, handle, ret_bh, ex,
-				   OCFS2_LOCK_NONBLOCK);
+	ret = ocfs2_meta_lock_full(inode, ret_bh, ex, OCFS2_LOCK_NONBLOCK);
 	if (ret == -EAGAIN) {
 		unlock_page(page);
-		if (ocfs2_meta_lock(inode, handle, ret_bh, ex) == 0)
+		if (ocfs2_meta_lock(inode, ret_bh, ex) == 0)
 			ocfs2_meta_unlock(inode, ex);
 		ret = AOP_TRUNCATED_PAGE;
 	}
 
+	return ret;
+}
+
+int ocfs2_meta_lock_atime(struct inode *inode,
+			  struct vfsmount *vfsmnt,
+			  int *level)
+{
+	int ret;
+
+	mlog_entry_void();
+	ret = ocfs2_meta_lock(inode, NULL, 0);
+	if (ret < 0) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	/*
+	 * If we should update atime, we will get EX lock,
+	 * otherwise we just get PR lock.
+	 */
+	if (ocfs2_should_update_atime(inode, vfsmnt)) {
+		struct buffer_head *bh = NULL;
+
+		ocfs2_meta_unlock(inode, 0);
+		ret = ocfs2_meta_lock(inode, &bh, 1);
+		if (ret < 0) {
+			mlog_errno(ret);
+			return ret;
+		}
+		*level = 1;
+		if (ocfs2_should_update_atime(inode, vfsmnt))
+			ocfs2_update_inode_atime(inode, bh);
+		if (bh)
+			brelse(bh);
+	} else
+		*level = 0;
+
+	mlog_exit(ret);
 	return ret;
 }
 
@@ -1737,6 +1788,7 @@ void ocfs2_meta_unlock(struct inode *inode,
 {
 	int level = ex ? LKM_EXMODE : LKM_PRMODE;
 	struct ocfs2_lock_res *lockres = &OCFS2_I(inode)->ip_meta_lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	mlog_entry_void();
 
@@ -1744,7 +1796,8 @@ void ocfs2_meta_unlock(struct inode *inode,
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     ex ? "EXMODE" : "PRMODE");
 
-	if (!ocfs2_is_hard_readonly(OCFS2_SB(inode->i_sb)))
+	if (!ocfs2_is_hard_readonly(OCFS2_SB(inode->i_sb)) &&
+	    !ocfs2_mount_local(osb))
 		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
 
 	mlog_exit_void();
@@ -1753,7 +1806,7 @@ void ocfs2_meta_unlock(struct inode *inode,
 int ocfs2_super_lock(struct ocfs2_super *osb,
 		     int ex)
 {
-	int status;
+	int status = 0;
 	int level = ex ? LKM_EXMODE : LKM_PRMODE;
 	struct ocfs2_lock_res *lockres = &osb->osb_super_lockres;
 	struct buffer_head *bh;
@@ -1763,6 +1816,9 @@ int ocfs2_super_lock(struct ocfs2_super *osb,
 
 	if (ocfs2_is_hard_readonly(osb))
 		return -EROFS;
+
+	if (ocfs2_mount_local(osb))
+		goto bail;
 
 	status = ocfs2_cluster_lock(osb, lockres, level, 0, 0);
 	if (status < 0) {
@@ -1802,7 +1858,8 @@ void ocfs2_super_unlock(struct ocfs2_super *osb,
 	int level = ex ? LKM_EXMODE : LKM_PRMODE;
 	struct ocfs2_lock_res *lockres = &osb->osb_super_lockres;
 
-	ocfs2_cluster_unlock(osb, lockres, level);
+	if (!ocfs2_mount_local(osb))
+		ocfs2_cluster_unlock(osb, lockres, level);
 }
 
 int ocfs2_rename_lock(struct ocfs2_super *osb)
@@ -1812,6 +1869,9 @@ int ocfs2_rename_lock(struct ocfs2_super *osb)
 
 	if (ocfs2_is_hard_readonly(osb))
 		return -EROFS;
+
+	if (ocfs2_mount_local(osb))
+		return 0;
 
 	status = ocfs2_cluster_lock(osb, lockres, LKM_EXMODE, 0, 0);
 	if (status < 0)
@@ -1824,7 +1884,8 @@ void ocfs2_rename_unlock(struct ocfs2_super *osb)
 {
 	struct ocfs2_lock_res *lockres = &osb->osb_rename_lockres;
 
-	ocfs2_cluster_unlock(osb, lockres, LKM_EXMODE);
+	if (!ocfs2_mount_local(osb))
+		ocfs2_cluster_unlock(osb, lockres, LKM_EXMODE);
 }
 
 int ocfs2_dentry_lock(struct dentry *dentry, int ex)
@@ -1839,6 +1900,9 @@ int ocfs2_dentry_lock(struct dentry *dentry, int ex)
 	if (ocfs2_is_hard_readonly(osb))
 		return -EROFS;
 
+	if (ocfs2_mount_local(osb))
+		return 0;
+
 	ret = ocfs2_cluster_lock(osb, &dl->dl_lockres, level, 0, 0);
 	if (ret < 0)
 		mlog_errno(ret);
@@ -1852,7 +1916,8 @@ void ocfs2_dentry_unlock(struct dentry *dentry, int ex)
 	struct ocfs2_dentry_lock *dl = dentry->d_fsdata;
 	struct ocfs2_super *osb = OCFS2_SB(dentry->d_sb);
 
-	ocfs2_cluster_unlock(osb, &dl->dl_lockres, level);
+	if (!ocfs2_mount_local(osb))
+		ocfs2_cluster_unlock(osb, &dl->dl_lockres, level);
 }
 
 /* Reference counting of the dlm debug structure. We want this because
@@ -2115,11 +2180,14 @@ static void ocfs2_dlm_shutdown_debug(struct ocfs2_super *osb)
 
 int ocfs2_dlm_init(struct ocfs2_super *osb)
 {
-	int status;
+	int status = 0;
 	u32 dlm_key;
-	struct dlm_ctxt *dlm;
+	struct dlm_ctxt *dlm = NULL;
 
 	mlog_entry_void();
+
+	if (ocfs2_mount_local(osb))
+		goto local;
 
 	status = ocfs2_dlm_init_debug(osb);
 	if (status < 0) {
@@ -2148,10 +2216,11 @@ int ocfs2_dlm_init(struct ocfs2_super *osb)
 		goto bail;
 	}
 
+	dlm_register_eviction_cb(dlm, &osb->osb_eviction_cb);
+
+local:
 	ocfs2_super_lock_res_init(&osb->osb_super_lockres, osb);
 	ocfs2_rename_lock_res_init(&osb->osb_rename_lockres, osb);
-
-	dlm_register_eviction_cb(dlm, &osb->osb_eviction_cb);
 
 	osb->dlm = dlm;
 

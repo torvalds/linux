@@ -351,7 +351,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_remote_error(
 	struct sctp_remote_error *sre;
 	struct sk_buff *skb;
 	sctp_errhdr_t *ch;
-	__u16 cause;
+	__be16 cause;
 	int elen;
 
 	ch = (sctp_errhdr_t *)(chunk->skb->data);

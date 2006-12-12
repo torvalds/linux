@@ -232,7 +232,7 @@ static inline unsigned ipv6_addr_scope2type(unsigned scope)
 
 int __ipv6_addr_type(const struct in6_addr *addr)
 {
-	u32 st;
+	__be32 st;
 
 	st = addr->s6_addr32[0];
 
@@ -1164,7 +1164,7 @@ record_it:
 int ipv6_get_saddr(struct dst_entry *dst,
 		   struct in6_addr *daddr, struct in6_addr *saddr)
 {
-	return ipv6_dev_get_saddr(dst ? ((struct rt6_info *)dst)->rt6i_idev->dev : NULL, daddr, saddr);
+	return ipv6_dev_get_saddr(dst ? ip6_dst_idev(dst)->dev : NULL, daddr, saddr);
 }
 
 
@@ -3098,10 +3098,9 @@ static inline int rt_scope(int ifa_scope)
 
 static inline int inet6_ifaddr_msgsize(void)
 {
-	return nlmsg_total_size(sizeof(struct ifaddrmsg) +
-				nla_total_size(16) +
-				nla_total_size(sizeof(struct ifa_cacheinfo)) +
-				128);
+	return NLMSG_ALIGN(sizeof(struct ifaddrmsg))
+	       + nla_total_size(16) /* IFA_ADDRESS */
+	       + nla_total_size(sizeof(struct ifa_cacheinfo));
 }
 
 static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
@@ -3329,10 +3328,8 @@ static int inet6_rtm_getaddr(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 
 	err = inet6_fill_ifaddr(skb, ifa, NETLINK_CB(in_skb).pid,
 				nlh->nlmsg_seq, RTM_NEWADDR, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout_ifa;
-	}
+	/* failure implies BUG in inet6_ifaddr_msgsize() */
+	BUG_ON(err < 0);
 
 	err = rtnl_unicast(skb, NETLINK_CB(in_skb).pid);
 errout_ifa:
@@ -3351,10 +3348,8 @@ static void inet6_ifa_notify(int event, struct inet6_ifaddr *ifa)
 		goto errout;
 
 	err = inet6_fill_ifaddr(skb, ifa, 0, 0, event, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in inet6_ifaddr_msgsize() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, 0, RTNLGRP_IPV6_IFADDR, NULL, GFP_ATOMIC);
 errout:
@@ -3365,6 +3360,8 @@ errout:
 static void inline ipv6_store_devconf(struct ipv6_devconf *cnf,
 				__s32 *array, int bytes)
 {
+	BUG_ON(bytes < (DEVCONF_MAX * 4));
+
 	memset(array, 0, bytes);
 	array[DEVCONF_FORWARDING] = cnf->forwarding;
 	array[DEVCONF_HOPLIMIT] = cnf->hop_limit;
@@ -3397,80 +3394,76 @@ static void inline ipv6_store_devconf(struct ipv6_devconf *cnf,
 	array[DEVCONF_PROXY_NDP] = cnf->proxy_ndp;
 }
 
-/* Maximum length of ifinfomsg attributes */
-#define INET6_IFINFO_RTA_SPACE \
-		RTA_SPACE(IFNAMSIZ) /* IFNAME */ + \
-		RTA_SPACE(MAX_ADDR_LEN) /* ADDRESS */ +	\
-		RTA_SPACE(sizeof(u32)) /* MTU */ + \
-		RTA_SPACE(sizeof(int)) /* LINK */ + \
-		RTA_SPACE(0) /* PROTINFO */ + \
-		RTA_SPACE(sizeof(u32)) /* FLAGS */ + \
-		RTA_SPACE(sizeof(struct ifla_cacheinfo)) /* CACHEINFO */ + \
-		RTA_SPACE(sizeof(__s32[DEVCONF_MAX])) /* CONF */
+static inline size_t inet6_if_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
+	       + nla_total_size(IFNAMSIZ) /* IFLA_IFNAME */
+	       + nla_total_size(MAX_ADDR_LEN) /* IFLA_ADDRESS */
+	       + nla_total_size(4) /* IFLA_MTU */
+	       + nla_total_size(4) /* IFLA_LINK */
+	       + nla_total_size( /* IFLA_PROTINFO */
+			nla_total_size(4) /* IFLA_INET6_FLAGS */
+			+ nla_total_size(sizeof(struct ifla_cacheinfo))
+			+ nla_total_size(DEVCONF_MAX * 4) /* IFLA_INET6_CONF */
+		 );
+}
 
 static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev, 
 			     u32 pid, u32 seq, int event, unsigned int flags)
 {
-	struct net_device	*dev = idev->dev;
-	__s32			*array = NULL;
-	struct ifinfomsg	*r;
-	struct nlmsghdr 	*nlh;
-	unsigned char		*b = skb->tail;
-	struct rtattr		*subattr;
-	__u32			mtu = dev->mtu;
-	struct ifla_cacheinfo	ci;
+	struct net_device *dev = idev->dev;
+	struct nlattr *conf;
+	struct ifinfomsg *hdr;
+	struct nlmsghdr *nlh;
+	void *protoinfo;
+	struct ifla_cacheinfo ci;
 
-	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*r), flags);
-	r = NLMSG_DATA(nlh);
-	r->ifi_family = AF_INET6;
-	r->__ifi_pad = 0;
-	r->ifi_type = dev->type;
-	r->ifi_index = dev->ifindex;
-	r->ifi_flags = dev_get_flags(dev);
-	r->ifi_change = 0;
+	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*hdr), flags);
+	if (nlh == NULL)
+		return -ENOBUFS;
 
-	RTA_PUT(skb, IFLA_IFNAME, strlen(dev->name)+1, dev->name);
+	hdr = nlmsg_data(nlh);
+	hdr->ifi_family = AF_INET6;
+	hdr->__ifi_pad = 0;
+	hdr->ifi_type = dev->type;
+	hdr->ifi_index = dev->ifindex;
+	hdr->ifi_flags = dev_get_flags(dev);
+	hdr->ifi_change = 0;
+
+	NLA_PUT_STRING(skb, IFLA_IFNAME, dev->name);
 
 	if (dev->addr_len)
-		RTA_PUT(skb, IFLA_ADDRESS, dev->addr_len, dev->dev_addr);
+		NLA_PUT(skb, IFLA_ADDRESS, dev->addr_len, dev->dev_addr);
 
-	RTA_PUT(skb, IFLA_MTU, sizeof(mtu), &mtu);
+	NLA_PUT_U32(skb, IFLA_MTU, dev->mtu);
 	if (dev->ifindex != dev->iflink)
-		RTA_PUT(skb, IFLA_LINK, sizeof(int), &dev->iflink);
-			
-	subattr = (struct rtattr*)skb->tail;
+		NLA_PUT_U32(skb, IFLA_LINK, dev->iflink);
 
-	RTA_PUT(skb, IFLA_PROTINFO, 0, NULL);
+	protoinfo = nla_nest_start(skb, IFLA_PROTINFO);
+	if (protoinfo == NULL)
+		goto nla_put_failure;
 
-	/* return the device flags */
-	RTA_PUT(skb, IFLA_INET6_FLAGS, sizeof(__u32), &idev->if_flags);
+	NLA_PUT_U32(skb, IFLA_INET6_FLAGS, idev->if_flags);
 
-	/* return interface cacheinfo */
 	ci.max_reasm_len = IPV6_MAXPLEN;
 	ci.tstamp = (__u32)(TIME_DELTA(idev->tstamp, INITIAL_JIFFIES) / HZ * 100
 		    + TIME_DELTA(idev->tstamp, INITIAL_JIFFIES) % HZ * 100 / HZ);
 	ci.reachable_time = idev->nd_parms->reachable_time;
 	ci.retrans_time = idev->nd_parms->retrans_time;
-	RTA_PUT(skb, IFLA_INET6_CACHEINFO, sizeof(ci), &ci);
-	
-	/* return the device sysctl params */
-	if ((array = kmalloc(DEVCONF_MAX * sizeof(*array), GFP_ATOMIC)) == NULL)
-		goto rtattr_failure;
-	ipv6_store_devconf(&idev->cnf, array, DEVCONF_MAX * sizeof(*array));
-	RTA_PUT(skb, IFLA_INET6_CONF, DEVCONF_MAX * sizeof(*array), array);
+	NLA_PUT(skb, IFLA_INET6_CACHEINFO, sizeof(ci), &ci);
+
+	conf = nla_reserve(skb, IFLA_INET6_CONF, DEVCONF_MAX * sizeof(s32));
+	if (conf == NULL)
+		goto nla_put_failure;
+	ipv6_store_devconf(&idev->cnf, nla_data(conf), nla_len(conf));
 
 	/* XXX - Statistics/MC not implemented */
-	subattr->rta_len = skb->tail - (u8*)subattr;
 
-	nlh->nlmsg_len = skb->tail - b;
-	kfree(array);
-	return skb->len;
+	nla_nest_end(skb, protoinfo);
+	return nlmsg_end(skb, nlh);
 
-nlmsg_failure:
-rtattr_failure:
-	kfree(array);
-	skb_trim(skb, b - skb->data);
-	return -1;
+nla_put_failure:
+	return nlmsg_cancel(skb, nlh);
 }
 
 static int inet6_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
@@ -3501,18 +3494,15 @@ static int inet6_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 void inet6_ifinfo_notify(int event, struct inet6_dev *idev)
 {
 	struct sk_buff *skb;
-	int payload = sizeof(struct ifinfomsg) + INET6_IFINFO_RTA_SPACE;
 	int err = -ENOBUFS;
 	
-	skb = nlmsg_new(nlmsg_total_size(payload), GFP_ATOMIC);
+	skb = nlmsg_new(inet6_if_nlmsg_size(), GFP_ATOMIC);
 	if (skb == NULL)
 		goto errout;
 
 	err = inet6_fill_ifinfo(skb, idev, 0, 0, event, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in inet6_if_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, 0, RTNLGRP_IPV6_IFADDR, NULL, GFP_ATOMIC);
 errout:
@@ -3520,22 +3510,26 @@ errout:
 		rtnl_set_sk_err(RTNLGRP_IPV6_IFADDR, err);
 }
 
-/* Maximum length of prefix_cacheinfo attributes */
-#define INET6_PREFIX_RTA_SPACE \
-		RTA_SPACE(sizeof(((struct prefix_info *)NULL)->prefix)) /* ADDRESS */ + \
-		RTA_SPACE(sizeof(struct prefix_cacheinfo)) /* CACHEINFO */
+static inline size_t inet6_prefix_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct prefixmsg))
+	       + nla_total_size(sizeof(struct in6_addr))
+	       + nla_total_size(sizeof(struct prefix_cacheinfo));
+}
 
 static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
-			struct prefix_info *pinfo, u32 pid, u32 seq, 
-			int event, unsigned int flags)
+			     struct prefix_info *pinfo, u32 pid, u32 seq,
+			     int event, unsigned int flags)
 {
-	struct prefixmsg	*pmsg;
-	struct nlmsghdr 	*nlh;
-	unsigned char		*b = skb->tail;
+	struct prefixmsg *pmsg;
+	struct nlmsghdr *nlh;
 	struct prefix_cacheinfo	ci;
 
-	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*pmsg), flags);
-	pmsg = NLMSG_DATA(nlh);
+	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*pmsg), flags);
+	if (nlh == NULL)
+		return -ENOBUFS;
+
+	pmsg = nlmsg_data(nlh);
 	pmsg->prefix_family = AF_INET6;
 	pmsg->prefix_pad1 = 0;
 	pmsg->prefix_pad2 = 0;
@@ -3543,44 +3537,37 @@ static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
 	pmsg->prefix_len = pinfo->prefix_len;
 	pmsg->prefix_type = pinfo->type;
 	pmsg->prefix_pad3 = 0;
-	
 	pmsg->prefix_flags = 0;
 	if (pinfo->onlink)
 		pmsg->prefix_flags |= IF_PREFIX_ONLINK;
 	if (pinfo->autoconf)
 		pmsg->prefix_flags |= IF_PREFIX_AUTOCONF;
 
-	RTA_PUT(skb, PREFIX_ADDRESS, sizeof(pinfo->prefix), &pinfo->prefix);
+	NLA_PUT(skb, PREFIX_ADDRESS, sizeof(pinfo->prefix), &pinfo->prefix);
 
 	ci.preferred_time = ntohl(pinfo->prefered);
 	ci.valid_time = ntohl(pinfo->valid);
-	RTA_PUT(skb, PREFIX_CACHEINFO, sizeof(ci), &ci);
+	NLA_PUT(skb, PREFIX_CACHEINFO, sizeof(ci), &ci);
 
-	nlh->nlmsg_len = skb->tail - b;
-	return skb->len;
+	return nlmsg_end(skb, nlh);
 
-nlmsg_failure:
-rtattr_failure:
-	skb_trim(skb, b - skb->data);
-	return -1;
+nla_put_failure:
+	return nlmsg_cancel(skb, nlh);
 }
 
 static void inet6_prefix_notify(int event, struct inet6_dev *idev, 
 			 struct prefix_info *pinfo)
 {
 	struct sk_buff *skb;
-	int payload = sizeof(struct prefixmsg) + INET6_PREFIX_RTA_SPACE;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(nlmsg_total_size(payload), GFP_ATOMIC);
+	skb = nlmsg_new(inet6_prefix_nlmsg_size(), GFP_ATOMIC);
 	if (skb == NULL)
 		goto errout;
 
 	err = inet6_fill_prefix(skb, idev, pinfo, 0, 0, event, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in inet6_prefix_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, 0, RTNLGRP_IPV6_PREFIX, NULL, GFP_ATOMIC);
 errout:
@@ -3669,8 +3656,7 @@ static int addrconf_sysctl_forward_strategy(ctl_table *table,
 					    int __user *name, int nlen,
 					    void __user *oldval,
 					    size_t __user *oldlenp,
-					    void __user *newval, size_t newlen,
-					    void **context)
+					    void __user *newval, size_t newlen)
 {
 	int *valp = table->data;
 	int new;
@@ -3982,10 +3968,9 @@ static void addrconf_sysctl_register(struct inet6_dev *idev, struct ipv6_devconf
 	struct addrconf_sysctl_table *t;
 	char *dev_name = NULL;
 
-	t = kmalloc(sizeof(*t), GFP_KERNEL);
+	t = kmemdup(&addrconf_sysctl, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
 		return;
-	memcpy(t, &addrconf_sysctl, sizeof(*t));
 	for (i=0; t->addrconf_vars[i].data; i++) {
 		t->addrconf_vars[i].data += (char*)p - (char*)&ipv6_devconf;
 		t->addrconf_vars[i].de = NULL;

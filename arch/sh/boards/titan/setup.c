@@ -1,23 +1,31 @@
 /*
- *	Setup for Titan
+ * arch/sh/boards/titan/setup.c - Setup for Titan
+ *
+ *  Copyright (C) 2006  Jamie Lenehan
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
 #include <linux/init.h>
-#include <asm/irq.h>
+#include <linux/irq.h>
 #include <asm/titan.h>
 #include <asm/io.h>
 
-extern void __init pcibios_init_platform(void);
+static struct ipr_data titan_ipr_map[] = {
+	/* IRQ, IPR idx, shift, prio */
+	{ TITAN_IRQ_WAN,   3, 12, 8 },	/* eth0 (WAN) */
+	{ TITAN_IRQ_LAN,   3,  8, 8 },	/* eth1 (LAN) */
+	{ TITAN_IRQ_MPCIA, 3,  4, 8 },	/* mPCI A (top) */
+	{ TITAN_IRQ_USB,   3,  0, 8 },	/* mPCI B (bottom), USB */
+};
 
 static void __init init_titan_irq(void)
 {
 	/* enable individual interrupt mode for externals */
-	ctrl_outw(ctrl_inw(INTC_ICR) | INTC_ICR_IRLM, INTC_ICR);
-
-	make_ipr_irq( TITAN_IRQ_WAN,   IRL0_IPR_ADDR, IRL0_IPR_POS, IRL0_PRIORITY); /* PCIRQ0 */
-	make_ipr_irq( TITAN_IRQ_LAN,   IRL1_IPR_ADDR, IRL1_IPR_POS, IRL1_PRIORITY); /* PCIRQ1 */
-	make_ipr_irq( TITAN_IRQ_MPCIA, IRL2_IPR_ADDR, IRL2_IPR_POS, IRL2_PRIORITY); /* PCIRQ2 */
-	make_ipr_irq( TITAN_IRQ_USB,   IRL3_IPR_ADDR, IRL3_IPR_POS, IRL3_PRIORITY); /* PCIRQ3 */
+	ipr_irq_enable_irlm();
+	/* register ipr irqs */
+	make_ipr_irq(titan_ipr_map, ARRAY_SIZE(titan_ipr_map));
 }
 
 struct sh_machine_vector mv_titan __initmv = {
@@ -43,6 +51,5 @@ struct sh_machine_vector mv_titan __initmv = {
 	.mv_ioport_map = titan_ioport_map,
 
 	.mv_init_irq =	init_titan_irq,
-	.mv_init_pci =	pcibios_init_platform,
 };
 ALIAS_MV(titan)

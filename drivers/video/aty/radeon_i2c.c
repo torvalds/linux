@@ -120,26 +120,32 @@ void radeon_create_i2c_busses(struct radeonfb_info *rinfo)
 void radeon_delete_i2c_busses(struct radeonfb_info *rinfo)
 {
 	if (rinfo->i2c[0].rinfo)
-		i2c_bit_del_bus(&rinfo->i2c[0].adapter);
+		i2c_del_adapter(&rinfo->i2c[0].adapter);
 	rinfo->i2c[0].rinfo = NULL;
 
 	if (rinfo->i2c[1].rinfo)
-		i2c_bit_del_bus(&rinfo->i2c[1].adapter);
+		i2c_del_adapter(&rinfo->i2c[1].adapter);
 	rinfo->i2c[1].rinfo = NULL;
 
 	if (rinfo->i2c[2].rinfo)
-		i2c_bit_del_bus(&rinfo->i2c[2].adapter);
+		i2c_del_adapter(&rinfo->i2c[2].adapter);
 	rinfo->i2c[2].rinfo = NULL;
 
 	if (rinfo->i2c[3].rinfo)
-		i2c_bit_del_bus(&rinfo->i2c[3].adapter);
+		i2c_del_adapter(&rinfo->i2c[3].adapter);
 	rinfo->i2c[3].rinfo = NULL;
 }
 
 int radeon_probe_i2c_connector(struct radeonfb_info *rinfo, int conn,
 			       u8 **out_edid)
 {
-	u8 *edid = fb_ddc_read(&rinfo->i2c[conn-1].adapter);
+	u32 reg = rinfo->i2c[conn-1].ddc_reg;
+	u8 *edid;
+
+	OUTREG(reg, INREG(reg) &
+			~(VGA_DDC_DATA_OUTPUT | VGA_DDC_CLK_OUTPUT));
+
+	edid = fb_ddc_read(&rinfo->i2c[conn-1].adapter);
 
 	if (out_edid)
 		*out_edid = edid;

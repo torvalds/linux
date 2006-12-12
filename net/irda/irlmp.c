@@ -641,15 +641,13 @@ struct lsap_cb *irlmp_dup(struct lsap_cb *orig, void *instance)
 	}
 
 	/* Allocate a new instance */
-	new = kmalloc(sizeof(struct lsap_cb), GFP_ATOMIC);
+	new = kmemdup(orig, sizeof(*new), GFP_ATOMIC);
 	if (!new)  {
 		IRDA_DEBUG(0, "%s(), unable to kmalloc\n", __FUNCTION__);
 		spin_unlock_irqrestore(&irlmp->unconnected_lsaps->hb_spinlock,
 				       flags);
 		return NULL;
 	}
-	/* Dup */
-	memcpy(new, orig, sizeof(struct lsap_cb));
 	/* new->lap = orig->lap; => done in the memcpy() */
 	/* new->slsap_sel = orig->slsap_sel; => done in the memcpy() */
 	new->conn_skb = NULL;
@@ -1678,7 +1676,8 @@ static int irlmp_slsap_inuse(__u8 slsap_sel)
 	 *  every IrLAP connection and check every LSAP associated with each
 	 *  the connection.
 	 */
-	spin_lock_irqsave(&irlmp->links->hb_spinlock, flags);
+	spin_lock_irqsave_nested(&irlmp->links->hb_spinlock, flags,
+			SINGLE_DEPTH_NESTING);
 	lap = (struct lap_cb *) hashbin_get_first(irlmp->links);
 	while (lap != NULL) {
 		IRDA_ASSERT(lap->magic == LMP_LAP_MAGIC, goto errlap;);

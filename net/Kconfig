@@ -63,6 +63,7 @@ config INET
 if INET
 source "net/ipv4/Kconfig"
 source "net/ipv6/Kconfig"
+source "net/netlabel/Kconfig"
 
 endif # if INET
 
@@ -74,7 +75,7 @@ config NETWORK_SECMARK
 	  If you are unsure how to answer this question, answer N.
 
 menuconfig NETFILTER
-	bool "Network packet filtering (replaces ipchains)"
+	bool "Network packet filtering framework (Netfilter)"
 	---help---
 	  Netfilter is a framework for filtering and mangling network packets
 	  that pass through your Linux box.
@@ -174,33 +175,6 @@ source "net/ipx/Kconfig"
 source "drivers/net/appletalk/Kconfig"
 source "net/x25/Kconfig"
 source "net/lapb/Kconfig"
-
-config NET_DIVERT
-	bool "Frame Diverter (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && BROKEN
-	---help---
-	  The Frame Diverter allows you to divert packets from the
-	  network, that are not aimed at the interface receiving it (in
-	  promisc. mode). Typically, a Linux box setup as an Ethernet bridge
-	  with the Frames Diverter on, can do some *really* transparent www
-	  caching using a Squid proxy for example.
-
-	  This is very useful when you don't want to change your router's
-	  config (or if you simply don't have access to it).
-
-	  The other possible usages of diverting Ethernet Frames are
-	  numberous:
-	  - reroute smtp traffic to another interface
-	  - traffic-shape certain network streams
-	  - transparently proxy smtp connections
-	  - etc...
-
-	  For more informations, please refer to:
-	  <http://diverter.sourceforge.net/>
-	  <http://perso.wanadoo.fr/magpie/EtherDivert.html>
-
-	  If unsure, say N.
-
 source "net/econet/Kconfig"
 source "net/wanrouter/Kconfig"
 source "net/sched/Kconfig"
@@ -248,8 +222,6 @@ source "net/ieee80211/Kconfig"
 
 config WIRELESS_EXT
 	bool
-
-source "net/netlabel/Kconfig"
 
 config FIB_RULES
 	bool

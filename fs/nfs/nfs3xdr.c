@@ -105,14 +105,14 @@ static struct {
 /*
  * Common NFS XDR functions as inlines
  */
-static inline u32 *
-xdr_encode_fhandle(u32 *p, struct nfs_fh *fh)
+static inline __be32 *
+xdr_encode_fhandle(__be32 *p, struct nfs_fh *fh)
 {
 	return xdr_encode_array(p, fh->data, fh->size);
 }
 
-static inline u32 *
-xdr_decode_fhandle(u32 *p, struct nfs_fh *fh)
+static inline __be32 *
+xdr_decode_fhandle(__be32 *p, struct nfs_fh *fh)
 {
 	if ((fh->size = ntohl(*p++)) <= NFS3_FHSIZE) {
 		memcpy(fh->data, p, fh->size);
@@ -124,24 +124,24 @@ xdr_decode_fhandle(u32 *p, struct nfs_fh *fh)
 /*
  * Encode/decode time.
  */
-static inline u32 *
-xdr_encode_time3(u32 *p, struct timespec *timep)
+static inline __be32 *
+xdr_encode_time3(__be32 *p, struct timespec *timep)
 {
 	*p++ = htonl(timep->tv_sec);
 	*p++ = htonl(timep->tv_nsec);
 	return p;
 }
 
-static inline u32 *
-xdr_decode_time3(u32 *p, struct timespec *timep)
+static inline __be32 *
+xdr_decode_time3(__be32 *p, struct timespec *timep)
 {
 	timep->tv_sec = ntohl(*p++);
 	timep->tv_nsec = ntohl(*p++);
 	return p;
 }
 
-static u32 *
-xdr_decode_fattr(u32 *p, struct nfs_fattr *fattr)
+static __be32 *
+xdr_decode_fattr(__be32 *p, struct nfs_fattr *fattr)
 {
 	unsigned int	type, major, minor;
 	int		fmode;
@@ -177,8 +177,8 @@ xdr_decode_fattr(u32 *p, struct nfs_fattr *fattr)
 	return p;
 }
 
-static inline u32 *
-xdr_encode_sattr(u32 *p, struct iattr *attr)
+static inline __be32 *
+xdr_encode_sattr(__be32 *p, struct iattr *attr)
 {
 	if (attr->ia_valid & ATTR_MODE) {
 		*p++ = xdr_one;
@@ -223,8 +223,8 @@ xdr_encode_sattr(u32 *p, struct iattr *attr)
 	return p;
 }
 
-static inline u32 *
-xdr_decode_wcc_attr(u32 *p, struct nfs_fattr *fattr)
+static inline __be32 *
+xdr_decode_wcc_attr(__be32 *p, struct nfs_fattr *fattr)
 {
 	p = xdr_decode_hyper(p, &fattr->pre_size);
 	p = xdr_decode_time3(p, &fattr->pre_mtime);
@@ -233,16 +233,16 @@ xdr_decode_wcc_attr(u32 *p, struct nfs_fattr *fattr)
 	return p;
 }
 
-static inline u32 *
-xdr_decode_post_op_attr(u32 *p, struct nfs_fattr *fattr)
+static inline __be32 *
+xdr_decode_post_op_attr(__be32 *p, struct nfs_fattr *fattr)
 {
 	if (*p++)
 		p = xdr_decode_fattr(p, fattr);
 	return p;
 }
 
-static inline u32 *
-xdr_decode_pre_op_attr(u32 *p, struct nfs_fattr *fattr)
+static inline __be32 *
+xdr_decode_pre_op_attr(__be32 *p, struct nfs_fattr *fattr)
 {
 	if (*p++)
 		return xdr_decode_wcc_attr(p, fattr);
@@ -250,8 +250,8 @@ xdr_decode_pre_op_attr(u32 *p, struct nfs_fattr *fattr)
 }
 
 
-static inline u32 *
-xdr_decode_wcc_data(u32 *p, struct nfs_fattr *fattr)
+static inline __be32 *
+xdr_decode_wcc_data(__be32 *p, struct nfs_fattr *fattr)
 {
 	p = xdr_decode_pre_op_attr(p, fattr);
 	return xdr_decode_post_op_attr(p, fattr);
@@ -265,7 +265,7 @@ xdr_decode_wcc_data(u32 *p, struct nfs_fattr *fattr)
  * Encode file handle argument
  */
 static int
-nfs3_xdr_fhandle(struct rpc_rqst *req, u32 *p, struct nfs_fh *fh)
+nfs3_xdr_fhandle(struct rpc_rqst *req, __be32 *p, struct nfs_fh *fh)
 {
 	p = xdr_encode_fhandle(p, fh);
 	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
@@ -276,7 +276,7 @@ nfs3_xdr_fhandle(struct rpc_rqst *req, u32 *p, struct nfs_fh *fh)
  * Encode SETATTR arguments
  */
 static int
-nfs3_xdr_sattrargs(struct rpc_rqst *req, u32 *p, struct nfs3_sattrargs *args)
+nfs3_xdr_sattrargs(struct rpc_rqst *req, __be32 *p, struct nfs3_sattrargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fh);
 	p = xdr_encode_sattr(p, args->sattr);
@@ -291,7 +291,7 @@ nfs3_xdr_sattrargs(struct rpc_rqst *req, u32 *p, struct nfs3_sattrargs *args)
  * Encode directory ops argument
  */
 static int
-nfs3_xdr_diropargs(struct rpc_rqst *req, u32 *p, struct nfs3_diropargs *args)
+nfs3_xdr_diropargs(struct rpc_rqst *req, __be32 *p, struct nfs3_diropargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fh);
 	p = xdr_encode_array(p, args->name, args->len);
@@ -303,7 +303,7 @@ nfs3_xdr_diropargs(struct rpc_rqst *req, u32 *p, struct nfs3_diropargs *args)
  * Encode access() argument
  */
 static int
-nfs3_xdr_accessargs(struct rpc_rqst *req, u32 *p, struct nfs3_accessargs *args)
+nfs3_xdr_accessargs(struct rpc_rqst *req, __be32 *p, struct nfs3_accessargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fh);
 	*p++ = htonl(args->access);
@@ -317,7 +317,7 @@ nfs3_xdr_accessargs(struct rpc_rqst *req, u32 *p, struct nfs3_accessargs *args)
  * exactly to the page we want to fetch.
  */
 static int
-nfs3_xdr_readargs(struct rpc_rqst *req, u32 *p, struct nfs_readargs *args)
+nfs3_xdr_readargs(struct rpc_rqst *req, __be32 *p, struct nfs_readargs *args)
 {
 	struct rpc_auth	*auth = req->rq_task->tk_auth;
 	unsigned int replen;
@@ -339,7 +339,7 @@ nfs3_xdr_readargs(struct rpc_rqst *req, u32 *p, struct nfs_readargs *args)
  * Write arguments. Splice the buffer to be written into the iovec.
  */
 static int
-nfs3_xdr_writeargs(struct rpc_rqst *req, u32 *p, struct nfs_writeargs *args)
+nfs3_xdr_writeargs(struct rpc_rqst *req, __be32 *p, struct nfs_writeargs *args)
 {
 	struct xdr_buf *sndbuf = &req->rq_snd_buf;
 	u32 count = args->count;
@@ -360,7 +360,7 @@ nfs3_xdr_writeargs(struct rpc_rqst *req, u32 *p, struct nfs_writeargs *args)
  * Encode CREATE arguments
  */
 static int
-nfs3_xdr_createargs(struct rpc_rqst *req, u32 *p, struct nfs3_createargs *args)
+nfs3_xdr_createargs(struct rpc_rqst *req, __be32 *p, struct nfs3_createargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fh);
 	p = xdr_encode_array(p, args->name, args->len);
@@ -380,7 +380,7 @@ nfs3_xdr_createargs(struct rpc_rqst *req, u32 *p, struct nfs3_createargs *args)
  * Encode MKDIR arguments
  */
 static int
-nfs3_xdr_mkdirargs(struct rpc_rqst *req, u32 *p, struct nfs3_mkdirargs *args)
+nfs3_xdr_mkdirargs(struct rpc_rqst *req, __be32 *p, struct nfs3_mkdirargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fh);
 	p = xdr_encode_array(p, args->name, args->len);
@@ -393,7 +393,7 @@ nfs3_xdr_mkdirargs(struct rpc_rqst *req, u32 *p, struct nfs3_mkdirargs *args)
  * Encode SYMLINK arguments
  */
 static int
-nfs3_xdr_symlinkargs(struct rpc_rqst *req, u32 *p, struct nfs3_symlinkargs *args)
+nfs3_xdr_symlinkargs(struct rpc_rqst *req, __be32 *p, struct nfs3_symlinkargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fromfh);
 	p = xdr_encode_array(p, args->fromname, args->fromlen);
@@ -410,7 +410,7 @@ nfs3_xdr_symlinkargs(struct rpc_rqst *req, u32 *p, struct nfs3_symlinkargs *args
  * Encode MKNOD arguments
  */
 static int
-nfs3_xdr_mknodargs(struct rpc_rqst *req, u32 *p, struct nfs3_mknodargs *args)
+nfs3_xdr_mknodargs(struct rpc_rqst *req, __be32 *p, struct nfs3_mknodargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fh);
 	p = xdr_encode_array(p, args->name, args->len);
@@ -429,7 +429,7 @@ nfs3_xdr_mknodargs(struct rpc_rqst *req, u32 *p, struct nfs3_mknodargs *args)
  * Encode RENAME arguments
  */
 static int
-nfs3_xdr_renameargs(struct rpc_rqst *req, u32 *p, struct nfs3_renameargs *args)
+nfs3_xdr_renameargs(struct rpc_rqst *req, __be32 *p, struct nfs3_renameargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fromfh);
 	p = xdr_encode_array(p, args->fromname, args->fromlen);
@@ -443,7 +443,7 @@ nfs3_xdr_renameargs(struct rpc_rqst *req, u32 *p, struct nfs3_renameargs *args)
  * Encode LINK arguments
  */
 static int
-nfs3_xdr_linkargs(struct rpc_rqst *req, u32 *p, struct nfs3_linkargs *args)
+nfs3_xdr_linkargs(struct rpc_rqst *req, __be32 *p, struct nfs3_linkargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fromfh);
 	p = xdr_encode_fhandle(p, args->tofh);
@@ -456,7 +456,7 @@ nfs3_xdr_linkargs(struct rpc_rqst *req, u32 *p, struct nfs3_linkargs *args)
  * Encode arguments to readdir call
  */
 static int
-nfs3_xdr_readdirargs(struct rpc_rqst *req, u32 *p, struct nfs3_readdirargs *args)
+nfs3_xdr_readdirargs(struct rpc_rqst *req, __be32 *p, struct nfs3_readdirargs *args)
 {
 	struct rpc_auth	*auth = req->rq_task->tk_auth;
 	unsigned int replen;
@@ -485,7 +485,7 @@ nfs3_xdr_readdirargs(struct rpc_rqst *req, u32 *p, struct nfs3_readdirargs *args
  * We just check for syntactical correctness.
  */
 static int
-nfs3_xdr_readdirres(struct rpc_rqst *req, u32 *p, struct nfs3_readdirres *res)
+nfs3_xdr_readdirres(struct rpc_rqst *req, __be32 *p, struct nfs3_readdirres *res)
 {
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
 	struct kvec *iov = rcvbuf->head;
@@ -493,7 +493,7 @@ nfs3_xdr_readdirres(struct rpc_rqst *req, u32 *p, struct nfs3_readdirres *res)
 	int hdrlen, recvd;
 	int status, nr;
 	unsigned int len, pglen;
-	u32 *entry, *end, *kaddr;
+	__be32 *entry, *end, *kaddr;
 
 	status = ntohl(*p++);
 	/* Decode post_op_attrs */
@@ -523,8 +523,8 @@ nfs3_xdr_readdirres(struct rpc_rqst *req, u32 *p, struct nfs3_readdirres *res)
 	if (pglen > recvd)
 		pglen = recvd;
 	page = rcvbuf->pages;
-	kaddr = p = (u32 *)kmap_atomic(*page, KM_USER0);
-	end = (u32 *)((char *)p + pglen);
+	kaddr = p = kmap_atomic(*page, KM_USER0);
+	end = (__be32 *)((char *)p + pglen);
 	entry = p;
 	for (nr = 0; *p++; nr++) {
 		if (p + 3 > end)
@@ -583,8 +583,8 @@ err_unmap:
 	goto out;
 }
 
-u32 *
-nfs3_decode_dirent(u32 *p, struct nfs_entry *entry, int plus)
+__be32 *
+nfs3_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
 {
 	struct nfs_entry old = *entry;
 
@@ -626,7 +626,7 @@ nfs3_decode_dirent(u32 *p, struct nfs_entry *entry, int plus)
  * Encode COMMIT arguments
  */
 static int
-nfs3_xdr_commitargs(struct rpc_rqst *req, u32 *p, struct nfs_writeargs *args)
+nfs3_xdr_commitargs(struct rpc_rqst *req, __be32 *p, struct nfs_writeargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fh);
 	p = xdr_encode_hyper(p, args->offset);
@@ -640,7 +640,7 @@ nfs3_xdr_commitargs(struct rpc_rqst *req, u32 *p, struct nfs_writeargs *args)
  * Encode GETACL arguments
  */
 static int
-nfs3_xdr_getaclargs(struct rpc_rqst *req, u32 *p,
+nfs3_xdr_getaclargs(struct rpc_rqst *req, __be32 *p,
 		    struct nfs3_getaclargs *args)
 {
 	struct rpc_auth *auth = req->rq_task->tk_auth;
@@ -664,7 +664,7 @@ nfs3_xdr_getaclargs(struct rpc_rqst *req, u32 *p,
  * Encode SETACL arguments
  */
 static int
-nfs3_xdr_setaclargs(struct rpc_rqst *req, u32 *p,
+nfs3_xdr_setaclargs(struct rpc_rqst *req, __be32 *p,
                    struct nfs3_setaclargs *args)
 {
 	struct xdr_buf *buf = &req->rq_snd_buf;
@@ -711,7 +711,7 @@ nfs3_xdr_setaclargs(struct rpc_rqst *req, u32 *p,
  * Decode attrstat reply.
  */
 static int
-nfs3_xdr_attrstat(struct rpc_rqst *req, u32 *p, struct nfs_fattr *fattr)
+nfs3_xdr_attrstat(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 {
 	int	status;
 
@@ -726,7 +726,7 @@ nfs3_xdr_attrstat(struct rpc_rqst *req, u32 *p, struct nfs_fattr *fattr)
  * SATTR, REMOVE, RMDIR
  */
 static int
-nfs3_xdr_wccstat(struct rpc_rqst *req, u32 *p, struct nfs_fattr *fattr)
+nfs3_xdr_wccstat(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 {
 	int	status;
 
@@ -740,7 +740,7 @@ nfs3_xdr_wccstat(struct rpc_rqst *req, u32 *p, struct nfs_fattr *fattr)
  * Decode LOOKUP reply
  */
 static int
-nfs3_xdr_lookupres(struct rpc_rqst *req, u32 *p, struct nfs3_diropres *res)
+nfs3_xdr_lookupres(struct rpc_rqst *req, __be32 *p, struct nfs3_diropres *res)
 {
 	int	status;
 
@@ -759,7 +759,7 @@ nfs3_xdr_lookupres(struct rpc_rqst *req, u32 *p, struct nfs3_diropres *res)
  * Decode ACCESS reply
  */
 static int
-nfs3_xdr_accessres(struct rpc_rqst *req, u32 *p, struct nfs3_accessres *res)
+nfs3_xdr_accessres(struct rpc_rqst *req, __be32 *p, struct nfs3_accessres *res)
 {
 	int	status = ntohl(*p++);
 
@@ -771,7 +771,7 @@ nfs3_xdr_accessres(struct rpc_rqst *req, u32 *p, struct nfs3_accessres *res)
 }
 
 static int
-nfs3_xdr_readlinkargs(struct rpc_rqst *req, u32 *p, struct nfs3_readlinkargs *args)
+nfs3_xdr_readlinkargs(struct rpc_rqst *req, __be32 *p, struct nfs3_readlinkargs *args)
 {
 	struct rpc_auth *auth = req->rq_task->tk_auth;
 	unsigned int replen;
@@ -789,7 +789,7 @@ nfs3_xdr_readlinkargs(struct rpc_rqst *req, u32 *p, struct nfs3_readlinkargs *ar
  * Decode READLINK reply
  */
 static int
-nfs3_xdr_readlinkres(struct rpc_rqst *req, u32 *p, struct nfs_fattr *fattr)
+nfs3_xdr_readlinkres(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 {
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
 	struct kvec *iov = rcvbuf->head;
@@ -837,7 +837,7 @@ nfs3_xdr_readlinkres(struct rpc_rqst *req, u32 *p, struct nfs_fattr *fattr)
  * Decode READ reply
  */
 static int
-nfs3_xdr_readres(struct rpc_rqst *req, u32 *p, struct nfs_readres *res)
+nfs3_xdr_readres(struct rpc_rqst *req, __be32 *p, struct nfs_readres *res)
 {
 	struct kvec *iov = req->rq_rcv_buf.head;
 	int	status, count, ocount, recvd, hdrlen;
@@ -888,7 +888,7 @@ nfs3_xdr_readres(struct rpc_rqst *req, u32 *p, struct nfs_readres *res)
  * Decode WRITE response
  */
 static int
-nfs3_xdr_writeres(struct rpc_rqst *req, u32 *p, struct nfs_writeres *res)
+nfs3_xdr_writeres(struct rpc_rqst *req, __be32 *p, struct nfs_writeres *res)
 {
 	int	status;
 
@@ -910,7 +910,7 @@ nfs3_xdr_writeres(struct rpc_rqst *req, u32 *p, struct nfs_writeres *res)
  * Decode a CREATE response
  */
 static int
-nfs3_xdr_createres(struct rpc_rqst *req, u32 *p, struct nfs3_diropres *res)
+nfs3_xdr_createres(struct rpc_rqst *req, __be32 *p, struct nfs3_diropres *res)
 {
 	int	status;
 
@@ -937,7 +937,7 @@ nfs3_xdr_createres(struct rpc_rqst *req, u32 *p, struct nfs3_diropres *res)
  * Decode RENAME reply
  */
 static int
-nfs3_xdr_renameres(struct rpc_rqst *req, u32 *p, struct nfs3_renameres *res)
+nfs3_xdr_renameres(struct rpc_rqst *req, __be32 *p, struct nfs3_renameres *res)
 {
 	int	status;
 
@@ -952,7 +952,7 @@ nfs3_xdr_renameres(struct rpc_rqst *req, u32 *p, struct nfs3_renameres *res)
  * Decode LINK reply
  */
 static int
-nfs3_xdr_linkres(struct rpc_rqst *req, u32 *p, struct nfs3_linkres *res)
+nfs3_xdr_linkres(struct rpc_rqst *req, __be32 *p, struct nfs3_linkres *res)
 {
 	int	status;
 
@@ -967,7 +967,7 @@ nfs3_xdr_linkres(struct rpc_rqst *req, u32 *p, struct nfs3_linkres *res)
  * Decode FSSTAT reply
  */
 static int
-nfs3_xdr_fsstatres(struct rpc_rqst *req, u32 *p, struct nfs_fsstat *res)
+nfs3_xdr_fsstatres(struct rpc_rqst *req, __be32 *p, struct nfs_fsstat *res)
 {
 	int		status;
 
@@ -992,7 +992,7 @@ nfs3_xdr_fsstatres(struct rpc_rqst *req, u32 *p, struct nfs_fsstat *res)
  * Decode FSINFO reply
  */
 static int
-nfs3_xdr_fsinfores(struct rpc_rqst *req, u32 *p, struct nfs_fsinfo *res)
+nfs3_xdr_fsinfores(struct rpc_rqst *req, __be32 *p, struct nfs_fsinfo *res)
 {
 	int		status;
 
@@ -1020,7 +1020,7 @@ nfs3_xdr_fsinfores(struct rpc_rqst *req, u32 *p, struct nfs_fsinfo *res)
  * Decode PATHCONF reply
  */
 static int
-nfs3_xdr_pathconfres(struct rpc_rqst *req, u32 *p, struct nfs_pathconf *res)
+nfs3_xdr_pathconfres(struct rpc_rqst *req, __be32 *p, struct nfs_pathconf *res)
 {
 	int		status;
 
@@ -1040,7 +1040,7 @@ nfs3_xdr_pathconfres(struct rpc_rqst *req, u32 *p, struct nfs_pathconf *res)
  * Decode COMMIT reply
  */
 static int
-nfs3_xdr_commitres(struct rpc_rqst *req, u32 *p, struct nfs_writeres *res)
+nfs3_xdr_commitres(struct rpc_rqst *req, __be32 *p, struct nfs_writeres *res)
 {
 	int		status;
 
@@ -1059,7 +1059,7 @@ nfs3_xdr_commitres(struct rpc_rqst *req, u32 *p, struct nfs_writeres *res)
  * Decode GETACL reply
  */
 static int
-nfs3_xdr_getaclres(struct rpc_rqst *req, u32 *p,
+nfs3_xdr_getaclres(struct rpc_rqst *req, __be32 *p,
 		   struct nfs3_getaclres *res)
 {
 	struct xdr_buf *buf = &req->rq_rcv_buf;
@@ -1091,7 +1091,7 @@ nfs3_xdr_getaclres(struct rpc_rqst *req, u32 *p,
  * Decode setacl reply.
  */
 static int
-nfs3_xdr_setaclres(struct rpc_rqst *req, u32 *p, struct nfs_fattr *fattr)
+nfs3_xdr_setaclres(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 {
 	int status = ntohl(*p++);
 

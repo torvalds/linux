@@ -319,6 +319,28 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 
 	sci_out(port, SCFCR, fcr_val);
 }
+#elif defined(CONFIG_CPU_SUBTYPE_SH7722)
+static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
+{
+	unsigned int fcr_val = 0;
+
+	if (cflag & CRTSCTS) {
+		fcr_val |= SCFCR_MCE;
+
+		ctrl_outw(0x0000, PORT_PSCR);
+	} else {
+		unsigned short data;
+
+		data = ctrl_inw(PORT_PSCR);
+		data &= 0x033f;
+		data |= 0x0400;
+		ctrl_outw(data, PORT_PSCR);
+
+		ctrl_outw(ctrl_inw(SCSPTR0) & 0x17, SCSPTR0);
+	}
+
+	sci_out(port, SCFCR, fcr_val);
+}
 #else
 /* For SH7750 */
 static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
@@ -775,7 +797,7 @@ static int sci_notifier(struct notifier_block *self,
 			 *
 			 * Clean this up later..
 			 */
-			clk = clk_get("module_clk");
+			clk = clk_get(NULL, "module_clk");
 			port->uartclk = clk_get_rate(clk) * 16;
 			clk_put(clk);
 		}
@@ -943,8 +965,8 @@ static void sci_shutdown(struct uart_port *port)
 		s->disable(port);
 }
 
-static void sci_set_termios(struct uart_port *port, struct termios *termios,
-			    struct termios *old)
+static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
+			    struct ktermios *old)
 {
 	struct sci_port *s = &sci_ports[port->line];
 	unsigned int status, baud, smr_val;
@@ -960,7 +982,7 @@ static void sci_set_termios(struct uart_port *port, struct termios *termios,
 		default:
 		{
 #if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
-			struct clk *clk = clk_get("module_clk");
+			struct clk *clk = clk_get(NULL, "module_clk");
 			t = SCBRR_VALUE(baud, clk_get_rate(clk));
 			clk_put(clk);
 #else
@@ -1128,7 +1150,7 @@ static void __init sci_init_ports(void)
 		 * XXX: We should use a proper SCI/SCIF clock
 		 */
 		{
-			struct clk *clk = clk_get("module_clk");
+			struct clk *clk = clk_get(NULL, "module_clk");
 			sci_ports[i].port.uartclk = clk_get_rate(clk) * 16;
 			clk_put(clk);
 		}

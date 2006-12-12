@@ -3122,9 +3122,9 @@ static int snd_cmipci_suspend(struct pci_dev *pci, pm_message_t state)
 	/* disable ints */
 	snd_cmipci_write(cm, CM_REG_INT_HLDCLR, 0);
 
-	pci_set_power_state(pci, PCI_D3hot);
 	pci_disable_device(pci);
 	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
 }
 
@@ -3134,9 +3134,14 @@ static int snd_cmipci_resume(struct pci_dev *pci)
 	struct cmipci *cm = card->private_data;
 	int i;
 
-	pci_restore_state(pci);
-	pci_enable_device(pci);
 	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "cmipci: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
 	pci_set_master(pci);
 
 	/* reset / initialize to a sane state */

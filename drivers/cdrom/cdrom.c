@@ -2133,16 +2133,14 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 		rq->timeout = 60 * HZ;
 		bio = rq->bio;
 
-		if (rq->bio)
-			blk_queue_bounce(q, &rq->bio);
-
 		if (blk_execute_rq(q, cdi->disk, rq, 0)) {
 			struct request_sense *s = rq->sense;
 			ret = -EIO;
 			cdi->last_sense = s->sense_key;
 		}
 
-		if (blk_rq_unmap_user(bio, len))
+		rq->bio = bio;
+		if (blk_rq_unmap_user(rq))
 			ret = -EFAULT;
 
 		if (ret)

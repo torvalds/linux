@@ -275,22 +275,22 @@ static struct dvb_usb_device_properties vp702x_properties = {
 			.caps             = DVB_USB_ADAP_RECEIVES_204_BYTE_TS,
 
 			.streaming_ctrl   = vp702x_streaming_ctrl,
-	.frontend_attach  = vp702x_frontend_attach,
+			.frontend_attach  = vp702x_frontend_attach,
 
-	/* parameter for the MPEG2-data transfer */
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
 				.count = 10,
-		.endpoint = 0x02,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
 			.size_of_priv     = sizeof(struct vp702x_state),
 		}
-		},
+	},
 	.read_mac_address = vp702x_read_mac_addr,
 
 	.rc_key_map       = vp702x_rc_keys,

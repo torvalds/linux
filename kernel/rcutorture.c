@@ -401,7 +401,7 @@ static void srcu_torture_cleanup(void)
 	cleanup_srcu_struct(&srcu_ctl);
 }
 
-static int srcu_torture_read_lock(void)
+static int srcu_torture_read_lock(void) __acquires(&srcu_ctl)
 {
 	return srcu_read_lock(&srcu_ctl);
 }
@@ -419,7 +419,7 @@ static void srcu_read_delay(struct rcu_random_state *rrsp)
 		schedule_timeout_interruptible(longdelay);
 }
 
-static void srcu_torture_read_unlock(int idx)
+static void srcu_torture_read_unlock(int idx) __releases(&srcu_ctl)
 {
 	srcu_read_unlock(&srcu_ctl, idx);
 }

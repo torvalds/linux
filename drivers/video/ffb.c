@@ -968,6 +968,8 @@ static int ffb_init_one(struct of_device *op)
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
 		printk(KERN_ERR "ffb: Could not allocate color map.\n");
+		of_iounmap(all->par.fbc, sizeof(struct ffb_fbc));
+		of_iounmap(all->par.dac, sizeof(struct ffb_dac));
 		kfree(all);
 		return -ENOMEM;
 	}
@@ -978,6 +980,8 @@ static int ffb_init_one(struct of_device *op)
 	if (err < 0) {
 		printk(KERN_ERR "ffb: Could not register framebuffer.\n");
 		fb_dealloc_cmap(&all->info.cmap);
+		of_iounmap(all->par.fbc, sizeof(struct ffb_fbc));
+		of_iounmap(all->par.dac, sizeof(struct ffb_dac));
 		kfree(all);
 		return err;
 	}

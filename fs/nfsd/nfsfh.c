@@ -76,7 +76,7 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
  * comment in the NFSv3 spec says this is incorrect (implementation notes for
  * the write call).
  */
-static inline int
+static inline __be32
 nfsd_mode_check(struct svc_rqst *rqstp, umode_t mode, int type)
 {
 	/* Type can be negative when creating hardlinks - not to a dir */
@@ -110,13 +110,13 @@ nfsd_mode_check(struct svc_rqst *rqstp, umode_t mode, int type)
  * This is only called at the start of an nfsproc call, so fhp points to
  * a svc_fh which is all 0 except for the over-the-wire file handle.
  */
-u32
+__be32
 fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 {
 	struct knfsd_fh	*fh = &fhp->fh_handle;
 	struct svc_export *exp = NULL;
 	struct dentry	*dentry;
-	u32		error = 0;
+	__be32		error = 0;
 
 	dprintk("nfsd: fh_verify(%s)\n", SVCFH_fmt(fhp));
 
@@ -315,7 +315,7 @@ static inline void _fh_update_old(struct dentry *dentry,
 		fh->ofh_dirino = 0;
 }
 
-int
+__be32
 fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry, struct svc_fh *ref_fh)
 {
 	/* ref_fh is a reference file handle.
@@ -451,7 +451,7 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry, st
  * Update file handle information after changing a dentry.
  * This is only called by nfsd_create, nfsd_create_v3 and nfsd_proc_create
  */
-int
+__be32
 fh_update(struct svc_fh *fhp)
 {
 	struct dentry *dentry;

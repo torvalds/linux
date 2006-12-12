@@ -1616,7 +1616,7 @@ int __init init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	unregister_netdev(devSMC9194);
 	free_irq(devSMC9194->irq, devSMC9194);

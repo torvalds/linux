@@ -48,6 +48,7 @@
 #include <linux/ctype.h>
 #include <linux/migrate.h>
 #include <linux/highmem.h>
+#include <linux/backing-dev.h>
 
 #include <asm/uaccess.h>
 #include <asm/div64.h>
@@ -176,7 +177,7 @@ static inline void shmem_unacct_blocks(unsigned long flags, long pages)
 
 static struct super_operations shmem_ops;
 static const struct address_space_operations shmem_aops;
-static struct file_operations shmem_file_operations;
+static const struct file_operations shmem_file_operations;
 static struct inode_operations shmem_inode_operations;
 static struct inode_operations shmem_dir_inode_operations;
 static struct inode_operations shmem_special_inode_operations;
@@ -1131,7 +1132,7 @@ repeat:
 			page_cache_release(swappage);
 			if (error == -ENOMEM) {
 				/* let kswapd refresh zone for GFP_ATOMICs */
-				blk_congestion_wait(WRITE, HZ/50);
+				congestion_wait(WRITE, HZ/50);
 			}
 			goto repeat;
 		}
@@ -1224,7 +1225,7 @@ failed:
 
 struct page *shmem_nopage(struct vm_area_struct *vma, unsigned long address, int *type)
 {
-	struct inode *inode = vma->vm_file->f_dentry->d_inode;
+	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 	struct page *page = NULL;
 	unsigned long idx;
 	int error;
@@ -1247,7 +1248,7 @@ static int shmem_populate(struct vm_area_struct *vma,
 	unsigned long addr, unsigned long len,
 	pgprot_t prot, unsigned long pgoff, int nonblock)
 {
-	struct inode *inode = vma->vm_file->f_dentry->d_inode;
+	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 	struct mm_struct *mm = vma->vm_mm;
 	enum sgp_type sgp = nonblock? SGP_QUICK: SGP_CACHE;
 	unsigned long size;
@@ -1292,14 +1293,14 @@ static int shmem_populate(struct vm_area_struct *vma,
 #ifdef CONFIG_NUMA
 int shmem_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
 {
-	struct inode *i = vma->vm_file->f_dentry->d_inode;
+	struct inode *i = vma->vm_file->f_path.dentry->d_inode;
 	return mpol_set_shared_policy(&SHMEM_I(i)->policy, vma, new);
 }
 
 struct mempolicy *
 shmem_get_policy(struct vm_area_struct *vma, unsigned long addr)
 {
-	struct inode *i = vma->vm_file->f_dentry->d_inode;
+	struct inode *i = vma->vm_file->f_path.dentry->d_inode;
 	unsigned long idx;
 
 	idx = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
@@ -1309,7 +1310,7 @@ shmem_get_policy(struct vm_area_struct *vma, unsigned long addr)
 
 int shmem_lock(struct file *file, int lock, struct user_struct *user)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	int retval = -ENOMEM;
 
@@ -1362,6 +1363,7 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
 		inode->i_mapping->a_ops = &shmem_aops;
 		inode->i_mapping->backing_dev_info = &shmem_backing_dev_info;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		inode->i_generation = get_seconds();
 		info = SHMEM_I(inode);
 		memset(info, 0, (char *)inode - (char *)info);
 		spin_lock_init(&info->lock);
@@ -1420,7 +1422,7 @@ shmem_prepare_write(struct file *file, struct page *page, unsigned offset, unsig
 static ssize_t
 shmem_file_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode	*inode = file->f_dentry->d_inode;
+	struct inode	*inode = file->f_path.dentry->d_inode;
 	loff_t		pos;
 	unsigned long	written;
 	ssize_t		err;
@@ -1440,7 +1442,7 @@ shmem_file_write(struct file *file, const char __user *buf, size_t count, loff_t
 	if (err || !count)
 		goto out;
 
-	err = remove_suid(file->f_dentry);
+	err = remove_suid(file->f_path.dentry);
 	if (err)
 		goto out;
 
@@ -1522,7 +1524,7 @@ out:
 
 static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_t *desc, read_actor_t actor)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct address_space *mapping = inode->i_mapping;
 	unsigned long index, offset;
 
@@ -1941,7 +1943,7 @@ static int shmem_xattr_security_set(struct inode *inode, const char *name,
 	return security_inode_setsecurity(inode, name, value, size, flags);
 }
 
-struct xattr_handler shmem_xattr_security_handler = {
+static struct xattr_handler shmem_xattr_security_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.list   = shmem_xattr_security_list,
 	.get    = shmem_xattr_security_get,
@@ -1955,6 +1957,85 @@ static struct xattr_handler *shmem_xattr_handlers[] = {
 	NULL
 };
 #endif
+
+static struct dentry *shmem_get_parent(struct dentry *child)
+{
+	return ERR_PTR(-ESTALE);
+}
+
+static int shmem_match(struct inode *ino, void *vfh)
+{
+	__u32 *fh = vfh;
+	__u64 inum = fh[2];
+	inum = (inum << 32) | fh[1];
+	return ino->i_ino == inum && fh[0] == ino->i_generation;
+}
+
+static struct dentry *shmem_get_dentry(struct super_block *sb, void *vfh)
+{
+	struct dentry *de = NULL;
+	struct inode *inode;
+	__u32 *fh = vfh;
+	__u64 inum = fh[2];
+	inum = (inum << 32) | fh[1];
+
+	inode = ilookup5(sb, (unsigned long)(inum+fh[0]), shmem_match, vfh);
+	if (inode) {
+		de = d_find_alias(inode);
+		iput(inode);
+	}
+
+	return de? de: ERR_PTR(-ESTALE);
+}
+
+static struct dentry *shmem_decode_fh(struct super_block *sb, __u32 *fh,
+		int len, int type,
+		int (*acceptable)(void *context, struct dentry *de),
+		void *context)
+{
+	if (len < 3)
+		return ERR_PTR(-ESTALE);
+
+	return sb->s_export_op->find_exported_dentry(sb, fh, NULL, acceptable,
+							context);
+}
+
+static int shmem_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
+				int connectable)
+{
+	struct inode *inode = dentry->d_inode;
+
+	if (*len < 3)
+		return 255;
+
+	if (hlist_unhashed(&inode->i_hash)) {
+		/* Unfortunately insert_inode_hash is not idempotent,
+		 * so as we hash inodes here rather than at creation
+		 * time, we need a lock to ensure we only try
+		 * to do it once
+		 */
+		static DEFINE_SPINLOCK(lock);
+		spin_lock(&lock);
+		if (hlist_unhashed(&inode->i_hash))
+			__insert_inode_hash(inode,
+					    inode->i_ino + inode->i_generation);
+		spin_unlock(&lock);
+	}
+
+	fh[0] = inode->i_generation;
+	fh[1] = inode->i_ino;
+	fh[2] = ((__u64)inode->i_ino) >> 32;
+
+	*len = 3;
+	return 1;
+}
+
+static struct export_operations shmem_export_ops = {
+	.get_parent     = shmem_get_parent,
+	.get_dentry     = shmem_get_dentry,
+	.encode_fh      = shmem_encode_fh,
+	.decode_fh      = shmem_decode_fh,
+};
 
 static int shmem_parse_options(char *options, int *mode, uid_t *uid,
 	gid_t *gid, unsigned long *blocks, unsigned long *inodes,
@@ -2128,6 +2209,7 @@ static int shmem_fill_super(struct super_block *sb,
 					&inodes, &policy, &policy_nodes))
 			return -EINVAL;
 	}
+	sb->s_export_op = &shmem_export_ops;
 #else
 	sb->s_flags |= MS_NOUSER;
 #endif
@@ -2181,7 +2263,7 @@ static struct kmem_cache *shmem_inode_cachep;
 static struct inode *shmem_alloc_inode(struct super_block *sb)
 {
 	struct shmem_inode_info *p;
-	p = (struct shmem_inode_info *)kmem_cache_alloc(shmem_inode_cachep, SLAB_KERNEL);
+	p = (struct shmem_inode_info *)kmem_cache_alloc(shmem_inode_cachep, GFP_KERNEL);
 	if (!p)
 		return NULL;
 	return &p->vfs_inode;
@@ -2237,7 +2319,7 @@ static const struct address_space_operations shmem_aops = {
 	.migratepage	= migrate_page,
 };
 
-static struct file_operations shmem_file_operations = {
+static const struct file_operations shmem_file_operations = {
 	.mmap		= shmem_mmap,
 #ifdef CONFIG_TMPFS
 	.llseek		= generic_file_llseek,
@@ -2411,8 +2493,8 @@ struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags)
 	d_instantiate(dentry, inode);
 	inode->i_size = size;
 	inode->i_nlink = 0;	/* It is unlinked */
-	file->f_vfsmnt = mntget(shm_mnt);
-	file->f_dentry = dentry;
+	file->f_path.mnt = mntget(shm_mnt);
+	file->f_path.dentry = dentry;
 	file->f_mapping = inode->i_mapping;
 	file->f_op = &shmem_file_operations;
 	file->f_mode = FMODE_WRITE | FMODE_READ;

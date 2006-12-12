@@ -165,7 +165,7 @@ asmlinkage long sys_fstatfs(unsigned int fd, struct statfs __user * buf)
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs_native(file->f_dentry, &tmp);
+	error = vfs_statfs_native(file->f_path.dentry, &tmp);
 	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 		error = -EFAULT;
 	fput(file);
@@ -186,7 +186,7 @@ asmlinkage long sys_fstatfs64(unsigned int fd, size_t sz, struct statfs64 __user
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs64(file->f_dentry, &tmp);
+	error = vfs_statfs64(file->f_path.dentry, &tmp);
 	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 		error = -EFAULT;
 	fput(file);
@@ -302,7 +302,7 @@ static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 	if (file->f_flags & O_LARGEFILE)
 		small = 0;
 
-	dentry = file->f_dentry;
+	dentry = file->f_path.dentry;
 	inode = dentry->d_inode;
 	error = -EINVAL;
 	if (!S_ISREG(inode->i_mode) || !(file->f_mode & FMODE_WRITE))
@@ -448,8 +448,8 @@ asmlinkage long sys_fchdir(unsigned int fd)
 	if (!file)
 		goto out;
 
-	dentry = file->f_dentry;
-	mnt = file->f_vfsmnt;
+	dentry = file->f_path.dentry;
+	mnt = file->f_path.mnt;
 	inode = dentry->d_inode;
 
 	error = -ENOTDIR;
@@ -503,7 +503,7 @@ asmlinkage long sys_fchmod(unsigned int fd, mode_t mode)
 	if (!file)
 		goto out;
 
-	dentry = file->f_dentry;
+	dentry = file->f_path.dentry;
 	inode = dentry->d_inode;
 
 	audit_inode(NULL, inode);
@@ -662,7 +662,7 @@ asmlinkage long sys_fchown(unsigned int fd, uid_t user, gid_t group)
 	if (!file)
 		goto out;
 
-	dentry = file->f_dentry;
+	dentry = file->f_path.dentry;
 	audit_inode(NULL, dentry->d_inode);
 	error = chown_common(dentry, user, group);
 	fput(file);
@@ -688,8 +688,8 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 	}
 
 	f->f_mapping = inode->i_mapping;
-	f->f_dentry = dentry;
-	f->f_vfsmnt = mnt;
+	f->f_path.dentry = dentry;
+	f->f_path.mnt = mnt;
 	f->f_pos = 0;
 	f->f_op = fops_get(inode->i_fop);
 	file_move(f, &inode->i_sb->s_files);
@@ -723,8 +723,8 @@ cleanup_all:
 	if (f->f_mode & FMODE_WRITE)
 		put_write_access(inode);
 	file_kill(f);
-	f->f_dentry = NULL;
-	f->f_vfsmnt = NULL;
+	f->f_path.dentry = NULL;
+	f->f_path.mnt = NULL;
 cleanup_file:
 	put_filp(f);
 	dput(dentry);
@@ -822,7 +822,7 @@ struct file *nameidata_to_filp(struct nameidata *nd, int flags)
 	/* Pick up the filp from the open intent */
 	filp = nd->intent.open.file;
 	/* Has the filesystem initialised the file for us? */
-	if (filp->f_dentry == NULL)
+	if (filp->f_path.dentry == NULL)
 		filp = __dentry_open(nd->dentry, nd->mnt, flags, filp, NULL);
 	else
 		path_release(nd);
@@ -864,8 +864,7 @@ int get_unused_fd(void)
 
 repeat:
 	fdt = files_fdtable(files);
- 	fd = find_next_zero_bit(fdt->open_fds->fds_bits,
-				fdt->max_fdset,
+	fd = find_next_zero_bit(fdt->open_fds->fds_bits, fdt->max_fds,
 				files->next_fd);
 
 	/*
@@ -965,7 +964,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 				put_unused_fd(fd);
 				fd = PTR_ERR(f);
 			} else {
-				fsnotify_open(f->f_dentry);
+				fsnotify_open(f->f_path.dentry);
 				fd_install(fd, f);
 			}
 		}
@@ -1087,6 +1086,7 @@ EXPORT_SYMBOL(sys_close);
 asmlinkage long sys_vhangup(void)
 {
 	if (capable(CAP_SYS_TTY_CONFIG)) {
+		/* XXX: this needs locking */
 		tty_vhangup(current->signal->tty);
 		return 0;
 	}

@@ -77,7 +77,7 @@ static u32 do_solaris_mmap(u32 addr, u32 len, u32 prot, u32 flags, u32 fd, u64 o
 		if (!file)
 			goto out;
 		else {
-			struct inode * inode = file->f_dentry->d_inode;
+			struct inode * inode = file->f_path.dentry->d_inode;
 			if(imajor(inode) == MEM_MAJOR &&
 			   iminor(inode) == 5) {
 				flags |= MAP_ANONYMOUS;
@@ -423,9 +423,7 @@ asmlinkage int solaris_procids(int cmd, s32 pid, s32 pgid)
 			   Solaris setpgrp and setsid? */
 			ret = sys_setpgid(0, 0);
 			if (ret) return ret;
-			mutex_lock(&tty_mutex);
-			current->signal->tty = NULL;
-			mutex_unlock(&tty_mutex);
+			proc_clear_tty(current);
 			return process_group(current);
 		}
 	case 2: /* getsid */

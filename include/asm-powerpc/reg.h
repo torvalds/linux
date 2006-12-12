@@ -143,6 +143,7 @@
 
 /* Special Purpose Registers (SPRNs)*/
 #define SPRN_CTR	0x009	/* Count Register */
+#define SPRN_DSCR	0x11
 #define SPRN_CTRLF	0x088
 #define SPRN_CTRLT	0x098
 #define   CTRL_CT	0xc0000000	/* current thread */
@@ -163,6 +164,7 @@
 #define SPRN_TBRU	0x10D	/* Time Base Read Upper Register (user, R/O) */
 #define SPRN_TBWL	0x11C	/* Time Base Lower Register (super, R/W) */
 #define SPRN_TBWU	0x11D	/* Time Base Upper Register (super, R/W) */
+#define SPRN_SPURR	0x134	/* Scaled PURR */
 #define SPRN_HIOR	0x137	/* 970 Hypervisor interrupt offset */
 #define SPRN_DBAT0L	0x219	/* Data BAT 0 Lower Register */
 #define SPRN_DBAT0U	0x218	/* Data BAT 0 Upper Register */
@@ -591,6 +593,7 @@
 #define PV_630		0x0040
 #define PV_630p	0x0041
 #define PV_970MP	0x0044
+#define PV_970GX	0x0045
 #define PV_BE		0x0070
 #define PV_PA6T		0x0090
 
@@ -618,10 +621,35 @@
 				: "=r" (rval)); rval;})
 #define mtspr(rn, v)	asm volatile("mtspr " __stringify(rn) ",%0" : : "r" (v))
 
+#ifdef __powerpc64__
+#ifdef CONFIG_PPC_CELL
+#define mftb()		({unsigned long rval;				\
+			asm volatile(					\
+				"90:	mftb %0;\n"			\
+				"97:	cmpwi %0,0;\n"			\
+				"	beq- 90b;\n"			\
+				"99:\n"					\
+				".section __ftr_fixup,\"a\"\n"		\
+				".align 3\n"				\
+				"98:\n"					\
+				"	.llong %1\n"			\
+				"	.llong %1\n"			\
+				"	.llong 97b-98b\n"		\
+				"	.llong 99b-98b\n"		\
+				".previous"				\
+			: "=r" (rval) : "i" (CPU_FTR_CELL_TB_BUG)); rval;})
+#else
 #define mftb()		({unsigned long rval;	\
 			asm volatile("mftb %0" : "=r" (rval)); rval;})
+#endif /* !CONFIG_PPC_CELL */
+
+#else /* __powerpc64__ */
+
 #define mftbl()		({unsigned long rval;	\
 			asm volatile("mftbl %0" : "=r" (rval)); rval;})
+#define mftbu()		({unsigned long rval;	\
+			asm volatile("mftbu %0" : "=r" (rval)); rval;})
+#endif /* !__powerpc64__ */
 
 #define mttbl(v)	asm volatile("mttbl %0":: "r"(v))
 #define mttbu(v)	asm volatile("mttbu %0":: "r"(v))

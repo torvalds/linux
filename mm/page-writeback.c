@@ -21,6 +21,7 @@
 #include <linux/writeback.h>
 #include <linux/init.h>
 #include <linux/backing-dev.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/blkdev.h>
 #include <linux/mpage.h>
 #include <linux/rmap.h>
@@ -222,7 +223,7 @@ static void balance_dirty_pages(struct address_space *mapping)
 			if (pages_written >= write_chunk)
 				break;		/* We've done our duty */
 		}
-		blk_congestion_wait(WRITE, HZ/10);
+		congestion_wait(WRITE, HZ/10);
 	}
 
 	if (nr_reclaimable + global_page_state(NR_WRITEBACK)
@@ -314,7 +315,7 @@ void throttle_vm_writeout(void)
                 if (global_page_state(NR_UNSTABLE_NFS) +
 			global_page_state(NR_WRITEBACK) <= dirty_thresh)
                         	break;
-                blk_congestion_wait(WRITE, HZ/10);
+                congestion_wait(WRITE, HZ/10);
         }
 }
 
@@ -351,7 +352,7 @@ static void background_writeout(unsigned long _min_pages)
 		min_pages -= MAX_WRITEBACK_PAGES - wbc.nr_to_write;
 		if (wbc.nr_to_write > 0 || wbc.pages_skipped > 0) {
 			/* Wrote less than expected */
-			blk_congestion_wait(WRITE, HZ/10);
+			congestion_wait(WRITE, HZ/10);
 			if (!wbc.encountered_congestion)
 				break;
 		}
@@ -422,7 +423,7 @@ static void wb_kupdate(unsigned long arg)
 		writeback_inodes(&wbc);
 		if (wbc.nr_to_write > 0) {
 			if (wbc.encountered_congestion)
-				blk_congestion_wait(WRITE, HZ/10);
+				congestion_wait(WRITE, HZ/10);
 			else
 				break;	/* All the old data is written */
 		}
@@ -761,23 +762,24 @@ int __set_page_dirty_nobuffers(struct page *page)
 		struct address_space *mapping = page_mapping(page);
 		struct address_space *mapping2;
 
-		if (mapping) {
-			write_lock_irq(&mapping->tree_lock);
-			mapping2 = page_mapping(page);
-			if (mapping2) { /* Race with truncate? */
-				BUG_ON(mapping2 != mapping);
-				if (mapping_cap_account_dirty(mapping))
-					__inc_zone_page_state(page,
-								NR_FILE_DIRTY);
-				radix_tree_tag_set(&mapping->page_tree,
-					page_index(page), PAGECACHE_TAG_DIRTY);
+		if (!mapping)
+			return 1;
+
+		write_lock_irq(&mapping->tree_lock);
+		mapping2 = page_mapping(page);
+		if (mapping2) { /* Race with truncate? */
+			BUG_ON(mapping2 != mapping);
+			if (mapping_cap_account_dirty(mapping)) {
+				__inc_zone_page_state(page, NR_FILE_DIRTY);
+				task_io_account_write(PAGE_CACHE_SIZE);
 			}
-			write_unlock_irq(&mapping->tree_lock);
-			if (mapping->host) {
-				/* !PageAnon && !swapper_space */
-				__mark_inode_dirty(mapping->host,
-							I_DIRTY_PAGES);
-			}
+			radix_tree_tag_set(&mapping->page_tree,
+				page_index(page), PAGECACHE_TAG_DIRTY);
+		}
+		write_unlock_irq(&mapping->tree_lock);
+		if (mapping->host) {
+			/* !PageAnon && !swapper_space */
+			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 		}
 		return 1;
 	}
@@ -851,27 +853,26 @@ int test_clear_page_dirty(struct page *page)
 	struct address_space *mapping = page_mapping(page);
 	unsigned long flags;
 
-	if (mapping) {
-		write_lock_irqsave(&mapping->tree_lock, flags);
-		if (TestClearPageDirty(page)) {
-			radix_tree_tag_clear(&mapping->page_tree,
-						page_index(page),
-						PAGECACHE_TAG_DIRTY);
-			write_unlock_irqrestore(&mapping->tree_lock, flags);
-			/*
-			 * We can continue to use `mapping' here because the
-			 * page is locked, which pins the address_space
-			 */
-			if (mapping_cap_account_dirty(mapping)) {
-				page_mkclean(page);
-				dec_zone_page_state(page, NR_FILE_DIRTY);
-			}
-			return 1;
-		}
+	if (!mapping)
+		return TestClearPageDirty(page);
+
+	write_lock_irqsave(&mapping->tree_lock, flags);
+	if (TestClearPageDirty(page)) {
+		radix_tree_tag_clear(&mapping->page_tree,
+				page_index(page), PAGECACHE_TAG_DIRTY);
 		write_unlock_irqrestore(&mapping->tree_lock, flags);
-		return 0;
+		/*
+		 * We can continue to use `mapping' here because the
+		 * page is locked, which pins the address_space
+		 */
+		if (mapping_cap_account_dirty(mapping)) {
+			page_mkclean(page);
+			dec_zone_page_state(page, NR_FILE_DIRTY);
+		}
+		return 1;
 	}
-	return TestClearPageDirty(page);
+	write_unlock_irqrestore(&mapping->tree_lock, flags);
+	return 0;
 }
 EXPORT_SYMBOL(test_clear_page_dirty);
 
@@ -893,17 +894,17 @@ int clear_page_dirty_for_io(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 
-	if (mapping) {
-		if (TestClearPageDirty(page)) {
-			if (mapping_cap_account_dirty(mapping)) {
-				page_mkclean(page);
-				dec_zone_page_state(page, NR_FILE_DIRTY);
-			}
-			return 1;
+	if (!mapping)
+		return TestClearPageDirty(page);
+
+	if (TestClearPageDirty(page)) {
+		if (mapping_cap_account_dirty(mapping)) {
+			page_mkclean(page);
+			dec_zone_page_state(page, NR_FILE_DIRTY);
 		}
-		return 0;
+		return 1;
 	}
-	return TestClearPageDirty(page);
+	return 0;
 }
 EXPORT_SYMBOL(clear_page_dirty_for_io);
 
@@ -954,15 +955,6 @@ int test_set_page_writeback(struct page *page)
 
 }
 EXPORT_SYMBOL(test_set_page_writeback);
-
-/*
- * Wakes up tasks that are being throttled due to writeback congestion
- */
-void writeback_congestion_end(void)
-{
-	blk_congestion_end(WRITE);
-}
-EXPORT_SYMBOL(writeback_congestion_end);
 
 /*
  * Return true if any of the pages in the mapping are marged with the

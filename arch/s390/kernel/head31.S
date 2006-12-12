@@ -131,10 +131,11 @@ startup_continue:
 	.long	init_thread_union
 .Lpmask:
 	.byte	0
-.align 8
+	.align	8
 .Lpcext:.long	0x00080000,0x80000000
 .Lcr:
 	.long	0x00			# place holder for cr0
+	.align	8
 .Lwaitsclp:
 	.long 0x010a0000,0x80000000 + .Lsclph
 .Lrcp:
@@ -156,7 +157,7 @@ startup_continue:
 	slr	%r4,%r4			# set start of chunk to zero
 	slr	%r5,%r5			# set end of chunk to zero
 	slr	%r6,%r6			# set access code to zero
-	la	%r10, MEMORY_CHUNKS	# number of chunks
+	la	%r10,MEMORY_CHUNKS	# number of chunks
 .Lloop:
 	tprot	0(%r5),0		# test protection of first byte
 	ipm	%r7
@@ -176,8 +177,6 @@ startup_continue:
 	st	%r0,4(%r3)		# store size of chunk
 	st	%r6,8(%r3)		# store type of chunk
 	la	%r3,12(%r3)
-	l	%r4,.Lmemsize-.LPG1(%r13)	 # address of variable memory_size
-	st	%r5,0(%r4)		# store last end to memory size
 	ahi	%r10,-1			# update chunk number
 .Lchkloop:
 	lr	%r6,%r7			# set access code to last cc
@@ -292,7 +291,6 @@ startup_continue:
 .Lpcmvpg:.long	0x00080000,0x80000000 + .Lchkmvpg
 .Lpcidte:.long	0x00080000,0x80000000 + .Lchkidte
 .Lpcdiag9c:.long 0x00080000,0x80000000 + .Lchkdiag9c
-.Lmemsize:.long memory_size
 .Lmchunk:.long	memory_chunk
 .Lmflags:.long	machine_flags
 .Lbss_bgn:  .long __bss_start

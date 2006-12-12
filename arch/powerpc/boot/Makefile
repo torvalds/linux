@@ -40,7 +40,8 @@ zliblinuxheader := zlib.h zconf.h zutil.h
 $(addprefix $(obj)/,$(zlib) main.o): $(addprefix $(obj)/,$(zliblinuxheader)) \
 		$(addprefix $(obj)/,$(zlibheader))
 
-src-wlib := string.S stdio.c main.c div64.S $(zlib)
+src-wlib := string.S stdio.c main.c flatdevtree.c flatdevtree_misc.c \
+		ns16550.c serial.c simple_alloc.c div64.S util.S $(zlib)
 src-plat := of.c
 src-boot := crt0.S $(src-wlib) $(src-plat) empty.c
 
@@ -74,7 +75,7 @@ $(obj)/zImage.lds $(obj)/zImage.coff.lds: $(obj)/%: $(srctree)/$(src)/%.S
 	@cp $< $@
 
 clean-files := $(zlib) $(zlibheader) $(zliblinuxheader) \
-		$(obj)/empty.c
+		empty.c zImage zImage.coff.lds zImage.lds zImage.sandpoint
 
 quiet_cmd_bootcc = BOOTCC  $@
       cmd_bootcc = $(CROSS32CC) -Wp,-MD,$(depfile) $(BOOTCFLAGS) -c -o $@ $<
@@ -93,13 +94,13 @@ $(patsubst %.S,%.o, $(filter %.S, $(src-boot))): %.o: %.S
 $(obj)/wrapper.a: $(obj-wlib)
 	$(call cmd,bootar)
 
-hostprogs-y	:= addnote addRamDisk hack-coff
+hostprogs-y	:= addnote addRamDisk hack-coff mktree
 
 extra-y		:= $(obj)/crt0.o $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 		   $(obj)/zImage.lds $(obj)/zImage.coff.lds
 
 wrapper		:=$(srctree)/$(src)/wrapper
-wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff)
+wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree)
 
 #############
 # Bits for building various flavours of zImage
@@ -115,7 +116,7 @@ endif
 quiet_cmd_wrap	= WRAP    $@
       cmd_wrap	=$(CONFIG_SHELL) $(wrapper) -c -o $@ -p $2 $(CROSSWRAP) vmlinux
 quiet_cmd_wrap_initrd = WRAP    $@
-      cmd_wrap_initrd =$(wrapper) -c -o $@ -p $2 $(CROSSWRAP) \
+      cmd_wrap_initrd =$(CONFIG_SHELL) $(wrapper) -c -o $@ -p $2 $(CROSSWRAP) \
 				-i $(obj)/ramdisk.image.gz vmlinux
 
 $(obj)/zImage.chrp: vmlinux $(wrapperbits)
@@ -148,13 +149,18 @@ $(obj)/zImage.miboot: vmlinux $(wrapperbits)
 $(obj)/zImage.initrd.miboot: vmlinux $(wrapperbits)
 	$(call cmd,wrap_initrd,miboot)
 
+$(obj)/zImage.ps3: vmlinux
+	$(STRIP) -s -R .comment $< -o $@
+
 $(obj)/uImage: vmlinux $(wrapperbits)
 	$(call cmd,wrap,uboot)
 
 image-$(CONFIG_PPC_PSERIES)		+= zImage.pseries
 image-$(CONFIG_PPC_MAPLE)		+= zImage.pseries
 image-$(CONFIG_PPC_IBM_CELL_BLADE)	+= zImage.pseries
+image-$(CONFIG_PPC_PS3)			+= zImage.ps3
 image-$(CONFIG_PPC_CHRP)		+= zImage.chrp
+image-$(CONFIG_PPC_EFIKA)		+= zImage.chrp
 image-$(CONFIG_PPC_PMAC)		+= zImage.pmac
 image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
 
@@ -176,3 +182,4 @@ install: $(CONFIGURE) $(image-y)
 
 clean-files += $(addprefix $(objtree)/, $(obj-boot) vmlinux.strip.gz)
 clean-files += $(addprefix $(objtree)/, $(obj-boot) vmlinux.bin.gz)
+clean-files += $(image-)

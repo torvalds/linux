@@ -132,7 +132,7 @@ static void link_print(struct link *l_ptr, struct print_buf *buf,
  * allow the output from multiple links to be intermixed.  For this reason
  * routines of the form "dbg_link_XXX()" have been created that will capture
  * debug info into a link's personal print buffer, which can then be dumped
- * into the TIPC system log (LOG) upon request.
+ * into the TIPC system log (TIPC_LOG) upon request.
  *
  * To enable per-link debugging, use LINK_LOG_BUF_SIZE to specify the size
  * of the print buffer used by each link.  If LINK_LOG_BUF_SIZE is set to 0,
@@ -141,7 +141,7 @@ static void link_print(struct link *l_ptr, struct print_buf *buf,
  * when there is only a single link in the system being debugged.
  *
  * Notes:
- * - When enabled, LINK_LOG_BUF_SIZE should be set to at least 1000 (bytes)
+ * - When enabled, LINK_LOG_BUF_SIZE should be set to at least TIPC_PB_MIN_SIZE
  * - "l_ptr" must be valid when using dbg_link_XXX() macros  
  */
 
@@ -159,13 +159,13 @@ static void link_print(struct link *l_ptr, struct print_buf *buf,
 
 static void dbg_print_link(struct link *l_ptr, const char *str)
 {
-	if (DBG_OUTPUT)
+	if (DBG_OUTPUT != TIPC_NULL)
 		link_print(l_ptr, DBG_OUTPUT, str);
 }
 
 static void dbg_print_buf_chain(struct sk_buff *root_buf)
 {
-	if (DBG_OUTPUT) {
+	if (DBG_OUTPUT != TIPC_NULL) {
 		struct sk_buff *buf = root_buf;
 
 		while (buf) {

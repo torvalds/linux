@@ -51,13 +51,6 @@ int vfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 		return inode->i_op->getattr(mnt, dentry, stat);
 
 	generic_fillattr(inode, stat);
-	if (!stat->blksize) {
-		struct super_block *s = inode->i_sb;
-		unsigned blocks;
-		blocks = (stat->size+s->s_blocksize-1) >> s->s_blocksize_bits;
-		stat->blocks = (s->s_blocksize / 512) * blocks;
-		stat->blksize = s->s_blocksize;
-	}
 	return 0;
 }
 
@@ -109,7 +102,7 @@ int vfs_fstat(unsigned int fd, struct kstat *stat)
 	int error = -EBADF;
 
 	if (f) {
-		error = vfs_getattr(f->f_vfsmnt, f->f_dentry, stat);
+		error = vfs_getattr(f->f_path.mnt, f->f_path.dentry, stat);
 		fput(f);
 	}
 	return error;

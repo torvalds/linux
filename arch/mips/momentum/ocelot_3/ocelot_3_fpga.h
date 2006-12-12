@@ -51,7 +51,9 @@
 
 extern unsigned long ocelot_fpga_base;
 
-#define OCELOT_FPGA_WRITE(x, y) writeb(x, ocelot_fpga_base + OCELOT_3_REG_##y)
-#define OCELOT_FPGA_READ(x) readb(ocelot_fpga_base + OCELOT_3_REG_##x)
+#define __FPGA_REG_TO_ADDR(reg)						\
+	((void *) ocelot_fpga_base + OCELOT_3_REG_##reg)
+#define OCELOT_FPGA_WRITE(x, reg) writeb(x, __FPGA_REG_TO_ADDR(reg))
+#define OCELOT_FPGA_READ(reg) readb(__FPGA_REG_TO_ADDR(reg))
 
 #endif

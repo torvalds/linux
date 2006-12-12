@@ -14,14 +14,14 @@
 #define LEC_HEADER_LEN 16
 
 struct lecdatahdr_8023 {
-	unsigned short le_header;
+	__be16 le_header;
 	unsigned char h_dest[ETH_ALEN];
 	unsigned char h_source[ETH_ALEN];
-	unsigned short h_type;
+	__be16 h_type;
 };
 
 struct lecdatahdr_8025 {
-	unsigned short le_header;
+	__be16 le_header;
 	unsigned char ac_pad;
 	unsigned char fc;
 	unsigned char h_dest[ETH_ALEN];
@@ -92,7 +92,7 @@ struct lec_priv {
 	spinlock_t lec_arp_lock;
 	struct atm_vcc *mcast_vcc;		/* Default Multicast Send VCC */
 	struct atm_vcc *lecd;
-	struct work_struct lec_arp_work;	/* C10 */
+	struct delayed_work lec_arp_work;	/* C10 */
 	unsigned int maximum_unknown_frame_count;
 						/*
 						 * Within the period of time defined by this variable, the client will send

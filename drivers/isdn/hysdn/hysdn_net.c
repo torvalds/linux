@@ -278,11 +278,10 @@ hysdn_net_create(hysdn_card * card)
 		return (-ENOMEM);
 	}
 	hysdn_net_release(card);	/* release an existing net device */
-	if ((dev = kmalloc(sizeof(struct net_local), GFP_KERNEL)) == NULL) {
+	if ((dev = kzalloc(sizeof(struct net_local), GFP_KERNEL)) == NULL) {
 		printk(KERN_WARNING "HYSDN: unable to allocate mem\n");
 		return (-ENOMEM);
 	}
-	memset(dev, 0, sizeof(struct net_local));	/* clean the structure */
 
 	spin_lock_init(&((struct net_local *) dev)->lock);
 

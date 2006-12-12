@@ -105,7 +105,7 @@ void show_regs(struct pt_regs * regs)
 {
 	printk("\n");
 	printk("Pid : %d, Comm: %20s\n", current->pid, current->comm);
-	print_symbol("PC is at %s\n", regs->pc);
+	print_symbol("PC is at %s\n", instruction_pointer(regs));
 	printk("PC  : %08lx SP  : %08lx SR  : %08lx ",
 	       regs->pc, regs->regs[15], regs->sr);
 #ifdef CONFIG_MMU
@@ -130,15 +130,7 @@ void show_regs(struct pt_regs * regs)
 	printk("MACH: %08lx MACL: %08lx GBR : %08lx PR  : %08lx\n",
 	       regs->mach, regs->macl, regs->gbr, regs->pr);
 
-	/*
-	 * If we're in kernel mode, dump the stack too..
-	 */
-	if (!user_mode(regs)) {
-		extern void show_task(unsigned long *sp);
-		unsigned long sp = regs->regs[15];
-
-		show_task((unsigned long *)sp);
-	}
+	show_trace(NULL, (unsigned long *)regs->regs[15], regs);
 }
 
 /*
@@ -393,10 +385,11 @@ struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *ne
 
 asmlinkage int sys_fork(unsigned long r4, unsigned long r5,
 			unsigned long r6, unsigned long r7,
-			struct pt_regs regs)
+			struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 #ifdef CONFIG_MMU
-	return do_fork(SIGCHLD, regs.regs[15], &regs, 0, NULL, NULL);
+	return do_fork(SIGCHLD, regs->regs[15], regs, 0, NULL, NULL);
 #else
 	/* fork almost works, enough to trick you into looking elsewhere :-( */
 	return -EINVAL;
@@ -406,11 +399,12 @@ asmlinkage int sys_fork(unsigned long r4, unsigned long r5,
 asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
 			 unsigned long parent_tidptr,
 			 unsigned long child_tidptr,
-			 struct pt_regs regs)
+			 struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	if (!newsp)
-		newsp = regs.regs[15];
-	return do_fork(clone_flags, newsp, &regs, 0,
+		newsp = regs->regs[15];
+	return do_fork(clone_flags, newsp, regs, 0,
 			(int __user *)parent_tidptr, (int __user *)child_tidptr);
 }
 
@@ -426,9 +420,10 @@ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
  */
 asmlinkage int sys_vfork(unsigned long r4, unsigned long r5,
 			 unsigned long r6, unsigned long r7,
-			 struct pt_regs regs)
+			 struct pt_regs __regs)
 {
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs.regs[15], &regs,
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->regs[15], regs,
 		       0, NULL, NULL);
 }
 
@@ -437,8 +432,9 @@ asmlinkage int sys_vfork(unsigned long r4, unsigned long r5,
  */
 asmlinkage int sys_execve(char *ufilename, char **uargv,
 			  char **uenvp, unsigned long r7,
-			  struct pt_regs regs)
+			  struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	int error;
 	char *filename;
 
@@ -450,7 +446,7 @@ asmlinkage int sys_execve(char *ufilename, char **uargv,
 	error = do_execve(filename,
 			  (char __user * __user *)uargv,
 			  (char __user * __user *)uenvp,
-			  &regs);
+			  regs);
 	if (error == 0) {
 		task_lock(current);
 		current->ptrace &= ~PT_DTRACE;
@@ -474,15 +470,14 @@ unsigned long get_wchan(struct task_struct *p)
 	 */
 	pc = thread_saved_pc(p);
 	if (in_sched_functions(pc)) {
-		schedule_frame = ((unsigned long *)(long)p->thread.sp)[1];
-		return (unsigned long)((unsigned long *)schedule_frame)[1];
+		schedule_frame = (unsigned long)p->thread.sp;
+		return ((unsigned long *)schedule_frame)[21];
 	}
+
 	return pc;
 }
 
-asmlinkage void break_point_trap(unsigned long r4, unsigned long r5,
-				 unsigned long r6, unsigned long r7,
-				 struct pt_regs regs)
+asmlinkage void break_point_trap(void)
 {
 	/* Clear tracing.  */
 #if defined(CONFIG_CPU_SH4A)
@@ -500,8 +495,20 @@ asmlinkage void break_point_trap(unsigned long r4, unsigned long r5,
 
 asmlinkage void break_point_trap_software(unsigned long r4, unsigned long r5,
 					  unsigned long r6, unsigned long r7,
-					  struct pt_regs regs)
+					  struct pt_regs __regs)
 {
-	regs.pc -= 2;
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
+
+	/* Rewind */
+	regs->pc -= 2;
+
+#ifdef CONFIG_BUG
+	if (__kernel_text_address(instruction_pointer(regs))) {
+		u16 insn = *(u16 *)instruction_pointer(regs);
+		if (insn == TRAPA_BUG_OPCODE)
+			handle_BUG(regs);
+	}
+#endif
+
 	force_sig(SIGTRAP, current);
 }

@@ -16,7 +16,6 @@
 #include "lock.h"
 #include "user.h"
 #include "memory.h"
-#include "lowcomms.h"
 #include "config.h"
 
 #ifdef CONFIG_DLM_DEBUG
@@ -47,20 +46,14 @@ static int __init init_dlm(void)
 	if (error)
 		goto out_config;
 
-	error = dlm_lowcomms_init();
-	if (error)
-		goto out_debug;
-
 	error = dlm_user_init();
 	if (error)
-		goto out_lowcomms;
+		goto out_debug;
 
 	printk("DLM (built %s %s) installed\n", __DATE__, __TIME__);
 
 	return 0;
 
- out_lowcomms:
-	dlm_lowcomms_exit();
  out_debug:
 	dlm_unregister_debugfs();
  out_config:
@@ -76,7 +69,6 @@ static int __init init_dlm(void)
 static void __exit exit_dlm(void)
 {
 	dlm_user_exit();
-	dlm_lowcomms_exit();
 	dlm_config_exit();
 	dlm_memory_exit();
 	dlm_lockspace_exit();

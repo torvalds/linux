@@ -49,6 +49,7 @@
 #include <asm/uaccess.h>
 #include <net/ieee80211.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include "airo.h"
 
@@ -2897,6 +2898,8 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 		goto err_out_map;
 	}
 	ai->wifidev = init_wifidev(ai, dev);
+	if (!ai->wifidev)
+		goto err_out_reg;
 
 	set_bit(FLAG_REGISTERED,&ai->flags);
 	airo_print_info(dev->name, "MAC enabled %x:%x:%x:%x:%x:%x",
@@ -2908,11 +2911,18 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 		for( i = 0; i < MAX_FIDS; i++ )
 			ai->fids[i] = transmit_allocate(ai,AIRO_DEF_MTU,i>=MAX_FIDS/2);
 
-	setup_proc_entry( dev, dev->priv ); /* XXX check for failure */
+	if (setup_proc_entry(dev, dev->priv) < 0)
+		goto err_out_wifi;
+
 	netif_start_queue(dev);
 	SET_MODULE_OWNER(dev);
 	return dev;
 
+err_out_wifi:
+	unregister_netdev(ai->wifidev);
+	free_netdev(ai->wifidev);
+err_out_reg:
+	unregister_netdev(dev);
 err_out_map:
 	if (test_bit(FLAG_MPI,&ai->flags) && pci) {
 		pci_free_consistent(pci, PCI_SHARED_LEN, ai->shared, ai->shared_dma);
@@ -3089,7 +3099,8 @@ static int airo_thread(void *data) {
 						set_bit(JOB_AUTOWEP, &ai->jobs);
 						break;
 					}
-					if (!kthread_should_stop()) {
+					if (!kthread_should_stop() &&
+					    !freezing(current)) {
 						unsigned long wake_at;
 						if (!ai->expires || !ai->scan_timeout) {
 							wake_at = max(ai->expires,
@@ -3101,7 +3112,8 @@ static int airo_thread(void *data) {
 						schedule_timeout(wake_at - jiffies);
 						continue;
 					}
-				} else if (!kthread_should_stop()) {
+				} else if (!kthread_should_stop() &&
+					   !freezing(current)) {
 					schedule();
 					continue;
 				}
@@ -4495,91 +4507,128 @@ static int setup_proc_entry( struct net_device *dev,
 	apriv->proc_entry = create_proc_entry(apriv->proc_name,
 					      S_IFDIR|airo_perm,
 					      airo_entry);
-        apriv->proc_entry->uid = proc_uid;
-        apriv->proc_entry->gid = proc_gid;
-        apriv->proc_entry->owner = THIS_MODULE;
+	if (!apriv->proc_entry)
+		goto fail;
+	apriv->proc_entry->uid = proc_uid;
+	apriv->proc_entry->gid = proc_gid;
+	apriv->proc_entry->owner = THIS_MODULE;
 
 	/* Setup the StatsDelta */
 	entry = create_proc_entry("StatsDelta",
 				  S_IFREG | (S_IRUGO&proc_perm),
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_stats_delta;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_statsdelta_ops);
 
 	/* Setup the Stats */
 	entry = create_proc_entry("Stats",
 				  S_IFREG | (S_IRUGO&proc_perm),
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_stats;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_stats_ops);
 
 	/* Setup the Status */
 	entry = create_proc_entry("Status",
 				  S_IFREG | (S_IRUGO&proc_perm),
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_status;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_status_ops);
 
 	/* Setup the Config */
 	entry = create_proc_entry("Config",
 				  S_IFREG | proc_perm,
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_config;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_config_ops);
 
 	/* Setup the SSID */
 	entry = create_proc_entry("SSID",
 				  S_IFREG | proc_perm,
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_ssid;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_SSID_ops);
 
 	/* Setup the APList */
 	entry = create_proc_entry("APList",
 				  S_IFREG | proc_perm,
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_aplist;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_APList_ops);
 
 	/* Setup the BSSList */
 	entry = create_proc_entry("BSSList",
 				  S_IFREG | proc_perm,
 				  apriv->proc_entry);
+	if (!entry)
+		goto fail_bsslist;
 	entry->uid = proc_uid;
 	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_BSSList_ops);
 
 	/* Setup the WepKey */
 	entry = create_proc_entry("WepKey",
 				  S_IFREG | proc_perm,
 				  apriv->proc_entry);
-        entry->uid = proc_uid;
-        entry->gid = proc_gid;
+	if (!entry)
+		goto fail_wepkey;
+	entry->uid = proc_uid;
+	entry->gid = proc_gid;
 	entry->data = dev;
-        entry->owner = THIS_MODULE;
+	entry->owner = THIS_MODULE;
 	SETPROC_OPS(entry, proc_wepkey_ops);
 
 	return 0;
+
+fail_wepkey:
+	remove_proc_entry("BSSList", apriv->proc_entry);
+fail_bsslist:
+	remove_proc_entry("APList", apriv->proc_entry);
+fail_aplist:
+	remove_proc_entry("SSID", apriv->proc_entry);
+fail_ssid:
+	remove_proc_entry("Config", apriv->proc_entry);
+fail_config:
+	remove_proc_entry("Status", apriv->proc_entry);
+fail_status:
+	remove_proc_entry("Stats", apriv->proc_entry);
+fail_stats:
+	remove_proc_entry("StatsDelta", apriv->proc_entry);
+fail_stats_delta:
+	remove_proc_entry(apriv->proc_name, airo_entry);
+fail:
+	return -ENOMEM;
 }
 
 static int takedown_proc_entry( struct net_device *dev,
@@ -5924,7 +5973,6 @@ static int airo_get_essid(struct net_device *dev,
 
 	/* Get the current SSID */
 	memcpy(extra, status_rid.SSID, status_rid.SSIDlen);
-	extra[status_rid.SSIDlen] = '\0';
 	/* If none, we may want to get the one that was set */
 
 	/* Push it out ! */

@@ -30,6 +30,7 @@
 #include <linux/security.h>
 #include <linux/smp_lock.h>
 #include <linux/compat.h>
+#include <linux/fs_stack.h>
 #include "ecryptfs_kernel.h"
 
 /**
@@ -75,7 +76,7 @@ static loff_t ecryptfs_llseek(struct file *file, loff_t offset, int origin)
 	}
 	ecryptfs_printk(KERN_DEBUG, "new_end_pos = [0x%.16x]\n", new_end_pos);
 	if (expanding_file) {
-		rc = ecryptfs_truncate(file->f_dentry, new_end_pos);
+		rc = ecryptfs_truncate(file->f_path.dentry, new_end_pos);
 		if (rc) {
 			rv = rc;
 			ecryptfs_printk(KERN_ERR, "Error on attempt to "
@@ -116,8 +117,8 @@ static ssize_t ecryptfs_read_update_atime(struct kiocb *iocb,
 	if (-EIOCBQUEUED == rc)
 		rc = wait_on_sync_kiocb(iocb);
 	if (rc >= 0) {
-		lower_dentry = ecryptfs_dentry_to_lower(file->f_dentry);
-		lower_vfsmount = ecryptfs_dentry_to_lower_mnt(file->f_dentry);
+		lower_dentry = ecryptfs_dentry_to_lower(file->f_path.dentry);
+		lower_vfsmount = ecryptfs_dentry_to_lower_mnt(file->f_path.dentry);
 		touch_atime(lower_vfsmount, lower_dentry);
 	}
 	return rc;
@@ -176,10 +177,10 @@ static int ecryptfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 
 	lower_file = ecryptfs_file_to_lower(file);
 	lower_file->f_pos = file->f_pos;
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 	memset(&buf, 0, sizeof(buf));
 	buf.dirent = dirent;
-	buf.dentry = file->f_dentry;
+	buf.dentry = file->f_path.dentry;
 	buf.filldir = filldir;
 retry:
 	buf.filldir_called = 0;
@@ -192,11 +193,38 @@ retry:
 		goto retry;
 	file->f_pos = lower_file->f_pos;
 	if (rc >= 0)
-		ecryptfs_copy_attr_atime(inode, lower_file->f_dentry->d_inode);
+		fsstack_copy_attr_atime(inode, lower_file->f_path.dentry->d_inode);
 	return rc;
 }
 
 struct kmem_cache *ecryptfs_file_info_cache;
+
+int ecryptfs_open_lower_file(struct file **lower_file,
+			     struct dentry *lower_dentry,
+			     struct vfsmount *lower_mnt, int flags)
+{
+	int rc = 0;
+
+	dget(lower_dentry);
+	mntget(lower_mnt);
+	*lower_file = dentry_open(lower_dentry, lower_mnt, flags);
+	if (IS_ERR(*lower_file)) {
+		printk(KERN_ERR "Error opening lower file for lower_dentry "
+		       "[0x%p], lower_mnt [0x%p], and flags [0x%x]\n",
+		       lower_dentry, lower_mnt, flags);
+		rc = PTR_ERR(*lower_file);
+		*lower_file = NULL;
+		goto out;
+	}
+out:
+	return rc;
+}
+
+int ecryptfs_close_lower_file(struct file *lower_file)
+{
+	fput(lower_file);
+	return 0;
+}
 
 /**
  * ecryptfs_open
@@ -212,7 +240,7 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 	int rc = 0;
 	struct ecryptfs_crypt_stat *crypt_stat = NULL;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
-	struct dentry *ecryptfs_dentry = file->f_dentry;
+	struct dentry *ecryptfs_dentry = file->f_path.dentry;
 	/* Private value of ecryptfs_dentry allocated in
 	 * ecryptfs_lookup() */
 	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
@@ -223,7 +251,7 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 	int lower_flags;
 
 	/* Released in ecryptfs_release or end of function if failure */
-	file_info = kmem_cache_alloc(ecryptfs_file_info_cache, SLAB_KERNEL);
+	file_info = kmem_cache_alloc(ecryptfs_file_info_cache, GFP_KERNEL);
 	ecryptfs_set_file_private(file, file_info);
 	if (!file_info) {
 		ecryptfs_printk(KERN_ERR,
@@ -244,19 +272,15 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 		ECRYPTFS_SET_FLAG(crypt_stat->flags, ECRYPTFS_ENCRYPTED);
 	}
 	mutex_unlock(&crypt_stat->cs_mutex);
-	/* This mntget & dget is undone via fput when the file is released */
-	dget(lower_dentry);
 	lower_flags = file->f_flags;
 	if ((lower_flags & O_ACCMODE) == O_WRONLY)
 		lower_flags = (lower_flags & O_ACCMODE) | O_RDWR;
 	if (file->f_flags & O_APPEND)
 		lower_flags &= ~O_APPEND;
 	lower_mnt = ecryptfs_dentry_to_lower_mnt(ecryptfs_dentry);
-	mntget(lower_mnt);
 	/* Corresponding fput() in ecryptfs_release() */
-	lower_file = dentry_open(lower_dentry, lower_mnt, lower_flags);
-	if (IS_ERR(lower_file)) {
-		rc = PTR_ERR(lower_file);
+	if ((rc = ecryptfs_open_lower_file(&lower_file, lower_dentry, lower_mnt,
+					   lower_flags))) {
 		ecryptfs_printk(KERN_ERR, "Error opening lower file\n");
 		goto out_puts;
 	}
@@ -341,11 +365,16 @@ static int ecryptfs_release(struct inode *inode, struct file *file)
 	struct file *lower_file = ecryptfs_file_to_lower(file);
 	struct ecryptfs_file_info *file_info = ecryptfs_file_to_private(file);
 	struct inode *lower_inode = ecryptfs_inode_to_lower(inode);
+	int rc;
 
-	fput(lower_file);
+	if ((rc = ecryptfs_close_lower_file(lower_file))) {
+		printk(KERN_ERR "Error closing lower_file\n");
+		goto out;
+	}
 	inode->i_blocks = lower_inode->i_blocks;
 	kmem_cache_free(ecryptfs_file_info_cache, file_info);
-	return 0;
+out:
+	return rc;
 }
 
 static int

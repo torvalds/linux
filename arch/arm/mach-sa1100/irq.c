@@ -110,7 +110,7 @@ static struct irq_chip sa1100_low_gpio_chip = {
  * and call the handler.
  */
 static void
-sa1100_high_gpio_handler(unsigned int irq, struct irqdesc *desc)
+sa1100_high_gpio_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int mask;
 
@@ -327,19 +327,19 @@ void __init sa1100_init_irq(void)
 
 	for (irq = 0; irq <= 10; irq++) {
 		set_irq_chip(irq, &sa1100_low_gpio_chip);
-		set_irq_handler(irq, do_edge_IRQ);
+		set_irq_handler(irq, handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	for (irq = 12; irq <= 31; irq++) {
 		set_irq_chip(irq, &sa1100_normal_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
 	for (irq = 32; irq <= 48; irq++) {
 		set_irq_chip(irq, &sa1100_high_gpio_chip);
-		set_irq_handler(irq, do_edge_IRQ);
+		set_irq_handler(irq, handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 

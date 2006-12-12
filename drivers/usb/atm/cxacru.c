@@ -158,7 +158,7 @@ struct cxacru_data {
 	const struct cxacru_modem_type *modem_type;
 
 	int line_status;
-	struct work_struct poll_work;
+	struct delayed_work poll_work;
 
 	/* contol handles */
 	struct mutex cm_serialize;
@@ -347,7 +347,7 @@ static int cxacru_card_status(struct cxacru_data *instance)
 	return 0;
 }
 
-static void cxacru_poll_status(struct cxacru_data *instance);
+static void cxacru_poll_status(struct work_struct *work);
 
 static int cxacru_atm_start(struct usbatm_data *usbatm_instance,
 		struct atm_dev *atm_dev)
@@ -376,12 +376,14 @@ static int cxacru_atm_start(struct usbatm_data *usbatm_instance,
 	}
 
 	/* Start status polling */
-	cxacru_poll_status(instance);
+	cxacru_poll_status(&instance->poll_work.work);
 	return 0;
 }
 
-static void cxacru_poll_status(struct cxacru_data *instance)
+static void cxacru_poll_status(struct work_struct *work)
 {
+	struct cxacru_data *instance =
+		container_of(work, struct cxacru_data, poll_work.work);
 	u32 buf[CXINF_MAX] = {};
 	struct usbatm_data *usbatm = instance->usbatm;
 	struct atm_dev *atm_dev = usbatm->atm_dev;
@@ -720,7 +722,7 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 
 	mutex_init(&instance->cm_serialize);
 
-	INIT_WORK(&instance->poll_work, (void *)cxacru_poll_status, instance);
+	INIT_DELAYED_WORK(&instance->poll_work, cxacru_poll_status);
 
 	usbatm_instance->driver_data = instance;
 
@@ -792,6 +794,9 @@ static const struct usb_device_id cxacru_usb_ids[] = {
 	},
 	{ /* V = Conexant			P = ADSL modem				*/
 		USB_DEVICE(0x0572, 0xcb06),	.driver_info = (unsigned long) &cxacru_cb00
+	},
+	{ /* V = Conexant			P = ADSL modem (ZTE ZXDSL 852)		*/
+		USB_DEVICE(0x0572, 0xcb07),	.driver_info = (unsigned long) &cxacru_cb00
 	},
 	{ /* V = Olitec				P = ADSL modem version 2		*/
 		USB_DEVICE(0x08e3, 0x0100),	.driver_info = (unsigned long) &cxacru_cafe

@@ -853,9 +853,8 @@ pfm_context_alloc(void)
 	 * allocate context descriptor 
 	 * must be able to free with interrupts disabled
 	 */
-	ctx = kmalloc(sizeof(pfm_context_t), GFP_KERNEL);
+	ctx = kzalloc(sizeof(pfm_context_t), GFP_KERNEL);
 	if (ctx) {
-		memset(ctx, 0, sizeof(pfm_context_t));
 		DPRINT(("alloc ctx @%p\n", ctx));
 	}
 	return ctx;
@@ -2189,13 +2188,13 @@ pfm_alloc_fd(struct file **cfile)
 	/*
 	 * allocate a new dcache entry
 	 */
-	file->f_dentry = d_alloc(pfmfs_mnt->mnt_sb->s_root, &this);
-	if (!file->f_dentry) goto out;
+	file->f_path.dentry = d_alloc(pfmfs_mnt->mnt_sb->s_root, &this);
+	if (!file->f_path.dentry) goto out;
 
-	file->f_dentry->d_op = &pfmfs_dentry_operations;
+	file->f_path.dentry->d_op = &pfmfs_dentry_operations;
 
-	d_add(file->f_dentry, inode);
-	file->f_vfsmnt = mntget(pfmfs_mnt);
+	d_add(file->f_path.dentry, inode);
+	file->f_path.mnt = mntget(pfmfs_mnt);
 	file->f_mapping = inode->i_mapping;
 
 	file->f_op    = &pfm_file_ops;
@@ -2302,7 +2301,7 @@ pfm_smpl_buffer_alloc(struct task_struct *task, pfm_context_t *ctx, unsigned lon
 	DPRINT(("smpl_buf @%p\n", smpl_buf));
 
 	/* allocate vma */
-	vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
+	vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 	if (!vma) {
 		DPRINT(("Cannot allocate vma\n"));
 		goto error_kmem;
@@ -5558,12 +5557,13 @@ report_spurious2:
 }
 
 static irqreturn_t
-pfm_interrupt_handler(int irq, void *arg, struct pt_regs *regs)
+pfm_interrupt_handler(int irq, void *arg)
 {
 	unsigned long start_cycles, total_cycles;
 	unsigned long min, max;
 	int this_cpu;
 	int ret;
+	struct pt_regs *regs = get_irq_regs();
 
 	this_cpu = get_cpu();
 	if (likely(!pfm_alt_intr_handler)) {

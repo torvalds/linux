@@ -383,8 +383,13 @@ enum {
 	CHIP_REV_YU_EC_A2    = 1,  /* Chip Rev. for Yukon-EC A2 */
 	CHIP_REV_YU_EC_A3    = 2,  /* Chip Rev. for Yukon-EC A3 */
 
-	CHIP_REV_YU_EC_U_A0  = 0,
-	CHIP_REV_YU_EC_U_A1  = 1,
+	CHIP_REV_YU_EC_U_A0  = 1,
+	CHIP_REV_YU_EC_U_A1  = 2,
+	CHIP_REV_YU_EC_U_B0  = 3,
+
+	CHIP_REV_YU_FE_A1    = 1,
+	CHIP_REV_YU_FE_A2    = 2,
+
 };
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
@@ -603,7 +608,7 @@ enum {
 	PHY_ADDR_MARV	= 0,
 };
 
-#define RB_ADDR(offs, queue) (B16_RAM_REGS + (queue) + (offs))
+#define RB_ADDR(offs, queue) ((u16) B16_RAM_REGS + (queue) + (offs))
 
 
 enum {
@@ -675,6 +680,7 @@ enum {
 			  BMU_FIFO_ENA | BMU_OP_ON,
 
 	BMU_WM_DEFAULT = 0x600,
+	BMU_WM_PEX     = 0x80,
 };
 
 /* Tx BMU Control / Status Registers (Yukon-2) */
@@ -1055,7 +1061,7 @@ enum {
 	PHY_M_PC_EN_DET_PLUS	= 3<<8, /* Energy Detect Plus (Mode 2) */
 };
 
-#define PHY_M_PC_MDI_XMODE(x)	(((x)<<5) & PHY_M_PC_MDIX_MSK)
+#define PHY_M_PC_MDI_XMODE(x)	(((u16)(x)<<5) & PHY_M_PC_MDIX_MSK)
 
 enum {
 	PHY_M_PC_MAN_MDI	= 0, /* 00 = Manual MDI configuration */
@@ -1151,13 +1157,13 @@ enum {
 	PHY_M_EC_TX_TIM_CT  = 1<<1, /* RGMII Tx Timing Control */
 	PHY_M_EC_TRANS_DIS  = 1<<0, /* Transmitter Disable (88E1111 only) */};
 
-#define PHY_M_EC_M_DSC(x)	((x)<<10 & PHY_M_EC_M_DSC_MSK)
+#define PHY_M_EC_M_DSC(x)	((u16)(x)<<10 & PHY_M_EC_M_DSC_MSK)
 					/* 00=1x; 01=2x; 10=3x; 11=4x */
-#define PHY_M_EC_S_DSC(x)	((x)<<8 & PHY_M_EC_S_DSC_MSK)
+#define PHY_M_EC_S_DSC(x)	((u16)(x)<<8 & PHY_M_EC_S_DSC_MSK)
 					/* 00=dis; 01=1x; 10=2x; 11=3x */
-#define PHY_M_EC_DSC_2(x)	((x)<<9 & PHY_M_EC_M_DSC_MSK2)
+#define PHY_M_EC_DSC_2(x)	((u16)(x)<<9 & PHY_M_EC_M_DSC_MSK2)
 					/* 000=1x; 001=2x; 010=3x; 011=4x */
-#define PHY_M_EC_MAC_S(x)	((x)<<4 & PHY_M_EC_MAC_S_MSK)
+#define PHY_M_EC_MAC_S(x)	((u16)(x)<<4 & PHY_M_EC_MAC_S_MSK)
 					/* 01X=0; 110=2.5; 111=25 (MHz) */
 
 /* for Yukon-2 Gigabit Ethernet PHY (88E1112 only) */
@@ -1168,7 +1174,7 @@ enum {
 };
 /* !!! Errata in spec. (1 = disable) */
 
-#define PHY_M_PC_DSC(x)			(((x)<<12) & PHY_M_PC_DSC_MSK)
+#define PHY_M_PC_DSC(x)			(((u16)(x)<<12) & PHY_M_PC_DSC_MSK)
 											/* 100=5x; 101=6x; 110=7x; 111=8x */
 enum {
 	MAC_TX_CLK_0_MHZ	= 2,
@@ -1198,7 +1204,7 @@ enum {
 	PHY_M_LEDC_TX_C_MSB	= 1<<0, /* Tx Control (MSB, 88E1111 only) */
 };
 
-#define PHY_M_LED_PULS_DUR(x)	(((x)<<12) & PHY_M_LEDC_PULS_MSK)
+#define PHY_M_LED_PULS_DUR(x)	(((u16)(x)<<12) & PHY_M_LEDC_PULS_MSK)
 
 /*****  PHY_MARV_PHY_STAT (page 3)16 bit r/w	Polarity Control Reg. *****/
 enum {
@@ -1228,7 +1234,7 @@ enum {
 	PULS_1300MS	= 7,/* 1.3 s to 2.7 s */
 };
 
-#define PHY_M_LED_BLINK_RT(x)	(((x)<<8) & PHY_M_LEDC_BL_R_MSK)
+#define PHY_M_LED_BLINK_RT(x)	(((u16)(x)<<8) & PHY_M_LEDC_BL_R_MSK)
 
 enum {
 	BLINK_42MS	= 0,/* 42 ms */
@@ -1238,21 +1244,18 @@ enum {
 	BLINK_670MS	= 4,/* 670 ms */
 };
 
-/*****  PHY_MARV_LED_OVER	16 bit r/w	Manual LED Override Reg *****/
-#define PHY_M_LED_MO_SGMII(x)	((x)<<14) /* Bit 15..14:  SGMII AN Timer */
-										/* Bit 13..12:	reserved */
-#define PHY_M_LED_MO_DUP(x)	((x)<<10) /* Bit 11..10:  Duplex */
-#define PHY_M_LED_MO_10(x)	((x)<<8) /* Bit  9.. 8:  Link 10 */
-#define PHY_M_LED_MO_100(x)	((x)<<6) /* Bit  7.. 6:  Link 100 */
-#define PHY_M_LED_MO_1000(x)	((x)<<4) /* Bit  5.. 4:  Link 1000 */
-#define PHY_M_LED_MO_RX(x)	((x)<<2) /* Bit  3.. 2:  Rx */
-#define PHY_M_LED_MO_TX(x)	((x)<<0) /* Bit  1.. 0:  Tx */
-
+/**** PHY_MARV_LED_OVER    16 bit r/w LED control */
 enum {
-	MO_LED_NORM	= 0,
-	MO_LED_BLINK	= 1,
-	MO_LED_OFF	= 2,
-	MO_LED_ON	= 3,
+	PHY_M_LED_MO_DUP  = 3<<10,/* Bit 11..10:  Duplex */
+	PHY_M_LED_MO_10	  = 3<<8, /* Bit  9.. 8:  Link 10 */
+	PHY_M_LED_MO_100  = 3<<6, /* Bit  7.. 6:  Link 100 */
+	PHY_M_LED_MO_1000 = 3<<4, /* Bit  5.. 4:  Link 1000 */
+	PHY_M_LED_MO_RX	  = 3<<2, /* Bit  3.. 2:  Rx */
+	PHY_M_LED_MO_TX	  = 3<<0, /* Bit  1.. 0:  Tx */
+
+	PHY_M_LED_ALL	  = PHY_M_LED_MO_DUP | PHY_M_LED_MO_10 
+			    | PHY_M_LED_MO_100 | PHY_M_LED_MO_1000
+			    | PHY_M_LED_MO_RX,
 };
 
 /*****  PHY_MARV_EXT_CTRL_2	16 bit r/w	Ext. PHY Specific Ctrl 2 *****/
@@ -1289,9 +1292,9 @@ enum {
 	PHY_M_FELP_LED0_MSK = 0xf, /* Bit  3.. 0: LED0 Mask (SPEED) */
 };
 
-#define PHY_M_FELP_LED2_CTRL(x)	(((x)<<8) & PHY_M_FELP_LED2_MSK)
-#define PHY_M_FELP_LED1_CTRL(x)	(((x)<<4) & PHY_M_FELP_LED1_MSK)
-#define PHY_M_FELP_LED0_CTRL(x)	(((x)<<0) & PHY_M_FELP_LED0_MSK)
+#define PHY_M_FELP_LED2_CTRL(x)	(((u16)(x)<<8) & PHY_M_FELP_LED2_MSK)
+#define PHY_M_FELP_LED1_CTRL(x)	(((u16)(x)<<4) & PHY_M_FELP_LED1_MSK)
+#define PHY_M_FELP_LED0_CTRL(x)	(((u16)(x)<<0) & PHY_M_FELP_LED0_MSK)
 
 enum {
 	LED_PAR_CTRL_COLX	= 0x00,
@@ -1547,8 +1550,8 @@ enum {
 	GM_SMI_CT_BUSY		= 1<<3,	/* Bit  3:	Busy (Operation in progress) */
 };
 
-#define GM_SMI_CT_PHY_AD(x)	(((x)<<11) & GM_SMI_CT_PHY_A_MSK)
-#define GM_SMI_CT_REG_AD(x)	(((x)<<6) & GM_SMI_CT_REG_A_MSK)
+#define GM_SMI_CT_PHY_AD(x)	(((u16)(x)<<11) & GM_SMI_CT_PHY_A_MSK)
+#define GM_SMI_CT_REG_AD(x)	(((u16)(x)<<6) & GM_SMI_CT_REG_A_MSK)
 
 /*	GM_PHY_ADDR				16 bit r/w	GPHY Address Register */
 enum {
@@ -1576,7 +1579,7 @@ enum {
 
 	GMR_FS_ANY_ERR	= GMR_FS_RX_FF_OV | GMR_FS_CRC_ERR |
 			  GMR_FS_FRAGMENT | GMR_FS_LONG_ERR |
-		  	  GMR_FS_MII_ERR | GMR_FS_BAD_FC |
+		  	  GMR_FS_MII_ERR | GMR_FS_GOOD_FC | GMR_FS_BAD_FC |
 			  GMR_FS_UN_SIZE | GMR_FS_JABBER,
 };
 
@@ -1828,6 +1831,13 @@ struct rx_ring_info {
 	dma_addr_t	frag_addr[ETH_JUMBO_MTU >> PAGE_SHIFT];
 };
 
+enum flow_control {
+	FC_NONE	= 0,
+	FC_TX	= 1,
+	FC_RX	= 2,
+	FC_BOTH	= 3,
+};
+
 struct sky2_port {
 	struct sky2_hw	     *hw;
 	struct net_device    *netdev;
@@ -1860,13 +1870,13 @@ struct sky2_port {
 
 	dma_addr_t	     rx_le_map;
 	dma_addr_t	     tx_le_map;
-	u32		     advertising;	/* ADVERTISED_ bits */
+	u16		     advertising;	/* ADVERTISED_ bits */
 	u16		     speed;	/* SPEED_1000, SPEED_100, ... */
 	u8		     autoneg;	/* AUTONEG_ENABLE, AUTONEG_DISABLE */
 	u8		     duplex;	/* DUPLEX_HALF, DUPLEX_FULL */
-	u8		     rx_pause;
-	u8		     tx_pause;
 	u8		     rx_csum;
+ 	enum flow_control    flow_mode;
+ 	enum flow_control    flow_status;
 
 	struct net_device_stats net_stats;
 
@@ -1888,7 +1898,7 @@ struct sky2_hw {
 	dma_addr_t   	     st_dma;
 
 	struct timer_list    idle_timer;
-	int		     msi_detected;
+	int		     msi;
 	wait_queue_head_t    msi_wait;
 };
 

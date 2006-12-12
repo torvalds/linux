@@ -94,8 +94,8 @@ int proc_exe_link(struct inode *inode, struct dentry **dentry, struct vfsmount *
 	}
 
 	if (vma) {
-		*mnt = mntget(vma->vm_file->f_vfsmnt);
-		*dentry = dget(vma->vm_file->f_dentry);
+		*mnt = mntget(vma->vm_file->f_path.mnt);
+		*dentry = dget(vma->vm_file->f_path.dentry);
 		result = 0;
 	}
 
@@ -135,7 +135,7 @@ static int show_map_internal(struct seq_file *m, void *v, struct mem_size_stats 
 	int len;
 
 	if (file) {
-		struct inode *inode = vma->vm_file->f_dentry->d_inode;
+		struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 		dev = inode->i_sb->s_dev;
 		ino = inode->i_ino;
 	}
@@ -156,7 +156,7 @@ static int show_map_internal(struct seq_file *m, void *v, struct mem_size_stats 
 	 */
 	if (file) {
 		pad_len_spaces(m, len);
-		seq_path(m, file->f_vfsmnt, file->f_dentry, "\n");
+		seq_path(m, file->f_path.mnt, file->f_path.dentry, "\n");
 	} else {
 		const char *name = arch_vma_name(vma);
 		if (!name) {

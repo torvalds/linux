@@ -157,7 +157,7 @@
 *       to TASK_RUNNING will be lost and write_chan's subsequent call to
 *       schedule() will never return (unless it catches a signal).
 *       This race condition occurs because write_bulk_callback() (and thus
-*       the wakeup) are called asynchonously from an interrupt, rather than
+*       the wakeup) are called asynchronously from an interrupt, rather than
 *       from the scheduler.  We can avoid the race by calling the wakeup
 *       from the scheduler queue and that's our fix:  Now, at the end of
 *       write_bulk_callback() we queue up a wakeup call on the scheduler
@@ -430,13 +430,14 @@ struct digi_port {
 	int dp_in_close;			/* close in progress */
 	wait_queue_head_t dp_close_wait;	/* wait queue for close */
 	struct work_struct dp_wakeup_work;
+	struct usb_serial_port *dp_port;
 };
 
 
 /* Local Function Declarations */
 
 static void digi_wakeup_write( struct usb_serial_port *port );
-static void digi_wakeup_write_lock(void *);
+static void digi_wakeup_write_lock(struct work_struct *work);
 static int digi_write_oob_command( struct usb_serial_port *port,
 	unsigned char *buf, int count, int interruptible );
 static int digi_write_inb_command( struct usb_serial_port *port,
@@ -448,7 +449,7 @@ static int digi_transmit_idle( struct usb_serial_port *port,
 static void digi_rx_throttle (struct usb_serial_port *port);
 static void digi_rx_unthrottle (struct usb_serial_port *port);
 static void digi_set_termios( struct usb_serial_port *port, 
-	struct termios *old_termios );
+	struct ktermios *old_termios );
 static void digi_break_ctl( struct usb_serial_port *port, int break_state );
 static int digi_ioctl( struct usb_serial_port *port, struct file *file,
 	unsigned int cmd, unsigned long arg );
@@ -598,11 +599,12 @@ static inline long cond_wait_interruptible_timeout_irqrestore(
 *  on writes.
 */
 
-static void digi_wakeup_write_lock(void *arg)
+static void digi_wakeup_write_lock(struct work_struct *work)
 {
-	struct usb_serial_port *port = arg;
+	struct digi_port *priv =
+		container_of(work, struct digi_port, dp_wakeup_work);
+	struct usb_serial_port *port = priv->dp_port;
 	unsigned long flags;
-	struct digi_port *priv = usb_get_serial_port_data(port);
 
 
 	spin_lock_irqsave( &priv->dp_port_lock, flags );
@@ -974,7 +976,7 @@ dbg( "digi_rx_unthrottle: TOP: port=%d", priv->dp_port_num );
 
 
 static void digi_set_termios( struct usb_serial_port *port, 
-	struct termios *old_termios )
+	struct ktermios *old_termios )
 {
 
 	struct digi_port *priv = usb_get_serial_port_data(port);
@@ -1461,7 +1463,7 @@ static int digi_open( struct usb_serial_port *port, struct file *filp )
 	int ret;
 	unsigned char buf[32];
 	struct digi_port *priv = usb_get_serial_port_data(port);
-	struct termios not_termios;
+	struct ktermios not_termios;
 	unsigned long flags = 0;
 
 
@@ -1702,8 +1704,8 @@ dbg( "digi_startup: TOP" );
 		init_waitqueue_head( &priv->dp_flush_wait );
 		priv->dp_in_close = 0;
 		init_waitqueue_head( &priv->dp_close_wait );
-		INIT_WORK(&priv->dp_wakeup_work,
-				digi_wakeup_write_lock, serial->port[i]);
+		INIT_WORK(&priv->dp_wakeup_work, digi_wakeup_write_lock);
+		priv->dp_port = serial->port[i];
 
 		/* initialize write wait queue for this port */
 		init_waitqueue_head( &serial->port[i]->write_wait );

@@ -259,7 +259,7 @@ static void mpc866ads_fixup_enet_pdata(struct platform_device *pdev, int fs_no)
 	/* Get pointer to Communication Processor */
 	cp = cpmp;
 
-	if(fs_no > ARRAY_SIZE(mpc8xx_enet_pdata)) {
+	if(fs_no >= ARRAY_SIZE(mpc8xx_enet_pdata)) {
 		printk(KERN_ERR"No network-suitable #%d device on bus", fs_no);
 		return;
 	}
@@ -305,7 +305,7 @@ static void __init mpc866ads_fixup_uart_pdata(struct platform_device *pdev,
 	int id = fs_uart_id_smc2fsid(idx);
 
 	/* no need to alter anything if console */
-	if ((id <= num) && (!pdev->dev.platform_data)) {
+	if ((id < num) && (!pdev->dev.platform_data)) {
 		pinfo = &mpc866_uart_pdata[id];
 		pinfo->uart_clk = bd->bi_intfreq;
 		pdev->dev.platform_data = pinfo;
@@ -361,7 +361,7 @@ int __init mpc866ads_init(void)
 
 	fmpi->mii_speed = ((((bd->bi_intfreq + 4999999) / 2500000) / 2) & 0x3F) << 1;
 	/* No PHY interrupt line here */
-	fmpi->irq[0xf] = -1;
+	fmpi->irq[0xf] = PHY_POLL;
 
 /* Since either of the uarts could be used as console, they need to ready */
 #ifdef CONFIG_SERIAL_CPM_SMC1
@@ -380,7 +380,7 @@ int __init mpc866ads_init(void)
 
 	fmpi->mii_speed = ((((bd->bi_intfreq + 4999999) / 2500000) / 2) & 0x3F) << 1;
 	/* No PHY interrupt line here */
-	fmpi->irq[0xf] = -1;
+	fmpi->irq[0xf] = PHY_POLL;
 
 	return 0;
 }

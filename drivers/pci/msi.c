@@ -26,7 +26,7 @@
 
 static DEFINE_SPINLOCK(msi_lock);
 static struct msi_desc* msi_desc[NR_IRQS] = { [0 ... NR_IRQS-1] = NULL };
-static kmem_cache_t* msi_cachep;
+static struct kmem_cache* msi_cachep;
 
 static int pci_msi_enable = 1;
 
@@ -255,10 +255,8 @@ static void enable_msi_mode(struct pci_dev *dev, int pos, int type)
 		pci_write_config_word(dev, msi_control_reg(pos), control);
 		dev->msix_enabled = 1;
 	}
-    	if (pci_find_capability(dev, PCI_CAP_ID_EXP)) {
-		/* PCI Express Endpoint device detected */
-		pci_intx(dev, 0);  /* disable intx */
-	}
+
+	pci_intx(dev, 0);  /* disable intx */
 }
 
 void disable_msi_mode(struct pci_dev *dev, int pos, int type)
@@ -276,10 +274,8 @@ void disable_msi_mode(struct pci_dev *dev, int pos, int type)
 		pci_write_config_word(dev, msi_control_reg(pos), control);
 		dev->msix_enabled = 0;
 	}
-    	if (pci_find_capability(dev, PCI_CAP_ID_EXP)) {
-		/* PCI Express Endpoint device detected */
-		pci_intx(dev, 1);  /* enable intx */
-	}
+
+	pci_intx(dev, 1);  /* enable intx */
 }
 
 static int msi_lookup_irq(struct pci_dev *dev, int type)
@@ -627,22 +623,24 @@ static int msix_capability_init(struct pci_dev *dev,
  * pci_msi_supported - check whether MSI may be enabled on device
  * @dev: pointer to the pci_dev data structure of MSI device function
  *
- * MSI must be globally enabled and supported by the device and its root
- * bus. But, the root bus is not easy to find since some architectures
- * have virtual busses on top of the PCI hierarchy (for instance the
- * hypertransport bus), while the actual bus where MSI must be supported
- * is below. So we test the MSI flag on all parent busses and assume
- * that no quirk will ever set the NO_MSI flag on a non-root bus.
+ * Look at global flags, the device itself, and its parent busses
+ * to return 0 if MSI are supported for the device.
  **/
 static
 int pci_msi_supported(struct pci_dev * dev)
 {
 	struct pci_bus *bus;
 
+	/* MSI must be globally enabled and supported by the device */
 	if (!pci_msi_enable || !dev || dev->no_msi)
 		return -EINVAL;
 
-	/* check MSI flags of all parent busses */
+	/* Any bridge which does NOT route MSI transactions from it's
+	 * secondary bus to it's primary bus must set NO_MSI flag on
+	 * the secondary pci_bus.
+	 * We expect only arch-specific PCI host bus controller driver
+	 * or quirks for specific PCI bridges to be setting NO_MSI.
+	 */
 	for (bus = dev->bus; bus; bus = bus->parent)
 		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
 			return -EINVAL;

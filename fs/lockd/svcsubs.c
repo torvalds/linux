@@ -43,7 +43,7 @@ static inline void nlm_debug_print_fh(char *msg, struct nfs_fh *f)
 
 static inline void nlm_debug_print_file(char *msg, struct nlm_file *file)
 {
-	struct inode *inode = file->f_file->f_dentry->d_inode;
+	struct inode *inode = file->f_file->f_path.dentry->d_inode;
 
 	dprintk("lockd: %s %s/%ld\n",
 		msg, inode->i_sb->s_id, inode->i_ino);
@@ -78,14 +78,14 @@ static inline unsigned int file_hash(struct nfs_fh *f)
  * This is not quite right, but for now, we assume the client performs
  * the proper R/W checking.
  */
-u32
+__be32
 nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 					struct nfs_fh *f)
 {
 	struct hlist_node *pos;
 	struct nlm_file	*file;
 	unsigned int	hash;
-	u32		nfserr;
+	__be32		nfserr;
 
 	nlm_debug_print_fh("nlm_file_lookup", f);
 
@@ -135,12 +135,6 @@ out_unlock:
 
 out_free:
 	kfree(file);
-#ifdef CONFIG_LOCKD_V4
-	if (nfserr == 1)
-		nfserr = nlm4_stale_fh;
-	else
-#endif
-	nfserr = nlm_lck_denied;
 	goto out_unlock;
 }
 
@@ -324,7 +318,16 @@ nlmsvc_same_host(struct nlm_host *host, struct nlm_host *other)
 static int
 nlmsvc_is_client(struct nlm_host *host, struct nlm_host *dummy)
 {
-	return host->h_server;
+	if (host->h_server) {
+		/* we are destroying locks even though the client
+		 * hasn't asked us too, so don't unmonitor the
+		 * client
+		 */
+		if (host->h_nsmhandle)
+			host->h_nsmhandle->sm_sticky = 1;
+		return 1;
+	} else
+		return 0;
 }
 
 /*

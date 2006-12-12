@@ -102,7 +102,7 @@ enum opcode {
 	insn_addu, insn_addiu, insn_and, insn_andi, insn_beq,
 	insn_beql, insn_bgez, insn_bgezl, insn_bltz, insn_bltzl,
 	insn_bne, insn_daddu, insn_daddiu, insn_dmfc0, insn_dmtc0,
-	insn_dsll, insn_dsll32, insn_dsra, insn_dsrl,
+	insn_dsll, insn_dsll32, insn_dsra, insn_dsrl, insn_dsrl32,
 	insn_dsubu, insn_eret, insn_j, insn_jal, insn_jr, insn_ld,
 	insn_ll, insn_lld, insn_lui, insn_lw, insn_mfc0, insn_mtc0,
 	insn_ori, insn_rfe, insn_sc, insn_scd, insn_sd, insn_sll,
@@ -145,6 +145,7 @@ static __initdata struct insn insn_table[] = {
 	{ insn_dsll32, M(spec_op,0,0,0,0,dsll32_op), RT | RD | RE },
 	{ insn_dsra, M(spec_op,0,0,0,0,dsra_op), RT | RD | RE },
 	{ insn_dsrl, M(spec_op,0,0,0,0,dsrl_op), RT | RD | RE },
+	{ insn_dsrl32, M(spec_op,0,0,0,0,dsrl32_op), RT | RD | RE },
 	{ insn_dsubu, M(spec_op,0,0,0,0,dsubu_op), RS | RT | RD },
 	{ insn_eret, M(cop0_op,cop_op,0,0,0,eret_op), 0 },
 	{ insn_j, M(j_op,0,0,0,0,0), JIMM },
@@ -385,6 +386,7 @@ I_u2u1u3(_dsll);
 I_u2u1u3(_dsll32);
 I_u2u1u3(_dsra);
 I_u2u1u3(_dsrl);
+I_u2u1u3(_dsrl32);
 I_u3u1u2(_dsubu);
 I_0(_eret);
 I_u1(_j);
@@ -421,6 +423,9 @@ enum label_id {
 	label_invalid,
 	label_second_part,
 	label_leave,
+#ifdef MODULE_START
+	label_module_alloc,
+#endif
 	label_vmalloc,
 	label_vmalloc_done,
 	label_tlbw_hazard,
@@ -453,6 +458,9 @@ static __init void build_label(struct label **lab, u32 *addr,
 
 L_LA(_second_part)
 L_LA(_leave)
+#ifdef MODULE_START
+L_LA(_module_alloc)
+#endif
 L_LA(_vmalloc)
 L_LA(_vmalloc_done)
 L_LA(_tlbw_hazard)
@@ -682,6 +690,13 @@ static void __init il_bgezl(u32 **p, struct reloc **r, unsigned int reg,
 {
 	r_mips_pc16(r, *p, l);
 	i_bgezl(p, reg, 0);
+}
+
+static void __init __attribute__((unused))
+il_bgez(u32 **p, struct reloc **r, unsigned int reg, enum label_id l)
+{
+	r_mips_pc16(r, *p, l);
+	i_bgez(p, reg, 0);
 }
 
 /* The only general purpose registers allowed in TLB handlers. */
@@ -968,7 +983,11 @@ build_get_pmde64(u32 **p, struct label **l, struct reloc **r,
 	 * The vmalloc handling is not in the hotpath.
 	 */
 	i_dmfc0(p, tmp, C0_BADVADDR);
+#ifdef MODULE_START
+	il_bltz(p, r, tmp, label_module_alloc);
+#else
 	il_bltz(p, r, tmp, label_vmalloc);
+#endif
 	/* No i_nop needed here, since the next insn doesn't touch TMP. */
 
 #ifdef CONFIG_SMP
@@ -996,7 +1015,12 @@ build_get_pmde64(u32 **p, struct label **l, struct reloc **r,
 #endif
 
 	l_vmalloc_done(l, *p);
-	i_dsrl(p, tmp, tmp, PGDIR_SHIFT-3); /* get pgd offset in bytes */
+
+	if (PGDIR_SHIFT - 3 < 32)		/* get pgd offset in bytes */
+		i_dsrl(p, tmp, tmp, PGDIR_SHIFT-3);
+	else
+		i_dsrl32(p, tmp, tmp, PGDIR_SHIFT - 3 - 32);
+
 	i_andi(p, tmp, tmp, (PTRS_PER_PGD - 1)<<3);
 	i_daddu(p, ptr, ptr, tmp); /* add in pgd offset */
 	i_dmfc0(p, tmp, C0_BADVADDR); /* get faulting address */
@@ -1016,8 +1040,46 @@ build_get_pgd_vmalloc64(u32 **p, struct label **l, struct reloc **r,
 {
 	long swpd = (long)swapper_pg_dir;
 
+#ifdef MODULE_START
+	long modd = (long)module_pg_dir;
+
+	l_module_alloc(l, *p);
+	/*
+	 * Assumption:
+	 * VMALLOC_START >= 0xc000000000000000UL
+	 * MODULE_START >= 0xe000000000000000UL
+	 */
+	i_SLL(p, ptr, bvaddr, 2);
+	il_bgez(p, r, ptr, label_vmalloc);
+
+	if (in_compat_space_p(MODULE_START) && !rel_lo(MODULE_START)) {
+		i_lui(p, ptr, rel_hi(MODULE_START)); /* delay slot */
+	} else {
+		/* unlikely configuration */
+		i_nop(p); /* delay slot */
+		i_LA(p, ptr, MODULE_START);
+	}
+	i_dsubu(p, bvaddr, bvaddr, ptr);
+
+	if (in_compat_space_p(modd) && !rel_lo(modd)) {
+		il_b(p, r, label_vmalloc_done);
+		i_lui(p, ptr, rel_hi(modd));
+	} else {
+		i_LA_mostly(p, ptr, modd);
+		il_b(p, r, label_vmalloc_done);
+		i_daddiu(p, ptr, ptr, rel_lo(modd));
+	}
+
+	l_vmalloc(l, *p);
+	if (in_compat_space_p(MODULE_START) && !rel_lo(MODULE_START) &&
+	    MODULE_START << 32 == VMALLOC_START)
+		i_dsll32(p, ptr, ptr, 0);	/* typical case */
+	else
+		i_LA(p, ptr, VMALLOC_START);
+#else
 	l_vmalloc(l, *p);
 	i_LA(p, ptr, VMALLOC_START);
+#endif
 	i_dsubu(p, bvaddr, bvaddr, ptr);
 
 	if (in_compat_space_p(swpd) && !rel_lo(swpd)) {
@@ -1073,7 +1135,7 @@ build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
 
 static __init void build_adjust_context(u32 **p, unsigned int ctx)
 {
-	unsigned int shift = 4 - (PTE_T_LOG2 + 1);
+	unsigned int shift = 4 - (PTE_T_LOG2 + 1) + PAGE_SHIFT - 12;
 	unsigned int mask = (PTRS_PER_PTE / 2 - 1) << (PTE_T_LOG2 + 1);
 
 	switch (current_cpu_data.cputype) {

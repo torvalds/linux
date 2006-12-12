@@ -346,20 +346,13 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 	sigemptyset(&sigcatch);
 	cutime = cstime = utime = stime = cputime_zero;
 
-	mutex_lock(&tty_mutex);
 	rcu_read_lock();
 	if (lock_task_sighand(task, &flags)) {
 		struct signal_struct *sig = task->signal;
-		struct tty_struct *tty = sig->tty;
 
-		if (tty) {
-			/*
-			 * sig->tty is not stable, but tty_mutex
-			 * protects us from release_dev(tty)
-			 */
-			barrier();
-			tty_pgrp = tty->pgrp;
-			tty_nr = new_encode_dev(tty_devnum(tty));
+		if (sig->tty) {
+			tty_pgrp = sig->tty->pgrp;
+			tty_nr = new_encode_dev(tty_devnum(sig->tty));
 		}
 
 		num_threads = atomic_read(&sig->count);
@@ -388,14 +381,13 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 			stime = cputime_add(stime, sig->stime);
 		}
 
-		sid = sig->session;
+		sid = signal_session(sig);
 		pgid = process_group(task);
 		ppid = rcu_dereference(task->real_parent)->tgid;
 
 		unlock_task_sighand(task, &flags);
 	}
 	rcu_read_unlock();
-	mutex_unlock(&tty_mutex);
 
 	if (!whole || num_threads<2)
 		wchan = get_wchan(task);

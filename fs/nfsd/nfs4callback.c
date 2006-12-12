@@ -85,8 +85,8 @@ enum nfs_cb_opnum4 {
 /*
 * Generic encode routines from fs/nfs/nfs4xdr.c
 */
-static inline u32 *
-xdr_writemem(u32 *p, const void *ptr, int nbytes)
+static inline __be32 *
+xdr_writemem(__be32 *p, const void *ptr, int nbytes)
 {
 	int tmp = XDR_QUADLEN(nbytes);
 	if (!tmp)
@@ -205,7 +205,7 @@ nfs_cb_stat_to_errno(int stat)
 static int
 encode_cb_compound_hdr(struct xdr_stream *xdr, struct nfs4_cb_compound_hdr *hdr)
 {
-	u32 * p;
+	__be32 * p;
 
 	RESERVE_SPACE(16);
 	WRITE32(0);            /* tag length is always 0 */
@@ -218,7 +218,7 @@ encode_cb_compound_hdr(struct xdr_stream *xdr, struct nfs4_cb_compound_hdr *hdr)
 static int
 encode_cb_recall(struct xdr_stream *xdr, struct nfs4_cb_recall *cb_rec)
 {
-	u32 *p;
+	__be32 *p;
 	int len = cb_rec->cbr_fhlen;
 
 	RESERVE_SPACE(12+sizeof(cb_rec->cbr_stateid) + len);
@@ -231,7 +231,7 @@ encode_cb_recall(struct xdr_stream *xdr, struct nfs4_cb_recall *cb_rec)
 }
 
 static int
-nfs4_xdr_enc_cb_null(struct rpc_rqst *req, u32 *p)
+nfs4_xdr_enc_cb_null(struct rpc_rqst *req, __be32 *p)
 {
 	struct xdr_stream xdrs, *xdr = &xdrs;
 
@@ -241,7 +241,7 @@ nfs4_xdr_enc_cb_null(struct rpc_rqst *req, u32 *p)
 }
 
 static int
-nfs4_xdr_enc_cb_recall(struct rpc_rqst *req, u32 *p, struct nfs4_cb_recall *args)
+nfs4_xdr_enc_cb_recall(struct rpc_rqst *req, __be32 *p, struct nfs4_cb_recall *args)
 {
 	struct xdr_stream xdr;
 	struct nfs4_cb_compound_hdr hdr = {
@@ -257,7 +257,7 @@ nfs4_xdr_enc_cb_recall(struct rpc_rqst *req, u32 *p, struct nfs4_cb_recall *args
 
 static int
 decode_cb_compound_hdr(struct xdr_stream *xdr, struct nfs4_cb_compound_hdr *hdr){
-        u32 *p;
+        __be32 *p;
 
         READ_BUF(8);
         READ32(hdr->status);
@@ -272,7 +272,7 @@ decode_cb_compound_hdr(struct xdr_stream *xdr, struct nfs4_cb_compound_hdr *hdr)
 static int
 decode_cb_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected)
 {
-	u32 *p;
+	__be32 *p;
 	u32 op;
 	int32_t nfserr;
 
@@ -291,13 +291,13 @@ decode_cb_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected)
 }
 
 static int
-nfs4_xdr_dec_cb_null(struct rpc_rqst *req, u32 *p)
+nfs4_xdr_dec_cb_null(struct rpc_rqst *req, __be32 *p)
 {
 	return 0;
 }
 
 static int
-nfs4_xdr_dec_cb_recall(struct rpc_rqst *rqstp, u32 *p)
+nfs4_xdr_dec_cb_recall(struct rpc_rqst *rqstp, __be32 *p)
 {
 	struct xdr_stream xdr;
 	struct nfs4_cb_compound_hdr hdr;
@@ -421,7 +421,7 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 
 	/* Create RPC client */
 	cb->cb_client = rpc_create(&args);
-	if (!cb->cb_client) {
+	if (IS_ERR(cb->cb_client)) {
 		dprintk("NFSD: couldn't create callback client\n");
 		goto out_err;
 	}
@@ -448,10 +448,10 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 out_rpciod:
 	atomic_dec(&clp->cl_count);
 	rpciod_down();
-	cb->cb_client = NULL;
 out_clnt:
 	rpc_shutdown_client(cb->cb_client);
 out_err:
+	cb->cb_client = NULL;
 	dprintk("NFSD: warning: no callback path to client %.*s\n",
 		(int)clp->cl_name.len, clp->cl_name.data);
 }
@@ -461,7 +461,7 @@ nfs4_cb_null(struct rpc_task *task, void *dummy)
 {
 	struct nfs4_client *clp = (struct nfs4_client *)task->tk_msg.rpc_argp;
 	struct nfs4_callback *cb = &clp->cl_callback;
-	u32 addr = htonl(cb->cb_addr);
+	__be32 addr = htonl(cb->cb_addr);
 
 	dprintk("NFSD: nfs4_cb_null task->tk_status %d\n", task->tk_status);
 

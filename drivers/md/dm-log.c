@@ -466,6 +466,7 @@ static int disk_resume(struct dirty_log *log)
 	/* copy clean across to sync */
 	memcpy(lc->sync_bits, lc->clean_bits, size);
 	lc->sync_count = count_bits32(lc->clean_bits, lc->bitset_uint32_count);
+	lc->sync_search = 0;
 
 	/* set the correct number of regions in the header */
 	lc->header.nr_regions = lc->region_count;
@@ -478,6 +479,13 @@ static uint32_t core_get_region_size(struct dirty_log *log)
 {
 	struct log_c *lc = (struct log_c *) log->context;
 	return lc->region_size;
+}
+
+static int core_resume(struct dirty_log *log)
+{
+	struct log_c *lc = (struct log_c *) log->context;
+	lc->sync_search = 0;
+	return 0;
 }
 
 static int core_is_clean(struct dirty_log *log, region_t region)
@@ -549,16 +557,19 @@ static int core_get_resync_work(struct dirty_log *log, region_t *region)
 	return 1;
 }
 
-static void core_complete_resync_work(struct dirty_log *log, region_t region,
-				      int success)
+static void core_set_region_sync(struct dirty_log *log, region_t region,
+				 int in_sync)
 {
 	struct log_c *lc = (struct log_c *) log->context;
 
 	log_clear_bit(lc, lc->recovering_bits, region);
-	if (success) {
+	if (in_sync) {
 		log_set_bit(lc, lc->sync_bits, region);
                 lc->sync_count++;
-        }
+        } else if (log_test_bit(lc->sync_bits, region)) {
+		lc->sync_count--;
+		log_clear_bit(lc, lc->sync_bits, region);
+	}
 }
 
 static region_t core_get_sync_count(struct dirty_log *log)
@@ -618,6 +629,7 @@ static struct dirty_log_type _core_type = {
 	.module = THIS_MODULE,
 	.ctr = core_ctr,
 	.dtr = core_dtr,
+	.resume = core_resume,
 	.get_region_size = core_get_region_size,
 	.is_clean = core_is_clean,
 	.in_sync = core_in_sync,
@@ -625,7 +637,7 @@ static struct dirty_log_type _core_type = {
 	.mark_region = core_mark_region,
 	.clear_region = core_clear_region,
 	.get_resync_work = core_get_resync_work,
-	.complete_resync_work = core_complete_resync_work,
+	.set_region_sync = core_set_region_sync,
 	.get_sync_count = core_get_sync_count,
 	.status = core_status,
 };
@@ -644,7 +656,7 @@ static struct dirty_log_type _disk_type = {
 	.mark_region = core_mark_region,
 	.clear_region = core_clear_region,
 	.get_resync_work = core_get_resync_work,
-	.complete_resync_work = core_complete_resync_work,
+	.set_region_sync = core_set_region_sync,
 	.get_sync_count = core_get_sync_count,
 	.status = disk_status,
 };

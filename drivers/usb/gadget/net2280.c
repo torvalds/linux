@@ -1040,6 +1040,7 @@ net2280_queue (struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 	} /* else the irq handler advances the queue. */
 
+	ep->responded = 1;
 	if (req)
 		list_add_tail (&req->queue, &ep->queue);
 done:
@@ -1774,8 +1775,8 @@ static DEVICE_ATTR (queues, S_IRUGO, show_queues, NULL);
 
 #else
 
-#define device_create_file(a,b)	do {} while (0)
-#define device_remove_file	device_create_file
+#define device_create_file(a,b)	(0)
+#define device_remove_file(a,b)	do { } while (0)
 
 #endif
 
@@ -2044,8 +2045,10 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 		return retval;
 	}
 
-	device_create_file (&dev->pdev->dev, &dev_attr_function);
-	device_create_file (&dev->pdev->dev, &dev_attr_queues);
+	retval = device_create_file (&dev->pdev->dev, &dev_attr_function);
+	if (retval) goto err_unbind;
+	retval = device_create_file (&dev->pdev->dev, &dev_attr_queues);
+	if (retval) goto err_func;
 
 	/* ... then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
@@ -2060,6 +2063,14 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 
 	/* pci writes may still be posted */
 	return 0;
+
+err_func:
+	device_remove_file (&dev->pdev->dev, &dev_attr_function);
+err_unbind:
+	driver->unbind (&dev->gadget);
+	dev->gadget.dev.driver = NULL;
+	dev->driver = NULL;
+	return retval;
 }
 EXPORT_SYMBOL (usb_gadget_register_driver);
 
@@ -2178,7 +2189,8 @@ static void handle_ep_small (struct net2280_ep *ep)
 					ep->stopped = 1;
 					set_halt (ep);
 					mode = 2;
-				} else if (!req && !ep->stopped)
+				} else if (ep->responded &&
+						!req && !ep->stopped)
 					write_fifo (ep, NULL);
 			}
 		} else {
@@ -2193,7 +2205,7 @@ static void handle_ep_small (struct net2280_ep *ep)
 			} else if (((t & (1 << DATA_OUT_PING_TOKEN_INTERRUPT))
 					&& req
 					&& req->req.actual == req->req.length)
-					|| !req) {
+					|| (ep->responded && !req)) {
 				ep->dev->protocol_stall = 1;
 				set_halt (ep);
 				ep->stopped = 1;
@@ -2459,6 +2471,7 @@ static void handle_stat0_irqs (struct net2280 *dev, u32 stat)
 		/* we made the hardware handle most lowlevel requests;
 		 * everything else goes uplevel to the gadget code.
 		 */
+		ep->responded = 1;
 		switch (u.r.bRequest) {
 		case USB_REQ_GET_STATUS: {
 			struct net2280_ep	*e;
@@ -2527,6 +2540,7 @@ delegate:
 				u.r.bRequestType, u.r.bRequest,
 				w_value, w_index, w_length,
 				readl (&ep->regs->ep_cfg));
+			ep->responded = 0;
 			spin_unlock (&dev->lock);
 			tmp = dev->driver->setup (&dev->gadget, &u.r);
 			spin_lock (&dev->lock);
@@ -2847,7 +2861,7 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* alloc, and start init */
-	dev = kzalloc (sizeof *dev, SLAB_KERNEL);
+	dev = kzalloc (sizeof *dev, GFP_KERNEL);
 	if (dev == NULL){
 		retval = -ENOMEM;
 		goto done;
@@ -2974,8 +2988,10 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 				: "disabled");
 	the_controller = dev;
 
-	device_register (&dev->gadget.dev);
-	device_create_file (&pdev->dev, &dev_attr_registers);
+	retval = device_register (&dev->gadget.dev);
+	if (retval) goto done;
+	retval = device_create_file (&pdev->dev, &dev_attr_registers);
+	if (retval) goto done;
 
 	return 0;
 

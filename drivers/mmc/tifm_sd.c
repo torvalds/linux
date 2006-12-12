@@ -14,6 +14,7 @@
 #include <linux/mmc/protocol.h>
 #include <linux/mmc/host.h>
 #include <linux/highmem.h>
+#include <asm/io.h>
 
 #define DRIVER_NAME "tifm_sd"
 #define DRIVER_VERSION "0.6"
@@ -98,7 +99,7 @@ struct tifm_sd {
 
 	struct mmc_request    *req;
 	struct work_struct    cmd_handler;
-	struct work_struct    abort_handler;
+	struct delayed_work   abort_handler;
 	wait_queue_head_t     can_eject;
 
 	size_t                written_blocks;
@@ -386,7 +387,7 @@ static void tifm_sd_prepare_data(struct tifm_sd *card, struct mmc_command *cmd)
 
 	writel(TIFM_FIFO_INT_SETALL,
 		sock->addr + SOCK_DMA_FIFO_INT_ENABLE_CLEAR);
-	writel(long_log2(cmd->data->blksz) - 2,
+	writel(ilog2(cmd->data->blksz) - 2,
 			sock->addr + SOCK_FIFO_PAGE_SIZE);
 	writel(TIFM_FIFO_ENABLE, sock->addr + SOCK_FIFO_CONTROL);
 	writel(TIFM_FIFO_INTMASK, sock->addr + SOCK_DMA_FIFO_INT_ENABLE_SET);
@@ -495,9 +496,9 @@ err_out:
 	mmc_request_done(mmc, mrq);
 }
 
-static void tifm_sd_end_cmd(void *data)
+static void tifm_sd_end_cmd(struct work_struct *work)
 {
-	struct tifm_sd *host = data;
+	struct tifm_sd *host = container_of(work, struct tifm_sd, cmd_handler);
 	struct tifm_dev *sock = host->dev;
 	struct mmc_host *mmc = tifm_get_drvdata(sock);
 	struct mmc_request *mrq;
@@ -607,9 +608,9 @@ err_out:
 	mmc_request_done(mmc, mrq);
 }
 
-static void tifm_sd_end_cmd_nodma(void *data)
+static void tifm_sd_end_cmd_nodma(struct work_struct *work)
 {
-	struct tifm_sd *host = (struct tifm_sd*)data;
+	struct tifm_sd *host = container_of(work, struct tifm_sd, cmd_handler);
 	struct tifm_dev *sock = host->dev;
 	struct mmc_host *mmc = tifm_get_drvdata(sock);
 	struct mmc_request *mrq;
@@ -660,11 +661,14 @@ static void tifm_sd_end_cmd_nodma(void *data)
 	mmc_request_done(mmc, mrq);
 }
 
-static void tifm_sd_abort(void *data)
+static void tifm_sd_abort(struct work_struct *work)
 {
+	struct tifm_sd *host =
+		container_of(work, struct tifm_sd, abort_handler.work);
+
 	printk(KERN_ERR DRIVER_NAME
 		": card failed to respond for a long period of time");
-	tifm_eject(((struct tifm_sd*)data)->dev);
+	tifm_eject(host->dev);
 }
 
 static void tifm_sd_ios(struct mmc_host *mmc, struct mmc_ios *ios)
@@ -761,9 +765,9 @@ static struct mmc_host_ops tifm_sd_ops = {
 	.get_ro  = tifm_sd_ro
 };
 
-static void tifm_sd_register_host(void *data)
+static void tifm_sd_register_host(struct work_struct *work)
 {
-	struct tifm_sd *host = (struct tifm_sd*)data;
+	struct tifm_sd *host = container_of(work, struct tifm_sd, cmd_handler);
 	struct tifm_dev *sock = host->dev;
 	struct mmc_host *mmc = tifm_get_drvdata(sock);
 	unsigned long flags;
@@ -771,8 +775,7 @@ static void tifm_sd_register_host(void *data)
 	spin_lock_irqsave(&sock->lock, flags);
 	host->flags |= HOST_REG;
 	PREPARE_WORK(&host->cmd_handler,
-			no_dma ? tifm_sd_end_cmd_nodma : tifm_sd_end_cmd,
-			data);
+			no_dma ? tifm_sd_end_cmd_nodma : tifm_sd_end_cmd);
 	spin_unlock_irqrestore(&sock->lock, flags);
 	dev_dbg(&sock->dev, "adding host\n");
 	mmc_add_host(mmc);
@@ -798,8 +801,8 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 	host->dev = sock;
 	host->clk_div = 61;
 	init_waitqueue_head(&host->can_eject);
-	INIT_WORK(&host->cmd_handler, tifm_sd_register_host, host);
-	INIT_WORK(&host->abort_handler, tifm_sd_abort, host);
+	INIT_WORK(&host->cmd_handler, tifm_sd_register_host);
+	INIT_DELAYED_WORK(&host->abort_handler, tifm_sd_abort);
 
 	tifm_set_drvdata(sock, mmc);
 	sock->signal_irq = tifm_sd_signal_irq;

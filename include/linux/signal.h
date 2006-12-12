@@ -241,6 +241,8 @@ extern int sigprocmask(int, sigset_t *, sigset_t *);
 struct pt_regs;
 extern int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka, struct pt_regs *regs, void *cookie);
 
+extern struct kmem_cache *sighand_cachep;
+
 #endif /* __KERNEL__ */
 
 #endif /* _LINUX_SIGNAL_H */

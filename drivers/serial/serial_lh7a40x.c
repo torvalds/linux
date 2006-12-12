@@ -348,8 +348,8 @@ static void lh7a40xuart_shutdown (struct uart_port* port)
 }
 
 static void lh7a40xuart_set_termios (struct uart_port* port,
-				     struct termios* termios,
-				     struct termios* old)
+				     struct ktermios* termios,
+				     struct ktermios* old)
 {
 	unsigned int con;
 	unsigned int inten;

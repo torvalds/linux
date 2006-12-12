@@ -54,8 +54,8 @@ static cycle_t acpi_pm_read_verified(void)
 		v1 = read_pmtmr();
 		v2 = read_pmtmr();
 		v3 = read_pmtmr();
-	} while ((v1 > v2 && v1 < v3) || (v2 > v3 && v2 < v1)
-			|| (v3 > v1 && v3 < v2));
+	} while (unlikely((v1 > v2 && v1 < v3) || (v2 > v3 && v2 < v1)
+			  || (v3 > v1 && v3 < v2)));
 
 	return (cycle_t)v2;
 }
@@ -77,11 +77,11 @@ static struct clocksource clocksource_acpi_pm = {
 
 
 #ifdef CONFIG_PCI
-static int acpi_pm_good;
+static int __devinitdata acpi_pm_good;
 static int __init acpi_pm_good_setup(char *__str)
 {
-       acpi_pm_good = 1;
-       return 1;
+	acpi_pm_good = 1;
+	return 1;
 }
 __setup("acpi_pm_good", acpi_pm_good_setup);
 
@@ -138,8 +138,43 @@ static void __devinit acpi_pm_check_graylist(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_0,
 			acpi_pm_check_graylist);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_LE,
+			acpi_pm_check_graylist);
 #endif
 
+#ifndef CONFIG_X86_64
+#include "mach_timer.h"
+#define PMTMR_EXPECTED_RATE \
+  ((CALIBRATE_LATCH * (PMTMR_TICKS_PER_SEC >> 10)) / (CLOCK_TICK_RATE>>10))
+/*
+ * Some boards have the PMTMR running way too fast. We check
+ * the PMTMR rate against PIT channel 2 to catch these cases.
+ */
+static int verify_pmtmr_rate(void)
+{
+	u32 value1, value2;
+	unsigned long count, delta;
+
+	mach_prepare_counter();
+	value1 = read_pmtmr();
+	mach_countup(&count);
+	value2 = read_pmtmr();
+	delta = (value2 - value1) & ACPI_PM_MASK;
+
+	/* Check that the PMTMR delta is within 5% of what we expect */
+	if (delta < (PMTMR_EXPECTED_RATE * 19) / 20 ||
+	    delta > (PMTMR_EXPECTED_RATE * 21) / 20) {
+		printk(KERN_INFO "PM-Timer running at invalid rate: %lu%% "
+			"of normal - aborting.\n",
+			100UL * delta / PMTMR_EXPECTED_RATE);
+		return -1;
+	}
+
+	return 0;
+}
+#else
+#define verify_pmtmr_rate() (0)
+#endif
 
 static int __init init_acpi_pm_clocksource(void)
 {
@@ -171,6 +206,9 @@ static int __init init_acpi_pm_clocksource(void)
 	return -ENODEV;
 
 pm_good:
+	if (verify_pmtmr_rate() != 0)
+		return -ENODEV;
+
 	return clocksource_register(&clocksource_acpi_pm);
 }
 

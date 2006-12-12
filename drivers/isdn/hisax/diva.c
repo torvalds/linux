@@ -716,8 +716,10 @@ release_io_diva(struct IsdnCardState *cs)
 
 		*cfg = 0; /* disable INT0/1 */ 
 		*cfg = 2; /* reset pending INT0 */
-		iounmap((void *)cs->hw.diva.cfg_reg);
-		iounmap((void *)cs->hw.diva.pci_cfg);
+		if (cs->hw.diva.cfg_reg)
+			iounmap((void *)cs->hw.diva.cfg_reg);
+		if (cs->hw.diva.pci_cfg)
+			iounmap((void *)cs->hw.diva.pci_cfg);
 		return;
 	} else if (cs->subtyp != DIVA_IPAC_ISA) {
 		del_timer(&cs->hw.diva.tl);
@@ -731,6 +733,23 @@ release_io_diva(struct IsdnCardState *cs)
 	if (cs->hw.diva.cfg_reg) {
 		release_region(cs->hw.diva.cfg_reg, bytecnt);
 	}
+}
+
+static void
+iounmap_diva(struct IsdnCardState *cs)
+{
+	if ((cs->subtyp == DIVA_IPAC_PCI) || (cs->subtyp == DIVA_IPACX_PCI)) {
+		if (cs->hw.diva.cfg_reg) {
+			iounmap((void *)cs->hw.diva.cfg_reg);
+			cs->hw.diva.cfg_reg = 0;
+		}
+		if (cs->hw.diva.pci_cfg) {
+			iounmap((void *)cs->hw.diva.pci_cfg);
+			cs->hw.diva.pci_cfg = 0;
+		}
+	}
+
+	return;
 }
 
 static void
@@ -1069,11 +1088,13 @@ setup_diva(struct IsdnCard *card)
 
 		if (!cs->irq) {
 			printk(KERN_WARNING "Diva: No IRQ for PCI card found\n");
+			iounmap_diva(cs);
 			return(0);
 		}
 
 		if (!cs->hw.diva.cfg_reg) {
 			printk(KERN_WARNING "Diva: No IO-Adr for PCI card found\n");
+			iounmap_diva(cs);
 			return(0);
 		}
 		cs->irq_flags |= IRQF_SHARED;
@@ -1100,7 +1121,11 @@ setup_diva(struct IsdnCard *card)
 			bytecnt = 32;
 		}
 	}
+
+#ifdef __ISAPNP__
 ready:
+#endif
+
 	printk(KERN_INFO
 		"Diva: %s card configured at %#lx IRQ %d\n",
 		(cs->subtyp == DIVA_PCI) ? "PCI" :
@@ -1123,6 +1148,7 @@ ready:
 			       CardType[card->typ],
 			       cs->hw.diva.cfg_reg,
 			       cs->hw.diva.cfg_reg + bytecnt);
+			iounmap_diva(cs);
 			return (0);
 		}
 	}

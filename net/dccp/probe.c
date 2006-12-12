@@ -106,8 +106,10 @@ static int jdccp_sendmsg(struct kiocb *iocb, struct sock *sk,
 }
 
 static struct jprobe dccp_send_probe = {
-	.kp	= { .addr = (kprobe_opcode_t *)&dccp_sendmsg, },
-	.entry	= (kprobe_opcode_t *)&jdccp_sendmsg,
+	.kp	= {
+		.symbol_name = "dccp_sendmsg",
+	},
+	.entry	= JPROBE_ENTRY(jdccp_sendmsg),
 };
 
 static int dccpprobe_open(struct inode *inode, struct file *file)
@@ -160,6 +162,8 @@ static __init int dccpprobe_init(void)
 	init_waitqueue_head(&dccpw.wait);
 	spin_lock_init(&dccpw.lock);
 	dccpw.fifo = kfifo_alloc(bufsize, GFP_KERNEL, &dccpw.lock);
+	if (IS_ERR(dccpw.fifo))
+		return PTR_ERR(dccpw.fifo);
 
 	if (!proc_net_fops_create(procname, S_IRUSR, &dccpprobe_fops))
 		goto err0;

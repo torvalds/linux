@@ -376,7 +376,7 @@ int br_sysfs_addbr(struct net_device *dev)
 
 	err = sysfs_create_bin_file(brobj, &bridge_forward);
 	if (err) {
-		pr_info("%s: can't create attribue file %s/%s\n",
+		pr_info("%s: can't create attribute file %s/%s\n",
 			__FUNCTION__, dev->name, bridge_forward.attr.name);
 		goto out2;
 	}

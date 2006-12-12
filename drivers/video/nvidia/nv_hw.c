@@ -145,12 +145,18 @@ static void nvGetClocks(struct nvidia_par *par, unsigned int *MClk,
 
 	if (par->Architecture >= NV_ARCH_40) {
 		pll = NV_RD32(par->PMC, 0x4020);
-		P = (pll >> 16) & 0x03;
+		P = (pll >> 16) & 0x07;
 		pll = NV_RD32(par->PMC, 0x4024);
 		M = pll & 0xFF;
 		N = (pll >> 8) & 0xFF;
-		MB = (pll >> 16) & 0xFF;
-		NB = (pll >> 24) & 0xFF;
+		if (((par->Chipset & 0xfff0) == 0x0290) ||
+				((par->Chipset & 0xfff0) == 0x0390)) {
+			MB = 1;
+			NB = 1;
+		} else {
+			MB = (pll >> 16) & 0xFF;
+			NB = (pll >> 24) & 0xFF;
+		}
 		*MClk = ((N * NB * par->CrystalFreqKHz) / (M * MB)) >> P;
 
 		pll = NV_RD32(par->PMC, 0x4000);

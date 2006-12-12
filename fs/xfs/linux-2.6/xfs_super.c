@@ -56,6 +56,7 @@
 #include <linux/mempool.h>
 #include <linux/writeback.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 
 STATIC struct quotactl_ops xfs_quotactl_operations;
 STATIC struct super_operations xfs_super_operations;
@@ -227,9 +228,7 @@ xfs_initialize_vnode(
 		xfs_revalidate_inode(XFS_BHVTOM(bdp), vp, ip);
 		xfs_set_inodeops(inode);
 
-		spin_lock(&ip->i_flags_lock);
-		ip->i_flags &= ~XFS_INEW;
-		spin_unlock(&ip->i_flags_lock);
+		xfs_iflags_clear(ip, XFS_INEW);
 		barrier();
 
 		unlock_new_inode(inode);

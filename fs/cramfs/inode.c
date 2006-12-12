@@ -338,7 +338,7 @@ static int cramfs_statfs(struct dentry *dentry, struct kstatfs *buf)
  */
 static int cramfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct super_block *sb = inode->i_sb;
 	char *buf;
 	unsigned int offset;
@@ -481,6 +481,8 @@ static int cramfs_readpage(struct file *file, struct page * page)
 		pgdata = kmap(page);
 		if (compr_len == 0)
 			; /* hole */
+		else if (compr_len > (PAGE_CACHE_SIZE << 1))
+			printk(KERN_ERR "cramfs: bad compressed blocksize %u\n", compr_len);
 		else {
 			mutex_lock(&read_mutex);
 			bytes_filled = cramfs_uncompress_block(pgdata,

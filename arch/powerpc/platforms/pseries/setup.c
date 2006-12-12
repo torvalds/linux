@@ -347,17 +347,6 @@ static int __init pSeries_init_panel(void)
 }
 arch_initcall(pSeries_init_panel);
 
-static void pSeries_mach_cpu_die(void)
-{
-	local_irq_disable();
-	idle_task_exit();
-	xics_teardown_cpu(0);
-	rtas_stop_self();
-	/* Should never get here... */
-	BUG();
-	for(;;);
-}
-
 static int pseries_set_dabr(unsigned long dabr)
 {
 	return plpar_hcall_norets(H_SET_DABR, dabr);
@@ -433,19 +422,14 @@ static int __init pSeries_probe_hypertas(unsigned long node,
 	if (of_get_flat_dt_prop(node, "ibm,hypertas-functions", NULL) != NULL)
  		powerpc_firmware_features |= FW_FEATURE_LPAR;
 
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		hpte_init_lpar();
-	else
-		hpte_init_native();
-
  	return 1;
 }
 
 static int __init pSeries_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
- 	char *dtype = of_get_flat_dt_prop(of_get_flat_dt_root(),
- 					  "device_type", NULL);
+ 	char *dtype = of_get_flat_dt_prop(root, "device_type", NULL);
+
  	if (dtype == NULL)
  		return 0;
  	if (strcmp(dtype, "chrp"))
@@ -462,6 +446,11 @@ static int __init pSeries_probe(void)
 
 	/* Now try to figure out if we are running on LPAR */
 	of_scan_flat_dt(pSeries_probe_hypertas, NULL);
+
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		hpte_init_lpar();
+	else
+		hpte_init_native();
 
 	DBG("Machine is%s LPAR !\n",
 	    (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
@@ -553,12 +542,10 @@ define_machine(pseries) {
 	.log_error		= pSeries_log_error,
 	.pcibios_fixup		= pSeries_final_fixup,
 	.pci_probe_mode		= pSeries_pci_probe_mode,
-	.irq_bus_setup		= pSeries_irq_bus_setup,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
 	.panic			= rtas_os_term,
-	.cpu_die		= pSeries_mach_cpu_die,
 	.get_boot_time		= rtas_get_boot_time,
 	.get_rtc_time		= rtas_get_rtc_time,
 	.set_rtc_time		= rtas_set_rtc_time,

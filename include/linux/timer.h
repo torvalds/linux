@@ -98,4 +98,10 @@ extern void run_local_timers(void);
 struct hrtimer;
 extern int it_real_fn(struct hrtimer *);
 
+unsigned long __round_jiffies(unsigned long j, int cpu);
+unsigned long __round_jiffies_relative(unsigned long j, int cpu);
+unsigned long round_jiffies(unsigned long j);
+unsigned long round_jiffies_relative(unsigned long j);
+
+
 #endif

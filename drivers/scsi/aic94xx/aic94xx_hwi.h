@@ -46,6 +46,7 @@
 #define PCI_DEVICE_ID_ADAPTEC2_RAZOR10 0x410
 #define PCI_DEVICE_ID_ADAPTEC2_RAZOR12 0x412
 #define PCI_DEVICE_ID_ADAPTEC2_RAZOR1E 0x41E
+#define PCI_DEVICE_ID_ADAPTEC2_RAZOR1F 0x41F
 #define PCI_DEVICE_ID_ADAPTEC2_RAZOR30 0x430
 #define PCI_DEVICE_ID_ADAPTEC2_RAZOR32 0x432
 #define PCI_DEVICE_ID_ADAPTEC2_RAZOR3E 0x43E
@@ -192,6 +193,16 @@ struct asd_seq_data {
 	struct asd_ascb **escb_arr; /* array of pointers to escbs */
 };
 
+/* This is an internal port structure. These are used to get accurate
+ * phy_mask for updating DDB 0.
+ */
+struct asd_port {
+	u8  sas_addr[SAS_ADDR_SIZE];
+	u8  attached_sas_addr[SAS_ADDR_SIZE];
+	u32 phy_mask;
+	int num_phys;
+};
+
 /* This is the Host Adapter structure.  It describes the hardware
  * SAS adapter.
  */
@@ -210,6 +221,8 @@ struct asd_ha_struct {
 	struct hw_profile hw_prof;
 
 	struct asd_phy    phys[ASD_MAX_PHYS];
+	spinlock_t        asd_ports_lock;
+	struct asd_port   asd_ports[ASD_MAX_PHYS];
 	struct asd_sas_port   ports[ASD_MAX_PHYS];
 
 	struct dma_pool  *scb_pool;

@@ -21,7 +21,7 @@
 #include <asm/system.h>
 #include <asm/pgalloc.h>
 
-unsigned long asid_cache = ASID_FIRST_VERSION;
+unsigned long asid_cache = ASID_USER_FIRST;
 void bad_page_fault(struct pt_regs*, unsigned long, int);
 
 /*
@@ -58,10 +58,10 @@ void do_page_fault(struct pt_regs *regs)
 		return;
 	}
 
-	is_write = (exccause == XCHAL_EXCCAUSE_STORE_CACHE_ATTRIBUTE) ? 1 : 0;
-	is_exec =  (exccause == XCHAL_EXCCAUSE_ITLB_PRIVILEGE ||
-		    exccause == XCHAL_EXCCAUSE_ITLB_MISS ||
-		    exccause == XCHAL_EXCCAUSE_FETCH_CACHE_ATTRIBUTE) ? 1 : 0;
+	is_write = (exccause == EXCCAUSE_STORE_CACHE_ATTRIBUTE) ? 1 : 0;
+	is_exec =  (exccause == EXCCAUSE_ITLB_PRIVILEGE ||
+		    exccause == EXCCAUSE_ITLB_MISS ||
+		    exccause == EXCCAUSE_FETCH_CACHE_ATTRIBUTE) ? 1 : 0;
 
 #if 0
 	printk("[%s:%d:%08x:%d:%08x:%s%s]\n", current->comm, current->pid,

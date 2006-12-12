@@ -42,7 +42,7 @@
 #define DRV_RELDATE	"11/24/03"
 #define DRV_AUTHOR	"David S. Miller (davem@redhat.com)"
 
-static char version[] __initdata =
+static char version[] =
 	DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " " DRV_AUTHOR "\n";
 
 MODULE_VERSION(DRV_VERSION);

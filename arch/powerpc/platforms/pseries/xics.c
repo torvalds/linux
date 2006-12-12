@@ -656,13 +656,38 @@ static void __init xics_setup_8259_cascade(void)
 	set_irq_chained_handler(cascade, pseries_8259_cascade);
 }
 
+static struct device_node *cpuid_to_of_node(int cpu)
+{
+	struct device_node *np;
+	u32 hcpuid = get_hard_smp_processor_id(cpu);
+
+	for_each_node_by_type(np, "cpu") {
+		int i, len;
+		const u32 *intserv;
+
+		intserv = get_property(np, "ibm,ppc-interrupt-server#s", &len);
+
+		if (!intserv)
+			intserv = get_property(np, "reg", &len);
+
+		i = len / sizeof(u32);
+
+		while (i--)
+			if (intserv[i] == hcpuid)
+				return np;
+	}
+
+	return NULL;
+}
+
 void __init xics_init_IRQ(void)
 {
-	int i;
+	int i, j;
 	struct device_node *np;
 	u32 ilen, indx = 0;
-	const u32 *ireg;
+	const u32 *ireg, *isize;
 	int found = 0;
+	u32 hcpuid;
 
 	ppc64_boot_msg(0x20, "XICS Init");
 
@@ -683,26 +708,31 @@ void __init xics_init_IRQ(void)
 	xics_init_host();
 
 	/* Find the server numbers for the boot cpu. */
-	for (np = of_find_node_by_type(NULL, "cpu");
-	     np;
-	     np = of_find_node_by_type(np, "cpu")) {
-		ireg = get_property(np, "reg", &ilen);
-		if (ireg && ireg[0] == get_hard_smp_processor_id(boot_cpuid)) {
-			ireg = get_property(np,
-					"ibm,ppc-interrupt-gserver#s", &ilen);
-			i = ilen / sizeof(int);
-			if (ireg && i > 0) {
-				default_server = ireg[0];
-				/* take last element */
-				default_distrib_server = ireg[i-1];
-			}
-			ireg = get_property(np,
+	np = cpuid_to_of_node(boot_cpuid);
+	BUG_ON(!np);
+	ireg = get_property(np, "ibm,ppc-interrupt-gserver#s", &ilen);
+	if (!ireg)
+		goto skip_gserver_check;
+	i = ilen / sizeof(int);
+	hcpuid = get_hard_smp_processor_id(boot_cpuid);
+
+	/* Global interrupt distribution server is specified in the last
+	 * entry of "ibm,ppc-interrupt-gserver#s" property. Get the last
+	 * entry fom this property for current boot cpu id and use it as
+	 * default distribution server
+	 */
+	for (j = 0; j < i; j += 2) {
+		if (ireg[j] == hcpuid) {
+			default_server = hcpuid;
+			default_distrib_server = ireg[j+1];
+
+			isize = get_property(np,
 					"ibm,interrupt-server#-size", NULL);
-			if (ireg)
-				interrupt_server_size = *ireg;
-			break;
+			if (isize)
+				interrupt_server_size = *isize;
 		}
 	}
+skip_gserver_check:
 	of_node_put(np);
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))

@@ -13,12 +13,21 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
+#include <linux/ctype.h>
 #include <asm/smp.h>
 #include <asm/setup.h>
 #include <asm/cpcmd.h>
 #include <asm/cio.h>
+#include <asm/ebcdic.h>
+#include <asm/reset.h>
 
 #define IPL_PARM_BLOCK_VERSION 0
+#define LOADPARM_LEN 8
+
+extern char s390_readinfo_sccb[];
+#define SCCB_VALID (*((__u16*)&s390_readinfo_sccb[6]) == 0x0010)
+#define SCCB_LOADPARM (&s390_readinfo_sccb[24])
+#define SCCB_FLAG (s390_readinfo_sccb[91])
 
 enum ipl_type {
 	IPL_TYPE_NONE	 = 1,
@@ -289,9 +298,25 @@ static struct attribute_group ipl_fcp_attr_group = {
 
 /* CCW ipl device attributes */
 
+static ssize_t ipl_ccw_loadparm_show(struct subsystem *subsys, char *page)
+{
+	char loadparm[LOADPARM_LEN + 1] = {};
+
+	if (!SCCB_VALID)
+		return sprintf(page, "#unknown#\n");
+	memcpy(loadparm, SCCB_LOADPARM, LOADPARM_LEN);
+	EBCASC(loadparm, LOADPARM_LEN);
+	strstrip(loadparm);
+	return sprintf(page, "%s\n", loadparm);
+}
+
+static struct subsys_attribute sys_ipl_ccw_loadparm_attr =
+	__ATTR(loadparm, 0444, ipl_ccw_loadparm_show, NULL);
+
 static struct attribute *ipl_ccw_attrs[] = {
 	&sys_ipl_type_attr.attr,
 	&sys_ipl_device_attr.attr,
+	&sys_ipl_ccw_loadparm_attr.attr,
 	NULL,
 };
 
@@ -348,8 +373,57 @@ static struct attribute_group reipl_fcp_attr_group = {
 DEFINE_IPL_ATTR_RW(reipl_ccw, device, "0.0.%04llx\n", "0.0.%llx\n",
 	reipl_block_ccw->ipl_info.ccw.devno);
 
+static void reipl_get_ascii_loadparm(char *loadparm)
+{
+	memcpy(loadparm, &reipl_block_ccw->ipl_info.ccw.load_param,
+	       LOADPARM_LEN);
+	EBCASC(loadparm, LOADPARM_LEN);
+	loadparm[LOADPARM_LEN] = 0;
+	strstrip(loadparm);
+}
+
+static ssize_t reipl_ccw_loadparm_show(struct subsystem *subsys, char *page)
+{
+	char buf[LOADPARM_LEN + 1];
+
+	reipl_get_ascii_loadparm(buf);
+	return sprintf(page, "%s\n", buf);
+}
+
+static ssize_t reipl_ccw_loadparm_store(struct subsystem *subsys,
+					const char *buf, size_t len)
+{
+	int i, lp_len;
+
+	/* ignore trailing newline */
+	lp_len = len;
+	if ((len > 0) && (buf[len - 1] == '\n'))
+		lp_len--;
+	/* loadparm can have max 8 characters and must not start with a blank */
+	if ((lp_len > LOADPARM_LEN) || ((lp_len > 0) && (buf[0] == ' ')))
+		return -EINVAL;
+	/* loadparm can only contain "a-z,A-Z,0-9,SP,." */
+	for (i = 0; i < lp_len; i++) {
+		if (isalpha(buf[i]) || isdigit(buf[i]) || (buf[i] == ' ') ||
+		    (buf[i] == '.'))
+			continue;
+		return -EINVAL;
+	}
+	/* initialize loadparm with blanks */
+	memset(&reipl_block_ccw->ipl_info.ccw.load_param, ' ', LOADPARM_LEN);
+	/* copy and convert to ebcdic */
+	memcpy(&reipl_block_ccw->ipl_info.ccw.load_param, buf, lp_len);
+	ASCEBC(reipl_block_ccw->ipl_info.ccw.load_param, LOADPARM_LEN);
+	return len;
+}
+
+static struct subsys_attribute sys_reipl_ccw_loadparm_attr =
+	__ATTR(loadparm, 0644, reipl_ccw_loadparm_show,
+	       reipl_ccw_loadparm_store);
+
 static struct attribute *reipl_ccw_attrs[] = {
 	&sys_reipl_ccw_device_attr.attr,
+	&sys_reipl_ccw_loadparm_attr.attr,
 	NULL,
 };
 
@@ -502,23 +576,6 @@ static struct subsys_attribute dump_type_attr =
 
 static decl_subsys(dump, NULL, NULL);
 
-#ifdef CONFIG_SMP
-static void dump_smp_stop_all(void)
-{
-	int cpu;
-	preempt_disable();
-	for_each_online_cpu(cpu) {
-		if (cpu == smp_processor_id())
-			continue;
-		while (signal_processor(cpu, sigp_stop) == sigp_busy)
-			udelay(10);
-	}
-	preempt_enable();
-}
-#else
-#define dump_smp_stop_all() do { } while (0)
-#endif
-
 /*
  * Shutdown actions section
  */
@@ -571,11 +628,14 @@ void do_reipl(void)
 {
 	struct ccw_dev_id devid;
 	static char buf[100];
+	char loadparm[LOADPARM_LEN + 1];
 
 	switch (reipl_type) {
 	case IPL_TYPE_CCW:
+		reipl_get_ascii_loadparm(loadparm);
 		printk(KERN_EMERG "reboot on ccw device: 0.0.%04x\n",
 			reipl_block_ccw->ipl_info.ccw.devno);
+		printk(KERN_EMERG "loadparm = '%s'\n", loadparm);
 		break;
 	case IPL_TYPE_FCP:
 		printk(KERN_EMERG "reboot on fcp device:\n");
@@ -588,12 +648,19 @@ void do_reipl(void)
 	switch (reipl_method) {
 	case IPL_METHOD_CCW_CIO:
 		devid.devno = reipl_block_ccw->ipl_info.ccw.devno;
+		if (ipl_get_type() == IPL_TYPE_CCW && devid.devno == ipl_devno)
+			diag308(DIAG308_IPL, NULL);
 		devid.ssid  = 0;
 		reipl_ccw_dev(&devid);
 		break;
 	case IPL_METHOD_CCW_VM:
-		sprintf(buf, "IPL %X", reipl_block_ccw->ipl_info.ccw.devno);
-		cpcmd(buf, NULL, 0, NULL);
+		if (strlen(loadparm) == 0)
+			sprintf(buf, "IPL %X",
+				reipl_block_ccw->ipl_info.ccw.devno);
+		else
+			sprintf(buf, "IPL %X LOADPARM '%s'",
+				reipl_block_ccw->ipl_info.ccw.devno, loadparm);
+		__cpcmd(buf, NULL, 0, NULL);
 		break;
 	case IPL_METHOD_CCW_DIAG:
 		diag308(DIAG308_SET, reipl_block_ccw);
@@ -607,16 +674,17 @@ void do_reipl(void)
 		diag308(DIAG308_IPL, NULL);
 		break;
 	case IPL_METHOD_FCP_RO_VM:
-		cpcmd("IPL", NULL, 0, NULL);
+		__cpcmd("IPL", NULL, 0, NULL);
 		break;
 	case IPL_METHOD_NONE:
 	default:
 		if (MACHINE_IS_VM)
-			cpcmd("IPL", NULL, 0, NULL);
+			__cpcmd("IPL", NULL, 0, NULL);
 		diag308(DIAG308_IPL, NULL);
 		break;
 	}
-	panic("reipl failed!\n");
+	printk(KERN_EMERG "reboot failed!\n");
+	signal_processor(smp_processor_id(), sigp_stop_and_store_status);
 }
 
 static void do_dump(void)
@@ -639,17 +707,17 @@ static void do_dump(void)
 
 	switch (dump_method) {
 	case IPL_METHOD_CCW_CIO:
-		dump_smp_stop_all();
+		smp_send_stop();
 		devid.devno = dump_block_ccw->ipl_info.ccw.devno;
 		devid.ssid  = 0;
 		reipl_ccw_dev(&devid);
 		break;
 	case IPL_METHOD_CCW_VM:
-		dump_smp_stop_all();
+		smp_send_stop();
 		sprintf(buf, "STORE STATUS");
-		cpcmd(buf, NULL, 0, NULL);
+		__cpcmd(buf, NULL, 0, NULL);
 		sprintf(buf, "IPL %X", dump_block_ccw->ipl_info.ccw.devno);
-		cpcmd(buf, NULL, 0, NULL);
+		__cpcmd(buf, NULL, 0, NULL);
 		break;
 	case IPL_METHOD_CCW_DIAG:
 		diag308(DIAG308_SET, dump_block_ccw);
@@ -746,6 +814,17 @@ static int __init reipl_ccw_init(void)
 	reipl_block_ccw->hdr.version = IPL_PARM_BLOCK_VERSION;
 	reipl_block_ccw->hdr.blk0_len = sizeof(reipl_block_ccw->ipl_info.ccw);
 	reipl_block_ccw->hdr.pbt = DIAG308_IPL_TYPE_CCW;
+	/* check if read scp info worked and set loadparm */
+	if (SCCB_VALID)
+		memcpy(reipl_block_ccw->ipl_info.ccw.load_param,
+		       SCCB_LOADPARM, LOADPARM_LEN);
+	else
+		/* read scp info failed: set empty loadparm (EBCDIC blanks) */
+		memset(reipl_block_ccw->ipl_info.ccw.load_param, 0x40,
+		       LOADPARM_LEN);
+	/* FIXME: check for diag308_set_works when enabling diag ccw reipl */
+	if (!MACHINE_IS_VM)
+		sys_reipl_ccw_loadparm_attr.attr.mode = S_IRUGO;
 	if (ipl_get_type() == IPL_TYPE_CCW)
 		reipl_block_ccw->ipl_info.ccw.devno = ipl_devno;
 	reipl_capabilities |= IPL_TYPE_CCW;
@@ -827,13 +906,11 @@ static int __init dump_ccw_init(void)
 	return 0;
 }
 
-extern char s390_readinfo_sccb[];
-
 static int __init dump_fcp_init(void)
 {
 	int rc;
 
-	if(!(s390_readinfo_sccb[91] & 0x2))
+	if(!(SCCB_FLAG & 0x2) || !SCCB_VALID)
 		return 0; /* LDIPL DUMP is not installed */
 	if (!diag308_set_works)
 		return 0;
@@ -931,3 +1008,53 @@ static int __init s390_ipl_init(void)
 }
 
 __initcall(s390_ipl_init);
+
+static LIST_HEAD(rcall);
+static DEFINE_MUTEX(rcall_mutex);
+
+void register_reset_call(struct reset_call *reset)
+{
+	mutex_lock(&rcall_mutex);
+	list_add(&reset->list, &rcall);
+	mutex_unlock(&rcall_mutex);
+}
+EXPORT_SYMBOL_GPL(register_reset_call);
+
+void unregister_reset_call(struct reset_call *reset)
+{
+	mutex_lock(&rcall_mutex);
+	list_del(&reset->list);
+	mutex_unlock(&rcall_mutex);
+}
+EXPORT_SYMBOL_GPL(unregister_reset_call);
+
+static void do_reset_calls(void)
+{
+	struct reset_call *reset;
+
+	list_for_each_entry(reset, &rcall, list)
+		reset->fn();
+}
+
+extern void reset_mcck_handler(void);
+
+void s390_reset_system(void)
+{
+	struct _lowcore *lc;
+
+	/* Stack for interrupt/machine check handler */
+	lc = (struct _lowcore *)(unsigned long) store_prefix();
+	lc->panic_stack = S390_lowcore.panic_stack;
+
+	/* Disable prefixing */
+	set_prefix(0);
+
+	/* Disable lowcore protection */
+	__ctl_clear_bit(0,28);
+
+	/* Set new machine check handler */
+	S390_lowcore.mcck_new_psw.mask = PSW_KERNEL_BITS & ~PSW_MASK_MCHECK;
+	S390_lowcore.mcck_new_psw.addr =
+		PSW_ADDR_AMODE | (unsigned long) &reset_mcck_handler;
+	do_reset_calls();
+}

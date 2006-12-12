@@ -241,12 +241,8 @@ int crypto_unregister_alg(struct crypto_alg *alg);
  * Algorithm query interface.
  */
 #ifdef CONFIG_CRYPTO
-int crypto_alg_available(const char *name, u32 flags)
-	__deprecated_for_modules;
 int crypto_has_alg(const char *name, u32 type, u32 mask);
 #else
-static int crypto_alg_available(const char *name, u32 flags);
-	__deprecated_for_modules;
 static inline int crypto_alg_available(const char *name, u32 flags)
 {
 	return 0;
@@ -707,16 +703,6 @@ static inline void crypto_cipher_decrypt_one(struct crypto_cipher *tfm,
 						dst, src);
 }
 
-void crypto_digest_init(struct crypto_tfm *tfm) __deprecated_for_modules;
-void crypto_digest_update(struct crypto_tfm *tfm,
-			  struct scatterlist *sg, unsigned int nsg)
-	__deprecated_for_modules;
-void crypto_digest_final(struct crypto_tfm *tfm, u8 *out)
-	__deprecated_for_modules;
-void crypto_digest_digest(struct crypto_tfm *tfm,
-			  struct scatterlist *sg, unsigned int nsg, u8 *out)
-	__deprecated_for_modules;
-
 static inline struct crypto_hash *__crypto_hash_cast(struct crypto_tfm *tfm)
 {
 	return (struct crypto_hash *)tfm;
@@ -727,14 +713,6 @@ static inline struct crypto_hash *crypto_hash_cast(struct crypto_tfm *tfm)
 	BUG_ON((crypto_tfm_alg_type(tfm) ^ CRYPTO_ALG_TYPE_HASH) &
 	       CRYPTO_ALG_TYPE_HASH_MASK);
 	return __crypto_hash_cast(tfm);
-}
-
-static int crypto_digest_setkey(struct crypto_tfm *tfm, const u8 *key,
-				unsigned int keylen) __deprecated;
-static inline int crypto_digest_setkey(struct crypto_tfm *tfm,
-                                       const u8 *key, unsigned int keylen)
-{
-	return tfm->crt_hash.setkey(crypto_hash_cast(tfm), key, keylen);
 }
 
 static inline struct crypto_hash *crypto_alloc_hash(const char *alg_name,

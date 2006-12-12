@@ -3,16 +3,13 @@
 #
 
 # Multipart objects.
-wacom-objs	:= wacom_sys.o wacom_wac.o
+wacom-objs	:= wacom_wac.o wacom_sys.o
 usbhid-objs	:= hid-core.o
 
 # Optional parts of multipart objects.
 
 ifeq ($(CONFIG_USB_HIDDEV),y)
 	usbhid-objs	+= hiddev.o
-endif
-ifeq ($(CONFIG_USB_HIDINPUT),y)
-	usbhid-objs	+= hid-input.o
 endif
 ifeq ($(CONFIG_HID_PID),y)
 	usbhid-objs	+= hid-pidff.o
@@ -48,7 +45,6 @@ obj-$(CONFIG_USB_ACECAD)	+= acecad.o
 obj-$(CONFIG_USB_YEALINK)	+= yealink.o
 obj-$(CONFIG_USB_XPAD)		+= xpad.o
 obj-$(CONFIG_USB_APPLETOUCH)	+= appletouch.o
-obj-$(CONFIG_USB_TRANCEVIBRATOR)	+= trancevibrator.o
 
 ifeq ($(CONFIG_USB_DEBUG),y)
 EXTRA_CFLAGS += -DDEBUG

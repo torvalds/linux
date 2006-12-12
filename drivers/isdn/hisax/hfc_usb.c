@@ -1481,9 +1481,8 @@ hfc_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			iface = iface_used;
 			if (!
 			    (context =
-			     kmalloc(sizeof(hfcusb_data), GFP_KERNEL)))
+			     kzalloc(sizeof(hfcusb_data), GFP_KERNEL)))
 				return (-ENOMEM);	/* got no mem */
-			memset(context, 0, sizeof(hfcusb_data));
 
 			ep = iface->endpoint;
 			vcf = validconf[small_match];

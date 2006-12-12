@@ -281,18 +281,22 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x0000bde2,
+			.extadc = 1,
 		},{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x0000bde6,
+			.extadc = 1,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x0000bde6,
+			.extadc = 1,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x0000bd62,
+			.extadc = 1,
 		},
 		.mpeg           = CX88_MPEG_BLACKBIRD,
 	},
@@ -353,6 +357,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x0000fde6, // 0x0000fda6 L,R RCA audio in?
+			.extadc = 1,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
@@ -523,6 +528,7 @@ struct cx88_board cx88_boards[] = {
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
+			.extadc = 1,
 		}},
 		.mpeg           = CX88_MPEG_BLACKBIRD,
 	},
@@ -646,18 +652,22 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x00009d80,
+			.extadc = 1,
 		},{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x00009d76,
+			.extadc = 1,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x00009d76,
+			.extadc = 1,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x00009d00,
+			.extadc = 1,
 		},
 		.mpeg           = CX88_MPEG_BLACKBIRD,
 	},
@@ -786,25 +796,29 @@ struct cx88_board cx88_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.mpeg           = CX88_MPEG_BLACKBIRD,
 		.input          = {{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 0,
 			.gpio0  = 0x0000cd73,
+			.extadc = 1,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 1,
 			.gpio0  = 0x0000cd73,
+			.extadc = 1,
 		},{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 3,
 			.gpio0  = 0x0000cdb3,
+			.extadc = 1,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
 			.vmux   = 2,
 			.gpio0  = 0x0000cdf3,
+			.extadc = 1,
 		},
+		.mpeg           = CX88_MPEG_BLACKBIRD,
 	},
 	[CX88_BOARD_KWORLD_VSTREAM_EXPERT_DVD] = {
 		 /* Alexander Wold <awold@bigfoot.com> */
@@ -1050,7 +1064,6 @@ struct cx88_board cx88_boards[] = {
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT] = {
-		/* FIXME: Audio not working for s-video / composite inputs. */
 		.name           = "KWorld HardwareMpegTV XPert",
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
@@ -1065,10 +1078,12 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x3de6,
+			.extadc = 1,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x3de6,
+			.extadc = 1,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
@@ -1252,35 +1267,35 @@ struct cx88_board cx88_boards[] = {
 			.gpio0  = 0x070b,
 		}},
 	},
-       [CX88_BOARD_TE_DTV_250_OEM_SWANN] = {
-	       .name           = "Shenzhen Tungsten Ages Tech TE-DTV-250 / Swann OEM",
-	       .tuner_type     = TUNER_LG_PAL_NEW_TAPC,
-	       .radio_type     = UNSET,
-	       .tuner_addr     = ADDR_UNSET,
-	       .radio_addr     = ADDR_UNSET,
-	       .input          = {{
-		       .type   = CX88_VMUX_TELEVISION,
-		       .vmux   = 0,
-		       .gpio0  = 0x003fffff,
-		       .gpio1  = 0x00e00000,
-		       .gpio2  = 0x003fffff,
-		       .gpio3  = 0x02000000,
-	       },{
-		       .type   = CX88_VMUX_COMPOSITE1,
-		       .vmux   = 1,
-		       .gpio0  = 0x003fffff,
-		       .gpio1  = 0x00e00000,
-		       .gpio2  = 0x003fffff,
-		       .gpio3  = 0x02000000,
+	[CX88_BOARD_TE_DTV_250_OEM_SWANN] = {
+		.name           = "Shenzhen Tungsten Ages Tech TE-DTV-250 / Swann OEM",
+		.tuner_type     = TUNER_LG_PAL_NEW_TAPC,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x003fffff,
+			.gpio1  = 0x00e00000,
+			.gpio2  = 0x003fffff,
+			.gpio3  = 0x02000000,
 		},{
-		       .type   = CX88_VMUX_SVIDEO,
-		       .vmux   = 2,
-		       .gpio0  = 0x003fffff,
-		       .gpio1  = 0x00e00000,
-		       .gpio2  = 0x003fffff,
-		       .gpio3  = 0x02000000,
-	       }},
-       },
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x003fffff,
+			.gpio1  = 0x00e00000,
+			.gpio2  = 0x003fffff,
+			.gpio3  = 0x02000000,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x003fffff,
+			.gpio1  = 0x00e00000,
+			.gpio2  = 0x003fffff,
+			.gpio3  = 0x02000000,
+		}},
+	},
 	[CX88_BOARD_HAUPPAUGE_HVR1300] = {
 		.name		= "Hauppauge WinTV-HVR1300 DVB-T/Hybrid MPEG Encoder",
 		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
@@ -1293,17 +1308,20 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0	= 0xe780,
+			.extadc = 1,
 		},{
 			.type	= CX88_VMUX_COMPOSITE1,
 			.vmux	= 1,
 			.gpio0	= 0xe780,
+			.extadc = 1,
 		},{
 			.type	= CX88_VMUX_SVIDEO,
 			.vmux	= 2,
 			.gpio0	= 0xe780,
+			.extadc = 1,
 		}},
 		/* fixme: Add radio support */
-		.mpeg           = CX88_MPEG_DVB,
+		.mpeg           = CX88_MPEG_DVB | CX88_MPEG_BLACKBIRD,
 	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
@@ -1513,6 +1531,10 @@ struct cx88_subid cx88_subids[] = {
 	},{
 		.subvendor = 0x17de,
 		.subdevice = 0x0840,
+	       .card      = CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT,
+       },{
+	       .subvendor = 0x1421,
+	       .subdevice = 0x0305,
 		.card      = CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT,
 	},{
 		.subvendor = 0x18ac,

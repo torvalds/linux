@@ -15,6 +15,8 @@ CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
 OBJCOPYFLAGS	:=-O binary -R .note -R .comment -S
 GZFLAGS		:=-9
 #CFLAGS		+=-pipe
+# Explicitly specifiy 32-bit ARM ISA since toolchain default can be -mthumb:
+CFLAGS		+=$(call cc-option,-marm,)
 
 # Do not use arch/arm/defconfig - it's always outdated.
 # Select a platform tht is kept up-to-date
@@ -108,6 +110,7 @@ endif
  machine-$(CONFIG_ARCH_CLPS711X)   := clps711x
  machine-$(CONFIG_ARCH_IOP32X)	   := iop32x
  machine-$(CONFIG_ARCH_IOP33X)	   := iop33x
+ machine-$(CONFIG_ARCH_IOP13XX)	   := iop13xx
  machine-$(CONFIG_ARCH_IXP4XX)	   := ixp4xx
  machine-$(CONFIG_ARCH_IXP2000)    := ixp2000
  machine-$(CONFIG_ARCH_IXP23XX)    := ixp23xx
@@ -174,10 +177,12 @@ libs-y				:= arch/arm/lib/ $(libs-y)
 
 # Default target when executing plain make
 ifeq ($(CONFIG_XIP_KERNEL),y)
-all: xipImage
+KBUILD_IMAGE := xipImage
 else
-all: zImage
+KBUILD_IMAGE := zImage
 endif
+
+all:	$(KBUILD_IMAGE)
 
 boot := arch/arm/boot
 

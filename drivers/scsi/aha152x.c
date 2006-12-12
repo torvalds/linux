@@ -1443,7 +1443,7 @@ static struct work_struct aha152x_tq;
  * Run service completions on the card with interrupts enabled.
  *
  */
-static void run(void)
+static void run(struct work_struct *work)
 {
 	struct aha152x_hostdata *hd;
 
@@ -1499,7 +1499,7 @@ static irqreturn_t intr(int irqno, void *dev_id)
 		HOSTDATA(shpnt)->service=1;
 
 		/* Poke the BH handler */
-		INIT_WORK(&aha152x_tq, (void *) run, NULL);
+		INIT_WORK(&aha152x_tq, run);
 		schedule_work(&aha152x_tq);
 	}
 	DO_UNLOCK(flags);

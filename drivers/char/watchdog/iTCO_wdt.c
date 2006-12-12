@@ -35,6 +35,10 @@
  *	82801GDH (ICH7DH)    : document number 307013-002, 307014-009,
  *	82801GBM (ICH7-M)    : document number 307013-002, 307014-009,
  *	82801GHM (ICH7-M DH) : document number 307013-002, 307014-009,
+ *	82801HB  (ICH8)      : document number 313056-002, 313057-004,
+ *	82801HR  (ICH8R)     : document number 313056-002, 313057-004,
+ *	82801HH  (ICH8DH)    : document number 313056-002, 313057-004,
+ *	82801HO  (ICH8DO)    : document number 313056-002, 313057-004,
  *	6300ESB  (6300ESB)   : document number 300641-003
  */
 
@@ -44,8 +48,8 @@
 
 /* Module and version information */
 #define DRV_NAME        "iTCO_wdt"
-#define DRV_VERSION     "1.00"
-#define DRV_RELDATE     "30-Jul-2006"
+#define DRV_VERSION     "1.01"
+#define DRV_RELDATE     "11-Nov-2006"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
@@ -85,6 +89,9 @@ enum iTCO_chipsets {
 	TCO_ICH7,	/* ICH7 & ICH7R */
 	TCO_ICH7M,	/* ICH7-M */
 	TCO_ICH7MDH,	/* ICH7-M DH */
+	TCO_ICH8,	/* ICH8 & ICH8R */
+	TCO_ICH8DH,	/* ICH8DH */
+	TCO_ICH8DO,	/* ICH8DO */
 };
 
 static struct {
@@ -108,6 +115,9 @@ static struct {
 	{"ICH7 or ICH7R", 2},
 	{"ICH7-M", 2},
 	{"ICH7-M DH", 2},
+	{"ICH8 or ICH8R", 2},
+	{"ICH8DH", 2},
+	{"ICH8DO", 2},
 	{NULL,0}
 };
 
@@ -135,6 +145,9 @@ static struct pci_device_id iTCO_wdt_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH7    },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_1,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH7M   },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_31,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH7MDH },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8    },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_2,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8DH  },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_3,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8DO  },
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE (pci, iTCO_wdt_pci_tbl);
@@ -175,6 +188,21 @@ MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (2<heartbeat<39 (TCO
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+
+/* iTCO Vendor Specific Support hooks */
+#ifdef CONFIG_ITCO_VENDOR_SUPPORT
+extern void iTCO_vendor_pre_start(unsigned long, unsigned int);
+extern void iTCO_vendor_pre_stop(unsigned long);
+extern void iTCO_vendor_pre_keepalive(unsigned long, unsigned int);
+extern void iTCO_vendor_pre_set_heartbeat(unsigned int);
+extern int iTCO_vendor_check_noreboot_on(void);
+#else
+#define iTCO_vendor_pre_start(acpibase, heartbeat)	{}
+#define iTCO_vendor_pre_stop(acpibase)			{}
+#define iTCO_vendor_pre_keepalive(acpibase,heartbeat)	{}
+#define iTCO_vendor_pre_set_heartbeat(heartbeat)	{}
+#define iTCO_vendor_check_noreboot_on()			1	/* 1=check noreboot; 0=don't check */
+#endif
 
 /*
  * Some TCO specific functions
@@ -236,6 +264,8 @@ static int iTCO_wdt_start(void)
 
 	spin_lock(&iTCO_wdt_private.io_lock);
 
+	iTCO_vendor_pre_start(iTCO_wdt_private.ACPIBASE, heartbeat);
+
 	/* disable chipset's NO_REBOOT bit */
 	if (iTCO_wdt_unset_NO_REBOOT_bit()) {
 		printk(KERN_ERR PFX "failed to reset NO_REBOOT flag, reboot disabled by hardware\n");
@@ -260,6 +290,8 @@ static int iTCO_wdt_stop(void)
 
 	spin_lock(&iTCO_wdt_private.io_lock);
 
+	iTCO_vendor_pre_stop(iTCO_wdt_private.ACPIBASE);
+
 	/* Bit 11: TCO Timer Halt -> 1 = The TCO timer is disabled */
 	val = inw(TCO1_CNT);
 	val |= 0x0800;
@@ -279,6 +311,8 @@ static int iTCO_wdt_stop(void)
 static int iTCO_wdt_keepalive(void)
 {
 	spin_lock(&iTCO_wdt_private.io_lock);
+
+	iTCO_vendor_pre_keepalive(iTCO_wdt_private.ACPIBASE, heartbeat);
 
 	/* Reload the timer by writing to the TCO Timer Counter register */
 	if (iTCO_wdt_private.iTCO_version == 2) {
@@ -305,6 +339,8 @@ static int iTCO_wdt_set_heartbeat(int t)
 	if (((iTCO_wdt_private.iTCO_version == 2) && (tmrval > 0x3ff)) ||
 	    ((iTCO_wdt_private.iTCO_version == 1) && (tmrval > 0x03f)))
 		return -EINVAL;
+
+	iTCO_vendor_pre_set_heartbeat(tmrval);
 
 	/* Write new heartbeat to watchdog */
 	if (iTCO_wdt_private.iTCO_version == 2) {
@@ -355,7 +391,8 @@ static int iTCO_wdt_get_timeleft (int *time_left)
 		spin_unlock(&iTCO_wdt_private.io_lock);
 
 		*time_left = (val8 * 6) / 10;
-	}
+	} else
+		return -EINVAL;
 	return 0;
 }
 
@@ -426,7 +463,6 @@ static int iTCO_wdt_ioctl (struct inode *inode, struct file *file,
 {
 	int new_options, retval = -EINVAL;
 	int new_heartbeat;
-	int time_left;
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
 	static struct watchdog_info ident = {
@@ -486,6 +522,8 @@ static int iTCO_wdt_ioctl (struct inode *inode, struct file *file,
 
 		case WDIOC_GETTIMELEFT:
 		{
+			int time_left;
+
 			if (iTCO_wdt_get_timeleft(&time_left))
 				return -EINVAL;
 
@@ -554,7 +592,7 @@ static int iTCO_wdt_init(struct pci_dev *pdev, const struct pci_device_id *ent, 
 	}
 
 	/* Check chipset's NO_REBOOT bit */
-	if (iTCO_wdt_unset_NO_REBOOT_bit()) {
+	if (iTCO_wdt_unset_NO_REBOOT_bit() && iTCO_vendor_check_noreboot_on()) {
 		printk(KERN_ERR PFX "failed to reset NO_REBOOT flag, reboot disabled by hardware\n");
 		ret = -ENODEV;	/* Cannot reset NO_REBOOT bit */
 		goto out;

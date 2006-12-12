@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-xtensa/io.h
+ * include/asm-xtensa/io.h
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -15,10 +15,11 @@
 #include <asm/byteorder.h>
 
 #include <linux/types.h>
-#include <asm/fixmap.h>
 
-#define _IO_BASE 0
-
+#define XCHAL_KIO_CACHED_VADDR	0xf0000000
+#define XCHAL_KIO_BYPASS_VADDR	0xf8000000
+#define XCHAL_KIO_PADDR		0xf0000000
+#define XCHAL_KIO_SIZE		0x08000000
 
 /*
  * swap functions to change byte order from little-endian to big-endian and
@@ -42,40 +43,43 @@ static inline unsigned int _swapl (unsigned int v)
 
 static inline unsigned long virt_to_phys(volatile void * address)
 {
-	return PHYSADDR((unsigned long)address);
+	return __pa(address);
 }
 
 static inline void * phys_to_virt(unsigned long address)
 {
-	return (void*) CACHED_ADDR(address);
+	return __va(address);
 }
 
 /*
- * IO bus memory addresses are also 1:1 with the physical address
+ * virt_to_bus and bus_to_virt are deprecated.
  */
 
-static inline unsigned long virt_to_bus(volatile void * address)
-{
-	return PHYSADDR((unsigned long)address);
-}
-
-static inline void * bus_to_virt (unsigned long address)
-{
-	return (void *) CACHED_ADDR(address);
-}
+#define virt_to_bus(x)	virt_to_phys(x)
+#define bus_to_virt(x)	phys_to_virt(x)
 
 /*
- * Change "struct page" to physical address.
+ * Return the virtual (cached) address for the specified bus memory.
+ * Note that we currently don't support any address outside the KIO segment.
  */
 
 static inline void *ioremap(unsigned long offset, unsigned long size)
 {
-        return (void *) CACHED_ADDR_IO(offset);
+	if (offset >= XCHAL_KIO_PADDR
+	    && offset < XCHAL_KIO_PADDR + XCHAL_KIO_SIZE)
+		return (void*)(offset-XCHAL_KIO_PADDR+XCHAL_KIO_BYPASS_VADDR);
+
+	else
+		BUG();
 }
 
 static inline void *ioremap_nocache(unsigned long offset, unsigned long size)
 {
-        return (void *) BYPASS_ADDR_IO(offset);
+	if (offset >= XCHAL_KIO_PADDR
+	    && offset < XCHAL_KIO_PADDR + XCHAL_KIO_SIZE)
+		return (void*)(offset-XCHAL_KIO_PADDR+XCHAL_KIO_CACHED_VADDR);
+	else
+		BUG();
 }
 
 static inline void iounmap(void *addr)
@@ -121,9 +125,6 @@ static inline void __raw_writel(__u32 b, volatile void __iomem *addr)
           *(__force volatile __u32 *)(addr) = b;
 }
 
-
-
-
 /* These are the definitions for the x86 IO instructions
  * inb/inw/inl/outb/outw/outl, the "string" versions
  * insb/insw/insl/outsb/outsw/outsl, and the "pausing" versions
@@ -131,11 +132,11 @@ static inline void __raw_writel(__u32 b, volatile void __iomem *addr)
  * The macros don't do byte-swapping.
  */
 
-#define inb(port)		readb((u8 *)((port)+_IO_BASE))
-#define outb(val, port)		writeb((val),(u8 *)((unsigned long)(port)+_IO_BASE))
-#define inw(port)		readw((u16 *)((port)+_IO_BASE))
-#define outw(val, port)		writew((val),(u16 *)((unsigned long)(port)+_IO_BASE))
-#define inl(port)		readl((u32 *)((port)+_IO_BASE))
+#define inb(port)		readb((u8 *)((port)))
+#define outb(val, port)		writeb((val),(u8 *)((unsigned long)(port)))
+#define inw(port)		readw((u16 *)((port)))
+#define outw(val, port)		writew((val),(u16 *)((unsigned long)(port)))
+#define inl(port)		readl((u32 *)((port)))
 #define outl(val, port)		writel((val),(u32 *)((unsigned long)(port)))
 
 #define inb_p(port)		inb((port))
@@ -180,14 +181,13 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
 
 
 /*
- *  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
- *   * access
- *    */
+ * Convert a physical pointer to a virtual kernel pointer for /dev/mem access
+ */
 #define xlate_dev_mem_ptr(p)    __va(p)
 
 /*
- *  * Convert a virtual cached pointer to an uncached pointer
- *   */
+ * Convert a virtual cached pointer to an uncached pointer
+ */
 #define xlate_dev_kmem_ptr(p)   p
 
 

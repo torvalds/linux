@@ -21,10 +21,7 @@ void at32_map_usart(unsigned int hw_id, unsigned int line);
 struct platform_device *at32_add_device_usart(unsigned int id);
 
 struct eth_platform_data {
-	u8	valid;
-	u8	mii_phy_addr;
 	u8	is_rmii;
-	u8	hw_addr[6];
 };
 struct platform_device *
 at32_add_device_eth(unsigned int id, struct eth_platform_data *data);

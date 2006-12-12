@@ -175,9 +175,16 @@ config IPV6_TUNNEL
 
 	  If unsure, say N.
 
+config IPV6_MULTIPLE_TABLES
+	bool "IPv6: Multiple Routing Tables"
+	depends on IPV6 && EXPERIMENTAL
+	select FIB_RULES
+	---help---
+	  Support multiple routing tables.
+
 config IPV6_SUBTREES
 	bool "IPv6: source address based routing"
-	depends on IPV6 && EXPERIMENTAL
+	depends on IPV6_MULTIPLE_TABLES
 	---help---
 	  Enable routing by source address or prefix.
 
@@ -188,18 +195,4 @@ config IPV6_SUBTREES
 	  source prefix specific routes.
 
 	  If unsure, say N.
-
-config IPV6_MULTIPLE_TABLES
-	bool "IPv6: Multiple Routing Tables"
-	depends on IPV6 && EXPERIMENTAL
-	select FIB_RULES
-	---help---
-	  Support multiple routing tables.
-
-config IPV6_ROUTE_FWMARK
-	bool "IPv6: use netfilter MARK value as routing key"
-	depends on IPV6_MULTIPLE_TABLES && NETFILTER
-	---help---
-	  If you say Y here, you will be able to specify different routes for
-	  packets with different mark values (see iptables(8), MARK target).
 

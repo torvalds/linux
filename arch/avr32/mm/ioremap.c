@@ -77,6 +77,8 @@ void __iounmap(void __iomem *addr)
 
 	if ((unsigned long)addr >= P4SEG)
 		return;
+	if (PXSEG(addr) == P2SEG)
+		return;
 
 	p = remove_vm_area((void *)(PAGE_MASK & (unsigned long __force)addr));
 	if (unlikely(!p)) {

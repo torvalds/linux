@@ -538,6 +538,36 @@ static __inline__ int r300_emit_bitblt_multi(drm_radeon_private_t *dev_priv,
 	return 0;
 }
 
+static __inline__ int r300_emit_indx_buffer(drm_radeon_private_t *dev_priv,
+					     drm_radeon_kcmd_buffer_t *cmdbuf)
+{
+	u32 *cmd = (u32 *) cmdbuf->buf;
+	int count, ret;
+	RING_LOCALS;
+
+	count=(cmd[0]>>16) & 0x3fff;
+
+	if ((cmd[1] & 0x8000ffff) != 0x80000810) {
+		DRM_ERROR("Invalid indx_buffer reg address %08X\n", cmd[1]);
+		return DRM_ERR(EINVAL);
+	}
+	ret = r300_check_offset(dev_priv, cmd[2]);
+	if (ret) {
+		DRM_ERROR("Invalid indx_buffer offset is %08X\n", cmd[2]);
+		return DRM_ERR(EINVAL);
+	}
+
+	BEGIN_RING(count+2);
+	OUT_RING(cmd[0]);
+	OUT_RING_TABLE((int *)(cmdbuf->buf + 4), count + 1);
+	ADVANCE_RING();
+
+	cmdbuf->buf += (count+2)*4;
+	cmdbuf->bufsz -= (count+2)*4;
+
+	return 0;
+}
+
 static __inline__ int r300_emit_raw_packet3(drm_radeon_private_t *dev_priv,
 					    drm_radeon_kcmd_buffer_t *cmdbuf)
 {
@@ -578,10 +608,11 @@ static __inline__ int r300_emit_raw_packet3(drm_radeon_private_t *dev_priv,
 	case RADEON_CNTL_BITBLT_MULTI:
 		return r300_emit_bitblt_multi(dev_priv, cmdbuf);
 
+	case RADEON_CP_INDX_BUFFER:	/* DRAW_INDX_2 without INDX_BUFFER seems to lock up the gpu */
+		return r300_emit_indx_buffer(dev_priv, cmdbuf);
 	case RADEON_CP_3D_DRAW_IMMD_2:	/* triggers drawing using in-packet vertex data */
 	case RADEON_CP_3D_DRAW_VBUF_2:	/* triggers drawing of vertex buffers setup elsewhere */
 	case RADEON_CP_3D_DRAW_INDX_2:	/* triggers drawing using indices to vertex buffer */
-	case RADEON_CP_INDX_BUFFER:	/* DRAW_INDX_2 without INDX_BUFFER seems to lock up the gpu */
 	case RADEON_WAIT_FOR_IDLE:
 	case RADEON_CP_NOP:
 		/* these packets are safe */

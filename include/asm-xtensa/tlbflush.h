@@ -11,12 +11,20 @@
 #ifndef _XTENSA_TLBFLUSH_H
 #define _XTENSA_TLBFLUSH_H
 
-#define DEBUG_TLB
-
 #ifdef __KERNEL__
 
-#include <asm/processor.h>
 #include <linux/stringify.h>
+#include <asm/processor.h>
+
+#define DTLB_WAY_PGD	7
+
+#define ITLB_ARF_WAYS	4
+#define DTLB_ARF_WAYS	4
+
+#define ITLB_HIT_BIT	3
+#define DTLB_HIT_BIT	4
+
+#ifndef __ASSEMBLY__
 
 /* TLB flushing:
  *
@@ -45,11 +53,6 @@ static inline void flush_tlb_pgtables(struct mm_struct *mm,
 }
 
 /* TLB operations. */
-
-#define ITLB_WAYS_LOG2      XCHAL_ITLB_WAY_BITS
-#define DTLB_WAYS_LOG2      XCHAL_DTLB_WAY_BITS
-#define ITLB_PROBE_SUCCESS  (1 << ITLB_WAYS_LOG2)
-#define DTLB_PROBE_SUCCESS  (1 << DTLB_WAYS_LOG2)
 
 static inline unsigned long itlb_probe(unsigned long addr)
 {
@@ -131,29 +134,30 @@ static inline void write_itlb_entry (pte_t entry, int way)
 
 static inline void invalidate_page_directory (void)
 {
-	invalidate_dtlb_entry (DTLB_WAY_PGTABLE);
+	invalidate_dtlb_entry (DTLB_WAY_PGD);
+	invalidate_dtlb_entry (DTLB_WAY_PGD+1);
+	invalidate_dtlb_entry (DTLB_WAY_PGD+2);
 }
 
 static inline void invalidate_itlb_mapping (unsigned address)
 {
 	unsigned long tlb_entry;
-	while ((tlb_entry = itlb_probe (address)) & ITLB_PROBE_SUCCESS)
-		invalidate_itlb_entry (tlb_entry);
+	if (((tlb_entry = itlb_probe(address)) & (1 << ITLB_HIT_BIT)) != 0)
+		invalidate_itlb_entry(tlb_entry);
 }
 
 static inline void invalidate_dtlb_mapping (unsigned address)
 {
 	unsigned long tlb_entry;
-	while ((tlb_entry = dtlb_probe (address)) & DTLB_PROBE_SUCCESS)
-		invalidate_dtlb_entry (tlb_entry);
+	if (((tlb_entry = dtlb_probe(address)) & (1 << DTLB_HIT_BIT)) != 0)
+		invalidate_dtlb_entry(tlb_entry);
 }
 
 #define check_pgt_cache()	do { } while (0)
 
 
-#ifdef DEBUG_TLB
-
-/* DO NOT USE THESE FUNCTIONS.  These instructions aren't part of the Xtensa
+/*
+ * DO NOT USE THESE FUNCTIONS.  These instructions aren't part of the Xtensa
  * ISA and exist only for test purposes..
  * You may find it helpful for MMU debugging, however.
  *
@@ -193,8 +197,6 @@ static inline unsigned long read_itlb_translation (int way)
 	return tmp;
 }
 
-#endif	/* DEBUG_TLB */
-
-
+#endif	/* __ASSEMBLY__ */
 #endif	/* __KERNEL__ */
-#endif	/* _XTENSA_PGALLOC_H */
+#endif	/* _XTENSA_TLBFLUSH_H */

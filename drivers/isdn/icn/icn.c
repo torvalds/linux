@@ -1010,7 +1010,8 @@ icn_readstatus(u_char __user *buf, int len, icn_card * card)
 	for (p = buf, count = 0; count < len; p++, count++) {
 		if (card->msg_buf_read == card->msg_buf_write)
 			return count;
-		put_user(*card->msg_buf_read++, p);
+		if (put_user(*card->msg_buf_read++, p))
+			return -EFAULT;
 		if (card->msg_buf_read > card->msg_buf_end)
 			card->msg_buf_read = card->msg_buf;
 	}
@@ -1518,12 +1519,11 @@ icn_initcard(int port, char *id)
 	icn_card *card;
 	int i;
 
-	if (!(card = (icn_card *) kmalloc(sizeof(icn_card), GFP_KERNEL))) {
+	if (!(card = kzalloc(sizeof(icn_card), GFP_KERNEL))) {
 		printk(KERN_WARNING
 		       "icn: (%s) Could not allocate card-struct.\n", id);
 		return (icn_card *) 0;
 	}
-	memset((char *) card, 0, sizeof(icn_card));
 	spin_lock_init(&card->lock);
 	card->port = port;
 	card->interface.owner = THIS_MODULE;

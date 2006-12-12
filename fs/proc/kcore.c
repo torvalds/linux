@@ -22,6 +22,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+#define CORE_STR "CORE"
 
 static int open_kcore(struct inode * inode, struct file * filp)
 {
@@ -82,10 +83,11 @@ static size_t get_kcore_size(int *nphdr, size_t *elf_buflen)
 	}
 	*elf_buflen =	sizeof(struct elfhdr) + 
 			(*nphdr + 2)*sizeof(struct elf_phdr) + 
-			3 * (sizeof(struct elf_note) + 4) +
-			sizeof(struct elf_prstatus) +
-			sizeof(struct elf_prpsinfo) +
-			sizeof(struct task_struct);
+			3 * ((sizeof(struct elf_note)) +
+			     roundup(sizeof(CORE_STR), 4)) +
+			roundup(sizeof(struct elf_prstatus), 4) +
+			roundup(sizeof(struct elf_prpsinfo), 4) +
+			roundup(sizeof(struct task_struct), 4);
 	*elf_buflen = PAGE_ALIGN(*elf_buflen);
 	return size + *elf_buflen;
 }
@@ -210,7 +212,7 @@ static void elf_kcore_store_hdr(char *bufp, int nphdr, int dataoff)
 	nhdr->p_offset	= offset;
 
 	/* set up the process status */
-	notes[0].name = "CORE";
+	notes[0].name = CORE_STR;
 	notes[0].type = NT_PRSTATUS;
 	notes[0].datasz = sizeof(struct elf_prstatus);
 	notes[0].data = &prstatus;
@@ -221,7 +223,7 @@ static void elf_kcore_store_hdr(char *bufp, int nphdr, int dataoff)
 	bufp = storenote(&notes[0], bufp);
 
 	/* set up the process info */
-	notes[1].name	= "CORE";
+	notes[1].name	= CORE_STR;
 	notes[1].type	= NT_PRPSINFO;
 	notes[1].datasz	= sizeof(struct elf_prpsinfo);
 	notes[1].data	= &prpsinfo;
@@ -238,7 +240,7 @@ static void elf_kcore_store_hdr(char *bufp, int nphdr, int dataoff)
 	bufp = storenote(&notes[1], bufp);
 
 	/* set up the task structure */
-	notes[2].name	= "CORE";
+	notes[2].name	= CORE_STR;
 	notes[2].type	= NT_TASKSTRUCT;
 	notes[2].datasz	= sizeof(struct task_struct);
 	notes[2].data	= current;

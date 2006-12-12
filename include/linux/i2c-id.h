@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------------- */
-/* 									     */
+/*									     */
 /* i2c-id.h - identifier values for i2c drivers and adapters		     */
-/* 									     */
+/*									     */
 /* ------------------------------------------------------------------------- */
 /*   Copyright (C) 1995-1999 Simon G. Vogl
 
@@ -40,10 +40,10 @@
 #define I2C_DRIVERID_SAA7120	11	/* video encoder		*/
 #define I2C_DRIVERID_SAA7121	12	/* video encoder		*/
 #define I2C_DRIVERID_SAA7185B	13	/* video encoder		*/
-#define I2C_DRIVERID_CH7003	14	/* digital pc to tv encoder 	*/
+#define I2C_DRIVERID_CH7003	14	/* digital pc to tv encoder	*/
 #define I2C_DRIVERID_PCF8574A	15	/* i2c expander - 8 bit in/out	*/
 #define I2C_DRIVERID_PCF8582C	16	/* eeprom			*/
-#define I2C_DRIVERID_AT24Cxx	17	/* eeprom 1/2/4/8/16 K 		*/
+#define I2C_DRIVERID_AT24Cxx	17	/* eeprom 1/2/4/8/16 K		*/
 #define I2C_DRIVERID_TEA6300	18	/* audio mixer			*/
 #define I2C_DRIVERID_BT829	19	/* pc to tv encoder		*/
 #define I2C_DRIVERID_TDA9850	20	/* audio mixer			*/
@@ -82,9 +82,8 @@
 #define I2C_DRIVERID_STM41T00	52	/* real time clock		*/
 #define I2C_DRIVERID_UDA1342	53	/* UDA1342 audio codec		*/
 #define I2C_DRIVERID_ADV7170	54	/* video encoder		*/
-#define I2C_DRIVERID_RADEON	55	/* I2C bus on Radeon boards	*/
 #define I2C_DRIVERID_MAX1617	56	/* temp sensor			*/
-#define I2C_DRIVERID_SAA7191	57	/* video encoder		*/
+#define I2C_DRIVERID_SAA7191	57	/* video decoder		*/
 #define I2C_DRIVERID_INDYCAM	58	/* SGI IndyCam			*/
 #define I2C_DRIVERID_BT832	59	/* CMOS camera video processor	*/
 #define I2C_DRIVERID_TDA9887	60	/* TDA988x IF-PLL demodulator	*/
@@ -132,7 +131,6 @@
 #define I2C_DRIVERID_ADM1021 1008
 #define I2C_DRIVERID_ADM9240 1009
 #define I2C_DRIVERID_LTC1710 1010
-#define I2C_DRIVERID_ICSPLL 1012
 #define I2C_DRIVERID_BT869 1013
 #define I2C_DRIVERID_MAXILIFE 1014
 #define I2C_DRIVERID_MATORB 1015
@@ -159,12 +157,13 @@
 #define I2C_DRIVERID_ASB100 1043
 #define I2C_DRIVERID_FSCHER 1046
 #define I2C_DRIVERID_W83L785TS 1047
+#define I2C_DRIVERID_OV7670 1048	/* Omnivision 7670 camera */
 
 /*
  * ---- Adapter types ----------------------------------------------------
  */
 
-/* --- Bit algorithm adapters 						*/
+/* --- Bit algorithm adapters						*/
 #define I2C_HW_B_LP		0x010000 /* Parallel port Philips style */
 #define I2C_HW_B_SER		0x010002 /* Serial line interface */
 #define I2C_HW_B_BT848		0x010005 /* BT848 video boards */
@@ -212,9 +211,6 @@
 /* --- MPC8xx PowerPC adapters						*/
 #define I2C_HW_MPC8XX_EPON	0x110000 /* Eponymous MPC8xx I2C adapter */
 
-/* --- ITE based algorithms						*/
-#define I2C_HW_I_IIC		0x080000 /* controller on the ITE */
-
 /* --- PowerPC on-chip adapters						*/
 #define I2C_HW_OCP		0x120000 /* IBM on-chip I2C adapter */
 
@@ -250,6 +246,7 @@
 #define I2C_HW_SMBUS_OV518	0x04000f /* OV518(+) USB 1.1 webcam ICs */
 #define I2C_HW_SMBUS_OV519	0x040010 /* OV519 USB 1.1 webcam IC */
 #define I2C_HW_SMBUS_OVFX2	0x040011 /* Cypress/OmniVision FX2 webcam */
+#define I2C_HW_SMBUS_CAFE	0x040012 /* Marvell 88ALP01 "CAFE" cam  */
 
 /* --- ISA pseudo-adapter						*/
 #define I2C_HW_ISA		0x050000

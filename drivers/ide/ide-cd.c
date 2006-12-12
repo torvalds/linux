@@ -687,8 +687,15 @@ static void ide_dump_status_no_sense(ide_drive_t *drive, const char *msg, u8 sta
 static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 {
 	struct request *rq = HWGROUP(drive)->rq;
+	ide_hwif_t *hwif = HWIF(drive);
 	int stat, err, sense_key;
 	
+	/* We may have bogus DMA interrupts in PIO state here */
+	if (HWIF(drive)->dma_status && hwif->atapi_irq_bogon) {
+		stat = hwif->INB(hwif->dma_status);
+		/* Should we force the bit as well ? */
+		hwif->OUTB(stat, hwif->dma_status);
+	}
 	/* Check for errors. */
 	stat = HWIF(drive)->INB(IDE_STATUS_REG);
 	if (stat_ret)
@@ -724,7 +731,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 		 * if we have an error, pass back CHECK_CONDITION as the
 		 * scsi status byte
 		 */
-		if (!rq->errors)
+		if (blk_pc_request(rq) && !rq->errors)
 			rq->errors = SAM_STAT_CHECK_CONDITION;
 
 		/* Check for tray open. */

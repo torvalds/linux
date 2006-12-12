@@ -12,6 +12,10 @@
  * uncached, unwrite-buffered mapped memory space for use with DMA
  * devices.  This is the "generic" version.  The PCI specific version
  * is in pci.h
+ *
+ * Note: Drivers should NOT use this function directly, as it will break
+ * platforms with CONFIG_DMABOUNCE.
+ * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
 extern void consistent_sync(void *kaddr, size_t size, int rw);
 
@@ -44,7 +48,7 @@ static inline int dma_get_cache_alignment(void)
 	return 32;
 }
 
-static inline int dma_is_consistent(dma_addr_t handle)
+static inline int dma_is_consistent(struct device *dev, dma_addr_t handle)
 {
 	return !!arch_is_coherent();
 }

@@ -32,6 +32,13 @@ extern void dibx000_exit_i2c_master(struct dibx000_i2c_master *mst);
 #define BAND_LBAND 0x01
 #define BAND_UHF   0x02
 #define BAND_VHF   0x04
+#define BAND_SBAND 0x08
+#define BAND_FM	   0x10
+
+#define BAND_OF_FREQUENCY(freq_kHz) ( (freq_kHz) <= 115000 ? BAND_FM : \
+									(freq_kHz) <= 250000 ? BAND_VHF : \
+									(freq_kHz) <= 863000 ? BAND_UHF : \
+									(freq_kHz) <= 2000000 ? BAND_LBAND : BAND_SBAND )
 
 struct dibx000_agc_config {
 	/* defines the capabilities of this AGC-setting - using the BAND_-defines*/
@@ -129,6 +136,7 @@ enum dibx000_adc_states {
 
 /* I hope I can get rid of the following kludge in the near future */
 struct dibx000_ofdm_channel {
+	u32 RF_kHz;
 	u8  Bw;
 	s16 nfft;
 	s16 guard;
@@ -138,9 +146,11 @@ struct dibx000_ofdm_channel {
 	s16 vit_alpha;
 	s16 vit_code_rate_hp;
 	s16 vit_code_rate_lp;
+	u8  intlv_native;
 };
 
 #define FEP2DIB(fep,ch) \
+	(ch)->RF_kHz           = (fep)->frequency / 1000; \
 	(ch)->Bw               = (fep)->u.ofdm.bandwidth; \
 	(ch)->nfft             = (fep)->u.ofdm.transmission_mode == TRANSMISSION_MODE_AUTO ? -1 : (fep)->u.ofdm.transmission_mode; \
 	(ch)->guard            = (fep)->u.ofdm.guard_interval == GUARD_INTERVAL_AUTO ? -1 : (fep)->u.ofdm.guard_interval; \
@@ -149,7 +159,8 @@ struct dibx000_ofdm_channel {
 	(ch)->vit_select_hp    = 1; \
 	(ch)->vit_alpha        = 1; \
 	(ch)->vit_code_rate_hp = (fep)->u.ofdm.code_rate_HP == FEC_AUTO ? -1 : (fep)->u.ofdm.code_rate_HP; \
-	(ch)->vit_code_rate_lp = (fep)->u.ofdm.code_rate_LP == FEC_AUTO ? -1 : (fep)->u.ofdm.code_rate_LP;
+	(ch)->vit_code_rate_lp = (fep)->u.ofdm.code_rate_LP == FEC_AUTO ? -1 : (fep)->u.ofdm.code_rate_LP; \
+	(ch)->intlv_native     = 1;
 
 #define INIT_OFDM_CHANNEL(ch) do {\
 	(ch)->Bw               = 0;  \

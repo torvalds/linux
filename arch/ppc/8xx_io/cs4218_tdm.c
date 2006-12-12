@@ -2165,7 +2165,7 @@ static int sq_release(struct inode *inode, struct file *file)
 	int rc = 0;
 
 	if (sq.busy)
-		rc = sq_fsync(file, file->f_dentry);
+		rc = sq_fsync(file, file->f_path.dentry);
 	sound.soft = sound.dsp;
 	sound.hard = sound.dsp;
 	sound_silence();
@@ -2218,25 +2218,25 @@ static int sq_ioctl(struct inode *inode, struct file *file, u_int cmd,
 		return 0;
 	case SNDCTL_DSP_POST:
 	case SNDCTL_DSP_SYNC:
-		return sq_fsync(file, file->f_dentry);
+		return sq_fsync(file, file->f_path.dentry);
 
 		/* ++TeSche: before changing any of these it's
 		 * probably wise to wait until sound playing has
 		 * settled down. */
 	case SNDCTL_DSP_SPEED:
-		sq_fsync(file, file->f_dentry);
+		sq_fsync(file, file->f_path.dentry);
 		IOCTL_IN(arg, data);
 		return IOCTL_OUT(arg, sound_set_speed(data));
 	case SNDCTL_DSP_STEREO:
-		sq_fsync(file, file->f_dentry);
+		sq_fsync(file, file->f_path.dentry);
 		IOCTL_IN(arg, data);
 		return IOCTL_OUT(arg, sound_set_stereo(data));
 	case SOUND_PCM_WRITE_CHANNELS:
-		sq_fsync(file, file->f_dentry);
+		sq_fsync(file, file->f_path.dentry);
 		IOCTL_IN(arg, data);
 		return IOCTL_OUT(arg, sound_set_stereo(data-1)+1);
 	case SNDCTL_DSP_SETFMT:
-		sq_fsync(file, file->f_dentry);
+		sq_fsync(file, file->f_path.dentry);
 		IOCTL_IN(arg, data);
 		return IOCTL_OUT(arg, sound_set_format(data));
 	case SNDCTL_DSP_GETFMTS:

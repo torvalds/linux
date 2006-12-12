@@ -17,7 +17,7 @@ static u8 centaur_mcr_type;	/* 0 for winchip, 1 for winchip2 */
  */
 
 static int
-centaur_get_free_region(unsigned long base, unsigned long size)
+centaur_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 /*  [SUMMARY] Get a free MTRR.
     <base> The starting (base) address of the region.
     <size> The size (in bytes) of the region.
@@ -26,10 +26,11 @@ centaur_get_free_region(unsigned long base, unsigned long size)
 {
 	int i, max;
 	mtrr_type ltype;
-	unsigned long lbase;
-	unsigned int lsize;
+	unsigned long lbase, lsize;
 
 	max = num_var_ranges;
+	if (replace_reg >= 0 && replace_reg < max)
+		return replace_reg;
 	for (i = 0; i < max; ++i) {
 		if (centaur_mcr_reserved & (1 << i))
 			continue;
@@ -49,7 +50,7 @@ mtrr_centaur_report_mcr(int mcr, u32 lo, u32 hi)
 
 static void
 centaur_get_mcr(unsigned int reg, unsigned long *base,
-		unsigned int *size, mtrr_type * type)
+		unsigned long *size, mtrr_type * type)
 {
 	*base = centaur_mcr[reg].high >> PAGE_SHIFT;
 	*size = -(centaur_mcr[reg].low & 0xfffff000) >> PAGE_SHIFT;

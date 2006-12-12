@@ -235,7 +235,7 @@ mmap_subpage (struct file *file, unsigned long start, unsigned long end, int pro
 
 	if (!(flags & MAP_ANONYMOUS)) {
 		/* read the file contents */
-		inode = file->f_dentry->d_inode;
+		inode = file->f_path.dentry->d_inode;
 		if (!inode->i_fop || !file->f_op->read
 		    || ((*file->f_op->read)(file, (char __user *) start, end - start, &off) < 0))
 		{
@@ -254,7 +254,7 @@ mmap_subpage (struct file *file, unsigned long start, unsigned long end, int pro
 }
 
 /* SLAB cache for partial_page structures */
-kmem_cache_t *partial_page_cachep;
+struct kmem_cache *partial_page_cachep;
 
 /*
  * init partial_page_list.
@@ -837,7 +837,7 @@ emulate_mmap (struct file *file, unsigned long start, unsigned long len, int pro
 
 	if (!is_congruent) {
 		/* read the file contents */
-		inode = file->f_dentry->d_inode;
+		inode = file->f_path.dentry->d_inode;
 		if (!inode->i_fop || !file->f_op->read
 		    || ((*file->f_op->read)(file, (char __user *) pstart, pend - pstart, &poff)
 			< 0))

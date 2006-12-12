@@ -5,8 +5,10 @@
  *
  * This clock framework is derived from the OMAP version by:
  *
- *	Copyright (C) 2004 Nokia Corporation
+ *	Copyright (C) 2004 - 2005 Nokia Corporation
  *	Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
+ *
+ *  Modified for omap shared clock framework by Tony Lindgren <tony@atomide.com>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -20,6 +22,7 @@
 #include <linux/kref.h>
 #include <linux/seq_file.h>
 #include <linux/err.h>
+#include <linux/platform_device.h>
 #include <asm/clock.h>
 #include <asm/timer.h>
 
@@ -195,17 +198,37 @@ void clk_recalc_rate(struct clk *clk)
 		propagate_rate(clk);
 }
 
-struct clk *clk_get(const char *id)
+/*
+ * Returns a clock. Note that we first try to use device id on the bus
+ * and clock name. If this fails, we try to use clock name only.
+ */
+struct clk *clk_get(struct device *dev, const char *id)
 {
 	struct clk *p, *clk = ERR_PTR(-ENOENT);
+	int idno;
+
+	if (dev == NULL || dev->bus != &platform_bus_type)
+		idno = -1;
+	else
+		idno = to_platform_device(dev)->id;
 
 	mutex_lock(&clock_list_sem);
+	list_for_each_entry(p, &clock_list, node) {
+		if (p->id == idno &&
+		    strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
+			clk = p;
+			goto found;
+		}
+	}
+
 	list_for_each_entry(p, &clock_list, node) {
 		if (strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
 			clk = p;
 			break;
 		}
 	}
+
+found:
 	mutex_unlock(&clock_list_sem);
 
 	return clk;

@@ -45,7 +45,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	unsigned long start;
 	int error, neg = 0;
 
-	log_debug(ls, "recover %llx", rv->seq);
+	log_debug(ls, "recover %llx", (unsigned long long)rv->seq);
 
 	mutex_lock(&ls->ls_recoverd_active);
 
@@ -92,14 +92,6 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		log_error(ls, "recover_directory failed %d", error);
 		goto fail;
 	}
-
-	/*
-	 * Purge directory-related requests that are saved in requestqueue.
-	 * All dir requests from before recovery are invalid now due to the dir
-	 * rebuild and will be resent by the requesting nodes.
-	 */
-
-	dlm_purge_requestqueue(ls);
 
 	/*
 	 * Wait for all nodes to complete directory rebuild.
@@ -164,9 +156,30 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		 */
 
 		dlm_recover_rsbs(ls);
+	} else {
+		/*
+		 * Other lockspace members may be going through the "neg" steps
+		 * while also adding us to the lockspace, in which case they'll
+		 * be doing the recover_locks (RS_LOCKS) barrier.
+		 */
+		dlm_set_recover_status(ls, DLM_RS_LOCKS);
+
+		error = dlm_recover_locks_wait(ls);
+		if (error) {
+			log_error(ls, "recover_locks_wait failed %d", error);
+			goto fail;
+		}
 	}
 
 	dlm_release_root_list(ls);
+
+	/*
+	 * Purge directory-related requests that are saved in requestqueue.
+	 * All dir requests from before recovery are invalid now due to the dir
+	 * rebuild and will be resent by the requesting nodes.
+	 */
+
+	dlm_purge_requestqueue(ls);
 
 	dlm_set_recover_status(ls, DLM_RS_DONE);
 	error = dlm_recover_done_wait(ls);
@@ -199,7 +212,8 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	dlm_astd_wake();
 
-	log_debug(ls, "recover %llx done: %u ms", rv->seq,
+	log_debug(ls, "recover %llx done: %u ms",
+		  (unsigned long long)rv->seq,
 		  jiffies_to_msecs(jiffies - start));
 	mutex_unlock(&ls->ls_recoverd_active);
 
@@ -207,10 +221,15 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
  fail:
 	dlm_release_root_list(ls);
-	log_debug(ls, "recover %llx error %d", rv->seq, error);
+	log_debug(ls, "recover %llx error %d",
+		  (unsigned long long)rv->seq, error);
 	mutex_unlock(&ls->ls_recoverd_active);
 	return error;
 }
+
+/* The dlm_ls_start() that created the rv we take here may already have been
+   stopped via dlm_ls_stop(); in that case we need to leave the RECOVERY_STOP
+   flag set. */
 
 static void do_ls_recovery(struct dlm_ls *ls)
 {
@@ -219,7 +238,8 @@ static void do_ls_recovery(struct dlm_ls *ls)
 	spin_lock(&ls->ls_recover_lock);
 	rv = ls->ls_recover_args;
 	ls->ls_recover_args = NULL;
-	clear_bit(LSFL_RECOVERY_STOP, &ls->ls_flags);
+	if (rv && ls->ls_recover_seq == rv->seq)
+		clear_bit(LSFL_RECOVERY_STOP, &ls->ls_flags);
 	spin_unlock(&ls->ls_recover_lock);
 
 	if (rv) {

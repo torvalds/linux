@@ -1763,8 +1763,8 @@ static unsigned int serial8250_get_divisor(struct uart_port *port, unsigned int 
 }
 
 static void
-serial8250_set_termios(struct uart_port *port, struct termios *termios,
-		       struct termios *old)
+serial8250_set_termios(struct uart_port *port, struct ktermios *termios,
+		       struct ktermios *old)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 	unsigned char cval, fcr = 0;

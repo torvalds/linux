@@ -798,7 +798,7 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 			QAction *action;
 
 			headerPopup = new QPopupMenu(this);
-			action = new QAction("Show Name", 0, this);
+			action = new QAction(NULL, "Show Name", 0, this);
 			  action->setToggleAction(TRUE);
 			  connect(action, SIGNAL(toggled(bool)),
 				  parent(), SLOT(setShowName(bool)));
@@ -806,7 +806,7 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 				  action, SLOT(setOn(bool)));
 			  action->setOn(showName);
 			  action->addTo(headerPopup);
-			action = new QAction("Show Range", 0, this);
+			action = new QAction(NULL, "Show Range", 0, this);
 			  action->setToggleAction(TRUE);
 			  connect(action, SIGNAL(toggled(bool)),
 				  parent(), SLOT(setShowRange(bool)));
@@ -814,7 +814,7 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 				  action, SLOT(setOn(bool)));
 			  action->setOn(showRange);
 			  action->addTo(headerPopup);
-			action = new QAction("Show Data", 0, this);
+			action = new QAction(NULL, "Show Data", 0, this);
 			  action->setToggleAction(TRUE);
 			  connect(action, SIGNAL(toggled(bool)),
 				  parent(), SLOT(setShowData(bool)));
@@ -1161,7 +1161,7 @@ void ConfigInfoView::expr_print_help(void *data, struct symbol *sym, const char 
 QPopupMenu* ConfigInfoView::createPopupMenu(const QPoint& pos)
 {
 	QPopupMenu* popup = Parent::createPopupMenu(pos);
-	QAction* action = new QAction("Show Debug Info", 0, popup);
+	QAction* action = new QAction(NULL,"Show Debug Info", 0, popup);
 	  action->setToggleAction(TRUE);
 	  connect(action, SIGNAL(toggled(bool)), SLOT(setShowDebug(bool)));
 	  connect(this, SIGNAL(showDebugChanged(bool)), action, SLOT(setOn(bool)));
@@ -1259,6 +1259,7 @@ void ConfigSearchWindow::search(void)
  * Construct the complete config widget
  */
 ConfigMainWindow::ConfigMainWindow(void)
+	: searchWindow(0)
 {
 	QMenuBar* menu;
 	bool ok;

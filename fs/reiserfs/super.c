@@ -23,7 +23,7 @@
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
-#include <linux/namespace.h>
+#include <linux/mnt_namespace.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/quotaops.h>
@@ -490,13 +490,13 @@ static void reiserfs_put_super(struct super_block *s)
 	return;
 }
 
-static kmem_cache_t *reiserfs_inode_cachep;
+static struct kmem_cache *reiserfs_inode_cachep;
 
 static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 {
 	struct reiserfs_inode_info *ei;
 	ei = (struct reiserfs_inode_info *)
-	    kmem_cache_alloc(reiserfs_inode_cachep, SLAB_KERNEL);
+	    kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -507,7 +507,7 @@ static void reiserfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(reiserfs_inode_cachep, REISERFS_I(inode));
 }
 
-static void init_once(void *foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct reiserfs_inode_info *ei = (struct reiserfs_inode_info *)foo;
 
@@ -1549,13 +1549,12 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	struct reiserfs_sb_info *sbi;
 	int errval = -EINVAL;
 
-	sbi = kmalloc(sizeof(struct reiserfs_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct reiserfs_sb_info), GFP_KERNEL);
 	if (!sbi) {
 		errval = -ENOMEM;
 		goto error;
 	}
 	s->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(struct reiserfs_sb_info));
 	/* Set default values for options: non-aggressive tails, RO on errors */
 	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_SMALLTAIL);
 	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_ERROR_RO);
@@ -1619,6 +1618,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 		      "jmacd-8: reiserfs_fill_super: unable to read bitmap");
 		goto error;
 	}
+	errval = -EINVAL;
 #ifdef CONFIG_REISERFS_CHECK
 	SWARN(silent, s, "CONFIG_REISERFS_CHECK is set ON");
 	SWARN(silent, s, "- it is slow mode for debugging.");

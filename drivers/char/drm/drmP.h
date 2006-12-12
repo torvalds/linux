@@ -97,6 +97,7 @@
 #define DRIVER_IRQ_VBL     0x100
 #define DRIVER_DMA_QUEUE   0x200
 #define DRIVER_FB_DMA      0x400
+#define DRIVER_IRQ_VBL2    0x800
 
 /***********************************************************************/
 /** \name Begin the DRM... */
@@ -430,7 +431,8 @@ typedef struct drm_device_dma {
 	enum {
 		_DRM_DMA_USE_AGP = 0x01,
 		_DRM_DMA_USE_SG = 0x02,
-		_DRM_DMA_USE_FB = 0x04
+		_DRM_DMA_USE_FB = 0x04,
+		_DRM_DMA_USE_PCI_RO = 0x08
 	} flags;
 
 } drm_device_dma_t;
@@ -562,6 +564,7 @@ struct drm_driver {
 	void (*kernel_context_switch_unlock) (struct drm_device * dev,
 					      drm_lock_t *lock);
 	int (*vblank_wait) (struct drm_device * dev, unsigned int *sequence);
+	int (*vblank_wait2) (struct drm_device * dev, unsigned int *sequence);
 	int (*dri_library_name) (struct drm_device *dev, char *buf);
 
 	/**
@@ -708,9 +711,13 @@ typedef struct drm_device {
 
 	wait_queue_head_t vbl_queue;	/**< VBLANK wait queue */
 	atomic_t vbl_received;
+	atomic_t vbl_received2;		/**< number of secondary VBLANK interrupts */
 	spinlock_t vbl_lock;
 	drm_vbl_sig_t vbl_sigs;		/**< signal list to send on VBLANK */
+	drm_vbl_sig_t vbl_sigs2;	/**< signals to send on secondary VBLANK */
 	unsigned int vbl_pending;
+	spinlock_t tasklet_lock;	/**< For drm_locked_tasklet */
+	void (*locked_tasklet_func)(struct drm_device *dev);
 
 	/*@} */
 	cycles_t ctx_start;
@@ -738,6 +745,15 @@ typedef struct drm_device {
 	drm_local_map_t *agp_buffer_map;
 	unsigned int agp_buffer_token;
 	drm_head_t primary;		/**< primary screen head */
+
+	/** \name Drawable information */
+	/*@{ */
+	spinlock_t drw_lock;
+	unsigned int drw_bitfield_length;
+	u32 *drw_bitfield;
+	unsigned int drw_info_length;
+	drm_drawable_info_t **drw_info;
+	/*@} */
 } drm_device_t;
 
 static __inline__ int drm_core_check_feature(struct drm_device *dev,
@@ -885,6 +901,10 @@ extern int drm_adddraw(struct inode *inode, struct file *filp,
 		       unsigned int cmd, unsigned long arg);
 extern int drm_rmdraw(struct inode *inode, struct file *filp,
 		      unsigned int cmd, unsigned long arg);
+extern int drm_update_drawable_info(struct inode *inode, struct file *filp,
+		       unsigned int cmd, unsigned long arg);
+extern drm_drawable_info_t *drm_get_drawable_info(drm_device_t *dev,
+						  drm_drawable_t id);
 
 				/* Authentication IOCTL support (drm_auth.h) */
 extern int drm_getmagic(struct inode *inode, struct file *filp,
@@ -949,6 +969,7 @@ extern int drm_wait_vblank(struct inode *inode, struct file *filp,
 			   unsigned int cmd, unsigned long arg);
 extern int drm_vblank_wait(drm_device_t * dev, unsigned int *vbl_seq);
 extern void drm_vbl_send_signals(drm_device_t * dev);
+extern void drm_locked_tasklet(drm_device_t *dev, void(*func)(drm_device_t*));
 
 				/* AGP/GART support (drm_agpsupport.h) */
 extern drm_agp_head_t *drm_agp_init(drm_device_t * dev);

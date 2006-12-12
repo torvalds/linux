@@ -7,6 +7,7 @@
  */
 
 #include <linux/spinlock.h>
+#include <linux/nmi.h>
 #include <linux/interrupt.h>
 #include <linux/debug_locks.h>
 #include <linux/delay.h>
@@ -20,7 +21,7 @@ void __spin_lock_init(spinlock_t *lock, const char *name,
 	 * Make sure we are not reinitializing a held lock:
 	 */
 	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
-	lockdep_init_map(&lock->dep_map, name, key);
+	lockdep_init_map(&lock->dep_map, name, key, 0);
 #endif
 	lock->raw_lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 	lock->magic = SPINLOCK_MAGIC;
@@ -38,7 +39,7 @@ void __rwlock_init(rwlock_t *lock, const char *name,
 	 * Make sure we are not reinitializing a held lock:
 	 */
 	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
-	lockdep_init_map(&lock->dep_map, name, key);
+	lockdep_init_map(&lock->dep_map, name, key, 0);
 #endif
 	lock->raw_lock = (raw_rwlock_t) __RAW_RW_LOCK_UNLOCKED;
 	lock->magic = RWLOCK_MAGIC;
@@ -117,6 +118,9 @@ static void __spin_lock_debug(spinlock_t *lock)
 				raw_smp_processor_id(), current->comm,
 				current->pid, lock);
 			dump_stack();
+#ifdef CONFIG_SMP
+			trigger_all_cpu_backtrace();
+#endif
 		}
 	}
 }

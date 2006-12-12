@@ -77,6 +77,7 @@ static int __devinit hplance_init_one(struct dio_dev *d,
 {
 	struct net_device *dev;
 	int err = -ENOMEM;
+	int i;
 
 	dev = alloc_etherdev(sizeof(struct hplance_private));
 	if (!dev)
@@ -93,6 +94,15 @@ static int __devinit hplance_init_one(struct dio_dev *d,
 		goto out_release_mem_region;
 
 	dio_set_drvdata(d, dev);
+
+	printk(KERN_INFO "%s: %s; select code %d, addr %2.2x", dev->name, d->name, d->scode, dev->dev_addr[0]);
+
+	for (i=1; i<6; i++) {
+		printk(":%2.2x", dev->dev_addr[i]);
+	}
+
+	printk(", irq %d\n", d->ipl);
+
 	return 0;
 
  out_release_mem_region:
@@ -119,8 +129,6 @@ static void __init hplance_init(struct net_device *dev, struct dio_dev *d)
         struct hplance_private *lp;
         int i;
 
-        printk(KERN_INFO "%s: %s; select code %d, addr", dev->name, d->name, d->scode);
-
         /* reset the board */
         out_8(va+DIO_IDOFF, 0xff);
         udelay(100);                              /* ariba! ariba! udelay! udelay! */
@@ -143,7 +151,6 @@ static void __init hplance_init(struct net_device *dev, struct dio_dev *d)
                  */
                 dev->dev_addr[i] = ((in_8(va + HPLANCE_NVRAMOFF + i*4 + 1) & 0xF) << 4)
                         | (in_8(va + HPLANCE_NVRAMOFF + i*4 + 3) & 0xF);
-                printk("%c%2.2x", i == 0 ? ' ' : ':', dev->dev_addr[i]);
         }
 
         lp = netdev_priv(dev);
@@ -160,7 +167,6 @@ static void __init hplance_init(struct net_device *dev, struct dio_dev *d)
         lp->lance.lance_log_tx_bufs = LANCE_LOG_TX_BUFFERS;
         lp->lance.rx_ring_mod_mask = RX_RING_MOD_MASK;
         lp->lance.tx_ring_mod_mask = TX_RING_MOD_MASK;
-	printk(", irq %d\n", lp->lance.irq);
 }
 
 /* This is disgusting. We have to check the DIO status register for ack every

@@ -85,6 +85,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "tx_single_coll_ok", E1000_STAT(stats.scc) },
 	{ "tx_multi_coll_ok", E1000_STAT(stats.mcc) },
 	{ "tx_timeout_count", E1000_STAT(tx_timeout_count) },
+	{ "tx_restart_queue", E1000_STAT(restart_queue) },
 	{ "rx_long_length_errors", E1000_STAT(stats.roc) },
 	{ "rx_short_length_errors", E1000_STAT(stats.ruc) },
 	{ "rx_align_errors", E1000_STAT(stats.algnerrc) },
@@ -133,9 +134,7 @@ e1000_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 		if (hw->autoneg == 1) {
 			ecmd->advertising |= ADVERTISED_Autoneg;
-
 			/* the e1000 autoneg seems to match ethtool nicely */
-
 			ecmd->advertising |= hw->autoneg_advertised;
 		}
 
@@ -285,7 +284,7 @@ e1000_set_pauseparam(struct net_device *netdev,
 			e1000_reset(adapter);
 	} else
 		retval = ((hw->media_type == e1000_media_type_fiber) ?
-			   e1000_setup_link(hw) : e1000_force_mac_fc(hw));
+			  e1000_setup_link(hw) : e1000_force_mac_fc(hw));
 
 	clear_bit(__E1000_RESETTING, &adapter->flags);
 	return retval;
@@ -349,6 +348,13 @@ e1000_set_tso(struct net_device *netdev, uint32_t data)
 		netdev->features |= NETIF_F_TSO;
 	else
 		netdev->features &= ~NETIF_F_TSO;
+
+#ifdef NETIF_F_TSO6
+	if (data)
+		netdev->features |= NETIF_F_TSO6;
+	else
+		netdev->features &= ~NETIF_F_TSO6;
+#endif
 
 	DPRINTK(PROBE, INFO, "TSO is %s\n", data ? "Enabled" : "Disabled");
 	adapter->tso_force = TRUE;
@@ -461,7 +467,8 @@ e1000_get_regs(struct net_device *netdev,
 	regs_buff[24] = (uint32_t)phy_data;  /* phy local receiver status */
 	regs_buff[25] = regs_buff[24];  /* phy remote receiver status */
 	if (hw->mac_type >= e1000_82540 &&
-	   hw->media_type == e1000_media_type_copper) {
+	    hw->mac_type < e1000_82571 &&
+	    hw->media_type == e1000_media_type_copper) {
 		regs_buff[26] = E1000_READ_REG(hw, MANC);
 	}
 }
@@ -773,7 +780,7 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 	/* The status register is Read Only, so a write should fail.
 	 * Some bits that get toggled are ignored.
 	 */
-        switch (adapter->hw.mac_type) {
+	switch (adapter->hw.mac_type) {
 	/* there are several bits on newer hardware that are r/w */
 	case e1000_82571:
 	case e1000_82572:
@@ -801,12 +808,14 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 	}
 	/* restore previous status */
 	E1000_WRITE_REG(&adapter->hw, STATUS, before);
+
 	if (adapter->hw.mac_type != e1000_ich8lan) {
 		REG_PATTERN_TEST(FCAL, 0xFFFFFFFF, 0xFFFFFFFF);
 		REG_PATTERN_TEST(FCAH, 0x0000FFFF, 0xFFFFFFFF);
 		REG_PATTERN_TEST(FCT, 0x0000FFFF, 0xFFFFFFFF);
 		REG_PATTERN_TEST(VET, 0x0000FFFF, 0xFFFFFFFF);
 	}
+
 	REG_PATTERN_TEST(RDTR, 0x0000FFFF, 0xFFFFFFFF);
 	REG_PATTERN_TEST(RDBAH, 0xFFFFFFFF, 0xFFFFFFFF);
 	REG_PATTERN_TEST(RDLEN, 0x000FFF80, 0x000FFFFF);
@@ -819,8 +828,9 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 	REG_PATTERN_TEST(TDLEN, 0x000FFF80, 0x000FFFFF);
 
 	REG_SET_AND_CHECK(RCTL, 0xFFFFFFFF, 0x00000000);
+
 	before = (adapter->hw.mac_type == e1000_ich8lan ?
-			0x06C3B33E : 0x06DFB3FE);
+	          0x06C3B33E : 0x06DFB3FE);
 	REG_SET_AND_CHECK(RCTL, before, 0x003FFFFB);
 	REG_SET_AND_CHECK(TCTL, 0xFFFFFFFF, 0x00000000);
 
@@ -833,10 +843,10 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 		REG_PATTERN_TEST(TDBAL, 0xFFFFFFF0, 0xFFFFFFFF);
 		REG_PATTERN_TEST(TIDV, 0x0000FFFF, 0x0000FFFF);
 		value = (adapter->hw.mac_type == e1000_ich8lan ?
-				E1000_RAR_ENTRIES_ICH8LAN : E1000_RAR_ENTRIES);
+		         E1000_RAR_ENTRIES_ICH8LAN : E1000_RAR_ENTRIES);
 		for (i = 0; i < value; i++) {
 			REG_PATTERN_TEST(RA + (((i << 1) + 1) << 2), 0x8003FFFF,
-					 0xFFFFFFFF);
+			                 0xFFFFFFFF);
 		}
 
 	} else {
@@ -882,8 +892,7 @@ e1000_eeprom_test(struct e1000_adapter *adapter, uint64_t *data)
 }
 
 static irqreturn_t
-e1000_test_intr(int irq,
-		void *data)
+e1000_test_intr(int irq, void *data)
 {
 	struct net_device *netdev = (struct net_device *) data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -904,11 +913,11 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 
 	/* NOTE: we don't test MSI interrupts here, yet */
 	/* Hook up test interrupt handler just for this test */
-	if (!request_irq(irq, &e1000_test_intr, IRQF_PROBE_SHARED,
-			 netdev->name, netdev))
+	if (!request_irq(irq, &e1000_test_intr, IRQF_PROBE_SHARED, netdev->name,
+	                 netdev))
 		shared_int = FALSE;
 	else if (request_irq(irq, &e1000_test_intr, IRQF_SHARED,
-			      netdev->name, netdev)) {
+	         netdev->name, netdev)) {
 		*data = 1;
 		return -1;
 	}
@@ -924,6 +933,7 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 
 		if (adapter->hw.mac_type == e1000_ich8lan && i == 8)
 			continue;
+
 		/* Interrupt to test */
 		mask = 1 << i;
 
@@ -1673,7 +1683,7 @@ e1000_diag_test(struct net_device *netdev,
 		if (e1000_link_test(adapter, &data[4]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		/* Offline tests aren't run; pass by default */
+		/* Online tests aren't run; pass by default */
 		data[0] = 0;
 		data[1] = 0;
 		data[2] = 0;
@@ -1690,6 +1700,7 @@ static int e1000_wol_exclusion(struct e1000_adapter *adapter, struct ethtool_wol
 	int retval = 1; /* fail by default */
 
 	switch (hw->device_id) {
+	case E1000_DEV_ID_82542:
 	case E1000_DEV_ID_82543GC_FIBER:
 	case E1000_DEV_ID_82543GC_COPPER:
 	case E1000_DEV_ID_82544EI_FIBER:
@@ -1715,6 +1726,7 @@ static int e1000_wol_exclusion(struct e1000_adapter *adapter, struct ethtool_wol
 		retval = 0;
 		break;
 	case E1000_DEV_ID_82571EB_QUAD_COPPER:
+	case E1000_DEV_ID_82571EB_QUAD_COPPER_LOWPROFILE:
 	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
 		/* quad port adapters only support WoL on port A */
 		if (!adapter->quad_port_a) {

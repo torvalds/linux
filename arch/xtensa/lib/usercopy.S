@@ -53,7 +53,7 @@
  *	a11/ original length
  */
 
-#include <xtensa/coreasm.h>
+#include <asm/variant/core.h>
 
 #ifdef __XTENSA_EB__
 #define ALIGN(R, W0, W1) src	R, W0, W1

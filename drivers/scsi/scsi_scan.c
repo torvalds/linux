@@ -29,7 +29,9 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
-#include <asm/semaphore.h>
+#include <linux/delay.h>
+#include <linux/kthread.h>
+#include <linux/spinlock.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -87,6 +89,17 @@ module_param_named(max_luns, max_scsi_luns, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(max_luns,
 		 "last scsi LUN (should be between 1 and 2^32-1)");
 
+#ifdef CONFIG_SCSI_SCAN_ASYNC
+#define SCSI_SCAN_TYPE_DEFAULT "async"
+#else
+#define SCSI_SCAN_TYPE_DEFAULT "sync"
+#endif
+
+static char scsi_scan_type[6] = SCSI_SCAN_TYPE_DEFAULT;
+
+module_param_string(scan, scsi_scan_type, sizeof(scsi_scan_type), S_IRUGO);
+MODULE_PARM_DESC(scan, "sync, async or none");
+
 /*
  * max_scsi_report_luns: the maximum number of LUNS that will be
  * returned from the REPORT LUNS command. 8 times this value must
@@ -107,6 +120,68 @@ module_param_named(inq_timeout, scsi_inq_timeout, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(inq_timeout, 
 		 "Timeout (in seconds) waiting for devices to answer INQUIRY."
 		 " Default is 5. Some non-compliant devices need more.");
+
+static DEFINE_SPINLOCK(async_scan_lock);
+static LIST_HEAD(scanning_hosts);
+
+struct async_scan_data {
+	struct list_head list;
+	struct Scsi_Host *shost;
+	struct completion prev_finished;
+};
+
+/**
+ * scsi_complete_async_scans - Wait for asynchronous scans to complete
+ *
+ * Asynchronous scans add themselves to the scanning_hosts list.  Once
+ * that list is empty, we know that the scans are complete.  Rather than
+ * waking up periodically to check the state of the list, we pretend to be
+ * a scanning task by adding ourselves at the end of the list and going to
+ * sleep.  When the task before us wakes us up, we take ourselves off the
+ * list and return.
+ */
+int scsi_complete_async_scans(void)
+{
+	struct async_scan_data *data;
+
+	do {
+		if (list_empty(&scanning_hosts))
+			return 0;
+		/* If we can't get memory immediately, that's OK.  Just
+		 * sleep a little.  Even if we never get memory, the async
+		 * scans will finish eventually.
+		 */
+		data = kmalloc(sizeof(*data), GFP_KERNEL);
+		if (!data)
+			msleep(1);
+	} while (!data);
+
+	data->shost = NULL;
+	init_completion(&data->prev_finished);
+
+	spin_lock(&async_scan_lock);
+	/* Check that there's still somebody else on the list */
+	if (list_empty(&scanning_hosts))
+		goto done;
+	list_add_tail(&data->list, &scanning_hosts);
+	spin_unlock(&async_scan_lock);
+
+	printk(KERN_INFO "scsi: waiting for bus probes to complete ...\n");
+	wait_for_completion(&data->prev_finished);
+
+	spin_lock(&async_scan_lock);
+	list_del(&data->list);
+ done:
+	spin_unlock(&async_scan_lock);
+
+	kfree(data);
+	return 0;
+}
+
+#ifdef MODULE
+/* Only exported for the benefit of scsi_wait_scan */
+EXPORT_SYMBOL_GPL(scsi_complete_async_scans);
+#endif
 
 /**
  * scsi_unlock_floptical - unlock device via a special MODE SENSE command
@@ -362,9 +437,10 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	goto retry;
 }
 
-static void scsi_target_reap_usercontext(void *data)
+static void scsi_target_reap_usercontext(struct work_struct *work)
 {
-	struct scsi_target *starget = data;
+	struct scsi_target *starget =
+		container_of(work, struct scsi_target, ew.work);
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;
 
@@ -400,7 +476,7 @@ void scsi_target_reap(struct scsi_target *starget)
 		starget->state = STARGET_DEL;
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		execute_in_process_context(scsi_target_reap_usercontext,
-					   starget, &starget->ew);
+					   &starget->ew);
 		return;
 
 	}
@@ -619,7 +695,7 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
  *     SCSI_SCAN_LUN_PRESENT: a new scsi_device was allocated and initialized
  **/
 static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
-		int *bflags)
+		int *bflags, int async)
 {
 	/*
 	 * XXX do not save the inquiry, since it can change underneath us,
@@ -631,12 +707,22 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	 * scanning run at their own risk, or supply a user level program
 	 * that can correctly scan.
 	 */
-	sdev->inquiry = kmalloc(sdev->inquiry_len, GFP_ATOMIC);
-	if (sdev->inquiry == NULL) {
-		return SCSI_SCAN_NO_RESPONSE;
-	}
 
-	memcpy(sdev->inquiry, inq_result, sdev->inquiry_len);
+	/*
+	 * Copy at least 36 bytes of INQUIRY data, so that we don't
+	 * dereference unallocated memory when accessing the Vendor,
+	 * Product, and Revision strings.  Badly behaved devices may set
+	 * the INQUIRY Additional Length byte to a small value, indicating
+	 * these strings are invalid, but often they contain plausible data
+	 * nonetheless.  It doesn't matter if the device sent < 36 bytes
+	 * total, since scsi_probe_lun() initializes inq_result with 0s.
+	 */
+	sdev->inquiry = kmemdup(inq_result,
+				max_t(size_t, sdev->inquiry_len, 36),
+				GFP_ATOMIC);
+	if (sdev->inquiry == NULL)
+		return SCSI_SCAN_NO_RESPONSE;
+
 	sdev->vendor = (char *) (sdev->inquiry + 8);
 	sdev->model = (char *) (sdev->inquiry + 16);
 	sdev->rev = (char *) (sdev->inquiry + 32);
@@ -795,7 +881,7 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	 * register it and tell the rest of the kernel
 	 * about it.
 	 */
-	if (scsi_sysfs_add_sdev(sdev) != 0)
+	if (!async && scsi_sysfs_add_sdev(sdev) != 0)
 		return SCSI_SCAN_NO_RESPONSE;
 
 	return SCSI_SCAN_LUN_PRESENT;
@@ -964,7 +1050,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		goto out_free_result;
 	}
 
-	res = scsi_add_lun(sdev, result, &bflags);
+	res = scsi_add_lun(sdev, result, &bflags, shost->async_scan);
 	if (res == SCSI_SCAN_LUN_PRESENT) {
 		if (bflags & BLIST_KEY) {
 			sdev->lockable = 0;
@@ -1464,6 +1550,12 @@ void scsi_scan_target(struct device *parent, unsigned int channel,
 {
 	struct Scsi_Host *shost = dev_to_shost(parent);
 
+	if (strncmp(scsi_scan_type, "none", 4) == 0)
+		return;
+
+	if (!shost->async_scan)
+		scsi_complete_async_scans();
+
 	mutex_lock(&shost->scan_mutex);
 	if (scsi_host_scan_allowed(shost))
 		__scsi_scan_target(parent, channel, id, lun, rescan);
@@ -1509,6 +1601,9 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 		"%s: <%u:%u:%u>\n",
 		__FUNCTION__, channel, id, lun));
 
+	if (!shost->async_scan)
+		scsi_complete_async_scans();
+
 	if (((channel != SCAN_WILD_CARD) && (channel > shost->max_channel)) ||
 	    ((id != SCAN_WILD_CARD) && (id >= shost->max_id)) ||
 	    ((lun != SCAN_WILD_CARD) && (lun > shost->max_lun)))
@@ -1529,14 +1624,143 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 	return 0;
 }
 
+static void scsi_sysfs_add_devices(struct Scsi_Host *shost)
+{
+	struct scsi_device *sdev;
+	shost_for_each_device(sdev, shost) {
+		if (scsi_sysfs_add_sdev(sdev) != 0)
+			scsi_destroy_sdev(sdev);
+	}
+}
+
+/**
+ * scsi_prep_async_scan - prepare for an async scan
+ * @shost: the host which will be scanned
+ * Returns: a cookie to be passed to scsi_finish_async_scan()
+ *
+ * Tells the midlayer this host is going to do an asynchronous scan.
+ * It reserves the host's position in the scanning list and ensures
+ * that other asynchronous scans started after this one won't affect the
+ * ordering of the discovered devices.
+ */
+static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
+{
+	struct async_scan_data *data;
+
+	if (strncmp(scsi_scan_type, "sync", 4) == 0)
+		return NULL;
+
+	if (shost->async_scan) {
+		printk("%s called twice for host %d", __FUNCTION__,
+				shost->host_no);
+		dump_stack();
+		return NULL;
+	}
+
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		goto err;
+	data->shost = scsi_host_get(shost);
+	if (!data->shost)
+		goto err;
+	init_completion(&data->prev_finished);
+
+	spin_lock(&async_scan_lock);
+	shost->async_scan = 1;
+	if (list_empty(&scanning_hosts))
+		complete(&data->prev_finished);
+	list_add_tail(&data->list, &scanning_hosts);
+	spin_unlock(&async_scan_lock);
+
+	return data;
+
+ err:
+	kfree(data);
+	return NULL;
+}
+
+/**
+ * scsi_finish_async_scan - asynchronous scan has finished
+ * @data: cookie returned from earlier call to scsi_prep_async_scan()
+ *
+ * All the devices currently attached to this host have been found.
+ * This function announces all the devices it has found to the rest
+ * of the system.
+ */
+static void scsi_finish_async_scan(struct async_scan_data *data)
+{
+	struct Scsi_Host *shost;
+
+	if (!data)
+		return;
+
+	shost = data->shost;
+	if (!shost->async_scan) {
+		printk("%s called twice for host %d", __FUNCTION__,
+				shost->host_no);
+		dump_stack();
+		return;
+	}
+
+	wait_for_completion(&data->prev_finished);
+
+	scsi_sysfs_add_devices(shost);
+
+	spin_lock(&async_scan_lock);
+	shost->async_scan = 0;
+	list_del(&data->list);
+	if (!list_empty(&scanning_hosts)) {
+		struct async_scan_data *next = list_entry(scanning_hosts.next,
+				struct async_scan_data, list);
+		complete(&next->prev_finished);
+	}
+	spin_unlock(&async_scan_lock);
+
+	scsi_host_put(shost);
+	kfree(data);
+}
+
+static void do_scsi_scan_host(struct Scsi_Host *shost)
+{
+	if (shost->hostt->scan_finished) {
+		unsigned long start = jiffies;
+		if (shost->hostt->scan_start)
+			shost->hostt->scan_start(shost);
+
+		while (!shost->hostt->scan_finished(shost, jiffies - start))
+			msleep(10);
+	} else {
+		scsi_scan_host_selected(shost, SCAN_WILD_CARD, SCAN_WILD_CARD,
+				SCAN_WILD_CARD, 0);
+	}
+}
+
+static int do_scan_async(void *_data)
+{
+	struct async_scan_data *data = _data;
+	do_scsi_scan_host(data->shost);
+	scsi_finish_async_scan(data);
+	return 0;
+}
+
 /**
  * scsi_scan_host - scan the given adapter
  * @shost:	adapter to scan
  **/
 void scsi_scan_host(struct Scsi_Host *shost)
 {
-	scsi_scan_host_selected(shost, SCAN_WILD_CARD, SCAN_WILD_CARD,
-				SCAN_WILD_CARD, 0);
+	struct async_scan_data *data;
+
+	if (strncmp(scsi_scan_type, "none", 4) == 0)
+		return;
+
+	data = scsi_prep_async_scan(shost);
+	if (!data) {
+		do_scsi_scan_host(shost);
+		return;
+	}
+
+	kthread_run(do_scan_async, data, "scsi_scan_%d", shost->host_no);
 }
 EXPORT_SYMBOL(scsi_scan_host);
 

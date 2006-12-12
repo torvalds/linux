@@ -39,10 +39,10 @@
 #include <linux/raid/bitmap.h>
 #include <linux/sysctl.h>
 #include <linux/buffer_head.h> /* for invalidate_bdev */
-#include <linux/suspend.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
 #include <linux/ctype.h>
+#include <linux/freezer.h>
 
 #include <linux/init.h>
 
@@ -974,12 +974,13 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
  * version 1 superblock
  */
 
-static unsigned int calc_sb_1_csum(struct mdp_superblock_1 * sb)
+static __le32 calc_sb_1_csum(struct mdp_superblock_1 * sb)
 {
-	unsigned int disk_csum, csum;
+	__le32 disk_csum;
+	u32 csum;
 	unsigned long long newcsum;
 	int size = 256 + le32_to_cpu(sb->max_dev)*2;
-	unsigned int *isuper = (unsigned int*)sb;
+	__le32 *isuper = (__le32*)sb;
 	int i;
 
 	disk_csum = sb->sb_csum;
@@ -989,7 +990,7 @@ static unsigned int calc_sb_1_csum(struct mdp_superblock_1 * sb)
 		newcsum += le32_to_cpu(*isuper++);
 
 	if (size == 2)
-		newcsum += le16_to_cpu(*(unsigned short*) isuper);
+		newcsum += le16_to_cpu(*(__le16*) isuper);
 
 	csum = (newcsum & 0xffffffff) + (newcsum >> 32);
 	sb->sb_csum = disk_csum;
@@ -1106,7 +1107,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	if (le32_to_cpu(sb->chunksize))
 		rdev->size &= ~((sector_t)le32_to_cpu(sb->chunksize)/2 - 1);
 
-	if (le32_to_cpu(sb->size) > rdev->size*2)
+	if (le64_to_cpu(sb->size) > rdev->size*2)
 		return -EINVAL;
 	return ret;
 }
@@ -1228,7 +1229,7 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	else
 		sb->resync_offset = cpu_to_le64(0);
 
-	sb->cnt_corrected_read = atomic_read(&rdev->corrected_errors);
+	sb->cnt_corrected_read = cpu_to_le32(atomic_read(&rdev->corrected_errors));
 
 	sb->raid_disks = cpu_to_le32(mddev->raid_disks);
 	sb->size = cpu_to_le64(mddev->size<<1);
@@ -1412,7 +1413,7 @@ static int lock_rdev(mdk_rdev_t *rdev, dev_t dev)
 	struct block_device *bdev;
 	char b[BDEVNAME_SIZE];
 
-	bdev = open_partition_by_devnum(dev, FMODE_READ|FMODE_WRITE);
+	bdev = open_by_devnum(dev, FMODE_READ|FMODE_WRITE);
 	if (IS_ERR(bdev)) {
 		printk(KERN_ERR "md: could not open %s.\n",
 			__bdevname(dev, b));
@@ -1422,7 +1423,7 @@ static int lock_rdev(mdk_rdev_t *rdev, dev_t dev)
 	if (err) {
 		printk(KERN_ERR "md: could not bd_claim %s.\n",
 			bdevname(bdev, b));
-		blkdev_put_partition(bdev);
+		blkdev_put(bdev);
 		return err;
 	}
 	rdev->bdev = bdev;
@@ -1436,7 +1437,7 @@ static void unlock_rdev(mdk_rdev_t *rdev)
 	if (!bdev)
 		MD_BUG();
 	bd_release(bdev);
-	blkdev_put_partition(bdev);
+	blkdev_put(bdev);
 }
 
 void md_autodetect_dev(dev_t dev);
@@ -2002,6 +2003,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	kobject_init(&rdev->kobj);
 
 	rdev->desc_nr = -1;
+	rdev->saved_raid_disk = -1;
 	rdev->flags = 0;
 	rdev->data_offset = 0;
 	rdev->sb_events = 0;
@@ -3198,6 +3200,7 @@ static int do_md_run(mddev_t * mddev)
 
 	mddev->changed = 1;
 	md_new_event(mddev);
+	kobject_uevent(&mddev->gendisk->kobj, KOBJ_CHANGE);
 	return 0;
 }
 
@@ -3311,6 +3314,10 @@ static int do_md_stop(mddev_t * mddev, int mode)
 
 			module_put(mddev->pers->owner);
 			mddev->pers = NULL;
+
+			set_capacity(disk, 0);
+			mddev->changed = 1;
+
 			if (mddev->ro)
 				mddev->ro = 0;
 		}
@@ -3330,7 +3337,7 @@ static int do_md_stop(mddev_t * mddev, int mode)
 	if (mode == 0) {
 		mdk_rdev_t *rdev;
 		struct list_head *tmp;
-		struct gendisk *disk;
+
 		printk(KERN_INFO "md: %s stopped.\n", mdname(mddev));
 
 		bitmap_destroy(mddev);
@@ -3355,10 +3362,6 @@ static int do_md_stop(mddev_t * mddev, int mode)
 		mddev->raid_disks = 0;
 		mddev->recovery_cp = 0;
 
-		disk = mddev->gendisk;
-		if (disk)
-			set_capacity(disk, 0);
-		mddev->changed = 1;
 	} else if (mddev->pers)
 		printk(KERN_INFO "md: %s switched to read-only mode.\n",
 			mdname(mddev));
@@ -3368,6 +3371,7 @@ out:
 	return err;
 }
 
+#ifndef MODULE
 static void autorun_array(mddev_t *mddev)
 {
 	mdk_rdev_t *rdev;
@@ -3482,6 +3486,7 @@ static void autorun_devices(int part)
 	}
 	printk(KERN_INFO "md: ... autorun DONE.\n");
 }
+#endif /* !MODULE */
 
 static int get_version(void __user * arg)
 {
@@ -3719,6 +3724,7 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		if (err)
 			export_rdev(rdev);
 
+		md_update_sb(mddev, 1);
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 		md_wakeup_thread(mddev->thread);
 		return err;
@@ -4043,11 +4049,8 @@ static int update_size(mddev_t *mddev, unsigned long size)
 		return -EBUSY;
 	ITERATE_RDEV(mddev,rdev,tmp) {
 		sector_t avail;
-		if (rdev->sb_offset > rdev->data_offset)
-			avail = (rdev->sb_offset*2) - rdev->data_offset;
-		else
-			avail = get_capacity(rdev->bdev->bd_disk)
-				- rdev->data_offset;
+		avail = rdev->size * 2;
+
 		if (fit && (size == 0 || size > avail/2))
 			size = avail/2;
 		if (avail < ((sector_t)size << 1))
@@ -4423,7 +4426,7 @@ static int md_open(struct inode *inode, struct file *file)
 	mddev_t *mddev = inode->i_bdev->bd_disk->private_data;
 	int err;
 
-	if ((err = mddev_lock(mddev)))
+	if ((err = mutex_lock_interruptible_nested(&mddev->reconfig_mutex, 1)))
 		goto out;
 
 	err = 0;
@@ -4486,6 +4489,7 @@ static int md_thread(void * arg)
 	 * many dirty RAID5 blocks.
 	 */
 
+	current->flags |= PF_NOFREEZE;
 	allow_signal(SIGKILL);
 	while (!kthread_should_stop()) {
 
@@ -4502,7 +4506,6 @@ static int md_thread(void * arg)
 			 test_bit(THREAD_WAKEUP, &thread->flags)
 			 || kthread_should_stop(),
 			 thread->timeout);
-		try_to_freeze();
 
 		clear_bit(THREAD_WAKEUP, &thread->flags);
 
@@ -4846,8 +4849,8 @@ static int md_seq_show(struct seq_file *seq, void *v)
 				chunk_kb ? "KB" : "B");
 			if (bitmap->file) {
 				seq_printf(seq, ", file: ");
-				seq_path(seq, bitmap->file->f_vfsmnt,
-					 bitmap->file->f_dentry," \t\n");
+				seq_path(seq, bitmap->file->f_path.mnt,
+					 bitmap->file->f_path.dentry," \t\n");
 			}
 
 			seq_printf(seq, "\n");
@@ -4912,6 +4915,7 @@ static unsigned int mdstat_poll(struct file *filp, poll_table *wait)
 }
 
 static struct file_operations md_seq_fops = {
+	.owner		= THIS_MODULE,
 	.open           = md_seq_open,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
@@ -5272,7 +5276,6 @@ void md_do_sync(mddev_t *mddev)
 	mddev->pers->sync_request(mddev, max_sectors, &skipped, 1);
 
 	if (!test_bit(MD_RECOVERY_ERR, &mddev->recovery) &&
-	    test_bit(MD_RECOVERY_SYNC, &mddev->recovery) &&
 	    !test_bit(MD_RECOVERY_CHECK, &mddev->recovery) &&
 	    mddev->curr_resync > 2) {
 		if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
@@ -5296,6 +5299,7 @@ void md_do_sync(mddev_t *mddev)
 					rdev->recovery_offset = mddev->curr_resync;
 		}
 	}
+	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 
  skip:
 	mddev->curr_resync = 0;
@@ -5592,7 +5596,7 @@ static void autostart_arrays(int part)
 	autorun_devices(part);
 }
 
-#endif
+#endif /* !MODULE */
 
 static __exit void md_exit(void)
 {

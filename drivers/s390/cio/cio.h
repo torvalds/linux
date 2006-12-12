@@ -87,7 +87,7 @@ struct orb {
 /* subchannel data structure used by I/O subroutines */
 struct subchannel {
 	struct subchannel_id schid;
-	spinlock_t lock;	/* subchannel lock */
+	spinlock_t *lock;	/* subchannel lock */
 	struct mutex reg_mutex;
 	enum {
 		SUBCHANNEL_TYPE_IO = 0,
@@ -131,15 +131,19 @@ extern int cio_set_options (struct subchannel *, int);
 extern int cio_get_options (struct subchannel *);
 extern int cio_modify (struct subchannel *);
 
+int cio_create_sch_lock(struct subchannel *);
+
 /* Use with care. */
 #ifdef CONFIG_CCW_CONSOLE
 extern struct subchannel *cio_probe_console(void);
 extern void cio_release_console(void);
 extern int cio_is_console(struct subchannel_id);
 extern struct subchannel *cio_get_console_subchannel(void);
+extern spinlock_t * cio_get_console_lock(void);
 #else
 #define cio_is_console(schid) 0
 #define cio_get_console_subchannel() NULL
+#define cio_get_console_lock() NULL;
 #endif
 
 extern int cio_show_msg;

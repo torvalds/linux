@@ -463,7 +463,7 @@ static void cleanup_card(struct net_device *dev)
 	release_region(dev->base_addr, E21_IO_EXTENT);
 }
 
-void
+void __exit
 cleanup_module(void)
 {
 	int this_dev;

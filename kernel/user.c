@@ -26,7 +26,7 @@
 #define __uidhashfn(uid)	(((uid >> UIDHASH_BITS) + uid) & UIDHASH_MASK)
 #define uidhashentry(uid)	(uidhash_table + __uidhashfn((uid)))
 
-static kmem_cache_t *uid_cachep;
+static struct kmem_cache *uid_cachep;
 static struct list_head uidhash_table[UIDHASH_SZ];
 
 /*
@@ -132,7 +132,7 @@ struct user_struct * alloc_uid(uid_t uid)
 	if (!up) {
 		struct user_struct *new;
 
-		new = kmem_cache_alloc(uid_cachep, SLAB_KERNEL);
+		new = kmem_cache_alloc(uid_cachep, GFP_KERNEL);
 		if (!new)
 			return NULL;
 		new->uid = uid;
@@ -187,6 +187,17 @@ void switch_uid(struct user_struct *new_user)
 	atomic_dec(&old_user->processes);
 	switch_uid_keyring(new_user);
 	current->user = new_user;
+
+	/*
+	 * We need to synchronize with __sigqueue_alloc()
+	 * doing a get_uid(p->user).. If that saw the old
+	 * user value, we need to wait until it has exited
+	 * its critical region before we can free the old
+	 * structure.
+	 */
+	smp_mb();
+	spin_unlock_wait(&current->sighand->siglock);
+
 	free_uid(old_user);
 	suid_keys(current);
 }

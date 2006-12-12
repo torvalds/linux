@@ -61,13 +61,12 @@ static void __exit emi62_exit (void);
 static int emi62_writememory (struct usb_device *dev, int address, unsigned char *data, int length, __u8 request)
 {
 	int result;
-	unsigned char *buffer =  kmalloc (length, GFP_KERNEL);
+	unsigned char *buffer =  kmemdup(data, length, GFP_KERNEL);
 
 	if (!buffer) {
 		err("emi62: kmalloc(%d) failed.", length);
 		return -ENOMEM;
 	}
-	memcpy (buffer, data, length);
 	/* Note: usb_control_msg returns negative value on error or length of the
 	 * 		 data that was written! */
 	result = usb_control_msg (dev, usb_sndctrlpipe(dev, 0), request, 0x40, address, 0, buffer, length, 300);

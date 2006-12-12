@@ -82,7 +82,7 @@ struct net_bridge_port
 	struct timer_list		hold_timer;
 	struct timer_list		message_age_timer;
 	struct kobject			kobj;
-	struct work_struct		carrier_check;
+	struct delayed_work		carrier_check;
 	struct rcu_head			rcu;
 };
 
@@ -143,7 +143,7 @@ extern void br_fdb_changeaddr(struct net_bridge_port *p,
 			      const unsigned char *newaddr);
 extern void br_fdb_cleanup(unsigned long arg);
 extern void br_fdb_delete_by_port(struct net_bridge *br,
-			   struct net_bridge_port *p);
+				  const struct net_bridge_port *p, int do_all);
 extern struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
 						 const unsigned char *addr);
 extern struct net_bridge_fdb_entry *br_fdb_get(struct net_bridge *br,

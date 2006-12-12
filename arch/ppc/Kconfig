@@ -19,6 +19,14 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default y
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -52,6 +60,11 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
 source "init/Kconfig"
 
 menu "Processor"
@@ -77,9 +90,11 @@ config 6xx
 
 config 40x
 	bool "40x"
+	select PPC_DCR_NATIVE
 
 config 44x
 	bool "44x"
+	select PPC_DCR_NATIVE
 
 config 8xx
 	bool "8xx"
@@ -94,6 +109,15 @@ endchoice
 
 config PPC_FPU
 	bool
+
+config PPC_DCR_NATIVE
+	bool
+	default n
+
+config PPC_DCR
+	bool
+	depends on PPC_DCR_NATIVE
+	default y
 
 config BOOKE
 	bool
@@ -724,7 +748,7 @@ config MPC834x_SYS
 	  Be aware that PCI buses can only function when SYS board is plugged
 	  into the PIB (Platform IO Board) board from Freescale which provide
 	  3 PCI slots.  The PIBs PCI initialization is the bootloader's
-	  responsiblilty.
+	  responsibility.
 
 config EV64360
 	bool "Marvell-EV64360BP"

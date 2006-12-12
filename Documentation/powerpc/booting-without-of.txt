@@ -6,6 +6,8 @@
     IBM Corp.
 (c) 2005 Becky Bruce <becky.bruce at freescale.com>,
     Freescale Semiconductor, FSL SOC and 32-bit additions
+(c) 2006 MontaVista Software, Inc.
+    Flash chip node definition
 
    May 18, 2005: Rev 0.1 - Initial draft, no chapter III yet.
 
@@ -33,13 +35,13 @@
                          - Change version 16 format to always align
                            property data to 4 bytes. Since tokens are
                            already aligned, that means no specific
-                           required alignement between property size
+                           required alignment between property size
                            and property data. The old style variable
                            alignment would make it impossible to do
                            "simple" insertion of properties using
                            memove (thanks Milton for
                            noticing). Updated kernel patch as well
-			 - Correct a few more alignement constraints
+			 - Correct a few more alignment constraints
 			 - Add a chapter about the device-tree
                            compiler and the textural representation of
                            the tree that can be "compiled" by dtc.
@@ -854,7 +856,7 @@ address which can extend beyond that limit.
       console device if any. Typically, if you have serial devices on
       your board, you may want to put the full path to the one set as
       the default console in the firmware here, for the kernel to pick
-      it up as it's own default console. If you look at the funciton
+      it up as its own default console. If you look at the function
       set_preferred_console() in arch/ppc64/kernel/setup.c, you'll see
       that the kernel tries to find out the default console and has
       knowledge of various types like 8250 serial ports. You may want
@@ -1124,7 +1126,7 @@ should have the following properties:
 	- interrupt-parent : contains the phandle of the interrupt
           controller which handles interrupts for this device
 	- interrupts : a list of tuples representing the interrupt
-          number and the interrupt sense and level for each interupt
+          number and the interrupt sense and level for each interrupt
           for this device.
 
 This information is used by the kernel to build the interrupt table
@@ -1692,6 +1694,43 @@ platforms are moved over to use the flattened-device-tree model.
 			reg = <0 c000>;
 		};
 	};
+
+    g) Flash chip nodes
+
+    Flash chips (Memory Technology Devices) are often used for solid state
+    file systems on embedded devices.
+
+    Required properties:
+
+     - device_type : has to be "rom"
+     - compatible : Should specify what this ROM device is compatible with
+       (i.e. "onenand"). Currently, this is most likely to be "direct-mapped"
+       (which corresponds to the MTD physmap mapping driver).
+     - regs : Offset and length of the register set (or memory mapping) for
+       the device.
+
+    Recommended properties :
+
+     - bank-width : Width of the flash data bus in bytes. Required
+       for the NOR flashes (compatible == "direct-mapped" and others) ONLY.
+     - partitions : Several pairs of 32-bit values where the first value is
+       partition's offset from the start of the device and the second one is
+       partition size in bytes with LSB used to signify a read only
+       partititon (so, the parition size should always be an even number).
+     - partition-names : The list of concatenated zero terminated strings
+       representing the partition names.
+
+   Example:
+
+ 	flash@ff000000 {
+ 		device_type = "rom";
+ 		compatible = "direct-mapped";
+ 		regs = <ff000000 01000000>;
+ 		bank-width = <4>;
+ 		partitions = <00000000 00f80000
+ 			      00f80000 00080001>;
+ 		partition-names = "fs\0firmware";
+ 	};
 
    More devices will be defined as this spec matures.
 

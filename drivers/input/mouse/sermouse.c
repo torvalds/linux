@@ -246,7 +246,7 @@ static int sermouse_connect(struct serio *serio, struct serio_driver *drv)
 	sermouse = kzalloc(sizeof(struct sermouse), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!sermouse || !input_dev)
-		goto fail;
+		goto fail1;
 
 	sermouse->dev = input_dev;
 	snprintf(sermouse->phys, sizeof(sermouse->phys), "%s/input0", serio->phys);
@@ -275,14 +275,17 @@ static int sermouse_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device(sermouse->dev);
+	err = input_register_device(sermouse->dev);
+	if (err)
+		goto fail3;
 
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
 	kfree(sermouse);
 	return err;
 }
@@ -348,8 +351,7 @@ static struct serio_driver sermouse_drv = {
 
 static int __init sermouse_init(void)
 {
-	serio_register_driver(&sermouse_drv);
-	return 0;
+	return serio_register_driver(&sermouse_drv);
 }
 
 static void __exit sermouse_exit(void)

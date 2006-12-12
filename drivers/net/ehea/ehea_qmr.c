@@ -26,6 +26,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/mm.h>
 #include "ehea.h"
 #include "ehea_phyp.h"
 #include "ehea_qmr.h"
@@ -209,10 +210,10 @@ int ehea_destroy_cq(struct ehea_cq *cq)
 {
 	u64 adapter_handle, hret;
 
-	adapter_handle = cq->adapter->handle;
-
 	if (!cq)
 		return 0;
+
+	adapter_handle = cq->adapter->handle;
 
 	/* deregister all previous registered pages */
 	hret = ehea_h_free_resource(adapter_handle, cq->fw_handle);
@@ -512,7 +513,7 @@ int ehea_reg_mr_adapter(struct ehea_adapter *adapter)
 
 	start = KERNELBASE;
 	end = (u64)high_memory;
-	nr_pages = (end - start) / PAGE_SIZE;
+	nr_pages = (end - start) / EHEA_PAGESIZE;
 
 	pt =  kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!pt) {
@@ -538,9 +539,9 @@ int ehea_reg_mr_adapter(struct ehea_adapter *adapter)
 		if (nr_pages > 1) {
 			u64 num_pages = min(nr_pages, (u64)512);
 			for (i = 0; i < num_pages; i++)
-				pt[i] = virt_to_abs((void*)(((u64)start)
-							     + ((k++) *
-								PAGE_SIZE)));
+				pt[i] = virt_to_abs((void*)(((u64)start) +
+							    ((k++) *
+							     EHEA_PAGESIZE)));
 
 			hret = ehea_h_register_rpage_mr(adapter->handle,
 							adapter->mr.handle, 0,
@@ -548,8 +549,9 @@ int ehea_reg_mr_adapter(struct ehea_adapter *adapter)
 							num_pages);
 			nr_pages -= num_pages;
 		} else {
-			u64 abs_adr = virt_to_abs((void*)(((u64)start)
-							   + (k * PAGE_SIZE)));
+			u64 abs_adr = virt_to_abs((void*)(((u64)start) +
+							  (k * EHEA_PAGESIZE)));
+
 			hret = ehea_h_register_rpage_mr(adapter->handle,
 							adapter->mr.handle, 0,
 							0, abs_adr,1);

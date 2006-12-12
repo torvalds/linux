@@ -497,15 +497,17 @@ static int validate_mmap_request(struct file *file,
 	    (flags & MAP_TYPE) != MAP_SHARED)
 		return -EINVAL;
 
-	if (PAGE_ALIGN(len) == 0)
-		return addr;
-
-	if (len > TASK_SIZE)
+	if (!len)
 		return -EINVAL;
+
+	/* Careful about overflows.. */
+	len = PAGE_ALIGN(len);
+	if (!len || len > TASK_SIZE)
+		return -ENOMEM;
 
 	/* offset overflow? */
 	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
-		return -EINVAL;
+		return -EOVERFLOW;
 
 	if (file) {
 		/* validate file mapping requests */
@@ -521,7 +523,7 @@ static int validate_mmap_request(struct file *file,
 		 */
 		mapping = file->f_mapping;
 		if (!mapping)
-			mapping = file->f_dentry->d_inode->i_mapping;
+			mapping = file->f_path.dentry->d_inode->i_mapping;
 
 		capabilities = 0;
 		if (mapping && mapping->backing_dev_info)
@@ -530,7 +532,7 @@ static int validate_mmap_request(struct file *file,
 		if (!capabilities) {
 			/* no explicit capabilities set, so assume some
 			 * defaults */
-			switch (file->f_dentry->d_inode->i_mode & S_IFMT) {
+			switch (file->f_path.dentry->d_inode->i_mode & S_IFMT) {
 			case S_IFREG:
 			case S_IFBLK:
 				capabilities = BDI_CAP_MAP_COPY;
@@ -561,11 +563,11 @@ static int validate_mmap_request(struct file *file,
 			    !(file->f_mode & FMODE_WRITE))
 				return -EACCES;
 
-			if (IS_APPEND(file->f_dentry->d_inode) &&
+			if (IS_APPEND(file->f_path.dentry->d_inode) &&
 			    (file->f_mode & FMODE_WRITE))
 				return -EACCES;
 
-			if (locks_verify_locked(file->f_dentry->d_inode))
+			if (locks_verify_locked(file->f_path.dentry->d_inode))
 				return -EAGAIN;
 
 			if (!(capabilities & BDI_CAP_MAP_DIRECT))
@@ -596,7 +598,7 @@ static int validate_mmap_request(struct file *file,
 
 		/* handle executable mappings and implied executable
 		 * mappings */
-		if (file->f_vfsmnt->mnt_flags & MNT_NOEXEC) {
+		if (file->f_path.mnt->mnt_flags & MNT_NOEXEC) {
 			if (prot & PROT_EXEC)
 				return -EPERM;
 		}
@@ -806,10 +808,9 @@ unsigned long do_mmap_pgoff(struct file *file,
 	vm_flags = determine_vm_flags(file, prot, flags, capabilities);
 
 	/* we're going to need to record the mapping if it works */
-	vml = kmalloc(sizeof(struct vm_list_struct), GFP_KERNEL);
+	vml = kzalloc(sizeof(struct vm_list_struct), GFP_KERNEL);
 	if (!vml)
 		goto error_getting_vml;
-	memset(vml, 0, sizeof(*vml));
 
 	down_write(&nommu_vma_sem);
 
@@ -832,7 +833,7 @@ unsigned long do_mmap_pgoff(struct file *file,
 				continue;
 
 			/* search for overlapping mappings on the same file */
-			if (vma->vm_file->f_dentry->d_inode != file->f_dentry->d_inode)
+			if (vma->vm_file->f_path.dentry->d_inode != file->f_path.dentry->d_inode)
 				continue;
 
 			if (vma->vm_pgoff >= pgoff + pglen)
@@ -885,11 +886,10 @@ unsigned long do_mmap_pgoff(struct file *file,
 	}
 
 	/* we're going to need a VMA struct as well */
-	vma = kmalloc(sizeof(struct vm_area_struct), GFP_KERNEL);
+	vma = kzalloc(sizeof(struct vm_area_struct), GFP_KERNEL);
 	if (!vma)
 		goto error_getting_vma;
 
-	memset(vma, 0, sizeof(*vma));
 	INIT_LIST_HEAD(&vma->anon_vma_node);
 	atomic_set(&vma->vm_usage, 1);
 	if (file)

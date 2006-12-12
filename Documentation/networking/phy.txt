@@ -1,7 +1,7 @@
 
 -------
 PHY Abstraction Layer
-(Updated 2005-07-21)
+(Updated 2006-11-30)
 
 Purpose
 
@@ -97,11 +97,12 @@ Letting the PHY Abstraction Layer do Everything
  
  Next, you need to know the device name of the PHY connected to this device. 
  The name will look something like, "phy0:0", where the first number is the
- bus id, and the second is the PHY's address on that bus.
+ bus id, and the second is the PHY's address on that bus.  Typically,
+ the bus is responsible for making its ID unique.
  
  Now, to connect, just call this function:
  
-   phydev = phy_connect(dev, phy_name, &adjust_link, flags);
+   phydev = phy_connect(dev, phy_name, &adjust_link, flags, interface);
 
  phydev is a pointer to the phy_device structure which represents the PHY.  If
  phy_connect is successful, it will return the pointer.  dev, here, is the
@@ -114,6 +115,10 @@ Letting the PHY Abstraction Layer do Everything
  flags is a u32 which can optionally contain phy-specific flags.
  This is useful if the system has put hardware restrictions on
  the PHY/controller, of which the PHY needs to be aware.
+
+ interface is a u32 which specifies the connection type used
+ between the controller and the PHY.  Examples are GMII, MII,
+ RGMII, and SGMII.  For a full list, see include/linux/phy.h
 
  Now just make sure that phydev->supported and phydev->advertising have any
  values pruned from them which don't make sense for your controller (a 10/100
@@ -191,7 +196,7 @@ Doing it all yourself
    start, or disables then frees them for stop.
 
  struct phy_device * phy_attach(struct net_device *dev, const char *phy_id,
-		 u32 flags);
+		 u32 flags, phy_interface_t interface);
 
    Attaches a network device to a particular PHY, binding the PHY to a generic
    driver if none was found during bus initialization.  Passes in

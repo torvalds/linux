@@ -23,7 +23,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
-#include <asm/procinfo.h>
+#include <asm/elf.h>
 #include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/page.h>
@@ -491,12 +491,7 @@ __xscale_setup:
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I, D caches & BTB
 	mcr	p15, 0, ip, c7, c10, 4		@ Drain Write (& Fill) Buffer
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I, D TLBs
-#ifdef CONFIG_IWMMXT
-	mov	r0, #0				@ initially disallow access to CP0/CP1
-#else
-	mov	r0, #1				@ Allow access to CP0
-#endif
-	orr     r0, r0, #1 << 6			@ cp6 for IOP3xx and Bulverde
+	mov	r0, #1 << 6			@ cp6 for IOP3xx and Bulverde
 	orr	r0, r0, #1 << 13		@ Its undefined whether this
 	mcr	p15, 0, r0, c15, c1, 0		@ affects USR or SVC modes
 

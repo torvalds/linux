@@ -47,6 +47,7 @@ struct addr_req {
 	struct sockaddr src_addr;
 	struct sockaddr dst_addr;
 	struct rdma_dev_addr *addr;
+	struct rdma_addr_client *client;
 	void *context;
 	void (*callback)(int status, struct sockaddr *src_addr,
 			 struct rdma_dev_addr *addr, void *context);
@@ -54,12 +55,32 @@ struct addr_req {
 	int status;
 };
 
-static void process_req(void *data);
+static void process_req(struct work_struct *work);
 
 static DEFINE_MUTEX(lock);
 static LIST_HEAD(req_list);
-static DECLARE_WORK(work, process_req, NULL);
+static DECLARE_DELAYED_WORK(work, process_req);
 static struct workqueue_struct *addr_wq;
+
+void rdma_addr_register_client(struct rdma_addr_client *client)
+{
+	atomic_set(&client->refcount, 1);
+	init_completion(&client->comp);
+}
+EXPORT_SYMBOL(rdma_addr_register_client);
+
+static inline void put_client(struct rdma_addr_client *client)
+{
+	if (atomic_dec_and_test(&client->refcount))
+		complete(&client->comp);
+}
+
+void rdma_addr_unregister_client(struct rdma_addr_client *client)
+{
+	put_client(client);
+	wait_for_completion(&client->comp);
+}
+EXPORT_SYMBOL(rdma_addr_unregister_client);
 
 int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 		     const unsigned char *dst_dev_addr)
@@ -118,7 +139,7 @@ static void queue_req(struct addr_req *req)
 
 	mutex_lock(&lock);
 	list_for_each_entry_reverse(temp_req, &req_list, list) {
-		if (time_after(req->timeout, temp_req->timeout))
+		if (time_after_eq(req->timeout, temp_req->timeout))
 			break;
 	}
 
@@ -194,7 +215,7 @@ out:
 	return ret;
 }
 
-static void process_req(void *data)
+static void process_req(struct work_struct *work)
 {
 	struct addr_req *req, *temp_req;
 	struct sockaddr_in *src_in, *dst_in;
@@ -204,19 +225,17 @@ static void process_req(void *data)
 
 	mutex_lock(&lock);
 	list_for_each_entry_safe(req, temp_req, &req_list, list) {
-		if (req->status) {
+		if (req->status == -ENODATA) {
 			src_in = (struct sockaddr_in *) &req->src_addr;
 			dst_in = (struct sockaddr_in *) &req->dst_addr;
 			req->status = addr_resolve_remote(src_in, dst_in,
 							  req->addr);
+			if (req->status && time_after_eq(jiffies, req->timeout))
+				req->status = -ETIMEDOUT;
+			else if (req->status == -ENODATA)
+				continue;
 		}
-		if (req->status && time_after(jiffies, req->timeout))
-			req->status = -ETIMEDOUT;
-		else if (req->status == -ENODATA)
-			continue;
-
-		list_del(&req->list);
-		list_add_tail(&req->list, &done_list);
+		list_move_tail(&req->list, &done_list);
 	}
 
 	if (!list_empty(&req_list)) {
@@ -229,6 +248,7 @@ static void process_req(void *data)
 		list_del(&req->list);
 		req->callback(req->status, &req->src_addr, req->addr,
 			      req->context);
+		put_client(req->client);
 		kfree(req);
 	}
 }
@@ -264,7 +284,8 @@ static int addr_resolve_local(struct sockaddr_in *src_in,
 	return ret;
 }
 
-int rdma_resolve_ip(struct sockaddr *src_addr, struct sockaddr *dst_addr,
+int rdma_resolve_ip(struct rdma_addr_client *client,
+		    struct sockaddr *src_addr, struct sockaddr *dst_addr,
 		    struct rdma_dev_addr *addr, int timeout_ms,
 		    void (*callback)(int status, struct sockaddr *src_addr,
 				     struct rdma_dev_addr *addr, void *context),
@@ -285,6 +306,8 @@ int rdma_resolve_ip(struct sockaddr *src_addr, struct sockaddr *dst_addr,
 	req->addr = addr;
 	req->callback = callback;
 	req->context = context;
+	req->client = client;
+	atomic_inc(&client->refcount);
 
 	src_in = (struct sockaddr_in *) &req->src_addr;
 	dst_in = (struct sockaddr_in *) &req->dst_addr;
@@ -305,6 +328,7 @@ int rdma_resolve_ip(struct sockaddr *src_addr, struct sockaddr *dst_addr,
 		break;
 	default:
 		ret = req->status;
+		atomic_dec(&client->refcount);
 		kfree(req);
 		break;
 	}
@@ -321,8 +345,7 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 		if (req->addr == addr) {
 			req->status = -ECANCELED;
 			req->timeout = jiffies;
-			list_del(&req->list);
-			list_add(&req->list, &req_list);
+			list_move(&req->list, &req_list);
 			set_timeout(req->timeout);
 			break;
 		}

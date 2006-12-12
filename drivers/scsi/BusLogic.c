@@ -2186,21 +2186,21 @@ static int __init BusLogic_init(void)
 
 	if (BusLogic_ProbeOptions.NoProbe)
 		return -ENODEV;
-	BusLogic_ProbeInfoList = (struct BusLogic_ProbeInfo *)
-	    kmalloc(BusLogic_MaxHostAdapters * sizeof(struct BusLogic_ProbeInfo), GFP_ATOMIC);
+	BusLogic_ProbeInfoList =
+	    kzalloc(BusLogic_MaxHostAdapters * sizeof(struct BusLogic_ProbeInfo), GFP_KERNEL);
 	if (BusLogic_ProbeInfoList == NULL) {
 		BusLogic_Error("BusLogic: Unable to allocate Probe Info List\n", NULL);
 		return -ENOMEM;
 	}
-	memset(BusLogic_ProbeInfoList, 0, BusLogic_MaxHostAdapters * sizeof(struct BusLogic_ProbeInfo));
-	PrototypeHostAdapter = (struct BusLogic_HostAdapter *)
-	    kmalloc(sizeof(struct BusLogic_HostAdapter), GFP_ATOMIC);
+
+	PrototypeHostAdapter =
+	    kzalloc(sizeof(struct BusLogic_HostAdapter), GFP_KERNEL);
 	if (PrototypeHostAdapter == NULL) {
 		kfree(BusLogic_ProbeInfoList);
 		BusLogic_Error("BusLogic: Unable to allocate Prototype " "Host Adapter\n", NULL);
 		return -ENOMEM;
 	}
-	memset(PrototypeHostAdapter, 0, sizeof(struct BusLogic_HostAdapter));
+
 #ifdef MODULE
 	if (BusLogic != NULL)
 		BusLogic_Setup(BusLogic);
@@ -3599,6 +3599,17 @@ static void __exit BusLogic_exit(void)
 }
 
 __setup("BusLogic=", BusLogic_Setup);
+
+static struct pci_device_id BusLogic_pci_tbl[] __devinitdata = {
+	{ PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER_NC,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_FLASHPOINT,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ }
+};
+MODULE_DEVICE_TABLE(pci, BusLogic_pci_tbl);
 
 module_init(BusLogic_init);
 module_exit(BusLogic_exit);

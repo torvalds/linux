@@ -23,7 +23,7 @@ static struct fuse_conn *fuse_ctl_file_conn_get(struct file *file)
 {
 	struct fuse_conn *fc;
 	mutex_lock(&fuse_mutex);
-	fc = file->f_dentry->d_inode->i_private;
+	fc = file->f_path.dentry->d_inode->i_private;
 	if (fc)
 		fc = fuse_conn_get(fc);
 	mutex_unlock(&fuse_mutex);

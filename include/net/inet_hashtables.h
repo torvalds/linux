@@ -125,7 +125,7 @@ struct inet_hashinfo {
 	rwlock_t			lhash_lock ____cacheline_aligned;
 	atomic_t			lhash_users;
 	wait_queue_head_t		lhash_wait;
-	kmem_cache_t			*bind_bucket_cachep;
+	struct kmem_cache			*bind_bucket_cachep;
 };
 
 static inline struct inet_ehash_bucket *inet_ehash_bucket(
@@ -136,10 +136,10 @@ static inline struct inet_ehash_bucket *inet_ehash_bucket(
 }
 
 extern struct inet_bind_bucket *
-		    inet_bind_bucket_create(kmem_cache_t *cachep,
+		    inet_bind_bucket_create(struct kmem_cache *cachep,
 					    struct inet_bind_hashbucket *head,
 					    const unsigned short snum);
-extern void inet_bind_bucket_destroy(kmem_cache_t *cachep,
+extern void inet_bind_bucket_destroy(struct kmem_cache *cachep,
 				     struct inet_bind_bucket *tb);
 
 static inline int inet_bhashfn(const __u16 lport, const int bhash_size)

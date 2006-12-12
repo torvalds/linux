@@ -154,7 +154,7 @@ int		  nlm_async_reply(struct nlm_rqst *, u32, const struct rpc_call_ops *);
 struct nlm_wait * nlmclnt_prepare_block(struct nlm_host *host, struct file_lock *fl);
 void		  nlmclnt_finish_block(struct nlm_wait *block);
 int		  nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout);
-u32		  nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *);
+__be32		  nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *);
 void		  nlmclnt_recovery(struct nlm_host *);
 int		  nlmclnt_reclaim(struct nlm_host *, struct file_lock *);
 void		  nlmclnt_next_cookie(struct nlm_cookie *);
@@ -164,14 +164,12 @@ void		  nlmclnt_next_cookie(struct nlm_cookie *);
  */
 struct nlm_host * nlmclnt_lookup_host(const struct sockaddr_in *, int, int, const char *, int);
 struct nlm_host * nlmsvc_lookup_host(struct svc_rqst *, const char *, int);
-struct nlm_host * nlm_lookup_host(int server, const struct sockaddr_in *, int, int, const char *, int);
 struct rpc_clnt * nlm_bind_host(struct nlm_host *);
 void		  nlm_rebind_host(struct nlm_host *);
 struct nlm_host * nlm_get_host(struct nlm_host *);
 void		  nlm_release_host(struct nlm_host *);
 void		  nlm_shutdown_hosts(void);
 extern void	  nlm_host_rebooted(const struct sockaddr_in *, const char *, int, u32);
-struct nsm_handle *nsm_find(const struct sockaddr_in *, const char *, int);
 void		  nsm_release(struct nsm_handle *);
 
 
@@ -184,12 +182,12 @@ typedef int	  (*nlm_host_match_fn_t)(struct nlm_host *cur, struct nlm_host *ref)
 /*
  * Server-side lock handling
  */
-u32		  nlmsvc_lock(struct svc_rqst *, struct nlm_file *,
+__be32		  nlmsvc_lock(struct svc_rqst *, struct nlm_file *,
 					struct nlm_lock *, int, struct nlm_cookie *);
-u32		  nlmsvc_unlock(struct nlm_file *, struct nlm_lock *);
-u32		  nlmsvc_testlock(struct nlm_file *, struct nlm_lock *,
+__be32		  nlmsvc_unlock(struct nlm_file *, struct nlm_lock *);
+__be32		  nlmsvc_testlock(struct nlm_file *, struct nlm_lock *,
 					struct nlm_lock *);
-u32		  nlmsvc_cancel_blocked(struct nlm_file *, struct nlm_lock *);
+__be32		  nlmsvc_cancel_blocked(struct nlm_file *, struct nlm_lock *);
 unsigned long	  nlmsvc_retry_blocked(void);
 void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
 					nlm_host_match_fn_t match);
@@ -198,7 +196,7 @@ void		  nlmsvc_grant_reply(struct nlm_cookie *, u32);
 /*
  * File handling for the server personality
  */
-u32		  nlm_lookup_file(struct svc_rqst *, struct nlm_file **,
+__be32		  nlm_lookup_file(struct svc_rqst *, struct nlm_file **,
 					struct nfs_fh *);
 void		  nlm_release_file(struct nlm_file *);
 void		  nlmsvc_mark_resources(void);
@@ -208,7 +206,7 @@ void		  nlmsvc_invalidate_all(void);
 static __inline__ struct inode *
 nlmsvc_file_inode(struct nlm_file *file)
 {
-	return file->f_file->f_dentry->d_inode;
+	return file->f_file->f_path.dentry->d_inode;
 }
 
 /*

@@ -152,7 +152,7 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	if (!acecad || !input_dev)
 		goto fail1;
 
-	acecad->data = usb_buffer_alloc(dev, 8, SLAB_KERNEL, &acecad->data_dma);
+	acecad->data = usb_buffer_alloc(dev, 8, GFP_KERNEL, &acecad->data_dma);
 	if (!acecad->data)
 		goto fail1;
 

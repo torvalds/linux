@@ -20,7 +20,7 @@
 struct super_block;
 struct vfsmount;
 struct dentry;
-struct namespace;
+struct mnt_namespace;
 
 #define MNT_NOSUID	0x01
 #define MNT_NODEV	0x02
@@ -52,7 +52,7 @@ struct vfsmount {
 	struct list_head mnt_slave_list;/* list of slave mounts */
 	struct list_head mnt_slave;	/* slave list entry */
 	struct vfsmount *mnt_master;	/* slave is on master->mnt_slave_list */
-	struct namespace *mnt_namespace; /* containing namespace */
+	struct mnt_namespace *mnt_ns;	/* containing namespace */
 	int mnt_pinned;
 };
 

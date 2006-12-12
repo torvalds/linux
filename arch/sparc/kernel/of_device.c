@@ -651,7 +651,7 @@ build_resources:
 	if (!parent)
 		strcpy(op->dev.bus_id, "root");
 	else
-		strcpy(op->dev.bus_id, dp->path_component_name);
+		sprintf(op->dev.bus_id, "%08x", dp->node);
 
 	if (of_device_register(op)) {
 		printk("%s: Could not register of device.\n",
@@ -793,10 +793,9 @@ struct of_device* of_platform_device_create(struct device_node *np,
 {
 	struct of_device *dev;
 
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
-	memset(dev, 0, sizeof(*dev));
 
 	dev->dev.parent = parent;
 	dev->dev.bus = bus;

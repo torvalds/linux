@@ -175,17 +175,19 @@ static int read_xydata(struct corgi_ts *corgi_ts)
 
 static void new_data(struct corgi_ts *corgi_ts)
 {
+	struct input_dev *dev = corgi_ts->input;
+
 	if (corgi_ts->power_mode != PWR_MODE_ACTIVE)
 		return;
 
 	if (!corgi_ts->tc.pressure && corgi_ts->pendown == 0)
 		return;
 
-	input_report_abs(corgi_ts->input, ABS_X, corgi_ts->tc.x);
-	input_report_abs(corgi_ts->input, ABS_Y, corgi_ts->tc.y);
-	input_report_abs(corgi_ts->input, ABS_PRESSURE, corgi_ts->tc.pressure);
-	input_report_key(corgi_ts->input, BTN_TOUCH, (corgi_ts->pendown != 0));
-	input_sync(corgi_ts->input);
+	input_report_abs(dev, ABS_X, corgi_ts->tc.x);
+	input_report_abs(dev, ABS_Y, corgi_ts->tc.y);
+	input_report_abs(dev, ABS_PRESSURE, corgi_ts->tc.pressure);
+	input_report_key(dev, BTN_TOUCH, corgi_ts->pendown);
+	input_sync(dev);
 }
 
 static void ts_interrupt_main(struct corgi_ts *corgi_ts, int isTimer)
@@ -219,12 +221,14 @@ static void ts_interrupt_main(struct corgi_ts *corgi_ts, int isTimer)
 static void corgi_ts_timer(unsigned long data)
 {
 	struct corgi_ts *corgits_data = (struct corgi_ts *) data;
-	ts_interrupt_main(corgits_data, 1, NULL);
+
+	ts_interrupt_main(corgits_data, 1);
 }
 
 static irqreturn_t ts_interrupt(int irq, void *dev_id)
 {
 	struct corgi_ts *corgits_data = dev_id;
+
 	ts_interrupt_main(corgits_data, 0);
 	return IRQ_HANDLED;
 }
@@ -237,7 +241,7 @@ static int corgits_suspend(struct platform_device *dev, pm_message_t state)
 	if (corgi_ts->pendown) {
 		del_timer_sync(&corgi_ts->timer);
 		corgi_ts->tc.pressure = 0;
-		new_data(corgi_ts, NULL);
+		new_data(corgi_ts);
 		corgi_ts->pendown = 0;
 	}
 	corgi_ts->power_mode = PWR_MODE_SUSPEND;
@@ -272,7 +276,7 @@ static int __init corgits_probe(struct platform_device *pdev)
 	corgi_ts = kzalloc(sizeof(struct corgi_ts), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!corgi_ts || !input_dev)
-		goto fail;
+		goto fail1;
 
 	platform_set_drvdata(pdev, corgi_ts);
 
@@ -281,7 +285,7 @@ static int __init corgits_probe(struct platform_device *pdev)
 
 	if (corgi_ts->irq_gpio < 0) {
 		err = -ENODEV;
-		goto fail;
+		goto fail1;
 	}
 
 	corgi_ts->input = input_dev;
@@ -319,10 +323,12 @@ static int __init corgits_probe(struct platform_device *pdev)
 
 	if (request_irq(corgi_ts->irq_gpio, ts_interrupt, IRQF_DISABLED, "ts", corgi_ts)) {
 		err = -EBUSY;
-		goto fail;
+		goto fail1;
 	}
 
-	input_register_device(corgi_ts->input);
+	err = input_register_device(corgi_ts->input);
+	if (err)
+		goto fail2;
 
 	corgi_ts->power_mode = PWR_MODE_ACTIVE;
 
@@ -331,17 +337,17 @@ static int __init corgits_probe(struct platform_device *pdev)
 
 	return 0;
 
- fail:	input_free_device(input_dev);
+ fail2:	free_irq(corgi_ts->irq_gpio, corgi_ts);
+ fail1:	input_free_device(input_dev);
 	kfree(corgi_ts);
 	return err;
-
 }
 
 static int corgits_remove(struct platform_device *pdev)
 {
 	struct corgi_ts *corgi_ts = platform_get_drvdata(pdev);
 
-	free_irq(corgi_ts->irq_gpio, NULL);
+	free_irq(corgi_ts->irq_gpio, corgi_ts);
 	del_timer_sync(&corgi_ts->timer);
 	corgi_ts->machinfo->put_hsync();
 	input_unregister_device(corgi_ts->input);

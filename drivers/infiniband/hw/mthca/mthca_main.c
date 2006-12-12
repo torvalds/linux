@@ -98,7 +98,7 @@ static struct mthca_profile default_profile = {
 	.uarc_size	   = 1 << 18,	/* Arbel only */
 };
 
-static int __devinit mthca_tune_pci(struct mthca_dev *mdev)
+static int mthca_tune_pci(struct mthca_dev *mdev)
 {
 	int cap;
 	u16 val;
@@ -143,7 +143,7 @@ static int __devinit mthca_tune_pci(struct mthca_dev *mdev)
 	return 0;
 }
 
-static int __devinit mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim *dev_lim)
+static int mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim *dev_lim)
 {
 	int err;
 	u8 status;
@@ -255,7 +255,7 @@ static int __devinit mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim 
 	return 0;
 }
 
-static int __devinit mthca_init_tavor(struct mthca_dev *mdev)
+static int mthca_init_tavor(struct mthca_dev *mdev)
 {
 	u8 status;
 	int err;
@@ -333,7 +333,7 @@ err_disable:
 	return err;
 }
 
-static int __devinit mthca_load_fw(struct mthca_dev *mdev)
+static int mthca_load_fw(struct mthca_dev *mdev)
 {
 	u8 status;
 	int err;
@@ -379,10 +379,10 @@ err_free:
 	return err;
 }
 
-static int __devinit mthca_init_icm(struct mthca_dev *mdev,
-				    struct mthca_dev_lim *dev_lim,
-				    struct mthca_init_hca_param *init_hca,
-				    u64 icm_size)
+static int mthca_init_icm(struct mthca_dev *mdev,
+			  struct mthca_dev_lim *dev_lim,
+			  struct mthca_init_hca_param *init_hca,
+			  u64 icm_size)
 {
 	u64 aux_pages;
 	u8 status;
@@ -575,7 +575,7 @@ static void mthca_free_icms(struct mthca_dev *mdev)
 	mthca_free_icm(mdev, mdev->fw.arbel.aux_icm);
 }
 
-static int __devinit mthca_init_arbel(struct mthca_dev *mdev)
+static int mthca_init_arbel(struct mthca_dev *mdev)
 {
 	struct mthca_dev_lim        dev_lim;
 	struct mthca_profile        profile;
@@ -683,7 +683,7 @@ static void mthca_close_hca(struct mthca_dev *mdev)
 		mthca_SYS_DIS(mdev, &status);
 }
 
-static int __devinit mthca_init_hca(struct mthca_dev *mdev)
+static int mthca_init_hca(struct mthca_dev *mdev)
 {
 	u8 status;
 	int err;
@@ -720,7 +720,7 @@ err_close:
 	return err;
 }
 
-static int __devinit mthca_setup_hca(struct mthca_dev *dev)
+static int mthca_setup_hca(struct mthca_dev *dev)
 {
 	int err;
 	u8 status;
@@ -875,8 +875,7 @@ err_uar_table_free:
 	return err;
 }
 
-static int __devinit mthca_request_regions(struct pci_dev *pdev,
-					   int ddr_hidden)
+static int mthca_request_regions(struct pci_dev *pdev, int ddr_hidden)
 {
 	int err;
 
@@ -928,7 +927,7 @@ static void mthca_release_regions(struct pci_dev *pdev,
 			   MTHCA_HCR_SIZE);
 }
 
-static int __devinit mthca_enable_msi_x(struct mthca_dev *mdev)
+static int mthca_enable_msi_x(struct mthca_dev *mdev)
 {
 	struct msix_entry entries[3];
 	int err;
@@ -1213,7 +1212,7 @@ int __mthca_restart_one(struct pci_dev *pdev)
 }
 
 static int __devinit mthca_init_one(struct pci_dev *pdev,
-			     const struct pci_device_id *id)
+				    const struct pci_device_id *id)
 {
 	static int mthca_version_printed = 0;
 	int ret;

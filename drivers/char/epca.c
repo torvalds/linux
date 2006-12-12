@@ -199,8 +199,8 @@ static int pc_ioctl(struct tty_struct *, struct file *,
                     unsigned int, unsigned long);
 static int info_ioctl(struct tty_struct *, struct file *,
                     unsigned int, unsigned long);
-static void pc_set_termios(struct tty_struct *, struct termios *);
-static void do_softint(void *);
+static void pc_set_termios(struct tty_struct *, struct ktermios *);
+static void do_softint(struct work_struct *work);
 static void pc_stop(struct tty_struct *);
 static void pc_start(struct tty_struct *);
 static void pc_throttle(struct tty_struct * tty);
@@ -1157,6 +1157,7 @@ static int __init pc_init(void)
 	int crd;
 	struct board_info *bd;
 	unsigned char board_id = 0;
+	int err = -ENOMEM;
 
 	int pci_boards_found, pci_count;
 
@@ -1164,13 +1165,11 @@ static int __init pc_init(void)
 
 	pc_driver = alloc_tty_driver(MAX_ALLOC);
 	if (!pc_driver)
-		return -ENOMEM;
+		goto out1;
 
 	pc_info = alloc_tty_driver(MAX_ALLOC);
-	if (!pc_info) {
-		put_tty_driver(pc_driver);
-		return -ENOMEM;
-	}
+	if (!pc_info)
+		goto out2;
 
 	/* -----------------------------------------------------------------------
 		If epca_setup has not been ran by LILO set num_cards to defaults; copy
@@ -1237,6 +1236,8 @@ static int __init pc_init(void)
 	pc_driver->init_termios.c_oflag = 0;
 	pc_driver->init_termios.c_cflag = B9600 | CS8 | CREAD | CLOCAL | HUPCL;
 	pc_driver->init_termios.c_lflag = 0;
+	pc_driver->init_termios.c_ispeed = 9600;
+	pc_driver->init_termios.c_ospeed = 9600;
 	pc_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(pc_driver, &pc_ops);
 
@@ -1251,6 +1252,8 @@ static int __init pc_init(void)
 	pc_info->init_termios.c_oflag = 0;
 	pc_info->init_termios.c_lflag = 0;
 	pc_info->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL;
+	pc_info->init_termios.c_ispeed = 9600;
+	pc_info->init_termios.c_ospeed = 9600;
 	pc_info->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(pc_info, &info_ops);
 
@@ -1370,11 +1373,17 @@ static int __init pc_init(void)
 
 	} /* End for each card */
 
-	if (tty_register_driver(pc_driver))
-		panic("Couldn't register Digi PC/ driver");
+	err = tty_register_driver(pc_driver);
+	if (err) {
+		printk(KERN_ERR "Couldn't register Digi PC/ driver");
+		goto out3;
+	}
 
-	if (tty_register_driver(pc_info))
-		panic("Couldn't register Digi PC/ info ");
+	err = tty_register_driver(pc_info);
+	if (err) {
+		printk(KERN_ERR "Couldn't register Digi PC/ info ");
+		goto out4;
+	}
 
 	/* -------------------------------------------------------------------
 	   Start up the poller to check for events on all enabled boards
@@ -1384,6 +1393,15 @@ static int __init pc_init(void)
 	epca_timer.function = epcapoll;
 	mod_timer(&epca_timer, jiffies + HZ/25);
 	return 0;
+
+out4:
+	tty_unregister_driver(pc_driver);
+out3:
+	put_tty_driver(pc_info);
+out2:
+	put_tty_driver(pc_driver);
+out1:
+	return err;
 
 } /* End pc_init */
 
@@ -1491,7 +1509,7 @@ static void post_fep_init(unsigned int crd)
 
 		ch->brdchan        = bc;
 		ch->mailbox        = gd; 
-		INIT_WORK(&ch->tqueue, do_softint, ch);
+		INIT_WORK(&ch->tqueue, do_softint);
 		ch->board          = &boards[crd];
 
 		spin_lock_irqsave(&epca_lock, flags);
@@ -1985,7 +2003,7 @@ static void epcaparam(struct tty_struct *tty, struct channel *ch)
 { /* Begin epcaparam */
 
 	unsigned int cmdHead;
-	struct termios *ts;
+	struct ktermios *ts;
 	struct board_chan __iomem *bc;
 	unsigned mval, hflow, cflag, iflag;
 
@@ -2100,7 +2118,7 @@ static void receive_data(struct channel *ch)
 { /* Begin receive_data */
 
 	unchar *rptr;
-	struct termios *ts = NULL;
+	struct ktermios *ts = NULL;
 	struct tty_struct *tty;
 	struct board_chan __iomem *bc;
 	int dataToRead, wrapgap, bytesAvailable;
@@ -2348,12 +2366,14 @@ static int pc_ioctl(struct tty_struct *tty, struct file * file,
 	switch (cmd) 
 	{ /* Begin switch cmd */
 
+#if 0	/* Handled by calling layer properly */
 		case TCGETS:
-			if (copy_to_user(argp, tty->termios, sizeof(struct termios)))
+			if (copy_to_user(argp, tty->termios, sizeof(struct ktermios)))
 				return -EFAULT;
 			return 0;
 		case TCGETA:
 			return get_termio(tty, argp);
+#endif
 		case TCSBRK:	/* SVID version: non-zero arg --> no break */
 			retval = tty_check_change(tty);
 			if (retval)
@@ -2522,7 +2542,7 @@ static int pc_ioctl(struct tty_struct *tty, struct file * file,
 
 /* --------------------- Begin pc_set_termios  ----------------------- */
 
-static void pc_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void pc_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 { /* Begin pc_set_termios */
 
 	struct channel *ch;
@@ -2552,9 +2572,9 @@ static void pc_set_termios(struct tty_struct *tty, struct termios *old_termios)
 
 /* --------------------- Begin do_softint  ----------------------- */
 
-static void do_softint(void *private_)
+static void do_softint(struct work_struct *work)
 { /* Begin do_softint */
-	struct channel *ch = (struct channel *) private_;
+	struct channel *ch = container_of(work, struct channel, tqueue);
 	/* Called in response to a modem change event */
 	if (ch && ch->magic == EPCA_MAGIC)  { /* Begin EPCA_MAGIC */
 		struct tty_struct *tty = ch->tty;

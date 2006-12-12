@@ -72,13 +72,11 @@ static void __init isa_fill_children(struct sparc_isa_device *parent_isa_dev)
 		struct linux_prom_registers *regs;
 		struct sparc_isa_device *isa_dev;
 
-		isa_dev = kmalloc(sizeof(*isa_dev), GFP_KERNEL);
+		isa_dev = kzalloc(sizeof(*isa_dev), GFP_KERNEL);
 		if (!isa_dev) {
 			fatal_err("cannot allocate child isa_dev");
 			prom_halt();
 		}
-
-		memset(isa_dev, 0, sizeof(*isa_dev));
 
 		/* Link it in to parent. */
 		isa_dev->next = parent_isa_dev->child;
@@ -104,23 +102,21 @@ static void __init isa_fill_devices(struct sparc_isa_bridge *isa_br)
 		struct linux_prom_registers *regs;
 		struct sparc_isa_device *isa_dev;
 
-		isa_dev = kmalloc(sizeof(*isa_dev), GFP_KERNEL);
+		isa_dev = kzalloc(sizeof(*isa_dev), GFP_KERNEL);
 		if (!isa_dev) {
 			printk(KERN_DEBUG "ISA: cannot allocate isa_dev");
 			return;
 		}
 
-		memset(isa_dev, 0, sizeof(*isa_dev));
-
 		isa_dev->ofdev.node = dp;
 		isa_dev->ofdev.dev.parent = &isa_br->ofdev.dev;
 		isa_dev->ofdev.dev.bus = &isa_bus_type;
-		strcpy(isa_dev->ofdev.dev.bus_id, dp->path_component_name);
+		sprintf(isa_dev->ofdev.dev.bus_id, "isa[%08x]", dp->node);
 
 		/* Register with core */
 		if (of_device_register(&isa_dev->ofdev) != 0) {
 			printk(KERN_DEBUG "isa: device registration error for %s!\n",
-			       isa_dev->ofdev.dev.bus_id);
+			       dp->path_component_name);
 			kfree(isa_dev);
 			goto next_sibling;
 		}
@@ -180,23 +176,21 @@ void __init isa_init(void)
 		pbm = pdev_cookie->pbm;
 		dp = pdev_cookie->prom_node;
 
-		isa_br = kmalloc(sizeof(*isa_br), GFP_KERNEL);
+		isa_br = kzalloc(sizeof(*isa_br), GFP_KERNEL);
 		if (!isa_br) {
 			printk(KERN_DEBUG "isa: cannot allocate sparc_isa_bridge");
 			return;
 		}
 
-		memset(isa_br, 0, sizeof(*isa_br));
-
 		isa_br->ofdev.node = dp;
 		isa_br->ofdev.dev.parent = &pdev->dev;
 		isa_br->ofdev.dev.bus = &isa_bus_type;
-		strcpy(isa_br->ofdev.dev.bus_id, dp->path_component_name);
+		sprintf(isa_br->ofdev.dev.bus_id, "isa%d", index);
 
 		/* Register with core */
 		if (of_device_register(&isa_br->ofdev) != 0) {
 			printk(KERN_DEBUG "isa: device registration error for %s!\n",
-			       isa_br->ofdev.dev.bus_id);
+			       dp->path_component_name);
 			kfree(isa_br);
 			return;
 		}

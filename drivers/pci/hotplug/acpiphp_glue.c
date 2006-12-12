@@ -45,11 +45,11 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/smp_lock.h>
 #include <linux/mutex.h>
 
 #include "../pci.h"
-#include "pci_hotplug.h"
 #include "acpiphp.h"
 
 static LIST_HEAD(bridge_list);
@@ -1693,14 +1693,10 @@ void __exit acpiphp_glue_exit(void)
  */
 int __init acpiphp_get_num_slots(void)
 {
-	struct list_head *node;
 	struct acpiphp_bridge *bridge;
-	int num_slots;
+	int num_slots = 0;
 
-	num_slots = 0;
-
-	list_for_each (node, &bridge_list) {
-		bridge = (struct acpiphp_bridge *)node;
+	list_for_each_entry (bridge, &bridge_list, list) {
 		dbg("Bus %04x:%02x has %d slot%s\n",
 				pci_domain_nr(bridge->pci_bus),
 				bridge->pci_bus->number, bridge->nr_slots,
@@ -1807,8 +1803,8 @@ u8 acpiphp_get_power_status(struct acpiphp_slot *slot)
 
 
 /*
- * latch closed:  1
- * latch   open:  0
+ * latch   open:  1
+ * latch closed:  0
  */
 u8 acpiphp_get_latch_status(struct acpiphp_slot *slot)
 {
@@ -1816,7 +1812,7 @@ u8 acpiphp_get_latch_status(struct acpiphp_slot *slot)
 
 	sta = get_slot_status(slot);
 
-	return (sta & ACPI_STA_SHOW_IN_UI) ? 1 : 0;
+	return (sta & ACPI_STA_SHOW_IN_UI) ? 0 : 1;
 }
 
 

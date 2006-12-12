@@ -1,4 +1,4 @@
-/* Copyright (c) 2004 Coraid, Inc.  See COPYING for GPL terms. */
+/* Copyright (c) 2006 Coraid, Inc.  See COPYING for GPL terms. */
 /*
  * aoedev.c
  * AoE device utility functions; maintains device list.
@@ -20,11 +20,8 @@ aoedev_isbusy(struct aoedev *d)
 	f = d->frames;
 	e = f + d->nframes;
 	do {
-		if (f->tag != FREETAG) {
-			printk(KERN_DEBUG "aoe: %ld.%ld isbusy\n",
-				d->aoemajor, d->aoeminor);
+		if (f->tag != FREETAG)
 			return 1;
-		}
 	} while (++f < e);
 
 	return 0;
@@ -66,22 +63,32 @@ aoedev_newdev(ulong nframes)
 	struct frame *f, *e;
 
 	d = kzalloc(sizeof *d, GFP_ATOMIC);
-	if (d == NULL)
-		return NULL;
 	f = kcalloc(nframes, sizeof *f, GFP_ATOMIC);
-	if (f == NULL) {
-		kfree(d);
+ 	switch (!d || !f) {
+ 	case 0:
+ 		d->nframes = nframes;
+ 		d->frames = f;
+ 		e = f + nframes;
+ 		for (; f<e; f++) {
+ 			f->tag = FREETAG;
+ 			f->skb = new_skb(ETH_ZLEN);
+ 			if (!f->skb)
+ 				break;
+ 		}
+ 		if (f == e)
+ 			break;
+ 		while (f > d->frames) {
+ 			f--;
+ 			dev_kfree_skb(f->skb);
+ 		}
+ 	default:
+ 		if (f)
+ 			kfree(f);
+ 		if (d)
+ 			kfree(d);
 		return NULL;
 	}
-
-	INIT_WORK(&d->work, aoecmd_sleepwork, d);
-
-	d->nframes = nframes;
-	d->frames = f;
-	e = f + nframes;
-	for (; f<e; f++)
-		f->tag = FREETAG;
-
+	INIT_WORK(&d->work, aoecmd_sleepwork);
 	spin_lock_init(&d->lock);
 	init_timer(&d->timer);
 	d->timer.data = (ulong) d;
@@ -114,6 +121,7 @@ aoedev_downdev(struct aoedev *d)
 			mempool_free(buf, d->bufpool);
 			bio_endio(bio, bio->bi_size, -EIO);
 		}
+		skb_shinfo(f->skb)->nr_frags = f->skb->data_len = 0;
 	}
 	d->inprocess = NULL;
 
@@ -148,7 +156,7 @@ aoedev_by_sysminor_m(ulong sysminor, ulong bufcnt)
 		d = aoedev_newdev(bufcnt);
 	 	if (d == NULL) {
 			spin_unlock_irqrestore(&devlist_lock, flags);
-			printk(KERN_INFO "aoe: aoedev_set: aoedev_newdev failure.\n");
+			printk(KERN_INFO "aoe: aoedev_newdev failure.\n");
 			return NULL;
 		}
 		d->sysminor = sysminor;
@@ -163,10 +171,18 @@ aoedev_by_sysminor_m(ulong sysminor, ulong bufcnt)
 static void
 aoedev_freedev(struct aoedev *d)
 {
+	struct frame *f, *e;
+
 	if (d->gd) {
 		aoedisk_rm_sysfs(d);
 		del_gendisk(d->gd);
 		put_disk(d->gd);
+	}
+	f = d->frames;
+	e = f + d->nframes;
+	for (; f<e; f++) {
+		skb_shinfo(f->skb)->nr_frags = 0;
+		dev_kfree_skb(f->skb);
 	}
 	kfree(d->frames);
 	if (d->bufpool)

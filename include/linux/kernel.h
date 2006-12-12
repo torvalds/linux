@@ -13,10 +13,9 @@
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/bitops.h>
+#include <linux/log2.h>
 #include <asm/byteorder.h>
 #include <asm/bug.h>
-
-extern const char linux_banner[];
 
 #define INT_MAX		((int)(~0U>>1))
 #define INT_MIN		(-INT_MAX - 1)
@@ -30,8 +29,10 @@ extern const char linux_banner[];
 
 #define STACK_MAGIC	0xdeadbeef
 
+#define ALIGN(x,a)		__ALIGN_MASK(x,(typeof(x))(a)-1)
+#define __ALIGN_MASK(x,mask)	(((x)+(mask))&~(mask))
+
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#define ALIGN(x,a) (((x)+(a)-1UL)&~((a)-1UL))
 #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #define roundup(x, y) ((((x) + ((y) - 1)) / (y)) * (y))
@@ -63,7 +64,7 @@ struct user;
  * context (spinlock, irq-handler, ...).
  *
  * This is a useful debugging help to be able to catch problems early and not
- * be biten later when the calling function happens to sleep when it is not
+ * be bitten later when the calling function happens to sleep when it is not
  * supposed to.
  */
 #ifdef CONFIG_PREEMPT_VOLUNTARY
@@ -155,22 +156,10 @@ static inline int printk(const char *s, ...) { return 0; }
 
 unsigned long int_sqrt(unsigned long);
 
-static inline int __attribute_pure__ long_log2(unsigned long x)
-{
-	int r = 0;
-	for (x >>= 1; x > 0; x >>= 1)
-		r++;
-	return r;
-}
-
-static inline unsigned long
-__attribute_const__ roundup_pow_of_two(unsigned long x)
-{
-	return 1UL << fls_long(x - 1);
-}
-
 extern int printk_ratelimit(void);
 extern int __printk_ratelimit(int ratelimit_jiffies, int ratelimit_burst);
+extern bool printk_timed_ratelimit(unsigned long *caller_jiffies,
+				unsigned int interval_msec);
 
 static inline void console_silent(void)
 {

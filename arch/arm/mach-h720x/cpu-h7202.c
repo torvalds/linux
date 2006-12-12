@@ -106,7 +106,7 @@ static struct platform_device *devices[] __initdata = {
  * we have to handle all timer interrupts in one place.
  */
 static void
-h7202_timerx_demux_handler(unsigned int irq_unused, struct irqdesc *desc)
+h7202_timerx_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 {
 	unsigned int mask, irq;
 
@@ -162,7 +162,7 @@ static void inline unmask_timerx_irq (u32 irq)
 	CPU_REG (TIMER_VIRT, TIMER_TOPCTRL) |= bit;
 }
 
-static struct irqchip h7202_timerx_chip = {
+static struct irq_chip h7202_timerx_chip = {
 	.ack = mask_timerx_irq,
 	.mask = mask_timerx_irq,
 	.unmask = unmask_timerx_irq,
@@ -202,7 +202,7 @@ void __init h7202_init_irq (void)
 	                  irq < IRQ_CHAINED_TIMERX(NR_TIMERX_IRQS); irq++) {
 		mask_timerx_irq(irq);
 		set_irq_chip(irq, &h7202_timerx_chip);
-		set_irq_handler(irq, do_edge_IRQ);
+		set_irq_handler(irq, handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID );
 	}
 	set_irq_chained_handler(IRQ_TIMERX, h7202_timerx_demux_handler);

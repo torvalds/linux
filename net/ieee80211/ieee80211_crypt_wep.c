@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/skbuff.h>
+#include <linux/mm.h>
 #include <asm/string.h>
 
 #include <net/ieee80211.h>

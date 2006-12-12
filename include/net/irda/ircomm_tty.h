@@ -126,7 +126,7 @@ extern int ircomm_tty_tiocmset(struct tty_struct *tty, struct file *file,
 extern int ircomm_tty_ioctl(struct tty_struct *tty, struct file *file, 
 			    unsigned int cmd, unsigned long arg);
 extern void ircomm_tty_set_termios(struct tty_struct *tty, 
-				   struct termios *old_termios);
+				   struct ktermios *old_termios);
 extern hashbin_t *ircomm_tty;
 
 #endif

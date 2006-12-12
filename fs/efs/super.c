@@ -52,12 +52,12 @@ static struct pt_types sgi_pt_types[] = {
 };
 
 
-static kmem_cache_t * efs_inode_cachep;
+static struct kmem_cache * efs_inode_cachep;
 
 static struct inode *efs_alloc_inode(struct super_block *sb)
 {
 	struct efs_inode_info *ei;
-	ei = (struct efs_inode_info *)kmem_cache_alloc(efs_inode_cachep, SLAB_KERNEL);
+	ei = (struct efs_inode_info *)kmem_cache_alloc(efs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -68,7 +68,7 @@ static void efs_destroy_inode(struct inode *inode)
 	kmem_cache_free(efs_inode_cachep, INODE_INFO(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct efs_inode_info *ei = (struct efs_inode_info *) foo;
 

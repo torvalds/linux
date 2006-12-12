@@ -5,8 +5,8 @@
  */
 
 #include <linux/kthread.h>
-#include <linux/syscalls.h>
 #include <linux/delay.h>
+#include <linux/kmod.h>
 #include <asm/oplib.h>
 #include <asm/ebus.h>
 
@@ -195,7 +195,7 @@ static void do_envctrl_shutdown(struct bbc_cpu_temperature *tp)
 	printk(KERN_CRIT "kenvctrld: Shutting down the system now.\n");
 
 	shutting_down = 1;
-	if (kernel_execve("/sbin/shutdown", argv, envp) < 0)
+	if (call_usermodehelper("/sbin/shutdown", argv, envp, 0) < 0)
 		printk(KERN_CRIT "envctrl: shutdown execution failed\n");
 }
 

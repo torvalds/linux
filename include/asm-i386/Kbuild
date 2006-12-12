@@ -7,5 +7,4 @@ header-y += ptrace-abi.h
 header-y += ucontext.h
 
 unifdef-y += mtrr.h
-unifdef-y += setup.h
 unifdef-y += vm86.h

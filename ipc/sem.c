@@ -161,6 +161,7 @@ void sem_exit_ns(struct ipc_namespace *ns)
 	}
 	mutex_unlock(&sem_ids(ns).mutex);
 
+	ipc_fini_ids(ns->ids[IPC_SEM_IDS]);
 	kfree(ns->ids[IPC_SEM_IDS]);
 	ns->ids[IPC_SEM_IDS] = NULL;
 }
@@ -1069,14 +1070,13 @@ static struct sem_undo *find_undo(struct ipc_namespace *ns, int semid)
 	ipc_rcu_getref(sma);
 	sem_unlock(sma);
 
-	new = (struct sem_undo *) kmalloc(sizeof(struct sem_undo) + sizeof(short)*nsems, GFP_KERNEL);
+	new = kzalloc(sizeof(struct sem_undo) + sizeof(short)*nsems, GFP_KERNEL);
 	if (!new) {
 		ipc_lock_by_ptr(&sma->sem_perm);
 		ipc_rcu_putref(sma);
 		sem_unlock(sma);
 		return ERR_PTR(-ENOMEM);
 	}
-	memset(new, 0, sizeof(struct sem_undo) + sizeof(short)*nsems);
 	new->semadj = (short *) &new[1];
 	new->semid = semid;
 

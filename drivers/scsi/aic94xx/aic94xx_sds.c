@@ -64,7 +64,7 @@ struct asd_ocm_dir {
 
 #define OCM_INIT_DIR_ENTRIES	5
 /***************************************************************************
-*  OCM dircetory default
+*  OCM directory default
 ***************************************************************************/
 static struct asd_ocm_dir OCMDirInit =
 {
@@ -73,7 +73,7 @@ static struct asd_ocm_dir OCMDirInit =
 };
 
 /***************************************************************************
-*  OCM dircetory Entries default
+*  OCM directory Entries default
 ***************************************************************************/
 static struct asd_ocm_dir_ent OCMDirEntriesInit[OCM_INIT_DIR_ENTRIES] =
 {
@@ -630,10 +630,6 @@ static int asd_flash_getid(struct asd_ha_struct *asd_ha)
 
 	reg = asd_read_reg_dword(asd_ha, EXSICNFGR);
 
-	if (!(reg & FLASHEX)) {
-		ASD_DPRINTK("flash doesn't exist\n");
-		return -ENOENT;
-	}
 	if (pci_read_config_dword(asd_ha->pcidev, PCI_CONF_FLSH_BAR,
 				  &asd_ha->hw_prof.flash.bar)) {
 		asd_printk("couldn't read PCI_CONF_FLSH_BAR of %s\n",

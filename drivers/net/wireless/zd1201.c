@@ -193,10 +193,8 @@ static void zd1201_usbrx(struct urb *urb)
 	struct sk_buff *skb;
 	unsigned char type;
 
-	if (!zd) {
-		free = 1;
-		goto exit;
-	}
+	if (!zd)
+		return;
 
 	switch(urb->status) {
 		case -EILSEQ:
@@ -1830,10 +1828,8 @@ err_start:
 	/* Leave the device in reset state */
 	zd1201_docmd(zd, ZD1201_CMDCODE_INIT, 0, 0, 0);
 err_zd:
-	if (zd->tx_urb)
-		usb_free_urb(zd->tx_urb);
-	if (zd->rx_urb)
-		usb_free_urb(zd->rx_urb);
+	usb_free_urb(zd->tx_urb);
+	usb_free_urb(zd->rx_urb);
 	kfree(zd);
 	return err;
 }

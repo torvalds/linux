@@ -44,13 +44,6 @@ MODULE_LICENSE("GPL");
 
 static char __initdata version[] = "0.90";
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
-
 static inline int
 ctnetlink_dump_tuples_proto(struct sk_buff *skb, 
 			    const struct ip_conntrack_tuple *tuple,
@@ -160,6 +153,7 @@ ctnetlink_dump_protoinfo(struct sk_buff *skb, const struct ip_conntrack *ct)
 	return ret;
 
 nfattr_failure:
+	ip_conntrack_proto_put(proto);
 	return -1;
 }
 
@@ -326,8 +320,6 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	} else if (events & (IPCT_NEW | IPCT_RELATED)) {
 		type = IPCTNL_MSG_CT_NEW;
 		flags = NLM_F_CREATE|NLM_F_EXCL;
-		/* dump everything */
-		events = ~0UL;
 		group = NFNLGRP_CONNTRACK_NEW;
 	} else if (events & (IPCT_STATUS | IPCT_PROTOINFO)) {
 		type = IPCTNL_MSG_CT_NEW;
@@ -362,28 +354,35 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	if (ctnetlink_dump_tuples(skb, tuple(ct, IP_CT_DIR_REPLY)) < 0)
 		goto nfattr_failure;
 	NFA_NEST_END(skb, nest_parms);
-	
-	/* NAT stuff is now a status flag */
-	if ((events & IPCT_STATUS || events & IPCT_NATINFO)
-	    && ctnetlink_dump_status(skb, ct) < 0)
-		goto nfattr_failure;
-	if (events & IPCT_REFRESH
-	    && ctnetlink_dump_timeout(skb, ct) < 0)
-		goto nfattr_failure;
-	if (events & IPCT_PROTOINFO
-	    && ctnetlink_dump_protoinfo(skb, ct) < 0)
-		goto nfattr_failure;
-	if (events & IPCT_HELPINFO
-	    && ctnetlink_dump_helpinfo(skb, ct) < 0)
-		goto nfattr_failure;
 
-	if (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
-	    ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0)
-		goto nfattr_failure;
+	if (events & IPCT_DESTROY) {
+		if (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
+		    ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0)
+			goto nfattr_failure;
+	} else {
+		if (ctnetlink_dump_status(skb, ct) < 0)
+			goto nfattr_failure;
 
-	if (events & IPCT_MARK
-	    && ctnetlink_dump_mark(skb, ct) < 0)
-		goto nfattr_failure;
+		if (ctnetlink_dump_timeout(skb, ct) < 0)
+			goto nfattr_failure;
+
+		if (events & IPCT_PROTOINFO
+		    && ctnetlink_dump_protoinfo(skb, ct) < 0)
+		    	goto nfattr_failure;
+
+		if ((events & IPCT_HELPER || ct->helper)
+		    && ctnetlink_dump_helpinfo(skb, ct) < 0)
+		    	goto nfattr_failure;
+
+		if ((events & IPCT_MARK || ct->mark)
+		    && ctnetlink_dump_mark(skb, ct) < 0)
+		    	goto nfattr_failure;
+
+		if (events & IPCT_COUNTER_FILLING &&
+		    (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
+		     ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0))
+			goto nfattr_failure;
+	}
 
 	nlh->nlmsg_len = skb->tail - b;
 	nfnetlink_send(skb, 0, group, 0);
@@ -398,7 +397,6 @@ nfattr_failure:
 
 static int ctnetlink_done(struct netlink_callback *cb)
 {
-	DEBUGP("entered %s\n", __FUNCTION__);
 	if (cb->args[1])
 		ip_conntrack_put((struct ip_conntrack *)cb->args[1]);
 	return 0;
@@ -410,9 +408,6 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	struct ip_conntrack *ct, *last;
 	struct ip_conntrack_tuple_hash *h;
 	struct list_head *i;
-
-	DEBUGP("entered %s, last bucket=%lu id=%u\n", __FUNCTION__, 
-			cb->args[0], *id);
 
 	read_lock_bh(&ip_conntrack_lock);
 	last = (struct ip_conntrack *)cb->args[1];
@@ -452,7 +447,6 @@ out:
 	if (last)
 		ip_conntrack_put(last);
 
-	DEBUGP("leaving, last bucket=%lu id=%u\n", cb->args[0], *id);
 	return skb->len;
 }
 
@@ -466,8 +460,6 @@ ctnetlink_parse_tuple_ip(struct nfattr *attr, struct ip_conntrack_tuple *tuple)
 {
 	struct nfattr *tb[CTA_IP_MAX];
 
-	DEBUGP("entered %s\n", __FUNCTION__);
-
 	nfattr_parse_nested(tb, CTA_IP_MAX, attr);
 
 	if (nfattr_bad_size(tb, CTA_IP_MAX, cta_min_ip))
@@ -480,8 +472,6 @@ ctnetlink_parse_tuple_ip(struct nfattr *attr, struct ip_conntrack_tuple *tuple)
 	if (!tb[CTA_IP_V4_DST-1])
 		return -EINVAL;
 	tuple->dst.ip = *(__be32 *)NFA_DATA(tb[CTA_IP_V4_DST-1]);
-
-	DEBUGP("leaving\n");
 
 	return 0;
 }
@@ -502,8 +492,6 @@ ctnetlink_parse_tuple_proto(struct nfattr *attr,
 	struct nfattr *tb[CTA_PROTO_MAX];
 	struct ip_conntrack_protocol *proto;
 	int ret = 0;
-
-	DEBUGP("entered %s\n", __FUNCTION__);
 
 	nfattr_parse_nested(tb, CTA_PROTO_MAX, attr);
 
@@ -531,8 +519,6 @@ ctnetlink_parse_tuple(struct nfattr *cda[], struct ip_conntrack_tuple *tuple,
 	struct nfattr *tb[CTA_TUPLE_MAX];
 	int err;
 
-	DEBUGP("entered %s\n", __FUNCTION__);
-
 	memset(tuple, 0, sizeof(*tuple));
 
 	nfattr_parse_nested(tb, CTA_TUPLE_MAX, cda[type-1]);
@@ -557,10 +543,6 @@ ctnetlink_parse_tuple(struct nfattr *cda[], struct ip_conntrack_tuple *tuple,
 	else
 		tuple->dst.dir = IP_CT_DIR_ORIGINAL;
 
-	DUMP_TUPLE(tuple);
-
-	DEBUGP("leaving\n");
-
 	return 0;
 }
 
@@ -576,8 +558,6 @@ static int ctnetlink_parse_nat_proto(struct nfattr *attr,
 {
 	struct nfattr *tb[CTA_PROTONAT_MAX];
 	struct ip_nat_protocol *npt;
-
-	DEBUGP("entered %s\n", __FUNCTION__);
 
 	nfattr_parse_nested(tb, CTA_PROTONAT_MAX, attr);
 
@@ -597,7 +577,6 @@ static int ctnetlink_parse_nat_proto(struct nfattr *attr,
 
 	ip_nat_proto_put(npt);
 
-	DEBUGP("leaving\n");
 	return 0;
 }
 
@@ -612,8 +591,6 @@ ctnetlink_parse_nat(struct nfattr *nat,
 {
 	struct nfattr *tb[CTA_NAT_MAX];
 	int err;
-
-	DEBUGP("entered %s\n", __FUNCTION__);
 
 	memset(range, 0, sizeof(*range));
 	
@@ -640,7 +617,6 @@ ctnetlink_parse_nat(struct nfattr *nat,
 	if (err < 0)
 		return err;
 
-	DEBUGP("leaving\n");
 	return 0;
 }
 #endif
@@ -649,8 +625,6 @@ static inline int
 ctnetlink_parse_help(struct nfattr *attr, char **helper_name)
 {
 	struct nfattr *tb[CTA_HELP_MAX];
-
-	DEBUGP("entered %s\n", __FUNCTION__);
 
 	nfattr_parse_nested(tb, CTA_HELP_MAX, attr);
 
@@ -679,8 +653,6 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	struct ip_conntrack *ct;
 	int err = 0;
 
-	DEBUGP("entered %s\n", __FUNCTION__);
-
 	if (nfattr_bad_size(cda, CTA_MAX, cta_min))
 		return -EINVAL;
 
@@ -698,10 +670,8 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		return err;
 
 	h = ip_conntrack_find_get(&tuple, NULL);
-	if (!h) {
-		DEBUGP("tuple not found in conntrack hash\n");
+	if (!h)
 		return -ENOENT;
-	}
 
 	ct = tuplehash_to_ctrack(h);
 	
@@ -716,7 +686,6 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		ct->timeout.function((unsigned long)ct);
 
 	ip_conntrack_put(ct);
-	DEBUGP("leaving\n");
 
 	return 0;
 }
@@ -730,8 +699,6 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	struct ip_conntrack *ct;
 	struct sk_buff *skb2 = NULL;
 	int err = 0;
-
-	DEBUGP("entered %s\n", __FUNCTION__);
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct nfgenmsg *msg = NLMSG_DATA(nlh);
@@ -770,11 +737,9 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		return err;
 
 	h = ip_conntrack_find_get(&tuple, NULL);
-	if (!h) {
-		DEBUGP("tuple not found in conntrack hash");
+	if (!h)
 		return -ENOENT;
-	}
-	DEBUGP("tuple found\n");
+
 	ct = tuplehash_to_ctrack(h);
 
 	err = -ENOMEM;
@@ -783,7 +748,6 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		ip_conntrack_put(ct);
 		return -ENOMEM;
 	}
-	NETLINK_CB(skb2).dst_pid = NETLINK_CB(skb).pid;
 
 	err = ctnetlink_fill_info(skb2, NETLINK_CB(skb).pid, nlh->nlmsg_seq, 
 				  IPCTNL_MSG_CT_NEW, 1, ct);
@@ -795,7 +759,6 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	if (err < 0)
 		goto out;
 
-	DEBUGP("leaving\n");
 	return 0;
 
 free:
@@ -865,8 +828,6 @@ ctnetlink_change_helper(struct ip_conntrack *ct, struct nfattr *cda[])
 	struct ip_conntrack_helper *helper;
 	char *helpname;
 	int err;
-
-	DEBUGP("entered %s\n", __FUNCTION__);
 
 	/* don't change helper of sibling connections */
 	if (ct->master)
@@ -938,8 +899,6 @@ ctnetlink_change_conntrack(struct ip_conntrack *ct, struct nfattr *cda[])
 {
 	int err;
 
-	DEBUGP("entered %s\n", __FUNCTION__);
-
 	if (cda[CTA_HELP-1]) {
 		err = ctnetlink_change_helper(ct, cda);
 		if (err < 0)
@@ -969,7 +928,6 @@ ctnetlink_change_conntrack(struct ip_conntrack *ct, struct nfattr *cda[])
 		ct->mark = ntohl(*(__be32 *)NFA_DATA(cda[CTA_MARK-1]));
 #endif
 
-	DEBUGP("all done\n");
 	return 0;
 }
 
@@ -980,8 +938,6 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 {
 	struct ip_conntrack *ct;
 	int err = -EINVAL;
-
-	DEBUGP("entered %s\n", __FUNCTION__);
 
 	ct = ip_conntrack_alloc(otuple, rtuple);
 	if (ct == NULL || IS_ERR(ct))
@@ -994,9 +950,11 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 	ct->timeout.expires = jiffies + ct->timeout.expires * HZ;
 	ct->status |= IPS_CONFIRMED;
 
-	err = ctnetlink_change_status(ct, cda);
-	if (err < 0)
-		goto err;
+	if (cda[CTA_STATUS-1]) {
+		err = ctnetlink_change_status(ct, cda);
+		if (err < 0)
+			goto err;
+	}
 
 	if (cda[CTA_PROTOINFO-1]) {
 		err = ctnetlink_change_protoinfo(ct, cda);
@@ -1017,7 +975,6 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 	if (ct->helper)
 		ip_conntrack_helper_put(ct->helper);
 
-	DEBUGP("conntrack with id %u inserted\n", ct->id);
 	return 0;
 
 err:	
@@ -1032,8 +989,6 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	struct ip_conntrack_tuple otuple, rtuple;
 	struct ip_conntrack_tuple_hash *h = NULL;
 	int err = 0;
-
-	DEBUGP("entered %s\n", __FUNCTION__);
 
 	if (nfattr_bad_size(cda, CTA_MAX, cta_min))
 		return -EINVAL;
@@ -1058,7 +1013,6 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 
 	if (h == NULL) {
 		write_unlock_bh(&ip_conntrack_lock);
-		DEBUGP("no such conntrack, create new\n");
 		err = -ENOENT;
 		if (nlh->nlmsg_flags & NLM_F_CREATE)
 			err = ctnetlink_create_conntrack(cda, &otuple, &rtuple);
@@ -1074,7 +1028,6 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 
 	/* We manipulate the conntrack inside the global conntrack table lock,
 	 * so there's no need to increase the refcount */
-	DEBUGP("conntrack found\n");
 	err = -EEXIST;
 	if (!(nlh->nlmsg_flags & NLM_F_EXCL))
 		err = ctnetlink_change_conntrack(tuplehash_to_ctrack(h), cda);
@@ -1249,8 +1202,6 @@ ctnetlink_exp_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	struct list_head *i;
 	u_int32_t *id = (u_int32_t *) &cb->args[0];
 
-	DEBUGP("entered %s, last id=%llu\n", __FUNCTION__, *id);
-
 	read_lock_bh(&ip_conntrack_lock);
 	list_for_each_prev(i, &ip_conntrack_expect_list) {
 		exp = (struct ip_conntrack_expect *) i;
@@ -1265,8 +1216,6 @@ ctnetlink_exp_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 out:	
 	read_unlock_bh(&ip_conntrack_lock);
-
-	DEBUGP("leaving, last id=%llu\n", *id);
 
 	return skb->len;
 }
@@ -1284,8 +1233,6 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	struct ip_conntrack_expect *exp;
 	struct sk_buff *skb2;
 	int err = 0;
-
-	DEBUGP("entered %s\n", __FUNCTION__);
 
 	if (nfattr_bad_size(cda, CTA_EXPECT_MAX, cta_min_exp))
 		return -EINVAL;
@@ -1316,7 +1263,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	if (err < 0)
 		return err;
 
-	exp = ip_conntrack_expect_find(&tuple);
+	exp = ip_conntrack_expect_find_get(&tuple);
 	if (!exp)
 		return -ENOENT;
 
@@ -1332,8 +1279,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	skb2 = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb2)
 		goto out;
-	NETLINK_CB(skb2).dst_pid = NETLINK_CB(skb).pid;
-	
+
 	err = ctnetlink_exp_fill_info(skb2, NETLINK_CB(skb).pid, 
 				      nlh->nlmsg_seq, IPCTNL_MSG_EXP_NEW,
 				      1, exp);
@@ -1370,7 +1316,7 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 			return err;
 
 		/* bump usage count to 2 */
-		exp = ip_conntrack_expect_find(&tuple);
+		exp = ip_conntrack_expect_find_get(&tuple);
 		if (!exp)
 			return -ENOENT;
 
@@ -1437,8 +1383,6 @@ ctnetlink_create_expect(struct nfattr *cda[])
 	struct ip_conntrack *ct;
 	int err = 0;
 
-	DEBUGP("entered %s\n", __FUNCTION__);
-
 	/* caller guarantees that those three CTA_EXPECT_* exist */
 	err = ctnetlink_parse_tuple(cda, &tuple, CTA_EXPECT_TUPLE);
 	if (err < 0)
@@ -1490,8 +1434,6 @@ ctnetlink_new_expect(struct sock *ctnl, struct sk_buff *skb,
 	struct ip_conntrack_expect *exp;
 	int err = 0;
 
-	DEBUGP("entered %s\n", __FUNCTION__);	
-
 	if (nfattr_bad_size(cda, CTA_EXPECT_MAX, cta_min_exp))
 		return -EINVAL;
 
@@ -1520,8 +1462,6 @@ ctnetlink_new_expect(struct sock *ctnl, struct sk_buff *skb,
 		err = ctnetlink_change_expect(exp, cda);
 	write_unlock_bh(&ip_conntrack_lock);
 
-	DEBUGP("leaving\n");
-	
 	return err;
 }
 

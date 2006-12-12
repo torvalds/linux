@@ -129,7 +129,7 @@ static struct elevator_type *elevator_get(const char *name)
 
 static void *elevator_init_queue(request_queue_t *q, struct elevator_queue *eq)
 {
-	return eq->ops->elevator_init_fn(q, eq);
+	return eq->ops->elevator_init_fn(q);
 }
 
 static void elevator_attach(request_queue_t *q, struct elevator_queue *eq,
@@ -810,7 +810,7 @@ void elv_put_request(request_queue_t *q, struct request *rq)
 	elevator_t *e = q->elevator;
 
 	if (e->ops->elevator_put_req_fn)
-		e->ops->elevator_put_req_fn(q, rq);
+		e->ops->elevator_put_req_fn(rq);
 }
 
 int elv_may_queue(request_queue_t *q, int rw)

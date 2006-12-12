@@ -82,6 +82,7 @@
 #include <asm/system.h>
 #include <asm/sal.h>
 #include <asm/mca.h>
+#include <asm/kexec.h>
 
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
@@ -678,7 +679,7 @@ ia64_mca_cmc_vector_enable (void *dummy)
  * disable the cmc interrupt vector.
  */
 static void
-ia64_mca_cmc_vector_disable_keventd(void *unused)
+ia64_mca_cmc_vector_disable_keventd(struct work_struct *unused)
 {
 	on_each_cpu(ia64_mca_cmc_vector_disable, NULL, 1, 0);
 }
@@ -690,7 +691,7 @@ ia64_mca_cmc_vector_disable_keventd(void *unused)
  * enable the cmc interrupt vector.
  */
 static void
-ia64_mca_cmc_vector_enable_keventd(void *unused)
+ia64_mca_cmc_vector_enable_keventd(struct work_struct *unused)
 {
 	on_each_cpu(ia64_mca_cmc_vector_enable, NULL, 1, 0);
 }
@@ -1238,6 +1239,10 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 	} else {
 		/* Dump buffered message to console */
 		ia64_mlogbuf_finish(1);
+#ifdef CONFIG_CRASH_DUMP
+		atomic_set(&kdump_in_progress, 1);
+		monarch_cpu = -1;
+#endif
 	}
 	if (notify_die(DIE_MCA_MONARCH_LEAVE, "MCA", regs, (long)&nd, 0, recover)
 			== NOTIFY_STOP)
@@ -1247,8 +1252,8 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 	monarch_cpu = -1;
 }
 
-static DECLARE_WORK(cmc_disable_work, ia64_mca_cmc_vector_disable_keventd, NULL);
-static DECLARE_WORK(cmc_enable_work, ia64_mca_cmc_vector_enable_keventd, NULL);
+static DECLARE_WORK(cmc_disable_work, ia64_mca_cmc_vector_disable_keventd);
+static DECLARE_WORK(cmc_enable_work, ia64_mca_cmc_vector_enable_keventd);
 
 /*
  * ia64_mca_cmc_int_handler

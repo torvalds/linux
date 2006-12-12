@@ -145,14 +145,43 @@ static void ir_timer(unsigned long data)
 	schedule_work(&ir->work);
 }
 
-static void cx88_ir_work(void *data)
+static void cx88_ir_work(struct work_struct *work)
 {
-	struct cx88_IR *ir = data;
+	struct cx88_IR *ir = container_of(work, struct cx88_IR, work);
 	unsigned long timeout;
 
 	cx88_ir_handle_key(ir);
 	timeout = jiffies + (ir->polling * HZ / 1000);
 	mod_timer(&ir->timer, timeout);
+}
+
+static void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
+{
+	if (ir->polling) {
+		INIT_WORK(&ir->work, cx88_ir_work);
+		init_timer(&ir->timer);
+		ir->timer.function = ir_timer;
+		ir->timer.data = (unsigned long)ir;
+		schedule_work(&ir->work);
+	}
+	if (ir->sampling) {
+		core->pci_irqmask |= (1 << 18);	/* IR_SMP_INT */
+		cx_write(MO_DDS_IO, 0xa80a80);	/* 4 kHz sample rate */
+		cx_write(MO_DDSCFG_IO, 0x5);	/* enable */
+	}
+}
+
+static void cx88_ir_stop(struct cx88_core *core, struct cx88_IR *ir)
+{
+	if (ir->sampling) {
+		cx_write(MO_DDSCFG_IO, 0x0);
+		core->pci_irqmask &= ~(1 << 18);
+	}
+
+	if (ir->polling) {
+		del_timer_sync(&ir->timer);
+		flush_scheduled_work();
+	}
 }
 
 /* ---------------------------------------------------------------------- */
@@ -163,14 +192,12 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	struct input_dev *input_dev;
 	IR_KEYTAB_TYPE *ir_codes = NULL;
 	int ir_type = IR_TYPE_OTHER;
+	int err = -ENOMEM;
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	input_dev = input_allocate_device();
-	if (!ir || !input_dev) {
-		kfree(ir);
-		input_free_device(input_dev);
-		return -ENOMEM;
-	}
+	if (!ir || !input_dev)
+		goto err_out_free;
 
 	ir->input = input_dev;
 
@@ -202,12 +229,18 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->sampling = 1;
 		break;
 	case CX88_BOARD_WINFAST_DTV2000H:
-	case CX88_BOARD_WINFAST2000XP_EXPERT:
 		ir_codes = ir_codes_winfast;
 		ir->gpio_addr = MO_GP0_IO;
 		ir->mask_keycode = 0x8f8;
 		ir->mask_keyup = 0x100;
 		ir->polling = 50; /* ms */
+		break;
+	case CX88_BOARD_WINFAST2000XP_EXPERT:
+		ir_codes = ir_codes_winfast;
+		ir->gpio_addr = MO_GP0_IO;
+		ir->mask_keycode = 0x8f8;
+		ir->mask_keyup = 0x100;
+		ir->polling = 1; /* ms */
 		break;
 	case CX88_BOARD_IODATA_GVBCTV7E:
 		ir_codes = ir_codes_iodata_bctv7e;
@@ -216,7 +249,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->mask_keydown = 0x02;
 		ir->polling = 5; /* ms */
 		break;
-       case CX88_BOARD_PROLINK_PLAYTVPVR:
+	case CX88_BOARD_PROLINK_PLAYTVPVR:
 	case CX88_BOARD_PIXELVIEW_PLAYTV_ULTRA_PRO:
 		ir_codes = ir_codes_pixelview;
 		ir->gpio_addr = MO_GP1_IO;
@@ -274,9 +307,8 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	}
 
 	if (NULL == ir_codes) {
-		kfree(ir);
-		input_free_device(input_dev);
-		return -ENODEV;
+		err = -ENODEV;
+		goto err_out_free;
 	}
 
 	/* init input device */
@@ -301,23 +333,22 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	ir->core = core;
 	core->ir = ir;
 
-	if (ir->polling) {
-		INIT_WORK(&ir->work, cx88_ir_work, ir);
-		init_timer(&ir->timer);
-		ir->timer.function = ir_timer;
-		ir->timer.data = (unsigned long)ir;
-		schedule_work(&ir->work);
-	}
-	if (ir->sampling) {
-		core->pci_irqmask |= (1 << 18);	/* IR_SMP_INT */
-		cx_write(MO_DDS_IO, 0xa80a80);	/* 4 kHz sample rate */
-		cx_write(MO_DDSCFG_IO, 0x5);	/* enable */
-	}
+	cx88_ir_start(core, ir);
 
 	/* all done */
-	input_register_device(ir->input);
+	err = input_register_device(ir->input);
+	if (err)
+		goto err_out_stop;
 
 	return 0;
+
+ err_out_stop:
+	cx88_ir_stop(core, ir);
+	core->ir = NULL;
+ err_out_free:
+	input_free_device(input_dev);
+	kfree(ir);
+	return err;
 }
 
 int cx88_ir_fini(struct cx88_core *core)
@@ -328,15 +359,7 @@ int cx88_ir_fini(struct cx88_core *core)
 	if (NULL == ir)
 		return 0;
 
-	if (ir->sampling) {
-		cx_write(MO_DDSCFG_IO, 0x0);
-		core->pci_irqmask &= ~(1 << 18);
-	}
-	if (ir->polling) {
-		del_timer(&ir->timer);
-		flush_scheduled_work();
-	}
-
+	cx88_ir_stop(core, ir);
 	input_unregister_device(ir->input);
 	kfree(ir);
 

@@ -200,8 +200,7 @@ next_desc:
 
 		dev->status = &info->control->cur_altsetting->endpoint [0];
 		desc = &dev->status->desc;
-		if (desc->bmAttributes != USB_ENDPOINT_XFER_INT
-				|| !(desc->bEndpointAddress & USB_DIR_IN)
+		if (!usb_endpoint_is_int_in(desc)
 				|| (le16_to_cpu(desc->wMaxPacketSize)
 					< sizeof(struct usb_cdc_notification))
 				|| !desc->bInterval) {
@@ -498,7 +497,7 @@ static struct usb_driver cdc_driver = {
 
 static int __init cdc_init(void)
 {
-	BUG_ON((sizeof(((struct usbnet *)0)->data)
+	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data)
 			< sizeof(struct cdc_state)));
 
  	return usb_register(&cdc_driver);

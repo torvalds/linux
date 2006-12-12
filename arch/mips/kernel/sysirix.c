@@ -732,7 +732,7 @@ asmlinkage int irix_fstatfs(unsigned int fd, struct irix_statfs __user *buf)
 		goto out;
 	}
 
-	error = vfs_statfs(file->f_dentry, &kbuf);
+	error = vfs_statfs(file->f_path.dentry, &kbuf);
 	if (error)
 		goto out_f;
 
@@ -1041,7 +1041,7 @@ asmlinkage unsigned long irix_mmap32(unsigned long addr, size_t len, int prot,
 			unsigned long old_pos;
 			long max_size = offset + len;
 
-			if (max_size > file->f_dentry->d_inode->i_size) {
+			if (max_size > file->f_path.dentry->d_inode->i_size) {
 				old_pos = sys_lseek (fd, max_size - 1, 0);
 				sys_write (fd, (void __user *) "", 1);
 				sys_lseek (fd, old_pos, 0);
@@ -1406,7 +1406,7 @@ asmlinkage int irix_fstatvfs(int fd, struct irix_statvfs __user *buf)
 		error = -EBADF;
 		goto out;
 	}
-	error = vfs_statfs(file->f_dentry, &kbuf);
+	error = vfs_statfs(file->f_path.dentry, &kbuf);
 	if (error)
 		goto out_f;
 
@@ -1526,7 +1526,7 @@ asmlinkage int irix_mmap64(struct pt_regs *regs)
 			unsigned long old_pos;
 			long max_size = off2 + len;
 
-			if (max_size > file->f_dentry->d_inode->i_size) {
+			if (max_size > file->f_path.dentry->d_inode->i_size) {
 				old_pos = sys_lseek (fd, max_size - 1, 0);
 				sys_write (fd, (void __user *) "", 1);
 				sys_lseek (fd, old_pos, 0);
@@ -1658,7 +1658,7 @@ asmlinkage int irix_fstatvfs64(int fd, struct irix_statvfs __user *buf)
 		error = -EBADF;
 		goto out;
 	}
-	error = vfs_statfs(file->f_dentry, &kbuf);
+	error = vfs_statfs(file->f_path.dentry, &kbuf);
 	if (error)
 		goto out_f;
 

@@ -90,17 +90,6 @@ static unsigned char irc_level[TX3927_NUM_IR] = {
 static void jmr3927_irq_disable(unsigned int irq_nr);
 static void jmr3927_irq_enable(unsigned int irq_nr);
 
-static DEFINE_SPINLOCK(jmr3927_irq_lock);
-
-static unsigned int jmr3927_irq_startup(unsigned int irq)
-{
-	jmr3927_irq_enable(irq);
-
-	return 0;
-}
-
-#define	jmr3927_irq_shutdown	jmr3927_irq_disable
-
 static void jmr3927_irq_ack(unsigned int irq)
 {
 	if (irq == JMR3927_IRQ_IRC_TMR0)
@@ -118,9 +107,7 @@ static void jmr3927_irq_end(unsigned int irq)
 static void jmr3927_irq_disable(unsigned int irq_nr)
 {
 	struct tb_irq_space* sp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&jmr3927_irq_lock, flags);
 	for (sp = tb_irq_spaces; sp; sp = sp->next) {
 		if (sp->start_irqno <= irq_nr &&
 		    irq_nr < sp->start_irqno + sp->nr_irqs) {
@@ -130,15 +117,12 @@ static void jmr3927_irq_disable(unsigned int irq_nr)
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&jmr3927_irq_lock, flags);
 }
 
 static void jmr3927_irq_enable(unsigned int irq_nr)
 {
 	struct tb_irq_space* sp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&jmr3927_irq_lock, flags);
 	for (sp = tb_irq_spaces; sp; sp = sp->next) {
 		if (sp->start_irqno <= irq_nr &&
 		    irq_nr < sp->start_irqno + sp->nr_irqs) {
@@ -148,7 +132,6 @@ static void jmr3927_irq_enable(unsigned int irq_nr)
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&jmr3927_irq_lock, flags);
 }
 
 /*
@@ -288,6 +271,8 @@ static void tx_branch_likely_bug_fixup(void)
 
 static void jmr3927_spurious(void)
 {
+	struct pt_regs * regs = get_irq_regs();
+
 #ifdef CONFIG_TX_BRANCH_LIKELY_BUG_WORKAROUND
 	tx_branch_likely_bug_fixup();
 #endif
@@ -297,6 +282,7 @@ static void jmr3927_spurious(void)
 
 asmlinkage void plat_irq_dispatch(void)
 {
+	struct pt_regs * regs = get_irq_regs();
 	int irq;
 
 #ifdef CONFIG_TX_BRANCH_LIKELY_BUG_WORKAROUND
@@ -454,11 +440,10 @@ void __init arch_init_irq(void)
 
 static struct irq_chip jmr3927_irq_controller = {
 	.typename = "jmr3927_irq",
-	.startup = jmr3927_irq_startup,
-	.shutdown = jmr3927_irq_shutdown,
-	.enable = jmr3927_irq_enable,
-	.disable = jmr3927_irq_disable,
 	.ack = jmr3927_irq_ack,
+	.mask = jmr3927_irq_disable,
+	.mask_ack = jmr3927_irq_ack,
+	.unmask = jmr3927_irq_enable,
 	.end = jmr3927_irq_end,
 };
 
@@ -466,12 +451,8 @@ void jmr3927_irq_init(u32 irq_base)
 {
 	u32 i;
 
-	for (i= irq_base; i< irq_base + JMR3927_NR_IRQ_IRC + JMR3927_NR_IRQ_IOC; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 1;
-		irq_desc[i].chip = &jmr3927_irq_controller;
-	}
+	for (i= irq_base; i< irq_base + JMR3927_NR_IRQ_IRC + JMR3927_NR_IRQ_IOC; i++)
+		set_irq_chip(i, &jmr3927_irq_controller);
 
 	jmr3927_irq_base = irq_base;
 }

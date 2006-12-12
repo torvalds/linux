@@ -912,12 +912,12 @@ static int __init pcd_init(void)
 	int unit;
 
 	if (disable)
-		return -1;
+		return -EINVAL;
 
 	pcd_init_units();
 
 	if (pcd_detect())
-		return -1;
+		return -ENODEV;
 
 	/* get the atapi capabilities page */
 	pcd_probe_capabilities();
@@ -925,7 +925,7 @@ static int __init pcd_init(void)
 	if (register_blkdev(major, name)) {
 		for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++)
 			put_disk(cd->disk);
-		return -1;
+		return -EBUSY;
 	}
 
 	pcd_queue = blk_init_queue(do_pcd_request, &pcd_lock);
@@ -933,7 +933,7 @@ static int __init pcd_init(void)
 		unregister_blkdev(major, name);
 		for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++)
 			put_disk(cd->disk);
-		return -1;
+		return -ENOMEM;
 	}
 
 	for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++) {

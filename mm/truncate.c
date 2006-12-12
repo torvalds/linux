@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/buffer_head.h>	/* grr. try_to_release_page,
 				   do_invalidatepage */
 
@@ -69,7 +70,8 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 	if (PagePrivate(page))
 		do_invalidatepage(page, 0);
 
-	clear_page_dirty(page);
+	if (test_clear_page_dirty(page))
+		task_io_account_cancelled_write(PAGE_CACHE_SIZE);
 	ClearPageUptodate(page);
 	ClearPageMappedToDisk(page);
 	remove_from_page_cache(page);
@@ -96,7 +98,6 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 		return 0;
 
 	ret = remove_mapping(mapping, page);
-	ClearPageUptodate(page);
 
 	return ret;
 }

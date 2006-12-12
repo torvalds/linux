@@ -74,7 +74,7 @@ static inline void lock_metapage(struct metapage *mp)
 }
 
 #define METAPOOL_MIN_PAGES 32
-static kmem_cache_t *metapage_cache;
+static struct kmem_cache *metapage_cache;
 static mempool_t *metapage_mempool;
 
 #define MPS_PER_PAGE (PAGE_CACHE_SIZE >> L2PSIZE)
@@ -180,7 +180,7 @@ static inline void remove_metapage(struct page *page, struct metapage *mp)
 
 #endif
 
-static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct metapage *mp = (struct metapage *)foo;
 

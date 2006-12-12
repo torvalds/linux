@@ -436,7 +436,7 @@ static void ext3_put_super (struct super_block * sb)
 	return;
 }
 
-static kmem_cache_t *ext3_inode_cachep;
+static struct kmem_cache *ext3_inode_cachep;
 
 /*
  * Called inside transaction, so use GFP_NOFS
@@ -445,7 +445,7 @@ static struct inode *ext3_alloc_inode(struct super_block *sb)
 {
 	struct ext3_inode_info *ei;
 
-	ei = kmem_cache_alloc(ext3_inode_cachep, SLAB_NOFS);
+	ei = kmem_cache_alloc(ext3_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
 #ifdef CONFIG_EXT3_FS_POSIX_ACL
@@ -462,7 +462,7 @@ static void ext3_destroy_inode(struct inode *inode)
 	kmem_cache_free(ext3_inode_cachep, EXT3_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct ext3_inode_info *ei = (struct ext3_inode_info *) foo;
 
@@ -1264,6 +1264,12 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 		return;
 	}
 
+	if (bdev_read_only(sb->s_bdev)) {
+		printk(KERN_ERR "EXT3-fs: write access "
+			"unavailable, skipping orphan cleanup.\n");
+		return;
+	}
+
 	if (EXT3_SB(sb)->s_mount_state & EXT3_ERROR_FS) {
 		if (es->s_last_orphan)
 			jbd_debug(1, "Errors on filesystem, "
@@ -1340,8 +1346,6 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 #endif
 	sb->s_flags = s_flags; /* Restore MS_RDONLY status */
 }
-
-#define log2(n) ffz(~(n))
 
 /*
  * Maximal file size.  There is a direct, and {,double-,triple-}indirect
@@ -1591,8 +1595,8 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	sbi->s_desc_per_block = blocksize / sizeof(struct ext3_group_desc);
 	sbi->s_sbh = bh;
 	sbi->s_mount_state = le16_to_cpu(es->s_state);
-	sbi->s_addr_per_block_bits = log2(EXT3_ADDR_PER_BLOCK(sb));
-	sbi->s_desc_per_block_bits = log2(EXT3_DESC_PER_BLOCK(sb));
+	sbi->s_addr_per_block_bits = ilog2(EXT3_ADDR_PER_BLOCK(sb));
+	sbi->s_desc_per_block_bits = ilog2(EXT3_DESC_PER_BLOCK(sb));
 	for (i=0; i < 4; i++)
 		sbi->s_hash_seed[i] = le32_to_cpu(es->s_hash_seed[i]);
 	sbi->s_def_hash_version = es->s_def_hash_version;
@@ -2387,6 +2391,7 @@ static int ext3_statfs (struct dentry * dentry, struct kstatfs * buf)
 	struct ext3_super_block *es = sbi->s_es;
 	ext3_fsblk_t overhead;
 	int i;
+	u64 fsid;
 
 	if (test_opt (sb, MINIX_DF))
 		overhead = 0;
@@ -2433,6 +2438,10 @@ static int ext3_statfs (struct dentry * dentry, struct kstatfs * buf)
 	buf->f_files = le32_to_cpu(es->s_inodes_count);
 	buf->f_ffree = percpu_counter_sum(&sbi->s_freeinodes_counter);
 	buf->f_namelen = EXT3_NAME_LEN;
+	fsid = le64_to_cpup((void *)es->s_uuid) ^
+	       le64_to_cpup((void *)es->s_uuid + sizeof(u64));
+	buf->f_fsid.val[0] = fsid & 0xFFFFFFFFUL;
+	buf->f_fsid.val[1] = (fsid >> 32) & 0xFFFFFFFFUL;
 	return 0;
 }
 

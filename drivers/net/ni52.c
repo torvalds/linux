@@ -1335,7 +1335,7 @@ int __init init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	unregister_netdev(dev_ni52);
 	release_region(dev_ni52->base_addr, NI52_TOTAL_SIZE);

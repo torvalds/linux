@@ -111,7 +111,7 @@ static struct backlight_properties corgibl_data = {
 	.update_status  = corgibl_set_intensity,
 };
 
-static int __init corgibl_probe(struct platform_device *pdev)
+static int corgibl_probe(struct platform_device *pdev)
 {
 	struct corgibl_machinfo *machinfo = pdev->dev.platform_data;
 
@@ -135,6 +135,10 @@ static int __init corgibl_probe(struct platform_device *pdev)
 
 static int corgibl_remove(struct platform_device *dev)
 {
+	corgibl_data.power = 0;
+	corgibl_data.brightness = 0;
+	corgibl_send_intensity(corgi_backlight_device);
+
 	backlight_device_unregister(corgi_backlight_device);
 
 	printk("Corgi Backlight Driver Unloaded\n");
@@ -166,4 +170,4 @@ module_exit(corgibl_exit);
 
 MODULE_AUTHOR("Richard Purdie <rpurdie@rpsys.net>");
 MODULE_DESCRIPTION("Corgi Backlight Driver");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL");

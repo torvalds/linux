@@ -555,7 +555,7 @@ mpsc_sdma_start_tx(struct mpsc_port_info *pi)
 	if (!mpsc_sdma_tx_active(pi)) {
 		txre = (struct mpsc_tx_desc *)(pi->txr +
 			(pi->txr_tail * MPSC_TXRE_SIZE));
-		dma_cache_sync((void *) txre, MPSC_TXRE_SIZE, DMA_FROM_DEVICE);
+		dma_cache_sync(pi->port.dev, (void *) txre, MPSC_TXRE_SIZE, DMA_FROM_DEVICE);
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
 		if (pi->cache_mgmt) /* GT642[46]0 Res #COMM-2 */
 			invalidate_dcache_range((ulong)txre,
@@ -931,7 +931,7 @@ mpsc_init_rings(struct mpsc_port_info *pi)
 	}
 	txre->link = cpu_to_be32(pi->txr_p);	/* Wrap last back to first */
 
-	dma_cache_sync((void *) pi->dma_region, MPSC_DMA_ALLOC_SIZE,
+	dma_cache_sync(pi->port.dev, (void *) pi->dma_region, MPSC_DMA_ALLOC_SIZE,
 		DMA_BIDIRECTIONAL);
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
 		if (pi->cache_mgmt) /* GT642[46]0 Res #COMM-2 */
@@ -1005,7 +1005,7 @@ mpsc_rx_intr(struct mpsc_port_info *pi)
 
 	rxre = (struct mpsc_rx_desc *)(pi->rxr + (pi->rxr_posn*MPSC_RXRE_SIZE));
 
-	dma_cache_sync((void *)rxre, MPSC_RXRE_SIZE, DMA_FROM_DEVICE);
+	dma_cache_sync(pi->port.dev, (void *)rxre, MPSC_RXRE_SIZE, DMA_FROM_DEVICE);
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
 	if (pi->cache_mgmt) /* GT642[46]0 Res #COMM-2 */
 		invalidate_dcache_range((ulong)rxre,
@@ -1029,7 +1029,7 @@ mpsc_rx_intr(struct mpsc_port_info *pi)
 		}
 
 		bp = pi->rxb + (pi->rxr_posn * MPSC_RXBE_SIZE);
-		dma_cache_sync((void *) bp, MPSC_RXBE_SIZE, DMA_FROM_DEVICE);
+		dma_cache_sync(pi->port.dev, (void *) bp, MPSC_RXBE_SIZE, DMA_FROM_DEVICE);
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
 		if (pi->cache_mgmt) /* GT642[46]0 Res #COMM-2 */
 			invalidate_dcache_range((ulong)bp,
@@ -1098,7 +1098,7 @@ next_frame:
 					    SDMA_DESC_CMDSTAT_F |
 					    SDMA_DESC_CMDSTAT_L);
 		wmb();
-		dma_cache_sync((void *)rxre, MPSC_RXRE_SIZE, DMA_BIDIRECTIONAL);
+		dma_cache_sync(pi->port.dev, (void *)rxre, MPSC_RXRE_SIZE, DMA_BIDIRECTIONAL);
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
 		if (pi->cache_mgmt) /* GT642[46]0 Res #COMM-2 */
 			flush_dcache_range((ulong)rxre,
@@ -1109,7 +1109,7 @@ next_frame:
 		pi->rxr_posn = (pi->rxr_posn + 1) & (MPSC_RXR_ENTRIES - 1);
 		rxre = (struct mpsc_rx_desc *)(pi->rxr +
 			(pi->rxr_posn * MPSC_RXRE_SIZE));
-		dma_cache_sync((void *)rxre, MPSC_RXRE_SIZE, DMA_FROM_DEVICE);
+		dma_cache_sync(pi->port.dev, (void *)rxre, MPSC_RXRE_SIZE, DMA_FROM_DEVICE);
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
 		if (pi->cache_mgmt) /* GT642[46]0 Res #COMM-2 */
 			invalidate_dcache_range((ulong)rxre,
@@ -1143,7 +1143,7 @@ mpsc_setup_tx_desc(struct mpsc_port_info *pi, u32 count, u32 intr)
 							   SDMA_DESC_CMDSTAT_EI
 							   : 0));
 	wmb();
-	dma_cache_sync((void *) txre, MPSC_TXRE_SIZE, DMA_BIDIRECTIONAL);
+	dma_cache_sync(pi->port.dev, (void *) txre, MPSC_TXRE_SIZE, DMA_BIDIRECTIONAL);
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
 	if (pi->cache_mgmt) /* GT642[46]0 Res #COMM-2 */
 		flush_dcache_range((ulong)txre,
@@ -1192,7 +1192,7 @@ mpsc_copy_tx_data(struct mpsc_port_info *pi)
 		else /* All tx data copied into ring bufs */
 			return;
 
-		dma_cache_sync((void *) bp, MPSC_TXBE_SIZE, DMA_BIDIRECTIONAL);
+		dma_cache_sync(pi->port.dev, (void *) bp, MPSC_TXBE_SIZE, DMA_BIDIRECTIONAL);
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
 		if (pi->cache_mgmt) /* GT642[46]0 Res #COMM-2 */
 			flush_dcache_range((ulong)bp,
@@ -1217,7 +1217,7 @@ mpsc_tx_intr(struct mpsc_port_info *pi)
 		txre = (struct mpsc_tx_desc *)(pi->txr +
 			(pi->txr_tail * MPSC_TXRE_SIZE));
 
-		dma_cache_sync((void *) txre, MPSC_TXRE_SIZE, DMA_FROM_DEVICE);
+		dma_cache_sync(pi->port.dev, (void *) txre, MPSC_TXRE_SIZE, DMA_FROM_DEVICE);
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
 		if (pi->cache_mgmt) /* GT642[46]0 Res #COMM-2 */
 			invalidate_dcache_range((ulong)txre,
@@ -1235,7 +1235,7 @@ mpsc_tx_intr(struct mpsc_port_info *pi)
 
 			txre = (struct mpsc_tx_desc *)(pi->txr +
 				(pi->txr_tail * MPSC_TXRE_SIZE));
-			dma_cache_sync((void *) txre, MPSC_TXRE_SIZE,
+			dma_cache_sync(pi->port.dev, (void *) txre, MPSC_TXRE_SIZE,
 				DMA_FROM_DEVICE);
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
 			if (pi->cache_mgmt) /* GT642[46]0 Res #COMM-2 */
@@ -1440,8 +1440,8 @@ mpsc_shutdown(struct uart_port *port)
 }
 
 static void
-mpsc_set_termios(struct uart_port *port, struct termios *termios,
-		 struct termios *old)
+mpsc_set_termios(struct uart_port *port, struct ktermios *termios,
+		 struct ktermios *old)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
 	u32 baud;
@@ -1652,7 +1652,7 @@ mpsc_console_write(struct console *co, const char *s, uint count)
 			count--;
 		}
 
-		dma_cache_sync((void *) bp, MPSC_TXBE_SIZE, DMA_BIDIRECTIONAL);
+		dma_cache_sync(pi->port.dev, (void *) bp, MPSC_TXBE_SIZE, DMA_BIDIRECTIONAL);
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
 		if (pi->cache_mgmt) /* GT642[46]0 Res #COMM-2 */
 			flush_dcache_range((ulong)bp,

@@ -231,8 +231,8 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 		 * 13		2		1
 		 * 19.2		2		1
 		 */
-		if (fclk_rate > 16000000)
-			psc = (fclk_rate + 8000000) / 12000000;
+		if (fclk_rate > 12000000)
+			psc = fclk_rate / 12000000;
 	}
 
 	/* Setup clock prescaler to obtain approx 12MHz I2C module clock: */

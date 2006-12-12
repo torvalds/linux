@@ -277,12 +277,12 @@ static int powermate_input_event(struct input_dev *dev, unsigned int type, unsig
 static int powermate_alloc_buffers(struct usb_device *udev, struct powermate_device *pm)
 {
 	pm->data = usb_buffer_alloc(udev, POWERMATE_PAYLOAD_SIZE_MAX,
-				    SLAB_ATOMIC, &pm->data_dma);
+				    GFP_ATOMIC, &pm->data_dma);
 	if (!pm->data)
 		return -1;
 
 	pm->configcr = usb_buffer_alloc(udev, sizeof(*(pm->configcr)),
-					SLAB_ATOMIC, &pm->configcr_dma);
+					GFP_ATOMIC, &pm->configcr_dma);
 	if (!pm->configcr)
 		return -1;
 

@@ -237,7 +237,7 @@ fail:
 }
 
 static struct inode *gfs2_lookup_root(struct super_block *sb,
-				      struct gfs2_inum *inum)
+				      struct gfs2_inum_host *inum)
 {
 	return gfs2_inode_lookup(sb, inum, DT_DIR);
 }
@@ -246,7 +246,7 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 {
 	struct super_block *sb = sdp->sd_vfs;
 	struct gfs2_holder sb_gh;
-	struct gfs2_inum *inum;
+	struct gfs2_inum_host *inum;
 	struct inode *inode;
 	int error = 0;
 
@@ -794,8 +794,8 @@ static int fill_super_meta(struct super_block *sb, struct super_block *new,
 		fs_err(sdp, "can't get root dentry\n");
 		error = -ENOMEM;
 		iput(inode);
-	}
-	new->s_root->d_op = &gfs2_dops;
+	} else
+		new->s_root->d_op = &gfs2_dops;
 
 	return error;
 }
@@ -854,7 +854,6 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 	int error = 0;
 	struct super_block *sb = NULL, *new;
 	struct gfs2_sbd *sdp;
-	char *gfs2mnt = NULL;
 
 	sb = get_gfs2_sb(dev_name);
 	if (!sb) {
@@ -892,8 +891,6 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 	atomic_inc(&sdp->sd_gfs2mnt->mnt_count);
 	return simple_set_mnt(mnt, new);
 error:
-	if (gfs2mnt)
-		kfree(gfs2mnt);
 	return error;
 }
 

@@ -12,4 +12,8 @@
 #define EXTENDED_VGA	0xfffe		/* 80x50 mode */
 #define ASK_VGA		0xfffd		/* ask for it at bootup */
 
-#endif
+/* Physical address where kenrel should be loaded. */
+#define LOAD_PHYSICAL_ADDR ((0x100000 + CONFIG_PHYSICAL_ALIGN - 1) \
+				& ~(CONFIG_PHYSICAL_ALIGN - 1))
+
+#endif /* _LINUX_BOOT_H */

@@ -54,7 +54,7 @@ static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 	update_process_times(user_mode(regs));
 #endif
 	if (current->pid)
-		profile_tick(CPU_PROFILING, regs);
+		profile_tick(CPU_PROFILING);
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update

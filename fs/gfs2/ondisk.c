@@ -15,6 +15,8 @@
 
 #include "gfs2.h"
 #include <linux/gfs2_ondisk.h>
+#include <linux/lm_interface.h>
+#include "incore.h"
 
 #define pv(struct, member, fmt) printk(KERN_INFO "  "#member" = "fmt"\n", \
 				       struct->member);
@@ -32,7 +34,7 @@
  * first arg: the cpu-order structure
  */
 
-void gfs2_inum_in(struct gfs2_inum *no, const void *buf)
+void gfs2_inum_in(struct gfs2_inum_host *no, const void *buf)
 {
 	const struct gfs2_inum *str = buf;
 
@@ -40,7 +42,7 @@ void gfs2_inum_in(struct gfs2_inum *no, const void *buf)
 	no->no_addr = be64_to_cpu(str->no_addr);
 }
 
-void gfs2_inum_out(const struct gfs2_inum *no, void *buf)
+void gfs2_inum_out(const struct gfs2_inum_host *no, void *buf)
 {
 	struct gfs2_inum *str = buf;
 
@@ -48,13 +50,13 @@ void gfs2_inum_out(const struct gfs2_inum *no, void *buf)
 	str->no_addr = cpu_to_be64(no->no_addr);
 }
 
-static void gfs2_inum_print(const struct gfs2_inum *no)
+static void gfs2_inum_print(const struct gfs2_inum_host *no)
 {
 	printk(KERN_INFO "  no_formal_ino = %llu\n", (unsigned long long)no->no_formal_ino);
 	printk(KERN_INFO "  no_addr = %llu\n", (unsigned long long)no->no_addr);
 }
 
-static void gfs2_meta_header_in(struct gfs2_meta_header *mh, const void *buf)
+static void gfs2_meta_header_in(struct gfs2_meta_header_host *mh, const void *buf)
 {
 	const struct gfs2_meta_header *str = buf;
 
@@ -63,23 +65,7 @@ static void gfs2_meta_header_in(struct gfs2_meta_header *mh, const void *buf)
 	mh->mh_format = be32_to_cpu(str->mh_format);
 }
 
-static void gfs2_meta_header_out(const struct gfs2_meta_header *mh, void *buf)
-{
-	struct gfs2_meta_header *str = buf;
-
-	str->mh_magic = cpu_to_be32(mh->mh_magic);
-	str->mh_type = cpu_to_be32(mh->mh_type);
-	str->mh_format = cpu_to_be32(mh->mh_format);
-}
-
-static void gfs2_meta_header_print(const struct gfs2_meta_header *mh)
-{
-	pv(mh, mh_magic, "0x%.8X");
-	pv(mh, mh_type, "%u");
-	pv(mh, mh_format, "%u");
-}
-
-void gfs2_sb_in(struct gfs2_sb *sb, const void *buf)
+void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
 {
 	const struct gfs2_sb *str = buf;
 
@@ -97,7 +83,7 @@ void gfs2_sb_in(struct gfs2_sb *sb, const void *buf)
 	memcpy(sb->sb_locktable, str->sb_locktable, GFS2_LOCKNAME_LEN);
 }
 
-void gfs2_rindex_in(struct gfs2_rindex *ri, const void *buf)
+void gfs2_rindex_in(struct gfs2_rindex_host *ri, const void *buf)
 {
 	const struct gfs2_rindex *str = buf;
 
@@ -109,7 +95,7 @@ void gfs2_rindex_in(struct gfs2_rindex *ri, const void *buf)
 
 }
 
-void gfs2_rindex_print(const struct gfs2_rindex *ri)
+void gfs2_rindex_print(const struct gfs2_rindex_host *ri)
 {
 	printk(KERN_INFO "  ri_addr = %llu\n", (unsigned long long)ri->ri_addr);
 	pv(ri, ri_length, "%u");
@@ -120,22 +106,20 @@ void gfs2_rindex_print(const struct gfs2_rindex *ri)
 	pv(ri, ri_bitbytes, "%u");
 }
 
-void gfs2_rgrp_in(struct gfs2_rgrp *rg, const void *buf)
+void gfs2_rgrp_in(struct gfs2_rgrp_host *rg, const void *buf)
 {
 	const struct gfs2_rgrp *str = buf;
 
-	gfs2_meta_header_in(&rg->rg_header, buf);
 	rg->rg_flags = be32_to_cpu(str->rg_flags);
 	rg->rg_free = be32_to_cpu(str->rg_free);
 	rg->rg_dinodes = be32_to_cpu(str->rg_dinodes);
 	rg->rg_igeneration = be64_to_cpu(str->rg_igeneration);
 }
 
-void gfs2_rgrp_out(const struct gfs2_rgrp *rg, void *buf)
+void gfs2_rgrp_out(const struct gfs2_rgrp_host *rg, void *buf)
 {
 	struct gfs2_rgrp *str = buf;
 
-	gfs2_meta_header_out(&rg->rg_header, buf);
 	str->rg_flags = cpu_to_be32(rg->rg_flags);
 	str->rg_free = cpu_to_be32(rg->rg_free);
 	str->rg_dinodes = cpu_to_be32(rg->rg_dinodes);
@@ -144,7 +128,7 @@ void gfs2_rgrp_out(const struct gfs2_rgrp *rg, void *buf)
 	memset(&str->rg_reserved, 0, sizeof(str->rg_reserved));
 }
 
-void gfs2_quota_in(struct gfs2_quota *qu, const void *buf)
+void gfs2_quota_in(struct gfs2_quota_host *qu, const void *buf)
 {
 	const struct gfs2_quota *str = buf;
 
@@ -153,96 +137,56 @@ void gfs2_quota_in(struct gfs2_quota *qu, const void *buf)
 	qu->qu_value = be64_to_cpu(str->qu_value);
 }
 
-void gfs2_dinode_in(struct gfs2_dinode *di, const void *buf)
+void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 {
-	const struct gfs2_dinode *str = buf;
-
-	gfs2_meta_header_in(&di->di_header, buf);
-	gfs2_inum_in(&di->di_num, &str->di_num);
-
-	di->di_mode = be32_to_cpu(str->di_mode);
-	di->di_uid = be32_to_cpu(str->di_uid);
-	di->di_gid = be32_to_cpu(str->di_gid);
-	di->di_nlink = be32_to_cpu(str->di_nlink);
-	di->di_size = be64_to_cpu(str->di_size);
-	di->di_blocks = be64_to_cpu(str->di_blocks);
-	di->di_atime = be64_to_cpu(str->di_atime);
-	di->di_mtime = be64_to_cpu(str->di_mtime);
-	di->di_ctime = be64_to_cpu(str->di_ctime);
-	di->di_major = be32_to_cpu(str->di_major);
-	di->di_minor = be32_to_cpu(str->di_minor);
-
-	di->di_goal_meta = be64_to_cpu(str->di_goal_meta);
-	di->di_goal_data = be64_to_cpu(str->di_goal_data);
-	di->di_generation = be64_to_cpu(str->di_generation);
-
-	di->di_flags = be32_to_cpu(str->di_flags);
-	di->di_payload_format = be32_to_cpu(str->di_payload_format);
-	di->di_height = be16_to_cpu(str->di_height);
-
-	di->di_depth = be16_to_cpu(str->di_depth);
-	di->di_entries = be32_to_cpu(str->di_entries);
-
-	di->di_eattr = be64_to_cpu(str->di_eattr);
-
-}
-
-void gfs2_dinode_out(const struct gfs2_dinode *di, void *buf)
-{
+	const struct gfs2_dinode_host *di = &ip->i_di;
 	struct gfs2_dinode *str = buf;
 
-	gfs2_meta_header_out(&di->di_header, buf);
-	gfs2_inum_out(&di->di_num, (char *)&str->di_num);
+	str->di_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
+	str->di_header.mh_type = cpu_to_be32(GFS2_METATYPE_DI);
+	str->di_header.__pad0 = 0;
+	str->di_header.mh_format = cpu_to_be32(GFS2_FORMAT_DI);
+	str->di_header.__pad1 = 0;
 
-	str->di_mode = cpu_to_be32(di->di_mode);
-	str->di_uid = cpu_to_be32(di->di_uid);
-	str->di_gid = cpu_to_be32(di->di_gid);
-	str->di_nlink = cpu_to_be32(di->di_nlink);
+	gfs2_inum_out(&ip->i_num, &str->di_num);
+
+	str->di_mode = cpu_to_be32(ip->i_inode.i_mode);
+	str->di_uid = cpu_to_be32(ip->i_inode.i_uid);
+	str->di_gid = cpu_to_be32(ip->i_inode.i_gid);
+	str->di_nlink = cpu_to_be32(ip->i_inode.i_nlink);
 	str->di_size = cpu_to_be64(di->di_size);
 	str->di_blocks = cpu_to_be64(di->di_blocks);
-	str->di_atime = cpu_to_be64(di->di_atime);
-	str->di_mtime = cpu_to_be64(di->di_mtime);
-	str->di_ctime = cpu_to_be64(di->di_ctime);
-	str->di_major = cpu_to_be32(di->di_major);
-	str->di_minor = cpu_to_be32(di->di_minor);
+	str->di_atime = cpu_to_be64(ip->i_inode.i_atime.tv_sec);
+	str->di_mtime = cpu_to_be64(ip->i_inode.i_mtime.tv_sec);
+	str->di_ctime = cpu_to_be64(ip->i_inode.i_ctime.tv_sec);
 
 	str->di_goal_meta = cpu_to_be64(di->di_goal_meta);
 	str->di_goal_data = cpu_to_be64(di->di_goal_data);
 	str->di_generation = cpu_to_be64(di->di_generation);
 
 	str->di_flags = cpu_to_be32(di->di_flags);
-	str->di_payload_format = cpu_to_be32(di->di_payload_format);
 	str->di_height = cpu_to_be16(di->di_height);
-
+	str->di_payload_format = cpu_to_be32(S_ISDIR(ip->i_inode.i_mode) &&
+					     !(ip->i_di.di_flags & GFS2_DIF_EXHASH) ?
+					     GFS2_FORMAT_DE : 0);
 	str->di_depth = cpu_to_be16(di->di_depth);
 	str->di_entries = cpu_to_be32(di->di_entries);
 
 	str->di_eattr = cpu_to_be64(di->di_eattr);
-
 }
 
-void gfs2_dinode_print(const struct gfs2_dinode *di)
+void gfs2_dinode_print(const struct gfs2_inode *ip)
 {
-	gfs2_meta_header_print(&di->di_header);
-	gfs2_inum_print(&di->di_num);
+	const struct gfs2_dinode_host *di = &ip->i_di;
 
-	pv(di, di_mode, "0%o");
-	pv(di, di_uid, "%u");
-	pv(di, di_gid, "%u");
-	pv(di, di_nlink, "%u");
+	gfs2_inum_print(&ip->i_num);
+
 	printk(KERN_INFO "  di_size = %llu\n", (unsigned long long)di->di_size);
 	printk(KERN_INFO "  di_blocks = %llu\n", (unsigned long long)di->di_blocks);
-	printk(KERN_INFO "  di_atime = %lld\n", (long long)di->di_atime);
-	printk(KERN_INFO "  di_mtime = %lld\n", (long long)di->di_mtime);
-	printk(KERN_INFO "  di_ctime = %lld\n", (long long)di->di_ctime);
-	pv(di, di_major, "%u");
-	pv(di, di_minor, "%u");
-
 	printk(KERN_INFO "  di_goal_meta = %llu\n", (unsigned long long)di->di_goal_meta);
 	printk(KERN_INFO "  di_goal_data = %llu\n", (unsigned long long)di->di_goal_data);
 
 	pv(di, di_flags, "0x%.8X");
-	pv(di, di_payload_format, "%u");
 	pv(di, di_height, "%u");
 
 	pv(di, di_depth, "%u");
@@ -251,7 +195,7 @@ void gfs2_dinode_print(const struct gfs2_dinode *di)
 	printk(KERN_INFO "  di_eattr = %llu\n", (unsigned long long)di->di_eattr);
 }
 
-void gfs2_log_header_in(struct gfs2_log_header *lh, const void *buf)
+void gfs2_log_header_in(struct gfs2_log_header_host *lh, const void *buf)
 {
 	const struct gfs2_log_header *str = buf;
 
@@ -263,7 +207,7 @@ void gfs2_log_header_in(struct gfs2_log_header *lh, const void *buf)
 	lh->lh_hash = be32_to_cpu(str->lh_hash);
 }
 
-void gfs2_inum_range_in(struct gfs2_inum_range *ir, const void *buf)
+void gfs2_inum_range_in(struct gfs2_inum_range_host *ir, const void *buf)
 {
 	const struct gfs2_inum_range *str = buf;
 
@@ -271,7 +215,7 @@ void gfs2_inum_range_in(struct gfs2_inum_range *ir, const void *buf)
 	ir->ir_length = be64_to_cpu(str->ir_length);
 }
 
-void gfs2_inum_range_out(const struct gfs2_inum_range *ir, void *buf)
+void gfs2_inum_range_out(const struct gfs2_inum_range_host *ir, void *buf)
 {
 	struct gfs2_inum_range *str = buf;
 
@@ -279,7 +223,7 @@ void gfs2_inum_range_out(const struct gfs2_inum_range *ir, void *buf)
 	str->ir_length = cpu_to_be64(ir->ir_length);
 }
 
-void gfs2_statfs_change_in(struct gfs2_statfs_change *sc, const void *buf)
+void gfs2_statfs_change_in(struct gfs2_statfs_change_host *sc, const void *buf)
 {
 	const struct gfs2_statfs_change *str = buf;
 
@@ -288,7 +232,7 @@ void gfs2_statfs_change_in(struct gfs2_statfs_change *sc, const void *buf)
 	sc->sc_dinodes = be64_to_cpu(str->sc_dinodes);
 }
 
-void gfs2_statfs_change_out(const struct gfs2_statfs_change *sc, void *buf)
+void gfs2_statfs_change_out(const struct gfs2_statfs_change_host *sc, void *buf)
 {
 	struct gfs2_statfs_change *str = buf;
 
@@ -297,7 +241,7 @@ void gfs2_statfs_change_out(const struct gfs2_statfs_change *sc, void *buf)
 	str->sc_dinodes = cpu_to_be64(sc->sc_dinodes);
 }
 
-void gfs2_quota_change_in(struct gfs2_quota_change *qc, const void *buf)
+void gfs2_quota_change_in(struct gfs2_quota_change_host *qc, const void *buf)
 {
 	const struct gfs2_quota_change *str = buf;
 

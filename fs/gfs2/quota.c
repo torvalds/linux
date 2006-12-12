@@ -251,7 +251,7 @@ static int bh_get(struct gfs2_quota_data *qd)
 	unsigned int block, offset;
 	struct buffer_head *bh;
 	int error;
-	struct buffer_head bh_map;
+	struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
 
 	mutex_lock(&sdp->sd_quota_mutex);
 
@@ -263,7 +263,8 @@ static int bh_get(struct gfs2_quota_data *qd)
 	block = qd->qd_slot / sdp->sd_qc_per_block;
 	offset = qd->qd_slot % sdp->sd_qc_per_block;;
 
-	error = gfs2_block_map(&ip->i_inode, block, 0, &bh_map, 1);
+	bh_map.b_size = 1 << ip->i_inode.i_blkbits;
+	error = gfs2_block_map(&ip->i_inode, block, 0, &bh_map);
 	if (error)
 		goto fail;
 	error = gfs2_meta_read(ip->i_gl, bh_map.b_blocknr, DIO_WAIT, &bh);
@@ -451,19 +452,19 @@ int gfs2_quota_hold(struct gfs2_inode *ip, u32 uid, u32 gid)
 	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return 0;
 
-	error = qdsb_get(sdp, QUOTA_USER, ip->i_di.di_uid, CREATE, qd);
+	error = qdsb_get(sdp, QUOTA_USER, ip->i_inode.i_uid, CREATE, qd);
 	if (error)
 		goto out;
 	al->al_qd_num++;
 	qd++;
 
-	error = qdsb_get(sdp, QUOTA_GROUP, ip->i_di.di_gid, CREATE, qd);
+	error = qdsb_get(sdp, QUOTA_GROUP, ip->i_inode.i_gid, CREATE, qd);
 	if (error)
 		goto out;
 	al->al_qd_num++;
 	qd++;
 
-	if (uid != NO_QUOTA_CHANGE && uid != ip->i_di.di_uid) {
+	if (uid != NO_QUOTA_CHANGE && uid != ip->i_inode.i_uid) {
 		error = qdsb_get(sdp, QUOTA_USER, uid, CREATE, qd);
 		if (error)
 			goto out;
@@ -471,7 +472,7 @@ int gfs2_quota_hold(struct gfs2_inode *ip, u32 uid, u32 gid)
 		qd++;
 	}
 
-	if (gid != NO_QUOTA_CHANGE && gid != ip->i_di.di_gid) {
+	if (gid != NO_QUOTA_CHANGE && gid != ip->i_inode.i_gid) {
 		error = qdsb_get(sdp, QUOTA_GROUP, gid, CREATE, qd);
 		if (error)
 			goto out;
@@ -538,8 +539,7 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change)
 		qc->qc_id = cpu_to_be32(qd->qd_id);
 	}
 
-	x = qc->qc_change;
-	x = be64_to_cpu(x) + change;
+	x = be64_to_cpu(qc->qc_change) + change;
 	qc->qc_change = cpu_to_be64(x);
 
 	spin_lock(&sdp->sd_quota_spin);
@@ -742,7 +742,7 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
 	struct gfs2_holder i_gh;
-	struct gfs2_quota q;
+	struct gfs2_quota_host q;
 	char buf[sizeof(struct gfs2_quota)];
 	struct file_ra_state ra_state;
 	int error;
@@ -1102,7 +1102,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 
 		for (y = 0; y < sdp->sd_qc_per_block && slot < sdp->sd_quota_slots;
 		     y++, slot++) {
-			struct gfs2_quota_change qc;
+			struct gfs2_quota_change_host qc;
 			struct gfs2_quota_data *qd;
 
 			gfs2_quota_change_in(&qc, bh->b_data +

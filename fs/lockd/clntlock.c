@@ -100,12 +100,12 @@ int nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 /*
  * The server lockd has called us back to tell us the lock was granted
  */
-u32 nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *lock)
+__be32 nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *lock)
 {
 	const struct file_lock *fl = &lock->fl;
 	const struct nfs_fh *fh = &lock->fh;
 	struct nlm_wait	*block;
-	u32 res = nlm_lck_denied;
+	__be32 res = nlm_lck_denied;
 
 	/*
 	 * Look up blocked request based on arguments. 
@@ -126,7 +126,7 @@ u32 nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *lock)
 			continue;
 		if (!nlm_cmp_addr(&block->b_host->h_addr, addr))
 			continue;
-		if (nfs_compare_fh(NFS_FH(fl_blocked->fl_file->f_dentry->d_inode) ,fh) != 0)
+		if (nfs_compare_fh(NFS_FH(fl_blocked->fl_file->f_path.dentry->d_inode) ,fh) != 0)
 			continue;
 		/* Alright, we found a lock. Set the return status
 		 * and wake up the caller

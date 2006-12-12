@@ -28,6 +28,18 @@ config IBM_ASM
 
 	  If unsure, say N.
 
+config SGI_IOC4
+	tristate "SGI IOC4 Base IO support"
+	depends on PCI
+	---help---
+	  This option enables basic support for the IOC4 chip on certain
+	  SGI IO controller cards (IO9, IO10, and PCI-RT).  This option
+	  does not enable any specific functions on such a card, but provides
+	  necessary infrastructure for other drivers to utilize.
+
+	  If you have an SGI Altix with an IOC4-based card say Y.
+	  Otherwise say N.
+
 config TIFM_CORE
 	tristate "TI Flash Media interface support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL

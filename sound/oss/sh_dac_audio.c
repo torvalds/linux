@@ -26,7 +26,7 @@
 #include <asm/cpu/dac.h>
 #include <asm/cpu/timer.h>
 #include <asm/machvec.h>
-#include <asm/hp6xx/hp6xx.h>
+#include <asm/hp6xx.h>
 #include <asm/hd64461.h>
 
 #define MODNAME "sh_dac_audio"

@@ -505,6 +505,10 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		/* This is a painful system best to let it self tune for now */
 		return;
 	}
+	/* ESB2 appears to generate spurious DMA interrupts in PIO mode
+	   when in native mode */
+	if (hwif->pci_dev->device == PCI_DEVICE_ID_INTEL_ESB2_18)
+		hwif->atapi_irq_bogon = 1;
 
 	hwif->autodma = 0;
 	hwif->tuneproc = &piix_tune_drive;

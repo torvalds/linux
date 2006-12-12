@@ -237,6 +237,8 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 
 	list = drm_alloc(sizeof(*list), DRM_MEM_MAPS);
 	if (!list) {
+		if (map->type == _DRM_REGISTERS)
+			drm_ioremapfree(map->handle, map->size, dev);
 		drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 		return -EINVAL;
 	}
@@ -252,6 +254,8 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 		map->offset;
 	ret = drm_map_handle(dev, &list->hash, user_token, 0);
 	if (ret) {
+		if (map->type == _DRM_REGISTERS)
+			drm_ioremapfree(map->handle, map->size, dev);
 		drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 		drm_free(list, sizeof(*list), DRM_MEM_MAPS);
 		mutex_unlock(&dev->struct_mutex);
@@ -883,6 +887,9 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 	request->count = entry->buf_count;
 	request->size = size;
 
+	if (request->flags & _DRM_PCI_BUFFER_RO)
+		dma->flags = _DRM_DMA_USE_PCI_RO;
+
 	atomic_dec(&dev->buf_alloc);
 	return 0;
 
@@ -1467,9 +1474,10 @@ int drm_freebufs(struct inode *inode, struct file *filp,
  * \param arg pointer to a drm_buf_map structure.
  * \return zero on success or a negative number on failure.
  *
- * Maps the AGP or SG buffer region with do_mmap(), and copies information
- * about each buffer into user space. The PCI buffers are already mapped on the
- * addbufs_pci() call.
+ * Maps the AGP, SG or PCI buffer region with do_mmap(), and copies information
+ * about each buffer into user space. For PCI buffers, it calls do_mmap() with
+ * offset equal to 0, which drm_mmap() interpretes as PCI buffers and calls
+ * drm_mmap_dma().
  */
 int drm_mapbufs(struct inode *inode, struct file *filp,
 		unsigned int cmd, unsigned long arg)

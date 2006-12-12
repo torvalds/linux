@@ -41,9 +41,9 @@
 #define REAL_DMA
 
 #include "scsi.h"
+#include "initio.h"
 #include <scsi/scsi_host.h>
 #include "sun3_scsi.h"
-#include "NCR5380.h"
 
 extern int sun3_map_test(unsigned long, char *);
 
@@ -84,7 +84,7 @@ module_param(setup_use_tagged_queuing, int, 0);
 static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
 
-static Scsi_Cmnd *sun3_dma_setup_done = NULL;
+static struct scsi_cmnd *sun3_dma_setup_done = NULL;
 
 #define	AFTER_RESET_DELAY	(HZ/2)
 
@@ -455,8 +455,9 @@ static inline unsigned long sun3scsi_dma_residual(struct Scsi_Host *instance)
 	return last_residual;
 }
 
-static inline unsigned long sun3scsi_dma_xfer_len(unsigned long wanted, Scsi_Cmnd *cmd,
-				    int write_flag)
+static inline unsigned long sun3scsi_dma_xfer_len(unsigned long wanted,
+						  struct scsi_cmnd *cmd,
+						  int write_flag)
 {
 	if(blk_fs_request(cmd->request))
  		return wanted;

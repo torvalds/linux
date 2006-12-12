@@ -35,7 +35,7 @@
 #include <linux/dmi.h>
 
 #define DRV_NAME	"pata_cs5530"
-#define DRV_VERSION	"0.6"
+#define DRV_VERSION	"0.7.1"
 
 /**
  *	cs5530_set_piomode		-	PIO setup
@@ -173,14 +173,16 @@ static struct scsi_host_template cs5530_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations cs5530_port_ops = {
@@ -238,38 +240,18 @@ static int cs5530_is_palmax(void)
 	return 0;
 }
 
+
 /**
- *	cs5530_init_one		-	Initialise a CS5530
- *	@dev: PCI device
- *	@id: Entry in match table
+ *	cs5530_init_chip	-	Chipset init
  *
- *	Install a driver for the newly found CS5530 companion chip. Most of
- *	this is just housekeeping. We have to set the chip up correctly and
- *	turn off various bits of emulation magic.
+ *	Perform the chip initialisation work that is shared between both
+ *	setup and resume paths
  */
-
-static int cs5530_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+ 
+static int cs5530_init_chip(void)
 {
-	int compiler_warning_pointless_fix;
-	struct pci_dev *master_0 = NULL, *cs5530_0 = NULL;
-	static struct ata_port_info info = {
-		.sht = &cs5530_sht,
-		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
-		.udma_mask = 0x07,
-		.port_ops = &cs5530_port_ops
-	};
-	/* The docking connector doesn't do UDMA, and it seems not MWDMA */
-	static struct ata_port_info info_palmax_secondary = {
-		.sht = &cs5530_sht,
-		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
-		.pio_mask = 0x1f,
-		.port_ops = &cs5530_port_ops
-	};
-	static struct ata_port_info *port_info[2] = { &info, &info };
+	struct pci_dev *master_0 = NULL, *cs5530_0 = NULL, *dev = NULL;
 
-	dev = NULL;
 	while ((dev = pci_get_device(PCI_VENDOR_ID_CYRIX, PCI_ANY_ID, dev)) != NULL) {
 		switch (dev->device) {
 			case PCI_DEVICE_ID_CYRIX_PCI_MASTER:
@@ -290,7 +272,7 @@ static int cs5530_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	pci_set_master(cs5530_0);
-	compiler_warning_pointless_fix = pci_set_mwi(cs5530_0);
+	pci_set_mwi(cs5530_0);
 
 	/*
 	 * Set PCI CacheLineSize to 16-bytes:
@@ -338,13 +320,7 @@ static int cs5530_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	pci_dev_put(master_0);
 	pci_dev_put(cs5530_0);
-
-	if (cs5530_is_palmax())
-		port_info[1] = &info_palmax_secondary;
-
-	/* Now kick off ATA set up */
-	return ata_pci_init_one(dev, port_info, 2);
-
+	return 0;
 fail_put:
 	if (master_0)
 		pci_dev_put(master_0);
@@ -353,6 +329,53 @@ fail_put:
 	return -ENODEV;
 }
 
+/**
+ *	cs5530_init_one		-	Initialise a CS5530
+ *	@dev: PCI device
+ *	@id: Entry in match table
+ *
+ *	Install a driver for the newly found CS5530 companion chip. Most of
+ *	this is just housekeeping. We have to set the chip up correctly and
+ *	turn off various bits of emulation magic.
+ */
+
+static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	static struct ata_port_info info = {
+		.sht = &cs5530_sht,
+		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
+		.pio_mask = 0x1f,
+		.mwdma_mask = 0x07,
+		.udma_mask = 0x07,
+		.port_ops = &cs5530_port_ops
+	};
+	/* The docking connector doesn't do UDMA, and it seems not MWDMA */
+	static struct ata_port_info info_palmax_secondary = {
+		.sht = &cs5530_sht,
+		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
+		.pio_mask = 0x1f,
+		.port_ops = &cs5530_port_ops
+	};
+	static struct ata_port_info *port_info[2] = { &info, &info };
+	
+	/* Chip initialisation */
+	if (cs5530_init_chip())
+		return -ENODEV;
+		
+	if (cs5530_is_palmax())
+		port_info[1] = &info_palmax_secondary;
+
+	/* Now kick off ATA set up */
+	return ata_pci_init_one(pdev, port_info, 2);
+}
+
+static int cs5530_reinit_one(struct pci_dev *pdev)
+{
+	/* If we fail on resume we are doomed */
+	BUG_ON(cs5530_init_chip());
+	return ata_pci_device_resume(pdev);
+}
+	
 static const struct pci_device_id cs5530[] = {
 	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5530_IDE), },
 
@@ -363,7 +386,9 @@ static struct pci_driver cs5530_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= cs5530,
 	.probe 		= cs5530_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= cs5530_reinit_one,
 };
 
 static int __init cs5530_init(void)

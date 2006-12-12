@@ -122,8 +122,7 @@ int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input)
 				mcn_shift = QE_CR_MCN_NORMAL_SHIFT;
 		}
 
-		out_be32(&qe_immr->cp.cecdr,
-			 immrbar_virt_to_phys((void *)cmd_input));
+		out_be32(&qe_immr->cp.cecdr, cmd_input);
 		out_be32(&qe_immr->cp.cecr,
 			 (cmd | QE_CR_FLG | ((u32) device << dev_shift) | (u32)
 			  mcn_protocol << mcn_shift));
@@ -175,8 +174,7 @@ void qe_setbrg(u32 brg, u32 rate)
 	u32 divisor, tempval;
 	int div16 = 0;
 
-	bp = &qe_immr->brg.brgc1;
-	bp += brg;
+	bp = &qe_immr->brg.brgc[brg];
 
 	divisor = (get_brg_clk() / rate);
 	if (divisor > QE_BRGC_DIVISOR_MAX + 1) {

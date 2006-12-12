@@ -502,38 +502,29 @@ static int __init add_bridge(struct device_node *dev)
 }
 
 
-void __init maple_pcibios_fixup(void)
+void __devinit maple_pci_irq_fixup(struct pci_dev *dev)
 {
-	struct pci_dev *dev = NULL;
+	DBG(" -> maple_pci_irq_fixup\n");
 
-	DBG(" -> maple_pcibios_fixup\n");
-
-	for_each_pci_dev(dev) {
-		/* Fixup IRQ for PCIe host */
-		if (u4_pcie != NULL && dev->bus->number == 0 &&
-		    pci_bus_to_host(dev->bus) == u4_pcie) {
-			printk(KERN_DEBUG "Fixup U4 PCIe IRQ\n");
-			dev->irq = irq_create_mapping(NULL, 1);
-			if (dev->irq != NO_IRQ)
-				set_irq_type(dev->irq, IRQ_TYPE_LEVEL_LOW);
-			continue;
-		}
-
-		/* Hide AMD8111 IDE interrupt when in legacy mode so
-		 * the driver calls pci_get_legacy_ide_irq()
-		 */
-		if (dev->vendor == PCI_VENDOR_ID_AMD &&
-		    dev->device == PCI_DEVICE_ID_AMD_8111_IDE &&
-		    (dev->class & 5) != 5) {
-			dev->irq = NO_IRQ;
-			continue;
-		}
-
-		/* For all others, map the interrupt from the device-tree */
-		pci_read_irq_line(dev);
+	/* Fixup IRQ for PCIe host */
+	if (u4_pcie != NULL && dev->bus->number == 0 &&
+	    pci_bus_to_host(dev->bus) == u4_pcie) {
+		printk(KERN_DEBUG "Fixup U4 PCIe IRQ\n");
+		dev->irq = irq_create_mapping(NULL, 1);
+		if (dev->irq != NO_IRQ)
+			set_irq_type(dev->irq, IRQ_TYPE_LEVEL_LOW);
 	}
 
-	DBG(" <- maple_pcibios_fixup\n");
+	/* Hide AMD8111 IDE interrupt when in legacy mode so
+	 * the driver calls pci_get_legacy_ide_irq()
+	 */
+	if (dev->vendor == PCI_VENDOR_ID_AMD &&
+	    dev->device == PCI_DEVICE_ID_AMD_8111_IDE &&
+	    (dev->class & 5) != 5) {
+		dev->irq = NO_IRQ;
+	}
+
+	DBG(" <- maple_pci_irq_fixup\n");
 }
 
 static void __init maple_fixup_phb_resources(void)
@@ -571,7 +562,7 @@ void __init maple_pci_init(void)
 	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;) {
 		if (np->name == NULL)
 			continue;
-		if (strcmp(np->name, "pci") == 0) {
+		if (!strcmp(np->name, "pci") || !strcmp(np->name, "pcie")) {
 			if (add_bridge(np) == 0)
 				of_node_get(np);
 		}

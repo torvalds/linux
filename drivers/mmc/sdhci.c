@@ -616,6 +616,7 @@ static void sdhci_finish_command(struct sdhci_host *host)
 static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	int div;
+	u8 ctrl;
 	u16 clk;
 	unsigned long timeout;
 
@@ -623,6 +624,13 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 		return;
 
 	writew(0, host->ioaddr + SDHCI_CLOCK_CONTROL);
+
+	ctrl = readb(host->ioaddr + SDHCI_HOST_CONTROL);
+	if (clock > 25000000)
+		ctrl |= SDHCI_CTRL_HISPD;
+	else
+		ctrl &= ~SDHCI_CTRL_HISPD;
+	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 
 	if (clock == 0)
 		goto out;
@@ -784,7 +792,7 @@ static int sdhci_get_ro(struct mmc_host *mmc)
 	return !(present & SDHCI_WRITE_PROTECT);
 }
 
-static struct mmc_host_ops sdhci_ops = {
+static const struct mmc_host_ops sdhci_ops = {
 	.request	= sdhci_request,
 	.set_ios	= sdhci_set_ios,
 	.get_ro		= sdhci_get_ro,
@@ -1162,8 +1170,8 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	}
 
 	if (pci_resource_len(pdev, first_bar + slot) != 0x100) {
-		printk(KERN_ERR DRIVER_NAME ": Invalid iomem size. Aborting.\n");
-		return -ENODEV;
+		printk(KERN_ERR DRIVER_NAME ": Invalid iomem size. "
+			"You may experience problems.\n");
 	}
 
 	if ((pdev->class & 0x0000FF) == PCI_SDHCI_IFVENDOR) {
@@ -1290,6 +1298,13 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		mmc->ocr_avail |= MMC_VDD_29_30|MMC_VDD_30_31;
 	else if (caps & SDHCI_CAN_VDD_180)
 		mmc->ocr_avail |= MMC_VDD_17_18|MMC_VDD_18_19;
+
+	if ((host->max_clk > 25000000) && !(caps & SDHCI_CAN_DO_HISPD)) {
+		printk(KERN_ERR "%s: Controller reports > 25 MHz base clock,"
+			" but no high speed support.\n",
+			host->slot_descr);
+		mmc->f_max = 25000000;
+	}
 
 	if (mmc->ocr_avail == 0) {
 		printk(KERN_ERR "%s: Hardware doesn't report any "

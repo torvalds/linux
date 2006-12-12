@@ -59,11 +59,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Should you need to contact me, the author, you can do so either by
- * email or by paper mail:
- * Jan-Benedict Glaw, Lilienstraße 16, 33790 Hörste (near Halle/Westf.),
- * Germany.
  */
 
 #include <linux/delay.h>
@@ -577,9 +572,9 @@ lkkbd_event (struct input_dev *dev, unsigned int type, unsigned int code,
  * were in.
  */
 static void
-lkkbd_reinit (void *data)
+lkkbd_reinit (struct work_struct *work)
 {
-	struct lkkbd *lk = data;
+	struct lkkbd *lk = container_of(work, struct lkkbd, tq);
 	int division;
 	unsigned char leds_on = 0;
 	unsigned char leds_off = 0;
@@ -651,12 +646,12 @@ lkkbd_connect (struct serio *serio, struct serio_driver *drv)
 	input_dev = input_allocate_device ();
 	if (!lk || !input_dev) {
 		err = -ENOMEM;
-		goto fail;
+		goto fail1;
 	}
 
 	lk->serio = serio;
 	lk->dev = input_dev;
-	INIT_WORK (&lk->tq, lkkbd_reinit, lk);
+	INIT_WORK (&lk->tq, lkkbd_reinit);
 	lk->bell_volume = bell_volume;
 	lk->keyclick_volume = keyclick_volume;
 	lk->ctrlclick_volume = ctrlclick_volume;
@@ -696,15 +691,19 @@ lkkbd_connect (struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open (serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device (lk->dev);
+	err = input_register_device (lk->dev);
+	if (err)
+		goto fail3;
+
 	lk->serio->write (lk->serio, LK_CMD_POWERCYCLE_RESET);
 
 	return 0;
 
- fail:	serio_set_drvdata (serio, NULL);
-	input_free_device (input_dev);
+ fail3:	serio_close (serio);
+ fail2:	serio_set_drvdata (serio, NULL);
+ fail1:	input_free_device (input_dev);
 	kfree (lk);
 	return err;
 }
@@ -754,8 +753,7 @@ static struct serio_driver lkkbd_drv = {
 static int __init
 lkkbd_init (void)
 {
-	serio_register_driver(&lkkbd_drv);
-	return 0;
+	return serio_register_driver(&lkkbd_drv);
 }
 
 static void __exit

@@ -106,6 +106,8 @@ EXPORT_SYMBOL(mac_hid_mouse_emulate_buttons);
 
 static int emumousebtn_input_register(void)
 {
+	int ret;
+
 	emumousebtn = input_allocate_device();
 	if (!emumousebtn)
 		return -ENOMEM;
@@ -120,9 +122,11 @@ static int emumousebtn_input_register(void)
 	emumousebtn->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
 	emumousebtn->relbit[0] = BIT(REL_X) | BIT(REL_Y);
 
-	input_register_device(emumousebtn);
+	ret = input_register_device(emumousebtn);
+	if (ret)
+		input_free_device(emumousebtn);
 
-	return 0;
+	return ret;
 }
 
 int __init mac_hid_init(void)

@@ -59,9 +59,6 @@ int
 qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 {
 	int	rval;
-	uint8_t	restart_risc = 0;
-	uint8_t	retry;
-	uint32_t wait_time;
 
 	/* Clear adapter flags. */
 	ha->flags.online = 0;
@@ -104,87 +101,15 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 
 	qla_printk(KERN_INFO, ha, "Verifying loaded RISC code...\n");
 
-	retry = 10;
-	/*
-	 * Try to configure the loop.
-	 */
-	do {
-		restart_risc = 0;
-
-		/* If firmware needs to be loaded */
-		if (qla2x00_isp_firmware(ha) != QLA_SUCCESS) {
-			if ((rval = ha->isp_ops.chip_diag(ha)) == QLA_SUCCESS) {
-				rval = qla2x00_setup_chip(ha);
-			}
-		}
-
-		if (rval == QLA_SUCCESS &&
-		    (rval = qla2x00_init_rings(ha)) == QLA_SUCCESS) {
-check_fw_ready_again:
-			/*
-			 * Wait for a successful LIP up to a maximum
-			 * of (in seconds): RISC login timeout value,
-			 * RISC retry count value, and port down retry
-			 * value OR a minimum of 4 seconds OR If no
-			 * cable, only 5 seconds.
-			 */
-			rval = qla2x00_fw_ready(ha);
-			if (rval == QLA_SUCCESS) {
-				clear_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
-
-				/* Issue a marker after FW becomes ready. */
-				qla2x00_marker(ha, 0, 0, MK_SYNC_ALL);
-
-				/*
-				 * Wait at most MAX_TARGET RSCNs for a stable
-				 * link.
-				 */
-				wait_time = 256;
-				do {
-					clear_bit(LOOP_RESYNC_NEEDED,
-					    &ha->dpc_flags);
-					rval = qla2x00_configure_loop(ha);
-
-					if (test_and_clear_bit(ISP_ABORT_NEEDED,
-					    &ha->dpc_flags)) {
-						restart_risc = 1;
-						break;
-					}
-
-					/*
-					 * If loop state change while we were
-					 * discoverying devices then wait for
-					 * LIP to complete
-					 */
-
-					if (atomic_read(&ha->loop_state) !=
-					    LOOP_READY && retry--) {
-						goto check_fw_ready_again;
-					}
-					wait_time--;
-				} while (!atomic_read(&ha->loop_down_timer) &&
-				    retry &&
-				    wait_time &&
-				    (test_bit(LOOP_RESYNC_NEEDED,
-					&ha->dpc_flags)));
-
-				if (wait_time == 0)
-					rval = QLA_FUNCTION_FAILED;
-			} else if (ha->device_flags & DFLG_NO_CABLE)
-				/* If no cable, then all is good. */
-				rval = QLA_SUCCESS;
-		}
-	} while (restart_risc && retry--);
-
-	if (rval == QLA_SUCCESS) {
-		clear_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
-		qla2x00_marker(ha, 0, 0, MK_SYNC_ALL);
-		ha->marker_needed = 0;
-
-		ha->flags.online = 1;
-	} else {
-		DEBUG2_3(printk("%s(): **** FAILED ****\n", __func__));
+	if (qla2x00_isp_firmware(ha) != QLA_SUCCESS) {
+		rval = ha->isp_ops.chip_diag(ha);
+		if (rval)
+			return (rval);
+		rval = qla2x00_setup_chip(ha);
+		if (rval)
+			return (rval);
 	}
+	rval = qla2x00_init_rings(ha);
 
 	return (rval);
 }
@@ -1644,7 +1569,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	 * Set host adapter parameters.
 	 */
 	if (nv->host_p[0] & BIT_7)
-		qla2_extended_error_logging = 1;
+		ql2xextended_error_logging = 1;
 	ha->flags.disable_risc_code_load = ((nv->host_p[0] & BIT_4) ? 1 : 0);
 	/* Always load RISC code on non ISP2[12]00 chips. */
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha))
@@ -2208,8 +2133,7 @@ qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 
 	atomic_set(&fcport->state, FCS_ONLINE);
 
-	if (ha->flags.init_done)
-		qla2x00_reg_remote_port(ha, fcport);
+	qla2x00_reg_remote_port(ha, fcport);
 }
 
 void
@@ -3947,4 +3871,25 @@ qla24xx_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 
 fail_fw_integrity:
 	return QLA_FUNCTION_FAILED;
+}
+
+void
+qla2x00_try_to_stop_firmware(scsi_qla_host_t *ha)
+{
+	int ret, retries;
+
+	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
+		return;
+
+	ret = qla2x00_stop_firmware(ha);
+	for (retries = 5; ret != QLA_SUCCESS && retries ; retries--) {
+		qla2x00_reset_chip(ha);
+		if (qla2x00_chip_diag(ha) != QLA_SUCCESS)
+			continue;
+		if (qla2x00_setup_chip(ha) != QLA_SUCCESS)
+			continue;
+		qla_printk(KERN_INFO, ha,
+		    "Attempting retry of stop-firmware command...\n");
+		ret = qla2x00_stop_firmware(ha);
+	}
 }

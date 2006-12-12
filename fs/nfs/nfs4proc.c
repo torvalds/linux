@@ -138,10 +138,10 @@ const u32 nfs4_fs_locations_bitmap[2] = {
 	| FATTR4_WORD1_MOUNTED_ON_FILEID
 };
 
-static void nfs4_setup_readdir(u64 cookie, u32 *verifier, struct dentry *dentry,
+static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dentry,
 		struct nfs4_readdir_arg *readdir)
 {
-	u32 *start, *p;
+	__be32 *start, *p;
 
 	BUG_ON(readdir->count < 80);
 	if (cookie > 2) {
@@ -162,7 +162,7 @@ static void nfs4_setup_readdir(u64 cookie, u32 *verifier, struct dentry *dentry,
 	 * when talking to the server, we always send cookie 0
 	 * instead of 1 or 2.
 	 */
-	start = p = (u32 *)kmap_atomic(*readdir->pages, KM_USER0);
+	start = p = kmap_atomic(*readdir->pages, KM_USER0);
 	
 	if (cookie == 0) {
 		*p++ = xdr_one;                                  /* next */
@@ -636,7 +636,7 @@ static int _nfs4_proc_open_confirm(struct nfs4_opendata *data)
 		smp_wmb();
 	} else
 		status = data->rpc_status;
-	rpc_release_task(task);
+	rpc_put_task(task);
 	return status;
 }
 
@@ -742,7 +742,7 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 		smp_wmb();
 	} else
 		status = data->rpc_status;
-	rpc_release_task(task);
+	rpc_put_task(task);
 	if (status != 0)
 		return status;
 
@@ -1314,11 +1314,9 @@ nfs4_open_revalidate(struct inode *dir, struct dentry *dentry, int openflags, st
 			case -EROFS:
 				lookup_instantiate_filp(nd, (struct dentry *)state, NULL);
 				return 1;
-			case -ENOENT:
-				if (dentry->d_inode == NULL)
-					return 1;
+			default:
+				goto out_drop;
 		}
-		goto out_drop;
 	}
 	if (state->inode == dentry->d_inode) {
 		nfs4_intent_set_file(nd, dentry, state);
@@ -1777,89 +1775,6 @@ static int nfs4_proc_read(struct nfs_read_data *rdata)
 	return err;
 }
 
-static int _nfs4_proc_write(struct nfs_write_data *wdata)
-{
-	int rpcflags = wdata->flags;
-	struct inode *inode = wdata->inode;
-	struct nfs_fattr *fattr = wdata->res.fattr;
-	struct nfs_server *server = NFS_SERVER(inode);
-	struct rpc_message msg = {
-		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_WRITE],
-		.rpc_argp	= &wdata->args,
-		.rpc_resp	= &wdata->res,
-		.rpc_cred	= wdata->cred,
-	};
-	int status;
-
-	dprintk("NFS call  write %d @ %Ld\n", wdata->args.count,
-			(long long) wdata->args.offset);
-
-	wdata->args.bitmask = server->attr_bitmask;
-	wdata->res.server = server;
-	wdata->timestamp = jiffies;
-	nfs_fattr_init(fattr);
-	status = rpc_call_sync(server->client, &msg, rpcflags);
-	dprintk("NFS reply write: %d\n", status);
-	if (status < 0)
-		return status;
-	renew_lease(server, wdata->timestamp);
-	nfs_post_op_update_inode(inode, fattr);
-	return wdata->res.count;
-}
-
-static int nfs4_proc_write(struct nfs_write_data *wdata)
-{
-	struct nfs4_exception exception = { };
-	int err;
-	do {
-		err = nfs4_handle_exception(NFS_SERVER(wdata->inode),
-				_nfs4_proc_write(wdata),
-				&exception);
-	} while (exception.retry);
-	return err;
-}
-
-static int _nfs4_proc_commit(struct nfs_write_data *cdata)
-{
-	struct inode *inode = cdata->inode;
-	struct nfs_fattr *fattr = cdata->res.fattr;
-	struct nfs_server *server = NFS_SERVER(inode);
-	struct rpc_message msg = {
-		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_COMMIT],
-		.rpc_argp	= &cdata->args,
-		.rpc_resp	= &cdata->res,
-		.rpc_cred	= cdata->cred,
-	};
-	int status;
-
-	dprintk("NFS call  commit %d @ %Ld\n", cdata->args.count,
-			(long long) cdata->args.offset);
-
-	cdata->args.bitmask = server->attr_bitmask;
-	cdata->res.server = server;
-	cdata->timestamp = jiffies;
-	nfs_fattr_init(fattr);
-	status = rpc_call_sync(server->client, &msg, 0);
-	if (status >= 0)
-		renew_lease(server, cdata->timestamp);
-	dprintk("NFS reply commit: %d\n", status);
-	if (status >= 0)
-		nfs_post_op_update_inode(inode, fattr);
-	return status;
-}
-
-static int nfs4_proc_commit(struct nfs_write_data *cdata)
-{
-	struct nfs4_exception exception = { };
-	int err;
-	do {
-		err = nfs4_handle_exception(NFS_SERVER(cdata->inode),
-				_nfs4_proc_commit(cdata),
-				&exception);
-	} while (exception.retry);
-	return err;
-}
-
 /*
  * Got race?
  * We will need to arrange for the VFS layer to provide an atomic open.
@@ -2225,13 +2140,11 @@ static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 			dentry->d_parent->d_name.name,
 			dentry->d_name.name,
 			(unsigned long long)cookie);
-	lock_kernel();
 	nfs4_setup_readdir(cookie, NFS_COOKIEVERF(dir), dentry, &args);
 	res.pgbase = args.pgbase;
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	if (status == 0)
 		memcpy(NFS_COOKIEVERF(dir), res.verifier.data, NFS4_VERIFIER_SIZE);
-	unlock_kernel();
 	dprintk("%s: returns %d\n", __FUNCTION__, status);
 	return status;
 }
@@ -2917,11 +2830,11 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program, unsigned short po
 		.rpc_resp = clp,
 		.rpc_cred = cred,
 	};
-	u32 *p;
+	__be32 *p;
 	int loop = 0;
 	int status;
 
-	p = (u32*)sc_verifier.data;
+	p = (__be32*)sc_verifier.data;
 	*p++ = htonl((u32)clp->cl_boot_time.tv_sec);
 	*p = htonl((u32)clp->cl_boot_time.tv_nsec);
 
@@ -3069,7 +2982,7 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 		if (status == 0)
 			nfs_post_op_update_inode(inode, &data->fattr);
 	}
-	rpc_release_task(task);
+	rpc_put_task(task);
 	return status;
 }
 
@@ -3316,7 +3229,7 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	if (IS_ERR(task))
 		goto out;
 	status = nfs4_wait_for_completion_rpc_task(task);
-	rpc_release_task(task);
+	rpc_put_task(task);
 out:
 	return status;
 }
@@ -3432,7 +3345,7 @@ static void nfs4_lock_release(void *calldata)
 		task = nfs4_do_unlck(&data->fl, data->ctx, data->lsp,
 				data->arg.lock_seqid);
 		if (!IS_ERR(task))
-			rpc_release_task(task);
+			rpc_put_task(task);
 		dprintk("%s: cancelling lock!\n", __FUNCTION__);
 	} else
 		nfs_free_seqid(data->arg.lock_seqid);
@@ -3474,7 +3387,7 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 			ret = -EAGAIN;
 	} else
 		data->cancelled = 1;
-	rpc_release_task(task);
+	rpc_put_task(task);
 	dprintk("%s: done, ret = %d!\n", __FUNCTION__, ret);
 	return ret;
 }
@@ -3734,8 +3647,6 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.access		= nfs4_proc_access,
 	.readlink	= nfs4_proc_readlink,
 	.read		= nfs4_proc_read,
-	.write		= nfs4_proc_write,
-	.commit		= nfs4_proc_commit,
 	.create		= nfs4_proc_create,
 	.remove		= nfs4_proc_remove,
 	.unlink_setup	= nfs4_proc_unlink_setup,

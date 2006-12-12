@@ -3132,7 +3132,7 @@ static u16 wol_calc_crc(int size, u8 * pattern, u8 *mask_pattern)
 	}
 	/*	Finally, invert the result once to get the correct data */
 	crc = ~crc;
-	return bitreverse(crc) >> 16;
+	return bitrev32(crc) >> 16;
 }
 
 /**

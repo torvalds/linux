@@ -1139,12 +1139,6 @@ struct IsdnCardState {
 #define  CARD_HFC_SX 0
 #endif
 
-#ifdef  CONFIG_HISAX_AMD7930
-#define CARD_AMD7930 1
-#else
-#define CARD_AMD7930 0
-#endif
-
 #ifdef	CONFIG_HISAX_NICCY
 #define	CARD_NICCY 1
 #ifndef ISDN_CHIP_ISAC

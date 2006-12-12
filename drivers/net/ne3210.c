@@ -36,6 +36,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/mm.h>
 
 #include <asm/io.h>
 #include <asm/system.h>

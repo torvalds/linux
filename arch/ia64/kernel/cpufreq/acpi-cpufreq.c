@@ -68,7 +68,8 @@ processor_get_pstate (
 
 	dprintk("processor_get_pstate\n");
 
-	retval = ia64_pal_get_pstate(&pstate_index);
+	retval = ia64_pal_get_pstate(&pstate_index,
+	                             PAL_GET_PSTATE_TYPE_INSTANT);
 	*value = (u32) pstate_index;
 
 	if (retval)
@@ -91,7 +92,7 @@ extract_clock (
 	dprintk("extract_clock\n");
 
 	for (i = 0; i < data->acpi_data.state_count; i++) {
-		if (value >= data->acpi_data.states[i].control)
+		if (value == data->acpi_data.states[i].status)
 			return data->acpi_data.states[i].core_frequency;
 	}
 	return data->acpi_data.states[i-1].core_frequency;
@@ -117,11 +118,7 @@ processor_get_freq (
 		goto migrate_end;
 	}
 
-	/*
-	 * processor_get_pstate gets the average frequency since the
-	 * last get. So, do two PAL_get_freq()...
-	 */
-	ret = processor_get_pstate(&value);
+	/* processor_get_pstate gets the instantaneous frequency */
 	ret = processor_get_pstate(&value);
 
 	if (ret) {

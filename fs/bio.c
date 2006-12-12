@@ -30,7 +30,7 @@
 
 #define BIO_POOL_SIZE 256
 
-static kmem_cache_t *bio_slab __read_mostly;
+static struct kmem_cache *bio_slab __read_mostly;
 
 #define BIOVEC_NR_POOLS 6
 
@@ -44,7 +44,7 @@ mempool_t *bio_split_pool __read_mostly;
 struct biovec_slab {
 	int nr_vecs;
 	char *name; 
-	kmem_cache_t *slab;
+	struct kmem_cache *slab;
 };
 
 /*
@@ -560,10 +560,8 @@ struct bio *bio_copy_user(request_queue_t *q, unsigned long uaddr,
 			break;
 		}
 
-		if (bio_add_pc_page(q, bio, page, bytes, 0) < bytes) {
-			ret = -EINVAL;
+		if (bio_add_pc_page(q, bio, page, bytes, 0) < bytes)
 			break;
-		}
 
 		len -= bytes;
 	}
@@ -622,10 +620,9 @@ static struct bio *__bio_map_user_iov(request_queue_t *q,
 
 		nr_pages += end - start;
 		/*
-		 * transfer and buffer must be aligned to at least hardsector
-		 * size for now, in the future we can relax this restriction
+		 * buffer must be aligned to at least hardsector size for now
 		 */
-		if ((uaddr & queue_dma_alignment(q)) || (len & queue_dma_alignment(q)))
+		if (uaddr & queue_dma_alignment(q))
 			return ERR_PTR(-EINVAL);
 	}
 
@@ -751,7 +748,6 @@ struct bio *bio_map_user_iov(request_queue_t *q, struct block_device *bdev,
 			     int write_to_vm)
 {
 	struct bio *bio;
-	int len = 0, i;
 
 	bio = __bio_map_user_iov(q, bdev, iov, iov_count, write_to_vm);
 
@@ -766,18 +762,7 @@ struct bio *bio_map_user_iov(request_queue_t *q, struct block_device *bdev,
 	 */
 	bio_get(bio);
 
-	for (i = 0; i < iov_count; i++)
-		len += iov[i].iov_len;
-
-	if (bio->bi_size == len)
-		return bio;
-
-	/*
-	 * don't support partial mappings
-	 */
-	bio_endio(bio, bio->bi_size, 0);
-	bio_unmap_user(bio);
-	return ERR_PTR(-EINVAL);
+	return bio;
 }
 
 static void __bio_unmap_user(struct bio *bio)
@@ -955,16 +940,16 @@ static void bio_release_pages(struct bio *bio)
  * run one bio_put() against the BIO.
  */
 
-static void bio_dirty_fn(void *data);
+static void bio_dirty_fn(struct work_struct *work);
 
-static DECLARE_WORK(bio_dirty_work, bio_dirty_fn, NULL);
+static DECLARE_WORK(bio_dirty_work, bio_dirty_fn);
 static DEFINE_SPINLOCK(bio_dirty_lock);
 static struct bio *bio_dirty_list;
 
 /*
  * This runs in process context
  */
-static void bio_dirty_fn(void *data)
+static void bio_dirty_fn(struct work_struct *work)
 {
 	unsigned long flags;
 	struct bio *bio;

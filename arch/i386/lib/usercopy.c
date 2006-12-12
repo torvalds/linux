@@ -9,6 +9,7 @@
 #include <linux/highmem.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>
+#include <linux/backing-dev.h>
 #include <asm/uaccess.h>
 #include <asm/mmx.h>
 
@@ -741,7 +742,7 @@ survive:
 
 			if (retval == -ENOMEM && is_init(current)) {
 				up_read(&current->mm->mmap_sem);
-				blk_congestion_wait(WRITE, HZ/50);
+				congestion_wait(WRITE, HZ/50);
 				goto survive;
 			}
 

@@ -294,7 +294,7 @@ out:
 static int migrate_page_move_mapping(struct address_space *mapping,
 		struct page *newpage, struct page *page)
 {
-	struct page **radix_pointer;
+	void **pslot;
 
 	if (!mapping) {
 		/* Anonymous page */
@@ -305,12 +305,11 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 
 	write_lock_irq(&mapping->tree_lock);
 
-	radix_pointer = (struct page **)radix_tree_lookup_slot(
-						&mapping->page_tree,
-						page_index(page));
+	pslot = radix_tree_lookup_slot(&mapping->page_tree,
+ 					page_index(page));
 
 	if (page_count(page) != 2 + !!PagePrivate(page) ||
-			*radix_pointer != page) {
+			(struct page *)radix_tree_deref_slot(pslot) != page) {
 		write_unlock_irq(&mapping->tree_lock);
 		return -EAGAIN;
 	}
@@ -318,7 +317,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	/*
 	 * Now we know that no one else is looking at the page.
 	 */
-	get_page(newpage);
+	get_page(newpage);	/* add cache reference */
 #ifdef CONFIG_SWAP
 	if (PageSwapCache(page)) {
 		SetPageSwapCache(newpage);
@@ -326,8 +325,14 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	}
 #endif
 
-	*radix_pointer = newpage;
+	radix_tree_replace_slot(pslot, newpage);
+
+	/*
+	 * Drop cache reference from old page.
+	 * We know this isn't the last reference.
+	 */
 	__put_page(page);
+
 	write_unlock_irq(&mapping->tree_lock);
 
 	return 0;
@@ -952,7 +957,8 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
 				goto out;
 
 			pm[i].node = node;
-		}
+		} else
+			pm[i].node = 0;	/* anything to not match MAX_NUMNODES */
 	}
 	/* End marker */
 	pm[nr_pages].node = MAX_NUMNODES;

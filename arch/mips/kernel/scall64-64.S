@@ -468,3 +468,6 @@ sys_call_table:
 	PTR	sys_move_pages
 	PTR	sys_set_robust_list
 	PTR	sys_get_robust_list
+	PTR	sys_kexec_load			/* 5270 */
+	PTR	sys_getcpu
+	PTR	sys_epoll_pwait

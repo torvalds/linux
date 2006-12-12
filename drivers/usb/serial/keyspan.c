@@ -264,7 +264,7 @@ static void keyspan_break_ctl (struct usb_serial_port *port, int break_state)
 
 
 static void keyspan_set_termios (struct usb_serial_port *port, 
-				     struct termios *old_termios)
+				     struct ktermios *old_termios)
 {
 	int				baud_rate, device_port;
 	struct keyspan_port_private 	*p_priv;
@@ -2306,22 +2306,16 @@ static void keyspan_shutdown (struct usb_serial *serial)
 	}
 
 	/* Now free them */
-	if (s_priv->instat_urb)
-		usb_free_urb(s_priv->instat_urb);
-	if (s_priv->glocont_urb)
-		usb_free_urb(s_priv->glocont_urb);
+	usb_free_urb(s_priv->instat_urb);
+	usb_free_urb(s_priv->glocont_urb);
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		p_priv = usb_get_serial_port_data(port);
-		if (p_priv->inack_urb)
-			usb_free_urb(p_priv->inack_urb);
-		if (p_priv->outcont_urb)
-			usb_free_urb(p_priv->outcont_urb);
+		usb_free_urb(p_priv->inack_urb);
+		usb_free_urb(p_priv->outcont_urb);
 		for (j = 0; j < 2; j++) {
-			if (p_priv->in_urbs[j])
-				usb_free_urb(p_priv->in_urbs[j]);
-			if (p_priv->out_urbs[j])
-				usb_free_urb(p_priv->out_urbs[j]);
+			usb_free_urb(p_priv->in_urbs[j]);
+			usb_free_urb(p_priv->out_urbs[j]);
 		}
 	}
 

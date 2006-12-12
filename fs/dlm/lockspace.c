@@ -22,6 +22,7 @@
 #include "memory.h"
 #include "lock.h"
 #include "recover.h"
+#include "requestqueue.h"
 
 #ifdef CONFIG_DLM_DEBUG
 int dlm_create_debug_file(struct dlm_ls *ls);
@@ -43,6 +44,10 @@ static ssize_t dlm_control_store(struct dlm_ls *ls, const char *buf, size_t len)
 	ssize_t ret = len;
 	int n = simple_strtol(buf, NULL, 0);
 
+	ls = dlm_find_lockspace_local(ls->ls_local_handle);
+	if (!ls)
+		return -EINVAL;
+
 	switch (n) {
 	case 0:
 		dlm_ls_stop(ls);
@@ -53,6 +58,7 @@ static ssize_t dlm_control_store(struct dlm_ls *ls, const char *buf, size_t len)
 	default:
 		ret = -EINVAL;
 	}
+	dlm_put_lockspace(ls);
 	return ret;
 }
 
@@ -143,6 +149,12 @@ static ssize_t dlm_attr_store(struct kobject *kobj, struct attribute *attr,
 	return a->store ? a->store(ls, buf, len) : len;
 }
 
+static void lockspace_kobj_release(struct kobject *k)
+{
+	struct dlm_ls *ls  = container_of(k, struct dlm_ls, ls_kobj);
+	kfree(ls);
+}
+
 static struct sysfs_ops dlm_attr_ops = {
 	.show  = dlm_attr_show,
 	.store = dlm_attr_store,
@@ -151,6 +163,7 @@ static struct sysfs_ops dlm_attr_ops = {
 static struct kobj_type dlm_ktype = {
 	.default_attrs = dlm_attrs,
 	.sysfs_ops     = &dlm_attr_ops,
+	.release       = lockspace_kobj_release,
 };
 
 static struct kset dlm_kset = {
@@ -466,6 +479,8 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	ls->ls_recoverd_task = NULL;
 	mutex_init(&ls->ls_recoverd_active);
 	spin_lock_init(&ls->ls_recover_lock);
+	spin_lock_init(&ls->ls_rcom_spin);
+	get_random_bytes(&ls->ls_rcom_seq, sizeof(uint64_t));
 	ls->ls_recover_status = 0;
 	ls->ls_recover_seq = 0;
 	ls->ls_recover_args = NULL;
@@ -672,13 +687,14 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	 * Free structures on any other lists
 	 */
 
+	dlm_purge_requestqueue(ls);
 	kfree(ls->ls_recover_args);
 	dlm_clear_free_entries(ls);
 	dlm_clear_members(ls);
 	dlm_clear_members_gone(ls);
 	kfree(ls->ls_node_array);
 	kobject_unregister(&ls->ls_kobj);
-	kfree(ls);
+        /* The ls structure will be freed when the kobject is done with */
 
 	mutex_lock(&ls_lock);
 	ls_count--;

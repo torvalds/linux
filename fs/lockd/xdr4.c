@@ -44,8 +44,8 @@ loff_t_to_s64(loff_t offset)
 /*
  * XDR functions for basic NLM types
  */
-static u32 *
-nlm4_decode_cookie(u32 *p, struct nlm_cookie *c)
+static __be32 *
+nlm4_decode_cookie(__be32 *p, struct nlm_cookie *c)
 {
 	unsigned int	len;
 
@@ -71,8 +71,8 @@ nlm4_decode_cookie(u32 *p, struct nlm_cookie *c)
 	return p;
 }
 
-static u32 *
-nlm4_encode_cookie(u32 *p, struct nlm_cookie *c)
+static __be32 *
+nlm4_encode_cookie(__be32 *p, struct nlm_cookie *c)
 {
 	*p++ = htonl(c->len);
 	memcpy(p, c->data, c->len);
@@ -80,8 +80,8 @@ nlm4_encode_cookie(u32 *p, struct nlm_cookie *c)
 	return p;
 }
 
-static u32 *
-nlm4_decode_fh(u32 *p, struct nfs_fh *f)
+static __be32 *
+nlm4_decode_fh(__be32 *p, struct nfs_fh *f)
 {
 	memset(f->data, 0, sizeof(f->data));
 	f->size = ntohl(*p++);
@@ -95,8 +95,8 @@ nlm4_decode_fh(u32 *p, struct nfs_fh *f)
 	return p + XDR_QUADLEN(f->size);
 }
 
-static u32 *
-nlm4_encode_fh(u32 *p, struct nfs_fh *f)
+static __be32 *
+nlm4_encode_fh(__be32 *p, struct nfs_fh *f)
 {
 	*p++ = htonl(f->size);
 	if (f->size) p[XDR_QUADLEN(f->size)-1] = 0; /* don't leak anything */
@@ -107,20 +107,20 @@ nlm4_encode_fh(u32 *p, struct nfs_fh *f)
 /*
  * Encode and decode owner handle
  */
-static u32 *
-nlm4_decode_oh(u32 *p, struct xdr_netobj *oh)
+static __be32 *
+nlm4_decode_oh(__be32 *p, struct xdr_netobj *oh)
 {
 	return xdr_decode_netobj(p, oh);
 }
 
-static u32 *
-nlm4_encode_oh(u32 *p, struct xdr_netobj *oh)
+static __be32 *
+nlm4_encode_oh(__be32 *p, struct xdr_netobj *oh)
 {
 	return xdr_encode_netobj(p, oh);
 }
 
-static u32 *
-nlm4_decode_lock(u32 *p, struct nlm_lock *lock)
+static __be32 *
+nlm4_decode_lock(__be32 *p, struct nlm_lock *lock)
 {
 	struct file_lock	*fl = &lock->fl;
 	__s64			len, start, end;
@@ -153,8 +153,8 @@ nlm4_decode_lock(u32 *p, struct nlm_lock *lock)
 /*
  * Encode a lock as part of an NLM call
  */
-static u32 *
-nlm4_encode_lock(u32 *p, struct nlm_lock *lock)
+static __be32 *
+nlm4_encode_lock(__be32 *p, struct nlm_lock *lock)
 {
 	struct file_lock	*fl = &lock->fl;
 	__s64			start, len;
@@ -185,8 +185,8 @@ nlm4_encode_lock(u32 *p, struct nlm_lock *lock)
 /*
  * Encode result of a TEST/TEST_MSG call
  */
-static u32 *
-nlm4_encode_testres(u32 *p, struct nlm_res *resp)
+static __be32 *
+nlm4_encode_testres(__be32 *p, struct nlm_res *resp)
 {
 	s64		start, len;
 
@@ -227,7 +227,7 @@ nlm4_encode_testres(u32 *p, struct nlm_res *resp)
  * First, the server side XDR functions
  */
 int
-nlm4svc_decode_testargs(struct svc_rqst *rqstp, u32 *p, nlm_args *argp)
+nlm4svc_decode_testargs(struct svc_rqst *rqstp, __be32 *p, nlm_args *argp)
 {
 	u32	exclusive;
 
@@ -244,7 +244,7 @@ nlm4svc_decode_testargs(struct svc_rqst *rqstp, u32 *p, nlm_args *argp)
 }
 
 int
-nlm4svc_encode_testres(struct svc_rqst *rqstp, u32 *p, struct nlm_res *resp)
+nlm4svc_encode_testres(struct svc_rqst *rqstp, __be32 *p, struct nlm_res *resp)
 {
 	if (!(p = nlm4_encode_testres(p, resp)))
 		return 0;
@@ -252,7 +252,7 @@ nlm4svc_encode_testres(struct svc_rqst *rqstp, u32 *p, struct nlm_res *resp)
 }
 
 int
-nlm4svc_decode_lockargs(struct svc_rqst *rqstp, u32 *p, nlm_args *argp)
+nlm4svc_decode_lockargs(struct svc_rqst *rqstp, __be32 *p, nlm_args *argp)
 {
 	u32	exclusive;
 
@@ -272,7 +272,7 @@ nlm4svc_decode_lockargs(struct svc_rqst *rqstp, u32 *p, nlm_args *argp)
 }
 
 int
-nlm4svc_decode_cancargs(struct svc_rqst *rqstp, u32 *p, nlm_args *argp)
+nlm4svc_decode_cancargs(struct svc_rqst *rqstp, __be32 *p, nlm_args *argp)
 {
 	u32	exclusive;
 
@@ -288,7 +288,7 @@ nlm4svc_decode_cancargs(struct svc_rqst *rqstp, u32 *p, nlm_args *argp)
 }
 
 int
-nlm4svc_decode_unlockargs(struct svc_rqst *rqstp, u32 *p, nlm_args *argp)
+nlm4svc_decode_unlockargs(struct svc_rqst *rqstp, __be32 *p, nlm_args *argp)
 {
 	if (!(p = nlm4_decode_cookie(p, &argp->cookie))
 	 || !(p = nlm4_decode_lock(p, &argp->lock)))
@@ -298,7 +298,7 @@ nlm4svc_decode_unlockargs(struct svc_rqst *rqstp, u32 *p, nlm_args *argp)
 }
 
 int
-nlm4svc_decode_shareargs(struct svc_rqst *rqstp, u32 *p, nlm_args *argp)
+nlm4svc_decode_shareargs(struct svc_rqst *rqstp, __be32 *p, nlm_args *argp)
 {
 	struct nlm_lock	*lock = &argp->lock;
 
@@ -319,7 +319,7 @@ nlm4svc_decode_shareargs(struct svc_rqst *rqstp, u32 *p, nlm_args *argp)
 }
 
 int
-nlm4svc_encode_shareres(struct svc_rqst *rqstp, u32 *p, struct nlm_res *resp)
+nlm4svc_encode_shareres(struct svc_rqst *rqstp, __be32 *p, struct nlm_res *resp)
 {
 	if (!(p = nlm4_encode_cookie(p, &resp->cookie)))
 		return 0;
@@ -329,7 +329,7 @@ nlm4svc_encode_shareres(struct svc_rqst *rqstp, u32 *p, struct nlm_res *resp)
 }
 
 int
-nlm4svc_encode_res(struct svc_rqst *rqstp, u32 *p, struct nlm_res *resp)
+nlm4svc_encode_res(struct svc_rqst *rqstp, __be32 *p, struct nlm_res *resp)
 {
 	if (!(p = nlm4_encode_cookie(p, &resp->cookie)))
 		return 0;
@@ -338,7 +338,7 @@ nlm4svc_encode_res(struct svc_rqst *rqstp, u32 *p, struct nlm_res *resp)
 }
 
 int
-nlm4svc_decode_notify(struct svc_rqst *rqstp, u32 *p, struct nlm_args *argp)
+nlm4svc_decode_notify(struct svc_rqst *rqstp, __be32 *p, struct nlm_args *argp)
 {
 	struct nlm_lock	*lock = &argp->lock;
 
@@ -350,7 +350,7 @@ nlm4svc_decode_notify(struct svc_rqst *rqstp, u32 *p, struct nlm_args *argp)
 }
 
 int
-nlm4svc_decode_reboot(struct svc_rqst *rqstp, u32 *p, struct nlm_reboot *argp)
+nlm4svc_decode_reboot(struct svc_rqst *rqstp, __be32 *p, struct nlm_reboot *argp)
 {
 	if (!(p = xdr_decode_string_inplace(p, &argp->mon, &argp->len, SM_MAXSTRLEN)))
 		return 0;
@@ -363,7 +363,7 @@ nlm4svc_decode_reboot(struct svc_rqst *rqstp, u32 *p, struct nlm_reboot *argp)
 }
 
 int
-nlm4svc_decode_res(struct svc_rqst *rqstp, u32 *p, struct nlm_res *resp)
+nlm4svc_decode_res(struct svc_rqst *rqstp, __be32 *p, struct nlm_res *resp)
 {
 	if (!(p = nlm4_decode_cookie(p, &resp->cookie)))
 		return 0;
@@ -372,13 +372,13 @@ nlm4svc_decode_res(struct svc_rqst *rqstp, u32 *p, struct nlm_res *resp)
 }
 
 int
-nlm4svc_decode_void(struct svc_rqst *rqstp, u32 *p, void *dummy)
+nlm4svc_decode_void(struct svc_rqst *rqstp, __be32 *p, void *dummy)
 {
 	return xdr_argsize_check(rqstp, p);
 }
 
 int
-nlm4svc_encode_void(struct svc_rqst *rqstp, u32 *p, void *dummy)
+nlm4svc_encode_void(struct svc_rqst *rqstp, __be32 *p, void *dummy)
 {
 	return xdr_ressize_check(rqstp, p);
 }
@@ -388,14 +388,14 @@ nlm4svc_encode_void(struct svc_rqst *rqstp, u32 *p, void *dummy)
  */
 #ifdef NLMCLNT_SUPPORT_SHARES
 static int
-nlm4clt_decode_void(struct rpc_rqst *req, u32 *p, void *ptr)
+nlm4clt_decode_void(struct rpc_rqst *req, __be32 *p, void *ptr)
 {
 	return 0;
 }
 #endif
 
 static int
-nlm4clt_encode_testargs(struct rpc_rqst *req, u32 *p, nlm_args *argp)
+nlm4clt_encode_testargs(struct rpc_rqst *req, __be32 *p, nlm_args *argp)
 {
 	struct nlm_lock	*lock = &argp->lock;
 
@@ -409,7 +409,7 @@ nlm4clt_encode_testargs(struct rpc_rqst *req, u32 *p, nlm_args *argp)
 }
 
 static int
-nlm4clt_decode_testres(struct rpc_rqst *req, u32 *p, struct nlm_res *resp)
+nlm4clt_decode_testres(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 {
 	if (!(p = nlm4_decode_cookie(p, &resp->cookie)))
 		return -EIO;
@@ -444,7 +444,7 @@ nlm4clt_decode_testres(struct rpc_rqst *req, u32 *p, struct nlm_res *resp)
 
 
 static int
-nlm4clt_encode_lockargs(struct rpc_rqst *req, u32 *p, nlm_args *argp)
+nlm4clt_encode_lockargs(struct rpc_rqst *req, __be32 *p, nlm_args *argp)
 {
 	struct nlm_lock	*lock = &argp->lock;
 
@@ -461,7 +461,7 @@ nlm4clt_encode_lockargs(struct rpc_rqst *req, u32 *p, nlm_args *argp)
 }
 
 static int
-nlm4clt_encode_cancargs(struct rpc_rqst *req, u32 *p, nlm_args *argp)
+nlm4clt_encode_cancargs(struct rpc_rqst *req, __be32 *p, nlm_args *argp)
 {
 	struct nlm_lock	*lock = &argp->lock;
 
@@ -476,7 +476,7 @@ nlm4clt_encode_cancargs(struct rpc_rqst *req, u32 *p, nlm_args *argp)
 }
 
 static int
-nlm4clt_encode_unlockargs(struct rpc_rqst *req, u32 *p, nlm_args *argp)
+nlm4clt_encode_unlockargs(struct rpc_rqst *req, __be32 *p, nlm_args *argp)
 {
 	struct nlm_lock	*lock = &argp->lock;
 
@@ -489,7 +489,7 @@ nlm4clt_encode_unlockargs(struct rpc_rqst *req, u32 *p, nlm_args *argp)
 }
 
 static int
-nlm4clt_encode_res(struct rpc_rqst *req, u32 *p, struct nlm_res *resp)
+nlm4clt_encode_res(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 {
 	if (!(p = nlm4_encode_cookie(p, &resp->cookie)))
 		return -EIO;
@@ -499,7 +499,7 @@ nlm4clt_encode_res(struct rpc_rqst *req, u32 *p, struct nlm_res *resp)
 }
 
 static int
-nlm4clt_encode_testres(struct rpc_rqst *req, u32 *p, struct nlm_res *resp)
+nlm4clt_encode_testres(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 {
 	if (!(p = nlm4_encode_testres(p, resp)))
 		return -EIO;
@@ -508,7 +508,7 @@ nlm4clt_encode_testres(struct rpc_rqst *req, u32 *p, struct nlm_res *resp)
 }
 
 static int
-nlm4clt_decode_res(struct rpc_rqst *req, u32 *p, struct nlm_res *resp)
+nlm4clt_decode_res(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 {
 	if (!(p = nlm4_decode_cookie(p, &resp->cookie)))
 		return -EIO;

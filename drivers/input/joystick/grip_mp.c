@@ -423,7 +423,10 @@ static int get_and_decode_packet(struct grip_mp *grip, int flags)
 
 		if (!port->registered) {
 			dbg("New Grip pad in multiport slot %d.\n", slot);
-			register_slot(slot, grip);
+			if (register_slot(slot, grip)) {
+				port->mode = GRIP_MODE_RESET;
+				port->dirty = 0;
+			}
 		}
 		return flags;
 	}
@@ -585,6 +588,7 @@ static int register_slot(int slot, struct grip_mp *grip)
 	struct grip_port *port = grip->port[slot];
 	struct input_dev *input_dev;
 	int j, t;
+	int err;
 
 	port->dev = input_dev = input_allocate_device();
 	if (!input_dev)
@@ -610,7 +614,12 @@ static int register_slot(int slot, struct grip_mp *grip)
 		if (t > 0)
 			set_bit(t, input_dev->keybit);
 
-	input_register_device(port->dev);
+	err = input_register_device(port->dev);
+	if (err) {
+		input_free_device(port->dev);
+		return err;
+	}
+
 	port->registered = 1;
 
 	if (port->dirty)	            /* report initial state, if any */

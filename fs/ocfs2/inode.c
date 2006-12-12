@@ -360,7 +360,6 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 				  inode);
 
 	ocfs2_set_inode_flags(inode);
-	inode->i_flags |= S_NOATIME;
 
 	status = 0;
 bail:
@@ -424,7 +423,8 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	 * cluster lock before trusting anything anyway.
 	 */
 	can_lock = !(args->fi_flags & OCFS2_FI_FLAG_SYSFILE)
-		&& !(args->fi_flags & OCFS2_FI_FLAG_NOLOCK);
+		&& !(args->fi_flags & OCFS2_FI_FLAG_NOLOCK)
+		&& !ocfs2_mount_local(osb);
 
 	/*
 	 * To maintain backwards compatibility with older versions of
@@ -441,7 +441,7 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 				  generation, inode);
 
 	if (can_lock) {
-		status = ocfs2_meta_lock(inode, NULL, NULL, 0);
+		status = ocfs2_meta_lock(inode, NULL, 0);
 		if (status) {
 			make_bad_inode(inode);
 			mlog_errno(status);
@@ -512,7 +512,7 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 				     struct buffer_head *fe_bh)
 {
 	int status = 0;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct ocfs2_truncate_context *tc = NULL;
 	struct ocfs2_dinode *fe;
 
@@ -524,7 +524,7 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 	if (!fe->i_clusters)
 		goto bail;
 
-	handle = ocfs2_start_trans(osb, handle, OCFS2_INODE_UPDATE_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -538,7 +538,7 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 	handle = NULL;
 
 	status = ocfs2_prepare_truncate(osb, inode, fe_bh, &tc);
@@ -554,7 +554,7 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 	}
 bail:
 	if (handle)
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 
 	mlog_exit(status);
 	return status;
@@ -568,7 +568,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 	int status;
 	struct inode *inode_alloc_inode = NULL;
 	struct buffer_head *inode_alloc_bh = NULL;
-	struct ocfs2_journal_handle *handle;
+	handle_t *handle;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *) di_bh->b_data;
 
@@ -582,7 +582,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 	}
 
 	mutex_lock(&inode_alloc_inode->i_mutex);
-	status = ocfs2_meta_lock(inode_alloc_inode, NULL, &inode_alloc_bh, 1);
+	status = ocfs2_meta_lock(inode_alloc_inode, &inode_alloc_bh, 1);
 	if (status < 0) {
 		mutex_unlock(&inode_alloc_inode->i_mutex);
 
@@ -590,7 +590,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 		goto bail;
 	}
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_DELETE_INODE_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_DELETE_INODE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
@@ -629,7 +629,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 		mlog_errno(status);
 
 bail_commit:
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 bail_unlock:
 	ocfs2_meta_unlock(inode_alloc_inode, 1);
 	mutex_unlock(&inode_alloc_inode->i_mutex);
@@ -705,7 +705,7 @@ static int ocfs2_wipe_inode(struct inode *inode,
 	 * delete_inode operation. We do this now to avoid races with
 	 * recovery completion on other nodes. */
 	mutex_lock(&orphan_dir_inode->i_mutex);
-	status = ocfs2_meta_lock(orphan_dir_inode, NULL, &orphan_dir_bh, 1);
+	status = ocfs2_meta_lock(orphan_dir_inode, &orphan_dir_bh, 1);
 	if (status < 0) {
 		mutex_unlock(&orphan_dir_inode->i_mutex);
 
@@ -933,7 +933,7 @@ void ocfs2_delete_inode(struct inode *inode)
 	 * allocation lock here as it won't be needed - nobody will
 	 * have the file open.
 	 */
-	status = ocfs2_meta_lock(inode, NULL, &di_bh, 1);
+	status = ocfs2_meta_lock(inode, &di_bh, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -1067,12 +1067,6 @@ void ocfs2_clear_inode(struct inode *inode)
 	mlog_bug_on_msg(oi->ip_open_count,
 			"Clear inode of %llu has open count %d\n",
 			(unsigned long long)oi->ip_blkno, oi->ip_open_count);
-	mlog_bug_on_msg(!list_empty(&oi->ip_handle_list),
-			"Clear inode of %llu has non empty handle list\n",
-			(unsigned long long)oi->ip_blkno);
-	mlog_bug_on_msg(oi->ip_handle,
-			"Clear inode of %llu has non empty handle pointer\n",
-			(unsigned long long)oi->ip_blkno);
 
 	/* Clear all other flags. */
 	oi->ip_flags = OCFS2_INODE_CACHE_INLINE;
@@ -1186,7 +1180,7 @@ int ocfs2_inode_revalidate(struct dentry *dentry)
 
 	/* Let ocfs2_meta_lock do the work of updating our struct
 	 * inode for us. */
-	status = ocfs2_meta_lock(inode, NULL, NULL, 0);
+	status = ocfs2_meta_lock(inode, NULL, 0);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -1204,7 +1198,7 @@ bail:
  * struct inode.
  * Only takes ip_lock.
  */
-int ocfs2_mark_inode_dirty(struct ocfs2_journal_handle *handle,
+int ocfs2_mark_inode_dirty(handle_t *handle,
 			   struct inode *inode,
 			   struct buffer_head *bh)
 {

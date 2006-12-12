@@ -2,18 +2,19 @@
  *  include/asm-s390/setup.h
  *
  *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999,2006
  */
 
 #ifndef _ASM_S390_SETUP_H
 #define _ASM_S390_SETUP_H
+
+#define COMMAND_LINE_SIZE 	896
 
 #ifdef __KERNEL__
 
 #include <asm/types.h>
 
 #define PARMAREA		0x10400
-#define COMMAND_LINE_SIZE 	896
 #define MEMORY_CHUNKS		16	/* max 0x7fff */
 #define IPL_PARMBLOCK_ORIGIN	0x2000
 
@@ -29,6 +30,17 @@
 #define INITRD_SIZE       (*(unsigned long *)  (0x10410))
 #endif /* __s390x__ */
 #define COMMAND_LINE      ((char *)            (0x10480))
+
+#define CHUNK_READ_WRITE 0
+#define CHUNK_READ_ONLY  1
+
+struct mem_chunk {
+	unsigned long addr;
+	unsigned long size;
+	unsigned long type;
+};
+
+extern struct mem_chunk memory_chunk[];
 
 /*
  * Machine features detected in head.S
@@ -53,7 +65,6 @@ extern unsigned long machine_flags;
 #define MACHINE_HAS_MVCOS	(machine_flags & 512)
 #endif /* __s390x__ */
 
-
 #define MACHINE_HAS_SCLP	(!MACHINE_IS_P390)
 
 /*
@@ -70,7 +81,6 @@ extern unsigned int console_irq;
 #define SET_CONSOLE_SCLP	do { console_mode = 1; } while (0)
 #define SET_CONSOLE_3215	do { console_mode = 2; } while (0)
 #define SET_CONSOLE_3270	do { console_mode = 3; } while (0)
-
 
 struct ipl_list_hdr {
 	u32 len;

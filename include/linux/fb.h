@@ -774,8 +774,8 @@ struct fb_info {
 #endif
 
 	struct fb_ops *fbops;
-	struct device *device;
-	struct class_device *class_device; /* sysfs per device attrs */
+	struct device *device;		/* This is the parent */
+	struct device *dev;		/* This is this fb device */
 	int class_flag;                    /* private sysfs flags */
 #ifdef CONFIG_FB_TILEBLITTING
 	struct fb_tile_ops *tileops;    /* Tile Blitting */
@@ -910,8 +910,8 @@ static inline void __fb_pad_aligned_buffer(u8 *dst, u32 d_pitch,
 /* drivers/video/fbsysfs.c */
 extern struct fb_info *framebuffer_alloc(size_t size, struct device *dev);
 extern void framebuffer_release(struct fb_info *info);
-extern int fb_init_class_device(struct fb_info *fb_info);
-extern void fb_cleanup_class_device(struct fb_info *head);
+extern int fb_init_device(struct fb_info *fb_info);
+extern void fb_cleanup_device(struct fb_info *head);
 extern void fb_bl_default_curve(struct fb_info *fb_info, u8 off, u8 min, u8 max);
 
 /* drivers/video/fbmon.c */
@@ -970,11 +970,11 @@ extern struct fb_videomode *fb_find_best_display(struct fb_monspecs *specs,
 /* drivers/video/fbcmap.c */
 extern int fb_alloc_cmap(struct fb_cmap *cmap, int len, int transp);
 extern void fb_dealloc_cmap(struct fb_cmap *cmap);
-extern int fb_copy_cmap(struct fb_cmap *from, struct fb_cmap *to);
-extern int fb_cmap_to_user(struct fb_cmap *from, struct fb_cmap_user *to);
+extern int fb_copy_cmap(const struct fb_cmap *from, struct fb_cmap *to);
+extern int fb_cmap_to_user(const struct fb_cmap *from, struct fb_cmap_user *to);
 extern int fb_set_cmap(struct fb_cmap *cmap, struct fb_info *fb_info);
 extern int fb_set_user_cmap(struct fb_cmap_user *cmap, struct fb_info *fb_info);
-extern struct fb_cmap *fb_default_cmap(int len);
+extern const struct fb_cmap *fb_default_cmap(int len);
 extern void fb_invert_cmaps(void);
 
 struct fb_videomode {

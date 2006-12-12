@@ -16,19 +16,17 @@
 
 #include <asm-generic/vmlinux.lds.h>
 
-#define _NOCLANGUAGE
-#include <xtensa/config/core.h>
-#include <xtensa/config/system.h>
+#include <asm/variant/core.h>
 OUTPUT_ARCH(xtensa)
 ENTRY(_start)
 
-#if XCHAL_MEMORY_ORDER == XTHAL_BIGENDIAN
+#ifdef __XTENSA_EB__
 jiffies = jiffies_64 + 4;
 #else
 jiffies = jiffies_64;
 #endif
 
-#define KERNELOFFSET 0x1000
+#define KERNELOFFSET 0xd0001000
 
 /* Note: In the following macros, it would be nice to specify only the
    vector name and section kind and construct "sym" and "section" using
@@ -75,7 +73,7 @@ jiffies = jiffies_64;
 
 SECTIONS
 {
-  . = XCHAL_KSEG_CACHED_VADDR + KERNELOFFSET;
+  . = KERNELOFFSET;
   /* .text section */
 
   _text = .;
@@ -159,7 +157,7 @@ SECTIONS
 
   /* Initialization code and data: */
 
-  . = ALIGN(1<<XCHAL_MMU_MIN_PTE_PAGE_SIZE);
+  . = ALIGN(1 << 12);
   __init_begin = .;
   .init.text : {
   	_sinittext = .;
@@ -184,13 +182,7 @@ SECTIONS
 
   __initcall_start = .;
   .initcall.init : {
-  	*(.initcall1.init)
-  	*(.initcall2.init)
-  	*(.initcall3.init)
-  	*(.initcall4.init)
-  	*(.initcall5.init)
-  	*(.initcall6.init)
-  	*(.initcall7.init)
+	INITCALLS
   }
   __initcall_end = .;
 
@@ -229,32 +221,32 @@ SECTIONS
 		  .dummy)
   SECTION_VECTOR (_DebugInterruptVector_literal,
 		  .DebugInterruptVector.literal,
-		  XCHAL_INTLEVEL_VECTOR_VADDR(XCHAL_DEBUGLEVEL) - 4,
+		  XCHAL_DEBUG_VECTOR_VADDR - 4,
 		  SIZEOF(.WindowVectors.text),
 		  .WindowVectors.text)
   SECTION_VECTOR (_DebugInterruptVector_text,
 		  .DebugInterruptVector.text,
-		  XCHAL_INTLEVEL_VECTOR_VADDR(XCHAL_DEBUGLEVEL),
+		  XCHAL_DEBUG_VECTOR_VADDR,
 		  4,
 		  .DebugInterruptVector.literal)
   SECTION_VECTOR (_KernelExceptionVector_literal,
 		  .KernelExceptionVector.literal,
-		  XCHAL_KERNELEXC_VECTOR_VADDR - 4,
+		  XCHAL_KERNEL_VECTOR_VADDR - 4,
 		  SIZEOF(.DebugInterruptVector.text),
 		  .DebugInterruptVector.text)
   SECTION_VECTOR (_KernelExceptionVector_text,
 		  .KernelExceptionVector.text,
-		  XCHAL_KERNELEXC_VECTOR_VADDR,
+		  XCHAL_KERNEL_VECTOR_VADDR,
 		  4,
 		  .KernelExceptionVector.literal)
   SECTION_VECTOR (_UserExceptionVector_literal,
 		  .UserExceptionVector.literal,
-		  XCHAL_USEREXC_VECTOR_VADDR - 4,
+		  XCHAL_USER_VECTOR_VADDR - 4,
 		  SIZEOF(.KernelExceptionVector.text),
 		  .KernelExceptionVector.text)
   SECTION_VECTOR (_UserExceptionVector_text,
 		  .UserExceptionVector.text,
-		  XCHAL_USEREXC_VECTOR_VADDR,
+		  XCHAL_USER_VECTOR_VADDR,
 		  4,
 		  .UserExceptionVector.literal)
   SECTION_VECTOR (_DoubleExceptionVector_literal,
@@ -269,7 +261,7 @@ SECTIONS
 		  .DoubleExceptionVector.literal)
 
   . = (LOADADDR( .DoubleExceptionVector.text ) + SIZEOF( .DoubleExceptionVector.text ) + 3) & ~ 3;
-  . = ALIGN(1<<XCHAL_MMU_MIN_PTE_PAGE_SIZE);
+  . = ALIGN(1 << 12);
 
   __init_end = .;
 

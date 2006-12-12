@@ -62,13 +62,9 @@ EXPORT_SYMBOL_GPL(uaccess);
 unsigned int console_mode = 0;
 unsigned int console_devno = -1;
 unsigned int console_irq = -1;
-unsigned long memory_size = 0;
 unsigned long machine_flags = 0;
-struct {
-	unsigned long addr, size, type;
-} memory_chunk[MEMORY_CHUNKS] = { { 0 } };
-#define CHUNK_READ_WRITE 0
-#define CHUNK_READ_ONLY 1
+
+struct mem_chunk __initdata memory_chunk[MEMORY_CHUNKS];
 volatile int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
 static unsigned long __initdata memory_end;
 
@@ -228,11 +224,11 @@ static void __init conmode_default(void)
 	char *ptr;
 
         if (MACHINE_IS_VM) {
-		__cpcmd("QUERY CONSOLE", query_buffer, 1024, NULL);
+		cpcmd("QUERY CONSOLE", query_buffer, 1024, NULL);
 		console_devno = simple_strtoul(query_buffer + 5, NULL, 16);
 		ptr = strstr(query_buffer, "SUBCHANNEL =");
 		console_irq = simple_strtoul(ptr + 13, NULL, 16);
-		__cpcmd("QUERY TERM", query_buffer, 1024, NULL);
+		cpcmd("QUERY TERM", query_buffer, 1024, NULL);
 		ptr = strstr(query_buffer, "CONMODE");
 		/*
 		 * Set the conmode to 3215 so that the device recognition 
@@ -241,7 +237,7 @@ static void __init conmode_default(void)
 		 * 3215 and the 3270 driver will try to access the console
 		 * device (3215 as console and 3270 as normal tty).
 		 */
-		__cpcmd("TERM CONMODE 3215", NULL, 0, NULL);
+		cpcmd("TERM CONMODE 3215", NULL, 0, NULL);
 		if (ptr == NULL) {
 #if defined(CONFIG_SCLP_CONSOLE)
 			SET_CONSOLE_SCLP;
@@ -298,14 +294,14 @@ static void do_machine_restart_nonsmp(char * __unused)
 static void do_machine_halt_nonsmp(void)
 {
         if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
-                cpcmd(vmhalt_cmd, NULL, 0, NULL);
+		__cpcmd(vmhalt_cmd, NULL, 0, NULL);
         signal_processor(smp_processor_id(), sigp_stop_and_store_status);
 }
 
 static void do_machine_power_off_nonsmp(void)
 {
         if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
-                cpcmd(vmpoff_cmd, NULL, 0, NULL);
+		__cpcmd(vmpoff_cmd, NULL, 0, NULL);
         signal_processor(smp_processor_id(), sigp_stop_and_store_status);
 }
 
@@ -434,7 +430,7 @@ setup_lowcore(void)
 		lc->extended_save_area_addr = (__u32)
 			__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0);
 		/* enable extended save area */
-		ctl_set_bit(14, 29);
+		__ctl_set_bit(14, 29);
 	}
 #endif
 	set_prefix((u32)(unsigned long) lc);
@@ -471,6 +467,37 @@ setup_resources(void)
 		request_resource(res, &code_resource);
 		request_resource(res, &data_resource);
 	}
+}
+
+static void __init setup_memory_end(void)
+{
+	unsigned long real_size, memory_size;
+	unsigned long max_mem, max_phys;
+	int i;
+
+	memory_size = real_size = 0;
+	max_phys = VMALLOC_END - VMALLOC_MIN_SIZE;
+	memory_end &= PAGE_MASK;
+
+	max_mem = memory_end ? min(max_phys, memory_end) : max_phys;
+
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		struct mem_chunk *chunk = &memory_chunk[i];
+
+		real_size = max(real_size, chunk->addr + chunk->size);
+		if (chunk->addr >= max_mem) {
+			memset(chunk, 0, sizeof(*chunk));
+			continue;
+		}
+		if (chunk->addr + chunk->size > max_mem)
+			chunk->size = max_mem - chunk->addr;
+		memory_size = max(memory_size, chunk->addr + chunk->size);
+	}
+	if (!memory_end)
+		memory_end = memory_size;
+	if (real_size > memory_end)
+		printk("More memory detected than supported. Unused: %luk\n",
+		       (real_size - memory_end) >> 10);
 }
 
 static void __init
@@ -616,8 +643,6 @@ setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long) &_edata;
 	init_mm.brk = (unsigned long) &_end;
 
-	memory_end = memory_size;
-
 	if (MACHINE_HAS_MVCOS)
 		memcpy(&uaccess, &uaccess_mvcos, sizeof(uaccess));
 	else
@@ -625,20 +650,7 @@ setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
-#ifndef CONFIG_64BIT
-	memory_end &= ~0x400000UL;
-
-        /*
-         * We need some free virtual space to be able to do vmalloc.
-         * On a machine with 2GB memory we make sure that we have at
-         * least 128 MB free space for vmalloc.
-         */
-        if (memory_end > 1920*1024*1024)
-                memory_end = 1920*1024*1024;
-#else /* CONFIG_64BIT */
-	memory_end &= ~0x200000UL;
-#endif /* CONFIG_64BIT */
-
+	setup_memory_end();
 	setup_memory();
 	setup_resources();
 	setup_lowcore();

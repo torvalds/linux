@@ -35,7 +35,7 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 	consistent_free(NULL, size, vaddr, dma_handle);
 }
 
-static inline void dma_cache_sync(void *vaddr, size_t size,
+static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 				  enum dma_data_direction dir)
 {
 	dma_cache_wback_inv((unsigned long)vaddr, size);

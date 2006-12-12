@@ -461,7 +461,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 
 #define PTI_RESET_LIMIT 400
 
-static int __init qlogicpti_load_firmware(struct qlogicpti *qpti)
+static int __devinit qlogicpti_load_firmware(struct qlogicpti *qpti)
 {
 	struct Scsi_Host *host = qpti->qhost;
 	unsigned short csum = 0;

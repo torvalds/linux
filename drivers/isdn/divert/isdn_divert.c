@@ -10,6 +10,8 @@
  */
 
 #include <linux/proc_fs.h>
+#include <linux/timer.h>
+#include <linux/jiffies.h>
 
 #include "isdn_divert.h"
 

@@ -199,7 +199,7 @@ void mmc_init_card(struct mmc_card *card, struct mmc_host *host)
 	memset(card, 0, sizeof(struct mmc_card));
 	card->host = host;
 	device_initialize(&card->dev);
-	card->dev.parent = card->host->dev;
+	card->dev.parent = mmc_dev(host);
 	card->dev.bus = &mmc_bus_type;
 	card->dev.release = mmc_release_card;
 }
@@ -242,7 +242,7 @@ void mmc_remove_card(struct mmc_card *card)
 }
 
 
-static void mmc_host_classdev_release(struct class_device *dev)
+static void mmc_host_classdev_release(struct device *dev)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
 	kfree(host);
@@ -250,7 +250,7 @@ static void mmc_host_classdev_release(struct class_device *dev)
 
 static struct class mmc_host_class = {
 	.name		= "mmc_host",
-	.release	= mmc_host_classdev_release,
+	.dev_release	= mmc_host_classdev_release,
 };
 
 static DEFINE_IDR(mmc_host_idr);
@@ -267,10 +267,10 @@ struct mmc_host *mmc_alloc_host_sysfs(int extra, struct device *dev)
 	if (host) {
 		memset(host, 0, sizeof(struct mmc_host) + extra);
 
-		host->dev = dev;
-		host->class_dev.dev = host->dev;
+		host->parent = dev;
+		host->class_dev.parent = dev;
 		host->class_dev.class = &mmc_host_class;
-		class_device_initialize(&host->class_dev);
+		device_initialize(&host->class_dev);
 	}
 
 	return host;
@@ -292,10 +292,10 @@ int mmc_add_host_sysfs(struct mmc_host *host)
 	if (err)
 		return err;
 
-	snprintf(host->class_dev.class_id, BUS_ID_SIZE,
+	snprintf(host->class_dev.bus_id, BUS_ID_SIZE,
 		 "mmc%d", host->index);
 
-	return class_device_add(&host->class_dev);
+	return device_add(&host->class_dev);
 }
 
 /*
@@ -303,7 +303,7 @@ int mmc_add_host_sysfs(struct mmc_host *host)
  */
 void mmc_remove_host_sysfs(struct mmc_host *host)
 {
-	class_device_del(&host->class_dev);
+	device_del(&host->class_dev);
 
 	spin_lock(&mmc_host_lock);
 	idr_remove(&mmc_host_idr, host->index);
@@ -315,23 +315,15 @@ void mmc_remove_host_sysfs(struct mmc_host *host)
  */
 void mmc_free_host_sysfs(struct mmc_host *host)
 {
-	class_device_put(&host->class_dev);
+	put_device(&host->class_dev);
 }
 
 static struct workqueue_struct *workqueue;
 
 /*
- * Internal function. Schedule work in the MMC work queue.
- */
-int mmc_schedule_work(struct work_struct *work)
-{
-	return queue_work(workqueue, work);
-}
-
-/*
  * Internal function. Schedule delayed work in the MMC work queue.
  */
-int mmc_schedule_delayed_work(struct work_struct *work, unsigned long delay)
+int mmc_schedule_delayed_work(struct delayed_work *work, unsigned long delay)
 {
 	return queue_delayed_work(workqueue, work, delay);
 }

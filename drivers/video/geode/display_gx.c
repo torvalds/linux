@@ -21,11 +21,27 @@
 #include "geodefb.h"
 #include "display_gx.h"
 
-int gx_frame_buffer_size(void)
+#ifdef CONFIG_FB_GEODE_GX_SET_FBSIZE
+unsigned int gx_frame_buffer_size(void)
 {
-	/* Assuming 16 MiB. */
-	return 16*1024*1024;
+	return CONFIG_FB_GEODE_GX_FBSIZE;
 }
+#else
+unsigned int gx_frame_buffer_size(void)
+{
+	unsigned int val;
+
+	/* FB size is reported by a virtual register */
+	/* Virtual register class = 0x02 */
+	/* VG_MEM_SIZE(512Kb units) = 0x00 */
+
+	outw(0xFC53, 0xAC1C);
+	outw(0x0200, 0xAC1C);
+
+	val = (unsigned int)(inw(0xAC1E)) & 0xFFl;
+	return (val << 19);
+}
+#endif
 
 int gx_line_delta(int xres, int bpp)
 {
@@ -80,6 +96,7 @@ static void gx_set_mode(struct fb_info *info)
 	writel(info->fix.line_length >> 3, par->dc_regs + DC_GFX_PITCH);
 	writel(((info->var.xres * info->var.bits_per_pixel/8) >> 3) + 2,
 	       par->dc_regs + DC_LINE_SIZE);
+
 
 	/* Enable graphics and video data and unmask address lines. */
 	dcfg |= DC_DCFG_GDEN | DC_DCFG_VDEN | DC_DCFG_A20M | DC_DCFG_A18M;

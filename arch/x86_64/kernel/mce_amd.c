@@ -551,7 +551,6 @@ out:
 	return err;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 /*
  * let's be hotplug friendly.
  * in case of multiple core processors, the first core always takes ownership
@@ -594,12 +593,14 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 
 	sprintf(name, "threshold_bank%i", bank);
 
+#ifdef CONFIG_SMP
 	/* sibling symlink */
 	if (shared_bank[bank] && b->blocks->cpu != cpu) {
 		sysfs_remove_link(&per_cpu(device_mce, cpu).kobj, name);
 		per_cpu(threshold_banks, cpu)[bank] = NULL;
 		return;
 	}
+#endif
 
 	/* remove all sibling symlinks before unregistering */
 	for_each_cpu_mask(i, b->cpus) {
@@ -656,7 +657,6 @@ static int threshold_cpu_callback(struct notifier_block *nfb,
 static struct notifier_block threshold_cpu_notifier = {
 	.notifier_call = threshold_cpu_callback,
 };
-#endif /* CONFIG_HOTPLUG_CPU */
 
 static __init int threshold_init_device(void)
 {

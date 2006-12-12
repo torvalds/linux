@@ -276,7 +276,7 @@
 #define __NR_rtas		255
 #define __NR_sys_debug_setcontext 256
 /* Number 257 is reserved for vserver */
-/* 258 currently unused */
+#define __NR_migrate_pages	258
 #define __NR_mbind		259
 #define __NR_get_mempolicy	260
 #define __NR_set_mempolicy	261
@@ -323,129 +323,20 @@
 #define __NR_faccessat		298
 #define __NR_get_robust_list	299
 #define __NR_set_robust_list	300
+#define __NR_move_pages		301
 
 #ifdef __KERNEL__
 
-#define __NR_syscalls		301
+#define __NR_syscalls		302
 
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls
 
 #ifndef __ASSEMBLY__
 
-/* On powerpc a system call basically clobbers the same registers like a
- * function call, with the exception of LR (which is needed for the
- * "sc; bnslr" sequence) and CR (where only CR0.SO is clobbered to signal
- * an error return status).
- */
-
-#define __syscall_nr(nr, type, name, args...)				\
-	unsigned long __sc_ret, __sc_err;				\
-	{								\
-		register unsigned long __sc_0  __asm__ ("r0");		\
-		register unsigned long __sc_3  __asm__ ("r3");		\
-		register unsigned long __sc_4  __asm__ ("r4");		\
-		register unsigned long __sc_5  __asm__ ("r5");		\
-		register unsigned long __sc_6  __asm__ ("r6");		\
-		register unsigned long __sc_7  __asm__ ("r7");		\
-		register unsigned long __sc_8  __asm__ ("r8");		\
-									\
-		__sc_loadargs_##nr(name, args);				\
-		__asm__ __volatile__					\
-			("sc           \n\t"				\
-			 "mfcr %0      "				\
-			: "=&r" (__sc_0),				\
-			  "=&r" (__sc_3),  "=&r" (__sc_4),		\
-			  "=&r" (__sc_5),  "=&r" (__sc_6),		\
-			  "=&r" (__sc_7),  "=&r" (__sc_8)		\
-			: __sc_asm_input_##nr				\
-			: "cr0", "ctr", "memory",			\
-			  "r9", "r10","r11", "r12");			\
-		__sc_ret = __sc_3;					\
-		__sc_err = __sc_0;					\
-	}								\
-	if (__sc_err & 0x10000000)					\
-	{								\
-		errno = __sc_ret;					\
-		__sc_ret = -1;						\
-	}								\
-	return (type) __sc_ret
-
-#define __sc_loadargs_0(name, dummy...)					\
-	__sc_0 = __NR_##name
-#define __sc_loadargs_1(name, arg1)					\
-	__sc_loadargs_0(name);						\
-	__sc_3 = (unsigned long) (arg1)
-#define __sc_loadargs_2(name, arg1, arg2)				\
-	__sc_loadargs_1(name, arg1);					\
-	__sc_4 = (unsigned long) (arg2)
-#define __sc_loadargs_3(name, arg1, arg2, arg3)				\
-	__sc_loadargs_2(name, arg1, arg2);				\
-	__sc_5 = (unsigned long) (arg3)
-#define __sc_loadargs_4(name, arg1, arg2, arg3, arg4)			\
-	__sc_loadargs_3(name, arg1, arg2, arg3);			\
-	__sc_6 = (unsigned long) (arg4)
-#define __sc_loadargs_5(name, arg1, arg2, arg3, arg4, arg5)		\
-	__sc_loadargs_4(name, arg1, arg2, arg3, arg4);			\
-	__sc_7 = (unsigned long) (arg5)
-#define __sc_loadargs_6(name, arg1, arg2, arg3, arg4, arg5, arg6)	\
-	__sc_loadargs_5(name, arg1, arg2, arg3, arg4, arg5);		\
-	__sc_8 = (unsigned long) (arg6)
-
-#define __sc_asm_input_0 "0" (__sc_0)
-#define __sc_asm_input_1 __sc_asm_input_0, "1" (__sc_3)
-#define __sc_asm_input_2 __sc_asm_input_1, "2" (__sc_4)
-#define __sc_asm_input_3 __sc_asm_input_2, "3" (__sc_5)
-#define __sc_asm_input_4 __sc_asm_input_3, "4" (__sc_6)
-#define __sc_asm_input_5 __sc_asm_input_4, "5" (__sc_7)
-#define __sc_asm_input_6 __sc_asm_input_5, "6" (__sc_8)
-
-#define _syscall0(type,name)						\
-type name(void)								\
-{									\
-	__syscall_nr(0, type, name);					\
-}
-
-#define _syscall1(type,name,type1,arg1)					\
-type name(type1 arg1)							\
-{									\
-	__syscall_nr(1, type, name, arg1);				\
-}
-
-#define _syscall2(type,name,type1,arg1,type2,arg2)			\
-type name(type1 arg1, type2 arg2)					\
-{									\
-	__syscall_nr(2, type, name, arg1, arg2);			\
-}
-
-#define _syscall3(type,name,type1,arg1,type2,arg2,type3,arg3)		\
-type name(type1 arg1, type2 arg2, type3 arg3)				\
-{									\
-	__syscall_nr(3, type, name, arg1, arg2, arg3);			\
-}
-
-#define _syscall4(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4) \
-type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4)		\
-{									\
-	__syscall_nr(4, type, name, arg1, arg2, arg3, arg4);		\
-}
-
-#define _syscall5(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,type5,arg5) \
-type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5)	\
-{									\
-	__syscall_nr(5, type, name, arg1, arg2, arg3, arg4, arg5);	\
-}
-#define _syscall6(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,type5,arg5,type6,arg6) \
-type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6) \
-{									\
-	__syscall_nr(6, type, name, arg1, arg2, arg3, arg4, arg5, arg6); \
-}
-
-
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/linkage.h>
-#include <asm/syscalls.h>
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
@@ -480,16 +371,9 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
 
 /*
  * "Conditional" syscalls
- *
- * What we want is __attribute__((weak,alias("sys_ni_syscall"))),
- * but it doesn't work on all toolchains, so we just do it by hand
  */
-#ifdef CONFIG_PPC32
-#define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
-#else
-#define cond_syscall(x) asm(".weak\t." #x "\n\t.set\t." #x ",.sys_ni_syscall")
-#endif
-
+#define cond_syscall(x) \
+	asmlinkage long x (void) __attribute__((weak,alias("sys_ni_syscall")))
 
 #endif		/* __ASSEMBLY__ */
 #endif		/* __KERNEL__ */

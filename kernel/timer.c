@@ -80,6 +80,138 @@ tvec_base_t boot_tvec_bases;
 EXPORT_SYMBOL(boot_tvec_bases);
 static DEFINE_PER_CPU(tvec_base_t *, tvec_bases) = &boot_tvec_bases;
 
+/**
+ * __round_jiffies - function to round jiffies to a full second
+ * @j: the time in (absolute) jiffies that should be rounded
+ * @cpu: the processor number on which the timeout will happen
+ *
+ * __round_jiffies rounds an absolute time in the future (in jiffies)
+ * up or down to (approximately) full seconds. This is useful for timers
+ * for which the exact time they fire does not matter too much, as long as
+ * they fire approximately every X seconds.
+ *
+ * By rounding these timers to whole seconds, all such timers will fire
+ * at the same time, rather than at various times spread out. The goal
+ * of this is to have the CPU wake up less, which saves power.
+ *
+ * The exact rounding is skewed for each processor to avoid all
+ * processors firing at the exact same time, which could lead
+ * to lock contention or spurious cache line bouncing.
+ *
+ * The return value is the rounded version of the "j" parameter.
+ */
+unsigned long __round_jiffies(unsigned long j, int cpu)
+{
+	int rem;
+	unsigned long original = j;
+
+	/*
+	 * We don't want all cpus firing their timers at once hitting the
+	 * same lock or cachelines, so we skew each extra cpu with an extra
+	 * 3 jiffies. This 3 jiffies came originally from the mm/ code which
+	 * already did this.
+	 * The skew is done by adding 3*cpunr, then round, then subtract this
+	 * extra offset again.
+	 */
+	j += cpu * 3;
+
+	rem = j % HZ;
+
+	/*
+	 * If the target jiffie is just after a whole second (which can happen
+	 * due to delays of the timer irq, long irq off times etc etc) then
+	 * we should round down to the whole second, not up. Use 1/4th second
+	 * as cutoff for this rounding as an extreme upper bound for this.
+	 */
+	if (rem < HZ/4) /* round down */
+		j = j - rem;
+	else /* round up */
+		j = j - rem + HZ;
+
+	/* now that we have rounded, subtract the extra skew again */
+	j -= cpu * 3;
+
+	if (j <= jiffies) /* rounding ate our timeout entirely; */
+		return original;
+	return j;
+}
+EXPORT_SYMBOL_GPL(__round_jiffies);
+
+/**
+ * __round_jiffies_relative - function to round jiffies to a full second
+ * @j: the time in (relative) jiffies that should be rounded
+ * @cpu: the processor number on which the timeout will happen
+ *
+ * __round_jiffies_relative rounds a time delta  in the future (in jiffies)
+ * up or down to (approximately) full seconds. This is useful for timers
+ * for which the exact time they fire does not matter too much, as long as
+ * they fire approximately every X seconds.
+ *
+ * By rounding these timers to whole seconds, all such timers will fire
+ * at the same time, rather than at various times spread out. The goal
+ * of this is to have the CPU wake up less, which saves power.
+ *
+ * The exact rounding is skewed for each processor to avoid all
+ * processors firing at the exact same time, which could lead
+ * to lock contention or spurious cache line bouncing.
+ *
+ * The return value is the rounded version of the "j" parameter.
+ */
+unsigned long __round_jiffies_relative(unsigned long j, int cpu)
+{
+	/*
+	 * In theory the following code can skip a jiffy in case jiffies
+	 * increments right between the addition and the later subtraction.
+	 * However since the entire point of this function is to use approximate
+	 * timeouts, it's entirely ok to not handle that.
+	 */
+	return  __round_jiffies(j + jiffies, cpu) - jiffies;
+}
+EXPORT_SYMBOL_GPL(__round_jiffies_relative);
+
+/**
+ * round_jiffies - function to round jiffies to a full second
+ * @j: the time in (absolute) jiffies that should be rounded
+ *
+ * round_jiffies rounds an absolute time in the future (in jiffies)
+ * up or down to (approximately) full seconds. This is useful for timers
+ * for which the exact time they fire does not matter too much, as long as
+ * they fire approximately every X seconds.
+ *
+ * By rounding these timers to whole seconds, all such timers will fire
+ * at the same time, rather than at various times spread out. The goal
+ * of this is to have the CPU wake up less, which saves power.
+ *
+ * The return value is the rounded version of the "j" parameter.
+ */
+unsigned long round_jiffies(unsigned long j)
+{
+	return __round_jiffies(j, raw_smp_processor_id());
+}
+EXPORT_SYMBOL_GPL(round_jiffies);
+
+/**
+ * round_jiffies_relative - function to round jiffies to a full second
+ * @j: the time in (relative) jiffies that should be rounded
+ *
+ * round_jiffies_relative rounds a time delta  in the future (in jiffies)
+ * up or down to (approximately) full seconds. This is useful for timers
+ * for which the exact time they fire does not matter too much, as long as
+ * they fire approximately every X seconds.
+ *
+ * By rounding these timers to whole seconds, all such timers will fire
+ * at the same time, rather than at various times spread out. The goal
+ * of this is to have the CPU wake up less, which saves power.
+ *
+ * The return value is the rounded version of the "j" parameter.
+ */
+unsigned long round_jiffies_relative(unsigned long j)
+{
+	return __round_jiffies_relative(j, raw_smp_processor_id());
+}
+EXPORT_SYMBOL_GPL(round_jiffies_relative);
+
+
 static inline void set_running_timer(tvec_base_t *base,
 					struct timer_list *timer)
 {
@@ -714,7 +846,7 @@ static int change_clocksource(void)
 		clock = new;
 		clock->cycle_last = now;
 		printk(KERN_INFO "Time: %s clocksource has been installed.\n",
-					clock->name);
+		       clock->name);
 		return 1;
 	} else if (clock->update_callback) {
 		return clock->update_callback();
@@ -722,7 +854,10 @@ static int change_clocksource(void)
 	return 0;
 }
 #else
-#define change_clocksource() (0)
+static inline int change_clocksource(void)
+{
+	return 0;
+}
 #endif
 
 /**
@@ -820,7 +955,8 @@ device_initcall(timekeeping_init_device);
  * If the error is already larger, we look ahead even further
  * to compensate for late or lost adjustments.
  */
-static __always_inline int clocksource_bigadjust(s64 error, s64 *interval, s64 *offset)
+static __always_inline int clocksource_bigadjust(s64 error, s64 *interval,
+						 s64 *offset)
 {
 	s64 tick_error, i;
 	u32 look_ahead, adj;
@@ -844,7 +980,8 @@ static __always_inline int clocksource_bigadjust(s64 error, s64 *interval, s64 *
 	 * Now calculate the error in (1 << look_ahead) ticks, but first
 	 * remove the single look ahead already included in the error.
 	 */
-	tick_error = current_tick_length() >> (TICK_LENGTH_SHIFT - clock->shift + 1);
+	tick_error = current_tick_length() >>
+		(TICK_LENGTH_SHIFT - clock->shift + 1);
 	tick_error -= clock->xtime_interval >> 1;
 	error = ((error - tick_error) >> look_ahead) + tick_error;
 
@@ -896,7 +1033,8 @@ static void clocksource_adjust(struct clocksource *clock, s64 offset)
 	clock->mult += adj;
 	clock->xtime_interval += interval;
 	clock->xtime_nsec -= offset;
-	clock->error -= (interval - offset) << (TICK_LENGTH_SHIFT - clock->shift);
+	clock->error -= (interval - offset) <<
+			(TICK_LENGTH_SHIFT - clock->shift);
 }
 
 /**

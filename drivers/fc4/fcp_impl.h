@@ -39,7 +39,7 @@ struct _fc_channel;
 typedef struct fcp_cmnd {
 	struct fcp_cmnd		*next;
 	struct fcp_cmnd		*prev;
-	void			(*done)(Scsi_Cmnd *);
+	void			(*done)(struct scsi_cmnd *);
 	unsigned short		proto;
 	unsigned short		token;
 	unsigned int		did;
@@ -94,14 +94,14 @@ typedef struct _fc_channel {
 	long			*scsi_bitmap;
 	long			scsi_bitmap_end;
 	int			scsi_free;
-	int			(*encode_addr)(Scsi_Cmnd *, u16 *, struct _fc_channel *, fcp_cmnd *);
+	int			(*encode_addr)(struct scsi_cmnd *, u16 *, struct _fc_channel *, fcp_cmnd *);
 	fcp_cmnd		*scsi_que;
 	char			scsi_name[4];
 	fcp_cmnd		**cmd_slots;
 	int			channels;
 	int			targets;
 	long			*ages;
-	Scsi_Cmnd		*rst_pkt;
+	struct scsi_cmnd	*rst_pkt;
 	fcp_posmap		*posmap;
 	/* LOGIN stuff */
 	fcp_cmnd		*login;
@@ -155,9 +155,10 @@ int fc_do_prli(fc_channel *, unsigned char);
 	for_each_fc_channel(fc)				\
 		if (fc->state == FC_STATE_ONLINE)
 
-int fcp_scsi_queuecommand(Scsi_Cmnd *, void (* done)(Scsi_Cmnd *));
-int fcp_scsi_abort(Scsi_Cmnd *);
-int fcp_scsi_dev_reset(Scsi_Cmnd *);
-int fcp_scsi_host_reset(Scsi_Cmnd *);
+int fcp_scsi_queuecommand(struct scsi_cmnd *,
+			  void (* done) (struct scsi_cmnd *));
+int fcp_scsi_abort(struct scsi_cmnd *);
+int fcp_scsi_dev_reset(struct scsi_cmnd *);
+int fcp_scsi_host_reset(struct scsi_cmnd *);
 
 #endif /* !(_FCP_SCSI_H) */

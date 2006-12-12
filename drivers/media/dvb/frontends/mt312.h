@@ -34,7 +34,7 @@ struct mt312_config
 	u8 demod_address;
 };
 
-#if defined(CONFIG_DVB_MT312) || defined(CONFIG_DVB_MT312_MODULE)
+#if defined(CONFIG_DVB_MT312) || (defined(CONFIG_DVB_MT312_MODULE) && defined(MODULE))
 struct dvb_frontend* vp310_mt312_attach(const struct mt312_config* config,
 					struct i2c_adapter* i2c);
 #else

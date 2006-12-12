@@ -2006,9 +2006,10 @@ __mptsas_discovery_work(MPT_ADAPTER *ioc)
  *(Mutex LOCKED)
  */
 static void
-mptsas_discovery_work(void * arg)
+mptsas_discovery_work(struct work_struct *work)
 {
-	struct mptsas_discovery_event *ev = arg;
+	struct mptsas_discovery_event *ev =
+		container_of(work, struct mptsas_discovery_event, work);
 	MPT_ADAPTER *ioc = ev->ioc;
 
 	mutex_lock(&ioc->sas_discovery_mutex);
@@ -2068,9 +2069,9 @@ mptsas_find_phyinfo_by_target(MPT_ADAPTER *ioc, u32 id)
  * Work queue thread to clear the persitency table
  */
 static void
-mptsas_persist_clear_table(void * arg)
+mptsas_persist_clear_table(struct work_struct *work)
 {
-	MPT_ADAPTER *ioc = (MPT_ADAPTER *)arg;
+	MPT_ADAPTER *ioc = container_of(work, MPT_ADAPTER, sas_persist_task);
 
 	mptbase_sas_persist_operation(ioc, MPI_SAS_OP_CLEAR_NOT_PRESENT);
 }
@@ -2093,9 +2094,10 @@ mptsas_reprobe_target(struct scsi_target *starget, int uld_attach)
  * Work queue thread to handle SAS hotplug events
  */
 static void
-mptsas_hotplug_work(void *arg)
+mptsas_hotplug_work(struct work_struct *work)
 {
-	struct mptsas_hotplug_event *ev = arg;
+	struct mptsas_hotplug_event *ev =
+		container_of(work, struct mptsas_hotplug_event, work);
 	MPT_ADAPTER *ioc = ev->ioc;
 	struct mptsas_phyinfo *phy_info;
 	struct sas_rphy *rphy;
@@ -2341,7 +2343,7 @@ mptsas_send_sas_event(MPT_ADAPTER *ioc,
 			break;
 		}
 
-		INIT_WORK(&ev->work, mptsas_hotplug_work, ev);
+		INIT_WORK(&ev->work, mptsas_hotplug_work);
 		ev->ioc = ioc;
 		ev->handle = le16_to_cpu(sas_event_data->DevHandle);
 		ev->parent_handle =
@@ -2366,7 +2368,7 @@ mptsas_send_sas_event(MPT_ADAPTER *ioc,
 	 * Persistent table is full.
 	 */
 		INIT_WORK(&ioc->sas_persist_task,
-		    mptsas_persist_clear_table, (void *)ioc);
+		    mptsas_persist_clear_table);
 		schedule_work(&ioc->sas_persist_task);
 		break;
 	case MPI_EVENT_SAS_DEV_STAT_RC_SMART_DATA:
@@ -2395,7 +2397,7 @@ mptsas_send_raid_event(MPT_ADAPTER *ioc,
 		return;
 	}
 
-	INIT_WORK(&ev->work, mptsas_hotplug_work, ev);
+	INIT_WORK(&ev->work, mptsas_hotplug_work);
 	ev->ioc = ioc;
 	ev->id = raid_event_data->VolumeID;
 	ev->event_type = MPTSAS_IGNORE_EVENT;
@@ -2474,7 +2476,7 @@ mptsas_send_discovery_event(MPT_ADAPTER *ioc,
 	ev = kzalloc(sizeof(*ev), GFP_ATOMIC);
 	if (!ev)
 		return;
-	INIT_WORK(&ev->work, mptsas_discovery_work, ev);
+	INIT_WORK(&ev->work, mptsas_discovery_work);
 	ev->ioc = ioc;
 	schedule_work(&ev->work);
 };
@@ -2511,8 +2513,7 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 		break;
 	case MPI_EVENT_PERSISTENT_TABLE_FULL:
 		INIT_WORK(&ioc->sas_persist_task,
-		    mptsas_persist_clear_table,
-		    (void *)ioc);
+		    mptsas_persist_clear_table);
 		schedule_work(&ioc->sas_persist_task);
 		break;
 	 case MPI_EVENT_SAS_DISCOVERY:

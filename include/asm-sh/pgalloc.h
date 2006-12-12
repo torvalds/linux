@@ -1,13 +1,16 @@
 #ifndef __ASM_SH_PGALLOC_H
 #define __ASM_SH_PGALLOC_H
 
-#define pmd_populate_kernel(mm, pmd, pte) \
-		set_pmd(pmd, __pmd(_PAGE_TABLE + __pa(pte)))
+static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
+				       pte_t *pte)
+{
+	set_pmd(pmd, __pmd((unsigned long)pte));
+}
 
 static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 				struct page *pte)
 {
-	set_pmd(pmd, __pmd(_PAGE_TABLE + page_to_phys(pte)));
+	set_pmd(pmd, __pmd((unsigned long)page_address(pte)));
 }
 
 /*
@@ -15,7 +18,16 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
  */
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	return (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO);
+	pgd_t *pgd = (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_REPEAT);
+
+	if (pgd) {
+		memset(pgd, 0, USER_PTRS_PER_PGD * sizeof(pgd_t));
+		memcpy(pgd + USER_PTRS_PER_PGD,
+		       swapper_pg_dir + USER_PTRS_PER_PGD,
+		       (PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
+	}
+
+	return pgd;
 }
 
 static inline void pgd_free(pgd_t *pgd)

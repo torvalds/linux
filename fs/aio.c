@@ -47,19 +47,19 @@ unsigned long aio_nr;		/* current system wide number of aio requests */
 unsigned long aio_max_nr = 0x10000; /* system wide maximum number of aio requests */
 /*----end sysctl variables---*/
 
-static kmem_cache_t	*kiocb_cachep;
-static kmem_cache_t	*kioctx_cachep;
+static struct kmem_cache	*kiocb_cachep;
+static struct kmem_cache	*kioctx_cachep;
 
 static struct workqueue_struct *aio_wq;
 
 /* Used for rare fput completion. */
-static void aio_fput_routine(void *);
-static DECLARE_WORK(fput_work, aio_fput_routine, NULL);
+static void aio_fput_routine(struct work_struct *);
+static DECLARE_WORK(fput_work, aio_fput_routine);
 
 static DEFINE_SPINLOCK(fput_lock);
 static LIST_HEAD(fput_head);
 
-static void aio_kick_handler(void *);
+static void aio_kick_handler(struct work_struct *);
 static void aio_queue_work(struct kioctx *);
 
 /* aio_setup
@@ -227,7 +227,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 
 	INIT_LIST_HEAD(&ctx->active_reqs);
 	INIT_LIST_HEAD(&ctx->run_list);
-	INIT_WORK(&ctx->wq, aio_kick_handler, ctx);
+	INIT_DELAYED_WORK(&ctx->wq, aio_kick_handler);
 
 	if (aio_setup_ring(ctx) < 0)
 		goto out_freectx;
@@ -367,8 +367,7 @@ void fastcall __put_ioctx(struct kioctx *ctx)
 {
 	unsigned nr_events = ctx->max_reqs;
 
-	if (unlikely(ctx->reqs_active))
-		BUG();
+	BUG_ON(ctx->reqs_active);
 
 	cancel_delayed_work(&ctx->wq);
 	flush_workqueue(aio_wq);
@@ -470,7 +469,7 @@ static inline void really_put_req(struct kioctx *ctx, struct kiocb *req)
 		wake_up(&ctx->wait);
 }
 
-static void aio_fput_routine(void *data)
+static void aio_fput_routine(struct work_struct *data)
 {
 	spin_lock_irq(&fput_lock);
 	while (likely(!list_empty(&fput_head))) {
@@ -505,8 +504,7 @@ static int __aio_put_req(struct kioctx *ctx, struct kiocb *req)
 	assert_spin_locked(&ctx->ctx_lock);
 
 	req->ki_users --;
-	if (unlikely(req->ki_users < 0))
-		BUG();
+	BUG_ON(req->ki_users < 0);
 	if (likely(req->ki_users))
 		return 0;
 	list_del(&req->ki_list);		/* remove from active_reqs */
@@ -667,17 +665,6 @@ static ssize_t aio_run_iocb(struct kiocb *iocb)
 	struct kioctx	*ctx = iocb->ki_ctx;
 	ssize_t (*retry)(struct kiocb *);
 	ssize_t ret;
-
-	if (iocb->ki_retried++ > 1024*1024) {
-		printk("Maximal retry count.  Bytes done %Zd\n",
-			iocb->ki_nbytes - iocb->ki_left);
-		return -EAGAIN;
-	}
-
-	if (!(iocb->ki_retried & 0xff)) {
-		pr_debug("%ld retry: %zd of %zd\n", iocb->ki_retried,
-			iocb->ki_nbytes - iocb->ki_left, iocb->ki_nbytes);
-	}
 
 	if (!(retry = iocb->ki_retry)) {
 		printk("aio_run_iocb: iocb->ki_retry = NULL\n");
@@ -859,9 +846,9 @@ static inline void aio_run_all_iocbs(struct kioctx *ctx)
  *      space.
  * Run on aiod's context.
  */
-static void aio_kick_handler(void *data)
+static void aio_kick_handler(struct work_struct *work)
 {
-	struct kioctx *ctx = data;
+	struct kioctx *ctx = container_of(work, struct kioctx, wq.work);
 	mm_segment_t oldfs = get_fs();
 	int requeue;
 
@@ -876,7 +863,7 @@ static void aio_kick_handler(void *data)
 	 * we're in a worker thread already, don't use queue_delayed_work,
 	 */
 	if (requeue)
-		queue_work(aio_wq, &ctx->wq);
+		queue_delayed_work(aio_wq, &ctx->wq, 0);
 }
 
 
@@ -1007,9 +994,6 @@ int fastcall aio_complete(struct kiocb *iocb, long res, long res2)
 	kunmap_atomic(ring, KM_IRQ1);
 
 	pr_debug("added to ring %p at [%lu]\n", iocb, tail);
-
-	pr_debug("%ld retries: %zd of %zd\n", iocb->ki_retried,
-		iocb->ki_nbytes - iocb->ki_left, iocb->ki_nbytes);
 put_rq:
 	/* everything turned out well, dispose of the aiocb. */
 	ret = __aio_put_req(ctx, iocb);
@@ -1415,7 +1399,6 @@ static ssize_t aio_setup_single_vector(struct kiocb *kiocb)
 	kiocb->ki_iovec->iov_len = kiocb->ki_left;
 	kiocb->ki_nr_segs = 1;
 	kiocb->ki_cur_seg = 0;
-	kiocb->ki_nbytes = kiocb->ki_left;
 	return 0;
 }
 
@@ -1593,7 +1576,6 @@ int fastcall io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	req->ki_opcode = iocb->aio_lio_opcode;
 	init_waitqueue_func_entry(&req->ki_wait, aio_wake_function);
 	INIT_LIST_HEAD(&req->ki_wait.task_list);
-	req->ki_retried = 0;
 
 	ret = aio_setup_iocb(req);
 

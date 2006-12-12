@@ -974,12 +974,12 @@ static int cosa_open(struct inode *inode, struct file *file)
 	unsigned long flags;
 	int n;
 
-	if ((n=iminor(file->f_dentry->d_inode)>>CARD_MINOR_BITS)
+	if ((n=iminor(file->f_path.dentry->d_inode)>>CARD_MINOR_BITS)
 		>= nr_cards)
 		return -ENODEV;
 	cosa = cosa_cards+n;
 
-	if ((n=iminor(file->f_dentry->d_inode)
+	if ((n=iminor(file->f_path.dentry->d_inode)
 		& ((1<<CARD_MINOR_BITS)-1)) >= cosa->nchannels)
 		return -ENODEV;
 	chan = cosa->chan + n;

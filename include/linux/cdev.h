@@ -2,6 +2,10 @@
 #define _LINUX_CDEV_H
 #ifdef __KERNEL__
 
+#include <linux/kobject.h>
+#include <linux/kdev_t.h>
+#include <linux/list.h>
+
 struct cdev {
 	struct kobject kobj;
 	struct module *owner;

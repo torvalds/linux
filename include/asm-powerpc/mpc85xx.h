@@ -31,14 +31,6 @@
 #include <platforms/85xx/mpc85xx_cds.h>
 #endif
 
-#define _IO_BASE        isa_io_base
-#define _ISA_MEM_BASE   isa_mem_base
-#ifdef CONFIG_PCI
-#define PCI_DRAM_OFFSET pci_dram_offset
-#else
-#define PCI_DRAM_OFFSET 0
-#endif
-
 /* Let modules/drivers get at CCSRBAR */
 extern phys_addr_t get_ccsrbar(void);
 

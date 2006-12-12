@@ -63,10 +63,6 @@ unsigned int DMA_MODE_WRITE;
 
 int have_of = 1;
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
-dev_t boot_dev;
-#endif /* CONFIG_PPC_MULTIPLATFORM */
-
 #ifdef CONFIG_VGA_CONSOLE
 unsigned long vgacon_remap_base;
 #endif
@@ -91,6 +87,7 @@ int ucache_bsize;
 unsigned long __init early_init(unsigned long dt_ptr)
 {
 	unsigned long offset = reloc_offset();
+	struct cpu_spec *spec;
 
 	/* First zero the BSS -- use memset_io, some platforms don't have
 	 * caches on yet */
@@ -100,8 +97,11 @@ unsigned long __init early_init(unsigned long dt_ptr)
 	 * Identify the CPU type and fix up code sections
 	 * that depend on which cpu we have.
 	 */
-	identify_cpu(offset, 0);
-	do_cpu_ftr_fixups(offset);
+	spec = identify_cpu(offset, mfspr(SPRN_PVR));
+
+	do_feature_fixups(spec->cpu_features,
+			  PTRRELOC(&__start___ftr_fixup),
+			  PTRRELOC(&__stop___ftr_fixup));
 
 	return KERNELBASE + offset;
 }

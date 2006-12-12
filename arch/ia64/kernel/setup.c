@@ -43,6 +43,8 @@
 #include <linux/initrd.h>
 #include <linux/pm.h>
 #include <linux/cpufreq.h>
+#include <linux/kexec.h>
+#include <linux/crash_dump.h>
 
 #include <asm/ia32.h>
 #include <asm/machvec.h>
@@ -252,6 +254,41 @@ reserve_memory (void)
 	efi_memmap_init(&rsvd_region[n].start, &rsvd_region[n].end);
 	n++;
 
+#ifdef CONFIG_KEXEC
+	/* crashkernel=size@offset specifies the size to reserve for a crash
+	 * kernel.(offset is ingored for keep compatibility with other archs)
+	 * By reserving this memory we guarantee that linux never set's it
+	 * up as a DMA target.Useful for holding code to do something
+	 * appropriate after a kernel panic.
+	 */
+	{
+		char *from = strstr(saved_command_line, "crashkernel=");
+		unsigned long base, size;
+		if (from) {
+			size = memparse(from + 12, &from);
+			if (size) {
+				sort_regions(rsvd_region, n);
+				base = kdump_find_rsvd_region(size,
+				rsvd_region, n);
+				if (base != ~0UL) {
+					rsvd_region[n].start =
+						(unsigned long)__va(base);
+					rsvd_region[n].end =
+						(unsigned long)__va(base + size);
+					n++;
+					crashk_res.start = base;
+					crashk_res.end = base + size - 1;
+				}
+			}
+		}
+		efi_memmap_res.start = ia64_boot_param->efi_memmap;
+                efi_memmap_res.end = efi_memmap_res.start +
+                        ia64_boot_param->efi_memmap_size;
+                boot_param_res.start = __pa(ia64_boot_param);
+                boot_param_res.end = boot_param_res.start +
+                        sizeof(*ia64_boot_param);
+	}
+#endif
 	/* end of memory marker */
 	rsvd_region[n].start = ~0UL;
 	rsvd_region[n].end   = ~0UL;
@@ -262,6 +299,7 @@ reserve_memory (void)
 
 	sort_regions(rsvd_region, num_rsvd_regions);
 }
+
 
 /**
  * find_initrd - get initrd parameters from the boot parameter structure
@@ -456,6 +494,8 @@ setup_arch (char **cmdline_p)
 
 	cpu_init();	/* initialize the bootstrap CPU */
 	mmu_context_init();	/* initialize context_id bitmap */
+
+	check_sal_cache_flush();
 
 #ifdef CONFIG_ACPI
 	acpi_boot_init();

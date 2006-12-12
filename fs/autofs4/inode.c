@@ -99,6 +99,9 @@ static void autofs4_force_release(struct autofs_sb_info *sbi)
 	struct dentry *this_parent = sbi->sb->s_root;
 	struct list_head *next;
 
+	if (!sbi->sb->s_root)
+		return;
+
 	spin_lock(&dcache_lock);
 repeat:
 	next = this_parent->d_subdirs.next;
@@ -146,6 +149,15 @@ void autofs4_kill_sb(struct super_block *sb)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(sb);
 
+	/*
+	 * In the event of a failure in get_sb_nodev the superblock
+	 * info is not present so nothing else has been setup, so
+	 * just call kill_anon_super when we are called from
+	 * deactivate_super.
+	 */
+	if (!sbi)
+		goto out_kill_sb;
+
 	sb->s_fs_info = NULL;
 
 	if ( !sbi->catatonic )
@@ -156,6 +168,7 @@ void autofs4_kill_sb(struct super_block *sb)
 
 	kfree(sbi);
 
+out_kill_sb:
 	DPRINTK("shutting down");
 	kill_anon_super(sb);
 }
@@ -310,7 +323,8 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	s->s_fs_info = sbi;
 	sbi->magic = AUTOFS_SBI_MAGIC;
 	sbi->pipefd = -1;
-	sbi->catatonic = 0;
+	sbi->pipe = NULL;
+	sbi->catatonic = 1;
 	sbi->exp_timeout = 0;
 	sbi->oz_pgrp = process_group(current);
 	sbi->sb = s;
@@ -388,6 +402,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 		goto fail_fput;
 	sbi->pipe = pipe;
 	sbi->pipefd = pipefd;
+	sbi->catatonic = 0;
 
 	/*
 	 * Success! Install the root dentry now to indicate completion.
@@ -412,6 +427,7 @@ fail_ino:
 	kfree(ino);
 fail_free:
 	kfree(sbi);
+	s->s_fs_info = NULL;
 fail_unlock:
 	return -EINVAL;
 }

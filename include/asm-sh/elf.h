@@ -74,7 +74,7 @@ typedef struct user_fpu_struct elf_fpregset_t;
 #define ELF_ARCH	EM_SH
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE	4096
+#define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical
    use of this is to invoke "./ld.so someprog" to test out a new version of

@@ -21,6 +21,7 @@
 #include <linux/pm.h>
 #include <asm/semaphore.h>
 #include <asm/atomic.h>
+#include <asm/device.h>
 
 #define DEVICE_NAME_SIZE	50
 #define DEVICE_NAME_HALF	__stringify(20)	/* Less than half to accommodate slop */
@@ -41,6 +42,8 @@ struct bus_type {
 	struct kset		devices;
 	struct klist		klist_devices;
 	struct klist		klist_drivers;
+
+	struct blocking_notifier_head bus_notifier;
 
 	struct bus_attribute	* bus_attrs;
 	struct device_attribute	* dev_attrs;
@@ -74,6 +77,29 @@ struct device * bus_find_device(struct bus_type *bus, struct device *start,
 int __must_check bus_for_each_drv(struct bus_type *bus,
 		struct device_driver *start, void *data,
 		int (*fn)(struct device_driver *, void *));
+
+/*
+ * Bus notifiers: Get notified of addition/removal of devices
+ * and binding/unbinding of drivers to devices.
+ * In the long run, it should be a replacement for the platform
+ * notify hooks.
+ */
+struct notifier_block;
+
+extern int bus_register_notifier(struct bus_type *bus,
+				 struct notifier_block *nb);
+extern int bus_unregister_notifier(struct bus_type *bus,
+				   struct notifier_block *nb);
+
+/* All 4 notifers below get called with the target struct device *
+ * as an argument. Note that those functions are likely to be called
+ * with the device semaphore held in the core, so be careful.
+ */
+#define BUS_NOTIFY_ADD_DEVICE		0x00000001 /* device added */
+#define BUS_NOTIFY_DEL_DEVICE		0x00000002 /* device removed */
+#define BUS_NOTIFY_BOUND_DRIVER		0x00000003 /* driver bound to device */
+#define BUS_NOTIFY_UNBIND_DRIVER	0x00000004 /* driver about to be
+						      unbound */
 
 /* driverfs interface for exporting bus attributes */
 
@@ -343,10 +369,11 @@ struct device {
 	void		*driver_data;	/* data private to the driver */
 	void		*platform_data;	/* Platform specific data, device
 					   core doesn't touch it */
-	void		*firmware_data; /* Firmware specific data (e.g. ACPI,
-					   BIOS data),reserved for device core*/
 	struct dev_pm_info	power;
 
+#ifdef CONFIG_NUMA
+	int		numa_node;	/* NUMA node this device is close to */
+#endif
 	u64		*dma_mask;	/* dma mask (if dma'able device) */
 	u64		coherent_dma_mask;/* Like dma_mask, but for
 					     alloc_coherent mappings as
@@ -358,6 +385,8 @@ struct device {
 
 	struct dma_coherent_mem	*dma_mem; /* internal for coherent mem
 					     override */
+	/* arch specific additions */
+	struct dev_archdata	archdata;
 
 	/* class_device migration path */
 	struct list_head	node;
@@ -367,6 +396,25 @@ struct device {
 
 	void	(*release)(struct device * dev);
 };
+
+#ifdef CONFIG_NUMA
+static inline int dev_to_node(struct device *dev)
+{
+	return dev->numa_node;
+}
+static inline void set_dev_node(struct device *dev, int node)
+{
+	dev->numa_node = node;
+}
+#else
+static inline int dev_to_node(struct device *dev)
+{
+	return -1;
+}
+static inline void set_dev_node(struct device *dev, int node)
+{
+}
+#endif
 
 static inline void *
 dev_get_drvdata (struct device *dev)
@@ -393,9 +441,12 @@ extern void device_unregister(struct device * dev);
 extern void device_initialize(struct device * dev);
 extern int __must_check device_add(struct device * dev);
 extern void device_del(struct device * dev);
-extern int __must_check device_for_each_child(struct device *, void *,
+extern int device_for_each_child(struct device *, void *,
 		     int (*fn)(struct device *, void *));
+extern struct device *device_find_child(struct device *, void *data,
+					int (*match)(struct device *, void *));
 extern int device_rename(struct device *dev, char *new_name);
+extern int device_move(struct device *dev, struct device *new_parent);
 
 /*
  * Manual binding of a device to driver. See drivers/base/bus.c
@@ -414,8 +465,6 @@ extern struct device *device_create(struct class *cls, struct device *parent,
 				    dev_t devt, const char *fmt, ...)
 				    __attribute__((format(printf,4,5)));
 extern void device_destroy(struct class *cls, dev_t devt);
-
-extern int virtual_device_parent(struct device *dev);
 
 /*
  * Platform "fixup" functions - allow the platform to have their say

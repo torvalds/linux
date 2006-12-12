@@ -46,9 +46,11 @@
  * 1.3: Add vblank support
  * 1.4: Fix cmdbuffer path, add heap destroy
  * 1.5: Add vblank pipe configuration
+ * 1.6: - New ioctl for scheduling buffer swaps on vertical blank
+ *      - Support vertical blank on secondary display pipe
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		5
+#define DRIVER_MINOR		6
 #define DRIVER_PATCHLEVEL	0
 
 typedef struct _drm_i915_ring_buffer {
@@ -71,6 +73,13 @@ struct mem_block {
 	DRMFILE filp;		/* 0: free, -1: heap, other: real files */
 };
 
+typedef struct _drm_i915_vbl_swap {
+	struct list_head head;
+	drm_drawable_t drw_id;
+	unsigned int pipe;
+	unsigned int sequence;
+} drm_i915_vbl_swap_t;
+
 typedef struct drm_i915_private {
 	drm_local_map_t *sarea;
 	drm_local_map_t *mmio_map;
@@ -83,6 +92,7 @@ typedef struct drm_i915_private {
 	dma_addr_t dma_status_page;
 	unsigned long counter;
 
+	unsigned int cpp;
 	int back_offset;
 	int front_offset;
 	int current_page;
@@ -98,6 +108,10 @@ typedef struct drm_i915_private {
 	struct mem_block *agp_heap;
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int vblank_pipe;
+
+	spinlock_t swaps_lock;
+	drm_i915_vbl_swap_t vbl_swaps;
+	unsigned int swaps_pending;
 } drm_i915_private_t;
 
 extern drm_ioctl_desc_t i915_ioctls[];
@@ -117,12 +131,14 @@ extern int i915_irq_emit(DRM_IOCTL_ARGS);
 extern int i915_irq_wait(DRM_IOCTL_ARGS);
 
 extern int i915_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence);
+extern int i915_driver_vblank_wait2(drm_device_t *dev, unsigned int *sequence);
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i915_driver_irq_preinstall(drm_device_t * dev);
 extern void i915_driver_irq_postinstall(drm_device_t * dev);
 extern void i915_driver_irq_uninstall(drm_device_t * dev);
 extern int i915_vblank_pipe_set(DRM_IOCTL_ARGS);
 extern int i915_vblank_pipe_get(DRM_IOCTL_ARGS);
+extern int i915_vblank_swap(DRM_IOCTL_ARGS);
 
 /* i915_mem.c */
 extern int i915_mem_alloc(DRM_IOCTL_ARGS);
@@ -255,6 +271,10 @@ extern int i915_wait_ring(drm_device_t * dev, int n, const char *caller);
 #define GFX_OP_DRAWRECT_INFO     ((0x3<<29)|(0x1d<<24)|(0x80<<16)|(0x3))
 
 #define GFX_OP_DRAWRECT_INFO_I965 ((0x7900<<16)|0x2)
+
+#define XY_SRC_COPY_BLT_CMD		((2<<29)|(0x53<<22)|6)
+#define XY_SRC_COPY_BLT_WRITE_ALPHA	(1<<21)
+#define XY_SRC_COPY_BLT_WRITE_RGB	(1<<20)
 
 #define MI_BATCH_BUFFER 	((0x30<<23)|1)
 #define MI_BATCH_BUFFER_START 	(0x31<<23)

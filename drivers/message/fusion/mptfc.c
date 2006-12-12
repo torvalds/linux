@@ -96,6 +96,10 @@ static int mptfc_qcmd(struct scsi_cmnd *SCpnt,
 static void mptfc_target_destroy(struct scsi_target *starget);
 static void mptfc_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout);
 static void __devexit mptfc_remove(struct pci_dev *pdev);
+static int mptfc_abort(struct scsi_cmnd *SCpnt);
+static int mptfc_dev_reset(struct scsi_cmnd *SCpnt);
+static int mptfc_bus_reset(struct scsi_cmnd *SCpnt);
+static int mptfc_host_reset(struct scsi_cmnd *SCpnt);
 
 static struct scsi_host_template mptfc_driver_template = {
 	.module				= THIS_MODULE,
@@ -110,10 +114,10 @@ static struct scsi_host_template mptfc_driver_template = {
 	.target_destroy			= mptfc_target_destroy,
 	.slave_destroy			= mptscsih_slave_destroy,
 	.change_queue_depth 		= mptscsih_change_queue_depth,
-	.eh_abort_handler		= mptscsih_abort,
-	.eh_device_reset_handler	= mptscsih_dev_reset,
-	.eh_bus_reset_handler		= mptscsih_bus_reset,
-	.eh_host_reset_handler		= mptscsih_host_reset,
+	.eh_abort_handler		= mptfc_abort,
+	.eh_device_reset_handler	= mptfc_dev_reset,
+	.eh_bus_reset_handler		= mptfc_bus_reset,
+	.eh_host_reset_handler		= mptfc_host_reset,
 	.bios_param			= mptscsih_bios_param,
 	.can_queue			= MPT_FC_CAN_QUEUE,
 	.this_id			= -1,
@@ -170,6 +174,77 @@ static struct fc_function_template mptfc_transport_functions = {
 	.show_host_port_state = 1,
 	.show_host_symbolic_name = 1,
 };
+
+static int
+mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
+			  int (*func)(struct scsi_cmnd *SCpnt),
+			  const char *caller)
+{
+	struct scsi_device	*sdev = SCpnt->device;
+	struct Scsi_Host	*shost = sdev->host;
+	struct fc_rport		*rport = starget_to_rport(scsi_target(sdev));
+	unsigned long		flags;
+	int			ready;
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	while ((ready = fc_remote_port_chkready(rport) >> 16) == DID_IMM_RETRY) {
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		dfcprintk ((MYIOC_s_INFO_FMT
+			"mptfc_block_error_handler.%d: %d:%d, port status is "
+			"DID_IMM_RETRY, deferring %s recovery.\n",
+			((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
+			((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
+			SCpnt->device->id,SCpnt->device->lun,caller));
+		msleep(1000);
+		spin_lock_irqsave(shost->host_lock, flags);
+	}
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	if (ready == DID_NO_CONNECT || !SCpnt->device->hostdata) {
+		dfcprintk ((MYIOC_s_INFO_FMT
+			"%s.%d: %d:%d, failing recovery, "
+			"port state %d, vdev %p.\n", caller,
+			((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
+			((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
+			SCpnt->device->id,SCpnt->device->lun,ready,
+			SCpnt->device->hostdata));
+		return FAILED;
+	}
+	dfcprintk ((MYIOC_s_INFO_FMT
+		"%s.%d: %d:%d, executing recovery.\n", caller,
+		((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
+		((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
+		SCpnt->device->id,SCpnt->device->lun));
+	return (*func)(SCpnt);
+}
+
+static int
+mptfc_abort(struct scsi_cmnd *SCpnt)
+{
+	return
+	    mptfc_block_error_handler(SCpnt, mptscsih_abort, __FUNCTION__);
+}
+
+static int
+mptfc_dev_reset(struct scsi_cmnd *SCpnt)
+{
+	return
+	    mptfc_block_error_handler(SCpnt, mptscsih_dev_reset, __FUNCTION__);
+}
+
+static int
+mptfc_bus_reset(struct scsi_cmnd *SCpnt)
+{
+	return
+	    mptfc_block_error_handler(SCpnt, mptscsih_bus_reset, __FUNCTION__);
+}
+
+static int
+mptfc_host_reset(struct scsi_cmnd *SCpnt)
+{
+	return
+	    mptfc_block_error_handler(SCpnt, mptscsih_host_reset, __FUNCTION__);
+}
 
 static void
 mptfc_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
@@ -562,6 +637,12 @@ mptfc_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 		return 0;
 	}
 
+	if (!SCpnt->device->hostdata) {	/* vdev */
+		SCpnt->result = DID_NO_CONNECT << 16;
+		done(SCpnt);
+		return 0;
+	}
+
 	/* dd_data is null until finished adding target */
 	ri = *((struct mptfc_rport_info **)rport->dd_data);
 	if (unlikely(!ri)) {
@@ -937,9 +1018,10 @@ mptfc_init_host_attr(MPT_ADAPTER *ioc,int portnum)
 }
 
 static void
-mptfc_setup_reset(void *arg)
+mptfc_setup_reset(struct work_struct *work)
 {
-	MPT_ADAPTER		*ioc = (MPT_ADAPTER *)arg;
+	MPT_ADAPTER		*ioc =
+		container_of(work, MPT_ADAPTER, fc_setup_reset_work);
 	u64			pn;
 	struct mptfc_rport_info *ri;
 
@@ -962,9 +1044,10 @@ mptfc_setup_reset(void *arg)
 }
 
 static void
-mptfc_rescan_devices(void *arg)
+mptfc_rescan_devices(struct work_struct *work)
 {
-	MPT_ADAPTER		*ioc = (MPT_ADAPTER *)arg;
+	MPT_ADAPTER		*ioc =
+		container_of(work, MPT_ADAPTER, fc_rescan_work);
 	int			ii;
 	u64			pn;
 	struct mptfc_rport_info *ri;
@@ -1073,8 +1156,8 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
         }
 
 	spin_lock_init(&ioc->fc_rescan_work_lock);
-	INIT_WORK(&ioc->fc_rescan_work, mptfc_rescan_devices,(void *)ioc);
-	INIT_WORK(&ioc->fc_setup_reset_work, mptfc_setup_reset, (void *)ioc);
+	INIT_WORK(&ioc->fc_rescan_work, mptfc_rescan_devices);
+	INIT_WORK(&ioc->fc_setup_reset_work, mptfc_setup_reset);
 
 	spin_lock_irqsave(&ioc->FreeQlock, flags);
 
@@ -1312,8 +1395,7 @@ mptfc_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- *	mptfc_init - Register MPT adapter(s) as SCSI host(s) with
- *	linux scsi mid-layer.
+ *	mptfc_init - Register MPT adapter(s) as SCSI host(s) with SCSI mid-layer.
  *
  *	Returns 0 for success, non-zero for failure.
  */
@@ -1357,7 +1439,7 @@ mptfc_init(void)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- *	mptfc_remove - Removed fc infrastructure for devices
+ *	mptfc_remove - Remove fc infrastructure for devices
  *	@pdev: Pointer to pci_dev structure
  *
  */

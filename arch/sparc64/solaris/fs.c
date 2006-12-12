@@ -449,7 +449,7 @@ asmlinkage int solaris_fstatvfs(unsigned int fd, u32 buf)
 	error = -EBADF;
 	file = fget(fd);
 	if (file) {
-		error = report_statvfs(file->f_vfsmnt, file->f_dentry->d_inode, buf);
+		error = report_statvfs(file->f_path.mnt, file->f_path.dentry->d_inode, buf);
 		fput(file);
 	}
 
@@ -481,7 +481,7 @@ asmlinkage int solaris_fstatvfs64(unsigned int fd, u32 buf)
 	file = fget(fd);
 	if (file) {
 		lock_kernel();
-		error = report_statvfs64(file->f_vfsmnt, file->f_dentry->d_inode, buf);
+		error = report_statvfs64(file->f_path.mnt, file->f_path.dentry->d_inode, buf);
 		unlock_kernel();
 		fput(file);
 	}

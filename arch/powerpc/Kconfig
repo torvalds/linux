@@ -41,6 +41,14 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default y
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default y if 64BIT
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -99,6 +107,11 @@ config AUDIT_ARCH
 	bool
 	default y
 
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
 config DEFAULT_UIMAGE
 	bool
 	help
@@ -112,7 +125,7 @@ choice
 	default 6xx
 
 config CLASSIC32
-	bool "6xx/7xx/74xx"
+	bool "52xx/6xx/7xx/74xx"
 	select PPC_FPU
 	select 6xx
 	help
@@ -121,16 +134,18 @@ config CLASSIC32
 	  versions (821, 823, 850, 855, 860, 52xx, 82xx, 83xx), the AMCC
 	  embedded versions (403 and 405) and the high end 64 bit Power
 	  processors (POWER 3, POWER4, and IBM PPC970 also known as G5).
+
+	  This option is the catch-all for 6xx types, including some of the
+	  embedded versions.  Unless there is see an option for the specific
+	  chip family you are using, you want this option.
 	  
-	  Unless you are building a kernel for one of the embedded processor
-	  systems, 64 bit IBM RS/6000 or an Apple G5, choose 6xx.
+	  You do not want this if you are building a kernel for a 64 bit
+	  IBM RS/6000 or an Apple G5, choose 6xx.
+	  
+	  If unsure, select this option
+	  
 	  Note that the kernel runs in 32-bit mode even on 64-bit chips.
 
-config PPC_52xx
-	bool "Freescale 52xx"
-	select 6xx
-	select PPC_FPU
-	
 config PPC_82xx
 	bool "Freescale 82xx"
 	select 6xx
@@ -160,9 +175,11 @@ config PPC_86xx
 
 config 40x
 	bool "AMCC 40x"
+	select PPC_DCR_NATIVE
 
 config 44x
 	bool "AMCC 44x"
+	select PPC_DCR_NATIVE
 
 config 8xx
 	bool "Freescale 8xx"
@@ -208,6 +225,24 @@ config PPC_FPU
 	bool
 	default y if PPC64
 
+config PPC_DCR_NATIVE
+	bool
+	default n
+
+config PPC_DCR_MMIO
+	bool
+	default n
+
+config PPC_DCR
+	bool
+	depends on PPC_DCR_NATIVE || PPC_DCR_MMIO
+	default y
+
+config PPC_OF_PLATFORM_PCI
+	bool
+	depends on PPC64 # not supported on 32 bits yet
+	default n
+
 config BOOKE
 	bool
 	depends on E200 || E500
@@ -227,6 +262,7 @@ config PTE_64BIT
 config PHYS_64BIT
 	bool 'Large physical address support' if E500
 	depends on 44x || E500
+	select RESOURCES_64BIT
 	default y if 44x
 	---help---
 	  This option enables kernel support for larger than 32-bit physical
@@ -369,11 +405,13 @@ config PPC_PSERIES
 	select PPC_RTAS
 	select RTAS_ERROR_LOGGING
 	select PPC_UDBG_16550
+	select PPC_NATIVE
 	default y
 
 config PPC_ISERIES
 	bool "IBM Legacy iSeries"
 	depends on PPC_MULTIPLATFORM && PPC64
+	select PPC_INDIRECT_IO
 
 config PPC_CHRP
 	bool "Common Hardware Reference Platform (CHRP) based machines"
@@ -384,7 +422,27 @@ config PPC_CHRP
 	select PPC_RTAS
 	select PPC_MPC106
 	select PPC_UDBG_16550
+	select PPC_NATIVE
 	default y
+
+config PPC_MPC52xx
+	bool
+	default n
+
+config PPC_EFIKA
+	bool "bPlan Efika 5k2. MPC5200B based computer"
+	depends on PPC_MULTIPLATFORM && PPC32
+	select PPC_RTAS
+	select RTAS_PROC
+	select PPC_MPC52xx
+	select PPC_NATIVE
+	default y
+
+config PPC_LITE5200
+	bool "Freescale Lite5200 Eval Board"
+	depends on PPC_MULTIPLATFORM && PPC32
+	select PPC_MPC52xx
+	default n
 
 config PPC_PMAC
 	bool "Apple PowerMac based machines"
@@ -392,6 +450,7 @@ config PPC_PMAC
 	select MPIC
 	select PPC_INDIRECT_PCI if PPC32
 	select PPC_MPC106 if PPC32
+	select PPC_NATIVE
 	default y
 
 config PPC_PMAC64
@@ -411,6 +470,7 @@ config PPC_PREP
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
 	select PPC_UDBG_16550
+	select PPC_NATIVE
 	default y
 
 config PPC_MAPLE
@@ -422,10 +482,12 @@ config PPC_MAPLE
 	select GENERIC_TBSYNC
 	select PPC_UDBG_16550
 	select PPC_970_NAP
+	select PPC_NATIVE
+	select PPC_RTAS
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
-	  For more informations, refer to <http://www.970eval.com>
+	  For more information, refer to <http://www.970eval.com>
 
 config PPC_PASEMI
 	depends on PPC_MULTIPLATFORM && PPC64
@@ -434,6 +496,7 @@ config PPC_PASEMI
 	select MPIC
 	select PPC_UDBG_16550
 	select GENERIC_TBSYNC
+	select PPC_NATIVE
 	help
 	  This option enables support for PA Semi's PWRficient line
 	  of SoC processors, including PA6T-1682M
@@ -445,6 +508,11 @@ config PPC_CELL
 config PPC_CELL_NATIVE
 	bool
 	select PPC_CELL
+	select PPC_DCR_MMIO
+	select PPC_OF_PLATFORM_PCI
+	select PPC_INDIRECT_IO
+	select PPC_NATIVE
+	select MPIC
 	default n
 
 config PPC_IBM_CELL_BLADE
@@ -455,6 +523,22 @@ config PPC_IBM_CELL_BLADE
 	select MMIO_NVRAM
 	select PPC_UDBG_16550
 	select UDBG_RTAS_CONSOLE
+
+config PPC_PS3
+	bool "Sony PS3"
+	depends on PPC_MULTIPLATFORM && PPC64
+	select PPC_CELL
+	help
+	  This option enables support for the Sony PS3 game console
+	  and other platforms using the PS3 hypervisor.
+
+config PPC_NATIVE
+	bool
+	depends on PPC_MULTIPLATFORM
+	help
+	  Support for running natively on the hardware, i.e. without
+	  a hypervisor. This option is not user-selectable but should
+	  be selected by all platforms that need it.
 
 config UDBG_RTAS_CONSOLE
 	bool "RTAS based debug console"
@@ -514,6 +598,15 @@ config PPC_MPC106
 	default n
 
 config PPC_970_NAP
+	bool
+	default n
+
+config PPC_INDIRECT_IO
+	bool
+	select GENERIC_IOMAP
+	default n
+
+config GENERIC_IOMAP
 	bool
 	default n
 
@@ -594,12 +687,6 @@ config TAU_AVERAGE
 
 	  If in doubt, say N here.
 
-config PPC_TODC
-	depends on EMBEDDED6xx
-	bool "Generic Time-of-day Clock (TODC) support"
-	---help---
-	  This adds support for many TODC/RTC chips.
-
 endmenu
 
 source arch/powerpc/platforms/embedded6xx/Kconfig
@@ -610,6 +697,7 @@ source arch/powerpc/platforms/85xx/Kconfig
 source arch/powerpc/platforms/86xx/Kconfig
 source arch/powerpc/platforms/8xx/Kconfig
 source arch/powerpc/platforms/cell/Kconfig
+source arch/powerpc/platforms/ps3/Kconfig
 
 menu "Kernel options"
 
@@ -632,7 +720,7 @@ config FORCE_MAX_ZONEORDER
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx || E200 || E500
+	depends on 4xx || 8xx || E200 || PPC_83xx || E500
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the
@@ -740,7 +828,7 @@ config ARCH_SPARSEMEM_ENABLE
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
-	depends on SMP && PPC_PSERIES
+	depends on (SMP && PPC_PSERIES) || PPC_CELL
 
 config ARCH_POPULATES_NODE_MAP
 	def_bool y
@@ -750,6 +838,15 @@ source "mm/Kconfig"
 config ARCH_MEMORY_PROBE
 	def_bool y
 	depends on MEMORY_HOTPLUG
+
+# Some NUMA nodes have memory ranges that span
+# other nodes.  Even though a pfn is valid and
+# between a node's start and end pfns, it may not
+# reside on that node.  See memmap_init_zone()
+# for details.
+config NODES_SPAN_OTHER_NODES
+	def_bool y
+	depends on NEED_MULTIPLE_NODES
 
 config PPC_64K_PAGES
 	bool "64k page size"
@@ -781,7 +878,6 @@ source "arch/powerpc/platforms/prep/Kconfig"
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
-	depends on !PPC_ISERIES
 
 config CMDLINE
 	string "Initial kernel command string"
@@ -871,7 +967,7 @@ config MCA
 
 config PCI
 	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx \
-		|| PPC_MPC52xx || (EMBEDDED && PPC_ISERIES) || MPC7448HPC2
+		|| PPC_MPC52xx || (EMBEDDED && PPC_ISERIES) || MPC7448HPC2 || PPC_PS3
 	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS

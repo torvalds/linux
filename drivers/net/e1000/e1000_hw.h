@@ -128,11 +128,13 @@ typedef enum {
 /* PCI bus widths */
 typedef enum {
     e1000_bus_width_unknown = 0,
+    /* These PCIe values should literally match the possible return values
+     * from config space */
+    e1000_bus_width_pciex_1 = 1,
+    e1000_bus_width_pciex_2 = 2,
+    e1000_bus_width_pciex_4 = 4,
     e1000_bus_width_32,
     e1000_bus_width_64,
-    e1000_bus_width_pciex_1,
-    e1000_bus_width_pciex_2,
-    e1000_bus_width_pciex_4,
     e1000_bus_width_reserved
 } e1000_bus_width;
 
@@ -326,6 +328,7 @@ int32_t e1000_phy_hw_reset(struct e1000_hw *hw);
 int32_t e1000_phy_reset(struct e1000_hw *hw);
 int32_t e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
 int32_t e1000_validate_mdi_setting(struct e1000_hw *hw);
+
 void e1000_phy_powerdown_workaround(struct e1000_hw *hw);
 
 /* EEPROM Functions */
@@ -390,7 +393,6 @@ int32_t e1000_mng_write_dhcp_info(struct e1000_hw *hw, uint8_t *buffer,
                                   uint16_t length);
 boolean_t e1000_check_mng_mode(struct e1000_hw *hw);
 boolean_t e1000_enable_tx_pkt_filtering(struct e1000_hw *hw);
-
 int32_t e1000_read_eeprom(struct e1000_hw *hw, uint16_t reg, uint16_t words, uint16_t *data);
 int32_t e1000_validate_eeprom_checksum(struct e1000_hw *hw);
 int32_t e1000_update_eeprom_checksum(struct e1000_hw *hw);
@@ -473,6 +475,7 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
 #define E1000_DEV_ID_82571EB_FIBER       0x105F
 #define E1000_DEV_ID_82571EB_SERDES      0x1060
 #define E1000_DEV_ID_82571EB_QUAD_COPPER 0x10A4
+#define E1000_DEV_ID_82571EB_QUAD_COPPER_LOWPROFILE  0x10BC
 #define E1000_DEV_ID_82572EI_COPPER      0x107D
 #define E1000_DEV_ID_82572EI_FIBER       0x107E
 #define E1000_DEV_ID_82572EI_SERDES      0x107F
@@ -490,6 +493,8 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
 #define E1000_DEV_ID_ICH8_IGP_AMT        0x104A
 #define E1000_DEV_ID_ICH8_IGP_C          0x104B
 #define E1000_DEV_ID_ICH8_IFE            0x104C
+#define E1000_DEV_ID_ICH8_IFE_GT         0x10C4
+#define E1000_DEV_ID_ICH8_IFE_G          0x10C5
 #define E1000_DEV_ID_ICH8_IGP_M          0x104D
 
 
@@ -576,6 +581,7 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
  * E1000_RAR_ENTRIES - 1 multicast addresses.
  */
 #define E1000_RAR_ENTRIES 15
+
 #define E1000_RAR_ENTRIES_ICH8LAN  6
 
 #define MIN_NUMBER_OF_DESCRIPTORS  8
@@ -1335,9 +1341,9 @@ struct e1000_hw_stats {
     uint64_t gotch;
     uint64_t rnbc;
     uint64_t ruc;
+    uint64_t rfc;
     uint64_t roc;
     uint64_t rlerrc;
-    uint64_t rfc;
     uint64_t rjc;
     uint64_t mgprc;
     uint64_t mgpdc;
@@ -1577,8 +1583,8 @@ struct e1000_hw {
 #define E1000_HICR_FW_RESET  0xC0
 
 #define E1000_SHADOW_RAM_WORDS     2048
-#define E1000_ICH8_NVM_SIG_WORD    0x13
-#define E1000_ICH8_NVM_SIG_MASK    0xC0
+#define E1000_ICH_NVM_SIG_WORD     0x13
+#define E1000_ICH_NVM_SIG_MASK     0xC0
 
 /* EEPROM Read */
 #define E1000_EERD_START      0x00000001 /* Start Read */
@@ -1961,9 +1967,9 @@ struct e1000_hw {
 #define E1000_RXDCTL_GRAN    0x01000000 /* RXDCTL Granularity */
 
 /* Transmit Descriptor Control */
-#define E1000_TXDCTL_PTHRESH 0x000000FF /* TXDCTL Prefetch Threshold */
-#define E1000_TXDCTL_HTHRESH 0x0000FF00 /* TXDCTL Host Threshold */
-#define E1000_TXDCTL_WTHRESH 0x00FF0000 /* TXDCTL Writeback Threshold */
+#define E1000_TXDCTL_PTHRESH 0x0000003F /* TXDCTL Prefetch Threshold */
+#define E1000_TXDCTL_HTHRESH 0x00003F00 /* TXDCTL Host Threshold */
+#define E1000_TXDCTL_WTHRESH 0x003F0000 /* TXDCTL Writeback Threshold */
 #define E1000_TXDCTL_GRAN    0x01000000 /* TXDCTL Granularity */
 #define E1000_TXDCTL_LWTHRESH 0xFE000000 /* TXDCTL Low Threshold */
 #define E1000_TXDCTL_FULL_TX_DESC_WB 0x01010000 /* GRAN=1, WTHRESH=1 */
@@ -3172,6 +3178,7 @@ struct e1000_host_command_info {
 #define IGP3_VR_CTRL \
         PHY_REG(776, 18) /* Voltage regulator control register */
 #define IGP3_VR_CTRL_MODE_SHUT       0x0200 /* Enter powerdown, shutdown VRs */
+#define IGP3_VR_CTRL_MODE_MASK       0x0300 /* Shutdown VR Mask */
 
 #define IGP3_CAPABILITY \
         PHY_REG(776, 19) /* IGP3 Capability Register */
@@ -3256,41 +3263,40 @@ struct e1000_host_command_info {
 #define IFE_PSCL_PROBE_LEDS_OFF              0x0006  /* Force LEDs 0 and 2 off */
 #define IFE_PSCL_PROBE_LEDS_ON               0x0007  /* Force LEDs 0 and 2 on */
 
-#define ICH8_FLASH_COMMAND_TIMEOUT           5000    /* 5000 uSecs - adjusted */
-#define ICH8_FLASH_ERASE_TIMEOUT             3000000 /* Up to 3 seconds - worst case */
-#define ICH8_FLASH_CYCLE_REPEAT_COUNT        10      /* 10 cycles */
-#define ICH8_FLASH_SEG_SIZE_256              256
-#define ICH8_FLASH_SEG_SIZE_4K               4096
-#define ICH9_FLASH_SEG_SIZE_8K               8192
-#define ICH8_FLASH_SEG_SIZE_64K              65536
+#define ICH_FLASH_COMMAND_TIMEOUT            5000    /* 5000 uSecs - adjusted */
+#define ICH_FLASH_ERASE_TIMEOUT              3000000 /* Up to 3 seconds - worst case */
+#define ICH_FLASH_CYCLE_REPEAT_COUNT         10      /* 10 cycles */
+#define ICH_FLASH_SEG_SIZE_256               256
+#define ICH_FLASH_SEG_SIZE_4K                4096
+#define ICH_FLASH_SEG_SIZE_64K               65536
 
-#define ICH8_CYCLE_READ                      0x0
-#define ICH8_CYCLE_RESERVED                  0x1
-#define ICH8_CYCLE_WRITE                     0x2
-#define ICH8_CYCLE_ERASE                     0x3
+#define ICH_CYCLE_READ                       0x0
+#define ICH_CYCLE_RESERVED                   0x1
+#define ICH_CYCLE_WRITE                      0x2
+#define ICH_CYCLE_ERASE                      0x3
 
-#define ICH8_FLASH_GFPREG   0x0000
-#define ICH8_FLASH_HSFSTS   0x0004
-#define ICH8_FLASH_HSFCTL   0x0006
-#define ICH8_FLASH_FADDR    0x0008
-#define ICH8_FLASH_FDATA0   0x0010
-#define ICH8_FLASH_FRACC    0x0050
-#define ICH8_FLASH_FREG0    0x0054
-#define ICH8_FLASH_FREG1    0x0058
-#define ICH8_FLASH_FREG2    0x005C
-#define ICH8_FLASH_FREG3    0x0060
-#define ICH8_FLASH_FPR0     0x0074
-#define ICH8_FLASH_FPR1     0x0078
-#define ICH8_FLASH_SSFSTS   0x0090
-#define ICH8_FLASH_SSFCTL   0x0092
-#define ICH8_FLASH_PREOP    0x0094
-#define ICH8_FLASH_OPTYPE   0x0096
-#define ICH8_FLASH_OPMENU   0x0098
+#define ICH_FLASH_GFPREG   0x0000
+#define ICH_FLASH_HSFSTS   0x0004
+#define ICH_FLASH_HSFCTL   0x0006
+#define ICH_FLASH_FADDR    0x0008
+#define ICH_FLASH_FDATA0   0x0010
+#define ICH_FLASH_FRACC    0x0050
+#define ICH_FLASH_FREG0    0x0054
+#define ICH_FLASH_FREG1    0x0058
+#define ICH_FLASH_FREG2    0x005C
+#define ICH_FLASH_FREG3    0x0060
+#define ICH_FLASH_FPR0     0x0074
+#define ICH_FLASH_FPR1     0x0078
+#define ICH_FLASH_SSFSTS   0x0090
+#define ICH_FLASH_SSFCTL   0x0092
+#define ICH_FLASH_PREOP    0x0094
+#define ICH_FLASH_OPTYPE   0x0096
+#define ICH_FLASH_OPMENU   0x0098
 
-#define ICH8_FLASH_REG_MAPSIZE      0x00A0
-#define ICH8_FLASH_SECTOR_SIZE      4096
-#define ICH8_GFPREG_BASE_MASK       0x1FFF
-#define ICH8_FLASH_LINEAR_ADDR_MASK 0x00FFFFFF
+#define ICH_FLASH_REG_MAPSIZE      0x00A0
+#define ICH_FLASH_SECTOR_SIZE      4096
+#define ICH_GFPREG_BASE_MASK       0x1FFF
+#define ICH_FLASH_LINEAR_ADDR_MASK 0x00FFFFFF
 
 /* ICH8 GbE Flash Hardware Sequencing Flash Status Register bit breakdown */
 /* Offset 04h HSFSTS */

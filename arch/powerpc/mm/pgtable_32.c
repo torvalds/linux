@@ -141,29 +141,19 @@ void pte_free(struct page *ptepage)
 	__free_page(ptepage);
 }
 
-#ifndef CONFIG_PHYS_64BIT
 void __iomem *
 ioremap(phys_addr_t addr, unsigned long size)
 {
 	return __ioremap(addr, size, _PAGE_NO_CACHE);
 }
-#else /* CONFIG_PHYS_64BIT */
-void __iomem *
-ioremap64(unsigned long long addr, unsigned long size)
-{
-	return __ioremap(addr, size, _PAGE_NO_CACHE);
-}
-EXPORT_SYMBOL(ioremap64);
-
-void __iomem *
-ioremap(phys_addr_t addr, unsigned long size)
-{
-	phys_addr_t addr64 = fixup_bigphys_addr(addr, size);
-
-	return ioremap64(addr64, size);
-}
-#endif /* CONFIG_PHYS_64BIT */
 EXPORT_SYMBOL(ioremap);
+
+void __iomem *
+ioremap_flags(phys_addr_t addr, unsigned long size, unsigned long flags)
+{
+	return __ioremap(addr, size, flags);
+}
+EXPORT_SYMBOL(ioremap_flags);
 
 void __iomem *
 __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
@@ -264,20 +254,7 @@ void iounmap(volatile void __iomem *addr)
 }
 EXPORT_SYMBOL(iounmap);
 
-void __iomem *ioport_map(unsigned long port, unsigned int len)
-{
-	return (void __iomem *) (port + _IO_BASE);
-}
-
-void ioport_unmap(void __iomem *addr)
-{
-	/* Nothing to do */
-}
-EXPORT_SYMBOL(ioport_map);
-EXPORT_SYMBOL(ioport_unmap);
-
-int
-map_page(unsigned long va, phys_addr_t pa, int flags)
+int map_page(unsigned long va, phys_addr_t pa, int flags)
 {
 	pmd_t *pd;
 	pte_t *pg;

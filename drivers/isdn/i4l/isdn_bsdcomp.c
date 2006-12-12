@@ -331,11 +331,9 @@ static void *bsd_alloc (struct isdn_ppp_comp_data *data)
 	 * Allocate the main control structure for this instance.
 	 */
 	maxmaxcode = MAXCODE(bits);
-	db = (struct bsd_db *) kmalloc (sizeof (struct bsd_db),GFP_KERNEL);
+	db = kzalloc (sizeof (struct bsd_db),GFP_KERNEL);
 	if (!db)
 		return NULL;
-
-	memset (db, 0, sizeof(struct bsd_db));
 
 	db->xmit = data->flags & IPPP_COMP_FLAG_XMIT;
 	decomp = db->xmit ? 0 : 1;

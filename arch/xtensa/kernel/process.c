@@ -1,4 +1,3 @@
-// TODO	verify coprocessor handling
 /*
  * arch/xtensa/kernel/process.c
  *
@@ -43,7 +42,7 @@
 #include <asm/irq.h>
 #include <asm/atomic.h>
 #include <asm/asm-offsets.h>
-#include <asm/coprocessor.h>
+#include <asm/regs.h>
 
 extern void ret_from_fork(void);
 
@@ -66,25 +65,6 @@ struct task_struct *current_set[NR_CPUS] = {&init_task, };
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
 
-
-#if XCHAL_CP_NUM > 0
-
-/*
- * Coprocessor ownership.
- */
-
-coprocessor_info_t coprocessor_info[] = {
-	{ 0, XTENSA_CPE_CP0_OFFSET },
-	{ 0, XTENSA_CPE_CP1_OFFSET },
-	{ 0, XTENSA_CPE_CP2_OFFSET },
-	{ 0, XTENSA_CPE_CP3_OFFSET },
-	{ 0, XTENSA_CPE_CP4_OFFSET },
-	{ 0, XTENSA_CPE_CP5_OFFSET },
-	{ 0, XTENSA_CPE_CP6_OFFSET },
-	{ 0, XTENSA_CPE_CP7_OFFSET },
-};
-
-#endif
 
 /*
  * Powermanagement idle function, if any is provided by the platform.
@@ -110,12 +90,10 @@ void cpu_idle(void)
 
 void exit_thread(void)
 {
-	release_coprocessors(current);	/* Empty macro if no CPs are defined */
 }
 
 void flush_thread(void)
 {
-	release_coprocessors(current);	/* Empty macro if no CPs are defined */
 }
 
 /*
@@ -183,36 +161,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 
 
 /*
- * Create a kernel thread
- */
-
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	long retval;
-	__asm__ __volatile__
-		("mov           a5, %4\n\t" /* preserve fn in a5 */
-		 "mov           a6, %3\n\t" /* preserve and setup arg in a6 */
-		 "movi		a2, %1\n\t" /* load __NR_clone for syscall*/
-		 "mov		a3, sp\n\t" /* sp check and sys_clone */
-		 "mov		a4, %5\n\t" /* load flags for syscall */
-		 "syscall\n\t"
-		 "beq		a3, sp, 1f\n\t" /* branch if parent */
-		 "callx4	a5\n\t"     /* call fn */
-		 "movi		a2, %2\n\t" /* load __NR_exit for syscall */
-		 "mov		a3, a6\n\t" /* load fn return value */
-		 "syscall\n"
-		 "1:\n\t"
-		 "mov		%0, a2\n\t" /* parent returns zero */
-		 :"=r" (retval)
-		 :"i" (__NR_clone), "i" (__NR_exit),
-		 "r" (arg), "r" (fn),
-		 "r" (flags | CLONE_VM)
-		 : "a2", "a3", "a4", "a5", "a6" );
-	return retval;
-}
-
-
-/*
  * These bracket the sleeping functions..
  */
 
@@ -275,7 +223,7 @@ void do_copy_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs,
 	 */
 
 	elfregs->pc		= regs->pc;
-	elfregs->ps		= (regs->ps & ~XCHAL_PS_EXCM_MASK);
+	elfregs->ps		= (regs->ps & ~(1 << PS_EXCM_BIT));
 	elfregs->exccause	= regs->exccause;
 	elfregs->excvaddr	= regs->excvaddr;
 	elfregs->windowbase	= regs->windowbase;
@@ -325,7 +273,7 @@ void do_restore_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs,
 	 */
 
 	regs->pc		= elfregs->pc;
-	regs->ps		= (elfregs->ps | XCHAL_PS_EXCM_MASK);
+	regs->ps		= (elfregs->ps | (1 << PS_EXCM_BIT));
 	regs->exccause		= elfregs->exccause;
 	regs->excvaddr		= elfregs->excvaddr;
 	regs->windowbase	= elfregs->windowbase;
@@ -459,16 +407,7 @@ int  do_restore_fpregs (elf_fpregset_t *fpregs, struct pt_regs *regs,
 int
 dump_task_fpu(struct pt_regs *regs, struct task_struct *task, elf_fpregset_t *r)
 {
-/* see asm/coprocessor.h for this magic number 16 */
-#if XTENSA_CP_EXTRA_SIZE > 16
-	do_save_fpregs (r, regs, task);
-
-	/*  For now, bit 16 means some extra state may be present:  */
-// FIXME!! need to track to return more accurate mask
-	return 0x10000 | XCHAL_CP_MASK;
-#else
 	return 0;	/* no coprocessors active on this processor */
-#endif
 }
 
 /*
@@ -483,3 +422,44 @@ int  dump_fpu(struct pt_regs *regs, elf_fpregset_t *r)
 {
 	return dump_task_fpu(regs, current, r);
 }
+
+asmlinkage
+long xtensa_clone(unsigned long clone_flags, unsigned long newsp,
+                  void __user *parent_tid, void *child_tls,
+                  void __user *child_tid, long a5,
+                  struct pt_regs *regs)
+{
+        if (!newsp)
+                newsp = regs->areg[1];
+        return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
+}
+
+/*
+ *  * xtensa_execve() executes a new program.
+ *   */
+
+asmlinkage
+long xtensa_execve(char __user *name, char __user * __user *argv,
+                   char __user * __user *envp,
+                   long a3, long a4, long a5,
+                   struct pt_regs *regs)
+{
+	long error;
+	char * filename;
+
+	filename = getname(name);
+	error = PTR_ERR(filename);
+	if (IS_ERR(filename))
+		goto out;
+	// FIXME: release coprocessor??
+	error = do_execve(filename, argv, envp, regs);
+	if (error == 0) {
+		task_lock(current);
+		current->ptrace &= ~PT_DTRACE;
+		task_unlock(current);
+	}
+	putname(filename);
+out:
+	return error;
+}
+

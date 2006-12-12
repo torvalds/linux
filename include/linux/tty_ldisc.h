@@ -59,7 +59,7 @@
  * 	low-level driver can "grab" an ioctl request before the line
  * 	discpline has a chance to see it.
  * 
- * void	(*set_termios)(struct tty_struct *tty, struct termios * old);
+ * void	(*set_termios)(struct tty_struct *tty, struct ktermios * old);
  *
  * 	This function notifies the line discpline that a change has
  * 	been made to the termios structure.
@@ -118,7 +118,7 @@ struct tty_ldisc {
 			 const unsigned char * buf, size_t nr);	
 	int	(*ioctl)(struct tty_struct * tty, struct file * file,
 			 unsigned int cmd, unsigned long arg);
-	void	(*set_termios)(struct tty_struct *tty, struct termios * old);
+	void	(*set_termios)(struct tty_struct *tty, struct ktermios * old);
 	unsigned int (*poll)(struct tty_struct *, struct file *,
 			     struct poll_table_struct *);
 	int	(*hangup)(struct tty_struct *tty);

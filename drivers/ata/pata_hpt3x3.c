@@ -23,7 +23,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt3x3"
-#define DRV_VERSION	"0.4.1"
+#define DRV_VERSION	"0.4.2"
 
 static int hpt3x3_probe_init(struct ata_port *ap)
 {
@@ -111,14 +111,16 @@ static struct scsi_host_template hpt3x3_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations hpt3x3_port_ops = {
@@ -157,6 +159,27 @@ static struct ata_port_operations hpt3x3_port_ops = {
 };
 
 /**
+ *	hpt3x3_init_chipset	-	chip setup
+ *	@dev: PCI device
+ *
+ *	Perform the setup required at boot and on resume.
+ */
+ 
+static void hpt3x3_init_chipset(struct pci_dev *dev)
+{
+	u16 cmd;
+	/* Initialize the board */
+	pci_write_config_word(dev, 0x80, 0x00);
+	/* Check if it is a 343 or a 363. 363 has COMMAND_MEMORY set */
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	if (cmd & PCI_COMMAND_MEMORY)
+		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0xF0);
+	else
+		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x20);
+}
+
+
+/**
  *	hpt3x3_init_one		-	Initialise an HPT343/363
  *	@dev: PCI device
  *	@id: Entry in match table
@@ -177,19 +200,16 @@ static int hpt3x3_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &hpt3x3_port_ops
 	};
 	static struct ata_port_info *port_info[2] = { &info, &info };
-	u16 cmd;
 
-	/* Initialize the board */
-	pci_write_config_word(dev, 0x80, 0x00);
-	/* Check if it is a 343 or a 363. 363 has COMMAND_MEMORY set */
-	pci_read_config_word(dev, PCI_COMMAND, &cmd);
-	if (cmd & PCI_COMMAND_MEMORY)
-		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0xF0);
-	else
-		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x20);
-
+	hpt3x3_init_chipset(dev);
 	/* Now kick off ATA set up */
 	return ata_pci_init_one(dev, port_info, 2);
+}
+
+static int hpt3x3_reinit_one(struct pci_dev *dev)
+{
+	hpt3x3_init_chipset(dev);
+	return ata_pci_device_resume(dev);
 }
 
 static const struct pci_device_id hpt3x3[] = {
@@ -202,7 +222,9 @@ static struct pci_driver hpt3x3_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= hpt3x3,
 	.probe 		= hpt3x3_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= hpt3x3_reinit_one,
 };
 
 static int __init hpt3x3_init(void)

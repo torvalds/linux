@@ -55,7 +55,7 @@ static void l7200_unmask_irq(unsigned int irq)
 	IRQ_ENABLE = 1 << irq;
 }
 
-static struct irqchip l7200_irq_chip = {
+static struct irq_chip l7200_irq_chip = {
 	.ack		= l7200_mask_irq,
 	.mask		= l7200_mask_irq,
 	.unmask		= l7200_unmask_irq
@@ -71,7 +71,7 @@ static void __init l7200_init_irq(void)
 	for (irq = 0; irq < NR_IRQS; irq++) {
 		set_irq_chip(irq, &l7200_irq_chip);
 		set_irq_flags(irq, IRQF_VALID);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 	}
 
 	init_FIQ();

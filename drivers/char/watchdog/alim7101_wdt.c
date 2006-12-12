@@ -77,7 +77,8 @@ static struct pci_dev *alim7101_pmu;
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+		 __stringify(CONFIG_WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	Whack the dog
@@ -414,6 +415,16 @@ err_out:
 
 module_init(alim7101_wdt_init);
 module_exit(alim7101_wdt_unload);
+
+static struct pci_device_id alim7101_pci_tbl[] __devinitdata = {
+	{ PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ }
+};
+
+MODULE_DEVICE_TABLE(pci, alim7101_pci_tbl);
 
 MODULE_AUTHOR("Steve Hill");
 MODULE_DESCRIPTION("ALi M7101 PMU Computer Watchdog Timer driver");

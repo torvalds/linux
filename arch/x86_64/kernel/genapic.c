@@ -33,7 +33,7 @@ extern struct genapic apic_flat;
 extern struct genapic apic_physflat;
 
 struct genapic *genapic = &apic_flat;
-
+struct genapic *genapic_force;
 
 /*
  * Check the APIC IDs in bios_cpu_apicid and choose the APIC mode.
@@ -45,6 +45,13 @@ void __init clustered_apic_check(void)
 	u8 id;
 	u8 cluster_cnt[NUM_APIC_CLUSTERS];
 	int max_apic = 0;
+
+	/* genapic selection can be forced because of certain quirks.
+	 */
+	if (genapic_force) {
+		genapic = genapic_force;
+		goto print;
+	}
 
 #if defined(CONFIG_ACPI)
 	/*

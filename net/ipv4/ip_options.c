@@ -443,7 +443,7 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 				opt->router_alert = optptr - iph;
 			break;
 		      case IPOPT_CIPSO:
-		        if (opt->cipso) {
+			if ((!skb && !capable(CAP_NET_RAW)) || opt->cipso) {
 				pp_ptr = optptr;
 				goto error;
 			}

@@ -334,12 +334,11 @@ static capidrv_plci *new_plci(capidrv_contr * card, int chan)
 {
 	capidrv_plci *plcip;
 
-	plcip = (capidrv_plci *) kmalloc(sizeof(capidrv_plci), GFP_ATOMIC);
+	plcip = kzalloc(sizeof(capidrv_plci), GFP_ATOMIC);
 
 	if (plcip == 0)
 		return NULL;
 
-	memset(plcip, 0, sizeof(capidrv_plci));
 	plcip->state = ST_PLCI_NONE;
 	plcip->plci = 0;
 	plcip->msgid = 0;
@@ -404,12 +403,11 @@ static inline capidrv_ncci *new_ncci(capidrv_contr * card,
 {
 	capidrv_ncci *nccip;
 
-	nccip = (capidrv_ncci *) kmalloc(sizeof(capidrv_ncci), GFP_ATOMIC);
+	nccip = kzalloc(sizeof(capidrv_ncci), GFP_ATOMIC);
 
 	if (nccip == 0)
 		return NULL;
 
-	memset(nccip, 0, sizeof(capidrv_ncci));
 	nccip->ncci = ncci;
 	nccip->state = ST_NCCI_NONE;
 	nccip->plcip = plcip;
@@ -1907,7 +1905,8 @@ static int if_readstat(u8 __user *buf, int len, int id, int channel)
 	}
 
 	for (p=buf, count=0; count < len; p++, count++) {
-		put_user(*card->q931_read++, p);
+		if (put_user(*card->q931_read++, p))
+			return -EFAULT;
 	        if (card->q931_read > card->q931_end)
 	                card->q931_read = card->q931_buf;
 	}
@@ -2004,12 +2003,11 @@ static int capidrv_addcontr(u16 contr, struct capi_profile *profp)
 		printk(KERN_WARNING "capidrv: (%s) Could not reserve module\n", id);
 		return -1;
 	}
-	if (!(card = (capidrv_contr *) kmalloc(sizeof(capidrv_contr), GFP_ATOMIC))) {
+	if (!(card = kzalloc(sizeof(capidrv_contr), GFP_ATOMIC))) {
 		printk(KERN_WARNING
 		 "capidrv: (%s) Could not allocate contr-struct.\n", id);
 		return -1;
 	}
-	memset(card, 0, sizeof(capidrv_contr));
 	card->owner = THIS_MODULE;
 	init_timer(&card->listentimer);
 	strcpy(card->name, id);

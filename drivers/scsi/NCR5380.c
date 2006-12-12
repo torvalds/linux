@@ -849,7 +849,7 @@ static int __devinit NCR5380_init(struct Scsi_Host *instance, int flags)
 	hostdata->issue_queue = NULL;
 	hostdata->disconnected_queue = NULL;
 	
-	INIT_WORK(&hostdata->coroutine, NCR5380_main, hostdata);
+	INIT_DELAYED_WORK(&hostdata->coroutine, NCR5380_main);
 	
 #ifdef NCR5380_STATS
 	for (i = 0; i < 8; ++i) {
@@ -1016,7 +1016,7 @@ static int NCR5380_queue_command(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 
 	/* Run the coroutine if it isn't already running. */
 	/* Kick off command processing */
-	schedule_work(&hostdata->coroutine);
+	schedule_delayed_work(&hostdata->coroutine, 0);
 	return 0;
 }
 
@@ -1033,9 +1033,10 @@ static int NCR5380_queue_command(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
  *	host lock and called routines may take the isa dma lock.
  */
 
-static void NCR5380_main(void *p)
+static void NCR5380_main(struct work_struct *work)
 {
-	struct NCR5380_hostdata *hostdata = p;
+	struct NCR5380_hostdata *hostdata =
+		container_of(work, struct NCR5380_hostdata, coroutine.work);
 	struct Scsi_Host *instance = hostdata->host;
 	Scsi_Cmnd *tmp, *prev;
 	int done;
@@ -1221,7 +1222,7 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 		}	/* if BASR_IRQ */
 		spin_unlock_irqrestore(instance->host_lock, flags);
 		if(!done)
-			schedule_work(&hostdata->coroutine);
+			schedule_delayed_work(&hostdata->coroutine, 0);
 	} while (!done);
 	return IRQ_HANDLED;
 }

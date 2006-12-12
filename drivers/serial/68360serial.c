@@ -1523,7 +1523,7 @@ static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 
 /* FIX UP modem control here someday......
 */
-static void rs_360_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void rs_360_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	ser_info_t *info = (ser_info_t *)tty->driver_data;
 

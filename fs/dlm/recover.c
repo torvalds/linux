@@ -252,6 +252,7 @@ static void recover_list_clear(struct dlm_ls *ls)
 	spin_lock(&ls->ls_recover_list_lock);
 	list_for_each_entry_safe(r, s, &ls->ls_recover_list, res_recover_list) {
 		list_del_init(&r->res_recover_list);
+		r->res_recover_locks_count = 0;
 		dlm_put_rsb(r);
 		ls->ls_recover_list_count--;
 	}

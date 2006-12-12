@@ -994,7 +994,7 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 	if (cmdbuf.size) {
 		kcmd_addr = drm_alloc(cmdbuf.size * 8, DRM_MEM_DRIVER);
 		if (kcmd_addr == NULL)
-			return ENOMEM;
+			return DRM_ERR(ENOMEM);
 
 		if (DRM_COPY_FROM_USER(kcmd_addr, cmdbuf.cmd_addr,
 				       cmdbuf.size * 8))

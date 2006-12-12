@@ -189,8 +189,7 @@ static struct serio_driver tw_drv = {
 
 static int __init tw_init(void)
 {
-	serio_register_driver(&tw_drv);
-	return 0;
+	return serio_register_driver(&tw_drv);
 }
 
 static void __exit tw_exit(void)

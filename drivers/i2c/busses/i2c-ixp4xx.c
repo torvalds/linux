@@ -91,7 +91,7 @@ static int ixp4xx_i2c_remove(struct platform_device *plat_dev)
 
 	platform_set_drvdata(plat_dev, NULL);
 
-	i2c_bit_del_bus(&drv_data->adapter);
+	i2c_del_adapter(&drv_data->adapter);
 
 	kfree(drv_data);
 
@@ -137,7 +137,8 @@ static int ixp4xx_i2c_probe(struct platform_device *plat_dev)
 	gpio_line_set(gpio->scl_pin, 0);
 	gpio_line_set(gpio->sda_pin, 0);
 
-	if ((err = i2c_bit_add_bus(&drv_data->adapter) != 0)) {
+	err = i2c_bit_add_bus(&drv_data->adapter);
+	if (err) {
 		printk(KERN_ERR "ERROR: Could not install %s\n", plat_dev->dev.bus_id);
 
 		kfree(drv_data);

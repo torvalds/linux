@@ -220,11 +220,8 @@ static void account_process_time(struct pt_regs *regs)
  */
 struct cpu_purr_data {
 	int	initialized;			/* thread is running */
-	u64	tb0;			/* timebase at origin time */
-	u64	purr0;			/* PURR at origin time */
 	u64	tb;			/* last TB value read */
 	u64	purr;			/* last PURR value read */
-	u64	stolen;			/* stolen time so far */
 	spinlock_t lock;
 };
 
@@ -234,10 +231,8 @@ static void snapshot_tb_and_purr(void *data)
 {
 	struct cpu_purr_data *p = &__get_cpu_var(cpu_purr_data);
 
-	p->tb0 = mftb();
-	p->purr0 = mfspr(SPRN_PURR);
-	p->tb = p->tb0;
-	p->purr = 0;
+	p->tb = mftb();
+	p->purr = mfspr(SPRN_PURR);
 	wmb();
 	p->initialized = 1;
 }
@@ -258,37 +253,24 @@ void snapshot_timebases(void)
 
 void calculate_steal_time(void)
 {
-	u64 tb, purr, t0;
+	u64 tb, purr;
 	s64 stolen;
-	struct cpu_purr_data *p0, *pme, *phim;
-	int cpu;
+	struct cpu_purr_data *pme;
 
 	if (!cpu_has_feature(CPU_FTR_PURR))
 		return;
-	cpu = smp_processor_id();
-	pme = &per_cpu(cpu_purr_data, cpu);
+	pme = &per_cpu(cpu_purr_data, smp_processor_id());
 	if (!pme->initialized)
 		return;		/* this can happen in early boot */
-	p0 = &per_cpu(cpu_purr_data, cpu & ~1);
-	phim = &per_cpu(cpu_purr_data, cpu ^ 1);
-	spin_lock(&p0->lock);
+	spin_lock(&pme->lock);
 	tb = mftb();
-	purr = mfspr(SPRN_PURR) - pme->purr0;
-	if (!phim->initialized || !cpu_online(cpu ^ 1)) {
-		stolen = (tb - pme->tb) - (purr - pme->purr);
-	} else {
-		t0 = pme->tb0;
-		if (phim->tb0 < t0)
-			t0 = phim->tb0;
-		stolen = phim->tb - t0 - phim->purr - purr - p0->stolen;
-	}
-	if (stolen > 0) {
+	purr = mfspr(SPRN_PURR);
+	stolen = (tb - pme->tb) - (purr - pme->purr);
+	if (stolen > 0)
 		account_steal_time(current, stolen);
-		p0->stolen += stolen;
-	}
 	pme->tb = tb;
 	pme->purr = purr;
-	spin_unlock(&p0->lock);
+	spin_unlock(&pme->lock);
 }
 
 /*
@@ -297,30 +279,17 @@ void calculate_steal_time(void)
  */
 static void snapshot_purr(void)
 {
-	int cpu;
-	u64 purr;
-	struct cpu_purr_data *p0, *pme, *phim;
+	struct cpu_purr_data *pme;
 	unsigned long flags;
 
 	if (!cpu_has_feature(CPU_FTR_PURR))
 		return;
-	cpu = smp_processor_id();
-	pme = &per_cpu(cpu_purr_data, cpu);
-	p0 = &per_cpu(cpu_purr_data, cpu & ~1);
-	phim = &per_cpu(cpu_purr_data, cpu ^ 1);
-	spin_lock_irqsave(&p0->lock, flags);
-	pme->tb = pme->tb0 = mftb();
-	purr = mfspr(SPRN_PURR);
-	if (!phim->initialized) {
-		pme->purr = 0;
-		pme->purr0 = purr;
-	} else {
-		/* set p->purr and p->purr0 for no change in p0->stolen */
-		pme->purr = phim->tb - phim->tb0 - phim->purr - p0->stolen;
-		pme->purr0 = purr - pme->purr;
-	}
+	pme = &per_cpu(cpu_purr_data, smp_processor_id());
+	spin_lock_irqsave(&pme->lock, flags);
+	pme->tb = mftb();
+	pme->purr = mfspr(SPRN_PURR);
 	pme->initialized = 1;
-	spin_unlock_irqrestore(&p0->lock, flags);
+	spin_unlock_irqrestore(&pme->lock, flags);
 }
 
 #endif /* CONFIG_PPC_SPLPAR */
@@ -662,7 +631,8 @@ void timer_interrupt(struct pt_regs * regs)
 	calculate_steal_time();
 
 #ifdef CONFIG_PPC_ISERIES
-	get_lppaca()->int_dword.fields.decr_int = 0;
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		get_lppaca()->int_dword.fields.decr_int = 0;
 #endif
 
 	while ((ticks = tb_ticks_since(per_cpu(last_jiffy, cpu)))
@@ -705,7 +675,7 @@ void timer_interrupt(struct pt_regs * regs)
 	set_dec(next_dec);
 
 #ifdef CONFIG_PPC_ISERIES
-	if (hvlpevent_is_pending())
+	if (firmware_has_feature(FW_FEATURE_ISERIES) && hvlpevent_is_pending())
 		process_hvlpevents();
 #endif
 
@@ -805,7 +775,7 @@ int do_settimeofday(struct timespec *tv)
 	 * settimeofday to perform this operation.
 	 */
 #ifdef CONFIG_PPC_ISERIES
-	if (first_settimeofday) {
+	if (firmware_has_feature(FW_FEATURE_ISERIES) && first_settimeofday) {
 		iSeries_tb_recal();
 		first_settimeofday = 0;
 	}
@@ -1044,48 +1014,6 @@ void __init time_init(void)
 	/* Not exact, but the timer interrupt takes care of this */
 	set_dec(tb_ticks_per_jiffy);
 }
-
-#ifdef CONFIG_RTC_CLASS
-static int set_rtc_class_time(struct rtc_time *tm)
-{
-	int err;
-	struct class_device *class_dev =
-		rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
-
-	if (class_dev == NULL)
-		return -ENODEV;
-
-	err = rtc_set_time(class_dev, tm);
-
-	rtc_class_close(class_dev);
-
-	return 0;
-}
-
-static void get_rtc_class_time(struct rtc_time *tm)
-{
-	int err;
-	struct class_device *class_dev =
-		rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
-
-	if (class_dev == NULL)
-		return;
-
-	err = rtc_read_time(class_dev, tm);
-
-	rtc_class_close(class_dev);
-
-	return;
-}
-
-int __init rtc_class_hookup(void)
-{
-	ppc_md.get_rtc_time = get_rtc_class_time;
-	ppc_md.set_rtc_time = set_rtc_class_time;
-
-	return 0;
-}
-#endif /* CONFIG_RTC_CLASS */
 
 
 #define FEBRUARY	2

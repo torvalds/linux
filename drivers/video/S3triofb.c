@@ -535,8 +535,11 @@ static void __init s3triofb_of_init(struct device_node *dp)
 #endif
 
     fb_info.flags = FBINFO_FLAG_DEFAULT;
-    if (register_framebuffer(&fb_info) < 0)
-	return;
+    if (register_framebuffer(&fb_info) < 0) {
+		iounmap(fb_info.screen_base);
+		fb_info.screen_base = NULL;
+		return;
+    }
 
     printk("fb%d: S3 Trio frame buffer device on %s\n",
 	   fb_info.node, dp->full_name);

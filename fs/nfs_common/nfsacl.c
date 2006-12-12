@@ -46,7 +46,7 @@ xdr_nfsace_encode(struct xdr_array2_desc *desc, void *elem)
 {
 	struct nfsacl_encode_desc *nfsacl_desc =
 		(struct nfsacl_encode_desc *) desc;
-	u32 *p = (u32 *) elem;
+	__be32 *p = elem;
 
 	struct posix_acl_entry *entry =
 		&nfsacl_desc->acl->a_entries[nfsacl_desc->count++];
@@ -127,7 +127,7 @@ xdr_nfsace_decode(struct xdr_array2_desc *desc, void *elem)
 {
 	struct nfsacl_decode_desc *nfsacl_desc =
 		(struct nfsacl_decode_desc *) desc;
-	u32 *p = (u32 *) elem;
+	__be32 *p = elem;
 	struct posix_acl_entry *entry;
 
 	if (!nfsacl_desc->acl) {

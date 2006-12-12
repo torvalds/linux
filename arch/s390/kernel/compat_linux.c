@@ -295,6 +295,7 @@ static inline long put_tv32(struct compat_timeval __user *o, struct timeval *i)
  *
  * This is really horribly ugly.
  */
+#ifdef CONFIG_SYSVIPC
 asmlinkage long sys32_ipc(u32 call, int first, int second, int third, u32 ptr)
 {
 	if (call >> 16)		/* hack for backward compatibility */
@@ -338,6 +339,7 @@ asmlinkage long sys32_ipc(u32 call, int first, int second, int third, u32 ptr)
 
 	return -ENOSYS;
 }
+#endif
 
 asmlinkage long sys32_truncate64(const char __user * path, unsigned long high, unsigned long low)
 {
@@ -755,7 +757,9 @@ asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
 			    put_user(oldlen, (u32 __user *)compat_ptr(tmp.oldlenp)))
 				error = -EFAULT;
 		}
-		copy_to_user(args->__unused, tmp.__unused, sizeof(tmp.__unused));
+		if (copy_to_user(args->__unused, tmp.__unused,
+				 sizeof(tmp.__unused)))
+			error = -EFAULT;
 	}
 	return error;
 }

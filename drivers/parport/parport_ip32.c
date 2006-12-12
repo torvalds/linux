@@ -780,7 +780,7 @@ static irqreturn_t parport_ip32_interrupt(int irq, void *dev_id)
 	enum parport_ip32_irq_mode irq_mode = priv->irq_mode;
 	switch (irq_mode) {
 	case PARPORT_IP32_IRQ_FWD:
-		parport_generic_irq(irq, p, regs);
+		parport_generic_irq(irq, p);
 		break;
 	case PARPORT_IP32_IRQ_HERE:
 		parport_ip32_wakeup(p);

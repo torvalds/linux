@@ -834,7 +834,7 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 	}
 	/* RFC3530: The default port for NFS is 2049 */
 	if (addr.sin_port == 0)
-		addr.sin_port = NFS_PORT;
+		addr.sin_port = htons(NFS_PORT);
 
 	/* Grab the authentication type */
 	authflavour = RPC_AUTH_UNIX;

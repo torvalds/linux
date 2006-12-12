@@ -172,11 +172,13 @@ static struct pci_driver isicom_driver = {
 static int prev_card = 3;	/*	start servicing isi_card[0]	*/
 static struct tty_driver *isicom_normal;
 
-static struct timer_list tx;
+static DECLARE_COMPLETION(isi_timerdone);
 static char re_schedule = 1;
 
 static void isicom_tx(unsigned long _data);
 static void isicom_start(struct tty_struct *tty);
+
+static DEFINE_TIMER(tx, isicom_tx, 0, 0);
 
 /*   baud index mappings from linux defns to isi */
 
@@ -193,9 +195,9 @@ struct	isi_board {
 	unsigned short		shift_count;
 	struct isi_port		* ports;
 	signed char		count;
-	unsigned char		isa;
 	spinlock_t		card_lock; /* Card wide lock 11/5/00 -sameer */
 	unsigned long		flags;
+	unsigned int		index;
 };
 
 struct	isi_port {
@@ -514,25 +516,19 @@ static void isicom_tx(unsigned long _data)
 	/*	schedule another tx for hopefully in about 10ms	*/
 sched_again:
 	if (!re_schedule) {
-		re_schedule = 2;
+		complete(&isi_timerdone);
  		return;
 	}
 
-	init_timer(&tx);
-	tx.expires = jiffies + HZ/100;
-	tx.data = 0;
-	tx.function = isicom_tx;
-	add_timer(&tx);
-
-	return;
+	mod_timer(&tx, jiffies + msecs_to_jiffies(10));
 }
 
 /* 	Interrupt handlers 	*/
 
 
-static void isicom_bottomhalf(void *data)
+static void isicom_bottomhalf(struct work_struct *work)
 {
-	struct isi_port *port = (struct isi_port *) data;
+	struct isi_port *port = container_of(work, struct isi_port, bh_tqueue);
 	struct tty_struct *tty = port->tty;
 
 	if (!tty)
@@ -562,14 +558,12 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 	base = card->base;
 	spin_lock(&card->card_lock);
 
-	if (card->isa == NO) {
-		/*
-		 * disable any interrupts from the PCI card and lower the
-		 * interrupt line
-		 */
-		outw(0x8000, base+0x04);
-		ClearInterrupt(base);
-	}
+	/*
+	 * disable any interrupts from the PCI card and lower the
+	 * interrupt line
+	 */
+	outw(0x8000, base+0x04);
+	ClearInterrupt(base);
 
 	inw(base);		/* get the dummy word out */
 	header = inw(base);
@@ -579,19 +573,13 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 	if (channel + 1 > card->port_count) {
 		printk(KERN_WARNING "ISICOM: isicom_interrupt(0x%lx): "
 			"%d(channel) > port_count.\n", base, channel+1);
-		if (card->isa)
-			ClearInterrupt(base);
-		else
-			outw(0x0000, base+0x04); /* enable interrupts */
+		outw(0x0000, base+0x04); /* enable interrupts */
 		spin_unlock(&card->card_lock);
 		return IRQ_HANDLED;
 	}
 	port = card->ports + channel;
 	if (!(port->flags & ASYNC_INITIALIZED)) {
-		if (card->isa)
-			ClearInterrupt(base);
-		else
-			outw(0x0000, base+0x04); /* enable interrupts */
+		outw(0x0000, base+0x04); /* enable interrupts */
 		return IRQ_HANDLED;
 	}
 
@@ -604,10 +592,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 		}
 		if (byte_count & 0x01)
 			inw(base);
-		if (card->isa == YES)
-			ClearInterrupt(base);
-		else
-			outw(0x0000, base+0x04); /* enable interrupts */
+		outw(0x0000, base+0x04); /* enable interrupts */
 		spin_unlock(&card->card_lock);
 		return IRQ_HANDLED;
 	}
@@ -708,10 +693,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 		}
 		tty_flip_buffer_push(tty);
 	}
-	if (card->isa == YES)
-		ClearInterrupt(base);
-	else
-		outw(0x0000, base+0x04); /* enable interrupts */
+	outw(0x0000, base+0x04); /* enable interrupts */
 
 	return IRQ_HANDLED;
 }
@@ -964,8 +946,8 @@ static int isicom_open(struct tty_struct *tty, struct file *filp)
 {
 	struct isi_port *port;
 	struct isi_board *card;
-	unsigned int line, board;
-	int error;
+	unsigned int board;
+	int error, line;
 
 	line = tty->index;
 	if (line < 0 || line > PORT_COUNT-1)
@@ -1062,11 +1044,12 @@ static void isicom_shutdown_port(struct isi_port *port)
 static void isicom_close(struct tty_struct *tty, struct file *filp)
 {
 	struct isi_port *port = tty->driver_data;
-	struct isi_board *card = port->card;
+	struct isi_board *card;
 	unsigned long flags;
 
 	if (!port)
 		return;
+	card = port->card;
 	if (isicom_paranoia_check(port, tty->name, "isicom_close"))
 		return;
 
@@ -1398,7 +1381,7 @@ static int isicom_ioctl(struct tty_struct *tty, struct file *filp,
 
 /* set_termios et all */
 static void isicom_set_termios(struct tty_struct *tty,
-	struct termios *old_termios)
+	struct ktermios *old_termios)
 {
 	struct isi_port *port = tty->driver_data;
 
@@ -1473,9 +1456,9 @@ static void isicom_start(struct tty_struct *tty)
 }
 
 /* hangup et all */
-static void do_isicom_hangup(void *data)
+static void do_isicom_hangup(struct work_struct *work)
 {
-	struct isi_port *port = data;
+	struct isi_port *port = container_of(work, struct isi_port, hangup_tq);
 	struct tty_struct *tty;
 
 	tty = port->tty;
@@ -1519,37 +1502,6 @@ static void isicom_flush_buffer(struct tty_struct *tty)
  * Driver init and deinit functions
  */
 
-static int __devinit isicom_register_ioregion(struct pci_dev *pdev,
-	const unsigned int index)
-{
-	struct isi_board *board = pci_get_drvdata(pdev);
-
-	if (!board->base)
-		return -EINVAL;
-
-	if (!request_region(board->base, 16, ISICOM_NAME)) {
-		dev_dbg(&pdev->dev, "I/O Region 0x%lx-0x%lx is busy. Card%d "
-			"will be disabled.\n", board->base, board->base + 15,
-			index + 1);
-		return -EBUSY;
- 	}
-
-	return 0;
-}
-
-static void isicom_unregister_ioregion(struct pci_dev *pdev)
-{
-	struct isi_board *board = pci_get_drvdata(pdev);
-
-	if (!board->base)
-		return;
-
-	release_region(board->base, 16);
-	dev_dbg(&pdev->dev, "I/O Region 0x%lx-0x%lx released.\n",
-		board->base, board->base + 15);
-	board->base = 0;
-}
-
 static const struct tty_operations isicom_ops = {
 	.open			= isicom_open,
 	.close			= isicom_close,
@@ -1569,70 +1521,6 @@ static const struct tty_operations isicom_ops = {
 	.tiocmget		= isicom_tiocmget,
 	.tiocmset		= isicom_tiocmset,
 };
-
-static int __devinit isicom_register_tty_driver(void)
-{
-	int error = -ENOMEM;
-
-	/* tty driver structure initialization */
-	isicom_normal = alloc_tty_driver(PORT_COUNT);
-	if (!isicom_normal)
-		goto end;
-
-	isicom_normal->owner			= THIS_MODULE;
-	isicom_normal->name 			= "ttyM";
-	isicom_normal->major			= ISICOM_NMAJOR;
-	isicom_normal->minor_start		= 0;
-	isicom_normal->type			= TTY_DRIVER_TYPE_SERIAL;
-	isicom_normal->subtype			= SERIAL_TYPE_NORMAL;
-	isicom_normal->init_termios		= tty_std_termios;
-	isicom_normal->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL |
-		CLOCAL;
-	isicom_normal->flags			= TTY_DRIVER_REAL_RAW;
-	tty_set_operations(isicom_normal, &isicom_ops);
-
-	if ((error = tty_register_driver(isicom_normal))) {
-		pr_dbg("Couldn't register the dialin driver, error=%d\n",
-			error);
-		put_tty_driver(isicom_normal);
-	}
-end:
-	return error;
-}
-
-static void isicom_unregister_tty_driver(void)
-{
-	int error;
-
-	if ((error = tty_unregister_driver(isicom_normal)))
-		pr_dbg("couldn't unregister normal driver, error=%d.\n", error);
-
-	put_tty_driver(isicom_normal);
-}
-
-static int __devinit isicom_register_isr(struct pci_dev *pdev,
-	const unsigned int index)
-{
-	struct isi_board *board = pci_get_drvdata(pdev);
-	unsigned long irqflags = IRQF_DISABLED;
-	int retval = -EINVAL;
-
-	if (!board->base)
-		goto end;
-
-	if (board->isa == NO)
-		irqflags |= IRQF_SHARED;
-
-	retval = request_irq(board->irq, isicom_interrupt, irqflags,
-		ISICOM_NAME, board);
-	if (retval < 0)
-		dev_warn(&pdev->dev, "Could not install handler at Irq %d. "
-			"Card%d will be disabled.\n", board->irq, index + 1);
- 	else
-		retval = 0;
-end:
-	return retval;
-}
 
 static int __devinit reset_card(struct pci_dev *pdev,
 	const unsigned int card, unsigned int *signature)
@@ -1655,36 +1543,23 @@ static int __devinit reset_card(struct pci_dev *pdev,
 
 	*signature = inw(base + 0x4) & 0xff;
 
-	if (board->isa == YES) {
-		if (!(inw(base + 0xe) & 0x1) || (inw(base + 0x2))) {
-			dev_dbg(&pdev->dev, "base+0x2=0x%lx, base+0xe=0x%lx\n",
-				inw(base + 0x2), inw(base + 0xe));
-			dev_err(&pdev->dev, "ISILoad:ISA Card%d reset failure "
-				"(Possible bad I/O Port Address 0x%lx).\n",
-				card + 1, base);
-			retval = -EIO;
-			goto end;
-		}
-	} else {
-		portcount = inw(base + 0x2);
-		if (!(inw(base + 0xe) & 0x1) || ((portcount != 0) &&
-				(portcount != 4) && (portcount != 8))) {
-			dev_dbg(&pdev->dev, "base+0x2=0x%lx, base+0xe=0x%lx\n",
-				inw(base + 0x2), inw(base + 0xe));
-			dev_err(&pdev->dev, "ISILoad:PCI Card%d reset failure "
-				"(Possible bad I/O Port Address 0x%lx).\n",
-				card + 1, base);
-			retval = -EIO;
-			goto end;
-		}
+	portcount = inw(base + 0x2);
+	if (!(inw(base + 0xe) & 0x1) || ((portcount != 0) &&
+			(portcount != 4) && (portcount != 8))) {
+		dev_dbg(&pdev->dev, "base+0x2=0x%lx, base+0xe=0x%lx\n",
+			inw(base + 0x2), inw(base + 0xe));
+		dev_err(&pdev->dev, "ISILoad:PCI Card%d reset failure "
+			"(Possible bad I/O Port Address 0x%lx).\n",
+			card + 1, base);
+		retval = -EIO;
+		goto end;
 	}
 
 	switch (*signature) {
 	case 0xa5:
 	case 0xbb:
 	case 0xdd:
-		board->port_count = (board->isa == NO && portcount == 4) ? 4 :
-			8;
+		board->port_count = (portcount == 4) ? 4 : 8;
 		board->shift_count = 12;
 		break;
 	case 0xcc:
@@ -1830,6 +1705,11 @@ static int __devinit load_firmware(struct pci_dev *pdev,
 		}
 
 		data = kmalloc(word_count * 2, GFP_KERNEL);
+		if (data == NULL) {
+			dev_err(&pdev->dev, "Card%d, firmware upload "
+				"failed, not enough memory\n", index + 1);
+			goto errrelfw;
+		}
 		inw(base);
 		insw(base, data, word_count);
 		InterruptTheCard(base);
@@ -1878,8 +1758,6 @@ end:
 /*
  *	Insmod can set static symbols so keep these static
  */
-static int io[4];
-static int irq[4];
 static int card;
 
 static int __devinit isicom_probe(struct pci_dev *pdev,
@@ -1905,20 +1783,29 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 			break;
 		}
 
+	board->index = index;
 	board->base = ioaddr;
 	board->irq = pciirq;
-	board->isa = NO;
 	card++;
 
 	pci_set_drvdata(pdev, board);
 
-	retval = isicom_register_ioregion(pdev, index);
-	if (retval < 0)
+	retval = pci_request_region(pdev, 3, ISICOM_NAME);
+	if (retval) {
+		dev_err(&pdev->dev, "I/O Region 0x%lx-0x%lx is busy. Card%d "
+			"will be disabled.\n", board->base, board->base + 15,
+			index + 1);
+		retval = -EBUSY;
 		goto err;
+ 	}
 
-	retval = isicom_register_isr(pdev, index);
-	if (retval < 0)
+	retval = request_irq(board->irq, isicom_interrupt,
+			IRQF_SHARED | IRQF_DISABLED, ISICOM_NAME, board);
+	if (retval < 0) {
+		dev_err(&pdev->dev, "Could not install handler at Irq %d. "
+			"Card%d will be disabled.\n", board->irq, index + 1);
 		goto errunrr;
+	}
 
 	retval = reset_card(pdev, index, &signature);
 	if (retval < 0)
@@ -1928,12 +1815,16 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 	if (retval < 0)
 		goto errunri;
 
+	for (index = 0; index < board->port_count; index++)
+		tty_register_device(isicom_normal, board->index * 16 + index,
+				&pdev->dev);
+
 	return 0;
 
 errunri:
 	free_irq(board->irq, board);
 errunrr:
-	isicom_unregister_ioregion(pdev);
+	pci_release_region(pdev, 3);
 err:
 	board->base = 0;
 	return retval;
@@ -1942,18 +1833,21 @@ err:
 static void __devexit isicom_remove(struct pci_dev *pdev)
 {
 	struct isi_board *board = pci_get_drvdata(pdev);
+	unsigned int i;
+
+	for (i = 0; i < board->port_count; i++)
+		tty_unregister_device(isicom_normal, board->index * 16 + i);
 
 	free_irq(board->irq, board);
-	isicom_unregister_ioregion(pdev);
+	pci_release_region(pdev, 3);
 }
 
-static int __devinit isicom_setup(void)
+static int __init isicom_init(void)
 {
 	int retval, idx, channel;
 	struct isi_port *port;
 
 	card = 0;
-	memset(isi_ports, 0, sizeof(isi_ports));
 
 	for(idx = 0; idx < BOARD_COUNT; idx++) {
 		port = &isi_ports[idx * 16];
@@ -1965,8 +1859,8 @@ static int __devinit isicom_setup(void)
 			port->channel = channel;
 			port->close_delay = 50 * HZ/100;
 			port->closing_wait = 3000 * HZ/100;
-			INIT_WORK(&port->hangup_tq, do_isicom_hangup, port);
-			INIT_WORK(&port->bh_tqueue, isicom_bottomhalf, port);
+			INIT_WORK(&port->hangup_tq, do_isicom_hangup);
+			INIT_WORK(&port->bh_tqueue, isicom_bottomhalf);
 			port->status = 0;
 			init_waitqueue_head(&port->open_wait);
 			init_waitqueue_head(&port->close_wait);
@@ -1974,66 +1868,65 @@ static int __devinit isicom_setup(void)
  		}
 		isi_card[idx].base = 0;
 		isi_card[idx].irq = 0;
-
-		if (!io[idx])
-			continue;
-
-		if (irq[idx] == 2 || irq[idx] == 3 || irq[idx] == 4	||
-				irq[idx] == 5	|| irq[idx] == 7	||
-				irq[idx] == 10	|| irq[idx] == 11	||
-				irq[idx] == 12	|| irq[idx] == 15) {
-			printk(KERN_ERR "ISICOM: ISA not supported yet.\n");
-			retval = -EINVAL;
-			goto error;
-		} else
-			printk(KERN_ERR "ISICOM: Irq %d unsupported. "
-				"Disabling Card%d...\n", irq[idx], idx + 1);
 	}
 
-	retval = isicom_register_tty_driver();
-	if (retval < 0)
+	/* tty driver structure initialization */
+	isicom_normal = alloc_tty_driver(PORT_COUNT);
+	if (!isicom_normal) {
+		retval = -ENOMEM;
 		goto error;
+	}
+
+	isicom_normal->owner			= THIS_MODULE;
+	isicom_normal->name 			= "ttyM";
+	isicom_normal->major			= ISICOM_NMAJOR;
+	isicom_normal->minor_start		= 0;
+	isicom_normal->type			= TTY_DRIVER_TYPE_SERIAL;
+	isicom_normal->subtype			= SERIAL_TYPE_NORMAL;
+	isicom_normal->init_termios		= tty_std_termios;
+	isicom_normal->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL |
+		CLOCAL;
+	isicom_normal->flags			= TTY_DRIVER_REAL_RAW |
+		TTY_DRIVER_DYNAMIC_DEV;
+	tty_set_operations(isicom_normal, &isicom_ops);
+
+	retval = tty_register_driver(isicom_normal);
+	if (retval) {
+		pr_dbg("Couldn't register the dialin driver\n");
+		goto err_puttty;
+	}
 
 	retval = pci_register_driver(&isicom_driver);
 	if (retval < 0) {
 		printk(KERN_ERR "ISICOM: Unable to register pci driver.\n");
-		goto errtty;
+		goto err_unrtty;
 	}
 
-	init_timer(&tx);
-	tx.expires = jiffies + 1;
-	tx.data = 0;
-	tx.function = isicom_tx;
-	re_schedule = 1;
-	add_timer(&tx);
+	mod_timer(&tx, jiffies + 1);
 
 	return 0;
-errtty:
-	isicom_unregister_tty_driver();
+err_unrtty:
+	tty_unregister_driver(isicom_normal);
+err_puttty:
+	put_tty_driver(isicom_normal);
 error:
 	return retval;
 }
 
 static void __exit isicom_exit(void)
 {
-	unsigned int index = 0;
-
 	re_schedule = 0;
 
-	while (re_schedule != 2 && index++ < 100)
-		msleep(10);
+	wait_for_completion_timeout(&isi_timerdone, HZ);
 
 	pci_unregister_driver(&isicom_driver);
-	isicom_unregister_tty_driver();
+	tty_unregister_driver(isicom_normal);
+	put_tty_driver(isicom_normal);
 }
 
-module_init(isicom_setup);
+module_init(isicom_init);
 module_exit(isicom_exit);
 
 MODULE_AUTHOR("MultiTech");
 MODULE_DESCRIPTION("Driver for the ISI series of cards by MultiTech");
 MODULE_LICENSE("GPL");
-module_param_array(io, int, NULL, 0);
-MODULE_PARM_DESC(io, "I/O ports for the cards");
-module_param_array(irq, int, NULL, 0);
-MODULE_PARM_DESC(irq, "Interrupts for the cards");

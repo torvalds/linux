@@ -27,6 +27,8 @@
 #define CCN_CVR		0xff000040
 #define CCN_PRR		0xff000044
 
+const char *get_cpu_subtype(void);
+
 /*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
  *
@@ -36,7 +38,10 @@
  */
 enum cpu_type {
 	/* SH-2 types */
-	CPU_SH7604,
+	CPU_SH7604, CPU_SH7619,
+
+	/* SH-2A types */
+	CPU_SH7206,
 
 	/* SH-3 types */
 	CPU_SH7705, CPU_SH7706, CPU_SH7707,
@@ -47,7 +52,12 @@ enum cpu_type {
 	/* SH-4 types */
 	CPU_SH7750, CPU_SH7750S, CPU_SH7750R, CPU_SH7751, CPU_SH7751R,
 	CPU_SH7760, CPU_ST40RA, CPU_ST40GX1, CPU_SH4_202, CPU_SH4_501,
-	CPU_SH73180, CPU_SH7343, CPU_SH7770, CPU_SH7780, CPU_SH7781,
+
+	/* SH-4A types */
+	CPU_SH7770, CPU_SH7780, CPU_SH7781, CPU_SH7785,
+
+	/* SH4AL-DSP types */
+	CPU_SH73180, CPU_SH7343, CPU_SH7722,
 
 	/* Unknown subtype */
 	CPU_SH_NONE
@@ -130,12 +140,11 @@ union sh_fpu_union {
 };
 
 struct thread_struct {
+	/* Saved registers when thread is descheduled */
 	unsigned long sp;
 	unsigned long pc;
 
-	unsigned long trap_no, error_code;
-	unsigned long address;
-	/* Hardware debugging registers may come here */
+	/* Hardware debugging registers */
 	unsigned long ubc_pc;
 
 	/* floating point info */
@@ -150,12 +159,7 @@ typedef struct {
 extern int ubc_usercnt;
 
 #define INIT_THREAD  {						\
-	sizeof(init_stack) + (long) &init_stack, /* sp */	\
-	0,					 /* pc */	\
-	0, 0,							\
-	0,							\
-	0,							\
-	{{{0,}},}				/* fpu state */	\
+	.sp = sizeof(init_stack) + (long) &init_stack,		\
 }
 
 /*
@@ -255,10 +259,12 @@ extern void save_fpu(struct task_struct *__tsk, struct pt_regs *regs);
  */
 #define thread_saved_pc(tsk)	(tsk->thread.pc)
 
+void show_trace(struct task_struct *tsk, unsigned long *sp,
+		struct pt_regs *regs);
 extern unsigned long get_wchan(struct task_struct *p);
 
-#define KSTK_EIP(tsk)  ((tsk)->thread.pc)
-#define KSTK_ESP(tsk)  ((tsk)->thread.sp)
+#define KSTK_EIP(tsk)  (task_pt_regs(tsk)->pc)
+#define KSTK_ESP(tsk)  (task_pt_regs(tsk)->regs[15])
 
 #define cpu_sleep()	__asm__ __volatile__ ("sleep" : : : "memory")
 #define cpu_relax()	barrier()

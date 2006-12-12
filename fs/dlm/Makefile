@@ -4,7 +4,6 @@ dlm-y :=			ast.o \
 				dir.o \
 				lock.o \
 				lockspace.o \
-				lowcomms.o \
 				main.o \
 				member.o \
 				memory.o \
@@ -17,3 +16,6 @@ dlm-y :=			ast.o \
 				util.o
 dlm-$(CONFIG_DLM_DEBUG) +=	debug_fs.o
 
+dlm-$(CONFIG_DLM_TCP)   += lowcomms-tcp.o
+
+dlm-$(CONFIG_DLM_SCTP)  += lowcomms-sctp.o

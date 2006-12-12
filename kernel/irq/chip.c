@@ -233,6 +233,8 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 		chip->shutdown = chip->disable;
 	if (!chip->name)
 		chip->name = chip->typename;
+	if (!chip->end)
+		chip->end = dummy_irq_chip.end;
 }
 
 static inline void mask_ack_irq(struct irq_desc *desc, int irq)
@@ -499,7 +501,8 @@ handle_percpu_irq(unsigned int irq, struct irq_desc *desc)
 #endif /* CONFIG_SMP */
 
 void
-__set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained)
+__set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
+		  const char *name)
 {
 	struct irq_desc *desc;
 	unsigned long flags;
@@ -540,6 +543,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained)
 		desc->depth = 1;
 	}
 	desc->handle_irq = handle;
+	desc->name = name;
 
 	if (handle != handle_bad_irq && is_chained) {
 		desc->status &= ~IRQ_DISABLED;
@@ -555,30 +559,13 @@ set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,
 			 irq_flow_handler_t handle)
 {
 	set_irq_chip(irq, chip);
-	__set_irq_handler(irq, handle, 0);
+	__set_irq_handler(irq, handle, 0, NULL);
 }
 
-/*
- * Get a descriptive string for the highlevel handler, for
- * /proc/interrupts output:
- */
-const char *
-handle_irq_name(irq_flow_handler_t handle)
+void
+set_irq_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
+			      irq_flow_handler_t handle, const char *name)
 {
-	if (handle == handle_level_irq)
-		return "level  ";
-	if (handle == handle_fasteoi_irq)
-		return "fasteoi";
-	if (handle == handle_edge_irq)
-		return "edge   ";
-	if (handle == handle_simple_irq)
-		return "simple ";
-#ifdef CONFIG_SMP
-	if (handle == handle_percpu_irq)
-		return "percpu ";
-#endif
-	if (handle == handle_bad_irq)
-		return "bad    ";
-
-	return NULL;
+	set_irq_chip(irq, chip);
+	__set_irq_handler(irq, handle, 0, name);
 }

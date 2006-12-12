@@ -235,12 +235,14 @@ static void rcu_do_batch(struct rcu_data *rdp)
 
 	list = rdp->donelist;
 	while (list) {
-		next = rdp->donelist = list->next;
+		next = list->next;
+		prefetch(next);
 		list->func(list);
 		list = next;
 		if (++count >= rdp->blimit)
 			break;
 	}
+	rdp->donelist = list;
 
 	local_irq_disable();
 	rdp->qlen -= count;

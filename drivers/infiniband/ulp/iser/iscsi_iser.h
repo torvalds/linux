@@ -283,7 +283,7 @@ struct iser_global {
 	struct mutex      connlist_mutex;
 	struct list_head  connlist;		/* all iSER IB connections */
 
-	kmem_cache_t *desc_cache;
+	struct kmem_cache *desc_cache;
 };
 
 extern struct iser_global ig;

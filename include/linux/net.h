@@ -19,6 +19,7 @@
 #define _LINUX_NET_H
 
 #include <linux/wait.h>
+#include <linux/random.h>
 #include <asm/socket.h>
 
 struct poll_table_struct;
@@ -193,9 +194,9 @@ extern int 	     sock_map_fd(struct socket *sock);
 extern struct socket *sockfd_lookup(int fd, int *err);
 #define		     sockfd_put(sock) fput(sock->file)
 extern int	     net_ratelimit(void);
-extern unsigned long net_random(void);
-extern void	     net_srandom(unsigned long);
-extern void	     net_random_init(void);
+
+#define net_random()		random32()
+#define net_srandom(seed)	srandom32((__force u32)seed)
 
 extern int   	     kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 				    struct kvec *vec, size_t num, size_t len);

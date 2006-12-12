@@ -31,7 +31,6 @@ int gfs2_acl_validate_set(struct gfs2_inode *ip, int access,
 			  struct gfs2_ea_request *er,
 			  int *remove, mode_t *mode);
 int gfs2_acl_validate_remove(struct gfs2_inode *ip, int access);
-int gfs2_check_acl_locked(struct inode *inode, int mask);
 int gfs2_check_acl(struct inode *inode, int mask);
 int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip);
 int gfs2_acl_chmod(struct gfs2_inode *ip, struct iattr *attr);

@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
-#include <asm/r7780rp/r7780rp.h>
+#include <asm/r7780rp.h>
 #include <asm/io.h>
 #include "pci-sh4.h"
 

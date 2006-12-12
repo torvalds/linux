@@ -29,6 +29,7 @@
 
 #include <asm/spu.h>
 #include <asm/spu_csa.h>
+#include <asm/spu_info.h>
 
 /* The magic number for our file system */
 enum {
@@ -114,13 +115,19 @@ struct spu_context_ops {
 	void (*npc_write) (struct spu_context * ctx, u32 data);
 	 u32(*status_read) (struct spu_context * ctx);
 	char*(*get_ls) (struct spu_context * ctx);
+	 u32 (*runcntl_read) (struct spu_context * ctx);
 	void (*runcntl_write) (struct spu_context * ctx, u32 data);
-	void (*runcntl_stop) (struct spu_context * ctx);
+	void (*master_start) (struct spu_context * ctx);
+	void (*master_stop) (struct spu_context * ctx);
 	int (*set_mfc_query)(struct spu_context * ctx, u32 mask, u32 mode);
 	u32 (*read_mfc_tagstatus)(struct spu_context * ctx);
 	u32 (*get_mfc_free_elements)(struct spu_context *ctx);
-	int (*send_mfc_command)(struct spu_context *ctx,
-					struct mfc_dma_command *cmd);
+	int (*send_mfc_command)(struct spu_context * ctx,
+				struct mfc_dma_command * cmd);
+	void (*dma_info_read) (struct spu_context * ctx,
+			       struct spu_dma_info * info);
+	void (*proxydma_info_read) (struct spu_context * ctx,
+				    struct spu_proxydma_info * info);
 };
 
 extern struct spu_context_ops spu_hw_ops;
@@ -135,6 +142,7 @@ struct spufs_inode_info {
 	container_of(inode, struct spufs_inode_info, vfs_inode)
 
 extern struct tree_descr spufs_dir_contents[];
+extern struct tree_descr spufs_dir_nosched_contents[];
 
 /* system call implementation */
 long spufs_run_spu(struct file *file,
@@ -162,12 +170,20 @@ void spu_acquire(struct spu_context *ctx);
 void spu_release(struct spu_context *ctx);
 int spu_acquire_runnable(struct spu_context *ctx);
 void spu_acquire_saved(struct spu_context *ctx);
+int spu_acquire_exclusive(struct spu_context *ctx);
+
+static inline void spu_release_exclusive(struct spu_context *ctx)
+{
+	up_write(&ctx->state_sema);
+}
 
 int spu_activate(struct spu_context *ctx, u64 flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);
 int __init spu_sched_init(void);
 void __exit spu_sched_exit(void);
+
+extern char *isolated_loader;
 
 /*
  * spufs_wait
@@ -206,5 +222,16 @@ void spufs_wbox_callback(struct spu *spu);
 void spufs_stop_callback(struct spu *spu);
 void spufs_mfc_callback(struct spu *spu);
 void spufs_dma_callback(struct spu *spu, int type);
+
+extern struct spu_coredump_calls spufs_coredump_calls;
+struct spufs_coredump_reader {
+	char *name;
+	ssize_t (*read)(struct spu_context *ctx,
+			char __user *buffer, size_t size, loff_t *pos);
+	u64 (*get)(void *data);
+	size_t size;
+};
+extern struct spufs_coredump_reader spufs_coredump_read[];
+extern int spufs_coredump_num_notes;
 
 #endif

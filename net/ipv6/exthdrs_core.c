@@ -77,7 +77,7 @@ int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp)
 		if (hp == NULL)
 			return -1;
 		if (nexthdr == NEXTHDR_FRAGMENT) {
-			unsigned short _frag_off, *fp;
+			__be16 _frag_off, *fp;
 			fp = skb_header_pointer(skb,
 						start+offsetof(struct frag_hdr,
 							       frag_off),

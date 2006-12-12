@@ -95,7 +95,8 @@ static const struct file_operations mmapper_fops = {
 	.release	= mmapper_release,
 };
 
-static const struct miscdevice mmapper_dev = {
+/* No locking needed - only used (and modified) by below initcall and exitcall. */
+static struct miscdevice mmapper_dev = {
 	.minor		= MISC_DYNAMIC_MINOR,
 	.name		= "mmapper",
 	.fops		= &mmapper_fops

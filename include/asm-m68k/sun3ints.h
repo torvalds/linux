@@ -16,6 +16,7 @@
 #include <asm/intersil.h>
 #include <asm/oplib.h>
 #include <asm/traps.h>
+#include <asm/irq.h>
 
 #define SUN3_INT_VECS 192
 

@@ -71,13 +71,18 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	void __iomem *image;
 	int last_image;
 
-	/* IORESOURCE_ROM_SHADOW only set on x86 */
+	/*
+	 * IORESOURCE_ROM_SHADOW set on x86, x86_64 and IA64 supports legacy
+	 * memory map if the VGA enable bit of the Bridge Control register is
+	 * set for embedded VGA.
+	 */
 	if (res->flags & IORESOURCE_ROM_SHADOW) {
 		/* primary video rom always starts here */
 		start = (loff_t)0xC0000;
 		*size = 0x20000; /* cover C000:0 through E000:0 */
 	} else {
-		if (res->flags & IORESOURCE_ROM_COPY) {
+		if (res->flags &
+			(IORESOURCE_ROM_COPY | IORESOURCE_ROM_BIOS_COPY)) {
 			*size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
 			return (void __iomem *)(unsigned long)
 				pci_resource_start(pdev, PCI_ROM_RESOURCE);
@@ -161,7 +166,8 @@ void __iomem *pci_map_rom_copy(struct pci_dev *pdev, size_t *size)
 	if (!rom)
 		return NULL;
 
-	if (res->flags & (IORESOURCE_ROM_COPY | IORESOURCE_ROM_SHADOW))
+	if (res->flags & (IORESOURCE_ROM_COPY | IORESOURCE_ROM_SHADOW |
+			  IORESOURCE_ROM_BIOS_COPY))
 		return rom;
 
 	res->start = (unsigned long)kmalloc(*size, GFP_KERNEL);
@@ -187,7 +193,7 @@ void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom)
 {
 	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
 
-	if (res->flags & IORESOURCE_ROM_COPY)
+	if (res->flags & (IORESOURCE_ROM_COPY | IORESOURCE_ROM_BIOS_COPY))
 		return;
 
 	iounmap(rom);
@@ -211,6 +217,7 @@ void pci_remove_rom(struct pci_dev *pdev)
 		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
 	if (!(res->flags & (IORESOURCE_ROM_ENABLE |
 			    IORESOURCE_ROM_SHADOW |
+			    IORESOURCE_ROM_BIOS_COPY |
 			    IORESOURCE_ROM_COPY)))
 		pci_disable_rom(pdev);
 }

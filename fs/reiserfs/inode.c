@@ -207,7 +207,7 @@ static int file_capable(struct inode *inode, long block)
 }
 
 /*static*/ int restart_transaction(struct reiserfs_transaction_handle *th,
-				   struct inode *inode, struct path *path)
+				   struct inode *inode, struct treepath *path)
 {
 	struct super_block *s = th->t_super;
 	int len = th->t_blocks_allocated;
@@ -216,11 +216,12 @@ static int file_capable(struct inode *inode, long block)
 	BUG_ON(!th->t_trans_id);
 	BUG_ON(!th->t_refcount);
 
+	pathrelse(path);
+
 	/* we cannot restart while nested */
 	if (th->t_refcount > 1) {
 		return 0;
 	}
-	pathrelse(path);
 	reiserfs_update_sd(th, inode);
 	err = journal_end(th, s, len);
 	if (!err) {
@@ -569,7 +570,7 @@ static inline int _allocate_block(struct reiserfs_transaction_handle *th,
 				  long block,
 				  struct inode *inode,
 				  b_blocknr_t * allocated_block_nr,
-				  struct path *path, int flags)
+				  struct treepath *path, int flags)
 {
 	BUG_ON(!th->t_trans_id);
 
@@ -928,15 +929,12 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 			if (blocks_needed == 1) {
 				un = &unf_single;
 			} else {
-				un = kmalloc(min(blocks_needed, max_to_insert) * UNFM_P_SIZE, GFP_ATOMIC);	// We need to avoid scheduling.
+				un = kzalloc(min(blocks_needed, max_to_insert) * UNFM_P_SIZE, GFP_ATOMIC);	// We need to avoid scheduling.
 				if (!un) {
 					un = &unf_single;
 					blocks_needed = 1;
 					max_to_insert = 0;
-				} else
-					memset(un, 0,
-					       UNFM_P_SIZE * min(blocks_needed,
-								 max_to_insert));
+				}
 			}
 			if (blocks_needed <= max_to_insert) {
 				/* we are going to add target block to the file. Use allocated
@@ -1109,7 +1107,7 @@ static inline ulong to_fake_used_blocks(struct inode *inode, int sd_size)
 //
 
 // called by read_locked_inode
-static void init_inode(struct inode *inode, struct path *path)
+static void init_inode(struct inode *inode, struct treepath *path)
 {
 	struct buffer_head *bh;
 	struct item_head *ih;
@@ -1286,7 +1284,7 @@ static void inode2sd_v1(void *sd, struct inode *inode, loff_t size)
 /* NOTE, you must prepare the buffer head before sending it here,
 ** and then log it after the call
 */
-static void update_stat_data(struct path *path, struct inode *inode,
+static void update_stat_data(struct treepath *path, struct inode *inode,
 			     loff_t size)
 {
 	struct buffer_head *bh;
@@ -1655,7 +1653,7 @@ int reiserfs_write_inode(struct inode *inode, int do_sync)
    containing "." and ".." entries */
 static int reiserfs_new_directory(struct reiserfs_transaction_handle *th,
 				  struct inode *inode,
-				  struct item_head *ih, struct path *path,
+				  struct item_head *ih, struct treepath *path,
 				  struct inode *dir)
 {
 	struct super_block *sb = th->t_super;
@@ -1714,7 +1712,7 @@ static int reiserfs_new_directory(struct reiserfs_transaction_handle *th,
    containing the body of symlink */
 static int reiserfs_new_symlink(struct reiserfs_transaction_handle *th, struct inode *inode,	/* Inode of symlink */
 				struct item_head *ih,
-				struct path *path, const char *symname,
+				struct treepath *path, const char *symname,
 				int item_len)
 {
 	struct super_block *sb = th->t_super;

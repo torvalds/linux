@@ -11,13 +11,16 @@
 
 #include <linux/unwind.h>
 #include <linux/module.h>
-#include <linux/delay.h>
+#include <linux/bootmem.h>
+#include <linux/sort.h>
 #include <linux/stop_machine.h>
+#include <linux/uaccess.h>
 #include <asm/sections.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 
-extern char __start_unwind[], __end_unwind[];
+extern const char __start_unwind[], __end_unwind[];
+extern const u8 __start_unwind_hdr[], __end_unwind_hdr[];
 
 #define MAX_STACK_DEPTH 8
 
@@ -92,6 +95,7 @@ static const struct {
 
 typedef unsigned long uleb128_t;
 typedef   signed long sleb128_t;
+#define sleb128abs __builtin_labs
 
 static struct unwind_table {
 	struct {
@@ -100,6 +104,8 @@ static struct unwind_table {
 	} core, init;
 	const void *address;
 	unsigned long size;
+	const unsigned char *header;
+	unsigned long hdrsz;
 	struct unwind_table *link;
 	const char *name;
 } root_table;
@@ -131,6 +137,17 @@ struct unwind_state {
 
 static const struct cfa badCFA = { ARRAY_SIZE(reg_info), 1 };
 
+static unsigned unwind_debug;
+static int __init unwind_debug_setup(char *s)
+{
+	unwind_debug = simple_strtoul(s, NULL, 0);
+	return 1;
+}
+__setup("unwind_debug=", unwind_debug_setup);
+#define dprintk(lvl, fmt, args...) \
+	((void)(lvl > unwind_debug \
+	 || printk(KERN_DEBUG "unwind: " fmt "\n", ##args)))
+
 static struct unwind_table *find_table(unsigned long pc)
 {
 	struct unwind_table *table;
@@ -145,6 +162,12 @@ static struct unwind_table *find_table(unsigned long pc)
 	return table;
 }
 
+static unsigned long read_pointer(const u8 **pLoc,
+                                  const void *end,
+                                  signed ptrType,
+                                  unsigned long text_base,
+                                  unsigned long data_base);
+
 static void init_unwind_table(struct unwind_table *table,
                               const char *name,
                               const void *core_start,
@@ -152,14 +175,33 @@ static void init_unwind_table(struct unwind_table *table,
                               const void *init_start,
                               unsigned long init_size,
                               const void *table_start,
-                              unsigned long table_size)
+                              unsigned long table_size,
+                              const u8 *header_start,
+                              unsigned long header_size)
 {
+	const u8 *ptr = header_start + 4;
+	const u8 *end = header_start + header_size;
+
 	table->core.pc = (unsigned long)core_start;
 	table->core.range = core_size;
 	table->init.pc = (unsigned long)init_start;
 	table->init.range = init_size;
 	table->address = table_start;
 	table->size = table_size;
+	/* See if the linker provided table looks valid. */
+	if (header_size <= 4
+	    || header_start[0] != 1
+	    || (void *)read_pointer(&ptr, end, header_start[1], 0, 0)
+	       != table_start
+	    || !read_pointer(&ptr, end, header_start[2], 0, 0)
+	    || !read_pointer(&ptr, end, header_start[3], 0,
+	                     (unsigned long)header_start)
+	    || !read_pointer(&ptr, end, header_start[3], 0,
+	                     (unsigned long)header_start))
+		header_start = NULL;
+	table->hdrsz = header_size;
+	smp_wmb();
+	table->header = header_start;
 	table->link = NULL;
 	table->name = name;
 }
@@ -169,7 +211,144 @@ void __init unwind_init(void)
 	init_unwind_table(&root_table, "kernel",
 	                  _text, _end - _text,
 	                  NULL, 0,
-	                  __start_unwind, __end_unwind - __start_unwind);
+	                  __start_unwind, __end_unwind - __start_unwind,
+	                  __start_unwind_hdr, __end_unwind_hdr - __start_unwind_hdr);
+}
+
+static const u32 bad_cie, not_fde;
+static const u32 *cie_for_fde(const u32 *fde, const struct unwind_table *);
+static signed fde_pointer_type(const u32 *cie);
+
+struct eh_frame_hdr_table_entry {
+	unsigned long start, fde;
+};
+
+static int cmp_eh_frame_hdr_table_entries(const void *p1, const void *p2)
+{
+	const struct eh_frame_hdr_table_entry *e1 = p1;
+	const struct eh_frame_hdr_table_entry *e2 = p2;
+
+	return (e1->start > e2->start) - (e1->start < e2->start);
+}
+
+static void swap_eh_frame_hdr_table_entries(void *p1, void *p2, int size)
+{
+	struct eh_frame_hdr_table_entry *e1 = p1;
+	struct eh_frame_hdr_table_entry *e2 = p2;
+	unsigned long v;
+
+	v = e1->start;
+	e1->start = e2->start;
+	e2->start = v;
+	v = e1->fde;
+	e1->fde = e2->fde;
+	e2->fde = v;
+}
+
+static void __init setup_unwind_table(struct unwind_table *table,
+					void *(*alloc)(unsigned long))
+{
+	const u8 *ptr;
+	unsigned long tableSize = table->size, hdrSize;
+	unsigned n;
+	const u32 *fde;
+	struct {
+		u8 version;
+		u8 eh_frame_ptr_enc;
+		u8 fde_count_enc;
+		u8 table_enc;
+		unsigned long eh_frame_ptr;
+		unsigned int fde_count;
+		struct eh_frame_hdr_table_entry table[];
+	} __attribute__((__packed__)) *header;
+
+	if (table->header)
+		return;
+
+	if (table->hdrsz)
+		printk(KERN_WARNING ".eh_frame_hdr for '%s' present but unusable\n",
+		       table->name);
+
+	if (tableSize & (sizeof(*fde) - 1))
+		return;
+
+	for (fde = table->address, n = 0;
+	     tableSize > sizeof(*fde) && tableSize - sizeof(*fde) >= *fde;
+	     tableSize -= sizeof(*fde) + *fde, fde += 1 + *fde / sizeof(*fde)) {
+		const u32 *cie = cie_for_fde(fde, table);
+		signed ptrType;
+
+		if (cie == &not_fde)
+			continue;
+		if (cie == NULL
+		    || cie == &bad_cie
+		    || (ptrType = fde_pointer_type(cie)) < 0)
+			return;
+		ptr = (const u8 *)(fde + 2);
+		if (!read_pointer(&ptr,
+		                  (const u8 *)(fde + 1) + *fde,
+		                  ptrType, 0, 0))
+			return;
+		++n;
+	}
+
+	if (tableSize || !n)
+		return;
+
+	hdrSize = 4 + sizeof(unsigned long) + sizeof(unsigned int)
+	        + 2 * n * sizeof(unsigned long);
+	dprintk(2, "Binary lookup table size for %s: %lu bytes", table->name, hdrSize);
+	header = alloc(hdrSize);
+	if (!header)
+		return;
+	header->version          = 1;
+	header->eh_frame_ptr_enc = DW_EH_PE_abs|DW_EH_PE_native;
+	header->fde_count_enc    = DW_EH_PE_abs|DW_EH_PE_data4;
+	header->table_enc        = DW_EH_PE_abs|DW_EH_PE_native;
+	put_unaligned((unsigned long)table->address, &header->eh_frame_ptr);
+	BUILD_BUG_ON(offsetof(typeof(*header), fde_count)
+	             % __alignof(typeof(header->fde_count)));
+	header->fde_count        = n;
+
+	BUILD_BUG_ON(offsetof(typeof(*header), table)
+	             % __alignof(typeof(*header->table)));
+	for (fde = table->address, tableSize = table->size, n = 0;
+	     tableSize;
+	     tableSize -= sizeof(*fde) + *fde, fde += 1 + *fde / sizeof(*fde)) {
+		const u32 *cie = fde + 1 - fde[1] / sizeof(*fde);
+
+		if (!fde[1])
+			continue; /* this is a CIE */
+		ptr = (const u8 *)(fde + 2);
+		header->table[n].start = read_pointer(&ptr,
+		                                      (const u8 *)(fde + 1) + *fde,
+		                                      fde_pointer_type(cie), 0, 0);
+		header->table[n].fde = (unsigned long)fde;
+		++n;
+	}
+	WARN_ON(n != header->fde_count);
+
+	sort(header->table,
+	     n,
+	     sizeof(*header->table),
+	     cmp_eh_frame_hdr_table_entries,
+	     swap_eh_frame_hdr_table_entries);
+
+	table->hdrsz = hdrSize;
+	smp_wmb();
+	table->header = (const void *)header;
+}
+
+static void *__init balloc(unsigned long sz)
+{
+	return __alloc_bootmem_nopanic(sz,
+	                               sizeof(unsigned int),
+	                               __pa(MAX_DMA_ADDRESS));
+}
+
+void __init unwind_setup(void)
+{
+	setup_unwind_table(&root_table, balloc);
 }
 
 #ifdef CONFIG_MODULES
@@ -193,7 +372,8 @@ void *unwind_add_table(struct module *module,
 	init_unwind_table(table, module->name,
 	                  module->module_core, module->core_size,
 	                  module->module_init, module->init_size,
-	                  table_start, table_size);
+	                  table_start, table_size,
+	                  NULL, 0);
 
 	if (last_table)
 		last_table->link = table;
@@ -303,9 +483,31 @@ static sleb128_t get_sleb128(const u8 **pcur, const u8 *end)
 	return value;
 }
 
+static const u32 *cie_for_fde(const u32 *fde, const struct unwind_table *table)
+{
+	const u32 *cie;
+
+	if (!*fde || (*fde & (sizeof(*fde) - 1)))
+		return &bad_cie;
+	if (!fde[1])
+		return &not_fde; /* this is a CIE */
+	if ((fde[1] & (sizeof(*fde) - 1))
+	    || fde[1] > (unsigned long)(fde + 1) - (unsigned long)table->address)
+		return NULL; /* this is not a valid FDE */
+	cie = fde + 1 - fde[1] / sizeof(*fde);
+	if (*cie <= sizeof(*cie) + 4
+	    || *cie >= fde[1] - sizeof(*fde)
+	    || (*cie & (sizeof(*cie) - 1))
+	    || cie[1])
+		return NULL; /* this is not a (valid) CIE */
+	return cie;
+}
+
 static unsigned long read_pointer(const u8 **pLoc,
                                   const void *end,
-                                  signed ptrType)
+                                  signed ptrType,
+                                  unsigned long text_base,
+                                  unsigned long data_base)
 {
 	unsigned long value = 0;
 	union {
@@ -317,13 +519,17 @@ static unsigned long read_pointer(const u8 **pLoc,
 		const unsigned long *pul;
 	} ptr;
 
-	if (ptrType < 0 || ptrType == DW_EH_PE_omit)
+	if (ptrType < 0 || ptrType == DW_EH_PE_omit) {
+		dprintk(1, "Invalid pointer encoding %02X (%p,%p).", ptrType, *pLoc, end);
 		return 0;
+	}
 	ptr.p8 = *pLoc;
 	switch(ptrType & DW_EH_PE_FORM) {
 	case DW_EH_PE_data2:
-		if (end < (const void *)(ptr.p16u + 1))
+		if (end < (const void *)(ptr.p16u + 1)) {
+			dprintk(1, "Data16 overrun (%p,%p).", ptr.p8, end);
 			return 0;
+		}
 		if(ptrType & DW_EH_PE_signed)
 			value = get_unaligned(ptr.p16s++);
 		else
@@ -331,8 +537,10 @@ static unsigned long read_pointer(const u8 **pLoc,
 		break;
 	case DW_EH_PE_data4:
 #ifdef CONFIG_64BIT
-		if (end < (const void *)(ptr.p32u + 1))
+		if (end < (const void *)(ptr.p32u + 1)) {
+			dprintk(1, "Data32 overrun (%p,%p).", ptr.p8, end);
 			return 0;
+		}
 		if(ptrType & DW_EH_PE_signed)
 			value = get_unaligned(ptr.p32s++);
 		else
@@ -344,8 +552,10 @@ static unsigned long read_pointer(const u8 **pLoc,
 		BUILD_BUG_ON(sizeof(u32) != sizeof(value));
 #endif
 	case DW_EH_PE_native:
-		if (end < (const void *)(ptr.pul + 1))
+		if (end < (const void *)(ptr.pul + 1)) {
+			dprintk(1, "DataUL overrun (%p,%p).", ptr.p8, end);
 			return 0;
+		}
 		value = get_unaligned(ptr.pul++);
 		break;
 	case DW_EH_PE_leb128:
@@ -353,10 +563,14 @@ static unsigned long read_pointer(const u8 **pLoc,
 		value = ptrType & DW_EH_PE_signed
 		        ? get_sleb128(&ptr.p8, end)
 		        : get_uleb128(&ptr.p8, end);
-		if ((const void *)ptr.p8 > end)
+		if ((const void *)ptr.p8 > end) {
+			dprintk(1, "DataLEB overrun (%p,%p).", ptr.p8, end);
 			return 0;
+		}
 		break;
 	default:
+		dprintk(2, "Cannot decode pointer type %02X (%p,%p).",
+		        ptrType, ptr.p8, end);
 		return 0;
 	}
 	switch(ptrType & DW_EH_PE_ADJUST) {
@@ -365,12 +579,33 @@ static unsigned long read_pointer(const u8 **pLoc,
 	case DW_EH_PE_pcrel:
 		value += (unsigned long)*pLoc;
 		break;
+	case DW_EH_PE_textrel:
+		if (likely(text_base)) {
+			value += text_base;
+			break;
+		}
+		dprintk(2, "Text-relative encoding %02X (%p,%p), but zero text base.",
+		        ptrType, *pLoc, end);
+		return 0;
+	case DW_EH_PE_datarel:
+		if (likely(data_base)) {
+			value += data_base;
+			break;
+		}
+		dprintk(2, "Data-relative encoding %02X (%p,%p), but zero data base.",
+		        ptrType, *pLoc, end);
+		return 0;
 	default:
+		dprintk(2, "Cannot adjust pointer type %02X (%p,%p).",
+		        ptrType, *pLoc, end);
 		return 0;
 	}
 	if ((ptrType & DW_EH_PE_indirect)
-	    && __get_user(value, (unsigned long *)value))
+	    && probe_kernel_address((unsigned long *)value, value)) {
+		dprintk(1, "Cannot read indirect value %lx (%p,%p).",
+		        value, *pLoc, end);
 		return 0;
+	}
 	*pLoc = ptr.p8;
 
 	return value;
@@ -413,7 +648,8 @@ static signed fde_pointer_type(const u32 *cie)
 			case 'P': {
 					signed ptrType = *ptr++;
 
-					if (!read_pointer(&ptr, end, ptrType) || ptr > end)
+					if (!read_pointer(&ptr, end, ptrType, 0, 0)
+					    || ptr > end)
 						return -1;
 				}
 				break;
@@ -473,7 +709,8 @@ static int processCFI(const u8 *start,
 			case DW_CFA_nop:
 				break;
 			case DW_CFA_set_loc:
-				if ((state->loc = read_pointer(&ptr.p8, end, ptrType)) == 0)
+				state->loc = read_pointer(&ptr.p8, end, ptrType, 0, 0);
+				if (state->loc == 0)
 					result = 0;
 				break;
 			case DW_CFA_advance_loc1:
@@ -519,8 +756,10 @@ static int processCFI(const u8 *start,
 					state->label = NULL;
 					return 1;
 				}
-				if (state->stackDepth >= MAX_STACK_DEPTH)
+				if (state->stackDepth >= MAX_STACK_DEPTH) {
+					dprintk(1, "State stack overflow (%p,%p).", ptr.p8, end);
 					return 0;
+				}
 				state->stack[state->stackDepth++] = ptr.p8;
 				break;
 			case DW_CFA_restore_state:
@@ -535,8 +774,10 @@ static int processCFI(const u8 *start,
 					result = processCFI(start, end, 0, ptrType, state);
 					state->loc = loc;
 					state->label = label;
-				} else
+				} else {
+					dprintk(1, "State stack underflow (%p,%p).", ptr.p8, end);
 					return 0;
+				}
 				break;
 			case DW_CFA_def_cfa:
 				state->cfa.reg = get_uleb128(&ptr.p8, end);
@@ -568,6 +809,7 @@ static int processCFI(const u8 *start,
 				break;
 			case DW_CFA_GNU_window_save:
 			default:
+				dprintk(1, "Unrecognized CFI op %02X (%p,%p).", ptr.p8[-1], ptr.p8 - 1, end);
 				result = 0;
 				break;
 			}
@@ -583,11 +825,16 @@ static int processCFI(const u8 *start,
 			set_rule(*ptr.p8++ & 0x3f, Nowhere, 0, state);
 			break;
 		}
-		if (ptr.p8 > end)
+		if (ptr.p8 > end) {
+			dprintk(1, "Data overrun (%p,%p).", ptr.p8, end);
 			result = 0;
+		}
 		if (result && targetLoc != 0 && targetLoc < state->loc)
 			return 1;
 	}
+
+	if (result && ptr.p8 < end)
+		dprintk(1, "Data underrun (%p,%p).", ptr.p8, end);
 
 	return result
 	   && ptr.p8 == end
@@ -605,54 +852,122 @@ int unwind(struct unwind_frame_info *frame)
 #define FRAME_REG(r, t) (((t *)frame)[reg_info[r].offs])
 	const u32 *fde = NULL, *cie = NULL;
 	const u8 *ptr = NULL, *end = NULL;
-	unsigned long pc = UNW_PC(frame) - frame->call_frame;
+	unsigned long pc = UNW_PC(frame) - frame->call_frame, sp;
 	unsigned long startLoc = 0, endLoc = 0, cfa;
 	unsigned i;
 	signed ptrType = -1;
 	uleb128_t retAddrReg = 0;
-	struct unwind_table *table;
+	const struct unwind_table *table;
 	struct unwind_state state;
 
 	if (UNW_PC(frame) == 0)
 		return -EINVAL;
 	if ((table = find_table(pc)) != NULL
 	    && !(table->size & (sizeof(*fde) - 1))) {
-		unsigned long tableSize = table->size;
+		const u8 *hdr = table->header;
+		unsigned long tableSize;
 
-		for (fde = table->address;
-		     tableSize > sizeof(*fde) && tableSize - sizeof(*fde) >= *fde;
-		     tableSize -= sizeof(*fde) + *fde,
-		     fde += 1 + *fde / sizeof(*fde)) {
-			if (!*fde || (*fde & (sizeof(*fde) - 1)))
-				break;
-			if (!fde[1])
-				continue; /* this is a CIE */
-			if ((fde[1] & (sizeof(*fde) - 1))
-			    || fde[1] > (unsigned long)(fde + 1)
-			                - (unsigned long)table->address)
-				continue; /* this is not a valid FDE */
-			cie = fde + 1 - fde[1] / sizeof(*fde);
-			if (*cie <= sizeof(*cie) + 4
-			    || *cie >= fde[1] - sizeof(*fde)
-			    || (*cie & (sizeof(*cie) - 1))
-			    || cie[1]
-			    || (ptrType = fde_pointer_type(cie)) < 0) {
-				cie = NULL; /* this is not a (valid) CIE */
-				continue;
+		smp_rmb();
+		if (hdr && hdr[0] == 1) {
+			switch(hdr[3] & DW_EH_PE_FORM) {
+			case DW_EH_PE_native: tableSize = sizeof(unsigned long); break;
+			case DW_EH_PE_data2: tableSize = 2; break;
+			case DW_EH_PE_data4: tableSize = 4; break;
+			case DW_EH_PE_data8: tableSize = 8; break;
+			default: tableSize = 0; break;
 			}
+			ptr = hdr + 4;
+			end = hdr + table->hdrsz;
+			if (tableSize
+			    && read_pointer(&ptr, end, hdr[1], 0, 0)
+			       == (unsigned long)table->address
+			    && (i = read_pointer(&ptr, end, hdr[2], 0, 0)) > 0
+			    && i == (end - ptr) / (2 * tableSize)
+			    && !((end - ptr) % (2 * tableSize))) {
+				do {
+					const u8 *cur = ptr + (i / 2) * (2 * tableSize);
+
+					startLoc = read_pointer(&cur,
+					                        cur + tableSize,
+					                        hdr[3], 0,
+					                        (unsigned long)hdr);
+					if (pc < startLoc)
+						i /= 2;
+					else {
+						ptr = cur - tableSize;
+						i = (i + 1) / 2;
+					}
+				} while (startLoc && i > 1);
+				if (i == 1
+				    && (startLoc = read_pointer(&ptr,
+				                                ptr + tableSize,
+				                                hdr[3], 0,
+				                                (unsigned long)hdr)) != 0
+				    && pc >= startLoc)
+					fde = (void *)read_pointer(&ptr,
+					                           ptr + tableSize,
+					                           hdr[3], 0,
+					                           (unsigned long)hdr);
+			}
+		}
+		if(hdr && !fde)
+			dprintk(3, "Binary lookup for %lx failed.", pc);
+
+		if (fde != NULL) {
+			cie = cie_for_fde(fde, table);
 			ptr = (const u8 *)(fde + 2);
-			startLoc = read_pointer(&ptr,
-			                        (const u8 *)(fde + 1) + *fde,
-			                        ptrType);
-			endLoc = startLoc
-			         + read_pointer(&ptr,
-			                        (const u8 *)(fde + 1) + *fde,
-			                        ptrType & DW_EH_PE_indirect
-			                        ? ptrType
-			                        : ptrType & (DW_EH_PE_FORM|DW_EH_PE_signed));
-			if (pc >= startLoc && pc < endLoc)
-				break;
-			cie = NULL;
+			if(cie != NULL
+			   && cie != &bad_cie
+			   && cie != &not_fde
+			   && (ptrType = fde_pointer_type(cie)) >= 0
+			   && read_pointer(&ptr,
+			                   (const u8 *)(fde + 1) + *fde,
+			                   ptrType, 0, 0) == startLoc) {
+				if (!(ptrType & DW_EH_PE_indirect))
+					ptrType &= DW_EH_PE_FORM|DW_EH_PE_signed;
+				endLoc = startLoc
+				         + read_pointer(&ptr,
+				                        (const u8 *)(fde + 1) + *fde,
+				                        ptrType, 0, 0);
+				if(pc >= endLoc)
+					fde = NULL;
+			} else
+				fde = NULL;
+			if(!fde)
+				dprintk(1, "Binary lookup result for %lx discarded.", pc);
+		}
+		if (fde == NULL) {
+			for (fde = table->address, tableSize = table->size;
+			     cie = NULL, tableSize > sizeof(*fde)
+			     && tableSize - sizeof(*fde) >= *fde;
+			     tableSize -= sizeof(*fde) + *fde,
+			     fde += 1 + *fde / sizeof(*fde)) {
+				cie = cie_for_fde(fde, table);
+				if (cie == &bad_cie) {
+					cie = NULL;
+					break;
+				}
+				if (cie == NULL
+				    || cie == &not_fde
+				    || (ptrType = fde_pointer_type(cie)) < 0)
+					continue;
+				ptr = (const u8 *)(fde + 2);
+				startLoc = read_pointer(&ptr,
+				                        (const u8 *)(fde + 1) + *fde,
+				                        ptrType, 0, 0);
+				if (!startLoc)
+					continue;
+				if (!(ptrType & DW_EH_PE_indirect))
+					ptrType &= DW_EH_PE_FORM|DW_EH_PE_signed;
+				endLoc = startLoc
+				         + read_pointer(&ptr,
+				                        (const u8 *)(fde + 1) + *fde,
+				                        ptrType, 0, 0);
+				if (pc >= startLoc && pc < endLoc)
+					break;
+			}
+			if(!fde)
+				dprintk(3, "Linear lookup for %lx failed.", pc);
 		}
 	}
 	if (cie != NULL) {
@@ -686,6 +1001,8 @@ int unwind(struct unwind_frame_info *frame)
 			if (ptr >= end || *ptr)
 				cie = NULL;
 		}
+		if(!cie)
+			dprintk(1, "CIE unusable (%p,%p).", ptr, end);
 		++ptr;
 	}
 	if (cie != NULL) {
@@ -695,17 +1012,27 @@ int unwind(struct unwind_frame_info *frame)
 		state.dataAlign = get_sleb128(&ptr, end);
 		if (state.codeAlign == 0 || state.dataAlign == 0 || ptr >= end)
 			cie = NULL;
-		else {
+		else if (UNW_PC(frame) % state.codeAlign
+		         || UNW_SP(frame) % sleb128abs(state.dataAlign)) {
+			dprintk(1, "Input pointer(s) misaligned (%lx,%lx).",
+			        UNW_PC(frame), UNW_SP(frame));
+			return -EPERM;
+		} else {
 			retAddrReg = state.version <= 1 ? *ptr++ : get_uleb128(&ptr, end);
 			/* skip augmentation */
-			if (((const char *)(cie + 2))[1] == 'z')
-				ptr += get_uleb128(&ptr, end);
+			if (((const char *)(cie + 2))[1] == 'z') {
+				uleb128_t augSize = get_uleb128(&ptr, end);
+
+				ptr += augSize;
+			}
 			if (ptr > end
 			   || retAddrReg >= ARRAY_SIZE(reg_info)
 			   || REG_INVALID(retAddrReg)
 			   || reg_info[retAddrReg].width != sizeof(unsigned long))
 				cie = NULL;
 		}
+		if(!cie)
+			dprintk(1, "CIE validation failed (%p,%p).", ptr, end);
 	}
 	if (cie != NULL) {
 		state.cieStart = ptr;
@@ -719,13 +1046,15 @@ int unwind(struct unwind_frame_info *frame)
 			if ((ptr += augSize) > end)
 				fde = NULL;
 		}
+		if(!fde)
+			dprintk(1, "FDE validation failed (%p,%p).", ptr, end);
 	}
 	if (cie == NULL || fde == NULL) {
 #ifdef CONFIG_FRAME_POINTER
 		unsigned long top, bottom;
-#endif
 
-#ifdef CONFIG_FRAME_POINTER
+		if ((UNW_SP(frame) | UNW_FP(frame)) % sizeof(unsigned long))
+			return -EPERM;
 		top = STACK_TOP(frame->task);
 		bottom = STACK_BOTTOM(frame->task);
 # if FRAME_RETADDR_OFFSET < 0
@@ -741,18 +1070,19 @@ int unwind(struct unwind_frame_info *frame)
 		        & (sizeof(unsigned long) - 1))) {
 			unsigned long link;
 
-			if (!__get_user(link,
+			if (!probe_kernel_address(
 			                (unsigned long *)(UNW_FP(frame)
-			                                  + FRAME_LINK_OFFSET))
+			                                  + FRAME_LINK_OFFSET),
+						  link)
 # if FRAME_RETADDR_OFFSET < 0
 			   && link > bottom && link < UNW_FP(frame)
 # else
 			   && link > UNW_FP(frame) && link < bottom
 # endif
 			   && !(link & (sizeof(link) - 1))
-			   && !__get_user(UNW_PC(frame),
+			   && !probe_kernel_address(
 			                  (unsigned long *)(UNW_FP(frame)
-			                                    + FRAME_RETADDR_OFFSET))) {
+			                                    + FRAME_RETADDR_OFFSET), UNW_PC(frame))) {
 				UNW_SP(frame) = UNW_FP(frame) + FRAME_RETADDR_OFFSET
 # if FRAME_RETADDR_OFFSET < 0
 					-
@@ -775,8 +1105,11 @@ int unwind(struct unwind_frame_info *frame)
 	   || state.regs[retAddrReg].where == Nowhere
 	   || state.cfa.reg >= ARRAY_SIZE(reg_info)
 	   || reg_info[state.cfa.reg].width != sizeof(unsigned long)
-	   || state.cfa.offs % sizeof(unsigned long))
+	   || FRAME_REG(state.cfa.reg, unsigned long) % sizeof(unsigned long)
+	   || state.cfa.offs % sizeof(unsigned long)) {
+		dprintk(1, "Unusable unwind info (%p,%p).", ptr, end);
 		return -EIO;
+	}
 	/* update frame */
 #ifndef CONFIG_AS_CFI_SIGNAL_FRAME
 	if(frame->call_frame
@@ -795,10 +1128,14 @@ int unwind(struct unwind_frame_info *frame)
 #else
 # define CASES CASE(8); CASE(16); CASE(32); CASE(64)
 #endif
+	pc = UNW_PC(frame);
+	sp = UNW_SP(frame);
 	for (i = 0; i < ARRAY_SIZE(state.regs); ++i) {
 		if (REG_INVALID(i)) {
 			if (state.regs[i].where == Nowhere)
 				continue;
+			dprintk(1, "Cannot restore register %u (%d).",
+			        i, state.regs[i].where);
 			return -EIO;
 		}
 		switch(state.regs[i].where) {
@@ -807,8 +1144,11 @@ int unwind(struct unwind_frame_info *frame)
 		case Register:
 			if (state.regs[i].value >= ARRAY_SIZE(reg_info)
 			   || REG_INVALID(state.regs[i].value)
-			   || reg_info[i].width > reg_info[state.regs[i].value].width)
+			   || reg_info[i].width > reg_info[state.regs[i].value].width) {
+				dprintk(1, "Cannot restore register %u from register %lu.",
+				        i, state.regs[i].value);
 				return -EIO;
+			}
 			switch(reg_info[state.regs[i].value].width) {
 #define CASE(n) \
 			case sizeof(u##n): \
@@ -818,6 +1158,9 @@ int unwind(struct unwind_frame_info *frame)
 			CASES;
 #undef CASE
 			default:
+				dprintk(1, "Unsupported register size %u (%lu).",
+				        reg_info[state.regs[i].value].width,
+				        state.regs[i].value);
 				return -EIO;
 			}
 			break;
@@ -842,12 +1185,17 @@ int unwind(struct unwind_frame_info *frame)
 			CASES;
 #undef CASE
 			default:
+				dprintk(1, "Unsupported register size %u (%u).",
+				        reg_info[i].width, i);
 				return -EIO;
 			}
 			break;
 		case Value:
-			if (reg_info[i].width != sizeof(unsigned long))
+			if (reg_info[i].width != sizeof(unsigned long)) {
+				dprintk(1, "Unsupported value size %u (%u).",
+				        reg_info[i].width, i);
 				return -EIO;
+			}
 			FRAME_REG(i, unsigned long) = cfa + state.regs[i].value
 			                                    * state.dataAlign;
 			break;
@@ -859,20 +1207,36 @@ int unwind(struct unwind_frame_info *frame)
 				    % sizeof(unsigned long)
 				    || addr < startLoc
 				    || addr + sizeof(unsigned long) < addr
-				    || addr + sizeof(unsigned long) > endLoc)
+				    || addr + sizeof(unsigned long) > endLoc) {
+					dprintk(1, "Bad memory location %lx (%lx).",
+					        addr, state.regs[i].value);
 					return -EIO;
+				}
 				switch(reg_info[i].width) {
 #define CASE(n)     case sizeof(u##n): \
-					__get_user(FRAME_REG(i, u##n), (u##n *)addr); \
+					probe_kernel_address((u##n *)addr, FRAME_REG(i, u##n)); \
 					break
 				CASES;
 #undef CASE
 				default:
+					dprintk(1, "Unsupported memory size %u (%u).",
+					        reg_info[i].width, i);
 					return -EIO;
 				}
 			}
 			break;
 		}
+	}
+
+	if (UNW_PC(frame) % state.codeAlign
+	    || UNW_SP(frame) % sleb128abs(state.dataAlign)) {
+		dprintk(1, "Output pointer(s) misaligned (%lx,%lx).",
+		        UNW_PC(frame), UNW_SP(frame));
+		return -EIO;
+	}
+	if (pc == UNW_PC(frame) && sp == UNW_SP(frame)) {
+		dprintk(1, "No progress (%lx,%lx).", pc, sp);
+		return -EIO;
 	}
 
 	return 0;

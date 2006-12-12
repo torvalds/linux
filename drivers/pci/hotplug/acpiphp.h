@@ -38,7 +38,7 @@
 #include <linux/acpi.h>
 #include <linux/kobject.h>	/* for KOBJ_NAME_LEN */
 #include <linux/mutex.h>
-#include "pci_hotplug.h"
+#include <linux/pci_hotplug.h>
 
 #define dbg(format, arg...)					\
 	do {							\
@@ -62,9 +62,9 @@ struct acpiphp_slot;
 struct slot {
 	struct hotplug_slot	*hotplug_slot;
 	struct acpiphp_slot	*acpi_slot;
+	struct hotplug_slot_info info;
+	char name[SLOT_NAME_SIZE];
 };
-
-
 
 /**
  * struct acpiphp_bridge - PCI bridge information

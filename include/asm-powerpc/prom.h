@@ -17,6 +17,7 @@
  */
 #include <linux/types.h>
 #include <linux/proc_fs.h>
+#include <linux/platform_device.h>
 #include <asm/atomic.h>
 
 /* Definitions used by the flattened device tree */
@@ -134,7 +135,7 @@ extern struct device_node *of_find_all_nodes(struct device_node *prev);
 extern struct device_node *of_get_parent(const struct device_node *node);
 extern struct device_node *of_get_next_child(const struct device_node *node,
 					     struct device_node *prev);
-extern struct property *of_find_property(struct device_node *np,
+extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
 					 int *lenp);
 extern struct device_node *of_node_get(struct device_node *node);
@@ -158,10 +159,12 @@ extern void of_detach_node(const struct device_node *);
 extern void finish_device_tree(void);
 extern void unflatten_device_tree(void);
 extern void early_init_devtree(void *);
-extern int device_is_compatible(struct device_node *device, const char *);
+extern int device_is_compatible(const struct device_node *device,
+				const char *);
 extern int machine_is_compatible(const char *compat);
-extern const void *get_property(struct device_node *node, const char *name,
-		int *lenp);
+extern const void *get_property(const struct device_node *node,
+				const char *name,
+				int *lenp);
 extern void print_properties(struct device_node *node);
 extern int prom_n_addr_cells(struct device_node* np);
 extern int prom_n_size_cells(struct device_node* np);
@@ -330,6 +333,20 @@ extern int of_irq_map_one(struct device_node *device, int index,
  */
 struct pci_dev;
 extern int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq);
+
+static inline int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
+{
+	int irq = irq_of_parse_and_map(dev, index);
+
+	/* Only dereference the resource if both the
+	 * resource and the irq are valid. */
+	if (r && irq != NO_IRQ) {
+		r->start = r->end = irq;
+		r->flags = IORESOURCE_IRQ;
+	}
+
+	return irq;
+}
 
 
 #endif /* __KERNEL__ */

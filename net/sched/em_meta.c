@@ -208,13 +208,9 @@ META_COLLECTOR(int_maclen)
  * Netfilter
  **************************************************************************/
 
-META_COLLECTOR(int_nfmark)
+META_COLLECTOR(int_mark)
 {
-#ifdef CONFIG_NETFILTER
-	dst->value = skb->nfmark;
-#else
-	dst->value = 0;
-#endif
+	dst->value = skb->mark;
 }
 
 /**************************************************************************
@@ -490,7 +486,7 @@ static struct meta_ops __meta_ops[TCF_META_TYPE_MAX+1][TCF_META_ID_MAX+1] = {
 		[META_ID(PKTLEN)]		= META_FUNC(int_pktlen),
 		[META_ID(DATALEN)]		= META_FUNC(int_datalen),
 		[META_ID(MACLEN)]		= META_FUNC(int_maclen),
-		[META_ID(NFMARK)]		= META_FUNC(int_nfmark),
+		[META_ID(NFMARK)]		= META_FUNC(int_mark),
 		[META_ID(TCINDEX)]		= META_FUNC(int_tcindex),
 		[META_ID(RTCLASSID)]		= META_FUNC(int_rtclassid),
 		[META_ID(RTIIF)]		= META_FUNC(int_rtiif),
@@ -550,10 +546,9 @@ static int meta_var_change(struct meta_value *dst, struct rtattr *rta)
 {
 	int len = RTA_PAYLOAD(rta);
 
-	dst->val = (unsigned long) kmalloc(len, GFP_KERNEL);
+	dst->val = (unsigned long)kmemdup(RTA_DATA(rta), len, GFP_KERNEL);
 	if (dst->val == 0UL)
 		return -ENOMEM;
-	memcpy((void *) dst->val, RTA_DATA(rta), len);
 	dst->len = len;
 	return 0;
 }

@@ -76,7 +76,8 @@ BUILD_16_IRQS(0xc) BUILD_16_IRQS(0xd) BUILD_16_IRQS(0xe) BUILD_16_IRQS(0xf)
 	IRQ(x,8), IRQ(x,9), IRQ(x,a), IRQ(x,b), \
 	IRQ(x,c), IRQ(x,d), IRQ(x,e), IRQ(x,f)
 
-void (*interrupt[NR_IRQS])(void) = {
+/* for the irq vectors */
+static void (*interrupt[NR_VECTORS - FIRST_EXTERNAL_VECTOR])(void) = {
 					  IRQLIST_16(0x2), IRQLIST_16(0x3),
 	IRQLIST_16(0x4), IRQLIST_16(0x5), IRQLIST_16(0x6), IRQLIST_16(0x7),
 	IRQLIST_16(0x8), IRQLIST_16(0x9), IRQLIST_16(0xa), IRQLIST_16(0xb),
@@ -178,7 +179,8 @@ void make_8259A_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
 	io_apic_irqs &= ~(1<<irq);
-	set_irq_chip_and_handler(irq, &i8259A_chip, handle_level_irq);
+	set_irq_chip_and_handler_name(irq, &i8259A_chip, handle_level_irq,
+				      "XT");
 	enable_irq(irq);
 }
 
@@ -431,8 +433,8 @@ void __init init_ISA_irqs (void)
 			/*
 			 * 16 old-style INTA-cycle interrupts:
 			 */
-			set_irq_chip_and_handler(i, &i8259A_chip,
-						 handle_level_irq);
+			set_irq_chip_and_handler_name(i, &i8259A_chip,
+						      handle_level_irq, "XT");
 		} else {
 			/*
 			 * 'high' PCI IRQs filled in on demand

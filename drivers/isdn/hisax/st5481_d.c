@@ -173,7 +173,7 @@ static void l1m_debug(struct FsmInst *fi, char *fmt, ...)
 	char buf[256];
 	
 	va_start(args, fmt);
-	vsprintf(buf, fmt, args);
+	vsnprintf(buf, sizeof(buf), fmt, args);
 	DBG(8, "%s", buf);
 	va_end(args);
 }
@@ -275,7 +275,7 @@ static void dout_debug(struct FsmInst *fi, char *fmt, ...)
 	char buf[256];
 	
 	va_start(args, fmt);
-	vsprintf(buf, fmt, args);
+	vsnprintf(buf, sizeof(buf), fmt, args);
 	DBG(0x2, "%s", buf);
 	va_end(args);
 }

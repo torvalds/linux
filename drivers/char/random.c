@@ -645,6 +645,7 @@ void add_input_randomness(unsigned int type, unsigned int code,
 	add_timer_randomness(&input_timer_state,
 			     (type << 4) ^ code ^ (code >> 4) ^ value);
 }
+EXPORT_SYMBOL_GPL(add_input_randomness);
 
 void add_interrupt_randomness(int irq)
 {
@@ -1047,7 +1048,7 @@ random_write(struct file * file, const char __user * buffer,
 	if (p == buffer) {
 		return (ssize_t)ret;
 	} else {
-		struct inode *inode = file->f_dentry->d_inode;
+		struct inode *inode = file->f_path.dentry->d_inode;
 	        inode->i_mtime = current_fs_time(inode->i_sb);
 		mark_inode_dirty(inode);
 		return (ssize_t)(p - buffer);
@@ -1202,7 +1203,7 @@ static int proc_do_uuid(ctl_table *table, int write, struct file *filp,
 
 static int uuid_strategy(ctl_table *table, int __user *name, int nlen,
 			 void __user *oldval, size_t __user *oldlenp,
-			 void __user *newval, size_t newlen, void **context)
+			 void __user *newval, size_t newlen)
 {
 	unsigned char tmp_uuid[16], *uuid;
 	unsigned int len;
@@ -1421,9 +1422,9 @@ static struct keydata {
 
 static unsigned int ip_cnt;
 
-static void rekey_seq_generator(void *private_);
+static void rekey_seq_generator(struct work_struct *work);
 
-static DECLARE_WORK(rekey_work, rekey_seq_generator, NULL);
+static DECLARE_DELAYED_WORK(rekey_work, rekey_seq_generator);
 
 /*
  * Lock avoidance:
@@ -1437,7 +1438,7 @@ static DECLARE_WORK(rekey_work, rekey_seq_generator, NULL);
  * happen, and even if that happens only a not perfectly compliant
  * ISN is generated, nothing fatal.
  */
-static void rekey_seq_generator(void *private_)
+static void rekey_seq_generator(struct work_struct *work)
 {
 	struct keydata *keyptr = &ip_keydata[1 ^ (ip_cnt & 1)];
 
@@ -1465,8 +1466,8 @@ static __init int seqgen_init(void)
 late_initcall(seqgen_init);
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-__u32 secure_tcpv6_sequence_number(__u32 *saddr, __u32 *daddr,
-				   __u16 sport, __u16 dport)
+__u32 secure_tcpv6_sequence_number(__be32 *saddr, __be32 *daddr,
+				   __be16 sport, __be16 dport)
 {
 	struct timeval tv;
 	__u32 seq;
@@ -1478,10 +1479,10 @@ __u32 secure_tcpv6_sequence_number(__u32 *saddr, __u32 *daddr,
 	 */
 
 	memcpy(hash, saddr, 16);
-	hash[4]=(sport << 16) + dport;
+	hash[4]=((__force u16)sport << 16) + (__force u16)dport;
 	memcpy(&hash[5],keyptr->secret,sizeof(__u32) * 7);
 
-	seq = twothirdsMD4Transform(daddr, hash) & HASH_MASK;
+	seq = twothirdsMD4Transform((const __u32 *)daddr, hash) & HASH_MASK;
 	seq += keyptr->count;
 
 	do_gettimeofday(&tv);
@@ -1495,7 +1496,7 @@ EXPORT_SYMBOL(secure_tcpv6_sequence_number);
 /*  The code below is shamelessly stolen from secure_tcp_sequence_number().
  *  All blames to Andrey V. Savochkin <saw@msu.ru>.
  */
-__u32 secure_ip_id(__u32 daddr)
+__u32 secure_ip_id(__be32 daddr)
 {
 	struct keydata *keyptr;
 	__u32 hash[4];
@@ -1507,7 +1508,7 @@ __u32 secure_ip_id(__u32 daddr)
 	 *  The dest ip address is placed in the starting vector,
 	 *  which is then hashed with random data.
 	 */
-	hash[0] = daddr;
+	hash[0] = (__force __u32)daddr;
 	hash[1] = keyptr->secret[9];
 	hash[2] = keyptr->secret[10];
 	hash[3] = keyptr->secret[11];
@@ -1517,8 +1518,8 @@ __u32 secure_ip_id(__u32 daddr)
 
 #ifdef CONFIG_INET
 
-__u32 secure_tcp_sequence_number(__u32 saddr, __u32 daddr,
-				 __u16 sport, __u16 dport)
+__u32 secure_tcp_sequence_number(__be32 saddr, __be32 daddr,
+				 __be16 sport, __be16 dport)
 {
 	struct timeval tv;
 	__u32 seq;
@@ -1531,9 +1532,9 @@ __u32 secure_tcp_sequence_number(__u32 saddr, __u32 daddr,
 	 *  Note that the words are placed into the starting vector, which is
 	 *  then mixed with a partial MD4 over random data.
 	 */
-	hash[0]=saddr;
-	hash[1]=daddr;
-	hash[2]=(sport << 16) + dport;
+	hash[0]=(__force u32)saddr;
+	hash[1]=(__force u32)daddr;
+	hash[2]=((__force u16)sport << 16) + (__force u16)dport;
 	hash[3]=keyptr->secret[11];
 
 	seq = half_md4_transform(hash, keyptr->secret) & HASH_MASK;
@@ -1558,7 +1559,7 @@ __u32 secure_tcp_sequence_number(__u32 saddr, __u32 daddr,
 EXPORT_SYMBOL(secure_tcp_sequence_number);
 
 /* Generate secure starting point for ephemeral IPV4 transport port search */
-u32 secure_ipv4_port_ephemeral(__u32 saddr, __u32 daddr, __u16 dport)
+u32 secure_ipv4_port_ephemeral(__be32 saddr, __be32 daddr, __be16 dport)
 {
 	struct keydata *keyptr = get_keyptr();
 	u32 hash[4];
@@ -1567,25 +1568,25 @@ u32 secure_ipv4_port_ephemeral(__u32 saddr, __u32 daddr, __u16 dport)
 	 *  Pick a unique starting offset for each ephemeral port search
 	 *  (saddr, daddr, dport) and 48bits of random data.
 	 */
-	hash[0] = saddr;
-	hash[1] = daddr;
-	hash[2] = dport ^ keyptr->secret[10];
+	hash[0] = (__force u32)saddr;
+	hash[1] = (__force u32)daddr;
+	hash[2] = (__force u32)dport ^ keyptr->secret[10];
 	hash[3] = keyptr->secret[11];
 
 	return half_md4_transform(hash, keyptr->secret);
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-u32 secure_ipv6_port_ephemeral(const __u32 *saddr, const __u32 *daddr, __u16 dport)
+u32 secure_ipv6_port_ephemeral(const __be32 *saddr, const __be32 *daddr, __be16 dport)
 {
 	struct keydata *keyptr = get_keyptr();
 	u32 hash[12];
 
 	memcpy(hash, saddr, 16);
-	hash[4] = dport;
+	hash[4] = (__force u32)dport;
 	memcpy(&hash[5],keyptr->secret,sizeof(__u32) * 7);
 
-	return twothirdsMD4Transform(daddr, hash);
+	return twothirdsMD4Transform((const __u32 *)daddr, hash);
 }
 #endif
 
@@ -1594,17 +1595,17 @@ u32 secure_ipv6_port_ephemeral(const __u32 *saddr, const __u32 *daddr, __u16 dpo
  * bit's 32-47 increase every key exchange
  *       0-31  hash(source, dest)
  */
-u64 secure_dccp_sequence_number(__u32 saddr, __u32 daddr,
-				__u16 sport, __u16 dport)
+u64 secure_dccp_sequence_number(__be32 saddr, __be32 daddr,
+				__be16 sport, __be16 dport)
 {
 	struct timeval tv;
 	u64 seq;
 	__u32 hash[4];
 	struct keydata *keyptr = get_keyptr();
 
-	hash[0] = saddr;
-	hash[1] = daddr;
-	hash[2] = (sport << 16) + dport;
+	hash[0] = (__force u32)saddr;
+	hash[1] = (__force u32)daddr;
+	hash[2] = ((__force u16)sport << 16) + (__force u16)dport;
 	hash[3] = keyptr->secret[11];
 
 	seq = half_md4_transform(hash, keyptr->secret);
@@ -1640,7 +1641,7 @@ unsigned int get_random_int(void)
 	 * drain on it), and uses halfMD4Transform within the second. We
 	 * also mix it with jiffies and the PID:
 	 */
-	return secure_ip_id(current->pid + jiffies);
+	return secure_ip_id((__force __be32)(current->pid + jiffies));
 }
 
 /*

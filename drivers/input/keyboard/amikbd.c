@@ -190,7 +190,7 @@ static int __init amikbd_init(void)
 	int i, j;
 
 	if (!AMIGAHW_PRESENT(AMI_KEYBOARD))
-		return -EIO;
+		return -ENODEV;
 
 	if (!request_mem_region(CIAA_PHYSADDR-1+0xb00, 0x100, "amikeyb"))
 		return -EBUSY;
@@ -198,8 +198,8 @@ static int __init amikbd_init(void)
 	amikbd_dev = input_allocate_device();
 	if (!amikbd_dev) {
 		printk(KERN_ERR "amikbd: not enough memory for input device\n");
-		release_mem_region(CIAA_PHYSADDR - 1 + 0xb00, 0x100);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto fail1;
 	}
 
 	amikbd_dev->name = "Amiga Keyboard";
@@ -231,10 +231,22 @@ static int __init amikbd_init(void)
 		memcpy(key_maps[i], temp_map, sizeof(temp_map));
 	}
 	ciaa.cra &= ~0x41;	 /* serial data in, turn off TA */
-	request_irq(IRQ_AMIGA_CIAA_SP, amikbd_interrupt, 0, "amikbd", amikbd_interrupt);
+	if (request_irq(IRQ_AMIGA_CIAA_SP, amikbd_interrupt, 0, "amikbd",
+			amikbd_interrupt)) {
+		err = -EBUSY;
+		goto fail2;
+	}
 
-	input_register_device(amikbd_dev);
+	err = input_register_device(amikbd_dev);
+	if (err)
+		goto fail3;
+
 	return 0;
+
+ fail3:	free_irq(IRQ_AMIGA_CIAA_SP, amikbd_interrupt);
+ fail2:	input_free_device(amikbd_dev);
+ fail1:	release_mem_region(CIAA_PHYSADDR - 1 + 0xb00, 0x100);
+	return err;
 }
 
 static void __exit amikbd_exit(void)

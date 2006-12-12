@@ -1238,7 +1238,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 	return 0;
 }
 
-static void rs_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct dec_serial *info = (struct dec_serial *)tty->driver_data;
 	int was_stopped;

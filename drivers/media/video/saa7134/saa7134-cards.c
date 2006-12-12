@@ -2462,14 +2462,17 @@ struct saa7134_board saa7134_boards[] = {
 			.vmux = 1,
 			.amux = TV,
 			.tv   = 1,
+			.gpio = 0x0000000,
 		},{
 			.name = name_comp1,
 			.vmux = 3,
 			.amux = LINE2,
+			.gpio = 0x0200000,
 		},{
 			.name = name_svideo,
 			.vmux = 8,
 			.amux = LINE2,
+			.gpio = 0x0200000,
 		}},
 		.radio = {
 			.name = name_radio,
@@ -2969,7 +2972,7 @@ struct saa7134_board saa7134_boards[] = {
 		/* Petr Baudis <pasky@ucw.cz> */
 		.name           = "AVerMedia TV Hybrid A16AR",
 		.audio_clock    = 0x187de7,
-		.tuner_type     = TUNER_PHILIPS_TDA8290, /* untested */
+		.tuner_type     = TUNER_PHILIPS_TD1316, /* untested */
 		.radio_type     = TUNER_TEA5767, /* untested */
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
@@ -3021,6 +3024,158 @@ struct saa7134_board saa7134_boards[] = {
 			.name   = name_radio,
 			.amux   = LINE1,
 		},
+	},
+	[SAA7134_BOARD_PINNACLE_PCTV_310i] = {
+		.name           = "Pinnacle PCTV 310i",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.gpiomask       = 0x000200000,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 4,
+			.amux = TV,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 1,
+			.amux = LINE2,
+		},{
+			.name = name_comp2,
+			.vmux = 0,
+			.amux = LINE2,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux   = TV,
+			.gpio   = 0x0200000,
+		},
+	},
+	[SAA7134_BOARD_AVERMEDIA_STUDIO_507] = {
+		/* Mikhail Fedotov <mo_fedotov@mail.ru> */
+		.name           = "Avermedia AVerTV Studio 507",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_FM1256_IH3,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0x03,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+			.gpio = 0x00,
+		},{
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE2,
+			.gpio = 0x00,
+		},{
+			.name = name_comp2,
+			.vmux = 3,
+			.amux = LINE2,
+			.gpio = 0x00,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+			.gpio = 0x00,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+			.gpio = 0x01,
+		},
+		.mute  = {
+			.name = name_mute,
+			.amux = LINE1,
+			.gpio = 0x00,
+		},
+	},
+	[SAA7134_BOARD_VIDEOMATE_DVBT_200A] = {
+		/* Francis Barber <fedora@barber-family.id.au> */
+		.name           = "Compro Videomate DVB-T200A",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT | TDA9887_PORT1_ACTIVE,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 3,
+			.amux   = TV,
+			.tv     = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 1,
+			.amux   = LINE2,
+		},{
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE2,
+		}},
+	},
+	[SAA7134_BOARD_HAUPPAUGE_HVR1110] = {
+		/* Thomas Genty <tomlohave@gmail.com> */
+		.name           = "Hauppauge WinTV-HVR1110 DVB-T/Hybrid",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 3,
+			.amux   = LINE2, /* FIXME: audio doesn't work on svideo/composite */
+		},{
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE2, /* FIXME: audio doesn't work on svideo/composite */
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux   = TV,
+		},
+	},
+	[SAA7134_BOARD_CINERGY_HT_PCMCIA] = {
+		.name           = "Terratec Cinergy HT PCMCIA",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 1,
+			.amux   = TV,
+			.tv     = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 0,
+			.amux   = LINE1,
+		},{
+			.name   = name_svideo,
+			.vmux   = 6,
+			.amux   = LINE1,
+		}},
 	},
 };
 
@@ -3631,6 +3786,36 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x4860,
 		.driver_data  = SAA7134_BOARD_ASUS_EUROPA2_HYBRID,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x11bd,
+		.subdevice    = 0x002f,
+		.driver_data  = SAA7134_BOARD_PINNACLE_PCTV_310i,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0x9715,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_STUDIO_507,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1043,
+		.subdevice    = 0x4876,
+		.driver_data  = SAA7134_BOARD_ASUSTeK_P7131_DUAL,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0070,
+		.subdevice    = 0x6701,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x153b,
+		.subdevice    = 0x1172,
+		.driver_data  = SAA7134_BOARD_CINERGY_HT_PCMCIA,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3717,13 +3902,16 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_305:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_307:
 	case SAA7134_BOARD_AVERMEDIA_307:
+	case SAA7134_BOARD_AVERMEDIA_STUDIO_507:
 	case SAA7134_BOARD_AVERMEDIA_GO_007_FM:
+	case SAA7134_BOARD_AVERMEDIA_777:
 /*      case SAA7134_BOARD_SABRENT_SBTTVFM:  */ /* not finished yet */
 	case SAA7134_BOARD_VIDEOMATE_TV_PVR:
 	case SAA7134_BOARD_VIDEOMATE_GOLD_PLUS:
 	case SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUSII:
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
+	case SAA7134_BOARD_VIDEOMATE_DVBT_200A:
 	case SAA7134_BOARD_MANLI_MTV001:
 	case SAA7134_BOARD_MANLI_MTV002:
 	case SAA7134_BOARD_BEHOLD_409FM:
@@ -3734,6 +3922,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_FLYDVBT_LR301:
 	case SAA7134_BOARD_FLYDVBTDUO:
 	case SAA7134_BOARD_PROTEUS_2309:
+	case SAA7134_BOARD_AVERMEDIA_A16AR:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:
@@ -3772,7 +3961,6 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_writeb(SAA7134_GPIO_GPMODE3, 0x08);
 		saa_writeb(SAA7134_GPIO_GPSTATUS3, 0x00);
 		break;
-	case SAA7134_BOARD_AVERMEDIA_A16AR:
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS:
 		/* power-up tuner chip */
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0xffffffff, 0xffffffff);
@@ -3792,7 +3980,9 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		break;
 	/* i2c remotes */
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:
+	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 	case SAA7134_BOARD_UPMOST_PURPLE_TV:
+	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		dev->has_remote = SAA7134_REMOTE_I2C;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A169_B:
@@ -3923,9 +4113,11 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TIGER:
+	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 	case SAA7134_BOARD_MEDION_MD8800_QUADRO:
+	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		/* this is a hybrid board, initialize to analog mode
 		 * and configure firmware eeprom address
 		 */
@@ -3951,6 +4143,14 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
 		}
 		break;
+	case SAA7134_BOARD_CINERGY_HT_PCMCIA:
+		/* make the tda10046 find its eeprom */
+		{
+		u8 data[] = { 0x3c, 0x33, 0x60};
+		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
+		i2c_transfer(&dev->i2c_adap, &msg, 1);
+		}
+		break;
 	case SAA7134_BOARD_KWORLD_ATSC110:
 		{
 			/* enable tuner */
@@ -3961,6 +4161,29 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				if (2 != i2c_master_send(&dev->i2c_client,&buffer[i*2],2))
 					printk(KERN_WARNING "%s: Unable to enable tuner(%i).\n",
 					       dev->name, i);
+		}
+		break;
+	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
+	case SAA7134_BOARD_VIDEOMATE_DVBT_200A:
+		/* The T200 and the T200A share the same pci id.  Consequently,
+		 * we are going to query eeprom to try to find out which one we
+		 * are actually looking at. */
+
+		/* Don't do this if the board was specifically selected with an
+		 * insmod option or if we have the default configuration T200*/
+		if(!dev->autodetected || (dev->eedata[0x41] == 0xd0))
+			break;
+		if(dev->eedata[0x41] == 0x02) {
+			/* Reconfigure board  as T200A */
+			dev->board = SAA7134_BOARD_VIDEOMATE_DVBT_200A;
+			dev->tuner_type   = saa7134_boards[dev->board].tuner_type;
+			dev->tda9887_conf = saa7134_boards[dev->board].tda9887_conf;
+			printk(KERN_INFO "%s: Reconfigured board as %s\n",
+				dev->name, saa7134_boards[dev->board].name);
+		} else {
+			printk(KERN_WARNING "%s: Unexpected tuner type info: %x in eeprom\n",
+				dev->name, dev->eedata[0x41]);
+			break;
 		}
 		break;
 	}

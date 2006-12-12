@@ -29,7 +29,7 @@
  */
 #define CACHESIZE		1024
 #define HASHSIZE		64
-#define REQHASH(xid)		((((xid) >> 24) ^ (xid)) & (HASHSIZE-1))
+#define REQHASH(xid)		(((((__force __u32)xid) >> 24) ^ ((__force __u32)xid)) & (HASHSIZE-1))
 
 static struct hlist_head *	hash_list;
 static struct list_head 	lru_head;
@@ -66,14 +66,13 @@ nfsd_cache_init(void)
 		printk (KERN_ERR "nfsd: cannot allocate all %d cache entries, only got %d\n",
 			CACHESIZE, CACHESIZE-i);
 
-	hash_list = kmalloc (HASHSIZE * sizeof(struct hlist_head), GFP_KERNEL);
+	hash_list = kcalloc (HASHSIZE, sizeof(struct hlist_head), GFP_KERNEL);
 	if (!hash_list) {
 		nfsd_cache_shutdown();
 		printk (KERN_ERR "nfsd: cannot allocate %Zd bytes for hash list\n",
 			HASHSIZE * sizeof(struct hlist_head));
 		return;
 	}
-	memset(hash_list, 0, HASHSIZE * sizeof(struct hlist_head));
 
 	cache_disabled = 0;
 }
@@ -127,8 +126,8 @@ nfsd_cache_lookup(struct svc_rqst *rqstp, int type)
 	struct hlist_node	*hn;
 	struct hlist_head 	*rh;
 	struct svc_cacherep	*rp;
-	u32			xid = rqstp->rq_xid,
-				proto =  rqstp->rq_prot,
+	__be32			xid = rqstp->rq_xid;
+	u32			proto =  rqstp->rq_prot,
 				vers = rqstp->rq_vers,
 				proc = rqstp->rq_proc;
 	unsigned long		age;
@@ -258,7 +257,7 @@ found_entry:
  * In this case, nfsd_cache_update is called with statp == NULL.
  */
 void
-nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, u32 *statp)
+nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 {
 	struct svc_cacherep *rp;
 	struct kvec	*resv = &rqstp->rq_res.head[0], *cachv;

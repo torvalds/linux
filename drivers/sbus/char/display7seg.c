@@ -121,7 +121,7 @@ static long d7s_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	__u8 ireg = 0;
 	int error = 0;
 
-	if (D7S_MINOR != iminor(file->f_dentry->d_inode))
+	if (D7S_MINOR != iminor(file->f_path.dentry->d_inode))
 		return -ENODEV;
 
 	lock_kernel();

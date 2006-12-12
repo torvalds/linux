@@ -22,12 +22,10 @@
 #include <asm/atomic.h>
 #include <asm/types.h>
 #include <linux/spinlock.h>
-#include <linux/mm.h>
-#include <linux/highmem.h>
-#include <linux/poll.h>
 #include <linux/net.h>
 #include <linux/textsearch.h>
 #include <net/checksum.h>
+#include <linux/rcupdate.h>
 #include <linux/dmaengine.h>
 
 #define HAVE_ALLOC_SKB		/* For the drivers to know */
@@ -139,7 +137,7 @@ struct skb_shared_info {
 	/* Warning: this field is not always filled in (UFO)! */
 	unsigned short	gso_segs;
 	unsigned short  gso_type;
-	unsigned int    ip6_frag_id;
+	__be32          ip6_frag_id;
 	struct sk_buff	*frag_list;
 	skb_frag_t	frags[MAX_SKB_FRAGS];
 };
@@ -216,7 +214,7 @@ enum {
  *	@tail: Tail pointer
  *	@end: End pointer
  *	@destructor: Destruct function
- *	@nfmark: Can be used for communication between hooks
+ *	@mark: Generic packet mark
  *	@nfct: Associated connection, if any
  *	@ipvs_property: skbuff is owned by ipvs
  *	@nfctinfo: Relationship of this skb to the connection
@@ -273,8 +271,11 @@ struct sk_buff {
 
 	unsigned int		len,
 				data_len,
-				mac_len,
-				csum;
+				mac_len;
+	union {
+		__wsum		csum;
+		__u32		csum_offset;
+	};
 	__u32			priority;
 	__u8			local_df:1,
 				cloned:1,
@@ -295,7 +296,6 @@ struct sk_buff {
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct nf_bridge_info	*nf_bridge;
 #endif
-	__u32			nfmark;
 #endif /* CONFIG_NETFILTER */
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
@@ -310,6 +310,7 @@ struct sk_buff {
 	__u32			secmark;
 #endif
 
+	__u32			mark;
 
 	/* These elements must be at the end, see alloc_skb() for details.  */
 	unsigned int		truesize;
@@ -331,20 +332,20 @@ struct sk_buff {
 extern void kfree_skb(struct sk_buff *skb);
 extern void	       __kfree_skb(struct sk_buff *skb);
 extern struct sk_buff *__alloc_skb(unsigned int size,
-				   gfp_t priority, int fclone);
+				   gfp_t priority, int fclone, int node);
 static inline struct sk_buff *alloc_skb(unsigned int size,
 					gfp_t priority)
 {
-	return __alloc_skb(size, priority, 0);
+	return __alloc_skb(size, priority, 0, -1);
 }
 
 static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
 					       gfp_t priority)
 {
-	return __alloc_skb(size, priority, 1);
+	return __alloc_skb(size, priority, 1, -1);
 }
 
-extern struct sk_buff *alloc_skb_from_cache(kmem_cache_t *cp,
+extern struct sk_buff *alloc_skb_from_cache(struct kmem_cache *cp,
 					    unsigned int size,
 					    gfp_t priority);
 extern void	       kfree_skbmem(struct sk_buff *skb);
@@ -1199,8 +1200,7 @@ static inline int skb_add_data(struct sk_buff *skb,
 
 	if (skb->ip_summed == CHECKSUM_NONE) {
 		int err = 0;
-		unsigned int csum = csum_and_copy_from_user(from,
-							    skb_put(skb, copy),
+		__wsum csum = csum_and_copy_from_user(from, skb_put(skb, copy),
 							    copy, 0, &err);
 		if (!err) {
 			skb->csum = csum_block_add(skb->csum, csum, off);
@@ -1293,24 +1293,6 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 	return __pskb_trim(skb, len);
 }
 
-static inline void *kmap_skb_frag(const skb_frag_t *frag)
-{
-#ifdef CONFIG_HIGHMEM
-	BUG_ON(in_irq());
-
-	local_bh_disable();
-#endif
-	return kmap_atomic(frag->page, KM_SKB_DATA_SOFTIRQ);
-}
-
-static inline void kunmap_skb_frag(void *vaddr)
-{
-	kunmap_atomic(vaddr, KM_SKB_DATA_SOFTIRQ);
-#ifdef CONFIG_HIGHMEM
-	local_bh_enable();
-#endif
-}
-
 #define skb_queue_walk(queue, skb) \
 		for (skb = (queue)->next;					\
 		     prefetch(skb->next), (skb != (struct sk_buff *)(queue));	\
@@ -1335,15 +1317,15 @@ extern int	       skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 extern void	       skb_free_datagram(struct sock *sk, struct sk_buff *skb);
 extern void	       skb_kill_datagram(struct sock *sk, struct sk_buff *skb,
 					 unsigned int flags);
-extern unsigned int    skb_checksum(const struct sk_buff *skb, int offset,
-				    int len, unsigned int csum);
+extern __wsum	       skb_checksum(const struct sk_buff *skb, int offset,
+				    int len, __wsum csum);
 extern int	       skb_copy_bits(const struct sk_buff *skb, int offset,
 				     void *to, int len);
 extern int	       skb_store_bits(const struct sk_buff *skb, int offset,
 				      void *from, int len);
-extern unsigned int    skb_copy_and_csum_bits(const struct sk_buff *skb,
+extern __wsum	       skb_copy_and_csum_bits(const struct sk_buff *skb,
 					      int offset, u8 *to, int len,
-					      unsigned int csum);
+					      __wsum csum);
 extern void	       skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to);
 extern void	       skb_split(struct sk_buff *skb,
 				 struct sk_buff *skb1, const u32 len);
@@ -1399,7 +1381,7 @@ static inline void skb_set_timestamp(struct sk_buff *skb, const struct timeval *
 
 extern void __net_timestamp(struct sk_buff *skb);
 
-extern unsigned int __skb_checksum_complete(struct sk_buff *skb);
+extern __sum16 __skb_checksum_complete(struct sk_buff *skb);
 
 /**
  *	skb_checksum_complete - Calculate checksum of an entire packet

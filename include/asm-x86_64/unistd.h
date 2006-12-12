@@ -622,25 +622,7 @@ __SYSCALL(__NR_move_pages, sys_move_pages)
 
 #define __NR_syscall_max __NR_move_pages
 
-#ifdef __KERNEL__
-#include <linux/err.h>
-#endif
-
 #ifndef __NO_STUBS
-
-/* user-visible error numbers are in the range -1 - -MAX_ERRNO */
-
-#define __syscall_clobber "r11","rcx","memory" 
-
-#define __syscall_return(type, res) \
-do { \
-	if ((unsigned long)(res) >= (unsigned long)(-MAX_ERRNO)) { \
-		errno = -(res); \
-		res = -1; \
-	} \
-	return (type) (res); \
-} while (0)
-
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_OLD_STAT
 #define __ARCH_WANT_SYS_ALARM
@@ -663,87 +645,6 @@ do { \
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
 #define __ARCH_WANT_SYS_TIME
 #define __ARCH_WANT_COMPAT_SYS_TIME
-
-#define __syscall "syscall"
-
-#define _syscall0(type,name) \
-type name(void) \
-{ \
-long __res; \
-__asm__ volatile (__syscall \
-	: "=a" (__res) \
-	: "0" (__NR_##name) : __syscall_clobber ); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall1(type,name,type1,arg1) \
-type name(type1 arg1) \
-{ \
-long __res; \
-__asm__ volatile (__syscall \
-	: "=a" (__res) \
-	: "0" (__NR_##name),"D" ((long)(arg1)) : __syscall_clobber ); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall2(type,name,type1,arg1,type2,arg2) \
-type name(type1 arg1,type2 arg2) \
-{ \
-long __res; \
-__asm__ volatile (__syscall \
-	: "=a" (__res) \
-	: "0" (__NR_##name),"D" ((long)(arg1)),"S" ((long)(arg2)) : __syscall_clobber ); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall3(type,name,type1,arg1,type2,arg2,type3,arg3) \
-type name(type1 arg1,type2 arg2,type3 arg3) \
-{ \
-long __res; \
-__asm__ volatile (__syscall \
-	: "=a" (__res) \
-	: "0" (__NR_##name),"D" ((long)(arg1)),"S" ((long)(arg2)), \
-		  "d" ((long)(arg3)) : __syscall_clobber); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall4(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4) \
-type name (type1 arg1, type2 arg2, type3 arg3, type4 arg4) \
-{ \
-long __res; \
-__asm__ volatile ("movq %5,%%r10 ;" __syscall \
-	: "=a" (__res) \
-	: "0" (__NR_##name),"D" ((long)(arg1)),"S" ((long)(arg2)), \
-	  "d" ((long)(arg3)),"g" ((long)(arg4)) : __syscall_clobber,"r10" ); \
-__syscall_return(type,__res); \
-} 
-
-#define _syscall5(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4, \
-	  type5,arg5) \
-type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5) \
-{ \
-long __res; \
-__asm__ volatile ("movq %5,%%r10 ; movq %6,%%r8 ; " __syscall \
-	: "=a" (__res) \
-	: "0" (__NR_##name),"D" ((long)(arg1)),"S" ((long)(arg2)), \
-	  "d" ((long)(arg3)),"g" ((long)(arg4)),"g" ((long)(arg5)) : \
-	__syscall_clobber,"r8","r10" ); \
-__syscall_return(type,__res); \
-}
-
-#define _syscall6(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4, \
-	  type5,arg5,type6,arg6) \
-type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6) \
-{ \
-long __res; \
-__asm__ volatile ("movq %5,%%r10 ; movq %6,%%r8 ; movq %7,%%r9 ; " __syscall \
-	: "=a" (__res) \
-	: "0" (__NR_##name),"D" ((long)(arg1)),"S" ((long)(arg2)), \
-	  "d" ((long)(arg3)), "g" ((long)(arg4)), "g" ((long)(arg5)), \
-	  "g" ((long)(arg6)) : \
-	__syscall_clobber,"r8","r10","r9" ); \
-__syscall_return(type,__res); \
-}
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__

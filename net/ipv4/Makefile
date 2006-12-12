@@ -8,7 +8,8 @@ obj-y     := route.o inetpeer.o protocol.o \
 	     inet_timewait_sock.o inet_connection_sock.o \
 	     tcp.o tcp_input.o tcp_output.o tcp_timer.o tcp_ipv4.o \
 	     tcp_minisocks.o tcp_cong.o \
-	     datagram.o raw.o udp.o arp.o icmp.o devinet.o af_inet.o igmp.o \
+	     datagram.o raw.o udp.o udplite.o \
+	     arp.o icmp.o devinet.o af_inet.o  igmp.o \
 	     sysctl_net_ipv4.o fib_frontend.o fib_semantics.o
 
 obj-$(CONFIG_IP_FIB_HASH) += fib_hash.o

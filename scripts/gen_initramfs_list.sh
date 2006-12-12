@@ -158,7 +158,7 @@ unknown_option() {
 }
 
 list_header() {
-	echo "deps_initramfs := \\"
+	:
 }
 
 header() {
@@ -227,6 +227,7 @@ arg="$1"
 case "$arg" in
 	"-l")	# files included in initramfs - used by kbuild
 		dep_list="list_"
+		echo "deps_initramfs := \\"
 		shift
 		;;
 	"-o")	# generate gzipped cpio image named $1

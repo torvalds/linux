@@ -142,12 +142,12 @@ nfs_opendir(struct inode *inode, struct file *filp)
 	return res;
 }
 
-typedef u32 * (*decode_dirent_t)(u32 *, struct nfs_entry *, int);
+typedef __be32 * (*decode_dirent_t)(__be32 *, struct nfs_entry *, int);
 typedef struct {
 	struct file	*file;
 	struct page	*page;
 	unsigned long	page_index;
-	u32		*ptr;
+	__be32		*ptr;
 	u64		*dir_cookie;
 	loff_t		current_index;
 	struct nfs_entry *entry;
@@ -172,7 +172,7 @@ static
 int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 {
 	struct file	*file = desc->file;
-	struct inode	*inode = file->f_dentry->d_inode;
+	struct inode	*inode = file->f_path.dentry->d_inode;
 	struct rpc_cred	*cred = nfs_file_cred(file);
 	unsigned long	timestamp;
 	int		error;
@@ -183,7 +183,7 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 
  again:
 	timestamp = jiffies;
-	error = NFS_PROTO(inode)->readdir(file->f_dentry, cred, desc->entry->cookie, page,
+	error = NFS_PROTO(inode)->readdir(file->f_path.dentry, cred, desc->entry->cookie, page,
 					  NFS_SERVER(inode)->dtsize, desc->plus);
 	if (error < 0) {
 		/* We requested READDIRPLUS, but the server doesn't grok it */
@@ -203,8 +203,10 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 	 * Note: assumes we have exclusive access to this mapping either
 	 *	 through inode->i_mutex or some other mechanism.
 	 */
-	if (page->index == 0)
-		invalidate_inode_pages2_range(inode->i_mapping, PAGE_CACHE_SIZE, -1);
+	if (page->index == 0 && invalidate_inode_pages2_range(inode->i_mapping, PAGE_CACHE_SIZE, -1) < 0) {
+		/* Should never happen */
+		nfs_zap_mapping(inode, inode->i_mapping);
+	}
 	unlock_page(page);
 	return 0;
  error:
@@ -218,7 +220,7 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 static inline
 int dir_decode(nfs_readdir_descriptor_t *desc)
 {
-	u32	*p = desc->ptr;
+	__be32	*p = desc->ptr;
 	p = desc->decode(p, desc->entry, desc->plus);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
@@ -306,7 +308,7 @@ int find_dirent_index(nfs_readdir_descriptor_t *desc)
 static inline
 int find_dirent_page(nfs_readdir_descriptor_t *desc)
 {
-	struct inode	*inode = desc->file->f_dentry->d_inode;
+	struct inode	*inode = desc->file->f_path.dentry->d_inode;
 	struct page	*page;
 	int		status;
 
@@ -462,7 +464,7 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 		     filldir_t filldir)
 {
 	struct file	*file = desc->file;
-	struct inode	*inode = file->f_dentry->d_inode;
+	struct inode	*inode = file->f_path.dentry->d_inode;
 	struct rpc_cred	*cred = nfs_file_cred(file);
 	struct page	*page = NULL;
 	int		status;
@@ -475,7 +477,7 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 		status = -ENOMEM;
 		goto out;
 	}
-	desc->error = NFS_PROTO(inode)->readdir(file->f_dentry, cred, *desc->dir_cookie,
+	desc->error = NFS_PROTO(inode)->readdir(file->f_path.dentry, cred, *desc->dir_cookie,
 						page,
 						NFS_SERVER(inode)->dtsize,
 						desc->plus);
@@ -514,7 +516,7 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
  */
 static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct dentry	*dentry = filp->f_dentry;
+	struct dentry	*dentry = filp->f_path.dentry;
 	struct inode	*inode = dentry->d_inode;
 	nfs_readdir_descriptor_t my_desc,
 			*desc = &my_desc;
@@ -597,7 +599,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int origin)
 {
-	mutex_lock(&filp->f_dentry->d_inode->i_mutex);
+	mutex_lock(&filp->f_path.dentry->d_inode->i_mutex);
 	switch (origin) {
 		case 1:
 			offset += filp->f_pos;
@@ -613,7 +615,7 @@ loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int origin)
 		((struct nfs_open_context *)filp->private_data)->dir_cookie = 0;
 	}
 out:
-	mutex_unlock(&filp->f_dentry->d_inode->i_mutex);
+	mutex_unlock(&filp->f_path.dentry->d_inode->i_mutex);
 	return offset;
 }
 
@@ -933,8 +935,17 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 
 no_entry:
 	res = d_materialise_unique(dentry, inode);
-	if (res != NULL)
+	if (res != NULL) {
+		struct dentry *parent;
+		if (IS_ERR(res))
+			goto out_unlock;
+		/* Was a directory renamed! */
+		parent = dget_parent(res);
+		if (!IS_ROOT(parent))
+			nfs_mark_for_revalidate(parent->d_inode);
+		dput(parent);
 		dentry = res;
+	}
 	nfs_renew_times(dentry);
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 out_unlock:
@@ -1091,7 +1102,7 @@ no_open:
 
 static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 {
-	struct dentry *parent = desc->file->f_dentry;
+	struct dentry *parent = desc->file->f_path.dentry;
 	struct inode *dir = parent->d_inode;
 	struct nfs_entry *entry = desc->entry;
 	struct dentry *dentry, *alias;
@@ -1130,6 +1141,8 @@ static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 	alias = d_materialise_unique(dentry, inode);
 	if (alias != NULL) {
 		dput(dentry);
+		if (IS_ERR(alias))
+			return NULL;
 		dentry = alias;
 	}
 
@@ -1517,8 +1530,8 @@ static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *sym
 	pagevec_init(&lru_pvec, 0);
 	if (!add_to_page_cache(page, dentry->d_inode->i_mapping, 0,
 							GFP_KERNEL)) {
-		if (!pagevec_add(&lru_pvec, page))
-			__pagevec_lru_add(&lru_pvec);
+		pagevec_add(&lru_pvec, page);
+		pagevec_lru_add(&lru_pvec);
 		SetPageUptodate(page);
 		unlock_page(page);
 	} else

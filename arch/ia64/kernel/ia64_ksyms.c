@@ -14,6 +14,7 @@ EXPORT_SYMBOL(strlen);
 
 #include <asm/checksum.h>
 EXPORT_SYMBOL(ip_fast_csum);		/* hand-coded assembly */
+EXPORT_SYMBOL(csum_ipv6_magic);
 
 #include <asm/semaphore.h>
 EXPORT_SYMBOL(__down);

@@ -5,19 +5,6 @@
 menu "SN Devices"
 	depends on SGI_SN
 
-config SGI_IOC4
-	tristate "SGI IOC4 Base IO support"
-	depends on MMTIMER
-	default m
-	---help---
-	This option enables basic support for the SGI IOC4-based Base IO
-	controller card.  This option does not enable any specific
-	functions on such a card, but provides necessary infrastructure
-	for other drivers to utilize.
-
-	If you have an SGI Altix with an IOC4-based
-	I/O controller say Y.  Otherwise say N.
-
 config SGI_IOC3
 	tristate "SGI IOC3 Base IO support"
 	default m

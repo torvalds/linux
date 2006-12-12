@@ -699,7 +699,7 @@ static unsigned int m32r_sio_get_divisor(struct uart_port *port,
 }
 
 static void m32r_sio_set_termios(struct uart_port *port,
-	struct termios *termios, struct termios *old)
+	struct ktermios *termios, struct ktermios *old)
 {
 	struct uart_sio_port *up = (struct uart_sio_port *)port;
 	unsigned char cval = 0;

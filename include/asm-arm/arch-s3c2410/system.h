@@ -71,7 +71,7 @@ arch_reset(char mode)
 
 	/* set the watchdog to go and reset... */
 	__raw_writel(S3C2410_WTCON_ENABLE|S3C2410_WTCON_DIV16|S3C2410_WTCON_RSTEN |
-		     S3C2410_WTCON_PRESCALE(0x80), S3C2410_WTCON);
+		     S3C2410_WTCON_PRESCALE(0x20), S3C2410_WTCON);
 
 	/* wait for reset to assert... */
 	mdelay(5000);

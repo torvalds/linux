@@ -8,6 +8,7 @@
 #ifndef __QLA4x_GBL_H
 #define	__QLA4x_GBL_H
 
+int ql4xxx_lock_drvr_wait(struct scsi_qla_host *a);
 int qla4xxx_send_tgts(struct scsi_qla_host *ha, char *ip, uint16_t port);
 int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb);
 int qla4xxx_initialize_adapter(struct scsi_qla_host * ha,
@@ -72,7 +73,7 @@ int qla4xxx_reinitialize_ddb_list(struct scsi_qla_host * ha);
 int qla4xxx_process_ddb_changed(struct scsi_qla_host * ha,
 				uint32_t fw_ddb_index, uint32_t state);
 
-extern int qla4_extended_error_logging;
+extern int ql4xextended_error_logging;
 extern int ql4xdiscoverywait;
 extern int ql4xdontresethba;
-#endif				/* _QLA4x_GBL_H */
+#endif /* _QLA4x_GBL_H */

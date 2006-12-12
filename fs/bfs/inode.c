@@ -228,12 +228,12 @@ static void bfs_write_super(struct super_block *s)
 	unlock_kernel();
 }
 
-static kmem_cache_t * bfs_inode_cachep;
+static struct kmem_cache * bfs_inode_cachep;
 
 static struct inode *bfs_alloc_inode(struct super_block *sb)
 {
 	struct bfs_inode_info *bi;
-	bi = kmem_cache_alloc(bfs_inode_cachep, SLAB_KERNEL);
+	bi = kmem_cache_alloc(bfs_inode_cachep, GFP_KERNEL);
 	if (!bi)
 		return NULL;
 	return &bi->vfs_inode;
@@ -244,7 +244,7 @@ static void bfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(bfs_inode_cachep, BFS_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct bfs_inode_info *bi = foo;
 

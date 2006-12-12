@@ -135,11 +135,43 @@ struct i2c_algorithm dib0700_i2c_algo = {
 int dib0700_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
 			struct dvb_usb_device_description **desc, int *cold)
 {
-	u8 buf[3] = { REQUEST_SET_GPIO, 4, (GPIO_IN << 7) | (0 << 6) }; // GPIO4 is save - used for I2C
-	*cold = usb_control_msg(udev, usb_sndctrlpipe(udev,0),
-		buf[0], USB_TYPE_VENDOR | USB_DIR_OUT, 0, 0, buf, 3, USB_CTRL_GET_TIMEOUT) != 3;
+	u8 b[16];
+	s16 ret = usb_control_msg(udev, usb_rcvctrlpipe(udev,0),
+		REQUEST_GET_VERSION, USB_TYPE_VENDOR | USB_DIR_IN, 0, 0, b, 16, USB_CTRL_GET_TIMEOUT);
+
+	deb_info("FW GET_VERSION length: %d\n",ret);
+
+	*cold = ret <= 0;
 
 	deb_info("cold: %d\n", *cold);
+	return 0;
+}
+
+static int dib0700_set_clock(struct dvb_usb_device *d, u8 en_pll,
+	u8 pll_src, u8 pll_range, u8 clock_gpio3, u16 pll_prediv,
+	u16 pll_loopdiv, u16 free_div, u16 dsuScaler)
+{
+	u8 b[10];
+	b[0] = REQUEST_SET_CLOCK;
+	b[1] = (en_pll << 7) | (pll_src << 6) | (pll_range << 5) | (clock_gpio3 << 4);
+	b[2] = (pll_prediv >> 8)  & 0xff; // MSB
+	b[3] =  pll_prediv        & 0xff; // LSB
+	b[4] = (pll_loopdiv >> 8) & 0xff; // MSB
+	b[5] =  pll_loopdiv       & 0xff; // LSB
+	b[6] = (free_div >> 8)    & 0xff; // MSB
+	b[7] =  free_div          & 0xff; // LSB
+	b[8] = (dsuScaler >> 8)   & 0xff; // MSB
+	b[9] =  dsuScaler         & 0xff; // LSB
+
+	return dib0700_ctrl_wr(d, b, 10);
+}
+
+int dib0700_ctrl_clock(struct dvb_usb_device *d, u32 clk_MHz, u8 clock_out_gp3)
+{
+	switch (clk_MHz) {
+		case 72: dib0700_set_clock(d, 1, 0, 1, clock_out_gp3, 2, 24, 0, 0x4c); break;
+		default: return -EINVAL;
+	}
 	return 0;
 }
 
@@ -197,7 +229,7 @@ int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw
 		/* start the firmware */
 		if ((ret = dib0700_jumpram(udev, 0x70000000)) == 0) {
 			info("firmware started successfully.");
-			msleep(100);
+			msleep(500);
 		}
 	} else
 		ret = -EIO;

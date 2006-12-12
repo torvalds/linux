@@ -82,11 +82,11 @@ extern struct page *kmap_atomic_to_page(void *ptr);
 	dampr = paddr | xAMPRx_L | xAMPRx_M | xAMPRx_S | xAMPRx_SS_16Kb | xAMPRx_V;		\
 												\
 	if (type != __KM_CACHE)									\
-		asm volatile("movgs %0,dampr"#ampr :: "r"(dampr));				\
+		asm volatile("movgs %0,dampr"#ampr :: "r"(dampr) : "memory");			\
 	else											\
 		asm volatile("movgs %0,iampr"#ampr"\n"						\
 			     "movgs %0,dampr"#ampr"\n"						\
-			     :: "r"(dampr)							\
+			     :: "r"(dampr) : "memory"						\
 			     );									\
 												\
 	asm("movsg damlr"#ampr",%0" : "=r"(damlr));						\
@@ -104,7 +104,7 @@ extern struct page *kmap_atomic_to_page(void *ptr);
 	asm volatile("movgs %0,tplr \n"								  \
 		     "movgs %1,tppr \n"								  \
 		     "tlbpr %0,gr0,#2,#1"							  \
-		     : : "r"(damlr), "r"(dampr));						  \
+		     : : "r"(damlr), "r"(dampr) : "memory");					  \
 												  \
 	/*printk("TLB: SECN sl=%d L=%08lx P=%08lx\n", slot, damlr, dampr);*/			  \
 												  \
@@ -115,7 +115,7 @@ static inline void *kmap_atomic(struct page *page, enum km_type type)
 {
 	unsigned long paddr;
 
-	preempt_disable();
+	pagefault_disable();
 	paddr = page_to_phys(page);
 
 	switch (type) {
@@ -138,16 +138,16 @@ static inline void *kmap_atomic(struct page *page, enum km_type type)
 	}
 }
 
-#define __kunmap_atomic_primary(type, ampr)			\
-do {								\
-	asm volatile("movgs gr0,dampr"#ampr"\n");		\
-	if (type == __KM_CACHE)					\
-		asm volatile("movgs gr0,iampr"#ampr"\n");	\
+#define __kunmap_atomic_primary(type, ampr)				\
+do {									\
+	asm volatile("movgs gr0,dampr"#ampr"\n" ::: "memory");		\
+	if (type == __KM_CACHE)						\
+		asm volatile("movgs gr0,iampr"#ampr"\n" ::: "memory");	\
 } while(0)
 
-#define __kunmap_atomic_secondary(slot, vaddr)			\
-do {								\
-	asm volatile("tlbpr %0,gr0,#4,#1" : : "r"(vaddr));	\
+#define __kunmap_atomic_secondary(slot, vaddr)				\
+do {									\
+	asm volatile("tlbpr %0,gr0,#4,#1" : : "r"(vaddr) : "memory");	\
 } while(0)
 
 static inline void kunmap_atomic(void *kvaddr, enum km_type type)
@@ -170,7 +170,7 @@ static inline void kunmap_atomic(void *kvaddr, enum km_type type)
 	default:
 		BUG();
 	}
-	preempt_enable();
+	pagefault_enable();
 }
 
 #endif /* !__ASSEMBLY__ */

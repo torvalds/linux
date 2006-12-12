@@ -203,14 +203,6 @@ static void ATIReduceRatio(int *Numerator, int *Denominator)
      *  The Hardware parameters for each card
      */
 
-struct aty_cmap_regs {
-	u8 windex;
-	u8 lut;
-	u8 mask;
-	u8 rindex;
-	u8 cntl;
-};
-
 struct pci_mmap_map {
 	unsigned long voff;
 	unsigned long poff;
@@ -249,7 +241,8 @@ static int atyfb_sync(struct fb_info *info);
      *  Internal routines
      */
 
-static int aty_init(struct fb_info *info, const char *name);
+static int aty_init(struct fb_info *info);
+static void aty_resume_chip(struct fb_info *info);
 #ifdef CONFIG_ATARI
 static int store_video_par(char *videopar, unsigned char m64_num);
 #endif
@@ -406,7 +399,7 @@ static struct {
 	{ PCI_CHIP_MACH64LB, "3D RAGE LT PRO (Mach64 LB, AGP)", 236, 75, 100, 135, ATI_CHIP_264LTPRO },
 	{ PCI_CHIP_MACH64LD, "3D RAGE LT PRO (Mach64 LD, AGP)", 230, 100, 100, 135, ATI_CHIP_264LTPRO },
 	{ PCI_CHIP_MACH64LI, "3D RAGE LT PRO (Mach64 LI, PCI)", 230, 100, 100, 135, ATI_CHIP_264LTPRO | M64F_G3_PB_1_1 | M64F_G3_PB_1024x768 },
-	{ PCI_CHIP_MACH64LP, "3D RAGE LT PRO (Mach64 LP, PCI)", 230, 100, 100, 135, ATI_CHIP_264LTPRO },
+	{ PCI_CHIP_MACH64LP, "3D RAGE LT PRO (Mach64 LP, PCI)", 230, 100, 100, 135, ATI_CHIP_264LTPRO | M64F_G3_PB_1024x768 },
 	{ PCI_CHIP_MACH64LQ, "3D RAGE LT PRO (Mach64 LQ, PCI)", 230, 100, 100, 135, ATI_CHIP_264LTPRO },
 
 	{ PCI_CHIP_MACH64GM, "3D RAGE XL (Mach64 GM, AGP 2x)", 230, 83, 63, 135, ATI_CHIP_264XL },
@@ -1937,17 +1930,14 @@ static void atyfb_save_palette(struct atyfb_par *par, int enter)
 		aty_st_8(DAC_CNTL, tmp, par);
 		aty_st_8(DAC_MASK, 0xff, par);
 
-		writeb(i, &par->aty_cmap_regs->rindex);
-		atyfb_save.r[enter][i] = readb(&par->aty_cmap_regs->lut);
-		atyfb_save.g[enter][i] = readb(&par->aty_cmap_regs->lut);
-		atyfb_save.b[enter][i] = readb(&par->aty_cmap_regs->lut);
-		writeb(i, &par->aty_cmap_regs->windex);
-		writeb(atyfb_save.r[1 - enter][i],
-		       &par->aty_cmap_regs->lut);
-		writeb(atyfb_save.g[1 - enter][i],
-		       &par->aty_cmap_regs->lut);
-		writeb(atyfb_save.b[1 - enter][i],
-		       &par->aty_cmap_regs->lut);
+		aty_st_8(DAC_R_INDEX, i, par);
+		atyfb_save.r[enter][i] = aty_ld_8(DAC_DATA, par);
+		atyfb_save.g[enter][i] = aty_ld_8(DAC_DATA, par);
+		atyfb_save.b[enter][i] = aty_ld_8(DAC_DATA, par);
+		aty_st_8(DAC_W_INDEX, i, par);
+		aty_st_8(DAC_DATA, atyfb_save.r[1 - enter][i], par);
+		aty_st_8(DAC_DATA, atyfb_save.g[1 - enter][i], par);
+		aty_st_8(DAC_DATA, atyfb_save.b[1 - enter][i], par);
 	}
 }
 
@@ -1982,6 +1972,7 @@ static void atyfb_palette(int enter)
 
 #if defined(CONFIG_PM) && defined(CONFIG_PCI)
 
+#ifdef CONFIG_PPC_PMAC
 /* Power management routines. Those are used for PowerBook sleep.
  */
 static int aty_power_mgmt(int sleep, struct atyfb_par *par)
@@ -2038,20 +2029,12 @@ static int aty_power_mgmt(int sleep, struct atyfb_par *par)
 
 	return timeout ? 0 : -EIO;
 }
+#endif
 
 static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
-
-#ifndef CONFIG_PPC_PMAC
-	/* HACK ALERT ! Once I find a proper way to say to each driver
-	 * individually what will happen with it's PCI slot, I'll change
-	 * that. On laptops, the AGP slot is just unclocked, so D2 is
-	 * expected, while on desktops, the card is powered off
-	 */
-	return 0;
-#endif /* CONFIG_PPC_PMAC */
 
 	if (state.event == pdev->dev.power.power_state.event)
 		return 0;
@@ -2070,6 +2053,7 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	par->asleep = 1;
 	par->lock_blank = 1;
 
+#ifdef CONFIG_PPC_PMAC
 	/* Set chip to "suspend" mode */
 	if (aty_power_mgmt(1, par)) {
 		par->asleep = 0;
@@ -2079,6 +2063,9 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		release_console_sem();
 		return -EIO;
 	}
+#else
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+#endif
 
 	release_console_sem();
 
@@ -2097,8 +2084,15 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 
 	acquire_console_sem();
 
+#ifdef CONFIG_PPC_PMAC
 	if (pdev->dev.power.power_state.event == 2)
 		aty_power_mgmt(0, par);
+#else
+	pci_set_power_state(pdev, PCI_D0);
+#endif
+
+	aty_resume_chip(info);
+
 	par->asleep = 0;
 
 	/* Restore display */
@@ -2344,23 +2338,15 @@ static int __devinit atyfb_get_timings_from_lcd(struct atyfb_par *par,
 }
 #endif /* defined(__i386__) && defined(CONFIG_FB_ATY_GENERIC_LCD) */
 
-static int __devinit aty_init(struct fb_info *info, const char *name)
+static int __devinit aty_init(struct fb_info *info)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 	const char *ramname = NULL, *xtal;
 	int gtb_memsize, has_var = 0;
 	struct fb_var_screeninfo var;
-	u8 pll_ref_div;
-	u32 i;
-#if defined(CONFIG_PPC)
-	int sense;
-#endif
 
 	init_waitqueue_head(&par->vblank.wait);
 	spin_lock_init(&par->int_lock);
-
-	par->aty_cmap_regs =
-	    (struct aty_cmap_regs __iomem *) (par->ati_regbase + 0xc0);
 
 #ifdef CONFIG_PPC_PMAC
 	/* The Apple iBook1 uses non-standard memory frequencies. We detect it
@@ -2464,18 +2450,21 @@ static int __devinit aty_init(struct fb_info *info, const char *name)
 			par->pll_limits.mclk = 63;
 	}
 
-	if (M64_HAS(GTB_DSP)
-	    && (pll_ref_div = aty_ld_pll_ct(PLL_REF_DIV, par))) {
-		int diff1, diff2;
-		diff1 = 510 * 14 / pll_ref_div - par->pll_limits.pll_max;
-		diff2 = 510 * 29 / pll_ref_div - par->pll_limits.pll_max;
-		if (diff1 < 0)
-			diff1 = -diff1;
-		if (diff2 < 0)
-			diff2 = -diff2;
-		if (diff2 < diff1) {
-			par->ref_clk_per = 1000000000000ULL / 29498928;
-			xtal = "29.498928";
+	if (M64_HAS(GTB_DSP)) {
+		u8 pll_ref_div = aty_ld_pll_ct(PLL_REF_DIV, par);
+
+		if (pll_ref_div) {
+			int diff1, diff2;
+			diff1 = 510 * 14 / pll_ref_div - par->pll_limits.pll_max;
+			diff2 = 510 * 29 / pll_ref_div - par->pll_limits.pll_max;
+			if (diff1 < 0)
+				diff1 = -diff1;
+			if (diff2 < 0)
+				diff2 = -diff2;
+			if (diff2 < diff1) {
+				par->ref_clk_per = 1000000000000ULL / 29498928;
+				xtal = "29.498928";
+			}
 		}
 	}
 #endif /* CONFIG_FB_ATY_CT */
@@ -2485,10 +2474,10 @@ static int __devinit aty_init(struct fb_info *info, const char *name)
 	if(par->pll_ops->get_pll)
 		par->pll_ops->get_pll(info, &saved_pll);
 
-	i = aty_ld_le32(MEM_CNTL, par);
+	par->mem_cntl = aty_ld_le32(MEM_CNTL, par);
 	gtb_memsize = M64_HAS(GTB_DSP);
 	if (gtb_memsize)
-		switch (i & 0xF) {	/* 0xF used instead of MEM_SIZE_ALIAS */
+		switch (par->mem_cntl & 0xF) {	/* 0xF used instead of MEM_SIZE_ALIAS */
 		case MEM_SIZE_512K:
 			info->fix.smem_len = 0x80000;
 			break;
@@ -2510,7 +2499,7 @@ static int __devinit aty_init(struct fb_info *info, const char *name)
 		default:
 			info->fix.smem_len = 0x80000;
 	} else
-		switch (i & MEM_SIZE_ALIAS) {
+		switch (par->mem_cntl & MEM_SIZE_ALIAS) {
 		case MEM_SIZE_512K:
 			info->fix.smem_len = 0x80000;
 			break;
@@ -2540,20 +2529,20 @@ static int __devinit aty_init(struct fb_info *info, const char *name)
 
 	if (vram) {
 		info->fix.smem_len = vram * 1024;
-		i = i & ~(gtb_memsize ? 0xF : MEM_SIZE_ALIAS);
+		par->mem_cntl &= ~(gtb_memsize ? 0xF : MEM_SIZE_ALIAS);
 		if (info->fix.smem_len <= 0x80000)
-			i |= MEM_SIZE_512K;
+			par->mem_cntl |= MEM_SIZE_512K;
 		else if (info->fix.smem_len <= 0x100000)
-			i |= MEM_SIZE_1M;
+			par->mem_cntl |= MEM_SIZE_1M;
 		else if (info->fix.smem_len <= 0x200000)
-			i |= gtb_memsize ? MEM_SIZE_2M_GTB : MEM_SIZE_2M;
+			par->mem_cntl |= gtb_memsize ? MEM_SIZE_2M_GTB : MEM_SIZE_2M;
 		else if (info->fix.smem_len <= 0x400000)
-			i |= gtb_memsize ? MEM_SIZE_4M_GTB : MEM_SIZE_4M;
+			par->mem_cntl |= gtb_memsize ? MEM_SIZE_4M_GTB : MEM_SIZE_4M;
 		else if (info->fix.smem_len <= 0x600000)
-			i |= gtb_memsize ? MEM_SIZE_6M_GTB : MEM_SIZE_6M;
+			par->mem_cntl |= gtb_memsize ? MEM_SIZE_6M_GTB : MEM_SIZE_6M;
 		else
-			i |= gtb_memsize ? MEM_SIZE_8M_GTB : MEM_SIZE_8M;
-		aty_st_le32(MEM_CNTL, i, par);
+			par->mem_cntl |= gtb_memsize ? MEM_SIZE_8M_GTB : MEM_SIZE_8M;
+		aty_st_le32(MEM_CNTL, par->mem_cntl, par);
 	}
 
 	/*
@@ -2599,11 +2588,12 @@ static int __devinit aty_init(struct fb_info *info, const char *name)
 #endif
 	if(par->pll_ops->init_pll)
 		par->pll_ops->init_pll(info, &par->pll);
+	if (par->pll_ops->resume_pll)
+		par->pll_ops->resume_pll(info, &par->pll);
 
 	/*
-	 *  Last page of 8 MB (4 MB on ISA) aperture is MMIO
-	 *  FIXME: we should use the auxiliary aperture instead so we can access
-	 *  the full 8 MB of video RAM on 8 MB boards
+	 *  Last page of 8 MB (4 MB on ISA) aperture is MMIO,
+	 *  unless the auxiliary register aperture is used.
 	 */
 
 	if (!par->aux_start &&
@@ -2669,6 +2659,7 @@ static int __devinit aty_init(struct fb_info *info, const char *name)
 				has_var = 1;
 		} else {
 			if (default_vmode == VMODE_CHOOSE) {
+				int sense;
 				if (M64_HAS(G3_PB_1024x768))
 					/* G3 PowerBook with 1024x768 LCD */
 					default_vmode = VMODE_1024_768_60;
@@ -2749,7 +2740,7 @@ static int __devinit aty_init(struct fb_info *info, const char *name)
 	fb_list = info;
 
 	PRINTKI("fb%d: %s frame buffer device on %s\n",
-	       info->node, info->fix.id, name);
+		info->node, info->fix.id, par->bus_type == ISA ? "ISA" : "PCI");
 	return 0;
 
 aty_init_exit:
@@ -2768,6 +2759,19 @@ aty_init_exit:
 	}
 #endif
 	return -1;
+}
+
+static void aty_resume_chip(struct fb_info *info)
+{
+	struct atyfb_par *par = info->par;
+
+	aty_st_le32(MEM_CNTL, par->mem_cntl, par);
+
+	if (par->pll_ops->resume_pll)
+		par->pll_ops->resume_pll(info, &par->pll);
+
+	if (par->aux_start)
+		aty_st_le32(BUS_CNTL, aty_ld_le32(BUS_CNTL, par) | BUS_APER_REG_DIS, par);
 }
 
 #ifdef CONFIG_ATARI
@@ -2826,9 +2830,9 @@ static int atyfb_blank(int blank, struct fb_info *info)
 #endif
 
 	gen_cntl = aty_ld_le32(CRTC_GEN_CNTL, par);
+	gen_cntl &= ~0x400004c;
 	switch (blank) {
-        	case FB_BLANK_UNBLANK:
-			gen_cntl &= ~0x400004c;
+		case FB_BLANK_UNBLANK:
 			break;
 		case FB_BLANK_NORMAL:
 			gen_cntl |= 0x4000040;
@@ -2863,17 +2867,10 @@ static int atyfb_blank(int blank, struct fb_info *info)
 static void aty_st_pal(u_int regno, u_int red, u_int green, u_int blue,
 		       const struct atyfb_par *par)
 {
-#ifdef CONFIG_ATARI
-	out_8(&par->aty_cmap_regs->windex, regno);
-	out_8(&par->aty_cmap_regs->lut, red);
-	out_8(&par->aty_cmap_regs->lut, green);
-	out_8(&par->aty_cmap_regs->lut, blue);
-#else
-	writeb(regno, &par->aty_cmap_regs->windex);
-	writeb(red, &par->aty_cmap_regs->lut);
-	writeb(green, &par->aty_cmap_regs->lut);
-	writeb(blue, &par->aty_cmap_regs->lut);
-#endif
+	aty_st_8(DAC_W_INDEX, regno, par);
+	aty_st_8(DAC_DATA, red, par);
+	aty_st_8(DAC_DATA, green, par);
+	aty_st_8(DAC_DATA, blue, par);
 }
 
     /*
@@ -3182,7 +3179,7 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 
 #ifdef __i386__
 #ifdef CONFIG_FB_ATY_GENERIC_LCD
-static void aty_init_lcd(struct atyfb_par *par, u32 bios_base)
+static void __devinit aty_init_lcd(struct atyfb_par *par, u32 bios_base)
 {
 	u32 driv_inf_tab, sig;
 	u16 lcd_ofs;
@@ -3527,6 +3524,10 @@ static int __devinit atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *i
 atyfb_setup_generic_fail:
 	iounmap(par->ati_regbase);
 	par->ati_regbase = NULL;
+	if (info->screen_base) {
+		iounmap(info->screen_base);
+		info->screen_base = NULL;
+	}
 	return ret;
 }
 
@@ -3594,7 +3595,7 @@ static int __devinit atyfb_pci_probe(struct pci_dev *pdev, const struct pci_devi
 	pci_set_drvdata(pdev, info);
 
 	/* Init chip & register framebuffer */
-	if (aty_init(info, "PCI"))
+	if (aty_init(info))
 		goto err_release_io;
 
 #ifdef __sparc__
@@ -3641,12 +3642,13 @@ err_release_mem:
 
 #ifdef CONFIG_ATARI
 
-static int __devinit atyfb_atari_probe(void)
+static int __init atyfb_atari_probe(void)
 {
 	struct atyfb_par *par;
 	struct fb_info *info;
 	int m64_num;
 	u32 clock_r;
+	int num_found = 0;
 
 	for (m64_num = 0; m64_num < mach64_count; m64_num++) {
 		if (!phys_vmembase[m64_num] || !phys_size[m64_num] ||
@@ -3694,15 +3696,33 @@ static int __devinit atyfb_atari_probe(void)
 			break;
 		}
 
-		if (aty_init(info, "ISA bus")) {
+		/* Fake pci_id for correct_chipset() */
+		switch (aty_ld_le32(CONFIG_CHIP_ID, par) & CFG_CHIP_TYPE) {
+		case 0x00d7:
+			par->pci_id = PCI_CHIP_MACH64GX;
+			break;
+		case 0x0057:
+			par->pci_id = PCI_CHIP_MACH64CX;
+			break;
+		default:
+			break;
+		}
+
+		if (correct_chipset(par) || aty_init(info)) {
+			iounmap(info->screen_base);
+			iounmap(par->ati_regbase);
 			framebuffer_release(info);
-			/* This is insufficient! kernel_map has added two large chunks!! */
-			return -ENXIO;
+		} else {
+			num_found++;
 		}
 	}
+
+	return num_found ? 0 : -ENXIO;
 }
 
 #endif /* CONFIG_ATARI */
+
+#ifdef CONFIG_PCI
 
 static void __devexit atyfb_remove(struct fb_info *info)
 {
@@ -3751,7 +3771,6 @@ static void __devexit atyfb_remove(struct fb_info *info)
 	framebuffer_release(info);
 }
 
-#ifdef CONFIG_PCI
 
 static void __devexit atyfb_pci_remove(struct pci_dev *pdev)
 {
@@ -3786,7 +3805,7 @@ static struct pci_driver atyfb_driver = {
 #endif /* CONFIG_PCI */
 
 #ifndef MODULE
-static int __devinit atyfb_setup(char *options)
+static int __init atyfb_setup(char *options)
 {
 	char *this_opt;
 
@@ -3858,7 +3877,7 @@ static int __devinit atyfb_setup(char *options)
 }
 #endif  /*  MODULE  */
 
-static int __devinit atyfb_init(void)
+static int __init atyfb_init(void)
 {
     int err1 = 1, err2 = 1;
 #ifndef MODULE

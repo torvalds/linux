@@ -32,6 +32,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/mm.h>
 #include <linux/bitops.h>
 
 #include <asm/system.h>
@@ -2272,7 +2273,7 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		u32 csum_start_off, csum_stuff_off;
 
 		csum_start_off = (u32) (skb->h.raw - skb->data);
-		csum_stuff_off = (u32) ((skb->h.raw + skb->csum) - skb->data);
+		csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		tx_flags = (TXFLAG_OWN | TXFLAG_CSENABLE |
 			    ((csum_start_off << 14) & TXFLAG_CSBUFBEGIN) |
@@ -3012,6 +3013,11 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 #endif
 
 	err = -ENODEV;
+
+	if (pci_enable_device(pdev))
+		goto err_out;
+	pci_set_master(pdev);
+
 	if (!strcmp(prom_name, "SUNW,qfe") || !strcmp(prom_name, "qfe")) {
 		qp = quattro_pci_find(pdev);
 		if (qp == NULL)

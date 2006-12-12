@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 19
-EXTRAVERSION =-rc2
+EXTRAVERSION =
 NAME=Avast! A bilge rat!
 
 # *DOCUMENTATION*
@@ -10,8 +10,11 @@ NAME=Avast! A bilge rat!
 # Comments in this file are targeted only to the developer, do not
 # expect to learn how to build the kernel reading this file.
 
-# Do not print "Entering directory ..."
-MAKEFLAGS += --no-print-directory
+# Do not:
+# o  use make's built-in rules and variables
+#    (this increases performance and avoid hard-to-debug behavour);
+# o  print "Entering directory ...";
+MAKEFLAGS += -rR --no-print-directory
 
 # We are using a recursive build, so we need to do a little thinking
 # to get the ordering right.
@@ -271,12 +274,8 @@ export quiet Q KBUILD_VERBOSE
 # Look for make include files relative to root of kernel src
 MAKEFLAGS += --include-dir=$(srctree)
 
-# We need some generic definitions
-include  $(srctree)/scripts/Kbuild.include
-
-# Do not use make's built-in rules and variables
-# This increases performance and avoid hard-to-debug behavour
-MAKEFLAGS += -rR
+# We need some generic definitions.
+include $(srctree)/scripts/Kbuild.include
 
 # Make variables (CC, etc...)
 
@@ -499,6 +498,7 @@ endif
 
 ifdef CONFIG_UNWIND_INFO
 CFLAGS		+= -fasynchronous-unwind-tables
+LDFLAGS_vmlinux	+= --eh-frame-hdr
 endif
 
 ifdef CONFIG_DEBUG_INFO
@@ -1319,7 +1319,8 @@ define xtags
 	    $(all-sources) | xargs $1 -a \
 		-I __initdata,__exitdata,__acquires,__releases \
 		-I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL \
-		--extra=+f --c-kinds=+px; \
+		--extra=+f --c-kinds=+px \
+		--regex-asm='/ENTRY\(([^)]*)\).*/\1/'; \
 	    $(all-kconfigs) | xargs $1 -a \
 		--langdef=kconfig \
 		--language-force=kconfig \
@@ -1482,6 +1483,8 @@ endif	# skip-makefile
 PHONY += FORCE
 FORCE:
 
+# Cancel implicit rules on top Makefile, `-rR' will apply to sub-makes.
+Makefile: ;
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
 # information in a variable se we can use it in if_changed and friends.

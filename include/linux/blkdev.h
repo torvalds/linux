@@ -342,7 +342,6 @@ typedef void (unplug_fn) (request_queue_t *);
 
 struct bio_vec;
 typedef int (merge_bvec_fn) (request_queue_t *, struct bio *, struct bio_vec *);
-typedef void (activity_fn) (void *data, int rw);
 typedef int (issue_flush_fn) (request_queue_t *, struct gendisk *, sector_t *);
 typedef void (prepare_flush_fn) (request_queue_t *, struct request *);
 typedef void (softirq_done_fn)(struct request *);
@@ -384,7 +383,6 @@ struct request_queue
 	prep_rq_fn		*prep_rq_fn;
 	unplug_fn		*unplug_fn;
 	merge_bvec_fn		*merge_bvec_fn;
-	activity_fn		*activity_fn;
 	issue_flush_fn		*issue_flush_fn;
 	prepare_flush_fn	*prepare_flush_fn;
 	softirq_done_fn		*softirq_done_fn;
@@ -410,8 +408,6 @@ struct request_queue
 	 * ll_rw_blk doesn't touch it.
 	 */
 	void			*queuedata;
-
-	void			*activity_data;
 
 	/*
 	 * queue needs bounce pages for pages above this limit
@@ -651,17 +647,37 @@ extern void blk_recount_segments(request_queue_t *, struct bio *);
 extern int scsi_cmd_ioctl(struct file *, struct gendisk *, unsigned int, void __user *);
 extern int sg_scsi_ioctl(struct file *, struct request_queue *,
 		struct gendisk *, struct scsi_ioctl_command __user *);
+
+/*
+ * A queue has just exitted congestion.  Note this in the global counter of
+ * congested queues, and wake up anyone who was waiting for requests to be
+ * put back.
+ */
+static inline void blk_clear_queue_congested(request_queue_t *q, int rw)
+{
+	clear_bdi_congested(&q->backing_dev_info, rw);
+}
+
+/*
+ * A queue has just entered congestion.  Flag that in the queue's VM-visible
+ * state flags and increment the global gounter of congested queues.
+ */
+static inline void blk_set_queue_congested(request_queue_t *q, int rw)
+{
+	set_bdi_congested(&q->backing_dev_info, rw);
+}
+
 extern void blk_start_queue(request_queue_t *q);
 extern void blk_stop_queue(request_queue_t *q);
 extern void blk_sync_queue(struct request_queue *q);
 extern void __blk_stop_queue(request_queue_t *q);
 extern void blk_run_queue(request_queue_t *);
 extern void blk_start_queueing(request_queue_t *);
-extern void blk_queue_activity_fn(request_queue_t *, activity_fn *, void *);
-extern int blk_rq_map_user(request_queue_t *, struct request *, void __user *, unsigned int);
-extern int blk_rq_unmap_user(struct bio *, unsigned int);
+extern int blk_rq_map_user(request_queue_t *, struct request *, void __user *, unsigned long);
+extern int blk_rq_unmap_user(struct request *);
 extern int blk_rq_map_kern(request_queue_t *, struct request *, void *, unsigned int, gfp_t);
-extern int blk_rq_map_user_iov(request_queue_t *, struct request *, struct sg_iovec *, int);
+extern int blk_rq_map_user_iov(request_queue_t *, struct request *,
+			       struct sg_iovec *, int, unsigned int);
 extern int blk_execute_rq(request_queue_t *, struct gendisk *,
 			  struct request *, int);
 extern void blk_execute_rq_nowait(request_queue_t *, struct gendisk *,
@@ -765,10 +781,8 @@ extern int blk_queue_init_tags(request_queue_t *, int, struct blk_queue_tag *);
 extern void blk_queue_free_tags(request_queue_t *);
 extern int blk_queue_resize_tags(request_queue_t *, int);
 extern void blk_queue_invalidate_tags(request_queue_t *);
-extern long blk_congestion_wait(int rw, long timeout);
 extern struct blk_queue_tag *blk_init_tags(int);
 extern void blk_free_tags(struct blk_queue_tag *);
-extern void blk_congestion_end(int rw);
 
 static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 						int tag)

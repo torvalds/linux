@@ -663,7 +663,7 @@ struct input_absinfo {
 #define BUS_GSC			0x1A
 
 /*
- * Values describing the status of an effect
+ * Values describing the status of a force-feedback effect
  */
 #define FF_STATUS_STOPPED	0x00
 #define FF_STATUS_PLAYING	0x01
@@ -680,7 +680,7 @@ struct input_absinfo {
  */
 
 /**
- * struct ff_replay - defines scheduling of the effect
+ * struct ff_replay - defines scheduling of the force-feedback effect
  * @length: duration of the effect
  * @delay: delay before effect should start playing
  */
@@ -690,7 +690,7 @@ struct ff_replay {
 };
 
 /**
- * struct ff_trigger - defines what triggers the effect
+ * struct ff_trigger - defines what triggers the force-feedback effect
  * @button: number of the button triggering the effect
  * @interval: controls how soon the effect can be re-triggered
  */
@@ -700,7 +700,7 @@ struct ff_trigger {
 };
 
 /**
- * struct ff_envelope - generic effect envelope
+ * struct ff_envelope - generic force-feedback effect envelope
  * @attack_length: duration of the attack (ms)
  * @attack_level: level at the beginning of the attack
  * @fade_length: duration of fade (ms)
@@ -719,7 +719,7 @@ struct ff_envelope {
 };
 
 /**
- * struct ff_constant_effect - defines parameters of a constant effect
+ * struct ff_constant_effect - defines parameters of a constant force-feedback effect
  * @level: strength of the effect; may be negative
  * @envelope: envelope data
  */
@@ -729,7 +729,7 @@ struct ff_constant_effect {
 };
 
 /**
- * struct ff_ramp_effect - defines parameters of a ramp effect
+ * struct ff_ramp_effect - defines parameters of a ramp force-feedback effect
  * @start_level: beginning strength of the effect; may be negative
  * @end_level: final strength of the effect; may be negative
  * @envelope: envelope data
@@ -741,7 +741,7 @@ struct ff_ramp_effect {
 };
 
 /**
- * struct ff_condition_effect - defines a spring or friction effect
+ * struct ff_condition_effect - defines a spring or friction force-feedback effect
  * @right_saturation: maximum level when joystick moved all way to the right
  * @left_saturation: same for the left side
  * @right_coeff: controls how fast the force grows when the joystick moves
@@ -762,7 +762,7 @@ struct ff_condition_effect {
 };
 
 /**
- * struct ff_periodic_effect - defines parameters of a periodic effect
+ * struct ff_periodic_effect - defines parameters of a periodic force-feedback effect
  * @waveform: kind of the effect (wave)
  * @period: period of the wave (ms)
  * @magnitude: peak value
@@ -793,7 +793,7 @@ struct ff_periodic_effect {
 };
 
 /**
- * struct ff_rumble_effect - defines parameters of a periodic effect
+ * struct ff_rumble_effect - defines parameters of a periodic force-feedback effect
  * @strong_magnitude: magnitude of the heavy motor
  * @weak_magnitude: magnitude of the light one
  *

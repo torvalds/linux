@@ -1155,7 +1155,8 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 		goto bail10;
 	}
 
-	c2_register_device(c2dev);
+	if (c2_register_device(c2dev))
+		goto bail10;
 
 	return 0;
 
@@ -1243,7 +1244,7 @@ static struct pci_driver c2_pci_driver = {
 
 static int __init c2_init_module(void)
 {
-	return pci_module_init(&c2_pci_driver);
+	return pci_register_driver(&c2_pci_driver);
 }
 
 static void __exit c2_exit_module(void)

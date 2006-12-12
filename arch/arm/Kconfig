@@ -74,6 +74,14 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -223,6 +231,12 @@ config ARCH_IOP33X
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
 
+config ARCH_IOP13XX
+	bool "IOP13xx-based"
+	select PCI
+	help
+	  Support for Intel's IOP13XX (XScale) family of processors.
+
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
@@ -331,6 +345,8 @@ source "arch/arm/mach-iop32x/Kconfig"
 
 source "arch/arm/mach-iop33x/Kconfig"
 
+source "arch/arm/mach-iop13xx/Kconfig"
+
 source "arch/arm/mach-ixp4xx/Kconfig"
 
 source "arch/arm/mach-ixp2000/Kconfig"
@@ -373,6 +389,14 @@ config PLAT_IOP
 	bool
 
 source arch/arm/mm/Kconfig
+
+config IWMMXT
+	bool "Enable iWMMXt support"
+	depends CPU_XSCALE || CPU_XSC3
+	default y if PXA27x
+	help
+	  Enable support for iWMMXt context switching at run time if
+	  running on a CPU that supports it.
 
 #  bool 'Use XScale PMU as timer source' CONFIG_XSCALE_PMU_TIMER
 config XSCALE_PMU
@@ -583,7 +607,7 @@ config LEDS
 		   ARCH_LUBBOCK || MACH_MAINSTONE || ARCH_NETWINDER || \
 		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
 		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
-		   ARCH_AT91RM9200 || MACH_TRIZEPS4
+		   ARCH_AT91 || MACH_TRIZEPS4
 	help
 	  If you say Y here, the LEDs on your machine will be used
 	  to provide useful information about your current system status.
@@ -878,6 +902,8 @@ source "drivers/ide/Kconfig"
 endif
 
 source "drivers/scsi/Kconfig"
+
+source "drivers/ata/Kconfig"
 
 source "drivers/md/Kconfig"
 

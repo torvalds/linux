@@ -35,6 +35,7 @@
 #include <linux/hash.h>
 #include <linux/suspend.h>
 #include <linux/buffer_head.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/bio.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
@@ -452,6 +453,7 @@ static void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 			       bdevname(bh->b_bdev, b));
 		}
 		set_bit(AS_EIO, &page->mapping->flags);
+		set_buffer_write_io_error(bh);
 		clear_buffer_uptodate(bh);
 		SetPageError(page);
 	}
@@ -571,6 +573,10 @@ EXPORT_SYMBOL(mark_buffer_async_write);
 static inline void __remove_assoc_queue(struct buffer_head *bh)
 {
 	list_del_init(&bh->b_assoc_buffers);
+	WARN_ON(!bh->b_assoc_map);
+	if (buffer_write_io_error(bh))
+		set_bit(AS_EIO, &bh->b_assoc_map->flags);
+	bh->b_assoc_map = NULL;
 }
 
 int inode_has_buffers(struct inode *inode)
@@ -669,6 +675,7 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
 		spin_lock(&buffer_mapping->private_lock);
 		list_move_tail(&bh->b_assoc_buffers,
 				&mapping->private_list);
+		bh->b_assoc_map = mapping;
 		spin_unlock(&buffer_mapping->private_lock);
 	}
 }
@@ -718,20 +725,21 @@ int __set_page_dirty_buffers(struct page *page)
 	}
 	spin_unlock(&mapping->private_lock);
 
-	if (!TestSetPageDirty(page)) {
-		write_lock_irq(&mapping->tree_lock);
-		if (page->mapping) {	/* Race with truncate? */
-			if (mapping_cap_account_dirty(mapping))
-				__inc_zone_page_state(page, NR_FILE_DIRTY);
-			radix_tree_tag_set(&mapping->page_tree,
-						page_index(page),
-						PAGECACHE_TAG_DIRTY);
+	if (TestSetPageDirty(page))
+		return 0;
+
+	write_lock_irq(&mapping->tree_lock);
+	if (page->mapping) {	/* Race with truncate? */
+		if (mapping_cap_account_dirty(mapping)) {
+			__inc_zone_page_state(page, NR_FILE_DIRTY);
+			task_io_account_write(PAGE_CACHE_SIZE);
 		}
-		write_unlock_irq(&mapping->tree_lock);
-		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-		return 1;
+		radix_tree_tag_set(&mapping->page_tree,
+				page_index(page), PAGECACHE_TAG_DIRTY);
 	}
-	return 0;
+	write_unlock_irq(&mapping->tree_lock);
+	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+	return 1;
 }
 EXPORT_SYMBOL(__set_page_dirty_buffers);
 
@@ -765,7 +773,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 	spin_lock(lock);
 	while (!list_empty(list)) {
 		bh = BH_ENTRY(list->next);
-		list_del_init(&bh->b_assoc_buffers);
+		__remove_assoc_queue(bh);
 		if (buffer_dirty(bh) || buffer_locked(bh)) {
 			list_add(&bh->b_assoc_buffers, &tmp);
 			if (buffer_dirty(bh)) {
@@ -786,7 +794,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 
 	while (!list_empty(&tmp)) {
 		bh = BH_ENTRY(tmp.prev);
-		__remove_assoc_queue(bh);
+		list_del_init(&bh->b_assoc_buffers);
 		get_bh(bh);
 		spin_unlock(lock);
 		wait_on_buffer(bh);
@@ -1167,6 +1175,7 @@ void __bforget(struct buffer_head *bh)
 
 		spin_lock(&buffer_mapping->private_lock);
 		list_del_init(&bh->b_assoc_buffers);
+		bh->b_assoc_map = NULL;
 		spin_unlock(&buffer_mapping->private_lock);
 	}
 	__brelse(bh);
@@ -2844,8 +2853,13 @@ int try_to_free_buffers(struct page *page)
 		 * could encounter a non-uptodate page, which is unresolvable.
 		 * This only applies in the rare case where try_to_free_buffers
 		 * succeeds but the page is not freed.
+		 *
+		 * Also, during truncate, discard_buffer will have marked all
+		 * the page's buffers clean.  We discover that here and clean
+		 * the page also.
 		 */
-		clear_page_dirty(page);
+		if (test_clear_page_dirty(page))
+			task_io_account_cancelled_write(PAGE_CACHE_SIZE);
 	}
 out:
 	if (buffers_to_free) {
@@ -2901,7 +2915,7 @@ asmlinkage long sys_bdflush(int func, long data)
 /*
  * Buffer-head allocation
  */
-static kmem_cache_t *bh_cachep;
+static struct kmem_cache *bh_cachep;
 
 /*
  * Once the number of bh's in the machine exceeds this level, we start
@@ -2954,7 +2968,7 @@ void free_buffer_head(struct buffer_head *bh)
 EXPORT_SYMBOL(free_buffer_head);
 
 static void
-init_buffer_head(void *data, kmem_cache_t *cachep, unsigned long flags)
+init_buffer_head(void *data, struct kmem_cache *cachep, unsigned long flags)
 {
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 			    SLAB_CTOR_CONSTRUCTOR) {
@@ -2965,7 +2979,6 @@ init_buffer_head(void *data, kmem_cache_t *cachep, unsigned long flags)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void buffer_exit_cpu(int cpu)
 {
 	int i;
@@ -2987,7 +3000,6 @@ static int buffer_cpu_notify(struct notifier_block *self,
 		buffer_exit_cpu((unsigned long)hcpu);
 	return NOTIFY_OK;
 }
-#endif /* CONFIG_HOTPLUG_CPU */
 
 void __init buffer_init(void)
 {

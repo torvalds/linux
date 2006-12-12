@@ -184,7 +184,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
 	mutex_lock(&kprobe_mutex);
-	free_insn_slot(p->ainsn.insn);
+	free_insn_slot(p->ainsn.insn, (p->ainsn.boostable == 1));
 	mutex_unlock(&kprobe_mutex);
 }
 
@@ -333,7 +333,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		return 1;
 
 ss_probe:
-#ifndef CONFIG_PREEMPT
+#if !defined(CONFIG_PREEMPT) || defined(CONFIG_PM)
 	if (p->ainsn.boostable == 1 && !p->post_handler){
 		/* Boost up -- we can execute copied instructions directly */
 		reset_current_kprobe();
@@ -361,8 +361,11 @@ no_kprobe:
 	asm volatile ( ".global kretprobe_trampoline\n"
 			"kretprobe_trampoline: \n"
 			"	pushf\n"
-			/* skip cs, eip, orig_eax, es, ds */
-			"	subl $20, %esp\n"
+			/* skip cs, eip, orig_eax */
+			"	subl $12, %esp\n"
+			"	pushl %gs\n"
+			"	pushl %ds\n"
+			"	pushl %es\n"
 			"	pushl %eax\n"
 			"	pushl %ebp\n"
 			"	pushl %edi\n"
@@ -373,10 +376,10 @@ no_kprobe:
 			"	movl %esp, %eax\n"
 			"	call trampoline_handler\n"
 			/* move eflags to cs */
-			"	movl 48(%esp), %edx\n"
-			"	movl %edx, 44(%esp)\n"
+			"	movl 52(%esp), %edx\n"
+			"	movl %edx, 48(%esp)\n"
 			/* save true return address on eflags */
-			"	movl %eax, 48(%esp)\n"
+			"	movl %eax, 52(%esp)\n"
 			"	popl %ebx\n"
 			"	popl %ecx\n"
 			"	popl %edx\n"
@@ -384,8 +387,8 @@ no_kprobe:
 			"	popl %edi\n"
 			"	popl %ebp\n"
 			"	popl %eax\n"
-			/* skip eip, orig_eax, es, ds */
-			"	addl $16, %esp\n"
+			/* skip eip, orig_eax, es, ds, gs */
+			"	addl $20, %esp\n"
 			"	popf\n"
 			"	ret\n");
 }
@@ -404,6 +407,10 @@ fastcall void *__kprobes trampoline_handler(struct pt_regs *regs)
 	INIT_HLIST_HEAD(&empty_rp);
 	spin_lock_irqsave(&kretprobe_lock, flags);
 	head = kretprobe_inst_table_head(current);
+	/* fixup registers */
+	regs->xcs = __KERNEL_CS;
+	regs->eip = trampoline_address;
+	regs->orig_eax = 0xffffffff;
 
 	/*
 	 * It is possible to have multiple instances associated with a given
@@ -425,6 +432,7 @@ fastcall void *__kprobes trampoline_handler(struct pt_regs *regs)
 
 		if (ri->rp && ri->rp->handler){
 			__get_cpu_var(current_kprobe) = &ri->rp->kp;
+			get_kprobe_ctlblk()->kprobe_status = KPROBE_HIT_ACTIVE;
 			ri->rp->handler(ri, regs);
 			__get_cpu_var(current_kprobe) = NULL;
 		}

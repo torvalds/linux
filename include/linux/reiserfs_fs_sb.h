@@ -249,7 +249,8 @@ struct reiserfs_journal {
 	int j_errno;
 
 	/* when flushing ordered buffers, throttle new ordered writers */
-	struct work_struct j_work;
+	struct delayed_work j_work;
+	struct super_block *j_work_sb;
 	atomic_t j_async_throttle;
 };
 
@@ -429,7 +430,7 @@ enum reiserfs_mount_options {
 /* -o hash={tea, rupasov, r5, detect} is meant for properly mounting 
 ** reiserfs disks from 3.5.19 or earlier.  99% of the time, this option
 ** is not required.  If the normal autodection code can't determine which
-** hash to use (because both hases had the same value for a file)
+** hash to use (because both hashes had the same value for a file)
 ** use this option to force a specific hash.  It won't allow you to override
 ** the existing hash on the FS, so if you have a tea hash disk, and mount
 ** with -o hash=rupasov, the mount will fail.

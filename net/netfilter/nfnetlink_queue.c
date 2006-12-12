@@ -349,7 +349,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	struct sk_buff *entskb = entry->skb;
 	struct net_device *indev;
 	struct net_device *outdev;
-	unsigned int tmp_uint;
+	__be32 tmp_uint;
 
 	QDEBUG("entered\n");
 
@@ -414,7 +414,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	nfmsg->res_id = htons(queue->queue_num);
 
 	pmsg.packet_id 		= htonl(entry->id);
-	pmsg.hw_protocol	= htons(entskb->protocol);
+	pmsg.hw_protocol	= entskb->protocol;
 	pmsg.hook		= entinf->hook;
 
 	NFA_PUT(skb, NFQA_PACKET_HDR, sizeof(pmsg), &pmsg);
@@ -480,8 +480,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 #endif
 	}
 
-	if (entskb->nfmark) {
-		tmp_uint = htonl(entskb->nfmark);
+	if (entskb->mark) {
+		tmp_uint = htonl(entskb->mark);
 		NFA_PUT(skb, NFQA_MARK, sizeof(u_int32_t), &tmp_uint);
 	}
 
@@ -489,10 +489,9 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	    && entskb->dev->hard_header_parse) {
 		struct nfqnl_msg_packet_hw phw;
 
-		phw.hw_addrlen =
-			entskb->dev->hard_header_parse(entskb,
+		int len = entskb->dev->hard_header_parse(entskb,
 			                                   phw.hw_addr);
-		phw.hw_addrlen = htons(phw.hw_addrlen);
+		phw.hw_addrlen = htons(len);
 		NFA_PUT(skb, NFQA_HWADDR, sizeof(phw), &phw);
 	}
 
@@ -622,9 +621,10 @@ nfqnl_mangle(void *data, int data_len, struct nfqnl_queue_entry *e)
 	int diff;
 
 	diff = data_len - e->skb->len;
-	if (diff < 0)
-		skb_trim(e->skb, data_len);
-	else if (diff > 0) {
+	if (diff < 0) {
+		if (pskb_trim(e->skb, data_len))
+			return -ENOMEM;
+	} else if (diff > 0) {
 		if (data_len > 0xFFFF)
 			return -EINVAL;
 		if (diff > skb_tailroom(e->skb)) {
@@ -834,8 +834,8 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	if (nfqa[NFQA_MARK-1])
-		entry->skb->nfmark = ntohl(*(u_int32_t *)
-		                           NFA_DATA(nfqa[NFQA_MARK-1]));
+		entry->skb->mark = ntohl(*(__be32 *)
+		                         NFA_DATA(nfqa[NFQA_MARK-1]));
 		
 	issue_verdict(entry, verdict);
 	instance_put(queue);
@@ -945,6 +945,14 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		params = NFA_DATA(nfqa[NFQA_CFG_PARAMS-1]);
 		nfqnl_set_mode(queue, params->copy_mode,
 				ntohl(params->copy_range));
+	}
+
+	if (nfqa[NFQA_CFG_QUEUE_MAXLEN-1]) {
+		__be32 *queue_maxlen;
+		queue_maxlen = NFA_DATA(nfqa[NFQA_CFG_QUEUE_MAXLEN-1]);
+		spin_lock_bh(&queue->lock);
+		queue->queue_maxlen = ntohl(*queue_maxlen);
+		spin_unlock_bh(&queue->lock);
 	}
 
 out_put:

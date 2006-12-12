@@ -368,7 +368,7 @@ static inline void sctp_sysctl_register(void) { return; }
 static inline void sctp_sysctl_unregister(void) { return; }
 static inline int sctp_sysctl_jiffies_ms(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen, void **context) {
+		void __user *newval, size_t newlen) {
 	return -ENOSYS;
 }
 #endif
@@ -585,7 +585,7 @@ static inline int ipver2af(__u8 ipver)
 }
 
 /* Convert from an address parameter type to an address family.  */
-static inline int param_type2af(__u16 type)
+static inline int param_type2af(__be16 type)
 {
 	switch (type) {
 	case SCTP_PARAM_IPV4_ADDRESS:

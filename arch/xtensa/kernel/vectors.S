@@ -53,6 +53,8 @@
 #include <asm/thread_info.h>
 #include <asm/processor.h>
 
+#define WINDOW_VECTORS_SIZE   0x180
+
 
 /*
  * User exception vector. (Exceptions with PS.UM == 1, PS.EXCM == 0)
@@ -210,7 +212,7 @@ ENTRY(_DoubleExceptionVector)
 	/* Check for kernel double exception (usually fatal). */
 
 	rsr	a3, PS
-	_bbci.l	a3, PS_UM_SHIFT, .Lksp
+	_bbci.l	a3, PS_UM_BIT, .Lksp
 
 	/* Check if we are currently handling a window exception. */
 	/* Note: We don't need to indicate that we enter a critical section. */
@@ -219,7 +221,7 @@ ENTRY(_DoubleExceptionVector)
 
 	movi	a3, XCHAL_WINDOW_VECTORS_VADDR
 	_bltu	a0, a3, .Lfixup
-	addi	a3, a3, XSHAL_WINDOW_VECTORS_SIZE
+	addi	a3, a3, WINDOW_VECTORS_SIZE
 	_bgeu	a0, a3, .Lfixup
 
 	/* Window overflow/underflow exception. Get stack pointer. */
@@ -245,7 +247,7 @@ ENTRY(_DoubleExceptionVector)
 
 	wsr	a2, DEPC		# save stack pointer temporarily
 	rsr	a0, PS
-	extui	a0, a0, XCHAL_PS_OWB_SHIFT, XCHAL_PS_OWB_BITS
+	extui	a0, a0, PS_OWB_SHIFT, 4
 	wsr	a0, WINDOWBASE
 	rsync
 
@@ -312,8 +314,8 @@ ENTRY(_DoubleExceptionVector)
 .Lksp:	/* a0: a0, a1: a1, a2: a2, a3: trashed, depc: depc, excsave: a3 */
 
 	rsr	a3, EXCCAUSE
-	beqi	a3, XCHAL_EXCCAUSE_ITLB_MISS, 1f
-	addi	a3, a3, -XCHAL_EXCCAUSE_DTLB_MISS
+	beqi	a3, EXCCAUSE_ITLB_MISS, 1f
+	addi	a3, a3, -EXCCAUSE_DTLB_MISS
 	bnez	a3, .Lunrecoverable
 1:	movi	a3, fast_second_level_miss_double_kernel
 	jx	a3

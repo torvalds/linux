@@ -36,7 +36,7 @@
 #include "../pci.h"
 #include "shpchp.h"
 
-static void interrupt_event_handler(void *data);
+static void interrupt_event_handler(struct work_struct *work);
 static int shpchp_enable_slot(struct slot *p_slot);
 static int shpchp_disable_slot(struct slot *p_slot);
 
@@ -50,7 +50,7 @@ static int queue_interrupt_event(struct slot *p_slot, u32 event_type)
 
 	info->event_type = event_type;
 	info->p_slot = p_slot;
-	INIT_WORK(&info->work, interrupt_event_handler, info);
+	INIT_WORK(&info->work, interrupt_event_handler);
 
 	schedule_work(&info->work);
 
@@ -408,9 +408,10 @@ struct pushbutton_work_info {
  * Handles all pending events and exits.
  *
  */
-static void shpchp_pushbutton_thread(void *data)
+static void shpchp_pushbutton_thread(struct work_struct *work)
 {
-	struct pushbutton_work_info *info = data;
+	struct pushbutton_work_info *info =
+		container_of(work, struct pushbutton_work_info, work);
 	struct slot *p_slot = info->p_slot;
 
 	mutex_lock(&p_slot->lock);
@@ -436,9 +437,9 @@ static void shpchp_pushbutton_thread(void *data)
 	kfree(info);
 }
 
-void queue_pushbutton_work(void *data)
+void queue_pushbutton_work(struct work_struct *work)
 {
-	struct slot *p_slot = data;
+	struct slot *p_slot = container_of(work, struct slot, work.work);
 	struct pushbutton_work_info *info;
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
@@ -447,7 +448,7 @@ void queue_pushbutton_work(void *data)
 		return;
 	}
 	info->p_slot = p_slot;
-	INIT_WORK(&info->work, shpchp_pushbutton_thread, info);
+	INIT_WORK(&info->work, shpchp_pushbutton_thread);
 
 	mutex_lock(&p_slot->lock);
 	switch (p_slot->state) {
@@ -541,9 +542,9 @@ static void handle_button_press_event(struct slot *p_slot)
 	}
 }
 
-static void interrupt_event_handler(void *data)
+static void interrupt_event_handler(struct work_struct *work)
 {
-	struct event_info *info = data;
+	struct event_info *info = container_of(work, struct event_info, work);
 	struct slot *p_slot = info->p_slot;
 
 	mutex_lock(&p_slot->lock);

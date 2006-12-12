@@ -238,6 +238,7 @@ static void ttusb_dec_handle_irq( struct urb *urb)
 		 * for now lets report each signal as a key down and up*/
 		dprintk("%s:rc signal:%d\n", __FUNCTION__, buffer[4]);
 		input_report_key(dec->rc_input_dev, rc_keys[buffer[4] - 1], 1);
+		input_sync(dec->rc_input_dev);
 		input_report_key(dec->rc_input_dev, rc_keys[buffer[4] - 1], 0);
 		input_sync(dec->rc_input_dev);
 	}
@@ -1135,8 +1136,7 @@ static void ttusb_dec_free_iso_urbs(struct ttusb_dec *dec)
 	dprintk("%s\n", __FUNCTION__);
 
 	for (i = 0; i < ISO_BUF_COUNT; i++)
-		if (dec->iso_urb[i])
-			usb_free_urb(dec->iso_urb[i]);
+		usb_free_urb(dec->iso_urb[i]);
 
 	pci_free_consistent(NULL,
 			    ISO_FRAME_SIZE * (FRAMES_PER_ISO_BUF *
@@ -1188,11 +1188,12 @@ static int ttusb_init_rc( struct ttusb_dec *dec)
 	struct input_dev *input_dev;
 	u8 b[] = { 0x00, 0x01 };
 	int i;
+	int err;
 
 	usb_make_path(dec->udev, dec->rc_phys, sizeof(dec->rc_phys));
 	strlcpy(dec->rc_phys, "/input0", sizeof(dec->rc_phys));
 
-	dec->rc_input_dev = input_dev = input_allocate_device();
+	input_dev = input_allocate_device();
 	if (!input_dev)
 		return -ENOMEM;
 
@@ -1206,8 +1207,13 @@ static int ttusb_init_rc( struct ttusb_dec *dec)
 	for (i = 0; i < ARRAY_SIZE(rc_keys); i++)
 		  set_bit(rc_keys[i], input_dev->keybit);
 
-	input_register_device(input_dev);
+	err = input_register_device(input_dev);
+	if (err) {
+		input_free_device(input_dev);
+		return err;
+	}
 
+	dec->rc_input_dev = input_dev;
 	if (usb_submit_urb(dec->irq_urb, GFP_KERNEL))
 		printk("%s: usb_submit_urb failed\n",__FUNCTION__);
 	/* enable irq pipe */
@@ -1245,7 +1251,7 @@ static int ttusb_dec_init_usb(struct ttusb_dec *dec)
 			return -ENOMEM;
 		}
 		dec->irq_buffer = usb_buffer_alloc(dec->udev,IRQ_PACKET_SIZE,
-					SLAB_ATOMIC, &dec->irq_dma_handle);
+					GFP_ATOMIC, &dec->irq_dma_handle);
 		if(!dec->irq_buffer) {
 			return -ENOMEM;
 		}

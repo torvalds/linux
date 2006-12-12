@@ -450,8 +450,8 @@ static inline void asd_destroy_ha_caches(struct asd_ha_struct *asd_ha)
 	asd_ha->scb_pool = NULL;
 }
 
-kmem_cache_t *asd_dma_token_cache;
-kmem_cache_t *asd_ascb_cache;
+struct kmem_cache *asd_dma_token_cache;
+struct kmem_cache *asd_ascb_cache;
 
 static int asd_create_global_caches(void)
 {
@@ -724,6 +724,15 @@ static void asd_free_queues(struct asd_ha_struct *asd_ha)
 
 	list_for_each_safe(pos, n, &pending) {
 		struct asd_ascb *ascb = list_entry(pos, struct asd_ascb, list);
+		/*
+		 * Delete unexpired ascb timers.  This may happen if we issue
+		 * a CONTROL PHY scb to an adapter and rmmod before the scb
+		 * times out.  Apparently we don't wait for the CONTROL PHY
+		 * to complete, so it doesn't matter if we kill the timer.
+		 */
+		del_timer_sync(&ascb->timer);
+		WARN_ON(ascb->scb->header.opcode != CONTROL_PHY);
+
 		list_del_init(pos);
 		ASD_DPRINTK("freeing from pending\n");
 		asd_ascb_free(ascb);
@@ -786,8 +795,6 @@ static void asd_remove_driver_attrs(struct device_driver *driver)
 }
 
 static struct sas_domain_function_template aic94xx_transport_functions = {
-	.lldd_port_formed	= asd_update_port_links,
-
 	.lldd_dev_found		= asd_dev_found,
 	.lldd_dev_gone		= asd_dev_gone,
 
@@ -813,6 +820,8 @@ static const struct pci_device_id aic94xx_pci_table[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_RAZOR12),
 	 0, 0, 1},
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_RAZOR1E),
+	 0, 0, 1},
+	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_RAZOR1F),
 	 0, 0, 1},
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_RAZOR30),
 	 0, 0, 2},

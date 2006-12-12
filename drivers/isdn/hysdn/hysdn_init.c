@@ -81,11 +81,10 @@ search_cards(void)
 		if (pci_enable_device(akt_pcidev))
 			continue;
 
-		if (!(card = kmalloc(sizeof(hysdn_card), GFP_KERNEL))) {
+		if (!(card = kzalloc(sizeof(hysdn_card), GFP_KERNEL))) {
 			printk(KERN_ERR "HYSDN: unable to alloc device mem \n");
 			return;
 		}
-		memset(card, 0, sizeof(hysdn_card));
 		card->myid = cardmax;	/* set own id */
 		card->bus = akt_pcidev->bus->number;
 		card->devfn = akt_pcidev->devfn;	/* slot + function */

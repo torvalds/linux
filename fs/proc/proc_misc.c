@@ -39,13 +39,15 @@
 #include <linux/seq_file.h>
 #include <linux/times.h>
 #include <linux/profile.h>
+#include <linux/utsname.h>
 #include <linux/blkdev.h>
 #include <linux/hugetlb.h>
 #include <linux/jiffies.h>
 #include <linux/sysrq.h>
 #include <linux/vmalloc.h>
 #include <linux/crash_dump.h>
-#include <linux/pspace.h>
+#include <linux/pid_namespace.h>
+#include <linux/compile.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -92,7 +94,7 @@ static int loadavg_read_proc(char *page, char **start, off_t off,
 		LOAD_INT(a), LOAD_FRAC(a),
 		LOAD_INT(b), LOAD_FRAC(b),
 		LOAD_INT(c), LOAD_FRAC(c),
-		nr_running(), nr_threads, init_pspace.last_pid);
+		nr_running(), nr_threads, current->nsproxy->pid_ns->last_pid);
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 
@@ -252,8 +254,15 @@ static int version_read_proc(char *page, char **start, off_t off,
 {
 	int len;
 
-	strcpy(page, linux_banner);
-	len = strlen(page);
+	/* FIXED STRING! Don't touch! */
+	len = snprintf(page, PAGE_SIZE,
+		"%s version %s"
+		" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
+		" (" LINUX_COMPILER ")"
+		" %s\n",
+		utsname()->sysname,
+		utsname()->release,
+		utsname()->version);
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 
@@ -696,9 +705,11 @@ void __init proc_misc_init(void)
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	/* And now for trickier ones */
+#ifdef CONFIG_PRINTK
 	entry = create_proc_entry("kmsg", S_IRUSR, &proc_root);
 	if (entry)
 		entry->proc_fops = &proc_kmsg_operations;
+#endif
 	create_seq_entry("devices", 0, &proc_devinfo_operations);
 	create_seq_entry("cpuinfo", 0, &proc_cpuinfo_operations);
 #ifdef CONFIG_BLOCK

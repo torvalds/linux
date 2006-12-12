@@ -443,7 +443,7 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 }
 
-static struct mmc_host_ops mmci_ops = {
+static const struct mmc_host_ops mmci_ops = {
 	.request	= mmci_request,
 	.set_ios	= mmci_set_ios,
 };

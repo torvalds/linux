@@ -173,7 +173,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code,
 		goto good_area;
 	if (!(vma->vm_flags & VM_GROWSDOWN))
 		goto bad_area;
-#if 0
+
 	if (error_code & ACE_USERMODE) {
 		/*
 		 * accessing the stack below "spu" is always a bug.
@@ -184,7 +184,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code,
 		if (address + 4 < regs->spu)
 			goto bad_area;
 	}
-#endif
+
 	if (expand_stack(vma, address))
 		goto bad_area;
 /*

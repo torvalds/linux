@@ -335,7 +335,7 @@ struct svc_version {
 /*
  * RPC procedure info
  */
-typedef int	(*svc_procfunc)(struct svc_rqst *, void *argp, void *resp);
+typedef __be32	(*svc_procfunc)(struct svc_rqst *, void *argp, void *resp);
 struct svc_procedure {
 	svc_procfunc		pc_func;	/* process the request */
 	kxdrproc_t		pc_decode;	/* XDR decode args */

@@ -232,7 +232,7 @@ unsigned long ramfs_nommu_get_unmapped_area(struct file *file,
 					    unsigned long pgoff, unsigned long flags)
 {
 	unsigned long maxpages, lpages, nr, loop, ret;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct page **pages = NULL, **ptr, *page;
 	loff_t isize;
 

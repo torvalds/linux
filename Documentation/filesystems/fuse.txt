@@ -51,6 +51,22 @@ homepage:
 
   http://fuse.sourceforge.net/
 
+Filesystem type
+~~~~~~~~~~~~~~~
+
+The filesystem type given to mount(2) can be one of the following:
+
+'fuse'
+
+  This is the usual way to mount a FUSE filesystem.  The first
+  argument of the mount system call may contain an arbitrary string,
+  which is not interpreted by the kernel.
+
+'fuseblk'
+
+  The filesystem is block device based.  The first argument of the
+  mount system call is interpreted as the name of the device.
+
 Mount options
 ~~~~~~~~~~~~~
 
@@ -94,6 +110,11 @@ Mount options
   The default is infinite.  Note that the size of read requests is
   limited anyway to 32 pages (which is 128kbyte on i386).
 
+'blksize=N'
+
+  Set the block size for the filesystem.  The default is 512.  This
+  option is only valid for 'fuseblk' type mounts.
+
 Control filesystem
 ~~~~~~~~~~~~~~~~~~
 
@@ -111,7 +132,7 @@ For each connection the following files exist within this directory:
 
  'waiting'
 
-  The number of requests which are waiting to be transfered to
+  The number of requests which are waiting to be transferred to
   userspace or being processed by the filesystem daemon.  If there is
   no filesystem activity and 'waiting' is non-zero, then the
   filesystem is hung or deadlocked.
@@ -136,7 +157,7 @@ following will happen:
 
   2) If the request is not yet sent to userspace AND the signal is not
      fatal, then an 'interrupted' flag is set for the request.  When
-     the request has been successfully transfered to userspace and
+     the request has been successfully transferred to userspace and
      this flag is set, an INTERRUPT request is queued.
 
   3) If the request is already sent to userspace, then an INTERRUPT

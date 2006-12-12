@@ -69,9 +69,9 @@ static void dump_packet(const struct nf_loginfo *info,
 	/* Max length: 44 "LEN=65535 TC=255 HOPLIMIT=255 FLOWLBL=FFFFF " */
 	printk("LEN=%Zu TC=%u HOPLIMIT=%u FLOWLBL=%u ",
 	       ntohs(ih->payload_len) + sizeof(struct ipv6hdr),
-	       (ntohl(*(u_int32_t *)ih) & 0x0ff00000) >> 20,
+	       (ntohl(*(__be32 *)ih) & 0x0ff00000) >> 20,
 	       ih->hop_limit,
-	       (ntohl(*(u_int32_t *)ih) & 0x000fffff));
+	       (ntohl(*(__be32 *)ih) & 0x000fffff));
 
 	fragment = 0;
 	ptr = ip6hoff + sizeof(struct ipv6hdr);
@@ -270,11 +270,15 @@ static void dump_packet(const struct nf_loginfo *info,
 		}
 		break;
 	}
-	case IPPROTO_UDP: {
+	case IPPROTO_UDP:
+	case IPPROTO_UDPLITE: {
 		struct udphdr _udph, *uh;
 
-		/* Max length: 10 "PROTO=UDP " */
-		printk("PROTO=UDP ");
+		if (currenthdr == IPPROTO_UDP)
+			/* Max length: 10 "PROTO=UDP "     */
+			printk("PROTO=UDP " );
+		else	/* Max length: 14 "PROTO=UDPLITE " */
+			printk("PROTO=UDPLITE ");
 
 		if (fragment)
 			break;
@@ -436,13 +440,8 @@ ip6t_log_target(struct sk_buff **pskb,
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
-	if (loginfo->logflags & IP6T_LOG_NFLOG)
-		nf_log_packet(PF_INET6, hooknum, *pskb, in, out, &li,
-		              "%s", loginfo->prefix);
-	else
-		ip6t_log_packet(PF_INET6, hooknum, *pskb, in, out, &li,
-		                loginfo->prefix);
-
+	ip6t_log_packet(PF_INET6, hooknum, *pskb, in, out, &li,
+	                loginfo->prefix);
 	return IP6T_CONTINUE;
 }
 

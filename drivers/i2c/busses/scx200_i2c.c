@@ -116,7 +116,7 @@ static int scx200_i2c_init(void)
 
 static void scx200_i2c_cleanup(void)
 {
-	i2c_bit_del_bus(&scx200_i2c_ops);
+	i2c_del_adapter(&scx200_i2c_ops);
 }
 
 module_init(scx200_i2c_init);

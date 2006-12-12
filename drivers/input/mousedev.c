@@ -196,12 +196,12 @@ static void mousedev_key_event(struct mousedev *mousedev, unsigned int code, int
 	switch (code) {
 		case BTN_TOUCH:
 		case BTN_0:
-		case BTN_FORWARD:
 		case BTN_LEFT:		index = 0; break;
 		case BTN_STYLUS:
 		case BTN_1:
 		case BTN_RIGHT:		index = 1; break;
 		case BTN_2:
+		case BTN_FORWARD:
 		case BTN_STYLUS2:
 		case BTN_MIDDLE:	index = 2; break;
 		case BTN_3:

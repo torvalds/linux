@@ -453,6 +453,12 @@ static void __devinit quirk_ich6_lpc_acpi(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_0, quirk_ich6_lpc_acpi );
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_1, quirk_ich6_lpc_acpi );
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH7_0, quirk_ich6_lpc_acpi );
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH7_1, quirk_ich6_lpc_acpi );
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH7_31, quirk_ich6_lpc_acpi );
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH8_0, quirk_ich6_lpc_acpi );
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH8_2, quirk_ich6_lpc_acpi );
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH8_3, quirk_ich6_lpc_acpi );
 
 /*
  * VIA ACPI: One IO region pointed to by longword at
@@ -648,11 +654,43 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C686_4,	quirk_vi
  * Some of the on-chip devices are actually '586 devices' so they are
  * listed here.
  */
+
+static int via_irq_fixup_needed = -1;
+
+/*
+ * As some VIA hardware is available in PCI-card form, we need to restrict
+ * this quirk to VIA PCI hardware built onto VIA-based motherboards only.
+ * We try to locate a VIA southbridge before deciding whether the quirk
+ * should be applied.
+ */
+static const struct pci_device_id via_irq_fixup_tbl[] = {
+	{
+		.vendor 	= PCI_VENDOR_ID_VIA,
+		.device		= PCI_ANY_ID,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.class		= PCI_CLASS_BRIDGE_ISA << 8,
+		.class_mask	= 0xffff00,
+	},
+	{ 0, },
+};
+
 static void quirk_via_irq(struct pci_dev *dev)
 {
 	u8 irq, new_irq;
 
-	new_irq = dev->irq & 0xf;
+	if (via_irq_fixup_needed == -1)
+		via_irq_fixup_needed = pci_dev_present(via_irq_fixup_tbl);
+
+	if (!via_irq_fixup_needed)
+		return;
+
+	new_irq = dev->irq;
+
+	/* Don't quirk interrupts outside the legacy IRQ range */
+	if (!new_irq || new_irq > 15)
+		return;
+
 	pci_read_config_byte(dev, PCI_INTERRUPT_LINE, &irq);
 	if (new_irq != irq) {
 		printk(KERN_INFO "PCI: VIA IRQ fixup for %s, from %d to %d\n",
@@ -661,14 +699,7 @@ static void quirk_via_irq(struct pci_dev *dev)
 		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, new_irq);
 	}
 }
-DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_0, quirk_via_irq);
-DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_1, quirk_via_irq);
-DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_2, quirk_via_irq);
-DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_3, quirk_via_irq);
-DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235_USB_2, quirk_via_irq);
-DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686, quirk_via_irq);
-DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686_4, quirk_via_irq);
-DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686_5, quirk_via_irq);
+DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_ANY_ID, quirk_via_irq);
 
 /*
  * VIA VT82C598 has its device ID settable and many BIOSes
@@ -682,33 +713,6 @@ static void __devinit quirk_vt82c598_id(struct pci_dev *dev)
 	pci_read_config_word(dev, PCI_DEVICE_ID, &dev->device);
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C597_0,	quirk_vt82c598_id );
-
-#ifdef CONFIG_ACPI_SLEEP
-
-/*
- * Some VIA systems boot with the abnormal status flag set. This can cause
- * the BIOS to re-POST the system on resume rather than passing control
- * back to the OS.  Clear the flag on boot
- */
-static void __devinit quirk_via_abnormal_poweroff(struct pci_dev *dev)
-{
-	u32 reg;
-
-	acpi_hw_register_read(ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_STATUS,
-				&reg);
-
-	if (reg & 0x800) {
-		printk("Clearing abnormal poweroff flag\n");
-		acpi_hw_register_write(ACPI_MTX_DO_NOT_LOCK,
-					ACPI_REGISTER_PM1_STATUS,
-					(u16)0x800);
-	}
-}
-
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235, quirk_via_abnormal_poweroff);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237, quirk_via_abnormal_poweroff);
-
-#endif
 
 /*
  * CardBus controllers have a legacy base address that enables them
@@ -793,56 +797,6 @@ static void __init quirk_mediagx_master(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CYRIX,	PCI_DEVICE_ID_CYRIX_PCI_MASTER, quirk_mediagx_master );
 
 /*
- * As per PCI spec, ignore base address registers 0-3 of the IDE controllers
- * running in Compatible mode (bits 0 and 2 in the ProgIf for primary and
- * secondary channels respectively). If the device reports Compatible mode
- * but does use BAR0-3 for address decoding, we assume that firmware has
- * programmed these BARs with standard values (0x1f0,0x3f4 and 0x170,0x374).
- * Exceptions (if they exist) must be handled in chip/architecture specific
- * fixups.
- *
- * Note: for non x86 people. You may need an arch specific quirk to handle
- * moving IDE devices to native mode as well. Some plug in card devices power
- * up in compatible mode and assume the BIOS will adjust them.
- *
- * Q: should we load the 0x1f0,0x3f4 into the registers or zap them as
- * we do now ? We don't want is pci_enable_device to come along
- * and assign new resources. Both approaches work for that.
- */ 
-static void __devinit quirk_ide_bases(struct pci_dev *dev)
-{
-       struct resource *res;
-       int first_bar = 2, last_bar = 0;
-
-       if ((dev->class >> 8) != PCI_CLASS_STORAGE_IDE)
-               return;
-
-       res = &dev->resource[0];
-
-       /* primary channel: ProgIf bit 0, BAR0, BAR1 */
-       if (!(dev->class & 1) && (res[0].flags || res[1].flags)) { 
-               res[0].start = res[0].end = res[0].flags = 0;
-               res[1].start = res[1].end = res[1].flags = 0;
-               first_bar = 0;
-               last_bar = 1;
-       }
-
-       /* secondary channel: ProgIf bit 2, BAR2, BAR3 */
-       if (!(dev->class & 4) && (res[2].flags || res[3].flags)) { 
-               res[2].start = res[2].end = res[2].flags = 0;
-               res[3].start = res[3].end = res[3].flags = 0;
-               last_bar = 3;
-       }
-
-       if (!last_bar)
-               return;
-
-       printk(KERN_INFO "PCI: Ignoring BAR%d-%d of IDE controller %s\n",
-              first_bar, last_bar, pci_name(dev));
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, quirk_ide_bases);
-
-/*
  *	Ensure C0 rev restreaming is off. This is normally done by
  *	the BIOS but in the odd case it is not the results are corruption
  *	hence the presence of a Linux check
@@ -876,11 +830,10 @@ static void __devinit quirk_svwks_csb5ide(struct pci_dev *pdev)
 		prog &= ~5;
 		pdev->class &= ~5;
 		pci_write_config_byte(pdev, PCI_CLASS_PROG, prog);
-		/* need to re-assign BARs for compat mode */
-		quirk_ide_bases(pdev);
+		/* PCI layer will sort out resources */
 	}
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB5IDE, quirk_svwks_csb5ide );
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB5IDE, quirk_svwks_csb5ide );
 
 /*
  *	Intel 82801CAM ICH3-M datasheet says IDE modes must be the same
@@ -896,11 +849,9 @@ static void __init quirk_ide_samemode(struct pci_dev *pdev)
 		prog &= ~5;
 		pdev->class &= ~5;
 		pci_write_config_byte(pdev, PCI_CLASS_PROG, prog);
-		/* need to re-assign BARs for compat mode */
-		quirk_ide_bases(pdev);
 	}
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_10, quirk_ide_samemode);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_10, quirk_ide_samemode);
 
 /* This was originally an Alpha specific thing, but it really fits here.
  * The i82375 PCI/EISA bridge appears as non-classified. Fix that.
@@ -1456,33 +1407,6 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x2609, quirk_intel_pcie_pm);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x260a, quirk_intel_pcie_pm);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x260b, quirk_intel_pcie_pm);
 
-/*
- * Fixup the cardbus bridges on the IBM Dock II docking station
- */
-static void __devinit quirk_ibm_dock2_cardbus(struct pci_dev *dev)
-{
-	u32 val;
-
-	/*
-	 * tie the 2 interrupt pins to INTA, and configure the
-	 * multifunction routing register to handle this.
-	 */
-	if ((dev->subsystem_vendor == PCI_VENDOR_ID_IBM) &&
-		(dev->subsystem_device == 0x0148)) {
-		printk(KERN_INFO "PCI: Found IBM Dock II Cardbus Bridge "
-			"applying quirk\n");
-		pci_read_config_dword(dev, 0x8c, &val);
-		val = ((val & 0xffffff00) | 0x1002);
-		pci_write_config_dword(dev, 0x8c, val);
-		pci_read_config_dword(dev, 0x80, &val);
-		val = ((val & 0x00ffff00) | 0x2864c077);
-		pci_write_config_dword(dev, 0x80, val);
-	}
-}
-
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1420,
-				quirk_ibm_dock2_cardbus);
-
 static void __devinit quirk_netmos(struct pci_dev *dev)
 {
 	unsigned int num_parallel = (dev->subsystem_device & 0xf0) >> 4;
@@ -1587,7 +1511,6 @@ static void __devinit fixup_rev1_53c810(struct pci_dev* dev)
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NCR, PCI_DEVICE_ID_NCR_53C810, fixup_rev1_53c810);
-
 
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f, struct pci_fixup *end)
 {
@@ -1764,7 +1687,7 @@ static void __devinit quirk_nvidia_ck804_msi_ht_cap(struct pci_dev *dev)
 	/* check HT MSI cap on this chipset and the root one.
 	 * a single one having MSI is enough to be sure that MSI are supported.
 	 */
-	pdev = pci_find_slot(dev->bus->number, 0);
+	pdev = pci_get_slot(dev->bus, 0);
 	if (dev->subordinate && !msi_ht_cap_enabled(dev)
 	    && !msi_ht_cap_enabled(pdev)) {
 		printk(KERN_WARNING "PCI: MSI quirk detected. "
@@ -1772,6 +1695,7 @@ static void __devinit quirk_nvidia_ck804_msi_ht_cap(struct pci_dev *dev)
 		       pci_name(dev));
 		dev->subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MSI;
 	}
+	pci_dev_put(pdev);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_CK804_PCIE,
 			quirk_nvidia_ck804_msi_ht_cap);

@@ -13,6 +13,11 @@
 
 extern struct geode_vid_ops gx_vid_ops;
 
+/* GX Flatpanel control MSR */
+#define GX_VP_MSR_PAD_SELECT           0xC0002011
+#define GX_VP_PAD_SELECT_MASK          0x3FFFFFFF
+#define GX_VP_PAD_SELECT_TFT           0x1FFFFFFF
+
 /* Geode GX video processor registers */
 
 #define GX_DCFG		0x0008
@@ -20,6 +25,8 @@ extern struct geode_vid_ops gx_vid_ops;
 #  define GX_DCFG_HSYNC_EN		0x00000002
 #  define GX_DCFG_VSYNC_EN		0x00000004
 #  define GX_DCFG_DAC_BL_EN		0x00000008
+#  define GX_DCFG_FP_PWR_EN		0x00000040
+#  define GX_DCFG_FP_DATA_EN		0x00000080
 #  define GX_DCFG_CRT_HSYNC_POL		0x00000100
 #  define GX_DCFG_CRT_VSYNC_POL		0x00000200
 #  define GX_DCFG_CRT_SYNC_SKW_MASK	0x0001C000
@@ -28,9 +35,27 @@ extern struct geode_vid_ops gx_vid_ops;
 #  define GX_DCFG_GV_GAM		0x00200000
 #  define GX_DCFG_DAC_VREF		0x04000000
 
+/* Geode GX MISC video configuration */
+
+#define GX_MISC 0x50
+#define GX_MISC_GAM_EN     0x00000001
+#define GX_MISC_DAC_PWRDN  0x00000400
+#define GX_MISC_A_PWRDN    0x00000800
+
 /* Geode GX flat panel display control registers */
+
+#define GX_FP_PT1 0x0400
+#define GX_FP_PT1_VSIZE_MASK 0x7FF0000
+#define GX_FP_PT1_VSIZE_SHIFT 16
+
+#define GX_FP_PT2 0x408
+#define GX_FP_PT2_VSP (1 << 23)
+#define GX_FP_PT2_HSP (1 << 22)
+
 #define GX_FP_PM 0x410
 #  define GX_FP_PM_P 0x01000000
+
+#define GX_FP_DFC 0x418
 
 /* Geode GX clock control MSRs */
 

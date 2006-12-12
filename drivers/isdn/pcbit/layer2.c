@@ -67,7 +67,6 @@ extern void pcbit_l3_receive(struct pcbit_dev *dev, ulong msg,
  *  Prototypes
  */
 
-void pcbit_deliver(void *data);
 static void pcbit_transmit(struct pcbit_dev *dev);
 
 static void pcbit_recv_ack(struct pcbit_dev *dev, unsigned char ack);
@@ -299,11 +298,12 @@ pcbit_transmit(struct pcbit_dev *dev)
  */
 
 void
-pcbit_deliver(void *data)
+pcbit_deliver(struct work_struct *work)
 {
 	struct frame_buf *frame;
 	unsigned long flags, msg;
-	struct pcbit_dev *dev = (struct pcbit_dev *) data;
+	struct pcbit_dev *dev =
+		container_of(work, struct pcbit_dev, qdelivery);
 
 	spin_lock_irqsave(&dev->lock, flags);
 
@@ -369,13 +369,12 @@ pcbit_receive(struct pcbit_dev *dev)
 			kfree(dev->read_frame);
 			dev->read_frame = NULL;
 		}
-		frame = kmalloc(sizeof(struct frame_buf), GFP_ATOMIC);
+		frame = kzalloc(sizeof(struct frame_buf), GFP_ATOMIC);
 
 		if (frame == NULL) {
 			printk(KERN_WARNING "kmalloc failed\n");
 			return;
 		}
-		memset(frame, 0, sizeof(struct frame_buf));
 
 		cpu = pcbit_readb(dev);
 		proc = pcbit_readb(dev);

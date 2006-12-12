@@ -4,15 +4,15 @@ menu "DCCP Configuration (EXPERIMENTAL)"
 config IP_DCCP
 	tristate "The DCCP Protocol (EXPERIMENTAL)"
 	---help---
-	  Datagram Congestion Control Protocol
+	  Datagram Congestion Control Protocol (RFC 4340)
 
-	  From draft-ietf-dccp-spec-11 <http://www.icir.org/kohler/dcp/draft-ietf-dccp-spec-11.txt>.
+	  From http://www.ietf.org/rfc/rfc4340.txt:
 
 	  The Datagram Congestion Control Protocol (DCCP) is a transport
 	  protocol that implements bidirectional, unicast connections of
 	  congestion-controlled, unreliable datagrams. It should be suitable
 	  for use by applications such as streaming media, Internet telephony,
-	  and on-line games
+	  and on-line games.
 
 	  To compile this protocol support as a module, choose M here: the
 	  module will be called dccp.
@@ -38,6 +38,9 @@ config IP_DCCP_DEBUG
 	---help---
 	  Only use this if you're hacking DCCP.
 
+	  When compiling DCCP as a module, this debugging output can be toggled
+	  by setting the parameter dccp_debug of the `dccp' module to 0 or 1.
+
 	  Just say N.
 
 config NET_DCCPPROBE
@@ -49,7 +52,7 @@ config NET_DCCPPROBE
 	DCCP congestion avoidance modules. If you don't understand
 	what was just said, you don't need it: say N.
 
-	Documentation on how to use the packet generator can be found
+	Documentation on how to use DCCP connection probing can be found
 	at http://linux-net.osdl.org/index.php/DccpProbe
 
 	To compile this code as a module, choose M here: the

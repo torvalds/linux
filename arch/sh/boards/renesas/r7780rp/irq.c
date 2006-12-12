@@ -10,7 +10,9 @@
  */
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <asm/io.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <asm/r7780rp.h>
 
 #ifdef CONFIG_SH_R7780MP
 static int mask_pos[] = {12, 11, 9, 14, 15, 8, 13, 6, 5, 4, 3, 2, 0, 0, 1, 0};
@@ -32,7 +34,7 @@ static void disable_r7780rp_irq(unsigned int irq)
 }
 
 static struct irq_chip r7780rp_irq_chip __read_mostly = {
-	.name		= "r7780rp",
+	.name		= "R7780RP",
 	.mask		= disable_r7780rp_irq,
 	.unmask		= enable_r7780rp_irq,
 	.mask_ack	= disable_r7780rp_irq,
@@ -47,8 +49,8 @@ void __init init_r7780rp_IRQ(void)
 
 	for (i = 0; i < 15; i++) {
 		disable_irq_nosync(i);
-		set_irq_chip_and_handler(i, &r7780rp_irq_chip,
-					 handle_level_irq);
+		set_irq_chip_and_handler_name(i, &r7780rp_irq_chip,
+					      handle_level_irq, "level");
 		enable_r7780rp_irq(i);
 	}
 }

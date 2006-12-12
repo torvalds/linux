@@ -68,30 +68,30 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 	int rc = 0;
 
 	cFYI(1, ("For %s", qstring->name));
-	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
+	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 
 	qstring->hash = full_name_hash(qstring->name, qstring->len);
-	tmp_dentry = d_lookup(file->f_dentry, qstring);
+	tmp_dentry = d_lookup(file->f_path.dentry, qstring);
 	if (tmp_dentry) {
 		cFYI(0, ("existing dentry with inode 0x%p", tmp_dentry->d_inode));
 		*ptmp_inode = tmp_dentry->d_inode;
 /* BB overwrite old name? i.e. tmp_dentry->d_name and tmp_dentry->d_name.len??*/
 		if(*ptmp_inode == NULL) {
-			*ptmp_inode = new_inode(file->f_dentry->d_sb);
+			*ptmp_inode = new_inode(file->f_path.dentry->d_sb);
 			if(*ptmp_inode == NULL)
 				return rc;
 			rc = 1;
 		}
 	} else {
-		tmp_dentry = d_alloc(file->f_dentry, qstring);
+		tmp_dentry = d_alloc(file->f_path.dentry, qstring);
 		if(tmp_dentry == NULL) {
 			cERROR(1,("Failed allocating dentry"));
 			*ptmp_inode = NULL;
 			return rc;
 		}
 
-		*ptmp_inode = new_inode(file->f_dentry->d_sb);
+		*ptmp_inode = new_inode(file->f_path.dentry->d_sb);
 		if (pTcon->nocase)
 			tmp_dentry->d_op = &cifs_ci_dentry_ops;
 		else
@@ -432,10 +432,10 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	cifsFile->invalidHandle = TRUE;
 	cifsFile->srch_inf.endOfSearch = FALSE;
 
-	if(file->f_dentry == NULL)
+	if(file->f_path.dentry == NULL)
 		return -ENOENT;
 
-	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
+	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	if(cifs_sb == NULL)
 		return -EINVAL;
 
@@ -443,7 +443,7 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	if(pTcon == NULL)
 		return -EINVAL;
 
-	full_path = build_path_from_dentry(file->f_dentry);
+	full_path = build_path_from_dentry(file->f_path.dentry);
 
 	if(full_path == NULL) {
 		return -ENOMEM;
@@ -609,10 +609,10 @@ static int is_dir_changed(struct file * file)
 	struct inode * inode;
 	struct cifsInodeInfo *cifsInfo;
 
-	if(file->f_dentry == NULL)
+	if(file->f_path.dentry == NULL)
 		return 0;
 
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 
 	if(inode == NULL)
 		return 0;
@@ -839,7 +839,7 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 	if((scratch_buf == NULL) || (pfindEntry == NULL) || (pCifsF == NULL))
 		return -ENOENT;
 
-	if(file->f_dentry == NULL)
+	if(file->f_path.dentry == NULL)
 		return -ENOENT;
 
 	rc = cifs_entry_is_dot(pfindEntry,pCifsF);
@@ -847,7 +847,7 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 	if(rc != 0) 
 		return 0;
 
-	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
+	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 
 	qstring.name = scratch_buf;
 	rc = cifs_get_name_from_search_buf(&qstring,pfindEntry,
@@ -896,6 +896,10 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 		     tmp_inode->i_ino,obj_type);
 	if(rc) {
 		cFYI(1,("filldir rc = %d",rc));
+		/* we can not return filldir errors to the caller
+		since they are "normal" when the stat blocksize
+		is too small - we return remapped error instead */
+		rc = -EOVERFLOW;
 	}
 
 	dput(tmp_dentry);
@@ -981,12 +985,12 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 
 	xid = GetXid();
 
-	if(file->f_dentry == NULL) {
+	if(file->f_path.dentry == NULL) {
 		FreeXid(xid);
 		return -EIO;
 	}
 
-	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
+	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 	if(pTcon == NULL)
 		return -EINVAL;
@@ -994,7 +998,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	switch ((int) file->f_pos) {
 	case 0:
 		if (filldir(direntry, ".", 1, file->f_pos,
-		     file->f_dentry->d_inode->i_ino, DT_DIR) < 0) {
+		     file->f_path.dentry->d_inode->i_ino, DT_DIR) < 0) {
 			cERROR(1, ("Filldir for current dir failed"));
 			rc = -ENOMEM;
 			break;
@@ -1002,7 +1006,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		file->f_pos++;
 	case 1:
 		if (filldir(direntry, "..", 2, file->f_pos,
-		     file->f_dentry->d_parent->d_inode->i_ino, DT_DIR) < 0) {
+		     file->f_path.dentry->d_parent->d_inode->i_ino, DT_DIR) < 0) {
 			cERROR(1, ("Filldir for parent dir failed"));
 			rc = -ENOMEM;
 			break;
@@ -1074,6 +1078,11 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 			we want to check for that here? */
 			rc = cifs_filldir(current_entry, file,
 					filldir, direntry, tmp_buf, max_len);
+			if(rc == -EOVERFLOW) {
+				rc = 0;
+				break;
+			}
+
 			file->f_pos++;
 			if(file->f_pos == 
 				cifsFile->srch_inf.index_of_last_entry) {

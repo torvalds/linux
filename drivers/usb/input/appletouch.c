@@ -38,14 +38,29 @@
 #define APPLE_VENDOR_ID		0x05AC
 
 /* These names come from Info.plist in AppleUSBTrackpad.kext */
-#define GEYSER_ANSI_PRODUCT_ID	0x0214
-#define GEYSER_ISO_PRODUCT_ID	0x0215
-#define GEYSER_JIS_PRODUCT_ID	0x0216
+#define FOUNTAIN_ANSI_PRODUCT_ID	0x020E
+#define FOUNTAIN_ISO_PRODUCT_ID		0x020F
+
+#define FOUNTAIN_TP_ONLY_PRODUCT_ID	0x030A
+
+#define GEYSER1_TP_ONLY_PRODUCT_ID	0x030B
+
+#define GEYSER_ANSI_PRODUCT_ID		0x0214
+#define GEYSER_ISO_PRODUCT_ID		0x0215
+#define GEYSER_JIS_PRODUCT_ID		0x0216
 
 /* MacBook devices */
-#define GEYSER3_ANSI_PRODUCT_ID	0x0217
-#define GEYSER3_ISO_PRODUCT_ID	0x0218
-#define GEYSER3_JIS_PRODUCT_ID	0x0219
+#define GEYSER3_ANSI_PRODUCT_ID		0x0217
+#define GEYSER3_ISO_PRODUCT_ID		0x0218
+#define GEYSER3_JIS_PRODUCT_ID		0x0219
+
+/*
+ * Geyser IV: same as Geyser III according to Info.plist in AppleUSBTrackpad.kext
+ * -> same IOClass (AppleUSBGrIIITrackpad), same acceleration tables
+ */
+#define GEYSER4_ANSI_PRODUCT_ID	0x021A
+#define GEYSER4_ISO_PRODUCT_ID	0x021B
+#define GEYSER4_JIS_PRODUCT_ID	0x021C
 
 #define ATP_DEVICE(prod)					\
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |		\
@@ -58,19 +73,25 @@
 
 /* table of devices that work with this driver */
 static struct usb_device_id atp_table [] = {
-	{ ATP_DEVICE(0x020E) },
-	{ ATP_DEVICE(0x020F) },
-	{ ATP_DEVICE(0x030A) },
-	{ ATP_DEVICE(0x030B) },
+	{ ATP_DEVICE(FOUNTAIN_ANSI_PRODUCT_ID) },
+	{ ATP_DEVICE(FOUNTAIN_ISO_PRODUCT_ID) },
+	{ ATP_DEVICE(FOUNTAIN_TP_ONLY_PRODUCT_ID) },
+	{ ATP_DEVICE(GEYSER1_TP_ONLY_PRODUCT_ID) },
 
 	/* PowerBooks Oct 2005 */
 	{ ATP_DEVICE(GEYSER_ANSI_PRODUCT_ID) },
 	{ ATP_DEVICE(GEYSER_ISO_PRODUCT_ID) },
 	{ ATP_DEVICE(GEYSER_JIS_PRODUCT_ID) },
 
+	/* Core Duo MacBook & MacBook Pro */
 	{ ATP_DEVICE(GEYSER3_ANSI_PRODUCT_ID) },
 	{ ATP_DEVICE(GEYSER3_ISO_PRODUCT_ID) },
 	{ ATP_DEVICE(GEYSER3_JIS_PRODUCT_ID) },
+
+	/* Core2 Duo MacBook & MacBook Pro */
+	{ ATP_DEVICE(GEYSER4_ANSI_PRODUCT_ID) },
+	{ ATP_DEVICE(GEYSER4_ISO_PRODUCT_ID) },
+	{ ATP_DEVICE(GEYSER4_JIS_PRODUCT_ID) },
 
 	/* Terminating entry */
 	{ }
@@ -108,7 +129,7 @@ MODULE_DEVICE_TABLE (usb, atp_table);
  */
 #define ATP_THRESHOLD	 5
 
-/* MacBook Pro (Geyser 3) initialization constants */
+/* MacBook Pro (Geyser 3 & 4) initialization constants */
 #define ATP_GEYSER3_MODE_READ_REQUEST_ID 1
 #define ATP_GEYSER3_MODE_WRITE_REQUEST_ID 9
 #define ATP_GEYSER3_MODE_REQUEST_VALUE 0x300
@@ -154,6 +175,13 @@ MODULE_AUTHOR("Johannes Berg, Stelian Pop, Frank Arnold, Michael Hanselmann");
 MODULE_DESCRIPTION("Apple PowerBooks USB touchpad driver");
 MODULE_LICENSE("GPL");
 
+/*
+ * Make the threshold a module parameter
+ */
+static int threshold = ATP_THRESHOLD;
+module_param(threshold, int, 0644);
+MODULE_PARM_DESC(threshold, "Discards any change in data from a sensor (trackpad has hundreds of these sensors) less than this value");
+
 static int debug = 1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Activate debugging output");
@@ -174,7 +202,10 @@ static inline int atp_is_geyser_3(struct atp *dev)
 
 	return (productId == GEYSER3_ANSI_PRODUCT_ID) ||
 		(productId == GEYSER3_ISO_PRODUCT_ID) ||
-		(productId == GEYSER3_JIS_PRODUCT_ID);
+		(productId == GEYSER3_JIS_PRODUCT_ID) ||
+		(productId == GEYSER4_ANSI_PRODUCT_ID) ||
+		(productId == GEYSER4_ISO_PRODUCT_ID) ||
+		(productId == GEYSER4_JIS_PRODUCT_ID);
 }
 
 static int atp_calculate_abs(int *xy_sensors, int nb_sensors, int fact,
@@ -183,16 +214,48 @@ static int atp_calculate_abs(int *xy_sensors, int nb_sensors, int fact,
 	int i;
 	/* values to calculate mean */
 	int pcum = 0, psum = 0;
+	int is_increasing = 0;
 
 	*fingers = 0;
 
 	for (i = 0; i < nb_sensors; i++) {
-		if (xy_sensors[i] < ATP_THRESHOLD)
+		if (xy_sensors[i] < threshold) {
+			if (is_increasing)
+				is_increasing = 0;
+
 			continue;
-		if ((i - 1 < 0) || (xy_sensors[i - 1] < ATP_THRESHOLD))
+		}
+
+		/*
+		 * Makes the finger detection more versatile.  For example,
+		 * two fingers with no gap will be detected.  Also, my
+		 * tests show it less likely to have intermittent loss
+		 * of multiple finger readings while moving around (scrolling).
+		 *
+		 * Changes the multiple finger detection to counting humps on
+		 * sensors (transitions from nonincreasing to increasing)
+		 * instead of counting transitions from low sensors (no
+		 * finger reading) to high sensors (finger above
+		 * sensor)
+		 *
+		 * - Jason Parekh <jasonparekh@gmail.com>
+		 */
+		if (i < 1 || (!is_increasing && xy_sensors[i - 1] < xy_sensors[i])) {
 			(*fingers)++;
-		pcum += xy_sensors[i] * i;
-		psum += xy_sensors[i];
+			is_increasing = 1;
+		} else if (i > 0 && xy_sensors[i - 1] >= xy_sensors[i]) {
+			is_increasing = 0;
+		}
+
+		/*
+		 * Subtracts threshold so a high sensor that just passes the threshold
+		 * won't skew the calculated absolute coordinate.  Fixes an issue
+		 * where slowly moving the mouse would occassionaly jump a number of
+		 * pixels (let me restate--slowly moving the mouse makes this issue
+		 * most apparent).
+		 */
+		pcum += (xy_sensors[i] - threshold) * i;
+		psum += (xy_sensors[i] - threshold);
 	}
 
 	if (psum > 0) {

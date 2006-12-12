@@ -77,7 +77,6 @@
 #include <linux/cache.h>
 #include <linux/module.h>
 #include <linux/highmem.h>
-#include <linux/divert.h>
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
@@ -231,13 +230,13 @@ int move_addr_to_user(void *kaddr, int klen, void __user *uaddr,
 
 #define SOCKFS_MAGIC 0x534F434B
 
-static kmem_cache_t *sock_inode_cachep __read_mostly;
+static struct kmem_cache *sock_inode_cachep __read_mostly;
 
 static struct inode *sock_alloc_inode(struct super_block *sb)
 {
 	struct socket_alloc *ei;
 
-	ei = kmem_cache_alloc(sock_inode_cachep, SLAB_KERNEL);
+	ei = kmem_cache_alloc(sock_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	init_waitqueue_head(&ei->socket.wait);
@@ -258,7 +257,7 @@ static void sock_destroy_inode(struct inode *inode)
 			container_of(inode, struct socket_alloc, vfs_inode));
 }
 
-static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct socket_alloc *ei = (struct socket_alloc *)foo;
 
@@ -306,7 +305,14 @@ static struct file_system_type sock_fs_type = {
 
 static int sockfs_delete_dentry(struct dentry *dentry)
 {
-	return 1;
+	/*
+	 * At creation time, we pretended this dentry was hashed
+	 * (by clearing DCACHE_UNHASHED bit in d_flags)
+	 * At delete time, we restore the truth : not hashed.
+	 * (so that dput() can proceed correctly)
+	 */
+	dentry->d_flags |= DCACHE_UNHASHED;
+	return 0;
 }
 static struct dentry_operations sockfs_dentry_operations = {
 	.d_delete = sockfs_delete_dentry,
@@ -354,16 +360,22 @@ static int sock_attach_fd(struct socket *sock, struct file *file)
 
 	this.len = sprintf(name, "[%lu]", SOCK_INODE(sock)->i_ino);
 	this.name = name;
-	this.hash = SOCK_INODE(sock)->i_ino;
+	this.hash = 0;
 
-	file->f_dentry = d_alloc(sock_mnt->mnt_sb->s_root, &this);
-	if (unlikely(!file->f_dentry))
+	file->f_path.dentry = d_alloc(sock_mnt->mnt_sb->s_root, &this);
+	if (unlikely(!file->f_path.dentry))
 		return -ENOMEM;
 
-	file->f_dentry->d_op = &sockfs_dentry_operations;
-	d_add(file->f_dentry, SOCK_INODE(sock));
-	file->f_vfsmnt = mntget(sock_mnt);
-	file->f_mapping = file->f_dentry->d_inode->i_mapping;
+	file->f_path.dentry->d_op = &sockfs_dentry_operations;
+	/*
+	 * We dont want to push this dentry into global dentry hash table.
+	 * We pretend dentry is already hashed, by unsetting DCACHE_UNHASHED
+	 * This permits a working /proc/$pid/fd/XXX on sockets
+	 */
+	file->f_path.dentry->d_flags &= ~DCACHE_UNHASHED;
+	d_instantiate(file->f_path.dentry, SOCK_INODE(sock));
+	file->f_path.mnt = mntget(sock_mnt);
+	file->f_mapping = file->f_path.dentry->d_inode->i_mapping;
 
 	sock->file = file;
 	file->f_op = SOCK_INODE(sock)->i_fop = &socket_file_ops;
@@ -401,7 +413,7 @@ static struct socket *sock_from_file(struct file *file, int *err)
 	if (file->f_op == &socket_file_ops)
 		return file->private_data;	/* set in sock_map_fd */
 
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 	if (!S_ISSOCK(inode->i_mode)) {
 		*err = -ENOTSOCK;
 		return NULL;
@@ -851,11 +863,6 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			if (vlan_ioctl_hook)
 				err = vlan_ioctl_hook(argp);
 			mutex_unlock(&vlan_ioctl_mutex);
-			break;
-		case SIOCGIFDIVERT:
-		case SIOCSIFDIVERT:
-			/* Convert this to call through a hook */
-			err = divert_ioctl(cmd, argp);
 			break;
 		case SIOCADDDLCI:
 		case SIOCDELDLCI:

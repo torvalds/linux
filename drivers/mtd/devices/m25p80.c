@@ -451,7 +451,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	flash = kzalloc(sizeof *flash, SLAB_KERNEL);
+	flash = kzalloc(sizeof *flash, GFP_KERNEL);
 	if (!flash)
 		return -ENOMEM;
 

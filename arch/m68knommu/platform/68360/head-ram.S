@@ -25,6 +25,7 @@
 .global _periph_base
 
 #define	RAMEND                      (CONFIG_RAMBASE + CONFIG_RAMSIZE)
+#define	ROMEND                      (CONFIG_ROMBASE + CONFIG_ROMSIZE)
 
 #define REGB                        0x1000
 #define PEPAR                       (_dprbase + REGB + 0x0016)
@@ -175,7 +176,7 @@ configure_chip_select_0:
 	move.l	%d0, BR0
 
 configure_chip_select_1:
-	move.l	#__rom_end, %d0
+	move.l	#ROMEND, %d0
 	subi.l	#__rom_start, %d0
 	subq.l	#0x01, %d0
 	eori.l	#SIM_OR_MASK, %d0

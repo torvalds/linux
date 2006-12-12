@@ -112,6 +112,21 @@ static int asd_init_phy(struct asd_phy *phy)
 	return 0;
 }
 
+static void asd_init_ports(struct asd_ha_struct *asd_ha)
+{
+	int i;
+
+	spin_lock_init(&asd_ha->asd_ports_lock);
+	for (i = 0; i < ASD_MAX_PHYS; i++) {
+		struct asd_port *asd_port = &asd_ha->asd_ports[i];
+
+		memset(asd_port->sas_addr, 0, SAS_ADDR_SIZE);
+		memset(asd_port->attached_sas_addr, 0, SAS_ADDR_SIZE);
+		asd_port->phy_mask = 0;
+		asd_port->num_phys = 0;
+	}
+}
+
 static int asd_init_phys(struct asd_ha_struct *asd_ha)
 {
 	u8 i;
@@ -121,6 +136,7 @@ static int asd_init_phys(struct asd_ha_struct *asd_ha)
 		struct asd_phy *phy = &asd_ha->phys[i];
 
 		phy->phy_desc = &asd_ha->hw_prof.phy_desc[i];
+		phy->asd_port = NULL;
 
 		phy->sas_phy.enabled = 0;
 		phy->sas_phy.id = i;
@@ -658,6 +674,8 @@ int asd_init_hw(struct asd_ha_struct *asd_ha)
 		goto Out;
 	}
 
+	asd_init_ports(asd_ha);
+
 	err = asd_init_scbs(asd_ha);
 	if (err) {
 		asd_printk("couldn't initialize scbs for %s\n",
@@ -1029,7 +1047,7 @@ irqreturn_t asd_hw_isr(int irq, void *dev_id)
 static inline struct asd_ascb *asd_ascb_alloc(struct asd_ha_struct *asd_ha,
 					      gfp_t gfp_flags)
 {
-	extern kmem_cache_t *asd_ascb_cache;
+	extern struct kmem_cache *asd_ascb_cache;
 	struct asd_seq_data *seq = &asd_ha->seq;
 	struct asd_ascb *ascb;
 	unsigned long flags;

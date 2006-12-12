@@ -227,7 +227,10 @@ struct raid5_private_data {
 	struct list_head	handle_list; /* stripes needing handling */
 	struct list_head	delayed_list; /* stripes that have plugged requests */
 	struct list_head	bitmap_list; /* stripes delaying awaiting bitmap update */
+	struct bio		*retry_read_aligned; /* currently retrying aligned bios   */
+	struct bio		*retry_read_aligned_list; /* aligned bios retry list  */
 	atomic_t		preread_active_stripes; /* stripes with scheduled io */
+	atomic_t		active_aligned_reads;
 
 	atomic_t		reshape_stripes; /* stripes with pending writes for reshape */
 	/* unfortunately we need two cache names as we temporarily have
@@ -235,7 +238,7 @@ struct raid5_private_data {
 	 */
 	int			active_name;
 	char			cache_name[2][20];
-	kmem_cache_t		*slab_cache; /* for allocating stripes */
+	struct kmem_cache		*slab_cache; /* for allocating stripes */
 
 	int			seq_flush, seq_write;
 	int			quiesce;

@@ -274,7 +274,7 @@ struct ipv6_pinfo {
 	struct in6_addr		*saddr_cache;
 #endif
 
-	__u32			flow_label;
+	__be32			flow_label;
 	__u32			frag_size;
 	__s16			hop_limit;
 	__s16			mcast_hops;

@@ -10,8 +10,6 @@
 #ifndef OP_IMPL_H
 #define OP_IMPL_H 1
 
-struct pt_regs;
-
 extern int null_perf_irq(void);
 extern int (*perf_irq)(void);
 

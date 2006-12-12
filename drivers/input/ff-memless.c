@@ -460,7 +460,7 @@ static void ml_ff_destroy(struct ff_device *ff)
 }
 
 /**
- * input_ff_create_memless() - create memoryless FF device
+ * input_ff_create_memless() - create memoryless force-feedback device
  * @dev: input device supporting force-feedback
  * @data: driver-specific data to be passed into @play_effect
  * @play_effect: driver-specific method for playing FF effect

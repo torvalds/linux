@@ -76,7 +76,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 
 	/* This packet will not be the same as the other: clear nf fields */
 	nf_reset(nskb);
-	nskb->nfmark = 0;
+	nskb->mark = 0;
 	skb_init_secmark(nskb);
 
 	tcph = (struct tcphdr *)((u_int32_t*)nskb->nh.iph + nskb->nh.iph->ihl);
@@ -114,6 +114,14 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	tcph->window = 0;
 	tcph->urg_ptr = 0;
 
+	/* Adjust TCP checksum */
+	tcph->check = 0;
+	tcph->check = tcp_v4_check(tcph, sizeof(struct tcphdr),
+				   nskb->nh.iph->saddr,
+				   nskb->nh.iph->daddr,
+				   csum_partial((char *)tcph,
+						sizeof(struct tcphdr), 0));
+
 	/* Set DF, id = 0 */
 	nskb->nh.iph->frag_off = htons(IP_DF);
 	nskb->nh.iph->id = 0;
@@ -129,14 +137,8 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	if (ip_route_me_harder(&nskb, addr_type))
 		goto free_nskb;
 
-	/* Adjust TCP checksum */
 	nskb->ip_summed = CHECKSUM_NONE;
-	tcph->check = 0;
-	tcph->check = tcp_v4_check(tcph, sizeof(struct tcphdr),
-				   nskb->nh.iph->saddr,
-				   nskb->nh.iph->daddr,
-				   csum_partial((char *)tcph,
-						sizeof(struct tcphdr), 0));
+
 	/* Adjust IP TTL */
 	nskb->nh.iph->ttl = dst_metric(nskb->dst, RTAX_HOPLIMIT);
 

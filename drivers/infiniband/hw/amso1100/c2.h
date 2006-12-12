@@ -302,7 +302,7 @@ struct c2_dev {
 	unsigned long pa;	/* PA device memory */
 	void **qptr_array;
 
-	kmem_cache_t *host_msg_cache;
+	struct kmem_cache *host_msg_cache;
 
 	struct list_head cca_link;		/* adapter list */
 	struct list_head eh_wakeup_list;	/* event wakeup list */

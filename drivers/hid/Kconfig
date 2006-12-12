@@ -1,0 +1,18 @@
+#
+# HID driver configuration
+#
+menu "HID Devices"
+	depends on INPUT
+
+config HID
+	tristate "Generic HID support"
+	default y
+	---help---
+	  Say Y here if you want generic HID support to connect keyboards,
+	  mice, joysticks, graphic tablets, or any other HID based devices
+	  to your computer. You also need to select particular types of
+	  HID devices you want to compile support for, in the particular
+	  driver menu (USB, Bluetooth)
+
+endmenu
+

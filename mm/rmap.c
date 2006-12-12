@@ -21,27 +21,21 @@
  * Lock ordering in mm:
  *
  * inode->i_mutex	(while writing or truncating, not reading or faulting)
- *   inode->i_alloc_sem
- *
- * When a page fault occurs in writing from user to file, down_read
- * of mmap_sem nests within i_mutex; in sys_msync, i_mutex nests within
- * down_read of mmap_sem; i_mutex and down_write of mmap_sem are never
- * taken together; in truncation, i_mutex is taken outermost.
- *
- * mm->mmap_sem
- *   page->flags PG_locked (lock_page)
- *     mapping->i_mmap_lock
- *       anon_vma->lock
- *         mm->page_table_lock or pte_lock
- *           zone->lru_lock (in mark_page_accessed, isolate_lru_page)
- *           swap_lock (in swap_duplicate, swap_info_get)
- *             mmlist_lock (in mmput, drain_mmlist and others)
- *             mapping->private_lock (in __set_page_dirty_buffers)
- *             inode_lock (in set_page_dirty's __mark_inode_dirty)
- *               sb_lock (within inode_lock in fs/fs-writeback.c)
- *               mapping->tree_lock (widely used, in set_page_dirty,
- *                         in arch-dependent flush_dcache_mmap_lock,
- *                         within inode_lock in __sync_single_inode)
+ *   inode->i_alloc_sem (vmtruncate_range)
+ *   mm->mmap_sem
+ *     page->flags PG_locked (lock_page)
+ *       mapping->i_mmap_lock
+ *         anon_vma->lock
+ *           mm->page_table_lock or pte_lock
+ *             zone->lru_lock (in mark_page_accessed, isolate_lru_page)
+ *             swap_lock (in swap_duplicate, swap_info_get)
+ *               mmlist_lock (in mmput, drain_mmlist and others)
+ *               mapping->private_lock (in __set_page_dirty_buffers)
+ *               inode_lock (in set_page_dirty's __mark_inode_dirty)
+ *                 sb_lock (within inode_lock in fs/fs-writeback.c)
+ *                 mapping->tree_lock (widely used, in set_page_dirty,
+ *                           in arch-dependent flush_dcache_mmap_lock,
+ *                           within inode_lock in __sync_single_inode)
  */
 
 #include <linux/mm.h>

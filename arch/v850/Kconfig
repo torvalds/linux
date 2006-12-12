@@ -38,6 +38,14 @@ config TIME_LOW_RES
 	bool
 	default y
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 # Turn off some random 386 crap that can affect device config
 config ISA
 	bool

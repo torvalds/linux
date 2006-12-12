@@ -4,6 +4,22 @@
 #include <linux/compiler.h>
 
 #ifdef CONFIG_BUG
+
+#ifdef CONFIG_GENERIC_BUG
+#ifndef __ASSEMBLY__
+struct bug_entry {
+	unsigned long	bug_addr;
+#ifdef CONFIG_DEBUG_BUGVERBOSE
+	const char	*file;
+	unsigned short	line;
+#endif
+	unsigned short	flags;
+};
+#endif		/* __ASSEMBLY__ */
+
+#define BUGFLAG_WARNING	(1<<0)
+#endif	/* CONFIG_GENERIC_BUG */
+
 #ifndef HAVE_ARCH_BUG
 #define BUG() do { \
 	printk("BUG: failure at %s:%d/%s()!\n", __FILE__, __LINE__, __FUNCTION__); \
@@ -19,7 +35,7 @@
 #define WARN_ON(condition) ({						\
 	typeof(condition) __ret_warn_on = (condition);			\
 	if (unlikely(__ret_warn_on)) {					\
-		printk("BUG: warning at %s:%d/%s()\n", __FILE__,	\
+		printk("WARNING at %s:%d %s()\n", __FILE__,	\
 			__LINE__, __FUNCTION__);			\
 		dump_stack();						\
 	}								\
@@ -37,7 +53,10 @@
 #endif
 
 #ifndef HAVE_ARCH_WARN_ON
-#define WARN_ON(condition) unlikely((condition))
+#define WARN_ON(condition) ({						\
+	typeof(condition) __ret_warn_on = (condition);			\
+	unlikely(__ret_warn_on);					\
+})
 #endif
 #endif
 

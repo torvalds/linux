@@ -8,6 +8,7 @@
  *  - PanJit TouchSet
  *  - eTurboTouch
  *  - Gunze AHL61
+ *  - DMC TSC-10/25
  *
  * Copyright (C) 2004-2006 by Daniel Ritz <daniel.ritz@gmx.ch>
  * Copyright (C) by Todd E. Johnson (mtouchusb.c)
@@ -30,6 +31,8 @@
  * - ITM parts are from itmtouch.c
  * - 3M parts are from mtouchusb.c
  * - PanJit parts are from an unmerged driver by Lanslott Gish
+ * - DMC TSC 10/25 are from Holger Schurig, with ideas from an unmerged
+ *   driver from Marius Vollmer
  *
  *****************************************************************************/
 
@@ -44,7 +47,7 @@
 #include <linux/usb/input.h>
 
 
-#define DRIVER_VERSION		"v0.4"
+#define DRIVER_VERSION		"v0.5"
 #define DRIVER_AUTHOR		"Daniel Ritz <daniel.ritz@gmx.ch>"
 #define DRIVER_DESC		"USB Touchscreen Driver"
 
@@ -103,6 +106,7 @@ enum {
 	DEVTYPE_ITM,
 	DEVTYPE_ETURBO,
 	DEVTYPE_GUNZE,
+	DEVTYPE_DMC_TSC10,
 };
 
 static struct usb_device_id usbtouch_devices[] = {
@@ -137,6 +141,10 @@ static struct usb_device_id usbtouch_devices[] = {
 
 #ifdef CONFIG_USB_TOUCHSCREEN_GUNZE
 	{USB_DEVICE(0x0637, 0x0001), .driver_info = DEVTYPE_GUNZE},
+#endif
+
+#ifdef CONFIG_USB_TOUCHSCREEN_DMC_TSC10
+	{USB_DEVICE(0x0afa, 0x03e8), .driver_info = DEVTYPE_DMC_TSC10},
 #endif
 
 	{}
@@ -256,10 +264,10 @@ static int itm_read_data(unsigned char *pkt, int *x, int *y, int *touch, int *pr
 {
 	*x = ((pkt[0] & 0x1F) << 7) | (pkt[3] & 0x7F);
 	*y = ((pkt[1] & 0x1F) << 7) | (pkt[4] & 0x7F);
-	*press = ((pkt[2] & 0x1F) << 7) | (pkt[5] & 0x7F);
+	*press = ((pkt[2] & 0x01) << 7) | (pkt[5] & 0x7F);
 	*touch = ~pkt[7] & 0x20;
 
-	return 1;
+	return *touch;
 }
 #endif
 
@@ -311,6 +319,80 @@ static int gunze_read_data(unsigned char *pkt, int *x, int *y, int *touch, int *
 	return 1;
 }
 #endif
+
+/*****************************************************************************
+ * DMC TSC-10/25 Part
+ *
+ * Documentation about the controller and it's protocol can be found at
+ *   http://www.dmccoltd.com/files/controler/tsc10usb_pi_e.pdf
+ *   http://www.dmccoltd.com/files/controler/tsc25_usb_e.pdf
+ */
+#ifdef CONFIG_USB_TOUCHSCREEN_DMC_TSC10
+
+/* supported data rates. currently using 130 */
+#define TSC10_RATE_POINT	0x50
+#define TSC10_RATE_30		0x40
+#define TSC10_RATE_50		0x41
+#define TSC10_RATE_80		0x42
+#define TSC10_RATE_100		0x43
+#define TSC10_RATE_130		0x44
+#define TSC10_RATE_150		0x45
+
+/* commands */
+#define TSC10_CMD_RESET		0x55
+#define TSC10_CMD_RATE		0x05
+#define TSC10_CMD_DATA1		0x01
+
+static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
+{
+	struct usb_device *dev = usbtouch->udev;
+	int ret;
+	unsigned char buf[2];
+
+	/* reset */
+	buf[0] = buf[1] = 0xFF;
+	ret = usb_control_msg(dev, usb_rcvctrlpipe (dev, 0),
+	                      TSC10_CMD_RESET,
+	                      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+	                      0, 0, buf, 2, USB_CTRL_SET_TIMEOUT);
+	if (ret < 0)
+		return ret;
+	if (buf[0] != 0x06 || buf[1] != 0x00)
+		return -ENODEV;
+
+	/* set coordinate output rate */
+	buf[0] = buf[1] = 0xFF;
+	ret = usb_control_msg(dev, usb_rcvctrlpipe (dev, 0),
+	                      TSC10_CMD_RATE,
+	                      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+	                      TSC10_RATE_150, 0, buf, 2, USB_CTRL_SET_TIMEOUT);
+	if (ret < 0)
+		return ret;
+	if (buf[0] != 0x06 || buf[1] != 0x00)
+		return -ENODEV;
+
+	/* start sending data */
+	ret = usb_control_msg(dev, usb_rcvctrlpipe (dev, 0),
+	                      TSC10_CMD_DATA1,
+	                      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+	                      0, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+
+static int dmc_tsc10_read_data(unsigned char *pkt, int *x, int *y, int *touch, int *press)
+{
+	*x = ((pkt[2] & 0x03) << 8) | pkt[1];
+	*y = ((pkt[4] & 0x03) << 8) | pkt[3];
+	*touch = pkt[0] & 0x01;
+
+	return 1;
+}
+#endif
+
 
 /*****************************************************************************
  * the different device descriptors
@@ -387,6 +469,18 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.max_yc		= 0x0fff,
 		.rept_size	= 4,
 		.read_data	= gunze_read_data,
+	},
+#endif
+
+#ifdef CONFIG_USB_TOUCHSCREEN_DMC_TSC10
+	[DEVTYPE_DMC_TSC10] = {
+		.min_xc		= 0x0,
+		.max_xc		= 0x03ff,
+		.min_yc		= 0x0,
+		.max_yc		= 0x03ff,
+		.rept_size	= 5,
+		.init		= dmc_tsc10_init,
+		.read_data	= dmc_tsc10_read_data,
 	},
 #endif
 };
@@ -586,7 +680,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 		type->process_pkt = usbtouch_process_pkt;
 
 	usbtouch->data = usb_buffer_alloc(udev, type->rept_size,
-	                                  SLAB_KERNEL, &usbtouch->data_dma);
+	                                  GFP_KERNEL, &usbtouch->data_dma);
 	if (!usbtouch->data)
 		goto out_free;
 
@@ -640,7 +734,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 		                     type->max_press, 0, 0);
 
 	usb_fill_int_urb(usbtouch->irq, usbtouch->udev,
-			 usb_rcvintpipe(usbtouch->udev, 0x81),
+			 usb_rcvintpipe(usbtouch->udev, endpoint->bEndpointAddress),
 			 usbtouch->data, type->rept_size,
 			 usbtouch_irq, usbtouch, endpoint->bInterval);
 

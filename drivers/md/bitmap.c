@@ -212,8 +212,8 @@ char *file_path(struct file *file, char *buf, int count)
 	if (!buf)
 		return NULL;
 
-	d = file->f_dentry;
-	v = file->f_vfsmnt;
+	d = file->f_path.dentry;
+	v = file->f_path.mnt;
 
 	buf = d_path(d, v, buf, count);
 
@@ -349,7 +349,7 @@ static struct page *read_page(struct file *file, unsigned long index,
 			      unsigned long count)
 {
 	struct page *page = NULL;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct buffer_head *bh;
 	sector_t block;
 
@@ -536,7 +536,7 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 		printk(KERN_INFO "%s: bitmap file is out of date (%llu < %llu) "
 			"-- forcing full recovery\n", bmname(bitmap), events,
 			(unsigned long long) bitmap->mddev->events);
-		sb->state |= BITMAP_STALE;
+		sb->state |= cpu_to_le32(BITMAP_STALE);
 	}
 success:
 	/* assign fields using values from superblock */
@@ -544,11 +544,11 @@ success:
 	bitmap->daemon_sleep = daemon_sleep;
 	bitmap->daemon_lastrun = jiffies;
 	bitmap->max_write_behind = write_behind;
-	bitmap->flags |= sb->state;
+	bitmap->flags |= le32_to_cpu(sb->state);
 	if (le32_to_cpu(sb->version) == BITMAP_MAJOR_HOSTENDIAN)
 		bitmap->flags |= BITMAP_HOSTENDIAN;
 	bitmap->events_cleared = le64_to_cpu(sb->events_cleared);
-	if (sb->state & BITMAP_STALE)
+	if (sb->state & cpu_to_le32(BITMAP_STALE))
 		bitmap->events_cleared = bitmap->mddev->events;
 	err = 0;
 out:
@@ -578,9 +578,9 @@ static void bitmap_mask_state(struct bitmap *bitmap, enum bitmap_state bits,
 	spin_unlock_irqrestore(&bitmap->lock, flags);
 	sb = (bitmap_super_t *)kmap_atomic(bitmap->sb_page, KM_USER0);
 	switch (op) {
-		case MASK_SET: sb->state |= bits;
+		case MASK_SET: sb->state |= cpu_to_le32(bits);
 				break;
-		case MASK_UNSET: sb->state &= ~bits;
+		case MASK_UNSET: sb->state &= cpu_to_le32(~bits);
 				break;
 		default: BUG();
 	}
@@ -662,7 +662,7 @@ static void bitmap_file_put(struct bitmap *bitmap)
 	bitmap_file_unmap(bitmap);
 
 	if (file) {
-		struct inode *inode = file->f_dentry->d_inode;
+		struct inode *inode = file->f_path.dentry->d_inode;
 		invalidate_inode_pages(inode->i_mapping);
 		fput(file);
 	}

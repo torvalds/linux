@@ -185,7 +185,7 @@ extern const u32 nfs4_fs_locations_bitmap[2];
 extern void nfs4_schedule_state_renewal(struct nfs_client *);
 extern void nfs4_renewd_prepare_shutdown(struct nfs_server *);
 extern void nfs4_kill_renewd(struct nfs_client *);
-extern void nfs4_renew_state(void *);
+extern void nfs4_renew_state(struct work_struct *);
 
 /* nfs4state.c */
 struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp);
@@ -212,7 +212,7 @@ extern void nfs_free_seqid(struct nfs_seqid *seqid);
 extern const nfs4_stateid zero_stateid;
 
 /* nfs4xdr.c */
-extern uint32_t *nfs4_decode_dirent(uint32_t *p, struct nfs_entry *entry, int plus);
+extern __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus);
 extern struct rpc_procinfo nfs4_procedures[];
 
 struct nfs4_mount_data;

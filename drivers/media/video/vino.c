@@ -782,7 +782,7 @@ static int vino_i2c_add_bus(void)
 
 static int vino_i2c_del_bus(void)
 {
-	return i2c_sgi_del_bus(&vino_i2c_adapter);
+	return i2c_del_adapter(&vino_i2c_adapter);
 }
 
 static int i2c_camera_command(unsigned int cmd, void *arg)

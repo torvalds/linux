@@ -67,16 +67,6 @@ ENTRY(_start)
 1:	lea	init_task,%curptr			| get initial thread...
 	lea	init_thread_union+THREAD_SIZE,%sp	| ...and its stack.
 
-/* copy bootinfo records from the loader to _end */
-	lea	_end, %a1
-	lea	BI_START, %a0
-	/* number of longs to copy */
-	movel	%a0@, %d0
-1:	addl	#4, %a0
-	movel   %a0@, %a1@
-	addl	#4, %a1
-	dbf	%d0, 1b
-
 /* Point MSP at an invalid page to trap if it's used. --m */
 	movl	#(PAGESIZE),%d0
 	movc	%d0,%msp

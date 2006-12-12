@@ -300,10 +300,9 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 	struct hostap_interface *iface;
 	struct hostap_pci_priv *hw_priv;
 
-	hw_priv = kmalloc(sizeof(*hw_priv), GFP_KERNEL);
+	hw_priv = kzalloc(sizeof(*hw_priv), GFP_KERNEL);
 	if (hw_priv == NULL)
 		return -ENOMEM;
-	memset(hw_priv, 0, sizeof(*hw_priv));
 
 	if (pci_enable_device(pdev))
 		goto err_out_free;
@@ -425,8 +424,14 @@ static int prism2_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 static int prism2_pci_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	int err;
 
-	pci_enable_device(pdev);
+	err = pci_enable_device(pdev);
+	if (err) {
+		printk(KERN_ERR "%s: pci_enable_device failed on resume\n",
+		       dev->name);
+		return err;
+	}
 	pci_restore_state(pdev);
 	prism2_hw_config(dev, 0);
 	if (netif_running(dev)) {

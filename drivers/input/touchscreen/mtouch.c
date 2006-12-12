@@ -137,7 +137,7 @@ static int mtouch_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev = input_allocate_device();
 	if (!mtouch || !input_dev) {
 		err = -ENOMEM;
-		goto fail;
+		goto fail1;
 	}
 
 	mtouch->serio = serio;
@@ -160,14 +160,17 @@ static int mtouch_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device(mtouch->dev);
+	err = input_register_device(mtouch->dev);
+	if (err)
+		goto fail3;
 
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
 	kfree(mtouch);
 	return err;
 }
@@ -205,8 +208,7 @@ static struct serio_driver mtouch_drv = {
 
 static int __init mtouch_init(void)
 {
-	serio_register_driver(&mtouch_drv);
-	return 0;
+	return serio_register_driver(&mtouch_drv);
 }
 
 static void __exit mtouch_exit(void)

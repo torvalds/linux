@@ -132,6 +132,28 @@ static struct sk_buff *tipc_disc_init_msg(u32 type,
 }
 
 /**
+ * disc_dupl_alert - issue node address duplication alert
+ * @b_ptr: pointer to bearer detecting duplication
+ * @node_addr: duplicated node address
+ * @media_addr: media address advertised by duplicated node
+ */
+
+static void disc_dupl_alert(struct bearer *b_ptr, u32 node_addr,
+			    struct tipc_media_addr *media_addr)
+{
+	char node_addr_str[16];
+	char media_addr_str[64];
+	struct print_buf pb;
+
+	addr_string_fill(node_addr_str, node_addr);
+	tipc_printbuf_init(&pb, media_addr_str, sizeof(media_addr_str));
+	tipc_media_addr_printf(&pb, media_addr);
+	tipc_printbuf_validate(&pb);
+	warn("Duplicate %s using %s seen on <%s>\n",
+	     node_addr_str, media_addr_str, b_ptr->publ.name);
+}
+
+/**
  * tipc_disc_recv_msg - handle incoming link setup message (request or response)
  * @buf: buffer containing message
  */
@@ -157,8 +179,11 @@ void tipc_disc_recv_msg(struct sk_buff *buf)
 		return;
 	if (!tipc_addr_node_valid(orig))
 		return;
-	if (orig == tipc_own_addr)
+	if (orig == tipc_own_addr) {
+		if (memcmp(&media_addr, &b_ptr->publ.addr, sizeof(media_addr)))
+			disc_dupl_alert(b_ptr, tipc_own_addr, &media_addr);
 		return;
+	}
 	if (!in_scope(dest, tipc_own_addr))
 		return;
 	if (is_slave(tipc_own_addr) && is_slave(orig))
@@ -170,7 +195,8 @@ void tipc_disc_recv_msg(struct sk_buff *buf)
 		struct sk_buff *rbuf;
 		struct tipc_media_addr *addr;
 		struct node *n_ptr = tipc_node_find(orig);
-		int link_up;
+		int link_fully_up;
+
 		dbg(" in own cluster\n");
 		if (n_ptr == NULL) {
 			n_ptr = tipc_node_create(orig);
@@ -190,14 +216,19 @@ void tipc_disc_recv_msg(struct sk_buff *buf)
 		}
 		addr = &link->media_addr;
 		if (memcmp(addr, &media_addr, sizeof(*addr))) {
+			if (tipc_link_is_up(link) || (!link->started)) {
+				disc_dupl_alert(b_ptr, orig, &media_addr);
+				spin_unlock_bh(&n_ptr->lock);
+				return;
+			}
 			warn("Resetting link <%s>, peer interface address changed\n",
 			     link->name);
 			memcpy(addr, &media_addr, sizeof(*addr));
 			tipc_link_reset(link);     
 		}
-		link_up = tipc_link_is_up(link);
+		link_fully_up = (link->state == WORKING_WORKING);
 		spin_unlock_bh(&n_ptr->lock);                
-		if ((type == DSC_RESP_MSG) || link_up)
+		if ((type == DSC_RESP_MSG) || link_fully_up)
 			return;
 		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, 1, orig, b_ptr);
 		if (rbuf != NULL) {

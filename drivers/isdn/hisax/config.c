@@ -227,14 +227,6 @@ const char *CardType[] = {
 #define DEFAULT_CFG {5,0x2E0,0,0}
 #endif
 
-
-#ifdef CONFIG_HISAX_AMD7930
-#undef DEFAULT_CARD
-#undef DEFAULT_CFG
-#define DEFAULT_CARD ISDN_CTYPE_AMD7930
-#define DEFAULT_CFG {12,0x3e0,0,0}
-#endif
-
 #ifdef CONFIG_HISAX_NICCY
 #undef DEFAULT_CARD
 #undef DEFAULT_CFG
@@ -545,10 +537,6 @@ extern int setup_hfcpci(struct IsdnCard *card);
 extern int setup_hfcsx(struct IsdnCard *card);
 #endif
 
-#if CARD_AMD7930
-extern int setup_amd7930(struct IsdnCard *card);
-#endif
-
 #if CARD_NICCY
 extern int setup_niccy(struct IsdnCard *card);
 #endif
@@ -631,7 +619,8 @@ static int HiSax_readstatus(u_char __user *buf, int len, int id, int channel)
 		count = cs->status_end - cs->status_read + 1;
 		if (count >= len)
 			count = len;
-		copy_to_user(p, cs->status_read, count);
+		if (copy_to_user(p, cs->status_read, count))
+			return -EFAULT;
 		cs->status_read += count;
 		if (cs->status_read > cs->status_end)
 			cs->status_read = cs->status_buf;
@@ -642,7 +631,8 @@ static int HiSax_readstatus(u_char __user *buf, int len, int id, int channel)
 				cnt = HISAX_STATUS_BUFSIZE;
 			else
 				cnt = count;
-			copy_to_user(p, cs->status_read, cnt);
+			if (copy_to_user(p, cs->status_read, cnt))
+				return -EFAULT;
 			p += cnt;
 			cs->status_read += cnt % HISAX_STATUS_BUFSIZE;
 			count -= cnt;
@@ -867,14 +857,13 @@ static int checkcard(int cardnr, char *id, int *busy_flag, struct module *lockow
 	struct IsdnCard *card = cards + cardnr;
 	struct IsdnCardState *cs;
 
-	cs = kmalloc(sizeof(struct IsdnCardState), GFP_ATOMIC);
+	cs = kzalloc(sizeof(struct IsdnCardState), GFP_ATOMIC);
 	if (!cs) {
 		printk(KERN_WARNING
 		       "HiSax: No memory for IsdnCardState(card %d)\n",
 		       cardnr + 1);
 		goto out;
 	}
-	memset(cs, 0, sizeof(struct IsdnCardState));
 	card->cs = cs;
 	spin_lock_init(&cs->statlock);
 	spin_lock_init(&cs->lock);
@@ -1062,11 +1051,6 @@ static int checkcard(int cardnr, char *id, int *busy_flag, struct module *lockow
 		ret = setup_niccy(card);
 		break;
 #endif
-#if CARD_AMD7930
-	case ISDN_CTYPE_AMD7930:
-		ret = setup_amd7930(card);
-		break;
-#endif
 #if CARD_ISURF
 	case ISDN_CTYPE_ISURF:
 		ret = setup_isurf(card);
@@ -1135,7 +1119,6 @@ static int checkcard(int cardnr, char *id, int *busy_flag, struct module *lockow
 	cs->tx_skb = NULL;
 	cs->tx_cnt = 0;
 	cs->event = 0;
-	cs->tqueue.data = cs;
 
 	skb_queue_head_init(&cs->rq);
 	skb_queue_head_init(&cs->sq);
@@ -1436,7 +1419,6 @@ static int __init HiSax_init(void)
 			break;
 		case ISDN_CTYPE_ELSA_PCI:
 		case ISDN_CTYPE_NETJET_S:
-		case ISDN_CTYPE_AMD7930:
 		case ISDN_CTYPE_TELESPCI:
 		case ISDN_CTYPE_W6692:
 		case ISDN_CTYPE_NETJET_U:
@@ -1552,7 +1534,7 @@ static void hisax_b_l2l1(struct PStack *st, int pr, void *arg);
 static int hisax_cardmsg(struct IsdnCardState *cs, int mt, void *arg);
 static int hisax_bc_setstack(struct PStack *st, struct BCState *bcs);
 static void hisax_bc_close(struct BCState *bcs);
-static void hisax_bh(struct IsdnCardState *cs);
+static void hisax_bh(struct work_struct *work);
 static void EChannel_proc_rcv(struct hisax_d_if *d_if);
 
 int hisax_register(struct hisax_d_if *hisax_d_if, struct hisax_b_if *b_if[],
@@ -1584,7 +1566,7 @@ int hisax_register(struct hisax_d_if *hisax_d_if, struct hisax_b_if *b_if[],
 	hisax_d_if->cs = cs;
 	cs->hw.hisax_d_if = hisax_d_if;
 	cs->cardmsg = hisax_cardmsg;
-	INIT_WORK(&cs->tqueue, (void *)(void *)hisax_bh, cs);
+	INIT_WORK(&cs->tqueue, hisax_bh);
 	cs->channel[0].d_st->l2.l2l1 = hisax_d_l2l1;
 	for (i = 0; i < 2; i++) {
 		cs->bcs[i].BC_SetStack = hisax_bc_setstack;
@@ -1616,8 +1598,10 @@ static void hisax_sched_event(struct IsdnCardState *cs, int event)
 	schedule_work(&cs->tqueue);
 }
 
-static void hisax_bh(struct IsdnCardState *cs)
+static void hisax_bh(struct work_struct *work)
 {
+	struct IsdnCardState *cs =
+		container_of(work, struct IsdnCardState, tqueue);
 	struct PStack *st;
 	int pr;
 

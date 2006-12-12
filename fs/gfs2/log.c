@@ -15,6 +15,7 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
 #include <linux/lm_interface.h>
+#include <linux/delay.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -142,7 +143,7 @@ static int gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai, int fl
 	return list_empty(&ai->ai_ail1_list);
 }
 
-void gfs2_ail1_start(struct gfs2_sbd *sdp, int flags)
+static void gfs2_ail1_start(struct gfs2_sbd *sdp, int flags)
 {
 	struct list_head *head = &sdp->sd_ail1_list;
 	u64 sync_gen;
@@ -261,6 +262,12 @@ static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
  * @sdp: The GFS2 superblock
  * @blks: The number of blocks to reserve
  *
+ * Note that we never give out the last 6 blocks of the journal. Thats
+ * due to the fact that there is are a small number of header blocks
+ * associated with each log flush. The exact number can't be known until
+ * flush time, so we ensure that we have just enough free blocks at all
+ * times to avoid running out during a log flush.
+ *
  * Returns: errno
  */
 
@@ -274,7 +281,7 @@ int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 
 	mutex_lock(&sdp->sd_log_reserve_mutex);
 	gfs2_log_lock(sdp);
-	while(sdp->sd_log_blks_free <= blks) {
+	while(sdp->sd_log_blks_free <= (blks + 6)) {
 		gfs2_log_unlock(sdp);
 		gfs2_ail1_empty(sdp, 0);
 		gfs2_log_flush(sdp, NULL);
@@ -312,12 +319,15 @@ void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
 
 static u64 log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
 {
+	struct inode *inode = sdp->sd_jdesc->jd_inode;
 	int error;
-	struct buffer_head bh_map;
+	struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
 
-	error = gfs2_block_map(sdp->sd_jdesc->jd_inode, lbn, 0, &bh_map, 1);
+	bh_map.b_size = 1 << inode->i_blkbits;
+	error = gfs2_block_map(inode, lbn, 0, &bh_map);
 	if (error || !bh_map.b_blocknr)
-		printk(KERN_INFO "error=%d, dbn=%llu lbn=%u", error, bh_map.b_blocknr, lbn);
+		printk(KERN_INFO "error=%d, dbn=%llu lbn=%u", error,
+		       (unsigned long long)bh_map.b_blocknr, lbn);
 	gfs2_assert_withdraw(sdp, !error && bh_map.b_blocknr);
 
 	return bh_map.b_blocknr;
@@ -641,12 +651,9 @@ void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	up_read(&sdp->sd_log_flush_lock);
 
 	gfs2_log_lock(sdp);
-	if (sdp->sd_log_num_buf > gfs2_tune_get(sdp, gt_incore_log_blocks)) {
-		gfs2_log_unlock(sdp);
-		gfs2_log_flush(sdp, NULL);
-	} else {
-		gfs2_log_unlock(sdp);
-	}
+	if (sdp->sd_log_num_buf > gfs2_tune_get(sdp, gt_incore_log_blocks))
+		wake_up_process(sdp->sd_logd_process);
+	gfs2_log_unlock(sdp);
 }
 
 /**
@@ -682,5 +689,23 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 	sdp->sd_log_tail = sdp->sd_log_head;
 
 	up_write(&sdp->sd_log_flush_lock);
+}
+
+
+/**
+ * gfs2_meta_syncfs - sync all the buffers in a filesystem
+ * @sdp: the filesystem
+ *
+ */
+
+void gfs2_meta_syncfs(struct gfs2_sbd *sdp)
+{
+	gfs2_log_flush(sdp, NULL);
+	for (;;) {
+		gfs2_ail1_start(sdp, DIO_ALL);
+		if (gfs2_ail1_empty(sdp, DIO_ALL))
+			break;
+		msleep(10);
+	}
 }
 

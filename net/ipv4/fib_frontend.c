@@ -482,9 +482,7 @@ static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	memset(cfg, 0, sizeof(*cfg));
 
 	rtm = nlmsg_data(nlh);
-	cfg->fc_family = rtm->rtm_family;
 	cfg->fc_dst_len = rtm->rtm_dst_len;
-	cfg->fc_src_len = rtm->rtm_src_len;
 	cfg->fc_tos = rtm->rtm_tos;
 	cfg->fc_table = rtm->rtm_table;
 	cfg->fc_protocol = rtm->rtm_protocol;
@@ -500,9 +498,6 @@ static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 		switch (attr->nla_type) {
 		case RTA_DST:
 			cfg->fc_dst = nla_get_be32(attr);
-			break;
-		case RTA_SRC:
-			cfg->fc_src = nla_get_be32(attr);
 			break;
 		case RTA_OIF:
 			cfg->fc_oif = nla_get_u32(attr);
@@ -773,8 +768,8 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb )
 {
 	
 	struct fib_result       res;
-	struct flowi            fl = { .nl_u = { .ip4_u = { .daddr = frn->fl_addr, 
-							    .fwmark = frn->fl_fwmark,
+	struct flowi            fl = { .mark = frn->fl_mark,
+				       .nl_u = { .ip4_u = { .daddr = frn->fl_addr,
 							    .tos = frn->fl_tos,
 							    .scope = frn->fl_scope } } };
 	if (tb) {
@@ -816,7 +811,6 @@ static void nl_fib_input(struct sock *sk, int len)
 	
 	pid = nlh->nlmsg_pid;           /*pid of sending process */
 	NETLINK_CB(skb).pid = 0;         /* from kernel */
-	NETLINK_CB(skb).dst_pid = pid;
 	NETLINK_CB(skb).dst_group = 0;  /* unicast */
 	netlink_unicast(sk, skb, pid, MSG_DONTWAIT);
 }    

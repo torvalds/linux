@@ -1110,23 +1110,29 @@ static int zeromap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 {
 	pte_t *pte;
 	spinlock_t *ptl;
+	int err = 0;
 
 	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
 	if (!pte)
-		return -ENOMEM;
+		return -EAGAIN;
 	arch_enter_lazy_mmu_mode();
 	do {
 		struct page *page = ZERO_PAGE(addr);
 		pte_t zero_pte = pte_wrprotect(mk_pte(page, prot));
+
+		if (unlikely(!pte_none(*pte))) {
+			err = -EEXIST;
+			pte++;
+			break;
+		}
 		page_cache_get(page);
 		page_add_file_rmap(page);
 		inc_mm_counter(mm, file_rss);
-		BUG_ON(!pte_none(*pte));
 		set_pte_at(mm, addr, pte, zero_pte);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	arch_leave_lazy_mmu_mode();
 	pte_unmap_unlock(pte - 1, ptl);
-	return 0;
+	return err;
 }
 
 static inline int zeromap_pmd_range(struct mm_struct *mm, pud_t *pud,
@@ -1134,16 +1140,18 @@ static inline int zeromap_pmd_range(struct mm_struct *mm, pud_t *pud,
 {
 	pmd_t *pmd;
 	unsigned long next;
+	int err;
 
 	pmd = pmd_alloc(mm, pud, addr);
 	if (!pmd)
-		return -ENOMEM;
+		return -EAGAIN;
 	do {
 		next = pmd_addr_end(addr, end);
-		if (zeromap_pte_range(mm, pmd, addr, next, prot))
-			return -ENOMEM;
+		err = zeromap_pte_range(mm, pmd, addr, next, prot);
+		if (err)
+			break;
 	} while (pmd++, addr = next, addr != end);
-	return 0;
+	return err;
 }
 
 static inline int zeromap_pud_range(struct mm_struct *mm, pgd_t *pgd,
@@ -1151,16 +1159,18 @@ static inline int zeromap_pud_range(struct mm_struct *mm, pgd_t *pgd,
 {
 	pud_t *pud;
 	unsigned long next;
+	int err;
 
 	pud = pud_alloc(mm, pgd, addr);
 	if (!pud)
-		return -ENOMEM;
+		return -EAGAIN;
 	do {
 		next = pud_addr_end(addr, end);
-		if (zeromap_pmd_range(mm, pud, addr, next, prot))
-			return -ENOMEM;
+		err = zeromap_pmd_range(mm, pud, addr, next, prot);
+		if (err)
+			break;
 	} while (pud++, addr = next, addr != end);
-	return 0;
+	return err;
 }
 
 int zeromap_page_range(struct vm_area_struct *vma,
@@ -1452,6 +1462,7 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
 		if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE))
 			memset(kaddr, 0, PAGE_SIZE);
 		kunmap_atomic(kaddr, KM_USER0);
+		flush_dcache_page(dst);
 		return;
 		
 	}
@@ -1901,7 +1912,6 @@ int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
 
 	return 0;
 }
-EXPORT_UNUSED_SYMBOL(vmtruncate_range);  /*  June 2006  */
 
 /**
  * swapin_readahead - swap in pages in hope we need them soon
@@ -1990,6 +2000,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
 	page = lookup_swap_cache(entry);
 	if (!page) {
+		grab_swap_token(); /* Contend for token _before_ read-in */
  		swapin_readahead(entry, address, vma);
  		page = read_swap_cache_async(entry, vma, address);
 		if (!page) {
@@ -2007,7 +2018,6 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		/* Had to read the page from swap area: Major fault */
 		ret = VM_FAULT_MAJOR;
 		count_vm_event(PGMAJFAULT);
-		grab_swap_token();
 	}
 
 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);

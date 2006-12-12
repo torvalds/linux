@@ -147,6 +147,10 @@ struct htb_class {
 	psched_tdiff_t mbuffer;	/* max wait time */
 	long tokens, ctokens;	/* current number of tokens */
 	psched_time_t t_c;	/* checkpoint time */
+
+	int prio;		/* For parent to leaf return possible here */
+	int quantum;		/* we do backup. Finally full replacement  */
+				/* of un.leaf originals should be done. */
 };
 
 /* TODO: maybe compute rate when size is too large .. or drop ? */
@@ -1223,17 +1227,14 @@ static int htb_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	struct htb_class *cl = (struct htb_class *)arg;
 
 	if (cl && !cl->level) {
-		if (new == NULL && (new = qdisc_create_dflt(sch->dev,
-							    &pfifo_qdisc_ops))
+		if (new == NULL &&
+		    (new = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
+		    			     cl->classid))
 		    == NULL)
 			return -ENOBUFS;
 		sch_tree_lock(sch);
 		if ((*old = xchg(&cl->un.leaf.q, new)) != NULL) {
-			if (cl->prio_activity)
-				htb_deactivate(qdisc_priv(sch), cl);
-
-			/* TODO: is it correct ? Why CBQ doesn't do it ? */
-			sch->q.qlen -= (*old)->q.qlen;
+			qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 			qdisc_reset(*old);
 		}
 		sch_tree_unlock(sch);
@@ -1246,6 +1247,14 @@ static struct Qdisc *htb_leaf(struct Qdisc *sch, unsigned long arg)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
 	return (cl && !cl->level) ? cl->un.leaf.q : NULL;
+}
+
+static void htb_qlen_notify(struct Qdisc *sch, unsigned long arg)
+{
+	struct htb_class *cl = (struct htb_class *)arg;
+
+	if (cl->un.leaf.q->q.qlen == 0)
+		htb_deactivate(qdisc_priv(sch), cl);
 }
 
 static unsigned long htb_get(struct Qdisc *sch, u32 classid)
@@ -1266,12 +1275,44 @@ static void htb_destroy_filters(struct tcf_proto **fl)
 	}
 }
 
+static inline int htb_parent_last_child(struct htb_class *cl)
+{
+	if (!cl->parent)
+		/* the root class */
+		return 0;
+
+	if (!(cl->parent->children.next == &cl->sibling &&
+		cl->parent->children.prev == &cl->sibling))
+		/* not the last child */
+		return 0;
+
+	return 1;
+}
+
+static void htb_parent_to_leaf(struct htb_class *cl, struct Qdisc *new_q)
+{
+	struct htb_class *parent = cl->parent;
+
+	BUG_TRAP(!cl->level && cl->un.leaf.q && !cl->prio_activity);
+
+	parent->level = 0;
+	memset(&parent->un.inner, 0, sizeof(parent->un.inner));
+	INIT_LIST_HEAD(&parent->un.leaf.drop_list);
+	parent->un.leaf.q = new_q ? new_q : &noop_qdisc;
+	parent->un.leaf.quantum = parent->quantum;
+	parent->un.leaf.prio = parent->prio;
+	parent->tokens = parent->buffer;
+	parent->ctokens = parent->cbuffer;
+	PSCHED_GET_TIME(parent->t_c);
+	parent->cmode = HTB_CAN_SEND;
+}
+
 static void htb_destroy_class(struct Qdisc *sch, struct htb_class *cl)
 {
 	struct htb_sched *q = qdisc_priv(sch);
+
 	if (!cl->level) {
 		BUG_TRAP(cl->un.leaf.q);
-		sch->q.qlen -= cl->un.leaf.q->q.qlen;
 		qdisc_destroy(cl->un.leaf.q);
 	}
 	qdisc_put_rtab(cl->rate);
@@ -1284,8 +1325,7 @@ static void htb_destroy_class(struct Qdisc *sch, struct htb_class *cl)
 						  struct htb_class, sibling));
 
 	/* note: this delete may happen twice (see htb_delete) */
-	if (!hlist_unhashed(&cl->hlist))
-		hlist_del(&cl->hlist);
+	hlist_del_init(&cl->hlist);
 	list_del(&cl->sibling);
 
 	if (cl->prio_activity)
@@ -1323,6 +1363,9 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 {
 	struct htb_sched *q = qdisc_priv(sch);
 	struct htb_class *cl = (struct htb_class *)arg;
+	unsigned int qlen;
+	struct Qdisc *new_q = NULL;
+	int last_child = 0;
 
 	// TODO: why don't allow to delete subtree ? references ? does
 	// tc subsys quarantee us that in htb_destroy it holds no class
@@ -1330,14 +1373,28 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 	if (!list_empty(&cl->children) || cl->filter_cnt)
 		return -EBUSY;
 
+	if (!cl->level && htb_parent_last_child(cl)) {
+		new_q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
+						cl->parent->classid);
+		last_child = 1;
+	}
+
 	sch_tree_lock(sch);
 
 	/* delete from hash and active; remainder in destroy_class */
-	if (!hlist_unhashed(&cl->hlist))
-		hlist_del(&cl->hlist);
+	hlist_del_init(&cl->hlist);
+
+	if (!cl->level) {
+		qlen = cl->un.leaf.q->q.qlen;
+		qdisc_reset(cl->un.leaf.q);
+		qdisc_tree_decrease_qlen(cl->un.leaf.q, qlen);
+	}
 
 	if (cl->prio_activity)
 		htb_deactivate(q, cl);
+
+	if (last_child)
+		htb_parent_to_leaf(cl, new_q);
 
 	if (--cl->refcnt == 0)
 		htb_destroy_class(sch, cl);
@@ -1412,11 +1469,14 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		/* create leaf qdisc early because it uses kmalloc(GFP_KERNEL)
 		   so that can't be used inside of sch_tree_lock
 		   -- thanks to Karlis Peisenieks */
-		new_q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops);
+		new_q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, classid);
 		sch_tree_lock(sch);
 		if (parent && !parent->level) {
+			unsigned int qlen = parent->un.leaf.q->q.qlen;
+
 			/* turn parent into inner node */
-			sch->q.qlen -= parent->un.leaf.q->q.qlen;
+			qdisc_reset(parent->un.leaf.q);
+			qdisc_tree_decrease_qlen(parent->un.leaf.q, qlen);
 			qdisc_destroy(parent->un.leaf.q);
 			if (parent->prio_activity)
 				htb_deactivate(q, parent);
@@ -1470,6 +1530,10 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			cl->un.leaf.quantum = hopt->quantum;
 		if ((cl->un.leaf.prio = hopt->prio) >= TC_HTB_NUMPRIO)
 			cl->un.leaf.prio = TC_HTB_NUMPRIO - 1;
+
+		/* backup for htb_parent_to_leaf */
+		cl->quantum = cl->un.leaf.quantum;
+		cl->prio = cl->un.leaf.prio;
 	}
 
 	cl->buffer = hopt->buffer;
@@ -1564,6 +1628,7 @@ static void htb_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 static struct Qdisc_class_ops htb_class_ops = {
 	.graft		=	htb_graft,
 	.leaf		=	htb_leaf,
+	.qlen_notify	=	htb_qlen_notify,
 	.get		=	htb_get,
 	.put		=	htb_put,
 	.change		=	htb_change_class,

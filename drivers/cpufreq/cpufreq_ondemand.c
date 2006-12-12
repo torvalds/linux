@@ -49,13 +49,17 @@ static unsigned int def_sampling_rate;
 #define DEF_SAMPLING_RATE_LATENCY_MULTIPLIER	(1000)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000)
 
-static void do_dbs_timer(void *data);
+static void do_dbs_timer(struct work_struct *work);
+
+/* Sampling types */
+enum dbs_sample {DBS_NORMAL_SAMPLE, DBS_SUB_SAMPLE};
 
 struct cpu_dbs_info_s {
 	cputime64_t prev_cpu_idle;
 	cputime64_t prev_cpu_wall;
 	struct cpufreq_policy *cur_policy;
- 	struct work_struct work;
+ 	struct delayed_work work;
+	enum dbs_sample sample_type;
 	unsigned int enable;
 	struct cpufreq_frequency_table *freq_table;
 	unsigned int freq_lo;
@@ -417,30 +421,31 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	}
 }
 
-/* Sampling types */
-enum {DBS_NORMAL_SAMPLE, DBS_SUB_SAMPLE};
-
-static void do_dbs_timer(void *data)
+static void do_dbs_timer(struct work_struct *work)
 {
 	unsigned int cpu = smp_processor_id();
 	struct cpu_dbs_info_s *dbs_info = &per_cpu(cpu_dbs_info, cpu);
+	enum dbs_sample sample_type = dbs_info->sample_type;
 	/* We want all CPUs to do sampling nearly on same jiffy */
 	int delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
+
+	/* Permit rescheduling of this work item */
+	work_release(work);
+
 	delay -= jiffies % delay;
 
 	if (!dbs_info->enable)
 		return;
 	/* Common NORMAL_SAMPLE setup */
-	INIT_WORK(&dbs_info->work, do_dbs_timer, (void *)DBS_NORMAL_SAMPLE);
+	dbs_info->sample_type = DBS_NORMAL_SAMPLE;
 	if (!dbs_tuners_ins.powersave_bias ||
-	    (unsigned long) data == DBS_NORMAL_SAMPLE) {
+	    sample_type == DBS_NORMAL_SAMPLE) {
 		lock_cpu_hotplug();
 		dbs_check_cpu(dbs_info);
 		unlock_cpu_hotplug();
 		if (dbs_info->freq_lo) {
 			/* Setup timer for SUB_SAMPLE */
-			INIT_WORK(&dbs_info->work, do_dbs_timer,
-					(void *)DBS_SUB_SAMPLE);
+			dbs_info->sample_type = DBS_SUB_SAMPLE;
 			delay = dbs_info->freq_hi_jiffies;
 		}
 	} else {
@@ -459,7 +464,8 @@ static inline void dbs_timer_init(unsigned int cpu)
 	delay -= jiffies % delay;
 
 	ondemand_powersave_bias_init();
-	INIT_WORK(&dbs_info->work, do_dbs_timer, NULL);
+	INIT_DELAYED_WORK_NAR(&dbs_info->work, do_dbs_timer);
+	dbs_info->sample_type = DBS_NORMAL_SAMPLE;
 	queue_delayed_work_on(cpu, kondemand_wq, &dbs_info->work, delay);
 }
 

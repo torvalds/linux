@@ -906,6 +906,10 @@ static void do_test(void)
 			    AES_CBC_ENC_TEST_VECTORS);
 		test_cipher("cbc(aes)", DECRYPT, aes_cbc_dec_tv_template,
 			    AES_CBC_DEC_TEST_VECTORS);
+		test_cipher("lrw(aes)", ENCRYPT, aes_lrw_enc_tv_template,
+			    AES_LRW_ENC_TEST_VECTORS);
+		test_cipher("lrw(aes)", DECRYPT, aes_lrw_dec_tv_template,
+			    AES_LRW_DEC_TEST_VECTORS);
 
 		//CAST5
 		test_cipher("ecb(cast5)", ENCRYPT, cast5_enc_tv_template,
@@ -976,6 +980,9 @@ static void do_test(void)
 			  HMAC_SHA1_TEST_VECTORS);
 		test_hash("hmac(sha256)", hmac_sha256_tv_template,
 			  HMAC_SHA256_TEST_VECTORS);
+
+		test_hash("xcbc(aes)", aes_xcbc128_tv_template,
+			  XCBC_AES_TEST_VECTORS);
 
 		test_hash("michael_mic", michael_mic_tv_template, MICHAEL_MIC_TEST_VECTORS);
 		break;
@@ -1052,6 +1059,10 @@ static void do_test(void)
 			    AES_CBC_ENC_TEST_VECTORS);
 		test_cipher("cbc(aes)", DECRYPT, aes_cbc_dec_tv_template,
 			    AES_CBC_DEC_TEST_VECTORS);
+		test_cipher("lrw(aes)", ENCRYPT, aes_lrw_enc_tv_template,
+			    AES_LRW_ENC_TEST_VECTORS);
+		test_cipher("lrw(aes)", DECRYPT, aes_lrw_dec_tv_template,
+			    AES_LRW_DEC_TEST_VECTORS);
 		break;
 
 	case 11:
@@ -1191,6 +1202,10 @@ static void do_test(void)
 				  aes_speed_template);
 		test_cipher_speed("cbc(aes)", DECRYPT, sec, NULL, 0,
 				  aes_speed_template);
+		test_cipher_speed("lrw(aes)", ENCRYPT, sec, NULL, 0,
+				  aes_lrw_speed_template);
+		test_cipher_speed("lrw(aes)", DECRYPT, sec, NULL, 0,
+				  aes_lrw_speed_template);
 		break;
 
 	case 201:

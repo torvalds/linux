@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/suspend.h>
 #include <linux/kobject.h>
 #include <linux/string.h>
@@ -18,13 +19,14 @@
 #include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/resume-trace.h>
+#include <linux/freezer.h>
 
 #include "power.h"
 
 /*This is just an arbitrary number */
 #define FREE_PAGE_NUMBER (100)
 
-DECLARE_MUTEX(pm_sem);
+DEFINE_MUTEX(pm_mutex);
 
 struct pm_ops *pm_ops;
 suspend_disk_method_t pm_disk_mode = PM_DISK_SHUTDOWN;
@@ -36,9 +38,9 @@ suspend_disk_method_t pm_disk_mode = PM_DISK_SHUTDOWN;
 
 void pm_set_ops(struct pm_ops * ops)
 {
-	down(&pm_sem);
+	mutex_lock(&pm_mutex);
 	pm_ops = ops;
-	up(&pm_sem);
+	mutex_unlock(&pm_mutex);
 }
 
 
@@ -182,7 +184,7 @@ static int enter_state(suspend_state_t state)
 
 	if (!valid_state(state))
 		return -ENODEV;
-	if (down_trylock(&pm_sem))
+	if (!mutex_trylock(&pm_mutex))
 		return -EBUSY;
 
 	if (state == PM_SUSPEND_DISK) {
@@ -200,7 +202,7 @@ static int enter_state(suspend_state_t state)
 	pr_debug("PM: Finishing wakeup.\n");
 	suspend_finish(state);
  Unlock:
-	up(&pm_sem);
+	mutex_unlock(&pm_mutex);
 	return error;
 }
 
@@ -229,7 +231,7 @@ int pm_suspend(suspend_state_t state)
 	return -EINVAL;
 }
 
-
+EXPORT_SYMBOL(pm_suspend);
 
 decl_subsys(power,NULL,NULL);
 

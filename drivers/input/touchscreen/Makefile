@@ -15,3 +15,4 @@ obj-$(CONFIG_TOUCHSCREEN_HP600)	+= hp680_ts_input.o
 obj-$(CONFIG_TOUCHSCREEN_PENMOUNT)	+= penmount.o
 obj-$(CONFIG_TOUCHSCREEN_TOUCHRIGHT)	+= touchright.o
 obj-$(CONFIG_TOUCHSCREEN_TOUCHWIN)	+= touchwin.o
+obj-$(CONFIG_TOUCHSCREEN_UCB1400)	+= ucb1400_ts.o

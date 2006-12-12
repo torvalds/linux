@@ -14,14 +14,6 @@
  *	the Free Software Foundation; either version 2 of the License, or
  *	(at your option) any later version.
  *
- *	This program is distributed in the hope that it will be useful,
- *	but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *	GNU General Public License for more details.
- *
- *	You should have received a copy of the GNU General Public License
- *	along with this program; if not, write to the Free Software
- *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*****************************************************************************/
@@ -41,6 +33,7 @@
 #include <linux/device.h>
 #include <linux/wait.h>
 #include <linux/eisa.h>
+#include <linux/ctype.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -61,21 +54,10 @@
 #define	BRD_BRUMBY4	2
 #define	BRD_ONBOARD2	3
 #define	BRD_ONBOARD	4
-#define	BRD_BRUMBY8	5
-#define	BRD_BRUMBY16	6
 #define	BRD_ONBOARDE	7
-#define	BRD_ONBOARD32	9
-#define	BRD_ONBOARD2_32	10
-#define	BRD_ONBOARDRS	11
-#define	BRD_EASYIO	20
-#define	BRD_ECH		21
-#define	BRD_ECHMC	22
 #define	BRD_ECP		23
 #define BRD_ECPE	24
 #define	BRD_ECPMC	25
-#define	BRD_ECHPCI	26
-#define	BRD_ECH64PCI	27
-#define	BRD_EASYIOPCI	28
 #define	BRD_ECPPCI	29
 
 #define	BRD_BRUMBY	BRD_BRUMBY4
@@ -119,20 +101,16 @@
  *	interrupt is required.
  */
 
-typedef struct {
+struct stlconf {
 	int		brdtype;
 	int		ioaddr1;
 	int		ioaddr2;
 	unsigned long	memaddr;
 	int		irq;
 	int		irqtype;
-} stlconf_t;
-
-static stlconf_t	stli_brdconf[] = {
-	/*{ BRD_ECP, 0x2a0, 0, 0xcc000, 0, 0 },*/
 };
 
-static int	stli_nrbrds = ARRAY_SIZE(stli_brdconf);
+static unsigned int stli_nrbrds;
 
 /* stli_lock must NOT be taken holding brd_lock */
 static spinlock_t stli_lock;	/* TTY logic lock */
@@ -194,9 +172,11 @@ static struct tty_struct	*stli_txcooktty;
  *	with this termios initially. Basically all it defines is a raw port
  *	at 9600 baud, 8 data bits, no parity, 1 stop bit.
  */
-static struct termios		stli_deftermios = {
+static struct ktermios		stli_deftermios = {
 	.c_cflag	= (B9600 | CS8 | CREAD | HUPCL | CLOCAL),
 	.c_cc		= INIT_C_CC,
+	.c_ispeed	= 9600,
+	.c_ospeed	= 9600,
 };
 
 /*
@@ -205,13 +185,12 @@ static struct termios		stli_deftermios = {
  */
 static comstats_t	stli_comstats;
 static combrd_t		stli_brdstats;
-static asystats_t	stli_cdkstats;
-static stlibrd_t	stli_dummybrd;
-static stliport_t	stli_dummyport;
+static struct asystats	stli_cdkstats;
 
 /*****************************************************************************/
 
-static stlibrd_t	*stli_brds[STL_MAXBRDS];
+static DEFINE_MUTEX(stli_brdslock);
+static struct stlibrd	*stli_brds[STL_MAXBRDS];
 
 static int		stli_shared;
 
@@ -223,6 +202,7 @@ static int		stli_shared;
  */
 #define	BST_FOUND	0x1
 #define	BST_STARTED	0x2
+#define	BST_PROBED	0x4
 
 /*
  *	Define the set of port state flags. These are marked for internal
@@ -255,18 +235,18 @@ static char	*stli_brdnames[] = {
 	"Brumby",
 	"Brumby",
 	"ONboard-EI",
-	(char *) NULL,
+	NULL,
 	"ONboard",
 	"ONboard-MC",
 	"ONboard-MC",
-	(char *) NULL,
-	(char *) NULL,
-	(char *) NULL,
-	(char *) NULL,
-	(char *) NULL,
-	(char *) NULL,
-	(char *) NULL,
-	(char *) NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
 	"EasyIO",
 	"EC8/32-AT",
 	"EC8/32-MC",
@@ -304,12 +284,10 @@ static char	**stli_brdsp[] = {
  *	parse any module arguments.
  */
 
-typedef struct stlibrdtype {
+static struct stlibrdtype {
 	char	*name;
 	int	type;
-} stlibrdtype_t;
-
-static stlibrdtype_t	stli_brdstr[] = {
+} stli_brdstr[] = {
 	{ "stallion", BRD_STALLION },
 	{ "1", BRD_STALLION },
 	{ "brumby", BRD_BRUMBY },
@@ -379,6 +357,7 @@ MODULE_PARM_DESC(board2, "Board 2 config -> name[,ioaddr[,memaddr]");
 module_param_array(board3, charp, NULL, 0);
 MODULE_PARM_DESC(board3, "Board 3 config -> name[,ioaddr[,memaddr]");
 
+#if STLI_EISAPROBE != 0
 /*
  *	Set up a default memory address table for EISA board probing.
  *	The default addresses are all bellow 1Mbyte, which has to be the
@@ -396,14 +375,11 @@ static unsigned long	stli_eisamemprobeaddrs[] = {
 };
 
 static int	stli_eisamempsize = ARRAY_SIZE(stli_eisamemprobeaddrs);
+#endif
 
 /*
  *	Define the Stallion PCI vendor and device IDs.
  */
-#ifdef CONFIG_PCI
-#ifndef	PCI_VENDOR_ID_STALLION
-#define	PCI_VENDOR_ID_STALLION		0x124d
-#endif
 #ifndef PCI_DEVICE_ID_ECRA
 #define	PCI_DEVICE_ID_ECRA		0x0004
 #endif
@@ -414,7 +390,7 @@ static struct pci_device_id istallion_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, istallion_pci_tbl);
 
-#endif /* CONFIG_PCI */
+static struct pci_driver stli_pcidriver;
 
 /*****************************************************************************/
 
@@ -615,22 +591,10 @@ MODULE_DEVICE_TABLE(pci, istallion_pci_tbl);
 /*****************************************************************************/
 
 /*
- *	Define some handy local macros...
- */
-#undef MIN
-#define	MIN(a,b)	(((a) <= (b)) ? (a) : (b))
-
-#undef	TOLOWER
-#define	TOLOWER(x)	((((x) >= 'A') && ((x) <= 'Z')) ? ((x) + 0x20) : (x))
-
-/*****************************************************************************/
-
-/*
  *	Prototype all functions in this driver!
  */
 
-static int	stli_parsebrd(stlconf_t *confp, char **argp);
-static int	stli_init(void);
+static int	stli_parsebrd(struct stlconf *confp, char **argp);
 static int	stli_open(struct tty_struct *tty, struct file *filp);
 static void	stli_close(struct tty_struct *tty, struct file *filp);
 static int	stli_write(struct tty_struct *tty, const unsigned char *buf, int count);
@@ -639,7 +603,7 @@ static void	stli_flushchars(struct tty_struct *tty);
 static int	stli_writeroom(struct tty_struct *tty);
 static int	stli_charsinbuffer(struct tty_struct *tty);
 static int	stli_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg);
-static void	stli_settermios(struct tty_struct *tty, struct termios *old);
+static void	stli_settermios(struct tty_struct *tty, struct ktermios *old);
 static void	stli_throttle(struct tty_struct *tty);
 static void	stli_unthrottle(struct tty_struct *tty);
 static void	stli_stop(struct tty_struct *tty);
@@ -649,86 +613,84 @@ static void	stli_breakctl(struct tty_struct *tty, int state);
 static void	stli_waituntilsent(struct tty_struct *tty, int timeout);
 static void	stli_sendxchar(struct tty_struct *tty, char ch);
 static void	stli_hangup(struct tty_struct *tty);
-static int	stli_portinfo(stlibrd_t *brdp, stliport_t *portp, int portnr, char *pos);
+static int	stli_portinfo(struct stlibrd *brdp, struct stliport *portp, int portnr, char *pos);
 
-static int	stli_brdinit(stlibrd_t *brdp);
-static int	stli_startbrd(stlibrd_t *brdp);
+static int	stli_brdinit(struct stlibrd *brdp);
+static int	stli_startbrd(struct stlibrd *brdp);
 static ssize_t	stli_memread(struct file *fp, char __user *buf, size_t count, loff_t *offp);
 static ssize_t	stli_memwrite(struct file *fp, const char __user *buf, size_t count, loff_t *offp);
 static int	stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, unsigned long arg);
-static void	stli_brdpoll(stlibrd_t *brdp, cdkhdr_t __iomem *hdrp);
+static void	stli_brdpoll(struct stlibrd *brdp, cdkhdr_t __iomem *hdrp);
 static void	stli_poll(unsigned long arg);
-static int	stli_hostcmd(stlibrd_t *brdp, stliport_t *portp);
-static int	stli_initopen(stlibrd_t *brdp, stliport_t *portp);
-static int	stli_rawopen(stlibrd_t *brdp, stliport_t *portp, unsigned long arg, int wait);
-static int	stli_rawclose(stlibrd_t *brdp, stliport_t *portp, unsigned long arg, int wait);
-static int	stli_waitcarrier(stlibrd_t *brdp, stliport_t *portp, struct file *filp);
-static void	stli_dohangup(void *arg);
-static int	stli_setport(stliport_t *portp);
-static int	stli_cmdwait(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, void *arg, int size, int copyback);
-static void	stli_sendcmd(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, void *arg, int size, int copyback);
-static void	__stli_sendcmd(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, void *arg, int size, int copyback);
-static void	stli_dodelaycmd(stliport_t *portp, cdkctrl_t __iomem *cp);
-static void	stli_mkasyport(stliport_t *portp, asyport_t *pp, struct termios *tiosp);
+static int	stli_hostcmd(struct stlibrd *brdp, struct stliport *portp);
+static int	stli_initopen(struct stlibrd *brdp, struct stliport *portp);
+static int	stli_rawopen(struct stlibrd *brdp, struct stliport *portp, unsigned long arg, int wait);
+static int	stli_rawclose(struct stlibrd *brdp, struct stliport *portp, unsigned long arg, int wait);
+static int	stli_waitcarrier(struct stlibrd *brdp, struct stliport *portp, struct file *filp);
+static void	stli_dohangup(struct work_struct *);
+static int	stli_setport(struct stliport *portp);
+static int	stli_cmdwait(struct stlibrd *brdp, struct stliport *portp, unsigned long cmd, void *arg, int size, int copyback);
+static void	stli_sendcmd(struct stlibrd *brdp, struct stliport *portp, unsigned long cmd, void *arg, int size, int copyback);
+static void	__stli_sendcmd(struct stlibrd *brdp, struct stliport *portp, unsigned long cmd, void *arg, int size, int copyback);
+static void	stli_dodelaycmd(struct stliport *portp, cdkctrl_t __iomem *cp);
+static void	stli_mkasyport(struct stliport *portp, asyport_t *pp, struct ktermios *tiosp);
 static void	stli_mkasysigs(asysigs_t *sp, int dtr, int rts);
 static long	stli_mktiocm(unsigned long sigvalue);
-static void	stli_read(stlibrd_t *brdp, stliport_t *portp);
-static int	stli_getserial(stliport_t *portp, struct serial_struct __user *sp);
-static int	stli_setserial(stliport_t *portp, struct serial_struct __user *sp);
+static void	stli_read(struct stlibrd *brdp, struct stliport *portp);
+static int	stli_getserial(struct stliport *portp, struct serial_struct __user *sp);
+static int	stli_setserial(struct stliport *portp, struct serial_struct __user *sp);
 static int	stli_getbrdstats(combrd_t __user *bp);
-static int	stli_getportstats(stliport_t *portp, comstats_t __user *cp);
-static int	stli_portcmdstats(stliport_t *portp);
-static int	stli_clrportstats(stliport_t *portp, comstats_t __user *cp);
-static int	stli_getportstruct(stliport_t __user *arg);
-static int	stli_getbrdstruct(stlibrd_t __user *arg);
-static stlibrd_t *stli_allocbrd(void);
+static int	stli_getportstats(struct stliport *portp, comstats_t __user *cp);
+static int	stli_portcmdstats(struct stliport *portp);
+static int	stli_clrportstats(struct stliport *portp, comstats_t __user *cp);
+static int	stli_getportstruct(struct stliport __user *arg);
+static int	stli_getbrdstruct(struct stlibrd __user *arg);
+static struct stlibrd *stli_allocbrd(void);
 
-static void	stli_ecpinit(stlibrd_t *brdp);
-static void	stli_ecpenable(stlibrd_t *brdp);
-static void	stli_ecpdisable(stlibrd_t *brdp);
-static void __iomem *stli_ecpgetmemptr(stlibrd_t *brdp, unsigned long offset, int line);
-static void	stli_ecpreset(stlibrd_t *brdp);
-static void	stli_ecpintr(stlibrd_t *brdp);
-static void	stli_ecpeiinit(stlibrd_t *brdp);
-static void	stli_ecpeienable(stlibrd_t *brdp);
-static void	stli_ecpeidisable(stlibrd_t *brdp);
-static void __iomem *stli_ecpeigetmemptr(stlibrd_t *brdp, unsigned long offset, int line);
-static void	stli_ecpeireset(stlibrd_t *brdp);
-static void	stli_ecpmcenable(stlibrd_t *brdp);
-static void	stli_ecpmcdisable(stlibrd_t *brdp);
-static void __iomem *stli_ecpmcgetmemptr(stlibrd_t *brdp, unsigned long offset, int line);
-static void	stli_ecpmcreset(stlibrd_t *brdp);
-static void	stli_ecppciinit(stlibrd_t *brdp);
-static void __iomem *stli_ecppcigetmemptr(stlibrd_t *brdp, unsigned long offset, int line);
-static void	stli_ecppcireset(stlibrd_t *brdp);
+static void	stli_ecpinit(struct stlibrd *brdp);
+static void	stli_ecpenable(struct stlibrd *brdp);
+static void	stli_ecpdisable(struct stlibrd *brdp);
+static void __iomem *stli_ecpgetmemptr(struct stlibrd *brdp, unsigned long offset, int line);
+static void	stli_ecpreset(struct stlibrd *brdp);
+static void	stli_ecpintr(struct stlibrd *brdp);
+static void	stli_ecpeiinit(struct stlibrd *brdp);
+static void	stli_ecpeienable(struct stlibrd *brdp);
+static void	stli_ecpeidisable(struct stlibrd *brdp);
+static void __iomem *stli_ecpeigetmemptr(struct stlibrd *brdp, unsigned long offset, int line);
+static void	stli_ecpeireset(struct stlibrd *brdp);
+static void	stli_ecpmcenable(struct stlibrd *brdp);
+static void	stli_ecpmcdisable(struct stlibrd *brdp);
+static void __iomem *stli_ecpmcgetmemptr(struct stlibrd *brdp, unsigned long offset, int line);
+static void	stli_ecpmcreset(struct stlibrd *brdp);
+static void	stli_ecppciinit(struct stlibrd *brdp);
+static void __iomem *stli_ecppcigetmemptr(struct stlibrd *brdp, unsigned long offset, int line);
+static void	stli_ecppcireset(struct stlibrd *brdp);
 
-static void	stli_onbinit(stlibrd_t *brdp);
-static void	stli_onbenable(stlibrd_t *brdp);
-static void	stli_onbdisable(stlibrd_t *brdp);
-static void __iomem *stli_onbgetmemptr(stlibrd_t *brdp, unsigned long offset, int line);
-static void	stli_onbreset(stlibrd_t *brdp);
-static void	stli_onbeinit(stlibrd_t *brdp);
-static void	stli_onbeenable(stlibrd_t *brdp);
-static void	stli_onbedisable(stlibrd_t *brdp);
-static void __iomem *stli_onbegetmemptr(stlibrd_t *brdp, unsigned long offset, int line);
-static void	stli_onbereset(stlibrd_t *brdp);
-static void	stli_bbyinit(stlibrd_t *brdp);
-static void __iomem *stli_bbygetmemptr(stlibrd_t *brdp, unsigned long offset, int line);
-static void	stli_bbyreset(stlibrd_t *brdp);
-static void	stli_stalinit(stlibrd_t *brdp);
-static void __iomem *stli_stalgetmemptr(stlibrd_t *brdp, unsigned long offset, int line);
-static void	stli_stalreset(stlibrd_t *brdp);
+static void	stli_onbinit(struct stlibrd *brdp);
+static void	stli_onbenable(struct stlibrd *brdp);
+static void	stli_onbdisable(struct stlibrd *brdp);
+static void __iomem *stli_onbgetmemptr(struct stlibrd *brdp, unsigned long offset, int line);
+static void	stli_onbreset(struct stlibrd *brdp);
+static void	stli_onbeinit(struct stlibrd *brdp);
+static void	stli_onbeenable(struct stlibrd *brdp);
+static void	stli_onbedisable(struct stlibrd *brdp);
+static void __iomem *stli_onbegetmemptr(struct stlibrd *brdp, unsigned long offset, int line);
+static void	stli_onbereset(struct stlibrd *brdp);
+static void	stli_bbyinit(struct stlibrd *brdp);
+static void __iomem *stli_bbygetmemptr(struct stlibrd *brdp, unsigned long offset, int line);
+static void	stli_bbyreset(struct stlibrd *brdp);
+static void	stli_stalinit(struct stlibrd *brdp);
+static void __iomem *stli_stalgetmemptr(struct stlibrd *brdp, unsigned long offset, int line);
+static void	stli_stalreset(struct stlibrd *brdp);
 
-static stliport_t *stli_getport(int brdnr, int panelnr, int portnr);
+static struct stliport *stli_getport(unsigned int brdnr, unsigned int panelnr, unsigned int portnr);
 
-static int	stli_initecp(stlibrd_t *brdp);
-static int	stli_initonb(stlibrd_t *brdp);
-static int	stli_eisamemprobe(stlibrd_t *brdp);
-static int	stli_initports(stlibrd_t *brdp);
-
-#ifdef	CONFIG_PCI
-static int	stli_initpcibrd(int brdtype, struct pci_dev *devp);
+static int	stli_initecp(struct stlibrd *brdp);
+static int	stli_initonb(struct stlibrd *brdp);
+#if STLI_EISAPROBE != 0
+static int	stli_eisamemprobe(struct stlibrd *brdp);
 #endif
+static int	stli_initports(struct stlibrd *brdp);
 
 /*****************************************************************************/
 
@@ -766,136 +728,19 @@ static int	stli_timeron;
 
 static struct class *istallion_class;
 
-/*
- *	Loadable module initialization stuff.
- */
-
-static int __init istallion_module_init(void)
+static void stli_cleanup_ports(struct stlibrd *brdp)
 {
-	stli_init();
-	return 0;
-}
+	struct stliport *portp;
+	unsigned int j;
 
-/*****************************************************************************/
-
-static void __exit istallion_module_exit(void)
-{
-	stlibrd_t	*brdp;
-	stliport_t	*portp;
-	int		i, j;
-
-	printk(KERN_INFO "Unloading %s: version %s\n", stli_drvtitle,
-		stli_drvversion);
-
-	/*
-	 *	Free up all allocated resources used by the ports. This includes
-	 *	memory and interrupts.
-	 */
-	if (stli_timeron) {
-		stli_timeron = 0;
-		del_timer_sync(&stli_timerlist);
-	}
-
-	i = tty_unregister_driver(stli_serial);
-	if (i) {
-		printk("STALLION: failed to un-register tty driver, "
-			"errno=%d\n", -i);
-		return;
-	}
-	put_tty_driver(stli_serial);
-	for (i = 0; i < 4; i++)
-		class_device_destroy(istallion_class, MKDEV(STL_SIOMEMMAJOR, i));
-	class_destroy(istallion_class);
-	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
-		printk("STALLION: failed to un-register serial memory device, "
-			"errno=%d\n", -i);
-
-	kfree(stli_txcookbuf);
-
-	for (i = 0; (i < stli_nrbrds); i++) {
-		if ((brdp = stli_brds[i]) == NULL)
-			continue;
-		for (j = 0; (j < STL_MAXPORTS); j++) {
-			portp = brdp->ports[j];
-			if (portp != NULL) {
-				if (portp->tty != NULL)
-					tty_hangup(portp->tty);
-				kfree(portp);
-			}
+	for (j = 0; j < STL_MAXPORTS; j++) {
+		portp = brdp->ports[j];
+		if (portp != NULL) {
+			if (portp->tty != NULL)
+				tty_hangup(portp->tty);
+			kfree(portp);
 		}
-
-		iounmap(brdp->membase);
-		if (brdp->iosize > 0)
-			release_region(brdp->iobase, brdp->iosize);
-		kfree(brdp);
-		stli_brds[i] = NULL;
 	}
-}
-
-module_init(istallion_module_init);
-module_exit(istallion_module_exit);
-
-/*****************************************************************************/
-
-/*
- *	Check for any arguments passed in on the module load command line.
- */
-
-static void stli_argbrds(void)
-{
-	stlconf_t conf;
-	stlibrd_t *brdp;
-	int i;
-
-	for (i = stli_nrbrds; i < ARRAY_SIZE(stli_brdsp); i++) {
-		memset(&conf, 0, sizeof(conf));
-		if (stli_parsebrd(&conf, stli_brdsp[i]) == 0)
-			continue;
-		if ((brdp = stli_allocbrd()) == NULL)
-			continue;
-		stli_nrbrds = i + 1;
-		brdp->brdnr = i;
-		brdp->brdtype = conf.brdtype;
-		brdp->iobase = conf.ioaddr1;
-		brdp->memaddr = conf.memaddr;
-		stli_brdinit(brdp);
-	}
-}
-
-/*****************************************************************************/
-
-/*
- *	Convert an ascii string number into an unsigned long.
- */
-
-static unsigned long stli_atol(char *str)
-{
-	unsigned long val;
-	int base, c;
-	char *sp;
-
-	val = 0;
-	sp = str;
-	if ((*sp == '0') && (*(sp+1) == 'x')) {
-		base = 16;
-		sp += 2;
-	} else if (*sp == '0') {
-		base = 8;
-		sp++;
-	} else {
-		base = 10;
-	}
-
-	for (; (*sp != 0); sp++) {
-		c = (*sp > '9') ? (TOLOWER(*sp) - 'a' + 10) : (*sp - '0');
-		if ((c < 0) || (c >= base)) {
-			printk("STALLION: invalid argument %s\n", str);
-			val = 0;
-			break;
-		}
-		val = (val * base) + c;
-	}
-	return(val);
 }
 
 /*****************************************************************************/
@@ -904,16 +749,16 @@ static unsigned long stli_atol(char *str)
  *	Parse the supplied argument string, into the board conf struct.
  */
 
-static int stli_parsebrd(stlconf_t *confp, char **argp)
+static int stli_parsebrd(struct stlconf *confp, char **argp)
 {
+	unsigned int i;
 	char *sp;
-	int i;
 
 	if (argp[0] == NULL || *argp[0] == 0)
 		return 0;
 
 	for (sp = argp[0], i = 0; ((*sp != 0) && (i < 25)); sp++, i++)
-		*sp = TOLOWER(*sp);
+		*sp = tolower(*sp);
 
 	for (i = 0; i < ARRAY_SIZE(stli_brdstr); i++) {
 		if (strcmp(stli_brdstr[i].name, argp[0]) == 0)
@@ -926,9 +771,9 @@ static int stli_parsebrd(stlconf_t *confp, char **argp)
 
 	confp->brdtype = stli_brdstr[i].type;
 	if (argp[1] != NULL && *argp[1] != 0)
-		confp->ioaddr1 = stli_atol(argp[1]);
+		confp->ioaddr1 = simple_strtoul(argp[1], NULL, 0);
 	if (argp[2] !=  NULL && *argp[2] != 0)
-		confp->memaddr = stli_atol(argp[2]);
+		confp->memaddr = simple_strtoul(argp[2], NULL, 0);
 	return(1);
 }
 
@@ -936,10 +781,10 @@ static int stli_parsebrd(stlconf_t *confp, char **argp)
 
 static int stli_open(struct tty_struct *tty, struct file *filp)
 {
-	stlibrd_t *brdp;
-	stliport_t *portp;
-	unsigned int minordev;
-	int brdnr, portnr, rc;
+	struct stlibrd *brdp;
+	struct stliport *portp;
+	unsigned int minordev, brdnr, portnr;
+	int rc;
 
 	minordev = tty->index;
 	brdnr = MINOR2BRD(minordev);
@@ -951,7 +796,7 @@ static int stli_open(struct tty_struct *tty, struct file *filp)
 	if ((brdp->state & BST_STARTED) == 0)
 		return -ENODEV;
 	portnr = MINOR2PORT(minordev);
-	if ((portnr < 0) || (portnr > brdp->nrports))
+	if (portnr > brdp->nrports)
 		return -ENODEV;
 
 	portp = brdp->ports[portnr];
@@ -1031,8 +876,8 @@ static int stli_open(struct tty_struct *tty, struct file *filp)
 
 static void stli_close(struct tty_struct *tty, struct file *filp)
 {
-	stlibrd_t *brdp;
-	stliport_t *portp;
+	struct stlibrd *brdp;
+	struct stliport *portp;
 	unsigned long flags;
 
 	portp = tty->driver_data;
@@ -1109,7 +954,7 @@ static void stli_close(struct tty_struct *tty, struct file *filp)
  *	this still all happens pretty quickly.
  */
 
-static int stli_initopen(stlibrd_t *brdp, stliport_t *portp)
+static int stli_initopen(struct stlibrd *brdp, struct stliport *portp)
 {
 	struct tty_struct *tty;
 	asynotify_t nt;
@@ -1157,7 +1002,7 @@ static int stli_initopen(stlibrd_t *brdp, stliport_t *portp)
  *	to overlap.
  */
 
-static int stli_rawopen(stlibrd_t *brdp, stliport_t *portp, unsigned long arg, int wait)
+static int stli_rawopen(struct stlibrd *brdp, struct stliport *portp, unsigned long arg, int wait)
 {
 	cdkhdr_t __iomem *hdrp;
 	cdkctrl_t __iomem *cp;
@@ -1228,7 +1073,7 @@ static int stli_rawopen(stlibrd_t *brdp, stliport_t *portp, unsigned long arg, i
  *	wait is true then must have user context (to sleep).
  */
 
-static int stli_rawclose(stlibrd_t *brdp, stliport_t *portp, unsigned long arg, int wait)
+static int stli_rawclose(struct stlibrd *brdp, struct stliport *portp, unsigned long arg, int wait)
 {
 	cdkhdr_t __iomem *hdrp;
 	cdkctrl_t __iomem *cp;
@@ -1292,7 +1137,7 @@ static int stli_rawclose(stlibrd_t *brdp, stliport_t *portp, unsigned long arg, 
  *	to complete (as opposed to initiating the command then returning).
  */
 
-static int stli_cmdwait(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, void *arg, int size, int copyback)
+static int stli_cmdwait(struct stlibrd *brdp, struct stliport *portp, unsigned long cmd, void *arg, int size, int copyback)
 {
 	wait_event_interruptible(portp->raw_wait,
 			!test_bit(ST_CMDING, &portp->state));
@@ -1318,16 +1163,16 @@ static int stli_cmdwait(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, v
  *	waiting for the command to complete - so must have user context.
  */
 
-static int stli_setport(stliport_t *portp)
+static int stli_setport(struct stliport *portp)
 {
-	stlibrd_t *brdp;
+	struct stlibrd *brdp;
 	asyport_t aport;
 
 	if (portp == NULL)
 		return -ENODEV;
 	if (portp->tty == NULL)
 		return -ENODEV;
-	if (portp->brdnr < 0 && portp->brdnr >= stli_nrbrds)
+	if (portp->brdnr >= stli_nrbrds)
 		return -ENODEV;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -1344,7 +1189,7 @@ static int stli_setport(stliport_t *portp)
  *	maybe because if we are clocal then we don't need to wait...
  */
 
-static int stli_waitcarrier(stlibrd_t *brdp, stliport_t *portp, struct file *filp)
+static int stli_waitcarrier(struct stlibrd *brdp, struct stliport *portp, struct file *filp)
 {
 	unsigned long flags;
 	int rc, doclocal;
@@ -1409,8 +1254,8 @@ static int stli_write(struct tty_struct *tty, const unsigned char *buf, int coun
 	unsigned char __iomem *bits;
 	unsigned char __iomem *shbuf;
 	unsigned char *chbuf;
-	stliport_t *portp;
-	stlibrd_t *brdp;
+	struct stliport *portp;
+	struct stlibrd *brdp;
 	unsigned int len, stlen, head, tail, size;
 	unsigned long flags;
 
@@ -1419,7 +1264,7 @@ static int stli_write(struct tty_struct *tty, const unsigned char *buf, int coun
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return 0;
-	if ((portp->brdnr < 0) || (portp->brdnr >= stli_nrbrds))
+	if (portp->brdnr >= stli_nrbrds)
 		return 0;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -1445,12 +1290,12 @@ static int stli_write(struct tty_struct *tty, const unsigned char *buf, int coun
 		stlen = len;
 	}
 
-	len = MIN(len, count);
+	len = min(len, (unsigned int)count);
 	count = 0;
 	shbuf = (char __iomem *) EBRDGETMEMPTR(brdp, portp->txoffset);
 
 	while (len > 0) {
-		stlen = MIN(len, stlen);
+		stlen = min(len, stlen);
 		memcpy_toio(shbuf + head, chbuf, stlen);
 		chbuf += stlen;
 		len -= stlen;
@@ -1516,8 +1361,8 @@ static void stli_flushchars(struct tty_struct *tty)
 	unsigned char __iomem *bits;
 	cdkasy_t __iomem *ap;
 	struct tty_struct *cooktty;
-	stliport_t *portp;
-	stlibrd_t *brdp;
+	struct stliport *portp;
+	struct stlibrd *brdp;
 	unsigned int len, stlen, head, tail, size, count, cooksize;
 	unsigned char *buf;
 	unsigned char __iomem *shbuf;
@@ -1541,7 +1386,7 @@ static void stli_flushchars(struct tty_struct *tty)
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
-	if ((portp->brdnr < 0) || (portp->brdnr >= stli_nrbrds))
+	if (portp->brdnr >= stli_nrbrds)
 		return;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -1564,13 +1409,13 @@ static void stli_flushchars(struct tty_struct *tty)
 		stlen = len;
 	}
 
-	len = MIN(len, cooksize);
+	len = min(len, cooksize);
 	count = 0;
 	shbuf = EBRDGETMEMPTR(brdp, portp->txoffset);
 	buf = stli_txcookbuf;
 
 	while (len > 0) {
-		stlen = MIN(len, stlen);
+		stlen = min(len, stlen);
 		memcpy_toio(shbuf + head, buf, stlen);
 		buf += stlen;
 		len -= stlen;
@@ -1604,8 +1449,8 @@ static void stli_flushchars(struct tty_struct *tty)
 static int stli_writeroom(struct tty_struct *tty)
 {
 	cdkasyrq_t __iomem *rp;
-	stliport_t *portp;
-	stlibrd_t *brdp;
+	struct stliport *portp;
+	struct stlibrd *brdp;
 	unsigned int head, tail, len;
 	unsigned long flags;
 
@@ -1619,7 +1464,7 @@ static int stli_writeroom(struct tty_struct *tty)
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return 0;
-	if ((portp->brdnr < 0) || (portp->brdnr >= stli_nrbrds))
+	if (portp->brdnr >= stli_nrbrds)
 		return 0;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -1657,8 +1502,8 @@ static int stli_writeroom(struct tty_struct *tty)
 static int stli_charsinbuffer(struct tty_struct *tty)
 {
 	cdkasyrq_t __iomem *rp;
-	stliport_t *portp;
-	stlibrd_t *brdp;
+	struct stliport *portp;
+	struct stlibrd *brdp;
 	unsigned int head, tail, len;
 	unsigned long flags;
 
@@ -1667,7 +1512,7 @@ static int stli_charsinbuffer(struct tty_struct *tty)
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return 0;
-	if ((portp->brdnr < 0) || (portp->brdnr >= stli_nrbrds))
+	if (portp->brdnr >= stli_nrbrds)
 		return 0;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -1695,10 +1540,10 @@ static int stli_charsinbuffer(struct tty_struct *tty)
  *	Generate the serial struct info.
  */
 
-static int stli_getserial(stliport_t *portp, struct serial_struct __user *sp)
+static int stli_getserial(struct stliport *portp, struct serial_struct __user *sp)
 {
 	struct serial_struct sio;
-	stlibrd_t *brdp;
+	struct stlibrd *brdp;
 
 	memset(&sio, 0, sizeof(struct serial_struct));
 	sio.type = PORT_UNKNOWN;
@@ -1728,7 +1573,7 @@ static int stli_getserial(stliport_t *portp, struct serial_struct __user *sp)
  *	just quietly ignore any requests to change irq, etc.
  */
 
-static int stli_setserial(stliport_t *portp, struct serial_struct __user *sp)
+static int stli_setserial(struct stliport *portp, struct serial_struct __user *sp)
 {
 	struct serial_struct sio;
 	int rc;
@@ -1759,13 +1604,13 @@ static int stli_setserial(stliport_t *portp, struct serial_struct __user *sp)
 
 static int stli_tiocmget(struct tty_struct *tty, struct file *file)
 {
-	stliport_t *portp = tty->driver_data;
-	stlibrd_t *brdp;
+	struct stliport *portp = tty->driver_data;
+	struct stlibrd *brdp;
 	int rc;
 
 	if (portp == NULL)
 		return -ENODEV;
-	if (portp->brdnr < 0 || portp->brdnr >= stli_nrbrds)
+	if (portp->brdnr >= stli_nrbrds)
 		return 0;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -1783,13 +1628,13 @@ static int stli_tiocmget(struct tty_struct *tty, struct file *file)
 static int stli_tiocmset(struct tty_struct *tty, struct file *file,
 			 unsigned int set, unsigned int clear)
 {
-	stliport_t *portp = tty->driver_data;
-	stlibrd_t *brdp;
+	struct stliport *portp = tty->driver_data;
+	struct stlibrd *brdp;
 	int rts = -1, dtr = -1;
 
 	if (portp == NULL)
 		return -ENODEV;
-	if (portp->brdnr < 0 || portp->brdnr >= stli_nrbrds)
+	if (portp->brdnr >= stli_nrbrds)
 		return 0;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -1814,8 +1659,8 @@ static int stli_tiocmset(struct tty_struct *tty, struct file *file,
 
 static int stli_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	stliport_t *portp;
-	stlibrd_t *brdp;
+	struct stliport *portp;
+	struct stlibrd *brdp;
 	unsigned int ival;
 	int rc;
 	void __user *argp = (void __user *)arg;
@@ -1823,7 +1668,7 @@ static int stli_ioctl(struct tty_struct *tty, struct file *file, unsigned int cm
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return -ENODEV;
-	if (portp->brdnr < 0 || portp->brdnr >= stli_nrbrds)
+	if (portp->brdnr >= stli_nrbrds)
 		return 0;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -1889,11 +1734,11 @@ static int stli_ioctl(struct tty_struct *tty, struct file *file, unsigned int cm
  *	Looks like it is true for the current ttys implementation..!!
  */
 
-static void stli_settermios(struct tty_struct *tty, struct termios *old)
+static void stli_settermios(struct tty_struct *tty, struct ktermios *old)
 {
-	stliport_t *portp;
-	stlibrd_t *brdp;
-	struct termios *tiosp;
+	struct stliport *portp;
+	struct stlibrd *brdp;
+	struct ktermios *tiosp;
 	asyport_t aport;
 
 	if (tty == NULL)
@@ -1901,7 +1746,7 @@ static void stli_settermios(struct tty_struct *tty, struct termios *old)
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
-	if (portp->brdnr < 0 || portp->brdnr >= stli_nrbrds)
+	if (portp->brdnr >= stli_nrbrds)
 		return;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -1937,7 +1782,7 @@ static void stli_settermios(struct tty_struct *tty, struct termios *old)
 
 static void stli_throttle(struct tty_struct *tty)
 {
-	stliport_t	*portp = tty->driver_data;
+	struct stliport	*portp = tty->driver_data;
 	if (portp == NULL)
 		return;
 	set_bit(ST_RXSTOP, &portp->state);
@@ -1953,7 +1798,7 @@ static void stli_throttle(struct tty_struct *tty)
 
 static void stli_unthrottle(struct tty_struct *tty)
 {
-	stliport_t	*portp = tty->driver_data;
+	struct stliport	*portp = tty->driver_data;
 	if (portp == NULL)
 		return;
 	clear_bit(ST_RXSTOP, &portp->state);
@@ -1990,9 +1835,9 @@ static void stli_start(struct tty_struct *tty)
  *	aren't that time critical).
  */
 
-static void stli_dohangup(void *arg)
+static void stli_dohangup(struct work_struct *ugly_api)
 {
-	stliport_t *portp = (stliport_t *) arg;
+	struct stliport *portp = container_of(ugly_api, struct stliport, tqhangup);
 	if (portp->tty != NULL) {
 		tty_hangup(portp->tty);
 	}
@@ -2009,14 +1854,14 @@ static void stli_dohangup(void *arg)
 
 static void stli_hangup(struct tty_struct *tty)
 {
-	stliport_t *portp;
-	stlibrd_t *brdp;
+	struct stliport *portp;
+	struct stlibrd *brdp;
 	unsigned long flags;
 
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
-	if (portp->brdnr < 0 || portp->brdnr >= stli_nrbrds)
+	if (portp->brdnr >= stli_nrbrds)
 		return;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -2062,14 +1907,14 @@ static void stli_hangup(struct tty_struct *tty)
 
 static void stli_flushbuffer(struct tty_struct *tty)
 {
-	stliport_t *portp;
-	stlibrd_t *brdp;
+	struct stliport *portp;
+	struct stlibrd *brdp;
 	unsigned long ftype, flags;
 
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
-	if (portp->brdnr < 0 || portp->brdnr >= stli_nrbrds)
+	if (portp->brdnr >= stli_nrbrds)
 		return;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -2099,14 +1944,14 @@ static void stli_flushbuffer(struct tty_struct *tty)
 
 static void stli_breakctl(struct tty_struct *tty, int state)
 {
-	stlibrd_t	*brdp;
-	stliport_t	*portp;
+	struct stlibrd	*brdp;
+	struct stliport	*portp;
 	long		arg;
 
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
-	if (portp->brdnr < 0 || portp->brdnr >= stli_nrbrds)
+	if (portp->brdnr >= stli_nrbrds)
 		return;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -2120,7 +1965,7 @@ static void stli_breakctl(struct tty_struct *tty, int state)
 
 static void stli_waituntilsent(struct tty_struct *tty, int timeout)
 {
-	stliport_t *portp;
+	struct stliport *portp;
 	unsigned long tend;
 
 	if (tty == NULL)
@@ -2146,14 +1991,14 @@ static void stli_waituntilsent(struct tty_struct *tty, int timeout)
 
 static void stli_sendxchar(struct tty_struct *tty, char ch)
 {
-	stlibrd_t	*brdp;
-	stliport_t	*portp;
+	struct stlibrd	*brdp;
+	struct stliport	*portp;
 	asyctrl_t	actrl;
 
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
-	if (portp->brdnr < 0 || portp->brdnr >= stli_nrbrds)
+	if (portp->brdnr >= stli_nrbrds)
 		return;
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == NULL)
@@ -2181,7 +2026,7 @@ static void stli_sendxchar(struct tty_struct *tty, char ch)
  *	short then padded with spaces).
  */
 
-static int stli_portinfo(stlibrd_t *brdp, stliport_t *portp, int portnr, char *pos)
+static int stli_portinfo(struct stlibrd *brdp, struct stliport *portp, int portnr, char *pos)
 {
 	char *sp, *uart;
 	int rc, cnt;
@@ -2244,9 +2089,9 @@ static int stli_portinfo(stlibrd_t *brdp, stliport_t *portp, int portnr, char *p
 
 static int stli_readproc(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
-	stlibrd_t *brdp;
-	stliport_t *portp;
-	int brdnr, portnr, totalport;
+	struct stlibrd *brdp;
+	struct stliport *portp;
+	unsigned int brdnr, portnr, totalport;
 	int curoff, maxoff;
 	char *pos;
 
@@ -2316,7 +2161,7 @@ stli_readdone:
  *	entry point)
  */
 
-static void __stli_sendcmd(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, void *arg, int size, int copyback)
+static void __stli_sendcmd(struct stlibrd *brdp, struct stliport *portp, unsigned long cmd, void *arg, int size, int copyback)
 {
 	cdkhdr_t __iomem *hdrp;
 	cdkctrl_t __iomem *cp;
@@ -2352,7 +2197,7 @@ static void __stli_sendcmd(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd
 	spin_unlock_irqrestore(&brd_lock, flags);
 }
 
-static void stli_sendcmd(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, void *arg, int size, int copyback)
+static void stli_sendcmd(struct stlibrd *brdp, struct stliport *portp, unsigned long cmd, void *arg, int size, int copyback)
 {
 	unsigned long		flags;
 
@@ -2371,7 +2216,7 @@ static void stli_sendcmd(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, 
  *	more chars to unload.
  */
 
-static void stli_read(stlibrd_t *brdp, stliport_t *portp)
+static void stli_read(struct stlibrd *brdp, struct stliport *portp)
 {
 	cdkasyrq_t __iomem *rp;
 	char __iomem *shbuf;
@@ -2406,7 +2251,7 @@ static void stli_read(stlibrd_t *brdp, stliport_t *portp)
 	while (len > 0) {
 		unsigned char *cptr;
 
-		stlen = MIN(len, stlen);
+		stlen = min(len, stlen);
 		tty_prepare_flip_string(tty, &cptr, stlen);
 		memcpy_fromio(cptr, shbuf + tail, stlen);
 		len -= stlen;
@@ -2433,7 +2278,7 @@ static void stli_read(stlibrd_t *brdp, stliport_t *portp)
  *	difficult to deal with them here.
  */
 
-static void stli_dodelaycmd(stliport_t *portp, cdkctrl_t __iomem *cp)
+static void stli_dodelaycmd(struct stliport *portp, cdkctrl_t __iomem *cp)
 {
 	int cmd;
 
@@ -2481,7 +2326,7 @@ static void stli_dodelaycmd(stliport_t *portp, cdkctrl_t __iomem *cp)
  *	then port is still busy, otherwise no longer busy.
  */
 
-static int stli_hostcmd(stlibrd_t *brdp, stliport_t *portp)
+static int stli_hostcmd(struct stlibrd *brdp, struct stliport *portp)
 {
 	cdkasy_t __iomem *ap;
 	cdkctrl_t __iomem *cp;
@@ -2628,9 +2473,9 @@ static int stli_hostcmd(stlibrd_t *brdp, stliport_t *portp)
  *	at the cdk header structure.
  */
 
-static void stli_brdpoll(stlibrd_t *brdp, cdkhdr_t __iomem *hdrp)
+static void stli_brdpoll(struct stlibrd *brdp, cdkhdr_t __iomem *hdrp)
 {
-	stliport_t *portp;
+	struct stliport *portp;
 	unsigned char hostbits[(STL_MAXCHANS / 8) + 1];
 	unsigned char slavebits[(STL_MAXCHANS / 8) + 1];
 	unsigned char __iomem *slavep;
@@ -2697,11 +2542,10 @@ static void stli_brdpoll(stlibrd_t *brdp, cdkhdr_t __iomem *hdrp)
 static void stli_poll(unsigned long arg)
 {
 	cdkhdr_t __iomem *hdrp;
-	stlibrd_t *brdp;
-	int brdnr;
+	struct stlibrd *brdp;
+	unsigned int brdnr;
 
-	stli_timerlist.expires = STLI_TIMEOUT;
-	add_timer(&stli_timerlist);
+	mod_timer(&stli_timerlist, STLI_TIMEOUT);
 
 /*
  *	Check each board and do any servicing required.
@@ -2730,7 +2574,7 @@ static void stli_poll(unsigned long arg)
  *	the slave.
  */
 
-static void stli_mkasyport(stliport_t *portp, asyport_t *pp, struct termios *tiosp)
+static void stli_mkasyport(struct stliport *portp, asyport_t *pp, struct ktermios *tiosp)
 {
 	memset(pp, 0, sizeof(asyport_t));
 
@@ -2879,13 +2723,13 @@ static long stli_mktiocm(unsigned long sigvalue)
  *	we need to do here is set up the appropriate per port data structures.
  */
 
-static int stli_initports(stlibrd_t *brdp)
+static int stli_initports(struct stlibrd *brdp)
 {
-	stliport_t	*portp;
-	int		i, panelnr, panelport;
+	struct stliport	*portp;
+	unsigned int i, panelnr, panelport;
 
 	for (i = 0, panelnr = 0, panelport = 0; (i < brdp->nrports); i++) {
-		portp = kzalloc(sizeof(stliport_t), GFP_KERNEL);
+		portp = kzalloc(sizeof(struct stliport), GFP_KERNEL);
 		if (!portp) {
 			printk("STALLION: failed to allocate port structure\n");
 			continue;
@@ -2898,7 +2742,7 @@ static int stli_initports(stlibrd_t *brdp)
 		portp->baud_base = STL_BAUDBASE;
 		portp->close_delay = STL_CLOSEDELAY;
 		portp->closing_wait = 30 * HZ;
-		INIT_WORK(&portp->tqhangup, stli_dohangup, portp);
+		INIT_WORK(&portp->tqhangup, stli_dohangup);
 		init_waitqueue_head(&portp->open_wait);
 		init_waitqueue_head(&portp->close_wait);
 		init_waitqueue_head(&portp->raw_wait);
@@ -2919,7 +2763,7 @@ static int stli_initports(stlibrd_t *brdp)
  *	All the following routines are board specific hardware operations.
  */
 
-static void stli_ecpinit(stlibrd_t *brdp)
+static void stli_ecpinit(struct stlibrd *brdp)
 {
 	unsigned long	memconf;
 
@@ -2934,21 +2778,21 @@ static void stli_ecpinit(stlibrd_t *brdp)
 
 /*****************************************************************************/
 
-static void stli_ecpenable(stlibrd_t *brdp)
+static void stli_ecpenable(struct stlibrd *brdp)
 {	
 	outb(ECP_ATENABLE, (brdp->iobase + ECP_ATCONFR));
 }
 
 /*****************************************************************************/
 
-static void stli_ecpdisable(stlibrd_t *brdp)
+static void stli_ecpdisable(struct stlibrd *brdp)
 {	
 	outb(ECP_ATDISABLE, (brdp->iobase + ECP_ATCONFR));
 }
 
 /*****************************************************************************/
 
-static void __iomem *stli_ecpgetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
+static void __iomem *stli_ecpgetmemptr(struct stlibrd *brdp, unsigned long offset, int line)
 {	
 	void __iomem *ptr;
 	unsigned char val;
@@ -2969,7 +2813,7 @@ static void __iomem *stli_ecpgetmemptr(stlibrd_t *brdp, unsigned long offset, in
 
 /*****************************************************************************/
 
-static void stli_ecpreset(stlibrd_t *brdp)
+static void stli_ecpreset(struct stlibrd *brdp)
 {	
 	outb(ECP_ATSTOP, (brdp->iobase + ECP_ATCONFR));
 	udelay(10);
@@ -2979,7 +2823,7 @@ static void stli_ecpreset(stlibrd_t *brdp)
 
 /*****************************************************************************/
 
-static void stli_ecpintr(stlibrd_t *brdp)
+static void stli_ecpintr(struct stlibrd *brdp)
 {	
 	outb(0x1, brdp->iobase);
 }
@@ -2990,7 +2834,7 @@ static void stli_ecpintr(stlibrd_t *brdp)
  *	The following set of functions act on ECP EISA boards.
  */
 
-static void stli_ecpeiinit(stlibrd_t *brdp)
+static void stli_ecpeiinit(struct stlibrd *brdp)
 {
 	unsigned long	memconf;
 
@@ -3008,21 +2852,21 @@ static void stli_ecpeiinit(stlibrd_t *brdp)
 
 /*****************************************************************************/
 
-static void stli_ecpeienable(stlibrd_t *brdp)
+static void stli_ecpeienable(struct stlibrd *brdp)
 {	
 	outb(ECP_EIENABLE, (brdp->iobase + ECP_EICONFR));
 }
 
 /*****************************************************************************/
 
-static void stli_ecpeidisable(stlibrd_t *brdp)
+static void stli_ecpeidisable(struct stlibrd *brdp)
 {	
 	outb(ECP_EIDISABLE, (brdp->iobase + ECP_EICONFR));
 }
 
 /*****************************************************************************/
 
-static void __iomem *stli_ecpeigetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
+static void __iomem *stli_ecpeigetmemptr(struct stlibrd *brdp, unsigned long offset, int line)
 {	
 	void __iomem *ptr;
 	unsigned char	val;
@@ -3046,7 +2890,7 @@ static void __iomem *stli_ecpeigetmemptr(stlibrd_t *brdp, unsigned long offset, 
 
 /*****************************************************************************/
 
-static void stli_ecpeireset(stlibrd_t *brdp)
+static void stli_ecpeireset(struct stlibrd *brdp)
 {	
 	outb(ECP_EISTOP, (brdp->iobase + ECP_EICONFR));
 	udelay(10);
@@ -3060,21 +2904,21 @@ static void stli_ecpeireset(stlibrd_t *brdp)
  *	The following set of functions act on ECP MCA boards.
  */
 
-static void stli_ecpmcenable(stlibrd_t *brdp)
+static void stli_ecpmcenable(struct stlibrd *brdp)
 {	
 	outb(ECP_MCENABLE, (brdp->iobase + ECP_MCCONFR));
 }
 
 /*****************************************************************************/
 
-static void stli_ecpmcdisable(stlibrd_t *brdp)
+static void stli_ecpmcdisable(struct stlibrd *brdp)
 {	
 	outb(ECP_MCDISABLE, (brdp->iobase + ECP_MCCONFR));
 }
 
 /*****************************************************************************/
 
-static void __iomem *stli_ecpmcgetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
+static void __iomem *stli_ecpmcgetmemptr(struct stlibrd *brdp, unsigned long offset, int line)
 {	
 	void __iomem *ptr;
 	unsigned char val;
@@ -3095,7 +2939,7 @@ static void __iomem *stli_ecpmcgetmemptr(stlibrd_t *brdp, unsigned long offset, 
 
 /*****************************************************************************/
 
-static void stli_ecpmcreset(stlibrd_t *brdp)
+static void stli_ecpmcreset(struct stlibrd *brdp)
 {	
 	outb(ECP_MCSTOP, (brdp->iobase + ECP_MCCONFR));
 	udelay(10);
@@ -3109,7 +2953,7 @@ static void stli_ecpmcreset(stlibrd_t *brdp)
  *	The following set of functions act on ECP PCI boards.
  */
 
-static void stli_ecppciinit(stlibrd_t *brdp)
+static void stli_ecppciinit(struct stlibrd *brdp)
 {
 	outb(ECP_PCISTOP, (brdp->iobase + ECP_PCICONFR));
 	udelay(10);
@@ -3119,7 +2963,7 @@ static void stli_ecppciinit(stlibrd_t *brdp)
 
 /*****************************************************************************/
 
-static void __iomem *stli_ecppcigetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
+static void __iomem *stli_ecppcigetmemptr(struct stlibrd *brdp, unsigned long offset, int line)
 {	
 	void __iomem *ptr;
 	unsigned char	val;
@@ -3140,7 +2984,7 @@ static void __iomem *stli_ecppcigetmemptr(stlibrd_t *brdp, unsigned long offset,
 
 /*****************************************************************************/
 
-static void stli_ecppcireset(stlibrd_t *brdp)
+static void stli_ecppcireset(struct stlibrd *brdp)
 {	
 	outb(ECP_PCISTOP, (brdp->iobase + ECP_PCICONFR));
 	udelay(10);
@@ -3154,7 +2998,7 @@ static void stli_ecppcireset(stlibrd_t *brdp)
  *	The following routines act on ONboards.
  */
 
-static void stli_onbinit(stlibrd_t *brdp)
+static void stli_onbinit(struct stlibrd *brdp)
 {
 	unsigned long	memconf;
 
@@ -3171,21 +3015,21 @@ static void stli_onbinit(stlibrd_t *brdp)
 
 /*****************************************************************************/
 
-static void stli_onbenable(stlibrd_t *brdp)
+static void stli_onbenable(struct stlibrd *brdp)
 {	
 	outb((brdp->enabval | ONB_ATENABLE), (brdp->iobase + ONB_ATCONFR));
 }
 
 /*****************************************************************************/
 
-static void stli_onbdisable(stlibrd_t *brdp)
+static void stli_onbdisable(struct stlibrd *brdp)
 {	
 	outb((brdp->enabval | ONB_ATDISABLE), (brdp->iobase + ONB_ATCONFR));
 }
 
 /*****************************************************************************/
 
-static void __iomem *stli_onbgetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
+static void __iomem *stli_onbgetmemptr(struct stlibrd *brdp, unsigned long offset, int line)
 {	
 	void __iomem *ptr;
 
@@ -3202,7 +3046,7 @@ static void __iomem *stli_onbgetmemptr(stlibrd_t *brdp, unsigned long offset, in
 
 /*****************************************************************************/
 
-static void stli_onbreset(stlibrd_t *brdp)
+static void stli_onbreset(struct stlibrd *brdp)
 {	
 	outb(ONB_ATSTOP, (brdp->iobase + ONB_ATCONFR));
 	udelay(10);
@@ -3216,7 +3060,7 @@ static void stli_onbreset(stlibrd_t *brdp)
  *	The following routines act on ONboard EISA.
  */
 
-static void stli_onbeinit(stlibrd_t *brdp)
+static void stli_onbeinit(struct stlibrd *brdp)
 {
 	unsigned long	memconf;
 
@@ -3236,21 +3080,21 @@ static void stli_onbeinit(stlibrd_t *brdp)
 
 /*****************************************************************************/
 
-static void stli_onbeenable(stlibrd_t *brdp)
+static void stli_onbeenable(struct stlibrd *brdp)
 {	
 	outb(ONB_EIENABLE, (brdp->iobase + ONB_EICONFR));
 }
 
 /*****************************************************************************/
 
-static void stli_onbedisable(stlibrd_t *brdp)
+static void stli_onbedisable(struct stlibrd *brdp)
 {	
 	outb(ONB_EIDISABLE, (brdp->iobase + ONB_EICONFR));
 }
 
 /*****************************************************************************/
 
-static void __iomem *stli_onbegetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
+static void __iomem *stli_onbegetmemptr(struct stlibrd *brdp, unsigned long offset, int line)
 {	
 	void __iomem *ptr;
 	unsigned char val;
@@ -3274,7 +3118,7 @@ static void __iomem *stli_onbegetmemptr(stlibrd_t *brdp, unsigned long offset, i
 
 /*****************************************************************************/
 
-static void stli_onbereset(stlibrd_t *brdp)
+static void stli_onbereset(struct stlibrd *brdp)
 {	
 	outb(ONB_EISTOP, (brdp->iobase + ONB_EICONFR));
 	udelay(10);
@@ -3288,7 +3132,7 @@ static void stli_onbereset(stlibrd_t *brdp)
  *	The following routines act on Brumby boards.
  */
 
-static void stli_bbyinit(stlibrd_t *brdp)
+static void stli_bbyinit(struct stlibrd *brdp)
 {
 	outb(BBY_ATSTOP, (brdp->iobase + BBY_ATCONFR));
 	udelay(10);
@@ -3300,7 +3144,7 @@ static void stli_bbyinit(stlibrd_t *brdp)
 
 /*****************************************************************************/
 
-static void __iomem *stli_bbygetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
+static void __iomem *stli_bbygetmemptr(struct stlibrd *brdp, unsigned long offset, int line)
 {	
 	void __iomem *ptr;
 	unsigned char val;
@@ -3315,7 +3159,7 @@ static void __iomem *stli_bbygetmemptr(stlibrd_t *brdp, unsigned long offset, in
 
 /*****************************************************************************/
 
-static void stli_bbyreset(stlibrd_t *brdp)
+static void stli_bbyreset(struct stlibrd *brdp)
 {	
 	outb(BBY_ATSTOP, (brdp->iobase + BBY_ATCONFR));
 	udelay(10);
@@ -3329,7 +3173,7 @@ static void stli_bbyreset(stlibrd_t *brdp)
  *	The following routines act on original old Stallion boards.
  */
 
-static void stli_stalinit(stlibrd_t *brdp)
+static void stli_stalinit(struct stlibrd *brdp)
 {
 	outb(0x1, brdp->iobase);
 	mdelay(1000);
@@ -3337,7 +3181,7 @@ static void stli_stalinit(stlibrd_t *brdp)
 
 /*****************************************************************************/
 
-static void __iomem *stli_stalgetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
+static void __iomem *stli_stalgetmemptr(struct stlibrd *brdp, unsigned long offset, int line)
 {	
 	BUG_ON(offset > brdp->memsize);
 	return brdp->membase + (offset % STAL_PAGESIZE);
@@ -3345,7 +3189,7 @@ static void __iomem *stli_stalgetmemptr(stlibrd_t *brdp, unsigned long offset, i
 
 /*****************************************************************************/
 
-static void stli_stalreset(stlibrd_t *brdp)
+static void stli_stalreset(struct stlibrd *brdp)
 {	
 	u32 __iomem *vecp;
 
@@ -3362,21 +3206,22 @@ static void stli_stalreset(stlibrd_t *brdp)
  *	board types.
  */
 
-static int stli_initecp(stlibrd_t *brdp)
+static int stli_initecp(struct stlibrd *brdp)
 {
 	cdkecpsig_t sig;
 	cdkecpsig_t __iomem *sigsp;
 	unsigned int status, nxtid;
 	char *name;
-	int panelnr, nrports;
+	int retval, panelnr, nrports;
 
-	if (!request_region(brdp->iobase, brdp->iosize, "istallion"))
-		return -EIO;
-	
-	if ((brdp->iobase == 0) || (brdp->memaddr == 0))
-	{
-		release_region(brdp->iobase, brdp->iosize);
-		return -ENODEV;
+	if ((brdp->iobase == 0) || (brdp->memaddr == 0)) {
+		retval = -ENODEV;
+		goto err;
+	}
+
+	if (!request_region(brdp->iobase, brdp->iosize, "istallion")) {
+		retval = -EIO;
+		goto err;
 	}
 
 	brdp->iosize = ECP_IOSIZE;
@@ -3388,7 +3233,6 @@ static int stli_initecp(stlibrd_t *brdp)
  */
 	switch (brdp->brdtype) {
 	case BRD_ECP:
-		brdp->membase = (void *) brdp->memaddr;
 		brdp->memsize = ECP_MEMSIZE;
 		brdp->pagesize = ECP_ATPAGESIZE;
 		brdp->init = stli_ecpinit;
@@ -3402,7 +3246,6 @@ static int stli_initecp(stlibrd_t *brdp)
 		break;
 
 	case BRD_ECPE:
-		brdp->membase = (void *) brdp->memaddr;
 		brdp->memsize = ECP_MEMSIZE;
 		brdp->pagesize = ECP_EIPAGESIZE;
 		brdp->init = stli_ecpeiinit;
@@ -3416,7 +3259,6 @@ static int stli_initecp(stlibrd_t *brdp)
 		break;
 
 	case BRD_ECPMC:
-		brdp->membase = (void *) brdp->memaddr;
 		brdp->memsize = ECP_MEMSIZE;
 		brdp->pagesize = ECP_MCPAGESIZE;
 		brdp->init = NULL;
@@ -3430,7 +3272,6 @@ static int stli_initecp(stlibrd_t *brdp)
 		break;
 
 	case BRD_ECPPCI:
-		brdp->membase = (void *) brdp->memaddr;
 		brdp->memsize = ECP_PCIMEMSIZE;
 		brdp->pagesize = ECP_PCIPAGESIZE;
 		brdp->init = stli_ecppciinit;
@@ -3444,8 +3285,8 @@ static int stli_initecp(stlibrd_t *brdp)
 		break;
 
 	default:
-		release_region(brdp->iobase, brdp->iosize);
-		return -EINVAL;
+		retval = -EINVAL;
+		goto err_reg;
 	}
 
 /*
@@ -3457,10 +3298,9 @@ static int stli_initecp(stlibrd_t *brdp)
 	EBRDINIT(brdp);
 
 	brdp->membase = ioremap(brdp->memaddr, brdp->memsize);
-	if (brdp->membase == NULL)
-	{
-		release_region(brdp->iobase, brdp->iosize);
-		return -ENOMEM;
+	if (brdp->membase == NULL) {
+		retval = -ENOMEM;
+		goto err_reg;
 	}
 
 /*
@@ -3473,10 +3313,9 @@ static int stli_initecp(stlibrd_t *brdp)
 	memcpy_fromio(&sig, sigsp, sizeof(cdkecpsig_t));
 	EBRDDISABLE(brdp);
 
-	if (sig.magic != cpu_to_le32(ECP_MAGIC))
-	{
-		release_region(brdp->iobase, brdp->iosize);
-		return -ENODEV;
+	if (sig.magic != cpu_to_le32(ECP_MAGIC)) {
+		retval = -ENODEV;
+		goto err_unmap;
 	}
 
 /*
@@ -3501,6 +3340,13 @@ static int stli_initecp(stlibrd_t *brdp)
 
 	brdp->state |= BST_FOUND;
 	return 0;
+err_unmap:
+	iounmap(brdp->membase);
+	brdp->membase = NULL;
+err_reg:
+	release_region(brdp->iobase, brdp->iosize);
+err:
+	return retval;
 }
 
 /*****************************************************************************/
@@ -3510,23 +3356,27 @@ static int stli_initecp(stlibrd_t *brdp)
  *	This handles only these board types.
  */
 
-static int stli_initonb(stlibrd_t *brdp)
+static int stli_initonb(struct stlibrd *brdp)
 {
 	cdkonbsig_t sig;
 	cdkonbsig_t __iomem *sigsp;
 	char *name;
-	int i;
+	int i, retval;
 
 /*
  *	Do a basic sanity check on the IO and memory addresses.
  */
-	if (brdp->iobase == 0 || brdp->memaddr == 0)
-		return -ENODEV;
+	if (brdp->iobase == 0 || brdp->memaddr == 0) {
+		retval = -ENODEV;
+		goto err;
+	}
 
 	brdp->iosize = ONB_IOSIZE;
 	
-	if (!request_region(brdp->iobase, brdp->iosize, "istallion"))
-		return -EIO;
+	if (!request_region(brdp->iobase, brdp->iosize, "istallion")) {
+		retval = -EIO;
+		goto err;
+	}
 
 /*
  *	Based on the specific board type setup the common vars to access
@@ -3535,10 +3385,7 @@ static int stli_initonb(stlibrd_t *brdp)
  */
 	switch (brdp->brdtype) {
 	case BRD_ONBOARD:
-	case BRD_ONBOARD32:
 	case BRD_ONBOARD2:
-	case BRD_ONBOARD2_32:
-	case BRD_ONBOARDRS:
 		brdp->memsize = ONB_MEMSIZE;
 		brdp->pagesize = ONB_ATPAGESIZE;
 		brdp->init = stli_onbinit;
@@ -3569,8 +3416,6 @@ static int stli_initonb(stlibrd_t *brdp)
 		break;
 
 	case BRD_BRUMBY4:
-	case BRD_BRUMBY8:
-	case BRD_BRUMBY16:
 		brdp->memsize = BBY_MEMSIZE;
 		brdp->pagesize = BBY_PAGESIZE;
 		brdp->init = stli_bbyinit;
@@ -3597,8 +3442,8 @@ static int stli_initonb(stlibrd_t *brdp)
 		break;
 
 	default:
-		release_region(brdp->iobase, brdp->iosize);
-		return -EINVAL;
+		retval = -EINVAL;
+		goto err_reg;
 	}
 
 /*
@@ -3610,10 +3455,9 @@ static int stli_initonb(stlibrd_t *brdp)
 	EBRDINIT(brdp);
 
 	brdp->membase = ioremap(brdp->memaddr, brdp->memsize);
-	if (brdp->membase == NULL)
-	{
-		release_region(brdp->iobase, brdp->iosize);
-		return -ENOMEM;
+	if (brdp->membase == NULL) {
+		retval = -ENOMEM;
+		goto err_reg;
 	}
 
 /*
@@ -3629,10 +3473,9 @@ static int stli_initonb(stlibrd_t *brdp)
 	if (sig.magic0 != cpu_to_le16(ONB_MAGIC0) ||
 	    sig.magic1 != cpu_to_le16(ONB_MAGIC1) ||
 	    sig.magic2 != cpu_to_le16(ONB_MAGIC2) ||
-	    sig.magic3 != cpu_to_le16(ONB_MAGIC3))
-	{
-		release_region(brdp->iobase, brdp->iosize);
-		return -ENODEV;
+	    sig.magic3 != cpu_to_le16(ONB_MAGIC3)) {
+		retval = -ENODEV;
+		goto err_unmap;
 	}
 
 /*
@@ -3654,6 +3497,13 @@ static int stli_initonb(stlibrd_t *brdp)
 
 	brdp->state |= BST_FOUND;
 	return 0;
+err_unmap:
+	iounmap(brdp->membase);
+	brdp->membase = NULL;
+err_reg:
+	release_region(brdp->iobase, brdp->iosize);
+err:
+	return retval;
 }
 
 /*****************************************************************************/
@@ -3664,14 +3514,15 @@ static int stli_initonb(stlibrd_t *brdp)
  *	read in the memory map, and get the show on the road...
  */
 
-static int stli_startbrd(stlibrd_t *brdp)
+static int stli_startbrd(struct stlibrd *brdp)
 {
 	cdkhdr_t __iomem *hdrp;
 	cdkmem_t __iomem *memp;
 	cdkasy_t __iomem *ap;
 	unsigned long flags;
-	stliport_t *portp;
-	int portnr, nrdevs, i, rc = 0;
+	unsigned int portnr, nrdevs, i;
+	struct stliport *portp;
+	int rc = 0;
 	u32 memoff;
 
 	spin_lock_irqsave(&brd_lock, flags);
@@ -3758,8 +3609,7 @@ stli_donestartup:
 
 	if (! stli_timeron) {
 		stli_timeron++;
-		stli_timerlist.expires = STLI_TIMEOUT;
-		add_timer(&stli_timerlist);
+		mod_timer(&stli_timerlist, STLI_TIMEOUT);
 	}
 
 	return rc;
@@ -3771,49 +3621,32 @@ stli_donestartup:
  *	Probe and initialize the specified board.
  */
 
-static int __init stli_brdinit(stlibrd_t *brdp)
+static int __devinit stli_brdinit(struct stlibrd *brdp)
 {
-	stli_brds[brdp->brdnr] = brdp;
+	int retval;
 
 	switch (brdp->brdtype) {
 	case BRD_ECP:
 	case BRD_ECPE:
 	case BRD_ECPMC:
 	case BRD_ECPPCI:
-		stli_initecp(brdp);
+		retval = stli_initecp(brdp);
 		break;
 	case BRD_ONBOARD:
 	case BRD_ONBOARDE:
 	case BRD_ONBOARD2:
-	case BRD_ONBOARD32:
-	case BRD_ONBOARD2_32:
-	case BRD_ONBOARDRS:
 	case BRD_BRUMBY4:
-	case BRD_BRUMBY8:
-	case BRD_BRUMBY16:
 	case BRD_STALLION:
-		stli_initonb(brdp);
+		retval = stli_initonb(brdp);
 		break;
-	case BRD_EASYIO:
-	case BRD_ECH:
-	case BRD_ECHMC:
-	case BRD_ECHPCI:
-		printk(KERN_ERR "STALLION: %s board type not supported in "
-				"this driver\n", stli_brdnames[brdp->brdtype]);
-		return -ENODEV;
 	default:
 		printk(KERN_ERR "STALLION: board=%d is unknown board "
 				"type=%d\n", brdp->brdnr, brdp->brdtype);
-		return -ENODEV;
+		retval = -ENODEV;
 	}
 
-	if ((brdp->state & BST_FOUND) == 0) {
-		printk(KERN_ERR "STALLION: %s board not found, board=%d "
-				"io=%x mem=%x\n",
-			stli_brdnames[brdp->brdtype], brdp->brdnr,
-			brdp->iobase, (int) brdp->memaddr);
-		return -ENODEV;
-	}
+	if (retval)
+		return retval;
 
 	stli_initports(brdp);
 	printk(KERN_INFO "STALLION: %s found, board=%d io=%x mem=%x "
@@ -3823,6 +3656,7 @@ static int __init stli_brdinit(stlibrd_t *brdp)
 	return 0;
 }
 
+#if STLI_EISAPROBE != 0
 /*****************************************************************************/
 
 /*
@@ -3830,7 +3664,7 @@ static int __init stli_brdinit(stlibrd_t *brdp)
  *	might be. This is a bit if hack, but it is the best we can do.
  */
 
-static int stli_eisamemprobe(stlibrd_t *brdp)
+static int stli_eisamemprobe(struct stlibrd *brdp)
 {
 	cdkecpsig_t	ecpsig, __iomem *ecpsigp;
 	cdkonbsig_t	onbsig, __iomem *onbsigp;
@@ -3916,10 +3750,11 @@ static int stli_eisamemprobe(stlibrd_t *brdp)
 	}
 	return 0;
 }
+#endif
 
 static int stli_getbrdnr(void)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < STL_MAXBRDS; i++) {
 		if (!stli_brds[i]) {
@@ -3931,6 +3766,7 @@ static int stli_getbrdnr(void)
 	return -1;
 }
 
+#if STLI_EISAPROBE != 0
 /*****************************************************************************/
 
 /*
@@ -3945,9 +3781,9 @@ static int stli_getbrdnr(void)
 
 static int stli_findeisabrds(void)
 {
-	stlibrd_t *brdp;
-	unsigned int iobase, eid;
-	int i;
+	struct stlibrd *brdp;
+	unsigned int iobase, eid, i;
+	int brdnr, found = 0;
 
 /*
  *	Firstly check if this is an EISA system.  If this is not an EISA system then
@@ -3985,9 +3821,11 @@ static int stli_findeisabrds(void)
  *		Allocate a board structure and initialize it.
  */
 		if ((brdp = stli_allocbrd()) == NULL)
-			return -ENOMEM;
-		if ((brdp->brdnr = stli_getbrdnr()) < 0)
-			return -ENOMEM;
+			return found ? : -ENOMEM;
+		brdnr = stli_getbrdnr();
+		if (brdnr < 0)
+			return found ? : -ENOMEM;
+		brdp->brdnr = (unsigned int)brdnr;
 		eid = inb(iobase + 0xc82);
 		if (eid == ECP_EISAID)
 			brdp->brdtype = BRD_ECPE;
@@ -3999,11 +3837,24 @@ static int stli_findeisabrds(void)
 		outb(0x1, (iobase + 0xc84));
 		if (stli_eisamemprobe(brdp))
 			outb(0, (iobase + 0xc84));
-		stli_brdinit(brdp);
+		if (stli_brdinit(brdp) < 0) {
+			kfree(brdp);
+			continue;
+		}
+
+		stli_brds[brdp->brdnr] = brdp;
+		found++;
+
+		for (i = 0; i < brdp->nrports; i++)
+			tty_register_device(stli_serial,
+					brdp->brdnr * STL_MAXPORTS + i, NULL);
 	}
 
-	return 0;
+	return found;
 }
+#else
+static inline int stli_findeisabrds(void) { return 0; }
+#endif
 
 /*****************************************************************************/
 
@@ -4013,72 +3864,104 @@ static int stli_findeisabrds(void)
 
 /*****************************************************************************/
 
-#ifdef	CONFIG_PCI
-
 /*
  *	We have a Stallion board. Allocate a board structure and
  *	initialize it. Read its IO and MEMORY resources from PCI
  *	configuration space.
  */
 
-static int stli_initpcibrd(int brdtype, struct pci_dev *devp)
+static int __devinit stli_pciprobe(struct pci_dev *pdev,
+		const struct pci_device_id *ent)
 {
-	stlibrd_t *brdp;
+	struct stlibrd *brdp;
+	unsigned int i;
+	int brdnr, retval = -EIO;
 
-	if (pci_enable_device(devp))
-		return -EIO;
-	if ((brdp = stli_allocbrd()) == NULL)
-		return -ENOMEM;
-	if ((brdp->brdnr = stli_getbrdnr()) < 0) {
+	retval = pci_enable_device(pdev);
+	if (retval)
+		goto err;
+	brdp = stli_allocbrd();
+	if (brdp == NULL) {
+		retval = -ENOMEM;
+		goto err;
+	}
+	mutex_lock(&stli_brdslock);
+	brdnr = stli_getbrdnr();
+	if (brdnr < 0) {
 		printk(KERN_INFO "STALLION: too many boards found, "
 			"maximum supported %d\n", STL_MAXBRDS);
-		return 0;
+		mutex_unlock(&stli_brdslock);
+		retval = -EIO;
+		goto err_fr;
 	}
-	brdp->brdtype = brdtype;
+	brdp->brdnr = (unsigned int)brdnr;
+	stli_brds[brdp->brdnr] = brdp;
+	mutex_unlock(&stli_brdslock);
+	brdp->brdtype = BRD_ECPPCI;
 /*
  *	We have all resources from the board, so lets setup the actual
  *	board structure now.
  */
-	brdp->iobase = pci_resource_start(devp, 3);
-	brdp->memaddr = pci_resource_start(devp, 2);
-	stli_brdinit(brdp);
+	brdp->iobase = pci_resource_start(pdev, 3);
+	brdp->memaddr = pci_resource_start(pdev, 2);
+	retval = stli_brdinit(brdp);
+	if (retval)
+		goto err_null;
+
+	brdp->state |= BST_PROBED;
+	pci_set_drvdata(pdev, brdp);
+
+	EBRDENABLE(brdp);
+	brdp->enable = NULL;
+	brdp->disable = NULL;
+
+	for (i = 0; i < brdp->nrports; i++)
+		tty_register_device(stli_serial, brdp->brdnr * STL_MAXPORTS + i,
+				&pdev->dev);
 
 	return 0;
+err_null:
+	stli_brds[brdp->brdnr] = NULL;
+err_fr:
+	kfree(brdp);
+err:
+	return retval;
 }
 
-/*****************************************************************************/
-
-/*
- *	Find all Stallion PCI boards that might be installed. Initialize each
- *	one as it is found.
- */
-
-static int stli_findpcibrds(void)
+static void stli_pciremove(struct pci_dev *pdev)
 {
-	struct pci_dev *dev = NULL;
+	struct stlibrd *brdp = pci_get_drvdata(pdev);
 
-	while ((dev = pci_get_device(PCI_VENDOR_ID_STALLION, PCI_DEVICE_ID_ECRA, dev))) {
-		stli_initpcibrd(BRD_ECPPCI, dev);
-	}
-	return 0;
+	stli_cleanup_ports(brdp);
+
+	iounmap(brdp->membase);
+	if (brdp->iosize > 0)
+		release_region(brdp->iobase, brdp->iosize);
+
+	stli_brds[brdp->brdnr] = NULL;
+	kfree(brdp);
 }
 
-#endif
-
+static struct pci_driver stli_pcidriver = {
+	.name = "istallion",
+	.id_table = istallion_pci_tbl,
+	.probe = stli_pciprobe,
+	.remove = __devexit_p(stli_pciremove)
+};
 /*****************************************************************************/
 
 /*
  *	Allocate a new board structure. Fill out the basic info in it.
  */
 
-static stlibrd_t *stli_allocbrd(void)
+static struct stlibrd *stli_allocbrd(void)
 {
-	stlibrd_t *brdp;
+	struct stlibrd *brdp;
 
-	brdp = kzalloc(sizeof(stlibrd_t), GFP_KERNEL);
+	brdp = kzalloc(sizeof(struct stlibrd), GFP_KERNEL);
 	if (!brdp) {
 		printk(KERN_ERR "STALLION: failed to allocate memory "
-				"(size=%Zd)\n", sizeof(stlibrd_t));
+				"(size=%Zd)\n", sizeof(struct stlibrd));
 		return NULL;
 	}
 	brdp->magic = STLI_BOARDMAGIC;
@@ -4094,43 +3977,37 @@ static stlibrd_t *stli_allocbrd(void)
 
 static int stli_initbrds(void)
 {
-	stlibrd_t *brdp, *nxtbrdp;
-	stlconf_t *confp;
-	int i, j;
+	struct stlibrd *brdp, *nxtbrdp;
+	struct stlconf conf;
+	unsigned int i, j, found = 0;
+	int retval;
 
-	if (stli_nrbrds > STL_MAXBRDS) {
-		printk(KERN_INFO "STALLION: too many boards in configuration "
-			"table, truncating to %d\n", STL_MAXBRDS);
-		stli_nrbrds = STL_MAXBRDS;
-	}
-
-/*
- *	Firstly scan the list of static boards configured. Allocate
- *	resources and initialize the boards as found. If this is a
- *	module then let the module args override static configuration.
- */
-	for (i = 0; (i < stli_nrbrds); i++) {
-		confp = &stli_brdconf[i];
-		stli_parsebrd(confp, stli_brdsp[i]);
+	for (stli_nrbrds = 0; stli_nrbrds < ARRAY_SIZE(stli_brdsp);
+			stli_nrbrds++) {
+		memset(&conf, 0, sizeof(conf));
+		if (stli_parsebrd(&conf, stli_brdsp[stli_nrbrds]) == 0)
+			continue;
 		if ((brdp = stli_allocbrd()) == NULL)
-			return -ENOMEM;
-		brdp->brdnr = i;
-		brdp->brdtype = confp->brdtype;
-		brdp->iobase = confp->ioaddr1;
-		brdp->memaddr = confp->memaddr;
-		stli_brdinit(brdp);
+			continue;
+		brdp->brdnr = stli_nrbrds;
+		brdp->brdtype = conf.brdtype;
+		brdp->iobase = conf.ioaddr1;
+		brdp->memaddr = conf.memaddr;
+		if (stli_brdinit(brdp) < 0) {
+			kfree(brdp);
+			continue;
+		}
+		stli_brds[brdp->brdnr] = brdp;
+		found++;
+
+		for (i = 0; i < brdp->nrports; i++)
+			tty_register_device(stli_serial,
+					brdp->brdnr * STL_MAXPORTS + i, NULL);
 	}
 
-/*
- *	Static configuration table done, so now use dynamic methods to
- *	see if any more boards should be configured.
- */
-	stli_argbrds();
-	if (STLI_EISAPROBE)
-		stli_findeisabrds();
-#ifdef CONFIG_PCI
-	stli_findpcibrds();
-#endif
+	retval = stli_findeisabrds();
+	if (retval > 0)
+		found += retval;
 
 /*
  *	All found boards are initialized. Now for a little optimization, if
@@ -4170,7 +4047,16 @@ static int stli_initbrds(void)
 		}
 	}
 
+	retval = pci_register_driver(&stli_pcidriver);
+	if (retval && found == 0) {
+		printk(KERN_ERR "Neither isa nor eisa cards found nor pci "
+				"driver can be registered!\n");
+		goto err;
+	}
+
 	return 0;
+err:
+	return retval;
 }
 
 /*****************************************************************************/
@@ -4185,12 +4071,13 @@ static ssize_t stli_memread(struct file *fp, char __user *buf, size_t count, lof
 {
 	unsigned long flags;
 	void __iomem *memptr;
-	stlibrd_t *brdp;
-	int brdnr, size, n;
+	struct stlibrd *brdp;
+	unsigned int brdnr;
+	int size, n;
 	void *p;
 	loff_t off = *offp;
 
-	brdnr = iminor(fp->f_dentry->d_inode);
+	brdnr = iminor(fp->f_path.dentry->d_inode);
 	if (brdnr >= stli_nrbrds)
 		return -ENODEV;
 	brdp = stli_brds[brdnr];
@@ -4201,7 +4088,7 @@ static ssize_t stli_memread(struct file *fp, char __user *buf, size_t count, lof
 	if (off >= brdp->memsize || off + count < off)
 		return 0;
 
-	size = MIN(count, (brdp->memsize - off));
+	size = min(count, (size_t)(brdp->memsize - off));
 
 	/*
 	 *	Copy the data a page at a time
@@ -4215,8 +4102,8 @@ static ssize_t stli_memread(struct file *fp, char __user *buf, size_t count, lof
 		spin_lock_irqsave(&brd_lock, flags);
 		EBRDENABLE(brdp);
 		memptr = EBRDGETMEMPTR(brdp, off);
-		n = MIN(size, (brdp->pagesize - (((unsigned long) off) % brdp->pagesize)));
-		n = MIN(n, PAGE_SIZE);
+		n = min(size, (int)(brdp->pagesize - (((unsigned long) off) % brdp->pagesize)));
+		n = min(n, (int)PAGE_SIZE);
 		memcpy_fromio(p, memptr, n);
 		EBRDDISABLE(brdp);
 		spin_unlock_irqrestore(&brd_lock, flags);
@@ -4248,13 +4135,14 @@ static ssize_t stli_memwrite(struct file *fp, const char __user *buf, size_t cou
 {
 	unsigned long flags;
 	void __iomem *memptr;
-	stlibrd_t *brdp;
+	struct stlibrd *brdp;
 	char __user *chbuf;
-	int brdnr, size, n;
+	unsigned int brdnr;
+	int size, n;
 	void *p;
 	loff_t off = *offp;
 
-	brdnr = iminor(fp->f_dentry->d_inode);
+	brdnr = iminor(fp->f_path.dentry->d_inode);
 
 	if (brdnr >= stli_nrbrds)
 		return -ENODEV;
@@ -4267,7 +4155,7 @@ static ssize_t stli_memwrite(struct file *fp, const char __user *buf, size_t cou
 		return 0;
 
 	chbuf = (char __user *) buf;
-	size = MIN(count, (brdp->memsize - off));
+	size = min(count, (size_t)(brdp->memsize - off));
 
 	/*
 	 *	Copy the data a page at a time
@@ -4278,8 +4166,8 @@ static ssize_t stli_memwrite(struct file *fp, const char __user *buf, size_t cou
 		return -ENOMEM;
 
 	while (size > 0) {
-		n = MIN(size, (brdp->pagesize - (((unsigned long) off) % brdp->pagesize)));
-		n = MIN(n, PAGE_SIZE);
+		n = min(size, (int)(brdp->pagesize - (((unsigned long) off) % brdp->pagesize)));
+		n = min(n, (int)PAGE_SIZE);
 		if (copy_from_user(p, chbuf, n)) {
 			if (count == 0)
 				count = -EFAULT;
@@ -4309,8 +4197,8 @@ out:
 
 static int stli_getbrdstats(combrd_t __user *bp)
 {
-	stlibrd_t *brdp;
-	int i;
+	struct stlibrd *brdp;
+	unsigned int i;
 
 	if (copy_from_user(&stli_brdstats, bp, sizeof(combrd_t)))
 		return -EFAULT;
@@ -4346,19 +4234,20 @@ static int stli_getbrdstats(combrd_t __user *bp)
  *	Resolve the referenced port number into a port struct pointer.
  */
 
-static stliport_t *stli_getport(int brdnr, int panelnr, int portnr)
+static struct stliport *stli_getport(unsigned int brdnr, unsigned int panelnr,
+		unsigned int portnr)
 {
-	stlibrd_t *brdp;
-	int i;
+	struct stlibrd *brdp;
+	unsigned int i;
 
-	if (brdnr < 0 || brdnr >= STL_MAXBRDS)
+	if (brdnr >= STL_MAXBRDS)
 		return NULL;
 	brdp = stli_brds[brdnr];
 	if (brdp == NULL)
 		return NULL;
 	for (i = 0; (i < panelnr); i++)
 		portnr += brdp->panels[i];
-	if ((portnr < 0) || (portnr >= brdp->nrports))
+	if (portnr >= brdp->nrports)
 		return NULL;
 	return brdp->ports[portnr];
 }
@@ -4371,10 +4260,10 @@ static stliport_t *stli_getport(int brdnr, int panelnr, int portnr)
  *	what port to get stats for (used through board control device).
  */
 
-static int stli_portcmdstats(stliport_t *portp)
+static int stli_portcmdstats(struct stliport *portp)
 {
 	unsigned long	flags;
-	stlibrd_t	*brdp;
+	struct stlibrd	*brdp;
 	int		rc;
 
 	memset(&stli_comstats, 0, sizeof(comstats_t));
@@ -4445,9 +4334,9 @@ static int stli_portcmdstats(stliport_t *portp)
  *	what port to get stats for (used through board control device).
  */
 
-static int stli_getportstats(stliport_t *portp, comstats_t __user *cp)
+static int stli_getportstats(struct stliport *portp, comstats_t __user *cp)
 {
-	stlibrd_t *brdp;
+	struct stlibrd *brdp;
 	int rc;
 
 	if (!portp) {
@@ -4476,9 +4365,9 @@ static int stli_getportstats(stliport_t *portp, comstats_t __user *cp)
  *	Clear the port stats structure. We also return it zeroed out...
  */
 
-static int stli_clrportstats(stliport_t *portp, comstats_t __user *cp)
+static int stli_clrportstats(struct stliport *portp, comstats_t __user *cp)
 {
-	stlibrd_t *brdp;
+	struct stlibrd *brdp;
 	int rc;
 
 	if (!portp) {
@@ -4515,17 +4404,18 @@ static int stli_clrportstats(stliport_t *portp, comstats_t __user *cp)
  *	Return the entire driver ports structure to a user app.
  */
 
-static int stli_getportstruct(stliport_t __user *arg)
+static int stli_getportstruct(struct stliport __user *arg)
 {
-	stliport_t *portp;
+	struct stliport stli_dummyport;
+	struct stliport *portp;
 
-	if (copy_from_user(&stli_dummyport, arg, sizeof(stliport_t)))
+	if (copy_from_user(&stli_dummyport, arg, sizeof(struct stliport)))
 		return -EFAULT;
 	portp = stli_getport(stli_dummyport.brdnr, stli_dummyport.panelnr,
 		 stli_dummyport.portnr);
 	if (!portp)
 		return -ENODEV;
-	if (copy_to_user(arg, portp, sizeof(stliport_t)))
+	if (copy_to_user(arg, portp, sizeof(struct stliport)))
 		return -EFAULT;
 	return 0;
 }
@@ -4536,18 +4426,19 @@ static int stli_getportstruct(stliport_t __user *arg)
  *	Return the entire driver board structure to a user app.
  */
 
-static int stli_getbrdstruct(stlibrd_t __user *arg)
+static int stli_getbrdstruct(struct stlibrd __user *arg)
 {
-	stlibrd_t *brdp;
+	struct stlibrd stli_dummybrd;
+	struct stlibrd *brdp;
 
-	if (copy_from_user(&stli_dummybrd, arg, sizeof(stlibrd_t)))
+	if (copy_from_user(&stli_dummybrd, arg, sizeof(struct stlibrd)))
 		return -EFAULT;
-	if ((stli_dummybrd.brdnr < 0) || (stli_dummybrd.brdnr >= STL_MAXBRDS))
+	if (stli_dummybrd.brdnr >= STL_MAXBRDS)
 		return -ENODEV;
 	brdp = stli_brds[stli_dummybrd.brdnr];
 	if (!brdp)
 		return -ENODEV;
-	if (copy_to_user(arg, brdp, sizeof(stlibrd_t)))
+	if (copy_to_user(arg, brdp, sizeof(struct stlibrd)))
 		return -EFAULT;
 	return 0;
 }
@@ -4562,7 +4453,7 @@ static int stli_getbrdstruct(stlibrd_t __user *arg)
 
 static int stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, unsigned long arg)
 {
-	stlibrd_t *brdp;
+	struct stlibrd *brdp;
 	int brdnr, rc, done;
 	void __user *argp = (void __user *)arg;
 
@@ -4661,46 +4552,53 @@ static const struct tty_operations stli_ops = {
 };
 
 /*****************************************************************************/
+/*
+ *	Loadable module initialization stuff.
+ */
 
-static int __init stli_init(void)
+static void istallion_cleanup_isa(void)
 {
-	int i;
+	struct stlibrd	*brdp;
+	unsigned int j;
+
+	for (j = 0; (j < stli_nrbrds); j++) {
+		if ((brdp = stli_brds[j]) == NULL || (brdp->state & BST_PROBED))
+			continue;
+
+		stli_cleanup_ports(brdp);
+
+		iounmap(brdp->membase);
+		if (brdp->iosize > 0)
+			release_region(brdp->iobase, brdp->iosize);
+		kfree(brdp);
+		stli_brds[j] = NULL;
+	}
+}
+
+static int __init istallion_module_init(void)
+{
+	unsigned int i;
+	int retval;
+
 	printk(KERN_INFO "%s: version %s\n", stli_drvtitle, stli_drvversion);
 
 	spin_lock_init(&stli_lock);
 	spin_lock_init(&brd_lock);
 
-	stli_initbrds();
-
-	stli_serial = alloc_tty_driver(STL_MAXBRDS * STL_MAXPORTS);
-	if (!stli_serial)
-		return -ENOMEM;
-
-/*
- *	Allocate a temporary write buffer.
- */
 	stli_txcookbuf = kmalloc(STLI_TXBUFSIZE, GFP_KERNEL);
-	if (!stli_txcookbuf)
+	if (!stli_txcookbuf) {
 		printk(KERN_ERR "STALLION: failed to allocate memory "
 				"(size=%d)\n", STLI_TXBUFSIZE);
+		retval = -ENOMEM;
+		goto err;
+	}
 
-/*
- *	Set up a character driver for the shared memory region. We need this
- *	to down load the slave code image. Also it is a useful debugging tool.
- */
-	if (register_chrdev(STL_SIOMEMMAJOR, "staliomem", &stli_fsiomem))
-		printk(KERN_ERR "STALLION: failed to register serial memory "
-				"device\n");
+	stli_serial = alloc_tty_driver(STL_MAXBRDS * STL_MAXPORTS);
+	if (!stli_serial) {
+		retval = -ENOMEM;
+		goto err_free;
+	}
 
-	istallion_class = class_create(THIS_MODULE, "staliomem");
-	for (i = 0; i < 4; i++)
-		class_device_create(istallion_class, NULL,
-				MKDEV(STL_SIOMEMMAJOR, i),
-				NULL, "staliomem%d", i);
-
-/*
- *	Set up the tty driver structure and register us as a driver.
- */
 	stli_serial->owner = THIS_MODULE;
 	stli_serial->driver_name = stli_drvname;
 	stli_serial->name = stli_serialname;
@@ -4709,15 +4607,79 @@ static int __init stli_init(void)
 	stli_serial->type = TTY_DRIVER_TYPE_SERIAL;
 	stli_serial->subtype = SERIAL_TYPE_NORMAL;
 	stli_serial->init_termios = stli_deftermios;
-	stli_serial->flags = TTY_DRIVER_REAL_RAW;
+	stli_serial->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(stli_serial, &stli_ops);
 
-	if (tty_register_driver(stli_serial)) {
-		put_tty_driver(stli_serial);
+	retval = tty_register_driver(stli_serial);
+	if (retval) {
 		printk(KERN_ERR "STALLION: failed to register serial driver\n");
-		return -EBUSY;
+		goto err_ttyput;
 	}
+
+	retval = stli_initbrds();
+	if (retval)
+		goto err_ttyunr;
+
+/*
+ *	Set up a character driver for the shared memory region. We need this
+ *	to down load the slave code image. Also it is a useful debugging tool.
+ */
+	retval = register_chrdev(STL_SIOMEMMAJOR, "staliomem", &stli_fsiomem);
+	if (retval) {
+		printk(KERN_ERR "STALLION: failed to register serial memory "
+				"device\n");
+		goto err_deinit;
+	}
+
+	istallion_class = class_create(THIS_MODULE, "staliomem");
+	for (i = 0; i < 4; i++)
+		class_device_create(istallion_class, NULL,
+				MKDEV(STL_SIOMEMMAJOR, i),
+				NULL, "staliomem%d", i);
+
 	return 0;
+err_deinit:
+	pci_unregister_driver(&stli_pcidriver);
+	istallion_cleanup_isa();
+err_ttyunr:
+	tty_unregister_driver(stli_serial);
+err_ttyput:
+	put_tty_driver(stli_serial);
+err_free:
+	kfree(stli_txcookbuf);
+err:
+	return retval;
 }
 
 /*****************************************************************************/
+
+static void __exit istallion_module_exit(void)
+{
+	unsigned int j;
+
+	printk(KERN_INFO "Unloading %s: version %s\n", stli_drvtitle,
+		stli_drvversion);
+
+	if (stli_timeron) {
+		stli_timeron = 0;
+		del_timer_sync(&stli_timerlist);
+	}
+
+	unregister_chrdev(STL_SIOMEMMAJOR, "staliomem");
+
+	for (j = 0; j < 4; j++)
+		class_device_destroy(istallion_class, MKDEV(STL_SIOMEMMAJOR,
+					j));
+	class_destroy(istallion_class);
+
+	pci_unregister_driver(&stli_pcidriver);
+	istallion_cleanup_isa();
+
+	tty_unregister_driver(stli_serial);
+	put_tty_driver(stli_serial);
+
+	kfree(stli_txcookbuf);
+}
+
+module_init(istallion_module_init);
+module_exit(istallion_module_exit);

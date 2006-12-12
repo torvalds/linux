@@ -16,6 +16,8 @@
 
 #define COMMAND_LINE_SIZE 1024
 
+#ifdef __KERNEL__
+
 /* The list ends with an ATAG_NONE node. */
 #define ATAG_NONE	0x00000000
 
@@ -201,5 +203,7 @@ struct meminfo {
 };
 
 extern struct meminfo meminfo;
+
+#endif  /*  __KERNEL__  */
 
 #endif

@@ -64,11 +64,11 @@ source "sound/arm/Kconfig"
 
 source "sound/mips/Kconfig"
 
-# the following will depenend on the order of config.
+# the following will depend on the order of config.
 # here assuming USB is defined before ALSA
 source "sound/usb/Kconfig"
 
-# the following will depenend on the order of config.
+# the following will depend on the order of config.
 # here assuming PCMCIA is defined before ALSA
 source "sound/pcmcia/Kconfig"
 
@@ -92,5 +92,13 @@ source "sound/oss/Kconfig"
 endmenu
 
 endif
+
+config AC97_BUS
+	tristate
+	help
+	  This is used to avoid config and link hard dependencies between the
+	  sound subsystem and other function drivers completely unrelated to
+	  sound although they're sharing the AC97 bus. Concerned drivers
+	  should "select" this.
 
 endmenu

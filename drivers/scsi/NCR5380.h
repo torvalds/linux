@@ -271,7 +271,7 @@ struct NCR5380_hostdata {
 	unsigned long time_expires;		/* in jiffies, set prior to sleeping */
 	int select_time;			/* timer in select for target response */
 	volatile Scsi_Cmnd *selecting;
-	struct work_struct coroutine;		/* our co-routine */
+	struct delayed_work coroutine;		/* our co-routine */
 #ifdef NCR5380_STATS
 	unsigned timebase;			/* Base for time calcs */
 	long time_read[8];			/* time to do reads */
@@ -298,7 +298,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance);
 #ifndef DONT_USE_INTR
 static irqreturn_t NCR5380_intr(int irq, void *dev_id);
 #endif
-static void NCR5380_main(void *ptr);
+static void NCR5380_main(struct work_struct *work);
 static void NCR5380_print_options(struct Scsi_Host *instance);
 #ifdef NDEBUG
 static void NCR5380_print_phase(struct Scsi_Host *instance);

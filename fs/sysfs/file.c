@@ -154,7 +154,7 @@ sysfs_read_file(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 	down(&buffer->sem);
 	if (buffer->needs_read_fill) {
-		if ((retval = fill_read_buffer(file->f_dentry,buffer)))
+		if ((retval = fill_read_buffer(file->f_path.dentry,buffer)))
 			goto out;
 	}
 	pr_debug("%s: count = %zd, ppos = %lld, buf = %s\n",
@@ -190,6 +190,9 @@ fill_write_buffer(struct sysfs_buffer * buffer, const char __user * buf, size_t 
 		count = PAGE_SIZE - 1;
 	error = copy_from_user(buffer->page,buf,count);
 	buffer->needs_read_fill = 1;
+	/* if buf is assumed to contain a string, terminate it by \0,
+	   so e.g. sscanf() can scan the string easily */
+	buffer->page[count] = 0;
 	return error ? -EFAULT : count;
 }
 
@@ -242,7 +245,7 @@ sysfs_write_file(struct file *file, const char __user *buf, size_t count, loff_t
 	down(&buffer->sem);
 	len = fill_write_buffer(buffer, buf, count);
 	if (len > 0)
-		len = flush_write_buffer(file->f_dentry, buffer, len);
+		len = flush_write_buffer(file->f_path.dentry, buffer, len);
 	if (len > 0)
 		*ppos += len;
 	up(&buffer->sem);
@@ -251,8 +254,8 @@ sysfs_write_file(struct file *file, const char __user *buf, size_t count, loff_t
 
 static int check_perm(struct inode * inode, struct file * file)
 {
-	struct kobject *kobj = sysfs_get_kobject(file->f_dentry->d_parent);
-	struct attribute * attr = to_attr(file->f_dentry);
+	struct kobject *kobj = sysfs_get_kobject(file->f_path.dentry->d_parent);
+	struct attribute * attr = to_attr(file->f_path.dentry);
 	struct sysfs_buffer * buffer;
 	struct sysfs_ops * ops = NULL;
 	int error = 0;
@@ -334,8 +337,8 @@ static int sysfs_open_file(struct inode * inode, struct file * filp)
 
 static int sysfs_release(struct inode * inode, struct file * filp)
 {
-	struct kobject * kobj = to_kobj(filp->f_dentry->d_parent);
-	struct attribute * attr = to_attr(filp->f_dentry);
+	struct kobject * kobj = to_kobj(filp->f_path.dentry->d_parent);
+	struct attribute * attr = to_attr(filp->f_path.dentry);
 	struct module * owner = attr->owner;
 	struct sysfs_buffer * buffer = filp->private_data;
 
@@ -369,8 +372,8 @@ static int sysfs_release(struct inode * inode, struct file * filp)
 static unsigned int sysfs_poll(struct file *filp, poll_table *wait)
 {
 	struct sysfs_buffer * buffer = filp->private_data;
-	struct kobject * kobj = to_kobj(filp->f_dentry->d_parent);
-	struct sysfs_dirent * sd = filp->f_dentry->d_fsdata;
+	struct kobject * kobj = to_kobj(filp->f_path.dentry->d_parent);
+	struct sysfs_dirent * sd = filp->f_path.dentry->d_fsdata;
 	int res = 0;
 
 	poll_wait(filp, &kobj->poll, wait);
@@ -483,17 +486,12 @@ int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
 		    (victim->d_parent->d_inode == dir->d_inode)) {
 			victim->d_inode->i_mtime = CURRENT_TIME;
 			fsnotify_modify(victim);
-
-			/**
-			 * Drop reference from initial sysfs_get_dentry().
-			 */
-			dput(victim);
 			res = 0;
 		} else
 			d_drop(victim);
 		
 		/**
-		 * Drop the reference acquired from sysfs_get_dentry() above.
+		 * Drop the reference acquired from lookup_one_len() above.
 		 */
 		dput(victim);
 	}

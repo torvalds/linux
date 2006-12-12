@@ -192,7 +192,7 @@ static int pcf8563_validate_client(struct i2c_client *client)
 		xfer = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 
 		if (xfer != ARRAY_SIZE(msgs)) {
-			dev_err(&client->adapter->dev,
+			dev_err(&client->dev,
 				"%s: could not read register 0x%02X\n",
 				__FUNCTION__, pattern[i].reg);
 
@@ -203,7 +203,7 @@ static int pcf8563_validate_client(struct i2c_client *client)
 
 		if (value > pattern[i].max ||
 			value < pattern[i].min) {
-			dev_dbg(&client->adapter->dev,
+			dev_dbg(&client->dev,
 				"%s: pattern=%d, reg=%x, mask=0x%02x, min=%d, "
 				"max=%d, value=%d, raw=0x%02X\n",
 				__FUNCTION__, i, pattern[i].reg, pattern[i].mask,
@@ -253,7 +253,7 @@ static int pcf8563_probe(struct i2c_adapter *adapter, int address, int kind)
 
 	int err = 0;
 
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
+	dev_dbg(adapter->class_dev.dev, "%s\n", __FUNCTION__);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;

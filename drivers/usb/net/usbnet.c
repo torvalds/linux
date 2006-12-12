@@ -116,7 +116,7 @@ int usbnet_get_endpoints(struct usbnet *dev, struct usb_interface *intf)
 			e = alt->endpoint + ep;
 			switch (e->desc.bmAttributes) {
 			case USB_ENDPOINT_XFER_INT:
-				if (!(e->desc.bEndpointAddress & USB_DIR_IN))
+				if (!usb_endpoint_dir_in(&e->desc))
 					continue;
 				intr = 1;
 				/* FALLTHROUGH */
@@ -125,7 +125,7 @@ int usbnet_get_endpoints(struct usbnet *dev, struct usb_interface *intf)
 			default:
 				continue;
 			}
-			if (e->desc.bEndpointAddress & USB_DIR_IN) {
+			if (usb_endpoint_dir_in(&e->desc)) {
 				if (!intr && !in)
 					in = e;
 				else if (intr && !status)
@@ -179,9 +179,9 @@ static int init_status (struct usbnet *dev, struct usb_interface *intf)
 	period = max ((int) dev->status->desc.bInterval,
 		(dev->udev->speed == USB_SPEED_HIGH) ? 7 : 3);
 
-	buf = kmalloc (maxp, SLAB_KERNEL);
+	buf = kmalloc (maxp, GFP_KERNEL);
 	if (buf) {
-		dev->interrupt = usb_alloc_urb (0, SLAB_KERNEL);
+		dev->interrupt = usb_alloc_urb (0, GFP_KERNEL);
 		if (!dev->interrupt) {
 			kfree (buf);
 			return -ENOMEM;
@@ -554,7 +554,7 @@ static int usbnet_stop (struct net_device *net)
 {
 	struct usbnet		*dev = netdev_priv(net);
 	int			temp;
-	DECLARE_WAIT_QUEUE_HEAD (unlink_wakeup); 
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK (unlink_wakeup);
 	DECLARE_WAITQUEUE (wait, current);
 
 	netif_stop_queue (net);
@@ -669,6 +669,69 @@ done:
  * they'll probably want to use this base set.
  */
 
+#if defined(CONFIG_MII) || defined(CONFIG_MII_MODULE)
+#define HAVE_MII
+
+int usbnet_get_settings (struct net_device *net, struct ethtool_cmd *cmd)
+{
+	struct usbnet *dev = netdev_priv(net);
+
+	if (!dev->mii.mdio_read)
+		return -EOPNOTSUPP;
+
+	return mii_ethtool_gset(&dev->mii, cmd);
+}
+EXPORT_SYMBOL_GPL(usbnet_get_settings);
+
+int usbnet_set_settings (struct net_device *net, struct ethtool_cmd *cmd)
+{
+	struct usbnet *dev = netdev_priv(net);
+	int retval;
+
+	if (!dev->mii.mdio_write)
+		return -EOPNOTSUPP;
+
+	retval = mii_ethtool_sset(&dev->mii, cmd);
+
+	/* link speed/duplex might have changed */
+	if (dev->driver_info->link_reset)
+		dev->driver_info->link_reset(dev);
+
+	return retval;
+
+}
+EXPORT_SYMBOL_GPL(usbnet_set_settings);
+
+u32 usbnet_get_link (struct net_device *net)
+{
+	struct usbnet *dev = netdev_priv(net);
+
+	/* If a check_connect is defined, return its result */
+	if (dev->driver_info->check_connect)
+		return dev->driver_info->check_connect (dev) == 0;
+
+	/* if the device has mii operations, use those */
+	if (dev->mii.mdio_read)
+		return mii_link_ok(&dev->mii);
+
+	/* Otherwise, say we're up (to avoid breaking scripts) */
+	return 1;
+}
+EXPORT_SYMBOL_GPL(usbnet_get_link);
+
+int usbnet_nway_reset(struct net_device *net)
+{
+	struct usbnet *dev = netdev_priv(net);
+
+	if (!dev->mii.mdio_write)
+		return -EOPNOTSUPP;
+
+	return mii_nway_restart(&dev->mii);
+}
+EXPORT_SYMBOL_GPL(usbnet_nway_reset);
+
+#endif	/* HAVE_MII */
+
 void usbnet_get_drvinfo (struct net_device *net, struct ethtool_drvinfo *info)
 {
 	struct usbnet *dev = netdev_priv(net);
@@ -681,18 +744,6 @@ void usbnet_get_drvinfo (struct net_device *net, struct ethtool_drvinfo *info)
 	usb_make_path (dev->udev, info->bus_info, sizeof info->bus_info);
 }
 EXPORT_SYMBOL_GPL(usbnet_get_drvinfo);
-
-static u32 usbnet_get_link (struct net_device *net)
-{
-	struct usbnet *dev = netdev_priv(net);
-
-	/* If a check_connect is defined, return its result */
-	if (dev->driver_info->check_connect)
-		return dev->driver_info->check_connect (dev) == 0;
-
-	/* Otherwise, say we're up (to avoid breaking scripts) */
-	return 1;
-}
 
 u32 usbnet_get_msglevel (struct net_device *net)
 {
@@ -712,8 +763,13 @@ EXPORT_SYMBOL_GPL(usbnet_set_msglevel);
 
 /* drivers may override default ethtool_ops in their bind() routine */
 static struct ethtool_ops usbnet_ethtool_ops = {
-	.get_drvinfo		= usbnet_get_drvinfo,
+#ifdef	HAVE_MII
+	.get_settings		= usbnet_get_settings,
+	.set_settings		= usbnet_set_settings,
 	.get_link		= usbnet_get_link,
+	.nway_reset		= usbnet_nway_reset,
+#endif
+	.get_drvinfo		= usbnet_get_drvinfo,
 	.get_msglevel		= usbnet_get_msglevel,
 	.set_msglevel		= usbnet_set_msglevel,
 };
@@ -726,9 +782,10 @@ static struct ethtool_ops usbnet_ethtool_ops = {
  * especially now that control transfers can be queued.
  */
 static void
-kevent (void *data)
+kevent (struct work_struct *work)
 {
-	struct usbnet		*dev = data;
+	struct usbnet		*dev =
+		container_of(work, struct usbnet, kevent);
 	int			status;
 
 	/* usb_clear_halt() needs a thread context */
@@ -1090,10 +1147,11 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	skb_queue_head_init (&dev->done);
 	dev->bh.func = usbnet_bh;
 	dev->bh.data = (unsigned long) dev;
-	INIT_WORK (&dev->kevent, kevent, dev);
+	INIT_WORK (&dev->kevent, kevent);
 	dev->delay.function = usbnet_bh;
 	dev->delay.data = (unsigned long) dev;
 	init_timer (&dev->delay);
+	mutex_init (&dev->phy_mutex);
 
 	SET_MODULE_OWNER (net);
 	dev->net = net;
@@ -1225,7 +1283,7 @@ EXPORT_SYMBOL_GPL(usbnet_resume);
 static int __init usbnet_init(void)
 {
 	/* compiler should optimize this out */
-	BUG_ON (sizeof (((struct sk_buff *)0)->cb)
+	BUILD_BUG_ON (sizeof (((struct sk_buff *)0)->cb)
 			< sizeof (struct skb_data));
 
 	random_ether_addr(node_id);

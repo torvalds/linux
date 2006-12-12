@@ -296,7 +296,7 @@ static int lp_wait_ready(int minor, int nonblock)
 static ssize_t lp_write(struct file * file, const char __user * buf,
 		        size_t count, loff_t *ppos)
 {
-	unsigned int minor = iminor(file->f_dentry->d_inode);
+	unsigned int minor = iminor(file->f_path.dentry->d_inode);
 	struct parport *port = lp_table[minor].dev->port;
 	char *kbuf = lp_table[minor].lp_buffer;
 	ssize_t retv = 0;
@@ -415,7 +415,7 @@ static ssize_t lp_read(struct file * file, char __user * buf,
 		       size_t count, loff_t *ppos)
 {
 	DEFINE_WAIT(wait);
-	unsigned int minor=iminor(file->f_dentry->d_inode);
+	unsigned int minor=iminor(file->f_path.dentry->d_inode);
 	struct parport *port = lp_table[minor].dev->port;
 	ssize_t retval = 0;
 	char *kbuf = lp_table[minor].lp_buffer;

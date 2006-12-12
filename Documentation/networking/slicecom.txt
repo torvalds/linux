@@ -126,7 +126,7 @@ comx0/boardnum	- board number of the SliceCom in the PC (using the 'natural'
 
 Though the options below are to be set on a single interface, they apply to the
 whole board. The restriction, to use them on 'UP' interfaces, is because the 
-command sequence below could lead to unpredicable results.
+command sequence below could lead to unpredictable results.
 
 	# echo 0        >boardnum
 	# echo internal >clock_source

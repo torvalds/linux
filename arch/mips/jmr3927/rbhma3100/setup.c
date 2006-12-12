@@ -170,12 +170,20 @@ static void jmr3927_machine_power_off(void)
 	while (1);
 }
 
+static cycle_t jmr3927_hpt_read(void)
+{
+	/* We assume this function is called xtime_lock held. */
+	return jiffies * (JMR3927_TIMER_CLK / HZ) + jmr3927_tmrptr->trr;
+}
+
 #define USE_RTC_DS1742
 #ifdef USE_RTC_DS1742
 extern void rtc_ds1742_init(unsigned long base);
 #endif
 static void __init jmr3927_time_init(void)
 {
+	clocksource_mips.read = jmr3927_hpt_read;
+	mips_hpt_frequency = JMR3927_TIMER_CLK;
 #ifdef USE_RTC_DS1742
 	if (jmr3927_have_nvram()) {
 	        rtc_ds1742_init(JMR3927_IOC_NVRAMB_ADDR);
@@ -183,12 +191,8 @@ static void __init jmr3927_time_init(void)
 #endif
 }
 
-unsigned long jmr3927_do_gettimeoffset(void);
-
 void __init plat_timer_setup(struct irqaction *irq)
 {
-	do_gettimeoffset = jmr3927_do_gettimeoffset;
-
 	jmr3927_tmrptr->cpra = JMR3927_TIMER_CLK / HZ;
 	jmr3927_tmrptr->itmr = TXx927_TMTITMR_TIIE | TXx927_TMTITMR_TZCE;
 	jmr3927_tmrptr->ccdr = JMR3927_TIMER_CCD;
@@ -199,34 +203,6 @@ void __init plat_timer_setup(struct irqaction *irq)
 }
 
 #define USECS_PER_JIFFY (1000000/HZ)
-
-unsigned long jmr3927_do_gettimeoffset(void)
-{
-       unsigned long count;
-       unsigned long res = 0;
-
-       /* MUST read TRR before TISR. */
-       count = jmr3927_tmrptr->trr;
-
-       if (jmr3927_tmrptr->tisr & TXx927_TMTISR_TIIS) {
-               /* timer interrupt is pending.  use Max value. */
-               res = USECS_PER_JIFFY - 1;
-       } else {
-               /* convert to usec */
-               /* res = count / (JMR3927_TIMER_CLK / 1000000); */
-               res = (count << 7) / ((JMR3927_TIMER_CLK << 7) / 1000000);
-
-               /*
-                * Due to possible jiffies inconsistencies, we need to check
-                * the result so that we'll get a timer that is monotonic.
-                */
-               if (res >= USECS_PER_JIFFY)
-                       res = USECS_PER_JIFFY-1;
-       }
-
-       return res;
-}
-
 
 //#undef DO_WRITE_THROUGH
 #define DO_WRITE_THROUGH

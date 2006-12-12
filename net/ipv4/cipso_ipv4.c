@@ -319,6 +319,7 @@ static int cipso_v4_cache_check(const unsigned char *key,
 			entry->activity += 1;
 			atomic_inc(&entry->lsm_data->refcount);
 			secattr->cache = entry->lsm_data;
+			secattr->flags |= NETLBL_SECATTR_CACHE;
 			if (prev_entry == NULL) {
 				spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 				return 0;
@@ -377,12 +378,11 @@ int cipso_v4_cache_add(const struct sk_buff *skb,
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
 		return -ENOMEM;
-	entry->key = kmalloc(cipso_ptr_len, GFP_ATOMIC);
+	entry->key = kmemdup(cipso_ptr, cipso_ptr_len, GFP_ATOMIC);
 	if (entry->key == NULL) {
 		ret_val = -ENOMEM;
 		goto cache_add_failure;
 	}
-	memcpy(entry->key, cipso_ptr, cipso_ptr_len);
 	entry->key_len = cipso_ptr_len;
 	entry->hash = cipso_v4_map_cache_hash(cipso_ptr, cipso_ptr_len);
 	atomic_inc(&secattr->cache->refcount);
@@ -447,8 +447,30 @@ static struct cipso_v4_doi *cipso_v4_doi_search(u32 doi)
  */
 int cipso_v4_doi_add(struct cipso_v4_doi *doi_def)
 {
+	u32 iter;
+
 	if (doi_def == NULL || doi_def->doi == CIPSO_V4_DOI_UNKNOWN)
 		return -EINVAL;
+	for (iter = 0; iter < CIPSO_V4_TAG_MAXCNT; iter++) {
+		switch (doi_def->tags[iter]) {
+		case CIPSO_V4_TAG_RBITMAP:
+			break;
+		case CIPSO_V4_TAG_RANGE:
+			if (doi_def->type != CIPSO_V4_MAP_PASS)
+				return -EINVAL;
+			break;
+		case CIPSO_V4_TAG_INVALID:
+			if (iter == 0)
+				return -EINVAL;
+			break;
+		case CIPSO_V4_TAG_ENUM:
+			if (doi_def->type != CIPSO_V4_MAP_PASS)
+				return -EINVAL;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
 
 	doi_def->valid = 1;
 	INIT_RCU_HEAD(&doi_def->rcu);
@@ -773,13 +795,15 @@ static int cipso_v4_map_cat_rbm_valid(const struct cipso_v4_doi *doi_def,
 {
 	int cat = -1;
 	u32 bitmap_len_bits = bitmap_len * 8;
-	u32 cipso_cat_size = doi_def->map.std->cat.cipso_size;
-	u32 *cipso_array = doi_def->map.std->cat.cipso;
+	u32 cipso_cat_size;
+	u32 *cipso_array;
 
 	switch (doi_def->type) {
 	case CIPSO_V4_MAP_PASS:
 		return 0;
 	case CIPSO_V4_MAP_STD:
+		cipso_cat_size = doi_def->map.std->cat.cipso_size;
+		cipso_array = doi_def->map.std->cat.cipso;
 		for (;;) {
 			cat = cipso_v4_bitmap_walk(bitmap,
 						   bitmap_len_bits,
@@ -803,8 +827,7 @@ static int cipso_v4_map_cat_rbm_valid(const struct cipso_v4_doi *doi_def,
 /**
  * cipso_v4_map_cat_rbm_hton - Perform a category mapping from host to network
  * @doi_def: the DOI definition
- * @host_cat: the category bitmap in host format
- * @host_cat_len: the length of the host's category bitmap in bytes
+ * @secattr: the security attributes
  * @net_cat: the zero'd out category bitmap in network/CIPSO format
  * @net_cat_len: the length of the CIPSO bitmap in bytes
  *
@@ -815,57 +838,51 @@ static int cipso_v4_map_cat_rbm_valid(const struct cipso_v4_doi *doi_def,
  *
  */
 static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
-				     const unsigned char *host_cat,
-				     u32 host_cat_len,
+				     const struct netlbl_lsm_secattr *secattr,
 				     unsigned char *net_cat,
 				     u32 net_cat_len)
 {
 	int host_spot = -1;
-	u32 net_spot;
+	u32 net_spot = CIPSO_V4_INV_CAT;
 	u32 net_spot_max = 0;
-	u32 host_clen_bits = host_cat_len * 8;
 	u32 net_clen_bits = net_cat_len * 8;
-	u32 host_cat_size = doi_def->map.std->cat.local_size;
-	u32 *host_cat_array = doi_def->map.std->cat.local;
+	u32 host_cat_size = 0;
+	u32 *host_cat_array = NULL;
 
-	switch (doi_def->type) {
-	case CIPSO_V4_MAP_PASS:
-		net_spot_max = host_cat_len - 1;
-		while (net_spot_max > 0 && host_cat[net_spot_max] == 0)
-			net_spot_max--;
-		if (net_spot_max > net_cat_len)
-			return -EINVAL;
-		memcpy(net_cat, host_cat, net_spot_max);
-		return net_spot_max;
-	case CIPSO_V4_MAP_STD:
-		for (;;) {
-			host_spot = cipso_v4_bitmap_walk(host_cat,
-							 host_clen_bits,
-							 host_spot + 1,
-							 1);
-			if (host_spot < 0)
-				break;
-			if (host_spot >= host_cat_size)
-				return -EPERM;
-
-			net_spot = host_cat_array[host_spot];
-			if (net_spot >= net_clen_bits)
-				return -ENOSPC;
-			cipso_v4_bitmap_setbit(net_cat, net_spot, 1);
-
-			if (net_spot > net_spot_max)
-				net_spot_max = net_spot;
-		}
-
-		if (host_spot == -2)
-			return -EFAULT;
-
-		if (++net_spot_max % 8)
-			return net_spot_max / 8 + 1;
-		return net_spot_max / 8;
+	if (doi_def->type == CIPSO_V4_MAP_STD) {
+		host_cat_size = doi_def->map.std->cat.local_size;
+		host_cat_array = doi_def->map.std->cat.local;
 	}
 
-	return -EINVAL;
+	for (;;) {
+		host_spot = netlbl_secattr_catmap_walk(secattr->mls_cat,
+						       host_spot + 1);
+		if (host_spot < 0)
+			break;
+
+		switch (doi_def->type) {
+		case CIPSO_V4_MAP_PASS:
+			net_spot = host_spot;
+			break;
+		case CIPSO_V4_MAP_STD:
+			if (host_spot >= host_cat_size)
+				return -EPERM;
+			net_spot = host_cat_array[host_spot];
+			if (net_spot >= CIPSO_V4_INV_CAT)
+				return -EPERM;
+			break;
+		}
+		if (net_spot >= net_clen_bits)
+			return -ENOSPC;
+		cipso_v4_bitmap_setbit(net_cat, net_spot, 1);
+
+		if (net_spot > net_spot_max)
+			net_spot_max = net_spot;
+	}
+
+	if (++net_spot_max % 8)
+		return net_spot_max / 8 + 1;
+	return net_spot_max / 8;
 }
 
 /**
@@ -873,99 +890,332 @@ static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
  * @doi_def: the DOI definition
  * @net_cat: the category bitmap in network/CIPSO format
  * @net_cat_len: the length of the CIPSO bitmap in bytes
- * @host_cat: the zero'd out category bitmap in host format
- * @host_cat_len: the length of the host's category bitmap in bytes
+ * @secattr: the security attributes
  *
  * Description:
  * Perform a label mapping to translate a CIPSO bitmap to the correct local
- * MLS category bitmap using the given DOI definition.  Returns the minimum
- * size in bytes of the host bitmap on success, negative values otherwise.
+ * MLS category bitmap using the given DOI definition.  Returns zero on
+ * success, negative values on failure.
  *
  */
 static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
 				     const unsigned char *net_cat,
 				     u32 net_cat_len,
-				     unsigned char *host_cat,
-				     u32 host_cat_len)
+				     struct netlbl_lsm_secattr *secattr)
 {
-	u32 host_spot;
-	u32 host_spot_max = 0;
+	int ret_val;
 	int net_spot = -1;
+	u32 host_spot = CIPSO_V4_INV_CAT;
 	u32 net_clen_bits = net_cat_len * 8;
-	u32 host_clen_bits = host_cat_len * 8;
-	u32 net_cat_size = doi_def->map.std->cat.cipso_size;
-	u32 *net_cat_array = doi_def->map.std->cat.cipso;
+	u32 net_cat_size = 0;
+	u32 *net_cat_array = NULL;
 
-	switch (doi_def->type) {
-	case CIPSO_V4_MAP_PASS:
-		if (net_cat_len > host_cat_len)
-			return -EINVAL;
-		memcpy(host_cat, net_cat, net_cat_len);
-		return net_cat_len;
-	case CIPSO_V4_MAP_STD:
-		for (;;) {
-			net_spot = cipso_v4_bitmap_walk(net_cat,
-							net_clen_bits,
-							net_spot + 1,
-							1);
-			if (net_spot < 0)
-				break;
-			if (net_spot >= net_cat_size ||
-			    net_cat_array[net_spot] >= CIPSO_V4_INV_CAT)
-				return -EPERM;
+	if (doi_def->type == CIPSO_V4_MAP_STD) {
+		net_cat_size = doi_def->map.std->cat.cipso_size;
+		net_cat_array = doi_def->map.std->cat.cipso;
+	}
 
-			host_spot = net_cat_array[net_spot];
-			if (host_spot >= host_clen_bits)
-				return -ENOSPC;
-			cipso_v4_bitmap_setbit(host_cat, host_spot, 1);
-
-			if (host_spot > host_spot_max)
-				host_spot_max = host_spot;
+	for (;;) {
+		net_spot = cipso_v4_bitmap_walk(net_cat,
+						net_clen_bits,
+						net_spot + 1,
+						1);
+		if (net_spot < 0) {
+			if (net_spot == -2)
+				return -EFAULT;
+			return 0;
 		}
 
-		if (net_spot == -2)
-			return -EFAULT;
-
-		if (++host_spot_max % 8)
-			return host_spot_max / 8 + 1;
-		return host_spot_max / 8;
+		switch (doi_def->type) {
+		case CIPSO_V4_MAP_PASS:
+			host_spot = net_spot;
+			break;
+		case CIPSO_V4_MAP_STD:
+			if (net_spot >= net_cat_size)
+				return -EPERM;
+			host_spot = net_cat_array[net_spot];
+			if (host_spot >= CIPSO_V4_INV_CAT)
+				return -EPERM;
+			break;
+		}
+		ret_val = netlbl_secattr_catmap_setbit(secattr->mls_cat,
+						       host_spot,
+						       GFP_ATOMIC);
+		if (ret_val != 0)
+			return ret_val;
 	}
 
 	return -EINVAL;
+}
+
+/**
+ * cipso_v4_map_cat_enum_valid - Checks to see if the categories are valid
+ * @doi_def: the DOI definition
+ * @enumcat: category list
+ * @enumcat_len: length of the category list in bytes
+ *
+ * Description:
+ * Checks the given categories against the given DOI definition and returns a
+ * negative value if any of the categories do not have a valid mapping and a
+ * zero value if all of the categories are valid.
+ *
+ */
+static int cipso_v4_map_cat_enum_valid(const struct cipso_v4_doi *doi_def,
+				       const unsigned char *enumcat,
+				       u32 enumcat_len)
+{
+	u16 cat;
+	int cat_prev = -1;
+	u32 iter;
+
+	if (doi_def->type != CIPSO_V4_MAP_PASS || enumcat_len & 0x01)
+		return -EFAULT;
+
+	for (iter = 0; iter < enumcat_len; iter += 2) {
+		cat = ntohs(*((__be16 *)&enumcat[iter]));
+		if (cat <= cat_prev)
+			return -EFAULT;
+		cat_prev = cat;
+	}
+
+	return 0;
+}
+
+/**
+ * cipso_v4_map_cat_enum_hton - Perform a category mapping from host to network
+ * @doi_def: the DOI definition
+ * @secattr: the security attributes
+ * @net_cat: the zero'd out category list in network/CIPSO format
+ * @net_cat_len: the length of the CIPSO category list in bytes
+ *
+ * Description:
+ * Perform a label mapping to translate a local MLS category bitmap to the
+ * correct CIPSO category list using the given DOI definition.   Returns the
+ * size in bytes of the network category bitmap on success, negative values
+ * otherwise.
+ *
+ */
+static int cipso_v4_map_cat_enum_hton(const struct cipso_v4_doi *doi_def,
+				      const struct netlbl_lsm_secattr *secattr,
+				      unsigned char *net_cat,
+				      u32 net_cat_len)
+{
+	int cat = -1;
+	u32 cat_iter = 0;
+
+	for (;;) {
+		cat = netlbl_secattr_catmap_walk(secattr->mls_cat, cat + 1);
+		if (cat < 0)
+			break;
+		if ((cat_iter + 2) > net_cat_len)
+			return -ENOSPC;
+
+		*((__be16 *)&net_cat[cat_iter]) = htons(cat);
+		cat_iter += 2;
+	}
+
+	return cat_iter;
+}
+
+/**
+ * cipso_v4_map_cat_enum_ntoh - Perform a category mapping from network to host
+ * @doi_def: the DOI definition
+ * @net_cat: the category list in network/CIPSO format
+ * @net_cat_len: the length of the CIPSO bitmap in bytes
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Perform a label mapping to translate a CIPSO category list to the correct
+ * local MLS category bitmap using the given DOI definition.  Returns zero on
+ * success, negative values on failure.
+ *
+ */
+static int cipso_v4_map_cat_enum_ntoh(const struct cipso_v4_doi *doi_def,
+				      const unsigned char *net_cat,
+				      u32 net_cat_len,
+				      struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val;
+	u32 iter;
+
+	for (iter = 0; iter < net_cat_len; iter += 2) {
+		ret_val = netlbl_secattr_catmap_setbit(secattr->mls_cat,
+					    ntohs(*((__be16 *)&net_cat[iter])),
+					    GFP_ATOMIC);
+		if (ret_val != 0)
+			return ret_val;
+	}
+
+	return 0;
+}
+
+/**
+ * cipso_v4_map_cat_rng_valid - Checks to see if the categories are valid
+ * @doi_def: the DOI definition
+ * @rngcat: category list
+ * @rngcat_len: length of the category list in bytes
+ *
+ * Description:
+ * Checks the given categories against the given DOI definition and returns a
+ * negative value if any of the categories do not have a valid mapping and a
+ * zero value if all of the categories are valid.
+ *
+ */
+static int cipso_v4_map_cat_rng_valid(const struct cipso_v4_doi *doi_def,
+				      const unsigned char *rngcat,
+				      u32 rngcat_len)
+{
+	u16 cat_high;
+	u16 cat_low;
+	u32 cat_prev = CIPSO_V4_MAX_REM_CATS + 1;
+	u32 iter;
+
+	if (doi_def->type != CIPSO_V4_MAP_PASS || rngcat_len & 0x01)
+		return -EFAULT;
+
+	for (iter = 0; iter < rngcat_len; iter += 4) {
+		cat_high = ntohs(*((__be16 *)&rngcat[iter]));
+		if ((iter + 4) <= rngcat_len)
+			cat_low = ntohs(*((__be16 *)&rngcat[iter + 2]));
+		else
+			cat_low = 0;
+
+		if (cat_high > cat_prev)
+			return -EFAULT;
+
+		cat_prev = cat_low;
+	}
+
+	return 0;
+}
+
+/**
+ * cipso_v4_map_cat_rng_hton - Perform a category mapping from host to network
+ * @doi_def: the DOI definition
+ * @secattr: the security attributes
+ * @net_cat: the zero'd out category list in network/CIPSO format
+ * @net_cat_len: the length of the CIPSO category list in bytes
+ *
+ * Description:
+ * Perform a label mapping to translate a local MLS category bitmap to the
+ * correct CIPSO category list using the given DOI definition.   Returns the
+ * size in bytes of the network category bitmap on success, negative values
+ * otherwise.
+ *
+ */
+static int cipso_v4_map_cat_rng_hton(const struct cipso_v4_doi *doi_def,
+				     const struct netlbl_lsm_secattr *secattr,
+				     unsigned char *net_cat,
+				     u32 net_cat_len)
+{
+	/* The constant '16' is not random, it is the maximum number of
+	 * high/low category range pairs as permitted by the CIPSO draft based
+	 * on a maximum IPv4 header length of 60 bytes - the BUG_ON() assertion
+	 * does a sanity check to make sure we don't overflow the array. */
+	int iter = -1;
+	u16 array[16];
+	u32 array_cnt = 0;
+	u32 cat_size = 0;
+
+	BUG_ON(net_cat_len > 30);
+
+	for (;;) {
+		iter = netlbl_secattr_catmap_walk(secattr->mls_cat, iter + 1);
+		if (iter < 0)
+			break;
+		cat_size += (iter == 0 ? 0 : sizeof(u16));
+		if (cat_size > net_cat_len)
+			return -ENOSPC;
+		array[array_cnt++] = iter;
+
+		iter = netlbl_secattr_catmap_walk_rng(secattr->mls_cat, iter);
+		if (iter < 0)
+			return -EFAULT;
+		cat_size += sizeof(u16);
+		if (cat_size > net_cat_len)
+			return -ENOSPC;
+		array[array_cnt++] = iter;
+	}
+
+	for (iter = 0; array_cnt > 0;) {
+		*((__be16 *)&net_cat[iter]) = htons(array[--array_cnt]);
+		iter += 2;
+		array_cnt--;
+		if (array[array_cnt] != 0) {
+			*((__be16 *)&net_cat[iter]) = htons(array[array_cnt]);
+			iter += 2;
+		}
+	}
+
+	return cat_size;
+}
+
+/**
+ * cipso_v4_map_cat_rng_ntoh - Perform a category mapping from network to host
+ * @doi_def: the DOI definition
+ * @net_cat: the category list in network/CIPSO format
+ * @net_cat_len: the length of the CIPSO bitmap in bytes
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Perform a label mapping to translate a CIPSO category list to the correct
+ * local MLS category bitmap using the given DOI definition.  Returns zero on
+ * success, negative values on failure.
+ *
+ */
+static int cipso_v4_map_cat_rng_ntoh(const struct cipso_v4_doi *doi_def,
+				     const unsigned char *net_cat,
+				     u32 net_cat_len,
+				     struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val;
+	u32 net_iter;
+	u16 cat_low;
+	u16 cat_high;
+
+	for(net_iter = 0; net_iter < net_cat_len; net_iter += 4) {
+		cat_high = ntohs(*((__be16 *)&net_cat[net_iter]));
+		if ((net_iter + 4) <= net_cat_len)
+			cat_low = ntohs(*((__be16 *)&net_cat[net_iter + 2]));
+		else
+			cat_low = 0;
+
+		ret_val = netlbl_secattr_catmap_setrng(secattr->mls_cat,
+						       cat_low,
+						       cat_high,
+						       GFP_ATOMIC);
+		if (ret_val != 0)
+			return ret_val;
+	}
+
+	return 0;
 }
 
 /*
  * Protocol Handling Functions
  */
 
+#define CIPSO_V4_OPT_LEN_MAX          40
 #define CIPSO_V4_HDR_LEN              6
 
 /**
  * cipso_v4_gentag_hdr - Generate a CIPSO option header
  * @doi_def: the DOI definition
- * @len: the total tag length in bytes
+ * @len: the total tag length in bytes, not including this header
  * @buf: the CIPSO option buffer
  *
  * Description:
- * Write a CIPSO header into the beginning of @buffer.  Return zero on success,
- * negative values on failure.
+ * Write a CIPSO header into the beginning of @buffer.
  *
  */
-static int cipso_v4_gentag_hdr(const struct cipso_v4_doi *doi_def,
-			       u32 len,
-			       unsigned char *buf)
+static void cipso_v4_gentag_hdr(const struct cipso_v4_doi *doi_def,
+				unsigned char *buf,
+				u32 len)
 {
-	if (CIPSO_V4_HDR_LEN + len > 40)
-		return -ENOSPC;
-
 	buf[0] = IPOPT_CIPSO;
 	buf[1] = CIPSO_V4_HDR_LEN + len;
-	*(u32 *)&buf[2] = htonl(doi_def->doi);
-
-	return 0;
+	*(__be32 *)&buf[2] = htonl(doi_def->doi);
 }
-
-#define CIPSO_V4_TAG1_CAT_LEN         30
 
 /**
  * cipso_v4_gentag_rbm - Generate a CIPSO restricted bitmap tag (type #1)
@@ -977,68 +1227,49 @@ static int cipso_v4_gentag_hdr(const struct cipso_v4_doi *doi_def,
  * Description:
  * Generate a CIPSO option using the restricted bitmap tag, tag type #1.  The
  * actual buffer length may be larger than the indicated size due to
- * translation between host and network category bitmaps.  Returns zero on
- * success, negative values on failure.
+ * translation between host and network category bitmaps.  Returns the size of
+ * the tag on success, negative values on failure.
  *
  */
 static int cipso_v4_gentag_rbm(const struct cipso_v4_doi *doi_def,
 			       const struct netlbl_lsm_secattr *secattr,
-			       unsigned char **buffer,
-			       u32 *buffer_len)
+			       unsigned char *buffer,
+			       u32 buffer_len)
 {
-	int ret_val = -EPERM;
-	unsigned char *buf = NULL;
-	u32 buf_len;
+	int ret_val;
+	u32 tag_len;
 	u32 level;
 
-	if (secattr->mls_cat) {
-		buf = kzalloc(CIPSO_V4_HDR_LEN + 4 + CIPSO_V4_TAG1_CAT_LEN,
-			      GFP_ATOMIC);
-		if (buf == NULL)
-			return -ENOMEM;
+	if ((secattr->flags & NETLBL_SECATTR_MLS_LVL) == 0)
+		return -EPERM;
 
+	ret_val = cipso_v4_map_lvl_hton(doi_def, secattr->mls_lvl, &level);
+	if (ret_val != 0)
+		return ret_val;
+
+	if (secattr->flags & NETLBL_SECATTR_MLS_CAT) {
 		ret_val = cipso_v4_map_cat_rbm_hton(doi_def,
-						    secattr->mls_cat,
-						    secattr->mls_cat_len,
-						    &buf[CIPSO_V4_HDR_LEN + 4],
-						    CIPSO_V4_TAG1_CAT_LEN);
+						    secattr,
+						    &buffer[4],
+						    buffer_len - 4);
 		if (ret_val < 0)
-			goto gentag_failure;
+			return ret_val;
 
 		/* This will send packets using the "optimized" format when
 		 * possibile as specified in  section 3.4.2.6 of the
 		 * CIPSO draft. */
-		if (cipso_v4_rbm_optfmt && (ret_val > 0 && ret_val < 10))
-			ret_val = 10;
+		if (cipso_v4_rbm_optfmt && ret_val > 0 && ret_val <= 10)
+			tag_len = 14;
+		else
+			tag_len = 4 + ret_val;
+	} else
+		tag_len = 4;
 
-		buf_len = 4 + ret_val;
-	} else {
-		buf = kzalloc(CIPSO_V4_HDR_LEN + 4, GFP_ATOMIC);
-		if (buf == NULL)
-			return -ENOMEM;
-		buf_len = 4;
-	}
+	buffer[0] = 0x01;
+	buffer[1] = tag_len;
+	buffer[3] = level;
 
-	ret_val = cipso_v4_map_lvl_hton(doi_def, secattr->mls_lvl, &level);
-	if (ret_val != 0)
-		goto gentag_failure;
-
-	ret_val = cipso_v4_gentag_hdr(doi_def, buf_len, buf);
-	if (ret_val != 0)
-		goto gentag_failure;
-
-	buf[CIPSO_V4_HDR_LEN] = 0x01;
-	buf[CIPSO_V4_HDR_LEN + 1] = buf_len;
-	buf[CIPSO_V4_HDR_LEN + 3] = level;
-
-	*buffer = buf;
-	*buffer_len = CIPSO_V4_HDR_LEN + buf_len;
-
-	return 0;
-
-gentag_failure:
-	kfree(buf);
-	return ret_val;
+	return tag_len;
 }
 
 /**
@@ -1065,32 +1296,208 @@ static int cipso_v4_parsetag_rbm(const struct cipso_v4_doi *doi_def,
 	if (ret_val != 0)
 		return ret_val;
 	secattr->mls_lvl = level;
-	secattr->mls_lvl_vld = 1;
+	secattr->flags |= NETLBL_SECATTR_MLS_LVL;
 
 	if (tag_len > 4) {
-		switch (doi_def->type) {
-		case CIPSO_V4_MAP_PASS:
-			secattr->mls_cat_len = tag_len - 4;
-			break;
-		case CIPSO_V4_MAP_STD:
-			secattr->mls_cat_len =
-				doi_def->map.std->cat.local_size;
-			break;
-		}
-		secattr->mls_cat = kzalloc(secattr->mls_cat_len, GFP_ATOMIC);
+		secattr->mls_cat = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
 		if (secattr->mls_cat == NULL)
 			return -ENOMEM;
 
 		ret_val = cipso_v4_map_cat_rbm_ntoh(doi_def,
 						    &tag[4],
 						    tag_len - 4,
-						    secattr->mls_cat,
-						    secattr->mls_cat_len);
-		if (ret_val < 0) {
-			kfree(secattr->mls_cat);
+						    secattr);
+		if (ret_val != 0) {
+			netlbl_secattr_catmap_free(secattr->mls_cat);
 			return ret_val;
 		}
-		secattr->mls_cat_len = ret_val;
+
+		secattr->flags |= NETLBL_SECATTR_MLS_CAT;
+	}
+
+	return 0;
+}
+
+/**
+ * cipso_v4_gentag_enum - Generate a CIPSO enumerated tag (type #2)
+ * @doi_def: the DOI definition
+ * @secattr: the security attributes
+ * @buffer: the option buffer
+ * @buffer_len: length of buffer in bytes
+ *
+ * Description:
+ * Generate a CIPSO option using the enumerated tag, tag type #2.  Returns the
+ * size of the tag on success, negative values on failure.
+ *
+ */
+static int cipso_v4_gentag_enum(const struct cipso_v4_doi *doi_def,
+				const struct netlbl_lsm_secattr *secattr,
+				unsigned char *buffer,
+				u32 buffer_len)
+{
+	int ret_val;
+	u32 tag_len;
+	u32 level;
+
+	if (!(secattr->flags & NETLBL_SECATTR_MLS_LVL))
+		return -EPERM;
+
+	ret_val = cipso_v4_map_lvl_hton(doi_def, secattr->mls_lvl, &level);
+	if (ret_val != 0)
+		return ret_val;
+
+	if (secattr->flags & NETLBL_SECATTR_MLS_CAT) {
+		ret_val = cipso_v4_map_cat_enum_hton(doi_def,
+						     secattr,
+						     &buffer[4],
+						     buffer_len - 4);
+		if (ret_val < 0)
+			return ret_val;
+
+		tag_len = 4 + ret_val;
+	} else
+		tag_len = 4;
+
+	buffer[0] = 0x02;
+	buffer[1] = tag_len;
+	buffer[3] = level;
+
+	return tag_len;
+}
+
+/**
+ * cipso_v4_parsetag_enum - Parse a CIPSO enumerated tag
+ * @doi_def: the DOI definition
+ * @tag: the CIPSO tag
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Parse a CIPSO enumerated tag (tag type #2) and return the security
+ * attributes in @secattr.  Return zero on success, negatives values on
+ * failure.
+ *
+ */
+static int cipso_v4_parsetag_enum(const struct cipso_v4_doi *doi_def,
+				  const unsigned char *tag,
+				  struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val;
+	u8 tag_len = tag[1];
+	u32 level;
+
+	ret_val = cipso_v4_map_lvl_ntoh(doi_def, tag[3], &level);
+	if (ret_val != 0)
+		return ret_val;
+	secattr->mls_lvl = level;
+	secattr->flags |= NETLBL_SECATTR_MLS_LVL;
+
+	if (tag_len > 4) {
+		secattr->mls_cat = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
+		if (secattr->mls_cat == NULL)
+			return -ENOMEM;
+
+		ret_val = cipso_v4_map_cat_enum_ntoh(doi_def,
+						     &tag[4],
+						     tag_len - 4,
+						     secattr);
+		if (ret_val != 0) {
+			netlbl_secattr_catmap_free(secattr->mls_cat);
+			return ret_val;
+		}
+
+		secattr->flags |= NETLBL_SECATTR_MLS_CAT;
+	}
+
+	return 0;
+}
+
+/**
+ * cipso_v4_gentag_rng - Generate a CIPSO ranged tag (type #5)
+ * @doi_def: the DOI definition
+ * @secattr: the security attributes
+ * @buffer: the option buffer
+ * @buffer_len: length of buffer in bytes
+ *
+ * Description:
+ * Generate a CIPSO option using the ranged tag, tag type #5.  Returns the
+ * size of the tag on success, negative values on failure.
+ *
+ */
+static int cipso_v4_gentag_rng(const struct cipso_v4_doi *doi_def,
+			       const struct netlbl_lsm_secattr *secattr,
+			       unsigned char *buffer,
+			       u32 buffer_len)
+{
+	int ret_val;
+	u32 tag_len;
+	u32 level;
+
+	if (!(secattr->flags & NETLBL_SECATTR_MLS_LVL))
+		return -EPERM;
+
+	ret_val = cipso_v4_map_lvl_hton(doi_def, secattr->mls_lvl, &level);
+	if (ret_val != 0)
+		return ret_val;
+
+	if (secattr->flags & NETLBL_SECATTR_MLS_CAT) {
+		ret_val = cipso_v4_map_cat_rng_hton(doi_def,
+						    secattr,
+						    &buffer[4],
+						    buffer_len - 4);
+		if (ret_val < 0)
+			return ret_val;
+
+		tag_len = 4 + ret_val;
+	} else
+		tag_len = 4;
+
+	buffer[0] = 0x05;
+	buffer[1] = tag_len;
+	buffer[3] = level;
+
+	return tag_len;
+}
+
+/**
+ * cipso_v4_parsetag_rng - Parse a CIPSO ranged tag
+ * @doi_def: the DOI definition
+ * @tag: the CIPSO tag
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Parse a CIPSO ranged tag (tag type #5) and return the security attributes
+ * in @secattr.  Return zero on success, negatives values on failure.
+ *
+ */
+static int cipso_v4_parsetag_rng(const struct cipso_v4_doi *doi_def,
+				 const unsigned char *tag,
+				 struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val;
+	u8 tag_len = tag[1];
+	u32 level;
+
+	ret_val = cipso_v4_map_lvl_ntoh(doi_def, tag[3], &level);
+	if (ret_val != 0)
+		return ret_val;
+	secattr->mls_lvl = level;
+	secattr->flags |= NETLBL_SECATTR_MLS_LVL;
+
+	if (tag_len > 4) {
+		secattr->mls_cat = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
+		if (secattr->mls_cat == NULL)
+			return -ENOMEM;
+
+		ret_val = cipso_v4_map_cat_rng_ntoh(doi_def,
+						    &tag[4],
+						    tag_len - 4,
+						    secattr);
+		if (ret_val != 0) {
+			netlbl_secattr_catmap_free(secattr->mls_cat);
+			return ret_val;
+		}
+
+		secattr->flags |= NETLBL_SECATTR_MLS_CAT;
 	}
 
 	return 0;
@@ -1134,7 +1541,7 @@ int cipso_v4_validate(unsigned char **option)
 	}
 
 	rcu_read_lock();
-	doi_def = cipso_v4_doi_getdef(ntohl(*((u32 *)&opt[2])));
+	doi_def = cipso_v4_doi_search(ntohl(*((__be32 *)&opt[2])));
 	if (doi_def == NULL) {
 		err_offset = 2;
 		goto validate_return_locked;
@@ -1183,6 +1590,44 @@ int cipso_v4_validate(unsigned char **option)
 					err_offset = opt_iter + 4;
 					goto validate_return_locked;
 				}
+			}
+			break;
+		case CIPSO_V4_TAG_ENUM:
+			if (tag_len < 4) {
+				err_offset = opt_iter + 1;
+				goto validate_return_locked;
+			}
+
+			if (cipso_v4_map_lvl_valid(doi_def,
+						   tag[3]) < 0) {
+				err_offset = opt_iter + 3;
+				goto validate_return_locked;
+			}
+			if (tag_len > 4 &&
+			    cipso_v4_map_cat_enum_valid(doi_def,
+							&tag[4],
+							tag_len - 4) < 0) {
+				err_offset = opt_iter + 4;
+				goto validate_return_locked;
+			}
+			break;
+		case CIPSO_V4_TAG_RANGE:
+			if (tag_len < 4) {
+				err_offset = opt_iter + 1;
+				goto validate_return_locked;
+			}
+
+			if (cipso_v4_map_lvl_valid(doi_def,
+						   tag[3]) < 0) {
+				err_offset = opt_iter + 3;
+				goto validate_return_locked;
+			}
+			if (tag_len > 4 &&
+			    cipso_v4_map_cat_rng_valid(doi_def,
+						       &tag[4],
+						       tag_len - 4) < 0) {
+				err_offset = opt_iter + 4;
+				goto validate_return_locked;
 			}
 			break;
 		default:
@@ -1259,7 +1704,7 @@ int cipso_v4_socket_setattr(const struct socket *sock,
 {
 	int ret_val = -EPERM;
 	u32 iter;
-	unsigned char *buf = NULL;
+	unsigned char *buf;
 	u32 buf_len = 0;
 	u32 opt_len;
 	struct ip_options *opt = NULL;
@@ -1275,17 +1720,40 @@ int cipso_v4_socket_setattr(const struct socket *sock,
 	if (sk == NULL)
 		return 0;
 
+	/* We allocate the maximum CIPSO option size here so we are probably
+	 * being a little wasteful, but it makes our life _much_ easier later
+	 * on and after all we are only talking about 40 bytes. */
+	buf_len = CIPSO_V4_OPT_LEN_MAX;
+	buf = kmalloc(buf_len, GFP_ATOMIC);
+	if (buf == NULL) {
+		ret_val = -ENOMEM;
+		goto socket_setattr_failure;
+	}
+
 	/* XXX - This code assumes only one tag per CIPSO option which isn't
 	 * really a good assumption to make but since we only support the MAC
 	 * tags right now it is a safe assumption. */
 	iter = 0;
 	do {
+		memset(buf, 0, buf_len);
 		switch (doi_def->tags[iter]) {
 		case CIPSO_V4_TAG_RBITMAP:
 			ret_val = cipso_v4_gentag_rbm(doi_def,
-						      secattr,
-						      &buf,
-						      &buf_len);
+						   secattr,
+						   &buf[CIPSO_V4_HDR_LEN],
+						   buf_len - CIPSO_V4_HDR_LEN);
+			break;
+		case CIPSO_V4_TAG_ENUM:
+			ret_val = cipso_v4_gentag_enum(doi_def,
+						   secattr,
+						   &buf[CIPSO_V4_HDR_LEN],
+						   buf_len - CIPSO_V4_HDR_LEN);
+			break;
+		case CIPSO_V4_TAG_RANGE:
+			ret_val = cipso_v4_gentag_rng(doi_def,
+						   secattr,
+						   &buf[CIPSO_V4_HDR_LEN],
+						   buf_len - CIPSO_V4_HDR_LEN);
 			break;
 		default:
 			ret_val = -EPERM;
@@ -1293,15 +1761,18 @@ int cipso_v4_socket_setattr(const struct socket *sock,
 		}
 
 		iter++;
-	} while (ret_val != 0 &&
+	} while (ret_val < 0 &&
 		 iter < CIPSO_V4_TAG_MAXCNT &&
 		 doi_def->tags[iter] != CIPSO_V4_TAG_INVALID);
-	if (ret_val != 0)
+	if (ret_val < 0)
 		goto socket_setattr_failure;
+	cipso_v4_gentag_hdr(doi_def, buf, ret_val);
+	buf_len = CIPSO_V4_HDR_LEN + ret_val;
 
 	/* We can't use ip_options_get() directly because it makes a call to
 	 * ip_options_get_alloc() which allocates memory with GFP_KERNEL and
-	 * we can't block here. */
+	 * we won't always have CAP_NET_RAW even though we _always_ want to
+	 * set the IPOPT_CIPSO option. */
 	opt_len = (buf_len + 3) & ~3;
 	opt = kzalloc(sizeof(*opt) + opt_len, GFP_ATOMIC);
 	if (opt == NULL) {
@@ -1311,11 +1782,9 @@ int cipso_v4_socket_setattr(const struct socket *sock,
 	memcpy(opt->__data, buf, buf_len);
 	opt->optlen = opt_len;
 	opt->is_data = 1;
+	opt->cipso = sizeof(struct iphdr);
 	kfree(buf);
 	buf = NULL;
-	ret_val = ip_options_compile(opt, NULL);
-	if (ret_val != 0)
-		goto socket_setattr_failure;
 
 	sk_inet = inet_sk(sk);
 	if (sk_inet->is_icsk) {
@@ -1365,16 +1834,30 @@ int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 	if (ret_val == 0)
 		return ret_val;
 
-	doi = ntohl(*(u32 *)&cipso_ptr[2]);
+	doi = ntohl(*(__be32 *)&cipso_ptr[2]);
 	rcu_read_lock();
-	doi_def = cipso_v4_doi_getdef(doi);
+	doi_def = cipso_v4_doi_search(doi);
 	if (doi_def == NULL) {
 		rcu_read_unlock();
 		return -ENOMSG;
 	}
+
+	/* XXX - This code assumes only one tag per CIPSO option which isn't
+	 * really a good assumption to make but since we only support the MAC
+	 * tags right now it is a safe assumption. */
 	switch (cipso_ptr[6]) {
 	case CIPSO_V4_TAG_RBITMAP:
 		ret_val = cipso_v4_parsetag_rbm(doi_def,
+						&cipso_ptr[6],
+						secattr);
+		break;
+	case CIPSO_V4_TAG_ENUM:
+		ret_val = cipso_v4_parsetag_enum(doi_def,
+						 &cipso_ptr[6],
+						 secattr);
+		break;
+	case CIPSO_V4_TAG_RANGE:
+		ret_val = cipso_v4_parsetag_rng(doi_def,
 						&cipso_ptr[6],
 						secattr);
 		break;
@@ -1425,22 +1908,29 @@ int cipso_v4_skbuff_getattr(const struct sk_buff *skb,
 	u32 doi;
 	struct cipso_v4_doi *doi_def;
 
-	if (!CIPSO_V4_OPTEXIST(skb))
-		return -ENOMSG;
 	cipso_ptr = CIPSO_V4_OPTPTR(skb);
 	if (cipso_v4_cache_check(cipso_ptr, cipso_ptr[1], secattr) == 0)
 		return 0;
 
-	doi = ntohl(*(u32 *)&cipso_ptr[2]);
+	doi = ntohl(*(__be32 *)&cipso_ptr[2]);
 	rcu_read_lock();
-	doi_def = cipso_v4_doi_getdef(doi);
+	doi_def = cipso_v4_doi_search(doi);
 	if (doi_def == NULL)
 		goto skbuff_getattr_return;
+
+	/* XXX - This code assumes only one tag per CIPSO option which isn't
+	 * really a good assumption to make but since we only support the MAC
+	 * tags right now it is a safe assumption. */
 	switch (cipso_ptr[6]) {
 	case CIPSO_V4_TAG_RBITMAP:
 		ret_val = cipso_v4_parsetag_rbm(doi_def,
 						&cipso_ptr[6],
 						secattr);
+		break;
+	case CIPSO_V4_TAG_ENUM:
+		ret_val = cipso_v4_parsetag_enum(doi_def,
+						 &cipso_ptr[6],
+						 secattr);
 		break;
 	}
 

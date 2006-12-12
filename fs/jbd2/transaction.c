@@ -27,6 +27,8 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 
+static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh);
+
 /*
  * jbd2_get_transaction: obtain a new transaction_t object.
  *
@@ -967,6 +969,13 @@ int jbd2_journal_dirty_data(handle_t *handle, struct buffer_head *bh)
 	 */
 	jbd_lock_bh_state(bh);
 	spin_lock(&journal->j_list_lock);
+
+	/* Now that we have bh_state locked, are we really still mapped? */
+	if (!buffer_mapped(bh)) {
+		JBUFFER_TRACE(jh, "unmapped buffer, bailing out");
+		goto no_journal;
+	}
+
 	if (jh->b_transaction) {
 		JBUFFER_TRACE(jh, "has transaction");
 		if (jh->b_transaction != handle->h_transaction) {
@@ -1028,6 +1037,11 @@ int jbd2_journal_dirty_data(handle_t *handle, struct buffer_head *bh)
 				sync_dirty_buffer(bh);
 				jbd_lock_bh_state(bh);
 				spin_lock(&journal->j_list_lock);
+				/* Since we dropped the lock... */
+				if (!buffer_mapped(bh)) {
+					JBUFFER_TRACE(jh, "buffer got unmapped");
+					goto no_journal;
+				}
 				/* The buffer may become locked again at any
 				   time if it is redirtied */
 			}
@@ -1314,13 +1328,14 @@ int jbd2_journal_stop(handle_t *handle)
 	int old_handle_count, err;
 	pid_t pid;
 
-	J_ASSERT(transaction->t_updates > 0);
 	J_ASSERT(journal_current_handle() == handle);
 
 	if (is_handle_aborted(handle))
 		err = -EIO;
-	else
+	else {
+		J_ASSERT(transaction->t_updates > 0);
 		err = 0;
+	}
 
 	if (--handle->h_ref > 0) {
 		jbd_debug(4, "h_ref %d -> %d\n", handle->h_ref + 1,
@@ -1823,6 +1838,7 @@ static int journal_unmap_buffer(journal_t *journal, struct buffer_head *bh)
 			}
 		}
 	} else if (transaction == journal->j_committing_transaction) {
+		JBUFFER_TRACE(jh, "on committing transaction");
 		if (jh->b_jlist == BJ_Locked) {
 			/*
 			 * The buffer is on the committing transaction's locked
@@ -1837,7 +1853,6 @@ static int journal_unmap_buffer(journal_t *journal, struct buffer_head *bh)
 		 * can remove it's next_transaction pointer from the
 		 * running transaction if that is set, but nothing
 		 * else. */
-		JBUFFER_TRACE(jh, "on committing transaction");
 		set_buffer_freed(bh);
 		if (jh->b_next_transaction) {
 			J_ASSERT(jh->b_next_transaction ==
@@ -1857,6 +1872,7 @@ static int journal_unmap_buffer(journal_t *journal, struct buffer_head *bh)
 		 * i_size already for this truncate so recovery will not
 		 * expose the disk blocks we are discarding here.) */
 		J_ASSERT_JH(jh, transaction == journal->j_running_transaction);
+		JBUFFER_TRACE(jh, "on running transaction");
 		may_free = __dispose_buffer(jh, transaction);
 	}
 

@@ -455,7 +455,7 @@ static int pl2303_chars_in_buffer(struct usb_serial_port *port)
 }
 
 static void pl2303_set_termios(struct usb_serial_port *port,
-			       struct termios *old_termios)
+			       struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
@@ -687,7 +687,7 @@ static void pl2303_close(struct usb_serial_port *port, struct file *filp)
 
 static int pl2303_open(struct usb_serial_port *port, struct file *filp)
 {
-	struct termios tmp_termios;
+	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned char *buf;

@@ -177,7 +177,7 @@ static int  ip2_write_room(PTTY);
 static int  ip2_chars_in_buf(PTTY);
 static void ip2_flush_buffer(PTTY);
 static int  ip2_ioctl(PTTY, struct file *, UINT, ULONG);
-static void ip2_set_termios(PTTY, struct termios *);
+static void ip2_set_termios(PTTY, struct ktermios *);
 static void ip2_set_line_discipline(PTTY);
 static void ip2_throttle(PTTY);
 static void ip2_unthrottle(PTTY);
@@ -189,16 +189,16 @@ static int  ip2_tiocmset(struct tty_struct *tty, struct file *file,
 			 unsigned int set, unsigned int clear);
 
 static void set_irq(int, int);
-static void ip2_interrupt_bh(i2eBordStrPtr pB);
+static void ip2_interrupt_bh(struct work_struct *work);
 static irqreturn_t ip2_interrupt(int irq, void *dev_id);
 static void ip2_poll(unsigned long arg);
 static inline void service_all_boards(void);
-static void do_input(void *p);
-static void do_status(void *p);
+static void do_input(struct work_struct *);
+static void do_status(struct work_struct *);
 
 static void ip2_wait_until_sent(PTTY,int);
 
-static void set_params (i2ChanStrPtr, struct termios *);
+static void set_params (i2ChanStrPtr, struct ktermios *);
 static int get_serial_info(i2ChanStrPtr, struct serial_struct __user *);
 static int set_serial_info(i2ChanStrPtr, struct serial_struct __user *);
 
@@ -918,7 +918,7 @@ ip2_init_board( int boardnum )
 		pCh++;
 	}
 ex_exit:
-	INIT_WORK(&pB->tqueue_interrupt, (void(*)(void*)) ip2_interrupt_bh, pB);
+	INIT_WORK(&pB->tqueue_interrupt, ip2_interrupt_bh);
 	return;
 
 err_release_region:
@@ -1125,8 +1125,8 @@ service_all_boards(void)
 
 
 /******************************************************************************/
-/* Function:   ip2_interrupt_bh(pB)                                           */
-/* Parameters: pB - pointer to the board structure                            */
+/* Function:   ip2_interrupt_bh(work)                                         */
+/* Parameters: work - pointer to the board structure                          */
 /* Returns:    Nothing                                                        */
 /*                                                                            */
 /* Description:                                                               */
@@ -1135,8 +1135,9 @@ service_all_boards(void)
 /*                                                                            */
 /******************************************************************************/
 static void
-ip2_interrupt_bh(i2eBordStrPtr pB)
+ip2_interrupt_bh(struct work_struct *work)
 {
+	i2eBordStrPtr pB = container_of(work, i2eBordStr, tqueue_interrupt);
 //	pB better well be set or we have a problem!  We can only get
 //	here from the IMMEDIATE queue.  Here, we process the boards.
 //	Checking pB doesn't cost much and it saves us from the sanity checkers.
@@ -1245,9 +1246,9 @@ ip2_poll(unsigned long arg)
 	ip2trace (ITRC_NO_PORT, ITRC_INTR, ITRC_RETURN, 0 );
 }
 
-static void do_input(void *p)
+static void do_input(struct work_struct *work)
 {
-	i2ChanStrPtr pCh = p;
+	i2ChanStrPtr pCh = container_of(work, i2ChanStr, tqueue_input);
 	unsigned long flags;
 
 	ip2trace(CHANN, ITRC_INPUT, 21, 0 );
@@ -1279,9 +1280,9 @@ static inline void  isig(int sig, struct tty_struct *tty, int flush)
 	}
 }
 
-static void do_status(void *p)
+static void do_status(struct work_struct *work)
 {
-	i2ChanStrPtr pCh = p;
+	i2ChanStrPtr pCh = container_of(work, i2ChanStr, tqueue_status);
 	int status;
 
 	status =  i2GetStatus( pCh, (I2_BRK|I2_PAR|I2_FRA|I2_OVR) );
@@ -2397,7 +2398,7 @@ set_serial_info( i2ChanStrPtr pCh, struct serial_struct __user *new_info )
 /*                                                                            */
 /******************************************************************************/
 static void
-ip2_set_termios( PTTY tty, struct termios *old_termios )
+ip2_set_termios( PTTY tty, struct ktermios *old_termios )
 {
 	i2ChanStrPtr pCh = (i2ChanStrPtr)tty->driver_data;
 
@@ -2439,11 +2440,11 @@ ip2_set_line_discipline ( PTTY tty )
 /* change.                                                                    */
 /******************************************************************************/
 static void
-set_params( i2ChanStrPtr pCh, struct termios *o_tios )
+set_params( i2ChanStrPtr pCh, struct ktermios *o_tios )
 {
 	tcflag_t cflag, iflag, lflag;
 	char stop_char, start_char;
-	struct termios dummy;
+	struct ktermios dummy;
 
 	lflag = pCh->pTTY->termios->c_lflag;
 	cflag = pCh->pTTY->termios->c_cflag;
@@ -2699,7 +2700,7 @@ static
 ssize_t
 ip2_ipl_read(struct file *pFile, char __user *pData, size_t count, loff_t *off )
 {
-	unsigned int minor = iminor(pFile->f_dentry->d_inode);
+	unsigned int minor = iminor(pFile->f_path.dentry->d_inode);
 	int rc = 0;
 
 #ifdef IP2DEBUG_IPL

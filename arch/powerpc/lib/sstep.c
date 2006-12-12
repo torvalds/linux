@@ -9,6 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
+#include <linux/kprobes.h>
 #include <linux/ptrace.h>
 #include <asm/sstep.h>
 #include <asm/processor.h>
@@ -25,7 +26,7 @@ extern char system_call_common[];
 /*
  * Determine whether a conditional branch instruction would branch.
  */
-static int branch_taken(unsigned int instr, struct pt_regs *regs)
+static int __kprobes branch_taken(unsigned int instr, struct pt_regs *regs)
 {
 	unsigned int bo = (instr >> 21) & 0x1f;
 	unsigned int bi;
@@ -51,7 +52,7 @@ static int branch_taken(unsigned int instr, struct pt_regs *regs)
  * or -1 if the instruction is one that should not be stepped,
  * such as an rfid, or a mtmsrd that would clear MSR_RI.
  */
-int emulate_step(struct pt_regs *regs, unsigned int instr)
+int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 {
 	unsigned int opcode, rd;
 	unsigned long int imm;

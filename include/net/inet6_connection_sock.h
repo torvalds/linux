@@ -27,7 +27,7 @@ extern int inet6_csk_bind_conflict(const struct sock *sk,
 
 extern struct request_sock *inet6_csk_search_req(const struct sock *sk,
 						 struct request_sock ***prevp,
-						 const __u16 rport,
+						 const __be16 rport,
 						 const struct in6_addr *raddr,
 						 const struct in6_addr *laddr,
 						 const int iif);
@@ -38,5 +38,5 @@ extern void inet6_csk_reqsk_queue_hash_add(struct sock *sk,
 
 extern void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr);
 
-extern int inet6_csk_xmit(struct sk_buff *skb, int ipfragok);
+extern int inet6_csk_xmit(struct sk_buff *skb, struct sock *sk, int ipfragok);
 #endif /* _INET6_CONNECTION_SOCK_H */

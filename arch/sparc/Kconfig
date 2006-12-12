@@ -166,6 +166,14 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 config SUN_PM
 	bool
 	default y
@@ -212,8 +220,8 @@ config SPARC_LED
 	tristate "Sun4m LED driver"
 	help
 	  This driver toggles the front-panel LED on sun4m systems
-	  in a user-specifyable manner.  It's state can be probed
-	  by reading /proc/led and it's blinking mode can be changed
+	  in a user-specifiable manner.  Its state can be probed
+	  by reading /proc/led and its blinking mode can be changed
 	  via writes to /proc/led
 
 source "fs/Kconfig.binfmt"
@@ -288,6 +296,13 @@ config UNIX98_PTY_COUNT
 endmenu
 
 source "fs/Kconfig"
+
+menu "Instrumentation Support"
+	depends on EXPERIMENTAL
+
+source "arch/sparc/oprofile/Kconfig"
+
+endmenu
 
 source "arch/sparc/Kconfig.debug"
 

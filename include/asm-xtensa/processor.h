@@ -11,24 +11,18 @@
 #ifndef _XTENSA_PROCESSOR_H
 #define _XTENSA_PROCESSOR_H
 
-#ifdef __ASSEMBLY__
-#define _ASMLANGUAGE
-#endif
-
-#include <xtensa/config/core.h>
-#include <xtensa/config/specreg.h>
-#include <xtensa/config/tie.h>
-#include <xtensa/config/system.h>
+#include <asm/variant/core.h>
+#include <asm/coprocessor.h>
 
 #include <linux/compiler.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
-#include <asm/coprocessor.h>
+#include <asm/regs.h>
 
 /* Assertions. */
 
 #if (XCHAL_HAVE_WINDOWED != 1)
-#error Linux requires the Xtensa Windowed Registers Option.
+# error Linux requires the Xtensa Windowed Registers Option.
 #endif
 
 /*
@@ -145,11 +139,11 @@ struct thread_struct {
  * Note: We set-up ps as if we did a call4 to the new pc.
  *       set_thread_state in signal.c depends on it.
  */
-#define USER_PS_VALUE ( (1 << XCHAL_PS_WOE_SHIFT) + \
-                        (1 << XCHAL_PS_CALLINC_SHIFT) + \
-                        (USER_RING << XCHAL_PS_RING_SHIFT) + \
-                        (1 << XCHAL_PS_PROGSTACK_SHIFT) + \
-                        (1 << XCHAL_PS_EXCM_SHIFT) )
+#define USER_PS_VALUE ((1 << PS_WOE_BIT) |				\
+                       (1 << PS_CALLINC_SHIFT) |			\
+                       (USER_RING << PS_RING_SHIFT) |			\
+                       (1 << PS_UM_BIT) |				\
+                       (1 << PS_EXCM_BIT))
 
 /* Clearing a0 terminates the backtrace. */
 #define start_thread(regs, new_pc, new_sp) \

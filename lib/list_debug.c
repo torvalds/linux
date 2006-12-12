@@ -21,13 +21,15 @@ void __list_add(struct list_head *new,
 			      struct list_head *next)
 {
 	if (unlikely(next->prev != prev)) {
-		printk(KERN_ERR "list_add corruption. next->prev should be %p, but was %p\n",
-			prev, next->prev);
+		printk(KERN_ERR "list_add corruption. next->prev should be "
+			"prev (%p), but was %p. (next=%p).\n",
+			prev, next->prev, next);
 		BUG();
 	}
 	if (unlikely(prev->next != next)) {
-		printk(KERN_ERR "list_add corruption. prev->next should be %p, but was %p\n",
-			next, prev->next);
+		printk(KERN_ERR "list_add corruption. prev->next should be "
+			"next (%p), but was %p. (prev=%p).\n",
+			next, prev->next, prev);
 		BUG();
 	}
 	next->prev = new;

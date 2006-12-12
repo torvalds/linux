@@ -1474,8 +1474,8 @@ static void fix_read_error(conf_t *conf, int read_disk,
 					       "raid1:%s: read error corrected "
 					       "(%d sectors at %llu on %s)\n",
 					       mdname(mddev), s,
-					       (unsigned long long)sect +
-					           rdev->data_offset,
+					       (unsigned long long)(sect +
+					           rdev->data_offset),
 					       bdevname(rdev->bdev, b));
 				}
 			}
@@ -1951,6 +1951,7 @@ static int run(mddev_t *mddev)
 		    !test_bit(In_sync, &disk->rdev->flags)) {
 			disk->head_position = 0;
 			mddev->degraded++;
+			conf->fullsync = 1;
 		}
 	}
 	if (mddev->degraded == conf->raid_disks) {

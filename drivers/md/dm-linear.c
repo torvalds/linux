@@ -77,7 +77,7 @@ static int linear_map(struct dm_target *ti, struct bio *bio,
 	bio->bi_bdev = lc->dev->bdev;
 	bio->bi_sector = lc->start + (bio->bi_sector - ti->begin);
 
-	return 1;
+	return DM_MAPIO_REMAPPED;
 }
 
 static int linear_status(struct dm_target *ti, status_type_t type,
@@ -108,7 +108,7 @@ static int linear_ioctl(struct dm_target *ti, struct inode *inode,
 	struct dentry fake_dentry = {};
 
 	fake_file.f_mode = lc->dev->mode;
-	fake_file.f_dentry = &fake_dentry;
+	fake_file.f_path.dentry = &fake_dentry;
 	fake_dentry.d_inode = bdev->bd_inode;
 
 	return blkdev_driver_ioctl(bdev->bd_inode, &fake_file, bdev->bd_disk, cmd, arg);

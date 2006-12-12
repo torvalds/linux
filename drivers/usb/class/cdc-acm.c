@@ -325,7 +325,7 @@ static void acm_rx_tasklet(unsigned long _acm)
 	struct acm_rb *buf;
 	struct tty_struct *tty = acm->tty;
 	struct acm_ru *rcv;
-	//unsigned long flags;
+	unsigned long flags;
 	int i = 0;
 	dbg("Entering acm_rx_tasklet");
 
@@ -333,15 +333,15 @@ static void acm_rx_tasklet(unsigned long _acm)
 		return;
 
 next_buffer:
-	spin_lock(&acm->read_lock);
+	spin_lock_irqsave(&acm->read_lock, flags);
 	if (list_empty(&acm->filled_read_bufs)) {
-		spin_unlock(&acm->read_lock);
+		spin_unlock_irqrestore(&acm->read_lock, flags);
 		goto urbs;
 	}
 	buf = list_entry(acm->filled_read_bufs.next,
 			 struct acm_rb, list);
 	list_del(&buf->list);
-	spin_unlock(&acm->read_lock);
+	spin_unlock_irqrestore(&acm->read_lock, flags);
 
 	dbg("acm_rx_tasklet: procesing buf 0x%p, size = %d", buf, buf->size);
 
@@ -356,29 +356,29 @@ next_buffer:
 		memmove(buf->base, buf->base + i, buf->size - i);
 		buf->size -= i;
 		spin_unlock(&acm->throttle_lock);
-		spin_lock(&acm->read_lock);
+		spin_lock_irqsave(&acm->read_lock, flags);
 		list_add(&buf->list, &acm->filled_read_bufs);
-		spin_unlock(&acm->read_lock);
+		spin_unlock_irqrestore(&acm->read_lock, flags);
 		return;
 	}
 	spin_unlock(&acm->throttle_lock);
 
-	spin_lock(&acm->read_lock);
+	spin_lock_irqsave(&acm->read_lock, flags);
 	list_add(&buf->list, &acm->spare_read_bufs);
-	spin_unlock(&acm->read_lock);
+	spin_unlock_irqrestore(&acm->read_lock, flags);
 	goto next_buffer;
 
 urbs:
 	while (!list_empty(&acm->spare_read_bufs)) {
-		spin_lock(&acm->read_lock);
+		spin_lock_irqsave(&acm->read_lock, flags);
 		if (list_empty(&acm->spare_read_urbs)) {
-			spin_unlock(&acm->read_lock);
+			spin_unlock_irqrestore(&acm->read_lock, flags);
 			return;
 		}
 		rcv = list_entry(acm->spare_read_urbs.next,
 				 struct acm_ru, list);
 		list_del(&rcv->list);
-		spin_unlock(&acm->read_lock);
+		spin_unlock_irqrestore(&acm->read_lock, flags);
 
 		buf = list_entry(acm->spare_read_bufs.next,
 				 struct acm_rb, list);
@@ -400,9 +400,9 @@ urbs:
 		   free-urbs-pool and resubmited ASAP */
 		if (usb_submit_urb(rcv->urb, GFP_ATOMIC) < 0) {
 			list_add(&buf->list, &acm->spare_read_bufs);
-			spin_lock(&acm->read_lock);
+			spin_lock_irqsave(&acm->read_lock, flags);
 			list_add(&rcv->list, &acm->spare_read_urbs);
-			spin_unlock(&acm->read_lock);
+			spin_unlock_irqrestore(&acm->read_lock, flags);
 			return;
 		}
 	}
@@ -421,9 +421,9 @@ static void acm_write_bulk(struct urb *urb)
 		schedule_work(&acm->work);
 }
 
-static void acm_softint(void *private)
+static void acm_softint(struct work_struct *work)
 {
-	struct acm *acm = private;
+	struct acm *acm = container_of(work, struct acm, work);
 	dbg("Entering acm_softint.");
 	
 	if (!ACM_READY(acm))
@@ -677,10 +677,10 @@ static const __u8 acm_tty_size[] = {
 	5, 6, 7, 8
 };
 
-static void acm_tty_set_termios(struct tty_struct *tty, struct termios *termios_old)
+static void acm_tty_set_termios(struct tty_struct *tty, struct ktermios *termios_old)
 {
 	struct acm *acm = tty->driver_data;
-	struct termios *termios = tty->termios;
+	struct ktermios *termios = tty->termios;
 	struct usb_cdc_line_coding newline;
 	int newctrl = acm->ctrlout;
 
@@ -892,7 +892,7 @@ skip_normal_probe:
 
 
 	/* workaround for switched endpoints */
-	if ((epread->bEndpointAddress & USB_DIR_IN) != USB_DIR_IN) {
+	if (!usb_endpoint_dir_in(epread)) {
 		/* descriptors are swapped */
 		struct usb_endpoint_descriptor *t;
 		dev_dbg(&intf->dev,"The data interface has switched endpoints");
@@ -927,7 +927,7 @@ skip_normal_probe:
 	acm->rx_buflimit = num_rx_buf;
 	acm->urb_task.func = acm_rx_tasklet;
 	acm->urb_task.data = (unsigned long) acm;
-	INIT_WORK(&acm->work, acm_softint, acm);
+	INIT_WORK(&acm->work, acm_softint);
 	spin_lock_init(&acm->throttle_lock);
 	spin_lock_init(&acm->write_lock);
 	spin_lock_init(&acm->read_lock);
@@ -1081,6 +1081,9 @@ static struct usb_device_id acm_ids[] = {
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
 	{ USB_DEVICE(0x0482, 0x0203), /* KYOCERA AH-K3001V */
+	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
+	{ USB_DEVICE(0x079b, 0x000f), /* BT On-Air USB MODEM */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
 	{ USB_DEVICE(0x0ace, 0x1608), /* ZyDAS 56K USB MODEM */

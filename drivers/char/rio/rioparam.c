@@ -87,8 +87,8 @@ static char *_rioparam_c_sccs_ = "@(#)rioparam.c	1.3";
 ** command bit set onto the port. The command bit is in the len field,
 ** and gets ORed in with the actual byte count.
 **
-** When you send a packet with the command bit set, then the first
-** data byte ( data[0] ) is interpretted as the command to execute.
+** When you send a packet with the command bit set the first
+** data byte (data[0]) is interpreted as the command to execute.
 ** It also governs what data structure overlay should accompany the packet.
 ** Commands are defined in cirrus/cirrus.h
 **
@@ -103,7 +103,7 @@ static char *_rioparam_c_sccs_ = "@(#)rioparam.c	1.3";
 **
 ** Most commands do not use the remaining bytes in the data array. The
 ** exceptions are OPEN MOPEN and CONFIG. (NB. As with the SI CONFIG and
-** OPEN are currently analagous). With these three commands the following
+** OPEN are currently analogous). With these three commands the following
 ** 11 data bytes are all used to pass config information such as baud rate etc.
 ** The fields are also defined in cirrus.h. Some contain straightforward
 ** information such as the transmit XON character. Two contain the transmit and

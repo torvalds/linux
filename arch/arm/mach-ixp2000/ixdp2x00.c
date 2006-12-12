@@ -106,7 +106,7 @@ static void ixdp2x00_irq_unmask(unsigned int irq)
 		ixp2000_release_slowport(&old_cfg);
 }
 
-static void ixdp2x00_irq_handler(unsigned int irq, struct irqdesc *desc)
+static void ixdp2x00_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
         volatile u32 ex_interrupt = 0;
 	static struct slowport_cfg old_cfg;
@@ -129,7 +129,7 @@ static void ixdp2x00_irq_handler(unsigned int irq, struct irqdesc *desc)
 
 	for(i = 0; i < board_irq_count; i++) {
 		if(ex_interrupt & (1 << i))  {
-			struct irqdesc *cpld_desc;
+			struct irq_desc *cpld_desc;
 			int cpld_irq = IXP2000_BOARD_IRQ(0) + i;
 			cpld_desc = irq_desc + cpld_irq;
 			desc_handle_irq(cpld_irq, cpld_desc);
@@ -139,7 +139,7 @@ static void ixdp2x00_irq_handler(unsigned int irq, struct irqdesc *desc)
 	desc->chip->unmask(irq);
 }
 
-static struct irqchip ixdp2x00_cpld_irq_chip = {
+static struct irq_chip ixdp2x00_cpld_irq_chip = {
 	.ack	= ixdp2x00_irq_mask,
 	.mask	= ixdp2x00_irq_mask,
 	.unmask	= ixdp2x00_irq_unmask
@@ -162,7 +162,7 @@ void ixdp2x00_init_irq(volatile unsigned long *stat_reg, volatile unsigned long 
 
 	for(irq = IXP2000_BOARD_IRQ(0); irq < IXP2000_BOARD_IRQ(board_irq_count); irq++) {
 		set_irq_chip(irq, &ixdp2x00_cpld_irq_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
@@ -241,11 +241,14 @@ void ixdp2x00_slave_pci_postinit(void)
 	/*
 	 * Remove PMC device is there is one
 	 */
-	if((dev = pci_find_slot(1, IXDP2X00_PMC_DEVFN)))
+	if((dev = pci_get_bus_and_slot(1, IXDP2X00_PMC_DEVFN))) {
 		pci_remove_bus_device(dev);
+		pci_dev_put(dev);
+	}
 
-	dev = pci_find_slot(0, IXDP2X00_21555_DEVFN);
+	dev = pci_get_bus_and_slot(0, IXDP2X00_21555_DEVFN);
 	pci_remove_bus_device(dev);
+	pci_dev_put(dev);
 }
 
 /**************************************************************************

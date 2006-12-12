@@ -3,7 +3,7 @@
 *
 *		This module is completely hardware-independent and provides
 *		the following common services for the WAN Link Drivers:
-*		 o WAN device managenment (registering, unregistering)
+*		 o WAN device management (registering, unregistering)
 *		 o Network interface management
 *		 o Physical connection management (dial-up, incoming calls)
 *		 o Logical connection management (switched virtual circuits)
@@ -61,63 +61,6 @@
 #include <net/syncppp.h>
 
 #define KMEM_SAFETYZONE 8
-
-/***********FOR DEBUGGING PURPOSES*********************************************
-static void * dbg_kmalloc(unsigned int size, int prio, int line) {
-	int i = 0;
-	void * v = kmalloc(size+sizeof(unsigned int)+2*KMEM_SAFETYZONE*8,prio);
-	char * c1 = v;
-	c1 += sizeof(unsigned int);
-	*((unsigned int *)v) = size;
-
-	for (i = 0; i < KMEM_SAFETYZONE; i++) {
-		c1[0] = 'D'; c1[1] = 'E'; c1[2] = 'A'; c1[3] = 'D';
-		c1[4] = 'B'; c1[5] = 'E'; c1[6] = 'E'; c1[7] = 'F';
-		c1 += 8;
-	}
-	c1 += size;
-	for (i = 0; i < KMEM_SAFETYZONE; i++) {
-		c1[0] = 'M'; c1[1] = 'U'; c1[2] = 'N'; c1[3] = 'G';
-		c1[4] = 'W'; c1[5] = 'A'; c1[6] = 'L'; c1[7] = 'L';
-		c1 += 8;
-	}
-	v = ((char *)v) + sizeof(unsigned int) + KMEM_SAFETYZONE*8;
-	printk(KERN_INFO "line %d  kmalloc(%d,%d) = %p\n",line,size,prio,v);
-	return v;
-}
-static void dbg_kfree(void * v, int line) {
-	unsigned int * sp = (unsigned int *)(((char *)v) - (sizeof(unsigned int) + KMEM_SAFETYZONE*8));
-	unsigned int size = *sp;
-	char * c1 = ((char *)v) - KMEM_SAFETYZONE*8;
-	int i = 0;
-	for (i = 0; i < KMEM_SAFETYZONE; i++) {
-		if (   c1[0] != 'D' || c1[1] != 'E' || c1[2] != 'A' || c1[3] != 'D'
-		    || c1[4] != 'B' || c1[5] != 'E' || c1[6] != 'E' || c1[7] != 'F') {
-			printk(KERN_INFO "kmalloced block at %p has been corrupted (underrun)!\n",v);
-			printk(KERN_INFO " %4x: %2x %2x %2x %2x %2x %2x %2x %2x\n", i*8,
-			                c1[0],c1[1],c1[2],c1[3],c1[4],c1[5],c1[6],c1[7] );
-		}
-		c1 += 8;
-	}
-	c1 += size;
-	for (i = 0; i < KMEM_SAFETYZONE; i++) {
-		if (   c1[0] != 'M' || c1[1] != 'U' || c1[2] != 'N' || c1[3] != 'G'
-		    || c1[4] != 'W' || c1[5] != 'A' || c1[6] != 'L' || c1[7] != 'L'
-		   ) {
-			printk(KERN_INFO "kmalloced block at %p has been corrupted (overrun):\n",v);
-			printk(KERN_INFO " %4x: %2x %2x %2x %2x %2x %2x %2x %2x\n", i*8,
-			                c1[0],c1[1],c1[2],c1[3],c1[4],c1[5],c1[6],c1[7] );
-		}
-		c1 += 8;
-	}
-	printk(KERN_INFO "line %d  kfree(%p)\n",line,v);
-	v = ((char *)v) - (sizeof(unsigned int) + KMEM_SAFETYZONE*8);
-	kfree(v);
-}
-
-#define kmalloc(x,y) dbg_kmalloc(x,y,__LINE__)
-#define kfree(x) dbg_kfree(x,__LINE__)
-*****************************************************************************/
 
 /*
  * 	Function Prototypes

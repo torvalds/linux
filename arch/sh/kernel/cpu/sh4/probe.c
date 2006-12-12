@@ -79,16 +79,16 @@ int __init detect_cpu_and_cache_system(void)
 	case 0x205:
 		cpu_data->type = CPU_SH7750;
 		cpu_data->flags |= CPU_HAS_P2_FLUSH_BUG | CPU_HAS_FPU |
-				   CPU_HAS_PERF_COUNTER | CPU_HAS_PTEA;
+				   CPU_HAS_PERF_COUNTER;
 		break;
 	case 0x206:
 		cpu_data->type = CPU_SH7750S;
 		cpu_data->flags |= CPU_HAS_P2_FLUSH_BUG | CPU_HAS_FPU |
-				   CPU_HAS_PERF_COUNTER | CPU_HAS_PTEA;
+				   CPU_HAS_PERF_COUNTER;
 		break;
 	case 0x1100:
 		cpu_data->type = CPU_SH7751;
-		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PTEA;
+		cpu_data->flags |= CPU_HAS_FPU;
 		break;
 	case 0x2000:
 		cpu_data->type = CPU_SH73180;
@@ -119,30 +119,38 @@ int __init detect_cpu_and_cache_system(void)
 		break;
 	case 0x3000:
 	case 0x3003:
+	case 0x3009:
 		cpu_data->type = CPU_SH7343;
 		cpu_data->icache.ways = 4;
 		cpu_data->dcache.ways = 4;
 		cpu_data->flags |= CPU_HAS_LLSC;
 		break;
+	case 0x3008:
+		if (prr == 0xa0) {
+			cpu_data->type = CPU_SH7722;
+			cpu_data->icache.ways = 4;
+			cpu_data->dcache.ways = 4;
+			cpu_data->flags |= CPU_HAS_LLSC;
+		}
+		break;
 	case 0x8000:
 		cpu_data->type = CPU_ST40RA;
-		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PTEA;
+		cpu_data->flags |= CPU_HAS_FPU;
 		break;
 	case 0x8100:
 		cpu_data->type = CPU_ST40GX1;
-		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PTEA;
+		cpu_data->flags |= CPU_HAS_FPU;
 		break;
 	case 0x700:
 		cpu_data->type = CPU_SH4_501;
 		cpu_data->icache.ways = 2;
 		cpu_data->dcache.ways = 2;
-		cpu_data->flags |= CPU_HAS_PTEA;
 		break;
 	case 0x600:
 		cpu_data->type = CPU_SH4_202;
 		cpu_data->icache.ways = 2;
 		cpu_data->dcache.ways = 2;
-		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PTEA;
+		cpu_data->flags |= CPU_HAS_FPU;
 		break;
 	case 0x500 ... 0x501:
 		switch (prr) {
@@ -160,7 +168,7 @@ int __init detect_cpu_and_cache_system(void)
 		cpu_data->icache.ways = 2;
 		cpu_data->dcache.ways = 2;
 
-		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PTEA;
+		cpu_data->flags |= CPU_HAS_FPU;
 
 		break;
 	default:
@@ -171,6 +179,10 @@ int __init detect_cpu_and_cache_system(void)
 #ifdef CONFIG_SH_DIRECT_MAPPED
 	cpu_data->icache.ways = 1;
 	cpu_data->dcache.ways = 1;
+#endif
+
+#ifdef CONFIG_CPU_HAS_PTEA
+	cpu_data->flags |= CPU_HAS_PTEA;
 #endif
 
 	/*

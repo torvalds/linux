@@ -198,7 +198,7 @@
  *   (APM) BIOS Interface Specification, Revision 1.2, February 1996.
  *
  * [This document is available from Microsoft at:
- *    http://www.microsoft.com/hwdev/busbios/amp_12.htm]
+ *    http://www.microsoft.com/whdc/archive/amp_12.mspx]
  */
 
 #include <linux/module.h>
@@ -231,6 +231,7 @@
 #include <asm/uaccess.h>
 #include <asm/desc.h>
 #include <asm/i8253.h>
+#include <asm/paravirt.h>
 
 #include "io_ports.h"
 
@@ -540,11 +541,30 @@ static inline void apm_restore_cpus(cpumask_t mask)
  * Also, we KNOW that for the non error case of apm_bios_call, there
  * is no useful data returned in the low order 8 bits of eax.
  */
-#define APM_DO_CLI	\
-	if (apm_info.allow_ints) \
-		local_irq_enable(); \
-	else \
+
+static inline unsigned long __apm_irq_save(void)
+{
+	unsigned long flags;
+	local_save_flags(flags);
+	if (apm_info.allow_ints) {
+		if (irqs_disabled_flags(flags))
+			local_irq_enable();
+	} else
 		local_irq_disable();
+
+	return flags;
+}
+
+#define apm_irq_save(flags) \
+	do { flags = __apm_irq_save(); } while (0)
+
+static inline void apm_irq_restore(unsigned long flags)
+{
+	if (irqs_disabled_flags(flags))
+		local_irq_disable();
+	else if (irqs_disabled())
+		local_irq_enable();
+}
 
 #ifdef APM_ZERO_SEGS
 #	define APM_DECL_SEGS \
@@ -596,12 +616,11 @@ static u8 apm_bios_call(u32 func, u32 ebx_in, u32 ecx_in,
 	save_desc_40 = gdt[0x40 / 8];
 	gdt[0x40 / 8] = bad_bios_desc;
 
-	local_save_flags(flags);
-	APM_DO_CLI;
+	apm_irq_save(flags);
 	APM_DO_SAVE_SEGS;
 	apm_bios_call_asm(func, ebx_in, ecx_in, eax, ebx, ecx, edx, esi);
 	APM_DO_RESTORE_SEGS;
-	local_irq_restore(flags);
+	apm_irq_restore(flags);
 	gdt[0x40 / 8] = save_desc_40;
 	put_cpu();
 	apm_restore_cpus(cpus);
@@ -640,12 +659,11 @@ static u8 apm_bios_call_simple(u32 func, u32 ebx_in, u32 ecx_in, u32 *eax)
 	save_desc_40 = gdt[0x40 / 8];
 	gdt[0x40 / 8] = bad_bios_desc;
 
-	local_save_flags(flags);
-	APM_DO_CLI;
+	apm_irq_save(flags);
 	APM_DO_SAVE_SEGS;
 	error = apm_bios_call_simple_asm(func, ebx_in, ecx_in, eax);
 	APM_DO_RESTORE_SEGS;
-	local_irq_restore(flags);
+	apm_irq_restore(flags);
 	gdt[0x40 / 8] = save_desc_40;
 	put_cpu();
 	apm_restore_cpus(cpus);
@@ -2218,7 +2236,7 @@ static int __init apm_init(void)
 
 	dmi_check_system(apm_dmi_table);
 
-	if (apm_info.bios.version == 0) {
+	if (apm_info.bios.version == 0 || paravirt_enabled()) {
 		printk(KERN_INFO "apm: BIOS not found.\n");
 		return -ENODEV;
 	}

@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/list.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/jiffies.h>
 #include <asm/processor.h>
 
@@ -348,7 +348,7 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 
 static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 {
-	fe_status_t s;
+	fe_status_t s = 0;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 
 	/* if we've got no parameters, just keep idling */

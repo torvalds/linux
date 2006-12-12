@@ -745,12 +745,11 @@ hycapi_capi_create(hysdn_card *card)
 		return 1;
 	}
 	if (!card->hyctrlinfo) {
-		cinfo = (hycapictrl_info *) kmalloc(sizeof(hycapictrl_info), GFP_ATOMIC);
+		cinfo = kzalloc(sizeof(hycapictrl_info), GFP_ATOMIC);
 		if (!cinfo) {
 			printk(KERN_WARNING "HYSDN: no memory for capi-ctrl.\n");
 			return -ENOMEM;
 		}
-		memset(cinfo, 0, sizeof(hycapictrl_info));
 		card->hyctrlinfo = cinfo;
 		cinfo->card = card;
 		spin_lock_init(&cinfo->lock);

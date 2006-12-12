@@ -5872,9 +5872,9 @@ static void s2io_tasklet(unsigned long dev_addr)
  * Description: Sets the link status for the adapter
  */
 
-static void s2io_set_link(unsigned long data)
+static void s2io_set_link(struct work_struct *work)
 {
-	nic_t *nic = (nic_t *) data;
+	nic_t *nic = container_of(work, nic_t, set_link_task);
 	struct net_device *dev = nic->dev;
 	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	register u64 val64;
@@ -5985,6 +5985,11 @@ static int set_rxd_buffer_pointer(nic_t *sp, RxD_t *rxdp, buffAdd_t *ba,
 			((RxD3_t*)rxdp)->Buffer1_ptr = *temp1;
 		} else {
 			*skb = dev_alloc_skb(size);
+			if (!(*skb)) {
+				DBG_PRINT(ERR_DBG, "%s: dev_alloc_skb failed\n",
+					  dev->name);
+				return -ENOMEM;
+			}
 			((RxD3_t*)rxdp)->Buffer2_ptr = *temp2 =
 				pci_map_single(sp->pdev, (*skb)->data,
 					       dev->mtu + 4,
@@ -6007,7 +6012,11 @@ static int set_rxd_buffer_pointer(nic_t *sp, RxD_t *rxdp, buffAdd_t *ba,
 			((RxD3_t*)rxdp)->Buffer2_ptr = *temp2;
 		} else {
 			*skb = dev_alloc_skb(size);
-
+			if (!(*skb)) {
+				DBG_PRINT(ERR_DBG, "%s: dev_alloc_skb failed\n",
+					  dev->name);
+				return -ENOMEM;
+			}
 			((RxD3_t*)rxdp)->Buffer0_ptr = *temp0 =
 				pci_map_single(sp->pdev, ba->ba_0, BUF0_LEN,
 					       PCI_DMA_FROMDEVICE);
@@ -6370,10 +6379,10 @@ static int s2io_card_up(nic_t * sp)
  * spin lock.
  */
 
-static void s2io_restart_nic(unsigned long data)
+static void s2io_restart_nic(struct work_struct *work)
 {
-	struct net_device *dev = (struct net_device *) data;
-	nic_t *sp = dev->priv;
+	nic_t *sp = container_of(work, nic_t, rst_timer_task);
+	struct net_device *dev = sp->dev;
 
 	s2io_card_down(sp);
 	if (s2io_card_up(sp)) {
@@ -6983,10 +6992,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	dev->tx_timeout = &s2io_tx_watchdog;
 	dev->watchdog_timeo = WATCH_DOG_TIMEOUT;
-	INIT_WORK(&sp->rst_timer_task,
-		  (void (*)(void *)) s2io_restart_nic, dev);
-	INIT_WORK(&sp->set_link_task,
-		  (void (*)(void *)) s2io_set_link, sp);
+	INIT_WORK(&sp->rst_timer_task, s2io_restart_nic);
+	INIT_WORK(&sp->set_link_task, s2io_set_link);
 
 	pci_save_state(sp->pdev);
 

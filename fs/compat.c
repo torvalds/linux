@@ -45,6 +45,8 @@
 #include <linux/personality.h>
 #include <linux/rwsem.h>
 #include <linux/tsacct_kern.h>
+#include <linux/highmem.h>
+#include <linux/poll.h>
 #include <linux/mm.h>
 
 #include <net/sock.h>		/* siocdevprivate_ioctl */
@@ -230,7 +232,7 @@ asmlinkage long compat_sys_fstatfs(unsigned int fd, struct compat_statfs __user 
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs(file->f_dentry, &tmp);
+	error = vfs_statfs(file->f_path.dentry, &tmp);
 	if (!error)
 		error = put_compat_statfs(buf, &tmp);
 	fput(file);
@@ -301,7 +303,7 @@ asmlinkage long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct c
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs(file->f_dentry, &tmp);
+	error = vfs_statfs(file->f_path.dentry, &tmp);
 	if (!error)
 		error = put_compat_statfs64(buf, &tmp);
 	fput(file);
@@ -363,7 +365,7 @@ static void compat_ioctl_error(struct file *filp, unsigned int fd,
 	/* find the name of the device. */
 	path = (char *)__get_free_page(GFP_KERNEL);
 	if (path) {
-		fn = d_path(filp->f_dentry, filp->f_vfsmnt, path, PAGE_SIZE);
+		fn = d_path(filp->f_path.dentry, filp->f_path.mnt, path, PAGE_SIZE);
 		if (IS_ERR(fn))
 			fn = "?";
 	}
@@ -414,7 +416,7 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 	case FIBMAP:
 	case FIGETBSZ:
 	case FIONREAD:
-		if (S_ISREG(filp->f_dentry->d_inode->i_mode))
+		if (S_ISREG(filp->f_path.dentry->d_inode->i_mode))
 			break;
 		/*FALL THROUGH*/
 
@@ -436,7 +438,7 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 			goto found_handler;
 	}
 
-	if (S_ISSOCK(filp->f_dentry->d_inode->i_mode) &&
+	if (S_ISSOCK(filp->f_path.dentry->d_inode->i_mode) &&
 	    cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
 		error = siocdevprivate_ioctl(fd, cmd, arg);
 	} else {
@@ -869,7 +871,7 @@ asmlinkage long compat_sys_mount(char __user * dev_name, char __user * dir_name,
 
 	retval = -EINVAL;
 
-	if (type_page) {
+	if (type_page && data_page) {
 		if (!strcmp((char *)type_page, SMBFS_NAME)) {
 			do_smb_super_data_conv((void *)data_page);
 		} else if (!strcmp((char *)type_page, NCPFS_NAME)) {
@@ -1142,7 +1144,9 @@ asmlinkage long compat_sys_getdents64(unsigned int fd,
 	lastdirent = buf.previous;
 	if (lastdirent) {
 		typeof(lastdirent->d_off) d_off = file->f_pos;
-		__put_user_unaligned(d_off, &lastdirent->d_off);
+		error = -EFAULT;
+		if (__put_user_unaligned(d_off, &lastdirent->d_off))
+			goto out_putf;
 		error = count - buf.count;
 	}
 
@@ -1255,7 +1259,7 @@ out:
 	if (iov != iovstack)
 		kfree(iov);
 	if ((ret + (type == READ)) > 0) {
-		struct dentry *dentry = file->f_dentry;
+		struct dentry *dentry = file->f_path.dentry;
 		if (type == READ)
 			fsnotify_access(dentry);
 		else
@@ -1609,14 +1613,14 @@ int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 		nr &= ~1UL;
 		while (nr) {
 			unsigned long h, l;
-			__get_user(l, ufdset);
-			__get_user(h, ufdset+1);
+			if (__get_user(l, ufdset) || __get_user(h, ufdset+1))
+				return -EFAULT;
 			ufdset += 2;
 			*fdset++ = h << 32 | l;
 			nr -= 2;
 		}
-		if (odd)
-			__get_user(*fdset, ufdset);
+		if (odd && __get_user(*fdset, ufdset))
+			return -EFAULT;
 	} else {
 		/* Tricky, must clear full unsigned long in the
 		 * kernel fdset at the end, this makes sure that
@@ -1628,14 +1632,14 @@ int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 }
 
 static
-void compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
-			unsigned long *fdset)
+int compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
+		      unsigned long *fdset)
 {
 	unsigned long odd;
 	nr = ROUND_UP(nr, __COMPAT_NFDBITS);
 
 	if (!ufdset)
-		return;
+		return 0;
 
 	odd = nr & 1UL;
 	nr &= ~1UL;
@@ -1643,13 +1647,14 @@ void compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 		unsigned long h, l;
 		l = *fdset++;
 		h = l >> 32;
-		__put_user(l, ufdset);
-		__put_user(h, ufdset+1);
+		if (__put_user(l, ufdset) || __put_user(h, ufdset+1))
+			return -EFAULT;
 		ufdset += 2;
 		nr -= 2;
 	}
-	if (odd)
-		__put_user(*fdset, ufdset);
+	if (odd && __put_user(*fdset, ufdset))
+		return -EFAULT;
+	return 0;
 }
 
 
@@ -1674,19 +1679,19 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 {
 	fd_set_bits fds;
 	char *bits;
-	int size, max_fdset, ret = -EINVAL;
+	int size, max_fds, ret = -EINVAL;
 	struct fdtable *fdt;
 
 	if (n < 0)
 		goto out_nofds;
 
-	/* max_fdset can increase, so grab it once to avoid race */
+	/* max_fds can increase, so grab it once to avoid race */
 	rcu_read_lock();
 	fdt = files_fdtable(current->files);
-	max_fdset = fdt->max_fdset;
+	max_fds = fdt->max_fds;
 	rcu_read_unlock();
-	if (n > max_fdset)
-		n = max_fdset;
+	if (n > max_fds)
+		n = max_fds;
 
 	/*
 	 * We need 6 bitmaps (in/out/ex for both incoming and outgoing),
@@ -1724,10 +1729,10 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 		ret = 0;
 	}
 
-	compat_set_fd_set(n, inp, fds.res_in);
-	compat_set_fd_set(n, outp, fds.res_out);
-	compat_set_fd_set(n, exp, fds.res_ex);
-
+	if (compat_set_fd_set(n, inp, fds.res_in) ||
+	    compat_set_fd_set(n, outp, fds.res_out) ||
+	    compat_set_fd_set(n, exp, fds.res_ex))
+		ret = -EFAULT;
 out:
 	kfree(bits);
 out_nofds:
@@ -1835,8 +1840,11 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 
 	} while (!ret && !timeout && tsp && (ts.tv_sec || ts.tv_nsec));
 
-	if (ret == 0 && tsp && !(current->personality & STICKY_TIMEOUTS)) {
+	if (tsp) {
 		struct compat_timespec rts;
+
+		if (current->personality & STICKY_TIMEOUTS)
+			goto sticky;
 
 		rts.tv_sec = timeout / HZ;
 		rts.tv_nsec = (timeout % HZ) * (NSEC_PER_SEC/HZ);
@@ -1846,8 +1854,19 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 		}
 		if (compat_timespec_compare(&rts, &ts) >= 0)
 			rts = ts;
-		if (copy_to_user(tsp, &rts, sizeof(rts)))
-			ret = -EFAULT;
+		if (copy_to_user(tsp, &rts, sizeof(rts))) {
+sticky:
+			/*
+			 * If an application puts its timeval in read-only
+			 * memory, we don't want the Linux-specific update to
+			 * the timeval to cause a fault after the select has
+			 * completed successfully. However, because we're not
+			 * updating the timeval, we can't restart the system
+			 * call.
+			 */
+			if (ret == -ERESTARTNOHAND)
+				ret = -EINTR;
+		}
 	}
 
 	if (ret == -ERESTARTNOHAND) {

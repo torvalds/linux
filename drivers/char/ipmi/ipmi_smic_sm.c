@@ -141,12 +141,14 @@ static int start_smic_transaction(struct si_sm_data *smic,
 {
 	unsigned int i;
 
-	if ((size < 2) || (size > MAX_SMIC_WRITE_SIZE)) {
-		return -1;
-	}
-	if ((smic->state != SMIC_IDLE) && (smic->state != SMIC_HOSED)) {
-		return -2;
-	}
+	if (size < 2)
+		return IPMI_REQ_LEN_INVALID_ERR;
+	if (size > MAX_SMIC_WRITE_SIZE)
+		return IPMI_REQ_LEN_EXCEEDED_ERR;
+
+	if ((smic->state != SMIC_IDLE) && (smic->state != SMIC_HOSED))
+		return IPMI_NOT_IN_MY_STATE_ERR;
+
 	if (smic_debug & SMIC_DEBUG_MSG) {
 		printk(KERN_INFO "start_smic_transaction -");
 		for (i = 0; i < size; i ++) {

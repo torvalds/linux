@@ -17,8 +17,9 @@
 #include <linux/version.h>
 #include <linux/nsproxy.h>
 #include <linux/init_task.h>
-#include <linux/namespace.h>
+#include <linux/mnt_namespace.h>
 #include <linux/utsname.h>
+#include <linux/pid_namespace.h>
 
 struct nsproxy init_nsproxy = INIT_NSPROXY(init_nsproxy);
 
@@ -44,10 +45,10 @@ static inline struct nsproxy *clone_namespaces(struct nsproxy *orig)
 {
 	struct nsproxy *ns;
 
-	ns = kmalloc(sizeof(struct nsproxy), GFP_KERNEL);
+	ns = kmemdup(orig, sizeof(struct nsproxy), GFP_KERNEL);
 	if (ns) {
-		memcpy(ns, orig, sizeof(struct nsproxy));
 		atomic_set(&ns->count, 1);
+		ns->id = -1;
 	}
 	return ns;
 }
@@ -62,12 +63,14 @@ struct nsproxy *dup_namespaces(struct nsproxy *orig)
 	struct nsproxy *ns = clone_namespaces(orig);
 
 	if (ns) {
-		if (ns->namespace)
-			get_namespace(ns->namespace);
+		if (ns->mnt_ns)
+			get_mnt_ns(ns->mnt_ns);
 		if (ns->uts_ns)
 			get_uts_ns(ns->uts_ns);
 		if (ns->ipc_ns)
 			get_ipc_ns(ns->ipc_ns);
+		if (ns->pid_ns)
+			get_pid_ns(ns->pid_ns);
 	}
 
 	return ns;
@@ -99,7 +102,7 @@ int copy_namespaces(int flags, struct task_struct *tsk)
 
 	tsk->nsproxy = new_ns;
 
-	err = copy_namespace(flags, tsk);
+	err = copy_mnt_ns(flags, tsk);
 	if (err)
 		goto out_ns;
 
@@ -111,16 +114,23 @@ int copy_namespaces(int flags, struct task_struct *tsk)
 	if (err)
 		goto out_ipc;
 
+	err = copy_pid_ns(flags, tsk);
+	if (err)
+		goto out_pid;
+
 out:
 	put_nsproxy(old_ns);
 	return err;
 
+out_pid:
+	if (new_ns->ipc_ns)
+		put_ipc_ns(new_ns->ipc_ns);
 out_ipc:
 	if (new_ns->uts_ns)
 		put_uts_ns(new_ns->uts_ns);
 out_uts:
-	if (new_ns->namespace)
-		put_namespace(new_ns->namespace);
+	if (new_ns->mnt_ns)
+		put_mnt_ns(new_ns->mnt_ns);
 out_ns:
 	tsk->nsproxy = old_ns;
 	kfree(new_ns);
@@ -129,11 +139,13 @@ out_ns:
 
 void free_nsproxy(struct nsproxy *ns)
 {
-		if (ns->namespace)
-			put_namespace(ns->namespace);
-		if (ns->uts_ns)
-			put_uts_ns(ns->uts_ns);
-		if (ns->ipc_ns)
-			put_ipc_ns(ns->ipc_ns);
-		kfree(ns);
+	if (ns->mnt_ns)
+		put_mnt_ns(ns->mnt_ns);
+	if (ns->uts_ns)
+		put_uts_ns(ns->uts_ns);
+	if (ns->ipc_ns)
+		put_ipc_ns(ns->ipc_ns);
+	if (ns->pid_ns)
+		put_pid_ns(ns->pid_ns);
+	kfree(ns);
 }

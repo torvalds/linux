@@ -91,9 +91,9 @@ css_free_subchannel(struct subchannel *sch)
 		/* Reset intparm to zeroes. */
 		sch->schib.pmcw.intparm = 0;
 		cio_modify(sch);
+		kfree(sch->lock);
 		kfree(sch);
 	}
-	
 }
 
 static void
@@ -102,8 +102,10 @@ css_subchannel_release(struct device *dev)
 	struct subchannel *sch;
 
 	sch = to_subchannel(dev);
-	if (!cio_is_console(sch->schid))
+	if (!cio_is_console(sch->schid)) {
+		kfree(sch->lock);
 		kfree(sch);
+	}
 }
 
 extern int css_get_ssd_info(struct subchannel *sch);
@@ -135,14 +137,16 @@ css_register_subchannel(struct subchannel *sch)
 	sch->dev.parent = &css[0]->device;
 	sch->dev.bus = &css_bus_type;
 	sch->dev.release = &css_subchannel_release;
-	
+	sch->dev.groups = subch_attr_groups;
+
 	/* make it known to the system */
 	ret = css_sch_device_register(sch);
-	if (ret)
+	if (ret) {
 		printk (KERN_WARNING "%s: could not register %s\n",
 			__func__, sch->dev.bus_id);
-	else
-		css_get_ssd_info(sch);
+		return ret;
+	}
+	css_get_ssd_info(sch);
 	return ret;
 }
 
@@ -201,18 +205,18 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 	unsigned long flags;
 	enum { NONE, UNREGISTER, UNREGISTER_PROBE, REPROBE } action;
 
-	spin_lock_irqsave(&sch->lock, flags);
+	spin_lock_irqsave(sch->lock, flags);
 	disc = device_is_disconnected(sch);
 	if (disc && slow) {
 		/* Disconnected devices are evaluated directly only.*/
-		spin_unlock_irqrestore(&sch->lock, flags);
+		spin_unlock_irqrestore(sch->lock, flags);
 		return 0;
 	}
 	/* No interrupt after machine check - kill pending timers. */
 	device_kill_pending_timer(sch);
 	if (!disc && !slow) {
 		/* Non-disconnected devices are evaluated on the slow path. */
-		spin_unlock_irqrestore(&sch->lock, flags);
+		spin_unlock_irqrestore(sch->lock, flags);
 		return -EAGAIN;
 	}
 	event = css_get_subchannel_status(sch);
@@ -237,9 +241,9 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 		/* Ask driver what to do with device. */
 		action = UNREGISTER;
 		if (sch->driver && sch->driver->notify) {
-			spin_unlock_irqrestore(&sch->lock, flags);
+			spin_unlock_irqrestore(sch->lock, flags);
 			ret = sch->driver->notify(&sch->dev, event);
-			spin_lock_irqsave(&sch->lock, flags);
+			spin_lock_irqsave(sch->lock, flags);
 			if (ret)
 				action = NONE;
 		}
@@ -264,17 +268,13 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 	case UNREGISTER:
 	case UNREGISTER_PROBE:
 		/* Unregister device (will use subchannel lock). */
-		spin_unlock_irqrestore(&sch->lock, flags);
+		spin_unlock_irqrestore(sch->lock, flags);
 		css_sch_device_unregister(sch);
-		spin_lock_irqsave(&sch->lock, flags);
+		spin_lock_irqsave(sch->lock, flags);
 
 		/* Reset intparm to zeroes. */
 		sch->schib.pmcw.intparm = 0;
 		cio_modify(sch);
-
-		/* Probe if necessary. */
-		if (action == UNREGISTER_PROBE)
-			ret = css_probe_device(sch->schid);
 		break;
 	case REPROBE:
 		device_trigger_reprobe(sch);
@@ -282,7 +282,10 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 	default:
 		break;
 	}
-	spin_unlock_irqrestore(&sch->lock, flags);
+	spin_unlock_irqrestore(sch->lock, flags);
+	/* Probe if necessary. */
+	if (action == UNREGISTER_PROBE)
+		ret = css_probe_device(sch->schid);
 
 	return ret;
 }
@@ -335,7 +338,7 @@ static LIST_HEAD(slow_subchannels_head);
 static DEFINE_SPINLOCK(slow_subchannel_lock);
 
 static void
-css_trigger_slow_path(void)
+css_trigger_slow_path(struct work_struct *unused)
 {
 	CIO_TRACE_EVENT(4, "slowpath");
 
@@ -360,8 +363,7 @@ css_trigger_slow_path(void)
 	spin_unlock_irq(&slow_subchannel_lock);
 }
 
-typedef void (*workfunc)(void *);
-DECLARE_WORK(slow_path_work, (workfunc)css_trigger_slow_path, NULL);
+DECLARE_WORK(slow_path_work, css_trigger_slow_path);
 struct workqueue_struct *slow_path_wq;
 
 /* Reprobe subchannel if unregistered. */
@@ -398,7 +400,7 @@ static int reprobe_subchannel(struct subchannel_id schid, void *data)
 }
 
 /* Work function used to reprobe all unregistered subchannels. */
-static void reprobe_all(void *data)
+static void reprobe_all(struct work_struct *unused)
 {
 	int ret;
 
@@ -414,7 +416,7 @@ static void reprobe_all(void *data)
 		      need_reprobe);
 }
 
-DECLARE_WORK(css_reprobe_work, reprobe_all, NULL);
+DECLARE_WORK(css_reprobe_work, reprobe_all);
 
 /* Schedule reprobing of all unregistered subchannels. */
 void css_schedule_reprobe(void)
@@ -575,12 +577,24 @@ css_cm_enable_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(cm_enable, 0644, css_cm_enable_show, css_cm_enable_store);
 
-static inline void __init
-setup_css(int nr)
+static inline int __init setup_css(int nr)
 {
 	u32 tod_high;
+	int ret;
 
 	memset(css[nr], 0, sizeof(struct channel_subsystem));
+	css[nr]->pseudo_subchannel =
+		kzalloc(sizeof(*css[nr]->pseudo_subchannel), GFP_KERNEL);
+	if (!css[nr]->pseudo_subchannel)
+		return -ENOMEM;
+	css[nr]->pseudo_subchannel->dev.parent = &css[nr]->device;
+	css[nr]->pseudo_subchannel->dev.release = css_subchannel_release;
+	sprintf(css[nr]->pseudo_subchannel->dev.bus_id, "defunct");
+	ret = cio_create_sch_lock(css[nr]->pseudo_subchannel);
+	if (ret) {
+		kfree(css[nr]->pseudo_subchannel);
+		return ret;
+	}
 	mutex_init(&css[nr]->mutex);
 	css[nr]->valid = 1;
 	css[nr]->cssid = nr;
@@ -588,6 +602,7 @@ setup_css(int nr)
 	css[nr]->device.release = channel_subsystem_release;
 	tod_high = (u32) (get_clock() >> 32);
 	css_generate_pgid(css[nr], tod_high);
+	return 0;
 }
 
 /*
@@ -624,10 +639,12 @@ init_channel_subsystem (void)
 			ret = -ENOMEM;
 			goto out_unregister;
 		}
-		setup_css(i);
-		ret = device_register(&css[i]->device);
+		ret = setup_css(i);
 		if (ret)
 			goto out_free;
+		ret = device_register(&css[i]->device);
+		if (ret)
+			goto out_free_all;
 		if (css_characteristics_avail &&
 		    css_chsc_characteristics.secm) {
 			ret = device_create_file(&css[i]->device,
@@ -635,6 +652,9 @@ init_channel_subsystem (void)
 			if (ret)
 				goto out_device;
 		}
+		ret = device_register(&css[i]->pseudo_subchannel->dev);
+		if (ret)
+			goto out_file;
 	}
 	css_init_done = 1;
 
@@ -642,13 +662,19 @@ init_channel_subsystem (void)
 
 	for_each_subchannel(__init_channel_subsystem, NULL);
 	return 0;
+out_file:
+	device_remove_file(&css[i]->device, &dev_attr_cm_enable);
 out_device:
 	device_unregister(&css[i]->device);
+out_free_all:
+	kfree(css[i]->pseudo_subchannel->lock);
+	kfree(css[i]->pseudo_subchannel);
 out_free:
 	kfree(css[i]);
 out_unregister:
 	while (i > 0) {
 		i--;
+		device_unregister(&css[i]->pseudo_subchannel->dev);
 		if (css_characteristics_avail && css_chsc_characteristics.secm)
 			device_remove_file(&css[i]->device,
 					   &dev_attr_cm_enable);
@@ -658,6 +684,11 @@ out_bus:
 	bus_unregister(&css_bus_type);
 out:
 	return ret;
+}
+
+int sch_is_pseudo_sch(struct subchannel *sch)
+{
+	return sch == to_css(sch->dev.parent)->pseudo_subchannel;
 }
 
 /*

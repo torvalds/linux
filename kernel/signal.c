@@ -23,6 +23,10 @@
 #include <linux/ptrace.h>
 #include <linux/signal.h>
 #include <linux/capability.h>
+#include <linux/freezer.h>
+#include <linux/pid_namespace.h>
+#include <linux/nsproxy.h>
+
 #include <asm/param.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -33,7 +37,7 @@
  * SLAB caches for signal bits.
  */
 
-static kmem_cache_t *sigqueue_cachep;
+static struct kmem_cache *sigqueue_cachep;
 
 /*
  * In POSIX a signal is sent either to a specific thread (Linux task)
@@ -267,18 +271,25 @@ static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 					 int override_rlimit)
 {
 	struct sigqueue *q = NULL;
+	struct user_struct *user;
 
-	atomic_inc(&t->user->sigpending);
+	/*
+	 * In order to avoid problems with "switch_user()", we want to make
+	 * sure that the compiler doesn't re-load "t->user"
+	 */
+	user = t->user;
+	barrier();
+	atomic_inc(&user->sigpending);
 	if (override_rlimit ||
-	    atomic_read(&t->user->sigpending) <=
+	    atomic_read(&user->sigpending) <=
 			t->signal->rlim[RLIMIT_SIGPENDING].rlim_cur)
 		q = kmem_cache_alloc(sigqueue_cachep, flags);
 	if (unlikely(q == NULL)) {
-		atomic_dec(&t->user->sigpending);
+		atomic_dec(&user->sigpending);
 	} else {
 		INIT_LIST_HEAD(&q->list);
 		q->flags = 0;
-		q->user = get_uid(t->user);
+		q->user = get_uid(user);
 	}
 	return(q);
 }
@@ -575,7 +586,7 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	error = -EPERM;
 	if ((info == SEND_SIG_NOINFO || (!is_si_special(info) && SI_FROMUSER(info)))
 	    && ((sig != SIGCONT) ||
-		(current->signal->session != t->signal->session))
+		(process_session(current) != process_session(t)))
 	    && (current->euid ^ t->suid) && (current->euid ^ t->uid)
 	    && (current->uid ^ t->suid) && (current->uid ^ t->uid)
 	    && !capable(CAP_KILL))
@@ -1126,8 +1137,7 @@ int kill_pid_info(int sig, struct siginfo *info, struct pid *pid)
 	return error;
 }
 
-int
-kill_proc_info(int sig, struct siginfo *info, pid_t pid)
+static int kill_proc_info(int sig, struct siginfo *info, pid_t pid)
 {
 	int error;
 	rcu_read_lock();
@@ -1870,8 +1880,12 @@ relock:
 		if (sig_kernel_ignore(signr)) /* Default is nothing. */
 			continue;
 
-		/* Init gets no signals it doesn't want.  */
-		if (current == child_reaper)
+		/*
+		 * Init of a pid space gets no signals it doesn't want from
+		 * within that pid space. It can of course get signals from
+		 * its parent pid space.
+		 */
+		if (current == child_reaper(current))
 			continue;
 
 		if (sig_kernel_stop(signr)) {

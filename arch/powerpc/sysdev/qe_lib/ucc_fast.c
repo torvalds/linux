@@ -163,7 +163,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 
 	/* check if the UCC port number is in range. */
 	if ((uf_info->ucc_num < 0) || (uf_info->ucc_num > UCC_MAX_NUM - 1)) {
-		uccf_err("ucc_fast_init: Illagal UCC number!");
+		uccf_err("ucc_fast_init: Illegal UCC number!");
 		return -EINVAL;
 	}
 
@@ -216,14 +216,12 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 		return -EINVAL;
 	}
 
-	uccf = (struct ucc_fast_private *)
-		 kmalloc(sizeof(struct ucc_fast_private), GFP_KERNEL);
+	uccf = kzalloc(sizeof(struct ucc_fast_private), GFP_KERNEL);
 	if (!uccf) {
 		uccf_err
 		    ("ucc_fast_init: No memory for UCC slow data structure!");
 		return -ENOMEM;
 	}
-	memset(uccf, 0, sizeof(struct ucc_fast_private));
 
 	/* Fill fast UCC structure */
 	uccf->uf_info = uf_info;

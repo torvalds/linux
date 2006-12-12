@@ -430,7 +430,7 @@ dasd_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int rval;
 
 	lock_kernel();
-	rval = dasd_ioctl(filp->f_dentry->d_inode, filp, cmd, arg);
+	rval = dasd_ioctl(filp->f_path.dentry->d_inode, filp, cmd, arg);
 	unlock_kernel();
 
 	return (rval == -EINVAL) ? -ENOIOCTLCMD : rval;

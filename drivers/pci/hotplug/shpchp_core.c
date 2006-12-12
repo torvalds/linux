@@ -159,7 +159,7 @@ static int init_slots(struct controller *ctrl)
 			goto error_info;
 
 		slot->number = sun;
-		INIT_WORK(&slot->work, queue_pushbutton_work, slot);
+		INIT_DELAYED_WORK(&slot->work, queue_pushbutton_work);
 
 		/* register this slot with the hotplug pci core */
 		hotplug_slot->private = slot;

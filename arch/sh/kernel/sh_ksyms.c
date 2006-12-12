@@ -18,7 +18,6 @@
 #include <asm/delay.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
-#include <asm/checksum.h>
 
 extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 extern struct hw_interrupt_type no_irq_type;
@@ -71,15 +70,26 @@ DECLARE_EXPORT(__sdivsi3);
 DECLARE_EXPORT(__ashrdi3);
 DECLARE_EXPORT(__ashldi3);
 DECLARE_EXPORT(__lshrdi3);
-DECLARE_EXPORT(__movstr);
 DECLARE_EXPORT(__movstrSI16);
-
-EXPORT_SYMBOL(strcpy);
+#if __GNUC__ == 4
+DECLARE_EXPORT(__movmem);
+#else
+DECLARE_EXPORT(__movstr);
+#endif
 
 #ifdef CONFIG_CPU_SH4
+#if __GNUC__ == 4
+DECLARE_EXPORT(__movmem_i4_even);
+DECLARE_EXPORT(__movmem_i4_odd);
+DECLARE_EXPORT(__movmemSI12_i4);
+DECLARE_EXPORT(__sdivsi3_i4i);
+DECLARE_EXPORT(__udiv_qrnnd_16);
+DECLARE_EXPORT(__udivsi3_i4i);
+#else /* GCC 3.x */
 DECLARE_EXPORT(__movstr_i4_even);
 DECLARE_EXPORT(__movstr_i4_odd);
 DECLARE_EXPORT(__movstrSI12_i4);
+#endif /* __GNUC__ == 4 */
 #endif
 
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB)
@@ -100,10 +110,6 @@ EXPORT_SYMBOL(__down_trylock);
 
 #ifdef CONFIG_SMP
 EXPORT_SYMBOL(synchronize_irq);
-#endif
-
-#ifdef CONFIG_PM
-EXPORT_SYMBOL(pm_suspend);
 #endif
 
 EXPORT_SYMBOL(csum_partial);

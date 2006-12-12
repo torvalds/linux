@@ -21,9 +21,9 @@ struct nlm_share {
 	u32			s_mode;		/* deny mode */
 };
 
-u32	nlmsvc_share_file(struct nlm_host *, struct nlm_file *,
+__be32	nlmsvc_share_file(struct nlm_host *, struct nlm_file *,
 					       struct nlm_args *);
-u32	nlmsvc_unshare_file(struct nlm_host *, struct nlm_file *,
+__be32	nlmsvc_unshare_file(struct nlm_host *, struct nlm_file *,
 					       struct nlm_args *);
 void	nlmsvc_traverse_shares(struct nlm_host *, struct nlm_file *,
 					       nlm_host_match_fn_t);

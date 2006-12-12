@@ -203,7 +203,7 @@ struct neigh_table arp_tbl = {
 	.gc_thresh3 =	1024,
 };
 
-int arp_mc_map(u32 addr, u8 *haddr, struct net_device *dev, int dir)
+int arp_mc_map(__be32 addr, u8 *haddr, struct net_device *dev, int dir)
 {
 	switch (dev->type) {
 	case ARPHRD_ETHER:

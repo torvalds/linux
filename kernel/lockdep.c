@@ -140,13 +140,6 @@ void lockdep_on(void)
 
 EXPORT_SYMBOL(lockdep_on);
 
-int lockdep_internal(void)
-{
-	return current->lockdep_recursion != 0;
-}
-
-EXPORT_SYMBOL(lockdep_internal);
-
 /*
  * Debugging switches:
  */
@@ -228,17 +221,15 @@ static int save_trace(struct stack_trace *trace)
 	trace->skip = 3;
 	trace->all_contexts = 0;
 
-	/* Make sure to not recurse in case the the unwinder needs to tak
-e	   locks. */
-	lockdep_off();
 	save_stack_trace(trace, NULL);
-	lockdep_on();
 
 	trace->max_entries = trace->nr_entries;
 
 	nr_stack_trace_entries += trace->nr_entries;
-	if (DEBUG_LOCKS_WARN_ON(nr_stack_trace_entries > MAX_STACK_TRACE_ENTRIES))
+	if (DEBUG_LOCKS_WARN_ON(nr_stack_trace_entries > MAX_STACK_TRACE_ENTRIES)) {
+		__raw_spin_unlock(&hash_lock);
 		return 0;
+	}
 
 	if (nr_stack_trace_entries == MAX_STACK_TRACE_ENTRIES) {
 		__raw_spin_unlock(&hash_lock);
@@ -357,7 +348,7 @@ get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3, char *c4
 
 static void print_lock_name(struct lock_class *class)
 {
-	char str[128], c1, c2, c3, c4;
+	char str[KSYM_NAME_LEN + 1], c1, c2, c3, c4;
 	const char *name;
 
 	get_usage_chars(class, &c1, &c2, &c3, &c4);
@@ -379,7 +370,7 @@ static void print_lock_name(struct lock_class *class)
 static void print_lockdep_cache(struct lockdep_map *lock)
 {
 	const char *name;
-	char str[128];
+	char str[KSYM_NAME_LEN + 1];
 
 	name = lock->name;
 	if (!name)
@@ -449,7 +440,9 @@ static void print_lock_dependencies(struct lock_class *class, int depth)
 	print_lock_class_header(class, depth);
 
 	list_for_each_entry(entry, &class->locks_after, entry) {
-		DEBUG_LOCKS_WARN_ON(!entry->class);
+		if (DEBUG_LOCKS_WARN_ON(!entry->class))
+			return;
+
 		print_lock_dependencies(entry->class, depth + 1);
 
 		printk("%*s ... acquired at:\n",depth,"");
@@ -474,7 +467,8 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 		return 0;
 
 	entry->class = this;
-	save_trace(&entry->trace);
+	if (!save_trace(&entry->trace))
+		return 0;
 
 	/*
 	 * Since we never remove from the dependency list, the list can
@@ -562,8 +556,12 @@ static noinline int print_circular_bug_tail(void)
 	if (debug_locks_silent)
 		return 0;
 
+	/* hash_lock unlocked by the header */
+	__raw_spin_lock(&hash_lock);
 	this.class = check_source->class;
-	save_trace(&this.trace);
+	if (!save_trace(&this.trace))
+		return 0;
+	__raw_spin_unlock(&hash_lock);
 	print_circular_bug_entry(&this, 0);
 
 	printk("\nother info that might help us debug this:\n\n");
@@ -574,6 +572,8 @@ static noinline int print_circular_bug_tail(void)
 
 	return 0;
 }
+
+#define RECURSION_LIMIT 40
 
 static int noinline print_infinite_recursion_bug(void)
 {
@@ -595,7 +595,7 @@ check_noncircular(struct lock_class *source, unsigned int depth)
 	debug_atomic_inc(&nr_cyclic_check_recursions);
 	if (depth > max_recursion_depth)
 		max_recursion_depth = depth;
-	if (depth >= 20)
+	if (depth >= RECURSION_LIMIT)
 		return print_infinite_recursion_bug();
 	/*
 	 * Check this lock's dependency list:
@@ -645,7 +645,7 @@ find_usage_forwards(struct lock_class *source, unsigned int depth)
 
 	if (depth > max_recursion_depth)
 		max_recursion_depth = depth;
-	if (depth >= 20)
+	if (depth >= RECURSION_LIMIT)
 		return print_infinite_recursion_bug();
 
 	debug_atomic_inc(&nr_find_usage_forwards_checks);
@@ -684,7 +684,7 @@ find_usage_backwards(struct lock_class *source, unsigned int depth)
 
 	if (depth > max_recursion_depth)
 		max_recursion_depth = depth;
-	if (depth >= 20)
+	if (depth >= RECURSION_LIMIT)
 		return print_infinite_recursion_bug();
 
 	debug_atomic_inc(&nr_find_usage_backwards_checks);
@@ -964,14 +964,11 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 			       &prev->class->locks_after, next->acquire_ip);
 	if (!ret)
 		return 0;
-	/*
-	 * Return value of 2 signals 'dependency already added',
-	 * in that case we dont have to add the backlink either.
-	 */
-	if (ret == 2)
-		return 2;
+
 	ret = add_lock_to_list(next->class, prev->class,
 			       &next->class->locks_before, next->acquire_ip);
+	if (!ret)
+		return 0;
 
 	/*
 	 * Debugging printouts:
@@ -1023,7 +1020,8 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 		 * added:
 		 */
 		if (hlock->read != 2) {
-			check_prev_add(curr, hlock, next);
+			if (!check_prev_add(curr, hlock, next))
+				return 0;
 			/*
 			 * Stop after the first non-trylock entry,
 			 * as non-trylock entries have added their
@@ -1079,7 +1077,8 @@ static int static_obj(void *obj)
 	 */
 	for_each_possible_cpu(i) {
 		start = (unsigned long) &__per_cpu_start + per_cpu_offset(i);
-		end   = (unsigned long) &__per_cpu_end   + per_cpu_offset(i);
+		end   = (unsigned long) &__per_cpu_start + PERCPU_ENOUGH_ROOM
+					+ per_cpu_offset(i);
 
 		if ((addr >= start) && (addr < end))
 			return 1;
@@ -1174,11 +1173,12 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
  * itself, so actual lookup of the hash should be once per lock object.
  */
 static inline struct lock_class *
-register_lock_class(struct lockdep_map *lock, unsigned int subclass)
+register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 {
 	struct lockdep_subclass_key *key;
 	struct list_head *hash_head;
 	struct lock_class *class;
+	unsigned long flags;
 
 	class = look_up_lock_class(lock, subclass);
 	if (likely(class))
@@ -1200,6 +1200,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass)
 	key = lock->key->subkeys + subclass;
 	hash_head = classhashentry(key);
 
+	raw_local_irq_save(flags);
 	__raw_spin_lock(&hash_lock);
 	/*
 	 * We have to do the hash-walk again, to avoid races
@@ -1214,6 +1215,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass)
 	 */
 	if (nr_lock_classes >= MAX_LOCKDEP_KEYS) {
 		__raw_spin_unlock(&hash_lock);
+		raw_local_irq_restore(flags);
 		debug_locks_off();
 		printk("BUG: MAX_LOCKDEP_KEYS too low!\n");
 		printk("turning off the locking correctness validator.\n");
@@ -1236,17 +1238,20 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass)
 
 	if (verbose(class)) {
 		__raw_spin_unlock(&hash_lock);
+		raw_local_irq_restore(flags);
 		printk("\nnew class %p: %s", class->key, class->name);
 		if (class->name_version > 1)
 			printk("#%d", class->name_version);
 		printk("\n");
 		dump_stack();
+		raw_local_irq_save(flags);
 		__raw_spin_lock(&hash_lock);
 	}
 out_unlock_set:
 	__raw_spin_unlock(&hash_lock);
+	raw_local_irq_restore(flags);
 
-	if (!subclass)
+	if (!subclass || force)
 		lock->class_cache = class;
 
 	DEBUG_LOCKS_WARN_ON(class->subclass != subclass);
@@ -1725,6 +1730,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 		debug_atomic_dec(&nr_unused_locks);
 		break;
 	default:
+		__raw_spin_unlock(&hash_lock);
 		debug_locks_off();
 		WARN_ON(1);
 		return 0;
@@ -1934,7 +1940,7 @@ void trace_softirqs_off(unsigned long ip)
  * Initialize a lock instance's lock-class mapping info:
  */
 void lockdep_init_map(struct lockdep_map *lock, const char *name,
-		      struct lock_class_key *key)
+		      struct lock_class_key *key, int subclass)
 {
 	if (unlikely(!debug_locks))
 		return;
@@ -1954,6 +1960,8 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 	lock->name = name;
 	lock->key = key;
 	lock->class_cache = NULL;
+	if (subclass)
+		register_lock_class(lock, subclass, 1);
 }
 
 EXPORT_SYMBOL_GPL(lockdep_init_map);
@@ -1992,7 +2000,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	 * Not cached yet or subclass?
 	 */
 	if (unlikely(!class)) {
-		class = register_lock_class(lock, subclass);
+		class = register_lock_class(lock, subclass, 0);
 		if (!class)
 			return 0;
 	}
@@ -2640,6 +2648,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 	}
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(debug_check_no_locks_freed);
 
 static void print_held_locks_bug(struct task_struct *curr)
 {

@@ -53,6 +53,7 @@
 #include <linux/workqueue.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 
 /* gets a struct reiserfs_journal_list * from a list head */
 #define JOURNAL_LIST_ENTRY(h) (list_entry((h), struct reiserfs_journal_list, \
@@ -103,7 +104,7 @@ static int release_journal_dev(struct super_block *super,
 			       struct reiserfs_journal *journal);
 static int dirty_one_transaction(struct super_block *s,
 				 struct reiserfs_journal_list *jl);
-static void flush_async_commits(void *p);
+static void flush_async_commits(struct work_struct *work);
 static void queue_log_writer(struct super_block *s);
 
 /* values for join in do_journal_begin_r */
@@ -970,7 +971,7 @@ int reiserfs_async_progress_wait(struct super_block *s)
 	DEFINE_WAIT(wait);
 	struct reiserfs_journal *j = SB_JOURNAL(s);
 	if (atomic_read(&j->j_async_throttle))
-		blk_congestion_wait(WRITE, HZ / 10);
+		congestion_wait(WRITE, HZ / 10);
 	return 0;
 }
 
@@ -1463,7 +1464,7 @@ static int flush_journal_list(struct super_block *s,
 		}
 
 		/* if someone has this block in a newer transaction, just make
-		 ** sure they are commited, and don't try writing it to disk
+		 ** sure they are committed, and don't try writing it to disk
 		 */
 		if (pjl) {
 			if (atomic_read(&pjl->j_commit_left))
@@ -2835,7 +2836,8 @@ int journal_init(struct super_block *p_s_sb, const char *j_dev_name,
 	if (reiserfs_mounted_fs_count <= 1)
 		commit_wq = create_workqueue("reiserfs");
 
-	INIT_WORK(&journal->j_work, flush_async_commits, p_s_sb);
+	INIT_DELAYED_WORK(&journal->j_work, flush_async_commits);
+	journal->j_work_sb = p_s_sb;
 	return 0;
       free_and_return:
 	free_journal_ram(p_s_sb);
@@ -3383,7 +3385,7 @@ static int remove_from_transaction(struct super_block *p_s_sb,
 
 /*
 ** for any cnode in a journal list, it can only be dirtied of all the
-** transactions that include it are commited to disk.
+** transactions that include it are committed to disk.
 ** this checks through each transaction, and returns 1 if you are allowed to dirty,
 ** and 0 if you aren't
 **
@@ -3425,7 +3427,7 @@ static int can_dirty(struct reiserfs_journal_cnode *cn)
 }
 
 /* syncs the commit blocks, but does not force the real buffers to disk
-** will wait until the current transaction is done/commited before returning 
+** will wait until the current transaction is done/committed before returning 
 */
 int journal_end_sync(struct reiserfs_transaction_handle *th,
 		     struct super_block *p_s_sb, unsigned long nblocks)
@@ -3446,10 +3448,11 @@ int journal_end_sync(struct reiserfs_transaction_handle *th,
 /*
 ** writeback the pending async commits to disk
 */
-static void flush_async_commits(void *p)
+static void flush_async_commits(struct work_struct *work)
 {
-	struct super_block *p_s_sb = p;
-	struct reiserfs_journal *journal = SB_JOURNAL(p_s_sb);
+	struct reiserfs_journal *journal =
+		container_of(work, struct reiserfs_journal, j_work.work);
+	struct super_block *p_s_sb = journal->j_work_sb;
 	struct reiserfs_journal_list *jl;
 	struct list_head *entry;
 

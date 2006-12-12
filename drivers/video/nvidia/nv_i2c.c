@@ -147,15 +147,15 @@ void nvidia_create_i2c_busses(struct nvidia_par *par)
 void nvidia_delete_i2c_busses(struct nvidia_par *par)
 {
 	if (par->chan[0].par)
-		i2c_bit_del_bus(&par->chan[0].adapter);
+		i2c_del_adapter(&par->chan[0].adapter);
 	par->chan[0].par = NULL;
 
 	if (par->chan[1].par)
-		i2c_bit_del_bus(&par->chan[1].adapter);
+		i2c_del_adapter(&par->chan[1].adapter);
 	par->chan[1].par = NULL;
 
 	if (par->chan[2].par)
-		i2c_bit_del_bus(&par->chan[2].adapter);
+		i2c_del_adapter(&par->chan[2].adapter);
 	par->chan[2].par = NULL;
 
 }
@@ -210,11 +210,8 @@ int nvidia_probe_i2c_connector(struct fb_info *info, int conn, u8 **out_edid)
 		/* try to get from firmware */
 		const u8 *e = fb_firmware_edid(info->device);
 
-		if (e != NULL) {
-			edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
-			if (edid)
-				memcpy(edid, e, EDID_LENGTH);
-		}
+		if (e != NULL)
+			edid = kmemdup(e, EDID_LENGTH, GFP_KERNEL);
 	}
 
 	*out_edid = edid;

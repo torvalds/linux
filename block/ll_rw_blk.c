@@ -25,16 +25,18 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/interrupt.h>
 #include <linux/cpu.h>
 #include <linux/blktrace_api.h>
+#include <linux/fault-inject.h>
 
 /*
  * for max sense size
  */
 #include <scsi/scsi_cmnd.h>
 
-static void blk_unplug_work(void *data);
+static void blk_unplug_work(struct work_struct *work);
 static void blk_unplug_timeout(unsigned long data);
 static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io);
 static void init_request_from_bio(struct request *req, struct bio *bio);
@@ -44,22 +46,17 @@ static struct io_context *current_io_context(gfp_t gfp_flags, int node);
 /*
  * For the allocated request tables
  */
-static kmem_cache_t *request_cachep;
+static struct kmem_cache *request_cachep;
 
 /*
  * For queue allocation
  */
-static kmem_cache_t *requestq_cachep;
+static struct kmem_cache *requestq_cachep;
 
 /*
  * For io context allocations
  */
-static kmem_cache_t *iocontext_cachep;
-
-static wait_queue_head_t congestion_wqh[2] = {
-		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
-		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
-	};
+static struct kmem_cache *iocontext_cachep;
 
 /*
  * Controlling structure to kblockd
@@ -112,35 +109,6 @@ static void blk_queue_congestion_threshold(struct request_queue *q)
 	q->nr_congestion_off = nr;
 }
 
-/*
- * A queue has just exitted congestion.  Note this in the global counter of
- * congested queues, and wake up anyone who was waiting for requests to be
- * put back.
- */
-static void clear_queue_congested(request_queue_t *q, int rw)
-{
-	enum bdi_state bit;
-	wait_queue_head_t *wqh = &congestion_wqh[rw];
-
-	bit = (rw == WRITE) ? BDI_write_congested : BDI_read_congested;
-	clear_bit(bit, &q->backing_dev_info.state);
-	smp_mb__after_clear_bit();
-	if (waitqueue_active(wqh))
-		wake_up(wqh);
-}
-
-/*
- * A queue has just entered congestion.  Flag that in the queue's VM-visible
- * state flags and increment the global gounter of congested queues.
- */
-static void set_queue_congested(request_queue_t *q, int rw)
-{
-	enum bdi_state bit;
-
-	bit = (rw == WRITE) ? BDI_write_congested : BDI_read_congested;
-	set_bit(bit, &q->backing_dev_info.state);
-}
-
 /**
  * blk_get_backing_dev_info - get the address of a queue's backing_dev_info
  * @bdev:	device
@@ -159,16 +127,7 @@ struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev)
 		ret = &q->backing_dev_info;
 	return ret;
 }
-
 EXPORT_SYMBOL(blk_get_backing_dev_info);
-
-void blk_queue_activity_fn(request_queue_t *q, activity_fn *fn, void *data)
-{
-	q->activity_fn = fn;
-	q->activity_data = data;
-}
-
-EXPORT_SYMBOL(blk_queue_activity_fn);
 
 /**
  * blk_queue_prep_rq - set a prepare_request function for queue
@@ -263,7 +222,7 @@ void blk_queue_make_request(request_queue_t * q, make_request_fn * mfn)
 	if (q->unplug_delay == 0)
 		q->unplug_delay = 1;
 
-	INIT_WORK(&q->unplug_work, blk_unplug_work, q);
+	INIT_WORK(&q->unplug_work, blk_unplug_work);
 
 	q->unplug_timer.function = blk_unplug_timeout;
 	q->unplug_timer.data = (unsigned long)q;
@@ -272,8 +231,6 @@ void blk_queue_make_request(request_queue_t * q, make_request_fn * mfn)
 	 * by default assume old behaviour and bounce for any highmem page
 	 */
 	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
-
-	blk_queue_activity_fn(q, NULL, NULL);
 }
 
 EXPORT_SYMBOL(blk_queue_make_request);
@@ -1667,9 +1624,9 @@ static void blk_backing_dev_unplug(struct backing_dev_info *bdi,
 	}
 }
 
-static void blk_unplug_work(void *data)
+static void blk_unplug_work(struct work_struct *work)
 {
-	request_queue_t *q = data;
+	request_queue_t *q = container_of(work, request_queue_t, unplug_work);
 
 	blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_IO, NULL,
 				q->rq.count[READ] + q->rq.count[WRITE]);
@@ -2067,7 +2024,7 @@ static void __freed_request(request_queue_t *q, int rw)
 	struct request_list *rl = &q->rq;
 
 	if (rl->count[rw] < queue_congestion_off_threshold(q))
-		clear_queue_congested(q, rw);
+		blk_clear_queue_congested(q, rw);
 
 	if (rl->count[rw] + 1 <= q->nr_requests) {
 		if (waitqueue_active(&rl->wait[rw]))
@@ -2137,7 +2094,7 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 				}
 			}
 		}
-		set_queue_congested(q, rw);
+		blk_set_queue_congested(q, rw);
 	}
 
 	/*
@@ -2358,6 +2315,84 @@ void blk_insert_request(request_queue_t *q, struct request *rq,
 
 EXPORT_SYMBOL(blk_insert_request);
 
+static int __blk_rq_unmap_user(struct bio *bio)
+{
+	int ret = 0;
+
+	if (bio) {
+		if (bio_flagged(bio, BIO_USER_MAPPED))
+			bio_unmap_user(bio);
+		else
+			ret = bio_uncopy_user(bio);
+	}
+
+	return ret;
+}
+
+static int __blk_rq_map_user(request_queue_t *q, struct request *rq,
+			     void __user *ubuf, unsigned int len)
+{
+	unsigned long uaddr;
+	struct bio *bio, *orig_bio;
+	int reading, ret;
+
+	reading = rq_data_dir(rq) == READ;
+
+	/*
+	 * if alignment requirement is satisfied, map in user pages for
+	 * direct dma. else, set up kernel bounce buffers
+	 */
+	uaddr = (unsigned long) ubuf;
+	if (!(uaddr & queue_dma_alignment(q)) && !(len & queue_dma_alignment(q)))
+		bio = bio_map_user(q, NULL, uaddr, len, reading);
+	else
+		bio = bio_copy_user(q, uaddr, len, reading);
+
+	if (IS_ERR(bio)) {
+		return PTR_ERR(bio);
+	}
+
+	orig_bio = bio;
+	blk_queue_bounce(q, &bio);
+	/*
+	 * We link the bounce buffer in and could have to traverse it
+	 * later so we have to get a ref to prevent it from being freed
+	 */
+	bio_get(bio);
+
+	/*
+	 * for most (all? don't know of any) queues we could
+	 * skip grabbing the queue lock here. only drivers with
+	 * funky private ->back_merge_fn() function could be
+	 * problematic.
+	 */
+	spin_lock_irq(q->queue_lock);
+	if (!rq->bio)
+		blk_rq_bio_prep(q, rq, bio);
+	else if (!q->back_merge_fn(q, rq, bio)) {
+		ret = -EINVAL;
+		spin_unlock_irq(q->queue_lock);
+		goto unmap_bio;
+	} else {
+		rq->biotail->bi_next = bio;
+		rq->biotail = bio;
+
+		rq->nr_sectors += bio_sectors(bio);
+		rq->hard_nr_sectors = rq->nr_sectors;
+		rq->data_len += bio->bi_size;
+	}
+	spin_unlock_irq(q->queue_lock);
+
+	return bio->bi_size;
+
+unmap_bio:
+	/* if it was boucned we must call the end io function */
+	bio_endio(bio, bio->bi_size, 0);
+	__blk_rq_unmap_user(orig_bio);
+	bio_put(bio);
+	return ret;
+}
+
 /**
  * blk_rq_map_user - map user data to a request, for REQ_BLOCK_PC usage
  * @q:		request queue where request should be inserted
@@ -2379,42 +2414,44 @@ EXPORT_SYMBOL(blk_insert_request);
  *    unmapping.
  */
 int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
-		    unsigned int len)
+		    unsigned long len)
 {
-	unsigned long uaddr;
-	struct bio *bio;
-	int reading;
+	unsigned long bytes_read = 0;
+	int ret;
 
 	if (len > (q->max_hw_sectors << 9))
 		return -EINVAL;
 	if (!len || !ubuf)
 		return -EINVAL;
 
-	reading = rq_data_dir(rq) == READ;
+	while (bytes_read != len) {
+		unsigned long map_len, end, start;
 
-	/*
-	 * if alignment requirement is satisfied, map in user pages for
-	 * direct dma. else, set up kernel bounce buffers
-	 */
-	uaddr = (unsigned long) ubuf;
-	if (!(uaddr & queue_dma_alignment(q)) && !(len & queue_dma_alignment(q)))
-		bio = bio_map_user(q, NULL, uaddr, len, reading);
-	else
-		bio = bio_copy_user(q, uaddr, len, reading);
+		map_len = min_t(unsigned long, len - bytes_read, BIO_MAX_SIZE);
+		end = ((unsigned long)ubuf + map_len + PAGE_SIZE - 1)
+								>> PAGE_SHIFT;
+		start = (unsigned long)ubuf >> PAGE_SHIFT;
 
-	if (!IS_ERR(bio)) {
-		rq->bio = rq->biotail = bio;
-		blk_rq_bio_prep(q, rq, bio);
+		/*
+		 * A bad offset could cause us to require BIO_MAX_PAGES + 1
+		 * pages. If this happens we just lower the requested
+		 * mapping len by a page so that we can fit
+		 */
+		if (end - start > BIO_MAX_PAGES)
+			map_len -= PAGE_SIZE;
 
-		rq->buffer = rq->data = NULL;
-		rq->data_len = len;
-		return 0;
+		ret = __blk_rq_map_user(q, rq, ubuf, map_len);
+		if (ret < 0)
+			goto unmap_rq;
+		bytes_read += ret;
+		ubuf += ret;
 	}
 
-	/*
-	 * bio is the err-ptr
-	 */
-	return PTR_ERR(bio);
+	rq->buffer = rq->data = NULL;
+	return 0;
+unmap_rq:
+	blk_rq_unmap_user(rq);
+	return ret;
 }
 
 EXPORT_SYMBOL(blk_rq_map_user);
@@ -2440,7 +2477,7 @@ EXPORT_SYMBOL(blk_rq_map_user);
  *    unmapping.
  */
 int blk_rq_map_user_iov(request_queue_t *q, struct request *rq,
-			struct sg_iovec *iov, int iov_count)
+			struct sg_iovec *iov, int iov_count, unsigned int len)
 {
 	struct bio *bio;
 
@@ -2454,10 +2491,15 @@ int blk_rq_map_user_iov(request_queue_t *q, struct request *rq,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	rq->bio = rq->biotail = bio;
+	if (bio->bi_size != len) {
+		bio_endio(bio, bio->bi_size, 0);
+		bio_unmap_user(bio);
+		return -EINVAL;
+	}
+
+	bio_get(bio);
 	blk_rq_bio_prep(q, rq, bio);
 	rq->buffer = rq->data = NULL;
-	rq->data_len = bio->bi_size;
 	return 0;
 }
 
@@ -2465,23 +2507,26 @@ EXPORT_SYMBOL(blk_rq_map_user_iov);
 
 /**
  * blk_rq_unmap_user - unmap a request with user data
- * @bio:	bio to be unmapped
- * @ulen:	length of user buffer
+ * @rq:		rq to be unmapped
  *
  * Description:
- *    Unmap a bio previously mapped by blk_rq_map_user().
+ *    Unmap a rq previously mapped by blk_rq_map_user().
+ *    rq->bio must be set to the original head of the request.
  */
-int blk_rq_unmap_user(struct bio *bio, unsigned int ulen)
+int blk_rq_unmap_user(struct request *rq)
 {
-	int ret = 0;
+	struct bio *bio, *mapped_bio;
 
-	if (bio) {
-		if (bio_flagged(bio, BIO_USER_MAPPED))
-			bio_unmap_user(bio);
+	while ((bio = rq->bio)) {
+		if (bio_flagged(bio, BIO_BOUNCED))
+			mapped_bio = bio->bi_private;
 		else
-			ret = bio_uncopy_user(bio);
-	}
+			mapped_bio = bio;
 
+		__blk_rq_unmap_user(mapped_bio);
+		rq->bio = bio->bi_next;
+		bio_put(bio);
+	}
 	return 0;
 }
 
@@ -2512,11 +2557,8 @@ int blk_rq_map_kern(request_queue_t *q, struct request *rq, void *kbuf,
 	if (rq_data_dir(rq) == WRITE)
 		bio->bi_rw |= (1 << BIO_RW);
 
-	rq->bio = rq->biotail = bio;
 	blk_rq_bio_prep(q, rq, bio);
-
 	rq->buffer = rq->data = NULL;
-	rq->data_len = len;
 	return 0;
 }
 
@@ -2645,9 +2687,6 @@ static inline void add_request(request_queue_t * q, struct request * req)
 {
 	drive_stat_acct(req, req->nr_sectors, 1);
 
-	if (q->activity_fn)
-		q->activity_fn(q->activity_data, rq_data_dir(req));
-
 	/*
 	 * elevator indicated where it wants this request to be
 	 * inserted at elevator_merge time
@@ -2754,41 +2793,6 @@ void blk_end_sync_rq(struct request *rq, int error)
 	complete(waiting);
 }
 EXPORT_SYMBOL(blk_end_sync_rq);
-
-/**
- * blk_congestion_wait - wait for a queue to become uncongested
- * @rw: READ or WRITE
- * @timeout: timeout in jiffies
- *
- * Waits for up to @timeout jiffies for a queue (any queue) to exit congestion.
- * If no queues are congested then just wait for the next request to be
- * returned.
- */
-long blk_congestion_wait(int rw, long timeout)
-{
-	long ret;
-	DEFINE_WAIT(wait);
-	wait_queue_head_t *wqh = &congestion_wqh[rw];
-
-	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
-	ret = io_schedule_timeout(timeout);
-	finish_wait(wqh, &wait);
-	return ret;
-}
-
-EXPORT_SYMBOL(blk_congestion_wait);
-
-/**
- * blk_congestion_end - wake up sleepers on a congestion queue
- * @rw: READ or WRITE
- */
-void blk_congestion_end(int rw)
-{
-	wait_queue_head_t *wqh = &congestion_wqh[rw];
-
-	if (waitqueue_active(wqh))
-		wake_up(wqh);
-}
 
 /*
  * Has to be called with the request spinlock acquired
@@ -3042,6 +3046,42 @@ static void handle_bad_sector(struct bio *bio)
 	set_bit(BIO_EOF, &bio->bi_flags);
 }
 
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+
+static DECLARE_FAULT_ATTR(fail_make_request);
+
+static int __init setup_fail_make_request(char *str)
+{
+	return setup_fault_attr(&fail_make_request, str);
+}
+__setup("fail_make_request=", setup_fail_make_request);
+
+static int should_fail_request(struct bio *bio)
+{
+	if ((bio->bi_bdev->bd_disk->flags & GENHD_FL_FAIL) ||
+	    (bio->bi_bdev->bd_part && bio->bi_bdev->bd_part->make_it_fail))
+		return should_fail(&fail_make_request, bio->bi_size);
+
+	return 0;
+}
+
+static int __init fail_make_request_debugfs(void)
+{
+	return init_fault_attr_dentries(&fail_make_request,
+					"fail_make_request");
+}
+
+late_initcall(fail_make_request_debugfs);
+
+#else /* CONFIG_FAIL_MAKE_REQUEST */
+
+static inline int should_fail_request(struct bio *bio)
+{
+	return 0;
+}
+
+#endif /* CONFIG_FAIL_MAKE_REQUEST */
+
 /**
  * generic_make_request: hand a buffer to its device driver for I/O
  * @bio:  The bio describing the location in memory and on the device.
@@ -3070,6 +3110,7 @@ void generic_make_request(struct bio *bio)
 {
 	request_queue_t *q;
 	sector_t maxsector;
+	sector_t old_sector;
 	int ret, nr_sectors = bio_sectors(bio);
 	dev_t old_dev;
 
@@ -3098,7 +3139,7 @@ void generic_make_request(struct bio *bio)
 	 * NOTE: we don't repeat the blk_size check for each new device.
 	 * Stacking drivers are expected to know what they are doing.
 	 */
-	maxsector = -1;
+	old_sector = -1;
 	old_dev = 0;
 	do {
 		char b[BDEVNAME_SIZE];
@@ -3126,20 +3167,39 @@ end_io:
 		if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
 			goto end_io;
 
+		if (should_fail_request(bio))
+			goto end_io;
+
 		/*
 		 * If this device has partitions, remap block n
 		 * of partition p to block n+start(p) of the disk.
 		 */
 		blk_partition_remap(bio);
 
-		if (maxsector != -1)
+		if (old_sector != -1)
 			blk_add_trace_remap(q, bio, old_dev, bio->bi_sector, 
-					    maxsector);
+					    old_sector);
 
 		blk_add_trace_bio(q, bio, BLK_TA_QUEUE);
 
-		maxsector = bio->bi_sector;
+		old_sector = bio->bi_sector;
 		old_dev = bio->bi_bdev->bd_dev;
+
+		maxsector = bio->bi_bdev->bd_inode->i_size >> 9;
+		if (maxsector) {
+			sector_t sector = bio->bi_sector;
+
+			if (maxsector < nr_sectors ||
+					maxsector - nr_sectors < sector) {
+				/*
+				 * This may well happen - partitions are not
+				 * checked to make sure they are within the size
+				 * of the whole device.
+				 */
+				handle_bad_sector(bio);
+				goto end_io;
+			}
+		}
 
 		ret = q->make_request_fn(q, bio);
 	} while (ret);
@@ -3164,10 +3224,12 @@ void submit_bio(int rw, struct bio *bio)
 	BIO_BUG_ON(!bio->bi_size);
 	BIO_BUG_ON(!bio->bi_io_vec);
 	bio->bi_rw |= rw;
-	if (rw & WRITE)
+	if (rw & WRITE) {
 		count_vm_events(PGPGOUT, count);
-	else
+	} else {
+		task_io_account_read(bio->bi_size);
 		count_vm_events(PGPGIN, count);
+	}
 
 	if (unlikely(block_dump)) {
 		char b[BDEVNAME_SIZE];
@@ -3428,8 +3490,6 @@ static void blk_done_softirq(struct softirq_action *h)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
 static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 			  void *hcpu)
 {
@@ -3454,8 +3514,6 @@ static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 static struct notifier_block __devinitdata blk_cpu_notifier = {
 	.notifier_call	= blk_cpu_notify,
 };
-
-#endif /* CONFIG_HOTPLUG_CPU */
 
 /**
  * blk_complete_request - end I/O on a request
@@ -3549,6 +3607,7 @@ void blk_rq_bio_prep(request_queue_t *q, struct request *rq, struct bio *bio)
 	rq->hard_cur_sectors = rq->current_nr_sectors;
 	rq->hard_nr_sectors = rq->nr_sectors = bio_sectors(bio);
 	rq->buffer = bio_data(bio);
+	rq->data_len = bio->bi_size;
 
 	rq->bio = rq->biotail = bio;
 }
@@ -3765,14 +3824,14 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 	blk_queue_congestion_threshold(q);
 
 	if (rl->count[READ] >= queue_congestion_on_threshold(q))
-		set_queue_congested(q, READ);
+		blk_set_queue_congested(q, READ);
 	else if (rl->count[READ] < queue_congestion_off_threshold(q))
-		clear_queue_congested(q, READ);
+		blk_clear_queue_congested(q, READ);
 
 	if (rl->count[WRITE] >= queue_congestion_on_threshold(q))
-		set_queue_congested(q, WRITE);
+		blk_set_queue_congested(q, WRITE);
 	else if (rl->count[WRITE] < queue_congestion_off_threshold(q))
-		clear_queue_congested(q, WRITE);
+		blk_clear_queue_congested(q, WRITE);
 
 	if (rl->count[READ] >= q->nr_requests) {
 		blk_set_queue_full(q, READ);

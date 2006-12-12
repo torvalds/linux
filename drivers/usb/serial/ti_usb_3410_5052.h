@@ -28,6 +28,7 @@
 /* Vendor and product ids */
 #define TI_VENDOR_ID			0x0451
 #define TI_3410_PRODUCT_ID		0x3410
+#define TI_3410_EZ430_ID		0xF430  /* TI ez430 development tool */
 #define TI_5052_BOOT_PRODUCT_ID		0x5052	/* no EEPROM, no firmware */
 #define TI_5152_BOOT_PRODUCT_ID		0x5152	/* no EEPROM, no firmware */
 #define TI_5052_EEPROM_PRODUCT_ID	0x505A	/* EEPROM, no firmware */

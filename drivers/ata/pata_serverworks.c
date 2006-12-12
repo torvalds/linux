@@ -41,7 +41,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_serverworks"
-#define DRV_VERSION "0.3.7"
+#define DRV_VERSION "0.3.9"
 
 #define SVWKS_CSB5_REVISION_NEW	0x92 /* min PCI_REVISION_ID for UDMA5 (A2.0) */
 #define SVWKS_CSB6_REVISION	0xa0 /* min PCI_REVISION_ID for UDMA4 (A1.0) */
@@ -318,14 +318,16 @@ static struct scsi_host_template serverworks_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+	.resume			= ata_scsi_device_resume,
+	.suspend		= ata_scsi_device_suspend,
 };
 
 static struct ata_port_operations serverworks_osb4_port_ops = {
@@ -553,6 +555,30 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 	return ata_pci_init_one(pdev, port_info, ports);
 }
 
+static int serverworks_reinit_one(struct pci_dev *pdev)
+{
+	/* Force master latency timer to 64 PCI clocks */
+	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x40);
+	
+	switch (pdev->device)
+	{
+		case PCI_DEVICE_ID_SERVERWORKS_OSB4IDE:
+			serverworks_fixup_osb4(pdev);
+			break;
+		case PCI_DEVICE_ID_SERVERWORKS_CSB5IDE:
+			ata_pci_clear_simplex(pdev);
+			/* fall through */
+		case PCI_DEVICE_ID_SERVERWORKS_CSB6IDE:
+		case PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2:
+			serverworks_fixup_csb(pdev);
+			break;
+		case PCI_DEVICE_ID_SERVERWORKS_HT1000IDE:
+			serverworks_fixup_ht1000(pdev);
+			break;
+	}
+	return ata_pci_device_resume(pdev);
+}
+
 static const struct pci_device_id serverworks[] = {
 	{ PCI_VDEVICE(SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_OSB4IDE), 0},
 	{ PCI_VDEVICE(SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB5IDE), 2},
@@ -567,7 +593,9 @@ static struct pci_driver serverworks_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= serverworks,
 	.probe 		= serverworks_init_one,
-	.remove		= ata_pci_remove_one
+	.remove		= ata_pci_remove_one,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= serverworks_reinit_one,
 };
 
 static int __init serverworks_init(void)

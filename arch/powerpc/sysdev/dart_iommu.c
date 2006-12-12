@@ -48,9 +48,6 @@
 
 #include "dart.h"
 
-extern int iommu_is_off;
-extern int iommu_force_on;
-
 /* Physical base address and size of the DART table */
 unsigned long dart_tablebase; /* exported to htab_initialize */
 static unsigned long dart_tablesize;
@@ -156,9 +153,6 @@ static void dart_build(struct iommu_table *tbl, long index,
 
 	DBG("dart: build at: %lx, %lx, addr: %x\n", index, npages, uaddr);
 
-	index <<= DART_PAGE_FACTOR;
-	npages <<= DART_PAGE_FACTOR;
-
 	dp = ((unsigned int*)tbl->it_base) + index;
 
 	/* On U3, all memory is contigous, so we can move this
@@ -198,9 +192,6 @@ static void dart_free(struct iommu_table *tbl, long index, long npages)
 	 */
 
 	DBG("dart: free at: %lx, %lx\n", index, npages);
-
-	index <<= DART_PAGE_FACTOR;
-	npages <<= DART_PAGE_FACTOR;
 
 	dp  = ((unsigned int *)tbl->it_base) + index;
 
@@ -281,7 +272,7 @@ static void iommu_table_dart_setup(void)
 	iommu_table_dart.it_busno = 0;
 	iommu_table_dart.it_offset = 0;
 	/* it_size is in number of entries */
-	iommu_table_dart.it_size = (dart_tablesize / sizeof(u32)) >> DART_PAGE_FACTOR;
+	iommu_table_dart.it_size = dart_tablesize / sizeof(u32);
 
 	/* Initialize the common IOMMU code */
 	iommu_table_dart.it_base = (unsigned long)dart_vbase;
@@ -295,24 +286,15 @@ static void iommu_table_dart_setup(void)
 	set_bit(iommu_table_dart.it_size - 1, iommu_table_dart.it_map);
 }
 
-static void iommu_dev_setup_dart(struct pci_dev *dev)
+static void pci_dma_dev_setup_dart(struct pci_dev *dev)
 {
-	struct device_node *dn;
-
 	/* We only have one iommu table on the mac for now, which makes
 	 * things simple. Setup all PCI devices to point to this table
-	 *
-	 * We must use pci_device_to_OF_node() to make sure that
-	 * we get the real "final" pointer to the device in the
-	 * pci_dev sysdata and not the temporary PHB one
 	 */
-	dn = pci_device_to_OF_node(dev);
-
-	if (dn)
-		PCI_DN(dn)->iommu_table = &iommu_table_dart;
+	dev->dev.archdata.dma_data = &iommu_table_dart;
 }
 
-static void iommu_bus_setup_dart(struct pci_bus *bus)
+static void pci_dma_bus_setup_dart(struct pci_bus *bus)
 {
 	struct device_node *dn;
 
@@ -326,9 +308,6 @@ static void iommu_bus_setup_dart(struct pci_bus *bus)
 	if (dn)
 		PCI_DN(dn)->iommu_table = &iommu_table_dart;
 }
-
-static void iommu_dev_setup_null(struct pci_dev *dev) { }
-static void iommu_bus_setup_null(struct pci_bus *bus) { }
 
 void iommu_init_early_dart(void)
 {
@@ -350,22 +329,21 @@ void iommu_init_early_dart(void)
 
 	/* Initialize the DART HW */
 	if (dart_init(dn) == 0) {
-		ppc_md.iommu_dev_setup = iommu_dev_setup_dart;
-		ppc_md.iommu_bus_setup = iommu_bus_setup_dart;
+		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_dart;
+		ppc_md.pci_dma_bus_setup = pci_dma_bus_setup_dart;
 
 		/* Setup pci_dma ops */
-		pci_iommu_init();
-
+		pci_dma_ops = &dma_iommu_ops;
 		return;
 	}
 
  bail:
 	/* If init failed, use direct iommu and null setup functions */
-	ppc_md.iommu_dev_setup = iommu_dev_setup_null;
-	ppc_md.iommu_bus_setup = iommu_bus_setup_null;
+	ppc_md.pci_dma_dev_setup = NULL;
+	ppc_md.pci_dma_bus_setup = NULL;
 
 	/* Setup pci_dma ops */
-	pci_direct_iommu_init();
+	pci_dma_ops = &dma_direct_ops;
 }
 
 

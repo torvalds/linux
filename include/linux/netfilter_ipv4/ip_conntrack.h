@@ -9,6 +9,7 @@
 #include <linux/compiler.h>
 #include <asm/atomic.h>
 
+#include <linux/timer.h>
 #include <linux/netfilter_ipv4/ip_conntrack_tcp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_icmp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_proto_gre.h>
@@ -277,7 +278,7 @@ extern struct ip_conntrack_expect *
 __ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple);
 
 extern struct ip_conntrack_expect *
-ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple);
+ip_conntrack_expect_find_get(const struct ip_conntrack_tuple *tuple);
 
 extern struct ip_conntrack_tuple_hash *
 __ip_conntrack_find(const struct ip_conntrack_tuple *tuple,

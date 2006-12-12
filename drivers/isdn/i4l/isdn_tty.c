@@ -1464,7 +1464,7 @@ isdn_tty_ioctl(struct tty_struct *tty, struct file *file,
 }
 
 static void
-isdn_tty_set_termios(struct tty_struct *tty, struct termios *old_termios)
+isdn_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	modem_info *info = (modem_info *) tty->driver_data;
 

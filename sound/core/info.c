@@ -120,7 +120,10 @@ int snd_iprintf(struct snd_info_buffer *buffer, char *fmt,...)
 	len = buffer->len - buffer->size;
 	va_start(args, fmt);
 	for (;;) {
-		res = vsnprintf(buffer->buffer + buffer->curr, len, fmt, args);
+		va_list ap;
+		va_copy(ap, args);
+		res = vsnprintf(buffer->buffer + buffer->curr, len, fmt, ap);
+		va_end(ap);
 		if (res < len)
 			break;
 		err = resize_info_buffer(buffer, buffer->len + PAGE_SIZE);
@@ -485,7 +488,7 @@ static long snd_info_entry_ioctl(struct file *file, unsigned int cmd,
 
 static int snd_info_entry_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct snd_info_private_data *data;
 	struct snd_info_entry *entry;
 

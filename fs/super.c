@@ -221,6 +221,24 @@ static int grab_super(struct super_block *s) __releases(sb_lock)
 }
 
 /*
+ * Superblock locking.  We really ought to get rid of these two.
+ */
+void lock_super(struct super_block * sb)
+{
+	get_fs_excl();
+	mutex_lock(&sb->s_lock);
+}
+
+void unlock_super(struct super_block * sb)
+{
+	put_fs_excl();
+	mutex_unlock(&sb->s_lock);
+}
+
+EXPORT_SYMBOL(lock_super);
+EXPORT_SYMBOL(unlock_super);
+
+/*
  * Write out and wait upon all dirty data associated with this
  * superblock.  Filesystem data as well as the underlying block
  * device.  Takes the superblock lock.  Requires a second blkdev
@@ -552,7 +570,7 @@ static void mark_files_ro(struct super_block *sb)
 
 	file_list_lock();
 	list_for_each_entry(f, &sb->s_files, f_u.fu_list) {
-		if (S_ISREG(f->f_dentry->d_inode->i_mode) && file_count(f))
+		if (S_ISREG(f->f_path.dentry->d_inode->i_mode) && file_count(f))
 			f->f_mode &= ~FMODE_WRITE;
 	}
 	file_list_unlock();

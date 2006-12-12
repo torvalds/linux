@@ -311,9 +311,10 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
 #endif
 
     dev->base_addr = ioaddr;
+    dev->irq = IRQ_AMIGA_PORTS;
 
     /* Install the Interrupt handler */
-    i = request_irq(IRQ_AMIGA_PORTS, apne_interrupt, IRQF_SHARED, DRV_NAME, dev);
+    i = request_irq(dev->irq, apne_interrupt, IRQF_SHARED, DRV_NAME, dev);
     if (i) return i;
 
     for(i = 0; i < ETHER_ADDR_LEN; i++) {
@@ -568,7 +569,7 @@ static irqreturn_t apne_interrupt(int irq, void *dev_id)
 #ifdef MODULE
 static struct net_device *apne_dev;
 
-int init_module(void)
+int __init init_module(void)
 {
 	apne_dev = apne_probe(-1);
 	if (IS_ERR(apne_dev))
@@ -576,7 +577,7 @@ int init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	unregister_netdev(apne_dev);
 

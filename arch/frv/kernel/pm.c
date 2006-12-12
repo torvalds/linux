@@ -223,7 +223,7 @@ static int cmode_procctl(ctl_table *ctl, int write, struct file *filp,
 
 static int cmode_sysctl(ctl_table *table, int __user *name, int nlen,
 			void __user *oldval, size_t __user *oldlenp,
-			void __user *newval, size_t newlen, void **context)
+			void __user *newval, size_t newlen)
 {
 	if (oldval && oldlenp) {
 		size_t oldlen;
@@ -326,7 +326,7 @@ static int p0_procctl(ctl_table *ctl, int write, struct file *filp,
 
 static int p0_sysctl(ctl_table *table, int __user *name, int nlen,
 		     void __user *oldval, size_t __user *oldlenp,
-		     void __user *newval, size_t newlen, void **context)
+		     void __user *newval, size_t newlen)
 {
 	if (oldval && oldlenp) {
 		size_t oldlen;
@@ -370,7 +370,7 @@ static int cm_procctl(ctl_table *ctl, int write, struct file *filp,
 
 static int cm_sysctl(ctl_table *table, int __user *name, int nlen,
 		     void __user *oldval, size_t __user *oldlenp,
-		     void __user *newval, size_t newlen, void **context)
+		     void __user *newval, size_t newlen)
 {
 	if (oldval && oldlenp) {
 		size_t oldlen;

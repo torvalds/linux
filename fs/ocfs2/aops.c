@@ -200,7 +200,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 
 	mlog_entry("(0x%p, %lu)\n", file, (page ? page->index : 0));
 
-	ret = ocfs2_meta_lock_with_page(inode, NULL, NULL, 0, page);
+	ret = ocfs2_meta_lock_with_page(inode, NULL, 0, page);
 	if (ret != 0) {
 		if (ret == AOP_TRUNCATED_PAGE)
 			unlock = 0;
@@ -305,7 +305,7 @@ static int ocfs2_prepare_write(struct file *file, struct page *page,
 
 	mlog_entry("(0x%p, 0x%p, %u, %u)\n", file, page, from, to);
 
-	ret = ocfs2_meta_lock_with_page(inode, NULL, NULL, 0, page);
+	ret = ocfs2_meta_lock_with_page(inode, NULL, 0, page);
 	if (ret != 0) {
 		mlog_errno(ret);
 		goto out;
@@ -355,16 +355,16 @@ static int walk_page_buffers(	handle_t *handle,
 	return ret;
 }
 
-struct ocfs2_journal_handle *ocfs2_start_walk_page_trans(struct inode *inode,
+handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
 							 struct page *page,
 							 unsigned from,
 							 unsigned to)
 {
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	int ret = 0;
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_INODE_UPDATE_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (!handle) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -372,7 +372,7 @@ struct ocfs2_journal_handle *ocfs2_start_walk_page_trans(struct inode *inode,
 	}
 
 	if (ocfs2_should_order_data(inode)) {
-		ret = walk_page_buffers(handle->k_handle,
+		ret = walk_page_buffers(handle,
 					page_buffers(page),
 					from, to, NULL,
 					ocfs2_journal_dirty_data);
@@ -382,7 +382,7 @@ struct ocfs2_journal_handle *ocfs2_start_walk_page_trans(struct inode *inode,
 out:
 	if (ret) {
 		if (handle)
-			ocfs2_commit_trans(handle);
+			ocfs2_commit_trans(osb, handle);
 		handle = ERR_PTR(ret);
 	}
 	return handle;
@@ -394,7 +394,7 @@ static int ocfs2_commit_write(struct file *file, struct page *page,
 	int ret;
 	struct buffer_head *di_bh = NULL;
 	struct inode *inode = page->mapping->host;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct ocfs2_dinode *di;
 
 	mlog_entry("(0x%p, 0x%p, %u, %u)\n", file, page, from, to);
@@ -412,7 +412,7 @@ static int ocfs2_commit_write(struct file *file, struct page *page,
 	 *    stale inode allocation image (i_size, i_clusters, etc).
 	 */
 
-	ret = ocfs2_meta_lock_with_page(inode, NULL, &di_bh, 1, page);
+	ret = ocfs2_meta_lock_with_page(inode, &di_bh, 1, page);
 	if (ret != 0) {
 		mlog_errno(ret);
 		goto out;
@@ -464,7 +464,7 @@ static int ocfs2_commit_write(struct file *file, struct page *page,
 	}
 
 out_commit:
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
 out_unlock_data:
 	ocfs2_data_unlock(inode, 1);
 out_unlock_meta:
@@ -490,7 +490,7 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 	 * accessed concurrently from multiple nodes.
 	 */
 	if (!INODE_JOURNAL(inode)) {
-		err = ocfs2_meta_lock(inode, NULL, NULL, 0);
+		err = ocfs2_meta_lock(inode, NULL, 0);
 		if (err) {
 			if (err != -ENOENT)
 				mlog_errno(err);
@@ -595,7 +595,7 @@ static void ocfs2_dio_end_io(struct kiocb *iocb,
 			     ssize_t bytes,
 			     void *private)
 {
-	struct inode *inode = iocb->ki_filp->f_dentry->d_inode;
+	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
 
 	/* this io's submitter should not have unlocked this before we could */
 	BUG_ON(!ocfs2_iocb_is_rw_locked(iocb));
@@ -611,7 +611,7 @@ static ssize_t ocfs2_direct_IO(int rw,
 			       unsigned long nr_segs)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_dentry->d_inode->i_mapping->host;
+	struct inode *inode = file->f_path.dentry->d_inode->i_mapping->host;
 	int ret;
 
 	mlog_entry_void();

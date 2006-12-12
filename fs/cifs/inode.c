@@ -318,6 +318,7 @@ int cifs_get_inode_info(struct inode **pinode,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	char *tmp_path;
 	char *buf = NULL;
+	int adjustTZ = FALSE;
 
 	pTcon = cifs_sb->tcon;
 	cFYI(1,("Getting info on %s", search_path));
@@ -348,6 +349,7 @@ int cifs_get_inode_info(struct inode **pinode,
 					pfindData, cifs_sb->local_nls, 
 					cifs_sb->mnt_cifs_flags &
 					  CIFS_MOUNT_MAP_SPECIAL_CHR);
+			adjustTZ = TRUE;
 		}
 		
 	}
@@ -444,6 +446,10 @@ int cifs_get_inode_info(struct inode **pinode,
 		inode->i_ctime =
 		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->ChangeTime));
 		cFYI(0, ("Attributes came in as 0x%x", attr));
+		if(adjustTZ && (pTcon->ses) && (pTcon->ses->server)) {
+			inode->i_ctime.tv_sec += pTcon->ses->server->timeAdj;
+	                inode->i_mtime.tv_sec += pTcon->ses->server->timeAdj;
+		}
 
 		/* set default mode. will override for dirs below */
 		if (atomic_read(&cifsInfo->inUse) == 0)
@@ -885,10 +891,14 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 			kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
 		if (info_buf_source != NULL) {
 			info_buf_target = info_buf_source + 1;
-			rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
-				info_buf_source, cifs_sb_source->local_nls, 
-				cifs_sb_source->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
+			if (pTcon->ses->capabilities & CAP_UNIX)
+				rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
+					info_buf_source, 
+					cifs_sb_source->local_nls,
+					cifs_sb_source->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+			/* else rc is still EEXIST so will fall through to
+			   unlink the target and retry rename */
 			if (rc == 0) {
 				rc = CIFSSMBUnixQPathInfo(xid, pTcon, toName,
 						info_buf_target,
@@ -937,7 +947,7 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 				 cifs_sb_source->mnt_cifs_flags & 
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if (rc==0) {
-			CIFSSMBRenameOpenFile(xid, pTcon, netfid, toName,
+			rc = CIFSSMBRenameOpenFile(xid, pTcon, netfid, toName,
 					      cifs_sb_source->local_nls, 
 					      cifs_sb_source->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -1085,8 +1095,10 @@ int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct kstat *stat)
 {
 	int err = cifs_revalidate(dentry);
-	if (!err)
+	if (!err) {
 		generic_fillattr(dentry->d_inode, stat);
+		stat->blksize = CIFS_MAX_MSGSIZE;
+	}
 	return err;
 }
 

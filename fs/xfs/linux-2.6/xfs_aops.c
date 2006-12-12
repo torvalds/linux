@@ -149,9 +149,10 @@ xfs_destroy_ioend(
  */
 STATIC void
 xfs_end_bio_delalloc(
-	void			*data)
+	struct work_struct	*work)
 {
-	xfs_ioend_t		*ioend = data;
+	xfs_ioend_t		*ioend =
+		container_of(work, xfs_ioend_t, io_work);
 
 	xfs_destroy_ioend(ioend);
 }
@@ -161,9 +162,10 @@ xfs_end_bio_delalloc(
  */
 STATIC void
 xfs_end_bio_written(
-	void			*data)
+	struct work_struct	*work)
 {
-	xfs_ioend_t		*ioend = data;
+	xfs_ioend_t		*ioend =
+		container_of(work, xfs_ioend_t, io_work);
 
 	xfs_destroy_ioend(ioend);
 }
@@ -176,9 +178,10 @@ xfs_end_bio_written(
  */
 STATIC void
 xfs_end_bio_unwritten(
-	void			*data)
+	struct work_struct	*work)
 {
-	xfs_ioend_t		*ioend = data;
+	xfs_ioend_t		*ioend =
+		container_of(work, xfs_ioend_t, io_work);
 	bhv_vnode_t		*vp = ioend->io_vnode;
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
@@ -220,11 +223,11 @@ xfs_alloc_ioend(
 	ioend->io_size = 0;
 
 	if (type == IOMAP_UNWRITTEN)
-		INIT_WORK(&ioend->io_work, xfs_end_bio_unwritten, ioend);
+		INIT_WORK(&ioend->io_work, xfs_end_bio_unwritten);
 	else if (type == IOMAP_DELAY)
-		INIT_WORK(&ioend->io_work, xfs_end_bio_delalloc, ioend);
+		INIT_WORK(&ioend->io_work, xfs_end_bio_delalloc);
 	else
-		INIT_WORK(&ioend->io_work, xfs_end_bio_written, ioend);
+		INIT_WORK(&ioend->io_work, xfs_end_bio_written);
 
 	return ioend;
 }
@@ -1403,7 +1406,7 @@ xfs_vm_direct_IO(
 			xfs_end_io_direct);
 	}
 
-	if (unlikely(ret <= 0 && iocb->private))
+	if (unlikely(ret != -EIOCBQUEUED && iocb->private))
 		xfs_destroy_ioend(iocb->private);
 	return ret;
 }

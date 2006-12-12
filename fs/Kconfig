@@ -634,6 +634,10 @@ config FUSE_FS
 	  If you want to develop a userspace FS, or if you want to use
 	  a filesystem based on FUSE, answer Y or M.
 
+config GENERIC_ACL
+	bool
+	select FS_POSIX_ACL
+
 if BLOCK
 menu "CD-ROM/DVD Filesystems"
 
@@ -968,7 +972,7 @@ config SYSFS
 
 	Some system agents rely on the information in sysfs to operate.
 	/sbin/hotplug uses device and object attributes in sysfs to assist in
-	delegating policy decisions, like persistantly naming devices.
+	delegating policy decisions, like persistently naming devices.
 
 	sysfs is currently used by the block subsystem to mount the root
 	partition.  If sysfs is disabled you must specify the boot device on
@@ -1141,7 +1145,7 @@ config BEFS_FS
 	help
 	  The BeOS File System (BeFS) is the native file system of Be, Inc's
 	  BeOS. Notable features include support for arbitrary attributes
-	  on files and directories, and database-like indeces on selected
+	  on files and directories, and database-like indices on selected
 	  attributes. (Also note that this driver doesn't make those features
 	  available at this time). It is a 64 bit filesystem, so it supports
 	  extremely large volumes and files.
@@ -1773,6 +1777,7 @@ config RPCSEC_GSS_KRB5
 	select CRYPTO
 	select CRYPTO_MD5
 	select CRYPTO_DES
+	select CRYPTO_CBC
 	help
 	  Provides for secure RPC calls by means of a gss-api
 	  mechanism based on Kerberos V5. This is required for
@@ -1791,6 +1796,7 @@ config RPCSEC_GSS_SPKM3
 	select CRYPTO_MD5
 	select CRYPTO_DES
 	select CRYPTO_CAST5
+	select CRYPTO_CBC
 	help
 	  Provides for secure RPC calls by means of a gss-api
 	  mechanism based on the SPKM3 public-key mechanism.
@@ -2054,8 +2060,7 @@ config CODA_FS_OLD_API
 	  For most cases you probably want to say N.
 
 config AFS_FS
-# for fs/nls/Config.in
-	tristate "Andrew File System support (AFS) (Experimental)"
+	tristate "Andrew File System support (AFS) (EXPERIMENTAL)"
 	depends on INET && EXPERIMENTAL
 	select RXRPC
 	help
@@ -2079,10 +2084,6 @@ config 9P_FS
 	  See <http://v9fs.sf.net> for more information.
 
 	  If unsure, say N.
-
-config GENERIC_ACL
-	bool
-	select FS_POSIX_ACL
 
 endmenu
 

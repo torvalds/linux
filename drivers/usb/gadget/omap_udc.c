@@ -2581,7 +2581,7 @@ omap_udc_setup(struct platform_device *odev, struct otg_transceiver *xceiv)
 	/* UDC_PULLUP_EN gates the chip clock */
 	// OTG_SYSCON_1_REG |= DEV_IDLE_EN;
 
-	udc = kzalloc(sizeof(*udc), SLAB_KERNEL);
+	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
 	if (!udc)
 		return -ENOMEM;
 

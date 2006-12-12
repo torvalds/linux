@@ -311,7 +311,7 @@ static int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 {
 	fd_set_bits fds;
 	void *bits;
-	int ret, max_fdset;
+	int ret, max_fds;
 	unsigned int size;
 	struct fdtable *fdt;
 	/* Allocate small arguments on the stack to save memory and be faster */
@@ -321,13 +321,13 @@ static int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 	if (n < 0)
 		goto out_nofds;
 
-	/* max_fdset can increase, so grab it once to avoid race */
+	/* max_fds can increase, so grab it once to avoid race */
 	rcu_read_lock();
 	fdt = files_fdtable(current->files);
-	max_fdset = fdt->max_fdset;
+	max_fds = fdt->max_fds;
 	rcu_read_unlock();
-	if (n > max_fdset)
-		n = max_fdset;
+	if (n > max_fds)
+		n = max_fds;
 
 	/*
 	 * We need 6 bitmaps (in/out/ex for both incoming and outgoing),

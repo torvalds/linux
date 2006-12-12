@@ -239,7 +239,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 	}
 }
 
-static kmem_cache_t *tsb_caches[8] __read_mostly;
+static struct kmem_cache *tsb_caches[8] __read_mostly;
 
 static const char *tsb_cache_names[8] = {
 	"tsb_8KB",

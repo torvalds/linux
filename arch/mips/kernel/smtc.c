@@ -476,6 +476,7 @@ void mipsmt_prepare_cpus(void)
 			write_vpe_c0_compare(0);
 			/* Propagate Config7 */
 			write_vpe_c0_config7(read_c0_config7());
+			write_vpe_c0_count(read_c0_count());
 		}
 		/* enable multi-threading within VPE */
 		write_vpe_c0_vpecontrol(read_vpe_c0_vpecontrol() | VPECONTROL_TE);
@@ -1008,6 +1009,7 @@ void setup_cross_vpe_interrupts(void)
 	setup_irq_smtc(cpu_ipi_irq, &irq_ipi, (0x100 << MIPS_CPU_IPI_IRQ));
 
 	irq_desc[cpu_ipi_irq].status |= IRQ_PER_CPU;
+	set_irq_handler(cpu_ipi_irq, handle_percpu_irq);
 }
 
 /*

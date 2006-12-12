@@ -182,66 +182,6 @@ X!Ilib/string.c
      </sect1>
   </chapter>
 
-  <chapter id="vfs">
-     <title>The Linux VFS</title>
-     <sect1><title>The Filesystem types</title>
-!Iinclude/linux/fs.h
-     </sect1>
-     <sect1><title>The Directory Cache</title>
-!Efs/dcache.c
-!Iinclude/linux/dcache.h
-     </sect1>
-     <sect1><title>Inode Handling</title>
-!Efs/inode.c
-!Efs/bad_inode.c
-     </sect1>
-     <sect1><title>Registration and Superblocks</title>
-!Efs/super.c
-     </sect1>
-     <sect1><title>File Locks</title>
-!Efs/locks.c
-!Ifs/locks.c
-     </sect1>
-     <sect1><title>Other Functions</title>
-!Efs/mpage.c
-!Efs/namei.c
-!Efs/buffer.c
-!Efs/bio.c
-!Efs/seq_file.c
-!Efs/filesystems.c
-!Efs/fs-writeback.c
-!Efs/block_dev.c
-     </sect1>
-  </chapter>
-
-  <chapter id="proc">
-     <title>The proc filesystem</title>
- 
-     <sect1><title>sysctl interface</title>
-!Ekernel/sysctl.c
-     </sect1>
-
-     <sect1><title>proc filesystem interface</title>
-!Ifs/proc/base.c
-     </sect1>
-  </chapter>
-
-  <chapter id="sysfs">
-     <title>The Filesystem for Exporting Kernel Objects</title>
-!Efs/sysfs/file.c
-!Efs/sysfs/symlink.c
-!Efs/sysfs/bin.c
-  </chapter>
-
-  <chapter id="debugfs">
-     <title>The debugfs filesystem</title>
- 
-     <sect1><title>debugfs interface</title>
-!Efs/debugfs/inode.c
-!Efs/debugfs/file.c
-     </sect1>
-  </chapter>
-
   <chapter id="relayfs">
      <title>relay interface support</title>
 
@@ -478,9 +418,35 @@ X!Edrivers/pnp/system.c
 !Idrivers/parport/daisy.c
   </chapter>
 
-  <chapter id="viddev">
-     <title>Video4Linux</title>
-!Edrivers/media/video/videodev.c
+  <chapter id="message_devices">
+	<title>Message-based devices</title>
+     <sect1><title>Fusion message devices</title>
+!Edrivers/message/fusion/mptbase.c
+!Idrivers/message/fusion/mptbase.c
+!Edrivers/message/fusion/mptscsih.c
+!Idrivers/message/fusion/mptscsih.c
+!Idrivers/message/fusion/mptctl.c
+!Idrivers/message/fusion/mptspi.c
+!Idrivers/message/fusion/mptfc.c
+!Idrivers/message/fusion/mptlan.c
+     </sect1>
+     <sect1><title>I2O message devices</title>
+!Iinclude/linux/i2o.h
+!Idrivers/message/i2o/core.h
+!Edrivers/message/i2o/iop.c
+!Idrivers/message/i2o/iop.c
+!Idrivers/message/i2o/config-osm.c
+!Edrivers/message/i2o/exec-osm.c
+!Idrivers/message/i2o/exec-osm.c
+!Idrivers/message/i2o/bus-osm.c
+!Edrivers/message/i2o/device.c
+!Idrivers/message/i2o/device.c
+!Idrivers/message/i2o/driver.c
+!Idrivers/message/i2o/pci.c
+!Idrivers/message/i2o/i2o_block.c
+!Idrivers/message/i2o/i2o_scsi.c
+!Idrivers/message/i2o/i2o_proc.c
+     </sect1>
   </chapter>
 
   <chapter id="snddev">
@@ -592,5 +558,13 @@ KAO -->
 X!Idrivers/video/console/fonts.c
 -->
      </sect1>
+  </chapter>
+
+  <chapter id="input_subsystem">
+     <title>Input Subsystem</title>
+!Iinclude/linux/input.h
+!Edrivers/input/input.c
+!Edrivers/input/ff-core.c
+!Edrivers/input/ff-memless.c
   </chapter>
 </book>

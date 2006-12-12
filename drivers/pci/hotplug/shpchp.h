@@ -31,11 +31,10 @@
 
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/delay.h>
 #include <linux/sched.h>	/* signal_pending(), struct timer_list */
 #include <linux/mutex.h>
-
-#include "pci_hotplug.h"
 
 #if !defined(MODULE)
 	#define MY_NAME	"shpchp"
@@ -71,7 +70,7 @@ struct slot {
 	struct hotplug_slot *hotplug_slot;
 	struct list_head	slot_list;
 	char name[SLOT_NAME_SIZE];
-	struct work_struct work;	/* work for button event */
+	struct delayed_work work;	/* work for button event */
 	struct mutex lock;
 };
 
@@ -103,7 +102,6 @@ struct controller {
 	u32 cap_offset;
 	unsigned long mmio_base;
 	unsigned long mmio_size;
-	volatile int cmd_busy;
 };
 
 
@@ -189,7 +187,7 @@ extern int	shpchp_configure_device(struct slot *p_slot);
 extern int	shpchp_unconfigure_device(struct slot *p_slot);
 extern void	shpchp_remove_ctrl_files(struct controller *ctrl);
 extern void	cleanup_slots(struct controller *ctrl);
-extern void	queue_pushbutton_work(void *data);
+extern void	queue_pushbutton_work(struct work_struct *work);
 
 
 #ifdef CONFIG_ACPI

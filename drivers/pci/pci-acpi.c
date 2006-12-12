@@ -36,6 +36,7 @@ acpi_query_osc (
 	struct acpi_buffer	output = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object 	*out_obj;
 	u32			osc_dw0;
+	acpi_status *ret_status = (acpi_status *)retval;
 
 	
 	/* Setting up input parameters */
@@ -56,6 +57,7 @@ acpi_query_osc (
 	if (ACPI_FAILURE (status)) {
 		printk(KERN_DEBUG  
 			"Evaluate _OSC Set fails. Status = 0x%04x\n", status);
+		*ret_status = status;
 		return status;
 	}
 	out_obj = output.pointer;
@@ -90,6 +92,7 @@ acpi_query_osc (
 
 query_osc_out:
 	kfree(output.pointer);
+	*ret_status = status;
 	return status;
 }
 
@@ -166,6 +169,7 @@ run_osc_out:
 acpi_status pci_osc_support_set(u32 flags)
 {
 	u32 temp;
+	acpi_status retval;
 
 	if (!(flags & OSC_SUPPORT_MASKS)) {
 		return AE_TYPE;
@@ -179,9 +183,13 @@ acpi_status pci_osc_support_set(u32 flags)
 	acpi_get_devices ( PCI_ROOT_HID_STRING,
 			acpi_query_osc,
 			ctrlset_buf,
-			NULL );
+			(void **) &retval );
 	ctrlset_buf[OSC_QUERY_TYPE] = !OSC_QUERY_ENABLE;
 	ctrlset_buf[OSC_CONTROL_TYPE] = temp;
+	if (ACPI_FAILURE(retval)) {
+		/* no osc support at all */
+		ctrlset_buf[OSC_SUPPORT_TYPE] = 0;
+	}
 	return AE_OK;
 }
 EXPORT_SYMBOL(pci_osc_support_set);

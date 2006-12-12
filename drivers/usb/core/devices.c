@@ -175,12 +175,13 @@ static char *usb_dump_endpoint_descriptor (
 )
 {
 	char dir, unit, *type;
-	unsigned interval, in, bandwidth = 1;
+	unsigned interval, bandwidth = 1;
 
 	if (start > end)
 		return start;
-	in = (desc->bEndpointAddress & USB_DIR_IN);
-	dir = in ? 'I' : 'O';
+
+	dir = usb_endpoint_dir_in(desc) ? 'I' : 'O';
+
 	if (speed == USB_SPEED_HIGH) {
 		switch (le16_to_cpu(desc->wMaxPacketSize) & (0x03 << 11)) {
 		case 1 << 11:	bandwidth = 2; break;
@@ -204,7 +205,7 @@ static char *usb_dump_endpoint_descriptor (
 		break;
 	case USB_ENDPOINT_XFER_BULK:
 		type = "Bulk";
-		if (speed == USB_SPEED_HIGH && !in)	/* uframes per NAK */
+		if (speed == USB_SPEED_HIGH && dir == 'O') /* uframes per NAK */
 			interval = desc->bInterval;
 		else
 			interval = 0;

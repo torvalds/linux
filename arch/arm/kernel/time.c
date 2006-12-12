@@ -220,10 +220,10 @@ EXPORT_SYMBOL(leds_event);
 #ifdef CONFIG_LEDS_TIMER
 static inline void do_leds(void)
 {
-	static unsigned int count = 50;
+	static unsigned int count = HZ/2;
 
 	if (--count == 0) {
-		count = 50;
+		count = HZ/2;
 		leds_event(led_timer);
 	}
 }
@@ -327,13 +327,12 @@ EXPORT_SYMBOL(restore_time_delta);
  */
 void timer_tick(void)
 {
-	struct pt_regs *regs = get_irq_regs();
 	profile_tick(CPU_PROFILING);
 	do_leds();
 	do_set_rtc();
 	do_timer(1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 }
 

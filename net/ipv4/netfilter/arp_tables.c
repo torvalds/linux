@@ -375,6 +375,13 @@ static int mark_source_chains(struct xt_table_info *newinfo,
 			    && unconditional(&e->arp)) {
 				unsigned int oldpos, size;
 
+				if (t->verdict < -NF_MAX_VERDICT - 1) {
+					duprintf("mark_source_chains: bad "
+						"negative verdict (%i)\n",
+								t->verdict);
+					return 0;
+				}
+
 				/* Return: backtrack through the last
 				 * big jump.
 				 */
@@ -404,6 +411,14 @@ static int mark_source_chains(struct xt_table_info *newinfo,
 				if (strcmp(t->target.u.user.name,
 					   ARPT_STANDARD_TARGET) == 0
 				    && newpos >= 0) {
+					if (newpos > newinfo->size -
+						sizeof(struct arpt_entry)) {
+						duprintf("mark_source_chains: "
+							"bad verdict (%i)\n",
+								newpos);
+						return 0;
+					}
+
 					/* This a jump; chase it. */
 					duprintf("Jump rule %u -> %u\n",
 						 pos, newpos);
@@ -426,8 +441,6 @@ static int mark_source_chains(struct xt_table_info *newinfo,
 static inline int standard_check(const struct arpt_entry_target *t,
 				 unsigned int max_offset)
 {
-	struct arpt_standard_target *targ = (void *)t;
-
 	/* Check standard info. */
 	if (t->u.target_size
 	    != ARPT_ALIGN(sizeof(struct arpt_standard_target))) {
@@ -437,18 +450,6 @@ static inline int standard_check(const struct arpt_entry_target *t,
 		return 0;
 	}
 
-	if (targ->verdict >= 0
-	    && targ->verdict > max_offset - sizeof(struct arpt_entry)) {
-		duprintf("arpt_standard_check: bad verdict (%i)\n",
-			 targ->verdict);
-		return 0;
-	}
-
-	if (targ->verdict < -NF_MAX_VERDICT - 1) {
-		duprintf("arpt_standard_check: bad negative verdict (%i)\n",
-			 targ->verdict);
-		return 0;
-	}
 	return 1;
 }
 
@@ -466,7 +467,13 @@ static inline int check_entry(struct arpt_entry *e, const char *name, unsigned i
 		return -EINVAL;
 	}
 
+	if (e->target_offset + sizeof(struct arpt_entry_target) > e->next_offset)
+		return -EINVAL;
+
 	t = arpt_get_target(e);
+	if (e->target_offset + t->u.target_size > e->next_offset)
+		return -EINVAL;
+
 	target = try_then_request_module(xt_find_target(NF_ARP, t->u.user.name,
 							t->u.user.revision),
 					 "arpt_%s", t->u.user.name);
@@ -633,7 +640,7 @@ static int translate_table(const char *name,
 
 	if (ret != 0) {
 		ARPT_ENTRY_ITERATE(entry0, newinfo->size,
-				   cleanup_entry, &i);
+				cleanup_entry, &i);
 		return ret;
 	}
 
@@ -1196,6 +1203,8 @@ err1:
 static void __exit arp_tables_fini(void)
 {
 	nf_unregister_sockopt(&arpt_sockopts);
+	xt_unregister_target(&arpt_error_target);
+	xt_unregister_target(&arpt_standard_target);
 	xt_proto_fini(NF_ARP);
 }
 

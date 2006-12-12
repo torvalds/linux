@@ -21,7 +21,7 @@ config MPC834x_SYS
 	  Be aware that PCI buses can only function when SYS board is plugged
 	  into the PIB (Platform IO Board) board from Freescale which provide
 	  3 PCI slots.  The PIBs PCI initialization is the bootloader's
-	  responsiblilty.
+	  responsibility.
 
 config MPC834x_ITX
 	bool "Freescale MPC834x ITX"
@@ -30,7 +30,14 @@ config MPC834x_ITX
 	  This option enables support for the MPC 834x ITX evaluation board.
 
 	  Be aware that PCI initialization is the bootloader's
-	  responsiblilty.
+	  responsibility.
+
+config MPC8360E_PB
+	bool "Freescale MPC8360E PB"
+	select DEFAULT_UIMAGE
+	select QUICC_ENGINE
+	help
+	  This option enables support for the MPC836x EMDS Processor Board.
 
 endchoice
 
@@ -45,5 +52,11 @@ config MPC834x
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
 	default y if MPC834x_SYS || MPC834x_ITX
+
+config PPC_MPC836x
+	bool
+	select PPC_UDBG_16550
+	select PPC_INDIRECT_PCI
+	default y if MPC8360E_PB
 
 endmenu

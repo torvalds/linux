@@ -42,6 +42,7 @@
 #include <linux/proc_fs.h>
 #include <linux/smp_lock.h>
 #include <linux/module.h>
+#include <linux/mm.h>
 
 /*
  * This ought to be moved into include/asm/dma.h
@@ -140,7 +141,7 @@ static int get_mixer_levels(void __user * arg)
 
 static ssize_t sound_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	int dev = iminor(file->f_dentry->d_inode);
+	int dev = iminor(file->f_path.dentry->d_inode);
 	int ret = -EINVAL;
 
 	/*
@@ -173,7 +174,7 @@ static ssize_t sound_read(struct file *file, char __user *buf, size_t count, lof
 
 static ssize_t sound_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	int dev = iminor(file->f_dentry->d_inode);
+	int dev = iminor(file->f_path.dentry->d_inode);
 	int ret = -EINVAL;
 	
 	lock_kernel();
@@ -392,7 +393,7 @@ static int sound_ioctl(struct inode *inode, struct file *file,
 
 static unsigned int sound_poll(struct file *file, poll_table * wait)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	int dev = iminor(inode);
 
 	DEB(printk("sound_poll(dev=%d)\n", dev));
@@ -417,7 +418,7 @@ static int sound_mmap(struct file *file, struct vm_area_struct *vma)
 	int dev_class;
 	unsigned long size;
 	struct dma_buffparms *dmap = NULL;
-	int dev = iminor(file->f_dentry->d_inode);
+	int dev = iminor(file->f_path.dentry->d_inode);
 
 	dev_class = dev & 0x0f;
 	dev >>= 4;
@@ -557,17 +558,17 @@ static int __init oss_init(void)
 	sound_dmap_flag = (dmabuf > 0 ? 1 : 0);
 
 	for (i = 0; i < sizeof (dev_list) / sizeof *dev_list; i++) {
-		class_device_create(sound_class, NULL,
-				    MKDEV(SOUND_MAJOR, dev_list[i].minor),
-				    NULL, "%s", dev_list[i].name);
+		device_create(sound_class, NULL,
+			      MKDEV(SOUND_MAJOR, dev_list[i].minor),
+			      "%s", dev_list[i].name);
 
 		if (!dev_list[i].num)
 			continue;
 
 		for (j = 1; j < *dev_list[i].num; j++)
-			class_device_create(sound_class, NULL,
-					    MKDEV(SOUND_MAJOR, dev_list[i].minor + (j*0x10)),
-					    NULL, "%s%d", dev_list[i].name, j);
+			device_create(sound_class, NULL,
+				      MKDEV(SOUND_MAJOR, dev_list[i].minor + (j*0x10)),
+				      "%s%d", dev_list[i].name, j);
 	}
 
 	if (sound_nblocks >= 1024)
@@ -581,11 +582,11 @@ static void __exit oss_cleanup(void)
 	int i, j;
 
 	for (i = 0; i < sizeof (dev_list) / sizeof *dev_list; i++) {
-		class_device_destroy(sound_class, MKDEV(SOUND_MAJOR, dev_list[i].minor));
+		device_destroy(sound_class, MKDEV(SOUND_MAJOR, dev_list[i].minor));
 		if (!dev_list[i].num)
 			continue;
 		for (j = 1; j < *dev_list[i].num; j++)
-			class_device_destroy(sound_class, MKDEV(SOUND_MAJOR, dev_list[i].minor + (j*0x10)));
+			device_destroy(sound_class, MKDEV(SOUND_MAJOR, dev_list[i].minor + (j*0x10)));
 	}
 	
 	unregister_sound_special(1);

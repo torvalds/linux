@@ -27,7 +27,8 @@
 
 #include <linux/input.h>
 #include <linux/usb.h>
-#include "hid.h"
+#include <linux/hid.h>
+#include "usbhid.h"
 
 struct zpff_device {
 	struct hid_report *report;
@@ -56,7 +57,7 @@ static int hid_zpff_play(struct input_dev *dev, void *data,
 	zpff->report->field[2]->value[0] = left;
 	zpff->report->field[3]->value[0] = right;
 	debug("running with 0x%02x 0x%02x", left, right);
-	hid_submit_report(hid, zpff->report, USB_DIR_OUT);
+	usbhid_submit_report(hid, zpff->report, USB_DIR_OUT);
 
 	return 0;
 }
@@ -101,7 +102,7 @@ int hid_zpff_init(struct hid_device *hid)
 	zpff->report->field[1]->value[0] = 0x02;
 	zpff->report->field[2]->value[0] = 0x00;
 	zpff->report->field[3]->value[0] = 0x00;
-	hid_submit_report(hid, zpff->report, USB_DIR_OUT);
+	usbhid_submit_report(hid, zpff->report, USB_DIR_OUT);
 
 	printk(KERN_INFO "Force feedback for Zeroplus based devices by "
 	       "Anssi Hannula <anssi.hannula@gmail.com>\n");

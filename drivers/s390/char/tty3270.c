@@ -1659,7 +1659,7 @@ tty3270_flush_buffer(struct tty_struct *tty)
  * Check for visible/invisible input switches
  */
 static void
-tty3270_set_termios(struct tty_struct *tty, struct termios *old)
+tty3270_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 	struct tty3270 *tp;
 	int new;

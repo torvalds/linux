@@ -581,10 +581,10 @@ static irqreturn_t pd6729_test(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int pd6729_check_irq(int irq, int flags)
+static int pd6729_check_irq(int irq)
 {
-	if (request_irq(irq, pd6729_test, flags, "x", pd6729_test) != 0)
-		return -1;
+	if (request_irq(irq, pd6729_test, IRQF_PROBE_SHARED, "x", pd6729_test)
+		!= 0) return -1;
 	free_irq(irq, pd6729_test);
 	return 0;
 }
@@ -610,7 +610,7 @@ static u_int __devinit pd6729_isa_scan(void)
 
 	/* just find interrupts that aren't in use */
 	for (i = 0; i < 16; i++)
-		if ((mask0 & (1 << i)) && (pd6729_check_irq(i, 0) == 0))
+		if ((mask0 & (1 << i)) && (pd6729_check_irq(i) == 0))
 			mask |= (1 << i);
 
 	printk(KERN_INFO "pd6729: ISA irqs = ");
@@ -755,6 +755,7 @@ static void __devexit pd6729_pci_remove(struct pci_dev *dev)
 	kfree(socket);
 }
 
+#ifdef CONFIG_PM
 static int pd6729_socket_suspend(struct pci_dev *dev, pm_message_t state)
 {
 	return pcmcia_socket_dev_suspend(&dev->dev, state);
@@ -764,6 +765,7 @@ static int pd6729_socket_resume(struct pci_dev *dev)
 {
 	return pcmcia_socket_dev_resume(&dev->dev);
 }
+#endif
 
 static struct pci_device_id pd6729_pci_ids[] = {
 	{
@@ -781,8 +783,10 @@ static struct pci_driver pd6729_pci_drv = {
 	.id_table	= pd6729_pci_ids,
 	.probe		= pd6729_pci_probe,
 	.remove		= __devexit_p(pd6729_pci_remove),
+#ifdef CONFIG_PM
 	.suspend	= pd6729_socket_suspend,
 	.resume		= pd6729_socket_resume,
+#endif
 };
 
 static int pd6729_module_init(void)

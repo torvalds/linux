@@ -153,7 +153,7 @@ static struct parsed_partitions *
 check_partition(struct gendisk *hd, struct block_device *bdev)
 {
 	struct parsed_partitions *state;
-	int i, res;
+	int i, res, err;
 
 	state = kmalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
 	if (!state)
@@ -165,19 +165,30 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 		sprintf(state->name, "p");
 
 	state->limit = hd->minors;
-	i = res = 0;
+	i = res = err = 0;
 	while (!res && check_part[i]) {
 		memset(&state->parts, 0, sizeof(state->parts));
 		res = check_part[i++](state, bdev);
+		if (res < 0) {
+			/* We have hit an I/O error which we don't report now.
+		 	* But record it, and let the others do their job.
+		 	*/
+			err = res;
+			res = 0;
+		}
+
 	}
 	if (res > 0)
 		return state;
+	if (!err)
+	/* The partition is unrecognized. So report I/O errors if there were any */
+		res = err;
 	if (!res)
 		printk(" unknown partition table\n");
 	else if (warn_no_part)
 		printk(" unable to read partition table\n");
 	kfree(state);
-	return NULL;
+	return ERR_PTR(res);
 }
 
 /*
@@ -265,12 +276,39 @@ static struct part_attribute part_attr_stat = {
 	.show	= part_stat_read
 };
 
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+
+static ssize_t part_fail_store(struct hd_struct * p,
+			       const char *buf, size_t count)
+{
+	int i;
+
+	if (count > 0 && sscanf(buf, "%d", &i) > 0)
+		p->make_it_fail = (i == 0) ? 0 : 1;
+
+	return count;
+}
+static ssize_t part_fail_read(struct hd_struct * p, char *page)
+{
+	return sprintf(page, "%d\n", p->make_it_fail);
+}
+static struct part_attribute part_attr_fail = {
+	.attr = {.name = "make-it-fail", .mode = S_IRUGO | S_IWUSR },
+	.store	= part_fail_store,
+	.show	= part_fail_read
+};
+
+#endif
+
 static struct attribute * default_attrs[] = {
 	&part_attr_uevent.attr,
 	&part_attr_dev.attr,
 	&part_attr_start.attr,
 	&part_attr_size.attr,
 	&part_attr_stat.attr,
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+	&part_attr_fail.attr,
+#endif
 	NULL,
 };
 
@@ -376,18 +414,48 @@ static char *make_block_name(struct gendisk *disk)
 	return name;
 }
 
-static void disk_sysfs_symlinks(struct gendisk *disk)
+static int disk_sysfs_symlinks(struct gendisk *disk)
 {
 	struct device *target = get_device(disk->driverfs_dev);
+	int err;
+	char *disk_name = NULL;
+
 	if (target) {
-		char *disk_name = make_block_name(disk);
-		sysfs_create_link(&disk->kobj,&target->kobj,"device");
-		if (disk_name) {
-			sysfs_create_link(&target->kobj,&disk->kobj,disk_name);
-			kfree(disk_name);
+		disk_name = make_block_name(disk);
+		if (!disk_name) {
+			err = -ENOMEM;
+			goto err_out;
 		}
+
+		err = sysfs_create_link(&disk->kobj, &target->kobj, "device");
+		if (err)
+			goto err_out_disk_name;
+
+		err = sysfs_create_link(&target->kobj, &disk->kobj, disk_name);
+		if (err)
+			goto err_out_dev_link;
 	}
-	sysfs_create_link(&disk->kobj, &block_subsys.kset.kobj, "subsystem");
+
+	err = sysfs_create_link(&disk->kobj, &block_subsys.kset.kobj,
+				"subsystem");
+	if (err)
+		goto err_out_disk_name_lnk;
+
+	kfree(disk_name);
+
+	return 0;
+
+err_out_disk_name_lnk:
+	if (target) {
+		sysfs_remove_link(&target->kobj, disk_name);
+err_out_dev_link:
+		sysfs_remove_link(&disk->kobj, "device");
+err_out_disk_name:
+		kfree(disk_name);
+err_out:
+		put_device(target);
+	}
+	return err;
 }
 
 /* Not exported, helper to add_disk(). */
@@ -406,7 +474,11 @@ void register_disk(struct gendisk *disk)
 		*s = '!';
 	if ((err = kobject_add(&disk->kobj)))
 		return;
-	disk_sysfs_symlinks(disk);
+	err = disk_sysfs_symlinks(disk);
+	if (err) {
+		kobject_del(&disk->kobj);
+		return;
+	}
  	disk_sysfs_add_subdirs(disk);
 
 	/* No minors to use for partitions */
@@ -460,6 +532,8 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 		disk->fops->revalidate_disk(disk);
 	if (!get_capacity(disk) || !(state = check_partition(disk, bdev)))
 		return 0;
+	if (IS_ERR(state))	/* I/O error reading the partition table */
+		return PTR_ERR(state);
 	for (p = 1; p < state->limit; p++) {
 		sector_t size = state->parts[p].size;
 		sector_t from = state->parts[p].from;

@@ -50,7 +50,7 @@ static u32 xfrm6_tunnel_spi;
 #define XFRM6_TUNNEL_SPI_MIN	1
 #define XFRM6_TUNNEL_SPI_MAX	0xffffffff
 
-static kmem_cache_t *xfrm6_tunnel_spi_kmem __read_mostly;
+static struct kmem_cache *xfrm6_tunnel_spi_kmem __read_mostly;
 
 #define XFRM6_TUNNEL_SPI_BYADDR_HSIZE 256
 #define XFRM6_TUNNEL_SPI_BYSPI_HSIZE 256
@@ -62,7 +62,7 @@ static unsigned inline xfrm6_tunnel_spi_hash_byaddr(xfrm_address_t *addr)
 {
 	unsigned h;
 
-	h = addr->a6[0] ^ addr->a6[1] ^ addr->a6[2] ^ addr->a6[3];
+	h = (__force u32)(addr->a6[0] ^ addr->a6[1] ^ addr->a6[2] ^ addr->a6[3]);
 	h ^= h >> 16;
 	h ^= h >> 8;
 	h &= XFRM6_TUNNEL_SPI_BYADDR_HSIZE - 1;
@@ -126,7 +126,7 @@ static struct xfrm6_tunnel_spi *__xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr)
 	return NULL;
 }
 
-u32 xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr)
+__be32 xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr)
 {
 	struct xfrm6_tunnel_spi *x6spi;
 	u32 spi;
@@ -135,7 +135,7 @@ u32 xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr)
 	x6spi = __xfrm6_tunnel_spi_lookup(saddr);
 	spi = x6spi ? x6spi->spi : 0;
 	read_unlock_bh(&xfrm6_tunnel_spi_lock);
-	return spi;
+	return htonl(spi);
 }
 
 EXPORT_SYMBOL(xfrm6_tunnel_spi_lookup);
@@ -180,7 +180,7 @@ try_next_2:;
 	spi = 0;
 	goto out;
 alloc_spi:
-	x6spi = kmem_cache_alloc(xfrm6_tunnel_spi_kmem, SLAB_ATOMIC);
+	x6spi = kmem_cache_alloc(xfrm6_tunnel_spi_kmem, GFP_ATOMIC);
 	if (!x6spi)
 		goto out;
 
@@ -196,7 +196,7 @@ out:
 	return spi;
 }
 
-u32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr)
+__be32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr)
 {
 	struct xfrm6_tunnel_spi *x6spi;
 	u32 spi;
@@ -210,7 +210,7 @@ u32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr)
 		spi = __xfrm6_tunnel_alloc_spi(saddr);
 	write_unlock_bh(&xfrm6_tunnel_spi_lock);
 
-	return spi;
+	return htonl(spi);
 }
 
 EXPORT_SYMBOL(xfrm6_tunnel_alloc_spi);
@@ -265,7 +265,7 @@ static int xfrm6_tunnel_rcv(struct sk_buff *skb)
 }
 
 static int xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			    int type, int code, int offset, __u32 info)
+			    int type, int code, int offset, __be32 info)
 {
 	/* xfrm6_tunnel native err handling */
 	switch (type) {

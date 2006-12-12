@@ -73,6 +73,8 @@ struct senseid {
 }  __attribute__ ((packed,aligned(4)));
 
 struct ccw_device_private {
+	struct ccw_device *cdev;
+	struct subchannel *sch;
 	int state;		/* device state */
 	atomic_t onoff;
 	unsigned long registered;
@@ -94,6 +96,7 @@ struct ccw_device_private {
 		unsigned int donotify:1;    /* call notify function */
 		unsigned int recog_done:1;  /* dev. recog. complete */
 		unsigned int fake_irb:1;    /* deliver faked irb */
+		unsigned int intretry:1;    /* retry internal operation */
 	} __attribute__((packed)) flags;
 	unsigned long intparm;	/* user interruption parameter */
 	struct qdio_irq *qdio_data;
@@ -157,6 +160,8 @@ struct channel_subsystem {
 	int cm_enabled;
 	void *cub_addr1;
 	void *cub_addr2;
+	/* for orphaned ccw devices */
+	struct subchannel *pseudo_subchannel;
 };
 #define to_css(dev) container_of(dev, struct channel_subsystem, device)
 
@@ -171,6 +176,8 @@ void device_trigger_reprobe(struct subchannel *);
 /* Helper functions for vary on/off. */
 int device_is_online(struct subchannel *);
 void device_kill_io(struct subchannel *);
+void device_set_intretry(struct subchannel *sch);
+int device_trigger_verify(struct subchannel *sch);
 
 /* Machine check helper function. */
 void device_kill_pending_timer(struct subchannel *);
@@ -182,6 +189,11 @@ void css_clear_subchannel_slow_list(void);
 int css_slow_subchannels_exist(void);
 extern int need_rescan;
 
+int sch_is_pseudo_sch(struct subchannel *);
+
 extern struct workqueue_struct *slow_path_wq;
 extern struct work_struct slow_path_work;
+
+int subchannel_add_files (struct device *);
+extern struct attribute_group *subch_attr_groups[];
 #endif

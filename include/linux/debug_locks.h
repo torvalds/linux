@@ -24,7 +24,7 @@ extern int debug_locks_off(void);
 	int __ret = 0;							\
 									\
 	if (unlikely(c)) {						\
-		if (debug_locks_off())					\
+		if (debug_locks_silent || debug_locks_off())		\
 			WARN_ON(1);					\
 		__ret = 1;						\
 	}								\

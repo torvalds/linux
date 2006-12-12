@@ -27,6 +27,9 @@
 #define SLR	"slgr"
 #endif
 
+extern size_t copy_from_user_std(size_t, const void __user *, void *);
+extern size_t copy_to_user_std(size_t, void __user *, const void *);
+
 size_t copy_from_user_mvcos(size_t size, const void __user *ptr, void *x)
 {
 	register unsigned long reg0 asm("0") = 0x81UL;
@@ -66,6 +69,13 @@ size_t copy_from_user_mvcos(size_t size, const void __user *ptr, void *x)
 	return size;
 }
 
+size_t copy_from_user_mvcos_check(size_t size, const void __user *ptr, void *x)
+{
+	if (size <= 256)
+		return copy_from_user_std(size, ptr, x);
+	return copy_from_user_mvcos(size, ptr, x);
+}
+
 size_t copy_to_user_mvcos(size_t size, void __user *ptr, const void *x)
 {
 	register unsigned long reg0 asm("0") = 0x810000UL;
@@ -93,6 +103,13 @@ size_t copy_to_user_mvcos(size_t size, void __user *ptr, const void *x)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
 		: "d" (reg0) : "cc", "memory");
 	return size;
+}
+
+size_t copy_to_user_mvcos_check(size_t size, void __user *ptr, const void *x)
+{
+	if (size <= 256)
+		return copy_to_user_std(size, ptr, x);
+	return copy_to_user_mvcos(size, ptr, x);
 }
 
 size_t copy_in_user_mvcos(size_t size, void __user *to, const void __user *from)
@@ -145,18 +162,16 @@ size_t clear_user_mvcos(size_t size, void __user *to)
 	return size;
 }
 
-extern size_t copy_from_user_std_small(size_t, const void __user *, void *);
-extern size_t copy_to_user_std_small(size_t, void __user *, const void *);
 extern size_t strnlen_user_std(size_t, const char __user *);
 extern size_t strncpy_from_user_std(size_t, const char __user *, char *);
 extern int futex_atomic_op(int, int __user *, int, int *);
 extern int futex_atomic_cmpxchg(int __user *, int, int);
 
 struct uaccess_ops uaccess_mvcos = {
-	.copy_from_user = copy_from_user_mvcos,
-	.copy_from_user_small = copy_from_user_std_small,
-	.copy_to_user = copy_to_user_mvcos,
-	.copy_to_user_small = copy_to_user_std_small,
+	.copy_from_user = copy_from_user_mvcos_check,
+	.copy_from_user_small = copy_from_user_std,
+	.copy_to_user = copy_to_user_mvcos_check,
+	.copy_to_user_small = copy_to_user_std,
 	.copy_in_user = copy_in_user_mvcos,
 	.clear_user = clear_user_mvcos,
 	.strnlen_user = strnlen_user_std,

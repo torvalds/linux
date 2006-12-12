@@ -11,8 +11,8 @@
  *----------------------------------------------------------------------------*/
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 2409
-# define AAC_DRIVER_BRANCH "-mh2"
+# define AAC_DRIVER_BUILD 2423
+# define AAC_DRIVER_BRANCH "-mh3"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
 

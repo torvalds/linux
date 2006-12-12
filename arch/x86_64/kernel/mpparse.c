@@ -35,8 +35,6 @@
 int smp_found_config;
 unsigned int __initdata maxcpus = NR_CPUS;
 
-int acpi_found_madt;
-
 /*
  * Various Linux-internal data structures created from the
  * MP-table.

@@ -92,8 +92,8 @@ static int appldata_timer_active;
  * Work queue
  */
 static struct workqueue_struct *appldata_wq;
-static void appldata_work_fn(void *data);
-static DECLARE_WORK(appldata_work, appldata_work_fn, NULL);
+static void appldata_work_fn(struct work_struct *work);
+static DECLARE_WORK(appldata_work, appldata_work_fn);
 
 
 /*
@@ -125,7 +125,7 @@ static void appldata_timer_function(unsigned long data)
  *
  * call data gathering function for each (active) module
  */
-static void appldata_work_fn(void *data)
+static void appldata_work_fn(struct work_struct *work)
 {
 	struct list_head *lh;
 	struct appldata_ops *ops;
@@ -310,6 +310,7 @@ appldata_interval_handler(ctl_table *ctl, int write, struct file *filp,
 	if (copy_from_user(buf, buffer, len > sizeof(buf) ? sizeof(buf) : len)) {
 		return -EFAULT;
 	}
+	interval = 0;
 	sscanf(buf, "%i", &interval);
 	if (interval <= 0) {
 		P_ERROR("Timer CPU interval has to be > 0!\n");
@@ -560,7 +561,6 @@ appldata_offline_cpu(int cpu)
 	spin_unlock(&appldata_timer_lock);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int __cpuinit
 appldata_cpu_notify(struct notifier_block *self,
 		    unsigned long action, void *hcpu)
@@ -581,7 +581,6 @@ appldata_cpu_notify(struct notifier_block *self,
 static struct notifier_block appldata_nb = {
 	.notifier_call = appldata_cpu_notify,
 };
-#endif
 
 /*
  * appldata_init()

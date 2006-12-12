@@ -19,6 +19,7 @@
 
 #include <linux/types.h>
 #include <asm/byteorder.h>
+#include <linux/socket.h>
 
 struct tcphdr {
 	__be16	source;
@@ -51,7 +52,7 @@ struct tcphdr {
 #error	"Adjust your <asm/byteorder.h> defines"
 #endif	
 	__be16	window;
-	__be16	check;
+	__sum16	check;
 	__be16	urg_ptr;
 };
 
@@ -94,6 +95,7 @@ enum {
 #define TCP_INFO		11	/* Information about this connection. */
 #define TCP_QUICKACK		12	/* Block/reenable quick acks */
 #define TCP_CONGESTION		13	/* Congestion control algorithm */
+#define TCP_MD5SIG		14	/* TCP MD5 Signature (RFC2385) */
 
 #define TCPI_OPT_TIMESTAMPS	1
 #define TCPI_OPT_SACK		2
@@ -157,6 +159,17 @@ struct tcp_info
 	__u32	tcpi_total_retrans;
 };
 
+/* for TCP_MD5SIG socket option */
+#define TCP_MD5SIG_MAXKEYLEN	80
+
+struct tcp_md5sig {
+	struct __kernel_sockaddr_storage tcpm_addr;	/* address associated */
+	__u16	__tcpm_pad1;				/* zero */
+	__u16	tcpm_keylen;				/* key length */
+	__u32	__tcpm_pad2;				/* zero */
+	__u8	tcpm_key[TCP_MD5SIG_MAXKEYLEN];		/* key (binary) */
+};
+
 #ifdef __KERNEL__
 
 #include <linux/skbuff.h>
@@ -172,17 +185,17 @@ struct tcp_sack_block_wire {
 };
 
 struct tcp_sack_block {
-	__u32	start_seq;
-	__u32	end_seq;
+	u32	start_seq;
+	u32	end_seq;
 };
 
 struct tcp_options_received {
 /*	PAWS/RTTM data	*/
 	long	ts_recent_stamp;/* Time we stored ts_recent (for aging) */
-	__u32	ts_recent;	/* Time stamp to echo next		*/
-	__u32	rcv_tsval;	/* Time stamp value             	*/
-	__u32	rcv_tsecr;	/* Time stamp echo reply        	*/
-	__u16 	saw_tstamp : 1,	/* Saw TIMESTAMP on last packet		*/
+	u32	ts_recent;	/* Time stamp to echo next		*/
+	u32	rcv_tsval;	/* Time stamp value             	*/
+	u32	rcv_tsecr;	/* Time stamp echo reply        	*/
+	u16 	saw_tstamp : 1,	/* Saw TIMESTAMP on last packet		*/
 		tstamp_ok : 1,	/* TIMESTAMP seen on SYN packet		*/
 		dsack : 1,	/* D-SACK is scheduled			*/
 		wscale_ok : 1,	/* Wscale seen on SYN packet		*/
@@ -190,16 +203,20 @@ struct tcp_options_received {
 		snd_wscale : 4,	/* Window scaling received from sender	*/
 		rcv_wscale : 4;	/* Window scaling to send to receiver	*/
 /*	SACKs data	*/
-	__u8	eff_sacks;	/* Size of SACK array to send with next packet */
-	__u8	num_sacks;	/* Number of SACK blocks		*/
-	__u16	user_mss;  	/* mss requested by user in ioctl */
-	__u16	mss_clamp;	/* Maximal mss, negotiated at connection setup */
+	u8	eff_sacks;	/* Size of SACK array to send with next packet */
+	u8	num_sacks;	/* Number of SACK blocks		*/
+	u16	user_mss;  	/* mss requested by user in ioctl */
+	u16	mss_clamp;	/* Maximal mss, negotiated at connection setup */
 };
 
 struct tcp_request_sock {
-	struct inet_request_sock req;
-	__u32			 rcv_isn;
-	__u32			 snt_isn;
+	struct inet_request_sock 	req;
+#ifdef CONFIG_TCP_MD5SIG
+	/* Only used by TCP MD5 Signature so far. */
+	struct tcp_request_sock_ops	*af_specific;
+#endif
+	u32			 	rcv_isn;
+	u32			 	snt_isn;
 };
 
 static inline struct tcp_request_sock *tcp_rsk(const struct request_sock *req)
@@ -210,7 +227,8 @@ static inline struct tcp_request_sock *tcp_rsk(const struct request_sock *req)
 struct tcp_sock {
 	/* inet_connection_sock has to be the first member of tcp_sock */
 	struct inet_connection_sock	inet_conn;
-	int	tcp_header_len;	/* Bytes of tcp header to send		*/
+	u16	tcp_header_len;	/* Bytes of tcp header to send		*/
+	u16	xmit_size_goal;	/* Goal for segmenting output packets	*/
 
 /*
  *	Header prediction flags
@@ -223,13 +241,13 @@ struct tcp_sock {
  *	read the code and the spec side by side (and laugh ...)
  *	See RFC793 and RFC1122. The RFC writes these in capitals.
  */
- 	__u32	rcv_nxt;	/* What we want to receive next 	*/
- 	__u32	snd_nxt;	/* Next sequence we send		*/
+ 	u32	rcv_nxt;	/* What we want to receive next 	*/
+ 	u32	snd_nxt;	/* Next sequence we send		*/
 
- 	__u32	snd_una;	/* First byte we want an ack for	*/
- 	__u32	snd_sml;	/* Last byte of the most recently transmitted small packet */
-	__u32	rcv_tstamp;	/* timestamp of last received ACK (for keepalives) */
-	__u32	lsndtime;	/* timestamp of last sent data packet (for restart window) */
+ 	u32	snd_una;	/* First byte we want an ack for	*/
+ 	u32	snd_sml;	/* Last byte of the most recently transmitted small packet */
+	u32	rcv_tstamp;	/* timestamp of last received ACK (for keepalives) */
+	u32	lsndtime;	/* timestamp of last sent data packet (for restart window) */
 
 	/* Data for direct copy to user */
 	struct {
@@ -247,32 +265,30 @@ struct tcp_sock {
 #endif
 	} ucopy;
 
-	__u32	snd_wl1;	/* Sequence for window update		*/
-	__u32	snd_wnd;	/* The window we expect to receive	*/
-	__u32	max_window;	/* Maximal window ever seen from peer	*/
-	__u32	mss_cache;	/* Cached effective mss, not including SACKS */
-	__u16	xmit_size_goal;	/* Goal for segmenting output packets	*/
-	/* XXX Two bytes hole, try to pack */
+	u32	snd_wl1;	/* Sequence for window update		*/
+	u32	snd_wnd;	/* The window we expect to receive	*/
+	u32	max_window;	/* Maximal window ever seen from peer	*/
+	u32	mss_cache;	/* Cached effective mss, not including SACKS */
 
-	__u32	window_clamp;	/* Maximal window to advertise		*/
-	__u32	rcv_ssthresh;	/* Current window clamp			*/
+	u32	window_clamp;	/* Maximal window to advertise		*/
+	u32	rcv_ssthresh;	/* Current window clamp			*/
 
-	__u32	frto_highmark;	/* snd_nxt when RTO occurred */
-	__u8	reordering;	/* Packet reordering metric.		*/
-	__u8	frto_counter;	/* Number of new acks after RTO */
-	__u8	nonagle;	/* Disable Nagle algorithm?             */
-	__u8	keepalive_probes; /* num of allowed keep alive probes	*/
+	u32	frto_highmark;	/* snd_nxt when RTO occurred */
+	u8	reordering;	/* Packet reordering metric.		*/
+	u8	frto_counter;	/* Number of new acks after RTO */
+	u8	nonagle;	/* Disable Nagle algorithm?             */
+	u8	keepalive_probes; /* num of allowed keep alive probes	*/
 
 /* RTT measurement */
-	__u32	srtt;		/* smoothed round trip time << 3	*/
-	__u32	mdev;		/* medium deviation			*/
-	__u32	mdev_max;	/* maximal mdev for the last rtt period	*/
-	__u32	rttvar;		/* smoothed mdev_max			*/
-	__u32	rtt_seq;	/* sequence number to update rttvar	*/
+	u32	srtt;		/* smoothed round trip time << 3	*/
+	u32	mdev;		/* medium deviation			*/
+	u32	mdev_max;	/* maximal mdev for the last rtt period	*/
+	u32	rttvar;		/* smoothed mdev_max			*/
+	u32	rtt_seq;	/* sequence number to update rttvar	*/
 
-	__u32	packets_out;	/* Packets which are "in flight"	*/
-	__u32	left_out;	/* Packets which leaved network	*/
-	__u32	retrans_out;	/* Retransmitted packets out		*/
+	u32	packets_out;	/* Packets which are "in flight"	*/
+	u32	left_out;	/* Packets which leaved network	*/
+	u32	retrans_out;	/* Retransmitted packets out		*/
 /*
  *      Options received (usually on last packet, some only on SYN packets).
  */
@@ -281,20 +297,20 @@ struct tcp_sock {
 /*
  *	Slow start and congestion control (see also Nagle, and Karn & Partridge)
  */
- 	__u32	snd_ssthresh;	/* Slow start size threshold		*/
- 	__u32	snd_cwnd;	/* Sending congestion window		*/
- 	__u16	snd_cwnd_cnt;	/* Linear increase counter		*/
-	__u16	snd_cwnd_clamp; /* Do not allow snd_cwnd to grow above this */
-	__u32	snd_cwnd_used;
-	__u32	snd_cwnd_stamp;
+ 	u32	snd_ssthresh;	/* Slow start size threshold		*/
+ 	u32	snd_cwnd;	/* Sending congestion window		*/
+ 	u16	snd_cwnd_cnt;	/* Linear increase counter		*/
+	u16	snd_cwnd_clamp; /* Do not allow snd_cwnd to grow above this */
+	u32	snd_cwnd_used;
+	u32	snd_cwnd_stamp;
 
 	struct sk_buff_head	out_of_order_queue; /* Out of order segments go here */
 
- 	__u32	rcv_wnd;	/* Current receiver window		*/
-	__u32	rcv_wup;	/* rcv_nxt on last window update sent	*/
-	__u32	write_seq;	/* Tail(+1) of data held in tcp send buffer */
-	__u32	pushed_seq;	/* Last pushed seq, required to talk to windows */
-	__u32	copied_seq;	/* Head of yet unread data		*/
+ 	u32	rcv_wnd;	/* Current receiver window		*/
+	u32	rcv_wup;	/* rcv_nxt on last window update sent	*/
+	u32	write_seq;	/* Tail(+1) of data held in tcp send buffer */
+	u32	pushed_seq;	/* Last pushed seq, required to talk to windows */
+	u32	copied_seq;	/* Head of yet unread data		*/
 
 /*	SACKs data	*/
 	struct tcp_sack_block duplicate_sack[1]; /* D-SACK block */
@@ -315,26 +331,26 @@ struct tcp_sock {
 	int     retransmit_cnt_hint;
 	int     forward_cnt_hint;
 
-	__u16	advmss;		/* Advertised MSS			*/
-	__u16	prior_ssthresh; /* ssthresh saved at recovery start	*/
-	__u32	lost_out;	/* Lost packets			*/
-	__u32	sacked_out;	/* SACK'd packets			*/
-	__u32	fackets_out;	/* FACK'd packets			*/
-	__u32	high_seq;	/* snd_nxt at onset of congestion	*/
+	u16	advmss;		/* Advertised MSS			*/
+	u16	prior_ssthresh; /* ssthresh saved at recovery start	*/
+	u32	lost_out;	/* Lost packets			*/
+	u32	sacked_out;	/* SACK'd packets			*/
+	u32	fackets_out;	/* FACK'd packets			*/
+	u32	high_seq;	/* snd_nxt at onset of congestion	*/
 
-	__u32	retrans_stamp;	/* Timestamp of the last retransmit,
+	u32	retrans_stamp;	/* Timestamp of the last retransmit,
 				 * also used in SYN-SENT to remember stamp of
 				 * the first SYN. */
-	__u32	undo_marker;	/* tracking retrans started here. */
+	u32	undo_marker;	/* tracking retrans started here. */
 	int	undo_retrans;	/* number of undoable retransmissions. */
-	__u32	urg_seq;	/* Seq of received urgent pointer */
-	__u16	urg_data;	/* Saved octet of OOB data and control flags */
-	__u8	urg_mode;	/* In urgent mode		*/
-	__u8	ecn_flags;	/* ECN status bits.			*/
-	__u32	snd_up;		/* Urgent pointer		*/
+	u32	urg_seq;	/* Seq of received urgent pointer */
+	u16	urg_data;	/* Saved octet of OOB data and control flags */
+	u8	urg_mode;	/* In urgent mode		*/
+	u8	ecn_flags;	/* ECN status bits.			*/
+	u32	snd_up;		/* Urgent pointer		*/
 
-	__u32	total_retrans;	/* Total retransmits for entire connection */
-	__u32	bytes_acked;	/* Appropriate Byte Counting - RFC3465 */
+	u32	total_retrans;	/* Total retransmits for entire connection */
+	u32	bytes_acked;	/* Appropriate Byte Counting - RFC3465 */
 
 	unsigned int		keepalive_time;	  /* time before keep alive takes place */
 	unsigned int		keepalive_intvl;  /* time interval between keep alive probes */
@@ -342,25 +358,35 @@ struct tcp_sock {
 
 	unsigned long last_synq_overflow; 
 
+	u32	tso_deferred;
+
 /* Receiver side RTT estimation */
 	struct {
-		__u32	rtt;
-		__u32	seq;
-		__u32	time;
+		u32	rtt;
+		u32	seq;
+		u32	time;
 	} rcv_rtt_est;
 
 /* Receiver queue space */
 	struct {
 		int	space;
-		__u32	seq;
-		__u32	time;
+		u32	seq;
+		u32	time;
 	} rcvq_space;
 
 /* TCP-specific MTU probe information. */
 	struct {
-		__u32		  probe_seq_start;
-		__u32		  probe_seq_end;
+		u32		  probe_seq_start;
+		u32		  probe_seq_end;
 	} mtu_probe;
+
+#ifdef CONFIG_TCP_MD5SIG
+/* TCP AF-Specific parts; only used by MD5 Signature support so far */
+	struct tcp_sock_af_ops	*af_specific;
+
+/* TCP MD5 Signagure Option information */
+	struct tcp_md5sig_info	*md5sig_info;
+#endif
 };
 
 static inline struct tcp_sock *tcp_sk(const struct sock *sk)
@@ -370,11 +396,15 @@ static inline struct tcp_sock *tcp_sk(const struct sock *sk)
 
 struct tcp_timewait_sock {
 	struct inet_timewait_sock tw_sk;
-	__u32			  tw_rcv_nxt;
-	__u32			  tw_snd_nxt;
-	__u32			  tw_rcv_wnd;
-	__u32			  tw_ts_recent;
+	u32			  tw_rcv_nxt;
+	u32			  tw_snd_nxt;
+	u32			  tw_rcv_wnd;
+	u32			  tw_ts_recent;
 	long			  tw_ts_recent_stamp;
+#ifdef CONFIG_TCP_MD5SIG
+	u16			  tw_md5_keylen;
+	u8			  tw_md5_key[TCP_MD5SIG_MAXKEYLEN];
+#endif
 };
 
 static inline struct tcp_timewait_sock *tcp_twsk(const struct sock *sk)

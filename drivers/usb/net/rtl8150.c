@@ -587,7 +587,7 @@ static void intr_callback(struct urb *urb)
 	}
 
 resubmit:
-	status = usb_submit_urb (urb, SLAB_ATOMIC);
+	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status == -ENODEV)
 		netif_device_detach(dev->netdev);
 	else if (status)

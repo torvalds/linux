@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/highmem.h>
 #include <asm/io.h>
 #include <asm/scatterlist.h>
 #include <linux/scatterlist.h>
@@ -113,7 +114,7 @@ int iser_start_rdma_unaligned_sg(struct iscsi_iser_cmd_task  *iser_ctask,
 
 	if (cmd_data_len > ISER_KMALLOC_THRESHOLD)
 		mem = (void *)__get_free_pages(GFP_NOIO,
-		      long_log2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
+		      ilog2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
 	else
 		mem = kmalloc(cmd_data_len, GFP_NOIO);
 
@@ -210,7 +211,7 @@ void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_cmd_task *iser_ctask,
 
 	if (cmd_data_len > ISER_KMALLOC_THRESHOLD)
 		free_pages((unsigned long)mem_copy->copy_buf,
-			   long_log2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
+			   ilog2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
 	else
 		kfree(mem_copy->copy_buf);
 

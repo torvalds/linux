@@ -65,7 +65,7 @@
 #define assert(i)  BUG_ON(!(i))
 
 struct tipc_msg;
-extern struct print_buf *TIPC_CONS, *TIPC_LOG;
+extern struct print_buf *TIPC_NULL, *TIPC_CONS, *TIPC_LOG;
 extern struct print_buf *TIPC_TEE(struct print_buf *, struct print_buf *);
 void tipc_msg_print(struct print_buf*,struct tipc_msg *,const char*);
 void tipc_printf(struct print_buf *, const char *fmt, ...);
@@ -83,9 +83,9 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
 #define warn(fmt, arg...) tipc_printf(TIPC_OUTPUT, KERN_WARNING "TIPC: " fmt, ## arg)
 #define info(fmt, arg...) tipc_printf(TIPC_OUTPUT, KERN_NOTICE "TIPC: " fmt, ## arg)
 
-#define dbg(fmt, arg...)  do {if (DBG_OUTPUT) tipc_printf(DBG_OUTPUT, fmt, ## arg);} while(0)
-#define msg_dbg(msg, txt) do {if (DBG_OUTPUT) tipc_msg_print(DBG_OUTPUT, msg, txt);} while(0)
-#define dump(fmt, arg...) do {if (DBG_OUTPUT) tipc_dump(DBG_OUTPUT, fmt, ##arg);} while(0)
+#define dbg(fmt, arg...)  do {if (DBG_OUTPUT != TIPC_NULL) tipc_printf(DBG_OUTPUT, fmt, ## arg);} while(0)
+#define msg_dbg(msg, txt) do {if (DBG_OUTPUT != TIPC_NULL) tipc_msg_print(DBG_OUTPUT, msg, txt);} while(0)
+#define dump(fmt, arg...) do {if (DBG_OUTPUT != TIPC_NULL) tipc_dump(DBG_OUTPUT, fmt, ##arg);} while(0)
 
 
 /*	
@@ -94,11 +94,11 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
  * here, or on a per .c file basis, by redefining these symbols.  The following
  * print buffer options are available:
  *
- * NULL				: Output to null print buffer (i.e. print nowhere)
- * TIPC_CONS			: Output to system console
- * TIPC_LOG			: Output to TIPC log buffer 
- * &buf				: Output to user-defined buffer (struct print_buf *)
- * TIPC_TEE(&buf_a,&buf_b)	: Output to two print buffers (eg. TIPC_TEE(TIPC_CONS,TIPC_LOG) )
+ * TIPC_NULL		   : null buffer (i.e. print nowhere)
+ * TIPC_CONS		   : system console
+ * TIPC_LOG		   : TIPC log buffer
+ * &buf			   : user-defined buffer (struct print_buf *)
+ * TIPC_TEE(&buf_a,&buf_b) : list of buffers (eg. TIPC_TEE(TIPC_CONS,TIPC_LOG))
  */
 
 #ifndef TIPC_OUTPUT
@@ -106,7 +106,7 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
 #endif
 
 #ifndef DBG_OUTPUT
-#define DBG_OUTPUT NULL
+#define DBG_OUTPUT TIPC_NULL
 #endif
 
 #else
@@ -136,7 +136,7 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
 #define TIPC_OUTPUT TIPC_CONS
 
 #undef  DBG_OUTPUT
-#define DBG_OUTPUT NULL
+#define DBG_OUTPUT TIPC_NULL
 
 #endif			  
 
@@ -275,11 +275,15 @@ static inline void k_term_timer(struct timer_list *timer)
 /*
  * TIPC message buffer code
  *
- * TIPC message buffer headroom leaves room for 14 byte Ethernet header, 
+ * TIPC message buffer headroom reserves space for a link-level header
+ * (in case the message is sent off-node),
  * while ensuring TIPC header is word aligned for quicker access
+ *
+ * The largest header currently supported is 18 bytes, which is used when
+ * the standard 14 byte Ethernet header has 4 added bytes for VLAN info
  */
 
-#define BUF_HEADROOM 16u 
+#define BUF_HEADROOM 20u
 
 struct tipc_skb_cb {
 	void *handle;

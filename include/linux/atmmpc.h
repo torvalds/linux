@@ -13,7 +13,7 @@
 
 struct atmmpc_ioc {
         int dev_num;
-        uint32_t ipaddr;              /* the IP address of the shortcut    */
+        __be32 ipaddr;              /* the IP address of the shortcut    */
         int type;                     /* ingress or egress                 */
 };
 
@@ -21,8 +21,8 @@ typedef struct in_ctrl_info {
         uint8_t   Last_NHRP_CIE_code;
         uint8_t   Last_Q2931_cause_value;     
         uint8_t   eg_MPC_ATM_addr[ATM_ESA_LEN];
-        uint32_t  tag;
-        uint32_t  in_dst_ip;      /* IP address this ingress MPC sends packets to */
+        __be32  tag;
+        __be32  in_dst_ip;      /* IP address this ingress MPC sends packets to */
         uint16_t  holding_time;
         uint32_t  request_id;
 } in_ctrl_info;
@@ -30,10 +30,10 @@ typedef struct in_ctrl_info {
 typedef struct eg_ctrl_info {
         uint8_t   DLL_header[256];
         uint8_t   DH_length;
-        uint32_t  cache_id;
-        uint32_t  tag;
-        uint32_t  mps_ip;
-        uint32_t  eg_dst_ip;      /* IP address to which ingress MPC sends packets */
+        __be32  cache_id;
+        __be32  tag;
+        __be32  mps_ip;
+        __be32  eg_dst_ip;      /* IP address to which ingress MPC sends packets */
         uint8_t   in_MPC_data_ATM_addr[ATM_ESA_LEN];
         uint16_t  holding_time;
 } eg_ctrl_info;
@@ -49,7 +49,7 @@ struct mpc_parameters {
 
 struct k_message {
         uint16_t type;
-        uint32_t ip_mask;
+        __be32 ip_mask;
         uint8_t  MPS_ctrl[ATM_ESA_LEN];
         union {
                 in_ctrl_info in_info;

@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/cache.h>
 #include <asm/uaccess.h>
+#include <linux/audit.h>
 
 #include "xfrm_hash.h"
 
@@ -115,7 +116,7 @@ static unsigned long xfrm_hash_new_size(void)
 
 static DEFINE_MUTEX(hash_resize_mutex);
 
-static void xfrm_hash_resize(void *__unused)
+static void xfrm_hash_resize(struct work_struct *__unused)
 {
 	struct hlist_head *ndst, *nsrc, *nspi, *odst, *osrc, *ospi;
 	unsigned long nsize, osize;
@@ -168,7 +169,7 @@ out_unlock:
 	mutex_unlock(&hash_resize_mutex);
 }
 
-static DECLARE_WORK(xfrm_hash_work, xfrm_hash_resize, NULL);
+static DECLARE_WORK(xfrm_hash_work, xfrm_hash_resize);
 
 DECLARE_WAIT_QUEUE_HEAD(km_waitq);
 EXPORT_SYMBOL(km_waitq);
@@ -207,7 +208,7 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 	kfree(x);
 }
 
-static void xfrm_state_gc_task(void *data)
+static void xfrm_state_gc_task(struct work_struct *data)
 {
 	struct xfrm_state *x;
 	struct hlist_node *entry, *tmp;
@@ -238,6 +239,7 @@ static void xfrm_timer_handler(unsigned long data)
 	unsigned long now = (unsigned long)xtime.tv_sec;
 	long next = LONG_MAX;
 	int warn = 0;
+	int err = 0;
 
 	spin_lock(&x->lock);
 	if (x->km.state == XFRM_STATE_DEAD)
@@ -295,8 +297,13 @@ expired:
 		next = 2;
 		goto resched;
 	}
-	if (!__xfrm_state_delete(x) && x->id.spi)
+
+	err = __xfrm_state_delete(x);
+	if (!err && x->id.spi)
 		km_state_expired(x, 1, 0);
+
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
 
 out:
 	spin_unlock(&x->lock);
@@ -384,9 +391,10 @@ int xfrm_state_delete(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(xfrm_state_delete);
 
-void xfrm_state_flush(u8 proto)
+void xfrm_state_flush(u8 proto, struct xfrm_audit *audit_info)
 {
 	int i;
+	int err = 0;
 
 	spin_lock_bh(&xfrm_state_lock);
 	for (i = 0; i <= xfrm_state_hmask; i++) {
@@ -399,7 +407,11 @@ restart:
 				xfrm_state_hold(x);
 				spin_unlock_bh(&xfrm_state_lock);
 
-				xfrm_state_delete(x);
+				err = xfrm_state_delete(x);
+				xfrm_audit_log(audit_info->loginuid,
+					       audit_info->secid,
+					       AUDIT_MAC_IPSEC_DELSA,
+					       err ? 0 : 1, NULL, x);
 				xfrm_state_put(x);
 
 				spin_lock_bh(&xfrm_state_lock);
@@ -505,6 +517,14 @@ __xfrm_state_locate(struct xfrm_state *x, int use_spi, int family)
 						  x->id.proto, family);
 }
 
+static void xfrm_hash_grow_check(int have_hash_collision)
+{
+	if (have_hash_collision &&
+	    (xfrm_state_hmask + 1) < xfrm_state_hashmax &&
+	    xfrm_state_num > xfrm_state_hmask)
+		schedule_work(&xfrm_hash_work);
+}
+
 struct xfrm_state *
 xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr, 
 		struct flowi *fl, struct xfrm_tmpl *tmpl,
@@ -598,6 +618,8 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			x->lft.hard_add_expires_seconds = XFRM_ACQ_EXPIRES;
 			x->timer.expires = jiffies + XFRM_ACQ_EXPIRES*HZ;
 			add_timer(&x->timer);
+			xfrm_state_num++;
+			xfrm_hash_grow_check(x->bydst.next != NULL);
 		} else {
 			x->km.state = XFRM_STATE_DEAD;
 			xfrm_state_put(x);
@@ -642,10 +664,7 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 
 	xfrm_state_num++;
 
-	if (x->bydst.next != NULL &&
-	    (xfrm_state_hmask + 1) < xfrm_state_hashmax &&
-	    xfrm_state_num > xfrm_state_hmask)
-		schedule_work(&xfrm_hash_work);
+	xfrm_hash_grow_check(x->bydst.next != NULL);
 }
 
 /* xfrm_state_lock is held */
@@ -753,6 +772,10 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 		h = xfrm_src_hash(daddr, saddr, family);
 		hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 		wake_up(&km_waitq);
+
+		xfrm_state_num++;
+
+		xfrm_hash_grow_check(x->bydst.next != NULL);
 	}
 
 	return x;
@@ -1088,7 +1111,7 @@ int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*),
 		    void *data)
 {
 	int i;
-	struct xfrm_state *x;
+	struct xfrm_state *x, *last = NULL;
 	struct hlist_node *entry;
 	int count = 0;
 	int err = 0;
@@ -1096,24 +1119,22 @@ int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*),
 	spin_lock_bh(&xfrm_state_lock);
 	for (i = 0; i <= xfrm_state_hmask; i++) {
 		hlist_for_each_entry(x, entry, xfrm_state_bydst+i, bydst) {
-			if (xfrm_id_proto_match(x->id.proto, proto))
-				count++;
+			if (!xfrm_id_proto_match(x->id.proto, proto))
+				continue;
+			if (last) {
+				err = func(last, count, data);
+				if (err)
+					goto out;
+			}
+			last = x;
+			count++;
 		}
 	}
 	if (count == 0) {
 		err = -ENOENT;
 		goto out;
 	}
-
-	for (i = 0; i <= xfrm_state_hmask; i++) {
-		hlist_for_each_entry(x, entry, xfrm_state_bydst+i, bydst) {
-			if (!xfrm_id_proto_match(x->id.proto, proto))
-				continue;
-			err = func(x, --count, data);
-			if (err)
-				goto out;
-		}
-	}
+	err = func(last, 0, data);
 out:
 	spin_unlock_bh(&xfrm_state_lock);
 	return err;
@@ -1293,7 +1314,7 @@ int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol)
 }
 EXPORT_SYMBOL(km_query);
 
-int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, u16 sport)
+int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport)
 {
 	int err = -EINVAL;
 	struct xfrm_mgr *km;
@@ -1557,6 +1578,6 @@ void __init xfrm_state_init(void)
 		panic("XFRM: Cannot allocate bydst/bysrc/byspi hashes.");
 	xfrm_state_hmask = ((sz / sizeof(struct hlist_head)) - 1);
 
-	INIT_WORK(&xfrm_state_gc_work, xfrm_state_gc_task, NULL);
+	INIT_WORK(&xfrm_state_gc_work, xfrm_state_gc_task);
 }
 

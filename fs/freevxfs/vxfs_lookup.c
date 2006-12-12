@@ -240,7 +240,7 @@ vxfs_lookup(struct inode *dip, struct dentry *dp, struct nameidata *nd)
 static int
 vxfs_readdir(struct file *fp, void *retp, filldir_t filler)
 {
-	struct inode		*ip = fp->f_dentry->d_inode;
+	struct inode		*ip = fp->f_path.dentry->d_inode;
 	struct super_block	*sbp = ip->i_sb;
 	u_long			bsize = sbp->s_blocksize;
 	u_long			page, npages, block, pblocks, nblocks, offset;

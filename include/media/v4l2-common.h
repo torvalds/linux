@@ -144,6 +144,9 @@ enum v4l2_chip_ident {
 	V4L2_IDENT_CX25841 = 241,
 	V4L2_IDENT_CX25842 = 242,
 	V4L2_IDENT_CX25843 = 243,
+
+	/* OmniVision sensors - range 250-299 */
+	V4L2_IDENT_OV7670 = 250,
 };
 
 /* audio ioctls */
@@ -250,5 +253,9 @@ struct v4l2_crystal_freq {
    clock frequency dividers, etc. If not used, then set flags to 0.
    If the frequency is not supported, then -EINVAL is returned. */
 #define VIDIOC_INT_S_CRYSTAL_FREQ 	_IOW ('d', 113, struct v4l2_crystal_freq)
+
+/* Initialize the sensor registors to some sort of reasonable
+   default values. */
+#define VIDIOC_INT_INIT			_IOW ('d', 114, u32)
 
 #endif /* V4L2_COMMON_H_ */
