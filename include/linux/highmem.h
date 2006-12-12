@@ -96,6 +96,8 @@ static inline void memclear_highpage_flush(struct page *page, unsigned int offse
 	kunmap_atomic(kaddr, KM_USER0);
 }
 
+#ifndef __HAVE_ARCH_COPY_USER_HIGHPAGE
+
 static inline void copy_user_highpage(struct page *to, struct page *from, unsigned long vaddr)
 {
 	char *vfrom, *vto;
@@ -108,6 +110,8 @@ static inline void copy_user_highpage(struct page *to, struct page *from, unsign
 	/* Make sure this page is cleared on other CPU's too before using it */
 	smp_wmb();
 }
+
+#endif
 
 static inline void copy_highpage(struct page *to, struct page *from)
 {
