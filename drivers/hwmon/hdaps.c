@@ -511,14 +511,14 @@ static int __init hdaps_dmi_match_invert(struct dmi_system_id *id)
 }
 
 /* Note that HDAPS_DMI_MATCH_NORMAL("ThinkPad T42") would match
-  "ThinkPad T42p", so the order of the entries matters */
+   "ThinkPad T42p", so the order of the entries matters.
+   If your ThinkPad is not recognized, please update to latest
+   BIOS. This is especially the case for some R52 ThinkPads. */
 static struct dmi_system_id __initdata hdaps_whitelist[] = {
-	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad H"),
 	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad R50p"),
 	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad R50"),
 	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad R51"),
 	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad R52"),
-	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad H"),	   /* R52 (1846AQG) */
 	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad T41p"),
 	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad T41"),
 	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad T42p"),

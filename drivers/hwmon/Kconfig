@@ -527,6 +527,9 @@ config SENSORS_HDAPS
 	  This driver also provides an absolute input class device, allowing
 	  the laptop to act as a pinball machine-esque joystick.
 
+	  If your ThinkPad is not recognized by the driver, please update to latest
+	  BIOS. This is especially the case for some R52 ThinkPads.
+
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of hdaps.
 
