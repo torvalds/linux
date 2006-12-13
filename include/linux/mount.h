@@ -27,6 +27,7 @@ struct mnt_namespace;
 #define MNT_NOEXEC	0x04
 #define MNT_NOATIME	0x08
 #define MNT_NODIRATIME	0x10
+#define MNT_RELATIME	0x20
 
 #define MNT_SHRINKABLE	0x100
 

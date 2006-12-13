@@ -1177,13 +1177,27 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
 			return;
 		if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))
 			return;
+
+		if (mnt->mnt_flags & MNT_RELATIME) {
+			/*
+			 * With relative atime, only update atime if the
+			 * previous atime is earlier than either the ctime or
+			 * mtime.
+			 */
+			if (timespec_compare(&inode->i_mtime,
+						&inode->i_atime) < 0 &&
+			    timespec_compare(&inode->i_ctime,
+						&inode->i_atime) < 0)
+				return;
+		}
 	}
 
 	now = current_fs_time(inode->i_sb);
-	if (!timespec_equal(&inode->i_atime, &now)) {
-		inode->i_atime = now;
-		mark_inode_dirty_sync(inode);
-	}
+	if (timespec_equal(&inode->i_atime, &now))
+		return;
+
+	inode->i_atime = now;
+	mark_inode_dirty_sync(inode);
 }
 EXPORT_SYMBOL(touch_atime);
 
