@@ -43,13 +43,49 @@
 #include "lockdep_internals.h"
 
 /*
- * hash_lock: protects the lockdep hashes and class/list/hash allocators.
+ * lockdep_lock: protects the lockdep graph, the hashes and the
+ *               class/list/hash allocators.
  *
  * This is one of the rare exceptions where it's justified
  * to use a raw spinlock - we really dont want the spinlock
- * code to recurse back into the lockdep code.
+ * code to recurse back into the lockdep code...
  */
-static raw_spinlock_t hash_lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+static raw_spinlock_t lockdep_lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+
+static int graph_lock(void)
+{
+	__raw_spin_lock(&lockdep_lock);
+	/*
+	 * Make sure that if another CPU detected a bug while
+	 * walking the graph we dont change it (while the other
+	 * CPU is busy printing out stuff with the graph lock
+	 * dropped already)
+	 */
+	if (!debug_locks) {
+		__raw_spin_unlock(&lockdep_lock);
+		return 0;
+	}
+	return 1;
+}
+
+static inline int graph_unlock(void)
+{
+	__raw_spin_unlock(&lockdep_lock);
+	return 0;
+}
+
+/*
+ * Turn lock debugging off and return with 0 if it was off already,
+ * and also release the graph lock:
+ */
+static inline int debug_locks_off_graph_unlock(void)
+{
+	int ret = debug_locks_off();
+
+	__raw_spin_unlock(&lockdep_lock);
+
+	return ret;
+}
 
 static int lockdep_initialized;
 
@@ -57,14 +93,15 @@ unsigned long nr_list_entries;
 static struct lock_list list_entries[MAX_LOCKDEP_ENTRIES];
 
 /*
- * Allocate a lockdep entry. (assumes hash_lock held, returns
+ * Allocate a lockdep entry. (assumes the graph_lock held, returns
  * with NULL on failure)
  */
 static struct lock_list *alloc_list_entry(void)
 {
 	if (nr_list_entries >= MAX_LOCKDEP_ENTRIES) {
-		__raw_spin_unlock(&hash_lock);
-		debug_locks_off();
+		if (!debug_locks_off_graph_unlock())
+			return NULL;
+
 		printk("BUG: MAX_LOCKDEP_ENTRIES too low!\n");
 		printk("turning off the locking correctness validator.\n");
 		return NULL;
@@ -205,7 +242,7 @@ static int softirq_verbose(struct lock_class *class)
 
 /*
  * Stack-trace: tightly packed array of stack backtrace
- * addresses. Protected by the hash_lock.
+ * addresses. Protected by the graph_lock.
  */
 unsigned long nr_stack_trace_entries;
 static unsigned long stack_trace[MAX_STACK_TRACE_ENTRIES];
@@ -224,18 +261,15 @@ static int save_trace(struct stack_trace *trace)
 	trace->max_entries = trace->nr_entries;
 
 	nr_stack_trace_entries += trace->nr_entries;
-	if (DEBUG_LOCKS_WARN_ON(nr_stack_trace_entries > MAX_STACK_TRACE_ENTRIES)) {
-		__raw_spin_unlock(&hash_lock);
-		return 0;
-	}
 
 	if (nr_stack_trace_entries == MAX_STACK_TRACE_ENTRIES) {
-		__raw_spin_unlock(&hash_lock);
-		if (debug_locks_off()) {
-			printk("BUG: MAX_STACK_TRACE_ENTRIES too low!\n");
-			printk("turning off the locking correctness validator.\n");
-			dump_stack();
-		}
+		if (!debug_locks_off_graph_unlock())
+			return 0;
+
+		printk("BUG: MAX_STACK_TRACE_ENTRIES too low!\n");
+		printk("turning off the locking correctness validator.\n");
+		dump_stack();
+
 		return 0;
 	}
 
@@ -524,9 +558,7 @@ print_circular_bug_header(struct lock_list *entry, unsigned int depth)
 {
 	struct task_struct *curr = current;
 
-	__raw_spin_unlock(&hash_lock);
-	debug_locks_off();
-	if (debug_locks_silent)
+	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
 		return 0;
 
 	printk("\n=======================================================\n");
@@ -554,12 +586,10 @@ static noinline int print_circular_bug_tail(void)
 	if (debug_locks_silent)
 		return 0;
 
-	/* hash_lock unlocked by the header */
-	__raw_spin_lock(&hash_lock);
 	this.class = check_source->class;
 	if (!save_trace(&this.trace))
 		return 0;
-	__raw_spin_unlock(&hash_lock);
+
 	print_circular_bug_entry(&this, 0);
 
 	printk("\nother info that might help us debug this:\n\n");
@@ -575,8 +605,10 @@ static noinline int print_circular_bug_tail(void)
 
 static int noinline print_infinite_recursion_bug(void)
 {
-	__raw_spin_unlock(&hash_lock);
-	DEBUG_LOCKS_WARN_ON(1);
+	if (!debug_locks_off_graph_unlock())
+		return 0;
+
+	WARN_ON(1);
 
 	return 0;
 }
@@ -711,9 +743,7 @@ print_bad_irq_dependency(struct task_struct *curr,
 			 enum lock_usage_bit bit2,
 			 const char *irqclass)
 {
-	__raw_spin_unlock(&hash_lock);
-	debug_locks_off();
-	if (debug_locks_silent)
+	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
 		return 0;
 
 	printk("\n======================================================\n");
@@ -794,9 +824,7 @@ static int
 print_deadlock_bug(struct task_struct *curr, struct held_lock *prev,
 		   struct held_lock *next)
 {
-	debug_locks_off();
-	__raw_spin_unlock(&hash_lock);
-	if (debug_locks_silent)
+	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
 		return 0;
 
 	printk("\n=============================================\n");
@@ -972,14 +1000,14 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	 * Debugging printouts:
 	 */
 	if (verbose(prev->class) || verbose(next->class)) {
-		__raw_spin_unlock(&hash_lock);
+		graph_unlock();
 		printk("\n new dependency: ");
 		print_lock_name(prev->class);
 		printk(" => ");
 		print_lock_name(next->class);
 		printk("\n");
 		dump_stack();
-		__raw_spin_lock(&hash_lock);
+		return graph_lock();
 	}
 	return 1;
 }
@@ -1044,8 +1072,10 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 	}
 	return 1;
 out_bug:
-	__raw_spin_unlock(&hash_lock);
-	DEBUG_LOCKS_WARN_ON(1);
+	if (!debug_locks_off_graph_unlock())
+		return 0;
+
+	WARN_ON(1);
 
 	return 0;
 }
@@ -1199,7 +1229,10 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	hash_head = classhashentry(key);
 
 	raw_local_irq_save(flags);
-	__raw_spin_lock(&hash_lock);
+	if (!graph_lock()) {
+		raw_local_irq_restore(flags);
+		return NULL;
+	}
 	/*
 	 * We have to do the hash-walk again, to avoid races
 	 * with another CPU:
@@ -1212,9 +1245,12 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	 * the hash:
 	 */
 	if (nr_lock_classes >= MAX_LOCKDEP_KEYS) {
-		__raw_spin_unlock(&hash_lock);
+		if (!debug_locks_off_graph_unlock()) {
+			raw_local_irq_restore(flags);
+			return NULL;
+		}
 		raw_local_irq_restore(flags);
-		debug_locks_off();
+
 		printk("BUG: MAX_LOCKDEP_KEYS too low!\n");
 		printk("turning off the locking correctness validator.\n");
 		return NULL;
@@ -1235,18 +1271,23 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	list_add_tail_rcu(&class->hash_entry, hash_head);
 
 	if (verbose(class)) {
-		__raw_spin_unlock(&hash_lock);
+		graph_unlock();
 		raw_local_irq_restore(flags);
+
 		printk("\nnew class %p: %s", class->key, class->name);
 		if (class->name_version > 1)
 			printk("#%d", class->name_version);
 		printk("\n");
 		dump_stack();
+
 		raw_local_irq_save(flags);
-		__raw_spin_lock(&hash_lock);
+		if (!graph_lock()) {
+			raw_local_irq_restore(flags);
+			return NULL;
+		}
 	}
 out_unlock_set:
-	__raw_spin_unlock(&hash_lock);
+	graph_unlock();
 	raw_local_irq_restore(flags);
 
 	if (!subclass || force)
@@ -1287,19 +1328,21 @@ cache_hit:
 	 * Allocate a new chain entry from the static array, and add
 	 * it to the hash:
 	 */
-	__raw_spin_lock(&hash_lock);
+	if (!graph_lock())
+		return 0;
 	/*
 	 * We have to walk the chain again locked - to avoid duplicates:
 	 */
 	list_for_each_entry(chain, hash_head, entry) {
 		if (chain->chain_key == chain_key) {
-			__raw_spin_unlock(&hash_lock);
+			graph_unlock();
 			goto cache_hit;
 		}
 	}
 	if (unlikely(nr_lock_chains >= MAX_LOCKDEP_CHAINS)) {
-		__raw_spin_unlock(&hash_lock);
-		debug_locks_off();
+		if (!debug_locks_off_graph_unlock())
+			return 0;
+
 		printk("BUG: MAX_LOCKDEP_CHAINS too low!\n");
 		printk("turning off the locking correctness validator.\n");
 		return 0;
@@ -1375,9 +1418,7 @@ print_irq_inversion_bug(struct task_struct *curr, struct lock_class *other,
 			struct held_lock *this, int forwards,
 			const char *irqclass)
 {
-	__raw_spin_unlock(&hash_lock);
-	debug_locks_off();
-	if (debug_locks_silent)
+	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
 		return 0;
 
 	printk("\n=========================================================\n");
@@ -1466,9 +1507,7 @@ static int
 print_usage_bug(struct task_struct *curr, struct held_lock *this,
 		enum lock_usage_bit prev_bit, enum lock_usage_bit new_bit)
 {
-	__raw_spin_unlock(&hash_lock);
-	debug_locks_off();
-	if (debug_locks_silent)
+	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
 		return 0;
 
 	printk("\n=================================\n");
@@ -1529,12 +1568,13 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 	if (likely(this->class->usage_mask & new_mask))
 		return 1;
 
-	__raw_spin_lock(&hash_lock);
+	if (!graph_lock())
+		return 0;
 	/*
 	 * Make sure we didnt race:
 	 */
 	if (unlikely(this->class->usage_mask & new_mask)) {
-		__raw_spin_unlock(&hash_lock);
+		graph_unlock();
 		return 1;
 	}
 
@@ -1720,16 +1760,16 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 		debug_atomic_dec(&nr_unused_locks);
 		break;
 	default:
-		__raw_spin_unlock(&hash_lock);
-		debug_locks_off();
+		if (!debug_locks_off_graph_unlock())
+			return 0;
 		WARN_ON(1);
 		return 0;
 	}
 
-	__raw_spin_unlock(&hash_lock);
+	graph_unlock();
 
 	/*
-	 * We must printk outside of the hash_lock:
+	 * We must printk outside of the graph_lock:
 	 */
 	if (ret == 2) {
 		printk("\nmarked lock as {%s}:\n", usage_str[new_bit]);
@@ -2127,7 +2167,7 @@ out_calc_hash:
 	 * We look up the chain_key and do the O(N^2) check and update of
 	 * the dependencies only if this is a new dependency chain.
 	 * (If lookup_chain_cache() returns with 1 it acquires
-	 * hash_lock for us)
+	 * graph_lock for us)
 	 */
 	if (!trylock && (check == 2) && lookup_chain_cache(chain_key, class)) {
 		/*
@@ -2160,7 +2200,7 @@ out_calc_hash:
 		if (!chain_head && ret != 2)
 			if (!check_prevs_add(curr, hlock))
 				return 0;
-		__raw_spin_unlock(&hash_lock);
+		graph_unlock();
 	}
 	curr->lockdep_depth++;
 	check_chain_key(curr);
@@ -2472,7 +2512,7 @@ void lockdep_free_key_range(void *start, unsigned long size)
 	int i;
 
 	raw_local_irq_save(flags);
-	__raw_spin_lock(&hash_lock);
+	graph_lock();
 
 	/*
 	 * Unhash all classes that were created by this module:
@@ -2486,7 +2526,7 @@ void lockdep_free_key_range(void *start, unsigned long size)
 				zap_class(class);
 	}
 
-	__raw_spin_unlock(&hash_lock);
+	graph_unlock();
 	raw_local_irq_restore(flags);
 }
 
@@ -2514,20 +2554,20 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 	 * Debug check: in the end all mapped classes should
 	 * be gone.
 	 */
-	__raw_spin_lock(&hash_lock);
+	graph_lock();
 	for (i = 0; i < CLASSHASH_SIZE; i++) {
 		head = classhash_table + i;
 		if (list_empty(head))
 			continue;
 		list_for_each_entry_safe(class, next, head, hash_entry) {
 			if (unlikely(class == lock->class_cache)) {
-				__raw_spin_unlock(&hash_lock);
-				DEBUG_LOCKS_WARN_ON(1);
+				if (debug_locks_off_graph_unlock())
+					WARN_ON(1);
 				goto out_restore;
 			}
 		}
 	}
-	__raw_spin_unlock(&hash_lock);
+	graph_unlock();
 
 out_restore:
 	raw_local_irq_restore(flags);
