@@ -238,7 +238,7 @@ struct operand {
  * any modified flags.
  */
 
-#if defined(__x86_64__)
+#if defined(CONFIG_X86_64)
 #define _LO32 "k"		/* force 32-bit operand */
 #define _STK  "%%rsp"		/* stack pointer */
 #elif defined(__i386__)
@@ -385,7 +385,7 @@ struct operand {
 	} while (0)
 
 /* Emulate an instruction with quadword operands (x86/64 only). */
-#if defined(__x86_64__)
+#if defined(CONFIG_X86_64)
 #define __emulate_2op_8byte(_op, _src, _dst, _eflags, _qx, _qy)           \
 	do {								  \
 		__asm__ __volatile__ (					  \
@@ -495,7 +495,7 @@ x86_emulate_memop(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	case X86EMUL_MODE_PROT32:
 		op_bytes = ad_bytes = 4;
 		break;
-#ifdef __x86_64__
+#ifdef CONFIG_X86_64
 	case X86EMUL_MODE_PROT64:
 		op_bytes = 4;
 		ad_bytes = 8;
@@ -1341,7 +1341,7 @@ twobyte_special_insn:
 			}
 			break;
 		}
-#elif defined(__x86_64__)
+#elif defined(CONFIG_X86_64)
 		{
 			unsigned long old, new;
 			if ((rc = ops->read_emulated(cr2, &old, 8, ctxt)) != 0)

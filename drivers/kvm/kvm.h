@@ -140,7 +140,7 @@ enum {
 	VCPU_REGS_RBP = 5,
 	VCPU_REGS_RSI = 6,
 	VCPU_REGS_RDI = 7,
-#ifdef __x86_64__
+#ifdef CONFIG_X86_64
 	VCPU_REGS_R8 = 8,
 	VCPU_REGS_R9 = 9,
 	VCPU_REGS_R10 = 10,
@@ -375,7 +375,7 @@ void set_cr4(struct kvm_vcpu *vcpu, unsigned long cr0);
 void set_cr8(struct kvm_vcpu *vcpu, unsigned long cr0);
 void lmsw(struct kvm_vcpu *vcpu, unsigned long msw);
 
-#ifdef __x86_64__
+#ifdef CONFIG_X86_64
 void set_efer(struct kvm_vcpu *vcpu, u64 efer);
 #endif
 
@@ -485,7 +485,7 @@ static inline unsigned long read_tr_base(void)
 	return segment_base(tr);
 }
 
-#ifdef __x86_64__
+#ifdef CONFIG_X86_64
 static inline unsigned long read_msr(unsigned long msr)
 {
 	u64 value;
@@ -533,7 +533,7 @@ static inline u32 get_rdx_init_val(void)
 #define TSS_REDIRECTION_SIZE (256 / 8)
 #define RMODE_TSS_SIZE (TSS_BASE_SIZE + TSS_REDIRECTION_SIZE + TSS_IOPB_SIZE + 1)
 
-#ifdef __x86_64__
+#ifdef CONFIG_X86_64
 
 /*
  * When emulating 32-bit mode, cr3 is only 32 bits even on x86_64.  Therefore

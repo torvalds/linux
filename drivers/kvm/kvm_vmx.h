@@ -1,7 +1,7 @@
 #ifndef __KVM_VMX_H
 #define __KVM_VMX_H
 
-#ifdef __x86_64__
+#ifdef CONFIG_X86_64
 /*
  * avoid save/load MSR_SYSCALL_MASK and MSR_LSTAR by std vt
  * mechanism (cpu bug AA24)

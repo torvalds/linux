@@ -162,7 +162,7 @@ struct x86_emulate_ctxt {
 /* Host execution mode. */
 #if defined(__i386__)
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT32
-#elif defined(__x86_64__)
+#elif defined(CONFIG_X86_64)
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT64
 #endif
 

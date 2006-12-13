@@ -9,7 +9,7 @@
 #include "kvm.h"
 
 static const u32 host_save_msrs[] = {
-#ifdef __x86_64__
+#ifdef CONFIG_X86_64
 	MSR_STAR, MSR_LSTAR, MSR_CSTAR, MSR_SYSCALL_MASK, MSR_KERNEL_GS_BASE,
 	MSR_FS_BASE, MSR_GS_BASE,
 #endif
