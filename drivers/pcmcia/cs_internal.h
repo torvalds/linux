@@ -227,6 +227,8 @@ extern void pcmcia_put_dev(struct pcmcia_device *p_dev);
 
 struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 					unsigned int function);
+int pcmcia_get_mem_page(struct pcmcia_socket *skt, window_handle_t win,
+			memreq_t *req);
 
 /* pcmcia_ioctl.c */
 extern void __init pcmcia_setup_ioctl(void);

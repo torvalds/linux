@@ -924,7 +924,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 			buf->win_info.handle->index + 1, &buf->win_info.window);
 	break;
     case DS_GET_MEM_PAGE:
-	ret = pcmcia_get_mem_page(buf->win_info.handle,
+	ret = pcmcia_get_mem_page(s, buf->win_info.handle,
 			   &buf->win_info.map);
 	break;
     case DS_REPLACE_CIS:

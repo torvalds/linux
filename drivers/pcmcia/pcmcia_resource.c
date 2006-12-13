@@ -223,8 +223,11 @@ EXPORT_SYMBOL(pcmcia_get_window);
  *
  * Change the card address of an already open memory window.
  */
-int pcmcia_get_mem_page(window_handle_t win, memreq_t *req)
+int pcmcia_get_mem_page(struct pcmcia_socket *skt, window_handle_t wh,
+			memreq_t *req)
 {
+	window_handle_t win = wh;
+
 	if ((win == NULL) || (win->magic != WINDOW_MAGIC))
 		return -EINVAL;
 	req->Page = 0;
