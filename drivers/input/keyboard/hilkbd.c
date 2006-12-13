@@ -23,7 +23,12 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/hil.h>
+#include <linux/io.h>
 #include <linux/spinlock.h>
+#include <asm/irq.h>
+#ifdef CONFIG_HP300
+#include <asm/hwtest.h>
+#endif
 
 
 MODULE_AUTHOR("Philip Blundell, Matthew Wilcox, Helge Deller");
