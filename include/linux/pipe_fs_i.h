@@ -12,7 +12,7 @@
 struct pipe_buffer {
 	struct page *page;
 	unsigned int offset, len;
-	struct pipe_buf_operations *ops;
+	const struct pipe_buf_operations *ops;
 	unsigned int flags;
 };
 
@@ -43,7 +43,6 @@ struct pipe_inode_info {
 	unsigned int nrbufs, curbuf;
 	struct pipe_buffer bufs[PIPE_BUFFERS];
 	struct page *tmp_page;
-	unsigned int start;
 	unsigned int readers;
 	unsigned int writers;
 	unsigned int waiting_writers;

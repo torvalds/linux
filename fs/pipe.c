@@ -207,7 +207,7 @@ int generic_pipe_buf_pin(struct pipe_inode_info *info, struct pipe_buffer *buf)
 	return 0;
 }
 
-static struct pipe_buf_operations anon_pipe_buf_ops = {
+static const struct pipe_buf_operations anon_pipe_buf_ops = {
 	.can_merge = 1,
 	.map = generic_pipe_buf_map,
 	.unmap = generic_pipe_buf_unmap,
@@ -243,7 +243,7 @@ pipe_read(struct kiocb *iocb, const struct iovec *_iov,
 		if (bufs) {
 			int curbuf = pipe->curbuf;
 			struct pipe_buffer *buf = pipe->bufs + curbuf;
-			struct pipe_buf_operations *ops = buf->ops;
+			const struct pipe_buf_operations *ops = buf->ops;
 			void *addr;
 			size_t chars = buf->len;
 			int error, atomic;
@@ -365,7 +365,7 @@ pipe_write(struct kiocb *iocb, const struct iovec *_iov,
 		int lastbuf = (pipe->curbuf + pipe->nrbufs - 1) &
 							(PIPE_BUFFERS-1);
 		struct pipe_buffer *buf = pipe->bufs + lastbuf;
-		struct pipe_buf_operations *ops = buf->ops;
+		const struct pipe_buf_operations *ops = buf->ops;
 		int offset = buf->offset + buf->len;
 
 		if (ops->can_merge && offset + chars <= PAGE_SIZE) {
@@ -756,7 +756,7 @@ const struct file_operations rdwr_fifo_fops = {
 	.fasync		= pipe_rdwr_fasync,
 };
 
-static struct file_operations read_pipe_fops = {
+static const struct file_operations read_pipe_fops = {
 	.llseek		= no_llseek,
 	.read		= do_sync_read,
 	.aio_read	= pipe_read,
@@ -768,7 +768,7 @@ static struct file_operations read_pipe_fops = {
 	.fasync		= pipe_read_fasync,
 };
 
-static struct file_operations write_pipe_fops = {
+static const struct file_operations write_pipe_fops = {
 	.llseek		= no_llseek,
 	.read		= bad_pipe_r,
 	.write		= do_sync_write,
@@ -780,7 +780,7 @@ static struct file_operations write_pipe_fops = {
 	.fasync		= pipe_write_fasync,
 };
 
-static struct file_operations rdwr_pipe_fops = {
+static const struct file_operations rdwr_pipe_fops = {
 	.llseek		= no_llseek,
 	.read		= do_sync_read,
 	.aio_read	= pipe_read,

@@ -42,7 +42,7 @@ struct splice_pipe_desc {
 	struct partial_page *partial;	/* pages[] may not be contig */
 	int nr_pages;			/* number of pages in map */
 	unsigned int flags;		/* splice flags */
-	struct pipe_buf_operations *ops;/* ops associated with output pipe */
+	const struct pipe_buf_operations *ops;/* ops associated with output pipe */
 };
 
 /*
@@ -139,7 +139,7 @@ error:
 	return err;
 }
 
-static struct pipe_buf_operations page_cache_pipe_buf_ops = {
+static const struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.can_merge = 0,
 	.map = generic_pipe_buf_map,
 	.unmap = generic_pipe_buf_unmap,
@@ -159,7 +159,7 @@ static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
 	return generic_pipe_buf_steal(pipe, buf);
 }
 
-static struct pipe_buf_operations user_page_pipe_buf_ops = {
+static const struct pipe_buf_operations user_page_pipe_buf_ops = {
 	.can_merge = 0,
 	.map = generic_pipe_buf_map,
 	.unmap = generic_pipe_buf_unmap,
@@ -724,7 +724,7 @@ static ssize_t __splice_from_pipe(struct pipe_inode_info *pipe,
 	for (;;) {
 		if (pipe->nrbufs) {
 			struct pipe_buffer *buf = pipe->bufs + pipe->curbuf;
-			struct pipe_buf_operations *ops = buf->ops;
+			const struct pipe_buf_operations *ops = buf->ops;
 
 			sd.len = buf->len;
 			if (sd.len > sd.total_len)
