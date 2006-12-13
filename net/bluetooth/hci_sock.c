@@ -123,10 +123,10 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 			if (flt->opcode &&
 			    ((evt == HCI_EV_CMD_COMPLETE &&
 			      flt->opcode !=
-			      get_unaligned((__u16 *)(skb->data + 3))) ||
+			      get_unaligned((__le16 *)(skb->data + 3))) ||
 			     (evt == HCI_EV_CMD_STATUS &&
 			      flt->opcode !=
-			      get_unaligned((__u16 *)(skb->data + 4)))))
+			      get_unaligned((__le16 *)(skb->data + 4)))))
 				continue;
 		}
 
