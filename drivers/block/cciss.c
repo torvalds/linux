@@ -2837,7 +2837,7 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	if (err) {
 		printk(KERN_ERR "cciss: Cannot obtain PCI resources, "
 		       "aborting\n");
-		goto err_out_disable_pdev;
+		return err;
 	}
 
 	subsystem_vendor_id = pdev->subsystem_vendor;
