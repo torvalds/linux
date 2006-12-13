@@ -681,7 +681,7 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
  * to NFS_OK after the call; NVERIFY by mapping NFSERR_NOT_SAME to NFS_OK.
  */
 static __be32
-nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+_nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	     struct nfsd4_verify *verify)
 {
 	__be32 *buf, *p;
@@ -731,6 +731,26 @@ nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 out_kfree:
 	kfree(buf);
 	return status;
+}
+
+static __be32
+nfsd4_nverify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+	      struct nfsd4_verify *verify)
+{
+	__be32 status;
+
+	status = _nfsd4_verify(rqstp, cstate, verify);
+	return status == nfserr_not_same ? nfs_ok : status;
+}
+
+static __be32
+nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+	     struct nfsd4_verify *verify)
+{
+	__be32 status;
+
+	status = _nfsd4_verify(rqstp, cstate, verify);
+	return status == nfserr_same ? nfs_ok : status;
 }
 
 /*
@@ -911,10 +931,8 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			op->status = nfsd4_lookupp(rqstp, cstate);
 			break;
 		case OP_NVERIFY:
-			op->status = nfsd4_verify(rqstp, cstate,
+			op->status = nfsd4_nverify(rqstp, cstate,
 						  &op->u.nverify);
-			if (op->status == nfserr_not_same)
-				op->status = nfs_ok;
 			break;
 		case OP_OPEN:
 			op->status = nfsd4_open(rqstp, cstate,
@@ -975,8 +993,6 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 		case OP_VERIFY:
 			op->status = nfsd4_verify(rqstp, cstate,
 						  &op->u.verify);
-			if (op->status == nfserr_same)
-				op->status = nfs_ok;
 			break;
 		case OP_WRITE:
 			op->status = nfsd4_write(rqstp, cstate, &op->u.write);
