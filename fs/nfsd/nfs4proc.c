@@ -1008,7 +1008,7 @@ encode_op:
 			nfsd4_encode_operation(resp, op);
 			status = op->status;
 		}
-		if (replay_owner && (replay_owner != (void *)(-1))) {
+		if (replay_owner) {
 			nfs4_put_stateowner(replay_owner);
 			replay_owner = NULL;
 		}
