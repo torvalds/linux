@@ -551,7 +551,7 @@ static int adma_port_start(struct ata_port *ap)
 		return rc;
 	adma_enter_reg_mode(ap);
 	rc = -ENOMEM;
-	pp = kcalloc(1, sizeof(*pp), GFP_KERNEL);
+	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp)
 		goto err_out;
 	pp->pkt = dma_alloc_coherent(dev, ADMA_PKT_BYTES, &pp->pkt_dma,
@@ -672,7 +672,7 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 	if (rc)
 		goto err_out_iounmap;
 
-	probe_ent = kcalloc(1, sizeof(*probe_ent), GFP_KERNEL);
+	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
 	if (probe_ent == NULL) {
 		rc = -ENOMEM;
 		goto err_out_iounmap;

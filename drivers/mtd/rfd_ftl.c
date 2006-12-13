@@ -768,7 +768,7 @@ static void rfd_ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	if (mtd->type != MTD_NORFLASH)
 		return;
 
-	part = kcalloc(1, sizeof(struct partition), GFP_KERNEL);
+	part = kzalloc(sizeof(struct partition), GFP_KERNEL);
 	if (!part)
 		return;
 

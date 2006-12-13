@@ -308,7 +308,7 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 
 	serv->sv_nrpools = npools;
 	serv->sv_pools =
-		kcalloc(sizeof(struct svc_pool), serv->sv_nrpools,
+		kcalloc(serv->sv_nrpools, sizeof(struct svc_pool),
 			GFP_KERNEL);
 	if (!serv->sv_pools) {
 		kfree(serv);

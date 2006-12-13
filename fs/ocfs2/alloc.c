@@ -1959,7 +1959,7 @@ int ocfs2_prepare_truncate(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	*tc = kcalloc(1, sizeof(struct ocfs2_truncate_context), GFP_KERNEL);
+	*tc = kzalloc(sizeof(struct ocfs2_truncate_context), GFP_KERNEL);
 	if (!(*tc)) {
 		status = -ENOMEM;
 		mlog_errno(status);

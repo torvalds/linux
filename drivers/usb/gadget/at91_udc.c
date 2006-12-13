@@ -598,7 +598,7 @@ at91_ep_alloc_request(struct usb_ep *_ep, unsigned int gfp_flags)
 {
 	struct at91_request *req;
 
-	req = kcalloc(1, sizeof (struct at91_request), gfp_flags);
+	req = kzalloc(sizeof (struct at91_request), gfp_flags);
 	if (!req)
 		return NULL;
 

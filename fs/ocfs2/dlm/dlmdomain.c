@@ -920,7 +920,7 @@ static int dlm_try_to_join_domain(struct dlm_ctxt *dlm)
 
 	mlog_entry("%p", dlm);
 
-	ctxt = kcalloc(1, sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -1223,7 +1223,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	int i;
 	struct dlm_ctxt *dlm = NULL;
 
-	dlm = kcalloc(1, sizeof(*dlm), GFP_KERNEL);
+	dlm = kzalloc(sizeof(*dlm), GFP_KERNEL);
 	if (!dlm) {
 		mlog_errno(-ENOMEM);
 		goto leave;

@@ -50,7 +50,7 @@ struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 	struct phy_device *dev;
 	/* We allocate the device, and initialize the
 	 * default values */
-	dev = kcalloc(1, sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 
 	if (NULL == dev)
 		return (struct phy_device*) PTR_ERR((void*)-ENOMEM);

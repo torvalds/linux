@@ -714,7 +714,7 @@ static struct config_item *o2nm_node_group_make_item(struct config_group *group,
 	if (strlen(name) > O2NM_MAX_NAME_LEN)
 		goto out; /* ENAMETOOLONG */
 
-	node = kcalloc(1, sizeof(struct o2nm_node), GFP_KERNEL);
+	node = kzalloc(sizeof(struct o2nm_node), GFP_KERNEL);
 	if (node == NULL)
 		goto out; /* ENOMEM */
 
@@ -825,8 +825,8 @@ static struct config_group *o2nm_cluster_group_make_group(struct config_group *g
 	if (o2nm_single_cluster)
 		goto out; /* ENOSPC */
 
-	cluster = kcalloc(1, sizeof(struct o2nm_cluster), GFP_KERNEL);
-	ns = kcalloc(1, sizeof(struct o2nm_node_group), GFP_KERNEL);
+	cluster = kzalloc(sizeof(struct o2nm_cluster), GFP_KERNEL);
+	ns = kzalloc(sizeof(struct o2nm_node_group), GFP_KERNEL);
 	defs = kcalloc(3, sizeof(struct config_group *), GFP_KERNEL);
 	o2hb_group = o2hb_alloc_hb_set();
 	if (cluster == NULL || ns == NULL || o2hb_group == NULL || defs == NULL)

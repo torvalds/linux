@@ -112,7 +112,7 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 	if (!(envp = (char **) kcalloc (20, sizeof (char *), GFP_KERNEL))) {
 		return -ENOMEM;
 	}
-	if (!(buf = kcalloc (1, 256, GFP_KERNEL))) {
+	if (!(buf = kzalloc(256, GFP_KERNEL))) {
 		kfree (envp);
 		return -ENOMEM;
 	}
@@ -220,7 +220,7 @@ static int pnpbios_get_resources(struct pnp_dev * dev, struct pnp_resource_table
 	if(!pnpbios_is_dynamic(dev))
 		return -EPERM;
 
-	node = kcalloc(1, node_info.max_node_size, GFP_KERNEL);
+	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node)
 		return -1;
 	if (pnp_bios_get_dev_node(&nodenum, (char )PNPMODE_DYNAMIC, node)) {
@@ -243,7 +243,7 @@ static int pnpbios_set_resources(struct pnp_dev * dev, struct pnp_resource_table
 	if (!pnpbios_is_dynamic(dev))
 		return -EPERM;
 
-	node = kcalloc(1, node_info.max_node_size, GFP_KERNEL);
+	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node)
 		return -1;
 	if (pnp_bios_get_dev_node(&nodenum, (char )PNPMODE_DYNAMIC, node)) {
@@ -294,7 +294,7 @@ static int pnpbios_disable_resources(struct pnp_dev *dev)
 	if(dev->flags & PNPBIOS_NO_DISABLE || !pnpbios_is_dynamic(dev))
 		return -EPERM;
 
-	node = kcalloc(1, node_info.max_node_size, GFP_KERNEL);
+	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
 
@@ -336,7 +336,7 @@ static int insert_device(struct pnp_dev *dev, struct pnp_bios_node * node)
 	}
 
 	/* set the initial values for the PnP device */
-	dev_id = kcalloc(1, sizeof(struct pnp_id), GFP_KERNEL);
+	dev_id = kzalloc(sizeof(struct pnp_id), GFP_KERNEL);
 	if (!dev_id)
 		return -1;
 	pnpid32_to_pnpid(node->eisa_id,id);
@@ -374,7 +374,7 @@ static void __init build_devlist(void)
 	struct pnp_bios_node *node;
 	struct pnp_dev *dev;
 
-	node = kcalloc(1, node_info.max_node_size, GFP_KERNEL);
+	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node)
 		return;
 
@@ -391,7 +391,7 @@ static void __init build_devlist(void)
 				break;
 		}
 		nodes_got++;
-		dev =  kcalloc(1, sizeof (struct pnp_dev), GFP_KERNEL);
+		dev =  kzalloc(sizeof (struct pnp_dev), GFP_KERNEL);
 		if (!dev)
 			break;
 		if(insert_device(dev,node)<0)
