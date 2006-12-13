@@ -493,9 +493,27 @@ asmlinkage void break_point_trap(void)
 	force_sig(SIGTRAP, current);
 }
 
-asmlinkage void break_point_trap_software(unsigned long r4, unsigned long r5,
-					  unsigned long r6, unsigned long r7,
-					  struct pt_regs __regs)
+/*
+ * Generic trap handler.
+ */
+asmlinkage void debug_trap_handler(unsigned long r4, unsigned long r5,
+				   unsigned long r6, unsigned long r7,
+				   struct pt_regs __regs)
+{
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
+
+	/* Rewind */
+	regs->pc -= 2;
+
+	force_sig(SIGTRAP, current);
+}
+
+/*
+ * Special handler for BUG() traps.
+ */
+asmlinkage void bug_trap_handler(unsigned long r4, unsigned long r5,
+				 unsigned long r6, unsigned long r7,
+				 struct pt_regs __regs)
 {
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 

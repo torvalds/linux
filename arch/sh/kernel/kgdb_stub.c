@@ -1323,8 +1323,11 @@ static void kgdb_command_loop(const int excep_code, const int trapa_value)
 }
 
 /* There has been an exception, most likely a breakpoint. */
-void kgdb_handle_exception(struct pt_regs *regs)
+asmlinkage void kgdb_handle_exception(unsigned long r4, unsigned long r5,
+				      unsigned long r6, unsigned long r7,
+				      struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	int excep_code, vbr_val;
 	int count;
 	int trapa_value = ctrl_inl(TRA);
@@ -1368,8 +1371,6 @@ void kgdb_handle_exception(struct pt_regs *regs)
 
 	vbr_val = trap_registers.vbr;
 	asm("ldc %0, vbr": :"r"(vbr_val));
-
-	return;
 }
 
 /* Trigger a breakpoint by function */

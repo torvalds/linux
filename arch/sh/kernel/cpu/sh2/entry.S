@@ -206,7 +206,7 @@ trap_entry:
 
 #if defined(CONFIG_SH_STANDARD_BIOS)
 	/* Unwind the stack and jmp to the debug entry */
-debug_kernel_fw:
+ENTRY(sh_bios_handler)
 	mov	r15,r0
 	add	#(22-4)*4-4,r0
 	ldc.l	@r0+,gbr

@@ -173,7 +173,7 @@ call_dae:
 
 #if defined(CONFIG_SH_STANDARD_BIOS)
 	/* Unwind the stack and jmp to the debug entry */
-debug_kernel_fw:
+ENTRY(sh_bios_handler)
 	mov.l	@r15+, r0
 	mov.l	@r15+, r1
 	mov.l	@r15+, r2
