@@ -69,9 +69,7 @@ static int __devinitdata smp_b_stepping;
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
-#ifdef CONFIG_SMP
 EXPORT_SYMBOL(smp_num_siblings);
-#endif
 
 /* Last level cache ID of each logical CPU */
 int cpu_llc_id[NR_CPUS] __cpuinitdata = {[0 ... NR_CPUS-1] = BAD_APICID};
