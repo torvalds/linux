@@ -27,6 +27,7 @@
 
 #include <asm/arch/clock.h>
 #include <asm/arch/sram.h>
+#include <asm/div64.h>
 
 #include "prcm-regs.h"
 #include "memory.h"
