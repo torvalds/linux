@@ -28,13 +28,6 @@ config ATARI_FLOPPY
 	tristate "Atari floppy support"
 	depends on ATARI
 
-config BLK_DEV_SWIM_IOP
-	bool "Macintosh IIfx/Quadra 900/Quadra 950 floppy support (EXPERIMENTAL)"
-	depends on MAC && EXPERIMENTAL && BROKEN
-	help
-	  Say Y here to support the SWIM (Super Woz Integrated Machine) IOP
-	  floppy controller on the Macintosh IIfx and Quadra 900/950.
-
 config MAC_FLOPPY
 	tristate "Support for PowerMac floppy"
 	depends on PPC_PMAC && !PPC_PMAC64
