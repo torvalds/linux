@@ -914,8 +914,14 @@ MODULE_LICENSE ("GPL");
 #endif
 
 
+#ifdef CONFIG_USB_OHCI_HCD_PPC_OF
+#include "ohci-ppc-of.c"
+#define OF_PLATFORM_DRIVER	ohci_hcd_ppc_of_driver
+#endif
+
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
+	!defined(OF_PLATFORM_DRIVER) &&	\
 	!defined(SA1111_DRIVER)
 #error "missing bus glue for ohci-hcd"
 #endif
@@ -936,6 +942,13 @@ static int __init ohci_hcd_mod_init(void)
 	retval = platform_driver_register(&PLATFORM_DRIVER);
 	if (retval < 0)
 		return retval;
+	ls++;
+#endif
+
+#ifdef OF_PLATFORM_DRIVER
+	retval = of_register_platform_driver(&OF_PLATFORM_DRIVER);
+	if (retval < 0)
+		goto error;
 	ls++;
 #endif
 
@@ -961,6 +974,10 @@ error:
 	if (ls--)
 		platform_driver_unregister(&PLATFORM_DRIVER);
 #endif
+#ifdef OF_PLATFORM_DRIVER
+	if (ls--)
+		of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
+#endif
 #ifdef SA1111_DRIVER
 	if (ls--)
 		sa1111_driver_unregister(&SA1111_DRIVER);
@@ -976,6 +993,9 @@ static void __exit ohci_hcd_mod_exit(void)
 #endif
 #ifdef SA1111_DRIVER
 	sa1111_driver_unregister(&SA1111_DRIVER);
+#endif
+#ifdef OF_PLATFORM_DRIVER
+	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
 #endif
 #ifdef PLATFORM_DRIVER
 	platform_driver_unregister(&PLATFORM_DRIVER);
