@@ -450,8 +450,6 @@ unsigned long iov_shorten(struct iovec *iov, unsigned long nr_segs, size_t to)
 	return seg;
 }
 
-EXPORT_UNUSED_SYMBOL(iov_shorten);  /*  June 2006  */
-
 ssize_t do_sync_readv_writev(struct file *filp, const struct iovec *iov,
 		unsigned long nr_segs, size_t len, loff_t *ppos, iov_fn_t fn)
 {
