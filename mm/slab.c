@@ -3262,7 +3262,7 @@ retry:
 	for (z = zonelist->zones; *z && !obj; z++) {
 		nid = zone_to_nid(*z);
 
-		if (cpuset_zone_allowed(*z, flags | __GFP_HARDWALL) &&
+		if (cpuset_zone_allowed_hardwall(*z, flags) &&
 			cache->nodelists[nid] &&
 			cache->nodelists[nid]->free_objects)
 				obj = ____cache_alloc_node(cache,
