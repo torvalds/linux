@@ -1462,20 +1462,7 @@ static struct elevator_type iosched_as = {
 
 static int __init as_init(void)
 {
-	int ret;
-
-	ret = elv_register(&iosched_as);
-	if (!ret) {
-		/*
-		 * don't allow AS to get unregistered, since we would have
-		 * to browse all tasks in the system and release their
-		 * as_io_context first
-		 */
-		__module_get(THIS_MODULE);
-		return 0;
-	}
-
-	return ret;
+	return elv_register(&iosched_as);
 }
 
 static void __exit as_exit(void)
