@@ -47,6 +47,7 @@
 struct nfsd4_compound_state {
 	struct svc_fh current_fh;
 	struct svc_fh save_fh;
+	struct nfs4_stateowner *replay_owner;
 };
 
 struct nfsd4_change_info {
@@ -442,25 +443,21 @@ extern __be32 nfsd4_process_open1(struct nfsd4_open *open);
 extern __be32 nfsd4_process_open2(struct svc_rqst *rqstp,
 		struct svc_fh *current_fh, struct nfsd4_open *open);
 extern __be32 nfsd4_open_confirm(struct svc_rqst *rqstp,
-		struct nfsd4_compound_state *, struct nfsd4_open_confirm *oc,
-		struct nfs4_stateowner **);
+		struct nfsd4_compound_state *, struct nfsd4_open_confirm *oc);
 extern __be32 nfsd4_close(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *,
-		struct nfsd4_close *close,
-		struct nfs4_stateowner **replay_owner);
+		struct nfsd4_close *close);
 extern __be32 nfsd4_open_downgrade(struct svc_rqst *rqstp,
-		struct nfsd4_compound_state *, struct nfsd4_open_downgrade *od,
-		struct nfs4_stateowner **replay_owner);
+		struct nfsd4_compound_state *,
+		struct nfsd4_open_downgrade *od);
 extern __be32 nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *,
-		struct nfsd4_lock *lock,
-		struct nfs4_stateowner **replay_owner);
+		struct nfsd4_lock *lock);
 extern __be32 nfsd4_lockt(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *,
 		struct nfsd4_lockt *lockt);
 extern __be32 nfsd4_locku(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *,
-		struct nfsd4_locku *locku,
-		struct nfs4_stateowner **replay_owner);
+		struct nfsd4_locku *locku);
 extern __be32
 nfsd4_release_lockowner(struct svc_rqst *rqstp,
 		struct nfsd4_release_lockowner *rlockowner);

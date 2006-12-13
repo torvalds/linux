@@ -163,7 +163,7 @@ do_open_fhandle(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_
 
 static inline __be32
 nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
-	   struct nfsd4_open *open, struct nfs4_stateowner **replay_owner)
+	   struct nfsd4_open *open)
 {
 	__be32 status;
 	dprintk("NFSD: nfsd4_open filename %.*s op_stateowner %p\n",
@@ -255,7 +255,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 out:
 	if (open->op_stateowner) {
 		nfs4_get_stateowner(open->op_stateowner);
-		*replay_owner = open->op_stateowner;
+		cstate->replay_owner = open->op_stateowner;
 	}
 	nfs4_unlock_state();
 	return status;
@@ -761,6 +761,7 @@ static void cstate_free(struct nfsd4_compound_state *cstate)
 		return;
 	fh_put(&cstate->current_fh);
 	fh_put(&cstate->save_fh);
+	BUG_ON(cstate->replay_owner);
 	kfree(cstate);
 }
 
@@ -773,6 +774,7 @@ static struct nfsd4_compound_state *cstate_alloc(void)
 		return NULL;
 	fh_init(&cstate->current_fh, NFS4_FHSIZE);
 	fh_init(&cstate->save_fh, NFS4_FHSIZE);
+	cstate->replay_owner = NULL;
 	return cstate;
 }
 
@@ -786,7 +788,6 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 {
 	struct nfsd4_op	*op;
 	struct nfsd4_compound_state *cstate = NULL;
-	struct nfs4_stateowner *replay_owner = NULL;
 	int		slack_bytes;
 	__be32		status;
 
@@ -876,7 +877,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			break;
 		case OP_CLOSE:
 			op->status = nfsd4_close(rqstp, cstate,
-						 &op->u.close, &replay_owner);
+						 &op->u.close);
 			break;
 		case OP_COMMIT:
 			op->status = nfsd4_commit(rqstp, cstate,
@@ -901,15 +902,13 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			op->status = nfsd4_link(rqstp, cstate, &op->u.link);
 			break;
 		case OP_LOCK:
-			op->status = nfsd4_lock(rqstp, cstate, &op->u.lock,
-						&replay_owner);
+			op->status = nfsd4_lock(rqstp, cstate, &op->u.lock);
 			break;
 		case OP_LOCKT:
 			op->status = nfsd4_lockt(rqstp, cstate, &op->u.lockt);
 			break;
 		case OP_LOCKU:
-			op->status = nfsd4_locku(rqstp, cstate, &op->u.locku,
-						 &replay_owner);
+			op->status = nfsd4_locku(rqstp, cstate, &op->u.locku);
 			break;
 		case OP_LOOKUP:
 			op->status = nfsd4_lookup(rqstp, cstate,
@@ -926,17 +925,15 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			break;
 		case OP_OPEN:
 			op->status = nfsd4_open(rqstp, cstate,
-						&op->u.open, &replay_owner);
+						&op->u.open);
 			break;
 		case OP_OPEN_CONFIRM:
 			op->status = nfsd4_open_confirm(rqstp, cstate,
-							&op->u.open_confirm,
-							&replay_owner);
+							&op->u.open_confirm);
 			break;
 		case OP_OPEN_DOWNGRADE:
 			op->status = nfsd4_open_downgrade(rqstp, cstate,
-							 &op->u.open_downgrade,
-							 &replay_owner);
+							&op->u.open_downgrade);
 			break;
 		case OP_PUTFH:
 			op->status = nfsd4_putfh(rqstp, cstate, &op->u.putfh);
@@ -1001,16 +998,16 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 
 encode_op:
 		if (op->status == nfserr_replay_me) {
-			op->replay = &replay_owner->so_replay;
+			op->replay = &cstate->replay_owner->so_replay;
 			nfsd4_encode_replay(resp, op);
 			status = op->status = op->replay->rp_status;
 		} else {
 			nfsd4_encode_operation(resp, op);
 			status = op->status;
 		}
-		if (replay_owner) {
-			nfs4_put_stateowner(replay_owner);
-			replay_owner = NULL;
+		if (cstate->replay_owner) {
+			nfs4_put_stateowner(cstate->replay_owner);
+			cstate->replay_owner = NULL;
 		}
 		/* XXX Ugh, we need to get rid of this kind of special case: */
 		if (op->opnum == OP_READ && op->u.read.rd_filp)
