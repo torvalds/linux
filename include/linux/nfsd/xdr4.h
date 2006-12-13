@@ -436,8 +436,10 @@ __be32 nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 		       struct dentry *dentry, __be32 *buffer, int *countp,
 		       u32 *bmval, struct svc_rqst *);
 extern __be32 nfsd4_setclientid(struct svc_rqst *rqstp,
+		struct nfsd4_compound_state *,
 		struct nfsd4_setclientid *setclid);
 extern __be32 nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
+		struct nfsd4_compound_state *,
 		struct nfsd4_setclientid_confirm *setclientid_confirm);
 extern __be32 nfsd4_process_open1(struct nfsd4_open *open);
 extern __be32 nfsd4_process_open2(struct svc_rqst *rqstp,
@@ -460,10 +462,13 @@ extern __be32 nfsd4_locku(struct svc_rqst *rqstp,
 		struct nfsd4_locku *locku);
 extern __be32
 nfsd4_release_lockowner(struct svc_rqst *rqstp,
+		struct nfsd4_compound_state *,
 		struct nfsd4_release_lockowner *rlockowner);
 extern void nfsd4_release_compoundargs(struct nfsd4_compoundargs *);
 extern __be32 nfsd4_delegreturn(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, struct nfsd4_delegreturn *dr);
+extern __be32 nfsd4_renew(struct svc_rqst *rqstp,
+			  struct nfsd4_compound_state *, clientid_t *clid);
 #endif
 
 /*
