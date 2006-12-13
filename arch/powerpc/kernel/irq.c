@@ -281,10 +281,10 @@ void do_IRQ(struct pt_regs *regs)
 
 	/*
 	 * Every platform is required to implement ppc_md.get_irq.
-	 * This function will either return an irq number or -1 to
+	 * This function will either return an irq number or NO_IRQ to
 	 * indicate there are no more pending.
-	 * The value -2 is for buggy hardware and means that this IRQ
-	 * has already been handled. -- Tom
+	 * The value NO_IRQ_IGNORE is for buggy hardware and means that this
+	 * IRQ has already been handled. -- Tom
 	 */
 	irq = ppc_md.get_irq();
 
