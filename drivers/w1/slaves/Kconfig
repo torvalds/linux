@@ -9,7 +9,7 @@ config W1_SLAVE_THERM
 	tristate "Thermal family implementation"
 	depends on W1
 	help
-	  Say Y here if you want to connect 1-wire thermal sensors to you
+	  Say Y here if you want to connect 1-wire thermal sensors to your
 	  wire.
 
 config W1_SLAVE_SMEM
@@ -17,7 +17,7 @@ config W1_SLAVE_SMEM
 	depends on W1
 	help
 	  Say Y here if you want to connect 1-wire
-	  simple 64bit memory rom(ds2401/ds2411/ds1990*) to you wire.
+	  simple 64bit memory rom(ds2401/ds2411/ds1990*) to your wire.
 
 config W1_SLAVE_DS2433
 	tristate "4kb EEPROM family support (DS2433)"
