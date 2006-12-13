@@ -980,16 +980,10 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 
 	status = spider_net_get_descr_status(descr);
 
-	/* nothing in the descriptor yet */
-	if (status == SPIDER_NET_DESCR_CARDOWNED)
+	/* Nothing in the descriptor, or ring must be empty */
+	if ((status == SPIDER_NET_DESCR_CARDOWNED) ||
+	    (status == SPIDER_NET_DESCR_NOT_IN_USE))
 		return 0;
-
-	if (status == SPIDER_NET_DESCR_NOT_IN_USE) {
-		/* not initialized yet, the ring must be empty */
-		spider_net_refill_rx_chain(card);
-		spider_net_enable_rxdmac(card);
-		return 0;
-	}
 
 	/* descriptor definitively used -- move on tail */
 	chain->tail = descr->next;
@@ -1074,6 +1068,7 @@ spider_net_poll(struct net_device *netdev, int *budget)
 	netdev->quota -= packets_done;
 	*budget -= packets_done;
 	spider_net_refill_rx_chain(card);
+	spider_net_enable_rxdmac(card);
 
 	/* if all packets are in the stack, enable interrupts and return 0 */
 	/* if not, return 1 */
