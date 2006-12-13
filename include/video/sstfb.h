@@ -119,7 +119,7 @@
 #define BACKPORCH		0x0208
 #define VIDEODIMENSIONS		0x020c
 #define FBIINIT0		0x0210		/* misc+fifo  controls */
-#  define EN_VGA_PASSTHROUGH	  BIT(0)
+#  define DIS_VGA_PASSTHROUGH	  BIT(0)
 #  define FBI_RESET		  BIT(1)
 #  define FIFO_RESET		  BIT(2)
 #define FBIINIT1		0x0214		/* PCI + video controls */
@@ -251,7 +251,7 @@
 #  define DACREG_ICS_CLK1_A	  0	/* bit4 */
 
 /* sst default init registers */
-#define FBIINIT0_DEFAULT EN_VGA_PASSTHROUGH
+#define FBIINIT0_DEFAULT DIS_VGA_PASSTHROUGH
 
 #define FBIINIT1_DEFAULT 	\
 	(			\
@@ -296,6 +296,11 @@
  *
  */
 
+/* ioctl to enable/disable VGA passthrough */
+#define SSTFB_SET_VGAPASS	_IOW('F', 0xdd, __u32)
+#define SSTFB_GET_VGAPASS	_IOR('F', 0xdd, __u32)
+
+
 /* used to know witch clock to set */
 enum {
 	VID_CLOCK=0,
@@ -317,7 +322,7 @@ struct pll_timing {
 };
 
 struct dac_switch {
-	char * name;
+	const char *name;
 	int (*detect) (struct fb_info *info);
 	int (*set_pll) (struct fb_info *info, const struct pll_timing *t, const int clock);
 	void (*set_vidmod) (struct fb_info *info, const int bpp);
@@ -345,7 +350,7 @@ struct sstfb_par {
 	struct pci_dev		*dev;
 	int	type;
 	u8	revision;
-	int	gfx_clock;	/* status */
+	u8	vgapass;	/* VGA pass through: 1=enabled, 0=disabled */
 };
 
 #endif /* _SSTFB_H_ */
