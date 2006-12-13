@@ -28,8 +28,7 @@ static inline int freezeable(struct task_struct * p)
 	if ((p == current) || 
 	    (p->flags & PF_NOFREEZE) ||
 	    (p->exit_state == EXIT_ZOMBIE) ||
-	    (p->exit_state == EXIT_DEAD) ||
-	    (p->state == TASK_STOPPED))
+	    (p->exit_state == EXIT_DEAD))
 		return 0;
 	return 1;
 }
@@ -61,9 +60,12 @@ static inline void freeze_process(struct task_struct *p)
 	unsigned long flags;
 
 	if (!freezing(p)) {
+		if (p->state == TASK_STOPPED)
+			force_sig_specific(SIGSTOP, p);
+
 		freeze(p);
 		spin_lock_irqsave(&p->sighand->siglock, flags);
-		signal_wake_up(p, 0);
+		signal_wake_up(p, p->state == TASK_STOPPED);
 		spin_unlock_irqrestore(&p->sighand->siglock, flags);
 	}
 }
@@ -103,9 +105,7 @@ static unsigned int try_to_freeze_tasks(int freeze_user_space)
 			if (frozen(p))
 				continue;
 
-			if (p->state == TASK_TRACED &&
-			    (frozen(p->parent) ||
-			     p->parent->state == TASK_STOPPED)) {
+			if (p->state == TASK_TRACED && frozen(p->parent)) {
 				cancel_freezing(p);
 				continue;
 			}
