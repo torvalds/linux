@@ -1734,44 +1734,6 @@ static int nfs4_proc_readlink(struct inode *inode, struct page *page,
 	return err;
 }
 
-static int _nfs4_proc_read(struct nfs_read_data *rdata)
-{
-	int flags = rdata->flags;
-	struct inode *inode = rdata->inode;
-	struct nfs_fattr *fattr = rdata->res.fattr;
-	struct nfs_server *server = NFS_SERVER(inode);
-	struct rpc_message msg = {
-		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_READ],
-		.rpc_argp	= &rdata->args,
-		.rpc_resp	= &rdata->res,
-		.rpc_cred	= rdata->cred,
-	};
-	unsigned long timestamp = jiffies;
-	int status;
-
-	dprintk("NFS call  read %d @ %Ld\n", rdata->args.count,
-			(long long) rdata->args.offset);
-
-	nfs_fattr_init(fattr);
-	status = rpc_call_sync(server->client, &msg, flags);
-	if (!status)
-		renew_lease(server, timestamp);
-	dprintk("NFS reply read: %d\n", status);
-	return status;
-}
-
-static int nfs4_proc_read(struct nfs_read_data *rdata)
-{
-	struct nfs4_exception exception = { };
-	int err;
-	do {
-		err = nfs4_handle_exception(NFS_SERVER(rdata->inode),
-				_nfs4_proc_read(rdata),
-				&exception);
-	} while (exception.retry);
-	return err;
-}
-
 /*
  * Got race?
  * We will need to arrange for the VFS layer to provide an atomic open.
@@ -3643,7 +3605,6 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.lookup		= nfs4_proc_lookup,
 	.access		= nfs4_proc_access,
 	.readlink	= nfs4_proc_readlink,
-	.read		= nfs4_proc_read,
 	.create		= nfs4_proc_create,
 	.remove		= nfs4_proc_remove,
 	.unlink_setup	= nfs4_proc_unlink_setup,
