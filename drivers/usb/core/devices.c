@@ -104,7 +104,7 @@ static const char *format_config =
   
 static const char *format_iface =
 /* I:  If#=dd Alt=dd #EPs=dd Cls=xx(sssss) Sub=xx Prot=xx Driver=xxxx*/
-  "I:  If#=%2d Alt=%2d #EPs=%2d Cls=%02x(%-5s) Sub=%02x Prot=%02x Driver=%s\n";
+  "I:%c If#=%2d Alt=%2d #EPs=%2d Cls=%02x(%-5s) Sub=%02x Prot=%02x Driver=%s\n";
 
 static const char *format_endpt =
 /* E:  Ad=xx(s) Atr=xx(ssss) MxPS=dddd Ivl=D?s */
@@ -242,15 +242,19 @@ static char *usb_dump_interface_descriptor(char *start, char *end,
 {
 	const struct usb_interface_descriptor *desc = &intfc->altsetting[setno].desc;
 	const char *driver_name = "";
+	int active = 0;
 
 	if (start > end)
 		return start;
 	down_read(&usb_bus_type.subsys.rwsem);
-	if (iface)
+	if (iface) {
 		driver_name = (iface->dev.driver
 				? iface->dev.driver->name
 				: "(none)");
+		active = (desc == &iface->cur_altsetting->desc);
+	}
 	start += sprintf(start, format_iface,
+			 active ? '*' : ' ',	/* mark active altsetting */
 			 desc->bInterfaceNumber,
 			 desc->bAlternateSetting,
 			 desc->bNumEndpoints,
