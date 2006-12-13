@@ -2,7 +2,7 @@
  *	i2c-ali1563.c - i2c driver for the ALi 1563 Southbridge
  *
  *	Copyright (C) 2004 Patrick Mochel
- *		      2005 Rudolf Marek <r.marek@sh.cvut.cz>
+ *		      2005 Rudolf Marek <r.marek@assembler.cz>
  *
  *	The 1563 southbridge is deceptively similar to the 1533, with a
  *	few notable exceptions. One of those happens to be the fact they

@@ -106,6 +106,31 @@ config SENSORS_K8TEMP
 	  This driver can also be built as a module.  If so, the module
 	  will be called k8temp.
 
+config SENSORS_AMS
+	tristate "Apple Motion Sensor driver"
+	depends on HWMON && PPC_PMAC && !PPC64 && INPUT && ((ADB_PMU && I2C = y) || (ADB_PMU && !I2C) || I2C) && EXPERIMENTAL
+	help
+	  Support for the motion sensor included in PowerBooks. Includes
+	  implementations for PMU and I2C.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ams.
+
+config SENSORS_AMS_PMU
+	bool "PMU variant"
+	depends on SENSORS_AMS && ADB_PMU
+	default y
+	help
+	  PMU variant of motion sensor, found in late 2005 PowerBooks.
+
+config SENSORS_AMS_I2C
+	bool "I2C variant"
+	depends on SENSORS_AMS && I2C
+	default y
+	help
+	  I2C variant of motion sensor, found in early 2005 PowerBooks and
+	  iBooks.
+
 config SENSORS_ASB100
 	tristate "Asus ASB100 Bach"
 	depends on HWMON && I2C && EXPERIMENTAL
@@ -142,11 +167,12 @@ config SENSORS_DS1621
 	  will be called ds1621.
 
 config SENSORS_F71805F
-	tristate "Fintek F71805F/FG"
+	tristate "Fintek F71805F/FG and F71872F/FG"
 	depends on HWMON && EXPERIMENTAL
 	help
 	  If you say yes here you get support for hardware monitoring
-	  features of the Fintek F71805F/FG chips.
+	  features of the Fintek F71805F/FG and F71872F/FG Super-I/O
+	  chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called f71805f.
@@ -353,6 +379,19 @@ config SENSORS_PC87360
 	  This driver can also be built as a module.  If so, the module
 	  will be called pc87360.
 
+config SENSORS_PC87427
+	tristate "National Semiconductor PC87427"
+	depends on HWMON && EXPERIMENTAL
+	help
+	  If you say yes here you get access to the hardware monitoring
+	  functions of the National Semiconductor PC87427 Super-I/O chip.
+	  The chip has two distinct logical devices, one for fan speed
+	  monitoring and control, and one for voltage and temperature
+	  monitoring. Only fan speed monitoring is supported right now.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called pc87427.
+
 config SENSORS_SIS5595
 	tristate "Silicon Integrated Systems Corp. SiS5595"
 	depends on HWMON && I2C && PCI && EXPERIMENTAL
@@ -474,6 +513,16 @@ config SENSORS_W83792D
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83792d.
 
+config SENSORS_W83793
+	tristate "Winbond W83793"
+	depends on HWMON && I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Winbond W83793
+	  hardware monitoring chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called w83793.
+
 config SENSORS_W83L785TS
 	tristate "Winbond W83L785TS-S"
 	depends on HWMON && I2C && EXPERIMENTAL
@@ -526,6 +575,9 @@ config SENSORS_HDAPS
 
 	  This driver also provides an absolute input class device, allowing
 	  the laptop to act as a pinball machine-esque joystick.
+
+	  If your ThinkPad is not recognized by the driver, please update to latest
+	  BIOS. This is especially the case for some R52 ThinkPads.
 
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of hdaps.

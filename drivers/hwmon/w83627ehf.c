@@ -3,7 +3,7 @@
                 the Winbond W83627EHF Super-I/O chip
     Copyright (C) 2005  Jean Delvare <khali@linux-fr.org>
     Copyright (C) 2006  Yuan Mu (Winbond),
-                        Rudolf Marek <r.marek@sh.cvut.cz>
+                        Rudolf Marek <r.marek@assembler.cz>
                         David Hubbard <david.c.hubbard@gmail.com>
 
     Shamelessly ripped from the w83627hf driver

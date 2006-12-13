@@ -277,7 +277,7 @@ S:	Maintained
 
 ALI1563 I2C DRIVER
 P:	Rudolf Marek
-M:	r.marek@sh.cvut.cz
+M:	r.marek@assembler.cz
 L:	i2c@lm-sensors.org
 S:	Maintained
 
@@ -294,6 +294,13 @@ P:	Jordan Crouse
 M:	info-linux@geode.amd.com
 L:	info-linux@geode.amd.com
 W:	http://www.amd.com/us-en/ConnectivitySolutions/TechnicalResources/0,,50_2334_2452_11363,00.html
+S:	Supported
+
+AMS (Apple Motion Sensor) DRIVER
+P:	Stelian Pop
+M:	stelian@popies.net
+P:	Michael Hanselmann
+M:	linux-kernel@hansmi.ch
 S:	Supported
 
 AMSO1100 RNIC DRIVER
@@ -3433,6 +3440,12 @@ S:	Maintained
 W83791D HARDWARE MONITORING DRIVER
 P:	Charles Spirakis
 M:	bezaur@gmail.com
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
+W83793 HARDWARE MONITORING DRIVER
+P:	Rudolf Marek
+M:	r.marek@assembler.cz
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 

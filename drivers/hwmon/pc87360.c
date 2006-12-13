@@ -1000,7 +1000,7 @@ static int pc87360_detect(struct i2c_adapter *adapter)
 			(i&0x02) ? "external" : "internal");
 
 		data->vid_conf = confreg[3];
-		data->vrm = 90;
+		data->vrm = vid_which_vrm();
 	}
 
 	/* Fan clock dividers may be needed before any data is read */
