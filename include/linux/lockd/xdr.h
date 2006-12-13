@@ -69,7 +69,7 @@ typedef struct nlm_args nlm_args;
  */
 struct nlm_res {
 	struct nlm_cookie	cookie;
-	u32			status;
+	__be32			status;
 	struct nlm_lock		lock;
 };
 
@@ -80,9 +80,9 @@ struct nlm_reboot {
 	char *		mon;
 	int		len;
 	u32		state;
-	u32		addr;
-	u32		vers;
-	u32		proto;
+	__be32		addr;
+	__be32		vers;
+	__be32		proto;
 };
 
 /*

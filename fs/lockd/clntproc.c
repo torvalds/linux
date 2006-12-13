@@ -27,7 +27,7 @@
 static int	nlmclnt_test(struct nlm_rqst *, struct file_lock *);
 static int	nlmclnt_lock(struct nlm_rqst *, struct file_lock *);
 static int	nlmclnt_unlock(struct nlm_rqst *, struct file_lock *);
-static int	nlm_stat_to_errno(u32 stat);
+static int	nlm_stat_to_errno(__be32 stat);
 static void	nlmclnt_locks_init_private(struct file_lock *fl, struct nlm_host *host);
 static int	nlmclnt_cancel(struct nlm_host *, int , struct file_lock *);
 
@@ -325,7 +325,7 @@ nlmclnt_call(struct nlm_rqst *req, u32 proc)
 			}
 			break;
 		} else
-		if (resp->status == NLM_LCK_DENIED_GRACE_PERIOD) {
+		if (resp->status == nlm_lck_denied_grace_period) {
 			dprintk("lockd: server in grace period\n");
 			if (argp->reclaim) {
 				printk(KERN_WARNING
@@ -411,10 +411,10 @@ nlmclnt_test(struct nlm_rqst *req, struct file_lock *fl)
 		goto out;
 
 	switch (req->a_res.status) {
-		case NLM_LCK_GRANTED:
+		case nlm_granted:
 			fl->fl_type = F_UNLCK;
 			break;
-		case NLM_LCK_DENIED:
+		case nlm_lck_denied:
 			/*
 			 * Report the conflicting lock back to the application.
 			 */
@@ -524,9 +524,9 @@ again:
 		if (!req->a_args.block)
 			break;
 		/* Did a reclaimer thread notify us of a server reboot? */
-		if (resp->status ==  NLM_LCK_DENIED_GRACE_PERIOD)
+		if (resp->status ==  nlm_lck_denied_grace_period)
 			continue;
-		if (resp->status != NLM_LCK_BLOCKED)
+		if (resp->status != nlm_lck_blocked)
 			break;
 		/* Wait on an NLM blocking lock */
 		status = nlmclnt_block(block, req, NLMCLNT_POLL_TIMEOUT);
@@ -535,11 +535,11 @@ again:
 		 */
 		if (status < 0)
 			goto out_unblock;
-		if (resp->status != NLM_LCK_BLOCKED)
+		if (resp->status != nlm_lck_blocked)
 			break;
 	}
 
-	if (resp->status == NLM_LCK_GRANTED) {
+	if (resp->status == nlm_granted) {
 		down_read(&host->h_rwsem);
 		/* Check whether or not the server has rebooted */
 		if (fl->fl_u.nfs_fl.state != host->h_state) {
@@ -556,7 +556,7 @@ again:
 out_unblock:
 	nlmclnt_finish_block(block);
 	/* Cancel the blocked request if it is still pending */
-	if (resp->status == NLM_LCK_BLOCKED)
+	if (resp->status == nlm_lck_blocked)
 		nlmclnt_cancel(host, req->a_args.block, fl);
 out:
 	nlm_release_call(req);
@@ -585,12 +585,12 @@ nlmclnt_reclaim(struct nlm_host *host, struct file_lock *fl)
 	req->a_args.reclaim = 1;
 
 	if ((status = nlmclnt_call(req, NLMPROC_LOCK)) >= 0
-	 && req->a_res.status == NLM_LCK_GRANTED)
+	 && req->a_res.status == nlm_granted)
 		return 0;
 
 	printk(KERN_WARNING "lockd: failed to reclaim lock for pid %d "
 				"(errno %d, status %d)\n", fl->fl_pid,
-				status, req->a_res.status);
+				status, ntohl(req->a_res.status));
 
 	/*
 	 * FIXME: This is a serious failure. We can
@@ -637,10 +637,10 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 	if (status < 0)
 		goto out;
 
-	if (resp->status == NLM_LCK_GRANTED)
+	if (resp->status == nlm_granted)
 		goto out;
 
-	if (resp->status != NLM_LCK_DENIED_NOLOCKS)
+	if (resp->status != nlm_lck_denied_nolocks)
 		printk("lockd: unexpected unlock status: %d\n", resp->status);
 	/* What to do now? I'm out of my depth... */
 	status = -ENOLCK;
@@ -652,7 +652,7 @@ out:
 static void nlmclnt_unlock_callback(struct rpc_task *task, void *data)
 {
 	struct nlm_rqst	*req = data;
-	int		status = req->a_res.status;
+	u32 status = ntohl(req->a_res.status);
 
 	if (RPC_ASSASSINATED(task))
 		goto die;
@@ -720,6 +720,7 @@ static int nlmclnt_cancel(struct nlm_host *host, int block, struct file_lock *fl
 static void nlmclnt_cancel_callback(struct rpc_task *task, void *data)
 {
 	struct nlm_rqst	*req = data;
+	u32 status = ntohl(req->a_res.status);
 
 	if (RPC_ASSASSINATED(task))
 		goto die;
@@ -731,9 +732,9 @@ static void nlmclnt_cancel_callback(struct rpc_task *task, void *data)
 	}
 
 	dprintk("lockd: cancel status %u (task %u)\n",
-			req->a_res.status, task->tk_pid);
+			status, task->tk_pid);
 
-	switch (req->a_res.status) {
+	switch (status) {
 	case NLM_LCK_GRANTED:
 	case NLM_LCK_DENIED_GRACE_PERIOD:
 	case NLM_LCK_DENIED:
@@ -744,7 +745,7 @@ static void nlmclnt_cancel_callback(struct rpc_task *task, void *data)
 		goto retry_cancel;
 	default:
 		printk(KERN_NOTICE "lockd: weird return %d for CANCEL call\n",
-			req->a_res.status);
+			status);
 	}
 
 die:
@@ -768,9 +769,9 @@ static const struct rpc_call_ops nlmclnt_cancel_ops = {
  * Convert an NLM status code to a generic kernel errno
  */
 static int
-nlm_stat_to_errno(u32 status)
+nlm_stat_to_errno(__be32 status)
 {
-	switch(status) {
+	switch(ntohl(status)) {
 	case NLM_LCK_GRANTED:
 		return 0;
 	case NLM_LCK_DENIED:

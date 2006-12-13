@@ -23,7 +23,7 @@ struct svc_rqst;
  * This is the set of functions for lockd->nfsd communication
  */
 struct nlmsvc_binding {
-	u32			(*fopen)(struct svc_rqst *,
+	__be32			(*fopen)(struct svc_rqst *,
 						struct nfs_fh *,
 						struct file **);
 	void			(*fclose)(struct file *);

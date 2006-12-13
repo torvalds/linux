@@ -22,7 +22,7 @@
 /*
  * Note: we hold the dentry use count while the file is open.
  */
-static u32
+static __be32
 nlm_fopen(struct svc_rqst *rqstp, struct nfs_fh *f, struct file **filp)
 {
 	__be32		nfserr;

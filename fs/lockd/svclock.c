@@ -645,7 +645,7 @@ static const struct rpc_call_ops nlmsvc_grant_ops = {
  * block.
  */
 void
-nlmsvc_grant_reply(struct nlm_cookie *cookie, u32 status)
+nlmsvc_grant_reply(struct nlm_cookie *cookie, __be32 status)
 {
 	struct nlm_block	*block;
 
@@ -655,7 +655,7 @@ nlmsvc_grant_reply(struct nlm_cookie *cookie, u32 status)
 		return;
 
 	if (block) {
-		if (status == NLM_LCK_DENIED_GRACE_PERIOD) {
+		if (status == nlm_lck_denied_grace_period) {
 			/* Try again in a couple of seconds */
 			nlmsvc_insert_block(block, 10 * HZ);
 		} else {

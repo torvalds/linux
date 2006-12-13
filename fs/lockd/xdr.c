@@ -361,7 +361,7 @@ nlmsvc_decode_res(struct svc_rqst *rqstp, __be32 *p, struct nlm_res *resp)
 {
 	if (!(p = nlm_decode_cookie(p, &resp->cookie)))
 		return 0;
-	resp->status = ntohl(*p++);
+	resp->status = *p++;
 	return xdr_argsize_check(rqstp, p);
 }
 
@@ -407,8 +407,8 @@ nlmclt_decode_testres(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 {
 	if (!(p = nlm_decode_cookie(p, &resp->cookie)))
 		return -EIO;
-	resp->status = ntohl(*p++);
-	if (resp->status == NLM_LCK_DENIED) {
+	resp->status = *p++;
+	if (resp->status == nlm_lck_denied) {
 		struct file_lock	*fl = &resp->lock.fl;
 		u32			excl;
 		s32			start, len, end;
@@ -506,7 +506,7 @@ nlmclt_decode_res(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 {
 	if (!(p = nlm_decode_cookie(p, &resp->cookie)))
 		return -EIO;
-	resp->status = ntohl(*p++);
+	resp->status = *p++;
 	return 0;
 }
 
