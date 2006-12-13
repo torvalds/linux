@@ -911,12 +911,10 @@ spider_net_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
  * @descr: descriptor to process
  * @card: card structure
  *
- * returns 1 on success, 0 if no packet was passed to the stack
- *
  * Fills out skb structure and passes the data to the stack.
  * The descriptor state is not changed.
  */
-static int
+static void
 spider_net_pass_skb_up(struct spider_net_descr *descr,
 		       struct spider_net_card *card)
 {
@@ -961,8 +959,6 @@ spider_net_pass_skb_up(struct spider_net_descr *descr,
 	/* update netdevice statistics */
 	card->netdev_stats.rx_packets++;
 	card->netdev_stats.rx_bytes += skb->len;
-
-	return 1;
 }
 
 /**
@@ -981,7 +977,6 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 	struct spider_net_descr_chain *chain = &card->rx_chain;
 	struct spider_net_descr *descr = chain->tail;
 	int status;
-	int result;
 
 	status = spider_net_get_descr_status(descr);
 
@@ -999,8 +994,6 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 	/* descriptor definitively used -- move on tail */
 	chain->tail = descr->next;
 
-	result = 0;
-
 	/* unmap descriptor */
 	pci_unmap_single(card->pdev, descr->buf_addr,
 			SPIDER_NET_MAX_FRAME, PCI_DMA_FROMDEVICE);
@@ -1012,8 +1005,7 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 			pr_err("%s: dropping RX descriptor with state %d\n",
 			       card->netdev->name, status);
 		card->netdev_stats.rx_dropped++;
-		dev_kfree_skb_irq(descr->skb);
-		goto refill;
+		goto bad_desc;
 	}
 
 	if ( (status != SPIDER_NET_DESCR_COMPLETE) &&
@@ -1022,8 +1014,7 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 			pr_err("%s: RX descriptor with unkown state %d\n",
 			       card->netdev->name, status);
 		card->spider_stats.rx_desc_unk_state++;
-		dev_kfree_skb_irq(descr->skb);
-		goto refill;
+		goto bad_desc;
 	}
 
 	/* The cases we'll throw away the packet immediately */
@@ -1033,17 +1024,18 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 			       "data_status=x%08x, data_error=x%08x\n",
 			       card->netdev->name,
 			       descr->data_status, descr->data_error);
-		card->spider_stats.rx_desc_error++;
-		dev_kfree_skb_irq(descr->skb);
-		goto refill;
+		goto bad_desc;
 	}
 
-	/* ok, we've got a packet in descr */
-	result = spider_net_pass_skb_up(descr, card);
-refill:
-	/* change the descriptor state: */
+	/* Ok, we've got a packet in descr */
+	spider_net_pass_skb_up(descr, card);
 	descr->dmac_cmd_status = SPIDER_NET_DESCR_NOT_IN_USE;
-	return result;
+	return 1;
+
+bad_desc:
+	dev_kfree_skb_irq(descr->skb);
+	descr->dmac_cmd_status = SPIDER_NET_DESCR_NOT_IN_USE;
+	return 0;
 }
 
 /**
