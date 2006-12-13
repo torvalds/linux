@@ -145,9 +145,7 @@ EXPORT_SYMBOL(lockdep_on);
  */
 
 #define VERBOSE			0
-#ifdef VERBOSE
-# define VERY_VERBOSE		0
-#endif
+#define VERY_VERBOSE		0
 
 #if VERBOSE
 # define HARDIRQ_VERBOSE	1
