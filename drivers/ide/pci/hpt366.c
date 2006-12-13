@@ -1035,14 +1035,14 @@ static void __devinit hpt37x_clocking(ide_hwif_t *hwif)
 	 * First try reading the register in which the HighPoint BIOS
 	 * saves f_CNT value before  reprogramming the DPLL from its
 	 * default setting (which differs for the various chips).
+	 * NOTE: This register is only accessible via I/O space.
+	 *
 	 * In case the signature check fails, we'll have to resort to
 	 * reading the f_CNT register itself in hopes that nobody has
 	 * touched the DPLL yet...
 	 */
-	pci_read_config_dword(dev, 0x70, &temp);
+	temp = inl(pci_resource_start(dev, 4) + 0x90);
 	if ((temp & 0xFFFFF000) != 0xABCDE000) {
-		int i;
-
 		printk(KERN_WARNING "HPT37X: no clock data saved by BIOS\n");
 
 		/* Calculate the average value of f_CNT */
