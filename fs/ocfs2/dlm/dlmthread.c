@@ -154,7 +154,8 @@ void dlm_lockres_calc_usage(struct dlm_ctxt *dlm,
 	spin_unlock(&dlm->spinlock);
 }
 
-int dlm_purge_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
+static int dlm_purge_lockres(struct dlm_ctxt *dlm,
+			     struct dlm_lock_resource *res)
 {
 	int master;
 	int ret = 0;

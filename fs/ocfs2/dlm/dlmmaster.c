@@ -2327,8 +2327,9 @@ done:
  */
 
 
-int dlm_migrate_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
-			u8 target)
+static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
+			       struct dlm_lock_resource *res,
+			       u8 target)
 {
 	struct dlm_master_list_entry *mle = NULL;
 	struct dlm_master_list_entry *oldmle = NULL;
@@ -2676,7 +2677,8 @@ static int dlm_migration_can_proceed(struct dlm_ctxt *dlm,
 	return can_proceed;
 }
 
-int dlm_lockres_is_dirty(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
+static int dlm_lockres_is_dirty(struct dlm_ctxt *dlm,
+				struct dlm_lock_resource *res)
 {
 	int ret;
 	spin_lock(&res->spinlock);
