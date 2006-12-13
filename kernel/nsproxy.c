@@ -46,10 +46,8 @@ static inline struct nsproxy *clone_namespaces(struct nsproxy *orig)
 	struct nsproxy *ns;
 
 	ns = kmemdup(orig, sizeof(struct nsproxy), GFP_KERNEL);
-	if (ns) {
+	if (ns)
 		atomic_set(&ns->count, 1);
-		ns->id = -1;
-	}
 	return ns;
 }
 
