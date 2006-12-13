@@ -101,4 +101,9 @@ config TEXTSEARCH_FSM
 config PLIST
 	boolean
 
+config IOMAP_COPY
+	boolean
+	depends on !UML
+	default y
+
 endmenu
