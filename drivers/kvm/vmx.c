@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <asm/io.h>
+#include <asm/desc.h>
 
 #include "segment_descriptor.h"
 
