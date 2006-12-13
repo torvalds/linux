@@ -767,18 +767,28 @@ int conf_write_autoconf(void)
 }
 
 static int sym_change_count;
+static void (*conf_changed_callback)(void);
 
 void sym_set_change_count(int count)
 {
+	int _sym_change_count = sym_change_count;
 	sym_change_count = count;
+	if (conf_changed_callback &&
+	    (bool)_sym_change_count != (bool)count)
+		conf_changed_callback();
 }
 
 void sym_add_change_count(int count)
 {
-	sym_change_count += count;
+	sym_set_change_count(count + sym_change_count);
 }
 
 bool conf_get_changed(void)
 {
 	return sym_change_count;
+}
+
+void conf_set_changed_callback(void (*fn)(void))
+{
+	conf_changed_callback = fn;
 }

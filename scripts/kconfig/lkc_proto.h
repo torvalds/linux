@@ -6,6 +6,7 @@ P(conf_read_simple,int,(const char *name, int));
 P(conf_write,int,(const char *name));
 P(conf_write_autoconf,int,(void));
 P(conf_get_changed,bool,(void));
+P(conf_set_changed_callback, void,(void (*fn)(void)));
 
 /* menu.c */
 P(rootmenu,struct menu,);

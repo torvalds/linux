@@ -38,6 +38,8 @@
 static QApplication *configApp;
 static ConfigSettings *configSettings;
 
+QAction *ConfigMainWindow::saveAction;
+
 static inline QString qgettext(const char* str)
 {
 	return QString::fromLocal8Bit(gettext(str));
@@ -1306,8 +1308,11 @@ ConfigMainWindow::ConfigMainWindow(void)
 	  connect(quitAction, SIGNAL(activated()), SLOT(close()));
 	QAction *loadAction = new QAction("Load", QPixmap(xpm_load), "&Load", CTRL+Key_L, this);
 	  connect(loadAction, SIGNAL(activated()), SLOT(loadConfig()));
-	QAction *saveAction = new QAction("Save", QPixmap(xpm_save), "&Save", CTRL+Key_S, this);
+	saveAction = new QAction("Save", QPixmap(xpm_save), "&Save", CTRL+Key_S, this);
 	  connect(saveAction, SIGNAL(activated()), SLOT(saveConfig()));
+	conf_set_changed_callback(conf_changed);
+	// Set saveAction's initial state
+	conf_changed();
 	QAction *saveAsAction = new QAction("Save As...", "Save &As...", 0, this);
 	  connect(saveAsAction, SIGNAL(activated()), SLOT(saveConfigAs()));
 	QAction *searchAction = new QAction("Search", "&Search", CTRL+Key_F, this);
@@ -1656,6 +1661,12 @@ void ConfigMainWindow::saveSettings(void)
 
 	configSettings->writeSizes("/split1", split1->sizes());
 	configSettings->writeSizes("/split2", split2->sizes());
+}
+
+void ConfigMainWindow::conf_changed(void)
+{
+	if (saveAction)
+		saveAction->setEnabled(conf_get_changed());
 }
 
 void fixup_rootmenu(struct menu *menu)
