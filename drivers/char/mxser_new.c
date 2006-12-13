@@ -315,6 +315,7 @@ static struct mxser_mon_ext mon_data_ext;
 static int mxser_set_baud_method[MXSER_PORTS + 1];
 static spinlock_t gm_lock;
 
+#ifdef CONFIG_PCI
 static int CheckIsMoxaMust(int io)
 {
 	u8 oldmcr, hwid;
@@ -337,6 +338,7 @@ static int CheckIsMoxaMust(int io)
 	}
 	return MOXA_OTHER_UART;
 }
+#endif
 
 static void process_txrx_fifo(struct mxser_port *info)
 {
@@ -2380,9 +2382,11 @@ static void mxser_release_res(struct mxser_board *brd, struct pci_dev *pdev,
 	if (irq)
 		free_irq(brd->irq, brd);
 	if (pdev != NULL) {	/* PCI */
+#ifdef CONFIG_PCI
 		pci_release_region(pdev, 2);
 		pci_release_region(pdev, 3);
 		pci_dev_put(pdev);
+#endif
 	} else {
 		release_region(brd->ports[0].ioaddr, 8 * brd->info->nports);
 		release_region(brd->vector, 1);
@@ -2546,6 +2550,7 @@ static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
 static int __devinit mxser_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
+#ifdef CONFIG_PCI
 	struct mxser_board *brd;
 	unsigned int i, j;
 	unsigned long ioaddress;
@@ -2644,6 +2649,9 @@ err_relio:
 	brd->info = NULL;
 err:
 	return retval;
+#else
+	return -ENODEV;
+#endif
 }
 
 static void __devexit mxser_remove(struct pci_dev *pdev)

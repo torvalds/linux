@@ -203,7 +203,7 @@ config MOXA_SMARTIO
 
 config MOXA_SMARTIO_NEW
 	tristate "Moxa SmartIO support v. 2.0 (EXPERIMENTAL)"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && (PCI || EISA || ISA)
 	help
 	  Say Y here if you have a Moxa SmartIO multiport serial card and/or
 	  want to help develop a new version of this driver.
