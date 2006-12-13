@@ -958,6 +958,7 @@ static int __init rtc_init(void)
 		}
 	}
 #endif
+	rtc_has_irq = 0;
 	printk(KERN_ERR "rtc_init: no PC rtc found\n");
 	return -EIO;
 
@@ -972,6 +973,7 @@ found:
 	 * PCI Slot 2 INTA# (and some INTx# in Slot 1).
 	 */
 	if (request_irq(rtc_irq, rtc_interrupt, IRQF_SHARED, "rtc", (void *)&rtc_port)) {
+		rtc_has_irq = 0;
 		printk(KERN_ERR "rtc: cannot register IRQ %d\n", rtc_irq);
 		return -EIO;
 	}
@@ -982,6 +984,9 @@ no_irq:
 	else
 		r = request_mem_region(RTC_PORT(0), RTC_IO_EXTENT, "rtc");
 	if (!r) {
+#ifdef RTC_IRQ
+		rtc_has_irq = 0;
+#endif
 		printk(KERN_ERR "rtc: I/O resource %lx is not free.\n",
 		       (long)(RTC_PORT(0)));
 		return -EIO;
@@ -996,6 +1001,7 @@ no_irq:
 
 	if(request_irq(RTC_IRQ, rtc_int_handler_ptr, IRQF_DISABLED, "rtc", NULL)) {
 		/* Yeah right, seeing as irq 8 doesn't even hit the bus. */
+		rtc_has_irq = 0;
 		printk(KERN_ERR "rtc: IRQ %d is not free.\n", RTC_IRQ);
 		if (RTC_IOMAPPED)
 			release_region(RTC_PORT(0), RTC_IO_EXTENT);
@@ -1012,6 +1018,7 @@ no_irq:
 	if (misc_register(&rtc_dev)) {
 #ifdef RTC_IRQ
 		free_irq(RTC_IRQ, NULL);
+		rtc_has_irq = 0;
 #endif
 		release_region(RTC_PORT(0), RTC_IO_EXTENT);
 		return -ENODEV;
@@ -1021,6 +1028,7 @@ no_irq:
 	if (!ent) {
 #ifdef RTC_IRQ
 		free_irq(RTC_IRQ, NULL);
+		rtc_has_irq = 0;
 #endif
 		release_region(RTC_PORT(0), RTC_IO_EXTENT);
 		misc_deregister(&rtc_dev);
