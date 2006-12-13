@@ -3252,6 +3252,7 @@ void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 	struct zone **z;
 	void *obj = NULL;
 	int nid;
+	gfp_t local_flags = (flags & GFP_LEVEL_MASK);
 
 retry:
 	/*
@@ -3275,7 +3276,12 @@ retry:
 		 * We may trigger various forms of reclaim on the allowed
 		 * set and go into memory reserves if necessary.
 		 */
+		if (local_flags & __GFP_WAIT)
+			local_irq_enable();
+		kmem_flagcheck(cache, flags);
 		obj = kmem_getpages(cache, flags, -1);
+		if (local_flags & __GFP_WAIT)
+			local_irq_disable();
 		if (obj) {
 			/*
 			 * Insert into the appropriate per node queues
