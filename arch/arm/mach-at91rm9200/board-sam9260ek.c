@@ -119,6 +119,7 @@ static struct spi_board_info ek_spi_devices[] = {
  * MACB Ethernet device
  */
 static struct __initdata eth_platform_data ek_macb_data = {
+	.phy_irq_pin	= AT91_PIN_PA7,
 	.is_rmii	= 1,
 };
 

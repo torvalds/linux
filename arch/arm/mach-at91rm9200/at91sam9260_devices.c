@@ -18,6 +18,7 @@
 #include <asm/arch/gpio.h>
 #include <asm/arch/at91sam9260.h>
 #include <asm/arch/at91sam926x_mc.h>
+#include <asm/arch/at91sam9260_matrix.h>
 
 #include "generic.h"
 

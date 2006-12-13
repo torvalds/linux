@@ -139,22 +139,59 @@ static inline int cpu_is_xsc3(void)
 #define	cpu_is_xscale()	1
 #endif
 
-#define set_cr(x)					\
-	__asm__ __volatile__(				\
-	"mcr	p15, 0, %0, c1, c0, 0	@ set CR"	\
-	: : "r" (x) : "cc")
+static inline unsigned int get_cr(void)
+{
+	unsigned int val;
+	asm("mrc p15, 0, %0, c1, c0, 0	@ get CR" : "=r" (val) : : "cc");
+	return val;
+}
 
-#define get_cr()					\
-	({						\
-	unsigned int __val;				\
-	__asm__ __volatile__(				\
-	"mrc	p15, 0, %0, c1, c0, 0	@ get CR"	\
-	: "=r" (__val) : : "cc");			\
-	__val;						\
-	})
+static inline void set_cr(unsigned int val)
+{
+	asm volatile("mcr p15, 0, %0, c1, c0, 0	@ set CR"
+	  : : "r" (val) : "cc");
+}
+
+#define CPACC_FULL(n)		(3 << (n * 2))
+#define CPACC_SVC(n)		(1 << (n * 2))
+#define CPACC_DISABLE(n)	(0 << (n * 2))
+
+static inline unsigned int get_copro_access(void)
+{
+	unsigned int val;
+	asm("mrc p15, 0, %0, c1, c0, 2 @ get copro access"
+	  : "=r" (val) : : "cc");
+	return val;
+}
+
+static inline void set_copro_access(unsigned int val)
+{
+	asm volatile("mcr p15, 0, %0, c1, c0, 2 @ set copro access"
+	  : : "r" (val) : "cc");
+}
 
 extern unsigned long cr_no_alignment;	/* defined in entry-armv.S */
 extern unsigned long cr_alignment;	/* defined in entry-armv.S */
+
+#ifndef CONFIG_SMP
+static inline void adjust_cr(unsigned long mask, unsigned long set)
+{
+	unsigned long flags, cr;
+
+	mask &= ~CR_A;
+
+	set &= mask;
+
+	local_irq_save(flags);
+
+	cr_no_alignment = (cr_no_alignment & ~mask) | set;
+	cr_alignment = (cr_alignment & ~mask) | set;
+
+	set_cr((get_cr() & ~mask) | set);
+
+	local_irq_restore(flags);
+}
+#endif
 
 #define UDBG_UNDEFINED	(1 << 0)
 #define UDBG_SYSCALL	(1 << 1)
