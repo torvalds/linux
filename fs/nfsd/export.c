@@ -1104,6 +1104,10 @@ exp_rootfh(svc_client *clp, char *path, struct knfsd_fh *f, int maxsize)
 		 path, nd.dentry, clp->name,
 		 inode->i_sb->s_id, inode->i_ino);
 	exp = exp_parent(clp, nd.mnt, nd.dentry, NULL);
+	if (IS_ERR(exp)) {
+		err = PTR_ERR(exp);
+		goto out;
+	}
 	if (!exp) {
 		dprintk("nfsd: exp_rootfh export not found.\n");
 		goto out;
