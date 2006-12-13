@@ -82,8 +82,17 @@ static void make_config(struct dlm_ls *ls, struct rcom_config *rf)
 	rf->rf_lsflags = ls->ls_exflags;
 }
 
-static int check_config(struct dlm_ls *ls, struct rcom_config *rf, int nodeid)
+static int check_config(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 {
+	struct rcom_config *rf = (struct rcom_config *) rc->rc_buf;
+
+	if ((rc->rc_header.h_version & 0xFFFF0000) != DLM_HEADER_MAJOR) {
+		log_error(ls, "version mismatch: %x nodeid %d: %x",
+			  DLM_HEADER_MAJOR | DLM_HEADER_MINOR, nodeid,
+			  rc->rc_header.h_version);
+		return -EINVAL;
+	}
+
 	if (rf->rf_lvblen != ls->ls_lvblen ||
 	    rf->rf_lsflags != ls->ls_exflags) {
 		log_error(ls, "config mismatch: %d,%x nodeid %d: %d,%x",
@@ -145,8 +154,7 @@ int dlm_rcom_status(struct dlm_ls *ls, int nodeid)
 		log_debug(ls, "remote node %d not ready", nodeid);
 		rc->rc_result = 0;
 	} else
-		error = check_config(ls, (struct rcom_config *) rc->rc_buf,
-				     nodeid);
+		error = check_config(ls, rc, nodeid);
 	/* the caller looks at rc_result for the remote recovery status */
  out:
 	return error;
