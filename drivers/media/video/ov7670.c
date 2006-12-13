@@ -18,7 +18,7 @@
 #include <linux/i2c.h>
 
 
-MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net.");
+MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
 MODULE_DESCRIPTION("A low-level driver for OmniVision ov7670 sensors");
 MODULE_LICENSE("GPL");
 

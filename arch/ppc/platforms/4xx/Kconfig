@@ -189,7 +189,7 @@ config BIOS_FIXUP
 # OAK doesn't exist but wanted to keep this around for any future 403GCX boards
 config 403GCX
 	bool
-	depends OAK
+	depends on OAK
 	default y
 
 config 405EP

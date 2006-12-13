@@ -29,7 +29,7 @@ them. A single configuration option is defined like this:
 
 config MODVERSIONS
 	bool "Set version information on all module symbols"
-	depends MODULES
+	depends on MODULES
 	help
 	  Usually, modules have to be recompiled whenever you switch to a new
 	  kernel.  ...
@@ -163,7 +163,7 @@ The position of a menu entry in the tree is determined in two ways. First
 it can be specified explicitly:
 
 menu "Network device support"
-	depends NET
+	depends on NET
 
 config NETDEVICES
 	...
@@ -188,10 +188,10 @@ config MODULES
 
 config MODVERSIONS
 	bool "Set version information on all module symbols"
-	depends MODULES
+	depends on MODULES
 
 comment "module support disabled"
-	depends !MODULES
+	depends on !MODULES
 
 MODVERSIONS directly depends on MODULES, this means it's only visible if
 MODULES is different from 'n'. The comment on the other hand is always

@@ -160,31 +160,6 @@ struct configfs_group_operations {
 	void (*drop_item)(struct config_group *group, struct config_item *item);
 };
 
-
-
-/**
- * Use these macros to make defining attributes easier. See include/linux/device.h
- * for examples..
- */
-
-#if 0
-#define __ATTR(_name,_mode,_show,_store) { \
-	.attr = {.ca_name = __stringify(_name), .ca_mode = _mode, .ca_owner = THIS_MODULE },	\
-	.show	= _show,					\
-	.store	= _store,					\
-}
-
-#define __ATTR_RO(_name) { \
-	.attr	= { .ca_name = __stringify(_name), .ca_mode = 0444, .ca_owner = THIS_MODULE },	\
-	.show	= _name##_show,	\
-}
-
-#define __ATTR_NULL { .attr = { .name = NULL } }
-
-#define attr_name(_attr) (_attr).attr.name
-#endif
-
-
 struct configfs_subsystem {
 	struct config_group	su_group;
 	struct semaphore	su_sem;

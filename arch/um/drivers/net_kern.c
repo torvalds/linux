@@ -334,13 +334,12 @@ static int eth_configure(int n, void *init, char *mac,
 	size = transport->private_size + sizeof(struct uml_net_private) + 
 		sizeof(((struct uml_net_private *) 0)->user);
 
-	device = kmalloc(sizeof(*device), GFP_KERNEL);
+	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (device == NULL) {
 		printk(KERN_ERR "eth_configure failed to allocate uml_net\n");
 		return(1);
 	}
 
-	memset(device, 0, sizeof(*device));
 	INIT_LIST_HEAD(&device->list);
 	device->index = n;
 

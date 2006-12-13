@@ -663,7 +663,7 @@ config V850E_UART
 
 config V850E_UARTB
         bool
-	depends V850E_UART && V850E_ME2
+	depends on V850E_UART && V850E_ME2
 	default y
 
 config V850E_UART_CONSOLE
@@ -909,7 +909,7 @@ config SERIAL_M32R_PLDSIO
 
 config SERIAL_TXX9
 	bool "TMPTX39XX/49XX SIO support"
-	depends HAS_TXX9_SERIAL
+	depends on HAS_TXX9_SERIAL
 	select SERIAL_CORE
 	default y
 
