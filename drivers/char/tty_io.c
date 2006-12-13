@@ -3821,6 +3821,7 @@ struct tty_struct *get_current_tty(void)
 	barrier();
 	return tty;
 }
+EXPORT_SYMBOL_GPL(get_current_tty);
 
 /*
  * Initialize the console device. This is called *early*, so
