@@ -347,7 +347,7 @@ static int __devinit mpcore_wdt_probe(struct platform_device *dev)
 		goto err_free;
 	}
 
-	mpcore_wdt_miscdev.dev = &dev->dev;
+	mpcore_wdt_miscdev.parent = &dev->dev;
 	ret = misc_register(&mpcore_wdt_miscdev);
 	if (ret) {
 		dev_printk(KERN_ERR, _dev, "cannot register miscdev on minor=%d (err=%d)\n",

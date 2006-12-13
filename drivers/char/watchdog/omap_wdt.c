@@ -290,7 +290,7 @@ static int __init omap_wdt_probe(struct platform_device *pdev)
 	omap_wdt_disable();
 	omap_wdt_adjust_timeout(timer_margin);
 
-	omap_wdt_miscdev.dev = &pdev->dev;
+	omap_wdt_miscdev.parent = &pdev->dev;
 	ret = misc_register(&omap_wdt_miscdev);
 	if (ret)
 		goto fail;
