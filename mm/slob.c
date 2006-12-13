@@ -334,7 +334,7 @@ int kmem_cache_shrink(struct kmem_cache *d)
 }
 EXPORT_SYMBOL(kmem_cache_shrink);
 
-int kmem_ptr_validate(struct kmem_cache *a, void *b)
+int kmem_ptr_validate(struct kmem_cache *a, const void *b)
 {
 	return 0;
 }
