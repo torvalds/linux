@@ -72,9 +72,11 @@ static int uml_net_rx(struct net_device *dev)
 	return pkt_len;
 }
 
-static void uml_dev_close(void* dev)
+static void uml_dev_close(struct work_struct *work)
 {
-	dev_close( (struct net_device *) dev);
+	struct uml_net_private *lp =
+		container_of(work, struct uml_net_private, work);
+	dev_close(lp->dev);
 }
 
 irqreturn_t uml_net_interrupt(int irq, void *dev_id)
@@ -89,7 +91,6 @@ irqreturn_t uml_net_interrupt(int irq, void *dev_id)
 	spin_lock(&lp->lock);
 	while((err = uml_net_rx(dev)) > 0) ;
 	if(err < 0) {
-		DECLARE_WORK(close_work, uml_dev_close, dev);
 		printk(KERN_ERR 
 		       "Device '%s' read returned %d, shutting it down\n", 
 		       dev->name, err);
@@ -97,9 +98,10 @@ irqreturn_t uml_net_interrupt(int irq, void *dev_id)
 		 * again lp->lock.
 		 * And dev_close() can be safely called multiple times on the
 		 * same device, since it tests for (dev->flags & IFF_UP). So
-		 * there's no harm in delaying the device shutdown. */
-		schedule_work(&close_work);
-#error this is not permitted - close_work will go out of scope
+		 * there's no harm in delaying the device shutdown.
+		 * Furthermore, the workqueue will not re-enqueue an already
+		 * enqueued work item. */
+		schedule_work(&lp->work);
 		goto out;
 	}
 	reactivate_fd(lp->fd, UM_ETH_IRQ);
@@ -365,6 +367,7 @@ static int eth_configure(int n, void *init, char *mac,
 	/* This points to the transport private data. It's still clear, but we
 	 * must memset it to 0 *now*. Let's help the drivers. */
 	memset(lp, 0, size);
+	INIT_WORK(&lp->work, uml_dev_close);
 
 	/* sysfs register */
 	if (!driver_registered) {

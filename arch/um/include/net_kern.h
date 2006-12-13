@@ -11,6 +11,7 @@
 #include <linux/skbuff.h>
 #include <linux/socket.h>
 #include <linux/list.h>
+#include <linux/workqueue.h>
 
 struct uml_net {
 	struct list_head list;
@@ -26,6 +27,7 @@ struct uml_net_private {
 	struct net_device *dev;
 	struct timer_list tl;
 	struct net_device_stats stats;
+	struct work_struct work;
 	int fd;
 	unsigned char mac[ETH_ALEN];
 	unsigned short (*protocol)(struct sk_buff *);
