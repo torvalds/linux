@@ -435,7 +435,7 @@ static int rtc_dev_add_device(struct class_device *class_dev,
 		goto err_cdev_del;
 	}
 
-	dev_info(class_dev->dev, "rtc intf: dev (%d:%d)\n",
+	dev_dbg(class_dev->dev, "rtc intf: dev (%d:%d)\n",
 		MAJOR(rtc->rtc_dev->devt),
 		MINOR(rtc->rtc_dev->devt));
 

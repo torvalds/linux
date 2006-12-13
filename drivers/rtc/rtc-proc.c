@@ -120,7 +120,7 @@ static int rtc_proc_add_device(struct class_device *class_dev,
 			ent->owner = rtc->owner;
 			ent->data = class_dev;
 
-			dev_info(class_dev->dev, "rtc intf: proc\n");
+			dev_dbg(class_dev->dev, "rtc intf: proc\n");
 		}
 		else
 			rtc_dev = NULL;
