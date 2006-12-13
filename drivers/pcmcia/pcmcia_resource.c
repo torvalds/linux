@@ -187,15 +187,19 @@ EXPORT_SYMBOL(pcmcia_access_configuration_register);
 
 /** pcmcia_get_window
  */
-int pcmcia_get_window(struct pcmcia_socket *s, window_handle_t *handle,
-		      int idx, win_req_t *req)
+int pcmcia_get_window(struct pcmcia_socket *s, window_handle_t *wh_out,
+		window_handle_t wh, win_req_t *req)
 {
 	window_t *win;
-	int w;
+	window_handle_t w;
 
 	if (!s || !(s->state & SOCKET_PRESENT))
 		return -ENODEV;
-	for (w = idx; w < MAX_WIN; w++)
+
+	wh--;
+	if (wh >= MAX_WIN)
+		return -EINVAL;
+	for (w = wh; w < MAX_WIN; w++)
 		if (s->state & SOCKET_WIN_REQ(w))
 			break;
 	if (w == MAX_WIN)
@@ -213,7 +217,8 @@ int pcmcia_get_window(struct pcmcia_socket *s, window_handle_t *handle,
 		req->Attributes |= WIN_DATA_WIDTH_16;
 	if (win->ctl.flags & MAP_USE_WAIT)
 		req->Attributes |= WIN_USE_WAIT;
-	*handle = win;
+
+	*wh_out = w++;
 	return 0;
 } /* pcmcia_get_window */
 EXPORT_SYMBOL(pcmcia_get_window);
@@ -226,12 +231,12 @@ EXPORT_SYMBOL(pcmcia_get_window);
 int pcmcia_get_mem_page(struct pcmcia_socket *skt, window_handle_t wh,
 			memreq_t *req)
 {
-	window_handle_t win = wh;
-
-	if ((win == NULL) || (win->magic != WINDOW_MAGIC))
+	wh--;
+	if (wh >= MAX_WIN)
 		return -EINVAL;
+
 	req->Page = 0;
-	req->CardOffset = win->ctl.card_start;
+	req->CardOffset = skt->win[wh].ctl.card_start;
 	return 0;
 } /* pcmcia_get_mem_page */
 EXPORT_SYMBOL(pcmcia_get_mem_page);
@@ -240,18 +245,17 @@ EXPORT_SYMBOL(pcmcia_get_mem_page);
 int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t wh,
 			memreq_t *req)
 {
-	struct pcmcia_socket *s;
-	window_handle_t win = wh;
+	struct pcmcia_socket *s = p_dev->socket;
 
-	if ((win == NULL) || (win->magic != WINDOW_MAGIC))
+	wh--;
+	if (wh >= MAX_WIN)
 		return -EINVAL;
-	s = win->sock;
 	if (req->Page != 0) {
 		dev_dbg(&s->dev, "failure: requested page is zero\n");
 		return -EINVAL;
 	}
-	win->ctl.card_start = req->CardOffset;
-	if (s->ops->set_mem_map(s, &win->ctl) != 0) {
+	s->win[wh].ctl.card_start = req->CardOffset;
+	if (s->ops->set_mem_map(s, &s->win[wh].ctl) != 0) {
 		dev_dbg(&s->dev, "failed to set_mem_map\n");
 		return -EIO;
 	}
@@ -450,13 +454,16 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 
 int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t wh)
 {
-	struct pcmcia_socket *s;
-	window_handle_t win = wh;
+	struct pcmcia_socket *s = p_dev->socket;
+	window_t *win;
 
-	if ((win == NULL) || (win->magic != WINDOW_MAGIC))
+	wh--;
+	if (wh >= MAX_WIN)
 		return -EINVAL;
-	s = win->sock;
-	if (!(win->handle->_win & CLIENT_WIN_REQ(win->index))) {
+
+	win = &s->win[wh];
+
+	if (!(p_dev->_win & CLIENT_WIN_REQ(wh))) {
 		dev_dbg(&s->dev, "not releasing unknown window\n");
 		return -EINVAL;
 	}
@@ -464,7 +471,7 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t wh)
 	/* Shut down memory window */
 	win->ctl.flags &= ~MAP_ACTIVE;
 	s->ops->set_mem_map(s, &win->ctl);
-	s->state &= ~SOCKET_WIN_REQ(win->index);
+	s->state &= ~SOCKET_WIN_REQ(wh);
 
 	/* Release system memory */
 	if (win->ctl.res) {
@@ -472,9 +479,7 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t wh)
 		kfree(win->ctl.res);
 		win->ctl.res = NULL;
 	}
-	win->handle->_win &= ~CLIENT_WIN_REQ(win->index);
-
-	win->magic = 0;
+	p_dev->_win &= ~CLIENT_WIN_REQ(wh);
 
 	return 0;
 } /* pcmcia_release_window */
@@ -847,10 +852,6 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	}
 
 	win = &s->win[w];
-	win->magic = WINDOW_MAGIC;
-	win->index = w;
-	win->handle = *p_dev;
-	win->sock = s;
 
 	if (!(s->features & SS_CAP_STATIC_MAP)) {
 		win->ctl.res = pcmcia_find_mem_region(req->Base, req->Size, align,
@@ -887,7 +888,7 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	} else {
 		req->Base = win->ctl.res->start;
 	}
-	*wh = win;
+	*wh = w + 1;
 
 	return 0;
 } /* pcmcia_request_window */

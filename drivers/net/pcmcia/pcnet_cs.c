@@ -1514,7 +1514,7 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     if (i != (TX_PAGES<<8)) {
 	iounmap(info->base);
 	pcmcia_release_window(link, link->win);
-	info->base = NULL; link->win = NULL;
+	info->base = NULL; link->win = 0;
 	goto failed;
     }
 

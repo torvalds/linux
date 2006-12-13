@@ -107,12 +107,7 @@ typedef struct io_window_t {
 	struct resource		*res;
 } io_window_t;
 
-#define WINDOW_MAGIC	0xB35C
 typedef struct window_t {
-	u_short			magic;
-	u_short			index;
-	struct pcmcia_device	*handle;
-	struct pcmcia_socket 	*sock;
 	pccard_mem_map		ctl;
 } window_t;
 

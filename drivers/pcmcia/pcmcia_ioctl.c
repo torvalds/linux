@@ -916,12 +916,12 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	goto free_out;
 	break;
     case DS_GET_FIRST_WINDOW:
-	ret = pcmcia_get_window(s, &buf->win_info.handle, 0,
+	ret = pcmcia_get_window(s, &buf->win_info.handle, 1,
 			&buf->win_info.window);
 	break;
     case DS_GET_NEXT_WINDOW:
 	ret = pcmcia_get_window(s, &buf->win_info.handle,
-			buf->win_info.handle->index + 1, &buf->win_info.window);
+			buf->win_info.handle + 1, &buf->win_info.window);
 	break;
     case DS_GET_MEM_PAGE:
 	ret = pcmcia_get_mem_page(s, buf->win_info.handle,
