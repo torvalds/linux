@@ -40,7 +40,7 @@
 
 static inline void
 remap_area_pte(pte_t * pte, unsigned long address, unsigned long size,
-	       unsigned long phys_addr, pgprot_t pgprot)
+	       unsigned long phys_addr, pgprot_t prot)
 {
 	unsigned long end;
 
@@ -53,7 +53,7 @@ remap_area_pte(pte_t * pte, unsigned long address, unsigned long size,
 		if (!pte_none(*pte))
 			goto bad;
 
-		set_pte(pte, pfn_pte(phys_addr >> PAGE_SHIFT, pgprot));
+		set_pte_ext(pte, pfn_pte(phys_addr >> PAGE_SHIFT, prot), 0);
 		address += PAGE_SIZE;
 		phys_addr += PAGE_SIZE;
 		pte++;

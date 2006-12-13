@@ -421,14 +421,14 @@ ENTRY(cpu_xscale_switch_mm)
 	cpwait_ret lr, ip
 
 /*
- * cpu_xscale_set_pte(ptep, pte)
+ * cpu_xscale_set_pte_ext(ptep, pte, ext)
  *
  * Set a PTE and flush it out
  *
  * Errata 40: must set memory to write-through for user read-only pages.
  */
 	.align	5
-ENTRY(cpu_xscale_set_pte)
+ENTRY(cpu_xscale_set_pte_ext)
 	str	r1, [r0], #-2048		@ linux version
 
 	bic	r2, r1, #0xff0
@@ -529,7 +529,7 @@ ENTRY(xscale_processor_functions)
 	.word	cpu_xscale_do_idle
 	.word	cpu_xscale_dcache_clean_area
 	.word	cpu_xscale_switch_mm
-	.word	cpu_xscale_set_pte
+	.word	cpu_xscale_set_pte_ext
 	.size	xscale_processor_functions, . - xscale_processor_functions
 
 	.section ".rodata"
