@@ -742,6 +742,14 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		sdev->no_uld_attach = 1;
 
 	switch (sdev->type = (inq_result[0] & 0x1f)) {
+	case TYPE_RBC:
+		/* RBC devices can return SCSI-3 compliance and yet
+		 * still not support REPORT LUNS, so make them act as
+		 * BLIST_NOREPORTLUN unless BLIST_REPORTLUN2 is
+		 * specifically set */
+		if ((*bflags & BLIST_REPORTLUN2) == 0)
+			*bflags |= BLIST_NOREPORTLUN;
+		/* fall through */
 	case TYPE_TAPE:
 	case TYPE_DISK:
 	case TYPE_PRINTER:
@@ -752,11 +760,17 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	case TYPE_ENCLOSURE:
 	case TYPE_COMM:
 	case TYPE_RAID:
-	case TYPE_RBC:
 		sdev->writeable = 1;
 		break;
-	case TYPE_WORM:
 	case TYPE_ROM:
+		/* MMC devices can return SCSI-3 compliance and yet
+		 * still not support REPORT LUNS, so make them act as
+		 * BLIST_NOREPORTLUN unless BLIST_REPORTLUN2 is
+		 * specifically set */
+		if ((*bflags & BLIST_REPORTLUN2) == 0)
+			*bflags |= BLIST_NOREPORTLUN;
+		/* fall through */
+	case TYPE_WORM:
 		sdev->writeable = 0;
 		break;
 	default:
