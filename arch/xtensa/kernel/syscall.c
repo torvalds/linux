@@ -16,7 +16,7 @@
  *
  */
 #include <asm/uaccess.h>
-#include <asm/syscalls.h>
+#include <asm/syscall.h>
 #include <asm/unistd.h>
 #include <linux/linkage.h>
 #include <linux/stringify.h>
