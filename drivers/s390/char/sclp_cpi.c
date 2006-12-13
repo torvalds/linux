@@ -127,7 +127,7 @@ cpi_prepare_req(void)
 	struct cpi_sccb *sccb;
 	struct cpi_evbuf *evb;
 
-	req = (struct sclp_req *) kmalloc(sizeof(struct sclp_req), GFP_KERNEL);
+	req = kmalloc(sizeof(struct sclp_req), GFP_KERNEL);
 	if (req == NULL)
 		return ERR_PTR(-ENOMEM);
 	sccb = (struct cpi_sccb *) __get_free_page(GFP_KERNEL | GFP_DMA);

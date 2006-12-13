@@ -828,7 +828,7 @@ static ssize_t adb_write(struct file *file, const char __user *buf,
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
 
-	req = (struct adb_request *) kmalloc(sizeof(struct adb_request),
+	req = kmalloc(sizeof(struct adb_request),
 					     GFP_KERNEL);
 	if (req == NULL)
 		return -ENOMEM;

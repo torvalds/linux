@@ -884,7 +884,7 @@ static int i596_start_xmit (struct sk_buff *skb, struct net_device *dev) {
 
 	dev->trans_start = jiffies;
 
-	tx_cmd = (struct tx_cmd *) kmalloc ((sizeof (struct tx_cmd) + sizeof (struct i596_tbd)), GFP_ATOMIC);
+	tx_cmd = kmalloc((sizeof (struct tx_cmd) + sizeof (struct i596_tbd)), GFP_ATOMIC);
 	if (tx_cmd == NULL) {
 		printk(KERN_WARNING "%s: i596_xmit Memory squeeze, dropping packet.\n", dev->name);
 		lp->stats.tx_dropped++;
@@ -1266,7 +1266,7 @@ static void set_multicast_list(struct net_device *dev) {
 	if (dev->mc_count > 0) {
 		struct dev_mc_list *dmi;
 		char *cp;
-		cmd = (struct i596_cmd *)kmalloc(sizeof(struct i596_cmd)+2+dev->mc_count*6, GFP_ATOMIC);
+		cmd = kmalloc(sizeof(struct i596_cmd)+2+dev->mc_count*6, GFP_ATOMIC);
 		if (cmd == NULL) {
 			printk (KERN_ERR "%s: set_multicast Memory squeeze.\n", dev->name);
 			return;

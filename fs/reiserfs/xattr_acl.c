@@ -135,7 +135,7 @@ static void *posix_acl_to_disk(const struct posix_acl *acl, size_t * size)
 	int n;
 
 	*size = reiserfs_acl_size(acl->a_count);
-	ext_acl = (reiserfs_acl_header *) kmalloc(sizeof(reiserfs_acl_header) +
+	ext_acl = kmalloc(sizeof(reiserfs_acl_header) +
 						  acl->a_count *
 						  sizeof(reiserfs_acl_entry),
 						  GFP_NOFS);

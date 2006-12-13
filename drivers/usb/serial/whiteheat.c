@@ -416,7 +416,7 @@ static int whiteheat_attach (struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
 
-		info = (struct whiteheat_private *)kmalloc(sizeof(struct whiteheat_private), GFP_KERNEL);
+		info = kmalloc(sizeof(struct whiteheat_private), GFP_KERNEL);
 		if (info == NULL) {
 			err("%s: Out of memory for port structures\n", serial->type->description);
 			goto no_private;
@@ -487,7 +487,7 @@ static int whiteheat_attach (struct usb_serial *serial)
 		usb_set_serial_port_data(port, info);
 	}
 
-	command_info = (struct whiteheat_command_private *)kmalloc(sizeof(struct whiteheat_command_private), GFP_KERNEL);
+	command_info = kmalloc(sizeof(struct whiteheat_command_private), GFP_KERNEL);
 	if (command_info == NULL) {
 		err("%s: Out of memory for port structures\n", serial->type->description);
 		goto no_command_private;

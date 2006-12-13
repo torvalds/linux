@@ -5777,7 +5777,7 @@ static int osst_probe(struct device *dev)
 	dev_num = i;
 
 	/* allocate a struct osst_tape for this device */
-	tpnt = (struct osst_tape *)kmalloc(sizeof(struct osst_tape), GFP_ATOMIC);
+	tpnt = kmalloc(sizeof(struct osst_tape), GFP_ATOMIC);
 	if (tpnt == NULL) {
 		write_unlock(&os_scsi_tapes_lock);
 		printk(KERN_ERR "osst :E: Can't allocate device descriptor, device not attached.\n");

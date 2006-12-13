@@ -2195,7 +2195,7 @@ static struct gs_buf *gs_buf_alloc(unsigned int size, gfp_t kmalloc_flags)
 	if (size == 0)
 		return NULL;
 
-	gb = (struct gs_buf *)kmalloc(sizeof(struct gs_buf), kmalloc_flags);
+	gb = kmalloc(sizeof(struct gs_buf), kmalloc_flags);
 	if (gb == NULL)
 		return NULL;
 

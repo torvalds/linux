@@ -260,7 +260,7 @@ befs_btree_find(struct super_block *sb, befs_data_stream * ds,
 		goto error;
 	}
 
-	this_node = (befs_btree_node *) kmalloc(sizeof (befs_btree_node),
+	this_node = kmalloc(sizeof (befs_btree_node),
 						GFP_NOFS);
 	if (!this_node) {
 		befs_error(sb, "befs_btree_find() failed to allocate %u "

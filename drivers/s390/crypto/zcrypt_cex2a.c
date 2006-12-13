@@ -295,7 +295,7 @@ static long zcrypt_cex2a_modexpo(struct zcrypt_device *zdev,
 	struct completion work;
 	int rc;
 
-	ap_msg.message = (void *) kmalloc(CEX2A_MAX_MESSAGE_SIZE, GFP_KERNEL);
+	ap_msg.message = kmalloc(CEX2A_MAX_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
@@ -337,7 +337,7 @@ static long zcrypt_cex2a_modexpo_crt(struct zcrypt_device *zdev,
 	struct completion work;
 	int rc;
 
-	ap_msg.message = (void *) kmalloc(CEX2A_MAX_MESSAGE_SIZE, GFP_KERNEL);
+	ap_msg.message = kmalloc(CEX2A_MAX_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +

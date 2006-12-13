@@ -818,7 +818,7 @@ jffs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	D1({
 	        int len = dentry->d_name.len;
-		char *_name = (char *) kmalloc(len + 1, GFP_KERNEL);
+		char *_name = kmalloc(len + 1, GFP_KERNEL);
 		memcpy(_name, dentry->d_name.name, len);
 		_name[len] = '\0';
 		printk("***jffs_mkdir(): dir = 0x%p, name = \"%s\", "
@@ -964,7 +964,7 @@ jffs_remove(struct inode *dir, struct dentry *dentry, int type)
 	D1({
 		int len = dentry->d_name.len;
 		const char *name = dentry->d_name.name;
-		char *_name = (char *) kmalloc(len + 1, GFP_KERNEL);
+		char *_name = kmalloc(len + 1, GFP_KERNEL);
 		memcpy(_name, name, len);
 		_name[len] = '\0';
 		printk("***jffs_remove(): file = \"%s\", ino = %ld\n", _name, dentry->d_inode->i_ino);

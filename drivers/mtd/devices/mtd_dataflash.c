@@ -459,7 +459,7 @@ add_dataflash(struct spi_device *spi, char *name,
 	struct mtd_info			*device;
 	struct flash_platform_data	*pdata = spi->dev.platform_data;
 
-	priv = (struct dataflash *) kzalloc(sizeof *priv, GFP_KERNEL);
+	priv = kzalloc(sizeof *priv, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 

@@ -408,7 +408,7 @@ static int __init cs4232_pnp_probe(struct pnp_dev *dev, const struct pnp_device_
 {
 	struct address_info *isapnpcfg;
 
-	isapnpcfg=(struct address_info*)kmalloc(sizeof(*isapnpcfg),GFP_KERNEL);
+	isapnpcfg = kmalloc(sizeof(*isapnpcfg),GFP_KERNEL);
 	if (!isapnpcfg)
 		return -ENOMEM;
 

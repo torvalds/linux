@@ -1320,7 +1320,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	DBG_ENTER_ROUTINE
 	
 	spin_lock_init(&list_lock);	
-	php_ctlr = (struct php_ctlr_state_s *) kmalloc(sizeof(struct php_ctlr_state_s), GFP_KERNEL);
+	php_ctlr = kmalloc(sizeof(struct php_ctlr_state_s), GFP_KERNEL);
 
 	if (!php_ctlr) {	/* allocate controller state data */
 		err("%s: HPC controller memory allocation error!\n", __FUNCTION__);

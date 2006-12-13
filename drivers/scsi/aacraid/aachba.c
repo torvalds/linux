@@ -288,7 +288,7 @@ int aac_get_containers(struct aac_dev *dev)
 
 	if (maximum_num_containers < MAXIMUM_NUM_CONTAINERS)
 		maximum_num_containers = MAXIMUM_NUM_CONTAINERS;
-	fsa_dev_ptr = (struct fsa_dev_info *) kmalloc(
+	fsa_dev_ptr = kmalloc(
 	  sizeof(*fsa_dev_ptr) * maximum_num_containers, GFP_KERNEL);
 	if (!fsa_dev_ptr) {
 		aac_fib_free(fibptr);

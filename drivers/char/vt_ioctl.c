@@ -129,7 +129,7 @@ do_kdsk_ioctl(int cmd, struct kbentry __user *user_kbe, int perm, struct kbd_str
 			    !capable(CAP_SYS_RESOURCE))
 				return -EPERM;
 
-			key_map = (ushort *) kmalloc(sizeof(plain_map),
+			key_map = kmalloc(sizeof(plain_map),
 						     GFP_KERNEL);
 			if (!key_map)
 				return -ENOMEM;
@@ -259,7 +259,7 @@ do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		    sz = 256;
 		    while (sz < funcbufsize - funcbufleft + delta)
 		      sz <<= 1;
-		    fnw = (char *) kmalloc(sz, GFP_KERNEL);
+		    fnw = kmalloc(sz, GFP_KERNEL);
 		    if(!fnw) {
 		      ret = -ENOMEM;
 		      goto reterr;

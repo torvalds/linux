@@ -321,7 +321,7 @@ static int do_open(struct inode * inode, struct file * filp)
 {
 	struct apm_user *	as;
 
-	as = (struct apm_user *)kmalloc(sizeof(*as), GFP_KERNEL);
+	as = kmalloc(sizeof(*as), GFP_KERNEL);
 	if (as == NULL) {
 		printk(KERN_ERR "apm: cannot allocate struct of size %d bytes\n",
 		       sizeof(*as));

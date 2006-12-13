@@ -423,7 +423,7 @@ gpio_open(struct inode *inode, struct file *filp)
 	if (p > GPIO_MINOR_LAST)
 		return -EINVAL;
 
-	priv = (struct gpio_private *)kmalloc(sizeof(struct gpio_private),
+	priv = kmalloc(sizeof(struct gpio_private),
 					      GFP_KERNEL);
 
 	if (!priv)

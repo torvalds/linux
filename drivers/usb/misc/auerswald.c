@@ -766,7 +766,7 @@ static int auerbuf_setup (pauerbufctl_t bcp, unsigned int numElements, unsigned 
                 bep->bufp = kmalloc (bufsize, GFP_KERNEL);
                 if (!bep->bufp)
 			goto bl_fail;
-                bep->dr = (struct usb_ctrlrequest *) kmalloc (sizeof (struct usb_ctrlrequest), GFP_KERNEL);
+                bep->dr = kmalloc(sizeof (struct usb_ctrlrequest), GFP_KERNEL);
                 if (!bep->dr)
 			goto bl_fail;
                 bep->urbp = usb_alloc_urb (0, GFP_KERNEL);
@@ -1969,7 +1969,7 @@ static int auerswald_probe (struct usb_interface *intf,
 	info("device is a %s", cp->dev_desc);
 
         /* get the maximum allowed control transfer length */
-        pbuf = (__le16 *) kmalloc (2, GFP_KERNEL);    /* use an allocated buffer because of urb target */
+        pbuf = kmalloc(2, GFP_KERNEL);    /* use an allocated buffer because of urb target */
         if (!pbuf) {
 		err( "out of memory");
 		goto pfail;

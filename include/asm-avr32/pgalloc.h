@@ -28,7 +28,7 @@ static __inline__ void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 static __inline__ pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	unsigned int pgd_size = (USER_PTRS_PER_PGD * sizeof(pgd_t));
-	pgd_t *pgd = (pgd_t *)kmalloc(pgd_size, GFP_KERNEL);
+	pgd_t *pgd = kmalloc(pgd_size, GFP_KERNEL);
 
 	if (pgd)
 		memset(pgd, 0, pgd_size);

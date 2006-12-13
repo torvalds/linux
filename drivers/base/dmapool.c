@@ -173,7 +173,7 @@ pool_alloc_page (struct dma_pool *pool, gfp_t mem_flags)
 	mapsize = (mapsize + BITS_PER_LONG - 1) / BITS_PER_LONG;
 	mapsize *= sizeof (long);
 
-	page = (struct dma_page *) kmalloc (mapsize + sizeof *page, mem_flags);
+	page = kmalloc(mapsize + sizeof *page, mem_flags);
 	if (!page)
 		return NULL;
 	page->vaddr = dma_alloc_coherent (pool->dev,

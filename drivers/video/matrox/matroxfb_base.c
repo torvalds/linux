@@ -2028,7 +2028,7 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 	}
 
 #ifdef CONFIG_FB_MATROX_MULTIHEAD
-	minfo = (struct matrox_fb_info*)kmalloc(sizeof(*minfo), GFP_KERNEL);
+	minfo = kmalloc(sizeof(*minfo), GFP_KERNEL);
 	if (!minfo)
 		return -1;
 #else

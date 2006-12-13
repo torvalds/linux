@@ -166,7 +166,7 @@ int opl3_detect(int ioaddr, int *osp)
 		return 0;
 	}
 
-	devc = (struct opl_devinfo *)kmalloc(sizeof(*devc), GFP_KERNEL);
+	devc = kmalloc(sizeof(*devc), GFP_KERNEL);
 
 	if (devc == NULL)
 	{

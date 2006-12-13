@@ -59,7 +59,7 @@ static int
 __init init_cris_profile(void)
 {
   struct proc_dir_entry *entry;
-  sample_buffer = (char*)kmalloc(SAMPLE_BUFFER_SIZE, GFP_KERNEL);
+  sample_buffer = kmalloc(SAMPLE_BUFFER_SIZE, GFP_KERNEL);
   sample_buffer_pos = sample_buffer;
   entry = create_proc_entry("system_profile", S_IWUSR | S_IRUGO, NULL);
   if (entry) {

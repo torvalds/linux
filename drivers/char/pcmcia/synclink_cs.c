@@ -541,7 +541,7 @@ static int mgslpc_probe(struct pcmcia_device *link)
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_attach\n");
 
-    info = (MGSLPC_INFO *)kmalloc(sizeof(MGSLPC_INFO), GFP_KERNEL);
+    info = kmalloc(sizeof(MGSLPC_INFO), GFP_KERNEL);
     if (!info) {
 	    printk("Error can't allocate device instance data\n");
 	    return -ENOMEM;

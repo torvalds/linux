@@ -3829,7 +3829,7 @@ static int prism2_ioctl_priv_hostapd(local_info_t *local, struct iw_point *p)
 	    p->length > PRISM2_HOSTAPD_MAX_BUF_SIZE || !p->pointer)
 		return -EINVAL;
 
-	param = (struct prism2_hostapd_param *) kmalloc(p->length, GFP_KERNEL);
+	param = kmalloc(p->length, GFP_KERNEL);
 	if (param == NULL)
 		return -ENOMEM;
 

@@ -847,7 +847,7 @@ pbook_pci_save(void)
 	n_pbook_pci_saves = npci;
 	if (npci == 0)
 		return;
-	ps = (struct pci_save *) kmalloc(npci * sizeof(*ps), GFP_KERNEL);
+	ps = kmalloc(npci * sizeof(*ps), GFP_KERNEL);
 	pbook_pci_saves = ps;
 	if (ps == NULL)
 		return;

@@ -166,7 +166,7 @@ static long read_ldt_from_host(void __user * ptr, unsigned long bytecount)
 	struct ptrace_ldt ptrace_ldt = (struct ptrace_ldt) {
 			.func = 0,
 			.bytecount = bytecount,
-			.ptr = (void *)kmalloc(bytecount, GFP_KERNEL)};
+			.ptr = kmalloc(bytecount, GFP_KERNEL)};
 	u32 cpu;
 
 	if(ptrace_ldt.ptr == NULL)
@@ -426,7 +426,7 @@ void ldt_get_host_info(void)
 		host_ldt_entries = dummy_list;
 	else {
 		size = (size + 1) * sizeof(dummy_list[0]);
-		host_ldt_entries = (short *)kmalloc(size, GFP_KERNEL);
+		host_ldt_entries = kmalloc(size, GFP_KERNEL);
 		if(host_ldt_entries == NULL) {
 			printk("ldt_get_host_info: couldn't allocate host ldt list\n");
 			goto out_free;

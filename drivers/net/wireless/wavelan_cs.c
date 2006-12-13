@@ -603,7 +603,7 @@ static wavepoint_history *wl_new_wavepoint(unsigned short nwid, unsigned char se
   if(lp->wavepoint_table.num_wavepoints==MAX_WAVEPOINTS)
     return NULL;
   
-  new_wavepoint=(wavepoint_history *) kmalloc(sizeof(wavepoint_history),GFP_ATOMIC);
+  new_wavepoint = kmalloc(sizeof(wavepoint_history),GFP_ATOMIC);
   if(new_wavepoint==NULL)
     return NULL;
   

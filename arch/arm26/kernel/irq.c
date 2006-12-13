@@ -545,7 +545,7 @@ int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_
 	    (irq_flags & IRQF_SHARED && !dev_id))
 		return -EINVAL;
 
-	action = (struct irqaction *)kmalloc(sizeof(struct irqaction), GFP_KERNEL);
+	action = kmalloc(sizeof(struct irqaction), GFP_KERNEL);
 	if (!action)
 		return -ENOMEM;
 

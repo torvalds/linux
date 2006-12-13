@@ -2602,7 +2602,7 @@ static int __devinit lanai_init_one(struct pci_dev *pci,
 	struct atm_dev *atmdev;
 	int result;
 
-	lanai = (struct lanai_dev *) kmalloc(sizeof(*lanai), GFP_KERNEL);
+	lanai = kmalloc(sizeof(*lanai), GFP_KERNEL);
 	if (lanai == NULL) {
 		printk(KERN_ERR DEV_LABEL
 		       ": couldn't allocate dev_data structure!\n");

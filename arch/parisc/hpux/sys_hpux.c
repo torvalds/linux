@@ -475,7 +475,7 @@ int hpux_sysfs(int opcode, unsigned long arg1, unsigned long arg2)
 		printk(KERN_DEBUG "len of arg1 = %d\n", len);
 		if (len == 0)
 			return 0;
-		fsname = (char *) kmalloc(len, GFP_KERNEL);
+		fsname = kmalloc(len, GFP_KERNEL);
 		if ( !fsname ) {
 			printk(KERN_DEBUG "failed to kmalloc fsname\n");
 			return 0;

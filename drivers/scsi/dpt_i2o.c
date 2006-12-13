@@ -297,7 +297,7 @@ static void adpt_inquiry(adpt_hba* pHba)
 	s32 rcode;
 
 	memset(msg, 0, sizeof(msg));
-	buf = (u8*)kmalloc(80,GFP_KERNEL|ADDR32);
+	buf = kmalloc(80,GFP_KERNEL|ADDR32);
 	if(!buf){
 		printk(KERN_ERR"%s: Could not allocate buffer\n",pHba->name);
 		return;
@@ -1311,7 +1311,7 @@ static s32 adpt_i2o_reset_hba(adpt_hba* pHba)
 		schedule_timeout_uninterruptible(1);
 	} while (m == EMPTY_QUEUE);
 
-	status = (u8*)kmalloc(4, GFP_KERNEL|ADDR32);
+	status = kmalloc(4, GFP_KERNEL|ADDR32);
 	if(status == NULL) {
 		adpt_send_nop(pHba, m);
 		printk(KERN_ERR"IOP reset failed - no free memory.\n");
@@ -1444,7 +1444,7 @@ static int adpt_i2o_parse_lct(adpt_hba* pHba)
 			}
 			continue;
 		}
-		d = (struct i2o_device *)kmalloc(sizeof(struct i2o_device), GFP_KERNEL);
+		d = kmalloc(sizeof(struct i2o_device), GFP_KERNEL);
 		if(d==NULL)
 		{
 			printk(KERN_CRIT"%s: Out of memory for I2O device data.\n",pHba->name);
@@ -2425,7 +2425,7 @@ static s32 adpt_i2o_reparse_lct(adpt_hba* pHba)
 				pDev = pDev->next_lun;
 			}
 			if(!pDev ) { // Something new add it
-				d = (struct i2o_device *)kmalloc(sizeof(struct i2o_device), GFP_KERNEL);
+				d = kmalloc(sizeof(struct i2o_device), GFP_KERNEL);
 				if(d==NULL)
 				{
 					printk(KERN_CRIT "Out of memory for I2O device data.\n");
@@ -2728,7 +2728,7 @@ static s32 adpt_i2o_init_outbound_q(adpt_hba* pHba)
 
 	kfree(pHba->reply_pool);
 
-	pHba->reply_pool = (u32*)kmalloc(pHba->reply_fifo_size * REPLY_FRAME_SIZE * 4, GFP_KERNEL|ADDR32);
+	pHba->reply_pool = kmalloc(pHba->reply_fifo_size * REPLY_FRAME_SIZE * 4, GFP_KERNEL|ADDR32);
 	if(!pHba->reply_pool){
 		printk(KERN_ERR"%s: Could not allocate reply pool\n",pHba->name);
 		return -1;

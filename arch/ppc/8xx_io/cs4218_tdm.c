@@ -2601,7 +2601,7 @@ int __init tdm8xx_sound_init(void)
 	/* Initialize beep stuff */
 	orig_mksound = kd_mksound;
 	kd_mksound = cs_mksound;
-	beep_buf = (short *) kmalloc(BEEP_BUFLEN * 4, GFP_KERNEL);
+	beep_buf = kmalloc(BEEP_BUFLEN * 4, GFP_KERNEL);
 	if (beep_buf == NULL)
 		printk(KERN_WARNING "dmasound: no memory for "
 		       "beep buffer\n");

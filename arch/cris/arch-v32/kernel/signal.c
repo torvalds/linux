@@ -686,7 +686,7 @@ keep_debug_flags(unsigned long oldccs, unsigned long oldspc,
 int __init
 cris_init_signal(void)
 {
-	u16* data = (u16*)kmalloc(PAGE_SIZE, GFP_KERNEL);
+	u16* data = kmalloc(PAGE_SIZE, GFP_KERNEL);
 
 	/* This is movu.w __NR_sigreturn, r9; break 13; */
 	data[0] = 0x9c5f;

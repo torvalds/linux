@@ -1603,7 +1603,7 @@ toshoboe_open (struct pci_dev *pci_dev, const struct pci_device_id *pdid)
   irda_qos_bits_to_value (&self->qos);
 
   /* Allocate twice the size to guarantee alignment */
-  self->ringbuf = (void *) kmalloc (OBOE_RING_LEN << 1, GFP_KERNEL);
+  self->ringbuf = kmalloc(OBOE_RING_LEN << 1, GFP_KERNEL);
   if (!self->ringbuf)
     {
       printk (KERN_ERR DRIVER_NAME ": can't allocate DMA buffers\n");

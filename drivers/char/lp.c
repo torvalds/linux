@@ -525,7 +525,7 @@ static int lp_open(struct inode * inode, struct file * file)
 			return -EIO;
 		}
 	}
-	lp_table[minor].lp_buffer = (char *) kmalloc(LP_BUFFER_SIZE, GFP_KERNEL);
+	lp_table[minor].lp_buffer = kmalloc(LP_BUFFER_SIZE, GFP_KERNEL);
 	if (!lp_table[minor].lp_buffer) {
 		LP_F(minor) &= ~LP_BUSY;
 		return -ENOMEM;

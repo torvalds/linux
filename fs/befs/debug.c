@@ -28,7 +28,7 @@ void
 befs_error(const struct super_block *sb, const char *fmt, ...)
 {
 	va_list args;
-	char *err_buf = (char *) kmalloc(ERRBUFSIZE, GFP_KERNEL);
+	char *err_buf = kmalloc(ERRBUFSIZE, GFP_KERNEL);
 	if (err_buf == NULL) {
 		printk(KERN_ERR "could not allocate %d bytes\n", ERRBUFSIZE);
 		return;
@@ -46,7 +46,7 @@ void
 befs_warning(const struct super_block *sb, const char *fmt, ...)
 {
 	va_list args;
-	char *err_buf = (char *) kmalloc(ERRBUFSIZE, GFP_KERNEL);
+	char *err_buf = kmalloc(ERRBUFSIZE, GFP_KERNEL);
 	if (err_buf == NULL) {
 		printk(KERN_ERR "could not allocate %d bytes\n", ERRBUFSIZE);
 		return;
@@ -70,7 +70,7 @@ befs_debug(const struct super_block *sb, const char *fmt, ...)
 	char *err_buf = NULL;
 
 	if (BEFS_SB(sb)->mount_opts.debug) {
-		err_buf = (char *) kmalloc(ERRBUFSIZE, GFP_KERNEL);
+		err_buf = kmalloc(ERRBUFSIZE, GFP_KERNEL);
 		if (err_buf == NULL) {
 			printk(KERN_ERR "could not allocate %d bytes\n",
 				ERRBUFSIZE);

@@ -64,7 +64,7 @@ void coda_sysctl_clean(void);
 
 #define CODA_ALLOC(ptr, cast, size) do { \
     if (size < PAGE_SIZE) \
-        ptr = (cast)kmalloc((unsigned long) size, GFP_KERNEL); \
+        ptr = kmalloc((unsigned long) size, GFP_KERNEL); \
     else \
         ptr = (cast)vmalloc((unsigned long) size); \
     if (!ptr) \

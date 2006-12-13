@@ -688,7 +688,7 @@ raw3215_probe (struct ccw_device *cdev)
 	raw->cdev = cdev;
 	raw->inbuf = (char *) raw + sizeof(struct raw3215_info);
 	memset(raw, 0, sizeof(struct raw3215_info));
-	raw->buffer = (char *) kmalloc(RAW3215_BUFFER_SIZE,
+	raw->buffer = kmalloc(RAW3215_BUFFER_SIZE,
 				       GFP_KERNEL|GFP_DMA);
 	if (raw->buffer == NULL) {
 		spin_lock(&raw3215_device_lock);

@@ -2730,7 +2730,7 @@ static int startup(SLMP_INFO * info)
 		return 0;
 
 	if (!info->tx_buf) {
-		info->tx_buf = (unsigned char *)kmalloc(info->max_frame_size, GFP_KERNEL);
+		info->tx_buf = kmalloc(info->max_frame_size, GFP_KERNEL);
 		if (!info->tx_buf) {
 			printk(KERN_ERR"%s(%d):%s can't allocate transmit buffer\n",
 				__FILE__,__LINE__,info->device_name);
@@ -3798,7 +3798,7 @@ static SLMP_INFO *alloc_dev(int adapter_num, int port_num, struct pci_dev *pdev)
 {
 	SLMP_INFO *info;
 
-	info = (SLMP_INFO *)kmalloc(sizeof(SLMP_INFO),
+	info = kmalloc(sizeof(SLMP_INFO),
 		 GFP_KERNEL);
 
 	if (!info) {

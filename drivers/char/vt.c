@@ -784,7 +784,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 	if (new_cols == vc->vc_cols && new_rows == vc->vc_rows)
 		return 0;
 
-	newscreen = (unsigned short *) kmalloc(new_screen_size, GFP_USER);
+	newscreen = kmalloc(new_screen_size, GFP_USER);
 	if (!newscreen)
 		return -ENOMEM;
 

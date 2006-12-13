@@ -4876,7 +4876,7 @@ int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
 	} else {
 		/* Add file to outstanding requests */
 		/* BB change to kmem cache alloc */	
-		dnotify_req = (struct dir_notify_req *) kmalloc(
+		dnotify_req = kmalloc(
 						sizeof(struct dir_notify_req),
 						 GFP_KERNEL);
 		if(dnotify_req) {

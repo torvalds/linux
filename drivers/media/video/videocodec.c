@@ -346,7 +346,7 @@ videocodec_build_table (void)
 		size);
 
 	kfree(videocodec_buf);
-	videocodec_buf = (char *) kmalloc(size, GFP_KERNEL);
+	videocodec_buf = kmalloc(size, GFP_KERNEL);
 
 	i = 0;
 	i += scnprintf(videocodec_buf + i, size - 1,

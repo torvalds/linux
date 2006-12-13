@@ -1681,7 +1681,7 @@ dbg( "digi_startup: TOP" );
 	for( i=0; i<serial->type->num_ports+1; i++ ) {
 
 		/* allocate port private structure */
-		priv = (struct digi_port *)kmalloc( sizeof(struct digi_port),
+		priv = kmalloc( sizeof(struct digi_port),
 			GFP_KERNEL );
 		if( priv == (struct digi_port *)0 ) {
 			while( --i >= 0 )
@@ -1714,7 +1714,7 @@ dbg( "digi_startup: TOP" );
 	}
 
 	/* allocate serial private structure */
-	serial_priv = (struct digi_serial *)kmalloc( sizeof(struct digi_serial),
+	serial_priv = kmalloc( sizeof(struct digi_serial),
 		GFP_KERNEL );
 	if( serial_priv == (struct digi_serial *)0 ) {
 		for( i=0; i<serial->type->num_ports+1; i++ )

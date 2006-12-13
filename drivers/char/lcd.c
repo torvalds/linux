@@ -459,7 +459,7 @@ static int lcd_ioctl(struct inode *inode, struct file *file,
 			    (&display, (struct lcd_display *) arg,
 			     sizeof(struct lcd_display)))
 				return -EFAULT;
-			rom = (unsigned char *) kmalloc((128), GFP_ATOMIC);
+			rom = kmalloc((128), GFP_ATOMIC);
 			if (rom == NULL) {
 				printk(KERN_ERR LCD "kmalloc() failed in %s\n",
 						__FUNCTION__);

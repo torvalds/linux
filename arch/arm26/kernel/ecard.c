@@ -215,7 +215,7 @@ int ecard_readchunk(struct in_chunk_dir *cd, ecard_t *ec, int id, int num)
 		}
 		if (c_id(&excd) == 0x80) { /* loader */
 			if (!ec->loader) {
-				ec->loader = (loader_t)kmalloc(c_len(&excd),
+				ec->loader = kmalloc(c_len(&excd),
 							       GFP_KERNEL);
 				if (ec->loader)
 					ecard_readbytes(ec->loader, ec,

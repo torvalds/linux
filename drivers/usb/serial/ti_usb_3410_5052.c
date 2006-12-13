@@ -1710,7 +1710,7 @@ static struct circ_buf *ti_buf_alloc(void)
 {
 	struct circ_buf *cb;
 
-	cb = (struct circ_buf *)kmalloc(sizeof(struct circ_buf), GFP_KERNEL);
+	cb = kmalloc(sizeof(struct circ_buf), GFP_KERNEL);
 	if (cb == NULL)
 		return NULL;
 

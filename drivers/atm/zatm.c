@@ -996,7 +996,7 @@ static int start_tx(struct atm_dev *dev)
 
 	DPRINTK("start_tx\n");
 	zatm_dev = ZATM_DEV(dev);
-	zatm_dev->tx_map = (struct atm_vcc **) kmalloc(sizeof(struct atm_vcc *)*
+	zatm_dev->tx_map = kmalloc(sizeof(struct atm_vcc *)*
 	    zatm_dev->chans,GFP_KERNEL);
 	if (!zatm_dev->tx_map) return -ENOMEM;
 	zatm_dev->tx_bw = ATM_OC3_PCR;
@@ -1591,7 +1591,7 @@ static int __devinit zatm_init_one(struct pci_dev *pci_dev,
 	struct zatm_dev *zatm_dev;
 	int ret = -ENOMEM;
 
-	zatm_dev = (struct zatm_dev *) kmalloc(sizeof(*zatm_dev), GFP_KERNEL);
+	zatm_dev = kmalloc(sizeof(*zatm_dev), GFP_KERNEL);
 	if (!zatm_dev) {
 		printk(KERN_EMERG "%s: memory shortage\n", DEV_LABEL);
 		goto out;

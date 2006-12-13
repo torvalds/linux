@@ -37,7 +37,7 @@ int register_external_interrupt(__u16 code, ext_int_handler_t handler)
         ext_int_info_t *p;
         int index;
 
-	p = (ext_int_info_t *) kmalloc(sizeof(ext_int_info_t), GFP_ATOMIC);
+	p = kmalloc(sizeof(ext_int_info_t), GFP_ATOMIC);
         if (p == NULL)
                 return -ENOMEM;
         p->code = code;

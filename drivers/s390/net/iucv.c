@@ -772,7 +772,7 @@ iucv_register_program (__u8 pgmname[16],
 	}
 
 	/* Allocate handler entry */
-	new_handler = (handler *)kmalloc(sizeof(handler), GFP_ATOMIC);
+	new_handler = kmalloc(sizeof(handler), GFP_ATOMIC);
 	if (new_handler == NULL) {
 		printk(KERN_WARNING "%s: storage allocation for new handler "
 		       "failed.\n", __FUNCTION__);

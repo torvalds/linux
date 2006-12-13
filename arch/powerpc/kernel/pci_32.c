@@ -670,7 +670,7 @@ pcibios_make_OF_bus_map(void)
 	struct pci_controller* hose;
 	struct property *map_prop;
 
-	pci_to_OF_bus_map = (u8*)kmalloc(pci_bus_count, GFP_KERNEL);
+	pci_to_OF_bus_map = kmalloc(pci_bus_count, GFP_KERNEL);
 	if (!pci_to_OF_bus_map) {
 		printk(KERN_ERR "Can't allocate OF bus map !\n");
 		return;

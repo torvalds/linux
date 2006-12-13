@@ -194,7 +194,7 @@ static int emu10k1_private_mixer(struct emu10k1_card *card, unsigned int cmd, un
 
 	case SOUND_MIXER_PRIVATE3:
 
-		ctl = (struct mixer_private_ioctl *) kmalloc(sizeof(struct mixer_private_ioctl), GFP_KERNEL);
+		ctl = kmalloc(sizeof(struct mixer_private_ioctl), GFP_KERNEL);
 		if (ctl == NULL)
 			return -ENOMEM;
 

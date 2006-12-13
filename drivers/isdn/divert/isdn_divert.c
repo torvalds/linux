@@ -153,7 +153,7 @@ int cf_command(int drvid, int mode,
   *ielenp = p - ielenp - 1; /* set total IE length */ 
 
   /* allocate mem for information struct */  
-  if (!(cs = (struct call_struc *) kmalloc(sizeof(struct call_struc), GFP_ATOMIC))) 
+  if (!(cs = kmalloc(sizeof(struct call_struc), GFP_ATOMIC)))
              return(-ENOMEM); /* no memory */
   init_timer(&cs->timer);
   cs->info[0] = '\0';
@@ -276,7 +276,7 @@ int insertrule(int idx, divert_rule *newrule)
 { struct deflect_struc *ds,*ds1=NULL;
   unsigned long flags;
 
-  if (!(ds = (struct deflect_struc *) kmalloc(sizeof(struct deflect_struc), 
+  if (!(ds = kmalloc(sizeof(struct deflect_struc),
                                               GFP_KERNEL))) 
     return(-ENOMEM); /* no memory */
 
@@ -451,7 +451,7 @@ static int isdn_divert_icall(isdn_ctrl *ic)
            if (dv->rule.action == DEFLECT_PROCEED)
 	    if ((!if_used) || ((!extern_wait_max) && (!dv->rule.waittime))) 
               return(0); /* no external deflection needed */  
-           if (!(cs = (struct call_struc *) kmalloc(sizeof(struct call_struc), GFP_ATOMIC))) 
+           if (!(cs = kmalloc(sizeof(struct call_struc), GFP_ATOMIC)))
              return(0); /* no memory */
            init_timer(&cs->timer);
            cs->info[0] = '\0';

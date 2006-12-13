@@ -2828,7 +2828,7 @@ static int i91u_detect(struct scsi_host_template * tpnt)
 
 	for (; tul_num_scb >= MAX_TARGETS + 3; tul_num_scb--) {
 		i = tul_num_ch * tul_num_scb * sizeof(SCB);
-		if ((tul_scb = (SCB *) kmalloc(i, GFP_ATOMIC | GFP_DMA)) != NULL)
+		if ((tul_scb = kmalloc(i, GFP_ATOMIC | GFP_DMA)) != NULL)
 			break;
 	}
 	if (tul_scb == NULL) {

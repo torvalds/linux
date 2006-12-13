@@ -874,7 +874,7 @@ void *iosapic_register(unsigned long hpa)
 		return NULL;
 	}
 
-	isi = (struct iosapic_info *)kzalloc(sizeof(struct iosapic_info), GFP_KERNEL);
+	isi = kzalloc(sizeof(struct iosapic_info), GFP_KERNEL);
 	if (!isi) {
 		BUG();
 		return NULL;

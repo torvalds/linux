@@ -39,7 +39,7 @@ nlmsvc_share_file(struct nlm_host *host, struct nlm_file *file,
 			return nlm_lck_denied;
 	}
 
-	share = (struct nlm_share *) kmalloc(sizeof(*share) + oh->len,
+	share = kmalloc(sizeof(*share) + oh->len,
 						GFP_KERNEL);
 	if (share == NULL)
 		return nlm_lck_denied_nolocks;

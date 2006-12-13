@@ -690,7 +690,7 @@ int usbvideo_register(
 	}
 
 	base_size = num_cams * sizeof(struct uvd) + sizeof(struct usbvideo);
-	cams = (struct usbvideo *) kzalloc(base_size, GFP_KERNEL);
+	cams = kzalloc(base_size, GFP_KERNEL);
 	if (cams == NULL) {
 		err("Failed to allocate %d. bytes for usbvideo struct", base_size);
 		return -ENOMEM;

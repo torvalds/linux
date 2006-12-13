@@ -1055,7 +1055,7 @@ asmlinkage int sunos_msgsys(int op, u32 arg1, u32 arg2, u32 arg3, u32 arg4)
 		break;
 	case 2:
 		rval = -EFAULT;
-		kmbuf = (struct msgbuf *)kmalloc(sizeof(struct msgbuf) + arg3,
+		kmbuf = kmalloc(sizeof(struct msgbuf) + arg3,
 						 GFP_KERNEL);
 		if (!kmbuf)
 			break;
@@ -1078,7 +1078,7 @@ asmlinkage int sunos_msgsys(int op, u32 arg1, u32 arg2, u32 arg3, u32 arg4)
 		break;
 	case 3:
 		rval = -EFAULT;
-		kmbuf = (struct msgbuf *)kmalloc(sizeof(struct msgbuf) + arg3,
+		kmbuf = kmalloc(sizeof(struct msgbuf) + arg3,
 						 GFP_KERNEL);
 		if (!kmbuf || sunos_msgbuf_get((struct msgbuf32 __user *)(unsigned long)arg2,
 					       kmbuf, arg3))

@@ -311,7 +311,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 
 	err = -ENOMEM;
 	memsize = sizeof(Node) + count + 8;
-	e = (Node *) kmalloc(memsize, GFP_USER);
+	e = kmalloc(memsize, GFP_USER);
 	if (!e)
 		goto out;
 

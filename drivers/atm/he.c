@@ -2351,7 +2351,7 @@ he_open(struct atm_vcc *vcc)
 
 	cid = he_mkcid(he_dev, vpi, vci);
 
-	he_vcc = (struct he_vcc *) kmalloc(sizeof(struct he_vcc), GFP_ATOMIC);
+	he_vcc = kmalloc(sizeof(struct he_vcc), GFP_ATOMIC);
 	if (he_vcc == NULL) {
 		hprintk("unable to allocate he_vcc during open\n");
 		return -ENOMEM;

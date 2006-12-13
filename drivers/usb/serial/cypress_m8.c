@@ -1493,7 +1493,7 @@ static struct cypress_buf *cypress_buf_alloc(unsigned int size)
 	if (size == 0)
 		return NULL;
 
-	cb = (struct cypress_buf *)kmalloc(sizeof(struct cypress_buf), GFP_KERNEL);
+	cb = kmalloc(sizeof(struct cypress_buf), GFP_KERNEL);
 	if (cb == NULL)
 		return NULL;
 

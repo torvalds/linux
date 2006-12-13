@@ -231,7 +231,7 @@ static struct sv11_device *sv11_init(int iobase, int irq)
 		return NULL;
 	}
 	
-	sv=(struct sv11_device *)kmalloc(sizeof(struct sv11_device), GFP_KERNEL);
+	sv = kmalloc(sizeof(struct sv11_device), GFP_KERNEL);
 	if(!sv)
 		goto fail3;
 			

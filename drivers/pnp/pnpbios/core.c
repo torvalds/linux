@@ -109,7 +109,7 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 	if (!current->fs->root) {
 		return -EAGAIN;
 	}
-	if (!(envp = (char **) kcalloc (20, sizeof (char *), GFP_KERNEL))) {
+	if (!(envp = kcalloc(20, sizeof (char *), GFP_KERNEL))) {
 		return -ENOMEM;
 	}
 	if (!(buf = kzalloc(256, GFP_KERNEL))) {

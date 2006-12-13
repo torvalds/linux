@@ -1892,10 +1892,10 @@ init_fcc_param(fcc_info_t *fip, struct net_device *dev,
 	/* Allocate space for the buffer descriptors from regular memory.
 	 * Initialize base addresses for the buffer descriptors.
 	 */
-	cep->rx_bd_base = (cbd_t *)kmalloc(sizeof(cbd_t) * RX_RING_SIZE,
+	cep->rx_bd_base = kmalloc(sizeof(cbd_t) * RX_RING_SIZE,
 			GFP_KERNEL | GFP_DMA);
 	ep->fen_genfcc.fcc_rbase = __pa(cep->rx_bd_base);
-	cep->tx_bd_base = (cbd_t *)kmalloc(sizeof(cbd_t) * TX_RING_SIZE,
+	cep->tx_bd_base = kmalloc(sizeof(cbd_t) * TX_RING_SIZE,
 			GFP_KERNEL | GFP_DMA);
 	ep->fen_genfcc.fcc_tbase = __pa(cep->tx_bd_base);
 

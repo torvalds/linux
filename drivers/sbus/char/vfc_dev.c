@@ -659,7 +659,7 @@ static int vfc_probe(void)
 	if (!cards)
 		return -ENODEV;
 
-	vfc_dev_lst = (struct vfc_dev **)kmalloc(sizeof(struct vfc_dev *) *
+	vfc_dev_lst = kmalloc(sizeof(struct vfc_dev *) *
 						 (cards+1),
 						 GFP_KERNEL);
 	if (vfc_dev_lst == NULL)

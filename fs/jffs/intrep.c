@@ -436,7 +436,7 @@ jffs_checksum_flash(struct mtd_info *mtd, loff_t start, int size, __u32 *result)
 	int i, length;
 
 	/* Allocate read buffer */
-	read_buf = (__u8 *) kmalloc (sizeof(__u8) * 4096, GFP_KERNEL);
+	read_buf = kmalloc(sizeof(__u8) * 4096, GFP_KERNEL);
 	if (!read_buf) {
 		printk(KERN_NOTICE "kmalloc failed in jffs_checksum_flash()\n");
 		return -ENOMEM;
@@ -744,11 +744,11 @@ static int check_partly_erased_sectors(struct jffs_fmcontrol *fmc){
 
 
 	/* Allocate read buffers */
-	read_buf1 = (__u8 *) kmalloc (sizeof(__u8) * READ_AHEAD_BYTES, GFP_KERNEL);
+	read_buf1 = kmalloc(sizeof(__u8) * READ_AHEAD_BYTES, GFP_KERNEL);
 	if (!read_buf1)
 		return -ENOMEM;
 
-	read_buf2 = (__u8 *) kmalloc (sizeof(__u8) * READ_AHEAD_BYTES, GFP_KERNEL);
+	read_buf2 = kmalloc(sizeof(__u8) * READ_AHEAD_BYTES, GFP_KERNEL);
 	if (!read_buf2) {
 		kfree(read_buf1);
 		return -ENOMEM;
@@ -876,7 +876,7 @@ jffs_scan_flash(struct jffs_control *c)
 	}
 
 	/* Allocate read buffer */
-	read_buf = (__u8 *) kmalloc (sizeof(__u8) * 4096, GFP_KERNEL);
+	read_buf = kmalloc(sizeof(__u8) * 4096, GFP_KERNEL);
 	if (!read_buf) {
 		flash_safe_release(fmc->mtd);
 		return -ENOMEM;
@@ -1463,7 +1463,7 @@ jffs_insert_node(struct jffs_control *c, struct jffs_file *f,
 			kfree(f->name);
 			DJM(no_name--);
 		}
-		if (!(f->name = (char *) kmalloc(raw_inode->nsize + 1,
+		if (!(f->name = kmalloc(raw_inode->nsize + 1,
 						 GFP_KERNEL))) {
 			return -ENOMEM;
 		}
@@ -1737,7 +1737,7 @@ jffs_find_child(struct jffs_file *dir, const char *name, int len)
 		printk("jffs_find_child(): Found \"%s\".\n", f->name);
 	}
 	else {
-		char *copy = (char *) kmalloc(len + 1, GFP_KERNEL);
+		char *copy = kmalloc(len + 1, GFP_KERNEL);
 		if (copy) {
 			memcpy(copy, name, len);
 			copy[len] = '\0';
@@ -2627,7 +2627,7 @@ jffs_print_tree(struct jffs_file *first_file, int indent)
 		return;
 	}
 
-	if (!(space = (char *) kmalloc(indent + 1, GFP_KERNEL))) {
+	if (!(space = kmalloc(indent + 1, GFP_KERNEL))) {
 		printk("jffs_print_tree(): Out of memory!\n");
 		return;
 	}

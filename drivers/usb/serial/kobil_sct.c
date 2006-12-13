@@ -269,7 +269,7 @@ static int kobil_open (struct usb_serial_port *port, struct file *filp)
 	}
 
 	// allocate memory for write_urb transfer buffer
-	port->write_urb->transfer_buffer = (unsigned char *) kmalloc(write_urb_transfer_buffer_length, GFP_KERNEL);
+	port->write_urb->transfer_buffer = kmalloc(write_urb_transfer_buffer_length, GFP_KERNEL);
 	if (! port->write_urb->transfer_buffer) {
 		kfree(transfer_buffer);
 		usb_free_urb(port->write_urb);
@@ -696,7 +696,7 @@ static int  kobil_ioctl(struct usb_serial_port *port, struct file *file,
 		return 0;
 
 	case TCFLSH:   // 0x540B
-		transfer_buffer = (unsigned char *) kmalloc(transfer_buffer_length, GFP_KERNEL);
+		transfer_buffer = kmalloc(transfer_buffer_length, GFP_KERNEL);
 		if (! transfer_buffer) {
 		 	return -ENOBUFS;
 		}

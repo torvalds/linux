@@ -111,7 +111,7 @@ put_log_buffer(hysdn_card * card, char *cp)
 	if (pd->if_used <= 0)
 		return;		/* no open file for read */
 
-	if (!(ib = (struct log_data *) kmalloc(sizeof(struct log_data) + strlen(cp), GFP_ATOMIC)))
+	if (!(ib = kmalloc(sizeof(struct log_data) + strlen(cp), GFP_ATOMIC)))
 		 return;	/* no memory */
 	strcpy(ib->log_start, cp);	/* set output string */
 	ib->next = NULL;

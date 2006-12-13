@@ -717,7 +717,7 @@ isdn_ppp_fill_rq(unsigned char *buf, int len, int proto, int slot)
 		printk(KERN_DEBUG "ippp: device not activated.\n");
 		return 0;
 	}
-	nbuf = (unsigned char *) kmalloc(len + 4, GFP_ATOMIC);
+	nbuf = kmalloc(len + 4, GFP_ATOMIC);
 	if (!nbuf) {
 		printk(KERN_WARNING "ippp: Can't alloc buf\n");
 		return 0;

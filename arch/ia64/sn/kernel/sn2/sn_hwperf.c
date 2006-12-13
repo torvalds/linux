@@ -189,7 +189,7 @@ static void print_pci_topology(struct seq_file *s)
 	int e;
 
 	for (sz = PAGE_SIZE; sz < 16 * PAGE_SIZE; sz += PAGE_SIZE) {
-		if (!(p = (char *)kmalloc(sz, GFP_KERNEL)))
+		if (!(p = kmalloc(sz, GFP_KERNEL)))
 			break;
 		e = ia64_sn_ioif_get_pci_topology(__pa(p), sz);
 		if (e == SALRET_OK)

@@ -138,7 +138,7 @@ static int grabbuf_alloc(struct planb *pb)
 		+ MAX_LNUM
 #endif /* PLANB_GSCANLINE */
 		);
-	if ((pb->rawbuf = (unsigned char**) kmalloc (npage
+	if ((pb->rawbuf = kmalloc(npage
 				* sizeof(unsigned long), GFP_KERNEL)) == 0)
 		return -ENOMEM;
 	for (i = 0; i < npage; i++) {

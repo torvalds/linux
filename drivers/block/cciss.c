@@ -1039,7 +1039,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 				status = -ENOMEM;
 				goto cleanup1;
 			}
-			buff_size = (int *)kmalloc(MAXSGENTRIES * sizeof(int),
+			buff_size = kmalloc(MAXSGENTRIES * sizeof(int),
 						   GFP_KERNEL);
 			if (!buff_size) {
 				status = -ENOMEM;

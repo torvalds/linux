@@ -2573,11 +2573,11 @@ static idetape_stage_t *__idetape_kmalloc_stage (idetape_tape_t *tape, int full,
 	int pages = tape->pages_per_stage;
 	char *b_data = NULL;
 
-	if ((stage = (idetape_stage_t *) kmalloc (sizeof (idetape_stage_t),GFP_KERNEL)) == NULL)
+	if ((stage = kmalloc(sizeof (idetape_stage_t),GFP_KERNEL)) == NULL)
 		return NULL;
 	stage->next = NULL;
 
-	bh = stage->bh = (struct idetape_bh *)kmalloc(sizeof(struct idetape_bh), GFP_KERNEL);
+	bh = stage->bh = kmalloc(sizeof(struct idetape_bh), GFP_KERNEL);
 	if (bh == NULL)
 		goto abort;
 	bh->b_reqnext = NULL;
@@ -2607,7 +2607,7 @@ static idetape_stage_t *__idetape_kmalloc_stage (idetape_tape_t *tape, int full,
 			continue;
 		}
 		prev_bh = bh;
-		if ((bh = (struct idetape_bh *)kmalloc(sizeof(struct idetape_bh), GFP_KERNEL)) == NULL) {
+		if ((bh = kmalloc(sizeof(struct idetape_bh), GFP_KERNEL)) == NULL) {
 			free_page((unsigned long) b_data);
 			goto abort;
 		}
@@ -4860,7 +4860,7 @@ static int ide_tape_probe(ide_drive_t *drive)
 		printk(KERN_WARNING "ide-tape: Use drive %s with ide-scsi emulation and osst.\n", drive->name);
 		printk(KERN_WARNING "ide-tape: OnStream support will be removed soon from ide-tape!\n");
 	}
-	tape = (idetape_tape_t *) kzalloc (sizeof (idetape_tape_t), GFP_KERNEL);
+	tape = kzalloc(sizeof (idetape_tape_t), GFP_KERNEL);
 	if (tape == NULL) {
 		printk(KERN_ERR "ide-tape: %s: Can't allocate a tape structure\n", drive->name);
 		goto failed;

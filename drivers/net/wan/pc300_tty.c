@@ -784,7 +784,7 @@ void cpc_tty_receive(pc300dev_t *pc300dev)
 			continue;
 		} 
 		
-		new = (st_cpc_rx_buf *)kmalloc(rx_len + sizeof(st_cpc_rx_buf), GFP_ATOMIC);
+		new = kmalloc(rx_len + sizeof(st_cpc_rx_buf), GFP_ATOMIC);
 		if (new == 0) {
 			cpc_tty_rx_disc_frame(pc300chan);
 			continue;

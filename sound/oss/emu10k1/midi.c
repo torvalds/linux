@@ -58,7 +58,7 @@ static int midiin_add_buffer(struct emu10k1_mididevice *midi_dev, struct midi_hd
 {
 	struct midi_hdr *midihdr;
 
-	if ((midihdr = (struct midi_hdr *) kmalloc(sizeof(struct midi_hdr), GFP_KERNEL)) == NULL) {
+	if ((midihdr = kmalloc(sizeof(struct midi_hdr), GFP_KERNEL)) == NULL) {
 		ERROR();
 		return -EINVAL;
 	}
@@ -128,7 +128,7 @@ match:
 		mutex_lock(&card->open_sem);
 	}
 
-	if ((midi_dev = (struct emu10k1_mididevice *) kmalloc(sizeof(*midi_dev), GFP_KERNEL)) == NULL)
+	if ((midi_dev = kmalloc(sizeof(*midi_dev), GFP_KERNEL)) == NULL)
 		return -EINVAL;
 
 	midi_dev->card = card;
@@ -328,7 +328,7 @@ static ssize_t emu10k1_midi_write(struct file *file, const char __user *buffer, 
 	if (!access_ok(VERIFY_READ, buffer, count))
 		return -EFAULT;
 
-	if ((midihdr = (struct midi_hdr *) kmalloc(sizeof(struct midi_hdr), GFP_KERNEL)) == NULL)
+	if ((midihdr = kmalloc(sizeof(struct midi_hdr), GFP_KERNEL)) == NULL)
 		return -EINVAL;
 
 	midihdr->bufferlength = count;
@@ -490,7 +490,7 @@ int emu10k1_seq_midi_open(int dev, int mode,
 			
 	DPF(2, "emu10k1_seq_midi_open()\n");
 	
-	if ((midi_dev = (struct emu10k1_mididevice *) kmalloc(sizeof(*midi_dev), GFP_KERNEL)) == NULL)
+	if ((midi_dev = kmalloc(sizeof(*midi_dev), GFP_KERNEL)) == NULL)
 		return -EINVAL;
 
 	midi_dev->card = card;
@@ -540,7 +540,7 @@ int emu10k1_seq_midi_out(int dev, unsigned char midi_byte)
 
 	card = midi_devs[dev]->devc;
 
-	if ((midihdr = (struct midi_hdr *) kmalloc(sizeof(struct midi_hdr), GFP_KERNEL)) == NULL)
+	if ((midihdr = kmalloc(sizeof(struct midi_hdr), GFP_KERNEL)) == NULL)
 		return -EINVAL;
 
 	midihdr->bufferlength = 1;

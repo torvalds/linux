@@ -4332,7 +4332,7 @@ static struct mgsl_struct* mgsl_allocate_device(void)
 {
 	struct mgsl_struct *info;
 	
-	info = (struct mgsl_struct *)kmalloc(sizeof(struct mgsl_struct),
+	info = kmalloc(sizeof(struct mgsl_struct),
 		 GFP_KERNEL);
 		 
 	if (!info) {

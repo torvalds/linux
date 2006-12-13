@@ -2811,7 +2811,7 @@ static struct edge_buf *edge_buf_alloc(unsigned int size)
 	if (size == 0)
 		return NULL;
 
-	eb = (struct edge_buf *)kmalloc(sizeof(struct edge_buf), GFP_KERNEL);
+	eb = kmalloc(sizeof(struct edge_buf), GFP_KERNEL);
 	if (eb == NULL)
 		return NULL;
 
