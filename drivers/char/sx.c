@@ -2498,8 +2498,10 @@ static void __devexit sx_remove_card(struct sx_board *board,
 		/* It is safe/allowed to del_timer a non-active timer */
 		del_timer(&board->timer);
 		if (pdev) {
+#ifdef CONFIG_PCI
 			pci_iounmap(pdev, board->base);
 			pci_release_region(pdev, IS_CF_BOARD(board) ? 3 : 2);
+#endif
 		} else {
 			iounmap(board->base);
 			release_region(board->hw_base, board->hw_len);
@@ -2601,6 +2603,7 @@ static struct eisa_driver sx_eisadriver = {
 
 #endif
 
+#ifdef CONFIG_PCI
  /******************************************************** 
  * Setting bit 17 in the CNTRL register of the PLX 9050  * 
  * chip forces a retry on writes while a read is pending.*
@@ -2632,10 +2635,12 @@ static void __devinit fix_sx_pci(struct pci_dev *pdev, struct sx_board *board)
 	}
 	iounmap(rebase);
 }
+#endif
 
 static int __devinit sx_pci_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
+#ifdef CONFIG_PCI
 	struct sx_board *board;
 	unsigned int i, reg;
 	int retval = -EIO;
@@ -2700,6 +2705,9 @@ err_flag:
 	board->flags &= ~SX_BOARD_PRESENT;
 err:
 	return retval;
+#else
+	return -ENODEV;
+#endif
 }
 
 static void __devexit sx_pci_remove(struct pci_dev *pdev)
