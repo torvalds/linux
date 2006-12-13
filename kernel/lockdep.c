@@ -2437,6 +2437,7 @@ EXPORT_SYMBOL_GPL(lock_release);
 void lockdep_reset(void)
 {
 	unsigned long flags;
+	int i;
 
 	raw_local_irq_save(flags);
 	current->curr_chain_key = 0;
@@ -2447,6 +2448,8 @@ void lockdep_reset(void)
 	nr_softirq_chains = 0;
 	nr_process_chains = 0;
 	debug_locks = 1;
+	for (i = 0; i < CHAINHASH_SIZE; i++)
+		INIT_LIST_HEAD(chainhash_table + i);
 	raw_local_irq_restore(flags);
 }
 
