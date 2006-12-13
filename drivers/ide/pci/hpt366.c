@@ -70,6 +70,8 @@
  * - fix/remove bad/unused timing tables and use one set of tables for the whole
  *   HPT37x chip family; save space by introducing the separate transfer mode
  *   table in which the mode lookup is done
+ * - fix the hotswap code:  it caused RESET- to glitch when tristating the bus,
+ *   and for HPT36x the obsolete HDIO_TRISTATE_HWIF handler was called instead
  *		<source@mvista.com>
  *
  */
@@ -914,101 +916,68 @@ static void hpt3xxn_rw_disk(ide_drive_t *drive, struct request *rq)
 	hpt3xxn_set_clock(hwif, wantclock);
 }
 
-/*
- * Since SUN Cobalt is attempting to do this operation, I should disclose
- * this has been a long time ago Thu Jul 27 16:40:57 2000 was the patch date
- * HOTSWAP ATA Infrastructure.
- */
-
-static void hpt3xx_reset (ide_drive_t *drive)
-{
-}
-
-static int hpt3xx_tristate (ide_drive_t * drive, int state)
-{
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
-	u8 reg59h = 0, reset	= (hwif->channel) ? 0x80 : 0x40;
-	u8 regXXh = 0, state_reg= (hwif->channel) ? 0x57 : 0x53;
-
-	pci_read_config_byte(dev, 0x59, &reg59h);
-	pci_read_config_byte(dev, state_reg, &regXXh);
-
-	if (state) {
-		(void) ide_do_reset(drive);
-		pci_write_config_byte(dev, state_reg, regXXh|0x80);
-		pci_write_config_byte(dev, 0x59, reg59h|reset);
-	} else {
-		pci_write_config_byte(dev, 0x59, reg59h & ~(reset));
-		pci_write_config_byte(dev, state_reg, regXXh & ~(0x80));
-		(void) ide_do_reset(drive);
-	}
-	return 0;
-}
-
 /* 
- * set/get power state for a drive.
- * turning the power off does the following things:
- *   1) soft-reset the drive
- *   2) tri-states the ide bus
+ * Set/get power state for a drive.
  *
- * when we turn things back on, we need to re-initialize things.
+ * When we turn the power back on, we need to re-initialize things.
  */
 #define TRISTATE_BIT  0x8000
-static int hpt370_busproc(ide_drive_t * drive, int state)
+
+static int hpt3xx_busproc(ide_drive_t *drive, int state)
 {
 	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= hwif->pci_dev;
-	u8 tristate = 0, resetmask = 0, bus_reg = 0;
-	u16 tri_reg;
+	u8  tristate, resetmask, bus_reg = 0;
+	u16 tri_reg = 0;
 
 	hwif->bus_state = state;
 
 	if (hwif->channel) { 
 		/* secondary channel */
-		tristate = 0x56;
-		resetmask = 0x80; 
+		tristate  = 0x56;
+		resetmask = 0x80;
 	} else { 
 		/* primary channel */
-		tristate = 0x52;
+		tristate  = 0x52;
 		resetmask = 0x40;
 	}
 
-	/* grab status */
+	/* Grab the status. */
 	pci_read_config_word(dev, tristate, &tri_reg);
 	pci_read_config_byte(dev, 0x59, &bus_reg);
 
-	/* set the state. we don't set it if we don't need to do so.
-	 * make sure that the drive knows that it has failed if it's off */
+	/*
+	 * Set the state. We don't set it if we don't need to do so.
+	 * Make sure that the drive knows that it has failed if it's off.
+	 */
 	switch (state) {
 	case BUSSTATE_ON:
-		hwif->drives[0].failures = 0;
-		hwif->drives[1].failures = 0;
-		if ((bus_reg & resetmask) == 0)
+		if (!(bus_reg & resetmask))
 			return 0;
-		tri_reg &= ~TRISTATE_BIT;
-		bus_reg &= ~resetmask;
-		break;
+		hwif->drives[0].failures = hwif->drives[1].failures = 0;
+
+		pci_write_config_byte(dev, 0x59, bus_reg & ~resetmask);
+		pci_write_config_word(dev, tristate, tri_reg & ~TRISTATE_BIT);
+		return 0;
 	case BUSSTATE_OFF:
-		hwif->drives[0].failures = hwif->drives[0].max_failures + 1;
-		hwif->drives[1].failures = hwif->drives[1].max_failures + 1;
-		if ((tri_reg & TRISTATE_BIT) == 0 && (bus_reg & resetmask))
+		if ((bus_reg & resetmask) && !(tri_reg & TRISTATE_BIT))
 			return 0;
 		tri_reg &= ~TRISTATE_BIT;
-		bus_reg |= resetmask;
 		break;
 	case BUSSTATE_TRISTATE:
-		hwif->drives[0].failures = hwif->drives[0].max_failures + 1;
-		hwif->drives[1].failures = hwif->drives[1].max_failures + 1;
-		if ((tri_reg & TRISTATE_BIT) && (bus_reg & resetmask))
+		if ((bus_reg & resetmask) &&  (tri_reg & TRISTATE_BIT))
 			return 0;
 		tri_reg |= TRISTATE_BIT;
-		bus_reg |= resetmask;
 		break;
+	default:
+		return -EINVAL;
 	}
-	pci_write_config_byte(dev, 0x59, bus_reg);
-	pci_write_config_word(dev, tristate, tri_reg);
 
+	hwif->drives[0].failures = hwif->drives[0].max_failures + 1;
+	hwif->drives[1].failures = hwif->drives[1].max_failures + 1;
+
+	pci_write_config_word(dev, tristate, tri_reg);
+	pci_write_config_byte(dev, 0x59, bus_reg | resetmask);
 	return 0;
 }
 
@@ -1306,23 +1275,11 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	if (serialize && hwif->mate)
 		hwif->serialized = hwif->mate->serialized = 1;
 
-	if (info->revision >= 3) {
-		u8 reg5ah = 0;
-			pci_write_config_byte(dev, 0x5a, reg5ah & ~0x10);
-		/*
-		 * set up ioctl for power status.
-		 * note: power affects both
-		 * drives on each channel
-		 */
-		hwif->resetproc	= &hpt3xx_reset;
-		hwif->busproc	= &hpt370_busproc;
-	} else if (info->revision >= 2) {
-		hwif->resetproc	= &hpt3xx_reset;
-		hwif->busproc	= &hpt3xx_tristate;
-	} else {
-		hwif->resetproc = &hpt3xx_reset;
-		hwif->busproc   = &hpt3xx_tristate;
-	}
+	/*
+	 * Set up ioctl for power status.
+	 * NOTE:  power affects both drives on each channel.
+	 */
+	hwif->busproc = &hpt3xx_busproc;
 
 	if (!hwif->dma_base) {
 		hwif->drives[0].autotune = 1;
