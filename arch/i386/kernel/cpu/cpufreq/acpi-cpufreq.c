@@ -126,27 +126,6 @@ static unsigned extract_freq(u32 val, struct acpi_cpufreq_data *data)
 	}
 }
 
-static void wrport(u16 port, u8 bit_width, u32 value)
-{
-	if (bit_width <= 8)
-		outb(value, port);
-	else if (bit_width <= 16)
-		outw(value, port);
-	else if (bit_width <= 32)
-		outl(value, port);
-}
-
-static void rdport(u16 port, u8 bit_width, u32 * ret)
-{
-	*ret = 0;
-	if (bit_width <= 8)
-		*ret = inb(port);
-	else if (bit_width <= 16)
-		*ret = inw(port);
-	else if (bit_width <= 32)
-		*ret = inl(port);
-}
-
 struct msr_addr {
 	u32 reg;
 };
@@ -177,7 +156,9 @@ static void do_drv_read(struct drv_cmd *cmd)
 		rdmsr(cmd->addr.msr.reg, cmd->val, h);
 		break;
 	case SYSTEM_IO_CAPABLE:
-		rdport(cmd->addr.io.port, cmd->addr.io.bit_width, &cmd->val);
+		acpi_os_read_port((acpi_io_address)cmd->addr.io.port,
+				&cmd->val,
+				(u32)cmd->addr.io.bit_width);
 		break;
 	default:
 		break;
@@ -193,7 +174,9 @@ static void do_drv_write(struct drv_cmd *cmd)
 		wrmsr(cmd->addr.msr.reg, cmd->val, h);
 		break;
 	case SYSTEM_IO_CAPABLE:
-		wrport(cmd->addr.io.port, cmd->addr.io.bit_width, cmd->val);
+		acpi_os_write_port((acpi_io_address)cmd->addr.io.port,
+				cmd->val,
+				(u32)cmd->addr.io.bit_width);
 		break;
 	default:
 		break;
