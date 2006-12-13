@@ -157,7 +157,7 @@ static int fastcall find_order(int size)
 	return order;
 }
 
-void *kmalloc(size_t size, gfp_t gfp)
+void *__kmalloc(size_t size, gfp_t gfp)
 {
 	slob_t *m;
 	bigblock_t *bb;
@@ -186,8 +186,7 @@ void *kmalloc(size_t size, gfp_t gfp)
 	slob_free(bb, sizeof(bigblock_t));
 	return 0;
 }
-
-EXPORT_SYMBOL(kmalloc);
+EXPORT_SYMBOL(__kmalloc);
 
 void kfree(const void *block)
 {
@@ -328,6 +327,17 @@ EXPORT_SYMBOL(kmem_cache_name);
 
 static struct timer_list slob_timer = TIMER_INITIALIZER(
 	(void (*)(unsigned long))kmem_cache_init, 0, 0);
+
+int kmem_cache_shrink(struct kmem_cache *d)
+{
+	return 0;
+}
+EXPORT_SYMBOL(kmem_cache_shrink);
+
+int kmem_ptr_validate(struct kmem_cache *a, void *b)
+{
+	return 0;
+}
 
 void kmem_cache_init(void)
 {
