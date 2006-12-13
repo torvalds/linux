@@ -913,8 +913,8 @@ spider_net_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
  *
  * returns 1 on success, 0 if no packet was passed to the stack
  *
- * iommu-unmaps the skb, fills out skb structure and passes the data to the
- * stack. The descriptor state is not changed.
+ * Fills out skb structure and passes the data to the stack.
+ * The descriptor state is not changed.
  */
 static int
 spider_net_pass_skb_up(struct spider_net_descr *descr,
@@ -928,10 +928,6 @@ spider_net_pass_skb_up(struct spider_net_descr *descr,
 	data_error = descr->data_error;
 
 	netdev = card->netdev;
-
-	/* unmap descriptor */
-	pci_unmap_single(card->pdev, descr->buf_addr, SPIDER_NET_MAX_FRAME,
-			PCI_DMA_FROMDEVICE);
 
 	/* the cases we'll throw away the packet immediately */
 	if (data_error & SPIDER_NET_DESTROY_RX_FLAGS) {
@@ -1015,6 +1011,11 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 	chain->tail = descr->next;
 
 	result = 0;
+
+	/* unmap descriptor */
+	pci_unmap_single(card->pdev, descr->buf_addr,
+			SPIDER_NET_MAX_FRAME, PCI_DMA_FROMDEVICE);
+
 	if ( (status == SPIDER_NET_DESCR_RESPONSE_ERROR) ||
 	     (status == SPIDER_NET_DESCR_PROTECTION_ERROR) ||
 	     (status == SPIDER_NET_DESCR_FORCE_END) ) {
@@ -1022,8 +1023,6 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 			pr_err("%s: dropping RX descriptor with state %d\n",
 			       card->netdev->name, status);
 		card->netdev_stats.rx_dropped++;
-		pci_unmap_single(card->pdev, descr->buf_addr,
-				SPIDER_NET_MAX_FRAME, PCI_DMA_FROMDEVICE);
 		dev_kfree_skb_irq(descr->skb);
 		goto refill;
 	}
@@ -1031,9 +1030,10 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 	if ( (status != SPIDER_NET_DESCR_COMPLETE) &&
 	     (status != SPIDER_NET_DESCR_FRAME_END) ) {
 		if (netif_msg_rx_err(card))
-			pr_err("%s: RX descriptor with state %d\n",
+			pr_err("%s: RX descriptor with unkown state %d\n",
 			       card->netdev->name, status);
 		card->spider_stats.rx_desc_unk_state++;
+		dev_kfree_skb_irq(descr->skb);
 		goto refill;
 	}
 
