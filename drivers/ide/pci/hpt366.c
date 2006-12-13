@@ -72,6 +72,8 @@
  *   table in which the mode lookup is done
  * - fix the hotswap code:  it caused RESET- to glitch when tristating the bus,
  *   and for HPT36x the obsolete HDIO_TRISTATE_HWIF handler was called instead
+ * - pass to init_chipset() handlers a copy of the IDE PCI device structure as
+ *   they tamper with its fields
  *		<source@mvista.com>
  *
  */
@@ -1564,13 +1566,16 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
  *
  *	Called when the PCI registration layer (or the IDE initialization)
  *	finds a device matching our IDE device tables.
+ *
+ *	NOTE: since we'll have to modify some fields of the ide_pci_device_t
+ *	structure depending on the chip's revision, we'd better pass a local
+ *	copy down the call chain...
  */
- 
 static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &hpt366_chipsets[id->driver_data];
+	ide_pci_device_t d = hpt366_chipsets[id->driver_data];
 
-	return d->init_setup(dev, d);
+	return d.init_setup(dev, &d);
 }
 
 static struct pci_device_id hpt366_pci_tbl[] = {
