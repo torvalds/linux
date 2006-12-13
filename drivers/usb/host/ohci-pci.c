@@ -311,23 +311,3 @@ static struct pci_driver ohci_pci_driver = {
 	.shutdown =	usb_hcd_pci_shutdown,
 };
 
-
-static int __init ohci_hcd_pci_init (void)
-{
-	printk (KERN_DEBUG "%s: " DRIVER_INFO " (PCI)\n", hcd_name);
-	if (usb_disabled())
-		return -ENODEV;
-
-	pr_debug ("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
-		sizeof (struct ed), sizeof (struct td));
-	return pci_register_driver (&ohci_pci_driver);
-}
-module_init (ohci_hcd_pci_init);
-
-/*-------------------------------------------------------------------------*/
-
-static void __exit ohci_hcd_pci_cleanup (void)
-{
-	pci_unregister_driver (&ohci_pci_driver);
-}
-module_exit (ohci_hcd_pci_cleanup);

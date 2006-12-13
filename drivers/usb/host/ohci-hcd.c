@@ -855,63 +855,131 @@ MODULE_LICENSE ("GPL");
 
 #ifdef CONFIG_PCI
 #include "ohci-pci.c"
+#define PCI_DRIVER		ohci_pci_driver
 #endif
 
 #ifdef CONFIG_SA1111
 #include "ohci-sa1111.c"
+#define SA1111_DRIVER		ohci_hcd_sa1111_driver
 #endif
 
 #ifdef CONFIG_ARCH_S3C2410
 #include "ohci-s3c2410.c"
+#define PLATFORM_DRIVER		ohci_hcd_s3c2410_driver
 #endif
 
 #ifdef CONFIG_ARCH_OMAP
 #include "ohci-omap.c"
+#define PLATFORM_DRIVER		ohci_hcd_omap_driver
 #endif
 
 #ifdef CONFIG_ARCH_LH7A404
 #include "ohci-lh7a404.c"
+#define PLATFORM_DRIVER		ohci_hcd_lh7a404_driver
 #endif
 
 #ifdef CONFIG_PXA27x
 #include "ohci-pxa27x.c"
+#define PLATFORM_DRIVER		ohci_hcd_pxa27x_driver
 #endif
 
 #ifdef CONFIG_ARCH_EP93XX
 #include "ohci-ep93xx.c"
+#define PLATFORM_DRIVER		ohci_hcd_ep93xx_driver
 #endif
 
 #ifdef CONFIG_SOC_AU1X00
 #include "ohci-au1xxx.c"
+#define PLATFORM_DRIVER		ohci_hcd_au1xxx_driver
 #endif
 
 #ifdef CONFIG_PNX8550
 #include "ohci-pnx8550.c"
+#define PLATFORM_DRIVER		ohci_hcd_pnx8550_driver
 #endif
 
 #ifdef CONFIG_USB_OHCI_HCD_PPC_SOC
 #include "ohci-ppc-soc.c"
+#define PLATFORM_DRIVER		ohci_hcd_ppc_soc_driver
 #endif
 
 #ifdef CONFIG_ARCH_AT91
 #include "ohci-at91.c"
+#define PLATFORM_DRIVER		ohci_hcd_at91_driver
 #endif
 
 #ifdef CONFIG_ARCH_PNX4008
 #include "ohci-pnx4008.c"
+#define PLATFORM_DRIVER		usb_hcd_pnx4008_driver
 #endif
 
-#if !(defined(CONFIG_PCI) \
-      || defined(CONFIG_SA1111) \
-      || defined(CONFIG_ARCH_S3C2410) \
-      || defined(CONFIG_ARCH_OMAP) \
-      || defined (CONFIG_ARCH_LH7A404) \
-      || defined (CONFIG_PXA27x) \
-      || defined (CONFIG_ARCH_EP93XX) \
-      || defined (CONFIG_SOC_AU1X00) \
-      || defined (CONFIG_USB_OHCI_HCD_PPC_SOC) \
-      || defined (CONFIG_ARCH_AT91) \
-      || defined (CONFIG_ARCH_PNX4008) \
-	)
+
+#if	!defined(PCI_DRIVER) &&		\
+	!defined(PLATFORM_DRIVER) &&	\
+	!defined(SA1111_DRIVER)
 #error "missing bus glue for ohci-hcd"
 #endif
+
+static int __init ohci_hcd_mod_init(void)
+{
+	int retval = 0;
+	int ls = 0;
+
+	if (usb_disabled())
+		return -ENODEV;
+
+	printk (KERN_DEBUG "%s: " DRIVER_INFO "\n", hcd_name);
+	pr_debug ("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
+		sizeof (struct ed), sizeof (struct td));
+
+#ifdef PLATFORM_DRIVER
+	retval = platform_driver_register(&PLATFORM_DRIVER);
+	if (retval < 0)
+		return retval;
+	ls++;
+#endif
+
+#ifdef SA1111_DRIVER
+	retval = sa1111_driver_register(&SA1111_DRIVER);
+	if (retval < 0)
+		goto error;
+	ls++;
+#endif
+
+#ifdef PCI_DRIVER
+	retval = pci_register_driver(&PCI_DRIVER);
+	if (retval < 0)
+		goto error;
+	ls++;
+#endif
+
+	return retval;
+
+	/* Error path */
+error:
+#ifdef PLATFORM_DRIVER
+	if (ls--)
+		platform_driver_unregister(&PLATFORM_DRIVER);
+#endif
+#ifdef SA1111_DRIVER
+	if (ls--)
+		sa1111_driver_unregister(&SA1111_DRIVER);
+#endif
+	return retval;
+}
+module_init(ohci_hcd_mod_init);
+
+static void __exit ohci_hcd_mod_exit(void)
+{
+#ifdef PCI_DRIVER
+	pci_unregister_driver(&PCI_DRIVER);
+#endif
+#ifdef SA1111_DRIVER
+	sa1111_driver_unregister(&SA1111_DRIVER);
+#endif
+#ifdef PLATFORM_DRIVER
+	platform_driver_unregister(&PLATFORM_DRIVER);
+#endif
+}
+module_exit(ohci_hcd_mod_exit);
+

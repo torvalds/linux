@@ -320,18 +320,3 @@ static struct platform_driver ohci_hcd_at91_driver = {
 	},
 };
 
-static int __init ohci_hcd_at91_init (void)
-{
-	if (usb_disabled())
-		return -ENODEV;
-
-	return platform_driver_register(&ohci_hcd_at91_driver);
-}
-
-static void __exit ohci_hcd_at91_cleanup (void)
-{
-	platform_driver_unregister(&ohci_hcd_at91_driver);
-}
-
-module_init (ohci_hcd_at91_init);
-module_exit (ohci_hcd_at91_cleanup);
