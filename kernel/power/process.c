@@ -60,13 +60,16 @@ static inline void freeze_process(struct task_struct *p)
 	unsigned long flags;
 
 	if (!freezing(p)) {
-		if (p->state == TASK_STOPPED)
-			force_sig_specific(SIGSTOP, p);
+		rmb();
+		if (!frozen(p)) {
+			if (p->state == TASK_STOPPED)
+				force_sig_specific(SIGSTOP, p);
 
-		freeze(p);
-		spin_lock_irqsave(&p->sighand->siglock, flags);
-		signal_wake_up(p, p->state == TASK_STOPPED);
-		spin_unlock_irqrestore(&p->sighand->siglock, flags);
+			freeze(p);
+			spin_lock_irqsave(&p->sighand->siglock, flags);
+			signal_wake_up(p, p->state == TASK_STOPPED);
+			spin_unlock_irqrestore(&p->sighand->siglock, flags);
+		}
 	}
 }
 
