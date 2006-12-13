@@ -219,9 +219,12 @@ static int cfq_queue_empty(request_queue_t *q)
 	return !cfqd->busy_queues;
 }
 
-static inline pid_t cfq_queue_pid(struct task_struct *task, int rw)
+static inline pid_t cfq_queue_pid(struct task_struct *task, int rw, int is_sync)
 {
-	if (rw == READ || rw == WRITE_SYNC)
+	/*
+	 * Use the per-process queue, for read requests and syncronous writes
+	 */
+	if (!(rw & REQ_RW) || is_sync)
 		return task->pid;
 
 	return CFQ_KEY_ASYNC;
@@ -473,7 +476,7 @@ static struct request *
 cfq_find_rq_fmerge(struct cfq_data *cfqd, struct bio *bio)
 {
 	struct task_struct *tsk = current;
-	pid_t key = cfq_queue_pid(tsk, bio_data_dir(bio));
+	pid_t key = cfq_queue_pid(tsk, bio_data_dir(bio), bio_sync(bio));
 	struct cfq_queue *cfqq;
 
 	cfqq = cfq_find_cfq_hash(cfqd, key, tsk->ioprio);
@@ -1748,6 +1751,9 @@ static int cfq_may_queue(request_queue_t *q, int rw)
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct task_struct *tsk = current;
 	struct cfq_queue *cfqq;
+	unsigned int key;
+
+	key = cfq_queue_pid(tsk, rw, rw & REQ_RW_SYNC);
 
 	/*
 	 * don't force setup of a queue from here, as a call to may_queue
@@ -1755,7 +1761,7 @@ static int cfq_may_queue(request_queue_t *q, int rw)
 	 * so just lookup a possibly existing queue, or return 'may queue'
 	 * if that fails
 	 */
-	cfqq = cfq_find_cfq_hash(cfqd, cfq_queue_pid(tsk, rw), tsk->ioprio);
+	cfqq = cfq_find_cfq_hash(cfqd, key, tsk->ioprio);
 	if (cfqq) {
 		cfq_init_prio_data(cfqq);
 		cfq_prio_boost(cfqq);
@@ -1798,10 +1804,10 @@ cfq_set_request(request_queue_t *q, struct request *rq, gfp_t gfp_mask)
 	struct task_struct *tsk = current;
 	struct cfq_io_context *cic;
 	const int rw = rq_data_dir(rq);
-	pid_t key = cfq_queue_pid(tsk, rw);
+	const int is_sync = rq_is_sync(rq);
+	pid_t key = cfq_queue_pid(tsk, rw, is_sync);
 	struct cfq_queue *cfqq;
 	unsigned long flags;
-	int is_sync = key != CFQ_KEY_ASYNC;
 
 	might_sleep_if(gfp_mask & __GFP_WAIT);
 
