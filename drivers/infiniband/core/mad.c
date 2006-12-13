@@ -998,17 +998,17 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 
 	mad_agent = mad_send_wr->send_buf.mad_agent;
 	sge = mad_send_wr->sg_list;
-	sge[0].addr = dma_map_single(mad_agent->device->dma_device,
-				     mad_send_wr->send_buf.mad,
-				     sge[0].length,
-				     DMA_TO_DEVICE);
-	pci_unmap_addr_set(mad_send_wr, header_mapping, sge[0].addr);
+	sge[0].addr = ib_dma_map_single(mad_agent->device,
+					mad_send_wr->send_buf.mad,
+					sge[0].length,
+					DMA_TO_DEVICE);
+	mad_send_wr->header_mapping = sge[0].addr;
 
-	sge[1].addr = dma_map_single(mad_agent->device->dma_device,
-				     ib_get_payload(mad_send_wr),
-				     sge[1].length,
-				     DMA_TO_DEVICE);
-	pci_unmap_addr_set(mad_send_wr, payload_mapping, sge[1].addr);
+	sge[1].addr = ib_dma_map_single(mad_agent->device,
+					ib_get_payload(mad_send_wr),
+					sge[1].length,
+					DMA_TO_DEVICE);
+	mad_send_wr->payload_mapping = sge[1].addr;
 
 	spin_lock_irqsave(&qp_info->send_queue.lock, flags);
 	if (qp_info->send_queue.count < qp_info->send_queue.max_active) {
@@ -1026,12 +1026,12 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 	}
 	spin_unlock_irqrestore(&qp_info->send_queue.lock, flags);
 	if (ret) {
-		dma_unmap_single(mad_agent->device->dma_device,
-				 pci_unmap_addr(mad_send_wr, header_mapping),
-				 sge[0].length, DMA_TO_DEVICE);
-		dma_unmap_single(mad_agent->device->dma_device,
-				 pci_unmap_addr(mad_send_wr, payload_mapping),
-				 sge[1].length, DMA_TO_DEVICE);
+		ib_dma_unmap_single(mad_agent->device,
+				    mad_send_wr->header_mapping,
+				    sge[0].length, DMA_TO_DEVICE);
+		ib_dma_unmap_single(mad_agent->device,
+				    mad_send_wr->payload_mapping,
+				    sge[1].length, DMA_TO_DEVICE);
 	}
 	return ret;
 }
@@ -1850,11 +1850,11 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 	mad_priv_hdr = container_of(mad_list, struct ib_mad_private_header,
 				    mad_list);
 	recv = container_of(mad_priv_hdr, struct ib_mad_private, header);
-	dma_unmap_single(port_priv->device->dma_device,
-			 pci_unmap_addr(&recv->header, mapping),
-			 sizeof(struct ib_mad_private) -
-			 sizeof(struct ib_mad_private_header),
-			 DMA_FROM_DEVICE);
+	ib_dma_unmap_single(port_priv->device,
+			    recv->header.mapping,
+			    sizeof(struct ib_mad_private) -
+			      sizeof(struct ib_mad_private_header),
+			    DMA_FROM_DEVICE);
 
 	/* Setup MAD receive work completion from "normal" work completion */
 	recv->header.wc = *wc;
@@ -2080,12 +2080,12 @@ static void ib_mad_send_done_handler(struct ib_mad_port_private *port_priv,
 	qp_info = send_queue->qp_info;
 
 retry:
-	dma_unmap_single(mad_send_wr->send_buf.mad_agent->device->dma_device,
-			 pci_unmap_addr(mad_send_wr, header_mapping),
-			 mad_send_wr->sg_list[0].length, DMA_TO_DEVICE);
-	dma_unmap_single(mad_send_wr->send_buf.mad_agent->device->dma_device,
-			 pci_unmap_addr(mad_send_wr, payload_mapping),
-			 mad_send_wr->sg_list[1].length, DMA_TO_DEVICE);
+	ib_dma_unmap_single(mad_send_wr->send_buf.mad_agent->device,
+			    mad_send_wr->header_mapping,
+			    mad_send_wr->sg_list[0].length, DMA_TO_DEVICE);
+	ib_dma_unmap_single(mad_send_wr->send_buf.mad_agent->device,
+			    mad_send_wr->payload_mapping,
+			    mad_send_wr->sg_list[1].length, DMA_TO_DEVICE);
 	queued_send_wr = NULL;
 	spin_lock_irqsave(&send_queue->lock, flags);
 	list_del(&mad_list->list);
@@ -2528,13 +2528,12 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 				break;
 			}
 		}
-		sg_list.addr = dma_map_single(qp_info->port_priv->
-					        device->dma_device,
-					      &mad_priv->grh,
-					      sizeof *mad_priv -
-					        sizeof mad_priv->header,
-					      DMA_FROM_DEVICE);
-		pci_unmap_addr_set(&mad_priv->header, mapping, sg_list.addr);
+		sg_list.addr = ib_dma_map_single(qp_info->port_priv->device,
+						 &mad_priv->grh,
+						 sizeof *mad_priv -
+						   sizeof mad_priv->header,
+						 DMA_FROM_DEVICE);
+		mad_priv->header.mapping = sg_list.addr;
 		recv_wr.wr_id = (unsigned long)&mad_priv->header.mad_list;
 		mad_priv->header.mad_list.mad_queue = recv_queue;
 
@@ -2549,12 +2548,11 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 			list_del(&mad_priv->header.mad_list.list);
 			recv_queue->count--;
 			spin_unlock_irqrestore(&recv_queue->lock, flags);
-			dma_unmap_single(qp_info->port_priv->device->dma_device,
-					 pci_unmap_addr(&mad_priv->header,
-							mapping),
-					 sizeof *mad_priv -
-					   sizeof mad_priv->header,
-					 DMA_FROM_DEVICE);
+			ib_dma_unmap_single(qp_info->port_priv->device,
+					    mad_priv->header.mapping,
+					    sizeof *mad_priv -
+					      sizeof mad_priv->header,
+					    DMA_FROM_DEVICE);
 			kmem_cache_free(ib_mad_cache, mad_priv);
 			printk(KERN_ERR PFX "ib_post_recv failed: %d\n", ret);
 			break;
@@ -2586,11 +2584,11 @@ static void cleanup_recv_queue(struct ib_mad_qp_info *qp_info)
 		/* Remove from posted receive MAD list */
 		list_del(&mad_list->list);
 
-		dma_unmap_single(qp_info->port_priv->device->dma_device,
-				 pci_unmap_addr(&recv->header, mapping),
-				 sizeof(struct ib_mad_private) -
-				 sizeof(struct ib_mad_private_header),
-				 DMA_FROM_DEVICE);
+		ib_dma_unmap_single(qp_info->port_priv->device,
+				    recv->header.mapping,
+				    sizeof(struct ib_mad_private) -
+				      sizeof(struct ib_mad_private_header),
+				    DMA_FROM_DEVICE);
 		kmem_cache_free(ib_mad_cache, recv);
 	}
 

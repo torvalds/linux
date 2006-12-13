@@ -134,7 +134,7 @@ int ipath_lkey_ok(struct ipath_qp *qp, struct ipath_sge *isge,
 	 */
 	if (sge->lkey == 0) {
 		isge->mr = NULL;
-		isge->vaddr = bus_to_virt(sge->addr);
+		isge->vaddr = (void *) sge->addr;
 		isge->length = sge->length;
 		isge->sge_length = sge->length;
 		ret = 1;
@@ -202,12 +202,12 @@ int ipath_rkey_ok(struct ipath_qp *qp, struct ipath_sge_state *ss,
 	int ret;
 
 	/*
-	 * We use RKEY == zero for physical addresses
-	 * (see ipath_get_dma_mr).
+	 * We use RKEY == zero for kernel virtual addresses
+	 * (see ipath_get_dma_mr and ipath_dma.c).
 	 */
 	if (rkey == 0) {
 		sge->mr = NULL;
-		sge->vaddr = phys_to_virt(vaddr);
+		sge->vaddr = (void *) vaddr;
 		sge->length = len;
 		sge->sge_length = len;
 		ss->sg_list = NULL;

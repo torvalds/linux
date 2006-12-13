@@ -32,8 +32,8 @@
 
 #include <rdma/ib_marshall.h>
 
-static void ib_copy_ah_attr_to_user(struct ib_uverbs_ah_attr *dst,
-				    struct ib_ah_attr *src)
+void ib_copy_ah_attr_to_user(struct ib_uverbs_ah_attr *dst,
+			     struct ib_ah_attr *src)
 {
 	memcpy(dst->grh.dgid, src->grh.dgid.raw, sizeof src->grh.dgid);
 	dst->grh.flow_label        = src->grh.flow_label;
@@ -47,6 +47,7 @@ static void ib_copy_ah_attr_to_user(struct ib_uverbs_ah_attr *dst,
 	dst->is_global             = src->ah_flags & IB_AH_GRH ? 1 : 0;
 	dst->port_num 	    	   = src->port_num;
 }
+EXPORT_SYMBOL(ib_copy_ah_attr_to_user);
 
 void ib_copy_qp_attr_to_user(struct ib_uverbs_qp_attr *dst,
 			     struct ib_qp_attr *src)

@@ -598,10 +598,9 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 	 * on close
 	 */
 	if (errs & INFINIPATH_E_RRCVHDRFULL) {
-		int any;
 		u32 hd, tl;
 		ipath_stats.sps_hdrqfull++;
-		for (any = i = 0; i < dd->ipath_cfgports; i++) {
+		for (i = 0; i < dd->ipath_cfgports; i++) {
 			struct ipath_portdata *pd = dd->ipath_pd[i];
 			if (i == 0) {
 				hd = dd->ipath_port0head;
