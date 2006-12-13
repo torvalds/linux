@@ -3571,6 +3571,14 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	lock_rsb(r);
 
 	switch (error) {
+	case -EBADR:
+		/* There's a chance the new master received our lock before
+		   dlm_recover_master_reply(), this wouldn't happen if we did
+		   a barrier between recover_masters and recover_locks. */
+		log_debug(ls, "master copy not ready %x r %lx %s", lkb->lkb_id,
+			  (unsigned long)r, r->res_name);
+		dlm_send_rcom_lock(r, lkb);
+		goto out;
 	case -EEXIST:
 		log_debug(ls, "master copy exists %x", lkb->lkb_id);
 		/* fall through */
@@ -3585,7 +3593,7 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	/* an ack for dlm_recover_locks() which waits for replies from
 	   all the locks it sends to new masters */
 	dlm_recovered_lock(r);
-
+ out:
 	unlock_rsb(r);
 	put_rsb(r);
 	dlm_put_lkb(lkb);
