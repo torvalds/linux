@@ -115,6 +115,7 @@ struct arch_specific_insn {
  #define INST_FLAG_BREAK_INST			4
  	unsigned long inst_flag;
  	unsigned short target_br_reg;
+	unsigned short slot;
 };
 
 extern int kprobe_exceptions_notify(struct notifier_block *self,

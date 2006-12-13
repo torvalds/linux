@@ -595,14 +595,9 @@ find_largest_hole (u64 start, u64 end, void *arg)
 }
 
 int __init
-register_active_ranges(u64 start, u64 end, void *nid)
+register_active_ranges(u64 start, u64 end, void *arg)
 {
-	BUG_ON(nid == NULL);
-	BUG_ON(*(unsigned long *)nid >= MAX_NUMNODES);
-
-	add_active_range(*(unsigned long *)nid,
-				__pa(start) >> PAGE_SHIFT,
-				__pa(end) >> PAGE_SHIFT);
+	add_active_range(0, __pa(start) >> PAGE_SHIFT, __pa(end) >> PAGE_SHIFT);
 	return 0;
 }
 #endif /* CONFIG_VIRTUAL_MEM_MAP */

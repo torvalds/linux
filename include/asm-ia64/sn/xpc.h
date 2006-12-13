@@ -673,7 +673,7 @@ extern irqreturn_t xpc_notify_IRQ_handler(int, void *);
 extern void xpc_dropped_IPI_check(struct xpc_partition *);
 extern void xpc_activate_partition(struct xpc_partition *);
 extern void xpc_activate_kthreads(struct xpc_channel *, int);
-extern void xpc_create_kthreads(struct xpc_channel *, int);
+extern void xpc_create_kthreads(struct xpc_channel *, int, int);
 extern void xpc_disconnect_wait(int);
 
 

@@ -256,7 +256,7 @@ reserve_memory (void)
 
 #ifdef CONFIG_KEXEC
 	/* crashkernel=size@offset specifies the size to reserve for a crash
-	 * kernel.(offset is ingored for keep compatibility with other archs)
+	 * kernel. If offset is 0, then it is determined automatically.
 	 * By reserving this memory we guarantee that linux never set's it
 	 * up as a DMA target.Useful for holding code to do something
 	 * appropriate after a kernel panic.
@@ -266,10 +266,16 @@ reserve_memory (void)
 		unsigned long base, size;
 		if (from) {
 			size = memparse(from + 12, &from);
+			if (*from == '@')
+				base = memparse(from+1, &from);
+			else
+				base = 0;
 			if (size) {
-				sort_regions(rsvd_region, n);
-				base = kdump_find_rsvd_region(size,
-				rsvd_region, n);
+				if (!base) {
+					sort_regions(rsvd_region, n);
+					base = kdump_find_rsvd_region(size,
+							      	rsvd_region, n);
+					}
 				if (base != ~0UL) {
 					rsvd_region[n].start =
 						(unsigned long)__va(base);
@@ -433,6 +439,21 @@ static __init int setup_nomca(char *s)
 	return 0;
 }
 early_param("nomca", setup_nomca);
+
+#ifdef CONFIG_PROC_VMCORE
+/* elfcorehdr= specifies the location of elf core header
+ * stored by the crashed kernel.
+ */
+static int __init parse_elfcorehdr(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+        elfcorehdr_addr = memparse(arg, &arg);
+	return 0;
+}
+early_param("elfcorehdr", parse_elfcorehdr);
+#endif /* CONFIG_PROC_VMCORE */
 
 void __init
 setup_arch (char **cmdline_p)
@@ -653,6 +674,7 @@ get_model_name(__u8 family, __u8 model)
 {
 	char brand[128];
 
+	memcpy(brand, "Unknown", 8);
 	if (ia64_pal_get_brand_info(brand)) {
 		if (family == 0x7)
 			memcpy(brand, "Merced", 7);
@@ -660,8 +682,7 @@ get_model_name(__u8 family, __u8 model)
 			case 0: memcpy(brand, "McKinley", 9); break;
 			case 1: memcpy(brand, "Madison", 8); break;
 			case 2: memcpy(brand, "Madison up to 9M cache", 23); break;
-		} else
-			memcpy(brand, "Unknown", 8);
+		}
 	}
 	if (brandname[0] == '\0')
 		return strcpy(brandname, brand);

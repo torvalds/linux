@@ -19,8 +19,11 @@
 #include <asm/delay.h>
 #include <asm/meminit.h>
 
-typedef void (*relocate_new_kernel_t)(unsigned long, unsigned long,
-		struct ia64_boot_param *, unsigned long);
+typedef NORET_TYPE void (*relocate_new_kernel_t)(
+					unsigned long indirection_page,
+					unsigned long start_address,
+					struct ia64_boot_param *boot_param,
+					unsigned long pal_addr) ATTRIB_NORET;
 
 struct kimage *ia64_kimage;
 
