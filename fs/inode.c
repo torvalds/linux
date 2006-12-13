@@ -1144,7 +1144,6 @@ sector_t bmap(struct inode * inode, sector_t block)
 		res = inode->i_mapping->a_ops->bmap(inode->i_mapping, block);
 	return res;
 }
-
 EXPORT_SYMBOL(bmap);
 
 /**
@@ -1163,19 +1162,22 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
 
 	if (IS_RDONLY(inode))
 		return;
-
-	if ((inode->i_flags & S_NOATIME) ||
-	    (inode->i_sb->s_flags & MS_NOATIME) ||
-	    ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode)))
+	if (inode->i_flags & S_NOATIME)
+		return;
+	if (inode->i_sb->s_flags & MS_NOATIME)
+		return;
+	if ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode))
 		return;
 
 	/*
 	 * We may have a NULL vfsmount when coming from NFSD
 	 */
-	if (mnt &&
-	    ((mnt->mnt_flags & MNT_NOATIME) ||
-	     ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))))
-		return;
+	if (mnt) {
+		if (mnt->mnt_flags & MNT_NOATIME)
+			return;
+		if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))
+			return;
+	}
 
 	now = current_fs_time(inode->i_sb);
 	if (!timespec_equal(&inode->i_atime, &now)) {
@@ -1183,7 +1185,6 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
 		mark_inode_dirty_sync(inode);
 	}
 }
-
 EXPORT_SYMBOL(touch_atime);
 
 /**
