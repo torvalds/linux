@@ -173,6 +173,26 @@ static inline void set_copro_access(unsigned int val)
 extern unsigned long cr_no_alignment;	/* defined in entry-armv.S */
 extern unsigned long cr_alignment;	/* defined in entry-armv.S */
 
+#ifndef CONFIG_SMP
+static inline void adjust_cr(unsigned long mask, unsigned long set)
+{
+	unsigned long flags, cr;
+
+	mask &= ~CR_A;
+
+	set &= mask;
+
+	local_irq_save(flags);
+
+	cr_no_alignment = (cr_no_alignment & ~mask) | set;
+	cr_alignment = (cr_alignment & ~mask) | set;
+
+	set_cr((get_cr() & ~mask) | set);
+
+	local_irq_restore(flags);
+}
+#endif
+
 #define UDBG_UNDEFINED	(1 << 0)
 #define UDBG_SYSCALL	(1 << 1)
 #define UDBG_BADABORT	(1 << 2)
