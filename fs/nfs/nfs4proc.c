@@ -2711,11 +2711,15 @@ static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs_client *clp)
 
 	might_sleep();
 
+	rwsem_acquire(&clp->cl_sem.dep_map, 0, 0, _RET_IP_);
+
 	rpc_clnt_sigmask(clnt, &oldset);
 	res = wait_on_bit(&clp->cl_state, NFS4CLNT_STATE_RECOVER,
 			nfs4_wait_bit_interruptible,
 			TASK_INTERRUPTIBLE);
 	rpc_clnt_sigunmask(clnt, &oldset);
+
+	rwsem_release(&clp->cl_sem.dep_map, 1, _RET_IP_);
 	return res;
 }
 
