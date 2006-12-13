@@ -34,9 +34,6 @@ typedef u_int	event_t;
 typedef u_char	cisdata_t;
 typedef u_short	page_t;
 
-struct pcmcia_device;
-typedef struct pcmcia_device *client_handle_t;
-
 struct window_t;
 typedef struct window_t *window_handle_t;
 
