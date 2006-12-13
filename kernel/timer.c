@@ -1146,11 +1146,15 @@ static inline void calc_load(unsigned long ticks)
 	unsigned long active_tasks; /* fixed-point */
 	static int count = LOAD_FREQ;
 
-	active_tasks = count_active_tasks();
-	for (count -= ticks; count < 0; count += LOAD_FREQ) {
-		CALC_LOAD(avenrun[0], EXP_1, active_tasks);
-		CALC_LOAD(avenrun[1], EXP_5, active_tasks);
-		CALC_LOAD(avenrun[2], EXP_15, active_tasks);
+	count -= ticks;
+	if (unlikely(count < 0)) {
+		active_tasks = count_active_tasks();
+		do {
+			CALC_LOAD(avenrun[0], EXP_1, active_tasks);
+			CALC_LOAD(avenrun[1], EXP_5, active_tasks);
+			CALC_LOAD(avenrun[2], EXP_15, active_tasks);
+			count += LOAD_FREQ;
+		} while (count < 0);
 	}
 }
 
