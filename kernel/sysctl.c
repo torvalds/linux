@@ -65,7 +65,6 @@ extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
 extern int sysctl_panic_on_oom;
 extern int max_threads;
-extern int sysrq_enabled;
 extern int core_uses_pid;
 extern int suid_dumpable;
 extern char core_pattern[];
@@ -543,7 +542,7 @@ static ctl_table kern_table[] = {
 	{
 		.ctl_name	= KERN_SYSRQ,
 		.procname	= "sysrq",
-		.data		= &sysrq_enabled,
+		.data		= &__sysrq_enabled,
 		.maxlen		= sizeof (int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,

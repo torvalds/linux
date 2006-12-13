@@ -1656,6 +1656,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	sym53c416=	[HW,SCSI]
 			See header of drivers/scsi/sym53c416.c.
 
+	sysrq_always_enabled
+			[KNL]
+			Ignore sysrq setting - this boot parameter will
+			neutralize any effect of /proc/sys/kernel/sysrq.
+			Useful for debugging.
+
 	t128=		[HW,SCSI]
 			See header of drivers/scsi/t128.c.
 

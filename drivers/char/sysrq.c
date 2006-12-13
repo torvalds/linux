@@ -41,7 +41,34 @@
 #include <asm/irq_regs.h>
 
 /* Whether we react on sysrq keys or just ignore them */
-int sysrq_enabled = 1;
+int __read_mostly __sysrq_enabled = 1;
+
+static int __read_mostly sysrq_always_enabled;
+
+int sysrq_on(void)
+{
+	return __sysrq_enabled || sysrq_always_enabled;
+}
+
+/*
+ * A value of 1 means 'all', other nonzero values are an op mask:
+ */
+static inline int sysrq_on_mask(int mask)
+{
+	return sysrq_always_enabled || __sysrq_enabled == 1 ||
+						(__sysrq_enabled & mask);
+}
+
+static int __init sysrq_always_enabled_setup(char *str)
+{
+	sysrq_always_enabled = 1;
+	printk(KERN_INFO "debug: sysrq always enabled.\n");
+
+	return 1;
+}
+
+__setup("sysrq_always_enabled", sysrq_always_enabled_setup);
+
 
 static void sysrq_handle_loglevel(int key, struct tty_struct *tty)
 {
@@ -379,8 +406,7 @@ void __handle_sysrq(int key, struct tty_struct *tty, int check_mask)
 		 * Should we check for enabled operations (/proc/sysrq-trigger
 		 * should not) and is the invoked operation enabled?
 		 */
-		if (!check_mask || sysrq_enabled == 1 ||
-		    (sysrq_enabled & op_p->enable_mask)) {
+		if (!check_mask || sysrq_on_mask(op_p->enable_mask)) {
 			printk("%s\n", op_p->action_msg);
 			console_loglevel = orig_log_level;
 			op_p->handler(key, tty);
@@ -414,9 +440,8 @@ void __handle_sysrq(int key, struct tty_struct *tty, int check_mask)
  */
 void handle_sysrq(int key, struct tty_struct *tty)
 {
-	if (!sysrq_enabled)
-		return;
-	__handle_sysrq(key, tty, 1);
+	if (sysrq_on())
+		__handle_sysrq(key, tty, 1);
 }
 EXPORT_SYMBOL(handle_sysrq);
 

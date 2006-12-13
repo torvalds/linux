@@ -61,10 +61,7 @@
 static DEFINE_SPINLOCK(consolelock);
 static DEFINE_SPINLOCK(consoleloglock);
 
-#ifdef CONFIG_MAGIC_SYSRQ
 static int vio_sysrq_pressed;
-extern int sysrq_enabled;
-#endif
 
 #define VIOCHAR_NUM_BUF		16
 
@@ -936,8 +933,10 @@ static void vioHandleData(struct HvLpEvent *event)
 	 */
 	num_pushed = 0;
 	for (index = 0; index < cevent->len; index++) {
-#ifdef CONFIG_MAGIC_SYSRQ
-		if (sysrq_enabled) {
+		/*
+		 * Will be optimized away if !CONFIG_MAGIC_SYSRQ:
+		 */
+		if (sysrq_on()) {
 			/* 0x0f is the ascii character for ^O */
 			if (cevent->data[index] == '\x0f') {
 				vio_sysrq_pressed = 1;
@@ -956,7 +955,6 @@ static void vioHandleData(struct HvLpEvent *event)
 				continue;
 			}
 		}
-#endif
 		/*
 		 * The sysrq sequence isn't included in this check if
 		 * sysrq is enabled and compiled into the kernel because
