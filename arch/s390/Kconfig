@@ -407,7 +407,7 @@ config APPLDATA_BASE
 
 config APPLDATA_MEM
 	tristate "Monitor memory management statistics"
-	depends on APPLDATA_BASE
+	depends on APPLDATA_BASE && VM_EVENT_COUNTERS
 	help
 	  This provides memory management related data to the Linux - VM Monitor
 	  Stream, like paging/swapping rate, memory utilisation, etc.
