@@ -3004,7 +3004,7 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	}
 	return 0;
 
-      err_out_free_res:
+err_out_free_res:
 	/*
 	 * Deliberately omit pci_disable_device(): it does something nasty to
 	 * Smart Array controllers that pci_enable_device does not undo
