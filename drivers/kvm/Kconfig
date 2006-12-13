@@ -1,6 +1,8 @@
 #
 # KVM configuration
 #
+menu "Virtualization"
+
 config KVM
 	tristate "Kernel-based Virtual Machine (KVM) support"
 	depends on X86 && EXPERIMENTAL
@@ -31,3 +33,5 @@ config KVM_AMD
 	---help---
 	  Provides support for KVM on AMD processors equipped with the AMD-V
 	  (SVM) extensions.
+
+endmenu
