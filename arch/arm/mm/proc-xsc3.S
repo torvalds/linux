@@ -357,13 +357,13 @@ ENTRY(cpu_xsc3_switch_mm)
 	cpwait_ret lr, ip
 
 /*
- * cpu_xsc3_set_pte(ptep, pte)
+ * cpu_xsc3_set_pte_ext(ptep, pte, ext)
  *
  * Set a PTE and flush it out
  *
  */
 	.align	5
-ENTRY(cpu_xsc3_set_pte)
+ENTRY(cpu_xsc3_set_pte_ext)
 	str	r1, [r0], #-2048		@ linux version
 
 	bic	r2, r1, #0xff0			@ Keep C, B bits
@@ -457,7 +457,7 @@ ENTRY(xsc3_processor_functions)
 	.word	cpu_xsc3_do_idle
 	.word	cpu_xsc3_dcache_clean_area
 	.word	cpu_xsc3_switch_mm
-	.word	cpu_xsc3_set_pte
+	.word	cpu_xsc3_set_pte_ext
 	.size	xsc3_processor_functions, . - xsc3_processor_functions
 
 	.section ".rodata"

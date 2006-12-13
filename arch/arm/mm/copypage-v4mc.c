@@ -71,7 +71,7 @@ void v4_mc_copy_user_page(void *kto, const void *kfrom, unsigned long vaddr)
 {
 	spin_lock(&minicache_lock);
 
-	set_pte(TOP_PTE(0xffff8000), pfn_pte(__pa(kfrom) >> PAGE_SHIFT, minicache_pgprot));
+	set_pte_ext(TOP_PTE(0xffff8000), pfn_pte(__pa(kfrom) >> PAGE_SHIFT, minicache_pgprot), 0);
 	flush_tlb_kernel_page(0xffff8000);
 
 	mc_copy_user_page((void *)0xffff8000, kto);

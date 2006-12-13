@@ -294,12 +294,6 @@ static void __init build_mem_type_table(void)
 		mem_types[MT_DEVICE].prot_pte |= L_PTE_BUFFERABLE;
 		mem_types[MT_DEVICE].prot_sect |= PMD_SECT_BUFFERED;
 
-		/*
-		 * User pages need to be mapped with the ASID
-		 * (iow, non-global)
-		 */
-		user_pgprot |= L_PTE_ASID;
-
 #ifdef CONFIG_SMP
 		/*
 		 * Mark memory with the "shared" attribute for SMP systems
@@ -408,7 +402,7 @@ alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pg
 	}
 	ptep = pte_offset_kernel(pmdp, virt);
 
-	set_pte(ptep, pfn_pte(phys >> PAGE_SHIFT, prot));
+	set_pte_ext(ptep, pfn_pte(phys >> PAGE_SHIFT, prot), 0);
 }
 
 /*

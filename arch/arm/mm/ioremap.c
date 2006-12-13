@@ -38,89 +38,71 @@
  */
 #define VM_ARM_SECTION_MAPPING	0x80000000
 
-static inline void
-remap_area_pte(pte_t * pte, unsigned long address, unsigned long size,
-	       unsigned long phys_addr, pgprot_t pgprot)
+static int remap_area_pte(pmd_t *pmd, unsigned long addr, unsigned long end,
+			  unsigned long phys_addr, pgprot_t prot)
 {
-	unsigned long end;
+	pte_t *pte;
 
-	address &= ~PMD_MASK;
-	end = address + size;
-	if (end > PMD_SIZE)
-		end = PMD_SIZE;
-	BUG_ON(address >= end);
+	pte = pte_alloc_kernel(pmd, addr);
+	if (!pte)
+		return -ENOMEM;
+
 	do {
 		if (!pte_none(*pte))
 			goto bad;
 
-		set_pte(pte, pfn_pte(phys_addr >> PAGE_SHIFT, pgprot));
-		address += PAGE_SIZE;
+		set_pte_ext(pte, pfn_pte(phys_addr >> PAGE_SHIFT, prot), 0);
 		phys_addr += PAGE_SIZE;
-		pte++;
-	} while (address && (address < end));
-	return;
+	} while (pte++, addr += PAGE_SIZE, addr != end);
+	return 0;
 
  bad:
-	printk("remap_area_pte: page already exists\n");
+	printk(KERN_CRIT "remap_area_pte: page already exists\n");
 	BUG();
 }
 
-static inline int
-remap_area_pmd(pmd_t * pmd, unsigned long address, unsigned long size,
-	       unsigned long phys_addr, unsigned long flags)
+static inline int remap_area_pmd(pgd_t *pgd, unsigned long addr,
+				 unsigned long end, unsigned long phys_addr,
+				 pgprot_t prot)
 {
-	unsigned long end;
-	pgprot_t pgprot;
+	unsigned long next;
+	pmd_t *pmd;
+	int ret = 0;
 
-	address &= ~PGDIR_MASK;
-	end = address + size;
+	pmd = pmd_alloc(&init_mm, pgd, addr);
+	if (!pmd)
+		return -ENOMEM;
 
-	if (end > PGDIR_SIZE)
-		end = PGDIR_SIZE;
-
-	phys_addr -= address;
-	BUG_ON(address >= end);
-
-	pgprot = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY | L_PTE_WRITE | flags);
 	do {
-		pte_t * pte = pte_alloc_kernel(pmd, address);
-		if (!pte)
-			return -ENOMEM;
-		remap_area_pte(pte, address, end - address, address + phys_addr, pgprot);
-		address = (address + PMD_SIZE) & PMD_MASK;
-		pmd++;
-	} while (address && (address < end));
-	return 0;
+		next = pmd_addr_end(addr, end);
+		ret = remap_area_pte(pmd, addr, next, phys_addr, prot);
+		if (ret)
+			return ret;
+		phys_addr += next - addr;
+	} while (pmd++, addr = next, addr != end);
+	return ret;
 }
 
-static int
-remap_area_pages(unsigned long start, unsigned long pfn,
-		 unsigned long size, unsigned long flags)
+static int remap_area_pages(unsigned long start, unsigned long pfn,
+			    unsigned long size, unsigned long flags)
 {
-	unsigned long address = start;
-	unsigned long end = start + size;
+	unsigned long addr = start;
+	unsigned long next, end = start + size;
 	unsigned long phys_addr = __pfn_to_phys(pfn);
+	pgprot_t prot = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG |
+				 L_PTE_DIRTY | L_PTE_WRITE | flags);
+	pgd_t *pgd;
 	int err = 0;
-	pgd_t * dir;
 
-	phys_addr -= address;
-	dir = pgd_offset(&init_mm, address);
-	BUG_ON(address >= end);
+	BUG_ON(addr >= end);
+	pgd = pgd_offset_k(addr);
 	do {
-		pmd_t *pmd = pmd_alloc(&init_mm, dir, address);
-		if (!pmd) {
-			err = -ENOMEM;
+		next = pgd_addr_end(addr, end);
+		err = remap_area_pmd(pgd, addr, next, phys_addr, prot);
+		if (err)
 			break;
-		}
-		if (remap_area_pmd(pmd, address, end - address,
-					 phys_addr + address, flags)) {
-			err = -ENOMEM;
-			break;
-		}
-
-		address = (address + PGDIR_SIZE) & PGDIR_MASK;
-		dir++;
-	} while (address && (address < end));
+		phys_addr += next - addr;
+	} while (pgd++, addr = next, addr != end);
 
 	return err;
 }

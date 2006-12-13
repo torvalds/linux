@@ -22,30 +22,31 @@
 #include <asm/thread_info.h>
 #include <asm/system.h>
 
-#define KERNEL_RAM_ADDR	(PAGE_OFFSET + TEXT_OFFSET)
+#define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
+#define KERNEL_RAM_PADDR	(PHYS_OFFSET + TEXT_OFFSET)
 
 /*
  * swapper_pg_dir is the virtual address of the initial page table.
- * We place the page tables 16K below KERNEL_RAM_ADDR.  Therefore, we must
- * make sure that KERNEL_RAM_ADDR is correctly set.  Currently, we expect
+ * We place the page tables 16K below KERNEL_RAM_VADDR.  Therefore, we must
+ * make sure that KERNEL_RAM_VADDR is correctly set.  Currently, we expect
  * the least significant 16 bits to be 0x8000, but we could probably
- * relax this restriction to KERNEL_RAM_ADDR >= PAGE_OFFSET + 0x4000.
+ * relax this restriction to KERNEL_RAM_VADDR >= PAGE_OFFSET + 0x4000.
  */
-#if (KERNEL_RAM_ADDR & 0xffff) != 0x8000
-#error KERNEL_RAM_ADDR must start at 0xXXXX8000
+#if (KERNEL_RAM_VADDR & 0xffff) != 0x8000
+#error KERNEL_RAM_VADDR must start at 0xXXXX8000
 #endif
 
 	.globl	swapper_pg_dir
-	.equ	swapper_pg_dir, KERNEL_RAM_ADDR - 0x4000
+	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - 0x4000
 
 	.macro	pgtbl, rd
-	ldr	\rd, =(__virt_to_phys(KERNEL_RAM_ADDR - 0x4000))
+	ldr	\rd, =(KERNEL_RAM_PADDR - 0x4000)
 	.endm
 
 #ifdef CONFIG_XIP_KERNEL
 #define TEXTADDR  XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR)
 #else
-#define TEXTADDR  KERNEL_RAM_ADDR
+#define TEXTADDR  KERNEL_RAM_VADDR
 #endif
 
 /*

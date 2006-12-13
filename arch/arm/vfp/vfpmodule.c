@@ -263,13 +263,24 @@ void VFP9_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	if (exceptions)
 		vfp_raise_exceptions(exceptions, trigger, orig_fpscr, regs);
 }
- 
+
 /*
  * VFP support code initialisation.
  */
 static int __init vfp_init(void)
 {
 	unsigned int vfpsid;
+	unsigned int cpu_arch = cpu_architecture();
+	u32 access = 0;
+
+	if (cpu_arch >= CPU_ARCH_ARMv6) {
+		access = get_copro_access();
+
+		/*
+		 * Enable full access to VFP (cp10 and cp11)
+		 */
+		set_copro_access(access | CPACC_FULL(10) | CPACC_FULL(11));
+	}
 
 	/*
 	 * First check that there is a VFP that we can use.
@@ -281,6 +292,12 @@ static int __init vfp_init(void)
 	printk(KERN_INFO "VFP support v0.3: ");
 	if (VFP_arch) {
 		printk("not present\n");
+
+		/*
+		 * Restore the copro access register.
+		 */
+		if (cpu_arch >= CPU_ARCH_ARMv6)
+			set_copro_access(access);
 	} else if (vfpsid & FPSID_NODOUBLE) {
 		printk("no double precision support\n");
 	} else {
@@ -291,9 +308,16 @@ static int __init vfp_init(void)
 			(vfpsid & FPSID_PART_MASK) >> FPSID_PART_BIT,
 			(vfpsid & FPSID_VARIANT_MASK) >> FPSID_VARIANT_BIT,
 			(vfpsid & FPSID_REV_MASK) >> FPSID_REV_BIT);
+
 		vfp_vector = vfp_support_entry;
 
 		thread_register_notifier(&vfp_notifier_block);
+
+		/*
+		 * We detected VFP, and the support code is
+		 * in place; report VFP support to userspace.
+		 */
+		elf_hwcap |= HWCAP_VFP;
 	}
 	return 0;
 }

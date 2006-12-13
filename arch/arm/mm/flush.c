@@ -26,7 +26,7 @@ static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 	unsigned long to = ALIAS_FLUSH_START + (CACHE_COLOUR(vaddr) << PAGE_SHIFT);
 	const int zero = 0;
 
-	set_pte(TOP_PTE(to), pfn_pte(pfn, PAGE_KERNEL));
+	set_pte_ext(TOP_PTE(to), pfn_pte(pfn, PAGE_KERNEL), 0);
 	flush_tlb_kernel_page(to);
 
 	asm(	"mcrr	p15, 0, %1, %0, c14\n"

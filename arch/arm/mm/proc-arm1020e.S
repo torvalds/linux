@@ -381,7 +381,7 @@ ENTRY(cpu_arm1020e_switch_mm)
  * Set a PTE and flush it out
  */
 	.align	5
-ENTRY(cpu_arm1020e_set_pte)
+ENTRY(cpu_arm1020e_set_pte_ext)
 #ifdef CONFIG_MMU
 	str	r1, [r0], #-2048		@ linux version
 
@@ -458,7 +458,7 @@ arm1020e_processor_functions:
 	.word	cpu_arm1020e_do_idle
 	.word	cpu_arm1020e_dcache_clean_area
 	.word	cpu_arm1020e_switch_mm
-	.word	cpu_arm1020e_set_pte
+	.word	cpu_arm1020e_set_pte_ext
 	.size	arm1020e_processor_functions, . - arm1020e_processor_functions
 
 	.section ".rodata"
