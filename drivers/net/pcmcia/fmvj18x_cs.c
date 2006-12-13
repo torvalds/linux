@@ -599,7 +599,7 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
     }
 
     iounmap(base);
-    j = pcmcia_release_window(link->win);
+    j = pcmcia_release_window(link, link->win);
     return (i != 0x200) ? 0 : -1;
 
 } /* fmvj18x_get_hwinfo */
@@ -666,7 +666,7 @@ static void fmvj18x_release(struct pcmcia_device *link)
 	tmp = lp->base;
 	lp->base = NULL;    /* set NULL before iounmap */
 	iounmap(tmp);
-	j = pcmcia_release_window(link->win);
+	j = pcmcia_release_window(link, link->win);
     }
 
     pcmcia_disable_device(link);

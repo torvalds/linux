@@ -337,7 +337,7 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
     }
 
     iounmap(virt);
-    j = pcmcia_release_window(link->win);
+    j = pcmcia_release_window(link, link->win);
     return (i < NR_INFO) ? hw_info+i : NULL;
 } /* get_hwinfo */
 
@@ -1513,7 +1513,7 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     pcnet_reset_8390(dev);
     if (i != (TX_PAGES<<8)) {
 	iounmap(info->base);
-	pcmcia_release_window(link->win);
+	pcmcia_release_window(link, link->win);
 	info->base = NULL; link->win = NULL;
 	goto failed;
     }

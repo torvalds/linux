@@ -344,7 +344,7 @@ static void pcmciamtd_release(struct pcmcia_device *link)
 			iounmap(dev->win_base);
 			dev->win_base = NULL;
 		}
-		pcmcia_release_window(link->win);
+		pcmcia_release_window(link, link->win);
 	}
 	pcmcia_disable_device(link);
 }

@@ -442,9 +442,10 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 } /* pcmcia_release_irq */
 
 
-int pcmcia_release_window(window_handle_t win)
+int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t wh)
 {
 	struct pcmcia_socket *s;
+	window_handle_t win = wh;
 
 	if ((win == NULL) || (win->magic != WINDOW_MAGIC))
 		return -EINVAL;
@@ -891,7 +892,7 @@ void pcmcia_disable_device(struct pcmcia_device *p_dev) {
 	pcmcia_release_io(p_dev, &p_dev->io);
 	pcmcia_release_irq(p_dev, &p_dev->irq);
 	if (p_dev->win)
-		pcmcia_release_window(p_dev->win);
+		pcmcia_release_window(p_dev, p_dev->win);
 }
 EXPORT_SYMBOL(pcmcia_disable_device);
 
