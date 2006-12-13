@@ -34,7 +34,7 @@
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
 
-static void cache_defer_req(struct cache_req *req, struct cache_head *item);
+static int cache_defer_req(struct cache_req *req, struct cache_head *item);
 static void cache_revisit_request(struct cache_head *item);
 
 static void cache_init(struct cache_head *h)
@@ -185,6 +185,7 @@ static int cache_make_upcall(struct cache_detail *detail, struct cache_head *h);
  *
  * Returns 0 if the cache_head can be used, or cache_puts it and returns
  * -EAGAIN if upcall is pending,
+ * -ETIMEDOUT if upcall failed and should be retried,
  * -ENOENT if cache entry was negative
  */
 int cache_check(struct cache_detail *detail,
@@ -236,7 +237,8 @@ int cache_check(struct cache_detail *detail,
 	}
 
 	if (rv == -EAGAIN)
-		cache_defer_req(rqstp, h);
+		if (cache_defer_req(rqstp, h) != 0)
+			rv = -ETIMEDOUT;
 
 	if (rv)
 		cache_put(h, detail);
@@ -523,14 +525,14 @@ static LIST_HEAD(cache_defer_list);
 static struct list_head cache_defer_hash[DFR_HASHSIZE];
 static int cache_defer_cnt;
 
-static void cache_defer_req(struct cache_req *req, struct cache_head *item)
+static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 {
 	struct cache_deferred_req *dreq;
 	int hash = DFR_HASH(item);
 
 	dreq = req->defer(req);
 	if (dreq == NULL)
-		return;
+		return -ETIMEDOUT;
 
 	dreq->item = item;
 	dreq->recv_time = get_seconds();
@@ -571,6 +573,7 @@ static void cache_defer_req(struct cache_req *req, struct cache_head *item)
 		/* must have just been validated... */
 		cache_revisit_request(item);
 	}
+	return 0;
 }
 
 static void cache_revisit_request(struct cache_head *item)

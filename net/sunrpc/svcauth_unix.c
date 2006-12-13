@@ -435,6 +435,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 		default:
 			BUG();
 		case -EAGAIN:
+		case -ETIMEDOUT:
 			return SVC_DROP;
 		case -ENOENT:
 			return SVC_DENIED;

@@ -99,7 +99,7 @@ static struct raparm_hbucket	raparm_hash[RAPARM_HASH_SIZE];
 /* 
  * Called from nfsd_lookup and encode_dirent. Check if we have crossed 
  * a mount point.
- * Returns -EAGAIN leaving *dpp and *expp unchanged, 
+ * Returns -EAGAIN or -ETIMEDOUT leaving *dpp and *expp unchanged,
  *  or nfs_ok having possibly changed *dpp and *expp
  */
 int

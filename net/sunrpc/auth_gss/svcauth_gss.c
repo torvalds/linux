@@ -1066,7 +1066,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 		}
 		switch(cache_check(&rsi_cache, &rsip->h, &rqstp->rq_chandle)) {
 		case -EAGAIN:
-			goto drop;
+		case -ETIMEDOUT:
 		case -ENOENT:
 			goto drop;
 		case 0:
