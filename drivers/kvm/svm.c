@@ -1345,53 +1345,18 @@ static void kvm_reput_irq(struct kvm_vcpu *vcpu)
 
 static void save_db_regs(unsigned long *db_regs)
 {
-#ifdef __x86_64__
-	asm ("mov %%dr0, %%rax \n\t"
-	     "mov %%rax, %[dr0] \n\t"
-	     "mov %%dr1, %%rax \n\t"
-	     "mov %%rax, %[dr1] \n\t"
-	     "mov %%dr2, %%rax \n\t"
-	     "mov %%rax, %[dr2] \n\t"
-	     "mov %%dr3, %%rax \n\t"
-	     "mov %%rax, %[dr3] \n\t"
-	     : [dr0] "=m"(db_regs[0]),
-	       [dr1] "=m"(db_regs[1]),
-	       [dr2] "=m"(db_regs[2]),
-	       [dr3] "=m"(db_regs[3])
-	     : : "rax");
-#else
-	asm ("mov %%dr0, %%eax \n\t"
-	     "mov %%eax, %[dr0] \n\t"
-	     "mov %%dr1, %%eax \n\t"
-	     "mov %%eax, %[dr1] \n\t"
-	     "mov %%dr2, %%eax \n\t"
-	     "mov %%eax, %[dr2] \n\t"
-	     "mov %%dr3, %%eax \n\t"
-	     "mov %%eax, %[dr3] \n\t"
-	     : [dr0] "=m"(db_regs[0]),
-	       [dr1] "=m"(db_regs[1]),
-	       [dr2] "=m"(db_regs[2]),
-	       [dr3] "=m"(db_regs[3])
-	     : : "eax");
-#endif
+	asm volatile ("mov %%dr0, %0" : "=r"(db_regs[0]));
+	asm volatile ("mov %%dr1, %0" : "=r"(db_regs[1]));
+	asm volatile ("mov %%dr2, %0" : "=r"(db_regs[2]));
+	asm volatile ("mov %%dr3, %0" : "=r"(db_regs[3]));
 }
 
 static void load_db_regs(unsigned long *db_regs)
 {
-	asm volatile ("mov %[dr0], %%dr0 \n\t"
-	     "mov %[dr1], %%dr1 \n\t"
-	     "mov %[dr2], %%dr2 \n\t"
-	     "mov %[dr3], %%dr3 \n\t"
-	     :
-	     : [dr0] "r"(db_regs[0]),
-	       [dr1] "r"(db_regs[1]),
-	       [dr2] "r"(db_regs[2]),
-	       [dr3] "r"(db_regs[3])
-#ifdef __x86_64__
-	     : "rax");
-#else
-	     : "eax");
-#endif
+	asm volatile ("mov %0, %%dr0" : : "r"(db_regs[0]));
+	asm volatile ("mov %0, %%dr1" : : "r"(db_regs[1]));
+	asm volatile ("mov %0, %%dr2" : : "r"(db_regs[2]));
+	asm volatile ("mov %0, %%dr3" : : "r"(db_regs[3]));
 }
 
 static int svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
