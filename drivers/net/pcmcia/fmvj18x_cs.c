@@ -574,7 +574,7 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
     base = ioremap(req.Base, req.Size);
     mem.Page = 0;
     mem.CardOffset = 0;
-    pcmcia_map_mem_page(link->win, &mem);
+    pcmcia_map_mem_page(link, link->win, &mem);
 
     /*
      *  MBH10304 CISTPL_FUNCE_LAN_NODE_ID format
@@ -630,7 +630,7 @@ static int fmvj18x_setup_mfc(struct pcmcia_device *link)
 
     mem.Page = 0;
     mem.CardOffset = 0;
-    i = pcmcia_map_mem_page(link->win, &mem);
+    i = pcmcia_map_mem_page(link, link->win, &mem);
     if (i != 0) {
 	iounmap(lp->base);
 	lp->base = NULL;

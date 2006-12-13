@@ -3885,7 +3885,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
       dev->mem_end = dev->mem_start + req.Size;
 
       mem.CardOffset = 0; mem.Page = 0;
-      i = pcmcia_map_mem_page(link->win, &mem);
+      i = pcmcia_map_mem_page(link, link->win, &mem);
       if (i != 0)
 	  break;
 

@@ -1687,7 +1687,7 @@ static int nsp_cs_config_check(struct pcmcia_device *p_dev,
 			if (pcmcia_request_window(&p_dev, &cfg_mem->req, &p_dev->win) != 0)
 				goto next_entry;
 			map.Page = 0; map.CardOffset = mem->win[0].card_addr;
-			if (pcmcia_map_mem_page(p_dev->win, &map) != 0)
+			if (pcmcia_map_mem_page(p_dev, p_dev->win, &map) != 0)
 				goto next_entry;
 
 			cfg_mem->data->MmioAddress = (unsigned long) ioremap_nocache(cfg_mem->req.Base, cfg_mem->req.Size);

@@ -93,7 +93,7 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 
 	mem.CardOffset = 0;
 	mem.Page = 0;
-	res = pcmcia_map_mem_page(dev->win, &mem);
+	res = pcmcia_map_mem_page(dev, dev->win, &mem);
 	if (res != 0)
 		goto err_disable;
 

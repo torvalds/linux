@@ -276,7 +276,7 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 			return -ENODEV;
 		map.Page = 0;
 		map.CardOffset = mem->win[0].card_addr;
-		if (pcmcia_map_mem_page(p_dev->win, &map) != 0)
+		if (pcmcia_map_mem_page(p_dev, p_dev->win, &map) != 0)
 			return -ENODEV;
 	}
 	return 0;

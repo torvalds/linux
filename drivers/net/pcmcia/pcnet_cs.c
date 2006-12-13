@@ -325,7 +325,7 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
     mem.Page = 0;
     for (i = 0; i < NR_INFO; i++) {
 	mem.CardOffset = hw_info[i].offset & ~(req.Size-1);
-	pcmcia_map_mem_page(link->win, &mem);
+	pcmcia_map_mem_page(link, link->win, &mem);
 	base = &virt[hw_info[i].offset & (req.Size-1)];
 	if ((readb(base+0) == hw_info[i].a0) &&
 	    (readb(base+2) == hw_info[i].a1) &&
@@ -1499,7 +1499,7 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     offset = mem.CardOffset % window_size;
     mem.CardOffset -= offset;
     mem.Page = 0;
-    ret = pcmcia_map_mem_page(link->win, &mem);
+    ret = pcmcia_map_mem_page(link, link->win, &mem);
     if (ret)
 	    goto failed;
 

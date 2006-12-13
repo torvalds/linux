@@ -118,7 +118,7 @@ static caddr_t remap_window(struct map_info *map, unsigned long to)
 		DEBUG(2, "Remapping window from 0x%8.8x to 0x%8.8x",
 		      dev->offset, mrq.CardOffset);
 		mrq.Page = 0;
-		ret = pcmcia_map_mem_page(win, &mrq);
+		ret = pcmcia_map_mem_page(dev->p_dev, win, &mrq);
 		if (ret != 0)
 			return NULL;
 		dev->offset = mrq.CardOffset;

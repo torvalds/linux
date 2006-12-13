@@ -480,7 +480,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     mem.CardOffset = mem.Page = 0;
     if (smc->manfid == MANFID_MOTOROLA)
 	mem.CardOffset = link->conf.ConfigBase;
-    i = pcmcia_map_mem_page(link->win, &mem);
+    i = pcmcia_map_mem_page(link, link->win, &mem);
 
     if ((i == 0)
 	&& (smc->manfid == MANFID_MEGAHERTZ)

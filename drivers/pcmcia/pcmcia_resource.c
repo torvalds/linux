@@ -234,9 +234,12 @@ int pcmcia_get_mem_page(window_handle_t win, memreq_t *req)
 EXPORT_SYMBOL(pcmcia_get_mem_page);
 
 
-int pcmcia_map_mem_page(window_handle_t win, memreq_t *req)
+int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t wh,
+			memreq_t *req)
 {
 	struct pcmcia_socket *s;
+	window_handle_t win = wh;
+
 	if ((win == NULL) || (win->magic != WINDOW_MAGIC))
 		return -EINVAL;
 	s = win->sock;

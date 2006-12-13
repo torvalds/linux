@@ -443,7 +443,7 @@ static int ray_config(struct pcmcia_device *link)
 		goto failed;
 	mem.CardOffset = 0x0000;
 	mem.Page = 0;
-	ret = pcmcia_map_mem_page(link->win, &mem);
+	ret = pcmcia_map_mem_page(link, link->win, &mem);
 	if (ret)
 		goto failed;
 	local->sram = ioremap(req.Base, req.Size);
@@ -459,7 +459,7 @@ static int ray_config(struct pcmcia_device *link)
 		goto failed;
 	mem.CardOffset = 0x8000;
 	mem.Page = 0;
-	ret = pcmcia_map_mem_page(local->rmem_handle, &mem);
+	ret = pcmcia_map_mem_page(link, local->rmem_handle, &mem);
 	if (ret)
 		goto failed;
 	local->rmem = ioremap(req.Base, req.Size);
@@ -475,7 +475,7 @@ static int ray_config(struct pcmcia_device *link)
 		goto failed;
 	mem.CardOffset = 0x0000;
 	mem.Page = 0;
-	ret = pcmcia_map_mem_page(local->amem_handle, &mem);
+	ret = pcmcia_map_mem_page(link, local->amem_handle, &mem);
 	if (ret)
 		goto failed;
 	local->amem = ioremap(req.Base, req.Size);

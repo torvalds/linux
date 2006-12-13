@@ -252,7 +252,7 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
 
     mem.CardOffset = mmiobase;
     mem.Page = 0;
-    ret = pcmcia_map_mem_page(link->win, &mem);
+    ret = pcmcia_map_mem_page(link, link->win, &mem);
     if (ret)
 	    goto failed;
     ti->mmio = ioremap(req.Base, req.Size);
@@ -269,7 +269,7 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
 
     mem.CardOffset = srambase;
     mem.Page = 0;
-    ret = pcmcia_map_mem_page(info->sram_win_handle, &mem);
+    ret = pcmcia_map_mem_page(link, info->sram_win_handle, &mem);
     if (ret)
 	    goto failed;
 

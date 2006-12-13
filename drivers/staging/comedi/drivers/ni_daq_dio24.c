@@ -367,7 +367,7 @@ static int dio24_pcmcia_config_loop(struct pcmcia_device *p_dev,
 			return -ENODEV;
 		map.Page = 0;
 		map.CardOffset = mem->win[0].card_addr;
-		if (pcmcia_map_mem_page(p_dev->win, &map))
+		if (pcmcia_map_mem_page(p_dev, p_dev->win, &map))
 			return -ENODEV;
 	}
 	/* If we got this far, we're cool! */

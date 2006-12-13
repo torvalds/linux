@@ -763,7 +763,7 @@ static int netwave_pcmcia_config(struct pcmcia_device *link) {
     if (ret)
 	    goto failed;
     mem.CardOffset = 0x20000; mem.Page = 0; 
-    ret = pcmcia_map_mem_page(link->win, &mem);
+    ret = pcmcia_map_mem_page(link, link->win, &mem);
     if (ret)
 	    goto failed;
 
