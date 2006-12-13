@@ -1276,14 +1276,6 @@ static inline int lookup_chain_cache(u64 chain_key, struct lock_class *class)
 		if (chain->chain_key == chain_key) {
 cache_hit:
 			debug_atomic_inc(&chain_lookup_hits);
-			/*
-			 * In the debugging case, force redundant checking
-			 * by returning 1:
-			 */
-#ifdef CONFIG_DEBUG_LOCKDEP
-			__raw_spin_lock(&hash_lock);
-			return 1;
-#endif
 			if (very_verbose(class))
 				printk("\nhash chain already cached, key: %016Lx tail class: [%p] %s\n", chain_key, class->key, class->name);
 			return 0;
