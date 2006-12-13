@@ -1447,7 +1447,7 @@ check_usage_backwards(struct task_struct *curr, struct held_lock *this,
 	return print_irq_inversion_bug(curr, backwards_match, this, 0, irqclass);
 }
 
-static inline void print_irqtrace_events(struct task_struct *curr)
+void print_irqtrace_events(struct task_struct *curr)
 {
 	printk("irq event stamp: %u\n", curr->irq_events);
 	printk("hardirqs last  enabled at (%u): ", curr->hardirq_enable_event);
@@ -1460,10 +1460,6 @@ static inline void print_irqtrace_events(struct task_struct *curr)
 	print_ip_sym(curr->softirq_disable_ip);
 }
 
-#else
-static inline void print_irqtrace_events(struct task_struct *curr)
-{
-}
 #endif
 
 static int
