@@ -1585,7 +1585,7 @@ void ConfigMainWindow::showFullView(void)
  */
 void ConfigMainWindow::closeEvent(QCloseEvent* e)
 {
-	if (!sym_change_count) {
+	if (!conf_get_changed()) {
 		e->accept();
 		return;
 	}

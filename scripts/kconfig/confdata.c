@@ -432,7 +432,7 @@ int conf_write(const char *name)
 		     use_timestamp ? "# " : "",
 		     use_timestamp ? ctime(&now) : "");
 
-	if (!sym_change_count)
+	if (!conf_get_changed())
 		sym_clear_all_valid();
 
 	menu = rootmenu.list;
@@ -764,4 +764,9 @@ int conf_write_autoconf(void)
 		return 1;
 
 	return 0;
+}
+
+bool conf_get_changed(void)
+{
+	return sym_change_count;
 }
