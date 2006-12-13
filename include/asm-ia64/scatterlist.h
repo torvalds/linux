@@ -25,4 +25,7 @@ struct scatterlist {
  */
 #define ISA_DMA_THRESHOLD	0xffffffff
 
+#define sg_dma_len(sg)		((sg)->dma_length)
+#define sg_dma_address(sg)	((sg)->dma_address)
+
 #endif /* _ASM_IA64_SCATTERLIST_H */
