@@ -44,6 +44,11 @@
 #define NFSD4_MAX_TAGLEN	128
 #define XDR_LEN(n)                     (((n) + 3) & ~3)
 
+struct nfsd4_compound_state {
+	struct svc_fh current_fh;
+	struct svc_fh save_fh;
+};
+
 struct nfsd4_change_info {
 	u32		atomic;
 	u32		before_ctime_sec;
@@ -437,20 +442,23 @@ extern __be32 nfsd4_process_open1(struct nfsd4_open *open);
 extern __be32 nfsd4_process_open2(struct svc_rqst *rqstp,
 		struct svc_fh *current_fh, struct nfsd4_open *open);
 extern __be32 nfsd4_open_confirm(struct svc_rqst *rqstp,
-		struct svc_fh *current_fh, struct nfsd4_open_confirm *oc,
+		struct nfsd4_compound_state *, struct nfsd4_open_confirm *oc,
 		struct nfs4_stateowner **);
-extern __be32 nfsd4_close(struct svc_rqst *rqstp, struct svc_fh *current_fh,
+extern __be32 nfsd4_close(struct svc_rqst *rqstp,
+		struct nfsd4_compound_state *,
 		struct nfsd4_close *close,
 		struct nfs4_stateowner **replay_owner);
 extern __be32 nfsd4_open_downgrade(struct svc_rqst *rqstp,
-		struct svc_fh *current_fh, struct nfsd4_open_downgrade *od,
+		struct nfsd4_compound_state *, struct nfsd4_open_downgrade *od,
 		struct nfs4_stateowner **replay_owner);
-extern __be32 nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh,
+extern __be32 nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *,
 		struct nfsd4_lock *lock,
 		struct nfs4_stateowner **replay_owner);
-extern __be32 nfsd4_lockt(struct svc_rqst *rqstp, struct svc_fh *current_fh,
+extern __be32 nfsd4_lockt(struct svc_rqst *rqstp,
+		struct nfsd4_compound_state *,
 		struct nfsd4_lockt *lockt);
-extern __be32 nfsd4_locku(struct svc_rqst *rqstp, struct svc_fh *current_fh,
+extern __be32 nfsd4_locku(struct svc_rqst *rqstp,
+		struct nfsd4_compound_state *,
 		struct nfsd4_locku *locku,
 		struct nfs4_stateowner **replay_owner);
 extern __be32
@@ -458,7 +466,7 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 		struct nfsd4_release_lockowner *rlockowner);
 extern void nfsd4_release_compoundargs(struct nfsd4_compoundargs *);
 extern __be32 nfsd4_delegreturn(struct svc_rqst *rqstp,
-		struct svc_fh *current_fh, struct nfsd4_delegreturn *dr);
+		struct nfsd4_compound_state *, struct nfsd4_delegreturn *dr);
 #endif
 
 /*
