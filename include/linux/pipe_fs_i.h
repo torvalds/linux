@@ -41,7 +41,6 @@ struct pipe_buf_operations {
 struct pipe_inode_info {
 	wait_queue_head_t wait;
 	unsigned int nrbufs, curbuf;
-	struct pipe_buffer bufs[PIPE_BUFFERS];
 	struct page *tmp_page;
 	unsigned int readers;
 	unsigned int writers;
@@ -51,6 +50,7 @@ struct pipe_inode_info {
 	struct fasync_struct *fasync_readers;
 	struct fasync_struct *fasync_writers;
 	struct inode *inode;
+	struct pipe_buffer bufs[PIPE_BUFFERS];
 };
 
 /* Differs from PIPE_BUF in that PIPE_SIZE is the length of the actual
