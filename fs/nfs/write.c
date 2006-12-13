@@ -1,47 +1,7 @@
 /*
  * linux/fs/nfs/write.c
  *
- * Writing file data over NFS.
- *
- * We do it like this: When a (user) process wishes to write data to an
- * NFS file, a write request is allocated that contains the RPC task data
- * plus some info on the page to be written, and added to the inode's
- * write chain. If the process writes past the end of the page, an async
- * RPC call to write the page is scheduled immediately; otherwise, the call
- * is delayed for a few seconds.
- *
- * Just like readahead, no async I/O is performed if wsize < PAGE_SIZE.
- *
- * Write requests are kept on the inode's writeback list. Each entry in
- * that list references the page (portion) to be written. When the
- * cache timeout has expired, the RPC task is woken up, and tries to
- * lock the page. As soon as it manages to do so, the request is moved
- * from the writeback list to the writelock list.
- *
- * Note: we must make sure never to confuse the inode passed in the
- * write_page request with the one in page->inode. As far as I understand
- * it, these are different when doing a swap-out.
- *
- * To understand everything that goes on here and in the NFS read code,
- * one should be aware that a page is locked in exactly one of the following
- * cases:
- *
- *  -	A write request is in progress.
- *  -	A user process is in generic_file_write/nfs_update_page
- *  -	A user process is in generic_file_read
- *
- * Also note that because of the way pages are invalidated in
- * nfs_revalidate_inode, the following assertions hold:
- *
- *  -	If a page is dirty, there will be no read requests (a page will
- *	not be re-read unless invalidated by nfs_revalidate_inode).
- *  -	If the page is not uptodate, there will be no pending write
- *	requests, and no process will be in nfs_update_page.
- *
- * FIXME: Interaction with the vmscan routines is not optimal yet.
- * Either vmscan must be made nfs-savvy, or we need a different page
- * reclaim concept that supports something like FS-independent
- * buffer_heads with a b_ops-> field.
+ * Write file data over NFS.
  *
  * Copyright (C) 1996, 1997, Olaf Kirch <okir@monad.swb.de>
  */
