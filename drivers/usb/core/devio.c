@@ -570,6 +570,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	ps->dev = dev;
 	ps->file = file;
 	spin_lock_init(&ps->lock);
+	INIT_LIST_HEAD(&ps->list);
 	INIT_LIST_HEAD(&ps->async_pending);
 	INIT_LIST_HEAD(&ps->async_completed);
 	init_waitqueue_head(&ps->wait);
