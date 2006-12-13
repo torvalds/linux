@@ -595,7 +595,7 @@ int __init i2o_exec_init(void)
  *
  *	Unregisters the Exec OSM from the I2O core.
  */
-void __exit i2o_exec_exit(void)
+void i2o_exec_exit(void)
 {
 	i2o_driver_unregister(&i2o_exec_driver);
 };

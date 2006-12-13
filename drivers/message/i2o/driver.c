@@ -362,7 +362,7 @@ int __init i2o_driver_init(void)
  *
  *	Unregisters the I2O bus and frees driver array.
  */
-void __exit i2o_driver_exit(void)
+void i2o_driver_exit(void)
 {
 	bus_unregister(&i2o_bus_type);
 	kfree(i2o_drivers);
