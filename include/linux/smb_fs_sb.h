@@ -55,7 +55,7 @@ struct smb_sb_info {
 	 * generation is incremented.
 	 */
 	unsigned int generation;
-	pid_t conn_pid;
+	struct pid *conn_pid;
 	struct smb_conn_opt opt;
 	wait_queue_head_t conn_wq;
 	int conn_complete;
