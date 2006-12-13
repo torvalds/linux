@@ -103,14 +103,14 @@ extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 #if __LINUX_ARM_ARCH__ >= 5
 
 #define ARCH_HAS_PREFETCH
-#define prefetch(ptr)				\
-	({					\
-		__asm__ __volatile__(		\
-		"pld\t%0"			\
-		:				\
-		: "o" (*(char *)(ptr))		\
-		: "cc");			\
-	})
+static inline void prefetch(const void *ptr)
+{
+	__asm__ __volatile__(
+		"pld\t%0"
+		:
+		: "o" (*(char *)ptr)
+		: "cc");
+}
 
 #define ARCH_HAS_PREFETCHW
 #define prefetchw(ptr)	prefetch(ptr)
