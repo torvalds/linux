@@ -2430,8 +2430,12 @@ static int receive_request_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 
 	DLM_ASSERT(is_master_copy(lkb), dlm_print_lkb(lkb););
 
-	if (receive_lvb(ls, lkb, ms))
-		return -ENOMEM;
+	if (lkb->lkb_exflags & DLM_LKF_VALBLK) {
+		/* lkb was just created so there won't be an lvb yet */
+		lkb->lkb_lvbptr = allocate_lvb(ls);
+		if (!lkb->lkb_lvbptr)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
