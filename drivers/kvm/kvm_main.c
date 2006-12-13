@@ -205,7 +205,6 @@ static struct kvm_vcpu *vcpu_load(struct kvm *kvm, int vcpu_slot)
 static void vcpu_put(struct kvm_vcpu *vcpu)
 {
 	kvm_arch_ops->vcpu_put(vcpu);
-	put_cpu();
 	mutex_unlock(&vcpu->mutex);
 }
 
