@@ -1488,10 +1488,6 @@ static int atyfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	else
 		info->var.accel_flags = 0;
 
-#if 0 /* fbmon is not done. uncomment for 2.5.x -brad */
-	if (!fbmon_valid_timings(pixclock, htotal, vtotal, info))
-		return -EINVAL;
-#endif
 	aty_crtc_to_var(&crtc, var);
 	var->pixclock = par->pll_ops->pll_to_var(info, &pll);
 	return 0;
