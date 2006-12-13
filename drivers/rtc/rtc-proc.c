@@ -65,7 +65,7 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
 			seq_printf(seq, "%02d\n", alrm.time.tm_mday);
 		else
 			seq_printf(seq, "**\n");
-		seq_printf(seq, "alrm_wakeup\t: %s\n",
+		seq_printf(seq, "alarm_IRQ\t: %s\n",
 				alrm.enabled ? "yes" : "no");
 		seq_printf(seq, "alrm_pending\t: %s\n",
 				alrm.pending ? "yes" : "no");

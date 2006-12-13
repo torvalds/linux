@@ -137,6 +137,9 @@ static int at91_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	tm->tm_yday = rtc_year_days(tm->tm_mday, tm->tm_mon, tm->tm_year);
 	tm->tm_year = at91_alarm_year - 1900;
 
+	alrm->enabled = (at91_sys_read(AT91_RTC_IMR) & AT91_RTC_ALARM)
+			? 1 : 0;
+
 	pr_debug("%s(): %4d-%02d-%02d %02d:%02d:%02d\n", __FUNCTION__,
 		1900 + tm->tm_year, tm->tm_mon, tm->tm_mday,
 		tm->tm_hour, tm->tm_min, tm->tm_sec);
@@ -223,8 +226,6 @@ static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	unsigned long imr = at91_sys_read(AT91_RTC_IMR);
 
-	seq_printf(seq, "alarm_IRQ\t: %s\n",
-			(imr & AT91_RTC_ALARM) ? "yes" : "no");
 	seq_printf(seq, "update_IRQ\t: %s\n",
 			(imr & AT91_RTC_ACKUPD) ? "yes" : "no");
 	seq_printf(seq, "periodic_IRQ\t: %s\n",
