@@ -2239,6 +2239,30 @@ static struct pci_device_id serial_pci_tbl[] = {
 		pbn_b0_bt_1_460800 },
 
 	/*
+	 * Korenix Jetcard F0/F1 cards (JC1204, JC1208, JC1404, JC1408).
+	 * Cards are identified by their subsystem vendor IDs, which
+	 * (in hex) match the model number.
+	 *
+	 * Note that JC140x are RS422/485 cards which require ox950
+	 * ACR = 0x10, and as such are not currently fully supported.
+	 */
+	{	PCI_VENDOR_ID_KORENIX, PCI_DEVICE_ID_KORENIX_JETCARDF0,
+		0x1204, 0x0004, 0, 0,
+		pbn_b0_4_921600 },
+	{	PCI_VENDOR_ID_KORENIX, PCI_DEVICE_ID_KORENIX_JETCARDF0,
+		0x1208, 0x0004, 0, 0,
+		pbn_b0_4_921600 },
+/*	{	PCI_VENDOR_ID_KORENIX, PCI_DEVICE_ID_KORENIX_JETCARDF0,
+		0x1402, 0x0002, 0, 0,
+		pbn_b0_2_921600 }, */
+/*	{	PCI_VENDOR_ID_KORENIX, PCI_DEVICE_ID_KORENIX_JETCARDF0,
+		0x1404, 0x0004, 0, 0,
+		pbn_b0_4_921600 }, */
+	{	PCI_VENDOR_ID_KORENIX, PCI_DEVICE_ID_KORENIX_JETCARDF1,
+		0x1208, 0x0004, 0, 0,
+		pbn_b0_4_921600 },
+
+	/*
 	 * Dell Remote Access Card 4 - Tim_T_Murphy@Dell.com
 	 */
 	{	PCI_VENDOR_ID_DELL, PCI_DEVICE_ID_DELL_RAC4,
