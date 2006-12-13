@@ -280,72 +280,67 @@ spider_net_free_chain(struct spider_net_card *card,
 {
 	struct spider_net_descr *descr;
 
-	for (descr = chain->tail; !descr->bus_addr; descr = descr->next) {
-		pci_unmap_single(card->pdev, descr->bus_addr,
-				 SPIDER_NET_DESCR_SIZE, PCI_DMA_BIDIRECTIONAL);
+	descr = chain->ring;
+	do {
 		descr->bus_addr = 0;
-	}
+		descr->next_descr_addr = 0;
+		descr = descr->next;
+	} while (descr != chain->ring);
+
+	dma_free_coherent(&card->pdev->dev, chain->num_desc,
+	    chain->ring, chain->dma_addr);
 }
 
 /**
- * spider_net_init_chain - links descriptor chain
+ * spider_net_init_chain - alloc and link descriptor chain
  * @card: card structure
  * @chain: address of chain
- * @start_descr: address of descriptor array
- * @no: number of descriptors
  *
- * we manage a circular list that mirrors the hardware structure,
+ * We manage a circular list that mirrors the hardware structure,
  * except that the hardware uses bus addresses.
  *
- * returns 0 on success, <0 on failure
+ * Returns 0 on success, <0 on failure
  */
 static int
 spider_net_init_chain(struct spider_net_card *card,
-		       struct spider_net_descr_chain *chain,
-		       struct spider_net_descr *start_descr,
-		       int no)
+		       struct spider_net_descr_chain *chain)
 {
 	int i;
 	struct spider_net_descr *descr;
 	dma_addr_t buf;
+	size_t alloc_size;
 
-	descr = start_descr;
-	memset(descr, 0, sizeof(*descr) * no);
+	alloc_size = chain->num_desc * sizeof (struct spider_net_descr);
 
-	/* set up the hardware pointers in each descriptor */
-	for (i=0; i<no; i++, descr++) {
+	chain->ring = dma_alloc_coherent(&card->pdev->dev, alloc_size,
+		&chain->dma_addr, GFP_KERNEL);
+
+	if (!chain->ring)
+		return -ENOMEM;
+
+	descr = chain->ring;
+	memset(descr, 0, alloc_size);
+
+	/* Set up the hardware pointers in each descriptor */
+	buf = chain->dma_addr;
+	for (i=0; i < chain->num_desc; i++, descr++) {
 		descr->dmac_cmd_status = SPIDER_NET_DESCR_NOT_IN_USE;
 
-		buf = pci_map_single(card->pdev, descr,
-				     SPIDER_NET_DESCR_SIZE,
-				     PCI_DMA_BIDIRECTIONAL);
-
-		if (pci_dma_mapping_error(buf))
-			goto iommu_error;
-
 		descr->bus_addr = buf;
+		descr->next_descr_addr = 0;
 		descr->next = descr + 1;
 		descr->prev = descr - 1;
 
+		buf += sizeof(struct spider_net_descr);
 	}
 	/* do actual circular list */
-	(descr-1)->next = start_descr;
-	start_descr->prev = descr-1;
+	(descr-1)->next = chain->ring;
+	chain->ring->prev = descr-1;
 
 	spin_lock_init(&chain->lock);
-	chain->head = start_descr;
-	chain->tail = start_descr;
-
+	chain->head = chain->ring;
+	chain->tail = chain->ring;
 	return 0;
-
-iommu_error:
-	descr = start_descr;
-	for (i=0; i < no; i++, descr++)
-		if (descr->bus_addr)
-			pci_unmap_single(card->pdev, descr->bus_addr,
-					 SPIDER_NET_DESCR_SIZE,
-					 PCI_DMA_BIDIRECTIONAL);
-	return -ENOMEM;
 }
 
 /**
@@ -707,7 +702,7 @@ spider_net_set_low_watermark(struct spider_net_card *card)
 	}
 
 	/* If TX queue is short, don't even bother with interrupts */
-	if (cnt < card->num_tx_desc/4)
+	if (cnt < card->tx_chain.num_desc/4)
 		return cnt;
 
 	/* Set low-watermark 3/4th's of the way into the queue. */
@@ -1652,26 +1647,25 @@ spider_net_open(struct net_device *netdev)
 {
 	struct spider_net_card *card = netdev_priv(netdev);
 	struct spider_net_descr *descr;
-	int i, result;
+	int result;
 
-	result = -ENOMEM;
-	if (spider_net_init_chain(card, &card->tx_chain, card->descr,
-	                          card->num_tx_desc))
+	result = spider_net_init_chain(card, &card->tx_chain);
+	if (result)
 		goto alloc_tx_failed;
-
 	card->low_watermark = NULL;
 
-	/* rx_chain is after tx_chain, so offset is descr + tx_count */
-	if (spider_net_init_chain(card, &card->rx_chain,
-	                          card->descr + card->num_tx_desc,
-	                          card->num_rx_desc))
+	result = spider_net_init_chain(card, &card->rx_chain);
+	if (result)
 		goto alloc_rx_failed;
 
-	descr = card->rx_chain.head;
-	for (i=0; i < card->num_rx_desc; i++, descr++)
+	/* Make a ring of of bus addresses */
+	descr = card->rx_chain.ring;
+	do {
 		descr->next_descr_addr = descr->next->bus_addr;
+		descr = descr->next;
+	} while (descr != card->rx_chain.ring);
 
-	/* allocate rx skbs */
+	/* Allocate rx skbs */
 	if (spider_net_alloc_rx_skbs(card))
 		goto alloc_skbs_failed;
 
@@ -1924,6 +1918,7 @@ spider_net_stop(struct net_device *netdev)
 
 	/* release chains */
 	spider_net_release_tx_chain(card, 1);
+	spider_net_free_rx_chain_contents(card);
 
 	spider_net_free_rx_chain_contents(card);
 
@@ -2057,8 +2052,8 @@ spider_net_setup_netdev(struct spider_net_card *card)
 
 	card->options.rx_csum = SPIDER_NET_RX_CSUM_DEFAULT;
 
-	card->num_tx_desc = tx_descriptors;
-	card->num_rx_desc = rx_descriptors;
+	card->tx_chain.num_desc = tx_descriptors;
+	card->rx_chain.num_desc = rx_descriptors;
 
 	spider_net_setup_netdev_ops(netdev);
 
@@ -2107,12 +2102,8 @@ spider_net_alloc_card(void)
 {
 	struct net_device *netdev;
 	struct spider_net_card *card;
-	size_t alloc_size;
 
-	alloc_size = sizeof (*card) +
-		sizeof (struct spider_net_descr) * rx_descriptors +
-		sizeof (struct spider_net_descr) * tx_descriptors;
-	netdev = alloc_etherdev(alloc_size);
+	netdev = alloc_etherdev(sizeof(struct spider_net_card));
 	if (!netdev)
 		return NULL;
 
