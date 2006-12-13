@@ -1,7 +1,7 @@
 /*
  * m8xx_pcmcia.c - Linux PCMCIA socket driver for the mpc8xx series.
  *
- * (C) 1999-2000 Magnus Damm <damm@bitsmart.com>
+ * (C) 1999-2000 Magnus Damm <damm@opensource.se>
  * (C) 2001-2002 Montavista Software, Inc.
  *     <mlocke@mvista.com>
  *
