@@ -1264,7 +1264,7 @@ out_unlock_set:
  * add it and return 0 - in this case the new dependency chain is
  * validated. If the key is already hashed, return 1.
  */
-static inline int lookup_chain_cache(u64 chain_key)
+static inline int lookup_chain_cache(u64 chain_key, struct lock_class *class)
 {
 	struct list_head *hash_head = chainhashentry(chain_key);
 	struct lock_chain *chain;
@@ -1286,9 +1286,13 @@ cache_hit:
 			__raw_spin_lock(&hash_lock);
 			return 1;
 #endif
+			if (very_verbose(class))
+				printk("\nhash chain already cached, key: %016Lx tail class: [%p] %s\n", chain_key, class->key, class->name);
 			return 0;
 		}
 	}
+	if (very_verbose(class))
+		printk("\nnew hash chain, key: %016Lx tail class: [%p] %s\n", chain_key, class->key, class->name);
 	/*
 	 * Allocate a new chain entry from the static array, and add
 	 * it to the hash:
@@ -2139,7 +2143,7 @@ out_calc_hash:
 	 * (If lookup_chain_cache() returns with 1 it acquires
 	 * hash_lock for us)
 	 */
-	if (!trylock && (check == 2) && lookup_chain_cache(chain_key)) {
+	if (!trylock && (check == 2) && lookup_chain_cache(chain_key, class)) {
 		/*
 		 * Check whether last held lock:
 		 *
