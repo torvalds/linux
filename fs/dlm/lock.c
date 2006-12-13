@@ -2144,12 +2144,24 @@ static void send_args(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	if (lkb->lkb_astaddr)
 		ms->m_asts |= AST_COMP;
 
-	if (ms->m_type == DLM_MSG_REQUEST || ms->m_type == DLM_MSG_LOOKUP)
+	/* compare with switch in create_message; send_remove() doesn't
+	   use send_args() */
+
+	switch (ms->m_type) {
+	case DLM_MSG_REQUEST:
+	case DLM_MSG_LOOKUP:
 		memcpy(ms->m_extra, r->res_name, r->res_length);
-
-	else if (lkb->lkb_lvbptr)
+		break;
+	case DLM_MSG_CONVERT:
+	case DLM_MSG_UNLOCK:
+	case DLM_MSG_REQUEST_REPLY:
+	case DLM_MSG_CONVERT_REPLY:
+	case DLM_MSG_GRANT:
+		if (!lkb->lkb_lvbptr)
+			break;
 		memcpy(ms->m_extra, lkb->lkb_lvbptr, r->res_ls->ls_lvblen);
-
+		break;
+	}
 }
 
 static int send_common(struct dlm_rsb *r, struct dlm_lkb *lkb, int mstype)
