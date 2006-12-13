@@ -2135,7 +2135,7 @@ void conf_parse(const char *name)
 		sym_check_deps(sym);
         }
 
-	sym_change_count = 1;
+	sym_set_change_count(1);
 }
 
 const char *zconf_tokenname(int token)

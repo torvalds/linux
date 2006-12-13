@@ -100,7 +100,7 @@ int conf_read_simple(const char *name, int def)
 		in = zconf_fopen(name);
 		if (in)
 			goto load;
-		sym_change_count++;
+		sym_add_change_count(1);
 		if (!sym_defconfig_list)
 			return 1;
 
@@ -312,7 +312,7 @@ int conf_read(const char *name)
 	struct expr *e;
 	int i, flags;
 
-	sym_change_count = 0;
+	sym_set_change_count(0);
 
 	if (conf_read_simple(name, S_DEF_USER))
 		return 1;
@@ -364,7 +364,7 @@ int conf_read(const char *name)
 		sym->flags &= flags | ~SYMBOL_DEF_USER;
 	}
 
-	sym_change_count += conf_warnings || conf_unsaved;
+	sym_add_change_count(conf_warnings || conf_unsaved);
 
 	return 0;
 }
@@ -528,7 +528,7 @@ int conf_write(const char *name)
 		 "# configuration written to %s\n"
 		 "#\n"), newname);
 
-	sym_change_count = 0;
+	sym_set_change_count(0);
 
 	return 0;
 }
@@ -764,6 +764,18 @@ int conf_write_autoconf(void)
 		return 1;
 
 	return 0;
+}
+
+static int sym_change_count;
+
+void sym_set_change_count(int count)
+{
+	sym_change_count = count;
+}
+
+void sym_add_change_count(int count)
+{
+	sym_change_count += count;
 }
 
 bool conf_get_changed(void)

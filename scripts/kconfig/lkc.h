@@ -65,6 +65,8 @@ char *zconf_curname(void);
 
 /* confdata.c */
 char *conf_get_default_confname(void);
+void sym_set_change_count(int count);
+void sym_add_change_count(int count);
 
 /* kconfig_load.c */
 void kconfig_load(void);

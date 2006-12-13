@@ -30,7 +30,6 @@ struct symbol symbol_yes = {
 	.flags = SYMBOL_VALID,
 };
 
-int sym_change_count;
 struct symbol *sym_defconfig_list;
 struct symbol *modules_sym;
 tristate modules_val;
@@ -379,7 +378,7 @@ void sym_clear_all_valid(void)
 
 	for_all_symbols(i, sym)
 		sym->flags &= ~SYMBOL_VALID;
-	sym_change_count++;
+	sym_add_change_count(1);
 	if (modules_sym)
 		sym_calc_value(modules_sym);
 }

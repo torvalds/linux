@@ -17,7 +17,6 @@ P(menu_get_parent_menu,struct menu *,(struct menu *menu));
 
 /* symbol.c */
 P(symbol_hash,struct symbol *,[SYMBOL_HASHSIZE]);
-P(sym_change_count,int,);
 
 P(sym_lookup,struct symbol *,(const char *name, int isconst));
 P(sym_find,struct symbol *,(const char *name));
