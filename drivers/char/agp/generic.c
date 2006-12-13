@@ -419,6 +419,31 @@ static void agp_v2_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 		*requested_mode &= ~AGP2_RESERVED_MASK;
 	}
 
+	/*
+	 * Some dumb bridges are programmed to disobey the AGP2 spec.
+	 * This is likely a BIOS misprogramming rather than poweron default, or
+	 * it would be a lot more common.
+	 * https://bugs.freedesktop.org/show_bug.cgi?id=8816
+	 * AGPv2 spec 6.1.9 states:
+	 *   The RATE field indicates the data transfer rates supported by this
+	 *   device. A.G.P. devices must report all that apply.
+	 * Fix them up as best we can.
+	 */
+	switch (*bridge_agpstat & 7) {
+	case 4:
+		*bridge_agpstat |= (AGPSTAT2_2X | AGPSTAT2_1X);
+		printk(KERN_INFO PFX "BIOS bug. AGP bridge claims to only support x4 rate"
+			"Fixing up support for x2 & x1\n");
+		break;
+	case 2:
+		*bridge_agpstat |= AGPSTAT2_1X;
+		printk(KERN_INFO PFX "BIOS bug. AGP bridge claims to only support x2 rate"
+			"Fixing up support for x1\n");
+		break;
+	default:
+		break;
+	}
+
 	/* Check the speed bits make sense. Only one should be set. */
 	tmp = *requested_mode & 7;
 	switch (tmp) {
