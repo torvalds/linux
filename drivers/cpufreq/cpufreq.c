@@ -959,7 +959,7 @@ static void cpufreq_out_of_sync(unsigned int cpu, unsigned int old_freq,
 
 
 /**
- * cpufreq_quick_get - get the CPU frequency (in kHz) frpm policy->cur
+ * cpufreq_quick_get - get the CPU frequency (in kHz) from policy->cur
  * @cpu: CPU number
  *
  * This is the last known freq, without actually getting it from the driver.
