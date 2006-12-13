@@ -460,12 +460,15 @@
 #define FXRT_CHANNELC		0x0f000000	/* Effects send bus number for channel's effects send C	*/
 #define FXRT_CHANNELD		0xf0000000	/* Effects send bus number for channel's effects send D	*/
 
+#define A_HR			0x0b	/* High Resolution. 24bit playback from host to DSP. */
 #define MAPA			0x0c		/* Cache map A						*/
 
 #define MAPB			0x0d		/* Cache map B						*/
 
 #define MAP_PTE_MASK		0xffffe000	/* The 19 MSBs of the PTE indexed by the PTI		*/
 #define MAP_PTI_MASK		0x00001fff	/* The 13 bit index to one of the 8192 PTE dwords      	*/
+
+/* 0x0e, 0x0f: Not used */
 
 #define ENVVOL			0x10		/* Volume envelope register				*/
 #define ENVVOL_MASK		0x0000ffff	/* Current value of volume envelope state variable	*/  
@@ -555,7 +558,7 @@
 						/* NOTE: All channels contain internal variables; do	*/
 						/* not write to these locations.			*/
 
-/* 1f something */
+/* 0x1f: not used */
 
 #define CD0			0x20		/* Cache data 0 register				*/
 #define CD1			0x21		/* Cache data 1 register				*/
@@ -625,6 +628,8 @@
 #define FXWC_SPDIFLEFT          (1<<22)		/* 0x00400000 */
 #define FXWC_SPDIFRIGHT         (1<<23)		/* 0x00800000 */
 
+#define A_TBLSZ	`		0x43	/* Effects Tank Internal Table Size. Only low byte or register used */
+
 #define TCBS			0x44		/* Tank cache buffer size register			*/
 #define TCBS_MASK		0x00000007	/* Tank cache buffer size field				*/
 #define TCBS_BUFFSIZE_16K	0x00000000
@@ -645,7 +650,7 @@
 #define FXBA			0x47		/* FX Buffer Address */
 #define FXBA_MASK		0xfffff000	/* 20 bit base address					*/
 
-/* 0x48 something - word access, defaults to 3f */
+#define A_HWM			0x48	/* High PCI Water Mark - word access, defaults to 3f */
 
 #define MICBS			0x49		/* Microphone buffer size register			*/
 
@@ -689,12 +694,27 @@
 #define ADCBS_BUFSIZE_57344	0x0000001e
 #define ADCBS_BUFSIZE_65536	0x0000001f
 
+/* Current Send B, A Amounts */
+#define A_CSBA			0x4c
+
+/* Current Send D, C Amounts */
+#define A_CSDC			0x4d
+
+/* Current Send F, E Amounts */
+#define A_CSFE			0x4e
+
+/* Current Send H, G Amounts */
+#define A_CSHG			0x4f
+
 
 #define CDCS			0x50		/* CD-ROM digital channel status register	*/
 
 #define GPSCS			0x51		/* General Purpose SPDIF channel status register*/
 
 #define DBG			0x52		/* DO NOT PROGRAM THIS REGISTER!!! MAY DESTROY CHIP */
+
+/* S/PDIF Input C Channel Status */
+#define A_SPSC			0x52
 
 #define REG53			0x53		/* DO NOT PROGRAM THIS REGISTER!!! MAY DESTROY CHIP */
 
@@ -736,6 +756,8 @@
 #define SPCS_NOTAUDIODATA	0x00000002	/* 0 = Digital audio, 1 = not audio		*/
 #define SPCS_PROFESSIONAL	0x00000001	/* 0 = Consumer (IEC-958), 1 = pro (AES3-1992)	*/
 
+/* 0x57: Not used */
+
 /* The 32-bit CLIx and SOLx registers all have one bit per channel control/status      		*/
 #define CLIEL			0x58		/* Channel loop interrupt enable low register	*/
 
@@ -760,6 +782,9 @@
 #define AC97SLOT_REAR_LEFT	0x02		/* Rear right */
 #define AC97SLOT_CNTR		0x10            /* Center enable */
 #define AC97SLOT_LFE		0x20            /* LFE enable */
+
+/* PCB Revision */
+#define A_PCB			0x5f
 
 // NOTE: 0x60,61,62: 64-bit
 #define CDSRCS			0x60		/* CD-ROM Sample Rate Converter status register	*/
@@ -808,9 +833,18 @@
 
 #define HLIPH			0x69		/* Channel half loop interrupt pending high register	*/
 
-// 0x6a,6b,6c used for some recording
-// 0x6d unused
-// 0x6e,6f - tanktable base / offset
+/* S/PDIF Host Record Index (bypasses SRC) */
+#define A_SPRI			0x6a
+/* S/PDIF Host Record Address */
+#define A_SPRA			0x6b
+/* S/PDIF Host Record Control */
+#define A_SPRC			0x6c
+/* Delayed Interrupt Counter & Enable */
+#define A_DICE			0x6d
+/* Tank Table Base */
+#define A_TTB			0x6e
+/* Tank Delay Offset */
+#define A_TDOF			0x6f
 
 /* This is the MPU port on the card (via the game port)						*/
 #define A_MUDATA1		0x70
@@ -828,6 +862,7 @@
 #define A_FXWC1			0x74            /* Selects 0x7f-0x60 for FX recording           */
 #define A_FXWC2			0x75		/* Selects 0x9f-0x80 for FX recording           */
 
+/* Extended Hardware Control */
 #define A_SPDIF_SAMPLERATE	0x76		/* Set the sample rate of SPDIF output		*/
 #define A_SAMPLE_RATE		0x76		/* Various sample rate settings. */
 #define A_SAMPLE_RATE_NOT_USED  0x0ffc111e	/* Bits that are not used and cannot be set. 	*/
@@ -850,8 +885,20 @@
 #define A_PCM_96000		0x00004000
 #define A_PCM_44100		0x00008000
 
-/* 0x77,0x78,0x79 "something i2s-related" - default to 0x01080000 on my audigy 2 ZS --rlrevell	*/
-/* 0x7a, 0x7b - lookup tables */
+/* I2S0 Sample Rate Tracker Status */
+#define A_SRT3			0x77
+
+/* I2S1 Sample Rate Tracker Status */
+#define A_SRT4			0x78
+
+/* I2S2 Sample Rate Tracker Status */
+#define A_SRT5			0x79
+/* - default to 0x01080000 on my audigy 2 ZS --rlrevell	*/
+
+/* Tank Table DMA Address */
+#define A_TTDA			0x7a
+/* Tank Table DMA Data */
+#define A_TTDD			0x7b
 
 #define A_FXRT2			0x7c
 #define A_FXRT_CHANNELE		0x0000003f	/* Effects send bus number for channel's effects send E	*/
@@ -873,7 +920,7 @@
 #define A_FXRT_CHANNELC		0x003f0000
 #define A_FXRT_CHANNELD		0x3f000000
 
-
+/* 0x7f: Not used */
 /* Each FX general purpose register is 32 bits in length, all bits are used			*/
 #define FXGPREGBASE		0x100		/* FX general purpose registers base       	*/
 #define A_FXGPREGBASE		0x400		/* Audigy GPRs, 0x400 to 0x5ff			*/
