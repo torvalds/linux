@@ -65,13 +65,18 @@ nfs_fattr_to_ino_t(struct nfs_fattr *fattr)
 
 int nfs_write_inode(struct inode *inode, int sync)
 {
-	int flags = sync ? FLUSH_SYNC : 0;
 	int ret;
 
-	ret = nfs_commit_inode(inode, flags);
-	if (ret < 0)
-		return ret;
-	return 0;
+	if (sync) {
+		ret = filemap_fdatawait(inode->i_mapping);
+		if (ret == 0)
+			ret = nfs_commit_inode(inode, FLUSH_SYNC);
+	} else
+		ret = nfs_commit_inode(inode, 0);
+	if (ret >= 0)
+		return 0;
+	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+	return ret;
 }
 
 void nfs_clear_inode(struct inode *inode)

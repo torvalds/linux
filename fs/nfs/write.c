@@ -79,7 +79,6 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context*,
 					    unsigned int, unsigned int);
 static void nfs_mark_request_dirty(struct nfs_page *req);
 static int nfs_wait_on_write_congestion(struct address_space *, int);
-static int nfs_wait_on_requests(struct inode *, unsigned long, unsigned int);
 static long nfs_flush_mapping(struct address_space *mapping, struct writeback_control *wbc, int how);
 static const struct rpc_call_ops nfs_write_partial_ops;
 static const struct rpc_call_ops nfs_write_full_ops;
@@ -360,14 +359,7 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	if (err < 0)
 		goto out;
 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, err);
-	if (!wbc->nonblocking && wbc->sync_mode == WB_SYNC_ALL) {
-		err = nfs_wait_on_requests(inode, 0, 0);
-		if (err < 0)
-			goto out;
-	}
-	err = nfs_commit_inode(inode, wb_priority(wbc));
-	if (err > 0)
-		err = 0;
+	err = 0;
 out:
 	clear_bit(BDI_write_congested, &bdi->state);
 	wake_up_all(&nfs_write_congestion);
@@ -514,17 +506,6 @@ static int nfs_wait_on_requests_locked(struct inode *inode, unsigned long idx_st
 		res++;
 	}
 	return res;
-}
-
-static int nfs_wait_on_requests(struct inode *inode, unsigned long idx_start, unsigned int npages)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-	int ret;
-
-	spin_lock(&nfsi->req_lock);
-	ret = nfs_wait_on_requests_locked(inode, idx_start, npages);
-	spin_unlock(&nfsi->req_lock);
-	return ret;
 }
 
 static void nfs_cancel_dirty_list(struct list_head *head)
