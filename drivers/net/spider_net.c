@@ -910,7 +910,6 @@ spider_net_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
  * spider_net_pass_skb_up - takes an skb from a descriptor and passes it on
  * @descr: descriptor to process
  * @card: card structure
- * @napi: whether caller is in NAPI context
  *
  * returns 1 on success, 0 if no packet was passed to the stack
  *
@@ -919,7 +918,7 @@ spider_net_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
  */
 static int
 spider_net_pass_skb_up(struct spider_net_descr *descr,
-		       struct spider_net_card *card, int napi)
+		       struct spider_net_card *card)
 {
 	struct sk_buff *skb;
 	struct net_device *netdev;
@@ -972,10 +971,7 @@ spider_net_pass_skb_up(struct spider_net_descr *descr,
 	}
 
 	/* pass skb up to stack */
-	if (napi)
-		netif_receive_skb(skb);
-	else
-		netif_rx_ni(skb);
+	netif_receive_skb(skb);
 
 	/* update netdevice statistics */
 	card->netdev_stats.rx_packets++;
@@ -987,16 +983,15 @@ spider_net_pass_skb_up(struct spider_net_descr *descr,
 /**
  * spider_net_decode_one_descr - processes an rx descriptor
  * @card: card structure
- * @napi: whether caller is in NAPI context
  *
- * returns 1 if a packet has been sent to the stack, otherwise 0
+ * Returns 1 if a packet has been sent to the stack, otherwise 0
  *
- * processes an rx descriptor by iommu-unmapping the data buffer and passing
+ * Processes an rx descriptor by iommu-unmapping the data buffer and passing
  * the packet up to the stack. This function is called in softirq
  * context, e.g. either bottom half from interrupt or NAPI polling context
  */
 static int
-spider_net_decode_one_descr(struct spider_net_card *card, int napi)
+spider_net_decode_one_descr(struct spider_net_card *card)
 {
 	struct spider_net_descr_chain *chain = &card->rx_chain;
 	struct spider_net_descr *descr = chain->tail;
@@ -1005,18 +1000,15 @@ spider_net_decode_one_descr(struct spider_net_card *card, int napi)
 
 	status = spider_net_get_descr_status(descr);
 
-	if (status == SPIDER_NET_DESCR_CARDOWNED) {
-		/* nothing in the descriptor yet */
-		result=0;
-		goto out;
-	}
+	/* nothing in the descriptor yet */
+	if (status == SPIDER_NET_DESCR_CARDOWNED)
+		return 0;
 
 	if (status == SPIDER_NET_DESCR_NOT_IN_USE) {
 		/* not initialized yet, the ring must be empty */
 		spider_net_refill_rx_chain(card);
 		spider_net_enable_rxdmac(card);
-		result=0;
-		goto out;
+		return 0;
 	}
 
 	/* descriptor definitively used -- move on tail */
@@ -1046,13 +1038,10 @@ spider_net_decode_one_descr(struct spider_net_card *card, int napi)
 	}
 
 	/* ok, we've got a packet in descr */
-	result = spider_net_pass_skb_up(descr, card, napi);
+	result = spider_net_pass_skb_up(descr, card);
 refill:
-	descr->dmac_cmd_status = SPIDER_NET_DESCR_NOT_IN_USE;
 	/* change the descriptor state: */
-	if (!napi)
-		spider_net_refill_rx_chain(card);
-out:
+	descr->dmac_cmd_status = SPIDER_NET_DESCR_NOT_IN_USE;
 	return result;
 }
 
@@ -1079,7 +1068,7 @@ spider_net_poll(struct net_device *netdev, int *budget)
 	packets_to_do = min(*budget, netdev->quota);
 
 	while (packets_to_do) {
-		if (spider_net_decode_one_descr(card, 1)) {
+		if (spider_net_decode_one_descr(card)) {
 			packets_done++;
 			packets_to_do--;
 		} else {
