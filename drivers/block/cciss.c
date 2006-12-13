@@ -3006,10 +3006,8 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 
       err_out_free_res:
 	pci_release_regions(pdev);
-
-      err_out_disable_pdev:
-	pci_disable_device(pdev);
 	return err;
+
 }
 
 /*
@@ -3383,7 +3381,6 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 			blk_cleanup_queue(drv->queue);
 	}
 	pci_release_regions(pdev);
-	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	free_hba(i);
 	return -1;
@@ -3453,7 +3450,6 @@ static void __devexit cciss_remove_one(struct pci_dev *pdev)
 	kfree(hba[i]->scsi_rejects.complete);
 #endif
 	pci_release_regions(pdev);
-	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	free_hba(i);
 }
