@@ -127,8 +127,8 @@ qla2x00_chk_ms_status(scsi_qla_host_t *ha, ms_iocb_entry_t *ms_pkt,
 		    ha->host_no, routine, ms_pkt->entry_status));
 	} else {
 		if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
-			comp_status =
-			    ((struct ct_entry_24xx *)ms_pkt)->comp_status;
+			comp_status = le16_to_cpu(
+			    ((struct ct_entry_24xx *)ms_pkt)->comp_status);
 		else
 			comp_status = le16_to_cpu(ms_pkt->status);
 		switch (comp_status) {
