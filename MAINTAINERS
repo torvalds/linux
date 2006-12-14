@@ -1277,6 +1277,12 @@ L:	linux-nvidia@lists.surfsouth.com
 W:	http://drama.obuda.kando.hu/~fero/cgi-bin/hgafb.shtml
 S:	Maintained
 
+HID CORE LAYER
+P:	Jiri Kosina
+M:	jkosina@suse.cz
+L:	linux-input@atrey.karlin.mff.cuni.cz
+S:	Maintained
+
 HIGH-SPEED SCC DRIVER FOR AX.25
 P:	Klaus Kudielka
 M:	klaus.kudielka@ieee.org
