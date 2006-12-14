@@ -920,9 +920,20 @@ static int of_irq_map_oldworld(struct device_node *device, int index,
 
 	/*
 	 * Old machines just have a list of interrupt numbers
-	 * and no interrupt-controller nodes.
+	 * and no interrupt-controller nodes. We also have dodgy
+	 * cases where the APPL,interrupts property is completely
+	 * missing behind pci-pci bridges and we have to get it
+	 * from the parent (the bridge itself, as apple just wired
+	 * everything together on these)
 	 */
-	ints = get_property(device, "AAPL,interrupts", &intlen);
+	while (device) {
+		ints = get_property(device, "AAPL,interrupts", &intlen);
+		if (ints != NULL)
+			break;
+		device = device->parent;
+		if (device && strcmp(device->type, "pci") != 0)
+			break;
+	}
 	if (ints == NULL)
 		return -EINVAL;
 	intlen /= sizeof(u32);
