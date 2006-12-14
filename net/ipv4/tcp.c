@@ -2364,8 +2364,9 @@ struct tcp_md5sig_pool *__tcp_get_md5sig_pool(int cpu)
 
 EXPORT_SYMBOL(__tcp_get_md5sig_pool);
 
-void __tcp_put_md5sig_pool(void) {
-	__tcp_free_md5sig_pool(tcp_md5sig_pool);
+void __tcp_put_md5sig_pool(void)
+{
+	tcp_free_md5sig_pool();
 }
 
 EXPORT_SYMBOL(__tcp_put_md5sig_pool);
