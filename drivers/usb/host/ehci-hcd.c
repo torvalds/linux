@@ -157,12 +157,13 @@ MODULE_PARM_DESC (ignore_oc, "ignore bogus hardware overcurrent indications");
  * before driver shutdown. But it also seems to be caused by bugs in cardbus
  * bridge shutdown:  shutting down the bridge before the devices using it.
  */
-static int handshake (void __iomem *ptr, u32 mask, u32 done, int usec)
+static int handshake (struct ehci_hcd *ehci, void __iomem *ptr,
+		      u32 mask, u32 done, int usec)
 {
 	u32	result;
 
 	do {
-		result = readl (ptr);
+		result = ehci_readl(ehci, ptr);
 		if (result == ~(u32)0)		/* card removed */
 			return -ENODEV;
 		result &= mask;
@@ -177,18 +178,19 @@ static int handshake (void __iomem *ptr, u32 mask, u32 done, int usec)
 /* force HC to halt state from unknown (EHCI spec section 2.3) */
 static int ehci_halt (struct ehci_hcd *ehci)
 {
-	u32	temp = readl (&ehci->regs->status);
+	u32	temp = ehci_readl(ehci, &ehci->regs->status);
 
 	/* disable any irqs left enabled by previous code */
-	writel (0, &ehci->regs->intr_enable);
+	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 
 	if ((temp & STS_HALT) != 0)
 		return 0;
 
-	temp = readl (&ehci->regs->command);
+	temp = ehci_readl(ehci, &ehci->regs->command);
 	temp &= ~CMD_RUN;
-	writel (temp, &ehci->regs->command);
-	return handshake (&ehci->regs->status, STS_HALT, STS_HALT, 16 * 125);
+	ehci_writel(ehci, temp, &ehci->regs->command);
+	return handshake (ehci, &ehci->regs->status,
+			  STS_HALT, STS_HALT, 16 * 125);
 }
 
 /* put TDI/ARC silicon into EHCI mode */
@@ -198,23 +200,24 @@ static void tdi_reset (struct ehci_hcd *ehci)
 	u32		tmp;
 
 	reg_ptr = (u32 __iomem *)(((u8 __iomem *)ehci->regs) + 0x68);
-	tmp = readl (reg_ptr);
+	tmp = ehci_readl(ehci, reg_ptr);
 	tmp |= 0x3;
-	writel (tmp, reg_ptr);
+	ehci_writel(ehci, tmp, reg_ptr);
 }
 
 /* reset a non-running (STS_HALT == 1) controller */
 static int ehci_reset (struct ehci_hcd *ehci)
 {
 	int	retval;
-	u32	command = readl (&ehci->regs->command);
+	u32	command = ehci_readl(ehci, &ehci->regs->command);
 
 	command |= CMD_RESET;
 	dbg_cmd (ehci, "reset", command);
-	writel (command, &ehci->regs->command);
+	ehci_writel(ehci, command, &ehci->regs->command);
 	ehci_to_hcd(ehci)->state = HC_STATE_HALT;
 	ehci->next_statechange = jiffies;
-	retval = handshake (&ehci->regs->command, CMD_RESET, 0, 250 * 1000);
+	retval = handshake (ehci, &ehci->regs->command,
+			    CMD_RESET, 0, 250 * 1000);
 
 	if (retval)
 		return retval;
@@ -236,21 +239,21 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 #endif
 
 	/* wait for any schedule enables/disables to take effect */
-	temp = readl (&ehci->regs->command) << 10;
+	temp = ehci_readl(ehci, &ehci->regs->command) << 10;
 	temp &= STS_ASS | STS_PSS;
-	if (handshake (&ehci->regs->status, STS_ASS | STS_PSS,
+	if (handshake (ehci, &ehci->regs->status, STS_ASS | STS_PSS,
 				temp, 16 * 125) != 0) {
 		ehci_to_hcd(ehci)->state = HC_STATE_HALT;
 		return;
 	}
 
 	/* then disable anything that's still active */
-	temp = readl (&ehci->regs->command);
+	temp = ehci_readl(ehci, &ehci->regs->command);
 	temp &= ~(CMD_ASE | CMD_IAAD | CMD_PSE);
-	writel (temp, &ehci->regs->command);
+	ehci_writel(ehci, temp, &ehci->regs->command);
 
 	/* hardware can take 16 microframes to turn off ... */
-	if (handshake (&ehci->regs->status, STS_ASS | STS_PSS,
+	if (handshake (ehci, &ehci->regs->status, STS_ASS | STS_PSS,
 				0, 16 * 125) != 0) {
 		ehci_to_hcd(ehci)->state = HC_STATE_HALT;
 		return;
@@ -277,11 +280,11 @@ static void ehci_watchdog (unsigned long param)
 
 	/* lost IAA irqs wedge things badly; seen with a vt8235 */
 	if (ehci->reclaim) {
-		u32		status = readl (&ehci->regs->status);
+		u32		status = ehci_readl(ehci, &ehci->regs->status);
 		if (status & STS_IAA) {
 			ehci_vdbg (ehci, "lost IAA\n");
 			COUNT (ehci->stats.lost_iaa);
-			writel (STS_IAA, &ehci->regs->status);
+			ehci_writel(ehci, STS_IAA, &ehci->regs->status);
 			ehci->reclaim_ready = 1;
 		}
 	}
@@ -309,7 +312,7 @@ ehci_shutdown (struct usb_hcd *hcd)
 	(void) ehci_halt (ehci);
 
 	/* make BIOS/etc use companion controller during reboot */
-	writel (0, &ehci->regs->configured_flag);
+	ehci_writel(ehci, 0, &ehci->regs->configured_flag);
 }
 
 static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
@@ -379,11 +382,11 @@ static void ehci_stop (struct usb_hcd *hcd)
 		ehci_quiesce (ehci);
 
 	ehci_reset (ehci);
-	writel (0, &ehci->regs->intr_enable);
+	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	spin_unlock_irq(&ehci->lock);
 
 	/* let companion controllers work when we aren't */
-	writel (0, &ehci->regs->configured_flag);
+	ehci_writel(ehci, 0, &ehci->regs->configured_flag);
 
 	remove_debug_files (ehci);
 
@@ -402,7 +405,8 @@ static void ehci_stop (struct usb_hcd *hcd)
 		ehci->stats.complete, ehci->stats.unlink);
 #endif
 
-	dbg_status (ehci, "ehci_stop completed", readl (&ehci->regs->status));
+	dbg_status (ehci, "ehci_stop completed",
+		    ehci_readl(ehci, &ehci->regs->status));
 }
 
 /* one-time init, only for memory state */
@@ -428,7 +432,7 @@ static int ehci_init(struct usb_hcd *hcd)
 		return retval;
 
 	/* controllers may cache some of the periodic schedule ... */
-	hcc_params = readl(&ehci->caps->hcc_params);
+	hcc_params = ehci_readl(ehci, &ehci->caps->hcc_params);
 	if (HCC_ISOC_CACHE(hcc_params))		// full frame cache
 		ehci->i_thresh = 8;
 	else					// N microframes cached
@@ -501,8 +505,8 @@ static int ehci_run (struct usb_hcd *hcd)
 		ehci_mem_cleanup(ehci);
 		return retval;
 	}
-	writel(ehci->periodic_dma, &ehci->regs->frame_list);
-	writel((u32)ehci->async->qh_dma, &ehci->regs->async_next);
+	ehci_writel(ehci, ehci->periodic_dma, &ehci->regs->frame_list);
+	ehci_writel(ehci, (u32)ehci->async->qh_dma, &ehci->regs->async_next);
 
 	/*
 	 * hcc_params controls whether ehci->regs->segment must (!!!)
@@ -516,9 +520,9 @@ static int ehci_run (struct usb_hcd *hcd)
 	 * Scsi_Host.highmem_io, and so forth.  It's readonly to all
 	 * host side drivers though.
 	 */
-	hcc_params = readl(&ehci->caps->hcc_params);
+	hcc_params = ehci_readl(ehci, &ehci->caps->hcc_params);
 	if (HCC_64BIT_ADDR(hcc_params)) {
-		writel(0, &ehci->regs->segment);
+		ehci_writel(ehci, 0, &ehci->regs->segment);
 #if 0
 // this is deeply broken on almost all architectures
 		if (!dma_set_mask(hcd->self.controller, DMA_64BIT_MASK))
@@ -531,7 +535,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	// root hub will detect new devices (why?); NEC doesn't
 	ehci->command &= ~(CMD_LRESET|CMD_IAAD|CMD_PSE|CMD_ASE|CMD_RESET);
 	ehci->command |= CMD_RUN;
-	writel (ehci->command, &ehci->regs->command);
+	ehci_writel(ehci, ehci->command, &ehci->regs->command);
 	dbg_cmd (ehci, "init", ehci->command);
 
 	/*
@@ -541,17 +545,18 @@ static int ehci_run (struct usb_hcd *hcd)
 	 * and there's no companion controller unless maybe for USB OTG.)
 	 */
 	hcd->state = HC_STATE_RUNNING;
-	writel (FLAG_CF, &ehci->regs->configured_flag);
-	readl (&ehci->regs->command);	/* unblock posted writes */
+	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
+	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
 
-	temp = HC_VERSION(readl (&ehci->caps->hc_capbase));
+	temp = HC_VERSION(ehci_readl(ehci, &ehci->caps->hc_capbase));
 	ehci_info (ehci,
 		"USB %x.%x started, EHCI %x.%02x, driver %s%s\n",
 		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),
 		temp >> 8, temp & 0xff, DRIVER_VERSION,
 		ignore_oc ? ", overcurrent ignored" : "");
 
-	writel (INTR_MASK, &ehci->regs->intr_enable); /* Turn On Interrupts */
+	ehci_writel(ehci, INTR_MASK,
+		    &ehci->regs->intr_enable); /* Turn On Interrupts */
 
 	/* GRR this is run-once init(), being done every time the HC starts.
 	 * So long as they're part of class devices, we can't do it init()
@@ -572,7 +577,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 
 	spin_lock (&ehci->lock);
 
-	status = readl (&ehci->regs->status);
+	status = ehci_readl(ehci, &ehci->regs->status);
 
 	/* e.g. cardbus physical eject */
 	if (status == ~(u32) 0) {
@@ -587,8 +592,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	}
 
 	/* clear (just) interrupts */
-	writel (status, &ehci->regs->status);
-	readl (&ehci->regs->command);	/* unblock posted write */
+	ehci_writel(ehci, status, &ehci->regs->status);
+	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted write */
 	bh = 0;
 
 #ifdef	EHCI_VERBOSE_DEBUG
@@ -619,11 +624,12 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		unsigned	i = HCS_N_PORTS (ehci->hcs_params);
 
 		/* resume root hub? */
-		if (!(readl(&ehci->regs->command) & CMD_RUN))
+		if (!(ehci_readl(ehci, &ehci->regs->command) & CMD_RUN))
 			usb_hcd_resume_root_hub(hcd);
 
 		while (i--) {
-			int pstatus = readl (&ehci->regs->port_status [i]);
+			int pstatus = ehci_readl(ehci,
+						 &ehci->regs->port_status [i]);
 
 			if (pstatus & PORT_OWNER)
 				continue;
@@ -643,14 +649,15 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	/* PCI errors [4.15.2.4] */
 	if (unlikely ((status & STS_FATAL) != 0)) {
 		/* bogus "fatal" IRQs appear on some chips... why?  */
-		status = readl (&ehci->regs->status);
-		dbg_cmd (ehci, "fatal", readl (&ehci->regs->command));
+		status = ehci_readl(ehci, &ehci->regs->status);
+		dbg_cmd (ehci, "fatal", ehci_readl(ehci,
+						   &ehci->regs->command));
 		dbg_status (ehci, "fatal", status);
 		if (status & STS_HALT) {
 			ehci_err (ehci, "fatal error\n");
 dead:
 			ehci_reset (ehci);
-			writel (0, &ehci->regs->configured_flag);
+			ehci_writel(ehci, 0, &ehci->regs->configured_flag);
 			/* generic layer kills/unlinks all urbs, then
 			 * uses ehci_stop to clean up the rest
 			 */
@@ -873,7 +880,8 @@ done:
 static int ehci_get_frame (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
-	return (readl (&ehci->regs->frame_index) >> 3) % ehci->periodic_size;
+	return (ehci_readl(ehci, &ehci->regs->frame_index) >> 3) %
+		ehci->periodic_size;
 }
 
 /*-------------------------------------------------------------------------*/
