@@ -52,7 +52,7 @@ struct rose_neigh *rose_loopback_neigh;
  *	Add a new route to a node, and in the process add the node and the
  *	neighbour if it is new.
  */
-static int rose_add_node(struct rose_route_struct *rose_route,
+static int __must_check rose_add_node(struct rose_route_struct *rose_route,
 	struct net_device *dev)
 {
 	struct rose_node  *rose_node, *rose_tmpn, *rose_tmpp;

@@ -193,8 +193,8 @@ extern struct file_operations rose_neigh_fops;
 extern struct file_operations rose_nodes_fops;
 extern struct file_operations rose_routes_fops;
 
-extern int  rose_add_loopback_neigh(void);
-extern int  rose_add_loopback_node(rose_address *);
+extern int __must_check rose_add_loopback_neigh(void);
+extern int __must_check rose_add_loopback_node(rose_address *);
 extern void rose_del_loopback_node(rose_address *);
 extern void rose_rt_device_down(struct net_device *);
 extern void rose_link_device_down(struct net_device *);

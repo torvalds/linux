@@ -87,8 +87,9 @@ static void nr_remove_neigh(struct nr_neigh *);
  *	Add a new route to a node, and in the process add the node and the
  *	neighbour if it is new.
  */
-static int nr_add_node(ax25_address *nr, const char *mnemonic, ax25_address *ax25,
-	ax25_digi *ax25_digi, struct net_device *dev, int quality, int obs_count)
+static int __must_check nr_add_node(ax25_address *nr, const char *mnemonic,
+	ax25_address *ax25, ax25_digi *ax25_digi, struct net_device *dev,
+	int quality, int obs_count)
 {
 	struct nr_node  *nr_node;
 	struct nr_neigh *nr_neigh;
@@ -406,7 +407,8 @@ static int nr_del_node(ax25_address *callsign, ax25_address *neighbour, struct n
 /*
  *	Lock a neighbour with a quality.
  */
-static int nr_add_neigh(ax25_address *callsign, ax25_digi *ax25_digi, struct net_device *dev, unsigned int quality)
+static int __must_check nr_add_neigh(ax25_address *callsign,
+	ax25_digi *ax25_digi, struct net_device *dev, unsigned int quality)
 {
 	struct nr_neigh *nr_neigh;
 
