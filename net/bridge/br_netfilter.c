@@ -61,9 +61,6 @@ static int brnf_filter_vlan_tagged __read_mostly = 1;
 #define brnf_filter_vlan_tagged 1
 #endif
 
-int brnf_deferred_hooks;
-EXPORT_SYMBOL_GPL(brnf_deferred_hooks);
-
 static __be16 inline vlan_proto(const struct sk_buff *skb)
 {
 	return vlan_eth_hdr(skb)->h_vlan_encapsulated_proto;
@@ -685,110 +682,50 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff **pskb,
 	return NF_STOLEN;
 }
 
-/* PF_BRIDGE/LOCAL_OUT ***********************************************/
-static int br_nf_local_out_finish(struct sk_buff *skb)
-{
-	if (skb->protocol == htons(ETH_P_8021Q)) {
-		skb_push(skb, VLAN_HLEN);
-		skb->nh.raw -= VLAN_HLEN;
-	}
-
-	NF_HOOK_THRESH(PF_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
-		       br_forward_finish, NF_BR_PRI_FIRST + 1);
-
-	return 0;
-}
-
-/* This function sees both locally originated IP packets and forwarded
+/* PF_BRIDGE/LOCAL_OUT ***********************************************
+ *
+ * This function sees both locally originated IP packets and forwarded
  * IP packets (in both cases the destination device is a bridge
  * device). It also sees bridged-and-DNAT'ed packets.
- * To be able to filter on the physical bridge devices (with the physdev
- * module), we steal packets destined to a bridge device away from the
- * PF_INET/FORWARD and PF_INET/OUTPUT hook functions, and give them back later,
- * when we have determined the real output device. This is done in here.
  *
  * If (nf_bridge->mask & BRNF_BRIDGED_DNAT) then the packet is bridged
  * and we fake the PF_BRIDGE/FORWARD hook. The function br_nf_forward()
  * will then fake the PF_INET/FORWARD hook. br_nf_local_out() has priority
  * NF_BR_PRI_FIRST, so no relevant PF_BRIDGE/INPUT functions have been nor
  * will be executed.
- * Otherwise, if nf_bridge->physindev is NULL, the bridge-nf code never touched
- * this packet before, and so the packet was locally originated. We fake
- * the PF_INET/LOCAL_OUT hook.
- * Finally, if nf_bridge->physindev isn't NULL, then the packet was IP routed,
- * so we fake the PF_INET/FORWARD hook. ip_sabotage_out() makes sure
- * even routed packets that didn't arrive on a bridge interface have their
- * nf_bridge->physindev set. */
+ */
 static unsigned int br_nf_local_out(unsigned int hook, struct sk_buff **pskb,
 				    const struct net_device *in,
 				    const struct net_device *out,
 				    int (*okfn)(struct sk_buff *))
 {
-	struct net_device *realindev, *realoutdev;
+	struct net_device *realindev;
 	struct sk_buff *skb = *pskb;
 	struct nf_bridge_info *nf_bridge;
-	int pf;
 
 	if (!skb->nf_bridge)
 		return NF_ACCEPT;
 
-	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP(skb))
-		pf = PF_INET;
-	else
-		pf = PF_INET6;
-
 	nf_bridge = skb->nf_bridge;
-	nf_bridge->physoutdev = skb->dev;
-	realindev = nf_bridge->physindev;
+	if (!(nf_bridge->mask & BRNF_BRIDGED_DNAT))
+		return NF_ACCEPT;
 
 	/* Bridged, take PF_BRIDGE/FORWARD.
 	 * (see big note in front of br_nf_pre_routing_finish) */
-	if (nf_bridge->mask & BRNF_BRIDGED_DNAT) {
-		if (nf_bridge->mask & BRNF_PKT_TYPE) {
-			skb->pkt_type = PACKET_OTHERHOST;
-			nf_bridge->mask ^= BRNF_PKT_TYPE;
-		}
-		if (skb->protocol == htons(ETH_P_8021Q)) {
-			skb_push(skb, VLAN_HLEN);
-			skb->nh.raw -= VLAN_HLEN;
-		}
+	nf_bridge->physoutdev = skb->dev;
+	realindev = nf_bridge->physindev;
 
-		NF_HOOK(PF_BRIDGE, NF_BR_FORWARD, skb, realindev,
-			skb->dev, br_forward_finish);
-		goto out;
+	if (nf_bridge->mask & BRNF_PKT_TYPE) {
+		skb->pkt_type = PACKET_OTHERHOST;
+		nf_bridge->mask ^= BRNF_PKT_TYPE;
 	}
-	realoutdev = bridge_parent(skb->dev);
-	if (!realoutdev)
-		return NF_DROP;
-
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-	/* iptables should match -o br0.x */
-	if (nf_bridge->netoutdev)
-		realoutdev = nf_bridge->netoutdev;
-#endif
 	if (skb->protocol == htons(ETH_P_8021Q)) {
-		skb_pull(skb, VLAN_HLEN);
-		(*pskb)->nh.raw += VLAN_HLEN;
-	}
-	/* IP forwarded traffic has a physindev, locally
-	 * generated traffic hasn't. */
-	if (realindev != NULL) {
-		if (!(nf_bridge->mask & BRNF_DONT_TAKE_PARENT)) {
-			struct net_device *parent = bridge_parent(realindev);
-			if (parent)
-				realindev = parent;
-		}
-
-		NF_HOOK_THRESH(pf, NF_IP_FORWARD, skb, realindev,
-			       realoutdev, br_nf_local_out_finish,
-			       NF_IP_PRI_BRIDGE_SABOTAGE_FORWARD + 1);
-	} else {
-		NF_HOOK_THRESH(pf, NF_IP_LOCAL_OUT, skb, realindev,
-			       realoutdev, br_nf_local_out_finish,
-			       NF_IP_PRI_BRIDGE_SABOTAGE_LOCAL_OUT + 1);
+		skb_push(skb, VLAN_HLEN);
+		skb->nh.raw -= VLAN_HLEN;
 	}
 
-out:
+	NF_HOOK(PF_BRIDGE, NF_BR_FORWARD, skb, realindev, skb->dev,
+		br_forward_finish);
 	return NF_STOLEN;
 }
 
@@ -894,69 +831,6 @@ static unsigned int ip_sabotage_in(unsigned int hook, struct sk_buff **pskb,
 	return NF_ACCEPT;
 }
 
-/* Postpone execution of PF_INET(6)/FORWARD, PF_INET(6)/LOCAL_OUT
- * and PF_INET(6)/POST_ROUTING until we have done the forwarding
- * decision in the bridge code and have determined nf_bridge->physoutdev. */
-static unsigned int ip_sabotage_out(unsigned int hook, struct sk_buff **pskb,
-				    const struct net_device *in,
-				    const struct net_device *out,
-				    int (*okfn)(struct sk_buff *))
-{
-	struct sk_buff *skb = *pskb;
-
-	if ((out->hard_start_xmit == br_dev_xmit &&
-	     okfn != br_nf_forward_finish &&
-	     okfn != br_nf_local_out_finish && okfn != br_nf_dev_queue_xmit)
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-	    || ((out->priv_flags & IFF_802_1Q_VLAN) &&
-		VLAN_DEV_INFO(out)->real_dev->hard_start_xmit == br_dev_xmit)
-#endif
-	    ) {
-		struct nf_bridge_info *nf_bridge;
-
-		if (!skb->nf_bridge) {
-#ifdef CONFIG_SYSCTL
-			/* This code is executed while in the IP(v6) stack,
-			   the version should be 4 or 6. We can't use
-			   skb->protocol because that isn't set on
-			   PF_INET(6)/LOCAL_OUT. */
-			struct iphdr *ip = skb->nh.iph;
-
-			if (ip->version == 4 && !brnf_call_iptables)
-				return NF_ACCEPT;
-			else if (ip->version == 6 && !brnf_call_ip6tables)
-				return NF_ACCEPT;
-			else if (!brnf_deferred_hooks)
-				return NF_ACCEPT;
-#endif
-			if (hook == NF_IP_POST_ROUTING)
-				return NF_ACCEPT;
-			if (!nf_bridge_alloc(skb))
-				return NF_DROP;
-		}
-
-		nf_bridge = skb->nf_bridge;
-
-		/* This frame will arrive on PF_BRIDGE/LOCAL_OUT and we
-		 * will need the indev then. For a brouter, the real indev
-		 * can be a bridge port, so we make sure br_nf_local_out()
-		 * doesn't use the bridge parent of the indev by using
-		 * the BRNF_DONT_TAKE_PARENT mask. */
-		if (hook == NF_IP_FORWARD && nf_bridge->physindev == NULL) {
-			nf_bridge->mask |= BRNF_DONT_TAKE_PARENT;
-			nf_bridge->physindev = (struct net_device *)in;
-		}
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-		/* the iptables outdev is br0.x, not br0 */
-		if (out->priv_flags & IFF_802_1Q_VLAN)
-			nf_bridge->netoutdev = (struct net_device *)out;
-#endif
-		return NF_STOP;
-	}
-
-	return NF_ACCEPT;
-}
-
 /* For br_nf_local_out we need (prio = NF_BR_PRI_FIRST), to insure that innocent
  * PF_BRIDGE/NF_BR_LOCAL_OUT functions don't get bridged traffic as input.
  * For br_nf_post_routing, we need (prio = NF_BR_PRI_LAST), because
@@ -1001,36 +875,6 @@ static struct nf_hook_ops br_nf_ops[] = {
 	  .owner = THIS_MODULE,
 	  .pf = PF_INET6,
 	  .hooknum = NF_IP6_PRE_ROUTING,
-	  .priority = NF_IP6_PRI_FIRST, },
-	{ .hook = ip_sabotage_out,
-	  .owner = THIS_MODULE,
-	  .pf = PF_INET,
-	  .hooknum = NF_IP_FORWARD,
-	  .priority = NF_IP_PRI_BRIDGE_SABOTAGE_FORWARD, },
-	{ .hook = ip_sabotage_out,
-	  .owner = THIS_MODULE,
-	  .pf = PF_INET6,
-	  .hooknum = NF_IP6_FORWARD,
-	  .priority = NF_IP6_PRI_BRIDGE_SABOTAGE_FORWARD, },
-	{ .hook = ip_sabotage_out,
-	  .owner = THIS_MODULE,
-	  .pf = PF_INET,
-	  .hooknum = NF_IP_LOCAL_OUT,
-	  .priority = NF_IP_PRI_BRIDGE_SABOTAGE_LOCAL_OUT, },
-	{ .hook = ip_sabotage_out,
-	  .owner = THIS_MODULE,
-	  .pf = PF_INET6,
-	  .hooknum = NF_IP6_LOCAL_OUT,
-	  .priority = NF_IP6_PRI_BRIDGE_SABOTAGE_LOCAL_OUT, },
-	{ .hook = ip_sabotage_out,
-	  .owner = THIS_MODULE,
-	  .pf = PF_INET,
-	  .hooknum = NF_IP_POST_ROUTING,
-	  .priority = NF_IP_PRI_FIRST, },
-	{ .hook = ip_sabotage_out,
-	  .owner = THIS_MODULE,
-	  .pf = PF_INET6,
-	  .hooknum = NF_IP6_POST_ROUTING,
 	  .priority = NF_IP6_PRI_FIRST, },
 };
 

@@ -207,22 +207,6 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 
 ---------------------------
 
-What:	Bridge netfilter deferred IPv4/IPv6 output hook calling
-When:	January 2007
-Why:	The deferred output hooks are a layering violation causing unusual
-	and broken behaviour on bridge devices. Examples of things they
-	break include QoS classifation using the MARK or CLASSIFY targets,
-	the IPsec policy match and connection tracking with VLANs on a
-	bridge. Their only use is to enable bridge output port filtering
-	within iptables with the physdev match, which can also be done by
-	combining iptables and ebtables using netfilter marks. Until it
-	will get removed the hook deferral is disabled by default and is
-	only enabled when needed.
-
-Who:	Patrick McHardy <kaber@trash.net>
-
----------------------------
-
 What:	PHYSDEVPATH, PHYSDEVBUS, PHYSDEVDRIVER in the uevent environment
 When:	October 2008
 Why:	The stacking of class devices makes these values misleading and
