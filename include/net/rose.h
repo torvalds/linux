@@ -188,12 +188,12 @@ extern void rose_kick(struct sock *);
 extern void rose_enquiry_response(struct sock *);
 
 /* rose_route.c */
-extern struct rose_neigh *rose_loopback_neigh;
+extern struct rose_neigh rose_loopback_neigh;
 extern struct file_operations rose_neigh_fops;
 extern struct file_operations rose_nodes_fops;
 extern struct file_operations rose_routes_fops;
 
-extern int __must_check rose_add_loopback_neigh(void);
+extern void rose_add_loopback_neigh(void);
 extern int __must_check rose_add_loopback_node(rose_address *);
 extern void rose_del_loopback_node(rose_address *);
 extern void rose_rt_device_down(struct net_device *);

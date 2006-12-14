@@ -79,7 +79,8 @@ static void rose_loopback_timer(unsigned long param)
 
 		skb->h.raw = skb->data;
 
-		if ((sk = rose_find_socket(lci_o, rose_loopback_neigh)) != NULL) {
+		sk = rose_find_socket(lci_o, &rose_loopback_neigh);
+		if (sk) {
 			if (rose_process_rx_frame(sk, skb) == 0)
 				kfree_skb(skb);
 			continue;
@@ -87,7 +88,7 @@ static void rose_loopback_timer(unsigned long param)
 
 		if (frametype == ROSE_CALL_REQUEST) {
 			if ((dev = rose_dev_get(dest)) != NULL) {
-				if (rose_rx_call_request(skb, dev, rose_loopback_neigh, lci_o) == 0)
+				if (rose_rx_call_request(skb, dev, &rose_loopback_neigh, lci_o) == 0)
 					kfree_skb(skb);
 			} else {
 				kfree_skb(skb);
