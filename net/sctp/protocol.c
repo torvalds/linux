@@ -163,7 +163,7 @@ static void sctp_v4_copy_addrlist(struct list_head *addrlist,
 /* Extract our IP addresses from the system and stash them in the
  * protocol structure.
  */
-static void __sctp_get_local_addr_list(void)
+static void sctp_get_local_addr_list(void)
 {
 	struct net_device *dev;
 	struct list_head *pos;
@@ -179,17 +179,8 @@ static void __sctp_get_local_addr_list(void)
 	read_unlock(&dev_base_lock);
 }
 
-static void sctp_get_local_addr_list(void)
-{
-	unsigned long flags;
-
-	sctp_spin_lock_irqsave(&sctp_local_addr_lock, flags);
-	__sctp_get_local_addr_list();
-	sctp_spin_unlock_irqrestore(&sctp_local_addr_lock, flags);
-}
-
 /* Free the existing local addresses.  */
-static void __sctp_free_local_addr_list(void)
+static void sctp_free_local_addr_list(void)
 {
 	struct sctp_sockaddr_entry *addr;
 	struct list_head *pos, *temp;
@@ -201,27 +192,15 @@ static void __sctp_free_local_addr_list(void)
 	}
 }
 
-/* Free the existing local addresses.  */
-static void sctp_free_local_addr_list(void)
-{
-	unsigned long flags;
-
-	sctp_spin_lock_irqsave(&sctp_local_addr_lock, flags);
-	__sctp_free_local_addr_list();
-	sctp_spin_unlock_irqrestore(&sctp_local_addr_lock, flags);
-}
-
 /* Copy the local addresses which are valid for 'scope' into 'bp'.  */
 int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 			      gfp_t gfp, int copy_flags)
 {
 	struct sctp_sockaddr_entry *addr;
 	int error = 0;
-	struct list_head *pos;
-	unsigned long flags;
+	struct list_head *pos, *temp;
 
-	sctp_spin_lock_irqsave(&sctp_local_addr_lock, flags);
-	list_for_each(pos, &sctp_local_addr_list) {
+	list_for_each_safe(pos, temp, &sctp_local_addr_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
 		if (sctp_in_scope(&addr->a, scope)) {
 			/* Now that the address is in scope, check to see if
@@ -242,7 +221,6 @@ int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 	}
 
 end_copy:
-	sctp_spin_unlock_irqrestore(&sctp_local_addr_lock, flags);
 	return error;
 }
 
@@ -622,18 +600,36 @@ static void sctp_v4_seq_dump_addr(struct seq_file *seq, union sctp_addr *addr)
 	seq_printf(seq, "%d.%d.%d.%d ", NIPQUAD(addr->v4.sin_addr));
 }
 
-/* Event handler for inet address addition/deletion events.
- * Basically, whenever there is an event, we re-build our local address list.
- */
+/* Event handler for inet address addition/deletion events.  */
 int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
                         void *ptr)
 {
-	unsigned long flags;
+	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
+	struct sctp_sockaddr_entry *addr;
+	struct list_head *pos, *temp;
 
-	sctp_spin_lock_irqsave(&sctp_local_addr_lock, flags);
-	__sctp_free_local_addr_list();
-	__sctp_get_local_addr_list();
-	sctp_spin_unlock_irqrestore(&sctp_local_addr_lock, flags);
+	switch (ev) {
+	case NETDEV_UP:
+		addr = kmalloc(sizeof(struct sctp_sockaddr_entry), GFP_ATOMIC);
+		if (addr) {
+			addr->a.v4.sin_family = AF_INET;
+			addr->a.v4.sin_port = 0;
+			addr->a.v4.sin_addr.s_addr = ifa->ifa_local;
+			list_add_tail(&addr->list, &sctp_local_addr_list);
+		}
+		break;
+	case NETDEV_DOWN:
+		list_for_each_safe(pos, temp, &sctp_local_addr_list) {
+			addr = list_entry(pos, struct sctp_sockaddr_entry, list);
+			if (addr->a.v4.sin_addr.s_addr == ifa->ifa_local) {
+				list_del(pos);
+				kfree(addr);
+				break;
+			}
+		}
+
+		break;
+	}
 
 	return NOTIFY_DONE;
 }
@@ -1172,12 +1168,11 @@ SCTP_STATIC __init int sctp_init(void)
 
 	/* Initialize the local address list. */
 	INIT_LIST_HEAD(&sctp_local_addr_list);
-	spin_lock_init(&sctp_local_addr_lock);
+
+	sctp_get_local_addr_list();
 
 	/* Register notifier for inet address additions/deletions. */
 	register_inetaddr_notifier(&sctp_inetaddr_notifier);
-
-	sctp_get_local_addr_list();
 
 	__unsafe(THIS_MODULE);
 	status = 0;

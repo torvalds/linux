@@ -201,13 +201,12 @@ extern struct sctp_globals {
 	struct sctp_bind_hashbucket *port_hashtable;
 
 	/* This is the global local address list.
-	 * We actively maintain this complete list of interfaces on
-	 * the system by catching routing events.
+	 * We actively maintain this complete list of addresses on
+	 * the system by catching address add/delete events.
 	 *
 	 * It is a list of sctp_sockaddr_entry.
 	 */
 	struct list_head local_addr_list;
-	spinlock_t local_addr_lock;
 	
 	/* Flag to indicate if addip is enabled. */
 	int addip_enable;
@@ -243,7 +242,6 @@ extern struct sctp_globals {
 #define sctp_port_alloc_lock		(sctp_globals.port_alloc_lock)
 #define sctp_port_hashtable		(sctp_globals.port_hashtable)
 #define sctp_local_addr_list		(sctp_globals.local_addr_list)
-#define sctp_local_addr_lock		(sctp_globals.local_addr_lock)
 #define sctp_addip_enable		(sctp_globals.addip_enable)
 #define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
 

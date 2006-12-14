@@ -3821,10 +3821,9 @@ static int sctp_getsockopt_local_addrs_num_old(struct sock *sk, int len,
 	sctp_assoc_t id;
 	struct sctp_bind_addr *bp;
 	struct sctp_association *asoc;
-	struct list_head *pos;
+	struct list_head *pos, *temp;
 	struct sctp_sockaddr_entry *addr;
 	rwlock_t *addr_lock;
-	unsigned long flags;
 	int cnt = 0;
 
 	if (len != sizeof(sctp_assoc_t))
@@ -3859,8 +3858,7 @@ static int sctp_getsockopt_local_addrs_num_old(struct sock *sk, int len,
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
 		if (sctp_is_any(&addr->a)) {
-			sctp_spin_lock_irqsave(&sctp_local_addr_lock, flags);
-			list_for_each(pos, &sctp_local_addr_list) {
+			list_for_each_safe(pos, temp, &sctp_local_addr_list) {
 				addr = list_entry(pos,
 						  struct sctp_sockaddr_entry,
 						  list);
@@ -3869,8 +3867,6 @@ static int sctp_getsockopt_local_addrs_num_old(struct sock *sk, int len,
 					continue;
 				cnt++;
 			}
-			sctp_spin_unlock_irqrestore(&sctp_local_addr_lock,
-						    flags);
 		} else {
 			cnt = 1;
 		}
@@ -3892,15 +3888,13 @@ done:
 static int sctp_copy_laddrs_to_user_old(struct sock *sk, __u16 port, int max_addrs,
 					void __user *to)
 {
-	struct list_head *pos;
+	struct list_head *pos, *next;
 	struct sctp_sockaddr_entry *addr;
-	unsigned long flags;
 	union sctp_addr temp;
 	int cnt = 0;
 	int addrlen;
 
-	sctp_spin_lock_irqsave(&sctp_local_addr_lock, flags);
-	list_for_each(pos, &sctp_local_addr_list) {
+	list_for_each_safe(pos, next, &sctp_local_addr_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
 		if ((PF_INET == sk->sk_family) && 
 		    (AF_INET6 == addr->a.sa.sa_family))
@@ -3909,16 +3903,13 @@ static int sctp_copy_laddrs_to_user_old(struct sock *sk, __u16 port, int max_add
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sctp_sk(sk),
 								&temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
-		if (copy_to_user(to, &temp, addrlen)) {
-			sctp_spin_unlock_irqrestore(&sctp_local_addr_lock,
-						    flags);
+		if (copy_to_user(to, &temp, addrlen))
 			return -EFAULT;
-		}
+
 		to += addrlen;
 		cnt ++;
 		if (cnt >= max_addrs) break;
 	}
-	sctp_spin_unlock_irqrestore(&sctp_local_addr_lock, flags);
 
 	return cnt;
 }
@@ -3926,15 +3917,13 @@ static int sctp_copy_laddrs_to_user_old(struct sock *sk, __u16 port, int max_add
 static int sctp_copy_laddrs_to_user(struct sock *sk, __u16 port,
 				    void __user **to, size_t space_left)
 {
-	struct list_head *pos;
+	struct list_head *pos, *next;
 	struct sctp_sockaddr_entry *addr;
-	unsigned long flags;
 	union sctp_addr temp;
 	int cnt = 0;
 	int addrlen;
 
-	sctp_spin_lock_irqsave(&sctp_local_addr_lock, flags);
-	list_for_each(pos, &sctp_local_addr_list) {
+	list_for_each_safe(pos, next, &sctp_local_addr_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
 		if ((PF_INET == sk->sk_family) && 
 		    (AF_INET6 == addr->a.sa.sa_family))
@@ -3945,16 +3934,13 @@ static int sctp_copy_laddrs_to_user(struct sock *sk, __u16 port,
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
 		if(space_left<addrlen)
 			return -ENOMEM;
-		if (copy_to_user(*to, &temp, addrlen)) {
-			sctp_spin_unlock_irqrestore(&sctp_local_addr_lock,
-						    flags);
+		if (copy_to_user(*to, &temp, addrlen))
 			return -EFAULT;
-		}
+
 		*to += addrlen;
 		cnt ++;
 		space_left -= addrlen;
 	}
-	sctp_spin_unlock_irqrestore(&sctp_local_addr_lock, flags);
 
 	return cnt;
 }

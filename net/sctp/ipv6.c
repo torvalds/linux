@@ -78,8 +78,44 @@
 
 #include <asm/uaccess.h>
 
+/* Event handler for inet6 address addition/deletion events.  */
+int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
+                        void *ptr)
+{
+	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
+	struct sctp_sockaddr_entry *addr;
+	struct list_head *pos, *temp;
+
+	switch (ev) {
+	case NETDEV_UP:
+		addr = kmalloc(sizeof(struct sctp_sockaddr_entry), GFP_ATOMIC);
+		if (addr) {
+			addr->a.v6.sin6_family = AF_INET6;
+			addr->a.v6.sin6_port = 0;
+			memcpy(&addr->a.v6.sin6_addr, &ifa->addr,
+				 sizeof(struct in6_addr));
+			addr->a.v6.sin6_scope_id = ifa->idev->dev->ifindex;
+			list_add_tail(&addr->list, &sctp_local_addr_list);
+		}
+		break;
+	case NETDEV_DOWN:
+		list_for_each_safe(pos, temp, &sctp_local_addr_list) {
+			addr = list_entry(pos, struct sctp_sockaddr_entry, list);
+			if (ipv6_addr_equal(&addr->a.v6.sin6_addr, &ifa->addr)) {
+				list_del(pos);
+				kfree(addr);
+				break;
+			}
+		}
+
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 static struct notifier_block sctp_inet6addr_notifier = {
-	.notifier_call = sctp_inetaddr_event,
+	.notifier_call = sctp_inet6addr_event,
 };
 
 /* ICMP error handler. */
