@@ -9,13 +9,10 @@
 #define __ASM_PARISC_PROCESSOR_H
 
 #ifndef __ASSEMBLY__
-#include <asm/prefetch.h>	/* lockdep.h needs <linux/prefetch.h> */
-
 #include <linux/threads.h>
-#include <linux/spinlock_types.h>
 
+#include <asm/prefetch.h>
 #include <asm/hardware.h>
-#include <asm/page.h>
 #include <asm/pdc.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
