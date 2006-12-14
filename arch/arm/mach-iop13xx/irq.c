@@ -222,25 +222,29 @@ iop13xx_irq_unmask3(unsigned int irq)
 	iop13xx_cp6_restore(cp_flags);
 }
 
-static struct irqchip iop13xx_irqchip0 = {
+static struct irq_chip iop13xx_irqchip1 = {
+	.name	= "IOP13xx-1",
 	.ack    = iop13xx_irq_mask0,
 	.mask   = iop13xx_irq_mask0,
 	.unmask = iop13xx_irq_unmask0,
 };
 
-static struct irqchip iop13xx_irqchip1 = {
+static struct irq_chip iop13xx_irqchip2 = {
+	.name	= "IOP13xx-2",
 	.ack    = iop13xx_irq_mask1,
 	.mask   = iop13xx_irq_mask1,
 	.unmask = iop13xx_irq_unmask1,
 };
 
-static struct irqchip iop13xx_irqchip2 = {
+static struct irq_chip iop13xx_irqchip3 = {
+	.name	= "IOP13xx-3",
 	.ack    = iop13xx_irq_mask2,
 	.mask   = iop13xx_irq_mask2,
 	.unmask = iop13xx_irq_unmask2,
 };
 
-static struct irqchip iop13xx_irqchip3 = {
+static struct irq_chip iop13xx_irqchip4 = {
+	.name	= "IOP13xx-4",
 	.ack    = iop13xx_irq_mask3,
 	.mask   = iop13xx_irq_mask3,
 	.unmask = iop13xx_irq_unmask3,
@@ -270,15 +274,15 @@ void __init iop13xx_init_irq(void)
 
 	for(i = 0; i < NR_IOP13XX_IRQS; i++) {
 		if (i < 32)
-			set_irq_chip(i, &iop13xx_irqchip0);
-		else if (i < 64)
 			set_irq_chip(i, &iop13xx_irqchip1);
-		else if (i < 96)
+		else if (i < 64)
 			set_irq_chip(i, &iop13xx_irqchip2);
-		else
+		else if (i < 96)
 			set_irq_chip(i, &iop13xx_irqchip3);
+		else
+			set_irq_chip(i, &iop13xx_irqchip4);
 
-		set_irq_handler(i, do_level_IRQ);
+		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 
