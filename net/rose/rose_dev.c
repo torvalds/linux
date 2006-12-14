@@ -93,20 +93,34 @@ static int rose_rebuild_header(struct sk_buff *skb)
 static int rose_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr *sa = addr;
+	int err;
 
-	rose_del_loopback_node((rose_address *)dev->dev_addr);
+	if (!memcpy(dev->dev_addr, sa->sa_data, dev->addr_len))
+		return 0;
+
+	if (dev->flags & IFF_UP) {
+		err = rose_add_loopback_node((rose_address *)dev->dev_addr);
+		if (err)
+			return err;
+
+		rose_del_loopback_node((rose_address *)dev->dev_addr);
+	}
 
 	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len);
-
-	rose_add_loopback_node((rose_address *)dev->dev_addr);
 
 	return 0;
 }
 
 static int rose_open(struct net_device *dev)
 {
+	int err;
+
+	err = rose_add_loopback_node((rose_address *)dev->dev_addr);
+	if (err)
+		return err;
+
 	netif_start_queue(dev);
-	rose_add_loopback_node((rose_address *)dev->dev_addr);
+
 	return 0;
 }
 
