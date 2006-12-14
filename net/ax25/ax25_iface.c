@@ -154,7 +154,7 @@ int ax25_listen_register(ax25_address *callsign, struct net_device *dev)
 		return 0;
 
 	if ((listen = kmalloc(sizeof(*listen), GFP_ATOMIC)) == NULL)
-		return 0;
+		return -ENOMEM;
 
 	listen->callsign = *callsign;
 	listen->dev      = dev;
@@ -164,7 +164,7 @@ int ax25_listen_register(ax25_address *callsign, struct net_device *dev)
 	listen_list  = listen;
 	spin_unlock_bh(&listen_lock);
 
-	return 1;
+	return 0;
 }
 
 EXPORT_SYMBOL(ax25_listen_register);
@@ -225,7 +225,8 @@ int ax25_listen_mine(ax25_address *callsign, struct net_device *dev)
 
 	spin_lock_bh(&listen_lock);
 	for (listen = listen_list; listen != NULL; listen = listen->next)
-		if (ax25cmp(&listen->callsign, callsign) == 0 && (listen->dev == dev || listen->dev == NULL)) {
+		if (ax25cmp(&listen->callsign, callsign) == 0 &&
+		    (listen->dev == dev || listen->dev == NULL)) {
 			spin_unlock_bh(&listen_lock);
 			return 1;
 	}

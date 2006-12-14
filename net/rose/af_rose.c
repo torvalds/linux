@@ -1314,7 +1314,8 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&rose_callsign, argp, sizeof(ax25_address)))
 			return -EFAULT;
 		if (ax25cmp(&rose_callsign, &null_ax25_address) != 0)
-			ax25_listen_register(&rose_callsign, NULL);
+			return ax25_listen_register(&rose_callsign, NULL);
+
 		return 0;
 
 	case SIOCRSGL2CALL:
