@@ -779,9 +779,13 @@ int nr_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	nr_src  = (ax25_address *)(skb->data + 0);
 	nr_dest = (ax25_address *)(skb->data + 7);
 
-	if (ax25 != NULL)
-		nr_add_node(nr_src, "", &ax25->dest_addr, ax25->digipeat,
-			    ax25->ax25_dev->dev, 0, sysctl_netrom_obsolescence_count_initialiser);
+	if (ax25 != NULL) {
+		ret = nr_add_node(nr_src, "", &ax25->dest_addr, ax25->digipeat,
+		                  ax25->ax25_dev->dev, 0,
+		                  sysctl_netrom_obsolescence_count_initialiser);
+		if (ret)
+			return ret;
+	}
 
 	if ((dev = nr_dev_get(nr_dest)) != NULL) {	/* Its for me */
 		if (ax25 == NULL)			/* Its from me */
@@ -846,6 +850,7 @@ int nr_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	ret = (nr_neigh->ax25 != NULL);
 	nr_node_unlock(nr_node);
 	nr_node_put(nr_node);
+
 	return ret;
 }
 
