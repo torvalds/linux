@@ -3096,7 +3096,7 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 
 	if ((align_start = (offset32 & 3))) {
 		offset32 &= ~3;
-		len32 += align_start;
+		len32 += (4 - align_start);
 		if ((rc = bnx2_nvram_read(bp, offset32, start, 4)))
 			return rc;
 	}
@@ -3114,7 +3114,7 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 
 	if (align_start || align_end) {
 		buf = kmalloc(len32, GFP_KERNEL);
-		if (buf == 0)
+		if (buf == NULL)
 			return -ENOMEM;
 		if (align_start) {
 			memcpy(buf, start, 4);
