@@ -57,8 +57,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.5.1"
-#define DRV_MODULE_RELDATE	"November 15, 2006"
+#define DRV_MODULE_VERSION	"1.5.2"
+#define DRV_MODULE_RELDATE	"December 13, 2006"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -4005,7 +4005,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	if (!skb)
 		return -ENOMEM;
 	packet = skb_put(skb, pkt_size);
-	memcpy(packet, bp->mac_addr, 6);
+	memcpy(packet, bp->dev->dev_addr, 6);
 	memset(packet + 6, 0x0, 8);
 	for (i = 14; i < pkt_size; i++)
 		packet[i] = (unsigned char) (i & 0xff);
