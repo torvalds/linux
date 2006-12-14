@@ -494,7 +494,7 @@ do { \
 				goto out; \
 			pn = fn->parent; \
 			if (FIB6_SUBTREE(pn) && FIB6_SUBTREE(pn) != fn) \
-				fn = fib6_lookup(pn->subtree, NULL, saddr); \
+				fn = fib6_lookup(FIB6_SUBTREE(pn), NULL, saddr); \
 			else \
 				fn = pn; \
 			if (fn->fn_flags & RTN_RTINFO) \
