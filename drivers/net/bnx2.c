@@ -217,9 +217,16 @@ static inline u32 bnx2_tx_avail(struct bnx2 *bp)
 	u32 diff;
 
 	smp_mb();
-	diff = TX_RING_IDX(bp->tx_prod) - TX_RING_IDX(bp->tx_cons);
-	if (diff > MAX_TX_DESC_CNT)
-		diff = (diff & MAX_TX_DESC_CNT) - 1;
+
+	/* The ring uses 256 indices for 255 entries, one of them
+	 * needs to be skipped.
+	 */
+	diff = bp->tx_prod - bp->tx_cons;
+	if (unlikely(diff >= TX_DESC_CNT)) {
+		diff &= 0xffff;
+		if (diff == TX_DESC_CNT)
+			diff = MAX_TX_DESC_CNT;
+	}
 	return (bp->tx_ring_size - diff);
 }
 
