@@ -2486,7 +2486,7 @@ qla2x00_trace_control(scsi_qla_host_t *ha, uint16_t ctrl, dma_addr_t eft_dma,
 		mcp->mb[4] = LSW(MSD(eft_dma));
 		mcp->mb[5] = MSW(MSD(eft_dma));
 		mcp->mb[6] = buffers;
-		mcp->mb[7] = buffers;
+		mcp->mb[7] = 0;
 		mcp->out_mb |= MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2;
 	}
 	mcp->tov = 30;
