@@ -29,11 +29,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 
-static struct protocol_struct {
-	struct protocol_struct *next;
-	unsigned int pid;
-	int (*func)(struct sk_buff *, ax25_cb *);
-} *protocol_list = NULL;
+static struct ax25_protocol *protocol_list;
 static DEFINE_RWLOCK(protocol_list_lock);
 
 static struct linkfail_struct {
@@ -49,36 +45,23 @@ static struct listen_struct {
 } *listen_list = NULL;
 static DEFINE_SPINLOCK(listen_lock);
 
-int ax25_protocol_register(unsigned int pid,
-	int (*func)(struct sk_buff *, ax25_cb *))
+/*
+ * Do not register the internal protocols AX25_P_TEXT, AX25_P_SEGMENT,
+ * AX25_P_IP or AX25_P_ARP ...
+ */
+void ax25_register_pid(struct ax25_protocol *ap)
 {
-	struct protocol_struct *protocol;
-
-	if (pid == AX25_P_TEXT || pid == AX25_P_SEGMENT)
-		return 0;
-#ifdef CONFIG_INET
-	if (pid == AX25_P_IP || pid == AX25_P_ARP)
-		return 0;
-#endif
-	if ((protocol = kmalloc(sizeof(*protocol), GFP_ATOMIC)) == NULL)
-		return 0;
-
-	protocol->pid  = pid;
-	protocol->func = func;
-
 	write_lock_bh(&protocol_list_lock);
-	protocol->next = protocol_list;
-	protocol_list  = protocol;
+	ap->next = protocol_list;
+	protocol_list = ap;
 	write_unlock_bh(&protocol_list_lock);
-
-	return 1;
 }
 
-EXPORT_SYMBOL(ax25_protocol_register);
+EXPORT_SYMBOL_GPL(ax25_register_pid);
 
 void ax25_protocol_release(unsigned int pid)
 {
-	struct protocol_struct *s, *protocol;
+	struct ax25_protocol *s, *protocol;
 
 	write_lock_bh(&protocol_list_lock);
 	protocol = protocol_list;
@@ -223,7 +206,7 @@ EXPORT_SYMBOL(ax25_listen_release);
 int (*ax25_protocol_function(unsigned int pid))(struct sk_buff *, ax25_cb *)
 {
 	int (*res)(struct sk_buff *, ax25_cb *) = NULL;
-	struct protocol_struct *protocol;
+	struct ax25_protocol *protocol;
 
 	read_lock(&protocol_list_lock);
 	for (protocol = protocol_list; protocol != NULL; protocol = protocol->next)
@@ -263,7 +246,7 @@ void ax25_link_failed(ax25_cb *ax25, int reason)
 
 int ax25_protocol_is_registered(unsigned int pid)
 {
-	struct protocol_struct *protocol;
+	struct ax25_protocol *protocol;
 	int res = 0;
 
 	read_lock_bh(&protocol_list_lock);

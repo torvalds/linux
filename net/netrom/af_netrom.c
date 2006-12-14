@@ -1377,6 +1377,11 @@ static struct notifier_block nr_dev_notifier = {
 
 static struct net_device **dev_nr;
 
+static struct ax25_protocol nr_pid = {
+	.pid	= AX25_P_NETROM,
+	.func	= nr_route_frame
+};
+
 static int __init nr_proto_init(void)
 {
 	int i;
@@ -1424,7 +1429,7 @@ static int __init nr_proto_init(void)
 		
 	register_netdevice_notifier(&nr_dev_notifier);
 
-	ax25_protocol_register(AX25_P_NETROM, nr_route_frame);
+	ax25_register_pid(&nr_pid);
 	ax25_linkfail_register(nr_link_failed);
 
 #ifdef CONFIG_SYSCTL

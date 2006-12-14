@@ -1481,6 +1481,11 @@ static struct notifier_block rose_dev_notifier = {
 
 static struct net_device **dev_rose;
 
+static struct ax25_protocol rose_pid = {
+	.pid	= AX25_P_ROSE,
+	.func	= rose_route_frame
+};
+
 static int __init rose_proto_init(void)
 {
 	int i;
@@ -1530,7 +1535,7 @@ static int __init rose_proto_init(void)
 	sock_register(&rose_family_ops);
 	register_netdevice_notifier(&rose_dev_notifier);
 
-	ax25_protocol_register(AX25_P_ROSE, rose_route_frame);
+	ax25_register_pid(&rose_pid);
 	ax25_linkfail_register(rose_link_failed);
 
 #ifdef CONFIG_SYSCTL

@@ -333,7 +333,14 @@ extern void ax25_ds_t3timer_expiry(ax25_cb *);
 extern void ax25_ds_idletimer_expiry(ax25_cb *);
 
 /* ax25_iface.c */
-extern int __must_check ax25_protocol_register(unsigned int, int (*)(struct sk_buff *, ax25_cb *));
+
+struct ax25_protocol {
+	struct ax25_protocol *next;
+	unsigned int pid;
+	int (*func)(struct sk_buff *, ax25_cb *);
+};
+
+extern void ax25_register_pid(struct ax25_protocol *ap);
 extern void ax25_protocol_release(unsigned int);
 extern int __must_check ax25_linkfail_register(void (*)(ax25_cb *, int));
 extern void ax25_linkfail_release(void (*)(ax25_cb *, int));
