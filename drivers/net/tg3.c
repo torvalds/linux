@@ -4426,7 +4426,7 @@ static void tg3_free_consistent(struct tg3 *tp)
  */
 static int tg3_alloc_consistent(struct tg3 *tp)
 {
-	tp->rx_std_buffers = kmalloc((sizeof(struct ring_info) *
+	tp->rx_std_buffers = kzalloc((sizeof(struct ring_info) *
 				      (TG3_RX_RING_SIZE +
 				       TG3_RX_JUMBO_RING_SIZE)) +
 				     (sizeof(struct tx_ring_info) *
@@ -4434,13 +4434,6 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 				     GFP_KERNEL);
 	if (!tp->rx_std_buffers)
 		return -ENOMEM;
-
-	memset(tp->rx_std_buffers, 0,
-	       (sizeof(struct ring_info) *
-		(TG3_RX_RING_SIZE +
-		 TG3_RX_JUMBO_RING_SIZE)) +
-	       (sizeof(struct tx_ring_info) *
-		TG3_TX_RING_SIZE));
 
 	tp->rx_jumbo_buffers = &tp->rx_std_buffers[TG3_RX_RING_SIZE];
 	tp->tx_buffers = (struct tx_ring_info *)
