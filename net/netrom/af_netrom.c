@@ -1382,6 +1382,10 @@ static struct ax25_protocol nr_pid = {
 	.func	= nr_route_frame
 };
 
+static struct ax25_linkfail nr_linkfail_notifier = {
+	.func	= nr_link_failed,
+};
+
 static int __init nr_proto_init(void)
 {
 	int i;
@@ -1430,7 +1434,7 @@ static int __init nr_proto_init(void)
 	register_netdevice_notifier(&nr_dev_notifier);
 
 	ax25_register_pid(&nr_pid);
-	ax25_linkfail_register(nr_link_failed);
+	ax25_linkfail_register(&nr_linkfail_notifier);
 
 #ifdef CONFIG_SYSCTL
 	nr_register_sysctl();
@@ -1479,7 +1483,7 @@ static void __exit nr_exit(void)
 	nr_unregister_sysctl();
 #endif
 
-	ax25_linkfail_release(nr_link_failed);
+	ax25_linkfail_release(&nr_linkfail_notifier);
 	ax25_protocol_release(AX25_P_NETROM);
 
 	unregister_netdevice_notifier(&nr_dev_notifier);

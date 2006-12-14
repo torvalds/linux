@@ -32,10 +32,7 @@
 static struct ax25_protocol *protocol_list;
 static DEFINE_RWLOCK(protocol_list_lock);
 
-static struct linkfail_struct {
-	struct linkfail_struct *next;
-	void (*func)(ax25_cb *, int);
-} *linkfail_list = NULL;
+static HLIST_HEAD(ax25_linkfail_list);
 static DEFINE_SPINLOCK(linkfail_lock);
 
 static struct listen_struct {
@@ -93,54 +90,19 @@ void ax25_protocol_release(unsigned int pid)
 
 EXPORT_SYMBOL(ax25_protocol_release);
 
-int ax25_linkfail_register(void (*func)(ax25_cb *, int))
+void ax25_linkfail_register(struct ax25_linkfail *lf)
 {
-	struct linkfail_struct *linkfail;
-
-	if ((linkfail = kmalloc(sizeof(*linkfail), GFP_ATOMIC)) == NULL)
-		return 0;
-
-	linkfail->func = func;
-
 	spin_lock_bh(&linkfail_lock);
-	linkfail->next = linkfail_list;
-	linkfail_list  = linkfail;
+	hlist_add_head(&lf->lf_node, &ax25_linkfail_list);
 	spin_unlock_bh(&linkfail_lock);
-
-	return 1;
 }
 
 EXPORT_SYMBOL(ax25_linkfail_register);
 
-void ax25_linkfail_release(void (*func)(ax25_cb *, int))
+void ax25_linkfail_release(struct ax25_linkfail *lf)
 {
-	struct linkfail_struct *s, *linkfail;
-
 	spin_lock_bh(&linkfail_lock);
-	linkfail = linkfail_list;
-	if (linkfail == NULL) {
-		spin_unlock_bh(&linkfail_lock);
-		return;
-	}
-
-	if (linkfail->func == func) {
-		linkfail_list = linkfail->next;
-		spin_unlock_bh(&linkfail_lock);
-		kfree(linkfail);
-		return;
-	}
-
-	while (linkfail != NULL && linkfail->next != NULL) {
-		if (linkfail->next->func == func) {
-			s = linkfail->next;
-			linkfail->next = linkfail->next->next;
-			spin_unlock_bh(&linkfail_lock);
-			kfree(s);
-			return;
-		}
-
-		linkfail = linkfail->next;
-	}
+	hlist_del_init(&lf->lf_node);
 	spin_unlock_bh(&linkfail_lock);
 }
 
@@ -237,11 +199,12 @@ int ax25_listen_mine(ax25_address *callsign, struct net_device *dev)
 
 void ax25_link_failed(ax25_cb *ax25, int reason)
 {
-	struct linkfail_struct *linkfail;
+	struct ax25_linkfail *lf;
+	struct hlist_node *node;
 
 	spin_lock_bh(&linkfail_lock);
-	for (linkfail = linkfail_list; linkfail != NULL; linkfail = linkfail->next)
-		(linkfail->func)(ax25, reason);
+	hlist_for_each_entry(lf, node, &ax25_linkfail_list, lf_node)
+		lf->func(ax25, reason);
 	spin_unlock_bh(&linkfail_lock);
 }
 

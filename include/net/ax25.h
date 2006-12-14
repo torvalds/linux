@@ -342,8 +342,14 @@ struct ax25_protocol {
 
 extern void ax25_register_pid(struct ax25_protocol *ap);
 extern void ax25_protocol_release(unsigned int);
-extern int __must_check ax25_linkfail_register(void (*)(ax25_cb *, int));
-extern void ax25_linkfail_release(void (*)(ax25_cb *, int));
+
+struct ax25_linkfail {
+	struct hlist_node lf_node;
+	void (*func)(ax25_cb *, int);
+};
+
+extern void ax25_linkfail_register(struct ax25_linkfail *lf);
+extern void ax25_linkfail_release(struct ax25_linkfail *lf);
 extern int __must_check ax25_listen_register(ax25_address *,
 	struct net_device *);
 extern void ax25_listen_release(ax25_address *, struct net_device *);

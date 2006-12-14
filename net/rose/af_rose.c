@@ -1487,6 +1487,10 @@ static struct ax25_protocol rose_pid = {
 	.func	= rose_route_frame
 };
 
+static struct ax25_linkfail rose_linkfail_notifier = {
+	.func	= rose_link_failed
+};
+
 static int __init rose_proto_init(void)
 {
 	int i;
@@ -1537,7 +1541,7 @@ static int __init rose_proto_init(void)
 	register_netdevice_notifier(&rose_dev_notifier);
 
 	ax25_register_pid(&rose_pid);
-	ax25_linkfail_register(rose_link_failed);
+	ax25_linkfail_register(&rose_linkfail_notifier);
 
 #ifdef CONFIG_SYSCTL
 	rose_register_sysctl();
@@ -1585,7 +1589,7 @@ static void __exit rose_exit(void)
 	rose_rt_free();
 
 	ax25_protocol_release(AX25_P_ROSE);
-	ax25_linkfail_release(rose_link_failed);
+	ax25_linkfail_release(&rose_linkfail_notifier);
 
 	if (ax25cmp(&rose_callsign, &null_ax25_address) != 0)
 		ax25_listen_release(&rose_callsign, NULL);
