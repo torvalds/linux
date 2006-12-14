@@ -371,6 +371,7 @@ typedef u64					pal_mc_info_index_t;
 							 * dependent
 							 */
 
+#define PAL_TLB_CHECK_OP_PURGE			8
 
 typedef struct pal_process_state_info_s {
 	u64		reserved1	: 2,

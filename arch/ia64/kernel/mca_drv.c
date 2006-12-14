@@ -607,6 +607,33 @@ recover_from_platform_error(slidx_table_t *slidx, peidx_table_t *peidx,
 	return status;
 }
 
+/*
+ * recover_from_tlb_check
+ * @peidx:	pointer of index of processor error section
+ *
+ * Return value:
+ *	1 on Success / 0 on Failure
+ */
+static int
+recover_from_tlb_check(peidx_table_t *peidx)
+{
+	sal_log_mod_error_info_t *smei;
+	pal_tlb_check_info_t *ptci;
+
+	smei = (sal_log_mod_error_info_t *)peidx_tlb_check(peidx, 0);
+	ptci = (pal_tlb_check_info_t *)&(smei->check_info);
+
+	/*
+	 * Look for signature of a duplicate TLB DTC entry, which is
+	 * a SW bug and always fatal.
+	 */
+	if (ptci->op == PAL_TLB_CHECK_OP_PURGE
+	    && !(ptci->itr || ptci->dtc || ptci->itc))
+		return fatal_mca("Duplicate TLB entry");
+
+	return mca_recovered("TLB check recovered");
+}
+
 /**
  * recover_from_processor_error
  * @platform:	whether there are some platform error section or not
@@ -650,6 +677,12 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 	 */
 	if (psp->us || psp->ci == 0)
 		return fatal_mca("error not contained");
+
+	/*
+	 * Look for recoverable TLB check
+	 */
+	if (psp->tc && !(psp->cc || psp->bc || psp->rc || psp->uc))
+		return recover_from_tlb_check(peidx);
 
 	/*
 	 * The cache check and bus check bits have four possible states
