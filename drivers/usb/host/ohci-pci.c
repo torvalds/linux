@@ -85,6 +85,27 @@ static int __devinit ohci_quirk_zfmicro(struct usb_hcd *hcd)
 	return 0;
 }
 
+/* Check for Toshiba SCC OHCI which has big endian registers
+ * and little endian in memory data structures
+ */
+static int __devinit ohci_quirk_toshiba_scc(struct usb_hcd *hcd)
+{
+	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
+
+	/* That chip is only present in the southbridge of some
+	 * cell based platforms which are supposed to select
+	 * CONFIG_USB_OHCI_BIG_ENDIAN_MMIO. We verify here if
+	 * that was the case though.
+	 */
+#ifdef CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
+	ohci->flags |= OHCI_QUIRK_BE_MMIO;
+	ohci_dbg (ohci, "enabled big endian Toshiba quirk\n");
+	return 0;
+#else
+	ohci_err (ohci, "unsupported big endian Toshiba quirk\n");
+	return -ENXIO;
+#endif
+}
 
 /* List of quirks for OHCI */
 static const struct pci_device_id ohci_pci_quirks[] = {
@@ -104,9 +125,14 @@ static const struct pci_device_id ohci_pci_quirks[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_COMPAQ, 0xa0f8),
 		.driver_data = (unsigned long)ohci_quirk_zfmicro,
 	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, 0x01b6),
+		.driver_data = (unsigned long)ohci_quirk_toshiba_scc,
+	},
 	/* FIXME for some of the early AMD 760 southbridges, OHCI
 	 * won't work at all.  blacklist them.
 	 */
+
 	{},
 };
 
