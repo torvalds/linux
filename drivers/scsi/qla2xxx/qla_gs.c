@@ -1683,7 +1683,7 @@ qla2x00_gfpn_id(scsi_qla_host_t *ha, sw_info_t *list)
 		memset(list[i].fabric_port_name, 0, WWN_SIZE);
 
 		/* Prepare common MS IOCB */
-		ms_pkt = qla2x00_prep_ms_iocb(ha, GFPN_ID_REQ_SIZE,
+		ms_pkt = ha->isp_ops.prep_ms_iocb(ha, GFPN_ID_REQ_SIZE,
 		    GFPN_ID_RSP_SIZE);
 
 		/* Prepare CT request */
