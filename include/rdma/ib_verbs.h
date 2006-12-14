@@ -1456,9 +1456,9 @@ struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags);
  */
 static inline int ib_dma_mapping_error(struct ib_device *dev, u64 dma_addr)
 {
-	return dev->dma_ops ?
-		dev->dma_ops->mapping_error(dev, dma_addr) :
-		dma_mapping_error(dma_addr);
+	if (dev->dma_ops)
+		return dev->dma_ops->mapping_error(dev, dma_addr);
+	return dma_mapping_error(dma_addr);
 }
 
 /**
@@ -1472,9 +1472,9 @@ static inline u64 ib_dma_map_single(struct ib_device *dev,
 				    void *cpu_addr, size_t size,
 				    enum dma_data_direction direction)
 {
-	return dev->dma_ops ?
-		dev->dma_ops->map_single(dev, cpu_addr, size, direction) :
-		dma_map_single(dev->dma_device, cpu_addr, size, direction);
+	if (dev->dma_ops)
+		return dev->dma_ops->map_single(dev, cpu_addr, size, direction);
+	return dma_map_single(dev->dma_device, cpu_addr, size, direction);
 }
 
 /**
@@ -1488,8 +1488,9 @@ static inline void ib_dma_unmap_single(struct ib_device *dev,
 				       u64 addr, size_t size,
 				       enum dma_data_direction direction)
 {
-	dev->dma_ops ?
-		dev->dma_ops->unmap_single(dev, addr, size, direction) :
+	if (dev->dma_ops)
+		dev->dma_ops->unmap_single(dev, addr, size, direction);
+	else
 		dma_unmap_single(dev->dma_device, addr, size, direction);
 }
 
@@ -1507,9 +1508,9 @@ static inline u64 ib_dma_map_page(struct ib_device *dev,
 				  size_t size,
 					 enum dma_data_direction direction)
 {
-	return dev->dma_ops ?
-		dev->dma_ops->map_page(dev, page, offset, size, direction) :
-		dma_map_page(dev->dma_device, page, offset, size, direction);
+	if (dev->dma_ops)
+		return dev->dma_ops->map_page(dev, page, offset, size, direction);
+	return dma_map_page(dev->dma_device, page, offset, size, direction);
 }
 
 /**
@@ -1523,8 +1524,9 @@ static inline void ib_dma_unmap_page(struct ib_device *dev,
 				     u64 addr, size_t size,
 				     enum dma_data_direction direction)
 {
-	dev->dma_ops ?
-		dev->dma_ops->unmap_page(dev, addr, size, direction) :
+	if (dev->dma_ops)
+		dev->dma_ops->unmap_page(dev, addr, size, direction);
+	else
 		dma_unmap_page(dev->dma_device, addr, size, direction);
 }
 
@@ -1539,9 +1541,9 @@ static inline int ib_dma_map_sg(struct ib_device *dev,
 				struct scatterlist *sg, int nents,
 				enum dma_data_direction direction)
 {
-	return dev->dma_ops ?
-		dev->dma_ops->map_sg(dev, sg, nents, direction) :
-		dma_map_sg(dev->dma_device, sg, nents, direction);
+	if (dev->dma_ops)
+		return dev->dma_ops->map_sg(dev, sg, nents, direction);
+	return dma_map_sg(dev->dma_device, sg, nents, direction);
 }
 
 /**
@@ -1555,8 +1557,9 @@ static inline void ib_dma_unmap_sg(struct ib_device *dev,
 				   struct scatterlist *sg, int nents,
 				   enum dma_data_direction direction)
 {
-	dev->dma_ops ?
-		dev->dma_ops->unmap_sg(dev, sg, nents, direction) :
+	if (dev->dma_ops)
+		dev->dma_ops->unmap_sg(dev, sg, nents, direction);
+	else
 		dma_unmap_sg(dev->dma_device, sg, nents, direction);
 }
 
@@ -1568,8 +1571,9 @@ static inline void ib_dma_unmap_sg(struct ib_device *dev,
 static inline u64 ib_sg_dma_address(struct ib_device *dev,
 				    struct scatterlist *sg)
 {
-	return dev->dma_ops ?
-		dev->dma_ops->dma_address(dev, sg) : sg_dma_address(sg);
+	if (dev->dma_ops)
+		return dev->dma_ops->dma_address(dev, sg);
+	return sg_dma_address(sg);
 }
 
 /**
@@ -1580,8 +1584,9 @@ static inline u64 ib_sg_dma_address(struct ib_device *dev,
 static inline unsigned int ib_sg_dma_len(struct ib_device *dev,
 					 struct scatterlist *sg)
 {
-	return dev->dma_ops ?
-		dev->dma_ops->dma_len(dev, sg) : sg_dma_len(sg);
+	if (dev->dma_ops)
+		return dev->dma_ops->dma_len(dev, sg);
+	return sg_dma_len(sg);
 }
 
 /**
@@ -1596,8 +1601,9 @@ static inline void ib_dma_sync_single_for_cpu(struct ib_device *dev,
 					      size_t size,
 					      enum dma_data_direction dir)
 {
-	dev->dma_ops ?
-		dev->dma_ops->sync_single_for_cpu(dev, addr, size, dir) :
+	if (dev->dma_ops)
+		dev->dma_ops->sync_single_for_cpu(dev, addr, size, dir);
+	else
 		dma_sync_single_for_cpu(dev->dma_device, addr, size, dir);
 }
 
@@ -1613,8 +1619,9 @@ static inline void ib_dma_sync_single_for_device(struct ib_device *dev,
 						 size_t size,
 						 enum dma_data_direction dir)
 {
-	dev->dma_ops ?
-		dev->dma_ops->sync_single_for_device(dev, addr, size, dir) :
+	if (dev->dma_ops)
+		dev->dma_ops->sync_single_for_device(dev, addr, size, dir);
+	else
 		dma_sync_single_for_device(dev->dma_device, addr, size, dir);
 }
 
@@ -1630,9 +1637,9 @@ static inline void *ib_dma_alloc_coherent(struct ib_device *dev,
 					   u64 *dma_handle,
 					   gfp_t flag)
 {
-	return dev->dma_ops ?
-		dev->dma_ops->alloc_coherent(dev, size, dma_handle, flag) :
-		dma_alloc_coherent(dev->dma_device, size, dma_handle, flag);
+	if (dev->dma_ops)
+		return dev->dma_ops->alloc_coherent(dev, size, dma_handle, flag);
+	return dma_alloc_coherent(dev->dma_device, size, dma_handle, flag);
 }
 
 /**
@@ -1646,8 +1653,9 @@ static inline void ib_dma_free_coherent(struct ib_device *dev,
 					size_t size, void *cpu_addr,
 					u64 dma_handle)
 {
-	dev->dma_ops ?
-		dev->dma_ops->free_coherent(dev, size, cpu_addr, dma_handle) :
+	if (dev->dma_ops)
+		dev->dma_ops->free_coherent(dev, size, cpu_addr, dma_handle);
+	else
 		dma_free_coherent(dev->dma_device, size, cpu_addr, dma_handle);
 }
 
