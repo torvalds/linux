@@ -143,6 +143,7 @@ qla2x00_chk_ms_status(scsi_qla_host_t *ha, ms_iocb_entry_t *ms_pkt,
 				DEBUG2_3(qla2x00_dump_buffer(
 				    (uint8_t *)&ct_rsp->header,
 				    sizeof(struct ct_rsp_hdr)));
+				rval = QLA_INVALID_COMMAND;
 			} else
 				rval = QLA_SUCCESS;
 			break;
@@ -1784,6 +1785,8 @@ qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
 
 	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
 		return QLA_FUNCTION_FAILED;
+	if (!ha->flags.gpsc_supported)
+		return QLA_FUNCTION_FAILED;
 
 	rval = qla2x00_mgmt_svr_login(ha);
 	if (rval)
@@ -1813,8 +1816,19 @@ qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
 			/*EMPTY*/
 			DEBUG2_3(printk("scsi(%ld): GPSC issue IOCB "
 			    "failed (%d).\n", ha->host_no, rval));
-		} else if (qla2x00_chk_ms_status(ha, ms_pkt, ct_rsp,
-		    "GPSC") != QLA_SUCCESS) {
+		} else if ((rval = qla2x00_chk_ms_status(ha, ms_pkt, ct_rsp,
+		    "GPSC")) != QLA_SUCCESS) {
+			/* FM command unsupported? */
+			if (rval == QLA_INVALID_COMMAND &&
+			    ct_rsp->header.reason_code ==
+			    CT_REASON_INVALID_COMMAND_CODE) {
+				DEBUG2(printk("scsi(%ld): GPSC command "
+				    "unsupported, disabling query...\n",
+				    ha->host_no));
+				ha->flags.gpsc_supported = 0;
+				rval = QLA_FUNCTION_FAILED;
+				break;
+			}
 			rval = QLA_FUNCTION_FAILED;
 		} else {
 			/* Save portname */

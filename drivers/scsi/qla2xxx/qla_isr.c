@@ -475,6 +475,8 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			set_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
 		}
 		set_bit(REGISTER_FC4_NEEDED, &ha->dpc_flags);
+
+		ha->flags.gpsc_supported = 1;
 		break;
 
 	case MBA_CHG_IN_CONNECTION:	/* Change in connection mode */
