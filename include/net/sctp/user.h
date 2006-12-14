@@ -95,6 +95,8 @@ enum sctp_optname {
 #define SCTP_GET_PEER_ADDR_INFO SCTP_GET_PEER_ADDR_INFO
 	SCTP_DELAYED_ACK_TIME,
 #define SCTP_DELAYED_ACK_TIME SCTP_DELAYED_ACK_TIME
+	SCTP_CONTEXT,	/* Receive Context */
+#define SCTP_CONTEXT SCTP_CONTEXT
 
 	/* Internal Socket Options. Some of the sctp library functions are 
 	 * implemented using these socket options.

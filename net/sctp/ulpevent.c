@@ -849,8 +849,10 @@ void sctp_ulpevent_read_sndrcvinfo(const struct sctp_ulpevent *event,
 	 */
 	sinfo.sinfo_assoc_id = sctp_assoc2id(event->asoc);
 
+	/* context value that is set via SCTP_CONTEXT socket option. */
+	sinfo.sinfo_context = event->asoc->default_rcv_context;
+
 	/* These fields are not used while receiving. */
-	sinfo.sinfo_context = 0;
 	sinfo.sinfo_timetolive = 0;
 
 	put_cmsg(msghdr, IPPROTO_SCTP, SCTP_SNDRCV,

@@ -275,6 +275,7 @@ struct sctp_sock {
 	__u16 default_flags;
 	__u32 default_context;
 	__u32 default_timetolive;
+	__u32 default_rcv_context;
 
 	/* Heartbeat interval: The endpoint sends out a Heartbeat chunk to
 	 * the destination address every heartbeat interval. This value
@@ -1656,6 +1657,9 @@ struct sctp_association {
 	__u32 default_ppid;
 	__u32 default_context;
 	__u32 default_timetolive;
+
+	/* Default receive parameters */
+	__u32 default_rcv_context;
 
 	/* This tracks outbound ssn for a given stream.	 */
 	struct sctp_ssnmap *ssnmap;

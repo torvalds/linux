@@ -2746,6 +2746,46 @@ static int sctp_setsockopt_adaption_layer(struct sock *sk, char __user *optval,
 	return 0;
 }
 
+/*
+ * 7.1.29.  Set or Get the default context (SCTP_CONTEXT)
+ *
+ * The context field in the sctp_sndrcvinfo structure is normally only
+ * used when a failed message is retrieved holding the value that was
+ * sent down on the actual send call.  This option allows the setting of
+ * a default context on an association basis that will be received on
+ * reading messages from the peer.  This is especially helpful in the
+ * one-2-many model for an application to keep some reference to an
+ * internal state machine that is processing messages on the
+ * association.  Note that the setting of this value only effects
+ * received messages from the peer and does not effect the value that is
+ * saved with outbound messages.
+ */
+static int sctp_setsockopt_context(struct sock *sk, char __user *optval,
+				   int optlen)
+{
+	struct sctp_assoc_value params;
+	struct sctp_sock *sp;
+	struct sctp_association *asoc;
+
+	if (optlen != sizeof(struct sctp_assoc_value))
+		return -EINVAL;
+	if (copy_from_user(&params, optval, optlen))
+		return -EFAULT;
+
+	sp = sctp_sk(sk);
+
+	if (params.assoc_id != 0) {
+		asoc = sctp_id2assoc(sk, params.assoc_id);
+		if (!asoc)
+			return -EINVAL;
+		asoc->default_rcv_context = params.assoc_value;
+	} else {
+		sp->default_rcv_context = params.assoc_value;
+	}
+
+	return 0;
+}
+
 /* API 6.2 setsockopt(), getsockopt()
  *
  * Applications use setsockopt() and getsockopt() to set or retrieve
@@ -2856,6 +2896,9 @@ SCTP_STATIC int sctp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	case SCTP_ADAPTION_LAYER:
 		retval = sctp_setsockopt_adaption_layer(sk, optval, optlen);
+		break;
+	case SCTP_CONTEXT:
+		retval = sctp_setsockopt_context(sk, optval, optlen);
 		break;
 
 	default:
@@ -3015,6 +3058,8 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->default_flags = 0;
 	sp->default_context = 0;
 	sp->default_timetolive = 0;
+
+	sp->default_rcv_context = 0;
 
 	/* Initialize default setup parameters. These parameters
 	 * can be modified with the SCTP_INITMSG socket option or
@@ -4421,6 +4466,42 @@ static int sctp_getsockopt_mappedv4(struct sock *sk, int len,
 }
 
 /*
+ * 7.1.29.  Set or Get the default context (SCTP_CONTEXT)
+ * (chapter and verse is quoted at sctp_setsockopt_context())
+ */
+static int sctp_getsockopt_context(struct sock *sk, int len,
+				   char __user *optval, int __user *optlen)
+{
+	struct sctp_assoc_value params;
+	struct sctp_sock *sp;
+	struct sctp_association *asoc;
+
+	if (len != sizeof(struct sctp_assoc_value))
+		return -EINVAL;
+
+	if (copy_from_user(&params, optval, len))
+		return -EFAULT;
+
+	sp = sctp_sk(sk);
+
+	if (params.assoc_id != 0) {
+		asoc = sctp_id2assoc(sk, params.assoc_id);
+		if (!asoc)
+			return -EINVAL;
+		params.assoc_value = asoc->default_rcv_context;
+	} else {
+		params.assoc_value = sp->default_rcv_context;
+	}
+
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (copy_to_user(optval, &params, len))
+		return -EFAULT;
+
+	return 0;
+}
+
+/*
  * 7.1.17 Set the maximum fragrmentation size (SCTP_MAXSEG)
  *
  * This socket option specifies the maximum size to put in any outgoing
@@ -4557,6 +4638,9 @@ SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 	case SCTP_ADAPTION_LAYER:
 		retval = sctp_getsockopt_adaption_layer(sk, len, optval,
 							optlen);
+		break;
+	case SCTP_CONTEXT:
+		retval = sctp_getsockopt_context(sk, len, optval, optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;

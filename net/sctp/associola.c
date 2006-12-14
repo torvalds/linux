@@ -298,6 +298,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->default_flags = sp->default_flags;
 	asoc->default_context = sp->default_context;
 	asoc->default_timetolive = sp->default_timetolive;
+	asoc->default_rcv_context = sp->default_rcv_context;
 
 	return asoc;
 
