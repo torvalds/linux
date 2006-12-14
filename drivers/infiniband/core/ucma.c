@@ -209,6 +209,7 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 	if (event->event == RDMA_CM_EVENT_CONNECT_REQUEST) {
 		if (!ctx->backlog) {
 			ret = -EDQUOT;
+			kfree(uevent);
 			goto out;
 		}
 		ctx->backlog--;
