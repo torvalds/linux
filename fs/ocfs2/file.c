@@ -966,8 +966,6 @@ int ocfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 	}
 
 	ret = generic_permission(inode, mask, NULL);
-	if (ret)
-		mlog_errno(ret);
 
 	ocfs2_meta_unlock(inode, 0);
 out:
