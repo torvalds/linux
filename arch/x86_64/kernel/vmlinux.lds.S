@@ -221,9 +221,7 @@ SECTIONS
   /* Sections to be discarded */
   /DISCARD/ : {
 	*(.exitcall.exit)
-#ifndef CONFIG_UNWIND_INFO
 	*(.eh_frame)
-#endif
 	}
 
   STABS_DEBUG

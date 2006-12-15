@@ -55,37 +55,7 @@ static bool fail_task(struct fault_attr *attr, struct task_struct *task)
 
 #define MAX_STACK_TRACE_DEPTH 32
 
-#ifdef CONFIG_STACK_UNWIND
-
-static asmlinkage int fail_stacktrace_callback(struct unwind_frame_info *info,
-						void *arg)
-{
-	int depth;
-	struct fault_attr *attr = arg;
-	bool found = (attr->require_start == 0 && attr->require_end == ULONG_MAX);
-
-	for (depth = 0; depth < attr->stacktrace_depth
-			&& unwind(info) == 0 && UNW_PC(info); depth++) {
-		if (arch_unw_user_mode(info))
-			break;
-		if (attr->reject_start <= UNW_PC(info) &&
-			       UNW_PC(info) < attr->reject_end)
-			return false;
-		if (attr->require_start <= UNW_PC(info) &&
-			       UNW_PC(info) < attr->require_end)
-			found = true;
-	}
-	return found;
-}
-
-static bool fail_stacktrace(struct fault_attr *attr)
-{
-	struct unwind_frame_info info;
-
-	return unwind_init_running(&info, fail_stacktrace_callback, attr);
-}
-
-#elif defined(CONFIG_STACKTRACE)
+#if defined(CONFIG_STACKTRACE)
 
 static bool fail_stacktrace(struct fault_attr *attr)
 {

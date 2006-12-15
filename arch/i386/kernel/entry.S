@@ -979,38 +979,6 @@ ENTRY(spurious_interrupt_bug)
 	jmp error_code
 	CFI_ENDPROC
 
-#ifdef CONFIG_STACK_UNWIND
-ENTRY(arch_unwind_init_running)
-	CFI_STARTPROC
-	movl	4(%esp), %edx
-	movl	(%esp), %ecx
-	leal	4(%esp), %eax
-	movl	%ebx, PT_EBX(%edx)
-	xorl	%ebx, %ebx
-	movl	%ebx, PT_ECX(%edx)
-	movl	%ebx, PT_EDX(%edx)
-	movl	%esi, PT_ESI(%edx)
-	movl	%edi, PT_EDI(%edx)
-	movl	%ebp, PT_EBP(%edx)
-	movl	%ebx, PT_EAX(%edx)
-	movl	$__USER_DS, PT_DS(%edx)
-	movl	$__USER_DS, PT_ES(%edx)
-	movl	$0, PT_GS(%edx)
-	movl	%ebx, PT_ORIG_EAX(%edx)
-	movl	%ecx, PT_EIP(%edx)
-	movl	12(%esp), %ecx
-	movl	$__KERNEL_CS, PT_CS(%edx)
-	movl	%ebx, PT_EFLAGS(%edx)
-	movl	%eax, PT_OLDESP(%edx)
-	movl	8(%esp), %eax
-	movl	%ecx, 8(%esp)
-	movl	PT_EBX(%edx), %ebx
-	movl	$__KERNEL_DS, PT_OLDSS(%edx)
-	jmpl	*%eax
-	CFI_ENDPROC
-ENDPROC(arch_unwind_init_running)
-#endif
-
 ENTRY(kernel_thread_helper)
 	pushl $0		# fake return address for unwinder
 	CFI_STARTPROC

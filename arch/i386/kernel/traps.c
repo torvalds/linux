@@ -94,11 +94,6 @@ asmlinkage void spurious_interrupt_bug(void);
 asmlinkage void machine_check(void);
 
 int kstack_depth_to_print = 24;
-#ifdef CONFIG_STACK_UNWIND
-static int call_trace = 1;
-#else
-#define call_trace (-1)
-#endif
 ATOMIC_NOTIFIER_HEAD(i386die_chain);
 
 int register_die_notifier(struct notifier_block *nb)
@@ -152,33 +147,6 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 	return ebp;
 }
 
-struct ops_and_data {
-	struct stacktrace_ops *ops;
-	void *data;
-};
-
-static asmlinkage int
-dump_trace_unwind(struct unwind_frame_info *info, void *data)
-{
-	struct ops_and_data *oad = (struct ops_and_data *)data;
-	int n = 0;
-	unsigned long sp = UNW_SP(info);
-
-	if (arch_unw_user_mode(info))
-		return -1;
-	while (unwind(info) == 0 && UNW_PC(info)) {
-		n++;
-		oad->ops->address(oad->data, UNW_PC(info));
-		if (arch_unw_user_mode(info))
-			break;
-		if ((sp & ~(PAGE_SIZE - 1)) == (UNW_SP(info) & ~(PAGE_SIZE - 1))
-		    && sp > UNW_SP(info))
-			break;
-		sp = UNW_SP(info);
-	}
-	return n;
-}
-
 #define MSG(msg) ops->warning(data, msg)
 
 void dump_trace(struct task_struct *task, struct pt_regs *regs,
@@ -190,41 +158,6 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	if (!task)
 		task = current;
 
-	if (call_trace >= 0) {
-		int unw_ret = 0;
-		struct unwind_frame_info info;
-		struct ops_and_data oad = { .ops = ops, .data = data };
-
-		if (regs) {
-			if (unwind_init_frame_info(&info, task, regs) == 0)
-				unw_ret = dump_trace_unwind(&info, &oad);
-		} else if (task == current)
-			unw_ret = unwind_init_running(&info, dump_trace_unwind,
-						      &oad);
-		else {
-			if (unwind_init_blocked(&info, task) == 0)
-				unw_ret = dump_trace_unwind(&info, &oad);
-		}
-		if (unw_ret > 0) {
-			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
-				ops->warning_symbol(data,
-					     "DWARF2 unwinder stuck at %s",
-					     UNW_PC(&info));
-				if (UNW_SP(&info) >= PAGE_OFFSET) {
-					MSG("Leftover inexact backtrace:");
-					stack = (void *)UNW_SP(&info);
-					if (!stack)
-						return;
-					ebp = UNW_FP(&info);
-				} else
-					MSG("Full inexact backtrace again:");
-			} else if (call_trace >= 1)
-				return;
-			else
-				MSG("Full inexact backtrace again:");
-		} else
-			MSG("Inexact backtrace:");
-	}
 	if (!stack) {
 		unsigned long dummy;
 		stack = &dummy;
@@ -1258,19 +1191,3 @@ static int __init kstack_setup(char *s)
 	return 1;
 }
 __setup("kstack=", kstack_setup);
-
-#ifdef CONFIG_STACK_UNWIND
-static int __init call_trace_setup(char *s)
-{
-	if (strcmp(s, "old") == 0)
-		call_trace = -1;
-	else if (strcmp(s, "both") == 0)
-		call_trace = 0;
-	else if (strcmp(s, "newfallback") == 0)
-		call_trace = 1;
-	else if (strcmp(s, "new") == 2)
-		call_trace = 2;
-	return 1;
-}
-__setup("call_trace=", call_trace_setup);
-#endif
