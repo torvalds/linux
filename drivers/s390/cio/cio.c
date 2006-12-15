@@ -871,11 +871,32 @@ __clear_subchannel_easy(struct subchannel_id schid)
 	return -EBUSY;
 }
 
+static int pgm_check_occured;
+
+static void cio_reset_pgm_check_handler(void)
+{
+	pgm_check_occured = 1;
+}
+
+static int stsch_reset(struct subchannel_id schid, volatile struct schib *addr)
+{
+	int rc;
+
+	pgm_check_occured = 0;
+	s390_reset_pgm_handler = cio_reset_pgm_check_handler;
+	rc = stsch(schid, addr);
+	s390_reset_pgm_handler = NULL;
+	if (pgm_check_occured)
+		return -EIO;
+	else
+		return rc;
+}
+
 static int __shutdown_subchannel_easy(struct subchannel_id schid, void *data)
 {
 	struct schib schib;
 
-	if (stsch_err(schid, &schib))
+	if (stsch_reset(schid, &schib))
 		return -ENXIO;
 	if (!schib.pmcw.ena)
 		return 0;
@@ -972,7 +993,7 @@ static int __reipl_subchannel_match(struct subchannel_id schid, void *data)
 	struct schib schib;
 	struct sch_match_id *match_id = data;
 
-	if (stsch_err(schid, &schib))
+	if (stsch_reset(schid, &schib))
 		return -ENXIO;
 	if (schib.pmcw.dnv &&
 	    (schib.pmcw.dev == match_id->devid.devno) &&

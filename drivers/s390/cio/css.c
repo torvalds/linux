@@ -139,6 +139,8 @@ css_register_subchannel(struct subchannel *sch)
 	sch->dev.release = &css_subchannel_release;
 	sch->dev.groups = subch_attr_groups;
 
+	css_get_ssd_info(sch);
+
 	/* make it known to the system */
 	ret = css_sch_device_register(sch);
 	if (ret) {
@@ -146,7 +148,6 @@ css_register_subchannel(struct subchannel *sch)
 			__func__, sch->dev.bus_id);
 		return ret;
 	}
-	css_get_ssd_info(sch);
 	return ret;
 }
 
