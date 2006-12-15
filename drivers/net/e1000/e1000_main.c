@@ -2628,29 +2628,34 @@ static unsigned int e1000_update_itr(struct e1000_adapter *adapter,
 	if (packets == 0)
 		goto update_itr_done;
 
-
 	switch (itr_setting) {
 	case lowest_latency:
-		if ((packets < 5) && (bytes > 512))
+		/* jumbo frames get bulk treatment*/
+		if (bytes/packets > 8000)
+			retval = bulk_latency;
+		else if ((packets < 5) && (bytes > 512))
 			retval = low_latency;
 		break;
 	case low_latency:  /* 50 usec aka 20000 ints/s */
 		if (bytes > 10000) {
-			if ((packets < 10) ||
-			     ((bytes/packets) > 1200))
+			/* jumbo frames need bulk latency setting */
+			if (bytes/packets > 8000)
+				retval = bulk_latency;
+			else if ((packets < 10) || ((bytes/packets) > 1200))
 				retval = bulk_latency;
 			else if ((packets > 35))
 				retval = lowest_latency;
-		} else if (packets <= 2 && bytes < 512)
+		} else if (bytes/packets > 2000)
+			retval = bulk_latency;
+		else if (packets <= 2 && bytes < 512)
 			retval = lowest_latency;
 		break;
 	case bulk_latency: /* 250 usec aka 4000 ints/s */
 		if (bytes > 25000) {
 			if (packets > 35)
 				retval = low_latency;
-		} else {
-			if (bytes < 6000)
-				retval = low_latency;
+		} else if (bytes < 6000) {
+			retval = low_latency;
 		}
 		break;
 	}
@@ -2679,16 +2684,19 @@ static void e1000_set_itr(struct e1000_adapter *adapter)
 	                            adapter->tx_itr,
 	                            adapter->total_tx_packets,
 	                            adapter->total_tx_bytes);
+	/* conservative mode (itr 3) eliminates the lowest_latency setting */
+	if (adapter->itr_setting == 3 && adapter->tx_itr == lowest_latency)
+		adapter->tx_itr = low_latency;
+
 	adapter->rx_itr = e1000_update_itr(adapter,
 	                            adapter->rx_itr,
 	                            adapter->total_rx_packets,
 	                            adapter->total_rx_bytes);
+	/* conservative mode (itr 3) eliminates the lowest_latency setting */
+	if (adapter->itr_setting == 3 && adapter->rx_itr == lowest_latency)
+		adapter->rx_itr = low_latency;
 
 	current_itr = max(adapter->rx_itr, adapter->tx_itr);
-
-	/* conservative mode eliminates the lowest_latency setting */
-	if (current_itr == lowest_latency && (adapter->itr_setting == 3))
-		current_itr = low_latency;
 
 	switch (current_itr) {
 	/* counts and packets in update_itr are dependent on these numbers */
@@ -3868,11 +3876,11 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 			cleaned = (i == eop);
 
 			if (cleaned) {
-				/* this packet count is wrong for TSO but has a
-				 * tendency to make dynamic ITR change more
-				 * towards bulk */
+				struct sk_buff *skb = buffer_info->skb;
+				unsigned int segs = skb_shinfo(skb)->gso_segs;
+				total_tx_packets += segs;
 				total_tx_packets++;
-				total_tx_bytes += buffer_info->skb->len;
+				total_tx_bytes += skb->len;
 			}
 			e1000_unmap_and_free_tx_resource(adapter, buffer_info);
 			tx_desc->upper.data = 0;
