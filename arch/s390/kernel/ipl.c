@@ -995,6 +995,7 @@ static void do_reset_calls(void)
 
 extern void reset_mcck_handler(void);
 extern void reset_pgm_handler(void);
+extern __u32 dump_prefix_page;
 
 void s390_reset_system(void)
 {
@@ -1004,6 +1005,9 @@ void s390_reset_system(void)
 
 	/* Stack for interrupt/machine check handler */
 	lc->panic_stack = S390_lowcore.panic_stack;
+
+	/* Save prefix page address for dump case */
+	dump_prefix_page = (unsigned long) lc;
 
 	/* Disable prefixing */
 	set_prefix(0);
