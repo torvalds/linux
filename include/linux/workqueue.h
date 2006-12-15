@@ -121,8 +121,8 @@ struct execute_work {
  * pending
  * @work: The work item in question
  */
-#define delayed_work_pending(work) \
-	test_bit(WORK_STRUCT_PENDING, &(work)->work.management)
+#define delayed_work_pending(w) \
+	work_pending(&(w)->work)
 
 /**
  * work_release - Release a work item under execution
