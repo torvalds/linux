@@ -1129,7 +1129,15 @@ static void ap_poll_thread_stop(void)
 	mutex_unlock(&ap_poll_thread_mutex);
 }
 
-static void ap_reset(void)
+static void ap_reset_domain(void)
+{
+	int i;
+
+	for (i = 0; i < AP_DEVICES; i++)
+		ap_reset_queue(AP_MKQID(i, ap_domain_index));
+}
+
+static void ap_reset_all(void)
 {
 	int i, j;
 
@@ -1139,7 +1147,7 @@ static void ap_reset(void)
 }
 
 static struct reset_call ap_reset_call = {
-	.fn = ap_reset,
+	.fn = ap_reset_all,
 };
 
 /**
@@ -1229,10 +1237,12 @@ void ap_module_exit(void)
 	int i;
 	struct device *dev;
 
+	ap_reset_domain();
 	ap_poll_thread_stop();
 	del_timer_sync(&ap_config_timer);
 	del_timer_sync(&ap_poll_timer);
 	destroy_workqueue(ap_work_queue);
+	tasklet_kill(&ap_tasklet);
 	s390_root_dev_unregister(ap_root_device);
 	while ((dev = bus_find_device(&ap_bus_type, NULL, NULL,
 		    __ap_match_all)))
