@@ -2422,6 +2422,7 @@ struct e1000_host_command_info {
 #define E1000_PBA_8K 0x0008    /* 8KB, default Rx allocation */
 #define E1000_PBA_12K 0x000C    /* 12KB, default Rx allocation */
 #define E1000_PBA_16K 0x0010    /* 16KB, default TX allocation */
+#define E1000_PBA_20K 0x0014
 #define E1000_PBA_22K 0x0016
 #define E1000_PBA_24K 0x0018
 #define E1000_PBA_30K 0x001E
