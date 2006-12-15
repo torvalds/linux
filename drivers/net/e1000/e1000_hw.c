@@ -442,6 +442,12 @@ e1000_set_mac_type(struct e1000_hw *hw)
 		break;
 	}
 
+	/* The 82543 chip does not count tx_carrier_errors properly in
+	 * FD mode
+	 */
+	if (hw->mac_type == e1000_82543)
+		hw->bad_tx_carr_stats_fd = TRUE;
+
 	return E1000_SUCCESS;
 }
 

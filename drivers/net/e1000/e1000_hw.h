@@ -1460,6 +1460,7 @@ struct e1000_hw {
 	boolean_t		mng_reg_access_disabled;
 	boolean_t		leave_av_bit_off;
 	boolean_t		kmrn_lock_loss_workaround_disabled;
+	boolean_t		bad_tx_carr_stats_fd;
 };
 
 

@@ -3581,6 +3581,11 @@ e1000_update_stats(struct e1000_adapter *adapter)
 	adapter->net_stats.tx_aborted_errors = adapter->stats.ecol;
 	adapter->net_stats.tx_window_errors = adapter->stats.latecol;
 	adapter->net_stats.tx_carrier_errors = adapter->stats.tncrs;
+	if (adapter->hw.bad_tx_carr_stats_fd &&
+	    adapter->link_duplex == FULL_DUPLEX) {
+		adapter->net_stats.tx_carrier_errors = 0;
+		adapter->stats.tncrs = 0;
+	}
 
 	/* Tx Dropped needs to be maintained elsewhere */
 
