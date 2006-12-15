@@ -458,6 +458,9 @@ e1000_set_mac_type(struct e1000_hw *hw)
 	if (hw->mac_type == e1000_80003es2lan)
 		hw->rx_needs_kicking = TRUE;
 
+	if (hw->mac_type > e1000_82544)
+		hw->has_smbus = TRUE;
+
 	return E1000_SUCCESS;
 }
 

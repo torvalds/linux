@@ -1464,6 +1464,7 @@ struct e1000_hw {
 	boolean_t		bad_tx_carr_stats_fd;
 	boolean_t		has_manc2h;
 	boolean_t		rx_needs_kicking;
+	boolean_t		has_smbus;
 };
 
 
