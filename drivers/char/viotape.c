@@ -49,7 +49,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
-
+#include <asm/firmware.h>
 #include <asm/vio.h>
 #include <asm/iseries/vio.h>
 #include <asm/iseries/hv_lp_event.h>
@@ -996,6 +996,9 @@ int __init viotap_init(void)
 {
 	int ret;
 	struct proc_dir_entry *e;
+
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return -ENODEV;
 
 	op_struct_list = NULL;
 	if ((ret = add_op_structs(VIOTAPE_MAXREQ)) < 0) {
