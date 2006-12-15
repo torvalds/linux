@@ -1301,6 +1301,7 @@ struct e1000_ffvt_entry {
 #define E1000_82542_RSSIR       E1000_RSSIR
 #define E1000_82542_KUMCTRLSTA E1000_KUMCTRLSTA
 #define E1000_82542_SW_FW_SYNC E1000_SW_FW_SYNC
+#define E1000_82542_MANC2H      E1000_MANC2H
 
 /* Statistics counters collected by the MAC */
 struct e1000_hw_stats {
@@ -1461,6 +1462,7 @@ struct e1000_hw {
 	boolean_t		leave_av_bit_off;
 	boolean_t		kmrn_lock_loss_workaround_disabled;
 	boolean_t		bad_tx_carr_stats_fd;
+	boolean_t		has_manc2h;
 };
 
 

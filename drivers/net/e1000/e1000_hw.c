@@ -448,6 +448,10 @@ e1000_set_mac_type(struct e1000_hw *hw)
 	if (hw->mac_type == e1000_82543)
 		hw->bad_tx_carr_stats_fd = TRUE;
 
+	/* capable of receiving management packets to the host */
+	if (hw->mac_type >= e1000_82571)
+		hw->has_manc2h = TRUE;
+
 	return E1000_SUCCESS;
 }
 
@@ -7823,9 +7827,8 @@ e1000_enable_mng_pass_thru(struct e1000_hw *hw)
             fwsm = E1000_READ_REG(hw, FWSM);
             factps = E1000_READ_REG(hw, FACTPS);
 
-            if (((fwsm & E1000_FWSM_MODE_MASK) ==
-                (e1000_mng_mode_pt << E1000_FWSM_MODE_SHIFT)) &&
-                (factps & E1000_FACTPS_MNGCG))
+            if ((((fwsm & E1000_FWSM_MODE_MASK) >> E1000_FWSM_MODE_SHIFT) ==
+                   e1000_mng_mode_pt) && !(factps & E1000_FACTPS_MNGCG))
                 return TRUE;
         } else
             if ((manc & E1000_MANC_SMBUS_EN) && !(manc & E1000_MANC_ASF_EN))
