@@ -47,6 +47,7 @@
 #include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/vio.h>
+#include <asm/firmware.h>
 
 #define VIOCD_DEVICE			"iseries/vcd"
 
@@ -747,6 +748,9 @@ static int __init viocd_init(void)
 {
 	struct proc_dir_entry *e;
 	int ret = 0;
+
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return -ENODEV;
 
 	if (viopath_hostLp == HvLpIndexInvalid) {
 		vio_set_hostlp();
