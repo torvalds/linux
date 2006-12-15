@@ -2646,7 +2646,7 @@ S:	Supported
 
 PRISM54 WIRELESS DRIVER
 P:	Prism54 Development Team
-M:	prism54-private@prism54.org
+M:	developers@islsm.org
 L:	netdev@vger.kernel.org
 W:	http://prism54.org
 S:	Maintained
