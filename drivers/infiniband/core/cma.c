@@ -1088,10 +1088,21 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 		*sin = iw_event->local_addr;
 		sin = (struct sockaddr_in *) &id_priv->id.route.addr.dst_addr;
 		*sin = iw_event->remote_addr;
-		if (iw_event->status)
-			event.event = RDMA_CM_EVENT_REJECTED;
-		else
+		switch (iw_event->status) {
+		case 0:
 			event.event = RDMA_CM_EVENT_ESTABLISHED;
+			break;
+		case -ECONNRESET:
+		case -ECONNREFUSED:
+			event.event = RDMA_CM_EVENT_REJECTED;
+			break;
+		case -ETIMEDOUT:
+			event.event = RDMA_CM_EVENT_UNREACHABLE;
+			break;
+		default:
+			event.event = RDMA_CM_EVENT_CONNECT_ERROR;
+			break;
+		}
 		break;
 	case IW_CM_EVENT_ESTABLISHED:
 		event.event = RDMA_CM_EVENT_ESTABLISHED;
