@@ -1027,14 +1027,6 @@ int netxen_nic_hw_read_wx(struct netxen_adapter *adapter, u64 off, void *data,
 			  int len);
 int netxen_nic_hw_write_wx(struct netxen_adapter *adapter, u64 off, void *data,
 			   int len);
-int netxen_nic_hw_read_ioctl(struct netxen_adapter *adapter, u64 off,
-			     void *data, int len);
-int netxen_nic_hw_write_ioctl(struct netxen_adapter *adapter, u64 off,
-			      void *data, int len);
-int netxen_nic_pci_mem_write_ioctl(struct netxen_adapter *adapter,
-				   u64 off, void *data, int size);
-int netxen_nic_pci_mem_read_ioctl(struct netxen_adapter *adapter,
-				  u64 off, void *data, int size);
 void netxen_crb_writelit_adapter(struct netxen_adapter *adapter,
 				 unsigned long off, int data);
 
@@ -1067,9 +1059,6 @@ void netxen_tso_check(struct netxen_adapter *adapter,
 		      struct cmd_desc_type0 *desc, struct sk_buff *skb);
 int netxen_nic_hw_resources(struct netxen_adapter *adapter);
 void netxen_nic_clear_stats(struct netxen_adapter *adapter);
-int
-netxen_nic_do_ioctl(struct netxen_adapter *adapter, void *u_data,
-		    struct netxen_port *port);
 int netxen_nic_rx_has_work(struct netxen_adapter *adapter);
 int netxen_nic_tx_has_work(struct netxen_adapter *adapter);
 void netxen_watchdog_task(struct work_struct *work);

@@ -38,7 +38,6 @@
 #include "netxen_nic.h"
 #define DEFINE_GLOBAL_RECV_CRB
 #include "netxen_nic_phan_reg.h"
-#include "netxen_nic_ioctl.h"
 
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
@@ -75,8 +74,6 @@ static void netxen_tx_timeout(struct net_device *netdev);
 static void netxen_tx_timeout_task(struct work_struct *work);
 static void netxen_watchdog(unsigned long);
 static int netxen_handle_int(struct netxen_adapter *, struct net_device *);
-static int netxen_nic_ioctl(struct net_device *netdev,
-			    struct ifreq *ifr, int cmd);
 static int netxen_nic_poll(struct net_device *dev, int *budget);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netxen_nic_poll_controller(struct net_device *netdev);
@@ -383,7 +380,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->set_multicast_list = netxen_nic_set_multi;
 		netdev->set_mac_address = netxen_nic_set_mac;
 		netdev->change_mtu = netxen_nic_change_mtu;
-		netdev->do_ioctl = netxen_nic_ioctl;
 		netdev->tx_timeout = netxen_tx_timeout;
 		netdev->watchdog_timeo = HZ;
 
@@ -1137,47 +1133,6 @@ static void netxen_nic_poll_controller(struct net_device *netdev)
 	enable_irq(adapter->irq);
 }
 #endif
-/*
- * netxen_nic_ioctl ()    We provide the tcl/phanmon support through these
- * ioctls.
- */
-static int
-netxen_nic_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
-{
-	int err = 0;
-	unsigned long nr_bytes = 0;
-	struct netxen_port *port = netdev_priv(netdev);
-	struct netxen_adapter *adapter = port->adapter;
-	char dev_name[NETXEN_NIC_NAME_LEN];
-
-	DPRINTK(INFO, "doing ioctl for %s\n", netdev->name);
-	switch (cmd) {
-	case NETXEN_NIC_CMD:
-		err = netxen_nic_do_ioctl(adapter, (void *)ifr->ifr_data, port);
-		break;
-
-	case NETXEN_NIC_NAME:
-		DPRINTK(INFO, "ioctl cmd for NetXen\n");
-		if (ifr->ifr_data) {
-			sprintf(dev_name, "%s-%d", NETXEN_NIC_NAME_RSP,
-				port->portnum);
-			nr_bytes =
-			    copy_to_user((char __user *)ifr->ifr_data, dev_name,
-					 NETXEN_NIC_NAME_LEN);
-			if (nr_bytes)
-				err = -EIO;
-
-		}
-		break;
-
-	default:
-		DPRINTK(INFO, "ioctl cmd %x not supported\n", cmd);
-		err = -EOPNOTSUPP;
-		break;
-	}
-
-	return err;
-}
 
 static struct pci_driver netxen_driver = {
 	.name = netxen_nic_driver_name,

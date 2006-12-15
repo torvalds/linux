@@ -42,7 +42,6 @@
 #include "netxen_nic_hw.h"
 #include "netxen_nic.h"
 #include "netxen_nic_phan_reg.h"
-#include "netxen_nic_ioctl.h"
 
 struct netxen_nic_stats {
 	char stat_string[ETH_GSTRING_LEN];
@@ -79,8 +78,7 @@ static const struct netxen_nic_stats netxen_nic_gstrings_stats[] = {
 	{"tx_bytes", NETXEN_NIC_STAT(stats.txbytes)},
 };
 
-#define NETXEN_NIC_STATS_LEN	\
-	sizeof(netxen_nic_gstrings_stats) / sizeof(struct netxen_nic_stats)
+#define NETXEN_NIC_STATS_LEN	ARRAY_SIZE(netxen_nic_gstrings_stats)
 
 static const char netxen_nic_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Register_Test_offline", "EEPROM_Test_offline",
@@ -711,7 +709,6 @@ netxen_nic_get_ethtool_stats(struct net_device *dev,
 		    (netxen_nic_gstrings_stats[index].sizeof_stat ==
 		     sizeof(u64)) ? *(u64 *) p : *(u32 *) p;
 	}
-
 }
 
 struct ethtool_ops netxen_nic_ethtool_ops = {
