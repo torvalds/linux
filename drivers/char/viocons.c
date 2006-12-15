@@ -42,6 +42,7 @@
 #include <linux/tty_flip.h>
 #include <linux/sysrq.h>
 
+#include <asm/firmware.h>
 #include <asm/iseries/vio.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_event.h>
@@ -1060,6 +1061,9 @@ static int __init viocons_init2(void)
 	atomic_t wait_flag;
 	int rc;
 
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return -ENODEV;
+
 	/* +2 for fudge */
 	rc = viopath_open(HvLpConfig_getPrimaryLpIndex(),
 			viomajorsubtype_chario, VIOCHAR_WINDOW + 2);
@@ -1144,6 +1148,9 @@ static int __init viocons_init2(void)
 static int __init viocons_init(void)
 {
 	int i;
+
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return -ENODEV;
 
 	printk(VIOCONS_KERN_INFO "registering console\n");
 	for (i = 0; i < VTTY_PORTS; i++) {
