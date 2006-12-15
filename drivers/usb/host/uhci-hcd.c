@@ -257,7 +257,9 @@ __acquires(uhci->lock)
 	int_enable = USBINTR_RESUME;
 	if (remote_wakeup_is_broken(uhci))
 		egsm_enable = 0;
-	if (resume_detect_interrupts_are_broken(uhci) || !egsm_enable)
+	if (resume_detect_interrupts_are_broken(uhci) || !egsm_enable ||
+			!device_may_wakeup(
+				&uhci_to_hcd(uhci)->self.root_hub->dev))
 		uhci->working_RD = int_enable = 0;
 
 	outw(int_enable, uhci->io_addr + USBINTR);
