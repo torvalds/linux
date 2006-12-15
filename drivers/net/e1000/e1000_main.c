@@ -1582,9 +1582,9 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 	}
 
 	/* Set the default values for the Tx Inter Packet Gap timer */
-
-	if (hw->media_type == e1000_media_type_fiber ||
-	    hw->media_type == e1000_media_type_internal_serdes)
+	if (adapter->hw.mac_type <= e1000_82547_rev_2 &&
+	    (hw->media_type == e1000_media_type_fiber ||
+	     hw->media_type == e1000_media_type_internal_serdes))
 		tipg = DEFAULT_82543_TIPG_IPGT_FIBER;
 	else
 		tipg = DEFAULT_82543_TIPG_IPGT_COPPER;
