@@ -185,20 +185,31 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 	ret_val = netlbl_cipsov4_add_common(info, doi_def);
 	if (ret_val != 0)
 		goto add_std_failure;
+	ret_val = -EINVAL;
 
 	nla_for_each_nested(nla_a,
 			    info->attrs[NLBL_CIPSOV4_A_MLSLVLLST],
 			    nla_a_rem)
 		if (nla_a->nla_type == NLBL_CIPSOV4_A_MLSLVL) {
+			if (nla_validate_nested(nla_a,
+					    NLBL_CIPSOV4_A_MAX,
+					    netlbl_cipsov4_genl_policy) != 0)
+					goto add_std_failure;
 			nla_for_each_nested(nla_b, nla_a, nla_b_rem)
 				switch (nla_b->nla_type) {
 				case NLBL_CIPSOV4_A_MLSLVLLOC:
+					if (nla_get_u32(nla_b) >
+					    CIPSO_V4_MAX_LOC_LVLS)
+						goto add_std_failure;
 					if (nla_get_u32(nla_b) >=
 					    doi_def->map.std->lvl.local_size)
 					     doi_def->map.std->lvl.local_size =
 						     nla_get_u32(nla_b) + 1;
 					break;
 				case NLBL_CIPSOV4_A_MLSLVLREM:
+					if (nla_get_u32(nla_b) >
+					    CIPSO_V4_MAX_REM_LVLS)
+						goto add_std_failure;
 					if (nla_get_u32(nla_b) >=
 					    doi_def->map.std->lvl.cipso_size)
 					     doi_def->map.std->lvl.cipso_size =
@@ -206,9 +217,6 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 					break;
 				}
 		}
-	if (doi_def->map.std->lvl.local_size > CIPSO_V4_MAX_LOC_LVLS ||
-	    doi_def->map.std->lvl.cipso_size > CIPSO_V4_MAX_REM_LVLS)
-		goto add_std_failure;
 	doi_def->map.std->lvl.local = kcalloc(doi_def->map.std->lvl.local_size,
 					      sizeof(u32),
 					      GFP_KERNEL);
@@ -229,11 +237,6 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 		if (nla_a->nla_type == NLBL_CIPSOV4_A_MLSLVL) {
 			struct nlattr *lvl_loc;
 			struct nlattr *lvl_rem;
-
-			if (nla_validate_nested(nla_a,
-					      NLBL_CIPSOV4_A_MAX,
-					      netlbl_cipsov4_genl_policy) != 0)
-				goto add_std_failure;
 
 			lvl_loc = nla_find_nested(nla_a,
 						  NLBL_CIPSOV4_A_MLSLVLLOC);
@@ -264,12 +267,18 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 				nla_for_each_nested(nla_b, nla_a, nla_b_rem)
 					switch (nla_b->nla_type) {
 					case NLBL_CIPSOV4_A_MLSCATLOC:
+						if (nla_get_u32(nla_b) >
+						    CIPSO_V4_MAX_LOC_CATS)
+							goto add_std_failure;
 						if (nla_get_u32(nla_b) >=
 					      doi_def->map.std->cat.local_size)
 					     doi_def->map.std->cat.local_size =
 						     nla_get_u32(nla_b) + 1;
 						break;
 					case NLBL_CIPSOV4_A_MLSCATREM:
+						if (nla_get_u32(nla_b) >
+						    CIPSO_V4_MAX_REM_CATS)
+							goto add_std_failure;
 						if (nla_get_u32(nla_b) >=
 					      doi_def->map.std->cat.cipso_size)
 					     doi_def->map.std->cat.cipso_size =
@@ -277,9 +286,6 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 						break;
 					}
 			}
-		if (doi_def->map.std->cat.local_size > CIPSO_V4_MAX_LOC_CATS ||
-		    doi_def->map.std->cat.cipso_size > CIPSO_V4_MAX_REM_CATS)
-			goto add_std_failure;
 		doi_def->map.std->cat.local = kcalloc(
 			                      doi_def->map.std->cat.local_size,
 					      sizeof(u32),
