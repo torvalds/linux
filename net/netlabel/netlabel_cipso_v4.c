@@ -162,6 +162,7 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 	struct nlattr *nla_b;
 	int nla_a_rem;
 	int nla_b_rem;
+	u32 iter;
 
 	if (!info->attrs[NLBL_CIPSOV4_A_TAGLST] ||
 	    !info->attrs[NLBL_CIPSOV4_A_MLSLVLLST])
@@ -231,6 +232,10 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 		ret_val = -ENOMEM;
 		goto add_std_failure;
 	}
+	for (iter = 0; iter < doi_def->map.std->lvl.local_size; iter++)
+		doi_def->map.std->lvl.local[iter] = CIPSO_V4_INV_LVL;
+	for (iter = 0; iter < doi_def->map.std->lvl.cipso_size; iter++)
+		doi_def->map.std->lvl.cipso[iter] = CIPSO_V4_INV_LVL;
 	nla_for_each_nested(nla_a,
 			    info->attrs[NLBL_CIPSOV4_A_MLSLVLLST],
 			    nla_a_rem)
@@ -302,6 +307,10 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 			ret_val = -ENOMEM;
 			goto add_std_failure;
 		}
+		for (iter = 0; iter < doi_def->map.std->cat.local_size; iter++)
+			doi_def->map.std->cat.local[iter] = CIPSO_V4_INV_CAT;
+		for (iter = 0; iter < doi_def->map.std->cat.cipso_size; iter++)
+			doi_def->map.std->cat.cipso[iter] = CIPSO_V4_INV_CAT;
 		nla_for_each_nested(nla_a,
 				    info->attrs[NLBL_CIPSOV4_A_MLSCATLST],
 				    nla_a_rem)
