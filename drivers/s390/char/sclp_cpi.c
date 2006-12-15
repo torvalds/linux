@@ -49,6 +49,8 @@ static struct sclp_register sclp_cpi_event =
 	.send_mask = EvTyp_CtlProgIdent_Mask
 };
 
+MODULE_LICENSE("GPL");
+
 MODULE_AUTHOR(
 	"Martin Peschke, IBM Deutschland Entwicklung GmbH "
 	"<mpeschke@de.ibm.com>");
