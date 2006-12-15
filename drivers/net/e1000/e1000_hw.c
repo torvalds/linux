@@ -6591,7 +6591,7 @@ e1000_get_bus_info(struct e1000_hw *hw)
     switch (hw->mac_type) {
     case e1000_82542_rev2_0:
     case e1000_82542_rev2_1:
-        hw->bus_type = e1000_bus_type_unknown;
+        hw->bus_type = e1000_bus_type_pci;
         hw->bus_speed = e1000_bus_speed_unknown;
         hw->bus_width = e1000_bus_width_unknown;
         break;
