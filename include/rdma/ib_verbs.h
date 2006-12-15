@@ -1639,7 +1639,14 @@ static inline void *ib_dma_alloc_coherent(struct ib_device *dev,
 {
 	if (dev->dma_ops)
 		return dev->dma_ops->alloc_coherent(dev, size, dma_handle, flag);
-	return dma_alloc_coherent(dev->dma_device, size, dma_handle, flag);
+	else {
+		dma_addr_t handle;
+		void *ret;
+
+		ret = dma_alloc_coherent(dev->dma_device, size, &handle, flag);
+		*dma_handle = handle;
+		return ret;
+	}
 }
 
 /**
