@@ -49,6 +49,7 @@
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_lp_config.h>
 #include <asm/iseries/vio.h>
+#include <asm/firmware.h>
 
 MODULE_DESCRIPTION("iSeries Virtual DASD");
 MODULE_AUTHOR("Dave Boutcher");
@@ -768,6 +769,11 @@ static int need_delete_probe;
 static int __init viodasd_init(void)
 {
 	int rc;
+
+	if (!firmware_has_feature(FW_FEATURE_ISERIES)) {
+		rc = -ENODEV;
+		goto early_fail;
+	}
 
 	/* Try to open to our host lp */
 	if (viopath_hostLp == HvLpIndexInvalid)
