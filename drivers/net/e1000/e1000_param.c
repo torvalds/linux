@@ -487,7 +487,9 @@ e1000_check_options(struct e1000_adapter *adapter)
 				e1000_validate_option(&adapter->itr, &opt,
 				        adapter);
 				/* save the setting, because the dynamic bits change itr */
-				adapter->itr_setting = adapter->itr;
+				/* clear the lower two bits because they are
+				 * used as control */
+				adapter->itr_setting = adapter->itr & ~3;
 				break;
 			}
 		} else {
