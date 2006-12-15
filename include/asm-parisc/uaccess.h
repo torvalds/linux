@@ -4,7 +4,6 @@
 /*
  * User space memory access functions
  */
-#include <linux/sched.h>
 #include <asm/page.h>
 #include <asm/system.h>
 #include <asm/cache.h>
