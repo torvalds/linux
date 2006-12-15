@@ -609,41 +609,11 @@ static ssize_t on_panic_store(struct subsystem *subsys, const char *buf,
 static struct subsys_attribute on_panic_attr =
 		__ATTR(on_panic, 0644, on_panic_show, on_panic_store);
 
-static void print_fcp_block(struct ipl_parameter_block *fcp_block)
-{
-	printk(KERN_EMERG "wwpn:      %016llx\n",
-		(unsigned long long)fcp_block->ipl_info.fcp.wwpn);
-	printk(KERN_EMERG "lun:       %016llx\n",
-		(unsigned long long)fcp_block->ipl_info.fcp.lun);
-	printk(KERN_EMERG "bootprog:  %lld\n",
-		(unsigned long long)fcp_block->ipl_info.fcp.bootprog);
-	printk(KERN_EMERG "br_lba:    %lld\n",
-		(unsigned long long)fcp_block->ipl_info.fcp.br_lba);
-	printk(KERN_EMERG "device:    %llx\n",
-		(unsigned long long)fcp_block->ipl_info.fcp.devno);
-	printk(KERN_EMERG "opt:       %x\n", fcp_block->ipl_info.fcp.opt);
-}
-
 void do_reipl(void)
 {
 	struct ccw_dev_id devid;
 	static char buf[100];
 	char loadparm[LOADPARM_LEN + 1];
-
-	switch (reipl_type) {
-	case IPL_TYPE_CCW:
-		reipl_get_ascii_loadparm(loadparm);
-		printk(KERN_EMERG "reboot on ccw device: 0.0.%04x\n",
-			reipl_block_ccw->ipl_info.ccw.devno);
-		printk(KERN_EMERG "loadparm = '%s'\n", loadparm);
-		break;
-	case IPL_TYPE_FCP:
-		printk(KERN_EMERG "reboot on fcp device:\n");
-		print_fcp_block(reipl_block_fcp);
-		break;
-	default:
-		break;
-	}
 
 	switch (reipl_method) {
 	case IPL_METHOD_CCW_CIO:
@@ -654,6 +624,7 @@ void do_reipl(void)
 		reipl_ccw_dev(&devid);
 		break;
 	case IPL_METHOD_CCW_VM:
+		reipl_get_ascii_loadparm(loadparm);
 		if (strlen(loadparm) == 0)
 			sprintf(buf, "IPL %X",
 				reipl_block_ccw->ipl_info.ccw.devno);
@@ -683,7 +654,6 @@ void do_reipl(void)
 		diag308(DIAG308_IPL, NULL);
 		break;
 	}
-	printk(KERN_EMERG "reboot failed!\n");
 	signal_processor(smp_processor_id(), sigp_stop_and_store_status);
 }
 
@@ -691,19 +661,6 @@ static void do_dump(void)
 {
 	struct ccw_dev_id devid;
 	static char buf[100];
-
-	switch (dump_type) {
-	case IPL_TYPE_CCW:
-		printk(KERN_EMERG "Automatic dump on ccw device: 0.0.%04x\n",
-		       dump_block_ccw->ipl_info.ccw.devno);
-		break;
-	case IPL_TYPE_FCP:
-		printk(KERN_EMERG "Automatic dump on fcp device:\n");
-		print_fcp_block(dump_block_fcp);
-		break;
-	default:
-		return;
-	}
 
 	switch (dump_method) {
 	case IPL_METHOD_CCW_CIO:
