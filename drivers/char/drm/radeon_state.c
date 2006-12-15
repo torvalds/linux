@@ -43,10 +43,7 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 						    u32 *offset)
 {
 	u64 off = *offset;
-	u32 fb_start = dev_priv->fb_location;
-	u32 fb_end = fb_start + dev_priv->fb_size - 1;
-	u32 gart_start = dev_priv->gart_vm_start;
-	u32 gart_end = gart_start + dev_priv->gart_size - 1;
+	u32 fb_end = dev_priv->fb_location + dev_priv->fb_size - 1;
 	struct drm_radeon_driver_file_fields *radeon_priv;
 
 	/* Hrm ... the story of the offset ... So this function converts
@@ -66,8 +63,7 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 	/* First, the best case, the offset already lands in either the
 	 * framebuffer or the GART mapped space
 	 */
-	if ((off >= fb_start && off <= fb_end) ||
-	    (off >= gart_start && off <= gart_end))
+	if (radeon_check_offset(dev_priv, off))
 		return 0;
 
 	/* Ok, that didn't happen... now check if we have a zero based
@@ -81,11 +77,10 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 
 	/* Finally, assume we aimed at a GART offset if beyond the fb */
 	if (off > fb_end)
-		off = off - fb_end - 1 + gart_start;
+		off = off - fb_end - 1 + dev_priv->gart_vm_start;
 
 	/* Now recheck and fail if out of bounds */
-	if ((off >= fb_start && off <= fb_end) ||
-	    (off >= gart_start && off <= gart_end)) {
+	if (radeon_check_offset(dev_priv, off)) {
 		DRM_DEBUG("offset fixed up to 0x%x\n", (unsigned int)off);
 		*offset = off;
 		return 0;
