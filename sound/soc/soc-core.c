@@ -56,7 +56,6 @@
 static DEFINE_MUTEX(pcm_mutex);
 static DEFINE_MUTEX(io_mutex);
 static struct workqueue_struct *soc_workq;
-static struct work_struct soc_stream_work;
 static DECLARE_WAIT_QUEUE_HEAD(soc_pm_waitq);
 
 /* supported sample rates */
@@ -728,9 +727,10 @@ out:
  * This is to ensure there are no pops or clicks in between any music tracks
  * due to DAPM power cycling.
  */
-static void close_delayed_work(void *data)
+static void close_delayed_work(struct work_struct *work)
 {
-	struct snd_soc_device *socdev = data;
+	struct snd_soc_device *socdev =
+		container_of(work, struct snd_soc_device, delayed_work.work);
 	struct snd_soc_codec *codec = socdev->codec;
 	struct snd_soc_codec_dai *codec_dai;
 	int i;
@@ -805,7 +805,7 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* start delayed pop wq here for playback streams */
 		rtd->codec_dai->pop_wait = 1;
-		queue_delayed_work(soc_workq, &soc_stream_work,
+		queue_delayed_work(soc_workq, &socdev->delayed_work,
 			msecs_to_jiffies(pmdown_time));
 	} else {
 		/* capture streams can be powered down now */
@@ -865,7 +865,7 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 					SND_SOC_DAPM_STREAM_START);
 		else {
 			rtd->codec_dai->pop_wait = 0;
-			cancel_delayed_work(&soc_stream_work);
+			cancel_delayed_work(&socdev->delayed_work);
 			if (rtd->codec_dai->digital_mute)
 				rtd->codec_dai->digital_mute(codec, rtd->codec_dai, 0);
 		}
@@ -1225,7 +1225,7 @@ static int soc_probe(struct platform_device *pdev)
 	soc_workq = create_workqueue("kdapm");
 	if (soc_workq == NULL)
 		goto work_err;
-	INIT_WORK(&soc_stream_work, close_delayed_work, socdev);
+	INIT_DELAYED_WORK(&socdev->delayed_work, close_delayed_work);
 	return 0;
 
 work_err:

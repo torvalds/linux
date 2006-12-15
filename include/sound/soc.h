@@ -15,6 +15,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 #include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -454,6 +455,7 @@ struct snd_soc_device {
 	struct snd_soc_platform *platform;
 	struct snd_soc_codec *codec;
 	struct snd_soc_codec_device *codec_dev;
+	struct delayed_work delayed_work;
 	void *codec_data;
 };
 
