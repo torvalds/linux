@@ -353,20 +353,15 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 		if(!errCode) {
 			/* Allocate memory for the scratch ring buffer */
 			errCode = usbvision_scratch_alloc(usbvision);
-			if(!errCode) {
-				/* Allocate memory for the USB S buffers */
-				errCode = usbvision_sbuf_alloc(usbvision);
-				if ((!errCode) && (usbvision->isocMode==ISOC_MODE_COMPRESS)) {
-					/* Allocate intermediate decompression buffers only if needed */
-					errCode = usbvision_decompress_alloc(usbvision);
-				}
+			if ((!errCode) && (isocMode==ISOC_MODE_COMPRESS)) {
+				/* Allocate intermediate decompression buffers only if needed */
+				errCode = usbvision_decompress_alloc(usbvision);
 			}
 		}
 		if (errCode) {
 			/* Deallocate all buffers if trouble */
 			usbvision_frames_free(usbvision);
 			usbvision_scratch_free(usbvision);
-			usbvision_sbuf_free(usbvision);
 			usbvision_decompress_free(usbvision);
 		}
 	}
@@ -437,9 +432,8 @@ static int usbvision_v4l2_close(struct inode *inode, struct file *file)
 	usbvision_stop_isoc(usbvision);
 
 	usbvision_decompress_free(usbvision);
-	usbvision_rvfree(usbvision->fbuf, usbvision->fbuf_size);
+	usbvision_frames_free(usbvision);
 	usbvision_scratch_free(usbvision);
-	usbvision_sbuf_free(usbvision);
 
 	usbvision->user--;
 

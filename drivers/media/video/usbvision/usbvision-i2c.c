@@ -319,6 +319,9 @@ static int attach_inform(struct i2c_client *client)
 		case 0x4a:
 			PDEBUG(DBG_I2C,"attach_inform: saa7113 detected.");
 			break;
+		case 0x48:
+			PDEBUG(DBG_I2C,"attach_inform: saa7111 detected.");
+			break;
 		case 0xa0:
 			PDEBUG(DBG_I2C,"attach_inform: eeprom detected.");
 			break;

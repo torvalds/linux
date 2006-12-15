@@ -374,7 +374,7 @@ static void scratch_reset(struct usb_usbvision *usbvision)
 
 int usbvision_scratch_alloc(struct usb_usbvision *usbvision)
 {
-	usbvision->scratch = vmalloc(scratch_buf_size);
+	usbvision->scratch = vmalloc_32(scratch_buf_size);
 	scratch_reset(usbvision);
 	if(usbvision->scratch == NULL) {
 		err("%s: unable to allocate %d bytes for scratch",
@@ -485,7 +485,7 @@ static void usbvision_testpattern(struct usb_usbvision *usbvision,
 int usbvision_decompress_alloc(struct usb_usbvision *usbvision)
 {
 	int IFB_size = MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 3 / 2;
-	usbvision->IntraFrameBuffer = vmalloc(IFB_size);
+	usbvision->IntraFrameBuffer = vmalloc_32(IFB_size);
 	if (usbvision->IntraFrameBuffer == NULL) {
 		err("%s: unable to allocate %d for compr. frame buffer", __FUNCTION__, IFB_size);
 		return -ENOMEM;
@@ -2204,6 +2204,7 @@ int usbvision_power_on(struct usb_usbvision *usbvision)
 	usbvision_write_reg(usbvision, USBVISION_PWR_REG, USBVISION_SSPND_EN);
 	usbvision_write_reg(usbvision, USBVISION_PWR_REG,
 			 USBVISION_SSPND_EN | USBVISION_RES2);
+
 	usbvision_write_reg(usbvision, USBVISION_PWR_REG,
 			 USBVISION_SSPND_EN | USBVISION_PWR_VID);
 	errCode = usbvision_write_reg(usbvision, USBVISION_PWR_REG,
@@ -2351,40 +2352,6 @@ int usbvision_setup(struct usb_usbvision *usbvision,int format)
 	return USBVISION_IS_OPERATIONAL(usbvision);
 }
 
-
-int usbvision_sbuf_alloc(struct usb_usbvision *usbvision)
-{
-	int i, errCode = 0;
-	const int sb_size = USBVISION_URB_FRAMES * USBVISION_MAX_ISOC_PACKET_SIZE;
-
-	/* Clean pointers so we know if we allocated something */
-	for (i = 0; i < USBVISION_NUMSBUF; i++)
-		usbvision->sbuf[i].data = NULL;
-
-	for (i = 0; i < USBVISION_NUMSBUF; i++) {
-		usbvision->sbuf[i].data = kzalloc(sb_size, GFP_KERNEL);
-		if (usbvision->sbuf[i].data == NULL) {
-			err("%s: unable to allocate %d bytes for sbuf", __FUNCTION__, sb_size);
-			errCode = -ENOMEM;
-			break;
-		}
-	}
-	return errCode;
-}
-
-
-void usbvision_sbuf_free(struct usb_usbvision *usbvision)
-{
-	int i;
-
-	for (i = 0; i < USBVISION_NUMSBUF; i++) {
-		if (usbvision->sbuf[i].data != NULL) {
-			kfree(usbvision->sbuf[i].data);
-			usbvision->sbuf[i].data = NULL;
-		}
-	}
-}
-
 /*
  * usbvision_init_isoc()
  *
@@ -2393,6 +2360,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 {
 	struct usb_device *dev = usbvision->dev;
 	int bufIdx, errCode, regValue;
+	const int sb_size = USBVISION_URB_FRAMES * USBVISION_MAX_ISOC_PACKET_SIZE;
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision))
 		return -EFAULT;
@@ -2428,6 +2396,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 			return -ENOMEM;
 		}
 		usbvision->sbuf[bufIdx].urb = urb;
+		usbvision->sbuf[bufIdx].data = usb_buffer_alloc(usbvision->dev, sb_size, GFP_KERNEL,&urb->transfer_dma);
 		urb->dev = dev;
 		urb->context = usbvision;
 		urb->pipe = usb_rcvisocpipe(dev, usbvision->video_endp);
@@ -2469,6 +2438,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 {
 	int bufIdx, errCode, regValue;
+	const int sb_size = USBVISION_URB_FRAMES * USBVISION_MAX_ISOC_PACKET_SIZE;
 
 	if ((usbvision->streaming == Stream_Off) || (usbvision->dev == NULL))
 		return;
@@ -2476,6 +2446,12 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 	/* Unschedule all of the iso td's */
 	for (bufIdx = 0; bufIdx < USBVISION_NUMSBUF; bufIdx++) {
 		usb_kill_urb(usbvision->sbuf[bufIdx].urb);
+		if (usbvision->sbuf[bufIdx].data){
+			usb_buffer_free(usbvision->dev,
+					sb_size,
+					usbvision->sbuf[bufIdx].data,
+					usbvision->sbuf[bufIdx].urb->transfer_dma);
+		}
 		usb_free_urb(usbvision->sbuf[bufIdx].urb);
 		usbvision->sbuf[bufIdx].urb = NULL;
 	}

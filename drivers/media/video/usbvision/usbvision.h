@@ -495,8 +495,6 @@ int usbvision_frames_alloc(struct usb_usbvision *usbvision);
 void usbvision_frames_free(struct usb_usbvision *usbvision);
 int usbvision_scratch_alloc(struct usb_usbvision *usbvision);
 void usbvision_scratch_free(struct usb_usbvision *usbvision);
-int usbvision_sbuf_alloc(struct usb_usbvision *usbvision);
-void usbvision_sbuf_free(struct usb_usbvision *usbvision);
 int usbvision_decompress_alloc(struct usb_usbvision *usbvision);
 void usbvision_decompress_free(struct usb_usbvision *usbvision);
 
