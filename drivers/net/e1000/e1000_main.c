@@ -213,6 +213,12 @@ static void e1000_netpoll (struct net_device *netdev);
 
 extern void e1000_check_options(struct e1000_adapter *adapter);
 
+#define COPYBREAK_DEFAULT 256
+static unsigned int copybreak __read_mostly = COPYBREAK_DEFAULT;
+module_param(copybreak, uint, 0644);
+MODULE_PARM_DESC(copybreak,
+	"Maximum size of packet that is copied to a new buffer on receive");
+
 static pci_ers_result_t e1000_io_error_detected(struct pci_dev *pdev,
                      pci_channel_state_t state);
 static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev);
@@ -264,7 +270,13 @@ e1000_init_module(void)
 	printk(KERN_INFO "%s\n", e1000_copyright);
 
 	ret = pci_register_driver(&e1000_driver);
-
+	if (copybreak != COPYBREAK_DEFAULT) {
+		if (copybreak == 0)
+			printk(KERN_INFO "e1000: copybreak disabled\n");
+		else
+			printk(KERN_INFO "e1000: copybreak enabled for "
+			       "packets <= %u bytes\n", copybreak);
+	}
 	return ret;
 }
 
@@ -4235,8 +4247,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		/* code added for copybreak, this should improve
 		 * performance for small packets with large amounts
 		 * of reassembly being done in the stack */
-#define E1000_CB_LENGTH 256
-		if (length < E1000_CB_LENGTH) {
+		if (length < copybreak) {
 			struct sk_buff *new_skb =
 			    netdev_alloc_skb(netdev, length + NET_IP_ALIGN);
 			if (new_skb) {
@@ -4394,7 +4405,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 
 		/* page alloc/put takes too long and effects small packet
 		 * throughput, so unsplit small packets and save the alloc/put*/
-		if (l1 && ((length + l1) <= adapter->rx_ps_bsize0)) {
+		if (l1 && (l1 <= copybreak) && ((length + l1) <= adapter->rx_ps_bsize0)) {
 			u8 *vaddr;
 			/* there is no documentation about how to call
 			 * kmap_atomic, so we can't hold the mapping
