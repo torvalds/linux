@@ -732,6 +732,20 @@ e1000_reset(struct e1000_adapter *adapter)
 	if (e1000_init_hw(&adapter->hw))
 		DPRINTK(PROBE, ERR, "Hardware Error\n");
 	e1000_update_mng_vlan(adapter);
+
+	/* if (adapter->hwflags & HWFLAGS_PHY_PWR_BIT) { */
+	if (adapter->hw.mac_type >= e1000_82544 &&
+	    adapter->hw.mac_type <= e1000_82547_rev_2 &&
+	    adapter->hw.autoneg == 1 &&
+	    adapter->hw.autoneg_advertised == ADVERTISE_1000_FULL) {
+		uint32_t ctrl = E1000_READ_REG(&adapter->hw, CTRL);
+		/* clear phy power management bit if we are in gig only mode,
+		 * which if enabled will attempt negotiation to 100Mb, which
+		 * can cause a loss of link at power off or driver unload */
+		ctrl &= ~E1000_CTRL_SWDPIN3;
+		E1000_WRITE_REG(&adapter->hw, CTRL, ctrl);
+	}
+
 	/* Enable h/w to recognize an 802.1Q VLAN Ethernet packet */
 	E1000_WRITE_REG(&adapter->hw, VET, ETHERNET_IEEE_VLAN_TYPE);
 
