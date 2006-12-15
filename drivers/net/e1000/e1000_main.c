@@ -2579,6 +2579,13 @@ e1000_watchdog(unsigned long data)
 			netif_wake_queue(netdev);
 			mod_timer(&adapter->phy_info_timer, jiffies + 2 * HZ);
 			adapter->smartspeed = 0;
+		} else {
+			/* make sure the receive unit is started */
+			if (adapter->hw.rx_needs_kicking) {
+				struct e1000_hw *hw = &adapter->hw;
+				uint32_t rctl = E1000_READ_REG(hw, RCTL);
+				E1000_WRITE_REG(hw, RCTL, rctl | E1000_RCTL_EN);
+			}
 		}
 	} else {
 		if (netif_carrier_ok(netdev)) {

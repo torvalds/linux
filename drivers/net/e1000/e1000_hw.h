@@ -1463,6 +1463,7 @@ struct e1000_hw {
 	boolean_t		kmrn_lock_loss_workaround_disabled;
 	boolean_t		bad_tx_carr_stats_fd;
 	boolean_t		has_manc2h;
+	boolean_t		rx_needs_kicking;
 };
 
 
