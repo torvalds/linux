@@ -1037,13 +1037,15 @@ static void do_reset_calls(void)
 }
 
 extern void reset_mcck_handler(void);
+extern void reset_pgm_handler(void);
 
 void s390_reset_system(void)
 {
 	struct _lowcore *lc;
 
-	/* Stack for interrupt/machine check handler */
 	lc = (struct _lowcore *)(unsigned long) store_prefix();
+
+	/* Stack for interrupt/machine check handler */
 	lc->panic_stack = S390_lowcore.panic_stack;
 
 	/* Disable prefixing */
@@ -1056,5 +1058,11 @@ void s390_reset_system(void)
 	S390_lowcore.mcck_new_psw.mask = PSW_KERNEL_BITS & ~PSW_MASK_MCHECK;
 	S390_lowcore.mcck_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) &reset_mcck_handler;
+
+	/* Set new program check handler */
+	S390_lowcore.program_new_psw.mask = PSW_KERNEL_BITS & ~PSW_MASK_MCHECK;
+	S390_lowcore.program_new_psw.addr =
+		PSW_ADDR_AMODE | (unsigned long) &reset_pgm_handler;
+
 	do_reset_calls();
 }
