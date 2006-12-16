@@ -104,6 +104,34 @@ static struct platform_device avila_uart = {
 	.resource		= avila_uart_resources
 };
 
+static struct resource avila_pata_resources[] = {
+	{
+		.flags	= IORESOURCE_MEM
+	},
+	{
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "intrq",
+		.start	= IRQ_IXP4XX_GPIO12,
+		.end	= IRQ_IXP4XX_GPIO12,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct ixp4xx_pata_data avila_pata_data = {
+	.cs0_bits	= 0xbfff0043,
+	.cs1_bits	= 0xbfff0043,
+};
+
+static struct platform_device avila_pata = {
+	.name			= "pata_ixp4xx_cf",
+	.id			= 0,
+	.dev.platform_data      = &avila_pata_data,
+	.num_resources		= ARRAY_SIZE(avila_pata_resources),
+	.resource		= avila_pata_resources,
+};
+
 static struct platform_device *avila_devices[] __initdata = {
 	&avila_i2c_controller,
 	&avila_flash,
@@ -119,6 +147,18 @@ static void __init avila_init(void)
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
 	platform_add_devices(avila_devices, ARRAY_SIZE(avila_devices));
+
+	avila_pata_resources[0].start = IXP4XX_EXP_BUS_BASE(1);
+	avila_pata_resources[0].end = IXP4XX_EXP_BUS_END(1);
+
+	avila_pata_resources[1].start = IXP4XX_EXP_BUS_BASE(2);
+	avila_pata_resources[1].end = IXP4XX_EXP_BUS_END(2);
+
+	avila_pata_data.cs0_cfg = IXP4XX_EXP_CS1;
+	avila_pata_data.cs1_cfg = IXP4XX_EXP_CS2;
+
+	platform_device_register(&avila_pata);
+
 }
 
 MACHINE_START(AVILA, "Gateworks Avila Network Platform")
