@@ -3,6 +3,7 @@
  *
  *
  *  Copyright (C) 2004-2005 Borislav Deianov <borislav@users.sf.net>
+ *  Copyright (C) 2006 Henrique de Moraes Holschuh <hmh@hmh.eng.br>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,10 +20,14 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define IBM_VERSION "0.12a"
+#define IBM_VERSION "0.13"
 
 /*
  *  Changelog:
+ *
+ *  2006-11-22	0.13	new maintainer
+ *  			changelog now lives in git commit history, and will
+ *  			not be updated further in-file.
  *  
  *  2005-08-17  0.12	fix compilation on 2.6.13-rc kernels
  *  2005-03-17	0.11	support for 600e, 770x
@@ -77,8 +82,15 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/string.h>
+
 #include <linux/proc_fs.h>
+#include <linux/backlight.h>
 #include <asm/uaccess.h>
+
+#include <linux/dmi.h>
+#include <linux/jiffies.h>
+#include <linux/workqueue.h>
 
 #include <acpi/acpi_drivers.h>
 #include <acpi/acnamesp.h>
@@ -88,7 +100,7 @@
 #define IBM_FILE "ibm_acpi"
 #define IBM_URL "http://ibm-acpi.sf.net/"
 
-MODULE_AUTHOR("Borislav Deianov");
+MODULE_AUTHOR("Borislav Deianov, Henrique de Moraes Holschuh");
 MODULE_DESCRIPTION(IBM_DESC);
 MODULE_VERSION(IBM_VERSION);
 MODULE_LICENSE("GPL");
@@ -115,28 +127,6 @@ static acpi_handle root_handle = NULL;
 	static acpi_handle *object##_parent = &parent##_handle;	\
 	static char        *object##_path;			\
 	static char        *object##_paths[] = { paths }
-
-/*
- * The following models are supported to various degrees:
- *
- * 570, 600e, 600x, 770e, 770x
- * A20m, A21e, A21m, A21p, A22p, A30, A30p, A31, A31p
- * G40, G41
- * R30, R31, R32, R40, R40e, R50, R50e, R50p, R51
- * T20, T21, T22, T23, T30, T40, T40p, T41, T41p, T42, T42p, T43
- * X20, X21, X22, X23, X24, X30, X31, X40
- *
- * The following models have no supported features:
- *
- * 240, 240x, i1400
- *
- * Still missing DSDTs for the following models:
- *
- * A20p, A22e, A22m
- * R52
- * S31
- * T43p
- */
 
 IBM_HANDLE(ec, root, "\\_SB.PCI0.ISA.EC0",	/* 240, 240x */
 	   "\\_SB.PCI.ISA.EC",	/* 570 */
@@ -167,8 +157,10 @@ IBM_HANDLE(dock, root, "\\_SB.GDCK",	/* X30, X31, X40 */
 	   "\\_SB.PCI.ISA.SLCE",	/* 570 */
     );				/* A21e,G4x,R30,R31,R32,R40,R40e,R50e */
 #endif
+#ifdef CONFIG_ACPI_IBM_BAY
 IBM_HANDLE(bay, root, "\\_SB.PCI.IDE.SECN.MAST",	/* 570 */
 	   "\\_SB.PCI0.IDE0.IDES.IDSM",	/* 600e/x, 770e, 770x */
+	   "\\_SB.PCI0.SATA.SCND.MSTR",	/* T60, X60, Z60 */ 
 	   "\\_SB.PCI0.IDE0.SCND.MSTR",	/* all others */
     );				/* A21e, R30, R31 */
 
@@ -183,6 +175,7 @@ IBM_HANDLE(bay2, root, "\\_SB.PCI0.IDE0.PRIM.SLAV",	/* A3x, R32 */
 IBM_HANDLE(bay2_ej, bay2, "_EJ3",	/* 600e/x, 770e, A3x */
 	   "_EJ0",		/* 770x */
     );				/* all others */
+#endif
 
 /* don't list other alternatives as we install a notify handler on the 570 */
 IBM_HANDLE(pci, root, "\\_SB.PCI");	/* 570 */
@@ -203,7 +196,7 @@ IBM_HANDLE(led, ec, "SLED",	/* 570 */
 IBM_HANDLE(beep, ec, "BEEP");	/* all except R30, R31 */
 IBM_HANDLE(ecrd, ec, "ECRD");	/* 570 */
 IBM_HANDLE(ecwr, ec, "ECWR");	/* 570 */
-IBM_HANDLE(fans, ec, "FANS");	/* X31, X40 */
+IBM_HANDLE(fans, ec, "FANS");	/* X31, X40, X41 */
 
 IBM_HANDLE(gfan, ec, "GFAN",	/* 570 */
 	   "\\FSPD",		/* 600e/x, 770e, 770x */
@@ -215,6 +208,152 @@ IBM_HANDLE(sfan, ec, "SFAN",	/* 570 */
 
 #define IBM_HKEY_HID	"IBM0068"
 #define IBM_PCI_HID	"PNP0A03"
+
+enum thermal_access_mode {
+	IBMACPI_THERMAL_NONE = 0,	/* No thermal support */
+	IBMACPI_THERMAL_ACPI_TMP07,	/* Use ACPI TMP0-7 */
+	IBMACPI_THERMAL_ACPI_UPDT,	/* Use ACPI TMP0-7 with UPDT */
+	IBMACPI_THERMAL_TPEC_8,		/* Use ACPI EC regs, 8 sensors */
+	IBMACPI_THERMAL_TPEC_16,	/* Use ACPI EC regs, 16 sensors */
+};
+
+#define IBMACPI_MAX_THERMAL_SENSORS 16	/* Max thermal sensors supported */
+struct ibm_thermal_sensors_struct {
+	s32 temp[IBMACPI_MAX_THERMAL_SENSORS];
+};
+
+/*
+ * FAN ACCESS MODES
+ *
+ * IBMACPI_FAN_RD_ACPI_GFAN:
+ * 	ACPI GFAN method: returns fan level
+ *
+ * 	see IBMACPI_FAN_WR_ACPI_SFAN
+ * 	EC 0x2f not available if GFAN exists
+ *
+ * IBMACPI_FAN_WR_ACPI_SFAN:
+ * 	ACPI SFAN method: sets fan level, 0 (stop) to 7 (max)
+ *
+ * 	EC 0x2f might be available *for reading*, but never for writing.
+ *
+ * IBMACPI_FAN_WR_TPEC:
+ * 	ThinkPad EC register 0x2f (HFSP): fan control loop mode Supported
+ * 	on almost all ThinkPads
+ *
+ * 	Fan speed changes of any sort (including those caused by the
+ * 	disengaged mode) are usually done slowly by the firmware as the
+ * 	maximum ammount of fan duty cycle change per second seems to be
+ * 	limited.
+ *
+ * 	Reading is not available if GFAN exists.
+ * 	Writing is not available if SFAN exists.
+ *
+ * 	Bits
+ *	 7	automatic mode engaged;
+ *  		(default operation mode of the ThinkPad)
+ * 		fan level is ignored in this mode.
+ *	 6	disengage mode (takes precedence over bit 7);
+ *		not available on all thinkpads.  May disable
+ *		the tachometer, and speeds up fan to 100% duty-cycle,
+ *		which speeds it up far above the standard RPM
+ *		levels.  It is not impossible that it could cause
+ *		hardware damage.
+ *	5-3	unused in some models.  Extra bits for fan level
+ *		in others, but still useless as all values above
+ *		7 map to the same speed as level 7 in these models.
+ *	2-0	fan level (0..7 usually)
+ *			0x00 = stop
+ * 			0x07 = max (set when temperatures critical)
+ * 		Some ThinkPads may have other levels, see
+ * 		IBMACPI_FAN_WR_ACPI_FANS (X31/X40/X41)
+ *
+ *	FIRMWARE BUG: on some models, EC 0x2f might not be initialized at
+ *	boot. Apparently the EC does not intialize it, so unless ACPI DSDT
+ *	does so, its initial value is meaningless (0x07).
+ *
+ *	For firmware bugs, refer to:
+ *	http://thinkwiki.org/wiki/Embedded_Controller_Firmware#Firmware_Issues
+ *
+ * 	----
+ *
+ *	ThinkPad EC register 0x84 (LSB), 0x85 (MSB):
+ *	Main fan tachometer reading (in RPM)
+ *
+ *	This register is present on all ThinkPads with a new-style EC, and
+ *	it is known not to be present on the A21m/e, and T22, as there is
+ *	something else in offset 0x84 according to the ACPI DSDT.  Other
+ *	ThinkPads from this same time period (and earlier) probably lack the
+ *	tachometer as well.
+ *
+ *	Unfortunately a lot of ThinkPads with new-style ECs but whose firwmare
+ *	was never fixed by IBM to report the EC firmware version string
+ *	probably support the tachometer (like the early X models), so
+ *	detecting it is quite hard.  We need more data to know for sure.
+ *
+ *	FIRMWARE BUG: always read 0x84 first, otherwise incorrect readings
+ *	might result.
+ *
+ *	FIRMWARE BUG: when EC 0x2f bit 6 is set (disengaged mode), this
+ *	register is not invalidated in ThinkPads that disable tachometer
+ *	readings.  Thus, the tachometer readings go stale.
+ *
+ *	For firmware bugs, refer to:
+ *	http://thinkwiki.org/wiki/Embedded_Controller_Firmware#Firmware_Issues
+ *
+ * IBMACPI_FAN_WR_ACPI_FANS:
+ *	ThinkPad X31, X40, X41.  Not available in the X60.
+ *
+ *	FANS ACPI handle: takes three arguments: low speed, medium speed,
+ *	high speed.  ACPI DSDT seems to map these three speeds to levels
+ *	as follows: STOP LOW LOW MED MED HIGH HIGH HIGH HIGH
+ *	(this map is stored on FAN0..FAN8 as "0,1,1,2,2,3,3,3,3")
+ *
+ * 	The speeds are stored on handles
+ * 	(FANA:FAN9), (FANC:FANB), (FANE:FAND).
+ *
+ * 	There are three default speed sets, acessible as handles:
+ * 	FS1L,FS1M,FS1H; FS2L,FS2M,FS2H; FS3L,FS3M,FS3H
+ *
+ * 	ACPI DSDT switches which set is in use depending on various
+ * 	factors.
+ *
+ * 	IBMACPI_FAN_WR_TPEC is also available and should be used to
+ * 	command the fan.  The X31/X40/X41 seems to have 8 fan levels,
+ * 	but the ACPI tables just mention level 7.
+ */
+
+enum fan_status_access_mode {
+	IBMACPI_FAN_NONE = 0,		/* No fan status or control */
+	IBMACPI_FAN_RD_ACPI_GFAN,	/* Use ACPI GFAN */
+	IBMACPI_FAN_RD_TPEC,		/* Use ACPI EC regs 0x2f, 0x84-0x85 */
+};
+
+enum fan_control_access_mode {
+	IBMACPI_FAN_WR_NONE = 0,	/* No fan control */
+	IBMACPI_FAN_WR_ACPI_SFAN,	/* Use ACPI SFAN */
+	IBMACPI_FAN_WR_TPEC,		/* Use ACPI EC reg 0x2f */
+	IBMACPI_FAN_WR_ACPI_FANS,	/* Use ACPI FANS and EC reg 0x2f */
+};
+
+enum fan_control_commands {
+	IBMACPI_FAN_CMD_SPEED 	= 0x0001,	/* speed command */
+	IBMACPI_FAN_CMD_LEVEL 	= 0x0002,	/* level command  */
+	IBMACPI_FAN_CMD_ENABLE	= 0x0004,	/* enable/disable cmd,
+						 * and also watchdog cmd */
+};
+
+enum {					/* Fan control constants */
+	fan_status_offset = 0x2f,	/* EC register 0x2f */
+	fan_rpm_offset = 0x84,		/* EC register 0x84: LSB, 0x85 MSB (RPM)
+					 * 0x84 must be read before 0x85 */
+
+	IBMACPI_FAN_EC_DISENGAGED 	= 0x40,	/* EC mode: tachometer
+						 * disengaged */
+	IBMACPI_FAN_EC_AUTO		= 0x80, /* EC mode: auto fan
+						 * control */
+};
+
+static char *ibm_thinkpad_ec_found = NULL;
 
 struct ibm_struct {
 	char *name;
@@ -242,6 +381,8 @@ struct ibm_struct {
 };
 
 static struct proc_dir_entry *proc_dir = NULL;
+
+static struct backlight_device *ibm_backlight_device = NULL;
 
 #define onoff(status,bit) ((status) & (1 << (bit)) ? "on" : "off")
 #define enabled(status,bit) ((status) & (1 << (bit)) ? "enabled" : "disabled")
@@ -581,8 +722,7 @@ static int wan_status(void)
 {
 	int status;
 
-	if (!wan_supported ||
-	    !acpi_evalf(hkey_handle, &status, "GWAN", "d"))
+	if (!wan_supported || !acpi_evalf(hkey_handle, &status, "GWAN", "d"))
 		status = 0;
 
 	return status;
@@ -630,12 +770,15 @@ static int wan_write(char *buf)
 	return 0;
 }
 
-static int video_supported;
-static int video_orig_autosw;
+enum video_access_mode {
+	IBMACPI_VIDEO_NONE = 0,
+	IBMACPI_VIDEO_570,	/* 570 */
+	IBMACPI_VIDEO_770,	/* 600e/x, 770e, 770x */
+	IBMACPI_VIDEO_NEW,	/* all others */
+};
 
-#define VIDEO_570 1
-#define VIDEO_770 2
-#define VIDEO_NEW 3
+static enum video_access_mode video_supported;
+static int video_orig_autosw;
 
 static int video_init(void)
 {
@@ -647,16 +790,16 @@ static int video_init(void)
 
 	if (!vid_handle)
 		/* video switching not supported on R30, R31 */
-		video_supported = 0;
+		video_supported = IBMACPI_VIDEO_NONE;
 	else if (acpi_evalf(vid_handle, &video_orig_autosw, "SWIT", "qd"))
 		/* 570 */
-		video_supported = VIDEO_570;
+		video_supported = IBMACPI_VIDEO_570;
 	else if (acpi_evalf(vid_handle, &video_orig_autosw, "^VADL", "qd"))
 		/* 600e/x, 770e, 770x */
-		video_supported = VIDEO_770;
+		video_supported = IBMACPI_VIDEO_770;
 	else
 		/* all others */
-		video_supported = VIDEO_NEW;
+		video_supported = IBMACPI_VIDEO_NEW;
 
 	return 0;
 }
@@ -666,15 +809,15 @@ static int video_status(void)
 	int status = 0;
 	int i;
 
-	if (video_supported == VIDEO_570) {
+	if (video_supported == IBMACPI_VIDEO_570) {
 		if (acpi_evalf(NULL, &i, "\\_SB.PHS", "dd", 0x87))
 			status = i & 3;
-	} else if (video_supported == VIDEO_770) {
+	} else if (video_supported == IBMACPI_VIDEO_770) {
 		if (acpi_evalf(NULL, &i, "\\VCDL", "d"))
 			status |= 0x01 * i;
 		if (acpi_evalf(NULL, &i, "\\VCDC", "d"))
 			status |= 0x02 * i;
-	} else if (video_supported == VIDEO_NEW) {
+	} else if (video_supported == IBMACPI_VIDEO_NEW) {
 		acpi_evalf(NULL, NULL, "\\VUPS", "vd", 1);
 		if (acpi_evalf(NULL, &i, "\\VCDC", "d"))
 			status |= 0x02 * i;
@@ -693,9 +836,10 @@ static int video_autosw(void)
 {
 	int autosw = 0;
 
-	if (video_supported == VIDEO_570)
+	if (video_supported == IBMACPI_VIDEO_570)
 		acpi_evalf(vid_handle, &autosw, "SWIT", "d");
-	else if (video_supported == VIDEO_770 || video_supported == VIDEO_NEW)
+	else if (video_supported == IBMACPI_VIDEO_770 ||
+		 video_supported == IBMACPI_VIDEO_NEW)
 		acpi_evalf(vid_handle, &autosw, "^VDEE", "d");
 
 	return autosw & 1;
@@ -715,12 +859,12 @@ static int video_read(char *p)
 	len += sprintf(p + len, "status:\t\tsupported\n");
 	len += sprintf(p + len, "lcd:\t\t%s\n", enabled(status, 0));
 	len += sprintf(p + len, "crt:\t\t%s\n", enabled(status, 1));
-	if (video_supported == VIDEO_NEW)
+	if (video_supported == IBMACPI_VIDEO_NEW)
 		len += sprintf(p + len, "dvi:\t\t%s\n", enabled(status, 3));
 	len += sprintf(p + len, "auto:\t\t%s\n", enabled(autosw, 0));
 	len += sprintf(p + len, "commands:\tlcd_enable, lcd_disable\n");
 	len += sprintf(p + len, "commands:\tcrt_enable, crt_disable\n");
-	if (video_supported == VIDEO_NEW)
+	if (video_supported == IBMACPI_VIDEO_NEW)
 		len += sprintf(p + len, "commands:\tdvi_enable, dvi_disable\n");
 	len += sprintf(p + len, "commands:\tauto_enable, auto_disable\n");
 	len += sprintf(p + len, "commands:\tvideo_switch, expand_toggle\n");
@@ -735,7 +879,7 @@ static int video_switch(void)
 
 	if (!acpi_evalf(vid_handle, NULL, "_DOS", "vd", 1))
 		return -EIO;
-	ret = video_supported == VIDEO_570 ?
+	ret = video_supported == IBMACPI_VIDEO_570 ?
 	    acpi_evalf(ec_handle, NULL, "_Q16", "v") :
 	    acpi_evalf(vid_handle, NULL, "VSWT", "v");
 	acpi_evalf(vid_handle, NULL, "_DOS", "vd", autosw);
@@ -745,9 +889,9 @@ static int video_switch(void)
 
 static int video_expand(void)
 {
-	if (video_supported == VIDEO_570)
+	if (video_supported == IBMACPI_VIDEO_570)
 		return acpi_evalf(ec_handle, NULL, "_Q17", "v");
-	else if (video_supported == VIDEO_770)
+	else if (video_supported == IBMACPI_VIDEO_770)
 		return acpi_evalf(vid_handle, NULL, "VEXP", "v");
 	else
 		return acpi_evalf(NULL, NULL, "\\VEXP", "v");
@@ -757,10 +901,10 @@ static int video_switch2(int status)
 {
 	int ret;
 
-	if (video_supported == VIDEO_570) {
+	if (video_supported == IBMACPI_VIDEO_570) {
 		ret = acpi_evalf(NULL, NULL,
 				 "\\_SB.PHS2", "vdd", 0x8b, status | 0x80);
-	} else if (video_supported == VIDEO_770) {
+	} else if (video_supported == IBMACPI_VIDEO_770) {
 		int autosw = video_autosw();
 		if (!acpi_evalf(vid_handle, NULL, "_DOS", "vd", 1))
 			return -EIO;
@@ -796,10 +940,10 @@ static int video_write(char *buf)
 			enable |= 0x02;
 		} else if (strlencmp(cmd, "crt_disable") == 0) {
 			disable |= 0x02;
-		} else if (video_supported == VIDEO_NEW &&
+		} else if (video_supported == IBMACPI_VIDEO_NEW &&
 			   strlencmp(cmd, "dvi_enable") == 0) {
 			enable |= 0x08;
-		} else if (video_supported == VIDEO_NEW &&
+		} else if (video_supported == IBMACPI_VIDEO_NEW &&
 			   strlencmp(cmd, "dvi_disable") == 0) {
 			disable |= 0x08;
 		} else if (strlencmp(cmd, "auto_enable") == 0) {
@@ -898,6 +1042,7 @@ static int light_write(char *buf)
 	return 0;
 }
 
+#if defined(CONFIG_ACPI_IBM_DOCK) || defined(CONFIG_ACPI_IBM_BAY)
 static int _sta(acpi_handle handle)
 {
 	int status;
@@ -907,6 +1052,7 @@ static int _sta(acpi_handle handle)
 
 	return status;
 }
+#endif
 #ifdef CONFIG_ACPI_IBM_DOCK
 #define dock_docked() (_sta(dock_handle) & 1)
 
@@ -972,6 +1118,7 @@ static void dock_notify(struct ibm_struct *ibm, u32 event)
 }
 #endif
 
+#ifdef CONFIG_ACPI_IBM_BAY
 static int bay_status_supported;
 static int bay_status2_supported;
 static int bay_eject_supported;
@@ -1047,6 +1194,7 @@ static void bay_notify(struct ibm_struct *ibm, u32 event)
 {
 	acpi_bus_generate_event(ibm->device, event, 0);
 }
+#endif
 
 static int cmos_read(char *p)
 {
@@ -1094,26 +1242,28 @@ static int cmos_write(char *buf)
 	return 0;
 }
 
-static int led_supported;
-
-#define LED_570 1
-#define LED_OLD 2
-#define LED_NEW 3
+enum led_access_mode {
+	IBMACPI_LED_NONE = 0,
+	IBMACPI_LED_570,	/* 570 */
+	IBMACPI_LED_OLD,	/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20-21 */
+	IBMACPI_LED_NEW,	/* all others */
+};
+static enum led_access_mode led_supported;
 
 static int led_init(void)
 {
 	if (!led_handle)
 		/* led not supported on R30, R31 */
-		led_supported = 0;
+		led_supported = IBMACPI_LED_NONE;
 	else if (strlencmp(led_path, "SLED") == 0)
 		/* 570 */
-		led_supported = LED_570;
+		led_supported = IBMACPI_LED_570;
 	else if (strlencmp(led_path, "SYSL") == 0)
 		/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20-21 */
-		led_supported = LED_OLD;
+		led_supported = IBMACPI_LED_OLD;
 	else
 		/* all others */
-		led_supported = LED_NEW;
+		led_supported = IBMACPI_LED_NEW;
 
 	return 0;
 }
@@ -1130,7 +1280,7 @@ static int led_read(char *p)
 	}
 	len += sprintf(p + len, "status:\t\tsupported\n");
 
-	if (led_supported == LED_570) {
+	if (led_supported == IBMACPI_LED_570) {
 		/* 570 */
 		int i, status;
 		for (i = 0; i < 8; i++) {
@@ -1179,13 +1329,13 @@ static int led_write(char *buf)
 		} else
 			return -EINVAL;
 
-		if (led_supported == LED_570) {
+		if (led_supported == IBMACPI_LED_570) {
 			/* 570 */
 			led = 1 << led;
 			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
 					led, led_sled_arg1[ind]))
 				return -EIO;
-		} else if (led_supported == LED_OLD) {
+		} else if (led_supported == IBMACPI_LED_OLD) {
 			/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20 */
 			led = 1 << led;
 			ret = ec_write(EC_HLMS, led);
@@ -1272,50 +1422,142 @@ static int acpi_ec_write(int i, u8 v)
 	return 1;
 }
 
-static int thermal_tmp_supported;
-static int thermal_updt_supported;
+static enum thermal_access_mode thermal_read_mode;
 
 static int thermal_init(void)
 {
-	/* temperatures not supported on 570, G4x, R30, R31, R32 */
-	thermal_tmp_supported = acpi_evalf(ec_handle, NULL, "TMP7", "qv");
+	u8 t, ta1, ta2;
+	int i;
+	int acpi_tmp7 = acpi_evalf(ec_handle, NULL, "TMP7", "qv");
 
-	/* 600e/x, 770e, 770x */
-	thermal_updt_supported = acpi_evalf(ec_handle, NULL, "UPDT", "qv");
+	if (ibm_thinkpad_ec_found && experimental) {
+		/*
+		 * Direct EC access mode: sensors at registers
+		 * 0x78-0x7F, 0xC0-0xC7.  Registers return 0x00 for
+		 * non-implemented, thermal sensors return 0x80 when
+		 * not available
+		 */
+
+		ta1 = ta2 = 0;
+		for (i = 0; i < 8; i++) {
+			if (likely(acpi_ec_read(0x78 + i, &t))) {
+				ta1 |= t;
+			} else {
+				ta1 = 0;
+				break;
+			}
+			if (likely(acpi_ec_read(0xC0 + i, &t))) {
+				ta2 |= t;
+			} else {
+				ta1 = 0;
+				break;
+			}
+		}
+		if (ta1 == 0) {
+			/* This is sheer paranoia, but we handle it anyway */
+			if (acpi_tmp7) {
+				printk(IBM_ERR
+				       "ThinkPad ACPI EC access misbehaving, "
+				       "falling back to ACPI TMPx access mode\n");
+				thermal_read_mode = IBMACPI_THERMAL_ACPI_TMP07;
+			} else {
+				printk(IBM_ERR
+				       "ThinkPad ACPI EC access misbehaving, "
+				       "disabling thermal sensors access\n");
+				thermal_read_mode = IBMACPI_THERMAL_NONE;
+			}
+		} else {
+			thermal_read_mode =
+			    (ta2 != 0) ?
+			    IBMACPI_THERMAL_TPEC_16 : IBMACPI_THERMAL_TPEC_8;
+		}
+	} else if (acpi_tmp7) {
+		if (acpi_evalf(ec_handle, NULL, "UPDT", "qv")) {
+			/* 600e/x, 770e, 770x */
+			thermal_read_mode = IBMACPI_THERMAL_ACPI_UPDT;
+		} else {
+			/* Standard ACPI TMPx access, max 8 sensors */
+			thermal_read_mode = IBMACPI_THERMAL_ACPI_TMP07;
+		}
+	} else {
+		/* temperatures not supported on 570, G4x, R30, R31, R32 */
+		thermal_read_mode = IBMACPI_THERMAL_NONE;
+	}
 
 	return 0;
+}
+
+static int thermal_get_sensors(struct ibm_thermal_sensors_struct *s)
+{
+	int i, t;
+	s8 tmp;
+	char tmpi[] = "TMPi";
+
+	if (!s)
+		return -EINVAL;
+
+	switch (thermal_read_mode) {
+#if IBMACPI_MAX_THERMAL_SENSORS >= 16
+	case IBMACPI_THERMAL_TPEC_16:
+		for (i = 0; i < 8; i++) {
+			if (!acpi_ec_read(0xC0 + i, &tmp))
+				return -EIO;
+			s->temp[i + 8] = tmp * 1000;
+		}
+		/* fallthrough */
+#endif
+	case IBMACPI_THERMAL_TPEC_8:
+		for (i = 0; i < 8; i++) {
+			if (!acpi_ec_read(0x78 + i, &tmp))
+				return -EIO;
+			s->temp[i] = tmp * 1000;
+		}
+		return (thermal_read_mode == IBMACPI_THERMAL_TPEC_16) ? 16 : 8;
+
+	case IBMACPI_THERMAL_ACPI_UPDT:
+		if (!acpi_evalf(ec_handle, NULL, "UPDT", "v"))
+			return -EIO;
+		for (i = 0; i < 8; i++) {
+			tmpi[3] = '0' + i;
+			if (!acpi_evalf(ec_handle, &t, tmpi, "d"))
+				return -EIO;
+			s->temp[i] = (t - 2732) * 100;
+		}
+		return 8;
+
+	case IBMACPI_THERMAL_ACPI_TMP07:
+		for (i = 0; i < 8; i++) {
+			tmpi[3] = '0' + i;
+			if (!acpi_evalf(ec_handle, &t, tmpi, "d"))
+				return -EIO;
+			s->temp[i] = t * 1000;
+		}
+		return 8;
+
+	case IBMACPI_THERMAL_NONE:
+	default:
+		return 0;
+	}
 }
 
 static int thermal_read(char *p)
 {
 	int len = 0;
+	int n, i;
+	struct ibm_thermal_sensors_struct t;
 
-	if (!thermal_tmp_supported)
-		len += sprintf(p + len, "temperatures:\tnot supported\n");
-	else {
-		int i, t;
-		char tmpi[] = "TMPi";
-		s8 tmp[8];
+	n = thermal_get_sensors(&t);
+	if (unlikely(n < 0))
+		return n;
 
-		if (thermal_updt_supported)
-			if (!acpi_evalf(ec_handle, NULL, "UPDT", "v"))
-				return -EIO;
+	len += sprintf(p + len, "temperatures:\t");
 
-		for (i = 0; i < 8; i++) {
-			tmpi[3] = '0' + i;
-			if (!acpi_evalf(ec_handle, &t, tmpi, "d"))
-				return -EIO;
-			if (thermal_updt_supported)
-				tmp[i] = (t - 2732 + 5) / 10;
-			else
-				tmp[i] = t;
-		}
-
-		len += sprintf(p + len,
-			       "temperatures:\t%d %d %d %d %d %d %d %d\n",
-			       tmp[0], tmp[1], tmp[2], tmp[3],
-			       tmp[4], tmp[5], tmp[6], tmp[7]);
-	}
+	if (n > 0) {
+		for (i = 0; i < (n - 1); i++)
+			len += sprintf(p + len, "%d ", t.temp[i] / 1000);
+		len += sprintf(p + len, "%d\n", t.temp[i] / 1000);
+	} else
+		len += sprintf(p + len, "not supported\n");
 
 	return len;
 }
@@ -1381,12 +1623,23 @@ static int ecdump_write(char *buf)
 
 static int brightness_offset = 0x31;
 
+static int brightness_get(struct backlight_device *bd)
+{
+	u8 level;
+	if (!acpi_ec_read(brightness_offset, &level))
+		return -EIO;
+
+	level &= 0x7;
+
+	return level;
+}
+
 static int brightness_read(char *p)
 {
 	int len = 0;
-	u8 level;
+	int level;
 
-	if (!acpi_ec_read(brightness_offset, &level)) {
+	if ((level = brightness_get(NULL)) < 0) {
 		len += sprintf(p + len, "level:\t\tunreadable\n");
 	} else {
 		len += sprintf(p + len, "level:\t\t%d\n", level & 0x7);
@@ -1401,16 +1654,34 @@ static int brightness_read(char *p)
 #define BRIGHTNESS_UP	4
 #define BRIGHTNESS_DOWN	5
 
-static int brightness_write(char *buf)
+static int brightness_set(int value)
 {
 	int cmos_cmd, inc, i;
-	u8 level;
+	int current_value = brightness_get(NULL);
+
+	value &= 7;
+
+	cmos_cmd = value > current_value ? BRIGHTNESS_UP : BRIGHTNESS_DOWN;
+	inc = value > current_value ? 1 : -1;
+	for (i = current_value; i != value; i += inc) {
+		if (!cmos_eval(cmos_cmd))
+			return -EIO;
+		if (!acpi_ec_write(brightness_offset, i + inc))
+			return -EIO;
+	}
+
+	return 0;
+}
+
+static int brightness_write(char *buf)
+{
+	int level;
 	int new_level;
 	char *cmd;
 
 	while ((cmd = next_cmd(&buf))) {
-		if (!acpi_ec_read(brightness_offset, &level))
-			return -EIO;
+		if ((level = brightness_get(NULL)) < 0)
+			return level;
 		level &= 7;
 
 		if (strlencmp(cmd, "up") == 0) {
@@ -1423,17 +1694,42 @@ static int brightness_write(char *buf)
 		} else
 			return -EINVAL;
 
-		cmos_cmd = new_level > level ? BRIGHTNESS_UP : BRIGHTNESS_DOWN;
-		inc = new_level > level ? 1 : -1;
-		for (i = level; i != new_level; i += inc) {
-			if (!cmos_eval(cmos_cmd))
-				return -EIO;
-			if (!acpi_ec_write(brightness_offset, i + inc))
-				return -EIO;
-		}
+		brightness_set(new_level);
 	}
 
 	return 0;
+}
+
+static int brightness_update_status(struct backlight_device *bd)
+{
+	return brightness_set(bd->props->brightness);
+}
+
+static struct backlight_properties ibm_backlight_data = {
+        .owner          = THIS_MODULE,
+        .get_brightness = brightness_get,
+        .update_status  = brightness_update_status,
+        .max_brightness = 7,
+};
+
+static int brightness_init(void)
+{
+	ibm_backlight_device = backlight_device_register("ibm", NULL,
+							 &ibm_backlight_data);
+	if (IS_ERR(ibm_backlight_device)) {
+		printk(IBM_ERR "Could not register backlight device\n");
+		return PTR_ERR(ibm_backlight_device);
+	}
+
+	return 0;
+}
+
+static void brightness_exit(void)
+{
+	if (ibm_backlight_device) {
+		backlight_device_unregister(ibm_backlight_device);
+		ibm_backlight_device = NULL;
+	}
 }
 
 static int volume_offset = 0x30;
@@ -1522,84 +1818,480 @@ static int volume_write(char *buf)
 	return 0;
 }
 
-static int fan_status_offset = 0x2f;
-static int fan_rpm_offset = 0x84;
+static enum fan_status_access_mode fan_status_access_mode;
+static enum fan_control_access_mode fan_control_access_mode;
+static enum fan_control_commands fan_control_commands;
+
+static int fan_control_status_known;
+static u8 fan_control_initial_status;
+
+static void fan_watchdog_fire(void *ignored);
+static int fan_watchdog_maxinterval;
+static DECLARE_WORK(fan_watchdog_task, fan_watchdog_fire, NULL);
+
+static int fan_init(void)
+{
+	fan_status_access_mode = IBMACPI_FAN_NONE;
+	fan_control_access_mode = IBMACPI_FAN_WR_NONE;
+	fan_control_commands = 0;
+	fan_control_status_known = 1;
+	fan_watchdog_maxinterval = 0;
+
+	if (gfan_handle) {
+		/* 570, 600e/x, 770e, 770x */
+		fan_status_access_mode = IBMACPI_FAN_RD_ACPI_GFAN;
+	} else {
+		/* all other ThinkPads: note that even old-style
+		 * ThinkPad ECs supports the fan control register */
+		if (likely(acpi_ec_read(fan_status_offset,
+					&fan_control_initial_status))) {
+			fan_status_access_mode = IBMACPI_FAN_RD_TPEC;
+
+			/* In some ThinkPads, neither the EC nor the ACPI
+			 * DSDT initialize the fan status, and it ends up
+			 * being set to 0x07 when it *could* be either
+			 * 0x07 or 0x80.
+			 *
+			 * Enable for TP-1Y (T43), TP-78 (R51e),
+			 * TP-76 (R52), TP-70 (T43, R52), which are known
+			 * to be buggy. */
+			if (fan_control_initial_status == 0x07 &&
+			    ibm_thinkpad_ec_found &&
+			    ((ibm_thinkpad_ec_found[0] == '1' &&
+			      ibm_thinkpad_ec_found[1] == 'Y') ||
+			     (ibm_thinkpad_ec_found[0] == '7' &&
+			      (ibm_thinkpad_ec_found[1] == '6' ||
+			       ibm_thinkpad_ec_found[1] == '8' ||
+			       ibm_thinkpad_ec_found[1] == '0'))
+			    )) {
+				printk(IBM_NOTICE
+				       "fan_init: initial fan status is "
+				       "unknown, assuming it is in auto "
+				       "mode\n");
+				fan_control_status_known = 0;
+			}
+		} else {
+			printk(IBM_ERR
+			       "ThinkPad ACPI EC access misbehaving, "
+			       "fan status and control unavailable\n");
+			return 0;
+		}
+	}
+
+	if (sfan_handle) {
+		/* 570, 770x-JL */
+		fan_control_access_mode = IBMACPI_FAN_WR_ACPI_SFAN;
+		fan_control_commands |=
+		    IBMACPI_FAN_CMD_LEVEL | IBMACPI_FAN_CMD_ENABLE;
+	} else {
+		if (!gfan_handle) {
+			/* gfan without sfan means no fan control */
+			/* all other models implement TP EC 0x2f control */
+
+			if (fans_handle) {
+				/* X31, X40, X41 */
+				fan_control_access_mode =
+				    IBMACPI_FAN_WR_ACPI_FANS;
+				fan_control_commands |=
+				    IBMACPI_FAN_CMD_SPEED |
+				    IBMACPI_FAN_CMD_LEVEL |
+				    IBMACPI_FAN_CMD_ENABLE;
+			} else {
+				fan_control_access_mode = IBMACPI_FAN_WR_TPEC;
+				fan_control_commands |=
+				    IBMACPI_FAN_CMD_LEVEL |
+				    IBMACPI_FAN_CMD_ENABLE;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int fan_get_status(u8 *status)
+{
+	u8 s;
+
+	/* TODO:
+	 * Add IBMACPI_FAN_RD_ACPI_FANS ? */
+
+	switch (fan_status_access_mode) {
+	case IBMACPI_FAN_RD_ACPI_GFAN:
+		/* 570, 600e/x, 770e, 770x */
+
+		if (unlikely(!acpi_evalf(gfan_handle, &s, NULL, "d")))
+			return -EIO;
+
+		if (likely(status))
+			*status = s & 0x07;
+
+		break;
+
+	case IBMACPI_FAN_RD_TPEC:
+		/* all except 570, 600e/x, 770e, 770x */
+		if (unlikely(!acpi_ec_read(fan_status_offset, &s)))
+			return -EIO;
+
+		if (likely(status))
+			*status = s;
+
+		break;
+
+	default:
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static int fan_get_speed(unsigned int *speed)
+{
+	u8 hi, lo;
+
+	switch (fan_status_access_mode) {
+	case IBMACPI_FAN_RD_TPEC:
+		/* all except 570, 600e/x, 770e, 770x */
+		if (unlikely(!acpi_ec_read(fan_rpm_offset, &lo) ||
+			     !acpi_ec_read(fan_rpm_offset + 1, &hi)))
+			return -EIO;
+
+		if (likely(speed))
+			*speed = (hi << 8) | lo;
+
+		break;
+
+	default:
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static void fan_exit(void)
+{
+	cancel_delayed_work(&fan_watchdog_task);
+	flush_scheduled_work();
+}
+
+static void fan_watchdog_reset(void)
+{
+	static int fan_watchdog_active = 0;
+
+	if (fan_watchdog_active)
+		cancel_delayed_work(&fan_watchdog_task);
+
+	if (fan_watchdog_maxinterval > 0) {
+		fan_watchdog_active = 1;
+		if (!schedule_delayed_work(&fan_watchdog_task,
+				msecs_to_jiffies(fan_watchdog_maxinterval
+						 * 1000))) {
+			printk(IBM_ERR "failed to schedule the fan watchdog, "
+			       "watchdog will not trigger\n");
+		}
+	} else
+		fan_watchdog_active = 0;
+}
 
 static int fan_read(char *p)
 {
 	int len = 0;
-	int s;
-	u8 lo, hi, status;
+	int rc;
+	u8 status;
+	unsigned int speed = 0;
 
-	if (gfan_handle) {
+	switch (fan_status_access_mode) {
+	case IBMACPI_FAN_RD_ACPI_GFAN:
 		/* 570, 600e/x, 770e, 770x */
-		if (!acpi_evalf(gfan_handle, &s, NULL, "d"))
-			return -EIO;
+		if ((rc = fan_get_status(&status)) < 0)
+			return rc;
 
-		len += sprintf(p + len, "level:\t\t%d\n", s);
-	} else {
+		len += sprintf(p + len, "status:\t\t%s\n"
+			       "level:\t\t%d\n",
+			       (status != 0) ? "enabled" : "disabled", status);
+		break;
+
+	case IBMACPI_FAN_RD_TPEC:
 		/* all except 570, 600e/x, 770e, 770x */
-		if (!acpi_ec_read(fan_status_offset, &status))
-			len += sprintf(p + len, "status:\t\tunreadable\n");
-		else
-			len += sprintf(p + len, "status:\t\t%s\n",
-				       enabled(status, 7));
+		if ((rc = fan_get_status(&status)) < 0)
+			return rc;
 
-		if (!acpi_ec_read(fan_rpm_offset, &lo) ||
-		    !acpi_ec_read(fan_rpm_offset + 1, &hi))
-			len += sprintf(p + len, "speed:\t\tunreadable\n");
+		if (unlikely(!fan_control_status_known)) {
+			if (status != fan_control_initial_status)
+				fan_control_status_known = 1;
+			else
+				/* Return most likely status. In fact, it
+				 * might be the only possible status */
+				status = IBMACPI_FAN_EC_AUTO;
+		}
+
+		len += sprintf(p + len, "status:\t\t%s\n",
+			       (status != 0) ? "enabled" : "disabled");
+
+		/* No ThinkPad boots on disengaged mode, we can safely
+		 * assume the tachometer is online if fan control status
+		 * was unknown */
+		if ((rc = fan_get_speed(&speed)) < 0)
+			return rc;
+
+		len += sprintf(p + len, "speed:\t\t%d\n", speed);
+
+		if (status & IBMACPI_FAN_EC_DISENGAGED)
+			/* Disengaged mode takes precedence */
+			len += sprintf(p + len, "level:\t\tdisengaged\n");
+		else if (status & IBMACPI_FAN_EC_AUTO)
+			len += sprintf(p + len, "level:\t\tauto\n");
 		else
-			len += sprintf(p + len, "speed:\t\t%d\n",
-				       (hi << 8) + lo);
+			len += sprintf(p + len, "level:\t\t%d\n", status);
+		break;
+
+	case IBMACPI_FAN_NONE:
+	default:
+		len += sprintf(p + len, "status:\t\tnot supported\n");
 	}
 
-	if (sfan_handle)
-		/* 570, 770x-JL */
-		len += sprintf(p + len, "commands:\tlevel <level>"
-			       " (<level> is 0-7)\n");
-	if (!gfan_handle)
-		/* all except 570, 600e/x, 770e, 770x */
-		len += sprintf(p + len, "commands:\tenable, disable\n");
-	if (fans_handle)
-		/* X31, X40 */
+	if (fan_control_commands & IBMACPI_FAN_CMD_LEVEL) {
+		len += sprintf(p + len, "commands:\tlevel <level>");
+
+		switch (fan_control_access_mode) {
+		case IBMACPI_FAN_WR_ACPI_SFAN:
+			len += sprintf(p + len, " (<level> is 0-7)\n");
+			break;
+
+		default:
+			len += sprintf(p + len, " (<level> is 0-7, "
+				       "auto, disengaged)\n");
+			break;
+		}
+	}
+
+	if (fan_control_commands & IBMACPI_FAN_CMD_ENABLE)
+		len += sprintf(p + len, "commands:\tenable, disable\n"
+			       "commands:\twatchdog <timeout> (<timeout> is 0 (off), "
+			       "1-120 (seconds))\n");
+
+	if (fan_control_commands & IBMACPI_FAN_CMD_SPEED)
 		len += sprintf(p + len, "commands:\tspeed <speed>"
 			       " (<speed> is 0-65535)\n");
 
 	return len;
 }
 
-static int fan_write(char *buf)
+static int fan_set_level(int level)
 {
-	char *cmd;
-	int level, speed;
-
-	while ((cmd = next_cmd(&buf))) {
-		if (sfan_handle &&
-		    sscanf(cmd, "level %d", &level) == 1 &&
-		    level >= 0 && level <= 7) {
-			/* 570, 770x-JL */
+	switch (fan_control_access_mode) {
+	case IBMACPI_FAN_WR_ACPI_SFAN:
+		if (level >= 0 && level <= 7) {
 			if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", level))
 				return -EIO;
-		} else if (!gfan_handle && strlencmp(cmd, "enable") == 0) {
-			/* all except 570, 600e/x, 770e, 770x */
-			if (!acpi_ec_write(fan_status_offset, 0x80))
-				return -EIO;
-		} else if (!gfan_handle && strlencmp(cmd, "disable") == 0) {
-			/* all except 570, 600e/x, 770e, 770x */
-			if (!acpi_ec_write(fan_status_offset, 0x00))
-				return -EIO;
-		} else if (fans_handle &&
-			   sscanf(cmd, "speed %d", &speed) == 1 &&
-			   speed >= 0 && speed <= 65535) {
-			/* X31, X40 */
+		} else
+			return -EINVAL;
+		break;
+
+	case IBMACPI_FAN_WR_ACPI_FANS:
+	case IBMACPI_FAN_WR_TPEC:
+		if ((level != IBMACPI_FAN_EC_AUTO) &&
+		    (level != IBMACPI_FAN_EC_DISENGAGED) &&
+		    ((level < 0) || (level > 7)))
+			return -EINVAL;
+
+		if (!acpi_ec_write(fan_status_offset, level))
+			return -EIO;
+		else
+			fan_control_status_known = 1;
+		break;
+
+	default:
+		return -ENXIO;
+	}
+	return 0;
+}
+
+static int fan_set_enable(void)
+{
+	u8 s;
+	int rc;
+
+	switch (fan_control_access_mode) {
+	case IBMACPI_FAN_WR_ACPI_FANS:
+	case IBMACPI_FAN_WR_TPEC:
+		if ((rc = fan_get_status(&s)) < 0)
+			return rc;
+
+		/* Don't go out of emergency fan mode */
+		if (s != 7)
+			s = IBMACPI_FAN_EC_AUTO;
+
+		if (!acpi_ec_write(fan_status_offset, s))
+			return -EIO;
+		else
+			fan_control_status_known = 1;
+		break;
+
+	case IBMACPI_FAN_WR_ACPI_SFAN:
+		if ((rc = fan_get_status(&s)) < 0)
+			return rc;
+
+		s &= 0x07;
+
+		/* Set fan to at least level 4 */
+		if (s < 4)
+			s = 4;
+
+		if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", s))
+			return -EIO;
+		break;
+
+	default:
+		return -ENXIO;
+	}
+	return 0;
+}
+
+static int fan_set_disable(void)
+{
+	switch (fan_control_access_mode) {
+	case IBMACPI_FAN_WR_ACPI_FANS:
+	case IBMACPI_FAN_WR_TPEC:
+		if (!acpi_ec_write(fan_status_offset, 0x00))
+			return -EIO;
+		else
+			fan_control_status_known = 1;
+		break;
+
+	case IBMACPI_FAN_WR_ACPI_SFAN:
+		if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", 0x00))
+			return -EIO;
+		break;
+
+	default:
+		return -ENXIO;
+	}
+	return 0;
+}
+
+static int fan_set_speed(int speed)
+{
+	switch (fan_control_access_mode) {
+	case IBMACPI_FAN_WR_ACPI_FANS:
+		if (speed >= 0 && speed <= 65535) {
 			if (!acpi_evalf(fans_handle, NULL, NULL, "vddd",
 					speed, speed, speed))
 				return -EIO;
 		} else
 			return -EINVAL;
+		break;
+
+	default:
+		return -ENXIO;
+	}
+	return 0;
+}
+
+static int fan_write_cmd_level(const char *cmd, int *rc)
+{
+	int level;
+
+	if (strlencmp(cmd, "level auto") == 0)
+		level = IBMACPI_FAN_EC_AUTO;
+	else if (strlencmp(cmd, "level disengaged") == 0)
+		level = IBMACPI_FAN_EC_DISENGAGED;
+	else if (sscanf(cmd, "level %d", &level) != 1)
+		return 0;
+
+	if ((*rc = fan_set_level(level)) == -ENXIO)
+		printk(IBM_ERR "level command accepted for unsupported "
+		       "access mode %d", fan_control_access_mode);
+
+	return 1;
+}
+
+static int fan_write_cmd_enable(const char *cmd, int *rc)
+{
+	if (strlencmp(cmd, "enable") != 0)
+		return 0;
+
+	if ((*rc = fan_set_enable()) == -ENXIO)
+		printk(IBM_ERR "enable command accepted for unsupported "
+		       "access mode %d", fan_control_access_mode);
+
+	return 1;
+}
+
+static int fan_write_cmd_disable(const char *cmd, int *rc)
+{
+	if (strlencmp(cmd, "disable") != 0)
+		return 0;
+
+	if ((*rc = fan_set_disable()) == -ENXIO)
+		printk(IBM_ERR "disable command accepted for unsupported "
+		       "access mode %d", fan_control_access_mode);
+
+	return 1;
+}
+
+static int fan_write_cmd_speed(const char *cmd, int *rc)
+{
+	int speed;
+
+	/* TODO:
+	 * Support speed <low> <medium> <high> ? */
+
+	if (sscanf(cmd, "speed %d", &speed) != 1)
+		return 0;
+
+	if ((*rc = fan_set_speed(speed)) == -ENXIO)
+		printk(IBM_ERR "speed command accepted for unsupported "
+		       "access mode %d", fan_control_access_mode);
+
+	return 1;
+}
+
+static int fan_write_cmd_watchdog(const char *cmd, int *rc)
+{
+	int interval;
+
+	if (sscanf(cmd, "watchdog %d", &interval) != 1)
+		return 0;
+
+	if (interval < 0 || interval > 120)
+		*rc = -EINVAL;
+	else
+		fan_watchdog_maxinterval = interval;
+
+	return 1;
+}
+
+static int fan_write(char *buf)
+{
+	char *cmd;
+	int rc = 0;
+
+	while (!rc && (cmd = next_cmd(&buf))) {
+		if (!((fan_control_commands & IBMACPI_FAN_CMD_LEVEL) &&
+		      fan_write_cmd_level(cmd, &rc)) &&
+		    !((fan_control_commands & IBMACPI_FAN_CMD_ENABLE) &&
+		      (fan_write_cmd_enable(cmd, &rc) ||
+		       fan_write_cmd_disable(cmd, &rc) ||
+		       fan_write_cmd_watchdog(cmd, &rc))) &&
+		    !((fan_control_commands & IBMACPI_FAN_CMD_SPEED) &&
+		      fan_write_cmd_speed(cmd, &rc))
+		    )
+			rc = -EINVAL;
+		else if (!rc)
+			fan_watchdog_reset();
 	}
 
-	return 0;
+	return rc;
+}
+
+static void fan_watchdog_fire(void *ignored)
+{
+	printk(IBM_NOTICE "fan watchdog: enabling fan\n");
+	if (fan_set_enable()) {
+		printk(IBM_ERR "fan watchdog: error while enabling fan\n");
+		/* reschedule for later */
+		fan_watchdog_reset();
+	}
 }
 
 static struct ibm_struct ibms[] = {
@@ -1662,6 +2354,7 @@ static struct ibm_struct ibms[] = {
 	 .type = ACPI_SYSTEM_NOTIFY,
 	 },
 #endif
+#ifdef CONFIG_ACPI_IBM_BAY
 	{
 	 .name = "bay",
 	 .init = bay_init,
@@ -1671,6 +2364,7 @@ static struct ibm_struct ibms[] = {
 	 .handle = &bay_handle,
 	 .type = ACPI_SYSTEM_NOTIFY,
 	 },
+#endif
 	{
 	 .name = "cmos",
 	 .read = cmos_read,
@@ -1702,6 +2396,8 @@ static struct ibm_struct ibms[] = {
 	 .name = "brightness",
 	 .read = brightness_read,
 	 .write = brightness_write,
+	 .init = brightness_init,
+	 .exit = brightness_exit,
 	 },
 	{
 	 .name = "volume",
@@ -1712,6 +2408,8 @@ static struct ibm_struct ibms[] = {
 	 .name = "fan",
 	 .read = fan_read,
 	 .write = fan_write,
+	 .init = fan_init,
+	 .exit = fan_exit,
 	 .experimental = 1,
 	 },
 };
@@ -1825,7 +2523,7 @@ static int __init register_driver(struct ibm_struct *ibm)
 	}
 
 	memset(ibm->driver, 0, sizeof(struct acpi_driver));
-	sprintf(ibm->driver->name, "%s/%s", IBM_NAME, ibm->name);
+	sprintf(ibm->driver->name, "%s_%s", IBM_NAME, ibm->name);
 	ibm->driver->ids = ibm->hid;
 	ibm->driver->ops.add = &ibm_device_add;
 
@@ -1954,7 +2652,9 @@ IBM_PARAM(light);
 #ifdef CONFIG_ACPI_IBM_DOCK
 IBM_PARAM(dock);
 #endif
+#ifdef CONFIG_ACPI_IBM_BAY
 IBM_PARAM(bay);
+#endif
 IBM_PARAM(cmos);
 IBM_PARAM(led);
 IBM_PARAM(beep);
@@ -1971,6 +2671,33 @@ static void acpi_ibm_exit(void)
 		ibm_exit(&ibms[i]);
 
 	remove_proc_entry(IBM_DIR, acpi_root_dir);
+
+	if (ibm_thinkpad_ec_found)
+		kfree(ibm_thinkpad_ec_found);
+}
+
+static char* __init check_dmi_for_ec(void)
+{
+	struct dmi_device *dev = NULL;
+	char ec_fw_string[18];
+
+	/*
+	 * ThinkPad T23 or newer, A31 or newer, R50e or newer,
+	 * X32 or newer, all Z series;  Some models must have an
+	 * up-to-date BIOS or they will not be detected.
+	 *
+	 * See http://thinkwiki.org/wiki/List_of_DMI_IDs
+	 */
+	while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING, NULL, dev))) {
+		if (sscanf(dev->name,
+			   "IBM ThinkPad Embedded Controller -[%17c",
+			   ec_fw_string) == 1) {
+			ec_fw_string[sizeof(ec_fw_string) - 1] = 0;
+			ec_fw_string[strcspn(ec_fw_string, " ]")] = 0;
+			return kstrdup(ec_fw_string, GFP_KERNEL);
+		}
+	}
+	return NULL;
 }
 
 static int __init acpi_ibm_init(void)
@@ -1992,6 +2719,12 @@ static int __init acpi_ibm_init(void)
 		return -ENODEV;
 	}
 
+	/* Models with newer firmware report the EC in DMI */
+	ibm_thinkpad_ec_found = check_dmi_for_ec();
+	if (ibm_thinkpad_ec_found)
+		printk(IBM_INFO "ThinkPad EC firmware %s\n",
+		       ibm_thinkpad_ec_found);
+
 	/* these handles are not required */
 	IBM_HANDLE_INIT(vid);
 	IBM_HANDLE_INIT(vid2);
@@ -2004,12 +2737,14 @@ static int __init acpi_ibm_init(void)
 	IBM_HANDLE_INIT(dock);
 #endif
 	IBM_HANDLE_INIT(pci);
+#ifdef CONFIG_ACPI_IBM_BAY
 	IBM_HANDLE_INIT(bay);
 	if (bay_handle)
 		IBM_HANDLE_INIT(bay_ej);
 	IBM_HANDLE_INIT(bay2);
 	if (bay2_handle)
 		IBM_HANDLE_INIT(bay2_ej);
+#endif
 	IBM_HANDLE_INIT(beep);
 	IBM_HANDLE_INIT(ecrd);
 	IBM_HANDLE_INIT(ecwr);

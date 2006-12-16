@@ -398,25 +398,67 @@ Temperature sensors -- /proc/acpi/ibm/thermal
 
 Most ThinkPads include six or more separate temperature sensors but
 only expose the CPU temperature through the standard ACPI methods.
-This feature shows readings from up to eight different sensors. Some
-readings may not be valid, e.g. may show large negative values. For
-example, on the X40, a typical output may be:
-
-temperatures:   42 42 45 41 36 -128 33 -128
-
-Thomas Gruber took his R51 apart and traced all six active sensors in
-his laptop (the location of sensors may vary on other models):
-
-1:  CPU
-2:  Mini PCI Module
-3:  HDD
-4:  GPU
-5:  Battery
-6:  N/A
-7:  Battery
-8:  N/A
+This feature shows readings from up to eight different sensors on older
+ThinkPads, and it has experimental support for up to sixteen different
+sensors on newer ThinkPads.  Readings from sensors that are not available
+return -128.
 
 No commands can be written to this file.
+
+EXPERIMENTAL: The 16-sensors feature is marked EXPERIMENTAL because the
+implementation directly accesses hardware registers and may not work as
+expected. USE WITH CAUTION! To use this feature, you need to supply the
+experimental=1 parameter when loading the module.  When EXPERIMENTAL
+mode is enabled, reading the first 8 sensors on newer ThinkPads will
+also use an new experimental thermal sensor access mode.
+
+For example, on the X40, a typical output may be:
+temperatures:   42 42 45 41 36 -128 33 -128
+
+EXPERIMENTAL: On the T43/p, a typical output may be:
+temperatures:   48 48 36 52 38 -128 31 -128 48 52 48 -128 -128 -128 -128 -128
+
+The mapping of thermal sensors to physical locations varies depending on
+system-board model (and thus, on ThinkPad model).
+
+http://thinkwiki.org/wiki/Thermal_Sensors is a public wiki page that
+tries to track down these locations for various models.
+
+Most (newer?) models seem to follow this pattern:
+
+1:  CPU
+2:  (depends on model)
+3:  (depends on model)
+4:  GPU
+5:  Main battery: main sensor
+6:  Bay battery: main sensor
+7:  Main battery: secondary sensor
+8:  Bay battery: secondary sensor
+9-15: (depends on model)
+
+For the R51 (source: Thomas Gruber):
+2:  Mini-PCI
+3:  Internal HDD
+
+For the T43, T43/p (source: Shmidoax/Thinkwiki.org)
+http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
+2:  System board, left side (near PCMCIA slot), reported as HDAPS temp
+3:  PCMCIA slot
+9:  MCH (northbridge) to DRAM Bus
+10: ICH (southbridge), under Mini-PCI card, under touchpad
+11: Power regulator, underside of system board, below F2 key
+
+The A31 has a very atypical layout for the thermal sensors
+(source: Milos Popovic, http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_A31)
+1:  CPU
+2:  Main Battery: main sensor
+3:  Power Converter
+4:  Bay Battery: main sensor
+5:  MCH (northbridge)
+6:  PCMCIA/ambient
+7:  Main Battery: secondary sensor
+8:  Bay Battery: secondary sensor
+
 
 EXPERIMENTAL: Embedded controller register dump -- /proc/acpi/ibm/ecdump
 ------------------------------------------------------------------------
@@ -529,27 +571,57 @@ directly accesses hardware registers and may not work as expected. USE
 WITH CAUTION! To use this feature, you need to supply the
 experimental=1 parameter when loading the module.
 
-This feature attempts to show the current fan speed. The speed is read
-directly from the hardware registers of the embedded controller. This
-is known to work on later R, T and X series ThinkPads but may show a
-bogus value on other models.
+This feature attempts to show the current fan speed, control mode and
+other fan data that might be available.  The speed is read directly
+from the hardware registers of the embedded controller.  This is known
+to work on later R, T and X series ThinkPads but may show a bogus
+value on other models.
+
+Most ThinkPad fans work in "levels".  Level 0 stops the fan.  The higher
+the level, the higher the fan speed, although adjacent levels often map
+to the same fan speed.  7 is the highest level, where the fan reaches
+the maximum recommended speed.  Level "auto" means the EC changes the
+fan level according to some internal algorithm, usually based on
+readings from the thermal sensors.  Level "disengaged" means the EC
+disables the speed-locked closed-loop fan control, and drives the fan as
+fast as it can go, which might exceed hardware limits, so use this level
+with caution.
+
+The fan usually ramps up or down slowly from one speed to another,
+and it is normal for the EC to take several seconds to react to fan
+commands.
 
 The fan may be enabled or disabled with the following commands:
 
 	echo enable  >/proc/acpi/ibm/fan
 	echo disable >/proc/acpi/ibm/fan
 
-WARNING WARNING WARNING: do not leave the fan disabled unless you are
-monitoring the temperature sensor readings and you are ready to enable
-it if necessary to avoid overheating.
+Placing a fan on level 0 is the same as disabling it.  Enabling a fan
+will try to place it in a safe level if it is too slow or disabled.
 
-The fan only runs if it's enabled *and* the various temperature
-sensors which control it read high enough. On the X40, this seems to
-depend on the CPU and HDD temperatures. Specifically, the fan is
-turned on when either the CPU temperature climbs to 56 degrees or the
-HDD temperature climbs to 46 degrees. The fan is turned off when the
-CPU temperature drops to 49 degrees and the HDD temperature drops to
-41 degrees. These thresholds cannot currently be controlled.
+WARNING WARNING WARNING: do not leave the fan disabled unless you are
+monitoring all of the temperature sensor readings and you are ready to
+enable it if necessary to avoid overheating.
+
+An enabled fan in level "auto" may stop spinning if the EC decides the
+ThinkPad is cool enough and doesn't need the extra airflow.  This is
+normal, and the EC will spin the fan up if the varios thermal readings
+rise too much.
+
+On the X40, this seems to depend on the CPU and HDD temperatures.
+Specifically, the fan is turned on when either the CPU temperature
+climbs to 56 degrees or the HDD temperature climbs to 46 degrees.  The
+fan is turned off when the CPU temperature drops to 49 degrees and the
+HDD temperature drops to 41 degrees.  These thresholds cannot
+currently be controlled.
+
+The fan level can be controlled with the command:
+
+	echo 'level <level>' > /proc/acpi/ibm/thermal
+
+Where <level> is an integer from 0 to 7, or one of the words "auto"
+or "disengaged" (without the quotes).  Not all ThinkPads support the
+"auto" and "disengaged" levels.
 
 On the X31 and X40 (and ONLY on those models), the fan speed can be
 controlled to a certain degree. Once the fan is running, it can be
@@ -562,12 +634,9 @@ about 3700 to about 7350. Values outside this range either do not have
 any effect or the fan speed eventually settles somewhere in that
 range. The fan cannot be stopped or started with this command.
 
-On the 570, temperature readings are not available through this
-feature and the fan control works a little differently. The fan speed
-is reported in levels from 0 (off) to 7 (max) and can be controlled
-with the following command:
-
-	echo 'level <level>' > /proc/acpi/ibm/thermal
+The ThinkPad's ACPI DSDT code will reprogram the fan on its own when
+certain conditions are met.  It will override any fan programming done
+through ibm-acpi.
 
 EXPERIMENTAL: WAN -- /proc/acpi/ibm/wan
 ---------------------------------------
@@ -600,6 +669,26 @@ Commands can also be specified when loading the ibm_acpi module, for
 example:
 
 	modprobe ibm_acpi hotkey=enable,0xffff video=auto_disable
+
+The ibm-acpi kernel driver can be programmed to revert the fan level
+to a safe setting if userspace does not issue one of the fan commands:
+"enable", "disable", "level" or "watchdog" within a configurable
+ammount of time.  To do this, use the "watchdog" command.
+
+	echo 'watchdog <interval>' > /proc/acpi/ibm/fan
+
+Interval is the ammount of time in seconds to wait for one of the
+above mentioned fan commands before reseting the fan level to a safe
+one.  If set to zero, the watchdog is disabled (default).  When the
+watchdog timer runs out, it does the exact equivalent of the "enable"
+fan command.
+
+Note that the watchdog timer stops after it enables the fan.  It will
+be rearmed again automatically (using the same interval) when one of
+the above mentioned fan commands is received.  The fan watchdog is,
+therefore, not suitable to protect against fan mode changes made
+through means other than the "enable", "disable", and "level" fan
+commands.
 
 
 Example Configuration

@@ -173,6 +173,7 @@ config ACPI_NUMA
 config ACPI_ASUS
         tristate "ASUS/Medion Laptop Extras"
 	depends on X86
+	select BACKLIGHT_CLASS_DEVICE
         ---help---
           This driver provides support for extra features of ACPI-compatible
           ASUS laptops. As some of Medion laptops are made by ASUS, it may also
@@ -201,6 +202,7 @@ config ACPI_ASUS
 config ACPI_IBM
 	tristate "IBM ThinkPad Laptop Extras"
 	depends on X86
+	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This is a Linux ACPI driver for the IBM ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
@@ -223,9 +225,21 @@ config ACPI_IBM_DOCK
 
 	  If you are not sure, say N here.
 
+config ACPI_IBM_BAY
+	bool "Legacy Removable Bay Support"
+	depends on ACPI_IBM
+	depends on ACPI_BAY=n
+	default n
+	---help---
+	  Allows the ibm_acpi driver to handle removable bays.
+	  This support is obsoleted by CONFIG_ACPI_BAY.
+
+	  If you are not sure, say N here.
+
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on X86
+	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver adds support for access to certain system settings
 	  on "legacy free" Toshiba laptops.  These laptops can be recognized by
