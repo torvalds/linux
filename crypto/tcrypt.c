@@ -767,7 +767,7 @@ static void test_deflate(void)
 	memcpy(tvmem, deflate_comp_tv_template, tsize);
 	tv = (void *)tvmem;
 
-	tfm = crypto_alloc_tfm("deflate", 0);
+	tfm = crypto_alloc_comp("deflate", 0, CRYPTO_ALG_ASYNC);
 	if (tfm == NULL) {
 		printk("failed to load transform for deflate\n");
 		return;
