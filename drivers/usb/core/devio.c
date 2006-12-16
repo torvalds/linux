@@ -962,7 +962,11 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 			kfree(dr);
 			return -EFAULT;
 		}
-		snoop(&ps->dev->dev, "control urb\n");
+		snoop(&ps->dev->dev, "control urb: bRequest=%02x "
+			"bRrequestType=%02x wValue=%04x "
+			"wIndex=%04x wLength=%04x\n",
+			dr->bRequest, dr->bRequestType, dr->wValue,
+			dr->wIndex, dr->wLength);
 		break;
 
 	case USBDEVFS_URB_TYPE_BULK:
