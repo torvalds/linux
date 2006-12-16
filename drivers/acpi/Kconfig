@@ -97,6 +97,7 @@ config ACPI_BATTERY
 
 config ACPI_BUTTON
 	tristate "Button"
+	depends on INPUT
 	default y
 	help
 	  This driver handles events on the power, sleep and lid buttons.
