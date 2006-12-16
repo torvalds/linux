@@ -923,7 +923,7 @@ static struct proc_dir_entry *acpi_battery_dir = NULL;
 
 static int acpi_battery_read_info(struct seq_file *seq, void *offset)
 {
-	struct acpi_battery *battery = (struct acpi_battery *)seq->private;
+	struct acpi_battery *battery = seq->private;
 	int cscale;
 	int result = 0;
 
@@ -1076,7 +1076,7 @@ static int acpi_battery_state_open_fs(struct inode *inode, struct file *file)
 
 static int acpi_battery_read_alarm(struct seq_file *seq, void *offset)
 {
-	struct acpi_battery *battery = (struct acpi_battery *)seq->private;
+	struct acpi_battery *battery = seq->private;
 	int result = 0;
 	int cscale;
 
@@ -1125,8 +1125,8 @@ static ssize_t
 acpi_battery_write_alarm(struct file *file, const char __user * buffer,
 			 size_t count, loff_t * ppos)
 {
-	struct seq_file *seq = (struct seq_file *)file->private_data;
-	struct acpi_battery *battery = (struct acpi_battery *)seq->private;
+	struct seq_file *seq = file->private_data;
+	struct acpi_battery *battery = seq->private;
 	char alarm_string[12] = { '\0' };
 	int result, old_alarm, new_alarm;
 
@@ -1160,14 +1160,14 @@ acpi_battery_write_alarm(struct file *file, const char __user * buffer,
 	if (result) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "acpi_battery_set_alarm() failed\n"));
-		(void)acpi_battery_set_alarm(battery, old_alarm);
+		acpi_battery_set_alarm(battery, old_alarm);
 		goto end;
 	}
 	result = acpi_battery_get_alarm(battery);
 	if (result) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "acpi_battery_get_alarm() failed\n"));
-		(void)acpi_battery_set_alarm(battery, old_alarm);
+		acpi_battery_set_alarm(battery, old_alarm);
 		goto end;
 	}
 
@@ -1217,7 +1217,7 @@ static struct proc_dir_entry *acpi_ac_dir = NULL;
 
 static int acpi_ac_read_state(struct seq_file *seq, void *offset)
 {
-	struct acpi_sbs *sbs = (struct acpi_sbs *)seq->private;
+	struct acpi_sbs *sbs = seq->private;
 	int result;
 
 	if (sbs->zombie) {
@@ -1302,7 +1302,7 @@ static int acpi_battery_add(struct acpi_sbs *sbs, int id)
 		battery->init_state = 1;
 	}
 
-	(void)sprintf(dir_name, ACPI_BATTERY_DIR_NAME, id);
+	sprintf(dir_name, ACPI_BATTERY_DIR_NAME, id);
 
 	result = acpi_sbs_generic_add_fs(&battery->battery_entry,
 					 acpi_battery_dir,
@@ -1485,7 +1485,7 @@ static int acpi_sbs_update_run(struct acpi_sbs *sbs, int data_type)
 		}
 
 		if (old_battery_present != new_battery_present) {
-			(void)sprintf(dir_name, ACPI_BATTERY_DIR_NAME, id);
+			sprintf(dir_name, ACPI_BATTERY_DIR_NAME, id);
 			result = acpi_sbs_generate_event(sbs->device,
 							 ACPI_SBS_BATTERY_NOTIFY_STATUS,
 							 new_battery_present,
@@ -1498,7 +1498,7 @@ static int acpi_sbs_update_run(struct acpi_sbs *sbs, int data_type)
 			}
 		}
 		if (old_remaining_capacity != battery->state.remaining_capacity) {
-			(void)sprintf(dir_name, ACPI_BATTERY_DIR_NAME, id);
+			sprintf(dir_name, ACPI_BATTERY_DIR_NAME, id);
 			result = acpi_sbs_generate_event(sbs->device,
 							 ACPI_SBS_BATTERY_NOTIFY_STATUS,
 							 new_battery_present,
@@ -1659,7 +1659,7 @@ static int acpi_sbs_add(struct acpi_device *device)
 	init_timer(&sbs->update_timer);
 	if (update_mode == QUEUE_UPDATE_MODE) {
 		status = acpi_os_execute(OSL_GPE_HANDLER,
-					 acpi_sbs_update_queue, (void *)sbs);
+					 acpi_sbs_update_queue, sbs);
 		if (status != AE_OK) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 					  "acpi_os_execute() failed\n"));
@@ -1685,7 +1685,7 @@ static int acpi_sbs_add(struct acpi_device *device)
 
 int acpi_sbs_remove(struct acpi_device *device, int type)
 {
-	struct acpi_sbs *sbs = NULL;
+	struct acpi_sbs *sbs;
 	int id;
 
 	if (!device) {

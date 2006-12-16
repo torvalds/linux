@@ -568,6 +568,7 @@ void acpi_os_derive_pci_id(acpi_handle rhandle,	/* upper bound  */
 static void acpi_os_execute_deferred(struct work_struct *work)
 {
 	struct acpi_os_dpc *dpc = container_of(work, struct acpi_os_dpc, work);
+
 	if (!dpc) {
 		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
 		return;
@@ -1051,7 +1052,7 @@ acpi_os_create_cache(char *name, u16 size, u16 depth, acpi_cache_t ** cache)
 
 acpi_status acpi_os_purge_cache(acpi_cache_t * cache)
 {
-	(void)kmem_cache_shrink(cache);
+	kmem_cache_shrink(cache);
 	return (AE_OK);
 }
 

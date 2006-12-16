@@ -565,7 +565,7 @@ static int handle_eject_request(struct dock_station *ds, u32 event)
  */
 static void dock_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct dock_station *ds = (struct dock_station *)data;
+	struct dock_station *ds = data;
 
 	switch (event) {
 	case ACPI_NOTIFY_BUS_CHECK:
@@ -616,7 +616,7 @@ find_dock_devices(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	acpi_status status;
 	acpi_handle tmp;
-	struct dock_station *ds = (struct dock_station *)context;
+	struct dock_station *ds = context;
 	struct dock_dependent_device *dd;
 
 	status = acpi_bus_get_ejd(handle, &tmp);
@@ -792,7 +792,7 @@ static int dock_remove(void)
 static acpi_status
 find_dock(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
-	int *count = (int *)context;
+	int *count = context;
 	acpi_status status = AE_OK;
 
 	if (is_dock(handle)) {

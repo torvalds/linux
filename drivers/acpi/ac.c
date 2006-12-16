@@ -109,7 +109,7 @@ static struct proc_dir_entry *acpi_ac_dir;
 
 static int acpi_ac_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_ac *ac = (struct acpi_ac *)seq->private;
+	struct acpi_ac *ac = seq->private;
 
 
 	if (!ac)
@@ -187,7 +187,7 @@ static int acpi_ac_remove_fs(struct acpi_device *device)
 
 static void acpi_ac_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct acpi_ac *ac = (struct acpi_ac *)data;
+	struct acpi_ac *ac = data;
 	struct acpi_device *device = NULL;
 
 
@@ -269,7 +269,7 @@ static int acpi_ac_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	ac = (struct acpi_ac *)acpi_driver_data(device);
+	ac = acpi_driver_data(device);
 
 	status = acpi_remove_notify_handler(device->handle,
 					    ACPI_ALL_NOTIFY, acpi_ac_notify);

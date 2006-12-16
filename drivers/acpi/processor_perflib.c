@@ -236,7 +236,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 		return -ENODEV;
 	}
 
-	pss = (union acpi_object *)buffer.pointer;
+	pss = buffer.pointer;
 	if (!pss || (pss->type != ACPI_TYPE_PACKAGE)) {
 		printk(KERN_ERR PREFIX "Invalid _PSS data\n");
 		result = -EFAULT;
@@ -410,7 +410,7 @@ static struct file_operations acpi_processor_perf_fops = {
 
 static int acpi_processor_perf_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_processor *pr = (struct acpi_processor *)seq->private;
+	struct acpi_processor *pr = seq->private;
 	int i;
 
 
@@ -451,8 +451,8 @@ acpi_processor_write_performance(struct file *file,
 				 size_t count, loff_t * data)
 {
 	int result = 0;
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct acpi_processor *pr = (struct acpi_processor *)m->private;
+	struct seq_file *m = file->private_data;
+	struct acpi_processor *pr = m->private;
 	struct acpi_processor_performance *perf;
 	char state_string[12] = { '\0' };
 	unsigned int new_state = 0;
@@ -551,7 +551,7 @@ static int acpi_processor_get_psd(struct acpi_processor	*pr)
 		return -ENODEV;
 	}
 
-	psd = (union acpi_object *) buffer.pointer;
+	psd = buffer.pointer;
 	if (!psd || (psd->type != ACPI_TYPE_PACKAGE)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _PSD data\n"));
 		result = -EFAULT;

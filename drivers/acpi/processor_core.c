@@ -277,7 +277,7 @@ static struct proc_dir_entry *acpi_processor_dir = NULL;
 
 static int acpi_processor_info_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_processor *pr = (struct acpi_processor *)seq->private;
+	struct acpi_processor *pr = seq->private;
 
 
 	if (!pr)
@@ -542,12 +542,12 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 	 * Don't trust it blindly
 	 */
 	if (processor_device_array[pr->id] != NULL &&
-	    processor_device_array[pr->id] != (void *)device) {
+	    processor_device_array[pr->id] != device) {
 		printk(KERN_WARNING "BIOS reported wrong ACPI id"
 			"for the processor\n");
 		return -ENODEV;
 	}
-	processor_device_array[pr->id] = (void *)device;
+	processor_device_array[pr->id] = device;
 
 	processors[pr->id] = pr;
 
@@ -578,7 +578,7 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 
 static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct acpi_processor *pr = (struct acpi_processor *)data;
+	struct acpi_processor *pr = data;
 	struct acpi_device *device = NULL;
 
 
@@ -637,7 +637,7 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	pr = (struct acpi_processor *)acpi_driver_data(device);
+	pr = acpi_driver_data(device);
 
 	if (pr->id >= NR_CPUS) {
 		kfree(pr);

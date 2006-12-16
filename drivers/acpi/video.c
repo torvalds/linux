@@ -386,7 +386,7 @@ acpi_video_device_EDID(struct acpi_video_device *device,
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	obj = (union acpi_object *)buffer.pointer;
+	obj = buffer.pointer;
 
 	if (obj && obj->type == ACPI_TYPE_BUFFER)
 		*edid = obj;
@@ -654,8 +654,7 @@ static struct proc_dir_entry *acpi_video_dir;
 
 static int acpi_video_device_info_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_video_device *dev =
-	    (struct acpi_video_device *)seq->private;
+	struct acpi_video_device *dev = seq->private;
 
 
 	if (!dev)
@@ -688,8 +687,7 @@ acpi_video_device_info_open_fs(struct inode *inode, struct file *file)
 static int acpi_video_device_state_seq_show(struct seq_file *seq, void *offset)
 {
 	int status;
-	struct acpi_video_device *dev =
-	    (struct acpi_video_device *)seq->private;
+	struct acpi_video_device *dev = seq->private;
 	unsigned long state;
 
 
@@ -727,8 +725,8 @@ acpi_video_device_write_state(struct file *file,
 			      size_t count, loff_t * data)
 {
 	int status;
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct acpi_video_device *dev = (struct acpi_video_device *)m->private;
+	struct seq_file *m = file->private_data;
+	struct acpi_video_device *dev = m->private;
 	char str[12] = { 0 };
 	u32 state = 0;
 
@@ -754,8 +752,7 @@ acpi_video_device_write_state(struct file *file,
 static int
 acpi_video_device_brightness_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_video_device *dev =
-	    (struct acpi_video_device *)seq->private;
+	struct acpi_video_device *dev = seq->private;
 	int i;
 
 
@@ -784,8 +781,8 @@ acpi_video_device_write_brightness(struct file *file,
 				   const char __user * buffer,
 				   size_t count, loff_t * data)
 {
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct acpi_video_device *dev = (struct acpi_video_device *)m->private;
+	struct seq_file *m = file->private_data;
+	struct acpi_video_device *dev = m->private;
 	char str[4] = { 0 };
 	unsigned int level = 0;
 	int i;
@@ -817,8 +814,7 @@ acpi_video_device_write_brightness(struct file *file,
 
 static int acpi_video_device_EDID_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_video_device *dev =
-	    (struct acpi_video_device *)seq->private;
+	struct acpi_video_device *dev = seq->private;
 	int status;
 	int i;
 	union acpi_object *edid = NULL;
@@ -866,7 +862,7 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 	if (!device)
 		return -ENODEV;
 
-	vid_dev = (struct acpi_video_device *)acpi_driver_data(device);
+	vid_dev = acpi_driver_data(device);
 	if (!vid_dev)
 		return -ENODEV;
 
@@ -931,7 +927,7 @@ static int acpi_video_device_remove_fs(struct acpi_device *device)
 {
 	struct acpi_video_device *vid_dev;
 
-	vid_dev = (struct acpi_video_device *)acpi_driver_data(device);
+	vid_dev = acpi_driver_data(device);
 	if (!vid_dev || !vid_dev->video || !vid_dev->video->dir)
 		return -ENODEV;
 
@@ -950,7 +946,7 @@ static int acpi_video_device_remove_fs(struct acpi_device *device)
 /* video bus */
 static int acpi_video_bus_info_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_video_bus *video = (struct acpi_video_bus *)seq->private;
+	struct acpi_video_bus *video = seq->private;
 
 
 	if (!video)
@@ -975,7 +971,7 @@ static int acpi_video_bus_info_open_fs(struct inode *inode, struct file *file)
 
 static int acpi_video_bus_ROM_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_video_bus *video = (struct acpi_video_bus *)seq->private;
+	struct acpi_video_bus *video = seq->private;
 
 
 	if (!video)
@@ -995,7 +991,7 @@ static int acpi_video_bus_ROM_open_fs(struct inode *inode, struct file *file)
 
 static int acpi_video_bus_POST_info_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_video_bus *video = (struct acpi_video_bus *)seq->private;
+	struct acpi_video_bus *video = seq->private;
 	unsigned long options;
 	int status;
 
@@ -1033,7 +1029,7 @@ acpi_video_bus_POST_info_open_fs(struct inode *inode, struct file *file)
 
 static int acpi_video_bus_POST_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_video_bus *video = (struct acpi_video_bus *)seq->private;
+	struct acpi_video_bus *video = seq->private;
 	int status;
 	unsigned long id;
 
@@ -1054,7 +1050,7 @@ static int acpi_video_bus_POST_seq_show(struct seq_file *seq, void *offset)
 
 static int acpi_video_bus_DOS_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_video_bus *video = (struct acpi_video_bus *)seq->private;
+	struct acpi_video_bus *video = seq->private;
 
 
 	seq_printf(seq, "DOS setting: <%d>\n", video->dos_setting);
@@ -1079,8 +1075,8 @@ acpi_video_bus_write_POST(struct file *file,
 			  size_t count, loff_t * data)
 {
 	int status;
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct acpi_video_bus *video = (struct acpi_video_bus *)m->private;
+	struct seq_file *m = file->private_data;
+	struct acpi_video_bus *video = m->private;
 	char str[12] = { 0 };
 	unsigned long opt, options;
 
@@ -1119,8 +1115,8 @@ acpi_video_bus_write_DOS(struct file *file,
 			 size_t count, loff_t * data)
 {
 	int status;
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct acpi_video_bus *video = (struct acpi_video_bus *)m->private;
+	struct seq_file *m = file->private_data;
+	struct acpi_video_bus *video = m->private;
 	char str[12] = { 0 };
 	unsigned long opt;
 
@@ -1150,7 +1146,7 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	struct acpi_video_bus *video;
 
 
-	video = (struct acpi_video_bus *)acpi_driver_data(device);
+	video = acpi_driver_data(device);
 
 	if (!acpi_device_dir(device)) {
 		acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device),
@@ -1226,7 +1222,7 @@ static int acpi_video_bus_remove_fs(struct acpi_device *device)
 	struct acpi_video_bus *video;
 
 
-	video = (struct acpi_video_bus *)acpi_driver_data(device);
+	video = acpi_driver_data(device);
 
 	if (acpi_device_dir(device)) {
 		remove_proc_entry("info", acpi_device_dir(device));
@@ -1403,7 +1399,7 @@ static int acpi_video_device_enumerate(struct acpi_video_bus *video)
 		return status;
 	}
 
-	dod = (union acpi_object *)buffer.pointer;
+	dod = buffer.pointer;
 	if (!dod || (dod->type != ACPI_TYPE_PACKAGE)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Invalid _DOD data"));
 		status = -EFAULT;
@@ -1426,7 +1422,7 @@ static int acpi_video_device_enumerate(struct acpi_video_bus *video)
 
 	count = 0;
 	for (i = 0; i < dod->package.count; i++) {
-		obj = (union acpi_object *)&dod->package.elements[i];
+		obj = &dod->package.elements[i];
 
 		if (obj->type != ACPI_TYPE_INTEGER) {
 			printk(KERN_ERR PREFIX "Invalid _DOD data\n");
@@ -1612,7 +1608,7 @@ static int acpi_video_bus_stop_devices(struct acpi_video_bus *video)
 
 static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct acpi_video_bus *video = (struct acpi_video_bus *)data;
+	struct acpi_video_bus *video = data;
 	struct acpi_device *device = NULL;
 
 	printk("video bus notify\n");
@@ -1654,8 +1650,7 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 
 static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct acpi_video_device *video_device =
-	    (struct acpi_video_device *)data;
+	struct acpi_video_device *video_device = data;
 	struct acpi_device *device = NULL;
 
 
@@ -1757,7 +1752,7 @@ static int acpi_video_bus_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	video = (struct acpi_video_bus *)acpi_driver_data(device);
+	video = acpi_driver_data(device);
 
 	acpi_video_bus_stop_devices(video);
 

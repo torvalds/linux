@@ -281,7 +281,7 @@ int acpi_pci_unbind(struct acpi_device *device)
 	if (!device || !device->parent)
 		return -EINVAL;
 
-	pathname = (char *)kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
+	pathname = kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
 	if (!pathname)
 		return -ENOMEM;
 	memset(pathname, 0, ACPI_PATHNAME_MAX);
@@ -332,7 +332,7 @@ acpi_pci_bind_root(struct acpi_device *device,
 	struct acpi_buffer buffer = { 0, NULL };
 
 
-	pathname = (char *)kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
+	pathname = kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
 	if (!pathname)
 		return -ENOMEM;
 	memset(pathname, 0, ACPI_PATHNAME_MAX);

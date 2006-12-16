@@ -429,7 +429,7 @@ static int acpi_memory_device_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	mem_device = (struct acpi_memory_device *)acpi_driver_data(device);
+	mem_device = acpi_driver_data(device);
 	kfree(mem_device);
 
 	return 0;

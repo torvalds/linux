@@ -96,7 +96,7 @@ struct acpi_find_pci_root {
 static acpi_status
 do_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 {
-	unsigned long *busnr = (unsigned long *)data;
+	unsigned long *busnr = data;
 	struct acpi_resource_address64 address;
 
 	if (resource->type != ACPI_RESOURCE_TYPE_ADDRESS16 &&
@@ -221,7 +221,7 @@ do_acpi_find_child(acpi_handle handle, u32 lvl, void *context, void **rv)
 	acpi_status status;
 	struct acpi_device_info *info;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_find_child *find = (struct acpi_find_child *)context;
+	struct acpi_find_child *find = context;
 
 	status = acpi_get_object_info(handle, &buffer);
 	if (ACPI_SUCCESS(status)) {

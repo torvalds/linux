@@ -108,7 +108,7 @@ acpi_power_get_context(acpi_handle handle,
 		return result;
 	}
 
-	*resource = (struct acpi_power_resource *)acpi_driver_data(device);
+	*resource = acpi_driver_data(device);
 	if (!resource)
 		return -ENODEV;
 
@@ -442,7 +442,7 @@ static int acpi_power_seq_show(struct seq_file *seq, void *offset)
 	struct acpi_power_resource *resource = NULL;
 
 
-	resource = (struct acpi_power_resource *)seq->private;
+	resource = seq->private;
 
 	if (!resource)
 		goto end;
@@ -590,7 +590,7 @@ static int acpi_power_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	resource = (struct acpi_power_resource *)acpi_driver_data(device);
+	resource = acpi_driver_data(device);
 
 	acpi_power_remove_fs(device);
 

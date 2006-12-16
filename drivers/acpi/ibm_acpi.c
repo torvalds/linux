@@ -2417,7 +2417,7 @@ static struct ibm_struct ibms[] = {
 static int dispatch_read(char *page, char **start, off_t off, int count,
 			 int *eof, void *data)
 {
-	struct ibm_struct *ibm = (struct ibm_struct *)data;
+	struct ibm_struct *ibm = data;
 	int len;
 
 	if (!ibm || !ibm->read)
@@ -2442,7 +2442,7 @@ static int dispatch_read(char *page, char **start, off_t off, int count,
 static int dispatch_write(struct file *file, const char __user * userbuf,
 			  unsigned long count, void *data)
 {
-	struct ibm_struct *ibm = (struct ibm_struct *)data;
+	struct ibm_struct *ibm = data;
 	char *kernbuf;
 	int ret;
 
@@ -2471,7 +2471,7 @@ static int dispatch_write(struct file *file, const char __user * userbuf,
 
 static void dispatch_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct ibm_struct *ibm = (struct ibm_struct *)data;
+	struct ibm_struct *ibm = data;
 
 	if (!ibm || !ibm->notify)
 		return;
