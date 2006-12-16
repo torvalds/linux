@@ -83,7 +83,6 @@ struct event_info {
 struct controller {
 	struct mutex crit_sect;		/* critical section mutex */
 	struct mutex cmd_lock;		/* command lock */
-	struct php_ctlr_state_s *hpc_ctlr_handle; /* HPC controller handle */
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
@@ -102,6 +101,8 @@ struct controller {
 	u32 cap_offset;
 	unsigned long mmio_base;
 	unsigned long mmio_size;
+	void __iomem *creg;
+	struct timer_list poll_timer;
 };
 
 
@@ -176,10 +177,10 @@ extern int __must_check shpchp_create_ctrl_files(struct controller *ctrl);
 extern int	shpchp_sysfs_enable_slot(struct slot *slot);
 extern int	shpchp_sysfs_disable_slot(struct slot *slot);
 
-extern u8	shpchp_handle_attention_button(u8 hp_slot, void *inst_id);
-extern u8	shpchp_handle_switch_change(u8 hp_slot, void *inst_id);
-extern u8	shpchp_handle_presence_change(u8 hp_slot, void *inst_id);
-extern u8	shpchp_handle_power_fault(u8 hp_slot, void *inst_id);
+extern u8 shpchp_handle_attention_button(u8 hp_slot, struct controller *ctrl);
+extern u8 shpchp_handle_switch_change(u8 hp_slot, struct controller *ctrl);
+extern u8 shpchp_handle_presence_change(u8 hp_slot, struct controller *ctrl);
+extern u8 shpchp_handle_power_fault(u8 hp_slot, struct controller *ctrl);
 
 /* pci functions */
 extern int	shpchp_save_config(struct controller *ctrl, int busnumber, int num_ctlr_slots, int first_device_num);
@@ -262,24 +263,6 @@ enum ctrl_offsets {
 	SLOT11 =	offsetof(struct ctrl_reg, slot11),
 	SLOT12 =	offsetof(struct ctrl_reg, slot12),
 };
-typedef u8(*php_intr_callback_t) (u8 hp_slot, void *instance_id);
-struct php_ctlr_state_s {
-	struct php_ctlr_state_s *pnext;
-	struct pci_dev *pci_dev;
-	unsigned int irq;
-	unsigned long flags;	/* spinlock's */
-	u32 slot_device_offset;
-	u32 num_slots;
-    	struct timer_list	int_poll_timer;	/* Added for poll event */
-	php_intr_callback_t attention_button_callback;
-	php_intr_callback_t switch_change_callback;
-	php_intr_callback_t presence_change_callback;
-	php_intr_callback_t power_fault_callback;
-	void *callback_instance_id;
-	void __iomem *creg;			/* Ptr to controller register space */
-};
-/* Inline functions */
-
 
 /* Inline functions to check the sanity of a pointer that is passed to us */
 static inline int slot_paranoia_check (struct slot *slot, const char *function)
@@ -400,20 +383,7 @@ static inline void amd_pogo_errata_restore_misc_reg(struct slot *p_slot)
 	pci_write_config_dword(p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, pcix_misc2_temp);
 }
 
-enum php_ctlr_type {
-	PCI,
-	ISA,
-	ACPI
-};
-
 int shpc_init( struct controller *ctrl, struct pci_dev *pdev);
-
-int shpc_get_ctlr_slot_config( struct controller *ctrl,
-		int *num_ctlr_slots,
-		int *first_device_num,
-		int *physical_slot_num,
-		int *updown,
-		int *flags);
 
 struct hpc_ops {
 	int	(*power_on_slot )		(struct slot *slot);

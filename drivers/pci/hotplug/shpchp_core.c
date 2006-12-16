@@ -211,36 +211,6 @@ void cleanup_slots(struct controller *ctrl)
 	}
 }
 
-static int get_ctlr_slot_config(struct controller *ctrl)
-{
-	int num_ctlr_slots;
-	int first_device_num;
-	int physical_slot_num;
-	int updown;
-	int rc;
-	int flags;
-
-	rc = shpc_get_ctlr_slot_config(ctrl, &num_ctlr_slots,
-				       &first_device_num, &physical_slot_num,
-				       &updown, &flags);
-	if (rc) {
-		err("%s: get_ctlr_slot_config fail for b:d (%x:%x)\n",
-		    __FUNCTION__, ctrl->bus, ctrl->device);
-		return -1;
-	}
-
-	ctrl->num_slots = num_ctlr_slots;
-	ctrl->slot_device_offset = first_device_num;
-	ctrl->first_slot = physical_slot_num;
-	ctrl->slot_num_inc = updown;		/* either -1 or 1 */
-
-	dbg("%s: num_slot(0x%x) 1st_dev(0x%x) psn(0x%x) updown(%d) for b:d "
-	    "(%x:%x)\n", __FUNCTION__, num_ctlr_slots, first_device_num,
-	    physical_slot_num, updown, ctrl->bus, ctrl->device);
-
-	return 0;
-}
-
 /*
  * set_attention_status - Turns the Amber LED for a slot on, off or blink
  */
@@ -386,8 +356,6 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int rc;
 	struct controller *ctrl;
 	struct slot *t_slot;
-	int first_device_num;	/* first PCI device number */
-	int num_ctlr_slots;	/* number of slots implemented */
 
 	if (!is_shpc_capable(pdev))
 		return -ENODEV;
@@ -416,17 +384,6 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dbg("ctrl bus=0x%x, device=%x, function=%x, irq=%x\n",
 	    ctrl->bus, ctrl->device, ctrl->function, pdev->irq);
 
-	/*
-	 * Save configuration headers for this and subordinate PCI buses
-	 */
-	rc = get_ctlr_slot_config(ctrl);
-	if (rc) {
-		err(msg_initialization_err, rc);
-		goto err_out_release_ctlr;
-	}
-	first_device_num = ctrl->slot_device_offset;
-	num_ctlr_slots = ctrl->num_slots;
-
 	ctrl->add_support = 1;
 
 	/* Setup the slot information structures */
@@ -437,7 +394,7 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Now hpc_functions (slot->hpc_ops->functions) are ready  */
-	t_slot = shpchp_find_slot(ctrl, first_device_num);
+	t_slot = shpchp_find_slot(ctrl, ctrl->slot_device_offset);
 
 	/* Check for operation bus speed */
 	rc = t_slot->hpc_ops->get_cur_bus_speed(t_slot, &ctrl->speed);

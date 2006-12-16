@@ -57,9 +57,8 @@ static int queue_interrupt_event(struct slot *p_slot, u32 event_type)
 	return 0;
 }
 
-u8 shpchp_handle_attention_button(u8 hp_slot, void *inst_id)
+u8 shpchp_handle_attention_button(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u32 event_type;
 
@@ -81,9 +80,8 @@ u8 shpchp_handle_attention_button(u8 hp_slot, void *inst_id)
 
 }
 
-u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
+u8 shpchp_handle_switch_change(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u8 getstatus;
 	u32 event_type;
@@ -120,9 +118,8 @@ u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
 	return 1;
 }
 
-u8 shpchp_handle_presence_change(u8 hp_slot, void *inst_id)
+u8 shpchp_handle_presence_change(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u32 event_type;
 
@@ -154,9 +151,8 @@ u8 shpchp_handle_presence_change(u8 hp_slot, void *inst_id)
 	return 1;
 }
 
-u8 shpchp_handle_power_fault(u8 hp_slot, void *inst_id)
+u8 shpchp_handle_power_fault(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u32 event_type;
 
