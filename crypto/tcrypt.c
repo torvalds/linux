@@ -72,7 +72,8 @@ static char *check[] = {
 	"des", "md5", "des3_ede", "rot13", "sha1", "sha256", "blowfish",
 	"twofish", "serpent", "sha384", "sha512", "md4", "aes", "cast6",
 	"arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
-	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta", NULL
+	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
+	NULL
 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
@@ -965,6 +966,12 @@ static void do_test(void)
 		test_cipher("ecb(xeta)", DECRYPT, xeta_dec_tv_template,
 			    XETA_DEC_TEST_VECTORS);
 
+		//FCrypt
+		test_cipher("pcbc(fcrypt)", ENCRYPT, fcrypt_pcbc_enc_tv_template,
+			    FCRYPT_ENC_TEST_VECTORS);
+		test_cipher("pcbc(fcrypt)", DECRYPT, fcrypt_pcbc_dec_tv_template,
+			    FCRYPT_DEC_TEST_VECTORS);
+
 		test_hash("sha384", sha384_tv_template, SHA384_TEST_VECTORS);
 		test_hash("sha512", sha512_tv_template, SHA512_TEST_VECTORS);
 		test_hash("wp512", wp512_tv_template, WP512_TEST_VECTORS);
@@ -1180,6 +1187,13 @@ static void do_test(void)
 			    XETA_ENC_TEST_VECTORS);
 		test_cipher("ecb(xeta)", DECRYPT, xeta_dec_tv_template,
 			    XETA_DEC_TEST_VECTORS);
+		break;
+
+	case 31:
+		test_cipher("pcbc(fcrypt)", ENCRYPT, fcrypt_pcbc_enc_tv_template,
+			    FCRYPT_ENC_TEST_VECTORS);
+		test_cipher("pcbc(fcrypt)", DECRYPT, fcrypt_pcbc_dec_tv_template,
+			    FCRYPT_DEC_TEST_VECTORS);
 		break;
 
 	case 100:

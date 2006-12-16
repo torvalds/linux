@@ -204,6 +204,13 @@ config CRYPTO_DES_S390
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
 
+config CRYPTO_FCRYPT
+	tristate "FCrypt cipher algorithm"
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  FCrypt algorithm used by RxRPC.
+
 config CRYPTO_BLOWFISH
 	tristate "Blowfish cipher algorithm"
 	select CRYPTO_ALGAPI
