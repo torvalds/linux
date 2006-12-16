@@ -43,6 +43,7 @@
 	} while(0)
 #endif
 
+#ifdef CONFIG_DEBUG_BUGVERBOSE
 #define __WARN()							\
 	do {								\
 		asm volatile("\n"					\
@@ -56,6 +57,20 @@
 			     "i" (BUGFLAG_WARNING),			\
 			     "i" (sizeof(struct bug_entry)) );		\
 	} while(0)
+#else
+#define __WARN()							\
+	do {								\
+		asm volatile("\n"					\
+			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
+			     "\t.pushsection __bug_table,\"a\"\n"	\
+			     "2:\t" ASM_ULONG_INSN " 1b\n"		\
+			     "\t.short %c0\n"				\
+			     "\t.org 2b+%c1\n"				\
+			     "\t.popsection"				\
+			     : : "i" (BUGFLAG_WARNING),			\
+			     "i" (sizeof(struct bug_entry)) );		\
+	} while(0)
+#endif
 
 
 #define WARN_ON(x) ({						\
