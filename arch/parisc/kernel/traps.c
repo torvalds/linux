@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/console.h>
 #include <linux/kallsyms.h>
+#include <linux/bug.h>
 
 #include <asm/assembly.h>
 #include <asm/system.h>
@@ -51,7 +52,7 @@
 DEFINE_SPINLOCK(pa_dbit_lock);
 #endif
 
-int printbinary(char *buf, unsigned long x, int nbits)
+static int printbinary(char *buf, unsigned long x, int nbits)
 {
 	unsigned long mask = 1UL << (nbits - 1);
 	while (mask != 0) {
@@ -207,6 +208,11 @@ HERE:
 	do_show_stack(&info);
 }
 
+int is_valid_bugaddr(unsigned long iaoq)
+{
+	return 1;
+}
+
 void die_if_kernel(char *str, struct pt_regs *regs, long err)
 {
 	if (user_mode(regs)) {
@@ -225,7 +231,7 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 	oops_in_progress = 1;
 
 	/* Amuse the user in a SPARC fashion */
-	printk(
+	if (err) printk(
 "      _______________________________ \n"
 "     < Your System ate a SPARC! Gah! >\n"
 "      ------------------------------- \n"
@@ -245,8 +251,9 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 	if (!console_drivers)
 		pdc_console_restart();
 	
-	printk(KERN_CRIT "%s (pid %d): %s (code %ld)\n",
-		current->comm, current->pid, str, err);
+	if (err)
+		printk(KERN_CRIT "%s (pid %d): %s (code %ld)\n",
+			current->comm, current->pid, str, err);
 	show_regs(regs);
 
 	if (in_interrupt())
@@ -276,61 +283,45 @@ int syscall_ipi(int (*syscall) (struct pt_regs *), struct pt_regs *regs)
 
 /* gdb uses break 4,8 */
 #define GDB_BREAK_INSN 0x10004
-void handle_gdb_break(struct pt_regs *regs, int wot)
+static void handle_gdb_break(struct pt_regs *regs, int wot)
 {
 	struct siginfo si;
 
-	si.si_code = wot;
-	si.si_addr = (void __user *) (regs->iaoq[0] & ~3);
 	si.si_signo = SIGTRAP;
 	si.si_errno = 0;
+	si.si_code = wot;
+	si.si_addr = (void __user *) (regs->iaoq[0] & ~3);
 	force_sig_info(SIGTRAP, &si, current);
 }
 
-void handle_break(unsigned iir, struct pt_regs *regs)
+static void handle_break(struct pt_regs *regs)
 {
-	struct siginfo si;
+	unsigned iir = regs->iir;
 
-	switch(iir) {
-	case 0x00:
-#ifdef PRINT_USER_FAULTS
-		printk(KERN_DEBUG "break 0,0: pid=%d command='%s'\n",
-		       current->pid, current->comm);
-#endif
-		die_if_kernel("Breakpoint", regs, 0);
-#ifdef PRINT_USER_FAULTS
-		show_regs(regs);
-#endif
-		si.si_code = TRAP_BRKPT;
-		si.si_addr = (void __user *) (regs->iaoq[0] & ~3);
-		si.si_signo = SIGTRAP;
-		force_sig_info(SIGTRAP, &si, current);
-		break;
-
-	case GDB_BREAK_INSN:
-		die_if_kernel("Breakpoint", regs, 0);
-		handle_gdb_break(regs, TRAP_BRKPT);
-		break;
-
-	default:
-#ifdef PRINT_USER_FAULTS
-		printk(KERN_DEBUG "break %#08x: pid=%d command='%s'\n",
-		       iir, current->pid, current->comm);
-		show_regs(regs);
-#endif
-		si.si_signo = SIGTRAP;
-		si.si_code = TRAP_BRKPT;
-		si.si_addr = (void __user *) (regs->iaoq[0] & ~3);
-		force_sig_info(SIGTRAP, &si, current);
-		return;
+	if (unlikely(iir == PARISC_BUG_BREAK_INSN && !user_mode(regs))) {
+		/* check if a BUG() or WARN() trapped here.  */
+		enum bug_trap_type tt;
+		tt = report_bug(regs->iaoq[0] & ~3);
+		if (tt == BUG_TRAP_TYPE_WARN) {
+			regs->iaoq[0] += 4;
+			regs->iaoq[1] += 4;
+			return; /* return to next instruction when WARN_ON().  */
+		}
+		die_if_kernel("Unknown kernel breakpoint", regs,
+			(tt == BUG_TRAP_TYPE_NONE) ? 9 : 0);
 	}
-}
 
+#ifdef PRINT_USER_FAULTS
+	if (unlikely(iir != GDB_BREAK_INSN)) {
+		printk(KERN_DEBUG "break %d,%d: pid=%d command='%s'\n",
+			(iir>>13) & ((1<<13)-1), iir & 31,
+			current->pid, current->comm);
+		show_regs(regs);
+	}
+#endif
 
-int handle_toc(void)
-{
-	printk(KERN_CRIT "TOC call.\n");
-	return 0;
+	/* send standard GDB signal */
+	handle_gdb_break(regs, TRAP_BRKPT);
 }
 
 static void default_trap(int code, struct pt_regs *regs)
@@ -339,7 +330,7 @@ static void default_trap(int code, struct pt_regs *regs)
 	show_regs(regs);
 }
 
-void (*cpu_lpmc) (int code, struct pt_regs *regs) = default_trap;
+void (*cpu_lpmc) (int code, struct pt_regs *regs) __read_mostly = default_trap;
 
 
 void transfer_pim_to_trap_frame(struct pt_regs *regs)
@@ -576,7 +567,7 @@ void handle_interruption(int code, struct pt_regs *regs)
 
 	case  9:
 		/* Break instruction trap */
-		handle_break(regs->iir,regs);
+		handle_break(regs);
 		return;
 	
 	case 10:
