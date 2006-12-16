@@ -187,18 +187,19 @@ void show_stack(struct task_struct *task, unsigned long *s)
 
 	if (!task) {
 		unsigned long sp;
-		struct pt_regs *r;
 
 HERE:
 		asm volatile ("copy %%r30, %0" : "=r"(sp));
-		r = kzalloc(sizeof(struct pt_regs), GFP_KERNEL);
-		if (!r)
-			return;
-		r->iaoq[0] = (unsigned long)&&HERE;
-		r->gr[2] = (unsigned long)__builtin_return_address(0);
-		r->gr[30] = sp;
-		unwind_frame_init(&info, current, r);
-		kfree(r);
+		{
+			struct pt_regs r;
+
+			memset(&r, 0, sizeof(struct pt_regs));
+			r.iaoq[0] = (unsigned long)&&HERE;
+			r.gr[2] = (unsigned long)__builtin_return_address(0);
+			r.gr[30] = sp;
+
+			unwind_frame_init(&info, current, &r);
+		}
 	} else {
 		unwind_frame_init_from_blocked_task(&info, task);
 	}
