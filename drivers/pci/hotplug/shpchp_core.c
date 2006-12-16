@@ -149,7 +149,7 @@ static int init_slots(struct controller *ctrl)
 
 		slot->hp_slot = i;
 		slot->ctrl = ctrl;
-		slot->bus = ctrl->slot_bus;
+		slot->bus = ctrl->pci_dev->subordinate->number;
 		slot->device = ctrl->slot_device_offset + i;
 		slot->hpc_ops = ctrl->hpc_ops;
 		mutex_init(&slot->lock);
@@ -355,7 +355,6 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc;
 	struct controller *ctrl;
-	struct slot *t_slot;
 
 	if (!is_shpc_capable(pdev))
 		return -ENODEV;
@@ -376,34 +375,11 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, ctrl);
 
-	ctrl->bus = pdev->bus->number;
-	ctrl->slot_bus = pdev->subordinate->number;
-	ctrl->device = PCI_SLOT(pdev->devfn);
-	ctrl->function = PCI_FUNC(pdev->devfn);
-
-	dbg("ctrl bus=0x%x, device=%x, function=%x, irq=%x\n",
-	    ctrl->bus, ctrl->device, ctrl->function, pdev->irq);
-
-	ctrl->add_support = 1;
-
 	/* Setup the slot information structures */
 	rc = init_slots(ctrl);
 	if (rc) {
 		err(msg_initialization_err, 6);
 		goto err_out_release_ctlr;
-	}
-
-	/* Now hpc_functions (slot->hpc_ops->functions) are ready  */
-	t_slot = shpchp_find_slot(ctrl, ctrl->slot_device_offset);
-
-	/* Check for operation bus speed */
-	rc = t_slot->hpc_ops->get_cur_bus_speed(t_slot, &ctrl->speed);
-	dbg("%s: t_slot->hp_slot %x\n", __FUNCTION__,t_slot->hp_slot);
-
-	if (rc || ctrl->speed == PCI_SPEED_UNKNOWN) {
-		err(SHPC_MODULE_NAME ": Can't get current bus speed. "
-		    "Set to 33MHz PCI.\n");
-		ctrl->speed = PCI_SPEED_33MHz;
 	}
 
 	rc = shpchp_create_ctrl_files(ctrl);

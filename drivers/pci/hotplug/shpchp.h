@@ -89,15 +89,9 @@ struct controller {
 	struct list_head slot_list;
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
-	u8 bus;
-	u8 device;
-	u8 function;
 	u8 slot_device_offset;
-	u8 add_support;
 	u32 pcix_misc2_reg;	/* for amd pogo errata */
-	enum pci_bus_speed speed;
 	u32 first_slot;		/* First physical slot number */
-	u8 slot_bus;		/* Bus where the slots handled by this controller sit */
 	u32 cap_offset;
 	unsigned long mmio_base;
 	unsigned long mmio_size;
