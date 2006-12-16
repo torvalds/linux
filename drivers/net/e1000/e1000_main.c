@@ -3318,6 +3318,16 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		if (skb->data_len && (hdr_len == (skb->len - skb->data_len))) {
 			switch (adapter->hw.mac_type) {
 				unsigned int pull_size;
+			case e1000_82544:
+				/* Make sure we have room to chop off 4 bytes,
+				 * and that the end alignment will work out to
+				 * this hardware's requirements
+				 * NOTE: this is a TSO only workaround
+				 * if end byte alignment not correct move us
+				 * into the next dword */
+				if ((unsigned long)(skb->tail - 1) & 4)
+					break;
+				/* fall through */
 			case e1000_82571:
 			case e1000_82572:
 			case e1000_82573:
