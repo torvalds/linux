@@ -189,8 +189,12 @@ find_pci_rootbridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 	bus = tmp;
 
 	if (seg == find->seg && bus == find->bus)
+	{
 		find->handle = handle;
-	status = AE_OK;
+		status = AE_CTRL_TERMINATE;
+	}
+	else
+		status = AE_OK;
       exit:
 	kfree(buffer.pointer);
 	return status;
