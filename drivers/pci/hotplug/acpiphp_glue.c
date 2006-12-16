@@ -1682,7 +1682,7 @@ int __init acpiphp_glue_init(void)
  *
  * This function frees all data allocated in acpiphp_glue_init()
  */
-void __exit acpiphp_glue_exit(void)
+void  acpiphp_glue_exit(void)
 {
 	acpi_pci_unregister_driver(&acpi_pci_hp_driver);
 }
