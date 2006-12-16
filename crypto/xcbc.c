@@ -254,14 +254,15 @@ static int crypto_xcbc_digest(struct hash_desc *pdesc,
 
 static int xcbc_init_tfm(struct crypto_tfm *tfm)
 {
+	struct crypto_cipher *cipher;
 	struct crypto_instance *inst = (void *)tfm->__crt_alg;
 	struct crypto_spawn *spawn = crypto_instance_ctx(inst);
 	struct crypto_xcbc_ctx *ctx = crypto_hash_ctx_aligned(__crypto_hash_cast(tfm));
 	int bs = crypto_hash_blocksize(__crypto_hash_cast(tfm));
 
-	tfm = crypto_spawn_tfm(spawn);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
+	cipher = crypto_spawn_cipher(spawn);
+	if (IS_ERR(cipher))
+		return PTR_ERR(cipher);
 
 	switch(bs) {
 	case 16:
@@ -271,7 +272,7 @@ static int xcbc_init_tfm(struct crypto_tfm *tfm)
 		return -EINVAL;
 	}
 
-	ctx->child = crypto_cipher_cast(tfm);
+	ctx->child = cipher;
 	ctx->odds = (u8*)(ctx+1);
 	ctx->prev = ctx->odds + bs;
 	ctx->key = ctx->prev + bs;
