@@ -80,7 +80,7 @@ static int tune_pci = 0;
 module_param(tune_pci, int, 0444);
 MODULE_PARM_DESC(tune_pci, "increase PCI burst from the default set by BIOS if nonzero");
 
-struct mutex mthca_device_mutex;
+DEFINE_MUTEX(mthca_device_mutex);
 
 #define MTHCA_DEFAULT_NUM_QP            (1 << 16)
 #define MTHCA_DEFAULT_RDB_PER_QP        (1 << 2)
@@ -1361,8 +1361,6 @@ static void __init mthca_validate_profile(void)
 static int __init mthca_init(void)
 {
 	int ret;
-
-	mutex_init(&mthca_device_mutex);
 
 	mthca_validate_profile();
 
