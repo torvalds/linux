@@ -8,16 +8,21 @@
 #include <linux/timer.h>
 #include <linux/linkage.h>
 #include <linux/bitops.h>
+#include <asm/atomic.h>
 
 struct workqueue_struct;
 
 struct work_struct;
 typedef void (*work_func_t)(struct work_struct *work);
 
+/*
+ * The first word is the work queue pointer and the flags rolled into
+ * one
+ */
+#define work_data_bits(work) ((unsigned long *)(&(work)->data))
+
 struct work_struct {
-	/* the first word is the work queue pointer and the flags rolled into
-	 * one */
-	unsigned long management;
+	atomic_long_t data;
 #define WORK_STRUCT_PENDING 0		/* T if work item pending execution */
 #define WORK_STRUCT_NOAUTOREL 1		/* F if work item automatically released on exec */
 #define WORK_STRUCT_FLAG_MASK (3UL)
@@ -25,6 +30,9 @@ struct work_struct {
 	struct list_head entry;
 	work_func_t func;
 };
+
+#define WORK_DATA_INIT(autorelease) \
+	ATOMIC_LONG_INIT((autorelease) << WORK_STRUCT_NOAUTOREL)
 
 struct delayed_work {
 	struct work_struct work;
@@ -36,13 +44,13 @@ struct execute_work {
 };
 
 #define __WORK_INITIALIZER(n, f) {				\
-	.management = 0,					\
+	.data = WORK_DATA_INIT(0),				\
         .entry	= { &(n).entry, &(n).entry },			\
 	.func = (f),						\
 	}
 
 #define __WORK_INITIALIZER_NAR(n, f) {				\
-	.management = (1 << WORK_STRUCT_NOAUTOREL),		\
+	.data = WORK_DATA_INIT(1),				\
         .entry	= { &(n).entry, &(n).entry },			\
 	.func = (f),						\
 	}
@@ -82,17 +90,21 @@ struct execute_work {
 
 /*
  * initialize all of a work item in one go
+ *
+ * NOTE! No point in using "atomic_long_set()": useing a direct
+ * assignment of the work data initializer allows the compiler
+ * to generate better code.
  */
 #define INIT_WORK(_work, _func)					\
 	do {							\
-		(_work)->management = 0;			\
+		(_work)->data = (atomic_long_t) WORK_DATA_INIT(0);	\
 		INIT_LIST_HEAD(&(_work)->entry);		\
 		PREPARE_WORK((_work), (_func));			\
 	} while (0)
 
 #define INIT_WORK_NAR(_work, _func)					\
 	do {								\
-		(_work)->management = (1 << WORK_STRUCT_NOAUTOREL);	\
+		(_work)->data = (atomic_long_t) WORK_DATA_INIT(1);	\
 		INIT_LIST_HEAD(&(_work)->entry);			\
 		PREPARE_WORK((_work), (_func));				\
 	} while (0)
@@ -114,7 +126,7 @@ struct execute_work {
  * @work: The work item in question
  */
 #define work_pending(work) \
-	test_bit(WORK_STRUCT_PENDING, &(work)->management)
+	test_bit(WORK_STRUCT_PENDING, work_data_bits(work))
 
 /**
  * delayed_work_pending - Find out whether a delayable work item is currently
@@ -143,7 +155,7 @@ struct execute_work {
  * This should also be used to release a delayed work item.
  */
 #define work_release(work) \
-	clear_bit(WORK_STRUCT_PENDING, &(work)->management)
+	clear_bit(WORK_STRUCT_PENDING, work_data_bits(work))
 
 
 extern struct workqueue_struct *__create_workqueue(const char *name,
@@ -188,7 +200,7 @@ static inline int cancel_delayed_work(struct delayed_work *work)
 
 	ret = del_timer_sync(&work->timer);
 	if (ret)
-		clear_bit(WORK_STRUCT_PENDING, &work->work.management);
+		work_release(&work->work);
 	return ret;
 }
 
