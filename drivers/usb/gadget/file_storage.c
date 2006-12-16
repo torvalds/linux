@@ -253,7 +253,7 @@
 #include <linux/freezer.h>
 #include <linux/utsname.h>
 
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb_gadget.h>
 
 #include "gadget_chips.h"
