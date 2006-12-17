@@ -292,6 +292,8 @@ __ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
 	if (pfn >= 0x100000 && (__pfn_to_phys(pfn) & ~SUPERSECTION_MASK))
 		return NULL;
 
+	size = PAGE_ALIGN(size);
+
  	area = get_vm_area(size, VM_IOREMAP);
  	if (!area)
  		return NULL;
