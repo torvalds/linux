@@ -49,29 +49,20 @@ static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pag
 	struct vm_area_struct *vma = find_vma(current->mm, addr);
 
 	/*
-	 * find_vma() didn't find anything: the address
-	 * is above everything we have mapped.
+	 * find_vma() didn't find anything above us, or we're
+	 * in an unmapped hole in the address space: ENOMEM.
 	 */
-	if (!vma) {
-		memset(vec, 0, pages);
-		return pages;
-	}
-
-	/*
-	 * find_vma() found something, but we might be
-	 * below it: check for that.
-	 */
-	if (addr < vma->vm_start) {
-		unsigned long gap = (vma->vm_start - addr) >> PAGE_SHIFT;
-		if (gap > pages)
-			gap = pages;
-		memset(vec, 0, gap);
-		return gap;
-	}
+	if (!vma || addr < vma->vm_start)
+		return -ENOMEM;
 
 	/*
 	 * Ok, got it. But check whether it's a segment we support
 	 * mincore() on. Right now, we don't do any anonymous mappings.
+	 *
+	 * FIXME: This is just stupid. And returning ENOMEM is 
+	 * stupid too. We should just look at the page tables. But
+	 * this is what we've traditionally done, so we'll just
+	 * continue doing it.
 	 */
 	if (!vma->vm_file)
 		return -ENOMEM;
@@ -142,7 +133,7 @@ asmlinkage long sys_mincore(unsigned long start, size_t len,
 
 	tmp = (void *) __get_free_page(GFP_USER);
 	if (!tmp)
-		return -ENOMEM;
+		return -EAGAIN;
 
 	retval = 0;
 	while (pages) {
