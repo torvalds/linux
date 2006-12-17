@@ -31,12 +31,16 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 
+#include <asm/mach/map.h>
+
 #include <asm/hardware.h>
 #include <asm/io.h>
 
+#include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-gpio.h>
 
+#include "s3c2410.h"
 #include "clock.h"
 #include "cpu.h"
 
