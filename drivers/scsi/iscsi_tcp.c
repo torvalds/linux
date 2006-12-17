@@ -749,7 +749,7 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 				if (!offset)
 					crypto_hash_update(
 							&tcp_conn->rx_hash,
-							&sg[i], 1);
+							&sg[i], sg[i].length);
 				else
 					partial_sg_digest_update(
 							&tcp_conn->rx_hash,
