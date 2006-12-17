@@ -1882,7 +1882,6 @@ static void rtl8169_hw_start(struct net_device *dev)
 	    (tp->mac_version == RTL_GIGA_MAC_VER_02) ||
 	    (tp->mac_version == RTL_GIGA_MAC_VER_03) ||
 	    (tp->mac_version == RTL_GIGA_MAC_VER_04))
-		RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
 		rtl8169_set_rx_tx_config_registers(tp);
 
 	cmd = RTL_R16(CPlusCmd);
