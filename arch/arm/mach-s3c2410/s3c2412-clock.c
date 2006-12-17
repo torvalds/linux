@@ -30,6 +30,7 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
+#include <linux/serial_core.h>
 
 #include <asm/mach/map.h>
 

@@ -197,7 +197,7 @@ struct s3c2410_uartcfg {
 	unsigned char	   hwport;	 /* hardware port number */
 	unsigned char	   unused;
 	unsigned short	   flags;
-	unsigned long	   uart_flags;	 /* default uart flags */
+	upf_t		   uart_flags;	 /* default uart flags */
 
 	unsigned long	   ucon;	 /* value of ucon for port */
 	unsigned long	   ulcon;	 /* value of ulcon for port */

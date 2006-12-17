@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>
+#include <linux/serial_core.h>
 
 #include <asm/dma.h>
 #include <asm/arch/dma.h>

@@ -19,6 +19,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/serial_core.h>
 #include <linux/platform_device.h>
 
 #include <linux/mtd/map.h>

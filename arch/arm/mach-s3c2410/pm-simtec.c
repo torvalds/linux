@@ -27,7 +27,6 @@
 #include <asm/io.h>
 
 #include <asm/arch/map.h>
-#include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-mem.h>
 
