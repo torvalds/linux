@@ -477,4 +477,8 @@ void __init ep93xx_init_devices(void)
 
 	platform_device_register(&ep93xx_rtc_device);
 	platform_device_register(&ep93xx_ohci_device);
+
+#ifdef CONFIG_CRUNCH
+	elf_hwcap |= HWCAP_CRUNCH;
+#endif
 }
