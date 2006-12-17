@@ -1118,6 +1118,7 @@ static struct usb_serial_driver pl2303_device = {
 		.name =		"pl2303",
 	},
 	.id_table =		id_table,
+	.usb_driver = 		&pl2303_driver,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		1,
 	.num_bulk_out =		1,

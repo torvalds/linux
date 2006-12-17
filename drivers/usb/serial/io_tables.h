@@ -95,12 +95,21 @@ static struct usb_device_id id_table_combined [] = {
 
 MODULE_DEVICE_TABLE (usb, id_table_combined);
 
+static struct usb_driver io_driver = {
+	.name =		"io_edgeport",
+	.probe =	usb_serial_probe,
+	.disconnect =	usb_serial_disconnect,
+	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
+};
+
 static struct usb_serial_driver edgeport_2port_device = {
 	.driver = {
 		.owner		= THIS_MODULE,
 		.name		= "edgeport_2",
 	},
 	.description		= "Edgeport 2 port adapter",
+	.usb_driver		= &io_driver,
 	.id_table		= edgeport_2port_id_table,
 	.num_interrupt_in	= 1,
 	.num_bulk_in		= 1,
@@ -131,6 +140,7 @@ static struct usb_serial_driver edgeport_4port_device = {
 		.name		= "edgeport_4",
 	},
 	.description		= "Edgeport 4 port adapter",
+	.usb_driver		= &io_driver,
 	.id_table		= edgeport_4port_id_table,
 	.num_interrupt_in	= 1,
 	.num_bulk_in		= 1,
@@ -161,6 +171,7 @@ static struct usb_serial_driver edgeport_8port_device = {
 		.name		= "edgeport_8",
 	},
 	.description		= "Edgeport 8 port adapter",
+	.usb_driver		= &io_driver,
 	.id_table		= edgeport_8port_id_table,
 	.num_interrupt_in	= 1,
 	.num_bulk_in		= 1,

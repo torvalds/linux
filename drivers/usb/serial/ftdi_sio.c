@@ -615,6 +615,7 @@ static struct usb_serial_driver ftdi_sio_device = {
 		.name =		"ftdi_sio",
 	},
 	.description =		"FTDI USB Serial Device",
+	.usb_driver = 		&ftdi_driver ,
 	.id_table =		id_table_combined,
 	.num_interrupt_in =	0,
 	.num_bulk_in =		1,

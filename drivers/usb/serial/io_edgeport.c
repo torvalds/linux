@@ -242,14 +242,6 @@ static void edge_shutdown		(struct usb_serial *serial);
 
 #include "io_tables.h"	/* all of the devices that this driver supports */
 
-static struct usb_driver io_driver = {
-	.name =		"io_edgeport",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table_combined,
-	.no_dynamic_id = 	1,
-};
-
 /* function prototypes for all of our local functions */
 static void  process_rcvd_data		(struct edgeport_serial *edge_serial, unsigned char *buffer, __u16 bufferLength);
 static void process_rcvd_status		(struct edgeport_serial *edge_serial, __u8 byte2, __u8 byte3);

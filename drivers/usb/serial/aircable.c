@@ -572,8 +572,17 @@ static void aircable_unthrottle(struct usb_serial_port *port)
 		schedule_work(&priv->rx_work);
 }
 
+static struct usb_driver aircable_driver = {
+	.name =		"aircable",
+	.probe =	usb_serial_probe,
+	.disconnect =	usb_serial_disconnect,
+	.id_table =	id_table,
+	.no_dynamic_id =	1,
+};
+
 static struct usb_serial_driver aircable_device = {
 	.description =		"aircable",
+	.usb_driver = 		&aircable_driver,
 	.id_table = 		id_table,
 	.num_ports =		1,
 	.attach =		aircable_attach,
@@ -585,13 +594,6 @@ static struct usb_serial_driver aircable_device = {
 	.read_bulk_callback =	aircable_read_bulk_callback,
 	.throttle =		aircable_throttle,
 	.unthrottle =		aircable_unthrottle,
-};
-
-static struct usb_driver aircable_driver = {
-	.name =		"aircable",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table,
 };
 
 static int __init aircable_init (void)
