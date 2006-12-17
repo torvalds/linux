@@ -1,7 +1,7 @@
 /* linux/include/asm-arm/arch-s3c2410/vr1000-irq.h
  *
- * (c) 2003,2004 Simtec Electronics
- *  Ben Dooks <ben@simtec.co.uk>
+ * Copyright (c) 2003,2004 Simtec Electronics
+ *	Ben Dooks <ben@simtec.co.uk>
  *
  * Machine VR1000 - IRQ Number definitions
  *

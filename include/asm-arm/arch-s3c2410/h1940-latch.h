@@ -1,6 +1,6 @@
 /* linux/include/asm-arm/arch-s3c2410/h1940-latch.h
  *
- * (c) 2005 Simtec Electronics
+ * Copyright (c) 2005 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *

@@ -1,6 +1,6 @@
 /* linux/include/asm-arm/arch-s3c2410/bast-pmu.h
  *
- * (c) 2003,2004 Simtec Electronics
+ * Copyright (c) 2003,2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *	Vincent Sanders <vince@simtec.co.uk>
  *
