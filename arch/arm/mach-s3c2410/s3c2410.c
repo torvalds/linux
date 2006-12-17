@@ -38,11 +38,9 @@
 /* Initial IO mappings */
 
 static struct map_desc s3c2410_iodesc[] __initdata = {
-	IODESC_ENT(USBHOST),
 	IODESC_ENT(CLKPWR),
 	IODESC_ENT(LCD),
 	IODESC_ENT(TIMER),
-	IODESC_ENT(ADC),
 	IODESC_ENT(WATCHDOG),
 };
 
