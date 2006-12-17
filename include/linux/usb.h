@@ -476,6 +476,8 @@ extern void usb_driver_release_interface(struct usb_driver *driver,
 			struct usb_interface *iface);
 const struct usb_device_id *usb_match_id(struct usb_interface *interface,
 					 const struct usb_device_id *id);
+extern int usb_match_one_id(struct usb_interface *interface,
+			    const struct usb_device_id *id);
 
 extern struct usb_interface *usb_find_interface(struct usb_driver *drv,
 		int minor);
@@ -724,10 +726,20 @@ static inline int usb_endpoint_is_isoc_out(const struct usb_endpoint_descriptor 
 
 /* ----------------------------------------------------------------------- */
 
+/* Stuff for dynamic usb ids */
 struct usb_dynids {
 	spinlock_t lock;
 	struct list_head list;
 };
+
+struct usb_dynid {
+	struct list_head node;
+	struct usb_device_id id;
+};
+
+extern ssize_t usb_store_new_id(struct usb_dynids *dynids,
+				struct device_driver *driver,
+				const char *buf, size_t count);
 
 /**
  * struct usbdrv_wrap - wrapper for driver-model structure
