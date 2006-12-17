@@ -43,14 +43,13 @@ config BAST_PC104_IRQ
 
 config PM_H1940
 	bool
-	depends on PM
 	help
 	  Internal node for H1940 and related PM
 
 config ARCH_H1940
 	bool "IPAQ H1940"
 	select CPU_S3C2410
-	select PM_H1940
+	select PM_H1940 if PM
 	help
 	  Say Y here if you are using the HP IPAQ H1940
 
@@ -122,7 +121,7 @@ config MACH_VR1000
 config MACH_RX3715
 	bool "HP iPAQ rx3715"
 	select CPU_S3C2440
-	select PM_H1940
+	select PM_H1940 if PM
 	help
 	  Say Y here if you are using the HP iPAQ rx3715.
 
@@ -156,7 +155,6 @@ config S3C2410_CLOCK
 
 config S3C2410_PM
 	bool
-	depends on CONFIG_PM
 	help
 	  Power Management code common to S3C2410 and better
 
@@ -171,7 +169,7 @@ config CPU_S3C2410
 	bool
 	depends on ARCH_S3C2410
 	select S3C2410_CLOCK
-	select S3C2410_PM
+	select S3C2410_PM if PM
 	help
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line
 	  of Samsung Mobile CPUs.
@@ -186,14 +184,13 @@ config CPU_S3C2412_ONLY
 
 config S3C2412_PM
 	bool
-	default y if PM
-	depends on CPU_S3C2412
 	help
 	  Internal config node to apply S3C2412 power management
 
 config CPU_S3C2412
 	bool
 	depends on ARCH_S3C2410
+	select S3C2412_PM if PM
 	help
 	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
 
@@ -207,7 +204,7 @@ config CPU_S3C2440
 	bool
 	depends on ARCH_S3C2410
 	select S3C2410_CLOCK
-	select S3C2410_PM
+	select S3C2410_PM if PM
 	select CPU_S3C244X
 	help
 	  Support for S3C2440 Samsung Mobile CPU based systems.
@@ -216,7 +213,7 @@ config CPU_S3C2442
 	bool
 	depends on ARCH_S3C2420
 	select S3C2410_CLOCK
-	select S3C2410_PM
+	select S3C2410_PM if PM
 	select CPU_S3C244X
 	help
 	  Support for S3C2442 Samsung Mobile CPU based systems.
