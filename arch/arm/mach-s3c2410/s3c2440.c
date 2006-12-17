@@ -29,17 +29,9 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <asm/arch/regs-clock.h>
-#include <asm/arch/regs-serial.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-gpioj.h>
-#include <asm/arch/regs-dsc.h>
-
 #include "s3c2440.h"
-#include "clock.h"
 #include "devs.h"
 #include "cpu.h"
-#include "pm.h"
 
 static struct sys_device s3c2440_sysdev = {
 	.cls		= &s3c2440_sysclass,

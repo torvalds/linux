@@ -11,18 +11,7 @@
 */
 
 #ifdef CONFIG_CPU_S3C2440
-
 extern  int s3c2440_init(void);
-
-extern void s3c2440_map_io(struct map_desc *mach_desc, int size);
-
-extern void s3c2440_init_uarts(struct s3c2410_uartcfg *cfg, int no);
-
-extern void s3c2440_init_clocks(int xtal);
-
 #else
-#define s3c2440_init_clocks NULL
-#define s3c2440_init_uarts NULL
-#define s3c2440_map_io NULL
 #define s3c2440_init NULL
 #endif
