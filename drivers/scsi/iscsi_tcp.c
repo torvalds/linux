@@ -2044,13 +2044,11 @@ iscsi_tcp_conn_get_param(struct iscsi_cls_conn *cls_conn,
 		sk = tcp_conn->sock->sk;
 		if (sk->sk_family == PF_INET) {
 			inet = inet_sk(sk);
-			len = sprintf(buf, "%u.%u.%u.%u\n",
+			len = sprintf(buf, NIPQUAD_FMT "\n",
 				      NIPQUAD(inet->daddr));
 		} else {
 			np = inet6_sk(sk);
-			len = sprintf(buf,
-				"%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
-				NIP6(np->daddr));
+			len = sprintf(buf, NIP6_FMT "\n", NIP6(np->daddr));
 		}
 		mutex_unlock(&conn->xmitmutex);
 		break;
