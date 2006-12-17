@@ -3634,11 +3634,9 @@ static int ohci1394_pci_resume(struct pci_dev *pdev)
 }
 #endif /* CONFIG_PM */
 
-#define PCI_CLASS_FIREWIRE_OHCI     ((PCI_CLASS_SERIAL_FIREWIRE << 8) | 0x10)
-
 static struct pci_device_id ohci1394_pci_tbl[] = {
 	{
-		.class = 	PCI_CLASS_FIREWIRE_OHCI,
+		.class = 	PCI_CLASS_SERIAL_FIREWIRE_OHCI,
 		.class_mask = 	PCI_ANY_ID,
 		.vendor =	PCI_ANY_ID,
 		.device =	PCI_ANY_ID,
