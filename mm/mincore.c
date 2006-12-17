@@ -142,7 +142,7 @@ asmlinkage long sys_mincore(unsigned long start, size_t len,
 		 * the temporary buffer size.
 		 */
 		down_read(&current->mm->mmap_sem);
-		retval = do_mincore(start, tmp, max(pages, PAGE_SIZE));
+		retval = do_mincore(start, tmp, min(pages, PAGE_SIZE));
 		up_read(&current->mm->mmap_sem);
 
 		if (retval <= 0)
