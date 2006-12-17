@@ -8,13 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Modifications:
- *	24-Aug-2004 BJD  Start of S3C2440 CPU support
- *	04-Nov-2004 BJD  Added s3c2440_init_uarts()
- *	04-Jan-2005 BJD  Moved uart init to cpu code
- *	10-Jan-2005 BJD  Moved 2440 specific init here
- *	14-Jan-2005 BJD  Split the clock initialisation code
 */
 
 #ifdef CONFIG_CPU_S3C2440
