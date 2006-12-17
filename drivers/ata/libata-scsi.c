@@ -953,6 +953,9 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 	struct ata_taskfile *tf = &qc->tf;
 	const u8 *cdb = scmd->cmnd;
 
+	if (scmd->cmd_len < 5)
+		goto invalid_fld;
+
 	tf->flags |= ATA_TFLAG_DEVICE | ATA_TFLAG_ISADDR;
 	tf->protocol = ATA_PROT_NODATA;
 	if (cdb[1] & 0x1) {
@@ -1144,11 +1147,15 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc)
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf->protocol = ATA_PROT_NODATA;
 
-	if (cdb[0] == VERIFY)
+	if (cdb[0] == VERIFY) {
+		if (scmd->cmd_len < 10)
+			goto invalid_fld;
 		scsi_10_lba_len(cdb, &block, &n_block);
-	else if (cdb[0] == VERIFY_16)
+	} else if (cdb[0] == VERIFY_16) {
+		if (scmd->cmd_len < 16)
+			goto invalid_fld;
 		scsi_16_lba_len(cdb, &block, &n_block);
-	else
+	} else
 		goto invalid_fld;
 
 	if (!n_block)
@@ -1271,12 +1278,16 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 	switch (cdb[0]) {
 	case READ_10:
 	case WRITE_10:
+		if (unlikely(scmd->cmd_len < 10))
+			goto invalid_fld;
 		scsi_10_lba_len(cdb, &block, &n_block);
 		if (unlikely(cdb[1] & (1 << 3)))
 			tf_flags |= ATA_TFLAG_FUA;
 		break;
 	case READ_6:
 	case WRITE_6:
+		if (unlikely(scmd->cmd_len < 6))
+			goto invalid_fld;
 		scsi_6_lba_len(cdb, &block, &n_block);
 
 		/* for 6-byte r/w commands, transfer length 0
@@ -1287,6 +1298,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 		break;
 	case READ_16:
 	case WRITE_16:
+		if (unlikely(scmd->cmd_len < 16))
+			goto invalid_fld;
 		scsi_16_lba_len(cdb, &block, &n_block);
 		if (unlikely(cdb[1] & (1 << 3)))
 			tf_flags |= ATA_TFLAG_FUA;
@@ -2355,7 +2368,8 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 		if (ata_check_atapi_dma(qc))
 			using_pio = 1;
 
-	memcpy(&qc->cdb, scmd->cmnd, dev->cdb_len);
+	memset(qc->cdb, 0, dev->cdb_len);
+	memcpy(qc->cdb, scmd->cmnd, scmd->cmd_len);
 
 	qc->complete_fn = atapi_qc_complete;
 
@@ -2695,6 +2709,13 @@ static inline int __ata_scsi_queuecmd(struct scsi_cmnd *scmd,
 				      struct ata_device *dev)
 {
 	int rc = 0;
+
+	if (unlikely(!scmd->cmd_len)) {
+		ata_dev_printk(dev, KERN_WARNING, "WARNING: zero len CDB\n");
+		scmd->result = DID_ERROR << 16;
+		done(scmd);
+		return 0;
+	}
 
 	if (dev->class == ATA_DEV_ATA) {
 		ata_xlat_func_t xlat_func = ata_get_xlat_func(dev,
