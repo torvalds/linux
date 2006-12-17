@@ -581,7 +581,10 @@ static struct usb_driver aircable_driver = {
 };
 
 static struct usb_serial_driver aircable_device = {
-	.description =		"aircable",
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"aircable",
+	},
 	.usb_driver = 		&aircable_driver,
 	.id_table = 		id_table,
 	.num_ports =		1,
