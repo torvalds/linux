@@ -87,7 +87,7 @@ static void s3c2410_pm_prepare(void)
 
 }
 
-int s3c2410_pm_resume(struct sys_device *dev)
+static int s3c2410_pm_resume(struct sys_device *dev)
 {
 	unsigned long tmp;
 
