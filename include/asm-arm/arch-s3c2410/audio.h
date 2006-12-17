@@ -1,6 +1,6 @@
 /* linux/include/asm-arm/arch-s3c2410/audio.h
  *
- * (c) 2004-2005 Simtec Electronics
+ * Copyright (c) 2004-2005 Simtec Electronics
  *	http://www.simtec.co.uk/products/SWLINUX/
  *	Ben Dooks <ben@simtec.co.uk>
  *

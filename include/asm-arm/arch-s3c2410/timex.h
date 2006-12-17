@@ -1,7 +1,7 @@
 /* linux/include/asm-arm/arch-s3c2410/timex.h
  *
- * (c) 2003-2005 Simtec Electronics
- *  Ben Dooks <ben@simtec.co.uk>
+ * Copyright (c) 2003-2005 Simtec Electronics
+ *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2410 - time parameters
  *

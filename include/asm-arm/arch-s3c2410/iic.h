@@ -1,6 +1,6 @@
 /* linux/include/asm-arm/arch-s3c2410/iic.h
  *
- * (c) 2004 Simtec Electronics
+ * Copyright (c) 2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2410 - I2C Controller platfrom_device info

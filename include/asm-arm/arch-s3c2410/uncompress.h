@@ -1,7 +1,7 @@
 /* linux/include/asm-arm/arch-s3c2410/uncompress.h
  *
- * (c) 2003 Simtec Electronics
- *    Ben Dooks <ben@simtec.co.uk>
+ * Copyright (c) 2003 Simtec Electronics
+ *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2410 - uncompress code
  *
