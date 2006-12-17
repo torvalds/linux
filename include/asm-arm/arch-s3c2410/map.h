@@ -25,7 +25,7 @@
  */
 
 #ifndef __ASSEMBLY__
-#define S3C2410_ADDR(x)	  ((void __iomem *)0xF0000000 + (x))
+#define S3C2410_ADDR(x)	  ((void __iomem __force *)0xF0000000 + (x))
 #else
 #define S3C2410_ADDR(x)	  (0xF0000000 + (x))
 #endif
