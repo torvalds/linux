@@ -16,7 +16,7 @@
 
 
 #ifndef __ASSEMBLY__
-#define H1940_LATCH		((void __iomem *)0xF8000000)
+#define H1940_LATCH		((void __force __iomem *)0xF8000000)
 #else
 #define H1940_LATCH		0xF8000000
 #endif
