@@ -1859,6 +1859,18 @@ static int patch_stac9205(struct hda_codec *codec)
 
 	spec->multiout.dac_nids = spec->dac_nids;
 
+	/* Configure GPIO0 as EAPD output */
+	snd_hda_codec_write(codec, codec->afg, 0,
+			    AC_VERB_SET_GPIO_DIRECTION, 0x00000001);
+	/* Configure GPIO0 as CMOS */
+	snd_hda_codec_write(codec, codec->afg, 0, 0x7e7, 0x00000000);
+	/* Assert GPIO0 high */
+	snd_hda_codec_write(codec, codec->afg, 0,
+			    AC_VERB_SET_GPIO_DATA, 0x00000001);
+	/* Enable GPIO0 */
+	snd_hda_codec_write(codec, codec->afg, 0,
+			    AC_VERB_SET_GPIO_MASK, 0x00000001);
+
 	err = stac92xx_parse_auto_config(codec, 0x1f, 0x20);
 	if (err < 0) {
 		stac92xx_free(codec);
