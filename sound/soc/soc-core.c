@@ -2,8 +2,12 @@
  * soc-core.c  --  ALSA SoC Audio Layer
  *
  * Copyright 2005 Wolfson Microelectronics PLC.
+ * Copyright 2005 Openedhand Ltd.
+ *
  * Author: Liam Girdwood
  *         liam.girdwood@wolfsonmicro.com or linux@wolfsonmicro.com
+ *         with code, comments and ideas from :-
+ *         Richard Purdie <richard@openedhand.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -517,7 +521,8 @@ found:
 	 * Check we have matching bitclocks. If we don't then it means the
 	 * sysclock returned by either the codec or cpu DAI (selected by the
 	 * machine sysclock function) is wrong compared with the supported DAI
-	 * modes for the codec or cpu DAI.
+	 * modes for the codec or cpu DAI. Check  your codec or CPU DAI
+	 * config_sysclock() functions.
 	 */
 	if (cpu_bclk != codec_bclk && cpu_bclk){
 		printk(KERN_ERR
