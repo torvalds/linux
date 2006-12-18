@@ -2503,7 +2503,7 @@ static int __init setup_notify(struct ibm_struct *ibm)
 		       ibm->name, status);
 		return -ENODEV;
 	}
-
+	ibm->notify_installed = 1;
 	return 0;
 }
 
@@ -2580,7 +2580,6 @@ static int __init ibm_init(struct ibm_struct *ibm)
 		ret = setup_notify(ibm);
 		if (ret < 0)
 			return ret;
-		ibm->notify_installed = 1;
 	}
 
 	return 0;
