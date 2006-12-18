@@ -959,6 +959,13 @@ static int tg3_phy_reset(struct tg3 *tp)
 	u32 phy_status;
 	int err;
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+		u32 val;
+
+		val = tr32(GRC_MISC_CFG);
+		tw32_f(GRC_MISC_CFG, val & ~GRC_MISC_CFG_EPHY_IDDQ);
+		udelay(40);
+	}
 	err  = tg3_readphy(tp, MII_BMSR, &phy_status);
 	err |= tg3_readphy(tp, MII_BMSR, &phy_status);
 	if (err != 0)
@@ -1170,7 +1177,15 @@ static void tg3_power_down_phy(struct tg3 *tp)
 	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
 		return;
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906) {
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+		u32 val;
+
+		tg3_bmcr_reset(tp);
+		val = tr32(GRC_MISC_CFG);
+		tw32_f(GRC_MISC_CFG, val | GRC_MISC_CFG_EPHY_IDDQ);
+		udelay(40);
+		return;
+	} else {
 		tg3_writephy(tp, MII_TG3_EXT_CTRL,
 			     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x01b2);
