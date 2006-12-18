@@ -41,21 +41,7 @@
 	data = *((volatile int *)IXP23XX_PCI_SDRAM_BAR);		\
 	 __phys_to_virt((((b - (data & 0xfffffff0)) + 0x00000000))); })
 
-/*
- * Coherency support.  Only supported on A2 CPUs or on A1
- * systems that have the cache coherency workaround.
- */
-static inline int __ixp23xx_arch_is_coherent(void)
-{
-	extern unsigned int processor_id;
-
-	if (((processor_id & 15) >= 4) || machine_is_roadrunner())
-		return 1;
-
-	return 0;
-}
-
-#define arch_is_coherent()	__ixp23xx_arch_is_coherent()
+#define arch_is_coherent()	1
 
 #endif
 
