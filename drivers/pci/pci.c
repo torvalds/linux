@@ -682,22 +682,28 @@ pci_restore_state(struct pci_dev *dev)
  * @bars: bitmask of BAR's that must be configured
  *
  *  Initialize device before it's used by a driver. Ask low-level code
- *  to enable selected I/O and memory resources. Wake up the device if it 
+ *  to enable selected I/O and memory resources. Wake up the device if it
  *  was suspended. Beware, this function can fail.
  */
- 
 int
 pci_enable_device_bars(struct pci_dev *dev, int bars)
 {
 	int err;
 
+	if (atomic_add_return(1, &dev->enable_cnt) > 1)
+		return 0;		/* already enabled */
+
 	err = pci_set_power_state(dev, PCI_D0);
 	if (err < 0 && err != -EIO)
-		return err;
+		goto err_out;
 	err = pcibios_enable_device(dev, bars);
 	if (err < 0)
-		return err;
-	return 0;
+		goto err_out;
+	pci_fixup_device(pci_fixup_enable, dev);
+
+err_out:
+	atomic_dec(&dev->enable_cnt);
+	return err;
 }
 
 /**
@@ -713,13 +719,7 @@ pci_enable_device_bars(struct pci_dev *dev, int bars)
  */
 int pci_enable_device(struct pci_dev *dev)
 {
-	int result;
-	if (atomic_add_return(1, &dev->enable_cnt) > 1)
-		return 0;		/* already enabled */
-	result = __pci_enable_device(dev);
-	if (result < 0)
-		atomic_dec(&dev->enable_cnt);
-	return result;
+	return pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
 }
 
 /**
