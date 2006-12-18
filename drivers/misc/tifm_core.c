@@ -71,8 +71,6 @@ static void tifm_free(struct class_device *cdev)
 	struct tifm_adapter *fm = container_of(cdev, struct tifm_adapter, cdev);
 
 	kfree(fm->sockets);
-	if (fm->wq)
-		destroy_workqueue(fm->wq);
 	kfree(fm);
 }
 
@@ -101,7 +99,8 @@ void tifm_free_adapter(struct tifm_adapter *fm)
 }
 EXPORT_SYMBOL(tifm_free_adapter);
 
-int tifm_add_adapter(struct tifm_adapter *fm)
+int tifm_add_adapter(struct tifm_adapter *fm,
+		     int (*mediathreadfn)(void *data))
 {
 	int rc;
 
@@ -113,10 +112,10 @@ int tifm_add_adapter(struct tifm_adapter *fm)
 	spin_unlock(&tifm_adapter_lock);
 	if (!rc) {
 		snprintf(fm->cdev.class_id, BUS_ID_SIZE, "tifm%u", fm->id);
-		strncpy(fm->wq_name, fm->cdev.class_id, KOBJ_NAME_LEN);
+		fm->media_switcher = kthread_create(mediathreadfn,
+						    fm, "tifm/%u", fm->id);
 
-		fm->wq = create_singlethread_workqueue(fm->wq_name);
-		if (fm->wq)
+		if (!IS_ERR(fm->media_switcher))
 			return class_device_add(&fm->cdev);
 
 		spin_lock(&tifm_adapter_lock);
