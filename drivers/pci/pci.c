@@ -676,6 +676,36 @@ pci_restore_state(struct pci_dev *dev)
 	return 0;
 }
 
+static int do_pci_enable_device(struct pci_dev *dev, int bars)
+{
+	int err;
+
+	err = pci_set_power_state(dev, PCI_D0);
+	if (err < 0 && err != -EIO)
+		return err;
+	err = pcibios_enable_device(dev, bars);
+	if (err < 0)
+		return err;
+	pci_fixup_device(pci_fixup_enable, dev);
+
+	return 0;
+}
+
+/**
+ * __pci_reenable_device - Resume abandoned device
+ * @dev: PCI device to be resumed
+ *
+ *  Note this function is a backend of pci_default_resume and is not supposed
+ *  to be called by normal code, write proper resume handler and use it instead.
+ */
+int
+__pci_reenable_device(struct pci_dev *dev)
+{
+	if (atomic_read(&dev->enable_cnt))
+		return do_pci_enable_device(dev, (1 << PCI_NUM_RESOURCES) - 1);
+	return 0;
+}
+
 /**
  * pci_enable_device_bars - Initialize some of a device for use
  * @dev: PCI device to be initialized
@@ -693,16 +723,9 @@ pci_enable_device_bars(struct pci_dev *dev, int bars)
 	if (atomic_add_return(1, &dev->enable_cnt) > 1)
 		return 0;		/* already enabled */
 
-	err = pci_set_power_state(dev, PCI_D0);
-	if (err < 0 && err != -EIO)
-		goto err_out;
-	err = pcibios_enable_device(dev, bars);
+	err = do_pci_enable_device(dev, bars);
 	if (err < 0)
-		goto err_out;
-	pci_fixup_device(pci_fixup_enable, dev);
-
-err_out:
-	atomic_dec(&dev->enable_cnt);
+		atomic_dec(&dev->enable_cnt);
 	return err;
 }
 
