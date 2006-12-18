@@ -446,6 +446,11 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->port[i] = port;
 	}
 
+	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
+	netxen_pinit_from_rom(adapter, 0);
+	udelay(500);
+	netxen_load_firmware(adapter);
+	netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 	/*
 	 * delay a while to ensure that the Pegs are up & running.
 	 * Otherwise, we might see some flaky behaviour.
@@ -533,6 +538,8 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	netxen_nic_stop_all_ports(adapter);
 	/* leave the hw in the same state as reboot */
+	netxen_pinit_from_rom(adapter, 0);
+	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
 	netxen_load_firmware(adapter);
 	netxen_free_adapter_offload(adapter);
 
