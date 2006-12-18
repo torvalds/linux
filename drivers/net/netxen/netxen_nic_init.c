@@ -928,7 +928,7 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 		}
 		netxen_process_rcv(adapter, ctxid, desc);
 		netxen_clear_sts_owner(desc);
-		netxen_set_sts_owner(desc, STATUS_OWNER_PHANTOM);
+		netxen_set_sts_owner(desc, cpu_to_le16(STATUS_OWNER_PHANTOM));
 		consumer = (consumer + 1) & (adapter->max_rx_desc_count - 1);
 		count++;
 	}
@@ -1138,13 +1138,13 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 		 */
 		dma = pci_map_single(pdev, skb->data, rcv_desc->dma_size,
 				     PCI_DMA_FROMDEVICE);
-		pdesc->addr_buffer = dma;
+		pdesc->addr_buffer = cpu_to_le64(dma);
 		buffer->skb = skb;
 		buffer->state = NETXEN_BUFFER_BUSY;
 		buffer->dma = dma;
 		/* make a rcv descriptor  */
-		pdesc->reference_handle = buffer->ref_handle;
-		pdesc->buffer_length = rcv_desc->dma_size;
+		pdesc->reference_handle = cpu_to_le16(buffer->ref_handle);
+		pdesc->buffer_length = cpu_to_le32(rcv_desc->dma_size);
 		DPRINTK(INFO, "done writing descripter\n");
 		producer =
 		    get_next_index(producer, rcv_desc->max_rx_desc_count);
@@ -1232,8 +1232,8 @@ void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter, uint32_t ctx,
 					     PCI_DMA_FROMDEVICE);
 
 		/* make a rcv descriptor  */
-		pdesc->reference_handle = le16_to_cpu(buffer->ref_handle);
-		pdesc->buffer_length = le16_to_cpu(rcv_desc->dma_size);
+		pdesc->reference_handle = cpu_to_le16(buffer->ref_handle);
+		pdesc->buffer_length = cpu_to_le16(rcv_desc->dma_size);
 		pdesc->addr_buffer = cpu_to_le64(buffer->dma);
 		DPRINTK(INFO, "done writing descripter\n");
 		producer =
