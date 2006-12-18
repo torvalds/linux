@@ -742,7 +742,6 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 
 	if (old == NULL || old->width != new->width || old->height != new->height ||
 			old->video_encoding != new->video_encoding) {
-		int is_scaling;
 		u16 w = new->width;
 		u16 h = new->height;
 
@@ -752,20 +751,18 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 		}
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_FRAME_SIZE, 2, h, w);
 		if (err) return err;
+	}
 
+	if (new->width != 720 || new->height != (new->is_50hz ? 576 : 480)) {
 		/* Adjust temporal filter if necessary. The problem with the temporal
 		   filter is that it works well with full resolution capturing, but
 		   not when the capture window is scaled (the filter introduces
-		   a ghosting effect). So if the capture window changed, and there is
-		   no updated filter value, then the filter is set depending on whether
-		   the new window is full resolution or not.
+		   a ghosting effect). So if the capture window is scaled, then
+		   force the filter to 0.
 
-		   For full resolution a setting of 8 really improves the video
+		   For full resolution the filter really improves the video
 		   quality, especially if the original video quality is suboptimal. */
-		is_scaling = new->width != 720 || new->height != (new->is_50hz ? 576 : 480);
-		if (old && old->video_temporal_filter == temporal) {
-			temporal = is_scaling ? 0 : 8;
-		}
+		temporal = 0;
 	}
 
 	if (old == NULL || old->stream_type != new->stream_type) {
