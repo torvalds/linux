@@ -935,8 +935,9 @@ struct file *create_write_pipe(void)
 
 void free_write_pipe(struct file *f)
 {
-	mntput(f->f_path.mnt);
+	free_pipe_info(f->f_dentry->d_inode);
 	dput(f->f_path.dentry);
+	mntput(f->f_path.mnt);
 	put_filp(f);
 }
 
@@ -994,6 +995,8 @@ int do_pipe(int *fd)
  err_fdr:
 	put_unused_fd(fdr);
  err_read_pipe:
+	dput(fr->f_dentry);
+	mntput(fr->f_vfsmnt);
 	put_filp(fr);
  err_write_pipe:
 	free_write_pipe(fw);
