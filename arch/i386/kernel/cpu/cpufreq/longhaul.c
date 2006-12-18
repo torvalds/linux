@@ -787,8 +787,9 @@ static int __init longhaul_init(void)
 	switch (c->x86_model) {
 	case 6 ... 9:
 		return cpufreq_register_driver(&longhaul_driver);
+	case 10:
+		printk(KERN_ERR PFX "Use acpi-cpufreq driver for VIA C7\n");
 	default:
-		printk (KERN_INFO PFX "Unknown VIA CPU. Contact davej@codemonkey.org.uk\n");
 	}
 
 	return -ENODEV;
