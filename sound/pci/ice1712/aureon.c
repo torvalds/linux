@@ -474,7 +474,8 @@ static void aureon_spi_write(struct snd_ice1712 *ice, unsigned int cs, unsigned 
 
 	tmp = snd_ice1712_gpio_read(ice);
 
-	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_PRODIGY71LT) {
+	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_PRODIGY71LT ||
+	    ice->eeprom.subvendor == VT1724_SUBDEVICE_PRODIGY71XT) {
 		snd_ice1712_gpio_set_mask(ice, ~(PRODIGY_SPI_MOSI|PRODIGY_SPI_CLK|PRODIGY_WM_CS));
 		mosi = PRODIGY_SPI_MOSI;
 		clk = PRODIGY_SPI_CLK;
@@ -601,7 +602,9 @@ static unsigned short wm_get(struct snd_ice1712 *ice, int reg)
 static void wm_put_nocache(struct snd_ice1712 *ice, int reg, unsigned short val)
 {
 	aureon_spi_write(ice,
-			(ice->eeprom.subvendor == VT1724_SUBDEVICE_PRODIGY71LT ? PRODIGY_WM_CS : AUREON_WM_CS),
+			 ((ice->eeprom.subvendor == VT1724_SUBDEVICE_PRODIGY71LT ||
+			   ice->eeprom.subvendor == VT1724_SUBDEVICE_PRODIGY71XT) ?
+			 PRODIGY_WM_CS : AUREON_WM_CS),
 			(reg << 9) | (val & 0x1ff), 16);
 }
 
@@ -1288,12 +1291,14 @@ static int aureon_set_headphone_amp(struct snd_ice1712 *ice, int enable)
 
 	tmp2 = tmp = snd_ice1712_gpio_read(ice);
 	if (enable)
-		if (ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71LT)
+		if (ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71LT &&
+		    ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71XT)
 			tmp |= AUREON_HP_SEL;
 		else
 			tmp |= PRODIGY_HP_SEL;
 	else
-		if (ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71LT)
+		if (ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71LT &&
+		    ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71XT)
 			tmp &= ~ AUREON_HP_SEL;
 		else
 			tmp &= ~ PRODIGY_HP_SEL;
@@ -1898,7 +1903,8 @@ static int __devinit aureon_add_controls(struct snd_ice1712 *ice)
 				return err;
 		}
 	}
-	else if (ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71LT) {
+	else if (ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71LT &&
+		 ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71XT) {
 		for (i = 0; i < ARRAY_SIZE(ac97_controls); i++) {
 			err = snd_ctl_add(ice->card, snd_ctl_new1(&ac97_controls[i], ice));
 			if (err < 0)
@@ -1906,7 +1912,8 @@ static int __devinit aureon_add_controls(struct snd_ice1712 *ice)
 		}
 	}
 
-	if (ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71LT) {
+	if (ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71LT &&
+	    ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71XT) {
 		unsigned char id;
 		snd_ice1712_save_gpio_status(ice);
 		id = aureon_cs8415_get(ice, CS8415_ID);
@@ -2062,7 +2069,8 @@ static int __devinit aureon_init(struct snd_ice1712 *ice)
 
 	/* initialize WM8770 codec */
 	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_PRODIGY71 ||
-		ice->eeprom.subvendor == VT1724_SUBDEVICE_PRODIGY71LT)
+		ice->eeprom.subvendor == VT1724_SUBDEVICE_PRODIGY71LT ||
+	        ice->eeprom.subvendor == VT1724_SUBDEVICE_PRODIGY71XT)
 		p = wm_inits_prodigy;
 	else
 		p = wm_inits_aureon;
@@ -2070,7 +2078,8 @@ static int __devinit aureon_init(struct snd_ice1712 *ice)
 		wm_put(ice, p[0], p[1]);
 
 	/* initialize CS8415A codec */
-	if (ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71LT) {
+	if (ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71LT &&
+	    ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71XT) {
 		for (p = cs_inits; *p != (unsigned short)-1; p++)
 			aureon_spi_write(ice, AUREON_CS8415_CS, *p | 0x200000, 24);
 		ice->spec.aureon.cs8415_mux = 1;
@@ -2163,7 +2172,22 @@ static unsigned char prodigy71lt_eeprom[] __devinitdata = {
 	0x00,	/* GPIO_STATE1 */
 	0x00,	/* GPIO_STATE2 */
 };
-	
+
+static unsigned char prodigy71xt_eeprom[] __devinitdata = {
+	0x4b,	/* SYSCINF: clock 512, spdif-in/ADC, 4DACs */
+	0x80,	/* ACLINK: I2S */
+	0xfc,	/* I2S: vol, 96k, 24bit, 192k */
+	0xc3,	/* SPDIF: out-en, out-int, spdif-in */
+	0xff,	/* GPIO_DIR */
+	0xff,	/* GPIO_DIR1 */
+	0x5f,	/* GPIO_DIR2 */
+	0x00,	/* GPIO_MASK */
+	0x00,	/* GPIO_MASK1 */
+	0x00,	/* GPIO_MASK2 */
+	0x00,	/* GPIO_STATE */
+	0x00,	/* GPIO_STATE1 */
+	0x00,	/* GPIO_STATE2 */
+};
 
 /* entry point */
 struct snd_ice1712_card_info snd_vt1724_aureon_cards[] __devinitdata = {
@@ -2215,6 +2239,16 @@ struct snd_ice1712_card_info snd_vt1724_aureon_cards[] __devinitdata = {
 		.build_controls = aureon_add_controls,
 		.eeprom_size = sizeof(prodigy71lt_eeprom),
 		.eeprom_data = prodigy71lt_eeprom,
+		.driver = "Prodigy71LT",
+	},
+	{
+		.subvendor = VT1724_SUBDEVICE_PRODIGY71XT,
+		.name = "Audiotrak Prodigy 7.1 XT",
+		.model = "prodigy71xt",
+		.chip_init = aureon_init,
+		.build_controls = aureon_add_controls,
+		.eeprom_size = sizeof(prodigy71xt_eeprom),
+		.eeprom_data = prodigy71xt_eeprom,
 		.driver = "Prodigy71LT",
 	},
 	{ } /* terminator */
