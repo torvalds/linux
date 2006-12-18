@@ -90,6 +90,8 @@ static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(0x4040, 0x0003)},
 	{PCI_DEVICE(0x4040, 0x0004)},
 	{PCI_DEVICE(0x4040, 0x0005)},
+	{PCI_DEVICE(0x4040, 0x0024)},
+	{PCI_DEVICE(0x4040, 0x0025)},
 	{0,}
 };
 
