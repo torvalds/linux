@@ -533,6 +533,7 @@ void pci_update_resource(struct pci_dev *dev, struct resource *res, int resno);
 int __must_check pci_assign_resource(struct pci_dev *dev, int i);
 int __must_check pci_assign_resource_fixed(struct pci_dev *dev, int i);
 void pci_restore_bars(struct pci_dev *dev);
+int pci_select_bars(struct pci_dev *dev, unsigned long flags);
 
 /* ROM control related routines */
 void __iomem __must_check *pci_map_rom(struct pci_dev *pdev, size_t *size);
@@ -561,6 +562,8 @@ int __must_check pci_request_regions(struct pci_dev *, const char *);
 void pci_release_regions(struct pci_dev *);
 int __must_check pci_request_region(struct pci_dev *, int, const char *);
 void pci_release_region(struct pci_dev *, int);
+int pci_request_selected_regions(struct pci_dev *, int, const char *);
+void pci_release_selected_regions(struct pci_dev *, int);
 
 /* drivers/pci/bus.c */
 int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
