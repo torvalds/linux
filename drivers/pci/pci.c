@@ -701,29 +701,6 @@ pci_enable_device_bars(struct pci_dev *dev, int bars)
 }
 
 /**
- * __pci_enable_device - Initialize device before it's used by a driver.
- * @dev: PCI device to be initialized
- *
- *  Initialize device before it's used by a driver. Ask low-level code
- *  to enable I/O and memory. Wake up the device if it was suspended.
- *  Beware, this function can fail.
- *
- * Note this function is a backend and is not supposed to be called by
- * normal code, use pci_enable_device() instead.
- */
-int
-__pci_enable_device(struct pci_dev *dev)
-{
-	int err;
-
-	err = pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
-	if (err)
-		return err;
-	pci_fixup_device(pci_fixup_enable, dev);
-	return 0;
-}
-
-/**
  * pci_enable_device - Initialize device before it's used by a driver.
  * @dev: PCI device to be initialized
  *
