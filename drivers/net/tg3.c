@@ -7974,6 +7974,10 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		tp->link_config.duplex = cmd->duplex;
   	}
 
+	tp->link_config.orig_speed = tp->link_config.speed;
+	tp->link_config.orig_duplex = tp->link_config.duplex;
+	tp->link_config.orig_autoneg = tp->link_config.autoneg;
+
 	if (netif_running(dev))
 		tg3_setup_phy(tp, 1);
 
