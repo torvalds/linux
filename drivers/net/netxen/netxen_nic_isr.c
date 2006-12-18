@@ -157,7 +157,8 @@ void netxen_nic_isr_other(struct netxen_adapter *adapter)
 	for (portno = 0; portno < NETXEN_NIU_MAX_GBE_PORTS; portno++) {
 		linkup = val & 1;
 		if (linkup != (qg_linksup & 1)) {
-			printk(KERN_INFO "%s: PORT %d link %s\n",
+			printk(KERN_INFO "%s: %s PORT %d link %s\n",
+			       adapter->port[portno]->netdev->name,
 			       netxen_nic_driver_name, portno,
 			       ((linkup == 0) ? "down" : "up"));
 			netxen_indicate_link_status(adapter, portno, linkup);
