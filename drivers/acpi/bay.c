@@ -30,6 +30,7 @@
 #include <acpi/acpi_drivers.h>
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>
+#include <linux/platform_device.h>
 
 #define ACPI_BAY_DRIVER_NAME "ACPI Removable Drive Bay Driver"
 
@@ -45,7 +46,6 @@ MODULE_LICENSE("GPL");
 	struct acpi_buffer buffer = {sizeof(prefix), prefix};\
 	acpi_get_name(h, ACPI_FULL_PATHNAME, &buffer);\
 	printk(KERN_DEBUG PREFIX "%s: %s\n", prefix, s); }
-
 static void bay_notify(acpi_handle handle, u32 event, void *data);
 static int acpi_bay_add(struct acpi_device *device);
 static int acpi_bay_remove(struct acpi_device *device, int type);
@@ -66,6 +66,7 @@ struct bay {
 	acpi_handle handle;
 	char *name;
 	struct list_head list;
+	struct platform_device *pdev;
 };
 
 LIST_HEAD(drive_bays);
@@ -133,6 +134,33 @@ static void eject_device(acpi_handle handle)
 		pr_debug("Failed to evaluate _EJ0!\n");
 }
 
+/*
+ * show_present - read method for "present" file in sysfs
+ */
+static ssize_t show_present(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct bay *bay = dev_get_drvdata(dev);
+	return snprintf(buf, PAGE_SIZE, "%d\n", bay_present(bay));
+
+}
+DEVICE_ATTR(present, S_IRUGO, show_present, NULL);
+
+/*
+ * write_eject - write method for "eject" file in sysfs
+ */
+static ssize_t write_eject(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct bay *bay = dev_get_drvdata(dev);
+
+	if (!count)
+		return -EINVAL;
+
+	eject_device(bay->handle);
+	return count;
+}
+DEVICE_ATTR(eject, S_IWUSR, NULL, write_eject);
 
 /**
  * is_ata - see if a device is an ata device
@@ -218,14 +246,31 @@ static int acpi_bay_add(struct acpi_device *device)
 
 static int acpi_bay_add_fs(struct bay *bay)
 {
-	if (!bay)
-		return -EINVAL;
+	int ret;
+	struct device *dev = &bay->pdev->dev;
+
+	ret = device_create_file(dev, &dev_attr_present);
+	if (ret)
+		goto add_fs_err;
+	ret = device_create_file(dev, &dev_attr_eject);
+	if (ret) {
+		device_remove_file(dev, &dev_attr_present);
+		goto add_fs_err;
+	}
+	return 0;
+
+ add_fs_err:
+	bay_dprintk(bay->handle, "Error adding sysfs files\n");
+	return ret;
 }
 
 static void acpi_bay_remove_fs(struct bay *bay)
 {
-	if (!bay)
-		return;
+	struct device *dev = &bay->pdev->dev;
+
+	/* cleanup sysfs */
+	device_remove_file(dev, &dev_attr_present);
+	device_remove_file(dev, &dev_attr_eject);
 }
 
 static int bay_is_dock_device(acpi_handle handle)
@@ -240,10 +285,11 @@ static int bay_is_dock_device(acpi_handle handle)
 	return (is_dock_device(handle) || is_dock_device(parent));
 }
 
-static int bay_add(acpi_handle handle)
+static int bay_add(acpi_handle handle, int id)
 {
 	acpi_status status;
 	struct bay *new_bay;
+	struct platform_device *pdev;
 	struct acpi_buffer nbuffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &nbuffer);
 
@@ -252,12 +298,24 @@ static int bay_add(acpi_handle handle)
 	/*
 	 * Initialize bay device structure
 	 */
-	new_bay = kmalloc(GFP_ATOMIC, sizeof(*new_bay));
+	new_bay = kzalloc(GFP_ATOMIC, sizeof(*new_bay));
 	INIT_LIST_HEAD(&new_bay->list);
 	new_bay->handle = handle;
 	new_bay->name = (char *)nbuffer.pointer;
-	list_add(&new_bay->list, &drive_bays);
-	acpi_bay_add_fs(new_bay);
+
+	/* initialize platform device stuff */
+	pdev = platform_device_register_simple(ACPI_BAY_CLASS, id, NULL, 0);
+	if (pdev == NULL) {
+		printk(KERN_ERR PREFIX "Error registering bay device\n");
+		goto bay_add_err;
+	}
+	new_bay->pdev = pdev;
+	platform_set_drvdata(pdev, new_bay);
+
+	if (acpi_bay_add_fs(new_bay)) {
+		platform_device_unregister(new_bay->pdev);
+		goto bay_add_err;
+	}
 
 	/* register for events on this device */
 	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
@@ -273,8 +331,14 @@ static int bay_add(acpi_handle handle)
 		bay_dprintk(handle, "Is dependent on dock\n");
 		register_hotplug_dock_device(handle, bay_notify, new_bay);
 	}
+	list_add(&new_bay->list, &drive_bays);
 	printk(KERN_INFO PREFIX "Bay [%s] Added\n", new_bay->name);
 	return 0;
+
+bay_add_err:
+	kfree(new_bay->name);
+	kfree(new_bay);
+	return -ENODEV;
 }
 
 static int acpi_bay_remove(struct acpi_device *device, int type)
@@ -393,8 +457,8 @@ find_bay(acpi_handle handle, u32 lvl, void *context, void **rv)
 	 */
 	if (is_ejectable_bay(handle)) {
 		bay_dprintk(handle, "found ejectable bay");
-		bay_add(handle);
-		(*count)++;
+		if (!bay_add(handle, *count))
+			(*count)++;
 	}
 	return AE_OK;
 }
@@ -429,6 +493,7 @@ static void __exit bay_exit(void)
 		acpi_bay_remove_fs(bay);
 		acpi_remove_notify_handler(bay->handle, ACPI_SYSTEM_NOTIFY,
 			bay_notify);
+		platform_device_unregister(bay->pdev);
 		kfree(bay->name);
 		kfree(bay);
 	}
