@@ -1186,7 +1186,7 @@ done_opts:
 		return 0;
 
 	if (hash_expected && !hash_location) {
-		LIMIT_NETDEBUG(KERN_INFO "MD5 Hash NOT expected but found "
+		LIMIT_NETDEBUG(KERN_INFO "MD5 Hash expected but NOT found "
 			       "(" NIPQUAD_FMT ", %d)->(" NIPQUAD_FMT ", %d)\n",
 			       NIPQUAD(iph->saddr), ntohs(th->source),
 			       NIPQUAD(iph->daddr), ntohs(th->dest));
