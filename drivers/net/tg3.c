@@ -6981,6 +6981,8 @@ static int tg3_open(struct net_device *dev)
 	struct tg3 *tp = netdev_priv(dev);
 	int err;
 
+	netif_carrier_off(tp->dev);
+
 	tg3_full_lock(tp, 0);
 
 	err = tg3_set_power_state(tp, PCI_D0);
@@ -11920,14 +11922,14 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 */
 	pci_save_state(tp->pdev);
 
+	pci_set_drvdata(pdev, dev);
+
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_ERR PFX "Cannot register net device, "
 		       "aborting.\n");
 		goto err_out_iounmap;
 	}
-
-	pci_set_drvdata(pdev, dev);
 
 	printk(KERN_INFO "%s: Tigon3 [partno(%s) rev %04x PHY(%s)] (%s) %s Ethernet ",
 	       dev->name,
@@ -11958,8 +11960,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	       dev->name, tp->dma_rwctrl,
 	       (pdev->dma_mask == DMA_32BIT_MASK) ? 32 :
 	        (((u64) pdev->dma_mask == DMA_40BIT_MASK) ? 40 : 64));
-
-	netif_carrier_off(tp->dev);
 
 	return 0;
 
