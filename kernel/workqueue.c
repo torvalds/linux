@@ -637,9 +637,11 @@ int schedule_on_each_cpu(work_func_t func)
 
 	mutex_lock(&workqueue_mutex);
 	for_each_online_cpu(cpu) {
-		INIT_WORK(per_cpu_ptr(works, cpu), func);
-		__queue_work(per_cpu_ptr(keventd_wq->cpu_wq, cpu),
-				per_cpu_ptr(works, cpu));
+		struct work_struct *work = per_cpu_ptr(works, cpu);
+
+		INIT_WORK(work, func);
+		set_bit(WORK_STRUCT_PENDING, work_data_bits(work));
+		__queue_work(per_cpu_ptr(keventd_wq->cpu_wq, cpu), work);
 	}
 	mutex_unlock(&workqueue_mutex);
 	flush_workqueue(keventd_wq);
