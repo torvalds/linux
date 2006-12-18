@@ -2641,6 +2641,10 @@ static void myri10ge_watchdog(struct work_struct *work)
 		 * nic was resumed from power saving mode.
 		 */
 		myri10ge_restore_state(mgp);
+
+		/* save state again for accounting reasons */
+		myri10ge_save_state(mgp);
+
 	} else {
 		/* if we get back -1's from our slot, perhaps somebody
 		 * powered off our card.  Don't try to reset it in
@@ -2907,7 +2911,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	status = register_netdev(netdev);
 	if (status != 0) {
 		dev_err(&pdev->dev, "register_netdev failed: %d\n", status);
-		goto abort_with_irq;
+		goto abort_with_state;
 	}
 	dev_info(dev, "%s IRQ %d, tx bndry %d, fw %s, WC %s\n",
 		 (mgp->msi_enabled ? "MSI" : "xPIC"),
@@ -2916,7 +2920,8 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
-abort_with_irq:
+abort_with_state:
+	myri10ge_restore_state(mgp);
 	free_irq(pdev->irq, mgp);
 	if (mgp->msi_enabled)
 		pci_disable_msi(pdev);
@@ -2975,6 +2980,9 @@ static void myri10ge_remove(struct pci_dev *pdev)
 		pci_disable_msi(pdev);
 
 	myri10ge_dummy_rdma(mgp, 0);
+
+	/* avoid a memory leak */
+	myri10ge_restore_state(mgp);
 
 	bytes = myri10ge_max_intr_slots * sizeof(*mgp->rx_done.entry);
 	dma_free_coherent(&pdev->dev, bytes,
