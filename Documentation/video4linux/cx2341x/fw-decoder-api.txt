@@ -32,6 +32,10 @@ Description
 	playback stops at specified PTS.
 Param[0]
 	Display 0=last frame, 1=black
+	Note: this takes effect immediately, so if you want to wait for a PTS,
+	then use '0', otherwise the screen goes to black at once.
+	You can call this later (even if there is no playback) with a 1 value
+	to set the screen to black.
 Param[1]
 	PTS low
 Param[2]
@@ -60,8 +64,12 @@ Param[0]
 	    31   Speed:
 		     '0' slow
 		     '1' fast
+	Note: n seems to be limited to 2. Anything higher does not result in
+	faster playback. Instead the host should start dropping frames.
 Param[1]
 	Direction: 0=forward, 1=reverse
+	Note: to make reverse playback work you have to write full GOPs in
+	reverse order.
 Param[2]
 	Picture mask:
 	    1=I frames
@@ -69,6 +77,8 @@ Param[2]
 	    7=I, P, B frames
 Param[3]
 	B frames per GOP (for reverse play only)
+	Note: apparently this does not work. For reverse play I can only make it
+	work by selecting I or I and P frames in the Picture mask.
 Param[4]
 	Mute audio: 0=disable, 1=enable
 Param[5]
@@ -212,6 +222,7 @@ Description
 	Select audio mode
 Param[0]
 	Dual mono mode action
+	    0=Stereo, 1=Left, 2=Right, 3=Mono, 4=Swap, -1=Unchanged
 Param[1]
 	Stereo mode action:
 	    0=Stereo, 1=Left, 2=Right, 3=Mono, 4=Swap, -1=Unchanged
@@ -225,6 +236,9 @@ Description
 	Counterpart to API 0xD5
 Param[0]
 	Event: 0=Audio mode change between stereo and dual channel
+	Event: 3=Decoder started
+	Event: 4=Unknown: goes off 10-15 times per second while decoding.
+	Event: 5=Some sync event: goes off once per frame.
 Param[1]
 	Notification 0=disabled, 1=enabled
 Param[2]
