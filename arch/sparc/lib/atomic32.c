@@ -76,3 +76,42 @@ void atomic_set(atomic_t *v, int i)
 	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
 }
 EXPORT_SYMBOL(atomic_set);
+
+unsigned long ___set_bit(unsigned long *addr, unsigned long mask)
+{
+	unsigned long old, flags;
+
+	spin_lock_irqsave(ATOMIC_HASH(addr), flags);
+	old = *addr;
+	*addr = old | mask;
+	spin_unlock_irqrestore(ATOMIC_HASH(addr), flags);
+
+	return old & mask;
+}
+EXPORT_SYMBOL(___set_bit);
+
+unsigned long ___clear_bit(unsigned long *addr, unsigned long mask)
+{
+	unsigned long old, flags;
+
+	spin_lock_irqsave(ATOMIC_HASH(addr), flags);
+	old = *addr;
+	*addr = old & ~mask;
+	spin_unlock_irqrestore(ATOMIC_HASH(addr), flags);
+
+	return old & mask;
+}
+EXPORT_SYMBOL(___clear_bit);
+
+unsigned long ___change_bit(unsigned long *addr, unsigned long mask)
+{
+	unsigned long old, flags;
+
+	spin_lock_irqsave(ATOMIC_HASH(addr), flags);
+	old = *addr;
+	*addr = old ^ mask;
+	spin_unlock_irqrestore(ATOMIC_HASH(addr), flags);
+
+	return old & mask;
+}
+EXPORT_SYMBOL(___change_bit);
