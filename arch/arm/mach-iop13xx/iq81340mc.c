@@ -88,11 +88,11 @@ static struct sys_timer iq81340mc_timer = {
 
 MACHINE_START(IQ81340MC, "Intel IQ81340MC")
 	/* Maintainer: Dan Williams <dan.j.williams@intel.com> */
-	.phys_io        = PHYS_IO,
-	.io_pg_offst    = IO_PG_OFFSET,
+	.phys_io        = IOP13XX_PMMR_PHYS_MEM_BASE,
+	.io_pg_offst    = (IOP13XX_PMMR_VIRT_MEM_BASE >> 18) & 0xfffc,
+	.boot_params    = 0x00000100,
 	.map_io         = iop13xx_map_io,
 	.init_irq       = iop13xx_init_irq,
 	.timer          = &iq81340mc_timer,
-	.boot_params    = BOOT_PARAM_OFFSET,
 	.init_machine   = iq81340mc_init,
 MACHINE_END
