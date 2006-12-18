@@ -366,13 +366,15 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	wdt_mem = request_mem_region(res->start, size, pdev->name);
 	if (wdt_mem == NULL) {
 		printk(KERN_INFO PFX "failed to get memory region\n");
-		return -ENOENT;
+		ret = -ENOENT;
+		goto err_req;
 	}
 
 	wdt_base = ioremap(res->start, size);
 	if (wdt_base == 0) {
 		printk(KERN_INFO PFX "failed to ioremap() region\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_req;
 	}
 
 	DBG("probe: mapped wdt_base=%p\n", wdt_base);
@@ -380,22 +382,21 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		printk(KERN_INFO PFX "failed to get irq resource\n");
-		iounmap(wdt_base);
-		return -ENOENT;
+		ret = -ENOENT;
+		goto err_map;
 	}
 
 	ret = request_irq(res->start, s3c2410wdt_irq, 0, pdev->name, pdev);
 	if (ret != 0) {
 		printk(KERN_INFO PFX "failed to install irq (%d)\n", ret);
-		iounmap(wdt_base);
-		return ret;
+		goto err_map;
 	}
 
 	wdt_clock = clk_get(&pdev->dev, "watchdog");
 	if (wdt_clock == NULL) {
 		printk(KERN_INFO PFX "failed to find watchdog clock source\n");
-		iounmap(wdt_base);
-		return -ENOENT;
+		ret =  -ENOENT;
+		goto err_irq;
 	}
 
 	clk_enable(wdt_clock);
@@ -418,8 +419,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	if (ret) {
 		printk (KERN_ERR PFX "cannot register miscdev on minor=%d (%d)\n",
 			WATCHDOG_MINOR, ret);
-		iounmap(wdt_base);
-		return ret;
+		goto err_clk;
 	}
 
 	if (tmr_atboot && started == 0) {
@@ -434,26 +434,36 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	}
 
 	return 0;
+
+ err_clk:
+	clk_disable(wdt_clock);
+	clk_put(wdt_clock);
+
+ err_irq:
+	free_irq(wdt_irq->start, pdev);
+
+ err_map:
+	iounmap(wdt_base);
+
+ err_req:
+	release_resource(wdt_mem);
+	kfree(wdt_mem);
+
+	return ret;
 }
 
 static int s3c2410wdt_remove(struct platform_device *dev)
 {
-	if (wdt_mem != NULL) {
-		release_resource(wdt_mem);
-		kfree(wdt_mem);
-		wdt_mem = NULL;
-	}
+	release_resource(wdt_mem);
+	kfree(wdt_mem);
+	wdt_mem = NULL;
 
-	if (wdt_irq != NULL) {
-		free_irq(wdt_irq->start, dev);
-		wdt_irq = NULL;
-	}
+	free_irq(wdt_irq->start, dev);
+	wdt_irq = NULL;
 
-	if (wdt_clock != NULL) {
-		clk_disable(wdt_clock);
-		clk_put(wdt_clock);
-		wdt_clock = NULL;
-	}
+	clk_disable(wdt_clock);
+	clk_put(wdt_clock);
+	wdt_clock = NULL;
 
 	iounmap(wdt_base);
 	misc_deregister(&s3c2410wdt_miscdev);
