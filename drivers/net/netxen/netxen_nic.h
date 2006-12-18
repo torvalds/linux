@@ -852,8 +852,6 @@ struct netxen_adapter {
 	spinlock_t tx_lock;
 	spinlock_t lock;
 	struct work_struct watchdog_task;
-	struct work_struct tx_timeout_task;
-	struct net_device *netdev;
 	struct timer_list watchdog_timer;
 
 	u32 curr_window;
@@ -949,6 +947,7 @@ struct netxen_port {
 	struct pci_dev *pdev;
 	struct net_device_stats net_stats;
 	struct netxen_port_stats stats;
+	struct work_struct tx_timeout_task;
 };
 
 #define PCI_OFFSET_FIRST_RANGE(adapter, off)    \

@@ -424,8 +424,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 							     netdev->dev_addr);
 			}
 		}
-		adapter->netdev = netdev;
-		INIT_WORK(&adapter->tx_timeout_task, netxen_tx_timeout_task);
+		INIT_WORK(&port->tx_timeout_task, netxen_tx_timeout_task);
 		netif_carrier_off(netdev);
 		netif_stop_queue(netdev);
 
@@ -966,23 +965,23 @@ static void netxen_tx_timeout(struct net_device *netdev)
 {
 	struct netxen_port *port = (struct netxen_port *)netdev_priv(netdev);
 
-	SCHEDULE_WORK(&port->adapter->tx_timeout_task);
+	SCHEDULE_WORK(&port->tx_timeout_task);
 }
 
 static void netxen_tx_timeout_task(struct work_struct *work)
 {
-	struct netxen_adapter *adapter =
-		container_of(work, struct netxen_adapter, tx_timeout_task);
-	struct net_device *netdev = adapter->netdev;
+	struct netxen_port *port =
+		container_of(work, struct netxen_port, tx_timeout_task);
+	struct net_device *netdev = port->netdev;
 	unsigned long flags;
 
 	printk(KERN_ERR "%s %s: transmit timeout, resetting.\n",
 	       netxen_nic_driver_name, netdev->name);
 
-	spin_lock_irqsave(&adapter->lock, flags);
+	spin_lock_irqsave(&port->adapter->lock, flags);
 	netxen_nic_close(netdev);
 	netxen_nic_open(netdev);
-	spin_unlock_irqrestore(&adapter->lock, flags);
+	spin_unlock_irqrestore(&port->adapter->lock, flags);
 	netdev->trans_start = jiffies;
 	netif_wake_queue(netdev);
 }
