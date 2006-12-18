@@ -133,7 +133,7 @@ struct cn_callback_data {
 struct cn_callback_entry {
 	struct list_head callback_entry;
 	struct cn_callback *cb;
-	struct delayed_work work;
+	struct work_struct work;
 	struct cn_queue_dev *pdev;
 
 	struct cn_callback_id id;
