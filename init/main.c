@@ -53,6 +53,7 @@
 #include <linux/utsrelease.h>
 #include <linux/pid_namespace.h>
 #include <linux/compile.h>
+#include <linux/device.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -94,7 +95,6 @@ extern void pidmap_init(void);
 extern void prio_tree_init(void);
 extern void radix_tree_init(void);
 extern void free_initmem(void);
-extern void driver_init(void);
 extern void prepare_namespace(void);
 #ifdef	CONFIG_ACPI
 extern void acpi_early_init(void);

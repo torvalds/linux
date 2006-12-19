@@ -352,7 +352,7 @@ static char *next_cmd(char **cmds)
 	return start;
 }
 
-static int driver_init(void)
+static int ibm_acpi_driver_init(void)
 {
 	printk(IBM_INFO "%s v%s\n", IBM_DESC, IBM_VERSION);
 	printk(IBM_INFO "%s\n", IBM_URL);
@@ -1605,7 +1605,7 @@ static int fan_write(char *buf)
 static struct ibm_struct ibms[] = {
 	{
 	 .name = "driver",
-	 .init = driver_init,
+	 .init = ibm_acpi_driver_init,
 	 .read = driver_read,
 	 },
 	{
