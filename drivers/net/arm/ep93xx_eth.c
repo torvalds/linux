@@ -780,12 +780,10 @@ static struct ethtool_ops ep93xx_ethtool_ops = {
 struct net_device *ep93xx_dev_alloc(struct ep93xx_eth_data *data)
 {
 	struct net_device *dev;
-	struct ep93xx_priv *ep;
 
 	dev = alloc_etherdev(sizeof(struct ep93xx_priv));
 	if (dev == NULL)
 		return NULL;
-	ep = netdev_priv(dev);
 
 	memcpy(dev->dev_addr, data->dev_addr, ETH_ALEN);
 
@@ -840,9 +838,9 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 	struct ep93xx_priv *ep;
 	int err;
 
-	data = pdev->dev.platform_data;
 	if (pdev == NULL)
 		return -ENODEV;
+	data = pdev->dev.platform_data;
 
 	dev = ep93xx_dev_alloc(data);
 	if (dev == NULL) {
