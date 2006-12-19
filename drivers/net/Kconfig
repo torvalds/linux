@@ -1155,21 +1155,6 @@ config SEEQ8005
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called seeq8005.
 
-config SKMC
-	tristate "SKnet MCA support"
-	depends on NET_ETHERNET && MCA && BROKEN
-	---help---
-	  These are Micro Channel Ethernet adapters. You need to say Y to "MCA
-	  support" in order to use this driver.  Supported cards are the SKnet
-	  Junior MC2 and the SKnet MC2(+).  The driver automatically
-	  distinguishes between the two cards. Note that using multiple boards
-	  of different type hasn't been tested with this driver.  Say Y if you
-	  have one of these Ethernet adapters.
-
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>. The module
-	  will be called sk_mca.
-
 config NE2_MCA
 	tristate "NE/2 (ne2000 MCA version) support"
 	depends on NET_ETHERNET && MCA_LEGACY

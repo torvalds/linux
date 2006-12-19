@@ -137,7 +137,6 @@ obj-$(CONFIG_AT1700) += at1700.o
 obj-$(CONFIG_EL1) += 3c501.o
 obj-$(CONFIG_EL16) += 3c507.o
 obj-$(CONFIG_ELMC) += 3c523.o
-obj-$(CONFIG_SKMC) += sk_mca.o
 obj-$(CONFIG_IBMLANA) += ibmlana.o
 obj-$(CONFIG_ELMC_II) += 3c527.o
 obj-$(CONFIG_EL3) += 3c509.o
