@@ -160,9 +160,6 @@ static const struct pvr2_mpeg_ids mpeg_ids[] = {
 		.strid = "video_gop_closure",
 		.id = V4L2_CID_MPEG_VIDEO_GOP_CLOSURE,
 	},{
-		.strid = "video_pulldown",
-		.id = V4L2_CID_MPEG_VIDEO_PULLDOWN,
-	},{
 		.strid = "video_bitrate_mode",
 		.id = V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
 	},{

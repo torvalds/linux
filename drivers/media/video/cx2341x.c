@@ -56,7 +56,6 @@ const u32 cx2341x_mpeg_ctrls[] = {
 	V4L2_CID_MPEG_VIDEO_B_FRAMES,
 	V4L2_CID_MPEG_VIDEO_GOP_SIZE,
 	V4L2_CID_MPEG_VIDEO_GOP_CLOSURE,
-	V4L2_CID_MPEG_VIDEO_PULLDOWN,
 	V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
 	V4L2_CID_MPEG_VIDEO_BITRATE,
 	V4L2_CID_MPEG_VIDEO_BITRATE_PEAK,
@@ -117,9 +116,6 @@ static int cx2341x_get_ctrl(struct cx2341x_mpeg_params *params,
 		break;
 	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
 		ctrl->value = params->video_gop_closure;
-		break;
-	case V4L2_CID_MPEG_VIDEO_PULLDOWN:
-		ctrl->value = params->video_pulldown;
 		break;
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
 		ctrl->value = params->video_bitrate_mode;
@@ -230,9 +226,6 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params,
 	}
 	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
 		params->video_gop_closure = ctrl->value;
-		break;
-	case V4L2_CID_MPEG_VIDEO_PULLDOWN:
-		params->video_pulldown = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
 		/* MPEG-1 only allows CBR */
@@ -679,7 +672,6 @@ void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 	.video_b_frames = 2,
 	.video_gop_size = 12,
 	.video_gop_closure = 1,
-	.video_pulldown = 0,
 	.video_bitrate_mode = V4L2_MPEG_VIDEO_BITRATE_MODE_VBR,
 	.video_bitrate = 6000000,
 	.video_bitrate_peak = 8000000,
@@ -783,10 +775,6 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_GOP_CLOSURE, 1, new->video_gop_closure);
 		if (err) return err;
 	}
-	if (old == NULL || old->video_pulldown != new->video_pulldown) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_SET_3_2_PULLDOWN, 1, new->video_pulldown);
-		if (err) return err;
-	}
 	if (old == NULL || old->audio_properties != new->audio_properties) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_AUDIO_PROPERTIES, 1, new->audio_properties);
 		if (err) return err;
@@ -888,11 +876,10 @@ void cx2341x_log_status(struct cx2341x_mpeg_params *p, const char *prefix)
 		printk(", Peak %d", p->video_bitrate_peak);
 	}
 	printk("\n");
-	printk(KERN_INFO "%s: Video:  GOP Size %d, %d B-Frames, %sGOP Closure, %s3:2 Pulldown\n",
+	printk(KERN_INFO "%s: Video:  GOP Size %d, %d B-Frames, %sGOP Closure\n",
 		prefix,
 		p->video_gop_size, p->video_b_frames,
-		p->video_gop_closure ? "" : "No ",
-		p->video_pulldown ? "" : "No ");
+		p->video_gop_closure ? "" : "No ");
 	if (p->video_temporal_decimation) {
 		printk(KERN_INFO "%s: Video: Temporal Decimation %d\n",
 			prefix, p->video_temporal_decimation);
