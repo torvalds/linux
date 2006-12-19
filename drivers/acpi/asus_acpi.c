@@ -1264,10 +1264,9 @@ static int asus_hotk_add(struct acpi_device *device)
 	printk(KERN_NOTICE "Asus Laptop ACPI Extras version %s\n",
 	       ASUS_ACPI_VERSION);
 
-	hotk = kmalloc(sizeof(struct asus_hotk), GFP_KERNEL);
+	hotk = kzalloc(sizeof(struct asus_hotk), GFP_KERNEL);
 	if (!hotk)
 		return -ENOMEM;
-	memset(hotk, 0, sizeof(struct asus_hotk));
 
 	hotk->handle = device->handle;
 	strcpy(acpi_device_name(device), ACPI_HOTK_DEVICE_NAME);

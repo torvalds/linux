@@ -1576,12 +1576,11 @@ static int acpi_sbs_add(struct acpi_device *device)
 	int id, cnt;
 	acpi_status status = AE_OK;
 
-	sbs = kmalloc(sizeof(struct acpi_sbs), GFP_KERNEL);
+	sbs = kzalloc(sizeof(struct acpi_sbs), GFP_KERNEL);
 	if (!sbs) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "kmalloc() failed\n"));
 		return -ENOMEM;
 	}
-	memset(sbs, 0, sizeof(struct acpi_sbs));
 
 	cnt = 0;
 	while (cnt < 10) {

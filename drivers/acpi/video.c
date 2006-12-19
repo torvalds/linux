@@ -533,11 +533,10 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		int count = 0;
 		union acpi_object *o;
 
-		br = kmalloc(sizeof(*br), GFP_KERNEL);
+		br = kzalloc(sizeof(*br), GFP_KERNEL);
 		if (!br) {
 			printk(KERN_ERR "can't allocate memory\n");
 		} else {
-			memset(br, 0, sizeof(*br));
 			br->levels = kmalloc(obj->package.count *
 					     sizeof *(br->levels), GFP_KERNEL);
 			if (!br->levels)
@@ -1260,11 +1259,9 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 	    acpi_evaluate_integer(device->handle, "_ADR", NULL, &device_id);
 	if (ACPI_SUCCESS(status)) {
 
-		data = kmalloc(sizeof(struct acpi_video_device), GFP_KERNEL);
+		data = kzalloc(sizeof(struct acpi_video_device), GFP_KERNEL);
 		if (!data)
 			return -ENOMEM;
-
-		memset(data, 0, sizeof(struct acpi_video_device));
 
 		strcpy(acpi_device_name(device), ACPI_VIDEO_DEVICE_NAME);
 		strcpy(acpi_device_class(device), ACPI_VIDEO_CLASS);
@@ -1718,10 +1715,9 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	video = kmalloc(sizeof(struct acpi_video_bus), GFP_KERNEL);
+	video = kzalloc(sizeof(struct acpi_video_bus), GFP_KERNEL);
 	if (!video)
 		return -ENOMEM;
-	memset(video, 0, sizeof(struct acpi_video_bus));
 
 	video->device = device;
 	strcpy(acpi_device_name(device), ACPI_VIDEO_BUS_NAME);

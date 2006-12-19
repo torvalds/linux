@@ -532,10 +532,9 @@ static int acpi_power_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	resource = kmalloc(sizeof(struct acpi_power_resource), GFP_KERNEL);
+	resource = kzalloc(sizeof(struct acpi_power_resource), GFP_KERNEL);
 	if (!resource)
 		return -ENOMEM;
-	memset(resource, 0, sizeof(struct acpi_power_resource));
 
 	resource->device = device;
 	strcpy(resource->name, device->pnp.bus_id);

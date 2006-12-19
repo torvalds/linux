@@ -309,18 +309,16 @@ static int acpi_ec_hc_add(struct acpi_device *device)
 		return -EINVAL;
 	}
 
-	ec_hc = kmalloc(sizeof(struct acpi_ec_hc), GFP_KERNEL);
+	ec_hc = kzalloc(sizeof(struct acpi_ec_hc), GFP_KERNEL);
 	if (!ec_hc) {
 		return -ENOMEM;
 	}
-	memset(ec_hc, 0, sizeof(struct acpi_ec_hc));
 
-	smbus = kmalloc(sizeof(struct acpi_ec_smbus), GFP_KERNEL);
+	smbus = kzalloc(sizeof(struct acpi_ec_smbus), GFP_KERNEL);
 	if (!smbus) {
 		kfree(ec_hc);
 		return -ENOMEM;
 	}
-	memset(smbus, 0, sizeof(struct acpi_ec_smbus));
 
 	ec_hc->handle = device->handle;
 	strcpy(acpi_device_name(device), ACPI_EC_HC_DEVICE_NAME);

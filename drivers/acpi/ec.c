@@ -624,10 +624,9 @@ static int acpi_ec_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	ec = kmalloc(sizeof(struct acpi_ec), GFP_KERNEL);
+	ec = kzalloc(sizeof(struct acpi_ec), GFP_KERNEL);
 	if (!ec)
 		return -ENOMEM;
-	memset(ec, 0, sizeof(struct acpi_ec));
 
 	ec->handle = device->handle;
 	ec->uid = -1;
@@ -848,12 +847,11 @@ static int __init acpi_ec_fake_ecdt(void)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Try to make an fake ECDT"));
 
-	ec_ecdt = kmalloc(sizeof(struct acpi_ec), GFP_KERNEL);
+	ec_ecdt = kzalloc(sizeof(struct acpi_ec), GFP_KERNEL);
 	if (!ec_ecdt) {
 		ret = -ENOMEM;
 		goto error;
 	}
-	memset(ec_ecdt, 0, sizeof(struct acpi_ec));
 
 	status = acpi_get_devices(ACPI_EC_HID,
 				  acpi_fake_ecdt_callback, NULL, NULL);
@@ -885,10 +883,9 @@ static int __init acpi_ec_get_real_ecdt(void)
 	/*
 	 * Generate a temporary ec context to use until the namespace is scanned
 	 */
-	ec_ecdt = kmalloc(sizeof(struct acpi_ec), GFP_KERNEL);
+	ec_ecdt = kzalloc(sizeof(struct acpi_ec), GFP_KERNEL);
 	if (!ec_ecdt)
 		return -ENOMEM;
-	memset(ec_ecdt, 0, sizeof(struct acpi_ec));
 
 	mutex_init(&ec_ecdt->lock);
 	if (acpi_ec_mode == EC_INTR) {

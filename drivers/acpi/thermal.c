@@ -902,11 +902,9 @@ acpi_thermal_write_trip_points(struct file *file,
 	int i = 0;
 
 
-	limit_string = kmalloc(ACPI_THERMAL_MAX_LIMIT_STR_LEN, GFP_KERNEL);
+	limit_string = kzalloc(ACPI_THERMAL_MAX_LIMIT_STR_LEN, GFP_KERNEL);
 	if (!limit_string)
 		return -ENOMEM;
-
-	memset(limit_string, 0, ACPI_THERMAL_MAX_LIMIT_STR_LEN);
 
 	active = kmalloc(ACPI_THERMAL_MAX_ACTIVE * sizeof(int), GFP_KERNEL);
 	if (!active) {
@@ -1271,10 +1269,9 @@ static int acpi_thermal_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	tz = kmalloc(sizeof(struct acpi_thermal), GFP_KERNEL);
+	tz = kzalloc(sizeof(struct acpi_thermal), GFP_KERNEL);
 	if (!tz)
 		return -ENOMEM;
-	memset(tz, 0, sizeof(struct acpi_thermal));
 
 	tz->device = device;
 	strcpy(tz->name, device->pnp.bus_id);

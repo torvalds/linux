@@ -96,11 +96,10 @@ static int acpi_container_add(struct acpi_device *device)
 		return -EINVAL;
 	}
 
-	container = kmalloc(sizeof(struct acpi_container), GFP_KERNEL);
+	container = kzalloc(sizeof(struct acpi_container), GFP_KERNEL);
 	if (!container)
 		return -ENOMEM;
 
-	memset(container, 0, sizeof(struct acpi_container));
 	container->handle = device->handle;
 	strcpy(acpi_device_name(device), ACPI_CONTAINER_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_CONTAINER_CLASS);

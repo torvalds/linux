@@ -615,10 +615,9 @@ static int acpi_processor_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	pr = kmalloc(sizeof(struct acpi_processor), GFP_KERNEL);
+	pr = kzalloc(sizeof(struct acpi_processor), GFP_KERNEL);
 	if (!pr)
 		return -ENOMEM;
-	memset(pr, 0, sizeof(struct acpi_processor));
 
 	pr->handle = device->handle;
 	strcpy(acpi_device_name(device), ACPI_PROCESSOR_DEVICE_NAME);

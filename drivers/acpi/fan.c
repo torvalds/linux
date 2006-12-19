@@ -186,10 +186,9 @@ static int acpi_fan_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	fan = kmalloc(sizeof(struct acpi_fan), GFP_KERNEL);
+	fan = kzalloc(sizeof(struct acpi_fan), GFP_KERNEL);
 	if (!fan)
 		return -ENOMEM;
-	memset(fan, 0, sizeof(struct acpi_fan));
 
 	fan->device = device;
 	strcpy(acpi_device_name(device), "Fan");

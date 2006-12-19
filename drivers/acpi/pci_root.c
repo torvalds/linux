@@ -165,10 +165,9 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	root = kmalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
+	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
 		return -ENOMEM;
-	memset(root, 0, sizeof(struct acpi_pci_root));
 	INIT_LIST_HEAD(&root->node);
 
 	root->device = device;

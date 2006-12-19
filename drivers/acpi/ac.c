@@ -221,10 +221,9 @@ static int acpi_ac_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	ac = kmalloc(sizeof(struct acpi_ac), GFP_KERNEL);
+	ac = kzalloc(sizeof(struct acpi_ac), GFP_KERNEL);
 	if (!ac)
 		return -ENOMEM;
-	memset(ac, 0, sizeof(struct acpi_ac));
 
 	ac->device = device;
 	strcpy(acpi_device_name(device), ACPI_AC_DEVICE_NAME);

@@ -89,10 +89,9 @@ acpi_pci_irq_add_entry(acpi_handle handle,
 	if (!prt)
 		return -EINVAL;
 
-	entry = kmalloc(sizeof(struct acpi_prt_entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(struct acpi_prt_entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
-	memset(entry, 0, sizeof(struct acpi_prt_entry));
 
 	entry->id.segment = segment;
 	entry->id.bus = bus;
@@ -161,10 +160,9 @@ int acpi_pci_irq_add_prt(acpi_handle handle, int segment, int bus)
 	static int first_time = 1;
 
 
-	pathname = kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
+	pathname = kzalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
 	if (!pathname)
 		return -ENOMEM;
-	memset(pathname, 0, ACPI_PATHNAME_MAX);
 
 	if (first_time) {
 		acpi_prt.count = 0;
@@ -198,11 +196,10 @@ int acpi_pci_irq_add_prt(acpi_handle handle, int segment, int bus)
 		return -ENODEV;
 	}
 
-	prt = kmalloc(buffer.length, GFP_KERNEL);
+	prt = kzalloc(buffer.length, GFP_KERNEL);
 	if (!prt) {
 		return -ENOMEM;
 	}
-	memset(prt, 0, buffer.length);
 	buffer.pointer = prt;
 
 	status = acpi_get_irq_routing_table(handle, &buffer);
