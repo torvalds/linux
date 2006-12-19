@@ -6590,7 +6590,7 @@ static int patch_alc262(struct hda_codec *codec)
 	int board_config;
 	int err;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
@@ -7710,7 +7710,7 @@ static int patch_alc861(struct hda_codec *codec)
 	int board_config;
 	int err;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
