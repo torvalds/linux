@@ -561,8 +561,7 @@ struct drm_driver {
 	int (*context_dtor) (struct drm_device * dev, int context);
 	int (*kernel_context_switch) (struct drm_device * dev, int old,
 				      int new);
-	void (*kernel_context_switch_unlock) (struct drm_device * dev,
-					      drm_lock_t *lock);
+	void (*kernel_context_switch_unlock) (struct drm_device * dev);
 	int (*vblank_wait) (struct drm_device * dev, unsigned int *sequence);
 	int (*vblank_wait2) (struct drm_device * dev, unsigned int *sequence);
 	int (*dri_library_name) (struct drm_device *dev, char *buf);
