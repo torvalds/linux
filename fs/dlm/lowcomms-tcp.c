@@ -880,22 +880,6 @@ out:
 	return -1;
 }
 
-/* API send message call, may queue the request */
-/* N.B. This is the old interface - use the new one for new calls */
-int lowcomms_send_message(int nodeid, char *buf, int len, gfp_t allocation)
-{
-	struct writequeue_entry *e;
-	char *b;
-
-	e = dlm_lowcomms_get_buffer(nodeid, len, allocation, &b);
-	if (e) {
-		memcpy(b, buf, len);
-		dlm_lowcomms_commit_buffer(e);
-		return 0;
-	}
-	return -ENOBUFS;
-}
-
 /* Look for activity on active sockets */
 static void process_sockets(void)
 {
@@ -1085,14 +1069,6 @@ static int daemons_start(void)
 	send_task = p;
 
 	return 0;
-}
-
-/*
- * Return the largest buffer size we can cope with.
- */
-int lowcomms_max_buffer_size(void)
-{
-	return PAGE_CACHE_SIZE;
 }
 
 void dlm_lowcomms_stop(void)
