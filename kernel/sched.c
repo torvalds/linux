@@ -1567,6 +1567,7 @@ int fastcall wake_up_state(struct task_struct *p, unsigned int state)
 	return try_to_wake_up(p, state, 0);
 }
 
+static void task_running_tick(struct rq *rq, struct task_struct *p);
 /*
  * Perform scheduler related setup for a newly forked process p.
  * p is forked by current.
@@ -1627,7 +1628,7 @@ void fastcall sched_fork(struct task_struct *p, int clone_flags)
 		 * runqueue lock is not a problem.
 		 */
 		current->time_slice = 1;
-		scheduler_tick();
+		task_running_tick(cpu_rq(cpu), current);
 	}
 	local_irq_enable();
 	put_cpu();
