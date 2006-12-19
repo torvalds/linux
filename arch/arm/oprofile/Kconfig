@@ -19,5 +19,8 @@ config OPROFILE
 
 	  If unsure, say N.
 
+config OPROFILE_ARM11_CORE
+	bool
+
 endmenu
 
