@@ -37,7 +37,7 @@
  */
 #define SPIDER_DISABLE_PREFETCH
 
-#define MAX_SPIDERS	2
+#define MAX_SPIDERS	3
 
 static struct spider_pci_bus {
 	void __iomem	*regs;
