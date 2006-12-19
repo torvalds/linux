@@ -199,7 +199,6 @@ struct hda_bus_unsolicited {
 	unsigned int rp, wp;
 
 	/* workqueue */
-	struct workqueue_struct *workq;
 	struct work_struct work;
 	struct hda_bus *bus;
 };

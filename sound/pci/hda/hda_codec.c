@@ -263,7 +263,7 @@ int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 	unsol->queue[wp] = res;
 	unsol->queue[wp + 1] = res_ex;
 
-	queue_work(unsol->workq, &unsol->work);
+	schedule_work(&unsol->work);
 
 	return 0;
 }
@@ -310,12 +310,6 @@ static int init_unsol_queue(struct hda_bus *bus)
 		snd_printk(KERN_ERR "hda_codec: can't allocate unsolicited queue\n");
 		return -ENOMEM;
 	}
-	unsol->workq = create_singlethread_workqueue("hda_codec");
-	if (! unsol->workq) {
-		snd_printk(KERN_ERR "hda_codec: can't create workqueue\n");
-		kfree(unsol);
-		return -ENOMEM;
-	}
 	INIT_WORK(&unsol->work, process_unsol_events);
 	unsol->bus = bus;
 	bus->unsol = unsol;
@@ -334,7 +328,7 @@ static int snd_hda_bus_free(struct hda_bus *bus)
 	if (! bus)
 		return 0;
 	if (bus->unsol) {
-		destroy_workqueue(bus->unsol->workq);
+		flush_scheduled_work();
 		kfree(bus->unsol);
 	}
 	list_for_each_safe(p, n, &bus->codec_list) {
