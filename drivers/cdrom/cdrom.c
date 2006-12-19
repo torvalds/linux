@@ -2139,8 +2139,7 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 			cdi->last_sense = s->sense_key;
 		}
 
-		rq->bio = bio;
-		if (blk_rq_unmap_user(rq))
+		if (blk_rq_unmap_user(bio))
 			ret = -EFAULT;
 
 		if (ret)

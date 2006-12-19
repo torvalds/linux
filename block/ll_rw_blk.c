@@ -2405,6 +2405,7 @@ int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
 		    unsigned long len)
 {
 	unsigned long bytes_read = 0;
+	struct bio *bio = NULL;
 	int ret;
 
 	if (len > (q->max_hw_sectors << 9))
@@ -2431,6 +2432,8 @@ int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
 		ret = __blk_rq_map_user(q, rq, ubuf, map_len);
 		if (ret < 0)
 			goto unmap_rq;
+		if (!bio)
+			bio = rq->bio;
 		bytes_read += ret;
 		ubuf += ret;
 	}
@@ -2438,7 +2441,7 @@ int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
 	rq->buffer = rq->data = NULL;
 	return 0;
 unmap_rq:
-	blk_rq_unmap_user(rq);
+	blk_rq_unmap_user(bio);
 	return ret;
 }
 
@@ -2495,29 +2498,30 @@ EXPORT_SYMBOL(blk_rq_map_user_iov);
 
 /**
  * blk_rq_unmap_user - unmap a request with user data
- * @rq:		rq to be unmapped
+ * @bio:	       start of bio list
  *
  * Description:
- *    Unmap a rq previously mapped by blk_rq_map_user().
- *    rq->bio must be set to the original head of the request.
+ *    Unmap a rq previously mapped by blk_rq_map_user(). The caller must
+ *    supply the original rq->bio from the blk_rq_map_user() return, since
+ *    the io completion may have changed rq->bio.
  */
-int blk_rq_unmap_user(struct request *rq)
+int blk_rq_unmap_user(struct bio *bio)
 {
-	struct bio *bio, *mapped_bio;
+	struct bio *mapped_bio;
 	int ret = 0, ret2;
 
-	while ((bio = rq->bio)) {
-		if (bio_flagged(bio, BIO_BOUNCED))
+	while (bio) {
+		mapped_bio = bio;
+		if (unlikely(bio_flagged(bio, BIO_BOUNCED)))
 			mapped_bio = bio->bi_private;
-		else
-			mapped_bio = bio;
 
 		ret2 = __blk_rq_unmap_user(mapped_bio);
 		if (ret2 && !ret)
 			ret = ret2;
 
-		rq->bio = bio->bi_next;
-		bio_put(bio);
+		mapped_bio = bio;
+		bio = bio->bi_next;
+		bio_put(mapped_bio);
 	}
 
 	return ret;
