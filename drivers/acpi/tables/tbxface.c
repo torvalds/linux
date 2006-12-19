@@ -123,7 +123,6 @@ acpi_status acpi_load_tables(void)
 
 ACPI_EXPORT_SYMBOL(acpi_load_tables)
 
-#ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
  * FUNCTION:    acpi_load_table
@@ -219,6 +218,59 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 
 ACPI_EXPORT_SYMBOL(acpi_load_table)
 
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_unload_table_id
+ *
+ * PARAMETERS:  table_type    - Type of table to be unloaded
+ *              id            - Owner ID of the table to be removed.
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: This routine is used to force the unload of a table (by id)
+ *
+ ******************************************************************************/
+acpi_status acpi_unload_table_id(acpi_table_type table_type, acpi_owner_id id)
+{
+	struct acpi_table_desc *table_desc;
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_unload_table);
+
+	/* Parameter validation */
+	if (table_type > ACPI_TABLE_ID_MAX)
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+
+	/* Find table from the requested type list */
+	table_desc = acpi_gbl_table_lists[table_type].next;
+	while (table_desc && table_desc->owner_id != id)
+		table_desc = table_desc->next;
+
+	if (!table_desc)
+		return_ACPI_STATUS(AE_NOT_EXIST);
+
+	/*
+	 * Delete all namespace objects owned by this table. Note that these
+	 * objects can appear anywhere in the namespace by virtue of the AML
+	 * "Scope" operator. Thus, we need to track ownership by an ID, not
+	 * simply a position within the hierarchy
+	 */
+	acpi_ns_delete_namespace_by_owner(table_desc->owner_id);
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
+	if (ACPI_FAILURE(status))
+		return_ACPI_STATUS(status);
+
+	(void)acpi_tb_uninstall_table(table_desc);
+
+	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
+
+	return_ACPI_STATUS(AE_OK);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_unload_table_id)
+
+#ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
  * FUNCTION:    acpi_unload_table
