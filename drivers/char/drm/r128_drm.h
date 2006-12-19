@@ -1,7 +1,8 @@
 /* r128_drm.h -- Public header for the r128 driver -*- linux-c -*-
  * Created: Wed Apr  5 19:24:19 2000 by kevin@precisioninsight.com
  */
-/* Copyright 2000 Precision Insight, Inc., Cedar Park, Texas.
+/*
+ * Copyright 2000 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All rights reserved.
  *

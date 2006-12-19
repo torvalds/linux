@@ -1,7 +1,8 @@
 /* r128_drv.h -- Private header for r128 driver -*- linux-c -*-
  * Created: Mon Dec 13 09:51:11 1999 by faith@precisioninsight.com
  */
-/* Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
+/*
+ * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All rights reserved.
  *
