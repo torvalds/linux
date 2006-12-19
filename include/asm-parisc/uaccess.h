@@ -42,16 +42,18 @@ static inline long access_ok(int type, const void __user * addr,
 #define put_user __put_user
 #define get_user __get_user
 
-#if BITS_PER_LONG == 32
+#if !defined(__LP64__)
 #define LDD_KERNEL(ptr)		__get_kernel_bad();
 #define LDD_USER(ptr)		__get_user_bad();
 #define STD_KERNEL(x, ptr)	__put_kernel_asm64(x,ptr)
 #define STD_USER(x, ptr)	__put_user_asm64(x,ptr)
+#define ASM_WORD_INSN		".word\t"
 #else
-#define LDD_KERNEL(ptr) __get_kernel_asm("ldd",ptr)
-#define LDD_USER(ptr) __get_user_asm("ldd",ptr)
-#define STD_KERNEL(x, ptr) __put_kernel_asm("std",x,ptr)
-#define STD_USER(x, ptr) __put_user_asm("std",x,ptr)
+#define LDD_KERNEL(ptr)		__get_kernel_asm("ldd",ptr)
+#define LDD_USER(ptr)		__get_user_asm("ldd",ptr)
+#define STD_KERNEL(x, ptr)	__put_kernel_asm("std",x,ptr)
+#define STD_USER(x, ptr)	__put_user_asm("std",x,ptr)
+#define ASM_WORD_INSN		".dword\t"
 #endif
 
 /*
@@ -103,11 +105,11 @@ struct exception_data {
 	__gu_err;                                       \
 })
 
-#ifdef __LP64__
 #define __get_kernel_asm(ldx,ptr)                       \
 	__asm__("\n1:\t" ldx "\t0(%2),%0\n"             \
 		"\t.section __ex_table,\"aw\"\n"        \
-		"\t.dword\t1b,fixup_get_user_skip_1\n"	\
+		"\t" ASM_WORD_INSN			\
+			"1b,fixup_get_user_skip_1\n"	\
 		"\t.previous"                          	\
 		: "=r"(__gu_val), "=r"(__gu_err)        \
 		: "r"(ptr), "1"(__gu_err)		\
@@ -116,30 +118,12 @@ struct exception_data {
 #define __get_user_asm(ldx,ptr)                         \
 	__asm__("\n1:\t" ldx "\t0(%%sr3,%2),%0\n"       \
 		"\t.section __ex_table,\"aw\"\n"	\
-		"\t.dword\t1b,fixup_get_user_skip_1\n"	\
+		"\t" ASM_WORD_INSN			\
+			"1b,fixup_get_user_skip_1\n"	\
 		"\t.previous"				\
 		: "=r"(__gu_val), "=r"(__gu_err)        \
 		: "r"(ptr), "1"(__gu_err)		\
 		: "r1");
-#else
-#define __get_kernel_asm(ldx,ptr)                       \
-	__asm__("\n1:\t" ldx "\t0(%2),%0\n"             \
-		"\t.section __ex_table,\"aw\"\n"        \
-		"\t.word\t1b,fixup_get_user_skip_1\n"	\
-		"\t.previous"                          	\
-		: "=r"(__gu_val), "=r"(__gu_err)        \
-		: "r"(ptr), "1"(__gu_err)		\
-		: "r1");
-
-#define __get_user_asm(ldx,ptr)                         \
-	__asm__("\n1:\t" ldx "\t0(%%sr3,%2),%0\n"       \
-		"\t.section __ex_table,\"aw\"\n"	\
-		 "\t.word\t1b,fixup_get_user_skip_1\n"	\
-		 "\t.previous"                          \
-		: "=r"(__gu_val), "=r"(__gu_err)        \
-		: "r"(ptr), "1"(__gu_err)		\
-		: "r1");
-#endif /* !__LP64__ */
 
 #define __put_user(x,ptr)                                       \
 ({								\
@@ -178,12 +162,12 @@ struct exception_data {
  * r8/r9 are already listed as err/val.
  */
 
-#ifdef __LP64__
 #define __put_kernel_asm(stx,x,ptr)                         \
 	__asm__ __volatile__ (                              \
 		"\n1:\t" stx "\t%2,0(%1)\n"                 \
 		"\t.section __ex_table,\"aw\"\n"            \
-		"\t.dword\t1b,fixup_put_user_skip_1\n"	    \
+		"\t" ASM_WORD_INSN			    \
+			"1b,fixup_put_user_skip_1\n"	    \
 		"\t.previous"                               \
 		: "=r"(__pu_err)                            \
 		: "r"(ptr), "r"(x), "0"(__pu_err)	    \
@@ -193,36 +177,20 @@ struct exception_data {
 	__asm__ __volatile__ (                              \
 		"\n1:\t" stx "\t%2,0(%%sr3,%1)\n"           \
 		"\t.section __ex_table,\"aw\"\n"            \
-		 "\t.dword\t1b,fixup_put_user_skip_1\n"	    \
-		 "\t.previous"                              \
-		: "=r"(__pu_err)                            \
-		: "r"(ptr), "r"(x), "0"(__pu_err)	    \
-		: "r1")
-#else
-#define __put_kernel_asm(stx,x,ptr)                         \
-	__asm__ __volatile__ (                              \
-		"\n1:\t" stx "\t%2,0(%1)\n"                 \
-		"\t.section __ex_table,\"aw\"\n"            \
-		 "\t.word\t1b,fixup_put_user_skip_1\n"	    \
-		 "\t.previous"                              \
+		"\t" ASM_WORD_INSN			    \
+			"1b,fixup_put_user_skip_1\n"	    \
+		"\t.previous"                               \
 		: "=r"(__pu_err)                            \
 		: "r"(ptr), "r"(x), "0"(__pu_err)	    \
 		: "r1")
 
-#define __put_user_asm(stx,x,ptr)                           \
-	__asm__ __volatile__ (                              \
-		"\n1:\t" stx "\t%2,0(%%sr3,%1)\n"           \
-		"\t.section __ex_table,\"aw\"\n"            \
-		 "\t.word\t1b,fixup_put_user_skip_1\n"      \
-		 "\t.previous"                              \
-		: "=r"(__pu_err)                            \
-		: "r"(ptr), "r"(x), "0"(__pu_err)	    \
-		: "r1")
 
-#define __put_kernel_asm64(__val,ptr) do {		    	    \
-	u64 __val64 = (u64)(__val);				    \
-	u32 hi = (__val64) >> 32;					    \
-	u32 lo = (__val64) & 0xffffffff;				    \
+#if !defined(__LP64__)
+
+#define __put_kernel_asm64(__val,ptr) do {		    \
+	u64 __val64 = (u64)(__val);			    \
+	u32 hi = (__val64) >> 32;			    \
+	u32 lo = (__val64) & 0xffffffff;		    \
 	__asm__ __volatile__ (				    \
 		"\n1:\tstw %2,0(%1)\n"			    \
 		"\n2:\tstw %3,4(%1)\n"			    \
@@ -235,10 +203,10 @@ struct exception_data {
 		: "r1");				    \
 } while (0)
 
-#define __put_user_asm64(__val,ptr) do {		    	    \
-	u64 __val64 = (u64)__val;				    \
-	u32 hi = (__val64) >> 32;					    \
-	u32 lo = (__val64) & 0xffffffff;				    \
+#define __put_user_asm64(__val,ptr) do {	    	    \
+	u64 __val64 = (u64)(__val);			    \
+	u32 hi = (__val64) >> 32;			    \
+	u32 lo = (__val64) & 0xffffffff;		    \
 	__asm__ __volatile__ (				    \
 		"\n1:\tstw %2,0(%%sr3,%1)\n"		    \
 		"\n2:\tstw %3,4(%%sr3,%1)\n"		    \
@@ -251,7 +219,7 @@ struct exception_data {
 		: "r1");				    \
 } while (0)
 
-#endif /* !__LP64__ */
+#endif /* !defined(__LP64__) */
 
 
 /*
