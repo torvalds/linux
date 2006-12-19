@@ -393,9 +393,9 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	}
 
 	wdt_clock = clk_get(&pdev->dev, "watchdog");
-	if (wdt_clock == NULL) {
+	if (IS_ERR(wdt_clock)) {
 		printk(KERN_INFO PFX "failed to find watchdog clock source\n");
-		ret =  -ENOENT;
+		ret = PTR_ERR(wdt_clock);
 		goto err_irq;
 	}
 
