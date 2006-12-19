@@ -190,14 +190,28 @@ static inline int is_clfe_on(struct snd_ac97 *ac97)
 	return ac97->channel_mode >= 2;
 }
 
-static inline int is_shared_linein(struct snd_ac97 *ac97)
+/* system has shared jacks with surround out enabled */
+static inline int is_shared_surrout(struct snd_ac97 *ac97)
 {
-	return ! ac97->indep_surround && is_surround_on(ac97);
+	return !ac97->indep_surround && is_surround_on(ac97);
 }
 
+/* system has shared jacks with center/lfe out enabled */
+static inline int is_shared_clfeout(struct snd_ac97 *ac97)
+{
+	return !ac97->indep_surround && is_clfe_on(ac97);
+}
+
+/* system has shared jacks with line in enabled */
+static inline int is_shared_linein(struct snd_ac97 *ac97)
+{
+	return !ac97->indep_surround && !is_surround_on(ac97);
+}
+
+/* system has shared jacks with mic in enabled */
 static inline int is_shared_micin(struct snd_ac97 *ac97)
 {
-	return ! ac97->indep_surround && is_clfe_on(ac97);
+	return !ac97->indep_surround && !is_clfe_on(ac97);
 }
 
 
@@ -2017,12 +2031,12 @@ static void alc650_update_jacks(struct snd_ac97 *ac97)
 {
 	int shared;
 	
-	/* shared Line-In */
-	shared = is_shared_linein(ac97);
+	/* shared Line-In / Surround Out */
+	shared = is_shared_surrout(ac97);
 	snd_ac97_update_bits(ac97, AC97_ALC650_MULTICH, 1 << 9,
 			     shared ? (1 << 9) : 0);
-	/* update shared Mic */
-	shared = is_shared_micin(ac97);
+	/* update shared Mic In / Center/LFE Out */
+	shared = is_shared_clfeout(ac97);
 	/* disable/enable vref */
 	snd_ac97_update_bits(ac97, AC97_ALC650_CLOCK, 1 << 12,
 			     shared ? (1 << 12) : 0);
@@ -2152,12 +2166,12 @@ static void alc655_update_jacks(struct snd_ac97 *ac97)
 {
 	int shared;
 	
-	/* shared Line-In */
-	shared = is_shared_linein(ac97);
+	/* shared Line-In / Surround Out */
+	shared = is_shared_surrout(ac97);
 	ac97_update_bits_page(ac97, AC97_ALC650_MULTICH, 1 << 9,
 			      shared ? (1 << 9) : 0, 0);
-	/* update shared mic */
-	shared = is_shared_micin(ac97);
+	/* update shared Mic In / Center/LFE Out */
+	shared = is_shared_clfeout(ac97);
 	/* misc control; vrefout disable */
 	snd_ac97_update_bits(ac97, AC97_ALC650_CLOCK, 1 << 12,
 			     shared ? (1 << 12) : 0);
@@ -2301,16 +2315,16 @@ static void alc850_update_jacks(struct snd_ac97 *ac97)
 {
 	int shared;
 	
-	/* shared Line-In */
-	shared = is_shared_linein(ac97);
+	/* shared Line-In / Surround Out */
+	shared = is_shared_surrout(ac97);
 	/* SURR 1kOhm (bit4), Amp (bit5) */
 	snd_ac97_update_bits(ac97, AC97_ALC850_MISC1, (1<<4)|(1<<5),
 			     shared ? (1<<5) : (1<<4));
 	/* LINE-IN = 0, SURROUND = 2 */
 	snd_ac97_update_bits(ac97, AC97_ALC850_JACK_SELECT, 7 << 12,
 			     shared ? (2<<12) : (0<<12));
-	/* update shared mic */
-	shared = is_shared_micin(ac97);
+	/* update shared Mic In / Center/LFE Out */
+	shared = is_shared_clfeout(ac97);
 	/* Vref disable (bit12), 1kOhm (bit13) */
 	snd_ac97_update_bits(ac97, AC97_ALC850_MISC1, (1<<12)|(1<<13),
 			     shared ? (1<<12) : (1<<13));
@@ -2383,9 +2397,9 @@ int patch_alc850(struct snd_ac97 *ac97)
  */
 static void cm9738_update_jacks(struct snd_ac97 *ac97)
 {
-	/* shared Line-In */
+	/* shared Line-In / Surround Out */
 	snd_ac97_update_bits(ac97, AC97_CM9738_VENDOR_CTRL, 1 << 10,
-			     is_shared_linein(ac97) ? (1 << 10) : 0);
+			     is_shared_surrout(ac97) ? (1 << 10) : 0);
 }
 
 static const struct snd_kcontrol_new snd_ac97_cm9738_controls[] = {
@@ -2467,12 +2481,12 @@ static const struct snd_kcontrol_new snd_ac97_cm9739_controls_spdif[] = {
 
 static void cm9739_update_jacks(struct snd_ac97 *ac97)
 {
-	/* shared Line-In */
+	/* shared Line-In / Surround Out */
 	snd_ac97_update_bits(ac97, AC97_CM9739_MULTI_CHAN, 1 << 10,
-			     is_shared_linein(ac97) ? (1 << 10) : 0);
-	/* shared Mic */
+			     is_shared_surrout(ac97) ? (1 << 10) : 0);
+	/* shared Mic In / Center/LFE Out **/
 	snd_ac97_update_bits(ac97, AC97_CM9739_MULTI_CHAN, 0x3000,
-			     is_shared_micin(ac97) ? 0x1000 : 0x2000);
+			     is_shared_clfeout(ac97) ? 0x1000 : 0x2000);
 }
 
 static const struct snd_kcontrol_new snd_ac97_cm9739_controls[] = {
@@ -2584,8 +2598,8 @@ static void cm9761_update_jacks(struct snd_ac97 *ac97)
 
 	val |= surr_on[ac97->spec.dev_flags][is_surround_on(ac97)];
 	val |= clfe_on[ac97->spec.dev_flags][is_clfe_on(ac97)];
-	val |= surr_shared[ac97->spec.dev_flags][is_shared_linein(ac97)];
-	val |= clfe_shared[ac97->spec.dev_flags][is_shared_micin(ac97)];
+	val |= surr_shared[ac97->spec.dev_flags][is_shared_surrout(ac97)];
+	val |= clfe_shared[ac97->spec.dev_flags][is_shared_clfeout(ac97)];
 
 	snd_ac97_update_bits(ac97, AC97_CM9761_MULTI_CHAN, 0x3c88, val);
 }
@@ -2832,12 +2846,12 @@ int patch_vt1617a(struct snd_ac97 * ac97)
  */
 static void it2646_update_jacks(struct snd_ac97 *ac97)
 {
-	/* shared Line-In */
+	/* shared Line-In / Surround Out */
 	snd_ac97_update_bits(ac97, 0x76, 1 << 9,
-			     is_shared_linein(ac97) ? (1<<9) : 0);
-	/* shared Mic */
+			     is_shared_surrout(ac97) ? (1<<9) : 0);
+	/* shared Mic / Center/LFE Out */
 	snd_ac97_update_bits(ac97, 0x76, 1 << 10,
-			     is_shared_micin(ac97) ? (1<<10) : 0);
+			     is_shared_clfeout(ac97) ? (1<<10) : 0);
 }
 
 static const struct snd_kcontrol_new snd_ac97_controls_it2646[] = {
