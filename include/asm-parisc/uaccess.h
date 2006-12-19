@@ -42,7 +42,7 @@ static inline long access_ok(int type, const void __user * addr,
 #define put_user __put_user
 #define get_user __get_user
 
-#if !defined(__LP64__)
+#if !defined(CONFIG_64BIT)
 #define LDD_KERNEL(ptr)		__get_kernel_bad();
 #define LDD_USER(ptr)		__get_user_bad();
 #define STD_KERNEL(x, ptr)	__put_kernel_asm64(x,ptr)
@@ -185,7 +185,7 @@ struct exception_data {
 		: "r1")
 
 
-#if !defined(__LP64__)
+#if !defined(CONFIG_64BIT)
 
 #define __put_kernel_asm64(__val,ptr) do {		    \
 	u64 __val64 = (u64)(__val);			    \
@@ -211,15 +211,15 @@ struct exception_data {
 		"\n1:\tstw %2,0(%%sr3,%1)\n"		    \
 		"\n2:\tstw %3,4(%%sr3,%1)\n"		    \
 		"\t.section __ex_table,\"aw\"\n"	    \
-		 "\t.word\t1b,fixup_get_user_skip_2\n"	    \
-		 "\t.word\t2b,fixup_get_user_skip_1\n"	    \
+		 "\t.word\t1b,fixup_put_user_skip_2\n"	    \
+		 "\t.word\t2b,fixup_put_user_skip_1\n"	    \
 		 "\t.previous"				    \
 		: "=r"(__pu_err)                            \
 		: "r"(ptr), "r"(hi), "r"(lo), "0"(__pu_err) \
 		: "r1");				    \
 } while (0)
 
-#endif /* !defined(__LP64__) */
+#endif /* !defined(CONFIG_64BIT) */
 
 
 /*
