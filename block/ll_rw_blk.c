@@ -2504,6 +2504,7 @@ EXPORT_SYMBOL(blk_rq_map_user_iov);
 int blk_rq_unmap_user(struct request *rq)
 {
 	struct bio *bio, *mapped_bio;
+	int ret = 0, ret2;
 
 	while ((bio = rq->bio)) {
 		if (bio_flagged(bio, BIO_BOUNCED))
@@ -2511,11 +2512,15 @@ int blk_rq_unmap_user(struct request *rq)
 		else
 			mapped_bio = bio;
 
-		__blk_rq_unmap_user(mapped_bio);
+		ret2 = __blk_rq_unmap_user(mapped_bio);
+		if (ret2 && !ret)
+			ret = ret2;
+
 		rq->bio = bio->bi_next;
 		bio_put(bio);
 	}
-	return 0;
+
+	return ret;
 }
 
 EXPORT_SYMBOL(blk_rq_unmap_user);
