@@ -1402,7 +1402,7 @@ static int __init asus_acpi_init(void)
 		return result;
 	}
 
-	asus_backlight_device = backlight_device_register("asus", NULL,
+	asus_backlight_device = backlight_device_register("asus",NULL,NULL,
 							  &asus_backlight_data);
         if (IS_ERR(asus_backlight_device)) {
 		printk(KERN_ERR "Could not register asus backlight device\n");

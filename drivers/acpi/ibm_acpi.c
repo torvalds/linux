@@ -1714,7 +1714,7 @@ static struct backlight_properties ibm_backlight_data = {
 
 static int brightness_init(void)
 {
-	ibm_backlight_device = backlight_device_register("ibm", NULL,
+	ibm_backlight_device = backlight_device_register("ibm", NULL, NULL,
 							 &ibm_backlight_data);
 	if (IS_ERR(ibm_backlight_device)) {
 		printk(IBM_ERR "Could not register backlight device\n");
