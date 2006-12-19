@@ -2,7 +2,7 @@
  * linux/arch/arm/mm/proc-xsc3.S
  *
  * Original Author: Matthew Gilbert
- * Current Maintainer: Deepak Saxena <dsaxena@plexity.net>
+ * Current Maintainer: Lennert Buytenhek <buytenh@wantstofly.org>
  *
  * Copyright 2004 (C) Intel Corp.
  * Copyright 2005 (c) MontaVista Software, Inc.
