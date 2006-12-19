@@ -19,8 +19,18 @@ config OPROFILE
 
 	  If unsure, say N.
 
+if OPROFILE
+
+config OPROFILE_ARMV6
+	bool
+	depends on CPU_V6 && !SMP
+	default y
+	select OPROFILE_ARM11_CORE
+
 config OPROFILE_ARM11_CORE
 	bool
+
+endif
 
 endmenu
 
