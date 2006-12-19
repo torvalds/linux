@@ -20,9 +20,6 @@
 /* Include the pci register defines */
 #include <linux/pci_regs.h>
 
-/* Include the ID list */
-#include <linux/pci_ids.h>
-
 /*
  * The PCI interface treats multi-function devices as independent
  * devices.  The slot/function address of each device is encoded
@@ -53,6 +50,9 @@
 #include <linux/errno.h>
 #include <asm/atomic.h>
 #include <linux/device.h>
+
+/* Include the ID list */
+#include <linux/pci_ids.h>
 
 /* File state for mmap()s on /proc/bus/pci/X/Y */
 enum pci_mmap_state {
