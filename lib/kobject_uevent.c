@@ -63,8 +63,11 @@ static char *action_to_string(enum kobject_action action)
  * @action: action that is happening (usually KOBJ_MOVE)
  * @kobj: struct kobject that the action is happening to
  * @envp_ext: pointer to environmental data
+ *
+ * Returns 0 if kobject_uevent() is completed with success or the
+ * corresponding error when it fails.
  */
-void kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
+int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			char *envp_ext[])
 {
 	char **envp;
@@ -79,14 +82,16 @@ void kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	u64 seq;
 	char *seq_buff;
 	int i = 0;
-	int retval;
+	int retval = 0;
 	int j;
 
 	pr_debug("%s\n", __FUNCTION__);
 
 	action_string = action_to_string(action);
-	if (!action_string)
-		return;
+	if (!action_string) {
+		pr_debug("kobject attempted to send uevent without action_string!\n");
+		return -EINVAL;
+	}
 
 	/* search the kset we belong to */
 	top_kobj = kobj;
@@ -95,31 +100,39 @@ void kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			top_kobj = top_kobj->parent;
 		} while (!top_kobj->kset && top_kobj->parent);
 	}
-	if (!top_kobj->kset)
-		return;
+	if (!top_kobj->kset) {
+		pr_debug("kobject attempted to send uevent without kset!\n");
+		return -EINVAL;
+	}
 
 	kset = top_kobj->kset;
 	uevent_ops = kset->uevent_ops;
 
 	/*  skip the event, if the filter returns zero. */
 	if (uevent_ops && uevent_ops->filter)
-		if (!uevent_ops->filter(kset, kobj))
-			return;
+		if (!uevent_ops->filter(kset, kobj)) {
+			pr_debug("kobject filter function caused the event to drop!\n");
+			return 0;
+		}
 
 	/* environment index */
 	envp = kzalloc(NUM_ENVP * sizeof (char *), GFP_KERNEL);
 	if (!envp)
-		return;
+		return -ENOMEM;
 
 	/* environment values */
 	buffer = kmalloc(BUFFER_SIZE, GFP_KERNEL);
-	if (!buffer)
+	if (!buffer) {
+		retval = -ENOMEM;
 		goto exit;
+	}
 
 	/* complete object path */
 	devpath = kobject_get_path(kobj, GFP_KERNEL);
-	if (!devpath)
+	if (!devpath) {
+		retval = -ENOENT;
 		goto exit;
+	}
 
 	/* originating subsystem */
 	if (uevent_ops && uevent_ops->name)
@@ -204,7 +217,7 @@ exit:
 	kfree(devpath);
 	kfree(buffer);
 	kfree(envp);
-	return;
+	return retval;
 }
 
 EXPORT_SYMBOL_GPL(kobject_uevent_env);
@@ -214,10 +227,13 @@ EXPORT_SYMBOL_GPL(kobject_uevent_env);
  *
  * @action: action that is happening (usually KOBJ_ADD and KOBJ_REMOVE)
  * @kobj: struct kobject that the action is happening to
+ *
+ * Returns 0 if kobject_uevent() is completed with success or the
+ * corresponding error when it fails.
  */
-void kobject_uevent(struct kobject *kobj, enum kobject_action action)
+int kobject_uevent(struct kobject *kobj, enum kobject_action action)
 {
-	kobject_uevent_env(kobj, action, NULL);
+	return kobject_uevent_env(kobj, action, NULL);
 }
 
 EXPORT_SYMBOL_GPL(kobject_uevent);
