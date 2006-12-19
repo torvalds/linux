@@ -1788,6 +1788,18 @@ config LAN_SAA9730
 	  workstations.
 	  See <http://www.semiconductors.philips.com/pip/SAA9730_flyer_1>.
 
+config SC92031
+	tristate "Silan SC92031 PCI Fast Ethernet Adapter driver (EXPERIMENTAL)"
+	depends on NET_PCI && PCI && EXPERIMENTAL
+	select CRC32
+	---help---
+	  This is a driver for the Fast Ethernet PCI network cards based on
+	  the Silan SC92031 chip (sometimes also called Rsltek 8139D). If you
+	  have one of these, say Y here.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sc92031.  This is recommended.
+
 config NET_POCKET
 	bool "Pocket and portable adapters"
 	depends on NET_ETHERNET && PARPORT

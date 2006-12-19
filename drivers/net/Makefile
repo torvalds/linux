@@ -160,6 +160,7 @@ obj-$(CONFIG_APRICOT) += 82596.o
 obj-$(CONFIG_LASI_82596) += lasi_82596.o
 obj-$(CONFIG_MVME16x_NET) += 82596.o
 obj-$(CONFIG_BVME6000_NET) += 82596.o
+obj-$(CONFIG_SC92031) += sc92031.o
 
 # This is also a 82596 and should probably be merged
 obj-$(CONFIG_LP486E) += lp486e.o
