@@ -49,6 +49,7 @@ config X86_SPEEDSTEP_CENTRINO_ACPI
 
 config X86_ACPI_CPUFREQ
 	tristate "ACPI Processor P-States driver"
+	select CPU_FREQ_TABLE
 	depends on ACPI_PROCESSOR
 	help
 	  This driver adds a CPUFreq driver which utilizes the ACPI
