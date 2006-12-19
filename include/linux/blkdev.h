@@ -331,10 +331,6 @@ struct request_pm_state
 
 #include <linux/elevator.h>
 
-typedef int (merge_request_fn) (request_queue_t *, struct request *,
-				struct bio *);
-typedef int (merge_requests_fn) (request_queue_t *, struct request *,
-				 struct request *);
 typedef void (request_fn_proc) (request_queue_t *q);
 typedef int (make_request_fn) (request_queue_t *q, struct bio *bio);
 typedef int (prep_rq_fn) (request_queue_t *, struct request *);
@@ -376,9 +372,6 @@ struct request_queue
 	struct request_list	rq;
 
 	request_fn_proc		*request_fn;
-	merge_request_fn	*back_merge_fn;
-	merge_request_fn	*front_merge_fn;
-	merge_requests_fn	*merge_requests_fn;
 	make_request_fn		*make_request_fn;
 	prep_rq_fn		*prep_rq_fn;
 	unplug_fn		*unplug_fn;
@@ -647,6 +640,11 @@ extern void blk_recount_segments(request_queue_t *, struct bio *);
 extern int scsi_cmd_ioctl(struct file *, struct gendisk *, unsigned int, void __user *);
 extern int sg_scsi_ioctl(struct file *, struct request_queue *,
 		struct gendisk *, struct scsi_ioctl_command __user *);
+
+/*
+ * Temporary export, until SCSI gets fixed up.
+ */
+extern int ll_back_merge_fn(request_queue_t *, struct request *, struct bio *);
 
 /*
  * A queue has just exitted congestion.  Note this in the global counter of

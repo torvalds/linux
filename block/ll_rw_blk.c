@@ -1405,8 +1405,7 @@ static inline int ll_new_hw_segment(request_queue_t *q,
 	return 1;
 }
 
-static int ll_back_merge_fn(request_queue_t *q, struct request *req, 
-			    struct bio *bio)
+int ll_back_merge_fn(request_queue_t *q, struct request *req, struct bio *bio)
 {
 	unsigned short max_sectors;
 	int len;
@@ -1442,6 +1441,7 @@ static int ll_back_merge_fn(request_queue_t *q, struct request *req,
 
 	return ll_new_hw_segment(q, req, bio);
 }
+EXPORT_SYMBOL(ll_back_merge_fn);
 
 static int ll_front_merge_fn(request_queue_t *q, struct request *req, 
 			     struct bio *bio)
@@ -1912,9 +1912,6 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	}
 
 	q->request_fn		= rfn;
-	q->back_merge_fn       	= ll_back_merge_fn;
-	q->front_merge_fn      	= ll_front_merge_fn;
-	q->merge_requests_fn	= ll_merge_requests_fn;
 	q->prep_rq_fn		= NULL;
 	q->unplug_fn		= generic_unplug_device;
 	q->queue_flags		= (1 << QUEUE_FLAG_CLUSTER);
@@ -2371,7 +2368,7 @@ static int __blk_rq_map_user(request_queue_t *q, struct request *rq,
 	spin_lock_irq(q->queue_lock);
 	if (!rq->bio)
 		blk_rq_bio_prep(q, rq, bio);
-	else if (!q->back_merge_fn(q, rq, bio)) {
+	else if (!ll_back_merge_fn(q, rq, bio)) {
 		ret = -EINVAL;
 		spin_unlock_irq(q->queue_lock);
 		goto unmap_bio;
@@ -2820,7 +2817,7 @@ static int attempt_merge(request_queue_t *q, struct request *req,
 	 * will have updated segment counts, update sector
 	 * counts here.
 	 */
-	if (!q->merge_requests_fn(q, req, next))
+	if (!ll_merge_requests_fn(q, req, next))
 		return 0;
 
 	/*
@@ -2937,7 +2934,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 		case ELEVATOR_BACK_MERGE:
 			BUG_ON(!rq_mergeable(req));
 
-			if (!q->back_merge_fn(q, req, bio))
+			if (!ll_back_merge_fn(q, req, bio))
 				break;
 
 			blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE);
@@ -2954,7 +2951,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 		case ELEVATOR_FRONT_MERGE:
 			BUG_ON(!rq_mergeable(req));
 
-			if (!q->front_merge_fn(q, req, bio))
+			if (!ll_front_merge_fn(q, req, bio))
 				break;
 
 			blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE);

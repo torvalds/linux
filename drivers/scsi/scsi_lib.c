@@ -265,7 +265,7 @@ static int scsi_merge_bio(struct request *rq, struct bio *bio)
 
 	if (!rq->bio)
 		blk_rq_bio_prep(q, rq, bio);
-	else if (!q->back_merge_fn(q, rq, bio))
+	else if (!ll_back_merge_fn(q, rq, bio))
 		return -EINVAL;
 	else {
 		rq->biotail->bi_next = bio;
