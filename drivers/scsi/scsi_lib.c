@@ -270,8 +270,6 @@ static int scsi_merge_bio(struct request *rq, struct bio *bio)
 	else {
 		rq->biotail->bi_next = bio;
 		rq->biotail = bio;
-		rq->hard_nr_sectors += bio_sectors(bio);
-		rq->nr_sectors = rq->hard_nr_sectors;
 	}
 
 	return 0;

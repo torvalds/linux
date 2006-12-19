@@ -2350,12 +2350,12 @@ static int __blk_rq_map_user(request_queue_t *q, struct request *rq,
 	else
 		bio = bio_copy_user(q, uaddr, len, reading);
 
-	if (IS_ERR(bio)) {
+	if (IS_ERR(bio))
 		return PTR_ERR(bio);
-	}
 
 	orig_bio = bio;
 	blk_queue_bounce(q, &bio);
+
 	/*
 	 * We link the bounce buffer in and could have to traverse it
 	 * later so we have to get a ref to prevent it from being freed
@@ -2379,8 +2379,6 @@ static int __blk_rq_map_user(request_queue_t *q, struct request *rq,
 		rq->biotail->bi_next = bio;
 		rq->biotail = bio;
 
-		rq->nr_sectors += bio_sectors(bio);
-		rq->hard_nr_sectors = rq->nr_sectors;
 		rq->data_len += bio->bi_size;
 	}
 	spin_unlock_irq(q->queue_lock);
