@@ -2359,18 +2359,10 @@ static int __blk_rq_map_user(request_queue_t *q, struct request *rq,
 	 */
 	bio_get(bio);
 
-	/*
-	 * for most (all? don't know of any) queues we could
-	 * skip grabbing the queue lock here. only drivers with
-	 * funky private ->back_merge_fn() function could be
-	 * problematic.
-	 */
-	spin_lock_irq(q->queue_lock);
 	if (!rq->bio)
 		blk_rq_bio_prep(q, rq, bio);
 	else if (!ll_back_merge_fn(q, rq, bio)) {
 		ret = -EINVAL;
-		spin_unlock_irq(q->queue_lock);
 		goto unmap_bio;
 	} else {
 		rq->biotail->bi_next = bio;
@@ -2378,7 +2370,6 @@ static int __blk_rq_map_user(request_queue_t *q, struct request *rq,
 
 		rq->data_len += bio->bi_size;
 	}
-	spin_unlock_irq(q->queue_lock);
 
 	return bio->bi_size;
 
