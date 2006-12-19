@@ -672,7 +672,7 @@ int ata_acpi_push_id(struct ata_port *ap, unsigned int ix)
 	input.count = 1;
 	input.pointer = in_params;
 	in_params[0].type = ACPI_TYPE_BUFFER;
-	in_params[0].buffer.length = sizeof(atadev->id[0] * ATA_ID_WORDS);
+	in_params[0].buffer.length = sizeof(atadev->id[0]) * ATA_ID_WORDS;
 	in_params[0].buffer.pointer = (u8 *)atadev->id;
 	/* Output buffer: _SDD has no output */
 
