@@ -51,7 +51,6 @@
 #define warn(format, arg...) \
 	printk(KERN_WARNING AUDIO_NAME ": " format "\n" , ## arg)
 
-static struct workqueue_struct *wm8750_workq = NULL;
 static struct work_struct wm8750_dapm_work;
 
 /*
@@ -1039,7 +1038,7 @@ static int wm8750_resume(struct platform_device *pdev)
 	if (codec->suspend_dapm_state == SNDRV_CTL_POWER_D0) {
 		wm8750_dapm_event(codec, SNDRV_CTL_POWER_D2);
 		codec->dapm_state = SNDRV_CTL_POWER_D0;
-		queue_delayed_work(wm8750_workq, &wm8750_dapm_work,
+		schedule_delayed_work(&wm8750_dapm_work,
 			 msecs_to_jiffies(1000));
 	}
 
@@ -1084,8 +1083,7 @@ static int wm8750_init(struct snd_soc_device *socdev)
 	/* charge output caps */
 	wm8750_dapm_event(codec, SNDRV_CTL_POWER_D2);
 	codec->dapm_state = SNDRV_CTL_POWER_D3hot;
-	queue_delayed_work(wm8750_workq, &wm8750_dapm_work,
-		msecs_to_jiffies(1000));
+	schedule_delayed_work(&wm8750_dapm_work, msecs_to_jiffies(1000));
 
 	/* set the update bits */
 	reg = wm8750_read_reg_cache(codec, WM8750_LDAC);
@@ -1228,11 +1226,6 @@ static int wm8750_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&codec->dapm_paths);
 	wm8750_socdev = socdev;
 	INIT_WORK(&wm8750_dapm_work, wm8750_work, codec);
-	wm8750_workq = create_workqueue("wm8750");
-	if (wm8750_workq == NULL) {
-		kfree(codec);
-		return -ENOMEM;
-	}
 #if defined (CONFIG_I2C) || defined (CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
 		normal_i2c[0] = setup->i2c_address;
@@ -1256,8 +1249,7 @@ static int wm8750_remove(struct platform_device *pdev)
 
 	if (codec->control_data)
 		wm8750_dapm_event(codec, SNDRV_CTL_POWER_D3cold);
-	if (wm8750_workq)
-		destroy_workqueue(wm8750_workq);
+	flush_scheduled_work();
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
 #if defined (CONFIG_I2C) || defined (CONFIG_I2C_MODULE)

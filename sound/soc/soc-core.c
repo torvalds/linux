@@ -59,7 +59,6 @@
 
 static DEFINE_MUTEX(pcm_mutex);
 static DEFINE_MUTEX(io_mutex);
-static struct workqueue_struct *soc_workq;
 static DECLARE_WAIT_QUEUE_HEAD(soc_pm_waitq);
 
 /* supported sample rates */
@@ -810,7 +809,7 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* start delayed pop wq here for playback streams */
 		rtd->codec_dai->pop_wait = 1;
-		queue_delayed_work(soc_workq, &socdev->delayed_work,
+		schedule_delayed_work(&socdev->delayed_work,
 			msecs_to_jiffies(pmdown_time));
 	} else {
 		/* capture streams can be powered down now */
@@ -1102,7 +1101,7 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 	}
 
 	/* close any waiting streams and save state */
-	flush_workqueue(soc_workq);
+	flush_scheduled_work();
 	codec->suspend_dapm_state = codec->dapm_state;
 
 	for(i = 0; i < codec->num_dai; i++) {
@@ -1227,15 +1226,8 @@ static int soc_probe(struct platform_device *pdev)
 	}
 
 	/* DAPM stream work */
-	soc_workq = create_workqueue("kdapm");
-	if (soc_workq == NULL)
-		goto work_err;
 	INIT_DELAYED_WORK(&socdev->delayed_work, close_delayed_work);
 	return 0;
-
-work_err:
-	if (platform->remove)
-		platform->remove(pdev);
 
 platform_err:
 	if (codec_dev->remove)
@@ -1262,9 +1254,6 @@ static int soc_remove(struct platform_device *pdev)
 	struct snd_soc_machine *machine = socdev->machine;
 	struct snd_soc_platform *platform = socdev->platform;
 	struct snd_soc_codec_device *codec_dev = socdev->codec_dev;
-
-	if (soc_workq)
-		destroy_workqueue(soc_workq);
 
 	if (platform->remove)
 		platform->remove(pdev);
