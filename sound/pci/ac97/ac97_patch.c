@@ -941,6 +941,9 @@ static int patch_sigmatel_stac9708_specific(struct snd_ac97 *ac97)
 {
 	int err;
 
+	/* the register bit is writable, but the function is not implemented: */
+	snd_ac97_remove_ctl(ac97, "PCM Out Path & Mute", NULL);
+
 	snd_ac97_rename_vol_ctl(ac97, "Headphone Playback", "Sigmatel Surround Playback");
 	if ((err = patch_build_controls(ac97, &snd_ac97_stac9708_bias_control, 1)) < 0)
 		return err;
