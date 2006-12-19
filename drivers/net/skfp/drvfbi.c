@@ -23,6 +23,7 @@
 #include "h/smc.h"
 #include "h/supern_2.h"
 #include "h/skfbiinc.h"
+#include <linux/bitrev.h>
 
 #ifndef	lint
 static const char ID_sccs[] = "@(#)drvfbi.c	1.63 99/02/11 (C) SK " ;
@@ -445,16 +446,14 @@ void read_address(struct s_smc *smc, u_char *mac_addr)
 	char PmdType ;
 	int	i ;
 
-	extern const u_char canonical[256] ;
-
 #if	(defined(ISA) || defined(MCA))
 	for (i = 0; i < 4 ;i++) {	/* read mac address from board */
 		smc->hw.fddi_phys_addr.a[i] =
-			canonical[(inpw(PR_A(i+SA_MAC))&0xff)] ;
+			bitrev8(inpw(PR_A(i+SA_MAC)));
 	}
 	for (i = 4; i < 6; i++) {
 		smc->hw.fddi_phys_addr.a[i] =
-			canonical[(inpw(PR_A(i+SA_MAC+PRA_OFF))&0xff)] ;
+			bitrev8(inpw(PR_A(i+SA_MAC+PRA_OFF)));
 	}
 #endif
 #ifdef	EISA
@@ -464,17 +463,17 @@ void read_address(struct s_smc *smc, u_char *mac_addr)
 	 */
 	for (i = 0; i < 4 ;i++) {	/* read mac address from board */
 		smc->hw.fddi_phys_addr.a[i] =
-			canonical[inp(PR_A(i+SA_MAC))] ;
+			bitrev8(inp(PR_A(i+SA_MAC)));
 	}
 	for (i = 4; i < 6; i++) {
 		smc->hw.fddi_phys_addr.a[i] =
-			canonical[inp(PR_A(i+SA_MAC+PRA_OFF))] ;
+			bitrev8(inp(PR_A(i+SA_MAC+PRA_OFF)));
 	}
 #endif
 #ifdef	PCI
 	for (i = 0; i < 6; i++) {	/* read mac address from board */
 		smc->hw.fddi_phys_addr.a[i] =
-			canonical[inp(ADDR(B2_MAC_0+i))] ;
+			bitrev8(inp(ADDR(B2_MAC_0+i)));
 	}
 #endif
 #ifndef	PCI
@@ -493,7 +492,7 @@ void read_address(struct s_smc *smc, u_char *mac_addr)
 	if (mac_addr) {
 		for (i = 0; i < 6 ;i++) {
 			smc->hw.fddi_canon_addr.a[i] = mac_addr[i] ;
-			smc->hw.fddi_home_addr.a[i] = canonical[mac_addr[i]] ;
+			smc->hw.fddi_home_addr.a[i] = bitrev8(mac_addr[i]);
 		}
 		return ;
 	}
@@ -501,7 +500,7 @@ void read_address(struct s_smc *smc, u_char *mac_addr)
 
 	for (i = 0; i < 6 ;i++) {
 		smc->hw.fddi_canon_addr.a[i] =
-			canonical[smc->hw.fddi_phys_addr.a[i]] ;
+			bitrev8(smc->hw.fddi_phys_addr.a[i]);
 	}
 }
 
@@ -1269,11 +1268,8 @@ void driver_get_bia(struct s_smc *smc, struct fddi_addr *bia_addr)
 {
 	int i ;
 
-	extern const u_char canonical[256] ;
-
-	for (i = 0 ; i < 6 ; i++) {
-		bia_addr->a[i] = canonical[smc->hw.fddi_phys_addr.a[i]] ;
-	}
+	for (i = 0 ; i < 6 ; i++)
+		bia_addr->a[i] = bitrev8(smc->hw.fddi_phys_addr.a[i]);
 }
 
 void smt_start_watchdog(struct s_smc *smc)

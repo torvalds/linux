@@ -2546,6 +2546,7 @@ config DEFXX
 config SKFP
 	tristate "SysKonnect FDDI PCI support"
 	depends on FDDI && PCI
+	select BITREVERSE
 	---help---
 	  Say Y here if you have a SysKonnect FDDI PCI adapter.
 	  The following adapters are supported by this driver:

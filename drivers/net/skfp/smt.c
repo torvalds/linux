@@ -18,6 +18,7 @@
 #include "h/fddi.h"
 #include "h/smc.h"
 #include "h/smt_p.h"
+#include <linux/bitrev.h>
 
 #define KERNEL
 #include "h/smtstate.h"
@@ -25,8 +26,6 @@
 #ifndef	lint
 static const char ID_sccs[] = "@(#)smt.c	2.43 98/11/23 (C) SK " ;
 #endif
-
-extern const u_char canonical[256] ;
 
 /*
  * FC in SMbuf
@@ -180,7 +179,7 @@ void smt_agent_init(struct s_smc *smc)
 	driver_get_bia(smc,&smc->mib.fddiSMTStationId.sid_node) ;
 	for (i = 0 ; i < 6 ; i ++) {
 		smc->mib.fddiSMTStationId.sid_node.a[i] =
-			canonical[smc->mib.fddiSMTStationId.sid_node.a[i]] ;
+			bitrev8(smc->mib.fddiSMTStationId.sid_node.a[i]);
 	}
 	smc->mib.fddiSMTManufacturerData[0] =
 		smc->mib.fddiSMTStationId.sid_node.a[0] ;
@@ -2049,9 +2048,8 @@ static void hwm_conv_can(struct s_smc *smc, char *data, int len)
 
 	SK_UNUSED(smc) ;
 
-	for (i = len; i ; i--, data++) {
-		*data = canonical[*(u_char *)data] ;
-	}
+	for (i = len; i ; i--, data++)
+		*data = bitrev8(*data);
 }
 #endif
 

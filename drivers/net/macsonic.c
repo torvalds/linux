@@ -121,16 +121,12 @@ enum macsonic_type {
  * For reversing the PROM address
  */
 
-static unsigned char nibbletab[] = {0, 8, 4, 12, 2, 10, 6, 14,
-				    1, 9, 5, 13, 3, 11, 7, 15};
-
 static inline void bit_reverse_addr(unsigned char addr[6])
 {
 	int i;
 
 	for(i = 0; i < 6; i++)
-		addr[i] = ((nibbletab[addr[i] & 0xf] << 4) |
-			   nibbletab[(addr[i] >> 4) &0xf]);
+		addr[i] = bitrev8(addr[i]);
 }
 
 int __init macsonic_init(struct net_device* dev)
