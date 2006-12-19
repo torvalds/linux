@@ -21,7 +21,7 @@ Param[0]
 	0 based frame number in GOP to begin playback from.
 Param[1]
 	Specifies the number of muted audio frames to play before normal
-	audio resumes.
+	audio resumes. (This is not implemented in the firmware, leave at 0)
 
 -------------------------------------------------------------------------------
 
@@ -64,7 +64,7 @@ Param[0]
 	    31   Speed:
 		     '0' slow
 		     '1' fast
-	Note: n seems to be limited to 2. Anything higher does not result in
+	Note: n is limited to 2. Anything higher does not result in
 	faster playback. Instead the host should start dropping frames.
 Param[1]
 	Direction: 0=forward, 1=reverse
@@ -77,15 +77,16 @@ Param[2]
 	    7=I, P, B frames
 Param[3]
 	B frames per GOP (for reverse play only)
-	Note: apparently this does not work. For reverse play I can only make it
-	work by selecting I or I and P frames in the Picture mask.
+	Note: for reverse playback the Picture Mask should be set to I or I, P.
+	Adding B frames to the mask will result in corrupt video. This field
+	has to be set to the correct value in order to keep the timing correct.
 Param[4]
 	Mute audio: 0=disable, 1=enable
 Param[5]
 	Display 0=frame, 1=field
 Param[6]
 	Specifies the number of muted audio frames to play before normal audio
-	resumes.
+	resumes. (Not implemented in the firmware, leave at 0)
 
 -------------------------------------------------------------------------------
 
@@ -284,43 +285,6 @@ Param[2]
 	YUV picture height
 Param[3]
 	Bitmap: see Param[0] of API 0xBD
-
--------------------------------------------------------------------------------
-
-Name 	CX2341X_DEC_SET_AUDIO_OUTPUT
-Enum 	27/0x1B
-Description
-	Select audio output format
-Param[0]
-	Bitmask:
-	     0:1  Data size:
-		      '00' 16 bit
-		      '01' 20 bit
-		      '10' 24 bit
-	     2:7  Unused
-	     8:9  Mode:
-		      '00' 2 channels
-		      '01' 4 channels
-		      '10' 6 channels
-		      '11' 6 channels with one line data mode
-			   (for left justified MSB first mode, 20 bit only)
-	    10:11 Unused
-	    12:13 Channel format:
-		      '00' right justified MSB first mode
-		      '01' left justified MSB first mode
-		      '10' I2S mode
-	    14:15 Unused
-	    16:21 Right justify bit count
-	    22:31 Unused
-
--------------------------------------------------------------------------------
-
-Name 	CX2341X_DEC_SET_AV_DELAY
-Enum 	28/0x1C
-Description
-	Set audio/video delay in 90Khz ticks
-Param[0]
-	0=A/V in sync, negative=audio lags, positive=video lags
 
 -------------------------------------------------------------------------------
 

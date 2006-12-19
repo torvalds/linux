@@ -216,7 +216,7 @@ Param[1]
 Name 	CX2341X_ENC_SET_3_2_PULLDOWN
 Enum 	177/0xB1
 Description
-	3:2 pulldown properties
+	3:2 pulldown properties (This command is not implemented in the firmware)
 Param[0]
 	0=enabled
 	1=disabled
