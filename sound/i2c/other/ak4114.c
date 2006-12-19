@@ -66,10 +66,7 @@ static void snd_ak4114_free(struct ak4114 *chip)
 {
 	chip->init = 1;	/* don't schedule new work */
 	mb();
-	if (chip->workqueue != NULL) {
-		flush_workqueue(chip->workqueue);
-		destroy_workqueue(chip->workqueue);
-	}
+	flush_scheduled_work();
 	kfree(chip);
 }
 
@@ -106,12 +103,6 @@ int snd_ak4114_create(struct snd_card *card,
 	for (reg = 0; reg < 5; reg++)
 		chip->txcsb[reg] = txcsb[reg];
 
-	chip->workqueue = create_workqueue("snd-ak4114");
-	if (chip->workqueue == NULL) {
-		kfree(chip);
-		return -ENOMEM;
-	}
-
 	snd_ak4114_reinit(chip);
 
 	chip->rcs0 = reg_read(chip, AK4114_REG_RCS0) & ~(AK4114_QINT | AK4114_CINT);
@@ -143,7 +134,7 @@ void snd_ak4114_reinit(struct ak4114 *chip)
 
 	chip->init = 1;
 	mb();
-	flush_workqueue(chip->workqueue);
+	flush_scheduled_work();
 	/* bring the chip to reset state and powerdown state */
 	reg_write(chip, AK4114_REG_PWRDN, old & ~(AK4114_RST|AK4114_PWN));
 	udelay(200);
@@ -159,7 +150,7 @@ void snd_ak4114_reinit(struct ak4114 *chip)
 	/* bring up statistics / event queing */
 	chip->init = 0;
 	INIT_DELAYED_WORK(&chip->work, ak4114_stats);
-	queue_delayed_work(chip->workqueue, &chip->work, HZ / 10);
+	schedule_delayed_work(&chip->work, HZ / 10);
 }
 
 static unsigned int external_rate(unsigned char rcs1)
@@ -568,7 +559,7 @@ static void ak4114_stats(struct work_struct *work)
 	if (chip->init)
 		return;
 	snd_ak4114_check_rate_and_errors(chip, 0);
-	queue_delayed_work(chip->workqueue, &chip->work, HZ / 10);
+	schedule_delayed_work(&chip->work, HZ / 10);
 }
 
 EXPORT_SYMBOL(snd_ak4114_create);
