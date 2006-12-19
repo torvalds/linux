@@ -50,6 +50,7 @@ static struct of_device_id of_default_bus_ids[] = {
 	{ .type = "plb5", },
 	{ .type = "plb4", },
 	{ .type = "opb", },
+	{ .type = "ebc", },
 	{},
 };
 
