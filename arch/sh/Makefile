@@ -35,6 +35,7 @@ endif
 endif
 
 cflags-$(CONFIG_CPU_SH2)		:= -m2
+cflags-$(CONFIG_CPU_SH2A)		:= -m2a $(call cc-option,-m2a-nofpu,)
 cflags-$(CONFIG_CPU_SH3)		:= -m3
 cflags-$(CONFIG_CPU_SH4)		:= -m4 \
 	$(call cc-option,-mno-implicit-fp,-m4-nofpu)
