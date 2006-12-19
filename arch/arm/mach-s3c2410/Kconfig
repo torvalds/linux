@@ -5,6 +5,7 @@ menu "S3C24XX Implementations"
 config MACH_AML_M5900
 	bool "AML M5900 Series"
 	select CPU_S3C2410
+	select PM_SIMTEC if PM
 	help
 	   Say Y here if you are using the American Microsystems M5900 Series
            <http://www.amltd.com>
@@ -12,6 +13,7 @@ config MACH_AML_M5900
 config MACH_ANUBIS
 	bool "Simtec Electronics ANUBIS"
 	select CPU_S3C2440
+	select PM_SIMTEC if PM
 	help
 	  Say Y here if you are using the Simtec Electronics ANUBIS
 	  development system
@@ -19,6 +21,7 @@ config MACH_ANUBIS
 config MACH_OSIRIS
 	bool "Simtec IM2440D20 (OSIRIS) module"
 	select CPU_S3C2440
+	select PM_SIMTEC if PM
 	help
 	  Say Y here if you are using the Simtec IM2440D20 module, also
 	  known as the Osiris.
@@ -26,6 +29,7 @@ config MACH_OSIRIS
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
 	select CPU_S3C2410
+	select PM_SIMTEC if PM
 	select ISA
 	help
 	  Say Y here if you are using the Simtec Electronics EB2410ITX
@@ -111,6 +115,7 @@ config MACH_SMDK2413
 
 config MACH_VR1000
 	bool "Thorcom VR1000"
+	select PM_SIMTEC if PM
 	select CPU_S3C2410
 	help
 	  Say Y here if you are using the Thorcom VR1000 board.
@@ -297,8 +302,9 @@ config S3C2410_PM_CHECK_CHUNKSIZE
 
 config PM_SIMTEC
 	bool
-	depends on PM && (ARCH_BAST || MACH_VR1000 || MACH_AML_M5900)
-	default y
+	help
+	  Common power management code for systems that are
+	  compatible with the Simtec style of power management
 
 config S3C2410_LOWLEVEL_UART_PORT
 	int "S3C2410 UART to use for low-level messages"
