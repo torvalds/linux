@@ -1714,7 +1714,7 @@ static struct backlight_properties ibm_backlight_data = {
 
 static int brightness_init(void)
 {
-	ibm_backlight_device = backlight_device_register("ibm", NULL,
+	ibm_backlight_device = backlight_device_register("ibm", NULL, NULL,
 							 &ibm_backlight_data);
 	if (IS_ERR(ibm_backlight_device)) {
 		printk(IBM_ERR "Could not register backlight device\n");
@@ -2503,7 +2503,7 @@ static int __init setup_notify(struct ibm_struct *ibm)
 		       ibm->name, status);
 		return -ENODEV;
 	}
-
+	ibm->notify_installed = 1;
 	return 0;
 }
 
@@ -2580,7 +2580,6 @@ static int __init ibm_init(struct ibm_struct *ibm)
 		ret = setup_notify(ibm);
 		if (ret < 0)
 			return ret;
-		ibm->notify_installed = 1;
 	}
 
 	return 0;

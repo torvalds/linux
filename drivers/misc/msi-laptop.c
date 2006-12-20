@@ -317,7 +317,8 @@ static int __init msi_init(void)
 
 	/* Register backlight stuff */
 
-	msibl_device = backlight_device_register("msi-laptop-bl", NULL, &msibl_props);
+	msibl_device = backlight_device_register("msi-laptop-bl", NULL, NULL,
+						&msibl_props);
 	if (IS_ERR(msibl_device))
 		return PTR_ERR(msibl_device);
 

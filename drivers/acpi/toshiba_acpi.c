@@ -590,7 +590,8 @@ static int __init toshiba_acpi_init(void)
 			remove_proc_entry(PROC_TOSHIBA, acpi_root_dir);
 	}
 
-	toshiba_backlight_device = backlight_device_register("toshiba", NULL,
+	toshiba_backlight_device = backlight_device_register("toshiba",NULL,
+						NULL,
 						&toshiba_backlight_data);
         if (IS_ERR(toshiba_backlight_device)) {
 		printk(KERN_ERR "Could not register toshiba backlight device\n");
