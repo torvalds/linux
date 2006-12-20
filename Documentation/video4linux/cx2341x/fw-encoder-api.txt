@@ -322,9 +322,7 @@ Param[0]
 		'01'=JointStereo
 		'10'=Dual
 		'11'=Mono
-		Note: testing seems to indicate that Mono and possibly
-		JointStereo are not working (default to stereo).
-		Dual does work, though.
+		Note: the cx23415 cannot decode Joint Stereo properly.
 
 	  10:11 Mode Extension used in joint_stereo mode.
 		In Layer I and II they indicate which subbands are in
@@ -403,16 +401,34 @@ Name 	CX2341X_ENC_SET_PGM_INDEX_INFO
 Enum 	199/0xC7
 Description
 	Sets the Program Index Information.
+	The information is stored as follows:
+
+	struct info {
+		u32 length;		// Length of this frame
+		u32 offset_low;		// Offset in the file of the
+		u32 offset_high;	// start of this frame
+		u32 mask1;		// Bits 0-1 are the type mask:
+					// 1=I, 2=P, 4=B
+		u32 pts;		// The PTS of the frame
+		u32 mask2;		// Bit 0 is bit 32 of the pts.
+	};
+	u32 table_ptr;
+	struct info index[400];
+
+	The table_ptr is the encoder memory address in the table were
+	*new* entries will be written. Note that this is a ringbuffer,
+	so the table_ptr will wraparound.
 Param[0]
 	Picture Mask:
 	    0=No index capture
 	    1=I frames
 	    3=I,P frames
 	    7=I,P,B frames
+	(Seems to be ignored, it always indexes I, P and B frames)
 Param[1]
 	Elements requested (up to 400)
 Result[0]
-	Offset in SDF memory of the table.
+	Offset in the encoder memory of the start of the table.
 Result[1]
 	Number of allocated elements up to a maximum of Param[1]
 

@@ -236,7 +236,7 @@ Description
 	Setup firmware to notify the host about a particular event.
 	Counterpart to API 0xD5
 Param[0]
-	Event: 0=Audio mode change between stereo and dual channel
+	Event: 0=Audio mode change between mono, (joint) stereo and dual channel.
 	Event: 3=Decoder started
 	Event: 4=Unknown: goes off 10-15 times per second while decoding.
 	Event: 5=Some sync event: goes off once per frame.
