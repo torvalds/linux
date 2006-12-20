@@ -11,7 +11,7 @@ config ACPI
 	bool "ACPI Support"
 	depends on IA64 || X86
 	depends on PCI
-	select PM
+	depends on PM
 	default y
 	---help---
 	  Advanced Configuration and Power Interface (ACPI) support for 

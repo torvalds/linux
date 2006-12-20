@@ -901,13 +901,13 @@ static int __init acpi_processor_init(void)
 
 	acpi_processor_dir = proc_mkdir(ACPI_PROCESSOR_CLASS, acpi_root_dir);
 	if (!acpi_processor_dir)
-		return 0;
+		return -ENOMEM;
 	acpi_processor_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&acpi_processor_driver);
 	if (result < 0) {
 		remove_proc_entry(ACPI_PROCESSOR_CLASS, acpi_root_dir);
-		return 0;
+		return result;
 	}
 
 	acpi_processor_install_hotplug_notify();
