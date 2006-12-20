@@ -49,7 +49,7 @@ struct cx2341x_mpeg_params {
 	enum v4l2_mpeg_audio_mode_extension audio_mode_extension;
 	enum v4l2_mpeg_audio_emphasis audio_emphasis;
 	enum v4l2_mpeg_audio_crc audio_crc;
-	u8 audio_properties;
+	u16 audio_properties;
 
 	/* video */
 	enum v4l2_mpeg_video_encoding video_encoding;
