@@ -520,7 +520,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 
 	if (desc->chip == &no_irq_chip) {
 		printk(KERN_WARNING "Trying to install %sinterrupt handler "
-		       "for IRQ%d\n", is_chained ? "chained " : " ", irq);
+		       "for IRQ%d\n", is_chained ? "chained " : "", irq);
 		/*
 		 * Some ARM implementations install a handler for really dumb
 		 * interrupt hardware without setting an irq_chip. This worked
