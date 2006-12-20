@@ -845,38 +845,6 @@ int set_page_dirty_lock(struct page *page)
 EXPORT_SYMBOL(set_page_dirty_lock);
 
 /*
- * Clear a page's dirty flag, while caring for dirty memory accounting. 
- * Returns true if the page was previously dirty.
- */
-int test_clear_page_dirty(struct page *page)
-{
-	struct address_space *mapping = page_mapping(page);
-	unsigned long flags;
-
-	if (!mapping)
-		return TestClearPageDirty(page);
-
-	write_lock_irqsave(&mapping->tree_lock, flags);
-	if (TestClearPageDirty(page)) {
-		radix_tree_tag_clear(&mapping->page_tree,
-				page_index(page), PAGECACHE_TAG_DIRTY);
-		write_unlock_irqrestore(&mapping->tree_lock, flags);
-		/*
-		 * We can continue to use `mapping' here because the
-		 * page is locked, which pins the address_space
-		 */
-		if (mapping_cap_account_dirty(mapping)) {
-			page_mkclean(page);
-			dec_zone_page_state(page, NR_FILE_DIRTY);
-		}
-		return 1;
-	}
-	write_unlock_irqrestore(&mapping->tree_lock, flags);
-	return 0;
-}
-EXPORT_SYMBOL(test_clear_page_dirty);
-
-/*
  * Clear a page's dirty flag, while caring for dirty memory accounting.
  * Returns true if the page was previously dirty.
  *
