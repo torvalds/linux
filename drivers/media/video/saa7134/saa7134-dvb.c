@@ -50,9 +50,9 @@ static unsigned int antenna_pwr = 0;
 module_param(antenna_pwr, int, 0444);
 MODULE_PARM_DESC(antenna_pwr,"enable antenna power (Pinnacle 300i)");
 
-static int use_frontent = 0;
-module_param(use_frontent, int, 0644);
-MODULE_PARM_DESC(use_frontent,"for cards with multiple frontends (0: terrestrial, 1: satellite)");
+static int use_frontend = 0;
+module_param(use_frontend, int, 0644);
+MODULE_PARM_DESC(use_frontend,"for cards with multiple frontends (0: terrestrial, 1: satellite)");
 
 /* ------------------------------------------------------------------ */
 static int pinnacle_antenna_pwr(struct saa7134_dev *dev, int on)
@@ -1303,7 +1303,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_FLYDVB_TRIO:
-		if(! use_frontent) {	//terrestrial
+		if(! use_frontend) {	//terrestrial
 			dev->dvb.frontend = dvb_attach(tda10046_attach,
 						       &lifeview_trio_config,
 						       &dev->i2c_adap);
