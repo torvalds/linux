@@ -835,11 +835,21 @@ long sys_swapcontext(struct ucontext __user *old_ctx,
 		return -EINVAL;
 
 	if (old_ctx != NULL) {
+		struct mcontext __user *mctx;
+
+		/*
+		 * old_ctx might not be 16-byte aligned, in which
+		 * case old_ctx->uc_mcontext won't be either.
+		 * Because we have the old_ctx->uc_pad2 field
+		 * before old_ctx->uc_mcontext, we need to round down
+		 * from &old_ctx->uc_mcontext to a 16-byte boundary.
+		 */
+		mctx = (struct mcontext __user *)
+			((unsigned long) &old_ctx->uc_mcontext & ~0xfUL);
 		if (!access_ok(VERIFY_WRITE, old_ctx, sizeof(*old_ctx))
-		    || save_user_regs(regs, &old_ctx->uc_mcontext, 0)
+		    || save_user_regs(regs, mctx, 0)
 		    || put_sigset_t(&old_ctx->uc_sigmask, &current->blocked)
-		    || __put_user(to_user_ptr(&old_ctx->uc_mcontext),
-			    &old_ctx->uc_regs))
+		    || __put_user(to_user_ptr(mctx), &old_ctx->uc_regs))
 			return -EFAULT;
 	}
 	if (new_ctx == NULL)
