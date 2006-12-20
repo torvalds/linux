@@ -535,9 +535,9 @@ static int vivi_start_thread(struct vivi_dmaqueue  *dma_q)
 
 	dma_q->kthread = kthread_run(vivi_thread, dma_q, "vivi");
 
-	if (dma_q->kthread == NULL) {
+	if (IS_ERR(dma_q->kthread)) {
 		printk(KERN_ERR "vivi: kernel_thread() failed\n");
-		return -EINVAL;
+		return PTR_ERR(dma_q->kthread);
 	}
 	dprintk(1,"returning from %s\n",__FUNCTION__);
 	return 0;
