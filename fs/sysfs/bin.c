@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 
 #include <asm/uaccess.h>
+#include <asm/semaphore.h>
 
 #include "sysfs.h"
 

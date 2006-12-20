@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/namei.h>
+#include <asm/semaphore.h>
 #include "sysfs.h"
 
 DECLARE_RWSEM(sysfs_rename_sem);

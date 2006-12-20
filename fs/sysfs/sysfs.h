@@ -33,6 +33,22 @@ struct sysfs_symlink {
 	struct kobject * target_kobj;
 };
 
+struct sysfs_buffer {
+	struct list_head		associates;
+	size_t				count;
+	loff_t				pos;
+	char				* page;
+	struct sysfs_ops		* ops;
+	struct semaphore		sem;
+	int				orphaned;
+	int				needs_read_fill;
+	int				event;
+};
+
+struct sysfs_buffer_collection {
+	struct list_head	associates;
+};
+
 static inline struct kobject * to_kobj(struct dentry * dentry)
 {
 	struct sysfs_dirent * sd = dentry->d_fsdata;
