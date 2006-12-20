@@ -945,8 +945,27 @@ bsg_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		void __user *uarg = (void __user *) arg;
 		return scsi_cmd_ioctl(file, bd->disk, cmd, uarg);
 	}
-	case SG_IO:
-		return -EINVAL;
+	case SG_IO: {
+		struct request *rq;
+		struct bio *bio;
+		struct sg_io_v4 hdr;
+
+		if (copy_from_user(&hdr, uarg, sizeof(hdr)))
+			return -EFAULT;
+
+		rq = bsg_map_hdr(bd, &hdr);
+		if (IS_ERR(rq))
+			return PTR_ERR(rq);
+
+		bio = rq->bio;
+		blk_execute_rq(bd->queue, bd->disk, rq, 0);
+		blk_complete_sgv4_hdr_rq(rq, &hdr, bio);
+
+		if (copy_to_user(uarg, &hdr, sizeof(hdr)))
+			return -EFAULT;
+		else
+			return 0;
+	}
 	/*
 	 * block device ioctls
 	 */
