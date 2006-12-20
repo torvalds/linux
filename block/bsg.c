@@ -16,7 +16,6 @@
  *	  seperated right now.
  *
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/file.h>
@@ -347,8 +346,8 @@ static void bsg_rq_end_io(struct request *rq, int uptodate)
 	struct bsg_device *bd = bc->bd;
 	unsigned long flags;
 
-	dprintk("%s: finished rq %p bio %p, bc %p offset %ld stat %d\n",
-			bd->name, rq, bc, bc->bio, bc - bd->cmd_map, uptodate);
+	dprintk("%s: finished rq %p bc %p, bio %p offset %d stat %d\n",
+		bd->name, rq, bc, bc->bio, bc - bd->cmd_map, uptodate);
 
 	bc->hdr.duration = jiffies_to_msecs(jiffies - bc->hdr.duration);
 
@@ -562,7 +561,7 @@ bsg_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	int ret;
 	ssize_t bytes_read;
 
-	dprintk("%s: read %lu bytes\n", bd->name, count);
+	dprintk("%s: read %Zd bytes\n", bd->name, count);
 
 	bsg_set_block(bd, file);
 	bytes_read = 0;
@@ -642,7 +641,7 @@ bsg_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	ssize_t bytes_read;
 	int ret;
 
-	dprintk("%s: write %lu bytes\n", bd->name, count);
+	dprintk("%s: write %Zd bytes\n", bd->name, count);
 
 	bsg_set_block(bd, file);
 	bsg_set_write_perm(bd, file);
@@ -657,7 +656,7 @@ bsg_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	if (!bytes_read || (bytes_read && err_block_err(ret)))
 		bytes_read = ret;
 
-	dprintk("%s: returning %lu\n", bd->name, bytes_read);
+	dprintk("%s: returning %Zd\n", bd->name, bytes_read);
 	return bytes_read;
 }
 
@@ -768,7 +767,7 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 
 	strncpy(bd->name, disk->disk_name, sizeof(bd->name) - 1);
 	dprintk("bound to <%s>, max queue %d\n",
-		format_dev_t(buf, i->i_rdev), bd->max_queue);
+		format_dev_t(buf, inode->i_rdev), bd->max_queue);
 
 	mutex_unlock(&bsg_mutex);
 	return bd;
