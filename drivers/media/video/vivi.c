@@ -1363,7 +1363,9 @@ static void __exit vivi_exit(void)
 	struct vivi_dev *h;
 	struct list_head *list;
 
-	list_for_each(list,&vivi_devlist) {
+	while (!list_empty(&vivi_devlist)) {
+		list = vivi_devlist.next;
+		list_del(list);
 		h = list_entry(list, struct vivi_dev, vivi_devlist);
 		kfree (h);
 	}
