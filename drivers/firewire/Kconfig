@@ -20,4 +20,15 @@ config FW
 	  To compile this driver as a module, say M here: the
 	  module will be called fw-core.
 
+config FW_OHCI
+	tristate "Support for OHCI firewire host controllers"
+	depends on PCI && FW
+	help
+	  Enable this driver if you have an firewire controller based
+	  on the OHCI specification.  For all practical purposes, this
+	  is the only chipset in use, so say Y here.
+
+	  To compile this driver as a module, say M here: the
+	  module will be called fw-ohci.
+
 endmenu
