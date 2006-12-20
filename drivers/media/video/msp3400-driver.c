@@ -949,7 +949,7 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	if (thread_func) {
 		state->kthread = kthread_run(thread_func, client, "msp34xx");
 
-		if (state->kthread == NULL)
+		if (IS_ERR(state->kthread))
 			v4l_warn(client, "kernel_thread() failed\n");
 		msp_wake_thread(client);
 	}
