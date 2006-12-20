@@ -242,14 +242,9 @@ extern int tcp_memory_pressure;
 
 static inline int before(__u32 seq1, __u32 seq2)
 {
-        return (__s32)(seq1-seq2) < 0;
+        return (__s32)(seq2-seq1) > 0;
 }
-
-static inline int after(__u32 seq1, __u32 seq2)
-{
-	return (__s32)(seq2-seq1) < 0;
-}
-
+#define after(seq2, seq1) 	before(seq1, seq2)
 
 /* is s2<=s1<=s3 ? */
 static inline int between(__u32 seq1, __u32 seq2, __u32 seq3)
