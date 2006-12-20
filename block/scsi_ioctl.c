@@ -112,7 +112,7 @@ static int sg_emulated_host(request_queue_t *q, int __user *p)
 #define safe_for_read(cmd)	[cmd] = CMD_READ_SAFE
 #define safe_for_write(cmd)	[cmd] = CMD_WRITE_SAFE
 
-static int verify_command(unsigned char *cmd, int has_write_perm)
+int blk_verify_command(unsigned char *cmd, int has_write_perm)
 {
 	static unsigned char cmd_type[256] = {
 
@@ -212,6 +212,7 @@ static int verify_command(unsigned char *cmd, int has_write_perm)
 	/* Otherwise fail it with an "Operation not permitted" */
 	return -EPERM;
 }
+EXPORT_SYMBOL_GPL(blk_verify_command);
 
 int blk_fill_sghdr_rq(request_queue_t *q, struct request *rq,
 		      struct sg_io_hdr *hdr, int has_write_perm)
@@ -220,7 +221,7 @@ int blk_fill_sghdr_rq(request_queue_t *q, struct request *rq,
 
 	if (copy_from_user(rq->cmd, hdr->cmdp, hdr->cmd_len))
 		return -EFAULT;
-	if (verify_command(rq->cmd, has_write_perm))
+	if (blk_verify_command(rq->cmd, has_write_perm))
 		return -EPERM;
 
 	/*
@@ -457,7 +458,7 @@ int sg_scsi_ioctl(struct file *file, struct request_queue *q,
 	if (in_len && copy_from_user(buffer, sic->data + cmdlen, in_len))
 		goto error;
 
-	err = verify_command(rq->cmd, file->f_mode & FMODE_WRITE);
+	err = blk_verify_command(rq->cmd, file->f_mode & FMODE_WRITE);
 	if (err)
 		goto error;
 

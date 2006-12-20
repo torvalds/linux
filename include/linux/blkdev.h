@@ -692,6 +692,7 @@ extern int blk_fill_sghdr_rq(request_queue_t *, struct request *,
 extern int blk_unmap_sghdr_rq(struct request *, struct sg_io_hdr *);
 extern int blk_complete_sghdr_rq(struct request *, struct sg_io_hdr *,
 			  struct bio *);
+extern int blk_verify_command(unsigned char *, int);
 
 static inline request_queue_t *bdev_get_queue(struct block_device *bdev)
 {
