@@ -4050,8 +4050,8 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	       (unsigned long long)pci_resource_start(dev,0));
 	schedule();
 
-	btv->bt848_mmio=ioremap(pci_resource_start(dev,0), 0x1000);
-	if (NULL == ioremap(pci_resource_start(dev,0), 0x1000)) {
+	btv->bt848_mmio = ioremap(pci_resource_start(dev, 0), 0x1000);
+	if (NULL == btv->bt848_mmio) {
 		printk("bttv%d: ioremap() failed\n", btv->c.nr);
 		result = -EIO;
 		goto fail1;
