@@ -434,13 +434,15 @@ fw_core_handle_bus_reset(struct fw_card *card,
 		for_each_fw_node(card, local_node, report_found_node);
 	} else {
 		update_tree(card, local_node, &changed);
+		if (changed)
+			card->irm_retries = 0;
 	}
+
+	/* If we're not the root node, we may have to do some IRM work. */
+	if (card->local_node != card->root_node)
+		schedule_delayed_work(&card->work, 0);
 
 	spin_unlock_irqrestore(&card->lock, flags);
 }
 
 EXPORT_SYMBOL(fw_core_handle_bus_reset);
-
-void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
-{
-}

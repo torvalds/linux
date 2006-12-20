@@ -26,6 +26,7 @@
 
 #include "fw-transaction.h"
 #include "fw-topology.h"
+#include "fw-device.h"
 
 static int
 setup_iso_buffer(struct fw_iso_context *ctx, size_t size,

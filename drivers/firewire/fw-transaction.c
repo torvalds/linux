@@ -33,6 +33,7 @@
 
 #include "fw-transaction.h"
 #include "fw-topology.h"
+#include "fw-device.h"
 
 #define header_pri(pri)			((pri) << 0)
 #define header_tcode(tcode)		((tcode) << 4)
@@ -700,10 +701,6 @@ static struct fw_descriptor vendor_textual_descriptor = {
 	.length = ARRAY_SIZE(vendor_textual_descriptor_data),
 	.key = 0x81000000,
 	.data = vendor_textual_descriptor_data
-};
-
-struct bus_type fw_bus_type = {
-	.name = "fw",
 };
 
 static int __init fw_core_init(void)

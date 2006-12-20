@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include "fw-transaction.h"
 #include "fw-topology.h"
+#include "fw-device.h"
 
 /* The lib/crc16.c implementation uses the standard (0x8005)
  * polynomial, but we need the ITU-T (or CCITT) polynomial (0x1021).
@@ -186,6 +187,59 @@ fw_core_remove_descriptor (struct fw_descriptor *desc)
 EXPORT_SYMBOL(fw_core_remove_descriptor);
 
 static void
+fw_card_irm_work(struct work_struct *work)
+{
+	struct fw_card *card =
+		container_of(work, struct fw_card, work.work);
+	struct fw_device *root;
+	unsigned long flags;
+	int new_irm_id, generation;
+
+	/* FIXME: This simple bus management unconditionally picks a
+	 * cycle master if the current root can't do it.  We need to
+	 * not do this if there is a bus manager already.  Also, some
+	 * hubs set the contender bit, which is bogus, so we should
+	 * probably do a little sanity check on the IRM (like, read
+	 * the bandwidth register) if it's not us. */
+
+	spin_lock_irqsave(&card->lock, flags);
+
+	generation = card->generation;
+	root = card->root_node->data;
+
+	if (root == NULL)
+		/* Either link_on is false, or we failed to read the
+		 * config rom.  In either case, pick another root. */
+		new_irm_id = card->local_node->node_id;
+	else if (root->state != FW_DEVICE_RUNNING)
+		/* If we haven't probed this device yet, bail out now
+		 * and let's try again once that's done. */
+		new_irm_id = -1;
+	else if (root->config_rom[2] & bib_cmc)
+		/* FIXME: I suppose we should set the cmstr bit in the
+		 * STATE_CLEAR register of this node, as described in
+		 * 1394-1995, 8.4.2.6.  Also, send out a force root
+		 * packet for this node. */
+		new_irm_id = -1;
+	else
+		/* Current root has an active link layer and we
+		 * successfully read the config rom, but it's not
+		 * cycle master capable. */
+		new_irm_id = card->local_node->node_id;
+
+	if (card->irm_retries++ > 5)
+		new_irm_id = -1;
+
+	spin_unlock_irqrestore(&card->lock, flags);
+
+	if (new_irm_id > 0) {
+		fw_notify("Trying to become root (card %d)\n", card->index);
+		fw_send_force_root(card, new_irm_id, generation);
+		fw_core_initiate_bus_reset(card, 1);
+	}
+}
+
+static void
 release_card(struct device *device)
 {
 	struct fw_card *card =
@@ -221,6 +275,8 @@ fw_card_initialize(struct fw_card *card, struct fw_card_driver *driver,
 		    flush_timer_callback, (unsigned long)card);
 
 	card->local_node = NULL;
+
+	INIT_DELAYED_WORK(&card->work, fw_card_irm_work);
 
 	card->card_device.bus     = &fw_bus_type;
 	card->card_device.release = release_card;

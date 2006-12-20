@@ -265,6 +265,10 @@ struct fw_card {
 	struct device card_device;
 
 	struct list_head link;
+
+	/* Work struct for IRM duties. */
+	struct delayed_work work;
+	int irm_retries;
 };
 
 struct fw_card *fw_card_get(struct fw_card *card);
