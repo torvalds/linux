@@ -245,17 +245,7 @@ EXPORT_SYMBOL_GPL(blk_fill_sghdr_rq);
  */
 int blk_unmap_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr)
 {
-	struct bio *bio = rq->bio;
-
-	/*
-	 * also releases request
-	 */
-	if (!hdr->iovec_count)
-		return blk_rq_unmap_user(bio, hdr->dxfer_len);
-
-	rq_for_each_bio(bio, rq)
-		bio_unmap_user(bio);
-
+	blk_rq_unmap_user(rq->bio);
 	blk_put_request(rq);
 	return 0;
 }
@@ -335,7 +325,6 @@ static int sg_io(struct file *file, request_queue_t *q,
 		has_write_perm = file->f_mode & FMODE_WRITE;
 
 	if (blk_fill_sghdr_rq(q, rq, hdr, has_write_perm)) {
-		blk_rq_unmap_user(bio, hdr->dxfer_len);
 		blk_put_request(rq);
 		return -EFAULT;
 	}
