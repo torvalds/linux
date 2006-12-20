@@ -475,7 +475,7 @@ static void dib3000mc_set_channel_cfg(struct dib3000mc_state *state, struct dibx
 	tmp = ((chan->nfft & 0x1) << 7) | (chan->guard << 5) | (chan->nqam << 3) | chan->vit_alpha;
 	dib3000mc_write_word(state, 0, tmp);
 
-	dib3000mc_write_word(state, 5, seq);
+	dib3000mc_write_word(state, 5, (1 << 8) | ((seq & 0xf) << 4));
 
 	tmp = (chan->vit_hrch << 4) | (chan->vit_select_hp);
 	if (!chan->vit_hrch || (chan->vit_hrch && chan->vit_select_hp))
