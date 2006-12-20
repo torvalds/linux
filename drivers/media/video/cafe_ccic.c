@@ -2166,7 +2166,7 @@ static void cafe_pci_remove(struct pci_dev *pdev)
 	struct cafe_camera *cam = cafe_find_by_pdev(pdev);
 
 	if (cam == NULL) {
-		cam_warn(cam, "pci_remove on unknown pdev %p\n", pdev);
+		printk(KERN_WARNING "pci_remove on unknown pdev %p\n", pdev);
 		return;
 	}
 	mutex_lock(&cam->s_mutex);
