@@ -569,8 +569,8 @@ static void sky2_phy_power(struct sky2_hw *hw, unsigned port, int onoff)
 	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
 		onoff = !onoff;
 
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 	reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
-
 	if (onoff)
 		/* Turn off phy power saving */
 		reg1 &= ~phy_power[port];
@@ -579,6 +579,7 @@ static void sky2_phy_power(struct sky2_hw *hw, unsigned port, int onoff)
 
 	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
 	sky2_pci_read32(hw, PCI_DEV_REG1);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	udelay(100);
 }
 
