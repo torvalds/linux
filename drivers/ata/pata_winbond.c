@@ -206,8 +206,8 @@ static __init int winbond_init_one(unsigned long port)
 			 */
 
 			pdev = platform_device_register_simple(DRV_NAME, nr_winbond_host, NULL, 0);
-			if (pdev == NULL)
-				return -ENOMEM;
+			if (IS_ERR(pdev))
+				return PTR_ERR(pdev);
 
 			memset(&ae, 0, sizeof(struct ata_probe_ent));
 			INIT_LIST_HEAD(&ae.node);

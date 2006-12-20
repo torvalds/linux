@@ -34,7 +34,7 @@
 void cn_queue_wrapper(struct work_struct *work)
 {
 	struct cn_callback_entry *cbq =
-		container_of(work, struct cn_callback_entry, work.work);
+		container_of(work, struct cn_callback_entry, work);
 	struct cn_callback_data *d = &cbq->data;
 
 	d->callback(d->callback_priv);
@@ -59,13 +59,12 @@ static struct cn_callback_entry *cn_queue_alloc_callback_entry(char *name, struc
 	memcpy(&cbq->id.id, id, sizeof(struct cb_id));
 	cbq->data.callback = callback;
 	
-	INIT_DELAYED_WORK(&cbq->work, &cn_queue_wrapper);
+	INIT_WORK(&cbq->work, &cn_queue_wrapper);
 	return cbq;
 }
 
 static void cn_queue_free_callback(struct cn_callback_entry *cbq)
 {
-	cancel_delayed_work(&cbq->work);
 	flush_workqueue(cbq->pdev->cn_queue);
 
 	kfree(cbq);

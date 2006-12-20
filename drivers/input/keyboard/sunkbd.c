@@ -225,7 +225,7 @@ static void sunkbd_reinit(struct work_struct *work)
 static void sunkbd_enable(struct sunkbd *sunkbd, int enable)
 {
 	serio_pause_rx(sunkbd->serio);
-	sunkbd->enabled = 1;
+	sunkbd->enabled = enable;
 	serio_continue_rx(sunkbd->serio);
 }
 

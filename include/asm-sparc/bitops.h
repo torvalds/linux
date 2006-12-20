@@ -14,6 +14,10 @@
 
 #ifdef __KERNEL__
 
+extern unsigned long ___set_bit(unsigned long *addr, unsigned long mask);
+extern unsigned long ___clear_bit(unsigned long *addr, unsigned long mask);
+extern unsigned long ___change_bit(unsigned long *addr, unsigned long mask);
+
 /*
  * Set bit 'nr' in 32-bit quantity at address 'addr' where bit '0'
  * is in the highest of the four bytes and bit '31' is the high bit
@@ -22,134 +26,62 @@
  */
 static inline int test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	register unsigned long mask asm("g2");
-	register unsigned long *ADDR asm("g1");
-	register int tmp1 asm("g3");
-	register int tmp2 asm("g4");
-	register int tmp3 asm("g5");
-	register int tmp4 asm("g7");
+	unsigned long *ADDR, mask;
 
 	ADDR = ((unsigned long *) addr) + (nr >> 5);
 	mask = 1 << (nr & 31);
 
-	__asm__ __volatile__(
-	"mov	%%o7, %%g4\n\t"
-	"call	___set_bit\n\t"
-	" add	%%o7, 8, %%o7\n"
-	: "=&r" (mask), "=r" (tmp1), "=r" (tmp2), "=r" (tmp3), "=r" (tmp4)
-	: "0" (mask), "r" (ADDR)
-	: "memory", "cc");
-
-	return mask != 0;
+	return ___set_bit(ADDR, mask) != 0;
 }
 
 static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	register unsigned long mask asm("g2");
-	register unsigned long *ADDR asm("g1");
-	register int tmp1 asm("g3");
-	register int tmp2 asm("g4");
-	register int tmp3 asm("g5");
-	register int tmp4 asm("g7");
+	unsigned long *ADDR, mask;
 
 	ADDR = ((unsigned long *) addr) + (nr >> 5);
 	mask = 1 << (nr & 31);
 
-	__asm__ __volatile__(
-	"mov	%%o7, %%g4\n\t"
-	"call	___set_bit\n\t"
-	" add	%%o7, 8, %%o7\n"
-	: "=&r" (mask), "=r" (tmp1), "=r" (tmp2), "=r" (tmp3), "=r" (tmp4)
-	: "0" (mask), "r" (ADDR)
-	: "memory", "cc");
+	(void) ___set_bit(ADDR, mask);
 }
 
 static inline int test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	register unsigned long mask asm("g2");
-	register unsigned long *ADDR asm("g1");
-	register int tmp1 asm("g3");
-	register int tmp2 asm("g4");
-	register int tmp3 asm("g5");
-	register int tmp4 asm("g7");
+	unsigned long *ADDR, mask;
 
 	ADDR = ((unsigned long *) addr) + (nr >> 5);
 	mask = 1 << (nr & 31);
 
-	__asm__ __volatile__(
-	"mov	%%o7, %%g4\n\t"
-	"call	___clear_bit\n\t"
-	" add	%%o7, 8, %%o7\n"
-	: "=&r" (mask), "=r" (tmp1), "=r" (tmp2), "=r" (tmp3), "=r" (tmp4)
-	: "0" (mask), "r" (ADDR)
-	: "memory", "cc");
-
-	return mask != 0;
+	return ___clear_bit(ADDR, mask) != 0;
 }
 
 static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	register unsigned long mask asm("g2");
-	register unsigned long *ADDR asm("g1");
-	register int tmp1 asm("g3");
-	register int tmp2 asm("g4");
-	register int tmp3 asm("g5");
-	register int tmp4 asm("g7");
+	unsigned long *ADDR, mask;
 
 	ADDR = ((unsigned long *) addr) + (nr >> 5);
 	mask = 1 << (nr & 31);
 
-	__asm__ __volatile__(
-	"mov	%%o7, %%g4\n\t"
-	"call	___clear_bit\n\t"
-	" add	%%o7, 8, %%o7\n"
-	: "=&r" (mask), "=r" (tmp1), "=r" (tmp2), "=r" (tmp3), "=r" (tmp4)
-	: "0" (mask), "r" (ADDR)
-	: "memory", "cc");
+	(void) ___clear_bit(ADDR, mask);
 }
 
 static inline int test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	register unsigned long mask asm("g2");
-	register unsigned long *ADDR asm("g1");
-	register int tmp1 asm("g3");
-	register int tmp2 asm("g4");
-	register int tmp3 asm("g5");
-	register int tmp4 asm("g7");
+	unsigned long *ADDR, mask;
 
 	ADDR = ((unsigned long *) addr) + (nr >> 5);
 	mask = 1 << (nr & 31);
 
-	__asm__ __volatile__(
-	"mov	%%o7, %%g4\n\t"
-	"call	___change_bit\n\t"
-	" add	%%o7, 8, %%o7\n"
-	: "=&r" (mask), "=r" (tmp1), "=r" (tmp2), "=r" (tmp3), "=r" (tmp4)
-	: "0" (mask), "r" (ADDR)
-	: "memory", "cc");
-
-	return mask != 0;
+	return ___change_bit(ADDR, mask) != 0;
 }
 
 static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	register unsigned long mask asm("g2");
-	register unsigned long *ADDR asm("g1");
-	register int tmp1 asm("g3");
-	register int tmp2 asm("g4");
-	register int tmp3 asm("g5");
-	register int tmp4 asm("g7");
+	unsigned long *ADDR, mask;
 
 	ADDR = ((unsigned long *) addr) + (nr >> 5);
 	mask = 1 << (nr & 31);
 
-	__asm__ __volatile__(
-	"mov	%%o7, %%g4\n\t"
-	"call	___change_bit\n\t"
-	" add	%%o7, 8, %%o7\n"
-	: "=&r" (mask), "=r" (tmp1), "=r" (tmp2), "=r" (tmp3), "=r" (tmp4)
-	: "0" (mask), "r" (ADDR)
-	: "memory", "cc");
+	(void) ___change_bit(ADDR, mask);
 }
 
 #include <asm-generic/bitops/non-atomic.h>

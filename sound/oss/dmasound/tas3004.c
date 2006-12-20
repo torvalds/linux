@@ -48,6 +48,7 @@ struct tas3004_data_t {
 	int output_id;
 	int speaker_id;
 	struct tas_drce_t drce_state;
+	struct work_struct change;
 };
 
 #define MAKE_TIME(sec,usec) (((sec)<<12) + (50000+(usec/10)*(1<<12))/100000)
@@ -914,14 +915,12 @@ tas3004_update_device_parameters(struct tas3004_data_t *self)
 }
 
 static void
-tas3004_device_change_handler(void *self)
+tas3004_device_change_handler(struct work_struct *work)
 {
-	if (!self) return;
-
-	tas3004_update_device_parameters((struct tas3004_data_t *)self);
+	struct tas3004_data_t *self;
+	self = container_of(work, struct tas3004_data_t, change);
+	tas3004_update_device_parameters(self);
 }
-
-static struct work_struct device_change;
 
 static int
 tas3004_output_device_change(	struct tas3004_data_t *self,
@@ -933,7 +932,7 @@ tas3004_output_device_change(	struct tas3004_data_t *self,
 	self->output_id=output_id;
 	self->speaker_id=speaker_id;
 
-	schedule_work(&device_change);
+	schedule_work(&self->change);
 
 	return 0;
 }
@@ -1112,7 +1111,7 @@ tas3004_init(struct i2c_client *client)
 	tas3004_write_register(self, TAS3004_REG_MCR2, &mcr2, WRITE_SHADOW);
 	tas3004_write_register(self, TAS3004_REG_DRC, drce_init, WRITE_SHADOW);
 
-	INIT_WORK(&device_change, tas3004_device_change_handler, self);
+	INIT_WORK(&self->change, tas3004_device_change_handler);
 	return 0;
 }
 

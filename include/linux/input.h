@@ -491,6 +491,21 @@ struct input_absinfo {
 #define KEY_DIGITS		0x19d
 #define KEY_TEEN		0x19e
 #define KEY_TWEN		0x19f
+#define KEY_VIDEOPHONE		0x1a0
+#define KEY_GAMES		0x1a1
+#define KEY_ZOOMIN		0x1a2
+#define KEY_ZOOMOUT		0x1a3
+#define KEY_ZOOMRESET		0x1a4
+#define KEY_WORDPROCESSOR	0x1a5
+#define KEY_EDITOR		0x1a6
+#define KEY_SPREADSHEET		0x1a7
+#define KEY_GRAPHICSEDITOR	0x1a8
+#define KEY_PRESENTATION	0x1a9
+#define KEY_DATABASE		0x1aa
+#define KEY_NEWS		0x1ab
+#define KEY_VOICEMAIL		0x1ac
+#define KEY_ADDRESSBOOK		0x1ad
+#define KEY_MESSENGER		0x1ae
 
 #define KEY_DEL_EOL		0x1c0
 #define KEY_DEL_EOS		0x1c1

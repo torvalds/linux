@@ -979,12 +979,11 @@ __qdio_outbound_processing(struct qdio_q *q)
 
 	if (q->is_iqdio_q) {
 		/* 
-		 * for asynchronous queues, we better check, if the fill
-		 * level is too high. for synchronous queues, the fill
-		 * level will never be that high. 
+		 * for asynchronous queues, we better check, if the sent
+		 * buffer is already switched from PRIMED to EMPTY.
 		 */
-		if (atomic_read(&q->number_of_buffers_used)>
-		    IQDIO_FILL_LEVEL_TO_POLL)
+		if ((q->queue_type == QDIO_IQDIO_QFMT_ASYNCH) &&
+		    !qdio_is_outbound_q_done(q))
 			qdio_mark_q(q);
 
 	} else if (!q->hydra_gives_outbound_pcis)
@@ -1825,6 +1824,10 @@ qdio_fill_qs(struct qdio_irq *irq_ptr, struct ccw_device *cdev,
 			q->sbal[j]=*(outbound_sbals_array++);
 
                 q->queue_type=q_format;
+		if ((q->queue_type == QDIO_IQDIO_QFMT) &&
+		    (no_output_qs > 1) &&
+		    (i == no_output_qs-1))
+			q->queue_type = QDIO_IQDIO_QFMT_ASYNCH;
 		q->int_parm=int_parm;
 		q->is_input_q=0;
 		q->schid = irq_ptr->schid;

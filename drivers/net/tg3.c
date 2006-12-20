@@ -68,8 +68,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.70"
-#define DRV_MODULE_RELDATE	"December 1, 2006"
+#define DRV_MODULE_VERSION	"3.71"
+#define DRV_MODULE_RELDATE	"December 15, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -959,6 +959,13 @@ static int tg3_phy_reset(struct tg3 *tp)
 	u32 phy_status;
 	int err;
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+		u32 val;
+
+		val = tr32(GRC_MISC_CFG);
+		tw32_f(GRC_MISC_CFG, val & ~GRC_MISC_CFG_EPHY_IDDQ);
+		udelay(40);
+	}
 	err  = tg3_readphy(tp, MII_BMSR, &phy_status);
 	err |= tg3_readphy(tp, MII_BMSR, &phy_status);
 	if (err != 0)
@@ -1170,7 +1177,15 @@ static void tg3_power_down_phy(struct tg3 *tp)
 	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
 		return;
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906) {
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+		u32 val;
+
+		tg3_bmcr_reset(tp);
+		val = tr32(GRC_MISC_CFG);
+		tw32_f(GRC_MISC_CFG, val | GRC_MISC_CFG_EPHY_IDDQ);
+		udelay(40);
+		return;
+	} else {
 		tg3_writephy(tp, MII_TG3_EXT_CTRL,
 			     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x01b2);
@@ -4426,7 +4441,7 @@ static void tg3_free_consistent(struct tg3 *tp)
  */
 static int tg3_alloc_consistent(struct tg3 *tp)
 {
-	tp->rx_std_buffers = kmalloc((sizeof(struct ring_info) *
+	tp->rx_std_buffers = kzalloc((sizeof(struct ring_info) *
 				      (TG3_RX_RING_SIZE +
 				       TG3_RX_JUMBO_RING_SIZE)) +
 				     (sizeof(struct tx_ring_info) *
@@ -4434,13 +4449,6 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 				     GFP_KERNEL);
 	if (!tp->rx_std_buffers)
 		return -ENOMEM;
-
-	memset(tp->rx_std_buffers, 0,
-	       (sizeof(struct ring_info) *
-		(TG3_RX_RING_SIZE +
-		 TG3_RX_JUMBO_RING_SIZE)) +
-	       (sizeof(struct tx_ring_info) *
-		TG3_TX_RING_SIZE));
 
 	tp->rx_jumbo_buffers = &tp->rx_std_buffers[TG3_RX_RING_SIZE];
 	tp->tx_buffers = (struct tx_ring_info *)
@@ -6988,6 +6996,8 @@ static int tg3_open(struct net_device *dev)
 	struct tg3 *tp = netdev_priv(dev);
 	int err;
 
+	netif_carrier_off(tp->dev);
+
 	tg3_full_lock(tp, 0);
 
 	err = tg3_set_power_state(tp, PCI_D0);
@@ -7980,6 +7990,10 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		tp->link_config.speed = cmd->speed;
 		tp->link_config.duplex = cmd->duplex;
   	}
+
+	tp->link_config.orig_speed = tp->link_config.speed;
+	tp->link_config.orig_duplex = tp->link_config.duplex;
+	tp->link_config.orig_autoneg = tp->link_config.autoneg;
 
 	if (netif_running(dev))
 		tg3_setup_phy(tp, 1);
@@ -11923,14 +11937,14 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 */
 	pci_save_state(tp->pdev);
 
+	pci_set_drvdata(pdev, dev);
+
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_ERR PFX "Cannot register net device, "
 		       "aborting.\n");
 		goto err_out_iounmap;
 	}
-
-	pci_set_drvdata(pdev, dev);
 
 	printk(KERN_INFO "%s: Tigon3 [partno(%s) rev %04x PHY(%s)] (%s) %s Ethernet ",
 	       dev->name,
@@ -11961,8 +11975,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	       dev->name, tp->dma_rwctrl,
 	       (pdev->dma_mask == DMA_32BIT_MASK) ? 32 :
 	        (((u64) pdev->dma_mask == DMA_40BIT_MASK) ? 40 : 64));
-
-	netif_carrier_off(tp->dev);
 
 	return 0;
 

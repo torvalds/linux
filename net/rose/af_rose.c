@@ -1314,7 +1314,8 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&rose_callsign, argp, sizeof(ax25_address)))
 			return -EFAULT;
 		if (ax25cmp(&rose_callsign, &null_ax25_address) != 0)
-			ax25_listen_register(&rose_callsign, NULL);
+			return ax25_listen_register(&rose_callsign, NULL);
+
 		return 0;
 
 	case SIOCRSGL2CALL:
@@ -1481,6 +1482,15 @@ static struct notifier_block rose_dev_notifier = {
 
 static struct net_device **dev_rose;
 
+static struct ax25_protocol rose_pid = {
+	.pid	= AX25_P_ROSE,
+	.func	= rose_route_frame
+};
+
+static struct ax25_linkfail rose_linkfail_notifier = {
+	.func	= rose_link_failed
+};
+
 static int __init rose_proto_init(void)
 {
 	int i;
@@ -1530,8 +1540,8 @@ static int __init rose_proto_init(void)
 	sock_register(&rose_family_ops);
 	register_netdevice_notifier(&rose_dev_notifier);
 
-	ax25_protocol_register(AX25_P_ROSE, rose_route_frame);
-	ax25_linkfail_register(rose_link_failed);
+	ax25_register_pid(&rose_pid);
+	ax25_linkfail_register(&rose_linkfail_notifier);
 
 #ifdef CONFIG_SYSCTL
 	rose_register_sysctl();
@@ -1579,7 +1589,7 @@ static void __exit rose_exit(void)
 	rose_rt_free();
 
 	ax25_protocol_release(AX25_P_ROSE);
-	ax25_linkfail_release(rose_link_failed);
+	ax25_linkfail_release(&rose_linkfail_notifier);
 
 	if (ax25cmp(&rose_callsign, &null_ax25_address) != 0)
 		ax25_listen_release(&rose_callsign, NULL);

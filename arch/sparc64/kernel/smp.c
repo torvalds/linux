@@ -1447,11 +1447,8 @@ void __init setup_per_cpu_areas(void)
 	char *ptr;
 
 	/* Copy section for each CPU (we discard the original) */
-	goal = ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES);
-#ifdef CONFIG_MODULES
-	if (goal < PERCPU_ENOUGH_ROOM)
-		goal = PERCPU_ENOUGH_ROOM;
-#endif
+	goal = PERCPU_ENOUGH_ROOM;
+
 	__per_cpu_shift = 0;
 	for (size = 1UL; size < goal; size <<= 1UL)
 		__per_cpu_shift++;

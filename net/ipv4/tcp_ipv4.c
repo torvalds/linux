@@ -928,6 +928,7 @@ int tcp_v4_md5_do_del(struct sock *sk, __be32 addr)
 			if (tp->md5sig_info->entries4 == 0) {
 				kfree(tp->md5sig_info->keys4);
 				tp->md5sig_info->keys4 = NULL;
+				tp->md5sig_info->alloced4 = 0;
 			} else if (tp->md5sig_info->entries4 != i) {
 				/* Need to do some manipulation */
 				memcpy(&tp->md5sig_info->keys4[i],
@@ -1185,7 +1186,7 @@ done_opts:
 		return 0;
 
 	if (hash_expected && !hash_location) {
-		LIMIT_NETDEBUG(KERN_INFO "MD5 Hash NOT expected but found "
+		LIMIT_NETDEBUG(KERN_INFO "MD5 Hash expected but NOT found "
 			       "(" NIPQUAD_FMT ", %d)->(" NIPQUAD_FMT ", %d)\n",
 			       NIPQUAD(iph->saddr), ntohs(th->source),
 			       NIPQUAD(iph->daddr), ntohs(th->dest));

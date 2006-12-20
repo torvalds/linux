@@ -96,13 +96,13 @@ static inline void set_wq_data(struct work_struct *work, void *wq)
 	BUG_ON(!work_pending(work));
 
 	new = (unsigned long) wq | (1UL << WORK_STRUCT_PENDING);
-	new |= work->management & WORK_STRUCT_FLAG_MASK;
-	work->management = new;
+	new |= WORK_STRUCT_FLAG_MASK & *work_data_bits(work);
+	atomic_long_set(&work->data, new);
 }
 
 static inline void *get_wq_data(struct work_struct *work)
 {
-	return (void *) (work->management & WORK_STRUCT_WQ_DATA_MASK);
+	return (void *) (atomic_long_read(&work->data) & WORK_STRUCT_WQ_DATA_MASK);
 }
 
 static int __run_work(struct cpu_workqueue_struct *cwq, struct work_struct *work)
@@ -133,7 +133,7 @@ static int __run_work(struct cpu_workqueue_struct *cwq, struct work_struct *work
 		list_del_init(&work->entry);
 		spin_unlock_irqrestore(&cwq->lock, flags);
 
-		if (!test_bit(WORK_STRUCT_NOAUTOREL, &work->management))
+		if (!test_bit(WORK_STRUCT_NOAUTOREL, work_data_bits(work)))
 			work_release(work);
 		f(work);
 
@@ -206,7 +206,7 @@ int fastcall queue_work(struct workqueue_struct *wq, struct work_struct *work)
 {
 	int ret = 0, cpu = get_cpu();
 
-	if (!test_and_set_bit(WORK_STRUCT_PENDING, &work->management)) {
+	if (!test_and_set_bit(WORK_STRUCT_PENDING, work_data_bits(work))) {
 		if (unlikely(is_single_threaded(wq)))
 			cpu = singlethread_cpu;
 		BUG_ON(!list_empty(&work->entry));
@@ -248,7 +248,7 @@ int fastcall queue_delayed_work(struct workqueue_struct *wq,
 	if (delay == 0)
 		return queue_work(wq, work);
 
-	if (!test_and_set_bit(WORK_STRUCT_PENDING, &work->management)) {
+	if (!test_and_set_bit(WORK_STRUCT_PENDING, work_data_bits(work))) {
 		BUG_ON(timer_pending(timer));
 		BUG_ON(!list_empty(&work->entry));
 
@@ -280,7 +280,7 @@ int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 	struct timer_list *timer = &dwork->timer;
 	struct work_struct *work = &dwork->work;
 
-	if (!test_and_set_bit(WORK_STRUCT_PENDING, &work->management)) {
+	if (!test_and_set_bit(WORK_STRUCT_PENDING, work_data_bits(work))) {
 		BUG_ON(timer_pending(timer));
 		BUG_ON(!list_empty(&work->entry));
 
@@ -321,7 +321,7 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 		spin_unlock_irqrestore(&cwq->lock, flags);
 
 		BUG_ON(get_wq_data(work) != cwq);
-		if (!test_bit(WORK_STRUCT_NOAUTOREL, &work->management))
+		if (!test_bit(WORK_STRUCT_NOAUTOREL, work_data_bits(work)))
 			work_release(work);
 		f(work);
 

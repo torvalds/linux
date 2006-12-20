@@ -698,8 +698,10 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 		goto fail_io;
 
 	pdev = platform_device_register_simple(DRV_NAME, nr_legacy_host, NULL, 0);
-	if (pdev == NULL)
+	if (IS_ERR(pdev)) {
+		ret = PTR_ERR(pdev);
 		goto fail_dev;
+	}
 
 	if (ht6560a & mask) {
 		ops = &ht6560a_port_ops;

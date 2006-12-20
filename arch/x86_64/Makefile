@@ -45,9 +45,7 @@ cflags-kernel-$(CONFIG_REORDER) += -ffunction-sections
 # actually it makes the kernel smaller too.
 cflags-y += -fno-reorder-blocks
 cflags-y += -Wno-sign-compare
-ifneq ($(CONFIG_UNWIND_INFO),y)
 cflags-y += -fno-asynchronous-unwind-tables
-endif
 ifneq ($(CONFIG_DEBUG_INFO),y)
 # -fweb shrinks the kernel a bit, but the difference is very small
 # it also messes up debugging, so don't use it for now.
