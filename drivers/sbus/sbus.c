@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/device.h>
 
 #include <asm/system.h>
 #include <asm/sbus.h>
@@ -17,13 +18,25 @@
 #include <asm/bpp.h>
 #include <asm/irq.h>
 
+static ssize_t
+show_sbusobppath_attr(struct device * dev, struct device_attribute * attr, char * buf)
+{
+	struct sbus_dev *sbus;
+
+	sbus = to_sbus_device(dev);
+
+	return snprintf (buf, PAGE_SIZE, "%s\n", sbus->ofdev.node->full_name);
+}
+
+static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH, show_sbusobppath_attr, NULL);
+
 struct sbus_bus *sbus_root;
 
 static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sdev)
 {
 	unsigned long base;
 	void *pval;
-	int len;
+	int len, err;
 
 	sdev->prom_node = dp->node;
 	strcpy(sdev->prom_name, dp->name);
@@ -66,6 +79,9 @@ static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sde
 	if (of_device_register(&sdev->ofdev) != 0)
 		printk(KERN_DEBUG "sbus: device registration error for %s!\n",
 		       dp->path_component_name);
+
+	/* WE HAVE BEEN INVADED BY ALIENS! */
+	err = sysfs_create_file(&sdev->ofdev.dev.kobj, &dev_attr_obppath.attr);
 }
 
 static void __init sbus_bus_ranges_init(struct device_node *dp, struct sbus_bus *sbus)
