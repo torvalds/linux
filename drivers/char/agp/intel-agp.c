@@ -207,6 +207,9 @@ static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
 	int i, j, num_entries;
 	void *temp;
 
+	if (mem->page_count == 0)
+		return 0;
+
 	temp = agp_bridge->current_size;
 	num_entries = A_SIZE_FIX(temp)->num_entries;
 
@@ -221,12 +224,16 @@ static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
 	if (type != 0 || mem->type != 0) {
 		if ((type == AGP_DCACHE_MEMORY) && (mem->type == AGP_DCACHE_MEMORY)) {
 			/* special insert */
-			global_cache_flush();
+			if (!mem->is_flushed) {
+				global_cache_flush();
+				mem->is_flushed = TRUE;
+			}
+
 			for (i = pg_start; i < (pg_start + mem->page_count); i++) {
 				writel((i*4096)|I810_PTE_LOCAL|I810_PTE_VALID, intel_i810_private.registers+I810_PTE_BASE+(i*4));
-				readl(intel_i810_private.registers+I810_PTE_BASE+(i*4));	/* PCI Posting. */
 			}
-			global_cache_flush();
+			readl(intel_i810_private.registers+I810_PTE_BASE+((i-1)*4));	/* PCI Posting. */
+
 			agp_bridge->driver->tlb_flush(mem);
 			return 0;
 		}
@@ -236,14 +243,17 @@ static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
 	}
 
 insert:
-	global_cache_flush();
+	if (!mem->is_flushed) {
+		global_cache_flush();
+		mem->is_flushed = TRUE;
+	}
+
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
 			mem->memory[i], mem->type),
 			intel_i810_private.registers+I810_PTE_BASE+(j*4));
-		readl(intel_i810_private.registers+I810_PTE_BASE+(j*4));	/* PCI Posting. */
 	}
-	global_cache_flush();
+	readl(intel_i810_private.registers+I810_PTE_BASE+(j-1*4));	/* PCI Posting. */
 
 	agp_bridge->driver->tlb_flush(mem);
 	return 0;
@@ -254,12 +264,14 @@ static int intel_i810_remove_entries(struct agp_memory *mem, off_t pg_start,
 {
 	int i;
 
+	if (mem->page_count == 0)
+		return 0;
+
 	for (i = pg_start; i < (mem->page_count + pg_start); i++) {
 		writel(agp_bridge->scratch_page, intel_i810_private.registers+I810_PTE_BASE+(i*4));
-		readl(intel_i810_private.registers+I810_PTE_BASE+(i*4));	/* PCI Posting. */
 	}
+	readl(intel_i810_private.registers+I810_PTE_BASE+((i-1)*4));
 
-	global_cache_flush();
 	agp_bridge->driver->tlb_flush(mem);
 	return 0;
 }
@@ -576,6 +588,9 @@ static int intel_i830_insert_entries(struct agp_memory *mem,off_t pg_start, int 
 	int i,j,num_entries;
 	void *temp;
 
+	if (mem->page_count == 0)
+		return 0;
+
 	temp = agp_bridge->current_size;
 	num_entries = A_SIZE_FIX(temp)->num_entries;
 
@@ -598,16 +613,18 @@ static int intel_i830_insert_entries(struct agp_memory *mem,off_t pg_start, int 
 		(mem->type != 0 && mem->type != AGP_PHYS_MEMORY))
 		return -EINVAL;
 
-	global_cache_flush();	/* FIXME: Necessary ?*/
+	if (!mem->is_flushed) {
+		global_cache_flush();
+		mem->is_flushed = TRUE;
+	}
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
 			mem->memory[i], mem->type),
 			intel_i830_private.registers+I810_PTE_BASE+(j*4));
-		readl(intel_i830_private.registers+I810_PTE_BASE+(j*4));	/* PCI Posting. */
 	}
+	readl(intel_i830_private.registers+I810_PTE_BASE+((j-1)*4));
 
-	global_cache_flush();
 	agp_bridge->driver->tlb_flush(mem);
 	return 0;
 }
@@ -617,7 +634,8 @@ static int intel_i830_remove_entries(struct agp_memory *mem,off_t pg_start,
 {
 	int i;
 
-	global_cache_flush();
+	if (mem->page_count == 0)
+		return 0;
 
 	if (pg_start < intel_i830_private.gtt_entries) {
 		printk (KERN_INFO PFX "Trying to disable local/stolen memory\n");
@@ -626,10 +644,9 @@ static int intel_i830_remove_entries(struct agp_memory *mem,off_t pg_start,
 
 	for (i = pg_start; i < (mem->page_count + pg_start); i++) {
 		writel(agp_bridge->scratch_page, intel_i830_private.registers+I810_PTE_BASE+(i*4));
-		readl(intel_i830_private.registers+I810_PTE_BASE+(i*4));	/* PCI Posting. */
 	}
+	readl(intel_i830_private.registers+I810_PTE_BASE+((i-1)*4));
 
-	global_cache_flush();
 	agp_bridge->driver->tlb_flush(mem);
 	return 0;
 }
@@ -686,6 +703,9 @@ static int intel_i915_insert_entries(struct agp_memory *mem,off_t pg_start,
 	int i,j,num_entries;
 	void *temp;
 
+	if (mem->page_count == 0)
+		return 0;
+
 	temp = agp_bridge->current_size;
 	num_entries = A_SIZE_FIX(temp)->num_entries;
 
@@ -708,15 +728,17 @@ static int intel_i915_insert_entries(struct agp_memory *mem,off_t pg_start,
 		(mem->type != 0 && mem->type != AGP_PHYS_MEMORY))
 		return -EINVAL;
 
-	global_cache_flush();
+	if (!mem->is_flushed) {
+		global_cache_flush();
+		mem->is_flushed = TRUE;
+	}
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
 			mem->memory[i], mem->type), intel_i830_private.gtt+j);
-		readl(intel_i830_private.gtt+j);	/* PCI Posting. */
 	}
+	readl(intel_i830_private.gtt+j-1);
 
-	global_cache_flush();
 	agp_bridge->driver->tlb_flush(mem);
 	return 0;
 }
@@ -726,7 +748,8 @@ static int intel_i915_remove_entries(struct agp_memory *mem,off_t pg_start,
 {
 	int i;
 
-	global_cache_flush();
+	if (mem->page_count == 0)
+		return 0;
 
 	if (pg_start < intel_i830_private.gtt_entries) {
 		printk (KERN_INFO PFX "Trying to disable local/stolen memory\n");
@@ -735,10 +758,9 @@ static int intel_i915_remove_entries(struct agp_memory *mem,off_t pg_start,
 
 	for (i = pg_start; i < (mem->page_count + pg_start); i++) {
 		writel(agp_bridge->scratch_page, intel_i830_private.gtt+i);
-		readl(intel_i830_private.gtt+i);
 	}
+	readl(intel_i830_private.gtt+i-1);
 
-	global_cache_flush();
 	agp_bridge->driver->tlb_flush(mem);
 	return 0;
 }
