@@ -568,6 +568,38 @@ cfq_merged_requests(request_queue_t *q, struct request *rq,
 	cfq_remove_request(next);
 }
 
+static int cfq_allow_merge(request_queue_t *q, struct request *rq,
+			   struct bio *bio)
+{
+	struct cfq_data *cfqd = q->elevator->elevator_data;
+	const int rw = bio_data_dir(bio);
+	struct cfq_queue *cfqq;
+	pid_t key;
+
+	/*
+	 * If bio is async or a write, always allow merge
+	 */
+	if (!bio_sync(bio) || rw == WRITE)
+		return 1;
+
+	/*
+	 * bio is sync. if request is not, disallow.
+	 */
+	if (!rq_is_sync(rq))
+		return 0;
+
+	/*
+	 * Ok, both bio and request are sync. Allow merge if they are
+	 * from the same queue.
+	 */
+	key = cfq_queue_pid(current, rw, 1);
+	cfqq = cfq_find_cfq_hash(cfqd, key, current->ioprio);
+	if (cfqq != RQ_CFQQ(rq))
+		return 0;
+
+	return 1;
+}
+
 static inline void
 __cfq_set_active_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
@@ -2125,6 +2157,7 @@ static struct elevator_type iosched_cfq = {
 		.elevator_merge_fn = 		cfq_merge,
 		.elevator_merged_fn =		cfq_merged_request,
 		.elevator_merge_req_fn =	cfq_merged_requests,
+		.elevator_allow_merge_fn =	cfq_allow_merge,
 		.elevator_dispatch_fn =		cfq_dispatch_requests,
 		.elevator_add_req_fn =		cfq_insert_request,
 		.elevator_activate_req_fn =	cfq_activate_request,
