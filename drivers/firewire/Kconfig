@@ -1,0 +1,23 @@
+# -*- shell-script -*-
+
+menu "IEEE 1394 (FireWire) support (JUJU alternative stack)"
+
+config FW
+	tristate "IEEE 1394 (FireWire) support (JUJU alternative stack)"
+	help
+	  IEEE 1394 describes a high performance serial bus, which is also
+	  known as FireWire(tm) or i.Link(tm) and is used for connecting all
+	  sorts of devices (most notably digital video cameras) to your
+	  computer.
+
+	  If you have FireWire hardware and want to use it, say Y here.  This
+	  is the core support only, you will also need to select a driver for
+	  your IEEE 1394 adapter.
+
+	  This is the "JUJU" firewire stack, an alternative
+	  implementation designed for roboustness and simplicity.
+
+	  To compile this driver as a module, say M here: the
+	  module will be called fw-core.
+
+endmenu
