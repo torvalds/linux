@@ -1052,7 +1052,7 @@ void __init detect_calgary(void)
 	void *tbl;
 	int calgary_found = 0;
 	unsigned long ptr;
-	int offset;
+	unsigned int offset, prev_offset;
 	int ret;
 
 	/*
@@ -1071,15 +1071,20 @@ void __init detect_calgary(void)
 	ptr = (unsigned long)phys_to_virt(get_bios_ebda());
 
 	rio_table_hdr = NULL;
+	prev_offset = 0;
 	offset = 0x180;
-	while (offset) {
+	/*
+	 * The next offset is stored in the 1st word.
+	 * Only parse up until the offset increases:
+	 */
+	while (offset > prev_offset) {
 		/* The block id is stored in the 2nd word */
 		if (*((unsigned short *)(ptr + offset + 2)) == 0x4752){
 			/* set the pointer past the offset & block id */
 			rio_table_hdr = (struct rio_table_hdr *)(ptr + offset + 4);
 			break;
 		}
-		/* The next offset is stored in the 1st word. 0 means no more */
+		prev_offset = offset;
 		offset = *((unsigned short *)(ptr + offset));
 	}
 	if (!rio_table_hdr) {
