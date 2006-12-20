@@ -3188,6 +3188,24 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE1,
 		}},
 	},
+	[SAA7134_BOARD_ENCORE_ENLTV] = {
+		/* Steven Walter <stevenrwalter@gmail.com> */
+		.name           = "Encore ENLTV",
+		.tuner_type     = TUNER_TNF_5335MF,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = LINE2,
+			.tv   = 1,
+		},{
+			.name = name_svideo,
+			.vmux = 6,
+			.amux = LINE1,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3826,6 +3844,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x153b,
 		.subdevice    = 0x1172,
 		.driver_data  = SAA7134_BOARD_CINERGY_HT_PCMCIA,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = PCI_VENDOR_ID_PHILIPS,
+		.subdevice    = 0x2342,
+		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
