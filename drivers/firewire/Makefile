@@ -7,3 +7,4 @@ fw-core-objs := fw-card.o fw-topology.o fw-transaction.o fw-iso.o \
 
 obj-$(CONFIG_FW) += fw-core.o
 obj-$(CONFIG_FW_OHCI) += fw-ohci.o
+obj-$(CONFIG_FW_SBP2) += fw-sbp2.o

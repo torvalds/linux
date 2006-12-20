@@ -31,4 +31,16 @@ config FW_OHCI
 	  To compile this driver as a module, say M here: the
 	  module will be called fw-ohci.
 
+config FW_SBP2
+	tristate "Support for storage devices (SBP-2 protocol driver)"
+	depends on FW && SCSI
+	help
+	  This option enables you to use SBP-2 devices connected to an
+	  firewire bus.  SBP-2 devices include storage devices like
+	  harddisks and DVD drives, also some other FireWire devices
+	  like scanners.
+
+	  You should also enable support for disks, CD-ROMs, etc. in the SCSI
+	  configuration section.
+
 endmenu
