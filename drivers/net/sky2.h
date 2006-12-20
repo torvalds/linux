@@ -1887,7 +1887,6 @@ struct sky2_hw {
 	struct pci_dev	     *pdev;
 	struct net_device    *dev[2];
 
-	int		     pm_cap;
 	u8	     	     chip_id;
 	u8		     chip_rev;
 	u8		     pmd_type;
