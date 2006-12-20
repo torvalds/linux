@@ -302,7 +302,7 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr)
 {
 	request_queue_t *q = bd->queue;
 	struct request *rq;
-	int ret, rw;
+	int ret, rw = 0; /* shut up gcc */
 	unsigned int dxfer_len;
 	void *dxferp = NULL;
 
