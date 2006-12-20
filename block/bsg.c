@@ -963,8 +963,8 @@ bsg_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 		if (copy_to_user(uarg, &hdr, sizeof(hdr)))
 			return -EFAULT;
-		else
-			return 0;
+
+		return 0;
 	}
 	/*
 	 * block device ioctls
