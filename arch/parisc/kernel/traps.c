@@ -163,13 +163,13 @@ static void do_show_stack(struct unwind_frame_info *info)
 {
 	int i = 1;
 
-	printk("Backtrace:\n");
+	printk(KERN_CRIT "Backtrace:\n");
 	while (i <= 16) {
 		if (unwind_once(info) < 0 || info->ip == 0)
 			break;
 
 		if (__kernel_text_address(info->ip)) {
-			printk(" [<" RFMT ">] ", info->ip);
+			printk("%s [<" RFMT ">] ", (i&0x3)==1 ? KERN_CRIT : "", info->ip);
 #ifdef CONFIG_KALLSYMS
 			print_symbol("%s\n", info->ip);
 #else
@@ -232,14 +232,14 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 
 	/* Amuse the user in a SPARC fashion */
 	if (err) printk(
-"      _______________________________ \n"
-"     < Your System ate a SPARC! Gah! >\n"
-"      ------------------------------- \n"
-"             \\   ^__^\n"
-"              \\  (xx)\\_______\n"
-"                 (__)\\       )\\/\\\n"
-"                  U  ||----w |\n"
-"                     ||     ||\n");
+KERN_CRIT "      _______________________________ \n"
+KERN_CRIT "     < Your System ate a SPARC! Gah! >\n"
+KERN_CRIT "      ------------------------------- \n"
+KERN_CRIT "             \\   ^__^\n"
+KERN_CRIT "              \\  (xx)\\_______\n"
+KERN_CRIT "                 (__)\\       )\\/\\\n"
+KERN_CRIT "                  U  ||----w |\n"
+KERN_CRIT "                     ||     ||\n");
 	
 	/* unlock the pdc lock if necessary */
 	pdc_emergency_unlock();
@@ -254,6 +254,8 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 	if (err)
 		printk(KERN_CRIT "%s (pid %d): %s (code %ld)\n",
 			current->comm, current->pid, str, err);
+
+	dump_stack();
 	show_regs(regs);
 
 	if (in_interrupt())
