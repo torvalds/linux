@@ -40,13 +40,27 @@ __wsum
 csum_partial_copy_from_user(const void __user *src, void *dst, int len, __wsum sum, int *err_ptr);
 
 /*
+ * 	Fold a partial checksum without adding pseudo headers
+ */
+static inline __sum16 csum_fold(__wsum sum)
+{
+	__asm__(
+	"add	%0, %1, %1, ror #16	@ csum_fold"
+	: "=r" (sum)
+	: "r" (sum)
+	: "cc");
+	return (__force __sum16)(~(__force u32)sum >> 16);
+}
+
+/*
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
  */
 static inline __sum16
 ip_fast_csum(const void *iph, unsigned int ihl)
 {
-	unsigned int sum, tmp1;
+	unsigned int tmp1;
+	__wsum sum;
 
 	__asm__ __volatile__(
 	"ldr	%0, [%1], #4		@ ip_fast_csum		\n\
@@ -62,29 +76,11 @@ ip_fast_csum(const void *iph, unsigned int ihl)
 	subne	%2, %2, #1		@ without destroying	\n\
 	bne	1b			@ the carry flag	\n\
 	adcs	%0, %0, %3					\n\
-	adc	%0, %0, #0					\n\
-	adds	%0, %0, %0, lsl #16				\n\
-	addcs	%0, %0, #0x10000				\n\
-	mvn	%0, %0						\n\
-	mov	%0, %0, lsr #16"
+	adc	%0, %0, #0"
 	: "=r" (sum), "=r" (iph), "=r" (ihl), "=r" (tmp1)
 	: "1" (iph), "2" (ihl)
 	: "cc", "memory");
-	return (__force __sum16)sum;
-}
-
-/*
- * 	Fold a partial checksum without adding pseudo headers
- */
-static inline __sum16 csum_fold(__wsum sum)
-{
-	__asm__(
-	"adds	%0, %1, %1, lsl #16	@ csum_fold		\n\
-	addcs	%0, %0, #0x10000"
-	: "=r" (sum)
-	: "r" (sum)
-	: "cc");
-	return (__force __sum16)(~(__force u32)sum >> 16);
+	return csum_fold(sum);
 }
 
 static inline __wsum
@@ -114,23 +110,7 @@ static inline __sum16
 csum_tcpudp_magic(__be32 saddr, __be32 daddr, unsigned short len,
 		  unsigned short proto, __wsum sum)
 {
-	__asm__(
-	"adds	%0, %1, %2		@ csum_tcpudp_magic	\n\
-	adcs	%0, %0, %3					\n"
-#ifdef __ARMEB__
-	"adcs	%0, %0, %4					\n"
-#else
-	"adcs	%0, %0, %4, lsl #8				\n"
-#endif
-	"adcs	%0, %0, %5					\n\
-	adc	%0, %0, #0					\n\
-	adds	%0, %0, %0, lsl #16				\n\
-	addcs	%0, %0, #0x10000				\n\
-	mvn	%0, %0"
-	: "=&r"(sum)
-	: "r" (sum), "r" (daddr), "r" (saddr), "r" (len), "Ir" (htons(proto))
-	: "cc");
-	return (__force __sum16)((__force u32)sum >> 16);
+	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
 }
 
 
