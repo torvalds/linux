@@ -601,8 +601,8 @@ static void sctp_v4_seq_dump_addr(struct seq_file *seq, union sctp_addr *addr)
 }
 
 /* Event handler for inet address addition/deletion events.  */
-int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
-                        void *ptr)
+static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
+			       void *ptr)
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
 	struct sctp_sockaddr_entry *addr;
