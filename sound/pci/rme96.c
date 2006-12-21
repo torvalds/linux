@@ -1587,7 +1587,8 @@ snd_rme96_create(struct rme96 *rme96)
 		return -ENOMEM;
 	}
 
-	if (request_irq(pci->irq, snd_rme96_interrupt, IRQF_DISABLED|IRQF_SHARED, "RME96", (void *)rme96)) {
+	if (request_irq(pci->irq, snd_rme96_interrupt, IRQF_SHARED,
+			"RME96", rme96)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}

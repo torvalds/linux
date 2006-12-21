@@ -190,7 +190,7 @@ static int snd_als300_free(struct snd_als300 *chip)
 	snd_als300_dbgcallenter();
 	snd_als300_set_irq_flag(chip, IRQ_DISABLE);
 	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);
+		free_irq(chip->irq, chip);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 	kfree(chip);
@@ -722,8 +722,8 @@ static int __devinit snd_als300_create(snd_card_t *card,
 	else
 		irq_handler = snd_als300_interrupt;
 
-	if (request_irq(pci->irq, irq_handler, IRQF_DISABLED|IRQF_SHARED,
-					card->shortname, (void *)chip)) {
+	if (request_irq(pci->irq, irq_handler, IRQF_SHARED,
+			card->shortname, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_als300_free(chip);
 		return -EBUSY;

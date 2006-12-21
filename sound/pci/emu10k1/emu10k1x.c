@@ -235,7 +235,7 @@ struct emu10k1x {
 	struct resource *res_port;
 	int irq;
 
-	unsigned int revision;		/* chip revision */
+	unsigned char revision;		/* chip revision */
 	unsigned int serial;            /* serial number */
 	unsigned short model;		/* subsystem id */
 
@@ -760,7 +760,7 @@ static int snd_emu10k1x_free(struct emu10k1x *chip)
 
 	// release the irq
 	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);
+		free_irq(chip->irq, chip);
 
 	// release the DMA
 	if (chip->dma_buffer.area) {
@@ -927,8 +927,7 @@ static int __devinit snd_emu10k1x_create(struct snd_card *card,
 	}
 
 	if (request_irq(pci->irq, snd_emu10k1x_interrupt,
-			IRQF_DISABLED|IRQF_SHARED, "EMU10K1X",
-			(void *)chip)) {
+			IRQF_SHARED, "EMU10K1X", chip)) {
 		snd_printk(KERN_ERR "emu10k1x: cannot grab irq %d\n", pci->irq);
 		snd_emu10k1x_free(chip);
 		return -EBUSY;
@@ -943,7 +942,7 @@ static int __devinit snd_emu10k1x_create(struct snd_card *card,
 
 	pci_set_master(pci);
 	/* read revision & serial */
-	pci_read_config_byte(pci, PCI_REVISION_ID, (char *)&chip->revision);
+	pci_read_config_byte(pci, PCI_REVISION_ID, &chip->revision);
 	pci_read_config_dword(pci, PCI_SUBSYSTEM_VENDOR_ID, &chip->serial);
 	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &chip->model);
 	snd_printk(KERN_INFO "Model %04x Rev %08x Serial %08x\n", chip->model,

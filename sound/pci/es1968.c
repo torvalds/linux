@@ -1337,7 +1337,7 @@ static struct esm_memory *snd_es1968_new_memory(struct es1968 *chip, int size)
 	struct esm_memory *buf;
 	struct list_head *p;
 	
-	size = ((size + ESM_MEM_ALIGN - 1) / ESM_MEM_ALIGN) * ESM_MEM_ALIGN;
+	size = ALIGN(size, ESM_MEM_ALIGN);
 	mutex_lock(&chip->memory_mutex);
 	list_for_each(p, &chip->buf_list) {
 		buf = list_entry(p, struct esm_memory, list);
@@ -2462,7 +2462,7 @@ static int snd_es1968_free(struct es1968 *chip)
 	}
 
 	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);
+		free_irq(chip->irq, chip);
 	snd_es1968_free_gameport(chip);
 	chip->master_switch = NULL;
 	chip->master_volume = NULL;
@@ -2552,8 +2552,8 @@ static int __devinit snd_es1968_create(struct snd_card *card,
 		return err;
 	}
 	chip->io_port = pci_resource_start(pci, 0);
-	if (request_irq(pci->irq, snd_es1968_interrupt, IRQF_DISABLED|IRQF_SHARED,
-			"ESS Maestro", (void*)chip)) {
+	if (request_irq(pci->irq, snd_es1968_interrupt, IRQF_SHARED,
+			"ESS Maestro", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_es1968_free(chip);
 		return -EBUSY;

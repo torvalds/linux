@@ -927,7 +927,7 @@
           <informalexample>
             <programlisting>
 <![CDATA[
-  struct mychip *chip = (struct mychip *)card->private_data;
+  struct mychip *chip = card->private_data;
 ]]>
             </programlisting>
           </informalexample>
@@ -1095,7 +1095,7 @@
 
           /* release the irq */
           if (chip->irq >= 0)
-                  free_irq(chip->irq, (void *)chip);
+                  free_irq(chip->irq, chip);
           /* release the i/o ports & memory */
           pci_release_regions(chip->pci);
           /* disable the PCI entry */
@@ -1148,7 +1148,7 @@
           }
           chip->port = pci_resource_start(pci, 0);
           if (request_irq(pci->irq, snd_mychip_interrupt,
-                          IRQF_DISABLED|IRQF_SHARED, "My Chip", chip)) {
+                          IRQF_SHARED, "My Chip", chip)) {
                   printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
                   snd_mychip_free(chip);
                   return -EBUSY;
@@ -1387,7 +1387,7 @@
           <programlisting>
 <![CDATA[
   if (chip->irq >= 0)
-          free_irq(chip->irq, (void *)chip);
+          free_irq(chip->irq, chip);
 ]]>
           </programlisting>
         </informalexample>

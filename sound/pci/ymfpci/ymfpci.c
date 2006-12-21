@@ -49,7 +49,6 @@ static long mpu_port[SNDRV_CARDS];
 static long joystick_port[SNDRV_CARDS];
 #endif
 static int rear_switch[SNDRV_CARDS];
-static int rear_swap[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = 1 };
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the Yamaha DS-1 PCI soundcard.");
@@ -67,8 +66,6 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address");
 #endif
 module_param_array(rear_switch, bool, NULL, 0444);
 MODULE_PARM_DESC(rear_switch, "Enable shared rear/line-in switch");
-module_param_array(rear_swap, bool, NULL, 0444);
-MODULE_PARM_DESC(rear_swap, "Swap rear channels (must be enabled for correct IEC958 (S/PDIF)) output");
 
 static struct pci_device_id snd_ymfpci_ids[] = {
         { 0x1073, 0x0004, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },   /* YMF724 */
@@ -298,7 +295,7 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_ymfpci_mixer(chip, rear_switch[dev], rear_swap[dev])) < 0) {
+	if ((err = snd_ymfpci_mixer(chip, rear_switch[dev])) < 0) {
 		snd_card_free(card);
 		return err;
 	}

@@ -794,6 +794,8 @@ static struct hda_board_config ad1986a_cfg_tbl[] = {
 	{ .modelname = "3stack",	.config = AD1986A_3STACK },
 	{ .pci_subvendor = 0x10de, .pci_subdevice = 0xcb84,
 	  .config = AD1986A_3STACK }, /* ASUS A8N-VM CSM */
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x817f,
+	  .config = AD1986A_3STACK }, /* ASUS P5P-L2 */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x81b3,
 	  .config = AD1986A_3STACK }, /* ASUS P5RD2-VM / P5GPL-X SE */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x81cb,
@@ -811,7 +813,7 @@ static struct hda_board_config ad1986a_cfg_tbl[] = {
 	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc024,
 	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung R65-T2300 Charis */
 	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc026,
-	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung X10-T2300 Culesa */
+	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung X11-T2300 Culesa */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1153,
 	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS M9 */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1213,
@@ -822,6 +824,8 @@ static struct hda_board_config ad1986a_cfg_tbl[] = {
 	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS U5F */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1297,
 	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS Z62F */
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x12b3,
+	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS V1j */
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30af,
 	  .config = AD1986A_LAPTOP_EAPD }, /* HP Compaq Presario B2800 */
 	{ .pci_subvendor = 0x17aa, .pci_subdevice = 0x2066,
@@ -1640,7 +1644,7 @@ static int ad198x_ch_mode_put(struct snd_kcontrol *kcontrol,
 	int err = snd_hda_ch_mode_put(codec, ucontrol, spec->channel_mode,
 				      spec->num_channel_mode,
 				      &spec->multiout.max_channels);
-	if (! err && spec->need_dac_fix)
+	if (err >= 0 && spec->need_dac_fix)
 		spec->multiout.num_dacs = spec->multiout.max_channels / 2;
 	return err;
 }

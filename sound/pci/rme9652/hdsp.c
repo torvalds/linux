@@ -3516,8 +3516,8 @@ static int __devinit snd_hdsp_initialize_memory(struct hdsp *hdsp)
 
 	/* Align to bus-space 64K boundary */
 
-	cb_bus = (hdsp->capture_dma_buf.addr + 0xFFFF) & ~0xFFFFl;
-	pb_bus = (hdsp->playback_dma_buf.addr + 0xFFFF) & ~0xFFFFl;
+	cb_bus = ALIGN(hdsp->capture_dma_buf.addr, 0x10000ul);
+	pb_bus = ALIGN(hdsp->playback_dma_buf.addr, 0x10000ul);
 
 	/* Tell the card where it is */
 
@@ -4934,13 +4934,14 @@ static int __devinit snd_hdsp_create(struct snd_card *card,
 		return -EBUSY;
 	}
 
-	if (request_irq(pci->irq, snd_hdsp_interrupt, IRQF_DISABLED|IRQF_SHARED, "hdsp", (void *)hdsp)) {
+	if (request_irq(pci->irq, snd_hdsp_interrupt, IRQF_SHARED,
+			"hdsp", hdsp)) {
 		snd_printk(KERN_ERR "Hammerfall-DSP: unable to use IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
 
 	hdsp->irq = pci->irq;
-	hdsp->precise_ptr = 1;
+	hdsp->precise_ptr = 0;
 	hdsp->use_midi_tasklet = 1;
 
 	if ((err = snd_hdsp_initialize_memory(hdsp)) < 0)

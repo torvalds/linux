@@ -1367,9 +1367,6 @@ static struct hda_rate_tbl rate_bits[] = {
 	{ 176400, SNDRV_PCM_RATE_176400, 0x5800 },/* 4 x 44 */
 	{ 192000, SNDRV_PCM_RATE_192000, 0x1800 }, /* 4 x 48 */
 
-	/* not autodetected value */
-	{ 9600, SNDRV_PCM_RATE_KNOT, 0x0400 }, /* 1/5 x 48 */
-
 	{ 0 } /* terminator */
 };
 
