@@ -30,13 +30,18 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
+#include <linux/serial_core.h>
+
+#include <asm/mach/map.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
 
+#include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-gpio.h>
 
+#include "s3c2412.h"
 #include "clock.h"
 #include "cpu.h"
 
@@ -49,7 +54,7 @@
  * set the correct muxing at initialisation
 */
 
-int s3c2412_clkcon_enable(struct clk *clk, int enable)
+static int s3c2412_clkcon_enable(struct clk *clk, int enable)
 {
 	unsigned int clocks = clk->ctrlbit;
 	unsigned long clkcon;
@@ -556,7 +561,7 @@ struct clk_init {
 	struct clk	*src_1;
 };
 
-struct clk_init clks_src[] __initdata = {
+static struct clk_init clks_src[] __initdata = {
 	{
 		.clk	= &clk_usysclk,
 		.bit	= S3C2412_CLKSRC_USBCLK_HCLK,
@@ -619,7 +624,7 @@ static void __init s3c2412_clk_initparents(void)
 
 /* clocks to add straight away */
 
-struct clk *clks[] __initdata = {
+static struct clk *clks[] __initdata = {
 	&clk_ext,
 	&clk_usb_bus,
 	&clk_erefclk,

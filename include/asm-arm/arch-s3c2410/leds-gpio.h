@@ -1,6 +1,6 @@
 /* linux/include/asm-arm/arch-s3c2410/leds-gpio.h
  *
- * (c) 2006 Simtec Electronics
+ * Copyright (c) 2006 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *

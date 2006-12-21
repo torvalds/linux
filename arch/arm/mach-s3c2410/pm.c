@@ -34,6 +34,7 @@
 #include <linux/crc32.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
+#include <linux/serial_core.h>
 
 #include <asm/cacheflush.h>
 #include <asm/hardware.h>

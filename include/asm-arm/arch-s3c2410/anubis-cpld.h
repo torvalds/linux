@@ -1,6 +1,6 @@
 /* linux/include/asm-arm/arch-s3c2410/anubis-cpld.h
  *
- * (c) 2005 Simtec Electronics
+ * Copyright (c) 2005 Simtec Electronics
  *	http://www.simtec.co.uk/products/
  *	Ben Dooks <ben@simtec.co.uk>
  *

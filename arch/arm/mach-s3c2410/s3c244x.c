@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
 #include <linux/clk.h>
@@ -47,8 +48,6 @@ static struct map_desc s3c244x_iodesc[] __initdata = {
 	IODESC_ENT(TIMER),
 	IODESC_ENT(WATCHDOG),
 	IODESC_ENT(LCD),
-	IODESC_ENT(ADC),
-	IODESC_ENT(USBHOST),
 };
 
 /* uart initialisation */

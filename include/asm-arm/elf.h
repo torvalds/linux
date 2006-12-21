@@ -52,6 +52,7 @@ typedef struct user_fp elf_fpregset_t;
 #define HWCAP_EDSP	128
 #define HWCAP_JAVA	256
 #define HWCAP_IWMMXT	512
+#define HWCAP_CRUNCH	1024
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__

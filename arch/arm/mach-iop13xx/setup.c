@@ -337,7 +337,7 @@ void __init iop13xx_platform_init(void)
 
 #ifdef CONFIG_MTD_PHYSMAP
 	iq8134x_flash_resource.end = iq8134x_flash_resource.start +
-				iq8134x_probe_flash_size();
+				iq8134x_probe_flash_size() - 1;
 	if (iq8134x_flash_resource.end > iq8134x_flash_resource.start)
 		iop13xx_devices[plat_idx++] = &iq8134x_flash;
 	else

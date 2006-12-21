@@ -154,6 +154,26 @@ static int __init noalign_setup(char *__unused)
 }
 __setup("noalign", noalign_setup);
 
+#ifndef CONFIG_SMP
+void adjust_cr(unsigned long mask, unsigned long set)
+{
+	unsigned long flags;
+
+	mask &= ~CR_A;
+
+	set &= mask;
+
+	local_irq_save(flags);
+
+	cr_no_alignment = (cr_no_alignment & ~mask) | set;
+	cr_alignment = (cr_alignment & ~mask) | set;
+
+	set_cr((get_cr() & ~mask) | set);
+
+	local_irq_restore(flags);
+}
+#endif
+
 struct mem_types {
 	unsigned int	prot_pte;
 	unsigned int	prot_l1;

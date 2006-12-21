@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/dma.c
  *
- * (c) 2003-2005,2006 Simtec Electronics
+ * Copyright (c) 2003-2005,2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2410 DMA core

@@ -855,6 +855,7 @@ static const char *hwcap_str[] = {
 	"edsp",
 	"java",
 	"iwmmxt",
+	"crunch",
 	NULL
 };
 

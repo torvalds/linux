@@ -1,6 +1,6 @@
 /* linux/include/asm-arm/arch-s3c2410/h1940-latch.h
  *
- * (c) 2005 Simtec Electronics
+ * Copyright (c) 2005 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -16,7 +16,7 @@
 
 
 #ifndef __ASSEMBLY__
-#define H1940_LATCH		((void __iomem *)0xF8000000)
+#define H1940_LATCH		((void __force __iomem *)0xF8000000)
 #else
 #define H1940_LATCH		0xF8000000
 #endif

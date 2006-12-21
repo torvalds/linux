@@ -110,7 +110,7 @@
 		CALL(sys_ni_syscall)		/* was sys_profil */
 		CALL(sys_statfs)
 /* 100 */	CALL(sys_fstatfs)
-		CALL(sys_ni_syscall)
+		CALL(sys_ni_syscall)		/* sys_ioperm */
 		CALL(OBSOLETE(ABI(sys_socketcall, sys_oabi_socketcall)))
 		CALL(sys_syslog)
 		CALL(sys_setitimer)
@@ -132,7 +132,7 @@
 /* 120 */	CALL(sys_clone_wrapper)
 		CALL(sys_setdomainname)
 		CALL(sys_newuname)
-		CALL(sys_ni_syscall)
+		CALL(sys_ni_syscall)		/* modify_ldt */
 		CALL(sys_adjtimex)
 /* 125 */	CALL(sys_mprotect)
 		CALL(sys_sigprocmask)
@@ -146,7 +146,7 @@
 		CALL(sys_bdflush)
 /* 135 */	CALL(sys_sysfs)
 		CALL(sys_personality)
-		CALL(sys_ni_syscall)		/* CALL(_sys_afs_syscall) */
+		CALL(sys_ni_syscall)		/* reserved for afs_syscall */
 		CALL(sys_setfsuid16)
 		CALL(sys_setfsgid16)
 /* 140 */	CALL(sys_llseek)
@@ -175,7 +175,7 @@
 		CALL(sys_arm_mremap)
 		CALL(sys_setresuid16)
 /* 165 */	CALL(sys_getresuid16)
-		CALL(sys_ni_syscall)
+		CALL(sys_ni_syscall)		/* vm86 */
 		CALL(sys_ni_syscall)		/* was sys_query_module */
 		CALL(sys_poll)
 		CALL(sys_nfsservctl)
@@ -197,8 +197,8 @@
 /* 185 */	CALL(sys_capset)
 		CALL(sys_sigaltstack_wrapper)
 		CALL(sys_sendfile)
-		CALL(sys_ni_syscall)
-		CALL(sys_ni_syscall)
+		CALL(sys_ni_syscall)		/* getpmsg */
+		CALL(sys_ni_syscall)		/* putpmsg */
 /* 190 */	CALL(sys_vfork_wrapper)
 		CALL(sys_getrlimit)
 		CALL(sys_mmap2)
@@ -344,6 +344,18 @@
 		CALL(sys_readlinkat)
 		CALL(sys_fchmodat)
 		CALL(sys_faccessat)
+/* 335 */	CALL(sys_ni_syscall)		/* eventually pselect6 */
+		CALL(sys_ni_syscall)		/* eventually ppoll */
+		CALL(sys_unshare)
+		CALL(sys_set_robust_list)
+		CALL(sys_get_robust_list)
+/* 340 */	CALL(sys_splice)
+		CALL(sys_arm_sync_file_range)
+		CALL(sys_tee)
+		CALL(sys_vmsplice)
+		CALL(sys_move_pages)
+/* 345 */	CALL(sys_getcpu)
+		CALL(sys_ni_syscall)		/* eventually epoll_pwait */
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
 #define syscalls_counted
