@@ -561,8 +561,7 @@ struct drm_driver {
 	int (*context_dtor) (struct drm_device * dev, int context);
 	int (*kernel_context_switch) (struct drm_device * dev, int old,
 				      int new);
-	void (*kernel_context_switch_unlock) (struct drm_device * dev,
-					      drm_lock_t *lock);
+	void (*kernel_context_switch_unlock) (struct drm_device * dev);
 	int (*vblank_wait) (struct drm_device * dev, unsigned int *sequence);
 	int (*vblank_wait2) (struct drm_device * dev, unsigned int *sequence);
 	int (*dri_library_name) (struct drm_device *dev, char *buf);
@@ -1142,10 +1141,6 @@ extern void *drm_calloc(size_t nmemb, size_t size, int area);
 
 extern unsigned long drm_core_get_map_ofs(drm_map_t * map);
 extern unsigned long drm_core_get_reg_ofs(struct drm_device *dev);
-
-#ifndef pci_pretty_name
-#define pci_pretty_name(dev) ""
-#endif
 
 #endif				/* __KERNEL__ */
 #endif

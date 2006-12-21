@@ -46,88 +46,167 @@ static void i915_vblank_tasklet(drm_device_t *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
-	struct list_head *list, *tmp;
+	struct list_head *list, *tmp, hits, *hit;
+	int nhits, nrects, slice[2], upper[2], lower[2], i;
+	unsigned counter[2] = { atomic_read(&dev->vbl_received),
+				atomic_read(&dev->vbl_received2) };
+	drm_drawable_info_t *drw;
+	drm_i915_sarea_t *sarea_priv = dev_priv->sarea_priv;
+	u32 cpp = dev_priv->cpp;
+	u32 cmd = (cpp == 4) ? (XY_SRC_COPY_BLT_CMD |
+				XY_SRC_COPY_BLT_WRITE_ALPHA |
+				XY_SRC_COPY_BLT_WRITE_RGB)
+			     : XY_SRC_COPY_BLT_CMD;
+	u32 pitchropcpp = (sarea_priv->pitch * cpp) | (0xcc << 16) |
+			  (cpp << 23) | (1 << 24);
+	RING_LOCALS;
 
 	DRM_DEBUG("\n");
 
+	INIT_LIST_HEAD(&hits);
+
+	nhits = nrects = 0;
+
 	spin_lock_irqsave(&dev_priv->swaps_lock, irqflags);
 
+	/* Find buffer swaps scheduled for this vertical blank */
 	list_for_each_safe(list, tmp, &dev_priv->vbl_swaps.head) {
 		drm_i915_vbl_swap_t *vbl_swap =
 			list_entry(list, drm_i915_vbl_swap_t, head);
-		atomic_t *counter = vbl_swap->pipe ? &dev->vbl_received2 :
-			&dev->vbl_received;
 
-		if ((atomic_read(counter) - vbl_swap->sequence) <= (1<<23)) {
-			drm_drawable_info_t *drw;
+		if ((counter[vbl_swap->pipe] - vbl_swap->sequence) > (1<<23))
+			continue;
 
-			spin_unlock(&dev_priv->swaps_lock);
+		list_del(list);
+		dev_priv->swaps_pending--;
 
-			spin_lock(&dev->drw_lock);
+		spin_unlock(&dev_priv->swaps_lock);
+		spin_lock(&dev->drw_lock);
 
-			drw = drm_get_drawable_info(dev, vbl_swap->drw_id);
-				
-			if (drw) {
-				int i, num_rects = drw->num_rects;
-				drm_clip_rect_t *rect = drw->rects;
-				drm_i915_sarea_t *sarea_priv =
-				    dev_priv->sarea_priv;
-				u32 cpp = dev_priv->cpp;
-				u32 cmd = (cpp == 4) ? (XY_SRC_COPY_BLT_CMD |
-							XY_SRC_COPY_BLT_WRITE_ALPHA |
-							XY_SRC_COPY_BLT_WRITE_RGB)
-						     : XY_SRC_COPY_BLT_CMD;
-				u32 pitchropcpp = (sarea_priv->pitch * cpp) |
-						  (0xcc << 16) | (cpp << 23) |
-						  (1 << 24);
-				RING_LOCALS;
+		drw = drm_get_drawable_info(dev, vbl_swap->drw_id);
 
-				i915_kernel_lost_context(dev);
+		if (!drw) {
+			spin_unlock(&dev->drw_lock);
+			drm_free(vbl_swap, sizeof(*vbl_swap), DRM_MEM_DRIVER);
+			spin_lock(&dev_priv->swaps_lock);
+			continue;
+		}
 
-				BEGIN_LP_RING(6);
+		list_for_each(hit, &hits) {
+			drm_i915_vbl_swap_t *swap_cmp =
+				list_entry(hit, drm_i915_vbl_swap_t, head);
+			drm_drawable_info_t *drw_cmp =
+				drm_get_drawable_info(dev, swap_cmp->drw_id);
 
-				OUT_RING(GFX_OP_DRAWRECT_INFO);
-				OUT_RING(0);
-				OUT_RING(0);
-				OUT_RING(sarea_priv->width |
-					 sarea_priv->height << 16);
-				OUT_RING(sarea_priv->width |
-					 sarea_priv->height << 16);
-				OUT_RING(0);
+			if (drw_cmp &&
+			    drw_cmp->rects[0].y1 > drw->rects[0].y1) {
+				list_add_tail(list, hit);
+				break;
+			}
+		}
+
+		spin_unlock(&dev->drw_lock);
+
+		/* List of hits was empty, or we reached the end of it */
+		if (hit == &hits)
+			list_add_tail(list, hits.prev);
+
+		nhits++;
+
+		spin_lock(&dev_priv->swaps_lock);
+	}
+
+	if (nhits == 0) {
+		spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+		return;
+	}
+
+	spin_unlock(&dev_priv->swaps_lock);
+
+	i915_kernel_lost_context(dev);
+
+	BEGIN_LP_RING(6);
+
+	OUT_RING(GFX_OP_DRAWRECT_INFO);
+	OUT_RING(0);
+	OUT_RING(0);
+	OUT_RING(sarea_priv->width | sarea_priv->height << 16);
+	OUT_RING(sarea_priv->width | sarea_priv->height << 16);
+	OUT_RING(0);
+
+	ADVANCE_LP_RING();
+
+	sarea_priv->ctxOwner = DRM_KERNEL_CONTEXT;
+
+	upper[0] = upper[1] = 0;
+	slice[0] = max(sarea_priv->pipeA_h / nhits, 1);
+	slice[1] = max(sarea_priv->pipeB_h / nhits, 1);
+	lower[0] = sarea_priv->pipeA_y + slice[0];
+	lower[1] = sarea_priv->pipeB_y + slice[0];
+
+	spin_lock(&dev->drw_lock);
+
+	/* Emit blits for buffer swaps, partitioning both outputs into as many
+	 * slices as there are buffer swaps scheduled in order to avoid tearing
+	 * (based on the assumption that a single buffer swap would always
+	 * complete before scanout starts).
+	 */
+	for (i = 0; i++ < nhits;
+	     upper[0] = lower[0], lower[0] += slice[0],
+	     upper[1] = lower[1], lower[1] += slice[1]) {
+		if (i == nhits)
+			lower[0] = lower[1] = sarea_priv->height;
+
+		list_for_each(hit, &hits) {
+			drm_i915_vbl_swap_t *swap_hit =
+				list_entry(hit, drm_i915_vbl_swap_t, head);
+			drm_clip_rect_t *rect;
+			int num_rects, pipe;
+			unsigned short top, bottom;
+
+			drw = drm_get_drawable_info(dev, swap_hit->drw_id);
+
+			if (!drw)
+				continue;
+
+			rect = drw->rects;
+			pipe = swap_hit->pipe;
+			top = upper[pipe];
+			bottom = lower[pipe];
+
+			for (num_rects = drw->num_rects; num_rects--; rect++) {
+				int y1 = max(rect->y1, top);
+				int y2 = min(rect->y2, bottom);
+
+				if (y1 >= y2)
+					continue;
+
+				BEGIN_LP_RING(8);
+
+				OUT_RING(cmd);
+				OUT_RING(pitchropcpp);
+				OUT_RING((y1 << 16) | rect->x1);
+				OUT_RING((y2 << 16) | rect->x2);
+				OUT_RING(sarea_priv->front_offset);
+				OUT_RING((y1 << 16) | rect->x1);
+				OUT_RING(pitchropcpp & 0xffff);
+				OUT_RING(sarea_priv->back_offset);
 
 				ADVANCE_LP_RING();
-
-				sarea_priv->ctxOwner = DRM_KERNEL_CONTEXT;
-
-				for (i = 0; i < num_rects; i++, rect++) {
-					BEGIN_LP_RING(8);
-
-					OUT_RING(cmd);
-					OUT_RING(pitchropcpp);
-					OUT_RING((rect->y1 << 16) | rect->x1);
-					OUT_RING((rect->y2 << 16) | rect->x2);
-					OUT_RING(sarea_priv->front_offset);
-					OUT_RING((rect->y1 << 16) | rect->x1);
-					OUT_RING(pitchropcpp & 0xffff);
-					OUT_RING(sarea_priv->back_offset);
-
-					ADVANCE_LP_RING();
-				}
 			}
-
-			spin_unlock(&dev->drw_lock);
-
-			spin_lock(&dev_priv->swaps_lock);
-
-			list_del(list);
-
-			drm_free(vbl_swap, sizeof(*vbl_swap), DRM_MEM_DRIVER);
-
-			dev_priv->swaps_pending--;
 		}
 	}
 
-	spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+	spin_unlock_irqrestore(&dev->drw_lock, irqflags);
+
+	list_for_each_safe(hit, tmp, &hits) {
+		drm_i915_vbl_swap_t *swap_hit =
+			list_entry(hit, drm_i915_vbl_swap_t, head);
+
+		list_del(hit);
+
+		drm_free(swap_hit, sizeof(*swap_hit), DRM_MEM_DRIVER);
+	}
 }
 
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)

@@ -182,7 +182,7 @@ int drm_unlock(struct inode *inode, struct file *filp,
 	 * modules but is required by the Sparc driver.
 	 */
 	if (dev->driver->kernel_context_switch_unlock)
-		dev->driver->kernel_context_switch_unlock(dev, &lock);
+		dev->driver->kernel_context_switch_unlock(dev);
 	else {
 		drm_lock_transfer(dev, &dev->lock.hw_lock->lock,
 				  DRM_KERNEL_CONTEXT);
