@@ -331,10 +331,6 @@ struct request_pm_state
 
 #include <linux/elevator.h>
 
-typedef int (merge_request_fn) (request_queue_t *, struct request *,
-				struct bio *);
-typedef int (merge_requests_fn) (request_queue_t *, struct request *,
-				 struct request *);
 typedef void (request_fn_proc) (request_queue_t *q);
 typedef int (make_request_fn) (request_queue_t *q, struct bio *bio);
 typedef int (prep_rq_fn) (request_queue_t *, struct request *);
@@ -376,9 +372,6 @@ struct request_queue
 	struct request_list	rq;
 
 	request_fn_proc		*request_fn;
-	merge_request_fn	*back_merge_fn;
-	merge_request_fn	*front_merge_fn;
-	merge_requests_fn	*merge_requests_fn;
 	make_request_fn		*make_request_fn;
 	prep_rq_fn		*prep_rq_fn;
 	unplug_fn		*unplug_fn;
@@ -649,6 +642,11 @@ extern int sg_scsi_ioctl(struct file *, struct request_queue *,
 		struct gendisk *, struct scsi_ioctl_command __user *);
 
 /*
+ * Temporary export, until SCSI gets fixed up.
+ */
+extern int ll_back_merge_fn(request_queue_t *, struct request *, struct bio *);
+
+/*
  * A queue has just exitted congestion.  Note this in the global counter of
  * congested queues, and wake up anyone who was waiting for requests to be
  * put back.
@@ -674,7 +672,7 @@ extern void __blk_stop_queue(request_queue_t *q);
 extern void blk_run_queue(request_queue_t *);
 extern void blk_start_queueing(request_queue_t *);
 extern int blk_rq_map_user(request_queue_t *, struct request *, void __user *, unsigned long);
-extern int blk_rq_unmap_user(struct request *);
+extern int blk_rq_unmap_user(struct bio *);
 extern int blk_rq_map_kern(request_queue_t *, struct request *, void *, unsigned int, gfp_t);
 extern int blk_rq_map_user_iov(request_queue_t *, struct request *,
 			       struct sg_iovec *, int, unsigned int);

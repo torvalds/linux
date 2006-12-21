@@ -1405,8 +1405,7 @@ static inline int ll_new_hw_segment(request_queue_t *q,
 	return 1;
 }
 
-static int ll_back_merge_fn(request_queue_t *q, struct request *req, 
-			    struct bio *bio)
+int ll_back_merge_fn(request_queue_t *q, struct request *req, struct bio *bio)
 {
 	unsigned short max_sectors;
 	int len;
@@ -1442,6 +1441,7 @@ static int ll_back_merge_fn(request_queue_t *q, struct request *req,
 
 	return ll_new_hw_segment(q, req, bio);
 }
+EXPORT_SYMBOL(ll_back_merge_fn);
 
 static int ll_front_merge_fn(request_queue_t *q, struct request *req, 
 			     struct bio *bio)
@@ -1912,9 +1912,6 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	}
 
 	q->request_fn		= rfn;
-	q->back_merge_fn       	= ll_back_merge_fn;
-	q->front_merge_fn      	= ll_front_merge_fn;
-	q->merge_requests_fn	= ll_merge_requests_fn;
 	q->prep_rq_fn		= NULL;
 	q->unplug_fn		= generic_unplug_device;
 	q->queue_flags		= (1 << QUEUE_FLAG_CLUSTER);
@@ -2350,40 +2347,29 @@ static int __blk_rq_map_user(request_queue_t *q, struct request *rq,
 	else
 		bio = bio_copy_user(q, uaddr, len, reading);
 
-	if (IS_ERR(bio)) {
+	if (IS_ERR(bio))
 		return PTR_ERR(bio);
-	}
 
 	orig_bio = bio;
 	blk_queue_bounce(q, &bio);
+
 	/*
 	 * We link the bounce buffer in and could have to traverse it
 	 * later so we have to get a ref to prevent it from being freed
 	 */
 	bio_get(bio);
 
-	/*
-	 * for most (all? don't know of any) queues we could
-	 * skip grabbing the queue lock here. only drivers with
-	 * funky private ->back_merge_fn() function could be
-	 * problematic.
-	 */
-	spin_lock_irq(q->queue_lock);
 	if (!rq->bio)
 		blk_rq_bio_prep(q, rq, bio);
-	else if (!q->back_merge_fn(q, rq, bio)) {
+	else if (!ll_back_merge_fn(q, rq, bio)) {
 		ret = -EINVAL;
-		spin_unlock_irq(q->queue_lock);
 		goto unmap_bio;
 	} else {
 		rq->biotail->bi_next = bio;
 		rq->biotail = bio;
 
-		rq->nr_sectors += bio_sectors(bio);
-		rq->hard_nr_sectors = rq->nr_sectors;
 		rq->data_len += bio->bi_size;
 	}
-	spin_unlock_irq(q->queue_lock);
 
 	return bio->bi_size;
 
@@ -2419,6 +2405,7 @@ int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
 		    unsigned long len)
 {
 	unsigned long bytes_read = 0;
+	struct bio *bio = NULL;
 	int ret;
 
 	if (len > (q->max_hw_sectors << 9))
@@ -2445,6 +2432,8 @@ int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
 		ret = __blk_rq_map_user(q, rq, ubuf, map_len);
 		if (ret < 0)
 			goto unmap_rq;
+		if (!bio)
+			bio = rq->bio;
 		bytes_read += ret;
 		ubuf += ret;
 	}
@@ -2452,7 +2441,7 @@ int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
 	rq->buffer = rq->data = NULL;
 	return 0;
 unmap_rq:
-	blk_rq_unmap_user(rq);
+	blk_rq_unmap_user(bio);
 	return ret;
 }
 
@@ -2509,27 +2498,33 @@ EXPORT_SYMBOL(blk_rq_map_user_iov);
 
 /**
  * blk_rq_unmap_user - unmap a request with user data
- * @rq:		rq to be unmapped
+ * @bio:	       start of bio list
  *
  * Description:
- *    Unmap a rq previously mapped by blk_rq_map_user().
- *    rq->bio must be set to the original head of the request.
+ *    Unmap a rq previously mapped by blk_rq_map_user(). The caller must
+ *    supply the original rq->bio from the blk_rq_map_user() return, since
+ *    the io completion may have changed rq->bio.
  */
-int blk_rq_unmap_user(struct request *rq)
+int blk_rq_unmap_user(struct bio *bio)
 {
-	struct bio *bio, *mapped_bio;
+	struct bio *mapped_bio;
+	int ret = 0, ret2;
 
-	while ((bio = rq->bio)) {
-		if (bio_flagged(bio, BIO_BOUNCED))
+	while (bio) {
+		mapped_bio = bio;
+		if (unlikely(bio_flagged(bio, BIO_BOUNCED)))
 			mapped_bio = bio->bi_private;
-		else
-			mapped_bio = bio;
 
-		__blk_rq_unmap_user(mapped_bio);
-		rq->bio = bio->bi_next;
-		bio_put(bio);
+		ret2 = __blk_rq_unmap_user(mapped_bio);
+		if (ret2 && !ret)
+			ret = ret2;
+
+		mapped_bio = bio;
+		bio = bio->bi_next;
+		bio_put(mapped_bio);
 	}
-	return 0;
+
+	return ret;
 }
 
 EXPORT_SYMBOL(blk_rq_unmap_user);
@@ -2822,7 +2817,7 @@ static int attempt_merge(request_queue_t *q, struct request *req,
 	 * will have updated segment counts, update sector
 	 * counts here.
 	 */
-	if (!q->merge_requests_fn(q, req, next))
+	if (!ll_merge_requests_fn(q, req, next))
 		return 0;
 
 	/*
@@ -2939,7 +2934,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 		case ELEVATOR_BACK_MERGE:
 			BUG_ON(!rq_mergeable(req));
 
-			if (!q->back_merge_fn(q, req, bio))
+			if (!ll_back_merge_fn(q, req, bio))
 				break;
 
 			blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE);
@@ -2956,7 +2951,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 		case ELEVATOR_FRONT_MERGE:
 			BUG_ON(!rq_mergeable(req));
 
-			if (!q->front_merge_fn(q, req, bio))
+			if (!ll_front_merge_fn(q, req, bio))
 				break;
 
 			blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE);

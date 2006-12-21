@@ -333,8 +333,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 			hdr->sb_len_wr = len;
 	}
 
-	rq->bio = bio;
-	if (blk_rq_unmap_user(rq))
+	if (blk_rq_unmap_user(bio))
 		ret = -EFAULT;
 
 	/* may not have succeeded, but output values written to control

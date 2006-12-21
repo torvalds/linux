@@ -946,6 +946,13 @@ elevator_merged_fn		called when a request in the scheduler has been
 				scheduler for example, to reposition the request
 				if its sorting order has changed.
 
+elevator_allow_merge_fn		called whenever the block layer determines
+				that a bio can be merged into an existing
+				request safely. The io scheduler may still
+				want to stop a merge at this point if it
+				results in some sort of conflict internally,
+				this hook allows it to do that.
+
 elevator_dispatch_fn		fills the dispatch queue with ready requests.
 				I/O schedulers are free to postpone requests by
 				not filling the dispatch queue unless @force
