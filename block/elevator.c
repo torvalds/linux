@@ -82,7 +82,7 @@ inline int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 	/*
 	 * must be same device and not a special request
 	 */
-	if (rq->rq_disk != bio->bi_bdev->bd_disk || !rq->special)
+	if (rq->rq_disk != bio->bi_bdev->bd_disk || rq->special)
 		return 0;
 
 	if (!elv_iosched_allow_merge(rq, bio))
