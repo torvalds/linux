@@ -483,10 +483,8 @@ static int fuse_commit_write(struct file *file, struct page *page,
 			i_size_write(inode, pos);
 		spin_unlock(&fc->lock);
 
-		if (offset == 0 && to == PAGE_CACHE_SIZE) {
-			clear_page_dirty(page);
+		if (offset == 0 && to == PAGE_CACHE_SIZE)
 			SetPageUptodate(page);
-		}
 	}
 	fuse_invalidate_attr(inode);
 	return err;
