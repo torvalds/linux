@@ -113,7 +113,7 @@ static int __init pc110pad_init(void)
 	dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 	if (dev) {
 		pci_dev_put(dev);
-		return -ENOENT;
+		return -ENODEV;
 	}
 
 	if (!request_region(pc110pad_io, 4, "pc110pad")) {
