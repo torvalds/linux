@@ -37,8 +37,9 @@
 #include "interrupt.h"
 #include "spu_priv1_mmio.h"
 
+static DEFINE_MUTEX(add_spumem_mutex);
+
 struct spu_pdata {
-	int nid;
 	struct device_node *devnode;
 	struct spu_priv1 __iomem *priv1;
 };
@@ -56,20 +57,9 @@ struct device_node *spu_devnode(struct spu *spu)
 
 EXPORT_SYMBOL_GPL(spu_devnode);
 
-static int __init find_spu_node_id(struct device_node *spe)
-{
-	const unsigned int *id;
-	struct device_node *cpu;
-	cpu = spe->parent->parent;
-	id = get_property(cpu, "node-id", NULL);
-	return id ? *id : 0;
-}
-
 static int __init cell_spuprop_present(struct spu *spu, struct device_node *spe,
 		const char *prop)
 {
-	static DEFINE_MUTEX(add_spumem_mutex);
-
 	const struct address_prop {
 		unsigned long address;
 		unsigned int len;
@@ -87,7 +77,7 @@ static int __init cell_spuprop_present(struct spu *spu, struct device_node *spe,
 	start_pfn = p->address >> PAGE_SHIFT;
 	nr_pages = ((unsigned long)p->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	pgdata = NODE_DATA(spu_get_pdata(spu)->nid);
+	pgdata = NODE_DATA(spu->node);
 	zone = pgdata->node_zones;
 
 	/* XXX rethink locking here */
@@ -140,6 +130,7 @@ static int __init spu_map_interrupts_old(struct spu *spu,
 {
 	unsigned int isrc;
 	const u32 *tmp;
+	int nid;
 
 	/* Get the interrupt source unit from the device-tree */
 	tmp = get_property(np, "isrc", NULL);
@@ -147,8 +138,15 @@ static int __init spu_map_interrupts_old(struct spu *spu,
 		return -ENODEV;
 	isrc = tmp[0];
 
+	tmp = get_property(np->parent->parent, "node-id", NULL);
+	if (!tmp) {
+		printk(KERN_WARNING "%s: can't find node-id\n", __FUNCTION__);
+		nid = spu->node;
+	} else
+		nid = tmp[0];
+
 	/* Add the node number */
-	isrc |= spu->node << IIC_IRQ_NODE_SHIFT;
+	isrc |= nid << IIC_IRQ_NODE_SHIFT;
 
 	/* Now map interrupts of all 3 classes */
 	spu->irqs[0] = irq_create_mapping(NULL, IIC_IRQ_CLASS_0 | isrc);
@@ -237,70 +235,88 @@ err:
 	return ret;
 }
 
-static int spu_map_resource(struct device_node *node, int nr,
-		void __iomem** virt, unsigned long *phys)
+static int spu_map_resource(struct spu *spu, int nr,
+			    void __iomem** virt, unsigned long *phys)
 {
+	struct device_node *np = spu_get_pdata(spu)->devnode;
+	unsigned long start_pfn, nr_pages;
+	struct pglist_data *pgdata;
+	struct zone *zone;
 	struct resource resource = { };
+	unsigned long len;
 	int ret;
 
-	ret = of_address_to_resource(node, nr, &resource);
+	ret = of_address_to_resource(np, nr, &resource);
 	if (ret)
 		goto out;
 
 	if (phys)
 		*phys = resource.start;
-	*virt = ioremap(resource.start, resource.end - resource.start);
+	len = resource.end - resource.start + 1;
+	*virt = ioremap(resource.start, len);
 	if (!*virt)
 		ret = -EINVAL;
+
+	start_pfn = resource.start >> PAGE_SHIFT;
+	nr_pages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
+	pgdata = NODE_DATA(spu->node);
+	zone = pgdata->node_zones;
+
+	/* XXX rethink locking here */
+	mutex_lock(&add_spumem_mutex);
+	ret = __add_pages(zone, start_pfn, nr_pages);
+	mutex_unlock(&add_spumem_mutex);
 
 out:
 	return ret;
 }
 
-static int __init spu_map_device(struct spu *spu, struct device_node *node)
+static int __init spu_map_device(struct spu *spu)
 {
+	struct device_node *np = spu_get_pdata(spu)->devnode;
 	int ret = -ENODEV;
-	spu->name = get_property(node, "name", NULL);
+
+	spu->name = get_property(np, "name", NULL);
 	if (!spu->name)
 		goto out;
 
-	ret = spu_map_resource(node, 0, (void __iomem**)&spu->local_store,
-					&spu->local_store_phys);
+	ret = spu_map_resource(spu, 0, (void __iomem**)&spu->local_store,
+			       &spu->local_store_phys);
 	if (ret) {
 		pr_debug("spu_new: failed to map %s resource 0\n",
-			 node->full_name);
+			 np->full_name);
 		goto out;
 	}
-	ret = spu_map_resource(node, 1, (void __iomem**)&spu->problem,
-					&spu->problem_phys);
+	ret = spu_map_resource(spu, 1, (void __iomem**)&spu->problem,
+			       &spu->problem_phys);
 	if (ret) {
 		pr_debug("spu_new: failed to map %s resource 1\n",
-			 node->full_name);
+			 np->full_name);
 		goto out_unmap;
 	}
-	ret = spu_map_resource(node, 2, (void __iomem**)&spu->priv2,
-					NULL);
+	ret = spu_map_resource(spu, 2, (void __iomem**)&spu->priv2, NULL);
 	if (ret) {
 		pr_debug("spu_new: failed to map %s resource 2\n",
-			 node->full_name);
+			 np->full_name);
 		goto out_unmap;
 	}
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
-		ret = spu_map_resource(node, 3,
-			(void __iomem**)&spu_get_pdata(spu)->priv1, NULL);
+		ret = spu_map_resource(spu, 3,
+			       (void __iomem**)&spu_get_pdata(spu)->priv1, NULL);
 	if (ret) {
 		pr_debug("spu_new: failed to map %s resource 3\n",
-			 node->full_name);
+			 np->full_name);
 		goto out_unmap;
 	}
-	pr_debug("spu_new: %s maps:\n", node->full_name);
+	pr_debug("spu_new: %s maps:\n", np->full_name);
 	pr_debug("  local store   : 0x%016lx -> 0x%p\n",
 		 spu->local_store_phys, spu->local_store);
 	pr_debug("  problem state : 0x%016lx -> 0x%p\n",
 		 spu->problem_phys, spu->problem);
 	pr_debug("  priv2         :                       0x%p\n", spu->priv2);
 	pr_debug("  priv1         :                       0x%p\n",
-						spu_get_pdata(spu)->priv1);
+		 spu_get_pdata(spu)->priv1);
 
 	return 0;
 
@@ -340,8 +356,9 @@ static int __init of_create_spu(struct spu *spu, void *data)
 		ret = -ENOMEM;
 		goto out;
 	}
+	spu_get_pdata(spu)->devnode = of_node_get(spe);
 
-	spu->node = find_spu_node_id(spe);
+	spu->node = of_node_to_nid(spe);
 	if (spu->node >= MAX_NUMNODES) {
 		printk(KERN_WARNING "SPE %s on node %d ignored,"
 		       " node number too big\n", spe->full_name, spu->node);
@@ -350,11 +367,7 @@ static int __init of_create_spu(struct spu *spu, void *data)
 		goto out_free;
 	}
 
-	spu_get_pdata(spu)->nid = of_node_to_nid(spe);
-	if (spu_get_pdata(spu)->nid == -1)
-		spu_get_pdata(spu)->nid = 0;
-
-	ret = spu_map_device(spu, spe);
+	ret = spu_map_device(spu);
 	/* try old method */
 	if (ret)
 		ret = spu_map_device_old(spu, spe);
@@ -366,8 +379,6 @@ static int __init of_create_spu(struct spu *spu, void *data)
 		ret = spu_map_interrupts_old(spu, spe);
 	if (ret)
 		goto out_unmap;
-
-	spu_get_pdata(spu)->devnode = of_node_get(spe);
 
 	pr_debug(KERN_DEBUG "Using SPE %s %p %p %p %p %d\n", spu->name,
 		spu->local_store, spu->problem, spu_get_pdata(spu)->priv1,

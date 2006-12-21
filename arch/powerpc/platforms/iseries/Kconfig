@@ -31,5 +31,5 @@ endmenu
 
 config VIOPATH
 	bool
-	depends on VIOCONS || VIODASD || VIOCD || VIOTAPE || VETH
+	depends on VIOCONS || VIODASD || VIOCD || VIOTAPE || ISERIES_VETH
 	default y

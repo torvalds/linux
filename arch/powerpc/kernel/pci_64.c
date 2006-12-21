@@ -360,6 +360,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	DBG("    class: 0x%x\n", dev->class);
 
 	dev->current_state = 4;		/* unknown power state */
+	dev->error_state = pci_channel_io_normal;
 
 	if (!strcmp(type, "pci") || !strcmp(type, "pciex")) {
 		/* a PCI-PCI bridge */

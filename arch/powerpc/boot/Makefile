@@ -152,6 +152,9 @@ $(obj)/zImage.initrd.miboot: vmlinux $(wrapperbits)
 $(obj)/zImage.ps3: vmlinux
 	$(STRIP) -s -R .comment $< -o $@
 
+$(obj)/zImage.initrd.ps3: vmlinux
+	@echo "  WARNING zImage.initrd.ps3 not supported (yet)"
+
 $(obj)/uImage: vmlinux $(wrapperbits)
 	$(call cmd,wrap,uboot)
 

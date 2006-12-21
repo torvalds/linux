@@ -73,7 +73,7 @@
 #include <asm/abs_addr.h>
 #include <asm/iseries/mf.h>
 #include <asm/uaccess.h>
-
+#include <asm/firmware.h>
 #include <asm/iseries/hv_lp_config.h>
 #include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
@@ -1668,7 +1668,7 @@ static struct vio_driver veth_driver = {
  * Module initialization/cleanup
  */
 
-void __exit veth_module_cleanup(void)
+static void __exit veth_module_cleanup(void)
 {
 	int i;
 	struct veth_lpar_connection *cnx;
@@ -1697,10 +1697,13 @@ void __exit veth_module_cleanup(void)
 }
 module_exit(veth_module_cleanup);
 
-int __init veth_module_init(void)
+static int __init veth_module_init(void)
 {
 	int i;
 	int rc;
+
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return -ENODEV;
 
 	this_lp = HvLpConfig_getLpIndex_outline();
 
