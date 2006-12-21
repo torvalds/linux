@@ -374,6 +374,7 @@ struct snd_soc_codec {
 	struct list_head dapm_paths;
 	unsigned int dapm_state;
 	unsigned int suspend_dapm_state;
+	struct delayed_work delayed_work;
 
 	/* codec DAI's */
 	struct snd_soc_codec_dai *dai;

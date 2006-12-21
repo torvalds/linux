@@ -51,8 +51,6 @@
 #define warn(format, arg...) \
 	printk(KERN_WARNING AUDIO_NAME ": " format "\n" , ## arg)
 
-static struct work_struct wm8750_dapm_work;
-
 /*
  * wm8750 register cache
  * We can't read the WM8750 register space when we
@@ -1000,9 +998,10 @@ struct snd_soc_codec_dai wm8750_dai = {
 };
 EXPORT_SYMBOL_GPL(wm8750_dai);
 
-static void wm8750_work(void *data)
+static void wm8750_work(struct work_struct *work)
 {
-	struct snd_soc_codec *codec = (struct snd_soc_codec *)data;
+	struct snd_soc_codec *codec =
+		container_of(work, struct snd_soc_codec, delayed_work.work);
 	wm8750_dapm_event(codec, codec->dapm_state);
 }
 
@@ -1038,7 +1037,7 @@ static int wm8750_resume(struct platform_device *pdev)
 	if (codec->suspend_dapm_state == SNDRV_CTL_POWER_D0) {
 		wm8750_dapm_event(codec, SNDRV_CTL_POWER_D2);
 		codec->dapm_state = SNDRV_CTL_POWER_D0;
-		schedule_delayed_work(&wm8750_dapm_work,
+		schedule_delayed_work(&codec->delayed_work,
 			 msecs_to_jiffies(1000));
 	}
 
@@ -1083,7 +1082,7 @@ static int wm8750_init(struct snd_soc_device *socdev)
 	/* charge output caps */
 	wm8750_dapm_event(codec, SNDRV_CTL_POWER_D2);
 	codec->dapm_state = SNDRV_CTL_POWER_D3hot;
-	schedule_delayed_work(&wm8750_dapm_work, msecs_to_jiffies(1000));
+	schedule_delayed_work(&codec->delayed_work, msecs_to_jiffies(1000));
 
 	/* set the update bits */
 	reg = wm8750_read_reg_cache(codec, WM8750_LDAC);
@@ -1225,7 +1224,7 @@ static int wm8750_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 	wm8750_socdev = socdev;
-	INIT_WORK(&wm8750_dapm_work, wm8750_work, codec);
+	INIT_DELAYED_WORK(&codec->delayed_work, wm8750_work);
 #if defined (CONFIG_I2C) || defined (CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
 		normal_i2c[0] = setup->i2c_address;
