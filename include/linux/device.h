@@ -433,6 +433,8 @@ static inline int device_is_registered(struct device *dev)
 	return dev->is_registered;
 }
 
+void driver_init(void);
+
 /*
  * High level routines for use by the bus drivers
  */

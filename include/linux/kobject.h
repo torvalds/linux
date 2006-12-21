@@ -265,8 +265,8 @@ extern int __must_check subsys_create_file(struct subsystem * ,
 					struct subsys_attribute *);
 
 #if defined(CONFIG_HOTPLUG)
-void kobject_uevent(struct kobject *kobj, enum kobject_action action);
-void kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
+int kobject_uevent(struct kobject *kobj, enum kobject_action action);
+int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			char *envp[]);
 
 int add_uevent_var(char **envp, int num_envp, int *cur_index,
@@ -274,11 +274,12 @@ int add_uevent_var(char **envp, int num_envp, int *cur_index,
 			const char *format, ...)
 	__attribute__((format (printf, 7, 8)));
 #else
-static inline void kobject_uevent(struct kobject *kobj, enum kobject_action action) { }
-static inline void kobject_uevent_env(struct kobject *kobj,
+static inline int kobject_uevent(struct kobject *kobj, enum kobject_action action)
+{ return 0; }
+static inline int kobject_uevent_env(struct kobject *kobj,
 				      enum kobject_action action,
 				      char *envp[])
-{ }
+{ return 0; }
 
 static inline int add_uevent_var(char **envp, int num_envp, int *cur_index,
 				      char *buffer, int buffer_size, int *cur_len, 
