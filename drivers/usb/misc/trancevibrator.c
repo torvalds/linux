@@ -120,8 +120,8 @@ static void tv_disconnect(struct usb_interface *interface)
 	struct trancevibrator *dev;
 
 	dev = usb_get_intfdata (interface);
-	usb_set_intfdata(interface, NULL);
 	device_remove_file(&interface->dev, &dev_attr_speed);
+	usb_set_intfdata(interface, NULL);
 	usb_put_dev(dev->udev);
 	kfree(dev);
 }

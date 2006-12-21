@@ -51,10 +51,10 @@
 #define     AT91_UDP_EP(n)	(1 << (n))	/* Endpoint Interrupt Status */
 #define     AT91_UDP_RXSUSP	(1 <<  8) 	/* USB Suspend Interrupt Status */
 #define     AT91_UDP_RXRSM	(1 <<  9)	/* USB Resume Interrupt Status */
-#define     AT91_UDP_EXTRSM	(1 << 10)	/* External Resume Interrupt Status */
+#define     AT91_UDP_EXTRSM	(1 << 10)	/* External Resume Interrupt Status [AT91RM9200 only] */
 #define     AT91_UDP_SOFINT	(1 << 11)	/* Start of Frame Interrupt Status */
 #define     AT91_UDP_ENDBUSRES	(1 << 12)	/* End of Bus Reset Interrpt Status */
-#define     AT91_UDP_WAKEUP	(1 << 13)	/* USB Wakeup Interrupt Status */
+#define     AT91_UDP_WAKEUP	(1 << 13)	/* USB Wakeup Interrupt Status [AT91RM9200 only] */
 
 #define AT91_UDP_ICR		0x20		/* Interrupt Clear Register */
 #define AT91_UDP_RST_EP		0x28		/* Reset Endpoint Register */
@@ -84,7 +84,7 @@
 
 #define AT91_UDP_TXVC		0x74		/* Transceiver Control Register */
 #define     AT91_UDP_TXVC_TXVDIS (1 << 8)	/* Transceiver Disable */
-
+#define     AT91_UDP_TXVC_PUON   (1 << 9)	/* PullUp On [AT91SAM9260 only] */
 
 /*-------------------------------------------------------------------------*/
 
@@ -141,6 +141,7 @@ struct at91_udc {
 	struct clk			*iclk, *fclk;
 	struct platform_device		*pdev;
 	struct proc_dir_entry		*pde;
+	void __iomem			*udp_baseaddr;
 	int				udp_irq;
 };
 

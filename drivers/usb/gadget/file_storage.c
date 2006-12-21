@@ -4100,7 +4100,7 @@ static struct usb_gadget_driver		fsg_driver = {
 #endif
 	.function	= (char *) longname,
 	.bind		= fsg_bind,
-	.unbind		= __exit_p(fsg_unbind),
+	.unbind		= fsg_unbind,
 	.disconnect	= fsg_disconnect,
 	.setup		= fsg_setup,
 	.suspend	= fsg_suspend,

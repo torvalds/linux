@@ -962,21 +962,6 @@ static int cypress_ioctl (struct usb_serial_port *port, struct file * file, unsi
 			cypress_set_termios(port, &priv->tmp_termios);
 			return (0);
 			break;
-		/* these are called when setting baud rate from gpsd */
-		case TCGETS:
-			if (copy_to_user((void __user *)arg, port->tty->termios, sizeof(struct termios))) {
-				return -EFAULT;
-			}
-			return (0);
-			break;
-		case TCSETS:
-			if (copy_from_user(port->tty->termios, (void __user *)arg, sizeof(struct termios))) {
-				return -EFAULT;
-			}
-			/* here we need to call cypress_set_termios to invoke the new settings */
-			cypress_set_termios(port, &priv->tmp_termios);
-			return (0);
-			break;
 		/* This code comes from drivers/char/serial.c and ftdi_sio.c */
 		case TIOCMIWAIT:
 			while (priv != NULL) {

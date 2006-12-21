@@ -4,7 +4,7 @@
  * (C) Copyright 1999 Roman Weissgaerber <weissg@vienna.at>
  * (C) Copyright 2000-2002 David Brownell <dbrownell@users.sourceforge.net>
  * (C) Copyright 2002 Hewlett-Packard Company
- * 
+ *
  * SA1111 Bus Glue
  *
  * Written by Christopher Hoover <ch@hpl.hp.com>
@@ -12,7 +12,7 @@
  *
  * This file is licenced under the GPL.
  */
- 
+
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/arch/assabet.h>
@@ -31,7 +31,7 @@ static void sa1111_start_hc(struct sa1111_dev *dev)
 {
 	unsigned int usb_rst = 0;
 
-	printk(KERN_DEBUG __FILE__ 
+	printk(KERN_DEBUG __FILE__
 	       ": starting SA-1111 OHCI USB Controller\n");
 
 #ifdef CONFIG_SA1100_BADGE4
@@ -65,7 +65,7 @@ static void sa1111_start_hc(struct sa1111_dev *dev)
 static void sa1111_stop_hc(struct sa1111_dev *dev)
 {
 	unsigned int usb_rst;
-	printk(KERN_DEBUG __FILE__ 
+	printk(KERN_DEBUG __FILE__
 	       ": stopping SA-1111 OHCI USB Controller\n");
 
 	/*

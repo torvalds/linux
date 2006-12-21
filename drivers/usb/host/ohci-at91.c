@@ -187,7 +187,6 @@ ohci_at91_start (struct usb_hcd *hcd)
 {
 	struct at91_usbh_data	*board = hcd->self.controller->platform_data;
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
-	struct usb_device	*root = hcd->self.root_hub;
 	int			ret;
 
 	if ((ret = ohci_init(ohci)) < 0)
@@ -221,7 +220,7 @@ static const struct hc_driver ohci_at91_hc_driver = {
 	 */
 	.start =		ohci_at91_start,
 	.stop =			ohci_stop,
-	.shutdown = 		ohci_shutdown,
+	.shutdown =		ohci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources

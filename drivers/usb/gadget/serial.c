@@ -296,7 +296,7 @@ static struct usb_gadget_driver gs_gadget_driver = {
 #endif /* CONFIG_USB_GADGET_DUALSPEED */
 	.function =		GS_LONG_NAME,
 	.bind =			gs_bind,
-	.unbind =		__exit_p(gs_unbind),
+	.unbind =		gs_unbind,
 	.setup =		gs_setup,
 	.disconnect =		gs_disconnect,
 	.driver = {

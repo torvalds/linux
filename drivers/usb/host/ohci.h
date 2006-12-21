@@ -1,9 +1,9 @@
 /*
  * OHCI HCD (Host Controller Driver) for USB.
- * 
+ *
  * (C) Copyright 1999 Roman Weissgaerber <weissg@vienna.at>
  * (C) Copyright 2000-2002 David Brownell <dbrownell@users.sourceforge.net>
- * 
+ *
  * This file is licenced under the GPL.
  */
 
@@ -14,7 +14,7 @@
  */
 typedef __u32 __bitwise __hc32;
 typedef __u16 __bitwise __hc16;
- 
+
 /*
  * OHCI Endpoint Descriptor (ED) ... holds TD queue
  * See OHCI spec, section 4.2
@@ -24,7 +24,7 @@ typedef __u16 __bitwise __hc16;
  */
 struct ed {
 	/* first fields are hardware-specified */
-	__hc32			hwINFO;       	/* endpoint config bitmap */
+	__hc32			hwINFO;      /* endpoint config bitmap */
 	/* info bits defined by hcd */
 #define ED_DEQUEUE	(1 << 27)
 	/* info bits defined by the hardware */
@@ -52,11 +52,11 @@ struct ed {
 	 * usually:  OPER --> UNLINK --> (IDLE | OPER) --> ...
 	 */
 	u8			state;		/* ED_{IDLE,UNLINK,OPER} */
-#define ED_IDLE 	0x00		/* NOT linked to HC */
-#define ED_UNLINK 	0x01		/* being unlinked from hc */
+#define ED_IDLE		0x00		/* NOT linked to HC */
+#define ED_UNLINK	0x01		/* being unlinked from hc */
 #define ED_OPER		0x02		/* IS linked to hc */
 
-	u8			type; 		/* PIPE_{BULK,...} */
+	u8			type;		/* PIPE_{BULK,...} */
 
 	/* periodic scheduling params (for intr and iso) */
 	u8			branch;
@@ -70,7 +70,7 @@ struct ed {
 
 #define ED_MASK	((u32)~0x0f)		/* strip hw status in low addr bits */
 
- 
+
 /*
  * OHCI Transfer Descriptor (TD) ... one per transfer segment
  * See OHCI spec, sections 4.3.1 (general = control/bulk/interrupt)
@@ -107,22 +107,22 @@ struct td {
 
 	/* (no hwINFO #defines yet for iso tds) */
 
-  	__hc32		hwCBP;		/* Current Buffer Pointer (or 0) */
-  	__hc32		hwNextTD;	/* Next TD Pointer */
-  	__hc32		hwBE;		/* Memory Buffer End Pointer */
+	__hc32		hwCBP;		/* Current Buffer Pointer (or 0) */
+	__hc32		hwNextTD;	/* Next TD Pointer */
+	__hc32		hwBE;		/* Memory Buffer End Pointer */
 
 	/* PSW is only for ISO.  Only 1 PSW entry is used, but on
 	 * big-endian PPC hardware that's the second entry.
 	 */
 #define MAXPSW	2
-  	__hc16		hwPSW [MAXPSW];
+	__hc16		hwPSW [MAXPSW];
 
 	/* rest are purely for the driver's use */
-  	__u8		index;
-  	struct ed	*ed;
-  	struct td	*td_hash;	/* dma-->td hashtable */
-  	struct td	*next_dl_td;
-  	struct urb	*urb;
+	__u8		index;
+	struct ed	*ed;
+	struct td	*td_hash;	/* dma-->td hashtable */
+	struct td	*next_dl_td;
+	struct urb	*urb;
 
 	dma_addr_t	td_dma;		/* addr of this TD */
 	dma_addr_t	data_dma;	/* addr of data it points to */
@@ -152,8 +152,8 @@ struct td {
 #define TD_NOTACCESSED     0x0F
 
 
-/* map OHCI TD status codes (CC) to errno values */ 
-static const int cc_to_error [16] = { 
+/* map OHCI TD status codes (CC) to errno values */
+static const int cc_to_error [16] = {
 	/* No  Error  */               0,
 	/* CRC Error  */               -EILSEQ,
 	/* Bit Stuff  */               -EPROTO,
@@ -169,7 +169,7 @@ static const int cc_to_error [16] = {
 	/* BufferOver */               -ECOMM,
 	/* BuffUnder  */               -ENOSR,
 	/* (for HCD)  */               -EALREADY,
-	/* (for HCD)  */               -EALREADY 
+	/* (for HCD)  */               -EALREADY
 };
 
 
@@ -182,7 +182,7 @@ struct ohci_hcca {
 #define NUM_INTS 32
 	__hc32	int_table [NUM_INTS];	/* periodic schedule */
 
-	/* 
+	/*
 	 * OHCI defines u16 frame_no, followed by u16 zero pad.
 	 * Since some processors can't do 16 bit bus accesses,
 	 * portable access must be a 32 bits wide.
@@ -262,10 +262,10 @@ struct ohci_regs {
  * HcCommandStatus (cmdstatus) register masks
  */
 #define OHCI_HCR	(1 << 0)	/* host controller reset */
-#define OHCI_CLF  	(1 << 1)	/* control list filled */
-#define OHCI_BLF  	(1 << 2)	/* bulk list filled */
-#define OHCI_OCR  	(1 << 3)	/* ownership change request */
-#define OHCI_SOC  	(3 << 16)	/* scheduling overrun count */
+#define OHCI_CLF	(1 << 1)	/* control list filled */
+#define OHCI_BLF	(1 << 2)	/* bulk list filled */
+#define OHCI_OCR	(1 << 3)	/* ownership change request */
+#define OHCI_SOC	(3 << 16)	/* scheduling overrun count */
 
 /*
  * masks used with interrupt registers:
@@ -285,20 +285,20 @@ struct ohci_regs {
 
 
 /* OHCI ROOT HUB REGISTER MASKS */
- 
+
 /* roothub.portstatus [i] bits */
-#define RH_PS_CCS            0x00000001   	/* current connect status */
-#define RH_PS_PES            0x00000002   	/* port enable status*/
-#define RH_PS_PSS            0x00000004   	/* port suspend status */
-#define RH_PS_POCI           0x00000008   	/* port over current indicator */
-#define RH_PS_PRS            0x00000010  	/* port reset status */
-#define RH_PS_PPS            0x00000100   	/* port power status */
-#define RH_PS_LSDA           0x00000200    	/* low speed device attached */
-#define RH_PS_CSC            0x00010000 	/* connect status change */
-#define RH_PS_PESC           0x00020000   	/* port enable status change */
-#define RH_PS_PSSC           0x00040000    	/* port suspend status change */
-#define RH_PS_OCIC           0x00080000    	/* over current indicator change */
-#define RH_PS_PRSC           0x00100000   	/* port reset status change */
+#define RH_PS_CCS            0x00000001		/* current connect status */
+#define RH_PS_PES            0x00000002		/* port enable status*/
+#define RH_PS_PSS            0x00000004		/* port suspend status */
+#define RH_PS_POCI           0x00000008		/* port over current indicator */
+#define RH_PS_PRS            0x00000010		/* port reset status */
+#define RH_PS_PPS            0x00000100		/* port power status */
+#define RH_PS_LSDA           0x00000200		/* low speed device attached */
+#define RH_PS_CSC            0x00010000		/* connect status change */
+#define RH_PS_PESC           0x00020000		/* port enable status change */
+#define RH_PS_PSSC           0x00040000		/* port suspend status change */
+#define RH_PS_OCIC           0x00080000		/* over current indicator change */
+#define RH_PS_PRSC           0x00100000		/* port reset status change */
 
 /* roothub.status bits */
 #define RH_HS_LPS	     0x00000001		/* local power status */
@@ -333,7 +333,7 @@ typedef struct urb_priv {
 } urb_priv_t;
 
 #define TD_HASH_SIZE    64    /* power'o'two */
-// sizeof (struct td) ~= 64 == 2^6 ... 
+// sizeof (struct td) ~= 64 == 2^6 ...
 #define TD_HASH_FUNC(td_dma) ((td_dma ^ (td_dma >> 6)) % TD_HASH_SIZE)
 
 
@@ -364,11 +364,11 @@ struct ohci_hcd {
 
 	struct ed		*ed_bulktail;		/* last in bulk list */
 	struct ed		*ed_controltail;	/* last in ctrl list */
- 	struct ed		*periodic [NUM_INTS];	/* shadow int_table */
+	struct ed		*periodic [NUM_INTS];	/* shadow int_table */
 
 	/*
 	 * OTG controllers and transceivers need software interaction;
-	 * other external transceivers should be software-transparent 
+	 * other external transceivers should be software-transparent
 	 */
 	struct otg_transceiver	*transceiver;
 
@@ -385,7 +385,7 @@ struct ohci_hcd {
 	 */
 	int			num_ports;
 	int			load [NUM_INTS];
-	u32 			hc_control;	/* copy of hc control reg */
+	u32			hc_control;	/* copy of hc control reg */
 	unsigned long		next_statechange;	/* suspend/resume */
 	u32			fminterval;		/* saved register */
 	unsigned		autostop:1;	/* rh auto stopping/stopped */
@@ -598,11 +598,11 @@ static inline void disable (struct ohci_hcd *ohci)
 }
 
 #define	FI			0x2edf		/* 12000 bits per frame (-1) */
-#define	FSMP(fi) 		(0x7fff & ((6 * ((fi) - 210)) / 7))
+#define	FSMP(fi)		(0x7fff & ((6 * ((fi) - 210)) / 7))
 #define	FIT			(1 << 31)
 #define LSTHRESH		0x628		/* lowspeed bit threshold */
 
-static void periodic_reinit (struct ohci_hcd *ohci)
+static inline void periodic_reinit (struct ohci_hcd *ohci)
 {
 	u32	fi = ohci->fminterval & 0x03fff;
 	u32	fit = ohci_readl(ohci, &ohci->regs->fminterval) & FIT;
@@ -626,11 +626,11 @@ static void periodic_reinit (struct ohci_hcd *ohci)
 			temp = ohci_readl (hc, &hc->regs->roothub.register); \
 	temp; })
 
-static u32 roothub_a (struct ohci_hcd *hc)
+static inline u32 roothub_a (struct ohci_hcd *hc)
 	{ return read_roothub (hc, a, 0xfc0fe000); }
 static inline u32 roothub_b (struct ohci_hcd *hc)
 	{ return ohci_readl (hc, &hc->regs->roothub.b); }
 static inline u32 roothub_status (struct ohci_hcd *hc)
 	{ return ohci_readl (hc, &hc->regs->roothub.status); }
-static u32 roothub_portstatus (struct ohci_hcd *hc, int i)
+static inline u32 roothub_portstatus (struct ohci_hcd *hc, int i)
 	{ return read_roothub (hc, portstatus [i], 0xffe0fce0); }

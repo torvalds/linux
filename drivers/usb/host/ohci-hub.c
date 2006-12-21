@@ -1,9 +1,9 @@
 /*
  * OHCI HCD (Host Controller Driver) for USB.
- * 
+ *
  * (C) Copyright 1999 Roman Weissgaerber <weissg@vienna.at>
  * (C) Copyright 2000-2004 David Brownell <dbrownell@users.sourceforge.net>
- * 
+ *
  * This file is licenced under GPL
  */
 
@@ -23,13 +23,13 @@
 		(temp & RH_PS_PSSC) ? " PSSC" : "", \
 		(temp & RH_PS_PESC) ? " PESC" : "", \
 		(temp & RH_PS_CSC) ? " CSC" : "", \
- 		\
+		\
 		(temp & RH_PS_LSDA) ? " LSDA" : "", \
 		(temp & RH_PS_PPS) ? " PPS" : "", \
 		(temp & RH_PS_PRS) ? " PRS" : "", \
 		(temp & RH_PS_POCI) ? " POCI" : "", \
 		(temp & RH_PS_PSS) ? " PSS" : "", \
- 		\
+		\
 		(temp & RH_PS_PES) ? " PES" : "", \
 		(temp & RH_PS_CCS) ? " CCS" : "" \
 		);
@@ -484,7 +484,7 @@ ohci_hub_descriptor (
 	temp = 0;
 	if (rh & RH_A_NPS)		/* no power switching? */
 	    temp |= 0x0002;
-	if (rh & RH_A_PSM) 		/* per-port power switching? */
+	if (rh & RH_A_PSM)		/* per-port power switching? */
 	    temp |= 0x0001;
 	if (rh & RH_A_NOCP)		/* no overcurrent reporting? */
 	    temp |= 0x0010;
@@ -555,7 +555,7 @@ static void start_hnp(struct ohci_hcd *ohci);
 #define tick_before(t1,t2) ((s16)(((s16)(t1))-((s16)(t2))) < 0)
 
 /* called from some task, normally khubd */
-static inline void root_port_reset (struct ohci_hcd *ohci, unsigned port)
+static inline int root_port_reset (struct ohci_hcd *ohci, unsigned port)
 {
 	__hc32 __iomem *portstat = &ohci->regs->roothub.portstatus [port];
 	u32	temp;
@@ -570,10 +570,13 @@ static inline void root_port_reset (struct ohci_hcd *ohci, unsigned port)
 		/* spin until any current reset finishes */
 		for (;;) {
 			temp = ohci_readl (ohci, portstat);
+			/* handle e.g. CardBus eject */
+			if (temp == ~(u32)0)
+				return -ESHUTDOWN;
 			if (!(temp & RH_PS_PRS))
 				break;
 			udelay (500);
-		} 
+		}
 
 		if (!(temp & RH_PS_CCS))
 			break;
@@ -586,6 +589,8 @@ static inline void root_port_reset (struct ohci_hcd *ohci, unsigned port)
 		now = ohci_readl(ohci, &ohci->regs->fmnumber);
 	} while (tick_before(now, reset_done));
 	/* caller synchronizes using PRSC */
+
+	return 0;
 }
 
 static int ohci_hub_control (
@@ -702,7 +707,7 @@ static int ohci_hub_control (
 				&ohci->regs->roothub.portstatus [wIndex]);
 			break;
 		case USB_PORT_FEAT_RESET:
-			root_port_reset (ohci, wIndex);
+			retval = root_port_reset (ohci, wIndex);
 			break;
 		default:
 			goto error;
