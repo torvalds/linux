@@ -57,9 +57,8 @@ static int queue_interrupt_event(struct slot *p_slot, u32 event_type)
 	return 0;
 }
 
-u8 shpchp_handle_attention_button(u8 hp_slot, void *inst_id)
+u8 shpchp_handle_attention_button(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u32 event_type;
 
@@ -81,9 +80,8 @@ u8 shpchp_handle_attention_button(u8 hp_slot, void *inst_id)
 
 }
 
-u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
+u8 shpchp_handle_switch_change(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u8 getstatus;
 	u32 event_type;
@@ -120,9 +118,8 @@ u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
 	return 1;
 }
 
-u8 shpchp_handle_presence_change(u8 hp_slot, void *inst_id)
+u8 shpchp_handle_presence_change(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u32 event_type;
 
@@ -154,9 +151,8 @@ u8 shpchp_handle_presence_change(u8 hp_slot, void *inst_id)
 	return 1;
 }
 
-u8 shpchp_handle_power_fault(u8 hp_slot, void *inst_id)
+u8 shpchp_handle_power_fault(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u32 event_type;
 
@@ -497,10 +493,12 @@ static void handle_button_press_event(struct slot *p_slot)
 		p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 		if (getstatus) {
 			p_slot->state = BLINKINGOFF_STATE;
-			info(msg_button_off, p_slot->name);
+			info("PCI slot #%s - powering off due to button "
+			     "press.\n", p_slot->name);
 		} else {
 			p_slot->state = BLINKINGON_STATE;
-			info(msg_button_on, p_slot->name);
+			info("PCI slot #%s - powering on due to button "
+			     "press.\n", p_slot->name);
 		}
 		/* blink green LED and turn off amber */
 		p_slot->hpc_ops->green_led_blink(p_slot);
@@ -523,7 +521,8 @@ static void handle_button_press_event(struct slot *p_slot)
 		else
 			p_slot->hpc_ops->green_led_off(p_slot);
 		p_slot->hpc_ops->set_attention_status(p_slot, 0);
-		info(msg_button_cancel, p_slot->name);
+		info("PCI slot #%s - action canceled due to button press\n",
+		     p_slot->name);
 		p_slot->state = STATIC_STATE;
 		break;
 	case POWEROFF_STATE:

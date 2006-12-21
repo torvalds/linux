@@ -649,6 +649,9 @@ static void pci_read_irq(struct pci_dev *dev)
  * Returns 0 on success and -1 if unknown type of device (not normal, bridge
  * or CardBus).
  */
+
+#define LEGACY_IO_RESOURCE	(IORESOURCE_IO | IORESOURCE_PCI_FIXED)
+
 static int pci_setup_device(struct pci_dev * dev)
 {
 	u32 class;
@@ -692,18 +695,18 @@ static int pci_setup_device(struct pci_dev * dev)
 			if ((progif & 1) == 0) {
 				dev->resource[0].start = 0x1F0;
 				dev->resource[0].end = 0x1F7;
-				dev->resource[0].flags = IORESOURCE_IO;
+				dev->resource[0].flags = LEGACY_IO_RESOURCE;
 				dev->resource[1].start = 0x3F6;
 				dev->resource[1].end = 0x3F6;
-				dev->resource[1].flags = IORESOURCE_IO;
+				dev->resource[1].flags = LEGACY_IO_RESOURCE;
 			}
 			if ((progif & 4) == 0) {
 				dev->resource[2].start = 0x170;
 				dev->resource[2].end = 0x177;
-				dev->resource[2].flags = IORESOURCE_IO;
+				dev->resource[2].flags = LEGACY_IO_RESOURCE;
 				dev->resource[3].start = 0x376;
 				dev->resource[3].end = 0x376;
-				dev->resource[3].flags = IORESOURCE_IO;
+				dev->resource[3].flags = LEGACY_IO_RESOURCE;
 			}
 		}
 		break;

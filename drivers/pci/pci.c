@@ -68,12 +68,14 @@ pci_max_busnr(void)
 
 #endif  /*  0  */
 
-static int __pci_find_next_cap(struct pci_bus *bus, unsigned int devfn, u8 pos, int cap)
+#define PCI_FIND_CAP_TTL	48
+
+static int __pci_find_next_cap_ttl(struct pci_bus *bus, unsigned int devfn,
+				   u8 pos, int cap, int *ttl)
 {
 	u8 id;
-	int ttl = 48;
 
-	while (ttl--) {
+	while ((*ttl)--) {
 		pci_bus_read_config_byte(bus, devfn, pos, &pos);
 		if (pos < 0x40)
 			break;
@@ -89,6 +91,14 @@ static int __pci_find_next_cap(struct pci_bus *bus, unsigned int devfn, u8 pos, 
 	return 0;
 }
 
+static int __pci_find_next_cap(struct pci_bus *bus, unsigned int devfn,
+			       u8 pos, int cap)
+{
+	int ttl = PCI_FIND_CAP_TTL;
+
+	return __pci_find_next_cap_ttl(bus, devfn, pos, cap, &ttl);
+}
+
 int pci_find_next_capability(struct pci_dev *dev, u8 pos, int cap)
 {
 	return __pci_find_next_cap(dev->bus, dev->devfn,
@@ -96,10 +106,10 @@ int pci_find_next_capability(struct pci_dev *dev, u8 pos, int cap)
 }
 EXPORT_SYMBOL_GPL(pci_find_next_capability);
 
-static int __pci_bus_find_cap(struct pci_bus *bus, unsigned int devfn, u8 hdr_type, int cap)
+static int __pci_bus_find_cap_start(struct pci_bus *bus,
+				    unsigned int devfn, u8 hdr_type)
 {
 	u16 status;
-	u8 pos;
 
 	pci_bus_read_config_word(bus, devfn, PCI_STATUS, &status);
 	if (!(status & PCI_STATUS_CAP_LIST))
@@ -108,15 +118,14 @@ static int __pci_bus_find_cap(struct pci_bus *bus, unsigned int devfn, u8 hdr_ty
 	switch (hdr_type) {
 	case PCI_HEADER_TYPE_NORMAL:
 	case PCI_HEADER_TYPE_BRIDGE:
-		pos = PCI_CAPABILITY_LIST;
-		break;
+		return PCI_CAPABILITY_LIST;
 	case PCI_HEADER_TYPE_CARDBUS:
-		pos = PCI_CB_CAPABILITY_LIST;
-		break;
+		return PCI_CB_CAPABILITY_LIST;
 	default:
 		return 0;
 	}
-	return __pci_find_next_cap(bus, devfn, pos, cap);
+
+	return 0;
 }
 
 /**
@@ -140,7 +149,13 @@ static int __pci_bus_find_cap(struct pci_bus *bus, unsigned int devfn, u8 hdr_ty
  */
 int pci_find_capability(struct pci_dev *dev, int cap)
 {
-	return __pci_bus_find_cap(dev->bus, dev->devfn, dev->hdr_type, cap);
+	int pos;
+
+	pos = __pci_bus_find_cap_start(dev->bus, dev->devfn, dev->hdr_type);
+	if (pos)
+		pos = __pci_find_next_cap(dev->bus, dev->devfn, pos, cap);
+
+	return pos;
 }
 
 /**
@@ -158,11 +173,16 @@ int pci_find_capability(struct pci_dev *dev, int cap)
  */
 int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
 {
+	int pos;
 	u8 hdr_type;
 
 	pci_bus_read_config_byte(bus, devfn, PCI_HEADER_TYPE, &hdr_type);
 
-	return __pci_bus_find_cap(bus, devfn, hdr_type & 0x7f, cap);
+	pos = __pci_bus_find_cap_start(bus, devfn, hdr_type & 0x7f);
+	if (pos)
+		pos = __pci_find_next_cap(bus, devfn, pos, cap);
+
+	return pos;
 }
 
 /**
@@ -213,6 +233,74 @@ int pci_find_ext_capability(struct pci_dev *dev, int cap)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pci_find_ext_capability);
+
+static int __pci_find_next_ht_cap(struct pci_dev *dev, int pos, int ht_cap)
+{
+	int rc, ttl = PCI_FIND_CAP_TTL;
+	u8 cap, mask;
+
+	if (ht_cap == HT_CAPTYPE_SLAVE || ht_cap == HT_CAPTYPE_HOST)
+		mask = HT_3BIT_CAP_MASK;
+	else
+		mask = HT_5BIT_CAP_MASK;
+
+	pos = __pci_find_next_cap_ttl(dev->bus, dev->devfn, pos,
+				      PCI_CAP_ID_HT, &ttl);
+	while (pos) {
+		rc = pci_read_config_byte(dev, pos + 3, &cap);
+		if (rc != PCIBIOS_SUCCESSFUL)
+			return 0;
+
+		if ((cap & mask) == ht_cap)
+			return pos;
+
+		pos = __pci_find_next_cap_ttl(dev->bus, dev->devfn, pos,
+					      PCI_CAP_ID_HT, &ttl);
+	}
+
+	return 0;
+}
+/**
+ * pci_find_next_ht_capability - query a device's Hypertransport capabilities
+ * @dev: PCI device to query
+ * @pos: Position from which to continue searching
+ * @ht_cap: Hypertransport capability code
+ *
+ * To be used in conjunction with pci_find_ht_capability() to search for
+ * all capabilities matching @ht_cap. @pos should always be a value returned
+ * from pci_find_ht_capability().
+ *
+ * NB. To be 100% safe against broken PCI devices, the caller should take
+ * steps to avoid an infinite loop.
+ */
+int pci_find_next_ht_capability(struct pci_dev *dev, int pos, int ht_cap)
+{
+	return __pci_find_next_ht_cap(dev, pos + PCI_CAP_LIST_NEXT, ht_cap);
+}
+EXPORT_SYMBOL_GPL(pci_find_next_ht_capability);
+
+/**
+ * pci_find_ht_capability - query a device's Hypertransport capabilities
+ * @dev: PCI device to query
+ * @ht_cap: Hypertransport capability code
+ *
+ * Tell if a device supports a given Hypertransport capability.
+ * Returns an address within the device's PCI configuration space
+ * or 0 in case the device does not support the request capability.
+ * The address points to the PCI capability, of type PCI_CAP_ID_HT,
+ * which has a Hypertransport capability matching @ht_cap.
+ */
+int pci_find_ht_capability(struct pci_dev *dev, int ht_cap)
+{
+	int pos;
+
+	pos = __pci_bus_find_cap_start(dev->bus, dev->devfn, dev->hdr_type);
+	if (pos)
+		pos = __pci_find_next_ht_cap(dev, pos, ht_cap);
+
+	return pos;
+}
+EXPORT_SYMBOL_GPL(pci_find_ht_capability);
 
 /**
  * pci_find_parent_resource - return resource region of parent bus of given region

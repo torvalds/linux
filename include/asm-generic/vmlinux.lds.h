@@ -35,6 +35,9 @@
 		VMLINUX_SYMBOL(__start_pci_fixups_enable) = .;		\
 		*(.pci_fixup_enable)					\
 		VMLINUX_SYMBOL(__end_pci_fixups_enable) = .;		\
+		VMLINUX_SYMBOL(__start_pci_fixups_resume) = .;		\
+		*(.pci_fixup_resume)					\
+		VMLINUX_SYMBOL(__end_pci_fixups_resume) = .;		\
 	}								\
 									\
 	/* RapidIO route ops */						\

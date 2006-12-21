@@ -119,7 +119,6 @@ header-y += nfs4_mount.h
 header-y += nfs_mount.h
 header-y += oom.h
 header-y += param.h
-header-y += pci_ids.h
 header-y += pci_regs.h
 header-y += personality.h
 header-y += pfkeyv2.h
@@ -162,7 +161,6 @@ header-y += vt.h
 header-y += wireless.h
 header-y += xattr.h
 header-y += x25.h
-header-y += zorro_ids.h
 
 unifdef-y += acct.h
 unifdef-y += adb.h
