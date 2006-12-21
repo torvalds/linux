@@ -60,10 +60,11 @@ void cancel_dirty_page(struct page *page, unsigned int account_size)
 		WARN_ON(++warncount < 5);
 	}
 		
-	if (TestClearPageDirty(page) && account_size)
+	if (TestClearPageDirty(page) && account_size) {
+		dec_zone_page_state(page, NR_FILE_DIRTY);
 		task_io_account_cancelled_write(account_size);
+	}
 }
-
 
 /*
  * If truncate cannot remove the fs-private metadata from the page, the page
@@ -81,10 +82,10 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 	if (page->mapping != mapping)
 		return;
 
+	cancel_dirty_page(page, PAGE_CACHE_SIZE);
+
 	if (PagePrivate(page))
 		do_invalidatepage(page, 0);
-
-	cancel_dirty_page(page, PAGE_CACHE_SIZE);
 
 	ClearPageUptodate(page);
 	ClearPageMappedToDisk(page);
