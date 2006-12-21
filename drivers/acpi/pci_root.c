@@ -151,6 +151,21 @@ static acpi_status try_get_root_bridge_busnr(acpi_handle handle, int *busnum)
 	return AE_OK;
 }
 
+static void acpi_pci_bridge_scan(struct acpi_device *device)
+{
+	int status;
+	struct acpi_device *child = NULL;
+
+	if (device->flags.bus_address)
+		if (device->parent && device->parent->ops.bind) {
+			status = device->parent->ops.bind(device);
+			if (!status) {
+				list_for_each_entry(child, &device->children, node)
+					acpi_pci_bridge_scan(child);
+			}
+		}
+}
+
 static int acpi_pci_root_add(struct acpi_device *device)
 {
 	int result = 0;
@@ -159,6 +174,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	acpi_status status = AE_OK;
 	unsigned long value = 0;
 	acpi_handle handle = NULL;
+	struct acpi_device *child;
 
 
 	if (!device)
@@ -174,6 +190,8 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	strcpy(acpi_device_name(device), ACPI_PCI_ROOT_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	acpi_driver_data(device) = root;
+
+	device->ops.bind = acpi_pci_bind;
 
 	/* 
 	 * Segment
@@ -293,6 +311,12 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	if (ACPI_SUCCESS(status))
 		result = acpi_pci_irq_add_prt(device->handle, root->id.segment,
 					      root->id.bus);
+
+	/*
+	 * Scan and bind all _ADR-Based Devices
+	 */
+	list_for_each_entry(child, &device->children, node)
+		acpi_pci_bridge_scan(child);
 
       end:
 	if (result) {

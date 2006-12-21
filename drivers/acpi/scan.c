@@ -837,20 +837,6 @@ acpi_video_bus_match(struct acpi_device *device)
 	return -ENODEV;
 }
 
-static int acpi_pci_bridge_match(struct acpi_device *device)
-{
-       acpi_status status;
-       acpi_handle handle;
-
-       /* pci bridge has _PRT but isn't PNP0A03 */
-       status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
-       if (ACPI_FAILURE(status))
-               return -ENODEV;
-       if (!acpi_match_ids(device, "PNP0A03"))
-               return -ENODEV;
-       return 0;
-}
-
 static void acpi_device_set_id(struct acpi_device *device,
 			       struct acpi_device *parent, acpi_handle handle,
 			       int type)
@@ -886,10 +872,6 @@ static void acpi_device_set_id(struct acpi_device *device,
 			status = acpi_video_bus_match(device);
 			if(ACPI_SUCCESS(status))
 				hid = ACPI_VIDEO_HID;
-
-			status = acpi_pci_bridge_match(device);
-			if(ACPI_SUCCESS(status))
-				hid = ACPI_PCI_BRIDGE_HID;
 		}
 		break;
 	case ACPI_BUS_TYPE_POWER:
@@ -1021,6 +1003,13 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 	if (!rmdevice)
 		return 0;
 
+	/*
+	 * unbind _ADR-Based Devices when hot removal
+	 */
+	if (dev->flags.bus_address) {
+		if ((dev->parent) && (dev->parent->ops.unbind))
+			dev->parent->ops.unbind(dev);
+	}
 	acpi_device_unregister(dev, ACPI_BUS_REMOVAL_EJECT);
 
 	return 0;
@@ -1136,6 +1125,14 @@ acpi_add_single_object(struct acpi_device **child,
 	acpi_device_get_debug_info(device, handle, type);
 
 	result = acpi_device_register(device, parent);
+
+	/*
+	 * Bind _ADR-Based Devices when hot add
+	 */
+	if (device->flags.bus_address) {
+		if (device->parent && device->parent->ops.bind)
+			device->parent->ops.bind(device);
+	}
 
       end:
 	if (!result)
