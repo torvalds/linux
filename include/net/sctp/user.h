@@ -75,8 +75,8 @@ enum sctp_optname {
 #define SCTP_SET_PEER_PRIMARY_ADDR SCTP_SET_PEER_PRIMARY_ADDR
 	SCTP_PRIMARY_ADDR,
 #define SCTP_PRIMARY_ADDR SCTP_PRIMARY_ADDR
-	SCTP_ADAPTION_LAYER,      
-#define SCTP_ADAPTION_LAYER SCTP_ADAPTION_LAYER
+	SCTP_ADAPTATION_LAYER,
+#define SCTP_ADAPTATION_LAYER SCTP_ADAPTATION_LAYER
 	SCTP_DISABLE_FRAGMENTS,
 #define SCTP_DISABLE_FRAGMENTS SCTP_DISABLE_FRAGMENTS
 	SCTP_PEER_ADDR_PARAMS,
@@ -331,17 +331,17 @@ struct sctp_shutdown_event {
 };
 
 /*
- * 5.3.1.6 SCTP_ADAPTION_INDICATION
+ * 5.3.1.6 SCTP_ADAPTATION_INDICATION
  *
- *   When a peer sends a Adaption Layer Indication parameter , SCTP
+ *   When a peer sends a Adaptation Layer Indication parameter , SCTP
  *   delivers this notification to inform the application
- *   that of the peers requested adaption layer.
+ *   that of the peers requested adaptation layer.
  */
-struct sctp_adaption_event {
+struct sctp_adaptation_event {
 	__u16 sai_type;
 	__u16 sai_flags;
 	__u32 sai_length;
-	__u32 sai_adaption_ind;
+	__u32 sai_adaptation_ind;
 	sctp_assoc_t sai_assoc_id;
 };
 
@@ -374,7 +374,7 @@ struct sctp_event_subscribe {
 	__u8 sctp_peer_error_event;
 	__u8 sctp_shutdown_event;
 	__u8 sctp_partial_delivery_event;
-	__u8 sctp_adaption_layer_event;
+	__u8 sctp_adaptation_layer_event;
 };
 
 /*
@@ -395,7 +395,7 @@ union sctp_notification {
 	struct sctp_remote_error sn_remote_error;
 	struct sctp_send_failed sn_send_failed;
 	struct sctp_shutdown_event sn_shutdown_event;
-	struct sctp_adaption_event sn_adaption_event;
+	struct sctp_adaptation_event sn_adaptation_event;
 	struct sctp_pdapi_event sn_pdapi_event;
 };
 
@@ -412,7 +412,7 @@ enum sctp_sn_type {
 	SCTP_REMOTE_ERROR,
 	SCTP_SHUTDOWN_EVENT,
 	SCTP_PARTIAL_DELIVERY_EVENT,
-	SCTP_ADAPTION_INDICATION,
+	SCTP_ADAPTATION_INDICATION,
 };
 
 /* Notification error codes used to fill up the error fields in some
@@ -488,13 +488,13 @@ struct sctp_prim {
 } __attribute__((packed, aligned(4)));
 
 /*
- * 7.1.11 Set Adaption Layer Indicator (SCTP_ADAPTION_LAYER)
+ * 7.1.11 Set Adaptation Layer Indicator (SCTP_ADAPTATION_LAYER)
  *
- * Requests that the local endpoint set the specified Adaption Layer
+ * Requests that the local endpoint set the specified Adaptation Layer
  * Indication parameter for all future INIT and INIT-ACK exchanges.
  */
-struct sctp_setadaption {
-	__u32	ssb_adaption_ind;
+struct sctp_setadaptation {
+	__u32	ssb_adaptation_ind;
 };
 
 /*

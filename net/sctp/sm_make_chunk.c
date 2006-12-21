@@ -184,7 +184,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	struct sctp_sock *sp;
 	sctp_supported_addrs_param_t sat;
 	__be16 types[2];
-	sctp_adaption_ind_param_t aiparam;
+	sctp_adaptation_ind_param_t aiparam;
 
 	/* RFC 2960 3.3.2 Initiation (INIT) (1)
 	 *
@@ -249,9 +249,9 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	sctp_addto_chunk(retval, sizeof(ecap_param), &ecap_param);
 	if (sctp_prsctp_enable)
 		sctp_addto_chunk(retval, sizeof(prsctp_param), &prsctp_param);
-	aiparam.param_hdr.type = SCTP_PARAM_ADAPTION_LAYER_IND;
+	aiparam.param_hdr.type = SCTP_PARAM_ADAPTATION_LAYER_IND;
 	aiparam.param_hdr.length = htons(sizeof(aiparam));
-	aiparam.adaption_ind = htonl(sp->adaption_ind);
+	aiparam.adaptation_ind = htonl(sp->adaptation_ind);
 	sctp_addto_chunk(retval, sizeof(aiparam), &aiparam);
 nodata:
 	kfree(addrs.v);
@@ -269,7 +269,7 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	sctp_cookie_param_t *cookie;
 	int cookie_len;
 	size_t chunksize;
-	sctp_adaption_ind_param_t aiparam;
+	sctp_adaptation_ind_param_t aiparam;
 
 	retval = NULL;
 
@@ -323,9 +323,9 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	if (asoc->peer.prsctp_capable)
 		sctp_addto_chunk(retval, sizeof(prsctp_param), &prsctp_param);
 
-	aiparam.param_hdr.type = SCTP_PARAM_ADAPTION_LAYER_IND;
+	aiparam.param_hdr.type = SCTP_PARAM_ADAPTATION_LAYER_IND;
 	aiparam.param_hdr.length = htons(sizeof(aiparam));
-	aiparam.adaption_ind = htonl(sctp_sk(asoc->base.sk)->adaption_ind);
+	aiparam.adaptation_ind = htonl(sctp_sk(asoc->base.sk)->adaptation_ind);
 	sctp_addto_chunk(retval, sizeof(aiparam), &aiparam);
 
 	/* We need to remove the const qualifier at this point.  */
@@ -1300,8 +1300,8 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 	/* Remember PR-SCTP capability. */
 	cookie->c.prsctp_capable = asoc->peer.prsctp_capable;
 
-	/* Save adaption indication in the cookie. */
-	cookie->c.adaption_ind = asoc->peer.adaption_ind;
+	/* Save adaptation indication in the cookie. */
+	cookie->c.adaptation_ind = asoc->peer.adaptation_ind;
 
 	/* Set an expiration time for the cookie.  */
 	do_gettimeofday(&cookie->c.expiration);
@@ -1512,7 +1512,7 @@ no_hmac:
 	retval->addip_serial = retval->c.initial_tsn;
 	retval->adv_peer_ack_point = retval->ctsn_ack_point;
 	retval->peer.prsctp_capable = retval->c.prsctp_capable;
-	retval->peer.adaption_ind = retval->c.adaption_ind;
+	retval->peer.adaptation_ind = retval->c.adaptation_ind;
 
 	/* The INIT stuff will be done by the side effects.  */
 	return retval;
@@ -1743,7 +1743,7 @@ static int sctp_verify_param(const struct sctp_association *asoc,
 	case SCTP_PARAM_HEARTBEAT_INFO:
 	case SCTP_PARAM_UNRECOGNIZED_PARAMETERS:
 	case SCTP_PARAM_ECN_CAPABLE:
-	case SCTP_PARAM_ADAPTION_LAYER_IND:
+	case SCTP_PARAM_ADAPTATION_LAYER_IND:
 		break;
 
 	case SCTP_PARAM_HOST_NAME_ADDRESS:
@@ -2098,8 +2098,8 @@ static int sctp_process_param(struct sctp_association *asoc,
 		asoc->peer.ecn_capable = 1;
 		break;
 
-	case SCTP_PARAM_ADAPTION_LAYER_IND:
-		asoc->peer.adaption_ind = param.aind->adaption_ind;
+	case SCTP_PARAM_ADAPTATION_LAYER_IND:
+		asoc->peer.adaptation_ind = param.aind->adaptation_ind;
 		break;
 
 	case SCTP_PARAM_FWD_TSN_SUPPORT:
