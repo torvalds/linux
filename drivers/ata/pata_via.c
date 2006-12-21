@@ -395,7 +395,7 @@ static void via_config_fifo(struct pci_dev *pdev, unsigned int flags)
 	enable &= 3;
 	
 	if (flags & VIA_SET_FIFO) {
-		u8 fifo_setting[4] = {0x00, 0x60, 0x00, 0x20};
+		static const u8 fifo_setting[4] = {0x00, 0x60, 0x00, 0x20};
 		u8 fifo;
 
 		pci_read_config_byte(pdev, 0x43, &fifo);

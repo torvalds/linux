@@ -372,7 +372,8 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 static int cs5530_reinit_one(struct pci_dev *pdev)
 {
 	/* If we fail on resume we are doomed */
-	BUG_ON(cs5530_init_chip());
+	if (cs5530_init_chip())
+		BUG();
 	return ata_pci_device_resume(pdev);
 }
 	
