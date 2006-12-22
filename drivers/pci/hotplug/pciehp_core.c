@@ -187,33 +187,6 @@ static void cleanup_slots(struct controller *ctrl)
 	}
 }
 
-static int get_ctlr_slot_config(struct controller *ctrl)
-{
-	int num_ctlr_slots;		/* Not needed; PCI Express has 1 slot per port*/
-	int first_device_num;		/* Not needed */
-	int physical_slot_num;
-	u8 ctrlcap;			
-	int rc;
-
-	rc = pcie_get_ctlr_slot_config(ctrl, &num_ctlr_slots, &first_device_num, &physical_slot_num, &ctrlcap);
-	if (rc) {
-		err("%s: get_ctlr_slot_config fail for b:d (%x:%x)\n", __FUNCTION__, ctrl->bus, ctrl->device);
-		return (-1);
-	}
-
-	ctrl->num_slots = num_ctlr_slots;	/* PCI Express has 1 slot per port */
-	ctrl->slot_device_offset = first_device_num;
-	ctrl->first_slot = physical_slot_num;
-	ctrl->ctrlcap = ctrlcap; 	
-
-	dbg("%s: bus(0x%x) num_slot(0x%x) 1st_dev(0x%x) psn(0x%x) ctrlcap(%x) for b:d (%x:%x)\n",
-		__FUNCTION__, ctrl->slot_bus, num_ctlr_slots, first_device_num, physical_slot_num, ctrlcap, 
-		ctrl->bus, ctrl->device);
-
-	return (0);
-}
-
-
 /*
  * set_attention_status - Turns the Amber LED for a slot on, off or blink
  */
@@ -352,8 +325,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	int rc;
 	struct controller *ctrl;
 	struct slot *t_slot;
-	int first_device_num = 0 ;	/* first PCI device number supported by this PCIE */  
-	int num_ctlr_slots;		/* number of slots supported by this HPC */
 	u8 value;
 	struct pci_dev *pdev;
 	
@@ -390,18 +361,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	dbg("%s: ctrl bus=0x%x, device=%x, function=%x, irq=%x\n", __FUNCTION__,
 		ctrl->bus, ctrl->device, ctrl->function, pdev->irq);
 
-	/*
-	 *	Save configuration headers for this and subordinate PCI buses
-	 */
-
-	rc = get_ctlr_slot_config(ctrl);
-	if (rc) {
-		err(msg_initialization_err, rc);
-		goto err_out_free_ctrl_bus;
-	}
-	first_device_num = ctrl->slot_device_offset;
-	num_ctlr_slots = ctrl->num_slots; 
-
 	/* Setup the slot information structures */
 	rc = init_slots(ctrl);
 	if (rc) {
@@ -409,7 +368,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		goto err_out_free_ctrl_slot;
 	}
 
-	t_slot = pciehp_find_slot(ctrl, first_device_num);
+	t_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
 
 	/*	Finish setting up the hot plug ctrl device */
 	ctrl->next_event = 0;
@@ -445,7 +404,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 
 err_out_free_ctrl_slot:
 	cleanup_slots(ctrl);
-err_out_free_ctrl_bus:
 	kfree(ctrl->pci_bus);
 err_out_unmap_mmio_region:
 	ctrl->hpc_ops->release_ctlr(ctrl);

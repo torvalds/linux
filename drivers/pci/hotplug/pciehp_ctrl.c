@@ -48,9 +48,8 @@ static inline char *slot_name(struct slot *p_slot)
 	return p_slot->hotplug_slot->name;
 }
 
-u8 pciehp_handle_attention_button(u8 hp_slot, void *inst_id)
+u8 pciehp_handle_attention_button(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u8 rc = 0;
 	u8 getstatus;
@@ -101,9 +100,8 @@ u8 pciehp_handle_attention_button(u8 hp_slot, void *inst_id)
 
 }
 
-u8 pciehp_handle_switch_change(u8 hp_slot, void *inst_id)
+u8 pciehp_handle_switch_change(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u8 rc = 0;
 	u8 getstatus;
@@ -143,9 +141,8 @@ u8 pciehp_handle_switch_change(u8 hp_slot, void *inst_id)
 	return rc;
 }
 
-u8 pciehp_handle_presence_change(u8 hp_slot, void *inst_id)
+u8 pciehp_handle_presence_change(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u8 presence_save, rc = 0;
 	struct event_info *taskInfo;
@@ -187,9 +184,8 @@ u8 pciehp_handle_presence_change(u8 hp_slot, void *inst_id)
 	return rc;
 }
 
-u8 pciehp_handle_power_fault(u8 hp_slot, void *inst_id)
+u8 pciehp_handle_power_fault(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u8 rc = 0;
 	struct event_info *taskInfo;
