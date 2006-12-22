@@ -229,35 +229,25 @@ u8 pciehp_handle_power_fault(u8 hp_slot, struct controller *ctrl)
 
 static void set_slot_off(struct controller *ctrl, struct slot * pslot)
 {
-	/* Wait for exclusive access to hardware */
-	mutex_lock(&ctrl->ctrl_lock);
-
 	/* turn off slot, turn on Amber LED, turn off Green LED if supported*/
 	if (POWER_CTRL(ctrl->ctrlcap)) {
 		if (pslot->hpc_ops->power_off_slot(pslot)) {   
-			err("%s: Issue of Slot Power Off command failed\n", __FUNCTION__);
-			mutex_unlock(&ctrl->ctrl_lock);
+			err("%s: Issue of Slot Power Off command failed\n",
+			    __FUNCTION__);
 			return;
 		}
-		wait_for_ctrl_irq (ctrl);
 	}
 
-	if (PWR_LED(ctrl->ctrlcap)) {
+	if (PWR_LED(ctrl->ctrlcap))
 		pslot->hpc_ops->green_led_off(pslot);   
-		wait_for_ctrl_irq (ctrl);
-	}
 
-	if (ATTN_LED(ctrl->ctrlcap)) { 
-		if (pslot->hpc_ops->set_attention_status(pslot, 1)) {   
-			err("%s: Issue of Set Attention Led command failed\n", __FUNCTION__);
-			mutex_unlock(&ctrl->ctrl_lock);
+	if (ATTN_LED(ctrl->ctrlcap)) {
+		if (pslot->hpc_ops->set_attention_status(pslot, 1)) {
+			err("%s: Issue of Set Attention Led command failed\n",
+			    __FUNCTION__);
 			return;
 		}
-		wait_for_ctrl_irq (ctrl);
 	}
-
-	/* Done with exclusive hardware access */
-	mutex_unlock(&ctrl->ctrl_lock);
 }
 
 /**
@@ -270,7 +260,7 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
 static int board_added(struct slot *p_slot)
 {
 	u8 hp_slot;
-	int rc = 0;
+	int retval = 0;
 	struct controller *ctrl = p_slot->ctrl;
 
 	hp_slot = p_slot->device - ctrl->slot_device_offset;
@@ -279,53 +269,38 @@ static int board_added(struct slot *p_slot)
 			__FUNCTION__, p_slot->device,
 			ctrl->slot_device_offset, hp_slot);
 
-	/* Wait for exclusive access to hardware */
-	mutex_lock(&ctrl->ctrl_lock);
-
 	if (POWER_CTRL(ctrl->ctrlcap)) {
 		/* Power on slot */
-		rc = p_slot->hpc_ops->power_on_slot(p_slot);
-		if (rc) {
-			mutex_unlock(&ctrl->ctrl_lock);
-			return -1;
-		}
-
-		/* Wait for the command to complete */
-		wait_for_ctrl_irq (ctrl);
+		retval = p_slot->hpc_ops->power_on_slot(p_slot);
+		if (retval)
+			return retval;
 	}
 	
-	if (PWR_LED(ctrl->ctrlcap)) {
+	if (PWR_LED(ctrl->ctrlcap))
 		p_slot->hpc_ops->green_led_blink(p_slot);
-			
-		/* Wait for the command to complete */
-		wait_for_ctrl_irq (ctrl);
-	}
-
-	/* Done with exclusive hardware access */
-	mutex_unlock(&ctrl->ctrl_lock);
 
 	/* Wait for ~1 second */
-	wait_for_ctrl_irq (ctrl);
+	msleep(1000);
 
-	/*  Check link training status */
-	rc = p_slot->hpc_ops->check_lnk_status(ctrl);  
-	if (rc) {
+	/* Check link training status */
+	retval = p_slot->hpc_ops->check_lnk_status(ctrl);
+	if (retval) {
 		err("%s: Failed to check link status\n", __FUNCTION__);
 		set_slot_off(ctrl, p_slot);
-		return rc;
+		return retval;
 	}
 
 	/* Check for a power fault */
 	if (p_slot->hpc_ops->query_power_fault(p_slot)) {
 		dbg("%s: power fault detected\n", __FUNCTION__);
-		rc = POWER_FAILURE;
+		retval = POWER_FAILURE;
 		goto err_exit;
 	}
 
-	rc = pciehp_configure_device(p_slot);
-	if (rc) {
+	retval = pciehp_configure_device(p_slot);
+	if (retval) {
 		err("Cannot add device 0x%x:%x\n", p_slot->bus,
-				p_slot->device);
+		    p_slot->device);
 		goto err_exit;
 	}
 
@@ -334,25 +309,15 @@ static int board_added(struct slot *p_slot)
 	 */
 	if (pcie_mch_quirk)
 		pci_fixup_device(pci_fixup_final, ctrl->pci_dev);
-	if (PWR_LED(ctrl->ctrlcap)) {
-		/* Wait for exclusive access to hardware */
-  		mutex_lock(&ctrl->ctrl_lock);
-
+	if (PWR_LED(ctrl->ctrlcap))
   		p_slot->hpc_ops->green_led_on(p_slot);
-  
-  		/* Wait for the command to complete */
-  		wait_for_ctrl_irq (ctrl);
-  	
-  		/* Done with exclusive hardware access */
-  		mutex_unlock(&ctrl->ctrl_lock);
-  	}
+
 	return 0;
 
 err_exit:
 	set_slot_off(ctrl, p_slot);
-	return -1;
+	return retval;
 }
-
 
 /**
  * remove_board - Turns off slot and LED's
@@ -362,44 +327,32 @@ static int remove_board(struct slot *p_slot)
 {
 	u8 device;
 	u8 hp_slot;
-	int rc;
+	int retval = 0;
 	struct controller *ctrl = p_slot->ctrl;
 
-	if (pciehp_unconfigure_device(p_slot))
-		return 1;
+	retval = pciehp_unconfigure_device(p_slot);
+	if (retval)
+		return retval;
 
 	device = p_slot->device;
-
 	hp_slot = p_slot->device - ctrl->slot_device_offset;
 	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	dbg("In %s, hp_slot = %d\n", __FUNCTION__, hp_slot);
 
-	/* Wait for exclusive access to hardware */
-	mutex_lock(&ctrl->ctrl_lock);
-
 	if (POWER_CTRL(ctrl->ctrlcap)) {
 		/* power off slot */
-		rc = p_slot->hpc_ops->power_off_slot(p_slot);
-		if (rc) {
-			err("%s: Issue of Slot Disable command failed\n", __FUNCTION__);
-			mutex_unlock(&ctrl->ctrl_lock);
-			return rc;
+		retval = p_slot->hpc_ops->power_off_slot(p_slot);
+		if (retval) {
+			err("%s: Issue of Slot Disable command failed\n",
+			    __FUNCTION__);
+			return retval;
 		}
-		/* Wait for the command to complete */
-		wait_for_ctrl_irq (ctrl);
 	}
 
-	if (PWR_LED(ctrl->ctrlcap)) {
+	if (PWR_LED(ctrl->ctrlcap))
 		/* turn off Green LED */
 		p_slot->hpc_ops->green_led_off(p_slot);
-	
-		/* Wait for the command to complete */
-		wait_for_ctrl_irq (ctrl);
-	}
-
-	/* Done with exclusive hardware access */
-	mutex_unlock(&ctrl->ctrl_lock);
 
 	return 0;
 }
@@ -444,18 +397,10 @@ static void pciehp_pushbutton_thread(unsigned long slot)
 		dbg("%s: adding bus:device(%x:%x)\n", __FUNCTION__,
 				p_slot->bus, p_slot->device);
 
-		if (pciehp_enable_slot(p_slot) && PWR_LED(p_slot->ctrl->ctrlcap)) {
-			/* Wait for exclusive access to hardware */
-			mutex_lock(&p_slot->ctrl->ctrl_lock);
-
+		if (pciehp_enable_slot(p_slot) &&
+		    PWR_LED(p_slot->ctrl->ctrlcap))
 			p_slot->hpc_ops->green_led_off(p_slot);
 
-			/* Wait for the command to complete */
-			wait_for_ctrl_irq (p_slot->ctrl);
-
-			/* Done with exclusive hardware access */
-			mutex_unlock(&p_slot->ctrl->ctrl_lock);
-		}
 		p_slot->state = STATIC_STATE;
 	}
 
@@ -494,18 +439,10 @@ static void pciehp_surprise_rm_thread(unsigned long slot)
 		dbg("%s: adding bus:device(%x:%x)\n",
 				__FUNCTION__, p_slot->bus, p_slot->device);
 
-		if (pciehp_enable_slot(p_slot) && PWR_LED(p_slot->ctrl->ctrlcap)) {
-			/* Wait for exclusive access to hardware */
-			mutex_lock(&p_slot->ctrl->ctrl_lock);
-
+		if (pciehp_enable_slot(p_slot) &&
+		    PWR_LED(p_slot->ctrl->ctrlcap))
 			p_slot->hpc_ops->green_led_off(p_slot);
 
-			/* Wait for the command to complete */
-			wait_for_ctrl_irq (p_slot->ctrl);
-
-			/* Done with exclusive hardware access */
-			mutex_unlock(&p_slot->ctrl->ctrl_lock);
-		}
 		p_slot->state = STATIC_STATE;
 	}
 
@@ -616,40 +553,18 @@ static void interrupt_event_handler(struct controller *ctrl)
 
 					switch (p_slot->state) {
 					case BLINKINGOFF_STATE:
-						/* Wait for exclusive access to hardware */
-						mutex_lock(&ctrl->ctrl_lock);
-						
-						if (PWR_LED(ctrl->ctrlcap)) {
+						if (PWR_LED(ctrl->ctrlcap))
 							p_slot->hpc_ops->green_led_on(p_slot);
-							/* Wait for the command to complete */
-							wait_for_ctrl_irq (ctrl);
-						}
-						if (ATTN_LED(ctrl->ctrlcap)) {
-							p_slot->hpc_ops->set_attention_status(p_slot, 0);
 
-							/* Wait for the command to complete */
-							wait_for_ctrl_irq (ctrl);
-						}
-						/* Done with exclusive hardware access */
-						mutex_unlock(&ctrl->ctrl_lock);
+						if (ATTN_LED(ctrl->ctrlcap))
+							p_slot->hpc_ops->set_attention_status(p_slot, 0);
 						break;
 					case BLINKINGON_STATE:
-						/* Wait for exclusive access to hardware */
-						mutex_lock(&ctrl->ctrl_lock);
-
-						if (PWR_LED(ctrl->ctrlcap)) {
+						if (PWR_LED(ctrl->ctrlcap))
 							p_slot->hpc_ops->green_led_off(p_slot);
-							/* Wait for the command to complete */
-							wait_for_ctrl_irq (ctrl);
-						}
-						if (ATTN_LED(ctrl->ctrlcap)){
-							p_slot->hpc_ops->set_attention_status(p_slot, 0);
-							/* Wait for the command to complete */
-							wait_for_ctrl_irq (ctrl);
-						}
-						/* Done with exclusive hardware access */
-						mutex_unlock(&ctrl->ctrl_lock);
 
+						if (ATTN_LED(ctrl->ctrlcap))
+							p_slot->hpc_ops->set_attention_status(p_slot, 0);
 						break;
 					default:
 						warn("Not a valid state\n");
@@ -676,25 +591,12 @@ static void interrupt_event_handler(struct controller *ctrl)
 							info("PCI slot #%s - powering on due to button press.\n", slot_name(p_slot));
 						}
 
-						/* Wait for exclusive access to hardware */
-						mutex_lock(&ctrl->ctrl_lock);
-
 						/* blink green LED and turn off amber */
-						if (PWR_LED(ctrl->ctrlcap)) {
+						if (PWR_LED(ctrl->ctrlcap))
 							p_slot->hpc_ops->green_led_blink(p_slot);
-							/* Wait for the command to complete */
-							wait_for_ctrl_irq (ctrl);
-						}
 
-						if (ATTN_LED(ctrl->ctrlcap)) {
+						if (ATTN_LED(ctrl->ctrlcap))
 							p_slot->hpc_ops->set_attention_status(p_slot, 0);
-
-							/* Wait for the command to complete */
-							wait_for_ctrl_irq (ctrl);
-						}
-
-						/* Done with exclusive hardware access */
-						mutex_unlock(&ctrl->ctrl_lock);
 
 						init_timer(&p_slot->task_event);
 						p_slot->task_event.expires = jiffies + 5 * HZ;   /* 5 second delay */
@@ -708,21 +610,11 @@ static void interrupt_event_handler(struct controller *ctrl)
 				else if (ctrl->event_queue[loop].event_type == INT_POWER_FAULT) {
 					if (POWER_CTRL(ctrl->ctrlcap)) {
 						dbg("power fault\n");
-						/* Wait for exclusive access to hardware */
-						mutex_lock(&ctrl->ctrl_lock);
-
-						if (ATTN_LED(ctrl->ctrlcap)) {
+						if (ATTN_LED(ctrl->ctrlcap))
 							p_slot->hpc_ops->set_attention_status(p_slot, 1);
-							wait_for_ctrl_irq (ctrl);
-						}
 
-						if (PWR_LED(ctrl->ctrlcap)) {
+						if (PWR_LED(ctrl->ctrlcap))
 							p_slot->hpc_ops->green_led_off(p_slot);
-							wait_for_ctrl_irq (ctrl);
-						}
-
-						/* Done with exclusive hardware access */
-						mutex_unlock(&ctrl->ctrl_lock);
 					}
 				}
 				/***********SURPRISE REMOVAL********************/
@@ -749,7 +641,6 @@ static void interrupt_event_handler(struct controller *ctrl)
 		}		/* End of FOR loop */
 	}
 }
-
 
 int pciehp_enable_slot(struct slot *p_slot)
 {

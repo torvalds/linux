@@ -249,6 +249,24 @@ static void start_int_poll_timer(struct controller *ctrl, int sec)
 	add_timer(&ctrl->poll_timer);
 }
 
+static inline int pcie_wait_cmd(struct controller *ctrl)
+{
+	DECLARE_WAITQUEUE(wait, current);
+
+	add_wait_queue(&ctrl->queue, &wait);
+	if (!pciehp_poll_mode)
+		/* Sleep for up to 1 second */
+		msleep_interruptible(1000);
+	else
+		msleep_interruptible(2500);
+
+	remove_wait_queue(&ctrl->queue, &wait);
+	if (signal_pending(current))
+		return -EINTR;
+
+	return 0;
+}
+
 static int pcie_write_cmd(struct slot *slot, u16 cmd)
 {
 	struct controller *ctrl = slot->ctrl;
@@ -257,24 +275,34 @@ static int pcie_write_cmd(struct slot *slot, u16 cmd)
 
 	DBG_ENTER_ROUTINE 
 
+	mutex_lock(&ctrl->ctrl_lock);
+
 	retval = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
 	if (retval) {
 		err("%s: Cannot read SLOTSTATUS register\n", __FUNCTION__);
-		return retval;
+		goto out;
 	}
 
 	if ((slot_status & CMD_COMPLETED) == CMD_COMPLETED ) { 
-		/* After 1 sec and CMD_COMPLETED still not set, just proceed forward to issue 
-		   the next command according to spec.  Just print out the error message */
-		dbg("%s : CMD_COMPLETED not clear after 1 sec.\n", __FUNCTION__);
+		/* After 1 sec and CMD_COMPLETED still not set, just
+		   proceed forward to issue the next command according
+		   to spec.  Just print out the error message */
+		dbg("%s: CMD_COMPLETED not clear after 1 sec.\n",
+		    __FUNCTION__);
 	}
 
 	retval = pciehp_writew(ctrl, SLOTCTRL, (cmd | CMD_CMPL_INTR_ENABLE));
 	if (retval) {
 		err("%s: Cannot write to SLOTCTRL register\n", __FUNCTION__);
-		return retval;
+		goto out;
 	}
 
+	/*
+	 * Wait for command completion.
+	 */
+	retval = pcie_wait_cmd(ctrl);
+ out:
+	mutex_unlock(&ctrl->ctrl_lock);
 	DBG_LEAVE_ROUTINE 
 	return retval;
 }

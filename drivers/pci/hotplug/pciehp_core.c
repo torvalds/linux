@@ -374,24 +374,12 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		pciehp_ctrl_list = ctrl;
 	}
 
-	/* Wait for exclusive access to hardware */
-	mutex_lock(&ctrl->ctrl_lock);
-
 	t_slot->hpc_ops->get_adapter_status(t_slot, &value); /* Check if slot is occupied */
-	
 	if ((POWER_CTRL(ctrl->ctrlcap)) && !value) {
 		rc = t_slot->hpc_ops->power_off_slot(t_slot); /* Power off slot if not occupied*/
-		if (rc) {
-			/* Done with exclusive hardware access */
-			mutex_unlock(&ctrl->ctrl_lock);
+		if (rc)
 			goto err_out_free_ctrl_slot;
-		} else
-			/* Wait for the command to complete */
-			wait_for_ctrl_irq (ctrl);
 	}
-
-	/* Done with exclusive hardware access */
-	mutex_unlock(&ctrl->ctrl_lock);
 
 	return 0;
 

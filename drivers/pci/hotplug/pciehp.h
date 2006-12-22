@@ -173,24 +173,6 @@ static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
 	return NULL;
 }
 
-static inline int wait_for_ctrl_irq(struct controller *ctrl)
-{
-	DECLARE_WAITQUEUE(wait, current);
-
-	add_wait_queue(&ctrl->queue, &wait);
-	if (!pciehp_poll_mode)
-		/* Sleep for up to 1 second */
-		msleep_interruptible(1000);
-	else
-		msleep_interruptible(2500);
-	
-	remove_wait_queue(&ctrl->queue, &wait);
-	if (signal_pending(current))
-		return -EINTR;
-
-	return 0;
-}
-
 struct hpc_ops {
 	int (*power_on_slot)(struct slot *slot);
 	int (*power_off_slot)(struct slot *slot);
