@@ -322,7 +322,7 @@ static void wakeup_readers(struct work_struct *work)
  *
  *	See relay_reset for description of effect.
  */
-static inline void __relay_reset(struct rchan_buf *buf, unsigned int init)
+static void __relay_reset(struct rchan_buf *buf, unsigned int init)
 {
 	size_t i;
 
@@ -418,7 +418,7 @@ static struct rchan_buf *relay_open_buf(struct rchan *chan,
  *	The channel buffer and channel buffer data structure are then freed
  *	automatically when the last reference is given up.
  */
-static inline void relay_close_buf(struct rchan_buf *buf)
+static void relay_close_buf(struct rchan_buf *buf)
 {
 	buf->finalized = 1;
 	cancel_delayed_work(&buf->wake_readers);
@@ -426,7 +426,7 @@ static inline void relay_close_buf(struct rchan_buf *buf)
 	kref_put(&buf->kref, relay_remove_buf);
 }
 
-static inline void setup_callbacks(struct rchan *chan,
+static void setup_callbacks(struct rchan *chan,
 				   struct rchan_callbacks *cb)
 {
 	if (!cb) {
@@ -946,11 +946,10 @@ typedef int (*subbuf_actor_t) (size_t read_start,
 /*
  *	relay_file_read_subbufs - read count bytes, bridging subbuf boundaries
  */
-static inline ssize_t relay_file_read_subbufs(struct file *filp,
-					      loff_t *ppos,
-					      subbuf_actor_t subbuf_actor,
-					      read_actor_t actor,
-					      read_descriptor_t *desc)
+static ssize_t relay_file_read_subbufs(struct file *filp, loff_t *ppos,
+					subbuf_actor_t subbuf_actor,
+					read_actor_t actor,
+					read_descriptor_t *desc)
 {
 	struct rchan_buf *buf = filp->private_data;
 	size_t read_start, avail;
