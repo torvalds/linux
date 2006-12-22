@@ -318,15 +318,10 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 	ctrl = this->read_word(this->base + ONENAND_REG_CTRL_STATUS);
 
 	if (ctrl & ONENAND_CTRL_ERROR) {
-		/* It maybe occur at initial bad block */
 		DEBUG(MTD_DEBUG_LEVEL0, "onenand_wait: controller error = 0x%04x\n", ctrl);
-		/* Clear other interrupt bits for preventing ECC error */
-		interrupt &= ONENAND_INT_MASTER;
-	}
-
-	if (ctrl & ONENAND_CTRL_LOCK) {
-		DEBUG(MTD_DEBUG_LEVEL0, "onenand_wait: it's locked error = 0x%04x\n", ctrl);
-		return -EACCES;
+		if (ctrl & ONENAND_CTRL_LOCK)
+			DEBUG(MTD_DEBUG_LEVEL0, "onenand_wait: it's locked error.\n");
+		return ctrl;
 	}
 
 	if (interrupt & ONENAND_INT_READ) {
@@ -750,20 +745,20 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 			ret = this->wait(mtd, FL_READING);
 			/* First copy data and check return value for ECC handling */
-			onenand_update_bufferram(mtd, from, 1);
+			onenand_update_bufferram(mtd, from, !ret);
 		}
 
 		this->read_bufferram(mtd, ONENAND_DATARAM, buf, column, thislen);
-
-		read += thislen;
-
-		if (read == len)
-			break;
 
 		if (ret) {
 			DEBUG(MTD_DEBUG_LEVEL0, "onenand_read: read failed = %d\n", ret);
 			goto out;
 		}
+
+		read += thislen;
+
+		if (read == len)
+			break;
 
 		from += thislen;
 		buf += thislen;
@@ -832,15 +827,15 @@ int onenand_do_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
 
 		this->read_bufferram(mtd, ONENAND_SPARERAM, buf, column, thislen);
 
+		if (ret) {
+			DEBUG(MTD_DEBUG_LEVEL0, "onenand_read_oob: read failed = 0x%x\n", ret);
+			goto out;
+		}
+
 		read += thislen;
 
 		if (read == len)
 			break;
-
-		if (ret) {
-			DEBUG(MTD_DEBUG_LEVEL0, "onenand_read_oob: read failed = %d\n", ret);
-			goto out;
-		}
 
 		buf += thislen;
 
@@ -1199,10 +1194,7 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 		ret = this->wait(mtd, FL_ERASING);
 		/* Check, if it is write protected */
 		if (ret) {
-			if (ret == -EPERM)
-				DEBUG(MTD_DEBUG_LEVEL0, "onenand_erase: Device is write protected!!!\n");
-			else
-				DEBUG(MTD_DEBUG_LEVEL0, "onenand_erase: Failed erase, block %d\n", (unsigned) (addr >> this->erase_shift));
+			DEBUG(MTD_DEBUG_LEVEL0, "onenand_erase: Failed erase, block %d\n", (unsigned) (addr >> this->erase_shift));
 			instr->state = MTD_ERASE_FAILED;
 			instr->fail_addr = addr;
 			goto erase_exit;
