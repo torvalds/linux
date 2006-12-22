@@ -60,7 +60,8 @@ void cancel_dirty_page(struct page *page, unsigned int account_size)
 		WARN_ON(++warncount < 5);
 	}
 		
-	if (TestClearPageDirty(page) && account_size) {
+	if (TestClearPageDirty(page) && account_size &&
+			mapping_cap_account_dirty(page->mapping)) {
 		dec_zone_page_state(page, NR_FILE_DIRTY);
 		task_io_account_cancelled_write(account_size);
 	}
