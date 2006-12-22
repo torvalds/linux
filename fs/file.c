@@ -206,7 +206,7 @@ static int expand_fdtable(struct files_struct *files, int nr)
 		copy_fdtable(new_fdt, cur_fdt);
 		rcu_assign_pointer(files->fdt, new_fdt);
 		if (cur_fdt->max_fds > NR_OPEN_DEFAULT)
-			call_rcu(&cur_fdt->rcu, free_fdtable_rcu);
+			free_fdtable(cur_fdt);
 	} else {
 		/* Somebody else expanded, so undo our attempt */
 		free_fdarr(new_fdt);
