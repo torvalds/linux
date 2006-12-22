@@ -228,7 +228,7 @@ static int __init init_spkm3_module(void)
 	status = gss_mech_register(&gss_spkm3_mech);
 	if (status)
 		printk("Failed to register spkm3 gss mechanism!\n");
-	return 0;
+	return status;
 }
 
 static void __exit cleanup_spkm3_module(void)
