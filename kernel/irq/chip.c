@@ -517,8 +517,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 
 	if (!handle)
 		handle = handle_bad_irq;
-
-	if (desc->chip == &no_irq_chip) {
+	else if (desc->chip == &no_irq_chip) {
 		printk(KERN_WARNING "Trying to install %sinterrupt handler "
 		       "for IRQ%d\n", is_chained ? "chained " : "", irq);
 		/*
