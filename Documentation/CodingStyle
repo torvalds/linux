@@ -682,6 +682,24 @@ result.  Typical examples would be functions that return pointers; they use
 NULL or the ERR_PTR mechanism to report failure.
 
 
+		Chapter 17:  Don't re-invent the kernel macros
+
+The header file include/linux/kernel.h contains a number of macros that
+you should use, rather than explicitly coding some variant of them yourself.
+For example, if you need to calculate the length of an array, take advantage
+of the macro
+
+  #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+Similarly, if you need to calculate the size of some structure member, use
+
+  #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+
+There are also min() and max() macros that do strict type checking if you
+need them.  Feel free to peruse that header file to see what else is already
+defined that you shouldn't reproduce in your code.
+
+
 
 		Appendix I: References
 
