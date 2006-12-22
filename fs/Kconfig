@@ -1198,12 +1198,15 @@ config EFS_FS
 
 config JFFS_FS
 	tristate "Journalling Flash File System (JFFS) support"
-	depends on MTD && BLOCK
+	depends on MTD && BLOCK && BROKEN
 	help
 	  JFFS is the Journalling Flash File System developed by Axis
 	  Communications in Sweden, aimed at providing a crash/powerdown-safe
 	  file system for disk-less embedded devices. Further information is
 	  available at (<http://developer.axis.com/software/jffs/>).
+
+	  NOTE: This filesystem is deprecated and is scheduled for removal in
+	  2.6.21.  See Documentation/feature-removal-schedule.txt
 
 config JFFS_FS_VERBOSE
 	int "JFFS debugging verbosity (0 = quiet, 3 = noisy)"
