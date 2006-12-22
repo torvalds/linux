@@ -1469,6 +1469,7 @@ sub push_parameter($$$) {
 	my $param = shift;
 	my $type = shift;
 	my $file = shift;
+	my $anon = 0;
 
 	my $param_name = $param;
 	$param_name =~ s/\[.*//;
@@ -1484,9 +1485,20 @@ sub push_parameter($$$) {
 	    $param="void";
 	    $parameterdescs{void} = "no arguments";
 	}
+	elsif ($type eq "" && ($param eq "struct" or $param eq "union"))
+	# handle unnamed (anonymous) union or struct:
+	{
+		$type = $param;
+		$param = "{unnamed_" . $param. "}";
+		$parameterdescs{$param} = "anonymous\n";
+		$anon = 1;
+	}
+
 	# warn if parameter has no description
-	# (but ignore ones starting with # as these are no parameters
-	# but inline preprocessor statements
+	# (but ignore ones starting with # as these are not parameters
+	# but inline preprocessor statements);
+	# also ignore unnamed structs/unions;
+	if (!$anon) {
 	if (!defined $parameterdescs{$param_name} && $param_name !~ /^#/) {
 
 	    $parameterdescs{$param_name} = $undescribed;
@@ -1499,6 +1511,7 @@ sub push_parameter($$$) {
 	    print STDERR "Warning(${file}:$.):".
 	                 " No description found for parameter '$param'\n";
 	    ++$warnings;
+        }
         }
 
 	push @parameterlist, $param;
