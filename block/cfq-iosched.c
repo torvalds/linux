@@ -577,25 +577,20 @@ static int cfq_allow_merge(request_queue_t *q, struct request *rq,
 	pid_t key;
 
 	/*
-	 * If bio is async or a write, always allow merge
+	 * Disallow merge, if bio and rq aren't both sync or async
 	 */
-	if (!bio_sync(bio) || rw == WRITE)
-		return 1;
-
-	/*
-	 * bio is sync. if request is not, disallow.
-	 */
-	if (!rq_is_sync(rq))
+	if (!!bio_sync(bio) != !!rq_is_sync(rq))
 		return 0;
 
 	/*
-	 * Ok, both bio and request are sync. Allow merge if they are
-	 * from the same queue.
+	 * Lookup the cfqq that this bio will be queued with. Allow
+	 * merge only if rq is queued there.
 	 */
-	key = cfq_queue_pid(current, rw, 1);
+	key = cfq_queue_pid(current, rw, bio_sync(bio));
 	cfqq = cfq_find_cfq_hash(cfqd, key, current->ioprio);
-	if (cfqq != RQ_CFQQ(rq))
-		return 0;
+
+	if (cfqq == RQ_CFQQ(rq))
+		return 1;
 
 	return 1;
 }
