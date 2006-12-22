@@ -4619,8 +4619,10 @@ asmlinkage long sys_sched_yield(void)
 
 static inline int __resched_legal(int expected_preempt_count)
 {
+#ifdef CONFIG_PREEMPT
 	if (unlikely(preempt_count() != expected_preempt_count))
 		return 0;
+#endif
 	if (unlikely(system_state != SYSTEM_RUNNING))
 		return 0;
 	return 1;
