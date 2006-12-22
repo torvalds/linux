@@ -165,11 +165,14 @@ int __udp_lib_get_port(struct sock *sk, unsigned short snum,
 				goto gotit;
 			}
 			size = 0;
-			sk_for_each(sk2, node, head)
-				if (++size < best_size_so_far) {
-					best_size_so_far = size;
-					best = result;
-				}
+			sk_for_each(sk2, node, head) {
+				if (++size >= best_size_so_far)
+					goto next;
+			}
+			best_size_so_far = size;
+			best = result;
+		next:
+			;
 		}
 		result = best;
 		for(i = 0; i < (1 << 16) / UDP_HTABLE_SIZE; i++, result += UDP_HTABLE_SIZE) {
