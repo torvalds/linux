@@ -1369,8 +1369,8 @@ void wakeup_kswapd(struct zone *zone, int order)
  *
  * For pass > 3 we also try to shrink the LRU lists that contain a few pages
  */
-static unsigned long shrink_all_zones(unsigned long nr_pages, int pass,
-				      int prio, struct scan_control *sc)
+static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
+				      int pass, struct scan_control *sc)
 {
 	struct zone *zone;
 	unsigned long nr_to_scan, ret = 0;
