@@ -575,6 +575,8 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 	memset(vcpu->svm->db_regs, 0, sizeof(vcpu->svm->db_regs));
 	init_vmcb(vcpu->svm->vmcb);
 
+	fx_init(vcpu);
+
 	return 0;
 
 out2:
@@ -1387,6 +1389,10 @@ again:
 		save_db_regs(vcpu->svm->host_db_regs);
 		load_db_regs(vcpu->svm->db_regs);
 	}
+
+	fx_save(vcpu->host_fx_image);
+	fx_restore(vcpu->guest_fx_image);
+
 	asm volatile (
 #ifdef CONFIG_X86_64
 		"push %%rbx; push %%rcx; push %%rdx;"
@@ -1495,6 +1501,9 @@ again:
 		  [r15]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_R15]))
 #endif
 		: "cc", "memory" );
+
+	fx_save(vcpu->guest_fx_image);
+	fx_restore(vcpu->host_fx_image);
 
 	if ((vcpu->svm->vmcb->save.dr7 & 0xff))
 		load_db_regs(vcpu->svm->host_db_regs);
