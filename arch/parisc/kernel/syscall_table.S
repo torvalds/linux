@@ -399,5 +399,9 @@
 	ENTRY_SAME(splice)
 	ENTRY_OURS(sync_file_range)
 	ENTRY_SAME(tee)
+	ENTRY_COMP(vmsplice)
+	ENTRY_COMP(move_pages)		/* 295 */
+	ENTRY_SAME(getcpu)
+	ENTRY_SAME(epoll_pwait)
 	/* Nothing yet */
 
