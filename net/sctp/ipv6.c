@@ -79,8 +79,8 @@
 #include <asm/uaccess.h>
 
 /* Event handler for inet6 address addition/deletion events.  */
-int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
-                        void *ptr)
+static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
+				void *ptr)
 {
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
 	struct sctp_sockaddr_entry *addr;

@@ -128,8 +128,6 @@ extern int sctp_copy_local_addr_list(struct sctp_bind_addr *,
 				     int flags);
 extern struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
 extern int sctp_register_pf(struct sctp_pf *, sa_family_t);
-int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
-                        void *ptr);
 
 /*
  * sctp/socket.c
