@@ -647,14 +647,20 @@ int kvm_mmu_init(struct kvm_vcpu *vcpu)
 	ASSERT(!VALID_PAGE(vcpu->mmu.root_hpa));
 	ASSERT(list_empty(&vcpu->free_pages));
 
-	if ((r = alloc_mmu_pages(vcpu)))
-		return r;
+	r = alloc_mmu_pages(vcpu);
+	if (r)
+		goto out;
 
-	if ((r = init_kvm_mmu(vcpu))) {
-		free_mmu_pages(vcpu);
-		return r;
-	}
+	r = init_kvm_mmu(vcpu);
+	if (r)
+		goto out_free_pages;
+
 	return 0;
+
+out_free_pages:
+	free_mmu_pages(vcpu);
+out:
+	return r;
 }
 
 void kvm_mmu_destroy(struct kvm_vcpu *vcpu)
