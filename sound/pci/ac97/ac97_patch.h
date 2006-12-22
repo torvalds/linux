@@ -48,6 +48,7 @@ int patch_ad1980(struct snd_ac97 * ac97);
 int patch_ad1981a(struct snd_ac97 * ac97);
 int patch_ad1981b(struct snd_ac97 * ac97);
 int patch_ad1985(struct snd_ac97 * ac97);
+int patch_ad1986(struct snd_ac97 * ac97);
 int patch_alc650(struct snd_ac97 * ac97);
 int patch_alc655(struct snd_ac97 * ac97);
 int patch_alc850(struct snd_ac97 * ac97);

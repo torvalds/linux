@@ -503,6 +503,7 @@ struct snd_ac97 {
 			unsigned short id[3];		// codec IDs (lower 16-bit word)
 			unsigned short pcmreg[3];	// PCM registers
 			unsigned short codec_cfg[3];	// CODEC_CFG bits
+			unsigned char swap_mic_linein;	// AD1986/AD1986A only
 		} ad18xx;
 		unsigned int dev_flags;		/* device specific */
 	} spec;
