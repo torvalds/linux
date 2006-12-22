@@ -76,7 +76,9 @@ unsigned long long sched_clock(void)
 	/*
 	 * 96-bit math to perform tick * NSEC_PER_SEC / CLOCK_TICK_RATE for
 	 * any value of CLOCK_TICK_RATE. Max value is in the 80 thousand
-	 * years range which is nice, but with higher computation cost.
+	 * years range and truncation to unsigned long long limits it to
+	 * sched_clock's max range of ~584 years.  This is nice but with
+	 * higher computation cost.
 	 */
 	{
 		union {
