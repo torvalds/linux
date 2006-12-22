@@ -44,11 +44,17 @@ extern int pciehp_poll_time;
 extern int pciehp_debug;
 extern int pciehp_force;
 
-/*#define dbg(format, arg...) do { if (pciehp_debug) printk(KERN_DEBUG "%s: " format, MY_NAME , ## arg); } while (0)*/
-#define dbg(format, arg...) do { if (pciehp_debug) printk("%s: " format, MY_NAME , ## arg); } while (0)
-#define err(format, arg...) printk(KERN_ERR "%s: " format, MY_NAME , ## arg)
-#define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
+#define dbg(format, arg...)						\
+	do {								\
+		if (pciehp_debug)					\
+			printk("%s: " format, MY_NAME , ## arg);	\
+	} while (0)
+#define err(format, arg...)						\
+	printk(KERN_ERR "%s: " format, MY_NAME , ## arg)
+#define info(format, arg...)						\
+	printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
+#define warn(format, arg...)						\
+	printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
 #define SLOT_NAME_SIZE 10
 struct slot {
@@ -113,8 +119,6 @@ struct controller {
 #define POWERON_STATE			3
 #define POWEROFF_STATE			4
 
-#define PCI_TO_PCI_BRIDGE_CLASS		0x00060400
-
 /* Error messages */
 #define INTERLOCK_OPEN			0x00000002
 #define ADD_NOT_SUPPORTED		0x00000003
@@ -125,10 +129,6 @@ struct controller {
 #define DEVICE_TYPE_NOT_SUPPORTED	0x0000000C
 #define WRONG_BUS_FREQUENCY		0x0000000D
 #define POWER_FAILURE			0x0000000E
-
-#define REMOVE_NOT_SUPPORTED		0x00000003
-
-#define DISABLE_CARD			1
 
 /* Field definitions in Slot Capabilities Register */
 #define ATTN_BUTTN_PRSN	0x00000001
@@ -145,37 +145,20 @@ struct controller {
 #define PWR_LED(cap)		(cap & PWR_LED_PRSN) 
 #define HP_SUPR_RM(cap)		(cap & HP_SUPR_RM_SUP)
 
-/*
- * error Messages
- */
-#define msg_initialization_err	"Initialization failure, error=%d\n"
-#define msg_button_on		"PCI slot #%s - powering on due to button press.\n"
-#define msg_button_off		"PCI slot #%s - powering off due to button press.\n"
-#define msg_button_cancel	"PCI slot #%s - action canceled due to button press.\n"
-#define msg_button_ignore	"PCI slot #%s - button press ignored.  (action in progress...)\n"
-
-/* controller functions */
-extern int	pciehp_event_start_thread	(void);
-extern void	pciehp_event_stop_thread	(void);
-extern int	pciehp_enable_slot		(struct slot *slot);
-extern int	pciehp_disable_slot		(struct slot *slot);
-
+extern int pciehp_event_start_thread(void);
+extern void pciehp_event_stop_thread(void);
+extern int pciehp_enable_slot(struct slot *slot);
+extern int pciehp_disable_slot(struct slot *slot);
 extern u8 pciehp_handle_attention_button(u8 hp_slot, struct controller *ctrl);
 extern u8 pciehp_handle_switch_change(u8 hp_slot, struct controller *ctrl);
 extern u8 pciehp_handle_presence_change(u8 hp_slot, struct controller *ctrl);
 extern u8 pciehp_handle_power_fault(u8 hp_slot, struct controller *ctrl);
-/* extern void	long_delay (int delay); */
-
-/* pci functions */
-extern int	pciehp_configure_device		(struct slot *p_slot);
-extern int	pciehp_unconfigure_device	(struct slot *p_slot);
-
-
+extern int pciehp_configure_device(struct slot *p_slot);
+extern int pciehp_unconfigure_device(struct slot *p_slot);
+int pcie_init(struct controller *ctrl, struct pcie_device *dev);
 
 /* Global variables */
 extern struct controller *pciehp_ctrl_list;
-
-/* Inline functions */
 
 static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
 {
@@ -192,8 +175,6 @@ static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
 
 static inline int wait_for_ctrl_irq(struct controller *ctrl)
 {
-	int retval = 0;
-
 	DECLARE_WAITQUEUE(wait, current);
 
 	add_wait_queue(&ctrl->queue, &wait);
@@ -205,36 +186,30 @@ static inline int wait_for_ctrl_irq(struct controller *ctrl)
 	
 	remove_wait_queue(&ctrl->queue, &wait);
 	if (signal_pending(current))
-		retval =  -EINTR;
+		return -EINTR;
 
-	return retval;
+	return 0;
 }
 
-int pcie_init(struct controller *ctrl, struct pcie_device *dev);
-
 struct hpc_ops {
-	int	(*power_on_slot)	(struct slot *slot);
-	int	(*power_off_slot)	(struct slot *slot);
-	int	(*get_power_status)	(struct slot *slot, u8 *status);
-	int	(*get_attention_status)	(struct slot *slot, u8 *status);
-	int	(*set_attention_status)	(struct slot *slot, u8 status);
-	int	(*get_latch_status)	(struct slot *slot, u8 *status);
-	int	(*get_adapter_status)	(struct slot *slot, u8 *status);
-
-	int	(*get_max_bus_speed)	(struct slot *slot, enum pci_bus_speed *speed);
-	int	(*get_cur_bus_speed)	(struct slot *slot, enum pci_bus_speed *speed);
-
-	int	(*get_max_lnk_width)	(struct slot *slot, enum pcie_link_width *value);
-	int	(*get_cur_lnk_width)	(struct slot *slot, enum pcie_link_width *value);
-	
-	int	(*query_power_fault)	(struct slot *slot);
-	void	(*green_led_on)		(struct slot *slot);
-	void	(*green_led_off)	(struct slot *slot);
-	void	(*green_led_blink)	(struct slot *slot);
-	void	(*release_ctlr)		(struct controller *ctrl);
-	int	(*check_lnk_status)	(struct controller *ctrl);
+	int (*power_on_slot)(struct slot *slot);
+	int (*power_off_slot)(struct slot *slot);
+	int (*get_power_status)(struct slot *slot, u8 *status);
+	int (*get_attention_status)(struct slot *slot, u8 *status);
+	int (*set_attention_status)(struct slot *slot, u8 status);
+	int (*get_latch_status)(struct slot *slot, u8 *status);
+	int (*get_adapter_status)(struct slot *slot, u8 *status);
+	int (*get_max_bus_speed)(struct slot *slot, enum pci_bus_speed *speed);
+	int (*get_cur_bus_speed)(struct slot *slot, enum pci_bus_speed *speed);
+	int (*get_max_lnk_width)(struct slot *slot, enum pcie_link_width *val);
+	int (*get_cur_lnk_width)(struct slot *slot, enum pcie_link_width *val);
+	int (*query_power_fault)(struct slot *slot);
+	void (*green_led_on)(struct slot *slot);
+	void (*green_led_off)(struct slot *slot);
+	void (*green_led_blink)(struct slot *slot);
+	void (*release_ctlr)(struct controller *ctrl);
+	int (*check_lnk_status)(struct controller *ctrl);
 };
-
 
 #ifdef CONFIG_ACPI
 #include <acpi/acpi.h>
@@ -242,7 +217,7 @@ struct hpc_ops {
 #include <acpi/actypes.h>
 #include <linux/pci-acpi.h>
 
-#define pciehp_get_hp_hw_control_from_firmware(dev) \
+#define pciehp_get_hp_hw_control_from_firmware(dev)			\
 	pciehp_acpi_get_hp_hw_control_from_firmware(dev)
 static inline int pciehp_get_hp_params_from_firmware(struct pci_dev *dev,
 			struct hotplug_params *hpp)

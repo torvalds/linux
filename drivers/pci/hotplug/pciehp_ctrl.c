@@ -655,7 +655,7 @@ static void interrupt_event_handler(struct controller *ctrl)
 						warn("Not a valid state\n");
 						return;
 					}
-					info(msg_button_cancel, slot_name(p_slot));
+					info("PCI slot #%s - action canceled due to button press.\n", slot_name(p_slot));
 					p_slot->state = STATIC_STATE;
 				}
 				/* ***********Button Pressed (No action on 1st press...) */
@@ -668,12 +668,12 @@ static void interrupt_event_handler(struct controller *ctrl)
 							/* slot is on */
 							dbg("slot is on\n");
 							p_slot->state = BLINKINGOFF_STATE;
-							info(msg_button_off, slot_name(p_slot));
+							info("PCI slot #%s - powering off due to button press.\n", slot_name(p_slot));
 						} else {
 							/* slot is off */
 							dbg("slot is off\n");
 							p_slot->state = BLINKINGON_STATE;
-							info(msg_button_on, slot_name(p_slot));
+							info("PCI slot #%s - powering on due to button press.\n", slot_name(p_slot));
 						}
 
 						/* Wait for exclusive access to hardware */

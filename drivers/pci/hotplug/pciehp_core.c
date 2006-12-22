@@ -357,7 +357,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	/* Setup the slot information structures */
 	rc = init_slots(ctrl);
 	if (rc) {
-		err(msg_initialization_err, 6);
+		err("%s: slot initialization failed\n", PCIE_MODULE_NAME);
 		goto err_out_release_ctlr;
 	}
 
