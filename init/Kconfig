@@ -461,10 +461,10 @@ config VM_EVENT_COUNTERS
 	default y
 	bool "Enable VM event counters for /proc/vmstat" if EMBEDDED
 	help
-	  VM event counters are only needed to for event counts to be
-	  shown. They have no function for the kernel itself. This
-	  option allows the disabling of the VM event counters.
-	  /proc/vmstat will only show page counts.
+	  VM event counters are needed for event counts to be shown.
+	  This option allows the disabling of the VM event counters
+	  on EMBEDDED systems.  /proc/vmstat will only show page counts
+	  if VM event counters are disabled.
 
 endmenu		# General setup
 
