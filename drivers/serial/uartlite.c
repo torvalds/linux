@@ -278,8 +278,8 @@ static int ulite_request_port(struct uart_port *port)
 
 static void ulite_config_port(struct uart_port *port, int flags)
 {
-	ulite_request_port(port);
-	port->type = PORT_UARTLITE;
+	if (!ulite_request_port(port))
+		port->type = PORT_UARTLITE;
 }
 
 static int ulite_verify_port(struct uart_port *port, struct serial_struct *ser)
