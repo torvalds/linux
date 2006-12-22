@@ -6,6 +6,7 @@ menu "HID Devices"
 
 config HID
 	tristate "Generic HID support"
+	depends on INPUT
 	default y
 	---help---
 	  Say Y here if you want generic HID support to connect keyboards,
