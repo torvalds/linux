@@ -726,6 +726,7 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	vmcs_write32(GUEST_SS_AR_BYTES, 0xf3);
 
 	vmcs_write32(GUEST_CS_AR_BYTES, 0xf3);
+	vmcs_write32(GUEST_CS_LIMIT, 0xffff);
 	vmcs_write16(GUEST_CS_SELECTOR, vmcs_readl(GUEST_CS_BASE) >> 4);
 
 	fix_rmode_seg(VCPU_SREG_ES, &vcpu->rmode.es);
