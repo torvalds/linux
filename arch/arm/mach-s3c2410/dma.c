@@ -1053,11 +1053,11 @@ int s3c2410_dma_config(dmach_t channel,
 	if (chan == NULL)
 		return -EINVAL;
 
-	printk("Initial dcon is %08x\n", dcon);
+	pr_debug("%s: Initial dcon is %08x\n", __FUNCTION__, dcon);
 
 	dcon |= chan->dcon & dma_sel.dcon_mask;
 
-	printk("New dcon is %08x\n", dcon);
+	pr_debug("%s: New dcon is %08x\n", __FUNCTION__, dcon);
 
 	switch (xferunit) {
 	case 1:
