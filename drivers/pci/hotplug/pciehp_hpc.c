@@ -105,7 +105,6 @@ enum ctrl_offsets {
 	ROOTCTRL	=	offsetof(struct ctrl_reg, root_ctrl),
 	ROOTSTATUS	=	offsetof(struct ctrl_reg, root_status),
 };
-static int pcie_cap_base = 0;		/* Base of the PCI Express capability item structure */ 
 
 static inline int pciehp_readw(struct controller *ctrl, int reg, u16 *value)
 {
@@ -1072,7 +1071,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	u16 cap_reg;
 	u16 intr_enable = 0;
 	u32 slot_cap;
-	int cap_base, saved_cap_base;
+	int cap_base;
 	u16 slot_status, slot_ctrl;
 	struct pci_dev *pdev;
 
@@ -1084,8 +1083,6 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	dbg("%s: hotplug controller vendor id 0x%x device id 0x%x\n",
 			__FUNCTION__, pdev->vendor, pdev->device);
 
-	saved_cap_base = pcie_cap_base;
-
 	if ((cap_base = pci_find_capability(pdev, PCI_CAP_ID_EXP)) == 0) {
 		dbg("%s: Can't find PCI_CAP_ID_EXP (0x10)\n", __FUNCTION__);
 		goto abort_free_ctlr;
@@ -1093,7 +1090,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 
 	ctrl->cap_base = cap_base;
 
-	dbg("%s: pcie_cap_base %x\n", __FUNCTION__, pcie_cap_base);
+	dbg("%s: pcie_cap_base %x\n", __FUNCTION__, cap_base);
 
 	rc = pciehp_readw(ctrl, CAPREG, &cap_reg);
 	if (rc) {
@@ -1289,8 +1286,6 @@ abort_free_irq:
 		free_irq(ctrl->pci_dev->irq, ctrl);
 
 abort_free_ctlr:
-	pcie_cap_base = saved_cap_base;
-
 	DBG_LEAVE_ROUTINE
 	return -1;
 }
