@@ -113,6 +113,11 @@ unsigned long segment_base(u16 selector)
 }
 EXPORT_SYMBOL_GPL(segment_base);
 
+static inline int valid_vcpu(int n)
+{
+	return likely(n >= 0 && n < KVM_MAX_VCPUS);
+}
+
 int kvm_read_guest(struct kvm_vcpu *vcpu,
 			     gva_t addr,
 			     unsigned long size,
@@ -494,7 +499,7 @@ static int kvm_dev_ioctl_create_vcpu(struct kvm *kvm, int n)
 	struct kvm_vcpu *vcpu;
 
 	r = -EINVAL;
-	if (n < 0 || n >= KVM_MAX_VCPUS)
+	if (!valid_vcpu(n))
 		goto out;
 
 	vcpu = &kvm->vcpus[n];
@@ -1179,7 +1184,7 @@ static int kvm_dev_ioctl_run(struct kvm *kvm, struct kvm_run *kvm_run)
 	struct kvm_vcpu *vcpu;
 	int r;
 
-	if (kvm_run->vcpu < 0 || kvm_run->vcpu >= KVM_MAX_VCPUS)
+	if (!valid_vcpu(kvm_run->vcpu))
 		return -EINVAL;
 
 	vcpu = vcpu_load(kvm, kvm_run->vcpu);
@@ -1208,7 +1213,7 @@ static int kvm_dev_ioctl_get_regs(struct kvm *kvm, struct kvm_regs *regs)
 {
 	struct kvm_vcpu *vcpu;
 
-	if (regs->vcpu < 0 || regs->vcpu >= KVM_MAX_VCPUS)
+	if (!valid_vcpu(regs->vcpu))
 		return -EINVAL;
 
 	vcpu = vcpu_load(kvm, regs->vcpu);
@@ -1254,7 +1259,7 @@ static int kvm_dev_ioctl_set_regs(struct kvm *kvm, struct kvm_regs *regs)
 {
 	struct kvm_vcpu *vcpu;
 
-	if (regs->vcpu < 0 || regs->vcpu >= KVM_MAX_VCPUS)
+	if (!valid_vcpu(regs->vcpu))
 		return -EINVAL;
 
 	vcpu = vcpu_load(kvm, regs->vcpu);
@@ -1301,7 +1306,7 @@ static int kvm_dev_ioctl_get_sregs(struct kvm *kvm, struct kvm_sregs *sregs)
 	struct kvm_vcpu *vcpu;
 	struct descriptor_table dt;
 
-	if (sregs->vcpu < 0 || sregs->vcpu >= KVM_MAX_VCPUS)
+	if (!valid_vcpu(sregs->vcpu))
 		return -EINVAL;
 	vcpu = vcpu_load(kvm, sregs->vcpu);
 	if (!vcpu)
@@ -1353,7 +1358,7 @@ static int kvm_dev_ioctl_set_sregs(struct kvm *kvm, struct kvm_sregs *sregs)
 	int i;
 	struct descriptor_table dt;
 
-	if (sregs->vcpu < 0 || sregs->vcpu >= KVM_MAX_VCPUS)
+	if (!valid_vcpu(sregs->vcpu))
 		return -EINVAL;
 	vcpu = vcpu_load(kvm, sregs->vcpu);
 	if (!vcpu)
@@ -1444,7 +1449,7 @@ static int __msr_io(struct kvm *kvm, struct kvm_msrs *msrs,
 	struct kvm_vcpu *vcpu;
 	int i;
 
-	if (msrs->vcpu < 0 || msrs->vcpu >= KVM_MAX_VCPUS)
+	if (!valid_vcpu(msrs->vcpu))
 		return -EINVAL;
 
 	vcpu = vcpu_load(kvm, msrs->vcpu);
@@ -1537,7 +1542,7 @@ static int kvm_dev_ioctl_interrupt(struct kvm *kvm, struct kvm_interrupt *irq)
 {
 	struct kvm_vcpu *vcpu;
 
-	if (irq->vcpu < 0 || irq->vcpu >= KVM_MAX_VCPUS)
+	if (!valid_vcpu(irq->vcpu))
 		return -EINVAL;
 	if (irq->irq < 0 || irq->irq >= 256)
 		return -EINVAL;
@@ -1559,7 +1564,7 @@ static int kvm_dev_ioctl_debug_guest(struct kvm *kvm,
 	struct kvm_vcpu *vcpu;
 	int r;
 
-	if (dbg->vcpu < 0 || dbg->vcpu >= KVM_MAX_VCPUS)
+	if (!valid_vcpu(dbg->vcpu))
 		return -EINVAL;
 	vcpu = vcpu_load(kvm, dbg->vcpu);
 	if (!vcpu)
