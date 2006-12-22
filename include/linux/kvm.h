@@ -11,6 +11,8 @@
 #include <asm/types.h>
 #include <linux/ioctl.h>
 
+#define KVM_API_VERSION 1
+
 /*
  * Architectural interrupt line count, and the size of the bitmap needed
  * to hold them.
@@ -209,6 +211,7 @@ struct kvm_dirty_log {
 
 #define KVMIO 0xAE
 
+#define KVM_GET_API_VERSION       _IO(KVMIO, 1)
 #define KVM_RUN                   _IOWR(KVMIO, 2, struct kvm_run)
 #define KVM_GET_REGS              _IOWR(KVMIO, 3, struct kvm_regs)
 #define KVM_SET_REGS              _IOW(KVMIO, 4, struct kvm_regs)

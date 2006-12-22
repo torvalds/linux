@@ -1603,6 +1603,9 @@ static long kvm_dev_ioctl(struct file *filp,
 	int r = -EINVAL;
 
 	switch (ioctl) {
+	case KVM_GET_API_VERSION:
+		r = KVM_API_VERSION;
+		break;
 	case KVM_CREATE_VCPU: {
 		r = kvm_dev_ioctl_create_vcpu(kvm, arg);
 		if (r)
