@@ -1344,11 +1344,10 @@ fastcall signed long __sched schedule_timeout(signed long timeout)
 		 * should never happens anyway). You just have the printk()
 		 * that will tell you if something is gone wrong and where.
 		 */
-		if (timeout < 0)
-		{
+		if (timeout < 0) {
 			printk(KERN_ERR "schedule_timeout: wrong timeout "
-				"value %lx from %p\n", timeout,
-				__builtin_return_address(0));
+				"value %lx\n", timeout);
+			dump_stack();
 			current->state = TASK_RUNNING;
 			goto out;
 		}
