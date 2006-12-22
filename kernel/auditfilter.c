@@ -800,8 +800,8 @@ static inline int audit_dupe_selinux_field(struct audit_field *df,
 
 	/* our own copy of se_str */
 	se_str = kstrdup(sf->se_str, GFP_KERNEL);
-	if (unlikely(IS_ERR(se_str)))
-	    return -ENOMEM;
+	if (unlikely(!se_str))
+		return -ENOMEM;
 	df->se_str = se_str;
 
 	/* our own (refreshed) copy of se_rule */
