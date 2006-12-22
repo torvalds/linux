@@ -251,20 +251,21 @@ static void start_int_poll_timer(struct controller *ctrl, int sec)
 
 static inline int pcie_wait_cmd(struct controller *ctrl)
 {
-	DECLARE_WAITQUEUE(wait, current);
+	int retval = 0;
+	unsigned int msecs = pciehp_poll_mode ? 2500 : 1000;
+	unsigned long timeout = msecs_to_jiffies(msecs);
+	int rc;
 
-	add_wait_queue(&ctrl->queue, &wait);
-	if (!pciehp_poll_mode)
-		/* Sleep for up to 1 second */
-		msleep_interruptible(1000);
-	else
-		msleep_interruptible(2500);
+	rc = wait_event_interruptible_timeout(ctrl->queue,
+					      !ctrl->cmd_busy, timeout);
+	if (!rc)
+		dbg("Command not completed in 1000 msec\n");
+	else if (rc < 0) {
+		retval = -EINTR;
+		info("Command was interrupted by a signal\n");
+	}
 
-	remove_wait_queue(&ctrl->queue, &wait);
-	if (signal_pending(current))
-		return -EINTR;
-
-	return 0;
+	return retval;
 }
 
 static int pcie_write_cmd(struct slot *slot, u16 cmd)
@@ -291,6 +292,7 @@ static int pcie_write_cmd(struct slot *slot, u16 cmd)
 		    __FUNCTION__);
 	}
 
+	ctrl->cmd_busy = 1;
 	retval = pciehp_writew(ctrl, SLOTCTRL, (cmd | CMD_CMPL_INTR_ENABLE));
 	if (retval) {
 		err("%s: Cannot write to SLOTCTRL register\n", __FUNCTION__);
@@ -773,6 +775,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		/* 
 		 * Command Complete Interrupt Pending 
 		 */
+		ctrl->cmd_busy = 0;
 		wake_up_interruptible(&ctrl->queue);
 	}
 

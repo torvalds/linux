@@ -100,6 +100,7 @@ struct controller {
 	u16 vendor_id;
 	u8 cap_base;
 	struct timer_list poll_timer;
+	volatile int cmd_busy;
 };
 
 #define INT_BUTTON_IGNORE		0
