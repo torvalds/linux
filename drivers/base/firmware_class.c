@@ -127,6 +127,7 @@ static ssize_t firmware_loading_show(struct device *dev,
 /**
  * firmware_loading_store - set value in the 'loading' control file
  * @dev: device pointer
+ * @attr: device attribute pointer
  * @buf: buffer to scan for loading control value
  * @count: number of bytes in @buf
  *

@@ -367,7 +367,7 @@ static int i2o_exec_remove(struct device *dev)
 
 /**
  *	i2o_exec_lct_modified - Called on LCT NOTIFY reply
- *	@work: work struct for a specific controller
+ *	@_work: work struct for a specific controller
  *
  *	This function handles asynchronus LCT NOTIFY replies. It parses the
  *	new LCT and if the buffer for the LCT was to small sends a LCT NOTIFY

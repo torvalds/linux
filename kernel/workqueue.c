@@ -233,7 +233,7 @@ static void delayed_work_timer_fn(unsigned long __data)
 /**
  * queue_delayed_work - queue work on a workqueue after delay
  * @wq: workqueue to use
- * @work: delayable work to queue
+ * @dwork: delayable work to queue
  * @delay: number of jiffies to wait before queueing
  *
  * Returns 0 if @work was already on a queue, non-zero otherwise.
@@ -268,7 +268,7 @@ EXPORT_SYMBOL_GPL(queue_delayed_work);
  * queue_delayed_work_on - queue work on specific CPU after delay
  * @cpu: CPU number to execute work on
  * @wq: workqueue to use
- * @work: work to queue
+ * @dwork: work to queue
  * @delay: number of jiffies to wait before queueing
  *
  * Returns 0 if @work was already on a queue, non-zero otherwise.

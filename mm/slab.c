@@ -3587,6 +3587,7 @@ out:
  * @cachep: The cache to allocate from.
  * @flags: See kmalloc().
  * @nodeid: node number of the target node.
+ * @caller: return address of caller, used for debug information
  *
  * Identical to kmem_cache_alloc but it will allocate memory on the given
  * node, which can improve the performance for cpu bound structures.

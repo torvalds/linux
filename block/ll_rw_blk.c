@@ -2453,6 +2453,7 @@ EXPORT_SYMBOL(blk_rq_map_user);
  * @rq:		request to map data to
  * @iov:	pointer to the iovec
  * @iov_count:	number of elements in the iovec
+ * @len:	I/O byte count
  *
  * Description:
  *    Data will be mapped directly for zero copy io, if possible. Otherwise
