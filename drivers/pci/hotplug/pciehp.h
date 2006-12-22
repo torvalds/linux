@@ -52,7 +52,6 @@ extern int pciehp_force;
 
 #define SLOT_NAME_SIZE 10
 struct slot {
-	struct slot *next;
 	u8 bus;
 	u8 device;
 	u32 number;
@@ -99,6 +98,7 @@ struct controller {
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
 	struct pci_bus *pci_bus;
+	struct list_head slot_list;
 	struct event_info event_queue[MAX_EVENTS];
 	struct slot *slot;
 	struct hpc_ops *hpc_ops;
@@ -198,20 +198,15 @@ extern struct controller *pciehp_ctrl_list;
 
 static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
 {
-	struct slot *p_slot, *tmp_slot = NULL;
+	struct slot *slot;
 
-	p_slot = ctrl->slot;
-
-	while (p_slot && (p_slot->device != device)) {
-		tmp_slot = p_slot;
-		p_slot = p_slot->next;
-	}
-	if (p_slot == NULL) {
-		err("ERROR: pciehp_find_slot device=0x%x\n", device);
-		p_slot = tmp_slot;
+	list_for_each_entry(slot, &ctrl->slot_list, slot_list) {
+		if (slot->device == device)
+			return slot;
 	}
 
-	return p_slot;
+	err("%s: slot (device=0x%x) not found\n", __FUNCTION__, device);
+	return NULL;
 }
 
 static inline int wait_for_ctrl_irq(struct controller *ctrl)

@@ -160,8 +160,7 @@ static int init_slots(struct controller *ctrl)
 			goto error_info;
 		}
 
-		slot->next = ctrl->slot;
-		ctrl->slot = slot;
+		list_add(&slot->slot_list, &ctrl->slot_list);
 	}
 
 	return 0;
@@ -175,22 +174,17 @@ error:
 	return retval;
 }
 
-
-static int cleanup_slots (struct controller * ctrl)
+static void cleanup_slots(struct controller *ctrl)
 {
-	struct slot *old_slot, *next_slot;
+	struct list_head *tmp;
+	struct list_head *next;
+	struct slot *slot;
 
-	old_slot = ctrl->slot;
-	ctrl->slot = NULL;
-
-	while (old_slot) {
-		next_slot = old_slot->next;
-		pci_hp_deregister (old_slot->hotplug_slot);
-		old_slot = next_slot;
+	list_for_each_safe(tmp, next, &ctrl->slot_list) {
+		slot = list_entry(tmp, struct slot, slot_list);
+		list_del(&slot->slot_list);
+		pci_hp_deregister(slot->hotplug_slot);
 	}
-
-
-	return(0);
 }
 
 static int get_ctlr_slot_config(struct controller *ctrl)
@@ -368,6 +362,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		err("%s : out of memory\n", __FUNCTION__);
 		goto err_out_none;
 	}
+	INIT_LIST_HEAD(&ctrl->slot_list);
 
 	pdev = dev->port;
 	ctrl->pci_dev = pdev;
