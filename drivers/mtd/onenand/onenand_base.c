@@ -192,8 +192,6 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 	struct onenand_chip *this = mtd->priv;
 	int value, readcmd = 0, block_cmd = 0;
 	int block, page;
-	/* Now we use page size operation */
-	int sectors = 4, count = 4;
 
 	/* Address translation */
 	switch (cmd) {
@@ -245,6 +243,8 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 	}
 
 	if (page != -1) {
+		/* Now we use page size operation */
+		int sectors = 4, count = 4;
 		int dataram;
 
 		switch (cmd) {
@@ -914,6 +914,10 @@ static int onenand_verify_page(struct mtd_info *mtd, u_char *buf, loff_t addr)
 	void __iomem *dataram0, *dataram1;
 	int ret = 0;
 
+	/* In partial page write, just skip it */
+	if ((addr & (mtd->writesize - 1)) != 0)
+		return 0;
+
 	this->command(mtd, ONENAND_CMD_READ, addr, mtd->writesize);
 
 	ret = this->wait(mtd, FL_READING);
@@ -936,7 +940,7 @@ static int onenand_verify_page(struct mtd_info *mtd, u_char *buf, loff_t addr)
 #define onenand_verify_oob(...)		(0)
 #endif
 
-#define NOTALIGNED(x)	((x & (mtd->writesize - 1)) != 0)
+#define NOTALIGNED(x)	((x & (this->subpagesize - 1)) != 0)
 
 /**
  * onenand_write - [MTD Interface] write buffer to FLASH
@@ -954,6 +958,7 @@ static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct onenand_chip *this = mtd->priv;
 	int written = 0;
 	int ret = 0;
+	int column, subpage;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "onenand_write: to = 0x%08x, len = %i\n", (unsigned int) to, (int) len);
 
@@ -972,45 +977,61 @@ static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
                 return -EINVAL;
         }
 
+	column = to & (mtd->writesize - 1);
+	subpage = column || (len & (mtd->writesize - 1));
+
 	/* Grab the lock and see if the device is available */
 	onenand_get_device(mtd, FL_WRITING);
 
 	/* Loop until all data write */
 	while (written < len) {
-		int thislen = min_t(int, mtd->writesize, len - written);
+		int bytes = mtd->writesize;
+		int thislen = min_t(int, bytes, len - written);
+		u_char *wbuf = (u_char *) buf;
 
-		this->command(mtd, ONENAND_CMD_BUFFERRAM, to, mtd->writesize);
+		this->command(mtd, ONENAND_CMD_BUFFERRAM, to, bytes);
 
-		this->write_bufferram(mtd, ONENAND_DATARAM, buf, 0, thislen);
+		/* Partial page write */
+		if (subpage) {
+			bytes = min_t(int, bytes - column, (int) len);
+			memset(this->page_buf, 0xff, mtd->writesize);
+			memcpy(this->page_buf + column, buf, bytes);
+			wbuf = this->page_buf;
+			/* Even though partial write, we need page size */
+			thislen = mtd->writesize;
+		}
+
+		this->write_bufferram(mtd, ONENAND_DATARAM, wbuf, 0, thislen);
 		this->write_bufferram(mtd, ONENAND_SPARERAM, ffchars, 0, mtd->oobsize);
 
 		this->command(mtd, ONENAND_CMD_PROG, to, mtd->writesize);
 
-		onenand_update_bufferram(mtd, to, 1);
+		/* In partial page write we don't update bufferram */
+		onenand_update_bufferram(mtd, to, !subpage);
 
 		ret = this->wait(mtd, FL_WRITING);
 		if (ret) {
 			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write: write filaed %d\n", ret);
-			goto out;
+			break;
+		}
+
+		/* Only check verify write turn on */
+		ret = onenand_verify_page(mtd, (u_char *) wbuf, to);
+		if (ret) {
+			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write: verify failed %d\n", ret);
+			break;
 		}
 
 		written += thislen;
 
-		/* Only check verify write turn on */
-		ret = onenand_verify_page(mtd, (u_char *) buf, to);
-		if (ret) {
-			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write: verify failed %d\n", ret);
-			goto out;
-		}
-
 		if (written == len)
 			break;
 
+		column = 0;
 		to += thislen;
 		buf += thislen;
 	}
 
-out:
 	/* Deselect and wake up anyone waiting on the device */
 	onenand_release_device(mtd);
 
@@ -2021,23 +2042,30 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	init_waitqueue_head(&this->wq);
 	spin_lock_init(&this->chip_lock);
 
+	/*
+	 * Allow subpage writes up to oobsize.
+	 */
 	switch (mtd->oobsize) {
 	case 64:
 		this->ecclayout = &onenand_oob_64;
+		mtd->subpage_sft = 2;
 		break;
 
 	case 32:
 		this->ecclayout = &onenand_oob_32;
+		mtd->subpage_sft = 1;
 		break;
 
 	default:
 		printk(KERN_WARNING "No OOB scheme defined for oobsize %d\n",
 			mtd->oobsize);
+		mtd->subpage_sft = 0;
 		/* To prevent kernel oops */
 		this->ecclayout = &onenand_oob_32;
 		break;
 	}
 
+	this->subpagesize = mtd->writesize >> mtd->subpage_sft;
 	mtd->ecclayout = this->ecclayout;
 
 	/* Fill in remaining MTD driver data */

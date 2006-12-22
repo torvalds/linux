@@ -88,6 +88,7 @@ struct onenand_bufferram {
  *			operation is in progress
  * @state:		[INTERN] the current state of the OneNAND device
  * @page_buf:		data buffer
+ * @subpagesize:	[INTERN] holds the subpagesize
  * @ecclayout:		[REPLACEABLE] the default ecc placement scheme
  * @bbm:		[REPLACEABLE] pointer to Bad Block Management
  * @priv:		[OPTIONAL] pointer to private chip date
@@ -128,6 +129,7 @@ struct onenand_chip {
 	onenand_state_t		state;
 	unsigned char		*page_buf;
 
+	int			subpagesize;
 	struct nand_ecclayout	*ecclayout;
 
 	void			*bbm;
