@@ -639,7 +639,7 @@ void __init setup_arch(char **cmdline_p)
 		get_smp_config();
 #endif
 
-	register_memory();
+	e820_register_memory();
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
