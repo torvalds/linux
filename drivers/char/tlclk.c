@@ -807,8 +807,6 @@ static int __init tlclk_init(void)
 			&tlclk_attribute_group);
 	if (ret) {
 		printk(KERN_ERR "tlclk: failed to create sysfs device attributes.\n");
-		sysfs_remove_group(&tlclk_device->dev.kobj,
-			&tlclk_attribute_group);
 		goto out5;
 	}
 
