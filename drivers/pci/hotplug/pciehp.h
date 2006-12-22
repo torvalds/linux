@@ -50,7 +50,7 @@ extern int pciehp_force;
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
-
+#define SLOT_NAME_SIZE 10
 struct slot {
 	struct slot *next;
 	u8 bus;
@@ -63,6 +63,7 @@ struct slot {
 	struct hpc_ops *hpc_ops;
 	struct hotplug_slot *hotplug_slot;
 	struct list_head	slot_list;
+	char name[SLOT_NAME_SIZE];
 };
 
 struct event_info {
@@ -231,13 +232,6 @@ static inline int wait_for_ctrl_irq(struct controller *ctrl)
 		retval =  -EINTR;
 
 	return retval;
-}
-
-#define SLOT_NAME_SIZE 10
-
-static inline void make_slot_name(char *buffer, int buffer_size, struct slot *slot)
-{
-	snprintf(buffer, buffer_size, "%04d_%04d", slot->bus, slot->number);
 }
 
 enum php_ctlr_type {
