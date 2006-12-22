@@ -78,7 +78,6 @@ struct controller {
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
-	struct pci_bus *pci_bus;
 	struct list_head slot_list;
 	struct event_info event_queue[MAX_EVENTS];
 	struct slot *slot;

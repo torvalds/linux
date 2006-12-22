@@ -346,13 +346,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 
 	pci_set_drvdata(pdev, ctrl);
 
-	ctrl->pci_bus = kmalloc(sizeof(*ctrl->pci_bus), GFP_KERNEL);
-	if (!ctrl->pci_bus) {
-		err("%s: out of memory\n", __FUNCTION__);
-		rc = -ENOMEM;
-		goto err_out_unmap_mmio_region;
-	}
-	memcpy (ctrl->pci_bus, pdev->bus, sizeof (*ctrl->pci_bus));
 	ctrl->bus = pdev->bus->number;  /* ctrl bus */
 	ctrl->slot_bus = pdev->subordinate->number;  /* bus controlled by this HPC */
 
@@ -365,7 +358,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	rc = init_slots(ctrl);
 	if (rc) {
 		err(msg_initialization_err, 6);
-		goto err_out_free_ctrl_slot;
+		goto err_out_release_ctlr;
 	}
 
 	t_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
@@ -404,8 +397,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 
 err_out_free_ctrl_slot:
 	cleanup_slots(ctrl);
-	kfree(ctrl->pci_bus);
-err_out_unmap_mmio_region:
+err_out_release_ctlr:
 	ctrl->hpc_ops->release_ctlr(ctrl);
 err_out_free_ctrl:
 	kfree(ctrl);
@@ -438,8 +430,6 @@ static void __exit unload_pciehpd(void)
 
 	while (ctrl) {
 		cleanup_slots(ctrl);
-
-		kfree (ctrl->pci_bus);
 
 		ctrl->hpc_ops->release_ctlr(ctrl);
 
