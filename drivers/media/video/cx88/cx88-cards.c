@@ -1632,7 +1632,7 @@ const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
 /* ----------------------------------------------------------------------- */
 /* some leadtek specific stuff                                             */
 
-static void __devinit leadtek_eeprom(struct cx88_core *core, u8 *eeprom_data)
+static void leadtek_eeprom(struct cx88_core *core, u8 *eeprom_data)
 {
 	/* This is just for the "Winfast 2000XP Expert" board ATM; I don't have data on
 	 * any others.
