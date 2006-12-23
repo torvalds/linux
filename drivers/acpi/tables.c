@@ -228,7 +228,7 @@ void acpi_table_print_madt_entry(acpi_table_entry_header * header)
 static int
 acpi_table_compute_checksum(void *table_pointer, unsigned long length)
 {
-	u8 *p = (u8 *) table_pointer;
+	u8 *p = table_pointer;
 	unsigned long remains = length;
 	unsigned long sum = 0;
 

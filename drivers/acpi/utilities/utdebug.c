@@ -180,8 +180,9 @@ acpi_ut_debug_print(u32 requested_debug_level,
 	if (thread_id != acpi_gbl_prev_thread_id) {
 		if (ACPI_LV_THREADS & acpi_dbg_level) {
 			acpi_os_printf
-			    ("\n**** Context Switch from TID %X to TID %X ****\n\n",
-			     (u32) acpi_gbl_prev_thread_id, (u32) thread_id);
+			    ("\n**** Context Switch from TID %lX to TID %lX ****\n\n",
+			     (unsigned long) acpi_gbl_prev_thread_id,
+			     (unsigned long) thread_id);
 		}
 
 		acpi_gbl_prev_thread_id = thread_id;

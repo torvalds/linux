@@ -98,11 +98,12 @@ void acpi_pci_unregister_driver(struct acpi_pci_driver *driver)
 
 	struct acpi_pci_driver **pptr = &sub_driver;
 	while (*pptr) {
-		if (*pptr != driver)
-			continue;
-		*pptr = (*pptr)->next;
-		break;
+		if (*pptr == driver)
+			break;
+		pptr = &(*pptr)->next;
 	}
+	BUG_ON(!*pptr);
+	*pptr = (*pptr)->next;
 
 	if (!driver->remove)
 		return;
@@ -119,7 +120,7 @@ EXPORT_SYMBOL(acpi_pci_unregister_driver);
 static acpi_status
 get_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 {
-	int *busnr = (int *)data;
+	int *busnr = data;
 	struct acpi_resource_address64 address;
 
 	if (resource->type != ACPI_RESOURCE_TYPE_ADDRESS16 &&
@@ -164,10 +165,9 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	root = kmalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
+	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
 		return -ENOMEM;
-	memset(root, 0, sizeof(struct acpi_pci_root));
 	INIT_LIST_HEAD(&root->node);
 
 	root->device = device;
@@ -331,7 +331,7 @@ static int acpi_pci_root_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	root = (struct acpi_pci_root *)acpi_driver_data(device);
+	root = acpi_driver_data(device);
 
 	kfree(root);
 

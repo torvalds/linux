@@ -122,19 +122,17 @@ int acpi_pci_bind(struct acpi_device *device)
 	if (!device || !device->parent)
 		return -EINVAL;
 
-	pathname = kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
+	pathname = kzalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
 	if (!pathname)
 		return -ENOMEM;
-	memset(pathname, 0, ACPI_PATHNAME_MAX);
 	buffer.length = ACPI_PATHNAME_MAX;
 	buffer.pointer = pathname;
 
-	data = kmalloc(sizeof(struct acpi_pci_data), GFP_KERNEL);
+	data = kzalloc(sizeof(struct acpi_pci_data), GFP_KERNEL);
 	if (!data) {
 		kfree(pathname);
 		return -ENOMEM;
 	}
-	memset(data, 0, sizeof(struct acpi_pci_data));
 
 	acpi_get_name(device->handle, ACPI_FULL_PATHNAME, &buffer);
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Binding PCI device [%s]...\n",
@@ -281,10 +279,9 @@ int acpi_pci_unbind(struct acpi_device *device)
 	if (!device || !device->parent)
 		return -EINVAL;
 
-	pathname = (char *)kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
+	pathname = kzalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
 	if (!pathname)
 		return -ENOMEM;
-	memset(pathname, 0, ACPI_PATHNAME_MAX);
 
 	buffer.length = ACPI_PATHNAME_MAX;
 	buffer.pointer = pathname;
@@ -331,11 +328,9 @@ acpi_pci_bind_root(struct acpi_device *device,
 	char *pathname = NULL;
 	struct acpi_buffer buffer = { 0, NULL };
 
-
-	pathname = (char *)kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
+	pathname = kzalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
 	if (!pathname)
 		return -ENOMEM;
-	memset(pathname, 0, ACPI_PATHNAME_MAX);
 
 	buffer.length = ACPI_PATHNAME_MAX;
 	buffer.pointer = pathname;
@@ -345,12 +340,11 @@ acpi_pci_bind_root(struct acpi_device *device,
 		return -EINVAL;
 	}
 
-	data = kmalloc(sizeof(struct acpi_pci_data), GFP_KERNEL);
+	data = kzalloc(sizeof(struct acpi_pci_data), GFP_KERNEL);
 	if (!data) {
 		kfree(pathname);
 		return -ENOMEM;
 	}
-	memset(data, 0, sizeof(struct acpi_pci_data));
 
 	data->id = *id;
 	data->bus = bus;

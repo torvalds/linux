@@ -319,13 +319,12 @@ static int ibm_get_table_from_acpi(char **bufp)
 	if (bufp == NULL)
 		goto read_table_done;
 
-	lbuf = kmalloc(size, GFP_KERNEL);
+	lbuf = kzalloc(size, GFP_KERNEL);
 	dbg("%s: element count: %i, ASL table size: %i, &table = 0x%p\n",
 			__FUNCTION__, package->package.count, size, lbuf);
 
 	if (lbuf) {
 		*bufp = lbuf;
-		memset(lbuf, 0, size);
 	} else {
 		size = -ENOMEM;
 		goto read_table_done;

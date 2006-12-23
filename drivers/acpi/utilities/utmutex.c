@@ -243,23 +243,24 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 #endif
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
-			  "Thread %X attempting to acquire Mutex [%s]\n",
-			  (u32) this_thread_id, acpi_ut_get_mutex_name(mutex_id)));
+			  "Thread %lX attempting to acquire Mutex [%s]\n",
+			  (unsigned long) this_thread_id,
+			  acpi_ut_get_mutex_name(mutex_id)));
 
 	status = acpi_os_acquire_mutex(acpi_gbl_mutex_info[mutex_id].mutex,
 				       ACPI_WAIT_FOREVER);
 	if (ACPI_SUCCESS(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
-				  "Thread %X acquired Mutex [%s]\n",
-				  (u32) this_thread_id,
+				  "Thread %lX acquired Mutex [%s]\n",
+				  (unsigned long) this_thread_id,
 				  acpi_ut_get_mutex_name(mutex_id)));
 
 		acpi_gbl_mutex_info[mutex_id].use_count++;
 		acpi_gbl_mutex_info[mutex_id].thread_id = this_thread_id;
 	} else {
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Thread %X could not acquire Mutex [%X]",
-				(u32) this_thread_id, mutex_id));
+				"Thread %lX could not acquire Mutex [%X]",
+				(unsigned long) this_thread_id, mutex_id));
 	}
 
 	return (status);
@@ -285,7 +286,8 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 
 	this_thread_id = acpi_os_get_thread_id();
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
-			  "Thread %X releasing Mutex [%s]\n", (u32) this_thread_id,
+			  "Thread %lX releasing Mutex [%s]\n",
+			  (unsigned long) this_thread_id,
 			  acpi_ut_get_mutex_name(mutex_id)));
 
 	if (mutex_id > ACPI_MAX_MUTEX) {
