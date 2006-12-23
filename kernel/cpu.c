@@ -258,7 +258,7 @@ static cpumask_t frozen_cpus;
 
 int disable_nonboot_cpus(void)
 {
-	int cpu, first_cpu, error;
+	int cpu, first_cpu, error = 0;
 
 	mutex_lock(&cpu_add_remove_lock);
 	first_cpu = first_cpu(cpu_present_map);
@@ -294,7 +294,7 @@ int disable_nonboot_cpus(void)
 		/* Make sure the CPUs won't be enabled by someone else */
 		cpu_hotplug_disabled = 1;
 	} else {
-		printk(KERN_ERR "Non-boot CPUs are not disabled");
+		printk(KERN_ERR "Non-boot CPUs are not disabled\n");
 	}
 out:
 	mutex_unlock(&cpu_add_remove_lock);
