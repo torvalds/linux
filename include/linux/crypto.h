@@ -311,10 +311,15 @@ struct crypto_tfm {
 	void *__crt_ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
-#define crypto_cipher crypto_tfm
-#define crypto_comp crypto_tfm
-
 struct crypto_blkcipher {
+	struct crypto_tfm base;
+};
+
+struct crypto_cipher {
+	struct crypto_tfm base;
+};
+
+struct crypto_comp {
 	struct crypto_tfm base;
 };
 
@@ -576,7 +581,7 @@ static inline struct crypto_cipher *crypto_alloc_cipher(const char *alg_name,
 
 static inline struct crypto_tfm *crypto_cipher_tfm(struct crypto_cipher *tfm)
 {
-	return tfm;
+	return &tfm->base;
 }
 
 static inline void crypto_free_cipher(struct crypto_cipher *tfm)
@@ -776,7 +781,7 @@ static inline struct crypto_comp *crypto_alloc_comp(const char *alg_name,
 
 static inline struct crypto_tfm *crypto_comp_tfm(struct crypto_comp *tfm)
 {
-	return tfm;
+	return &tfm->base;
 }
 
 static inline void crypto_free_comp(struct crypto_comp *tfm)
@@ -807,14 +812,16 @@ static inline int crypto_comp_compress(struct crypto_comp *tfm,
                                        const u8 *src, unsigned int slen,
                                        u8 *dst, unsigned int *dlen)
 {
-	return crypto_comp_crt(tfm)->cot_compress(tfm, src, slen, dst, dlen);
+	return crypto_comp_crt(tfm)->cot_compress(crypto_comp_tfm(tfm),
+						  src, slen, dst, dlen);
 }
 
 static inline int crypto_comp_decompress(struct crypto_comp *tfm,
                                          const u8 *src, unsigned int slen,
                                          u8 *dst, unsigned int *dlen)
 {
-	return crypto_comp_crt(tfm)->cot_decompress(tfm, src, slen, dst, dlen);
+	return crypto_comp_crt(tfm)->cot_decompress(crypto_comp_tfm(tfm),
+						    src, slen, dst, dlen);
 }
 
 #endif	/* _LINUX_CRYPTO_H */
