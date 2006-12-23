@@ -11,6 +11,7 @@ obj-$(CONFIG_MMC)		+= mmc_core.o
 # Media drivers
 #
 obj-$(CONFIG_MMC_BLOCK)		+= mmc_block.o
+mmc_block-objs			:= block.o queue.o
 
 #
 # Host drivers
@@ -26,7 +27,6 @@ obj-$(CONFIG_MMC_AT91)		+= at91_mci.o
 obj-$(CONFIG_MMC_TIFM_SD)	+= tifm_sd.o
 
 mmc_core-y := mmc.o mmc_sysfs.o
-mmc_core-$(CONFIG_BLOCK) += mmc_queue.o
 
 ifeq ($(CONFIG_MMC_DEBUG),y)
 EXTRA_CFLAGS += -DDEBUG

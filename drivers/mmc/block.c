@@ -2,6 +2,7 @@
  * Block driver for media (i.e., flash cards)
  *
  * Copyright 2002 Hewlett-Packard Company
+ * Copyright 2005-2007 Pierre Ossman
  *
  * Use consistent with the GNU GPL is permitted,
  * provided that this copyright notice is
@@ -37,7 +38,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
-#include "mmc_queue.h"
+#include "queue.h"
 
 /*
  * max 8 partitions per card
