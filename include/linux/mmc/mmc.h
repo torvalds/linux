@@ -22,8 +22,8 @@
  *          15 May 2002
  */
 
-#ifndef MMC_MMC_PROTOCOL_H
-#define MMC_MMC_PROTOCOL_H
+#ifndef MMC_MMC_H
+#define MMC_MMC_H
 
 /* Standard MMC commands (4.1)           type  argument     response */
    /* class 1 */
@@ -78,21 +78,6 @@
 #define MMC_APP_CMD              55   /* ac   [31:16] RCA        R1  */
 #define MMC_GEN_CMD              56   /* adtc [0] RD/WR          R1  */
 
-/* SD commands                           type  argument     response */
-  /* class 0 */
-/* This is basically the same command as for MMC with some quirks. */
-#define SD_SEND_RELATIVE_ADDR     3   /* bcr                     R6  */
-#define SD_SEND_IF_COND           8   /* bcr  [11:0] See below   R7  */
-
-  /* class 10 */
-#define SD_SWITCH                 6   /* adtc [31:0] See below   R1  */
-
-  /* Application commands */
-#define SD_APP_SET_BUS_WIDTH      6   /* ac   [1:0] bus width    R1  */
-#define SD_APP_SEND_NUM_WR_BLKS  22   /* adtc                    R1  */
-#define SD_APP_OP_COND           41   /* bcr  [31:0] OCR         R3  */
-#define SD_APP_SEND_SCR          51   /* adtc                    R1  */
-
 /*
  * MMC_SWITCH argument format:
  *
@@ -102,27 +87,6 @@
  *	[15:08] Value Byte
  *	[07:03] Always 0
  *	[02:00] Command Set
- */
-
-/*
- * SD_SWITCH argument format:
- *
- *      [31] Check (0) or switch (1)
- *      [30:24] Reserved (0)
- *      [23:20] Function group 6
- *      [19:16] Function group 5
- *      [15:12] Function group 4
- *      [11:8] Function group 3
- *      [7:4] Function group 2
- *      [3:0] Function group 1
- */
-
-/*
- * SD_SEND_IF_COND argument format:
- *
- *	[31:12] Reserved (0)
- *	[11:8] Host Voltage Supply Flags
- *	[7:0] Check Pattern (0xAA)
  */
 
 /*
@@ -288,20 +252,6 @@ struct _mmc_csd {
 #define MMC_SWITCH_MODE_SET_BITS	0x01	/* Set bits which are 1 in value */
 #define MMC_SWITCH_MODE_CLEAR_BITS	0x02	/* Clear bits which are 1 in value */
 #define MMC_SWITCH_MODE_WRITE_BYTE	0x03	/* Set target to value */
-
-/*
- * SCR field definitions
- */
-
-#define SCR_SPEC_VER_0      0           /* Implements system specification 1.0 - 1.01 */
-#define SCR_SPEC_VER_1      1           /* Implements system specification 1.10 */
-#define SCR_SPEC_VER_2      2           /* Implements system specification 2.00 */
-
-/*
- * SD bus widths
- */
-#define SD_BUS_WIDTH_1      0
-#define SD_BUS_WIDTH_4      2
 
 #endif  /* MMC_MMC_PROTOCOL_H */
 

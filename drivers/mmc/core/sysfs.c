@@ -18,7 +18,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 
-#include "core.h"
+#include "sysfs.h"
 
 #define dev_to_mmc_card(d)	container_of(d, struct mmc_card, dev)
 #define to_mmc_driver(d)	container_of(d, struct mmc_driver, drv)

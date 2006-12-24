@@ -7,5 +7,5 @@ ifeq ($(CONFIG_MMC_DEBUG),y)
 endif
 
 obj-$(CONFIG_MMC)		+= mmc_core.o
-mmc_core-y			:= core.o sysfs.o
+mmc_core-y			:= core.o sysfs.o mmc_ops.o sd_ops.o
 

@@ -2,24 +2,30 @@
  *  linux/drivers/mmc/core/core.h
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
+ *  Copyright 2007 Pierre Ossman
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef _MMC_CORE_H
-#define _MMC_CORE_H
-/* core-internal functions */
-void mmc_init_card(struct mmc_card *card, struct mmc_host *host);
-int mmc_register_card(struct mmc_card *card);
-void mmc_remove_card(struct mmc_card *card);
+#ifndef _MMC_CORE_CORE_H
+#define _MMC_CORE_CORE_H
 
-struct mmc_host *mmc_alloc_host_sysfs(int extra, struct device *dev);
-int mmc_add_host_sysfs(struct mmc_host *host);
-void mmc_remove_host_sysfs(struct mmc_host *host);
-void mmc_free_host_sysfs(struct mmc_host *host);
+#include <linux/delay.h>
 
-int mmc_schedule_work(struct work_struct *work);
-int mmc_schedule_delayed_work(struct delayed_work *work, unsigned long delay);
-void mmc_flush_scheduled_work(void);
+#define MMC_CMD_RETRIES        3
+
+void mmc_set_chip_select(struct mmc_host *host, int mode);
+
+static inline void mmc_delay(unsigned int ms)
+{
+	if (ms < 1000 / HZ) {
+		cond_resched();
+		mdelay(ms);
+	} else {
+		msleep(ms);
+	}
+}
+
 #endif
+

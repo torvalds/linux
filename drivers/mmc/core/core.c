@@ -23,9 +23,14 @@
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/protocol.h>
+#include <linux/mmc/mmc.h>
+#include <linux/mmc/sd.h>
 
 #include "core.h"
+#include "sysfs.h"
+
+#include "mmc_ops.h"
+#include "sd_ops.h"
 
 #define CMD_RETRIES	3
 
@@ -191,80 +196,6 @@ int mmc_wait_for_cmd(struct mmc_host *host, struct mmc_command *cmd, int retries
 EXPORT_SYMBOL(mmc_wait_for_cmd);
 
 /**
- *	mmc_wait_for_app_cmd - start an application command and wait for
- 			       completion
- *	@host: MMC host to start command
- *	@rca: RCA to send MMC_APP_CMD to
- *	@cmd: MMC command to start
- *	@retries: maximum number of retries
- *
- *	Sends a MMC_APP_CMD, checks the card response, sends the command
- *	in the parameter and waits for it to complete. Return any error
- *	that occurred while the command was executing.  Do not attempt to
- *	parse the response.
- */
-int mmc_wait_for_app_cmd(struct mmc_host *host, unsigned int rca,
-	struct mmc_command *cmd, int retries)
-{
-	struct mmc_request mrq;
-	struct mmc_command appcmd;
-
-	int i, err;
-
-	BUG_ON(!host->claimed);
-	BUG_ON(retries < 0);
-
-	err = MMC_ERR_INVALID;
-
-	/*
-	 * We have to resend MMC_APP_CMD for each attempt so
-	 * we cannot use the retries field in mmc_command.
-	 */
-	for (i = 0;i <= retries;i++) {
-		memset(&mrq, 0, sizeof(struct mmc_request));
-
-		appcmd.opcode = MMC_APP_CMD;
-		appcmd.arg = rca << 16;
-		appcmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-		appcmd.retries = 0;
-		memset(appcmd.resp, 0, sizeof(appcmd.resp));
-		appcmd.data = NULL;
-
-		mrq.cmd = &appcmd;
-		appcmd.data = NULL;
-
-		mmc_wait_for_req(host, &mrq);
-
-		if (appcmd.error) {
-			err = appcmd.error;
-			continue;
-		}
-
-		/* Check that card supported application commands */
-		if (!(appcmd.resp[0] & R1_APP_CMD))
-			return MMC_ERR_FAILED;
-
-		memset(&mrq, 0, sizeof(struct mmc_request));
-
-		memset(cmd->resp, 0, sizeof(cmd->resp));
-		cmd->retries = 0;
-
-		mrq.cmd = cmd;
-		cmd->data = NULL;
-
-		mmc_wait_for_req(host, &mrq);
-
-		err = cmd->error;
-		if (cmd->error == MMC_ERR_NONE)
-			break;
-	}
-
-	return err;
-}
-
-EXPORT_SYMBOL(mmc_wait_for_app_cmd);
-
-/**
  *	mmc_set_data_timeout - set the timeout for a data command
  *	@data: data phase for command
  *	@card: the MMC card associated with the data transfer
@@ -385,60 +316,10 @@ static inline void mmc_set_ios(struct mmc_host *host)
 	host->ops->set_ios(host, ios);
 }
 
-static int mmc_select_card(struct mmc_card *card)
+void mmc_set_chip_select(struct mmc_host *host, int mode)
 {
-	int err;
-	struct mmc_command cmd;
-
-	BUG_ON(!card->host->claimed);
-
-	cmd.opcode = MMC_SELECT_CARD;
-	cmd.arg = card->rca << 16;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-
-	err = mmc_wait_for_cmd(card->host, &cmd, CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
-		return err;
-
-	/*
-	 * We can only change the bus width of SD cards when
-	 * they are selected so we have to put the handling
-	 * here.
-	 *
-	 * The card is in 1 bit mode by default so
-	 * we only need to change if it supports the
-	 * wider version.
-	 */
-	if (mmc_card_sd(card) &&
-		(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4) &&
-		(card->host->caps & MMC_CAP_4_BIT_DATA)) {
-
-		struct mmc_command cmd;
-		cmd.opcode = SD_APP_SET_BUS_WIDTH;
-		cmd.arg = SD_BUS_WIDTH_4;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-
-		err = mmc_wait_for_app_cmd(card->host, card->rca,
-			&cmd, CMD_RETRIES);
-		if (err != MMC_ERR_NONE)
-			return err;
-
-		card->host->ios.bus_width = MMC_BUS_WIDTH_4;
-		mmc_set_ios(card->host);
-	}
-
-	return MMC_ERR_NONE;
-}
-
-
-static inline void mmc_delay(unsigned int ms)
-{
-	if (ms < 1000 / HZ) {
-		cond_resched();
-		mdelay(ms);
-	} else {
-		msleep(ms);
-	}
+	host->ios.chip_select = mode;
+	mmc_set_ios(host);
 }
 
 /*
@@ -709,32 +590,6 @@ mmc_alloc_card(struct mmc_host *host, u32 *raw_cid)
 }
 
 /*
- * Tell attached cards to go to IDLE state
- */
-static void mmc_idle_cards(struct mmc_host *host)
-{
-	struct mmc_command cmd;
-
-	host->ios.chip_select = MMC_CS_HIGH;
-	mmc_set_ios(host);
-
-	mmc_delay(1);
-
-	cmd.opcode = MMC_GO_IDLE_STATE;
-	cmd.arg = 0;
-	cmd.flags = MMC_RSP_NONE | MMC_CMD_BC;
-
-	mmc_wait_for_cmd(host, &cmd, 0);
-
-	mmc_delay(1);
-
-	host->ios.chip_select = MMC_CS_DONTCARE;
-	mmc_set_ios(host);
-
-	mmc_delay(1);
-}
-
-/*
  * Apply power to the MMC stack.  This is a two-stage process.
  * First, we enable power to the card without the clock running.
  * We then wait a bit for the power to stabilise.  Finally,
@@ -778,97 +633,6 @@ static void mmc_power_off(struct mmc_host *host)
 	mmc_set_ios(host);
 }
 
-static int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
-{
-	struct mmc_command cmd;
-	int i, err = 0;
-
-	cmd.opcode = MMC_SEND_OP_COND;
-	cmd.arg = ocr;
-	cmd.flags = MMC_RSP_R3 | MMC_CMD_BCR;
-
-	for (i = 100; i; i--) {
-		err = mmc_wait_for_cmd(host, &cmd, 0);
-		if (err != MMC_ERR_NONE)
-			break;
-
-		if (cmd.resp[0] & MMC_CARD_BUSY || ocr == 0)
-			break;
-
-		err = MMC_ERR_TIMEOUT;
-
-		mmc_delay(10);
-	}
-
-	if (rocr)
-		*rocr = cmd.resp[0];
-
-	return err;
-}
-
-static int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
-{
-	struct mmc_command cmd;
-	int i, err = 0;
-
-	cmd.opcode = SD_APP_OP_COND;
-	cmd.arg = ocr;
-	cmd.flags = MMC_RSP_R3 | MMC_CMD_BCR;
-
-	for (i = 100; i; i--) {
-		err = mmc_wait_for_app_cmd(host, 0, &cmd, CMD_RETRIES);
-		if (err != MMC_ERR_NONE)
-			break;
-
-		if (cmd.resp[0] & MMC_CARD_BUSY || ocr == 0)
-			break;
-
-		err = MMC_ERR_TIMEOUT;
-
-		mmc_delay(10);
-	}
-
-	if (rocr)
-		*rocr = cmd.resp[0];
-
-	return err;
-}
-
-static int mmc_send_if_cond(struct mmc_host *host, u32 ocr, int *rsd2)
-{
-	struct mmc_command cmd;
-	int err, sd2;
-	static const u8 test_pattern = 0xAA;
-
-	/*
-	* To support SD 2.0 cards, we must always invoke SD_SEND_IF_COND
-	* before SD_APP_OP_COND. This command will harmlessly fail for
-	* SD 1.0 cards.
-	*/
-	cmd.opcode = SD_SEND_IF_COND;
-	cmd.arg = ((ocr & 0xFF8000) != 0) << 8 | test_pattern;
-	cmd.flags = MMC_RSP_R7 | MMC_CMD_BCR;
-
-	err = mmc_wait_for_cmd(host, &cmd, 0);
-	if (err == MMC_ERR_NONE) {
-		if ((cmd.resp[0] & 0xFF) == test_pattern) {
-			sd2 = 1;
-		} else {
-			sd2 = 0;
-			err = MMC_ERR_FAILED;
-		}
-	} else {
-		/*
-		 * Treat errors as SD 1.0 card.
-		 */
-		sd2 = 0;
-		err = MMC_ERR_NONE;
-	}
-	if (rsd2)
-		*rsd2 = sd2;
-	return err;
-}
-
 /*
  * Discover the card by requesting its CID.
  *
@@ -878,27 +642,18 @@ static int mmc_send_if_cond(struct mmc_host *host, u32 ocr, int *rsd2)
 static void mmc_discover_card(struct mmc_host *host)
 {
 	unsigned int err;
-
-	struct mmc_command cmd;
+	u32 cid[4];
 
 	BUG_ON(host->card);
 
-	cmd.opcode = MMC_ALL_SEND_CID;
-	cmd.arg = 0;
-	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
-
-	err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
-	if (err == MMC_ERR_TIMEOUT) {
-		err = MMC_ERR_NONE;
-		return;
-	}
+	err = mmc_all_send_cid(host, cid);
 	if (err != MMC_ERR_NONE) {
 		printk(KERN_ERR "%s: error requesting CID: %d\n",
 			mmc_hostname(host), err);
 		return;
 	}
 
-	host->card = mmc_alloc_card(host, cmd.resp);
+	host->card = mmc_alloc_card(host, cid);
 	if (IS_ERR(host->card)) {
 		err = PTR_ERR(host->card);
 		host->card = NULL;
@@ -908,16 +663,10 @@ static void mmc_discover_card(struct mmc_host *host)
 	if (host->mode == MMC_MODE_SD) {
 		host->card->type = MMC_TYPE_SD;
 
-		cmd.opcode = SD_SEND_RELATIVE_ADDR;
-		cmd.arg = 0;
-		cmd.flags = MMC_RSP_R6 | MMC_CMD_BCR;
-
-		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+		err = mmc_send_relative_addr(host, &host->card->rca);
 		if (err != MMC_ERR_NONE)
 			mmc_card_set_dead(host->card);
 		else {
-			host->card->rca = cmd.resp[0] >> 16;
-
 			if (!host->ops->get_ro) {
 				printk(KERN_WARNING "%s: host does not "
 					"support reading read-only "
@@ -932,11 +681,7 @@ static void mmc_discover_card(struct mmc_host *host)
 		host->card->type = MMC_TYPE_MMC;
 		host->card->rca = 1;
 
-		cmd.opcode = MMC_SET_RELATIVE_ADDR;
-		cmd.arg = host->card->rca << 16;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-
-		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+		err = mmc_set_relative_addr(host->card);
 		if (err != MMC_ERR_NONE)
 			mmc_card_set_dead(host->card);
 	}
@@ -944,7 +689,6 @@ static void mmc_discover_card(struct mmc_host *host)
 
 static void mmc_read_csd(struct mmc_host *host)
 {
-	struct mmc_command cmd;
 	int err;
 
 	if (!host->card)
@@ -952,17 +696,11 @@ static void mmc_read_csd(struct mmc_host *host)
 	if (mmc_card_dead(host->card))
 		return;
 
-	cmd.opcode = MMC_SEND_CSD;
-	cmd.arg = host->card->rca << 16;
-	cmd.flags = MMC_RSP_R2 | MMC_CMD_AC;
-
-	err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+	err = mmc_send_csd(host->card, host->card->raw_csd);
 	if (err != MMC_ERR_NONE) {
 		mmc_card_set_dead(host->card);
 		return;
 	}
-
-	memcpy(host->card->raw_csd, cmd.resp, sizeof(host->card->raw_csd));
 
 	mmc_decode_csd(host->card);
 	mmc_decode_cid(host->card);
@@ -971,13 +709,7 @@ static void mmc_read_csd(struct mmc_host *host)
 static void mmc_process_ext_csd(struct mmc_host *host)
 {
 	int err;
-
-	struct mmc_request mrq;
-	struct mmc_command cmd;
-	struct mmc_data data;
-
 	u8 *ext_csd;
-	struct scatterlist sg;
 
 	if (!host->card)
 		return;
@@ -1000,32 +732,8 @@ static void mmc_process_ext_csd(struct mmc_host *host)
 		return;
 	}
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
-
-	cmd.opcode = MMC_SEND_EXT_CSD;
-	cmd.arg = 0;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-
-	memset(&data, 0, sizeof(struct mmc_data));
-
-	mmc_set_data_timeout(&data, host->card, 0);
-
-	data.blksz = 512;
-	data.blocks = 1;
-	data.flags = MMC_DATA_READ;
-	data.sg = &sg;
-	data.sg_len = 1;
-
-	memset(&mrq, 0, sizeof(struct mmc_request));
-
-	mrq.cmd = &cmd;
-	mrq.data = &data;
-
-	sg_init_one(&sg, ext_csd, 512);
-
-	mmc_wait_for_req(host, &mrq);
-
-	if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
+	err = mmc_send_ext_csd(host->card, ext_csd);
+	if (err != MMC_ERR_NONE) {
 		if (host->card->csd.capacity == (4096 * 512)) {
 			printk(KERN_ERR "%s: unable to read EXT_CSD "
 				"on a possible high capacity card. "
@@ -1066,14 +774,8 @@ static void mmc_process_ext_csd(struct mmc_host *host)
 
 	if (host->caps & MMC_CAP_MMC_HIGHSPEED) {
 		/* Activate highspeed support. */
-		cmd.opcode = MMC_SWITCH;
-		cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
-			  (EXT_CSD_HS_TIMING << 16) |
-			  (1 << 8) |
-			  EXT_CSD_CMD_SET_NORMAL;
-		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
-
-		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+		err = mmc_switch(host->card, MMC_SWITCH_MODE_WRITE_BYTE,
+			EXT_CSD_HS_TIMING, 1);
 		if (err != MMC_ERR_NONE) {
 			printk("%s: failed to switch card to mmc v4 "
 			       "high-speed mode.\n",
@@ -1090,14 +792,9 @@ static void mmc_process_ext_csd(struct mmc_host *host)
 	/* Check for host support for wide-bus modes. */
 	if (host->caps & MMC_CAP_4_BIT_DATA) {
 		/* Activate 4-bit support. */
-		cmd.opcode = MMC_SWITCH;
-		cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
-			  (EXT_CSD_BUS_WIDTH << 16) |
-			  (EXT_CSD_BUS_WIDTH_4 << 8) |
-			  EXT_CSD_CMD_SET_NORMAL;
-		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
-
-		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+		err = mmc_switch(host->card, MMC_SWITCH_MODE_WRITE_BYTE,
+			EXT_CSD_BUS_WIDTH, EXT_CSD_BUS_WIDTH_4 |
+			EXT_CSD_CMD_SET_NORMAL);
 		if (err != MMC_ERR_NONE) {
 			printk("%s: failed to switch card to "
 			       "mmc v4 4-bit bus mode.\n",
@@ -1116,10 +813,6 @@ out:
 static void mmc_read_scr(struct mmc_host *host)
 {
 	int err;
-	struct mmc_request mrq;
-	struct mmc_command cmd;
-	struct mmc_data data;
-	struct scatterlist sg;
 
 	if (!host->card)
 		return;
@@ -1128,61 +821,19 @@ static void mmc_read_scr(struct mmc_host *host)
 	if (!mmc_card_sd(host->card))
 		return;
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
-
-	cmd.opcode = MMC_APP_CMD;
-	cmd.arg = host->card->rca << 16;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-
-	err = mmc_wait_for_cmd(host, &cmd, 0);
-	if ((err != MMC_ERR_NONE) || !(cmd.resp[0] & R1_APP_CMD)) {
+	err = mmc_app_send_scr(host->card, host->card->raw_scr);
+	if (err != MMC_ERR_NONE) {
 		mmc_card_set_dead(host->card);
 		return;
 	}
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
-
-	cmd.opcode = SD_APP_SEND_SCR;
-	cmd.arg = 0;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-
-	memset(&data, 0, sizeof(struct mmc_data));
-
-	mmc_set_data_timeout(&data, host->card, 0);
-
-	data.blksz = 1 << 3;
-	data.blocks = 1;
-	data.flags = MMC_DATA_READ;
-	data.sg = &sg;
-	data.sg_len = 1;
-
-	memset(&mrq, 0, sizeof(struct mmc_request));
-
-	mrq.cmd = &cmd;
-	mrq.data = &data;
-
-	sg_init_one(&sg, (u8*)host->card->raw_scr, 8);
-
-	mmc_wait_for_req(host, &mrq);
-
-	if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
-		mmc_card_set_dead(host->card);
-		return;
-	}
-
-	host->card->raw_scr[0] = ntohl(host->card->raw_scr[0]);
-	host->card->raw_scr[1] = ntohl(host->card->raw_scr[1]);
 
 	mmc_decode_scr(host->card);
 }
 
 static void mmc_read_switch_caps(struct mmc_host *host)
 {
-	struct mmc_request mrq;
-	struct mmc_command cmd;
-	struct mmc_data data;
+	int err;
 	unsigned char *status;
-	struct scatterlist sg;
 
 	if (!(host->caps & MMC_CAP_SD_HIGHSPEED))
 		return;
@@ -1204,32 +855,9 @@ static void mmc_read_switch_caps(struct mmc_host *host)
 		return;
 	}
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
-
-	cmd.opcode = SD_SWITCH;
-	cmd.arg = 0x00FFFFF1;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-
-	memset(&data, 0, sizeof(struct mmc_data));
-
-	mmc_set_data_timeout(&data, host->card, 0);
-
-	data.blksz = 64;
-	data.blocks = 1;
-	data.flags = MMC_DATA_READ;
-	data.sg = &sg;
-	data.sg_len = 1;
-
-	memset(&mrq, 0, sizeof(struct mmc_request));
-
-	mrq.cmd = &cmd;
-	mrq.data = &data;
-
-	sg_init_one(&sg, status, 64);
-
-	mmc_wait_for_req(host, &mrq);
-
-	if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
+	err = mmc_sd_switch(host->card, SD_SWITCH_CHECK,
+		SD_SWITCH_GRP_ACCESS, SD_SWITCH_ACCESS_HS, status);
+	if (err != MMC_ERR_NONE) {
 		printk("%s: unable to read switch capabilities, "
 			"performance might suffer.\n",
 			mmc_hostname(host));
@@ -1239,33 +867,9 @@ static void mmc_read_switch_caps(struct mmc_host *host)
 	if (status[13] & 0x02)
 		host->card->sw_caps.hs_max_dtr = 50000000;
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
-
-	cmd.opcode = SD_SWITCH;
-	cmd.arg = 0x80FFFFF1;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-
-	memset(&data, 0, sizeof(struct mmc_data));
-
-	mmc_set_data_timeout(&data, host->card, 0);
-
-	data.blksz = 64;
-	data.blocks = 1;
-	data.flags = MMC_DATA_READ;
-	data.sg = &sg;
-	data.sg_len = 1;
-
-	memset(&mrq, 0, sizeof(struct mmc_request));
-
-	mrq.cmd = &cmd;
-	mrq.data = &data;
-
-	sg_init_one(&sg, status, 64);
-
-	mmc_wait_for_req(host, &mrq);
-
-	if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE ||
-		(status[16] & 0xF) != 1) {
+	err = mmc_sd_switch(host->card, SD_SWITCH_SET,
+		SD_SWITCH_GRP_ACCESS, SD_SWITCH_ACCESS_HS, status);
+	if (err != MMC_ERR_NONE || (status[16] & 0xF) != 1) {
 		printk(KERN_WARNING "%s: Problem switching card "
 			"into high-speed mode!\n",
 			mmc_hostname(host));
@@ -1314,16 +918,11 @@ static unsigned int mmc_calculate_clock(struct mmc_host *host)
  */
 static void mmc_check_card(struct mmc_card *card)
 {
-	struct mmc_command cmd;
 	int err;
 
 	BUG_ON(!card);
 
-	cmd.opcode = MMC_SEND_STATUS;
-	cmd.arg = card->rca << 16;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-
-	err = mmc_wait_for_cmd(card->host, &cmd, CMD_RETRIES);
+	err = mmc_send_status(card, NULL);
 	if (err == MMC_ERR_NONE)
 		return;
 
@@ -1338,9 +937,9 @@ static void mmc_setup(struct mmc_host *host)
 	host->mode = MMC_MODE_SD;
 
 	mmc_power_up(host);
-	mmc_idle_cards(host);
+	mmc_go_idle(host);
 
-	err = mmc_send_if_cond(host, host->ocr_avail, NULL);
+	err = mmc_send_if_cond(host, host->ocr_avail);
 	if (err != MMC_ERR_NONE) {
 		return;
 	}
@@ -1369,7 +968,7 @@ static void mmc_setup(struct mmc_host *host)
 	 * state.  We wait 1ms to give cards time to
 	 * respond.
 	 */
-	mmc_idle_cards(host);
+	mmc_go_idle(host);
 
 	/*
 	 * Send the selected OCR multiple times... until the cards
@@ -1377,17 +976,17 @@ static void mmc_setup(struct mmc_host *host)
 	 * (My SanDisk card seems to need this.)
 	 */
 	if (host->mode == MMC_MODE_SD) {
-		int err, sd2;
-		err = mmc_send_if_cond(host, host->ocr, &sd2);
-		if (err == MMC_ERR_NONE) {
-			/*
-			* If SD_SEND_IF_COND indicates an SD 2.0
-			* compliant card and we should set bit 30
-			* of the ocr to indicate that we can handle
-			* block-addressed SDHC cards.
-			*/
-			mmc_send_app_op_cond(host, host->ocr | (sd2 << 30), NULL);
-		}
+		/*
+		 * If SD_SEND_IF_COND indicates an SD 2.0
+		 * compliant card and we should set bit 30
+		 * of the ocr to indicate that we can handle
+		 * block-addressed SDHC cards.
+		 */
+		err = mmc_send_if_cond(host, host->ocr);
+		if (err == MMC_ERR_NONE)
+			ocr = host->ocr | (1 << 30);
+
+		mmc_send_app_op_cond(host, ocr, NULL);
 	} else {
 		/* The extra bit indicates that we support high capacity */
 		mmc_send_op_cond(host, host->ocr | (1 << 30), NULL);
@@ -1407,6 +1006,24 @@ static void mmc_setup(struct mmc_host *host)
 		err = mmc_select_card(host->card);
 		if (err != MMC_ERR_NONE)
 			mmc_card_set_dead(host->card);
+	}
+
+	/*
+	 * The card is in 1 bit mode by default so
+	 * we only need to change if it supports the
+	 * wider version.
+	 */
+	if (host->card && !mmc_card_dead(host->card) && 
+		mmc_card_sd(host->card) &&
+		(host->card->scr.bus_widths & SD_SCR_BUS_WIDTH_4) &&
+		(host->card->host->caps & MMC_CAP_4_BIT_DATA)) {
+		err = mmc_app_set_bus_width(host->card, SD_BUS_WIDTH_4);
+		if (err != MMC_ERR_NONE)
+			mmc_card_set_dead(host->card);
+		else {
+			host->ios.bus_width = MMC_BUS_WIDTH_4;
+			mmc_set_ios(host);
+		}
 	}
 
 	if (host->mode == MMC_MODE_SD) {
