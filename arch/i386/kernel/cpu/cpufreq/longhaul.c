@@ -52,6 +52,10 @@
 #define	CPU_EZRA_T	4
 #define	CPU_NEHEMIAH	5
 
+/* Flags */
+#define USE_ACPI_C3		(1 << 1)
+#define USE_NORTHBRIDGE		(1 << 2)
+
 static int cpu_model;
 static unsigned int numscales=16;
 static unsigned int fsb;
@@ -68,7 +72,7 @@ static unsigned int minmult, maxmult;
 static int can_scale_voltage;
 static struct acpi_processor *pr = NULL;
 static struct acpi_processor_cx *cx = NULL;
-static int port22_en;
+static u8 longhaul_flags;
 
 /* Module parameters */
 static int scale_voltage;
@@ -80,7 +84,6 @@ static int ignore_latency;
 /* Clock ratios multiplied by 10 */
 static int clock_ratio[32];
 static int eblcr_table[32];
-static unsigned int highest_speed, lowest_speed; /* kHz */
 static int longhaul_version;
 static struct cpufreq_frequency_table *longhaul_table;
 
@@ -178,7 +181,7 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
 	safe_halt();
 	/* Change frequency on next halt or sleep */
 	wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
-	if (port22_en) {
+	if (!cx_address) {
 		ACPI_FLUSH_CPU_CACHE();
 		/* Invoke C1 */
 		halt();
@@ -189,7 +192,6 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
 		/* Dummy op - must do something useless after P_LVL3 read */
 		t = inl(acpi_fadt.xpm_tmr_blk.address);
 	}
-
 	/* Disable bus ratio bit */
 	local_irq_disable();
 	longhaul.bits.RevisionKey = longhaul.bits.RevisionID;
@@ -243,15 +245,14 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	outb(0xFF,0xA1);	/* Overkill */
 	outb(0xFE,0x21);	/* TMR0 only */
 
-	if (pr->flags.bm_control) {
+	if (longhaul_flags & USE_NORTHBRIDGE) {
+		/* Disable AGP and PCI arbiters */
+		outb(3, 0x22);
+	} else if ((pr != NULL) && pr->flags.bm_control) {
  		/* Disable bus master arbitration */
 		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1,
 				  ACPI_MTX_DO_NOT_LOCK);
-	} else if (port22_en) {
-		/* Disable AGP and PCI arbiters */
-		outb(3, 0x22);
 	}
-
 	switch (longhaul_version) {
 
 	/*
@@ -278,22 +279,25 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	 * to work in practice.
 	 */
 	case TYPE_POWERSAVER:
-		/* Don't allow wakeup */
-		acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0,
-				  ACPI_MTX_DO_NOT_LOCK);
-		do_powersaver(cx->address, clock_ratio_index);
+		if (longhaul_flags & USE_ACPI_C3) {
+			/* Don't allow wakeup */
+			acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0,
+					  ACPI_MTX_DO_NOT_LOCK);
+			do_powersaver(cx->address, clock_ratio_index);
+		} else {
+			do_powersaver(0, clock_ratio_index);
+		}
 		break;
 	}
 
-	if (pr->flags.bm_control) {
+	if (longhaul_flags & USE_NORTHBRIDGE) {
+		/* Enable arbiters */
+		outb(0, 0x22);
+	} else if ((pr != NULL) && pr->flags.bm_control) {
 		/* Enable bus master arbitration */
 		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0,
 				  ACPI_MTX_DO_NOT_LOCK);
-	} else if (port22_en) {
-		/* Enable arbiters */
-		outb(0, 0x22);
 	}
-
 	outb(pic2_mask,0xA1);	/* restore mask */
 	outb(pic1_mask,0x21);
 
@@ -691,27 +695,32 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	/* Find ACPI data for processor */
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
 			    &longhaul_walk_callback, NULL, (void *)&pr);
-	if (pr == NULL)
-		goto err_acpi;
 
-	if (longhaul_version == TYPE_POWERSAVER) {
-		/* Check ACPI support for C3 state */
+	/* Check ACPI support for C3 state */
+	if ((pr != NULL) && (longhaul_version == TYPE_POWERSAVER)) {
 		cx = &pr->power.states[ACPI_STATE_C3];
 		if (cx->address > 0 &&
 		   (cx->latency <= 1000 || ignore_latency != 0) ) {
+			longhaul_flags |= USE_ACPI_C3;
 			goto print_support_type;
 		}
 	}
-	/* Check ACPI support for bus master arbiter disable */
-	if (!pr->flags.bm_control) {
-		if (enable_arbiter_disable()) {
-			port22_en = 1;
-		} else {
-			goto err_acpi;
-		}
+	/* Check if northbridge is friendly */
+	if (enable_arbiter_disable()) {
+		longhaul_flags |= USE_NORTHBRIDGE;
+		goto print_support_type;
 	}
+
+	/* No ACPI C3 or we can't use it */
+	/* Check ACPI support for bus master arbiter disable */
+	if ((pr == NULL) || !(pr->flags.bm_control)) {
+		printk(KERN_ERR PFX
+			"No ACPI support. Unsupported northbridge.\n");
+		return -ENODEV;
+	}
+
 print_support_type:
-	if (!port22_en) {
+	if (!(longhaul_flags & USE_NORTHBRIDGE)) {
 		printk (KERN_INFO PFX "Using ACPI support.\n");
 	} else {
 		printk (KERN_INFO PFX "Using northbridge support.\n");
@@ -736,10 +745,6 @@ print_support_type:
 	cpufreq_frequency_table_get_attr(longhaul_table, policy->cpu);
 
 	return 0;
-
-err_acpi:
-	printk(KERN_ERR PFX "No ACPI support. Unsupported northbridge. Aborting.\n");
-	return -ENODEV;
 }
 
 static int __devexit longhaul_cpu_exit(struct cpufreq_policy *policy)
