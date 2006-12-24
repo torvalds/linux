@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 20
-EXTRAVERSION =-rc1
-NAME=Avast! A bilge rat!
+EXTRAVERSION =-rc2
+NAME = Homicidal Dwarf Hamster
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
