@@ -557,6 +557,18 @@ static inline int usb_endpoint_xfer_bulk(const struct usb_endpoint_descriptor *e
 }
 
 /**
+ * usb_endpoint_xfer_control - check if the endpoint has control transfer type
+ * @epd: endpoint to be checked
+ *
+ * Returns true if the endpoint is of type control, otherwise it returns false.
+ */
+static inline int usb_endpoint_xfer_control(const struct usb_endpoint_descriptor *epd)
+{
+	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+		USB_ENDPOINT_XFER_CONTROL);
+}
+
+/**
  * usb_endpoint_xfer_int - check if the endpoint has interrupt transfer type
  * @epd: endpoint to be checked
  *
