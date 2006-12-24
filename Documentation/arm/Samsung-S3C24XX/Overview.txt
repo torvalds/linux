@@ -76,6 +76,15 @@ Machines
     A S3C2410 based PDA from Acer.  There is a Wiki page at
     http://handhelds.org/moin/moin.cgi/AcerN30Documentation .
 
+  AML M5900
+
+    American Microsystems' M5900
+
+  Nex Vision Nexcoder
+  Nex Vision Otom
+
+    Two machines by Nex Vision
+
 
 Adding New Machines
 -------------------
@@ -115,6 +124,10 @@ RTC
 
   Support for the onboard RTC unit, including alarm function.
 
+  This has recently been upgraded to use the new RTC core,
+  and the module has been renamed to rtc-s3c to fit in with
+  the new rtc naming scheme.
+
 
 Watchdog
 --------
@@ -128,7 +141,7 @@ NAND
 
   The current kernels now have support for the s3c2410 NAND
   controller. If there are any problems the latest linux-mtd
-  CVS can be found from http://www.linux-mtd.infradead.org/
+  code can be found from http://www.linux-mtd.infradead.org/
 
 
 Serial
@@ -166,6 +179,21 @@ Suspend to RAM
   system can be placed into low power suspend.
 
   See Suspend.txt for more information.
+
+
+SPI
+---
+
+  SPI drivers are available for both the in-built hardware
+  (although there is no DMA support yet) and a generic
+  GPIO based solution.
+
+
+LEDs
+----
+
+  There is support for GPIO based LEDs via a platform driver
+  in the LED subsystem.
 
 
 Platform Data
