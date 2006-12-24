@@ -597,6 +597,10 @@ choose_new_parent(struct task_struct *p, struct task_struct *reaper)
 static void
 reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 {
+	if (p->pdeath_signal)
+		/* We already hold the tasklist_lock here.  */
+		group_send_sig_info(p->pdeath_signal, SEND_SIG_NOINFO, p);
+
 	/* Move the child from its dying parent to the new one.  */
 	if (unlikely(traced)) {
 		/* Preserve ptrace links if someone else is tracing this child.  */
@@ -631,10 +635,6 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 	/* We don't want people slaying init.  */
 	if (p->exit_signal != -1)
 		p->exit_signal = SIGCHLD;
-		
-	if (p->pdeath_signal)
-		/* We already hold the tasklist_lock here.  */
-		group_send_sig_info(p->pdeath_signal, SEND_SIG_NOINFO, p);
 
 	/* If we'd notified the old parent about this child's death,
 	 * also notify the new parent.
