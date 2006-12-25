@@ -31,7 +31,7 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 			saved_asid = get_asid();
 			set_asid(asid);
 		}
-		flush_tlb_one(asid, page);
+		local_flush_tlb_one(asid, page);
 		if (saved_asid != MMU_NO_ASID)
 			set_asid(saved_asid);
 		local_irq_restore(flags);
@@ -67,7 +67,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 				set_asid(asid);
 			}
 			while (start < end) {
-				flush_tlb_one(asid, start);
+				local_flush_tlb_one(asid, start);
 				start += PAGE_SIZE;
 			}
 			if (saved_asid != MMU_NO_ASID)
@@ -97,7 +97,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 		end &= PAGE_MASK;
 		set_asid(asid);
 		while (start < end) {
-			flush_tlb_one(asid, start);
+			local_flush_tlb_one(asid, start);
 			start += PAGE_SIZE;
 		}
 		set_asid(saved_asid);
