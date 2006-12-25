@@ -12,12 +12,22 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#define PFC_PHCR	0xa400010e
+#define PFC_PHCR	0xa400010eUL
+#define INTC_ICR1	0xffd00000UL
+#define INTC_IPRC	0xa4000016UL
+
+static struct ipr_data shmin_ipr_map[] = {
+	{ .irq=32, .addr=INTC_IPRC, .shift= 0, .priority=0 }, 
+	{ .irq=33, .addr=INTC_IPRC, .shift= 4, .priority=0 }, 
+	{ .irq=34, .addr=INTC_IPRC, .shift= 8, .priority=8 }, 
+	{ .irq=35, .addr=INTC_IPRC, .shift=12, .priority=0 }, 
+};
 
 static void __init init_shmin_irq(void)
 {
 	ctrl_outw(0x2a00, PFC_PHCR);	// IRQ0-3=IRQ
 	ctrl_outw(0x0aaa, INTC_ICR1);	// IRQ0-3=IRQ-mode,Low-active.
+	make_ipr_irq(shmin_ipr_map, ARRAY_SIZE(shmin_ipr_map));
 }
 
 static void __iomem *shmin_ioport_map(unsigned long port, unsigned int size)

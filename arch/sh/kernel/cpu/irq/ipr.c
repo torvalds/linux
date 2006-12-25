@@ -43,16 +43,29 @@ static struct irq_chip ipr_irq_chip = {
 	.mask_ack	= disable_ipr_irq,
 };
 
+unsigned int map_ipridx_to_addr(int idx) __attribute__ ((weak));
+unsigned int map_ipridx_to_addr(int idx)
+{
+	return 0;
+}
+
 void make_ipr_irq(struct ipr_data *table, unsigned int nr_irqs)
 {
 	int i;
 
 	for (i = 0; i < nr_irqs; i++) {
 		unsigned int irq = table[i].irq;
-		table[i].addr = map_ipridx_to_addr(table[i].ipr_idx);
+
+		if (!irq)
+			irq = table[i].irq = i;
+
 		/* could the IPR index be mapped, if not we ignore this */
-		if (table[i].addr == 0)
-			continue;
+		if (!table[i].addr) {
+			table[i].addr = map_ipridx_to_addr(table[i].ipr_idx);
+			if (!table[i].addr)
+				continue;
+		}
+
 		disable_irq_nosync(irq);
 		set_irq_chip_and_handler_name(irq, &ipr_irq_chip,
 				      handle_level_irq, "level");
