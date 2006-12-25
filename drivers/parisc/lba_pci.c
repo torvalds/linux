@@ -168,7 +168,8 @@ lba_dump_res(struct resource *r, int d)
 
 	printk(KERN_DEBUG "(%p)", r->parent);
 	for (i = d; i ; --i) printk(" ");
-	printk(KERN_DEBUG "%p [%lx,%lx]/%lx\n", r, r->start, r->end, r->flags);
+	printk(KERN_DEBUG "%p [%lx,%lx]/%lx\n", r,
+		(long)r->start, (long)r->end, r->flags);
 	lba_dump_res(r->child, d+2);
 	lba_dump_res(r->sibling, d);
 }
@@ -647,7 +648,7 @@ truncate_pat_collision(struct resource *root, struct resource *new)
 	printk(KERN_WARNING "LBA: Truncating lmmio_space [%lx/%lx] "
 					"to [%lx,%lx]\n",
 			start, end,
-			new->start, new->end );
+			(long)new->start, (long)new->end );
 
 	return 0;	/* truncation successful */
 }
@@ -715,8 +716,8 @@ lba_fixup_bus(struct pci_bus *bus)
 
 				printk("FAILED: lba_fixup_bus() request for "
 						"elmmio_space [%lx/%lx]\n",
-						ldev->hba.elmmio_space.start,
-						ldev->hba.elmmio_space.end);
+						(long)ldev->hba.elmmio_space.start,
+						(long)ldev->hba.elmmio_space.end);
 
 				/* lba_dump_res(&iomem_resource, 2); */
 				/* BUG(); */
@@ -738,15 +739,15 @@ lba_fixup_bus(struct pci_bus *bus)
 				       	&(ldev->hba.lmmio_space))) {
 
 			printk(KERN_WARNING "LBA: lmmio_space [%lx/%lx] duplicate!\n",
-					ldev->hba.lmmio_space.start,
-					ldev->hba.lmmio_space.end);
+					(long)ldev->hba.lmmio_space.start,
+					(long)ldev->hba.lmmio_space.end);
 		} else {
 			err = request_resource(&iomem_resource, &(ldev->hba.lmmio_space));
 			if (err < 0) {
 				printk(KERN_ERR "FAILED: lba_fixup_bus() request for "
 					"lmmio_space [%lx/%lx]\n",
-					ldev->hba.lmmio_space.start,
-					ldev->hba.lmmio_space.end);
+					(long)ldev->hba.lmmio_space.start,
+					(long)ldev->hba.lmmio_space.end);
 			} else
 				bus->resource[i++] = &(ldev->hba.lmmio_space);
 		}
@@ -758,8 +759,8 @@ lba_fixup_bus(struct pci_bus *bus)
 			if (err < 0) {
 				printk("FAILED: lba_fixup_bus() request for "
 					"gmmio_space [%lx/%lx]\n",
-					ldev->hba.gmmio_space.start,
-					ldev->hba.gmmio_space.end);
+					(long)ldev->hba.gmmio_space.start,
+					(long)ldev->hba.gmmio_space.end);
 				lba_dump_res(&iomem_resource, 2);
 				BUG();
 			}
@@ -1063,16 +1064,16 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 			/* used to fix up pre-initialized MEM BARs */
 			if (!lba_dev->hba.lmmio_space.start) {
 				sprintf(lba_dev->hba.lmmio_name,
-						"PCI%02lx LMMIO",
-						lba_dev->hba.bus_num.start);
+						"PCI%02x LMMIO",
+						(int)lba_dev->hba.bus_num.start);
 				lba_dev->hba.lmmio_space_offset = p->start -
 					io->start;
 				r = &lba_dev->hba.lmmio_space;
 				r->name = lba_dev->hba.lmmio_name;
 			} else if (!lba_dev->hba.elmmio_space.start) {
 				sprintf(lba_dev->hba.elmmio_name,
-						"PCI%02lx ELMMIO",
-						lba_dev->hba.bus_num.start);
+						"PCI%02x ELMMIO",
+						(int)lba_dev->hba.bus_num.start);
 				r = &lba_dev->hba.elmmio_space;
 				r->name = lba_dev->hba.elmmio_name;
 			} else {
@@ -1089,8 +1090,8 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 
 		case PAT_GMMIO:
 			/* MMIO space > 4GB phys addr; for 64-bit BAR */
-			sprintf(lba_dev->hba.gmmio_name, "PCI%02lx GMMIO",
-					lba_dev->hba.bus_num.start);
+			sprintf(lba_dev->hba.gmmio_name, "PCI%02x GMMIO",
+					(int)lba_dev->hba.bus_num.start);
 			r = &lba_dev->hba.gmmio_space;
 			r->name  = lba_dev->hba.gmmio_name;
 			r->start  = p->start;
@@ -1112,8 +1113,8 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 			*/
 			lba_dev->iop_base = ioremap_nocache(p->start, 64 * 1024 * 1024);
 
-			sprintf(lba_dev->hba.io_name, "PCI%02lx Ports",
-					lba_dev->hba.bus_num.start);
+			sprintf(lba_dev->hba.io_name, "PCI%02x Ports",
+					(int)lba_dev->hba.bus_num.start);
 			r = &lba_dev->hba.io_space;
 			r->name  = lba_dev->hba.io_name;
 			r->start  = HBA_PORT_BASE(lba_dev->hba.hba_num);
@@ -1166,8 +1167,8 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 	** Legacy boxes but it's nice to see in /proc/iomem.
 	*/
 	r = &(lba_dev->hba.lmmio_space);
-	sprintf(lba_dev->hba.lmmio_name, "PCI%02lx LMMIO",
-					lba_dev->hba.bus_num.start);
+	sprintf(lba_dev->hba.lmmio_name, "PCI%02x LMMIO",
+					(int)lba_dev->hba.bus_num.start);
 	r->name  = lba_dev->hba.lmmio_name;
 
 #if 1
@@ -1275,8 +1276,8 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 	** an existing (but unused portion of) distributed range.
 	*/
 	r = &(lba_dev->hba.elmmio_space);
-	sprintf(lba_dev->hba.elmmio_name, "PCI%02lx ELMMIO",
-					lba_dev->hba.bus_num.start);
+	sprintf(lba_dev->hba.elmmio_name, "PCI%02x ELMMIO",
+					(int)lba_dev->hba.bus_num.start);
 	r->name  = lba_dev->hba.elmmio_name;
 
 #if 1
@@ -1297,8 +1298,8 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 #endif
 
 	r = &(lba_dev->hba.io_space);
-	sprintf(lba_dev->hba.io_name, "PCI%02lx Ports",
-					lba_dev->hba.bus_num.start);
+	sprintf(lba_dev->hba.io_name, "PCI%02x Ports",
+					(int)lba_dev->hba.bus_num.start);
 	r->name  = lba_dev->hba.io_name;
 	r->flags = IORESOURCE_IO;
 	r->start = READ_REG32(lba_dev->hba.base_addr + LBA_IOS_BASE) & ~1L;
@@ -1447,7 +1448,7 @@ lba_driver_probe(struct parisc_device *dev)
 		}
 
 		printk(KERN_INFO "Elroy version %s (0x%x) found at 0x%lx\n",
-		       version, func_class & 0xf, dev->hpa.start);
+		       version, func_class & 0xf, (long)dev->hpa.start);
 
 		if (func_class < 2) {
 			printk(KERN_WARNING "Can't support LBA older than "
@@ -1477,11 +1478,12 @@ lba_driver_probe(struct parisc_device *dev)
                  */ 
 		printk(KERN_INFO "%s version TR%d.%d (0x%x) found at 0x%lx\n",
 		       IS_MERCURY(dev) ? "Mercury" : "Quicksilver", major,
-		       minor, func_class, dev->hpa.start);
+		       minor, func_class, (long)dev->hpa.start);
 
 		cfg_ops = &mercury_cfg_ops;
 	} else {
-		printk(KERN_ERR "Unknown LBA found at 0x%lx\n", dev->hpa.start);
+		printk(KERN_ERR "Unknown LBA found at 0x%lx\n",
+			(long)dev->hpa.start);
 		return -ENODEV;
 	}
 
