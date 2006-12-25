@@ -105,7 +105,6 @@ EXPORT_SYMBOL(__flush_purge_region);
 EXPORT_SYMBOL(clear_user_page);
 #endif
 
-EXPORT_SYMBOL(flush_tlb_page);
 EXPORT_SYMBOL(__down_trylock);
 
 #ifdef CONFIG_SMP

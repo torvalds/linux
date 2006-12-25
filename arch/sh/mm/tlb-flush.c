@@ -14,7 +14,7 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
+void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
 	unsigned int cpu = smp_processor_id();
 
@@ -31,15 +31,15 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 			saved_asid = get_asid();
 			set_asid(asid);
 		}
-		__flush_tlb_page(asid, page);
+		flush_tlb_one(asid, page);
 		if (saved_asid != MMU_NO_ASID)
 			set_asid(saved_asid);
 		local_irq_restore(flags);
 	}
 }
 
-void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
-		     unsigned long end)
+void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			   unsigned long end)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned int cpu = smp_processor_id();
@@ -67,7 +67,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 				set_asid(asid);
 			}
 			while (start < end) {
-				__flush_tlb_page(asid, start);
+				flush_tlb_one(asid, start);
 				start += PAGE_SIZE;
 			}
 			if (saved_asid != MMU_NO_ASID)
@@ -77,7 +77,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	}
 }
 
-void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned long flags;
@@ -86,7 +86,7 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 	local_irq_save(flags);
 	size = (end - start + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 	if (size > (MMU_NTLB_ENTRIES/4)) { /* Too many TLB to flush */
-		flush_tlb_all();
+		local_flush_tlb_all();
 	} else {
 		unsigned long asid;
 		unsigned long saved_asid = get_asid();
@@ -97,7 +97,7 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 		end &= PAGE_MASK;
 		set_asid(asid);
 		while (start < end) {
-			__flush_tlb_page(asid, start);
+			flush_tlb_one(asid, start);
 			start += PAGE_SIZE;
 		}
 		set_asid(saved_asid);
@@ -105,7 +105,7 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 	local_irq_restore(flags);
 }
 
-void flush_tlb_mm(struct mm_struct *mm)
+void local_flush_tlb_mm(struct mm_struct *mm)
 {
 	unsigned int cpu = smp_processor_id();
 
@@ -122,7 +122,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 	}
 }
 
-void flush_tlb_all(void)
+void local_flush_tlb_all(void)
 {
 	unsigned long flags, status;
 

@@ -39,7 +39,7 @@ void clear_user_page(void *to, unsigned long address, struct page *page)
 		mutex_lock(&p3map_mutex[(address & CACHE_ALIAS)>>12]);
 		set_pte(pte, entry);
 		local_irq_save(flags);
-		__flush_tlb_page(get_asid(), p3_addr);
+		flush_tlb_one(get_asid(), p3_addr);
 		local_irq_restore(flags);
 		update_mmu_cache(NULL, p3_addr, entry);
 		__clear_user_page((void *)p3_addr, to);
@@ -74,7 +74,7 @@ void copy_user_page(void *to, void *from, unsigned long address,
 		mutex_lock(&p3map_mutex[(address & CACHE_ALIAS)>>12]);
 		set_pte(pte, entry);
 		local_irq_save(flags);
-		__flush_tlb_page(get_asid(), p3_addr);
+		flush_tlb_one(get_asid(), p3_addr);
 		local_irq_restore(flags);
 		update_mmu_cache(NULL, p3_addr, entry);
 		__copy_user_page((void *)p3_addr, from, to);

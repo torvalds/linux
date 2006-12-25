@@ -106,7 +106,7 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 
 	set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, prot));
 
-	__flush_tlb_page(get_asid(), addr);
+	flush_tlb_one(get_asid(), addr);
 }
 
 /*

@@ -12,7 +12,7 @@
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 
-void __flush_tlb_page(unsigned long asid, unsigned long page)
+void local_flush_tlb_one(unsigned long asid, unsigned long page)
 {
 	unsigned long addr, data;
 	int i, ways = MMU_NTLB_WAYS;
