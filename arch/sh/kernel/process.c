@@ -1,42 +1,30 @@
-/* $Id: process.c,v 1.28 2004/05/05 16:54:23 lethal Exp $
+/*
+ * arch/sh/kernel/process.c
  *
- *  linux/arch/sh/kernel/process.c
+ * This file handles the architecture-dependent parts of process handling..
  *
  *  Copyright (C) 1995  Linus Torvalds
  *
  *  SuperH version:  Copyright (C) 1999, 2000  Niibe Yutaka & Kaz Kojima
  *		     Copyright (C) 2006 Lineo Solutions Inc. support SH4A UBC
+ *		     Copyright (C) 2002 - 2006  Paul Mundt
  */
-
-/*
- * This file handles the architecture-dependent parts of process handling..
- */
-
 #include <linux/module.h>
-#include <linux/unistd.h>
 #include <linux/mm.h>
 #include <linux/elfcore.h>
-#include <linux/a.out.h>
-#include <linux/slab.h>
 #include <linux/pm.h>
-#include <linux/ptrace.h>
 #include <linux/kallsyms.h>
 #include <linux/kexec.h>
-
-#include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
-#include <asm/elf.h>
 #include <asm/ubc.h>
 
-static int hlt_counter=0;
-
+static int hlt_counter;
 int ubc_usercnt = 0;
 
 #define HARD_IDLE_TIMEOUT (HZ / 3)
 
 void (*pm_idle)(void);
-
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
@@ -44,14 +32,12 @@ void disable_hlt(void)
 {
 	hlt_counter++;
 }
-
 EXPORT_SYMBOL(disable_hlt);
 
 void enable_hlt(void)
 {
 	hlt_counter--;
 }
-
 EXPORT_SYMBOL(enable_hlt);
 
 void default_idle(void)
@@ -152,19 +138,21 @@ __asm__(".align 5\n"
 	".align 2\n\t"
 	"1:.long do_exit");
 
+/* Don't use this in BL=1(cli).  Or else, CPU resets! */
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{	/* Don't use this in BL=1(cli).  Or else, CPU resets! */
+{
 	struct pt_regs regs;
 
 	memset(&regs, 0, sizeof(regs));
-	regs.regs[4] = (unsigned long) arg;
-	regs.regs[5] = (unsigned long) fn;
+	regs.regs[4] = (unsigned long)arg;
+	regs.regs[5] = (unsigned long)fn;
 
-	regs.pc = (unsigned long) kernel_thread_helper;
+	regs.pc = (unsigned long)kernel_thread_helper;
 	regs.sr = (1 << 30);
 
 	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
+	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
+		       &regs, 0, NULL, NULL);
 }
 
 /*
@@ -211,21 +199,20 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 	return fpvalid;
 }
 
-/* 
+/*
  * Capture the user space registers if the task is not running (in user space)
  */
 int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 {
 	struct pt_regs ptregs;
-	
+
 	ptregs = *task_pt_regs(tsk);
 	elf_core_copy_regs(regs, &ptregs);
 
 	return 1;
 }
 
-int
-dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *fpu)
+int dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpu)
 {
 	int fpvalid = 0;
 
@@ -263,12 +250,14 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		childregs->regs[15] = usp;
 		ti->addr_limit = USER_DS;
 	} else {
-		childregs->regs[15] = (unsigned long)task_stack_page(p) + THREAD_SIZE;
+		childregs->regs[15] = (unsigned long)task_stack_page(p) +
+							THREAD_SIZE;
 		ti->addr_limit = KERNEL_DS;
 	}
-        if (clone_flags & CLONE_SETTLS) {
+
+        if (clone_flags & CLONE_SETTLS)
 		childregs->gbr = childregs->regs[0];
-	}
+
 	childregs->regs[0] = 0; /* Set return value for child */
 
 	p->thread.sp = (unsigned long) childregs;
@@ -280,8 +269,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 }
 
 /* Tracing by user break controller.  */
-static void
-ubc_set_tracing(int asid, unsigned long pc)
+static void ubc_set_tracing(int asid, unsigned long pc)
 {
 #if defined(CONFIG_CPU_SH4A)
 	unsigned long val;
@@ -297,7 +285,7 @@ ubc_set_tracing(int asid, unsigned long pc)
 	val = (UBC_CRR_RES | UBC_CRR_PCB | UBC_CRR_BIE);
 	ctrl_outl(val, UBC_CRR0);
 
-	/* Read UBC register that we writed last. For chekking UBC Register changed */
+	/* Read UBC register that we wrote last, for checking update */
 	val = ctrl_inl(UBC_CRR0);
 
 #else	/* CONFIG_CPU_SH4A */
@@ -325,7 +313,8 @@ ubc_set_tracing(int asid, unsigned long pc)
  *	switch_to(x,y) should switch tasks from x to y.
  *
  */
-struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *next)
+struct task_struct *__switch_to(struct task_struct *prev,
+				struct task_struct *next)
 {
 #if defined(CONFIG_SH_FPU)
 	unlazy_fpu(prev, task_pt_regs(prev));
@@ -354,7 +343,7 @@ struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *ne
 #ifdef CONFIG_MMU
 	/*
 	 * Restore the kernel mode register
-	 *   	k7 (r7_bank1)
+	 *	k7 (r7_bank1)
 	 */
 	asm volatile("ldc	%0, r7_bank"
 		     : /* no output */
@@ -367,7 +356,7 @@ struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *ne
 	else if (next->thread.ubc_pc && next->mm) {
 		int asid = 0;
 #ifdef CONFIG_MMU
-		asid |= next->mm->context.id & MMU_CONTEXT_ASID_MASK;
+		asid |= cpu_asid(smp_processor_id(), next->mm);
 #endif
 		ubc_set_tracing(asid, next->thread.ubc_pc);
 	} else {
@@ -405,7 +394,8 @@ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
 	if (!newsp)
 		newsp = regs->regs[15];
 	return do_fork(clone_flags, newsp, regs, 0,
-			(int __user *)parent_tidptr, (int __user *)child_tidptr);
+			(int __user *)parent_tidptr,
+			(int __user *)child_tidptr);
 }
 
 /*

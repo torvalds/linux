@@ -16,12 +16,14 @@
 
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
-	if (vma->vm_mm && vma->vm_mm->context.id != NO_CONTEXT) {
+	unsigned int cpu = smp_processor_id();
+
+	if (vma->vm_mm && cpu_context(cpu, vma->vm_mm) != NO_CONTEXT) {
 		unsigned long flags;
 		unsigned long asid;
 		unsigned long saved_asid = MMU_NO_ASID;
 
-		asid = vma->vm_mm->context.id & MMU_CONTEXT_ASID_MASK;
+		asid = cpu_asid(cpu, vma->vm_mm);
 		page &= PAGE_MASK;
 
 		local_irq_save(flags);
@@ -40,22 +42,23 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		     unsigned long end)
 {
 	struct mm_struct *mm = vma->vm_mm;
+	unsigned int cpu = smp_processor_id();
 
-	if (mm->context.id != NO_CONTEXT) {
+	if (cpu_context(cpu, mm) != NO_CONTEXT) {
 		unsigned long flags;
 		int size;
 
 		local_irq_save(flags);
 		size = (end - start + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		if (size > (MMU_NTLB_ENTRIES/4)) { /* Too many TLB to flush */
-			mm->context.id = NO_CONTEXT;
+			cpu_context(cpu, mm) = NO_CONTEXT;
 			if (mm == current->mm)
-				activate_context(mm);
+				activate_context(mm, cpu);
 		} else {
 			unsigned long asid;
 			unsigned long saved_asid = MMU_NO_ASID;
 
-			asid = mm->context.id & MMU_CONTEXT_ASID_MASK;
+			asid = cpu_asid(cpu, mm);
 			start &= PAGE_MASK;
 			end += (PAGE_SIZE - 1);
 			end &= PAGE_MASK;
@@ -76,6 +79,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
+	unsigned int cpu = smp_processor_id();
 	unsigned long flags;
 	int size;
 
@@ -87,7 +91,7 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 		unsigned long asid;
 		unsigned long saved_asid = get_asid();
 
-		asid = init_mm.context.id & MMU_CONTEXT_ASID_MASK;
+		asid = cpu_asid(cpu, &init_mm);
 		start &= PAGE_MASK;
 		end += (PAGE_SIZE - 1);
 		end &= PAGE_MASK;
@@ -103,15 +107,17 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 
 void flush_tlb_mm(struct mm_struct *mm)
 {
+	unsigned int cpu = smp_processor_id();
+
 	/* Invalidate all TLB of this process. */
 	/* Instead of invalidating each TLB, we get new MMU context. */
-	if (mm->context.id != NO_CONTEXT) {
+	if (cpu_context(cpu, mm) != NO_CONTEXT) {
 		unsigned long flags;
 
 		local_irq_save(flags);
-		mm->context.id = NO_CONTEXT;
+		cpu_context(cpu, mm) = NO_CONTEXT;
 		if (mm == current->mm)
-			activate_context(mm);
+			activate_context(mm, cpu);
 		local_irq_restore(flags);
 	}
 }

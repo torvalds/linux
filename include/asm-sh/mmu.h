@@ -1,24 +1,18 @@
 #ifndef __MMU_H
 #define __MMU_H
 
-#if !defined(CONFIG_MMU)
+/* Default "unsigned long" context */
+typedef unsigned long mm_context_id_t[NR_CPUS];
 
 typedef struct {
+#ifdef CONFIG_MMU
+	mm_context_id_t		id;
+	void			*vdso;
+#else
 	struct vm_list_struct	*vmlist;
 	unsigned long		end_brk;
+#endif
 } mm_context_t;
-
-#else
-
-/* Default "unsigned long" context */
-typedef unsigned long mm_context_id_t;
-
-typedef struct {
-	mm_context_id_t id;
-	void *vdso;
-} mm_context_t;
-
-#endif /* CONFIG_MMU */
 
 /*
  * Privileged Space Mapping Buffer (PMB) definitions

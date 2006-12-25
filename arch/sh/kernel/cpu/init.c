@@ -3,7 +3,7 @@
  *
  * CPU init code
  *
- * Copyright (C) 2002, 2003  Paul Mundt
+ * Copyright (C) 2002 - 2006  Paul Mundt
  * Copyright (C) 2003  Richard Curnow
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -12,6 +12,8 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/mm.h>
+#include <asm/mmu_context.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -218,6 +220,12 @@ asmlinkage void __init sh_cpu_init(void)
 		clear_used_math();
 	}
 
+	/*
+	 * Initialize the per-CPU ASID cache very early, since the
+	 * TLB flushing routines depend on this being setup.
+	 */
+	current_cpu_data.asid_cache = NO_CONTEXT;
+
 #ifdef CONFIG_SH_DSP
 	/* Probe for DSP */
 	dsp_init();
@@ -240,4 +248,3 @@ asmlinkage void __init sh_cpu_init(void)
 	ubc_wakeup();
 #endif
 }
-

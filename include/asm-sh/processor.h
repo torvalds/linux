@@ -66,6 +66,7 @@ enum cpu_type {
 struct sh_cpuinfo {
 	unsigned int type;
 	unsigned long loops_per_jiffy;
+	unsigned long asid_cache;
 
 	struct cache_info icache;	/* Primary I-cache */
 	struct cache_info dcache;	/* Primary D-cache */
