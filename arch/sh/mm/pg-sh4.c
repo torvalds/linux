@@ -13,7 +13,7 @@
 
 extern struct mutex p3map_mutex[];
 
-#define CACHE_ALIAS (cpu_data->dcache.alias_mask)
+#define CACHE_ALIAS (current_cpu_data.dcache.alias_mask)
 
 /*
  * clear_user_page

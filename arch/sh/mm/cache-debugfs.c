@@ -46,10 +46,10 @@ static int cache_seq_show(struct seq_file *file, void *iter)
 
 	if (cache_type == CACHE_TYPE_DCACHE) {
 		base = CACHE_OC_ADDRESS_ARRAY;
-		cache = &cpu_data->dcache;
+		cache = &current_cpu_data.dcache;
 	} else {
 		base = CACHE_IC_ADDRESS_ARRAY;
-		cache = &cpu_data->icache;
+		cache = &current_cpu_data.icache;
 	}
 
 	/*

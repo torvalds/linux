@@ -259,7 +259,7 @@ static struct oprofile_operations sh7750_perf_counter_ops = {
 
 int __init oprofile_arch_init(struct oprofile_operations **ops)
 {
-	if (!(cpu_data->flags & CPU_HAS_PERF_COUNTER))
+	if (!(current_cpu_data.flags & CPU_HAS_PERF_COUNTER))
 		return -ENODEV;
 
 	sh7750_perf_counter_ops.cpu_type = (char *)get_cpu_subtype();
