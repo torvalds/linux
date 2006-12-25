@@ -148,7 +148,7 @@ static void __init r7780rp_setup(char **cmdline_p)
 #ifndef CONFIG_SH_R7780MP
 	ctrl_outw(0x0001, PA_SDPOW);	/* SD Power ON */
 #endif
-	ctrl_outw(ctrl_inw(PA_IVDRCTL) | 0x0100, PA_IVDRCTL);	/* Si13112 */
+	ctrl_outw(ctrl_inw(PA_IVDRCTL) | 0x01, PA_IVDRCTL);	/* Si13112 */
 
 	pm_power_off = r7780rp_power_off;
 }
