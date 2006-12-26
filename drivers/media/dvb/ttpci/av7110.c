@@ -695,8 +695,8 @@ static void gpioirq(unsigned long data)
 static int dvb_osd_ioctl(struct inode *inode, struct file *file,
 			 unsigned int cmd, void *parg)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct av7110 *av7110 = (struct av7110 *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct av7110 *av7110 = dvbdev->priv;
 
 	dprintk(4, "%p\n", av7110);
 
@@ -786,7 +786,7 @@ int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 static int StartHWFilter(struct dvb_demux_filter *dvbdmxfilter)
 {
 	struct dvb_demux_feed *dvbdmxfeed = dvbdmxfilter->feed;
-	struct av7110 *av7110 = (struct av7110 *) dvbdmxfeed->demux->priv;
+	struct av7110 *av7110 = dvbdmxfeed->demux->priv;
 	u16 buf[20];
 	int ret, i;
 	u16 handle;
@@ -835,7 +835,7 @@ static int StartHWFilter(struct dvb_demux_filter *dvbdmxfilter)
 
 static int StopHWFilter(struct dvb_demux_filter *dvbdmxfilter)
 {
-	struct av7110 *av7110 = (struct av7110 *) dvbdmxfilter->feed->demux->priv;
+	struct av7110 *av7110 = dvbdmxfilter->feed->demux->priv;
 	u16 buf[3];
 	u16 answ[2];
 	int ret;
@@ -871,7 +871,7 @@ static int StopHWFilter(struct dvb_demux_filter *dvbdmxfilter)
 static int dvb_feed_start_pid(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
-	struct av7110 *av7110 = (struct av7110 *) dvbdmx->priv;
+	struct av7110 *av7110 = dvbdmx->priv;
 	u16 *pid = dvbdmx->pids, npids[5];
 	int i;
 	int ret = 0;
@@ -914,7 +914,7 @@ static int dvb_feed_start_pid(struct dvb_demux_feed *dvbdmxfeed)
 static int dvb_feed_stop_pid(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
-	struct av7110 *av7110 = (struct av7110 *) dvbdmx->priv;
+	struct av7110 *av7110 = dvbdmx->priv;
 	u16 *pid = dvbdmx->pids, npids[5];
 	int i;
 
@@ -1103,9 +1103,9 @@ static int dvb_get_stc(struct dmx_demux *demux, unsigned int num,
 
 	/* pointer casting paranoia... */
 	BUG_ON(!demux);
-	dvbdemux = (struct dvb_demux *) demux->priv;
+	dvbdemux = demux->priv;
 	BUG_ON(!dvbdemux);
-	av7110 = (struct av7110 *) dvbdemux->priv;
+	av7110 = dvbdemux->priv;
 
 	dprintk(4, "%p\n", av7110);
 
@@ -1137,7 +1137,7 @@ static int dvb_get_stc(struct dmx_demux *demux, unsigned int num,
 
 static int av7110_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 {
-	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
+	struct av7110* av7110 = fe->dvb->priv;
 
 	switch (tone) {
 	case SEC_TONE_ON:
@@ -1197,7 +1197,7 @@ static int start_ts_capture(struct av7110 *budget)
 static int budget_start_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
-	struct av7110 *budget = (struct av7110 *) demux->priv;
+	struct av7110 *budget = demux->priv;
 	int status;
 
 	dprintk(2, "av7110: %p\n", budget);
@@ -1212,7 +1212,7 @@ static int budget_start_feed(struct dvb_demux_feed *feed)
 static int budget_stop_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
-	struct av7110 *budget = (struct av7110 *) demux->priv;
+	struct av7110 *budget = demux->priv;
 	int status;
 
 	dprintk(2, "budget: %p\n", budget);
@@ -1551,7 +1551,7 @@ static int get_firmware(struct av7110* av7110)
 
 static int alps_bsrv2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
-	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
+	struct av7110* av7110 = fe->dvb->priv;
 	u8 pwr = 0;
 	u8 buf[4];
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf) };
@@ -1702,7 +1702,7 @@ static int alps_tdlb7_tuner_set_params(struct dvb_frontend* fe, struct dvb_front
 static int alps_tdlb7_request_firmware(struct dvb_frontend* fe, const struct firmware **fw, char* name)
 {
 #if defined(CONFIG_DVB_SP8870) || defined(CONFIG_DVB_SP8870_MODULE)
-	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
+	struct av7110* av7110 = fe->dvb->priv;
 
 	return request_firmware(fw, name, &av7110->dev->pci->dev);
 #else
@@ -1867,7 +1867,7 @@ static struct stv0297_config nexusca_stv0297_config = {
 
 static int grundig_29504_401_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
-	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
+	struct av7110* av7110 = fe->dvb->priv;
 	u32 div;
 	u8 cfg, cpump, band_select;
 	u8 data[4];
