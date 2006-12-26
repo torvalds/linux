@@ -47,13 +47,13 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 /* Entries per level */
-#define PTRS_PER_PTE	(PAGE_SIZE / 4)
+#define PTRS_PER_PTE	(PAGE_SIZE / (1 << PTE_MAGNITUDE))
 #define PTRS_PER_PGD	(PAGE_SIZE / 4)
 
 #define USER_PTRS_PER_PGD	(TASK_SIZE/PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0
 
-#define PTE_PHYS_MASK	0x1ffff000
+#define PTE_PHYS_MASK		(0x20000000 - PAGE_SIZE)
 
 /*
  * First 1MB map is used by fixed purpose.

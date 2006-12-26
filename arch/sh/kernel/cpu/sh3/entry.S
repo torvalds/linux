@@ -332,12 +332,6 @@ general_exception:
 !
 !
 
-/* This code makes some assumptions to improve performance.
- * Make sure they are stil true. */
-#if PTRS_PER_PGD != PTRS_PER_PTE
-#error PGD and PTE sizes don't match
-#endif
-
 /* gas doesn't flag impossible values for mov #immediate as an error */
 #if (_PAGE_PRESENT >> 2) > 0x7f
 #error cannot load PAGE_PRESENT as an immediate
@@ -399,6 +393,7 @@ tlb_miss:
 
 	bt	20f			! 110 BR
 
+	mov.w	3f, k3			!  8 LS (latency=2)	(PTRS_PER_PTE-1) << 2
 	and	k3, k0			!  78 EX
 	mov.w	5f, k4			!   8 LS (latency=2)	_PAGE_PRESENT
 
@@ -491,8 +486,9 @@ tlb_miss:
 	.align 5
 	! Once cache line if possible...
 1:	.long	swapper_pg_dir
+3:	.short	(PTRS_PER_PTE-1) << 2
 4:	.short	(PTRS_PER_PGD-1) << 2
-5:	.short	_PAGE_PRESENT
+5:	.long	_PAGE_PRESENT
 7:	.long	_PAGE_FLAGS_HARDWARE_MASK
 8:	.long	MMU_PTEH
 #ifdef COUNT_EXCEPTIONS

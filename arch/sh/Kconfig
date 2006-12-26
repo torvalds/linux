@@ -596,6 +596,8 @@ menu "Boot options"
 config ZERO_PAGE_OFFSET
 	hex "Zero page offset"
 	default "0x00004000" if SH_MPC1211 || SH_SH03
+	default "0x00010000" if PAGE_SIZE_64KB
+	default "0x00002000" if PAGE_SIZE_8KB
 	default "0x00001000"
 	help
 	  This sets the default offset of zero page.
