@@ -106,8 +106,9 @@ struct mmc_host {
 	struct list_head	cards;		/* devices attached to this host */
 
 	wait_queue_head_t	wq;
-	spinlock_t		lock;		/* card_busy lock */
-	struct mmc_card		*card_busy;	/* the MMC card claiming host */
+	spinlock_t		lock;		/* claimed lock */
+	unsigned int		claimed:1;	/* host exclusively claimed */
+
 	struct mmc_card		*card_selected;	/* the selected MMC card */
 
 	struct delayed_work	detect;

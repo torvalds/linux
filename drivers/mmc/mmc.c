@@ -103,7 +103,7 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 		 mmc_hostname(host), mrq->cmd->opcode,
 		 mrq->cmd->arg, mrq->cmd->flags);
 
-	WARN_ON(host->card_busy == NULL);
+	WARN_ON(!host->claimed);
 
 	mrq->cmd->error = 0;
 	mrq->cmd->mrq = mrq;
@@ -157,7 +157,7 @@ int mmc_wait_for_cmd(struct mmc_host *host, struct mmc_command *cmd, int retries
 {
 	struct mmc_request mrq;
 
-	BUG_ON(host->card_busy == NULL);
+	BUG_ON(!host->claimed);
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
 
@@ -195,7 +195,7 @@ int mmc_wait_for_app_cmd(struct mmc_host *host, unsigned int rca,
 
 	int i, err;
 
-	BUG_ON(host->card_busy == NULL);
+	BUG_ON(!host->claimed);
 	BUG_ON(retries < 0);
 
 	err = MMC_ERR_INVALID;
@@ -320,14 +320,14 @@ int __mmc_claim_host(struct mmc_host *host, struct mmc_card *card)
 	spin_lock_irqsave(&host->lock, flags);
 	while (1) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (host->card_busy == NULL)
+		if (!host->claimed)
 			break;
 		spin_unlock_irqrestore(&host->lock, flags);
 		schedule();
 		spin_lock_irqsave(&host->lock, flags);
 	}
 	set_current_state(TASK_RUNNING);
-	host->card_busy = card;
+	host->claimed = 1;
 	spin_unlock_irqrestore(&host->lock, flags);
 	remove_wait_queue(&host->wq, &wait);
 
@@ -353,10 +353,10 @@ void mmc_release_host(struct mmc_host *host)
 {
 	unsigned long flags;
 
-	BUG_ON(host->card_busy == NULL);
+	BUG_ON(!host->claimed);
 
 	spin_lock_irqsave(&host->lock, flags);
-	host->card_busy = NULL;
+	host->claimed = 0;
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	wake_up(&host->wq);
@@ -381,7 +381,7 @@ static int mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 	int err;
 	struct mmc_command cmd;
 
-	BUG_ON(host->card_busy == NULL);
+	BUG_ON(!host->claimed);
 
 	if (host->card_selected == card)
 		return MMC_ERR_NONE;
