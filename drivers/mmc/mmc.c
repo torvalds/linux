@@ -980,7 +980,7 @@ static void mmc_discover_cards(struct mmc_host *host)
 		card->state &= ~MMC_STATE_DEAD;
 
 		if (host->mode == MMC_MODE_SD) {
-			mmc_card_set_sd(card);
+			card->type = MMC_TYPE_SD;
 
 			cmd.opcode = SD_SEND_RELATIVE_ADDR;
 			cmd.arg = 0;
@@ -1003,6 +1003,7 @@ static void mmc_discover_cards(struct mmc_host *host)
 				}
 			}
 		} else {
+			card->type = MMC_TYPE_MMC;
 			cmd.opcode = MMC_SET_RELATIVE_ADDR;
 			cmd.arg = card->rca << 16;
 			cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
