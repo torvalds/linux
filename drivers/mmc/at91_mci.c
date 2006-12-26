@@ -768,7 +768,7 @@ static irqreturn_t at91_mmc_det_irq(int irq, void *_host)
 	return IRQ_HANDLED;
 }
 
-int at91_mci_get_ro(struct mmc_host *mmc)
+static int at91_mci_get_ro(struct mmc_host *mmc)
 {
 	int read_only = 0;
 	struct at91mci_host *host = mmc_priv(mmc);
@@ -794,7 +794,7 @@ static const struct mmc_host_ops at91_mci_ops = {
 /*
  * Probe for the device
  */
-static int at91_mci_probe(struct platform_device *pdev)
+static int __init at91_mci_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct at91mci_host *host;
@@ -910,7 +910,7 @@ static int at91_mci_probe(struct platform_device *pdev)
 /*
  * Remove a device
  */
-static int at91_mci_remove(struct platform_device *pdev)
+static int __exit at91_mci_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct at91mci_host *host;
@@ -972,8 +972,7 @@ static int at91_mci_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver at91_mci_driver = {
-	.probe		= at91_mci_probe,
-	.remove		= at91_mci_remove,
+	.remove		= __exit_p(at91_mci_remove),
 	.suspend	= at91_mci_suspend,
 	.resume		= at91_mci_resume,
 	.driver		= {
@@ -984,7 +983,7 @@ static struct platform_driver at91_mci_driver = {
 
 static int __init at91_mci_init(void)
 {
-	return platform_driver_register(&at91_mci_driver);
+	return platform_driver_probe(&at91_mci_driver, at91_mci_probe);
 }
 
 static void __exit at91_mci_exit(void)
