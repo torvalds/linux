@@ -310,7 +310,6 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 
 		if (state != FL_READING)
 			cond_resched();
-		touch_softlockup_watchdog();
 	}
 	/* To get correct interrupt status in timeout case */
 	interrupt = this->read_word(this->base + ONENAND_REG_INTERRUPT);
@@ -367,9 +366,6 @@ static int onenand_interrupt_wait(struct mtd_info *mtd, int state)
 {
 	struct onenand_chip *this = mtd->priv;
 
-	/* To prevent soft lockup */
-	touch_softlockup_watchdog();
-
 	wait_for_completion(&this->complete);
 
 	return onenand_wait(mtd, state);
@@ -389,9 +385,6 @@ static int onenand_try_interrupt_wait(struct mtd_info *mtd, int state)
 
 	/* We use interrupt wait first */
 	this->wait = onenand_interrupt_wait;
-
-	/* To prevent soft lockup */
-	touch_softlockup_watchdog();
 
 	timeout = msecs_to_jiffies(100);
 	remain = wait_for_completion_timeout(&this->complete, timeout);
@@ -734,6 +727,8 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	stats = mtd->ecc_stats;
 	while (read < len) {
+		cond_resched();
+
 		thislen = min_t(int, mtd->writesize, len - read);
 
 		column = from & (mtd->writesize - 1);
@@ -815,6 +810,8 @@ int onenand_do_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
 	column = from & (mtd->oobsize - 1);
 
 	while (read < len) {
+		cond_resched();
+
 		thislen = mtd->oobsize - column;
 		thislen = min_t(int, thislen, len);
 
@@ -989,6 +986,8 @@ static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
 		int thislen = min_t(int, bytes, len - written);
 		u_char *wbuf = (u_char *) buf;
 
+		cond_resched();
+
 		this->command(mtd, ONENAND_CMD_BUFFERRAM, to, bytes);
 
 		/* Partial page write */
@@ -1074,6 +1073,8 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Loop until all data write */
 	while (written < len) {
 		int thislen = min_t(int, mtd->oobsize, len - written);
+
+		cond_resched();
 
 		column = to & (mtd->oobsize - 1);
 
@@ -1202,6 +1203,7 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	instr->state = MTD_ERASING;
 
 	while (len) {
+		cond_resched();
 
 		/* Check if we have a bad block, we do not erase bad blocks */
 		if (onenand_block_checkbad(mtd, addr, 0, 0)) {
