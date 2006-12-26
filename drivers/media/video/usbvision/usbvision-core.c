@@ -2311,7 +2311,7 @@ int usbvision_restart_isoc(struct usb_usbvision *usbvision)
 				  usbvision->Vin_Reg2_Preset)) < 0) return ret;
 
 	/* TODO: schedule timeout */
-	while ((usbvision_read_reg(usbvision, USBVISION_STATUS_REG) && 0x01) != 1);
+	while ((usbvision_read_reg(usbvision, USBVISION_STATUS_REG) & 0x01) != 1);
 
 	return 0;
 }
