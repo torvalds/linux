@@ -668,7 +668,7 @@ config VIDEO_M32R_AR_M64278
 
 config VIDEO_CAFE_CCIC
 	tristate "Marvell 88ALP01 (Cafe) CMOS Camera Controller support"
-	depends on I2C && VIDEO_V4L2
+	depends on PCI && I2C && VIDEO_V4L2
 	select VIDEO_OV7670
 	---help---
 	  This is a video4linux2 driver for the Marvell 88ALP01 integrated
