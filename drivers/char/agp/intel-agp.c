@@ -253,7 +253,7 @@ insert:
 			mem->memory[i], mem->type),
 			intel_i810_private.registers+I810_PTE_BASE+(j*4));
 	}
-	readl(intel_i810_private.registers+I810_PTE_BASE+(j-1*4));	/* PCI Posting. */
+	readl(intel_i810_private.registers+I810_PTE_BASE+((j-1)*4));	/* PCI Posting. */
 
 	agp_bridge->driver->tlb_flush(mem);
 	return 0;
