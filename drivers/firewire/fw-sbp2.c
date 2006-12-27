@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 
 #include <scsi/scsi.h>
