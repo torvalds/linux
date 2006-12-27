@@ -325,6 +325,13 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keydown = 0x0040000;
 		rc5_gpio = 1;
 		break;
+	case SAA7134_BOARD_ENCORE_ENLTV:
+	case SAA7134_BOARD_ENCORE_ENLTV_FM:
+		ir_codes     = ir_codes_encore_enltv;
+		mask_keycode = 0x00007f;
+		mask_keyup   = 0x040000;
+		polling      = 50; // ms
+		break;
 	}
 	if (NULL == ir_codes) {
 		printk("%s: Oops: IR config error [card=%d]\n",
