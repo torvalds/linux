@@ -285,8 +285,8 @@ ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci, u32 control_set)
 		return -ENOMEM;
 
 	if (ctx->descriptor_bus & 0xf)
-		fw_notify("descriptor not 16-byte aligned: 0x%08x\n",
-			  ctx->descriptor_bus);
+		fw_notify("descriptor not 16-byte aligned: 0x%08lx\n",
+			  (unsigned long)ctx->descriptor_bus);
 
 	ctx->buffer_bus =
 		dma_map_single(ohci->card.device, ctx->buffer,
