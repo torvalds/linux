@@ -429,12 +429,17 @@ int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_m
 {
 	struct mthca_dev *dev = to_mdev(ibqp->device);
 	struct mthca_qp *qp = to_mqp(ibqp);
-	int err;
-	struct mthca_mailbox *mailbox;
+	int err = 0;
+	struct mthca_mailbox *mailbox = NULL;
 	struct mthca_qp_param *qp_param;
 	struct mthca_qp_context *context;
 	int mthca_state;
 	u8 status;
+
+	if (qp->state == IB_QPS_RESET) {
+		qp_attr->qp_state = IB_QPS_RESET;
+		goto done;
+	}
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox))
@@ -454,7 +459,6 @@ int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_m
 	mthca_state = be32_to_cpu(context->flags) >> 28;
 
 	qp_attr->qp_state 	     = to_ib_qp_state(mthca_state);
-	qp_attr->cur_qp_state 	     = qp_attr->qp_state;
 	qp_attr->path_mtu 	     = context->mtu_msgmax >> 5;
 	qp_attr->path_mig_state      =
 		to_ib_mig_state((be32_to_cpu(context->flags) >> 11) & 0x3);
@@ -464,11 +468,6 @@ int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_m
 	qp_attr->dest_qp_num 	     = be32_to_cpu(context->remote_qpn) & 0xffffff;
 	qp_attr->qp_access_flags     =
 		to_ib_qp_access_flags(be32_to_cpu(context->params2));
-	qp_attr->cap.max_send_wr     = qp->sq.max;
-	qp_attr->cap.max_recv_wr     = qp->rq.max;
-	qp_attr->cap.max_send_sge    = qp->sq.max_gs;
-	qp_attr->cap.max_recv_sge    = qp->rq.max_gs;
-	qp_attr->cap.max_inline_data = qp->max_inline_data;
 
 	if (qp->transport == RC || qp->transport == UC) {
 		to_ib_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
@@ -495,7 +494,16 @@ int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_m
 	qp_attr->retry_cnt 	    = (be32_to_cpu(context->params1) >> 16) & 0x7;
 	qp_attr->rnr_retry 	    = context->pri_path.rnr_retry >> 5;
 	qp_attr->alt_timeout 	    = context->alt_path.ackto >> 3;
-	qp_init_attr->cap 	    = qp_attr->cap;
+
+done:
+	qp_attr->cur_qp_state	     = qp_attr->qp_state;
+	qp_attr->cap.max_send_wr     = qp->sq.max;
+	qp_attr->cap.max_recv_wr     = qp->rq.max;
+	qp_attr->cap.max_send_sge    = qp->sq.max_gs;
+	qp_attr->cap.max_recv_sge    = qp->rq.max_gs;
+	qp_attr->cap.max_inline_data = qp->max_inline_data;
+
+	qp_init_attr->cap	     = qp_attr->cap;
 
 out:
 	mthca_free_mailbox(dev, mailbox);
