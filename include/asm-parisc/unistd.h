@@ -772,7 +772,7 @@
 #define __NR_mknodat		(__NR_Linux + 277)
 #define __NR_fchownat		(__NR_Linux + 278)
 #define __NR_futimesat		(__NR_Linux + 279)
-#define __NR_newfstatat		(__NR_Linux + 280)
+#define __NR_fstatat64		(__NR_Linux + 280)
 #define __NR_unlinkat		(__NR_Linux + 281)
 #define __NR_renameat		(__NR_Linux + 282)
 #define __NR_linkat		(__NR_Linux + 283)
