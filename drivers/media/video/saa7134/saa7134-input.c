@@ -40,9 +40,9 @@ static int pinnacle_remote = 0;
 module_param(pinnacle_remote, int, 0644);    /* Choose Pinnacle PCTV remote */
 MODULE_PARM_DESC(pinnacle_remote, "Specify Pinnacle PCTV remote: 0=coloured, 1=grey (defaults to 0)");
 
-int ir_rc5_remote_gap = 885;
+static int ir_rc5_remote_gap = 885;
 module_param(ir_rc5_remote_gap, int, 0644);
-int ir_rc5_key_timeout = 115;
+static int ir_rc5_key_timeout = 115;
 module_param(ir_rc5_key_timeout, int, 0644);
 
 #define dprintk(fmt, arg...)	if (ir_debug) \

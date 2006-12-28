@@ -36,9 +36,9 @@ module_param(repeat_delay, int, 0644);
 static int repeat_period = 33;
 module_param(repeat_period, int, 0644);
 
-int ir_rc5_remote_gap = 885;
+static int ir_rc5_remote_gap = 885;
 module_param(ir_rc5_remote_gap, int, 0644);
-int ir_rc5_key_timeout = 200;
+static int ir_rc5_key_timeout = 200;
 module_param(ir_rc5_key_timeout, int, 0644);
 
 #define DEVNAME "bttv-input"
