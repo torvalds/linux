@@ -1882,16 +1882,6 @@ static int sbp2scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	if (unlikely(SCpnt->device->lun))
 		goto done;
 
-	/* handle the request sense command here (auto-request sense) */
-	if (SCpnt->cmnd[0] == REQUEST_SENSE) {
-		memcpy(SCpnt->request_buffer, SCpnt->sense_buffer,
-		       SCpnt->request_bufflen);
-		memset(SCpnt->sense_buffer, 0, sizeof(SCpnt->sense_buffer));
-		sbp2scsi_complete_command(lu, SBP2_SCSI_STATUS_GOOD, SCpnt,
-					  done);
-		return 0;
-	}
-
 	if (unlikely(!hpsb_node_entry_valid(lu->ne))) {
 		SBP2_ERR("Bus reset in progress - rejecting command");
 		result = DID_BUS_BUSY << 16;
