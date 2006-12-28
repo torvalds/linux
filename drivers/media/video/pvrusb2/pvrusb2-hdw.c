@@ -2260,6 +2260,13 @@ static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 		stale_subsys_mask |= (1<<PVR2_SUBSYS_B_ENC_CFG);
 	}
 
+	if (hdw->input_dirty) {
+		/* pk: If input changes to or from radio, then the encoder
+		   needs to be restarted (for ENC_MUTE_VIDEO to work) */
+		stale_subsys_mask |= (1<<PVR2_SUBSYS_B_ENC_RUN);
+	}
+
+
 	if (hdw->srate_dirty) {
 		/* Write new sample rate into control structure since
 		 * the master copy is stale.  We must track srate

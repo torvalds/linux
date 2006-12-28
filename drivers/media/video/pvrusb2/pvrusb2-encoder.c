@@ -360,6 +360,9 @@ int pvr2_encoder_start(struct pvr2_hdw *hdw)
 	pvr2_hdw_gpio_chg_dir(hdw,0xffffffff,0x00000481);
 	pvr2_hdw_gpio_chg_out(hdw,0xffffffff,0x00000000);
 
+	pvr2_encoder_vcmd(hdw,CX2341X_ENC_MUTE_VIDEO,1,
+			  hdw->input_val == PVR2_CVAL_INPUT_RADIO ? 1 : 0);
+
 	if (hdw->config == pvr2_config_vbi) {
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
 					   0x01,0x14);

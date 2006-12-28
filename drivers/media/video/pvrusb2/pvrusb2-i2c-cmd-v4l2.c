@@ -24,7 +24,7 @@
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
 #include <linux/videodev2.h>
-
+#include <media/v4l2-common.h> /* AUDC_SET_RADIO */
 
 static void set_standard(struct pvr2_hdw *hdw)
 {
@@ -47,6 +47,32 @@ const struct pvr2_i2c_op pvr2_i2c_op_v4l2_standard = {
 	.check = check_standard,
 	.update = set_standard,
 	.name = "v4l2_standard",
+};
+
+
+static void set_radio(struct pvr2_hdw *hdw)
+{
+	pvr2_trace(PVR2_TRACE_CHIPS,
+			   "i2c v4l2 set_radio()");
+
+	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+		pvr2_i2c_core_cmd(hdw,AUDC_SET_RADIO,NULL);
+	} else {
+		set_standard(hdw);
+	}
+}
+
+
+static int check_radio(struct pvr2_hdw *hdw)
+{
+	return hdw->input_dirty != 0;
+}
+
+
+const struct pvr2_i2c_op pvr2_i2c_op_v4l2_radio = {
+	.check = check_radio,
+	.update = set_radio,
+	.name = "v4l2_radio",
 };
 
 
@@ -145,7 +171,8 @@ static void set_frequency(struct pvr2_hdw *hdw)
 	memset(&freq,0,sizeof(freq));
 	freq.frequency = fv / 62500;
 	freq.tuner = 0;
-	freq.type = V4L2_TUNER_ANALOG_TV;
+	freq.type = (hdw->input_val == PVR2_CVAL_INPUT_RADIO) ?
+		     V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	pvr2_i2c_core_cmd(hdw,VIDIOC_S_FREQUENCY,&freq);
 }
 
