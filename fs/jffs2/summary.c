@@ -396,6 +396,8 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 	for (i=0; i<je32_to_cpu(summary->sum_num); i++) {
 		dbg_summary("processing summary index %d\n", i);
 
+		cond_resched();
+
 		/* Make sure there's a spare ref for dirty space */
 		err = jffs2_prealloc_raw_node_refs(c, jeb, 2);
 		if (err)
