@@ -1,5 +1,4 @@
-/* $Id: setup.c,v 1.1.2.4 2002/03/02 21:57:07 lethal Exp $
- *
+/*
  * linux/arch/sh/boards/se/770x/setup.c
  *
  * Copyright (C) 2000  Kazumoto Kojima
@@ -35,11 +34,6 @@ static void __init smsc_setup(char **cmdline_p)
 	smsc_config(CURRENT_LDN_INDEX, LDN_FDC);
 	smsc_config(ACTIVATE_INDEX, 0x01);
 	smsc_config(IRQ_SELECT_INDEX, 6); /* IRQ6 */
-
-	/* IDE1 */
-	smsc_config(CURRENT_LDN_INDEX, LDN_IDE1);
-	smsc_config(ACTIVATE_INDEX, 0x01);
-	smsc_config(IRQ_SELECT_INDEX, 14); /* IRQ14 */
 
 	/* AUXIO (GPIO): to use IDE1 */
 	smsc_config(CURRENT_LDN_INDEX, LDN_AUXIO);
