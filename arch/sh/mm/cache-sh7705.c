@@ -3,11 +3,11 @@
  *
  * Copyright (C) 1999, 2000  Niibe Yutaka
  * Copyright (C) 2004  Alex Song
+ * Copyright (C) 2006  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
- *
  */
 #include <linux/init.h>
 #include <linux/mman.h>
@@ -51,7 +51,6 @@ static inline void cache_wback_all(void)
 
 			if ((data & v) == v)
 				ctrl_outl(data & ~v, addr);
-
 		}
 
 		addrstart += cpu_data->dcache.way_incr;
@@ -128,7 +127,11 @@ static void __flush_dcache_page(unsigned long phys)
  */
 void flush_dcache_page(struct page *page)
 {
-	if (test_bit(PG_mapped, &page->flags))
+	struct address_space *mapping = page_mapping(page);
+
+	if (mapping && !mapping_mapped(mapping))
+		set_bit(PG_dcache_dirty, &page->flags);
+	else
 		__flush_dcache_page(PHYSADDR(page_address(page)));
 }
 

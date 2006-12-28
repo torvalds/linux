@@ -181,10 +181,6 @@ int __init detect_cpu_and_cache_system(void)
 	cpu_data->dcache.ways = 1;
 #endif
 
-#ifdef CONFIG_CPU_HAS_PTEA
-	cpu_data->flags |= CPU_HAS_PTEA;
-#endif
-
 	/*
 	 * On anything that's not a direct-mapped cache, look to the CVR
 	 * for I/D-cache specifics.
