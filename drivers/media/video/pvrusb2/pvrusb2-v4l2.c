@@ -32,8 +32,6 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-common.h>
 
-#define PVR2_NR_STREAMS 3
-
 struct pvr2_v4l2_dev;
 struct pvr2_v4l2_fh;
 struct pvr2_v4l2;
@@ -65,8 +63,11 @@ struct pvr2_v4l2 {
 
 	struct v4l2_prio_state prio;
 
-	/* streams */
-	struct pvr2_v4l2_dev *vdev;
+	/* streams - Note that these must be separately, individually,
+	 * allocated pointers.  This is because the v4l core is going to
+	 * manage their deletion - separately, individually...  */
+	struct pvr2_v4l2_dev *dev_video;
+	struct pvr2_v4l2_dev *dev_radio;
 };
 
 static int video_nr[PVR_NUM] = {[0 ... PVR_NUM-1] = -1};
@@ -715,8 +716,26 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 {
-	printk(KERN_INFO "pvrusb2: unregistering device video%d [%s]\n",
-	       dip->devbase.minor,pvr2_config_get_name(dip->config));
+	enum pvr2_config cfg = dip->config;
+	int minor_id = dip->devbase.minor;
+	enum pvr2_v4l_type pvt;
+	struct pvr2_hdw *hdw = dip->v4lp->channel.mc_head->hdw;
+
+	switch (cfg) {
+	case pvr2_config_mpeg:
+		pvt = pvr2_v4l_type_video;
+		break;
+	case pvr2_config_vbi:
+		pvt = pvr2_v4l_type_vbi;
+		break;
+	case pvr2_config_radio:
+		pvt = pvr2_v4l_type_radio;
+		break;
+	default: /* paranoia */
+		pvt = pvr2_v4l_type_video;
+		break;
+	}
+	pvr2_hdw_v4l_store_minor_number(hdw,pvt,-1);
 
 	/* Paranoia */
 	dip->v4lp = NULL;
@@ -725,18 +744,40 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 	/* Actual deallocation happens later when all internal references
 	   are gone. */
 	video_unregister_device(&dip->devbase);
+
+	switch (cfg) {
+	case pvr2_config_mpeg:
+		printk(KERN_INFO "pvrusb2: unregistered device video%d [%s]\n",
+		       minor_id & 0x1f,
+		       pvr2_config_get_name(cfg));
+		break;
+	case pvr2_config_radio:
+		printk(KERN_INFO "pvrusb2: unregistered device radio%d [%s]\n",
+		       minor_id & 0x1f,
+		       pvr2_config_get_name(cfg));
+		break;
+	case pvr2_config_vbi:
+		printk(KERN_INFO "pvrusb2: unregistered device vbi%d [%s]\n",
+		       minor_id & 0x1f,
+		       pvr2_config_get_name(cfg));
+		break;
+	default:
+		break;
+	}
+
 }
 
 
 static void pvr2_v4l2_destroy_no_lock(struct pvr2_v4l2 *vp)
 {
-	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
-					pvr2_v4l_type_video,-1);
-	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
-					pvr2_v4l_type_vbi,-1);
-	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
-					pvr2_v4l_type_radio,-1);
-	pvr2_v4l2_dev_destroy(vp->vdev);
+	if (vp->dev_video) {
+		pvr2_v4l2_dev_destroy(vp->dev_video);
+		vp->dev_video = 0;
+	}
+	if (vp->dev_radio) {
+		pvr2_v4l2_dev_destroy(vp->dev_radio);
+		vp->dev_radio = 0;
+	}
 
 	pvr2_trace(PVR2_TRACE_STRUCT,"Destroying pvr2_v4l2 id=%p",vp);
 	pvr2_channel_done(&vp->channel);
@@ -1085,7 +1126,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	dip->config = cfg;
 
 
-	switch (cfg) {
+	switch (dip->config) {
 	case pvr2_config_mpeg:
 		v4l_type = VFL_TYPE_GRABBER;
 		pvt = pvr2_v4l_type_video;
@@ -1107,7 +1148,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	}
 
 	/* radio device doesn 't need its own stream */
-	if (!dip->stream && cfg != pvr2_config_radio) {
+	if (!dip->stream && dip->config != pvr2_config_radio) {
 		err("Failed to set up pvrusb2 v4l dev"
 		    " due to missing stream instance");
 		return;
@@ -1136,24 +1177,24 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	    (video_register_device(&dip->devbase, v4l_type, -1) < 0)) {
 		err("Failed to register pvrusb2 v4l device");
 	}
-	switch (cfg) {
+	switch (dip->config) {
 	case pvr2_config_mpeg:
 		printk(KERN_INFO "pvrusb2: registered device video%d [%s]\n",
 		       dip->devbase.minor & 0x1f,
 		       pvr2_config_get_name(dip->config));
-	break;
-	case pvr2_config_vbi:
-		printk(KERN_INFO "pvrusb2: registered device vbi%d [%s]\n",
-		       dip->devbase.minor & 0x1f,
-		       pvr2_config_get_name(dip->config));
-	break;
+		break;
 	case pvr2_config_radio:
 		printk(KERN_INFO "pvrusb2: registered device radio%d [%s]\n",
 		       dip->devbase.minor & 0x1f,
 		       pvr2_config_get_name(dip->config));
-	break;
+		break;
+	case pvr2_config_vbi:
+		printk(KERN_INFO "pvrusb2: registered device vbi%d [%s]\n",
+		       dip->devbase.minor & 0x1f,
+		       pvr2_config_get_name(dip->config));
+		break;
 	default:
-	break;
+		break;
 	}
 
 	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
@@ -1168,20 +1209,24 @@ struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
 	vp = kmalloc(sizeof(*vp),GFP_KERNEL);
 	if (!vp) return vp;
 	memset(vp,0,sizeof(*vp));
-	vp->vdev = kmalloc(sizeof(*vp->vdev)*PVR2_NR_STREAMS,GFP_KERNEL);
-	if (!vp->vdev) {
+	vp->dev_video = kmalloc(sizeof(*vp->dev_video),GFP_KERNEL);
+	vp->dev_radio = kmalloc(sizeof(*vp->dev_radio),GFP_KERNEL);
+	if (!(vp->dev_video && vp->dev_radio)) {
+		if (vp->dev_video) kfree(vp->dev_video);
+		if (vp->dev_radio) kfree(vp->dev_radio);
 		kfree(vp);
 		return NULL;
 	}
-	memset(vp->vdev,0,sizeof(*vp->vdev)*PVR2_NR_STREAMS);
+	memset(vp->dev_video,0,sizeof(*vp->dev_video));
+	memset(vp->dev_radio,0,sizeof(*vp->dev_radio));
 	pvr2_channel_init(&vp->channel,mnp);
 	pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr2_v4l2 id=%p",vp);
 
 	vp->channel.check_func = pvr2_v4l2_internal_check;
 
 	/* register streams */
-	pvr2_v4l2_dev_init(&vp->vdev[0],vp,pvr2_config_mpeg);
-	pvr2_v4l2_dev_init(&vp->vdev[2],vp,pvr2_config_radio);
+	pvr2_v4l2_dev_init(vp->dev_video,vp,pvr2_config_mpeg);
+	pvr2_v4l2_dev_init(vp->dev_radio,vp,pvr2_config_radio);
 
 	return vp;
 }
