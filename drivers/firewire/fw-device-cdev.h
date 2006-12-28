@@ -143,4 +143,4 @@ struct fw_cdev_send_iso {
 	__s32 cycle;
 };
 
-#endif
+#endif /* __fw_cdev_h */

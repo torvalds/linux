@@ -124,4 +124,4 @@ fw_driver(struct device_driver *drv)
 
 extern struct file_operations fw_device_ops;
 
-#endif
+#endif /* __fw_device_h */

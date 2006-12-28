@@ -81,4 +81,4 @@ fw_node_put(struct fw_node *node)
 void
 fw_destroy_nodes(struct fw_card *card);
 
-#endif
+#endif /* __fw_topology_h */

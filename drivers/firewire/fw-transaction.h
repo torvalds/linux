@@ -19,8 +19,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef __fw_core_h
-#define __fw_core_h
+#ifndef __fw_transaction_h
+#define __fw_transaction_h
 
 #include <linux/device.h>
 #include <linux/timer.h>
@@ -423,4 +423,4 @@ fw_core_handle_response(struct fw_card *card,
                         u32 length, u32 *payload);
 
 
-#endif /* __fw_core_h */
+#endif /* __fw_transaction_h */
