@@ -175,7 +175,7 @@ void update_mmu_cache(struct vm_area_struct *vma,
 
 	/* Set PTEL register */
 	pteval &= _PAGE_FLAGS_HARDWARE_MASK; /* drop software flags */
-#ifdef CONFIG_SH_WRITETHROUGH
+#if defined(CONFIG_SH_WRITETHROUGH) && defined(CONFIG_CPU_SH4)
 	pteval |= _PAGE_WT;
 #endif
 	/* conveniently, we want all the software flags to be 0 anyway */
