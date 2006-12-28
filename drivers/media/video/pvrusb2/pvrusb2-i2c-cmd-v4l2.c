@@ -24,7 +24,7 @@
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
 #include <linux/videodev2.h>
-#include <media/v4l2-common.h> /* AUDC_SET_RADIO */
+#include <media/v4l2-common.h>
 
 static void set_standard(struct pvr2_hdw *hdw)
 {
