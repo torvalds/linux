@@ -50,15 +50,21 @@ static void set_input(struct pvr2_v4l_wm8775 *ctxt)
 {
 	struct v4l2_routing route;
 	struct pvr2_hdw *hdw = ctxt->hdw;
-	int msk = 0;
 
 	memset(&route,0,sizeof(route));
 
-	pvr2_trace(PVR2_TRACE_CHIPS,"i2c wm8775 set_input(val=%d msk=0x%x)",
-		   hdw->input_val,msk);
+	switch(hdw->input_val) {
+	case PVR2_CVAL_INPUT_RADIO:
+		route.input = 1;
+		break;
+	default:
+		/* All other cases just use the second input */
+		route.input = 2;
+		break;
+	}
+	pvr2_trace(PVR2_TRACE_CHIPS,"i2c wm8775 set_input(val=%d route=0x%x)",
+		   hdw->input_val,route.input);
 
-	// Always point to input #1 no matter what
-	route.input = 2;
 	pvr2_i2c_client_cmd(ctxt->client,VIDIOC_INT_S_AUDIO_ROUTING,&route);
 }
 

@@ -63,6 +63,7 @@ static void set_input(struct pvr2_v4l_cx2584x *ctxt)
 		vid_input = CX25840_COMPOSITE7;
 		aud_input = CX25840_AUDIO8;
 		break;
+	case PVR2_CVAL_INPUT_RADIO: // Treat same as composite
 	case PVR2_CVAL_INPUT_COMPOSITE:
 		vid_input = CX25840_COMPOSITE3;
 		aud_input = CX25840_AUDIO_SERIAL;
@@ -71,7 +72,6 @@ static void set_input(struct pvr2_v4l_cx2584x *ctxt)
 		vid_input = CX25840_SVIDEO1;
 		aud_input = CX25840_AUDIO_SERIAL;
 		break;
-	case PVR2_CVAL_INPUT_RADIO:
 	default:
 		// Just set it to be composite input for now...
 		vid_input = CX25840_COMPOSITE3;
