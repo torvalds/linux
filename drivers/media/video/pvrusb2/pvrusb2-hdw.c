@@ -37,6 +37,12 @@
 #include "pvrusb2-encoder.h"
 #include "pvrusb2-debug.h"
 
+#define TV_MIN_FREQ 55250000L
+#define TV_MAX_FREQ 850000000L
+
+#define RADIO_MIN_FREQ 1392000L //87MHz
+#define RADIO_MAX_FREQ 1728000L //108MHz
+
 struct usb_device_id pvr2_device_table[] = {
 	[PVR2_HDW_TYPE_29XXX] = { USB_DEVICE(0x2040, 0x2900) },
 	[PVR2_HDW_TYPE_24XXX] = { USB_DEVICE(0x2040, 0x2400) },
@@ -375,6 +381,28 @@ static int ctrl_vres_min_get(struct pvr2_ctrl *cptr,int *vp)
 	return 0;
 }
 
+static int ctrl_freq_max_get(struct pvr2_ctrl *cptr, int *vp)
+{
+	/* Actual maximum depends on radio/tv mode */
+	if (cptr->hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+		*vp = RADIO_MAX_FREQ;
+	} else {
+		*vp = TV_MAX_FREQ;
+	}
+	return 0;
+}
+
+static int ctrl_freq_min_get(struct pvr2_ctrl *cptr, int *vp)
+{
+	/* Actual minimum depends on radio/tv mode */
+	if (cptr->hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+		*vp = RADIO_MIN_FREQ;
+	} else {
+		*vp = TV_MIN_FREQ;
+	}
+	return 0;
+}
+
 static int ctrl_cx2341x_is_dirty(struct pvr2_ctrl *cptr)
 {
 	return cptr->hdw->enc_stale != 0;
@@ -644,9 +672,6 @@ VCREATE_FUNCS(res_hor)
 VCREATE_FUNCS(res_ver)
 VCREATE_FUNCS(srate)
 
-#define MIN_FREQ 55250000L
-#define MAX_FREQ 850000000L
-
 /* Table definition of all controls which can be manipulated */
 static const struct pvr2_ctl_info control_defs[] = {
 	{
@@ -760,7 +785,11 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.get_value = ctrl_freq_get,
 		.is_dirty = ctrl_freq_is_dirty,
 		.clear_dirty = ctrl_freq_clear_dirty,
-		DEFINT(MIN_FREQ,MAX_FREQ),
+		DEFINT(TV_MIN_FREQ,TV_MAX_FREQ),
+		/* Hook in check for input value (tv/radio) and adjust
+		   max/min values accordingly */
+		.get_max_value = ctrl_freq_max_get,
+		.get_min_value = ctrl_freq_min_get,
 	},{
 		.desc = "Channel",
 		.name = "channel",
@@ -772,7 +801,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.name = "freq_table_value",
 		.set_value = ctrl_channelfreq_set,
 		.get_value = ctrl_channelfreq_get,
-		DEFINT(MIN_FREQ,MAX_FREQ),
+		DEFINT(TV_MIN_FREQ,TV_MAX_FREQ),
 	},{
 		.desc = "Channel Program ID",
 		.name = "freq_table_channel",
