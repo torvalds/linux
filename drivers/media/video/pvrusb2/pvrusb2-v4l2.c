@@ -388,9 +388,15 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_S_FREQUENCY:
 	{
 		const struct v4l2_frequency *vf = (struct v4l2_frequency *)arg;
+		unsigned long fv;
+		fv = vf->frequency;
+		if (vf->type == V4L2_TUNER_RADIO) {
+			fv = (fv * 125) / 2;
+		} else {
+			fv = fv * 62500;
+		}
 		ret = pvr2_ctrl_set_value(
-			pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_FREQUENCY),
-			vf->frequency * 62500);
+			pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_FREQUENCY),fv);
 		break;
 	}
 
@@ -398,11 +404,23 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct v4l2_frequency *vf = (struct v4l2_frequency *)arg;
 		int val = 0;
+		int cur_input = PVR2_CVAL_INPUT_TV;
 		ret = pvr2_ctrl_get_value(
 			pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_FREQUENCY),
 			&val);
-		val /= 62500;
-		vf->frequency = val;
+		if (ret != 0) break;
+		pvr2_ctrl_get_value(
+			pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT),
+			&cur_input);
+		if (cur_input == PVR2_CVAL_INPUT_RADIO) {
+			val = (val * 2) / 125;
+			vf->frequency = val;
+			vf->type = V4L2_TUNER_RADIO;
+		} else {
+			val /= 62500;
+			vf->frequency = val;
+			vf->type = V4L2_TUNER_ANALOG_TV;
+		}
 		break;
 	}
 
