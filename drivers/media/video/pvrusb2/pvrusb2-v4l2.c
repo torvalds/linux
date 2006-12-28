@@ -71,7 +71,13 @@ struct pvr2_v4l2 {
 
 static int video_nr[PVR_NUM] = {[0 ... PVR_NUM-1] = -1};
 module_param_array(video_nr, int, NULL, 0444);
-MODULE_PARM_DESC(video_nr, "Offset for device's minor");
+MODULE_PARM_DESC(video_nr, "Offset for device's video dev minor");
+static int radio_nr[PVR_NUM] = {[0 ... PVR_NUM-1] = -1};
+module_param_array(radio_nr, int, NULL, 0444);
+MODULE_PARM_DESC(radio_nr, "Offset for device's radio dev minor");
+static int vbi_nr[PVR_NUM] = {[0 ... PVR_NUM-1] = -1};
+module_param_array(vbi_nr, int, NULL, 0444);
+MODULE_PARM_DESC(vbi_nr, "Offset for device's vbi dev minor");
 
 static struct v4l2_capability pvr_capability ={
 	.driver         = "pvrusb2",
@@ -1113,7 +1119,18 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	mindevnum = -1;
 	unit_number = pvr2_hdw_get_unit_number(vp->channel.mc_head->hdw);
 	if ((unit_number >= 0) && (unit_number < PVR_NUM)) {
-		mindevnum = video_nr[unit_number];
+		switch (v4l_type) {
+		case VFL_TYPE_VBI:
+			mindevnum = vbi_nr[unit_number];
+			break;
+		case VFL_TYPE_RADIO:
+			mindevnum = radio_nr[unit_number];
+			break;
+		case VFL_TYPE_GRABBER:
+		default:
+			mindevnum = video_nr[unit_number];
+			break;
+		}
 	}
 	if ((video_register_device(&dip->devbase, v4l_type, mindevnum) < 0) &&
 	    (video_register_device(&dip->devbase, v4l_type, -1) < 0)) {
@@ -1122,17 +1139,18 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	switch (cfg) {
 	case pvr2_config_mpeg:
 		printk(KERN_INFO "pvrusb2: registered device video%d [%s]\n",
-		       dip->devbase.minor,pvr2_config_get_name(dip->config));
+		       dip->devbase.minor & 0x1f,
+		       pvr2_config_get_name(dip->config));
 	break;
 	case pvr2_config_vbi:
 		printk(KERN_INFO "pvrusb2: registered device vbi%d [%s]\n",
-		dip->devbase.minor - MINOR_VFL_TYPE_VBI_MIN,
-		pvr2_config_get_name(dip->config));
+		       dip->devbase.minor & 0x1f,
+		       pvr2_config_get_name(dip->config));
 	break;
 	case pvr2_config_radio:
 		printk(KERN_INFO "pvrusb2: registered device radio%d [%s]\n",
-		dip->devbase.minor - MINOR_VFL_TYPE_RADIO_MIN,
-		pvr2_config_get_name(dip->config));
+		       dip->devbase.minor & 0x1f,
+		       pvr2_config_get_name(dip->config));
 	break;
 	default:
 	break;
