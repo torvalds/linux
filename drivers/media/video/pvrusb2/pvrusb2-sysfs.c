@@ -733,7 +733,7 @@ static ssize_t v4l_minor_number_show(struct class_device *class_dev,char *buf)
 	if (!sfp) return -EINVAL;
 	return scnprintf(buf,PAGE_SIZE,"%d\n",
 			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,
-						       pvr2_config_mpeg));
+						       pvr2_v4l_type_video));
 }
 
 
@@ -745,7 +745,7 @@ static ssize_t v4l_radio_minor_number_show(struct class_device *class_dev,
 	if (!sfp) return -EINVAL;
 	return scnprintf(buf,PAGE_SIZE,"%d\n",
 			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,
-						       pvr2_config_radio));
+						       pvr2_v4l_type_radio));
 }
 
 

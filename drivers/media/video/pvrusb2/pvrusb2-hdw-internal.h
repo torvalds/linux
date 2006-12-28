@@ -283,7 +283,8 @@ struct pvr2_hdw {
 
 	/* Minor numbers used by v4l logic (yes, this is a hack, as there
 	   should be no v4l junk here).  Probably a better way to do this. */
-	int v4l_minor_number_mpeg;
+	int v4l_minor_number_video;
+	int v4l_minor_number_vbi;
 	int v4l_minor_number_radio;
 
 	/* Location of eeprom or a negative number if none */

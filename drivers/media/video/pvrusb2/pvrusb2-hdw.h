@@ -78,6 +78,12 @@ enum pvr2_config {
 	pvr2_config_radio,
 };
 
+enum pvr2_v4l_type {
+	pvr2_v4l_type_video,
+	pvr2_v4l_type_vbi,
+	pvr2_v4l_type_radio,
+};
+
 const char *pvr2_config_get_name(enum pvr2_config);
 
 struct pvr2_hdw;
@@ -206,11 +212,11 @@ int pvr2_hdw_cpufw_get(struct pvr2_hdw *,unsigned int offs,
 		       char *buf,unsigned int cnt);
 
 /* Retrieve a previously stored v4l minor device number */
-int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *,enum pvr2_config index);
+int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *,enum pvr2_v4l_type index);
 
 /* Store a v4l minor device number */
 void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *,
-				     enum pvr2_config index,int);
+				     enum pvr2_v4l_type index,int);
 
 /* Direct read/write access to chip's registers:
    chip_id - unique id of chip (e.g. I2C_DRIVERD_xxxx)

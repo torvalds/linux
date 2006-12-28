@@ -725,9 +725,11 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 static void pvr2_v4l2_destroy_no_lock(struct pvr2_v4l2 *vp)
 {
 	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
-					pvr2_config_mpeg,-1);
+					pvr2_v4l_type_video,-1);
 	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
-					pvr2_config_radio,-1);
+					pvr2_v4l_type_vbi,-1);
+	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
+					pvr2_v4l_type_radio,-1);
 	pvr2_v4l2_dev_destroy(vp->vdev);
 
 	pvr2_trace(PVR2_TRACE_STRUCT,"Destroying pvr2_v4l2 id=%p",vp);
@@ -1072,6 +1074,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	int mindevnum;
 	int unit_number;
 	int v4l_type;
+	enum pvr2_v4l_type pvt;
 	dip->v4lp = vp;
 	dip->config = cfg;
 
@@ -1079,13 +1082,16 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	switch (cfg) {
 	case pvr2_config_mpeg:
 		v4l_type = VFL_TYPE_GRABBER;
+		pvt = pvr2_v4l_type_video;
 		dip->stream = &vp->channel.mc_head->video_stream;
 		break;
 	case pvr2_config_vbi:
 		v4l_type = VFL_TYPE_VBI;
+		pvt = pvr2_v4l_type_vbi;
 		break;
 	case pvr2_config_radio:
 		v4l_type = VFL_TYPE_RADIO;
+		pvt = pvr2_v4l_type_radio;
 		break;
 	default:
 		/* Bail out (this should be impossible) */
@@ -1133,7 +1139,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	}
 
 	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
-					cfg,dip->devbase.minor);
+					pvt,dip->devbase.minor);
 }
 
 
