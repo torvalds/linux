@@ -2,8 +2,12 @@
 
 menu "IEEE 1394 (FireWire) support (JUJU alternative stack)"
 
+comment "This is an EXPERIMENTAL set of alternative FireWire drivers."
+	depends on EXPERIMENTAL=n
+
 config FW
-	tristate "IEEE 1394 (FireWire) support (JUJU alternative stack)"
+	tristate "IEEE 1394 (FireWire) support (JUJU alternative stack, experimental)"
+	depends on EXPERIMENTAL
 	help
 	  IEEE 1394 describes a high performance serial bus, which is also
 	  known as FireWire(tm) or i.Link(tm) and is used for connecting all
