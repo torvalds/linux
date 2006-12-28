@@ -281,9 +281,9 @@ struct pvr2_hdw {
 	int unit_number;             /* ID for driver instance */
 	unsigned long serial_number; /* ID for hardware itself */
 
-	/* Minor number used by v4l logic (yes, this is a hack, as there should
-	   be no v4l junk here).  Probably a better way to do this. */
-	int v4l_minor_number;
+	/* Minor numbers used by v4l logic (yes, this is a hack, as there
+	   should be no v4l junk here).  Probably a better way to do this. */
+	int v4l_minor_number[3];
 
 	/* Location of eeprom or a negative number if none */
 	int eeprom_addr;

@@ -40,8 +40,10 @@ struct pvr2_sysfs {
 	struct pvr2_sysfs_ctl_item *item_first;
 	struct pvr2_sysfs_ctl_item *item_last;
 	struct class_device_attribute attr_v4l_minor_number;
+	struct class_device_attribute attr_v4l_radio_minor_number;
 	struct class_device_attribute attr_unit_number;
 	int v4l_minor_number_created_ok;
+	int v4l_radio_minor_number_created_ok;
 	int unit_number_created_ok;
 };
 
@@ -709,6 +711,10 @@ static void class_dev_destroy(struct pvr2_sysfs *sfp)
 		class_device_remove_file(sfp->class_dev,
 					 &sfp->attr_v4l_minor_number);
 	}
+	if (sfp->v4l_radio_minor_number_created_ok) {
+		class_device_remove_file(sfp->class_dev,
+					 &sfp->attr_v4l_radio_minor_number);
+	}
 	if (sfp->unit_number_created_ok) {
 		class_device_remove_file(sfp->class_dev,
 					 &sfp->attr_unit_number);
@@ -726,7 +732,18 @@ static ssize_t v4l_minor_number_show(struct class_device *class_dev,char *buf)
 	sfp = (struct pvr2_sysfs *)class_dev->class_data;
 	if (!sfp) return -EINVAL;
 	return scnprintf(buf,PAGE_SIZE,"%d\n",
-			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw));
+			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,0));
+}
+
+
+static ssize_t v4l_radio_minor_number_show(struct class_device *class_dev,
+					   char *buf)
+{
+	struct pvr2_sysfs *sfp;
+	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	if (!sfp) return -EINVAL;
+	return scnprintf(buf,PAGE_SIZE,"%d\n",
+			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,2));
 }
 
 
@@ -791,6 +808,20 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 		       __FUNCTION__, ret);
 	} else {
 		sfp->v4l_minor_number_created_ok = !0;
+	}
+
+	sfp->attr_v4l_radio_minor_number.attr.owner = THIS_MODULE;
+	sfp->attr_v4l_radio_minor_number.attr.name = "v4l_radio_minor_number";
+	sfp->attr_v4l_radio_minor_number.attr.mode = S_IRUGO;
+	sfp->attr_v4l_radio_minor_number.show = v4l_radio_minor_number_show;
+	sfp->attr_v4l_radio_minor_number.store = NULL;
+	ret = class_device_create_file(sfp->class_dev,
+				       &sfp->attr_v4l_radio_minor_number);
+	if (ret < 0) {
+		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		       __FUNCTION__, ret);
+	} else {
+		sfp->v4l_radio_minor_number_created_ok = !0;
 	}
 
 	sfp->attr_unit_number.attr.owner = THIS_MODULE;

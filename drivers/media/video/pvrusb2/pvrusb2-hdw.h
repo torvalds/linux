@@ -205,11 +205,11 @@ int pvr2_hdw_cpufw_get_enabled(struct pvr2_hdw *);
 int pvr2_hdw_cpufw_get(struct pvr2_hdw *,unsigned int offs,
 		       char *buf,unsigned int cnt);
 
-/* Retrieve previously stored v4l minor device number */
-int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *);
+/* Retrieve a previously stored v4l minor device number */
+int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *,int);
 
-/* Store the v4l minor device number */
-void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *,int);
+/* Store a v4l minor device number */
+void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *,int,int);
 
 /* Direct read/write access to chip's registers:
    chip_id - unique id of chip (e.g. I2C_DRIVERD_xxxx)
