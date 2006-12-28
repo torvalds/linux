@@ -60,6 +60,7 @@ struct pvr2_decoder;
 
 typedef int (*pvr2_ctlf_is_dirty)(struct pvr2_ctrl *);
 typedef void (*pvr2_ctlf_clear_dirty)(struct pvr2_ctrl *);
+typedef int (*pvr2_ctlf_check_value)(struct pvr2_ctrl *,int);
 typedef int (*pvr2_ctlf_get_value)(struct pvr2_ctrl *,int *);
 typedef int (*pvr2_ctlf_set_value)(struct pvr2_ctrl *,int msk,int val);
 typedef int (*pvr2_ctlf_val_to_sym)(struct pvr2_ctrl *,int msk,int val,
@@ -83,6 +84,7 @@ struct pvr2_ctl_info {
 	pvr2_ctlf_get_value get_min_value;  /* Get minimum allowed value */
 	pvr2_ctlf_get_value get_max_value;  /* Get maximum allowed value */
 	pvr2_ctlf_set_value set_value;      /* Set its value */
+	pvr2_ctlf_check_value check_value;  /* Check that value is valid */
 	pvr2_ctlf_val_to_sym val_to_sym;    /* Custom convert value->symbol */
 	pvr2_ctlf_sym_to_val sym_to_val;    /* Custom convert symbol->value */
 	pvr2_ctlf_is_dirty is_dirty;        /* Return true if dirty */

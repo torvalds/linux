@@ -381,6 +381,15 @@ static int ctrl_vres_min_get(struct pvr2_ctrl *cptr,int *vp)
 	return 0;
 }
 
+static int ctrl_freq_check(struct pvr2_ctrl *cptr,int v)
+{
+	if (cptr->hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+		return ((v >= RADIO_MIN_FREQ) && (v <= RADIO_MAX_FREQ));
+	} else {
+		return ((v >= TV_MIN_FREQ) && (v <= TV_MAX_FREQ));
+	}
+}
+
 static int ctrl_freq_max_get(struct pvr2_ctrl *cptr, int *vp)
 {
 	/* Actual maximum depends on radio/tv mode */
@@ -788,6 +797,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		DEFINT(TV_MIN_FREQ,TV_MAX_FREQ),
 		/* Hook in check for input value (tv/radio) and adjust
 		   max/min values accordingly */
+		.check_value = ctrl_freq_check,
 		.get_max_value = ctrl_freq_max_get,
 		.get_min_value = ctrl_freq_min_get,
 	},{
