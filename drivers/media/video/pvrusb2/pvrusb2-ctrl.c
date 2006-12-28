@@ -498,10 +498,19 @@ int pvr2_ctrl_sym_to_value(struct pvr2_ctrl *cptr,
 	LOCK_TAKE(cptr->hdw->big_lock); do {
 		if (cptr->info->type == pvr2_ctl_int) {
 			ret = parse_token(ptr,len,valptr,NULL,0);
-			if ((ret >= 0) &&
-			    ((*valptr < cptr->info->def.type_int.min_value) ||
-			     (*valptr > cptr->info->def.type_int.max_value))) {
-				ret = -ERANGE;
+			if (ret >= 0) {
+				int min, max;
+				min = cptr->info->def.type_int.min_value;
+				if (cptr->info->get_min_value) {
+					cptr->info->get_min_value(cptr,&min);
+				}
+				max = cptr->info->def.type_int.max_value;
+				if (cptr->info->get_max_value) {
+					cptr->info->get_max_value(cptr,&max);
+				}
+				if ((*valptr < min) || (*valptr > max)) {
+					ret = -ERANGE;
+				}
 			}
 			if (maskptr) *maskptr = ~0;
 		} else if (cptr->info->type == pvr2_ctl_bool) {
