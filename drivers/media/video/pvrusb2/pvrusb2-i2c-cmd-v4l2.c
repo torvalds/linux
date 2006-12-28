@@ -146,10 +146,15 @@ static void set_frequency(struct pvr2_hdw *hdw)
 	fv = hdw->freqVal;
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 set_freq(%lu)",fv);
 	memset(&freq,0,sizeof(freq));
-	freq.frequency = fv / 62500;
+	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+		// ((fv * 1000) / 62500)
+		freq.frequency = (fv * 2) / 125;
+		freq.type = V4L2_TUNER_RADIO;
+	} else {
+		freq.frequency = fv / 62500;
+		freq.type = V4L2_TUNER_ANALOG_TV;
+	}
 	freq.tuner = 0;
-	freq.type = (hdw->input_val == PVR2_CVAL_INPUT_RADIO) ?
-		     V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	pvr2_i2c_core_cmd(hdw,VIDIOC_S_FREQUENCY,&freq);
 }
 
