@@ -925,29 +925,14 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 		pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr_v4l2_fh id=%p",fhp);
 		pvr2_channel_init(&fhp->channel,vp->channel.mc_head);
 
-		/* pk: warning, severe ugliness follows. 18+ only.
-		   please blaim V4L(ivtv) for braindamaged interfaces,
-		   not the implementor. This is probably flawed, but
-		   suggestions on how to do this "right" are welcome! */
+		/* Opening the /dev/radioX device implies a mode switch.
+		   So execute that here.  Note that you can get the
+		   IDENTICAL effect merely by opening the normal video
+		   device and setting the input appropriately. */
 		if (dip->config == pvr2_config_radio) {
-			int ret;
-			if ((pvr2_channel_check_stream_no_lock(&fhp->channel,
-					      fhp->dev_info->stream)) != 0) {
-				/* We can 't switch modes while streaming */
-				pvr2_channel_done(&fhp->channel);
-				kfree(fhp);
-				pvr2_context_exit(vp->channel.mc_head);
-				return -EBUSY;
-			}
-
-			if ((ret = pvr2_ctrl_set_value(
+			pvr2_ctrl_set_value(
 				pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT),
-						  PVR2_CVAL_INPUT_RADIO))) {
-				pvr2_channel_done(&fhp->channel);
-				kfree(fhp);
-				pvr2_context_exit(vp->channel.mc_head);
-				return ret;
-			}
+				PVR2_CVAL_INPUT_RADIO);
 		}
 
 		fhp->vnext = NULL;

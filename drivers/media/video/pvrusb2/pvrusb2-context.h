@@ -76,8 +76,6 @@ void pvr2_channel_init(struct pvr2_channel *,struct pvr2_context *);
 void pvr2_channel_done(struct pvr2_channel *);
 int pvr2_channel_claim_stream(struct pvr2_channel *,
 			      struct pvr2_context_stream *);
-int pvr2_channel_check_stream_no_lock(struct pvr2_channel *,
-			      struct pvr2_context_stream *);
 struct pvr2_ioread *pvr2_channel_create_mpeg_stream(
 	struct pvr2_context_stream *);
 

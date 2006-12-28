@@ -188,17 +188,6 @@ void pvr2_channel_done(struct pvr2_channel *cp)
 }
 
 
-int pvr2_channel_check_stream_no_lock(struct pvr2_channel *cp,
-			      struct pvr2_context_stream *sp)
-{
-	if (sp == cp->stream) return 0;
-	if (sp->user) {
-		return -EBUSY;
-	}
-	return 0;
-}
-
-
 int pvr2_channel_claim_stream(struct pvr2_channel *cp,
 			      struct pvr2_context_stream *sp)
 {
