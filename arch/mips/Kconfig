@@ -726,15 +726,16 @@ config SNI_RM
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
-	select HAVE_STD_PC_SERIAL_PORT
 	select HW_HAS_EISA
 	select HW_HAS_PCI
+	select IRQ_CPU
 	select I8253
 	select I8259
 	select ISA
 	select SWAP_IO_SPACE if CPU_BIG_ENDIAN
 	select SYS_HAS_CPU_R4X00
 	select SYS_HAS_CPU_R5000
+	select SYS_HAS_CPU_R10000
 	select R5000_CPU_SCACHE
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
@@ -1066,7 +1067,7 @@ config BOOT_ELF32
 
 config MIPS_L1_CACHE_SHIFT
 	int
-	default "4" if MACH_DECSTATION
+	default "4" if MACH_DECSTATION || SNI_RM
 	default "7" if SGI_IP27
 	default "5"
 
