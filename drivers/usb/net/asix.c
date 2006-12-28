@@ -920,7 +920,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		goto out2;
 
 	if ((ret = asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT,
-				0x0000, 0, 0, buf)) < 0) {
+				1, 0, 0, buf)) < 0) {
 		dbg("Select PHY #1 failed: %d", ret);
 		goto out2;
 	}
