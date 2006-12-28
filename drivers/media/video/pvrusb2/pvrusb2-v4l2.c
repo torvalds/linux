@@ -725,11 +725,9 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 static void pvr2_v4l2_destroy_no_lock(struct pvr2_v4l2 *vp)
 {
 	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
-					pvr2_config_mpeg-1,-1);
+					pvr2_config_mpeg,-1);
 	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
-					pvr2_config_vbi-1,-1);
-	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
-					pvr2_config_radio-1,-1);
+					pvr2_config_radio,-1);
 	pvr2_v4l2_dev_destroy(vp->vdev);
 
 	pvr2_trace(PVR2_TRACE_STRUCT,"Destroying pvr2_v4l2 id=%p",vp);
@@ -1135,7 +1133,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	}
 
 	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
-					cfg-1,dip->devbase.minor);
+					cfg,dip->devbase.minor);
 }
 
 

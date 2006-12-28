@@ -1898,9 +1898,8 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	hdw->eeprom_addr = -1;
 	hdw->unit_number = -1;
-	hdw->v4l_minor_number[0] = -1;
-	hdw->v4l_minor_number[1] = -1;
-	hdw->v4l_minor_number[2] = -1;
+	hdw->v4l_minor_number_mpeg = -1;
+	hdw->v4l_minor_number_radio = -1;
 	hdw->ctl_write_buffer = kmalloc(PVR2_CTL_BUFFSIZE,GFP_KERNEL);
 	if (!hdw->ctl_write_buffer) goto fail;
 	hdw->ctl_read_buffer = kmalloc(PVR2_CTL_BUFFSIZE,GFP_KERNEL);
@@ -2548,16 +2547,26 @@ int pvr2_hdw_cpufw_get(struct pvr2_hdw *hdw,unsigned int offs,
 }
 
 
-int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *hdw,int index)
+int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *hdw,
+				  enum pvr2_config index)
 {
-	return hdw->v4l_minor_number[index];
+	switch (index) {
+	case pvr2_config_mpeg: return hdw->v4l_minor_number_mpeg;
+	case pvr2_config_radio: return hdw->v4l_minor_number_radio;
+	default: return -1;
+	}
 }
 
 
 /* Store a v4l minor device number */
-void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *hdw,int index,int v)
+void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *hdw,
+				     enum pvr2_config index,int v)
 {
-	hdw->v4l_minor_number[index] = v;
+	switch (index) {
+	case pvr2_config_mpeg: hdw->v4l_minor_number_mpeg = v;
+	case pvr2_config_radio: hdw->v4l_minor_number_radio = v;
+	default: break;
+	}
 }
 
 
