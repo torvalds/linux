@@ -770,7 +770,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.v4l_id = V4L2_CID_AUDIO_VOLUME,
 		.desc = "Volume",
 		.name = "volume",
-		.default_value = 65535,
+		.default_value = 62000,
 		DEFREF(volume),
 		DEFINT(0,65535),
 	},{
