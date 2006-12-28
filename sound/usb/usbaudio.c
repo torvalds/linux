@@ -253,7 +253,7 @@ static int prepare_capture_sync_urb(struct snd_usb_substream *subs,
 				    struct urb *urb)
 {
 	unsigned char *cp = urb->transfer_buffer;
-	struct snd_urb_ctx *ctx = (struct snd_urb_ctx *)urb->context;
+	struct snd_urb_ctx *ctx = urb->context;
 
 	urb->dev = ctx->subs->dev; /* we need to set this at each time */
 	urb->iso_frame_desc[0].length = 3;
@@ -275,7 +275,7 @@ static int prepare_capture_sync_urb_hs(struct snd_usb_substream *subs,
 				       struct urb *urb)
 {
 	unsigned char *cp = urb->transfer_buffer;
-	struct snd_urb_ctx *ctx = (struct snd_urb_ctx *)urb->context;
+	struct snd_urb_ctx *ctx = urb->context;
 
 	urb->dev = ctx->subs->dev; /* we need to set this at each time */
 	urb->iso_frame_desc[0].length = 4;
@@ -313,7 +313,7 @@ static int prepare_capture_urb(struct snd_usb_substream *subs,
 			       struct urb *urb)
 {
 	int i, offs;
-	struct snd_urb_ctx *ctx = (struct snd_urb_ctx *)urb->context;
+	struct snd_urb_ctx *ctx = urb->context;
 
 	offs = 0;
 	urb->dev = ctx->subs->dev; /* we need to set this at each time */
@@ -412,7 +412,7 @@ static int prepare_playback_sync_urb(struct snd_usb_substream *subs,
 				     struct snd_pcm_runtime *runtime,
 				     struct urb *urb)
 {
-	struct snd_urb_ctx *ctx = (struct snd_urb_ctx *)urb->context;
+	struct snd_urb_ctx *ctx = urb->context;
 
 	urb->dev = ctx->subs->dev; /* we need to set this at each time */
 	urb->iso_frame_desc[0].length = 3;
@@ -430,7 +430,7 @@ static int prepare_playback_sync_urb_hs(struct snd_usb_substream *subs,
 					struct snd_pcm_runtime *runtime,
 					struct urb *urb)
 {
-	struct snd_urb_ctx *ctx = (struct snd_urb_ctx *)urb->context;
+	struct snd_urb_ctx *ctx = urb->context;
 
 	urb->dev = ctx->subs->dev; /* we need to set this at each time */
 	urb->iso_frame_desc[0].length = 4;
@@ -547,7 +547,7 @@ static int prepare_playback_urb(struct snd_usb_substream *subs,
 	unsigned int counts;
 	unsigned long flags;
 	int period_elapsed = 0;
-	struct snd_urb_ctx *ctx = (struct snd_urb_ctx *)urb->context;
+	struct snd_urb_ctx *ctx = urb->context;
 
 	stride = runtime->frame_bits >> 3;
 
@@ -665,7 +665,7 @@ static struct snd_urb_ops audio_urb_ops_high_speed[2] = {
  */
 static void snd_complete_urb(struct urb *urb)
 {
-	struct snd_urb_ctx *ctx = (struct snd_urb_ctx *)urb->context;
+	struct snd_urb_ctx *ctx = urb->context;
 	struct snd_usb_substream *subs = ctx->subs;
 	struct snd_pcm_substream *substream = ctx->subs->pcm_substream;
 	int err = 0;
@@ -688,7 +688,7 @@ static void snd_complete_urb(struct urb *urb)
  */
 static void snd_complete_sync_urb(struct urb *urb)
 {
-	struct snd_urb_ctx *ctx = (struct snd_urb_ctx *)urb->context;
+	struct snd_urb_ctx *ctx = urb->context;
 	struct snd_usb_substream *subs = ctx->subs;
 	struct snd_pcm_substream *substream = ctx->subs->pcm_substream;
 	int err = 0;
@@ -1429,7 +1429,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *hw_params)
 {
-	struct snd_usb_substream *subs = (struct snd_usb_substream *)substream->runtime->private_data;
+	struct snd_usb_substream *subs = substream->runtime->private_data;
 	struct audioformat *fmt;
 	unsigned int channels, rate, format;
 	int ret, changed;
@@ -1485,7 +1485,7 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
  */
 static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 {
-	struct snd_usb_substream *subs = (struct snd_usb_substream *)substream->runtime->private_data;
+	struct snd_usb_substream *subs = substream->runtime->private_data;
 
 	subs->cur_audiofmt = NULL;
 	subs->cur_rate = 0;
