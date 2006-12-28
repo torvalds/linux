@@ -32,6 +32,8 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-common.h>
 
+#define PVR2_NR_STREAMS 3
+
 struct pvr2_v4l2_dev;
 struct pvr2_v4l2_fh;
 struct pvr2_v4l2;
@@ -77,7 +79,7 @@ static struct v4l2_capability pvr_capability ={
 	.bus_info       = "usb",
 	.version        = KERNEL_VERSION(0,8,0),
 	.capabilities   = (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VBI_CAPTURE |
-			   V4L2_CAP_TUNER | V4L2_CAP_AUDIO |
+			   V4L2_CAP_TUNER | V4L2_CAP_AUDIO | V4L2_CAP_RADIO |
 			   V4L2_CAP_READWRITE),
 	.reserved       = {0,0,0,0}
 };
@@ -784,6 +786,18 @@ static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 		pvr2_ioread_destroy(fhp->rhp);
 		fhp->rhp = NULL;
 	}
+
+	if (fhp->dev_info->config == pvr2_config_radio) {
+		int ret;
+		struct pvr2_hdw *hdw;
+		hdw = fhp->channel.mc_head->hdw;
+		if ((ret = pvr2_ctrl_set_value(
+			pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT),
+			PVR2_CVAL_INPUT_TV))) {
+			return ret;
+		}
+	}
+
 	v4l2_prio_close(&vp->prio, &fhp->prio);
 	file->private_data = NULL;
 
@@ -845,6 +859,32 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 	pvr2_context_enter(vp->channel.mc_head); do {
 		pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr_v4l2_fh id=%p",fhp);
 		pvr2_channel_init(&fhp->channel,vp->channel.mc_head);
+
+		/* pk: warning, severe ugliness follows. 18+ only.
+		   please blaim V4L(ivtv) for braindamaged interfaces,
+		   not the implementor. This is probably flawed, but
+		   suggestions on how to do this "right" are welcome! */
+		if (dip->config == pvr2_config_radio) {
+			int ret;
+			if ((pvr2_channel_check_stream_no_lock(&fhp->channel,
+					      fhp->dev_info->stream)) != 0) {
+				/* We can 't switch modes while streaming */
+				pvr2_channel_done(&fhp->channel);
+				kfree(fhp);
+				pvr2_context_exit(vp->channel.mc_head);
+				return -EBUSY;
+			}
+
+			if ((ret = pvr2_ctrl_set_value(
+				pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT),
+						  PVR2_CVAL_INPUT_RADIO))) {
+				pvr2_channel_done(&fhp->channel);
+				kfree(fhp);
+				pvr2_context_exit(vp->channel.mc_head);
+				return ret;
+			}
+		}
+
 		fhp->vnext = NULL;
 		fhp->vprev = vp->vlast;
 		if (vp->vlast) {
@@ -942,6 +982,12 @@ static ssize_t pvr2_v4l2_read(struct file *file,
 		return tcnt;
 	}
 
+	if (fh->dev_info->config == pvr2_config_radio) {
+		/* Radio device nodes on this device
+		   cannot be read or written. */
+		return -EPERM;
+	}
+
 	if (!fh->rhp) {
 		ret = pvr2_v4l2_iosetup(fh);
 		if (ret) {
@@ -974,6 +1020,12 @@ static unsigned int pvr2_v4l2_poll(struct file *file, poll_table *wait)
 	if (fh->fw_mode_flag) {
 		mask |= POLLIN | POLLRDNORM;
 		return mask;
+	}
+
+	if (fh->dev_info->config == pvr2_config_radio) {
+		/* Radio device nodes on this device
+		   cannot be read or written. */
+		return -EPERM;
 	}
 
 	if (!fh->rhp) {
@@ -1044,7 +1096,8 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		return;
 	}
 
-	if (!dip->stream) {
+	/* radio device doesn 't need its own stream */
+	if (!dip->stream && cfg != pvr2_config_radio) {
 		err("Failed to set up pvrusb2 v4l dev"
 		    " due to missing stream instance");
 		return;
@@ -1060,10 +1113,25 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	}
 	if ((video_register_device(&dip->devbase, v4l_type, mindevnum) < 0) &&
 	    (video_register_device(&dip->devbase, v4l_type, -1) < 0)) {
-		err("Failed to register pvrusb2 v4l video device");
-	} else {
+		err("Failed to register pvrusb2 v4l device");
+	}
+	switch (cfg) {
+	case pvr2_config_mpeg:
 		printk(KERN_INFO "pvrusb2: registered device video%d [%s]\n",
 		       dip->devbase.minor,pvr2_config_get_name(dip->config));
+	break;
+	case pvr2_config_vbi:
+		printk(KERN_INFO "pvrusb2: registered device vbi%d [%s]\n",
+		dip->devbase.minor - MINOR_VFL_TYPE_VBI_MIN,
+		pvr2_config_get_name(dip->config));
+	break;
+	case pvr2_config_radio:
+		printk(KERN_INFO "pvrusb2: registered device radio%d [%s]\n",
+		dip->devbase.minor - MINOR_VFL_TYPE_RADIO_MIN,
+		pvr2_config_get_name(dip->config));
+	break;
+	default:
+	break;
 	}
 
 	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
@@ -1078,19 +1146,20 @@ struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
 	vp = kmalloc(sizeof(*vp),GFP_KERNEL);
 	if (!vp) return vp;
 	memset(vp,0,sizeof(*vp));
-	vp->vdev = kmalloc(sizeof(*vp->vdev),GFP_KERNEL);
+	vp->vdev = kmalloc(sizeof(*vp->vdev)*PVR2_NR_STREAMS,GFP_KERNEL);
 	if (!vp->vdev) {
 		kfree(vp);
 		return NULL;
 	}
-	memset(vp->vdev,0,sizeof(*vp->vdev));
+	memset(vp->vdev,0,sizeof(*vp->vdev)*PVR2_NR_STREAMS);
 	pvr2_channel_init(&vp->channel,mnp);
 	pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr2_v4l2 id=%p",vp);
 
 	vp->channel.check_func = pvr2_v4l2_internal_check;
 
 	/* register streams */
-	pvr2_v4l2_dev_init(vp->vdev,vp,pvr2_config_mpeg);
+	pvr2_v4l2_dev_init(&vp->vdev[0],vp,pvr2_config_mpeg);
+	pvr2_v4l2_dev_init(&vp->vdev[2],vp,pvr2_config_radio);
 
 	return vp;
 }
