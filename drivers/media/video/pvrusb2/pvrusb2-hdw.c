@@ -37,10 +37,9 @@
 #include "pvrusb2-encoder.h"
 #include "pvrusb2-debug.h"
 
-#define TV_MIN_FREQ 55250000L
-#define TV_MAX_FREQ 850000000L
-
-#define RADIO_MIN_FREQ 87000000L
+#define TV_MIN_FREQ     55250000L
+#define TV_MAX_FREQ    850000000L
+#define RADIO_MIN_FREQ  87000000L
 #define RADIO_MAX_FREQ 108000000L
 
 struct usb_device_id pvr2_device_table[] = {
@@ -95,6 +94,7 @@ static int procreload = 0;
 static int tuner[PVR_NUM] = { [0 ... PVR_NUM-1] = -1 };
 static int tolerance[PVR_NUM] = { [0 ... PVR_NUM-1] = 0 };
 static int video_std[PVR_NUM] = { [0 ... PVR_NUM-1] = 0 };
+static int auto_mode_switch[PVR_NUM];
 static int init_pause_msec = 0;
 
 module_param(ctlchg, int, S_IRUGO|S_IWUSR);
@@ -112,6 +112,8 @@ module_param_array(video_std,    int, NULL, 0444);
 MODULE_PARM_DESC(video_std,"specify initial video standard");
 module_param_array(tolerance,    int, NULL, 0444);
 MODULE_PARM_DESC(tolerance,"specify stream error tolerance");
+module_param_array(auto_mode_switch,    int, NULL, 0444);
+MODULE_PARM_DESC(auto_mode_switch,"Enable TV/Radio automatic mode switch based on freq");
 
 #define PVR2_CTL_WRITE_ENDPOINT  0x01
 #define PVR2_CTL_READ_ENDPOINT   0x81
@@ -258,6 +260,7 @@ static const char *control_values_subsystem[] = {
 	[PVR2_SUBSYS_B_ENC_RUN] = "enc_run",
 };
 
+static void pvr2_hdw_set_cur_freq(struct pvr2_hdw *,unsigned long);
 static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl);
 static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw);
 static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw);
@@ -292,8 +295,21 @@ static int ctrl_channelfreq_get(struct pvr2_ctrl *cptr,int *vp)
 static int ctrl_channelfreq_set(struct pvr2_ctrl *cptr,int m,int v)
 {
 	struct pvr2_hdw *hdw = cptr->hdw;
-	if ((hdw->freqProgSlot > 0) && (hdw->freqProgSlot <= FREQTABLE_SIZE)) {
-		hdw->freqTable[hdw->freqProgSlot-1] = v;
+	unsigned int slotId = hdw->freqProgSlot;
+	if ((slotId > 0) && (slotId <= FREQTABLE_SIZE)) {
+		hdw->freqTable[slotId-1] = v;
+		/* Handle side effects correctly - if we're tuned to this
+		   slot, then forgot the slot id relation since the stored
+		   frequency has been changed. */
+		if (hdw->freqSelector) {
+			if (hdw->freqSlotRadio == slotId) {
+				hdw->freqSlotRadio = 0;
+			}
+		} else {
+			if (hdw->freqSlotTelevision == slotId) {
+				hdw->freqSlotTelevision = 0;
+			}
+		}
 	}
 	return 0;
 }
@@ -315,28 +331,32 @@ static int ctrl_channelprog_set(struct pvr2_ctrl *cptr,int m,int v)
 
 static int ctrl_channel_get(struct pvr2_ctrl *cptr,int *vp)
 {
-	*vp = cptr->hdw->freqSlot;
+	struct pvr2_hdw *hdw = cptr->hdw;
+	*vp = hdw->freqSelector ? hdw->freqSlotRadio : hdw->freqSlotTelevision;
 	return 0;
 }
 
-static int ctrl_channel_set(struct pvr2_ctrl *cptr,int m,int v)
+static int ctrl_channel_set(struct pvr2_ctrl *cptr,int m,int slotId)
 {
 	unsigned freq = 0;
 	struct pvr2_hdw *hdw = cptr->hdw;
-	hdw->freqSlot = v;
-	if ((hdw->freqSlot > 0) && (hdw->freqSlot <= FREQTABLE_SIZE)) {
-		freq = hdw->freqTable[hdw->freqSlot-1];
+	if ((slotId < 0) || (slotId > FREQTABLE_SIZE)) return 0;
+	if (slotId > 0) {
+		freq = hdw->freqTable[slotId-1];
+		if (!freq) return 0;
+		pvr2_hdw_set_cur_freq(hdw,freq);
 	}
-	if (freq && (freq != hdw->freqVal)) {
-		hdw->freqVal = freq;
-		hdw->freqDirty = !0;
+	if (hdw->freqSelector) {
+		hdw->freqSlotRadio = slotId;
+	} else {
+		hdw->freqSlotTelevision = slotId;
 	}
 	return 0;
 }
 
 static int ctrl_freq_get(struct pvr2_ctrl *cptr,int *vp)
 {
-	*vp = cptr->hdw->freqVal;
+	*vp = pvr2_hdw_get_cur_freq(cptr->hdw);
 	return 0;
 }
 
@@ -352,10 +372,7 @@ static void ctrl_freq_clear_dirty(struct pvr2_ctrl *cptr)
 
 static int ctrl_freq_set(struct pvr2_ctrl *cptr,int m,int v)
 {
-	struct pvr2_hdw *hdw = cptr->hdw;
-	hdw->freqVal = v;
-	hdw->freqDirty = !0;
-	hdw->freqSlot = 0;
+	pvr2_hdw_set_cur_freq(cptr->hdw,v);
 	return 0;
 }
 
@@ -381,13 +398,51 @@ static int ctrl_vres_min_get(struct pvr2_ctrl *cptr,int *vp)
 	return 0;
 }
 
+static int ctrl_get_input(struct pvr2_ctrl *cptr,int *vp)
+{
+	*vp = cptr->hdw->input_val;
+	return 0;
+}
+
+static int ctrl_set_input(struct pvr2_ctrl *cptr,int m,int v)
+{
+	struct pvr2_hdw *hdw = cptr->hdw;
+
+	if (hdw->input_val != v) {
+		hdw->input_val = v;
+		hdw->input_dirty = !0;
+	}
+
+	/* Handle side effects - if we switch to a mode that needs the RF
+	   tuner, then select the right frequency choice as well and mark
+	   it dirty. */
+	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+		hdw->freqSelector = 0;
+		hdw->freqDirty = !0;
+	} else if (hdw->input_val == PVR2_CVAL_INPUT_TV) {
+		hdw->freqSelector = 1;
+		hdw->freqDirty = !0;
+	}
+	return 0;
+}
+
+static int ctrl_isdirty_input(struct pvr2_ctrl *cptr)
+{
+	return cptr->hdw->input_dirty != 0;
+}
+
+static void ctrl_cleardirty_input(struct pvr2_ctrl *cptr)
+{
+	cptr->hdw->input_dirty = 0;
+}
+
 static int ctrl_freq_check(struct pvr2_ctrl *cptr,int v)
 {
-	if (cptr->hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
-		return ((v >= RADIO_MIN_FREQ) && (v <= RADIO_MAX_FREQ));
-	} else {
-		return ((v >= TV_MIN_FREQ) && (v <= TV_MAX_FREQ));
-	}
+	/* Both ranges are simultaneously considered legal, in order to
+	   permit implicit mode switching, i.e. set a frequency in the
+	   other range and the mode will switch */
+	return (((v >= RADIO_MIN_FREQ) && (v <= RADIO_MAX_FREQ)) ||
+		((v >= TV_MIN_FREQ) && (v <= TV_MAX_FREQ)));
 }
 
 static int ctrl_freq_max_get(struct pvr2_ctrl *cptr, int *vp)
@@ -675,11 +730,11 @@ VCREATE_FUNCS(balance)
 VCREATE_FUNCS(bass)
 VCREATE_FUNCS(treble)
 VCREATE_FUNCS(mute)
-VCREATE_FUNCS(input)
 VCREATE_FUNCS(audiomode)
 VCREATE_FUNCS(res_hor)
 VCREATE_FUNCS(res_ver)
 VCREATE_FUNCS(srate)
+VCREATE_FUNCS(automodeswitch)
 
 /* Table definition of all controls which can be manipulated */
 static const struct pvr2_ctl_info control_defs[] = {
@@ -779,6 +834,13 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.get_max_value = ctrl_vres_max_get,
 		.get_min_value = ctrl_vres_min_get,
 	},{
+		.v4l_id = V4L2_CID_AUDIO_MUTE,
+		.desc = "Automatic TV / Radio mode switch based on frequency",
+		.name = "auto_mode_switch",
+		.default_value = 0,
+		DEFREF(automodeswitch),
+		DEFBOOL,
+	},{
 		.v4l_id = V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ,
 		.default_value = V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000,
 		.desc = "Audio Sampling Frequency",
@@ -789,7 +851,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.desc = "Tuner Frequency (Hz)",
 		.name = "frequency",
 		.internal_id = PVR2_CID_FREQUENCY,
-		.default_value = 175250000L,
+		.default_value = 0,
 		.set_value = ctrl_freq_set,
 		.get_value = ctrl_freq_get,
 		.is_dirty = ctrl_freq_is_dirty,
@@ -812,6 +874,11 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.set_value = ctrl_channelfreq_set,
 		.get_value = ctrl_channelfreq_get,
 		DEFINT(TV_MIN_FREQ,TV_MAX_FREQ),
+		/* Hook in check for input value (tv/radio) and adjust
+		   max/min values accordingly */
+		.check_value = ctrl_freq_check,
+		.get_max_value = ctrl_freq_max_get,
+		.get_min_value = ctrl_freq_min_get,
 	},{
 		.desc = "Channel Program ID",
 		.name = "freq_table_channel",
@@ -906,6 +973,83 @@ struct usb_device *pvr2_hdw_get_dev(struct pvr2_hdw *hdw)
 unsigned long pvr2_hdw_get_sn(struct pvr2_hdw *hdw)
 {
 	return hdw->serial_number;
+}
+
+unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *hdw)
+{
+	return hdw->freqSelector ? hdw->freqValTelevision : hdw->freqValRadio;
+}
+
+/* Set the currently tuned frequency and account for all possible
+   driver-core side effects of this action. */
+void pvr2_hdw_set_cur_freq(struct pvr2_hdw *hdw,unsigned long val)
+{
+	int mode = 0;
+
+	/* If hdw->automodeswitch_val is set, then we do something clever:
+	   Look at the desired frequency and see if it looks like FM or TV.
+	   Execute a possible mode switch based on this result.  Otherwise
+	   we use the current input setting to determine which frequency
+	   register we need to adjust. */
+	if (hdw->automodeswitch_val) {
+		/* Note that since FM RADIO frequency range sits *inside*
+		   the TV spectrum that we must therefore check the radio
+		   range first... */
+		if ((val >= RADIO_MIN_FREQ) && (val <= RADIO_MAX_FREQ)) {
+			mode = 1;
+		} else if ((val >= TV_MIN_FREQ) && (val <= TV_MAX_FREQ)) {
+			mode = 2;
+		}
+	} else {
+		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+			mode = 1;
+		} else {
+			mode = 2;
+		}
+	}
+
+	switch (mode) {
+	case 1:
+		if (hdw->freqSelector) {
+			/* Swing over to radio frequency selection */
+			hdw->freqSelector = 0;
+			hdw->freqDirty = !0;
+		}
+		if (hdw->input_val == PVR2_CVAL_INPUT_TV) {
+			/* Force switch to radio mode */
+			hdw->input_val = PVR2_CVAL_INPUT_RADIO;
+			hdw->input_dirty = !0;
+		}
+		if (hdw->freqValRadio != val) {
+			hdw->freqValRadio = val;
+			hdw->freqSlotRadio = 0;
+			if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+				hdw->freqDirty = !0;
+			}
+		}
+		break;
+	case 2:
+		if (!(hdw->freqSelector)) {
+			/* Swing over to television frequency selection */
+			hdw->freqSelector = 1;
+			hdw->freqDirty = !0;
+		}
+		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+			/* Force switch to television mode */
+			hdw->input_val = PVR2_CVAL_INPUT_TV;
+			hdw->input_dirty = !0;
+		}
+		if (hdw->freqValTelevision != val) {
+			hdw->freqValTelevision = val;
+			hdw->freqSlotTelevision = 0;
+			if (hdw->input_val == PVR2_CVAL_INPUT_TV) {
+				hdw->freqDirty = !0;
+			}
+		}
+		break;
+	default:
+		break;
+	}
 }
 
 int pvr2_hdw_get_unit_number(struct pvr2_hdw *hdw)
@@ -1645,6 +1789,21 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 		if (cptr->info->skip_init) continue;
 		if (!cptr->info->set_value) continue;
 		cptr->info->set_value(cptr,~0,cptr->info->default_value);
+	}
+
+	/* Set up special default values for the television and radio
+	   frequencies here.  It's not really important what these defaults
+	   are, but I set them to something usable in the Chicago area just
+	   to make driver testing a little easier. */
+
+	/* US Broadcast channel 7 (175.25 MHz) */
+	hdw->freqValTelevision = 175250000L;
+	/* 104.3 MHz, a usable FM station for my area */
+	hdw->freqValRadio = 104300000L;
+
+	/* Default value for auto mode switch based on module option */
+	if ((hdw->unit_number >= 0) && (hdw->unit_number < PVR_NUM)) {
+		hdw->automodeswitch_val = auto_mode_switch[hdw->unit_number];
 	}
 
 	// Do not use pvr2_reset_ctl_endpoints() here.  It is not

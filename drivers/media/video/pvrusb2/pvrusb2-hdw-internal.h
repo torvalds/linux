@@ -214,7 +214,6 @@ struct pvr2_hdw {
 	/* Frequency table */
 	unsigned int freqTable[FREQTABLE_SIZE];
 	unsigned int freqProgSlot;
-	unsigned int freqSlot;
 
 	/* Stuff for handling low level control interaction with device */
 	struct mutex ctl_lock_mutex;
@@ -260,7 +259,11 @@ struct pvr2_hdw {
 	/* Tuner / frequency control stuff */
 	unsigned int tuner_type;
 	int tuner_updated;
-	unsigned int freqVal;
+	unsigned int freqValTelevision;  /* Current freq for tv mode */
+	unsigned int freqValRadio;       /* Current freq for radio mode */
+	unsigned int freqSlotTelevision; /* Current slot for tv mode */
+	unsigned int freqSlotRadio;      /* Current slot for radio mode */
+	unsigned int freqSelector;       /* 0=radio 1=television */
 	int freqDirty;
 
 	/* Video standard handling */
@@ -323,6 +326,7 @@ struct pvr2_hdw {
 	VCREATE_DATA(res_hor);
 	VCREATE_DATA(res_ver);
 	VCREATE_DATA(srate);
+	VCREATE_DATA(automodeswitch);
 #undef VCREATE_DATA
 
 	struct pvr2_ctld_info *mpeg_ctrl_info;
@@ -330,6 +334,9 @@ struct pvr2_hdw {
 	struct pvr2_ctrl *controls;
 	unsigned int control_cnt;
 };
+
+/* This function gets the current frequency */
+unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *);
 
 #endif /* __PVRUSB2_HDW_INTERNAL_H */
 

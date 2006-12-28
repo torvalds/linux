@@ -143,7 +143,7 @@ static void set_frequency(struct pvr2_hdw *hdw)
 {
 	unsigned long fv;
 	struct v4l2_frequency freq;
-	fv = hdw->freqVal;
+	fv = pvr2_hdw_get_cur_freq(hdw);
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 set_freq(%lu)",fv);
 	memset(&freq,0,sizeof(freq));
 	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
