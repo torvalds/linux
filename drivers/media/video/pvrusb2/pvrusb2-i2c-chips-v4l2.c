@@ -39,7 +39,6 @@
 #define OP_AUDIORATE 4
 #define OP_SIZE 5
 #define OP_LOG 6
-#define OP_RADIO 7
 
 static const struct pvr2_i2c_op * const ops[] = {
 	[OP_STANDARD] = &pvr2_i2c_op_v4l2_standard,
@@ -48,7 +47,6 @@ static const struct pvr2_i2c_op * const ops[] = {
 	[OP_FREQ] = &pvr2_i2c_op_v4l2_frequency,
 	[OP_SIZE] = &pvr2_i2c_op_v4l2_size,
 	[OP_LOG] = &pvr2_i2c_op_v4l2_log,
-	[OP_RADIO] = &pvr2_i2c_op_v4l2_radio,
 };
 
 void pvr2_i2c_probe(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
@@ -60,8 +58,7 @@ void pvr2_i2c_probe(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 			(1 << OP_VOLUME) |
 			(1 << OP_FREQ) |
 			(1 << OP_SIZE) |
-			(1 << OP_LOG) |
-			(1 << OP_RADIO));
+			(1 << OP_LOG));
 
 	if (id == I2C_DRIVERID_MSP3400) {
 		if (pvr2_i2c_msp3400_setup(hdw,cp)) {

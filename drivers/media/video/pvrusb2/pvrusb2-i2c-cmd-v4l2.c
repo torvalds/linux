@@ -28,18 +28,21 @@
 
 static void set_standard(struct pvr2_hdw *hdw)
 {
-	v4l2_std_id vs;
-	vs = hdw->std_mask_cur;
-	pvr2_trace(PVR2_TRACE_CHIPS,
-		   "i2c v4l2 set_standard(0x%llx)",(long long unsigned)vs);
+	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 set_standard");
 
-	pvr2_i2c_core_cmd(hdw,VIDIOC_S_STD,&vs);
+	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+		pvr2_i2c_core_cmd(hdw,AUDC_SET_RADIO,NULL);
+	} else {
+		v4l2_std_id vs;
+		vs = hdw->std_mask_cur;
+		pvr2_i2c_core_cmd(hdw,VIDIOC_S_STD,&vs);
+	}
 }
 
 
 static int check_standard(struct pvr2_hdw *hdw)
 {
-	return hdw->std_dirty != 0;
+	return (hdw->input_dirty != 0) || (hdw->std_dirty != 0);
 }
 
 
@@ -47,32 +50,6 @@ const struct pvr2_i2c_op pvr2_i2c_op_v4l2_standard = {
 	.check = check_standard,
 	.update = set_standard,
 	.name = "v4l2_standard",
-};
-
-
-static void set_radio(struct pvr2_hdw *hdw)
-{
-	pvr2_trace(PVR2_TRACE_CHIPS,
-			   "i2c v4l2 set_radio()");
-
-	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
-		pvr2_i2c_core_cmd(hdw,AUDC_SET_RADIO,NULL);
-	} else {
-		set_standard(hdw);
-	}
-}
-
-
-static int check_radio(struct pvr2_hdw *hdw)
-{
-	return hdw->input_dirty != 0;
-}
-
-
-const struct pvr2_i2c_op pvr2_i2c_op_v4l2_radio = {
-	.check = check_radio,
-	.update = set_radio,
-	.name = "v4l2_radio",
 };
 
 
