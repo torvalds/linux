@@ -658,21 +658,26 @@ struct all_info {
 	struct cg6_par par;
 };
 
-static void cg6_unmap_regs(struct all_info *all)
+static void cg6_unmap_regs(struct of_device *op, struct all_info *all)
 {
 	if (all->par.fbc)
-		of_iounmap(all->par.fbc, 4096);
+		of_iounmap(&op->resource[0], all->par.fbc, 4096);
 	if (all->par.tec)
-		of_iounmap(all->par.tec, sizeof(struct cg6_tec));
+		of_iounmap(&op->resource[0],
+			   all->par.tec, sizeof(struct cg6_tec));
 	if (all->par.thc)
-		of_iounmap(all->par.thc, sizeof(struct cg6_thc));
+		of_iounmap(&op->resource[0],
+			   all->par.thc, sizeof(struct cg6_thc));
 	if (all->par.bt)
-		of_iounmap(all->par.bt, sizeof(struct bt_regs));
+		of_iounmap(&op->resource[0],
+			   all->par.bt, sizeof(struct bt_regs));
 	if (all->par.fhc)
-		of_iounmap(all->par.fhc, sizeof(u32));
+		of_iounmap(&op->resource[0],
+			   all->par.fhc, sizeof(u32));
 
 	if (all->info.screen_base)
-		of_iounmap(all->info.screen_base, all->par.fbsize);
+		of_iounmap(&op->resource[0],
+			   all->info.screen_base, all->par.fbsize);
 }
 
 static int __devinit cg6_init_one(struct of_device *op)
@@ -720,7 +725,7 @@ static int __devinit cg6_init_one(struct of_device *op)
 					    all->par.fbsize, "cgsix ram");
 	if (!all->par.fbc || !all->par.tec || !all->par.thc ||
 	    !all->par.bt || !all->par.fhc || !all->info.screen_base) {
-		cg6_unmap_regs(all);
+		cg6_unmap_regs(op, all);
 		kfree(all);
 		return -ENOMEM;
 	}
@@ -734,7 +739,7 @@ static int __devinit cg6_init_one(struct of_device *op)
 	cg6_blank(0, &all->info);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		cg6_unmap_regs(all);
+		cg6_unmap_regs(op, all);
 		kfree(all);
 		return -ENOMEM;
 	}
@@ -744,7 +749,7 @@ static int __devinit cg6_init_one(struct of_device *op)
 
 	err = register_framebuffer(&all->info);
 	if (err < 0) {
-		cg6_unmap_regs(all);
+		cg6_unmap_regs(op, all);
 		fb_dealloc_cmap(&all->info.cmap);
 		kfree(all);
 		return err;
@@ -767,18 +772,18 @@ static int __devinit cg6_probe(struct of_device *dev, const struct of_device_id 
 	return cg6_init_one(op);
 }
 
-static int __devexit cg6_remove(struct of_device *dev)
+static int __devexit cg6_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&dev->dev);
+	struct all_info *all = dev_get_drvdata(&op->dev);
 
 	unregister_framebuffer(&all->info);
 	fb_dealloc_cmap(&all->info.cmap);
 
-	cg6_unmap_regs(all);
+	cg6_unmap_regs(op, all);
 
 	kfree(all);
 
-	dev_set_drvdata(&dev->dev, NULL);
+	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

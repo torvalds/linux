@@ -530,20 +530,21 @@ struct all_info {
 	struct leo_par par;
 };
 
-static void leo_unmap_regs(struct all_info *all)
+static void leo_unmap_regs(struct of_device *op, struct all_info *all)
 {
 	if (all->par.lc_ss0_usr)
-		of_iounmap(all->par.lc_ss0_usr, 0x1000);
+		of_iounmap(&op->resource[0], all->par.lc_ss0_usr, 0x1000);
 	if (all->par.ld_ss0)
-		of_iounmap(all->par.ld_ss0, 0x1000);
+		of_iounmap(&op->resource[0], all->par.ld_ss0, 0x1000);
 	if (all->par.ld_ss1)
-		of_iounmap(all->par.ld_ss1, 0x1000);
+		of_iounmap(&op->resource[0], all->par.ld_ss1, 0x1000);
 	if (all->par.lx_krn)
-		of_iounmap(all->par.lx_krn, 0x1000);
+		of_iounmap(&op->resource[0], all->par.lx_krn, 0x1000);
 	if (all->par.cursor)
-		of_iounmap(all->par.cursor, sizeof(struct leo_cursor));
+		of_iounmap(&op->resource[0],
+			   all->par.cursor, sizeof(struct leo_cursor));
 	if (all->info.screen_base)
-		of_iounmap(all->info.screen_base, 0x800000);
+		of_iounmap(&op->resource[0], all->info.screen_base, 0x800000);
 }
 
 static int __devinit leo_init_one(struct of_device *op)
@@ -592,7 +593,7 @@ static int __devinit leo_init_one(struct of_device *op)
 	    !all->par.lx_krn ||
 	    !all->par.cursor ||
 	    !all->info.screen_base) {
-		leo_unmap_regs(all);
+		leo_unmap_regs(op, all);
 		kfree(all);
 		return -ENOMEM;
 	}
@@ -607,7 +608,7 @@ static int __devinit leo_init_one(struct of_device *op)
 	leo_blank(0, &all->info);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		leo_unmap_regs(all);
+		leo_unmap_regs(op, all);
 		kfree(all);
 		return -ENOMEM;;
 	}
@@ -617,7 +618,7 @@ static int __devinit leo_init_one(struct of_device *op)
 	err = register_framebuffer(&all->info);
 	if (err < 0) {
 		fb_dealloc_cmap(&all->info.cmap);
-		leo_unmap_regs(all);
+		leo_unmap_regs(op, all);
 		kfree(all);
 		return err;
 	}
@@ -638,18 +639,18 @@ static int __devinit leo_probe(struct of_device *dev, const struct of_device_id 
 	return leo_init_one(op);
 }
 
-static int __devexit leo_remove(struct of_device *dev)
+static int __devexit leo_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&dev->dev);
+	struct all_info *all = dev_get_drvdata(&op->dev);
 
 	unregister_framebuffer(&all->info);
 	fb_dealloc_cmap(&all->info.cmap);
 
-	leo_unmap_regs(all);
+	leo_unmap_regs(op, all);
 
 	kfree(all);
 
-	dev_set_drvdata(&dev->dev, NULL);
+	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

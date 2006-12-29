@@ -350,18 +350,23 @@ struct all_info {
 	struct tcx_par par;
 };
 
-static void tcx_unmap_regs(struct all_info *all)
+static void tcx_unmap_regs(struct of_device *op, struct all_info *all)
 {
 	if (all->par.tec)
-		of_iounmap(all->par.tec, sizeof(struct tcx_tec));
+		of_iounmap(&op->resource[7],
+			   all->par.tec, sizeof(struct tcx_tec));
 	if (all->par.thc)
-		of_iounmap(all->par.thc, sizeof(struct tcx_thc));
+		of_iounmap(&op->resource[9],
+			   all->par.thc, sizeof(struct tcx_thc));
 	if (all->par.bt)
-		of_iounmap(all->par.bt, sizeof(struct bt_regs));
+		of_iounmap(&op->resource[8],
+			   all->par.bt, sizeof(struct bt_regs));
 	if (all->par.cplane)
-		of_iounmap(all->par.cplane, all->par.fbsize * sizeof(u32));
+		of_iounmap(&op->resource[4],
+			   all->par.cplane, all->par.fbsize * sizeof(u32));
 	if (all->info.screen_base)
-		of_iounmap(all->info.screen_base, all->par.fbsize);
+		of_iounmap(&op->resource[0],
+			   all->info.screen_base, all->par.fbsize);
 }
 
 static int __devinit tcx_init_one(struct of_device *op)
@@ -398,7 +403,7 @@ static int __devinit tcx_init_one(struct of_device *op)
 					   all->par.fbsize, "tcx ram");
 	if (!all->par.tec || !all->par.thc ||
 	    !all->par.bt || !all->info.screen_base) {
-		tcx_unmap_regs(all);
+		tcx_unmap_regs(op, all);
 		kfree(all);
 		return -ENOMEM;
 	}
@@ -409,7 +414,7 @@ static int __devinit tcx_init_one(struct of_device *op)
 					     all->par.fbsize * sizeof(u32),
 					     "tcx cplane");
 		if (!all->par.cplane) {
-			tcx_unmap_regs(all);
+			tcx_unmap_regs(op, all);
 			kfree(all);
 			return -ENOMEM;
 		}
@@ -461,7 +466,7 @@ static int __devinit tcx_init_one(struct of_device *op)
 	tcx_blank(FB_BLANK_UNBLANK, &all->info);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		tcx_unmap_regs(all);
+		tcx_unmap_regs(op, all);
 		kfree(all);
 		return -ENOMEM;
 	}
@@ -472,7 +477,7 @@ static int __devinit tcx_init_one(struct of_device *op)
 	err = register_framebuffer(&all->info);
 	if (err < 0) {
 		fb_dealloc_cmap(&all->info.cmap);
-		tcx_unmap_regs(all);
+		tcx_unmap_regs(op, all);
 		kfree(all);
 		return err;
 	}
@@ -495,18 +500,18 @@ static int __devinit tcx_probe(struct of_device *dev, const struct of_device_id 
 	return tcx_init_one(op);
 }
 
-static int __devexit tcx_remove(struct of_device *dev)
+static int __devexit tcx_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&dev->dev);
+	struct all_info *all = dev_get_drvdata(&op->dev);
 
 	unregister_framebuffer(&all->info);
 	fb_dealloc_cmap(&all->info.cmap);
 
-	tcx_unmap_regs(all);
+	tcx_unmap_regs(op, all);
 
 	kfree(all);
 
-	dev_set_drvdata(&dev->dev, NULL);
+	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }
