@@ -225,7 +225,6 @@ MODULE_DEVICE_TABLE(pci, rtl8169_pci_tbl);
 
 static int rx_copybreak = 200;
 static int use_dac;
-static int ignore_parity_err;
 static struct {
 	u32 msg_enable;
 } debug = { -1 };
@@ -471,8 +470,6 @@ module_param(use_dac, int, 0);
 MODULE_PARM_DESC(use_dac, "Enable PCI DAC. Unsafe on 32 bit PCI slot.");
 module_param_named(debug, debug.msg_enable, int, 0);
 MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
-module_param_named(ignore_parity_err, ignore_parity_err, bool, 0);
-MODULE_PARM_DESC(ignore_parity_err, "Ignore PCI parity error as target. Default: false");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(RTL8169_VERSION);
 
@@ -1885,7 +1882,6 @@ static void rtl8169_hw_start(struct net_device *dev)
 	    (tp->mac_version == RTL_GIGA_MAC_VER_02) ||
 	    (tp->mac_version == RTL_GIGA_MAC_VER_03) ||
 	    (tp->mac_version == RTL_GIGA_MAC_VER_04))
-		RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
 		rtl8169_set_rx_tx_config_registers(tp);
 
 	cmd = RTL_R16(CPlusCmd);
@@ -2388,7 +2384,7 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 	 *
 	 * Feel free to adjust to your needs.
 	 */
-	if (ignore_parity_err)
+	if (pdev->broken_parity_status)
 		pci_cmd &= ~PCI_COMMAND_PARITY;
 	else
 		pci_cmd |= PCI_COMMAND_SERR | PCI_COMMAND_PARITY;

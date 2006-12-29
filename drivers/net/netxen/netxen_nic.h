@@ -63,7 +63,7 @@
 
 #include "netxen_nic_hw.h"
 
-#define NETXEN_NIC_BUILD_NO     "1"
+#define NETXEN_NIC_BUILD_NO     "4"
 #define _NETXEN_NIC_LINUX_MAJOR 3
 #define _NETXEN_NIC_LINUX_MINOR 3
 #define _NETXEN_NIC_LINUX_SUBVERSION 2
@@ -137,7 +137,7 @@ extern struct workqueue_struct *netxen_workq;
 #define THIRD_PAGE_GROUP_SIZE  THIRD_PAGE_GROUP_END - THIRD_PAGE_GROUP_START
 
 #define MAX_RX_BUFFER_LENGTH		1760
-#define MAX_RX_JUMBO_BUFFER_LENGTH 	9046
+#define MAX_RX_JUMBO_BUFFER_LENGTH 	8062
 #define MAX_RX_LRO_BUFFER_LENGTH	((48*1024)-512)
 #define RX_DMA_MAP_LEN			(MAX_RX_BUFFER_LENGTH - 2)
 #define RX_JUMBO_DMA_MAP_LEN	\
@@ -199,9 +199,9 @@ enum {
 			(RCV_DESC_NORMAL)))
 
 #define MAX_CMD_DESCRIPTORS		1024
-#define MAX_RCV_DESCRIPTORS		32768
-#define MAX_JUMBO_RCV_DESCRIPTORS	4096
-#define MAX_LRO_RCV_DESCRIPTORS		2048
+#define MAX_RCV_DESCRIPTORS		16384
+#define MAX_JUMBO_RCV_DESCRIPTORS	1024
+#define MAX_LRO_RCV_DESCRIPTORS		64
 #define MAX_RCVSTATUS_DESCRIPTORS	MAX_RCV_DESCRIPTORS
 #define MAX_JUMBO_RCV_DESC	MAX_JUMBO_RCV_DESCRIPTORS
 #define MAX_RCV_DESC		MAX_RCV_DESCRIPTORS
@@ -852,8 +852,6 @@ struct netxen_adapter {
 	spinlock_t tx_lock;
 	spinlock_t lock;
 	struct work_struct watchdog_task;
-	struct work_struct tx_timeout_task;
-	struct net_device *netdev;
 	struct timer_list watchdog_timer;
 
 	u32 curr_window;
@@ -887,7 +885,6 @@ struct netxen_adapter {
 	struct netxen_recv_context recv_ctx[MAX_RCV_CTX];
 
 	int is_up;
-	int number;
 	struct netxen_dummy_dma dummy_dma;
 
 	/* Context interface shared between card and host */
@@ -950,6 +947,7 @@ struct netxen_port {
 	struct pci_dev *pdev;
 	struct net_device_stats net_stats;
 	struct netxen_port_stats stats;
+	struct work_struct tx_timeout_task;
 };
 
 #define PCI_OFFSET_FIRST_RANGE(adapter, off)    \

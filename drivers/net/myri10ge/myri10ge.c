@@ -199,8 +199,6 @@ struct myri10ge_priv {
 	unsigned long serial_number;
 	int vendor_specific_offset;
 	int fw_multicast_support;
-	u32 devctl;
-	u16 msi_flags;
 	u32 read_dma;
 	u32 write_dma;
 	u32 read_write_dma;
@@ -228,7 +226,7 @@ module_param(myri10ge_small_bytes, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(myri10ge_small_bytes, "Threshold of small packets\n");
 
 static int myri10ge_msi = 1;	/* enable msi by default */
-module_param(myri10ge_msi, int, S_IRUGO);
+module_param(myri10ge_msi, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(myri10ge_msi, "Enable Message Signalled Interrupts\n");
 
 static int myri10ge_intr_coal_delay = 25;
@@ -721,12 +719,10 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	status |=
 	    myri10ge_send_cmd(mgp, MXGEFW_CMD_GET_IRQ_ACK_OFFSET, &cmd, 0);
 	mgp->irq_claim = (__iomem __be32 *) (mgp->sram + cmd.data0);
-	if (!mgp->msi_enabled) {
-		status |= myri10ge_send_cmd
-		    (mgp, MXGEFW_CMD_GET_IRQ_DEASSERT_OFFSET, &cmd, 0);
-		mgp->irq_deassert = (__iomem __be32 *) (mgp->sram + cmd.data0);
+	status |= myri10ge_send_cmd(mgp, MXGEFW_CMD_GET_IRQ_DEASSERT_OFFSET,
+				    &cmd, 0);
+	mgp->irq_deassert = (__iomem __be32 *) (mgp->sram + cmd.data0);
 
-	}
 	status |= myri10ge_send_cmd
 	    (mgp, MXGEFW_CMD_GET_INTR_COAL_DELAY_OFFSET, &cmd, 0);
 	mgp->intr_coal_delay_ptr = (__iomem __be32 *) (mgp->sram + cmd.data0);
@@ -1619,6 +1615,41 @@ static void myri10ge_free_rings(struct net_device *dev)
 	mgp->tx.req_list = NULL;
 }
 
+static int myri10ge_request_irq(struct myri10ge_priv *mgp)
+{
+	struct pci_dev *pdev = mgp->pdev;
+	int status;
+
+	if (myri10ge_msi) {
+		status = pci_enable_msi(pdev);
+		if (status != 0)
+			dev_err(&pdev->dev,
+				"Error %d setting up MSI; falling back to xPIC\n",
+				status);
+		else
+			mgp->msi_enabled = 1;
+	} else {
+		mgp->msi_enabled = 0;
+	}
+	status = request_irq(pdev->irq, myri10ge_intr, IRQF_SHARED,
+			     mgp->dev->name, mgp);
+	if (status != 0) {
+		dev_err(&pdev->dev, "failed to allocate IRQ\n");
+		if (mgp->msi_enabled)
+			pci_disable_msi(pdev);
+	}
+	return status;
+}
+
+static void myri10ge_free_irq(struct myri10ge_priv *mgp)
+{
+	struct pci_dev *pdev = mgp->pdev;
+
+	free_irq(pdev->irq, mgp);
+	if (mgp->msi_enabled)
+		pci_disable_msi(pdev);
+}
+
 static int myri10ge_open(struct net_device *dev)
 {
 	struct myri10ge_priv *mgp;
@@ -1634,9 +1665,12 @@ static int myri10ge_open(struct net_device *dev)
 	status = myri10ge_reset(mgp);
 	if (status != 0) {
 		printk(KERN_ERR "myri10ge: %s: failed reset\n", dev->name);
-		mgp->running = MYRI10GE_ETH_STOPPED;
-		return -ENXIO;
+		goto abort_with_nothing;
 	}
+
+	status = myri10ge_request_irq(mgp);
+	if (status != 0)
+		goto abort_with_nothing;
 
 	/* decide what small buffer size to use.  For good TCP rx
 	 * performance, it is important to not receive 1514 byte
@@ -1677,7 +1711,7 @@ static int myri10ge_open(struct net_device *dev)
 		       "myri10ge: %s: failed to get ring sizes or locations\n",
 		       dev->name);
 		mgp->running = MYRI10GE_ETH_STOPPED;
-		return -ENXIO;
+		goto abort_with_irq;
 	}
 
 	if (mgp->mtrr >= 0) {
@@ -1708,7 +1742,7 @@ static int myri10ge_open(struct net_device *dev)
 
 	status = myri10ge_allocate_rings(dev);
 	if (status != 0)
-		goto abort_with_nothing;
+		goto abort_with_irq;
 
 	/* now give firmware buffers sizes, and MTU */
 	cmd.data0 = dev->mtu + ETH_HLEN + VLAN_HLEN;
@@ -1771,6 +1805,9 @@ static int myri10ge_open(struct net_device *dev)
 abort_with_rings:
 	myri10ge_free_rings(dev);
 
+abort_with_irq:
+	myri10ge_free_irq(mgp);
+
 abort_with_nothing:
 	mgp->running = MYRI10GE_ETH_STOPPED;
 	return -ENOMEM;
@@ -1807,7 +1844,7 @@ static int myri10ge_close(struct net_device *dev)
 		printk(KERN_ERR "myri10ge: %s never got down irq\n", dev->name);
 
 	netif_tx_disable(dev);
-
+	myri10ge_free_irq(mgp);
 	myri10ge_free_rings(dev);
 
 	mgp->running = MYRI10GE_ETH_STOPPED;
@@ -2481,34 +2518,6 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 	}
 }
 
-static void myri10ge_save_state(struct myri10ge_priv *mgp)
-{
-	struct pci_dev *pdev = mgp->pdev;
-	int cap;
-
-	pci_save_state(pdev);
-	/* now save PCIe and MSI state that Linux will not
-	 * save for us */
-	cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	pci_read_config_dword(pdev, cap + PCI_EXP_DEVCTL, &mgp->devctl);
-	cap = pci_find_capability(pdev, PCI_CAP_ID_MSI);
-	pci_read_config_word(pdev, cap + PCI_MSI_FLAGS, &mgp->msi_flags);
-}
-
-static void myri10ge_restore_state(struct myri10ge_priv *mgp)
-{
-	struct pci_dev *pdev = mgp->pdev;
-	int cap;
-
-	/* restore PCIe and MSI state that linux will not */
-	cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	pci_write_config_dword(pdev, cap + PCI_CAP_ID_EXP, mgp->devctl);
-	cap = pci_find_capability(pdev, PCI_CAP_ID_MSI);
-	pci_write_config_word(pdev, cap + PCI_MSI_FLAGS, mgp->msi_flags);
-
-	pci_restore_state(pdev);
-}
-
 #ifdef CONFIG_PM
 
 static int myri10ge_suspend(struct pci_dev *pdev, pm_message_t state)
@@ -2529,11 +2538,10 @@ static int myri10ge_suspend(struct pci_dev *pdev, pm_message_t state)
 		rtnl_unlock();
 	}
 	myri10ge_dummy_rdma(mgp, 0);
-	free_irq(pdev->irq, mgp);
-	myri10ge_save_state(mgp);
+	pci_save_state(pdev);
 	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-	return 0;
+
+	return pci_set_power_state(pdev, pci_choose_state(pdev, state));
 }
 
 static int myri10ge_resume(struct pci_dev *pdev)
@@ -2555,34 +2563,33 @@ static int myri10ge_resume(struct pci_dev *pdev)
 		       mgp->dev->name);
 		return -EIO;
 	}
-	myri10ge_restore_state(mgp);
+
+	status = pci_restore_state(pdev);
+	if (status)
+		return status;
 
 	status = pci_enable_device(pdev);
-	if (status < 0) {
+	if (status) {
 		dev_err(&pdev->dev, "failed to enable device\n");
-		return -EIO;
+		return status;
 	}
 
 	pci_set_master(pdev);
-
-	status = request_irq(pdev->irq, myri10ge_intr, IRQF_SHARED,
-			     netdev->name, mgp);
-	if (status != 0) {
-		dev_err(&pdev->dev, "failed to allocate IRQ\n");
-		goto abort_with_enabled;
-	}
 
 	myri10ge_reset(mgp);
 	myri10ge_dummy_rdma(mgp, 1);
 
 	/* Save configuration space to be restored if the
 	 * nic resets due to a parity error */
-	myri10ge_save_state(mgp);
+	pci_save_state(pdev);
 
 	if (netif_running(netdev)) {
 		rtnl_lock();
-		myri10ge_open(netdev);
+		status = myri10ge_open(netdev);
 		rtnl_unlock();
+		if (status != 0)
+			goto abort_with_enabled;
+
 	}
 	netif_device_attach(netdev);
 
@@ -2640,7 +2647,11 @@ static void myri10ge_watchdog(struct work_struct *work)
 		 * when the driver was loaded, or the last time the
 		 * nic was resumed from power saving mode.
 		 */
-		myri10ge_restore_state(mgp);
+		pci_restore_state(mgp->pdev);
+
+		/* save state again for accounting reasons */
+		pci_save_state(mgp->pdev);
+
 	} else {
 		/* if we get back -1's from our slot, perhaps somebody
 		 * powered off our card.  Don't try to reset it in
@@ -2856,23 +2867,6 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto abort_with_firmware;
 	}
 
-	if (myri10ge_msi) {
-		status = pci_enable_msi(pdev);
-		if (status != 0)
-			dev_err(&pdev->dev,
-				"Error %d setting up MSI; falling back to xPIC\n",
-				status);
-		else
-			mgp->msi_enabled = 1;
-	}
-
-	status = request_irq(pdev->irq, myri10ge_intr, IRQF_SHARED,
-			     netdev->name, mgp);
-	if (status != 0) {
-		dev_err(&pdev->dev, "failed to allocate IRQ\n");
-		goto abort_with_firmware;
-	}
-
 	pci_set_drvdata(pdev, mgp);
 	if ((myri10ge_initial_mtu + ETH_HLEN) > MYRI10GE_MAX_ETHER_MTU)
 		myri10ge_initial_mtu = MYRI10GE_MAX_ETHER_MTU - ETH_HLEN;
@@ -2896,7 +2890,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Save configuration space to be restored if the
 	 * nic resets due to a parity error */
-	myri10ge_save_state(mgp);
+	pci_save_state(pdev);
 
 	/* Setup the watchdog timer */
 	setup_timer(&mgp->watchdog_timer, myri10ge_watchdog_timer,
@@ -2907,19 +2901,16 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	status = register_netdev(netdev);
 	if (status != 0) {
 		dev_err(&pdev->dev, "register_netdev failed: %d\n", status);
-		goto abort_with_irq;
+		goto abort_with_state;
 	}
-	dev_info(dev, "%s IRQ %d, tx bndry %d, fw %s, WC %s\n",
-		 (mgp->msi_enabled ? "MSI" : "xPIC"),
+	dev_info(dev, "%d, tx bndry %d, fw %s, WC %s\n",
 		 pdev->irq, mgp->tx.boundary, mgp->fw_name,
 		 (mgp->mtrr >= 0 ? "Enabled" : "Disabled"));
 
 	return 0;
 
-abort_with_irq:
-	free_irq(pdev->irq, mgp);
-	if (mgp->msi_enabled)
-		pci_disable_msi(pdev);
+abort_with_state:
+	pci_restore_state(pdev);
 
 abort_with_firmware:
 	myri10ge_dummy_rdma(mgp, 0);
@@ -2970,11 +2961,11 @@ static void myri10ge_remove(struct pci_dev *pdev)
 	flush_scheduled_work();
 	netdev = mgp->dev;
 	unregister_netdev(netdev);
-	free_irq(pdev->irq, mgp);
-	if (mgp->msi_enabled)
-		pci_disable_msi(pdev);
 
 	myri10ge_dummy_rdma(mgp, 0);
+
+	/* avoid a memory leak */
+	pci_restore_state(pdev);
 
 	bytes = myri10ge_max_intr_slots * sizeof(*mgp->rx_done.entry);
 	dma_free_coherent(&pdev->dev, bytes,

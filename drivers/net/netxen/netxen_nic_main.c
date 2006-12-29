@@ -52,8 +52,6 @@ char netxen_nic_driver_name[] = "netxen-nic";
 static char netxen_nic_driver_string[] = "NetXen Network Driver version "
     NETXEN_NIC_LINUX_VERSIONID;
 
-struct netxen_adapter *g_adapter = NULL;
-
 #define NETXEN_NETDEV_WEIGHT 120
 #define NETXEN_ADAPTER_UP_MAGIC 777
 #define NETXEN_NIC_PEG_TUNE 0
@@ -87,6 +85,8 @@ static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(0x4040, 0x0003)},
 	{PCI_DEVICE(0x4040, 0x0004)},
 	{PCI_DEVICE(0x4040, 0x0005)},
+	{PCI_DEVICE(0x4040, 0x0024)},
+	{PCI_DEVICE(0x4040, 0x0025)},
 	{0,}
 };
 
@@ -126,7 +126,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct netxen_cmd_buffer *cmd_buf_arr = NULL;
 	u64 mac_addr[FLASH_NUM_PORTS + 1];
 	int valid_mac = 0;
-	static int netxen_cards_found = 0;
 
 	printk(KERN_INFO "%s \n", netxen_nic_driver_string);
 	/* In current scheme, we use only PCI function 0 */
@@ -217,9 +216,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_dbunmap;
 	}
 
-	if (netxen_cards_found == 0) {
-		g_adapter = adapter;
-	}
 	adapter->max_tx_desc_count = MAX_CMD_DESCRIPTORS;
 	adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS;
 	adapter->max_jumbo_rx_desc_count = MAX_JUMBO_RCV_DESCRIPTORS;
@@ -424,8 +420,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 							     netdev->dev_addr);
 			}
 		}
-		adapter->netdev = netdev;
-		INIT_WORK(&adapter->tx_timeout_task, netxen_tx_timeout_task);
+		INIT_WORK(&port->tx_timeout_task, netxen_tx_timeout_task);
 		netif_carrier_off(netdev);
 		netif_stop_queue(netdev);
 
@@ -440,6 +435,11 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->port[i] = port;
 	}
 
+	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
+	netxen_pinit_from_rom(adapter, 0);
+	udelay(500);
+	netxen_load_firmware(adapter);
+	netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 	/*
 	 * delay a while to ensure that the Pegs are up & running.
 	 * Otherwise, we might see some flaky behaviour.
@@ -457,7 +457,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-	adapter->number = netxen_cards_found;
 	adapter->driver_mismatch = 0;
 
 	return 0;
@@ -527,6 +526,8 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	netxen_nic_stop_all_ports(adapter);
 	/* leave the hw in the same state as reboot */
+	netxen_pinit_from_rom(adapter, 0);
+	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
 	netxen_load_firmware(adapter);
 	netxen_free_adapter_offload(adapter);
 
@@ -817,8 +818,8 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* Take skb->data itself */
 	pbuf = &adapter->cmd_buf_arr[producer];
 	if ((netdev->features & NETIF_F_TSO) && skb_shinfo(skb)->gso_size > 0) {
-		pbuf->mss = skb_shinfo(skb)->gso_size;
-		hwdesc->mss = skb_shinfo(skb)->gso_size;
+		pbuf->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
+		hwdesc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
 	} else {
 		pbuf->mss = 0;
 		hwdesc->mss = 0;
@@ -952,11 +953,6 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 static void netxen_watchdog(unsigned long v)
 {
 	struct netxen_adapter *adapter = (struct netxen_adapter *)v;
-	if (adapter != g_adapter) {
-		printk("%s: ***BUG*** adapter[%p] != g_adapter[%p]\n",
-		       __FUNCTION__, adapter, g_adapter);
-		return;
-	}
 
 	SCHEDULE_WORK(&adapter->watchdog_task);
 }
@@ -965,23 +961,23 @@ static void netxen_tx_timeout(struct net_device *netdev)
 {
 	struct netxen_port *port = (struct netxen_port *)netdev_priv(netdev);
 
-	SCHEDULE_WORK(&port->adapter->tx_timeout_task);
+	SCHEDULE_WORK(&port->tx_timeout_task);
 }
 
 static void netxen_tx_timeout_task(struct work_struct *work)
 {
-	struct netxen_adapter *adapter =
-		container_of(work, struct netxen_adapter, tx_timeout_task);
-	struct net_device *netdev = adapter->netdev;
+	struct netxen_port *port =
+		container_of(work, struct netxen_port, tx_timeout_task);
+	struct net_device *netdev = port->netdev;
 	unsigned long flags;
 
 	printk(KERN_ERR "%s %s: transmit timeout, resetting.\n",
 	       netxen_nic_driver_name, netdev->name);
 
-	spin_lock_irqsave(&adapter->lock, flags);
+	spin_lock_irqsave(&port->adapter->lock, flags);
 	netxen_nic_close(netdev);
 	netxen_nic_open(netdev);
-	spin_unlock_irqrestore(&adapter->lock, flags);
+	spin_unlock_irqrestore(&port->adapter->lock, flags);
 	netdev->trans_start = jiffies;
 	netif_wake_queue(netdev);
 }

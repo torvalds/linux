@@ -309,7 +309,7 @@ int mii_phy_probe(struct mii_phy *phy, int address)
 {
 	struct mii_phy_def *def;
 	int i;
-	u32 id;
+	int id;
 
 	phy->autoneg = AUTONEG_DISABLE;
 	phy->advertising = 0;
@@ -324,6 +324,8 @@ int mii_phy_probe(struct mii_phy *phy, int address)
 
 	/* Read ID and find matching entry */
 	id = (phy_read(phy, MII_PHYSID1) << 16) | phy_read(phy, MII_PHYSID2);
+	if (id < 0)
+		return -ENODEV;
 	for (i = 0; (def = mii_phy_table[i]) != NULL; i++)
 		if ((id & def->phy_id_mask) == def->phy_id)
 			break;
