@@ -128,7 +128,14 @@ void cx25840_vbi_setup(struct i2c_client *client)
 		uv_lpf=1;
 
 		src_decimation=0x21f;
-		if (std == V4L2_STD_PAL_M) {
+		if (std == V4L2_STD_PAL_60) {
+			vblank=26;
+			vblank656=26;
+			burst=0x5b;
+			luma_lpf=2;
+			comb=0x20;
+			sc=0x0a8263;
+		} else if (std == V4L2_STD_PAL_M) {
 			vblank=20;
 			vblank656=24;
 			burst=0x61;

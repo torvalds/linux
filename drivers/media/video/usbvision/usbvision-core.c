@@ -118,7 +118,7 @@ static int usbvision_measure_bandwidth (struct usb_usbvision *usbvision);
  * This is used when initializing the contents of the area.
  */
 
-void *usbvision_rvmalloc(unsigned long size)
+static void *usbvision_rvmalloc(unsigned long size)
 {
 	void *mem;
 	unsigned long adr;
@@ -181,7 +181,7 @@ static void usbvision_hexdump(const unsigned char *data, int len)
 /********************************
  * scratch ring buffer handling
  ********************************/
-int scratch_len(struct usb_usbvision *usbvision)    /*This returns the amount of data actually in the buffer */
+static int scratch_len(struct usb_usbvision *usbvision)    /*This returns the amount of data actually in the buffer */
 {
 	int len = usbvision->scratch_write_ptr - usbvision->scratch_read_ptr;
 	if (len < 0) {
@@ -194,7 +194,7 @@ int scratch_len(struct usb_usbvision *usbvision)    /*This returns the amount of
 
 
 /* This returns the free space left in the buffer */
-int scratch_free(struct usb_usbvision *usbvision)
+static int scratch_free(struct usb_usbvision *usbvision)
 {
 	int free = usbvision->scratch_read_ptr - usbvision->scratch_write_ptr;
 	if (free <= 0) {
@@ -211,7 +211,8 @@ int scratch_free(struct usb_usbvision *usbvision)
 
 
 /* This puts data into the buffer */
-int scratch_put(struct usb_usbvision *usbvision, unsigned char *data, int len)
+static int scratch_put(struct usb_usbvision *usbvision, unsigned char *data,
+		       int len)
 {
 	int len_part;
 
@@ -237,7 +238,7 @@ int scratch_put(struct usb_usbvision *usbvision, unsigned char *data, int len)
 }
 
 /* This marks the write_ptr as position of new frame header */
-void scratch_mark_header(struct usb_usbvision *usbvision)
+static void scratch_mark_header(struct usb_usbvision *usbvision)
 {
 	PDEBUG(DBG_SCRATCH, "header at write_ptr=%d\n", usbvision->scratch_headermarker_write_ptr);
 
@@ -248,7 +249,8 @@ void scratch_mark_header(struct usb_usbvision *usbvision)
 }
 
 /* This gets data from the buffer at the given "ptr" position */
-int scratch_get_extra(struct usb_usbvision *usbvision, unsigned char *data, int *ptr, int len)
+static int scratch_get_extra(struct usb_usbvision *usbvision,
+			     unsigned char *data, int *ptr, int len)
 {
 	int len_part;
 	if (*ptr + len < scratch_buf_size) {
@@ -274,7 +276,8 @@ int scratch_get_extra(struct usb_usbvision *usbvision, unsigned char *data, int 
 
 
 /* This sets the scratch extra read pointer */
-void scratch_set_extra_ptr(struct usb_usbvision *usbvision, int *ptr, int len)
+static void scratch_set_extra_ptr(struct usb_usbvision *usbvision, int *ptr,
+				  int len)
 {
 	*ptr = (usbvision->scratch_read_ptr + len)%scratch_buf_size;
 
@@ -283,7 +286,7 @@ void scratch_set_extra_ptr(struct usb_usbvision *usbvision, int *ptr, int len)
 
 
 /*This increments the scratch extra read pointer */
-void scratch_inc_extra_ptr(int *ptr, int len)
+static void scratch_inc_extra_ptr(int *ptr, int len)
 {
 	*ptr = (*ptr + len) % scratch_buf_size;
 
@@ -292,7 +295,8 @@ void scratch_inc_extra_ptr(int *ptr, int len)
 
 
 /* This gets data from the buffer */
-int scratch_get(struct usb_usbvision *usbvision, unsigned char *data, int len)
+static int scratch_get(struct usb_usbvision *usbvision, unsigned char *data,
+		       int len)
 {
 	int len_part;
 	if (usbvision->scratch_read_ptr + len < scratch_buf_size) {
@@ -318,7 +322,8 @@ int scratch_get(struct usb_usbvision *usbvision, unsigned char *data, int len)
 
 
 /* This sets read pointer to next header and returns it */
-int scratch_get_header(struct usb_usbvision *usbvision,struct usbvision_frame_header *header)
+static int scratch_get_header(struct usb_usbvision *usbvision,
+			      struct usbvision_frame_header *header)
 {
 	int errCode = 0;
 
@@ -346,7 +351,7 @@ int scratch_get_header(struct usb_usbvision *usbvision,struct usbvision_frame_he
 
 
 /*This removes len bytes of old data from the buffer */
-void scratch_rm_old(struct usb_usbvision *usbvision, int len)
+static void scratch_rm_old(struct usb_usbvision *usbvision, int len)
 {
 
 	usbvision->scratch_read_ptr += len;
@@ -356,7 +361,7 @@ void scratch_rm_old(struct usb_usbvision *usbvision, int len)
 
 
 /*This resets the buffer - kills all data in it too */
-void scratch_reset(struct usb_usbvision *usbvision)
+static void scratch_reset(struct usb_usbvision *usbvision)
 {
 	PDEBUG(DBG_SCRATCH, "\n");
 
@@ -369,7 +374,7 @@ void scratch_reset(struct usb_usbvision *usbvision)
 
 int usbvision_scratch_alloc(struct usb_usbvision *usbvision)
 {
-	usbvision->scratch = vmalloc(scratch_buf_size);
+	usbvision->scratch = vmalloc_32(scratch_buf_size);
 	scratch_reset(usbvision);
 	if(usbvision->scratch == NULL) {
 		err("%s: unable to allocate %d bytes for scratch",
@@ -399,8 +404,8 @@ void usbvision_scratch_free(struct usb_usbvision *usbvision)
  *		1: Draw a colored grid
  *
  */
-void usbvision_testpattern(struct usb_usbvision *usbvision, int fullframe,
-			int pmode)
+static void usbvision_testpattern(struct usb_usbvision *usbvision,
+				  int fullframe, int pmode)
 {
 	static const char proc[] = "usbvision_testpattern";
 	struct usbvision_frame *frame;
@@ -480,7 +485,7 @@ void usbvision_testpattern(struct usb_usbvision *usbvision, int fullframe,
 int usbvision_decompress_alloc(struct usb_usbvision *usbvision)
 {
 	int IFB_size = MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 3 / 2;
-	usbvision->IntraFrameBuffer = vmalloc(IFB_size);
+	usbvision->IntraFrameBuffer = vmalloc_32(IFB_size);
 	if (usbvision->IntraFrameBuffer == NULL) {
 		err("%s: unable to allocate %d for compr. frame buffer", __FUNCTION__, IFB_size);
 		return -ENOMEM;
@@ -2199,6 +2204,7 @@ int usbvision_power_on(struct usb_usbvision *usbvision)
 	usbvision_write_reg(usbvision, USBVISION_PWR_REG, USBVISION_SSPND_EN);
 	usbvision_write_reg(usbvision, USBVISION_PWR_REG,
 			 USBVISION_SSPND_EN | USBVISION_RES2);
+
 	usbvision_write_reg(usbvision, USBVISION_PWR_REG,
 			 USBVISION_SSPND_EN | USBVISION_PWR_VID);
 	errCode = usbvision_write_reg(usbvision, USBVISION_PWR_REG,
@@ -2305,7 +2311,7 @@ int usbvision_restart_isoc(struct usb_usbvision *usbvision)
 				  usbvision->Vin_Reg2_Preset)) < 0) return ret;
 
 	/* TODO: schedule timeout */
-	while ((usbvision_read_reg(usbvision, USBVISION_STATUS_REG) && 0x01) != 1);
+	while ((usbvision_read_reg(usbvision, USBVISION_STATUS_REG) & 0x01) != 1);
 
 	return 0;
 }
@@ -2346,40 +2352,6 @@ int usbvision_setup(struct usb_usbvision *usbvision,int format)
 	return USBVISION_IS_OPERATIONAL(usbvision);
 }
 
-
-int usbvision_sbuf_alloc(struct usb_usbvision *usbvision)
-{
-	int i, errCode = 0;
-	const int sb_size = USBVISION_URB_FRAMES * USBVISION_MAX_ISOC_PACKET_SIZE;
-
-	/* Clean pointers so we know if we allocated something */
-	for (i = 0; i < USBVISION_NUMSBUF; i++)
-		usbvision->sbuf[i].data = NULL;
-
-	for (i = 0; i < USBVISION_NUMSBUF; i++) {
-		usbvision->sbuf[i].data = kzalloc(sb_size, GFP_KERNEL);
-		if (usbvision->sbuf[i].data == NULL) {
-			err("%s: unable to allocate %d bytes for sbuf", __FUNCTION__, sb_size);
-			errCode = -ENOMEM;
-			break;
-		}
-	}
-	return errCode;
-}
-
-
-void usbvision_sbuf_free(struct usb_usbvision *usbvision)
-{
-	int i;
-
-	for (i = 0; i < USBVISION_NUMSBUF; i++) {
-		if (usbvision->sbuf[i].data != NULL) {
-			kfree(usbvision->sbuf[i].data);
-			usbvision->sbuf[i].data = NULL;
-		}
-	}
-}
-
 /*
  * usbvision_init_isoc()
  *
@@ -2388,6 +2360,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 {
 	struct usb_device *dev = usbvision->dev;
 	int bufIdx, errCode, regValue;
+	const int sb_size = USBVISION_URB_FRAMES * USBVISION_MAX_ISOC_PACKET_SIZE;
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision))
 		return -EFAULT;
@@ -2423,6 +2396,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 			return -ENOMEM;
 		}
 		usbvision->sbuf[bufIdx].urb = urb;
+		usbvision->sbuf[bufIdx].data = usb_buffer_alloc(usbvision->dev, sb_size, GFP_KERNEL,&urb->transfer_dma);
 		urb->dev = dev;
 		urb->context = usbvision;
 		urb->pipe = usb_rcvisocpipe(dev, usbvision->video_endp);
@@ -2464,6 +2438,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 {
 	int bufIdx, errCode, regValue;
+	const int sb_size = USBVISION_URB_FRAMES * USBVISION_MAX_ISOC_PACKET_SIZE;
 
 	if ((usbvision->streaming == Stream_Off) || (usbvision->dev == NULL))
 		return;
@@ -2471,6 +2446,12 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 	/* Unschedule all of the iso td's */
 	for (bufIdx = 0; bufIdx < USBVISION_NUMSBUF; bufIdx++) {
 		usb_kill_urb(usbvision->sbuf[bufIdx].urb);
+		if (usbvision->sbuf[bufIdx].data){
+			usb_buffer_free(usbvision->dev,
+					sb_size,
+					usbvision->sbuf[bufIdx].data,
+					usbvision->sbuf[bufIdx].urb->transfer_dma);
+		}
 		usb_free_urb(usbvision->sbuf[bufIdx].urb);
 		usbvision->sbuf[bufIdx].urb = NULL;
 	}

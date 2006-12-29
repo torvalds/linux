@@ -429,7 +429,7 @@ zr36057_set_vfe (struct zoran              *zr,
 	reg |= (HorDcm << ZR36057_VFESPFR_HorDcm);
 	reg |= (VerDcm << ZR36057_VFESPFR_VerDcm);
 	reg |= (DispMode << ZR36057_VFESPFR_DispMode);
-	if (format->palette != VIDEO_PALETTE_YUV422)
+	if (format->palette != VIDEO_PALETTE_YUV422 && format->palette != VIDEO_PALETTE_YUYV)
 		reg |= ZR36057_VFESPFR_LittleEndian;
 	/* RJ: I don't know, why the following has to be the opposite
 	 * of the corresponding ZR36060 setting, but only this way
@@ -441,6 +441,7 @@ zr36057_set_vfe (struct zoran              *zr,
 	reg |= ZR36057_VFESPFR_TopField;
 	switch (format->palette) {
 
+	case VIDEO_PALETTE_YUYV:
 	case VIDEO_PALETTE_YUV422:
 		reg |= ZR36057_VFESPFR_YUV422;
 		break;

@@ -267,6 +267,10 @@ static int tuner_fixup_std(struct tuner *t)
 {
 	if ((t->std & V4L2_STD_PAL) == V4L2_STD_PAL) {
 		switch (pal[0]) {
+		case '6':
+			tuner_dbg ("insmod fixup: PAL => PAL-60\n");
+			t->std = V4L2_STD_PAL_60;
+			break;
 		case 'b':
 		case 'B':
 		case 'g':

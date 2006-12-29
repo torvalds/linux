@@ -204,7 +204,7 @@ MODULE_ALIAS(DRIVER_ALIAS);
 
 static inline struct usb_usbvision *cd_to_usbvision(struct class_device *cd)
 {
-	struct video_device *vdev = to_video_device(cd);
+	struct video_device *vdev = container_of(cd, struct video_device, class_dev);
 	return video_get_drvdata(vdev);
 }
 
@@ -214,81 +214,85 @@ static ssize_t show_version(struct class_device *cd, char *buf)
 }
 static CLASS_DEVICE_ATTR(version, S_IRUGO, show_version, NULL);
 
-static ssize_t show_model(struct class_device *class_dev, char *buf)
+static ssize_t show_model(struct class_device *cd, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);
+	struct video_device *vdev = container_of(cd, struct video_device, class_dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n", usbvision_device_data[usbvision->DevModel].ModelString);
 }
 static CLASS_DEVICE_ATTR(model, S_IRUGO, show_model, NULL);
 
-static ssize_t show_hue(struct class_device *class_dev, char *buf)
+static ssize_t show_hue(struct class_device *cd, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);
+	struct video_device *vdev = container_of(cd, struct video_device, class_dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_HUE;
 	ctrl.value = 0;
-	call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
+	if(usbvision->user)
+		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
 	return sprintf(buf, "%d\n", ctrl.value >> 8);
 }
 static CLASS_DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
 
-static ssize_t show_contrast(struct class_device *class_dev, char *buf)
+static ssize_t show_contrast(struct class_device *cd, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);
+	struct video_device *vdev = container_of(cd, struct video_device, class_dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_CONTRAST;
 	ctrl.value = 0;
-	call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
+	if(usbvision->user)
+		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
 	return sprintf(buf, "%d\n", ctrl.value >> 8);
 }
 static CLASS_DEVICE_ATTR(contrast, S_IRUGO, show_contrast, NULL);
 
-static ssize_t show_brightness(struct class_device *class_dev, char *buf)
+static ssize_t show_brightness(struct class_device *cd, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);
+	struct video_device *vdev = container_of(cd, struct video_device, class_dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_BRIGHTNESS;
 	ctrl.value = 0;
-	call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
+	if(usbvision->user)
+		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
 	return sprintf(buf, "%d\n", ctrl.value >> 8);
 }
 static CLASS_DEVICE_ATTR(brightness, S_IRUGO, show_brightness, NULL);
 
-static ssize_t show_saturation(struct class_device *class_dev, char *buf)
+static ssize_t show_saturation(struct class_device *cd, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);
+	struct video_device *vdev = container_of(cd, struct video_device, class_dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_SATURATION;
 	ctrl.value = 0;
-	call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
+	if(usbvision->user)
+		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
 	return sprintf(buf, "%d\n", ctrl.value >> 8);
 }
 static CLASS_DEVICE_ATTR(saturation, S_IRUGO, show_saturation, NULL);
 
-static ssize_t show_streaming(struct class_device *class_dev, char *buf)
+static ssize_t show_streaming(struct class_device *cd, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);
+	struct video_device *vdev = container_of(cd, struct video_device, class_dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n", YES_NO(usbvision->streaming==Stream_On?1:0));
 }
 static CLASS_DEVICE_ATTR(streaming, S_IRUGO, show_streaming, NULL);
 
-static ssize_t show_compression(struct class_device *class_dev, char *buf)
+static ssize_t show_compression(struct class_device *cd, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);
+	struct video_device *vdev = container_of(cd, struct video_device, class_dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n", YES_NO(usbvision->isocMode==ISOC_MODE_COMPRESS));
 }
 static CLASS_DEVICE_ATTR(compression, S_IRUGO, show_compression, NULL);
 
-static ssize_t show_device_bridge(struct class_device *class_dev, char *buf)
+static ssize_t show_device_bridge(struct class_device *cd, char *buf)
 {
-	struct video_device *vdev = to_video_device(class_dev);
+	struct video_device *vdev = container_of(cd, struct video_device, class_dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%d\n", usbvision->bridgeType);
 }
@@ -297,31 +301,71 @@ static CLASS_DEVICE_ATTR(bridge, S_IRUGO, show_device_bridge, NULL);
 static void usbvision_create_sysfs(struct video_device *vdev)
 {
 	int res;
-	if (vdev) {
-		res=video_device_create_file(vdev, &class_device_attr_version);
-		res=video_device_create_file(vdev, &class_device_attr_model);
-		res=video_device_create_file(vdev, &class_device_attr_hue);
-		res=video_device_create_file(vdev, &class_device_attr_contrast);
-		res=video_device_create_file(vdev, &class_device_attr_brightness);
-		res=video_device_create_file(vdev, &class_device_attr_saturation);
-		res=video_device_create_file(vdev, &class_device_attr_streaming);
-		res=video_device_create_file(vdev, &class_device_attr_compression);
-		res=video_device_create_file(vdev, &class_device_attr_bridge);
-	}
+	if (!vdev)
+		return;
+	do {
+		res=class_device_create_file(&vdev->class_dev,
+					     &class_device_attr_version);
+		if (res<0)
+			break;
+		res=class_device_create_file(&vdev->class_dev,
+					     &class_device_attr_model);
+		if (res<0)
+			break;
+		res=class_device_create_file(&vdev->class_dev,
+					     &class_device_attr_hue);
+		if (res<0)
+			break;
+		res=class_device_create_file(&vdev->class_dev,
+					     &class_device_attr_contrast);
+		if (res<0)
+			break;
+		res=class_device_create_file(&vdev->class_dev,
+					     &class_device_attr_brightness);
+		if (res<0)
+			break;
+		res=class_device_create_file(&vdev->class_dev,
+					     &class_device_attr_saturation);
+		if (res<0)
+			break;
+		res=class_device_create_file(&vdev->class_dev,
+					     &class_device_attr_streaming);
+		if (res<0)
+			break;
+		res=class_device_create_file(&vdev->class_dev,
+					     &class_device_attr_compression);
+		if (res<0)
+			break;
+		res=class_device_create_file(&vdev->class_dev,
+					     &class_device_attr_bridge);
+		if (res>=0)
+			return;
+	} while (0);
+
+	err("%s error: %d\n", __FUNCTION__, res);
 }
 
 static void usbvision_remove_sysfs(struct video_device *vdev)
 {
 	if (vdev) {
-		video_device_remove_file(vdev, &class_device_attr_version);
-		video_device_remove_file(vdev, &class_device_attr_model);
-		video_device_remove_file(vdev, &class_device_attr_hue);
-		video_device_remove_file(vdev, &class_device_attr_contrast);
-		video_device_remove_file(vdev, &class_device_attr_brightness);
-		video_device_remove_file(vdev, &class_device_attr_saturation);
-		video_device_remove_file(vdev, &class_device_attr_streaming);
-		video_device_remove_file(vdev, &class_device_attr_compression);
-		video_device_remove_file(vdev, &class_device_attr_bridge);
+		class_device_remove_file(&vdev->class_dev,
+					 &class_device_attr_version);
+		class_device_remove_file(&vdev->class_dev,
+					 &class_device_attr_model);
+		class_device_remove_file(&vdev->class_dev,
+					 &class_device_attr_hue);
+		class_device_remove_file(&vdev->class_dev,
+					 &class_device_attr_contrast);
+		class_device_remove_file(&vdev->class_dev,
+					 &class_device_attr_brightness);
+		class_device_remove_file(&vdev->class_dev,
+					 &class_device_attr_saturation);
+		class_device_remove_file(&vdev->class_dev,
+					 &class_device_attr_streaming);
+		class_device_remove_file(&vdev->class_dev,
+					 &class_device_attr_compression);
+		class_device_remove_file(&vdev->class_dev,
+					 &class_device_attr_bridge);
 	}
 }
 
@@ -353,20 +397,15 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 		if(!errCode) {
 			/* Allocate memory for the scratch ring buffer */
 			errCode = usbvision_scratch_alloc(usbvision);
-			if(!errCode) {
-				/* Allocate memory for the USB S buffers */
-				errCode = usbvision_sbuf_alloc(usbvision);
-				if ((!errCode) && (usbvision->isocMode==ISOC_MODE_COMPRESS)) {
-					/* Allocate intermediate decompression buffers only if needed */
-					errCode = usbvision_decompress_alloc(usbvision);
-				}
+			if ((!errCode) && (isocMode==ISOC_MODE_COMPRESS)) {
+				/* Allocate intermediate decompression buffers only if needed */
+				errCode = usbvision_decompress_alloc(usbvision);
 			}
 		}
 		if (errCode) {
 			/* Deallocate all buffers if trouble */
 			usbvision_frames_free(usbvision);
 			usbvision_scratch_free(usbvision);
-			usbvision_sbuf_free(usbvision);
 			usbvision_decompress_free(usbvision);
 		}
 	}
@@ -437,9 +476,8 @@ static int usbvision_v4l2_close(struct inode *inode, struct file *file)
 	usbvision_stop_isoc(usbvision);
 
 	usbvision_decompress_free(usbvision);
-	usbvision_rvfree(usbvision->fbuf, usbvision->fbuf_size);
+	usbvision_frames_free(usbvision);
 	usbvision_scratch_free(usbvision);
-	usbvision_sbuf_free(usbvision);
 
 	usbvision->user--;
 
@@ -1884,7 +1922,7 @@ static struct usb_driver usbvision_driver = {
  * This procedure preprocesses CustomDevice parameter if any
  *
  */
-void customdevice_process(void)
+static void customdevice_process(void)
 {
 	usbvision_device_data[0]=usbvision_device_data[1];
 	usbvision_table[0]=usbvision_table[1];
@@ -1939,22 +1977,22 @@ void customdevice_process(void)
 		{
 			case 'P':
 				PDEBUG(DBG_PROBE, "VideoNorm=PAL");
-				usbvision_device_data[0].VideoNorm=VIDEO_MODE_PAL;
+				usbvision_device_data[0].VideoNorm=V4L2_STD_PAL;
 				break;
 
 			case 'S':
 				PDEBUG(DBG_PROBE, "VideoNorm=SECAM");
-				usbvision_device_data[0].VideoNorm=VIDEO_MODE_SECAM;
+				usbvision_device_data[0].VideoNorm=V4L2_STD_SECAM;
 				break;
 
 			case 'N':
 				PDEBUG(DBG_PROBE, "VideoNorm=NTSC");
-				usbvision_device_data[0].VideoNorm=VIDEO_MODE_NTSC;
+				usbvision_device_data[0].VideoNorm=V4L2_STD_NTSC;
 				break;
 
 			default:
 				PDEBUG(DBG_PROBE, "VideoNorm=PAL (by default)");
-				usbvision_device_data[0].VideoNorm=VIDEO_MODE_PAL;
+				usbvision_device_data[0].VideoNorm=V4L2_STD_PAL;
 				break;
 		}
 		goto2next(parse);

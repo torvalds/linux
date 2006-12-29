@@ -24,6 +24,7 @@
 #define _IR_COMMON
 
 #include <linux/input.h>
+#include <linux/workqueue.h>
 
 #define IR_TYPE_RC5     1
 #define IR_TYPE_PD      2 /* Pulse distance encoded IR */

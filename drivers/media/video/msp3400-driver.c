@@ -633,10 +633,8 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			if (((rt->input >> (4 + i * 4)) & 0xf) == 0)
 				extern_input = 0;
 		}
-		if (extern_input)
-			state->mode = MSP_MODE_EXTERN;
-		else
-			state->mode = MSP_MODE_AM_DETECT;
+		state->mode = extern_input ? MSP_MODE_EXTERN : MSP_MODE_AM_DETECT;
+		state->rxsubchans = V4L2_TUNER_SUB_STEREO;
 		msp_set_scart(client, sc_in, 0);
 		msp_set_scart(client, sc1_out, 1);
 		msp_set_scart(client, sc2_out, 2);
@@ -951,7 +949,7 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	if (thread_func) {
 		state->kthread = kthread_run(thread_func, client, "msp34xx");
 
-		if (state->kthread == NULL)
+		if (IS_ERR(state->kthread))
 			v4l_warn(client, "kernel_thread() failed\n");
 		msp_wake_thread(client);
 	}

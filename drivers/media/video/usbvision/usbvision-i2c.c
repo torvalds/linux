@@ -58,7 +58,6 @@ static int usbvision_i2c_read(void *data, unsigned char addr, char *buf,
 static inline int try_write_address(struct i2c_adapter *i2c_adap,
 				    unsigned char addr, int retries)
 {
-	struct i2c_algo_usb_data *adap = i2c_adap->algo_data;
 	void *data;
 	int i, ret = -1;
 	char buf[4];
@@ -69,10 +68,10 @@ static inline int try_write_address(struct i2c_adapter *i2c_adap,
 		ret = (usbvision_i2c_write(data, addr, buf, 1));
 		if (ret == 1)
 			break;	/* success! */
-		udelay(5 /*adap->udelay */ );
+		udelay(5);
 		if (i == retries)	/* no success */
 			break;
-		udelay(adap->udelay);
+		udelay(10);
 	}
 	if (i) {
 		PDEBUG(DBG_ALGO,"Needed %d retries for address %#2x", i, addr);
@@ -84,7 +83,6 @@ static inline int try_write_address(struct i2c_adapter *i2c_adap,
 static inline int try_read_address(struct i2c_adapter *i2c_adap,
 				   unsigned char addr, int retries)
 {
-	struct i2c_algo_usb_data *adap = i2c_adap->algo_data;
 	void *data;
 	int i, ret = -1;
 	char buf[4];
@@ -94,10 +92,10 @@ static inline int try_read_address(struct i2c_adapter *i2c_adap,
 		ret = (usbvision_i2c_read(data, addr, buf, 1));
 		if (ret == 1)
 			break;	/* success! */
-		udelay(5 /*adap->udelay */ );
+		udelay(5);
 		if (i == retries)	/* no success */
 			break;
-		udelay(adap->udelay);
+		udelay(10);
 	}
 	if (i) {
 		PDEBUG(DBG_ALGO,"Needed %d retries for address %#2x", i, addr);
@@ -213,7 +211,7 @@ static struct i2c_algorithm i2c_usb_algo = {
 /*
  * registering functions to load algorithms at runtime
  */
-int usbvision_i2c_usb_add_bus(struct i2c_adapter *adap)
+static int usbvision_i2c_usb_add_bus(struct i2c_adapter *adap)
 {
 	PDEBUG(DBG_I2C, "I2C   debugging is enabled [i2c]");
 	PDEBUG(DBG_ALGO, "ALGO   debugging is enabled [i2c]");
@@ -248,15 +246,12 @@ int usbvision_i2c_usb_del_bus(struct i2c_adapter *adap)
 /* usbvision specific I2C functions                                        */
 /* ----------------------------------------------------------------------- */
 static struct i2c_adapter i2c_adap_template;
-static struct i2c_algo_usb_data i2c_algo_template;
 static struct i2c_client i2c_client_template;
 
 int usbvision_init_i2c(struct usb_usbvision *usbvision)
 {
 	memcpy(&usbvision->i2c_adap, &i2c_adap_template,
 	       sizeof(struct i2c_adapter));
-	memcpy(&usbvision->i2c_algo, &i2c_algo_template,
-	       sizeof(struct i2c_algo_usb_data));
 	memcpy(&usbvision->i2c_client, &i2c_client_template,
 	       sizeof(struct i2c_client));
 
@@ -266,9 +261,7 @@ int usbvision_init_i2c(struct usb_usbvision *usbvision)
 
 	i2c_set_adapdata(&usbvision->i2c_adap, usbvision);
 	i2c_set_clientdata(&usbvision->i2c_client, usbvision);
-	i2c_set_algo_usb_data(&usbvision->i2c_algo, usbvision);
 
-	usbvision->i2c_adap.algo_data = &usbvision->i2c_algo;
 	usbvision->i2c_client.adapter = &usbvision->i2c_adap;
 
 	if (usbvision_write_reg(usbvision, USBVISION_SER_MODE, USBVISION_IIC_LRNACK) < 0) {
@@ -297,7 +290,6 @@ int usbvision_init_i2c(struct usb_usbvision *usbvision)
 void call_i2c_clients(struct usb_usbvision *usbvision, unsigned int cmd,
 		      void *arg)
 {
-	BUG_ON(NULL == usbvision->i2c_adap.algo_data);
 	i2c_clients_command(&usbvision->i2c_adap, cmd, arg);
 }
 
@@ -326,6 +318,9 @@ static int attach_inform(struct i2c_client *client)
 			break;
 		case 0x4a:
 			PDEBUG(DBG_I2C,"attach_inform: saa7113 detected.");
+			break;
+		case 0x48:
+			PDEBUG(DBG_I2C,"attach_inform: saa7111 detected.");
 			break;
 		case 0xa0:
 			PDEBUG(DBG_I2C,"attach_inform: eeprom detected.");
@@ -531,21 +526,10 @@ static int usbvision_i2c_read(void *data, unsigned char addr, char *buf,
 	return rdcount;
 }
 
-static struct i2c_algo_usb_data i2c_algo_template = {
-	.data		= NULL,
-	.inb		= usbvision_i2c_read,
-	.outb		= usbvision_i2c_write,
-	.udelay		= 10,
-	.mdelay		= 10,
-	.timeout	= 100,
-};
-
 static struct i2c_adapter i2c_adap_template = {
 	.owner = THIS_MODULE,
 	.name              = "usbvision",
 	.id                = I2C_HW_B_BT848, /* FIXME */
-	.algo              = NULL,
-	.algo_data         = NULL,
 	.client_register   = attach_inform,
 	.client_unregister = detach_inform,
 #ifdef I2C_ADAP_CLASS_TV_ANALOG
@@ -558,9 +542,6 @@ static struct i2c_adapter i2c_adap_template = {
 static struct i2c_client i2c_client_template = {
 	.name		= "usbvision internal",
 };
-
-EXPORT_SYMBOL(usbvision_i2c_usb_add_bus);
-EXPORT_SYMBOL(usbvision_i2c_usb_del_bus);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

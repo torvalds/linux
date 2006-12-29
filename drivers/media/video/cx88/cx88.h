@@ -91,7 +91,7 @@ struct cx88_tvnorm {
 
 static unsigned int inline norm_maxw(struct cx88_tvnorm *norm)
 {
-	return (norm->id & V4L2_STD_625_50) ? 768 : 640;
+	return (norm->id & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 720 : 768;
 }
 
 

@@ -219,18 +219,6 @@ enum {
 	((udevice)->last_error == 0) && \
 	(!(udevice)->remove_pending))
 
-/* I2C structures */
-struct i2c_algo_usb_data {
-	void *data;		/* private data for lowlevel routines */
-	int (*inb) (void *data, unsigned char addr, char *buf, short len);
-	int (*outb) (void *data, unsigned char addr, char *buf, short len);
-
-	/* local settings */
-	int udelay;
-	int mdelay;
-	int timeout;
-};
-
 #define I2C_USB_ADAP_MAX	16
 
 /* ----------------------------------------------------------------- */
@@ -383,7 +371,6 @@ struct usb_usbvision {
 
 	/* i2c Declaration Section*/
 	struct i2c_adapter i2c_adap;
-	struct i2c_algo_usb_data i2c_algo;
 	struct i2c_client i2c_client;
 
 	struct urb *ctrlUrb;
@@ -489,18 +476,7 @@ struct usb_usbvision {
 /* i2c-algo-usb declaration                                        */
 /* --------------------------------------------------------------- */
 
-int usbvision_i2c_usb_add_bus(struct i2c_adapter *);
 int usbvision_i2c_usb_del_bus(struct i2c_adapter *);
-
-static inline void *i2c_get_algo_usb_data (struct i2c_algo_usb_data *dev)
-{
-	return dev->data;
-}
-
-static inline void i2c_set_algo_usb_data (struct i2c_algo_usb_data *dev, void *data)
-{
-	dev->data = data;
-}
 
 
 /* ----------------------------------------------------------------------- */
@@ -510,7 +486,6 @@ int usbvision_init_i2c(struct usb_usbvision *usbvision);
 void call_i2c_clients(struct usb_usbvision *usbvision, unsigned int cmd,void *arg);
 
 /* defined in usbvision-core.c                                      */
-void *usbvision_rvmalloc(unsigned long size);
 void usbvision_rvfree(void *mem, unsigned long size);
 int usbvision_read_reg(struct usb_usbvision *usbvision, unsigned char reg);
 int usbvision_write_reg(struct usb_usbvision *usbvision, unsigned char reg,
@@ -520,8 +495,6 @@ int usbvision_frames_alloc(struct usb_usbvision *usbvision);
 void usbvision_frames_free(struct usb_usbvision *usbvision);
 int usbvision_scratch_alloc(struct usb_usbvision *usbvision);
 void usbvision_scratch_free(struct usb_usbvision *usbvision);
-int usbvision_sbuf_alloc(struct usb_usbvision *usbvision);
-void usbvision_sbuf_free(struct usb_usbvision *usbvision);
 int usbvision_decompress_alloc(struct usb_usbvision *usbvision);
 void usbvision_decompress_free(struct usb_usbvision *usbvision);
 

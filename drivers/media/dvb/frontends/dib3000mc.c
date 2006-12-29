@@ -515,7 +515,7 @@ static int dib3000mc_autosearch_start(struct dvb_frontend *demod, struct dibx000
 	fchan.vit_alpha = 1; fchan.vit_code_rate_hp = 2; fchan.vit_code_rate_lp = 2;
 	fchan.vit_hrch = 0; fchan.vit_select_hp = 1;
 
-	dib3000mc_set_channel_cfg(state, &fchan, 7);
+	dib3000mc_set_channel_cfg(state, &fchan, 11);
 
 	reg = dib3000mc_read_word(state, 0);
 	dib3000mc_write_word(state, 0, reg | (1 << 8));
