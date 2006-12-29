@@ -138,7 +138,7 @@ static void *usbvision_rvmalloc(unsigned long size)
 	return mem;
 }
 
-void usbvision_rvfree(void *mem, unsigned long size)
+static void usbvision_rvfree(void *mem, unsigned long size)
 {
 	unsigned long adr;
 
