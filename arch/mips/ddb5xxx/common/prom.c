@@ -59,9 +59,8 @@ void __init prom_init(void)
 #endif
 }
 
-unsigned long __init prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
-	return 0;
 }
 
 #if defined(CONFIG_DDB5477)

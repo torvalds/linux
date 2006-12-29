@@ -498,10 +498,9 @@ void __init prom_meminit(void)
 	}
 }
 
-unsigned long __init prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
 	/* We got nothing to free here ...  */
-	return 0;
 }
 
 extern void pagetable_init(void);

@@ -467,7 +467,7 @@ void __init mem_init(void)
 }
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
-static void free_init_pages(char *what, unsigned long begin, unsigned long end)
+void free_init_pages(const char *what, unsigned long begin, unsigned long end)
 {
 	unsigned long pfn;
 
@@ -493,17 +493,9 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-extern unsigned long prom_free_prom_memory(void);
-
 void free_initmem(void)
 {
-	unsigned long freed;
-
-	freed = prom_free_prom_memory();
-	if (freed)
-		printk(KERN_INFO "Freeing firmware memory: %ldkb freed\n",
-		       freed >> 10);
-
+	prom_free_prom_memory();
 	free_init_pages("unused kernel memory",
 			__pa_symbol(&__init_begin),
 			__pa_symbol(&__init_end));
