@@ -774,8 +774,8 @@ static int __init longhaul_init(void)
 
 #ifdef CONFIG_SMP
 	if (num_online_cpus() > 1) {
-		return -ENODEV;
 		printk(KERN_ERR PFX "More than 1 CPU detected, longhaul disabled.\n");
+		return -ENODEV;
 	}
 #endif
 #ifdef CONFIG_X86_IO_APIC
