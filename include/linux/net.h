@@ -19,7 +19,6 @@
 #define _LINUX_NET_H
 
 #include <linux/wait.h>
-#include <linux/random.h>
 #include <asm/socket.h>
 
 struct poll_table_struct;
@@ -57,6 +56,7 @@ typedef enum {
 
 #ifdef __KERNEL__
 #include <linux/stringify.h>
+#include <linux/random.h>
 
 #define SOCK_ASYNC_NOSPACE	0
 #define SOCK_ASYNC_WAITDATA	1
