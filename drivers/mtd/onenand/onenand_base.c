@@ -298,7 +298,7 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 	unsigned long timeout;
 	unsigned int flags = ONENAND_INT_MASTER;
 	unsigned int interrupt = 0;
-	unsigned int ctrl, ecc;
+	unsigned int ctrl;
 
 	/* The 20 msec is enough */
 	timeout = jiffies + msecs_to_jiffies(20);
@@ -324,7 +324,7 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 	}
 
 	if (interrupt & ONENAND_INT_READ) {
-		ecc = this->read_word(this->base + ONENAND_REG_ECC_STATUS);
+		int ecc = this->read_word(this->base + ONENAND_REG_ECC_STATUS);
 		if (ecc) {
 			DEBUG(MTD_DEBUG_LEVEL0, "onenand_wait: ECC error = 0x%04x\n", ecc);
 			if (ecc & ONENAND_ECC_2BIT_ALL)
@@ -332,6 +332,7 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 			else if (ecc & ONENAND_ECC_1BIT_ALL)
 				mtd->ecc_stats.corrected++;
 		}
+		return ecc;
 	}
 
 	return 0;
