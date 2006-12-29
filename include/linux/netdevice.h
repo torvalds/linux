@@ -906,6 +906,7 @@ static inline void netif_poll_disable(struct net_device *dev)
 
 static inline void netif_poll_enable(struct net_device *dev)
 {
+	smp_mb__before_clear_bit();
 	clear_bit(__LINK_STATE_RX_SCHED, &dev->state);
 }
 
