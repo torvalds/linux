@@ -13,8 +13,8 @@
  * Version	: v00.00.03.05
  *
  * Authors:
- * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsil.com>
- * 	Sumant Patro		<Sumant.Patro@lsil.com>
+ * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsi.com>
+ * 	Sumant Patro		<Sumant.Patro@lsi.com>
  *
  * List of supported controllers
  *
@@ -45,7 +45,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGASAS_VERSION);
-MODULE_AUTHOR("sreenivas.bagalkote@lsil.com");
+MODULE_AUTHOR("megaraidlinux@lsi.com");
 MODULE_DESCRIPTION("LSI Logic MegaRAID SAS Driver");
 
 /*
