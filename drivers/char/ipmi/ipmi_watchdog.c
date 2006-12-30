@@ -216,13 +216,13 @@ static int set_param_str(const char *val, struct kernel_param *kp)
 {
 	action_fn  fn = (action_fn) kp->arg;
 	int        rv = 0;
-	char       *dup, *s;
+	char       valcp[16];
+	char       *s;
 
-	dup = kstrdup(val, GFP_KERNEL);
-	if (!dup)
-		return -ENOMEM;
+	strncpy(valcp, val, 16);
+	valcp[15] = '\0';
 
-	s = strstrip(dup);
+	s = strstrip(valcp);
 
 	down_read(&register_sem);
 	rv = fn(s, NULL);
@@ -235,7 +235,6 @@ static int set_param_str(const char *val, struct kernel_param *kp)
 
  out_unlock:
 	up_read(&register_sem);
-	kfree(dup);
 	return rv;
 }
 
