@@ -536,7 +536,7 @@ static int __devinit dataflash_probe(struct spi_device *spi)
 	if (status <= 0 || status == 0xff) {
 		DEBUG(MTD_DEBUG_LEVEL1, "%s: status error %d\n",
 				spi->dev.bus_id, status);
-		if (status == 0xff)
+		if (status == 0 || status == 0xff)
 			status = -ENODEV;
 		return status;
 	}
