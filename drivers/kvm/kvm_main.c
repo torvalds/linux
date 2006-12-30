@@ -1122,10 +1122,14 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_IA32_MC0_MISC+12:
 	case MSR_IA32_MC0_MISC+16:
 	case MSR_IA32_UCODE_REV:
+	case MSR_IA32_PERF_STATUS:
 		/* MTRR registers */
 	case 0xfe:
 	case 0x200 ... 0x2ff:
 		data = 0;
+		break;
+	case 0xcd: /* fsb frequency */
+		data = 3;
 		break;
 	case MSR_IA32_APICBASE:
 		data = vcpu->apic_base;
