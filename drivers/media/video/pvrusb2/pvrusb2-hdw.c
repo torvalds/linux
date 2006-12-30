@@ -957,7 +957,8 @@ const char *pvr2_config_get_name(enum pvr2_config cfg)
 	case pvr2_config_empty: return "empty";
 	case pvr2_config_mpeg: return "mpeg";
 	case pvr2_config_vbi: return "vbi";
-	case pvr2_config_radio: return "radio";
+	case pvr2_config_pcm: return "pcm";
+	case pvr2_config_rawvideo: return "raw video";
 	}
 	return "<unknown>";
 }

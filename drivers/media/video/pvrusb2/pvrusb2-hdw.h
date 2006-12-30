@@ -72,10 +72,11 @@
 	PVR2_SUBSYS_RUN_ALL )
 
 enum pvr2_config {
-	pvr2_config_empty,
-	pvr2_config_mpeg,
-	pvr2_config_vbi,
-	pvr2_config_radio,
+	pvr2_config_empty,    /* No configuration */
+	pvr2_config_mpeg,     /* Encoded / compressed video */
+	pvr2_config_vbi,      /* Standard vbi info */
+	pvr2_config_pcm,      /* Audio raw pcm stream */
+	pvr2_config_rawvideo, /* Video raw frames */
 };
 
 enum pvr2_v4l_type {

@@ -363,15 +363,19 @@ int pvr2_encoder_start(struct pvr2_hdw *hdw)
 	pvr2_encoder_vcmd(hdw,CX2341X_ENC_MUTE_VIDEO,1,
 			  hdw->input_val == PVR2_CVAL_INPUT_RADIO ? 1 : 0);
 
-	if (hdw->config == pvr2_config_vbi) {
+	switch (hdw->config) {
+	case pvr2_config_vbi:
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
 					   0x01,0x14);
-	} else if (hdw->config == pvr2_config_mpeg) {
+		break;
+	case pvr2_config_mpeg:
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
 					   0,0x13);
-	} else {
+		break;
+	default: /* Unhandled cases for now */
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
 					   0,0x13);
+		break;
 	}
 	if (!status) {
 		hdw->subsys_enabled_mask |= (1<<PVR2_SUBSYS_B_ENC_RUN);
@@ -386,15 +390,19 @@ int pvr2_encoder_stop(struct pvr2_hdw *hdw)
 	/* mask all interrupts */
 	pvr2_write_register(hdw, 0x0048, 0xffffffff);
 
-	if (hdw->config == pvr2_config_vbi) {
+	switch (hdw->config) {
+	case pvr2_config_vbi:
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_STOP_CAPTURE,3,
 					   0x01,0x01,0x14);
-	} else if (hdw->config == pvr2_config_mpeg) {
+		break;
+	case pvr2_config_mpeg:
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_STOP_CAPTURE,3,
 					   0x01,0,0x13);
-	} else {
+		break;
+	default: /* Unhandled cases for now */
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_STOP_CAPTURE,3,
 					   0x01,0,0x13);
+		break;
 	}
 
 	/* change some GPIO data */
