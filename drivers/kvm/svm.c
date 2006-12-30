@@ -166,11 +166,6 @@ static inline void write_dr7(unsigned long val)
 	asm volatile ("mov %0, %%dr7" :: "r" (val));
 }
 
-static inline int svm_is_long_mode(struct kvm_vcpu *vcpu)
-{
-	return vcpu->svm->vmcb->save.efer & KVM_EFER_LMA;
-}
-
 static inline void force_new_asid(struct kvm_vcpu *vcpu)
 {
 	vcpu->svm->asid_generation--;
@@ -1609,7 +1604,6 @@ static struct kvm_arch_ops svm_arch_ops = {
 	.get_segment_base = svm_get_segment_base,
 	.get_segment = svm_get_segment,
 	.set_segment = svm_set_segment,
-	.is_long_mode = svm_is_long_mode,
 	.get_cs_db_l_bits = svm_get_cs_db_l_bits,
 	.set_cr0 = svm_set_cr0,
 	.set_cr0_no_modeswitch = svm_set_cr0,

@@ -578,7 +578,7 @@ static int init_kvm_mmu(struct kvm_vcpu *vcpu)
 
 	if (!is_paging(vcpu))
 		return nonpaging_init_context(vcpu);
-	else if (kvm_arch_ops->is_long_mode(vcpu))
+	else if (is_long_mode(vcpu))
 		return paging64_init_context(vcpu);
 	else if (is_pae(vcpu))
 		return paging32E_init_context(vcpu);
