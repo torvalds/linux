@@ -2718,6 +2718,15 @@ static int ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
        	inode = ocfs2_lock_res_inode(lockres);
 	mapping = inode->i_mapping;
 
+	/*
+	 * We need this before the filemap_fdatawrite() so that it can
+	 * transfer the dirty bit from the PTE to the
+	 * page. Unfortunately this means that even for EX->PR
+	 * downconverts, we'll lose our mappings and have to build
+	 * them up again.
+	 */
+	unmap_mapping_range(mapping, 0, 0, 0);
+
 	if (filemap_fdatawrite(mapping)) {
 		mlog(ML_ERROR, "Could not sync inode %llu for downconvert!",
 		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
@@ -2725,7 +2734,6 @@ static int ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
 	sync_mapping_buffers(mapping);
 	if (blocking == LKM_EXMODE) {
 		truncate_inode_pages(mapping, 0);
-		unmap_mapping_range(mapping, 0, 0, 0);
 	} else {
 		/* We only need to wait on the I/O if we're not also
 		 * truncating pages because truncate_inode_pages waits

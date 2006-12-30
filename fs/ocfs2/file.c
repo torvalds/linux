@@ -149,6 +149,17 @@ int ocfs2_should_update_atime(struct inode *inode,
 	    ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode)))
 		return 0;
 
+	/*
+	 * We can be called with no vfsmnt structure - NFSD will
+	 * sometimes do this.
+	 *
+	 * Note that our action here is different than touch_atime() -
+	 * if we can't tell whether this is a noatime mount, then we
+	 * don't know whether to trust the value of s_atime_quantum.
+	 */
+	if (vfsmnt == NULL)
+		return 0;
+
 	if ((vfsmnt->mnt_flags & MNT_NOATIME) ||
 	    ((vfsmnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode)))
 		return 0;
@@ -966,8 +977,6 @@ int ocfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 	}
 
 	ret = generic_permission(inode, mask, NULL);
-	if (ret)
-		mlog_errno(ret);
 
 	ocfs2_meta_unlock(inode, 0);
 out:
