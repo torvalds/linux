@@ -1,9 +1,10 @@
 /*
- *  linux/drivers/ide/pci/slc90e66.c	Version 0.11	September 11, 2002
+ *  linux/drivers/ide/pci/slc90e66.c	Version 0.12	May 12, 2006
  *
  *  Copyright (C) 2000-2002 Andre Hedrick <andre@linux-ide.org>
+ *  Copyright (C) 2006 MontaVista Software, Inc. <source@mvista.com>
  *
- * This a look-a-like variation of the ICH0 PIIX4 Ultra-66,
+ * This is a look-alike variation of the ICH0 PIIX4 Ultra-66,
  * but this keeps the ISA-Bridge and slots alive.
  *
  */
@@ -158,10 +159,8 @@ static int slc90e66_config_drive_for_dma (ide_drive_t *drive)
 {
 	u8 speed = ide_dma_speed(drive, slc90e66_ratemask(drive));
 
-	if (!(speed)) {
-		u8 tspeed = ide_get_best_pio_mode(drive, 255, 5, NULL);
-		speed = slc90e66_dma_2_pio(XFER_PIO_0 + tspeed);
-	}
+	if (!speed)
+		return 0;
 
 	(void) slc90e66_tune_chipset(drive, speed);
 	return ide_dma_enable(drive);
@@ -176,16 +175,15 @@ static int slc90e66_config_drive_xfer_rate (ide_drive_t *drive)
 
 	if (id && (id->capability & 1) && drive->autodma) {
 
-		if (ide_use_dma(drive)) {
-			if (slc90e66_config_drive_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
+		if (ide_use_dma(drive) && slc90e66_config_drive_for_dma(drive))
+			return hwif->ide_dma_on(drive);
 
 		goto fast_ata_pio;
 
 	} else if ((id->capability & 8) || (id->field_valid & 2)) {
 fast_ata_pio:
-		hwif->tuneproc(drive, 5);
+		(void) hwif->speedproc(drive, XFER_PIO_0 +
+				       ide_get_best_pio_mode(drive, 255, 4, NULL));
 		return hwif->ide_dma_off_quietly(drive);
 	}
 	/* IORDY not supported */
