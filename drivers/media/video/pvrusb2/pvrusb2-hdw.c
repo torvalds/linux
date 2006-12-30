@@ -834,7 +834,6 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.get_max_value = ctrl_vres_max_get,
 		.get_min_value = ctrl_vres_min_get,
 	},{
-		.v4l_id = V4L2_CID_AUDIO_MUTE,
 		.desc = "Automatic TV / Radio mode switch based on frequency",
 		.name = "auto_mode_switch",
 		.default_value = 0,
