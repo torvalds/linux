@@ -121,7 +121,7 @@ static int corgibl_probe(struct platform_device *pdev)
 		machinfo->limit_mask = -1;
 
 	corgi_backlight_device = backlight_device_register ("corgi-bl",
-		NULL, &corgibl_data);
+		&pdev->dev, NULL, &corgibl_data);
 	if (IS_ERR (corgi_backlight_device))
 		return PTR_ERR (corgi_backlight_device);
 

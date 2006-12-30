@@ -105,7 +105,7 @@ static struct backlight_properties hp680bl_data = {
 static int __init hp680bl_probe(struct platform_device *dev)
 {
 	hp680_backlight_device = backlight_device_register ("hp680-bl",
-		NULL, &hp680bl_data);
+		&dev->dev, NULL, &hp680bl_data);
 	if (IS_ERR (hp680_backlight_device))
 		return PTR_ERR (hp680_backlight_device);
 
