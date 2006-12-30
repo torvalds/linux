@@ -1318,12 +1318,16 @@ static inline int lookup_chain_cache(u64 chain_key, struct lock_class *class)
 cache_hit:
 			debug_atomic_inc(&chain_lookup_hits);
 			if (very_verbose(class))
-				printk("\nhash chain already cached, key: %016Lx tail class: [%p] %s\n", chain_key, class->key, class->name);
+				printk("\nhash chain already cached, key: "
+					"%016Lx tail class: [%p] %s\n",
+					(unsigned long long)chain_key,
+					class->key, class->name);
 			return 0;
 		}
 	}
 	if (very_verbose(class))
-		printk("\nnew hash chain, key: %016Lx tail class: [%p] %s\n", chain_key, class->key, class->name);
+		printk("\nnew hash chain, key: %016Lx tail class: [%p] %s\n",
+			(unsigned long long)chain_key, class->key, class->name);
 	/*
 	 * Allocate a new chain entry from the static array, and add
 	 * it to the hash:
