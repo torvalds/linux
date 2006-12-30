@@ -60,6 +60,8 @@ static DEFINE_SPINLOCK(slob_lock);
 static DEFINE_SPINLOCK(block_lock);
 
 static void slob_free(void *b, int size);
+static void slob_timer_cbk(void);
+
 
 static void *slob_alloc(size_t size, gfp_t gfp, int align)
 {
@@ -326,7 +328,7 @@ const char *kmem_cache_name(struct kmem_cache *c)
 EXPORT_SYMBOL(kmem_cache_name);
 
 static struct timer_list slob_timer = TIMER_INITIALIZER(
-	(void (*)(unsigned long))kmem_cache_init, 0, 0);
+	(void (*)(unsigned long))slob_timer_cbk, 0, 0);
 
 int kmem_cache_shrink(struct kmem_cache *d)
 {
@@ -339,7 +341,12 @@ int kmem_ptr_validate(struct kmem_cache *a, const void *b)
 	return 0;
 }
 
-void kmem_cache_init(void)
+void __init kmem_cache_init(void)
+{
+	slob_timer_cbk();
+}
+
+static void slob_timer_cbk(void)
 {
 	void *p = slob_alloc(PAGE_SIZE, 0, PAGE_SIZE-1);
 
