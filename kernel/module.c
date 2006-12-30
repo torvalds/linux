@@ -1132,8 +1132,10 @@ static int mod_sysfs_setup(struct module *mod,
 		goto out;
 
 	mod->drivers_dir = kobject_add_dir(&mod->mkobj.kobj, "drivers");
-	if (!mod->drivers_dir)
+	if (!mod->drivers_dir) {
+		err = -ENOMEM;
 		goto out_unreg;
+	}
 
 	err = module_param_sysfs_setup(mod, kparam, num_params);
 	if (err)
