@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 
 #include <asm/io.h>
+#include <asm/mach-types.h>
 #include <asm/arch/gpmc.h>
 
 #undef DEBUG
@@ -338,19 +339,13 @@ void __init gpmc_mem_init(void)
 	int cs;
 	unsigned long boot_rom_space = 0;
 
-	if (cpu_is_omap242x()) {
-		u32 l;
-		l = omap_readl(OMAP242X_CONTROL_STATUS);
-		/* In case of internal boot the 1st MB is redirected to the
-		 * boot ROM memory space.
-		 */
-		if (l & (1 << 3))
-			boot_rom_space = BOOT_ROM_SPACE;
-	} else
-		/* We assume internal boot if the mode can't be
-		 * determined.
-		 */
-		boot_rom_space = BOOT_ROM_SPACE;
+	/* never allocate the first page, to facilitate bug detection;
+	 * even if we didn't boot from ROM.
+	 */
+	boot_rom_space = BOOT_ROM_SPACE;
+	/* In apollon the CS0 is mapped as 0x0000 0000 */
+	if (machine_is_omap_apollon())
+		boot_rom_space = 0;
 	gpmc_mem_root.start = GPMC_MEM_START + boot_rom_space;
 	gpmc_mem_root.end = GPMC_MEM_END;
 
