@@ -174,7 +174,12 @@ static inline int constrained_alloc(struct zonelist *zonelist, gfp_t gfp_mask)
 {
 #ifdef CONFIG_NUMA
 	struct zone **z;
-	nodemask_t nodes = node_online_map;
+	nodemask_t nodes;
+	int node;
+	/* node has memory ? */
+	for_each_online_node(node)
+		if (NODE_DATA(node)->node_present_pages)
+			node_set(node, nodes);
 
 	for (z = zonelist->zones; *z; z++)
 		if (cpuset_zone_allowed_softwall(*z, gfp_mask))
