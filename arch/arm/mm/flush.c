@@ -202,3 +202,42 @@ void flush_dcache_page(struct page *page)
 	}
 }
 EXPORT_SYMBOL(flush_dcache_page);
+
+/*
+ * Flush an anonymous page so that users of get_user_pages()
+ * can safely access the data.  The expected sequence is:
+ *
+ *  get_user_pages()
+ *    -> flush_anon_page
+ *  memcpy() to/from page
+ *  if written to page, flush_dcache_page()
+ */
+void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
+{
+	unsigned long pfn;
+
+	/* VIPT non-aliasing caches need do nothing */
+	if (cache_is_vipt_nonaliasing())
+		return;
+
+	/*
+	 * Write back and invalidate userspace mapping.
+	 */
+	pfn = page_to_pfn(page);
+	if (cache_is_vivt()) {
+		flush_cache_page(vma, vmaddr, pfn);
+	} else {
+		/*
+		 * For aliasing VIPT, we can flush an alias of the
+		 * userspace address only.
+		 */
+		flush_pfn_alias(pfn, vmaddr);
+	}
+
+	/*
+	 * Invalidate kernel mapping.  No data should be contained
+	 * in this mapping of the page.  FIXME: this is overkill
+	 * since we actually ask for a write-back and invalidate.
+	 */
+	__cpuc_flush_dcache_page(page_address(page));
+}

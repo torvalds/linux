@@ -357,6 +357,16 @@ extern void flush_dcache_page(struct page *);
 
 extern void __flush_dcache_page(struct address_space *mapping, struct page *page);
 
+#define ARCH_HAS_FLUSH_ANON_PAGE
+static inline void flush_anon_page(struct vm_area_struct *vma,
+			 struct page *page, unsigned long vmaddr)
+{
+	extern void __flush_anon_page(struct vm_area_struct *vma,
+				struct page *, unsigned long);
+	if (PageAnon(page))
+		__flush_anon_page(vma, page, vmaddr);
+}
+
 #define flush_dcache_mmap_lock(mapping) \
 	write_lock_irq(&(mapping)->tree_lock)
 #define flush_dcache_mmap_unlock(mapping) \
