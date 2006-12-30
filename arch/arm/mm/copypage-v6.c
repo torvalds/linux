@@ -53,6 +53,10 @@ static void v6_copy_user_page_aliasing(void *kto, const void *kfrom, unsigned lo
 {
 	unsigned int offset = CACHE_COLOUR(vaddr);
 	unsigned long from, to;
+	struct page *page = virt_to_page(kfrom);
+
+	if (test_and_clear_bit(PG_dcache_dirty, &page->flags))
+		__flush_dcache_page(page_mapping(page), page);
 
 	/*
 	 * Discard data in the kernel mapping for the new page.
