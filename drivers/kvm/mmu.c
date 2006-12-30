@@ -639,28 +639,22 @@ error_1:
 	return -ENOMEM;
 }
 
-int kvm_mmu_init(struct kvm_vcpu *vcpu)
+int kvm_mmu_create(struct kvm_vcpu *vcpu)
 {
-	int r;
-
 	ASSERT(vcpu);
 	ASSERT(!VALID_PAGE(vcpu->mmu.root_hpa));
 	ASSERT(list_empty(&vcpu->free_pages));
 
-	r = alloc_mmu_pages(vcpu);
-	if (r)
-		goto out;
+	return alloc_mmu_pages(vcpu);
+}
 
-	r = init_kvm_mmu(vcpu);
-	if (r)
-		goto out_free_pages;
+int kvm_mmu_setup(struct kvm_vcpu *vcpu)
+{
+	ASSERT(vcpu);
+	ASSERT(!VALID_PAGE(vcpu->mmu.root_hpa));
+	ASSERT(!list_empty(&vcpu->free_pages));
 
-	return 0;
-
-out_free_pages:
-	free_mmu_pages(vcpu);
-out:
-	return r;
+	return init_kvm_mmu(vcpu);
 }
 
 void kvm_mmu_destroy(struct kvm_vcpu *vcpu)

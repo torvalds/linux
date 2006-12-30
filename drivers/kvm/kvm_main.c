@@ -522,12 +522,14 @@ static int kvm_dev_ioctl_create_vcpu(struct kvm *kvm, int n)
 	if (r < 0)
 		goto out_free_vcpus;
 
+	r = kvm_mmu_create(vcpu);
+	if (r < 0)
+		goto out_free_vcpus;
+
 	kvm_arch_ops->vcpu_load(vcpu);
-
-	r = kvm_arch_ops->vcpu_setup(vcpu);
+	r = kvm_mmu_setup(vcpu);
 	if (r >= 0)
-		r = kvm_mmu_init(vcpu);
-
+		r = kvm_arch_ops->vcpu_setup(vcpu);
 	vcpu_put(vcpu);
 
 	if (r < 0)

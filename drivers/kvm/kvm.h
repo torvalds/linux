@@ -319,7 +319,8 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module);
 void kvm_exit_arch(void);
 
 void kvm_mmu_destroy(struct kvm_vcpu *vcpu);
-int kvm_mmu_init(struct kvm_vcpu *vcpu);
+int kvm_mmu_create(struct kvm_vcpu *vcpu);
+int kvm_mmu_setup(struct kvm_vcpu *vcpu);
 
 int kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
 void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot);
