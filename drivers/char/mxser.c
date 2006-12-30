@@ -717,6 +717,7 @@ static int mxser_init(void)
 
 	/* Initialize the tty_driver structure */
 	memset(mxvar_sdriver, 0, sizeof(struct tty_driver));
+	mxvar_sdriver->owner = THIS_MODULE;
 	mxvar_sdriver->magic = TTY_DRIVER_MAGIC;
 	mxvar_sdriver->name = "ttyMI";
 	mxvar_sdriver->major = ttymajor;
