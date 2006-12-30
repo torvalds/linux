@@ -1865,6 +1865,11 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 {
 	int r;
 
+	if (kvm_arch_ops) {
+		printk(KERN_ERR "kvm: already loaded the other module\n");
+		return -EEXIST;
+	}
+
 	kvm_arch_ops = ops;
 
 	if (!kvm_arch_ops->cpu_has_kvm_support()) {
@@ -1907,6 +1912,7 @@ void kvm_exit_arch(void)
 	unregister_reboot_notifier(&kvm_reboot_notifier);
 	on_each_cpu(kvm_arch_ops->hardware_disable, 0, 0, 1);
 	kvm_arch_ops->hardware_unsetup();
+	kvm_arch_ops = NULL;
 }
 
 static __init int kvm_init(void)
