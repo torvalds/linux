@@ -57,6 +57,7 @@ struct pvr2_v4l2_fh {
 	struct pvr2_v4l2_fh *vprev;
 	wait_queue_head_t wait_data;
 	int fw_mode_flag;
+	int prev_input_val;
 };
 
 struct pvr2_v4l2 {
@@ -837,13 +838,12 @@ static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 	struct pvr2_v4l2_fh *fhp = file->private_data;
 	struct pvr2_v4l2 *vp = fhp->vhead;
 	struct pvr2_context *mp = fhp->vhead->channel.mc_head;
+	struct pvr2_hdw *hdw = fhp->channel.mc_head->hdw;
 
 	pvr2_trace(PVR2_TRACE_OPEN_CLOSE,"pvr2_v4l2_release");
 
 	if (fhp->rhp) {
 		struct pvr2_stream *sp;
-		struct pvr2_hdw *hdw;
-		hdw = fhp->channel.mc_head->hdw;
 		pvr2_hdw_set_streaming(hdw,0);
 		sp = pvr2_ioread_get_stream(fhp->rhp);
 		if (sp) pvr2_stream_set_callback(sp,NULL,NULL);
@@ -855,6 +855,20 @@ static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 
 	pvr2_context_enter(mp); do {
+		/* Restore the previous input selection, if it makes sense
+		   to do so. */
+		if (fhp->dev_info->v4l_type == VFL_TYPE_RADIO) {
+			struct pvr2_ctrl *cp;
+			int pval;
+			cp = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT);
+			pvr2_ctrl_get_value(cp,&pval);
+			/* Only restore if we're still selecting the radio */
+			if (pval == PVR2_CVAL_INPUT_RADIO) {
+				pvr2_ctrl_set_value(cp,fhp->prev_input_val);
+				pvr2_hdw_commit_ctl(hdw);
+			}
+		}
+
 		if (fhp->vnext) {
 			fhp->vnext->vprev = fhp->vprev;
 		} else {
@@ -913,17 +927,6 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 		pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr_v4l2_fh id=%p",fhp);
 		pvr2_channel_init(&fhp->channel,vp->channel.mc_head);
 
-		/* Opening the /dev/radioX device implies a mode switch.
-		   So execute that here.  Note that you can get the
-		   IDENTICAL effect merely by opening the normal video
-		   device and setting the input appropriately. */
-		if (dip->v4l_type == VFL_TYPE_RADIO) {
-			pvr2_ctrl_set_value(
-				pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT),
-				PVR2_CVAL_INPUT_RADIO);
-			pvr2_hdw_commit_ctl(hdw);
-		}
-
 		fhp->vnext = NULL;
 		fhp->vprev = vp->vlast;
 		if (vp->vlast) {
@@ -933,6 +936,18 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 		}
 		vp->vlast = fhp;
 		fhp->vhead = vp;
+
+		/* Opening the /dev/radioX device implies a mode switch.
+		   So execute that here.  Note that you can get the
+		   IDENTICAL effect merely by opening the normal video
+		   device and setting the input appropriately. */
+		if (dip->v4l_type == VFL_TYPE_RADIO) {
+			struct pvr2_ctrl *cp;
+			cp = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT);
+			pvr2_ctrl_get_value(cp,&fhp->prev_input_val);
+			pvr2_ctrl_set_value(cp,PVR2_CVAL_INPUT_RADIO);
+			pvr2_hdw_commit_ctl(hdw);
+		}
 	} while (0); pvr2_context_exit(vp->channel.mc_head);
 
 	fhp->file = file;
@@ -1117,6 +1132,11 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		dip->config = pvr2_config_mpeg;
 		dip->minor_type = pvr2_v4l_type_video;
 		nr_ptr = video_nr;
+		if (!dip->stream) {
+			err("Failed to set up pvrusb2 v4l video dev"
+			    " due to missing stream instance");
+			return;
+		}
 		break;
 	case VFL_TYPE_VBI:
 		dip->config = pvr2_config_vbi;
@@ -1132,13 +1152,6 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		/* Bail out (this should be impossible) */
 		err("Failed to set up pvrusb2 v4l dev"
 		    " due to unrecognized config");
-		return;
-	}
-
-	/* radio device doesn 't need its own stream */
-	if (!dip->stream && dip->v4l_type == VFL_TYPE_GRABBER) {
-		err("Failed to set up pvrusb2 v4l dev"
-		    " due to missing stream instance");
 		return;
 	}
 
