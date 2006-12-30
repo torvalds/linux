@@ -639,6 +639,8 @@ static void pci_read_irq(struct pci_dev *dev)
 	dev->irq = irq;
 }
 
+#define LEGACY_IO_RESOURCE	(IORESOURCE_IO | IORESOURCE_PCI_FIXED)
+
 /**
  * pci_setup_device - fill in class and map information of a device
  * @dev: the device structure to fill
@@ -649,9 +651,6 @@ static void pci_read_irq(struct pci_dev *dev)
  * Returns 0 on success and -1 if unknown type of device (not normal, bridge
  * or CardBus).
  */
-
-#define LEGACY_IO_RESOURCE	(IORESOURCE_IO | IORESOURCE_PCI_FIXED)
-
 static int pci_setup_device(struct pci_dev * dev)
 {
 	u32 class;
