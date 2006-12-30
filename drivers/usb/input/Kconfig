@@ -29,7 +29,7 @@ config USB_HID
 comment "Input core support is needed for USB HID input layer or HIDBP support"
 	depends on USB_HID && INPUT=n
 
-config USB_HID_POWERBOOK
+config USB_HIDINPUT_POWERBOOK
 	bool "Enable support for iBook/PowerBook special keys"
 	default n
 	depends on USB_HID
