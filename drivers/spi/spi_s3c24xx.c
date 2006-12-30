@@ -174,7 +174,7 @@ static int s3c24xx_spi_setup(struct spi_device *spi)
 
 static inline unsigned int hw_txbyte(struct s3c24xx_spi *hw, int count)
 {
-	return hw->tx ? hw->tx[count] : 0xff;
+	return hw->tx ? hw->tx[count] : 0;
 }
 
 static int s3c24xx_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
