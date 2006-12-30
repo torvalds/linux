@@ -15,7 +15,44 @@
 
 #define MMC_CMD_RETRIES        3
 
+struct mmc_bus_ops {
+	void (*remove)(struct mmc_host *);
+	void (*detect)(struct mmc_host *);
+};
+
+void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops);
+void mmc_detach_bus(struct mmc_host *host);
+
+void __mmc_release_bus(struct mmc_host *host);
+
+static inline void mmc_bus_get(struct mmc_host *host)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	host->bus_refs++;
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+
+static inline void mmc_bus_put(struct mmc_host *host)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	host->bus_refs--;
+	if ((host->bus_refs == 0) && host->bus_ops)
+		__mmc_release_bus(host);
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+
 void mmc_set_chip_select(struct mmc_host *host, int mode);
+void mmc_set_clock(struct mmc_host *host, unsigned int hz);
+void mmc_set_bus_mode(struct mmc_host *host, unsigned int mode);
+void mmc_set_bus_width(struct mmc_host *host, unsigned int width);
+u32 mmc_select_voltage(struct mmc_host *host, u32 ocr);
+void mmc_set_timing(struct mmc_host *host, unsigned int timing);
+
+struct mmc_card *mmc_alloc_card(struct mmc_host *host);
 
 static inline void mmc_delay(unsigned int ms)
 {

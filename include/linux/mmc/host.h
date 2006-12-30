@@ -131,6 +131,8 @@ struct mmc_host {
 	unsigned int		max_blk_count;	/* maximum number of blocks in one req */
 
 	/* private data */
+	spinlock_t		lock;		/* lock for claim and bus ops */
+
 	struct mmc_ios		ios;		/* current io bus settings */
 	u32			ocr;		/* the current OCR setting */
 
@@ -141,13 +143,16 @@ struct mmc_host {
 	struct mmc_card		*card;		/* device attached to this host */
 
 	wait_queue_head_t	wq;
-	spinlock_t		lock;		/* claimed lock */
 	unsigned int		claimed:1;	/* host exclusively claimed */
 
 	struct delayed_work	detect;
 #ifdef CONFIG_MMC_DEBUG
 	unsigned int		removed:1;	/* host is being removed */
 #endif
+
+	const struct mmc_bus_ops *bus_ops;	/* current bus driver */
+	unsigned int		bus_refs;	/* reference counter */
+	unsigned int		bus_dead:1;	/* bus has been released */
 
 	unsigned long		private[0] ____cacheline_aligned;
 };
