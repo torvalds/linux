@@ -246,7 +246,7 @@ static int has_svm(void)
 {
 	uint32_t eax, ebx, ecx, edx;
 
-	if (current_cpu_data.x86_vendor != X86_VENDOR_AMD) {
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD) {
 		printk(KERN_INFO "has_svm: not amd\n");
 		return 0;
 	}
