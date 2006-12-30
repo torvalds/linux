@@ -225,6 +225,8 @@ static inline CommandList_struct *removeQ(CommandList_struct **Qptr,
 
 #include "cciss_scsi.c"		/* For SCSI tape support */
 
+#define RAID_UNKNOWN 6
+
 #ifdef CONFIG_PROC_FS
 
 /*
@@ -232,7 +234,6 @@ static inline CommandList_struct *removeQ(CommandList_struct **Qptr,
  */
 #define ENG_GIG 1000000000
 #define ENG_GIG_FACTOR (ENG_GIG/512)
-#define RAID_UNKNOWN 6
 static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
 	"UNKNOWN"
 };
