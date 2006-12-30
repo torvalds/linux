@@ -53,8 +53,8 @@ installmandocs: mandocs
 
 ###
 #External programs used
-KERNELDOC = scripts/kernel-doc
-DOCPROC   = scripts/basic/docproc
+KERNELDOC = $(srctree)/scripts/kernel-doc
+DOCPROC   = $(objtree)/scripts/basic/docproc
 
 XMLTOFLAGS = -m $(srctree)/Documentation/DocBook/stylesheet.xsl
 #XMLTOFLAGS += --skip-validation
