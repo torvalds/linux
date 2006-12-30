@@ -921,6 +921,7 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 			pvr2_ctrl_set_value(
 				pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT),
 				PVR2_CVAL_INPUT_RADIO);
+			pvr2_hdw_commit_ctl(hdw);
 		}
 
 		fhp->vnext = NULL;
