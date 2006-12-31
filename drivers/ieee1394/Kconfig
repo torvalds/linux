@@ -2,6 +2,8 @@
 
 menu "IEEE 1394 (FireWire) support"
 
+source "drivers/firewire/Kconfig"
+
 config IEEE1394
 	tristate "IEEE 1394 (FireWire) support"
 	depends on PCI || BROKEN

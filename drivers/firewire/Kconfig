@@ -1,8 +1,6 @@
 # -*- shell-script -*-
 
-menu "IEEE 1394 (FireWire) support (JUJU alternative stack)"
-
-comment "This is an EXPERIMENTAL set of alternative FireWire drivers."
+comment "An alternative FireWire stack is available with EXPERIMENTAL=y"
 	depends on EXPERIMENTAL=n
 
 config FW
@@ -47,4 +45,3 @@ config FW_SBP2
 	  You should also enable support for disks, CD-ROMs, etc. in the SCSI
 	  configuration section.
 
-endmenu
