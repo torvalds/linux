@@ -1358,6 +1358,21 @@ UNUSUAL_DEV(  0x1370, 0x6828, 0x0110, 0x0110,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Francesco Foresti <frafore@tiscali.it> */
+UNUSUAL_DEV(  0x14cd, 0x6600, 0x0201, 0x0201,
+		"Super Top",
+		"IDE DEVICE",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
+/* Reported by Robert Schedel <r.schedel@yahoo.de>
+ * Note: this is a 'super top' device like the above 14cd/6600 device */
+UNUSUAL_DEV(  0x1652, 0x6600, 0x0201, 0x0201,
+		"Teac",
+		"HD-35PUK-B",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
 /* patch submitted by Davide Perini <perini.davide@dpsoftware.org>
  * and Renato Perini <rperini@email.it>
  */
