@@ -16,6 +16,7 @@ static int i8042_aux_irq = -1;
 #define I8042_MUX_PHYS_DESC "sparcps2/serio%d"
 
 static void __iomem *kbd_iobase;
+static struct resource *kbd_res;
 
 #define I8042_COMMAND_REG	(kbd_iobase + 0x64UL)
 #define I8042_DATA_REG		(kbd_iobase + 0x60UL)
@@ -60,6 +61,7 @@ static int __devinit sparc_i8042_probe(struct of_device *op, const struct of_dev
 			i8042_kbd_irq = irq;
 			kbd_iobase = of_ioremap(&kbd->resource[0],
 						0, 8, "kbd");
+			kbd_res = &kbd->resource[0];
 		} else if (!strcmp(dp->name, OBP_PS2MS_NAME1) ||
 			   !strcmp(dp->name, OBP_PS2MS_NAME2)) {
 			struct of_device *ms = of_find_device_by_node(dp);
@@ -77,7 +79,7 @@ static int __devinit sparc_i8042_probe(struct of_device *op, const struct of_dev
 
 static int __devexit sparc_i8042_remove(struct of_device *op)
 {
-	of_iounmap(kbd_iobase, 8);
+	of_iounmap(kbd_res, kbd_iobase, 8);
 
 	return 0;
 }
@@ -119,7 +121,7 @@ static int __init i8042_platform_init(void)
 		if (i8042_kbd_irq == -1 ||
 		    i8042_aux_irq == -1) {
 			if (kbd_iobase) {
-				of_iounmap(kbd_iobase, 8);
+				of_iounmap(kbd_res, kbd_iobase, 8);
 				kbd_iobase = (void __iomem *) NULL;
 			}
 			return -ENODEV;

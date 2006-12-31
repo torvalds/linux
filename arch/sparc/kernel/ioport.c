@@ -153,7 +153,7 @@ void __iomem *of_ioremap(struct resource *res, unsigned long offset,
 }
 EXPORT_SYMBOL(of_ioremap);
 
-void of_iounmap(void __iomem *base, unsigned long size)
+void of_iounmap(struct resource *res, void __iomem *base, unsigned long size)
 {
 	iounmap(base);
 }

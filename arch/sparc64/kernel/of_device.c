@@ -144,9 +144,12 @@ void __iomem *of_ioremap(struct resource *res, unsigned long offset, unsigned lo
 }
 EXPORT_SYMBOL(of_ioremap);
 
-void of_iounmap(void __iomem *base, unsigned long size)
+void of_iounmap(struct resource *res, void __iomem *base, unsigned long size)
 {
-	release_region((unsigned long) base, size);
+	if (res->flags & IORESOURCE_MEM)
+		release_mem_region((unsigned long) base, size);
+	else
+		release_region((unsigned long) base, size);
 }
 EXPORT_SYMBOL(of_iounmap);
 
