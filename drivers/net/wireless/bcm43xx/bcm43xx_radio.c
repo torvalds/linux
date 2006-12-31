@@ -1981,6 +1981,7 @@ void bcm43xx_radio_turn_on(struct bcm43xx_private *bcm)
 	}
 	radio->enabled = 1;
 	dprintk(KERN_INFO PFX "Radio turned on\n");
+	bcm43xx_leds_update(bcm, 0);
 }
 	
 void bcm43xx_radio_turn_off(struct bcm43xx_private *bcm)
@@ -2001,6 +2002,7 @@ void bcm43xx_radio_turn_off(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x0015, 0xAA00);
 	radio->enabled = 0;
 	dprintk(KERN_INFO PFX "Radio turned off\n");
+	bcm43xx_leds_update(bcm, 0);
 }
 
 void bcm43xx_radio_clear_tssi(struct bcm43xx_private *bcm)
