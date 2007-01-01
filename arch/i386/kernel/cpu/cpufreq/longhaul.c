@@ -318,12 +318,12 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 
 #define ROUNDING	0xf
 
-static int _guess(int guess)
+static int _guess(int guess, int mult)
 {
 	int target;
 
-	target = ((maxmult/10)*guess);
-	if (maxmult%10 != 0)
+	target = ((mult/10)*guess);
+	if (mult%10 != 0)
 		target += (guess/2);
 	target += ROUNDING/2;
 	target &= ~ROUNDING;
@@ -331,17 +331,17 @@ static int _guess(int guess)
 }
 
 
-static int guess_fsb(void)
+static int guess_fsb(int mult)
 {
 	int speed = (cpu_khz/1000);
 	int i;
-	int speeds[3] = { 66, 100, 133 };
+	int speeds[] = { 66, 100, 133, 200 };
 
 	speed += ROUNDING/2;
 	speed &= ~ROUNDING;
 
-	for (i=0; i<3; i++) {
-		if (_guess(speeds[i]) == speed)
+	for (i=0; i<4; i++) {
+		if (_guess(speeds[i], mult) == speed)
 			return speeds[i];
 	}
 	return 0;
@@ -361,6 +361,7 @@ static int __init longhaul_get_ranges(void)
 	unsigned long lo, hi;
 	unsigned int eblcr_fsb_table_v1[] = { 66, 133, 100, -1 };
 	unsigned int eblcr_fsb_table_v2[] = { 133, 100, -1, 66 };
+	int mult;
 
 	switch (longhaul_version) {
 	case TYPE_LONGHAUL_V1:
@@ -368,30 +369,18 @@ static int __init longhaul_get_ranges(void)
 		/* Ugh, Longhaul v1 didn't have the min/max MSRs.
 		   Assume min=3.0x & max = whatever we booted at. */
 		minmult = 30;
-		maxmult = longhaul_get_cpu_mult();
-		rdmsr (MSR_IA32_EBL_CR_POWERON, lo, hi);
-		invalue = (lo & (1<<18|1<<19)) >>18;
-		if (cpu_model==CPU_SAMUEL || cpu_model==CPU_SAMUEL2)
-			fsb = eblcr_fsb_table_v1[invalue];
-		else
-			fsb = guess_fsb();
+		maxmult = mult = longhaul_get_cpu_mult();
 		break;
 
 	case TYPE_POWERSAVER:
 		/* Ezra-T */
 		if (cpu_model==CPU_EZRA_T) {
+			minmult = 30;
 			rdmsrl (MSR_VIA_LONGHAUL, longhaul.val);
 			invalue = longhaul.bits.MaxMHzBR;
 			if (longhaul.bits.MaxMHzBR4)
 				invalue += 16;
-			maxmult=ezra_t_multipliers[invalue];
-
-			invalue = longhaul.bits.MinMHzBR;
-			if (longhaul.bits.MinMHzBR4 == 1)
-				minmult = 30;
-			else
-				minmult = ezra_t_multipliers[invalue];
-			fsb = eblcr_fsb_table_v2[longhaul.bits.MaxMHzFSB];
+			maxmult = mult = ezra_t_multipliers[invalue];
 			break;
 		}
 
@@ -411,21 +400,16 @@ static int __init longhaul_get_ranges(void)
 			 *   But it works, so we don't grumble.
 			 */
 			minmult=40;
-			maxmult=longhaul_get_cpu_mult();
-
-			/* Starting with the 1.2GHz parts, theres a 200MHz bus. */
-			if ((cpu_khz/maxmult) > 13400)
-				fsb = 200;
-			else
-				fsb = eblcr_fsb_table_v2[longhaul.bits.MaxMHzFSB];
+			maxmult = mult = longhaul_get_cpu_mult();
 			break;
 		}
 	}
+	fsb = guess_fsb(mult);
 
 	dprintk ("MinMult:%d.%dx MaxMult:%d.%dx\n",
 		 minmult/10, minmult%10, maxmult/10, maxmult%10);
 
-	if (fsb == -1) {
+	if (fsb == 0) {
 		printk (KERN_INFO PFX "Invalid (reserved) FSB!\n");
 		return -EINVAL;
 	}
