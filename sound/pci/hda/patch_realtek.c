@@ -5070,6 +5070,8 @@ static struct hda_board_config alc883_cfg_tbl[] = {
 	{ .modelname = "6stack-dig", .config = ALC883_6ST_DIG },
 	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x6668,
 	  .config = ALC883_6ST_DIG }, /* MSI  */
+	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x7280,
+	  .config = ALC883_6ST_DIG }, /* MSI K9A Platinum (MS-7280) */
 	{ .pci_subvendor = 0x105b, .pci_subdevice = 0x6668,
 	  .config = ALC883_6ST_DIG }, /* Foxconn */
 	{ .modelname = "6stack-dig-demo", .config = ALC888_DEMO_BOARD },
