@@ -1115,11 +1115,7 @@ intr_extint:
 	mfctl	%cr31,%r1
 	copy	%r30,%r17
 	/* FIXME! depi below has hardcoded idea of interrupt stack size (32k)*/
-#ifdef CONFIG_64BIT
-	depdi	0,63,15,%r17
-#else
-	depi	0,31,15,%r17
-#endif
+	DEPI	0,31,15,%r17
 	CMPB=,n	%r1,%r17,2f
 	get_stack_use_cr31
 	b,n 3f
@@ -1999,10 +1995,10 @@ sys_sigaltstack_wrapper:
 	STREG	%r2, -RP_OFFSET(%r30)
 #ifdef CONFIG_64BIT
 	ldo	FRAME_SIZE(%r30), %r30
-	b,l	do_sigaltstack,%r2
+	BL	do_sigaltstack,%r2
 	ldo	-16(%r30),%r29		/* Reference param save area */
 #else
-	bl	do_sigaltstack,%r2
+	BL	do_sigaltstack,%r2
 	ldo	FRAME_SIZE(%r30), %r30
 #endif
 
@@ -2019,7 +2015,7 @@ sys32_sigaltstack_wrapper:
 	LDREG	TASK_PT_GR30(%r24),%r24
 	STREG	%r2, -RP_OFFSET(%r30)
 	ldo	FRAME_SIZE(%r30), %r30
-	b,l	do_sigaltstack32,%r2
+	BL	do_sigaltstack32,%r2
 	ldo	-16(%r30),%r29		/* Reference param save area */
 
 	ldo	-FRAME_SIZE(%r30), %r30
@@ -2037,10 +2033,10 @@ sys_rt_sigsuspend_wrapper:
 	STREG	%r2, -RP_OFFSET(%r30)
 #ifdef CONFIG_64BIT
 	ldo	FRAME_SIZE(%r30), %r30
-	b,l	sys_rt_sigsuspend,%r2
+	BL	sys_rt_sigsuspend,%r2
 	ldo	-16(%r30),%r29		/* Reference param save area */
 #else
-	bl	sys_rt_sigsuspend,%r2
+	BL	sys_rt_sigsuspend,%r2
 	ldo	FRAME_SIZE(%r30), %r30
 #endif
 

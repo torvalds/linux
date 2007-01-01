@@ -316,7 +316,7 @@ static void handle_break(struct pt_regs *regs)
 #ifdef PRINT_USER_FAULTS
 	if (unlikely(iir != GDB_BREAK_INSN)) {
 		printk(KERN_DEBUG "break %d,%d: pid=%d command='%s'\n",
-			(iir>>13) & ((1<<13)-1), iir & 31,
+			iir & 31, (iir>>13) & ((1<<13)-1),
 			current->pid, current->comm);
 		show_regs(regs);
 	}
