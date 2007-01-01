@@ -425,15 +425,45 @@ int crypto_unregister_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_notifier);
 
-struct crypto_alg *crypto_get_attr_alg(void *param, unsigned int len,
-				       u32 type, u32 mask)
+struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb)
 {
-	struct rtattr *rta = param;
+	struct rtattr *rta = tb[CRYPTOA_TYPE - 1];
+	struct crypto_attr_type *algt;
+
+	if (!rta)
+		return ERR_PTR(-ENOENT);
+	if (RTA_PAYLOAD(rta) < sizeof(*algt))
+		return ERR_PTR(-EINVAL);
+
+	algt = RTA_DATA(rta);
+
+	return algt;
+}
+EXPORT_SYMBOL_GPL(crypto_get_attr_type);
+
+int crypto_check_attr_type(struct rtattr **tb, u32 type)
+{
+	struct crypto_attr_type *algt;
+
+	algt = crypto_get_attr_type(tb);
+	if (IS_ERR(algt))
+		return PTR_ERR(algt);
+
+	if ((algt->type ^ type) & algt->mask)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(crypto_check_attr_type);
+
+struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb, u32 type, u32 mask)
+{
+	struct rtattr *rta = tb[CRYPTOA_ALG - 1];
 	struct crypto_attr_alg *alga;
 
-	if (!RTA_OK(rta, len))
-		return ERR_PTR(-EBADR);
-	if (rta->rta_type != CRYPTOA_ALG || RTA_PAYLOAD(rta) < sizeof(*alga))
+	if (!rta)
+		return ERR_PTR(-ENOENT);
+	if (RTA_PAYLOAD(rta) < sizeof(*alga))
 		return ERR_PTR(-EINVAL);
 
 	alga = RTA_DATA(rta);

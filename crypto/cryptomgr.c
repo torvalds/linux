@@ -26,14 +26,19 @@
 struct cryptomgr_param {
 	struct work_struct work;
 
+	struct rtattr *tb[CRYPTOA_MAX];
+
+	struct {
+		struct rtattr attr;
+		struct crypto_attr_type data;
+	} type;
+
 	struct {
 		struct rtattr attr;
 		struct crypto_attr_alg data;
 	} alg;
 
 	struct {
-		u32 type;
-		u32 mask;
 		char name[CRYPTO_MAX_ALG_NAME];
 	} larval;
 
@@ -53,7 +58,7 @@ static void cryptomgr_probe(struct work_struct *work)
 		goto err;
 
 	do {
-		inst = tmpl->alloc(&param->alg, sizeof(param->alg));
+		inst = tmpl->alloc(param->tb);
 		if (IS_ERR(inst))
 			err = PTR_ERR(inst);
 		else if ((err = crypto_register_instance(tmpl, inst)))
@@ -70,8 +75,8 @@ out:
 	return;
 
 err:
-	crypto_larval_error(param->larval.name, param->larval.type,
-			    param->larval.mask);
+	crypto_larval_error(param->larval.name, param->type.data.type,
+			    param->type.data.mask);
 	goto out;
 }
 
@@ -82,7 +87,7 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 	const char *p;
 	unsigned int len;
 
-	param = kmalloc(sizeof(*param), GFP_KERNEL);
+	param = kzalloc(sizeof(*param), GFP_KERNEL);
 	if (!param)
 		goto err;
 
@@ -94,7 +99,6 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 		goto err_free_param;
 
 	memcpy(param->template, name, len);
-	param->template[len] = 0;
 
 	name = p + 1;
 	for (p = name; isalnum(*p) || *p == '-' || *p == '_'; p++)
@@ -104,14 +108,18 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 	if (!len || *p != ')' || p[1])
 		goto err_free_param;
 
+	param->type.attr.rta_len = sizeof(param->type);
+	param->type.attr.rta_type = CRYPTOA_TYPE;
+	param->type.data.type = larval->alg.cra_flags;
+	param->type.data.mask = larval->mask;
+	param->tb[CRYPTOA_TYPE - 1] = &param->type.attr;
+
 	param->alg.attr.rta_len = sizeof(param->alg);
 	param->alg.attr.rta_type = CRYPTOA_ALG;
 	memcpy(param->alg.data.name, name, len);
-	param->alg.data.name[len] = 0;
+	param->tb[CRYPTOA_ALG - 1] = &param->alg.attr;
 
 	memcpy(param->larval.name, larval->alg.cra_name, CRYPTO_MAX_ALG_NAME);
-	param->larval.type = larval->alg.cra_flags;
-	param->larval.mask = larval->mask;
 
 	INIT_WORK(&param->work, cryptomgr_probe);
 	schedule_work(&param->work);

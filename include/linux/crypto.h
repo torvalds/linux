@@ -372,10 +372,19 @@ struct crypto_hash {
 enum {
 	CRYPTOA_UNSPEC,
 	CRYPTOA_ALG,
+	CRYPTOA_TYPE,
+	__CRYPTOA_MAX,
 };
+
+#define CRYPTOA_MAX (__CRYPTOA_MAX - 1)
 
 struct crypto_attr_alg {
 	char name[CRYPTO_MAX_ALG_NAME];
+};
+
+struct crypto_attr_type {
+	u32 type;
+	u32 mask;
 };
 
 /* 

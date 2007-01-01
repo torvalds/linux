@@ -15,6 +15,7 @@
 #include <linux/crypto.h>
 
 struct module;
+struct rtattr;
 struct seq_file;
 
 struct crypto_type {
@@ -38,7 +39,7 @@ struct crypto_template {
 	struct hlist_head instances;
 	struct module *module;
 
-	struct crypto_instance *(*alloc)(void *param, unsigned int len);
+	struct crypto_instance *(*alloc)(struct rtattr **tb);
 	void (*free)(struct crypto_instance *inst);
 
 	char name[CRYPTO_MAX_ALG_NAME];
@@ -96,8 +97,9 @@ void crypto_drop_spawn(struct crypto_spawn *spawn);
 struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
 				    u32 mask);
 
-struct crypto_alg *crypto_get_attr_alg(void *param, unsigned int len,
-				       u32 type, u32 mask);
+struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb);
+int crypto_check_attr_type(struct rtattr **tb, u32 type);
+struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb, u32 type, u32 mask);
 struct crypto_instance *crypto_alloc_instance(const char *name,
 					      struct crypto_alg *alg);
 
