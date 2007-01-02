@@ -254,7 +254,6 @@ static void __init maple_init_IRQ(void)
 		printk(KERN_DEBUG "OpenPIC addr: %lx, has ISUs: %d\n",
 		       openpic_addr, has_isus);
 	}
-	of_node_put(root);
 
 	BUG_ON(openpic_addr == 0);
 
