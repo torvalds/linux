@@ -709,6 +709,7 @@ void *dlm_lowcomms_get_buffer(int nodeid, int len,
 	if (!con)
 		return NULL;
 
+	spin_lock(&con->writequeue_lock);
 	e = list_entry(con->writequeue.prev, struct writequeue_entry, list);
 	if ((&e->list == &con->writequeue) ||
 	    (PAGE_CACHE_SIZE - e->end < len)) {
@@ -747,6 +748,7 @@ void dlm_lowcomms_commit_buffer(void *mh)
 	struct connection *con = e->con;
 	int users;
 
+	spin_lock(&con->writequeue_lock);
 	users = --e->users;
 	if (users)
 		goto out;
