@@ -28,7 +28,7 @@
 #include <asm/page.h>
 #include <asm/boot.h>
 
-.section ".text.head"
+.section ".text.head","ax",@progbits
 	.globl startup_32
 
 startup_32:
