@@ -789,7 +789,9 @@ static struct console mpc52xx_console = {
 static int __init
 mpc52xx_console_init(void)
 {
+#if defined(CONFIG_PPC_MERGE)
 	mpc52xx_uart_of_enumerate();
+#endif
 	register_console(&mpc52xx_console);
 	return 0;
 }
