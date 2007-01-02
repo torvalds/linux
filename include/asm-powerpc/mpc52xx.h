@@ -244,6 +244,7 @@ struct mpc52xx_cdm {
 extern void __iomem * mpc52xx_find_and_map(const char *);
 extern unsigned int mpc52xx_find_ipb_freq(struct device_node *node);
 extern void mpc52xx_setup_cpu(void);
+extern void mpc52xx_declare_of_platform_devices(void);
 
 extern void mpc52xx_init_irq(void);
 extern unsigned int mpc52xx_get_irq(void);
