@@ -87,11 +87,9 @@ static void bttv_input_timer(unsigned long data)
 {
 	struct bttv *btv = (struct bttv*)data;
 	struct card_ir *ir = btv->remote;
-	unsigned long timeout;
 
 	ir_handle_key(btv);
-	timeout = jiffies + (ir->polling * HZ / 1000);
-	mod_timer(&ir->timer, timeout);
+	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
 /* ---------------------------------------------------------------*/
@@ -102,7 +100,7 @@ static int bttv_rc5_irq(struct bttv *btv)
 	struct timeval tv;
 	u32 gpio;
 	u32 gap;
-	unsigned long current_jiffies, timeout;
+	unsigned long current_jiffies;
 
 	/* read gpio port */
 	gpio = bttv_gpio_read(&btv->c);
@@ -139,8 +137,8 @@ static int bttv_rc5_irq(struct bttv *btv)
 		ir->base_time = tv;
 		ir->last_bit = 0;
 
-		timeout = current_jiffies + (500 + 30 * HZ) / 1000;
-		mod_timer(&ir->timer_end, timeout);
+		mod_timer(&ir->timer_end,
+			  current_jiffies + msecs_to_jiffies(30));
 	}
 
 	/* toggle GPIO pin 4 to reset the irq */
@@ -154,9 +152,7 @@ static int bttv_rc5_irq(struct bttv *btv)
 static void bttv_ir_start(struct bttv *btv, struct card_ir *ir)
 {
 	if (ir->polling) {
-		init_timer(&ir->timer);
-		ir->timer.function = bttv_input_timer;
-		ir->timer.data     = (unsigned long)btv;
+		setup_timer(&ir->timer, bttv_input_timer, (unsigned long)btv);
 		ir->timer.expires  = jiffies + HZ;
 		add_timer(&ir->timer);
 	} else if (ir->rc5_gpio) {
