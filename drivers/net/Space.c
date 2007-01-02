@@ -349,21 +349,10 @@ static void __init trif_probe2(int unit)
 #endif
 
 
-/*
- *	The loopback device is global so it can be directly referenced
- *	by the network code. Also, it must be first on device list.
- */
-extern int loopback_init(void);
-
 /*  Statically configured drivers -- order matters here. */
 static int __init net_olddevs_init(void)
 {
 	int num;
-
-	if (loopback_init()) {
-		printk(KERN_ERR "Network loopback device setup failed\n");
-	}
-
 
 #ifdef CONFIG_SBNI
 	for (num = 0; num < 8; ++num)
