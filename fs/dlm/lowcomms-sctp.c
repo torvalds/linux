@@ -1109,7 +1109,7 @@ static int dlm_recvd(void *data)
 		set_current_state(TASK_INTERRUPTIBLE);
 		add_wait_queue(&lowcomms_recv_wait, &wait);
 		if (!test_bit(CF_READ_PENDING, &sctp_con.flags))
-			cond_resched();
+			schedule();
 		remove_wait_queue(&lowcomms_recv_wait, &wait);
 		set_current_state(TASK_RUNNING);
 
@@ -1141,7 +1141,7 @@ static int dlm_sendd(void *data)
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (write_list_empty())
-			cond_resched();
+			schedule();
 		set_current_state(TASK_RUNNING);
 
 		if (sctp_con.eagain_flag) {

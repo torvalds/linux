@@ -996,7 +996,7 @@ static int dlm_recvd(void *data)
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (read_list_empty())
-			cond_resched();
+			schedule();
 		set_current_state(TASK_RUNNING);
 
 		process_sockets();
@@ -1030,7 +1030,7 @@ static int dlm_sendd(void *data)
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (write_and_state_lists_empty())
-			cond_resched();
+			schedule();
 		set_current_state(TASK_RUNNING);
 
 		process_state_queue();
