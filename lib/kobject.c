@@ -195,8 +195,7 @@ int kobject_add(struct kobject * kobj)
 	if (error) {
 		/* unlink does the kobject_put() for us */
 		unlink(kobj);
-		if (parent)
-			kobject_put(parent);
+		kobject_put(parent);
 
 		/* be noisy on error issues */
 		if (error == -EEXIST)
@@ -420,8 +419,7 @@ void kobject_cleanup(struct kobject * kobj)
 		t->release(kobj);
 	if (s)
 		kset_put(s);
-	if (parent) 
-		kobject_put(parent);
+	kobject_put(parent);
 }
 
 static void kobject_release(struct kref *kref)
