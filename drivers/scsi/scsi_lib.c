@@ -1400,7 +1400,7 @@ static void scsi_softirq_done(struct request *rq)
 			scsi_finish_command(cmd);
 			break;
 		case NEEDS_RETRY:
-			scsi_retry_command(cmd);
+			scsi_queue_insert(cmd, SCSI_MLQUEUE_EH_RETRY);
 			break;
 		case ADD_TO_MLQUEUE:
 			scsi_queue_insert(cmd, SCSI_MLQUEUE_DEVICE_BUSY);
