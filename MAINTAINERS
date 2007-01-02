@@ -412,20 +412,32 @@ S:      Maintained
 ARM/INTEL IOP32X ARM ARCHITECTURE
 P:	Lennert Buytenhek
 M:	kernel@wantstofly.org
+P:	Dan Williams
+M:	dan.j.williams@intel.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
-S:	Maintained
+S:	Supported
+
+ARM/INTEL IOP33X ARM ARCHITECTURE
+P:	Dan Williams
+M:	dan.j.williams@intel.com
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Supported
 
 ARM/INTEL IOP13XX ARM ARCHITECTURE
 P:	Lennert Buytenhek
 M:	kernel@wantstofly.org
+P:	Dan Williams
+M:	dan.j.williams@intel.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
-S:	Maintained
+S:	Supported
 
 ARM/INTEL IQ81342EX MACHINE SUPPORT
 P:	Lennert Buytenhek
 M:	kernel@wantstofly.org
+P:	Dan Williams
+M:	dan.j.williams@intel.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
-S:	Maintained
+S:	Supported
 
 ARM/INTEL IXP2000 ARM ARCHITECTURE
 P:	Lennert Buytenhek
@@ -448,8 +460,10 @@ S:	Maintained
 ARM/INTEL XSC3 (MANZANO) ARM CORE
 P:	Lennert Buytenhek
 M:	kernel@wantstofly.org
+P:	Dan Williams
+M:	dan.j.williams@intel.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
-S:	Maintained
+S:	Supported
 
 ARM/IP FABRICS DOUBLE ESPRESSO MACHINE SUPPORT
 P:	Lennert Buytenhek
