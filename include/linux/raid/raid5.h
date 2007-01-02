@@ -200,7 +200,7 @@ struct stripe_head {
 struct stripe_head_state {
 	int syncing, expanding, expanded;
 	int locked, uptodate, to_read, to_write, failed, written;
-	int compute, req_compute, non_overwrite;
+	int to_fill, compute, req_compute, non_overwrite;
 	int failed_num;
 };
 
