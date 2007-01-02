@@ -243,7 +243,7 @@
 
 		// PSC3 in CODEC mode example
 		i2s@2400 {		// PSC3
-			device_type = "i2s";
+			device_type = "sound";
 			compatible = "mpc5200b-psc-i2s\0mpc52xx-psc-i2s";
 			reg = <2400 100>;
 			interrupts = <2 3 0>;
@@ -270,7 +270,7 @@
 
 		// PSC6 in AC97 mode example
 		ac97@2c00 {		// PSC6
-			device_type = "ac97";
+			device_type = "sound";
 			compatible = "mpc5200b-psc-ac97\0mpc52xx-psc-ac97";
 			reg = <2c00 100>;
 			interrupts = <2 4 0>;
