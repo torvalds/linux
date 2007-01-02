@@ -690,8 +690,7 @@ int netxen_nic_rx_has_work(struct netxen_adapter *adapter)
 		desc_head = recv_ctx->rcv_status_desc_head;
 		desc = &desc_head[consumer];
 
-		if (((le16_to_cpu(netxen_get_sts_owner(desc)))
-		     & STATUS_OWNER_HOST))
+		if (netxen_get_sts_owner(desc) & STATUS_OWNER_HOST)
 			return 1;
 	}
 
@@ -787,11 +786,11 @@ netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	struct netxen_port *port = adapter->port[netxen_get_sts_port(desc)];
 	struct pci_dev *pdev = port->pdev;
 	struct net_device *netdev = port->netdev;
-	int index = le16_to_cpu(netxen_get_sts_refhandle(desc));
+	int index = netxen_get_sts_refhandle(desc);
 	struct netxen_recv_context *recv_ctx = &(adapter->recv_ctx[ctxid]);
 	struct netxen_rx_buffer *buffer;
 	struct sk_buff *skb;
-	u32 length = le16_to_cpu(netxen_get_sts_totallength(desc));
+	u32 length = netxen_get_sts_totallength(desc);
 	u32 desc_ctx;
 	struct netxen_rcv_desc_ctx *rcv_desc;
 	int ret;
@@ -918,16 +917,14 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 	 */
 	while (count < max) {
 		desc = &desc_head[consumer];
-		if (!
-		    (le16_to_cpu(netxen_get_sts_owner(desc)) &
-		     STATUS_OWNER_HOST)) {
+		if (!(netxen_get_sts_owner(desc) & STATUS_OWNER_HOST)) {
 			DPRINTK(ERR, "desc %p ownedby %x\n", desc,
 				netxen_get_sts_owner(desc));
 			break;
 		}
 		netxen_process_rcv(adapter, ctxid, desc);
 		netxen_clear_sts_owner(desc);
-		netxen_set_sts_owner(desc, cpu_to_le16(STATUS_OWNER_PHANTOM));
+		netxen_set_sts_owner(desc, STATUS_OWNER_PHANTOM);
 		consumer = (consumer + 1) & (adapter->max_rx_desc_count - 1);
 		count++;
 	}
@@ -1232,7 +1229,7 @@ void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter, uint32_t ctx,
 
 		/* make a rcv descriptor  */
 		pdesc->reference_handle = cpu_to_le16(buffer->ref_handle);
-		pdesc->buffer_length = cpu_to_le16(rcv_desc->dma_size);
+		pdesc->buffer_length = cpu_to_le32(rcv_desc->dma_size);
 		pdesc->addr_buffer = cpu_to_le64(buffer->dma);
 		DPRINTK(INFO, "done writing descripter\n");
 		producer =
