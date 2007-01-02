@@ -59,6 +59,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/mm.h>
 #include <linux/device.h>
 #include <linux/dmaengine.h>
 #include <linux/hardirq.h>
@@ -66,6 +67,7 @@
 #include <linux/percpu.h>
 #include <linux/rcupdate.h>
 #include <linux/mutex.h>
+#include <linux/jiffies.h>
 
 static DEFINE_MUTEX(dma_list_mutex);
 static LIST_HEAD(dma_device_list);
@@ -164,6 +166,24 @@ static struct dma_chan *dma_client_chan_alloc(struct dma_client *client)
 
 	return NULL;
 }
+
+enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie)
+{
+	enum dma_status status;
+	unsigned long dma_sync_wait_timeout = jiffies + msecs_to_jiffies(5000);
+
+	dma_async_issue_pending(chan);
+	do {
+		status = dma_async_is_tx_complete(chan, cookie, NULL, NULL);
+		if (time_after_eq(jiffies, dma_sync_wait_timeout)) {
+			printk(KERN_ERR "dma_sync_wait_timeout!\n");
+			return DMA_ERROR;
+		}
+	} while (status == DMA_IN_PROGRESS);
+
+	return status;
+}
+EXPORT_SYMBOL(dma_sync_wait);
 
 /**
  * dma_chan_cleanup - release a DMA channel's resources
@@ -322,6 +342,25 @@ int dma_async_device_register(struct dma_device *device)
 	if (!device)
 		return -ENODEV;
 
+	/* validate device routines */
+	BUG_ON(dma_has_cap(DMA_MEMCPY, device->cap_mask) &&
+		!device->device_prep_dma_memcpy);
+	BUG_ON(dma_has_cap(DMA_XOR, device->cap_mask) &&
+		!device->device_prep_dma_xor);
+	BUG_ON(dma_has_cap(DMA_ZERO_SUM, device->cap_mask) &&
+		!device->device_prep_dma_zero_sum);
+	BUG_ON(dma_has_cap(DMA_MEMSET, device->cap_mask) &&
+		!device->device_prep_dma_memset);
+	BUG_ON(dma_has_cap(DMA_ZERO_SUM, device->cap_mask) &&
+		!device->device_prep_dma_interrupt);
+
+	BUG_ON(!device->device_alloc_chan_resources);
+	BUG_ON(!device->device_free_chan_resources);
+	BUG_ON(!device->device_dependency_added);
+	BUG_ON(!device->device_is_tx_complete);
+	BUG_ON(!device->device_issue_pending);
+	BUG_ON(!device->dev);
+
 	init_completion(&device->done);
 	kref_init(&device->refcount);
 	device->dev_id = id++;
@@ -414,6 +453,149 @@ void dma_async_device_unregister(struct dma_device *device)
 	wait_for_completion(&device->done);
 }
 EXPORT_SYMBOL(dma_async_device_unregister);
+
+/**
+ * dma_async_memcpy_buf_to_buf - offloaded copy between virtual addresses
+ * @chan: DMA channel to offload copy to
+ * @dest: destination address (virtual)
+ * @src: source address (virtual)
+ * @len: length
+ *
+ * Both @dest and @src must be mappable to a bus address according to the
+ * DMA mapping API rules for streaming mappings.
+ * Both @dest and @src must stay memory resident (kernel memory or locked
+ * user space pages).
+ */
+dma_cookie_t
+dma_async_memcpy_buf_to_buf(struct dma_chan *chan, void *dest,
+			void *src, size_t len)
+{
+	struct dma_device *dev = chan->device;
+	struct dma_async_tx_descriptor *tx;
+	dma_addr_t addr;
+	dma_cookie_t cookie;
+	int cpu;
+
+	tx = dev->device_prep_dma_memcpy(chan, len, 0);
+	if (!tx)
+		return -ENOMEM;
+
+	tx->ack = 1;
+	tx->callback = NULL;
+	addr = dma_map_single(dev->dev, src, len, DMA_TO_DEVICE);
+	tx->tx_set_src(addr, tx, 0);
+	addr = dma_map_single(dev->dev, dest, len, DMA_FROM_DEVICE);
+	tx->tx_set_dest(addr, tx, 0);
+	cookie = tx->tx_submit(tx);
+
+	cpu = get_cpu();
+	per_cpu_ptr(chan->local, cpu)->bytes_transferred += len;
+	per_cpu_ptr(chan->local, cpu)->memcpy_count++;
+	put_cpu();
+
+	return cookie;
+}
+EXPORT_SYMBOL(dma_async_memcpy_buf_to_buf);
+
+/**
+ * dma_async_memcpy_buf_to_pg - offloaded copy from address to page
+ * @chan: DMA channel to offload copy to
+ * @page: destination page
+ * @offset: offset in page to copy to
+ * @kdata: source address (virtual)
+ * @len: length
+ *
+ * Both @page/@offset and @kdata must be mappable to a bus address according
+ * to the DMA mapping API rules for streaming mappings.
+ * Both @page/@offset and @kdata must stay memory resident (kernel memory or
+ * locked user space pages)
+ */
+dma_cookie_t
+dma_async_memcpy_buf_to_pg(struct dma_chan *chan, struct page *page,
+			unsigned int offset, void *kdata, size_t len)
+{
+	struct dma_device *dev = chan->device;
+	struct dma_async_tx_descriptor *tx;
+	dma_addr_t addr;
+	dma_cookie_t cookie;
+	int cpu;
+
+	tx = dev->device_prep_dma_memcpy(chan, len, 0);
+	if (!tx)
+		return -ENOMEM;
+
+	tx->ack = 1;
+	tx->callback = NULL;
+	addr = dma_map_single(dev->dev, kdata, len, DMA_TO_DEVICE);
+	tx->tx_set_src(addr, tx, 0);
+	addr = dma_map_page(dev->dev, page, offset, len, DMA_FROM_DEVICE);
+	tx->tx_set_dest(addr, tx, 0);
+	cookie = tx->tx_submit(tx);
+
+	cpu = get_cpu();
+	per_cpu_ptr(chan->local, cpu)->bytes_transferred += len;
+	per_cpu_ptr(chan->local, cpu)->memcpy_count++;
+	put_cpu();
+
+	return cookie;
+}
+EXPORT_SYMBOL(dma_async_memcpy_buf_to_pg);
+
+/**
+ * dma_async_memcpy_pg_to_pg - offloaded copy from page to page
+ * @chan: DMA channel to offload copy to
+ * @dest_pg: destination page
+ * @dest_off: offset in page to copy to
+ * @src_pg: source page
+ * @src_off: offset in page to copy from
+ * @len: length
+ *
+ * Both @dest_page/@dest_off and @src_page/@src_off must be mappable to a bus
+ * address according to the DMA mapping API rules for streaming mappings.
+ * Both @dest_page/@dest_off and @src_page/@src_off must stay memory resident
+ * (kernel memory or locked user space pages).
+ */
+dma_cookie_t
+dma_async_memcpy_pg_to_pg(struct dma_chan *chan, struct page *dest_pg,
+	unsigned int dest_off, struct page *src_pg, unsigned int src_off,
+	size_t len)
+{
+	struct dma_device *dev = chan->device;
+	struct dma_async_tx_descriptor *tx;
+	dma_addr_t addr;
+	dma_cookie_t cookie;
+	int cpu;
+
+	tx = dev->device_prep_dma_memcpy(chan, len, 0);
+	if (!tx)
+		return -ENOMEM;
+
+	tx->ack = 1;
+	tx->callback = NULL;
+	addr = dma_map_page(dev->dev, src_pg, src_off, len, DMA_TO_DEVICE);
+	tx->tx_set_src(addr, tx, 0);
+	addr = dma_map_page(dev->dev, dest_pg, dest_off, len, DMA_FROM_DEVICE);
+	tx->tx_set_dest(addr, tx, 0);
+	cookie = tx->tx_submit(tx);
+
+	cpu = get_cpu();
+	per_cpu_ptr(chan->local, cpu)->bytes_transferred += len;
+	per_cpu_ptr(chan->local, cpu)->memcpy_count++;
+	put_cpu();
+
+	return cookie;
+}
+EXPORT_SYMBOL(dma_async_memcpy_pg_to_pg);
+
+void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
+	struct dma_chan *chan)
+{
+	tx->chan = chan;
+	spin_lock_init(&tx->lock);
+	INIT_LIST_HEAD(&tx->depend_node);
+	INIT_LIST_HEAD(&tx->depend_list);
+}
+EXPORT_SYMBOL(dma_async_tx_descriptor_init);
 
 static int __init dma_bus_init(void)
 {
