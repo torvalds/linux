@@ -361,7 +361,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	error = -EACCES;
 	module_put(attr->owner);
  Done:
-	if (error && kobj)
+	if (error)
 		kobject_put(kobj);
 	return error;
 }
@@ -375,8 +375,7 @@ static int sysfs_release(struct inode * inode, struct file * filp)
 
 	if (buffer)
 		remove_from_collection(buffer, inode);
-	if (kobj) 
-		kobject_put(kobj);
+	kobject_put(kobj);
 	/* After this point, attr should not be accessed. */
 	module_put(owner);
 
