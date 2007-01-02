@@ -420,6 +420,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 		msr =
 		    (u32) perf->states[next_perf_state].
 		    control & INTEL_MSR_RANGE;
+		cmd.val = get_cur_val(online_policy_cpus);
 		cmd.val = (cmd.val & ~INTEL_MSR_RANGE) | msr;
 		break;
 	case SYSTEM_IO_CAPABLE:
