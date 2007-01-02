@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20-rc3
-# Tue Jan  2 15:20:02 2007
+# Tue Jan  2 15:32:44 2007
 #
 CONFIG_PPC64=y
 CONFIG_64BIT=y
@@ -133,7 +133,7 @@ CONFIG_PPC_MULTIPLATFORM=y
 # CONFIG_EMBEDDED6xx is not set
 # CONFIG_APUS is not set
 CONFIG_PPC_PSERIES=y
-# CONFIG_PPC_ISERIES is not set
+CONFIG_PPC_ISERIES=y
 # CONFIG_PPC_MPC52xx is not set
 CONFIG_PPC_PMAC=y
 CONFIG_PPC_PMAC64=y
@@ -834,6 +834,7 @@ CONFIG_IBMOL=y
 # Wan interfaces
 #
 # CONFIG_WAN is not set
+CONFIG_ISERIES_VETH=m
 # CONFIG_FDDI is not set
 # CONFIG_HIPPI is not set
 CONFIG_PPP=m
@@ -946,6 +947,7 @@ CONFIG_LEGACY_PTYS=y
 CONFIG_LEGACY_PTY_COUNT=256
 CONFIG_HVC_DRIVER=y
 CONFIG_HVC_CONSOLE=y
+CONFIG_HVC_ISERIES=y
 CONFIG_HVC_RTAS=y
 CONFIG_HVCS=m
 
@@ -1650,6 +1652,15 @@ CONFIG_NLS_UTF8=m
 # Distributed Lock Manager
 #
 # CONFIG_DLM is not set
+
+#
+# iSeries device drivers
+#
+# CONFIG_VIOCONS is not set
+CONFIG_VIODASD=y
+CONFIG_VIOCD=m
+CONFIG_VIOTAPE=m
+CONFIG_VIOPATH=y
 
 #
 # Library routines
