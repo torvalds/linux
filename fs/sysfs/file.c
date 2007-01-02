@@ -83,7 +83,8 @@ remove_from_collection(struct sysfs_buffer *buffer, struct inode *node)
  *	Allocate @buffer->page, if it hasn't been already, then call the
  *	kobject's show() method to fill the buffer with this attribute's 
  *	data. 
- *	This is called only once, on the file's first read. 
+ *	This is called only once, on the file's first read unless an error
+ *	is returned.
  */
 static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer)
 {
@@ -101,12 +102,13 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 
 	buffer->event = atomic_read(&sd->s_event);
 	count = ops->show(kobj,attr,buffer->page);
-	buffer->needs_read_fill = 0;
 	BUG_ON(count > (ssize_t)PAGE_SIZE);
-	if (count >= 0)
+	if (count >= 0) {
+		buffer->needs_read_fill = 0;
 		buffer->count = count;
-	else
+	} else {
 		ret = count;
+	}
 	return ret;
 }
 
