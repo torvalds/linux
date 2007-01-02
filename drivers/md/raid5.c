@@ -141,6 +141,7 @@ static void __release_stripe(raid5_conf_t *conf, struct stripe_head *sh)
 			}
 			md_wakeup_thread(conf->mddev->thread);
 		} else {
+			BUG_ON(sh->ops.pending);
 			if (test_and_clear_bit(STRIPE_PREREAD_ACTIVE, &sh->state)) {
 				atomic_dec(&conf->preread_active_stripes);
 				if (atomic_read(&conf->preread_active_stripes) < IO_THRESHOLD)
@@ -242,7 +243,8 @@ static void init_stripe(struct stripe_head *sh, sector_t sector, int pd_idx, int
 
 	BUG_ON(atomic_read(&sh->count) != 0);
 	BUG_ON(test_bit(STRIPE_HANDLE, &sh->state));
-	
+	BUG_ON(sh->ops.pending || sh->ops.ack || sh->ops.complete);
+
 	CHECK_DEVLOCK();
 	pr_debug("init_stripe called, stripe %llu\n",
 		(unsigned long long)sh->sector);
@@ -258,11 +260,11 @@ static void init_stripe(struct stripe_head *sh, sector_t sector, int pd_idx, int
 	for (i = sh->disks; i--; ) {
 		struct r5dev *dev = &sh->dev[i];
 
-		if (dev->toread || dev->towrite || dev->written ||
+		if (dev->toread || dev->read || dev->towrite || dev->written ||
 		    test_bit(R5_LOCKED, &dev->flags)) {
-			printk("sector=%llx i=%d %p %p %p %d\n",
+			printk(KERN_ERR "sector=%llx i=%d %p %p %p %p %d\n",
 			       (unsigned long long)sh->sector, i, dev->toread,
-			       dev->towrite, dev->written,
+			       dev->read, dev->towrite, dev->written,
 			       test_bit(R5_LOCKED, &dev->flags));
 			BUG();
 		}
@@ -340,6 +342,44 @@ static struct stripe_head *get_active_stripe(raid5_conf_t *conf, sector_t sector
 
 	spin_unlock_irq(&conf->device_lock);
 	return sh;
+}
+
+/* test_and_ack_op() ensures that we only dequeue an operation once */
+#define test_and_ack_op(op, pend) \
+do {							\
+	if (test_bit(op, &sh->ops.pending) &&		\
+		!test_bit(op, &sh->ops.complete)) {	\
+		if (test_and_set_bit(op, &sh->ops.ack)) \
+			clear_bit(op, &pend);		\
+		else					\
+			ack++;				\
+	} else						\
+		clear_bit(op, &pend);			\
+} while (0)
+
+/* find new work to run, do not resubmit work that is already
+ * in flight
+ */
+static unsigned long get_stripe_work(struct stripe_head *sh)
+{
+	unsigned long pending;
+	int ack = 0;
+
+	pending = sh->ops.pending;
+
+	test_and_ack_op(STRIPE_OP_BIOFILL, pending);
+	test_and_ack_op(STRIPE_OP_COMPUTE_BLK, pending);
+	test_and_ack_op(STRIPE_OP_PREXOR, pending);
+	test_and_ack_op(STRIPE_OP_BIODRAIN, pending);
+	test_and_ack_op(STRIPE_OP_POSTXOR, pending);
+	test_and_ack_op(STRIPE_OP_CHECK, pending);
+	if (test_and_clear_bit(STRIPE_OP_IO, &sh->ops.pending))
+		ack++;
+
+	sh->ops.count -= ack;
+	BUG_ON(sh->ops.count < 0);
+
+	return pending;
 }
 
 static int
@@ -2494,7 +2534,6 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
  *    schedule a write of some buffers
  *    return confirmation of parity correctness
  *
- * Parity calculations are done inside the stripe lock
  * buffers are taken off read_list or write_list, and bh_cache buffers
  * get BH_Lock set before the stripe lock is released.
  *
@@ -2507,11 +2546,13 @@ static void handle_stripe5(struct stripe_head *sh)
 	struct bio *return_bi = NULL;
 	struct stripe_head_state s;
 	struct r5dev *dev;
+	unsigned long pending = 0;
 
 	memset(&s, 0, sizeof(s));
-	pr_debug("handling stripe %llu, cnt=%d, pd_idx=%d\n",
-		(unsigned long long)sh->sector, atomic_read(&sh->count),
-		sh->pd_idx);
+	pr_debug("handling stripe %llu, state=%#lx cnt=%d, pd_idx=%d "
+		"ops=%lx:%lx:%lx\n", (unsigned long long)sh->sector, sh->state,
+		atomic_read(&sh->count), sh->pd_idx,
+		sh->ops.pending, sh->ops.ack, sh->ops.complete);
 
 	spin_lock(&sh->lock);
 	clear_bit(STRIPE_HANDLE, &sh->state);
@@ -2674,7 +2715,13 @@ static void handle_stripe5(struct stripe_head *sh)
 	if (s.expanding && s.locked == 0)
 		handle_stripe_expansion(conf, sh, NULL);
 
+	if (sh->ops.count)
+		pending = get_stripe_work(sh);
+
 	spin_unlock(&sh->lock);
+
+	if (pending)
+		raid5_run_ops(sh, pending);
 
 	return_io(return_bi);
 
@@ -3798,8 +3845,10 @@ static void raid5d (mddev_t *mddev)
 			handled++;
 		}
 
-		if (list_empty(&conf->handle_list))
+		if (list_empty(&conf->handle_list)) {
+			async_tx_issue_pending_all();
 			break;
+		}
 
 		first = conf->handle_list.next;
 		sh = list_entry(first, struct stripe_head, lru);
