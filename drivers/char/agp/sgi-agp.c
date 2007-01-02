@@ -281,10 +281,11 @@ static int __devinit agp_sgi_init(void)
 	else
 		return 0;
 
-	sgi_tioca_agp_bridges =
-	    (struct agp_bridge_data **)kmalloc(tioca_gart_found *
-					       sizeof(struct agp_bridge_data *),
-					       GFP_KERNEL);
+	sgi_tioca_agp_bridges = kmalloc(tioca_gart_found *
+					sizeof(struct agp_bridge_data *),
+					GFP_KERNEL);
+	if (!sgi_tioca_agp_bridges)
+		return -ENOMEM;
 
 	j = 0;
 	list_for_each_entry(info, &tioca_list, ca_list) {
