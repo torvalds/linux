@@ -35,20 +35,6 @@ config IEEE1394_VERBOSEDEBUG
 	  Say Y if you really want or need the debugging output, everyone
 	  else says N.
 
-config IEEE1394_OUI_DB
-	bool "OUI Database built-in (deprecated)"
-	depends on IEEE1394
-	help
-	  If you say Y here, then an OUI list (vendor unique ID's) will be
-	  compiled into the ieee1394 module. This doesn't really do much
-	  except being able to display the vendor of a hardware node. The
-	  downside is that it adds about 300k to the size of the module,
-	  or kernel (depending on whether you compile ieee1394 as a
-	  module, or static in the kernel).
-
-	  This option is not needed for userspace programs like gscanbus
-	  to show this information.
-
 config IEEE1394_EXTRA_CONFIG_ROMS
 	bool "Build in extra config rom entries for certain functionality"
 	depends on IEEE1394

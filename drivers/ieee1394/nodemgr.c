@@ -41,22 +41,6 @@ struct nodemgr_csr_info {
 };
 
 
-static char *nodemgr_find_oui_name(int oui)
-{
-#ifdef CONFIG_IEEE1394_OUI_DB
-	extern struct oui_list_struct {
-		int oui;
-		char *name;
-	} oui_list[];
-	int i;
-
-	for (i = 0; oui_list[i].name; i++)
-		if (oui_list[i].oui == oui)
-			return oui_list[i].name;
-#endif
-	return NULL;
-}
-
 /*
  * Correct the speed map entry.  This is necessary
  *  - for nodes with link speed < phy speed,
@@ -473,11 +457,9 @@ fw_attr(ne, struct node_entry, nodeid, unsigned int, "0x%04x\n")
 
 fw_attr(ne, struct node_entry, vendor_id, unsigned int, "0x%06x\n")
 fw_attr_td(ne, struct node_entry, vendor_name_kv)
-fw_attr(ne, struct node_entry, vendor_oui, const char *, "%s\n")
 
 fw_attr(ne, struct node_entry, guid, unsigned long long, "0x%016Lx\n")
 fw_attr(ne, struct node_entry, guid_vendor_id, unsigned int, "0x%06x\n")
-fw_attr(ne, struct node_entry, guid_vendor_oui, const char *, "%s\n")
 fw_attr(ne, struct node_entry, in_limbo, int, "%d\n");
 
 static struct device_attribute *const fw_ne_attrs[] = {
@@ -503,7 +485,6 @@ fw_attr(ud, struct unit_directory, model_id, unsigned int, "0x%06x\n")
 fw_attr(ud, struct unit_directory, specifier_id, unsigned int, "0x%06x\n")
 fw_attr(ud, struct unit_directory, version, unsigned int, "0x%06x\n")
 fw_attr_td(ud, struct unit_directory, vendor_name_kv)
-fw_attr(ud, struct unit_directory, vendor_oui, const char *, "%s\n")
 fw_attr_td(ud, struct unit_directory, model_name_kv)
 
 static struct device_attribute *const fw_ud_attrs[] = {
@@ -865,7 +846,6 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 
 	ne->guid = guid;
 	ne->guid_vendor_id = (guid >> 40) & 0xffffff;
-	ne->guid_vendor_oui = nodemgr_find_oui_name(ne->guid_vendor_id);
 	ne->csr = csr;
 
 	memcpy(&ne->device, &nodemgr_dev_template_ne,
@@ -885,9 +865,6 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 		goto fail_classdevreg;
 	get_device(&ne->device);
 
-	if (ne->guid_vendor_oui &&
-	    device_create_file(&ne->device, &dev_attr_ne_guid_vendor_oui))
-		goto fail_addoiu;
 	nodemgr_create_ne_dev_files(ne);
 
 	nodemgr_update_bus_options(ne);
@@ -898,8 +875,6 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 
 	return ne;
 
-fail_addoiu:
-	put_device(&ne->device);
 fail_classdevreg:
 	device_unregister(&ne->device);
 fail_devreg:
@@ -975,15 +950,10 @@ static void nodemgr_register_device(struct node_entry *ne,
 		goto fail_classdevreg;
 	get_device(&ud->device);
 
-	if (ud->vendor_oui &&
-	    device_create_file(&ud->device, &dev_attr_ud_vendor_oui))
-		goto fail_addoui;
 	nodemgr_create_ud_dev_files(ud);
 
 	return;
 
-fail_addoui:
-	put_device(&ud->device);
 fail_classdevreg:
 	device_unregister(&ud->device);
 fail_devreg:
@@ -1020,9 +990,6 @@ static struct unit_directory *nodemgr_process_unit_directory
 			if (kv->key.type == CSR1212_KV_TYPE_IMMEDIATE) {
 				ud->vendor_id = kv->value.immediate;
 				ud->flags |= UNIT_DIRECTORY_VENDOR_ID;
-
-				if (ud->vendor_id)
-					ud->vendor_oui = nodemgr_find_oui_name(ud->vendor_id);
 			}
 			break;
 
@@ -1153,9 +1120,6 @@ static void nodemgr_process_root_directory(struct host_info *hi, struct node_ent
 		switch (kv->key.id) {
 		case CSR1212_KV_ID_VENDOR:
 			ne->vendor_id = kv->value.immediate;
-
-			if (ne->vendor_id)
-				ne->vendor_oui = nodemgr_find_oui_name(ne->vendor_id);
 			break;
 
 		case CSR1212_KV_ID_NODE_CAPABILITIES:
@@ -1183,9 +1147,6 @@ static void nodemgr_process_root_directory(struct host_info *hi, struct node_ent
 		last_key_id = kv->key.id;
 	}
 
-	if (ne->vendor_oui &&
-	    device_create_file(&ne->device, &dev_attr_ne_vendor_oui))
-		goto fail;
 	if (ne->vendor_name_kv &&
 	    device_create_file(&ne->device, &dev_attr_ne_vendor_name_kv))
 		goto fail;
