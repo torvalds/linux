@@ -569,7 +569,7 @@ void __init ipic_init(struct device_node *node,
 		return;
 
 	memset(ipic, 0, sizeof(struct ipic));
-	ipic->of_node = node ? of_node_get(node) : NULL;
+	ipic->of_node = of_node_get(node);
 
 	ipic->irqhost = irq_alloc_host(IRQ_HOST_MAP_LINEAR,
 				       NR_IPIC_INTS,
