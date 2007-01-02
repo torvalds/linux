@@ -149,6 +149,45 @@ int ata_std_bios_param(struct scsi_device *sdev, struct block_device *bdev,
 }
 
 /**
+ *	ata_get_identity - Handler for HDIO_GET_IDENTITY ioctl
+ *	@sdev: SCSI device to get identify data for
+ *	@arg: User buffer area for identify data
+ *
+ *	LOCKING:
+ *	Defined by the SCSI layer.  We don't really care.
+ *
+ *	RETURNS:
+ *	Zero on success, negative errno on error.
+ */
+static int ata_get_identity(struct scsi_device *sdev, void __user *arg)
+{
+	struct ata_port *ap = ata_shost_to_port(sdev->host);
+	struct ata_device *dev = ata_scsi_find_dev(ap, sdev);
+	u16 __user *dst = arg;
+	char buf[40];
+
+	if (!dev)
+		return -ENOMSG;
+
+	if (copy_to_user(dst, dev->id, ATA_ID_WORDS * sizeof(u16)))
+		return -EFAULT;
+
+	ata_id_string(dev->id, buf, ATA_ID_PROD, ATA_ID_PROD_LEN);
+	if (copy_to_user(dst + ATA_ID_PROD, buf, ATA_ID_PROD_LEN))
+		return -EFAULT;
+
+	ata_id_string(dev->id, buf, ATA_ID_FW_REV, ATA_ID_FW_REV_LEN);
+	if (copy_to_user(dst + ATA_ID_FW_REV, buf, ATA_ID_FW_REV_LEN))
+		return -EFAULT;
+
+	ata_id_string(dev->id, buf, ATA_ID_SERNO, ATA_ID_SERNO_LEN);
+	if (copy_to_user(dst + ATA_ID_SERNO, buf, ATA_ID_SERNO_LEN))
+		return -EFAULT;
+
+	return 0;
+}
+
+/**
  *	ata_cmd_ioctl - Handler for HDIO_DRIVE_CMD ioctl
  *	@scsidev: Device to which we are issuing command
  *	@arg: User provided data for issuing command
@@ -159,7 +198,6 @@ int ata_std_bios_param(struct scsi_device *sdev, struct block_device *bdev,
  *	RETURNS:
  *	Zero on success, negative errno on error.
  */
-
 int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 {
 	int rc = 0;
@@ -358,6 +396,9 @@ int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
 		if (val != 0)
 			return -EINVAL;
 		return 0;
+
+	case HDIO_GET_IDENTITY:
+		return ata_get_identity(scsidev, arg);
 
 	case HDIO_DRIVE_CMD:
 		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
