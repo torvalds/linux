@@ -577,9 +577,9 @@ static int cfq_allow_merge(request_queue_t *q, struct request *rq,
 	pid_t key;
 
 	/*
-	 * Disallow merge, if bio and rq aren't both sync or async
+	 * Disallow merge of a sync bio into an async request.
 	 */
-	if (!!bio_sync(bio) != !!rq_is_sync(rq))
+	if ((bio_data_dir(bio) == READ || bio_sync(bio)) && !rq_is_sync(rq))
 		return 0;
 
 	/*
@@ -592,7 +592,7 @@ static int cfq_allow_merge(request_queue_t *q, struct request *rq,
 	if (cfqq == RQ_CFQQ(rq))
 		return 1;
 
-	return 1;
+	return 0;
 }
 
 static inline void
