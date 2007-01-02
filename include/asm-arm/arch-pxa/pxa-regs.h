@@ -1655,6 +1655,7 @@
 #define SSCR0_EDSS		(1 << 20)	/* Extended Data Size Select */
 
 /* extra bits in PXA255, PXA26x and PXA27x SSP ports */
+#define SSCR0_TISSP		(1 << 4)	/* TI Sync Serial Protocol */
 #define SSCR0_PSP		(3 << 4)	/* PSP - Programmable Serial Protocol */
 #define SSCR1_TTELP		(1 << 31)	/* TXD Tristate Enable Last Phase */
 #define SSCR1_TTE		(1 << 30)	/* TXD Tristate Enable */
