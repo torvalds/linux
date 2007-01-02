@@ -468,7 +468,7 @@ static int sr_block_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 	}
 
 	ret = cdrom_ioctl(file, &cd->cdi, inode, cmd, arg);
-	if (ret != ENOSYS)
+	if (ret != -ENOSYS)
 		return ret;
 
 	/*
