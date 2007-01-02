@@ -1221,8 +1221,7 @@ struct device_node *of_find_node_by_name(struct device_node *from,
 		if (np->name != NULL && strcasecmp(np->name, name) == 0
 		    && of_node_get(np))
 			break;
-	if (from)
-		of_node_put(from);
+	of_node_put(from);
 	read_unlock(&devtree_lock);
 	return np;
 }
@@ -1250,8 +1249,7 @@ struct device_node *of_find_node_by_type(struct device_node *from,
 		if (np->type != 0 && strcasecmp(np->type, type) == 0
 		    && of_node_get(np))
 			break;
-	if (from)
-		of_node_put(from);
+	of_node_put(from);
 	read_unlock(&devtree_lock);
 	return np;
 }
@@ -1285,8 +1283,7 @@ struct device_node *of_find_compatible_node(struct device_node *from,
 		if (device_is_compatible(np, compatible) && of_node_get(np))
 			break;
 	}
-	if (from)
-		of_node_put(from);
+	of_node_put(from);
 	read_unlock(&devtree_lock);
 	return np;
 }
@@ -1329,8 +1326,7 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 	for (np = allnodes; np != 0; np = np->allnext)
 		if (np->linux_phandle == handle)
 			break;
-	if (np)
-		of_node_get(np);
+	of_node_get(np);
 	read_unlock(&devtree_lock);
 	return np;
 }
@@ -1353,8 +1349,7 @@ struct device_node *of_find_all_nodes(struct device_node *prev)
 	for (; np != 0; np = np->allnext)
 		if (of_node_get(np))
 			break;
-	if (prev)
-		of_node_put(prev);
+	of_node_put(prev);
 	read_unlock(&devtree_lock);
 	return np;
 }
@@ -1399,8 +1394,7 @@ struct device_node *of_get_next_child(const struct device_node *node,
 	for (; next != 0; next = next->sibling)
 		if (of_node_get(next))
 			break;
-	if (prev)
-		of_node_put(prev);
+	of_node_put(prev);
 	read_unlock(&devtree_lock);
 	return next;
 }
