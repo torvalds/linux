@@ -26,31 +26,30 @@
 static struct xor_block_template *active_template;
 
 void
-xor_blocks(unsigned int count, unsigned int bytes, void **ptr)
+xor_blocks(unsigned int src_count, unsigned int bytes, void *dest, void **srcs)
 {
-	unsigned long *p0, *p1, *p2, *p3, *p4;
+	unsigned long *p1, *p2, *p3, *p4;
 
-	p0 = (unsigned long *) ptr[0];
-	p1 = (unsigned long *) ptr[1];
-	if (count == 2) {
-		active_template->do_2(bytes, p0, p1);
+	p1 = (unsigned long *) srcs[0];
+	if (src_count == 1) {
+		active_template->do_2(bytes, dest, p1);
 		return;
 	}
 
-	p2 = (unsigned long *) ptr[2];
-	if (count == 3) {
-		active_template->do_3(bytes, p0, p1, p2);
+	p2 = (unsigned long *) srcs[1];
+	if (src_count == 2) {
+		active_template->do_3(bytes, dest, p1, p2);
 		return;
 	}
 
-	p3 = (unsigned long *) ptr[3];
-	if (count == 4) {
-		active_template->do_4(bytes, p0, p1, p2, p3);
+	p3 = (unsigned long *) srcs[2];
+	if (src_count == 3) {
+		active_template->do_4(bytes, dest, p1, p2, p3);
 		return;
 	}
 
-	p4 = (unsigned long *) ptr[4];
-	active_template->do_5(bytes, p0, p1, p2, p3, p4);
+	p4 = (unsigned long *) srcs[3];
+	active_template->do_5(bytes, dest, p1, p2, p3, p4);
 }
 EXPORT_SYMBOL(xor_blocks);
 
@@ -128,7 +127,7 @@ calibrate_xor_blocks(void)
 			fastest->name);
 		xor_speed(fastest);
 	} else {
-		printk(KERN_INFO "xor: measuring checksumming speed\n");
+		printk(KERN_INFO "xor: measuring software checksum speed\n");
 		XOR_TRY_TEMPLATES;
 		fastest = template_list;
 		for (f = fastest; f; f = f->next)

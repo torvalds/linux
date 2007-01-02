@@ -8,8 +8,8 @@ menu "DMA Engine support"
 config DMA_ENGINE
 	bool "Support for DMA engines"
 	---help---
-	  DMA engines offload copy operations from the CPU to dedicated
-	  hardware, allowing the copies to happen asynchronously.
+          DMA engines offload bulk memory operations from the CPU to dedicated
+          hardware, allowing the operations to happen asynchronously.
 
 comment "DMA Clients"
 
@@ -31,5 +31,4 @@ config INTEL_IOATDMA
 	default m
 	---help---
 	  Enable support for the Intel(R) I/OAT DMA engine.
-
 endmenu
