@@ -912,7 +912,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	
 	memset(mpic, 0, sizeof(struct mpic));
 	mpic->name = name;
-	mpic->of_node = node ? of_node_get(node) : NULL;
+	mpic->of_node = of_node_get(node);
 
 	mpic->irqhost = irq_alloc_host(IRQ_HOST_MAP_LINEAR, 256,
 				       &mpic_host_ops,
