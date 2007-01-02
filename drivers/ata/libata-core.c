@@ -3187,7 +3187,8 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 			       const u16 *new_id)
 {
 	const u16 *old_id = dev->id;
-	unsigned char model[2][41], serial[2][21];
+	unsigned char model[2][ATA_ID_PROD_LEN + 1];
+	unsigned char serial[2][ATA_ID_SERNO_LEN + 1];
 	u64 new_n_sectors;
 
 	if (dev->class != new_class) {
@@ -3196,10 +3197,10 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 		return 0;
 	}
 
-	ata_id_c_string(old_id, model[0], ATA_ID_PROD_OFS, sizeof(model[0]));
-	ata_id_c_string(new_id, model[1], ATA_ID_PROD_OFS, sizeof(model[1]));
-	ata_id_c_string(old_id, serial[0], ATA_ID_SERNO_OFS, sizeof(serial[0]));
-	ata_id_c_string(new_id, serial[1], ATA_ID_SERNO_OFS, sizeof(serial[1]));
+	ata_id_c_string(old_id, model[0], ATA_ID_PROD, sizeof(model[0]));
+	ata_id_c_string(new_id, model[1], ATA_ID_PROD, sizeof(model[1]));
+	ata_id_c_string(old_id, serial[0], ATA_ID_SERNO, sizeof(serial[0]));
+	ata_id_c_string(new_id, serial[1], ATA_ID_SERNO, sizeof(serial[1]));
 	new_n_sectors = ata_id_n_sectors(new_id);
 
 	if (strcmp(model[0], model[1])) {
@@ -3338,15 +3339,13 @@ static int ata_strim(char *s, size_t len)
 
 unsigned long ata_device_blacklisted(const struct ata_device *dev)
 {
-	unsigned char model_num[40];
-	unsigned char model_rev[16];
+	unsigned char model_num[ATA_ID_PROD_LEN];
+	unsigned char model_rev[ATA_ID_FW_REV_LEN];
 	unsigned int nlen, rlen;
 	const struct ata_blacklist_entry *ad = ata_device_blacklist;
 
-	ata_id_string(dev->id, model_num, ATA_ID_PROD_OFS,
-			  sizeof(model_num));
-	ata_id_string(dev->id, model_rev, ATA_ID_FW_REV_OFS,
-			  sizeof(model_rev));
+	ata_id_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
+	ata_id_string(dev->id, model_rev, ATA_ID_FW_REV, sizeof(model_rev));
 	nlen = ata_strim(model_num, sizeof(model_num));
 	rlen = ata_strim(model_rev, sizeof(model_rev));
 

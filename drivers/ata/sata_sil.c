@@ -541,9 +541,9 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
 {
 	int print_info = ap->eh_context.i.flags & ATA_EHI_PRINTINFO;
 	unsigned int n, quirks = 0;
-	unsigned char model_num[41];
+	unsigned char model_num[ATA_ID_PROD_LEN + 1];
 
-	ata_id_c_string(dev->id, model_num, ATA_ID_PROD_OFS, sizeof(model_num));
+	ata_id_c_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 
 	for (n = 0; sil_blacklist[n].product; n++)
 		if (!strcmp(sil_blacklist[n].product, model_num)) {

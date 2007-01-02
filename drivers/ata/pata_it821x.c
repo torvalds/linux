@@ -531,15 +531,14 @@ static int it821x_smart_set_mode(struct ata_port *ap, struct ata_device **unused
 
 static void it821x_dev_config(struct ata_port *ap, struct ata_device *adev)
 {
-	unsigned char model_num[40];
+	unsigned char model_num[ATA_ID_PROD_LEN];
 	char *s;
 	unsigned int len;
 
 	/* This block ought to be a library routine as it is in several
 	   drivers now */
 
-	ata_id_string(adev->id, model_num, ATA_ID_PROD_OFS,
-			  sizeof(model_num));
+	ata_id_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 	s = &model_num[0];
 	len = strnlen(s, sizeof(model_num));
 

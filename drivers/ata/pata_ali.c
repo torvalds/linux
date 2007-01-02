@@ -153,11 +153,11 @@ static void ali_early_error_handler(struct ata_port *ap)
 
 static unsigned long ali_20_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long mask)
 {
-	char model_num[40];
+	char model_num[ATA_ID_PROD_LEN];
 	/* No DMA on anything but a disk for now */
 	if (adev->class != ATA_DEV_ATA)
 		mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
-	ata_id_string(adev->id, model_num, ATA_ID_PROD_OFS, sizeof(model_num));
+	ata_id_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 	if (strstr(model_num, "WDC"))
 		return mask &= ~ATA_MASK_UDMA;
 	return ata_pci_default_filter(ap, adev, mask);

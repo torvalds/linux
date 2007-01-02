@@ -1698,8 +1698,8 @@ unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,
 
 	if (buflen > 35) {
 		memcpy(&rbuf[8], "ATA     ", 8);
-		ata_id_string(args->id, &rbuf[16], ATA_ID_PROD_OFS, 16);
-		ata_id_string(args->id, &rbuf[32], ATA_ID_FW_REV_OFS, 4);
+		ata_id_string(args->id, &rbuf[16], ATA_ID_PROD, 16);
+		ata_id_string(args->id, &rbuf[32], ATA_ID_FW_REV, 4);
 		if (rbuf[32] == 0 || rbuf[32] == ' ')
 			memcpy(&rbuf[32], "n/a ", 4);
 	}
@@ -1768,13 +1768,13 @@ unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf,
 		0,
 		0x80,			/* this page code */
 		0,
-		ATA_SERNO_LEN,		/* page len */
+		ATA_ID_SERNO_LEN,	/* page len */
 	};
 	memcpy(rbuf, hdr, sizeof(hdr));
 
-	if (buflen > (ATA_SERNO_LEN + 4 - 1))
+	if (buflen > (ATA_ID_SERNO_LEN + 4 - 1))
 		ata_id_string(args->id, (unsigned char *) &rbuf[4],
-			      ATA_ID_SERNO_OFS, ATA_SERNO_LEN);
+			      ATA_ID_SERNO, ATA_ID_SERNO_LEN);
 
 	return 0;
 }
@@ -1799,19 +1799,18 @@ unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
 {
 	int num;
 	const int sat_model_serial_desc_len = 68;
-	const int ata_model_byte_len = 40;
 
 	rbuf[1] = 0x83;			/* this page code */
 	num = 4;
 
-	if (buflen > (ATA_SERNO_LEN + num + 3)) {
+	if (buflen > (ATA_ID_SERNO_LEN + num + 3)) {
 		/* piv=0, assoc=lu, code_set=ACSII, designator=vendor */
 		rbuf[num + 0] = 2;
-		rbuf[num + 3] = ATA_SERNO_LEN;
+		rbuf[num + 3] = ATA_ID_SERNO_LEN;
 		num += 4;
 		ata_id_string(args->id, (unsigned char *) rbuf + num,
-			      ATA_ID_SERNO_OFS, ATA_SERNO_LEN);
-		num += ATA_SERNO_LEN;
+			      ATA_ID_SERNO, ATA_ID_SERNO_LEN);
+		num += ATA_ID_SERNO_LEN;
 	}
 	if (buflen > (sat_model_serial_desc_len + num + 3)) {
 		/* SAT defined lu model and serial numbers descriptor */
@@ -1823,11 +1822,11 @@ unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
 		memcpy(rbuf + num, "ATA     ", 8);
 		num += 8;
 		ata_id_string(args->id, (unsigned char *) rbuf + num,
-			      ATA_ID_PROD_OFS, ata_model_byte_len);
-		num += ata_model_byte_len;
+			      ATA_ID_PROD, ATA_ID_PROD_LEN);
+		num += ATA_ID_PROD_LEN;
 		ata_id_string(args->id, (unsigned char *) rbuf + num,
-			      ATA_ID_SERNO_OFS, ATA_SERNO_LEN);
-		num += ATA_SERNO_LEN;
+			      ATA_ID_SERNO, ATA_ID_SERNO_LEN);
+		num += ATA_ID_SERNO_LEN;
 	}
 	rbuf[3] = num - 4;    /* page len (assume less than 256 bytes) */
 	return 0;
@@ -1955,15 +1954,15 @@ static unsigned int ata_msense_rw_recovery(u8 **ptr_io, const u8 *last)
  */
 static int ata_dev_supports_fua(u16 *id)
 {
-	unsigned char model[41], fw[9];
+	unsigned char model[ATA_ID_PROD_LEN + 1], fw[ATA_ID_FW_REV_LEN + 1];
 
 	if (!libata_fua)
 		return 0;
 	if (!ata_id_has_fua(id))
 		return 0;
 
-	ata_id_c_string(id, model, ATA_ID_PROD_OFS, sizeof(model));
-	ata_id_c_string(id, fw, ATA_ID_FW_REV_OFS, sizeof(fw));
+	ata_id_c_string(id, model, ATA_ID_PROD, sizeof(model));
+	ata_id_c_string(id, fw, ATA_ID_FW_REV, sizeof(fw));
 
 	if (strcmp(model, "Maxtor"))
 		return 1;

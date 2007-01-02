@@ -151,12 +151,12 @@ static const char *bad_ata66_3[] = {
 
 static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr, const char *list[])
 {
-	unsigned char model_num[40];
+	unsigned char model_num[ATA_ID_PROD_LEN];
 	char *s;
 	unsigned int len;
 	int i = 0;
 
-	ata_id_string(dev->id, model_num, ATA_ID_PROD_OFS, sizeof(model_num));
+	ata_id_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 	s = &model_num[0];
 	len = strnlen(s, sizeof(model_num));
 
