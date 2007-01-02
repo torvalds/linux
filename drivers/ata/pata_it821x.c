@@ -531,22 +531,9 @@ static int it821x_smart_set_mode(struct ata_port *ap, struct ata_device **unused
 
 static void it821x_dev_config(struct ata_port *ap, struct ata_device *adev)
 {
-	unsigned char model_num[ATA_ID_PROD_LEN];
-	char *s;
-	unsigned int len;
+	unsigned char model_num[ATA_ID_PROD_LEN + 1];
 
-	/* This block ought to be a library routine as it is in several
-	   drivers now */
-
-	ata_id_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
-	s = &model_num[0];
-	len = strnlen(s, sizeof(model_num));
-
-	/* ATAPI specifies that empty space is blank-filled; remove blanks */
-	while ((len > 0) && (s[len - 1] == ' ')) {
-		len--;
-		s[len] = 0;
-	}
+	ata_id_c_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 
 	if (adev->max_sectors > 255)
 		adev->max_sectors = 255;

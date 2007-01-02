@@ -218,25 +218,18 @@ static unsigned long serverworks_osb4_filter(const struct ata_port *ap, struct a
 static unsigned long serverworks_csb_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long mask)
 {
 	const char *p;
-	char model_num[ATA_ID_PROD_LEN];
-	int len, i;
+	char model_num[ATA_ID_PROD_LEN + 1];
+	int i;
 
 	/* Disk, UDMA */
 	if (adev->class != ATA_DEV_ATA)
 		return ata_pci_default_filter(ap, adev, mask);
 
 	/* Actually do need to check */
-	ata_id_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
-	/* Precuationary - why not do this in the libata core ?? */
+	ata_id_c_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 
-	len = strlen(model_num);
-	while ((len > 0) && (model_num[len - 1] == ' ')) {
-		len--;
-		model_num[len] = 0;
-	}
-
-	for(i = 0; (p = csb_bad_ata100[i]) != NULL; i++) {
-		if (!strncmp(p, model_num, len))
+	for (i = 0; (p = csb_bad_ata100[i]) != NULL; i++) {
+		if (!strcmp(p, model_num))
 			mask &= ~(0x1F << ATA_SHIFT_UDMA);
 	}
 	return ata_pci_default_filter(ap, adev, mask);

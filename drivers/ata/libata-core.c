@@ -3325,35 +3325,20 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ }
 };
 
-static int ata_strim(char *s, size_t len)
-{
-	len = strnlen(s, len);
-
-	/* ATAPI specifies that empty space is blank-filled; remove blanks */
-	while ((len > 0) && (s[len - 1] == ' ')) {
-		len--;
-		s[len] = 0;
-	}
-	return len;
-}
-
 unsigned long ata_device_blacklisted(const struct ata_device *dev)
 {
-	unsigned char model_num[ATA_ID_PROD_LEN];
-	unsigned char model_rev[ATA_ID_FW_REV_LEN];
-	unsigned int nlen, rlen;
+	unsigned char model_num[ATA_ID_PROD_LEN + 1];
+	unsigned char model_rev[ATA_ID_FW_REV_LEN + 1];
 	const struct ata_blacklist_entry *ad = ata_device_blacklist;
 
-	ata_id_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
-	ata_id_string(dev->id, model_rev, ATA_ID_FW_REV, sizeof(model_rev));
-	nlen = ata_strim(model_num, sizeof(model_num));
-	rlen = ata_strim(model_rev, sizeof(model_rev));
+	ata_id_c_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
+	ata_id_c_string(dev->id, model_rev, ATA_ID_FW_REV, sizeof(model_rev));
 
 	while (ad->model_num) {
-		if (!strncmp(ad->model_num, model_num, nlen)) {
+		if (!strcmp(ad->model_num, model_num)) {
 			if (ad->model_rev == NULL)
 				return ad->horkage;
-			if (!strncmp(ad->model_rev, model_rev, rlen))
+			if (!strcmp(ad->model_rev, model_rev))
 				return ad->horkage;
 		}
 		ad++;
