@@ -31,4 +31,13 @@ config INTEL_IOATDMA
 	default m
 	---help---
 	  Enable support for the Intel(R) I/OAT DMA engine.
+
+config INTEL_IOP_ADMA
+        tristate "Intel IOP ADMA support"
+        depends on DMA_ENGINE && (ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX)
+	select ASYNC_CORE
+        default m
+        ---help---
+          Enable support for the Intel(R) IOP Series RAID engines.
+
 endmenu
