@@ -337,6 +337,12 @@ static const char *mrw_address_space[] = { "DMA", "GAA" };
 /* used in the audio ioctls */
 #define CHECKAUDIO if ((ret=check_for_audio_disc(cdi, cdo))) return ret
 
+/*
+ * Another popular OS uses 7 seconds as the hard timeout for default
+ * commands, so it is a good choice for us as well.
+ */
+#define CDROM_DEF_TIMEOUT	(7 * HZ)
+
 /* Not-exported routines. */
 static int open_for_data(struct cdrom_device_info * cdi);
 static int check_for_audio_disc(struct cdrom_device_info * cdi,
@@ -1528,7 +1534,7 @@ void init_cdrom_command(struct packet_command *cgc, void *buf, int len,
 	cgc->buffer = (char *) buf;
 	cgc->buflen = len;
 	cgc->data_direction = type;
-	cgc->timeout = 5*HZ;
+	cgc->timeout = CDROM_DEF_TIMEOUT;
 }
 
 /* DVD handling */
