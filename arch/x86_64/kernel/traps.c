@@ -319,7 +319,7 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 	/*
 	 * This handles the process stack:
 	 */
-	tinfo = current_thread_info();
+	tinfo = task_thread_info(tsk);
 	HANDLE_STACK (valid_stack_ptr(tinfo, stack));
 #undef HANDLE_STACK
 	put_cpu();
