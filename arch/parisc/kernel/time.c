@@ -99,7 +99,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	 * cycles after the IT fires. But it's arbitrary how much time passes
 	 * before we call it "late". I've picked one second.
 	 */
-	if (ticks_elapsed > HZ) {
+	if (unlikely(ticks_elapsed > HZ)) {
 		/* Scenario 3: very long delay?  bad in any case */
 		printk (KERN_CRIT "timer_interrupt(CPU %d): delayed!"
 			" cycles %lX rem %lX "
@@ -180,6 +180,8 @@ static cycle_t read_cr16(void)
 	return get_cycles();
 }
 
+static int cr16_update_callback(void);
+
 static struct clocksource clocksource_cr16 = {
 	.name			= "cr16",
 	.rating			= 300,
@@ -187,8 +189,24 @@ static struct clocksource clocksource_cr16 = {
 	.mask			= CLOCKSOURCE_MASK(BITS_PER_LONG),
 	.mult			= 0, /* to be set */
 	.shift			= 22,
+	.update_callback	= cr16_update_callback,
 	.is_continuous		= 1,
 };
+
+static int cr16_update_callback(void)
+{
+	int change = 0;
+
+	/* since the cr16 cycle counters are not syncronized across CPUs,
+	   we'll check if we should switch to a safe clocksource: */
+	if (clocksource_cr16.rating != 0 && num_online_cpus() > 1) {
+		clocksource_cr16.rating = 0;
+		clocksource_reselect();
+		change = 1;
+	}
+
+	return change;
+}
 
 
 /*
@@ -225,10 +243,6 @@ void __init time_init(void)
 	current_cr16_khz = PAGE0->mem_10msec/10;  /* kHz */
 	clocksource_cr16.mult = clocksource_khz2mult(current_cr16_khz,
 						clocksource_cr16.shift);
-	/* lower the rating if we already know its unstable: */
-	if (num_online_cpus()>1)
-		clocksource_cr16.rating = 200;
-
 	clocksource_register(&clocksource_cr16);
 
 	if (pdc_tod_read(&tod_data) == 0) {
