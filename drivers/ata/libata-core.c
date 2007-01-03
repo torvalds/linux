@@ -1156,7 +1156,7 @@ void ata_port_flush_task(struct ata_port *ap)
 		ata_port_printk(ap, KERN_DEBUG, "%s: EXIT\n", __FUNCTION__);
 }
 
-void ata_qc_complete_internal(struct ata_queued_cmd *qc)
+static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
 	struct completion *waiting = qc->private_data;
 

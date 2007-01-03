@@ -397,9 +397,9 @@ int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
  *	RETURNS:
  *	Command allocated, or %NULL if none available.
  */
-struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
-				       struct scsi_cmnd *cmd,
-				       void (*done)(struct scsi_cmnd *))
+static struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
+					      struct scsi_cmnd *cmd,
+					      void (*done)(struct scsi_cmnd *))
 {
 	struct ata_queued_cmd *qc;
 
@@ -435,7 +435,7 @@ struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
  *	LOCKING:
  *	inherited from caller
  */
-void ata_dump_status(unsigned id, struct ata_taskfile *tf)
+static void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 {
 	u8 stat = tf->command, err = tf->feature;
 
@@ -610,8 +610,8 @@ int ata_scsi_device_resume(struct scsi_device *sdev)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
-			u8 *ascq, int verbose)
+static void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk,
+			       u8 *asc, u8 *ascq, int verbose)
 {
 	int i;
 
