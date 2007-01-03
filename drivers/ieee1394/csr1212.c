@@ -1234,6 +1234,12 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 					 csr->private);
 		if (ret != CSR1212_SUCCESS)
 			return ret;
+
+		/* check ROM header's info_length */
+		if (i == 0 &&
+		    CSR1212_BE32_TO_CPU(csr->cache_head->data[0]) >> 24 !=
+		    bytes_to_quads(csr->bus_info_len) - 1)
+			return CSR1212_EINVAL;
 	}
 
 	bi = (struct csr1212_bus_info_block_img*)csr->cache_head->data;
@@ -1249,9 +1255,6 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 		if (ret != CSR1212_SUCCESS)
 			return ret;
 	}
-
-	if (bytes_to_quads(csr->bus_info_len - sizeof(csr1212_quad_t)) != bi->length)
-		return CSR1212_EINVAL;
 
 #if 0
 	/* Apparently there are too many differnt wrong implementations of the
