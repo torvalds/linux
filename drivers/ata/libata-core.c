@@ -1249,7 +1249,6 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 			buflen += sg[i].length;
 
 		ata_sg_init(qc, sg, n_elem);
-		qc->nsect = buflen / ATA_SECT_SIZE;
 		qc->nbytes = buflen;
 	}
 
@@ -4006,11 +4005,11 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	unsigned int offset;
 	unsigned char *buf;
 
-	if (qc->cursect == (qc->nsect - 1))
+	if (qc->curbytes == qc->nbytes - ATA_SECT_SIZE)
 		ap->hsm_task_state = HSM_ST_LAST;
 
 	page = sg[qc->cursg].page;
-	offset = sg[qc->cursg].offset + qc->cursg_ofs * ATA_SECT_SIZE;
+	offset = sg[qc->cursg].offset + qc->cursg_ofs;
 
 	/* get the current page and offset */
 	page = nth_page(page, (offset >> PAGE_SHIFT));
@@ -4035,10 +4034,10 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 		ap->ops->data_xfer(qc->dev, buf + offset, ATA_SECT_SIZE, do_write);
 	}
 
-	qc->cursect++;
-	qc->cursg_ofs++;
+	qc->curbytes += ATA_SECT_SIZE;
+	qc->cursg_ofs += ATA_SECT_SIZE;
 
-	if ((qc->cursg_ofs * ATA_SECT_SIZE) == (&sg[qc->cursg])->length) {
+	if (qc->cursg_ofs == (&sg[qc->cursg])->length) {
 		qc->cursg++;
 		qc->cursg_ofs = 0;
 	}
@@ -4063,7 +4062,8 @@ static void ata_pio_sectors(struct ata_queued_cmd *qc)
 
 		WARN_ON(qc->dev->multi_count == 0);
 
-		nsect = min(qc->nsect - qc->cursect, qc->dev->multi_count);
+		nsect = min((qc->nbytes - qc->curbytes) / ATA_SECT_SIZE,
+			    qc->dev->multi_count);
 		while (nsect--)
 			ata_pio_sector(qc);
 	} else

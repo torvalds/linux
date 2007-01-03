@@ -189,10 +189,7 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
 	/* Cases the state machine will not complete correctly without help */
 	if ((tf->flags & ATA_TFLAG_LBA48) ||  tf->protocol == ATA_PROT_ATAPI_DMA)
 	{
-		if (tf->flags & ATA_TFLAG_LBA48)
-			len = qc->nsect * 512;
-		else
-			len = qc->nbytes;
+		len = qc->nbytes;
 
 		if (tf->flags & ATA_TFLAG_WRITE)
 			len |= 0x06000000;

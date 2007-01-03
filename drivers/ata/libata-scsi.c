@@ -1359,7 +1359,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 		goto nothing_to_do;
 
 	qc->flags |= ATA_QCFLAG_IO;
-	qc->nsect = n_block;
+	qc->nbytes = n_block * ATA_SECT_SIZE;
 
 	rc = ata_build_rw_tf(&qc->tf, qc->dev, block, n_block, tf_flags,
 			     qc->tag);
@@ -2660,7 +2660,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 * TODO: find out if we need to do more here to
 	 *       cover scatter/gather case.
 	 */
-	qc->nsect = scmd->request_bufflen / ATA_SECT_SIZE;
+	qc->nbytes = scmd->request_bufflen;
 
 	/* request result TF */
 	qc->flags |= ATA_QCFLAG_RESULT_TF;

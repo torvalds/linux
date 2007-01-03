@@ -427,9 +427,6 @@ struct ata_queued_cmd {
 
 	unsigned int		pad_len;
 
-	unsigned int		nsect;
-	unsigned int		cursect;
-
 	unsigned int		nbytes;
 	unsigned int		curbytes;
 
@@ -1145,8 +1142,7 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->dma_dir = DMA_NONE;
 	qc->__sg = NULL;
 	qc->flags = 0;
-	qc->cursect = qc->cursg = qc->cursg_ofs = 0;
-	qc->nsect = 0;
+	qc->cursg = qc->cursg_ofs = 0;
 	qc->nbytes = qc->curbytes = 0;
 	qc->n_elem = 0;
 	qc->err_mask = 0;
