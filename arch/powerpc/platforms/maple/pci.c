@@ -560,13 +560,16 @@ void __init maple_pci_init(void)
 		return;
 	}
 	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;) {
-		if (np->name == NULL)
+		if (!np->type)
 			continue;
-		if (!strcmp(np->name, "pci") || !strcmp(np->name, "pcie")) {
-			if (add_bridge(np) == 0)
-				of_node_get(np);
-		}
-		if (strcmp(np->name, "ht") == 0) {
+		if (strcmp(np->type, "pci") && strcmp(np->type, "ht"))
+			continue;
+		if ((device_is_compatible(np, "u4-pcie") ||
+		     device_is_compatible(np, "u3-agp")) &&
+		    add_bridge(np) == 0)
+			of_node_get(np);
+
+		if (device_is_compatible(np, "u3-ht")) {
 			of_node_get(np);
 			ht = np;
 		}
