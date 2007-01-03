@@ -1564,10 +1564,9 @@ T:	git kernel.org:/pub/scm/linux/kernel/git/bart/ide-2.6.git
 S:	Maintained
 
 IDE/ATAPI CDROM DRIVER
-P:	Jens Axboe
-M:	axboe@kernel.dk
-L:	linux-kernel@vger.kernel.org
-W:	http://www.kernel.dk
+P:	Alan Cox
+M:	alan@lxorguk.ukuu.org.uk
+L:	linux-ide@vger.kernel.org
 S:	Maintained
 
 IDE/ATAPI FLOPPY DRIVERS
