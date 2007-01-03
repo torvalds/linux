@@ -2748,7 +2748,7 @@ S:	Supported
 PVRUSB2 VIDEO4LINUX DRIVER
 P:	Mike Isely
 M:	isely@pobox.com
-L:	pvrusb2@isely.net
+L:	pvrusb2@isely.net	(subscribers-only)
 L:	video4linux-list@redhat.com
 W:	http://www.isely.net/pvrusb2/
 S:	Maintained
