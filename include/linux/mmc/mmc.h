@@ -8,7 +8,6 @@
 #ifndef MMC_H
 #define MMC_H
 
-#include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
 
@@ -107,13 +106,7 @@ extern int mmc_wait_for_app_cmd(struct mmc_host *, unsigned int,
 
 extern void mmc_set_data_timeout(struct mmc_data *, const struct mmc_card *, int);
 
-extern int __mmc_claim_host(struct mmc_host *host, struct mmc_card *card);
-
-static inline void mmc_claim_host(struct mmc_host *host)
-{
-	__mmc_claim_host(host, (struct mmc_card *)-1);
-}
-
+extern void mmc_claim_host(struct mmc_host *host);
 extern void mmc_release_host(struct mmc_host *host);
 
 #endif

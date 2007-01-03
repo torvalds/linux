@@ -61,7 +61,6 @@ struct mmc_host;
  * MMC device
  */
 struct mmc_card {
-	struct list_head	node;		/* node in hosts devices list */
 	struct mmc_host		*host;		/* the host this device belongs to */
 	struct device		dev;		/* the device */
 	unsigned int		rca;		/* relative card address of device */
@@ -122,12 +121,5 @@ struct mmc_driver {
 
 extern int mmc_register_driver(struct mmc_driver *);
 extern void mmc_unregister_driver(struct mmc_driver *);
-
-static inline int mmc_card_claim_host(struct mmc_card *card)
-{
-	return __mmc_claim_host(card->host, card);
-}
-
-#define mmc_card_release_host(c)	mmc_release_host((c)->host)
 
 #endif

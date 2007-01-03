@@ -226,8 +226,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	struct mmc_blk_request brq;
 	int ret = 1, sg_pos, data_size;
 
-	if (mmc_card_claim_host(card))
-		goto flush_queue;
+	mmc_claim_host(card->host);
 
 	do {
 		struct mmc_command cmd;
@@ -357,7 +356,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		spin_unlock_irq(&md->lock);
 	} while (ret);
 
-	mmc_card_release_host(card);
+	mmc_release_host(card->host);
 
 	return 1;
 
@@ -393,9 +392,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		spin_unlock_irq(&md->lock);
 	}
 
-flush_queue:
-
-	mmc_card_release_host(card);
+	mmc_release_host(card->host);
 
 	spin_lock_irq(&md->lock);
 	while (ret) {
@@ -526,12 +523,12 @@ mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card)
 	if (mmc_card_blockaddr(card))
 		return 0;
 
-	mmc_card_claim_host(card);
+	mmc_claim_host(card->host);
 	cmd.opcode = MMC_SET_BLOCKLEN;
 	cmd.arg = 1 << md->block_bits;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 	err = mmc_wait_for_cmd(card->host, &cmd, 5);
-	mmc_card_release_host(card);
+	mmc_release_host(card->host);
 
 	if (err) {
 		printk(KERN_ERR "%s: unable to set block size to %d: %d\n",

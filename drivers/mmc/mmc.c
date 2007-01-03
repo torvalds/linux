@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2003-2004 Russell King, All Rights Reserved.
  *  SD support Copyright (C) 2004 Ian Molton, All Rights Reserved.
- *  SD support Copyright (C) 2005 Pierre Ossman, All Rights Reserved.
+ *  Copyright (C) 2005-2007 Pierre Ossman, All Rights Reserved.
  *  MMCv4 support Copyright (C) 2006 Philip Langdale, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -316,8 +316,6 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card,
 }
 EXPORT_SYMBOL(mmc_set_data_timeout);
 
-static int mmc_select_card(struct mmc_host *host, struct mmc_card *card);
-
 /**
  *	__mmc_claim_host - exclusively claim a host
  *	@host: mmc host to claim
@@ -329,11 +327,10 @@ static int mmc_select_card(struct mmc_host *host, struct mmc_card *card);
  *
  *	Note: you should use mmc_card_claim_host or mmc_claim_host.
  */
-int __mmc_claim_host(struct mmc_host *host, struct mmc_card *card)
+void mmc_claim_host(struct mmc_host *host)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long flags;
-	int err = 0;
 
 	add_wait_queue(&host->wq, &wait);
 	spin_lock_irqsave(&host->lock, flags);
@@ -349,17 +346,9 @@ int __mmc_claim_host(struct mmc_host *host, struct mmc_card *card)
 	host->claimed = 1;
 	spin_unlock_irqrestore(&host->lock, flags);
 	remove_wait_queue(&host->wq, &wait);
-
-	if (card != (void *)-1) {
-		err = mmc_select_card(host, card);
-		if (err != MMC_ERR_NONE)
-			return err;
-	}
-
-	return err;
 }
 
-EXPORT_SYMBOL(__mmc_claim_host);
+EXPORT_SYMBOL(mmc_claim_host);
 
 /**
  *	mmc_release_host - release a host
@@ -396,23 +385,18 @@ static inline void mmc_set_ios(struct mmc_host *host)
 	host->ops->set_ios(host, ios);
 }
 
-static int mmc_select_card(struct mmc_host *host, struct mmc_card *card)
+static int mmc_select_card(struct mmc_card *card)
 {
 	int err;
 	struct mmc_command cmd;
 
-	BUG_ON(!host->claimed);
-
-	if (host->card_selected == card)
-		return MMC_ERR_NONE;
-
-	host->card_selected = card;
+	BUG_ON(!card->host->claimed);
 
 	cmd.opcode = MMC_SELECT_CARD;
 	cmd.arg = card->rca << 16;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 
-	err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+	err = mmc_wait_for_cmd(card->host, &cmd, CMD_RETRIES);
 	if (err != MMC_ERR_NONE)
 		return err;
 
@@ -426,49 +410,24 @@ static int mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 	 * wider version.
 	 */
 	if (mmc_card_sd(card) &&
-		(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
+		(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4) &&
+		(card->host->caps & MMC_CAP_4_BIT_DATA)) {
 
-		/*
-		* Default bus width is 1 bit.
-		*/
-		host->ios.bus_width = MMC_BUS_WIDTH_1;
+		struct mmc_command cmd;
+		cmd.opcode = SD_APP_SET_BUS_WIDTH;
+		cmd.arg = SD_BUS_WIDTH_4;
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 
-		if (host->caps & MMC_CAP_4_BIT_DATA) {
-			struct mmc_command cmd;
-			cmd.opcode = SD_APP_SET_BUS_WIDTH;
-			cmd.arg = SD_BUS_WIDTH_4;
-			cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+		err = mmc_wait_for_app_cmd(card->host, card->rca,
+			&cmd, CMD_RETRIES);
+		if (err != MMC_ERR_NONE)
+			return err;
 
-			err = mmc_wait_for_app_cmd(host, card->rca, &cmd,
-				CMD_RETRIES);
-			if (err != MMC_ERR_NONE)
-				return err;
-
-			host->ios.bus_width = MMC_BUS_WIDTH_4;
-		}
+		card->host->ios.bus_width = MMC_BUS_WIDTH_4;
+		mmc_set_ios(card->host);
 	}
-
-	mmc_set_ios(host);
 
 	return MMC_ERR_NONE;
-}
-
-/*
- * Ensure that no card is selected.
- */
-static void mmc_deselect_cards(struct mmc_host *host)
-{
-	struct mmc_command cmd;
-
-	if (host->card_selected) {
-		host->card_selected = NULL;
-
-		cmd.opcode = MMC_SELECT_CARD;
-		cmd.arg = 0;
-		cmd.flags = MMC_RSP_NONE | MMC_CMD_AC;
-
-		mmc_wait_for_cmd(host, &cmd, 0);
-	}
 }
 
 
@@ -732,27 +691,12 @@ static void mmc_decode_scr(struct mmc_card *card)
 }
 
 /*
- * Locate a MMC card on this MMC host given a raw CID.
- */
-static struct mmc_card *mmc_find_card(struct mmc_host *host, u32 *raw_cid)
-{
-	struct mmc_card *card;
-
-	list_for_each_entry(card, &host->cards, node) {
-		if (memcmp(card->raw_cid, raw_cid, sizeof(card->raw_cid)) == 0)
-			return card;
-	}
-	return NULL;
-}
-
-/*
- * Allocate a new MMC card, and assign a unique RCA.
+ * Allocate a new MMC card
  */
 static struct mmc_card *
-mmc_alloc_card(struct mmc_host *host, u32 *raw_cid, unsigned int *frca)
+mmc_alloc_card(struct mmc_host *host, u32 *raw_cid)
 {
-	struct mmc_card *card, *c;
-	unsigned int rca = *frca;
+	struct mmc_card *card;
 
 	card = kmalloc(sizeof(struct mmc_card), GFP_KERNEL);
 	if (!card)
@@ -760,17 +704,6 @@ mmc_alloc_card(struct mmc_host *host, u32 *raw_cid, unsigned int *frca)
 
 	mmc_init_card(card, host);
 	memcpy(card->raw_cid, raw_cid, sizeof(card->raw_cid));
-
- again:
-	list_for_each_entry(c, &host->cards, node)
-		if (c->rca == rca) {
-			rca++;
-			goto again;
-		}
-
-	card->rca = rca;
-
-	*frca = rca;
 
 	return card;
 }
@@ -937,128 +870,128 @@ static int mmc_send_if_cond(struct mmc_host *host, u32 ocr, int *rsd2)
 }
 
 /*
- * Discover cards by requesting their CID.  If this command
- * times out, it is not an error; there are no further cards
- * to be discovered.  Add new cards to the list.
+ * Discover the card by requesting its CID.
  *
- * Create a mmc_card entry for each discovered card, assigning
+ * Create a mmc_card entry for the discovered card, assigning
  * it an RCA, and save the raw CID for decoding later.
  */
-static void mmc_discover_cards(struct mmc_host *host)
+static void mmc_discover_card(struct mmc_host *host)
 {
-	struct mmc_card *card;
-	unsigned int first_rca = 1, err;
+	unsigned int err;
 
-	while (1) {
-		struct mmc_command cmd;
+	struct mmc_command cmd;
 
-		cmd.opcode = MMC_ALL_SEND_CID;
+	BUG_ON(host->card);
+
+	cmd.opcode = MMC_ALL_SEND_CID;
+	cmd.arg = 0;
+	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
+
+	err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+	if (err == MMC_ERR_TIMEOUT) {
+		err = MMC_ERR_NONE;
+		return;
+	}
+	if (err != MMC_ERR_NONE) {
+		printk(KERN_ERR "%s: error requesting CID: %d\n",
+			mmc_hostname(host), err);
+		return;
+	}
+
+	host->card = mmc_alloc_card(host, cmd.resp);
+	if (IS_ERR(host->card)) {
+		err = PTR_ERR(host->card);
+		host->card = NULL;
+		return;
+	}
+
+	if (host->mode == MMC_MODE_SD) {
+		host->card->type = MMC_TYPE_SD;
+
+		cmd.opcode = SD_SEND_RELATIVE_ADDR;
 		cmd.arg = 0;
-		cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
+		cmd.flags = MMC_RSP_R6 | MMC_CMD_BCR;
 
 		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
-		if (err == MMC_ERR_TIMEOUT) {
-			err = MMC_ERR_NONE;
-			break;
-		}
-		if (err != MMC_ERR_NONE) {
-			printk(KERN_ERR "%s: error requesting CID: %d\n",
-				mmc_hostname(host), err);
-			break;
-		}
+		if (err != MMC_ERR_NONE)
+			mmc_card_set_dead(host->card);
+		else {
+			host->card->rca = cmd.resp[0] >> 16;
 
-		card = mmc_find_card(host, cmd.resp);
-		if (!card) {
-			card = mmc_alloc_card(host, cmd.resp, &first_rca);
-			if (IS_ERR(card)) {
-				err = PTR_ERR(card);
-				break;
+			if (!host->ops->get_ro) {
+				printk(KERN_WARNING "%s: host does not "
+					"support reading read-only "
+					"switch. assuming write-enable.\n",
+					mmc_hostname(host));
+			} else {
+				if (host->ops->get_ro(host))
+					mmc_card_set_readonly(host->card);
 			}
-			list_add(&card->node, &host->cards);
 		}
+	} else {
+		host->card->type = MMC_TYPE_MMC;
+		host->card->rca = 1;
 
-		card->state &= ~MMC_STATE_DEAD;
+		cmd.opcode = MMC_SET_RELATIVE_ADDR;
+		cmd.arg = host->card->rca << 16;
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 
-		if (host->mode == MMC_MODE_SD) {
-			card->type = MMC_TYPE_SD;
-
-			cmd.opcode = SD_SEND_RELATIVE_ADDR;
-			cmd.arg = 0;
-			cmd.flags = MMC_RSP_R6 | MMC_CMD_BCR;
-
-			err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
-			if (err != MMC_ERR_NONE)
-				mmc_card_set_dead(card);
-			else {
-				card->rca = cmd.resp[0] >> 16;
-
-				if (!host->ops->get_ro) {
-					printk(KERN_WARNING "%s: host does not "
-						"support reading read-only "
-						"switch. assuming write-enable.\n",
-						mmc_hostname(host));
-				} else {
-					if (host->ops->get_ro(host))
-						mmc_card_set_readonly(card);
-				}
-			}
-		} else {
-			card->type = MMC_TYPE_MMC;
-			cmd.opcode = MMC_SET_RELATIVE_ADDR;
-			cmd.arg = card->rca << 16;
-			cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-
-			err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
-			if (err != MMC_ERR_NONE)
-				mmc_card_set_dead(card);
-		}
+		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+		if (err != MMC_ERR_NONE)
+			mmc_card_set_dead(host->card);
 	}
 }
 
-static void mmc_read_csds(struct mmc_host *host)
+static void mmc_read_csd(struct mmc_host *host)
 {
-	struct mmc_card *card;
+	struct mmc_command cmd;
+	int err;
 
-	list_for_each_entry(card, &host->cards, node) {
-		struct mmc_command cmd;
-		int err;
+	if (!host->card)
+		return;
+	if (mmc_card_dead(host->card))
+		return;
 
-		if (card->state & (MMC_STATE_DEAD|MMC_STATE_PRESENT))
-			continue;
+	cmd.opcode = MMC_SEND_CSD;
+	cmd.arg = host->card->rca << 16;
+	cmd.flags = MMC_RSP_R2 | MMC_CMD_AC;
 
-		cmd.opcode = MMC_SEND_CSD;
-		cmd.arg = card->rca << 16;
-		cmd.flags = MMC_RSP_R2 | MMC_CMD_AC;
-
-		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
-		if (err != MMC_ERR_NONE) {
-			mmc_card_set_dead(card);
-			continue;
-		}
-
-		memcpy(card->raw_csd, cmd.resp, sizeof(card->raw_csd));
-
-		mmc_decode_csd(card);
-		mmc_decode_cid(card);
+	err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+	if (err != MMC_ERR_NONE) {
+		mmc_card_set_dead(host->card);
+		return;
 	}
+
+	memcpy(host->card->raw_csd, cmd.resp, sizeof(host->card->raw_csd));
+
+	mmc_decode_csd(host->card);
+	mmc_decode_cid(host->card);
 }
 
-static void mmc_process_ext_csds(struct mmc_host *host)
+static void mmc_process_ext_csd(struct mmc_host *host)
 {
 	int err;
-	struct mmc_card *card;
 
 	struct mmc_request mrq;
 	struct mmc_command cmd;
 	struct mmc_data data;
 
+	u8 *ext_csd;
 	struct scatterlist sg;
+
+	if (!host->card)
+		return;
+	if (mmc_card_dead(host->card))
+		return;
+	if (mmc_card_sd(host->card))
+		return;
+	if (host->card->csd.mmca_vsn < CSD_SPEC_VER_4)
+		return;
 
 	/*
 	 * As the ext_csd is so large and mostly unused, we don't store the
 	 * raw block in mmc_card.
 	 */
-	u8 *ext_csd;
 	ext_csd = kmalloc(512, GFP_KERNEL);
 	if (!ext_csd) {
 		printk("%s: could not allocate a buffer to receive the ext_csd."
@@ -1067,211 +1000,184 @@ static void mmc_process_ext_csds(struct mmc_host *host)
 		return;
 	}
 
-	list_for_each_entry(card, &host->cards, node) {
-		if (card->state & (MMC_STATE_DEAD|MMC_STATE_PRESENT))
-			continue;
-		if (mmc_card_sd(card))
-			continue;
-		if (card->csd.mmca_vsn < CSD_SPEC_VER_4)
-			continue;
+	memset(&cmd, 0, sizeof(struct mmc_command));
 
-		err = mmc_select_card(host, card);
-		if (err != MMC_ERR_NONE) {
-			mmc_card_set_dead(card);
-			continue;
+	cmd.opcode = MMC_SEND_EXT_CSD;
+	cmd.arg = 0;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+	memset(&data, 0, sizeof(struct mmc_data));
+
+	mmc_set_data_timeout(&data, host->card, 0);
+
+	data.blksz = 512;
+	data.blocks = 1;
+	data.flags = MMC_DATA_READ;
+	data.sg = &sg;
+	data.sg_len = 1;
+
+	memset(&mrq, 0, sizeof(struct mmc_request));
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+
+	sg_init_one(&sg, ext_csd, 512);
+
+	mmc_wait_for_req(host, &mrq);
+
+	if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
+		if (host->card->csd.capacity == (4096 * 512)) {
+			printk(KERN_ERR "%s: unable to read EXT_CSD "
+				"on a possible high capacity card. "
+				"Card will be ignored.\n",
+				mmc_hostname(host));
+			mmc_card_set_dead(host->card);
+		} else {
+			printk(KERN_WARNING "%s: unable to read "
+				"EXT_CSD, performance might "
+				"suffer.\n",
+				mmc_hostname(host));
 		}
-
-		memset(&cmd, 0, sizeof(struct mmc_command));
-
-		cmd.opcode = MMC_SEND_EXT_CSD;
-		cmd.arg = 0;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-
-		memset(&data, 0, sizeof(struct mmc_data));
-
-		mmc_set_data_timeout(&data, card, 0);
-
-		data.blksz = 512;
-		data.blocks = 1;
-		data.flags = MMC_DATA_READ;
-		data.sg = &sg;
-		data.sg_len = 1;
-
-		memset(&mrq, 0, sizeof(struct mmc_request));
-
-		mrq.cmd = &cmd;
-		mrq.data = &data;
-
-		sg_init_one(&sg, ext_csd, 512);
-
-		mmc_wait_for_req(host, &mrq);
-
-		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
-			if (card->csd.capacity == (4096 * 512)) {
-				printk(KERN_ERR "%s: unable to read EXT_CSD "
-					"on a possible high capacity card. "
-					"Card will be ignored.\n",
-					mmc_hostname(card->host));
-				mmc_card_set_dead(card);
-			} else {
-				printk(KERN_WARNING "%s: unable to read "
-					"EXT_CSD, performance might "
-					"suffer.\n",
-					mmc_hostname(card->host));
-			}
-			continue;
-		}
-
-		card->ext_csd.sectors =
-			ext_csd[EXT_CSD_SEC_CNT + 0] << 0 |
-			ext_csd[EXT_CSD_SEC_CNT + 1] << 8 |
-			ext_csd[EXT_CSD_SEC_CNT + 2] << 16 |
-			ext_csd[EXT_CSD_SEC_CNT + 3] << 24;
-		if (card->ext_csd.sectors)
-			mmc_card_set_blockaddr(card);
-
-		switch (ext_csd[EXT_CSD_CARD_TYPE]) {
-		case EXT_CSD_CARD_TYPE_52 | EXT_CSD_CARD_TYPE_26:
-			card->ext_csd.hs_max_dtr = 52000000;
-			break;
-		case EXT_CSD_CARD_TYPE_26:
-			card->ext_csd.hs_max_dtr = 26000000;
-			break;
-		default:
-			/* MMC v4 spec says this cannot happen */
-			printk("%s: card is mmc v4 but doesn't support "
-			       "any high-speed modes.\n",
-				mmc_hostname(card->host));
-			continue;
-		}
-
-		if (host->caps & MMC_CAP_MMC_HIGHSPEED) {
-			/* Activate highspeed support. */
-			cmd.opcode = MMC_SWITCH;
-			cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
-				  (EXT_CSD_HS_TIMING << 16) |
-				  (1 << 8) |
-				  EXT_CSD_CMD_SET_NORMAL;
-			cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
-
-			err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
-			if (err != MMC_ERR_NONE) {
-				printk("%s: failed to switch card to mmc v4 "
-				       "high-speed mode.\n",
-				       mmc_hostname(card->host));
-				continue;
-			}
-
-			mmc_card_set_highspeed(card);
-
-			host->ios.timing = MMC_TIMING_MMC_HS;
-			mmc_set_ios(host);
-		}
-
-		/* Check for host support for wide-bus modes. */
-		if (host->caps & MMC_CAP_4_BIT_DATA) {
-			/* Activate 4-bit support. */
-			cmd.opcode = MMC_SWITCH;
-			cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
-				  (EXT_CSD_BUS_WIDTH << 16) |
-				  (EXT_CSD_BUS_WIDTH_4 << 8) |
-				  EXT_CSD_CMD_SET_NORMAL;
-			cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
-
-			err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
-			if (err != MMC_ERR_NONE) {
-				printk("%s: failed to switch card to "
-				       "mmc v4 4-bit bus mode.\n",
-				       mmc_hostname(card->host));
-				continue;
-			}
-
-			host->ios.bus_width = MMC_BUS_WIDTH_4;
-			mmc_set_ios(host);
-		}
+		goto out;
 	}
 
-	kfree(ext_csd);
+	host->card->ext_csd.sectors =
+		ext_csd[EXT_CSD_SEC_CNT + 0] << 0 |
+		ext_csd[EXT_CSD_SEC_CNT + 1] << 8 |
+		ext_csd[EXT_CSD_SEC_CNT + 2] << 16 |
+		ext_csd[EXT_CSD_SEC_CNT + 3] << 24;
+	if (host->card->ext_csd.sectors)
+		mmc_card_set_blockaddr(host->card);
 
-	mmc_deselect_cards(host);
+	switch (ext_csd[EXT_CSD_CARD_TYPE]) {
+	case EXT_CSD_CARD_TYPE_52 | EXT_CSD_CARD_TYPE_26:
+		host->card->ext_csd.hs_max_dtr = 52000000;
+		break;
+	case EXT_CSD_CARD_TYPE_26:
+		host->card->ext_csd.hs_max_dtr = 26000000;
+		break;
+	default:
+		/* MMC v4 spec says this cannot happen */
+		printk("%s: card is mmc v4 but doesn't support "
+		       "any high-speed modes.\n",
+			mmc_hostname(host));
+		goto out;
+	}
+
+	if (host->caps & MMC_CAP_MMC_HIGHSPEED) {
+		/* Activate highspeed support. */
+		cmd.opcode = MMC_SWITCH;
+		cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
+			  (EXT_CSD_HS_TIMING << 16) |
+			  (1 << 8) |
+			  EXT_CSD_CMD_SET_NORMAL;
+		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+
+		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+		if (err != MMC_ERR_NONE) {
+			printk("%s: failed to switch card to mmc v4 "
+			       "high-speed mode.\n",
+			       mmc_hostname(host));
+			goto out;
+		}
+
+		mmc_card_set_highspeed(host->card);
+
+		host->ios.timing = MMC_TIMING_MMC_HS;
+		mmc_set_ios(host);
+	}
+
+	/* Check for host support for wide-bus modes. */
+	if (host->caps & MMC_CAP_4_BIT_DATA) {
+		/* Activate 4-bit support. */
+		cmd.opcode = MMC_SWITCH;
+		cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
+			  (EXT_CSD_BUS_WIDTH << 16) |
+			  (EXT_CSD_BUS_WIDTH_4 << 8) |
+			  EXT_CSD_CMD_SET_NORMAL;
+		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+
+		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+		if (err != MMC_ERR_NONE) {
+			printk("%s: failed to switch card to "
+			       "mmc v4 4-bit bus mode.\n",
+			       mmc_hostname(host));
+			goto out;
+		}
+
+		host->ios.bus_width = MMC_BUS_WIDTH_4;
+		mmc_set_ios(host);
+	}
+
+out:
+	kfree(ext_csd);
 }
 
-static void mmc_read_scrs(struct mmc_host *host)
+static void mmc_read_scr(struct mmc_host *host)
 {
 	int err;
-	struct mmc_card *card;
 	struct mmc_request mrq;
 	struct mmc_command cmd;
 	struct mmc_data data;
 	struct scatterlist sg;
 
-	list_for_each_entry(card, &host->cards, node) {
-		if (card->state & (MMC_STATE_DEAD|MMC_STATE_PRESENT))
-			continue;
-		if (!mmc_card_sd(card))
-			continue;
+	if (!host->card)
+		return;
+	if (mmc_card_dead(host->card))
+		return;
+	if (!mmc_card_sd(host->card))
+		return;
 
-		err = mmc_select_card(host, card);
-		if (err != MMC_ERR_NONE) {
-			mmc_card_set_dead(card);
-			continue;
-		}
+	memset(&cmd, 0, sizeof(struct mmc_command));
 
-		memset(&cmd, 0, sizeof(struct mmc_command));
+	cmd.opcode = MMC_APP_CMD;
+	cmd.arg = host->card->rca << 16;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 
-		cmd.opcode = MMC_APP_CMD;
-		cmd.arg = card->rca << 16;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-
-		err = mmc_wait_for_cmd(host, &cmd, 0);
-		if ((err != MMC_ERR_NONE) || !(cmd.resp[0] & R1_APP_CMD)) {
-			mmc_card_set_dead(card);
-			continue;
-		}
-
-		memset(&cmd, 0, sizeof(struct mmc_command));
-
-		cmd.opcode = SD_APP_SEND_SCR;
-		cmd.arg = 0;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-
-		memset(&data, 0, sizeof(struct mmc_data));
-
-		mmc_set_data_timeout(&data, card, 0);
-
-		data.blksz = 1 << 3;
-		data.blocks = 1;
-		data.flags = MMC_DATA_READ;
-		data.sg = &sg;
-		data.sg_len = 1;
-
-		memset(&mrq, 0, sizeof(struct mmc_request));
-
-		mrq.cmd = &cmd;
-		mrq.data = &data;
-
-		sg_init_one(&sg, (u8*)card->raw_scr, 8);
-
-		mmc_wait_for_req(host, &mrq);
-
-		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
-			mmc_card_set_dead(card);
-			continue;
-		}
-
-		card->raw_scr[0] = ntohl(card->raw_scr[0]);
-		card->raw_scr[1] = ntohl(card->raw_scr[1]);
-
-		mmc_decode_scr(card);
+	err = mmc_wait_for_cmd(host, &cmd, 0);
+	if ((err != MMC_ERR_NONE) || !(cmd.resp[0] & R1_APP_CMD)) {
+		mmc_card_set_dead(host->card);
+		return;
 	}
 
-	mmc_deselect_cards(host);
+	memset(&cmd, 0, sizeof(struct mmc_command));
+
+	cmd.opcode = SD_APP_SEND_SCR;
+	cmd.arg = 0;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+	memset(&data, 0, sizeof(struct mmc_data));
+
+	mmc_set_data_timeout(&data, host->card, 0);
+
+	data.blksz = 1 << 3;
+	data.blocks = 1;
+	data.flags = MMC_DATA_READ;
+	data.sg = &sg;
+	data.sg_len = 1;
+
+	memset(&mrq, 0, sizeof(struct mmc_request));
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+
+	sg_init_one(&sg, (u8*)host->card->raw_scr, 8);
+
+	mmc_wait_for_req(host, &mrq);
+
+	if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
+		mmc_card_set_dead(host->card);
+		return;
+	}
+
+	host->card->raw_scr[0] = ntohl(host->card->raw_scr[0]);
+	host->card->raw_scr[1] = ntohl(host->card->raw_scr[1]);
+
+	mmc_decode_scr(host->card);
 }
 
 static void mmc_read_switch_caps(struct mmc_host *host)
 {
-	int err;
-	struct mmc_card *card;
 	struct mmc_request mrq;
 	struct mmc_command cmd;
 	struct mmc_data data;
@@ -1279,6 +1185,15 @@ static void mmc_read_switch_caps(struct mmc_host *host)
 	struct scatterlist sg;
 
 	if (!(host->caps & MMC_CAP_SD_HIGHSPEED))
+		return;
+
+	if (!host->card)
+		return;
+	if (mmc_card_dead(host->card))
+		return;
+	if (!mmc_card_sd(host->card))
+		return;
+	if (host->card->scr.sda_vsn < SCR_SPEC_VER_1)
 		return;
 
 	status = kmalloc(64, GFP_KERNEL);
@@ -1289,116 +1204,98 @@ static void mmc_read_switch_caps(struct mmc_host *host)
 		return;
 	}
 
-	list_for_each_entry(card, &host->cards, node) {
-		if (card->state & (MMC_STATE_DEAD|MMC_STATE_PRESENT))
-			continue;
-		if (!mmc_card_sd(card))
-			continue;
-		if (card->scr.sda_vsn < SCR_SPEC_VER_1)
-			continue;
+	memset(&cmd, 0, sizeof(struct mmc_command));
 
-		err = mmc_select_card(host, card);
-		if (err != MMC_ERR_NONE) {
-			mmc_card_set_dead(card);
-			continue;
-		}
+	cmd.opcode = SD_SWITCH;
+	cmd.arg = 0x00FFFFF1;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 
-		memset(&cmd, 0, sizeof(struct mmc_command));
+	memset(&data, 0, sizeof(struct mmc_data));
 
-		cmd.opcode = SD_SWITCH;
-		cmd.arg = 0x00FFFFF1;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+	mmc_set_data_timeout(&data, host->card, 0);
 
-		memset(&data, 0, sizeof(struct mmc_data));
+	data.blksz = 64;
+	data.blocks = 1;
+	data.flags = MMC_DATA_READ;
+	data.sg = &sg;
+	data.sg_len = 1;
 
-		mmc_set_data_timeout(&data, card, 0);
+	memset(&mrq, 0, sizeof(struct mmc_request));
 
-		data.blksz = 64;
-		data.blocks = 1;
-		data.flags = MMC_DATA_READ;
-		data.sg = &sg;
-		data.sg_len = 1;
+	mrq.cmd = &cmd;
+	mrq.data = &data;
 
-		memset(&mrq, 0, sizeof(struct mmc_request));
+	sg_init_one(&sg, status, 64);
 
-		mrq.cmd = &cmd;
-		mrq.data = &data;
+	mmc_wait_for_req(host, &mrq);
 
-		sg_init_one(&sg, status, 64);
-
-		mmc_wait_for_req(host, &mrq);
-
-		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
-			printk("%s: unable to read switch capabilities, "
-				"performance might suffer.\n",
-				mmc_hostname(card->host));
-			continue;
-		}
-
-		if (status[13] & 0x02)
-			card->sw_caps.hs_max_dtr = 50000000;
-
-		memset(&cmd, 0, sizeof(struct mmc_command));
-
-		cmd.opcode = SD_SWITCH;
-		cmd.arg = 0x80FFFFF1;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-
-		memset(&data, 0, sizeof(struct mmc_data));
-
-		mmc_set_data_timeout(&data, card, 0);
-
-		data.blksz = 64;
-		data.blocks = 1;
-		data.flags = MMC_DATA_READ;
-		data.sg = &sg;
-		data.sg_len = 1;
-
-		memset(&mrq, 0, sizeof(struct mmc_request));
-
-		mrq.cmd = &cmd;
-		mrq.data = &data;
-
-		sg_init_one(&sg, status, 64);
-
-		mmc_wait_for_req(host, &mrq);
-
-		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE ||
-			(status[16] & 0xF) != 1) {
-			printk(KERN_WARNING "%s: Problem switching card "
-				"into high-speed mode!\n",
-				mmc_hostname(host));
-			continue;
-		}
-
-		mmc_card_set_highspeed(card);
-
-		host->ios.timing = MMC_TIMING_SD_HS;
-		mmc_set_ios(host);
+	if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
+		printk("%s: unable to read switch capabilities, "
+			"performance might suffer.\n",
+			mmc_hostname(host));
+		goto out;
 	}
 
-	kfree(status);
+	if (status[13] & 0x02)
+		host->card->sw_caps.hs_max_dtr = 50000000;
 
-	mmc_deselect_cards(host);
+	memset(&cmd, 0, sizeof(struct mmc_command));
+
+	cmd.opcode = SD_SWITCH;
+	cmd.arg = 0x80FFFFF1;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+	memset(&data, 0, sizeof(struct mmc_data));
+
+	mmc_set_data_timeout(&data, host->card, 0);
+
+	data.blksz = 64;
+	data.blocks = 1;
+	data.flags = MMC_DATA_READ;
+	data.sg = &sg;
+	data.sg_len = 1;
+
+	memset(&mrq, 0, sizeof(struct mmc_request));
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+
+	sg_init_one(&sg, status, 64);
+
+	mmc_wait_for_req(host, &mrq);
+
+	if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE ||
+		(status[16] & 0xF) != 1) {
+		printk(KERN_WARNING "%s: Problem switching card "
+			"into high-speed mode!\n",
+			mmc_hostname(host));
+		goto out;
+	}
+
+	mmc_card_set_highspeed(host->card);
+
+	host->ios.timing = MMC_TIMING_SD_HS;
+	mmc_set_ios(host);
+
+out:
+	kfree(status);
 }
 
 static unsigned int mmc_calculate_clock(struct mmc_host *host)
 {
-	struct mmc_card *card;
 	unsigned int max_dtr = host->f_max;
 
-	list_for_each_entry(card, &host->cards, node)
-		if (!mmc_card_dead(card)) {
-			if (mmc_card_highspeed(card) && mmc_card_sd(card)) {
-				if (max_dtr > card->sw_caps.hs_max_dtr)
-					max_dtr = card->sw_caps.hs_max_dtr;
-			} else if (mmc_card_highspeed(card) && !mmc_card_sd(card)) {
-				if (max_dtr > card->ext_csd.hs_max_dtr)
-					max_dtr = card->ext_csd.hs_max_dtr;
-			} else if (max_dtr > card->csd.max_dtr) {
-				max_dtr = card->csd.max_dtr;
-			}
+	if (host->card && !mmc_card_dead(host->card)) {
+		if (mmc_card_highspeed(host->card) && mmc_card_sd(host->card)) {
+			if (max_dtr > host->card->sw_caps.hs_max_dtr)
+				max_dtr = host->card->sw_caps.hs_max_dtr;
+		} else if (mmc_card_highspeed(host->card) && !mmc_card_sd(host->card)) {
+			if (max_dtr > host->card->ext_csd.hs_max_dtr)
+				max_dtr = host->card->ext_csd.hs_max_dtr;
+		} else if (max_dtr > host->card->csd.max_dtr) {
+			max_dtr = host->card->csd.max_dtr;
 		}
+	}
 
 	pr_debug("%s: selected %d.%03dMHz transfer rate\n",
 		 mmc_hostname(host),
@@ -1415,90 +1312,64 @@ static unsigned int mmc_calculate_clock(struct mmc_host *host)
  * A request for status does not cause a state change in data
  * transfer mode.
  */
-static void mmc_check_cards(struct mmc_host *host)
+static void mmc_check_card(struct mmc_card *card)
 {
-	struct list_head *l, *n;
+	struct mmc_command cmd;
+	int err;
 
-	mmc_deselect_cards(host);
+	BUG_ON(!card);
 
-	list_for_each_safe(l, n, &host->cards) {
-		struct mmc_card *card = mmc_list_to_card(l);
-		struct mmc_command cmd;
-		int err;
+	cmd.opcode = MMC_SEND_STATUS;
+	cmd.arg = card->rca << 16;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 
-		cmd.opcode = MMC_SEND_STATUS;
-		cmd.arg = card->rca << 16;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+	err = mmc_wait_for_cmd(card->host, &cmd, CMD_RETRIES);
+	if (err == MMC_ERR_NONE)
+		return;
 
-		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
-		if (err == MMC_ERR_NONE)
-			continue;
-
-		mmc_card_set_dead(card);
-	}
+	mmc_card_set_dead(card);
 }
 
 static void mmc_setup(struct mmc_host *host)
 {
-	if (host->ios.power_mode != MMC_POWER_ON) {
-		int err;
-		u32 ocr;
+	int err;
+	u32 ocr;
 
-		host->mode = MMC_MODE_SD;
+	host->mode = MMC_MODE_SD;
 
-		mmc_power_up(host);
-		mmc_idle_cards(host);
+	mmc_power_up(host);
+	mmc_idle_cards(host);
 
-		err = mmc_send_if_cond(host, host->ocr_avail, NULL);
-		if (err != MMC_ERR_NONE) {
-			return;
-		}
-		err = mmc_send_app_op_cond(host, 0, &ocr);
-
-		/*
-		 * If we fail to detect any SD cards then try
-		 * searching for MMC cards.
-		 */
-		if (err != MMC_ERR_NONE) {
-			host->mode = MMC_MODE_MMC;
-
-			err = mmc_send_op_cond(host, 0, &ocr);
-			if (err != MMC_ERR_NONE)
-				return;
-		}
-
-		host->ocr = mmc_select_voltage(host, ocr);
-
-		/*
-		 * Since we're changing the OCR value, we seem to
-		 * need to tell some cards to go back to the idle
-		 * state.  We wait 1ms to give cards time to
-		 * respond.
-		 */
-		if (host->ocr)
-			mmc_idle_cards(host);
-	} else {
-		host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
-		host->ios.clock = host->f_min;
-		mmc_set_ios(host);
-
-		/*
-		 * We should remember the OCR mask from the existing
-		 * cards, and detect the new cards OCR mask, combine
-		 * the two and re-select the VDD.  However, if we do
-		 * change VDD, we should do an idle, and then do a
-		 * full re-initialisation.  We would need to notify
-		 * drivers so that they can re-setup the cards as
-		 * well, while keeping their queues at bay.
-		 *
-		 * For the moment, we take the easy way out - if the
-		 * new cards don't like our currently selected VDD,
-		 * they drop off the bus.
-		 */
+	err = mmc_send_if_cond(host, host->ocr_avail, NULL);
+	if (err != MMC_ERR_NONE) {
+		return;
 	}
+	err = mmc_send_app_op_cond(host, 0, &ocr);
+
+	/*
+	 * If we fail to detect any SD cards then try
+	 * searching for MMC cards.
+	 */
+	if (err != MMC_ERR_NONE) {
+		host->mode = MMC_MODE_MMC;
+
+		err = mmc_send_op_cond(host, 0, &ocr);
+		if (err != MMC_ERR_NONE)
+			return;
+	}
+
+	host->ocr = mmc_select_voltage(host, ocr);
 
 	if (host->ocr == 0)
 		return;
+
+	/*
+	 * Since we're changing the OCR value, we seem to
+	 * need to tell some cards to go back to the idle
+	 * state.  We wait 1ms to give cards time to
+	 * respond.
+	 */
+	mmc_idle_cards(host);
 
 	/*
 	 * Send the selected OCR multiple times... until the cards
@@ -1522,7 +1393,7 @@ static void mmc_setup(struct mmc_host *host)
 		mmc_send_op_cond(host, host->ocr | (1 << 30), NULL);
 	}
 
-	mmc_discover_cards(host);
+	mmc_discover_card(host);
 
 	/*
 	 * Ok, now switch to push-pull mode.
@@ -1530,13 +1401,19 @@ static void mmc_setup(struct mmc_host *host)
 	host->ios.bus_mode = MMC_BUSMODE_PUSHPULL;
 	mmc_set_ios(host);
 
-	mmc_read_csds(host);
+	mmc_read_csd(host);
+
+	if (host->card && !mmc_card_dead(host->card)) {
+		err = mmc_select_card(host->card);
+		if (err != MMC_ERR_NONE)
+			mmc_card_set_dead(host->card);
+	}
 
 	if (host->mode == MMC_MODE_SD) {
-		mmc_read_scrs(host);
+		mmc_read_scr(host);
 		mmc_read_switch_caps(host);
 	} else
-		mmc_process_ext_csds(host);
+		mmc_process_ext_csd(host);
 }
 
 
@@ -1566,31 +1443,29 @@ static void mmc_rescan(struct work_struct *work)
 {
 	struct mmc_host *host =
 		container_of(work, struct mmc_host, detect.work);
-	struct list_head *l, *n;
-	unsigned char power_mode;
 
 	mmc_claim_host(host);
 
 	/*
-	 * Check for removed cards and newly inserted ones. We check for
+	 * Check for removed card and newly inserted ones. We check for
 	 * removed cards first so we can intelligently re-select the VDD.
 	 */
-	power_mode = host->ios.power_mode;
-	if (power_mode == MMC_POWER_ON)
-		mmc_check_cards(host);
+	if (host->card) {
+		mmc_check_card(host->card);
+
+		mmc_release_host(host);
+
+		if (mmc_card_dead(host->card)) {
+			mmc_remove_card(host->card);
+			host->card = NULL;
+		}
+
+		goto out;
+	}
 
 	mmc_setup(host);
 
-	/*
-	 * Some broken cards process CMD1 even in stand-by state. There is
-	 * no reply, but an ILLEGAL_COMMAND error is cached and returned
-	 * after next command. We poll for card status here to clear any
-	 * possibly pending error.
-	 */
-	if (power_mode == MMC_POWER_ON)
-		mmc_check_cards(host);
-
-	if (!list_empty(&host->cards)) {
+	if (host->card && !mmc_card_dead(host->card)) {
 		/*
 		 * (Re-)calculate the fastest clock rate which the
 		 * attached cards and the host support.
@@ -1601,31 +1476,28 @@ static void mmc_rescan(struct work_struct *work)
 
 	mmc_release_host(host);
 
-	list_for_each_safe(l, n, &host->cards) {
-		struct mmc_card *card = mmc_list_to_card(l);
-
-		/*
-		 * If this is a new and good card, register it.
-		 */
-		if (!mmc_card_present(card) && !mmc_card_dead(card)) {
-			if (mmc_register_card(card))
-				mmc_card_set_dead(card);
-		}
-
-		/*
-		 * If this card is dead, destroy it.
-		 */
-		if (mmc_card_dead(card)) {
-			list_del(&card->node);
-			mmc_remove_card(card);
-		}
+	/*
+	 * If this is a new and good card, register it.
+	 */
+	if (host->card && !mmc_card_dead(host->card)) {
+		if (mmc_register_card(host->card))
+			mmc_card_set_dead(host->card);
 	}
 
+	/*
+	 * If this card is dead, destroy it.
+	 */
+	if (host->card && mmc_card_dead(host->card)) {
+		mmc_remove_card(host->card);
+		host->card = NULL;
+	}
+
+out:
 	/*
 	 * If we discover that there are no cards on the
 	 * bus, turn off the clock and power down.
 	 */
-	if (list_empty(&host->cards))
+	if (!host->card)
 		mmc_power_off(host);
 }
 
@@ -1645,7 +1517,6 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	if (host) {
 		spin_lock_init(&host->lock);
 		init_waitqueue_head(&host->wq);
-		INIT_LIST_HEAD(&host->cards);
 		INIT_DELAYED_WORK(&host->detect, mmc_rescan);
 
 		/*
@@ -1694,8 +1565,6 @@ EXPORT_SYMBOL(mmc_add_host);
  */
 void mmc_remove_host(struct mmc_host *host)
 {
-	struct list_head *l, *n;
-
 #ifdef CONFIG_MMC_DEBUG
 	mmc_claim_host(host);
 	host->removed = 1;
@@ -1704,10 +1573,9 @@ void mmc_remove_host(struct mmc_host *host)
 
 	mmc_flush_scheduled_work();
 
-	list_for_each_safe(l, n, &host->cards) {
-		struct mmc_card *card = mmc_list_to_card(l);
-
-		mmc_remove_card(card);
+	if (host->card) {
+		mmc_remove_card(host->card);
+		host->card = NULL;
 	}
 
 	mmc_power_off(host);
@@ -1738,14 +1606,11 @@ EXPORT_SYMBOL(mmc_free_host);
  */
 int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
 {
-	struct list_head *l, *n;
-
 	mmc_flush_scheduled_work();
 
-	list_for_each_safe(l, n, &host->cards) {
-		struct mmc_card *card = mmc_list_to_card(l);
-
-		mmc_remove_card(card);
+	if (host->card) {
+		mmc_remove_card(host->card);
+		host->card = NULL;
 	}
 
 	mmc_power_off(host);

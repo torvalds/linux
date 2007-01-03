@@ -138,13 +138,11 @@ struct mmc_host {
 #define MMC_MODE_MMC		0
 #define MMC_MODE_SD		1
 
-	struct list_head	cards;		/* devices attached to this host */
+	struct mmc_card		*card;		/* device attached to this host */
 
 	wait_queue_head_t	wq;
 	spinlock_t		lock;		/* claimed lock */
 	unsigned int		claimed:1;	/* host exclusively claimed */
-
-	struct mmc_card		*card_selected;	/* the selected MMC card */
 
 	struct delayed_work	detect;
 #ifdef CONFIG_MMC_DEBUG
