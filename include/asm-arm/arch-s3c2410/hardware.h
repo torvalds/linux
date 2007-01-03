@@ -13,6 +13,10 @@
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
+#ifndef __ASM_HARDWARE_H
+#error "Do not include this directly, instead #include <asm/hardware.h>"
+#endif
+
 #ifndef __ASSEMBLY__
 
 /* external functions for GPIO support

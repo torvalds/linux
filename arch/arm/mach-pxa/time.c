@@ -101,7 +101,7 @@ static struct irqaction pxa_timer_irq = {
 	.handler	= pxa_timer_interrupt,
 };
 
-cycle_t pxa_get_cycles(void)
+static cycle_t pxa_get_cycles(void)
 {
 	return OSCR;
 }
@@ -134,13 +134,13 @@ static void __init pxa_timer_init(void)
 	OSMR0 = OSCR + LATCH;	/* set initial match */
 	local_irq_restore(flags);
 
-	/* on PXA OSCR runs continiously and is not written to, so we can use it
-	 * as clock source directly.
+	/*
+	 * OSCR runs continuously on PXA and is not written to,
+	 * so we can use it as clock source directly.
 	 */
 	clocksource_pxa.mult =
 		clocksource_hz2mult(CLOCK_TICK_RATE, clocksource_pxa.shift);
 	clocksource_register(&clocksource_pxa);
-
 }
 
 #ifdef CONFIG_NO_IDLE_HZ
