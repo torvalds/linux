@@ -9,11 +9,18 @@ config HID
 	depends on INPUT
 	default y
 	---help---
-	  Say Y here if you want generic HID support to connect keyboards,
-	  mice, joysticks, graphic tablets, or any other HID based devices
-	  to your computer. You also need to select particular types of
-	  HID devices you want to compile support for, in the particular
-	  driver menu (USB, Bluetooth)
+	  A human interface device (HID) is a type of computer device that
+	  interacts directly with and takes input from humans. The term "HID"
+	  most commonly used to refer to the USB-HID specification, but other
+	  devices (such as, but not strictly limited to, Bluetooth) are
+	  designed using HID specification (this involves certain keyboards,
+	  mice, tablets, etc). This option compiles into kernel the generic
+	  HID layer code (parser, usages, etc.), which can then be used by
+	  transport-specific HID implementation (like USB or Bluetooth).
+
+	  For docs and specs, see http://www.usb.org/developers/hidpage/
+
+	  If unsure, say Y
 
 endmenu
 
