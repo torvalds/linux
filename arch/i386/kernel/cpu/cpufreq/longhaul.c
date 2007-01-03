@@ -358,10 +358,7 @@ static int __init longhaul_get_ranges(void)
 			130, 150, 160, 140,  -1, 155,  -1, 145 };
 	unsigned int j, k = 0;
 	union msr_longhaul longhaul;
-	unsigned long lo, hi;
-	unsigned int eblcr_fsb_table_v1[] = { 66, 133, 100, -1 };
-	unsigned int eblcr_fsb_table_v2[] = { 133, 100, -1, 66 };
-	int mult;
+	int mult = 0;
 
 	switch (longhaul_version) {
 	case TYPE_LONGHAUL_V1:
