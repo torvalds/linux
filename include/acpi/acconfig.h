@@ -105,7 +105,7 @@
 
 /* Maximum object reference count (detects object deletion issues) */
 
-#define ACPI_MAX_REFERENCE_COUNT        0x800
+#define ACPI_MAX_REFERENCE_COUNT        0x1000
 
 /* Size of cached memory mapping for system memory operation region */
 

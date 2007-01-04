@@ -532,13 +532,13 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 
 ASUS ACPI EXTRAS DRIVER
+P:	Corentin Chary
+M:	corentincj@iksaif.net
 P:	Karol Kozimor
 M:	sziwan@users.sourceforge.net
-P:	Julien Lerouge
-M:	julien.lerouge@free.fr
 L:	acpi4asus-user@lists.sourceforge.net
 W:	http://sourceforge.net/projects/acpi4asus
-W:	http://julien.lerouge.free.fr
+W:	http://xf.iksaif.net/acpi4asus
 S:	Maintained
 
 ATA OVER ETHERNET DRIVER

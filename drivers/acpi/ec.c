@@ -424,7 +424,7 @@ static void acpi_ec_gpe_query(void *ec_cxt)
 
 	snprintf(object_name, 8, "_Q%2.2X", value);
 
-	printk(KERN_INFO PREFIX "evaluating %s\n", object_name);
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Evaluating %s", object_name));
 
 	acpi_evaluate_object(ec->handle, object_name, NULL, NULL);
 }
