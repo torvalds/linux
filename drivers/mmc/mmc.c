@@ -289,7 +289,10 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card,
 		else
 			limit_us = 100000;
 
-		if (timeout_us > limit_us) {
+		/*
+		 * SDHC cards always use these fixed values.
+		 */
+		if (timeout_us > limit_us || mmc_card_blockaddr(card)) {
 			data->timeout_ns = limit_us * 1000;
 			data->timeout_clks = 0;
 		}
@@ -372,7 +375,7 @@ static inline void mmc_set_ios(struct mmc_host *host)
 		 mmc_hostname(host), ios->clock, ios->bus_mode,
 		 ios->power_mode, ios->chip_select, ios->vdd,
 		 ios->bus_width);
-	
+
 	host->ops->set_ios(host, ios);
 }
 
@@ -588,34 +591,65 @@ static void mmc_decode_csd(struct mmc_card *card)
 
 	if (mmc_card_sd(card)) {
 		csd_struct = UNSTUFF_BITS(resp, 126, 2);
-		if (csd_struct != 0) {
+
+		switch (csd_struct) {
+		case 0:
+			m = UNSTUFF_BITS(resp, 115, 4);
+			e = UNSTUFF_BITS(resp, 112, 3);
+			csd->tacc_ns	 = (tacc_exp[e] * tacc_mant[m] + 9) / 10;
+			csd->tacc_clks	 = UNSTUFF_BITS(resp, 104, 8) * 100;
+
+			m = UNSTUFF_BITS(resp, 99, 4);
+			e = UNSTUFF_BITS(resp, 96, 3);
+			csd->max_dtr	  = tran_exp[e] * tran_mant[m];
+			csd->cmdclass	  = UNSTUFF_BITS(resp, 84, 12);
+
+			e = UNSTUFF_BITS(resp, 47, 3);
+			m = UNSTUFF_BITS(resp, 62, 12);
+			csd->capacity	  = (1 + m) << (e + 2);
+
+			csd->read_blkbits = UNSTUFF_BITS(resp, 80, 4);
+			csd->read_partial = UNSTUFF_BITS(resp, 79, 1);
+			csd->write_misalign = UNSTUFF_BITS(resp, 78, 1);
+			csd->read_misalign = UNSTUFF_BITS(resp, 77, 1);
+			csd->r2w_factor = UNSTUFF_BITS(resp, 26, 3);
+			csd->write_blkbits = UNSTUFF_BITS(resp, 22, 4);
+			csd->write_partial = UNSTUFF_BITS(resp, 21, 1);
+			break;
+		case 1:
+			/*
+			 * This is a block-addressed SDHC card. Most
+			 * interesting fields are unused and have fixed
+			 * values. To avoid getting tripped by buggy cards,
+			 * we assume those fixed values ourselves.
+			 */
+			mmc_card_set_blockaddr(card);
+
+			csd->tacc_ns	 = 0; /* Unused */
+			csd->tacc_clks	 = 0; /* Unused */
+
+			m = UNSTUFF_BITS(resp, 99, 4);
+			e = UNSTUFF_BITS(resp, 96, 3);
+			csd->max_dtr	  = tran_exp[e] * tran_mant[m];
+			csd->cmdclass	  = UNSTUFF_BITS(resp, 84, 12);
+
+			m = UNSTUFF_BITS(resp, 48, 22);
+			csd->capacity     = (1 + m) << 10;
+
+			csd->read_blkbits = 9;
+			csd->read_partial = 0;
+			csd->write_misalign = 0;
+			csd->read_misalign = 0;
+			csd->r2w_factor = 4; /* Unused */
+			csd->write_blkbits = 9;
+			csd->write_partial = 0;
+			break;
+		default:
 			printk("%s: unrecognised CSD structure version %d\n",
 				mmc_hostname(card->host), csd_struct);
 			mmc_card_set_bad(card);
 			return;
 		}
-
-		m = UNSTUFF_BITS(resp, 115, 4);
-		e = UNSTUFF_BITS(resp, 112, 3);
-		csd->tacc_ns	 = (tacc_exp[e] * tacc_mant[m] + 9) / 10;
-		csd->tacc_clks	 = UNSTUFF_BITS(resp, 104, 8) * 100;
-
-		m = UNSTUFF_BITS(resp, 99, 4);
-		e = UNSTUFF_BITS(resp, 96, 3);
-		csd->max_dtr	  = tran_exp[e] * tran_mant[m];
-		csd->cmdclass	  = UNSTUFF_BITS(resp, 84, 12);
-
-		e = UNSTUFF_BITS(resp, 47, 3);
-		m = UNSTUFF_BITS(resp, 62, 12);
-		csd->capacity	  = (1 + m) << (e + 2);
-
-		csd->read_blkbits = UNSTUFF_BITS(resp, 80, 4);
-		csd->read_partial = UNSTUFF_BITS(resp, 79, 1);
-		csd->write_misalign = UNSTUFF_BITS(resp, 78, 1);
-		csd->read_misalign = UNSTUFF_BITS(resp, 77, 1);
-		csd->r2w_factor = UNSTUFF_BITS(resp, 26, 3);
-		csd->write_blkbits = UNSTUFF_BITS(resp, 22, 4);
-		csd->write_partial = UNSTUFF_BITS(resp, 21, 1);
 	} else {
 		/*
 		 * We only understand CSD structure v1.1 and v1.2.
@@ -845,6 +879,41 @@ static int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	if (rocr)
 		*rocr = cmd.resp[0];
 
+	return err;
+}
+
+static int mmc_send_if_cond(struct mmc_host *host, u32 ocr, int *rsd2)
+{
+	struct mmc_command cmd;
+	int err, sd2;
+	static const u8 test_pattern = 0xAA;
+
+	/*
+	* To support SD 2.0 cards, we must always invoke SD_SEND_IF_COND
+	* before SD_APP_OP_COND. This command will harmlessly fail for
+	* SD 1.0 cards.
+	*/
+	cmd.opcode = SD_SEND_IF_COND;
+	cmd.arg = ((ocr & 0xFF8000) != 0) << 8 | test_pattern;
+	cmd.flags = MMC_RSP_R7 | MMC_CMD_BCR;
+
+	err = mmc_wait_for_cmd(host, &cmd, 0);
+	if (err == MMC_ERR_NONE) {
+		if ((cmd.resp[0] & 0xFF) == test_pattern) {
+			sd2 = 1;
+		} else {
+			sd2 = 0;
+			err = MMC_ERR_FAILED;
+		}
+	} else {
+		/*
+		 * Treat errors as SD 1.0 card.
+		 */
+		sd2 = 0;
+		err = MMC_ERR_NONE;
+	}
+	if (rsd2)
+		*rsd2 = sd2;
 	return err;
 }
 
@@ -1334,6 +1403,10 @@ static void mmc_setup(struct mmc_host *host)
 		mmc_power_up(host);
 		mmc_idle_cards(host);
 
+		err = mmc_send_if_cond(host, host->ocr_avail, NULL);
+		if (err != MMC_ERR_NONE) {
+			return;
+		}
 		err = mmc_send_app_op_cond(host, 0, &ocr);
 
 		/*
@@ -1386,10 +1459,21 @@ static void mmc_setup(struct mmc_host *host)
 	 * all get the idea that they should be ready for CMD2.
 	 * (My SanDisk card seems to need this.)
 	 */
-	if (host->mode == MMC_MODE_SD)
-		mmc_send_app_op_cond(host, host->ocr, NULL);
-	else
+	if (host->mode == MMC_MODE_SD) {
+		int err, sd2;
+		err = mmc_send_if_cond(host, host->ocr, &sd2);
+		if (err == MMC_ERR_NONE) {
+			/*
+			* If SD_SEND_IF_COND indicates an SD 2.0
+			* compliant card and we should set bit 30
+			* of the ocr to indicate that we can handle
+			* block-addressed SDHC cards.
+			*/
+			mmc_send_app_op_cond(host, host->ocr | (sd2 << 30), NULL);
+		}
+	} else {
 		mmc_send_op_cond(host, host->ocr, NULL);
+	}
 
 	mmc_discover_cards(host);
 

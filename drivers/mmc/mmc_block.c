@@ -237,7 +237,9 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		brq.mrq.cmd = &brq.cmd;
 		brq.mrq.data = &brq.data;
 
-		brq.cmd.arg = req->sector << 9;
+		brq.cmd.arg = req->sector;
+		if (!mmc_card_blockaddr(card))
+			brq.cmd.arg <<= 9;
 		brq.cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 		brq.data.blksz = 1 << md->block_bits;
 		brq.data.blocks = req->nr_sectors >> (md->block_bits - 9);
@@ -493,6 +495,10 @@ mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card)
 {
 	struct mmc_command cmd;
 	int err;
+
+	/* Block-addressed cards ignore MMC_SET_BLOCKLEN. */
+	if (mmc_card_blockaddr(card))
+		return 0;
 
 	mmc_card_claim_host(card);
 	cmd.opcode = MMC_SET_BLOCKLEN;
