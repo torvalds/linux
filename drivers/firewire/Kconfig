@@ -18,17 +18,17 @@ config FW
 	  is the core support only, you will also need to select a driver for
 	  your IEEE 1394 adapter.
 
-	  This is the "JUJU" firewire stack, an alternative
-	  implementation designed for roboustness and simplicity.
+	  This is the "JUJU" FireWire stack, an alternative
+	  implementation designed for robustness and simplicity.
 
 	  To compile this driver as a module, say M here: the
 	  module will be called fw-core.
 
 config FW_OHCI
-	tristate "Support for OHCI firewire host controllers"
+	tristate "Support for OHCI FireWire host controllers"
 	depends on PCI && FW
 	help
-	  Enable this driver if you have an firewire controller based
+	  Enable this driver if you have a FireWire controller based
 	  on the OHCI specification.  For all practical purposes, this
 	  is the only chipset in use, so say Y here.
 
@@ -39,8 +39,8 @@ config FW_SBP2
 	tristate "Support for storage devices (SBP-2 protocol driver)"
 	depends on FW && SCSI
 	help
-	  This option enables you to use SBP-2 devices connected to an
-	  firewire bus.  SBP-2 devices include storage devices like
+	  This option enables you to use SBP-2 devices connected to a
+	  FireWire bus.  SBP-2 devices include storage devices like
 	  harddisks and DVD drives, also some other FireWire devices
 	  like scanners.
 
