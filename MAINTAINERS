@@ -2579,6 +2579,12 @@ P:	Adam Belay
 M:	ambx1@neo.rr.com
 S:	Maintained
 
+PNXxxxx I2C DRIVER
+P:	Vitaly Wool
+M:	vitalywool@gmail.com
+L:	i2c@lm-sensors.org
+S:	Maintained
+
 PPP PROTOCOL DRIVERS AND COMPRESSORS
 P:	Paul Mackerras
 M:	paulus@samba.org
