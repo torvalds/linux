@@ -965,6 +965,9 @@ int agp_generic_insert_memory(struct agp_memory * mem, off_t pg_start, int type)
 	if (!bridge)
 		return -EINVAL;
 
+	if (mem->page_count == 0)
+		return 0;
+
 	temp = bridge->current_size;
 
 	switch (bridge->driver->size_type) {
@@ -1016,8 +1019,8 @@ int agp_generic_insert_memory(struct agp_memory * mem, off_t pg_start, int type)
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(bridge->driver->mask_memory(bridge, mem->memory[i], mem->type), bridge->gatt_table+j);
-		readl(bridge->gatt_table+j);	/* PCI Posting. */
 	}
+	readl(bridge->gatt_table+j-1);	/* PCI Posting. */
 
 	bridge->driver->tlb_flush(mem);
 	return 0;
@@ -1034,6 +1037,9 @@ int agp_generic_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 	if (!bridge)
 		return -EINVAL;
 
+	if (mem->page_count == 0)
+		return 0;
+
 	if (type != 0 || mem->type != 0) {
 		/* The generic routines know nothing of memory types */
 		return -EINVAL;
@@ -1042,10 +1048,9 @@ int agp_generic_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 	/* AK: bogus, should encode addresses > 4GB */
 	for (i = pg_start; i < (mem->page_count + pg_start); i++) {
 		writel(bridge->scratch_page, bridge->gatt_table+i);
-		readl(bridge->gatt_table+i);	/* PCI Posting. */
 	}
+	readl(bridge->gatt_table+i-1);	/* PCI Posting. */
 
-	global_cache_flush();
 	bridge->driver->tlb_flush(mem);
 	return 0;
 }

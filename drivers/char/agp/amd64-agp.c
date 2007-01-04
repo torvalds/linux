@@ -650,6 +650,15 @@ static struct pci_device_id agp_amd64_pci_table[] = {
 	.subvendor	= PCI_ANY_ID,
 	.subdevice	= PCI_ANY_ID,
 	},
+	/* VIA K8M890 / K8N890 */
+	{
+	.class          = (PCI_CLASS_BRIDGE_HOST << 8),
+	.class_mask     = ~0,
+	.vendor         = PCI_VENDOR_ID_VIA,
+	.device         = PCI_DEVICE_ID_VIA_K8M890CE,
+	.subvendor      = PCI_ANY_ID,
+	.subdevice      = PCI_ANY_ID,
+	},
 	/* VIA K8T890 */
 	{
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
