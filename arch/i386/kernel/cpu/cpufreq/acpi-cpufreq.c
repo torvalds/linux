@@ -373,8 +373,8 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	cpumask_t online_policy_cpus;
 	struct drv_cmd cmd;
 	unsigned int msr;
-	unsigned int next_state = 0;
-	unsigned int next_perf_state = 0;
+	unsigned int next_state = 0; /* Index into freq_table */
+	unsigned int next_perf_state = 0; /* Index into perf table */
 	unsigned int i;
 	int result = 0;
 
@@ -420,6 +420,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 		msr =
 		    (u32) perf->states[next_perf_state].
 		    control & INTEL_MSR_RANGE;
+		cmd.val = get_cur_val(online_policy_cpus);
 		cmd.val = (cmd.val & ~INTEL_MSR_RANGE) | msr;
 		break;
 	case SYSTEM_IO_CAPABLE:
@@ -439,8 +440,8 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	else
 		cpu_set(policy->cpu, cmd.mask);
 
-	freqs.old = data->freq_table[perf->state].frequency;
-	freqs.new = data->freq_table[next_perf_state].frequency;
+	freqs.old = perf->states[perf->state].core_frequency * 1000;
+	freqs.new = data->freq_table[next_state].frequency;
 	for_each_cpu_mask(i, cmd.mask) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
@@ -677,6 +678,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		valid_states++;
 	}
 	data->freq_table[valid_states].frequency = CPUFREQ_TABLE_END;
+	perf->state = 0;
 
 	result = cpufreq_frequency_table_cpuinfo(policy, data->freq_table);
 	if (result)

@@ -285,11 +285,15 @@ cpufreq_stat_notifier_trans (struct notifier_block *nb, unsigned long val,
 	stat = cpufreq_stats_table[freq->cpu];
 	if (!stat)
 		return 0;
+
 	old_index = freq_table_get_index(stat, freq->old);
 	new_index = freq_table_get_index(stat, freq->new);
 
 	cpufreq_stats_update(freq->cpu);
 	if (old_index == new_index)
+		return 0;
+
+	if (old_index == -1 || new_index == -1)
 		return 0;
 
 	spin_lock(&cpufreq_stats_lock);
