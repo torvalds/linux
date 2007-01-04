@@ -727,40 +727,47 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	/* TODO handling oob */
 
 	stats = mtd->ecc_stats;
-	while (read < len) {
-		cond_resched();
 
-		thislen = min_t(int, mtd->writesize, len - read);
+ 	/* Read-while-load method */
 
-		column = from & (mtd->writesize - 1);
-		if (column + thislen > mtd->writesize)
-			thislen = mtd->writesize - column;
+ 	/* Do first load to bufferRAM */
+ 	if (read < len) {
+ 		if (!onenand_check_bufferram(mtd, from)) {
+ 			this->command(mtd, ONENAND_CMD_READ, from, mtd->writesize);
+ 			ret = this->wait(mtd, FL_READING);
+ 			onenand_update_bufferram(mtd, from, !ret);
+ 		}
+ 	}
 
-		if (!onenand_check_bufferram(mtd, from)) {
-			this->command(mtd, ONENAND_CMD_READ, from, mtd->writesize);
+ 	thislen = min_t(int, mtd->writesize, len - read);
+ 	column = from & (mtd->writesize - 1);
+ 	if (column + thislen > mtd->writesize)
+ 		thislen = mtd->writesize - column;
 
-			ret = this->wait(mtd, FL_READING);
-			/* First copy data and check return value for ECC handling */
-			onenand_update_bufferram(mtd, from, !ret);
-		}
+ 	while (!ret) {
+ 		/* If there is more to load then start next load */
+ 		from += thislen;
+ 		if (read + thislen < len) {
+ 			this->command(mtd, ONENAND_CMD_READ, from, mtd->writesize);
+ 			ONENAND_SET_PREV_BUFFERRAM(this);
+ 		}
+ 		/* While load is going, read from last bufferRAM */
+ 		this->read_bufferram(mtd, ONENAND_DATARAM, buf, column, thislen);
+ 		/* See if we are done */
+ 		read += thislen;
+ 		if (read == len)
+ 			break;
+ 		/* Set up for next read from bufferRAM */
+ 		ONENAND_SET_NEXT_BUFFERRAM(this);
+ 		buf += thislen;
+ 		thislen = min_t(int, mtd->writesize, len - read);
+ 		column = 0;
+ 		cond_resched();
+ 		/* Now wait for load */
+ 		ret = this->wait(mtd, FL_READING);
+ 		onenand_update_bufferram(mtd, from, !ret);
+ 	}
 
-		this->read_bufferram(mtd, ONENAND_DATARAM, buf, column, thislen);
-
-		if (ret) {
-			DEBUG(MTD_DEBUG_LEVEL0, "onenand_read: read failed = %d\n", ret);
-			goto out;
-		}
-
-		read += thislen;
-
-		if (read == len)
-			break;
-
-		from += thislen;
-		buf += thislen;
-	}
-
-out:
 	/* Deselect and wake up anyone waiting on the device */
 	onenand_release_device(mtd);
 
@@ -773,6 +780,9 @@ out:
 
 	if (mtd->ecc_stats.failed - stats.failed)
 		return -EBADMSG;
+
+	if (ret)
+		return ret;
 
 	return mtd->ecc_stats.corrected - stats.corrected ? -EUCLEAN : 0;
 }
