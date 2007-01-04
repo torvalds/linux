@@ -127,10 +127,13 @@ masquerade_target(struct sk_buff **pskb,
 static inline int
 device_cmp(struct ip_conntrack *i, void *ifindex)
 {
+	int ret;
 #ifdef CONFIG_NF_NAT_NEEDED
 	struct nf_conn_nat *nat = nfct_nat(i);
+
+	if (!nat)
+		return 0;
 #endif
-	int ret;
 
 	read_lock_bh(&masq_lock);
 #ifdef CONFIG_NF_NAT_NEEDED

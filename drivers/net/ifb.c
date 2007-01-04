@@ -154,8 +154,8 @@ static int ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 	int ret = 0;
 	u32 from = G_TC_FROM(skb->tc_verd);
 
-	stats->tx_packets++;
-	stats->tx_bytes+=skb->len;
+	stats->rx_packets++;
+	stats->rx_bytes+=skb->len;
 
 	if (!from || !skb->input_dev) {
 dropped:

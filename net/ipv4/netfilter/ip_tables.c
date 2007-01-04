@@ -919,13 +919,13 @@ copy_entries_to_user(unsigned int total_size,
 #ifdef CONFIG_COMPAT
 struct compat_delta {
 	struct compat_delta *next;
-	u_int16_t offset;
+	unsigned int offset;
 	short delta;
 };
 
 static struct compat_delta *compat_offsets = NULL;
 
-static int compat_add_offset(u_int16_t offset, short delta)
+static int compat_add_offset(unsigned int offset, short delta)
 {
 	struct compat_delta *tmp;
 
@@ -957,7 +957,7 @@ static void compat_flush_offsets(void)
 	}
 }
 
-static short compat_calc_jump(u_int16_t offset)
+static short compat_calc_jump(unsigned int offset)
 {
 	struct compat_delta *tmp;
 	short delta;
@@ -997,7 +997,7 @@ static int compat_calc_entry(struct ipt_entry *e, struct xt_table_info *info,
 		void *base, struct xt_table_info *newinfo)
 {
 	struct ipt_entry_target *t;
-	u_int16_t entry_offset;
+	unsigned int entry_offset;
 	int off, i, ret;
 
 	off = 0;
@@ -1467,7 +1467,7 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 {
 	struct ipt_entry_target *t;
 	struct ipt_target *target;
-	u_int16_t entry_offset;
+	unsigned int entry_offset;
 	int ret, off, h, j;
 
 	duprintf("check_compat_entry_size_and_hooks %p\n", e);

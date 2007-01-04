@@ -472,8 +472,7 @@ static int netlink_release(struct socket *sock)
 				NETLINK_URELEASE, &n);
 	}	
 
-	if (nlk->module)
-		module_put(nlk->module);
+	module_put(nlk->module);
 
 	netlink_table_grab();
 	if (nlk->flags & NETLINK_KERNEL_SOCKET) {
