@@ -165,9 +165,8 @@ struct in_device *inetdev_init(struct net_device *dev)
 			      NET_IPV4_NEIGH, "ipv4", NULL, NULL);
 #endif
 
-	/* Account for reference dev->ip_ptr */
+	/* Account for reference dev->ip_ptr (below) */
 	in_dev_hold(in_dev);
-	rcu_assign_pointer(dev->ip_ptr, in_dev);
 
 #ifdef CONFIG_SYSCTL
 	devinet_sysctl_register(in_dev, &in_dev->cnf);
@@ -176,6 +175,8 @@ struct in_device *inetdev_init(struct net_device *dev)
 	if (dev->flags & IFF_UP)
 		ip_mc_up(in_dev);
 out:
+	/* we can receive as soon as ip_ptr is set -- do this last */
+	rcu_assign_pointer(dev->ip_ptr, in_dev);
 	return in_dev;
 out_kfree:
 	kfree(in_dev);
