@@ -3370,7 +3370,6 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
-	ndev->features = NETIF_F_LLTX;
 	if (pci_using_dac)
 		ndev->features |= NETIF_F_HIGHDMA;
 
