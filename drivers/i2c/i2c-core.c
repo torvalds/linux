@@ -95,16 +95,32 @@ struct device_driver i2c_adapter_driver = {
 	.bus = &i2c_bus_type,
 };
 
+/* ------------------------------------------------------------------------- */
+
+/* I2C bus adapters -- one roots each I2C or SMBUS segment */
+
 static void i2c_adapter_class_dev_release(struct class_device *dev)
 {
 	struct i2c_adapter *adap = class_dev_to_i2c_adapter(dev);
 	complete(&adap->class_dev_released);
 }
 
+static ssize_t i2c_adapter_show_name(struct class_device *cdev, char *buf)
+{
+	struct i2c_adapter *adap = class_dev_to_i2c_adapter(cdev);
+	return sprintf(buf, "%s\n", adap->name);
+}
+
+static struct class_device_attribute i2c_adapter_attrs[] = {
+	__ATTR(name, S_IRUGO, i2c_adapter_show_name, NULL),
+	{ },
+};
+
 struct class i2c_adapter_class = {
-	.owner =	THIS_MODULE,
-	.name =		"i2c-adapter",
-	.release =	&i2c_adapter_class_dev_release,
+	.owner			= THIS_MODULE,
+	.name			= "i2c-adapter",
+	.class_dev_attrs	= i2c_adapter_attrs,
+	.release		= &i2c_adapter_class_dev_release,
 };
 
 static ssize_t show_adapter_name(struct device *dev, struct device_attribute *attr, char *buf)
@@ -175,8 +191,12 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 	 * If the parent pointer is not set up,
 	 * we add this adapter to the host bus.
 	 */
-	if (adap->dev.parent == NULL)
+	if (adap->dev.parent == NULL) {
 		adap->dev.parent = &platform_bus;
+		printk(KERN_WARNING "**WARNING** I2C adapter driver [%s] "
+		       "forgot to specify physical device; fix it!\n",
+		       adap->name);
+	}
 	sprintf(adap->dev.bus_id, "i2c-%d", adap->nr);
 	adap->dev.driver = &i2c_adapter_driver;
 	adap->dev.release = &i2c_adapter_dev_release;
