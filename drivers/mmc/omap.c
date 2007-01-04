@@ -208,7 +208,7 @@ mmc_omap_start_command(struct mmc_omap_host *host, struct mmc_command *cmd)
 		break;
 	case MMC_RSP_R1:
 	case MMC_RSP_R1B:
-		/* resp 1, resp 1b */
+		/* resp 1, 1b, 6, 7 */
 		resptype = 1;
 		break;
 	case MMC_RSP_R2:
@@ -216,9 +216,6 @@ mmc_omap_start_command(struct mmc_omap_host *host, struct mmc_command *cmd)
 		break;
 	case MMC_RSP_R3:
 		resptype = 3;
-		break;
-	case MMC_RSP_R6:
-		resptype = 6;
 		break;
 	default:
 		dev_err(mmc_dev(host->mmc), "Invalid response type: %04x\n", mmc_resp_type(cmd));
