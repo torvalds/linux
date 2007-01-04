@@ -26,7 +26,7 @@ DEFINE_SPINLOCK(acpi_device_lock);
 LIST_HEAD(acpi_wakeup_device_list);
 
 struct acpi_device_bus_id{
-	char bus_id[9];
+	char bus_id[15];
 	unsigned int instance_no;
 	struct list_head node;
 };
@@ -342,7 +342,7 @@ static int acpi_device_register(struct acpi_device *device,
 	 * If failed, create one and link it into acpi_bus_id_list
 	 */
 	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node) {
-		if(!strcmp(acpi_device_bus_id->bus_id, device->flags.hardware_id? device->pnp.hardware_id : "PNPIDNON")) {
+		if(!strcmp(acpi_device_bus_id->bus_id, device->flags.hardware_id? device->pnp.hardware_id : "device")) {
 			acpi_device_bus_id->instance_no ++;
 			found = 1;
 			kfree(new_bus_id);
@@ -351,7 +351,7 @@ static int acpi_device_register(struct acpi_device *device,
 	}
 	if(!found) {
 		acpi_device_bus_id = new_bus_id;
-		strcpy(acpi_device_bus_id->bus_id, device->flags.hardware_id ? device->pnp.hardware_id : "PNPIDNON");
+		strcpy(acpi_device_bus_id->bus_id, device->flags.hardware_id ? device->pnp.hardware_id : "device");
 		acpi_device_bus_id->instance_no = 0;
 		list_add_tail(&acpi_device_bus_id->node, &acpi_bus_id_list);
 	}

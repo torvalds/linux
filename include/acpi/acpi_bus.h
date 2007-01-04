@@ -184,7 +184,7 @@ struct acpi_device_dir {
 
 typedef char acpi_bus_id[5];
 typedef unsigned long acpi_bus_address;
-typedef char acpi_hardware_id[9];
+typedef char acpi_hardware_id[15];
 typedef char acpi_unique_id[9];
 typedef char acpi_device_name[40];
 typedef char acpi_device_class[20];
