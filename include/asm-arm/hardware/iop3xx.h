@@ -168,9 +168,9 @@ extern void gpio_line_set(int line, int value);
 #define IOP3XX_PERCR0		(volatile u32 *)IOP3XX_REG_ADDR(0x0710)
 
 /* General Purpose I/O  */
-#define IOP3XX_GPOE		(volatile u32 *)IOP3XX_GPIO_REG(0x0004)
-#define IOP3XX_GPID		(volatile u32 *)IOP3XX_GPIO_REG(0x0008)
-#define IOP3XX_GPOD		(volatile u32 *)IOP3XX_GPIO_REG(0x000c)
+#define IOP3XX_GPOE		(volatile u32 *)IOP3XX_GPIO_REG(0x0000)
+#define IOP3XX_GPID		(volatile u32 *)IOP3XX_GPIO_REG(0x0004)
+#define IOP3XX_GPOD		(volatile u32 *)IOP3XX_GPIO_REG(0x0008)
 
 /* Timers  */
 #define IOP3XX_TU_TMR0		(volatile u32 *)IOP3XX_TIMER_REG(0x0000)
