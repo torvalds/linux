@@ -57,6 +57,11 @@
 #define ACPI_VIDEO_HEAD_INVALID		(~0u - 1)
 #define ACPI_VIDEO_HEAD_END		(~0u)
 
+#define ACPI_VIDEO_DISPLAY_CRT	1
+#define ACPI_VIDEO_DISPLAY_TV	2
+#define ACPI_VIDEO_DISPLAY_DVI	3
+#define ACPI_VIDEO_DISPLAY_LCD	4
+
 #define _COMPONENT		ACPI_VIDEO_COMPONENT
 ACPI_MODULE_NAME("acpi_video")
 
@@ -133,9 +138,10 @@ struct acpi_video_device_flags {
 	u8 crt:1;
 	u8 lcd:1;
 	u8 tvout:1;
+	u8 dvi:1;
 	u8 bios:1;
 	u8 unknown:1;
-	u8 reserved:3;
+	u8 reserved:2;
 };
 
 struct acpi_video_device_cap {
@@ -668,6 +674,8 @@ static int acpi_video_device_info_seq_show(struct seq_file *seq, void *offset)
 		seq_printf(seq, "LCD\n");
 	else if (dev->flags.tvout)
 		seq_printf(seq, "TVOUT\n");
+	else if (dev->flags.dvi)
+		seq_printf(seq, "DVI\n");
 	else
 		seq_printf(seq, "UNKNOWN\n");
 
@@ -1242,6 +1250,16 @@ static int acpi_video_bus_remove_fs(struct acpi_device *device)
    -------------------------------------------------------------------------- */
 
 /* device interface */
+static struct acpi_video_device_attrib*
+acpi_video_get_device_attr(struct acpi_video_bus *video, unsigned long device_id)
+{
+	int count;
+
+	for(count = 0; count < video->attached_count; count++)
+		if((video->attached_array[count].value.int_val & 0xffff) == device_id)
+			return &(video->attached_array[count].value.attrib);
+	return NULL;
+}
 
 static int
 acpi_video_bus_get_one_device(struct acpi_device *device,
@@ -1250,7 +1268,7 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 	unsigned long device_id;
 	int status;
 	struct acpi_video_device *data;
-
+	struct acpi_video_device_attrib* attribute;
 
 	if (!device || !video)
 		return -EINVAL;
@@ -1271,20 +1289,30 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 		data->video = video;
 		data->dev = device;
 
-		switch (device_id & 0xffff) {
-		case 0x0100:
-			data->flags.crt = 1;
-			break;
-		case 0x0400:
-			data->flags.lcd = 1;
-			break;
-		case 0x0200:
-			data->flags.tvout = 1;
-			break;
-		default:
+		attribute = acpi_video_get_device_attr(video, device_id);
+
+		if((attribute != NULL) && attribute->device_id_scheme) {
+			switch (attribute->display_type) {
+			case ACPI_VIDEO_DISPLAY_CRT:
+				data->flags.crt = 1;
+				break;
+			case ACPI_VIDEO_DISPLAY_TV:
+				data->flags.tvout = 1;
+				break;
+			case ACPI_VIDEO_DISPLAY_DVI:
+				data->flags.dvi = 1;
+				break;
+			case ACPI_VIDEO_DISPLAY_LCD:
+				data->flags.lcd = 1;
+				break;
+			default:
+				data->flags.unknown = 1;
+				break;
+			}
+			if(attribute->bios_can_detect)
+				data->flags.bios = 1;
+		} else
 			data->flags.unknown = 1;
-			break;
-		}
 
 		acpi_video_device_bind(video, data);
 		acpi_video_device_find_cap(data);
