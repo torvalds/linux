@@ -259,6 +259,7 @@ extern int  x25_decode(struct sock *, struct sk_buff *, int *, int *, int *, int
 extern void x25_disconnect(struct sock *, int, unsigned char, unsigned char);
 
 /* x25_timer.c */
+extern void x25_init_timers(struct sock *sk);
 extern void x25_start_heartbeat(struct sock *);
 extern void x25_start_t2timer(struct sock *);
 extern void x25_start_t21timer(struct sock *);
