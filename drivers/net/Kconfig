@@ -235,16 +235,6 @@ config BMAC
 	  To compile this driver as a module, choose M here: the module
 	  will be called bmac.
 
-config OAKNET
-	tristate "National DP83902AV (Oak ethernet) support"
-	depends on NET_ETHERNET && PPC && BROKEN
-	select CRC32
-	help
-	  Say Y if your machine has this type of Ethernet network card.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called oaknet.
-
 config ARIADNE
 	tristate "Ariadne support"
 	depends on NET_ETHERNET && ZORRO
