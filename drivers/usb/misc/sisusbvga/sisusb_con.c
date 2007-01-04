@@ -403,7 +403,7 @@ sisusbcon_putc(struct vc_data *c, int ch, int y, int x)
 
 
 	sisusb_copy_memory(sisusb, (char *)SISUSB_VADDR(x, y),
-				(u32)SISUSB_HADDR(x, y), 2, &written);
+				(long)SISUSB_HADDR(x, y), 2, &written);
 
 	mutex_unlock(&sisusb->lock);
 }
@@ -438,7 +438,7 @@ sisusbcon_putcs(struct vc_data *c, const unsigned short *s,
 	}
 
 	sisusb_copy_memory(sisusb, (char *)SISUSB_VADDR(x, y),
-				(u32)SISUSB_HADDR(x, y), count * 2, &written);
+				(long)SISUSB_HADDR(x, y), count * 2, &written);
 
 	mutex_unlock(&sisusb->lock);
 }
@@ -492,7 +492,7 @@ sisusbcon_clear(struct vc_data *c, int y, int x, int height, int width)
 
 
 	sisusb_copy_memory(sisusb, (unsigned char *)SISUSB_VADDR(x, y),
-				(u32)SISUSB_HADDR(x, y), length, &written);
+				(long)SISUSB_HADDR(x, y), length, &written);
 
 	mutex_unlock(&sisusb->lock);
 }
@@ -564,7 +564,7 @@ sisusbcon_bmove(struct vc_data *c, int sy, int sx,
 
 
 	sisusb_copy_memory(sisusb, (unsigned char *)SISUSB_VADDR(dx, dy),
-				(u32)SISUSB_HADDR(dx, dy), length, &written);
+				(long)SISUSB_HADDR(dx, dy), length, &written);
 
 	mutex_unlock(&sisusb->lock);
 }
@@ -612,7 +612,7 @@ sisusbcon_switch(struct vc_data *c)
 								length);
 
 	sisusb_copy_memory(sisusb, (unsigned char *)c->vc_origin,
-				(u32)SISUSB_HADDR(0, 0),
+				(long)SISUSB_HADDR(0, 0),
 				length, &written);
 
 	mutex_unlock(&sisusb->lock);
@@ -939,7 +939,7 @@ sisusbcon_scroll_area(struct vc_data *c, struct sisusb_usb_data *sisusb,
 	}
 
 	sisusb_copy_memory(sisusb, (char *)SISUSB_VADDR(0, t),
-				(u32)SISUSB_HADDR(0, t), length, &written);
+				(long)SISUSB_HADDR(0, t), length, &written);
 
 	mutex_unlock(&sisusb->lock);
 
