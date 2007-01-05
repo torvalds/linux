@@ -130,12 +130,12 @@ static int netlbl_cipsov4_add_common(struct genl_info *info,
 
 	nla_for_each_nested(nla, info->attrs[NLBL_CIPSOV4_A_TAGLST], nla_rem)
 		if (nla->nla_type == NLBL_CIPSOV4_A_TAG) {
-			if (iter > CIPSO_V4_TAG_MAXCNT)
+			if (iter >= CIPSO_V4_TAG_MAXCNT)
 				return -EINVAL;
 			doi_def->tags[iter++] = nla_get_u8(nla);
 		}
-	if (iter < CIPSO_V4_TAG_MAXCNT)
-		doi_def->tags[iter] = CIPSO_V4_TAG_INVALID;
+	while (iter < CIPSO_V4_TAG_MAXCNT)
+		doi_def->tags[iter++] = CIPSO_V4_TAG_INVALID;
 
 	return 0;
 }
