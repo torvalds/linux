@@ -202,7 +202,7 @@ write_config_byte(struct pci_bus *bus, unsigned int devfn, int where, u8 val)
 		break;
 	}
 
-	err = config_access(PCI_CMD_CONFIG_READ, bus, devfn, where, ~(1 << (where & 3)), &data);
+	err = config_access(PCI_CMD_CONFIG_WRITE, bus, devfn, where, ~(1 << (where & 3)), &data);
 
 	return err;
 }
