@@ -701,6 +701,17 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 						break;
 					}
 				}
+			} else if (ioc->bus_type == FC) {
+				/*
+				 * The FC IOC may kill a request for variety of
+				 * reasons, some of which may be recovered by a
+				 * retry, some which are unlikely to be
+				 * recovered. Return DID_ERROR instead of
+				 * DID_RESET to permit retry of the command,
+				 * just not an infinite number of them
+				 */
+				sc->result = DID_ERROR << 16;
+				break;
 			}
 
 			/*
