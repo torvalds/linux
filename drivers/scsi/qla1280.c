@@ -1341,7 +1341,7 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
 	int host_status = DID_ERROR;
 	uint16_t comp_status = le16_to_cpu(sts->comp_status);
 	uint16_t state_flags = le16_to_cpu(sts->state_flags);
-	uint16_t residual_length = le32_to_cpu(sts->residual_length);
+	uint32_t residual_length = le32_to_cpu(sts->residual_length);
 	uint16_t scsi_status = le16_to_cpu(sts->scsi_status);
 #if DEBUG_QLA1280_INTR
 	static char *reason[] = {
@@ -1413,8 +1413,10 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
 			       "scsi: Underflow detected - retrying "
 			       "command.\n");
 			host_status = DID_ERROR;
-		} else
+		} else {
+			cp->resid = residual_length;
 			host_status = DID_OK;
+		}
 		break;
 
 	default:
