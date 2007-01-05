@@ -1708,10 +1708,11 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 {
 	struct dlm_migratable_lock *ml;
 	struct list_head *queue;
+	struct list_head *tmpq = NULL;
 	struct dlm_lock *newlock = NULL;
 	struct dlm_lockstatus *lksb = NULL;
 	int ret = 0;
-	int i, bad;
+	int i, j, bad;
 	struct list_head *iter;
 	struct dlm_lock *lock = NULL;
 	u8 from = O2NM_MAX_NODES;
@@ -1738,6 +1739,7 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 		lksb = NULL;
 
 		queue = dlm_list_num_to_pointer(res, ml->list);
+		tmpq = NULL;
 
 		/* if the lock is for the local node it needs to
 		 * be moved to the proper location within the queue.
@@ -1747,11 +1749,16 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 			BUG_ON(!(mres->flags & DLM_MRES_MIGRATION));
 
 			spin_lock(&res->spinlock);
-			list_for_each(iter, queue) {
-				lock = list_entry (iter, struct dlm_lock, list);
-				if (lock->ml.cookie != ml->cookie)
-					lock = NULL;
-				else
+			for (j = DLM_GRANTED_LIST; j <= DLM_BLOCKED_LIST; j++) {
+				tmpq = dlm_list_idx_to_ptr(res, j);
+				list_for_each(iter, tmpq) {
+					lock = list_entry (iter, struct dlm_lock, list);
+					if (lock->ml.cookie != ml->cookie)
+						lock = NULL;
+					else
+						break;
+				}
+				if (lock)
 					break;
 			}
 
@@ -1767,6 +1774,13 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 				BUG();
 			}
 			BUG_ON(lock->ml.node != ml->node);
+
+			if (tmpq != queue) {
+				mlog(0, "lock was on %u instead of %u for %.*s\n",
+				     j, ml->list, res->lockname.len, res->lockname.name);
+				spin_unlock(&res->spinlock);
+				continue;
+			}
 
 			/* see NOTE above about why we do not update
 			 * to match the master here */
