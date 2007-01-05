@@ -223,6 +223,7 @@ static inline void __dlm_set_joining_node(struct dlm_ctxt *dlm,
 #define DLM_LOCK_RES_IN_PROGRESS          0x00000010
 #define DLM_LOCK_RES_MIGRATING            0x00000020
 #define DLM_LOCK_RES_DROPPING_REF         0x00000040
+#define DLM_LOCK_RES_BLOCK_DIRTY          0x00001000
 
 /* max milliseconds to wait to sync up a network failure with a node death */
 #define DLM_NODE_DEATH_WAIT_MAX (5 * 1000)

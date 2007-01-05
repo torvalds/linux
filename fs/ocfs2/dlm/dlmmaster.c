@@ -2707,8 +2707,15 @@ static int dlm_mark_lockres_migrating(struct dlm_ctxt *dlm,
 	__dlm_lockres_reserve_ast(res);
 	spin_unlock(&res->spinlock);
 
-	/* now flush all the pending asts.. hang out for a bit */
+	/* now flush all the pending asts */
 	dlm_kick_thread(dlm, res);
+	/* before waiting on DIRTY, block processes which may
+	 * try to dirty the lockres before MIGRATING is set */
+	spin_lock(&res->spinlock);
+	BUG_ON(res->state & DLM_LOCK_RES_BLOCK_DIRTY);
+	res->state |= DLM_LOCK_RES_BLOCK_DIRTY;
+	spin_unlock(&res->spinlock);
+	/* now wait on any pending asts and the DIRTY state */
 	wait_event(dlm->ast_wq, !dlm_lockres_is_dirty(dlm, res));
 	dlm_lockres_release_ast(dlm, res);
 
@@ -2734,6 +2741,13 @@ again:
 		mlog(0, "trying again...\n");
 		goto again;
 	}
+	/* now that we are sure the MIGRATING state is there, drop
+	 * the unneded state which blocked threads trying to DIRTY */
+	spin_lock(&res->spinlock);
+	BUG_ON(!(res->state & DLM_LOCK_RES_BLOCK_DIRTY));
+	BUG_ON(!(res->state & DLM_LOCK_RES_MIGRATING));
+	res->state &= ~DLM_LOCK_RES_BLOCK_DIRTY;
+	spin_unlock(&res->spinlock);
 
 	/* did the target go down or die? */
 	spin_lock(&dlm->spinlock);

@@ -95,7 +95,7 @@ int __dlm_lockres_has_locks(struct dlm_lock_resource *res)
 int __dlm_lockres_unused(struct dlm_lock_resource *res)
 {
 	if (!__dlm_lockres_has_locks(res) &&
-	    list_empty(&res->dirty)) {
+	    (list_empty(&res->dirty) && !(res->state & DLM_LOCK_RES_DIRTY))) {
 		/* try not to scan the bitmap unless the first two
 		 * conditions are already true */
 		int bit = find_next_bit(res->refmap, O2NM_MAX_NODES, 0);
@@ -455,12 +455,17 @@ void __dlm_dirty_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 	assert_spin_locked(&res->spinlock);
 
 	/* don't shuffle secondary queues */
-	if ((res->owner == dlm->node_num) &&
-	    !(res->state & DLM_LOCK_RES_DIRTY)) {
-		/* ref for dirty_list */
-		dlm_lockres_get(res);
-		list_add_tail(&res->dirty, &dlm->dirty_list);
-		res->state |= DLM_LOCK_RES_DIRTY;
+	if ((res->owner == dlm->node_num)) {
+		if (res->state & (DLM_LOCK_RES_MIGRATING |
+				  DLM_LOCK_RES_BLOCK_DIRTY))
+		    return;
+
+		if (list_empty(&res->dirty)) {
+			/* ref for dirty_list */
+			dlm_lockres_get(res);
+			list_add_tail(&res->dirty, &dlm->dirty_list);
+			res->state |= DLM_LOCK_RES_DIRTY;
+		}
 	}
 }
 
@@ -639,7 +644,7 @@ static int dlm_thread(void *data)
 			dlm_lockres_get(res);
 
 			spin_lock(&res->spinlock);
-			res->state &= ~DLM_LOCK_RES_DIRTY;
+			/* We clear the DLM_LOCK_RES_DIRTY state once we shuffle lists below */
 			list_del_init(&res->dirty);
 			spin_unlock(&res->spinlock);
 			spin_unlock(&dlm->spinlock);
@@ -663,10 +668,11 @@ static int dlm_thread(void *data)
 			/* it is now ok to move lockreses in these states
 			 * to the dirty list, assuming that they will only be
 			 * dirty for a short while. */
+			BUG_ON(res->state & DLM_LOCK_RES_MIGRATING);
 			if (res->state & (DLM_LOCK_RES_IN_PROGRESS |
-					  DLM_LOCK_RES_MIGRATING |
 					  DLM_LOCK_RES_RECOVERING)) {
 				/* move it to the tail and keep going */
+				res->state &= ~DLM_LOCK_RES_DIRTY;
 				spin_unlock(&res->spinlock);
 				mlog(0, "delaying list shuffling for in-"
 				     "progress lockres %.*s, state=%d\n",
@@ -687,6 +693,7 @@ static int dlm_thread(void *data)
 
 			/* called while holding lockres lock */
 			dlm_shuffle_lists(dlm, res);
+			res->state &= ~DLM_LOCK_RES_DIRTY;
 			spin_unlock(&res->spinlock);
 
 			dlm_lockres_calc_usage(dlm, res);
@@ -697,11 +704,8 @@ in_progress:
 			/* if the lock was in-progress, stick
 			 * it on the back of the list */
 			if (delay) {
-				/* ref for dirty_list */
-				dlm_lockres_get(res);
 				spin_lock(&res->spinlock);
-				list_add_tail(&res->dirty, &dlm->dirty_list);
-				res->state |= DLM_LOCK_RES_DIRTY;
+				__dlm_dirty_lockres(dlm, res);
 				spin_unlock(&res->spinlock);
 			}
 			dlm_lockres_put(res);
