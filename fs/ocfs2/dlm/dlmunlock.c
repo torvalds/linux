@@ -147,6 +147,10 @@ static enum dlm_status dlmunlock_common(struct dlm_ctxt *dlm,
 		goto leave;
 	}
 
+	if (res->state & DLM_LOCK_RES_MIGRATING) {
+		status = DLM_MIGRATING;
+		goto leave;
+	}
 
 	/* see above for what the spec says about
 	 * LKM_CANCEL and the lock queue state */

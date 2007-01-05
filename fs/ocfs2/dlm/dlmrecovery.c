@@ -1763,6 +1763,7 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 					       "with cookie %u:%llu!\n",
 					       dlm_get_lock_cookie_node(c),
 					       dlm_get_lock_cookie_seq(c));
+				__dlm_print_one_lock_resource(res);
 				BUG();
 			}
 			BUG_ON(lock->ml.node != ml->node);
