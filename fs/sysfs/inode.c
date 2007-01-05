@@ -215,7 +215,7 @@ static inline void orphan_all_buffers(struct inode *node)
 	struct sysfs_buffer_collection *set = node->i_private;
 	struct sysfs_buffer *buf;
 
-	mutex_lock(&node->i_mutex);
+	mutex_lock_nested(&node->i_mutex, I_MUTEX_CHILD);
 	if (node->i_private) {
 		list_for_each_entry(buf, &set->associates, associates) {
 			down(&buf->sem);
@@ -272,7 +272,7 @@ int sysfs_hash_and_remove(struct dentry * dir, const char * name)
 		return -ENOENT;
 
 	parent_sd = dir->d_fsdata;
-	mutex_lock(&dir->d_inode->i_mutex);
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if (!sd->s_element)
 			continue;
