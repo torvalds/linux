@@ -2699,7 +2699,8 @@ mptscsih_initTarget(MPT_SCSI_HOST *hd, VirtTarget *vtarget,
 		    struct scsi_device *sdev)
 {
 	dinitprintk((MYIOC_s_INFO_FMT "initTarget bus=%d id=%d lun=%d hd=%p\n",
-		hd->ioc->name, vtarget->bus_id, vtarget->target_id, lun, hd));
+		hd->ioc->name, vtarget->bus_id, vtarget->target_id,
+		sdev->lun, hd));
 
 	/* Is LUN supported? If so, upper 2 bits will be 0
 	* in first byte of inquiry data.
@@ -2781,7 +2782,7 @@ mptscsih_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 				else {
 					factor = MPT_ULTRA320;
 					if (scsi_device_qas(sdev)) {
-						ddvtprintk((KERN_INFO "Enabling QAS due to byte56=%02x on id=%d!\n", byte56, id));
+						ddvtprintk((KERN_INFO "Enabling QAS due to byte56=%02x on id=%d!\n", scsi_device_qas(sdev), id));
 						noQas = 0;
 					}
 					if (sdev->type == TYPE_TAPE &&
