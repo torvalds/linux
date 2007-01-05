@@ -2491,9 +2491,9 @@ static int selinux_netlbl_socket_setsid(struct socket *sock, u32 sid)
 
 	rc = netlbl_socket_setattr(sock, &secattr);
 	if (rc == 0) {
-		spin_lock(&sksec->nlbl_lock);
+		spin_lock_bh(&sksec->nlbl_lock);
 		sksec->nlbl_state = NLBL_LABELED;
-		spin_unlock(&sksec->nlbl_lock);
+		spin_unlock_bh(&sksec->nlbl_lock);
 	}
 
 netlbl_socket_setsid_return:
