@@ -977,52 +977,51 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 			case 0x1626: /* L3C notebook */
 				asus_hides_smbus = 1;
 			}
-		if (dev->device == PCI_DEVICE_ID_INTEL_82845G_HB)
+		else if (dev->device == PCI_DEVICE_ID_INTEL_82845G_HB)
 			switch(dev->subsystem_device) {
 			case 0x80b1: /* P4GE-V */
 			case 0x80b2: /* P4PE */
 			case 0x8093: /* P4B533-V */
 				asus_hides_smbus = 1;
 			}
-		if (dev->device == PCI_DEVICE_ID_INTEL_82850_HB)
+		else if (dev->device == PCI_DEVICE_ID_INTEL_82850_HB)
 			switch(dev->subsystem_device) {
 			case 0x8030: /* P4T533 */
 				asus_hides_smbus = 1;
 			}
-		if (dev->device == PCI_DEVICE_ID_INTEL_7205_0)
+		else if (dev->device == PCI_DEVICE_ID_INTEL_7205_0)
 			switch (dev->subsystem_device) {
 			case 0x8070: /* P4G8X Deluxe */
 				asus_hides_smbus = 1;
 			}
-		if (dev->device == PCI_DEVICE_ID_INTEL_E7501_MCH)
+		else if (dev->device == PCI_DEVICE_ID_INTEL_E7501_MCH)
 			switch (dev->subsystem_device) {
 			case 0x80c9: /* PU-DLS */
 				asus_hides_smbus = 1;
 			}
-		if (dev->device == PCI_DEVICE_ID_INTEL_82855GM_HB)
+		else if (dev->device == PCI_DEVICE_ID_INTEL_82855GM_HB)
 			switch (dev->subsystem_device) {
 			case 0x1751: /* M2N notebook */
 			case 0x1821: /* M5N notebook */
 				asus_hides_smbus = 1;
 			}
-		if (dev->device == PCI_DEVICE_ID_INTEL_82855PM_HB)
+		else if (dev->device == PCI_DEVICE_ID_INTEL_82855PM_HB)
 			switch (dev->subsystem_device) {
 			case 0x184b: /* W1N notebook */
 			case 0x186a: /* M6Ne notebook */
 				asus_hides_smbus = 1;
 			}
-		if (dev->device == PCI_DEVICE_ID_INTEL_82865_HB)
+		else if (dev->device == PCI_DEVICE_ID_INTEL_82865_HB)
 			switch (dev->subsystem_device) {
 			case 0x80f2: /* P4P800-X */
 				asus_hides_smbus = 1;
 			}
-		if (dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB) {
+		else if (dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB)
 			switch (dev->subsystem_device) {
 			case 0x1882: /* M6V notebook */
 			case 0x1977: /* A6VA notebook */
 				asus_hides_smbus = 1;
 			}
-		}
 	} else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_HP)) {
 		if (dev->device ==  PCI_DEVICE_ID_INTEL_82855PM_HB)
 			switch(dev->subsystem_device) {
@@ -1030,25 +1029,24 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 			case 0x0890: /* HP Compaq nc6000 */
 				asus_hides_smbus = 1;
 			}
-		if (dev->device == PCI_DEVICE_ID_INTEL_82865_HB)
+		else if (dev->device == PCI_DEVICE_ID_INTEL_82865_HB)
 			switch (dev->subsystem_device) {
 			case 0x12bc: /* HP D330L */
 			case 0x12bd: /* HP D530 */
 				asus_hides_smbus = 1;
 			}
-		if (dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB) {
+		else if (dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB)
 			switch (dev->subsystem_device) {
 			case 0x099c: /* HP Compaq nx6110 */
 				asus_hides_smbus = 1;
 			}
-		}
 	} else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_TOSHIBA)) {
 		if (dev->device == PCI_DEVICE_ID_INTEL_82855GM_HB)
 			switch(dev->subsystem_device) {
 			case 0x0001: /* Toshiba Satellite A40 */
 				asus_hides_smbus = 1;
 			}
-		if (dev->device == PCI_DEVICE_ID_INTEL_82855PM_HB)
+		else if (dev->device == PCI_DEVICE_ID_INTEL_82855PM_HB)
 			switch(dev->subsystem_device) {
 			case 0x0001: /* Toshiba Tecra M2 */
 				asus_hides_smbus = 1;
