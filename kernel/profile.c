@@ -63,7 +63,7 @@ static int __init profile_setup(char * str)
 		printk(KERN_INFO
 			"kernel sleep profiling enabled (shift: %ld)\n",
 			prof_shift);
-	} else if (!strncmp(str, sleepstr, strlen(sleepstr))) {
+	} else if (!strncmp(str, schedstr, strlen(schedstr))) {
 		prof_on = SCHED_PROFILING;
 		if (str[strlen(schedstr)] == ',')
 			str += strlen(schedstr) + 1;
