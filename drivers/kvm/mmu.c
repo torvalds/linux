@@ -1065,9 +1065,14 @@ EXPORT_SYMBOL_GPL(kvm_mmu_free_some_pages);
 
 static void free_mmu_pages(struct kvm_vcpu *vcpu)
 {
-	while (!list_empty(&vcpu->free_pages)) {
-		struct kvm_mmu_page *page;
+	struct kvm_mmu_page *page;
 
+	while (!list_empty(&vcpu->kvm->active_mmu_pages)) {
+		page = container_of(vcpu->kvm->active_mmu_pages.next,
+				    struct kvm_mmu_page, link);
+		kvm_mmu_zap_page(vcpu, page);
+	}
+	while (!list_empty(&vcpu->free_pages)) {
 		page = list_entry(vcpu->free_pages.next,
 				  struct kvm_mmu_page, link);
 		list_del(&page->link);
