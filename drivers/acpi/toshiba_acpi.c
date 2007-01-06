@@ -321,13 +321,16 @@ static int set_lcd_status(struct backlight_device *bd)
 static unsigned long write_lcd(const char *buffer, unsigned long count)
 {
 	int value;
-	int ret = count;
+	int ret;
 
 	if (sscanf(buffer, " brightness : %i", &value) == 1 &&
-	    value >= 0 && value < HCI_LCD_BRIGHTNESS_LEVELS)
+	    value >= 0 && value < HCI_LCD_BRIGHTNESS_LEVELS) {
 		ret = set_lcd(value);
-	else
+		if (ret == 0)
+			ret = count;
+	} else {
 		ret = -EINVAL;
+	}
 	return ret;
 }
 
