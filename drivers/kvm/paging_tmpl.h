@@ -355,6 +355,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	int r;
 
 	pgprintk("%s: addr %lx err %x\n", __FUNCTION__, addr, error_code);
+	kvm_mmu_audit(vcpu, "pre page fault");
 
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
@@ -402,6 +403,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		pgprintk("%s: io work, no access\n", __FUNCTION__);
 		inject_page_fault(vcpu, addr,
 				  error_code | PFERR_PRESENT_MASK);
+		kvm_mmu_audit(vcpu, "post page fault (io)");
 		return 0;
 	}
 
@@ -410,10 +412,12 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	 */
 	if (pte_present && !fixed && !write_pt) {
 		inject_page_fault(vcpu, addr, error_code);
+		kvm_mmu_audit(vcpu, "post page fault (guest)");
 		return 0;
 	}
 
 	++kvm_stat.pf_fixed;
+	kvm_mmu_audit(vcpu, "post page fault (fixed)");
 
 	return write_pt;
 }
