@@ -227,7 +227,7 @@ static struct {
 	atomic_t count_start;
 	atomic_t count_stop;
 	unsigned long long values[NR_CPUS];
-} tsc __initdata = {
+} tsc __cpuinitdata = {
 	.start_flag = ATOMIC_INIT(0),
 	.count_start = ATOMIC_INIT(0),
 	.count_stop = ATOMIC_INIT(0),
@@ -332,7 +332,7 @@ static void __init synchronize_tsc_bp(void)
 		printk("passed.\n");
 }
 
-static void __init synchronize_tsc_ap(void)
+static void __cpuinit synchronize_tsc_ap(void)
 {
 	int i;
 
