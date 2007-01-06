@@ -33,6 +33,8 @@
 
 #include <asm/mach/time.h>
 
+#include <asm/arch/at91_rtc.h>
+
 
 #define AT91_RTC_FREQ		1
 #define AT91_RTC_EPOCH		1900UL	/* just like arch/arm/common/rtctime.c */
