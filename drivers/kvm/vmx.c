@@ -1094,14 +1094,6 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 	rdmsrl(MSR_IA32_SYSENTER_EIP, a);
 	vmcs_writel(HOST_IA32_SYSENTER_EIP, a);   /* 22.2.3 */
 
-	ret = -ENOMEM;
-	vcpu->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!vcpu->guest_msrs)
-		goto out;
-	vcpu->host_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!vcpu->host_msrs)
-		goto out_free_guest_msrs;
-
 	for (i = 0; i < NR_VMX_MSR; ++i) {
 		u32 index = vmx_msr_index[i];
 		u32 data_low, data_high;
@@ -1155,8 +1147,6 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	return 0;
 
-out_free_guest_msrs:
-	kfree(vcpu->guest_msrs);
 out:
 	return ret;
 }
@@ -1906,13 +1896,33 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vmcs *vmcs;
 
+	vcpu->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!vcpu->guest_msrs)
+		return -ENOMEM;
+
+	vcpu->host_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!vcpu->host_msrs)
+		goto out_free_guest_msrs;
+
 	vmcs = alloc_vmcs();
 	if (!vmcs)
-		return -ENOMEM;
+		goto out_free_msrs;
+
 	vmcs_clear(vmcs);
 	vcpu->vmcs = vmcs;
 	vcpu->launched = 0;
+
 	return 0;
+
+out_free_msrs:
+	kfree(vcpu->host_msrs);
+	vcpu->host_msrs = NULL;
+
+out_free_guest_msrs:
+	kfree(vcpu->guest_msrs);
+	vcpu->guest_msrs = NULL;
+
+	return -ENOMEM;
 }
 
 static struct kvm_arch_ops vmx_arch_ops = {
