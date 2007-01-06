@@ -765,47 +765,34 @@ static inline struct bio *pkt_get_list_first(struct bio **list_head, struct bio 
  */
 static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *cgc)
 {
-	char sense[SCSI_SENSE_BUFFERSIZE];
-	request_queue_t *q;
+	request_queue_t *q = bdev_get_queue(pd->bdev);
 	struct request *rq;
-	DECLARE_COMPLETION_ONSTACK(wait);
-	int err = 0;
+	int ret = 0;
 
-	q = bdev_get_queue(pd->bdev);
+	rq = blk_get_request(q, (cgc->data_direction == CGC_DATA_WRITE) ?
+			     WRITE : READ, __GFP_WAIT);
 
-	rq = blk_get_request(q, (cgc->data_direction == CGC_DATA_WRITE) ? WRITE : READ,
-			     __GFP_WAIT);
-	rq->errors = 0;
-	rq->rq_disk = pd->bdev->bd_disk;
-	rq->bio = NULL;
-	rq->buffer = NULL;
+	if (cgc->buflen) {
+		if (blk_rq_map_kern(q, rq, cgc->buffer, cgc->buflen, __GFP_WAIT))
+			goto out;
+	}
+
+	rq->cmd_len = COMMAND_SIZE(rq->cmd[0]);
+	memcpy(rq->cmd, cgc->cmd, CDROM_PACKET_SIZE);
+	if (sizeof(rq->cmd) > CDROM_PACKET_SIZE)
+		memset(rq->cmd + CDROM_PACKET_SIZE, 0, sizeof(rq->cmd) - CDROM_PACKET_SIZE);
+
 	rq->timeout = 60*HZ;
-	rq->data = cgc->buffer;
-	rq->data_len = cgc->buflen;
-	rq->sense = sense;
-	memset(sense, 0, sizeof(sense));
-	rq->sense_len = 0;
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->cmd_flags |= REQ_HARDBARRIER;
 	if (cgc->quiet)
 		rq->cmd_flags |= REQ_QUIET;
-	memcpy(rq->cmd, cgc->cmd, CDROM_PACKET_SIZE);
-	if (sizeof(rq->cmd) > CDROM_PACKET_SIZE)
-		memset(rq->cmd + CDROM_PACKET_SIZE, 0, sizeof(rq->cmd) - CDROM_PACKET_SIZE);
-	rq->cmd_len = COMMAND_SIZE(rq->cmd[0]);
 
-	rq->ref_count++;
-	rq->end_io_data = &wait;
-	rq->end_io = blk_end_sync_rq;
-	elv_add_request(q, rq, ELEVATOR_INSERT_BACK, 1);
-	generic_unplug_device(q);
-	wait_for_completion(&wait);
-
-	if (rq->errors)
-		err = -EIO;
-
+	blk_execute_rq(rq->q, pd->bdev->bd_disk, rq, 0);
+	ret = rq->errors;
+out:
 	blk_put_request(rq);
-	return err;
+	return ret;
 }
 
 /*
