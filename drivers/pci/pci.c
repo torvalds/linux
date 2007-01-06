@@ -1224,12 +1224,6 @@ early_param("pci", pci_setup);
 
 device_initcall(pci_init);
 
-#if defined(CONFIG_ISA) || defined(CONFIG_EISA)
-/* FIXME: Some boxes have multiple ISA bridges! */
-struct pci_dev *isa_bridge;
-EXPORT_SYMBOL(isa_bridge);
-#endif
-
 EXPORT_SYMBOL_GPL(pci_restore_bars);
 EXPORT_SYMBOL(pci_enable_device_bars);
 EXPORT_SYMBOL(pci_enable_device);

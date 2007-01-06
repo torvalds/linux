@@ -618,10 +618,6 @@ enum pci_dma_burst_strategy {
 				   strategy_parameter byte boundaries */
 };
 
-#if defined(CONFIG_ISA) || defined(CONFIG_EISA)
-extern struct pci_dev *isa_bridge;
-#endif
-
 struct msix_entry {
 	u16 	vector;	/* kernel uses to write allocated vector */
 	u16	entry;	/* driver uses to specify entry, OS writes */
@@ -728,8 +724,6 @@ static inline int pci_restore_state(struct pci_dev *dev) { return 0; }
 static inline int pci_set_power_state(struct pci_dev *dev, pci_power_t state) { return 0; }
 static inline pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state) { return PCI_D0; }
 static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable) { return 0; }
-
-#define	isa_bridge	((struct pci_dev *)NULL)
 
 #define pci_dma_burst_advice(pdev, strat, strategy_parameter) do { } while (0)
 
