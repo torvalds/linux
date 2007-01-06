@@ -261,6 +261,7 @@ static int FNAME(fix_write_pf)(struct kvm_vcpu *vcpu,
 	mark_page_dirty(vcpu->kvm, gfn);
 	*shadow_ent |= PT_WRITABLE_MASK;
 	*guest_ent |= PT_DIRTY_MASK;
+	rmap_add(vcpu->kvm, shadow_ent);
 
 	return 1;
 }

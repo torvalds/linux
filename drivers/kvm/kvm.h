@@ -236,6 +236,7 @@ struct kvm {
 	struct kvm_vcpu vcpus[KVM_MAX_VCPUS];
 	int memory_config_version;
 	int busy;
+	unsigned long rmap_overflow;
 };
 
 struct kvm_stat {
