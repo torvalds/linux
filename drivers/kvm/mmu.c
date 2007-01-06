@@ -305,12 +305,16 @@ static void rmap_write_protect(struct kvm *kvm, u64 gfn)
 
 static int is_empty_shadow_page(hpa_t page_hpa)
 {
-	u32 *pos;
-	u32 *end;
-	for (pos = __va(page_hpa), end = pos + PAGE_SIZE / sizeof(u32);
+	u64 *pos;
+	u64 *end;
+
+	for (pos = __va(page_hpa), end = pos + PAGE_SIZE / sizeof(u64);
 		      pos != end; pos++)
-		if (*pos != 0)
+		if (*pos != 0) {
+			printk(KERN_ERR "%s: %p %llx\n", __FUNCTION__,
+			       pos, *pos);
 			return 0;
+		}
 	return 1;
 }
 
