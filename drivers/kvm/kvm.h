@@ -123,6 +123,8 @@ struct kvm_mmu {
 	hpa_t root_hpa;
 	int root_level;
 	int shadow_root_level;
+
+	u64 *pae_root;
 };
 
 struct kvm_guest_debug {
@@ -547,20 +549,5 @@ static inline u32 get_rdx_init_val(void)
 #define TSS_IOPB_SIZE (65536 / 8)
 #define TSS_REDIRECTION_SIZE (256 / 8)
 #define RMODE_TSS_SIZE (TSS_BASE_SIZE + TSS_REDIRECTION_SIZE + TSS_IOPB_SIZE + 1)
-
-#ifdef CONFIG_X86_64
-
-/*
- * When emulating 32-bit mode, cr3 is only 32 bits even on x86_64.  Therefore
- * we need to allocate shadow page tables in the first 4GB of memory, which
- * happens to fit the DMA32 zone.
- */
-#define GFP_KVM_MMU (GFP_KERNEL | __GFP_DMA32)
-
-#else
-
-#define GFP_KVM_MMU GFP_KERNEL
-
-#endif
 
 #endif
