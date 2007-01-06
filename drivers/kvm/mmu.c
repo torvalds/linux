@@ -767,10 +767,6 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 	return nonpaging_map(vcpu, addr & PAGE_MASK, paddr);
 }
 
-static void nonpaging_inval_page(struct kvm_vcpu *vcpu, gva_t addr)
-{
-}
-
 static void nonpaging_free(struct kvm_vcpu *vcpu)
 {
 	mmu_free_roots(vcpu);
@@ -782,7 +778,6 @@ static int nonpaging_init_context(struct kvm_vcpu *vcpu)
 
 	context->new_cr3 = nonpaging_new_cr3;
 	context->page_fault = nonpaging_page_fault;
-	context->inval_page = nonpaging_inval_page;
 	context->gva_to_gpa = nonpaging_gva_to_gpa;
 	context->free = nonpaging_free;
 	context->root_level = 0;
@@ -895,42 +890,6 @@ static int may_access(u64 pte, int write, int user)
 	return 1;
 }
 
-/*
- * Remove a shadow pte.
- */
-static void paging_inval_page(struct kvm_vcpu *vcpu, gva_t addr)
-{
-	hpa_t page_addr = vcpu->mmu.root_hpa;
-	int level = vcpu->mmu.shadow_root_level;
-
-	++kvm_stat.invlpg;
-
-	for (; ; level--) {
-		u32 index = PT64_INDEX(addr, level);
-		u64 *table = __va(page_addr);
-
-		if (level == PT_PAGE_TABLE_LEVEL ) {
-			rmap_remove(vcpu->kvm, &table[index]);
-			table[index] = 0;
-			return;
-		}
-
-		if (!is_present_pte(table[index]))
-			return;
-
-		page_addr = table[index] & PT64_BASE_ADDR_MASK;
-
-		if (level == PT_DIRECTORY_LEVEL &&
-			  (table[index] & PT_SHADOW_PS_MARK)) {
-			table[index] = 0;
-			release_pt_page_64(vcpu, page_addr, PT_PAGE_TABLE_LEVEL);
-
-			kvm_arch_ops->tlb_flush(vcpu);
-			return;
-		}
-	}
-}
-
 static void paging_free(struct kvm_vcpu *vcpu)
 {
 	nonpaging_free(vcpu);
@@ -951,7 +910,6 @@ static int paging64_init_context_common(struct kvm_vcpu *vcpu, int level)
 	ASSERT(is_pae(vcpu));
 	context->new_cr3 = paging_new_cr3;
 	context->page_fault = paging64_page_fault;
-	context->inval_page = paging_inval_page;
 	context->gva_to_gpa = paging64_gva_to_gpa;
 	context->free = paging_free;
 	context->root_level = level;
@@ -974,7 +932,6 @@ static int paging32_init_context(struct kvm_vcpu *vcpu)
 
 	context->new_cr3 = paging_new_cr3;
 	context->page_fault = paging32_page_fault;
-	context->inval_page = paging_inval_page;
 	context->gva_to_gpa = paging32_gva_to_gpa;
 	context->free = paging_free;
 	context->root_level = PT32_ROOT_LEVEL;
