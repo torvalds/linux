@@ -1411,6 +1411,37 @@ ixgb_tx_queue(struct ixgb_adapter *adapter, int count, int vlan_id,int tx_flags)
 	IXGB_WRITE_REG(&adapter->hw, TDT, i);
 }
 
+static int __ixgb_maybe_stop_tx(struct net_device *netdev, int size)
+{
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	struct ixgb_desc_ring *tx_ring = &adapter->tx_ring;
+
+	netif_stop_queue(netdev);
+	/* Herbert's original patch had:
+	 *  smp_mb__after_netif_stop_queue();
+	 * but since that doesn't exist yet, just open code it. */
+	smp_mb();
+
+	/* We need to check again in a case another CPU has just
+	 * made room available. */
+	if (likely(IXGB_DESC_UNUSED(tx_ring) < size))
+		return -EBUSY;
+
+	/* A reprieve! */
+	netif_start_queue(netdev);
+	++adapter->restart_queue;
+	return 0;
+}
+
+static int ixgb_maybe_stop_tx(struct net_device *netdev,
+                              struct ixgb_desc_ring *tx_ring, int size)
+{
+	if (likely(IXGB_DESC_UNUSED(tx_ring) >= size))
+		return 0;
+	return __ixgb_maybe_stop_tx(netdev, size);
+}
+
+
 /* Tx Descriptors needed, worst case */
 #define TXD_USE_COUNT(S) (((S) >> IXGB_MAX_TXD_PWR) + \
 			 (((S) & (IXGB_MAX_DATA_PER_TXD - 1)) ? 1 : 0))
@@ -1444,7 +1475,8 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	spin_lock_irqsave(&adapter->tx_lock, flags);
 #endif
 
-	if(unlikely(IXGB_DESC_UNUSED(&adapter->tx_ring) < DESC_NEEDED)) {
+	if (unlikely(ixgb_maybe_stop_tx(netdev, &adapter->tx_ring,
+                     DESC_NEEDED))) {
 		netif_stop_queue(netdev);
 		spin_unlock_irqrestore(&adapter->tx_lock, flags);
 		return NETDEV_TX_BUSY;
@@ -1482,8 +1514,7 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 #ifdef NETIF_F_LLTX
 	/* Make sure there is space in the ring for the next send. */
-	if(unlikely(IXGB_DESC_UNUSED(&adapter->tx_ring) < DESC_NEEDED))
-		netif_stop_queue(netdev);
+	ixgb_maybe_stop_tx(netdev, &adapter->tx_ring, DESC_NEEDED);
 
 	spin_unlock_irqrestore(&adapter->tx_lock, flags);
 
