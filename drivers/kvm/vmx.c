@@ -1318,7 +1318,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		cr2 = vmcs_readl(EXIT_QUALIFICATION);
 
 		spin_lock(&vcpu->kvm->lock);
-		if (!vcpu->mmu.page_fault(vcpu, cr2, error_code)) {
+		if (!kvm_mmu_page_fault(vcpu, cr2, error_code)) {
 			spin_unlock(&vcpu->kvm->lock);
 			return 1;
 		}

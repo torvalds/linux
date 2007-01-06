@@ -861,7 +861,7 @@ static int pf_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	fault_address  = vcpu->svm->vmcb->control.exit_info_2;
 	error_code = vcpu->svm->vmcb->control.exit_info_1;
-	if (!vcpu->mmu.page_fault(vcpu, fault_address, error_code)) {
+	if (!kvm_mmu_page_fault(vcpu, fault_address, error_code)) {
 		spin_unlock(&vcpu->kvm->lock);
 		return 1;
 	}

@@ -246,8 +246,6 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		}
 		shadow_page = kvm_mmu_get_page(vcpu, table_gfn, addr, level-1,
 					       metaphysical, shadow_ent);
-		if (!shadow_page)
-			return ERR_PTR(-ENOMEM);
 		shadow_addr = shadow_page->page_hpa;
 		shadow_pte = shadow_addr | PT_PRESENT_MASK | PT_ACCESSED_MASK
 			| PT_WRITABLE_MASK | PT_USER_MASK;
@@ -347,17 +345,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	/*
 	 * Look up the shadow pte for the faulting address.
 	 */
-	for (;;) {
-		FNAME(walk_addr)(&walker, vcpu, addr);
-		shadow_pte = FNAME(fetch)(vcpu, addr, &walker);
-		if (IS_ERR(shadow_pte)) {  /* must be -ENOMEM */
-			printk("%s: oom\n", __FUNCTION__);
-			nonpaging_flush(vcpu);
-			FNAME(release_walker)(&walker);
-			continue;
-		}
-		break;
-	}
+	FNAME(walk_addr)(&walker, vcpu, addr);
+	shadow_pte = FNAME(fetch)(vcpu, addr, &walker);
 
 	/*
 	 * The page is not mapped by the guest.  Let the guest handle it.

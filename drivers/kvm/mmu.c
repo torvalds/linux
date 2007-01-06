@@ -310,6 +310,7 @@ static void kvm_mmu_free_page(struct kvm_vcpu *vcpu, hpa_t page_hpa)
 	list_del(&page_head->link);
 	page_head->page_hpa = page_hpa;
 	list_add(&page_head->link, &vcpu->free_pages);
+	++vcpu->kvm->n_free_mmu_pages;
 }
 
 static int is_empty_shadow_page(hpa_t page_hpa)
@@ -344,6 +345,7 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 	page->global = 1;
 	page->multimapped = 0;
 	page->parent_pte = parent_pte;
+	--vcpu->kvm->n_free_mmu_pages;
 	return page;
 }
 
@@ -544,8 +546,7 @@ static void kvm_mmu_zap_page(struct kvm_vcpu *vcpu,
 	}
 	kvm_mmu_page_unlink_children(vcpu, page);
 	hlist_del(&page->hash_link);
-	list_del(&page->link);
-	list_add(&page->link, &vcpu->free_pages);
+	kvm_mmu_free_page(vcpu, page->page_hpa);
 }
 
 static int kvm_mmu_unprotect_page(struct kvm_vcpu *vcpu, gfn_t gfn)
@@ -743,18 +744,6 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 	vcpu->mmu.root_hpa = __pa(vcpu->mmu.pae_root);
 }
 
-static void nonpaging_flush(struct kvm_vcpu *vcpu)
-{
-	hpa_t root = vcpu->mmu.root_hpa;
-
-	++kvm_stat.tlb_flush;
-	pgprintk("nonpaging_flush\n");
-	mmu_free_roots(vcpu);
-	mmu_alloc_roots(vcpu);
-	kvm_arch_ops->set_cr3(vcpu, root);
-	kvm_arch_ops->tlb_flush(vcpu);
-}
-
 static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t vaddr)
 {
 	return vaddr;
@@ -763,28 +752,19 @@ static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t vaddr)
 static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 			       u32 error_code)
 {
-	int ret;
 	gpa_t addr = gva;
+	hpa_t paddr;
 
 	ASSERT(vcpu);
 	ASSERT(VALID_PAGE(vcpu->mmu.root_hpa));
 
-	for (;;) {
-	     hpa_t paddr;
 
-	     paddr = gpa_to_hpa(vcpu , addr & PT64_BASE_ADDR_MASK);
+	paddr = gpa_to_hpa(vcpu , addr & PT64_BASE_ADDR_MASK);
 
-	     if (is_error_hpa(paddr))
-		     return 1;
+	if (is_error_hpa(paddr))
+		return 1;
 
-	     ret = nonpaging_map(vcpu, addr & PAGE_MASK, paddr);
-	     if (ret) {
-		     nonpaging_flush(vcpu);
-		     continue;
-	     }
-	     break;
-	}
-	return ret;
+	return nonpaging_map(vcpu, addr & PAGE_MASK, paddr);
 }
 
 static void nonpaging_inval_page(struct kvm_vcpu *vcpu, gva_t addr)
@@ -1093,6 +1073,18 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 	return kvm_mmu_unprotect_page(vcpu, gpa >> PAGE_SHIFT);
 }
 
+void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
+{
+	while (vcpu->kvm->n_free_mmu_pages < KVM_REFILL_PAGES) {
+		struct kvm_mmu_page *page;
+
+		page = container_of(vcpu->kvm->active_mmu_pages.prev,
+				    struct kvm_mmu_page, link);
+		kvm_mmu_zap_page(vcpu, page);
+	}
+}
+EXPORT_SYMBOL_GPL(kvm_mmu_free_some_pages);
+
 static void free_mmu_pages(struct kvm_vcpu *vcpu)
 {
 	while (!list_empty(&vcpu->free_pages)) {
@@ -1124,6 +1116,7 @@ static int alloc_mmu_pages(struct kvm_vcpu *vcpu)
 		page_header->page_hpa = (hpa_t)page_to_pfn(page) << PAGE_SHIFT;
 		memset(__va(page_header->page_hpa), 0, PAGE_SIZE);
 		list_add(&page_header->link, &vcpu->free_pages);
+		++vcpu->kvm->n_free_mmu_pages;
 	}
 
 	/*

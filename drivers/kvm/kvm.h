@@ -52,6 +52,8 @@
 #define KVM_MAX_VCPUS 1
 #define KVM_MEMORY_SLOTS 4
 #define KVM_NUM_MMU_PAGES 256
+#define KVM_MIN_FREE_MMU_PAGES 5
+#define KVM_REFILL_PAGES 25
 
 #define FX_IMAGE_SIZE 512
 #define FX_IMAGE_ALIGN 16
@@ -278,6 +280,7 @@ struct kvm {
 	 * Hash table of struct kvm_mmu_page.
 	 */
 	struct list_head active_mmu_pages;
+	int n_free_mmu_pages;
 	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
 	struct kvm_vcpu vcpus[KVM_MAX_VCPUS];
 	int memory_config_version;
@@ -451,6 +454,15 @@ unsigned long segment_base(u16 selector);
 void kvm_mmu_pre_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes);
 void kvm_mmu_post_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes);
 int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva);
+void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu);
+
+static inline int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
+				     u32 error_code)
+{
+	if (unlikely(vcpu->kvm->n_free_mmu_pages < KVM_MIN_FREE_MMU_PAGES))
+		kvm_mmu_free_some_pages(vcpu);
+	return vcpu->mmu.page_fault(vcpu, gva, error_code);
+}
 
 static inline struct page *_gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
