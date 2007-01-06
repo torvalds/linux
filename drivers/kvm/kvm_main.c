@@ -1922,6 +1922,7 @@ static long kvm_dev_ioctl(struct file *filp,
 				 num_msrs_to_save * sizeof(u32)))
 			goto out;
 		r = 0;
+		break;
 	}
 	default:
 		;
