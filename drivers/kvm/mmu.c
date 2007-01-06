@@ -166,19 +166,20 @@ static int is_rmap_pte(u64 pte)
 		== (PT_WRITABLE_MASK | PT_PRESENT_MASK);
 }
 
-static void mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
-				   size_t objsize, int min)
+static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
+				  size_t objsize, int min)
 {
 	void *obj;
 
 	if (cache->nobjs >= min)
-		return;
+		return 0;
 	while (cache->nobjs < ARRAY_SIZE(cache->objects)) {
 		obj = kzalloc(objsize, GFP_NOWAIT);
 		if (!obj)
-			BUG();
+			return -ENOMEM;
 		cache->objects[cache->nobjs++] = obj;
 	}
+	return 0;
 }
 
 static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
@@ -187,12 +188,18 @@ static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
 		kfree(mc->objects[--mc->nobjs]);
 }
 
-static void mmu_topup_memory_caches(struct kvm_vcpu *vcpu)
+static int mmu_topup_memory_caches(struct kvm_vcpu *vcpu)
 {
-	mmu_topup_memory_cache(&vcpu->mmu_pte_chain_cache,
-			       sizeof(struct kvm_pte_chain), 4);
-	mmu_topup_memory_cache(&vcpu->mmu_rmap_desc_cache,
-			       sizeof(struct kvm_rmap_desc), 1);
+	int r;
+
+	r = mmu_topup_memory_cache(&vcpu->mmu_pte_chain_cache,
+				   sizeof(struct kvm_pte_chain), 4);
+	if (r)
+		goto out;
+	r = mmu_topup_memory_cache(&vcpu->mmu_rmap_desc_cache,
+				   sizeof(struct kvm_rmap_desc), 1);
+out:
+	return r;
 }
 
 static void mmu_free_memory_caches(struct kvm_vcpu *vcpu)
@@ -824,8 +831,11 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 {
 	gpa_t addr = gva;
 	hpa_t paddr;
+	int r;
 
-	mmu_topup_memory_caches(vcpu);
+	r = mmu_topup_memory_caches(vcpu);
+	if (r)
+		return r;
 
 	ASSERT(vcpu);
 	ASSERT(VALID_PAGE(vcpu->mmu.root_hpa));
@@ -1052,7 +1062,7 @@ int kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
 	r = init_kvm_mmu(vcpu);
 	if (r < 0)
 		goto out;
-	mmu_topup_memory_caches(vcpu);
+	r = mmu_topup_memory_caches(vcpu);
 out:
 	return r;
 }

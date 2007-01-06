@@ -339,7 +339,8 @@ static int FNAME(fix_write_pf)(struct kvm_vcpu *vcpu,
  *   - normal guest page fault due to the guest pte marked not present, not
  *     writable, or not executable
  *
- *  Returns: 1 if we need to emulate the instruction, 0 otherwise
+ *  Returns: 1 if we need to emulate the instruction, 0 otherwise, or
+ *           a negative value on error.
  */
 static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 			       u32 error_code)
@@ -351,10 +352,13 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	u64 *shadow_pte;
 	int fixed;
 	int write_pt = 0;
+	int r;
 
 	pgprintk("%s: addr %lx err %x\n", __FUNCTION__, addr, error_code);
 
-	mmu_topup_memory_caches(vcpu);
+	r = mmu_topup_memory_caches(vcpu);
+	if (r)
+		return r;
 
 	/*
 	 * Look up the shadow pte for the faulting address.
