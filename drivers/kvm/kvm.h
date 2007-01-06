@@ -168,6 +168,17 @@ struct kvm_mmu {
 	u64 *pae_root;
 };
 
+#define KVM_NR_MEM_OBJS 20
+
+struct kvm_mmu_memory_cache {
+	int nobjs;
+	void *objects[KVM_NR_MEM_OBJS];
+};
+
+/*
+ * We don't want allocation failures within the mmu code, so we preallocate
+ * enough memory for a single page fault in a cache.
+ */
 struct kvm_guest_debug {
 	int enabled;
 	unsigned long bp[4];
@@ -238,6 +249,9 @@ struct kvm_vcpu {
 	struct list_head free_pages;
 	struct kvm_mmu_page page_header_buf[KVM_NUM_MMU_PAGES];
 	struct kvm_mmu mmu;
+
+	struct kvm_mmu_memory_cache mmu_pte_chain_cache;
+	struct kvm_mmu_memory_cache mmu_rmap_desc_cache;
 
 	gfn_t last_pt_write_gfn;
 	int   last_pt_write_count;
@@ -381,7 +395,7 @@ int kvm_mmu_create(struct kvm_vcpu *vcpu);
 int kvm_mmu_setup(struct kvm_vcpu *vcpu);
 
 int kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
-void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot);
+void kvm_mmu_slot_remove_write_access(struct kvm_vcpu *vcpu, int slot);
 
 hpa_t gpa_to_hpa(struct kvm_vcpu *vcpu, gpa_t gpa);
 #define HPA_MSB ((sizeof(hpa_t) * 8) - 1)

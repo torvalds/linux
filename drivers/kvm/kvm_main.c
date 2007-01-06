@@ -702,6 +702,13 @@ out:
 	return r;
 }
 
+static void do_remove_write_access(struct kvm_vcpu *vcpu, int slot)
+{
+	spin_lock(&vcpu->kvm->lock);
+	kvm_mmu_slot_remove_write_access(vcpu, slot);
+	spin_unlock(&vcpu->kvm->lock);
+}
+
 /*
  * Get (and clear) the dirty memory log for a memory slot.
  */
@@ -711,6 +718,7 @@ static int kvm_dev_ioctl_get_dirty_log(struct kvm *kvm,
 	struct kvm_memory_slot *memslot;
 	int r, i;
 	int n;
+	int cleared;
 	unsigned long any = 0;
 
 	spin_lock(&kvm->lock);
@@ -741,15 +749,17 @@ static int kvm_dev_ioctl_get_dirty_log(struct kvm *kvm,
 
 
 	if (any) {
-		spin_lock(&kvm->lock);
-		kvm_mmu_slot_remove_write_access(kvm, log->slot);
-		spin_unlock(&kvm->lock);
-		memset(memslot->dirty_bitmap, 0, n);
+		cleared = 0;
 		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
 			struct kvm_vcpu *vcpu = vcpu_load(kvm, i);
 
 			if (!vcpu)
 				continue;
+			if (!cleared) {
+				do_remove_write_access(vcpu, log->slot);
+				memset(memslot->dirty_bitmap, 0, n);
+				cleared = 1;
+			}
 			kvm_arch_ops->tlb_flush(vcpu);
 			vcpu_put(vcpu);
 		}
