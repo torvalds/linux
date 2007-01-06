@@ -1944,16 +1944,16 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 		return -EEXIST;
 	}
 
-	kvm_arch_ops = ops;
-
-	if (!kvm_arch_ops->cpu_has_kvm_support()) {
+	if (!ops->cpu_has_kvm_support()) {
 		printk(KERN_ERR "kvm: no hardware support\n");
 		return -EOPNOTSUPP;
 	}
-	if (kvm_arch_ops->disabled_by_bios()) {
+	if (ops->disabled_by_bios()) {
 		printk(KERN_ERR "kvm: disabled by bios\n");
 		return -EOPNOTSUPP;
 	}
+
+	kvm_arch_ops = ops;
 
 	r = kvm_arch_ops->hardware_setup();
 	if (r < 0)
