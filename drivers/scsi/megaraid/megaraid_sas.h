@@ -15,7 +15,7 @@
 #ifndef LSI_MEGARAID_SAS_H
 #define LSI_MEGARAID_SAS_H
 
-/**
+/*
  * MegaRAID SAS Driver meta data
  */
 #define MEGASAS_VERSION				"00.00.03.05"
@@ -40,7 +40,7 @@
  * "message frames"
  */
 
-/**
+/*
  * FW posts its state in upper 4 bits of outbound_msg_0 register
  */
 #define MFI_STATE_MASK				0xF0000000
@@ -58,7 +58,7 @@
 
 #define MEGAMFI_FRAME_SIZE			64
 
-/**
+/*
  * During FW init, clear pending cmds & reset state using inbound_msg_0
  *
  * ABORT	: Abort all pending cmds
@@ -78,7 +78,7 @@
 						MFI_INIT_MFIMODE| \
 						MFI_INIT_ABORT
 
-/**
+/*
  * MFI frame flags
  */
 #define MFI_FRAME_POST_IN_REPLY_QUEUE		0x0000
@@ -92,12 +92,12 @@
 #define MFI_FRAME_DIR_READ			0x0010
 #define MFI_FRAME_DIR_BOTH			0x0018
 
-/**
+/*
  * Definition for cmd_status
  */
 #define MFI_CMD_STATUS_POLL_MODE		0xFF
 
-/**
+/*
  * MFI command opcodes
  */
 #define MFI_CMD_INIT				0x00
@@ -128,7 +128,7 @@
 #define MR_DCMD_CLUSTER_RESET_ALL		0x08010100
 #define MR_DCMD_CLUSTER_RESET_LD		0x08010200
 
-/**
+/*
  * MFI command completion codes
  */
 enum MFI_STAT {
