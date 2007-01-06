@@ -292,12 +292,13 @@ static int is_empty_shadow_page(hpa_t page_hpa)
 	return 1;
 }
 
-static hpa_t kvm_mmu_alloc_page(struct kvm_vcpu *vcpu, u64 *parent_pte)
+static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
+					       u64 *parent_pte)
 {
 	struct kvm_mmu_page *page;
 
 	if (list_empty(&vcpu->free_pages))
-		return INVALID_PAGE;
+		return NULL;
 
 	page = list_entry(vcpu->free_pages.next, struct kvm_mmu_page, link);
 	list_del(&page->link);
@@ -306,7 +307,7 @@ static hpa_t kvm_mmu_alloc_page(struct kvm_vcpu *vcpu, u64 *parent_pte)
 	page->slot_bitmap = 0;
 	page->global = 1;
 	page->parent_pte = parent_pte;
-	return page->page_hpa;
+	return page;
 }
 
 static void page_header_update_slot(struct kvm *kvm, void *pte, gpa_t gpa)
@@ -402,19 +403,16 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, hpa_t p)
 		}
 
 		if (table[index] == 0) {
-			hpa_t new_table = kvm_mmu_alloc_page(vcpu,
-							     &table[index]);
+			struct kvm_mmu_page *new_table;
 
-			if (!VALID_PAGE(new_table)) {
+			new_table = kvm_mmu_alloc_page(vcpu, &table[index]);
+			if (!new_table) {
 				pgprintk("nonpaging_map: ENOMEM\n");
 				return -ENOMEM;
 			}
 
-			if (level == PT32E_ROOT_LEVEL)
-				table[index] = new_table | PT_PRESENT_MASK;
-			else
-				table[index] = new_table | PT_PRESENT_MASK |
-						PT_WRITABLE_MASK | PT_USER_MASK;
+			table[index] = new_table->page_hpa | PT_PRESENT_MASK
+				| PT_WRITABLE_MASK | PT_USER_MASK;
 		}
 		table_addr = table[index] & PT64_BASE_ADDR_MASK;
 	}
@@ -454,7 +452,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		hpa_t root = vcpu->mmu.root_hpa;
 
 		ASSERT(!VALID_PAGE(root));
-		root = kvm_mmu_alloc_page(vcpu, NULL);
+		root = kvm_mmu_alloc_page(vcpu, NULL)->page_hpa;
 		vcpu->mmu.root_hpa = root;
 		return;
 	}
@@ -463,7 +461,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		hpa_t root = vcpu->mmu.pae_root[i];
 
 		ASSERT(!VALID_PAGE(root));
-		root = kvm_mmu_alloc_page(vcpu, NULL);
+		root = kvm_mmu_alloc_page(vcpu, NULL)->page_hpa;
 		vcpu->mmu.pae_root[i] = root | PT_PRESENT_MASK;
 	}
 	vcpu->mmu.root_hpa = __pa(vcpu->mmu.pae_root);
