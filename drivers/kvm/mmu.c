@@ -958,7 +958,43 @@ int kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
 
 void kvm_mmu_pre_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes)
 {
+	gfn_t gfn = gpa >> PAGE_SHIFT;
+	struct kvm_mmu_page *page;
+	struct kvm_mmu_page *child;
+	struct hlist_node *node;
+	struct hlist_head *bucket;
+	unsigned index;
+	u64 *spte;
+	u64 pte;
+	unsigned offset = offset_in_page(gpa);
+	unsigned page_offset;
+	int level;
+
 	pgprintk("%s: gpa %llx bytes %d\n", __FUNCTION__, gpa, bytes);
+	index = kvm_page_table_hashfn(gfn) % KVM_NUM_MMU_PAGES;
+	bucket = &vcpu->kvm->mmu_page_hash[index];
+	hlist_for_each_entry(page, node, bucket, hash_link) {
+		if (page->gfn != gfn || page->role.metaphysical)
+			continue;
+		page_offset = offset;
+		level = page->role.level;
+		if (page->role.glevels == PT32_ROOT_LEVEL) {
+			page_offset <<= 1;          /* 32->64 */
+			page_offset &= ~PAGE_MASK;
+		}
+		spte = __va(page->page_hpa);
+		spte += page_offset / sizeof(*spte);
+		pte = *spte;
+		if (is_present_pte(pte)) {
+			if (level == PT_PAGE_TABLE_LEVEL)
+				rmap_remove(vcpu->kvm, spte);
+			else {
+				child = page_header(pte & PT64_BASE_ADDR_MASK);
+				mmu_page_remove_parent_pte(child, spte);
+			}
+		}
+		*spte = 0;
+	}
 }
 
 void kvm_mmu_post_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes)
