@@ -305,8 +305,7 @@ static int i2c_pnx_master_rcv(struct i2c_adapter *adap)
 	return 0;
 }
 
-static irqreturn_t
-i2c_pnx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t i2c_pnx_interrupt(int irq, void *dev_id)
 {
 	u32 stat, ctl;
 	struct i2c_adapter *adap = dev_id;
@@ -699,10 +698,6 @@ MODULE_AUTHOR("Vitaly Wool, Dennis Kovalev <source@mvista.com>");
 MODULE_DESCRIPTION("I2C driver for Philips IP3204-based I2C busses");
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_I2C_PNX_EARLY
 /* We need to make sure I2C is initialized before USB */
 subsys_initcall(i2c_adap_pnx_init);
-#else
-mudule_init(i2c_adap_pnx_init);
-#endif
 module_exit(i2c_adap_pnx_exit);
