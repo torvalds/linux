@@ -463,7 +463,19 @@ void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 
 	vcpu->cr3 = cr3;
 	spin_lock(&vcpu->kvm->lock);
-	vcpu->mmu.new_cr3(vcpu);
+	/*
+	 * Does the new cr3 value map to physical memory? (Note, we
+	 * catch an invalid cr3 even in real-mode, because it would
+	 * cause trouble later on when we turn on paging anyway.)
+	 *
+	 * A real CPU would silently accept an invalid cr3 and would
+	 * attempt to use it - with largely undefined (and often hard
+	 * to debug) behavior on the guest side.
+	 */
+	if (unlikely(!gfn_to_memslot(vcpu->kvm, cr3 >> PAGE_SHIFT)))
+		inject_gp(vcpu);
+	else
+		vcpu->mmu.new_cr3(vcpu);
 	spin_unlock(&vcpu->kvm->lock);
 }
 EXPORT_SYMBOL_GPL(set_cr3);
