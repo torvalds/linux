@@ -656,7 +656,7 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 	for (i = 0; i < HID_REPORT_TYPES; i++)
 		INIT_LIST_HEAD(&device->report_enum[i].report_list);
 
-	if (!(device->rdesc = (__u8 *)kmalloc(size, GFP_KERNEL))) {
+	if (!(device->rdesc = kmalloc(size, GFP_KERNEL))) {
 		kfree(device->collection);
 		kfree(device);
 		return NULL;
