@@ -61,12 +61,6 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	}
 
 	/*
-	 * swapoff can easily use up all memory, so kill those first.
-	 */
-	if (p->flags & PF_SWAPOFF)
-		return ULONG_MAX;
-
-	/*
 	 * The memory size of the process is the basis for the badness.
 	 */
 	points = mm->total_vm;
@@ -75,6 +69,12 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	 * After this unlock we can no longer dereference local variable `mm'
 	 */
 	task_unlock(p);
+
+	/*
+	 * swapoff can easily use up all memory, so kill those first.
+	 */
+	if (p->flags & PF_SWAPOFF)
+		return ULONG_MAX;
 
 	/*
 	 * Processes which fork a lot of child processes are likely
