@@ -1063,6 +1063,8 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	}
 
 	if (r) {
+		if (kvm_mmu_unprotect_page_virt(vcpu, cr2))
+			return EMULATE_DONE;
 		if (!vcpu->mmio_needed) {
 			report_emulation_failure(&emulate_ctxt);
 			return EMULATE_FAIL;

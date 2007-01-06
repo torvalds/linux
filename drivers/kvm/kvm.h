@@ -450,6 +450,7 @@ unsigned long segment_base(u16 selector);
 
 void kvm_mmu_pre_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes);
 void kvm_mmu_post_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes);
+int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva);
 
 static inline struct page *_gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
