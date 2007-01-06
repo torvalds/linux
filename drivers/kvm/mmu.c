@@ -954,21 +954,36 @@ void kvm_mmu_pre_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes)
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	struct kvm_mmu_page *page;
 	struct kvm_mmu_page *child;
-	struct hlist_node *node;
+	struct hlist_node *node, *n;
 	struct hlist_head *bucket;
 	unsigned index;
 	u64 *spte;
 	u64 pte;
 	unsigned offset = offset_in_page(gpa);
+	unsigned pte_size;
 	unsigned page_offset;
+	unsigned misaligned;
 	int level;
 
 	pgprintk("%s: gpa %llx bytes %d\n", __FUNCTION__, gpa, bytes);
 	index = kvm_page_table_hashfn(gfn) % KVM_NUM_MMU_PAGES;
 	bucket = &vcpu->kvm->mmu_page_hash[index];
-	hlist_for_each_entry(page, node, bucket, hash_link) {
+	hlist_for_each_entry_safe(page, node, n, bucket, hash_link) {
 		if (page->gfn != gfn || page->role.metaphysical)
 			continue;
+		pte_size = page->role.glevels == PT32_ROOT_LEVEL ? 4 : 8;
+		misaligned = (offset ^ (offset + bytes - 1)) & ~(pte_size - 1);
+		if (misaligned) {
+			/*
+			 * Misaligned accesses are too much trouble to fix
+			 * up; also, they usually indicate a page is not used
+			 * as a page table.
+			 */
+			pgprintk("misaligned: gpa %llx bytes %d role %x\n",
+				 gpa, bytes, page->role.word);
+			kvm_mmu_zap_page(vcpu, page);
+			continue;
+		}
 		page_offset = offset;
 		level = page->role.level;
 		if (page->role.glevels == PT32_ROOT_LEVEL) {
