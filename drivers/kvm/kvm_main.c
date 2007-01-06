@@ -230,6 +230,7 @@ static int kvm_dev_open(struct inode *inode, struct file *filp)
 		struct kvm_vcpu *vcpu = &kvm->vcpus[i];
 
 		mutex_init(&vcpu->mutex);
+		vcpu->kvm = kvm;
 		vcpu->mmu.root_hpa = INVALID_PAGE;
 		INIT_LIST_HEAD(&vcpu->free_pages);
 	}
@@ -530,7 +531,6 @@ static int kvm_dev_ioctl_create_vcpu(struct kvm *kvm, int n)
 	vcpu->guest_fx_image = vcpu->host_fx_image + FX_IMAGE_SIZE;
 
 	vcpu->cpu = -1;  /* First load will set up TR */
-	vcpu->kvm = kvm;
 	r = kvm_arch_ops->vcpu_create(vcpu);
 	if (r < 0)
 		goto out_free_vcpus;
