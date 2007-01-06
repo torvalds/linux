@@ -550,8 +550,13 @@ static void kvm_mmu_zap_page(struct kvm_vcpu *vcpu,
 		*parent_pte = 0;
 	}
 	kvm_mmu_page_unlink_children(vcpu, page);
-	hlist_del(&page->hash_link);
-	kvm_mmu_free_page(vcpu, page->page_hpa);
+	if (!page->root_count) {
+		hlist_del(&page->hash_link);
+		kvm_mmu_free_page(vcpu, page->page_hpa);
+	} else {
+		list_del(&page->link);
+		list_add(&page->link, &vcpu->kvm->active_mmu_pages);
+	}
 }
 
 static int kvm_mmu_unprotect_page(struct kvm_vcpu *vcpu, gfn_t gfn)
@@ -667,12 +672,15 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, hpa_t p)
 static void mmu_free_roots(struct kvm_vcpu *vcpu)
 {
 	int i;
+	struct kvm_mmu_page *page;
 
 #ifdef CONFIG_X86_64
 	if (vcpu->mmu.shadow_root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->mmu.root_hpa;
 
 		ASSERT(VALID_PAGE(root));
+		page = page_header(root);
+		--page->root_count;
 		vcpu->mmu.root_hpa = INVALID_PAGE;
 		return;
 	}
@@ -682,6 +690,8 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 
 		ASSERT(VALID_PAGE(root));
 		root &= PT64_BASE_ADDR_MASK;
+		page = page_header(root);
+		--page->root_count;
 		vcpu->mmu.pae_root[i] = INVALID_PAGE;
 	}
 	vcpu->mmu.root_hpa = INVALID_PAGE;
@@ -691,6 +701,8 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 {
 	int i;
 	gfn_t root_gfn;
+	struct kvm_mmu_page *page;
+
 	root_gfn = vcpu->cr3 >> PAGE_SHIFT;
 
 #ifdef CONFIG_X86_64
@@ -700,6 +712,8 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		ASSERT(!VALID_PAGE(root));
 		root = kvm_mmu_get_page(vcpu, root_gfn, 0,
 					PT64_ROOT_LEVEL, 0, NULL)->page_hpa;
+		page = page_header(root);
+		++page->root_count;
 		vcpu->mmu.root_hpa = root;
 		return;
 	}
@@ -715,6 +729,8 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		root = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
 					PT32_ROOT_LEVEL, !is_paging(vcpu),
 					NULL)->page_hpa;
+		page = page_header(root);
+		++page->root_count;
 		vcpu->mmu.pae_root[i] = root | PT_PRESENT_MASK;
 	}
 	vcpu->mmu.root_hpa = __pa(vcpu->mmu.pae_root);
