@@ -53,7 +53,7 @@ static inline int adfs_readname(char *buf, char *ptr, int maxlen)
 {
 	char *old_buf = buf;
 
-	while (*ptr >= ' ' && maxlen--) {
+	while ((unsigned char)*ptr >= ' ' && maxlen--) {
 		if (*ptr == '/')
 			*buf++ = '.';
 		else
