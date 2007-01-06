@@ -116,7 +116,7 @@ static void vmcs_clear(struct vmcs *vmcs)
 static void __vcpu_clear(void *arg)
 {
 	struct kvm_vcpu *vcpu = arg;
-	int cpu = smp_processor_id();
+	int cpu = raw_smp_processor_id();
 
 	if (vcpu->cpu == cpu)
 		vmcs_clear(vcpu->vmcs);
@@ -541,7 +541,7 @@ static struct vmcs *alloc_vmcs_cpu(int cpu)
 
 static struct vmcs *alloc_vmcs(void)
 {
-	return alloc_vmcs_cpu(smp_processor_id());
+	return alloc_vmcs_cpu(raw_smp_processor_id());
 }
 
 static void free_vmcs(struct vmcs *vmcs)
