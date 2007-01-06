@@ -303,16 +303,6 @@ static void rmap_write_protect(struct kvm *kvm, u64 gfn)
 	}
 }
 
-static void kvm_mmu_free_page(struct kvm_vcpu *vcpu, hpa_t page_hpa)
-{
-	struct kvm_mmu_page *page_head = page_header(page_hpa);
-
-	list_del(&page_head->link);
-	page_head->page_hpa = page_hpa;
-	list_add(&page_head->link, &vcpu->free_pages);
-	++vcpu->kvm->n_free_mmu_pages;
-}
-
 static int is_empty_shadow_page(hpa_t page_hpa)
 {
 	u32 *pos;
@@ -322,6 +312,16 @@ static int is_empty_shadow_page(hpa_t page_hpa)
 		if (*pos != 0)
 			return 0;
 	return 1;
+}
+
+static void kvm_mmu_free_page(struct kvm_vcpu *vcpu, hpa_t page_hpa)
+{
+	struct kvm_mmu_page *page_head = page_header(page_hpa);
+
+	list_del(&page_head->link);
+	page_head->page_hpa = page_hpa;
+	list_add(&page_head->link, &vcpu->free_pages);
+	++vcpu->kvm->n_free_mmu_pages;
 }
 
 static unsigned kvm_page_table_hashfn(gfn_t gfn)
