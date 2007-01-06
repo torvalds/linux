@@ -152,15 +152,21 @@ static u64 vmcs_read64(unsigned long field)
 #endif
 }
 
+static noinline void vmwrite_error(unsigned long field, unsigned long value)
+{
+	printk(KERN_ERR "vmwrite error: reg %lx value %lx (err %d)\n",
+	       field, value, vmcs_read32(VM_INSTRUCTION_ERROR));
+	dump_stack();
+}
+
 static void vmcs_writel(unsigned long field, unsigned long value)
 {
 	u8 error;
 
 	asm volatile (ASM_VMX_VMWRITE_RAX_RDX "; setna %0"
 		       : "=q"(error) : "a"(value), "d"(field) : "cc" );
-	if (error)
-		printk(KERN_ERR "vmwrite error: reg %lx value %lx (err %d)\n",
-		       field, value, vmcs_read32(VM_INSTRUCTION_ERROR));
+	if (unlikely(error))
+		vmwrite_error(field, value);
 }
 
 static void vmcs_write16(unsigned long field, u16 value)
