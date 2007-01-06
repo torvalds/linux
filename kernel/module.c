@@ -1148,10 +1148,10 @@ static int mod_sysfs_setup(struct module *mod,
 	kobject_uevent(&mod->mkobj.kobj, KOBJ_ADD);
 	return 0;
 
-out_unreg_drivers:
-	kobject_unregister(mod->drivers_dir);
 out_unreg_param:
 	module_param_sysfs_remove(mod);
+out_unreg_drivers:
+	kobject_unregister(mod->drivers_dir);
 out_unreg:
 	kobject_del(&mod->mkobj.kobj);
 	kobject_put(&mod->mkobj.kobj);
@@ -2327,8 +2327,22 @@ void print_modules(void)
 	printk("\n");
 }
 
+static char *make_driver_name(struct device_driver *drv)
+{
+	char *driver_name;
+
+	driver_name = kmalloc(strlen(drv->name) + strlen(drv->bus->name) + 2,
+			      GFP_KERNEL);
+	if (!driver_name)
+		return NULL;
+
+	sprintf(driver_name, "%s:%s", drv->bus->name, drv->name);
+	return driver_name;
+}
+
 void module_add_driver(struct module *mod, struct device_driver *drv)
 {
+	char *driver_name;
 	int no_warn;
 
 	if (!mod || !drv)
@@ -2336,17 +2350,31 @@ void module_add_driver(struct module *mod, struct device_driver *drv)
 
 	/* Don't check return codes; these calls are idempotent */
 	no_warn = sysfs_create_link(&drv->kobj, &mod->mkobj.kobj, "module");
-	no_warn = sysfs_create_link(mod->drivers_dir, &drv->kobj, drv->name);
+	driver_name = make_driver_name(drv);
+	if (driver_name) {
+		no_warn = sysfs_create_link(mod->drivers_dir, &drv->kobj,
+					    driver_name);
+		kfree(driver_name);
+	}
 }
 EXPORT_SYMBOL(module_add_driver);
 
 void module_remove_driver(struct device_driver *drv)
 {
+	char *driver_name;
+
 	if (!drv)
 		return;
+
 	sysfs_remove_link(&drv->kobj, "module");
-	if (drv->owner && drv->owner->drivers_dir)
-		sysfs_remove_link(drv->owner->drivers_dir, drv->name);
+	if (drv->owner && drv->owner->drivers_dir) {
+		driver_name = make_driver_name(drv);
+		if (driver_name) {
+			sysfs_remove_link(drv->owner->drivers_dir,
+					  driver_name);
+			kfree(driver_name);
+		}
+	}
 }
 EXPORT_SYMBOL(module_remove_driver);
 
