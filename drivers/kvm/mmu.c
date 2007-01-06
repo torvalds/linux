@@ -956,6 +956,15 @@ int kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
 	return init_kvm_mmu(vcpu);
 }
 
+void kvm_mmu_pre_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes)
+{
+	pgprintk("%s: gpa %llx bytes %d\n", __FUNCTION__, gpa, bytes);
+}
+
+void kvm_mmu_post_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes)
+{
+}
+
 static void free_mmu_pages(struct kvm_vcpu *vcpu)
 {
 	while (!list_empty(&vcpu->free_pages)) {
