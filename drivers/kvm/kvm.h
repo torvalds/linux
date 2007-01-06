@@ -185,6 +185,7 @@ struct kvm_vcpu {
 	unsigned long cr3;
 	unsigned long cr4;
 	unsigned long cr8;
+	u64 pdptrs[4]; /* pae */
 	u64 shadow_efer;
 	u64 apic_base;
 	int nmsrs;
