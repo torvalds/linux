@@ -1323,7 +1323,7 @@ twobyte_special_insn:
 							 ctxt)) != 0))
 				goto done;
 			if ((old_lo != _regs[VCPU_REGS_RAX])
-			    || (old_hi != _regs[VCPU_REGS_RDI])) {
+			    || (old_hi != _regs[VCPU_REGS_RDX])) {
 				_regs[VCPU_REGS_RAX] = old_lo;
 				_regs[VCPU_REGS_RDX] = old_hi;
 				_eflags &= ~EFLG_ZF;
