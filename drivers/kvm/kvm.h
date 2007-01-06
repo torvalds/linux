@@ -89,14 +89,53 @@ typedef unsigned long  hva_t;
 typedef u64            hpa_t;
 typedef unsigned long  hfn_t;
 
+#define NR_PTE_CHAIN_ENTRIES 5
+
+struct kvm_pte_chain {
+	u64 *parent_ptes[NR_PTE_CHAIN_ENTRIES];
+	struct hlist_node link;
+};
+
+/*
+ * kvm_mmu_page_role, below, is defined as:
+ *
+ *   bits 0:3 - total guest paging levels (2-4, or zero for real mode)
+ *   bits 4:7 - page table level for this shadow (1-4)
+ *   bits 8:9 - page table quadrant for 2-level guests
+ *   bit   16 - "metaphysical" - gfn is not a real page (huge page/real mode)
+ */
+union kvm_mmu_page_role {
+	unsigned word;
+	struct {
+		unsigned glevels : 4;
+		unsigned level : 4;
+		unsigned quadrant : 2;
+		unsigned pad_for_nice_hex_output : 6;
+		unsigned metaphysical : 1;
+	};
+};
+
 struct kvm_mmu_page {
 	struct list_head link;
+	struct hlist_node hash_link;
+
+	/*
+	 * The following two entries are used to key the shadow page in the
+	 * hash table.
+	 */
+	gfn_t gfn;
+	union kvm_mmu_page_role role;
+
 	hpa_t page_hpa;
 	unsigned long slot_bitmap; /* One bit set per slot which has memory
 				    * in this shadow page.
 				    */
 	int global;              /* Set if all ptes in this page are global */
-	u64 *parent_pte;
+	int multimapped;         /* More than one parent_pte? */
+	union {
+		u64 *parent_pte;               /* !multimapped */
+		struct hlist_head parent_ptes; /* multimapped, kvm_pte_chain */
+	};
 };
 
 struct vmcs {
@@ -235,7 +274,11 @@ struct kvm {
 	spinlock_t lock; /* protects everything except vcpus */
 	int nmemslots;
 	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS];
+	/*
+	 * Hash table of struct kvm_mmu_page.
+	 */
 	struct list_head active_mmu_pages;
+	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
 	struct kvm_vcpu vcpus[KVM_MAX_VCPUS];
 	int memory_config_version;
 	int busy;

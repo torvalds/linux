@@ -32,6 +32,11 @@
 	#define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
 	#define PT_LEVEL_MASK(level) PT64_LEVEL_MASK(level)
 	#define PT_PTE_COPY_MASK PT64_PTE_COPY_MASK
+	#ifdef CONFIG_X86_64
+	#define PT_MAX_FULL_LEVELS 4
+	#else
+	#define PT_MAX_FULL_LEVELS 2
+	#endif
 #elif PTTYPE == 32
 	#define pt_element_t u32
 	#define guest_walker guest_walker32
@@ -42,6 +47,7 @@
 	#define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
 	#define PT_LEVEL_MASK(level) PT32_LEVEL_MASK(level)
 	#define PT_PTE_COPY_MASK PT32_PTE_COPY_MASK
+	#define PT_MAX_FULL_LEVELS 2
 #else
 	#error Invalid PTTYPE value
 #endif
@@ -52,7 +58,7 @@
  */
 struct guest_walker {
 	int level;
-	gfn_t table_gfn;
+	gfn_t table_gfn[PT_MAX_FULL_LEVELS];
 	pt_element_t *table;
 	pt_element_t *ptep;
 	pt_element_t inherited_ar;
@@ -68,7 +74,9 @@ static void FNAME(walk_addr)(struct guest_walker *walker,
 	struct kvm_memory_slot *slot;
 	pt_element_t *ptep;
 	pt_element_t root;
+	gfn_t table_gfn;
 
+	pgprintk("%s: addr %lx\n", __FUNCTION__, addr);
 	walker->level = vcpu->mmu.root_level;
 	walker->table = NULL;
 	root = vcpu->cr3;
@@ -81,8 +89,11 @@ static void FNAME(walk_addr)(struct guest_walker *walker,
 		--walker->level;
 	}
 #endif
-	walker->table_gfn = (root & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
-	slot = gfn_to_memslot(vcpu->kvm, walker->table_gfn);
+	table_gfn = (root & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
+	walker->table_gfn[walker->level - 1] = table_gfn;
+	pgprintk("%s: table_gfn[%d] %lx\n", __FUNCTION__,
+		 walker->level - 1, table_gfn);
+	slot = gfn_to_memslot(vcpu->kvm, table_gfn);
 	hpa = safe_gpa_to_hpa(vcpu, root & PT64_BASE_ADDR_MASK);
 	walker->table = kmap_atomic(pfn_to_page(hpa >> PAGE_SHIFT), KM_USER0);
 
@@ -111,12 +122,15 @@ static void FNAME(walk_addr)(struct guest_walker *walker,
 
 		if (walker->level != 3 || is_long_mode(vcpu))
 			walker->inherited_ar &= walker->table[index];
-		walker->table_gfn = (*ptep & PT_BASE_ADDR_MASK) >> PAGE_SHIFT;
+		table_gfn = (*ptep & PT_BASE_ADDR_MASK) >> PAGE_SHIFT;
 		paddr = safe_gpa_to_hpa(vcpu, *ptep & PT_BASE_ADDR_MASK);
 		kunmap_atomic(walker->table, KM_USER0);
 		walker->table = kmap_atomic(pfn_to_page(paddr >> PAGE_SHIFT),
 					    KM_USER0);
 		--walker->level;
+		walker->table_gfn[walker->level - 1 ] = table_gfn;
+		pgprintk("%s: table_gfn[%d] %lx\n", __FUNCTION__,
+			 walker->level - 1, table_gfn);
 	}
 	walker->ptep = ptep;
 }
@@ -181,6 +195,8 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		u64 *shadow_ent = ((u64 *)__va(shadow_addr)) + index;
 		struct kvm_mmu_page *shadow_page;
 		u64 shadow_pte;
+		int metaphysical;
+		gfn_t table_gfn;
 
 		if (is_present_pte(*shadow_ent) || is_io_pte(*shadow_ent)) {
 			if (level == PT_PAGE_TABLE_LEVEL)
@@ -205,7 +221,17 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			return shadow_ent;
 		}
 
-		shadow_page = kvm_mmu_alloc_page(vcpu, shadow_ent);
+		if (level - 1 == PT_PAGE_TABLE_LEVEL
+		    && walker->level == PT_DIRECTORY_LEVEL) {
+			metaphysical = 1;
+			table_gfn = (*guest_ent & PT_BASE_ADDR_MASK)
+				>> PAGE_SHIFT;
+		} else {
+			metaphysical = 0;
+			table_gfn = walker->table_gfn[level - 2];
+		}
+		shadow_page = kvm_mmu_get_page(vcpu, table_gfn, addr, level-1,
+					       metaphysical, shadow_ent);
 		if (!shadow_page)
 			return ERR_PTR(-ENOMEM);
 		shadow_addr = shadow_page->page_hpa;
@@ -227,7 +253,8 @@ static int FNAME(fix_write_pf)(struct kvm_vcpu *vcpu,
 			       u64 *shadow_ent,
 			       struct guest_walker *walker,
 			       gva_t addr,
-			       int user)
+			       int user,
+			       int *write_pt)
 {
 	pt_element_t *guest_ent;
 	int writable_shadow;
@@ -264,6 +291,12 @@ static int FNAME(fix_write_pf)(struct kvm_vcpu *vcpu,
 	}
 
 	gfn = (*guest_ent & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
+	if (kvm_mmu_lookup_page(vcpu, gfn)) {
+		pgprintk("%s: found shadow page for %lx, marking ro\n",
+			 __FUNCTION__, gfn);
+		*write_pt = 1;
+		return 0;
+	}
 	mark_page_dirty(vcpu->kvm, gfn);
 	*shadow_ent |= PT_WRITABLE_MASK;
 	*guest_ent |= PT_DIRTY_MASK;
@@ -294,7 +327,9 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	struct guest_walker walker;
 	u64 *shadow_pte;
 	int fixed;
+	int write_pt = 0;
 
+	pgprintk("%s: addr %lx err %x\n", __FUNCTION__, addr, error_code);
 	/*
 	 * Look up the shadow pte for the faulting address.
 	 */
@@ -302,6 +337,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		FNAME(walk_addr)(&walker, vcpu, addr);
 		shadow_pte = FNAME(fetch)(vcpu, addr, &walker);
 		if (IS_ERR(shadow_pte)) {  /* must be -ENOMEM */
+			printk("%s: oom\n", __FUNCTION__);
 			nonpaging_flush(vcpu);
 			FNAME(release_walker)(&walker);
 			continue;
@@ -313,19 +349,26 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	 * The page is not mapped by the guest.  Let the guest handle it.
 	 */
 	if (!shadow_pte) {
+		pgprintk("%s: not mapped\n", __FUNCTION__);
 		inject_page_fault(vcpu, addr, error_code);
 		FNAME(release_walker)(&walker);
 		return 0;
 	}
+
+	pgprintk("%s: shadow pte %p %llx\n", __FUNCTION__,
+		 shadow_pte, *shadow_pte);
 
 	/*
 	 * Update the shadow pte.
 	 */
 	if (write_fault)
 		fixed = FNAME(fix_write_pf)(vcpu, shadow_pte, &walker, addr,
-					    user_fault);
+					    user_fault, &write_pt);
 	else
 		fixed = fix_read_pf(shadow_pte);
+
+	pgprintk("%s: updated shadow pte %p %llx\n", __FUNCTION__,
+		 shadow_pte, *shadow_pte);
 
 	FNAME(release_walker)(&walker);
 
@@ -344,14 +387,14 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	/*
 	 * pte not present, guest page fault.
 	 */
-	if (pte_present && !fixed) {
+	if (pte_present && !fixed && !write_pt) {
 		inject_page_fault(vcpu, addr, error_code);
 		return 0;
 	}
 
 	++kvm_stat.pf_fixed;
 
-	return 0;
+	return write_pt;
 }
 
 static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
@@ -395,3 +438,4 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
 #undef PT_PTE_COPY_MASK
 #undef PT_NON_PTE_COPY_MASK
 #undef PT_DIR_BASE_ADDR_MASK
+#undef PT_MAX_FULL_LEVELS
