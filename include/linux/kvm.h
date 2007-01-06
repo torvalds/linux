@@ -11,7 +11,7 @@
 #include <asm/types.h>
 #include <linux/ioctl.h>
 
-#define KVM_API_VERSION 1
+#define KVM_API_VERSION 2
 
 /*
  * Architectural interrupt line count, and the size of the bitmap needed
@@ -45,6 +45,7 @@ enum kvm_exit_reason {
 	KVM_EXIT_DEBUG            = 4,
 	KVM_EXIT_HLT              = 5,
 	KVM_EXIT_MMIO             = 6,
+	KVM_EXIT_IRQ_WINDOW_OPEN  = 7,
 };
 
 /* for KVM_RUN */
@@ -53,11 +54,19 @@ struct kvm_run {
 	__u32 vcpu;
 	__u32 emulated;  /* skip current instruction */
 	__u32 mmio_completed; /* mmio request completed */
+	__u8 request_interrupt_window;
+	__u8 padding1[3];
 
 	/* out */
 	__u32 exit_type;
 	__u32 exit_reason;
 	__u32 instruction_length;
+	__u8 ready_for_interrupt_injection;
+	__u8 if_flag;
+	__u16 padding2;
+	__u64 cr8;
+	__u64 apic_base;
+
 	union {
 		/* KVM_EXIT_UNKNOWN */
 		struct {

@@ -58,6 +58,9 @@ static struct kvm_stats_debugfs_item {
 	{ "io_exits", &kvm_stat.io_exits },
 	{ "mmio_exits", &kvm_stat.mmio_exits },
 	{ "signal_exits", &kvm_stat.signal_exits },
+	{ "irq_window", &kvm_stat.irq_window_exits },
+	{ "halt_exits", &kvm_stat.halt_exits },
+	{ "request_irq", &kvm_stat.request_irq_exits },
 	{ "irq_exits", &kvm_stat.irq_exits },
 	{ 0, 0 }
 };
@@ -1693,12 +1696,12 @@ static long kvm_dev_ioctl(struct file *filp,
 		if (copy_from_user(&kvm_run, (void *)arg, sizeof kvm_run))
 			goto out;
 		r = kvm_dev_ioctl_run(kvm, &kvm_run);
-		if (r < 0)
+		if (r < 0 &&  r != -EINTR)
 			goto out;
-		r = -EFAULT;
-		if (copy_to_user((void *)arg, &kvm_run, sizeof kvm_run))
+		if (copy_to_user((void *)arg, &kvm_run, sizeof kvm_run)) {
+			r = -EFAULT;
 			goto out;
-		r = 0;
+		}
 		break;
 	}
 	case KVM_GET_REGS: {

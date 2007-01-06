@@ -235,6 +235,8 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 
 	vcpu->rip = vcpu->svm->vmcb->save.rip = vcpu->svm->next_rip;
 	vcpu->svm->vmcb->control.int_state &= ~SVM_INTERRUPT_SHADOW_MASK;
+
+	vcpu->interrupt_window_open = 1;
 }
 
 static int has_svm(void)
@@ -1031,10 +1033,11 @@ static int halt_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	vcpu->svm->next_rip = vcpu->svm->vmcb->save.rip + 1;
 	skip_emulated_instruction(vcpu);
-	if (vcpu->irq_summary && (vcpu->svm->vmcb->save.rflags & X86_EFLAGS_IF))
+	if (vcpu->irq_summary)
 		return 1;
 
 	kvm_run->exit_reason = KVM_EXIT_HLT;
+	++kvm_stat.halt_exits;
 	return 0;
 }
 
@@ -1186,6 +1189,24 @@ static int msr_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		return rdmsr_interception(vcpu, kvm_run);
 }
 
+static int interrupt_window_interception(struct kvm_vcpu *vcpu,
+				   struct kvm_run *kvm_run)
+{
+	/*
+	 * If the user space waits to inject interrupts, exit as soon as
+	 * possible
+	 */
+	if (kvm_run->request_interrupt_window &&
+	    !vcpu->irq_summary &&
+	    (vcpu->svm->vmcb->save.rflags & X86_EFLAGS_IF)) {
+		++kvm_stat.irq_window_exits;
+		kvm_run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
+		return 0;
+	}
+
+	return 1;
+}
+
 static int (*svm_exit_handlers[])(struct kvm_vcpu *vcpu,
 				      struct kvm_run *kvm_run) = {
 	[SVM_EXIT_READ_CR0]           		= emulate_on_interception,
@@ -1210,6 +1231,7 @@ static int (*svm_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[SVM_EXIT_NMI]				= nop_on_interception,
 	[SVM_EXIT_SMI]				= nop_on_interception,
 	[SVM_EXIT_INIT]				= nop_on_interception,
+	[SVM_EXIT_VINTR]			= interrupt_window_interception,
 	/* [SVM_EXIT_CR0_SEL_WRITE]		= emulate_on_interception, */
 	[SVM_EXIT_CPUID]			= cpuid_interception,
 	[SVM_EXIT_HLT]				= halt_interception,
@@ -1278,15 +1300,11 @@ static void pre_svm_run(struct kvm_vcpu *vcpu)
 }
 
 
-static inline void kvm_try_inject_irq(struct kvm_vcpu *vcpu)
+static inline void kvm_do_inject_irq(struct kvm_vcpu *vcpu)
 {
 	struct vmcb_control_area *control;
 
-	if (!vcpu->irq_summary)
-		return;
-
 	control = &vcpu->svm->vmcb->control;
-
 	control->int_vector = pop_irq(vcpu);
 	control->int_ctl &= ~V_INTR_PRIO_MASK;
 	control->int_ctl |= V_IRQ_MASK |
@@ -1301,6 +1319,59 @@ static void kvm_reput_irq(struct kvm_vcpu *vcpu)
 		control->int_ctl &= ~V_IRQ_MASK;
 		push_irq(vcpu, control->int_vector);
 	}
+
+	vcpu->interrupt_window_open =
+		!(control->int_state & SVM_INTERRUPT_SHADOW_MASK);
+}
+
+static void do_interrupt_requests(struct kvm_vcpu *vcpu,
+				       struct kvm_run *kvm_run)
+{
+	struct vmcb_control_area *control = &vcpu->svm->vmcb->control;
+
+	vcpu->interrupt_window_open =
+		(!(control->int_state & SVM_INTERRUPT_SHADOW_MASK) &&
+		 (vcpu->svm->vmcb->save.rflags & X86_EFLAGS_IF));
+
+	if (vcpu->interrupt_window_open && vcpu->irq_summary)
+		/*
+		 * If interrupts enabled, and not blocked by sti or mov ss. Good.
+		 */
+		kvm_do_inject_irq(vcpu);
+
+	/*
+	 * Interrupts blocked.  Wait for unblock.
+	 */
+	if (!vcpu->interrupt_window_open &&
+	    (vcpu->irq_summary || kvm_run->request_interrupt_window)) {
+		control->intercept |= 1ULL << INTERCEPT_VINTR;
+	} else
+		control->intercept &= ~(1ULL << INTERCEPT_VINTR);
+}
+
+static void post_kvm_run_save(struct kvm_vcpu *vcpu,
+			      struct kvm_run *kvm_run)
+{
+	kvm_run->ready_for_interrupt_injection = (vcpu->interrupt_window_open &&
+						  vcpu->irq_summary == 0);
+	kvm_run->if_flag = (vcpu->svm->vmcb->save.rflags & X86_EFLAGS_IF) != 0;
+	kvm_run->cr8 = vcpu->cr8;
+	kvm_run->apic_base = vcpu->apic_base;
+}
+
+/*
+ * Check if userspace requested an interrupt window, and that the
+ * interrupt window is open.
+ *
+ * No need to exit to userspace if we already have an interrupt queued.
+ */
+static int dm_request_for_irq_injection(struct kvm_vcpu *vcpu,
+					  struct kvm_run *kvm_run)
+{
+	return (!vcpu->irq_summary &&
+		kvm_run->request_interrupt_window &&
+		vcpu->interrupt_window_open &&
+		(vcpu->svm->vmcb->save.rflags & X86_EFLAGS_IF));
 }
 
 static void save_db_regs(unsigned long *db_regs)
@@ -1326,7 +1397,7 @@ static int svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	u16 ldt_selector;
 
 again:
-	kvm_try_inject_irq(vcpu);
+	do_interrupt_requests(vcpu, kvm_run);
 
 	clgi();
 
@@ -1487,17 +1558,26 @@ again:
 	if (vcpu->svm->vmcb->control.exit_code == SVM_EXIT_ERR) {
 		kvm_run->exit_type = KVM_EXIT_TYPE_FAIL_ENTRY;
 		kvm_run->exit_reason = vcpu->svm->vmcb->control.exit_code;
+		post_kvm_run_save(vcpu, kvm_run);
 		return 0;
 	}
 
 	if (handle_exit(vcpu, kvm_run)) {
 		if (signal_pending(current)) {
 			++kvm_stat.signal_exits;
+			post_kvm_run_save(vcpu, kvm_run);
+			return -EINTR;
+		}
+
+		if (dm_request_for_irq_injection(vcpu, kvm_run)) {
+			++kvm_stat.request_irq_exits;
+			post_kvm_run_save(vcpu, kvm_run);
 			return -EINTR;
 		}
 		kvm_resched(vcpu);
 		goto again;
 	}
+	post_kvm_run_save(vcpu, kvm_run);
 	return 0;
 }
 
