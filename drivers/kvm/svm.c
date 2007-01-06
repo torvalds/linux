@@ -1206,8 +1206,7 @@ static int interrupt_window_interception(struct kvm_vcpu *vcpu,
 	 * possible
 	 */
 	if (kvm_run->request_interrupt_window &&
-	    !vcpu->irq_summary &&
-	    (vcpu->svm->vmcb->save.rflags & X86_EFLAGS_IF)) {
+	    !vcpu->irq_summary) {
 		++kvm_stat.irq_window_exits;
 		kvm_run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
 		return 0;
