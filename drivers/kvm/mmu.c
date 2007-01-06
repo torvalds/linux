@@ -521,10 +521,6 @@ static void kvm_mmu_put_page(struct kvm_vcpu *vcpu,
 			     u64 *parent_pte)
 {
 	mmu_page_remove_parent_pte(page, parent_pte);
-	kvm_mmu_page_unlink_children(vcpu, page);
-	hlist_del(&page->hash_link);
-	list_del(&page->link);
-	list_add(&page->link, &vcpu->free_pages);
 }
 
 static void kvm_mmu_zap_page(struct kvm_vcpu *vcpu,
@@ -546,6 +542,10 @@ static void kvm_mmu_zap_page(struct kvm_vcpu *vcpu,
 		kvm_mmu_put_page(vcpu, page, parent_pte);
 		*parent_pte = 0;
 	}
+	kvm_mmu_page_unlink_children(vcpu, page);
+	hlist_del(&page->hash_link);
+	list_del(&page->link);
+	list_add(&page->link, &vcpu->free_pages);
 }
 
 static int kvm_mmu_unprotect_page(struct kvm_vcpu *vcpu, gfn_t gfn)
