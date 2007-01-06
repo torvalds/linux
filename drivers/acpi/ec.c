@@ -1016,8 +1016,8 @@ static int __init acpi_ec_set_intr_mode(char *str)
 		acpi_ec_mode = EC_POLL;
 	}
 	acpi_ec_driver.ops.add = acpi_ec_add;
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "EC %s mode.\n",
-			  intr ? "interrupt" : "polling"));
+	printk(KERN_NOTICE PREFIX "%s mode.\n",
+			  intr ? "interrupt" : "polling");
 
 	return 1;
 }
