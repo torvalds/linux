@@ -133,6 +133,7 @@ static void FNAME(walk_addr)(struct guest_walker *walker,
 			 walker->level - 1, table_gfn);
 	}
 	walker->ptep = ptep;
+	pgprintk("%s: pte %llx\n", __FUNCTION__, (u64)*ptep);
 }
 
 static void FNAME(release_walker)(struct guest_walker *walker)
