@@ -209,24 +209,16 @@ static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 
 static int remote_wakeup_is_broken(struct uhci_hcd *uhci)
 {
-	static struct dmi_system_id broken_wakeup_table[] = {
-		{
-			.ident = "Asus A7V8X",
-			.matches = {
-				DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK"),
-				DMI_MATCH(DMI_BOARD_NAME, "A7V8X"),
-				DMI_MATCH(DMI_BOARD_VERSION, "REV 1.xx"),
-			}
-		},
-		{ }
-	};
 	int port;
+	char *sys_info;
+	static char bad_Asus_board[] = "A7V8X";
 
 	/* One of Asus's motherboards has a bug which causes it to
 	 * wake up immediately from suspend-to-RAM if any of the ports
 	 * are connected.  In such cases we will not set EGSM.
 	 */
-	if (dmi_check_system(broken_wakeup_table)) {
+	sys_info = dmi_get_system_info(DMI_BOARD_NAME);
+	if (sys_info && !strcmp(sys_info, bad_Asus_board)) {
 		for (port = 0; port < uhci->rh_numports; ++port) {
 			if (inw(uhci->io_addr + USBPORTSC1 + port * 2) &
 					USBPORTSC_CCS)
@@ -265,7 +257,9 @@ __acquires(uhci->lock)
 	int_enable = USBINTR_RESUME;
 	if (remote_wakeup_is_broken(uhci))
 		egsm_enable = 0;
-	if (resume_detect_interrupts_are_broken(uhci) || !egsm_enable)
+	if (resume_detect_interrupts_are_broken(uhci) || !egsm_enable ||
+			!device_may_wakeup(
+				&uhci_to_hcd(uhci)->self.root_hub->dev))
 		uhci->working_RD = int_enable = 0;
 
 	outw(int_enable, uhci->io_addr + USBINTR);

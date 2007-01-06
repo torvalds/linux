@@ -625,6 +625,9 @@ static int option_send_setup(struct usb_serial_port *port)
 
 	dbg("%s", __FUNCTION__);
 
+	if (port->number != 0)
+		return 0;
+
 	portdata = usb_get_serial_port_data(port);
 
 	if (port->tty) {
