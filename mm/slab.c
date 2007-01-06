@@ -3281,7 +3281,7 @@ retry:
 					flags | GFP_THISNODE, nid);
 	}
 
-	if (!obj) {
+	if (!obj && !(flags & __GFP_NO_GROW)) {
 		/*
 		 * This allocation will be performed within the constraints
 		 * of the current cpuset / memory policy requirements.
@@ -3310,7 +3310,7 @@ retry:
 					 */
 					goto retry;
 			} else {
-				kmem_freepages(cache, obj);
+				/* cache_grow already freed obj */
 				obj = NULL;
 			}
 		}
