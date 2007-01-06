@@ -165,14 +165,15 @@ static int swsusp_swap_check(void) /* This is called before saving image */
 {
 	int res;
 
-	res = swap_type_of(swsusp_resume_device, swsusp_resume_block);
+	res = swap_type_of(swsusp_resume_device, swsusp_resume_block,
+			&resume_bdev);
 	if (res < 0)
 		return res;
 
 	root_swap = res;
-	resume_bdev = open_by_devnum(swsusp_resume_device, FMODE_WRITE);
-	if (IS_ERR(resume_bdev))
-		return PTR_ERR(resume_bdev);
+	res = blkdev_get(resume_bdev, FMODE_WRITE, O_RDWR);
+	if (res)
+		return res;
 
 	res = set_blocksize(resume_bdev, PAGE_SIZE);
 	if (res < 0)
