@@ -318,6 +318,7 @@ static void kvm_mmu_free_page(struct kvm_vcpu *vcpu, hpa_t page_hpa)
 {
 	struct kvm_mmu_page *page_head = page_header(page_hpa);
 
+	ASSERT(is_empty_shadow_page(page_hpa));
 	list_del(&page_head->link);
 	page_head->page_hpa = page_hpa;
 	list_add(&page_head->link, &vcpu->free_pages);
