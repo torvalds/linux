@@ -820,9 +820,9 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		hpa_t root = vcpu->mmu.root_hpa;
 
 		ASSERT(!VALID_PAGE(root));
-		root = kvm_mmu_get_page(vcpu, root_gfn, 0,
-					PT64_ROOT_LEVEL, 0, NULL)->page_hpa;
-		page = page_header(root);
+		page = kvm_mmu_get_page(vcpu, root_gfn, 0,
+					PT64_ROOT_LEVEL, 0, NULL);
+		root = page->page_hpa;
 		++page->root_count;
 		vcpu->mmu.root_hpa = root;
 		return;
@@ -836,10 +836,10 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 			root_gfn = vcpu->pdptrs[i] >> PAGE_SHIFT;
 		else if (vcpu->mmu.root_level == 0)
 			root_gfn = 0;
-		root = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
+		page = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
 					PT32_ROOT_LEVEL, !is_paging(vcpu),
-					NULL)->page_hpa;
-		page = page_header(root);
+					NULL);
+		root = page->page_hpa;
 		++page->root_count;
 		vcpu->mmu.pae_root[i] = root | PT_PRESENT_MASK;
 	}
