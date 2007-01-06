@@ -752,7 +752,8 @@ static inline void set_pte_common(struct kvm_vcpu *vcpu,
 			     u64 *shadow_pte,
 			     gpa_t gaddr,
 			     int dirty,
-			     u64 access_bits)
+			     u64 access_bits,
+			     gfn_t gfn)
 {
 	hpa_t paddr;
 
@@ -779,10 +780,10 @@ static inline void set_pte_common(struct kvm_vcpu *vcpu,
 	if (access_bits & PT_WRITABLE_MASK) {
 		struct kvm_mmu_page *shadow;
 
-		shadow = kvm_mmu_lookup_page(vcpu, gaddr >> PAGE_SHIFT);
+		shadow = kvm_mmu_lookup_page(vcpu, gfn);
 		if (shadow) {
 			pgprintk("%s: found shadow page for %lx, marking ro\n",
-				 __FUNCTION__, (gfn_t)(gaddr >> PAGE_SHIFT));
+				 __FUNCTION__, gfn);
 			access_bits &= ~PT_WRITABLE_MASK;
 			*shadow_pte &= ~PT_WRITABLE_MASK;
 		}
