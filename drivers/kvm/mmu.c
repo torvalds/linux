@@ -383,6 +383,7 @@ static void rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
 		BUG_ON(!(*spte & PT_WRITABLE_MASK));
 		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
 		rmap_remove(vcpu, spte);
+		kvm_arch_ops->tlb_flush(vcpu);
 		*spte &= ~(u64)PT_WRITABLE_MASK;
 	}
 }
@@ -594,6 +595,7 @@ static void kvm_mmu_page_unlink_children(struct kvm_vcpu *vcpu,
 				rmap_remove(vcpu, &pt[i]);
 			pt[i] = 0;
 		}
+		kvm_arch_ops->tlb_flush(vcpu);
 		return;
 	}
 
@@ -927,7 +929,10 @@ static inline void set_pte_common(struct kvm_vcpu *vcpu,
 			pgprintk("%s: found shadow page for %lx, marking ro\n",
 				 __FUNCTION__, gfn);
 			access_bits &= ~PT_WRITABLE_MASK;
-			*shadow_pte &= ~PT_WRITABLE_MASK;
+			if (is_writeble_pte(*shadow_pte)) {
+				    *shadow_pte &= ~PT_WRITABLE_MASK;
+				    kvm_arch_ops->tlb_flush(vcpu);
+			}
 		}
 	}
 
