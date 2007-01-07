@@ -47,9 +47,9 @@ extern asmlinkage void excite_handle_int(void);
  */
 void __init arch_init_irq(void)
 {
-	mips_cpu_irq_init(0);
-	rm7k_cpu_irq_init(8);
-	rm9k_cpu_irq_init(12);
+	mips_cpu_irq_init();
+	rm7k_cpu_irq_init();
+	rm9k_cpu_irq_init();
 
 #ifdef CONFIG_KGDB
 	excite_kgdb_init();

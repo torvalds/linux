@@ -17,6 +17,7 @@
 #ifndef __ASM_DDB5XXX_DDB5477_H
 #define __ASM_DDB5XXX_DDB5477_H
 
+#include <irq.h>
 
 /*
  * This contains macros that are specific to DDB5477 or renamed from
@@ -257,8 +258,8 @@ extern void ll_vrc5477_irq_disable(int vrc5477_irq);
 #define	DDB_IRQ_BASE		0
 
 #define	I8259_IRQ_BASE		DDB_IRQ_BASE
-#define	VRC5477_IRQ_BASE	(I8259_IRQ_BASE + NUM_I8259_IRQ)
-#define	CPU_IRQ_BASE		(VRC5477_IRQ_BASE + NUM_VRC5477_IRQ)
+#define	CPU_IRQ_BASE		MIPS_CPU_IRQ_BASE
+#define	VRC5477_IRQ_BASE	(CPU_IRQ_BASE + NUM_CPU_IRQ)
 
 /*
  * vrc5477 irq defs

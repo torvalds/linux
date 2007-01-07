@@ -310,7 +310,7 @@ void __init arch_init_irq(void)
 	init_i8259_irqs();
 
 	if (!cpu_has_veic)
-		mips_cpu_irq_init (MIPSCPU_INT_BASE);
+		mips_cpu_irq_init();
 
         switch(mips_revision_corid) {
         case MIPS_REVISION_CORID_CORE_MSC:

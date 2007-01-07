@@ -65,7 +65,7 @@ void __init arch_init_irq(void)
 	 */
 	clear_c0_status(ST0_IM | ST0_BEV);
 
-	rm7k_cpu_irq_init(8);
+	rm7k_cpu_irq_init();
 
 	/* set up the cascading interrupts */
 	setup_irq(8, &cascade_mv64340);		/* unmask intControl IM8, IRQ 9 */

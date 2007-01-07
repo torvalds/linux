@@ -26,16 +26,6 @@
  * This file should be built into the kernel only if CONFIG_MIPS_MT_SMTC is set.
  */
 
-/*
- * MIPSCPU_INT_BASE is identically defined in both
- * asm-mips/mips-boards/maltaint.h and asm-mips/mips-boards/simint.h,
- * but as yet there's no properly organized include structure that
- * will ensure that the right *int.h file will be included for a
- * given platform build.
- */
-
-#define MIPSCPU_INT_BASE	16
-
 #define MIPS_CPU_IPI_IRQ	1
 
 #define LOCK_MT_PRA() \
@@ -921,7 +911,7 @@ void smtc_timer_broadcast(int vpe)
  * interrupts.
  */
 
-static int cpu_ipi_irq = MIPSCPU_INT_BASE + MIPS_CPU_IPI_IRQ;
+static int cpu_ipi_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_IRQ;
 
 static irqreturn_t ipi_interrupt(int irq, void *dev_idm)
 {
