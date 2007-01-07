@@ -39,15 +39,6 @@ static inline void rm9k_cpu_irq_enable(unsigned int irq)
 	local_irq_restore(flags);
 }
 
-static void rm9k_cpu_irq_disable(unsigned int irq)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	mask_rm9k_irq(irq);
-	local_irq_restore(flags);
-}
-
 /*
  * Performance counter interrupts are global on all processors.
  */
