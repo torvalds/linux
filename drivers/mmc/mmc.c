@@ -1092,7 +1092,8 @@ static void mmc_process_ext_csds(struct mmc_host *host)
 		mmc_wait_for_req(host, &mrq);
 
 		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
-			mmc_card_set_dead(card);
+			printk("%s: unable to read EXT_CSD, performance "
+				"might suffer.\n", mmc_hostname(card->host));
 			continue;
 		}
 
@@ -1108,7 +1109,6 @@ static void mmc_process_ext_csds(struct mmc_host *host)
 			printk("%s: card is mmc v4 but doesn't support "
 			       "any high-speed modes.\n",
 				mmc_hostname(card->host));
-			mmc_card_set_bad(card);
 			continue;
 		}
 
@@ -1289,7 +1289,9 @@ static void mmc_read_switch_caps(struct mmc_host *host)
 		mmc_wait_for_req(host, &mrq);
 
 		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
-			mmc_card_set_dead(card);
+			printk("%s: unable to read switch capabilities, "
+				"performance might suffer.\n",
+				mmc_hostname(card->host));
 			continue;
 		}
 
@@ -1321,12 +1323,8 @@ static void mmc_read_switch_caps(struct mmc_host *host)
 
 		mmc_wait_for_req(host, &mrq);
 
-		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
-			mmc_card_set_dead(card);
-			continue;
-		}
-
-		if ((status[16] & 0xF) != 1) {
+		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE ||
+			(status[16] & 0xF) != 1) {
 			printk(KERN_WARNING "%s: Problem switching card "
 				"into high-speed mode!\n",
 				mmc_hostname(host));
