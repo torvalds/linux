@@ -298,7 +298,9 @@ static int pcipcwd_stop(void)
 static int pcipcwd_keepalive(void)
 {
 	/* Re-trigger watchdog by writing to port 0 */
+	spin_lock(&pcipcwd_private.io_lock);
 	outb_p(0x42, pcipcwd_private.io_addr);	/* send out any data */
+	spin_unlock(&pcipcwd_private.io_lock);
 
 	if (debug >= DEBUG)
 		printk(KERN_DEBUG PFX "Watchdog keepalive signal send\n");
@@ -385,7 +387,9 @@ static int pcipcwd_get_temperature(int *temperature)
 	if (!pcipcwd_private.supports_temp)
 		return -ENODEV;
 
+	spin_lock(&pcipcwd_private.io_lock);
 	*temperature = inb_p(pcipcwd_private.io_addr);
+	spin_unlock(&pcipcwd_private.io_lock);
 
 	/*
 	 * Convert celsius to fahrenheit, since this was
@@ -814,6 +818,8 @@ static int __init pcipcwd_init_module(void)
 static void __exit pcipcwd_cleanup_module(void)
 {
 	pci_unregister_driver(&pcipcwd_driver);
+
+	printk(KERN_INFO PFX "Watchdog Module Unloaded.\n");
 }
 
 module_init(pcipcwd_init_module);
