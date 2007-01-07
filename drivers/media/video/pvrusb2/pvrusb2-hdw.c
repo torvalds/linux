@@ -1926,10 +1926,10 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	if (hdw) {
 		usb_free_urb(hdw->ctl_read_urb);
 		usb_free_urb(hdw->ctl_write_urb);
-		if (hdw->ctl_read_buffer) kfree(hdw->ctl_read_buffer);
-		if (hdw->ctl_write_buffer) kfree(hdw->ctl_write_buffer);
-		if (hdw->controls) kfree(hdw->controls);
-		if (hdw->mpeg_ctrl_info) kfree(hdw->mpeg_ctrl_info);
+		kfree(hdw->ctl_read_buffer);
+		kfree(hdw->ctl_write_buffer);
+		kfree(hdw->controls);
+		kfree(hdw->mpeg_ctrl_info);
 		kfree(hdw);
 	}
 	return NULL;
@@ -1994,10 +1994,10 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 			unit_pointers[hdw->unit_number] = NULL;
 		}
 	} while (0); up(&pvr2_unit_sem);
-	if (hdw->controls) kfree(hdw->controls);
-	if (hdw->mpeg_ctrl_info) kfree(hdw->mpeg_ctrl_info);
-	if (hdw->std_defs) kfree(hdw->std_defs);
-	if (hdw->std_enum_names) kfree(hdw->std_enum_names);
+	kfree(hdw->controls);
+	kfree(hdw->mpeg_ctrl_info);
+	kfree(hdw->std_defs);
+	kfree(hdw->std_enum_names);
 	kfree(hdw);
 }
 
