@@ -255,8 +255,16 @@ KERN_CRIT "                     ||     ||\n");
 		printk(KERN_CRIT "%s (pid %d): %s (code %ld)\n",
 			current->comm, current->pid, str, err);
 
-	dump_stack();
+	/* Wot's wrong wif bein' racy? */
+	if (current->thread.flags & PARISC_KERNEL_DEATH) {
+		printk(KERN_CRIT "%s() recursion detected.\n", __FUNCTION__);
+		local_irq_enable();
+		while (1);
+	}
+	current->thread.flags |= PARISC_KERNEL_DEATH;
+
 	show_regs(regs);
+	dump_stack();
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
@@ -267,14 +275,6 @@ KERN_CRIT "                     ||     ||\n");
 		panic("Fatal exception");
 	}
 
-	/* Wot's wrong wif bein' racy? */
-	if (current->thread.flags & PARISC_KERNEL_DEATH) {
-		printk(KERN_CRIT "%s() recursion detected.\n", __FUNCTION__);
-		local_irq_enable();
-		while (1);
-	}
-
-	current->thread.flags |= PARISC_KERNEL_DEATH;
 	do_exit(SIGSEGV);
 }
 
