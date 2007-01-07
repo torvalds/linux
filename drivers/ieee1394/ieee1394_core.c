@@ -1178,6 +1178,7 @@ module_exit(ieee1394_cleanup);
 /** hosts.c **/
 EXPORT_SYMBOL(hpsb_alloc_host);
 EXPORT_SYMBOL(hpsb_add_host);
+EXPORT_SYMBOL(hpsb_resume_host);
 EXPORT_SYMBOL(hpsb_remove_host);
 EXPORT_SYMBOL(hpsb_update_config_rom_image);
 

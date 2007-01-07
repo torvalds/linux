@@ -200,7 +200,8 @@ struct hpsb_host_driver {
 struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 				  struct device *dev);
 int hpsb_add_host(struct hpsb_host *host);
-void hpsb_remove_host(struct hpsb_host *h);
+void hpsb_resume_host(struct hpsb_host *host);
+void hpsb_remove_host(struct hpsb_host *host);
 
 /* Updates the configuration rom image of a host.  rom_version must be the
  * current version, otherwise it will fail with return value -1. If this

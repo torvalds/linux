@@ -3536,9 +3536,6 @@ static int ohci1394_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	int err;
 	struct ti_ohci *ohci = pci_get_drvdata(pdev);
 
-	printk(KERN_INFO "%s does not fully support suspend and resume yet\n",
-	       OHCI1394_DRIVER_NAME);
-
 	if (!ohci) {
 		printk(KERN_ERR "%s: tried to suspend nonexisting host\n",
 		       OHCI1394_DRIVER_NAME);
@@ -3625,6 +3622,7 @@ static int ohci1394_pci_resume(struct pci_dev *pdev)
 	mdelay(50);
 	ohci_initialize(ohci);
 
+	hpsb_resume_host(ohci->host);
 	return 0;
 }
 #endif /* CONFIG_PM */
