@@ -631,7 +631,7 @@ void __init register_led_regions(void)
    ** avoid a race condition while writing the CMD/DATA register pair.
    **
  */
-int lcd_print( char *str )
+int lcd_print( const char *str )
 {
 	int i;
 

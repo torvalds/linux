@@ -148,10 +148,6 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 		write_sequnlock(&xtime_lock);
 	}
 
-	/* check soft power switch status */
-	if (cpu == 0 && !atomic_read(&power_tasklet.count))
-		tasklet_schedule(&power_tasklet);
-
 	return IRQ_HANDLED;
 }
 
