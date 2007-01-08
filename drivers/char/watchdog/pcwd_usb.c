@@ -1,7 +1,7 @@
 /*
  *	Berkshire USB-PC Watchdog Card Driver
  *
- *	(c) Copyright 2004 Wim Van Sebroeck <wim@iguana.be>.
+ *	(c) Copyright 2004-2007 Wim Van Sebroeck <wim@iguana.be>.
  *
  *	Based on source code of the following authors:
  *	  Ken Hollis <kenji@bitgate.com>,
@@ -56,8 +56,8 @@
 
 
 /* Module and Version Information */
-#define DRIVER_VERSION "1.01"
-#define DRIVER_DATE "15 Mar 2005"
+#define DRIVER_VERSION "1.02"
+#define DRIVER_DATE "06 Jan 2007"
 #define DRIVER_AUTHOR "Wim Van Sebroeck <wim@iguana.be>"
 #define DRIVER_DESC "Berkshire USB-PC Watchdog driver"
 #define DRIVER_LICENSE "GPL"
@@ -74,10 +74,10 @@ MODULE_ALIAS_MISCDEV(TEMP_MINOR);
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
 
-#define WATCHDOG_HEARTBEAT 2	/* 2 sec default heartbeat */
+#define WATCHDOG_HEARTBEAT 0	/* default heartbeat = delay-time from dip-switches */
 static int heartbeat = WATCHDOG_HEARTBEAT;
 module_param(heartbeat, int, 0);
-MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (0<heartbeat<65536, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
+MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (0<heartbeat<65536 or 0=delay-time from dip-switches, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
@@ -108,6 +108,18 @@ MODULE_DEVICE_TABLE (usb, usb_pcwd_table);
 #define CMD_WRITE_WATCHDOG_TIMEOUT	0x19	/* Write Current Watchdog Time */
 #define CMD_ENABLE_WATCHDOG		0x30	/* Enable / Disable Watchdog */
 #define CMD_DISABLE_WATCHDOG		CMD_ENABLE_WATCHDOG
+
+/* Watchdog's Dip Switch heartbeat values */
+static const int heartbeat_tbl [] = {
+	5,	/* OFF-OFF-OFF	=  5 Sec  */
+	10,	/* OFF-OFF-ON	= 10 Sec  */
+	30,	/* OFF-ON-OFF	= 30 Sec  */
+	60,	/* OFF-ON-ON	=  1 Min  */
+	300,	/* ON-OFF-OFF	=  5 Min  */
+	600,	/* ON-OFF-ON	= 10 Min  */
+	1800,	/* ON-ON-OFF	= 30 Min  */
+	3600,	/* ON-ON-ON	=  1 hour */
+};
 
 /* We can only use 1 card due to the /dev/watchdog restriction */
 static int cards_found;
@@ -680,6 +692,10 @@ static int usb_pcwd_probe(struct usb_interface *interface, const struct usb_devi
 		option_switches,
 		((option_switches & 0x10) ? "ON" : "OFF"),
 		((option_switches & 0x08) ? "ON" : "OFF"));
+
+	/* If heartbeat = 0 then we use the heartbeat from the dip-switches */
+	if (heartbeat == 0)
+		heartbeat = heartbeat_tbl[(option_switches & 0x07)];
 
 	/* Check that the heartbeat value is within it's range ; if not reset to the default */
 	if (usb_pcwd_set_heartbeat(usb_pcwd, heartbeat)) {
