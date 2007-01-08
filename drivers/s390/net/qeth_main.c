@@ -3952,13 +3952,22 @@ static inline struct sk_buff *
 qeth_prepare_skb(struct qeth_card *card, struct sk_buff *skb,
 		 struct qeth_hdr **hdr, int ipv)
 {
-	struct sk_buff *new_skb;
+	struct sk_buff *new_skb, *new_skb2;
 	
 	QETH_DBF_TEXT(trace, 6, "prepskb");
-
-        new_skb = qeth_realloc_headroom(card, skb, sizeof(struct qeth_hdr));
-       	if (new_skb == NULL)
+	new_skb = skb;
+	new_skb = qeth_pskb_unshare(skb, GFP_ATOMIC);
+	if (!new_skb)
 		return NULL;
+	new_skb2 = qeth_realloc_headroom(card, new_skb,
+					 sizeof(struct qeth_hdr));
+	if (!new_skb2) {
+		__qeth_free_new_skb(skb, new_skb);
+		return NULL;
+	}
+	if (new_skb != skb)
+		__qeth_free_new_skb(new_skb2, new_skb);
+	new_skb = new_skb2;
 	*hdr = __qeth_prepare_skb(card, new_skb, ipv);
 	if (*hdr == NULL) {
 		__qeth_free_new_skb(skb, new_skb);
@@ -6339,6 +6348,42 @@ static struct ethtool_ops qeth_ethtool_ops = {
 };
 
 static int
+qeth_hard_header_parse(struct sk_buff *skb, unsigned char *haddr)
+{
+	struct qeth_card *card;
+	struct ethhdr *eth;
+
+	card = qeth_get_card_from_dev(skb->dev);
+	if (card->options.layer2)
+		goto haveheader;
+#ifdef CONFIG_QETH_IPV6
+	/* cause of the manipulated arp constructor and the ARP
+	   flag for OSAE devices we have some nasty exceptions */
+	if (card->info.type == QETH_CARD_TYPE_OSAE) {
+		if (!card->options.fake_ll) {
+			if ((skb->pkt_type==PACKET_OUTGOING) &&
+			    (skb->protocol==ETH_P_IPV6))
+				goto haveheader;
+			else
+				return 0;
+		} else {
+			if ((skb->pkt_type==PACKET_OUTGOING) &&
+			    (skb->protocol==ETH_P_IP))
+				return 0;
+			else
+				goto haveheader;
+		}
+	}
+#endif
+	if (!card->options.fake_ll)
+		return 0;
+haveheader:
+	eth = eth_hdr(skb);
+	memcpy(haddr, eth->h_source, ETH_ALEN);
+	return ETH_ALEN;
+}
+
+static int
 qeth_netdev_init(struct net_device *dev)
 {
 	struct qeth_card *card;
@@ -6376,7 +6421,10 @@ qeth_netdev_init(struct net_device *dev)
 	if (card->options.fake_ll &&
 		(qeth_get_netdev_flags(card) & IFF_NOARP))
 			dev->hard_header = qeth_fake_header;
-	dev->hard_header_parse = NULL;
+	if (dev->type == ARPHRD_IEEE802_TR)
+		dev->hard_header_parse = NULL;
+	else
+		dev->hard_header_parse = qeth_hard_header_parse;
 	dev->set_mac_address = qeth_layer2_set_mac_address;
 	dev->flags |= qeth_get_netdev_flags(card);
 	if ((card->options.fake_broadcast) ||
