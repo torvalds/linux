@@ -429,6 +429,12 @@ static void gfs2_delete_inode(struct inode *inode)
 	}
 
 	error = gfs2_dinode_dealloc(ip);
+	/*
+	 * Must do this before unlock to avoid trying to write back
+	 * potentially dirty data now that inode no longer exists
+	 * on disk.
+	 */
+	truncate_inode_pages(&inode->i_data, 0);
 
 out_unlock:
 	gfs2_glock_dq(&ip->i_iopen_gh);
