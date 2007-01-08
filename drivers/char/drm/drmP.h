@@ -532,11 +532,13 @@ typedef struct drm_mm_node {
 	int free;
 	unsigned long start;
 	unsigned long size;
+	struct drm_mm *mm;
 	void *private;
 } drm_mm_node_t;
 
 typedef struct drm_mm {
-	drm_mm_node_t root_node;
+	struct list_head fl_entry;
+	struct list_head ml_entry;
 } drm_mm_t;
 
 /**
@@ -1050,11 +1052,15 @@ extern void drm_sysfs_device_remove(struct class_device *class_dev);
 extern drm_mm_node_t *drm_mm_get_block(drm_mm_node_t * parent,
 				       unsigned long size,
 				       unsigned alignment);
-extern void drm_mm_put_block(drm_mm_t *mm, drm_mm_node_t *cur);
+void drm_mm_put_block(drm_mm_node_t * cur);
 extern drm_mm_node_t *drm_mm_search_free(const drm_mm_t *mm, unsigned long size,
 					 unsigned alignment, int best_match);
 extern int drm_mm_init(drm_mm_t *mm, unsigned long start, unsigned long size);
 extern void drm_mm_takedown(drm_mm_t *mm);
+extern int drm_mm_clean(drm_mm_t *mm);
+extern unsigned long drm_mm_tail_space(drm_mm_t *mm);
+extern int drm_mm_remove_space_from_tail(drm_mm_t *mm, unsigned long size);
+extern int drm_mm_add_space_to_tail(drm_mm_t *mm, unsigned long size);
 
 extern void drm_core_ioremap(struct drm_map *map, struct drm_device *dev);
 extern void drm_core_ioremapfree(struct drm_map *map, struct drm_device *dev);
