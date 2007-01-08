@@ -296,6 +296,13 @@ static int at91_i2s_startup(struct snd_pcm_substream *substream)
 	ssc_p->dir_mask |= dir_mask;
 	spin_unlock_irq(&ssc_p->lock);
 
+	/*
+	 * dma_data is not set until hw_params() is called and
+	 * shutdown() depends on this value being NULL if hw_params()
+	 * was not called.
+	 */
+	rtd->cpu_dai->dma_data = NULL;
+
 	return 0;
 }
 
