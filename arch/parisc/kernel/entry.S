@@ -978,11 +978,39 @@ intr_check_resched:
 	LDREG   TI_FLAGS(%r1),%r19	/* sched.h: TIF_NEED_RESCHED */
 	bb,<,n	%r19,31-TIF_NEED_RESCHED,intr_do_resched /* forward */
 
+	.import do_notify_resume,code
 intr_check_sig:
 	/* As above */
 	mfctl   %cr30,%r1
-	LDREG	TI_FLAGS(%r1),%r19	/* sched.h: TIF_SIGPENDING */
-	bb,<,n %r19, 31-TIF_SIGPENDING, intr_do_signal /* forward */
+	LDREG	TI_FLAGS(%r1),%r19
+	load32	(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK), %r20
+	and,COND(<>)	%r19, %r20, %r0
+	b,n	intr_restore	/* skip past if we've nothing to do */
+
+	/* This check is critical to having LWS
+	 * working. The IASQ is zero on the gateway
+	 * page and we cannot deliver any signals until
+	 * we get off the gateway page.
+	 *
+	 * Only do signals if we are returning to user space
+	 */
+	LDREG	PT_IASQ0(%r16), %r20
+	CMPIB= 0,%r20,intr_restore /* backward */
+	nop
+	LDREG	PT_IASQ1(%r16), %r20
+	CMPIB= 0,%r20,intr_restore /* backward */
+	nop
+
+	copy	%r0, %r25			/* long in_syscall = 0 */
+#ifdef CONFIG_64BIT
+	ldo	-16(%r30),%r29			/* Reference param save area */
+#endif
+
+	BL	do_notify_resume,%r2
+	copy	%r16, %r26			/* struct pt_regs *regs */
+
+	b	intr_check_sig
+	nop
 
 intr_restore:
 	copy            %r16,%r29
@@ -1071,35 +1099,6 @@ intr_do_preempt:
 
 	b,n	intr_restore		/* ssm PSW_SM_I done by intr_restore */
 #endif /* CONFIG_PREEMPT */
-
-	.import do_signal,code
-intr_do_signal:
-	/* 
-		This check is critical to having LWS
-		working. The IASQ is zero on the gateway
-		page and we cannot deliver any signals until
-		we get off the gateway page.
-
-		Only do signals if we are returning to user space 
-	*/
-	LDREG	PT_IASQ0(%r16), %r20
-	CMPIB= 0,%r20,intr_restore /* backward */
-	nop
-	LDREG	PT_IASQ1(%r16), %r20
-	CMPIB= 0,%r20,intr_restore /* backward */
-	nop
-
-	copy	%r0, %r24			/* unsigned long in_syscall */
-	copy	%r16, %r25			/* struct pt_regs *regs */
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29			/* Reference param save area */
-#endif
-
-	BL	do_signal,%r2
-	copy	%r0, %r26			/* sigset_t *oldset = NULL */
-
-	b	intr_check_sig
-	nop
 
 	/*
 	 * External interrupts.
@@ -2024,32 +2023,6 @@ sys32_sigaltstack_wrapper:
 	nop
 #endif
 
-	.export sys_rt_sigsuspend_wrapper
-sys_rt_sigsuspend_wrapper:
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
-	ldo	TASK_REGS(%r1),%r24
-	reg_save %r24
-
-	STREG	%r2, -RP_OFFSET(%r30)
-#ifdef CONFIG_64BIT
-	ldo	FRAME_SIZE(%r30), %r30
-	BL	sys_rt_sigsuspend,%r2
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#else
-	BL	sys_rt_sigsuspend,%r2
-	ldo	FRAME_SIZE(%r30), %r30
-#endif
-
-	ldo	-FRAME_SIZE(%r30), %r30
-	LDREG	-RP_OFFSET(%r30), %r2
-
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
-	ldo	TASK_REGS(%r1),%r1
-	reg_restore %r1
-
-	bv	%r0(%r2)
-	nop
-
 	.export syscall_exit
 syscall_exit:
 
@@ -2115,9 +2088,35 @@ syscall_check_resched:
 	LDREG	TI_FLAGS-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r19	/* long */
 	bb,<,n	%r19, 31-TIF_NEED_RESCHED, syscall_do_resched /* forward */
 
+	.import do_signal,code
 syscall_check_sig:
-	LDREG	TI_FLAGS-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r19    /* get ti flags */
-	bb,<,n	%r19, 31-TIF_SIGPENDING, syscall_do_signal /* forward */
+	LDREG	TI_FLAGS-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r19
+	load32	(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK), %r26
+	and,COND(<>)	%r19, %r26, %r0
+	b,n	syscall_restore	/* skip past if we've nothing to do */
+
+syscall_do_signal:
+	/* Save callee-save registers (for sigcontext).
+	 * FIXME: After this point the process structure should be
+	 * consistent with all the relevant state of the process
+	 * before the syscall.  We need to verify this.
+	 */
+	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
+	ldo	TASK_REGS(%r1), %r26		/* struct pt_regs *regs */
+	reg_save %r26
+
+#ifdef CONFIG_64BIT
+	ldo	-16(%r30),%r29			/* Reference param save area */
+#endif
+
+	BL	do_notify_resume,%r2
+	ldi	1, %r25				/* long in_syscall = 1 */
+
+	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
+	ldo	TASK_REGS(%r1), %r20		/* reload pt_regs */
+	reg_restore %r20
+
+	b,n     syscall_check_sig
 
 syscall_restore:
 	/* Are we being ptraced? */
@@ -2255,30 +2254,6 @@ syscall_do_resched:
 #endif
 	b       syscall_check_bh  /* if resched, we start over again */
 	nop
-
-	.import do_signal,code
-syscall_do_signal:
-	/* Save callee-save registers (for sigcontext).
-	   FIXME: After this point the process structure should be
-	   consistent with all the relevant state of the process
-	   before the syscall.  We need to verify this. */
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1 
-	ldo	TASK_REGS(%r1), %r25		/* struct pt_regs *regs */
-	reg_save %r25
-
-	ldi	1, %r24				/* unsigned long in_syscall */
-
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29			/* Reference param save area */
-#endif
-	BL	do_signal,%r2
-	copy	%r0, %r26			/* sigset_t *oldset = NULL */
-
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
-	ldo	TASK_REGS(%r1), %r20		/* reload pt_regs */
-	reg_restore %r20
-
-	b,n     syscall_check_sig
 
 	/*
 	 * get_register is used by the non access tlb miss handlers to

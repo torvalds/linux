@@ -59,57 +59,12 @@
  * this. */
 #define A(__x)	((unsigned long)(__x))
 
-int do_signal(sigset_t *oldset, struct pt_regs *regs, int in_syscall);
-
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 #ifdef __LP64__
 #include "sys32.h"
 #endif
-
-asmlinkage int
-sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize, struct pt_regs *regs)
-{
-	sigset_t saveset, newset;
-#ifdef __LP64__
-	compat_sigset_t newset32;
-
-	if (is_compat_task()) {
-		/* XXX: Don't preclude handling different sized sigset_t's.  */
-		if (sigsetsize != sizeof(compat_sigset_t))
-			return -EINVAL;
-		if (copy_from_user(&newset32, (compat_sigset_t __user *)unewset, sizeof(newset32)))
-			return -EFAULT;
-		sigset_32to64(&newset,&newset32);
-		
-	} else 
-#endif
-	{
-		/* XXX: Don't preclude handling different sized sigset_t's.  */
-		if (sigsetsize != sizeof(sigset_t))
-			return -EINVAL;
-	
-		if (copy_from_user(&newset, unewset, sizeof(newset)))
-			return -EFAULT;
-	}
-
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-
-	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
-	current->blocked = newset;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	regs->gr[28] = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(&saveset, regs, 1))
-			return -EINTR;
-	}
-}
 
 /*
  * Do a signal return - restore sigcontext.
@@ -528,12 +483,13 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
  * us due to the magic of delayed branching.
  */
 
-asmlinkage int
-do_signal(sigset_t *oldset, struct pt_regs *regs, int in_syscall)
+asmlinkage void
+do_signal(struct pt_regs *regs, long in_syscall)
 {
 	siginfo_t info;
 	struct k_sigaction ka;
 	int signr;
+	sigset_t *oldset;
 
 	DBG(1,"\ndo_signal: oldset=0x%p, regs=0x%p, sr7 %#lx, in_syscall=%d\n",
 	       oldset, regs, regs->sr[7], in_syscall);
@@ -543,7 +499,9 @@ do_signal(sigset_t *oldset, struct pt_regs *regs, int in_syscall)
 	   we would be called in that case, but for some reason we
 	   are. */
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else
 		oldset = &current->blocked;
 
 	DBG(1,"do_signal: oldset %08lx / %08lx\n", 
@@ -592,7 +550,9 @@ do_signal(sigset_t *oldset, struct pt_regs *regs, int in_syscall)
 		if (handle_signal(signr, &info, &ka, oldset, regs, in_syscall)) {
 			DBG(1,KERN_DEBUG "do_signal: Exit (success), regs->gr[28] = %ld\n",
 				regs->gr[28]);
-			return 1;
+			if (test_thread_flag(TIF_RESTORE_SIGMASK))
+				clear_thread_flag(TIF_RESTORE_SIGMASK);
+			return;
 		}
 	}
 	/* end of while(1) looping forever if we can't force a signal */
@@ -653,5 +613,17 @@ do_signal(sigset_t *oldset, struct pt_regs *regs, int in_syscall)
 	DBG(1,"do_signal: Exit (not delivered), regs->gr[28] = %ld\n", 
 		regs->gr[28]);
 
-	return 0;
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
+
+	return;
+}
+
+void do_notify_resume(struct pt_regs *regs, long in_syscall)
+{
+	if (test_thread_flag(TIF_SIGPENDING) ||
+	    test_thread_flag(TIF_RESTORE_SIGMASK))
+		do_signal(regs, in_syscall);
 }

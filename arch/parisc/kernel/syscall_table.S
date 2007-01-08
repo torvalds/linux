@@ -283,7 +283,7 @@
 	 * struct from a 32-bit user-space app.
 	 */
 	ENTRY_SAME(rt_sigqueueinfo)
-	ENTRY_SAME(rt_sigsuspend_wrapper) /* not really SAME -- see the code */
+	ENTRY_COMP(rt_sigsuspend)
 	ENTRY_SAME(chown)		/* 180 */
 	/* setsockopt() used by iptables: SO_SET_REPLACE/SO_SET_ADD_COUNTERS */
 	ENTRY_COMP(setsockopt)
@@ -377,8 +377,8 @@
 	ENTRY_SAME(inotify_init)
 	ENTRY_SAME(inotify_add_watch)	/* 270 */
 	ENTRY_SAME(inotify_rm_watch)
-	ENTRY_SAME(ni_syscall)		/* 271 ENTRY_COMP(pselect6) */
-	ENTRY_SAME(ni_syscall)		/* 272 ENTRY_COMP(ppoll) */
+	ENTRY_COMP(pselect6)
+	ENTRY_COMP(ppoll)
 	ENTRY_SAME(migrate_pages)
 	ENTRY_COMP(openat)		/* 275 */
 	ENTRY_SAME(mkdirat)
