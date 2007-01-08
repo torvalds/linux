@@ -26,7 +26,7 @@
 BEGIN_FTR_SECTION;						\
 	mfspr	r0,SPRN_PURR;		/* get PURR and */	\
 	std	r0,STK_PARM(r6)(r1);	/* save for later */	\
-END_FTR_SECTION_IFCLR(CPU_FTR_PURR);
+END_FTR_SECTION_IFSET(CPU_FTR_PURR);
 	
 /*
  * postcall is performed immediately before function return which
@@ -43,7 +43,7 @@ BEGIN_FTR_SECTION;						\
 	mfspr	r8,SPRN_PURR;		/* PURR after */	\
 	ld	r6,STK_PARM(r6)(r1);	/* PURR before */	\
 	subf	r6,r6,r8;		/* delta */		\
-END_FTR_SECTION_IFCLR(CPU_FTR_PURR);				\
+END_FTR_SECTION_IFSET(CPU_FTR_PURR);				\
 	ld	r5,STK_PARM(r5)(r1);	/* timebase before */	\
 	subf	r5,r5,r7;		/* time delta */	\
 								\
@@ -66,7 +66,7 @@ BEGIN_FTR_SECTION;						\
 	ld	r7,HCALL_STAT_PURR(r4);	/* PURR */		\
 	add	r7,r7,r6;					\
 	std	r7,HCALL_STAT_PURR(r4);				\
-END_FTR_SECTION_IFCLR(CPU_FTR_PURR);				\
+END_FTR_SECTION_IFSET(CPU_FTR_PURR);				\
 1:
 #else
 #define HCALL_INST_PRECALL
