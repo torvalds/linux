@@ -796,6 +796,8 @@ static struct ata_port_info sis_info133_early = {
 	.port_ops	= &sis_133_early_ops,
 };
 
+/* Privately shared with the SiS180 SATA driver, not for use elsewhere */
+EXPORT_SYMBOL_GPL(sis_info133);
 
 static void sis_fixup(struct pci_dev *pdev, struct sis_chipset *sis)
 {

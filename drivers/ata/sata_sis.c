@@ -138,22 +138,25 @@ static struct ata_port_info sis_port_info = {
 	.port_ops	= &sis_ops,
 };
 
-
 MODULE_AUTHOR("Uwe Koziolek");
 MODULE_DESCRIPTION("low-level driver for Silicon Integratad Systems SATA controller");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, sis_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 
-static unsigned int get_scr_cfg_addr(unsigned int port_no, unsigned int sc_reg, struct pci_dev *pdev)
+static unsigned int get_scr_cfg_addr(struct ata_port *ap, unsigned int sc_reg)
 {
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned int addr = SIS_SCR_BASE + (4 * sc_reg);
+	u8 pmr;
 
-	if (port_no)  {
+	if (ap->port_no)  {
 		switch (pdev->device) {
 			case 0x0180:
 			case 0x0181:
-				addr += SIS180_SATA1_OFS;
+				pci_read_config_byte(pdev, SIS_PMR, &pmr);
+				if ((pmr & SIS_PMR_COMBINED) == 0)
+					addr += SIS180_SATA1_OFS;
 				break;
 
 			case 0x0182:
@@ -170,7 +173,7 @@ static unsigned int get_scr_cfg_addr(unsigned int port_no, unsigned int sc_reg, 
 static u32 sis_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	unsigned int cfg_addr = get_scr_cfg_addr(ap->port_no, sc_reg, pdev);
+	unsigned int cfg_addr = get_scr_cfg_addr(ap, sc_reg);
 	u32 val, val2 = 0;
 	u8 pmr;
 
@@ -188,13 +191,13 @@ static u32 sis_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg)
 	return (val|val2) &  0xfffffffb; /* avoid problems with powerdowned ports */
 }
 
-static void sis_scr_cfg_write (struct ata_port *ap, unsigned int scr, u32 val)
+static void sis_scr_cfg_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	unsigned int cfg_addr = get_scr_cfg_addr(ap->port_no, scr, pdev);
+	unsigned int cfg_addr = get_scr_cfg_addr(ap, sc_reg);
 	u8 pmr;
 
-	if (scr == SCR_ERROR) /* doesn't exist in PCI cfg space */
+	if (sc_reg == SCR_ERROR) /* doesn't exist in PCI cfg space */
 		return;
 
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
@@ -251,6 +254,9 @@ static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 
 static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	/* Provided by the PATA driver */
+	extern struct ata_port_info sis_info133;
+
 	static int printed_version;
 	struct ata_probe_ent *probe_ent = NULL;
 	int rc;
@@ -300,6 +306,17 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	switch (ent->device) {
 	case 0x0180:
 	case 0x0181:
+
+		/* The PATA-handling is provided by pata_sis */
+		switch (pmr & 0x30) {
+		case 0x10:
+			ppi[1] = &sis_info133;
+			break;
+			
+		case 0x30:
+			ppi[0] = &sis_info133;
+			break;
+		}
 		if ((pmr & SIS_PMR_COMBINED) == 0) {
 			dev_printk(KERN_INFO, &pdev->dev,
 				   "Detected SiS 180/181/964 chipset in SATA mode\n");
@@ -379,4 +396,3 @@ static void __exit sis_exit(void)
 
 module_init(sis_init);
 module_exit(sis_exit);
-
