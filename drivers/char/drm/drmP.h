@@ -843,9 +843,6 @@ extern void drm_mem_init(void);
 extern int drm_mem_info(char *buf, char **start, off_t offset,
 			int request, int *eof, void *data);
 extern void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area);
-extern void *drm_ioremap(unsigned long offset, unsigned long size,
-			 drm_device_t * dev);
-extern void drm_ioremapfree(void *pt, unsigned long size, drm_device_t * dev);
 
 extern DRM_AGP_MEM *drm_alloc_agp(drm_device_t * dev, int pages, u32 type);
 extern int drm_free_agp(DRM_AGP_MEM * handle, int pages);
@@ -1059,27 +1056,8 @@ extern drm_mm_node_t *drm_mm_search_free(const drm_mm_t *mm, unsigned long size,
 extern int drm_mm_init(drm_mm_t *mm, unsigned long start, unsigned long size);
 extern void drm_mm_takedown(drm_mm_t *mm);
 
-/* Inline replacements for DRM_IOREMAP macros */
-static __inline__ void drm_core_ioremap(struct drm_map *map,
-					struct drm_device *dev)
-{
-	map->handle = drm_ioremap(map->offset, map->size, dev);
-}
-
-#if 0
-static __inline__ void drm_core_ioremap_nocache(struct drm_map *map,
-						struct drm_device *dev)
-{
-	map->handle = drm_ioremap_nocache(map->offset, map->size, dev);
-}
-#endif  /*  0  */
-
-static __inline__ void drm_core_ioremapfree(struct drm_map *map,
-					    struct drm_device *dev)
-{
-	if (map->handle && map->size)
-		drm_ioremapfree(map->handle, map->size, dev);
-}
+extern void drm_core_ioremap(struct drm_map *map, struct drm_device *dev);
+extern void drm_core_ioremapfree(struct drm_map *map, struct drm_device *dev);
 
 static __inline__ struct drm_map *drm_core_findmap(struct drm_device *dev,
 						   unsigned int token)
