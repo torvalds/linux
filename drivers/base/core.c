@@ -1004,10 +1004,6 @@ int device_move(struct device *dev, struct device *new_parent)
 	if (!dev)
 		return -EINVAL;
 
-	if (!device_is_registered(dev)) {
-		error = -EINVAL;
-		goto out;
-	}
 	new_parent = get_device(new_parent);
 	if (!new_parent) {
 		error = -EINVAL;
