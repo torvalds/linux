@@ -1034,9 +1034,9 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 	list_del(&ldev->list);
 	layouts_list_items--;
  outnodev:
- 	if (sound) of_node_put(sound);
+ 	of_node_put(sound);
  	layout_device = NULL;
- 	if (ldev) kfree(ldev);
+ 	kfree(ldev);
 	return -ENODEV;
 }
 
