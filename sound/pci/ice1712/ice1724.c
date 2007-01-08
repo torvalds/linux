@@ -50,7 +50,7 @@
 #include "prodigy192.h"
 #include "juli.h"
 #include "phase.h"
-
+#include "wtm.h"
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("VIA ICEnsemble ICE1724/1720 (Envy24HT/PT)");
@@ -64,6 +64,7 @@ MODULE_SUPPORTED_DEVICE("{"
 	       PRODIGY192_DEVICE_DESC
 	       JULI_DEVICE_DESC
 	       PHASE_DEVICE_DESC
+	       WTM_DEVICE_DESC
 		"{VIA,VT1720},"
 		"{VIA,VT1724},"
 		"{ICEnsemble,Generic ICE1724},"
@@ -1958,6 +1959,7 @@ static struct snd_ice1712_card_info *card_tables[] __devinitdata = {
 	snd_vt1724_prodigy192_cards,
 	snd_vt1724_juli_cards,
 	snd_vt1724_phase_cards,
+	snd_vt1724_wtm_cards,
 	NULL,
 };
 
