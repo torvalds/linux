@@ -782,8 +782,19 @@ static struct hda_channel_mode ad1986a_modes[3] = {
 
 /* eapd initialization */
 static struct hda_verb ad1986a_eapd_init_verbs[] = {
-	{0x1b, AC_VERB_SET_EAPD_BTLENABLE, 0x00},
+	{0x1b, AC_VERB_SET_EAPD_BTLENABLE, 0x00 },
 	{}
+};
+
+/* Ultra initialization */
+static struct hda_verb ad1986a_ultra_init[] = {
+	/* eapd initialization */
+	{ 0x1b, AC_VERB_SET_EAPD_BTLENABLE, 0x00 },
+	/* CLFE -> Mic in */
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x2 },
+	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	{ 0x1d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080 },
+	{ } /* end */
 };
 
 /* models */
@@ -792,6 +803,7 @@ enum {
 	AD1986A_3STACK,
 	AD1986A_LAPTOP,
 	AD1986A_LAPTOP_EAPD,
+	AD1986A_ULTRA,
 	AD1986A_MODELS
 };
 
@@ -800,6 +812,7 @@ static const char *ad1986a_models[AD1986A_MODELS] = {
 	[AD1986A_3STACK]	= "3stack",
 	[AD1986A_LAPTOP]	= "laptop",
 	[AD1986A_LAPTOP_EAPD]	= "laptop-eapd",
+	[AD1986A_ULTRA]		= "ultra",
 };
 
 static struct snd_pci_quirk ad1986a_cfg_tbl[] = {
@@ -821,6 +834,8 @@ static struct snd_pci_quirk ad1986a_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x144d, 0xc023, "Samsung X60", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x144d, 0xc024, "Samsung R65", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x144d, 0xc026, "Samsung X11", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x144d, 0xc504, "Samsung Q35", AD1986A_3STACK),
+	SND_PCI_QUIRK(0x144d, 0xc027, "Samsung Q1", AD1986A_ULTRA),
 	SND_PCI_QUIRK(0x17aa, 0x1017, "Lenovo A60", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x17aa, 0x2066, "Lenovo N100", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x17c0, 0x2017, "Samsung M50", AD1986A_LAPTOP),
@@ -886,6 +901,15 @@ static int patch_ad1986a(struct hda_codec *codec)
 		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
 		spec->multiout.dig_out_nid = 0;
 		spec->input_mux = &ad1986a_laptop_eapd_capture_source;
+		break;
+	case AD1986A_ULTRA:
+		spec->mixers[0] = ad1986a_laptop_eapd_mixers;
+		spec->num_init_verbs = 2;
+		spec->init_verbs[1] = ad1986a_ultra_init;
+		spec->multiout.max_channels = 2;
+		spec->multiout.num_dacs = 1;
+		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
+		spec->multiout.dig_out_nid = 0;
 		break;
 	}
 
