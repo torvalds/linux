@@ -1074,7 +1074,7 @@ qeth_set_intial_options(struct qeth_card *card)
 		card->options.layer2 = 1;
 	else
 		card->options.layer2 = 0;
-	card->options.performance_stats = 1;
+	card->options.performance_stats = 0;
 }
 
 /**
@@ -2466,32 +2466,17 @@ qeth_rebuild_skb_fake_ll(struct qeth_card *card, struct sk_buff *skb,
 		qeth_rebuild_skb_fake_ll_eth(card, skb, hdr);
 }
 
-static inline __u16
+static inline void
 qeth_layer2_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 			struct qeth_hdr *hdr)
 {
-	unsigned short vlan_id = 0;
-#ifdef CONFIG_QETH_VLAN
-	struct vlan_hdr *vhdr;
-#endif
-
 	skb->pkt_type = PACKET_HOST;
 	skb->protocol = qeth_type_trans(skb, skb->dev);
 	if (card->options.checksum_type == NO_CHECKSUMMING)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
 		skb->ip_summed = CHECKSUM_NONE;
-#ifdef CONFIG_QETH_VLAN
-	if (hdr->hdr.l2.flags[2] & (QETH_LAYER2_FLAG_VLAN)) {
-		vhdr = (struct vlan_hdr *) skb->data;
-		skb->protocol =
-			__constant_htons(vhdr->h_vlan_encapsulated_proto);
-		vlan_id = hdr->hdr.l2.vlan_id;
-		skb_pull(skb, VLAN_HLEN);
-	}
-#endif
 	*((__u32 *)skb->cb) = ++card->seqno.pkt_seqno;
-	return vlan_id;
 }
 
 static inline __u16
@@ -2570,7 +2555,7 @@ qeth_process_inbound_buffer(struct qeth_card *card,
 				       &offset, &hdr))) {
 		skb->dev = card->dev;
 		if (hdr->hdr.l2.id == QETH_HEADER_TYPE_LAYER2)
-			vlan_tag = qeth_layer2_rebuild_skb(card, skb, hdr);
+			qeth_layer2_rebuild_skb(card, skb, hdr);
 		else if (hdr->hdr.l3.id == QETH_HEADER_TYPE_LAYER3)
 			vlan_tag = qeth_rebuild_skb(card, skb, hdr);
 		else { /*in case of OSN*/
