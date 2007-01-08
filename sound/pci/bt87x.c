@@ -804,6 +804,7 @@ static struct {
 	{0x1822, 0x0001}, /* Twinhan VisionPlus DVB-T */
 	{0x18ac, 0xd500}, /* DVICO FusionHDTV 5 Lite */
 	{0x18ac, 0xdb10}, /* DVICO FusionHDTV DVB-T Lite */
+	{0x18ac, 0xdb11}, /* Ultraview DVB-T Lite */
 	{0x270f, 0xfc00}, /* Chaintech Digitop DST-1000 DVB-S */
 	{0x7063, 0x2000}, /* pcHDTV HD-2000 TV */
 };
