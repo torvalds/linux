@@ -314,7 +314,7 @@ int kobject_rename(struct kobject * kobj, const char *new_name)
 /**
  *	kobject_move - move object to another parent
  *	@kobj:	object in question.
- *	@new_parent: object's new parent
+ *	@new_parent: object's new parent (can be NULL)
  */
 
 int kobject_move(struct kobject *kobj, struct kobject *new_parent)
@@ -330,8 +330,8 @@ int kobject_move(struct kobject *kobj, struct kobject *new_parent)
 		return -EINVAL;
 	new_parent = kobject_get(new_parent);
 	if (!new_parent) {
-		error = -EINVAL;
-		goto out;
+		if (kobj->kset)
+			new_parent = kobject_get(&kobj->kset->kobj);
 	}
 	/* old object path */
 	devpath = kobject_get_path(kobj, GFP_KERNEL);

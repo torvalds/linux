@@ -390,22 +390,23 @@ void device_initialize(struct device *dev)
 }
 
 #ifdef CONFIG_SYSFS_DEPRECATED
-static int setup_parent(struct device *dev, struct device *parent)
+static struct kobject * get_device_parent(struct device *dev,
+					  struct device *parent)
 {
 	/* Set the parent to the class, not the parent device */
 	/* this keeps sysfs from having a symlink to make old udevs happy */
 	if (dev->class)
-		dev->kobj.parent = &dev->class->subsys.kset.kobj;
+		return &dev->class->subsys.kset.kobj;
 	else if (parent)
-		dev->kobj.parent = &parent->kobj;
+		return &parent->kobj;
 
-	return 0;
+	return NULL;
 }
 #else
-static int virtual_device_parent(struct device *dev)
+static struct kobject * virtual_device_parent(struct device *dev)
 {
 	if (!dev->class)
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 
 	if (!dev->class->virtual_dir) {
 		static struct kobject *virtual_dir = NULL;
@@ -415,25 +416,31 @@ static int virtual_device_parent(struct device *dev)
 		dev->class->virtual_dir = kobject_add_dir(virtual_dir, dev->class->name);
 	}
 
-	dev->kobj.parent = dev->class->virtual_dir;
-	return 0;
+	return dev->class->virtual_dir;
 }
 
-static int setup_parent(struct device *dev, struct device *parent)
+static struct kobject * get_device_parent(struct device *dev,
+					  struct device *parent)
 {
-	int error;
-
 	/* if this is a class device, and has no parent, create one */
 	if ((dev->class) && (parent == NULL)) {
-		error = virtual_device_parent(dev);
-		if (error)
-			return error;
+		return virtual_device_parent(dev);
 	} else if (parent)
-		dev->kobj.parent = &parent->kobj;
+		return &parent->kobj;
+	return NULL;
+}
 
+#endif
+static int setup_parent(struct device *dev, struct device *parent)
+{
+	struct kobject *kobj;
+	kobj = get_device_parent(dev, parent);
+	if (IS_ERR(kobj))
+		return PTR_ERR(kobj);
+	if (kobj)
+		dev->kobj.parent = kobj;
 	return 0;
 }
-#endif
 
 /**
  *	device_add - add device to device hierarchy.
@@ -976,12 +983,18 @@ static int device_move_class_links(struct device *dev,
 		sysfs_remove_link(&dev->kobj, "device");
 		sysfs_remove_link(&old_parent->kobj, class_name);
 	}
-	error = sysfs_create_link(&dev->kobj, &new_parent->kobj, "device");
-	if (error)
-		goto out;
-	error = sysfs_create_link(&new_parent->kobj, &dev->kobj, class_name);
-	if (error)
-		sysfs_remove_link(&dev->kobj, "device");
+	if (new_parent) {
+		error = sysfs_create_link(&dev->kobj, &new_parent->kobj,
+					  "device");
+		if (error)
+			goto out;
+		error = sysfs_create_link(&new_parent->kobj, &dev->kobj,
+					  class_name);
+		if (error)
+			sysfs_remove_link(&dev->kobj, "device");
+	}
+	else
+		error = 0;
 out:
 	kfree(class_name);
 	return error;
@@ -993,25 +1006,28 @@ out:
 /**
  * device_move - moves a device to a new parent
  * @dev: the pointer to the struct device to be moved
- * @new_parent: the new parent of the device
+ * @new_parent: the new parent of the device (can by NULL)
  */
 int device_move(struct device *dev, struct device *new_parent)
 {
 	int error;
 	struct device *old_parent;
+	struct kobject *new_parent_kobj;
 
 	dev = get_device(dev);
 	if (!dev)
 		return -EINVAL;
 
 	new_parent = get_device(new_parent);
-	if (!new_parent) {
-		error = -EINVAL;
+	new_parent_kobj = get_device_parent (dev, new_parent);
+	if (IS_ERR(new_parent_kobj)) {
+		error = PTR_ERR(new_parent_kobj);
+		put_device(new_parent);
 		goto out;
 	}
 	pr_debug("DEVICE: moving '%s' to '%s'\n", dev->bus_id,
-		new_parent->bus_id);
-	error = kobject_move(&dev->kobj, &new_parent->kobj);
+		 new_parent ? new_parent->bus_id : "<NULL>");
+	error = kobject_move(&dev->kobj, new_parent_kobj);
 	if (error) {
 		put_device(new_parent);
 		goto out;
@@ -1020,7 +1036,8 @@ int device_move(struct device *dev, struct device *new_parent)
 	dev->parent = new_parent;
 	if (old_parent)
 		klist_remove(&dev->knode_parent);
-	klist_add_tail(&dev->knode_parent, &new_parent->klist_children);
+	if (new_parent)
+		klist_add_tail(&dev->knode_parent, &new_parent->klist_children);
 	if (!dev->class)
 		goto out_put;
 	error = device_move_class_links(dev, old_parent, new_parent);
@@ -1028,7 +1045,8 @@ int device_move(struct device *dev, struct device *new_parent)
 		/* We ignore errors on cleanup since we're hosed anyway... */
 		device_move_class_links(dev, new_parent, old_parent);
 		if (!kobject_move(&dev->kobj, &old_parent->kobj)) {
-			klist_remove(&dev->knode_parent);
+			if (new_parent)
+				klist_remove(&dev->knode_parent);
 			if (old_parent)
 				klist_add_tail(&dev->knode_parent,
 					       &old_parent->klist_children);

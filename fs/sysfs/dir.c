@@ -378,12 +378,10 @@ int sysfs_move_dir(struct kobject *kobj, struct kobject *new_parent)
 	struct sysfs_dirent *new_parent_sd, *sd;
 	int error;
 
-	if (!new_parent)
-		return -EINVAL;
-
 	old_parent_dentry = kobj->parent ?
 		kobj->parent->dentry : sysfs_mount->mnt_sb->s_root;
-	new_parent_dentry = new_parent->dentry;
+	new_parent_dentry = new_parent ?
+		new_parent->dentry : sysfs_mount->mnt_sb->s_root;
 
 again:
 	mutex_lock(&old_parent_dentry->d_inode->i_mutex);
