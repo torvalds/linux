@@ -500,7 +500,7 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 
 	if (!drm_get_drawable_info(dev, swap.drawable)) {
 		spin_unlock_irqrestore(&dev->drw_lock, irqflags);
-		DRM_ERROR("Invalid drawable ID %d\n", swap.drawable);
+		DRM_DEBUG("Invalid drawable ID %d\n", swap.drawable);
 		return DRM_ERR(EINVAL);
 	}
 
