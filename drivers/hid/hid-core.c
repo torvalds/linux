@@ -44,14 +44,6 @@
 #define DRIVER_LICENSE "GPL"
 
 /*
- * Module parameters.
- */
-
-static unsigned int hid_mousepoll_interval;
-module_param_named(mousepoll, hid_mousepoll_interval, uint, 0644);
-MODULE_PARM_DESC(mousepoll, "Polling interval of mice");
-
-/*
  * Register a new report for a device.
  */
 
