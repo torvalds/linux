@@ -306,6 +306,7 @@ static __inline__ int finish_current_sequence(drm_via_state_t * cur_seq)
 			unsigned long lo = ~0, hi = 0, tmp;
 			uint32_t *addr, *pitch, *height, tex;
 			unsigned i;
+			int npot;
 
 			if (end > 9)
 				end = 9;
@@ -316,12 +317,15 @@ static __inline__ int finish_current_sequence(drm_via_state_t * cur_seq)
 			    &(cur_seq->t_addr[tex = cur_seq->texture][start]);
 			pitch = &(cur_seq->pitch[tex][start]);
 			height = &(cur_seq->height[tex][start]);
-
+			npot = cur_seq->tex_npot[tex];
 			for (i = start; i <= end; ++i) {
 				tmp = *addr++;
 				if (tmp < lo)
 					lo = tmp;
-				tmp += (*height++ << *pitch++);
+				if (i == 0 && npot)
+					tmp += (*height++ * *pitch++);
+				else
+					tmp += (*height++ << *pitch++);
 				if (tmp > hi)
 					hi = tmp;
 			}
@@ -443,13 +447,21 @@ investigate_hazard(uint32_t cmd, hazard_t hz, drm_via_state_t * cur_seq)
 		return 0;
 	case check_texture_addr3:
 		cur_seq->unfinished = tex_address;
-		tmp = ((cmd >> 24) - 0x2B);
-		cur_seq->pitch[cur_seq->texture][tmp] =
-		    (cmd & 0x00F00000) >> 20;
-		if (!tmp && (cmd & 0x000FFFFF)) {
-			DRM_ERROR
-			    ("Unimplemented texture level 0 pitch mode.\n");
-			return 2;
+		tmp = ((cmd >> 24) - HC_SubA_HTXnL0Pit);
+		if (tmp == 0 &&
+		    (cmd & HC_HTXnEnPit_MASK)) {
+			cur_seq->pitch[cur_seq->texture][tmp] =
+				(cmd & HC_HTXnLnPit_MASK);
+			cur_seq->tex_npot[cur_seq->texture] = 1;
+		} else {
+			cur_seq->pitch[cur_seq->texture][tmp] =
+				(cmd & HC_HTXnLnPitE_MASK) >> HC_HTXnLnPitE_SHIFT;
+			cur_seq->tex_npot[cur_seq->texture] = 0;
+			if (cmd & 0x000FFFFF) {
+				DRM_ERROR
+					("Unimplemented texture level 0 pitch mode.\n");
+				return 2;
+			}
 		}
 		return 0;
 	case check_texture_addr4:
