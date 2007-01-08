@@ -961,7 +961,13 @@ via_verify_command_stream(const uint32_t * buf, unsigned int size,
 	uint32_t cmd;
 	const uint32_t *buf_end = buf + (size >> 2);
 	verifier_state_t state = state_command;
-	int pro_group_a = dev_priv->pro_group_a;
+	int cme_video;
+	int supported_3d;
+
+	cme_video = (dev_priv->chipset == VIA_PRO_GROUP_A ||
+		     dev_priv->chipset == VIA_DX9_0);
+
+	supported_3d = dev_priv->chipset != VIA_DX9_0;
 
 	hc_state->dev = dev;
 	hc_state->unfinished = no_sequence;
@@ -986,17 +992,21 @@ via_verify_command_stream(const uint32_t * buf, unsigned int size,
 			state = via_check_vheader6(&buf, buf_end);
 			break;
 		case state_command:
-			if (HALCYON_HEADER2 == (cmd = *buf))
+			if ((HALCYON_HEADER2 == (cmd = *buf)) &&
+			    supported_3d)
 				state = state_header2;
 			else if ((cmd & HALCYON_HEADER1MASK) == HALCYON_HEADER1)
 				state = state_header1;
-			else if (pro_group_a
+			else if (cme_video
 				 && (cmd & VIA_VIDEOMASK) == VIA_VIDEO_HEADER5)
 				state = state_vheader5;
-			else if (pro_group_a
+			else if (cme_video
 				 && (cmd & VIA_VIDEOMASK) == VIA_VIDEO_HEADER6)
 				state = state_vheader6;
-			else {
+			else if ((cmd == HALCYON_HEADER2) && !supported_3d) {
+				DRM_ERROR("Accelerated 3D is not supported on this chipset yet.\n");
+				state = state_error;
+			} else {
 				DRM_ERROR
 				    ("Invalid / Unimplemented DMA HEADER command. 0x%x\n",
 				     cmd);
