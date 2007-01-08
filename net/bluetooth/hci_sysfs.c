@@ -242,7 +242,7 @@ static void add_conn(struct work_struct *work)
 	struct hci_conn *conn = container_of(work, struct hci_conn, work);
 	int i;
 
-	if (device_register(&conn->dev) < 0) {
+	if (device_add(&conn->dev) < 0) {
 		BT_ERR("Failed to register connection device");
 		return;
 	}
@@ -272,6 +272,8 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 
 	dev_set_drvdata(&conn->dev, conn);
 
+	device_initialize(&conn->dev);
+
 	INIT_WORK(&conn->work, add_conn);
 
 	schedule_work(&conn->work);
@@ -286,6 +288,9 @@ static void del_conn(struct work_struct *work)
 void hci_conn_del_sysfs(struct hci_conn *conn)
 {
 	BT_DBG("conn %p", conn);
+
+	if (!device_is_registered(&conn->dev))
+		return;
 
 	INIT_WORK(&conn->work, del_conn);
 
