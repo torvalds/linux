@@ -243,11 +243,10 @@ static void __init __build_store_reg(int reg)
 
 static inline void build_store_reg(int reg)
 {
-	if (cpu_has_prefetch)
-		if (reg)
-			build_dst_pref(pref_offset_copy);
-		else
-			build_dst_pref(pref_offset_clear);
+	int pref_off = cpu_has_prefetch ?
+		(reg ? pref_offset_copy : pref_offset_clear) : 0;
+	if (pref_off)
+		build_dst_pref(pref_off);
 	else if (cpu_has_cache_cdex_s)
 		build_cdex_s();
 	else if (cpu_has_cache_cdex_p)
