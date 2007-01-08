@@ -248,16 +248,18 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 	INIT_LIST_HEAD(&qh->node);
 
 	if (udev) {		/* Normal QH */
-		qh->dummy_td = uhci_alloc_td(uhci);
-		if (!qh->dummy_td) {
-			dma_pool_free(uhci->qh_pool, qh, dma_handle);
-			return NULL;
+		qh->type = hep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+		if (qh->type != USB_ENDPOINT_XFER_ISOC) {
+			qh->dummy_td = uhci_alloc_td(uhci);
+			if (!qh->dummy_td) {
+				dma_pool_free(uhci->qh_pool, qh, dma_handle);
+				return NULL;
+			}
 		}
 		qh->state = QH_STATE_IDLE;
 		qh->hep = hep;
 		qh->udev = udev;
 		hep->hcpriv = qh;
-		qh->type = hep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 
 	} else {		/* Skeleton QH */
 		qh->state = QH_STATE_ACTIVE;
@@ -275,7 +277,8 @@ static void uhci_free_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	list_del(&qh->node);
 	if (qh->udev) {
 		qh->hep->hcpriv = NULL;
-		uhci_free_td(uhci, qh->dummy_td);
+		if (qh->dummy_td)
+			uhci_free_td(uhci, qh->dummy_td);
 	}
 	dma_pool_free(uhci->qh_pool, qh, qh->dma_handle);
 }
@@ -327,7 +330,7 @@ static int uhci_cleanup_queue(struct uhci_hcd *uhci, struct uhci_qh *qh,
 		goto done;
 	qh->element = UHCI_PTR_TERM;
 
-	/* Control pipes have to worry about toggles */
+	/* Control pipes don't have to worry about toggles */
 	if (qh->type == USB_ENDPOINT_XFER_CONTROL)
 		goto done;
 

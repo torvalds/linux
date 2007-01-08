@@ -208,7 +208,7 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 					space, "", nurbs);
 	}
 
-	if (qh->udev) {
+	if (qh->dummy_td) {
 		out += sprintf(out, "%*s  Dummy TD\n", space, "");
 		out += uhci_show_td(qh->dummy_td, out, len - (out - buf), 0);
 	}
