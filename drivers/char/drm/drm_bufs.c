@@ -182,7 +182,7 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 		break;
 
 	case _DRM_SHM:
-		map->handle = vmalloc_32(map->size);
+		map->handle = vmalloc_user(map->size);
 		DRM_DEBUG("%lu %d %p\n",
 			  map->size, drm_order(map->size), map->handle);
 		if (!map->handle) {
