@@ -347,6 +347,7 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 	struct uhci_qh *qh;
 	struct uhci_td *td;
 	struct list_head *tmp, *head;
+	int nframes, nerrs;
 
 	out += uhci_show_root_hub_state(uhci, out, len - (out - buf));
 	out += sprintf(out, "HC status\n");
@@ -355,23 +356,60 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 		return out - buf;
 
 	out += sprintf(out, "Frame List\n");
+	nframes = 10;
+	nerrs = 0;
 	for (i = 0; i < UHCI_NUMFRAMES; ++i) {
-		td = uhci->frame_cpu[i];
-		if (!td)
-			continue;
+		__le32 link, qh_dma;
 
-		out += sprintf(out, "- Frame %d\n", i); \
-		if (td->dma_handle != (dma_addr_t)uhci->frame[i])
-			out += sprintf(out, "    frame list does not match td->dma_handle!\n");
+		j = 0;
+		td = uhci->frame_cpu[i];
+		link = uhci->frame[i];
+		if (!td)
+			goto check_link;
+
+		if (nframes > 0) {
+			out += sprintf(out, "- Frame %d -> (%08x)\n",
+					i, le32_to_cpu(link));
+			j = 1;
+		}
 
 		head = &td->fl_list;
 		tmp = head;
 		do {
 			td = list_entry(tmp, struct uhci_td, fl_list);
 			tmp = tmp->next;
-			out += uhci_show_td(td, out, len - (out - buf), 4);
+			if (cpu_to_le32(td->dma_handle) != link) {
+				if (nframes > 0)
+					out += sprintf(out, "    link does "
+						"not match list entry!\n");
+				else
+					++nerrs;
+			}
+			if (nframes > 0)
+				out += uhci_show_td(td, out,
+						len - (out - buf), 4);
+			link = td->link;
 		} while (tmp != head);
+
+check_link:
+		qh_dma = uhci_frame_skel_link(uhci, i);
+		if (link != qh_dma) {
+			if (nframes > 0) {
+				if (!j) {
+					out += sprintf(out,
+						"- Frame %d -> (%08x)\n",
+						i, le32_to_cpu(link));
+					j = 1;
+				}
+				out += sprintf(out, "   link does not match "
+					"QH (%08x)!\n", le32_to_cpu(qh_dma));
+			} else
+				++nerrs;
+		}
+		nframes -= j;
 	}
+	if (nerrs > 0)
+		out += sprintf(out, "Skipped %d bad links\n", nerrs);
 
 	out += sprintf(out, "Skeleton QHs\n");
 
