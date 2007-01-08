@@ -651,7 +651,6 @@ static void dbg_dump_dapm(struct snd_soc_codec* codec, const char *action)
 							p->source->name);
 				}
 				list_for_each_entry(p, &w->sinks, list_source) {
-					p = list_entry(lp, struct snd_soc_dapm_path, list_source);
 					if (p->connect)
 						printk(" out %s %s\n", p->name ? p->name : "static",
 							p->sink->name);

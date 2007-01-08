@@ -101,7 +101,7 @@ static struct snd_soc_dai_mode at91_i2s[] = {
 		.pcmdir = AT91_I2S_DIR,
 		.flags = SND_SOC_DAI_BFS_DIV,
 		.fs = 250,
-		.bfs SND_SOC_FSBD(5),
+		.bfs = SND_SOC_FSBD(5),
 		.priv = (13 << 16 | 23),
 	},
 };
@@ -352,19 +352,19 @@ static int at91_i2s_suspend(struct platform_device *pdev,
 	ssc_p = &ssc_info[dai->id];
 
 	/* Save the status register before disabling transmit and receive. */
-	ssc_p->state->ssc_sr = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_SR);
+	ssc_p->ssc_state.ssc_sr = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_SR);
 	at91_ssc_write(ssc_p->ssc.base +
 		AT91_SSC_CR, AT91_SSC_TXDIS | AT91_SSC_RXDIS);
 
 	/* Save the current interrupt mask, then disable unmasked interrupts. */
-	ssc_p->state->ssc_imr = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_IMR);
-	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_IDR, ssc_p->state->ssc_imr);
+	ssc_p->ssc_state.ssc_imr = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_IMR);
+	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_IDR, ssc_p->ssc_state.ssc_imr);
 
-	ssc_p->state->ssc_cmr  = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_CMR);
-	ssc_p->state->ssc_rcmr = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_RCMR);
-	ssc_p->state->ssc_rfmr = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_RCMR);
-	ssc_p->state->ssc_tcmr = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_RCMR);
-	ssc_p->state->ssc_tfmr = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_RCMR);
+	ssc_p->ssc_state.ssc_cmr  = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_CMR);
+	ssc_p->ssc_state.ssc_rcmr = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_RCMR);
+	ssc_p->ssc_state.ssc_rfmr = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_RCMR);
+	ssc_p->ssc_state.ssc_tcmr = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_RCMR);
+	ssc_p->ssc_state.ssc_tfmr = at91_ssc_read(ssc_p->ssc.base + AT91_SSC_RCMR);
 
 	return 0;
 }
@@ -380,17 +380,17 @@ static int at91_i2s_resume(struct platform_device *pdev,
 
 	ssc_p = &ssc_info[dai->id];
 
-	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_RCMR, ssc_p->state->ssc_tfmr);
-	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_RCMR, ssc_p->state->ssc_tcmr);
-	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_RCMR, ssc_p->state->ssc_rfmr);
-	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_RCMR, ssc_p->state->ssc_rcmr);
-	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_CMR,  ssc_p->state->ssc_cmr);
+	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_RCMR, ssc_p->ssc_state.ssc_tfmr);
+	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_RCMR, ssc_p->ssc_state.ssc_tcmr);
+	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_RCMR, ssc_p->ssc_state.ssc_rfmr);
+	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_RCMR, ssc_p->ssc_state.ssc_rcmr);
+	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_CMR,  ssc_p->ssc_state.ssc_cmr);
 
-	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_IER,  ssc_p->state->ssc_imr);
+	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_IER,  ssc_p->ssc_state.ssc_imr);
 
 	at91_ssc_write(ssc_p->ssc.base + AT91_SSC_CR,
-		((ssc_p->state->ssc_sr & AT91_SSC_RXENA) ? AT91_SSC_RXEN : 0) |
-		((ssc_p->state->ssc_sr & AT91_SSC_TXENA) ? AT91_SSC_TXEN : 0));
+		((ssc_p->ssc_state.ssc_sr & AT91_SSC_RXENA) ? AT91_SSC_RXEN : 0) |
+		((ssc_p->ssc_state.ssc_sr & AT91_SSC_TXENA) ? AT91_SSC_TXEN : 0));
 
 	return 0;
 }
