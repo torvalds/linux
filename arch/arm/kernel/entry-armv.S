@@ -436,7 +436,7 @@ __und_usr:
 	usr_entry
 
 	tst	r3, #PSR_T_BIT			@ Thumb mode?
-	bne	fpundefinstr			@ ignore FP
+	bne	__und_usr_unknown		@ ignore FP
 	sub	r4, r2, #4
 
 	@
@@ -448,7 +448,7 @@ __und_usr:
 	@
 1:	ldrt	r0, [r4]
 	adr	r9, ret_from_exception
-	adr	lr, fpundefinstr
+	adr	lr, __und_usr_unknown
 	@
 	@ fallthrough to call_fpe
 	@
@@ -476,7 +476,9 @@ __und_usr:
  * Emulators may wish to make use of the following registers:
  *  r0  = instruction opcode.
  *  r2  = PC+4
+ *  r9  = normal "successful" return address
  *  r10 = this threads thread_info structure.
+ *  lr  = unrecognised instruction return address
  */
 call_fpe:
 	tst	r0, #0x08000000			@ only CDP/CPRT/LDC/STC have bit 27
@@ -545,10 +547,12 @@ do_fpe:
 
 	.data
 ENTRY(fp_enter)
-	.word	fpundefinstr
+	.word	no_fp
 	.text
 
-fpundefinstr:
+no_fp:	mov	pc, lr
+
+__und_usr_unknown:
 	mov	r0, sp
 	adr	lr, ret_from_exception
 	b	do_undefinstr
