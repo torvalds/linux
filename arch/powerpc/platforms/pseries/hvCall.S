@@ -145,6 +145,7 @@ _GLOBAL(plpar_hcall9)
 
 	HVSC				/* invoke the hypervisor */
 
+	mr	r0,r12
 	ld	r12,STK_PARM(r4)(r1)
 	std	r4,  0(r12)
 	std	r5,  8(r12)
@@ -154,7 +155,7 @@ _GLOBAL(plpar_hcall9)
 	std	r9, 40(r12)
 	std	r10,48(r12)
 	std	r11,56(r12)
-	std	r12,64(r12)
+	std	r0, 64(r12)
 
 	HCALL_INST_POSTCALL
 
