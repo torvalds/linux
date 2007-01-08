@@ -995,12 +995,6 @@ e1000_probe(struct pci_dev *pdev,
 	   (adapter->hw.mac_type != e1000_82547))
 		netdev->features |= NETIF_F_TSO;
 
-#ifdef CONFIG_DEBUG_SLAB
-	/* 82544's work arounds do not play nicely with DEBUG SLAB */
-	if (adapter->hw.mac_type == e1000_82544)
-		netdev->features &= ~NETIF_F_TSO;
-#endif
-
 #ifdef NETIF_F_TSO6
 	if (adapter->hw.mac_type > e1000_82547_rev_2)
 		netdev->features |= NETIF_F_TSO6;
