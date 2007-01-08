@@ -489,7 +489,7 @@ static int usbvision_v4l2_close(struct inode *inode, struct file *file)
 	up(&usbvision->lock);
 
 	if (usbvision->remove_pending) {
-		info("%s: Final disconnect", __FUNCTION__);
+		printk(KERN_INFO "%s: Final disconnect\n", __FUNCTION__);
 		usbvision_release(usbvision);
 	}
 
@@ -1285,7 +1285,7 @@ static int usbvision_radio_close(struct inode *inode, struct file *file)
 	up(&usbvision->lock);
 
 	if (usbvision->remove_pending) {
-		info("%s: Final disconnect", __FUNCTION__);
+		printk(KERN_INFO "%s: Final disconnect\n", __FUNCTION__);
 		usbvision_release(usbvision);
 	}
 
@@ -1611,7 +1611,7 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 	if (video_register_device(usbvision->vdev, VFL_TYPE_GRABBER, video_nr)<0) {
 		goto err_exit;
 	}
-	info("USBVision[%d]: registered USBVision Video device /dev/video%d [v4l2]", usbvision->nr,usbvision->vdev->minor & 0x1f);
+	printk(KERN_INFO "USBVision[%d]: registered USBVision Video device /dev/video%d [v4l2]\n", usbvision->nr,usbvision->vdev->minor & 0x1f);
 
 	// Radio Device:
 	if (usbvision_device_data[usbvision->DevModel].Radio) {
@@ -1623,7 +1623,7 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 		if (video_register_device(usbvision->rdev, VFL_TYPE_RADIO, radio_nr)<0) {
 			goto err_exit;
 		}
-		info("USBVision[%d]: registered USBVision Radio device /dev/radio%d [v4l2]", usbvision->nr, usbvision->rdev->minor & 0x1f);
+		printk(KERN_INFO "USBVision[%d]: registered USBVision Radio device /dev/radio%d [v4l2]\n", usbvision->nr, usbvision->rdev->minor & 0x1f);
 	}
 	// vbi Device:
 	if (usbvision_device_data[usbvision->DevModel].vbi) {
@@ -1634,7 +1634,7 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 		if (video_register_device(usbvision->vbi, VFL_TYPE_VBI, vbi_nr)<0) {
 			goto err_exit;
 		}
-		info("USBVision[%d]: registered USBVision VBI device /dev/vbi%d [v4l2] (Not Working Yet!)", usbvision->nr,usbvision->vbi->minor & 0x1f);
+		printk(KERN_INFO "USBVision[%d]: registered USBVision VBI device /dev/vbi%d [v4l2] (Not Working Yet!)\n", usbvision->nr,usbvision->vbi->minor & 0x1f);
 	}
 	// all done
 	return 0;
@@ -1783,7 +1783,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 			continue;
 		}
 
-		info("%s: %s found", __FUNCTION__, usbvision_device_data[model].ModelString);
+		printk(KERN_INFO "%s: %s found\n", __FUNCTION__, usbvision_device_data[model].ModelString);
 		break;
 	}
 
@@ -1895,7 +1895,7 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 	up(&usbvision->lock);
 
 	if (usbvision->user) {
-		info("%s: In use, disconnect pending", __FUNCTION__);
+		printk(KERN_INFO "%s: In use, disconnect pending\n", __FUNCTION__);
 		wake_up_interruptible(&usbvision->wait_frame);
 		wake_up_interruptible(&usbvision->wait_stream);
 	}
@@ -2061,7 +2061,7 @@ static int __init usbvision_init(void)
 	errCode = usb_register(&usbvision_driver);
 
 	if (errCode == 0) {
-		info(DRIVER_DESC " : " USBVISION_VERSION_STRING);
+		printk(KERN_INFO DRIVER_DESC " : " USBVISION_VERSION_STRING "\n");
 		PDEBUG(DBG_PROBE, "success");
 	}
 	return errCode;
