@@ -2,7 +2,7 @@
  * Plug-in for TAS5130D1B image sensor connected to the ET61X[12]51        *
  * PC Camera Controllers                                                   *
  *                                                                         *
- * Copyright (C) 2006 by Luca Risolia <luca.risolia@studio.unibo.it>       *
+ * Copyright (C) 2006-2007 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
