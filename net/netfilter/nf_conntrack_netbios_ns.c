@@ -89,6 +89,7 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 
 	exp->expectfn             = NULL;
 	exp->flags                = NF_CT_EXPECT_PERMANENT;
+	exp->helper               = NULL;
 
 	nf_conntrack_expect_related(exp);
 	nf_conntrack_expect_put(exp);
