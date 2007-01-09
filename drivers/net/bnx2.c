@@ -3083,7 +3083,7 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 		int buf_size)
 {
 	u32 written, offset32, len32;
-	u8 *buf, start[4], end[4], *flash_buffer = NULL;
+	u8 *buf, start[4], end[4], *align_buf = NULL, *flash_buffer = NULL;
 	int rc = 0;
 	int align_start, align_end;
 
@@ -3111,16 +3111,17 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 	}
 
 	if (align_start || align_end) {
-		buf = kmalloc(len32, GFP_KERNEL);
-		if (buf == NULL)
+		align_buf = kmalloc(len32, GFP_KERNEL);
+		if (align_buf == NULL)
 			return -ENOMEM;
 		if (align_start) {
-			memcpy(buf, start, 4);
+			memcpy(align_buf, start, 4);
 		}
 		if (align_end) {
-			memcpy(buf + len32 - 4, end, 4);
+			memcpy(align_buf + len32 - 4, end, 4);
 		}
-		memcpy(buf + align_start, data_buf, buf_size);
+		memcpy(align_buf + align_start, data_buf, buf_size);
+		buf = align_buf;
 	}
 
 	if (bp->flash_info->buffered == 0) {
@@ -3254,11 +3255,8 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 	}
 
 nvram_write_end:
-	if (bp->flash_info->buffered == 0)
-		kfree(flash_buffer);
-
-	if (align_start || align_end)
-		kfree(buf);
+	kfree(flash_buffer);
+	kfree(align_buf);
 	return rc;
 }
 
