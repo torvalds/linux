@@ -8,6 +8,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/hardirq.h>
 #include <linux/mm.h>
 #include <asm/uaccess.h>
 #include <asm/futex.h>
@@ -18,6 +19,8 @@ static inline int __handle_fault(struct mm_struct *mm, unsigned long address,
 	struct vm_area_struct *vma;
 	int ret = -EFAULT;
 
+	if (in_atomic())
+		return ret;
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, address);
 	if (unlikely(!vma))

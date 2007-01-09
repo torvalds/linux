@@ -258,8 +258,6 @@ int futex_atomic_op(int op, int __user *uaddr, int oparg, int *old)
 {
 	int oldval = 0, newval, ret;
 
-	pagefault_disable();
-
 	switch (op) {
 	case FUTEX_OP_SET:
 		__futex_atomic_op("lr %2,%5\n",
@@ -284,7 +282,6 @@ int futex_atomic_op(int op, int __user *uaddr, int oparg, int *old)
 	default:
 		ret = -ENOSYS;
 	}
-	pagefault_enable();
 	*old = oldval;
 	return ret;
 }
