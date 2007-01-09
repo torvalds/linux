@@ -110,10 +110,10 @@
 #define AT91_SMC_MODE(n)	(AT91_SMC + 0x0c + ((n)*0x10))	/* Mode Register for CS n */
 #define		AT91_SMC_READMODE	(1 <<  0)			/* Read Mode */
 #define		AT91_SMC_WRITEMODE	(1 <<  1)			/* Write Mode */
-#define		AT91_SMC_EXNWMODE	(3 <<  5)			/* NWAIT Mode */
-#define			AT91_SMC_EXNWMODE_DISABLE	(0 << 5)
-#define			AT91_SMC_EXNWMODE_FROZEN	(2 << 5)
-#define			AT91_SMC_EXNWMODE_READY		(3 << 5)
+#define		AT91_SMC_EXNWMODE	(3 <<  4)			/* NWAIT Mode */
+#define			AT91_SMC_EXNWMODE_DISABLE	(0 << 4)
+#define			AT91_SMC_EXNWMODE_FROZEN	(2 << 4)
+#define			AT91_SMC_EXNWMODE_READY		(3 << 4)
 #define		AT91_SMC_BAT		(1 <<  8)			/* Byte Access Type */
 #define			AT91_SMC_BAT_SELECT		(0 << 8)
 #define			AT91_SMC_BAT_WRITE		(1 << 8)
