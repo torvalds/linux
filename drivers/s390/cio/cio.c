@@ -880,19 +880,15 @@ static void cio_reset_pgm_check_handler(void)
 static int stsch_reset(struct subchannel_id schid, volatile struct schib *addr)
 {
 	int rc;
-	register struct subchannel_id reg1 asm ("1") = schid;
 
 	pgm_check_occured = 0;
 	s390_reset_pgm_handler = cio_reset_pgm_check_handler;
-
-	asm volatile(
-		"       stsch   0(%2)\n"
-		"       ipm     %0\n"
-		"       srl     %0,28"
-		: "=d" (rc)
-		: "d" (reg1), "a" (addr), "m" (*addr) : "memory", "cc");
-
+	rc = stsch(schid, addr);
 	s390_reset_pgm_handler = NULL;
+
+	/* The program check handler could have changed pgm_check_occured */
+	barrier();
+
 	if (pgm_check_occured)
 		return -EIO;
 	else

@@ -164,11 +164,14 @@ startup_continue:
 	srl	%r7,28
 	clr	%r6,%r7			# compare cc with last access code
 	be	.Lsame-.LPG1(%r13)
-	b	.Lchkmem-.LPG1(%r13)
+	lhi	%r8,0			# no program checks
+	b	.Lsavchk-.LPG1(%r13)
 .Lsame:
 	ar	%r5,%r1			# add 128KB to end of chunk
 	bno	.Lloop-.LPG1(%r13)	# r1 < 0x80000000 -> loop
 .Lchkmem:				# > 2GB or tprot got a program check
+	lhi	%r8,1			# set program check flag
+.Lsavchk:
 	clr	%r4,%r5			# chunk size > 0?
 	be	.Lchkloop-.LPG1(%r13)
 	st	%r4,0(%r3)		# store start address of chunk
@@ -190,8 +193,15 @@ startup_continue:
 	je	.Ldonemem		# if not, leave
 	chi	%r10,0			# do we have chunks left?
 	je	.Ldonemem
+	chi	%r8,1			# program check ?
+	je	.Lpgmchk
+	lr	%r4,%r5			# potential new chunk
+	alr	%r5,%r1			# add 128KB to end of chunk
+	j	.Llpcnt
+.Lpgmchk:
 	alr	%r5,%r1			# add 128KB to end of chunk
 	lr	%r4,%r5			# potential new chunk
+.Llpcnt:
 	clr	%r5,%r9			# should we go on?
 	jl	.Lloop
 .Ldonemem:

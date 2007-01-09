@@ -172,12 +172,15 @@ startup_continue:
 	srl	%r7,28
 	clr	%r6,%r7			# compare cc with last access code
 	je	.Lsame
-	j	.Lchkmem
+	lghi	%r8,0			# no program checks
+	j	.Lsavchk
 .Lsame:
 	algr	%r5,%r1			# add 128KB to end of chunk
 					# no need to check here,
 	brc	12,.Lloop		# this is the same chunk
 .Lchkmem:				# > 16EB or tprot got a program check
+	lghi	%r8,1			# set program check flag
+.Lsavchk:
 	clgr	%r4,%r5			# chunk size > 0?
 	je	.Lchkloop
 	stg	%r4,0(%r3)		# store start address of chunk
@@ -204,8 +207,15 @@ startup_continue:
 	chi	%r10, 0			# do we have chunks left?
 	je	.Ldonemem
 .Lhsaskip:
+	chi	%r8,1			# program check ?
+	je	.Lpgmchk
+	lgr	%r4,%r5			# potential new chunk
+	algr	%r5,%r1			# add 128KB to end of chunk
+	j	.Llpcnt
+.Lpgmchk:
 	algr	%r5,%r1			# add 128KB to end of chunk
 	lgr	%r4,%r5			# potential new chunk
+.Llpcnt:
 	clgr	%r5,%r9			# should we go on?
 	jl	.Lloop
 .Ldonemem:

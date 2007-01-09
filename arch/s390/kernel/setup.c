@@ -476,7 +476,7 @@ static void __init setup_memory_end(void)
 	int i;
 
 	memory_size = real_size = 0;
-	max_phys = VMALLOC_END - VMALLOC_MIN_SIZE;
+	max_phys = VMALLOC_END_INIT - VMALLOC_MIN_SIZE;
 	memory_end &= PAGE_MASK;
 
 	max_mem = memory_end ? min(max_phys, memory_end) : max_phys;
