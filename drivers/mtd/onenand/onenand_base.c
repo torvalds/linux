@@ -710,7 +710,7 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	struct mtd_ecc_stats stats;
 	int read = 0, column;
 	int thislen;
-	int ret = 0;
+	int ret = 0, boundary = 0;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "onenand_read: from = 0x%08x, len = %i\n", (unsigned int) from, (int) len);
 
@@ -749,6 +749,17 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
  		from += thislen;
  		if (read + thislen < len) {
  			this->command(mtd, ONENAND_CMD_READ, from, mtd->writesize);
+ 			/*
+ 			 * Chip boundary handling in DDP
+ 			 * Now we issued chip 1 read and pointed chip 1
+ 			 * bufferam so we have to point chip 0 bufferam.
+ 			 */
+ 			if (this->device_id & ONENAND_DEVICE_IS_DDP &&
+ 					unlikely(from == (this->chipsize >> 1))) {
+ 				this->write_word(0, this->base + ONENAND_REG_START_ADDRESS2);
+ 				boundary = 1;
+ 			} else
+ 				boundary = 0;
  			ONENAND_SET_PREV_BUFFERRAM(this);
  		}
  		/* While load is going, read from last bufferRAM */
@@ -758,6 +769,8 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
  		if (read == len)
  			break;
  		/* Set up for next read from bufferRAM */
+ 		if (unlikely(boundary))
+ 			this->write_word(0x8000, this->base + ONENAND_REG_START_ADDRESS2);
  		ONENAND_SET_NEXT_BUFFERRAM(this);
  		buf += thislen;
  		thislen = min_t(int, mtd->writesize, len - read);
