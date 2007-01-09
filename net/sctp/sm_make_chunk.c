@@ -124,8 +124,8 @@ void  sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
 	padlen = len % 4;
 	err.length  = htons(len);
 	len += padlen;
-	sctp_addto_chunk(chunk, sizeof(sctp_errhdr_t), &err);
-	chunk->subh.err_hdr = sctp_addto_chunk(chunk, paylen, payload);
+	chunk->subh.err_hdr = sctp_addto_chunk(chunk, sizeof(sctp_errhdr_t), &err);
+	sctp_addto_chunk(chunk, paylen, payload);
 }
 
 /* 3.3.2 Initiation (INIT) (1)
