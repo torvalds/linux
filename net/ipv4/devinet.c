@@ -174,9 +174,10 @@ struct in_device *inetdev_init(struct net_device *dev)
 	ip_mc_init_dev(in_dev);
 	if (dev->flags & IFF_UP)
 		ip_mc_up(in_dev);
-out:
+
 	/* we can receive as soon as ip_ptr is set -- do this last */
 	rcu_assign_pointer(dev->ip_ptr, in_dev);
+out:
 	return in_dev;
 out_kfree:
 	kfree(in_dev);
