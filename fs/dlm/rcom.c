@@ -435,7 +435,7 @@ static int is_old_reply(struct dlm_ls *ls, struct dlm_rcom *rc)
 		seq = ls->ls_recover_seq;
 		spin_unlock(&ls->ls_recover_lock);
 		if (rc->rc_seq_reply != seq) {
-			log_error(ls, "ignoring old reply %x from %d "
+			log_debug(ls, "ignoring old reply %x from %d "
 				      "seq_reply %llx expect %llx",
 				      rc->rc_type, rc->rc_header.h_nodeid,
 				      (unsigned long long)rc->rc_seq_reply,
@@ -469,7 +469,7 @@ void dlm_receive_rcom(struct dlm_header *hd, int nodeid)
 	}
 
 	if (dlm_recovery_stopped(ls) && (rc->rc_type != DLM_RCOM_STATUS)) {
-		log_error(ls, "ignoring recovery message %x from %d",
+		log_debug(ls, "ignoring recovery message %x from %d",
 			  rc->rc_type, nodeid);
 		goto out;
 	}
