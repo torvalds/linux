@@ -43,6 +43,34 @@ struct sis_chipset {
 	   up code later */
 };
 
+struct sis_laptop {
+	u16 device;
+	u16 subvendor;
+	u16 subdevice;
+};
+
+static const struct sis_laptop sis_laptop[] = {
+	/* devid, subvendor, subdev */
+	{ 0x5513, 0x1043, 0x1107 },	/* ASUS A6K */
+	/* end marker */
+	{ 0, }
+};
+
+static int sis_short_ata40(struct pci_dev *dev)
+{
+	const struct sis_laptop *lap = &sis_laptop[0];
+
+	while (lap->device) {
+		if (lap->device == dev->device &&
+		    lap->subvendor == dev->subsystem_vendor &&
+		    lap->subdevice == dev->subsystem_device)
+			return 1;
+		lap++;
+	}
+
+	return 0;
+}
+
 /**
  *	sis_port_base		-	return PCI configuration base for dev
  *	@adev: device
@@ -79,7 +107,7 @@ static int sis_133_pre_reset(struct ata_port *ap)
 
 	/* The top bit of this register is the cable detect bit */
 	pci_read_config_word(pdev, 0x50 + 2 * ap->port_no, &tmp);
-	if (tmp & 0x8000)
+	if ((tmp & 0x8000) && !sis_short_ata40(pdev))
 		ap->cbl = ATA_CBL_PATA40;
 	else
 		ap->cbl = ATA_CBL_PATA80;
@@ -127,7 +155,7 @@ static int sis_66_pre_reset(struct ata_port *ap)
 	/* Older chips keep cable detect in bits 4/5 of reg 0x48 */
 	pci_read_config_byte(pdev, 0x48, &tmp);
 	tmp >>= ap->port_no;
-	if (tmp & 0x10)
+	if ((tmp & 0x10) && !sis_short_ata40(pdev))
 		ap->cbl = ATA_CBL_PATA40;
 	else
 		ap->cbl = ATA_CBL_PATA80;
