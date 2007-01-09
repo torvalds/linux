@@ -548,7 +548,7 @@ static void connect_to_sock(struct connection *con)
 	sock->sk->sk_user_data = con;
 	con->rx_action = receive_from_sock;
 
-	make_sockaddr(&saddr, dlm_config.tcp_port, &addr_len);
+	make_sockaddr(&saddr, dlm_config.ci_tcp_port, &addr_len);
 
 	add_sock(sock, con);
 
@@ -616,10 +616,10 @@ static struct socket *create_listen_sock(struct connection *con,
 	con->sock = sock;
 
 	/* Bind to our port */
-	make_sockaddr(saddr, dlm_config.tcp_port, &addr_len);
+	make_sockaddr(saddr, dlm_config.ci_tcp_port, &addr_len);
 	result = sock->ops->bind(sock, (struct sockaddr *) saddr, addr_len);
 	if (result < 0) {
-		printk("dlm: Can't bind to port %d\n", dlm_config.tcp_port);
+		printk("dlm: Can't bind to port %d\n", dlm_config.ci_tcp_port);
 		sock_release(sock);
 		sock = NULL;
 		con->sock = NULL;
@@ -638,7 +638,8 @@ static struct socket *create_listen_sock(struct connection *con,
 
 	result = sock->ops->listen(sock, 5);
 	if (result < 0) {
-		printk("dlm: Can't listen on port %d\n", dlm_config.tcp_port);
+		printk("dlm: Can't listen on port %d\n",
+		       dlm_config.ci_tcp_port);
 		sock_release(sock);
 		sock = NULL;
 		goto create_out;

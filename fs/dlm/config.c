@@ -777,13 +777,13 @@ int dlm_our_addr(struct sockaddr_storage *addr, int num)
 #define DEFAULT_SCAN_SECS          5
 
 struct dlm_config_info dlm_config = {
-	.tcp_port = DEFAULT_TCP_PORT,
-	.buffer_size = DEFAULT_BUFFER_SIZE,
-	.rsbtbl_size = DEFAULT_RSBTBL_SIZE,
-	.lkbtbl_size = DEFAULT_LKBTBL_SIZE,
-	.dirtbl_size = DEFAULT_DIRTBL_SIZE,
-	.recover_timer = DEFAULT_RECOVER_TIMER,
-	.toss_secs = DEFAULT_TOSS_SECS,
-	.scan_secs = DEFAULT_SCAN_SECS
+	.ci_tcp_port = DEFAULT_TCP_PORT,
+	.ci_buffer_size = DEFAULT_BUFFER_SIZE,
+	.ci_rsbtbl_size = DEFAULT_RSBTBL_SIZE,
+	.ci_lkbtbl_size = DEFAULT_LKBTBL_SIZE,
+	.ci_dirtbl_size = DEFAULT_DIRTBL_SIZE,
+	.ci_recover_timer = DEFAULT_RECOVER_TIMER,
+	.ci_toss_secs = DEFAULT_TOSS_SECS,
+	.ci_scan_secs = DEFAULT_SCAN_SECS
 };
 

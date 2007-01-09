@@ -635,7 +635,7 @@ static int add_bind_addr(struct sockaddr_storage *addr, int addr_len, int num)
 
 	if (result < 0)
 		log_print("Can't bind to port %d addr number %d",
-			  dlm_config.tcp_port, num);
+			  dlm_config.ci_tcp_port, num);
 
 	return result;
 }
@@ -711,7 +711,7 @@ static int init_sock(void)
 	/* Bind to all interfaces. */
 	for (i = 0; i < dlm_local_count; i++) {
 		memcpy(&localaddr, dlm_local_addr[i], sizeof(localaddr));
-		make_sockaddr(&localaddr, dlm_config.tcp_port, &addr_len);
+		make_sockaddr(&localaddr, dlm_config.ci_tcp_port, &addr_len);
 
 		result = add_bind_addr(&localaddr, addr_len, num);
 		if (result)
@@ -863,7 +863,7 @@ static void initiate_association(int nodeid)
 		return;
 	}
 
-	make_sockaddr(&rem_addr, dlm_config.tcp_port, &addrlen);
+	make_sockaddr(&rem_addr, dlm_config.ci_tcp_port, &addrlen);
 
 	outmessage.msg_name = &rem_addr;
 	outmessage.msg_namelen = addrlen;

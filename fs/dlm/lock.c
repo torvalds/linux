@@ -810,7 +810,7 @@ static int shrink_bucket(struct dlm_ls *ls, int b)
 		list_for_each_entry_reverse(r, &ls->ls_rsbtbl[b].toss,
 					    res_hashchain) {
 			if (!time_after_eq(jiffies, r->res_toss_time +
-					   dlm_config.toss_secs * HZ))
+					   dlm_config.ci_toss_secs * HZ))
 				continue;
 			found = 1;
 			break;
