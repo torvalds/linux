@@ -170,9 +170,10 @@ static struct cphy *my3126_phy_create(adapter_t *adapter,
 {
 	struct cphy *cphy = kzalloc(sizeof (*cphy), GFP_KERNEL);
 
-	if (cphy)
-		cphy_init(cphy, adapter, phy_addr, &my3126_ops, mdio_ops);
+	if (!cphy)
+		return NULL;
 
+	cphy_init(cphy, adapter, phy_addr, &my3126_ops, mdio_ops);
 	INIT_DELAYED_WORK(&cphy->phy_update, my3216_poll);
 	cphy->bmsr = 0;
 

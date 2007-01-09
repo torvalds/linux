@@ -710,7 +710,7 @@ struct qeth_reply {
 	int (*callback)(struct qeth_card *,struct qeth_reply *,unsigned long);
  	u32 seqno;
 	unsigned long offset;
-	int received;
+	atomic_t received;
 	int rc;
 	void *param;
 	struct qeth_card *card;
