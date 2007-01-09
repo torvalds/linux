@@ -99,7 +99,6 @@ common_invalid:
 					@ cpsr_<exception>, "old_r0"
 
 	mov	r0, sp
-	and	r2, r6, #0x1f
 	b	bad_mode
 
 /*
