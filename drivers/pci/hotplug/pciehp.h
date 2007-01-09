@@ -69,6 +69,7 @@ struct slot {
 	struct hotplug_slot *hotplug_slot;
 	struct list_head	slot_list;
 	char name[SLOT_NAME_SIZE];
+	unsigned long last_emi_toggle;
 };
 
 struct event_info {
@@ -138,6 +139,7 @@ struct controller {
 #define ATTN_LED_PRSN	0x00000008
 #define PWR_LED_PRSN	0x00000010
 #define HP_SUPR_RM_SUP	0x00000020
+#define EMI_PRSN	0x00020000
 
 #define ATTN_BUTTN(cap)		(cap & ATTN_BUTTN_PRSN)
 #define POWER_CTRL(cap)		(cap & PWR_CTRL_PRSN)
@@ -145,6 +147,7 @@ struct controller {
 #define ATTN_LED(cap)		(cap & ATTN_LED_PRSN)
 #define PWR_LED(cap)		(cap & PWR_LED_PRSN) 
 #define HP_SUPR_RM(cap)		(cap & HP_SUPR_RM_SUP)
+#define EMI(cap)		(cap & EMI_PRSN)
 
 extern int pciehp_event_start_thread(void);
 extern void pciehp_event_stop_thread(void);
@@ -182,6 +185,8 @@ struct hpc_ops {
 	int (*set_attention_status)(struct slot *slot, u8 status);
 	int (*get_latch_status)(struct slot *slot, u8 *status);
 	int (*get_adapter_status)(struct slot *slot, u8 *status);
+	int (*get_emi_status)(struct slot *slot, u8 *status);
+	int (*toggle_emi)(struct slot *slot);
 	int (*get_max_bus_speed)(struct slot *slot, enum pci_bus_speed *speed);
 	int (*get_cur_bus_speed)(struct slot *slot, enum pci_bus_speed *speed);
 	int (*get_max_lnk_width)(struct slot *slot, enum pcie_link_width *val);

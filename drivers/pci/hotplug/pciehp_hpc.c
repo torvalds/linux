@@ -35,6 +35,7 @@
 #include <linux/timer.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/time.h>
 
 #include "../pci.h"
 #include "pciehp.h"
@@ -192,6 +193,7 @@ static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 #define ATTN_LED_CTRL			0x00C0
 #define PWR_LED_CTRL			0x0300
 #define PWR_CTRL			0x0400
+#define EMI_CTRL			0x0800
 
 /* Attention indicator and Power indicator states */
 #define LED_ON		0x01
@@ -202,6 +204,10 @@ static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 #define POWER_ON	0
 #define POWER_OFF	0x0400
 
+/* EMI Status defines */
+#define EMI_DISENGAGED	0
+#define EMI_ENGAGED	1
+
 /* Field definitions in Slot Status Register */
 #define ATTN_BUTTN_PRESSED	0x0001
 #define PWR_FAULT_DETECTED	0x0002
@@ -210,6 +216,8 @@ static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 #define CMD_COMPLETED		0x0010
 #define MRL_STATE		0x0020
 #define PRSN_STATE		0x0040
+#define EMI_STATE		0x0080
+#define EMI_STATUS_BIT		7
 
 static spinlock_t hpc_event_lock;
 
@@ -472,6 +480,51 @@ static int hpc_query_power_fault(struct slot *slot)
 	
 	DBG_LEAVE_ROUTINE
 	return pwr_fault;
+}
+
+static int hpc_get_emi_status(struct slot *slot, u8 *status)
+{
+	struct controller *ctrl = slot->ctrl;
+	u16 slot_status;
+	int retval = 0;
+
+	DBG_ENTER_ROUTINE
+
+	retval = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
+	if (retval) {
+		err("%s : Cannot check EMI status\n", __FUNCTION__);
+		return retval;
+	}
+	*status = (slot_status & EMI_STATE) >> EMI_STATUS_BIT;
+
+	DBG_LEAVE_ROUTINE
+	return retval;
+}
+
+static int hpc_toggle_emi(struct slot *slot)
+{
+	struct controller *ctrl = slot->ctrl;
+	u16 slot_cmd = 0;
+	u16 slot_ctrl;
+	int rc = 0;
+
+	DBG_ENTER_ROUTINE
+
+	rc = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
+	if (rc) {
+		err("%s : hp_register_read_word SLOT_CTRL failed\n",
+			__FUNCTION__);
+		return rc;
+	}
+
+	slot_cmd = (slot_ctrl | EMI_CTRL);
+	if (!pciehp_poll_mode)
+		slot_cmd = slot_cmd | HP_INTR_ENABLE;
+
+	pcie_write_cmd(slot, slot_cmd);
+	slot->last_emi_toggle = get_seconds();
+	DBG_LEAVE_ROUTINE
+	return rc;
 }
 
 static int hpc_set_attention_status(struct slot *slot, u8 value)
@@ -1009,6 +1062,8 @@ static struct hpc_ops pciehp_hpc_ops = {
 	.get_attention_status		= hpc_get_attention_status,
 	.get_latch_status		= hpc_get_latch_status,
 	.get_adapter_status		= hpc_get_adapter_status,
+	.get_emi_status			= hpc_get_emi_status,
+	.toggle_emi			= hpc_toggle_emi,
 
 	.get_max_bus_speed		= hpc_get_max_lnk_speed,
 	.get_cur_bus_speed		= hpc_get_cur_lnk_speed,
