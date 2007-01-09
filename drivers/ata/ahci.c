@@ -431,7 +431,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 
 	/* Generic, PCI class code for AHCI */
 	{ PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
-	  0x010601, 0xffffff, board_ahci },
+	  PCI_CLASS_STORAGE_SATA_AHCI, 0xffffff, board_ahci },
 
 	{ }	/* terminate list */
 };
@@ -1619,11 +1619,11 @@ static void ahci_print_info(struct ata_probe_ent *probe_ent)
 		speed_s = "?";
 
 	pci_read_config_word(pdev, 0x0a, &cc);
-	if (cc == 0x0101)
+	if (cc == PCI_CLASS_STORAGE_IDE)
 		scc_s = "IDE";
-	else if (cc == 0x0106)
+	else if (cc == PCI_CLASS_STORAGE_SATA)
 		scc_s = "SATA";
-	else if (cc == 0x0104)
+	else if (cc == PCI_CLASS_STORAGE_RAID)
 		scc_s = "RAID";
 	else
 		scc_s = "unknown";
