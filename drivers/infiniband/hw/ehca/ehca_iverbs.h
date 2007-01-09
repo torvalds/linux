@@ -180,10 +180,10 @@ int ehca_mmap_register(u64 physical,void **mapped,
 int ehca_munmap(unsigned long addr, size_t len);
 
 #ifdef CONFIG_PPC_64K_PAGES
-void *ehca_alloc_fw_ctrlblock(void);
+void *ehca_alloc_fw_ctrlblock(gfp_t flags);
 void ehca_free_fw_ctrlblock(void *ptr);
 #else
-#define ehca_alloc_fw_ctrlblock() ((void *) get_zeroed_page(GFP_KERNEL))
+#define ehca_alloc_fw_ctrlblock(flags) ((void *) get_zeroed_page(flags))
 #define ehca_free_fw_ctrlblock(ptr) free_page((unsigned long)(ptr))
 #endif
 
