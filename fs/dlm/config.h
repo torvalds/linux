@@ -25,6 +25,7 @@ struct dlm_config_info {
 	int ci_recover_timer;
 	int ci_toss_secs;
 	int ci_scan_secs;
+	int ci_log_debug;
 };
 
 extern struct dlm_config_info dlm_config;

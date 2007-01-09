@@ -41,6 +41,7 @@
 #include <asm/uaccess.h>
 
 #include <linux/dlm.h>
+#include "config.h"
 
 #define DLM_LOCKSPACE_LEN	64
 
@@ -69,12 +70,12 @@ struct dlm_mhandle;
 #define log_error(ls, fmt, args...) \
 	printk(KERN_ERR "dlm: %s: " fmt "\n", (ls)->ls_name , ##args)
 
-#define DLM_LOG_DEBUG
-#ifdef DLM_LOG_DEBUG
-#define log_debug(ls, fmt, args...) log_error(ls, fmt, ##args)
-#else
-#define log_debug(ls, fmt, args...)
-#endif
+#define log_debug(ls, fmt, args...) \
+do { \
+	if (dlm_config.ci_log_debug) \
+		printk(KERN_DEBUG "dlm: %s: " fmt "\n", \
+		       (ls)->ls_name , ##args); \
+} while (0)
 
 #define DLM_ASSERT(x, do) \
 { \

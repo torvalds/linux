@@ -775,6 +775,7 @@ int dlm_our_addr(struct sockaddr_storage *addr, int num)
 #define DEFAULT_RECOVER_TIMER      5
 #define DEFAULT_TOSS_SECS         10
 #define DEFAULT_SCAN_SECS          5
+#define DEFAULT_LOG_DEBUG          0
 
 struct dlm_config_info dlm_config = {
 	.ci_tcp_port = DEFAULT_TCP_PORT,
@@ -784,6 +785,7 @@ struct dlm_config_info dlm_config = {
 	.ci_dirtbl_size = DEFAULT_DIRTBL_SIZE,
 	.ci_recover_timer = DEFAULT_RECOVER_TIMER,
 	.ci_toss_secs = DEFAULT_TOSS_SECS,
-	.ci_scan_secs = DEFAULT_SCAN_SECS
+	.ci_scan_secs = DEFAULT_SCAN_SECS,
+	.ci_log_debug = DEFAULT_LOG_DEBUG
 };
 
