@@ -1117,10 +1117,11 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_1,	asus_h
 static void quirk_sis_96x_smbus(struct pci_dev *dev)
 {
 	u8 val = 0;
-	printk(KERN_INFO "Enabling SiS 96x SMBus.\n");
 	pci_read_config_byte(dev, 0x77, &val);
-	pci_write_config_byte(dev, 0x77, val & ~0x10);
-	pci_read_config_byte(dev, 0x77, &val);
+	if (val & 0x10) {
+		printk(KERN_INFO "Enabling SiS 96x SMBus.\n");
+		pci_write_config_byte(dev, 0x77, val & ~0x10);
+	}
 }
 
 /*
@@ -1152,11 +1153,12 @@ static void quirk_sis_503(struct pci_dev *dev)
 	printk(KERN_WARNING "Uncovering SIS%x that hid as a SIS503 (compatible=%d)\n", devid, sis_96x_compatible);
 
 	/*
-	 * Ok, it now shows up as a 96x.. The 96x quirks are after
-	 * the 503 quirk in the quirk table, so they'll automatically
-	 * run and enable things like the SMBus device
+	 * Ok, it now shows up as a 96x.. run the 96x quirk by
+	 * hand in case it has already been processed.
+	 * (depends on link order, which is apparently not guaranteed)
 	 */
 	dev->device = devid;
+	quirk_sis_96x_smbus(dev);
 }
 
 static void __init quirk_sis_96x_compatible(struct pci_dev *dev)
