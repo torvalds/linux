@@ -1569,12 +1569,11 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			   ((skb_shinfo(skb)->frags[i].size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
 	}
 
-	spin_lock_irq(&np->lock);
-
 	empty_slots = nv_get_empty_tx_slots(np);
 	if ((empty_slots - np->tx_limit_stop) <= entries) {
-		spin_unlock_irq(&np->lock);
+		spin_lock_irq(&np->lock);
 		netif_stop_queue(dev);
+		spin_unlock_irq(&np->lock);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1669,6 +1668,8 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx_flags_vlan = NV_TX3_VLAN_TAG_PRESENT | vlan_tx_tag_get(skb);
 	}
 
+	spin_lock_irq(&np->lock);
+
 	/* set tx flags */
 	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 		start_tx.orig->flaglen |= cpu_to_le32(tx_flags | tx_flags_extra);
@@ -1679,6 +1680,7 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		np->put_tx.ex = put_tx.ex;
 	}
 
+	spin_unlock_irq(&np->lock);
 
 	dprintk(KERN_DEBUG "%s: nv_start_xmit: entries %d queued for transmission. tx_flags_extra: %x\n",
 		dev->name, entries, tx_flags_extra);
@@ -1693,7 +1695,6 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	dev->trans_start = jiffies;
-	spin_unlock_irq(&np->lock);
 	writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
 	pci_push(get_hwbase(dev));
 	return NETDEV_TX_OK;
