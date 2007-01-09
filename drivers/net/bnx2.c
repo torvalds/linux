@@ -5643,6 +5643,44 @@ poll_bnx2(struct net_device *dev)
 }
 #endif
 
+static void __devinit
+bnx2_get_5709_media(struct bnx2 *bp)
+{
+	u32 val = REG_RD(bp, BNX2_MISC_DUAL_MEDIA_CTRL);
+	u32 bond_id = val & BNX2_MISC_DUAL_MEDIA_CTRL_BOND_ID;
+	u32 strap;
+
+	if (bond_id == BNX2_MISC_DUAL_MEDIA_CTRL_BOND_ID_C)
+		return;
+	else if (bond_id == BNX2_MISC_DUAL_MEDIA_CTRL_BOND_ID_S) {
+		bp->phy_flags |= PHY_SERDES_FLAG;
+		return;
+	}
+
+	if (val & BNX2_MISC_DUAL_MEDIA_CTRL_STRAP_OVERRIDE)
+		strap = (val & BNX2_MISC_DUAL_MEDIA_CTRL_PHY_CTRL) >> 21;
+	else
+		strap = (val & BNX2_MISC_DUAL_MEDIA_CTRL_PHY_CTRL_STRAP) >> 8;
+
+	if (PCI_FUNC(bp->pdev->devfn) == 0) {
+		switch (strap) {
+		case 0x4:
+		case 0x5:
+		case 0x6:
+			bp->phy_flags |= PHY_SERDES_FLAG;
+			return;
+		}
+	} else {
+		switch (strap) {
+		case 0x1:
+		case 0x2:
+		case 0x4:
+			bp->phy_flags |= PHY_SERDES_FLAG;
+			return;
+		}
+	}
+}
+
 static int __devinit
 bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 {
@@ -5863,10 +5901,9 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->phy_addr = 1;
 
 	/* Disable WOL support if we are running on a SERDES chip. */
-	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
-		if (CHIP_BOND_ID(bp) != BNX2_MISC_DUAL_MEDIA_CTRL_BOND_ID_C)
-			bp->phy_flags |= PHY_SERDES_FLAG;
-	} else if (CHIP_BOND_ID(bp) & CHIP_BOND_ID_SERDES_BIT)
+	if (CHIP_NUM(bp) == CHIP_NUM_5709)
+		bnx2_get_5709_media(bp);
+	else if (CHIP_BOND_ID(bp) & CHIP_BOND_ID_SERDES_BIT)
 		bp->phy_flags |= PHY_SERDES_FLAG;
 
 	if (bp->phy_flags & PHY_SERDES_FLAG) {
