@@ -207,16 +207,45 @@ S:	Supported
 ACPI
 P:	Len Brown
 M:	len.brown@intel.com
+M:	lenb@kernel.org
 L:	linux-acpi@vger.kernel.org
 W:	http://acpi.sourceforge.net/
 T:	git kernel.org:/pub/scm/linux/kernel/git/lenb/linux-acpi-2.6.git
-S:	Maintained
+S:	Supported
+
+ACPI BATTERY DRIVERS
+P:	Vladimir P. Lebedev
+M:	vladimir.p.lebedev@intel.com
+L:	linux-acpi@vger.kernel.org
+W:	http://acpi.sourceforge.net/
+S:	Supported
+
+ACPI EC DRIVER
+P:	Alexey Starikovskiy
+M:	alexey.y.starikovskiy@linux.intel.com
+L:	linux-acpi@vger.kernel.org
+W:	http://acpi.sourceforge.net/
+S:	Supported
+
+ACPI FAN DRIVER
+P:	Konstantin A. Karasyov
+M:	konstantin.a.karasyov@intel.com
+L:	linux-acpi@vger.kernel.org
+W:	http://acpi.sourceforge.net/
+S:	Supported
 
 ACPI PCI HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
 L:	pcihpd-discuss@lists.sourceforge.net
-S:	Maintained
+S:	Supported
+
+ACPI THERMAL DRIVER
+P:	Konstantin A. Karasyov
+M:	konstantin.a.karasyov@intel.com
+L:	linux-acpi@vger.kernel.org
+W:	http://acpi.sourceforge.net/
+S:	Supported
 
 AD1816 SOUND DRIVER
 P:	Thorsten Knabe
@@ -1071,7 +1100,7 @@ DOCKING STATION DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
 L:	linux-acpi@vger.kernel.org
-S:	Maintained
+S:	Supported
 
 DOUBLETALK DRIVER
 P:	James R. Van Zandt
@@ -2521,7 +2550,7 @@ PCIE HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
 L:	pcihpd-discuss@lists.sourceforge.net
-S:	Maintained
+S:	Supported
 
 PCMCIA SUBSYSTEM
 P:	Linux PCMCIA Team
@@ -3015,7 +3044,7 @@ SHPC HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
 L:	pcihpd-discuss@lists.sourceforge.net
-S:	Maintained
+S:	Supported
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE DRIVER
 P:	Pierre Ossman
