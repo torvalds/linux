@@ -650,10 +650,8 @@ qla2x00_ramp_up_queue_depth(scsi_qla_host_t *ha, srb_t *sp)
 	    fcport->last_queue_full + ql2xqfullrampup * HZ))
 		return;
 
-	spin_unlock_irq(&ha->hardware_lock);
 	starget_for_each_device(sdev->sdev_target, fcport,
 	    qla2x00_adjust_sdev_qdepth_up);
-	spin_lock_irq(&ha->hardware_lock);
 }
 
 /**
@@ -923,10 +921,8 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 
 			/* Adjust queue depth for all luns on the port. */
 			fcport->last_queue_full = jiffies;
-			spin_unlock_irq(&ha->hardware_lock);
 			starget_for_each_device(cp->device->sdev_target,
 			    fcport, qla2x00_adjust_sdev_qdepth_down);
-			spin_lock_irq(&ha->hardware_lock);
 			break;
 		}
 		if (lscsi_status != SS_CHECK_CONDITION)
