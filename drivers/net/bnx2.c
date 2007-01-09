@@ -1345,8 +1345,6 @@ bnx2_init_copper_phy(struct bnx2 *bp)
 {
 	u32 val;
 
-	bp->phy_flags |= PHY_CRC_FIX_FLAG;
-
 	if (bp->phy_flags & PHY_CRC_FIX_FLAG) {
 		bnx2_write_phy(bp, 0x18, 0x0c00);
 		bnx2_write_phy(bp, 0x17, 0x000a);
@@ -5880,7 +5878,9 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			if (reg & BNX2_SHARED_HW_CFG_PHY_2_5G)
 				bp->phy_flags |= PHY_2_5G_CAPABLE_FLAG;
 		}
-	}
+	} else if (CHIP_NUM(bp) == CHIP_NUM_5706 ||
+		   CHIP_NUM(bp) == CHIP_NUM_5708)
+		bp->phy_flags |= PHY_CRC_FIX_FLAG;
 
 	if ((CHIP_ID(bp) == CHIP_ID_5708_A0) ||
 	    (CHIP_ID(bp) == CHIP_ID_5708_B0) ||
