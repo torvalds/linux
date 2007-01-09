@@ -274,6 +274,10 @@ static int myri10ge_fill_thresh = 256;
 module_param(myri10ge_fill_thresh, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(myri10ge_fill_thresh, "Number of empty rx slots allowed\n");
 
+static int myri10ge_wcfifo = 1;
+module_param(myri10ge_wcfifo, int, S_IRUGO);
+MODULE_PARM_DESC(myri10ge_wcfifo, "Enable WC Fifo when WC is enabled\n");
+
 #define MYRI10GE_FW_OFFSET 1024*1024
 #define MYRI10GE_HIGHPART_TO_U32(X) \
 (sizeof (X) == 8) ? ((u32)((u64)(X) >> 32)) : (0)
@@ -1714,7 +1718,7 @@ static int myri10ge_open(struct net_device *dev)
 		goto abort_with_irq;
 	}
 
-	if (mgp->mtrr >= 0) {
+	if (myri10ge_wcfifo && mgp->mtrr >= 0) {
 		mgp->tx.wc_fifo = (u8 __iomem *) mgp->sram + MXGEFW_ETH_SEND_4;
 		mgp->rx_small.wc_fifo =
 		    (u8 __iomem *) mgp->sram + MXGEFW_ETH_RECV_SMALL;
