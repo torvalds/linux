@@ -983,7 +983,7 @@ intr_check_sig:
 	/* As above */
 	mfctl   %cr30,%r1
 	LDREG	TI_FLAGS(%r1),%r19
-	load32	(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK), %r20
+	ldi	(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK), %r20
 	and,COND(<>)	%r19, %r20, %r0
 	b,n	intr_restore	/* skip past if we've nothing to do */
 
@@ -995,11 +995,9 @@ intr_check_sig:
 	 * Only do signals if we are returning to user space
 	 */
 	LDREG	PT_IASQ0(%r16), %r20
-	CMPIB= 0,%r20,intr_restore /* backward */
-	nop
+	CMPIB=,n 0,%r20,intr_restore /* backward */
 	LDREG	PT_IASQ1(%r16), %r20
-	CMPIB= 0,%r20,intr_restore /* backward */
-	nop
+	CMPIB=,n 0,%r20,intr_restore /* backward */
 
 	copy	%r0, %r25			/* long in_syscall = 0 */
 #ifdef CONFIG_64BIT
@@ -1009,8 +1007,7 @@ intr_check_sig:
 	BL	do_notify_resume,%r2
 	copy	%r16, %r26			/* struct pt_regs *regs */
 
-	b	intr_check_sig
-	nop
+	b,n	intr_check_sig
 
 intr_restore:
 	copy            %r16,%r29
@@ -2091,7 +2088,7 @@ syscall_check_resched:
 	.import do_signal,code
 syscall_check_sig:
 	LDREG	TI_FLAGS-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r19
-	load32	(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK), %r26
+	ldi	(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK), %r26
 	and,COND(<>)	%r19, %r26, %r0
 	b,n	syscall_restore	/* skip past if we've nothing to do */
 
