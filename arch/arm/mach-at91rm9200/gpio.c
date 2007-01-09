@@ -20,7 +20,6 @@
 #include <asm/io.h>
 #include <asm/hardware.h>
 #include <asm/arch/at91_pio.h>
-#include <asm/arch/at91_pmc.h>
 #include <asm/arch/gpio.h>
 
 #include "generic.h"
@@ -224,17 +223,17 @@ static u32 backups[MAX_GPIO_BANKS];
 static int gpio_irq_set_wake(unsigned pin, unsigned state)
 {
 	unsigned	mask = pin_to_mask(pin);
+	unsigned	bank = (pin - PIN_BASE) / 32;
 
-	pin -= PIN_BASE;
-	pin /= 32;
-
-	if (unlikely(pin >= MAX_GPIO_BANKS))
+	if (unlikely(bank >= MAX_GPIO_BANKS))
 		return -EINVAL;
 
 	if (state)
-		wakeups[pin] |= mask;
+		wakeups[bank] |= mask;
 	else
-		wakeups[pin] &= ~mask;
+		wakeups[bank] &= ~mask;
+
+	set_irq_wake(gpio[bank].id, state);
 
 	return 0;
 }
@@ -246,29 +245,15 @@ void at91_gpio_suspend(void)
 	for (i = 0; i < gpio_banks; i++) {
 		u32 pio = gpio[i].offset;
 
-		/*
-		 * Note: drivers should have disabled GPIO interrupts that
-		 * aren't supposed to be wakeup sources.
-		 * But that is not much good on ARM.....  disable_irq() does
-		 * not update the hardware immediately, so the hardware mask
-		 * (IMR) has the wrong value (not current, too much is
-		 * permitted).
-		 *
-		 * Our workaround is to disable all non-wakeup IRQs ...
-		 * which is exactly what correct drivers asked for in the
-		 * first place!
-		 */
 		backups[i] = at91_sys_read(pio + PIO_IMR);
 		at91_sys_write(pio + PIO_IDR, backups[i]);
 		at91_sys_write(pio + PIO_IER, wakeups[i]);
 
-		if (!wakeups[i]) {
-			disable_irq_wake(gpio[i].id);
-			at91_sys_write(AT91_PMC_PCDR, 1 << gpio[i].id);
-		} else {
-			enable_irq_wake(gpio[i].id);
+		if (!wakeups[i])
+			clk_disable(gpio[i].clock);
+		else {
 #ifdef CONFIG_PM_DEBUG
-			printk(KERN_DEBUG "GPIO-%c may wake for %08x\n", "ABCD"[i], wakeups[i]);
+			printk(KERN_DEBUG "GPIO-%c may wake for %08x\n", 'A'+i, wakeups[i]);
 #endif
 		}
 	}
@@ -281,9 +266,11 @@ void at91_gpio_resume(void)
 	for (i = 0; i < gpio_banks; i++) {
 		u32 pio = gpio[i].offset;
 
+		if (!wakeups[i])
+			clk_enable(gpio[i].clock);
+
 		at91_sys_write(pio + PIO_IDR, wakeups[i]);
 		at91_sys_write(pio + PIO_IER, backups[i]);
-		at91_sys_write(AT91_PMC_PCER, 1 << gpio[i].id);
 	}
 }
 
