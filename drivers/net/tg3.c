@@ -68,8 +68,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.71"
-#define DRV_MODULE_RELDATE	"December 15, 2006"
+#define DRV_MODULE_VERSION	"3.72"
+#define DRV_MODULE_RELDATE	"January 8, 2007"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -1015,7 +1015,12 @@ out:
 	else if (tp->tg3_flags2 & TG3_FLG2_PHY_JITTER_BUG) {
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0c00);
 		tg3_writephy(tp, MII_TG3_DSP_ADDRESS, 0x000a);
-		tg3_writephy(tp, MII_TG3_DSP_RW_PORT, 0x010b);
+		if (tp->tg3_flags2 & TG3_FLG2_PHY_ADJUST_TRIM) {
+			tg3_writephy(tp, MII_TG3_DSP_RW_PORT, 0x110b);
+			tg3_writephy(tp, MII_TG3_TEST1,
+				     MII_TG3_TEST1_TRIM_EN | 0x4);
+		} else
+			tg3_writephy(tp, MII_TG3_DSP_RW_PORT, 0x010b);
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0400);
 	}
 	/* Set Extended packet length bit (bit 14) on all chips that */
@@ -10803,9 +10808,11 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS) {
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787) {
 			tp->tg3_flags2 |= TG3_FLG2_PHY_JITTER_BUG;
-		else if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906)
+			if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5755M)
+				tp->tg3_flags2 |= TG3_FLG2_PHY_ADJUST_TRIM;
+		} else if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906)
 			tp->tg3_flags2 |= TG3_FLG2_PHY_BER_BUG;
 	}
 
