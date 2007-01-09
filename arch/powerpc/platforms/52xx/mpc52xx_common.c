@@ -116,11 +116,12 @@ unmap_regs:
 	if (xlb) iounmap(xlb);
 }
 
-static int __init
+void __init
 mpc52xx_declare_of_platform_devices(void)
 {
 	/* Find every child of the SOC node and add it to of_platform */
-	return of_platform_bus_probe(NULL, NULL, NULL);
+	if (of_platform_bus_probe(NULL, NULL, NULL))
+		printk(KERN_ERR __FILE__ ": "
+			"Error while probing of_platform bus\n");
 }
 
-device_initcall(mpc52xx_declare_of_platform_devices);

@@ -11,10 +11,31 @@
 #define BUG_OPCODE .long 0x00b00b00  /* For asm */
 #define BUG_ILLEGAL_INSTR "0x00b00b00" /* For BUG macro */
 
-#ifndef __ASSEMBLY__
-
 #ifdef CONFIG_BUG
 
+#ifdef __ASSEMBLY__
+#ifdef CONFIG_DEBUG_BUGVERBOSE
+.macro EMIT_BUG_ENTRY addr,file,line,flags
+	 .section __bug_table,"a"
+5001:	 PPC_LONG \addr, 5002f
+	 .short \line, \flags
+	 .org 5001b+BUG_ENTRY_SIZE
+	 .previous
+	 .section .rodata,"a"
+5002:	 .asciz "\file"
+	 .previous
+.endm
+#else
+ .macro EMIT_BUG_ENTRY addr,file,line,flags
+	 .section __bug_table,"a"
+5001:	 PPC_LONG \addr
+	 .short \flags
+	 .org 5001b+BUG_ENTRY_SIZE
+	 .previous
+.endm
+#endif /* verbose */
+
+#else /* !__ASSEMBLY__ */
 /* _EMIT_BUG_ENTRY expects args %0,%1,%2,%3 to be FILE, LINE, flags and
    sizeof(struct bug_entry), respectively */
 #ifdef CONFIG_DEBUG_BUGVERBOSE
@@ -91,8 +112,8 @@
 #define HAVE_ARCH_BUG
 #define HAVE_ARCH_BUG_ON
 #define HAVE_ARCH_WARN_ON
-#endif /* CONFIG_BUG */
 #endif /* __ASSEMBLY __ */
+#endif /* CONFIG_BUG */
 
 #include <asm-generic/bug.h>
 

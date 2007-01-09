@@ -153,6 +153,7 @@ define_machine(lite52xx) {
 	.name 		= "lite52xx",
 	.probe 		= lite52xx_probe,
 	.setup_arch 	= lite52xx_setup_arch,
+	.init		= mpc52xx_declare_of_platform_devices,
 	.init_IRQ 	= mpc52xx_init_irq,
 	.get_irq 	= mpc52xx_get_irq,
 	.show_cpuinfo	= lite52xx_show_cpuinfo,

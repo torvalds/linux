@@ -28,6 +28,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/cputable.h>
 #include <asm/firmware.h>
+#include <asm/bug.h>
 
 /*
  * System calls.
@@ -634,19 +635,15 @@ _GLOBAL(enter_rtas)
 	li	r0,0
 	mtcr	r0
 
+#ifdef CONFIG_BUG	
 	/* There is no way it is acceptable to get here with interrupts enabled,
 	 * check it with the asm equivalent of WARN_ON
 	 */
 	lbz	r0,PACASOFTIRQEN(r13)
 1:	tdnei	r0,0
-.section __bug_table,"a"
-	.llong	1b,__LINE__ + 0x1000000, 1f, 2f
-.previous
-.section .rodata,"a"
-1:	.asciz	__FILE__
-2:	.asciz "enter_rtas"
-.previous
-
+	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
+#endif
+	
 	/* Hard-disable interrupts */
 	mfmsr	r6
 	rldicl	r7,r6,48,1

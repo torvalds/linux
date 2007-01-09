@@ -17,6 +17,7 @@
 
 #include <asm/system.h>
 #include <asm/paca.h>
+#include <asm/firmware.h>
 #include <asm/iseries/it_lp_queue.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_event.h>
@@ -317,6 +318,9 @@ static struct file_operations proc_lpevents_operations = {
 static int __init proc_lpevents_init(void)
 {
 	struct proc_dir_entry *e;
+
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return 0;
 
 	e = create_proc_entry("iSeries/lpevents", S_IFREG|S_IRUGO, NULL);
 	if (e)

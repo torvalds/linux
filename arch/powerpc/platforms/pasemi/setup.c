@@ -129,7 +129,6 @@ static __init void pas_init_IRQ(void)
 	}
 	openpic_addr = of_read_number(opprop, naddr);
 	printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
-	of_node_put(root);
 
 	mpic = mpic_alloc(mpic_node, openpic_addr, MPIC_PRIMARY, 0, 0,
 			  " PAS-OPIC  ");

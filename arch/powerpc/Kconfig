@@ -436,7 +436,7 @@ config PPC_EFIKA
 	select RTAS_PROC
 	select PPC_MPC52xx
 	select PPC_NATIVE
-	default y
+	default n
 
 config PPC_LITE5200
 	bool "Freescale Lite5200 Eval Board"
@@ -471,7 +471,7 @@ config PPC_PREP
 	select PPC_INDIRECT_PCI
 	select PPC_UDBG_16550
 	select PPC_NATIVE
-	default y
+	default n
 
 config PPC_MAPLE
 	depends on PPC_MULTIPLATFORM && PPC64

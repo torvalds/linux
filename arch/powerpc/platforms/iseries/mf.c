@@ -38,6 +38,7 @@
 #include <asm/uaccess.h>
 #include <asm/paca.h>
 #include <asm/abs_addr.h>
+#include <asm/firmware.h>
 #include <asm/iseries/vio.h>
 #include <asm/iseries/mf.h>
 #include <asm/iseries/hv_lp_config.h>
@@ -1234,6 +1235,9 @@ static int __init mf_proc_init(void)
 	struct proc_dir_entry *mf;
 	char name[2];
 	int i;
+
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return 0;
 
 	mf_proc_root = proc_mkdir("iSeries/mf", NULL);
 	if (!mf_proc_root)

@@ -224,7 +224,6 @@ static void xics_unmask_irq(unsigned int virq)
 static void xics_mask_real_irq(unsigned int irq)
 {
 	int call_status;
-	unsigned int server;
 
 	if (irq == XICS_IPI)
 		return;
@@ -236,9 +235,9 @@ static void xics_mask_real_irq(unsigned int irq)
 		return;
 	}
 
-	server = get_irq_server(irq);
 	/* Have to set XIVE to 0xff to be able to remove a slot */
-	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, irq, server, 0xff);
+	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, irq,
+				default_server, 0xff);
 	if (call_status != 0) {
 		printk(KERN_ERR "xics_disable_irq: irq=%u: ibm_set_xive(0xff)"
 		       " returned %d\n", irq, call_status);

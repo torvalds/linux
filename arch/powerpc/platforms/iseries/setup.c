@@ -527,7 +527,8 @@ static void __init iSeries_fixup_klimit(void)
 static int __init iSeries_src_init(void)
 {
         /* clear the progress line */
-        ppc_md.progress(" ", 0xffff);
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		ppc_md.progress(" ", 0xffff);
         return 0;
 }
 
