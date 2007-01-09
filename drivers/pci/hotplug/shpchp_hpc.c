@@ -329,9 +329,9 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 	++t_slot;
 	temp_word =  (t_slot << 8) | (cmd & 0xFF);
 	dbg("%s: t_slot %x cmd %x\n", __FUNCTION__, t_slot, cmd);
-	
+
 	/* To make sure the Controller Busy bit is 0 before we send out the
-	 * command. 
+	 * command.
 	 */
 	shpc_writew(ctrl, CMD, temp_word);
 
@@ -357,7 +357,7 @@ static int hpc_check_cmd_status(struct controller *ctrl)
 {
 	int retval = 0;
 	u16 cmd_status = shpc_readw(ctrl, CMD_STATUS) & 0x000F;
-	
+
 	switch (cmd_status >> 1) {
 	case 0:
 		retval = 0;
@@ -544,7 +544,7 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 	u8 slot_cmd = 0;
 
 	switch (value) {
-		case 0 :	
+		case 0 :
 			slot_cmd = SET_ATTN_OFF;	/* OFF */
 			break;
 		case 1:
@@ -735,7 +735,7 @@ static irqreturn_t shpc_isr(int irq, void *dev_id)
 	if (!intr_loc)
 		return IRQ_NONE;
 
-	dbg("%s: intr_loc = %x\n",__FUNCTION__, intr_loc); 
+	dbg("%s: intr_loc = %x\n",__FUNCTION__, intr_loc);
 
 	if(!shpchp_poll_mode) {
 		/*
@@ -748,12 +748,12 @@ static irqreturn_t shpc_isr(int irq, void *dev_id)
 		shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
 
 		intr_loc2 = shpc_readl(ctrl, INTR_LOC);
-		dbg("%s: intr_loc2 = %x\n",__FUNCTION__, intr_loc2); 
+		dbg("%s: intr_loc2 = %x\n",__FUNCTION__, intr_loc2);
 	}
 
 	if (intr_loc & CMD_INTR_PENDING) {
-		/* 
-		 * Command Complete Interrupt Pending 
+		/*
+		 * Command Complete Interrupt Pending
 		 * RO only - clear by writing 1 to the Command Completion
 		 * Detect bit in Controller SERR-INT register
 		 */
@@ -767,7 +767,7 @@ static irqreturn_t shpc_isr(int irq, void *dev_id)
 	if (!(intr_loc & ~CMD_INTR_PENDING))
 		goto out;
 
-	for (hp_slot = 0; hp_slot < ctrl->num_slots; hp_slot++) { 
+	for (hp_slot = 0; hp_slot < ctrl->num_slots; hp_slot++) {
 		/* To find out which slot has interrupt pending */
 		if (!(intr_loc & SLOT_INTR_PENDING(hp_slot)))
 			continue;
@@ -799,7 +799,7 @@ static irqreturn_t shpc_isr(int irq, void *dev_id)
 		serr_int &= ~(GLOBAL_INTR_MASK | SERR_INTR_RSVDZ_MASK);
 		shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
 	}
-	
+
 	return IRQ_HANDLED;
 }
 
@@ -919,7 +919,7 @@ static struct hpc_ops shpchp_hpc_ops = {
 	.power_on_slot			= hpc_power_on_slot,
 	.slot_enable			= hpc_slot_enable,
 	.slot_disable			= hpc_slot_disable,
-	.set_bus_speed_mode		= hpc_set_bus_speed_mode,	  
+	.set_bus_speed_mode		= hpc_set_bus_speed_mode,
 	.set_attention_status	= hpc_set_attention_status,
 	.get_power_status		= hpc_get_power_status,
 	.get_attention_status	= hpc_get_attention_status,
@@ -936,7 +936,7 @@ static struct hpc_ops shpchp_hpc_ops = {
 	.green_led_on			= hpc_set_green_led_on,
 	.green_led_off			= hpc_set_green_led_off,
 	.green_led_blink		= hpc_set_green_led_blink,
-	
+
 	.release_ctlr			= hpc_release_ctlr,
 };
 
@@ -993,9 +993,9 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 		ctrl->mmio_size = 0x24 + 0x4 * num_slots;
 	}
 
-	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n", pdev->vendor, pdev->device, pdev->subsystem_vendor, 
+	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n", pdev->vendor, pdev->device, pdev->subsystem_vendor,
 		pdev->subsystem_device);
-	
+
 	rc = pci_enable_device(pdev);
 	if (rc) {
 		err("%s: pci_enable_device failed\n", __FUNCTION__);
@@ -1057,7 +1057,7 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 		slot_reg &= ~SLOT_REG_RSVDZ_MASK;
 		shpc_writel(ctrl, SLOT_REG(hp_slot), slot_reg);
 	}
-	
+
 	if (shpchp_poll_mode) {
 		/* Install interrupt polling timer. Start with 10 sec delay */
 		init_timer(&ctrl->poll_timer);
@@ -1069,7 +1069,7 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 			info("Can't get msi for the hotplug controller\n");
 			info("Use INTx for the hotplug controller\n");
 		}
-		
+
 		rc = request_irq(ctrl->pci_dev->irq, shpc_isr, IRQF_SHARED,
 				 MY_NAME, (void *)ctrl);
 		dbg("%s: request_irq %d for hpc%d (returns %d)\n",
