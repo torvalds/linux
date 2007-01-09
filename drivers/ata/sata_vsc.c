@@ -124,17 +124,17 @@ static void vsc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
 }
 
 
-static void vsc_sata_host_stop(struct ata_host_set *host_set)
+static void vsc_sata_host_stop(struct ata_host *host)
 {
-	struct vsc_sata_host_priv *hpriv = host_set->private_data;
-	struct pci_dev *pdev = to_pci_dev(host_set->dev);
+	struct vsc_sata_host_priv *hpriv = host->private_data;
+	struct pci_dev *pdev = to_pci_dev(host->dev);
 
 	if (hpriv->hp_flags & VSC_SATA_HP_FLAG_MSI)
 		pci_disable_msi(pdev);
 	else
 		pci_intx(pdev, 0);
 	kfree (hpriv);
-	ata_pci_host_stop(host_set);
+	ata_pci_host_stop(host);
 }
 
 
