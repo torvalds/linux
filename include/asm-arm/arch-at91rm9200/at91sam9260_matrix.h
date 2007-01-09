@@ -58,7 +58,7 @@
 #define		AT91_MATRIX_RCB1		(1 << 1)	/* Remap Command for AHB Master 1 (ARM926EJ-S Data Master) */
 
 #define AT91_MATRIX_EBICSA	(AT91_MATRIX + 0x11C)	/* EBI Chip Select Assignment Register */
-#define		AT91_MATRIX_CS1A		(1 << 1)	 /* Chip Select 1 Assignment */
+#define		AT91_MATRIX_CS1A		(1 << 1)	/* Chip Select 1 Assignment */
 #define			AT91_MATRIX_CS1A_SMC		(0 << 1)
 #define			AT91_MATRIX_CS1A_SDRAMC		(1 << 1)
 #define		AT91_MATRIX_CS3A		(1 << 3)	/* Chip Select 3 Assignment */

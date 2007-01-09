@@ -272,7 +272,7 @@ void __init at91_add_device_cf(struct at91_cf_data *data)
 	at91_set_A_periph(AT91_PIN_PC12, 0);	/* NCS6/CFCE2 */
 
 	/* nWAIT is _not_ a default setting */
-	at91_set_A_periph(AT91_PIN_PC6, 1);	/*  nWAIT */
+	at91_set_A_periph(AT91_PIN_PC6, 1);	/* nWAIT */
 
 	cf_data = *data;
 	platform_device_register(&at91rm9200_cf_device);

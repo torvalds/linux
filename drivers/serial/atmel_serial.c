@@ -689,9 +689,9 @@ static void __devinit atmel_init_port(struct atmel_uart_port *atmel_port, struct
 	struct atmel_uart_data *data = pdev->dev.platform_data;
 
 	port->iotype	= UPIO_MEM;
-	port->flags     = UPF_BOOT_AUTOCONF;
+	port->flags	= UPF_BOOT_AUTOCONF;
 	port->ops	= &atmel_pops;
-	port->fifosize  = 1;
+	port->fifosize	= 1;
 	port->line	= pdev->id;
 	port->dev	= &pdev->dev;
 
