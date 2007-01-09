@@ -8,7 +8,7 @@
  *
  *	See http://linuxtv.org for more info
  *
- *	Author: Bill Dirks <bdirks@pacbell.net>
+ *	Author: Bill Dirks <bill@thedirks.org>
  *		Justin Schoeman
  *		et al.
  */
