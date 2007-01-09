@@ -123,7 +123,7 @@ nf_nat_fn(unsigned int hooknum,
 
 	nat = nfct_nat(ct);
 	if (!nat)
-		return NF_DROP;
+		return NF_ACCEPT;
 
 	switch (ctinfo) {
 	case IP_CT_RELATED:
