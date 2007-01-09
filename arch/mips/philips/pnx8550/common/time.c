@@ -79,6 +79,7 @@ void pnx8550_time_init(void)
 	 */
 	mips_hpt_frequency = 27UL * ((1000000UL * n)/(m * pow2p));
 	cpj = (mips_hpt_frequency + HZ / 2) / HZ;
+	write_c0_count(0);
 	timer_ack();
 
 	/* Setup Timer 2 */
