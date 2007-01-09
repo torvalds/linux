@@ -2,7 +2,7 @@
  * PC Watchdog Driver
  * by Ken Hollis (khollis@bitgate.com)
  *
- * Permission granted from Simon Machell (73244.1270@compuserve.com)
+ * Permission granted from Simon Machell (smachell@berkprod.com)
  * Written for the Linux Kernel, and GPLed by Ken Hollis
  *
  * 960107	Added request_region routines, modulized the whole thing.
