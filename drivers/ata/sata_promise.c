@@ -92,6 +92,7 @@ struct pdc_port_priv {
 
 struct pdc_host_priv {
 	unsigned long		flags;
+	unsigned long		port_flags[ATA_MAX_PORTS];
 };
 
 static u32 pdc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg);
@@ -183,7 +184,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_2037x */
 	{
 		.sht		= &pdc_ata_sht,
-		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
+		.flags		= PDC_COMMON_FLAGS,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -213,7 +214,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_2057x */
 	{
 		.sht		= &pdc_ata_sht,
-		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
+		.flags		= PDC_COMMON_FLAGS,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -270,6 +271,11 @@ static int pdc_port_start(struct ata_port *ap)
 	struct pdc_host_priv *hp = ap->host->private_data;
 	struct pdc_port_priv *pp;
 	int rc;
+
+	/* fix up port flags and cable type for SATA+PATA chips */
+	ap->flags |= hp->port_flags[ap->port_no];
+	if (ap->flags & ATA_FLAG_SATA)
+		ap->cbl = ATA_CBL_SATA;
 
 	rc = ata_port_start(ap);
 	if (rc)
@@ -377,7 +383,7 @@ static void pdc_pata_phy_reset(struct ata_port *ap)
 
 static u32 pdc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
-	if (sc_reg > SCR_CONTROL)
+	if (sc_reg > SCR_CONTROL || ap->cbl != ATA_CBL_SATA)
 		return 0xffffffffU;
 	return readl((void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
@@ -386,7 +392,7 @@ static u32 pdc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
 static void pdc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
 			       u32 val)
 {
-	if (sc_reg > SCR_CONTROL)
+	if (sc_reg > SCR_CONTROL || ap->cbl != ATA_CBL_SATA)
 		return;
 	writel(val, (void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
@@ -740,6 +746,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	unsigned int board_idx = (unsigned int) ent->driver_data;
 	int pci_dev_busy = 0;
 	int rc;
+	u8 tmp;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
@@ -820,7 +827,17 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		hp->flags |= PDC_FLAG_GEN_II;
 		/* Fall through */
 	case board_2037x:
-		probe_ent->n_ports = 2;
+		/* TX2plus boards also have a PATA port */
+		tmp = readb(mmio_base + PDC_FLASH_CTL+1);
+		if (!(tmp & 0x80)) {
+			probe_ent->n_ports = 3;
+			pdc_ata_setup_port(&probe_ent->port[2], base + 0x300);
+			hp->port_flags[2] = ATA_FLAG_SLAVE_POSS;
+			printk(KERN_INFO DRV_NAME " PATA port found\n");
+		} else
+			probe_ent->n_ports = 2;
+		hp->port_flags[0] = ATA_FLAG_SATA;
+		hp->port_flags[1] = ATA_FLAG_SATA;
 		break;
 	case board_20619:
 		probe_ent->n_ports = 4;
