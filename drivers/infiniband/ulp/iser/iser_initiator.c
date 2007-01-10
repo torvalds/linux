@@ -304,18 +304,14 @@ int iser_conn_set_full_featured_mode(struct iscsi_conn *conn)
 static int
 iser_check_xmit(struct iscsi_conn *conn, void *task)
 {
-	int rc = 0;
 	struct iscsi_iser_conn *iser_conn = conn->dd_data;
 
-	write_lock_bh(conn->recv_lock);
 	if (atomic_read(&iser_conn->ib_conn->post_send_buf_count) ==
 	    ISER_QP_MAX_REQ_DTOS) {
-		iser_dbg("%ld can't xmit task %p, suspending tx\n",jiffies,task);
-		set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
-		rc = -EAGAIN;
+		iser_dbg("%ld can't xmit task %p\n",jiffies,task);
+		return -ENOBUFS;
 	}
-	write_unlock_bh(conn->recv_lock);
-	return rc;
+	return 0;
 }
 
 
@@ -340,7 +336,7 @@ int iser_send_command(struct iscsi_conn     *conn,
 		return -EPERM;
 	}
 	if (iser_check_xmit(conn, ctask))
-		return -EAGAIN;
+		return -ENOBUFS;
 
 	edtl = ntohl(hdr->data_length);
 
@@ -426,7 +422,7 @@ int iser_send_data_out(struct iscsi_conn     *conn,
 	}
 
 	if (iser_check_xmit(conn, ctask))
-		return -EAGAIN;
+		return -ENOBUFS;
 
 	itt = ntohl(hdr->itt);
 	data_seg_len = ntoh24(hdr->dlength);
@@ -498,7 +494,7 @@ int iser_send_control(struct iscsi_conn *conn,
 	}
 
 	if (iser_check_xmit(conn,mtask))
-		return -EAGAIN;
+		return -ENOBUFS;
 
 	/* build the tx desc regd header and add it to the tx desc dto */
 	mdesc->type = ISCSI_TX_CONTROL;
@@ -605,6 +601,7 @@ void iser_snd_completion(struct iser_desc *tx_desc)
 	struct iscsi_iser_conn *iser_conn = ib_conn->iser_conn;
 	struct iscsi_conn      *conn = iser_conn->iscsi_conn;
 	struct iscsi_mgmt_task *mtask;
+	int resume_tx = 0;
 
 	iser_dbg("Initiator, Data sent dto=0x%p\n", dto);
 
@@ -613,15 +610,16 @@ void iser_snd_completion(struct iser_desc *tx_desc)
 	if (tx_desc->type == ISCSI_TX_DATAOUT)
 		kmem_cache_free(ig.desc_cache, tx_desc);
 
+	if (atomic_read(&iser_conn->ib_conn->post_send_buf_count) ==
+	    ISER_QP_MAX_REQ_DTOS)
+		resume_tx = 1;
+
 	atomic_dec(&ib_conn->post_send_buf_count);
 
-	write_lock(conn->recv_lock);
-	if (conn->suspend_tx) {
+	if (resume_tx) {
 		iser_dbg("%ld resuming tx\n",jiffies);
-		clear_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
 		scsi_queue_work(conn->session->host, &conn->xmitwork);
 	}
-	write_unlock(conn->recv_lock);
 
 	if (tx_desc->type == ISCSI_TX_CONTROL) {
 		/* this arithmetic is legal by libiscsi dd_data allocation */

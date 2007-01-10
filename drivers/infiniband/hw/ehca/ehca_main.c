@@ -106,9 +106,9 @@ static struct timer_list poll_eqs_timer;
 #ifdef CONFIG_PPC_64K_PAGES
 static struct kmem_cache *ctblk_cache = NULL;
 
-void *ehca_alloc_fw_ctrlblock(void)
+void *ehca_alloc_fw_ctrlblock(gfp_t flags)
 {
-	void *ret = kmem_cache_zalloc(ctblk_cache, GFP_KERNEL);
+	void *ret = kmem_cache_zalloc(ctblk_cache, flags);
 	if (!ret)
 		ehca_gen_err("Out of memory for ctblk");
 	return ret;
@@ -206,7 +206,7 @@ int ehca_sense_attributes(struct ehca_shca *shca)
 	u64 h_ret;
 	struct hipz_query_hca *rblock;
 
-	rblock = ehca_alloc_fw_ctrlblock();
+	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!rblock) {
 		ehca_gen_err("Cannot allocate rblock memory.");
 		return -ENOMEM;
@@ -258,7 +258,7 @@ static int init_node_guid(struct ehca_shca *shca)
 	int ret = 0;
 	struct hipz_query_hca *rblock;
 
-	rblock = ehca_alloc_fw_ctrlblock();
+	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!rblock) {
 		ehca_err(&shca->ib_device, "Can't allocate rblock memory.");
 		return -ENOMEM;
@@ -469,7 +469,7 @@ static ssize_t  ehca_show_##name(struct device *dev,                       \
 									   \
 	shca = dev->driver_data;					   \
 									   \
-	rblock = ehca_alloc_fw_ctrlblock();				   \
+	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);			   \
 	if (!rblock) {						           \
 		dev_err(dev, "Can't allocate rblock memory.");		   \
 		return 0;						   \

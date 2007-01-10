@@ -209,10 +209,21 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 	if (event->event == RDMA_CM_EVENT_CONNECT_REQUEST) {
 		if (!ctx->backlog) {
 			ret = -EDQUOT;
+			kfree(uevent);
 			goto out;
 		}
 		ctx->backlog--;
+	} else if (!ctx->uid) {
+		/*
+		 * We ignore events for new connections until userspace has set
+		 * their context.  This can only happen if an error occurs on a
+		 * new connection before the user accepts it.  This is okay,
+		 * since the accept will just fail later.
+		 */
+		kfree(uevent);
+		goto out;
 	}
+
 	list_add_tail(&uevent->list, &ctx->file->event_list);
 	wake_up_interruptible(&ctx->file->poll_wait);
 out:

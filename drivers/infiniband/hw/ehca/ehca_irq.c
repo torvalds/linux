@@ -138,7 +138,7 @@ int ehca_error_data(struct ehca_shca *shca, void *data,
 	u64 *rblock;
 	unsigned long block_count;
 
-	rblock = ehca_alloc_fw_ctrlblock();
+	rblock = ehca_alloc_fw_ctrlblock(GFP_ATOMIC);
 	if (!rblock) {
 		ehca_err(&shca->ib_device, "Cannot allocate rblock memory.");
 		ret = -ENOMEM;
