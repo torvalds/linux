@@ -2636,6 +2636,12 @@ M:	promise@pnd-pc.demon.co.uk
 W:	http://www.pnd-pc.demon.co.uk/promise/
 S:	Maintained
 
+PROMISE SATA TX2/TX4 CONTROLLER LIBATA DRIVER
+P:	Mikael Pettersson
+M:	mikpe@it.uu.se
+L:	linux-ide@vger.kernel.org
+S:	Maintained
+
 PS3 PLATFORM SUPPORT
 P:	Geoff Levand
 M:	geoffrey.levand@am.sony.com
