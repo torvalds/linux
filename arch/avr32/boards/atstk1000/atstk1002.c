@@ -8,15 +8,18 @@
  * published by the Free Software Foundation.
  */
 #include <linux/clk.h>
+#include <linux/device.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/spi/spi.h>
 
 #include <asm/io.h>
 #include <asm/setup.h>
+#include <asm/arch/at32ap7000.h>
 #include <asm/arch/board.h>
 #include <asm/arch/init.h>
 #include <asm/arch/portmux.h>
@@ -32,6 +35,16 @@ static struct eth_addr __initdata hw_addr[2];
 
 static struct eth_platform_data __initdata eth_data[2];
 extern struct lcdc_platform_data atstk1000_fb0_data;
+
+static struct spi_board_info spi_board_info[] __initdata = {
+	{
+		.modalias	= "ltv350qv",
+		.controller_data = (void *)GPIO_PIN_PA(4),
+		.max_speed_hz	= 16000000,
+		.bus_num	= 0,
+		.chip_select	= 1,
+	},
+};
 
 /*
  * The next two functions should go away as the boot loader is
@@ -136,6 +149,7 @@ static int __init atstk1002_init(void)
 
 	set_hw_addr(at32_add_device_eth(0, &eth_data[0]));
 
+	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
 	at32_add_device_spi(0);
 	at32_add_device_lcdc(0, &atstk1000_fb0_data);
 

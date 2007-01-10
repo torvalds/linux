@@ -736,12 +736,19 @@ at32_add_device_eth(unsigned int id, struct eth_platform_data *data)
 /* --------------------------------------------------------------------
  *  SPI
  * -------------------------------------------------------------------- */
-static struct resource spi0_resource[] = {
+static struct resource atmel_spi0_resource[] = {
 	PBMEM(0xffe00000),
 	IRQ(3),
 };
-DEFINE_DEV(spi, 0);
-DEV_CLK(mck, spi0, pba, 0);
+DEFINE_DEV(atmel_spi, 0);
+DEV_CLK(spi_clk, atmel_spi0, pba, 0);
+
+static struct resource atmel_spi1_resource[] = {
+	PBMEM(0xffe00400),
+	IRQ(4),
+};
+DEFINE_DEV(atmel_spi, 1);
+DEV_CLK(spi_clk, atmel_spi1, pba, 1);
 
 struct platform_device *__init at32_add_device_spi(unsigned int id)
 {
@@ -749,13 +756,33 @@ struct platform_device *__init at32_add_device_spi(unsigned int id)
 
 	switch (id) {
 	case 0:
-		pdev = &spi0_device;
+		pdev = &atmel_spi0_device;
 		select_peripheral(PA(0),  PERIPH_A, 0);	/* MISO	 */
 		select_peripheral(PA(1),  PERIPH_A, 0);	/* MOSI	 */
 		select_peripheral(PA(2),  PERIPH_A, 0);	/* SCK	 */
-		select_peripheral(PA(3),  PERIPH_A, 0);	/* NPCS0 */
-		select_peripheral(PA(4),  PERIPH_A, 0);	/* NPCS1 */
-		select_peripheral(PA(5),  PERIPH_A, 0);	/* NPCS2 */
+
+		/* NPCS[2:0] */
+		at32_select_gpio(GPIO_PIN_PA(3),
+				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+		at32_select_gpio(GPIO_PIN_PA(4),
+				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+		at32_select_gpio(GPIO_PIN_PA(5),
+				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+		break;
+
+	case 1:
+		pdev = &atmel_spi1_device;
+		select_peripheral(PB(0),  PERIPH_B, 0);	/* MISO  */
+		select_peripheral(PB(1),  PERIPH_B, 0);	/* MOSI  */
+		select_peripheral(PB(5),  PERIPH_B, 0);	/* SCK   */
+
+		/* NPCS[2:0] */
+		at32_select_gpio(GPIO_PIN_PB(2),
+				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+		at32_select_gpio(GPIO_PIN_PB(3),
+				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+		at32_select_gpio(GPIO_PIN_PB(4),
+				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
 		break;
 
 	default:
@@ -877,7 +904,8 @@ struct clk *at32_clock_list[] = {
 	&macb0_pclk,
 	&macb1_hclk,
 	&macb1_pclk,
-	&spi0_mck,
+	&atmel_spi0_spi_clk,
+	&atmel_spi1_spi_clk,
 	&lcdc0_hclk,
 	&lcdc0_pixclk,
 };
