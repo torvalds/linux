@@ -440,13 +440,25 @@ sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
 }
 
 #ifdef CONFIG_MIPS32_N32
-asmlinkage long sysn32_semctl(int semid, int semnum, int cmd, union semun arg)
+asmlinkage long sysn32_semctl(int semid, int semnum, int cmd, u32 arg)
 {
 	/* compat_sys_semctl expects a pointer to union semun */
 	u32 __user *uptr = compat_alloc_user_space(sizeof(u32));
-	if (put_user(ptr_to_compat(arg.__pad), uptr))
+	if (put_user(arg, uptr))
 		return -EFAULT;
 	return compat_sys_semctl(semid, semnum, cmd, uptr);
+}
+
+asmlinkage long sysn32_msgsnd(int msqid, u32 msgp, unsigned msgsz, int msgflg)
+{
+	return compat_sys_msgsnd(msqid, msgsz, msgflg, compat_ptr(msgp));
+}
+
+asmlinkage long sysn32_msgrcv(int msqid, u32 msgp, size_t msgsz, int msgtyp,
+			      int msgflg)
+{
+	return compat_sys_msgrcv(msqid, msgsz, msgtyp, msgflg, IPC_64,
+				 compat_ptr(msgp));
 }
 #endif
 

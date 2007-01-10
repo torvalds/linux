@@ -187,8 +187,8 @@ EXPORT(sysn32_call_table)
 	PTR	sysn32_semctl
 	PTR	sys_shmdt			/* 6065 */
 	PTR	sys_msgget
-	PTR	compat_sys_msgsnd
-	PTR	compat_sys_msgrcv
+	PTR	sysn32_msgsnd
+	PTR	sysn32_msgrcv
 	PTR	compat_sys_msgctl
 	PTR	compat_sys_fcntl		/* 6070 */
 	PTR	sys_flock
