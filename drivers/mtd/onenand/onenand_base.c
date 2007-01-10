@@ -333,6 +333,9 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 			} else if (ecc & ONENAND_ECC_1BIT_ALL)
 				mtd->ecc_stats.corrected++;
 		}
+	} else if (state == FL_READING) {
+		printk(KERN_ERR "onenand_wait: read timeout! ctrl=0x%04x intr=0x%04x\n", ctrl, interrupt);
+		return -EIO;
 	}
 
 	return 0;
