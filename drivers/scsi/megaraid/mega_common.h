@@ -271,7 +271,7 @@ typedef struct {
 #define ASSERT(expression)
 #endif
 
-/*
+/**
  * struct mraid_pci_blk - structure holds DMA memory block info
  * @vaddr		: virtual address to a memory block
  * @dma_addr		: DMA handle to a memory block
