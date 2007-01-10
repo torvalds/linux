@@ -271,8 +271,7 @@ static void __init bootmem_init(void)
 static void __init bootmem_init(void)
 {
 	unsigned long reserved_end;
-	unsigned long highest = 0;
-	unsigned long mapstart = -1UL;
+	unsigned long mapstart = ~0UL;
 	unsigned long bootmap_size;
 	int i;
 
@@ -282,6 +281,13 @@ static void __init bootmem_init(void)
 	 * of usable memory.
 	 */
 	reserved_end = max(init_initrd(), PFN_UP(__pa_symbol(&_end)));
+
+	/*
+	 * max_low_pfn is not a number of pages. The number of pages
+	 * of the system is given by 'max_low_pfn - min_low_pfn'.
+	 */
+	min_low_pfn = ~0UL;
+	max_low_pfn = 0;
 
 	/*
 	 * Find the highest page frame number we have available.
@@ -296,8 +302,10 @@ static void __init bootmem_init(void)
 		end = PFN_DOWN(boot_mem_map.map[i].addr
 				+ boot_mem_map.map[i].size);
 
-		if (end > highest)
-			highest = end;
+		if (end > max_low_pfn)
+			max_low_pfn = end;
+		if (start < min_low_pfn)
+			min_low_pfn = start;
 		if (end <= reserved_end)
 			continue;
 		if (start >= mapstart)
@@ -305,22 +313,32 @@ static void __init bootmem_init(void)
 		mapstart = max(reserved_end, start);
 	}
 
+	if (min_low_pfn >= max_low_pfn)
+		panic("Incorrect memory mapping !!!");
+	if (min_low_pfn > 0) {
+		printk(KERN_INFO
+		       "Wasting %lu bytes for tracking %lu unused pages\n",
+		       min_low_pfn * sizeof(struct page),
+		       min_low_pfn);
+		min_low_pfn = 0;
+	}
+
 	/*
 	 * Determine low and high memory ranges
 	 */
-	if (highest > PFN_DOWN(HIGHMEM_START)) {
+	if (max_low_pfn > PFN_DOWN(HIGHMEM_START)) {
 #ifdef CONFIG_HIGHMEM
 		highstart_pfn = PFN_DOWN(HIGHMEM_START);
-		highend_pfn = highest;
+		highend_pfn = max_low_pfn;
 #endif
-		highest = PFN_DOWN(HIGHMEM_START);
+		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 	}
 
 	/*
 	 * Initialize the boot-time allocator with low memory only.
 	 */
-	bootmap_size = init_bootmem(mapstart, highest);
-
+	bootmap_size = init_bootmem_node(NODE_DATA(0), mapstart,
+					 min_low_pfn, max_low_pfn);
 	/*
 	 * Register fully available low RAM pages with the bootmem allocator.
 	 */

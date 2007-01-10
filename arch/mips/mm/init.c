@@ -341,7 +341,6 @@ static int __init page_is_ram(unsigned long pagenr)
 void __init paging_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
-	unsigned long max_dma, low;
 #ifndef CONFIG_FLATMEM
 	unsigned long zholes_size[MAX_NR_ZONES] = { 0, };
 	unsigned long i, j, pfn;
@@ -354,19 +353,19 @@ void __init paging_init(void)
 #endif
 	kmap_coherent_init();
 
-	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-	low = max_low_pfn;
-
 #ifdef CONFIG_ISA
-	if (low < max_dma)
-		zones_size[ZONE_DMA] = low;
-	else {
-		zones_size[ZONE_DMA] = max_dma;
-		zones_size[ZONE_NORMAL] = low - max_dma;
-	}
-#else
-	zones_size[ZONE_DMA] = low;
+	if (max_low_pfn >= MAX_DMA_PFN)
+		if (min_low_pfn >= MAX_DMA_PFN) {
+			zones_size[ZONE_DMA] = 0;
+			zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
+		} else {
+			zones_size[ZONE_DMA] = MAX_DMA_PFN - min_low_pfn;
+			zones_size[ZONE_NORMAL] = max_low_pfn - MAX_DMA_PFN;
+		}
+	else
 #endif
+	zones_size[ZONE_DMA] = max_low_pfn - min_low_pfn;
+
 #ifdef CONFIG_HIGHMEM
 	zones_size[ZONE_HIGHMEM] = highend_pfn - highstart_pfn;
 
