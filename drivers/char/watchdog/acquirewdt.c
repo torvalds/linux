@@ -48,46 +48,52 @@
  *		It can be 1, 2, 10, 20, 110 or 220 seconds.
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/types.h>
-#include <linux/miscdevice.h>
-#include <linux/watchdog.h>
-#include <linux/fs.h>
-#include <linux/ioport.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
-#include <linux/init.h>
+/*
+ *	Includes, defines, variables, module parameters, ...
+ */
 
-#include <asm/io.h>
-#include <asm/uaccess.h>
-#include <asm/system.h>
+/* Includes */
+#include <linux/module.h>		/* For module specific items */
+#include <linux/moduleparam.h>		/* For new moduleparam's */
+#include <linux/types.h>		/* For standard types (like size_t) */
+#include <linux/errno.h>		/* For the -ENODEV/... values */
+#include <linux/kernel.h>		/* For printk/panic/... */
+#include <linux/miscdevice.h>		/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
+#include <linux/watchdog.h>		/* For the watchdog specific items */
+#include <linux/fs.h>			/* For file operations */
+#include <linux/ioport.h>		/* For io-port access */
+#include <linux/notifier.h>		/* For reboot notifier */
+#include <linux/reboot.h>		/* For reboot notifier */
+#include <linux/init.h>			/* For __init/__exit/... */
 
+#include <asm/uaccess.h>		/* For copy_to_user/put_user/... */
+#include <asm/io.h>			/* For inb/outb/... */
+
+/* Module information */
+#define DRV_NAME "acquirewdt"
+#define PFX DRV_NAME ": "
 #define WATCHDOG_NAME "Acquire WDT"
-#define PFX WATCHDOG_NAME ": "
 #define WATCHDOG_HEARTBEAT 0	/* There is no way to see what the correct time-out period is */
 
+/* internal variables */
 static unsigned long acq_is_open;
 static char expect_close;
 
-/*
- *	You must set these - there is no sane way to probe for this board.
- */
-
-static int wdt_stop = 0x43;
+/* module parameters */
+static int wdt_stop = 0x43;	/* You must set this - there is no sane way to probe for this board. */
 module_param(wdt_stop, int, 0);
 MODULE_PARM_DESC(wdt_stop, "Acquire WDT 'stop' io port (default 0x43)");
 
-static int wdt_start = 0x443;
+static int wdt_start = 0x443;	/* You must set this - there is no sane way to probe for this board. */
 module_param(wdt_start, int, 0);
 MODULE_PARM_DESC(wdt_start, "Acquire WDT 'start' io port (default 0x443)");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
- *	Kernel methods.
+ *	Watchdog Operations
  */
 
 static void acq_keepalive(void)
@@ -103,7 +109,7 @@ static void acq_stop(void)
 }
 
 /*
- *	/dev/watchdog handling.
+ *	/dev/watchdog handling
  */
 
 static ssize_t acq_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
@@ -143,7 +149,7 @@ static int acq_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	{
 		.options = WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 		.firmware_version = 1,
-		.identity = "Acquire WDT",
+		.identity = WATCHDOG_NAME,
 	};
 
 	switch(cmd)
@@ -240,11 +246,10 @@ static const struct file_operations acq_fops = {
 	.release	= acq_close,
 };
 
-static struct miscdevice acq_miscdev=
-{
-	.minor = WATCHDOG_MINOR,
-	.name = "watchdog",
-	.fops = &acq_fops,
+static struct miscdevice acq_miscdev = {
+	.minor	= WATCHDOG_MINOR,
+	.name	= "watchdog",
+	.fops	= &acq_fops,
 };
 
 /*
@@ -252,10 +257,13 @@ static struct miscdevice acq_miscdev=
  *	turn the timebomb registers off.
  */
 
-static struct notifier_block acq_notifier =
-{
+static struct notifier_block acq_notifier = {
 	.notifier_call = acq_notify_sys,
 };
+
+/*
+ *	Init & exit routines
+ */
 
 static int __init acq_init(void)
 {
@@ -313,9 +321,9 @@ static void __exit acq_exit(void)
 {
 	misc_deregister(&acq_miscdev);
 	unregister_reboot_notifier(&acq_notifier);
+	release_region(wdt_start,1);
 	if(wdt_stop != wdt_start)
 		release_region(wdt_stop,1);
-	release_region(wdt_start,1);
 }
 
 module_init(acq_init);
