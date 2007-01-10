@@ -581,9 +581,9 @@ static void mmc_omap_switch_timer(unsigned long arg)
 	schedule_work(&host->switch_work);
 }
 
-static void mmc_omap_switch_handler(void *data)
+static void mmc_omap_switch_handler(struct work_struct *work)
 {
-	struct mmc_omap_host *host = (struct mmc_omap_host *) data;
+	struct mmc_omap_host *host = container_of(work, struct mmc_omap_host, switch_work);
 	struct mmc_card *card;
 	static int complained = 0;
 	int cards = 0, cover_open;
@@ -1116,7 +1116,7 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 
 	if (host->switch_pin >= 0) {
-		INIT_WORK(&host->switch_work, mmc_omap_switch_handler, host);
+		INIT_WORK(&host->switch_work, mmc_omap_switch_handler);
 		init_timer(&host->switch_timer);
 		host->switch_timer.function = mmc_omap_switch_timer;
 		host->switch_timer.data = (unsigned long) host;
