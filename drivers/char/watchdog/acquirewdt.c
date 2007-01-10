@@ -64,6 +64,7 @@
 #include <linux/ioport.h>		/* For io-port access */
 #include <linux/notifier.h>		/* For reboot notifier */
 #include <linux/reboot.h>		/* For reboot notifier */
+#include <linux/platform_device.h>	/* For platform_driver framework */
 #include <linux/init.h>			/* For __init/__exit/... */
 
 #include <asm/uaccess.h>		/* For copy_to_user/put_user/... */
@@ -76,6 +77,7 @@
 #define WATCHDOG_HEARTBEAT 0	/* There is no way to see what the correct time-out period is */
 
 /* internal variables */
+static struct platform_device *acq_platform_device;	/* the watchdog platform device */
 static unsigned long acq_is_open;
 static char expect_close;
 
@@ -265,11 +267,9 @@ static struct notifier_block acq_notifier = {
  *	Init & exit routines
  */
 
-static int __init acq_init(void)
+static int __devinit acq_probe(struct platform_device *dev)
 {
 	int ret;
-
-	printk(KERN_INFO "WDT driver for Acquire single board computer initialising.\n");
 
 	if (wdt_stop != wdt_start) {
 		if (!request_region(wdt_stop, 1, WATCHDOG_NAME)) {
@@ -317,13 +317,54 @@ out:
 	return ret;
 }
 
-static void __exit acq_exit(void)
+static int __devexit acq_remove(struct platform_device *dev)
 {
 	misc_deregister(&acq_miscdev);
 	unregister_reboot_notifier(&acq_notifier);
 	release_region(wdt_start,1);
 	if(wdt_stop != wdt_start)
 		release_region(wdt_stop,1);
+
+	return 0;
+}
+
+static struct platform_driver acquirewdt_driver = {
+	.probe		= acq_probe,
+	.remove		= __devexit_p(acq_remove),
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= DRV_NAME,
+	},
+};
+
+static int __init acq_init(void)
+{
+	int err;
+
+	printk(KERN_INFO "WDT driver for Acquire single board computer initialising.\n");
+
+	err = platform_driver_register(&acquirewdt_driver);
+	if (err)
+		return err;
+
+	acq_platform_device = platform_device_register_simple(DRV_NAME, -1, NULL, 0);
+	if (IS_ERR(acq_platform_device)) {
+		err = PTR_ERR(acq_platform_device);
+		goto unreg_platform_driver;
+	}
+
+	return 0;
+
+unreg_platform_driver:
+	platform_driver_unregister(&acquirewdt_driver);
+	return err;
+}
+
+static void __exit acq_exit(void)
+{
+	platform_device_unregister(acq_platform_device);
+	platform_driver_unregister(&acquirewdt_driver);
+	printk(KERN_INFO PFX "Watchdog Module Unloaded.\n");
 }
 
 module_init(acq_init);
