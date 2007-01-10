@@ -315,13 +315,17 @@ static void __init bootmem_init(void)
 
 	if (min_low_pfn >= max_low_pfn)
 		panic("Incorrect memory mapping !!!");
-	if (min_low_pfn > 0) {
+	if (min_low_pfn > ARCH_PFN_OFFSET) {
 		printk(KERN_INFO
 		       "Wasting %lu bytes for tracking %lu unused pages\n",
-		       min_low_pfn * sizeof(struct page),
-		       min_low_pfn);
-		min_low_pfn = 0;
+		       (min_low_pfn - ARCH_PFN_OFFSET) * sizeof(struct page),
+		       min_low_pfn - ARCH_PFN_OFFSET);
+	} else if (min_low_pfn < ARCH_PFN_OFFSET) {
+		printk(KERN_INFO
+		       "%lu free pages won't be used\n",
+		       ARCH_PFN_OFFSET - min_low_pfn);
 	}
+	min_low_pfn = ARCH_PFN_OFFSET;
 
 	/*
 	 * Determine low and high memory ranges
