@@ -62,8 +62,6 @@
 #include <linux/watchdog.h>		/* For the watchdog specific items */
 #include <linux/fs.h>			/* For file operations */
 #include <linux/ioport.h>		/* For io-port access */
-#include <linux/notifier.h>		/* For reboot notifier */
-#include <linux/reboot.h>		/* For reboot notifier */
 #include <linux/platform_device.h>	/* For platform_driver framework */
 #include <linux/init.h>			/* For __init/__exit/... */
 
@@ -222,20 +220,6 @@ static int acq_close(struct inode *inode, struct file *file)
 }
 
 /*
- *	Notifier for system down
- */
-
-static int acq_notify_sys(struct notifier_block *this, unsigned long code,
-	void *unused)
-{
-	if(code==SYS_DOWN || code==SYS_HALT) {
-		/* Turn the WDT off */
-		acq_stop();
-	}
-	return NOTIFY_DONE;
-}
-
-/*
  *	Kernel Interfaces
  */
 
@@ -252,15 +236,6 @@ static struct miscdevice acq_miscdev = {
 	.minor	= WATCHDOG_MINOR,
 	.name	= "watchdog",
 	.fops	= &acq_fops,
-};
-
-/*
- *	The WDT card needs to learn about soft shutdowns in order to
- *	turn the timebomb registers off.
- */
-
-static struct notifier_block acq_notifier = {
-	.notifier_call = acq_notify_sys,
 };
 
 /*
@@ -287,18 +262,11 @@ static int __devinit acq_probe(struct platform_device *dev)
 		goto unreg_stop;
 	}
 
-	ret = register_reboot_notifier(&acq_notifier);
-	if (ret != 0) {
-		printk (KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
-			ret);
-		goto unreg_regions;
-	}
-
 	ret = misc_register(&acq_miscdev);
 	if (ret != 0) {
 		printk (KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
 			WATCHDOG_MINOR, ret);
-		goto unreg_reboot;
+		goto unreg_regions;
 	}
 
 	printk (KERN_INFO PFX "initialized. (nowayout=%d)\n",
@@ -306,8 +274,6 @@ static int __devinit acq_probe(struct platform_device *dev)
 
 	return 0;
 
-unreg_reboot:
-	unregister_reboot_notifier(&acq_notifier);
 unreg_regions:
 	release_region(wdt_start, 1);
 unreg_stop:
@@ -320,7 +286,6 @@ out:
 static int __devexit acq_remove(struct platform_device *dev)
 {
 	misc_deregister(&acq_miscdev);
-	unregister_reboot_notifier(&acq_notifier);
 	release_region(wdt_start,1);
 	if(wdt_stop != wdt_start)
 		release_region(wdt_stop,1);
@@ -328,9 +293,16 @@ static int __devexit acq_remove(struct platform_device *dev)
 	return 0;
 }
 
+static void acq_shutdown(struct platform_device *dev)
+{
+	/* Turn the WDT off if we have a soft shutdown */
+	acq_stop();
+}
+
 static struct platform_driver acquirewdt_driver = {
 	.probe		= acq_probe,
 	.remove		= __devexit_p(acq_remove),
+	.shutdown	= acq_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= DRV_NAME,
