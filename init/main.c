@@ -50,9 +50,7 @@
 #include <linux/buffer_head.h>
 #include <linux/debug_locks.h>
 #include <linux/lockdep.h>
-#include <linux/utsrelease.h>
 #include <linux/pid_namespace.h>
-#include <linux/compile.h>
 #include <linux/device.h>
 
 #include <asm/io.h>
@@ -481,12 +479,6 @@ static void __init boot_cpu_init(void)
 void __init __attribute__((weak)) smp_setup_processor_id(void)
 {
 }
-
-static const char linux_banner[] =
-	"Linux version " UTS_RELEASE
-	" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
-	" (" LINUX_COMPILER ")"
-	" " UTS_VERSION "\n";
 
 asmlinkage void __init start_kernel(void)
 {

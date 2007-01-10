@@ -368,14 +368,10 @@ endif
 # Detect when mixed targets is specified, and make a second invocation
 # of make so .config is not included in this case either (for *config).
 
-PHONY += generated_headers
-
-generated_headers: include/linux/version.h include/linux/compile.h \
-		include/linux/utsrelease.h
-
-no-dot-config-targets := generated_headers clean mrproper distclean \
+no-dot-config-targets := clean mrproper distclean \
 			 cscope TAGS tags help %docs check% \
-			 headers_% kernelrelease kernelversion
+			 include/linux/version.h headers_% \
+			 kernelrelease kernelversion
 
 config-targets := 0
 mixed-targets  := 0
@@ -738,16 +734,6 @@ debug_kallsyms: .tmp_map$(last_kallsyms)
 
 endif # ifdef CONFIG_KALLSYMS
 
-# compile.h changes depending on hostname, generation number, etc,
-# so we regenerate it always.
-# mkcompile_h will make sure to only update the
-# actual file if its content has changed.
-
-include/linux/compile.h: FORCE
-	@echo '  CHK     $@'
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/mkcompile_h $@ \
-	"$(UTS_MACHINE)" "$(CONFIG_SMP)" "$(CONFIG_PREEMPT)" "$(CC) $(CFLAGS)"
-
 # vmlinux image - including updated kernel symbols
 vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) $(kallsyms.o) FORCE
 ifdef CONFIG_HEADERS_CHECK
@@ -866,8 +852,8 @@ endif
 # prepare2 creates a makefile if using a separate output directory
 prepare2: prepare3 outputmakefile
 
-prepare1: prepare2 generated_headers include/asm include/config/auto.conf
-
+prepare1: prepare2 include/linux/version.h include/linux/utsrelease.h \
+                   include/asm include/config/auto.conf
 ifneq ($(KBUILD_MODULES),)
 	$(Q)mkdir -p $(MODVERDIR)
 	$(Q)rm -f $(MODVERDIR)/*
@@ -936,14 +922,14 @@ export INSTALL_HDR_PATH
 HDRARCHES=$(filter-out generic,$(patsubst $(srctree)/include/asm-%/Kbuild,%,$(wildcard $(srctree)/include/asm-*/Kbuild)))
 
 PHONY += headers_install_all
-headers_install_all: generated_headers scripts_basic FORCE
+headers_install_all: include/linux/version.h scripts_basic FORCE
 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
 	$(Q)for arch in $(HDRARCHES); do \
 	 $(MAKE) ARCH=$$arch -f $(srctree)/scripts/Makefile.headersinst obj=include BIASMDIR=-bi-$$arch ;\
 	 done
 
 PHONY += headers_install
-headers_install: generated_headers scripts_basic FORCE
+headers_install: include/linux/version.h scripts_basic FORCE
 	@if [ ! -r $(srctree)/include/asm-$(ARCH)/Kbuild ]; then \
 	  echo '*** Error: Headers not exportable for this architecture ($(ARCH))'; \
 	  exit 1 ; fi
@@ -1040,7 +1026,8 @@ CLEAN_FILES +=	vmlinux System.map \
 # Directories & files removed with 'make mrproper'
 MRPROPER_DIRS  += include/config include2 usr/include
 MRPROPER_FILES += .config .config.old include/asm .version .old_version \
-                  include/linux/autoconf.h include/linux/utsrelease.h include/linux/version.h \
+                  include/linux/autoconf.h include/linux/version.h      \
+                  include/linux/utsrelease.h                            \
 		  Module.symvers tags TAGS cscope*
 
 # clean - Delete most, but leave enough to build external modules

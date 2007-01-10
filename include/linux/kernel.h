@@ -17,6 +17,9 @@
 #include <asm/byteorder.h>
 #include <asm/bug.h>
 
+extern const char linux_banner[];
+extern const char linux_proc_banner[];
+
 #define INT_MAX		((int)(~0U>>1))
 #define INT_MIN		(-INT_MAX - 1)
 #define UINT_MAX	(~0U)
