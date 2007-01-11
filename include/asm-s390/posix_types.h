@@ -104,7 +104,7 @@ static inline int __FD_ISSET(unsigned long fd, const __kernel_fd_set *fdsetp)
 
 #undef  __FD_ZERO
 #define __FD_ZERO(fdsetp) \
-	((void) memset ((__ptr_t) (fdsetp), 0, sizeof (__kernel_fd_set)))
+	((void) memset ((void *) (fdsetp), 0, sizeof (__kernel_fd_set)))
 
 #endif     /* __KERNEL__ */
 
