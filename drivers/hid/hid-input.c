@@ -816,6 +816,7 @@ int hidinput_connect(struct hid_device *hid)
 	struct hid_input *hidinput = NULL;
 	struct input_dev *input_dev;
 	int i, j, k;
+	int max_report_type = HID_OUTPUT_REPORT;
 
 	INIT_LIST_HEAD(&hid->inputs);
 
@@ -828,7 +829,10 @@ int hidinput_connect(struct hid_device *hid)
 	if (i == hid->maxcollection)
 		return -1;
 
-	for (k = HID_INPUT_REPORT; k <= HID_OUTPUT_REPORT; k++)
+	if (hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORTS)
+		max_report_type = HID_INPUT_REPORT;
+
+	for (k = HID_INPUT_REPORT; k <= max_report_type; k++)
 		list_for_each_entry(report, &hid->report_enum[k].report_list, list) {
 
 			if (!report->maxfield)

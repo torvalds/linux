@@ -264,6 +264,7 @@ struct hid_item {
 #define HID_QUIRK_INVERT_HWHEEL			0x00004000
 #define HID_QUIRK_POWERBOOK_ISO_KEYBOARD        0x00008000
 #define HID_QUIRK_BAD_RELATIVE_KEYS		0x00010000
+#define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00020000
 
 /*
  * This is the global environment of the parser. This information is
