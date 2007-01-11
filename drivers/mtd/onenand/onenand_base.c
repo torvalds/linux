@@ -1491,6 +1491,8 @@ static int onenand_unlock_all(struct mtd_info *mtd)
 	struct onenand_chip *this = mtd->priv;
 
 	if (this->options & ONENAND_HAS_UNLOCK_ALL) {
+		/* Set start block address */
+		this->write_word(0, this->base + ONENAND_REG_START_BLOCK_ADDRESS);
 		/* Write unlock command */
 		this->command(mtd, ONENAND_CMD_UNLOCK_ALL, 0, 0);
 
@@ -1504,12 +1506,9 @@ static int onenand_unlock_all(struct mtd_info *mtd)
 
 		/* Workaround for all block unlock in DDP */
 		if (this->device_id & ONENAND_DEVICE_IS_DDP) {
-			loff_t ofs;
-			size_t len;
-
 			/* 1st block on another chip */
-			ofs = this->chipsize >> 1;
-			len = 1 << this->erase_shift;
+			loff_t ofs = this->chipsize >> 1;
+			size_t len = mtd->erasesize;
 
 			onenand_unlock(mtd, ofs, len);
 		}
