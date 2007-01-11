@@ -264,8 +264,6 @@ static int sh_rtc_proc(struct device *dev, struct seq_file *seq)
 	unsigned int tmp;
 
 	tmp = readb(rtc->regbase + RCR1);
-	seq_printf(seq, "alarm_IRQ\t: %s\n",
-		   (tmp & RCR1_AIE) ? "yes" : "no");
 	seq_printf(seq, "carry_IRQ\t: %s\n",
 		   (tmp & RCR1_CIE) ? "yes" : "no");
 
@@ -427,6 +425,8 @@ static int sh_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	if (tm->tm_mon > 0)
 		tm->tm_mon -= 1; /* RTC is 1-12, tm_mon is 0-11 */
 	tm->tm_year     = 0xffff;
+
+	wkalrm->enabled = (readb(rtc->regbase + RCR1) & RCR1_AIE) ? 1 : 0;
 
 	spin_unlock_irq(&rtc->lock);
 
