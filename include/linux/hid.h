@@ -504,6 +504,7 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size);
 int hid_ff_init(struct hid_device *hid);
 
 int hid_lgff_init(struct hid_device *hid);
+int hid_plff_init(struct hid_device *hid);
 int hid_tmff_init(struct hid_device *hid);
 int hid_zpff_init(struct hid_device *hid);
 #ifdef CONFIG_HID_PID
