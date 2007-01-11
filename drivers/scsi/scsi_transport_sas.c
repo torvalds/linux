@@ -1446,10 +1446,10 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 	SETUP_TEMPLATE(phy_attrs, field, S_IRUGO, i->f->func)
 
 #define SETUP_PHY_ATTRIBUTE_WRONLY(field)				\
-	SETUP_TEMPLATE(phy_attrs, field, S_IWUGO, 1)
+	SETUP_TEMPLATE(phy_attrs, field, S_IWUSR, 1)
 
 #define SETUP_OPTIONAL_PHY_ATTRIBUTE_WRONLY(field, func)		\
-	SETUP_TEMPLATE(phy_attrs, field, S_IWUGO, i->f->func)
+	SETUP_TEMPLATE(phy_attrs, field, S_IWUSR, i->f->func)
 
 #define SETUP_END_DEV_ATTRIBUTE(field)					\
 	SETUP_TEMPLATE(end_dev_attrs, field, S_IRUGO, 1)
