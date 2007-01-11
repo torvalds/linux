@@ -378,7 +378,7 @@ static void __exit mod_exit(void)
 	iounmap(mem);
 }
 
-subsys_initcall(mod_init);
+module_init(mod_init);
 module_exit(mod_exit);
 
 MODULE_DESCRIPTION("H/W RNG driver for Intel chipsets");
