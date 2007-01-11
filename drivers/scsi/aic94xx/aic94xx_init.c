@@ -57,6 +57,8 @@ MODULE_PARM_DESC(collector, "\n"
 char sas_addr_str[2*SAS_ADDR_SIZE + 1] = "";
 
 static struct scsi_transport_template *aic94xx_transport_template;
+static int asd_scan_finished(struct Scsi_Host *, unsigned long);
+static void asd_scan_start(struct Scsi_Host *);
 
 static struct scsi_host_template aic94xx_sht = {
 	.module			= THIS_MODULE,
@@ -66,6 +68,8 @@ static struct scsi_host_template aic94xx_sht = {
 	.target_alloc		= sas_target_alloc,
 	.slave_configure	= sas_slave_configure,
 	.slave_destroy		= sas_slave_destroy,
+	.scan_finished		= asd_scan_finished,
+	.scan_start		= asd_scan_start,
 	.change_queue_depth	= sas_change_queue_depth,
 	.change_queue_type	= sas_change_queue_type,
 	.bios_param		= sas_bios_param,
@@ -672,21 +676,10 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 	if (err)
 		goto Err_reg_sas;
 
-	err = asd_enable_phys(asd_ha, asd_ha->hw_prof.enabled_phys);
-	if (err) {
-		asd_printk("coudln't enable phys, err:%d\n", err);
-		goto Err_en_phys;
-	}
-	ASD_DPRINTK("enabled phys\n");
-	/* give the phy enabling interrupt event time to come in (1s
-	 * is empirically about all it takes) */
-	ssleep(1);
-	/* Wait for discovery to finish */
-	scsi_flush_work(asd_ha->sas_ha.core.shost);
+	scsi_scan_host(shost);
 
 	return 0;
-Err_en_phys:
-	asd_unregister_sas_ha(asd_ha);
+
 Err_reg_sas:
 	asd_remove_dev_attrs(asd_ha);
 Err_dev_attrs:
@@ -777,6 +770,28 @@ static void __devexit asd_pci_remove(struct pci_dev *dev)
 	kfree(asd_ha);
 	pci_disable_device(dev);
 	return;
+}
+
+static void asd_scan_start(struct Scsi_Host *shost)
+{
+	struct asd_ha_struct *asd_ha;
+	int err;
+
+	asd_ha = SHOST_TO_SAS_HA(shost)->lldd_ha;
+	err = asd_enable_phys(asd_ha, asd_ha->hw_prof.enabled_phys);
+	if (err)
+		asd_printk("Couldn't enable phys, err:%d\n", err);
+}
+
+static int asd_scan_finished(struct Scsi_Host *shost, unsigned long time)
+{
+	/* give the phy enabling interrupt event time to come in (1s
+	 * is empirically about all it takes) */
+	if (time < HZ)
+		return 0;
+	/* Wait for discovery to finish */
+	scsi_flush_work(shost);
+	return 1;
 }
 
 static ssize_t asd_version_show(struct device_driver *driver, char *buf)
