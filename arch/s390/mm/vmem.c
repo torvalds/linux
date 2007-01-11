@@ -61,7 +61,8 @@ void memmap_init(unsigned long size, int nid, unsigned long zone,
 
 		if (map_start < map_end)
 			memmap_init_zone((unsigned long)(map_end - map_start),
-					 nid, zone, page_to_pfn(map_start));
+					 nid, zone, page_to_pfn(map_start),
+					 MEMMAP_EARLY);
 	}
 }
 
