@@ -93,7 +93,8 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 			ret = onenand_do_read_oob(mtd, from + j * mtd->writesize + bd->offs,
 						  readlen, &retlen, &buf[0]);
 
-			if (ret)
+			/* If it is a initial bad block, just ignore it */
+			if (ret && !(ret & ONENAND_CTRL_LOAD))
 				return ret;
 
 			if (check_short_pattern(&buf[j * scanlen], scanlen, mtd->writesize, bd)) {
