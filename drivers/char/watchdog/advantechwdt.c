@@ -43,8 +43,9 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
+#define DRV_NAME "advantechwdt"
+#define PFX DRV_NAME ": "
 #define WATCHDOG_NAME "Advantech WDT"
-#define PFX WATCHDOG_NAME ": "
 #define WATCHDOG_TIMEOUT 60		/* 60 sec default timeout */
 
 static unsigned long advwdt_is_open;
@@ -75,10 +76,10 @@ MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. 1<= timeout <=63, defaul
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
- *	Kernel methods.
+ *	Watchdog Operations
  */
 
 static void
@@ -93,6 +94,10 @@ advwdt_disable(void)
 {
 	inb_p(wdt_stop);
 }
+
+/*
+ *	/dev/watchdog handling
+ */
 
 static ssize_t
 advwdt_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
@@ -126,7 +131,7 @@ advwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	static struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
 		.firmware_version = 1,
-		.identity = "Advantech WDT",
+		.identity = WATCHDOG_NAME,
 	};
 
 	switch (cmd) {
@@ -237,9 +242,9 @@ static const struct file_operations advwdt_fops = {
 };
 
 static struct miscdevice advwdt_miscdev = {
-	.minor = WATCHDOG_MINOR,
-	.name = "watchdog",
-	.fops = &advwdt_fops,
+	.minor	= WATCHDOG_MINOR,
+	.name	= "watchdog",
+	.fops	= &advwdt_fops,
 };
 
 /*
@@ -250,6 +255,10 @@ static struct miscdevice advwdt_miscdev = {
 static struct notifier_block advwdt_notifier = {
 	.notifier_call = advwdt_notify_sys,
 };
+
+/*
+ *	Init & exit routines
+ */
 
 static int __init
 advwdt_init(void)
@@ -314,9 +323,9 @@ advwdt_exit(void)
 {
 	misc_deregister(&advwdt_miscdev);
 	unregister_reboot_notifier(&advwdt_notifier);
+	release_region(wdt_start,1);
 	if(wdt_stop != wdt_start)
 		release_region(wdt_stop,1);
-	release_region(wdt_start,1);
 }
 
 module_init(advwdt_init);
