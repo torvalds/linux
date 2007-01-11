@@ -524,9 +524,13 @@ enum scsi_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 	unsigned long flags;
 
 	if (!task) {
-		SAS_DPRINTK("command 0x%p, task 0x%p, gone: EH_HANDLED\n",
-			    cmd, task);
-		return EH_HANDLED;
+		cmd->timeout_per_command /= 2;
+		SAS_DPRINTK("command 0x%p, task 0x%p, gone: %s\n",
+			    cmd, task, (cmd->timeout_per_command ?
+			    "EH_RESET_TIMER" : "EH_NOT_HANDLED"));
+		if (!cmd->timeout_per_command)
+			return EH_NOT_HANDLED;
+		return EH_RESET_TIMER;
 	}
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
