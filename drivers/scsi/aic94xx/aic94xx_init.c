@@ -234,7 +234,7 @@ static int __devinit asd_common_setup(struct asd_ha_struct *asd_ha)
 	}
 	/* Provide some sane default values. */
 	asd_ha->hw_prof.max_scbs = 512;
-	asd_ha->hw_prof.max_ddbs = 128;
+	asd_ha->hw_prof.max_ddbs = ASD_MAX_DDBS;
 	asd_ha->hw_prof.num_phys = ASD_MAX_PHYS;
 	/* All phys are enabled, by default. */
 	asd_ha->hw_prof.enabled_phys = 0xFF;
