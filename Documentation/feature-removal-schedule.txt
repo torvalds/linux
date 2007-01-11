@@ -273,3 +273,48 @@ Why:	Speedstep-centrino driver with ACPI hooks and acpi-cpufreq driver are
 Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
 
 ---------------------------
+
+What:	ACPI hotkey driver (CONFIG_ACPI_HOTKEY)
+When:	2.6.21
+Why:	hotkey.c was an attempt to consolidate multiple drivers that use
+	ACPI to implement hotkeys.  However, hotkeys are not documented
+	in the ACPI specification, so the drivers used undocumented
+	vendor-specific hooks and turned out to be more different than
+	the same.
+
+	Further, the keys and the features supplied by each platform
+	are different, so there will always be a need for
+	platform-specific drivers.
+
+	So the new plan is to delete hotkey.c and instead, work on the
+	platform specific drivers to try to make them look the same
+	to the user when they supply the same features.
+
+	hotkey.c has always depended on CONFIG_EXPERIMENTAL
+
+Who:	Len Brown <len.brown@intel.com>
+
+---------------------------
+
+What:	/sys/firmware/acpi/namespace
+When:	2.6.21
+Why:	The ACPI namespace is effectively the symbol list for
+	the BIOS.  The device names are completely arbitrary
+	and have no place being exposed to user-space.
+
+	For those interested in the BIOS ACPI namespace,
+	the BIOS can be extracted and disassembled with acpidump
+	and iasl as documented in the pmtools package here:
+	http://ftp.kernel.org/pub/linux/kernel/people/lenb/acpi/utils
+
+Who:	Len Brown <len.brown@intel.com>
+
+---------------------------
+
+What:	/proc/acpi/button
+When:	August 2007
+Why:	/proc/acpi/button has been replaced by events to the input layer
+	since 2.6.20.
+Who:	Len Brown <len.brown@intel.com>
+
+---------------------------
