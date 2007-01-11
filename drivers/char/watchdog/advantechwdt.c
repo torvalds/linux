@@ -37,6 +37,7 @@
 #include <linux/ioport.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <linux/platform_device.h>
 #include <linux/init.h>
 
 #include <asm/io.h>
@@ -48,6 +49,7 @@
 #define WATCHDOG_NAME "Advantech WDT"
 #define WATCHDOG_TIMEOUT 60		/* 60 sec default timeout */
 
+static struct platform_device *advwdt_platform_device;	/* the watchdog platform device */
 static unsigned long advwdt_is_open;
 static char adv_expect_close;
 
@@ -269,12 +271,10 @@ static struct notifier_block advwdt_notifier = {
  *	Init & exit routines
  */
 
-static int __init
-advwdt_init(void)
+static int __devinit
+advwdt_probe(struct platform_device *dev)
 {
 	int ret;
-
-	printk(KERN_INFO "WDT driver for Advantech single board computer initialising.\n");
 
 	if (wdt_stop != wdt_start) {
 		if (!request_region(wdt_stop, 1, WATCHDOG_NAME)) {
@@ -328,14 +328,57 @@ unreg_stop:
 	goto out;
 }
 
-static void __exit
-advwdt_exit(void)
+static int __devexit
+advwdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&advwdt_miscdev);
 	unregister_reboot_notifier(&advwdt_notifier);
 	release_region(wdt_start,1);
 	if(wdt_stop != wdt_start)
 		release_region(wdt_stop,1);
+
+	return 0;
+}
+
+static struct platform_driver advwdt_driver = {
+	.probe		= advwdt_probe,
+	.remove		= __devexit_p(advwdt_remove),
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= DRV_NAME,
+	},
+};
+
+static int __init
+advwdt_init(void)
+{
+	int err;
+
+	printk(KERN_INFO "WDT driver for Advantech single board computer initialising.\n");
+
+	err = platform_driver_register(&advwdt_driver);
+	if (err)
+		return err;
+
+	advwdt_platform_device = platform_device_register_simple(DRV_NAME, -1, NULL, 0);
+	if (IS_ERR(advwdt_platform_device)) {
+		err = PTR_ERR(advwdt_platform_device);
+		goto unreg_platform_driver;
+	}
+
+	return 0;
+
+unreg_platform_driver:
+	platform_driver_unregister(&advwdt_driver);
+	return err;
+}
+
+static void __exit
+advwdt_exit(void)
+{
+	platform_device_unregister(advwdt_platform_device);
+	platform_driver_unregister(&advwdt_driver);
+	printk(KERN_INFO PFX "Watchdog Module Unloaded.\n");
 }
 
 module_init(advwdt_init);
