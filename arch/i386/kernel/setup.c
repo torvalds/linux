@@ -495,7 +495,7 @@ static void set_mca_bus(int x) { }
 #endif
 
 /* Overridden in paravirt.c if CONFIG_PARAVIRT */
-char * __attribute__((weak)) memory_setup(void)
+char * __init __attribute__((weak)) memory_setup(void)
 {
 	return machine_specific_memory_setup();
 }
