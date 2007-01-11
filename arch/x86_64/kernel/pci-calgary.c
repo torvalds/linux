@@ -1068,6 +1068,8 @@ void __init detect_calgary(void)
 	if (!early_pci_allowed())
 		return;
 
+	printk(KERN_DEBUG "Calgary: detecting Calgary via BIOS EBDA area\n");
+
 	ptr = (unsigned long)phys_to_virt(get_bios_ebda());
 
 	rio_table_hdr = NULL;
@@ -1088,14 +1090,14 @@ void __init detect_calgary(void)
 		offset = *((unsigned short *)(ptr + offset));
 	}
 	if (!rio_table_hdr) {
-		printk(KERN_ERR "Calgary: Unable to locate "
-				"Rio Grande Table in EBDA - bailing!\n");
+		printk(KERN_DEBUG "Calgary: Unable to locate Rio Grande table "
+		       "in EBDA - bailing!\n");
 		return;
 	}
 
 	ret = build_detail_arrays();
 	if (ret) {
-		printk(KERN_ERR "Calgary: build_detail_arrays ret %d\n", ret);
+		printk(KERN_DEBUG "Calgary: build_detail_arrays ret %d\n", ret);
 		return;
 	}
 
@@ -1127,6 +1129,9 @@ void __init detect_calgary(void)
 			}
 		}
 	}
+
+	printk(KERN_DEBUG "Calgary: finished detection, Calgary %s\n",
+	       calgary_found ? "found" : "not found");
 
 	if (calgary_found) {
 		iommu_detected = 1;
