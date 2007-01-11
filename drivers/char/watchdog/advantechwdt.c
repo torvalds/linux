@@ -95,6 +95,16 @@ advwdt_disable(void)
 	inb_p(wdt_stop);
 }
 
+static int
+advwdt_set_heartbeat(int t)
+{
+	if ((t < 1) || (t > 63))
+		return -EINVAL;
+
+	timeout = t;
+	return 0;
+}
+
 /*
  *	/dev/watchdog handling
  */
@@ -151,9 +161,8 @@ advwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	case WDIOC_SETTIMEOUT:
 	  if (get_user(new_timeout, p))
 		  return -EFAULT;
-	  if ((new_timeout < 1) || (new_timeout > 63))
+	  if (advwdt_set_heartbeat(new_timeout))
 		  return -EINVAL;
-	  timeout = new_timeout;
 	  advwdt_ping();
 	  /* Fall */
 
@@ -267,12 +276,6 @@ advwdt_init(void)
 
 	printk(KERN_INFO "WDT driver for Advantech single board computer initialising.\n");
 
-	if (timeout < 1 || timeout > 63) {
-		timeout = WATCHDOG_TIMEOUT;
-		printk (KERN_INFO PFX "timeout value must be 1<=x<=63, using %d\n",
-			timeout);
-	}
-
 	if (wdt_stop != wdt_start) {
 		if (!request_region(wdt_stop, 1, WATCHDOG_NAME)) {
 			printk (KERN_ERR PFX "I/O address 0x%04x already in use\n",
@@ -287,6 +290,13 @@ advwdt_init(void)
 			wdt_start);
 		ret = -EIO;
 		goto unreg_stop;
+	}
+
+	/* Check that the heartbeat value is within it's range ; if not reset to the default */
+	if (advwdt_set_heartbeat(timeout)) {
+		advwdt_set_heartbeat(WATCHDOG_TIMEOUT);
+		printk (KERN_INFO PFX "timeout value must be 1<=x<=63, using %d\n",
+			timeout);
 	}
 
 	ret = register_reboot_notifier(&advwdt_notifier);
