@@ -595,6 +595,7 @@ static int secref_whitelist(const char *modname, const char *tosec,
 		"_ops",
 		"_probe",
 		"_probe_one",
+		"_console",
 		NULL
 	};
 
