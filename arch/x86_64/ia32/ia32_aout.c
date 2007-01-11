@@ -241,7 +241,7 @@ static u32 __user *create_aout_tables(char __user *p, struct linux_binprm *bprm)
 			get_user(c,p++);
 		} while (c);
 	}
-	put_user(NULL,argv);
+	put_user(0, argv);
 	current->mm->arg_end = current->mm->env_start = (unsigned long) p;
 	while (envc-->0) {
 		char c;
@@ -250,7 +250,7 @@ static u32 __user *create_aout_tables(char __user *p, struct linux_binprm *bprm)
 			get_user(c,p++);
 		} while (c);
 	}
-	put_user(NULL,envp);
+	put_user(0, envp);
 	current->mm->env_end = (unsigned long) p;
 	return sp;
 }

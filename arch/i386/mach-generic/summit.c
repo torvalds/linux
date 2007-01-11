@@ -18,7 +18,7 @@
 #include <asm/mach-summit/mach_ipi.h>
 #include <asm/mach-summit/mach_mpparse.h>
 
-static __init int probe_summit(void)
+static int probe_summit(void)
 { 
 	/* probed later in mptable/ACPI hooks */
 	return 0;
