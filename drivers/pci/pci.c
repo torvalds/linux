@@ -254,7 +254,8 @@ static int __pci_find_next_ht_cap(struct pci_dev *dev, int pos, int ht_cap)
 		if ((cap & mask) == ht_cap)
 			return pos;
 
-		pos = __pci_find_next_cap_ttl(dev->bus, dev->devfn, pos,
+		pos = __pci_find_next_cap_ttl(dev->bus, dev->devfn,
+					      pos + PCI_CAP_LIST_NEXT,
 					      PCI_CAP_ID_HT, &ttl);
 	}
 
