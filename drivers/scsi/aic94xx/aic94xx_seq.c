@@ -1395,7 +1395,9 @@ void asd_update_port_links(struct asd_ha_struct *asd_ha, struct asd_phy *phy)
 	u8  phy_is_up;
 	u8  mask;
 	int i, err;
+	unsigned long flags;
 
+	spin_lock_irqsave(&asd_ha->hw_prof.ddb_lock, flags);
 	for_each_phy(phy_mask, mask, i)
 		asd_ddbsite_write_byte(asd_ha, 0,
 				       offsetof(struct asd_ddb_seq_shared,
@@ -1415,6 +1417,7 @@ void asd_update_port_links(struct asd_ha_struct *asd_ha, struct asd_phy *phy)
 			break;
 		}
 	}
+	spin_unlock_irqrestore(&asd_ha->hw_prof.ddb_lock, flags);
 
 	if (err)
 		asd_printk("couldn't update DDB 0:error:%d\n", err);
