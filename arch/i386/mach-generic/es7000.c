@@ -19,7 +19,7 @@
 #include <asm/mach-es7000/mach_mpparse.h>
 #include <asm/mach-es7000/mach_wakecpu.h>
 
-static __init int probe_es7000(void)
+static int probe_es7000(void)
 {
 	/* probed later in mptable/ACPI hooks */
 	return 0;
