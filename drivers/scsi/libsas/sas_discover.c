@@ -548,7 +548,7 @@ int sas_discover_sata(struct domain_device *dev)
 
 	res = sas_notify_lldd_dev_found(dev);
 	if (res)
-		return res;
+		goto out_err2;
 
 	switch (dev->dev_type) {
 	case SATA_DEV:
@@ -560,11 +560,25 @@ int sas_discover_sata(struct domain_device *dev)
 	default:
 		break;
 	}
+	if (res)
+		goto out_err;
 
 	sas_notify_lldd_dev_gone(dev);
-	if (!res) {
-		sas_notify_lldd_dev_found(dev);
-	}
+	res = sas_notify_lldd_dev_found(dev);
+	if (res)
+		goto out_err2;
+
+	res = sas_rphy_add(dev->rphy);
+	if (res)
+		goto out_err;
+
+	return res;
+
+out_err:
+	sas_notify_lldd_dev_gone(dev);
+out_err2:
+	sas_rphy_free(dev->rphy);
+	dev->rphy = NULL;
 	return res;
 }
 
@@ -580,7 +594,7 @@ int sas_discover_end_dev(struct domain_device *dev)
 
 	res = sas_notify_lldd_dev_found(dev);
 	if (res)
-		return res;
+		goto out_err2;
 
 	res = sas_rphy_add(dev->rphy);
 	if (res)
@@ -589,12 +603,21 @@ int sas_discover_end_dev(struct domain_device *dev)
 	/* do this to get the end device port attributes which will have
 	 * been scanned in sas_rphy_add */
 	sas_notify_lldd_dev_gone(dev);
-	sas_notify_lldd_dev_found(dev);
+	res = sas_notify_lldd_dev_found(dev);
+	if (res)
+		goto out_err3;
 
 	return 0;
 
 out_err:
 	sas_notify_lldd_dev_gone(dev);
+out_err2:
+	sas_rphy_free(dev->rphy);
+	dev->rphy = NULL;
+	return res;
+out_err3:
+	sas_rphy_delete(dev->rphy);
+	dev->rphy = NULL;
 	return res;
 }
 
@@ -686,6 +709,10 @@ static void sas_discover_domain(struct work_struct *work)
 	}
 
 	if (error) {
+		spin_lock(&port->dev_list_lock);
+		list_del_init(&port->port_dev->dev_list_node);
+		spin_unlock(&port->dev_list_lock);
+
 		kfree(port->port_dev); /* not kobject_register-ed yet */
 		port->port_dev = NULL;
 	}
