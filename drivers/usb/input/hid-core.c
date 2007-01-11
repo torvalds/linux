@@ -1315,11 +1315,7 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		return -ENODEV;
 	}
 
-	/* This only gets called when we are a single-input (most of the
-	 * time). IOW, not a HID_QUIRK_MULTI_INPUT. The hid_ff_init() is
-	 * only useful in this case, and not for multi-input quirks. */
-	if ((hid->claimed & HID_CLAIMED_INPUT) &&
-			!(hid->quirks & HID_QUIRK_MULTI_INPUT))
+	if ((hid->claimed & HID_CLAIMED_INPUT))
 		hid_ff_init(hid);
 
 	printk(KERN_INFO);
