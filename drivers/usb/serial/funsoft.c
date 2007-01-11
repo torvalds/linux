@@ -32,7 +32,7 @@ static int funsoft_ioctl(struct usb_serial_port *port, struct file *file,
 	dbg("%s - port %d, cmd 0x%04x", __FUNCTION__, port->number, cmd);
 
 	if (cmd == TCSETSF) {
-		if (user_termios_to_kernel_termios(&t, (void __user *)arg))
+		if (user_termios_to_kernel_termios(&t, (struct termios __user *)arg))
 			return -EFAULT;
 
 		dbg("%s - iflag:%x oflag:%x cflag:%x lflag:%x", __FUNCTION__,
