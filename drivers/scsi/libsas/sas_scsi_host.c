@@ -310,15 +310,6 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 		spin_unlock_irqrestore(&core->task_queue_lock, flags);
 	}
 
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	if (task->task_state_flags & SAS_TASK_INITIATOR_ABORTED) {
-		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		SAS_DPRINTK("%s: task 0x%p already aborted\n",
-			    __FUNCTION__, task);
-		return TASK_IS_ABORTED;
-	}
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
-
 	for (i = 0; i < 5; i++) {
 		SAS_DPRINTK("%s: aborting task 0x%p\n", __FUNCTION__, task);
 		res = si->dft->lldd_abort_task(task);
@@ -534,12 +525,6 @@ enum scsi_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 	}
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
-	if (task->task_state_flags & SAS_TASK_INITIATOR_ABORTED) {
-		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		SAS_DPRINTK("command 0x%p, task 0x%p, aborted by initiator: "
-			    "EH_NOT_HANDLED\n", cmd, task);
-		return EH_NOT_HANDLED;
-	}
 	if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 		SAS_DPRINTK("command 0x%p, task 0x%p, timed out: EH_HANDLED\n",
@@ -826,7 +811,6 @@ static int do_sas_task_abort(struct sas_task *task)
 		return 0;
 	}
 
-	task->task_state_flags |= SAS_TASK_INITIATOR_ABORTED;
 	if (!(task->task_state_flags & SAS_TASK_STATE_DONE))
 		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
@@ -849,7 +833,6 @@ static int do_sas_task_abort(struct sas_task *task)
 	}
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
-	task->task_state_flags &= ~SAS_TASK_INITIATOR_ABORTED;
 	if (!(task->task_state_flags & SAS_TASK_STATE_DONE))
 		task->task_state_flags &= ~SAS_TASK_STATE_ABORTED;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);

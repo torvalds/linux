@@ -553,7 +553,6 @@ struct sas_task {
 #define SAS_TASK_STATE_PENDING      1
 #define SAS_TASK_STATE_DONE         2
 #define SAS_TASK_STATE_ABORTED      4
-#define SAS_TASK_INITIATOR_ABORTED  8
 #define SAS_TASK_AT_INITIATOR       16
 
 static inline struct sas_task *sas_alloc_task(gfp_t flags)
