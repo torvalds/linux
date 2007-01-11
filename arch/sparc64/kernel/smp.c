@@ -1388,7 +1388,7 @@ void __devinit smp_prepare_boot_cpu(void)
 {
 }
 
-int __devinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu)
 {
 	int ret = smp_boot_one_cpu(cpu);
 

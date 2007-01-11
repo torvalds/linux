@@ -204,7 +204,7 @@ int cpu_down(unsigned int cpu)
 #endif /*CONFIG_HOTPLUG_CPU*/
 
 /* Requires cpu_add_remove_lock to be held */
-static int __devinit _cpu_up(unsigned int cpu)
+static int __cpuinit _cpu_up(unsigned int cpu)
 {
 	int ret;
 	void *hcpu = (void *)(long)cpu;
@@ -239,7 +239,7 @@ out_notify:
 	return ret;
 }
 
-int __devinit cpu_up(unsigned int cpu)
+int __cpuinit cpu_up(unsigned int cpu)
 {
 	int err = 0;
 
