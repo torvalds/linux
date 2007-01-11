@@ -736,10 +736,6 @@ int acpi_processor_preregister_performance(
 	}
 
 err_ret:
-	if (retval) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error while parsing _PSD domain information. Assuming no coordination\n"));
-	}
-
 	for_each_possible_cpu(i) {
 		pr = processors[i];
 		if (!pr || !pr->performance)
