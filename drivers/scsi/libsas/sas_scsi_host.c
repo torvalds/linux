@@ -542,6 +542,13 @@ enum scsi_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 			    cmd, task);
 		return EH_HANDLED;
 	}
+	if (!(task->task_state_flags & SAS_TASK_AT_INITIATOR)) {
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
+		SAS_DPRINTK("command 0x%p, task 0x%p, not at initiator: "
+			    "EH_RESET_TIMER\n",
+			    cmd, task);
+		return EH_RESET_TIMER;
+	}
 	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
