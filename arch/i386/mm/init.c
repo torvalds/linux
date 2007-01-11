@@ -283,7 +283,7 @@ void __init add_one_highpage_init(struct page *page, int pfn, int bad_ppro)
 		SetPageReserved(page);
 }
 
-static int add_one_highpage_hotplug(struct page *page, unsigned long pfn)
+static int __meminit add_one_highpage_hotplug(struct page *page, unsigned long pfn)
 {
 	free_new_highpage(page);
 	totalram_pages++;
@@ -300,7 +300,7 @@ static int add_one_highpage_hotplug(struct page *page, unsigned long pfn)
  * has been added dynamically that would be
  * onlined here is in HIGHMEM
  */
-void online_page(struct page *page)
+void __meminit online_page(struct page *page)
 {
 	ClearPageReserved(page);
 	add_one_highpage_hotplug(page, page_to_pfn(page));
