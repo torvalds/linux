@@ -837,6 +837,42 @@ acpi_video_bus_match(struct acpi_device *device)
 	return -ENODEV;
 }
 
+/*
+ * acpi_bay_match - see if a device is an ejectable driver bay
+ *
+ * If an acpi object is ejectable and has one of the ACPI ATA methods defined,
+ * then we can safely call it an ejectable drive bay
+ */
+static int acpi_bay_match(struct acpi_device *device){
+	acpi_status status;
+	acpi_handle handle;
+	acpi_handle tmp;
+	acpi_handle phandle;
+
+	handle = device->handle;
+
+	status = acpi_get_handle(handle, "_EJ0", &tmp);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	if ((ACPI_SUCCESS(acpi_get_handle(handle, "_GTF", &tmp))) ||
+		(ACPI_SUCCESS(acpi_get_handle(handle, "_GTM", &tmp))) ||
+		(ACPI_SUCCESS(acpi_get_handle(handle, "_STM", &tmp))) ||
+		(ACPI_SUCCESS(acpi_get_handle(handle, "_SDD", &tmp))))
+		return 0;
+
+	if (acpi_get_parent(handle, &phandle))
+		return -ENODEV;
+
+        if ((ACPI_SUCCESS(acpi_get_handle(phandle, "_GTF", &tmp))) ||
+                (ACPI_SUCCESS(acpi_get_handle(phandle, "_GTM", &tmp))) ||
+                (ACPI_SUCCESS(acpi_get_handle(phandle, "_STM", &tmp))) ||
+                (ACPI_SUCCESS(acpi_get_handle(phandle, "_SDD", &tmp))))
+                return 0;
+
+	return -ENODEV;
+}
+
 static void acpi_device_set_id(struct acpi_device *device,
 			       struct acpi_device *parent, acpi_handle handle,
 			       int type)
@@ -872,6 +908,10 @@ static void acpi_device_set_id(struct acpi_device *device,
 			status = acpi_video_bus_match(device);
 			if(ACPI_SUCCESS(status))
 				hid = ACPI_VIDEO_HID;
+
+			status = acpi_bay_match(device);
+			if (ACPI_SUCCESS(status))
+				hid = ACPI_BAY_HID;
 		}
 		break;
 	case ACPI_BUS_TYPE_POWER:

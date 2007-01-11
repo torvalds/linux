@@ -49,16 +49,14 @@ MODULE_LICENSE("GPL");
 static void bay_notify(acpi_handle handle, u32 event, void *data);
 static int acpi_bay_add(struct acpi_device *device);
 static int acpi_bay_remove(struct acpi_device *device, int type);
-static int acpi_bay_match(struct acpi_device *device,
-				struct acpi_driver *driver);
 
 static struct acpi_driver acpi_bay_driver = {
 	.name = ACPI_BAY_DRIVER_NAME,
 	.class = ACPI_BAY_CLASS,
+	.ids = ACPI_BAY_HID,
 	.ops = {
 		.add = acpi_bay_add,
 		.remove = acpi_bay_remove,
-		.match = acpi_bay_match,
 		},
 };
 
@@ -345,20 +343,6 @@ static int acpi_bay_remove(struct acpi_device *device, int type)
 {
 	/*** FIXME: do something here */
 	return 0;
-}
-
-static int acpi_bay_match(struct acpi_device *device,
-				struct acpi_driver *driver)
-{
-	if (!device || !driver)
-		return -EINVAL;
-
-	if (is_ejectable_bay(device->handle)) {
-		bay_dprintk(device->handle, "matching bay device");
-		return 0;
-	}
-
-	return -ENODEV;
 }
 
 /**
