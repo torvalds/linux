@@ -566,6 +566,11 @@ static int asd_initiate_ssp_tmf(struct domain_device *dev, u8 *lun,
 		res = TMF_RESP_FUNC_ESUPP;
 		break;
 	default:
+		if (tmf == TMF_QUERY_TASK) {
+			ASD_DPRINTK("%s: QUERY_SSP_TASK response: 0x%x\n",
+				    __FUNCTION__, res);
+			break;
+		}
 		ASD_DPRINTK("%s: converting result 0x%x to TMF_RESP_FUNC_FAILED\n",
 			    __FUNCTION__, res);
 		res = TMF_RESP_FUNC_FAILED;
