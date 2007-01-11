@@ -389,6 +389,19 @@ static int sas_recover_I_T(struct domain_device *dev)
 	return res;
 }
 
+static int eh_reset_phy_helper(struct sas_phy *phy)
+{
+	int tmf_resp;
+
+	tmf_resp = sas_phy_reset(phy, 1);
+	if (tmf_resp)
+		SAS_DPRINTK("Hard reset of phy %d failed 0x%x\n",
+			    phy->identify.phy_identifier,
+			    tmf_resp);
+
+	return tmf_resp;
+}
+
 void sas_scsi_recover_host(struct Scsi_Host *shost)
 {
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
@@ -396,8 +409,9 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 	LIST_HEAD(error_q);
 	struct scsi_cmnd *cmd, *n;
 	enum task_disposition res = TASK_IS_DONE;
-	int tmf_resp;
+	int tmf_resp, need_reset;
 	struct sas_internal *i = to_sas_internal(shost->transportt);
+	struct sas_phy *task_sas_phy = NULL;
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_splice_init(&shost->eh_cmd_q, &error_q);
@@ -418,6 +432,13 @@ Again:
 			SAS_DPRINTK("%s: taskless cmd?!\n", __FUNCTION__);
 			continue;
 		}
+
+		spin_lock_irqsave(&task->task_state_lock, flags);
+		need_reset = task->task_state_flags & SAS_TASK_NEED_DEV_RESET;
+		if (need_reset)
+			task_sas_phy = task->dev->port->phy;
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
+
 		SAS_DPRINTK("trying to find task 0x%p\n", task);
 		res = sas_scsi_find_task(task);
 
@@ -428,11 +449,15 @@ Again:
 			SAS_DPRINTK("%s: task 0x%p is done\n", __FUNCTION__,
 				    task);
 			task->task_done(task);
+			if (need_reset)
+				eh_reset_phy_helper(task_sas_phy);
 			continue;
 		case TASK_IS_ABORTED:
 			SAS_DPRINTK("%s: task 0x%p is aborted\n",
 				    __FUNCTION__, task);
 			task->task_done(task);
+			if (need_reset)
+				eh_reset_phy_helper(task_sas_phy);
 			continue;
 		case TASK_IS_AT_LU:
 			SAS_DPRINTK("task 0x%p is at LU: lu recover\n", task);
@@ -443,6 +468,8 @@ Again:
 					    SAS_ADDR(task->dev),
 					    cmd->device->lun);
 				task->task_done(task);
+				if (need_reset)
+					eh_reset_phy_helper(task_sas_phy);
 				sas_scsi_clear_queue_lu(&error_q, cmd);
 				goto Again;
 			}
@@ -455,6 +482,8 @@ Again:
 				SAS_DPRINTK("I_T %016llx recovered\n",
 					    SAS_ADDR(task->dev->sas_addr));
 				task->task_done(task);
+				if (need_reset)
+					eh_reset_phy_helper(task_sas_phy);
 				sas_scsi_clear_queue_I_T(&error_q, task->dev);
 				goto Again;
 			}
@@ -468,6 +497,8 @@ Again:
 					SAS_DPRINTK("clear nexus port:%d "
 						    "succeeded\n", port->id);
 					task->task_done(task);
+					if (need_reset)
+						eh_reset_phy_helper(task_sas_phy);
 					sas_scsi_clear_queue_port(&error_q,
 								  port);
 					goto Again;
@@ -480,6 +511,8 @@ Again:
 					SAS_DPRINTK("clear nexus ha "
 						    "succeeded\n");
 					task->task_done(task);
+					if (need_reset)
+						eh_reset_phy_helper(task_sas_phy);
 					goto out;
 				}
 			}
@@ -493,6 +526,8 @@ Again:
 				    cmd->device->lun);
 
 			task->task_done(task);
+			if (need_reset)
+				eh_reset_phy_helper(task_sas_phy);
 			goto clear_q;
 		}
 	}
