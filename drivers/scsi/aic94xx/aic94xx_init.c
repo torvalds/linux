@@ -526,6 +526,7 @@ static int asd_register_sas_ha(struct asd_ha_struct *asd_ha)
 	asd_ha->sas_ha.num_phys= ASD_MAX_PHYS;
 
 	asd_ha->sas_ha.lldd_queue_size = asd_ha->seq.can_queue;
+	asd_ha->sas_ha.lldd_max_execute_num = lldd_max_execute_num;
 
 	return sas_register_ha(&asd_ha->sas_ha);
 }
