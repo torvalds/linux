@@ -788,7 +788,7 @@ static void do_pata_set_dmamode (struct ata_port *ap, struct ata_device *adev, i
 	u16 master_data;
 	u8 speed		= adev->dma_mode;
 	int devid		= adev->devno + 2 * ap->port_no;
-	u8 udma_enable;
+	u8 udma_enable		= 0;
 
 	static const	 /* ISP  RTC */
 	u8 timings[][2]	= { { 0, 0 },
