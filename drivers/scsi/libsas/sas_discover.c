@@ -753,7 +753,7 @@ int sas_discover_event(struct asd_sas_port *port, enum discover_event ev)
 	BUG_ON(ev >= DISC_NUM_EVENTS);
 
 	sas_queue_event(ev, &disc->disc_event_lock, &disc->pending,
-			&disc->disc_work[ev].work, port->ha->core.shost);
+			&disc->disc_work[ev].work, port->ha);
 
 	return 0;
 }

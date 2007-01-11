@@ -323,11 +323,19 @@ struct sas_ha_event {
 	struct sas_ha_struct *ha;
 };
 
+enum sas_ha_state {
+	SAS_HA_REGISTERED,
+	SAS_HA_UNREGISTERED
+};
+
 struct sas_ha_struct {
 /* private: */
 	spinlock_t       event_lock;
 	struct sas_ha_event ha_events[HA_NUM_EVENTS];
 	unsigned long	 pending;
+
+	enum sas_ha_state state;
+	spinlock_t 	  state_lock;
 
 	struct scsi_core core;
 

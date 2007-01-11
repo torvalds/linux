@@ -87,6 +87,9 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	else if (sas_ha->lldd_queue_size == -1)
 		sas_ha->lldd_queue_size = 128; /* Sanity */
 
+	sas_ha->state = SAS_HA_REGISTERED;
+	spin_lock_init(&sas_ha->state_lock);
+
 	error = sas_register_phys(sas_ha);
 	if (error) {
 		printk(KERN_NOTICE "couldn't register sas phys:%d\n", error);
@@ -127,6 +130,15 @@ Undo_phys:
 
 int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 {
+	unsigned long flags;
+
+	/* Set the state to unregistered to avoid further
+	 * events to be queued */
+	spin_lock_irqsave(&sas_ha->state_lock, flags);
+	sas_ha->state = SAS_HA_UNREGISTERED;
+	spin_unlock_irqrestore(&sas_ha->state_lock, flags);
+	scsi_flush_work(sas_ha->core.shost);
+
 	sas_unregister_ports(sas_ha);
 
 	if (sas_ha->lldd_max_execute_num > 1) {
