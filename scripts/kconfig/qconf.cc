@@ -917,7 +917,7 @@ void ConfigView::updateListAll(void)
 }
 
 ConfigInfoView::ConfigInfoView(QWidget* parent, const char *name)
-	: Parent(parent, name), menu(0)
+	: Parent(parent, name), menu(0), sym(0)
 {
 	if (name) {
 		configSettings->beginGroup(name);
@@ -925,8 +925,6 @@ ConfigInfoView::ConfigInfoView(QWidget* parent, const char *name)
 		configSettings->endGroup();
 		connect(configApp, SIGNAL(aboutToQuit()), SLOT(saveSettings()));
 	}
-
-	has_dbg_info = 0;
 }
 
 void ConfigInfoView::saveSettings(void)
@@ -955,13 +953,11 @@ void ConfigInfoView::setInfo(struct menu *m)
 	if (menu == m)
 		return;
 	menu = m;
-	if (!menu) {
-		has_dbg_info = 0;
+	sym = NULL;
+	if (!menu)
 		clear();
-	} else {
-		has_dbg_info = 1;
+	else
 		menuInfo();
-       }
 }
 
 void ConfigInfoView::setSource(const QString& name)
@@ -995,9 +991,6 @@ void ConfigInfoView::setSource(const QString& name)
 void ConfigInfoView::symbolInfo(void)
 {
 	QString str;
-
-	if (!has_dbg_info)
-		return;
 
 	str += "<big>Symbol: <b>";
 	str += print_filter(sym->name);

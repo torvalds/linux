@@ -273,8 +273,6 @@ protected:
 	struct symbol *sym;
 	struct menu *menu;
 	bool _showDebug;
-
-	int has_dbg_info;
 };
 
 class ConfigSearchWindow : public QDialog {
