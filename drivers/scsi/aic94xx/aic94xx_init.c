@@ -886,6 +886,7 @@ static void __exit aic94xx_exit(void)
 	asd_remove_driver_attrs(&aic94xx_pci_driver.driver);
 	pci_unregister_driver(&aic94xx_pci_driver);
 	sas_release_transport(aic94xx_transport_template);
+	asd_release_firmware();
 	asd_destroy_global_caches();
 	asd_printk("%s version %s unloaded\n", ASD_DRIVER_DESCRIPTION,
 		   ASD_DRIVER_VERSION);
