@@ -1283,7 +1283,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 	if (identify->device_type == SAS_END_DEVICE &&
 	    rphy->scsi_target_id != -1) {
 		scsi_scan_target(&rphy->dev, 0,
-				rphy->scsi_target_id, ~0, 0);
+				rphy->scsi_target_id, SCAN_WILD_CARD, 0);
 	}
 
 	return 0;
