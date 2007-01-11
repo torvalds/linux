@@ -668,7 +668,6 @@ static struct domain_device *sas_ex_discover_end_dev(
 
  out_list_del:
 	list_del(&child->dev_list_node);
-	sas_rphy_free(rphy);
  out_free:
 	sas_port_delete(phy->port);
  out_err:
@@ -1431,13 +1430,26 @@ int sas_discover_root_expander(struct domain_device *dev)
 	int res;
 	struct sas_expander_device *ex = rphy_to_expander_device(dev->rphy);
 
-	sas_rphy_add(dev->rphy);
+	res = sas_rphy_add(dev->rphy);
+	if (res)
+		goto out_err;
 
 	ex->level = dev->port->disc.max_level; /* 0 */
 	res = sas_discover_expander(dev);
-	if (!res)
-		sas_ex_bfs_disc(dev->port);
+	if (res)
+		goto out_err2;
 
+	sas_ex_bfs_disc(dev->port);
+
+	return res;
+
+out_err2:
+	sas_rphy_delete(dev->rphy);
+	dev->rphy = NULL;
+	return res;
+out_err:
+	sas_rphy_free(dev->rphy);
+	dev->rphy = NULL;
 	return res;
 }
 
