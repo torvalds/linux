@@ -146,6 +146,36 @@ static int sas_get_linkerrors(struct sas_phy *phy)
 	return sas_smp_get_phy_events(phy);
 }
 
+int sas_phy_enable(struct sas_phy *phy, int enable)
+{
+	int ret;
+	enum phy_func command;
+
+	if (enable)
+		command = PHY_FUNC_LINK_RESET;
+	else
+		command = PHY_FUNC_DISABLE;
+
+	if (scsi_is_sas_phy_local(phy)) {
+		struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
+		struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
+		struct asd_sas_phy *asd_phy = sas_ha->sas_phy[phy->number];
+		struct sas_internal *i =
+			to_sas_internal(sas_ha->core.shost->transportt);
+
+		if (!enable) {
+			sas_phy_disconnected(asd_phy);
+			sas_ha->notify_phy_event(asd_phy, PHYE_LOSS_OF_SIGNAL);
+		}
+		ret = i->dft->lldd_control_phy(asd_phy, command, NULL);
+	} else {
+		struct sas_rphy *rphy = dev_to_rphy(phy->dev.parent);
+		struct domain_device *ddev = sas_find_dev_by_rphy(rphy);
+		ret = sas_smp_phy_control(ddev, phy->number, command, NULL);
+	}
+	return ret;
+}
+
 int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 {
 	int ret;
@@ -172,8 +202,8 @@ int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 	return ret;
 }
 
-static int sas_set_phy_speed(struct sas_phy *phy,
-			     struct sas_phy_linkrates *rates)
+int sas_set_phy_speed(struct sas_phy *phy,
+		      struct sas_phy_linkrates *rates)
 {
 	int ret;
 
@@ -212,6 +242,7 @@ static int sas_set_phy_speed(struct sas_phy *phy,
 }
 
 static struct sas_function_template sft = {
+	.phy_enable = sas_phy_enable,
 	.phy_reset = sas_phy_reset,
 	.set_phy_speed = sas_set_phy_speed,
 	.get_linkerrors = sas_get_linkerrors,

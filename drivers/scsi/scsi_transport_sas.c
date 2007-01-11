@@ -336,6 +336,51 @@ show_sas_device_type(struct class_device *cdev, char *buf)
 }
 static CLASS_DEVICE_ATTR(device_type, S_IRUGO, show_sas_device_type, NULL);
 
+static ssize_t do_sas_phy_enable(struct class_device *cdev,
+		size_t count, int enable)
+{
+	struct sas_phy *phy = transport_class_to_phy(cdev);
+	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
+	struct sas_internal *i = to_sas_internal(shost->transportt);
+	int error;
+
+	error = i->f->phy_enable(phy, enable);
+	if (error)
+		return error;
+	phy->enabled = enable;
+	return count;
+};
+
+static ssize_t store_sas_phy_enable(struct class_device *cdev,
+		const char *buf, size_t count)
+{
+	if (count < 1)
+		return -EINVAL;
+
+	switch (buf[0]) {
+	case '0':
+		do_sas_phy_enable(cdev, count, 0);
+		break;
+	case '1':
+		do_sas_phy_enable(cdev, count, 1);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t show_sas_phy_enable(struct class_device *cdev, char *buf)
+{
+	struct sas_phy *phy = transport_class_to_phy(cdev);
+
+	return snprintf(buf, 20, "%d", phy->enabled);
+}
+
+static CLASS_DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, show_sas_phy_enable,
+			 store_sas_phy_enable);
+
 static ssize_t do_sas_phy_reset(struct class_device *cdev,
 		size_t count, int hard_reset)
 {
@@ -435,6 +480,7 @@ struct sas_phy *sas_phy_alloc(struct device *parent, int number)
 		return NULL;
 
 	phy->number = number;
+	phy->enabled = 1;
 
 	device_initialize(&phy->dev);
 	phy->dev.parent = get_device(parent);
@@ -1389,6 +1435,10 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 	SETUP_TEMPLATE_RW(phy_attrs, field, S_IRUGO | S_IWUSR, 1,	\
 			!i->f->set_phy_speed, S_IRUGO)
 
+#define SETUP_OPTIONAL_PHY_ATTRIBUTE_RW(field, func)			\
+	SETUP_TEMPLATE_RW(phy_attrs, field, S_IRUGO | S_IWUSR, 1,	\
+			  !i->f->func, S_IRUGO)
+
 #define SETUP_PORT_ATTRIBUTE(field)					\
 	SETUP_TEMPLATE(port_attrs, field, S_IRUGO, 1)
 
@@ -1479,6 +1529,7 @@ sas_attach_transport(struct sas_function_template *ft)
 	SETUP_PHY_ATTRIBUTE(phy_reset_problem_count);
 	SETUP_OPTIONAL_PHY_ATTRIBUTE_WRONLY(link_reset, phy_reset);
 	SETUP_OPTIONAL_PHY_ATTRIBUTE_WRONLY(hard_reset, phy_reset);
+	SETUP_OPTIONAL_PHY_ATTRIBUTE_RW(enable, phy_enable);
 	i->phy_attrs[count] = NULL;
 
 	count = 0;
