@@ -589,8 +589,9 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct domain_device *found_dev = NULL;
 	int i;
+	unsigned long flags;
 
-	spin_lock(&ha->phy_port_lock);
+	spin_lock_irqsave(&ha->phy_port_lock, flags);
 	for (i = 0; i < ha->num_phys; i++) {
 		struct asd_sas_port *port = ha->sas_port[i];
 		struct domain_device *dev;
@@ -606,7 +607,7 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 		spin_unlock(&port->dev_list_lock);
 	}
  found:
-	spin_unlock(&ha->phy_port_lock);
+	spin_unlock_irqrestore(&ha->phy_port_lock, flags);
 
 	return found_dev;
 }
