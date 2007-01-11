@@ -35,8 +35,6 @@
 #include <linux/watchdog.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
 
@@ -225,21 +223,6 @@ advwdt_close(struct inode *inode, struct file *file)
 }
 
 /*
- *	Notifier for system down
- */
-
-static int
-advwdt_notify_sys(struct notifier_block *this, unsigned long code,
-	void *unused)
-{
-	if (code == SYS_DOWN || code == SYS_HALT) {
-		/* Turn the WDT off */
-		advwdt_disable();
-	}
-	return NOTIFY_DONE;
-}
-
-/*
  *	Kernel Interfaces
  */
 
@@ -256,15 +239,6 @@ static struct miscdevice advwdt_miscdev = {
 	.minor	= WATCHDOG_MINOR,
 	.name	= "watchdog",
 	.fops	= &advwdt_fops,
-};
-
-/*
- *	The WDT needs to learn about soft shutdowns in order to
- *	turn the timebomb registers off.
- */
-
-static struct notifier_block advwdt_notifier = {
-	.notifier_call = advwdt_notify_sys,
 };
 
 /*
@@ -299,18 +273,11 @@ advwdt_probe(struct platform_device *dev)
 			timeout);
 	}
 
-	ret = register_reboot_notifier(&advwdt_notifier);
-	if (ret != 0) {
-		printk (KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
-			ret);
-		goto unreg_regions;
-	}
-
 	ret = misc_register(&advwdt_miscdev);
 	if (ret != 0) {
 		printk (KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
 			WATCHDOG_MINOR, ret);
-		goto unreg_reboot;
+		goto unreg_regions;
 	}
 
 	printk (KERN_INFO PFX "initialized. timeout=%d sec (nowayout=%d)\n",
@@ -318,8 +285,6 @@ advwdt_probe(struct platform_device *dev)
 
 out:
 	return ret;
-unreg_reboot:
-	unregister_reboot_notifier(&advwdt_notifier);
 unreg_regions:
 	release_region(wdt_start, 1);
 unreg_stop:
@@ -332,7 +297,6 @@ static int __devexit
 advwdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&advwdt_miscdev);
-	unregister_reboot_notifier(&advwdt_notifier);
 	release_region(wdt_start,1);
 	if(wdt_stop != wdt_start)
 		release_region(wdt_stop,1);
@@ -340,9 +304,17 @@ advwdt_remove(struct platform_device *dev)
 	return 0;
 }
 
+static void
+advwdt_shutdown(struct platform_device *dev)
+{
+	/* Turn the WDT off if we have a soft shutdown */
+	advwdt_disable();
+}
+
 static struct platform_driver advwdt_driver = {
 	.probe		= advwdt_probe,
 	.remove		= __devexit_p(advwdt_remove),
+	.shutdown	= advwdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= DRV_NAME,
