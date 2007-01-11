@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
+#include <linux/profile.h>
 #include <asm/desc.h>
 
 #include "kvm_svm.h"
@@ -1557,6 +1558,13 @@ again:
 	load_host_msrs(vcpu);
 
 	reload_tss(vcpu);
+
+	/*
+	 * Profile KVM exit RIPs:
+	 */
+	if (unlikely(prof_on == KVM_PROFILING))
+		profile_hit(KVM_PROFILING,
+			(void *)(unsigned long)vcpu->svm->vmcb->save.rip);
 
 	stgi();
 

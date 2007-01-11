@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
+#include <linux/profile.h>
 #include <asm/io.h>
 #include <asm/desc.h>
 
@@ -1858,6 +1859,12 @@ again:
 #ifndef CONFIG_X86_64
 	asm ("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
 #endif
+
+	/*
+	 * Profile KVM exit RIPs:
+	 */
+	if (unlikely(prof_on == KVM_PROFILING))
+		profile_hit(KVM_PROFILING, (void *)vmcs_readl(GUEST_RIP));
 
 	kvm_run->exit_type = 0;
 	if (fail) {

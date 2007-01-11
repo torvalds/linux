@@ -40,7 +40,10 @@ int (*timer_hook)(struct pt_regs *) __read_mostly;
 
 static atomic_t *prof_buffer;
 static unsigned long prof_len, prof_shift;
+
 int prof_on __read_mostly;
+EXPORT_SYMBOL_GPL(prof_on);
+
 static cpumask_t prof_cpu_mask = CPU_MASK_ALL;
 #ifdef CONFIG_SMP
 static DEFINE_PER_CPU(struct profile_hit *[2], cpu_profile_hits);
@@ -52,6 +55,7 @@ static int __init profile_setup(char * str)
 {
 	static char __initdata schedstr[] = "schedule";
 	static char __initdata sleepstr[] = "sleep";
+	static char __initdata kvmstr[] = "kvm";
 	int par;
 
 	if (!strncmp(str, sleepstr, strlen(sleepstr))) {
@@ -71,6 +75,15 @@ static int __init profile_setup(char * str)
 			prof_shift = par;
 		printk(KERN_INFO
 			"kernel schedule profiling enabled (shift: %ld)\n",
+			prof_shift);
+	} else if (!strncmp(str, kvmstr, strlen(kvmstr))) {
+		prof_on = KVM_PROFILING;
+		if (str[strlen(kvmstr)] == ',')
+			str += strlen(kvmstr) + 1;
+		if (get_option(&str, &par))
+			prof_shift = par;
+		printk(KERN_INFO
+			"kernel KVM profiling enabled (shift: %ld)\n",
 			prof_shift);
 	} else if (get_option(&str, &par)) {
 		prof_shift = par;
@@ -318,6 +331,7 @@ out:
 	local_irq_restore(flags);
 	put_cpu();
 }
+EXPORT_SYMBOL_GPL(profile_hits);
 
 static int __devinit profile_cpu_callback(struct notifier_block *info,
 					unsigned long action, void *__cpu)
