@@ -127,11 +127,12 @@ Undo_phys:
 
 int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 {
+	sas_unregister_ports(sas_ha);
+
 	if (sas_ha->lldd_max_execute_num > 1) {
 		sas_shutdown_queue(sas_ha);
+		sas_ha->lldd_max_execute_num = 1;
 	}
-
-	sas_unregister_ports(sas_ha);
 
 	return 0;
 }
