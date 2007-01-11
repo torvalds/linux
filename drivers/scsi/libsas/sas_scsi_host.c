@@ -560,6 +560,7 @@ enum scsi_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 	}
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
+	BUG_ON(task->task_state_flags & SAS_TASK_STATE_ABORTED);
 	if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 		SAS_DPRINTK("command 0x%p, task 0x%p, timed out: EH_HANDLED\n",
@@ -830,44 +831,42 @@ void sas_shutdown_queue(struct sas_ha_struct *sas_ha)
 	spin_unlock_irqrestore(&core->task_queue_lock, flags);
 }
 
-static int do_sas_task_abort(struct sas_task *task)
+/*
+ * Call the LLDD task abort routine directly.  This function is intended for
+ * use by upper layers that need to tell the LLDD to abort a task.
+ */
+int __sas_task_abort(struct sas_task *task)
 {
-	struct scsi_cmnd *sc = task->uldd_task;
 	struct sas_internal *si =
 		to_sas_internal(task->dev->port->ha->core.shost->transportt);
 	unsigned long flags;
 	int res;
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
-	if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
+	if (task->task_state_flags & SAS_TASK_STATE_ABORTED ||
+	    task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		SAS_DPRINTK("%s: Task %p already aborted.\n", __FUNCTION__,
+		SAS_DPRINTK("%s: Task %p already finished.\n", __FUNCTION__,
 			    task);
 		return 0;
 	}
-
-	if (!(task->task_state_flags & SAS_TASK_STATE_DONE))
-		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 	if (!si->dft->lldd_abort_task)
 		return -ENODEV;
 
 	res = si->dft->lldd_abort_task(task);
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
 	if ((task->task_state_flags & SAS_TASK_STATE_DONE) ||
 	    (res == TMF_RESP_FUNC_COMPLETE))
 	{
-		/* SMP commands don't have scsi_cmds(?) */
-		if (!sc) {
-			task->task_done(task);
-			return 0;
-		}
-		scsi_req_abort_cmd(sc);
-		scsi_schedule_eh(sc->device->host);
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
+		task->task_done(task);
 		return 0;
 	}
 
-	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (!(task->task_state_flags & SAS_TASK_STATE_DONE))
 		task->task_state_flags &= ~SAS_TASK_STATE_ABORTED;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
@@ -875,17 +874,24 @@ static int do_sas_task_abort(struct sas_task *task)
 	return -EAGAIN;
 }
 
-void sas_task_abort(struct work_struct *work)
+/*
+ * Tell an upper layer that it needs to initiate an abort for a given task.
+ * This should only ever be called by an LLDD.
+ */
+void sas_task_abort(struct sas_task *task)
 {
-	struct sas_task *task =
-		container_of(work, struct sas_task, abort_work);
-	int i;
+	struct scsi_cmnd *sc = task->uldd_task;
 
-	for (i = 0; i < 5; i++)
-		if (!do_sas_task_abort(task))
+	/* Escape for libsas internal commands */
+	if (!sc) {
+		if (!del_timer(&task->timer))
 			return;
+		task->timer.function(task->timer.data);
+		return;
+	}
 
-	SAS_DPRINTK("%s: Could not kill task!\n", __FUNCTION__);
+	scsi_req_abort_cmd(sc);
+	scsi_schedule_eh(sc->device->host);
 }
 
 EXPORT_SYMBOL_GPL(sas_queuecommand);
@@ -895,6 +901,7 @@ EXPORT_SYMBOL_GPL(sas_slave_destroy);
 EXPORT_SYMBOL_GPL(sas_change_queue_depth);
 EXPORT_SYMBOL_GPL(sas_change_queue_type);
 EXPORT_SYMBOL_GPL(sas_bios_param);
+EXPORT_SYMBOL_GPL(__sas_task_abort);
 EXPORT_SYMBOL_GPL(sas_task_abort);
 EXPORT_SYMBOL_GPL(sas_phy_reset);
 EXPORT_SYMBOL_GPL(sas_phy_enable);
