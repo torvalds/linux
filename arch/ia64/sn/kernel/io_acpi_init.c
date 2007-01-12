@@ -223,6 +223,9 @@ sn_io_acpi_init(void)
 	u64 result;
 	s64 status;
 
+	/* SN Altix does not follow the IOSAPIC IRQ routing model */
+	acpi_irq_model = ACPI_IRQ_MODEL_PLATFORM;
+
 	acpi_bus_register_driver(&acpi_sn_hubdev_driver);
 	status = sal_ioif_init(&result);
 	if (status || result)

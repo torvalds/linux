@@ -476,9 +476,6 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	if (cpu_index == -1) {
 		if (ACPI_FAILURE
 		    (acpi_processor_hotadd_init(pr->handle, &pr->id))) {
-			printk(KERN_ERR PREFIX
-				    "Getting cpuindex for acpiid 0x%x\n",
-				    pr->acpi_id);
 			return -ENODEV;
 		}
 	}
