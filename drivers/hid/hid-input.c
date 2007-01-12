@@ -68,6 +68,7 @@ static const struct {
 #define map_led(c)	do { usage->code = c; usage->type = EV_LED; bit = input->ledbit; max = LED_MAX; } while (0)
 
 #define map_abs_clear(c)	do { map_abs(c); clear_bit(c, bit); } while (0)
+#define map_rel_clear(c)	do { map_rel(c); clear_bit(c, bit); } while (0)
 #define map_key_clear(c)	do { map_key(c); clear_bit(c, bit); } while (0)
 
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
@@ -292,7 +293,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 					}
 			}
 
-			map_key(code);
+			map_key_clear(code);
 			break;
 
 
@@ -343,9 +344,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case HID_GD_RX: case HID_GD_RY: case HID_GD_RZ:
 				case HID_GD_SLIDER: case HID_GD_DIAL: case HID_GD_WHEEL:
 					if (field->flags & HID_MAIN_ITEM_RELATIVE)
-						map_rel(usage->hid & 0xf);
+						map_rel_clear(usage->hid & 0xf);
 					else
-						map_abs(usage->hid & 0xf);
+						map_abs_clear(usage->hid & 0xf);
 					break;
 
 				case HID_GD_HATSWITCH:
@@ -500,7 +501,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x22f: map_key_clear(KEY_ZOOMRESET);	break;
 				case 0x233: map_key_clear(KEY_SCROLLUP);	break;
 				case 0x234: map_key_clear(KEY_SCROLLDOWN);	break;
-				case 0x238: map_rel(REL_HWHEEL);		break;
+				case 0x238: map_rel_clear(REL_HWHEEL);		break;
 				case 0x25f: map_key_clear(KEY_CANCEL);		break;
 				case 0x279: map_key_clear(KEY_REDO);		break;
 

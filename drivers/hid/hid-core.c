@@ -40,16 +40,8 @@
 
 #define DRIVER_VERSION "v2.6"
 #define DRIVER_AUTHOR "Andreas Gal, Vojtech Pavlik"
-#define DRIVER_DESC "USB HID core driver"
+#define DRIVER_DESC "HID core driver"
 #define DRIVER_LICENSE "GPL"
-
-/*
- * Module parameters.
- */
-
-static unsigned int hid_mousepoll_interval;
-module_param_named(mousepoll, hid_mousepoll_interval, uint, 0644);
-MODULE_PARM_DESC(mousepoll, "Polling interval of mice");
 
 /*
  * Register a new report for a device.
@@ -656,7 +648,7 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 	for (i = 0; i < HID_REPORT_TYPES; i++)
 		INIT_LIST_HEAD(&device->report_enum[i].report_list);
 
-	if (!(device->rdesc = (__u8 *)kmalloc(size, GFP_KERNEL))) {
+	if (!(device->rdesc = kmalloc(size, GFP_KERNEL))) {
 		kfree(device->collection);
 		kfree(device);
 		return NULL;
