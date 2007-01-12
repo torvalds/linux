@@ -1166,15 +1166,12 @@ static int cfi_intelext_point (struct mtd_info *mtd, loff_t from, size_t len, si
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
-	unsigned long ofs;
+	unsigned long ofs, last_end = 0;
 	int chipnum;
 	int ret = 0;
 
 	if (!map->virt || (from + len > mtd->size))
 		return -EINVAL;
-
-	*mtdbuf = (void *)map->virt + from;
-	*retlen = 0;
 
 	/* Now lock the chip(s) to POINT state */
 
@@ -1182,10 +1179,19 @@ static int cfi_intelext_point (struct mtd_info *mtd, loff_t from, size_t len, si
 	chipnum = (from >> cfi->chipshift);
 	ofs = from - (chipnum << cfi->chipshift);
 
+	*mtdbuf = (void *)map->virt + cfi->chips[chipnum].start + ofs;
+	*retlen = 0;
+
 	while (len) {
 		unsigned long thislen;
 
 		if (chipnum >= cfi->numchips)
+			break;
+
+		/* We cannot point across chips that are virtually disjoint */
+		if (!last_end)
+			last_end = cfi->chips[chipnum].start;
+		else if (cfi->chips[chipnum].start != last_end)
 			break;
 
 		if ((len + ofs -1) >> cfi->chipshift)
@@ -1201,6 +1207,7 @@ static int cfi_intelext_point (struct mtd_info *mtd, loff_t from, size_t len, si
 		len -= thislen;
 
 		ofs = 0;
+		last_end += 1 << cfi->chipshift;
 		chipnum++;
 	}
 	return 0;
