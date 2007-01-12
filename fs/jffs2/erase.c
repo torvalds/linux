@@ -340,7 +340,7 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 		if (retlen < c->sector_size) {
 			/* Don't muck about if it won't let us point to the whole erase sector */
 			D1(printk(KERN_DEBUG "MTD point returned len too short: 0x%zx\n", retlen));
-			c->mtd->unpoint(c->mtd, ebuf, jeb->offset, c->sector_size);
+			c->mtd->unpoint(c->mtd, ebuf, jeb->offset, retlen);
 			goto do_flash_read;
 		}
 		wordebuf = ebuf-sizeof(*wordebuf);

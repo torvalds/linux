@@ -65,7 +65,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 		err = c->mtd->point(c->mtd, ofs, len, &retlen, &buffer);
 		if (!err && retlen < tn->csize) {
 			JFFS2_WARNING("MTD point returned len too short: %zu instead of %u.\n", retlen, tn->csize);
-			c->mtd->unpoint(c->mtd, buffer, ofs, len);
+			c->mtd->unpoint(c->mtd, buffer, ofs, retlen);
 		} else if (err)
 			JFFS2_WARNING("MTD point failed: error code %d.\n", err);
 		else
