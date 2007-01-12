@@ -223,7 +223,6 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	switch (budget_ci->budget.dev->pci->subsystem_device) {
 	case 0x100c:
 	case 0x100f:
-	case 0x1010:
 	case 0x1011:
 	case 0x1012:
 	case 0x1017:
@@ -233,6 +232,16 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = 0x1f;
+		else
+			budget_ci->ir.rc5_device = rc5_device;
+		break;
+	case 0x1010:
+		/* for the Technotrend 1500 bundled remote */
+		ir_input_init(input_dev, &budget_ci->ir.state,
+			      IR_TYPE_RC5, ir_codes_tt_1500);
+
+		if (rc5_device < 0)
+			budget_ci->ir.rc5_device = IR_DEVICE_ANY;
 		else
 			budget_ci->ir.rc5_device = rc5_device;
 		break;

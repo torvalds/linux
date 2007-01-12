@@ -1738,3 +1738,42 @@ IR_KEYTAB_TYPE ir_codes_encore_enltv[IR_KEYTAB_SIZE] = {
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_encore_enltv);
+
+/* for the Technotrend 1500 bundled remote: */
+IR_KEYTAB_TYPE ir_codes_tt_1500[IR_KEYTAB_SIZE] = {
+	[ 0x01 ] = KEY_POWER,
+	[ 0x02 ] = KEY_SHUFFLE,	/* ? double-arrow key */
+	[ 0x03 ] = KEY_1,
+	[ 0x04 ] = KEY_2,
+	[ 0x05 ] = KEY_3,
+	[ 0x06 ] = KEY_4,
+	[ 0x07 ] = KEY_5,
+	[ 0x08 ] = KEY_6,
+	[ 0x09 ] = KEY_7,
+	[ 0x0a ] = KEY_8,
+	[ 0x0b ] = KEY_9,
+	[ 0x0c ] = KEY_0,
+	[ 0x0d ] = KEY_UP,
+	[ 0x0e ] = KEY_LEFT,
+	[ 0x0f ] = KEY_OK,
+	[ 0x10 ] = KEY_RIGHT,
+	[ 0x11 ] = KEY_DOWN,
+	[ 0x12 ] = KEY_INFO,
+	[ 0x13 ] = KEY_EXIT,
+	[ 0x14 ] = KEY_RED,
+	[ 0x15 ] = KEY_GREEN,
+	[ 0x16 ] = KEY_YELLOW,
+	[ 0x17 ] = KEY_BLUE,
+	[ 0x18 ] = KEY_MUTE,
+	[ 0x19 ] = KEY_TEXT,
+	[ 0x1a ] = KEY_MODE,	/* ? TV/Radio */
+	[ 0x21 ] = KEY_OPTION,
+	[ 0x22 ] = KEY_EPG,
+	[ 0x23 ] = KEY_CHANNELUP,
+	[ 0x24 ] = KEY_CHANNELDOWN,
+	[ 0x25 ] = KEY_VOLUMEUP,
+	[ 0x26 ] = KEY_VOLUMEDOWN,
+	[ 0x27 ] = KEY_SETUP,
+};
+
+EXPORT_SYMBOL_GPL(ir_codes_tt_1500);

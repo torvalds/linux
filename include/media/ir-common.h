@@ -139,6 +139,7 @@ extern IR_KEYTAB_TYPE ir_codes_proteus_2309[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_budget_ci_old[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_asus_pc39[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_encore_enltv[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_tt_1500[IR_KEYTAB_SIZE];
 
 #endif
 
