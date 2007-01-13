@@ -538,7 +538,6 @@ static int vivi_start_thread(struct vivi_dmaqueue  *dma_q)
 	dma_q->ini_jiffies=jiffies;
 
 	dprintk(1,"%s\n",__FUNCTION__);
-	init_waitqueue_head(&dma_q->wq);
 
 	dma_q->kthread = kthread_run(vivi_thread, dma_q, "vivi");
 
@@ -1352,6 +1351,7 @@ static int __init vivi_init(void)
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
 	INIT_LIST_HEAD(&dev->vidq.queued);
+	init_waitqueue_head(&dev->vidq.wq);
 
 	/* initialize locks */
 	init_MUTEX(&dev->lock);
