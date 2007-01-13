@@ -448,7 +448,7 @@ static void pdc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
 	writel(val, (void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
-static void pdc_atapi_dma_pkt(struct ata_queued_cmd *qc)
+static void pdc_atapi_pkt(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	dma_addr_t sg_table = ap->prd_dma;
@@ -462,10 +462,20 @@ static void pdc_atapi_dma_pkt(struct ata_queued_cmd *qc)
 	/* set control bits (byte 0), zero delay seq id (byte 3),
 	 * and seq id (byte 2)
 	 */
-	if (!(qc->tf.flags & ATA_TFLAG_WRITE))
-		buf32[0] = cpu_to_le32(PDC_PKT_READ);
-	else
-		buf32[0] = 0;
+	switch (qc->tf.protocol) {
+	case ATA_PROT_ATAPI_DMA:
+		if (!(qc->tf.flags & ATA_TFLAG_WRITE))
+			buf32[0] = cpu_to_le32(PDC_PKT_READ);
+		else
+			buf32[0] = 0;
+		break;
+	case ATA_PROT_ATAPI_NODATA:
+		buf32[0] = cpu_to_le32(PDC_PKT_NODATA);
+		break;
+	default:
+		BUG();
+		break;
+	}
 	buf32[1] = cpu_to_le32(sg_table);	/* S/G table addr */
 	buf32[2] = 0;				/* no next-packet */
 
@@ -549,13 +559,14 @@ static void pdc_qc_prep(struct ata_queued_cmd *qc)
 		break;
 
 	case ATA_PROT_ATAPI:
-	case ATA_PROT_ATAPI_NODATA:
 		ata_qc_prep(qc);
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
 		ata_qc_prep(qc);
-		pdc_atapi_dma_pkt(qc);
+		/*FALLTHROUGH*/
+	case ATA_PROT_ATAPI_NODATA:
+		pdc_atapi_pkt(qc);
 		break;
 
 	default:
@@ -672,6 +683,7 @@ static inline unsigned int pdc_host_intr( struct ata_port *ap,
 	case ATA_PROT_DMA:
 	case ATA_PROT_NODATA:
 	case ATA_PROT_ATAPI_DMA:
+	case ATA_PROT_ATAPI_NODATA:
 		qc->err_mask |= ac_err_mask(ata_wait_idle(ap));
 		ata_qc_complete(qc);
 		handled = 1;
@@ -771,6 +783,10 @@ static inline void pdc_packet_start(struct ata_queued_cmd *qc)
 static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc)
 {
 	switch (qc->tf.protocol) {
+	case ATA_PROT_ATAPI_NODATA:
+		if (qc->dev->flags & ATA_DFLAG_CDB_INTR)
+			break;
+		/*FALLTHROUGH*/
 	case ATA_PROT_ATAPI_DMA:
 	case ATA_PROT_DMA:
 	case ATA_PROT_NODATA:
