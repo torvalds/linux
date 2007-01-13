@@ -685,14 +685,17 @@ int usb_serial_probe(struct usb_interface *interface,
 	int num_ports = 0;
 	int max_endpoints;
 
+	lock_kernel(); /* guard against unloading a serial driver module */
 	type = search_serial_device(interface);
 	if (!type) {
+		unlock_kernel();
 		dbg("none matched");
 		return -ENODEV;
 	}
 
 	serial = create_serial (dev, interface, type);
 	if (!serial) {
+		unlock_kernel();
 		dev_err(&interface->dev, "%s - out of memory\n", __FUNCTION__);
 		return -ENOMEM;
 	}
@@ -702,6 +705,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		const struct usb_device_id *id;
 
 		if (!try_module_get(type->driver.owner)) {
+			unlock_kernel();
 			dev_err(&interface->dev, "module get failed, exiting\n");
 			kfree (serial);
 			return -EIO;
@@ -712,6 +716,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		module_put(type->driver.owner);
 
 		if (retval) {
+			unlock_kernel();
 			dbg ("sub driver rejected device");
 			kfree (serial);
 			return retval;
@@ -781,6 +786,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		 * properly during a later invocation of usb_serial_probe
 		 */
 		if (num_bulk_in == 0 || num_bulk_out == 0) {
+			unlock_kernel();
 			dev_info(&interface->dev, "PL-2303 hack: descriptors matched but endpoints did not\n");
 			kfree (serial);
 			return -ENODEV;
@@ -796,6 +802,7 @@ int usb_serial_probe(struct usb_interface *interface,
 	if (type == &usb_serial_generic_device) {
 		num_ports = num_bulk_out;
 		if (num_ports == 0) {
+			unlock_kernel();
 			dev_err(&interface->dev, "Generic device with no bulk out, not allowed.\n");
 			kfree (serial);
 			return -EIO;
@@ -806,6 +813,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		/* if this device type has a calc_num_ports function, call it */
 		if (type->calc_num_ports) {
 			if (!try_module_get(type->driver.owner)) {
+				unlock_kernel();
 				dev_err(&interface->dev, "module get failed, exiting\n");
 				kfree (serial);
 				return -EIO;
@@ -831,6 +839,8 @@ int usb_serial_probe(struct usb_interface *interface,
 	max_endpoints = max(max_endpoints, num_interrupt_out);
 	max_endpoints = max(max_endpoints, (int)serial->num_ports);
 	serial->num_port_pointers = max_endpoints;
+	unlock_kernel();
+
 	dbg("%s - setting up %d port structures for this device", __FUNCTION__, max_endpoints);
 	for (i = 0; i < max_endpoints; ++i) {
 		port = kzalloc(sizeof(struct usb_serial_port), GFP_KERNEL);
@@ -1187,7 +1197,7 @@ static void fixup_generic(struct usb_serial_driver *device)
 	set_to_generic_if_null(device, shutdown);
 }
 
-int usb_serial_register(struct usb_serial_driver *driver)
+int usb_serial_register(struct usb_serial_driver *driver) /* must be called with BKL held */
 {
 	int retval;
 
@@ -1211,7 +1221,7 @@ int usb_serial_register(struct usb_serial_driver *driver)
 }
 
 
-void usb_serial_deregister(struct usb_serial_driver *device)
+void usb_serial_deregister(struct usb_serial_driver *device) /* must be called with BKL held */
 {
 	info("USB Serial deregistering driver %s", device->description);
 	list_del(&device->driver_list);
