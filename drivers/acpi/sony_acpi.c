@@ -46,19 +46,6 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "set this to 1 (and RTFM) if you want to help "
 			"the development of this driver");
 
-static int sony_acpi_add (struct acpi_device *device);
-static int sony_acpi_remove (struct acpi_device *device, int type);
-
-static struct acpi_driver sony_acpi_driver = {
-	.name	= ACPI_SNC_DRIVER_NAME,
-	.class	= ACPI_SNC_CLASS,
-	.ids	= ACPI_SNC_HID,
-	.ops	= {
-			.add	= sony_acpi_add,
-			.remove	= sony_acpi_remove,
-		  },
-};
-
 static acpi_handle sony_acpi_handle;
 static struct proc_dir_entry *sony_acpi_dir;
 
@@ -69,6 +56,8 @@ static struct sony_acpi_value {
 	char			*acpiset;/* name of the ACPI get function */
 	int 			min;	 /* minimum allowed value or -1 */
 	int			max;	 /* maximum allowed value or -1 */
+	int			value;	 /* current setting */
+	int			valid;	 /* Has ever been set */
 	int			debug;	 /* active only in debug mode ? */
 } sony_acpi_values[] = {
 	{
@@ -239,8 +228,28 @@ static int sony_acpi_write(struct file *file, const char __user *buffer,
 
 	if (acpi_callsetfunc(sony_acpi_handle, item->acpiset, value, NULL) < 0)
 		return -EIO;
-
+	item->value = value;
+	item->valid = 1;
 	return count;
+}
+
+static int sony_acpi_resume(struct acpi_device *device, int state)
+{
+	struct sony_acpi_value *item;
+
+	for (item = sony_acpi_values; item->name; item++) {
+		int ret;
+
+		if (!item->valid)
+			continue;
+		ret = acpi_callsetfunc(sony_acpi_handle, item->acpiset,
+					item->value, NULL);
+		if (ret < 0) {
+			printk("%s: %d\n", __FUNCTION__, ret);
+			break;
+		}
+	}
+	return 0;
 }
 
 static void sony_acpi_notify(acpi_handle handle, u32 event, void *data)
@@ -344,7 +353,6 @@ outwalk:
 	return result;
 }
 
-
 static int sony_acpi_remove(struct acpi_device *device, int type)
 {
 	acpi_status status;
@@ -366,6 +374,17 @@ static int sony_acpi_remove(struct acpi_device *device, int type)
 
 	return 0;
 }
+
+static struct acpi_driver sony_acpi_driver = {
+	.name	= ACPI_SNC_DRIVER_NAME,
+	.class	= ACPI_SNC_CLASS,
+	.ids	= ACPI_SNC_HID,
+	.ops	= {
+			.add	= sony_acpi_add,
+			.remove	= sony_acpi_remove,
+			.resume = sony_acpi_resume,
+		  },
+};
 
 static int __init sony_acpi_init(void)
 {
