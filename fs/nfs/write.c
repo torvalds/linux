@@ -323,7 +323,7 @@ static int nfs_writepage_locked(struct page *page, struct writeback_control *wbc
 		err = 0;
 out:
 	if (!wbc->for_writepages)
-		nfs_flush_mapping(page->mapping, wbc, wb_priority(wbc));
+		nfs_flush_mapping(page->mapping, wbc, FLUSH_STABLE|wb_priority(wbc));
 	return err;
 }
 
