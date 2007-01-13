@@ -1424,7 +1424,6 @@ static int nfs4_get_referral(struct inode *dir, struct qstr *name, struct nfs_fa
 	int status = -ENOMEM;
 	struct page *page = NULL;
 	struct nfs4_fs_locations *locations = NULL;
-	struct dentry dentry = {};
 
 	page = alloc_page(GFP_KERNEL);
 	if (page == NULL)
@@ -1433,9 +1432,7 @@ static int nfs4_get_referral(struct inode *dir, struct qstr *name, struct nfs_fa
 	if (locations == NULL)
 		goto out;
 
-	dentry.d_name.name = name->name;
-	dentry.d_name.len = name->len;
-	status = nfs4_proc_fs_locations(dir, &dentry, locations, page);
+	status = nfs4_proc_fs_locations(dir, name, locations, page);
 	if (status != 0)
 		goto out;
 	/* Make sure server returned a different fsid for the referral */
@@ -3585,7 +3582,7 @@ ssize_t nfs4_listxattr(struct dentry *dentry, char *buf, size_t buflen)
 	return len;
 }
 
-int nfs4_proc_fs_locations(struct inode *dir, struct dentry *dentry,
+int nfs4_proc_fs_locations(struct inode *dir, struct qstr *name,
 		struct nfs4_fs_locations *fs_locations, struct page *page)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
@@ -3595,7 +3592,7 @@ int nfs4_proc_fs_locations(struct inode *dir, struct dentry *dentry,
 	};
 	struct nfs4_fs_locations_arg args = {
 		.dir_fh = NFS_FH(dir),
-		.name = &dentry->d_name,
+		.name = name,
 		.page = page,
 		.bitmask = bitmask,
 	};
@@ -3607,7 +3604,7 @@ int nfs4_proc_fs_locations(struct inode *dir, struct dentry *dentry,
 	int status;
 
 	dprintk("%s: start\n", __FUNCTION__);
-	fs_locations->fattr.valid = 0;
+	nfs_fattr_init(&fs_locations->fattr);
 	fs_locations->server = server;
 	fs_locations->nlocations = 0;
 	status = rpc_call_sync(server->client, &msg, 0);
