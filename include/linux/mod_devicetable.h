@@ -327,9 +327,9 @@ struct parisc_device_id {
 	__u32	sversion;	/* 20 bits */
 };
 
-#define HWTYPE_ANY_ID		0xff
-#define HVERSION_REV_ANY_ID	0xff
-#define HVERSION_ANY_ID		0xffff
-#define SVERSION_ANY_ID		0xffffffff
+#define PA_HWTYPE_ANY_ID	0xff
+#define PA_HVERSION_REV_ANY_ID	0xff
+#define PA_HVERSION_ANY_ID	0xffff
+#define PA_SVERSION_ANY_ID	0xffffffff
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

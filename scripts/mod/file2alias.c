@@ -462,10 +462,10 @@ static int do_parisc_entry(const char *filename, struct parisc_device_id *id,
 	id->sversion = TO_NATIVE(id->sversion);
 
 	strcpy(alias, "parisc:");
-	ADD(alias, "t", id->hw_type != HWTYPE_ANY_ID, id->hw_type);
-	ADD(alias, "hv", id->hversion != HVERSION_ANY_ID, id->hversion);
-	ADD(alias, "rev", id->hversion_rev != HVERSION_REV_ANY_ID, id->hversion_rev);
-	ADD(alias, "sv", id->sversion != SVERSION_ANY_ID, id->sversion);
+	ADD(alias, "t", id->hw_type != PA_HWTYPE_ANY_ID, id->hw_type);
+	ADD(alias, "hv", id->hversion != PA_HVERSION_ANY_ID, id->hversion);
+	ADD(alias, "rev", id->hversion_rev != PA_HVERSION_REV_ANY_ID, id->hversion_rev);
+	ADD(alias, "sv", id->sversion != PA_SVERSION_ANY_ID, id->sversion);
 
 	return 1;
 }
