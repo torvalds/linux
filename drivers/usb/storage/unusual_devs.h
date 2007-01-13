@@ -254,6 +254,18 @@ UNUSUAL_DEV(  0x045a, 0x5210, 0x0101, 0x0101,
 		US_SC_SCSI, US_PR_KARMA, rio_karma_init, 0),
 #endif
 
+/*
+ * This virtual floppy is found in Sun equipment (x4600, x4200m2, etc.)
+ * Reported by Pete Zaitcev <zaitcev@redhat.com>
+ * This device chokes on both version of MODE SENSE which we have, so
+ * use_10_for_ms is not effective, and we use US_FL_NO_WP_DETECT.
+ */
+UNUSUAL_DEV(  0x046b, 0xff40, 0x0100, 0x0100,
+		"AMI",
+		"Virtual Floppy",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_NO_WP_DETECT),
+
 /* Patch submitted by Philipp Friedrich <philipp@void.at> */
 UNUSUAL_DEV(  0x0482, 0x0100, 0x0100, 0x0100,
 		"Kyocera",
