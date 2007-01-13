@@ -281,7 +281,7 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 static int serial_write (struct tty_struct * tty, const unsigned char *buf, int count)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	int retval = -EINVAL;
+	int retval = -ENODEV;
 
 	if (!port || port->serial->dev->state == USB_STATE_NOTATTACHED)
 		goto exit;
@@ -289,6 +289,7 @@ static int serial_write (struct tty_struct * tty, const unsigned char *buf, int 
 	dbg("%s - port %d, %d byte(s)", __FUNCTION__, port->number, count);
 
 	if (!port->open_count) {
+		retval = -EINVAL;
 		dbg("%s - port not opened", __FUNCTION__);
 		goto exit;
 	}
