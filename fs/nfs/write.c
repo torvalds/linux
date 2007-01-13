@@ -1516,6 +1516,8 @@ int nfs_wb_page_priority(struct inode *inode, struct page *page, int how)
 		if (ret < 0)
 			goto out;
 	}
+	if (!PagePrivate(page))
+		return 0;
 	ret = nfs_sync_mapping_wait(page->mapping, &wbc, how);
 	if (ret >= 0)
 		return 0;
