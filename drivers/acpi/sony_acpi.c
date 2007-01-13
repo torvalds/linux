@@ -233,7 +233,7 @@ static int sony_acpi_write(struct file *file, const char __user *buffer,
 	return count;
 }
 
-static int sony_acpi_resume(struct acpi_device *device, int state)
+static int sony_acpi_resume(struct acpi_device *device)
 {
 	struct sony_acpi_value *item;
 
