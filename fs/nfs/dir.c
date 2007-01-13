@@ -1443,6 +1443,8 @@ static int nfs_unlink(struct inode *dir, struct dentry *dentry)
 	if (atomic_read(&dentry->d_count) > 1) {
 		spin_unlock(&dentry->d_lock);
 		spin_unlock(&dcache_lock);
+		/* Start asynchronous writeout of the inode */
+		write_inode_now(dentry->d_inode, 0);
 		error = nfs_sillyrename(dir, dentry);
 		unlock_kernel();
 		return error;
