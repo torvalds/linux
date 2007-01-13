@@ -59,14 +59,19 @@ static struct usb_driver usb_serial_driver = {
 
 static int debug;
 static struct usb_serial *serial_table[SERIAL_TTY_MINORS];	/* initially all NULL */
+static spinlock_t table_lock;
 static LIST_HEAD(usb_serial_driver_list);
 
 struct usb_serial *usb_serial_get_by_index(unsigned index)
 {
-	struct usb_serial *serial = serial_table[index];
+	struct usb_serial *serial;
+
+	spin_lock(&table_lock);
+	serial = serial_table[index];
 
 	if (serial)
 		kref_get(&serial->kref);
+	spin_unlock(&table_lock);
 	return serial;
 }
 
@@ -78,6 +83,7 @@ static struct usb_serial *get_free_serial (struct usb_serial *serial, int num_po
 	dbg("%s %d", __FUNCTION__, num_ports);
 
 	*minor = 0;
+	spin_lock(&table_lock);
 	for (i = 0; i < SERIAL_TTY_MINORS; ++i) {
 		if (serial_table[i])
 			continue;
@@ -96,8 +102,10 @@ static struct usb_serial *get_free_serial (struct usb_serial *serial, int num_po
 		dbg("%s - minor base = %d", __FUNCTION__, *minor);
 		for (i = *minor; (i < (*minor + num_ports)) && (i < SERIAL_TTY_MINORS); ++i)
 			serial_table[i] = serial;
+		spin_unlock(&table_lock);
 		return serial;
 	}
+	spin_unlock(&table_lock);
 	return NULL;
 }
 
@@ -110,9 +118,11 @@ static void return_serial(struct usb_serial *serial)
 	if (serial == NULL)
 		return;
 
+	spin_lock(&table_lock);
 	for (i = 0; i < serial->num_ports; ++i) {
 		serial_table[serial->minor + i] = NULL;
 	}
+	spin_unlock(&table_lock);
 }
 
 static void destroy_serial(struct kref *kref)
@@ -559,15 +569,20 @@ static void port_release(struct device *dev)
 	port_free(port);
 }
 
-static void port_free(struct usb_serial_port *port)
+static void kill_traffic(struct usb_serial_port *port)
 {
 	usb_kill_urb(port->read_urb);
-	usb_free_urb(port->read_urb);
 	usb_kill_urb(port->write_urb);
-	usb_free_urb(port->write_urb);
 	usb_kill_urb(port->interrupt_in_urb);
-	usb_free_urb(port->interrupt_in_urb);
 	usb_kill_urb(port->interrupt_out_urb);
+}
+
+static void port_free(struct usb_serial_port *port)
+{
+	kill_traffic(port);
+	usb_free_urb(port->read_urb);
+	usb_free_urb(port->write_urb);
+	usb_free_urb(port->interrupt_in_urb);
 	usb_free_urb(port->interrupt_out_urb);
 	kfree(port->bulk_in_buffer);
 	kfree(port->bulk_out_buffer);
@@ -802,12 +817,6 @@ int usb_serial_probe(struct usb_interface *interface,
 			num_ports = type->num_ports;
 	}
 
-	if (get_free_serial (serial, num_ports, &minor) == NULL) {
-		dev_err(&interface->dev, "No more free serial devices\n");
-		kfree (serial);
-		return -ENOMEM;
-	}
-
 	serial->minor = minor;
 	serial->num_ports = num_ports;
 	serial->num_bulk_in = num_bulk_in;
@@ -956,6 +965,11 @@ int usb_serial_probe(struct usb_interface *interface,
 		}
 	}
 
+	if (get_free_serial (serial, num_ports, &minor) == NULL) {
+		dev_err(&interface->dev, "No more free serial devices\n");
+		goto probe_error;
+	}
+
 	/* register all of the individual ports with the driver core */
 	for (i = 0; i < num_ports; ++i) {
 		port = serial->port[i];
@@ -1033,8 +1047,11 @@ void usb_serial_disconnect(struct usb_interface *interface)
 	if (serial) {
 		for (i = 0; i < serial->num_ports; ++i) {
 			port = serial->port[i];
-			if (port && port->tty)
-				tty_hangup(port->tty);
+			if (port) {
+				if (port->tty)
+					tty_hangup(port->tty);
+				kill_traffic(port);
+			}
 		}
 		/* let the last holder of this object 
 		 * cause it to be cleaned up */
@@ -1071,6 +1088,7 @@ static int __init usb_serial_init(void)
 		return -ENOMEM;
 
 	/* Initialize our global data */
+	spin_lock_init(&table_lock);
 	for (i = 0; i < SERIAL_TTY_MINORS; ++i) {
 		serial_table[i] = NULL;
 	}
