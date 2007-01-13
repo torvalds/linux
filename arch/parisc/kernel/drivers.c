@@ -562,12 +562,23 @@ pa_dev_attr(rev, id.hversion_rev, "0x%x\n");
 pa_dev_attr_id(hversion, "0x%03x\n");
 pa_dev_attr_id(sversion, "0x%05x\n");
 
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct parisc_device *padev = to_parisc_device(dev);
+	struct parisc_device_id *id = &padev->id;
+
+	return sprintf(buf, "parisc:t%02Xhv%04Xrev%02Xsv%08X\n",
+		(u8)id->hw_type, (u16)id->hversion, (u8)id->hversion_rev,
+		(u32)id->sversion);
+}
+
 static struct device_attribute parisc_device_attrs[] = {
 	__ATTR_RO(irq),
 	__ATTR_RO(hw_type),
 	__ATTR_RO(rev),
 	__ATTR_RO(hversion),
 	__ATTR_RO(sversion),
+	__ATTR_RO(modalias),
 	__ATTR_NULL,
 };
 
