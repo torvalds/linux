@@ -68,7 +68,7 @@ static struct backlight_properties sony_backlight_properties = {
 
 static struct sony_acpi_value {
 	char			*name;	 /* name of the entry */
-	struct proc_dir_entry 	*proc;	 /* /proc entry */
+	struct proc_dir_entry	*proc;	 /* /proc entry */
 	char			*acpiget;/* name of the ACPI get function */
 	char			*acpiset;/* name of the ACPI get function */
 	int 			min;	 /* minimum allowed value or -1 */
@@ -78,6 +78,7 @@ static struct sony_acpi_value {
 	int			debug;	 /* active only in debug mode ? */
 } sony_acpi_values[] = {
 	{
+		/* for backward compatibility only */
 		.name		= "brightness",
 		.acpiget	= "GBRT",
 		.acpiset	= "SBRT",
@@ -102,6 +103,14 @@ static struct sony_acpi_value {
 		.name		= "cdpower",
 		.acpiget	= "GCDP",
 		.acpiset	= "SCDP",
+		.min		= 0,
+		.max		= 1,
+		.debug		= 0,
+	},
+	{
+		.name		= "cdpower",
+		.acpiget	= "GCDP",
+		.acpiset	= "CDPW",
 		.min		= 0,
 		.max		= 1,
 		.debug		= 0,
@@ -356,27 +365,24 @@ static int sony_acpi_add(struct acpi_device *device)
 		if (!debug && item->debug)
 			continue;
 
-		if (item->acpiget &&
-		    ACPI_SUCCESS(acpi_get_handle(sony_acpi_handle,
-		    		 item->acpiget, &handle)))
-			proc_file_mode = S_IRUSR;
-		else
-			printk(LOG_PFX "unable to get ACPI handle for %s (get)\n",
-					item->name);
+		if (item->acpiget) {
+			if (ACPI_FAILURE(acpi_get_handle(sony_acpi_handle,
+							item->acpiget, &handle)))
+				continue;
 
-		if (item->acpiset &&
-		    ACPI_SUCCESS(acpi_get_handle(sony_acpi_handle,
-		    		 item->acpiset, &handle)))
+			proc_file_mode |= S_IRUSR;
+		}
+
+		if (item->acpiset) {
+			if (ACPI_FAILURE(acpi_get_handle(sony_acpi_handle,
+							item->acpiset, &handle)))
+				continue;
+
 			proc_file_mode |= S_IWUSR;
-		else
-			printk(LOG_PFX "unable to get ACPI handle for %s (set)\n",
-					item->name);
-
-		if (proc_file_mode == 0)
-			continue;
+		}
 
 		item->proc = create_proc_entry(item->name, proc_file_mode,
-					       acpi_device_dir(device));
+				acpi_device_dir(device));
 		if (!item->proc) {
 			printk(LOG_PFX "unable to create proc entry\n");
 			result = -EIO;
