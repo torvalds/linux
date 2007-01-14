@@ -304,7 +304,6 @@ static struct scsi_host_template sbp2_shost_template = {
 	.use_clustering		 = ENABLE_CLUSTERING,
 	.cmd_per_lun		 = SBP2_MAX_CMDS,
 	.can_queue		 = SBP2_MAX_CMDS,
-	.emulated		 = 1,
 	.sdev_attrs		 = sbp2_sysfs_sdev_attrs,
 };
 
