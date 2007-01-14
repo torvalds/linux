@@ -471,11 +471,12 @@ static void vivi_thread_tick(struct vivi_dmaqueue  *dma_q)
 
 		/* Fill buffer */
 		vivi_fillbuff(dev,buf);
-	}
-	if (list_empty(&dma_q->active)) {
-		del_timer(&dma_q->timeout);
-	} else {
-		mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
+
+		if (list_empty(&dma_q->active)) {
+			del_timer(&dma_q->timeout);
+		} else {
+			mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
+		}
 	}
 	if (bc != 1)
 		dprintk(1,"%s: %d buffers handled (should be 1)\n",__FUNCTION__,bc);
@@ -522,6 +523,8 @@ static int vivi_thread(void *data)
 
 	dprintk(1,"thread started\n");
 
+	mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
+
 	for (;;) {
 		vivi_sleep(dma_q);
 
@@ -545,6 +548,9 @@ static int vivi_start_thread(struct vivi_dmaqueue  *dma_q)
 		printk(KERN_ERR "vivi: kernel_thread() failed\n");
 		return PTR_ERR(dma_q->kthread);
 	}
+	/* Wakes thread */
+	wake_up_interruptible(&dma_q->wq);
+
 	dprintk(1,"returning from %s\n",__FUNCTION__);
 	return 0;
 }
