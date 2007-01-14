@@ -681,7 +681,7 @@ static void sbp2_update(struct fw_unit *unit)
 #define SBP2_UNIT_SPEC_ID_ENTRY	0x0000609e
 #define SBP2_SW_VERSION_ENTRY	0x00010483
 
-static struct fw_device_id sbp2_id_table[] = {
+static const struct fw_device_id sbp2_id_table[] = {
 	{
 		.match_flags  = FW_MATCH_SPECIFIER_ID | FW_MATCH_VERSION,
 		.specifier_id = SBP2_UNIT_SPEC_ID_ENTRY,

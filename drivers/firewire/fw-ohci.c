@@ -1146,7 +1146,7 @@ ohci_queue_iso(struct fw_iso_context *base,
 	return 0;
 }
 
-static struct fw_card_driver ohci_driver = {
+static const struct fw_card_driver ohci_driver = {
 	.name			= ohci_driver_name,
 	.enable			= ohci_enable,
 	.update_phy_reg		= ohci_update_phy_reg,

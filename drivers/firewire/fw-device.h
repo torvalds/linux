@@ -113,7 +113,7 @@ struct fw_driver {
 	struct device_driver driver;
 	/* Called when the parent device sits through a bus reset. */
 	void (*update) (struct fw_unit *unit);
-	struct fw_device_id *id_table;
+	const struct fw_device_id *id_table;
 };
 
 static inline struct fw_driver *
@@ -122,6 +122,6 @@ fw_driver(struct device_driver *drv)
         return container_of(drv, struct fw_driver, driver);
 }
 
-extern struct file_operations fw_device_ops;
+extern const struct file_operations fw_device_ops;
 
 #endif /* __fw_device_h */

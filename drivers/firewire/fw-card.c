@@ -257,7 +257,7 @@ flush_timer_callback(unsigned long data)
 }
 
 void
-fw_card_initialize(struct fw_card *card, struct fw_card_driver *driver,
+fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
 		   struct device *device)
 {
 	static int index;

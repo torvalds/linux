@@ -602,7 +602,7 @@ static unsigned int fw_device_op_poll(struct file *file, poll_table * pt)
 		return 0;
 }
 
-struct file_operations fw_device_ops = {
+const struct file_operations fw_device_ops = {
 	.owner		= THIS_MODULE,
 	.open		= fw_device_op_open,
 	.read		= fw_device_op_read,

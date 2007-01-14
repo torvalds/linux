@@ -331,15 +331,15 @@ lookup_enclosing_address_handler(struct list_head *list,
 static DEFINE_SPINLOCK(address_handler_lock);
 static LIST_HEAD(address_handler_list);
 
-struct fw_address_region fw_low_memory_region =
+const struct fw_address_region fw_low_memory_region =
 	{ 0x000000000000ull, 0x000100000000ull };
-struct fw_address_region fw_high_memory_region =
+const struct fw_address_region fw_high_memory_region =
 	{ 0x000100000000ull, 0xffffe0000000ull };
-struct fw_address_region fw_private_region =
+const struct fw_address_region fw_private_region =
 	{ 0xffffe0000000ull, 0xfffff0000000ull };
-struct fw_address_region fw_csr_region =
+const struct fw_address_region fw_csr_region =
 	{ 0xfffff0000000ULL, 0xfffff0000800ull };
-struct fw_address_region fw_unit_space_region =
+const struct fw_address_region fw_unit_space_region =
 	{ 0xfffff0000900ull, 0x1000000000000ull };
 
 EXPORT_SYMBOL(fw_low_memory_region);
@@ -358,7 +358,7 @@ EXPORT_SYMBOL(fw_unit_space_region);
 
 int
 fw_core_add_address_handler(struct fw_address_handler *handler,
-			    struct fw_address_region *region)
+			    const struct fw_address_region *region)
 {
 	struct fw_address_handler *other;
 	unsigned long flags;
@@ -684,7 +684,7 @@ MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");
 MODULE_DESCRIPTION("Core IEEE1394 transaction logic");
 MODULE_LICENSE("GPL");
 
-static u32 vendor_textual_descriptor_data[] = {
+static const u32 vendor_textual_descriptor_data[] = {
 	/* textual descriptor leaf () */
 	0x00080000,
 	0x00000000,

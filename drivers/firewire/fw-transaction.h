@@ -133,7 +133,7 @@ struct fw_descriptor {
 	struct list_head link;
 	size_t length;
 	u32 key;
-	u32 *data;
+	const u32 *data;
 };
 
 int fw_core_add_descriptor (struct fw_descriptor *desc);
@@ -218,14 +218,14 @@ struct fw_address_region {
 	u64 end;
 };
 
-extern struct fw_address_region fw_low_memory_region;
-extern struct fw_address_region fw_high_memory_region;
-extern struct fw_address_region fw_private_region;
-extern struct fw_address_region fw_csr_region;
-extern struct fw_address_region fw_unit_space_region;
+extern const struct fw_address_region fw_low_memory_region;
+extern const struct fw_address_region fw_high_memory_region;
+extern const struct fw_address_region fw_private_region;
+extern const struct fw_address_region fw_csr_region;
+extern const struct fw_address_region fw_unit_space_region;
 
 int fw_core_add_address_handler(struct fw_address_handler *handler,
-				struct fw_address_region *region);
+				const struct fw_address_region *region);
 void fw_core_remove_address_handler(struct fw_address_handler *handler);
 void fw_send_response(struct fw_card *card,
 		      struct fw_request *request, int rcode);
@@ -233,7 +233,7 @@ void fw_send_response(struct fw_card *card,
 extern struct bus_type fw_bus_type;
 
 struct fw_card {
-        struct fw_card_driver *driver;
+	const struct fw_card_driver *driver;
 	struct device *device;
 
         int node_id;
@@ -399,7 +399,7 @@ fw_node_event(struct fw_card *card, struct fw_node *node, int event);
 /* Do we need phy speed here also?  If we add more args, maybe we
    should go back to struct fw_card_info. */
 void
-fw_card_initialize(struct fw_card *card, struct fw_card_driver *driver,
+fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
 		   struct device *device);
 int
 fw_card_add(struct fw_card *card,

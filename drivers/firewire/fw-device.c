@@ -49,7 +49,7 @@ EXPORT_SYMBOL(fw_csr_iterator_next);
 
 static int is_fw_unit(struct device *dev);
 
-static int match_unit_directory(u32 * directory, struct fw_device_id *id)
+static int match_unit_directory(u32 * directory, const struct fw_device_id *id)
 {
 	struct fw_csr_iterator ci;
 	int key, value, match;
