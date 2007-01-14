@@ -28,7 +28,7 @@ static inline void mask_rm7k_irq(unsigned int irq)
 }
 
 static struct irq_chip rm7k_irq_controller = {
-	.typename = "RM7000",
+	.name = "RM7000",
 	.ack = mask_rm7k_irq,
 	.mask = mask_rm7k_irq,
 	.mask_ack = mask_rm7k_irq,

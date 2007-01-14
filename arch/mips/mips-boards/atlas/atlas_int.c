@@ -69,7 +69,7 @@ static void end_atlas_irq(unsigned int irq)
 }
 
 static struct irq_chip atlas_irq_type = {
-	.typename = "Atlas",
+	.name = "Atlas",
 	.ack = disable_atlas_irq,
 	.mask = disable_atlas_irq,
 	.mask_ack = disable_atlas_irq,

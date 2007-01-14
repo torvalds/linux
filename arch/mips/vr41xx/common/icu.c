@@ -453,7 +453,7 @@ static void enable_sysint1_irq(unsigned int irq)
 }
 
 static struct irq_chip sysint1_irq_type = {
-	.typename	= "SYSINT1",
+	.name		= "SYSINT1",
 	.ack		= disable_sysint1_irq,
 	.mask		= disable_sysint1_irq,
 	.mask_ack	= disable_sysint1_irq,
@@ -471,7 +471,7 @@ static void enable_sysint2_irq(unsigned int irq)
 }
 
 static struct irq_chip sysint2_irq_type = {
-	.typename	= "SYSINT2",
+	.name		= "SYSINT2",
 	.ack		= disable_sysint2_irq,
 	.mask		= disable_sysint2_irq,
 	.mask_ack	= disable_sysint2_irq,

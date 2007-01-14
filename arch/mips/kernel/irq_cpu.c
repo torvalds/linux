@@ -49,7 +49,7 @@ static inline void mask_mips_irq(unsigned int irq)
 }
 
 static struct irq_chip mips_cpu_irq_controller = {
-	.typename	= "MIPS",
+	.name		= "MIPS",
 	.ack		= mask_mips_irq,
 	.mask		= mask_mips_irq,
 	.mask_ack	= mask_mips_irq,
@@ -88,7 +88,7 @@ static void mips_mt_cpu_irq_ack(unsigned int irq)
 }
 
 static struct irq_chip mips_mt_cpu_irq_controller = {
-	.typename	= "MIPS",
+	.name		= "MIPS",
 	.startup	= mips_mt_cpu_irq_startup,
 	.ack		= mips_mt_cpu_irq_ack,
 	.mask		= mask_mips_mt_irq,

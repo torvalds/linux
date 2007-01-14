@@ -233,7 +233,7 @@ void restore_local_and_enable(int controller, unsigned long mask)
 
 
 static struct irq_chip rise_edge_irq_type = {
-	.typename = "Au1000 Rise Edge",
+	.name = "Au1000 Rise Edge",
 	.ack = mask_and_ack_rise_edge_irq,
 	.mask = local_disable_irq,
 	.mask_ack = mask_and_ack_rise_edge_irq,
@@ -242,7 +242,7 @@ static struct irq_chip rise_edge_irq_type = {
 };
 
 static struct irq_chip fall_edge_irq_type = {
-	.typename = "Au1000 Fall Edge",
+	.name = "Au1000 Fall Edge",
 	.ack = mask_and_ack_fall_edge_irq,
 	.mask = local_disable_irq,
 	.mask_ack = mask_and_ack_fall_edge_irq,
@@ -251,7 +251,7 @@ static struct irq_chip fall_edge_irq_type = {
 };
 
 static struct irq_chip either_edge_irq_type = {
-	.typename = "Au1000 Rise or Fall Edge",
+	.name = "Au1000 Rise or Fall Edge",
 	.ack = mask_and_ack_either_edge_irq,
 	.mask = local_disable_irq,
 	.mask_ack = mask_and_ack_either_edge_irq,
@@ -260,7 +260,7 @@ static struct irq_chip either_edge_irq_type = {
 };
 
 static struct irq_chip level_irq_type = {
-	.typename = "Au1000 Level",
+	.name = "Au1000 Level",
 	.ack = mask_and_ack_level_irq,
 	.mask = local_disable_irq,
 	.mask_ack = mask_and_ack_level_irq,

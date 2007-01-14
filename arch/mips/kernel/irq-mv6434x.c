@@ -92,7 +92,7 @@ void ll_mv64340_irq(void)
 }
 
 struct irq_chip mv64340_irq_type = {
-	.typename = "MV-64340",
+	.name = "MV-64340",
 	.ack = mask_mv64340_irq,
 	.mask = mask_mv64340_irq,
 	.mask_ack = mask_mv64340_irq,

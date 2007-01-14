@@ -70,7 +70,7 @@ static void rm9k_perfcounter_irq_shutdown(unsigned int irq)
 }
 
 static struct irq_chip rm9k_irq_controller = {
-	.typename = "RM9000",
+	.name = "RM9000",
 	.ack = mask_rm9k_irq,
 	.mask = mask_rm9k_irq,
 	.mask_ack = mask_rm9k_irq,
@@ -78,7 +78,7 @@ static struct irq_chip rm9k_irq_controller = {
 };
 
 static struct irq_chip rm9k_perfcounter_irq = {
-	.typename = "RM9000",
+	.name = "RM9000",
 	.startup = rm9k_perfcounter_irq_startup,
 	.shutdown = rm9k_perfcounter_irq_shutdown,
 	.ack = mask_rm9k_irq,
