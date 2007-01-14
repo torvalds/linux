@@ -146,8 +146,7 @@ u8 i8259_interrupt_ack(void)
 	irq = *(volatile u8 *) KSEG1ADDR(DDB_PCI_IACK_BASE);
 	ddb_out32(DDB_PCIINIT10, reg);
 
-	/* i8259.c set the base vector to be 0x0 */
-	return irq + I8259_IRQ_BASE;
+	return irq;
 }
 /*
  * the first level int-handler will jump here if it is a vrc5477 irq
@@ -177,7 +176,7 @@ static void vrc5477_irq_dispatch(void)
 		/* check for i8259 interrupts */
 		if (intStatus & (1 << VRC5477_I8259_CASCADE)) {
 			int i8259_irq = i8259_interrupt_ack();
-			do_IRQ(I8259_IRQ_BASE + i8259_irq);
+			do_IRQ(i8259_irq);
 			return;
 		}
 	}

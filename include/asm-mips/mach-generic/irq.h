@@ -12,6 +12,12 @@
 #define NR_IRQS	128
 #endif
 
+#ifdef CONFIG_I8259
+#ifndef I8259A_IRQ_BASE
+#define I8259A_IRQ_BASE	0
+#endif
+#endif
+
 #ifdef CONFIG_IRQ_CPU
 
 #ifndef MIPS_CPU_IRQ_BASE
