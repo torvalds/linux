@@ -1152,8 +1152,6 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_LPC,		quirk_sis_96x_
  *
  * We can also enable the sis96x bit in the discovery register..
  */
-static int __devinitdata sis_96x_compatible = 0;
-
 #define SIS_DETECT_REGISTER 0x40
 
 static void quirk_sis_503(struct pci_dev *dev)
@@ -1169,9 +1167,6 @@ static void quirk_sis_503(struct pci_dev *dev)
 		return;
 	}
 
-	/* Make people aware that we changed the config.. */
-	printk(KERN_WARNING "Uncovering SIS%x that hid as a SIS503 (compatible=%d)\n", devid, sis_96x_compatible);
-
 	/*
 	 * Ok, it now shows up as a 96x.. run the 96x quirk by
 	 * hand in case it has already been processed.
@@ -1183,16 +1178,6 @@ static void quirk_sis_503(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_503,		quirk_sis_503 );
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_503,		quirk_sis_503 );
 
-static void __init quirk_sis_96x_compatible(struct pci_dev *dev)
-{
-	sis_96x_compatible = 1;
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_645,		quirk_sis_96x_compatible );
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_646,		quirk_sis_96x_compatible );
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_648,		quirk_sis_96x_compatible );
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_650,		quirk_sis_96x_compatible );
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_651,		quirk_sis_96x_compatible );
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_735,		quirk_sis_96x_compatible );
 
 /*
  * On ASUS A8V and A8V Deluxe boards, the onboard AC97 audio controller
