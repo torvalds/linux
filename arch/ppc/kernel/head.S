@@ -310,12 +310,7 @@ i##n:								\
 /* System reset */
 /* core99 pmac starts the seconary here by changing the vector, and
    putting it back to what it was (unknown_exception) when done.  */
-#if defined(CONFIG_GEMINI) && defined(CONFIG_SMP)
-	. = 0x100
-	b	__secondary_start_gemini
-#else
 	EXCEPTION(0x100, Reset, unknown_exception, EXC_XFER_STD)
-#endif
 
 /* Machine check */
 	. = 0x200
@@ -897,19 +892,6 @@ fix_mem_constants:
 #endif /* CONFIG_APUS */
 
 #ifdef CONFIG_SMP
-#ifdef CONFIG_GEMINI
-	.globl	__secondary_start_gemini
-__secondary_start_gemini:
-        mfspr   r4,SPRN_HID0
-        ori     r4,r4,HID0_ICFI
-        li      r3,0
-        ori     r3,r3,HID0_ICE
-        andc    r4,r4,r3
-        mtspr   SPRN_HID0,r4
-        sync
-        b       __secondary_start
-#endif /* CONFIG_GEMINI */
-
 	.globl	__secondary_start_pmac_0
 __secondary_start_pmac_0:
 	/* NB the entries for cpus 0, 1, 2 must each occupy 8 bytes. */
