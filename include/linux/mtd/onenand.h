@@ -150,6 +150,9 @@ struct onenand_chip {
 #define ONENAND_SET_SYS_CFG1(v, this)					\
 	(this->write_word(v, this->base + ONENAND_REG_SYS_CFG1))
 
+#define ONENAND_IS_DDP(this)						\
+	(this->device_id & ONENAND_DEVICE_IS_DDP)
+
 /* Check byte access in OneNAND */
 #define ONENAND_CHECK_BYTE_ACCESS(addr)		(addr & 0x1)
 

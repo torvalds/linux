@@ -94,16 +94,9 @@ static void onenand_writew(unsigned short value, void __iomem *addr)
  */
 static int onenand_block_address(struct onenand_chip *this, int block)
 {
-	if (this->device_id & ONENAND_DEVICE_IS_DDP) {
-		/* Device Flash Core select, NAND Flash Block Address */
-		int dfs = 0;
-
-		if (block & this->density_mask)
-			dfs = 1;
-
-		return (dfs << ONENAND_DDP_SHIFT) |
-			(block & (this->density_mask - 1));
-	}
+	/* Device Flash Core select, NAND Flash Block Address */
+	if (block & this->density_mask)
+		return ONENAND_DDP_CHIP1 | (block ^ this->density_mask);
 
 	return block;
 }
@@ -118,17 +111,11 @@ static int onenand_block_address(struct onenand_chip *this, int block)
  */
 static int onenand_bufferram_address(struct onenand_chip *this, int block)
 {
-	if (this->device_id & ONENAND_DEVICE_IS_DDP) {
-		/* Device BufferRAM Select */
-		int dbs = 0;
+	/* Device BufferRAM Select */
+	if (block & this->density_mask)
+		return ONENAND_DDP_CHIP1;
 
-		if (block & this->density_mask)
-			dbs = 1;
-
-		return (dbs << ONENAND_DDP_SHIFT);
-	}
-
-	return 0;
+	return ONENAND_DDP_CHIP0;
 }
 
 /**
@@ -757,9 +744,9 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
  			 * Now we issued chip 1 read and pointed chip 1
  			 * bufferam so we have to point chip 0 bufferam.
  			 */
- 			if (this->device_id & ONENAND_DEVICE_IS_DDP &&
- 					unlikely(from == (this->chipsize >> 1))) {
- 				this->write_word(0, this->base + ONENAND_REG_START_ADDRESS2);
+ 			if (ONENAND_IS_DDP(this) &&
+ 			    unlikely(from == (this->chipsize >> 1))) {
+ 				this->write_word(ONENAND_DDP_CHIP0, this->base + ONENAND_REG_START_ADDRESS2);
  				boundary = 1;
  			} else
  				boundary = 0;
@@ -773,7 +760,7 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
  			break;
  		/* Set up for next read from bufferRAM */
  		if (unlikely(boundary))
- 			this->write_word(0x8000, this->base + ONENAND_REG_START_ADDRESS2);
+ 			this->write_word(ONENAND_DDP_CHIP1, this->base + ONENAND_REG_START_ADDRESS2);
  		ONENAND_SET_NEXT_BUFFERRAM(this);
  		buf += thislen;
  		thislen = min_t(int, mtd->writesize, len - read);
@@ -1508,7 +1495,7 @@ static int onenand_unlock_all(struct mtd_info *mtd)
 			continue;
 
 		/* Workaround for all block unlock in DDP */
-		if (this->device_id & ONENAND_DEVICE_IS_DDP) {
+		if (ONENAND_IS_DDP(this)) {
 			/* 1st block on another chip */
 			loff_t ofs = this->chipsize >> 1;
 			size_t len = mtd->erasesize;
@@ -1963,7 +1950,10 @@ static int onenand_probe(struct mtd_info *mtd)
 	density = dev_id >> ONENAND_DEVICE_DENSITY_SHIFT;
 	this->chipsize = (16 << density) << 20;
 	/* Set density mask. it is used for DDP */
-	this->density_mask = (1 << (density + 6));
+	if (ONENAND_IS_DDP(this))
+		this->density_mask = (1 << (density + 6));
+	else
+		this->density_mask = 0;
 
 	/* OneNAND page size & block size */
 	/* The data buffer size is equal to page size */
