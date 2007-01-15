@@ -16,6 +16,7 @@
 #include <linux/pagevec.h>
 #include <linux/mpage.h>
 #include <linux/fs.h>
+#include <linux/writeback.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/lm_interface.h>
 
@@ -154,6 +155,31 @@ out_ignore:
 	redirty_page_for_writepage(wbc, page);
 	unlock_page(page);
 	return 0;
+}
+
+/**
+ * gfs2_writepages - Write a bunch of dirty pages back to disk
+ * @mapping: The mapping to write
+ * @wbc: Write-back control
+ *
+ * For journaled files and/or ordered writes this just falls back to the
+ * kernel's default writepages path for now. We will probably want to change
+ * that eventually (i.e. when we look at allocate on flush).
+ *
+ * For the data=writeback case though we can already ignore buffer heads
+ * and write whole extents at once. This is a big reduction in the
+ * number of I/O requests we send and the bmap calls we make in this case.
+ */
+int gfs2_writepages(struct address_space *mapping, struct writeback_control *wbc)
+{
+	struct inode *inode = mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+
+	if (sdp->sd_args.ar_data == GFS2_DATA_WRITEBACK && !gfs2_is_jdata(ip))
+		return mpage_writepages(mapping, wbc, gfs2_get_block_noalloc);
+
+	return generic_writepages(mapping, wbc);
 }
 
 /**
@@ -757,6 +783,7 @@ out:
 
 const struct address_space_operations gfs2_file_aops = {
 	.writepage = gfs2_writepage,
+	.writepages = gfs2_writepages,
 	.readpage = gfs2_readpage,
 	.readpages = gfs2_readpages,
 	.sync_page = block_sync_page,
