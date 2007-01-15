@@ -45,7 +45,7 @@ EXPORT_SYMBOL(serio_interrupt);
 EXPORT_SYMBOL(__serio_register_port);
 EXPORT_SYMBOL(serio_unregister_port);
 EXPORT_SYMBOL(serio_unregister_child_port);
-EXPORT_SYMBOL(serio_register_driver);
+EXPORT_SYMBOL(__serio_register_driver);
 EXPORT_SYMBOL(serio_unregister_driver);
 EXPORT_SYMBOL(serio_open);
 EXPORT_SYMBOL(serio_close);
@@ -789,12 +789,14 @@ static void serio_attach_driver(struct serio_driver *drv)
 			drv->driver.name, error);
 }
 
-int serio_register_driver(struct serio_driver *drv)
+int __serio_register_driver(struct serio_driver *drv, struct module *owner, const char *mod_name)
 {
 	int manual_bind = drv->manual_bind;
 	int error;
 
 	drv->driver.bus = &serio_bus;
+	drv->driver.owner = owner;
+	drv->driver.mod_name = mod_name;
 
 	/*
 	 * Temporarily disable automatic binding because probing
