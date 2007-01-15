@@ -341,6 +341,7 @@ void in6_dev_finish_destroy(struct inet6_dev *idev)
 static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 {
 	struct inet6_dev *ndev;
+	struct in6_addr maddr;
 
 	ASSERT_RTNL();
 
@@ -425,6 +426,11 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 #endif
 	/* protected by rtnl_lock */
 	rcu_assign_pointer(dev->ip6_ptr, ndev);
+
+	/* Join all-node multicast group */
+	ipv6_addr_all_nodes(&maddr);
+	ipv6_dev_mc_inc(dev, &maddr);
+
 	return ndev;
 }
 
