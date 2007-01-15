@@ -1131,12 +1131,6 @@ static int mod_sysfs_setup(struct module *mod,
 	if (err)
 		goto out;
 
-	mod->mkobj.drivers_dir = kobject_add_dir(&mod->mkobj.kobj, "drivers");
-	if (!mod->mkobj.drivers_dir) {
-		err = -ENOMEM;
-		goto out_unreg;
-	}
-
 	err = module_param_sysfs_setup(mod, kparam, num_params);
 	if (err)
 		goto out_unreg_drivers;
@@ -1151,8 +1145,6 @@ static int mod_sysfs_setup(struct module *mod,
 out_unreg_param:
 	module_param_sysfs_remove(mod);
 out_unreg_drivers:
-	kobject_unregister(mod->mkobj.drivers_dir);
-out_unreg:
 	kobject_del(&mod->mkobj.kobj);
 	kobject_put(&mod->mkobj.kobj);
 out:
@@ -1163,7 +1155,8 @@ static void mod_kobject_remove(struct module *mod)
 {
 	module_remove_modinfo_attrs(mod);
 	module_param_sysfs_remove(mod);
-	kobject_unregister(mod->mkobj.drivers_dir);
+	if (mod->mkobj.drivers_dir)
+		kobject_unregister(mod->mkobj.drivers_dir);
 
 	kobject_unregister(&mod->mkobj.kobj);
 }
@@ -2340,6 +2333,14 @@ static char *make_driver_name(struct device_driver *drv)
 	return driver_name;
 }
 
+static void module_create_drivers_dir(struct module_kobject *mk)
+{
+	if (!mk || mk->drivers_dir)
+		return;
+
+	mk->drivers_dir = kobject_add_dir(&mk->kobj, "drivers");
+}
+
 void module_add_driver(struct module *mod, struct device_driver *drv)
 {
 	char *driver_name;
@@ -2367,6 +2368,7 @@ void module_add_driver(struct module *mod, struct device_driver *drv)
 	no_warn = sysfs_create_link(&drv->kobj, &mk->kobj, "module");
 	driver_name = make_driver_name(drv);
 	if (driver_name) {
+		module_create_drivers_dir(mk);
 		no_warn = sysfs_create_link(mk->drivers_dir, &drv->kobj,
 					    driver_name);
 		kfree(driver_name);

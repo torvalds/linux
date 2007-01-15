@@ -565,7 +565,6 @@ static void __init kernel_param_sysfs_setup(const char *name,
 	ret = kobject_add(&mk->kobj);
 	BUG_ON(ret < 0);
 	param_sysfs_setup(mk, kparam, num_params, name_skip);
-	mk->drivers_dir = kobject_add_dir(&mk->kobj, "drivers");
 	kobject_uevent(&mk->kobj, KOBJ_ADD);
 }
 
