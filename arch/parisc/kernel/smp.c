@@ -51,7 +51,15 @@
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
 
-#define kDEBUG 0
+#undef DEBUG_SMP
+#ifdef DEBUG_SMP
+static int smp_debug_lvl = 0;
+#define smp_debug(lvl, printargs...)		\
+		if (lvl >= smp_debug_lvl)	\
+			printk(printargs);
+#else
+#define smp_debug(lvl, ...)
+#endif /* DEBUG_SMP */
 
 DEFINE_SPINLOCK(smp_lock);
 
@@ -186,15 +194,11 @@ ipi_interrupt(int irq, void *dev_id)
 
 			switch (which) {
 			case IPI_NOP:
-#if (kDEBUG>=100)
-				printk(KERN_DEBUG "CPU%d IPI_NOP\n",this_cpu);
-#endif /* kDEBUG */
+				smp_debug(100, KERN_DEBUG "CPU%d IPI_NOP\n", this_cpu);
 				break;
 				
 			case IPI_RESCHEDULE:
-#if (kDEBUG>=100)
-				printk(KERN_DEBUG "CPU%d IPI_RESCHEDULE\n",this_cpu);
-#endif /* kDEBUG */
+				smp_debug(100, KERN_DEBUG "CPU%d IPI_RESCHEDULE\n", this_cpu);
 				/*
 				 * Reschedule callback.  Everything to be
 				 * done is done by the interrupt return path.
@@ -202,9 +206,7 @@ ipi_interrupt(int irq, void *dev_id)
 				break;
 
 			case IPI_CALL_FUNC:
-#if (kDEBUG>=100)
-				printk(KERN_DEBUG "CPU%d IPI_CALL_FUNC\n",this_cpu);
-#endif /* kDEBUG */
+				smp_debug(100, KERN_DEBUG "CPU%d IPI_CALL_FUNC\n", this_cpu);
 				{
 					volatile struct smp_call_struct *data;
 					void (*func)(void *info);
@@ -235,18 +237,14 @@ ipi_interrupt(int irq, void *dev_id)
 				break;
 
 			case IPI_CPU_START:
-#if (kDEBUG>=100)
-				printk(KERN_DEBUG "CPU%d IPI_CPU_START\n",this_cpu);
-#endif /* kDEBUG */
+				smp_debug(100, KERN_DEBUG "CPU%d IPI_CPU_START\n", this_cpu);
 #ifdef ENTRY_SYS_CPUS
 				p->state = STATE_RUNNING;
 #endif
 				break;
 
 			case IPI_CPU_STOP:
-#if (kDEBUG>=100)
-				printk(KERN_DEBUG "CPU%d IPI_CPU_STOP\n",this_cpu);
-#endif /* kDEBUG */
+				smp_debug(100, KERN_DEBUG "CPU%d IPI_CPU_STOP\n", this_cpu);
 #ifdef ENTRY_SYS_CPUS
 #else
 				halt_processor();
@@ -254,9 +252,7 @@ ipi_interrupt(int irq, void *dev_id)
 				break;
 
 			case IPI_CPU_TEST:
-#if (kDEBUG>=100)
-				printk(KERN_DEBUG "CPU%d is alive!\n",this_cpu);
-#endif /* kDEBUG */
+				smp_debug(100, KERN_DEBUG "CPU%d is alive!\n", this_cpu);
 				break;
 
 			default:
@@ -563,10 +559,8 @@ int __init smp_boot_one_cpu(int cpuid)
 
 alive:
 	/* Remember the Slave data */
-#if (kDEBUG>=100)
-	printk(KERN_DEBUG "SMP: CPU:%d came alive after %ld _us\n",
+	smp_debug(100, KERN_DEBUG "SMP: CPU:%d came alive after %ld _us\n",
 		cpuid, timeout * 100);
-#endif /* kDEBUG */
 #ifdef ENTRY_SYS_CPUS
 	cpu_data[cpuid].state = STATE_RUNNING;
 #endif
