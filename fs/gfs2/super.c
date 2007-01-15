@@ -71,7 +71,6 @@ void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_atime_quantum = 3600;
 	gt->gt_new_files_jdata = 0;
 	gt->gt_new_files_directio = 0;
-	gt->gt_max_atomic_write = 4 << 20;
 	gt->gt_max_readahead = 1 << 18;
 	gt->gt_lockdump_size = 131072;
 	gt->gt_stall_secs = 600;

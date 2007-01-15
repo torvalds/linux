@@ -441,7 +441,6 @@ TUNE_ATTR(new_files_jdata, 0);
 TUNE_ATTR(new_files_directio, 0);
 TUNE_ATTR(quota_simul_sync, 1);
 TUNE_ATTR(quota_cache_secs, 1);
-TUNE_ATTR(max_atomic_write, 1);
 TUNE_ATTR(stall_secs, 1);
 TUNE_ATTR(greedy_default, 1);
 TUNE_ATTR(greedy_quantum, 1);
@@ -467,7 +466,6 @@ static struct attribute *tune_attrs[] = {
 	&tune_attr_statfs_slow.attr,
 	&tune_attr_quota_simul_sync.attr,
 	&tune_attr_quota_cache_secs.attr,
-	&tune_attr_max_atomic_write.attr,
 	&tune_attr_stall_secs.attr,
 	&tune_attr_greedy_default.attr,
 	&tune_attr_greedy_quantum.attr,
