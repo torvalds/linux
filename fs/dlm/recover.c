@@ -397,7 +397,9 @@ int dlm_recover_masters(struct dlm_ls *ls)
 
 		if (dlm_no_directory(ls))
 			count += recover_master_static(r);
-		else if (!is_master(r) && dlm_is_removed(ls, r->res_nodeid)) {
+		else if (!is_master(r) &&
+			 (dlm_is_removed(ls, r->res_nodeid) ||
+			  rsb_flag(r, RSB_NEW_MASTER))) {
 			recover_master(r);
 			count++;
 		}
