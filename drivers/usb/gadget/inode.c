@@ -59,11 +59,11 @@
  *   may serve as a source of device events, used to handle all control
  *   requests other than basic enumeration.
  *
- * - Then either immediately, or after a SET_CONFIGURATION control request,
- *   ep_config() is called when each /dev/gadget/ep* file is configured
- *   (by writing endpoint descriptors).  Afterwards these files are used
- *   to write() IN data or to read() OUT data.  To halt the endpoint, a
- *   "wrong direction" request is issued (like reading an IN endpoint).
+ * - Then, after a SET_CONFIGURATION control request, ep_config() is
+ *   called when each /dev/gadget/ep* file is configured (by writing
+ *   endpoint descriptors).  Afterwards these files are used to write()
+ *   IN data or to read() OUT data.  To halt the endpoint, a "wrong
+ *   direction" request is issued (like reading an IN endpoint).
  *
  * Unlike "usbfs" the only ioctl()s are for things that are rare, and maybe
  * not possible on all hardware.  For example, precise fault handling with
@@ -188,7 +188,6 @@ static struct dev_data *dev_new (void)
 enum ep_state {
 	STATE_EP_DISABLED = 0,
 	STATE_EP_READY,
-	STATE_EP_DEFER_ENABLE,
 	STATE_EP_ENABLED,
 	STATE_EP_UNBOUND,
 };
@@ -313,18 +312,10 @@ nonblock:
 
 	if ((val = down_interruptible (&epdata->lock)) < 0)
 		return val;
-newstate:
+
 	switch (epdata->state) {
 	case STATE_EP_ENABLED:
 		break;
-	case STATE_EP_DEFER_ENABLE:
-		DBG (epdata->dev, "%s wait for host\n", epdata->name);
-		if ((val = wait_event_interruptible (epdata->wait, 
-				epdata->state != STATE_EP_DEFER_ENABLE
-				|| epdata->dev->state == STATE_DEV_UNBOUND
-				)) < 0)
-			goto fail;
-		goto newstate;
 	// case STATE_EP_DISABLED:		/* "can't happen" */
 	// case STATE_EP_READY:			/* "can't happen" */
 	default:				/* error! */
@@ -333,7 +324,6 @@ newstate:
 		// FALLTHROUGH
 	case STATE_EP_UNBOUND:			/* clean disconnect */
 		val = -ENODEV;
-fail:
 		up (&epdata->lock);
 	}
 	return val;
@@ -852,9 +842,9 @@ ep_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 		break;
 #endif
 	default:
-		DBG (data->dev, "unconnected, %s init deferred\n",
+		DBG(data->dev, "unconnected, %s init abandoned\n",
 				data->name);
-		data->state = STATE_EP_DEFER_ENABLE;
+		value = -EINVAL;
 	}
 	if (value == 0) {
 		fd->f_op = &ep_io_operations;
@@ -1393,8 +1383,6 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	spin_lock (&dev->lock);
 	dev->setup_abort = 0;
 	if (dev->state == STATE_UNCONNECTED) {
-		struct usb_ep	*ep;
-		struct ep_data	*data;
 
 		dev->state = STATE_CONNECTED;
 		dev->dev->bMaxPacketSize0 = gadget->ep0->maxpacket;
@@ -1410,27 +1398,6 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		event = next_event (dev, GADGETFS_CONNECT);
 		event->u.speed = gadget->speed;
 		ep0_readable (dev);
-
-		list_for_each_entry (ep, &gadget->ep_list, ep_list) {
-			data = ep->driver_data;
-			/* ... down_trylock (&data->lock) ... */
-			if (data->state != STATE_EP_DEFER_ENABLE)
-				continue;
-#ifdef	CONFIG_USB_GADGET_DUALSPEED
-			if (gadget->speed == USB_SPEED_HIGH)
-				value = usb_ep_enable (ep, &data->hs_desc);
-			else
-#endif	/* CONFIG_USB_GADGET_DUALSPEED */
-				value = usb_ep_enable (ep, &data->desc);
-			if (value) {
-				ERROR (dev, "deferred %s enable --> %d\n",
-					data->name, value);
-				continue;
-			}
-			data->state = STATE_EP_ENABLED;
-			wake_up (&data->wait);
-			DBG (dev, "woke up %s waiters\n", data->name);
-		}
 
 	/* host may have given up waiting for response.  we can miss control
 	 * requests handled lower down (device/endpoint status and features);
@@ -1852,16 +1819,13 @@ static struct usb_gadget_driver probe_driver = {
  *	this one's optional except for high-speed hardware
  * . device descriptor
  *
- * Endpoints are not yet enabled. Drivers may want to immediately
- * initialize them, using the /dev/gadget/ep* files that are available
- * as soon as the kernel sees the configuration, or they can wait
- * until device configuration and interface altsetting changes create
+ * Endpoints are not yet enabled. Drivers must wait until device
+ * configuration and interface altsetting changes create
  * the need to configure (or unconfigure) them.
  *
  * After initialization, the device stays active for as long as that
- * $CHIP file is open.  Events may then be read from that descriptor,
- * such as configuration notifications.  More complex drivers will handle
- * some control requests in user space.
+ * $CHIP file is open.  Events must then be read from that descriptor,
+ * such as configuration notifications.
  */
 
 static int is_valid_config (struct usb_config_descriptor *config)
