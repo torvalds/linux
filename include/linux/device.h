@@ -126,6 +126,7 @@ struct device_driver {
 	struct klist_node	knode_bus;
 
 	struct module		* owner;
+	const char 		* mod_name;	/* used for built-in modules */
 
 	int	(*probe)	(struct device * dev);
 	int	(*remove)	(struct device * dev);

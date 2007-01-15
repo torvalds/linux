@@ -561,14 +561,12 @@ static void __init kernel_param_sysfs_setup(const char *name,
 	mk->mod = THIS_MODULE;
 	kobj_set_kset_s(mk, module_subsys);
 	kobject_set_name(&mk->kobj, name);
-	ret = kobject_register(&mk->kobj);
+	kobject_init(&mk->kobj);
+	ret = kobject_add(&mk->kobj);
 	BUG_ON(ret < 0);
-
-	/* no need to keep the kobject if no parameter is exported */
-	if (!param_sysfs_setup(mk, kparam, num_params, name_skip)) {
-		kobject_unregister(&mk->kobj);
-		kfree(mk);
-	}
+	param_sysfs_setup(mk, kparam, num_params, name_skip);
+	mk->drivers_dir = kobject_add_dir(&mk->kobj, "drivers");
+	kobject_uevent(&mk->kobj, KOBJ_ADD);
 }
 
 /*

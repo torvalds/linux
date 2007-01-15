@@ -1131,8 +1131,8 @@ static int mod_sysfs_setup(struct module *mod,
 	if (err)
 		goto out;
 
-	mod->drivers_dir = kobject_add_dir(&mod->mkobj.kobj, "drivers");
-	if (!mod->drivers_dir) {
+	mod->mkobj.drivers_dir = kobject_add_dir(&mod->mkobj.kobj, "drivers");
+	if (!mod->mkobj.drivers_dir) {
 		err = -ENOMEM;
 		goto out_unreg;
 	}
@@ -1151,7 +1151,7 @@ static int mod_sysfs_setup(struct module *mod,
 out_unreg_param:
 	module_param_sysfs_remove(mod);
 out_unreg_drivers:
-	kobject_unregister(mod->drivers_dir);
+	kobject_unregister(mod->mkobj.drivers_dir);
 out_unreg:
 	kobject_del(&mod->mkobj.kobj);
 	kobject_put(&mod->mkobj.kobj);
@@ -1163,7 +1163,7 @@ static void mod_kobject_remove(struct module *mod)
 {
 	module_remove_modinfo_attrs(mod);
 	module_param_sysfs_remove(mod);
-	kobject_unregister(mod->drivers_dir);
+	kobject_unregister(mod->mkobj.drivers_dir);
 
 	kobject_unregister(&mod->mkobj.kobj);
 }
@@ -2344,15 +2344,30 @@ void module_add_driver(struct module *mod, struct device_driver *drv)
 {
 	char *driver_name;
 	int no_warn;
+	struct module_kobject *mk = NULL;
 
-	if (!mod || !drv)
+	if (!drv)
+		return;
+
+	if (mod)
+		mk = &mod->mkobj;
+	else if (drv->mod_name) {
+		struct kobject *mkobj;
+
+		/* Lookup built-in module entry in /sys/modules */
+		mkobj = kset_find_obj(&module_subsys.kset, drv->mod_name);
+		if (mkobj)
+			mk = container_of(mkobj, struct module_kobject, kobj);
+	}
+
+	if (!mk)
 		return;
 
 	/* Don't check return codes; these calls are idempotent */
-	no_warn = sysfs_create_link(&drv->kobj, &mod->mkobj.kobj, "module");
+	no_warn = sysfs_create_link(&drv->kobj, &mk->kobj, "module");
 	driver_name = make_driver_name(drv);
 	if (driver_name) {
-		no_warn = sysfs_create_link(mod->drivers_dir, &drv->kobj,
+		no_warn = sysfs_create_link(mk->drivers_dir, &drv->kobj,
 					    driver_name);
 		kfree(driver_name);
 	}
@@ -2367,10 +2382,10 @@ void module_remove_driver(struct device_driver *drv)
 		return;
 
 	sysfs_remove_link(&drv->kobj, "module");
-	if (drv->owner && drv->owner->drivers_dir) {
+	if (drv->owner && drv->owner->mkobj.drivers_dir) {
 		driver_name = make_driver_name(drv);
 		if (driver_name) {
-			sysfs_remove_link(drv->owner->drivers_dir,
+			sysfs_remove_link(drv->owner->mkobj.drivers_dir,
 					  driver_name);
 			kfree(driver_name);
 		}
