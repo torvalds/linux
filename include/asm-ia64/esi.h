@@ -19,7 +19,6 @@ enum esi_proc_type {
 	ESI_PROC_REENTRANT	/* MP-safe and reentrant */
 };
 
-extern int ia64_esi_init (void);
 extern struct ia64_sal_retval esi_call_phys (void *, u64 *);
 extern int ia64_esi_call(efi_guid_t, struct ia64_sal_retval *,
 			 enum esi_proc_type,
