@@ -20,7 +20,7 @@
  */
 
 
-// #define	DEBUG 			/* data to help fault diagnosis */
+// #define	DEBUG			/* data to help fault diagnosis */
 // #define	VERBOSE		/* extra debug messages (success too) */
 
 #include <linux/init.h>
@@ -565,29 +565,29 @@ static ssize_t ep_aio_read_retry(struct kiocb *iocb)
 	ssize_t			len, total;
 	int			i;
 
-  	/* we "retry" to get the right mm context for this: */
+	/* we "retry" to get the right mm context for this: */
 
- 	/* copy stuff into user buffers */
- 	total = priv->actual;
- 	len = 0;
- 	for (i=0; i < priv->nr_segs; i++) {
- 		ssize_t this = min((ssize_t)(priv->iv[i].iov_len), total);
+	/* copy stuff into user buffers */
+	total = priv->actual;
+	len = 0;
+	for (i=0; i < priv->nr_segs; i++) {
+		ssize_t this = min((ssize_t)(priv->iv[i].iov_len), total);
 
- 		if (copy_to_user(priv->iv[i].iov_base, priv->buf, this)) {
- 			if (len == 0)
- 				len = -EFAULT;
- 			break;
- 		}
+		if (copy_to_user(priv->iv[i].iov_base, priv->buf, this)) {
+			if (len == 0)
+				len = -EFAULT;
+			break;
+		}
 
- 		total -= this;
- 		len += this;
- 		if (total == 0)
- 			break;
- 	}
-  	kfree(priv->buf);
-  	kfree(priv);
-  	aio_put_req(iocb);
- 	return len;
+		total -= this;
+		len += this;
+		if (total == 0)
+			break;
+	}
+	kfree(priv->buf);
+	kfree(priv);
+	aio_put_req(iocb);
+	return len;
 }
 
 static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
@@ -636,7 +636,7 @@ ep_aio_rwtail(
 	size_t		len,
 	struct ep_data	*epdata,
 	const struct iovec *iv,
-	unsigned long 	nr_segs
+	unsigned long	nr_segs
 )
 {
 	struct kiocb_priv	*priv;
@@ -1808,7 +1808,7 @@ static struct usb_gadget_driver gadgetfs_driver = {
 	.disconnect	= gadgetfs_disconnect,
 	.suspend	= gadgetfs_suspend,
 
-	.driver 	= {
+	.driver	= {
 		.name		= (char *) shortname,
 	},
 };
@@ -1829,7 +1829,7 @@ static struct usb_gadget_driver probe_driver = {
 	.unbind		= gadgetfs_nop,
 	.setup		= (void *)gadgetfs_nop,
 	.disconnect	= gadgetfs_nop,
-	.driver 	= {
+	.driver	= {
 		.name		= "nop",
 	},
 };
@@ -1849,7 +1849,7 @@ static struct usb_gadget_driver probe_driver = {
  * . full/low speed config ... all wTotalLength bytes (with interface,
  *	class, altsetting, endpoint, and other descriptors)
  * . high speed config ... all descriptors, for high speed operation;
- * 	this one's optional except for high-speed hardware
+ *	this one's optional except for high-speed hardware
  * . device descriptor
  *
  * Endpoints are not yet enabled. Drivers may want to immediately
