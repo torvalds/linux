@@ -951,7 +951,7 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 	}
 
 #ifdef DEBUG_DATA
-	printk(KERN_DEBUG __FILE__ ": report (size %u) (%snumbered)\n", len, report_enum->numbered ? "" : "un");
+	printk(KERN_DEBUG __FILE__ ": report (size %u) (%snumbered)\n", size, report_enum->numbered ? "" : "un");
 #endif
 
 	n = 0;                          /* Normally report number is 0 */
