@@ -3772,12 +3772,10 @@ int dlm_user_unlock(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 		goto out_put;
 
 	spin_lock(&ua->proc->locks_spin);
-	list_del_init(&lkb->lkb_ownqueue);
+	/* dlm_user_add_ast() may have already taken lkb off the proc list */
+	if (!list_empty(&lkb->lkb_ownqueue))
+		list_move(&lkb->lkb_ownqueue, &ua->proc->unlocking);
 	spin_unlock(&ua->proc->locks_spin);
-
-	/* this removes the reference for the proc->locks list added by
-	   dlm_user_request */
-	unhold_lkb(lkb);
  out_put:
 	dlm_put_lkb(lkb);
  out:
@@ -3817,9 +3815,8 @@ int dlm_user_cancel(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	/* this lkb was removed from the WAITING queue */
 	if (lkb->lkb_grmode == DLM_LOCK_IV) {
 		spin_lock(&ua->proc->locks_spin);
-		list_del_init(&lkb->lkb_ownqueue);
+		list_move(&lkb->lkb_ownqueue, &ua->proc->unlocking);
 		spin_unlock(&ua->proc->locks_spin);
-		unhold_lkb(lkb);
 	}
  out_put:
 	dlm_put_lkb(lkb);
@@ -3880,11 +3877,6 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 	mutex_lock(&ls->ls_clear_proc_locks);
 
 	list_for_each_entry_safe(lkb, safe, &proc->locks, lkb_ownqueue) {
-		if (lkb->lkb_ast_type) {
-			list_del(&lkb->lkb_astqueue);
-			unhold_lkb(lkb);
-		}
-
 		list_del_init(&lkb->lkb_ownqueue);
 
 		if (lkb->lkb_exflags & DLM_LKF_PERSISTENT) {
@@ -3901,6 +3893,20 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 
 		dlm_put_lkb(lkb);
 	}
+
+	/* in-progress unlocks */
+	list_for_each_entry_safe(lkb, safe, &proc->unlocking, lkb_ownqueue) {
+		list_del_init(&lkb->lkb_ownqueue);
+		lkb->lkb_flags |= DLM_IFL_DEAD;
+		dlm_put_lkb(lkb);
+	}
+
+	list_for_each_entry_safe(lkb, safe, &proc->asts, lkb_astqueue) {
+		list_del(&lkb->lkb_astqueue);
+		dlm_put_lkb(lkb);
+	}
+
 	mutex_unlock(&ls->ls_clear_proc_locks);
 	unlock_recovery(ls);
 }
+

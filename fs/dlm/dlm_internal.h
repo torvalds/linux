@@ -526,6 +526,7 @@ struct dlm_user_proc {
 	spinlock_t		asts_spin;
 	struct list_head	locks;
 	spinlock_t		locks_spin;
+	struct list_head	unlocking;
 	wait_queue_head_t	wait;
 };
 
