@@ -3334,9 +3334,8 @@ W:	http://www.linux-usb.org/gadget
 S:	Maintained
 
 USB HID/HIDBP DRIVERS
-P:	Vojtech Pavlik
-M:	vojtech@suse.cz
-L:	linux-usb-users@lists.sourceforge.net
+P:	Jiri Kosina
+M:	jkosina@suse.cz
 L:	linux-usb-devel@lists.sourceforge.net
 S:	Maintained
 
