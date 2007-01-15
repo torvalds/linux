@@ -91,7 +91,6 @@
 
 
 #define DRIVER_NAME "mmci-omap"
-#define RSP_TYPE(x)	((x) & ~(MMC_RSP_BUSY|MMC_RSP_OPCODE))
 
 /* Specifies how often in millisecs to poll for card status changes
  * when the cover switch is open */
@@ -204,18 +203,25 @@ mmc_omap_start_command(struct mmc_omap_host *host, struct mmc_command *cmd)
 	cmdtype = 0;
 
 	/* Our hardware needs to know exact type */
-	switch (RSP_TYPE(mmc_resp_type(cmd))) {
-	case RSP_TYPE(MMC_RSP_R1):
+	switch (mmc_resp_type(cmd)) {
+	case MMC_RSP_NONE:
+		break;
+	case MMC_RSP_R1:
+	case MMC_RSP_R1B:
 		/* resp 1, resp 1b */
 		resptype = 1;
 		break;
-	case RSP_TYPE(MMC_RSP_R2):
+	case MMC_RSP_R2:
 		resptype = 2;
 		break;
-	case RSP_TYPE(MMC_RSP_R3):
+	case MMC_RSP_R3:
 		resptype = 3;
 		break;
+	case MMC_RSP_R6:
+		resptype = 6;
+		break;
 	default:
+		dev_err(mmc_dev(host->mmc), "Invalid response type: %04x\n", mmc_resp_type(cmd));
 		break;
 	}
 
