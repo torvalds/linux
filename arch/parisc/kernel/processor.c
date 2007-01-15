@@ -337,9 +337,6 @@ show_cpuinfo (struct seq_file *m, void *v)
 #ifdef CONFIG_SMP
 		if (0 == cpu_data[n].hpa)
 			continue;
-#ifdef ENTRY_SYS_CPUS
-#error iCOD support wants to show CPU state here
-#endif
 #endif
 		seq_printf(m, "processor\t: %d\n"
 				"cpu family\t: PA-RISC %s\n",
