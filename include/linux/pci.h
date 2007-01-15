@@ -573,10 +573,11 @@ int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
 void pci_enable_bridges(struct pci_bus *bus);
 
 /* Proper probing supporting hot-pluggable devices */
-int __must_check __pci_register_driver(struct pci_driver *, struct module *);
+int __must_check __pci_register_driver(struct pci_driver *, struct module *,
+				       const char *mod_name);
 static inline int __must_check pci_register_driver(struct pci_driver *driver)
 {
-	return __pci_register_driver(driver, THIS_MODULE);
+	return __pci_register_driver(driver, THIS_MODULE, KBUILD_MODNAME);
 }
 
 void pci_unregister_driver(struct pci_driver *);

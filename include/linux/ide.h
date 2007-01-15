@@ -1192,8 +1192,8 @@ void ide_init_disk(struct gendisk *, ide_drive_t *);
 extern int ideprobe_init(void);
 
 extern void ide_scan_pcibus(int scan_direction) __init;
-extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *owner);
-#define ide_pci_register_driver(d) __ide_pci_register_driver(d, THIS_MODULE)
+extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *owner, const char *mod_name);
+#define ide_pci_register_driver(d) __ide_pci_register_driver(d, THIS_MODULE, KBUILD_MODNAME)
 void ide_pci_setup_ports(struct pci_dev *, struct ide_pci_device_s *, int, ata_index_t *);
 extern void ide_setup_pci_noise (struct pci_dev *dev, struct ide_pci_device_s *d);
 
