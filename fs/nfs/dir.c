@@ -1123,8 +1123,14 @@ static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 	}
 	name.hash = full_name_hash(name.name, name.len);
 	dentry = d_lookup(parent, &name);
-	if (dentry != NULL)
-		return dentry;
+	if (dentry != NULL) {
+		/* Is this a positive dentry? */
+		if (dentry->d_inode != NULL)
+			return dentry;
+		/* No, so d_drop to allow one to be created */
+		d_drop(dentry);
+		dput(dentry);
+	}
 	if (!desc->plus || !(entry->fattr->valid & NFS_ATTR_FATTR))
 		return NULL;
 	/* Note: caller is already holding the dir->i_mutex! */
