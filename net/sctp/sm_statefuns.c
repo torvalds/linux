@@ -1534,6 +1534,28 @@ sctp_disposition_t sctp_sf_do_5_2_2_dupinit(const struct sctp_endpoint *ep,
 }
 
 
+/*
+ * Unexpected INIT-ACK handler.
+ *
+ * Section 5.2.3
+ * If an INIT ACK received by an endpoint in any state other than the
+ * COOKIE-WAIT state, the endpoint should discard the INIT ACK chunk.
+ * An unexpected INIT ACK usually indicates the processing of an old or
+ * duplicated INIT chunk.
+*/
+sctp_disposition_t sctp_sf_do_5_2_3_initack(const struct sctp_endpoint *ep,
+					    const struct sctp_association *asoc,
+					    const sctp_subtype_t type,
+					    void *arg, sctp_cmd_seq_t *commands)
+{
+	/* Per the above section, we'll discard the chunk if we have an
+	 * endpoint.  If this is an OOTB INIT-ACK, treat it as such.
+	 */
+        if (ep == sctp_sk((sctp_get_ctl_sock()))->ep)
+		return sctp_sf_ootb(ep, asoc, type, arg, commands);
+	else
+		return sctp_sf_discard_chunk(ep, asoc, type, arg, commands);
+}
 
 /* Unexpected COOKIE-ECHO handler for peer restart (Table 2, action 'A')
  *
