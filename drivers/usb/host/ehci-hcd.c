@@ -907,7 +907,13 @@ MODULE_LICENSE ("GPL");
 #define	PLATFORM_DRIVER		ehci_hcd_au1xxx_driver
 #endif
 
-#if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER)
+#ifdef CONFIG_PPC_PS3
+#include "ehci-ps3.c"
+#define	PS3_SYSTEM_BUS_DRIVER	ps3_ehci_sb_driver
+#endif
+
+#if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \
+    !defined(PS3_SYSTEM_BUS_DRIVER)
 #error "missing bus glue for ehci-hcd"
 #endif
 
@@ -932,6 +938,20 @@ static int __init ehci_hcd_init(void)
 #ifdef PLATFORM_DRIVER
 		platform_driver_unregister(&PLATFORM_DRIVER);
 #endif
+		return retval;
+	}
+#endif
+
+#ifdef PS3_SYSTEM_BUS_DRIVER
+	retval = ps3_system_bus_driver_register(&PS3_SYSTEM_BUS_DRIVER);
+	if (retval < 0) {
+#ifdef PLATFORM_DRIVER
+		platform_driver_unregister(&PLATFORM_DRIVER);
+#endif
+#ifdef PCI_DRIVER
+		pci_unregister_driver(&PCI_DRIVER);
+#endif
+		return retval;
 	}
 #endif
 
@@ -946,6 +966,9 @@ static void __exit ehci_hcd_cleanup(void)
 #endif
 #ifdef PCI_DRIVER
 	pci_unregister_driver(&PCI_DRIVER);
+#endif
+#ifdef PS3_SYSTEM_BUS_DRIVER
+	ps3_system_bus_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
 #endif
 }
 module_exit(ehci_hcd_cleanup);
