@@ -38,7 +38,7 @@
 #include "aic94xx_seq.h"
 
 /* The format is "version.release.patchlevel" */
-#define ASD_DRIVER_VERSION "1.0.2"
+#define ASD_DRIVER_VERSION "1.0.3"
 
 static int use_msi = 0;
 module_param_named(use_msi, use_msi, int, S_IRUGO);

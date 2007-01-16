@@ -1638,7 +1638,7 @@ static void __exit sas_transport_exit(void)
 }
 
 MODULE_AUTHOR("Christoph Hellwig");
-MODULE_DESCRIPTION("SAS Transphy Attributes");
+MODULE_DESCRIPTION("SAS Transport Attributes");
 MODULE_LICENSE("GPL");
 
 module_init(sas_transport_init);

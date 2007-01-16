@@ -427,7 +427,7 @@ struct asd_manuf_sec {
 
 struct asd_manuf_phy_desc {
 	u8    state;         /* low 4 bits */
-#define MS_PHY_STATE_ENABLEABLE 0
+#define MS_PHY_STATE_ENABLED    0
 #define MS_PHY_STATE_REPORTED   1
 #define MS_PHY_STATE_HIDDEN     2
 	u8    phy_id;
@@ -756,11 +756,11 @@ static void *asd_find_ll_by_id(void * const start, const u8 id0, const u8 id1)
  *
  * HIDDEN phys do not count in the total count.  REPORTED phys cannot
  * be enabled but are reported and counted towards the total.
- * ENEBLEABLE phys are enabled by default and count towards the total.
+ * ENABLED phys are enabled by default and count towards the total.
  * The absolute total phy number is ASD_MAX_PHYS.  hw_prof->num_phys
  * merely specifies the number of phys the host adapter decided to
  * report.  E.g., it is possible for phys 0, 1 and 2 to be HIDDEN,
- * phys 3, 4 and 5 to be REPORTED and phys 6 and 7 to be ENEBLEABLE.
+ * phys 3, 4 and 5 to be REPORTED and phys 6 and 7 to be ENABLED.
  * In this case ASD_MAX_PHYS is 8, hw_prof->num_phys is 5, and only 2
  * are actually enabled (enabled by default, max number of phys
  * enableable in this case).
@@ -816,8 +816,8 @@ static int asd_ms_get_phy_params(struct asd_ha_struct *asd_ha,
 			asd_ha->hw_prof.enabled_phys &= ~(1 << i);
 			rep_phys++;
 			continue;
-		case MS_PHY_STATE_ENABLEABLE:
-			ASD_DPRINTK("ms: phy%d: ENEBLEABLE\n", i);
+		case MS_PHY_STATE_ENABLED:
+			ASD_DPRINTK("ms: phy%d: ENABLED\n", i);
 			asd_ha->hw_prof.enabled_phys |= (1 << i);
 			en_phys++;
 			break;
