@@ -1562,7 +1562,7 @@ static int sctp_process_missing_param(const struct sctp_association *asoc,
 	if (*errp) {
 		report.num_missing = htonl(1);
 		report.type = paramtype;
-		sctp_init_cause(*errp, SCTP_ERROR_INV_PARAM,
+		sctp_init_cause(*errp, SCTP_ERROR_MISS_PARAM,
 				&report, sizeof(report));
 	}
 
