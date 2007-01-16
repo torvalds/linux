@@ -190,6 +190,103 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 
 /*-------------------------------------------------------------------------*/
 
+/* Display the ports dedicated to the companion controller */
+static ssize_t show_companion(struct class_device *class_dev, char *buf)
+{
+	struct ehci_hcd		*ehci;
+	int			nports, index, n;
+	int			count = PAGE_SIZE;
+	char			*ptr = buf;
+
+	ehci = hcd_to_ehci(bus_to_hcd(class_get_devdata(class_dev)));
+	nports = HCS_N_PORTS(ehci->hcs_params);
+
+	for (index = 0; index < nports; ++index) {
+		if (test_bit(index, &ehci->companion_ports)) {
+			n = scnprintf(ptr, count, "%d\n", index + 1);
+			ptr += n;
+			count -= n;
+		}
+	}
+	return ptr - buf;
+}
+
+/*
+ * Dedicate or undedicate a port to the companion controller.
+ * Syntax is "[-]portnum", where a leading '-' sign means
+ * return control of the port to the EHCI controller.
+ */
+static ssize_t store_companion(struct class_device *class_dev,
+		const char *buf, size_t count)
+{
+	struct ehci_hcd		*ehci;
+	int			portnum, new_owner, try;
+	u32 __iomem		*status_reg;
+	u32			port_status;
+
+	ehci = hcd_to_ehci(bus_to_hcd(class_get_devdata(class_dev)));
+	new_owner = PORT_OWNER;		/* Owned by companion */
+	if (sscanf(buf, "%d", &portnum) != 1)
+		return -EINVAL;
+	if (portnum < 0) {
+		portnum = - portnum;
+		new_owner = 0;		/* Owned by EHCI */
+	}
+	if (portnum <= 0 || portnum > HCS_N_PORTS(ehci->hcs_params))
+		return -ENOENT;
+	status_reg = &ehci->regs->port_status[--portnum];
+	if (new_owner)
+		set_bit(portnum, &ehci->companion_ports);
+	else
+		clear_bit(portnum, &ehci->companion_ports);
+
+	/*
+	 * The controller won't set the OWNER bit if the port is
+	 * enabled, so this loop will sometimes require at least two
+	 * iterations: one to disable the port and one to set OWNER.
+	 */
+
+	for (try = 4; try > 0; --try) {
+		spin_lock_irq(&ehci->lock);
+		port_status = ehci_readl(ehci, status_reg);
+		if ((port_status & PORT_OWNER) == new_owner
+				|| (port_status & (PORT_OWNER | PORT_CONNECT))
+					== 0)
+			try = 0;
+		else {
+			port_status ^= PORT_OWNER;
+			port_status &= ~(PORT_PE | PORT_RWC_BITS);
+			ehci_writel(ehci, port_status, status_reg);
+		}
+		spin_unlock_irq(&ehci->lock);
+		if (try > 1)
+			msleep(5);
+	}
+	return count;
+}
+static CLASS_DEVICE_ATTR(companion, 0644, show_companion, store_companion);
+
+static inline void create_companion_file(struct ehci_hcd *ehci)
+{
+	int	i;
+
+	/* with integrated TT there is no companion! */
+	if (!ehci_is_TDI(ehci))
+		i = class_device_create_file(ehci_to_hcd(ehci)->self.class_dev,
+				&class_device_attr_companion);
+}
+
+static inline void remove_companion_file(struct ehci_hcd *ehci)
+{
+	/* with integrated TT there is no companion! */
+	if (!ehci_is_TDI(ehci))
+		class_device_remove_file(ehci_to_hcd(ehci)->self.class_dev,
+				&class_device_attr_companion);
+}
+
+
+/*-------------------------------------------------------------------------*/
+
 static int check_reset_complete (
 	struct ehci_hcd	*ehci,
 	int		index,
@@ -502,6 +599,16 @@ static int ehci_hub_control (
 			/* see what we found out */
 			temp = check_reset_complete (ehci, wIndex, status_reg,
 					ehci_readl(ehci, status_reg));
+		}
+
+		/* transfer dedicated ports to the companion hc */
+		if ((temp & PORT_CONNECT) &&
+				test_bit(wIndex, &ehci->companion_ports)) {
+			temp &= ~PORT_RWC_BITS;
+			temp |= PORT_OWNER;
+			ehci_writel(ehci, temp, status_reg);
+			ehci_dbg(ehci, "port %d --> companion\n", wIndex + 1);
+			temp = ehci_readl(ehci, status_reg);
 		}
 
 		/*

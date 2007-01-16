@@ -388,6 +388,7 @@ static void ehci_stop (struct usb_hcd *hcd)
 	/* let companion controllers work when we aren't */
 	ehci_writel(ehci, 0, &ehci->regs->configured_flag);
 
+	remove_companion_file(ehci);
 	remove_debug_files (ehci);
 
 	/* root hub is shut down separately (first, when possible) */
@@ -563,6 +564,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	 * since the class device isn't created that early.
 	 */
 	create_debug_files(ehci);
+	create_companion_file(ehci);
 
 	return 0;
 }
