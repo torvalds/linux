@@ -392,6 +392,14 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if (state > PCI_D3hot)
 		state = PCI_D3hot;
 
+	/*
+	 * If the device or the parent bridge can't support PCI PM, ignore
+	 * the request if we're doing anything besides putting it into D0
+	 * (which would only happen on boot).
+	 */
+	if ((state == PCI_D1 || state == PCI_D2) && pci_no_d1d2(dev))
+		return 0;
+
 	/* Validate current state:
 	 * Can enter D0 from any state, but if we can only go deeper 
 	 * to sleep if we're already in a low power state
@@ -403,13 +411,6 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	} else if (dev->current_state == state)
 		return 0;        /* we're already there */
 
-	/*
-	 * If the device or the parent bridge can't support PCI PM, ignore
-	 * the request if we're doing anything besides putting it into D0
-	 * (which would only happen on boot).
-	 */
-	if ((state == PCI_D1 || state == PCI_D2) && pci_no_d1d2(dev))
-		return 0;
 
 	/* find PCI PM capability in list */
 	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
