@@ -1515,8 +1515,6 @@ static inline int irda_usb_parse_endpoints(struct irda_usb_cb *self, struct usb_
 
 	IRDA_DEBUG(0, "%s(), And our endpoints are : in=%02X, out=%02X (%d), int=%02X\n",
 		__FUNCTION__, self->bulk_in_ep, self->bulk_out_ep, self->bulk_out_mtu, self->bulk_int_ep);
-	/* Should be 8, 16, 32 or 64 bytes */
-	IRDA_ASSERT(self->bulk_out_mtu == 64, ;);
 
 	return((self->bulk_in_ep != 0) && (self->bulk_out_ep != 0));
 }
