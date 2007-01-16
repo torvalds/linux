@@ -929,7 +929,6 @@ MODULE_LICENSE ("GPL");
 static int __init ohci_hcd_mod_init(void)
 {
 	int retval = 0;
-	int ls = 0;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -941,46 +940,44 @@ static int __init ohci_hcd_mod_init(void)
 #ifdef PLATFORM_DRIVER
 	retval = platform_driver_register(&PLATFORM_DRIVER);
 	if (retval < 0)
-		return retval;
-	ls++;
+		goto error_platform;
 #endif
 
 #ifdef OF_PLATFORM_DRIVER
 	retval = of_register_platform_driver(&OF_PLATFORM_DRIVER);
 	if (retval < 0)
-		goto error;
-	ls++;
+		goto error_of_platform;
 #endif
 
 #ifdef SA1111_DRIVER
 	retval = sa1111_driver_register(&SA1111_DRIVER);
 	if (retval < 0)
-		goto error;
-	ls++;
+		goto error_sa1111;
 #endif
 
 #ifdef PCI_DRIVER
 	retval = pci_register_driver(&PCI_DRIVER);
 	if (retval < 0)
-		goto error;
-	ls++;
+		goto error_pci;
 #endif
 
 	return retval;
 
 	/* Error path */
-error:
-#ifdef PLATFORM_DRIVER
-	if (ls--)
-		platform_driver_unregister(&PLATFORM_DRIVER);
-#endif
-#ifdef OF_PLATFORM_DRIVER
-	if (ls--)
-		of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
+#ifdef PCI_DRIVER
+ error_pci:
 #endif
 #ifdef SA1111_DRIVER
-	if (ls--)
-		sa1111_driver_unregister(&SA1111_DRIVER);
+	sa1111_driver_unregister(&SA1111_DRIVER);
+ error_sa1111:
+#endif
+#ifdef OF_PLATFORM_DRIVER
+	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
+ error_of_platform:
+#endif
+#ifdef PLATFORM_DRIVER
+	platform_driver_unregister(&PLATFORM_DRIVER);
+ error_platform:
 #endif
 	return retval;
 }
