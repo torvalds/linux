@@ -193,6 +193,7 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 static int check_reset_complete (
 	struct ehci_hcd	*ehci,
 	int		index,
+	u32 __iomem	*status_reg,
 	int		port_status
 ) {
 	if (!(port_status & PORT_CONNECT)) {
@@ -217,8 +218,7 @@ static int check_reset_complete (
 		// what happens if HCS_N_CC(params) == 0 ?
 		port_status |= PORT_OWNER;
 		port_status &= ~PORT_RWC_BITS;
-		ehci_writel(ehci, port_status,
-			    &ehci->regs->port_status [index]);
+		ehci_writel(ehci, port_status, status_reg);
 
 	} else
 		ehci_dbg (ehci, "port %d high speed\n", index + 1);
@@ -347,6 +347,7 @@ static int ehci_hub_control (
 ) {
 	struct ehci_hcd	*ehci = hcd_to_ehci (hcd);
 	int		ports = HCS_N_PORTS (ehci->hcs_params);
+	u32 __iomem	*status_reg = &ehci->regs->port_status[wIndex - 1];
 	u32		temp, status;
 	unsigned long	flags;
 	int		retval = 0;
@@ -375,18 +376,17 @@ static int ehci_hub_control (
 		if (!wIndex || wIndex > ports)
 			goto error;
 		wIndex--;
-		temp = ehci_readl(ehci, &ehci->regs->port_status [wIndex]);
+		temp = ehci_readl(ehci, status_reg);
 		if (temp & PORT_OWNER)
 			break;
 
 		switch (wValue) {
 		case USB_PORT_FEAT_ENABLE:
-			ehci_writel(ehci, temp & ~PORT_PE,
-				    &ehci->regs->port_status [wIndex]);
+			ehci_writel(ehci, temp & ~PORT_PE, status_reg);
 			break;
 		case USB_PORT_FEAT_C_ENABLE:
 			ehci_writel(ehci, (temp & ~PORT_RWC_BITS) | PORT_PEC,
-				    &ehci->regs->port_status [wIndex]);
+					status_reg);
 			break;
 		case USB_PORT_FEAT_SUSPEND:
 			if (temp & PORT_RESET)
@@ -399,7 +399,7 @@ static int ehci_hub_control (
 				/* resume signaling for 20 msec */
 				temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
 				ehci_writel(ehci, temp | PORT_RESUME,
-					    &ehci->regs->port_status [wIndex]);
+						status_reg);
 				ehci->reset_done [wIndex] = jiffies
 						+ msecs_to_jiffies (20);
 			}
@@ -411,15 +411,15 @@ static int ehci_hub_control (
 			if (HCS_PPC (ehci->hcs_params))
 				ehci_writel(ehci,
 					  temp & ~(PORT_RWC_BITS | PORT_POWER),
-					  &ehci->regs->port_status [wIndex]);
+					  status_reg);
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
 			ehci_writel(ehci, (temp & ~PORT_RWC_BITS) | PORT_CSC,
-				    &ehci->regs->port_status [wIndex]);
+					status_reg);
 			break;
 		case USB_PORT_FEAT_C_OVER_CURRENT:
 			ehci_writel(ehci, (temp & ~PORT_RWC_BITS) | PORT_OCC,
-				    &ehci->regs->port_status [wIndex]);
+					status_reg);
 			break;
 		case USB_PORT_FEAT_C_RESET:
 			/* GetPortStatus clears reset */
@@ -443,7 +443,7 @@ static int ehci_hub_control (
 			goto error;
 		wIndex--;
 		status = 0;
-		temp = ehci_readl(ehci, &ehci->regs->port_status [wIndex]);
+		temp = ehci_readl(ehci, status_reg);
 
 		// wPortChange bits
 		if (temp & PORT_CSC)
@@ -461,13 +461,11 @@ static int ehci_hub_control (
 			ehci->reset_done [wIndex] = 0;
 
 			/* stop resume signaling */
-			temp = ehci_readl(ehci,
-					  &ehci->regs->port_status [wIndex]);
+			temp = ehci_readl(ehci, status_reg);
 			ehci_writel(ehci,
-				    temp & ~(PORT_RWC_BITS | PORT_RESUME),
-				    &ehci->regs->port_status [wIndex]);
-			retval = handshake(ehci,
-					   &ehci->regs->port_status [wIndex],
+					temp & ~(PORT_RWC_BITS | PORT_RESUME),
+					status_reg);
+			retval = handshake(ehci, status_reg,
 					   PORT_RESUME, 0, 2000 /* 2msec */);
 			if (retval != 0) {
 				ehci_err (ehci, "port %d resume error %d\n",
@@ -486,12 +484,11 @@ static int ehci_hub_control (
 
 			/* force reset to complete */
 			ehci_writel(ehci, temp & ~(PORT_RWC_BITS | PORT_RESET),
-				    &ehci->regs->port_status [wIndex]);
+					status_reg);
 			/* REVISIT:  some hardware needs 550+ usec to clear
 			 * this bit; seems too long to spin routinely...
 			 */
-			retval = handshake(ehci,
-					   &ehci->regs->port_status [wIndex],
+			retval = handshake(ehci, status_reg,
 					PORT_RESET, 0, 750);
 			if (retval != 0) {
 				ehci_err (ehci, "port %d reset error %d\n",
@@ -500,9 +497,8 @@ static int ehci_hub_control (
 			}
 
 			/* see what we found out */
-			temp = check_reset_complete (ehci, wIndex,
-				ehci_readl(ehci,
-					   &ehci->regs->port_status [wIndex]));
+			temp = check_reset_complete (ehci, wIndex, status_reg,
+					ehci_readl(ehci, status_reg));
 		}
 
 		// don't show wPortStatus if it's owned by a companion hc
@@ -547,7 +543,7 @@ static int ehci_hub_control (
 		if (!wIndex || wIndex > ports)
 			goto error;
 		wIndex--;
-		temp = ehci_readl(ehci, &ehci->regs->port_status [wIndex]);
+		temp = ehci_readl(ehci, status_reg);
 		if (temp & PORT_OWNER)
 			break;
 
@@ -561,13 +557,12 @@ static int ehci_hub_control (
 				goto error;
 			if (device_may_wakeup(&hcd->self.root_hub->dev))
 				temp |= PORT_WAKE_BITS;
-			ehci_writel(ehci, temp | PORT_SUSPEND,
-				    &ehci->regs->port_status [wIndex]);
+			ehci_writel(ehci, temp | PORT_SUSPEND, status_reg);
 			break;
 		case USB_PORT_FEAT_POWER:
 			if (HCS_PPC (ehci->hcs_params))
 				ehci_writel(ehci, temp | PORT_POWER,
-					    &ehci->regs->port_status [wIndex]);
+						status_reg);
 			break;
 		case USB_PORT_FEAT_RESET:
 			if (temp & PORT_RESUME)
@@ -595,8 +590,7 @@ static int ehci_hub_control (
 				ehci->reset_done [wIndex] = jiffies
 						+ msecs_to_jiffies (50);
 			}
-			ehci_writel(ehci, temp,
-				    &ehci->regs->port_status [wIndex]);
+			ehci_writel(ehci, temp, status_reg);
 			break;
 
 		/* For downstream facing ports (these):  one hub port is put
@@ -611,8 +605,7 @@ static int ehci_hub_control (
 			ehci_quiesce(ehci);
 			ehci_halt(ehci);
 			temp |= selector << 16;
-			ehci_writel(ehci, temp,
-				    &ehci->regs->port_status [wIndex]);
+			ehci_writel(ehci, temp, status_reg);
 			break;
 
 		default:
