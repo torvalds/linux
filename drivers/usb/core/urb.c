@@ -235,7 +235,6 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 
 	urb->status = -EINPROGRESS;
 	urb->actual_length = 0;
-	urb->bandwidth = 0;
 
 	/* Lots of sanity checks, so HCDs can rely on clean data
 	 * and don't need to duplicate tests

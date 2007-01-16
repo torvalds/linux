@@ -1110,7 +1110,6 @@ struct urb
 	struct kref kref;		/* reference count of the URB */
 	spinlock_t lock;		/* lock for the URB */
 	void *hcpriv;			/* private data for host controller */
-	int bandwidth;			/* bandwidth for INT/ISO request */
 	atomic_t use_count;		/* concurrent submissions counter */
 	u8 reject;			/* submissions will fail */
 
