@@ -270,16 +270,14 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	spin_lock_irqsave (&ehci->lock, flags);
 	for (i = 0; i < ports; i++) {
 		temp = ehci_readl(ehci, &ehci->regs->port_status [i]);
-		if (temp & PORT_OWNER) {
-			/* don't report this in GetPortStatus */
-			if (temp & PORT_CSC) {
-				temp &= ~PORT_RWC_BITS;
-				temp |= PORT_CSC;
-				ehci_writel(ehci, temp,
-					    &ehci->regs->port_status [i]);
-			}
-			continue;
-		}
+
+		/*
+		 * Return status information even for ports with OWNER set.
+		 * Otherwise khubd wouldn't see the disconnect event when a
+		 * high-speed device is switched over to the companion
+		 * controller by the user.
+		 */
+
 		if (!(temp & PORT_CONNECT))
 			ehci->reset_done [i] = 0;
 		if ((temp & mask) != 0
@@ -377,8 +375,13 @@ static int ehci_hub_control (
 			goto error;
 		wIndex--;
 		temp = ehci_readl(ehci, status_reg);
-		if (temp & PORT_OWNER)
-			break;
+
+		/*
+		 * Even if OWNER is set, so the port is owned by the
+		 * companion controller, khubd needs to be able to clear
+		 * the port-change status bits (especially
+		 * USB_PORT_FEAT_C_CONNECTION).
+		 */
 
 		switch (wValue) {
 		case USB_PORT_FEAT_ENABLE:
@@ -501,24 +504,27 @@ static int ehci_hub_control (
 					ehci_readl(ehci, status_reg));
 		}
 
-		// don't show wPortStatus if it's owned by a companion hc
-		if (!(temp & PORT_OWNER)) {
-			if (temp & PORT_CONNECT) {
-				status |= 1 << USB_PORT_FEAT_CONNECTION;
-				// status may be from integrated TT
-				status |= ehci_port_speed(ehci, temp);
-			}
-			if (temp & PORT_PE)
-				status |= 1 << USB_PORT_FEAT_ENABLE;
-			if (temp & (PORT_SUSPEND|PORT_RESUME))
-				status |= 1 << USB_PORT_FEAT_SUSPEND;
-			if (temp & PORT_OC)
-				status |= 1 << USB_PORT_FEAT_OVER_CURRENT;
-			if (temp & PORT_RESET)
-				status |= 1 << USB_PORT_FEAT_RESET;
-			if (temp & PORT_POWER)
-				status |= 1 << USB_PORT_FEAT_POWER;
+		/*
+		 * Even if OWNER is set, there's no harm letting khubd
+		 * see the wPortStatus values (they should all be 0 except
+		 * for PORT_POWER anyway).
+		 */
+
+		if (temp & PORT_CONNECT) {
+			status |= 1 << USB_PORT_FEAT_CONNECTION;
+			// status may be from integrated TT
+			status |= ehci_port_speed(ehci, temp);
 		}
+		if (temp & PORT_PE)
+			status |= 1 << USB_PORT_FEAT_ENABLE;
+		if (temp & (PORT_SUSPEND|PORT_RESUME))
+			status |= 1 << USB_PORT_FEAT_SUSPEND;
+		if (temp & PORT_OC)
+			status |= 1 << USB_PORT_FEAT_OVER_CURRENT;
+		if (temp & PORT_RESET)
+			status |= 1 << USB_PORT_FEAT_RESET;
+		if (temp & PORT_POWER)
+			status |= 1 << USB_PORT_FEAT_POWER;
 
 #ifndef	EHCI_VERBOSE_DEBUG
 	if (status & ~0xffff)	/* only if wPortChange is interesting */
