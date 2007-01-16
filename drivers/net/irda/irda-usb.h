@@ -156,6 +156,7 @@ struct irda_usb_cb {
 	struct irlap_cb   *irlap;	/* The link layer we are binded to */
 	struct qos_info qos;
 	char *speed_buff;		/* Buffer for speed changes */
+	char *tx_buff;
 
 	struct timeval stamp;
 	struct timeval now;
