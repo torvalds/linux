@@ -57,6 +57,7 @@ void s3c2410_gpio_cfgpin(unsigned int pin, unsigned int function)
 	case S3C2410_GPIO_SFN2:
 	case S3C2410_GPIO_SFN3:
 		if (pin < S3C2410_GPIO_BANKB) {
+			function -= 1;
 			function &= 1;
 			function <<= S3C2410_GPIO_OFFSET(pin);
 		} else {

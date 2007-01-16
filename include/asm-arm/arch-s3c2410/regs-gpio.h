@@ -52,10 +52,10 @@
 /* general configuration options */
 
 #define S3C2410_GPIO_LEAVE   (0xFFFFFFFF)
-#define S3C2410_GPIO_INPUT   (0xFFFFFFF0)
+#define S3C2410_GPIO_INPUT   (0xFFFFFFF0)	/* not available on A */
 #define S3C2410_GPIO_OUTPUT  (0xFFFFFFF1)
 #define S3C2410_GPIO_IRQ     (0xFFFFFFF2)	/* not available for all */
-#define S3C2410_GPIO_SFN2    (0xFFFFFFF2)	/* not available on A */
+#define S3C2410_GPIO_SFN2    (0xFFFFFFF2)	/* bank A => addr/cs/nand */
 #define S3C2410_GPIO_SFN3    (0xFFFFFFF3)	/* not available on A */
 
 /* register address for the GPIO registers.
