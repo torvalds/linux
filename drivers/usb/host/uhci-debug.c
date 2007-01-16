@@ -168,9 +168,13 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 			space, "", qh, qtype,
 			le32_to_cpu(qh->link), le32_to_cpu(element));
 	if (qh->type == USB_ENDPOINT_XFER_ISOC)
-		out += sprintf(out, "%*s    period %d frame %x desc [%p]\n",
-				space, "", qh->period, qh->iso_frame,
-				qh->iso_packet_desc);
+		out += sprintf(out, "%*s    period %d phase %d load %d us, "
+				"frame %x desc [%p]\n",
+				space, "", qh->period, qh->phase, qh->load,
+				qh->iso_frame, qh->iso_packet_desc);
+	else if (qh->type == USB_ENDPOINT_XFER_INT)
+		out += sprintf(out, "%*s    period %d phase %d load %d us\n",
+				space, "", qh->period, qh->phase, qh->load);
 
 	if (element & UHCI_PTR_QH)
 		out += sprintf(out, "%*s  Element points to QH (bug?)\n", space, "");
@@ -352,6 +356,17 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 	out += uhci_show_root_hub_state(uhci, out, len - (out - buf));
 	out += sprintf(out, "HC status\n");
 	out += uhci_show_status(uhci, out, len - (out - buf));
+
+	out += sprintf(out, "Periodic load table\n");
+	for (i = 0; i < MAX_PHASE; ++i) {
+		out += sprintf(out, "\t%d", uhci->load[i]);
+		if (i % 8 == 7)
+			*out++ = '\n';
+	}
+	out += sprintf(out, "Total: %d, #INT: %d, #ISO: %d\n",
+			uhci->total_load,
+			uhci_to_hcd(uhci)->self.bandwidth_int_reqs,
+			uhci_to_hcd(uhci)->self.bandwidth_isoc_reqs);
 	if (debug <= 1)
 		return out - buf;
 

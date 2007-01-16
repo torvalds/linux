@@ -83,6 +83,7 @@
 #define UHCI_MAX_SOF_NUMBER	2047	/* in an SOF packet */
 #define CAN_SCHEDULE_FRAMES	1000	/* how far in the future frames
 					 * can be scheduled */
+#define MAX_PHASE		32	/* Periodic scheduling length */
 
 /* When no queues need Full-Speed Bandwidth Reclamation,
  * delay this long before turning FSBR off */
@@ -141,6 +142,8 @@ struct uhci_qh {
 	unsigned long advance_jiffies;	/* Time of last queue advance */
 	unsigned int unlink_frame;	/* When the QH was unlinked */
 	unsigned int period;		/* For Interrupt and Isochronous QHs */
+	short phase;			/* Between 0 and period-1 */
+	short load;			/* Periodic time requirement, in us */
 	unsigned int iso_frame;		/* Frame # for iso_packet_desc */
 	int iso_status;			/* Status for Isochronous URBs */
 
@@ -153,6 +156,8 @@ struct uhci_qh {
 	unsigned int needs_fixup:1;	/* Must fix the TD toggle values */
 	unsigned int is_stopped:1;	/* Queue was stopped by error/unlink */
 	unsigned int wait_expired:1;	/* QH_WAIT_TIMEOUT has expired */
+	unsigned int bandwidth_reserved:1;	/* Periodic bandwidth has
+						 * been allocated */
 } __attribute__((aligned(16)));
 
 /*
@@ -414,6 +419,9 @@ struct uhci_hcd {
 
 	wait_queue_head_t waitqh;		/* endpoint_disable waiters */
 	int num_waiting;			/* Number of waiters */
+
+	int total_load;				/* Sum of array values */
+	short load[MAX_PHASE];			/* Periodic allocations */
 };
 
 /* Convert between a usb_hcd pointer and the corresponding uhci_hcd */
