@@ -1671,8 +1671,11 @@ static int ocfs2_symlink(struct inode *dir,
 	inode->i_rdev = 0;
 	newsize = l - 1;
 	if (l > ocfs2_fast_symlink_chars(sb)) {
+		u32 offset = 0;
+
 		inode->i_op = &ocfs2_symlink_inode_operations;
-		status = ocfs2_do_extend_allocation(osb, inode, 1, new_fe_bh,
+		status = ocfs2_do_extend_allocation(osb, inode, &offset, 1,
+						    new_fe_bh,
 						    handle, data_ac, NULL,
 						    NULL);
 		if (status < 0) {

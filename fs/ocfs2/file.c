@@ -397,6 +397,7 @@ bail:
  */
 int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 			       struct inode *inode,
+			       u32 *logical_offset,
 			       u32 clusters_to_add,
 			       struct buffer_head *fe_bh,
 			       handle_t *handle,
@@ -460,17 +461,13 @@ int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 	block = ocfs2_clusters_to_blocks(osb->sb, bit_off);
 	mlog(0, "Allocating %u clusters at block %u for inode %llu\n",
 	     num_bits, bit_off, (unsigned long long)OCFS2_I(inode)->ip_blkno);
-	status = ocfs2_insert_extent(osb, handle, inode, fe_bh, block,
-				     num_bits, meta_ac);
+	status = ocfs2_insert_extent(osb, handle, inode, fe_bh,
+				     *logical_offset, block, num_bits,
+				     meta_ac);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;
 	}
-
-	le32_add_cpu(&fe->i_clusters, num_bits);
-	spin_lock(&OCFS2_I(inode)->ip_lock);
-	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
 
 	status = ocfs2_journal_dirty(handle, fe_bh);
 	if (status < 0) {
@@ -479,6 +476,7 @@ int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 	}
 
 	clusters_to_add -= num_bits;
+	*logical_offset += num_bits;
 
 	if (clusters_to_add) {
 		mlog(0, "need to alloc once more, clusters = %u, wanted = "
@@ -501,7 +499,7 @@ static int ocfs2_extend_allocation(struct inode *inode,
 	int restart_func = 0;
 	int drop_alloc_sem = 0;
 	int credits, num_free_extents;
-	u32 prev_clusters;
+	u32 prev_clusters, logical_start;
 	struct buffer_head *bh = NULL;
 	struct ocfs2_dinode *fe = NULL;
 	handle_t *handle = NULL;
@@ -511,6 +509,12 @@ static int ocfs2_extend_allocation(struct inode *inode,
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	mlog_entry("(clusters_to_add = %u)\n", clusters_to_add);
+
+	/*
+	 * This function only exists for file systems which don't
+	 * support holes.
+	 */
+	BUG_ON(ocfs2_sparse_alloc(osb));
 
 	status = ocfs2_read_block(osb, OCFS2_I(inode)->ip_blkno, &bh,
 				  OCFS2_BH_CACHED, inode);
@@ -525,6 +529,8 @@ static int ocfs2_extend_allocation(struct inode *inode,
 		status = -EIO;
 		goto leave;
 	}
+
+	logical_start = OCFS2_I(inode)->ip_clusters;
 
 restart_all:
 	BUG_ON(le32_to_cpu(fe->i_clusters) != OCFS2_I(inode)->ip_clusters);
@@ -590,6 +596,7 @@ restarted_transaction:
 
 	status = ocfs2_do_extend_allocation(osb,
 					    inode,
+					    &logical_start,
 					    clusters_to_add,
 					    bh,
 					    handle,

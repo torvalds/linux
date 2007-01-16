@@ -303,6 +303,13 @@ static inline int ocfs2_should_order_data(struct inode *inode)
 	return 1;
 }
 
+static inline int ocfs2_sparse_alloc(struct ocfs2_super *osb)
+{
+	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC)
+		return 1;
+	return 0;
+}
+
 /* set / clear functions because cluster events can make these happen
  * in parallel so we want the transitions to be atomic. this also
  * means that any future flags osb_flags must be protected by spinlock

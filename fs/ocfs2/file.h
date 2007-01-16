@@ -39,6 +39,7 @@ enum ocfs2_alloc_restarted {
 };
 int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 			       struct inode *inode,
+			       u32 *cluster_start,
 			       u32 clusters_to_add,
 			       struct buffer_head *fe_bh,
 			       handle_t *handle,

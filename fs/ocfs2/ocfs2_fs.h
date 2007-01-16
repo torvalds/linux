@@ -86,7 +86,8 @@
 	OCFS2_SB(sb)->s_feature_incompat &= ~(mask)
 
 #define OCFS2_FEATURE_COMPAT_SUPP	OCFS2_FEATURE_COMPAT_BACKUP_SB
-#define OCFS2_FEATURE_INCOMPAT_SUPP	OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT
+#define OCFS2_FEATURE_INCOMPAT_SUPP	(OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT \
+					 | OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC)
 #define OCFS2_FEATURE_RO_COMPAT_SUPP	0
 
 /*
@@ -311,7 +312,10 @@ struct ocfs2_extent_list {
 /*00*/	__le16 l_tree_depth;		/* Extent tree depth from this
 					   point.  0 means data extents
 					   hang directly off this
-					   header (a leaf) */
+					   header (a leaf)
+					   NOTE: The high 8 bits cannot be
+					   used - tree_depth is never that big.
+					*/
 	__le16 l_count;			/* Number of extent records */
 	__le16 l_next_free_rec;		/* Next unused extent slot */
 	__le16 l_reserved1;
