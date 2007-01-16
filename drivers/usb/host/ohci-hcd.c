@@ -919,10 +919,16 @@ MODULE_LICENSE ("GPL");
 #define OF_PLATFORM_DRIVER	ohci_hcd_ppc_of_driver
 #endif
 
+#ifdef CONFIG_PPC_PS3
+#include "ohci-ps3.c"
+#define PS3_SYSTEM_BUS_DRIVER	ps3_ohci_sb_driver
+#endif
+
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
 	!defined(OF_PLATFORM_DRIVER) &&	\
-	!defined(SA1111_DRIVER)
+	!defined(SA1111_DRIVER) &&	\
+	!defined(PS3_SYSTEM_BUS_DRIVER)
 #error "missing bus glue for ohci-hcd"
 #endif
 
@@ -936,6 +942,12 @@ static int __init ohci_hcd_mod_init(void)
 	printk (KERN_DEBUG "%s: " DRIVER_INFO "\n", hcd_name);
 	pr_debug ("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
 		sizeof (struct ed), sizeof (struct td));
+
+#ifdef PS3_SYSTEM_BUS_DRIVER
+	retval = ps3_system_bus_driver_register(&PS3_SYSTEM_BUS_DRIVER);
+	if (retval < 0)
+		goto error_ps3;
+#endif
 
 #ifdef PLATFORM_DRIVER
 	retval = platform_driver_register(&PLATFORM_DRIVER);
@@ -979,6 +991,10 @@ static int __init ohci_hcd_mod_init(void)
 	platform_driver_unregister(&PLATFORM_DRIVER);
  error_platform:
 #endif
+#ifdef PS3_SYSTEM_BUS_DRIVER
+	ps3_system_bus_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
+ error_ps3:
+#endif
 	return retval;
 }
 module_init(ohci_hcd_mod_init);
@@ -996,6 +1012,9 @@ static void __exit ohci_hcd_mod_exit(void)
 #endif
 #ifdef PLATFORM_DRIVER
 	platform_driver_unregister(&PLATFORM_DRIVER);
+#endif
+#ifdef PS3_SYSTEM_BUS_DRIVER
+	ps3_system_bus_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
 #endif
 }
 module_exit(ohci_hcd_mod_exit);
