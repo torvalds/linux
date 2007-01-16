@@ -768,6 +768,9 @@ void usbhid_init_reports(struct hid_device *hid)
 #define USB_VENDOR_ID_PANTHERLORD	0x0810
 #define USB_DEVICE_ID_PANTHERLORD_TWIN_USB_JOYSTICK	0x0001
 
+#define USB_VENDOR_ID_SONY			0x054c
+#define USB_DEVICE_ID_SONY_PS3_CONTROLLER	0x0268
+
 /*
  * Alphabetically sorted blacklist by quirk type.
  */
@@ -949,6 +952,8 @@ static const struct hid_blacklist {
 
 	{ USB_VENDOR_ID_PANTHERLORD, USB_DEVICE_ID_PANTHERLORD_TWIN_USB_JOYSTICK, HID_QUIRK_MULTI_INPUT | HID_QUIRK_SKIP_OUTPUT_REPORTS },
 
+	{ USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS3_CONTROLLER, HID_QUIRK_SONY_PS3_CONTROLLER },
+
 	{ 0, 0 }
 };
 
@@ -1011,6 +1016,32 @@ static void hid_fixup_cymotion_descriptor(char *rdesc, int rsize)
 		rdesc[11] = rdesc[16] = 0xff;
 		rdesc[12] = rdesc[17] = 0x03;
 	}
+}
+
+/*
+ * Sending HID_REQ_GET_REPORT changes the operation mode of the ps3 controller
+ * to "operational".  Without this, the ps3 controller will not report any
+ * events.
+ */
+static void hid_fixup_sony_ps3_controller(struct usb_device *dev, int ifnum)
+{
+	int result;
+	char *buf = kmalloc(18, GFP_KERNEL);
+
+	if (!buf)
+		return;
+
+	result = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
+				 HID_REQ_GET_REPORT,
+				 USB_DIR_IN | USB_TYPE_CLASS |
+				 USB_RECIP_INTERFACE,
+				 (3 << 8) | 0xf2, ifnum, buf, 17,
+				 USB_CTRL_GET_TIMEOUT);
+
+	if (result < 0)
+		err("%s failed: %d\n", __func__, result);
+
+	kfree(buf);
 }
 
 static struct hid_device *usb_hid_configure(struct usb_interface *intf)
@@ -1302,6 +1333,10 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	if ((hid->claimed & HID_CLAIMED_INPUT))
 		hid_ff_init(hid);
+
+	if (hid->quirks & HID_QUIRK_SONY_PS3_CONTROLLER)
+		hid_fixup_sony_ps3_controller(interface_to_usbdev(intf),
+			intf->cur_altsetting->desc.bInterfaceNumber);
 
 	printk(KERN_INFO);
 
