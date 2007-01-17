@@ -163,9 +163,6 @@ void dlm_dispatch_work(struct work_struct *work)
 	dlm_workfunc_t *workfunc;
 	int tot=0;
 
-	if (!dlm_joined(dlm))
-		return;
-
 	spin_lock(&dlm->work_lock);
 	list_splice_init(&dlm->work_list, &tmp_list);
 	spin_unlock(&dlm->work_lock);
