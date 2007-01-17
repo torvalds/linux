@@ -286,8 +286,8 @@ enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 		__dlm_print_one_lock_resource(res);
 		mlog(ML_ERROR, "converting a remote lock that is already "
 		     "converting! (cookie=%u:%llu, conv=%d)\n",
-		     dlm_get_lock_cookie_node(lock->ml.cookie),
-		     dlm_get_lock_cookie_seq(lock->ml.cookie),
+		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		     lock->ml.convert_type);
 		status = DLM_DENIED;
 		goto bail;
@@ -484,8 +484,8 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 		status = DLM_IVLOCKID;
 		mlog(ML_ERROR, "did not find lock to convert on grant queue! "
 			       "cookie=%u:%llu\n",
-			       dlm_get_lock_cookie_node(cnv->cookie),
-			       dlm_get_lock_cookie_seq(cnv->cookie));
+		     dlm_get_lock_cookie_node(be64_to_cpu(cnv->cookie)),
+		     dlm_get_lock_cookie_seq(be64_to_cpu(cnv->cookie)));
 		__dlm_print_one_lock_resource(res);
 		goto leave;
 	}

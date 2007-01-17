@@ -90,8 +90,8 @@ void __dlm_print_one_lock_resource(struct dlm_lock_resource *res)
 		mlog(ML_NOTICE, "    type=%d, conv=%d, node=%u, "
 		       "cookie=%u:%llu, ast=(empty=%c,pend=%c), bast=(empty=%c,pend=%c)\n", 
 		       lock->ml.type, lock->ml.convert_type, lock->ml.node, 
-		       dlm_get_lock_cookie_node(lock->ml.cookie), 
-		       dlm_get_lock_cookie_seq(lock->ml.cookie), 
+		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		       list_empty(&lock->ast_list) ? 'y' : 'n',
 		       lock->ast_pending ? 'y' : 'n',
 		       list_empty(&lock->bast_list) ? 'y' : 'n',
@@ -105,8 +105,8 @@ void __dlm_print_one_lock_resource(struct dlm_lock_resource *res)
 		mlog(ML_NOTICE, "    type=%d, conv=%d, node=%u, "
 		       "cookie=%u:%llu, ast=(empty=%c,pend=%c), bast=(empty=%c,pend=%c)\n", 
 		       lock->ml.type, lock->ml.convert_type, lock->ml.node, 
-		       dlm_get_lock_cookie_node(lock->ml.cookie), 
-		       dlm_get_lock_cookie_seq(lock->ml.cookie), 
+		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		       list_empty(&lock->ast_list) ? 'y' : 'n',
 		       lock->ast_pending ? 'y' : 'n',
 		       list_empty(&lock->bast_list) ? 'y' : 'n',
@@ -120,8 +120,8 @@ void __dlm_print_one_lock_resource(struct dlm_lock_resource *res)
 		mlog(ML_NOTICE, "    type=%d, conv=%d, node=%u, "
 		       "cookie=%u:%llu, ast=(empty=%c,pend=%c), bast=(empty=%c,pend=%c)\n", 
 		       lock->ml.type, lock->ml.convert_type, lock->ml.node, 
-		       dlm_get_lock_cookie_node(lock->ml.cookie), 
-		       dlm_get_lock_cookie_seq(lock->ml.cookie), 
+		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		       list_empty(&lock->ast_list) ? 'y' : 'n',
 		       lock->ast_pending ? 'y' : 'n',
 		       list_empty(&lock->bast_list) ? 'y' : 'n',

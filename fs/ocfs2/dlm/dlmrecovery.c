@@ -1766,8 +1766,8 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 				u64 c = ml->cookie;
 				mlog(ML_ERROR, "could not find local lock "
 					       "with cookie %u:%llu!\n",
-					       dlm_get_lock_cookie_node(c),
-					       dlm_get_lock_cookie_seq(c));
+				     dlm_get_lock_cookie_node(be64_to_cpu(c)),
+				     dlm_get_lock_cookie_seq(be64_to_cpu(c)));
 				__dlm_print_one_lock_resource(res);
 				BUG();
 			}
@@ -1876,14 +1876,14 @@ skip_lvb:
 				mlog(ML_ERROR, "%s:%.*s: %u:%llu: lock already "
 				     "exists on this lockres!\n", dlm->name,
 				     res->lockname.len, res->lockname.name,
-				     dlm_get_lock_cookie_node(c),
-				     dlm_get_lock_cookie_seq(c));
+				     dlm_get_lock_cookie_node(be64_to_cpu(c)),
+				     dlm_get_lock_cookie_seq(be64_to_cpu(c)));
 
 				mlog(ML_NOTICE, "sent lock: type=%d, conv=%d, "
 				     "node=%u, cookie=%u:%llu, queue=%d\n",
 	      			     ml->type, ml->convert_type, ml->node,
-				     dlm_get_lock_cookie_node(ml->cookie),
-				     dlm_get_lock_cookie_seq(ml->cookie),
+				     dlm_get_lock_cookie_node(be64_to_cpu(ml->cookie)),
+				     dlm_get_lock_cookie_seq(be64_to_cpu(ml->cookie)),
 				     ml->list);
 
 				__dlm_print_one_lock_resource(res);
