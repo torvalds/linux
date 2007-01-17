@@ -98,16 +98,16 @@ enum ep0_state {
 	 * must always write descriptors to initialize the device, then
 	 * the device becomes UNCONNECTED until enumeration.
 	 */
-	STATE_OPENED,
+	STATE_DEV_OPENED,
 
 	/* From then on, ep0 fd is in either of two basic modes:
 	 * - (UN)CONNECTED: read usb_gadgetfs_event(s) from it
 	 * - SETUP: read/write will transfer control data and succeed;
 	 *   or if "wrong direction", performs protocol stall
 	 */
-	STATE_UNCONNECTED,
-	STATE_CONNECTED,
-	STATE_SETUP,
+	STATE_DEV_UNCONNECTED,
+	STATE_DEV_CONNECTED,
+	STATE_DEV_SETUP,
 
 	/* UNBOUND means the driver closed ep0, so the device won't be
 	 * accessible again (DEV_DISABLED) until all fds are closed.
@@ -121,7 +121,7 @@ enum ep0_state {
 struct dev_data {
 	spinlock_t			lock;
 	atomic_t			count;
-	enum ep0_state			state;
+	enum ep0_state			state;		/* P: lock */
 	struct usb_gadgetfs_event	event [N_EVENT];
 	unsigned			ev_next;
 	struct fasync_struct		*fasync;
@@ -942,8 +942,14 @@ static void ep0_complete (struct usb_ep *ep, struct usb_request *req)
 			free = 0;
 		dev->setup_out_ready = 1;
 		ep0_readable (dev);
-	} else if (dev->state == STATE_SETUP)
-		dev->state = STATE_CONNECTED;
+	} else {
+		unsigned long	flags;
+
+		spin_lock_irqsave(&dev->lock, flags);
+		if (dev->state == STATE_DEV_SETUP)
+			dev->state = STATE_DEV_CONNECTED;
+		spin_unlock_irqrestore(&dev->lock, flags);
+	}
 
 	/* clean up as appropriate */
 	if (free && req->buf != &dev->rbuf)
@@ -988,13 +994,13 @@ ep0_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 	}
 
 	/* control DATA stage */
-	if ((state = dev->state) == STATE_SETUP) {
+	if ((state = dev->state) == STATE_DEV_SETUP) {
 
 		if (dev->setup_in) {		/* stall IN */
 			VDEBUG(dev, "ep0in stall\n");
 			(void) usb_ep_set_halt (dev->gadget->ep0);
 			retval = -EL2HLT;
-			dev->state = STATE_CONNECTED;
+			dev->state = STATE_DEV_CONNECTED;
 
 		} else if (len == 0) {		/* ack SET_CONFIGURATION etc */
 			struct usb_ep		*ep = dev->gadget->ep0;
@@ -1002,7 +1008,7 @@ ep0_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 
 			if ((retval = setup_req (ep, req, 0)) == 0)
 				retval = usb_ep_queue (ep, req, GFP_ATOMIC);
-			dev->state = STATE_CONNECTED;
+			dev->state = STATE_DEV_CONNECTED;
 
 			/* assume that was SET_CONFIGURATION */
 			if (dev->current_config) {
@@ -1061,7 +1067,7 @@ scan:
 		len = min (len, tmp * sizeof (struct usb_gadgetfs_event));
 		n = len / sizeof (struct usb_gadgetfs_event);
 
-		/* ep0 can't deliver events when STATE_SETUP */
+		/* ep0 can't deliver events when STATE_DEV_SETUP */
 		for (i = 0; i < n; i++) {
 			if (dev->event [i].type == GADGETFS_SETUP) {
 				len = i + 1;
@@ -1088,7 +1094,7 @@ scan:
 					sizeof (struct usb_gadgetfs_event)
 						* (tmp - len));
 			if (n == 0)
-				dev->state = STATE_SETUP;
+				dev->state = STATE_DEV_SETUP;
 			spin_unlock_irq (&dev->lock);
 		}
 		return retval;
@@ -1103,8 +1109,8 @@ scan:
 		DBG (dev, "fail %s, state %d\n", __FUNCTION__, state);
 		retval = -ESRCH;
 		break;
-	case STATE_UNCONNECTED:
-	case STATE_CONNECTED:
+	case STATE_DEV_UNCONNECTED:
+	case STATE_DEV_CONNECTED:
 		spin_unlock_irq (&dev->lock);
 		DBG (dev, "%s wait\n", __FUNCTION__);
 
@@ -1131,7 +1137,7 @@ next_event (struct dev_data *dev, enum usb_gadgetfs_event_type type)
 	switch (type) {
 	/* these events purge the queue */
 	case GADGETFS_DISCONNECT:
-		if (dev->state == STATE_SETUP)
+		if (dev->state == STATE_DEV_SETUP)
 			dev->setup_abort = 1;
 		// FALL THROUGH
 	case GADGETFS_CONNECT:
@@ -1178,7 +1184,7 @@ ep0_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 		retval = -EIDRM;
 
 	/* data and/or status stage for control request */
-	} else if (dev->state == STATE_SETUP) {
+	} else if (dev->state == STATE_DEV_SETUP) {
 
 		/* IN DATA+STATUS caller makes len <= wLength */
 		if (dev->setup_in) {
@@ -1209,7 +1215,7 @@ ep0_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 			VDEBUG(dev, "ep0out stall\n");
 			(void) usb_ep_set_halt (dev->gadget->ep0);
 			retval = -EL2HLT;
-			dev->state = STATE_CONNECTED;
+			dev->state = STATE_DEV_CONNECTED;
 		} else {
 			DBG(dev, "bogus ep0out stall!\n");
 		}
@@ -1251,7 +1257,9 @@ dev_release (struct inode *inode, struct file *fd)
 	put_dev (dev);
 
 	/* other endpoints were all decoupled from this device */
+	spin_lock_irq(&dev->lock);
 	dev->state = STATE_DEV_DISABLED;
+	spin_unlock_irq(&dev->lock);
 	return 0;
 }
 
@@ -1272,7 +1280,7 @@ ep0_poll (struct file *fd, poll_table *wait)
                goto out;
        }
 
-       if (dev->state == STATE_SETUP) {
+       if (dev->state == STATE_DEV_SETUP) {
                if (dev->setup_in || dev->setup_can_stall)
                        mask = POLLOUT;
        } else {
@@ -1382,9 +1390,9 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 
 	spin_lock (&dev->lock);
 	dev->setup_abort = 0;
-	if (dev->state == STATE_UNCONNECTED) {
+	if (dev->state == STATE_DEV_UNCONNECTED) {
 
-		dev->state = STATE_CONNECTED;
+		dev->state = STATE_DEV_CONNECTED;
 		dev->dev->bMaxPacketSize0 = gadget->ep0->maxpacket;
 
 #ifdef	CONFIG_USB_GADGET_DUALSPEED
@@ -1404,7 +1412,7 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	 * then ep0_{read,write} will report the wrong status. controller
 	 * driver will have aborted pending i/o.
 	 */
-	} else if (dev->state == STATE_SETUP)
+	} else if (dev->state == STATE_DEV_SETUP)
 		dev->setup_abort = 1;
 
 	req->buf = dev->rbuf;
@@ -1550,7 +1558,7 @@ delegate:
 	}
 
 	/* proceed with data transfer and status phases? */
-	if (value >= 0 && dev->state != STATE_SETUP) {
+	if (value >= 0 && dev->state != STATE_DEV_SETUP) {
 		req->length = value;
 		req->zero = value < w_length;
 		value = usb_ep_queue (gadget->ep0, req, GFP_ATOMIC);
@@ -1714,7 +1722,9 @@ gadgetfs_bind (struct usb_gadget *gadget)
 		goto enomem;
 
 	INFO (dev, "bound to %s driver\n", gadget->name);
-	dev->state = STATE_UNCONNECTED;
+	spin_lock_irq(&dev->lock);
+	dev->state = STATE_DEV_UNCONNECTED;
+	spin_unlock_irq(&dev->lock);
 	get_dev (dev);
 	return 0;
 
@@ -1729,11 +1739,9 @@ gadgetfs_disconnect (struct usb_gadget *gadget)
 	struct dev_data		*dev = get_gadget_data (gadget);
 
 	spin_lock (&dev->lock);
-	if (dev->state == STATE_UNCONNECTED) {
-		DBG (dev, "already unconnected\n");
+	if (dev->state == STATE_DEV_UNCONNECTED)
 		goto exit;
-	}
-	dev->state = STATE_UNCONNECTED;
+	dev->state = STATE_DEV_UNCONNECTED;
 
 	INFO (dev, "disconnected\n");
 	next_event (dev, GADGETFS_DISCONNECT);
@@ -1750,9 +1758,9 @@ gadgetfs_suspend (struct usb_gadget *gadget)
 	INFO (dev, "suspended from state %d\n", dev->state);
 	spin_lock (&dev->lock);
 	switch (dev->state) {
-	case STATE_SETUP:		// VERY odd... host died??
-	case STATE_CONNECTED:
-	case STATE_UNCONNECTED:
+	case STATE_DEV_SETUP:		// VERY odd... host died??
+	case STATE_DEV_CONNECTED:
+	case STATE_DEV_UNCONNECTED:
 		next_event (dev, GADGETFS_SUSPEND);
 		ep0_readable (dev);
 		/* FALLTHROUGH */
@@ -1848,9 +1856,6 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	u32			tag;
 	char			*kbuf;
 
-	if (dev->state != STATE_OPENED)
-		return -EEXIST;
-
 	if (len < (USB_DT_CONFIG_SIZE + USB_DT_DEVICE_SIZE + 4))
 		return -EINVAL;
 
@@ -1942,13 +1947,15 @@ dev_open (struct inode *inode, struct file *fd)
 	struct dev_data		*dev = inode->i_private;
 	int			value = -EBUSY;
 
+	spin_lock_irq(&dev->lock);
 	if (dev->state == STATE_DEV_DISABLED) {
 		dev->ev_next = 0;
-		dev->state = STATE_OPENED;
+		dev->state = STATE_DEV_OPENED;
 		fd->private_data = dev;
 		get_dev (dev);
 		value = 0;
 	}
+	spin_unlock_irq(&dev->lock);
 	return value;
 }
 
