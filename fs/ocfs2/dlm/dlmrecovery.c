@@ -1420,6 +1420,7 @@ int dlm_mig_lockres_handler(struct o2net_msg *msg, u32 len, void *data)
 		spin_lock(&res->spinlock);
 		res->state &= ~DLM_LOCK_RES_IN_PROGRESS;
 		spin_unlock(&res->spinlock);
+		wake_up(&res->wq);
 
 		/* add an extra ref for just-allocated lockres 
 		 * otherwise the lockres will be purged immediately */

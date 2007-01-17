@@ -1967,6 +1967,7 @@ ok:
 		spin_unlock(&mle->spinlock);
 
 		if (res) {
+			int wake = 0;
 			spin_lock(&res->spinlock);
 			if (mle->type == DLM_MLE_MIGRATION) {
 				mlog(0, "finishing off migration of lockres %.*s, "
@@ -1974,6 +1975,7 @@ ok:
 			       		res->lockname.len, res->lockname.name,
 			       		dlm->node_num, mle->new_master);
 				res->state &= ~DLM_LOCK_RES_MIGRATING;
+				wake = 1;
 				dlm_change_lockres_owner(dlm, res, mle->new_master);
 				BUG_ON(res->state & DLM_LOCK_RES_DIRTY);
 			} else {
@@ -1981,6 +1983,8 @@ ok:
 			}
 			spin_unlock(&res->spinlock);
 			have_lockres_ref = 1;
+			if (wake)
+				wake_up(&res->wq);
 		}
 
 		/* master is known, detach if not already detached.
@@ -2342,7 +2346,7 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 	struct list_head *queue, *iter;
 	int i;
 	struct dlm_lock *lock;
-	int empty = 1;
+	int empty = 1, wake = 0;
 
 	if (!dlm_grab(dlm))
 		return -EINVAL;
@@ -2467,6 +2471,7 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 		     res->lockname.name, target);
 		spin_lock(&res->spinlock);
 		res->state &= ~DLM_LOCK_RES_MIGRATING;
+		wake = 1;
 		spin_unlock(&res->spinlock);
 		ret = -EINVAL;
 	}
@@ -2525,6 +2530,7 @@ fail:
 		dlm_put_mle_inuse(mle);
 		spin_lock(&res->spinlock);
 		res->state &= ~DLM_LOCK_RES_MIGRATING;
+		wake = 1;
 		spin_unlock(&res->spinlock);
 		goto leave;
 	}
@@ -2567,6 +2573,7 @@ fail:
 				dlm_put_mle_inuse(mle);
 				spin_lock(&res->spinlock);
 				res->state &= ~DLM_LOCK_RES_MIGRATING;
+				wake = 1;
 				spin_unlock(&res->spinlock);
 				goto leave;
 			}
@@ -2594,6 +2601,11 @@ leave:
 	/* re-dirty the lockres if we failed */
 	if (ret < 0)
 		dlm_kick_thread(dlm, res);
+
+	/* wake up waiters if the MIGRATING flag got set
+	 * but migration failed */
+	if (wake)
+		wake_up(&res->wq);
 
 	/* TODO: cleanup */
 	if (mres)
