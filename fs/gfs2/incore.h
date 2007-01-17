@@ -147,7 +147,6 @@ struct gfs2_holder {
 enum {
 	GLF_LOCK		= 1,
 	GLF_STICKY		= 2,
-	GLF_PREFETCH		= 3,
 	GLF_DIRTY		= 5,
 	GLF_SKIP_WAITERS2	= 6,
 	GLF_GREEDY		= 7,
@@ -425,7 +424,6 @@ struct gfs2_tune {
 	unsigned int gt_complain_secs;
 	unsigned int gt_reclaim_limit; /* Max num of glocks in reclaim list */
 	unsigned int gt_entries_per_readdir;
-	unsigned int gt_prefetch_secs; /* Usage window for prefetched glocks */
 	unsigned int gt_greedy_default;
 	unsigned int gt_greedy_quantum;
 	unsigned int gt_greedy_max;

@@ -971,8 +971,6 @@ static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	struct gfs2_holder *gh = gl->gl_req_gh;
 
-	clear_bit(GLF_PREFETCH, &gl->gl_flags);
-
 	gfs2_assert_warn(sdp, test_bit(GLF_LOCK, &gl->gl_flags));
 	gfs2_assert_warn(sdp, queue_empty(gl, &gl->gl_holders));
 	gfs2_assert_warn(sdp, !ret);
@@ -1227,8 +1225,6 @@ restart:
 		}
 	}
 
-	clear_bit(GLF_PREFETCH, &gl->gl_flags);
-
 	return error;
 }
 
@@ -1318,36 +1314,6 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	clear_bit(GLF_LOCK, &gl->gl_flags);
 	run_queue(gl);
 	spin_unlock(&gl->gl_spin);
-}
-
-/**
- * gfs2_glock_prefetch - Try to prefetch a glock
- * @gl: the glock
- * @state: the state to prefetch in
- * @flags: flags passed to go_xmote_th()
- *
- */
-
-static void gfs2_glock_prefetch(struct gfs2_glock *gl, unsigned int state,
-				int flags)
-{
-	const struct gfs2_glock_operations *glops = gl->gl_ops;
-
-	spin_lock(&gl->gl_spin);
-
-	if (test_bit(GLF_LOCK, &gl->gl_flags) || !list_empty(&gl->gl_holders) ||
-	    !list_empty(&gl->gl_waiters1) || !list_empty(&gl->gl_waiters2) ||
-	    !list_empty(&gl->gl_waiters3) ||
-	    relaxed_state_ok(gl->gl_state, state, flags)) {
-		spin_unlock(&gl->gl_spin);
-		return;
-	}
-
-	set_bit(GLF_PREFETCH, &gl->gl_flags);
-	set_bit(GLF_LOCK, &gl->gl_flags);
-	spin_unlock(&gl->gl_spin);
-
-	glops->go_xmote_th(gl, state, flags);
 }
 
 static void greedy_work(struct work_struct *work)
@@ -1618,34 +1584,6 @@ void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs)
 }
 
 /**
- * gfs2_glock_prefetch_num - prefetch a glock based on lock number
- * @sdp: the filesystem
- * @number: the lock number
- * @glops: the glock operations for the type of glock
- * @state: the state to acquire the glock in
- * @flags: modifier flags for the aquisition
- *
- * Returns: errno
- */
-
-void gfs2_glock_prefetch_num(struct gfs2_sbd *sdp, u64 number,
-			     const struct gfs2_glock_operations *glops,
-			     unsigned int state, int flags)
-{
-	struct gfs2_glock *gl;
-	int error;
-
-	if (atomic_read(&sdp->sd_reclaim_count) <
-	    gfs2_tune_get(sdp, gt_reclaim_limit)) {
-		error = gfs2_glock_get(sdp, number, glops, CREATE, &gl);
-		if (!error) {
-			gfs2_glock_prefetch(gl, state, flags);
-			gfs2_glock_put(gl);
-		}
-	}
-}
-
-/**
  * gfs2_lvb_hold - attach a LVB from a glock
  * @gl: The glock in question
  *
@@ -1781,15 +1719,11 @@ void gfs2_glock_cb(void *cb_data, unsigned int type, void *data)
 
 static int demote_ok(struct gfs2_glock *gl)
 {
-	struct gfs2_sbd *sdp = gl->gl_sbd;
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	int demote = 1;
 
 	if (test_bit(GLF_STICKY, &gl->gl_flags))
 		demote = 0;
-	else if (test_bit(GLF_PREFETCH, &gl->gl_flags))
-		demote = time_after_eq(jiffies, gl->gl_stamp +
-				    gfs2_tune_get(sdp, gt_prefetch_secs) * HZ);
 	else if (glops->go_demote_ok)
 		demote = glops->go_demote_ok(gl);
 

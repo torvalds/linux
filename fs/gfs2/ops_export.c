@@ -113,13 +113,12 @@ struct get_name_filldir {
 	char *name;
 };
 
-static int get_name_filldir(void *opaque, const char *name, unsigned int length,
-			    u64 offset, struct gfs2_inum_host *inum,
-			    unsigned int type)
+static int get_name_filldir(void *opaque, const char *name, int length,
+			    loff_t offset, u64 inum, unsigned int type)
 {
-	struct get_name_filldir *gnfd = (struct get_name_filldir *)opaque;
+	struct get_name_filldir *gnfd = opaque;
 
-	if (!gfs2_inum_equal(inum, &gnfd->inum))
+	if (inum != gnfd->inum.no_addr)
 		return 0;
 
 	memcpy(gnfd->name, name, length);
