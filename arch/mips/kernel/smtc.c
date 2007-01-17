@@ -261,6 +261,7 @@ void smtc_configure_tlb(void)
 		    }
 		}
 		write_c0_mvpcontrol(read_c0_mvpcontrol() | MVPCONTROL_STLB);
+		ehb();
 
 		/*
 		 * Setup kernel data structures to use software total,
