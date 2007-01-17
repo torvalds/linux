@@ -1151,6 +1151,7 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->nbytes = qc->curbytes = 0;
 	qc->n_elem = 0;
 	qc->err_mask = 0;
+	qc->pad_len = 0;
 
 	ata_tf_init(qc->dev, &qc->tf);
 
