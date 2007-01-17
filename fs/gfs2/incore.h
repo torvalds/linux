@@ -128,6 +128,7 @@ enum {
 	HIF_HOLDER		= 6,
 	HIF_FIRST		= 7,
 	HIF_ABORTED		= 9,
+	HIF_WAIT		= 10,
 };
 
 struct gfs2_holder {
@@ -140,7 +141,6 @@ struct gfs2_holder {
 
 	int gh_error;
 	unsigned long gh_iflags;
-	struct completion gh_wait;
 	unsigned long gh_ip;
 };
 
