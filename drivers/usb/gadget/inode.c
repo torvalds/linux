@@ -1062,39 +1062,36 @@ scan:
 	/* return queued events right away */
 	if (dev->ev_next != 0) {
 		unsigned		i, n;
-		int			tmp = dev->ev_next;
 
-		len = min (len, tmp * sizeof (struct usb_gadgetfs_event));
 		n = len / sizeof (struct usb_gadgetfs_event);
+		if (dev->ev_next < n)
+			n = dev->ev_next;
 
-		/* ep0 can't deliver events when STATE_DEV_SETUP */
+		/* ep0 i/o has special semantics during STATE_DEV_SETUP */
 		for (i = 0; i < n; i++) {
 			if (dev->event [i].type == GADGETFS_SETUP) {
-				len = i + 1;
-				len *= sizeof (struct usb_gadgetfs_event);
-				n = 0;
+				dev->state = STATE_DEV_SETUP;
+				n = i + 1;
 				break;
 			}
 		}
 		spin_unlock_irq (&dev->lock);
+		len = n * sizeof (struct usb_gadgetfs_event);
 		if (copy_to_user (buf, &dev->event, len))
 			retval = -EFAULT;
 		else
 			retval = len;
 		if (len > 0) {
-			len /= sizeof (struct usb_gadgetfs_event);
-
 			/* NOTE this doesn't guard against broken drivers;
 			 * concurrent ep0 readers may lose events.
 			 */
 			spin_lock_irq (&dev->lock);
-			dev->ev_next -= len;
-			if (dev->ev_next != 0)
-				memmove (&dev->event, &dev->event [len],
+			if (dev->ev_next > n) {
+				memmove(&dev->event[0], &dev->event[n],
 					sizeof (struct usb_gadgetfs_event)
-						* (tmp - len));
-			if (n == 0)
-				dev->state = STATE_DEV_SETUP;
+						* (dev->ev_next - n));
+			}
+			dev->ev_next -= n;
 			spin_unlock_irq (&dev->lock);
 		}
 		return retval;
@@ -1149,7 +1146,7 @@ next_event (struct dev_data *dev, enum usb_gadgetfs_event_type type)
 		for (i = 0; i != dev->ev_next; i++) {
 			if (dev->event [i].type != type)
 				continue;
-			DBG (dev, "discard old event %d\n", type);
+			DBG(dev, "discard old event[%d] %d\n", i, type);
 			dev->ev_next--;
 			if (i == dev->ev_next)
 				break;
@@ -1162,9 +1159,9 @@ next_event (struct dev_data *dev, enum usb_gadgetfs_event_type type)
 	default:
 		BUG ();
 	}
+	VDEBUG(dev, "event[%d] = %d\n", dev->ev_next, type);
 	event = &dev->event [dev->ev_next++];
 	BUG_ON (dev->ev_next > N_EVENT);
-	VDEBUG (dev, "ev %d, next %d\n", type, dev->ev_next);
 	memset (event, 0, sizeof *event);
 	event->type = type;
 	return event;
