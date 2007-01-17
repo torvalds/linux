@@ -1507,10 +1507,11 @@ way_up_top:
 
 		/* take care of the easy cases up front */
 		spin_lock(&res->spinlock);
-		if (res->state & DLM_LOCK_RES_RECOVERING) {
+		if (res->state & (DLM_LOCK_RES_RECOVERING|
+				  DLM_LOCK_RES_MIGRATING)) {
 			spin_unlock(&res->spinlock);
 			mlog(0, "returning DLM_MASTER_RESP_ERROR since res is "
-			     "being recovered\n");
+			     "being recovered/migrated\n");
 			response = DLM_MASTER_RESP_ERROR;
 			if (mle)
 				kmem_cache_free(dlm_mle_cache, mle);
@@ -2493,6 +2494,9 @@ fail:
 	 * the lockres
 	 */
 
+	/* now that remote nodes are spinning on the MIGRATING flag,
+	 * ensure that all assert_master work is flushed. */
+	flush_workqueue(dlm->dlm_worker);
 
 	/* get an extra reference on the mle.
 	 * otherwise the assert_master from the new
@@ -2547,7 +2551,8 @@ fail:
 			    res->owner == target)
 				break;
 
-			mlog(0, "timed out during migration\n");
+			mlog(0, "%s:%.*s: timed out during migration\n",
+			     dlm->name, res->lockname.len, res->lockname.name);
 			/* avoid hang during shutdown when migrating lockres 
 			 * to a node which also goes down */
 			if (dlm_is_node_dead(dlm, target)) {
@@ -2555,20 +2560,19 @@ fail:
 				     "target %u is no longer up, restarting\n",
 				     dlm->name, res->lockname.len,
 				     res->lockname.name, target);
-				ret = -ERESTARTSYS;
+				ret = -EINVAL;
+				/* migration failed, detach and clean up mle */
+				dlm_mle_detach_hb_events(dlm, mle);
+				dlm_put_mle(mle);
+				dlm_put_mle_inuse(mle);
+				spin_lock(&res->spinlock);
+				res->state &= ~DLM_LOCK_RES_MIGRATING;
+				spin_unlock(&res->spinlock);
+				goto leave;
 			}
-		}
-		if (ret == -ERESTARTSYS) {
-			/* migration failed, detach and clean up mle */
-			dlm_mle_detach_hb_events(dlm, mle);
-			dlm_put_mle(mle);
-			dlm_put_mle_inuse(mle);
-			spin_lock(&res->spinlock);
-			res->state &= ~DLM_LOCK_RES_MIGRATING;
-			spin_unlock(&res->spinlock);
-			goto leave;
-		}
-		/* TODO: if node died: stop, clean up, return error */
+		} else
+			mlog(0, "%s:%.*s: caught signal during migration\n",
+			     dlm->name, res->lockname.len, res->lockname.name);
 	}
 
 	/* all done, set the owner, clear the flag */
