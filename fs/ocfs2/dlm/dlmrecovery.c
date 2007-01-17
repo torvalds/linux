@@ -1908,11 +1908,9 @@ skip_lvb:
 
 leave:
 	/* balance the ref taken when the work was queued */
-	if (added > 0) {
-		spin_lock(&res->spinlock);
-		dlm_lockres_drop_inflight_ref(dlm, res);
-		spin_unlock(&res->spinlock);
-	}
+	spin_lock(&res->spinlock);
+	dlm_lockres_drop_inflight_ref(dlm, res);
+	spin_unlock(&res->spinlock);
 
 	if (ret < 0) {
 		mlog_errno(ret);
