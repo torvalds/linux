@@ -1146,9 +1146,8 @@ static void find_leaf_ins(void *data, struct buffer_head *bh)
  *
  * This function doesn't handle non btree extent lists.
  */
-static int ocfs2_find_leaf(struct inode *inode,
-			   struct ocfs2_extent_list *root_el, u32 cpos,
-			   struct buffer_head **leaf_bh)
+int ocfs2_find_leaf(struct inode *inode, struct ocfs2_extent_list *root_el,
+		    u32 cpos, struct buffer_head **leaf_bh)
 {
 	int ret;
 	struct buffer_head *bh = NULL;

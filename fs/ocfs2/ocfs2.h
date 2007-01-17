@@ -46,11 +46,6 @@
 #include "endian.h"
 #include "ocfs2_lockid.h"
 
-struct ocfs2_extent_map {
-	u32		em_clusters;
-	struct rb_root	em_extents;
-};
-
 /* Most user visible OCFS2 inodes will have very few pieces of
  * metadata, but larger files (including bitmaps, etc) must be taken
  * into account when designing an access scheme. We allow a small

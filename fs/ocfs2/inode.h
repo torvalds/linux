@@ -43,7 +43,6 @@ struct ocfs2_inode_info
 	spinlock_t			ip_lock;
 	u32				ip_open_count;
 	u32				ip_clusters;
-	struct ocfs2_extent_map		ip_map;
 	struct list_head		ip_io_markers;
 
 	struct mutex			ip_io_mutex;

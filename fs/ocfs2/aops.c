@@ -158,8 +158,7 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 	if (err)
 		goto bail;
 
-	err = ocfs2_extent_map_get_blocks(inode, iblock, 1, &p_blkno,
-					  NULL);
+	err = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno, NULL);
 	if (err) {
 		mlog(ML_ERROR, "Error %d from get_blocks(0x%p, %llu, 1, "
 		     "%llu, NULL)\n", err, inode, (unsigned long long)iblock,
@@ -499,8 +498,7 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 		down_read(&OCFS2_I(inode)->ip_alloc_sem);
 	}
 
-	err = ocfs2_extent_map_get_blocks(inode, block, 1, &p_blkno,
-					  NULL);
+	err = ocfs2_extent_map_get_blocks(inode, block, &p_blkno, NULL);
 
 	if (!INODE_JOURNAL(inode)) {
 		up_read(&OCFS2_I(inode)->ip_alloc_sem);
@@ -574,7 +572,7 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 
 	/* This figures out the size of the next contiguous block, and
 	 * our logical offset */
-	ret = ocfs2_extent_map_get_blocks(inode, iblock, 1, &p_blkno,
+	ret = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno,
 					  &contig_blocks);
 	if (ret) {
 		mlog(ML_ERROR, "get_blocks() failed iblock=%llu\n",

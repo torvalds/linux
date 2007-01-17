@@ -670,8 +670,7 @@ static int ocfs2_force_read_journal(struct inode *inode)
 	       (inode->i_blocks >> (inode->i_sb->s_blocksize_bits - 9))) {
 
 		status = ocfs2_extent_map_get_blocks(inode, v_blkno,
-						     1, &p_blkno,
-						     &p_blocks);
+						     &p_blkno, &p_blocks);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;

@@ -1003,9 +1003,6 @@ void ocfs2_clear_inode(struct inode *inode)
 			"Clear inode of %llu, inode has io markers\n",
 			(unsigned long long)oi->ip_blkno);
 
-	ocfs2_extent_map_drop(inode, 0);
-	ocfs2_extent_map_init(inode);
-
 	status = ocfs2_drop_inode_locks(inode);
 	if (status < 0)
 		mlog_errno(status);
@@ -1102,8 +1099,7 @@ struct buffer_head *ocfs2_bread(struct inode *inode,
 		return NULL;
 	}
 
-	tmperr = ocfs2_extent_map_get_blocks(inode, block, 1,
-					     &p_blkno, NULL);
+	tmperr = ocfs2_extent_map_get_blocks(inode, block, &p_blkno, NULL);
 	if (tmperr < 0) {
 		mlog_errno(tmperr);
 		goto fail;

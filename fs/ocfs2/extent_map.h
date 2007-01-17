@@ -25,22 +25,7 @@
 #ifndef _EXTENT_MAP_H
 #define _EXTENT_MAP_H
 
-int init_ocfs2_extent_maps(void);
-void exit_ocfs2_extent_maps(void);
-
-/*
- * EVERY CALL here except _init, _trunc, and _drop expects alloc_sem
- * to be held.  The allocation cannot change at all while the map is
- * in the process of being updated.
- */
-int ocfs2_extent_map_init(struct inode *inode);
-int ocfs2_extent_map_append(struct inode *inode,
-			    struct ocfs2_extent_rec *rec,
-			    u32 new_clusters);
-int ocfs2_extent_map_get_blocks(struct inode *inode,
-				u64 v_blkno, int count,
-				u64 *p_blkno, int *ret_count);
-int ocfs2_extent_map_drop(struct inode *inode, u32 new_clusters);
-int ocfs2_extent_map_trunc(struct inode *inode, u32 new_clusters);
+int ocfs2_extent_map_get_blocks(struct inode *inode, u64 v_blkno, u64 *p_blkno,
+				int *ret_count);
 
 #endif  /* _EXTENT_MAP_H */

@@ -80,4 +80,7 @@ int ocfs2_commit_truncate(struct ocfs2_super *osb,
 			  struct buffer_head *fe_bh,
 			  struct ocfs2_truncate_context *tc);
 
+int ocfs2_find_leaf(struct inode *inode, struct ocfs2_extent_list *root_el,
+		    u32 cpos, struct buffer_head **leaf_bh);
+
 #endif /* OCFS2_ALLOC_H */

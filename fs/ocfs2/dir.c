@@ -379,7 +379,7 @@ int ocfs2_do_extend_dir(struct super_block *sb,
 
 	status = ocfs2_extent_map_get_blocks(dir, (dir->i_blocks >>
 						   (sb->s_blocksize_bits - 9)),
-					     1, &p_blkno, NULL);
+					     &p_blkno, NULL);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
