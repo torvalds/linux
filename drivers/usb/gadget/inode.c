@@ -576,7 +576,6 @@ static ssize_t ep_aio_read_retry(struct kiocb *iocb)
 	}
 	kfree(priv->buf);
 	kfree(priv);
-	aio_put_req(iocb);
 	return len;
 }
 
@@ -590,18 +589,17 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 	spin_lock(&epdata->dev->lock);
 	priv->req = NULL;
 	priv->epdata = NULL;
-	if (priv->iv == NULL
-			|| unlikely(req->actual == 0)
-			|| unlikely(kiocbIsCancelled(iocb))) {
+
+	/* if this was a write or a read returning no data then we
+	 * don't need to copy anything to userspace, so we can
+	 * complete the aio request immediately.
+	 */
+	if (priv->iv == NULL || unlikely(req->actual == 0)) {
 		kfree(req->buf);
 		kfree(priv);
 		iocb->private = NULL;
 		/* aio_complete() reports bytes-transferred _and_ faults */
-		if (unlikely(kiocbIsCancelled(iocb)))
-			aio_put_req(iocb);
-		else
-			aio_complete(iocb,
-				req->actual ? req->actual : req->status,
+		aio_complete(iocb, req->actual ? req->actual : req->status,
 				req->status);
 	} else {
 		/* retry() won't report both; so we hide some faults */
