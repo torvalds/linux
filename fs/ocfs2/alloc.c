@@ -2921,12 +2921,13 @@ int ocfs2_truncate_log_init(struct ocfs2_super *osb)
  * block will be so we can update his h_next_leaf_blk field, as well
  * as the dinodes i_last_eb_blk */
 static int ocfs2_find_new_last_ext_blk(struct inode *inode,
-				       u32 new_i_clusters,
+				       unsigned int clusters_to_del,
 				       struct ocfs2_path *path,
 				       struct buffer_head **new_last_eb)
 {
-	int ret = 0;
+	int next_free, ret = 0;
 	u32 cpos;
+	struct ocfs2_extent_rec *rec;
 	struct ocfs2_extent_block *eb;
 	struct ocfs2_extent_list *el;
 	struct buffer_head *bh = NULL;
@@ -2939,20 +2940,48 @@ static int ocfs2_find_new_last_ext_blk(struct inode *inode,
 
 	/* trunc to zero special case - this makes tree_depth = 0
 	 * regardless of what it is.  */
-	if (!new_i_clusters)
+	if (OCFS2_I(inode)->ip_clusters == clusters_to_del)
 		goto out;
 
 	el = path_leaf_el(path);
 	BUG_ON(!el->l_next_free_rec);
 
-	/* Make sure that this guy will actually be empty after we
-	 * clear away the data. */
+	/*
+	 * Make sure that this extent list will actually be empty
+	 * after we clear away the data. We can shortcut out if
+	 * there's more than one non-empty extent in the
+	 * list. Otherwise, a check of the remaining extent is
+	 * necessary.
+	 */
+	next_free = le16_to_cpu(el->l_next_free_rec);
+	rec = NULL;
 	if (ocfs2_is_empty_extent(&el->l_recs[0])) {
-		if (le16_to_cpu(el->l_next_free_rec) > 1 &&
-		    le32_to_cpu(el->l_recs[1].e_cpos) < new_i_clusters)
+		if (next_free > 2)
 			goto out;
-	} else if (le32_to_cpu(el->l_recs[0].e_cpos) < new_i_clusters)
-		goto out;
+
+		/* We may have a valid extent in index 1, check it. */
+		if (next_free == 2)
+			rec = &el->l_recs[1];
+
+		/*
+		 * Fall through - no more nonempty extents, so we want
+		 * to delete this leaf.
+		 */
+	} else {
+		if (next_free > 1)
+			goto out;
+
+		rec = &el->l_recs[0];
+	}
+
+	if (rec) {
+		/*
+		 * Check it we'll only be trimming off the end of this
+		 * cluster.
+		 */
+		if (le16_to_cpu(rec->e_clusters) > clusters_to_del)
+			goto out;
+	}
 
 	ret = ocfs2_find_cpos_for_left_leaf(inode->i_sb, path, &cpos);
 	if (ret) {
@@ -2984,6 +3013,223 @@ out:
 	return ret;
 }
 
+/*
+ * Trim some clusters off the rightmost edge of a tree. Only called
+ * during truncate.
+ *
+ * The caller needs to:
+ *   - start journaling of each path component.
+ *   - compute and fully set up any new last ext block
+ */
+static int ocfs2_trim_tree(struct inode *inode, struct ocfs2_path *path,
+			   handle_t *handle, struct ocfs2_truncate_context *tc,
+			   u32 clusters_to_del, u64 *delete_start)
+{
+	int ret, i, index = path->p_tree_depth;
+	u32 new_edge = 0;
+	u64 deleted_eb = 0;
+	struct buffer_head *bh;
+	struct ocfs2_extent_list *el;
+	struct ocfs2_extent_rec *rec;
+
+	*delete_start = 0;
+
+	while (index >= 0) {
+		bh = path->p_node[index].bh;
+		el = path->p_node[index].el;
+
+		mlog(0, "traveling tree (index = %d, block = %llu)\n",
+		     index,  (unsigned long long)bh->b_blocknr);
+
+		BUG_ON(le16_to_cpu(el->l_next_free_rec) == 0);
+
+		if (index !=
+		    (path->p_tree_depth - le16_to_cpu(el->l_tree_depth))) {
+			ocfs2_error(inode->i_sb,
+				    "Inode %lu has invalid ext. block %llu",
+				    inode->i_ino,
+				    (unsigned long long)bh->b_blocknr);
+			ret = -EROFS;
+			goto out;
+		}
+
+find_tail_record:
+		i = le16_to_cpu(el->l_next_free_rec) - 1;
+		rec = &el->l_recs[i];
+
+		mlog(0, "Extent list before: record %d: (%u, %u, %llu), "
+		     "next = %u\n", i, le32_to_cpu(rec->e_cpos),
+		     le32_to_cpu(rec->e_clusters),
+		     (unsigned long long)le64_to_cpu(rec->e_blkno),
+		     le16_to_cpu(el->l_next_free_rec));
+
+		BUG_ON(le32_to_cpu(rec->e_clusters) < clusters_to_del);
+
+		if (le16_to_cpu(el->l_tree_depth) == 0) {
+			/*
+			 * If the leaf block contains a single empty
+			 * extent and no records, we can just remove
+			 * the block.
+			 */
+			if (i == 0 && ocfs2_is_empty_extent(rec)) {
+				memset(rec, 0,
+				       sizeof(struct ocfs2_extent_rec));
+				el->l_next_free_rec = cpu_to_le16(0);
+
+				goto delete;
+			}
+
+			/*
+			 * Remove any empty extents by shifting things
+			 * left. That should make life much easier on
+			 * the code below. This condition is rare
+			 * enough that we shouldn't see a performance
+			 * hit.
+			 */
+			if (ocfs2_is_empty_extent(&el->l_recs[0])) {
+				le16_add_cpu(&el->l_next_free_rec, -1);
+
+				for(i = 0;
+				    i < le16_to_cpu(el->l_next_free_rec); i++)
+					el->l_recs[i] = el->l_recs[i + 1];
+
+				memset(&el->l_recs[i], 0,
+				       sizeof(struct ocfs2_extent_rec));
+
+				/*
+				 * We've modified our extent list. The
+				 * simplest way to handle this change
+				 * is to being the search from the
+				 * start again.
+				 */
+				goto find_tail_record;
+			}
+
+			le32_add_cpu(&rec->e_clusters, -clusters_to_del);
+
+			/*
+			 * We'll use "new_edge" on our way back up the
+			 * tree to know what our rightmost cpos is.
+			 */
+			new_edge = le32_to_cpu(rec->e_clusters);
+			new_edge += le32_to_cpu(rec->e_cpos);
+
+			/*
+			 * The caller will use this to delete data blocks.
+			 */
+			*delete_start = le64_to_cpu(rec->e_blkno)
+				+ ocfs2_clusters_to_blocks(inode->i_sb,
+					le32_to_cpu(rec->e_clusters));
+
+			/*
+			 * If it's now empty, remove this record.
+			 */
+			if (le32_to_cpu(rec->e_clusters) == 0) {
+				memset(rec, 0,
+				       sizeof(struct ocfs2_extent_rec));
+				le16_add_cpu(&el->l_next_free_rec, -1);
+			}
+		} else {
+			if (le64_to_cpu(rec->e_blkno) == deleted_eb) {
+				memset(rec, 0,
+				       sizeof(struct ocfs2_extent_rec));
+				le16_add_cpu(&el->l_next_free_rec, -1);
+
+				goto delete;
+			}
+
+			/* Can this actually happen? */
+			if (le16_to_cpu(el->l_next_free_rec) == 0)
+				goto delete;
+
+			/*
+			 * We never actually deleted any clusters
+			 * because our leaf was empty. There's no
+			 * reason to adjust the rightmost edge then.
+			 */
+			if (new_edge == 0)
+				goto delete;
+
+			rec->e_clusters = cpu_to_le32(new_edge);
+			le32_add_cpu(&rec->e_clusters,
+				     -le32_to_cpu(rec->e_cpos));
+
+			 /*
+			  * A deleted child record should have been
+			  * caught above.
+			  */
+			 BUG_ON(le32_to_cpu(rec->e_clusters) == 0);
+		}
+
+delete:
+		ret = ocfs2_journal_dirty(handle, bh);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		mlog(0, "extent list container %llu, after: record %d: "
+		     "(%u, %u, %llu), next = %u.\n",
+		     (unsigned long long)bh->b_blocknr, i,
+		     le32_to_cpu(rec->e_cpos), le32_to_cpu(rec->e_clusters),
+		     (unsigned long long)le64_to_cpu(rec->e_blkno),
+		     le16_to_cpu(el->l_next_free_rec));
+
+		/*
+		 * We must be careful to only attempt delete of an
+		 * extent block (and not the root inode block).
+		 */
+		if (index > 0 && le16_to_cpu(el->l_next_free_rec) == 0) {
+			struct ocfs2_extent_block *eb =
+				(struct ocfs2_extent_block *)bh->b_data;
+
+			/*
+			 * Save this for use when processing the
+			 * parent block.
+			 */
+			deleted_eb = le64_to_cpu(eb->h_blkno);
+
+			mlog(0, "deleting this extent block.\n");
+
+			ocfs2_remove_from_cache(inode, bh);
+
+			BUG_ON(le32_to_cpu(el->l_recs[0].e_clusters));
+			BUG_ON(le32_to_cpu(el->l_recs[0].e_cpos));
+			BUG_ON(le64_to_cpu(el->l_recs[0].e_blkno));
+
+			if (le16_to_cpu(eb->h_suballoc_slot) == 0) {
+				/*
+				 * This code only understands how to
+				 * lock the suballocator in slot 0,
+				 * which is fine because allocation is
+				 * only ever done out of that
+				 * suballocator too. A future version
+				 * might change that however, so avoid
+				 * a free if we don't know how to
+				 * handle it. This way an fs incompat
+				 * bit will not be necessary.
+				 */
+				ret = ocfs2_free_extent_block(handle,
+							      tc->tc_ext_alloc_inode,
+							      tc->tc_ext_alloc_bh,
+							      eb);
+
+				/* An error here is not fatal. */
+				if (ret < 0)
+					mlog_errno(ret);
+			}
+		} else {
+			deleted_eb = 0;
+		}
+
+		index--;
+	}
+
+	ret = 0;
+out:
+	return ret;
+}
+
 static int ocfs2_do_truncate(struct ocfs2_super *osb,
 			     unsigned int clusters_to_del,
 			     struct inode *inode,
@@ -2992,20 +3238,16 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 			     struct ocfs2_truncate_context *tc,
 			     struct ocfs2_path *path)
 {
-	int status, i, index;
+	int status;
 	struct ocfs2_dinode *fe;
-	struct ocfs2_extent_block *eb;
 	struct ocfs2_extent_block *last_eb = NULL;
 	struct ocfs2_extent_list *el;
-	struct buffer_head *eb_bh = NULL;
 	struct buffer_head *last_eb_bh = NULL;
 	u64 delete_blk = 0;
 
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
 
-	status = ocfs2_find_new_last_ext_blk(inode,
-					     le32_to_cpu(fe->i_clusters) -
-					     clusters_to_del,
+	status = ocfs2_find_new_last_ext_blk(inode, clusters_to_del,
 					     path, &last_eb_bh);
 	if (status < 0) {
 		mlog_errno(status);
@@ -3016,14 +3258,10 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 	 * Each component will be touched, so we might as well journal
 	 * here to avoid having to handle errors later.
 	 */
-	for (i = 0; i < path_num_items(path); i++) {
-		status = ocfs2_journal_access(handle, inode,
-					      path->p_node[i].bh,
-					      OCFS2_JOURNAL_ACCESS_WRITE);
-		if (status < 0) {
-			mlog_errno(status);
-			goto bail;
-		}
+	status = ocfs2_journal_access_path(inode, handle, path);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
 	}
 
 	if (last_eb_bh) {
@@ -3047,6 +3285,7 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 		ocfs2_error(inode->i_sb,
 			    "Inode %lu has an empty extent record, depth %u\n",
 			    inode->i_ino, le16_to_cpu(el->l_tree_depth));
+		status = -EROFS;
 		goto bail;
 	}
 
@@ -3056,38 +3295,11 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 	spin_unlock(&OCFS2_I(inode)->ip_lock);
 	le32_add_cpu(&fe->i_clusters, -clusters_to_del);
 
-	i = le16_to_cpu(el->l_next_free_rec) - 1;
-
-	BUG_ON(le32_to_cpu(el->l_recs[i].e_clusters) < clusters_to_del);
-	le32_add_cpu(&el->l_recs[i].e_clusters, -clusters_to_del);
-	/* tree depth zero, we can just delete the clusters, otherwise
-	 * we need to record the offset of the next level extent block
-	 * as we may overwrite it. */
-	if (!el->l_tree_depth) {
-		delete_blk = le64_to_cpu(el->l_recs[i].e_blkno)
-			+ ocfs2_clusters_to_blocks(osb->sb,
-					le32_to_cpu(el->l_recs[i].e_clusters));
-
-		if (!el->l_recs[i].e_clusters) {
-			/* if we deleted the whole extent record, then clear
-			 * out the other fields and update the extent
-			 * list.
-			 */
-			el->l_recs[i].e_cpos = 0;
-			el->l_recs[i].e_blkno = 0;
-			BUG_ON(!el->l_next_free_rec);
-			le16_add_cpu(&el->l_next_free_rec, -1);
-
-			/*
-			 * The leftmost record might be an empty extent -
-			 * delete it here too.
-			 */
-			if (i == 1 && ocfs2_is_empty_extent(&el->l_recs[0])) {
-				el->l_recs[0].e_cpos = 0;
-				el->l_recs[0].e_blkno = 0;
-				el->l_next_free_rec = 0;
-			}
-		}
+	status = ocfs2_trim_tree(inode, path, handle, tc,
+				 clusters_to_del, &delete_blk);
+	if (status) {
+		mlog_errno(status);
+		goto bail;
 	}
 
 	if (le32_to_cpu(fe->i_clusters) == 0) {
@@ -3115,125 +3327,13 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 		}
 	}
 
-	index = 1;
-	/* if our tree depth > 0, update all the tree blocks below us. */
-	while (index <= path->p_tree_depth) {
-		eb_bh = path->p_node[index].bh;
-		eb = (struct ocfs2_extent_block *)eb_bh->b_data;
-		el = path->p_node[index].el;
-
-		mlog(0, "traveling tree (index = %d, extent block: %llu)\n",
-		     index,  (unsigned long long)eb_bh->b_blocknr);
-
-		BUG_ON(le16_to_cpu(el->l_next_free_rec) == 0);
-		if (index !=
-		    (path->p_tree_depth - le16_to_cpu(el->l_tree_depth))) {
-			ocfs2_error(inode->i_sb,
-				    "Inode %lu has invalid ext. block %llu\n",
-				    inode->i_ino,
-				    (unsigned long long)eb_bh->b_blocknr);
-			goto bail;
-		}
-
-		i = le16_to_cpu(el->l_next_free_rec) - 1;
-
-		mlog(0, "extent block %llu, before: record %d: "
-		     "(%u, %u, %llu), next = %u\n",
-		     (unsigned long long)le64_to_cpu(eb->h_blkno), i,
-		     le32_to_cpu(el->l_recs[i].e_cpos),
-		     le32_to_cpu(el->l_recs[i].e_clusters),
-		     (unsigned long long)le64_to_cpu(el->l_recs[i].e_blkno),
-		     le16_to_cpu(el->l_next_free_rec));
-
-		BUG_ON(le32_to_cpu(el->l_recs[i].e_clusters) < clusters_to_del);
-		le32_add_cpu(&el->l_recs[i].e_clusters, -clusters_to_del);
-
-		/* bottom-most block requires us to delete data.*/
-		if (!el->l_tree_depth)
-			delete_blk = le64_to_cpu(el->l_recs[i].e_blkno)
-				+ ocfs2_clusters_to_blocks(osb->sb,
-					le32_to_cpu(el->l_recs[i].e_clusters));
-		if (!el->l_recs[i].e_clusters) {
-			el->l_recs[i].e_cpos = 0;
-			el->l_recs[i].e_blkno = 0;
-			BUG_ON(!el->l_next_free_rec);
-			le16_add_cpu(&el->l_next_free_rec, -1);
-		}
-		if (i == 1 && ocfs2_is_empty_extent(&el->l_recs[0])) {
-			el->l_recs[0].e_cpos = 0;
-			el->l_recs[0].e_blkno = 0;
-			el->l_next_free_rec = 0;
-		}
-
-		mlog(0, "extent block %llu, after: record %d: "
-		     "(%u, %u, %llu), next = %u\n",
-		     (unsigned long long)le64_to_cpu(eb->h_blkno), i,
-		     le32_to_cpu(el->l_recs[i].e_cpos),
-		     le32_to_cpu(el->l_recs[i].e_clusters),
-		     (unsigned long long)le64_to_cpu(el->l_recs[i].e_blkno),
-		     le16_to_cpu(el->l_next_free_rec));
-
-		status = ocfs2_journal_dirty(handle, eb_bh);
+	if (delete_blk) {
+		status = ocfs2_truncate_log_append(osb, handle, delete_blk,
+						   clusters_to_del);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
 		}
-
-		if (!el->l_next_free_rec) {
-			mlog(0, "deleting this extent block.\n");
-
-			ocfs2_remove_from_cache(inode, eb_bh);
-
-			BUG_ON(el->l_recs[0].e_clusters);
-			BUG_ON(el->l_recs[0].e_cpos);
-			BUG_ON(el->l_recs[0].e_blkno);
-
-			/*
-			 * We need to remove this extent block from
-			 * the list above it.
-			 *
-			 * Since we've passed it already in this loop,
-			 * no need to worry about journaling.
-			 */
-			el = path->p_node[index - 1].el;
-			i = le16_to_cpu(el->l_next_free_rec) - 1;
-			BUG_ON(i < 0);
-			el->l_recs[i].e_cpos = 0;
-			el->l_recs[i].e_clusters = 0;
-			el->l_recs[i].e_blkno = 0;
-			le16_add_cpu(&el->l_next_free_rec, -1);
-
-			if (eb->h_suballoc_slot == 0) {
-				/*
-				 * This code only understands how to
-				 * lock the suballocator in slot 0,
-				 * which is fine because allocation is
-				 * only ever done out of that
-				 * suballocator too. A future version
-				 * might change that however, so avoid
-				 * a free if we don't know how to
-				 * handle it. This way an fs incompat
-				 * bit will not be necessary.
-				 */
-				status = ocfs2_free_extent_block(handle,
-								 tc->tc_ext_alloc_inode,
-								 tc->tc_ext_alloc_bh,
-								 eb);
-				if (status < 0) {
-					mlog_errno(status);
-					goto bail;
-				}
-			}
-		}
-		index++;
-	}
-
-	BUG_ON(!delete_blk);
-	status = ocfs2_truncate_log_append(osb, handle, delete_blk,
-					   clusters_to_del);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
 	}
 	status = 0;
 bail:
@@ -3275,6 +3375,14 @@ int ocfs2_commit_truncate(struct ocfs2_super *osb,
 	}
 start:
 	/*
+	 * Check that we still have allocation to delete.
+	 */
+	if (OCFS2_I(inode)->ip_clusters == 0) {
+		status = 0;
+		goto bail;
+	}
+
+	/*
 	 * Truncate always works against the rightmost tree branch.
 	 */
 	status = ocfs2_find_path(inode, path, UINT_MAX);
@@ -3298,6 +3406,15 @@ start:
 	 * - no record needs to be removed (truncate has completed)
 	 */
 	el = path_leaf_el(path);
+	if (le16_to_cpu(el->l_next_free_rec) == 0) {
+		ocfs2_error(inode->i_sb,
+			    "Inode %llu has empty extent block at %llu\n",
+			    (unsigned long long)OCFS2_I(inode)->ip_blkno,
+			    (unsigned long long)path_leaf_bh(path)->b_blocknr);
+		status = -EROFS;
+		goto bail;
+	}
+
 	i = le16_to_cpu(el->l_next_free_rec) - 1;
 	range = le32_to_cpu(el->l_recs[i].e_cpos) +
 		le32_to_cpu(el->l_recs[i].e_clusters);
@@ -3359,10 +3476,11 @@ start:
 	ocfs2_reinit_path(path, 1);
 
 	/*
-	 * Only loop if we still have allocation.
+	 * The check above will catch the case where we've truncated
+	 * away all allocation.
 	 */
-	if (OCFS2_I(inode)->ip_clusters)
-		goto start;
+	goto start;
+
 bail:
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 
@@ -3413,22 +3531,6 @@ int ocfs2_prepare_truncate(struct ocfs2_super *osb,
 	mlog(0, "fe->i_clusters = %u, new_i_clusters = %u, fe->i_size ="
 	     "%llu\n", fe->i_clusters, new_i_clusters,
 	     (unsigned long long)fe->i_size);
-
-	if (!ocfs2_sparse_alloc(osb) &&
-	    le32_to_cpu(fe->i_clusters) <= new_i_clusters) {
-		ocfs2_error(inode->i_sb, "Dinode %llu has cluster count "
-			    "%u and size %llu whereas struct inode has "
-			    "cluster count %u and size %llu which caused an "
-			    "invalid truncate to %u clusters.",
-			    (unsigned long long)le64_to_cpu(fe->i_blkno),
-			    le32_to_cpu(fe->i_clusters),
-			    (unsigned long long)le64_to_cpu(fe->i_size),
-			    OCFS2_I(inode)->ip_clusters, i_size_read(inode),
-			    new_i_clusters);
-		mlog_meta_lvb(ML_ERROR, &OCFS2_I(inode)->ip_meta_lockres);
-		status = -EIO;
-		goto bail;
-	}
 
 	*tc = kzalloc(sizeof(struct ocfs2_truncate_context), GFP_KERNEL);
 	if (!(*tc)) {

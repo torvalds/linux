@@ -487,7 +487,6 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 				     struct buffer_head *fe_bh)
 {
 	int status = 0;
-	handle_t *handle = NULL;
 	struct ocfs2_truncate_context *tc = NULL;
 	struct ocfs2_dinode *fe;
 
@@ -495,41 +494,20 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
 
-	/* zero allocation, zero truncate :) */
-	if (!fe->i_clusters)
-		goto bail;
+	if (fe->i_clusters) {
+		status = ocfs2_prepare_truncate(osb, inode, fe_bh, &tc);
+		if (status < 0) {
+			mlog_errno(status);
+			goto out;
+		}
 
-	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
-	if (IS_ERR(handle)) {
-		status = PTR_ERR(handle);
-		handle = NULL;
-		mlog_errno(status);
-		goto bail;
+		status = ocfs2_commit_truncate(osb, inode, fe_bh, tc);
+		if (status < 0) {
+			mlog_errno(status);
+			goto out;
+		}
 	}
-
-	status = ocfs2_set_inode_size(handle, inode, fe_bh, 0ULL);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
-
-	ocfs2_commit_trans(osb, handle);
-	handle = NULL;
-
-	status = ocfs2_prepare_truncate(osb, inode, fe_bh, &tc);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
-
-	status = ocfs2_commit_truncate(osb, inode, fe_bh, tc);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
-bail:
-	if (handle)
-		ocfs2_commit_trans(osb, handle);
+out:
 
 	mlog_exit(status);
 	return status;

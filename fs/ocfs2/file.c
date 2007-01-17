@@ -344,18 +344,6 @@ static int ocfs2_truncate_file(struct inode *inode,
 	}
 	ocfs2_data_unlock(inode, 1);
 
-	if (le32_to_cpu(fe->i_clusters) ==
-	    ocfs2_clusters_for_bytes(osb->sb, new_i_size)) {
-		mlog(0, "fe->i_clusters = %u, so we do a simple truncate\n",
-		     fe->i_clusters);
-		/* No allocation change is required, so lets fast path
-		 * this truncate. */
-		status = ocfs2_simple_size_update(inode, di_bh, new_i_size);
-		if (status < 0)
-			mlog_errno(status);
-		goto bail;
-	}
-
 	/* alright, we're going to need to do a full blown alloc size
 	 * change. Orphan the inode so that recovery can complete the
 	 * truncate if necessary. This does the task of marking
@@ -785,7 +773,7 @@ static int ocfs2_extend_file(struct inode *inode,
 			     size_t tail_to_skip)
 {
 	int ret = 0;
-	u32 clusters_to_add;
+	u32 clusters_to_add = 0;
 
 	BUG_ON(!tail_to_skip && !di_bh);
 
@@ -796,6 +784,11 @@ static int ocfs2_extend_file(struct inode *inode,
 	if (i_size_read(inode) == new_i_size)
   		goto out;
 	BUG_ON(new_i_size < i_size_read(inode));
+
+	if (ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb))) {
+		BUG_ON(tail_to_skip != 0);
+		goto out_update_size;
+	}
 
 	clusters_to_add = ocfs2_clusters_for_bytes(inode->i_sb, new_i_size) - 
 		OCFS2_I(inode)->ip_clusters;
@@ -832,6 +825,7 @@ static int ocfs2_extend_file(struct inode *inode,
 		goto out_unlock;
 	}
 
+out_update_size:
 	if (!tail_to_skip) {
 		/* We're being called from ocfs2_setattr() which wants
 		 * us to update i_size */
@@ -841,7 +835,8 @@ static int ocfs2_extend_file(struct inode *inode,
 	}
 
 out_unlock:
-	ocfs2_data_unlock(inode, 1);
+	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)))
+		ocfs2_data_unlock(inode, 1);
 
 out:
 	return ret;
@@ -1097,6 +1092,14 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 		} else {
 			saved_pos = *ppos;
 		}
+
+		/*
+		 * The rest of this loop is concerned with legacy file
+		 * systems which don't support sparse files.
+		 */
+		if (ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)))
+			break;
+
 		newsize = count + saved_pos;
 
 		mlog(0, "pos=%lld newsize=%lld cursize=%lld\n",
