@@ -363,7 +363,7 @@ static ssize_t slm_read( struct file *file, char *buf, size_t count,
 						 loff_t *ppos )
 
 {
-	struct inode *node = file->f_dentry->d_inode;
+	struct inode *node = file->f_path.dentry->d_inode;
 	unsigned long page;
 	int length;
 	int end;
@@ -618,7 +618,7 @@ static ssize_t slm_write( struct file *file, const char *buf, size_t count,
 						  loff_t *ppos )
 
 {
-	struct inode *node = file->f_dentry->d_inode;
+	struct inode *node = file->f_path.dentry->d_inode;
 	int		device = iminor(node);
 	int		n, filled, w, h;
 

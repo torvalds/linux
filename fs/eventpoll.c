@@ -283,10 +283,10 @@ static struct mutex epmutex;
 static struct poll_safewake psw;
 
 /* Slab cache used to allocate "struct epitem" */
-static kmem_cache_t *epi_cache __read_mostly;
+static struct kmem_cache *epi_cache __read_mostly;
 
 /* Slab cache used to allocate "struct eppoll_entry" */
-static kmem_cache_t *pwq_cache __read_mostly;
+static struct kmem_cache *pwq_cache __read_mostly;
 
 /* Virtual fs used to allocate inodes for eventpoll files */
 static struct vfsmount *eventpoll_mnt __read_mostly;
@@ -795,8 +795,8 @@ static int ep_getfd(int *efd, struct inode **einode, struct file **efile,
 		goto eexit_4;
 	dentry->d_op = &eventpollfs_dentry_operations;
 	d_add(dentry, inode);
-	file->f_vfsmnt = mntget(eventpoll_mnt);
-	file->f_dentry = dentry;
+	file->f_path.mnt = mntget(eventpoll_mnt);
+	file->f_path.dentry = dentry;
 	file->f_mapping = inode->i_mapping;
 
 	file->f_pos = 0;
@@ -961,7 +961,7 @@ static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 	struct epitem *epi = ep_item_from_epqueue(pt);
 	struct eppoll_entry *pwq;
 
-	if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, SLAB_KERNEL))) {
+	if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, GFP_KERNEL))) {
 		init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
 		pwq->whead = whead;
 		pwq->base = epi;
@@ -1004,7 +1004,7 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 	struct ep_pqueue epq;
 
 	error = -ENOMEM;
-	if (!(epi = kmem_cache_alloc(epi_cache, SLAB_KERNEL)))
+	if (!(epi = kmem_cache_alloc(epi_cache, GFP_KERNEL)))
 		goto eexit_1;
 
 	/* Item initialization follow here ... */

@@ -798,7 +798,7 @@ static unsigned int get_baud(struct tty_struct *tty)
  */
 static void set_baud(struct tty_struct *tty, unsigned int baudcode)
 {
-	struct termios old_termios = *(tty->termios);
+	struct ktermios old_termios = *(tty->termios);
 	tty->termios->c_cflag &= ~CBAUD;	/* Clear the old baud setting */
 	tty->termios->c_cflag |= baudcode;	/* Set the new baud setting */
 	tty->driver->set_termios(tty, &old_termios);

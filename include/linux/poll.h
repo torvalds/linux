@@ -8,7 +8,8 @@
 #include <linux/compiler.h>
 #include <linux/wait.h>
 #include <linux/string.h>
-#include <linux/mm.h>
+#include <linux/fs.h>
+#include <linux/sched.h>
 #include <asm/uaccess.h>
 
 /* ~832 bytes of stack space used max in sys_select/sys_poll before allocating

@@ -734,7 +734,7 @@ int sb_mixer_init(sb_devc * devc, struct module *owner)
 	if (m == -1)
 		return 0;
 
-	mixer_devs[m] = (struct mixer_operations *)kmalloc(sizeof(struct mixer_operations), GFP_KERNEL);
+	mixer_devs[m] = kmalloc(sizeof(struct mixer_operations), GFP_KERNEL);
 	if (mixer_devs[m] == NULL)
 	{
 		printk(KERN_ERR "sb_mixer: Can't allocate memory\n");

@@ -11,43 +11,24 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
-#include <linux/spinlock.h>
 
 #include <asm/i8259.h>
 #include <asm/io.h>
 #include <asm/sni.h>
 
-DEFINE_SPINLOCK(pciasic_lock);
-
 static void enable_pciasic_irq(unsigned int irq)
 {
 	unsigned int mask = 1 << (irq - PCIMT_IRQ_INT2);
-	unsigned long flags;
 
-	spin_lock_irqsave(&pciasic_lock, flags);
 	*(volatile u8 *) PCIMT_IRQSEL |= mask;
-	spin_unlock_irqrestore(&pciasic_lock, flags);
 }
-
-static unsigned int startup_pciasic_irq(unsigned int irq)
-{
-	enable_pciasic_irq(irq);
-	return 0; /* never anything pending */
-}
-
-#define shutdown_pciasic_irq	disable_pciasic_irq
 
 void disable_pciasic_irq(unsigned int irq)
 {
 	unsigned int mask = ~(1 << (irq - PCIMT_IRQ_INT2));
-	unsigned long flags;
 
-	spin_lock_irqsave(&pciasic_lock, flags);
 	*(volatile u8 *) PCIMT_IRQSEL &= mask;
-	spin_unlock_irqrestore(&pciasic_lock, flags);
 }
-
-#define mask_and_ack_pciasic_irq disable_pciasic_irq
 
 static void end_pciasic_irq(unsigned int irq)
 {
@@ -57,11 +38,10 @@ static void end_pciasic_irq(unsigned int irq)
 
 static struct irq_chip pciasic_irq_type = {
 	.typename = "ASIC-PCI",
-	.startup = startup_pciasic_irq,
-	.shutdown = shutdown_pciasic_irq,
-	.enable = enable_pciasic_irq,
-	.disable = disable_pciasic_irq,
-	.ack = mask_and_ack_pciasic_irq,
+	.ack = disable_pciasic_irq,
+	.mask = disable_pciasic_irq,
+	.mask_ack = disable_pciasic_irq,
+	.unmask = enable_pciasic_irq,
 	.end = end_pciasic_irq,
 };
 
@@ -178,12 +158,8 @@ asmlinkage void plat_irq_dispatch(void)
 
 void __init init_pciasic(void)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&pciasic_lock, flags);
 	* (volatile u8 *) PCIMT_IRQSEL =
 		IT_EISA | IT_INTA | IT_INTB | IT_INTC | IT_INTD;
-	spin_unlock_irqrestore(&pciasic_lock, flags);
 }
 
 /*
@@ -199,12 +175,8 @@ void __init arch_init_irq(void)
 	init_pciasic();
 
 	/* Actually we've got more interrupts to handle ...  */
-	for (i = PCIMT_IRQ_INT2; i <= PCIMT_IRQ_ETHERNET; i++) {
-		irq_desc[i].status     = IRQ_DISABLED;
-		irq_desc[i].action     = 0;
-		irq_desc[i].depth      = 1;
-		irq_desc[i].chip    = &pciasic_irq_type;
-	}
+	for (i = PCIMT_IRQ_INT2; i <= PCIMT_IRQ_ETHERNET; i++)
+		set_irq_chip(i, &pciasic_irq_type);
 
 	change_c0_status(ST0_IM, IE_IRQ1|IE_IRQ2|IE_IRQ3|IE_IRQ4);
 }

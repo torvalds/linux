@@ -83,7 +83,7 @@ asmlinkage u32 sunos_mmap(u32 addr, u32 len, u32 prot, u32 flags, u32 fd, u32 of
  		file = fget(fd);
 		if (!file)
 			goto out;
-		inode = file->f_dentry->d_inode;
+		inode = file->f_path.dentry->d_inode;
 		if (imajor(inode) == MEM_MAJOR && iminor(inode) == 5) {
 			flags |= MAP_ANONYMOUS;
 			fput(file);
@@ -615,7 +615,7 @@ sunos_nfs_get_server_fd (int fd, struct sockaddr_in *addr)
 	if (!file)
 		return 0;
 
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 
 	socket = SOCKET_I(inode);
 	local.sin_family = AF_INET;
@@ -1055,7 +1055,7 @@ asmlinkage int sunos_msgsys(int op, u32 arg1, u32 arg2, u32 arg3, u32 arg4)
 		break;
 	case 2:
 		rval = -EFAULT;
-		kmbuf = (struct msgbuf *)kmalloc(sizeof(struct msgbuf) + arg3,
+		kmbuf = kmalloc(sizeof(struct msgbuf) + arg3,
 						 GFP_KERNEL);
 		if (!kmbuf)
 			break;
@@ -1078,7 +1078,7 @@ asmlinkage int sunos_msgsys(int op, u32 arg1, u32 arg2, u32 arg3, u32 arg4)
 		break;
 	case 3:
 		rval = -EFAULT;
-		kmbuf = (struct msgbuf *)kmalloc(sizeof(struct msgbuf) + arg3,
+		kmbuf = kmalloc(sizeof(struct msgbuf) + arg3,
 						 GFP_KERNEL);
 		if (!kmbuf || sunos_msgbuf_get((struct msgbuf32 __user *)(unsigned long)arg2,
 					       kmbuf, arg3))

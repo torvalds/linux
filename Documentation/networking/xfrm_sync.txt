@@ -47,10 +47,13 @@ aevent_id structure looks like:
 
    struct xfrm_aevent_id {
              struct xfrm_usersa_id           sa_id;
+             xfrm_address_t                  saddr;
              __u32                           flags;
+             __u32                           reqid;
    };
 
-xfrm_usersa_id in this message layout identifies the SA.
+The unique SA is identified by the combination of xfrm_usersa_id,
+reqid and saddr.
 
 flags are used to indicate different things. The possible
 flags are:

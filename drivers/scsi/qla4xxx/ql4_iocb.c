@@ -294,6 +294,12 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 			cmd_entry->control_flags = CF_WRITE;
 		else if (cmd->sc_data_direction == DMA_FROM_DEVICE)
 			cmd_entry->control_flags = CF_READ;
+
+		ha->bytes_xfered += cmd->request_bufflen;
+		if (ha->bytes_xfered & ~0xFFFFF){
+			ha->total_mbytes_xferred += ha->bytes_xfered >> 20;
+			ha->bytes_xfered &= 0xFFFFF;
+		}
 	}
 
 	/* Set tagged queueing control flags */

@@ -399,8 +399,9 @@ ixgb_init_rx_addrs(struct ixgb_hw *hw)
 	/* Zero out the other 15 receive addresses. */
 	DEBUGOUT("Clearing RAR[1-15]\n");
 	for(i = 1; i < IXGB_RAR_ENTRIES; i++) {
-		IXGB_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
+		/* Write high reg first to disable the AV bit first */
 		IXGB_WRITE_REG_ARRAY(hw, RA, ((i << 1) + 1), 0);
+		IXGB_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
 	}
 
 	return;

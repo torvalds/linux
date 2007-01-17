@@ -60,6 +60,7 @@ SECTIONS {
 #endif
 
 	.text : {
+		_text = .;
 		_stext = . ;
         	*(.text)
 		SCHED_TEXT

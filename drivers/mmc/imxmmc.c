@@ -877,7 +877,7 @@ static void imxmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 }
 
-static struct mmc_host_ops imxmci_ops = {
+static const struct mmc_host_ops imxmci_ops = {
 	.request	= imxmci_request,
 	.set_ios	= imxmci_set_ios,
 };

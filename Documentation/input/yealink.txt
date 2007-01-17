@@ -134,7 +134,7 @@ Reading /sys/../lineX will return the format string with its current value:
   888888888888
   Linux Rocks!
 
-Writing to /sys/../lineX will set the coresponding LCD line.
+Writing to /sys/../lineX will set the corresponding LCD line.
  - Excess characters are ignored.
  - If less characters are written than allowed, the remaining digits are
    unchanged.

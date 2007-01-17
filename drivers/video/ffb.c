@@ -910,7 +910,8 @@ static int ffb_init_one(struct of_device *op)
 	all->par.dac = of_ioremap(&op->resource[1], 0,
 				  sizeof(struct ffb_dac), "ffb dac");
 	if (!all->par.dac) {
-		of_iounmap(all->par.fbc, sizeof(struct ffb_fbc));
+		of_iounmap(&op->resource[2],
+			   all->par.fbc, sizeof(struct ffb_fbc));
 		kfree(all);
 		return -ENOMEM;
 	}
@@ -968,6 +969,10 @@ static int ffb_init_one(struct of_device *op)
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
 		printk(KERN_ERR "ffb: Could not allocate color map.\n");
+		of_iounmap(&op->resource[2],
+			   all->par.fbc, sizeof(struct ffb_fbc));
+		of_iounmap(&op->resource[1],
+			   all->par.dac, sizeof(struct ffb_dac));
 		kfree(all);
 		return -ENOMEM;
 	}
@@ -978,6 +983,10 @@ static int ffb_init_one(struct of_device *op)
 	if (err < 0) {
 		printk(KERN_ERR "ffb: Could not register framebuffer.\n");
 		fb_dealloc_cmap(&all->info.cmap);
+		of_iounmap(&op->resource[2],
+			   all->par.fbc, sizeof(struct ffb_fbc));
+		of_iounmap(&op->resource[1],
+			   all->par.dac, sizeof(struct ffb_dac));
 		kfree(all);
 		return err;
 	}
@@ -999,19 +1008,19 @@ static int __devinit ffb_probe(struct of_device *dev, const struct of_device_id 
 	return ffb_init_one(op);
 }
 
-static int __devexit ffb_remove(struct of_device *dev)
+static int __devexit ffb_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&dev->dev);
+	struct all_info *all = dev_get_drvdata(&op->dev);
 
 	unregister_framebuffer(&all->info);
 	fb_dealloc_cmap(&all->info.cmap);
 
-	of_iounmap(all->par.fbc, sizeof(struct ffb_fbc));
-	of_iounmap(all->par.dac, sizeof(struct ffb_dac));
+	of_iounmap(&op->resource[2], all->par.fbc, sizeof(struct ffb_fbc));
+	of_iounmap(&op->resource[1], all->par.dac, sizeof(struct ffb_dac));
 
 	kfree(all);
 
-	dev_set_drvdata(&dev->dev, NULL);
+	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

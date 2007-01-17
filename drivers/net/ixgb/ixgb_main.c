@@ -36,7 +36,7 @@ static char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION		"1.0.117-k2"DRIVERNAPI
+#define DRV_VERSION		"1.0.126-k2"DRIVERNAPI
 char ixgb_driver_version[] = DRV_VERSION;
 static char ixgb_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
@@ -106,7 +106,7 @@ static boolean_t ixgb_clean_rx_irq(struct ixgb_adapter *adapter);
 static void ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter);
 void ixgb_set_ethtool_ops(struct net_device *netdev);
 static void ixgb_tx_timeout(struct net_device *dev);
-static void ixgb_tx_timeout_task(struct net_device *dev);
+static void ixgb_tx_timeout_task(struct work_struct *work);
 static void ixgb_vlan_rx_register(struct net_device *netdev,
 				  struct vlan_group *grp);
 static void ixgb_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid);
@@ -489,8 +489,7 @@ ixgb_probe(struct pci_dev *pdev,
 	adapter->watchdog_timer.function = &ixgb_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 
-	INIT_WORK(&adapter->tx_timeout_task,
-		  (void (*)(void *))ixgb_tx_timeout_task, netdev);
+	INIT_WORK(&adapter->tx_timeout_task, ixgb_tx_timeout_task);
 
 	strcpy(netdev->name, "eth%d");
 	if((err = register_netdev(netdev)))
@@ -1249,7 +1248,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	if(likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		struct ixgb_buffer *buffer_info;
 		css = skb->h.raw - skb->data;
-		cso = (skb->h.raw + skb->csum) - skb->data;
+		cso = css + skb->csum_offset;
 
 		i = adapter->tx_ring.next_to_use;
 		context_desc = IXGB_CONTEXT_DESC(adapter->tx_ring, i);
@@ -1288,6 +1287,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 	struct ixgb_buffer *buffer_info;
 	int len = skb->len;
 	unsigned int offset = 0, size, count = 0, i;
+	unsigned int mss = skb_shinfo(skb)->gso_size;
 
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int f;
@@ -1299,6 +1299,11 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 	while(len) {
 		buffer_info = &tx_ring->buffer_info[i];
 		size = min(len, IXGB_MAX_DATA_PER_TXD);
+		/* Workaround for premature desc write-backs
+		 * in TSO mode.  Append 4-byte sentinel desc */
+		if (unlikely(mss && !nr_frags && size == len && size > 8))
+			size -= 4;
+
 		buffer_info->length = size;
 		WARN_ON(buffer_info->dma != 0);
 		buffer_info->dma =
@@ -1325,6 +1330,13 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 		while(len) {
 			buffer_info = &tx_ring->buffer_info[i];
 			size = min(len, IXGB_MAX_DATA_PER_TXD);
+
+			/* Workaround for premature desc write-backs
+			 * in TSO mode.  Append 4-byte sentinel desc */
+			if (unlikely(mss && !nr_frags && size == len
+			             && size > 8))
+				size -= 4;
+
 			buffer_info->length = size;
 			buffer_info->dma =
 				pci_map_page(adapter->pdev,
@@ -1399,11 +1411,43 @@ ixgb_tx_queue(struct ixgb_adapter *adapter, int count, int vlan_id,int tx_flags)
 	IXGB_WRITE_REG(&adapter->hw, TDT, i);
 }
 
+static int __ixgb_maybe_stop_tx(struct net_device *netdev, int size)
+{
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	struct ixgb_desc_ring *tx_ring = &adapter->tx_ring;
+
+	netif_stop_queue(netdev);
+	/* Herbert's original patch had:
+	 *  smp_mb__after_netif_stop_queue();
+	 * but since that doesn't exist yet, just open code it. */
+	smp_mb();
+
+	/* We need to check again in a case another CPU has just
+	 * made room available. */
+	if (likely(IXGB_DESC_UNUSED(tx_ring) < size))
+		return -EBUSY;
+
+	/* A reprieve! */
+	netif_start_queue(netdev);
+	++adapter->restart_queue;
+	return 0;
+}
+
+static int ixgb_maybe_stop_tx(struct net_device *netdev,
+                              struct ixgb_desc_ring *tx_ring, int size)
+{
+	if (likely(IXGB_DESC_UNUSED(tx_ring) >= size))
+		return 0;
+	return __ixgb_maybe_stop_tx(netdev, size);
+}
+
+
 /* Tx Descriptors needed, worst case */
 #define TXD_USE_COUNT(S) (((S) >> IXGB_MAX_TXD_PWR) + \
 			 (((S) & (IXGB_MAX_DATA_PER_TXD - 1)) ? 1 : 0))
-#define DESC_NEEDED TXD_USE_COUNT(IXGB_MAX_DATA_PER_TXD) + \
-	MAX_SKB_FRAGS * TXD_USE_COUNT(PAGE_SIZE) + 1
+#define DESC_NEEDED TXD_USE_COUNT(IXGB_MAX_DATA_PER_TXD) /* skb->date */ + \
+	MAX_SKB_FRAGS * TXD_USE_COUNT(PAGE_SIZE) + 1 /* for context */ \
+	+ 1 /* one more needed for sentinel TSO workaround */
 
 static int
 ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
@@ -1431,7 +1475,8 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	spin_lock_irqsave(&adapter->tx_lock, flags);
 #endif
 
-	if(unlikely(IXGB_DESC_UNUSED(&adapter->tx_ring) < DESC_NEEDED)) {
+	if (unlikely(ixgb_maybe_stop_tx(netdev, &adapter->tx_ring,
+                     DESC_NEEDED))) {
 		netif_stop_queue(netdev);
 		spin_unlock_irqrestore(&adapter->tx_lock, flags);
 		return NETDEV_TX_BUSY;
@@ -1469,8 +1514,7 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 #ifdef NETIF_F_LLTX
 	/* Make sure there is space in the ring for the next send. */
-	if(unlikely(IXGB_DESC_UNUSED(&adapter->tx_ring) < DESC_NEEDED))
-		netif_stop_queue(netdev);
+	ixgb_maybe_stop_tx(netdev, &adapter->tx_ring, DESC_NEEDED);
 
 	spin_unlock_irqrestore(&adapter->tx_lock, flags);
 
@@ -1493,9 +1537,10 @@ ixgb_tx_timeout(struct net_device *netdev)
 }
 
 static void
-ixgb_tx_timeout_task(struct net_device *netdev)
+ixgb_tx_timeout_task(struct work_struct *work)
 {
-	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	struct ixgb_adapter *adapter =
+		container_of(work, struct ixgb_adapter, tx_timeout_task);
 
 	adapter->tx_timeout_count++;
 	ixgb_down(adapter, TRUE);

@@ -134,9 +134,7 @@ struct eeprom_data {
 			u16 phyConfig;	/* x36 */
 #define	 PHY_CONFIG_PHY_ADDR_MASK	      0x1f
 #define	 PHY_CONFIG_ENABLE_FW_MANAGEMENT_MASK 0x20
-			u16 topcat;	/* x38 */
-#define TOPCAT_PRESENT		0x0100
-#define TOPCAT_MASK		0xFF00
+			u16 reserved_56;	/* x38 */
 
 #define EEPROM_UNUSED_1_SIZE   2
 			u8 unused_1[EEPROM_UNUSED_1_SIZE]; /* x3A */

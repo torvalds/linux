@@ -129,9 +129,9 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 { 0x434d4941, 0xffffffff, "CMI9738",		patch_cm9738,	NULL },
 { 0x434d4961, 0xffffffff, "CMI9739",		patch_cm9739,	NULL },
 { 0x434d4969, 0xffffffff, "CMI9780",		patch_cm9780,	NULL },
-{ 0x434d4978, 0xffffffff, "CMI9761",		patch_cm9761,	NULL },
-{ 0x434d4982, 0xffffffff, "CMI9761",		patch_cm9761,	NULL },
-{ 0x434d4983, 0xffffffff, "CMI9761",		patch_cm9761,	NULL },
+{ 0x434d4978, 0xffffffff, "CMI9761A",		patch_cm9761,	NULL },
+{ 0x434d4982, 0xffffffff, "CMI9761B",		patch_cm9761,	NULL },
+{ 0x434d4983, 0xffffffff, "CMI9761A+",		patch_cm9761,	NULL },
 { 0x43525900, 0xfffffff8, "CS4297",		NULL,		NULL },
 { 0x43525910, 0xfffffff8, "CS4297A",		patch_cirrus_spdif,	NULL },
 { 0x43525920, 0xfffffff8, "CS4298",		patch_cirrus_spdif,		NULL },
@@ -382,7 +382,7 @@ int snd_ac97_update_bits_nolock(struct snd_ac97 *ac97, unsigned short reg,
 	unsigned short old, new;
 
 	old = snd_ac97_read_cache(ac97, reg);
-	new = (old & ~mask) | value;
+	new = (old & ~mask) | (value & mask);
 	change = old != new;
 	if (change) {
 		ac97->regs[reg] = new;
@@ -399,7 +399,7 @@ static int snd_ac97_ad18xx_update_pcm_bits(struct snd_ac97 *ac97, int codec, uns
 
 	mutex_lock(&ac97->page_mutex);
 	old = ac97->spec.ad18xx.pcmreg[codec];
-	new = (old & ~mask) | value;
+	new = (old & ~mask) | (value & mask);
 	change = old != new;
 	if (change) {
 		mutex_lock(&ac97->reg_mutex);
@@ -1927,9 +1927,10 @@ static int snd_ac97_dev_disconnect(struct snd_device *device)
 static struct snd_ac97_build_ops null_build_ops;
 
 #ifdef CONFIG_SND_AC97_POWER_SAVE
-static void do_update_power(void *data)
+static void do_update_power(struct work_struct *work)
 {
-	update_power_regs(data);
+	update_power_regs(
+		container_of(work, struct snd_ac97, power_work.work));
 }
 #endif
 
@@ -1989,7 +1990,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	mutex_init(&ac97->page_mutex);
 #ifdef CONFIG_SND_AC97_POWER_SAVE
 	ac97->power_workq = create_workqueue("ac97");
-	INIT_WORK(&ac97->power_work, do_update_power, ac97);
+	INIT_DELAYED_WORK(&ac97->power_work, do_update_power);
 #endif
 
 #ifdef CONFIG_PCI

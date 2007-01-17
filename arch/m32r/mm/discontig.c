@@ -105,9 +105,7 @@ unsigned long __init setup_memory(void)
 		if (INITRD_START + INITRD_SIZE <= PFN_PHYS(max_low_pfn)) {
 			reserve_bootmem_node(NODE_DATA(0), INITRD_START,
 				INITRD_SIZE);
-			initrd_start = INITRD_START ?
-				INITRD_START + PAGE_OFFSET : 0;
-
+			initrd_start = INITRD_START + PAGE_OFFSET;
 			initrd_end = initrd_start + INITRD_SIZE;
 			printk("initrd:start[%08lx],size[%08lx]\n",
 				initrd_start, INITRD_SIZE);

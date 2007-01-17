@@ -14,13 +14,13 @@
 
 struct ebt_arp_info
 {
-	uint16_t htype;
-	uint16_t ptype;
-	uint16_t opcode;
-	uint32_t saddr;
-	uint32_t smsk;
-	uint32_t daddr;
-	uint32_t dmsk;
+	__be16 htype;
+	__be16 ptype;
+	__be16 opcode;
+	__be32 saddr;
+	__be32 smsk;
+	__be32 daddr;
+	__be32 dmsk;
 	unsigned char smaddr[ETH_ALEN];
 	unsigned char smmsk[ETH_ALEN];
 	unsigned char dmaddr[ETH_ALEN];

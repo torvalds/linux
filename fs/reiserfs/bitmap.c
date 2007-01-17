@@ -708,7 +708,7 @@ static void oid_groups(reiserfs_blocknr_hint_t * hint)
  */
 static int get_left_neighbor(reiserfs_blocknr_hint_t * hint)
 {
-	struct path *path;
+	struct treepath *path;
 	struct buffer_head *bh;
 	struct item_head *ih;
 	int pos_in_item;

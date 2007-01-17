@@ -115,12 +115,12 @@ static struct pi_protocol ktti = {
 
 static int __init ktti_init(void)
 {
-	return pi_register(&ktti)-1;
+	return paride_register(&ktti);
 }
 
 static void __exit ktti_exit(void)
 {
-	pi_unregister(&ktti);
+	paride_unregister(&ktti);
 }
 
 MODULE_LICENSE("GPL");

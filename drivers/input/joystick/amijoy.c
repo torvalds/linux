@@ -147,7 +147,11 @@ static int __init amijoy_init(void)
 			amijoy_dev[i]->absmax[ABS_X + j] = 1;
 		}
 
-		input_register_device(amijoy_dev[i]);
+		err = input_register_device(amijoy_dev[i]);
+		if (err) {
+			input_free_device(amijoy_dev[i]);
+			goto fail;
+		}
 	}
 	return 0;
 

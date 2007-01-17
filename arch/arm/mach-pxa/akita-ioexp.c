@@ -36,11 +36,11 @@ I2C_CLIENT_INSMOD;
 
 static int max7310_write(struct i2c_client *client, int address, int data);
 static struct i2c_client max7310_template;
-static void akita_ioexp_work(void *private_);
+static void akita_ioexp_work(struct work_struct *private_);
 
 static struct device *akita_ioexp_device;
 static unsigned char ioexp_output_value = AKITA_IOEXP_IO_OUT;
-DECLARE_WORK(akita_ioexp, akita_ioexp_work, NULL);
+DECLARE_WORK(akita_ioexp, akita_ioexp_work);
 
 
 /*
@@ -158,7 +158,7 @@ void akita_reset_ioexp(struct device *dev, unsigned char bit)
 EXPORT_SYMBOL(akita_set_ioexp);
 EXPORT_SYMBOL(akita_reset_ioexp);
 
-static void akita_ioexp_work(void *private_)
+static void akita_ioexp_work(struct work_struct *private_)
 {
 	if (akita_ioexp_device)
 		max7310_set_ouputs(akita_ioexp_device, ioexp_output_value);

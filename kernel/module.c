@@ -34,10 +34,10 @@
 #include <linux/err.h>
 #include <linux/vermagic.h>
 #include <linux/notifier.h>
+#include <linux/sched.h>
 #include <linux/stop_machine.h>
 #include <linux/device.h>
 #include <linux/string.h>
-#include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/unwind.h>
 #include <asm/uaccess.h>
@@ -790,6 +790,19 @@ static struct module_attribute refcnt = {
 	.show = show_refcnt,
 };
 
+void module_put(struct module *module)
+{
+	if (module) {
+		unsigned int cpu = get_cpu();
+		local_dec(&module->ref[cpu].count);
+		/* Maybe they're waiting for us to drop reference? */
+		if (unlikely(!module_is_live(module)))
+			wake_up_process(module->waiter);
+		put_cpu();
+	}
+}
+EXPORT_SYMBOL(module_put);
+
 #else /* !CONFIG_MODULE_UNLOAD */
 static void print_unload_info(struct seq_file *m, struct module *mod)
 {
@@ -811,9 +824,34 @@ static inline void module_unload_init(struct module *mod)
 }
 #endif /* CONFIG_MODULE_UNLOAD */
 
+static ssize_t show_initstate(struct module_attribute *mattr,
+			   struct module *mod, char *buffer)
+{
+	const char *state = "unknown";
+
+	switch (mod->state) {
+	case MODULE_STATE_LIVE:
+		state = "live";
+		break;
+	case MODULE_STATE_COMING:
+		state = "coming";
+		break;
+	case MODULE_STATE_GOING:
+		state = "going";
+		break;
+	}
+	return sprintf(buffer, "%s\n", state);
+}
+
+static struct module_attribute initstate = {
+	.attr = { .name = "initstate", .mode = 0444, .owner = THIS_MODULE },
+	.show = show_initstate,
+};
+
 static struct module_attribute *modinfo_attrs[] = {
 	&modinfo_version,
 	&modinfo_srcversion,
+	&initstate,
 #ifdef CONFIG_MODULE_UNLOAD
 	&refcnt,
 #endif
@@ -1086,22 +1124,37 @@ static int mod_sysfs_setup(struct module *mod,
 		goto out;
 	kobj_set_kset_s(&mod->mkobj, module_subsys);
 	mod->mkobj.mod = mod;
-	err = kobject_register(&mod->mkobj.kobj);
+
+	/* delay uevent until full sysfs population */
+	kobject_init(&mod->mkobj.kobj);
+	err = kobject_add(&mod->mkobj.kobj);
 	if (err)
 		goto out;
 
+	mod->drivers_dir = kobject_add_dir(&mod->mkobj.kobj, "drivers");
+	if (!mod->drivers_dir) {
+		err = -ENOMEM;
+		goto out_unreg;
+	}
+
 	err = module_param_sysfs_setup(mod, kparam, num_params);
 	if (err)
-		goto out_unreg;
+		goto out_unreg_drivers;
 
 	err = module_add_modinfo_attrs(mod);
 	if (err)
-		goto out_unreg;
+		goto out_unreg_param;
 
+	kobject_uevent(&mod->mkobj.kobj, KOBJ_ADD);
 	return 0;
 
+out_unreg_param:
+	module_param_sysfs_remove(mod);
+out_unreg_drivers:
+	kobject_unregister(mod->drivers_dir);
 out_unreg:
-	kobject_unregister(&mod->mkobj.kobj);
+	kobject_del(&mod->mkobj.kobj);
+	kobject_put(&mod->mkobj.kobj);
 out:
 	return err;
 }
@@ -1110,6 +1163,7 @@ static void mod_kobject_remove(struct module *mod)
 {
 	module_remove_modinfo_attrs(mod);
 	module_param_sysfs_remove(mod);
+	kobject_unregister(mod->drivers_dir);
 
 	kobject_unregister(&mod->mkobj.kobj);
 }
@@ -2182,7 +2236,7 @@ static int m_show(struct seq_file *m, void *p)
    Where refcount is a number or -, and deps is a comma-separated list
    of depends or -.
 */
-struct seq_operations modules_op = {
+const struct seq_operations modules_op = {
 	.start	= m_start,
 	.next	= m_next,
 	.stop	= m_stop,
@@ -2273,21 +2327,54 @@ void print_modules(void)
 	printk("\n");
 }
 
+static char *make_driver_name(struct device_driver *drv)
+{
+	char *driver_name;
+
+	driver_name = kmalloc(strlen(drv->name) + strlen(drv->bus->name) + 2,
+			      GFP_KERNEL);
+	if (!driver_name)
+		return NULL;
+
+	sprintf(driver_name, "%s:%s", drv->bus->name, drv->name);
+	return driver_name;
+}
+
 void module_add_driver(struct module *mod, struct device_driver *drv)
 {
+	char *driver_name;
+	int no_warn;
+
 	if (!mod || !drv)
 		return;
 
-	/* Don't check return code; this call is idempotent */
-	sysfs_create_link(&drv->kobj, &mod->mkobj.kobj, "module");
+	/* Don't check return codes; these calls are idempotent */
+	no_warn = sysfs_create_link(&drv->kobj, &mod->mkobj.kobj, "module");
+	driver_name = make_driver_name(drv);
+	if (driver_name) {
+		no_warn = sysfs_create_link(mod->drivers_dir, &drv->kobj,
+					    driver_name);
+		kfree(driver_name);
+	}
 }
 EXPORT_SYMBOL(module_add_driver);
 
 void module_remove_driver(struct device_driver *drv)
 {
+	char *driver_name;
+
 	if (!drv)
 		return;
+
 	sysfs_remove_link(&drv->kobj, "module");
+	if (drv->owner && drv->owner->drivers_dir) {
+		driver_name = make_driver_name(drv);
+		if (driver_name) {
+			sysfs_remove_link(drv->owner->drivers_dir,
+					  driver_name);
+			kfree(driver_name);
+		}
+	}
 }
 EXPORT_SYMBOL(module_remove_driver);
 

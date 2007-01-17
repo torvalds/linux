@@ -126,7 +126,7 @@ dma_pool_create (const char *name, struct device *dev,
 	} else if (allocation < size)
 		return NULL;
 
-	if (!(retval = kmalloc (sizeof *retval, SLAB_KERNEL)))
+	if (!(retval = kmalloc (sizeof *retval, GFP_KERNEL)))
 		return retval;
 
 	strlcpy (retval->name, name, sizeof retval->name);
@@ -173,7 +173,7 @@ pool_alloc_page (struct dma_pool *pool, gfp_t mem_flags)
 	mapsize = (mapsize + BITS_PER_LONG - 1) / BITS_PER_LONG;
 	mapsize *= sizeof (long);
 
-	page = (struct dma_page *) kmalloc (mapsize + sizeof *page, mem_flags);
+	page = kmalloc(mapsize + sizeof *page, mem_flags);
 	if (!page)
 		return NULL;
 	page->vaddr = dma_alloc_coherent (pool->dev,
@@ -297,7 +297,7 @@ restart:
 			}
 		}
 	}
-	if (!(page = pool_alloc_page (pool, SLAB_ATOMIC))) {
+	if (!(page = pool_alloc_page (pool, GFP_ATOMIC))) {
 		if (mem_flags & __GFP_WAIT) {
 			DECLARE_WAITQUEUE (wait, current);
 

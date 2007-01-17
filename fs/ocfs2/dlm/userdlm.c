@@ -171,15 +171,14 @@ static inline void user_dlm_grab_inode_ref(struct user_lock_res *lockres)
 		BUG();
 }
 
-static void user_dlm_unblock_lock(void *opaque);
+static void user_dlm_unblock_lock(struct work_struct *work);
 
 static void __user_dlm_queue_lockres(struct user_lock_res *lockres)
 {
 	if (!(lockres->l_flags & USER_LOCK_QUEUED)) {
 		user_dlm_grab_inode_ref(lockres);
 
-		INIT_WORK(&lockres->l_work, user_dlm_unblock_lock,
-			  lockres);
+		INIT_WORK(&lockres->l_work, user_dlm_unblock_lock);
 
 		queue_work(user_dlm_worker, &lockres->l_work);
 		lockres->l_flags |= USER_LOCK_QUEUED;
@@ -279,10 +278,11 @@ static inline void user_dlm_drop_inode_ref(struct user_lock_res *lockres)
 	iput(inode);
 }
 
-static void user_dlm_unblock_lock(void *opaque)
+static void user_dlm_unblock_lock(struct work_struct *work)
 {
 	int new_level, status;
-	struct user_lock_res *lockres = (struct user_lock_res *) opaque;
+	struct user_lock_res *lockres =
+		container_of(work, struct user_lock_res, l_work);
 	struct dlm_ctxt *dlm = dlm_ctxt_from_user_lockres(lockres);
 
 	mlog(0, "processing lockres %.*s\n", lockres->l_namelen,

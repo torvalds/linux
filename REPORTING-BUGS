@@ -40,7 +40,9 @@ summary from [1.]>" for easy identification by the developers.
 [1.] One line summary of the problem:
 [2.] Full description of the problem/report:
 [3.] Keywords (i.e., modules, networking, kernel):
-[4.] Kernel version (from /proc/version):
+[4.] Kernel information
+[4.1.] Kernel version (from /proc/version):
+[4.2.] Kernel .config file:
 [5.] Most recent kernel version which did not have the bug:
 [6.] Output of Oops.. message (if applicable) with symbolic information
      resolved (see Documentation/oops-tracing.txt)

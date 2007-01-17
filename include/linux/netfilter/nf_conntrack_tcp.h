@@ -25,7 +25,7 @@ enum tcp_conntrack {
 #define IP_CT_TCP_FLAG_SACK_PERM		0x02
 
 /* This sender sent FIN first */
-#define IP_CT_TCP_FLAG_CLOSE_INIT		0x03
+#define IP_CT_TCP_FLAG_CLOSE_INIT		0x04
 
 #ifdef __KERNEL__
 

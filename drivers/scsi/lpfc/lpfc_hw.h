@@ -42,14 +42,14 @@
 #define FCELSSIZE             1024	/* maximum ELS transfer size */
 
 #define LPFC_FCP_RING            0	/* ring 0 for FCP initiator commands */
-#define LPFC_IP_RING             1	/* ring 1 for IP commands */
+#define LPFC_EXTRA_RING          1	/* ring 1 for other protocols */
 #define LPFC_ELS_RING            2	/* ring 2 for ELS commands */
 #define LPFC_FCP_NEXT_RING       3
 
 #define SLI2_IOCB_CMD_R0_ENTRIES    172	/* SLI-2 FCP command ring entries */
 #define SLI2_IOCB_RSP_R0_ENTRIES    134	/* SLI-2 FCP response ring entries */
-#define SLI2_IOCB_CMD_R1_ENTRIES      4	/* SLI-2 IP command ring entries */
-#define SLI2_IOCB_RSP_R1_ENTRIES      4	/* SLI-2 IP response ring entries */
+#define SLI2_IOCB_CMD_R1_ENTRIES      4	/* SLI-2 extra command ring entries */
+#define SLI2_IOCB_RSP_R1_ENTRIES      4	/* SLI-2 extra response ring entries */
 #define SLI2_IOCB_CMD_R1XTRA_ENTRIES 36	/* SLI-2 extra FCP cmd ring entries */
 #define SLI2_IOCB_RSP_R1XTRA_ENTRIES 52	/* SLI-2 extra FCP rsp ring entries */
 #define SLI2_IOCB_CMD_R2_ENTRIES     20	/* SLI-2 ELS command ring entries */
@@ -121,6 +121,20 @@ struct lpfc_sli_ct_request {
 
 			uint32_t rsvd[7];
 		} rft;
+		struct rff {
+			uint32_t PortId;
+			uint8_t reserved[2];
+#ifdef __BIG_ENDIAN_BITFIELD
+			uint8_t feature_res:6;
+			uint8_t feature_init:1;
+			uint8_t feature_tgt:1;
+#else  /*  __LITTLE_ENDIAN_BITFIELD */
+			uint8_t feature_tgt:1;
+			uint8_t feature_init:1;
+			uint8_t feature_res:6;
+#endif
+			uint8_t type_code;     /* type=8 for FCP */
+		} rff;
 		struct rnn {
 			uint32_t PortId;	/* For RNN_ID requests */
 			uint8_t wwnn[8];
@@ -136,6 +150,7 @@ struct lpfc_sli_ct_request {
 #define  SLI_CT_REVISION        1
 #define  GID_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 260)
 #define  RFT_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 228)
+#define  RFF_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 235)
 #define  RNN_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 252)
 #define  RSNN_REQUEST_SZ        (sizeof(struct lpfc_sli_ct_request))
 
@@ -225,6 +240,7 @@ struct lpfc_sli_ct_request {
 #define  SLI_CTNS_RNN_ID      0x0213
 #define  SLI_CTNS_RCS_ID      0x0214
 #define  SLI_CTNS_RFT_ID      0x0217
+#define  SLI_CTNS_RFF_ID      0x021F
 #define  SLI_CTNS_RSPN_ID     0x0218
 #define  SLI_CTNS_RPT_ID      0x021A
 #define  SLI_CTNS_RIP_NN      0x0235
@@ -1089,12 +1105,6 @@ typedef struct {
 #define PCI_DEVICE_ID_ZEPHYR_SCSP   0xfe11
 #define PCI_DEVICE_ID_ZEPHYR_DCSP   0xfe12
 
-#define PCI_SUBSYSTEM_ID_LP11000S      0xfc11
-#define PCI_SUBSYSTEM_ID_LP11002S      0xfc12
-#define PCI_SUBSYSTEM_ID_LPE11000S     0xfc21
-#define PCI_SUBSYSTEM_ID_LPE11002S     0xfc22
-#define PCI_SUBSYSTEM_ID_LPE11010S     0xfc2A
-
 #define JEDEC_ID_ADDRESS            0x0080001c
 #define FIREFLY_JEDEC_ID            0x1ACC
 #define SUPERFLY_JEDEC_ID           0x0020
@@ -1284,6 +1294,10 @@ typedef struct {		/* FireFly BIU registers */
 #define CMD_FCP_IREAD_CX        0x1B
 #define CMD_FCP_ICMND_CR        0x1C
 #define CMD_FCP_ICMND_CX        0x1D
+#define CMD_FCP_TSEND_CX        0x1F
+#define CMD_FCP_TRECEIVE_CX     0x21
+#define CMD_FCP_TRSP_CX	        0x23
+#define CMD_FCP_AUTO_TRSP_CX    0x29
 
 #define CMD_ADAPTER_MSG         0x20
 #define CMD_ADAPTER_DUMP        0x22
@@ -1310,6 +1324,9 @@ typedef struct {		/* FireFly BIU registers */
 #define CMD_FCP_IREAD64_CX      0x9B
 #define CMD_FCP_ICMND64_CR      0x9C
 #define CMD_FCP_ICMND64_CX      0x9D
+#define CMD_FCP_TSEND64_CX      0x9F
+#define CMD_FCP_TRECEIVE64_CX   0xA1
+#define CMD_FCP_TRSP64_CX       0xA3
 
 #define CMD_GEN_REQUEST64_CR    0xC2
 #define CMD_GEN_REQUEST64_CX    0xC3

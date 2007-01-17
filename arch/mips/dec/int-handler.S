@@ -267,7 +267,7 @@ handle_it:
 		LONG_L	s0, TI_REGS($28)
 		LONG_S	sp, TI_REGS($28)
 		PTR_LA	ra, ret_from_irq
-		j	do_IRQ
+		j	dec_irq_dispatch
 		 nop
 
 #ifdef CONFIG_32BIT

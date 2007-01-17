@@ -115,7 +115,7 @@ SCSI standard documentations are available at SYMBIOS ftp server:
 
           ftp://ftp.symbios.com/
 
-Usefull SCSI tools written by Eric Youngdale are available at tsx-11:
+Useful SCSI tools written by Eric Youngdale are available at tsx-11:
 
           ftp://tsx-11.mit.edu/pub/linux/ALPHA/scsi/scsiinfo-X.Y.tar.gz
           ftp://tsx-11.mit.edu/pub/linux/ALPHA/scsi/scsidev-X.Y.tar.gz

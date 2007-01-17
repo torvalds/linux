@@ -252,8 +252,6 @@ struct hcall_stats {
 	unsigned long	tb_total;	/* total wall time (mftb) of calls. */
 	unsigned long	purr_total;	/* total cpu time (PURR) of calls. */
 };
-void update_hcall_stats(unsigned long opcode, unsigned long tb_delta,
-			unsigned long purr_delta);
 #define HCALL_STAT_ARRAY_SIZE	((MAX_HCALL_OPCODE >> 2) + 1)
 
 #endif /* __ASSEMBLY__ */

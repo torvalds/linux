@@ -48,7 +48,7 @@
 
 static void iser_cq_tasklet_fn(unsigned long data);
 static void iser_cq_callback(struct ib_cq *cq, void *cq_context);
-static void iser_comp_error_worker(void *data);
+static void iser_comp_error_worker(struct work_struct *work);
 
 static void iser_cq_event_callback(struct ib_event *cause, void *context)
 {
@@ -480,8 +480,7 @@ int iser_conn_init(struct iser_conn **ibconn)
 	init_waitqueue_head(&ib_conn->wait);
 	atomic_set(&ib_conn->post_recv_buf_count, 0);
 	atomic_set(&ib_conn->post_send_buf_count, 0);
-	INIT_WORK(&ib_conn->comperror_work, iser_comp_error_worker,
-		  ib_conn);
+	INIT_WORK(&ib_conn->comperror_work, iser_comp_error_worker);
 	INIT_LIST_HEAD(&ib_conn->conn_list);
 	spin_lock_init(&ib_conn->lock);
 
@@ -754,9 +753,10 @@ int iser_post_send(struct iser_desc *tx_desc)
 	return ret_val;
 }
 
-static void iser_comp_error_worker(void *data)
+static void iser_comp_error_worker(struct work_struct *work)
 {
-	struct iser_conn *ib_conn = data;
+	struct iser_conn *ib_conn =
+		container_of(work, struct iser_conn, comperror_work);
 
 	/* getting here when the state is UP means that the conn is being *
 	 * terminated asynchronously from the iSCSI layer's perspective.  */

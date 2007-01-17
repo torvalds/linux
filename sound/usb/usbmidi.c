@@ -981,7 +981,7 @@ void snd_usbmidi_disconnect(struct list_head* p)
 			if (umidi->usb_protocol_ops->finish_out_endpoint)
 				umidi->usb_protocol_ops->finish_out_endpoint(ep->out);
 		}
-		if (ep->in && ep->in->urb)
+		if (ep->in)
 			usb_kill_urb(ep->in->urb);
 	}
 }

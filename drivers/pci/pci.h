@@ -1,5 +1,6 @@
 /* Functions internal to the PCI core code */
 
+extern int __must_check __pci_enable_device(struct pci_dev *);
 extern int pci_uevent(struct device *dev, char **envp, int num_envp,
 		      char *buffer, int buffer_size);
 extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);

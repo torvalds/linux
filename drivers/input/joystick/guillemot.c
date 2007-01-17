@@ -250,7 +250,9 @@ static int guillemot_connect(struct gameport *gameport, struct gameport_driver *
 	for (i = 0; (t = guillemot->type->btn[i]) >= 0; i++)
 		set_bit(t, input_dev->keybit);
 
-	input_register_device(guillemot->dev);
+	err = input_register_device(guillemot->dev);
+	if (err)
+		goto fail2;
 
 	return 0;
 

@@ -859,10 +859,8 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	interface = intf->cur_altsetting;
 	endpoint = &interface->endpoint[0].desc;
-	if (!(endpoint->bEndpointAddress & USB_DIR_IN))
-		return -EIO;
-	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_INT)
-		return -EIO;
+	if (!usb_endpoint_is_int_in(endpoint))
+		return -ENODEV;
 
 	yld = kzalloc(sizeof(struct yealink_dev), GFP_KERNEL);
 	if (!yld)
@@ -876,17 +874,17 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	/* allocate usb buffers */
 	yld->irq_data = usb_buffer_alloc(udev, USB_PKT_LEN,
-					SLAB_ATOMIC, &yld->irq_dma);
+					GFP_ATOMIC, &yld->irq_dma);
 	if (yld->irq_data == NULL)
 		return usb_cleanup(yld, -ENOMEM);
 
 	yld->ctl_data = usb_buffer_alloc(udev, USB_PKT_LEN,
-					SLAB_ATOMIC, &yld->ctl_dma);
+					GFP_ATOMIC, &yld->ctl_dma);
 	if (!yld->ctl_data)
 		return usb_cleanup(yld, -ENOMEM);
 
 	yld->ctl_req = usb_buffer_alloc(udev, sizeof(*(yld->ctl_req)),
-					SLAB_ATOMIC, &yld->ctl_req_dma);
+					GFP_ATOMIC, &yld->ctl_req_dma);
 	if (yld->ctl_req == NULL)
 		return usb_cleanup(yld, -ENOMEM);
 

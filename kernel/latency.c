@@ -36,6 +36,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
+#include <linux/jiffies.h>
 #include <asm/atomic.h>
 
 struct latency_info {

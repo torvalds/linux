@@ -59,7 +59,7 @@ static int  option_chars_in_buffer(struct usb_serial_port *port);
 static int  option_ioctl(struct usb_serial_port *port, struct file *file,
 			unsigned int cmd, unsigned long arg);
 static void option_set_termios(struct usb_serial_port *port,
-				struct termios *old);
+				struct ktermios *old);
 static void option_break_ctl(struct usb_serial_port *port, int break_state);
 static int  option_tiocmget(struct usb_serial_port *port, struct file *file);
 static int  option_tiocmset(struct usb_serial_port *port, struct file *file,
@@ -79,6 +79,7 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define OPTION_PRODUCT_COBRA            0x6500
 #define OPTION_PRODUCT_COBRA2           0x6600
 #define HUAWEI_PRODUCT_E600             0x1001
+#define HUAWEI_PRODUCT_E220             0x1003
 #define AUDIOVOX_PRODUCT_AIRCARD        0x0112
 #define NOVATELWIRELESS_PRODUCT_U740    0x1400
 #define ANYDATA_PRODUCT_ID              0x6501
@@ -90,6 +91,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA2) },
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
+	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E220) },
 	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ID) },
@@ -103,6 +105,7 @@ static struct usb_device_id option_ids1[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA2) },
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
+	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E220) },
 	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ID) },
@@ -230,7 +233,7 @@ static void option_break_ctl(struct usb_serial_port *port, int break_state)
 }
 
 static void option_set_termios(struct usb_serial_port *port,
-			struct termios *old_termios)
+			struct ktermios *old_termios)
 {
 	dbg("%s", __FUNCTION__);
 
@@ -621,6 +624,9 @@ static int option_send_setup(struct usb_serial_port *port)
 	struct option_port_private *portdata;
 
 	dbg("%s", __FUNCTION__);
+
+	if (port->number != 0)
+		return 0;
 
 	portdata = usb_get_serial_port_data(port);
 

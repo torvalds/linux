@@ -9,8 +9,14 @@
  * MAX_PHYSMEM_BITS		2^N: how much memory we can have in that space
  */
 #define SECTION_SIZE_BITS       24
+
+#if defined(CONFIG_PS3_USE_LPAR_ADDR)
+#define MAX_PHYSADDR_BITS       47
+#define MAX_PHYSMEM_BITS        47
+#else
 #define MAX_PHYSADDR_BITS       44
 #define MAX_PHYSMEM_BITS        44
+#endif
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 extern void create_section_mapping(unsigned long start, unsigned long end);

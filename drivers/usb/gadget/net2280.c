@@ -1040,6 +1040,7 @@ net2280_queue (struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 	} /* else the irq handler advances the queue. */
 
+	ep->responded = 1;
 	if (req)
 		list_add_tail (&req->queue, &ep->queue);
 done:
@@ -2019,7 +2020,6 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	if (!driver
 			|| driver->speed != USB_SPEED_HIGH
 			|| !driver->bind
-			|| !driver->unbind
 			|| !driver->setup)
 		return -EINVAL;
 	if (!dev)
@@ -2106,7 +2106,7 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 
 	if (!dev)
 		return -ENODEV;
-	if (!driver || driver != dev->driver)
+	if (!driver || driver != dev->driver || !driver->unbind)
 		return -EINVAL;
 
 	spin_lock_irqsave (&dev->lock, flags);
@@ -2188,7 +2188,8 @@ static void handle_ep_small (struct net2280_ep *ep)
 					ep->stopped = 1;
 					set_halt (ep);
 					mode = 2;
-				} else if (!req && !ep->stopped)
+				} else if (ep->responded &&
+						!req && !ep->stopped)
 					write_fifo (ep, NULL);
 			}
 		} else {
@@ -2203,7 +2204,7 @@ static void handle_ep_small (struct net2280_ep *ep)
 			} else if (((t & (1 << DATA_OUT_PING_TOKEN_INTERRUPT))
 					&& req
 					&& req->req.actual == req->req.length)
-					|| !req) {
+					|| (ep->responded && !req)) {
 				ep->dev->protocol_stall = 1;
 				set_halt (ep);
 				ep->stopped = 1;
@@ -2469,6 +2470,7 @@ static void handle_stat0_irqs (struct net2280 *dev, u32 stat)
 		/* we made the hardware handle most lowlevel requests;
 		 * everything else goes uplevel to the gadget code.
 		 */
+		ep->responded = 1;
 		switch (u.r.bRequest) {
 		case USB_REQ_GET_STATUS: {
 			struct net2280_ep	*e;
@@ -2537,6 +2539,7 @@ delegate:
 				u.r.bRequestType, u.r.bRequest,
 				w_value, w_index, w_length,
 				readl (&ep->regs->ep_cfg));
+			ep->responded = 0;
 			spin_unlock (&dev->lock);
 			tmp = dev->driver->setup (&dev->gadget, &u.r);
 			spin_lock (&dev->lock);
@@ -2799,13 +2802,7 @@ static void net2280_remove (struct pci_dev *pdev)
 {
 	struct net2280		*dev = pci_get_drvdata (pdev);
 
-	/* start with the driver above us */
-	if (dev->driver) {
-		/* should have been done already by driver model core */
-		WARN (dev, "pci remove, driver '%s' is still registered\n",
-				dev->driver->driver.name);
-		usb_gadget_unregister_driver (dev->driver);
-	}
+	BUG_ON(dev->driver);
 
 	/* then clean up the resources we allocated during probe() */
 	net2280_led_shutdown (dev);
@@ -2857,7 +2854,7 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* alloc, and start init */
-	dev = kzalloc (sizeof *dev, SLAB_KERNEL);
+	dev = kzalloc (sizeof *dev, GFP_KERNEL);
 	if (dev == NULL){
 		retval = -ENOMEM;
 		goto done;

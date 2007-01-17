@@ -1,7 +1,7 @@
 /* linux/include/asm-arm/arch-s3c2410/hardware.h
  *
- * (c) 2003 Simtec Electronics
- *  Ben Dooks <ben@simtec.co.uk>
+ * Copyright (c) 2003 Simtec Electronics
+ *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2410 - hardware
  *
@@ -12,6 +12,10 @@
 
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
+
+#ifndef __ASM_HARDWARE_H
+#error "Do not include this directly, instead #include <asm/hardware.h>"
+#endif
 
 #ifndef __ASSEMBLY__
 

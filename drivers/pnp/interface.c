@@ -461,8 +461,19 @@ static DEVICE_ATTR(id,S_IRUGO,pnp_show_current_ids,NULL);
 
 int pnp_interface_attach_device(struct pnp_dev *dev)
 {
-	device_create_file(&dev->dev,&dev_attr_options);
-	device_create_file(&dev->dev,&dev_attr_resources);
-	device_create_file(&dev->dev,&dev_attr_id);
+	int rc = device_create_file(&dev->dev,&dev_attr_options);
+	if (rc) goto err;
+	rc = device_create_file(&dev->dev,&dev_attr_resources);
+	if (rc) goto err_opt;
+	rc = device_create_file(&dev->dev,&dev_attr_id);
+	if (rc) goto err_res;
+
 	return 0;
+
+err_res:
+	device_remove_file(&dev->dev,&dev_attr_resources);
+err_opt:
+	device_remove_file(&dev->dev,&dev_attr_options);
+err:
+	return rc;
 }

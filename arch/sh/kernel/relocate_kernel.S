@@ -7,11 +7,9 @@
  * This source code is licensed under the GNU General Public License,
  * Version 2.  See the file COPYING for more details.
  */
-
 #include <linux/linkage.h>
-
-#define PAGE_SIZE      4096 /* must be same value as in <asm/page.h> */
-
+#include <asm/addrspace.h>
+#include <asm/page.h>
 
 		.globl relocate_new_kernel
 relocate_new_kernel:
@@ -20,8 +18,8 @@ relocate_new_kernel:
 	/* r6 = start_address      */
 	/* r7 = vbr_reg            */
 
-	mov.l	10f,r8	  /* 4096 */
-	mov.l	11f,r9    /* 0xa0000000 */
+	mov.l	10f,r8	  /* PAGE_SIZE */
+	mov.l	11f,r9    /* P2SEG */
 
 	/*  stack setting */
 	add	r8,r5
@@ -32,7 +30,7 @@ relocate_new_kernel:
 0:
 	mov.l	@r4+,r0	  /* cmd = *ind++ */
 
-1:	/* addr = (cmd | 0xa0000000) & 0xfffffff0 */
+1:	/* addr = (cmd | P2SEG) & 0xfffffff0 */
 	mov	r0,r2
 	or	r9,r2
 	mov	#-16,r1
@@ -92,7 +90,7 @@ relocate_new_kernel:
 10:
 	.long	PAGE_SIZE
 11:
-	.long	0xa0000000
+	.long	P2SEG
 
 relocate_new_kernel_end:
 

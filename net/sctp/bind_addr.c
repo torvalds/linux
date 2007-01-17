@@ -161,7 +161,7 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 	 * Both v4 and v6 have the port at the same offset.
 	 */
 	if (!addr->a.v4.sin_port)
-		addr->a.v4.sin_port = bp->port;
+		addr->a.v4.sin_port = htons(bp->port);
 
 	addr->use_as_src = use_as_src;
 
@@ -275,7 +275,7 @@ int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw_addr_list,
 			break;
 		}
 
-		af->from_addr_param(&addr, rawaddr, port, 0);
+		af->from_addr_param(&addr, rawaddr, htons(port), 0);
 		retval = sctp_add_bind_addr(bp, &addr, 1, gfp);
 		if (retval) {
 			/* Can't finish building the list, clean up. */

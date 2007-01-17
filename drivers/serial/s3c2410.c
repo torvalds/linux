@@ -738,8 +738,8 @@ static unsigned int s3c24xx_serial_getclk(struct uart_port *port,
 }
 
 static void s3c24xx_serial_set_termios(struct uart_port *port,
-				       struct termios *termios,
-				       struct termios *old)
+				       struct ktermios *termios,
+				       struct ktermios *old)
 {
 	struct s3c2410_uartcfg *cfg = s3c24xx_port_to_cfg(port);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);

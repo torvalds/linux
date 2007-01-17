@@ -16,7 +16,7 @@ extern void     arp_send(int type, int ptype, __be32 dest_ip,
 			 struct net_device *dev, __be32 src_ip,
 			 unsigned char *dest_hw, unsigned char *src_hw, unsigned char *th);
 extern int	arp_bind_neighbour(struct dst_entry *dst);
-extern int	arp_mc_map(u32 addr, u8 *haddr, struct net_device *dev, int dir);
+extern int	arp_mc_map(__be32 addr, u8 *haddr, struct net_device *dev, int dir);
 extern void	arp_ifdown(struct net_device *dev);
 
 extern struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,

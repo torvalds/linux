@@ -62,6 +62,7 @@ static struct pci_device_id ahd_linux_pci_id_table[] = {
 	/* aic7901 based controllers */
 	ID(ID_AHA_29320A),
 	ID(ID_AHA_29320ALP),
+	ID(ID_AHA_29320LPE),
 	/* aic7902 based controllers */
 	ID(ID_AHA_29320),
 	ID(ID_AHA_29320B),

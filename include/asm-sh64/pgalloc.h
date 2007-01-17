@@ -41,7 +41,7 @@ static inline void pgd_init(unsigned long page)
 static inline pgd_t *get_pgd_slow(void)
 {
 	unsigned int pgd_size = (USER_PTRS_PER_PGD * sizeof(pgd_t));
-	pgd_t *ret = (pgd_t *)kmalloc(pgd_size, GFP_KERNEL);
+	pgd_t *ret = kmalloc(pgd_size, GFP_KERNEL);
 	return ret;
 }
 

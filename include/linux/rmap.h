@@ -30,11 +30,11 @@ struct anon_vma {
 
 #ifdef CONFIG_MMU
 
-extern kmem_cache_t *anon_vma_cachep;
+extern struct kmem_cache *anon_vma_cachep;
 
 static inline struct anon_vma *anon_vma_alloc(void)
 {
-	return kmem_cache_alloc(anon_vma_cachep, SLAB_KERNEL);
+	return kmem_cache_alloc(anon_vma_cachep, GFP_KERNEL);
 }
 
 static inline void anon_vma_free(struct anon_vma *anon_vma)
@@ -72,7 +72,7 @@ void __anon_vma_link(struct vm_area_struct *);
 void page_add_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
 void page_add_new_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
 void page_add_file_rmap(struct page *);
-void page_remove_rmap(struct page *);
+void page_remove_rmap(struct page *, struct vm_area_struct *);
 
 /**
  * page_dup_rmap - duplicate pte mapping to a page

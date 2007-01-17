@@ -81,8 +81,10 @@ isac_new_ph(struct IsdnCardState *cs)
 }
 
 static void
-isac_bh(struct IsdnCardState *cs)
+isac_bh(struct work_struct *work)
 {
+	struct IsdnCardState *cs =
+		container_of(work, struct IsdnCardState, tqueue);
 	struct PStack *stptr;
 	
 	if (!cs)
@@ -674,7 +676,7 @@ clear_pending_isac_ints(struct IsdnCardState *cs)
 void __devinit
 setup_isac(struct IsdnCardState *cs)
 {
-	INIT_WORK(&cs->tqueue, (void *)(void *) isac_bh, cs);
+	INIT_WORK(&cs->tqueue, isac_bh);
 	cs->dbusytimer.function = (void *) dbusy_timer_handler;
 	cs->dbusytimer.data = (long) cs;
 	init_timer(&cs->dbusytimer);

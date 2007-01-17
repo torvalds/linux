@@ -997,7 +997,7 @@ static scq_info *get_scq(int size, u32 scd)
    if (size != VBR_SCQSIZE && size != CBR_SCQSIZE)
       return NULL;
 
-   scq = (scq_info *) kmalloc(sizeof(scq_info), GFP_KERNEL);
+   scq = kmalloc(sizeof(scq_info), GFP_KERNEL);
    if (scq == NULL)
       return NULL;
    scq->org = kmalloc(2 * size, GFP_KERNEL);
@@ -1006,7 +1006,7 @@ static scq_info *get_scq(int size, u32 scd)
       kfree(scq);
       return NULL;
    }
-   scq->skb = (struct sk_buff **) kmalloc(sizeof(struct sk_buff *) *
+   scq->skb = kmalloc(sizeof(struct sk_buff *) *
                                           (size / NS_SCQE_SIZE), GFP_KERNEL);
    if (scq->skb == NULL)
    {

@@ -1007,7 +1007,7 @@ static int dsp_write(const char __user *buf, size_t len)
 
 static ssize_t dev_read(struct file *file, char __user *buf, size_t count, loff_t *off)
 {
-	int minor = iminor(file->f_dentry->d_inode);
+	int minor = iminor(file->f_path.dentry->d_inode);
 	if (minor == dev.dsp_minor)
 		return dsp_read(buf, count);
 	else
@@ -1016,7 +1016,7 @@ static ssize_t dev_read(struct file *file, char __user *buf, size_t count, loff_
 
 static ssize_t dev_write(struct file *file, const char __user *buf, size_t count, loff_t *off)
 {
-	int minor = iminor(file->f_dentry->d_inode);
+	int minor = iminor(file->f_path.dentry->d_inode);
 	if (minor == dev.dsp_minor)
 		return dsp_write(buf, count);
 	else

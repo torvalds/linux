@@ -41,7 +41,7 @@ void nsc_gpio_dump(struct nsc_gpio_ops *amp, unsigned index)
 ssize_t nsc_gpio_write(struct file *file, const char __user *data,
 		       size_t len, loff_t *ppos)
 {
-	unsigned m = iminor(file->f_dentry->d_inode);
+	unsigned m = iminor(file->f_path.dentry->d_inode);
 	struct nsc_gpio_ops *amp = file->private_data;
 	struct device *dev = amp->dev;
 	size_t i;
@@ -104,7 +104,7 @@ ssize_t nsc_gpio_write(struct file *file, const char __user *data,
 ssize_t nsc_gpio_read(struct file *file, char __user * buf,
 		      size_t len, loff_t * ppos)
 {
-	unsigned m = iminor(file->f_dentry->d_inode);
+	unsigned m = iminor(file->f_path.dentry->d_inode);
 	int value;
 	struct nsc_gpio_ops *amp = file->private_data;
 

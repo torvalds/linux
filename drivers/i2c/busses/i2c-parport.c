@@ -218,7 +218,7 @@ static void i2c_parport_detach (struct parport *port)
 			if (adapter_parm[type].init.val)
 				line_set(port, 0, &adapter_parm[type].init);
 				
-			i2c_bit_del_bus(&adapter->adapter);
+			i2c_del_adapter(&adapter->adapter);
 			parport_unregister_device(adapter->pdev);
 			if (prev)
 				prev->next = adapter->next;

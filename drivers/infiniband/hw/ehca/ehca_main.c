@@ -52,7 +52,7 @@
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Christoph Raisch <raisch@de.ibm.com>");
 MODULE_DESCRIPTION("IBM eServer HCA InfiniBand Device Driver");
-MODULE_VERSION("SVNEHCA_0018");
+MODULE_VERSION("SVNEHCA_0019");
 
 int ehca_open_aqp1     = 0;
 int ehca_debug_level   = 0;
@@ -106,9 +106,9 @@ static struct timer_list poll_eqs_timer;
 #ifdef CONFIG_PPC_64K_PAGES
 static struct kmem_cache *ctblk_cache = NULL;
 
-void *ehca_alloc_fw_ctrlblock(void)
+void *ehca_alloc_fw_ctrlblock(gfp_t flags)
 {
-	void *ret = kmem_cache_zalloc(ctblk_cache, SLAB_KERNEL);
+	void *ret = kmem_cache_zalloc(ctblk_cache, flags);
 	if (!ret)
 		ehca_gen_err("Out of memory for ctblk");
 	return ret;
@@ -206,7 +206,7 @@ int ehca_sense_attributes(struct ehca_shca *shca)
 	u64 h_ret;
 	struct hipz_query_hca *rblock;
 
-	rblock = ehca_alloc_fw_ctrlblock();
+	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!rblock) {
 		ehca_gen_err("Cannot allocate rblock memory.");
 		return -ENOMEM;
@@ -258,7 +258,7 @@ static int init_node_guid(struct ehca_shca *shca)
 	int ret = 0;
 	struct hipz_query_hca *rblock;
 
-	rblock = ehca_alloc_fw_ctrlblock();
+	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!rblock) {
 		ehca_err(&shca->ib_device, "Can't allocate rblock memory.");
 		return -ENOMEM;
@@ -469,7 +469,7 @@ static ssize_t  ehca_show_##name(struct device *dev,                       \
 									   \
 	shca = dev->driver_data;					   \
 									   \
-	rblock = ehca_alloc_fw_ctrlblock();				   \
+	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);			   \
 	if (!rblock) {						           \
 		dev_err(dev, "Can't allocate rblock memory.");		   \
 		return 0;						   \
@@ -790,7 +790,7 @@ int __init ehca_module_init(void)
 	int ret;
 
 	printk(KERN_INFO "eHCA Infiniband Device Driver "
-	                 "(Rel.: SVNEHCA_0018)\n");
+	                 "(Rel.: SVNEHCA_0019)\n");
 	idr_init(&ehca_qp_idr);
 	idr_init(&ehca_cq_idr);
 	spin_lock_init(&ehca_qp_idr_lock);

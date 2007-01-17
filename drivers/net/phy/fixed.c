@@ -254,7 +254,7 @@ static int fixed_mdio_register_device(int number, int speed, int duplex)
 		goto device_create_fail;
 	}
 
-	phydev->irq = -1;
+	phydev->irq = PHY_IGNORE_INTERRUPT;
 	phydev->dev.bus = &mdio_bus_type;
 
 	if(number)

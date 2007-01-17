@@ -24,7 +24,7 @@
  * Arguments for all calls to statd
  */
 struct nsm_args {
-	u32		addr;		/* remote address */
+	__be32		addr;		/* remote address */
 	u32		prog;		/* RPC callback info */
 	u32		vers;
 	u32		proc;

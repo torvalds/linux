@@ -739,13 +739,13 @@ struct sockaddr_hci {
 struct hci_filter {
 	unsigned long type_mask;
 	unsigned long event_mask[2];
-	__u16   opcode;
+	__le16   opcode;
 };
 
 struct hci_ufilter {
 	__u32   type_mask;
 	__u32   event_mask[2];
-	__u16   opcode;
+	__le16   opcode;
 };
 
 #define HCI_FLT_TYPE_BITS	31

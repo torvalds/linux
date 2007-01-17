@@ -627,6 +627,7 @@ irqreturn_t qla4xxx_intr_handler(int irq, void *dev_id)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
+	ha->isr_count++;
 	/*
 	 * Repeatedly service interrupts up to a maximum of
 	 * MAX_REQS_SERVICED_PER_INTR

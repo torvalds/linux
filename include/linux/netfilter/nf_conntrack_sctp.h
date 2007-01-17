@@ -20,7 +20,7 @@ struct ip_ct_sctp
 {
 	enum sctp_conntrack state;
 
-	u_int32_t vtag[IP_CT_DIR_MAX];
+	__be32 vtag[IP_CT_DIR_MAX];
 	u_int32_t ttag[IP_CT_DIR_MAX];
 };
 

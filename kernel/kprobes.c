@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/moduleloader.h>
 #include <linux/kallsyms.h>
+#include <linux/freezer.h>
 #include <asm-generic/sections.h>
 #include <asm/cacheflush.h>
 #include <asm/errno.h>
@@ -83,9 +84,36 @@ struct kprobe_insn_page {
 	kprobe_opcode_t *insns;		/* Page of instruction slots */
 	char slot_used[INSNS_PER_PAGE];
 	int nused;
+	int ngarbage;
 };
 
 static struct hlist_head kprobe_insn_pages;
+static int kprobe_garbage_slots;
+static int collect_garbage_slots(void);
+
+static int __kprobes check_safety(void)
+{
+	int ret = 0;
+#if defined(CONFIG_PREEMPT) && defined(CONFIG_PM)
+	ret = freeze_processes();
+	if (ret == 0) {
+		struct task_struct *p, *q;
+		do_each_thread(p, q) {
+			if (p != current && p->state == TASK_RUNNING &&
+			    p->pid != 0) {
+				printk("Check failed: %s is running\n",p->comm);
+				ret = -1;
+				goto loop_end;
+			}
+		} while_each_thread(p, q);
+	}
+loop_end:
+	thaw_processes();
+#else
+	synchronize_sched();
+#endif
+	return ret;
+}
 
 /**
  * get_insn_slot() - Find a slot on an executable page for an instruction.
@@ -96,6 +124,7 @@ kprobe_opcode_t __kprobes *get_insn_slot(void)
 	struct kprobe_insn_page *kip;
 	struct hlist_node *pos;
 
+      retry:
 	hlist_for_each(pos, &kprobe_insn_pages) {
 		kip = hlist_entry(pos, struct kprobe_insn_page, hlist);
 		if (kip->nused < INSNS_PER_PAGE) {
@@ -112,7 +141,11 @@ kprobe_opcode_t __kprobes *get_insn_slot(void)
 		}
 	}
 
-	/* All out of space.  Need to allocate a new page. Use slot 0.*/
+	/* If there are any garbage slots, collect it and try again. */
+	if (kprobe_garbage_slots && collect_garbage_slots() == 0) {
+		goto retry;
+	}
+	/* All out of space.  Need to allocate a new page. Use slot 0. */
 	kip = kmalloc(sizeof(struct kprobe_insn_page), GFP_KERNEL);
 	if (!kip) {
 		return NULL;
@@ -133,10 +166,62 @@ kprobe_opcode_t __kprobes *get_insn_slot(void)
 	memset(kip->slot_used, 0, INSNS_PER_PAGE);
 	kip->slot_used[0] = 1;
 	kip->nused = 1;
+	kip->ngarbage = 0;
 	return kip->insns;
 }
 
-void __kprobes free_insn_slot(kprobe_opcode_t *slot)
+/* Return 1 if all garbages are collected, otherwise 0. */
+static int __kprobes collect_one_slot(struct kprobe_insn_page *kip, int idx)
+{
+	kip->slot_used[idx] = 0;
+	kip->nused--;
+	if (kip->nused == 0) {
+		/*
+		 * Page is no longer in use.  Free it unless
+		 * it's the last one.  We keep the last one
+		 * so as not to have to set it up again the
+		 * next time somebody inserts a probe.
+		 */
+		hlist_del(&kip->hlist);
+		if (hlist_empty(&kprobe_insn_pages)) {
+			INIT_HLIST_NODE(&kip->hlist);
+			hlist_add_head(&kip->hlist,
+				       &kprobe_insn_pages);
+		} else {
+			module_free(NULL, kip->insns);
+			kfree(kip);
+		}
+		return 1;
+	}
+	return 0;
+}
+
+static int __kprobes collect_garbage_slots(void)
+{
+	struct kprobe_insn_page *kip;
+	struct hlist_node *pos, *next;
+
+	/* Ensure no-one is preepmted on the garbages */
+	if (check_safety() != 0)
+		return -EAGAIN;
+
+	hlist_for_each_safe(pos, next, &kprobe_insn_pages) {
+		int i;
+		kip = hlist_entry(pos, struct kprobe_insn_page, hlist);
+		if (kip->ngarbage == 0)
+			continue;
+		kip->ngarbage = 0;	/* we will collect all garbages */
+		for (i = 0; i < INSNS_PER_PAGE; i++) {
+			if (kip->slot_used[i] == -1 &&
+			    collect_one_slot(kip, i))
+				break;
+		}
+	}
+	kprobe_garbage_slots = 0;
+	return 0;
+}
+
+void __kprobes free_insn_slot(kprobe_opcode_t * slot, int dirty)
 {
 	struct kprobe_insn_page *kip;
 	struct hlist_node *pos;
@@ -146,27 +231,17 @@ void __kprobes free_insn_slot(kprobe_opcode_t *slot)
 		if (kip->insns <= slot &&
 		    slot < kip->insns + (INSNS_PER_PAGE * MAX_INSN_SIZE)) {
 			int i = (slot - kip->insns) / MAX_INSN_SIZE;
-			kip->slot_used[i] = 0;
-			kip->nused--;
-			if (kip->nused == 0) {
-				/*
-				 * Page is no longer in use.  Free it unless
-				 * it's the last one.  We keep the last one
-				 * so as not to have to set it up again the
-				 * next time somebody inserts a probe.
-				 */
-				hlist_del(&kip->hlist);
-				if (hlist_empty(&kprobe_insn_pages)) {
-					INIT_HLIST_NODE(&kip->hlist);
-					hlist_add_head(&kip->hlist,
-						&kprobe_insn_pages);
-				} else {
-					module_free(NULL, kip->insns);
-					kfree(kip);
-				}
+			if (dirty) {
+				kip->slot_used[i] = -1;
+				kip->ngarbage++;
+			} else {
+				collect_one_slot(kip, i);
 			}
-			return;
+			break;
 		}
+	}
+	if (dirty && (++kprobe_garbage_slots > INSNS_PER_PAGE)) {
+		collect_garbage_slots();
 	}
 }
 #endif

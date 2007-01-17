@@ -42,3 +42,6 @@ patches-*
 # quilt's files
 patches
 series
+
+# cscope files
+cscope.*

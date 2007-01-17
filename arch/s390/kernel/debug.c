@@ -191,13 +191,13 @@ debug_areas_alloc(int pages_per_area, int nr_areas)
 	debug_entry_t*** areas;
 	int i,j;
 
-	areas = (debug_entry_t ***) kmalloc(nr_areas *
+	areas = kmalloc(nr_areas *
 					sizeof(debug_entry_t**),
 					GFP_KERNEL);
 	if (!areas)
 		goto fail_malloc_areas;
 	for (i = 0; i < nr_areas; i++) {
-		areas[i] = (debug_entry_t**) kmalloc(pages_per_area *
+		areas[i] = kmalloc(pages_per_area *
 				sizeof(debug_entry_t*),GFP_KERNEL);
 		if (!areas[i]) {
 			goto fail_malloc_areas2;
@@ -242,7 +242,7 @@ debug_info_alloc(char *name, int pages_per_area, int nr_areas, int buf_size,
 
 	/* alloc everything */
 
-	rc = (debug_info_t*) kmalloc(sizeof(debug_info_t), GFP_KERNEL);
+	rc = kmalloc(sizeof(debug_info_t), GFP_KERNEL);
 	if(!rc)
 		goto fail_malloc_rc;
 	rc->active_entries = kcalloc(nr_areas, sizeof(int), GFP_KERNEL);
@@ -603,13 +603,13 @@ debug_open(struct inode *inode, struct file *file)
 	debug_info_t *debug_info, *debug_info_snapshot;
 
 	down(&debug_lock);
-	debug_info = file->f_dentry->d_inode->i_private;
+	debug_info = file->f_path.dentry->d_inode->i_private;
 	/* find debug view */
 	for (i = 0; i < DEBUG_MAX_VIEWS; i++) {
 		if (!debug_info->views[i])
 			continue;
 		else if (debug_info->debugfs_entries[i] ==
-			 file->f_dentry) {
+			 file->f_path.dentry) {
 			goto found;	/* found view ! */
 		}
 	}
@@ -634,7 +634,7 @@ found:
 		rc = -ENOMEM;
 		goto out;
 	}
-	p_info = (file_private_info_t *) kmalloc(sizeof(file_private_info_t),
+	p_info = kmalloc(sizeof(file_private_info_t),
 						GFP_KERNEL);
 	if(!p_info){
 		if(debug_info_snapshot)

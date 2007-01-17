@@ -25,8 +25,11 @@ extern void diag10(unsigned long addr);
  * Page allocation orders.
  */
 #ifndef __s390x__
+# define PTE_ALLOC_ORDER	0
+# define PMD_ALLOC_ORDER	0
 # define PGD_ALLOC_ORDER	1
 #else /* __s390x__ */
+# define PTE_ALLOC_ORDER	0
 # define PMD_ALLOC_ORDER	2
 # define PGD_ALLOC_ORDER	2
 #endif /* __s390x__ */

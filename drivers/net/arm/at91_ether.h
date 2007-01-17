@@ -87,6 +87,7 @@ struct at91_private
 	spinlock_t lock;			/* lock for MDI interface */
 	short phy_media;			/* media interface type */
 	unsigned short phy_address;		/* 5-bit MDI address of PHY (0..31) */
+	struct timer_list check_timer;		/* Poll link status */
 
 	/* Transmit */
 	struct sk_buff *skb;			/* holds skb until xmit interrupt completes */

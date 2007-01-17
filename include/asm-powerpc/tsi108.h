@@ -98,12 +98,12 @@ typedef struct {
 extern u32 get_vir_csrbase(void);
 extern u32 tsi108_csr_vir_base;
 
-extern inline u32 tsi108_read_reg(u32 reg_offset)
+static inline u32 tsi108_read_reg(u32 reg_offset)
 {
 	return in_be32((volatile u32 *)(tsi108_csr_vir_base + reg_offset));
 }
 
-extern inline void tsi108_write_reg(u32 reg_offset, u32 val)
+static inline void tsi108_write_reg(u32 reg_offset, u32 val)
 {
 	out_be32((volatile u32 *)(tsi108_csr_vir_base + reg_offset), val);
 }

@@ -35,10 +35,10 @@
 #include "display_gx.h"
 #include "video_gx.h"
 
-static char mode_option[32] = "640x480-16@60";
+static char *mode_option;
 
 /* Modes relevant to the GX (taken from modedb.c) */
-static const struct fb_videomode __initdata gx_modedb[] = {
+static const struct fb_videomode gx_modedb[] __initdata = {
 	/* 640x480-60 VESA */
 	{ NULL, 60, 640, 480, 39682,  48, 16, 33, 10, 96, 2,
 	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
@@ -240,6 +240,12 @@ static int __init gxfb_map_video_memory(struct fb_info *info, struct pci_dev *de
 	if (!info->screen_base)
 		return -ENOMEM;
 
+	/* Set the 16MB aligned base address of the graphics memory region
+	 * in the display controller */
+
+	writel(info->fix.smem_start & 0xFF000000,
+			par->dc_regs + DC_GLIU0_MEM_OFFSET);
+
 	dev_info(&dev->dev, "%d Kibyte of video memory at 0x%lx\n",
 		 info->fix.smem_len / 1024, info->fix.smem_start);
 
@@ -302,6 +308,7 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	struct geodefb_par *par;
 	struct fb_info *info;
 	int ret;
+	unsigned long val;
 
 	info = gxfb_init_fbinfo(&pdev->dev);
 	if (!info)
@@ -317,6 +324,15 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		goto err;
 	}
 
+	/* Figure out if this is a TFT or CRT part */
+
+	rdmsrl(GLD_MSR_CONFIG, val);
+
+	if ((val & GLD_MSR_CONFIG_DM_FP) == GLD_MSR_CONFIG_DM_FP)
+		par->enable_crt = 0;
+	else
+		par->enable_crt = 1;
+
 	ret = fb_find_mode(&info->var, info, mode_option,
 			   gx_modedb, ARRAY_SIZE(gx_modedb), NULL, 16);
 	if (ret == 0 || ret == 4) {
@@ -325,7 +341,8 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		goto err;
 	}
 
-        /* Clear the frame buffer of garbage. */
+
+	/* Clear the frame buffer of garbage. */
         memset_io(info->screen_base, 0, info->fix.smem_len);
 
 	gxfb_check_var(&info->var, info);
@@ -380,7 +397,7 @@ static void gxfb_remove(struct pci_dev *pdev)
 }
 
 static struct pci_device_id gxfb_id_table[] = {
-	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_CS5535_VIDEO,
+	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_GX_VIDEO,
 	  PCI_ANY_ID, PCI_ANY_ID, PCI_BASE_CLASS_DISPLAY << 16,
 	  0xff0000, 0 },
 	{ 0, }
@@ -395,11 +412,35 @@ static struct pci_driver gxfb_driver = {
 	.remove		= gxfb_remove,
 };
 
+#ifndef MODULE
+static int __init gxfb_setup(char *options)
+{
+
+	char *opt;
+
+	if (!options || !*options)
+		return 0;
+
+	while ((opt = strsep(&options, ",")) != NULL) {
+		if (!*opt)
+			continue;
+
+		mode_option = opt;
+	}
+
+	return 0;
+}
+#endif
+
 static int __init gxfb_init(void)
 {
 #ifndef MODULE
-	if (fb_get_options("gxfb", NULL))
+	char *option = NULL;
+
+	if (fb_get_options("gxfb", &option))
 		return -ENODEV;
+
+	gxfb_setup(option);
 #endif
 	return pci_register_driver(&gxfb_driver);
 }
@@ -412,8 +453,8 @@ static void __exit gxfb_cleanup(void)
 module_init(gxfb_init);
 module_exit(gxfb_cleanup);
 
-module_param_string(mode, mode_option, sizeof(mode_option), 0444);
-MODULE_PARM_DESC(mode, "video mode (<x>x<y>[-<bpp>][@<refr>])");
+module_param(mode_option, charp, 0);
+MODULE_PARM_DESC(mode_option, "video mode (<x>x<y>[-<bpp>][@<refr>])");
 
 MODULE_DESCRIPTION("Framebuffer driver for the AMD Geode GX");
 MODULE_LICENSE("GPL");

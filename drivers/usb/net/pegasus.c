@@ -163,6 +163,7 @@ static int get_registers(pegasus_t * pegasus, __u16 indx, __u16 size,
 
 	/* using ATOMIC, we'd never wake up if we slept */
 	if ((ret = usb_submit_urb(pegasus->ctrl_urb, GFP_ATOMIC))) {
+		set_current_state(TASK_RUNNING);
 		if (ret == -ENODEV)
 			netif_device_detach(pegasus->net);
 		if (netif_msg_drv(pegasus))
@@ -855,7 +856,7 @@ static void intr_callback(struct urb *urb)
 		pegasus->stats.rx_missed_errors += ((d[3] & 0x7f) << 8) | d[4];
 	}
 
-	status = usb_submit_urb(urb, SLAB_ATOMIC);
+	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status == -ENODEV)
 		netif_device_detach(pegasus->net);
 	if (status && netif_msg_timer(pegasus))
@@ -1280,9 +1281,9 @@ static inline void setup_pegasus_II(pegasus_t * pegasus)
 static struct workqueue_struct *pegasus_workqueue = NULL;
 #define CARRIER_CHECK_DELAY (2 * HZ)
 
-static void check_carrier(void *data)
+static void check_carrier(struct work_struct *work)
 {
-	pegasus_t *pegasus = data;
+	pegasus_t *pegasus = container_of(work, pegasus_t, carrier_check.work);
 	set_carrier(pegasus->net);
 	if (!(pegasus->flags & PEGASUS_UNPLUG)) {
 		queue_delayed_work(pegasus_workqueue, &pegasus->carrier_check,
@@ -1318,7 +1319,7 @@ static int pegasus_probe(struct usb_interface *intf,
 
 	tasklet_init(&pegasus->rx_tl, rx_fixup, (unsigned long) pegasus);
 
-	INIT_WORK(&pegasus->carrier_check, check_carrier, pegasus);
+	INIT_DELAYED_WORK(&pegasus->carrier_check, check_carrier);
 
 	pegasus->intf = intf;
 	pegasus->usb = dev;

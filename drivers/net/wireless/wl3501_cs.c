@@ -1928,7 +1928,6 @@ static int wl3501_probe(struct pcmcia_device *p_dev)
 	p_dev->conf.Attributes	= CONF_ENABLE_IRQ;
 	p_dev->conf.IntType	= INT_MEMORY_AND_IO;
 	p_dev->conf.ConfigIndex	= 1;
-	p_dev->conf.Present	= PRESENT_OPTION;
 
 	dev = alloc_etherdev(sizeof(struct wl3501_card));
 	if (!dev)
@@ -1966,24 +1965,9 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
  */
 static int wl3501_config(struct pcmcia_device *link)
 {
-	tuple_t tuple;
-	cisparse_t parse;
 	struct net_device *dev = link->priv;
 	int i = 0, j, last_fn, last_ret;
-	unsigned char bf[64];
 	struct wl3501_card *this;
-
-	/* This reads the card's CONFIG tuple to find its config registers. */
-	tuple.Attributes	= 0;
-	tuple.DesiredTuple	= CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	tuple.TupleData		= bf;
-	tuple.TupleDataMax	= sizeof(bf);
-	tuple.TupleOffset	= 0;
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-	link->conf.ConfigBase	= parse.config.base;
-	link->conf.Present	= parse.config.rmask[0];
 
 	/* Try allocating IO ports.  This tries a few fixed addresses.  If you
 	 * want, you can also read the card's config table to pick addresses --

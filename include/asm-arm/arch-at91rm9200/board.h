@@ -48,13 +48,14 @@ struct at91_cf_data {
 	u8	det_pin;		/* Card detect */
 	u8	vcc_pin;		/* power switching */
 	u8	rst_pin;		/* card reset */
+	u8	chipselect;		/* EBI Chip Select number */
 };
 extern void __init at91_add_device_cf(struct at91_cf_data *data);
 
  /* MMC / SD */
 struct at91_mmc_data {
 	u8		det_pin;	/* card detect IRQ */
-	unsigned	is_b:1;		/* uses B side (vs A) */
+	unsigned	slot_b:1;	/* uses Slot B */
 	unsigned	wire4:1;	/* (SD) supports DAT0..DAT3 */
 	u8		wp_pin;		/* (SD) writeprotect detect */
 	u8		vcc_pin;	/* power switching (high == on) */
@@ -81,7 +82,8 @@ struct at91_nand_data {
 	u8		rdy_pin;	/* ready/busy */
 	u8		ale;		/* address line number connected to ALE */
 	u8		cle;		/* address line number connected to CLE */
-        struct mtd_partition* (*partition_info)(int, int*);
+	u8		bus_width_16;	/* buswidth is 16 bit */
+	struct mtd_partition* (*partition_info)(int, int*);
 };
 extern void __init at91_add_device_nand(struct at91_nand_data *data);
 

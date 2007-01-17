@@ -32,7 +32,7 @@ struct sadb_ext {
 struct sadb_sa {
 	uint16_t	sadb_sa_len;
 	uint16_t	sadb_sa_exttype;
-	uint32_t	sadb_sa_spi;
+	__be32		sadb_sa_spi;
 	uint8_t		sadb_sa_replay;
 	uint8_t		sadb_sa_state;
 	uint8_t		sadb_sa_auth;
@@ -211,7 +211,7 @@ struct sadb_x_nat_t_type {
 struct sadb_x_nat_t_port {
 	uint16_t	sadb_x_nat_t_port_len;
 	uint16_t	sadb_x_nat_t_port_exttype;
-	uint16_t	sadb_x_nat_t_port_port;
+	__be16		sadb_x_nat_t_port_port;
 	uint16_t	sadb_x_nat_t_port_reserved;
 } __attribute__((packed));
 /* sizeof(struct sadb_x_nat_t_port) == 8 */
@@ -285,6 +285,7 @@ struct sadb_x_sec_ctx {
 #define SADB_X_AALG_SHA2_384HMAC	6
 #define SADB_X_AALG_SHA2_512HMAC	7
 #define SADB_X_AALG_RIPEMD160HMAC	8
+#define SADB_X_AALG_AES_XCBC_MAC	9
 #define SADB_X_AALG_NULL		251	/* kame */
 #define SADB_AALG_MAX			251
 

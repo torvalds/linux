@@ -37,7 +37,7 @@ enum atmarp_ctrl_type {
 struct atmarp_ctrl {
 	enum atmarp_ctrl_type	type;	/* message type */
 	int			itf_num;/* interface number (if present) */
-	uint32_t		ip;	/* IP address (act_need only) */
+	__be32			ip;	/* IP address (act_need only) */
 };
 
 #endif

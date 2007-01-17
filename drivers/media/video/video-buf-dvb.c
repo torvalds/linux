@@ -20,7 +20,7 @@
 #include <linux/fs.h>
 #include <linux/kthread.h>
 #include <linux/file.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 
 #include <media/video-buf.h>
 #include <media/video-buf-dvb.h>

@@ -227,6 +227,8 @@ int FPU_load_store(u_char type, fpu_addr_modes addr_modes,
     case 027:      /* fild m64int */
       clear_C1();
       loaded_tag = FPU_load_int64((long long __user *)data_address);
+      if (loaded_tag == TAG_Error)
+	return 0;
       FPU_settag0(loaded_tag);
       break;
     case 030:     /* fstenv  m14/28byte */

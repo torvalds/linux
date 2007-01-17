@@ -206,9 +206,9 @@ struct fc_rport {	/* aka fc_starget_attrs */
 	u8 flags;
 	struct list_head peers;
 	struct device dev;
- 	struct work_struct dev_loss_work;
+ 	struct delayed_work dev_loss_work;
  	struct work_struct scan_work;
- 	struct work_struct fail_io_work;
+ 	struct delayed_work fail_io_work;
  	struct work_struct stgt_delete_work;
 	struct work_struct rport_delete_work;
 } __attribute__((aligned(sizeof(unsigned long))));

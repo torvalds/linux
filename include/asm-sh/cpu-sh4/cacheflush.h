@@ -18,6 +18,7 @@
  */
 void flush_cache_all(void);
 void flush_cache_mm(struct mm_struct *mm);
+#define flush_cache_dup_mm(mm) flush_cache_mm(mm)
 void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 		       unsigned long end);
 void flush_cache_page(struct vm_area_struct *vma, unsigned long addr,

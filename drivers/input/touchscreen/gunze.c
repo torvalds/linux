@@ -123,7 +123,7 @@ static int gunze_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev = input_allocate_device();
 	if (!gunze || !input_dev) {
 		err = -ENOMEM;
-		goto fail;
+		goto fail1;
 	}
 
 	gunze->serio = serio;
@@ -146,13 +146,17 @@ static int gunze_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device(gunze->dev);
+	err = input_register_device(gunze->dev);
+	if (err)
+		goto fail3;
+
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
 	kfree(gunze);
 	return err;
 }
@@ -190,8 +194,7 @@ static struct serio_driver gunze_drv = {
 
 static int __init gunze_init(void)
 {
-	serio_register_driver(&gunze_drv);
-	return 0;
+	return serio_register_driver(&gunze_drv);
 }
 
 static void __exit gunze_exit(void)

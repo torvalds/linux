@@ -42,6 +42,7 @@
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
+#include <linux/hid.h>		/* For HID_REQ_SET_REPORT & HID_DT_REPORT */
 
 
 #ifdef CONFIG_USB_DEBUG
@@ -108,10 +109,6 @@ MODULE_DEVICE_TABLE (usb, usb_pcwd_table);
 #define CMD_WRITE_WATCHDOG_TIMEOUT	0x19	/* Write Current Watchdog Time */
 #define CMD_ENABLE_WATCHDOG		0x30	/* Enable / Disable Watchdog */
 #define CMD_DISABLE_WATCHDOG		CMD_ENABLE_WATCHDOG
-
-/* Some defines that I like to be somewhere else like include/linux/usb_hid.h */
-#define HID_REQ_SET_REPORT		0x09
-#define HID_DT_REPORT			(USB_TYPE_CLASS | 0x02)
 
 /* We can only use 1 card due to the /dev/watchdog restriction */
 static int cards_found;
@@ -561,8 +558,7 @@ static struct notifier_block usb_pcwd_notifier = {
  */
 static inline void usb_pcwd_delete (struct usb_pcwd_private *usb_pcwd)
 {
-	if (usb_pcwd->intr_urb != NULL)
-		usb_free_urb (usb_pcwd->intr_urb);
+	usb_free_urb(usb_pcwd->intr_urb);
 	if (usb_pcwd->intr_buffer != NULL)
 		usb_buffer_free(usb_pcwd->udev, usb_pcwd->intr_size,
 				usb_pcwd->intr_buffer, usb_pcwd->intr_dma);
@@ -635,7 +631,7 @@ static int usb_pcwd_probe(struct usb_interface *interface, const struct usb_devi
 	usb_pcwd->intr_size = (le16_to_cpu(endpoint->wMaxPacketSize) > 8 ? le16_to_cpu(endpoint->wMaxPacketSize) : 8);
 
 	/* set up the memory buffer's */
-	if (!(usb_pcwd->intr_buffer = usb_buffer_alloc(udev, usb_pcwd->intr_size, SLAB_ATOMIC, &usb_pcwd->intr_dma))) {
+	if (!(usb_pcwd->intr_buffer = usb_buffer_alloc(udev, usb_pcwd->intr_size, GFP_ATOMIC, &usb_pcwd->intr_dma))) {
 		printk(KERN_ERR PFX "Out of memory\n");
 		goto error;
 	}

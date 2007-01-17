@@ -2000,7 +2000,7 @@
  * The host accesses this scratch in a different manner from the
  * central sequencer. The sequencer has to use CSEQ registers CSCRPAGE
  * and CMnSCRPAGE to access the scratch memory. A flat mapping of the
- * scratch memory is avaliable for software convenience and to prevent
+ * scratch memory is available for software convenience and to prevent
  * corruption while the sequencer is running. This memory is mapped
  * onto addresses 800h - BFFh, total of 400h bytes.
  *

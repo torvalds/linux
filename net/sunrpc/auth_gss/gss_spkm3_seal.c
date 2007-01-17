@@ -39,10 +39,16 @@
 #include <linux/sunrpc/gss_spkm3.h>
 #include <linux/random.h>
 #include <linux/crypto.h>
+#include <linux/pagemap.h>
+#include <linux/scatterlist.h>
+#include <linux/sunrpc/xdr.h>
 
 #ifdef RPC_DEBUG
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
+
+const struct xdr_netobj hmac_md5_oid = { 8, "\x2B\x06\x01\x05\x05\x08\x01\x01"};
+const struct xdr_netobj cast5_cbc_oid = {9, "\x2A\x86\x48\x86\xF6\x7D\x07\x42\x0A"};
 
 /*
  * spkm3_make_token()
@@ -66,29 +72,23 @@ spkm3_make_token(struct spkm3_ctx *ctx,
 	int			ctxelen = 0, ctxzbit = 0;
 	int			md5elen = 0, md5zbit = 0;
 
-	dprintk("RPC: spkm3_make_token\n");
-
 	now = jiffies;
 
 	if (ctx->ctx_id.len != 16) {
 		dprintk("RPC: spkm3_make_token BAD ctx_id.len %d\n",
-			ctx->ctx_id.len);
+				ctx->ctx_id.len);
 		goto out_err;
 	}
-		
-	switch (ctx->intg_alg) {
-		case NID_md5:
-			checksum_type = CKSUMTYPE_RSA_MD5;
-			break;
-		default:
-			dprintk("RPC: gss_spkm3_seal: ctx->signalg %d not"
-				" supported\n", ctx->intg_alg);
-			goto out_err;
-	}
-	/* XXX since we don't support WRAP, perhaps we don't care... */
-	if (ctx->conf_alg != NID_cast5_cbc) {
-		dprintk("RPC: gss_spkm3_seal: ctx->sealalg %d not supported\n",
-			ctx->conf_alg);
+
+	if (!g_OID_equal(&ctx->intg_alg, &hmac_md5_oid)) {
+		dprintk("RPC: gss_spkm3_seal: unsupported I-ALG algorithm."
+				"only support hmac-md5 I-ALG.\n");
+		goto out_err;
+	} else
+		checksum_type = CKSUMTYPE_HMAC_MD5;
+
+	if (!g_OID_equal(&ctx->conf_alg, &cast5_cbc_oid)) {
+		dprintk("RPC: gss_spkm3_seal: unsupported C-ALG algorithm\n");
 		goto out_err;
 	}
 
@@ -96,10 +96,10 @@ spkm3_make_token(struct spkm3_ctx *ctx,
 		/* Calculate checksum over the mic-header */
 		asn1_bitstring_len(&ctx->ctx_id, &ctxelen, &ctxzbit);
 		spkm3_mic_header(&mic_hdr.data, &mic_hdr.len, ctx->ctx_id.data,
-		                         ctxelen, ctxzbit);
-
-		if (make_checksum(checksum_type, mic_hdr.data, mic_hdr.len, 
-		                             text, 0, &md5cksum))
+				ctxelen, ctxzbit);
+		if (make_spkm3_checksum(checksum_type, &ctx->derived_integ_key,
+					(char *)mic_hdr.data, mic_hdr.len,
+					text, 0, &md5cksum))
 			goto out_err;
 
 		asn1_bitstring_len(&md5cksum, &md5elen, &md5zbit);
@@ -121,7 +121,66 @@ spkm3_make_token(struct spkm3_ctx *ctx,
 
 	return  GSS_S_COMPLETE;
 out_err:
+	if (md5cksum.data)
+		kfree(md5cksum.data);
+
 	token->data = NULL;
 	token->len = 0;
 	return GSS_S_FAILURE;
 }
+
+static int
+spkm3_checksummer(struct scatterlist *sg, void *data)
+{
+	struct hash_desc *desc = data;
+
+	return crypto_hash_update(desc, sg, sg->length);
+}
+
+/* checksum the plaintext data and hdrlen bytes of the token header */
+s32
+make_spkm3_checksum(s32 cksumtype, struct xdr_netobj *key, char *header,
+		    unsigned int hdrlen, struct xdr_buf *body,
+		    unsigned int body_offset, struct xdr_netobj *cksum)
+{
+	char				*cksumname;
+	struct hash_desc		desc; /* XXX add to ctx? */
+	struct scatterlist		sg[1];
+	int err;
+
+	switch (cksumtype) {
+		case CKSUMTYPE_HMAC_MD5:
+			cksumname = "md5";
+			break;
+		default:
+			dprintk("RPC:      spkm3_make_checksum:"
+					" unsupported checksum %d", cksumtype);
+			return GSS_S_FAILURE;
+	}
+
+	if (key->data == NULL || key->len <= 0) return GSS_S_FAILURE;
+
+	desc.tfm = crypto_alloc_hash(cksumname, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(desc.tfm))
+		return GSS_S_FAILURE;
+	cksum->len = crypto_hash_digestsize(desc.tfm);
+	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	err = crypto_hash_setkey(desc.tfm, key->data, key->len);
+	if (err)
+		goto out;
+
+	sg_set_buf(sg, header, hdrlen);
+	crypto_hash_update(&desc, sg, 1);
+
+	xdr_process_buf(body, body_offset, body->len - body_offset,
+			spkm3_checksummer, &desc);
+	crypto_hash_final(&desc, cksum->data);
+
+out:
+	crypto_free_hash(desc.tfm);
+
+	return err ? GSS_S_FAILURE : 0;
+}
+
+EXPORT_SYMBOL(make_spkm3_checksum);

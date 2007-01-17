@@ -26,7 +26,7 @@
 
 /* Maximum address we can use for the control pages */
 /* Not more than 2GB */
-#define KEXEC_CONTROL_MEMORY_LIMIT (1<<31)
+#define KEXEC_CONTROL_MEMORY_LIMIT (1UL<<31)
 
 /* Allocate one page for the pdp and the second for the code */
 #define KEXEC_CONTROL_CODE_SIZE 4096

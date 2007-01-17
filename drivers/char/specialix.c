@@ -2261,9 +2261,10 @@ static void sx_start(struct tty_struct * tty)
  * 	do_sx_hangup() -> tty->hangup() -> sx_hangup()
  *
  */
-static void do_sx_hangup(void *private_)
+static void do_sx_hangup(struct work_struct *work)
 {
-	struct specialix_port	*port = (struct specialix_port *) private_;
+	struct specialix_port	*port =
+		container_of(work, struct specialix_port, tqueue_hangup);
 	struct tty_struct	*tty;
 
 	func_enter();
@@ -2310,7 +2311,7 @@ static void sx_hangup(struct tty_struct * tty)
 }
 
 
-static void sx_set_termios(struct tty_struct * tty, struct termios * old_termios)
+static void sx_set_termios(struct tty_struct * tty, struct ktermios * old_termios)
 {
 	struct specialix_port *port = (struct specialix_port *)tty->driver_data;
 	unsigned long flags;
@@ -2336,9 +2337,10 @@ static void sx_set_termios(struct tty_struct * tty, struct termios * old_termios
 }
 
 
-static void do_softint(void *private_)
+static void do_softint(struct work_struct *work)
 {
-	struct specialix_port	*port = (struct specialix_port *) private_;
+	struct specialix_port	*port =
+		container_of(work, struct specialix_port, tqueue);
 	struct tty_struct	*tty;
 
 	func_enter();
@@ -2398,6 +2400,8 @@ static int sx_init_drivers(void)
 	specialix_driver->init_termios = tty_std_termios;
 	specialix_driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	specialix_driver->init_termios.c_ispeed = 9600;
+	specialix_driver->init_termios.c_ospeed = 9600;
 	specialix_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(specialix_driver, &sx_ops);
 
@@ -2411,8 +2415,8 @@ static int sx_init_drivers(void)
 	memset(sx_port, 0, sizeof(sx_port));
 	for (i = 0; i < SX_NPORT * SX_NBOARD; i++) {
 		sx_port[i].magic = SPECIALIX_MAGIC;
-		INIT_WORK(&sx_port[i].tqueue, do_softint, &sx_port[i]);
-		INIT_WORK(&sx_port[i].tqueue_hangup, do_sx_hangup, &sx_port[i]);
+		INIT_WORK(&sx_port[i].tqueue, do_softint);
+		INIT_WORK(&sx_port[i].tqueue_hangup, do_sx_hangup);
 		sx_port[i].close_delay = 50 * HZ/100;
 		sx_port[i].closing_wait = 3000 * HZ/100;
 		init_waitqueue_head(&sx_port[i].open_wait);
@@ -2473,7 +2477,7 @@ static int __init specialix_init(void)
 				i++;
 				continue;
 			}
-			pdev = pci_find_device (PCI_VENDOR_ID_SPECIALIX,
+			pdev = pci_get_device (PCI_VENDOR_ID_SPECIALIX,
 			                        PCI_DEVICE_ID_SPECIALIX_IO8,
 			                        pdev);
 			if (!pdev) break;
@@ -2489,6 +2493,9 @@ static int __init specialix_init(void)
 			if (!sx_probe(&sx_board[i]))
 				found ++;
 		}
+		/* May exit pci_get sequence early with lots of boards */
+		if (pdev != NULL)
+			pci_dev_put(pdev);
 	}
 #endif
 

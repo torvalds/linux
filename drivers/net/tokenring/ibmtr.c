@@ -1826,7 +1826,7 @@ static void tr_rx(struct net_device *dev)
 	skb->protocol = tr_type_trans(skb, dev);
 	if (IPv4_p) {
 		skb->csum = chksum;
-		skb->ip_summed = 1;
+		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 	netif_rx(skb);
 	dev->last_rx = jiffies;

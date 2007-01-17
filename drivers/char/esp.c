@@ -723,9 +723,10 @@ static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
  * -------------------------------------------------------------------
  */
 
-static void do_softint(void *private_)
+static void do_softint(struct work_struct *work)
 {
-	struct esp_struct	*info = (struct esp_struct *) private_;
+	struct esp_struct	*info =
+		container_of(work, struct esp_struct, tqueue);
 	struct tty_struct	*tty;
 	
 	tty = info->tty;
@@ -746,9 +747,10 @@ static void do_softint(void *private_)
  * 	do_serial_hangup() -> tty->hangup() -> esp_hangup()
  * 
  */
-static void do_serial_hangup(void *private_)
+static void do_serial_hangup(struct work_struct *work)
 {
-	struct esp_struct	*info = (struct esp_struct *) private_;
+	struct esp_struct	*info =
+		container_of(work, struct esp_struct, tqueue_hangup);
 	struct tty_struct	*tty;
 	
 	tty = info->tty;
@@ -1913,7 +1915,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 	return 0;
 }
 
-static void rs_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct esp_struct *info = (struct esp_struct *)tty->driver_data;
 	unsigned long flags;
@@ -2501,8 +2503,8 @@ static int __init espserial_init(void)
 		info->magic = ESP_MAGIC;
 		info->close_delay = 5*HZ/10;
 		info->closing_wait = 30*HZ;
-		INIT_WORK(&info->tqueue, do_softint, info);
-		INIT_WORK(&info->tqueue_hangup, do_serial_hangup, info);
+		INIT_WORK(&info->tqueue, do_softint);
+		INIT_WORK(&info->tqueue_hangup, do_serial_hangup);
 		info->config.rx_timeout = rx_timeout;
 		info->config.flow_on = flow_on;
 		info->config.flow_off = flow_off;

@@ -1230,15 +1230,15 @@ mptscsih_host_info(MPT_ADAPTER *ioc, char *pbuf, off_t offset, int len)
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
  *	mptscsih_proc_info - Return information about MPT adapter
+ * 	@host:   scsi host struct
+ * 	@buffer: if write, user data; if read, buffer for user
+ *	@start: returns the buffer address
+ * 	@offset: if write, 0; if read, the current offset into the buffer from
+ * 		 the previous read.
+ * 	@length: if write, return length;
+ *	@func:   write = 1; read = 0
  *
  *	(linux scsi_host_template.info routine)
- *
- * 	buffer: if write, user data; if read, buffer for user
- * 	length: if write, return length;
- * 	offset: if write, 0; if read, the current offset into the buffer from
- * 		the previous read.
- * 	hostno: scsi host number
- *	func:   if write = 1; if read = 0
  */
 int
 mptscsih_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset,
@@ -1902,8 +1902,7 @@ mptscsih_bus_reset(struct scsi_cmnd * SCpnt)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- *	mptscsih_host_reset - Perform a SCSI host adapter RESET!
- *	new_eh variant
+ *	mptscsih_host_reset - Perform a SCSI host adapter RESET (new_eh variant)
  *	@SCpnt: Pointer to scsi_cmnd structure, IO which reset is due to
  *
  *	(linux scsi_host_template.eh_host_reset_handler routine)
@@ -1949,8 +1948,7 @@ mptscsih_host_reset(struct scsi_cmnd *SCpnt)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- *	mptscsih_tm_pending_wait - wait for pending task management request to
- *		complete.
+ *	mptscsih_tm_pending_wait - wait for pending task management request to complete
  *	@hd: Pointer to MPT host structure.
  *
  *	Returns {SUCCESS,FAILED}.
@@ -1982,6 +1980,7 @@ mptscsih_tm_pending_wait(MPT_SCSI_HOST * hd)
 /**
  *	mptscsih_tm_wait_for_completion - wait for completion of TM task
  *	@hd: Pointer to MPT host structure.
+ *	@timeout: timeout in seconds
  *
  *	Returns {SUCCESS,FAILED}.
  */
@@ -3429,8 +3428,7 @@ mptscsih_do_cmd(MPT_SCSI_HOST *hd, INTERNAL_CMD *io)
 /**
  *	mptscsih_synchronize_cache - Send SYNCHRONIZE_CACHE to all disks.
  *	@hd: Pointer to a SCSI HOST structure
- *	@vtarget: per device private data
- *	@lun: lun
+ *	@vdevice: virtual target device
  *
  *	Uses the ISR, but with special processing.
  *	MUST be single-threaded.

@@ -251,12 +251,11 @@ static int tcf_em_validate(struct tcf_proto *tp,
 					goto errout;
 				em->data = *(u32 *) data;
 			} else {
-				void *v = kmalloc(data_len, GFP_KERNEL);
+				void *v = kmemdup(data, data_len, GFP_KERNEL);
 				if (v == NULL) {
 					err = -ENOBUFS;
 					goto errout;
 				}
-				memcpy(v, data, data_len);
 				em->data = (unsigned long) v;
 			}
 		}

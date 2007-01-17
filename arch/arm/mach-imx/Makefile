@@ -9,6 +9,8 @@
 
 obj-y			+= irq.o time.o dma.o generic.o
 
+obj-$(CONFIG_CPU_FREQ_IMX)	+= cpufreq.o
+
 # Specific board support
 obj-$(CONFIG_ARCH_MX1ADS) += mx1ads.o
 

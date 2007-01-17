@@ -33,7 +33,6 @@ EXPORT_SYMBOL(rpciod_down);
 EXPORT_SYMBOL(rpciod_up);
 EXPORT_SYMBOL(rpc_new_task);
 EXPORT_SYMBOL(rpc_wake_up_status);
-EXPORT_SYMBOL(rpc_release_task);
 
 /* RPC client functions */
 EXPORT_SYMBOL(rpc_clone_client);
@@ -139,6 +138,8 @@ EXPORT_SYMBOL(nlm_debug);
 extern int register_rpc_pipefs(void);
 extern void unregister_rpc_pipefs(void);
 extern struct cache_detail ip_map_cache;
+extern int init_socket_xprt(void);
+extern void cleanup_socket_xprt(void);
 
 static int __init
 init_sunrpc(void)
@@ -156,6 +157,7 @@ init_sunrpc(void)
 	rpc_proc_init();
 #endif
 	cache_register(&ip_map_cache);
+	init_socket_xprt();
 out:
 	return err;
 }
@@ -163,6 +165,7 @@ out:
 static void __exit
 cleanup_sunrpc(void)
 {
+	cleanup_socket_xprt();
 	unregister_rpc_pipefs();
 	rpc_destroy_mempool();
 	if (cache_unregister(&ip_map_cache))

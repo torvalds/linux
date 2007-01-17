@@ -40,6 +40,207 @@
 #include "netlabel_user.h"
 
 /*
+ * Security Attribute Functions
+ */
+
+/**
+ * netlbl_secattr_catmap_walk - Walk a LSM secattr catmap looking for a bit
+ * @catmap: the category bitmap
+ * @offset: the offset to start searching at, in bits
+ *
+ * Description:
+ * This function walks a LSM secattr category bitmap starting at @offset and
+ * returns the spot of the first set bit or -ENOENT if no bits are set.
+ *
+ */
+int netlbl_secattr_catmap_walk(struct netlbl_lsm_secattr_catmap *catmap,
+			       u32 offset)
+{
+	struct netlbl_lsm_secattr_catmap *iter = catmap;
+	u32 node_idx;
+	u32 node_bit;
+	NETLBL_CATMAP_MAPTYPE bitmap;
+
+	if (offset > iter->startbit) {
+		while (offset >= (iter->startbit + NETLBL_CATMAP_SIZE)) {
+			iter = iter->next;
+			if (iter == NULL)
+				return -ENOENT;
+		}
+		node_idx = (offset - iter->startbit) / NETLBL_CATMAP_MAPSIZE;
+		node_bit = offset - iter->startbit -
+			   (NETLBL_CATMAP_MAPSIZE * node_idx);
+	} else {
+		node_idx = 0;
+		node_bit = 0;
+	}
+	bitmap = iter->bitmap[node_idx] >> node_bit;
+
+	for (;;) {
+		if (bitmap != 0) {
+			while ((bitmap & NETLBL_CATMAP_BIT) == 0) {
+				bitmap >>= 1;
+				node_bit++;
+			}
+			return iter->startbit +
+				(NETLBL_CATMAP_MAPSIZE * node_idx) + node_bit;
+		}
+		if (++node_idx >= NETLBL_CATMAP_MAPCNT) {
+			if (iter->next != NULL) {
+				iter = iter->next;
+				node_idx = 0;
+			} else
+				return -ENOENT;
+		}
+		bitmap = iter->bitmap[node_idx];
+		node_bit = 0;
+	}
+
+	return -ENOENT;
+}
+
+/**
+ * netlbl_secattr_catmap_walk_rng - Find the end of a string of set bits
+ * @catmap: the category bitmap
+ * @offset: the offset to start searching at, in bits
+ *
+ * Description:
+ * This function walks a LSM secattr category bitmap starting at @offset and
+ * returns the spot of the first cleared bit or -ENOENT if the offset is past
+ * the end of the bitmap.
+ *
+ */
+int netlbl_secattr_catmap_walk_rng(struct netlbl_lsm_secattr_catmap *catmap,
+				   u32 offset)
+{
+	struct netlbl_lsm_secattr_catmap *iter = catmap;
+	u32 node_idx;
+	u32 node_bit;
+	NETLBL_CATMAP_MAPTYPE bitmask;
+	NETLBL_CATMAP_MAPTYPE bitmap;
+
+	if (offset > iter->startbit) {
+		while (offset >= (iter->startbit + NETLBL_CATMAP_SIZE)) {
+			iter = iter->next;
+			if (iter == NULL)
+				return -ENOENT;
+		}
+		node_idx = (offset - iter->startbit) / NETLBL_CATMAP_MAPSIZE;
+		node_bit = offset - iter->startbit -
+			   (NETLBL_CATMAP_MAPSIZE * node_idx);
+	} else {
+		node_idx = 0;
+		node_bit = 0;
+	}
+	bitmask = NETLBL_CATMAP_BIT << node_bit;
+
+	for (;;) {
+		bitmap = iter->bitmap[node_idx];
+		while (bitmask != 0 && (bitmap & bitmask) != 0) {
+			bitmask <<= 1;
+			node_bit++;
+		}
+
+		if (bitmask != 0)
+			return iter->startbit +
+				(NETLBL_CATMAP_MAPSIZE * node_idx) +
+				node_bit - 1;
+		else if (++node_idx >= NETLBL_CATMAP_MAPCNT) {
+			if (iter->next == NULL)
+				return iter->startbit +	NETLBL_CATMAP_SIZE - 1;
+			iter = iter->next;
+			node_idx = 0;
+		}
+		bitmask = NETLBL_CATMAP_BIT;
+		node_bit = 0;
+	}
+
+	return -ENOENT;
+}
+
+/**
+ * netlbl_secattr_catmap_setbit - Set a bit in a LSM secattr catmap
+ * @catmap: the category bitmap
+ * @bit: the bit to set
+ * @flags: memory allocation flags
+ *
+ * Description:
+ * Set the bit specified by @bit in @catmap.  Returns zero on success,
+ * negative values on failure.
+ *
+ */
+int netlbl_secattr_catmap_setbit(struct netlbl_lsm_secattr_catmap *catmap,
+				 u32 bit,
+				 gfp_t flags)
+{
+	struct netlbl_lsm_secattr_catmap *iter = catmap;
+	u32 node_bit;
+	u32 node_idx;
+
+	while (iter->next != NULL &&
+	       bit >= (iter->startbit + NETLBL_CATMAP_SIZE))
+		iter = iter->next;
+	if (bit >= (iter->startbit + NETLBL_CATMAP_SIZE)) {
+		iter->next = netlbl_secattr_catmap_alloc(flags);
+		if (iter->next == NULL)
+			return -ENOMEM;
+		iter = iter->next;
+		iter->startbit = bit & ~(NETLBL_CATMAP_SIZE - 1);
+	}
+
+	/* gcc always rounds to zero when doing integer division */
+	node_idx = (bit - iter->startbit) / NETLBL_CATMAP_MAPSIZE;
+	node_bit = bit - iter->startbit - (NETLBL_CATMAP_MAPSIZE * node_idx);
+	iter->bitmap[node_idx] |= NETLBL_CATMAP_BIT << node_bit;
+
+	return 0;
+}
+
+/**
+ * netlbl_secattr_catmap_setrng - Set a range of bits in a LSM secattr catmap
+ * @catmap: the category bitmap
+ * @start: the starting bit
+ * @end: the last bit in the string
+ * @flags: memory allocation flags
+ *
+ * Description:
+ * Set a range of bits, starting at @start and ending with @end.  Returns zero
+ * on success, negative values on failure.
+ *
+ */
+int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap *catmap,
+				 u32 start,
+				 u32 end,
+				 gfp_t flags)
+{
+	int ret_val = 0;
+	struct netlbl_lsm_secattr_catmap *iter = catmap;
+	u32 iter_max_spot;
+	u32 spot;
+
+	/* XXX - This could probably be made a bit faster by combining writes
+	 * to the catmap instead of setting a single bit each time, but for
+	 * right now skipping to the start of the range in the catmap should
+	 * be a nice improvement over calling the individual setbit function
+	 * repeatedly from a loop. */
+
+	while (iter->next != NULL &&
+	       start >= (iter->startbit + NETLBL_CATMAP_SIZE))
+		iter = iter->next;
+	iter_max_spot = iter->startbit + NETLBL_CATMAP_SIZE;
+
+	for (spot = start; spot <= end && ret_val == 0; spot++) {
+		if (spot >= iter_max_spot && iter->next != NULL) {
+			iter = iter->next;
+			iter_max_spot = iter->startbit + NETLBL_CATMAP_SIZE;
+		}
+		ret_val = netlbl_secattr_catmap_setbit(iter, spot, GFP_ATOMIC);
+	}
+
+	return ret_val;
+}
+
+/*
  * LSM Functions
  */
 
@@ -61,6 +262,9 @@ int netlbl_socket_setattr(const struct socket *sock,
 {
 	int ret_val = -ENOENT;
 	struct netlbl_dom_map *dom_entry;
+
+	if ((secattr->flags & NETLBL_SECATTR_DOMAIN) == 0)
+		return -ENOENT;
 
 	rcu_read_lock();
 	dom_entry = netlbl_domhsh_getentry(secattr->domain);
@@ -146,10 +350,8 @@ int netlbl_socket_getattr(const struct socket *sock,
 int netlbl_skbuff_getattr(const struct sk_buff *skb,
 			  struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val;
-
-	ret_val = cipso_v4_skbuff_getattr(skb, secattr);
-	if (ret_val == 0)
+	if (CIPSO_V4_OPTEXIST(skb) &&
+	    cipso_v4_skbuff_getattr(skb, secattr) == 0)
 		return 0;
 
 	return netlbl_unlabel_getattr(secattr);
@@ -200,7 +402,7 @@ void netlbl_cache_invalidate(void)
 int netlbl_cache_add(const struct sk_buff *skb,
 		     const struct netlbl_lsm_secattr *secattr)
 {
-	if (secattr->cache == NULL)
+	if ((secattr->flags & NETLBL_SECATTR_CACHE) == 0)
 		return -ENOMSG;
 
 	if (CIPSO_V4_OPTEXIST(skb))

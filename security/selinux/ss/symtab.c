@@ -9,9 +9,9 @@
 #include <linux/errno.h>
 #include "symtab.h"
 
-static unsigned int symhash(struct hashtab *h, void *key)
+static unsigned int symhash(struct hashtab *h, const void *key)
 {
-	char *p, *keyp;
+	const char *p, *keyp;
 	unsigned int size;
 	unsigned int val;
 
@@ -23,9 +23,9 @@ static unsigned int symhash(struct hashtab *h, void *key)
 	return val & (h->size - 1);
 }
 
-static int symcmp(struct hashtab *h, void *key1, void *key2)
+static int symcmp(struct hashtab *h, const void *key1, const void *key2)
 {
-	char *keyp1, *keyp2;
+	const char *keyp1, *keyp2;
 
 	keyp1 = key1;
 	keyp2 = key2;

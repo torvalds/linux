@@ -1,5 +1,4 @@
 /*
- *  
  *  Copyright (C) 2002 Intersil Americas Inc.
  *  Copyright (C) 2004 Aurelien Alleaume <slts@free.fr>
  *  This program is free software; you can redistribute it and/or modify
@@ -48,7 +47,7 @@ islpci_eth_cleanup_transmit(islpci_private *priv,
 		/* read the index of the first fragment to be freed */
 		index = priv->free_data_tx % ISL38XX_CB_TX_QSIZE;
 
-		/* check for holes in the arrays caused by multi fragment frames 
+		/* check for holes in the arrays caused by multi fragment frames
 		 * searching for the last fragment of a frame */
 		if (priv->pci_map_tx_address[index] != (dma_addr_t) NULL) {
 			/* entry is the last fragment of a frame
@@ -253,6 +252,7 @@ islpci_monitor_rx(islpci_private *priv, struct sk_buff **skb)
 	 * header and without the FCS. But there a is a bit that
 	 * indicates if the packet is corrupted :-) */
 	struct rfmon_header *hdr = (struct rfmon_header *) (*skb)->data;
+
 	if (hdr->flags & 0x01)
 		/* This one is bad. Drop it ! */
 		return -1;
@@ -284,7 +284,7 @@ islpci_monitor_rx(islpci_private *priv, struct sk_buff **skb)
 		    (struct avs_80211_1_header *) skb_push(*skb,
 							   sizeof (struct
 								   avs_80211_1_header));
-		
+
 		avs->version = cpu_to_be32(P80211CAPTURE_VERSION);
 		avs->length = cpu_to_be32(sizeof (struct avs_80211_1_header));
 		avs->mactime = cpu_to_be64(le64_to_cpu(clock));
@@ -390,7 +390,7 @@ islpci_eth_receive(islpci_private *priv)
 			struct rx_annex_header *annex =
 			    (struct rx_annex_header *) skb->data;
 			wstats.level = annex->rfmon.rssi;
-			/* The noise value can be a bit outdated if nobody's 
+			/* The noise value can be a bit outdated if nobody's
 			 * reading wireless stats... */
 			wstats.noise = priv->local_iwstatistics.qual.noise;
 			wstats.qual = wstats.level - wstats.noise;
@@ -464,10 +464,8 @@ islpci_eth_receive(islpci_private *priv)
 			break;
 		}
 		/* update the fragment address */
-		control_block->rx_data_low[index].address = cpu_to_le32((u32)
-									priv->
-									pci_map_rx_address
-									[index]);
+		control_block->rx_data_low[index].address =
+			cpu_to_le32((u32)priv->pci_map_rx_address[index]);
 		wmb();
 
 		/* increment the driver read pointer */
@@ -482,12 +480,14 @@ islpci_eth_receive(islpci_private *priv)
 }
 
 void
-islpci_do_reset_and_wake(void *data)
+islpci_do_reset_and_wake(struct work_struct *work)
 {
-	islpci_private *priv = (islpci_private *) data;
+	islpci_private *priv = container_of(work, islpci_private, reset_task);
+
 	islpci_reset(priv, 1);
-	netif_wake_queue(priv->ndev);
 	priv->reset_task_pending = 0;
+	smp_wmb();
+	netif_wake_queue(priv->ndev);
 }
 
 void
@@ -499,12 +499,14 @@ islpci_eth_tx_timeout(struct net_device *ndev)
 	/* increment the transmit error counter */
 	statistics->tx_errors++;
 
-	printk(KERN_WARNING "%s: tx_timeout", ndev->name);
 	if (!priv->reset_task_pending) {
-		priv->reset_task_pending = 1;
-		printk(", scheduling a reset");
+		printk(KERN_WARNING
+			"%s: tx_timeout, scheduling reset", ndev->name);
 		netif_stop_queue(ndev);
+		priv->reset_task_pending = 1;
 		schedule_work(&priv->reset_task);
+	} else {
+		printk(KERN_WARNING
+			"%s: tx_timeout, waiting for reset", ndev->name);
 	}
-	printk("\n");
 }

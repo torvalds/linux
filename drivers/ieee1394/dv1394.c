@@ -1536,27 +1536,20 @@ static ssize_t dv1394_read(struct file *file,  char __user *buffer, size_t count
 
 static long dv1394_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct video_card *video;
+	struct video_card *video = file_to_video_card(file);
 	unsigned long flags;
 	int ret = -EINVAL;
 	void __user *argp = (void __user *)arg;
 
 	DECLARE_WAITQUEUE(wait, current);
 
-	lock_kernel();
-	video = file_to_video_card(file);
-
 	/* serialize this to prevent multi-threaded mayhem */
 	if (file->f_flags & O_NONBLOCK) {
-		if (!mutex_trylock(&video->mtx)) {
-			unlock_kernel();
+		if (!mutex_trylock(&video->mtx))
 			return -EAGAIN;
-		}
 	} else {
-		if (mutex_lock_interruptible(&video->mtx)) {
-			unlock_kernel();
+		if (mutex_lock_interruptible(&video->mtx))
 			return -ERESTARTSYS;
-		}
 	}
 
 	switch(cmd)
@@ -1780,7 +1773,6 @@ static long dv1394_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
  out:
 	mutex_unlock(&video->mtx);
-	unlock_kernel();
 	return ret;
 }
 
@@ -2188,12 +2180,8 @@ static struct ieee1394_device_id dv1394_id_table[] = {
 MODULE_DEVICE_TABLE(ieee1394, dv1394_id_table);
 
 static struct hpsb_protocol_driver dv1394_driver = {
-	.name		= "DV/1394 Driver",
+	.name		= "dv1394",
 	.id_table	= dv1394_id_table,
-	.driver         = {
-		.name	= "dv1394",
-		.bus	= &ieee1394_bus_type,
-	},
 };
 
 
@@ -2586,6 +2574,10 @@ static void __exit dv1394_exit_module(void)
 static int __init dv1394_init_module(void)
 {
 	int ret;
+
+	printk(KERN_WARNING
+	       "WARNING: The dv1394 driver is unsupported and will be removed "
+	       "from Linux soon. Use raw1394 instead.\n");
 
 	cdev_init(&dv1394_cdev, &dv1394_fops);
 	dv1394_cdev.owner = THIS_MODULE;

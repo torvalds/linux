@@ -249,9 +249,11 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 
 	/*
 	 * MAY_EXEC on regular files requires special handling: We override
-	 * filesystem execute permissions if the mode bits aren't set.
+	 * filesystem execute permissions if the mode bits aren't set or
+	 * the fs is mounted with the "noexec" flag.
 	 */
-	if ((mask & MAY_EXEC) && S_ISREG(mode) && !(mode & S_IXUGO))
+	if ((mask & MAY_EXEC) && S_ISREG(mode) && (!(mode & S_IXUGO) ||
+			(nd && nd->mnt && (nd->mnt->mnt_flags & MNT_NOEXEC))))
 		return -EACCES;
 
 	/* Ordinary permission routines do not understand MAY_APPEND. */
@@ -295,7 +297,7 @@ int vfs_permission(struct nameidata *nd, int mask)
  */
 int file_permission(struct file *file, int mask)
 {
-	return permission(file->f_dentry->d_inode, mask, NULL);
+	return permission(file->f_path.dentry->d_inode, mask, NULL);
 }
 
 /*
@@ -331,7 +333,7 @@ int get_write_access(struct inode * inode)
 
 int deny_write_access(struct file * file)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 
 	spin_lock(&inode->i_lock);
 	if (atomic_read(&inode->i_writecount) > 0) {
@@ -366,7 +368,7 @@ void path_release_on_umount(struct nameidata *nd)
  */
 void release_open_intent(struct nameidata *nd)
 {
-	if (nd->intent.open.file->f_dentry == NULL)
+	if (nd->intent.open.file->f_path.dentry == NULL)
 		put_filp(nd->intent.open.file);
 	else
 		fput(nd->intent.open.file);
@@ -569,11 +571,6 @@ fail:
 	path_release(nd);
 	return PTR_ERR(link);
 }
-
-struct path {
-	struct vfsmount *mnt;
-	struct dentry *dentry;
-};
 
 static inline void dput_path(struct path *path, struct nameidata *nd)
 {
@@ -1141,7 +1138,7 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 		if (!file)
 			goto out_fail;
 
-		dentry = file->f_dentry;
+		dentry = file->f_path.dentry;
 
 		retval = -ENOTDIR;
 		if (!S_ISDIR(dentry->d_inode->i_mode))
@@ -1151,7 +1148,7 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 		if (retval)
 			goto fput_fail;
 
-		nd->mnt = mntget(file->f_vfsmnt);
+		nd->mnt = mntget(file->f_path.mnt);
 		nd->dentry = dget(dentry);
 
 		fput_light(file, fput_needed);
@@ -1996,8 +1993,7 @@ asmlinkage long sys_mkdir(const char __user *pathname, int mode)
 void dentry_unhash(struct dentry *dentry)
 {
 	dget(dentry);
-	if (atomic_read(&dentry->d_count))
-		shrink_dcache_parent(dentry);
+	shrink_dcache_parent(dentry);
 	spin_lock(&dcache_lock);
 	spin_lock(&dentry->d_lock);
 	if (atomic_read(&dentry->d_count) == 2)

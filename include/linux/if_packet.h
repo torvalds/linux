@@ -1,17 +1,19 @@
 #ifndef __LINUX_IF_PACKET_H
 #define __LINUX_IF_PACKET_H
 
+#include <linux/types.h>
+
 struct sockaddr_pkt
 {
 	unsigned short spkt_family;
 	unsigned char spkt_device[14];
-	unsigned short spkt_protocol;
+	__be16 spkt_protocol;
 };
 
 struct sockaddr_ll
 {
 	unsigned short	sll_family;
-	unsigned short	sll_protocol;
+	__be16		sll_protocol;
 	int		sll_ifindex;
 	unsigned short	sll_hatype;
 	unsigned char	sll_pkttype;

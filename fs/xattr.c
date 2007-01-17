@@ -268,7 +268,7 @@ sys_fsetxattr(int fd, char __user *name, void __user *value,
 	f = fget(fd);
 	if (!f)
 		return error;
-	dentry = f->f_dentry;
+	dentry = f->f_path.dentry;
 	audit_inode(NULL, dentry->d_inode);
 	error = setxattr(dentry, name, value, size, flags);
 	fput(f);
@@ -351,7 +351,7 @@ sys_fgetxattr(int fd, char __user *name, void __user *value, size_t size)
 	f = fget(fd);
 	if (!f)
 		return error;
-	error = getxattr(f->f_dentry, name, value, size);
+	error = getxattr(f->f_path.dentry, name, value, size);
 	fput(f);
 	return error;
 }
@@ -423,7 +423,7 @@ sys_flistxattr(int fd, char __user *list, size_t size)
 	f = fget(fd);
 	if (!f)
 		return error;
-	error = listxattr(f->f_dentry, list, size);
+	error = listxattr(f->f_path.dentry, list, size);
 	fput(f);
 	return error;
 }
@@ -484,7 +484,7 @@ sys_fremovexattr(int fd, char __user *name)
 	f = fget(fd);
 	if (!f)
 		return error;
-	dentry = f->f_dentry;
+	dentry = f->f_path.dentry;
 	audit_inode(NULL, dentry->d_inode);
 	error = removexattr(dentry, name);
 	fput(f);

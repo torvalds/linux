@@ -3009,7 +3009,7 @@ static inline struct jfs_dirent *next_jfs_dirent(struct jfs_dirent *dirent)
  */
 int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *ip = filp->f_dentry->d_inode;
+	struct inode *ip = filp->f_path.dentry->d_inode;
 	struct nls_table *codepage = JFS_SBI(ip->i_sb)->nls_tab;
 	int rc = 0;
 	loff_t dtpos;	/* legacy OS/2 style position */
@@ -3777,12 +3777,12 @@ static int ciGetLeafPrefixKey(dtpage_t * lp, int li, dtpage_t * rp,
 	struct component_name lkey;
 	struct component_name rkey;
 
-	lkey.name = (wchar_t *) kmalloc((JFS_NAME_MAX + 1) * sizeof(wchar_t),
+	lkey.name = kmalloc((JFS_NAME_MAX + 1) * sizeof(wchar_t),
 					GFP_KERNEL);
 	if (lkey.name == NULL)
 		return -ENOMEM;
 
-	rkey.name = (wchar_t *) kmalloc((JFS_NAME_MAX + 1) * sizeof(wchar_t),
+	rkey.name = kmalloc((JFS_NAME_MAX + 1) * sizeof(wchar_t),
 					GFP_KERNEL);
 	if (rkey.name == NULL) {
 		kfree(lkey.name);

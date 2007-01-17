@@ -222,7 +222,7 @@ int RIOBoardTest(unsigned long paddr, void __iomem *caddr, unsigned char type, i
 ** which value will be written into memory.
 ** Call with op set to zero means that the RAM will not be read and checked
 ** before it is written.
-** Call with op not zero, and the RAM will be read and compated with val[op-1]
+** Call with op not zero and the RAM will be read and compared with val[op-1]
 ** to check that the data from the previous phase was retained.
 */
 

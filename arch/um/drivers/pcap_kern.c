@@ -109,4 +109,4 @@ static int register_pcap(void)
 	return 0;
 }
 
-__initcall(register_pcap);
+late_initcall(register_pcap);

@@ -647,10 +647,12 @@ void sas_unregister_domain_devices(struct asd_sas_port *port)
  * Discover process only interrogates devices in order to discover the
  * domain.
  */
-static void sas_discover_domain(void *data)
+static void sas_discover_domain(struct work_struct *work)
 {
 	int error = 0;
-	struct asd_sas_port *port = data;
+	struct sas_discovery_event *ev =
+		container_of(work, struct sas_discovery_event, work);
+	struct asd_sas_port *port = ev->port;
 
 	sas_begin_event(DISCE_DISCOVER_DOMAIN, &port->disc.disc_event_lock,
 			&port->disc.pending);
@@ -692,10 +694,12 @@ static void sas_discover_domain(void *data)
 		    current->pid, error);
 }
 
-static void sas_revalidate_domain(void *data)
+static void sas_revalidate_domain(struct work_struct *work)
 {
 	int res = 0;
-	struct asd_sas_port *port = data;
+	struct sas_discovery_event *ev =
+		container_of(work, struct sas_discovery_event, work);
+	struct asd_sas_port *port = ev->port;
 
 	sas_begin_event(DISCE_REVALIDATE_DOMAIN, &port->disc.disc_event_lock,
 			&port->disc.pending);
@@ -722,7 +726,7 @@ int sas_discover_event(struct asd_sas_port *port, enum discover_event ev)
 	BUG_ON(ev >= DISC_NUM_EVENTS);
 
 	sas_queue_event(ev, &disc->disc_event_lock, &disc->pending,
-			&disc->disc_work[ev], port->ha->core.shost);
+			&disc->disc_work[ev].work, port->ha->core.shost);
 
 	return 0;
 }
@@ -737,13 +741,15 @@ void sas_init_disc(struct sas_discovery *disc, struct asd_sas_port *port)
 {
 	int i;
 
-	static void (*sas_event_fns[DISC_NUM_EVENTS])(void *) = {
+	static const work_func_t sas_event_fns[DISC_NUM_EVENTS] = {
 		[DISCE_DISCOVER_DOMAIN] = sas_discover_domain,
 		[DISCE_REVALIDATE_DOMAIN] = sas_revalidate_domain,
 	};
 
 	spin_lock_init(&disc->disc_event_lock);
 	disc->pending = 0;
-	for (i = 0; i < DISC_NUM_EVENTS; i++)
-		INIT_WORK(&disc->disc_work[i], sas_event_fns[i], port);
+	for (i = 0; i < DISC_NUM_EVENTS; i++) {
+		INIT_WORK(&disc->disc_work[i].work, sas_event_fns[i]);
+		disc->disc_work[i].port = port;
+	}
 }

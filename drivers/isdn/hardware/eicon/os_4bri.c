@@ -464,7 +464,7 @@ int diva_4bri_init_card(diva_os_xdi_adapter_t * a)
 
 /*
 **  Cleanup function will be called for master adapter only
-**  this is garanteed by design: cleanup callback is set
+**  this is guaranteed by design: cleanup callback is set
 **  by master adapter only
 */
 static int diva_4bri_cleanup_adapter(diva_os_xdi_adapter_t * a)

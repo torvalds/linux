@@ -208,6 +208,15 @@ struct kernel_ipmi_msg
    code as the first byte of the incoming data, unlike a response. */
 
 
+/*
+ * Modes for ipmi_set_maint_mode() and the userland IOCTL.  The AUTO
+ * setting is the default and means it will be set on certain
+ * commands.  Hard setting it on and off will override automatic
+ * operation.
+ */
+#define IPMI_MAINTENANCE_MODE_AUTO	0
+#define IPMI_MAINTENANCE_MODE_OFF	1
+#define IPMI_MAINTENANCE_MODE_ON	2
 
 #ifdef __KERNEL__
 
@@ -372,6 +381,35 @@ int ipmi_unregister_for_cmd(ipmi_user_t   user,
 			    unsigned char netfn,
 			    unsigned char cmd,
 			    unsigned int  chans);
+
+/*
+ * Go into a mode where the driver will not autonomously attempt to do
+ * things with the interface.  It will still respond to attentions and
+ * interrupts, and it will expect that commands will complete.  It
+ * will not automatcially check for flags, events, or things of that
+ * nature.
+ *
+ * This is primarily used for firmware upgrades.  The idea is that
+ * when you go into firmware upgrade mode, you do this operation
+ * and the driver will not attempt to do anything but what you tell
+ * it or what the BMC asks for.
+ *
+ * Note that if you send a command that resets the BMC, the driver
+ * will still expect a response from that command.  So the BMC should
+ * reset itself *after* the response is sent.  Resetting before the
+ * response is just silly.
+ *
+ * If in auto maintenance mode, the driver will automatically go into
+ * maintenance mode for 30 seconds if it sees a cold reset, a warm
+ * reset, or a firmware NetFN.  This means that code that uses only
+ * firmware NetFN commands to do upgrades will work automatically
+ * without change, assuming it sends a message every 30 seconds or
+ * less.
+ *
+ * See the IPMI_MAINTENANCE_MODE_xxx defines for what the mode means.
+ */
+int ipmi_get_maintenance_mode(ipmi_user_t user);
+int ipmi_set_maintenance_mode(ipmi_user_t user, int mode);
 
 /*
  * Allow run-to-completion mode to be set for the interface of
@@ -655,5 +693,12 @@ struct ipmi_timing_parms
 					     struct ipmi_timing_parms)
 #define IPMICTL_GET_TIMING_PARMS_CMD	_IOR(IPMI_IOC_MAGIC, 23, \
 					     struct ipmi_timing_parms)
+
+/*
+ * Set the maintenance mode.  See ipmi_set_maintenance_mode() above
+ * for a description of what this does.
+ */
+#define IPMICTL_GET_MAINTENANCE_MODE_CMD	_IOR(IPMI_IOC_MAGIC, 30, int)
+#define IPMICTL_SET_MAINTENANCE_MODE_CMD	_IOW(IPMI_IOC_MAGIC, 31, int)
 
 #endif /* __LINUX_IPMI_H */

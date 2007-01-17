@@ -101,8 +101,10 @@ W6692_new_ph(struct IsdnCardState *cs)
 }
 
 static void
-W6692_bh(struct IsdnCardState *cs)
+W6692_bh(struct work_struct *work)
 {
+	struct IsdnCardState *cs =
+		container_of(work, struct IsdnCardState, tqueue);
 	struct PStack *stptr;
 
 	if (!cs)
@@ -1070,7 +1072,7 @@ setup_w6692(struct IsdnCard *card)
 	       id_list[cs->subtyp].card_name, cs->irq,
 	       cs->hw.w6692.iobase);
 
-	INIT_WORK(&cs->tqueue, (void *)(void *) W6692_bh, cs);
+	INIT_WORK(&cs->tqueue, W6692_bh);
 	cs->readW6692 = &ReadW6692;
 	cs->writeW6692 = &WriteW6692;
 	cs->readisacfifo = &ReadISACfifo;

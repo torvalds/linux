@@ -24,7 +24,7 @@ EXPORT_SYMBOL (kernel_thread);
 EXPORT_SYMBOL (__bug);
 
 /* Networking helper routines. */
-EXPORT_SYMBOL (csum_partial_copy);
+EXPORT_SYMBOL (csum_partial_copy_nocheck);
 EXPORT_SYMBOL (csum_partial_copy_from_user);
 EXPORT_SYMBOL (ip_compute_csum);
 EXPORT_SYMBOL (ip_fast_csum);

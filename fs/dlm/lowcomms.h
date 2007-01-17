@@ -14,8 +14,6 @@
 #ifndef __LOWCOMMS_DOT_H__
 #define __LOWCOMMS_DOT_H__
 
-int dlm_lowcomms_init(void);
-void dlm_lowcomms_exit(void);
 int dlm_lowcomms_start(void);
 void dlm_lowcomms_stop(void);
 int dlm_lowcomms_close(int nodeid);

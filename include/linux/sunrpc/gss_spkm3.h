@@ -12,27 +12,19 @@
 #include <linux/sunrpc/gss_asn1.h>
 
 struct spkm3_ctx {
-	struct xdr_netobj	ctx_id; /* per message context id */
-	int			qop;         /* negotiated qop */
+	struct xdr_netobj	ctx_id;  /* per message context id */
+	int			endtime; /* endtime of the context */
 	struct xdr_netobj	mech_used;
 	unsigned int		ret_flags ;
-	unsigned int		req_flags ;
-	struct xdr_netobj	share_key;
-	int			conf_alg;
-	struct crypto_blkcipher	*derived_conf_key;
-	int			intg_alg;
-	struct crypto_blkcipher	*derived_integ_key;
-	int			keyestb_alg;   /* alg used to get share_key */
-	int			owf_alg;   /* one way function */
+	struct xdr_netobj	conf_alg;
+	struct xdr_netobj	derived_conf_key;
+	struct xdr_netobj	intg_alg;
+	struct xdr_netobj 	derived_integ_key;
 };
 
-/* from openssl/objects.h */
-/* XXX need SEAL_ALG_NONE */
-#define NID_md5		4
-#define NID_dhKeyAgreement	28 
-#define NID_des_cbc		31 
-#define NID_sha1		64
-#define NID_cast5_cbc		108
+/* OIDs declarations for K-ALG, I-ALG, C-ALG, and OWF-ALG */
+extern const struct xdr_netobj hmac_md5_oid;
+extern const struct xdr_netobj cast5_cbc_oid;
 
 /* SPKM InnerContext Token types */
 
@@ -46,11 +38,13 @@ u32 spkm3_make_token(struct spkm3_ctx *ctx, struct xdr_buf * text, struct xdr_ne
 u32 spkm3_read_token(struct spkm3_ctx *ctx, struct xdr_netobj *read_token, struct xdr_buf *message_buffer, int toktype);
 
 #define CKSUMTYPE_RSA_MD5            0x0007
+#define CKSUMTYPE_HMAC_MD5           0x0008
 
-s32 make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
-                   int body_offset, struct xdr_netobj *cksum);
+s32 make_spkm3_checksum(s32 cksumtype, struct xdr_netobj *key, char *header,
+		unsigned int hdrlen, struct xdr_buf *body,
+		unsigned int body_offset, struct xdr_netobj *cksum);
 void asn1_bitstring_len(struct xdr_netobj *in, int *enclen, int *zerobits);
-int decode_asn1_bitstring(struct xdr_netobj *out, char *in, int enclen, 
+int decode_asn1_bitstring(struct xdr_netobj *out, char *in, int enclen,
                    int explen);
 void spkm3_mic_header(unsigned char **hdrbuf, unsigned int *hdrlen, 
                    unsigned char *ctxhdr, int elen, int zbit);

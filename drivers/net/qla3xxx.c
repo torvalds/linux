@@ -208,6 +208,15 @@ static void ql_write_common_reg(struct ql3_adapter *qdev,
 	return;
 }
 
+static void ql_write_nvram_reg(struct ql3_adapter *qdev,
+				u32 __iomem *reg, u32 value)
+{
+	writel(value, reg);
+	readl(reg);
+	udelay(1);
+	return;
+}
+
 static void ql_write_page0_reg(struct ql3_adapter *qdev,
 			       u32 __iomem *reg, u32 value)
 {
@@ -336,9 +345,9 @@ static void fm93c56a_select(struct ql3_adapter *qdev)
 	    		qdev->mem_map_registers;
 
 	qdev->eeprom_cmd_data = AUBURN_EEPROM_CS_1;
-	ql_write_common_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
+	ql_write_nvram_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
 			    ISP_NVRAM_MASK | qdev->eeprom_cmd_data);
-	ql_write_common_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
+	ql_write_nvram_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
 			    ((ISP_NVRAM_MASK << 16) | qdev->eeprom_cmd_data));
 }
 
@@ -355,14 +364,14 @@ static void fm93c56a_cmd(struct ql3_adapter *qdev, u32 cmd, u32 eepromAddr)
 	    		qdev->mem_map_registers;
 
 	/* Clock in a zero, then do the start bit */
-	ql_write_common_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
+	ql_write_nvram_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
 			    ISP_NVRAM_MASK | qdev->eeprom_cmd_data |
 			    AUBURN_EEPROM_DO_1);
-	ql_write_common_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
+	ql_write_nvram_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
 			    ISP_NVRAM_MASK | qdev->
 			    eeprom_cmd_data | AUBURN_EEPROM_DO_1 |
 			    AUBURN_EEPROM_CLK_RISE);
-	ql_write_common_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
+	ql_write_nvram_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
 			    ISP_NVRAM_MASK | qdev->
 			    eeprom_cmd_data | AUBURN_EEPROM_DO_1 |
 			    AUBURN_EEPROM_CLK_FALL);
@@ -378,20 +387,20 @@ static void fm93c56a_cmd(struct ql3_adapter *qdev, u32 cmd, u32 eepromAddr)
 			 * If the bit changed, then change the DO state to
 			 * match
 			 */
-			ql_write_common_reg(qdev,
+			ql_write_nvram_reg(qdev,
 					    &port_regs->CommonRegs.
 					    serialPortInterfaceReg,
 					    ISP_NVRAM_MASK | qdev->
 					    eeprom_cmd_data | dataBit);
 			previousBit = dataBit;
 		}
-		ql_write_common_reg(qdev,
+		ql_write_nvram_reg(qdev,
 				    &port_regs->CommonRegs.
 				    serialPortInterfaceReg,
 				    ISP_NVRAM_MASK | qdev->
 				    eeprom_cmd_data | dataBit |
 				    AUBURN_EEPROM_CLK_RISE);
-		ql_write_common_reg(qdev,
+		ql_write_nvram_reg(qdev,
 				    &port_regs->CommonRegs.
 				    serialPortInterfaceReg,
 				    ISP_NVRAM_MASK | qdev->
@@ -412,20 +421,20 @@ static void fm93c56a_cmd(struct ql3_adapter *qdev, u32 cmd, u32 eepromAddr)
 			 * If the bit changed, then change the DO state to
 			 * match
 			 */
-			ql_write_common_reg(qdev,
+			ql_write_nvram_reg(qdev,
 					    &port_regs->CommonRegs.
 					    serialPortInterfaceReg,
 					    ISP_NVRAM_MASK | qdev->
 					    eeprom_cmd_data | dataBit);
 			previousBit = dataBit;
 		}
-		ql_write_common_reg(qdev,
+		ql_write_nvram_reg(qdev,
 				    &port_regs->CommonRegs.
 				    serialPortInterfaceReg,
 				    ISP_NVRAM_MASK | qdev->
 				    eeprom_cmd_data | dataBit |
 				    AUBURN_EEPROM_CLK_RISE);
-		ql_write_common_reg(qdev,
+		ql_write_nvram_reg(qdev,
 				    &port_regs->CommonRegs.
 				    serialPortInterfaceReg,
 				    ISP_NVRAM_MASK | qdev->
@@ -443,7 +452,7 @@ static void fm93c56a_deselect(struct ql3_adapter *qdev)
 	struct ql3xxx_port_registers __iomem *port_regs =
 	    		qdev->mem_map_registers;
 	qdev->eeprom_cmd_data = AUBURN_EEPROM_CS_0;
-	ql_write_common_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
+	ql_write_nvram_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
 			    ISP_NVRAM_MASK | qdev->eeprom_cmd_data);
 }
 
@@ -461,12 +470,12 @@ static void fm93c56a_datain(struct ql3_adapter *qdev, unsigned short *value)
 	/* Read the data bits */
 	/* The first bit is a dummy.  Clock right over it. */
 	for (i = 0; i < dataBits; i++) {
-		ql_write_common_reg(qdev,
+		ql_write_nvram_reg(qdev,
 				    &port_regs->CommonRegs.
 				    serialPortInterfaceReg,
 				    ISP_NVRAM_MASK | qdev->eeprom_cmd_data |
 				    AUBURN_EEPROM_CLK_RISE);
-		ql_write_common_reg(qdev,
+		ql_write_nvram_reg(qdev,
 				    &port_regs->CommonRegs.
 				    serialPortInterfaceReg,
 				    ISP_NVRAM_MASK | qdev->eeprom_cmd_data |
@@ -2008,7 +2017,7 @@ static irqreturn_t ql3xxx_isr(int irq, void *dev_id)
 			       "%s: Another function issued a reset to the "
 			       "chip. ISR value = %x.\n", ndev->name, value);
 		}
-		queue_work(qdev->workqueue, &qdev->reset_work);
+		queue_delayed_work(qdev->workqueue, &qdev->reset_work, 0);
 		spin_unlock(&qdev->adapter_lock);
 	} else if (value & ISP_IMR_DISABLE_CMPL_INT) {
 		ql_disable_interrupts(qdev);
@@ -3182,11 +3191,13 @@ static void ql3xxx_tx_timeout(struct net_device *ndev)
 	/*
 	 * Wake up the worker to process this event.
 	 */
-	queue_work(qdev->workqueue, &qdev->tx_timeout_work);
+	queue_delayed_work(qdev->workqueue, &qdev->tx_timeout_work, 0);
 }
 
-static void ql_reset_work(struct ql3_adapter *qdev)
+static void ql_reset_work(struct work_struct *work)
 {
+	struct ql3_adapter *qdev =
+		container_of(work, struct ql3_adapter, reset_work.work);
 	struct net_device *ndev = qdev->ndev;
 	u32 value;
 	struct ql_tx_buf_cb *tx_cb;
@@ -3278,9 +3289,12 @@ static void ql_reset_work(struct ql3_adapter *qdev)
 	}
 }
 
-static void ql_tx_timeout_work(struct ql3_adapter *qdev)
+static void ql_tx_timeout_work(struct work_struct *work)
 {
-	ql_cycle_adapter(qdev,QL_DO_RESET);
+	struct ql3_adapter *qdev =
+		container_of(work, struct ql3_adapter, tx_timeout_work.work);
+
+	ql_cycle_adapter(qdev, QL_DO_RESET);
 }
 
 static void ql_get_board_info(struct ql3_adapter *qdev)
@@ -3365,7 +3379,6 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
-	ndev->features = NETIF_F_LLTX;
 	if (pci_using_dac)
 		ndev->features |= NETIF_F_HIGHDMA;
 
@@ -3459,9 +3472,8 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	netif_stop_queue(ndev);
 
 	qdev->workqueue = create_singlethread_workqueue(ndev->name);
-	INIT_WORK(&qdev->reset_work, (void (*)(void *))ql_reset_work, qdev);
-	INIT_WORK(&qdev->tx_timeout_work,
-		  (void (*)(void *))ql_tx_timeout_work, qdev);
+	INIT_DELAYED_WORK(&qdev->reset_work, ql_reset_work);
+	INIT_DELAYED_WORK(&qdev->tx_timeout_work, ql_tx_timeout_work);
 
 	init_timer(&qdev->adapter_timer);
 	qdev->adapter_timer.function = ql3xxx_timer;

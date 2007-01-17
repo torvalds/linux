@@ -25,7 +25,7 @@
 #include "util.h"
 #include "glock.h"
 
-static void gfs2_init_inode_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
+static void gfs2_init_inode_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct gfs2_inode *ip = foo;
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
@@ -37,7 +37,7 @@ static void gfs2_init_inode_once(void *foo, kmem_cache_t *cachep, unsigned long 
 	}
 }
 
-static void gfs2_init_glock_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
+static void gfs2_init_glock_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct gfs2_glock *gl = foo;
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==

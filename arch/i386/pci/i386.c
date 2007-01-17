@@ -104,16 +104,24 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 	/* Depth-First Search on bus tree */
 	list_for_each_entry(bus, bus_list, node) {
 		if ((dev = bus->self)) {
-			for (idx = PCI_BRIDGE_RESOURCES; idx < PCI_NUM_RESOURCES; idx++) {
+			for (idx = PCI_BRIDGE_RESOURCES;
+			    idx < PCI_NUM_RESOURCES; idx++) {
 				r = &dev->resource[idx];
 				if (!r->flags)
 					continue;
 				pr = pci_find_parent_resource(dev, r);
-				if (!r->start || !pr || request_resource(pr, r) < 0) {
-					printk(KERN_ERR "PCI: Cannot allocate resource region %d of bridge %s\n", idx, pci_name(dev));
-					/* Something is wrong with the region.
-					   Invalidate the resource to prevent child
-					   resource allocations in this range. */
+				if (!r->start || !pr ||
+				    request_resource(pr, r) < 0) {
+					printk(KERN_ERR "PCI: Cannot allocate "
+						"resource region %d "
+						"of bridge %s\n",
+						idx, pci_name(dev));
+					/*
+					 * Something is wrong with the region.
+					 * Invalidate the resource to prevent
+					 * child resource allocations in this
+					 * range.
+					 */
 					r->flags = 0;
 				}
 			}
@@ -131,7 +139,7 @@ static void __init pcibios_allocate_resources(int pass)
 
 	for_each_pci_dev(dev) {
 		pci_read_config_word(dev, PCI_COMMAND, &command);
-		for(idx = 0; idx < 6; idx++) {
+		for (idx = 0; idx < PCI_ROM_RESOURCE; idx++) {
 			r = &dev->resource[idx];
 			if (r->parent)		/* Already allocated */
 				continue;
@@ -142,11 +150,15 @@ static void __init pcibios_allocate_resources(int pass)
 			else
 				disabled = !(command & PCI_COMMAND_MEMORY);
 			if (pass == disabled) {
-				DBG("PCI: Resource %08lx-%08lx (f=%lx, d=%d, p=%d)\n",
+				DBG("PCI: Resource %08lx-%08lx "
+				    "(f=%lx, d=%d, p=%d)\n",
 				    r->start, r->end, r->flags, disabled, pass);
 				pr = pci_find_parent_resource(dev, r);
 				if (!pr || request_resource(pr, r) < 0) {
-					printk(KERN_ERR "PCI: Cannot allocate resource region %d of device %s\n", idx, pci_name(dev));
+					printk(KERN_ERR "PCI: Cannot allocate "
+						"resource region %d "
+						"of device %s\n",
+						idx, pci_name(dev));
 					/* We'll assign a new address later */
 					r->end -= r->start;
 					r->start = 0;
@@ -156,12 +168,16 @@ static void __init pcibios_allocate_resources(int pass)
 		if (!pass) {
 			r = &dev->resource[PCI_ROM_RESOURCE];
 			if (r->flags & IORESOURCE_ROM_ENABLE) {
-				/* Turn the ROM off, leave the resource region, but keep it unregistered. */
+				/* Turn the ROM off, leave the resource region,
+				 * but keep it unregistered. */
 				u32 reg;
-				DBG("PCI: Switching off ROM of %s\n", pci_name(dev));
+				DBG("PCI: Switching off ROM of %s\n",
+					pci_name(dev));
 				r->flags &= ~IORESOURCE_ROM_ENABLE;
-				pci_read_config_dword(dev, dev->rom_base_reg, &reg);
-				pci_write_config_dword(dev, dev->rom_base_reg, reg & ~PCI_ROM_ADDRESS_ENABLE);
+				pci_read_config_dword(dev,
+						dev->rom_base_reg, &reg);
+				pci_write_config_dword(dev, dev->rom_base_reg,
+						reg & ~PCI_ROM_ADDRESS_ENABLE);
 			}
 		}
 	}
@@ -173,9 +189,11 @@ static int __init pcibios_assign_resources(void)
 	struct resource *r, *pr;
 
 	if (!(pci_probe & PCI_ASSIGN_ROMS)) {
-		/* Try to use BIOS settings for ROMs, otherwise let
-		   pci_assign_unassigned_resources() allocate the new
-		   addresses. */
+		/*
+		 * Try to use BIOS settings for ROMs, otherwise let
+		 * pci_assign_unassigned_resources() allocate the new
+		 * addresses.
+		 */
 		for_each_pci_dev(dev) {
 			r = &dev->resource[PCI_ROM_RESOURCE];
 			if (!r->flags || !r->start)
@@ -215,9 +233,9 @@ int pcibios_enable_resources(struct pci_dev *dev, int mask)
 
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	old_cmd = cmd;
-	for(idx = 0; idx < PCI_NUM_RESOURCES; idx++) {
+	for (idx = 0; idx < PCI_NUM_RESOURCES; idx++) {
 		/* Only set up the requested stuff */
-		if (!(mask & (1<<idx)))
+		if (!(mask & (1 << idx)))
 			continue;
 
 		r = &dev->resource[idx];
@@ -227,7 +245,9 @@ int pcibios_enable_resources(struct pci_dev *dev, int mask)
 				(!(r->flags & IORESOURCE_ROM_ENABLE)))
 			continue;
 		if (!r->start && r->end) {
-			printk(KERN_ERR "PCI: Device %s not available because of resource collisions\n", pci_name(dev));
+			printk(KERN_ERR "PCI: Device %s not available "
+				"because of resource collisions\n",
+				pci_name(dev));
 			return -EINVAL;
 		}
 		if (r->flags & IORESOURCE_IO)
@@ -236,7 +256,8 @@ int pcibios_enable_resources(struct pci_dev *dev, int mask)
 			cmd |= PCI_COMMAND_MEMORY;
 	}
 	if (cmd != old_cmd) {
-		printk("PCI: Enabling device %s (%04x -> %04x)\n", pci_name(dev), old_cmd, cmd);
+		printk("PCI: Enabling device %s (%04x -> %04x)\n",
+			pci_name(dev), old_cmd, cmd);
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
 	return 0;
@@ -258,7 +279,8 @@ void pcibios_set_master(struct pci_dev *dev)
 		lat = pcibios_max_latency;
 	else
 		return;
-	printk(KERN_DEBUG "PCI: Setting latency timer of device %s to %d\n", pci_name(dev), lat);
+	printk(KERN_DEBUG "PCI: Setting latency timer of device %s to %d\n",
+		pci_name(dev), lat);
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, lat);
 }
 

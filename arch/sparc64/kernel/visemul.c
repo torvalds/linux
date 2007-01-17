@@ -128,9 +128,6 @@
 /* 001001100 - Permute bytes as specified by GSR.MASK  */
 #define BSHUFFLE_OPF	0x04c
 
-#define VIS_OPCODE_MASK	((0x3 << 30) | (0x3f << 19))
-#define VIS_OPCODE_VAL	((0x2 << 30) | (0x36 << 19))
-
 #define VIS_OPF_SHIFT	5
 #define VIS_OPF_MASK	(0x1ff << VIS_OPF_SHIFT)
 
@@ -809,9 +806,6 @@ int vis_emul(struct pt_regs *regs, unsigned int insn)
 
 	if (get_user(insn, (u32 __user *) pc))
 		return -EFAULT;
-
-	if ((insn & VIS_OPCODE_MASK) != VIS_OPCODE_VAL)
-		return -EINVAL;
 
 	opf = (insn & VIS_OPF_MASK) >> VIS_OPF_SHIFT;
 	switch (opf) {

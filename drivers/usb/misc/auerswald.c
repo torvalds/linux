@@ -704,9 +704,7 @@ static void auerbuf_free (pauerbuf_t bp)
 {
 	kfree(bp->bufp);
 	kfree(bp->dr);
-	if (bp->urbp) {
-		usb_free_urb(bp->urbp);
-	}
+	usb_free_urb(bp->urbp);
 	kfree(bp);
 }
 
@@ -768,7 +766,7 @@ static int auerbuf_setup (pauerbufctl_t bcp, unsigned int numElements, unsigned 
                 bep->bufp = kmalloc (bufsize, GFP_KERNEL);
                 if (!bep->bufp)
 			goto bl_fail;
-                bep->dr = (struct usb_ctrlrequest *) kmalloc (sizeof (struct usb_ctrlrequest), GFP_KERNEL);
+                bep->dr = kmalloc(sizeof (struct usb_ctrlrequest), GFP_KERNEL);
                 if (!bep->dr)
 			goto bl_fail;
                 bep->urbp = usb_alloc_urb (0, GFP_KERNEL);
@@ -1155,8 +1153,7 @@ static void auerswald_int_release (pauerswald_t cp)
         dbg ("auerswald_int_release");
 
         /* stop the int endpoint */
-        if (cp->inturbp)
-                usb_kill_urb (cp->inturbp);
+	usb_kill_urb (cp->inturbp);
 
         /* deallocate memory */
         auerswald_int_free (cp);
@@ -1379,7 +1376,7 @@ static int auerchar_open (struct inode *inode, struct file *file)
 	}
 
 	/* we have access to the device. Now lets allocate memory */
-	ccp = (pauerchar_t) kmalloc(sizeof(auerchar_t), GFP_KERNEL);
+	ccp = kzalloc(sizeof(auerchar_t), GFP_KERNEL);
 	if (ccp == NULL) {
 		err ("out of memory");
 		ret = -ENOMEM;
@@ -1387,7 +1384,6 @@ static int auerchar_open (struct inode *inode, struct file *file)
 	}
 
 	/* Initialize device descriptor */
-	memset( ccp, 0, sizeof(auerchar_t));
 	init_MUTEX( &ccp->mutex);
 	init_MUTEX( &ccp->readmutex);
         auerbuf_init (&ccp->bufctl);
@@ -1915,14 +1911,13 @@ static int auerswald_probe (struct usb_interface *intf,
 		return -ENODEV;
 
 	/* allocate memory for our device and initialize it */
-	cp = kmalloc (sizeof(auerswald_t), GFP_KERNEL);
+	cp = kzalloc (sizeof(auerswald_t), GFP_KERNEL);
 	if (cp == NULL) {
 		err ("out of memory");
 		goto pfail;
 	}
 
 	/* Initialize device descriptor */
-	memset (cp, 0, sizeof(auerswald_t));
 	init_MUTEX (&cp->mutex);
 	cp->usbdev = usbdev;
 	auerchain_init (&cp->controlchain);
@@ -1972,7 +1967,7 @@ static int auerswald_probe (struct usb_interface *intf,
 	info("device is a %s", cp->dev_desc);
 
         /* get the maximum allowed control transfer length */
-        pbuf = (__le16 *) kmalloc (2, GFP_KERNEL);    /* use an allocated buffer because of urb target */
+        pbuf = kmalloc(2, GFP_KERNEL);    /* use an allocated buffer because of urb target */
         if (!pbuf) {
 		err( "out of memory");
 		goto pfail;

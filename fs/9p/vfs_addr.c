@@ -54,7 +54,7 @@ static int v9fs_vfs_readpage(struct file *filp, struct page *page)
 	int retval = -EIO;
 	loff_t offset = page_offset(page);
 	int count = PAGE_CACHE_SIZE;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
 	int rsize = v9ses->maxdata - V9FS_IOHDRSZ;
 	struct v9fs_fid *v9f = filp->private_data;

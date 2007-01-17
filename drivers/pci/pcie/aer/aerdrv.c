@@ -148,7 +148,7 @@ static struct aer_rpc* aer_alloc_rpc(struct pcie_device *dev)
 {
 	struct aer_rpc *rpc;
 
-	if (!(rpc = (struct aer_rpc *)kmalloc(sizeof(struct aer_rpc),
+	if (!(rpc = kmalloc(sizeof(struct aer_rpc),
 		GFP_KERNEL)))
 		return NULL;
 
@@ -160,7 +160,7 @@ static struct aer_rpc* aer_alloc_rpc(struct pcie_device *dev)
 	rpc->e_lock = SPIN_LOCK_UNLOCKED;
 
 	rpc->rpd = dev;
-	INIT_WORK(&rpc->dpc_handler, aer_isr, (void *)dev);
+	INIT_WORK(&rpc->dpc_handler, aer_isr);
 	rpc->prod_idx = rpc->cons_idx = 0;
 	mutex_init(&rpc->rpc_mutex);
 	init_waitqueue_head(&rpc->wait_release);

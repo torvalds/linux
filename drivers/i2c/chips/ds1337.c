@@ -347,13 +347,19 @@ static void ds1337_init_client(struct i2c_client *client)
 
 	if ((status & 0x80) || (control & 0x80)) {
 		/* RTC not running */
-		u8 buf[16];
+		u8 buf[1+16];	/* First byte is interpreted as address */
 		struct i2c_msg msg[1];
 
 		dev_dbg(&client->dev, "%s: RTC not running!\n", __FUNCTION__);
 
 		/* Initialize all, including STATUS and CONTROL to zero */
 		memset(buf, 0, sizeof(buf));
+
+		/* Write valid values in the date/time registers */
+		buf[1+DS1337_REG_DAY] = 1;
+		buf[1+DS1337_REG_DATE] = 1;
+		buf[1+DS1337_REG_MONTH] = 1;
+
 		msg[0].addr = client->addr;
 		msg[0].flags = 0;
 		msg[0].len = sizeof(buf);

@@ -323,7 +323,7 @@ config ETRAX_DEF_R_WAITSTATES
 	depends on ETRAX_ARCH_V10
 	default "95a6"
 	help
-	  Waitstates for SRAM, Flash and peripherials (not DRAM).  95f8 is a
+	  Waitstates for SRAM, Flash and peripherals (not DRAM).  95f8 is a
 	  good choice for most Axis products...
 
 config ETRAX_DEF_R_BUS_CONFIG

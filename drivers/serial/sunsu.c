@@ -893,8 +893,8 @@ sunsu_change_speed(struct uart_port *port, unsigned int cflag,
 }
 
 static void
-sunsu_set_termios(struct uart_port *port, struct termios *termios,
-		  struct termios *old)
+sunsu_set_termios(struct uart_port *port, struct ktermios *termios,
+		  struct ktermios *old)
 {
 	unsigned int baud, quot;
 
@@ -1480,13 +1480,13 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 	return 0;
 
 out_unmap:
-	of_iounmap(up->port.membase, up->reg_size);
+	of_iounmap(&op->resource[0], up->port.membase, up->reg_size);
 	return err;
 }
 
-static int __devexit su_remove(struct of_device *dev)
+static int __devexit su_remove(struct of_device *op)
 {
-	struct uart_sunsu_port *up = dev_get_drvdata(&dev->dev);;
+	struct uart_sunsu_port *up = dev_get_drvdata(&op->dev);
 
 	if (up->su_type == SU_PORT_MS ||
 	    up->su_type == SU_PORT_KBD) {
@@ -1499,9 +1499,9 @@ static int __devexit su_remove(struct of_device *dev)
 	}
 
 	if (up->port.membase)
-		of_iounmap(up->port.membase, up->reg_size);
+		of_iounmap(&op->resource[0], up->port.membase, up->reg_size);
 
-	dev_set_drvdata(&dev->dev, NULL);
+	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

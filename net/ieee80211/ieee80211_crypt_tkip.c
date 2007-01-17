@@ -16,6 +16,7 @@
 #include <linux/random.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/mm.h>
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
 #include <asm/string.h>

@@ -195,7 +195,7 @@ struct dvb_frontend* ttusbdecfe_dvbt_attach(const struct ttusbdecfe_config* conf
 	struct ttusbdecfe_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct ttusbdecfe_state*) kmalloc(sizeof(struct ttusbdecfe_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct ttusbdecfe_state), GFP_KERNEL);
 	if (state == NULL)
 		return NULL;
 
@@ -215,7 +215,7 @@ struct dvb_frontend* ttusbdecfe_dvbs_attach(const struct ttusbdecfe_config* conf
 	struct ttusbdecfe_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct ttusbdecfe_state*) kmalloc(sizeof(struct ttusbdecfe_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct ttusbdecfe_state), GFP_KERNEL);
 	if (state == NULL)
 		return NULL;
 

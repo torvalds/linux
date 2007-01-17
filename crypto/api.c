@@ -466,23 +466,8 @@ void crypto_free_tfm(struct crypto_tfm *tfm)
 	kfree(tfm);
 }
 
-int crypto_alg_available(const char *name, u32 flags)
-{
-	int ret = 0;
-	struct crypto_alg *alg = crypto_alg_mod_lookup(name, 0,
-						       CRYPTO_ALG_ASYNC);
-	
-	if (!IS_ERR(alg)) {
-		crypto_mod_put(alg);
-		ret = 1;
-	}
-	
-	return ret;
-}
-
 EXPORT_SYMBOL_GPL(crypto_alloc_tfm);
 EXPORT_SYMBOL_GPL(crypto_free_tfm);
-EXPORT_SYMBOL_GPL(crypto_alg_available);
 
 int crypto_has_alg(const char *name, u32 type, u32 mask)
 {

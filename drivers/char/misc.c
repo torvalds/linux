@@ -169,11 +169,6 @@ fail:
 	return err;
 }
 
-/* 
- * TODO for 2.7:
- *  - add a struct kref to struct miscdevice and make all usages of
- *    them dynamic.
- */
 static struct class *misc_class;
 
 static const struct file_operations misc_fops = {
@@ -204,6 +199,8 @@ int misc_register(struct miscdevice * misc)
 	dev_t dev;
 	int err = 0;
 
+	INIT_LIST_HEAD(&misc->list);
+
 	down(&misc_sem);
 	list_for_each_entry(c, &misc_list, list) {
 		if (c->minor == misc->minor) {
@@ -228,10 +225,10 @@ int misc_register(struct miscdevice * misc)
 		misc_minors[misc->minor >> 3] |= 1 << (misc->minor & 7);
 	dev = MKDEV(MISC_MAJOR, misc->minor);
 
-	misc->class = class_device_create(misc_class, NULL, dev, misc->dev,
+	misc->this_device = device_create(misc_class, misc->parent, dev,
 					  "%s", misc->name);
-	if (IS_ERR(misc->class)) {
-		err = PTR_ERR(misc->class);
+	if (IS_ERR(misc->this_device)) {
+		err = PTR_ERR(misc->this_device);
 		goto out;
 	}
 
@@ -264,7 +261,7 @@ int misc_deregister(struct miscdevice * misc)
 
 	down(&misc_sem);
 	list_del(&misc->list);
-	class_device_destroy(misc_class, MKDEV(MISC_MAJOR, misc->minor));
+	device_destroy(misc_class, MKDEV(MISC_MAJOR, misc->minor));
 	if (i < DYNAMIC_MINORS && i>0) {
 		misc_minors[i>>3] &= ~(1 << (misc->minor & 7));
 	}

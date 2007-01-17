@@ -560,16 +560,8 @@ static int mhz_setup(struct pcmcia_device *link)
 
     /* Read the station address from the CIS.  It is stored as the last
        (fourth) string in the Version 1 Version/ID tuple. */
-    tuple->DesiredTuple = CISTPL_VERS_1;
-    if (first_tuple(link, tuple, parse) != CS_SUCCESS) {
-	rc = -1;
-	goto free_cfg_mem;
-    }
-    /* Ugh -- the EM1144 card has two VERS_1 tuples!?! */
-    if (next_tuple(link, tuple, parse) != CS_SUCCESS)
-	first_tuple(link, tuple, parse);
-    if (parse->version_1.ns > 3) {
-	station_addr = parse->version_1.str + parse->version_1.ofs[3];
+    if (link->prod_id[3]) {
+	station_addr = link->prod_id[3];
 	if (cvt_ascii_address(dev, station_addr) == 0) {
 		rc = 0;
 		goto free_cfg_mem;
@@ -744,15 +736,12 @@ static int smc_setup(struct pcmcia_device *link)
 	}
     }
     /* Try the third string in the Version 1 Version/ID tuple. */
-    tuple->DesiredTuple = CISTPL_VERS_1;
-    if (first_tuple(link, tuple, parse) != CS_SUCCESS) {
-	rc = -1;
-	goto free_cfg_mem;
-    }
-    station_addr = parse->version_1.str + parse->version_1.ofs[2];
-    if (cvt_ascii_address(dev, station_addr) == 0) {
-	rc = 0;
-	goto free_cfg_mem;
+    if (link->prod_id[2]) {
+	station_addr = link->prod_id[2];
+	if (cvt_ascii_address(dev, station_addr) == 0) {
+		rc = 0;
+		goto free_cfg_mem;
+	}
     }
 
     rc = -1;
@@ -970,10 +959,6 @@ static int smc91c92_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     struct smc_private *smc = netdev_priv(dev);
-    struct smc_cfg_mem *cfg_mem;
-    tuple_t *tuple;
-    cisparse_t *parse;
-    u_char *buf;
     char *name;
     int i, j, rev;
     kio_addr_t ioaddr;
@@ -981,30 +966,8 @@ static int smc91c92_config(struct pcmcia_device *link)
 
     DEBUG(0, "smc91c92_config(0x%p)\n", link);
 
-    cfg_mem = kmalloc(sizeof(struct smc_cfg_mem), GFP_KERNEL);
-    if (!cfg_mem)
-	goto config_failed;
-
-    tuple = &cfg_mem->tuple;
-    parse = &cfg_mem->parse;
-    buf = cfg_mem->buf;
-
-    tuple->Attributes = tuple->TupleOffset = 0;
-    tuple->TupleData = (cisdata_t *)buf;
-    tuple->TupleDataMax = 64;
-
-    tuple->DesiredTuple = CISTPL_CONFIG;
-    i = first_tuple(link, tuple, parse);
-    CS_EXIT_TEST(i, ParseTuple, config_failed);
-    link->conf.ConfigBase = parse->config.base;
-    link->conf.Present = parse->config.rmask[0];
-
-    tuple->DesiredTuple = CISTPL_MANFID;
-    tuple->Attributes = TUPLE_RETURN_COMMON;
-    if (first_tuple(link, tuple, parse) == CS_SUCCESS) {
-	smc->manfid = parse->manfid.manf;
-	smc->cardid = parse->manfid.card;
-    }
+    smc->manfid = link->manf_id;
+    smc->cardid = link->card_id;
 
     if ((smc->manfid == MANFID_OSITECH) &&
 	(smc->cardid != PRODID_OSITECH_SEVEN)) {
@@ -1134,14 +1097,12 @@ static int smc91c92_config(struct pcmcia_device *link)
     	    printk(KERN_NOTICE "  No MII transceivers found!\n");
 	}
     }
-    kfree(cfg_mem);
     return 0;
 
 config_undo:
     unregister_netdev(dev);
 config_failed:			/* CS_EXIT_TEST() calls jump to here... */
     smc91c92_release(link);
-    kfree(cfg_mem);
     return -ENODEV;
 } /* smc91c92_config */
 

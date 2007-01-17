@@ -54,6 +54,8 @@ extern asmlinkage void handle_dbe(void);
 extern asmlinkage void handle_sys(void);
 extern asmlinkage void handle_bp(void);
 extern asmlinkage void handle_ri(void);
+extern asmlinkage void handle_ri_rdhwr_vivt(void);
+extern asmlinkage void handle_ri_rdhwr(void);
 extern asmlinkage void handle_cpu(void);
 extern asmlinkage void handle_ov(void);
 extern asmlinkage void handle_tr(void);
@@ -397,19 +399,6 @@ asmlinkage void do_be(struct pt_regs *regs)
 	force_sig(SIGBUS, current);
 }
 
-static inline int get_insn_opcode(struct pt_regs *regs, unsigned int *opcode)
-{
-	unsigned int __user *epc;
-
-	epc = (unsigned int __user *) regs->cp0_epc +
-	      ((regs->cp0_cause & CAUSEF_BD) != 0);
-	if (!get_user(*opcode, epc))
-		return 0;
-
-	force_sig(SIGSEGV, current);
-	return 1;
-}
-
 /*
  * ll/sc emulation
  */
@@ -544,8 +533,8 @@ static inline int simulate_llsc(struct pt_regs *regs)
 {
 	unsigned int opcode;
 
-	if (unlikely(get_insn_opcode(regs, &opcode)))
-		return -EFAULT;
+	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		goto out_sigsegv;
 
 	if ((opcode & OPCODE) == LL) {
 		simulate_ll(regs, opcode);
@@ -557,6 +546,10 @@ static inline int simulate_llsc(struct pt_regs *regs)
 	}
 
 	return -EFAULT;			/* Strange things going on ... */
+
+out_sigsegv:
+	force_sig(SIGSEGV, current);
+	return -EFAULT;
 }
 
 /*
@@ -569,8 +562,8 @@ static inline int simulate_rdhwr(struct pt_regs *regs)
 	struct thread_info *ti = task_thread_info(current);
 	unsigned int opcode;
 
-	if (unlikely(get_insn_opcode(regs, &opcode)))
-		return -EFAULT;
+	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		goto out_sigsegv;
 
 	if (unlikely(compute_return_epc(regs)))
 		return -EFAULT;
@@ -588,6 +581,10 @@ static inline int simulate_rdhwr(struct pt_regs *regs)
 	}
 
 	/* Not ours.  */
+	return -EFAULT;
+
+out_sigsegv:
+	force_sig(SIGSEGV, current);
 	return -EFAULT;
 }
 
@@ -672,10 +669,8 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	unsigned int opcode, bcode;
 	siginfo_t info;
 
-	die_if_kernel("Break instruction in kernel code", regs);
-
-	if (get_insn_opcode(regs, &opcode))
-		return;
+	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		goto out_sigsegv;
 
 	/*
 	 * There is the ancient bug in the MIPS assemblers that the break
@@ -696,6 +691,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	switch (bcode) {
 	case BRK_OVERFLOW << 10:
 	case BRK_DIVZERO << 10:
+		die_if_kernel("Break instruction in kernel code", regs);
 		if (bcode == (BRK_DIVZERO << 10))
 			info.si_code = FPE_INTDIV;
 		else
@@ -705,9 +701,16 @@ asmlinkage void do_bp(struct pt_regs *regs)
 		info.si_addr = (void __user *) regs->cp0_epc;
 		force_sig_info(SIGFPE, &info, current);
 		break;
+	case BRK_BUG:
+		die("Kernel bug detected", regs);
+		break;
 	default:
+		die_if_kernel("Break instruction in kernel code", regs);
 		force_sig(SIGTRAP, current);
 	}
+
+out_sigsegv:
+	force_sig(SIGSEGV, current);
 }
 
 asmlinkage void do_tr(struct pt_regs *regs)
@@ -715,10 +718,8 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	unsigned int opcode, tcode = 0;
 	siginfo_t info;
 
-	die_if_kernel("Trap instruction in kernel code", regs);
-
-	if (get_insn_opcode(regs, &opcode))
-		return;
+	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		goto out_sigsegv;
 
 	/* Immediate versions don't provide a code.  */
 	if (!(opcode & OPCODE))
@@ -733,6 +734,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	switch (tcode) {
 	case BRK_OVERFLOW:
 	case BRK_DIVZERO:
+		die_if_kernel("Trap instruction in kernel code", regs);
 		if (tcode == BRK_DIVZERO)
 			info.si_code = FPE_INTDIV;
 		else
@@ -742,9 +744,16 @@ asmlinkage void do_tr(struct pt_regs *regs)
 		info.si_addr = (void __user *) regs->cp0_epc;
 		force_sig_info(SIGFPE, &info, current);
 		break;
+	case BRK_BUG:
+		die("Kernel bug detected", regs);
+		break;
 	default:
+		die_if_kernel("Trap instruction in kernel code", regs);
 		force_sig(SIGTRAP, current);
 	}
+
+out_sigsegv:
+	force_sig(SIGSEGV, current);
 }
 
 asmlinkage void do_ri(struct pt_regs *regs)
@@ -1423,6 +1432,15 @@ void __init set_uncached_handler (unsigned long offset, void *addr, unsigned lon
 	memcpy((void *)(uncached_ebase + offset), addr, size);
 }
 
+static int __initdata rdhwr_noopt;
+static int __init set_rdhwr_noopt(char *str)
+{
+	rdhwr_noopt = 1;
+	return 1;
+}
+
+__setup("rdhwr_noopt", set_rdhwr_noopt);
+
 void __init trap_init(void)
 {
 	extern char except_vec3_generic, except_vec3_r4000;
@@ -1502,7 +1520,9 @@ void __init trap_init(void)
 
 	set_except_vector(8, handle_sys);
 	set_except_vector(9, handle_bp);
-	set_except_vector(10, handle_ri);
+	set_except_vector(10, rdhwr_noopt ? handle_ri :
+			  (cpu_has_vtag_icache ?
+			   handle_ri_rdhwr_vivt : handle_ri_rdhwr));
 	set_except_vector(11, handle_cpu);
 	set_except_vector(12, handle_ov);
 	set_except_vector(13, handle_tr);

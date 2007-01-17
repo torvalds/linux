@@ -268,20 +268,20 @@ static struct dvb_usb_device_properties wt220u_zl0353_properties = {
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_NEED_PID_FILTERING,
 			.pid_filter_count = 15,
 
-	.streaming_ctrl  = dtt200u_streaming_ctrl,
-	.pid_filter      = dtt200u_pid_filter,
-	.frontend_attach = dtt200u_frontend_attach,
-	/* parameter for the MPEG2-data transfer */
+			.streaming_ctrl  = dtt200u_streaming_ctrl,
+			.pid_filter      = dtt200u_pid_filter,
+			.frontend_attach = dtt200u_frontend_attach,
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-		.count = 7,
-		.endpoint = 0x02,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
+				.count = 7,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
 		}
 	},
 	.power_ctrl      = dtt200u_power_ctrl,

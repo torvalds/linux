@@ -765,7 +765,7 @@ static void sonypi_setbluetoothpower(u8 state)
 	sonypi_device.bluetooth_power = state;
 }
 
-static void input_keyrelease(void *data)
+static void input_keyrelease(struct work_struct *work)
 {
 	struct sonypi_keypress kp;
 
@@ -979,7 +979,7 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 	}
 
 	if (ret > 0) {
-		struct inode *inode = file->f_dentry->d_inode;
+		struct inode *inode = file->f_path.dentry->d_inode;
 		inode->i_atime = current_fs_time(inode->i_sb);
 	}
 
@@ -1412,7 +1412,7 @@ static int __devinit sonypi_probe(struct platform_device *dev)
 			goto err_inpdev_unregister;
 		}
 
-		INIT_WORK(&sonypi_device.input_work, input_keyrelease, NULL);
+		INIT_WORK(&sonypi_device.input_work, input_keyrelease);
 	}
 
 	sonypi_enable(0);

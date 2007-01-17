@@ -206,10 +206,9 @@ static int ipw_open(struct usb_serial_port *port, struct file *filp)
 
 	dbg("%s", __FUNCTION__);
 
-	buf_flow_init = kmalloc(16, GFP_KERNEL);
+	buf_flow_init = kmemdup(buf_flow_static, 16, GFP_KERNEL);
 	if (!buf_flow_init)
 		return -ENOMEM;
-	memcpy(buf_flow_init, buf_flow_static, 16);
 
 	if (port->tty)
 		port->tty->low_latency = 1;

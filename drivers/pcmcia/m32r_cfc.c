@@ -398,7 +398,7 @@ static irqreturn_t pcc_interrupt(int irq, void *dev)
 static void pcc_interrupt_wrapper(u_long data)
 {
 	debug(3, "m32r_cfc: pcc_interrupt_wrapper:\n");
-	pcc_interrupt(0, NULL, NULL);
+	pcc_interrupt(0, NULL);
 	init_timer(&poll_timer);
 	poll_timer.expires = jiffies + poll_interval;
 	add_timer(&poll_timer);

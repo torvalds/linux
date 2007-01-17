@@ -770,7 +770,7 @@ static int l2cap_sock_accept(struct socket *sock, struct socket *newsock, int fl
 	long timeo;
 	int err = 0;
 
-	lock_sock(sk);
+	lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
 
 	if (sk->sk_state != BT_LISTEN) {
 		err = -EBADFD;
@@ -792,7 +792,7 @@ static int l2cap_sock_accept(struct socket *sock, struct socket *newsock, int fl
 
 		release_sock(sk);
 		timeo = schedule_timeout(timeo);
-		lock_sock(sk);
+		lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
 
 		if (sk->sk_state != BT_LISTEN) {
 			err = -EBADFD;

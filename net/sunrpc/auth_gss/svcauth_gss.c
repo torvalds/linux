@@ -113,9 +113,7 @@ static int rsi_match(struct cache_head *a, struct cache_head *b)
 static int dup_to_netobj(struct xdr_netobj *dst, char *src, int len)
 {
 	dst->len = len;
-	dst->data = (len ? kmalloc(len, GFP_KERNEL) : NULL);
-	if (dst->data)
-		memcpy(dst->data, src, len);
+	dst->data = (len ? kmemdup(src, len, GFP_KERNEL) : NULL);
 	if (len && !dst->data)
 		return -ENOMEM;
 	return 0;
@@ -756,10 +754,9 @@ svcauth_gss_register_pseudoflavor(u32 pseudoflavor, char * name)
 	if (!new)
 		goto out;
 	kref_init(&new->h.ref);
-	new->h.name = kmalloc(strlen(name) + 1, GFP_KERNEL);
+	new->h.name = kstrdup(name, GFP_KERNEL);
 	if (!new->h.name)
 		goto out_free_dom;
-	strcpy(new->h.name, name);
 	new->h.flavour = &svcauthops_gss;
 	new->pseudoflavor = pseudoflavor;
 
@@ -807,19 +804,19 @@ unwrap_integ_data(struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 
 	integ_len = svc_getnl(&buf->head[0]);
 	if (integ_len & 3)
-		goto out;
+		return stat;
 	if (integ_len > buf->len)
-		goto out;
+		return stat;
 	if (xdr_buf_subsegment(buf, &integ_buf, 0, integ_len))
 		BUG();
 	/* copy out mic... */
 	if (read_u32_from_xdr_buf(buf, integ_len, &mic.len))
 		BUG();
 	if (mic.len > RPC_MAX_AUTH_SIZE)
-		goto out;
+		return stat;
 	mic.data = kmalloc(mic.len, GFP_KERNEL);
 	if (!mic.data)
-		goto out;
+		return stat;
 	if (read_bytes_from_xdr_buf(buf, integ_len + 4, mic.data, mic.len))
 		goto out;
 	maj_stat = gss_verify_mic(ctx, &integ_buf, &mic);
@@ -829,6 +826,7 @@ unwrap_integ_data(struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 		goto out;
 	stat = 0;
 out:
+	kfree(mic.data);
 	return stat;
 }
 
@@ -1068,7 +1066,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 		}
 		switch(cache_check(&rsi_cache, &rsip->h, &rqstp->rq_chandle)) {
 		case -EAGAIN:
-			goto drop;
+		case -ETIMEDOUT:
 		case -ENOENT:
 			goto drop;
 		case 0:

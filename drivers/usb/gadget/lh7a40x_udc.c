@@ -83,7 +83,6 @@ static int lh7a40x_queue(struct usb_ep *ep, struct usb_request *, gfp_t);
 static int lh7a40x_dequeue(struct usb_ep *ep, struct usb_request *);
 static int lh7a40x_set_halt(struct usb_ep *ep, int);
 static int lh7a40x_fifo_status(struct usb_ep *ep);
-static int lh7a40x_fifo_status(struct usb_ep *ep);
 static void lh7a40x_fifo_flush(struct usb_ep *ep);
 static void lh7a40x_ep0_kick(struct lh7a40x_udc *dev, struct lh7a40x_ep *ep);
 static void lh7a40x_handle_ep0(struct lh7a40x_udc *dev, u32 intr);
@@ -423,9 +422,10 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	DEBUG("%s: %s\n", __FUNCTION__, driver->driver.name);
 
 	if (!driver
-	    || driver->speed != USB_SPEED_FULL
-	    || !driver->bind
-	    || !driver->unbind || !driver->disconnect || !driver->setup)
+			|| driver->speed != USB_SPEED_FULL
+			|| !driver->bind
+			|| !driver->disconnect
+			|| !driver->setup)
 		return -EINVAL;
 	if (!dev)
 		return -ENODEV;
@@ -472,7 +472,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	if (!dev)
 		return -ENODEV;
-	if (!driver || driver != dev->driver)
+	if (!driver || driver != dev->driver || !driver->unbind)
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -2126,9 +2126,11 @@ static int lh7a40x_udc_remove(struct platform_device *pdev)
 
 	DEBUG("%s: %p\n", __FUNCTION__, pdev);
 
+	if (dev->driver)
+		return -EBUSY;
+
 	udc_disable(dev);
 	remove_proc_files();
-	usb_gadget_unregister_driver(dev->driver);
 
 	free_irq(IRQ_USBINTR, dev);
 

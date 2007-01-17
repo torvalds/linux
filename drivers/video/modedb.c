@@ -34,8 +34,6 @@ const char *global_mode_option;
      *  Standard video mode definitions (taken from XFree86)
      */
 
-#define DEFAULT_MODEDB_INDEX	0
-
 static const struct fb_videomode modedb[] = {
     {
 	/* 640x400 @ 70 Hz, 31.5 kHz hsync */
@@ -505,8 +503,10 @@ int fb_find_mode(struct fb_var_screeninfo *var,
 	db = modedb;
 	dbsize = ARRAY_SIZE(modedb);
     }
+
     if (!default_mode)
-	default_mode = &modedb[DEFAULT_MODEDB_INDEX];
+	default_mode = &db[0];
+
     if (!default_bpp)
 	default_bpp = 8;
 

@@ -739,7 +739,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_hba * phba,
 			    uint32_t evt)
 {
 	struct lpfc_iocbq *cmdiocb, *rspiocb;
-	struct lpfc_dmabuf *pcmd, *prsp;
+	struct lpfc_dmabuf *pcmd, *prsp, *mp;
 	uint32_t *lp;
 	IOCB_t *irsp;
 	struct serv_parm *sp;
@@ -829,6 +829,9 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_hba * phba,
 				      NLP_REGLOGIN_LIST);
 			return ndlp->nlp_state;
 		}
+		mp = (struct lpfc_dmabuf *)mbox->context1;
+		lpfc_mbuf_free(phba, mp->virt, mp->phys);
+		kfree(mp);
 		mempool_free(mbox, phba->mbox_mem_pool);
 	} else {
 		mempool_free(mbox, phba->mbox_mem_pool);
@@ -1620,8 +1623,8 @@ lpfc_rcv_padisc_npr_node(struct lpfc_hba * phba,
 	 * or discovery in progress for this node. Starting discovery
 	 * here will affect the counting of discovery threads.
 	 */
-	if ((!(ndlp->nlp_flag & NLP_DELAY_TMO)) &&
-		(ndlp->nlp_flag & NLP_NPR_2B_DISC)){
+	if (!(ndlp->nlp_flag & NLP_DELAY_TMO) &&
+		!(ndlp->nlp_flag & NLP_NPR_2B_DISC)){
 		if (ndlp->nlp_flag & NLP_NPR_ADISC) {
 			ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
 			ndlp->nlp_state = NLP_STE_ADISC_ISSUE;

@@ -7,15 +7,22 @@
 
 #include "ql4_def.h"
 
+static inline void eeprom_cmd(uint32_t cmd, struct scsi_qla_host *ha)
+{
+	writel(cmd, isp_nvram(ha));
+	readl(isp_nvram(ha));
+	udelay(1);
+}
+
 static inline int eeprom_size(struct scsi_qla_host *ha)
 {
-	return is_qla4022(ha) ? FM93C86A_SIZE_16 : FM93C66A_SIZE_16;
+	return is_qla4010(ha) ? FM93C66A_SIZE_16 : FM93C86A_SIZE_16;
 }
 
 static inline int eeprom_no_addr_bits(struct scsi_qla_host *ha)
 {
-	return is_qla4022(ha) ? FM93C86A_NO_ADDR_BITS_16 :
-		FM93C56A_NO_ADDR_BITS_16;
+	return is_qla4010(ha) ? FM93C56A_NO_ADDR_BITS_16 :
+		FM93C86A_NO_ADDR_BITS_16 ;
 }
 
 static inline int eeprom_no_data_bits(struct scsi_qla_host *ha)
@@ -28,8 +35,7 @@ static int fm93c56a_select(struct scsi_qla_host * ha)
 	DEBUG5(printk(KERN_ERR "fm93c56a_select:\n"));
 
 	ha->eeprom_cmd_data = AUBURN_EEPROM_CS_1 | 0x000f0000;
-	writel(ha->eeprom_cmd_data, isp_nvram(ha));
-	readl(isp_nvram(ha));
+	eeprom_cmd(ha->eeprom_cmd_data, ha);
 	return 1;
 }
 
@@ -41,12 +47,13 @@ static int fm93c56a_cmd(struct scsi_qla_host * ha, int cmd, int addr)
 	int previousBit;
 
 	/* Clock in a zero, then do the start bit. */
-	writel(ha->eeprom_cmd_data | AUBURN_EEPROM_DO_1, isp_nvram(ha));
-	writel(ha->eeprom_cmd_data | AUBURN_EEPROM_DO_1 |
-	       AUBURN_EEPROM_CLK_RISE, isp_nvram(ha));
-	writel(ha->eeprom_cmd_data | AUBURN_EEPROM_DO_1 |
-	       AUBURN_EEPROM_CLK_FALL, isp_nvram(ha));
-	readl(isp_nvram(ha));
+	eeprom_cmd(ha->eeprom_cmd_data | AUBURN_EEPROM_DO_1, ha);
+
+	eeprom_cmd(ha->eeprom_cmd_data | AUBURN_EEPROM_DO_1 |
+	       AUBURN_EEPROM_CLK_RISE, ha);
+	eeprom_cmd(ha->eeprom_cmd_data | AUBURN_EEPROM_DO_1 |
+	       AUBURN_EEPROM_CLK_FALL, ha);
+
 	mask = 1 << (FM93C56A_CMD_BITS - 1);
 
 	/* Force the previous data bit to be different. */
@@ -60,14 +67,14 @@ static int fm93c56a_cmd(struct scsi_qla_host * ha, int cmd, int addr)
 			 * If the bit changed, then change the DO state to
 			 * match.
 			 */
-			writel(ha->eeprom_cmd_data | dataBit, isp_nvram(ha));
+			eeprom_cmd(ha->eeprom_cmd_data | dataBit, ha);
 			previousBit = dataBit;
 		}
-		writel(ha->eeprom_cmd_data | dataBit |
-		       AUBURN_EEPROM_CLK_RISE, isp_nvram(ha));
-		writel(ha->eeprom_cmd_data | dataBit |
-		       AUBURN_EEPROM_CLK_FALL, isp_nvram(ha));
-		readl(isp_nvram(ha));
+		eeprom_cmd(ha->eeprom_cmd_data | dataBit |
+		       AUBURN_EEPROM_CLK_RISE, ha);
+		eeprom_cmd(ha->eeprom_cmd_data | dataBit |
+		       AUBURN_EEPROM_CLK_FALL, ha);
+
 		cmd = cmd << 1;
 	}
 	mask = 1 << (eeprom_no_addr_bits(ha) - 1);
@@ -82,14 +89,15 @@ static int fm93c56a_cmd(struct scsi_qla_host * ha, int cmd, int addr)
 			 * If the bit changed, then change the DO state to
 			 * match.
 			 */
-			writel(ha->eeprom_cmd_data | dataBit, isp_nvram(ha));
+			eeprom_cmd(ha->eeprom_cmd_data | dataBit, ha);
+
 			previousBit = dataBit;
 		}
-		writel(ha->eeprom_cmd_data | dataBit |
-		       AUBURN_EEPROM_CLK_RISE, isp_nvram(ha));
-		writel(ha->eeprom_cmd_data | dataBit |
-		       AUBURN_EEPROM_CLK_FALL, isp_nvram(ha));
-		readl(isp_nvram(ha));
+		eeprom_cmd(ha->eeprom_cmd_data | dataBit |
+		       AUBURN_EEPROM_CLK_RISE, ha);
+		eeprom_cmd(ha->eeprom_cmd_data | dataBit |
+		       AUBURN_EEPROM_CLK_FALL, ha);
+
 		addr = addr << 1;
 	}
 	return 1;
@@ -98,8 +106,7 @@ static int fm93c56a_cmd(struct scsi_qla_host * ha, int cmd, int addr)
 static int fm93c56a_deselect(struct scsi_qla_host * ha)
 {
 	ha->eeprom_cmd_data = AUBURN_EEPROM_CS_0 | 0x000f0000;
-	writel(ha->eeprom_cmd_data, isp_nvram(ha));
-	readl(isp_nvram(ha));
+	eeprom_cmd(ha->eeprom_cmd_data, ha);
 	return 1;
 }
 
@@ -112,12 +119,13 @@ static int fm93c56a_datain(struct scsi_qla_host * ha, unsigned short *value)
 	/* Read the data bits
 	 * The first bit is a dummy.  Clock right over it. */
 	for (i = 0; i < eeprom_no_data_bits(ha); i++) {
-		writel(ha->eeprom_cmd_data |
-		       AUBURN_EEPROM_CLK_RISE, isp_nvram(ha));
-		writel(ha->eeprom_cmd_data |
-		       AUBURN_EEPROM_CLK_FALL, isp_nvram(ha));
-		dataBit =
-			(readw(isp_nvram(ha)) & AUBURN_EEPROM_DI_1) ? 1 : 0;
+		eeprom_cmd(ha->eeprom_cmd_data |
+		       AUBURN_EEPROM_CLK_RISE, ha);
+		eeprom_cmd(ha->eeprom_cmd_data |
+		       AUBURN_EEPROM_CLK_FALL, ha);
+
+		dataBit = (readw(isp_nvram(ha)) & AUBURN_EEPROM_DI_1) ? 1 : 0;
+
 		data = (data << 1) | dataBit;
 	}
 

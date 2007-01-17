@@ -33,9 +33,7 @@ static int nfs_symlink_filler(struct inode *inode, struct page *page)
 {
 	int error;
 
-	lock_kernel();
 	error = NFS_PROTO(inode)->readlink(inode, page, 0, PAGE_SIZE);
-	unlock_kernel();
 	if (error < 0)
 		goto error;
 	SetPageUptodate(page);

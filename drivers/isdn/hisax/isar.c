@@ -437,8 +437,10 @@ extern void BChannel_bh(struct BCState *);
 #define B_LL_OK		10
 
 static void
-isar_bh(struct BCState *bcs)
+isar_bh(struct work_struct *work)
 {
+	struct BCState *bcs = container_of(work, struct BCState, tqueue);
+
 	BChannel_bh(bcs);
 	if (test_and_clear_bit(B_LL_NOCARRIER, &bcs->event))
 		ll_deliver_faxstat(bcs, ISDN_FAX_CLASS1_NOCARR);
@@ -1580,7 +1582,7 @@ isar_setup(struct IsdnCardState *cs)
 		cs->bcs[i].mode = 0;
 		cs->bcs[i].hw.isar.dpath = i + 1;
 		modeisar(&cs->bcs[i], 0, 0);
-		INIT_WORK(&cs->bcs[i].tqueue, (void *)(void *) isar_bh, &cs->bcs[i]);
+		INIT_WORK(&cs->bcs[i].tqueue, isar_bh);
 	}
 }
 

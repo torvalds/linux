@@ -52,8 +52,8 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 	int i;
 
 	list_for_each_entry_safe(chunk, tmp, &umem->chunk_list, list) {
-		dma_unmap_sg(dev->dma_device, chunk->page_list,
-			     chunk->nents, DMA_BIDIRECTIONAL);
+		ib_dma_unmap_sg(dev, chunk->page_list,
+				chunk->nents, DMA_BIDIRECTIONAL);
 		for (i = 0; i < chunk->nents; ++i) {
 			if (umem->writable && dirty)
 				set_page_dirty_lock(chunk->page_list[i].page);
@@ -136,10 +136,10 @@ int ib_umem_get(struct ib_device *dev, struct ib_umem *mem,
 				chunk->page_list[i].length = PAGE_SIZE;
 			}
 
-			chunk->nmap = dma_map_sg(dev->dma_device,
-						 &chunk->page_list[0],
-						 chunk->nents,
-						 DMA_BIDIRECTIONAL);
+			chunk->nmap = ib_dma_map_sg(dev,
+						    &chunk->page_list[0],
+						    chunk->nents,
+						    DMA_BIDIRECTIONAL);
 			if (chunk->nmap <= 0) {
 				for (i = 0; i < chunk->nents; ++i)
 					put_page(chunk->page_list[i].page);
@@ -179,9 +179,10 @@ void ib_umem_release(struct ib_device *dev, struct ib_umem *umem)
 	up_write(&current->mm->mmap_sem);
 }
 
-static void ib_umem_account(void *work_ptr)
+static void ib_umem_account(struct work_struct *_work)
 {
-	struct ib_umem_account_work *work = work_ptr;
+	struct ib_umem_account_work *work =
+		container_of(_work, struct ib_umem_account_work, work);
 
 	down_write(&work->mm->mmap_sem);
 	work->mm->locked_vm -= work->diff;
@@ -216,7 +217,7 @@ void ib_umem_release_on_close(struct ib_device *dev, struct ib_umem *umem)
 		return;
 	}
 
-	INIT_WORK(&work->work, ib_umem_account, work);
+	INIT_WORK(&work->work, ib_umem_account);
 	work->mm   = mm;
 	work->diff = PAGE_ALIGN(umem->length + umem->offset) >> PAGE_SHIFT;
 

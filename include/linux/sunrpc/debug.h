@@ -62,12 +62,6 @@ extern unsigned int		nlm_debug;
 # define RPC_IFDEBUG(x)
 #endif
 
-#ifdef RPC_PROFILE
-# define pprintk(args...)	printk(## args)
-#else
-# define pprintk(args...)	do ; while (0)
-#endif
-
 /*
  * Sysctl interface for RPC debugging
  */

@@ -719,9 +719,10 @@ again:
 	return rc;
 }
 
-static void iscsi_xmitworker(void *data)
+static void iscsi_xmitworker(struct work_struct *work)
 {
-	struct iscsi_conn *conn = data;
+	struct iscsi_conn *conn =
+		container_of(work, struct iscsi_conn, xmitwork);
 	int rc;
 	/*
 	 * serialize Xmit worker on a per-connection basis.
@@ -1512,7 +1513,7 @@ iscsi_conn_setup(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	if (conn->mgmtqueue == ERR_PTR(-ENOMEM))
 		goto mgmtqueue_alloc_fail;
 
-	INIT_WORK(&conn->xmitwork, iscsi_xmitworker, conn);
+	INIT_WORK(&conn->xmitwork, iscsi_xmitworker);
 
 	/* allocate login_mtask used for the login/text sequences */
 	spin_lock_bh(&session->lock);

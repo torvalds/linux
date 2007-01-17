@@ -12,6 +12,8 @@
 #include <linux/netfilter_bridge/ebt_nat.h>
 #include <linux/module.h>
 #include <net/sock.h>
+#include <linux/if_arp.h>
+#include <net/arp.h>
 
 static int ebt_target_snat(struct sk_buff **pskb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
@@ -31,24 +33,43 @@ static int ebt_target_snat(struct sk_buff **pskb, unsigned int hooknr,
 		*pskb = nskb;
 	}
 	memcpy(eth_hdr(*pskb)->h_source, info->mac, ETH_ALEN);
-	return info->target;
+	if (!(info->target & NAT_ARP_BIT) &&
+	    eth_hdr(*pskb)->h_proto == htons(ETH_P_ARP)) {
+		struct arphdr _ah, *ap;
+
+		ap = skb_header_pointer(*pskb, 0, sizeof(_ah), &_ah);
+		if (ap == NULL)
+			return EBT_DROP;
+		if (ap->ar_hln != ETH_ALEN)
+			goto out;
+		if (skb_store_bits(*pskb, sizeof(_ah), info->mac,ETH_ALEN))
+			return EBT_DROP;
+	}
+out:
+	return info->target | ~EBT_VERDICT_BITS;
 }
 
 static int ebt_target_snat_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	struct ebt_nat_info *info = (struct ebt_nat_info *) data;
+	int tmp;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_nat_info)))
 		return -EINVAL;
-	if (BASE_CHAIN && info->target == EBT_RETURN)
+	tmp = info->target | ~EBT_VERDICT_BITS;
+	if (BASE_CHAIN && tmp == EBT_RETURN)
 		return -EINVAL;
 	CLEAR_BASE_CHAIN_BIT;
 	if (strcmp(tablename, "nat"))
 		return -EINVAL;
 	if (hookmask & ~(1 << NF_BR_POST_ROUTING))
 		return -EINVAL;
-	if (INVALID_TARGET)
+
+	if (tmp < -NUM_STANDARD_TARGETS || tmp >= 0)
+		return -EINVAL;
+	tmp = info->target | EBT_VERDICT_BITS;
+	if ((tmp & ~NAT_ARP_BIT) != ~NAT_ARP_BIT)
 		return -EINVAL;
 	return 0;
 }

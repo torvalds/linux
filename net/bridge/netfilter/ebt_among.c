@@ -15,7 +15,7 @@
 #include <linux/module.h>
 
 static int ebt_mac_wormhash_contains(const struct ebt_mac_wormhash *wh,
-				     const char *mac, uint32_t ip)
+				     const char *mac, __be32 ip)
 {
 	/* You may be puzzled as to how this code works.
 	 * Some tricks were used, refer to 
@@ -70,7 +70,7 @@ static int ebt_mac_wormhash_check_integrity(const struct ebt_mac_wormhash
 	return 0;
 }
 
-static int get_ip_dst(const struct sk_buff *skb, uint32_t *addr)
+static int get_ip_dst(const struct sk_buff *skb, __be32 *addr)
 {
 	if (eth_hdr(skb)->h_proto == htons(ETH_P_IP)) {
 		struct iphdr _iph, *ih;
@@ -81,16 +81,16 @@ static int get_ip_dst(const struct sk_buff *skb, uint32_t *addr)
 		*addr = ih->daddr;
 	} else if (eth_hdr(skb)->h_proto == htons(ETH_P_ARP)) {
 		struct arphdr _arph, *ah;
-		uint32_t buf, *bp;
+		__be32 buf, *bp;
 
 		ah = skb_header_pointer(skb, 0, sizeof(_arph), &_arph);
 		if (ah == NULL ||
-		    ah->ar_pln != sizeof(uint32_t) ||
+		    ah->ar_pln != sizeof(__be32) ||
 		    ah->ar_hln != ETH_ALEN)
 			return -1;
 		bp = skb_header_pointer(skb, sizeof(struct arphdr) +
-					2 * ETH_ALEN + sizeof(uint32_t),
-					sizeof(uint32_t), &buf);
+					2 * ETH_ALEN + sizeof(__be32),
+					sizeof(__be32), &buf);
 		if (bp == NULL)
 			return -1;
 		*addr = *bp;
@@ -98,7 +98,7 @@ static int get_ip_dst(const struct sk_buff *skb, uint32_t *addr)
 	return 0;
 }
 
-static int get_ip_src(const struct sk_buff *skb, uint32_t *addr)
+static int get_ip_src(const struct sk_buff *skb, __be32 *addr)
 {
 	if (eth_hdr(skb)->h_proto == htons(ETH_P_IP)) {
 		struct iphdr _iph, *ih;
@@ -109,15 +109,15 @@ static int get_ip_src(const struct sk_buff *skb, uint32_t *addr)
 		*addr = ih->saddr;
 	} else if (eth_hdr(skb)->h_proto == htons(ETH_P_ARP)) {
 		struct arphdr _arph, *ah;
-		uint32_t buf, *bp;
+		__be32 buf, *bp;
 
 		ah = skb_header_pointer(skb, 0, sizeof(_arph), &_arph);
 		if (ah == NULL ||
-		    ah->ar_pln != sizeof(uint32_t) ||
+		    ah->ar_pln != sizeof(__be32) ||
 		    ah->ar_hln != ETH_ALEN)
 			return -1;
 		bp = skb_header_pointer(skb, sizeof(struct arphdr) +
-					ETH_ALEN, sizeof(uint32_t), &buf);
+					ETH_ALEN, sizeof(__be32), &buf);
 		if (bp == NULL)
 			return -1;
 		*addr = *bp;
@@ -133,7 +133,7 @@ static int ebt_filter_among(const struct sk_buff *skb,
 	struct ebt_among_info *info = (struct ebt_among_info *) data;
 	const char *dmac, *smac;
 	const struct ebt_mac_wormhash *wh_dst, *wh_src;
-	uint32_t dip = 0, sip = 0;
+	__be32 dip = 0, sip = 0;
 
 	wh_dst = ebt_among_wh_dst(info);
 	wh_src = ebt_among_wh_src(info);

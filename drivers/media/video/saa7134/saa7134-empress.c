@@ -343,9 +343,10 @@ static struct video_device saa7134_empress_template =
 	.minor	       = -1,
 };
 
-static void empress_signal_update(void* data)
+static void empress_signal_update(struct work_struct *work)
 {
-	struct saa7134_dev* dev = (struct saa7134_dev*) data;
+	struct saa7134_dev* dev =
+		container_of(work, struct saa7134_dev, empress_workqueue);
 
 	if (dev->nosignal) {
 		dprintk("no video signal\n");
@@ -378,7 +379,7 @@ static int empress_init(struct saa7134_dev *dev)
 		 "%s empress (%s)", dev->name,
 		 saa7134_boards[dev->board].name);
 
-	INIT_WORK(&dev->empress_workqueue, empress_signal_update, (void*) dev);
+	INIT_WORK(&dev->empress_workqueue, empress_signal_update);
 
 	err = video_register_device(dev->empress_dev,VFL_TYPE_GRABBER,
 				    empress_nr[dev->nr]);
@@ -399,7 +400,7 @@ static int empress_init(struct saa7134_dev *dev)
 			    sizeof(struct saa7134_buf),
 			    dev);
 
-	empress_signal_update(dev);
+	empress_signal_update(&dev->empress_workqueue);
 	return 0;
 }
 

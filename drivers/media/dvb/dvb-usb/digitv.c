@@ -274,20 +274,20 @@ static struct dvb_usb_device_properties digitv_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
-	.frontend_attach  = digitv_frontend_attach,
-	.tuner_attach     = digitv_tuner_attach,
+			.frontend_attach  = digitv_frontend_attach,
+			.tuner_attach     = digitv_tuner_attach,
 
-	/* parameter for the MPEG2-data transfer */
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-		.count = 7,
-		.endpoint = 0x02,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
+				.count = 7,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
 		}
 	},
 	.identify_state   = digitv_identify_state,

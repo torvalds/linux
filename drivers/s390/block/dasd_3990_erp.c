@@ -2641,14 +2641,12 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 	struct dasd_ccw_req *erp = NULL;
 	struct dasd_device *device = cqr->device;
 	__u32 cpa = cqr->irb.scsw.cpa;
+	struct dasd_ccw_req *temp_erp = NULL;
 
-#ifdef ERP_DEBUG
-	/* print current erp_chain */
-	DEV_MESSAGE(KERN_ERR, device, "%s",
-		    "ERP chain at BEGINNING of ERP-ACTION");
-	{
-		struct dasd_ccw_req *temp_erp = NULL;
-
+	if (device->features & DASD_FEATURE_ERPLOG) {
+		/* print current erp_chain */
+		DEV_MESSAGE(KERN_ERR, device, "%s",
+			    "ERP chain at BEGINNING of ERP-ACTION");
 		for (temp_erp = cqr;
 		     temp_erp != NULL; temp_erp = temp_erp->refers) {
 
@@ -2658,7 +2656,6 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 				    temp_erp->refers);
 		}
 	}
-#endif				/* ERP_DEBUG */
 
 	/* double-check if current erp/cqr was successfull */
 	if ((cqr->irb.scsw.cstat == 0x00) &&
@@ -2695,11 +2692,10 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 		erp = dasd_3990_erp_handle_match_erp(cqr, erp);
 	}
 
-#ifdef ERP_DEBUG
-	/* print current erp_chain */
-	DEV_MESSAGE(KERN_ERR, device, "%s", "ERP chain at END of ERP-ACTION");
-	{
-		struct dasd_ccw_req *temp_erp = NULL;
+	if (device->features & DASD_FEATURE_ERPLOG) {
+		/* print current erp_chain */
+		DEV_MESSAGE(KERN_ERR, device, "%s",
+			    "ERP chain at END of ERP-ACTION");
 		for (temp_erp = erp;
 		     temp_erp != NULL; temp_erp = temp_erp->refers) {
 
@@ -2709,7 +2705,6 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 				    temp_erp->refers);
 		}
 	}
-#endif				/* ERP_DEBUG */
 
 	if (erp->status == DASD_CQR_FAILED)
 		dasd_log_ccw(erp, 1, cpa);

@@ -161,8 +161,10 @@ int c2_qp_modify(struct c2_dev *c2dev, struct c2_qp *qp,
 
 	if (attr_mask & IB_QP_STATE) {
 		/* Ensure the state is valid */
-		if (attr->qp_state < 0 || attr->qp_state > IB_QPS_ERR)
-			return -EINVAL;
+		if (attr->qp_state < 0 || attr->qp_state > IB_QPS_ERR) {
+			err = -EINVAL;
+			goto bail0;
+		}
 
 		wr.next_qp_state = cpu_to_be32(to_c2_state(attr->qp_state));
 
@@ -184,9 +186,10 @@ int c2_qp_modify(struct c2_dev *c2dev, struct c2_qp *qp,
 		if (attr->cur_qp_state != IB_QPS_RTR &&
 		    attr->cur_qp_state != IB_QPS_RTS &&
 		    attr->cur_qp_state != IB_QPS_SQD &&
-		    attr->cur_qp_state != IB_QPS_SQE)
-			return -EINVAL;
-		else
+		    attr->cur_qp_state != IB_QPS_SQE) {
+			err = -EINVAL;
+			goto bail0;
+		} else
 			wr.next_qp_state =
 			    cpu_to_be32(to_c2_state(attr->cur_qp_state));
 
@@ -564,6 +567,32 @@ int c2_alloc_qp(struct c2_dev *c2dev,
 	return err;
 }
 
+static inline void c2_lock_cqs(struct c2_cq *send_cq, struct c2_cq *recv_cq)
+{
+	if (send_cq == recv_cq)
+		spin_lock_irq(&send_cq->lock);
+	else if (send_cq > recv_cq) {
+		spin_lock_irq(&send_cq->lock);
+		spin_lock_nested(&recv_cq->lock, SINGLE_DEPTH_NESTING);
+	} else {
+		spin_lock_irq(&recv_cq->lock);
+		spin_lock_nested(&send_cq->lock, SINGLE_DEPTH_NESTING);
+	}
+}
+
+static inline void c2_unlock_cqs(struct c2_cq *send_cq, struct c2_cq *recv_cq)
+{
+	if (send_cq == recv_cq)
+		spin_unlock_irq(&send_cq->lock);
+	else if (send_cq > recv_cq) {
+		spin_unlock(&recv_cq->lock);
+		spin_unlock_irq(&send_cq->lock);
+	} else {
+		spin_unlock(&send_cq->lock);
+		spin_unlock_irq(&recv_cq->lock);
+	}
+}
+
 void c2_free_qp(struct c2_dev *c2dev, struct c2_qp *qp)
 {
 	struct c2_cq *send_cq;
@@ -576,15 +605,9 @@ void c2_free_qp(struct c2_dev *c2dev, struct c2_qp *qp)
 	 * Lock CQs here, so that CQ polling code can do QP lookup
 	 * without taking a lock.
 	 */
-	spin_lock_irq(&send_cq->lock);
-	if (send_cq != recv_cq)
-		spin_lock(&recv_cq->lock);
-
+	c2_lock_cqs(send_cq, recv_cq);
 	c2_free_qpn(c2dev, qp->qpn);
-
-	if (send_cq != recv_cq)
-		spin_unlock(&recv_cq->lock);
-	spin_unlock_irq(&send_cq->lock);
+	c2_unlock_cqs(send_cq, recv_cq);
 
 	/*
 	 * Destory qp in the rnic...

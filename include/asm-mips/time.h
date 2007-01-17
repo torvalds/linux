@@ -21,6 +21,7 @@
 #include <linux/ptrace.h>
 #include <linux/rtc.h>
 #include <linux/spinlock.h>
+#include <linux/clocksource.h>
 
 extern spinlock_t rtc_lock;
 
@@ -44,12 +45,10 @@ extern int (*mips_timer_state)(void);
 extern void (*mips_timer_ack)(void);
 
 /*
- * High precision timer functions.
- * If mips_hpt_read is NULL, an R4k-compatible timer setup is attempted.
+ * High precision timer clocksource.
+ * If .read is NULL, an R4k-compatible timer setup is attempted.
  */
-extern unsigned int (*mips_hpt_read)(void);
-extern void (*mips_hpt_init)(void);
-extern unsigned int mips_hpt_mask;
+extern struct clocksource clocksource_mips;
 
 /*
  * to_tm() converts system time back to (year, mon, day, hour, min, sec).

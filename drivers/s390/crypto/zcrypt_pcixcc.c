@@ -717,7 +717,7 @@ long zcrypt_pcixcc_send_cprb(struct zcrypt_device *zdev, struct ica_xcRB *xcRB)
 	};
 	int rc;
 
-	ap_msg.message = (void *) kmalloc(PCIXCC_MAX_XCRB_MESSAGE_SIZE, GFP_KERNEL);
+	ap_msg.message = kmalloc(PCIXCC_MAX_XCRB_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +

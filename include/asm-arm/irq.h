@@ -19,7 +19,6 @@
 #define NO_IRQ	((unsigned int)(-1))
 #endif
 
-struct irqaction;
 
 /*
  * Migration helpers
@@ -37,6 +36,10 @@ struct irqaction;
 #define IRQT_HIGH	(__IRQT_HIGHLVL)
 #define IRQT_PROBE	IRQ_TYPE_PROBE
 
+#ifndef __ASSEMBLY__
+struct irqaction;
 extern void migrate_irqs(void);
+#endif
+
 #endif
 

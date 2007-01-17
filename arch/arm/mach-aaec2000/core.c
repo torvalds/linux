@@ -82,7 +82,7 @@ static void aaec2000_int_unmask(unsigned int irq)
 	IRQ_INTENS |= (1 << irq);
 }
 
-static struct irqchip aaec2000_irq_chip = {
+static struct irq_chip aaec2000_irq_chip = {
 	.ack	= aaec2000_int_ack,
 	.mask	= aaec2000_int_mask,
 	.unmask	= aaec2000_int_unmask,
@@ -93,7 +93,7 @@ void __init aaec2000_init_irq(void)
 	unsigned int i;
 
 	for (i = 0; i < NR_IRQS; i++) {
-		set_irq_handler(i, do_level_IRQ);
+		set_irq_handler(i, handle_level_irq);
 		set_irq_chip(i, &aaec2000_irq_chip);
 		set_irq_flags(i, IRQF_VALID);
 	}

@@ -1747,7 +1747,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 	/* Don't change this buffer size and allocation without doing
 	 * some heavy and complete testing. Don't ask why :-(
 	 * Jean II */
-	self->speed_buff = (char *) kmalloc(IRDA_USB_SPEED_MTU, GFP_KERNEL);
+	self->speed_buff = kmalloc(IRDA_USB_SPEED_MTU, GFP_KERNEL);
 	if (self->speed_buff == NULL) 
 		goto err_out_3;
 
@@ -1793,10 +1793,8 @@ err_out_3:
 err_out_2:
 	usb_free_urb(self->tx_urb);
 err_out_1:
-	for (i = 0; i < self->max_rx_urb; i++) {
-		if (self->rx_urb[i])
-			usb_free_urb(self->rx_urb[i]);
-	}
+	for (i = 0; i < self->max_rx_urb; i++)
+		usb_free_urb(self->rx_urb[i]);
 	free_netdev(net);
 err_out:
 	return ret;

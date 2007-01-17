@@ -124,7 +124,7 @@ struct rfcomm_pn {
 	u8  flow_ctrl;
 	u8  priority;
 	u8  ack_timer;
-	u16 mtu;
+	__le16 mtu;
 	u8  max_retrans;
 	u8  credits;
 } __attribute__ ((packed));
@@ -136,7 +136,7 @@ struct rfcomm_rpn {
 	u8  flow_ctrl;
 	u8  xon_char;
 	u8  xoff_char;
-	u16 param_mask;
+	__le16 param_mask;
 } __attribute__ ((packed));
 
 struct rfcomm_rls {

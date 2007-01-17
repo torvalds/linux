@@ -18,6 +18,5 @@
 #endif
 
 #define MAXHOSTNAMELEN		64	/* max length of hostname */
-#define COMMAND_LINE_SIZE	512
 
 #endif /* _ASM_PARAM_H */

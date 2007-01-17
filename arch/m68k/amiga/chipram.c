@@ -52,10 +52,9 @@ void *amiga_chip_alloc(unsigned long size, const char *name)
 #ifdef DEBUG
     printk("amiga_chip_alloc: allocate %ld bytes\n", size);
 #endif
-    res = kmalloc(sizeof(struct resource), GFP_KERNEL);
+    res = kzalloc(sizeof(struct resource), GFP_KERNEL);
     if (!res)
 	return NULL;
-    memset(res, 0, sizeof(struct resource));
     res->name = name;
 
     if (allocate_resource(&chipram_res, res, size, 0, UINT_MAX, PAGE_SIZE, NULL, NULL) < 0) {

@@ -59,7 +59,7 @@ static int  keyspan_ioctl		(struct usb_serial_port *port,
 					 unsigned int cmd,
 					 unsigned long arg);
 static void keyspan_set_termios		(struct usb_serial_port *port,
-					 struct termios *old);
+					 struct ktermios *old);
 static void keyspan_break_ctl		(struct usb_serial_port *port,
 					 int break_state);
 static int  keyspan_tiocmget		(struct usb_serial_port *port,

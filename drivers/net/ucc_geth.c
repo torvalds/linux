@@ -30,7 +30,7 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 
-#include <asm/of_device.h>
+#include <asm/of_platform.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -194,9 +194,9 @@ static void enqueue(struct list_head *node, struct list_head *lh)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(ugeth_lock, flags);
+	spin_lock_irqsave(&ugeth_lock, flags);
 	list_add_tail(node, lh);
-	spin_unlock_irqrestore(ugeth_lock, flags);
+	spin_unlock_irqrestore(&ugeth_lock, flags);
 }
 #endif /* CONFIG_UGETH_FILTERING */
 
@@ -204,14 +204,14 @@ static struct list_head *dequeue(struct list_head *lh)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(ugeth_lock, flags);
+	spin_lock_irqsave(&ugeth_lock, flags);
 	if (!list_empty(lh)) {
 		struct list_head *node = lh->next;
 		list_del(node);
-		spin_unlock_irqrestore(ugeth_lock, flags);
+		spin_unlock_irqrestore(&ugeth_lock, flags);
 		return node;
 	} else {
-		spin_unlock_irqrestore(ugeth_lock, flags);
+		spin_unlock_irqrestore(&ugeth_lock, flags);
 		return NULL;
 	}
 }
@@ -1851,6 +1851,8 @@ static int init_phy(struct net_device *dev)
 
 	mii_info->mdio_read = &read_phy_reg;
 	mii_info->mdio_write = &write_phy_reg;
+
+	spin_lock_init(&mii_info->mdio_lock);
 
 	ugeth->mii_info = mii_info;
 
@@ -4301,12 +4303,12 @@ static int __init ucc_geth_init(void)
 		memcpy(&(ugeth_info[i]), &ugeth_primary_info,
 		       sizeof(ugeth_primary_info));
 
-	return of_register_driver(&ucc_geth_driver);
+	return of_register_platform_driver(&ucc_geth_driver);
 }
 
 static void __exit ucc_geth_exit(void)
 {
-	of_unregister_driver(&ucc_geth_driver);
+	of_unregister_platform_driver(&ucc_geth_driver);
 }
 
 module_init(ucc_geth_init);

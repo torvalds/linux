@@ -50,6 +50,7 @@
 #include <linux/usb.h>
 #include <linux/crc32.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 #include <net/irda/irda.h>
 #include <net/irda/irlap.h>
 #include <net/irda/irda_device.h>

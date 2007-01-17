@@ -31,6 +31,9 @@ MODULE_ALIAS("ipt_CONNMARK");
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_CONNMARK.h>
 #include <net/netfilter/nf_conntrack_compat.h>
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+#include <net/netfilter/nf_conntrack_ecache.h>
+#endif
 
 static unsigned int
 target(struct sk_buff **pskb,
@@ -42,7 +45,7 @@ target(struct sk_buff **pskb,
 {
 	const struct xt_connmark_target_info *markinfo = targinfo;
 	u_int32_t diff;
-	u_int32_t nfmark;
+	u_int32_t mark;
 	u_int32_t newmark;
 	u_int32_t ctinfo;
 	u_int32_t *ctmark = nf_ct_get_mark(*pskb, &ctinfo);
@@ -62,7 +65,7 @@ target(struct sk_buff **pskb,
 			break;
 		case XT_CONNMARK_SAVE:
 			newmark = (*ctmark & ~markinfo->mask) |
-				  ((*pskb)->nfmark & markinfo->mask);
+				  ((*pskb)->mark & markinfo->mask);
 			if (*ctmark != newmark) {
 				*ctmark = newmark;
 #if defined(CONFIG_IP_NF_CONNTRACK) || defined(CONFIG_IP_NF_CONNTRACK_MODULE)
@@ -73,10 +76,10 @@ target(struct sk_buff **pskb,
 			}
 			break;
 		case XT_CONNMARK_RESTORE:
-			nfmark = (*pskb)->nfmark;
-			diff = (*ctmark ^ nfmark) & markinfo->mask;
+			mark = (*pskb)->mark;
+			diff = (*ctmark ^ mark) & markinfo->mask;
 			if (diff != 0)
-				(*pskb)->nfmark = nfmark ^ diff;
+				(*pskb)->mark = mark ^ diff;
 			break;
 		}
 	}
@@ -93,6 +96,11 @@ checkentry(const char *tablename,
 {
 	struct xt_connmark_target_info *matchinfo = targinfo;
 
+	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
+		printk(KERN_WARNING "can't load conntrack support for "
+				    "proto=%d\n", target->family);
+		return 0;
+	}
 	if (matchinfo->mode == XT_CONNMARK_RESTORE) {
 		if (strcmp(tablename, "mangle") != 0) {
 			printk(KERN_WARNING "CONNMARK: restore can only be "
@@ -106,6 +114,12 @@ checkentry(const char *tablename,
 		return 0;
 	}
 	return 1;
+}
+
+static void
+destroy(const struct xt_target *target, void *targinfo)
+{
+	nf_ct_l3proto_module_put(target->family);
 }
 
 #ifdef CONFIG_COMPAT
@@ -144,6 +158,7 @@ static struct xt_target xt_connmark_target[] = {
 		.name		= "CONNMARK",
 		.family		= AF_INET,
 		.checkentry	= checkentry,
+		.destroy	= destroy,
 		.target		= target,
 		.targetsize	= sizeof(struct xt_connmark_target_info),
 #ifdef CONFIG_COMPAT
@@ -157,6 +172,7 @@ static struct xt_target xt_connmark_target[] = {
 		.name		= "CONNMARK",
 		.family		= AF_INET6,
 		.checkentry	= checkentry,
+		.destroy	= destroy,
 		.target		= target,
 		.targetsize	= sizeof(struct xt_connmark_target_info),
 		.me		= THIS_MODULE
@@ -165,7 +181,6 @@ static struct xt_target xt_connmark_target[] = {
 
 static int __init xt_connmark_init(void)
 {
-	need_conntrack();
 	return xt_register_targets(xt_connmark_target,
 				   ARRAY_SIZE(xt_connmark_target));
 }

@@ -12,7 +12,7 @@
 #include <linux/netdevice.h>
 #include "aoe.h"
 
-static kmem_cache_t *buf_pool_cache;
+static struct kmem_cache *buf_pool_cache;
 
 static ssize_t aoedisk_show_state(struct gendisk * disk, char *page)
 {

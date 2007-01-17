@@ -160,7 +160,7 @@ struct neigh_table
 	atomic_t		entries;
 	rwlock_t		lock;
 	unsigned long		last_rand;
-	kmem_cache_t		*kmem_cachep;
+	struct kmem_cache		*kmem_cachep;
 	struct neigh_statistics	*stats;
 	struct neighbour	**hash_buckets;
 	unsigned int		hash_mask;
@@ -307,6 +307,24 @@ static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 	if (!(neigh->nud_state&(NUD_CONNECTED|NUD_DELAY|NUD_PROBE)))
 		return __neigh_event_send(neigh, skb);
 	return 0;
+}
+
+static inline int neigh_hh_output(struct hh_cache *hh, struct sk_buff *skb)
+{
+	unsigned seq;
+	int hh_len;
+
+	do {
+		int hh_alen;
+
+		seq = read_seqbegin(&hh->hh_lock);
+		hh_len = hh->hh_len;
+		hh_alen = HH_DATA_ALIGN(hh_len);
+		memcpy(skb->data - hh_alen, hh->hh_data, hh_alen);
+	} while (read_seqretry(&hh->hh_lock, seq));
+
+	skb_push(skb, hh_len);
+	return hh->hh_output(skb);
 }
 
 static inline struct neighbour *

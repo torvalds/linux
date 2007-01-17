@@ -484,8 +484,6 @@ out:
 	return sk;
 }
 
-void x25_init_timers(struct sock *sk);
-
 static int x25_create(struct socket *sock, int protocol)
 {
 	struct sock *sk;

@@ -76,7 +76,7 @@ struct appledisplay {
 	char *urbdata;			/* interrupt URB data buffer */
 	char *msgdata;			/* control message data buffer */
 
-	struct work_struct work;
+	struct delayed_work work;
 	int button_pressed;
 	spinlock_t lock;
 };
@@ -117,7 +117,7 @@ static void appledisplay_complete(struct urb *urb)
 	case ACD_BTN_BRIGHT_UP:
 	case ACD_BTN_BRIGHT_DOWN:
 		pdata->button_pressed = 1;
-		queue_work(wq, &pdata->work);
+		queue_delayed_work(wq, &pdata->work, 0);
 		break;
 	case ACD_BTN_NONE:
 	default:
@@ -184,9 +184,10 @@ static struct backlight_properties appledisplay_bl_data = {
 	.max_brightness	= 0xFF
 };
 
-static void appledisplay_work(void *private)
+static void appledisplay_work(struct work_struct *work)
 {
-	struct appledisplay *pdata = private;
+	struct appledisplay *pdata =
+		container_of(work, struct appledisplay, work.work);
 	int retval;
 
 	up(&pdata->bd->sem);
@@ -216,10 +217,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 	iface_desc = iface->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
 		endpoint = &iface_desc->endpoint[i].desc;
-		if (!int_in_endpointAddr &&
-		    (endpoint->bEndpointAddress & USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		     USB_ENDPOINT_XFER_INT)) {
+		if (!int_in_endpointAddr && usb_endpoint_is_int_in(endpoint)) {
 			/* we found an interrupt in endpoint */
 			int_in_endpointAddr = endpoint->bEndpointAddress;
 			break;
@@ -241,7 +239,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 	pdata->udev = udev;
 
 	spin_lock_init(&pdata->lock);
-	INIT_WORK(&pdata->work, appledisplay_work, pdata);
+	INIT_DELAYED_WORK(&pdata->work, appledisplay_work);
 
 	/* Allocate buffer for control messages */
 	pdata->msgdata = kmalloc(ACD_MSG_BUFFER_LEN, GFP_KERNEL);
@@ -283,7 +281,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 	/* Register backlight device */
 	snprintf(bl_name, sizeof(bl_name), "appledisplay%d",
 		atomic_inc_return(&count_displays) - 1);
-	pdata->bd = backlight_device_register(bl_name, pdata,
+	pdata->bd = backlight_device_register(bl_name, NULL, NULL,
 						&appledisplay_bl_data);
 	if (IS_ERR(pdata->bd)) {
 		err("appledisplay: Backlight registration failed");

@@ -57,6 +57,7 @@
 #define TAG_Special	Const(2)	/* De-normal, + or - infinity,
 					   or Not a Number */
 #define TAG_Empty	Const(3)	/* empty */
+#define TAG_Error	Const(0x80)	/* probably need to abort */
 
 #define LOADED_DATA	Const(10101)	/* Special st() number to identify
 					   loaded data (not on stack). */

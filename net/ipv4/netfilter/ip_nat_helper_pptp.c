@@ -101,7 +101,7 @@ static void pptp_nat_expected(struct ip_conntrack *ct,
 
 	DEBUGP("trying to unexpect other dir: ");
 	DUMP_TUPLE(&t);
-	other_exp = ip_conntrack_expect_find(&t);
+	other_exp = ip_conntrack_expect_find_get(&t);
 	if (other_exp) {
 		ip_conntrack_unexpect_related(other_exp);
 		ip_conntrack_expect_put(other_exp);
@@ -315,17 +315,17 @@ static int __init ip_nat_helper_pptp_init(void)
 	if (ret < 0)
 		return ret;
 
-	BUG_ON(ip_nat_pptp_hook_outbound);
-	ip_nat_pptp_hook_outbound = &pptp_outbound_pkt;
+	BUG_ON(rcu_dereference(ip_nat_pptp_hook_outbound));
+	rcu_assign_pointer(ip_nat_pptp_hook_outbound, pptp_outbound_pkt);
 
-	BUG_ON(ip_nat_pptp_hook_inbound);
-	ip_nat_pptp_hook_inbound = &pptp_inbound_pkt;
+	BUG_ON(rcu_dereference(ip_nat_pptp_hook_inbound));
+	rcu_assign_pointer(ip_nat_pptp_hook_inbound, pptp_inbound_pkt);
 
-	BUG_ON(ip_nat_pptp_hook_exp_gre);
-	ip_nat_pptp_hook_exp_gre = &pptp_exp_gre;
+	BUG_ON(rcu_dereference(ip_nat_pptp_hook_exp_gre));
+	rcu_assign_pointer(ip_nat_pptp_hook_exp_gre, pptp_exp_gre);
 
-	BUG_ON(ip_nat_pptp_hook_expectfn);
-	ip_nat_pptp_hook_expectfn = &pptp_nat_expected;
+	BUG_ON(rcu_dereference(ip_nat_pptp_hook_expectfn));
+	rcu_assign_pointer(ip_nat_pptp_hook_expectfn, pptp_nat_expected);
 
 	printk("ip_nat_pptp version %s loaded\n", IP_NAT_PPTP_VERSION);
 	return 0;
@@ -335,14 +335,13 @@ static void __exit ip_nat_helper_pptp_fini(void)
 {
 	DEBUGP("cleanup_module\n" );
 
-	ip_nat_pptp_hook_expectfn = NULL;
-	ip_nat_pptp_hook_exp_gre = NULL;
-	ip_nat_pptp_hook_inbound = NULL;
-	ip_nat_pptp_hook_outbound = NULL;
+	rcu_assign_pointer(ip_nat_pptp_hook_expectfn, NULL);
+	rcu_assign_pointer(ip_nat_pptp_hook_exp_gre, NULL);
+	rcu_assign_pointer(ip_nat_pptp_hook_inbound, NULL);
+	rcu_assign_pointer(ip_nat_pptp_hook_outbound, NULL);
+	synchronize_rcu();
 
 	ip_nat_proto_gre_fini();
-	/* Make sure noone calls it, meanwhile */
-	synchronize_net();
 
 	printk("ip_nat_pptp version %s unloaded\n", IP_NAT_PPTP_VERSION);
 }

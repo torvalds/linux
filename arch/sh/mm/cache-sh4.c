@@ -11,12 +11,8 @@
  */
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <asm/addrspace.h>
-#include <asm/pgtable.h>
-#include <asm/processor.h>
-#include <asm/cache.h>
-#include <asm/io.h>
-#include <asm/pgalloc.h>
+#include <linux/io.h>
+#include <linux/mutex.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
@@ -83,9 +79,9 @@ static void __init emit_cache_params(void)
  */
 
 /* Worst case assumed to be 64k cache, direct-mapped i.e. 4 synonym bits. */
-#define MAX_P3_SEMAPHORES 16
+#define MAX_P3_MUTEXES 16
 
-struct semaphore p3map_sem[MAX_P3_SEMAPHORES];
+struct mutex p3map_mutex[MAX_P3_MUTEXES];
 
 void __init p3_cache_init(void)
 {
@@ -111,11 +107,11 @@ void __init p3_cache_init(void)
 
 	emit_cache_params();
 
-	if (remap_area_pages(P3SEG, 0, PAGE_SIZE * 4, _PAGE_CACHABLE))
+	if (ioremap_page_range(P3SEG, P3SEG + (PAGE_SIZE * 4), 0, PAGE_KERNEL))
 		panic("%s failed.", __FUNCTION__);
 
 	for (i = 0; i < cpu_data->dcache.n_aliases; i++)
-		sema_init(&p3map_sem[i], 1);
+		mutex_init(&p3map_mutex[i]);
 }
 
 /*
@@ -229,7 +225,7 @@ static inline void flush_cache_4096(unsigned long start,
 	 */
 	if ((cpu_data->flags & CPU_HAS_P2_FLUSH_BUG) ||
 	    (start < CACHE_OC_ADDRESS_ARRAY))
-	    	exec_offset = 0x20000000;
+		exec_offset = 0x20000000;
 
 	local_irq_save(flags);
 	__flush_cache_4096(start | SH_CACHE_ASSOC,
@@ -250,7 +246,7 @@ void flush_dcache_page(struct page *page)
 
 		/* Loop all the D-cache */
 		n = cpu_data->dcache.n_aliases;
-		for (i = 0; i < n; i++, addr += PAGE_SIZE)
+		for (i = 0; i < n; i++, addr += 4096)
 			flush_cache_4096(addr, phys);
 	}
 

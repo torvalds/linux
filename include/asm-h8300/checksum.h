@@ -13,7 +13,7 @@
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum);
+__wsum csum_partial(const void *buff, int len, __wsum sum);
 
 /*
  * the same as csum_partial, but copies from src while it
@@ -23,7 +23,7 @@ unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum)
  * better 64-bit) boundary
  */
 
-unsigned int csum_partial_copy(const char *src, char *dst, int len, int sum);
+__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum);
 
 
 /*
@@ -33,20 +33,17 @@ unsigned int csum_partial_copy(const char *src, char *dst, int len, int sum);
  * better 64-bit) boundary
  */
 
-extern unsigned int csum_partial_copy_from_user(const char *src, char *dst,
-						int len, int sum, int *csum_err);
+extern __wsum csum_partial_copy_from_user(const void __user *src, void *dst,
+						int len, __wsum sum, int *csum_err);
 
-#define csum_partial_copy_nocheck(src, dst, len, sum)	\
-	csum_partial_copy((src), (dst), (len), (sum))
-
-unsigned short ip_fast_csum(unsigned char *iph, unsigned int ihl);
+__sum16 ip_fast_csum(const void *iph, unsigned int ihl);
 
 
 /*
  *	Fold a partial checksum
  */
 
-static inline unsigned int csum_fold(unsigned int sum)
+static inline __sum16 csum_fold(__wsum sum)
 {
 	__asm__("mov.l %0,er0\n\t"
 		"add.w e0,r0\n\t"
@@ -58,7 +55,7 @@ static inline unsigned int csum_fold(unsigned int sum)
 		: "=r"(sum)
 		: "0"(sum)
 		: "er0");
-	return ~sum;
+	return (__force __sum16)~sum;
 }
 
 
@@ -67,9 +64,9 @@ static inline unsigned int csum_fold(unsigned int sum)
  * returns a 16-bit checksum, already complemented
  */
 
-static inline unsigned int
-csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr, unsigned short len,
-		  unsigned short proto, unsigned int sum)
+static inline __wsum
+csum_tcpudp_nofold(__be32 saddr, __be32 daddr, unsigned short len,
+		  unsigned short proto, __wsum sum)
 {
 	__asm__ ("sub.l er0,er0\n\t"
 		 "add.l %2,%0\n\t"
@@ -88,9 +85,9 @@ csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr, unsigned short len,
 	return sum;
 }
 
-static inline unsigned short int
-csum_tcpudp_magic(unsigned long saddr, unsigned long daddr, unsigned short len,
-		  unsigned short proto, unsigned int sum)
+static inline __sum16
+csum_tcpudp_magic(__be32 saddr, __be32 daddr, unsigned short len,
+		  unsigned short proto, __wsum sum)
 {
 	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
 }
@@ -100,6 +97,6 @@ csum_tcpudp_magic(unsigned long saddr, unsigned long daddr, unsigned short len,
  * in icmp.c
  */
 
-extern unsigned short ip_compute_csum(const unsigned char * buff, int len);
+extern __sum16 ip_compute_csum(const void *buff, int len);
 
 #endif /* _H8300_CHECKSUM_H */

@@ -318,6 +318,7 @@ int cifs_get_inode_info(struct inode **pinode,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	char *tmp_path;
 	char *buf = NULL;
+	int adjustTZ = FALSE;
 
 	pTcon = cifs_sb->tcon;
 	cFYI(1,("Getting info on %s", search_path));
@@ -348,6 +349,7 @@ int cifs_get_inode_info(struct inode **pinode,
 					pfindData, cifs_sb->local_nls, 
 					cifs_sb->mnt_cifs_flags &
 					  CIFS_MOUNT_MAP_SPECIAL_CHR);
+			adjustTZ = TRUE;
 		}
 		
 	}
@@ -444,6 +446,10 @@ int cifs_get_inode_info(struct inode **pinode,
 		inode->i_ctime =
 		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->ChangeTime));
 		cFYI(0, ("Attributes came in as 0x%x", attr));
+		if(adjustTZ && (pTcon->ses) && (pTcon->ses->server)) {
+			inode->i_ctime.tv_sec += pTcon->ses->server->timeAdj;
+	                inode->i_mtime.tv_sec += pTcon->ses->server->timeAdj;
+		}
 
 		/* set default mode. will override for dirs below */
 		if (atomic_read(&cifsInfo->inUse) == 0)

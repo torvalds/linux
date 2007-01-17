@@ -541,6 +541,7 @@ config FB_TGA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select BITREVERSE
 	help
 	  This is the frame buffer device driver for generic TGA graphic
 	  cards. Say Y if you have one of those.
@@ -551,6 +552,7 @@ config FB_VESA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select VIDEO_SELECT
 	help
 	  This is the frame buffer device driver for generic VESA 2.0
 	  compliant graphic cards. The older VESA 1.2 cards are not supported.
@@ -705,6 +707,7 @@ config FB_NVIDIA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select BITREVERSE
 	help
 	  This driver supports graphics boards with the nVidia chips, TNT
 	  and newer. For very old chipsets, such as the RIVA128, then use
@@ -744,6 +747,7 @@ config FB_RIVA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select BITREVERSE
 	help
 	  This driver supports graphics boards with the nVidia Riva/Geforce
 	  chips.
@@ -1610,6 +1614,16 @@ config FB_PNX4008_DUM_RGB
 	select FB_CFB_IMAGEBLIT
 	---help---
 	  Say Y here to enable support for PNX4008 RGB Framebuffer
+
+config FB_IBM_GXT4500
+	tristate "Framebuffer support for IBM GXT4500P adaptor"
+	depends on PPC
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Say Y here to enable support for the IBM GXT4500P display
+	  adaptor, found on some IBM System P (pSeries) machines.
 
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"

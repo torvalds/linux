@@ -32,7 +32,8 @@
 #undef DEBUG
 #include <linux/usb.h>
 
-#include "hid.h"
+#include <linux/hid.h>
+#include "usbhid.h"
 
 /* Usages for thrustmaster devices I know about */
 #define THRUSTMASTER_USAGE_RUMBLE_LR	(HID_UP_GENDESK | 0xbb)
@@ -70,7 +71,7 @@ static int hid_tmff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 	tmff->rumble->value[0] = left;
 	tmff->rumble->value[1] = right;
 	dbg("(left,right)=(%08x, %08x)", left, right);
-	hid_submit_report(hid, tmff->report, USB_DIR_OUT);
+	usbhid_submit_report(hid, tmff->report, USB_DIR_OUT);
 
 	return 0;
 }

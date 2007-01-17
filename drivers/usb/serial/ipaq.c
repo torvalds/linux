@@ -595,7 +595,7 @@ static int ipaq_open(struct usb_serial_port *port, struct file *filp)
 
 	bytes_in = 0;
 	bytes_out = 0;
-	priv = (struct ipaq_private *)kmalloc(sizeof(struct ipaq_private), GFP_KERNEL);
+	priv = kmalloc(sizeof(struct ipaq_private), GFP_KERNEL);
 	if (priv == NULL) {
 		err("%s - Out of memory", __FUNCTION__);
 		return -ENOMEM;

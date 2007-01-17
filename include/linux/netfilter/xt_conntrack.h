@@ -29,14 +29,14 @@
 struct ip_conntrack_old_tuple
 {
 	struct {
-		__u32 ip;
+		__be32 ip;
 		union {
 			__u16 all;
 		} u;
 	} src;
 
 	struct {
-		__u32 ip;
+		__be32 ip;
 		union {
 			__u16 all;
 		} u;

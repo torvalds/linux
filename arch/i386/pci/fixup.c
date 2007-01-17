@@ -74,52 +74,6 @@ static void __devinit  pci_fixup_ncr53c810(struct pci_dev *d)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NCR, PCI_DEVICE_ID_NCR_53C810, pci_fixup_ncr53c810);
 
-static void __devinit pci_fixup_ide_bases(struct pci_dev *d)
-{
-	int i;
-
-	/*
-	 * PCI IDE controllers use non-standard I/O port decoding, respect it.
-	 */
-	if ((d->class >> 8) != PCI_CLASS_STORAGE_IDE)
-		return;
-	DBG("PCI: IDE base address fixup for %s\n", pci_name(d));
-	for(i=0; i<4; i++) {
-		struct resource *r = &d->resource[i];
-		if ((r->start & ~0x80) == 0x374) {
-			r->start |= 2;
-			r->end = r->start;
-		}
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_ide_bases);
-
-static void __devinit  pci_fixup_ide_trash(struct pci_dev *d)
-{
-	int i;
-
-	/*
-	 * Runs the fixup only for the first IDE controller
-	 * (Shai Fultheim - shai@ftcon.com)
-	 */
-	static int called = 0;
-	if (called)
-		return;
-	called = 1;
-
-	/*
-	 * There exist PCI IDE controllers which have utter garbage
-	 * in first four base registers. Ignore that.
-	 */
-	DBG("PCI: IDE base address trash cleared for %s\n", pci_name(d));
-	for(i=0; i<4; i++)
-		d->resource[i].start = d->resource[i].end = d->resource[i].flags = 0;
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_5513, pci_fixup_ide_trash);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_10, pci_fixup_ide_trash);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_11, pci_fixup_ide_trash);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_9, pci_fixup_ide_trash);
-
 static void __devinit  pci_fixup_latency(struct pci_dev *d)
 {
 	/*
@@ -161,7 +115,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3, pci
 #define VIA_8363_KL133_REVISION_ID 0x81
 #define VIA_8363_KM133_REVISION_ID 0x84
 
-static void __devinit pci_fixup_via_northbridge_bug(struct pci_dev *d)
+static void pci_fixup_via_northbridge_bug(struct pci_dev *d)
 {
 	u8 v;
 	u8 revision;
@@ -197,6 +151,10 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8363_0, pci_fixup_
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8622, pci_fixup_via_northbridge_bug);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8361, pci_fixup_via_northbridge_bug);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8367_0, pci_fixup_via_northbridge_bug);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8363_0, pci_fixup_via_northbridge_bug);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8622, pci_fixup_via_northbridge_bug);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8361, pci_fixup_via_northbridge_bug);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8367_0, pci_fixup_via_northbridge_bug);
 
 /*
  * For some reasons Intel decided that certain parts of their
@@ -227,7 +185,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_fixup_transparent_
  * issue another HALT within 80 ns of the initial HALT, the failure condition
  * is avoided.
  */
-static void __init pci_fixup_nforce2(struct pci_dev *dev)
+static void pci_fixup_nforce2(struct pci_dev *dev)
 {
 	u32 val;
 
@@ -250,6 +208,7 @@ static void __init pci_fixup_nforce2(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE2, pci_fixup_nforce2);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE2, pci_fixup_nforce2);
 
 /* Max PCI Express root ports */
 #define MAX_PCIEROOT	6
@@ -465,7 +424,7 @@ DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_TI, 0x8032,
  * Prevent the BIOS trapping accesses to the Cyrix CS5530A video device
  * configuration space.
  */
-static void __devinit pci_early_fixup_cyrix_5530(struct pci_dev *dev)
+static void pci_early_fixup_cyrix_5530(struct pci_dev *dev)
 {
 	u8 r;
 	/* clear 'F4 Video Configuration Trap' bit */
@@ -474,4 +433,6 @@ static void __devinit pci_early_fixup_cyrix_5530(struct pci_dev *dev)
 	pci_write_config_byte(dev, 0x42, r);
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_LEGACY,
+			pci_early_fixup_cyrix_5530);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_LEGACY,
 			pci_early_fixup_cyrix_5530);

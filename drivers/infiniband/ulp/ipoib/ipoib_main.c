@@ -264,7 +264,7 @@ static void path_free(struct net_device *dev, struct ipoib_path *path)
 		if (neigh->ah)
 			ipoib_put_ah(neigh->ah);
 
-		ipoib_neigh_free(neigh);
+		ipoib_neigh_free(dev, neigh);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -497,8 +497,6 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 		return;
 	}
 
-	skb_queue_head_init(&neigh->queue);
-
 	/*
 	 * We can only be called from ipoib_start_xmit, so we're
 	 * inside tx_lock -- no need to save/restore flags.
@@ -525,10 +523,11 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 		ipoib_send(dev, skb, path->ah, IPOIB_QPN(skb->dst->neighbour->ha));
 	} else {
 		neigh->ah  = NULL;
-		__skb_queue_tail(&neigh->queue, skb);
 
 		if (!path->query && path_rec_start(dev, path))
 			goto err_list;
+
+		__skb_queue_tail(&neigh->queue, skb);
 	}
 
 	spin_unlock(&priv->lock);
@@ -538,7 +537,7 @@ err_list:
 	list_del(&neigh->list);
 
 err_path:
-	ipoib_neigh_free(neigh);
+	ipoib_neigh_free(dev, neigh);
 	++priv->stats.tx_dropped;
 	dev_kfree_skb_any(skb);
 
@@ -655,7 +654,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				 */
 				ipoib_put_ah(neigh->ah);
 				list_del(&neigh->list);
-				ipoib_neigh_free(neigh);
+				ipoib_neigh_free(dev, neigh);
 				spin_unlock(&priv->lock);
 				ipoib_path_lookup(skb, dev);
 				goto out;
@@ -786,7 +785,7 @@ static void ipoib_neigh_destructor(struct neighbour *n)
 		if (neigh->ah)
 			ah = neigh->ah;
 		list_del(&neigh->list);
-		ipoib_neigh_free(neigh);
+		ipoib_neigh_free(n->dev, neigh);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -805,13 +804,20 @@ struct ipoib_neigh *ipoib_neigh_alloc(struct neighbour *neighbour)
 
 	neigh->neighbour = neighbour;
 	*to_ipoib_neigh(neighbour) = neigh;
+	skb_queue_head_init(&neigh->queue);
 
 	return neigh;
 }
 
-void ipoib_neigh_free(struct ipoib_neigh *neigh)
+void ipoib_neigh_free(struct net_device *dev, struct ipoib_neigh *neigh)
 {
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct sk_buff *skb;
 	*to_ipoib_neigh(neigh->neighbour) = NULL;
+	while ((skb = __skb_dequeue(&neigh->queue))) {
+		++priv->stats.tx_dropped;
+		dev_kfree_skb_any(skb);
+	}
 	kfree(neigh);
 }
 
@@ -933,11 +939,11 @@ static void ipoib_setup(struct net_device *dev)
 	INIT_LIST_HEAD(&priv->dead_ahs);
 	INIT_LIST_HEAD(&priv->multicast_list);
 
-	INIT_WORK(&priv->pkey_task,    ipoib_pkey_poll,          priv->dev);
-	INIT_WORK(&priv->mcast_task,   ipoib_mcast_join_task,    priv->dev);
-	INIT_WORK(&priv->flush_task,   ipoib_ib_dev_flush,       priv->dev);
-	INIT_WORK(&priv->restart_task, ipoib_mcast_restart_task, priv->dev);
-	INIT_WORK(&priv->ah_reap_task, ipoib_reap_ah,            priv->dev);
+	INIT_DELAYED_WORK(&priv->pkey_task,    ipoib_pkey_poll);
+	INIT_DELAYED_WORK(&priv->mcast_task,   ipoib_mcast_join_task);
+	INIT_WORK(&priv->flush_task,   ipoib_ib_dev_flush);
+	INIT_WORK(&priv->restart_task, ipoib_mcast_restart_task);
+	INIT_DELAYED_WORK(&priv->ah_reap_task, ipoib_reap_ah);
 }
 
 struct ipoib_dev_priv *ipoib_intf_alloc(const char *name)

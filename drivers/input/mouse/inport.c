@@ -135,6 +135,7 @@ static void inport_close(struct input_dev *dev)
 static int __init inport_init(void)
 {
 	unsigned char a, b, c;
+	int err;
 
 	if (!request_region(INPORT_BASE, INPORT_EXTENT, "inport")) {
 		printk(KERN_ERR "inport.c: Can't allocate ports at %#x\n", INPORT_BASE);
@@ -145,15 +146,16 @@ static int __init inport_init(void)
 	b = inb(INPORT_SIGNATURE_PORT);
 	c = inb(INPORT_SIGNATURE_PORT);
 	if (a == b || a != c) {
-		release_region(INPORT_BASE, INPORT_EXTENT);
 		printk(KERN_ERR "inport.c: Didn't find InPort mouse at %#x\n", INPORT_BASE);
-		return -ENODEV;
+		err = -ENODEV;
+		goto err_release_region;
 	}
 
-	if (!(inport_dev = input_allocate_device())) {
+	inport_dev = input_allocate_device();
+	if (!inport_dev) {
 		printk(KERN_ERR "inport.c: Not enough memory for input device\n");
-		release_region(INPORT_BASE, INPORT_EXTENT);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_release_region;
 	}
 
 	inport_dev->name = INPORT_NAME;
@@ -174,9 +176,18 @@ static int __init inport_init(void)
 	outb(INPORT_REG_MODE, INPORT_CONTROL_PORT);
 	outb(INPORT_MODE_BASE, INPORT_DATA_PORT);
 
-	input_register_device(inport_dev);
+	err = input_register_device(inport_dev);
+	if (err)
+		goto err_free_dev;
 
 	return 0;
+
+ err_free_dev:
+	input_free_device(inport_dev);
+ err_release_region:
+	release_region(INPORT_BASE, INPORT_EXTENT);
+
+	return err;
 }
 
 static void __exit inport_exit(void)

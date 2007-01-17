@@ -352,19 +352,19 @@ static enum action (*phase)(void);
 
 static void run_fsm(void);
 
-static void ps_tq_int( void *data);
+static void ps_tq_int(struct work_struct *work);
 
-static DECLARE_WORK(fsm_tq, ps_tq_int, NULL);
+static DECLARE_DELAYED_WORK(fsm_tq, ps_tq_int);
 
 static void schedule_fsm(void)
 {
 	if (!nice)
-		schedule_work(&fsm_tq);
+		schedule_delayed_work(&fsm_tq, 0);
 	else
 		schedule_delayed_work(&fsm_tq, nice-1);
 }
 
-static void ps_tq_int(void *data)
+static void ps_tq_int(struct work_struct *work)
 {
 	run_fsm();
 }

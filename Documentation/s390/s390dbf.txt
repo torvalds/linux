@@ -36,7 +36,7 @@ switches to the next debug area. This is done in order to be sure
 that the records which describe the origin of the exception are not
 overwritten when a wrap around for the current area occurs.
 
-The debug areas itselve are also ordered in form of a ring buffer. 
+The debug areas themselves are also ordered in form of a ring buffer.
 When an exception is thrown in the last debug area, the following debug 
 entries are then written again in the very first area.
 
@@ -55,7 +55,7 @@ The debug logs can be inspected in a live system through entries in
 the debugfs-filesystem. Under the toplevel directory "s390dbf" there is
 a directory for each registered component, which is named like the
 corresponding component. The debugfs normally should be mounted to
-/sys/kernel/debug therefore the debug feature can be accessed unter
+/sys/kernel/debug therefore the debug feature can be accessed under
 /sys/kernel/debug/s390dbf.
 
 The content of the directories are files which represent different views
@@ -87,11 +87,11 @@ There are currently 2 possible triggers, which stop the debug feature
 globally. The first possibility is to use the "debug_active" sysctl. If
 set to 1 the debug feature is running. If "debug_active" is set to 0 the
 debug feature is turned off.
-The second trigger which stops the debug feature is an kernel oops.
+The second trigger which stops the debug feature is a kernel oops.
 That prevents the debug feature from overwriting debug information that
 happened before the oops. After an oops you can reactivate the debug feature
 by piping 1 to /proc/sys/s390dbf/debug_active. Nevertheless, its not
-suggested to use an oopsed kernel in an production environment.
+suggested to use an oopsed kernel in a production environment.
 If you want to disallow the deactivation of the debug feature, you can use
 the "debug_stoppable" sysctl. If you set "debug_stoppable" to 0 the debug
 feature cannot be stopped. If the debug feature is already stopped, it

@@ -74,7 +74,7 @@ static inline void lock_metapage(struct metapage *mp)
 }
 
 #define METAPOOL_MIN_PAGES 32
-static kmem_cache_t *metapage_cache;
+static struct kmem_cache *metapage_cache;
 static mempool_t *metapage_mempool;
 
 #define MPS_PER_PAGE (PAGE_CACHE_SIZE >> L2PSIZE)
@@ -180,7 +180,7 @@ static inline void remove_metapage(struct page *page, struct metapage *mp)
 
 #endif
 
-static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct metapage *mp = (struct metapage *)foo;
 
@@ -764,22 +764,9 @@ void release_metapage(struct metapage * mp)
 	} else if (mp->lsn)	/* discard_metapage doesn't remove it */
 		remove_from_logsync(mp);
 
-#if MPS_PER_PAGE == 1
-	/*
-	 * If we know this is the only thing in the page, we can throw
-	 * the page out of the page cache.  If pages are larger, we
-	 * don't want to do this.
-	 */
-
-	/* Retest mp->count since we may have released page lock */
-	if (test_bit(META_discard, &mp->flag) && !mp->count) {
-		clear_page_dirty(page);
-		ClearPageUptodate(page);
-	}
-#else
 	/* Try to keep metapages from using up too much memory */
 	drop_metapage(page, mp);
-#endif
+
 	unlock_page(page);
 	page_cache_release(page);
 }

@@ -237,7 +237,7 @@ zfcp_device_setup(char *devstr)
 		return 0;
 
 	len = strlen(devstr) + 1;
-	str = (char *) kmalloc(len, GFP_KERNEL);
+	str = kmalloc(len, GFP_KERNEL);
 	if (!str)
 		goto err_out;
 	memcpy(str, devstr, len);

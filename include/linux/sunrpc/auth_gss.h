@@ -90,8 +90,6 @@ struct gss_cred {
 #define gc_flags		gc_base.cr_flags
 #define gc_expire		gc_base.cr_expire
 
-void print_hexl(u32 *p, u_int length, u_int offset);
-
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_AUTH_GSS_H */
 

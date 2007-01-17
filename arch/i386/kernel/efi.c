@@ -194,17 +194,24 @@ inline int efi_set_rtc_mmss(unsigned long nowtime)
 	return 0;
 }
 /*
- * This should only be used during kernel init and before runtime
- * services have been remapped, therefore, we'll need to call in physical
- * mode.  Note, this call isn't used later, so mark it __init.
+ * This is used during kernel init before runtime
+ * services have been remapped and also during suspend, therefore,
+ * we'll need to call both in physical and virtual modes.
  */
-inline unsigned long __init efi_get_time(void)
+inline unsigned long efi_get_time(void)
 {
 	efi_status_t status;
 	efi_time_t eft;
 	efi_time_cap_t cap;
 
-	status = phys_efi_get_time(&eft, &cap);
+	if (efi.get_time) {
+		/* if we are in virtual mode use remapped function */
+ 		status = efi.get_time(&eft, &cap);
+	} else {
+		/* we are in physical mode */
+		status = phys_efi_get_time(&eft, &cap);
+	}
+
 	if (status != EFI_SUCCESS)
 		printk("Oops: efitime: can't read time status: 0x%lx\n",status);
 

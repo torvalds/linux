@@ -50,7 +50,7 @@ static struct inode *ecryptfs_alloc_inode(struct super_block *sb)
 	struct inode *inode = NULL;
 
 	ecryptfs_inode = kmem_cache_alloc(ecryptfs_inode_info_cache,
-					  SLAB_KERNEL);
+					  GFP_KERNEL);
 	if (unlikely(!ecryptfs_inode))
 		goto out;
 	ecryptfs_init_crypt_stat(&ecryptfs_inode->crypt_stat);

@@ -31,6 +31,16 @@
 #define MCFINT_QSPI         31          /* Interrupt number for QSPI */
 #define MCFINT_PIT1         4           /* Interrupt number for PIT1 (PIT0 in processor) */
 
+/*
+ *  SDRAM configuration registers.
+ */
+#define MCFSIM_SDMR         0x000a8000	/* SDRAM Mode/Extended Mode Register */
+#define MCFSIM_SDCR         0x000a8004	/* SDRAM Control Register */
+#define MCFSIM_SDCFG1       0x000a8008	/* SDRAM Configuration Register 1 */
+#define MCFSIM_SDCFG2       0x000a800c	/* SDRAM Configuration Register 2 */
+#define MCFSIM_SDCS0        0x000a8110	/* SDRAM Chip Select 0 Configuration */
+#define MCFSIM_SDCS1        0x000a8114	/* SDRAM Chip Select 1 Configuration */
+
 
 #define MCF_GPIO_PAR_UART                   (0xA4036)
 #define MCF_GPIO_PAR_FECI2C                 (0xA4033)
@@ -47,7 +57,7 @@
 
 #define ICR_INTRCONF		0x05
 #define MCFPIT_IMR		MCFINTC_IMRL
-#define MCFPIT_IMR_IBIT	(1 << MCFINT_PIT1)
+#define MCFPIT_IMR_IBIT		(1 << MCFINT_PIT1)
 
 /****************************************************************************/
 #endif  /* m520xsim_h */

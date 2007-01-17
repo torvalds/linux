@@ -13,10 +13,6 @@
 
 #ifdef __KERNEL__
 
-/* erp debugging in dasd.c and dasd_3990_erp.c */
-#define ERP_DEBUG
-
-
 /* we keep old device allocation scheme; IOW, minors are still in 0..255 */
 #define DASD_PER_MAJOR (1U << (MINORBITS - DASD_PARTN_BITS))
 #define DASD_PARTN_MASK ((1 << DASD_PARTN_BITS) - 1)
@@ -474,7 +470,7 @@ extern struct dasd_profile_info_t dasd_global_profile;
 extern unsigned int dasd_profile_level;
 extern struct block_device_operations dasd_device_operations;
 
-extern kmem_cache_t *dasd_page_cache;
+extern struct kmem_cache *dasd_page_cache;
 
 struct dasd_ccw_req *
 dasd_kmalloc_request(char *, int, int, struct dasd_device *);

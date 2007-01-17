@@ -70,7 +70,7 @@
 /*
  * Lets keep our timers in a slab cache :-)
  */
-static kmem_cache_t *posix_timers_cache;
+static struct kmem_cache *posix_timers_cache;
 static struct idr posix_timers_id;
 static DEFINE_SPINLOCK(idr_lock);
 

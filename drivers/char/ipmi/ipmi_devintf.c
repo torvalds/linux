@@ -596,6 +596,31 @@ static int ipmi_ioctl(struct inode  *inode,
 		rv = 0;
 		break;
 	}
+
+	case IPMICTL_GET_MAINTENANCE_MODE_CMD:
+	{
+		int mode;
+
+		mode = ipmi_get_maintenance_mode(priv->user);
+		if (copy_to_user(arg, &mode, sizeof(mode))) {
+			rv = -EFAULT;
+			break;
+		}
+		rv = 0;
+		break;
+	}
+
+	case IPMICTL_SET_MAINTENANCE_MODE_CMD:
+	{
+		int mode;
+
+		if (copy_from_user(&mode, arg, sizeof(mode))) {
+			rv = -EFAULT;
+			break;
+		}
+		rv = ipmi_set_maintenance_mode(priv->user, mode);
+		break;
+	}
 	}
   
 	return rv;
@@ -773,7 +798,7 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 		if (copy_to_user(precv64, &recv64, sizeof(recv64)))
 			return -EFAULT;
 
-		rc = ipmi_ioctl(filep->f_dentry->d_inode, filep,
+		rc = ipmi_ioctl(filep->f_path.dentry->d_inode, filep,
 				((cmd == COMPAT_IPMICTL_RECEIVE_MSG)
 				 ? IPMICTL_RECEIVE_MSG
 				 : IPMICTL_RECEIVE_MSG_TRUNC),
@@ -790,7 +815,7 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 		return rc;
 	}
 	default:
-		return ipmi_ioctl(filep->f_dentry->d_inode, filep, cmd, arg);
+		return ipmi_ioctl(filep->f_path.dentry->d_inode, filep, cmd, arg);
 	}
 }
 #endif
@@ -809,7 +834,7 @@ static const struct file_operations ipmi_fops = {
 
 #define DEVICE_NAME     "ipmidev"
 
-static int ipmi_major = 0;
+static int ipmi_major;
 module_param(ipmi_major, int, 0);
 MODULE_PARM_DESC(ipmi_major, "Sets the major number of the IPMI device.  By"
 		 " default, or if you set it to zero, it will choose the next"

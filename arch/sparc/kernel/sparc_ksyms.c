@@ -83,9 +83,6 @@ extern int __divdi3(int, int);
 /* Private functions with odd calling conventions. */
 extern void ___atomic24_add(void);
 extern void ___atomic24_sub(void);
-extern void ___set_bit(void);
-extern void ___clear_bit(void);
-extern void ___change_bit(void);
 extern void ___rw_read_enter(void);
 extern void ___rw_read_try(void);
 extern void ___rw_read_exit(void);
@@ -124,11 +121,6 @@ EXPORT_SYMBOL(pfn_base);
 /* Atomic operations. */
 EXPORT_SYMBOL(___atomic24_add);
 EXPORT_SYMBOL(___atomic24_sub);
-
-/* Bit operations. */
-EXPORT_SYMBOL(___set_bit);
-EXPORT_SYMBOL(___clear_bit);
-EXPORT_SYMBOL(___change_bit);
 
 /* Per-CPU information table */
 EXPORT_PER_CPU_SYMBOL(__cpu_data);

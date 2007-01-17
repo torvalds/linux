@@ -50,6 +50,16 @@
 	}							\
 } while (0)
 
+#ifndef pio_read16be
+#define pio_read16be(port) swab16(inw(port))
+#define pio_read32be(port) swab32(inl(port))
+#endif
+
+#ifndef mmio_read16be
+#define mmio_read16be(addr) be16_to_cpu(__raw_readw(addr))
+#define mmio_read32be(addr) be32_to_cpu(__raw_readl(addr))
+#endif
+
 unsigned int fastcall ioread8(void __iomem *addr)
 {
 	IO_COND(addr, return inb(port), return readb(addr));
@@ -60,7 +70,7 @@ unsigned int fastcall ioread16(void __iomem *addr)
 }
 unsigned int fastcall ioread16be(void __iomem *addr)
 {
-	IO_COND(addr, return inw(port), return be16_to_cpu(__raw_readw(addr)));
+	IO_COND(addr, return pio_read16be(port), return mmio_read16be(addr));
 }
 unsigned int fastcall ioread32(void __iomem *addr)
 {
@@ -68,13 +78,23 @@ unsigned int fastcall ioread32(void __iomem *addr)
 }
 unsigned int fastcall ioread32be(void __iomem *addr)
 {
-	IO_COND(addr, return inl(port), return be32_to_cpu(__raw_readl(addr)));
+	IO_COND(addr, return pio_read32be(port), return mmio_read32be(addr));
 }
 EXPORT_SYMBOL(ioread8);
 EXPORT_SYMBOL(ioread16);
 EXPORT_SYMBOL(ioread16be);
 EXPORT_SYMBOL(ioread32);
 EXPORT_SYMBOL(ioread32be);
+
+#ifndef pio_write16be
+#define pio_write16be(val,port) outw(swab16(val),port)
+#define pio_write32be(val,port) outl(swab32(val),port)
+#endif
+
+#ifndef mmio_write16be
+#define mmio_write16be(val,port) __raw_writew(be16_to_cpu(val),port)
+#define mmio_write32be(val,port) __raw_writel(be32_to_cpu(val),port)
+#endif
 
 void fastcall iowrite8(u8 val, void __iomem *addr)
 {
@@ -86,7 +106,7 @@ void fastcall iowrite16(u16 val, void __iomem *addr)
 }
 void fastcall iowrite16be(u16 val, void __iomem *addr)
 {
-	IO_COND(addr, outw(val,port), __raw_writew(cpu_to_be16(val), addr));
+	IO_COND(addr, pio_write16be(val,port), mmio_write16be(val, addr));
 }
 void fastcall iowrite32(u32 val, void __iomem *addr)
 {
@@ -94,7 +114,7 @@ void fastcall iowrite32(u32 val, void __iomem *addr)
 }
 void fastcall iowrite32be(u32 val, void __iomem *addr)
 {
-	IO_COND(addr, outl(val,port), __raw_writel(cpu_to_be32(val), addr));
+	IO_COND(addr, pio_write32be(val,port), mmio_write32be(val, addr));
 }
 EXPORT_SYMBOL(iowrite8);
 EXPORT_SYMBOL(iowrite16);
@@ -108,6 +128,7 @@ EXPORT_SYMBOL(iowrite32be);
  * convert to CPU byte order. We write in "IO byte
  * order" (we also don't have IO barriers).
  */
+#ifndef mmio_insb
 static inline void mmio_insb(void __iomem *addr, u8 *dst, int count)
 {
 	while (--count >= 0) {
@@ -132,7 +153,9 @@ static inline void mmio_insl(void __iomem *addr, u32 *dst, int count)
 		dst++;
 	}
 }
+#endif
 
+#ifndef mmio_outsb
 static inline void mmio_outsb(void __iomem *addr, const u8 *src, int count)
 {
 	while (--count >= 0) {
@@ -154,6 +177,7 @@ static inline void mmio_outsl(void __iomem *addr, const u32 *src, int count)
 		src++;
 	}
 }
+#endif
 
 void fastcall ioread8_rep(void __iomem *addr, void *dst, unsigned long count)
 {

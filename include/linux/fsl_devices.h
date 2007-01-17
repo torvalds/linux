@@ -19,6 +19,7 @@
 #define _FSL_DEVICE_H_
 
 #include <linux/types.h>
+#include <linux/phy.h>
 
 /*
  * Some conventions on how we handle peripherals on Freescale chips

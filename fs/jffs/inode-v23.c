@@ -61,8 +61,8 @@ static const struct file_operations jffs_dir_operations;
 static struct inode_operations jffs_dir_inode_operations;
 static const struct address_space_operations jffs_address_operations;
 
-kmem_cache_t     *node_cache = NULL;
-kmem_cache_t     *fm_cache = NULL;
+struct kmem_cache     *node_cache = NULL;
+struct kmem_cache     *fm_cache = NULL;
 
 /* Called by the VFS at mount time to initialize the whole file system.  */
 static int jffs_fill_super(struct super_block *sb, void *data, int silent)
@@ -566,7 +566,7 @@ static int
 jffs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct jffs_file *f;
-	struct dentry *dentry = filp->f_dentry;
+	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	struct jffs_control *c = (struct jffs_control *)inode->i_sb->s_fs_info;
 	int j;
@@ -818,7 +818,7 @@ jffs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	D1({
 	        int len = dentry->d_name.len;
-		char *_name = (char *) kmalloc(len + 1, GFP_KERNEL);
+		char *_name = kmalloc(len + 1, GFP_KERNEL);
 		memcpy(_name, dentry->d_name.name, len);
 		_name[len] = '\0';
 		printk("***jffs_mkdir(): dir = 0x%p, name = \"%s\", "
@@ -964,7 +964,7 @@ jffs_remove(struct inode *dir, struct dentry *dentry, int type)
 	D1({
 		int len = dentry->d_name.len;
 		const char *name = dentry->d_name.name;
-		char *_name = (char *) kmalloc(len + 1, GFP_KERNEL);
+		char *_name = kmalloc(len + 1, GFP_KERNEL);
 		memcpy(_name, name, len);
 		_name[len] = '\0';
 		printk("***jffs_remove(): file = \"%s\", ino = %ld\n", _name, dentry->d_inode->i_ino);
@@ -1372,7 +1372,7 @@ jffs_file_write(struct file *filp, const char *buf, size_t count,
 	struct jffs_control *c;
 	struct jffs_file *f;
 	struct jffs_node *node;
-	struct dentry *dentry = filp->f_dentry;
+	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	int recoverable = 0;
 	size_t written = 0;
@@ -1380,7 +1380,7 @@ jffs_file_write(struct file *filp, const char *buf, size_t count,
 	loff_t pos = *ppos;
 	int err;
 
-	inode = filp->f_dentry->d_inode;
+	inode = filp->f_path.dentry->d_inode;
 
 	D2(printk("***jffs_file_write(): inode: 0x%p (ino: %lu), "
 		  "filp: 0x%p, buf: 0x%p, count: %d\n",

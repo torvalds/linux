@@ -11,6 +11,7 @@
 
 #include <linux/timer.h>
 #include <linux/sunrpc/types.h>
+#include <linux/rcupdate.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
@@ -85,6 +86,7 @@ struct rpc_task {
 	union {
 		struct work_struct	tk_work;	/* Async task work queue */
 		struct rpc_wait		tk_wait;	/* RPC wait */
+		struct rcu_head		tk_rcu;		/* for task deletion */
 	} u;
 
 	unsigned short		tk_timeouts;	/* maj timeouts */
@@ -178,13 +180,6 @@ struct rpc_call_ops {
 	} while (0)
 
 #define RPC_IS_ACTIVATED(t)	(test_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate))
-#define rpc_set_active(t)	(set_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate))
-#define rpc_clear_active(t)	\
-	do { \
-		smp_mb__before_clear_bit(); \
-		clear_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate); \
-		smp_mb__after_clear_bit(); \
-	} while(0)
 
 /*
  * Task priorities.
@@ -222,7 +217,7 @@ struct rpc_wait_queue {
 
 #ifndef RPC_DEBUG
 # define RPC_WAITQ_INIT(var,qname) { \
-		.lock = SPIN_LOCK_UNLOCKED, \
+		.lock = __SPIN_LOCK_UNLOCKED(var.lock), \
 		.tasks = { \
 			[0] = LIST_HEAD_INIT(var.tasks[0]), \
 			[1] = LIST_HEAD_INIT(var.tasks[1]), \
@@ -231,7 +226,7 @@ struct rpc_wait_queue {
 	}
 #else
 # define RPC_WAITQ_INIT(var,qname) { \
-		.lock = SPIN_LOCK_UNLOCKED, \
+		.lock = __SPIN_LOCK_UNLOCKED(var.lock), \
 		.tasks = { \
 			[0] = LIST_HEAD_INIT(var.tasks[0]), \
 			[1] = LIST_HEAD_INIT(var.tasks[1]), \
@@ -254,8 +249,10 @@ struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
 void		rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt,
 				int flags, const struct rpc_call_ops *ops,
 				void *data);
+void		rpc_put_task(struct rpc_task *);
 void		rpc_release_task(struct rpc_task *);
 void		rpc_exit_task(struct rpc_task *);
+void		rpc_release_calldata(const struct rpc_call_ops *, void *);
 void		rpc_killall_tasks(struct rpc_clnt *);
 int		rpc_execute(struct rpc_task *);
 void		rpc_init_priority_wait_queue(struct rpc_wait_queue *, const char *);

@@ -782,6 +782,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	int i;
 	int chunk_sects = conf->chunk_mask + 1;
 	const int rw = bio_data_dir(bio);
+	const int do_sync = bio_sync(bio);
 	struct bio_list bl;
 	unsigned long flags;
 
@@ -863,7 +864,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 			mirror->rdev->data_offset;
 		read_bio->bi_bdev = mirror->rdev->bdev;
 		read_bio->bi_end_io = raid10_end_read_request;
-		read_bio->bi_rw = READ;
+		read_bio->bi_rw = READ | do_sync;
 		read_bio->bi_private = r10_bio;
 
 		generic_make_request(read_bio);
@@ -909,7 +910,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 			conf->mirrors[d].rdev->data_offset;
 		mbio->bi_bdev = conf->mirrors[d].rdev->bdev;
 		mbio->bi_end_io	= raid10_end_write_request;
-		mbio->bi_rw = WRITE;
+		mbio->bi_rw = WRITE | do_sync;
 		mbio->bi_private = r10_bio;
 
 		atomic_inc(&r10_bio->remaining);
@@ -921,6 +922,9 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	bio_list_merge(&conf->pending_bio_list, &bl);
 	blk_plug_device(mddev->queue);
 	spin_unlock_irqrestore(&conf->device_lock, flags);
+
+	if (do_sync)
+		md_wakeup_thread(mddev->thread);
 
 	return 0;
 }
@@ -1563,6 +1567,7 @@ static void raid10d(mddev_t *mddev)
 				       (unsigned long long)r10_bio->sector);
 				raid_end_bio_io(r10_bio);
 			} else {
+				const int do_sync = bio_sync(r10_bio->master_bio);
 				rdev = conf->mirrors[mirror].rdev;
 				if (printk_ratelimit())
 					printk(KERN_ERR "raid10: %s: redirecting sector %llu to"
@@ -1574,7 +1579,7 @@ static void raid10d(mddev_t *mddev)
 				bio->bi_sector = r10_bio->devs[r10_bio->read_slot].addr
 					+ rdev->data_offset;
 				bio->bi_bdev = rdev->bdev;
-				bio->bi_rw = READ;
+				bio->bi_rw = READ | do_sync;
 				bio->bi_private = r10_bio;
 				bio->bi_end_io = raid10_end_read_request;
 				unplug = 1;
@@ -1785,7 +1790,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 						biolist = bio;
 						bio->bi_private = r10_bio;
 						bio->bi_end_io = end_sync_read;
-						bio->bi_rw = 0;
+						bio->bi_rw = READ;
 						bio->bi_sector = r10_bio->devs[j].addr +
 							conf->mirrors[d].rdev->data_offset;
 						bio->bi_bdev = conf->mirrors[d].rdev->bdev;
@@ -1801,7 +1806,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 						biolist = bio;
 						bio->bi_private = r10_bio;
 						bio->bi_end_io = end_sync_write;
-						bio->bi_rw = 1;
+						bio->bi_rw = WRITE;
 						bio->bi_sector = r10_bio->devs[k].addr +
 							conf->mirrors[i].rdev->data_offset;
 						bio->bi_bdev = conf->mirrors[i].rdev->bdev;
@@ -1870,7 +1875,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 			biolist = bio;
 			bio->bi_private = r10_bio;
 			bio->bi_end_io = end_sync_read;
-			bio->bi_rw = 0;
+			bio->bi_rw = READ;
 			bio->bi_sector = r10_bio->devs[i].addr +
 				conf->mirrors[d].rdev->data_offset;
 			bio->bi_bdev = conf->mirrors[d].rdev->bdev;

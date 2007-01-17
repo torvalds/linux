@@ -588,7 +588,6 @@ static int __init chrp_probe(void)
 	ISA_DMA_THRESHOLD = ~0L;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
-	isa_io_base = CHRP_ISA_IO_BASE;		/* default value */
 
 	return 1;
 }
@@ -600,7 +599,6 @@ define_machine(chrp) {
 	.init			= chrp_init2,
 	.show_cpuinfo		= chrp_show_cpuinfo,
 	.init_IRQ		= chrp_init_IRQ,
-	.pcibios_fixup		= chrp_pcibios_fixup,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,

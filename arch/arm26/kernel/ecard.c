@@ -215,7 +215,7 @@ int ecard_readchunk(struct in_chunk_dir *cd, ecard_t *ec, int id, int num)
 		}
 		if (c_id(&excd) == 0x80) { /* loader */
 			if (!ec->loader) {
-				ec->loader = (loader_t)kmalloc(c_len(&excd),
+				ec->loader = kmalloc(c_len(&excd),
 							       GFP_KERNEL);
 				if (ec->loader)
 					ecard_readbytes(ec->loader, ec,
@@ -620,11 +620,9 @@ ecard_probe(int slot, card_type_t type)
 	struct ex_ecid cid;
 	int i, rc = -ENOMEM;
 
-	ec = kmalloc(sizeof(ecard_t), GFP_KERNEL);
+	ec = kzalloc(sizeof(ecard_t), GFP_KERNEL);
 	if (!ec)
 		goto nomem;
-
-	memset(ec, 0, sizeof(ecard_t));
 
 	ec->slot_no	= slot;
 	ec->type        = type;

@@ -163,7 +163,7 @@ static int print_serial_number(struct seq_file *seq, u8 * serialno, int max_len)
  *	i2o_get_class_name - 	do i2o class name lookup
  *	@class: class number
  *
- *	Return a descriptive string for an i2o class
+ *	Return a descriptive string for an i2o class.
  */
 static const char *i2o_get_class_name(int class)
 {

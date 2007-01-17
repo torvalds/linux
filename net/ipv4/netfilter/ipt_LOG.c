@@ -171,11 +171,15 @@ static void dump_packet(const struct nf_loginfo *info,
 		}
 		break;
 	}
-	case IPPROTO_UDP: {
+	case IPPROTO_UDP:
+	case IPPROTO_UDPLITE: {
 		struct udphdr _udph, *uh;
 
-		/* Max length: 10 "PROTO=UDP " */
-		printk("PROTO=UDP ");
+		if (ih->protocol == IPPROTO_UDP)
+			/* Max length: 10 "PROTO=UDP "     */
+			printk("PROTO=UDP " );
+		else	/* Max length: 14 "PROTO=UDPLITE " */
+			printk("PROTO=UDPLITE ");
 
 		if (ntohs(ih->frag_off) & IP_OFFSET)
 			break;
@@ -341,6 +345,7 @@ static void dump_packet(const struct nf_loginfo *info,
 	/* IP:      40+46+6+11+127 = 230 */
 	/* TCP:     10+max(25,20+30+13+9+32+11+127) = 252 */
 	/* UDP:     10+max(25,20) = 35 */
+	/* UDPLITE: 14+max(25,20) = 39 */
 	/* ICMP:    11+max(25, 18+25+max(19,14,24+3+n+10,3+n+10)) = 91+n */
 	/* ESP:     10+max(25)+15 = 50 */
 	/* AH:      9+max(25)+15 = 49 */
@@ -425,13 +430,8 @@ ipt_log_target(struct sk_buff **pskb,
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
-	if (loginfo->logflags & IPT_LOG_NFLOG)
-		nf_log_packet(PF_INET, hooknum, *pskb, in, out, &li,
-		              "%s", loginfo->prefix);
-	else
-		ipt_log_packet(PF_INET, hooknum, *pskb, in, out, &li,
-		               loginfo->prefix);
-
+	ipt_log_packet(PF_INET, hooknum, *pskb, in, out, &li,
+	               loginfo->prefix);
 	return IPT_CONTINUE;
 }
 

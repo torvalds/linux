@@ -227,6 +227,11 @@ struct saa7134_format {
 #define SAA7134_BOARD_PROTEUS_2309 98
 #define SAA7134_BOARD_AVERMEDIA_A16AR   99
 #define SAA7134_BOARD_ASUS_EUROPA2_HYBRID 100
+#define SAA7134_BOARD_PINNACLE_PCTV_310i  101
+#define SAA7134_BOARD_AVERMEDIA_STUDIO_507 102
+#define SAA7134_BOARD_VIDEOMATE_DVBT_200A  103
+#define SAA7134_BOARD_HAUPPAUGE_HVR1110    104
+#define SAA7134_BOARD_CINERGY_HT_PCMCIA    105
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -445,6 +450,9 @@ struct saa7134_dev {
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state     prio;
 #endif
+
+	/* insmod option/autodetected */
+	int                        autodetected;
 
 	/* various device info */
 	unsigned int               resources;

@@ -31,8 +31,7 @@
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-asmlinkage unsigned int csum_partial(const unsigned char *buff,
-				     int len, unsigned int sum);
+asmlinkage __wsum csum_partial(const void *buff, int len, __wsum sum);
 
 /*
  * The same as csum_partial, but copies from src while it checksums.
@@ -40,24 +39,22 @@ asmlinkage unsigned int csum_partial(const unsigned char *buff,
  * Here even more important to align src and dst on a 32-bit (or even
  * better 64-bit) boundary
  */
-extern unsigned int csum_partial_copy_nocheck(const unsigned char *src,
-					      unsigned char *dst,
-                                              int len, unsigned int sum);
+extern __wsum csum_partial_copy_nocheck(const void *src, void *dst,
+                                              int len, __wsum sum);
 
 /*
  * This is a new version of the above that records errors it finds in *errp,
  * but continues and zeros thre rest of the buffer.
  */
-extern unsigned int csum_partial_copy_from_user(const unsigned char __user *src,
-                                                unsigned char *dst,
-                                                int len, unsigned int sum,
+extern __wsum csum_partial_copy_from_user(const void __user *src, void *dst,
+                                                int len, __wsum sum,
                                                 int *err_ptr);
 
 /*
  *	Fold a partial checksum
  */
 
-static inline unsigned int csum_fold(unsigned int sum)
+static inline __sum16 csum_fold(__wsum sum)
 {
 	unsigned long tmpreg;
 	__asm__(
@@ -72,16 +69,17 @@ static inline unsigned int csum_fold(unsigned int sum)
 		: "0"  (sum)
 		: "cbit"
 	);
-	return sum;
+	return (__force __sum16)sum;
 }
 
 /*
  * This is a version of ip_compute_csum() optimized for IP headers,
  * which always checksum on 4 octet boundaries.
  */
-static inline unsigned short ip_fast_csum(unsigned char * iph,
-					  unsigned int ihl) {
-	unsigned long sum, tmpreg0, tmpreg1;
+static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
+{
+	unsigned long tmpreg0, tmpreg1;
+	__wsum sum;
 
 	__asm__ __volatile__(
 		"	ld	%0, @%1+ \n"
@@ -115,16 +113,15 @@ static inline unsigned short ip_fast_csum(unsigned char * iph,
 	return csum_fold(sum);
 }
 
-static inline unsigned long csum_tcpudp_nofold(unsigned long saddr,
-					       unsigned long daddr,
+static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 					       unsigned short len,
 					       unsigned short proto,
-					       unsigned int sum)
+					       __wsum sum)
 {
 #if defined(__LITTLE_ENDIAN)
-	unsigned long len_proto = (ntohs(len)<<16)+proto*256;
+	unsigned long len_proto = (proto + len) << 8;
 #else
-	unsigned long len_proto = (proto<<16)+len;
+	unsigned long len_proto = proto + len;
 #endif
 	unsigned long tmpreg;
 
@@ -147,11 +144,10 @@ static inline unsigned long csum_tcpudp_nofold(unsigned long saddr,
  * computes the checksum of the TCP/UDP pseudo-header
  * returns a 16-bit checksum, already complemented
  */
-static inline unsigned short int csum_tcpudp_magic(unsigned long saddr,
-						   unsigned long daddr,
+static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 						   unsigned short len,
 						   unsigned short proto,
-						   unsigned int sum)
+						   __wsum sum)
 {
 	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
 }
@@ -161,16 +157,16 @@ static inline unsigned short int csum_tcpudp_magic(unsigned long saddr,
  * in icmp.c
  */
 
-static inline unsigned short ip_compute_csum(unsigned char * buff, int len) {
+static inline __sum16 ip_compute_csum(const void *buff, int len)
+{
 	return csum_fold (csum_partial(buff, len, 0));
 }
 
 #define _HAVE_ARCH_IPV6_CSUM
-static inline unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
-						 struct in6_addr *daddr,
-						 __u16 len,
-						 unsigned short proto,
-						 unsigned int sum)
+static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+				      const struct in6_addr *daddr,
+				      __u32 len, unsigned short proto,
+				      __wsum sum)
 {
 	unsigned long tmpreg0, tmpreg1, tmpreg2, tmpreg3;
 	__asm__(
@@ -197,7 +193,7 @@ static inline unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
 		: "=&r" (sum), "=&r" (tmpreg0), "=&r" (tmpreg1),
 		  "=&r" (tmpreg2), "=&r" (tmpreg3)
 		: "r" (saddr), "r" (daddr),
-		  "r" (htonl((__u32) (len))), "r" (htonl(proto)), "0" (sum)
+		  "r" (htonl(len)), "r" (htonl(proto)), "0" (sum)
 		: "cbit"
 	);
 

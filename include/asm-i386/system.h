@@ -88,6 +88,9 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
 #define savesegment(seg, value) \
 	asm volatile("mov %%" #seg ",%0":"=rm" (value))
 
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
 #define read_cr0() ({ \
 	unsigned int __dummy; \
 	__asm__ __volatile__( \
@@ -139,16 +142,17 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
 #define write_cr4(x) \
 	__asm__ __volatile__("movl %0,%%cr4": :"r" (x))
 
-/*
- * Clear and set 'TS' bit respectively
- */
+#define wbinvd() \
+	__asm__ __volatile__ ("wbinvd": : :"memory")
+
+/* Clear the 'TS' bit */
 #define clts() __asm__ __volatile__ ("clts")
+#endif/* CONFIG_PARAVIRT */
+
+/* Set the 'TS' bit */
 #define stts() write_cr0(8 | read_cr0())
 
 #endif	/* __KERNEL__ */
-
-#define wbinvd() \
-	__asm__ __volatile__ ("wbinvd": : :"memory")
 
 static inline unsigned long get_limit(unsigned long segment)
 {

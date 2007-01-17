@@ -441,7 +441,7 @@ static int c2_rnic_close(struct c2_dev *c2dev)
  * involves initalizing the various limits and resouce pools that
  * comprise the RNIC instance.
  */
-int c2_rnic_init(struct c2_dev *c2dev)
+int __devinit c2_rnic_init(struct c2_dev *c2dev)
 {
 	int err;
 	u32 qsize, msgsize;
@@ -611,7 +611,7 @@ int c2_rnic_init(struct c2_dev *c2dev)
 /*
  * Called by c2_remove to cleanup the RNIC resources.
  */
-void c2_rnic_term(struct c2_dev *c2dev)
+void __devexit c2_rnic_term(struct c2_dev *c2dev)
 {
 
 	/* Close the open adapter instance */

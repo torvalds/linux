@@ -87,7 +87,7 @@ struct srp_device {
 	struct ib_fmr_pool     *fmr_pool;
 	int			fmr_page_shift;
 	int			fmr_page_size;
-	unsigned long		fmr_page_mask;
+	u64			fmr_page_mask;
 };
 
 struct srp_host {
@@ -161,7 +161,7 @@ struct srp_target_port {
 };
 
 struct srp_iu {
-	dma_addr_t		dma;
+	u64			dma;
 	void		       *buf;
 	size_t			size;
 	enum dma_data_direction	direction;

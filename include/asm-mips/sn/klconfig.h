@@ -61,6 +61,8 @@
 #endif /* CONFIG_SGI_IP35 */
 #endif /* CONFIG_SGI_IP27 || CONFIG_SGI_IP35 */
 
+typedef u64  nic_t;
+
 #define KLCFGINFO_MAGIC	0xbeedbabe
 
 typedef s32 klconf_off_t;
@@ -176,7 +178,7 @@ typedef struct kl_config_hdr {
 /* --- New Macros for the changed kl_config_hdr_t structure --- */
 
 #define PTR_CH_MALLOC_HDR(_k)   ((klc_malloc_hdr_t *)\
-			(unsigned long)_k + (_k->ch_malloc_hdr_off)))
+			((unsigned long)_k + (_k->ch_malloc_hdr_off)))
 
 #define KL_CONFIG_CH_MALLOC_HDR(_n)   PTR_CH_MALLOC_HDR(KL_CONFIG_HDR(_n))
 

@@ -110,7 +110,8 @@ struct net2280_ep {
 						out_overflow : 1,
 						stopped : 1,
 						is_in : 1,
-						is_iso : 1;
+						is_iso : 1,
+						responded : 1;
 };
 
 static inline void allow_status (struct net2280_ep *ep)

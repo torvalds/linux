@@ -180,7 +180,7 @@ s3c_irq_unmask(unsigned int irqno)
 	__raw_writel(mask, S3C2410_INTMSK);
 }
 
-struct irqchip s3c_irq_level_chip = {
+struct irq_chip s3c_irq_level_chip = {
 	.name		= "s3c-level",
 	.ack		= s3c_irq_maskack,
 	.mask		= s3c_irq_mask,
@@ -188,7 +188,7 @@ struct irqchip s3c_irq_level_chip = {
 	.set_wake	= s3c_irq_wake
 };
 
-static struct irqchip s3c_irq_chip = {
+static struct irq_chip s3c_irq_chip = {
 	.name		= "s3c",
 	.ack		= s3c_irq_ack,
 	.mask		= s3c_irq_mask,
@@ -206,18 +206,6 @@ s3c_irqext_mask(unsigned int irqno)
 	mask = __raw_readl(S3C24XX_EINTMASK);
 	mask |= ( 1UL << irqno);
 	__raw_writel(mask, S3C24XX_EINTMASK);
-
-	if (irqno <= (IRQ_EINT7 - EXTINT_OFF)) {
-		/* check to see if all need masking */
-
-		if ((mask & (0xf << 4)) == (0xf << 4)) {
-			/* all masked, mask the parent */
-			s3c_irq_mask(IRQ_EINT4t7);
-		}
-	} else {
-		/* todo: the same check as above for the rest of the irq regs...*/
-
-	}
 }
 
 static void
@@ -228,7 +216,6 @@ s3c_irqext_ack(unsigned int irqno)
 	unsigned long mask;
 
 	bit = 1UL << (irqno - EXTINT_OFF);
-
 
 	mask = __raw_readl(S3C24XX_EINTMASK);
 
@@ -258,8 +245,6 @@ s3c_irqext_unmask(unsigned int irqno)
 	mask = __raw_readl(S3C24XX_EINTMASK);
 	mask &= ~( 1UL << irqno);
 	__raw_writel(mask, S3C24XX_EINTMASK);
-
-	s3c_irq_unmask((irqno <= (IRQ_EINT7 - EXTINT_OFF)) ? IRQ_EINT4t7 : IRQ_EINT8t23);
 }
 
 int
@@ -344,7 +329,7 @@ s3c_irqext_type(unsigned int irq, unsigned int type)
 	return 0;
 }
 
-static struct irqchip s3c_irqext_chip = {
+static struct irq_chip s3c_irqext_chip = {
 	.name		= "s3c-ext",
 	.mask		= s3c_irqext_mask,
 	.unmask		= s3c_irqext_unmask,
@@ -353,7 +338,7 @@ static struct irqchip s3c_irqext_chip = {
 	.set_wake	= s3c_irqext_wake
 };
 
-static struct irqchip s3c_irq_eint0t4 = {
+static struct irq_chip s3c_irq_eint0t4 = {
 	.name		= "s3c-ext0",
 	.ack		= s3c_irq_ack,
 	.mask		= s3c_irq_mask,
@@ -390,7 +375,7 @@ s3c_irq_uart0_ack(unsigned int irqno)
 	s3c_irqsub_maskack(irqno, INTMSK_UART0, 7);
 }
 
-static struct irqchip s3c_irq_uart0 = {
+static struct irq_chip s3c_irq_uart0 = {
 	.name		= "s3c-uart0",
 	.mask		= s3c_irq_uart0_mask,
 	.unmask		= s3c_irq_uart0_unmask,
@@ -417,7 +402,7 @@ s3c_irq_uart1_ack(unsigned int irqno)
 	s3c_irqsub_maskack(irqno, INTMSK_UART1, 7 << 3);
 }
 
-static struct irqchip s3c_irq_uart1 = {
+static struct irq_chip s3c_irq_uart1 = {
 	.name		= "s3c-uart1",
 	.mask		= s3c_irq_uart1_mask,
 	.unmask		= s3c_irq_uart1_unmask,
@@ -444,7 +429,7 @@ s3c_irq_uart2_ack(unsigned int irqno)
 	s3c_irqsub_maskack(irqno, INTMSK_UART2, 7 << 6);
 }
 
-static struct irqchip s3c_irq_uart2 = {
+static struct irq_chip s3c_irq_uart2 = {
 	.name		= "s3c-uart2",
 	.mask		= s3c_irq_uart2_mask,
 	.unmask		= s3c_irq_uart2_unmask,
@@ -471,7 +456,7 @@ s3c_irq_adc_ack(unsigned int irqno)
 	s3c_irqsub_ack(irqno, INTMSK_ADCPARENT, 3 << 9);
 }
 
-static struct irqchip s3c_irq_adc = {
+static struct irq_chip s3c_irq_adc = {
 	.name		= "s3c-adc",
 	.mask		= s3c_irq_adc_mask,
 	.unmask		= s3c_irq_adc_unmask,
@@ -480,11 +465,11 @@ static struct irqchip s3c_irq_adc = {
 
 /* irq demux for adc */
 static void s3c_irq_demux_adc(unsigned int irq,
-			      struct irqdesc *desc)
+			      struct irq_desc *desc)
 {
 	unsigned int subsrc, submsk;
 	unsigned int offset = 9;
-	struct irqdesc *mydesc;
+	struct irq_desc *mydesc;
 
 	/* read the current pending interrupts, and the mask
 	 * for what it is available */
@@ -512,7 +497,7 @@ static void s3c_irq_demux_uart(unsigned int start)
 {
 	unsigned int subsrc, submsk;
 	unsigned int offset = start - IRQ_S3CUART_RX0;
-	struct irqdesc *desc;
+	struct irq_desc *desc;
 
 	/* read the current pending interrupts, and the mask
 	 * for what it is available */
@@ -549,7 +534,7 @@ static void s3c_irq_demux_uart(unsigned int start)
 
 static void
 s3c_irq_demux_uart0(unsigned int irq,
-		    struct irqdesc *desc)
+		    struct irq_desc *desc)
 {
 	irq = irq;
 	s3c_irq_demux_uart(IRQ_S3CUART_RX0);
@@ -557,7 +542,7 @@ s3c_irq_demux_uart0(unsigned int irq,
 
 static void
 s3c_irq_demux_uart1(unsigned int irq,
-		    struct irqdesc *desc)
+		    struct irq_desc *desc)
 {
 	irq = irq;
 	s3c_irq_demux_uart(IRQ_S3CUART_RX1);
@@ -565,7 +550,7 @@ s3c_irq_demux_uart1(unsigned int irq,
 
 static void
 s3c_irq_demux_uart2(unsigned int irq,
-		    struct irqdesc *desc)
+		    struct irq_desc *desc)
 {
 	irq = irq;
 	s3c_irq_demux_uart(IRQ_S3CUART_RX2);
@@ -573,7 +558,7 @@ s3c_irq_demux_uart2(unsigned int irq,
 
 static void
 s3c_irq_demux_extint8(unsigned int irq,
-		      struct irqdesc *desc)
+		      struct irq_desc *desc)
 {
 	unsigned long eintpnd = __raw_readl(S3C24XX_EINTPEND);
 	unsigned long eintmsk = __raw_readl(S3C24XX_EINTMASK);
@@ -595,7 +580,7 @@ s3c_irq_demux_extint8(unsigned int irq,
 
 static void
 s3c_irq_demux_extint4t7(unsigned int irq,
-			struct irqdesc *desc)
+			struct irq_desc *desc)
 {
 	unsigned long eintpnd = __raw_readl(S3C24XX_EINTPEND);
 	unsigned long eintmsk = __raw_readl(S3C24XX_EINTMASK);
@@ -738,7 +723,7 @@ void __init s3c24xx_init_irq(void)
 		case IRQ_UART2:
 		case IRQ_ADCPARENT:
 			set_irq_chip(irqno, &s3c_irq_level_chip);
-			set_irq_handler(irqno, do_level_IRQ);
+			set_irq_handler(irqno, handle_level_irq);
 			break;
 
 		case IRQ_RESERVED6:
@@ -749,7 +734,7 @@ void __init s3c24xx_init_irq(void)
 		default:
 			//irqdbf("registering irq %d (s3c irq)\n", irqno);
 			set_irq_chip(irqno, &s3c_irq_chip);
-			set_irq_handler(irqno, do_edge_IRQ);
+			set_irq_handler(irqno, handle_edge_irq);
 			set_irq_flags(irqno, IRQF_VALID);
 		}
 	}
@@ -769,14 +754,14 @@ void __init s3c24xx_init_irq(void)
 	for (irqno = IRQ_EINT0; irqno <= IRQ_EINT3; irqno++) {
 		irqdbf("registering irq %d (ext int)\n", irqno);
 		set_irq_chip(irqno, &s3c_irq_eint0t4);
-		set_irq_handler(irqno, do_edge_IRQ);
+		set_irq_handler(irqno, handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	for (irqno = IRQ_EINT4; irqno <= IRQ_EINT23; irqno++) {
 		irqdbf("registering irq %d (extended s3c irq)\n", irqno);
 		set_irq_chip(irqno, &s3c_irqext_chip);
-		set_irq_handler(irqno, do_edge_IRQ);
+		set_irq_handler(irqno, handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
@@ -787,28 +772,28 @@ void __init s3c24xx_init_irq(void)
 	for (irqno = IRQ_S3CUART_RX0; irqno <= IRQ_S3CUART_ERR0; irqno++) {
 		irqdbf("registering irq %d (s3c uart0 irq)\n", irqno);
 		set_irq_chip(irqno, &s3c_irq_uart0);
-		set_irq_handler(irqno, do_level_IRQ);
+		set_irq_handler(irqno, handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	for (irqno = IRQ_S3CUART_RX1; irqno <= IRQ_S3CUART_ERR1; irqno++) {
 		irqdbf("registering irq %d (s3c uart1 irq)\n", irqno);
 		set_irq_chip(irqno, &s3c_irq_uart1);
-		set_irq_handler(irqno, do_level_IRQ);
+		set_irq_handler(irqno, handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	for (irqno = IRQ_S3CUART_RX2; irqno <= IRQ_S3CUART_ERR2; irqno++) {
 		irqdbf("registering irq %d (s3c uart2 irq)\n", irqno);
 		set_irq_chip(irqno, &s3c_irq_uart2);
-		set_irq_handler(irqno, do_level_IRQ);
+		set_irq_handler(irqno, handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	for (irqno = IRQ_TC; irqno <= IRQ_ADC; irqno++) {
 		irqdbf("registering irq %d (s3c adc irq)\n", irqno);
 		set_irq_chip(irqno, &s3c_irq_adc);
-		set_irq_handler(irqno, do_edge_IRQ);
+		set_irq_handler(irqno, handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 

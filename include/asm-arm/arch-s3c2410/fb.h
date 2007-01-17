@@ -31,6 +31,9 @@ struct s3c2410fb_hw {
 struct s3c2410fb_mach_info {
 	unsigned char	fixed_syncs;	/* do not update sync/border */
 
+	/* LCD types */
+	int		type;
+
 	/* Screen size */
 	int		width;
 	int		height;

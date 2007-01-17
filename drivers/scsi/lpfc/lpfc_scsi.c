@@ -297,8 +297,10 @@ lpfc_handle_fcp_err(struct lpfc_scsi_buf *lpfc_cmd)
 	uint32_t fcpi_parm = lpfc_cmd->cur_iocbq.iocb.un.fcpi.fcpi_parm;
 	uint32_t resp_info = fcprsp->rspStatus2;
 	uint32_t scsi_status = fcprsp->rspStatus3;
+	uint32_t *lp;
 	uint32_t host_status = DID_OK;
 	uint32_t rsplen = 0;
+	uint32_t logit = LOG_FCP | LOG_FCP_ERROR;
 
 	/*
 	 *  If this is a task management command, there is no
@@ -310,10 +312,25 @@ lpfc_handle_fcp_err(struct lpfc_scsi_buf *lpfc_cmd)
 		goto out;
 	}
 
-	lpfc_printf_log(phba, KERN_WARNING, LOG_FCP,
-			"%d:0730 FCP command failed: RSP "
-			"Data: x%x x%x x%x x%x x%x x%x\n",
-			phba->brd_no, resp_info, scsi_status,
+	if ((resp_info & SNS_LEN_VALID) && fcprsp->rspSnsLen) {
+		uint32_t snslen = be32_to_cpu(fcprsp->rspSnsLen);
+		if (snslen > SCSI_SENSE_BUFFERSIZE)
+			snslen = SCSI_SENSE_BUFFERSIZE;
+
+		if (resp_info & RSP_LEN_VALID)
+		  rsplen = be32_to_cpu(fcprsp->rspRspLen);
+		memcpy(cmnd->sense_buffer, &fcprsp->rspInfo0 + rsplen, snslen);
+	}
+	lp = (uint32_t *)cmnd->sense_buffer;
+
+	if (!scsi_status && (resp_info & RESID_UNDER))
+		logit = LOG_FCP;
+
+	lpfc_printf_log(phba, KERN_WARNING, logit,
+			"%d:0730 FCP command x%x failed: x%x SNS x%x x%x "
+			"Data: x%x x%x x%x x%x x%x\n",
+			phba->brd_no, cmnd->cmnd[0], scsi_status,
+			be32_to_cpu(*lp), be32_to_cpu(*(lp + 3)), resp_info,
 			be32_to_cpu(fcprsp->rspResId),
 			be32_to_cpu(fcprsp->rspSnsLen),
 			be32_to_cpu(fcprsp->rspRspLen),
@@ -326,14 +343,6 @@ lpfc_handle_fcp_err(struct lpfc_scsi_buf *lpfc_cmd)
 			host_status = DID_ERROR;
 			goto out;
 		}
-	}
-
-	if ((resp_info & SNS_LEN_VALID) && fcprsp->rspSnsLen) {
-		uint32_t snslen = be32_to_cpu(fcprsp->rspSnsLen);
-		if (snslen > SCSI_SENSE_BUFFERSIZE)
-			snslen = SCSI_SENSE_BUFFERSIZE;
-
-		memcpy(cmnd->sense_buffer, &fcprsp->rspInfo0 + rsplen, snslen);
 	}
 
 	cmnd->resid = 0;
@@ -378,7 +387,7 @@ lpfc_handle_fcp_err(struct lpfc_scsi_buf *lpfc_cmd)
 	 */
 	} else if ((scsi_status == SAM_STAT_GOOD) && fcpi_parm &&
 			(cmnd->sc_data_direction == DMA_FROM_DEVICE)) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP,
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_FCP_ERROR,
 			"%d:0734 FCP Read Check Error Data: "
 			"x%x x%x x%x x%x\n", phba->brd_no,
 			be32_to_cpu(fcpcmd->fcpDl),
@@ -669,6 +678,9 @@ lpfc_scsi_tgt_reset(struct lpfc_scsi_buf * lpfc_cmd, struct lpfc_hba * phba,
 	struct lpfc_iocbq *iocbq;
 	struct lpfc_iocbq *iocbqrsp;
 	int ret;
+
+	if (!rdata->pnode)
+		return FAILED;
 
 	lpfc_cmd->rdata = rdata;
 	ret = lpfc_scsi_prep_task_mgmt_cmd(phba, lpfc_cmd, lun,
@@ -976,20 +988,34 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 
 	lpfc_block_error_handler(cmnd);
 	spin_lock_irq(shost->host_lock);
+	loopcnt = 0;
 	/*
 	 * If target is not in a MAPPED state, delay the reset until
 	 * target is rediscovered or devloss timeout expires.
 	 */
 	while ( 1 ) {
 		if (!pnode)
-			break;
+			return FAILED;
 
 		if (pnode->nlp_state != NLP_STE_MAPPED_NODE) {
 			spin_unlock_irq(phba->host->host_lock);
 			schedule_timeout_uninterruptible(msecs_to_jiffies(500));
 			spin_lock_irq(phba->host->host_lock);
+			loopcnt++;
+			rdata = cmnd->device->hostdata;
+			if (!rdata ||
+				(loopcnt > ((phba->cfg_devloss_tmo * 2) + 1))) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+		   			"%d:0721 LUN Reset rport failure:"
+					" cnt x%x rdata x%p\n",
+		   			phba->brd_no, loopcnt, rdata);
+				goto out;
+			}
+			pnode = rdata->pnode;
+			if (!pnode)
+				return FAILED;
 		}
-		if ((pnode) && (pnode->nlp_state == NLP_STE_MAPPED_NODE))
+		if (pnode->nlp_state == NLP_STE_MAPPED_NODE)
 			break;
 	}
 

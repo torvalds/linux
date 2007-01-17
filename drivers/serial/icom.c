@@ -1087,8 +1087,8 @@ static void icom_close(struct uart_port *port)
 }
 
 static void icom_set_termios(struct uart_port *port,
-			     struct termios *termios,
-			     struct termios *old_termios)
+			     struct ktermios *termios,
+			     struct ktermios *old_termios)
 {
 	int baud;
 	unsigned cflag, iflag;
@@ -1510,7 +1510,7 @@ static int __devinit icom_probe(struct pci_dev *dev,
 	}
 
 	if ( (retval = pci_request_regions(dev, "icom"))) {
-		 dev_err(&dev->dev, "pci_request_region FAILED\n");
+		 dev_err(&dev->dev, "pci_request_regions FAILED\n");
 		 pci_disable_device(dev);
 		 return retval;
 	 }

@@ -41,7 +41,7 @@ static int cp2101_open(struct usb_serial_port*, struct file*);
 static void cp2101_cleanup(struct usb_serial_port*);
 static void cp2101_close(struct usb_serial_port*, struct file*);
 static void cp2101_get_termios(struct usb_serial_port*);
-static void cp2101_set_termios(struct usb_serial_port*, struct termios*);
+static void cp2101_set_termios(struct usb_serial_port*, struct ktermios*);
 static int cp2101_tiocmget (struct usb_serial_port *, struct file *);
 static int cp2101_tiocmset (struct usb_serial_port *, struct file *,
 		unsigned int, unsigned int);
@@ -69,6 +69,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x10C4, 0x8218) }, /* Lipowsky Industrie Elektronik GmbH, HARP-1 */
 	{ USB_DEVICE(0x10C4, 0xEA60) }, /* Silicon Labs factory default */
 	{ USB_DEVICE(0x10C4, 0xEA61) }, /* Silicon Labs factory default */
+	{ USB_DEVICE(0x13AD, 0x9999) }, /* Baltech card reader */
 	{ USB_DEVICE(0x16D6, 0x0001) }, /* Jablotron serial interface */
 	{ } /* Terminating Entry */
 };
@@ -506,7 +507,7 @@ static void cp2101_get_termios (struct usb_serial_port *port)
 }
 
 static void cp2101_set_termios (struct usb_serial_port *port,
-		struct termios *old_termios)
+		struct ktermios *old_termios)
 {
 	unsigned int cflag, old_cflag=0;
 	int baud=0, bits;

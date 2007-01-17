@@ -38,7 +38,7 @@
 
 #include <rdma/ib_user_sa.h>
 
-#define IB_USER_CM_ABI_VERSION 4
+#define IB_USER_CM_ABI_VERSION 5
 
 enum {
 	IB_USER_CM_CMD_CREATE_ID,
@@ -46,7 +46,7 @@ enum {
 	IB_USER_CM_CMD_ATTR_ID,
 
 	IB_USER_CM_CMD_LISTEN,
-	IB_USER_CM_CMD_ESTABLISH,
+	IB_USER_CM_CMD_NOTIFY,
 
 	IB_USER_CM_CMD_SEND_REQ,
 	IB_USER_CM_CMD_SEND_REP,
@@ -117,8 +117,9 @@ struct ib_ucm_listen {
 	__u32 reserved;
 };
 
-struct ib_ucm_establish {
+struct ib_ucm_notify {
 	__u32 id;
+	__u32 event;
 };
 
 struct ib_ucm_private_data {

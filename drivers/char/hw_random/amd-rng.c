@@ -144,7 +144,7 @@ static void __exit mod_exit(void)
 	hwrng_unregister(&amd_rng);
 }
 
-subsys_initcall(mod_init);
+module_init(mod_init);
 module_exit(mod_exit);
 
 MODULE_AUTHOR("The Linux Kernel team");

@@ -50,9 +50,10 @@ extern struct processor {
 	 */
 	void (*switch_mm)(unsigned long pgd_phys, struct mm_struct *mm);
 	/*
-	 * Set a PTE
+	 * Set a possibly extended PTE.  Non-extended PTEs should
+	 * ignore 'ext'.
 	 */
-	void (*set_pte)(pte_t *ptep, pte_t pte);
+	void (*set_pte_ext)(pte_t *ptep, pte_t pte, unsigned int ext);
 } processor;
 
 #define cpu_proc_init()			processor._proc_init()
@@ -60,5 +61,5 @@ extern struct processor {
 #define cpu_reset(addr)			processor.reset(addr)
 #define cpu_do_idle()			processor._do_idle()
 #define cpu_dcache_clean_area(addr,sz)	processor.dcache_clean_area(addr,sz)
-#define cpu_set_pte(ptep, pte)		processor.set_pte(ptep, pte)
+#define cpu_set_pte_ext(ptep,pte,ext)	processor.set_pte_ext(ptep,pte,ext)
 #define cpu_do_switch_mm(pgd,mm)	processor.switch_mm(pgd,mm)

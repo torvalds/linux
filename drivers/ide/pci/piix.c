@@ -1,13 +1,14 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.44	March 20, 2003
+ *  linux/drivers/ide/pci/piix.c	Version 0.45	May 12, 2006
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2003 Red Hat Inc <alan@redhat.com>
+ *  Copyright (C) 2006 MontaVista Software, Inc. <source@mvista.com>
  *
  *  May be copied or modified under the terms of the GNU General Public License
  *
- *  PIO mode setting function for Intel chipsets.  
+ *  PIO mode setting function for Intel chipsets.
  *  For use instead of BIOS settings.
  *
  * 40-41
@@ -25,7 +26,7 @@
  * sitre = word42 & 0x4000; secondary
  *
  * 44 8421|8421    hdd|hdb
- * 
+ *
  * 48 8421         hdd|hdc|hdb|hda udma enabled
  *
  *    0001         hda
@@ -353,56 +354,24 @@ static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 }
 
 /**
- *	piix_faulty_dma0		-	check for DMA0 errata
- *	@hwif: IDE interface to check
- *
- *	If an ICH/ICH0/ICH2 interface is is operating in multi-word
- *	DMA mode with 600nS cycle time the IDE PIO prefetch buffer will
- *	inadvertently provide an extra piece of secondary data to the primary
- *	device resulting in data corruption.
- *
- *	With such a device this test function returns true. This allows
- *	our tuning code to follow Intel recommendations and use PIO on
- *	such devices.
- */
- 
-static int piix_faulty_dma0(ide_hwif_t *hwif)
-{
-	switch(hwif->pci_dev->device)
-	{
-		case PCI_DEVICE_ID_INTEL_82801AA_1:	/* ICH */
-		case PCI_DEVICE_ID_INTEL_82801AB_1:	/* ICH0 */
-		case PCI_DEVICE_ID_INTEL_82801BA_8:	/* ICH2 */
-		case PCI_DEVICE_ID_INTEL_82801BA_9:	/* ICH2 */
-			return 1;
-	}
-	return 0;
-}
-
-/**
  *	piix_config_drive_for_dma	-	configure drive for DMA
  *	@drive: IDE drive to configure
  *
  *	Set up a PIIX interface channel for the best available speed.
- *	We prefer UDMA if it is available and then MWDMA. If DMA is 
- *	not available we switch to PIO and return 0. 
+ *	We prefer UDMA if it is available and then MWDMA.  If DMA is
+ *	not available we switch to PIO and return 0.
  */
  
 static int piix_config_drive_for_dma (ide_drive_t *drive)
 {
 	u8 speed = ide_dma_speed(drive, piix_ratemask(drive));
-	
-	/* Some ICH devices cannot support DMA mode 0 */
-	if(speed == XFER_MW_DMA_0 && piix_faulty_dma0(HWIF(drive)))
-		speed = 0;
 
-	/* If no DMA speed was available or the chipset has DMA bugs
-	   then disable DMA and use PIO */
-	   
-	if (!speed || no_piix_dma) {
-		u8 tspeed = ide_get_best_pio_mode(drive, 255, 5, NULL);
-		speed = piix_dma_2_pio(XFER_PIO_0 + tspeed);
-	}
+	/*
+	 * If no DMA speed was available or the chipset has DMA bugs
+	 * then disable DMA and use PIO
+	 */
+	if (!speed || no_piix_dma)
+		return 0;
 
 	(void) piix_tune_chipset(drive, speed);
 	return ide_dma_enable(drive);
@@ -425,17 +394,16 @@ static int piix_config_drive_xfer_rate (ide_drive_t *drive)
 
 	if ((id->capability & 1) && drive->autodma) {
 
-		if (ide_use_dma(drive)) {
-			if (piix_config_drive_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
+		if (ide_use_dma(drive) && piix_config_drive_for_dma(drive))
+			return hwif->ide_dma_on(drive);
 
 		goto fast_ata_pio;
 
 	} else if ((id->capability & 8) || (id->field_valid & 2)) {
 fast_ata_pio:
 		/* Find best PIO mode. */
-		hwif->tuneproc(drive, 255);
+		(void) hwif->speedproc(drive, XFER_PIO_0 +
+				       ide_get_best_pio_mode(drive, 255, 4, NULL));
 		return hwif->ide_dma_off_quietly(drive);
 	}
 	/* IORDY not supported */
@@ -505,6 +473,10 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		/* This is a painful system best to let it self tune for now */
 		return;
 	}
+	/* ESB2 appears to generate spurious DMA interrupts in PIO mode
+	   when in native mode */
+	if (hwif->pci_dev->device == PCI_DEVICE_ID_INTEL_ESB2_18)
+		hwif->atapi_irq_bogon = 1;
 
 	hwif->autodma = 0;
 	hwif->tuneproc = &piix_tune_drive;

@@ -234,7 +234,7 @@ nlm4svc_proc_granted(struct svc_rqst *rqstp, struct nlm_args *argp,
  */
 static void nlm4svc_callback_exit(struct rpc_task *task, void *data)
 {
-	dprintk("lockd: %4d callback returned %d\n", task->tk_pid,
+	dprintk("lockd: %5u callback returned %d\n", task->tk_pid,
 			-task->tk_status);
 }
 

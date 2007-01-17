@@ -22,6 +22,7 @@
 #include "memory.h"
 #include "lock.h"
 #include "recover.h"
+#include "requestqueue.h"
 
 #ifdef CONFIG_DLM_DEBUG
 int dlm_create_debug_file(struct dlm_ls *ls);
@@ -478,6 +479,8 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	ls->ls_recoverd_task = NULL;
 	mutex_init(&ls->ls_recoverd_active);
 	spin_lock_init(&ls->ls_recover_lock);
+	spin_lock_init(&ls->ls_rcom_spin);
+	get_random_bytes(&ls->ls_rcom_seq, sizeof(uint64_t));
 	ls->ls_recover_status = 0;
 	ls->ls_recover_seq = 0;
 	ls->ls_recover_args = NULL;
@@ -684,6 +687,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	 * Free structures on any other lists
 	 */
 
+	dlm_purge_requestqueue(ls);
 	kfree(ls->ls_recover_args);
 	dlm_clear_free_entries(ls);
 	dlm_clear_members(ls);

@@ -57,7 +57,6 @@
 #include <net/ip.h>
 
 #include <asm/byteorder.h>
-#include <asm/checksum.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>

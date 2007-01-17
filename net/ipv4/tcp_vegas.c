@@ -42,8 +42,8 @@
  * with V_PARAM_SHIFT bits to the right of the binary point.
  */
 #define V_PARAM_SHIFT 1
-static int alpha = 1<<V_PARAM_SHIFT;
-static int beta  = 3<<V_PARAM_SHIFT;
+static int alpha = 2<<V_PARAM_SHIFT;
+static int beta  = 4<<V_PARAM_SHIFT;
 static int gamma = 1<<V_PARAM_SHIFT;
 
 module_param(alpha, int, 0644);

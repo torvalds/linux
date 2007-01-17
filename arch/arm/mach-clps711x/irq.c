@@ -63,7 +63,7 @@ static void int1_unmask(unsigned int irq)
 	clps_writel(intmr1, INTMR1);
 }
 
-static struct irqchip int1_chip = {
+static struct irq_chip int1_chip = {
 	.ack	= int1_ack,
 	.mask	= int1_mask,
 	.unmask = int1_unmask,
@@ -100,7 +100,7 @@ static void int2_unmask(unsigned int irq)
 	clps_writel(intmr2, INTMR2);
 }
 
-static struct irqchip int2_chip = {
+static struct irq_chip int2_chip = {
 	.ack	= int2_ack,
 	.mask	= int2_mask,
 	.unmask = int2_unmask,
@@ -112,12 +112,12 @@ void __init clps711x_init_irq(void)
 
 	for (i = 0; i < NR_IRQS; i++) {
 	        if (INT1_IRQS & (1 << i)) {
-	        	set_irq_handler(i, do_level_IRQ);
+	        	set_irq_handler(i, handle_level_irq);
 	        	set_irq_chip(i, &int1_chip);
 	        	set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 		}
 		if (INT2_IRQS & (1 << i)) {
-			set_irq_handler(i, do_level_IRQ);
+			set_irq_handler(i, handle_level_irq);
 			set_irq_chip(i, &int2_chip);
 			set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 		}			

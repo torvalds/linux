@@ -30,6 +30,7 @@
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/smp_lock.h>
+#include <linux/sched.h>
 #include <linux/inet.h>
 #include <linux/idr.h>
 
@@ -70,7 +71,7 @@ static inline int dt_type(struct v9fs_stat *mistat)
 static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct v9fs_fcall *fcall = NULL;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
 	struct v9fs_fid *file = filp->private_data;
 	unsigned int i, n, s;
@@ -79,7 +80,7 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	struct v9fs_stat stat;
 	int over = 0;
 
-	dprintk(DEBUG_VFS, "name %s\n", filp->f_dentry->d_name.name);
+	dprintk(DEBUG_VFS, "name %s\n", filp->f_path.dentry->d_name.name);
 
 	fid = file->fid;
 

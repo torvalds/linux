@@ -87,7 +87,7 @@ static int proc_read_escd(char *buf, char **start, off_t pos,
 		return -EFBIG;
 	}
 
-	tmpbuf = kcalloc(1, escd.escd_size, GFP_KERNEL);
+	tmpbuf = kzalloc(escd.escd_size, GFP_KERNEL);
 	if (!tmpbuf) return -ENOMEM;
 
 	if (pnp_bios_read_escd(tmpbuf, escd.nv_storage_base)) {
@@ -133,7 +133,7 @@ static int proc_read_devices(char *buf, char **start, off_t pos,
 	if (pos >= 0xff)
 		return 0;
 
-	node = kcalloc(1, node_info.max_node_size, GFP_KERNEL);
+	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node) return -ENOMEM;
 
 	for (nodenum=pos; nodenum<0xff; ) {
@@ -168,7 +168,7 @@ static int proc_read_node(char *buf, char **start, off_t pos,
 	u8 nodenum = (long)data;
 	int len;
 
-	node = kcalloc(1, node_info.max_node_size, GFP_KERNEL);
+	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node) return -ENOMEM;
 	if (pnp_bios_get_dev_node(&nodenum, boot, node)) {
 		kfree(node);
@@ -188,7 +188,7 @@ static int proc_write_node(struct file *file, const char __user *buf,
 	u8 nodenum = (long)data;
 	int ret = count;
 
-	node = kcalloc(1, node_info.max_node_size, GFP_KERNEL);
+	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
 	if (pnp_bios_get_dev_node(&nodenum, boot, node)) {

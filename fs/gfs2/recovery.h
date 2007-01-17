@@ -26,7 +26,7 @@ int gfs2_revoke_check(struct gfs2_sbd *sdp, u64 blkno, unsigned int where);
 void gfs2_revoke_clean(struct gfs2_sbd *sdp);
 
 int gfs2_find_jhead(struct gfs2_jdesc *jd,
-		    struct gfs2_log_header *head);
+		    struct gfs2_log_header_host *head);
 int gfs2_recover_journal(struct gfs2_jdesc *gfs2_jd);
 void gfs2_check_journals(struct gfs2_sbd *sdp);
 

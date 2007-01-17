@@ -4,7 +4,7 @@
 
 EXTRA_AFLAGS	:= -traditional
 
-obj-y	:=  bitmap.o traps.o time.o process.o \
+obj-y	:=  bitmap.o traps.o time.o process.o reset.o \
             setup.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o \
 	    semaphore.o s390_ext.o debug.o profile.o irq.o ipl.o
 

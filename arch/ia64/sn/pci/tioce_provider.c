@@ -15,7 +15,6 @@
 #include <asm/sn/pcidev.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/tioce_provider.h>
-#include <asm/sn/sn2/sn_hwperf.h>
 
 /*
  * 1/26/2006
@@ -990,8 +989,6 @@ tioce_target_interrupt(struct sn_irq_info *sn_irq_info)
 static void *
 tioce_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *controller)
 {
-	int my_nasid;
-	cnodeid_t my_cnode, mem_cnode;
 	struct tioce_common *tioce_common;
 	struct tioce_kernel *tioce_kern;
 	struct tioce __iomem *tioce_mmr;
@@ -1034,21 +1031,6 @@ tioce_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 		       __FUNCTION__, SGI_PCIASIC_ERROR,
 		       tioce_common->ce_pcibus.bs_persist_segment,
 		       tioce_common->ce_pcibus.bs_persist_busnum);
-
-	/*
-	 * identify closest nasid for memory allocations
-	 */
-
-	my_nasid = NASID_GET(tioce_common->ce_pcibus.bs_base);
-	my_cnode = nasid_to_cnodeid(my_nasid);
-
-	if (sn_hwperf_get_nearest_node(my_cnode, &mem_cnode, NULL) < 0) {
-		printk(KERN_WARNING "tioce_bus_fixup: failed to find "
-		       "closest node with MEM to TIO node %d\n", my_cnode);
-		mem_cnode = (cnodeid_t)-1; /* use any node */
-	}
-
-	controller->node = mem_cnode;
 
 	return tioce_common;
 }

@@ -40,9 +40,10 @@ struct cryptomgr_param {
 	char template[CRYPTO_MAX_ALG_NAME];
 };
 
-static void cryptomgr_probe(void *data)
+static void cryptomgr_probe(struct work_struct *work)
 {
-	struct cryptomgr_param *param = data;
+	struct cryptomgr_param *param =
+		container_of(work, struct cryptomgr_param, work);
 	struct crypto_template *tmpl;
 	struct crypto_instance *inst;
 	int err;
@@ -112,7 +113,7 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 	param->larval.type = larval->alg.cra_flags;
 	param->larval.mask = larval->mask;
 
-	INIT_WORK(&param->work, cryptomgr_probe, param);
+	INIT_WORK(&param->work, cryptomgr_probe);
 	schedule_work(&param->work);
 
 	return NOTIFY_STOP;

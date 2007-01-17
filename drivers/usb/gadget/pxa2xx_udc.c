@@ -1623,7 +1623,6 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	if (!driver
 			|| driver->speed < USB_SPEED_FULL
 			|| !driver->bind
-			|| !driver->unbind
 			|| !driver->disconnect
 			|| !driver->setup)
 		return -EINVAL;
@@ -1694,7 +1693,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	if (!dev)
 		return -ENODEV;
-	if (!driver || driver != dev->driver)
+	if (!driver || driver != dev->driver || !driver->unbind)
 		return -EINVAL;
 
 	local_irq_disable();
@@ -2472,6 +2471,7 @@ static struct pxa2xx_udc memory = {
 #define PXA210_B1		0x00000123
 #define PXA210_B0		0x00000122
 #define IXP425_A0		0x000001c1
+#define IXP425_B0		0x000001f1
 #define IXP465_AD		0x00000200
 
 /*
@@ -2509,6 +2509,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 		break;
 #elif	defined(CONFIG_ARCH_IXP4XX)
 	case IXP425_A0:
+	case IXP425_B0:
 	case IXP465_AD:
 		dev->has_cfr = 1;
 		out_dma = 0;
@@ -2636,9 +2637,11 @@ static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
 {
 	struct pxa2xx_udc *dev = platform_get_drvdata(pdev);
 
+	if (dev->driver)
+		return -EBUSY;
+
 	udc_disable(dev);
 	remove_proc_files();
-	usb_gadget_unregister_driver(dev->driver);
 
 	if (dev->got_irq) {
 		free_irq(IRQ_USB, dev);

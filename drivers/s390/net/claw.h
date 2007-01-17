@@ -29,7 +29,7 @@
 #define CLAW_COMPLETE           0xff   /* flag to indicate i/o completed */
 
 /*-----------------------------------------------------*
-*     CLAW control comand code                         *
+*     CLAW control command code                        *
 *------------------------------------------------------*/
 
 #define SYSTEM_VALIDATE_REQUEST   0x01  /* System Validate request */

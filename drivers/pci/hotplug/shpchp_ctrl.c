@@ -36,7 +36,7 @@
 #include "../pci.h"
 #include "shpchp.h"
 
-static void interrupt_event_handler(void *data);
+static void interrupt_event_handler(struct work_struct *work);
 static int shpchp_enable_slot(struct slot *p_slot);
 static int shpchp_disable_slot(struct slot *p_slot);
 
@@ -50,16 +50,15 @@ static int queue_interrupt_event(struct slot *p_slot, u32 event_type)
 
 	info->event_type = event_type;
 	info->p_slot = p_slot;
-	INIT_WORK(&info->work, interrupt_event_handler, info);
+	INIT_WORK(&info->work, interrupt_event_handler);
 
 	schedule_work(&info->work);
 
 	return 0;
 }
 
-u8 shpchp_handle_attention_button(u8 hp_slot, void *inst_id)
+u8 shpchp_handle_attention_button(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u32 event_type;
 
@@ -81,9 +80,8 @@ u8 shpchp_handle_attention_button(u8 hp_slot, void *inst_id)
 
 }
 
-u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
+u8 shpchp_handle_switch_change(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u8 getstatus;
 	u32 event_type;
@@ -120,9 +118,8 @@ u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
 	return 1;
 }
 
-u8 shpchp_handle_presence_change(u8 hp_slot, void *inst_id)
+u8 shpchp_handle_presence_change(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u32 event_type;
 
@@ -154,9 +151,8 @@ u8 shpchp_handle_presence_change(u8 hp_slot, void *inst_id)
 	return 1;
 }
 
-u8 shpchp_handle_power_fault(u8 hp_slot, void *inst_id)
+u8 shpchp_handle_power_fault(u8 hp_slot, struct controller *ctrl)
 {
-	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
 	u32 event_type;
 
@@ -408,9 +404,10 @@ struct pushbutton_work_info {
  * Handles all pending events and exits.
  *
  */
-static void shpchp_pushbutton_thread(void *data)
+static void shpchp_pushbutton_thread(struct work_struct *work)
 {
-	struct pushbutton_work_info *info = data;
+	struct pushbutton_work_info *info =
+		container_of(work, struct pushbutton_work_info, work);
 	struct slot *p_slot = info->p_slot;
 
 	mutex_lock(&p_slot->lock);
@@ -436,9 +433,9 @@ static void shpchp_pushbutton_thread(void *data)
 	kfree(info);
 }
 
-void queue_pushbutton_work(void *data)
+void queue_pushbutton_work(struct work_struct *work)
 {
-	struct slot *p_slot = data;
+	struct slot *p_slot = container_of(work, struct slot, work.work);
 	struct pushbutton_work_info *info;
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
@@ -447,7 +444,7 @@ void queue_pushbutton_work(void *data)
 		return;
 	}
 	info->p_slot = p_slot;
-	INIT_WORK(&info->work, shpchp_pushbutton_thread, info);
+	INIT_WORK(&info->work, shpchp_pushbutton_thread);
 
 	mutex_lock(&p_slot->lock);
 	switch (p_slot->state) {
@@ -496,10 +493,12 @@ static void handle_button_press_event(struct slot *p_slot)
 		p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 		if (getstatus) {
 			p_slot->state = BLINKINGOFF_STATE;
-			info(msg_button_off, p_slot->name);
+			info("PCI slot #%s - powering off due to button "
+			     "press.\n", p_slot->name);
 		} else {
 			p_slot->state = BLINKINGON_STATE;
-			info(msg_button_on, p_slot->name);
+			info("PCI slot #%s - powering on due to button "
+			     "press.\n", p_slot->name);
 		}
 		/* blink green LED and turn off amber */
 		p_slot->hpc_ops->green_led_blink(p_slot);
@@ -522,7 +521,8 @@ static void handle_button_press_event(struct slot *p_slot)
 		else
 			p_slot->hpc_ops->green_led_off(p_slot);
 		p_slot->hpc_ops->set_attention_status(p_slot, 0);
-		info(msg_button_cancel, p_slot->name);
+		info("PCI slot #%s - action canceled due to button press\n",
+		     p_slot->name);
 		p_slot->state = STATIC_STATE;
 		break;
 	case POWEROFF_STATE:
@@ -541,9 +541,9 @@ static void handle_button_press_event(struct slot *p_slot)
 	}
 }
 
-static void interrupt_event_handler(void *data)
+static void interrupt_event_handler(struct work_struct *work)
 {
-	struct event_info *info = data;
+	struct event_info *info = container_of(work, struct event_info, work);
 	struct slot *p_slot = info->p_slot;
 
 	mutex_lock(&p_slot->lock);

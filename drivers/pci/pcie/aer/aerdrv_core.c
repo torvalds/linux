@@ -690,14 +690,14 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 
 /**
  * aer_isr - consume errors detected by root port
- * @context: pointer to a private data of pcie device
+ * @work: definition of this work item
  *
  * Invoked, as DPC, when root port records new detected error
  **/
-void aer_isr(void *context)
+void aer_isr(struct work_struct *work)
 {
-	struct pcie_device *p_device = (struct pcie_device *) context;
-	struct aer_rpc *rpc = get_service_data(p_device);
+	struct aer_rpc *rpc = container_of(work, struct aer_rpc, dpc_handler);
+	struct pcie_device *p_device = rpc->rpd;
 	struct aer_err_source *e_src;
 
 	mutex_lock(&rpc->rpc_mutex);

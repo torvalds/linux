@@ -53,10 +53,6 @@ extern unsigned char ucBoardRevMaj, ucBoardRevMin;
 
 #endif /* CONFIG_PPC_PREP */
 
-#ifndef CONFIG_PPC_MULTIPLATFORM
-#define _machine 0
-#endif /* CONFIG_PPC_MULTIPLATFORM */
-
 #endif /* defined(__KERNEL__) && defined(CONFIG_PPC32) */
 
 /*

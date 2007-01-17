@@ -23,7 +23,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
-#include <asm/procinfo.h>
+#include <asm/elf.h>
 #include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/page.h>
@@ -421,14 +421,14 @@ ENTRY(cpu_xscale_switch_mm)
 	cpwait_ret lr, ip
 
 /*
- * cpu_xscale_set_pte(ptep, pte)
+ * cpu_xscale_set_pte_ext(ptep, pte, ext)
  *
  * Set a PTE and flush it out
  *
  * Errata 40: must set memory to write-through for user read-only pages.
  */
 	.align	5
-ENTRY(cpu_xscale_set_pte)
+ENTRY(cpu_xscale_set_pte_ext)
 	str	r1, [r0], #-2048		@ linux version
 
 	bic	r2, r1, #0xff0
@@ -491,12 +491,7 @@ __xscale_setup:
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I, D caches & BTB
 	mcr	p15, 0, ip, c7, c10, 4		@ Drain Write (& Fill) Buffer
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I, D TLBs
-#ifdef CONFIG_IWMMXT
-	mov	r0, #0				@ initially disallow access to CP0/CP1
-#else
-	mov	r0, #1				@ Allow access to CP0
-#endif
-	orr     r0, r0, #1 << 6			@ cp6 for IOP3xx and Bulverde
+	mov	r0, #1 << 6			@ cp6 for IOP3xx and Bulverde
 	orr	r0, r0, #1 << 13		@ Its undefined whether this
 	mcr	p15, 0, r0, c15, c1, 0		@ affects USR or SVC modes
 
@@ -534,7 +529,7 @@ ENTRY(xscale_processor_functions)
 	.word	cpu_xscale_do_idle
 	.word	cpu_xscale_dcache_clean_area
 	.word	cpu_xscale_switch_mm
-	.word	cpu_xscale_set_pte
+	.word	cpu_xscale_set_pte_ext
 	.size	xscale_processor_functions, . - xscale_processor_functions
 
 	.section ".rodata"
@@ -909,7 +904,7 @@ __pxa270_proc_info:
 	b	__xscale_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
-	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP|HWCAP_IWMMXT
+	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP
 	.long	cpu_pxa270_name
 	.long	xscale_processor_functions
 	.long	v4wbi_tlb_fns

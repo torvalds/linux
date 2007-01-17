@@ -120,7 +120,7 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 
 	if (likely(irq < NR_IRQS))
 		generic_handle_irq(irq);
-	else
+	else if (printk_ratelimit())
 		printk(KERN_EMERG "%s: %d.%d No irq handler for vector\n",
 			__func__, smp_processor_id(), vector);
 

@@ -31,7 +31,7 @@
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/pagemap.h>
 #include <linux/kthread.h>
 #include <linux/poison.h>
@@ -1641,7 +1641,7 @@ void * __jbd2_kmalloc (const char *where, size_t size, gfp_t flags, int retry)
 #define JBD_MAX_SLABS 5
 #define JBD_SLAB_INDEX(size)  (size >> 11)
 
-static kmem_cache_t *jbd_slab[JBD_MAX_SLABS];
+static struct kmem_cache *jbd_slab[JBD_MAX_SLABS];
 static const char *jbd_slab_names[JBD_MAX_SLABS] = {
 	"jbd2_1k", "jbd2_2k", "jbd2_4k", NULL, "jbd2_8k"
 };
@@ -1704,7 +1704,7 @@ void jbd2_slab_free(void *ptr,  size_t size)
 /*
  * Journal_head storage management
  */
-static kmem_cache_t *jbd2_journal_head_cache;
+static struct kmem_cache *jbd2_journal_head_cache;
 #ifdef CONFIG_JBD_DEBUG
 static atomic_t nr_journal_heads = ATOMIC_INIT(0);
 #endif
@@ -2007,7 +2007,7 @@ static void __exit jbd2_remove_jbd_proc_entry(void)
 
 #endif
 
-kmem_cache_t *jbd2_handle_cache;
+struct kmem_cache *jbd2_handle_cache;
 
 static int __init journal_init_handle_cache(void)
 {

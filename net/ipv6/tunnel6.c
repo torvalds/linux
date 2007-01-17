@@ -104,7 +104,7 @@ drop:
 }
 
 static void tunnel6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			int type, int code, int offset, __u32 info)
+			int type, int code, int offset, __be32 info)
 {
 	struct xfrm6_tunnel *handler;
 

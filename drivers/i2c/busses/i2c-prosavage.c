@@ -212,7 +212,7 @@ static void prosavage_remove(struct pci_dev *dev)
 		if (chip->i2c_bus[i].adap_ok == 0)
 			continue;
 
-		ret = i2c_bit_del_bus(&chip->i2c_bus[i].adap);
+		ret = i2c_del_adapter(&chip->i2c_bus[i].adap);
 	        if (ret) {
 			dev_err(&dev->dev, "%s not removed\n",
 				chip->i2c_bus[i].adap.name);

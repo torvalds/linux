@@ -206,7 +206,8 @@ static int h4_transceiver_mode(struct device *dev, int mode)
 
 	cancel_delayed_work(&irda_config->gpio_expa);
 	PREPARE_WORK(&irda_config->gpio_expa, set_trans_mode, &mode);
-	schedule_work(&irda_config->gpio_expa);
+#error this is not permitted - mode is an argument variable
+	schedule_delayed_work(&irda_config->gpio_expa, 0);
 
 	return 0;
 }

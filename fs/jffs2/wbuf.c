@@ -19,6 +19,7 @@
 #include <linux/crc32.h>
 #include <linux/mtd/nand.h>
 #include <linux/jiffies.h>
+#include <linux/sched.h>
 
 #include "nodelist.h"
 

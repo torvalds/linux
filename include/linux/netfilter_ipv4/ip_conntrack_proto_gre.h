@@ -102,11 +102,11 @@ static inline __be32 *gre_key(struct gre_hdr *greh)
 }
 
 /* get pointer ot gre csum, if present */
-static inline u_int16_t *gre_csum(struct gre_hdr *greh)
+static inline __sum16 *gre_csum(struct gre_hdr *greh)
 {
 	if (!greh->csum)
 		return NULL;
-	return (u_int16_t *) (greh+sizeof(*greh));
+	return (__sum16 *) (greh+sizeof(*greh));
 }
 
 #endif /* __KERNEL__ */

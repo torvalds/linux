@@ -50,6 +50,10 @@ struct tuner_params {
 	   sensitivity. If this setting is 1, then set PORT2 to 1 to
 	   get proper FM reception. */
 	unsigned int port2_fm_high_sensitivity:1;
+	/* Some Philips tuners use tda9887 cGainNormal to select the FM radio
+	   sensitivity. If this setting is 1, e register will use cGainNormal
+	   instead of cGainLow. */
+	unsigned int fm_gain_normal:1;
 	/* Most tuners with a tda9887 use QSS mode. Some (cheaper) tuners
 	   use Intercarrier mode. If this setting is 1, then the tuner
 	   needs to be set to intercarrier mode. */

@@ -252,7 +252,7 @@ SkDimEnableModerationIfNeeded(SK_AC *pAC) {
 
 /*******************************************************************************
 ** Function     : SkDimDisplayModerationSettings
-** Description  : Displays the current settings regaring interrupt moderation
+** Description  : Displays the current settings regarding interrupt moderation
 ** Programmer   : Ralph Roesler
 ** Last Modified: 22-mar-03
 ** Returns      : void (!)
@@ -510,7 +510,7 @@ EnableIntMod(SK_AC *pAC) {
 
 /*******************************************************************************
 ** Function     : DisableIntMod()
-** Description  : Disbles the interrupt moderation independent of what inter-
+** Description  : Disables the interrupt moderation independent of what inter-
 **                rupts are running or not
 ** Programmer   : Ralph Roesler
 ** Last Modified: 23-mar-03

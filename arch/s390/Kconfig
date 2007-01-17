@@ -22,6 +22,14 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -32,9 +40,6 @@ config GENERIC_CALIBRATE_DELAY
 
 config GENERIC_TIME
 	def_bool y
-
-config GENERIC_BUST_SPINLOCK
-	bool
 
 mainmenu "Linux Kernel Configuration"
 
@@ -181,7 +186,7 @@ config PACK_STACK
 
 config SMALL_STACK
 	bool "Use 4kb/8kb for kernel stack instead of 8kb/16kb"
-	depends on PACK_STACK
+	depends on PACK_STACK && !LOCKDEP
 	help
 	  If you say Y here and the compiler supports the -mkernel-backchain
 	  option the kernel will use a smaller kernel stack size. For 31 bit
@@ -236,7 +241,13 @@ config WARN_STACK_SIZE
 	  This allows you to specify the maximum frame size a function may
 	  have without the compiler complaining about it.
 
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 source "mm/Kconfig"
+
+config HOLES_IN_ZONE
+	def_bool y
 
 comment "I/O subsystem configuration"
 
@@ -260,14 +271,6 @@ config QDIO
 	  module will be called qdio.
 
 	  If unsure, say Y.
-
-config QDIO_PERF_STATS
-	bool "Performance statistics in /proc"
-	depends on QDIO
-	help
-	  Say Y here to get performance statistics in /proc/qdio_perf
-
-	  If unsure, say N.
 
 config QDIO_DEBUG
 	bool "Extended debugging information"
@@ -404,7 +407,7 @@ config APPLDATA_BASE
 
 config APPLDATA_MEM
 	tristate "Monitor memory management statistics"
-	depends on APPLDATA_BASE
+	depends on APPLDATA_BASE && VM_EVENT_COUNTERS
 	help
 	  This provides memory management related data to the Linux - VM Monitor
 	  Stream, like paging/swapping rate, memory utilisation, etc.

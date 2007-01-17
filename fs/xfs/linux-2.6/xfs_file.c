@@ -55,7 +55,7 @@ __xfs_file_read(
 	loff_t			pos)
 {
 	struct file		*file = iocb->ki_filp;
-	bhv_vnode_t		*vp = vn_from_inode(file->f_dentry->d_inode);
+	bhv_vnode_t		*vp = vn_from_inode(file->f_path.dentry->d_inode);
 
 	BUG_ON(iocb->ki_pos != pos);
 	if (unlikely(file->f_flags & O_DIRECT))
@@ -131,7 +131,7 @@ xfs_file_sendfile(
 	read_actor_t		actor,
 	void			*target)
 {
-	return bhv_vop_sendfile(vn_from_inode(filp->f_dentry->d_inode),
+	return bhv_vop_sendfile(vn_from_inode(filp->f_path.dentry->d_inode),
 				filp, pos, 0, count, actor, target, NULL);
 }
 
@@ -143,7 +143,7 @@ xfs_file_sendfile_invis(
 	read_actor_t		actor,
 	void			*target)
 {
-	return bhv_vop_sendfile(vn_from_inode(filp->f_dentry->d_inode),
+	return bhv_vop_sendfile(vn_from_inode(filp->f_path.dentry->d_inode),
 				filp, pos, IO_INVIS, count, actor, target, NULL);
 }
 
@@ -155,7 +155,7 @@ xfs_file_splice_read(
 	size_t			len,
 	unsigned int		flags)
 {
-	return bhv_vop_splice_read(vn_from_inode(infilp->f_dentry->d_inode),
+	return bhv_vop_splice_read(vn_from_inode(infilp->f_path.dentry->d_inode),
 				   infilp, ppos, pipe, len, flags, 0, NULL);
 }
 
@@ -167,7 +167,7 @@ xfs_file_splice_read_invis(
 	size_t			len,
 	unsigned int		flags)
 {
-	return bhv_vop_splice_read(vn_from_inode(infilp->f_dentry->d_inode),
+	return bhv_vop_splice_read(vn_from_inode(infilp->f_path.dentry->d_inode),
 				   infilp, ppos, pipe, len, flags, IO_INVIS,
 				   NULL);
 }
@@ -180,7 +180,7 @@ xfs_file_splice_write(
 	size_t			len,
 	unsigned int		flags)
 {
-	return bhv_vop_splice_write(vn_from_inode(outfilp->f_dentry->d_inode),
+	return bhv_vop_splice_write(vn_from_inode(outfilp->f_path.dentry->d_inode),
 				    pipe, outfilp, ppos, len, flags, 0, NULL);
 }
 
@@ -192,7 +192,7 @@ xfs_file_splice_write_invis(
 	size_t			len,
 	unsigned int		flags)
 {
-	return bhv_vop_splice_write(vn_from_inode(outfilp->f_dentry->d_inode),
+	return bhv_vop_splice_write(vn_from_inode(outfilp->f_path.dentry->d_inode),
 				    pipe, outfilp, ppos, len, flags, IO_INVIS,
 				    NULL);
 }
@@ -212,7 +212,7 @@ xfs_file_close(
 	struct file	*filp,
 	fl_owner_t	id)
 {
-	return -bhv_vop_close(vn_from_inode(filp->f_dentry->d_inode), 0,
+	return -bhv_vop_close(vn_from_inode(filp->f_path.dentry->d_inode), 0,
 				file_count(filp) > 1 ? L_FALSE : L_TRUE, NULL);
 }
 
@@ -251,7 +251,7 @@ xfs_vm_nopage(
 	unsigned long		address,
 	int			*type)
 {
-	struct inode	*inode = area->vm_file->f_dentry->d_inode;
+	struct inode	*inode = area->vm_file->f_path.dentry->d_inode;
 	bhv_vnode_t	*vp = vn_from_inode(inode);
 
 	ASSERT_ALWAYS(vp->v_vfsp->vfs_flag & VFS_DMI);
@@ -268,7 +268,7 @@ xfs_file_readdir(
 	filldir_t	filldir)
 {
 	int		error = 0;
-	bhv_vnode_t	*vp = vn_from_inode(filp->f_dentry->d_inode);
+	bhv_vnode_t	*vp = vn_from_inode(filp->f_path.dentry->d_inode);
 	uio_t		uio;
 	iovec_t		iov;
 	int		eof = 0;
@@ -345,7 +345,7 @@ xfs_file_mmap(
 	vma->vm_ops = &xfs_file_vm_ops;
 
 #ifdef CONFIG_XFS_DMAPI
-	if (vn_from_inode(filp->f_dentry->d_inode)->v_vfsp->vfs_flag & VFS_DMI)
+	if (vn_from_inode(filp->f_path.dentry->d_inode)->v_vfsp->vfs_flag & VFS_DMI)
 		vma->vm_ops = &xfs_dmapi_file_vm_ops;
 #endif /* CONFIG_XFS_DMAPI */
 
@@ -360,7 +360,7 @@ xfs_file_ioctl(
 	unsigned long	p)
 {
 	int		error;
-	struct inode	*inode = filp->f_dentry->d_inode;
+	struct inode	*inode = filp->f_path.dentry->d_inode;
 	bhv_vnode_t	*vp = vn_from_inode(inode);
 
 	error = bhv_vop_ioctl(vp, inode, filp, 0, cmd, (void __user *)p);
@@ -382,7 +382,7 @@ xfs_file_ioctl_invis(
 	unsigned long	p)
 {
 	int		error;
-	struct inode	*inode = filp->f_dentry->d_inode;
+	struct inode	*inode = filp->f_path.dentry->d_inode;
 	bhv_vnode_t	*vp = vn_from_inode(inode);
 
 	error = bhv_vop_ioctl(vp, inode, filp, IO_INVIS, cmd, (void __user *)p);
@@ -404,7 +404,7 @@ xfs_vm_mprotect(
 	struct vm_area_struct *vma,
 	unsigned int	newflags)
 {
-	bhv_vnode_t	*vp = vn_from_inode(vma->vm_file->f_dentry->d_inode);
+	bhv_vnode_t	*vp = vn_from_inode(vma->vm_file->f_path.dentry->d_inode);
 	int		error = 0;
 
 	if (vp->v_vfsp->vfs_flag & VFS_DMI) {

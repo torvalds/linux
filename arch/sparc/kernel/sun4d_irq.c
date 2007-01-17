@@ -327,7 +327,7 @@ int sun4d_request_irq(unsigned int irq,
 	}
 	
 	if (action == NULL)
-		action = (struct irqaction *)kmalloc(sizeof(struct irqaction),
+		action = kmalloc(sizeof(struct irqaction),
 						     GFP_ATOMIC);
 	
 	if (!action) { 
@@ -545,8 +545,11 @@ void __init sun4d_init_sbi_irq(void)
 	nsbi = 0;
 	for_each_sbus(sbus)
 		nsbi++;
-	sbus_actions = (struct sbus_action *)kmalloc (nsbi * 8 * 4 * sizeof(struct sbus_action), GFP_ATOMIC);
-	memset (sbus_actions, 0, (nsbi * 8 * 4 * sizeof(struct sbus_action)));
+	sbus_actions = kzalloc (nsbi * 8 * 4 * sizeof(struct sbus_action), GFP_ATOMIC);
+	if (!sbus_actions) {
+		prom_printf("SUN4D: Cannot allocate sbus_actions, halting.\n");
+		prom_halt();
+	}
 	for_each_sbus(sbus) {
 #ifdef CONFIG_SMP	
 		extern unsigned char boot_cpu_id;

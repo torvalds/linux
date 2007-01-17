@@ -53,6 +53,10 @@ struct auth_domain *unix_domain_find(char *name)
 			return NULL;
 		kref_init(&new->h.ref);
 		new->h.name = kstrdup(name, GFP_KERNEL);
+		if (new->h.name == NULL) {
+			kfree(new);
+			return NULL;
+		}
 		new->h.flavour = &svcauth_unix;
 		new->addr_changes = 0;
 		rv = auth_domain_lookup(name, &new->h);
@@ -101,9 +105,9 @@ static void ip_map_put(struct kref *kref)
  * IP addresses in reverse-endian (i.e. on a little-endian machine).
  * So use a trivial but reliable hash instead
  */
-static inline int hash_ip(unsigned long ip)
+static inline int hash_ip(__be32 ip)
 {
-	int hash = ip ^ (ip>>16);
+	int hash = (__force u32)ip ^ ((__force u32)ip>>16);
 	return (hash ^ (hash>>8)) & 0xff;
 }
 #endif
@@ -284,7 +288,7 @@ static struct ip_map *ip_map_lookup(char *class, struct in_addr addr)
 	ip.m_addr = addr;
 	ch = sunrpc_cache_lookup(&ip_map_cache, &ip.h,
 				 hash_str(class, IP_HASHBITS) ^
-				 hash_ip((unsigned long)addr.s_addr));
+				 hash_ip(addr.s_addr));
 
 	if (ch)
 		return container_of(ch, struct ip_map, h);
@@ -313,7 +317,7 @@ static int ip_map_update(struct ip_map *ipm, struct unix_domain *udom, time_t ex
 	ch = sunrpc_cache_update(&ip_map_cache,
 				 &ip.h, &ipm->h,
 				 hash_str(ipm->m_class, IP_HASHBITS) ^
-				 hash_ip((unsigned long)ipm->m_addr.s_addr));
+				 hash_ip(ipm->m_addr.s_addr));
 	if (!ch)
 		return -ENOMEM;
 	cache_put(ch, &ip_map_cache);
@@ -435,6 +439,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 		default:
 			BUG();
 		case -EAGAIN:
+		case -ETIMEDOUT:
 			return SVC_DROP;
 		case -ENOENT:
 			return SVC_DENIED;

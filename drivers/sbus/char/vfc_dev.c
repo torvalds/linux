@@ -610,7 +610,7 @@ static int vfc_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned int map_size, ret, map_offset;
 	struct vfc_dev *dev;
 	
-	dev = vfc_get_dev_ptr(iminor(file->f_dentry->d_inode));
+	dev = vfc_get_dev_ptr(iminor(file->f_path.dentry->d_inode));
 	if(dev == NULL)
 		return -ENODEV;
 
@@ -659,7 +659,7 @@ static int vfc_probe(void)
 	if (!cards)
 		return -ENODEV;
 
-	vfc_dev_lst = (struct vfc_dev **)kmalloc(sizeof(struct vfc_dev *) *
+	vfc_dev_lst = kmalloc(sizeof(struct vfc_dev *) *
 						 (cards+1),
 						 GFP_KERNEL);
 	if (vfc_dev_lst == NULL)

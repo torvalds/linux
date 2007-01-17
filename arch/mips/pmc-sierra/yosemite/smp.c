@@ -99,8 +99,6 @@ void prom_cpus_done(void)
  */
 void prom_init_secondary(void)
 {
-	mips_hpt_init();
-
 	set_c0_status(ST0_CO | ST0_IE | ST0_IM);
 }
 

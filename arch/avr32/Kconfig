@@ -45,6 +45,14 @@ config GENERIC_TIME
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 config GENERIC_BUST_SPINLOCK
 	bool
 

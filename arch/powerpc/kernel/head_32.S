@@ -437,6 +437,13 @@ Alignment:
 /* Floating-point unavailable */
 	. = 0x800
 FPUnavailable:
+BEGIN_FTR_SECTION
+/*
+ * Certain Freescale cores don't have a FPU and treat fp instructions
+ * as a FP Unavailable exception.  Redirect to illegal/emulation handling.
+ */
+	b 	ProgramCheck
+END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 	EXCEPTION_PROLOG
 	bne	load_up_fpu		/* if from user, just load it up */
 	addi	r3,r1,STACK_FRAME_OVERHEAD

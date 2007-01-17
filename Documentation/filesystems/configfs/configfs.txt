@@ -209,7 +209,7 @@ will happen for write(2).
 
 [struct config_group]
 
-A config_item cannot live in a vaccum.  The only way one can be created
+A config_item cannot live in a vacuum.  The only way one can be created
 is via mkdir(2) on a config_group.  This will trigger creation of a
 child item.
 
@@ -275,7 +275,7 @@ directory is not empty.
 
 [struct configfs_subsystem]
 
-A subsystem must register itself, ususally at module_init time.  This
+A subsystem must register itself, usually at module_init time.  This
 tells configfs to make the subsystem appear in the file tree.
 
 	struct configfs_subsystem {

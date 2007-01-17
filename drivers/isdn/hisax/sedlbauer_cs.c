@@ -155,9 +155,8 @@ static int sedlbauer_probe(struct pcmcia_device *link)
     DEBUG(0, "sedlbauer_attach()\n");
 
     /* Allocate space for private device-specific data */
-    local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+    local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local) return -ENOMEM;
-    memset(local, 0, sizeof(local_info_t));
     local->cardnr = -1;
 
     local->p_dev = link;
@@ -233,20 +232,10 @@ static int sedlbauer_config(struct pcmcia_device *link)
 
     DEBUG(0, "sedlbauer_config(0x%p)\n", link);
 
-    /*
-       This reads the card's CONFIG tuple to find its configuration
-       registers.
-    */
-    tuple.DesiredTuple = CISTPL_CONFIG;
     tuple.Attributes = 0;
     tuple.TupleData = buf;
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-    link->conf.ConfigBase = parse.config.base;
-    link->conf.Present = parse.config.rmask[0];
 
     CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &conf));
 

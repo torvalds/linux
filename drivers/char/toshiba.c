@@ -249,6 +249,7 @@ int tosh_smm(SMMRegisters *regs)
 
 	return eax;
 }
+EXPORT_SYMBOL(tosh_smm);
 
 
 static int tosh_ioctl(struct inode *ip, struct file *fp, unsigned int cmd,

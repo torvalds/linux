@@ -23,18 +23,10 @@
 extern int zs_init(void);
 #endif
 
-#ifdef CONFIG_DZ
-extern int dz_init(void);
-#endif
-
 #ifdef CONFIG_SERIAL_CONSOLE
 
 #ifdef CONFIG_ZS
 extern void zs_serial_console_init(void);
-#endif
-
-#ifdef CONFIG_DZ
-extern void dz_serial_console_init(void);
 #endif
 
 #endif
@@ -46,23 +38,11 @@ extern void dz_serial_console_init(void);
 
 int __init rs_init(void)
 {
-
-#if defined(CONFIG_ZS) && defined(CONFIG_DZ)
+#ifdef CONFIG_ZS
     if (IOASIC)
 	return zs_init();
-    else
-	return dz_init();
-#else
-
-#ifdef CONFIG_ZS
-    return zs_init();
 #endif
-
-#ifdef CONFIG_DZ
-    return dz_init();
-#endif
-
-#endif
+    return -ENXIO;
 }
 
 __initcall(rs_init);
@@ -76,21 +56,9 @@ __initcall(rs_init);
  */
 static int __init decserial_console_init(void)
 {
-#if defined(CONFIG_ZS) && defined(CONFIG_DZ)
+#ifdef CONFIG_ZS
     if (IOASIC)
 	zs_serial_console_init();
-    else
-	dz_serial_console_init();
-#else
-
-#ifdef CONFIG_ZS
-    zs_serial_console_init();
-#endif
-
-#ifdef CONFIG_DZ
-    dz_serial_console_init();
-#endif
-
 #endif
     return 0;
 }

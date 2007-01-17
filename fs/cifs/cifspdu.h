@@ -580,6 +580,12 @@ typedef union smb_com_session_setup_andx {
 
 /* format of NLTMv2 Response ie "case sensitive password" hash when NTLMv2 */
 
+#define NTLMSSP_SERVER_TYPE	1
+#define NTLMSSP_DOMAIN_TYPE	2
+#define NTLMSSP_FQ_DOMAIN_TYPE	3
+#define NTLMSSP_DNS_DOMAIN_TYPE	4
+#define NTLMSSP_DNS_PARENT_TYPE	5
+
 struct ntlmssp2_name {
 	__le16 type;
 	__le16 length;
@@ -593,7 +599,7 @@ struct ntlmv2_resp {
 	__le64  time;
 	__u64  client_chal; /* random */
 	__u32  reserved2;
-	struct ntlmssp2_name names[1];
+	struct ntlmssp2_name names[2];
 	/* array of name entries could follow ending in minimum 4 byte struct */
 } __attribute__((packed));
 

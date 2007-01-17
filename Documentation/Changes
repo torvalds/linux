@@ -201,7 +201,7 @@ udev
 ----
 udev is a userspace application for populating /dev dynamically with
 only entries for devices actually present.  udev replaces the basic
-functionality of devfs, while allowing persistant device naming for
+functionality of devfs, while allowing persistent device naming for
 devices.
 
 FUSE

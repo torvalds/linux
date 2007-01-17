@@ -213,7 +213,7 @@ static void snd_echo_midi_output_write(unsigned long data)
 	sent = bytes = 0;
 	spin_lock_irqsave(&chip->lock, flags);
 	chip->midi_full = 0;
-	if (chip->midi_out && !snd_rawmidi_transmit_empty(chip->midi_out)) {
+	if (!snd_rawmidi_transmit_empty(chip->midi_out)) {
 		bytes = snd_rawmidi_transmit_peek(chip->midi_out, buf,
 						  MIDI_OUT_BUFFER_SIZE - 1);
 		DE_MID(("Try to send %d bytes...\n", bytes));
@@ -264,9 +264,11 @@ static void snd_echo_midi_output_trigger(struct snd_rawmidi_substream *substream
 		}
 	} else {
 		if (chip->tinuse) {
-			del_timer(&chip->timer);
 			chip->tinuse = 0;
+			spin_unlock_irq(&chip->lock);
+			del_timer_sync(&chip->timer);
 			DE_MID(("Timer removed\n"));
+			return;
 		}
 	}
 	spin_unlock_irq(&chip->lock);

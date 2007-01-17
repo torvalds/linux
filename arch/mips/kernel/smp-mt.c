@@ -278,7 +278,9 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
 
 	/* need to mark IPI's as IRQ_PER_CPU */
 	irq_desc[cpu_ipi_resched_irq].status |= IRQ_PER_CPU;
+	set_irq_handler(cpu_ipi_resched_irq, handle_percpu_irq);
 	irq_desc[cpu_ipi_call_irq].status |= IRQ_PER_CPU;
+	set_irq_handler(cpu_ipi_call_irq, handle_percpu_irq);
 }
 
 /*

@@ -640,41 +640,30 @@ xdr_buf_from_iov(struct kvec *iov, struct xdr_buf *buf)
 	buf->buflen = buf->len = iov->iov_len;
 }
 
-/* Sets subiov to the intersection of iov with the buffer of length len
- * starting base bytes after iov.  Indicates empty intersection by setting
- * length of subiov to zero.  Decrements len by length of subiov, sets base
- * to zero (or decrements it by length of iov if subiov is empty). */
-static void
-iov_subsegment(struct kvec *iov, struct kvec *subiov, int *base, int *len)
-{
-	if (*base > iov->iov_len) {
-		subiov->iov_base = NULL;
-		subiov->iov_len = 0;
-		*base -= iov->iov_len;
-	} else {
-		subiov->iov_base = iov->iov_base + *base;
-		subiov->iov_len = min(*len, (int)iov->iov_len - *base);
-		*base = 0;
-	}
-	*len -= subiov->iov_len; 
-}
-
 /* Sets subbuf to the portion of buf of length len beginning base bytes
  * from the start of buf. Returns -1 if base of length are out of bounds. */
 int
 xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
-			int base, int len)
+			unsigned int base, unsigned int len)
 {
-	int i;
-
 	subbuf->buflen = subbuf->len = len;
-	iov_subsegment(buf->head, subbuf->head, &base, &len);
+	if (base < buf->head[0].iov_len) {
+		subbuf->head[0].iov_base = buf->head[0].iov_base + base;
+		subbuf->head[0].iov_len = min_t(unsigned int, len,
+						buf->head[0].iov_len - base);
+		len -= subbuf->head[0].iov_len;
+		base = 0;
+	} else {
+		subbuf->head[0].iov_base = NULL;
+		subbuf->head[0].iov_len = 0;
+		base -= buf->head[0].iov_len;
+	}
 
 	if (base < buf->page_len) {
-		i = (base + buf->page_base) >> PAGE_CACHE_SHIFT;
-		subbuf->pages = &buf->pages[i];
-		subbuf->page_base = (base + buf->page_base) & ~PAGE_CACHE_MASK;
-		subbuf->page_len = min((int)buf->page_len - base, len);
+		subbuf->page_len = min(buf->page_len - base, len);
+		base += buf->page_base;
+		subbuf->page_base = base & ~PAGE_CACHE_MASK;
+		subbuf->pages = &buf->pages[base >> PAGE_CACHE_SHIFT];
 		len -= subbuf->page_len;
 		base = 0;
 	} else {
@@ -682,66 +671,85 @@ xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 		subbuf->page_len = 0;
 	}
 
-	iov_subsegment(buf->tail, subbuf->tail, &base, &len);
+	if (base < buf->tail[0].iov_len) {
+		subbuf->tail[0].iov_base = buf->tail[0].iov_base + base;
+		subbuf->tail[0].iov_len = min_t(unsigned int, len,
+						buf->tail[0].iov_len - base);
+		len -= subbuf->tail[0].iov_len;
+		base = 0;
+	} else {
+		subbuf->tail[0].iov_base = NULL;
+		subbuf->tail[0].iov_len = 0;
+		base -= buf->tail[0].iov_len;
+	}
+
 	if (base || len)
 		return -1;
 	return 0;
 }
 
-/* obj is assumed to point to allocated memory of size at least len: */
-int
-read_bytes_from_xdr_buf(struct xdr_buf *buf, int base, void *obj, int len)
+static void __read_bytes_from_xdr_buf(struct xdr_buf *subbuf, void *obj, unsigned int len)
 {
-	struct xdr_buf subbuf;
-	int this_len;
-	int status;
+	unsigned int this_len;
 
-	status = xdr_buf_subsegment(buf, &subbuf, base, len);
-	if (status)
-		goto out;
-	this_len = min(len, (int)subbuf.head[0].iov_len);
-	memcpy(obj, subbuf.head[0].iov_base, this_len);
+	this_len = min_t(unsigned int, len, subbuf->head[0].iov_len);
+	memcpy(obj, subbuf->head[0].iov_base, this_len);
 	len -= this_len;
 	obj += this_len;
-	this_len = min(len, (int)subbuf.page_len);
+	this_len = min_t(unsigned int, len, subbuf->page_len);
 	if (this_len)
-		_copy_from_pages(obj, subbuf.pages, subbuf.page_base, this_len);
+		_copy_from_pages(obj, subbuf->pages, subbuf->page_base, this_len);
 	len -= this_len;
 	obj += this_len;
-	this_len = min(len, (int)subbuf.tail[0].iov_len);
-	memcpy(obj, subbuf.tail[0].iov_base, this_len);
-out:
-	return status;
+	this_len = min_t(unsigned int, len, subbuf->tail[0].iov_len);
+	memcpy(obj, subbuf->tail[0].iov_base, this_len);
 }
 
 /* obj is assumed to point to allocated memory of size at least len: */
-int
-write_bytes_to_xdr_buf(struct xdr_buf *buf, int base, void *obj, int len)
+int read_bytes_from_xdr_buf(struct xdr_buf *buf, unsigned int base, void *obj, unsigned int len)
 {
 	struct xdr_buf subbuf;
-	int this_len;
 	int status;
 
 	status = xdr_buf_subsegment(buf, &subbuf, base, len);
-	if (status)
-		goto out;
-	this_len = min(len, (int)subbuf.head[0].iov_len);
-	memcpy(subbuf.head[0].iov_base, obj, this_len);
+	if (status != 0)
+		return status;
+	__read_bytes_from_xdr_buf(&subbuf, obj, len);
+	return 0;
+}
+
+static void __write_bytes_to_xdr_buf(struct xdr_buf *subbuf, void *obj, unsigned int len)
+{
+	unsigned int this_len;
+
+	this_len = min_t(unsigned int, len, subbuf->head[0].iov_len);
+	memcpy(subbuf->head[0].iov_base, obj, this_len);
 	len -= this_len;
 	obj += this_len;
-	this_len = min(len, (int)subbuf.page_len);
+	this_len = min_t(unsigned int, len, subbuf->page_len);
 	if (this_len)
-		_copy_to_pages(subbuf.pages, subbuf.page_base, obj, this_len);
+		_copy_to_pages(subbuf->pages, subbuf->page_base, obj, this_len);
 	len -= this_len;
 	obj += this_len;
-	this_len = min(len, (int)subbuf.tail[0].iov_len);
-	memcpy(subbuf.tail[0].iov_base, obj, this_len);
-out:
-	return status;
+	this_len = min_t(unsigned int, len, subbuf->tail[0].iov_len);
+	memcpy(subbuf->tail[0].iov_base, obj, this_len);
+}
+
+/* obj is assumed to point to allocated memory of size at least len: */
+int write_bytes_to_xdr_buf(struct xdr_buf *buf, unsigned int base, void *obj, unsigned int len)
+{
+	struct xdr_buf subbuf;
+	int status;
+
+	status = xdr_buf_subsegment(buf, &subbuf, base, len);
+	if (status != 0)
+		return status;
+	__write_bytes_to_xdr_buf(&subbuf, obj, len);
+	return 0;
 }
 
 int
-xdr_decode_word(struct xdr_buf *buf, int base, u32 *obj)
+xdr_decode_word(struct xdr_buf *buf, unsigned int base, u32 *obj)
 {
 	__be32	raw;
 	int	status;
@@ -754,7 +762,7 @@ xdr_decode_word(struct xdr_buf *buf, int base, u32 *obj)
 }
 
 int
-xdr_encode_word(struct xdr_buf *buf, int base, u32 obj)
+xdr_encode_word(struct xdr_buf *buf, unsigned int base, u32 obj)
 {
 	__be32	raw = htonl(obj);
 
@@ -765,44 +773,37 @@ xdr_encode_word(struct xdr_buf *buf, int base, u32 obj)
  * entirely in the head or the tail, set object to point to it; otherwise
  * try to find space for it at the end of the tail, copy it there, and
  * set obj to point to it. */
-int
-xdr_buf_read_netobj(struct xdr_buf *buf, struct xdr_netobj *obj, int offset)
+int xdr_buf_read_netobj(struct xdr_buf *buf, struct xdr_netobj *obj, unsigned int offset)
 {
-	u32	tail_offset = buf->head[0].iov_len + buf->page_len;
-	u32	obj_end_offset;
+	struct xdr_buf subbuf;
 
 	if (xdr_decode_word(buf, offset, &obj->len))
-		goto out;
-	obj_end_offset = offset + 4 + obj->len;
+		return -EFAULT;
+	if (xdr_buf_subsegment(buf, &subbuf, offset + 4, obj->len))
+		return -EFAULT;
 
-	if (obj_end_offset <= buf->head[0].iov_len) {
-		/* The obj is contained entirely in the head: */
-		obj->data = buf->head[0].iov_base + offset + 4;
-	} else if (offset + 4 >= tail_offset) {
-		if (obj_end_offset - tail_offset
-				> buf->tail[0].iov_len)
-			goto out;
-		/* The obj is contained entirely in the tail: */
-		obj->data = buf->tail[0].iov_base
-			+ offset - tail_offset + 4;
-	} else {
-		/* use end of tail as storage for obj:
-		 * (We don't copy to the beginning because then we'd have
-		 * to worry about doing a potentially overlapping copy.
-		 * This assumes the object is at most half the length of the
-		 * tail.) */
-		if (obj->len > buf->tail[0].iov_len)
-			goto out;
-		obj->data = buf->tail[0].iov_base + buf->tail[0].iov_len - 
-				obj->len;
-		if (read_bytes_from_xdr_buf(buf, offset + 4,
-					obj->data, obj->len))
-			goto out;
+	/* Is the obj contained entirely in the head? */
+	obj->data = subbuf.head[0].iov_base;
+	if (subbuf.head[0].iov_len == obj->len)
+		return 0;
+	/* ..or is the obj contained entirely in the tail? */
+	obj->data = subbuf.tail[0].iov_base;
+	if (subbuf.tail[0].iov_len == obj->len)
+		return 0;
 
-	}
+	/* use end of tail as storage for obj:
+	 * (We don't copy to the beginning because then we'd have
+	 * to worry about doing a potentially overlapping copy.
+	 * This assumes the object is at most half the length of the
+	 * tail.) */
+	if (obj->len > buf->buflen - buf->len)
+		return -ENOMEM;
+	if (buf->tail[0].iov_len != 0)
+		obj->data = buf->tail[0].iov_base + buf->tail[0].iov_len;
+	else
+		obj->data = buf->head[0].iov_base + buf->head[0].iov_len;
+	__read_bytes_from_xdr_buf(&subbuf, obj->data, obj->len);
 	return 0;
-out:
-	return -1;
 }
 
 /* Returns 0 on success, or else a negative error code. */
@@ -1020,3 +1021,71 @@ xdr_encode_array2(struct xdr_buf *buf, unsigned int base,
 
 	return xdr_xcode_array2(buf, base, desc, 1);
 }
+
+int
+xdr_process_buf(struct xdr_buf *buf, unsigned int offset, unsigned int len,
+                int (*actor)(struct scatterlist *, void *), void *data)
+{
+	int i, ret = 0;
+	unsigned page_len, thislen, page_offset;
+	struct scatterlist      sg[1];
+
+	if (offset >= buf->head[0].iov_len) {
+		offset -= buf->head[0].iov_len;
+	} else {
+		thislen = buf->head[0].iov_len - offset;
+		if (thislen > len)
+			thislen = len;
+		sg_set_buf(sg, buf->head[0].iov_base + offset, thislen);
+		ret = actor(sg, data);
+		if (ret)
+			goto out;
+		offset = 0;
+		len -= thislen;
+	}
+	if (len == 0)
+		goto out;
+
+	if (offset >= buf->page_len) {
+		offset -= buf->page_len;
+	} else {
+		page_len = buf->page_len - offset;
+		if (page_len > len)
+			page_len = len;
+		len -= page_len;
+		page_offset = (offset + buf->page_base) & (PAGE_CACHE_SIZE - 1);
+		i = (offset + buf->page_base) >> PAGE_CACHE_SHIFT;
+		thislen = PAGE_CACHE_SIZE - page_offset;
+		do {
+			if (thislen > page_len)
+				thislen = page_len;
+			sg->page = buf->pages[i];
+			sg->offset = page_offset;
+			sg->length = thislen;
+			ret = actor(sg, data);
+			if (ret)
+				goto out;
+			page_len -= thislen;
+			i++;
+			page_offset = 0;
+			thislen = PAGE_CACHE_SIZE;
+		} while (page_len != 0);
+		offset = 0;
+	}
+	if (len == 0)
+		goto out;
+	if (offset < buf->tail[0].iov_len) {
+		thislen = buf->tail[0].iov_len - offset;
+		if (thislen > len)
+			thislen = len;
+		sg_set_buf(sg, buf->tail[0].iov_base + offset, thislen);
+		ret = actor(sg, data);
+		len -= thislen;
+	}
+	if (len != 0)
+		ret = -EINVAL;
+out:
+	return ret;
+}
+EXPORT_SYMBOL(xdr_process_buf);
+

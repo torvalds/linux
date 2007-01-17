@@ -183,7 +183,7 @@ static int do_isofs_readdir(struct inode *inode, struct file *filp,
 
 		/* Handle the case of the '..' directory */
 		if (de->name_len[0] == 1 && de->name[0] == 1) {
-			inode_number = parent_ino(filp->f_dentry);
+			inode_number = parent_ino(filp->f_path.dentry);
 			if (filldir(dirent, "..", 2, filp->f_pos, inode_number, DT_DIR) < 0)
 				break;
 			filp->f_pos += de_len;
@@ -255,8 +255,7 @@ static int isofs_readdir(struct file *filp,
 	int result;
 	char * tmpname;
 	struct iso_directory_record * tmpde;
-	struct inode *inode = filp->f_dentry->d_inode;
-
+	struct inode *inode = filp->f_path.dentry->d_inode;
 
 	tmpname = (char *)__get_free_page(GFP_KERNEL);
 	if (tmpname == NULL)

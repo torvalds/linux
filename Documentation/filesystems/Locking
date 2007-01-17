@@ -124,7 +124,7 @@ sync_fs:		no	no	read
 write_super_lockfs:	?
 unlockfs:		?
 statfs:			no	no	no
-remount_fs:		no	yes	maybe		(see below)
+remount_fs:		yes	yes	maybe		(see below)
 clear_inode:		no
 umount_begin:		yes	no	no
 show_options:		no				(vfsmount->sem)
@@ -171,6 +171,7 @@ prototypes:
 	int (*releasepage) (struct page *, int);
 	int (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs);
+	int (*launder_page) (struct page *);
 
 locking rules:
 	All except set_page_dirty may block
@@ -188,6 +189,7 @@ bmap:			yes
 invalidatepage:		no	yes
 releasepage:		no	yes
 direct_IO:		no
+launder_page:		no	yes
 
 	->prepare_write(), ->commit_write(), ->sync_page() and ->readpage()
 may be called from the request handler (/dev/loop).
@@ -280,6 +282,12 @@ block_invalidatepage() instead.
 buffers from the page in preparation for freeing it.  It returns zero to
 indicate that the buffers are (or may be) freeable.  If ->releasepage is zero,
 the kernel assumes that the fs has no private interest in the buffers.
+
+	->launder_page() may be called prior to releasing a page if
+it is still found to be dirty. It returns zero if the page was successfully
+cleaned, or an error value if not. Note that in order to prevent the page
+getting mapped back in and redirtied, it needs to be kept locked
+across the entire operation.
 
 	Note: currently almost all instances of address_space methods are
 using BKL for internal serialization and that's one of the worst sources

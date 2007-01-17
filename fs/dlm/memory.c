@@ -15,7 +15,7 @@
 #include "config.h"
 #include "memory.h"
 
-static kmem_cache_t *lkb_cache;
+static struct kmem_cache *lkb_cache;
 
 
 int dlm_memory_init(void)

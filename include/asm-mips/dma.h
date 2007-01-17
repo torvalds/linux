@@ -74,7 +74,9 @@
  *
  */
 
+#ifndef GENERIC_ISA_DMA_SUPPORT_BROKEN
 #define MAX_DMA_CHANNELS	8
+#endif
 
 /*
  * The maximum address in KSEG0 that we can perform a DMA transfer to on this

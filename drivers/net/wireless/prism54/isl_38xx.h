@@ -1,5 +1,4 @@
 /*
- *  
  *  Copyright (C) 2002 Intersil Americas Inc.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -67,10 +66,10 @@
  * @base: (host) memory base address of the device
  * @val: 32bit value (host order) to write
  * @offset: byte offset into @base to write value to
- * 
+ *
  *  This helper takes care of writing a 32bit datum to the
- *  specified offset into the device's pci memory space, and making sure 
- *  the pci memory buffers get flushed by performing one harmless read 
+ *  specified offset into the device's pci memory space, and making sure
+ *  the pci memory buffers get flushed by performing one harmless read
  *  from the %ISL38XX_PCI_POSTING_FLUSH offset.
  */
 static inline void

@@ -45,13 +45,14 @@
  * to the correct location.
  */
 #include <asm/asmmacro.h>
+#include <asm-ia64/break.h>
 
 	/*
 	 * void jprobe_break(void)
 	 */
 	.section .kprobes.text, "ax"
 ENTRY(jprobe_break)
-	break.m 0x80300
+	break.m __IA64_BREAK_JPROBE
 END(jprobe_break)
 
 	/*

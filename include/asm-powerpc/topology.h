@@ -32,7 +32,14 @@ static inline int node_to_first_cpu(int node)
 int of_node_to_nid(struct device_node *device);
 
 struct pci_bus;
+#ifdef CONFIG_PCI
 extern int pcibus_to_node(struct pci_bus *bus);
+#else
+static inline int pcibus_to_node(struct pci_bus *bus)
+{
+	return -1;
+}
+#endif
 
 #define pcibus_to_cpumask(bus)	(pcibus_to_node(bus) == -1 ? \
 					CPU_MASK_ALL : \
@@ -59,6 +66,7 @@ extern int pcibus_to_node(struct pci_bus *bus);
 				| SD_BALANCE_EXEC	\
 				| SD_BALANCE_NEWIDLE	\
 				| SD_WAKE_IDLE		\
+				| SD_SERIALIZE		\
 				| SD_WAKE_BALANCE,	\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\

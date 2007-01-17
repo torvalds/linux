@@ -54,7 +54,7 @@ qeth_eddp_check_buffers_for_context(struct qeth_qdio_out_q *,
 struct qeth_eddp_data {
 	struct qeth_hdr qh;
 	struct ethhdr mac;
-	u16 vlan[2];
+	__be16 vlan[2];
 	union {
 		struct {
 			struct iphdr h;

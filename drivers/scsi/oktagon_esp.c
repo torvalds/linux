@@ -72,12 +72,12 @@ static void dma_advance_sg(Scsi_Cmnd *);
 static int  oktagon_notify_reboot(struct notifier_block *this, unsigned long code, void *x);
 
 #ifdef USE_BOTTOM_HALF
-static void dma_commit(void *opaque);
+static void dma_commit(struct work_struct *unused);
 
 long oktag_to_io(long *paddr, long *addr, long len);
 long oktag_from_io(long *addr, long *paddr, long len);
 
-static DECLARE_WORK(tq_fake_dma, dma_commit, NULL);
+static DECLARE_WORK(tq_fake_dma, dma_commit);
 
 #define DMA_MAXTRANSFER 0x8000
 
@@ -266,7 +266,7 @@ oktagon_notify_reboot(struct notifier_block *this, unsigned long code, void *x)
  */
  
  
-static void dma_commit(void *opaque)
+static void dma_commit(struct work_struct *unused)
 {
     long wait,len2,pos;
     struct NCR_ESP *esp;

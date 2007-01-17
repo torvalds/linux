@@ -320,7 +320,7 @@ static int __devinit bw2_init_one(struct of_device *op)
 	all->info.fbops = &bw2_ops;
 
 	all->info.screen_base =
-		sbus_ioremap(&op->resource[0], 0, all->par.fbsize, "bw2 ram");
+		of_ioremap(&op->resource[0], 0, all->par.fbsize, "bw2 ram");
 	all->info.par = &all->par;
 
 	bw2_blank(0, &all->info);
@@ -329,8 +329,10 @@ static int __devinit bw2_init_one(struct of_device *op)
 
 	err= register_framebuffer(&all->info);
 	if (err < 0) {
-		of_iounmap(all->par.regs, sizeof(struct bw2_regs));
-		of_iounmap(all->info.screen_base, all->par.fbsize);
+		of_iounmap(&op->resource[0],
+			   all->par.regs, sizeof(struct bw2_regs));
+		of_iounmap(&op->resource[0],
+			   all->info.screen_base, all->par.fbsize);
 		kfree(all);
 		return err;
 	}
@@ -351,18 +353,18 @@ static int __devinit bw2_probe(struct of_device *dev, const struct of_device_id 
 	return bw2_init_one(op);
 }
 
-static int __devexit bw2_remove(struct of_device *dev)
+static int __devexit bw2_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&dev->dev);
+	struct all_info *all = dev_get_drvdata(&op->dev);
 
 	unregister_framebuffer(&all->info);
 
-	of_iounmap(all->par.regs, sizeof(struct bw2_regs));
-	of_iounmap(all->info.screen_base, all->par.fbsize);
+	of_iounmap(&op->resource[0], all->par.regs, sizeof(struct bw2_regs));
+	of_iounmap(&op->resource[0], all->info.screen_base, all->par.fbsize);
 
 	kfree(all);
 
-	dev_set_drvdata(&dev->dev, NULL);
+	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

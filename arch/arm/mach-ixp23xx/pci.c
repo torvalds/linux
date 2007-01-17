@@ -36,7 +36,7 @@
 
 extern int (*external_fault) (unsigned long, struct pt_regs *);
 
-static int pci_master_aborts = 0;
+static volatile int pci_master_aborts = 0;
 
 #ifdef DEBUG
 #define DBG(x...)	printk(x)

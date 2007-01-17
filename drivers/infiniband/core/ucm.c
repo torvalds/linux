@@ -161,12 +161,14 @@ static void ib_ucm_cleanup_events(struct ib_ucm_context *ctx)
 				    struct ib_ucm_event, ctx_list);
 		list_del(&uevent->file_list);
 		list_del(&uevent->ctx_list);
+		mutex_unlock(&ctx->file->file_mutex);
 
 		/* clear incoming connections. */
 		if (ib_ucm_new_cm_id(uevent->resp.event))
 			ib_destroy_cm_id(uevent->cm_id);
 
 		kfree(uevent);
+		mutex_lock(&ctx->file->file_mutex);
 	}
 	mutex_unlock(&ctx->file->file_mutex);
 }
@@ -328,20 +330,18 @@ static int ib_ucm_event_process(struct ib_cm_event *evt,
 	}
 
 	if (uvt->data_len) {
-		uvt->data = kmalloc(uvt->data_len, GFP_KERNEL);
+		uvt->data = kmemdup(evt->private_data, uvt->data_len, GFP_KERNEL);
 		if (!uvt->data)
 			goto err1;
 
-		memcpy(uvt->data, evt->private_data, uvt->data_len);
 		uvt->resp.present |= IB_UCM_PRES_DATA;
 	}
 
 	if (uvt->info_len) {
-		uvt->info = kmalloc(uvt->info_len, GFP_KERNEL);
+		uvt->info = kmemdup(info, uvt->info_len, GFP_KERNEL);
 		if (!uvt->info)
 			goto err2;
 
-		memcpy(uvt->info, info, uvt->info_len);
 		uvt->resp.present |= IB_UCM_PRES_INFO;
 	}
 	return 0;
@@ -685,11 +685,11 @@ out:
 	return result;
 }
 
-static ssize_t ib_ucm_establish(struct ib_ucm_file *file,
-				const char __user *inbuf,
-				int in_len, int out_len)
+static ssize_t ib_ucm_notify(struct ib_ucm_file *file,
+			     const char __user *inbuf,
+			     int in_len, int out_len)
 {
-	struct ib_ucm_establish cmd;
+	struct ib_ucm_notify cmd;
 	struct ib_ucm_context *ctx;
 	int result;
 
@@ -700,7 +700,7 @@ static ssize_t ib_ucm_establish(struct ib_ucm_file *file,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	result = ib_cm_establish(ctx->cm_id);
+	result = ib_cm_notify(ctx->cm_id, (enum ib_event_type) cmd.event);
 	ib_ucm_ctx_put(ctx);
 	return result;
 }
@@ -1107,7 +1107,7 @@ static ssize_t (*ucm_cmd_table[])(struct ib_ucm_file *file,
 	[IB_USER_CM_CMD_DESTROY_ID]    = ib_ucm_destroy_id,
 	[IB_USER_CM_CMD_ATTR_ID]       = ib_ucm_attr_id,
 	[IB_USER_CM_CMD_LISTEN]        = ib_ucm_listen,
-	[IB_USER_CM_CMD_ESTABLISH]     = ib_ucm_establish,
+	[IB_USER_CM_CMD_NOTIFY]        = ib_ucm_notify,
 	[IB_USER_CM_CMD_SEND_REQ]      = ib_ucm_send_req,
 	[IB_USER_CM_CMD_SEND_REP]      = ib_ucm_send_rep,
 	[IB_USER_CM_CMD_SEND_RTU]      = ib_ucm_send_rtu,

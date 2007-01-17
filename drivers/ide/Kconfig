@@ -389,14 +389,6 @@ config BLK_DEV_RZ1000
 	  Linux. This may slow disk throughput by a few percent, but at least
 	  things will operate 100% reliably.
 
-config BLK_DEV_SL82C105
-	tristate "Winbond SL82c105 support"
-	depends on PCI && (PPC || ARM) && BLK_DEV_IDEPCI
-	help
-	  If you have a Winbond SL82c105 IDE controller, say Y here to enable
-	  special configuration for this chip. This is common on various CHRP
-	  motherboards, but could be used elsewhere. If in doubt, say Y.
-
 config BLK_DEV_IDEDMA_PCI
 	bool "Generic PCI bus-master DMA support"
 	depends on PCI && BLK_DEV_IDEPCI
@@ -712,6 +704,14 @@ config BLK_DEV_SIS5513
 
 	  Please read the comments at the top of <file:drivers/ide/pci/sis5513.c>.
 
+config BLK_DEV_SL82C105
+	tristate "Winbond SL82c105 support"
+	depends on (PPC || ARM)
+	help
+	  If you have a Winbond SL82c105 IDE controller, say Y here to enable
+	  special configuration for this chip. This is common on various CHRP
+	  motherboards, but could be used elsewhere. If in doubt, say Y.
+
 config BLK_DEV_SLC90E66
 	tristate "SLC90E66 chipset support"
 	help
@@ -796,7 +796,7 @@ endchoice
 config BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ
        int "Maximum transfer size (KB) per request (up to 128)"
        default "128"
-       depends BLK_DEV_IDE_AU1XXX
+       depends on BLK_DEV_IDE_AU1XXX
 
 config IDE_ARM
 	def_bool ARM && (ARCH_A5K || ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)

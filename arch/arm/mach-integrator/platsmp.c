@@ -18,7 +18,6 @@
 #include <asm/cacheflush.h>
 #include <asm/delay.h>
 #include <asm/mmu_context.h>
-#include <asm/procinfo.h>
 #include <asm/ptrace.h>
 #include <asm/smp.h>
 

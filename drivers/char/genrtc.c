@@ -102,7 +102,7 @@ static void gen_rtc_interrupt(unsigned long arg);
  * Routine to poll RTC seconds field for change as often as possible,
  * after first RTC_UIE use timer to reduce polling
  */
-static void genrtc_troutine(void *data)
+static void genrtc_troutine(struct work_struct *work)
 {
 	unsigned int tmp = get_rtc_ss();
 	
@@ -255,7 +255,7 @@ static inline int gen_set_rtc_irq_bit(unsigned char bit)
 		irq_active = 1;
 		stop_rtc_timers = 0;
 		lostint = 0;
-		INIT_WORK(&genrtc_task, genrtc_troutine, NULL);
+		INIT_WORK(&genrtc_task, genrtc_troutine);
 		oldsecs = get_rtc_ss();
 		init_timer(&timer_task);
 

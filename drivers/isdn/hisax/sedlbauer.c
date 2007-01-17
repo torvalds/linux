@@ -677,7 +677,11 @@ setup_sedlbauer(struct IsdnCard *card)
 		return (0);
 #endif /* CONFIG_PCI */
 	}	
+
+#ifdef __ISAPNP__
 ready:	
+#endif
+
 	/* In case of the sedlbauer pcmcia card, this region is in use,
 	 * reserved for us by the card manager. So we do not check it
 	 * here, it would fail.

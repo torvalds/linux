@@ -13,7 +13,7 @@
 * Due Credit:
 *               Wanpipe socket layer is based on Packet and 
 *               the X25 socket layers. The above sockets were 
-*               used for the specific use of Sangoma Technoloiges 
+*               used for the specific use of Sangoma Technologies 
 *               API programs. 
 *               Packet socket Authors: Ross Biro, Fred N. van Kempen and 
 *                                      Alan Cox.
@@ -23,7 +23,7 @@
 * Apr 25, 2000  Nenad Corbic     o Added the ability to send zero length packets.
 * Mar 13, 2000  Nenad Corbic	 o Added a tx buffer check via ioctl call.
 * Mar 06, 2000  Nenad Corbic     o Fixed the corrupt sock lcn problem.
-*                                  Server and client applicaton can run
+*                                  Server and client application can run
 *                                  simultaneously without conflicts.
 * Feb 29, 2000  Nenad Corbic     o Added support for PVC protocols, such as
 *                                  CHDLC, Frame Relay and HDLC API.

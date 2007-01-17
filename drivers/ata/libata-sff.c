@@ -39,6 +39,35 @@
 #include "libata.h"
 
 /**
+ *	ata_irq_on - Enable interrupts on a port.
+ *	@ap: Port on which interrupts are enabled.
+ *
+ *	Enable interrupts on a legacy IDE device using MMIO or PIO,
+ *	wait for idle, clear any pending interrupts.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+u8 ata_irq_on(struct ata_port *ap)
+{
+	struct ata_ioports *ioaddr = &ap->ioaddr;
+	u8 tmp;
+
+	ap->ctl &= ~ATA_NIEN;
+	ap->last_ctl = ap->ctl;
+
+	if (ap->flags & ATA_FLAG_MMIO)
+		writeb(ap->ctl, (void __iomem *) ioaddr->ctl_addr);
+	else
+		outb(ap->ctl, ioaddr->ctl_addr);
+	tmp = ata_wait_idle(ap);
+
+	ap->ops->irq_clear(ap);
+
+	return tmp;
+}
+
+/**
  *	ata_tf_load_pio - send taskfile registers to host controller
  *	@ap: Port to which output is sent
  *	@tf: ATA taskfile register set
@@ -671,6 +700,14 @@ void ata_bmdma_freeze(struct ata_port *ap)
 		writeb(ap->ctl, (void __iomem *)ioaddr->ctl_addr);
 	else
 		outb(ap->ctl, ioaddr->ctl_addr);
+
+	/* Under certain circumstances, some controllers raise IRQ on
+	 * ATA_NIEN manipulation.  Also, many controllers fail to mask
+	 * previously pending IRQ on ATA_NIEN assertion.  Clear it.
+	 */
+	ata_chk_status(ap);
+
+	ap->ops->irq_clear(ap);
 }
 
 /**
@@ -714,7 +751,6 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 			ata_postreset_fn_t postreset)
 {
-	struct ata_eh_context *ehc = &ap->eh_context;
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 	int thaw = 0;
@@ -732,9 +768,7 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 		   qc->tf.protocol == ATA_PROT_ATAPI_DMA)) {
 		u8 host_stat;
 
-		host_stat = ata_bmdma_status(ap);
-
-		ata_ehi_push_desc(&ehc->i, "BMDMA stat 0x%x", host_stat);
+		host_stat = ap->ops->bmdma_status(ap);
 
 		/* BMDMA controllers indicate host bus error by
 		 * setting DMA_ERR bit and timing out.  As it wasn't
@@ -877,6 +911,7 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 		return NULL;
 
 	probe_ent->n_ports = 2;
+	probe_ent->irq_flags = IRQF_SHARED;
 
 	if (port_mask & ATA_PORT_PRIMARY) {
 		probe_ent->irq = ATA_PRIMARY_IRQ;
@@ -992,13 +1027,15 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 #endif
 	}
 
-	rc = pci_request_regions(pdev, DRV_NAME);
-	if (rc) {
-		disable_dev_on_err = 0;
-		goto err_out;
-	}
-
-	if (legacy_mode) {
+	if (!legacy_mode) {
+		rc = pci_request_regions(pdev, DRV_NAME);
+		if (rc) {
+			disable_dev_on_err = 0;
+			goto err_out;
+		}
+	} else {
+		/* Deal with combined mode hack. This side of the logic all
+		   goes away once the combined mode hack is killed in 2.6.21 */
 		if (!request_region(ATA_PRIMARY_CMD, 8, "libata")) {
 			struct resource *conflict, res;
 			res.start = ATA_PRIMARY_CMD;
@@ -1036,6 +1073,13 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 			}
 		} else
 			legacy_mode |= ATA_PORT_SECONDARY;
+
+		if (legacy_mode & ATA_PORT_PRIMARY)
+			pci_request_region(pdev, 1, DRV_NAME);
+		if (legacy_mode & ATA_PORT_SECONDARY)
+			pci_request_region(pdev, 3, DRV_NAME);
+		/* If there is a DMA resource, allocate it */
+		pci_request_region(pdev, 4, DRV_NAME);
 	}
 
 	/* we have legacy mode, but all ports are unavailable */
@@ -1079,11 +1123,20 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 err_out_ent:
 	kfree(probe_ent);
 err_out_regions:
-	if (legacy_mode & ATA_PORT_PRIMARY)
-		release_region(ATA_PRIMARY_CMD, 8);
-	if (legacy_mode & ATA_PORT_SECONDARY)
-		release_region(ATA_SECONDARY_CMD, 8);
-	pci_release_regions(pdev);
+	/* All this conditional stuff is needed for the combined mode hack
+	   until 2.6.21 when it can go */
+	if (legacy_mode) {
+		pci_release_region(pdev, 4);
+		if (legacy_mode & ATA_PORT_PRIMARY) {
+			release_region(ATA_PRIMARY_CMD, 8);
+			pci_release_region(pdev, 1);
+		}
+		if (legacy_mode & ATA_PORT_SECONDARY) {
+			release_region(ATA_SECONDARY_CMD, 8);
+			pci_release_region(pdev, 3);
+		}
+	} else
+		pci_release_regions(pdev);
 err_out:
 	if (disable_dev_on_err)
 		pci_disable_device(pdev);

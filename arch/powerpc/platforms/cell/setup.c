@@ -50,9 +50,10 @@
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
 #include <asm/udbg.h>
+#include <asm/mpic.h>
+#include <asm/of_platform.h>
 
 #include "interrupt.h"
-#include "iommu.h"
 #include "cbe_regs.h"
 #include "pervasive.h"
 #include "ras.h"
@@ -80,24 +81,72 @@ static void cell_progress(char *s, unsigned short hex)
 	printk("*** %04x : %s\n", hex, s ? s : "");
 }
 
-static void __init cell_pcibios_fixup(void)
+static int __init cell_publish_devices(void)
 {
-	struct pci_dev *dev = NULL;
+	if (!machine_is(cell))
+		return 0;
 
-	for_each_pci_dev(dev)
-		pci_read_irq_line(dev);
+	/* Publish OF platform devices for southbridge IOs */
+	of_platform_bus_probe(NULL, NULL, NULL);
+
+	return 0;
 }
+device_initcall(cell_publish_devices);
+
+static void cell_mpic_cascade(unsigned int irq, struct irq_desc *desc)
+{
+	struct mpic *mpic = desc->handler_data;
+	unsigned int virq;
+
+	virq = mpic_get_one_irq(mpic);
+	if (virq != NO_IRQ)
+		generic_handle_irq(virq);
+	desc->chip->eoi(irq);
+}
+
+static void __init mpic_init_IRQ(void)
+{
+	struct device_node *dn;
+	struct mpic *mpic;
+	unsigned int virq;
+
+	for (dn = NULL;
+	     (dn = of_find_node_by_name(dn, "interrupt-controller"));) {
+		if (!device_is_compatible(dn, "CBEA,platform-open-pic"))
+			continue;
+
+		/* The MPIC driver will get everything it needs from the
+		 * device-tree, just pass 0 to all arguments
+		 */
+		mpic = mpic_alloc(dn, 0, 0, 0, 0, " MPIC     ");
+		if (mpic == NULL)
+			continue;
+		mpic_init(mpic);
+
+		virq = irq_of_parse_and_map(dn, 0);
+		if (virq == NO_IRQ)
+			continue;
+
+		printk(KERN_INFO "%s : hooking up to IRQ %d\n",
+		       dn->full_name, virq);
+		set_irq_data(virq, mpic);
+		set_irq_chained_handler(virq, cell_mpic_cascade);
+	}
+}
+
 
 static void __init cell_init_irq(void)
 {
 	iic_init_IRQ();
 	spider_init_IRQ();
+	mpic_init_IRQ();
 }
 
 static void __init cell_setup_arch(void)
 {
 #ifdef CONFIG_SPU_BASE
-	spu_priv1_ops         = &spu_priv1_mmio_ops;
+	spu_priv1_ops = &spu_priv1_mmio_ops;
+	spu_management_ops = &spu_management_of_ops;
 #endif
 
 	cbe_regs_init();
@@ -109,7 +158,6 @@ static void __init cell_setup_arch(void)
 #ifdef CONFIG_SMP
 	smp_init_cell();
 #endif
-
 	/* init to some ~sane value until calibrate_delay() runs */
 	loops_per_jiffy = 50000000;
 
@@ -128,19 +176,6 @@ static void __init cell_setup_arch(void)
 
 	mmio_nvram_init();
 }
-
-/*
- * Early initialization.  Relocation is on but do not reference unbolted pages
- */
-static void __init cell_init_early(void)
-{
-	DBG(" -> cell_init_early()\n");
-
-	cell_init_iommu();
-
-	DBG(" <- cell_init_early()\n");
-}
-
 
 static int __init cell_probe(void)
 {
@@ -168,7 +203,6 @@ define_machine(cell) {
 	.name			= "Cell",
 	.probe			= cell_probe,
 	.setup_arch		= cell_setup_arch,
-	.init_early		= cell_init_early,
 	.show_cpuinfo		= cell_show_cpuinfo,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
@@ -180,7 +214,7 @@ define_machine(cell) {
 	.check_legacy_ioport	= cell_check_legacy_ioport,
 	.progress		= cell_progress,
 	.init_IRQ       	= cell_init_irq,
-	.pcibios_fixup		= cell_pcibios_fixup,
+	.pci_setup_phb		= rtas_setup_phb,
 #ifdef CONFIG_KEXEC
 	.machine_kexec		= default_machine_kexec,
 	.machine_kexec_prepare	= default_machine_kexec_prepare,

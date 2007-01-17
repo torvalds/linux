@@ -51,6 +51,7 @@
    #define _IPS_H_
 
 #include <linux/version.h>
+#include <linux/nmi.h>
    #include <asm/uaccess.h>
    #include <asm/io.h>
 
@@ -116,9 +117,11 @@
             dev_printk(level , &((pcidev)->dev) , format , ## arg)
    #endif
 
-   #ifndef MDELAY
-      #define MDELAY mdelay
-   #endif
+   #define MDELAY(n)			\
+	do {				\
+		mdelay(n);		\
+		touch_nmi_watchdog();	\
+	} while (0)
 
    #ifndef min
       #define min(x,y) ((x) < (y) ? x : y)

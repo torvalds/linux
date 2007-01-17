@@ -42,6 +42,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/prom.h>
+#include <asm/firmware.h>
 #include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_lp_config.h>
@@ -119,10 +120,9 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 	struct device_node *node;
 	const char *sysid;
 
-	buf = kmalloc(HW_PAGE_SIZE, GFP_KERNEL);
+	buf = kzalloc(HW_PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
 		return 0;
-	memset(buf, 0, HW_PAGE_SIZE);
 
 	handle = dma_map_single(iSeries_vio_dev, buf, HW_PAGE_SIZE,
 				DMA_FROM_DEVICE);
@@ -183,6 +183,9 @@ static struct file_operations proc_viopath_operations = {
 static int __init vio_proc_init(void)
 {
 	struct proc_dir_entry *e;
+
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return 0;
 
 	e = create_proc_entry("iSeries/config", 0, NULL);
 	if (e)

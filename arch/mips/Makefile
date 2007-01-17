@@ -63,9 +63,7 @@ cflags-y		+= -mabi=64
 ifdef CONFIG_BUILD_ELF64
 cflags-y		+= $(call cc-option,-mno-explicit-relocs)
 else
-# -msym32 can not be used for modules since they are loaded into XKSEG
-CFLAGS_MODULE		+= $(call cc-option,-mno-explicit-relocs)
-CFLAGS_KERNEL		+= $(call cc-option,-msym32)
+cflags-y		+= $(call cc-option,-msym32)
 endif
 endif
 
@@ -465,6 +463,11 @@ libs-$(CONFIG_PNX8550_JBS)	+= arch/mips/philips/pnx8550/jbs/
 #cflags-$(CONFIG_PNX8550_JBS)	+= -Iinclude/asm-mips/mach-pnx8550
 load-$(CONFIG_PNX8550_JBS)	+= 0xffffffff80060000
 
+# Philips PNX8550 STB810 board
+#
+libs-$(CONFIG_PNX8550_STB810)	+= arch/mips/philips/pnx8550/stb810/
+load-$(CONFIG_PNX8550_STB810)	+= 0xffffffff80060000
+
 # NEC EMMA2RH boards
 #
 core-$(CONFIG_EMMA2RH)          += arch/mips/emma2rh/common/
@@ -571,11 +574,11 @@ libs-$(CONFIG_SIBYTE_BIGSUR)	+= arch/mips/sibyte/swarm/
 load-$(CONFIG_SIBYTE_BIGSUR)	:= 0xffffffff80100000
 
 #
-# SNI RM200 PCI
+# SNI RM
 #
-core-$(CONFIG_SNI_RM200_PCI)	+= arch/mips/sni/
-cflags-$(CONFIG_SNI_RM200_PCI)	+= -Iinclude/asm-mips/mach-rm200
-load-$(CONFIG_SNI_RM200_PCI)	+= 0xffffffff80600000
+core-$(CONFIG_SNI_RM)		+= arch/mips/sni/
+cflags-$(CONFIG_SNI_RM)		+= -Iinclude/asm-mips/mach-rm
+load-$(CONFIG_SNI_RM)		+= 0xffffffff80600000
 
 #
 # Toshiba JMR-TX3927 board
@@ -697,7 +700,7 @@ ifdef CONFIG_QEMU
 all:	vmlinux.bin
 endif
 
-ifdef CONFIG_SNI_RM200_PCI
+ifdef CONFIG_SNI_RM
 all:	vmlinux.ecoff
 endif
 

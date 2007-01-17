@@ -58,18 +58,6 @@
 #endif
 
 /*
- * Given a kaddr, ADDR_TO_MAPBASE finds the owning node of the memory
- * and return the mem_map of that node.
- */
-# define ADDR_TO_MAPBASE(kaddr)	NODE_MEM_MAP(KVADDR_TO_NID(kaddr))
-
-/*
- * Given a page frame number, find the owning node of the memory
- * and return the mem_map of that node.
- */
-# define PFN_TO_MAPBASE(pfn)	NODE_MEM_MAP(PFN_TO_NID(pfn))
-
-/*
  * Given a kaddr, LOCAL_MEM_MAP finds the owning node of the memory
  * and returns the index corresponding to the appropriate page in the
  * node's mem_map.

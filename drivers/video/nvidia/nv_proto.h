@@ -62,7 +62,6 @@ extern void nvidiafb_fillrect(struct fb_info *info,
 extern void nvidiafb_imageblit(struct fb_info *info,
 			       const struct fb_image *image);
 extern int nvidiafb_sync(struct fb_info *info);
-extern u8 byte_rev[256];
 
 /* in nv_backlight.h */
 #ifdef CONFIG_FB_NVIDIA_BACKLIGHT

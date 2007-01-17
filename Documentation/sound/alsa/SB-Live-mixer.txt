@@ -5,7 +5,7 @@
 
 The EMU10K1 chips have a DSP part which can be programmed to support
 various ways of sample processing, which is described here.
-(This acticle does not deal with the overall functionality of the 
+(This article does not deal with the overall functionality of the 
 EMU10K1 chips. See the manuals section for further details.)
 
 The ALSA driver programs this portion of chip by default code

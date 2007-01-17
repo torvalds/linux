@@ -413,8 +413,8 @@ static struct file_system_type cpuset_fs_type = {
  *
  *
  * When reading/writing to a file:
- *	- the cpuset to use in file->f_dentry->d_parent->d_fsdata
- *	- the 'cftype' of the file is file->f_dentry->d_fsdata
+ *	- the cpuset to use in file->f_path.dentry->d_parent->d_fsdata
+ *	- the 'cftype' of the file is file->f_path.dentry->d_fsdata
  */
 
 struct cftype {
@@ -729,8 +729,10 @@ static int validate_change(const struct cpuset *cur, const struct cpuset *trial)
 	}
 
 	/* Remaining checks don't apply to root cpuset */
-	if ((par = cur->parent) == NULL)
+	if (cur == &top_cpuset)
 		return 0;
+
+	par = cur->parent;
 
 	/* We must be a subset of our parent cpuset */
 	if (!is_cpuset_subset(trial, par))
@@ -1060,10 +1062,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs, char *buf)
 	cpu_exclusive_changed =
 		(is_cpu_exclusive(cs) != is_cpu_exclusive(&trialcs));
 	mutex_lock(&callback_mutex);
-	if (turning_on)
-		set_bit(bit, &cs->flags);
-	else
-		clear_bit(bit, &cs->flags);
+	cs->flags = trialcs.flags;
 	mutex_unlock(&callback_mutex);
 
 	if (cpu_exclusive_changed)
@@ -1281,18 +1280,19 @@ typedef enum {
 	FILE_TASKLIST,
 } cpuset_filetype_t;
 
-static ssize_t cpuset_common_file_write(struct file *file, const char __user *userbuf,
+static ssize_t cpuset_common_file_write(struct file *file,
+					const char __user *userbuf,
 					size_t nbytes, loff_t *unused_ppos)
 {
-	struct cpuset *cs = __d_cs(file->f_dentry->d_parent);
-	struct cftype *cft = __d_cft(file->f_dentry);
+	struct cpuset *cs = __d_cs(file->f_path.dentry->d_parent);
+	struct cftype *cft = __d_cft(file->f_path.dentry);
 	cpuset_filetype_t type = cft->private;
 	char *buffer;
 	char *pathbuf = NULL;
 	int retval = 0;
 
 	/* Crude upper limit on largest legitimate cpulist user might write. */
-	if (nbytes > 100 + 6 * NR_CPUS)
+	if (nbytes > 100 + 6 * max(NR_CPUS, MAX_NUMNODES))
 		return -E2BIG;
 
 	/* +1 for nul-terminator */
@@ -1367,7 +1367,7 @@ static ssize_t cpuset_file_write(struct file *file, const char __user *buf,
 						size_t nbytes, loff_t *ppos)
 {
 	ssize_t retval = 0;
-	struct cftype *cft = __d_cft(file->f_dentry);
+	struct cftype *cft = __d_cft(file->f_path.dentry);
 	if (!cft)
 		return -ENODEV;
 
@@ -1417,8 +1417,8 @@ static int cpuset_sprintf_memlist(char *page, struct cpuset *cs)
 static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 				size_t nbytes, loff_t *ppos)
 {
-	struct cftype *cft = __d_cft(file->f_dentry);
-	struct cpuset *cs = __d_cs(file->f_dentry->d_parent);
+	struct cftype *cft = __d_cft(file->f_path.dentry);
+	struct cpuset *cs = __d_cs(file->f_path.dentry->d_parent);
 	cpuset_filetype_t type = cft->private;
 	char *page;
 	ssize_t retval = 0;
@@ -1476,7 +1476,7 @@ static ssize_t cpuset_file_read(struct file *file, char __user *buf, size_t nbyt
 								loff_t *ppos)
 {
 	ssize_t retval = 0;
-	struct cftype *cft = __d_cft(file->f_dentry);
+	struct cftype *cft = __d_cft(file->f_path.dentry);
 	if (!cft)
 		return -ENODEV;
 
@@ -1498,7 +1498,7 @@ static int cpuset_file_open(struct inode *inode, struct file *file)
 	if (err)
 		return err;
 
-	cft = __d_cft(file->f_dentry);
+	cft = __d_cft(file->f_path.dentry);
 	if (!cft)
 		return -ENODEV;
 	if (cft->open)
@@ -1511,7 +1511,7 @@ static int cpuset_file_open(struct inode *inode, struct file *file)
 
 static int cpuset_file_release(struct inode *inode, struct file *file)
 {
-	struct cftype *cft = __d_cft(file->f_dentry);
+	struct cftype *cft = __d_cft(file->f_path.dentry);
 	if (cft->release)
 		return cft->release(inode, file);
 	return 0;
@@ -1532,7 +1532,7 @@ static int cpuset_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return simple_rename(old_dir, old_dentry, new_dir, new_dentry);
 }
 
-static struct file_operations cpuset_file_operations = {
+static const struct file_operations cpuset_file_operations = {
 	.read = cpuset_file_read,
 	.write = cpuset_file_write,
 	.llseek = generic_file_llseek,
@@ -1700,7 +1700,7 @@ static int pid_array_to_buf(char *buf, int sz, pid_t *a, int npids)
  */
 static int cpuset_tasks_open(struct inode *unused, struct file *file)
 {
-	struct cpuset *cs = __d_cs(file->f_dentry->d_parent);
+	struct cpuset *cs = __d_cs(file->f_path.dentry->d_parent);
 	struct ctr_struct *ctr;
 	pid_t *pidarray;
 	int npids;
@@ -2045,7 +2045,6 @@ out:
 	return err;
 }
 
-#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_MEMORY_HOTPLUG)
 /*
  * If common_cpu_mem_hotplug_unplug(), below, unplugs any CPUs
  * or memory nodes, we need to walk over the cpuset hierarchy,
@@ -2109,9 +2108,7 @@ static void common_cpu_mem_hotplug_unplug(void)
 	mutex_unlock(&callback_mutex);
 	mutex_unlock(&manage_mutex);
 }
-#endif
 
-#ifdef CONFIG_HOTPLUG_CPU
 /*
  * The top_cpuset tracks what CPUs and Memory Nodes are online,
  * period.  This is necessary in order to make cpusets transparent
@@ -2128,7 +2125,6 @@ static int cpuset_handle_cpuhp(struct notifier_block *nb,
 	common_cpu_mem_hotplug_unplug();
 	return 0;
 }
-#endif
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
@@ -2346,32 +2342,48 @@ static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
 }
 
 /**
- * cpuset_zone_allowed - Can we allocate memory on zone z's memory node?
+ * cpuset_zone_allowed_softwall - Can we allocate on zone z's memory node?
  * @z: is this zone on an allowed node?
- * @gfp_mask: memory allocation flags (we use __GFP_HARDWALL)
+ * @gfp_mask: memory allocation flags
  *
- * If we're in interrupt, yes, we can always allocate.  If zone
+ * If we're in interrupt, yes, we can always allocate.  If
+ * __GFP_THISNODE is set, yes, we can always allocate.  If zone
  * z's node is in our tasks mems_allowed, yes.  If it's not a
  * __GFP_HARDWALL request and this zone's nodes is in the nearest
  * mem_exclusive cpuset ancestor to this tasks cpuset, yes.
  * Otherwise, no.
  *
+ * If __GFP_HARDWALL is set, cpuset_zone_allowed_softwall()
+ * reduces to cpuset_zone_allowed_hardwall().  Otherwise,
+ * cpuset_zone_allowed_softwall() might sleep, and might allow a zone
+ * from an enclosing cpuset.
+ *
+ * cpuset_zone_allowed_hardwall() only handles the simpler case of
+ * hardwall cpusets, and never sleeps.
+ *
+ * The __GFP_THISNODE placement logic is really handled elsewhere,
+ * by forcibly using a zonelist starting at a specified node, and by
+ * (in get_page_from_freelist()) refusing to consider the zones for
+ * any node on the zonelist except the first.  By the time any such
+ * calls get to this routine, we should just shut up and say 'yes'.
+ *
  * GFP_USER allocations are marked with the __GFP_HARDWALL bit,
  * and do not allow allocations outside the current tasks cpuset.
  * GFP_KERNEL allocations are not so marked, so can escape to the
- * nearest mem_exclusive ancestor cpuset.
+ * nearest enclosing mem_exclusive ancestor cpuset.
  *
- * Scanning up parent cpusets requires callback_mutex.  The __alloc_pages()
- * routine only calls here with __GFP_HARDWALL bit _not_ set if
- * it's a GFP_KERNEL allocation, and all nodes in the current tasks
- * mems_allowed came up empty on the first pass over the zonelist.
- * So only GFP_KERNEL allocations, if all nodes in the cpuset are
- * short of memory, might require taking the callback_mutex mutex.
+ * Scanning up parent cpusets requires callback_mutex.  The
+ * __alloc_pages() routine only calls here with __GFP_HARDWALL bit
+ * _not_ set if it's a GFP_KERNEL allocation, and all nodes in the
+ * current tasks mems_allowed came up empty on the first pass over
+ * the zonelist.  So only GFP_KERNEL allocations, if all nodes in the
+ * cpuset are short of memory, might require taking the callback_mutex
+ * mutex.
  *
  * The first call here from mm/page_alloc:get_page_from_freelist()
- * has __GFP_HARDWALL set in gfp_mask, enforcing hardwall cpusets, so
- * no allocation on a node outside the cpuset is allowed (unless in
- * interrupt, of course).
+ * has __GFP_HARDWALL set in gfp_mask, enforcing hardwall cpusets,
+ * so no allocation on a node outside the cpuset is allowed (unless
+ * in interrupt, of course).
  *
  * The second pass through get_page_from_freelist() doesn't even call
  * here for GFP_ATOMIC calls.  For those calls, the __alloc_pages()
@@ -2384,12 +2396,12 @@ static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
  *	GFP_USER     - only nodes in current tasks mems allowed ok.
  *
  * Rule:
- *    Don't call cpuset_zone_allowed() if you can't sleep, unless you
+ *    Don't call cpuset_zone_allowed_softwall if you can't sleep, unless you
  *    pass in the __GFP_HARDWALL flag set in gfp_flag, which disables
  *    the code that might scan up ancestor cpusets and sleep.
- **/
+ */
 
-int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
+int __cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask)
 {
 	int node;			/* node that zone z is on */
 	const struct cpuset *cs;	/* current cpuset ancestors */
@@ -2417,6 +2429,40 @@ int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 	allowed = node_isset(node, cs->mems_allowed);
 	mutex_unlock(&callback_mutex);
 	return allowed;
+}
+
+/*
+ * cpuset_zone_allowed_hardwall - Can we allocate on zone z's memory node?
+ * @z: is this zone on an allowed node?
+ * @gfp_mask: memory allocation flags
+ *
+ * If we're in interrupt, yes, we can always allocate.
+ * If __GFP_THISNODE is set, yes, we can always allocate.  If zone
+ * z's node is in our tasks mems_allowed, yes.   Otherwise, no.
+ *
+ * The __GFP_THISNODE placement logic is really handled elsewhere,
+ * by forcibly using a zonelist starting at a specified node, and by
+ * (in get_page_from_freelist()) refusing to consider the zones for
+ * any node on the zonelist except the first.  By the time any such
+ * calls get to this routine, we should just shut up and say 'yes'.
+ *
+ * Unlike the cpuset_zone_allowed_softwall() variant, above,
+ * this variant requires that the zone be in the current tasks
+ * mems_allowed or that we're in interrupt.  It does not scan up the
+ * cpuset hierarchy for the nearest enclosing mem_exclusive cpuset.
+ * It never sleeps.
+ */
+
+int __cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask)
+{
+	int node;			/* node that zone z is on */
+
+	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
+		return 1;
+	node = zone_to_nid(z);
+	if (node_isset(node, current->mems_allowed))
+		return 1;
+	return 0;
 }
 
 /**

@@ -90,9 +90,9 @@ unsigned long setup_zero_pages(void)
 	if (!empty_zero_page)
 		panic("Oh boy, that early out of memory?");
 
-	page = virt_to_page(empty_zero_page);
+	page = virt_to_page((void *)empty_zero_page);
 	split_page(page, order);
-	while (page < virt_to_page(empty_zero_page + (PAGE_SIZE << order))) {
+	while (page < virt_to_page((void *)(empty_zero_page + (PAGE_SIZE << order)))) {
 		SetPageReserved(page);
 		page++;
 	}
@@ -202,6 +202,31 @@ static inline void kunmap_coherent(struct page *page)
 	dec_preempt_count();
 	preempt_check_resched();
 }
+
+void copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma)
+{
+	void *vfrom, *vto;
+
+	vto = kmap_atomic(to, KM_USER1);
+	if (cpu_has_dc_aliases) {
+		vfrom = kmap_coherent(from, vaddr);
+		copy_page(vto, vfrom);
+		kunmap_coherent(from);
+	} else {
+		vfrom = kmap_atomic(from, KM_USER0);
+		copy_page(vto, vfrom);
+		kunmap_atomic(vfrom, KM_USER0);
+	}
+	if (((vma->vm_flags & VM_EXEC) && !cpu_has_ic_fills_f_dc) ||
+	    pages_do_alias((unsigned long)vto, vaddr & PAGE_MASK))
+		flush_data_cache_page((unsigned long)vto);
+	kunmap_atomic(vto, KM_USER1);
+	/* Make sure this page is cleared on other CPU's too before using it */
+	smp_wmb();
+}
+
+EXPORT_SYMBOL(copy_user_highpage);
 
 void copy_to_user_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vaddr, void *dst, const void *src,
@@ -316,7 +341,7 @@ static int __init page_is_ram(unsigned long pagenr)
 void __init paging_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
-	unsigned long max_dma, high, low;
+	unsigned long max_dma, low;
 #ifndef CONFIG_FLATMEM
 	unsigned long zholes_size[MAX_NR_ZONES] = { 0, };
 	unsigned long i, j, pfn;
@@ -331,7 +356,6 @@ void __init paging_init(void)
 
 	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 	low = max_low_pfn;
-	high = highend_pfn;
 
 #ifdef CONFIG_ISA
 	if (low < max_dma)
@@ -344,13 +368,13 @@ void __init paging_init(void)
 	zones_size[ZONE_DMA] = low;
 #endif
 #ifdef CONFIG_HIGHMEM
-	if (cpu_has_dc_aliases) {
-		printk(KERN_WARNING "This processor doesn't support highmem.");
-		if (high - low)
-			printk(" %ldk highmem ignored", high - low);
-		printk("\n");
-	} else
-		zones_size[ZONE_HIGHMEM] = high - low;
+	zones_size[ZONE_HIGHMEM] = highend_pfn - highstart_pfn;
+
+	if (cpu_has_dc_aliases && zones_size[ZONE_HIGHMEM]) {
+		printk(KERN_WARNING "This processor doesn't support highmem."
+		       " %ldk highmem ignored\n", zones_size[ZONE_HIGHMEM]);
+		zones_size[ZONE_HIGHMEM] = 0;
+	}
 #endif
 
 #ifdef CONFIG_FLATMEM
@@ -443,15 +467,18 @@ void __init mem_init(void)
 }
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
-void free_init_pages(char *what, unsigned long begin, unsigned long end)
+static void free_init_pages(char *what, unsigned long begin, unsigned long end)
 {
-	unsigned long addr;
+	unsigned long pfn;
 
-	for (addr = begin; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
-		memset((void *)addr, 0xcc, PAGE_SIZE);
-		free_page(addr);
+	for (pfn = PFN_UP(begin); pfn < PFN_DOWN(end); pfn++) {
+		struct page *page = pfn_to_page(pfn);
+		void *addr = phys_to_virt(PFN_PHYS(pfn));
+
+		ClearPageReserved(page);
+		init_page_count(page);
+		memset(addr, POISON_FREE_INITMEM, PAGE_SIZE);
+		__free_page(page);
 		totalram_pages++;
 	}
 	printk(KERN_INFO "Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
@@ -460,12 +487,9 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-#ifdef CONFIG_64BIT
-	/* Switch from KSEG0 to XKPHYS addresses */
-	start = (unsigned long)phys_to_virt(CPHYSADDR(start));
-	end = (unsigned long)phys_to_virt(CPHYSADDR(end));
-#endif
-	free_init_pages("initrd memory", start, end);
+	free_init_pages("initrd memory",
+			virt_to_phys((void *)start),
+			virt_to_phys((void *)end));
 }
 #endif
 
@@ -473,17 +497,13 @@ extern unsigned long prom_free_prom_memory(void);
 
 void free_initmem(void)
 {
-	unsigned long start, end, freed;
+	unsigned long freed;
 
 	freed = prom_free_prom_memory();
 	if (freed)
 		printk(KERN_INFO "Freeing firmware memory: %ldk freed\n",freed);
 
-	start = (unsigned long)(&__init_begin);
-	end = (unsigned long)(&__init_end);
-#ifdef CONFIG_64BIT
-	start = PAGE_OFFSET | CPHYSADDR(start);
-	end = PAGE_OFFSET | CPHYSADDR(end);
-#endif
-	free_init_pages("unused kernel memory", start, end);
+	free_init_pages("unused kernel memory",
+			__pa_symbol(&__init_begin),
+			__pa_symbol(&__init_end));
 }

@@ -186,7 +186,7 @@ static int stripe_map(struct dm_target *ti, struct bio *bio,
 	bio->bi_bdev = sc->stripe[stripe].dev->bdev;
 	bio->bi_sector = sc->stripe[stripe].physical_start +
 	    (chunk << sc->chunk_shift) + (offset & sc->chunk_mask);
-	return 1;
+	return DM_MAPIO_REMAPPED;
 }
 
 static int stripe_status(struct dm_target *ti,

@@ -1,6 +1,4 @@
 header-y += ip_conntrack_helper.h
-header-y += ip_conntrack_helper_h323_asn1.h
-header-y += ip_conntrack_helper_h323_types.h
 header-y += ip_conntrack_protocol.h
 header-y += ip_conntrack_sctp.h
 header-y += ip_conntrack_tcp.h

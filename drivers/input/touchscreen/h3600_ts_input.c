@@ -478,8 +478,7 @@ static struct serio_driver h3600ts_drv = {
 
 static int __init h3600ts_init(void)
 {
-	serio_register_driver(&h3600ts_drv);
-	return 0;
+	return serio_register_driver(&h3600ts_drv);
 }
 
 static void __exit h3600ts_exit(void)

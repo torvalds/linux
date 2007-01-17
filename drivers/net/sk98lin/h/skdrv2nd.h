@@ -160,7 +160,7 @@ struct s_IOCTL {
 
 /*
 ** Interim definition of SK_DRV_TIMER placed in this file until 
-** common modules have boon finallized
+** common modules have been finalized
 */
 #define SK_DRV_TIMER			11 
 #define	SK_DRV_MODERATION_TIMER		1

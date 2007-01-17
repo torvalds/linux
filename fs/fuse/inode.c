@@ -22,7 +22,7 @@ MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
 MODULE_DESCRIPTION("Filesystem in Userspace");
 MODULE_LICENSE("GPL");
 
-static kmem_cache_t *fuse_inode_cachep;
+static struct kmem_cache *fuse_inode_cachep;
 struct list_head fuse_conn_list;
 DEFINE_MUTEX(fuse_mutex);
 
@@ -39,6 +39,7 @@ struct fuse_mount_data {
 	unsigned group_id_present : 1;
 	unsigned flags;
 	unsigned max_read;
+	unsigned blksize;
 };
 
 static struct inode *fuse_alloc_inode(struct super_block *sb)
@@ -46,7 +47,7 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	struct inode *inode;
 	struct fuse_inode *fi;
 
-	inode = kmem_cache_alloc(fuse_inode_cachep, SLAB_KERNEL);
+	inode = kmem_cache_alloc(fuse_inode_cachep, GFP_KERNEL);
 	if (!inode)
 		return NULL;
 
@@ -205,10 +206,23 @@ static void fuse_umount_begin(struct vfsmount *vfsmnt, int flags)
 		fuse_abort_conn(get_fuse_conn_super(vfsmnt->mnt_sb));
 }
 
+static void fuse_send_destroy(struct fuse_conn *fc)
+{
+	struct fuse_req *req = fc->destroy_req;
+	if (req && fc->conn_init) {
+		fc->destroy_req = NULL;
+		req->in.h.opcode = FUSE_DESTROY;
+		req->force = 1;
+		request_send(fc, req);
+		fuse_put_request(fc, req);
+	}
+}
+
 static void fuse_put_super(struct super_block *sb)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
+	fuse_send_destroy(fc);
 	spin_lock(&fc->lock);
 	fc->connected = 0;
 	fc->blocked = 0;
@@ -274,6 +288,7 @@ enum {
 	OPT_DEFAULT_PERMISSIONS,
 	OPT_ALLOW_OTHER,
 	OPT_MAX_READ,
+	OPT_BLKSIZE,
 	OPT_ERR
 };
 
@@ -285,14 +300,16 @@ static match_table_t tokens = {
 	{OPT_DEFAULT_PERMISSIONS,	"default_permissions"},
 	{OPT_ALLOW_OTHER,		"allow_other"},
 	{OPT_MAX_READ,			"max_read=%u"},
+	{OPT_BLKSIZE,			"blksize=%u"},
 	{OPT_ERR,			NULL}
 };
 
-static int parse_fuse_opt(char *opt, struct fuse_mount_data *d)
+static int parse_fuse_opt(char *opt, struct fuse_mount_data *d, int is_bdev)
 {
 	char *p;
 	memset(d, 0, sizeof(struct fuse_mount_data));
 	d->max_read = ~0;
+	d->blksize = 512;
 
 	while ((p = strsep(&opt, ",")) != NULL) {
 		int token;
@@ -343,6 +360,12 @@ static int parse_fuse_opt(char *opt, struct fuse_mount_data *d)
 			if (match_int(&args[0], &value))
 				return 0;
 			d->max_read = value;
+			break;
+
+		case OPT_BLKSIZE:
+			if (!is_bdev || match_int(&args[0], &value))
+				return 0;
+			d->blksize = value;
 			break;
 
 		default:
@@ -400,6 +423,8 @@ static struct fuse_conn *new_conn(void)
 void fuse_conn_put(struct fuse_conn *fc)
 {
 	if (atomic_dec_and_test(&fc->count)) {
+		if (fc->destroy_req)
+			fuse_request_free(fc->destroy_req);
 		mutex_destroy(&fc->inst_mutex);
 		kfree(fc);
 	}
@@ -456,6 +481,7 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->bdi.ra_pages = min(fc->bdi.ra_pages, ra_pages);
 		fc->minor = arg->minor;
 		fc->max_write = arg->minor < 5 ? 4096 : arg->max_write;
+		fc->conn_init = 1;
 	}
 	fuse_put_request(fc, req);
 	fc->blocked = 0;
@@ -500,15 +526,23 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	struct dentry *root_dentry;
 	struct fuse_req *init_req;
 	int err;
+	int is_bdev = sb->s_bdev != NULL;
 
 	if (sb->s_flags & MS_MANDLOCK)
 		return -EINVAL;
 
-	if (!parse_fuse_opt((char *) data, &d))
+	if (!parse_fuse_opt((char *) data, &d, is_bdev))
 		return -EINVAL;
 
-	sb->s_blocksize = PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	if (is_bdev) {
+#ifdef CONFIG_BLOCK
+		if (!sb_set_blocksize(sb, d.blksize))
+			return -EINVAL;
+#endif
+	} else {
+		sb->s_blocksize = PAGE_CACHE_SIZE;
+		sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	}
 	sb->s_magic = FUSE_SUPER_MAGIC;
 	sb->s_op = &fuse_super_operations;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
@@ -546,6 +580,12 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	init_req = fuse_request_alloc();
 	if (!init_req)
 		goto err_put_root;
+
+	if (is_bdev) {
+		fc->destroy_req = fuse_request_alloc();
+		if (!fc->destroy_req)
+			goto err_put_root;
+	}
 
 	mutex_lock(&fuse_mutex);
 	err = -EINVAL;
@@ -598,10 +638,47 @@ static struct file_system_type fuse_fs_type = {
 	.kill_sb	= kill_anon_super,
 };
 
+#ifdef CONFIG_BLOCK
+static int fuse_get_sb_blk(struct file_system_type *fs_type,
+			   int flags, const char *dev_name,
+			   void *raw_data, struct vfsmount *mnt)
+{
+	return get_sb_bdev(fs_type, flags, dev_name, raw_data, fuse_fill_super,
+			   mnt);
+}
+
+static struct file_system_type fuseblk_fs_type = {
+	.owner		= THIS_MODULE,
+	.name		= "fuseblk",
+	.get_sb		= fuse_get_sb_blk,
+	.kill_sb	= kill_block_super,
+	.fs_flags	= FS_REQUIRES_DEV,
+};
+
+static inline int register_fuseblk(void)
+{
+	return register_filesystem(&fuseblk_fs_type);
+}
+
+static inline void unregister_fuseblk(void)
+{
+	unregister_filesystem(&fuseblk_fs_type);
+}
+#else
+static inline int register_fuseblk(void)
+{
+	return 0;
+}
+
+static inline void unregister_fuseblk(void)
+{
+}
+#endif
+
 static decl_subsys(fuse, NULL, NULL);
 static decl_subsys(connections, NULL, NULL);
 
-static void fuse_inode_init_once(void *foo, kmem_cache_t *cachep,
+static void fuse_inode_init_once(void *foo, struct kmem_cache *cachep,
 				 unsigned long flags)
 {
 	struct inode * inode = foo;
@@ -617,24 +694,34 @@ static int __init fuse_fs_init(void)
 
 	err = register_filesystem(&fuse_fs_type);
 	if (err)
-		printk("fuse: failed to register filesystem\n");
-	else {
-		fuse_inode_cachep = kmem_cache_create("fuse_inode",
-						      sizeof(struct fuse_inode),
-						      0, SLAB_HWCACHE_ALIGN,
-						      fuse_inode_init_once, NULL);
-		if (!fuse_inode_cachep) {
-			unregister_filesystem(&fuse_fs_type);
-			err = -ENOMEM;
-		}
-	}
+		goto out;
 
+	err = register_fuseblk();
+	if (err)
+		goto out_unreg;
+
+	fuse_inode_cachep = kmem_cache_create("fuse_inode",
+					      sizeof(struct fuse_inode),
+					      0, SLAB_HWCACHE_ALIGN,
+					      fuse_inode_init_once, NULL);
+	err = -ENOMEM;
+	if (!fuse_inode_cachep)
+		goto out_unreg2;
+
+	return 0;
+
+ out_unreg2:
+	unregister_fuseblk();
+ out_unreg:
+	unregister_filesystem(&fuse_fs_type);
+ out:
 	return err;
 }
 
 static void fuse_fs_cleanup(void)
 {
 	unregister_filesystem(&fuse_fs_type);
+	unregister_fuseblk();
 	kmem_cache_destroy(fuse_inode_cachep);
 }
 

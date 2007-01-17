@@ -96,7 +96,7 @@ struct acpi_find_pci_root {
 static acpi_status
 do_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 {
-	unsigned long *busnr = (unsigned long *)data;
+	unsigned long *busnr = data;
 	struct acpi_resource_address64 address;
 
 	if (resource->type != ACPI_RESOURCE_TYPE_ADDRESS16 &&
@@ -189,8 +189,12 @@ find_pci_rootbridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 	bus = tmp;
 
 	if (seg == find->seg && bus == find->bus)
+	{
 		find->handle = handle;
-	status = AE_OK;
+		status = AE_CTRL_TERMINATE;
+	}
+	else
+		status = AE_OK;
       exit:
 	kfree(buffer.pointer);
 	return status;
@@ -217,7 +221,7 @@ do_acpi_find_child(acpi_handle handle, u32 lvl, void *context, void **rv)
 	acpi_status status;
 	struct acpi_device_info *info;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_find_child *find = (struct acpi_find_child *)context;
+	struct acpi_find_child *find = context;
 
 	status = acpi_get_object_info(handle, &buffer);
 	if (ACPI_SUCCESS(status)) {
@@ -267,9 +271,9 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 {
 	acpi_status status;
 
-	if (dev->firmware_data) {
+	if (dev->archdata.acpi_handle) {
 		printk(KERN_WARNING PREFIX
-		       "Drivers changed 'firmware_data' for %s\n", dev->bus_id);
+		       "Drivers changed 'acpi_handle' for %s\n", dev->bus_id);
 		return -EINVAL;
 	}
 	get_device(dev);
@@ -278,25 +282,26 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 		put_device(dev);
 		return -EINVAL;
 	}
-	dev->firmware_data = handle;
+	dev->archdata.acpi_handle = handle;
 
 	return 0;
 }
 
 static int acpi_unbind_one(struct device *dev)
 {
-	if (!dev->firmware_data)
+	if (!dev->archdata.acpi_handle)
 		return 0;
-	if (dev == acpi_get_physical_device(dev->firmware_data)) {
+	if (dev == acpi_get_physical_device(dev->archdata.acpi_handle)) {
 		/* acpi_get_physical_device increase refcnt by one */
 		put_device(dev);
-		acpi_detach_data(dev->firmware_data, acpi_glue_data_handler);
-		dev->firmware_data = NULL;
+		acpi_detach_data(dev->archdata.acpi_handle,
+				 acpi_glue_data_handler);
+		dev->archdata.acpi_handle = NULL;
 		/* acpi_bind_one increase refcnt by one */
 		put_device(dev);
 	} else {
 		printk(KERN_ERR PREFIX
-		       "Oops, 'firmware_data' corrupt for %s\n", dev->bus_id);
+		       "Oops, 'acpi_handle' corrupt for %s\n", dev->bus_id);
 	}
 	return 0;
 }
@@ -328,7 +333,8 @@ static int acpi_platform_notify(struct device *dev)
 	if (!ret) {
 		struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
-		acpi_get_name(dev->firmware_data, ACPI_FULL_PATHNAME, &buffer);
+		acpi_get_name(dev->archdata.acpi_handle,
+			      ACPI_FULL_PATHNAME, &buffer);
 		DBG("Device %s -> %s\n", dev->bus_id, (char *)buffer.pointer);
 		kfree(buffer.pointer);
 	} else

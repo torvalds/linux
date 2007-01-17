@@ -192,20 +192,10 @@ static int ide_config(struct pcmcia_device *link)
     tuple.TupleOffset = 0;
     tuple.TupleDataMax = 255;
     tuple.Attributes = 0;
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &stk->parse));
-    link->conf.ConfigBase = stk->parse.config.base;
-    link->conf.Present = stk->parse.config.rmask[0];
 
-    tuple.DesiredTuple = CISTPL_MANFID;
-    if (!pcmcia_get_first_tuple(link, &tuple) &&
-	!pcmcia_get_tuple_data(link, &tuple) &&
-	!pcmcia_parse_tuple(link, &tuple, &stk->parse))
-	is_kme = ((stk->parse.manfid.manf == MANFID_KME) &&
-		  ((stk->parse.manfid.card == PRODID_KME_KXLC005_A) ||
-		   (stk->parse.manfid.card == PRODID_KME_KXLC005_B)));
+    is_kme = ((link->manf_id == MANFID_KME) &&
+	      ((link->card_id == PRODID_KME_KXLC005_A) ||
+	       (link->card_id == PRODID_KME_KXLC005_B)));
 
     /* Not sure if this is right... look up the current Vcc */
     CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &stk->conf));
@@ -408,8 +398,10 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("SMI VENDOR", "SMI PRODUCT", 0x30896c92, 0x703cc5f6),
 	PCMCIA_DEVICE_PROD_ID12("TOSHIBA", "MK2001MPL", 0xb4585a1a, 0x3489e003),
 	PCMCIA_DEVICE_PROD_ID1("TRANSCEND    512M   ", 0xd0909443),
+	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS1GCF80", 0x709b1bf1, 0x2a54d4b1),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS4GCF120", 0x709b1bf1, 0xf54a91c8),
 	PCMCIA_DEVICE_PROD_ID12("WIT", "IDE16", 0x244e5994, 0x3e232852),
+	PCMCIA_DEVICE_PROD_ID12("WEIDA", "TWTTI", 0xcc7cf69c, 0x212bb918),
 	PCMCIA_DEVICE_PROD_ID1("STI Flash", 0xe4a13209),
 	PCMCIA_DEVICE_PROD_ID12("STI", "Flash 5.0", 0xbf2df18d, 0x8cb57a0e),
 	PCMCIA_MFC_DEVICE_PROD_ID12(1, "SanDisk", "ConnectPlus", 0x7a954bd9, 0x74be00c6),

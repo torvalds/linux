@@ -516,9 +516,10 @@ S: Orlando, Florida
 S: USA
 
 N: Lennert Buytenhek
-E: buytenh@gnu.org
-D: Rewrite of the ethernet bridging code
-S: Ravenhorst 58B
+E: kernel@wantstofly.org
+D: Original (2.4) rewrite of the ethernet bridging code
+D: Various ARM bits and pieces
+S: Ravenhorst 58
 S: 2317 AK Leiden
 S: The Netherlands
 
@@ -1808,6 +1809,14 @@ S: Kruislaan 419
 S: 1098 VA Amsterdam 
 S: The Netherlands
 
+N: Jiri Kosina
+E: jikos@jikos.cz
+E: jkosina@suse.cz
+D: Generic HID layer - original code split, fixes
+D: Various ACPI fixes, keeping correct battery state through suspend
+D: various lockdep annotations, autofs and other random bugfixes
+S: Prague, Czech Republic
+
 N: Gene Kozin
 E: 74604.152@compuserve.com
 W: http://www.sangoma.com
@@ -2597,6 +2606,9 @@ D: USB (HID, ACM, Printer ...)
 S: Ucitelska 1576
 S: Prague 8
 S: 182 00 Czech Republic
+
+N: Rick Payne
+D: RFC2385 Support for TCP
 
 N: Barak A. Pearlmutter
 E: bap@cs.unm.edu

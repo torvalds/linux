@@ -223,23 +223,15 @@ static void qe_ic_mask_irq(unsigned int virq)
 	qe_ic_write(qe_ic->regs, qe_ic_info[src].mask_reg,
 		    temp & ~qe_ic_info[src].mask);
 
-	spin_unlock_irqrestore(&qe_ic_lock, flags);
-}
-
-static void qe_ic_mask_irq_and_ack(unsigned int virq)
-{
-	struct qe_ic *qe_ic = qe_ic_from_irq(virq);
-	unsigned int src = virq_to_hw(virq);
-	unsigned long flags;
-	u32 temp;
-
-	spin_lock_irqsave(&qe_ic_lock, flags);
-
-	temp = qe_ic_read(qe_ic->regs, qe_ic_info[src].mask_reg);
-	qe_ic_write(qe_ic->regs, qe_ic_info[src].mask_reg,
-		    temp & ~qe_ic_info[src].mask);
-
-	/* There is nothing to do for ack here, ack is handled in ISR */
+	/* Flush the above write before enabling interrupts; otherwise,
+	 * spurious interrupts will sometimes happen.  To be 100% sure
+	 * that the write has reached the device before interrupts are
+	 * enabled, the mask register would have to be read back; however,
+	 * this is not required for correctness, only to avoid wasting
+	 * time on a large number of spurious interrupts.  In testing,
+	 * a sync reduced the observed spurious interrupts to zero.
+	 */
+	mb();
 
 	spin_unlock_irqrestore(&qe_ic_lock, flags);
 }
@@ -248,7 +240,7 @@ static struct irq_chip qe_ic_irq_chip = {
 	.typename = " QEIC  ",
 	.unmask = qe_ic_unmask_irq,
 	.mask = qe_ic_mask_irq,
-	.mask_ack = qe_ic_mask_irq_and_ack,
+	.mask_ack = qe_ic_mask_irq,
 };
 
 static int qe_ic_host_match(struct irq_host *h, struct device_node *node)
@@ -331,34 +323,22 @@ unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic)
 	return irq_linear_revmap(qe_ic->irqhost, irq);
 }
 
-/* FIXME: We mask all the QE Low interrupts while handling.  We should
- * let other interrupt come in, but BAD interrupts are generated */
 void fastcall qe_ic_cascade_low(unsigned int irq, struct irq_desc *desc)
 {
 	struct qe_ic *qe_ic = desc->handler_data;
-	struct irq_chip *chip = irq_desc[irq].chip;
-
 	unsigned int cascade_irq = qe_ic_get_low_irq(qe_ic);
 
-	chip->mask_ack(irq);
 	if (cascade_irq != NO_IRQ)
 		generic_handle_irq(cascade_irq);
-	chip->unmask(irq);
 }
 
-/* FIXME: We mask all the QE High interrupts while handling.  We should
- * let other interrupt come in, but BAD interrupts are generated */
 void fastcall qe_ic_cascade_high(unsigned int irq, struct irq_desc *desc)
 {
 	struct qe_ic *qe_ic = desc->handler_data;
-	struct irq_chip *chip = irq_desc[irq].chip;
-
 	unsigned int cascade_irq = qe_ic_get_high_irq(qe_ic);
 
-	chip->mask_ack(irq);
 	if (cascade_irq != NO_IRQ)
 		generic_handle_irq(cascade_irq);
-	chip->unmask(irq);
 }
 
 void __init qe_ic_init(struct device_node *node, unsigned int flags)

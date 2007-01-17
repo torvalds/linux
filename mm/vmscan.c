@@ -36,6 +36,7 @@
 #include <linux/rwsem.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -691,7 +692,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 			__count_vm_events(KSWAPD_STEAL, nr_freed);
 		} else
 			__count_zone_vm_events(PGSCAN_DIRECT, zone, nr_scan);
-		__count_vm_events(PGACTIVATE, nr_freed);
+		__count_zone_vm_events(PGSTEAL, zone, nr_freed);
 
 		if (nr_taken == 0)
 			goto done;
@@ -983,7 +984,7 @@ static unsigned long shrink_zones(int priority, struct zone **zones,
 		if (!populated_zone(zone))
 			continue;
 
-		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
 			continue;
 
 		note_zone_scanning_priority(zone, priority);
@@ -1033,7 +1034,7 @@ unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 	for (i = 0; zones[i] != NULL; i++) {
 		struct zone *zone = zones[i];
 
-		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
 			continue;
 
 		lru_pages += zone->nr_active + zone->nr_inactive;
@@ -1088,7 +1089,7 @@ out:
 	for (i = 0; zones[i] != 0; i++) {
 		struct zone *zone = zones[i];
 
-		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
 			continue;
 
 		zone->prev_priority = priority;
@@ -1172,11 +1173,12 @@ loop_again:
 			if (!zone_watermark_ok(zone, order, zone->pages_high,
 					       0, 0)) {
 				end_zone = i;
-				goto scan;
+				break;
 			}
 		}
-		goto out;
-scan:
+		if (i < 0)
+			goto out;
+
 		for (i = 0; i <= end_zone; i++) {
 			struct zone *zone = pgdat->node_zones + i;
 
@@ -1259,6 +1261,9 @@ out:
 	}
 	if (!all_zones_ok) {
 		cond_resched();
+
+		try_to_freeze();
+
 		goto loop_again;
 	}
 
@@ -1349,7 +1354,7 @@ void wakeup_kswapd(struct zone *zone, int order)
 		return;
 	if (pgdat->kswapd_max_order < order)
 		pgdat->kswapd_max_order = order;
-	if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+	if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
 		return;
 	if (!waitqueue_active(&pgdat->kswapd_wait))
 		return;
@@ -1364,8 +1369,8 @@ void wakeup_kswapd(struct zone *zone, int order)
  *
  * For pass > 3 we also try to shrink the LRU lists that contain a few pages
  */
-static unsigned long shrink_all_zones(unsigned long nr_pages, int pass,
-				      int prio, struct scan_control *sc)
+static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
+				      int pass, struct scan_control *sc)
 {
 	struct zone *zone;
 	unsigned long nr_to_scan, ret = 0;
@@ -1401,6 +1406,16 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int pass,
 	return ret;
 }
 
+static unsigned long count_lru_pages(void)
+{
+	struct zone *zone;
+	unsigned long ret = 0;
+
+	for_each_zone(zone)
+		ret += zone->nr_active + zone->nr_inactive;
+	return ret;
+}
+
 /*
  * Try to free `nr_pages' of memory, system-wide, and return the number of
  * freed pages.
@@ -1415,7 +1430,6 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 	unsigned long ret = 0;
 	int pass;
 	struct reclaim_state reclaim_state;
-	struct zone *zone;
 	struct scan_control sc = {
 		.gfp_mask = GFP_KERNEL,
 		.may_swap = 0,
@@ -1426,10 +1440,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 
 	current->reclaim_state = &reclaim_state;
 
-	lru_pages = 0;
-	for_each_zone(zone)
-		lru_pages += zone->nr_active + zone->nr_inactive;
-
+	lru_pages = count_lru_pages();
 	nr_slab = global_page_state(NR_SLAB_RECLAIMABLE);
 	/* If slab caches are huge, it's better to hit them first */
 	while (nr_slab >= lru_pages) {
@@ -1456,13 +1467,6 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 	for (pass = 0; pass < 5; pass++) {
 		int prio;
 
-		/* Needed for shrinking slab caches later on */
-		if (!lru_pages)
-			for_each_zone(zone) {
-				lru_pages += zone->nr_active;
-				lru_pages += zone->nr_inactive;
-			}
-
 		/* Force reclaiming mapped pages in the passes #3 and #4 */
 		if (pass > 2) {
 			sc.may_swap = 1;
@@ -1478,7 +1482,8 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 				goto out;
 
 			reclaim_state.reclaimed_slab = 0;
-			shrink_slab(sc.nr_scanned, sc.gfp_mask, lru_pages);
+			shrink_slab(sc.nr_scanned, sc.gfp_mask,
+					count_lru_pages());
 			ret += reclaim_state.reclaimed_slab;
 			if (ret >= nr_pages)
 				goto out;
@@ -1486,20 +1491,19 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 			if (sc.nr_scanned && prio < DEF_PRIORITY - 2)
 				congestion_wait(WRITE, HZ / 10);
 		}
-
-		lru_pages = 0;
 	}
 
 	/*
 	 * If ret = 0, we could not shrink LRUs, but there may be something
 	 * in slab caches
 	 */
-	if (!ret)
+	if (!ret) {
 		do {
 			reclaim_state.reclaimed_slab = 0;
-			shrink_slab(nr_pages, sc.gfp_mask, lru_pages);
+			shrink_slab(nr_pages, sc.gfp_mask, count_lru_pages());
 			ret += reclaim_state.reclaimed_slab;
 		} while (ret < nr_pages && reclaim_state.reclaimed_slab > 0);
+	}
 
 out:
 	current->reclaim_state = NULL;
@@ -1508,7 +1512,6 @@ out:
 }
 #endif
 
-#ifdef CONFIG_HOTPLUG_CPU
 /* It's optimal to keep kswapds on the same CPUs as their memory, but
    not required for correctness.  So if the last cpu in a node goes
    away, we get changed to run anywhere: as the first one comes back,
@@ -1529,7 +1532,6 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 	}
 	return NOTIFY_OK;
 }
-#endif /* CONFIG_HOTPLUG_CPU */
 
 /*
  * This kswapd start function will be called by init and node-hot-add.

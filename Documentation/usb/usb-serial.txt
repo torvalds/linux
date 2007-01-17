@@ -175,7 +175,7 @@ Keyspan USA-series Serial Adapters
   
   Current status:
     The USA-18X, USA-28X, USA-19, USA-19W and USA-49W are supported and
-    have been pretty throughly tested at various baud rates with 8-N-1
+    have been pretty thoroughly tested at various baud rates with 8-N-1
     character settings.  Other character lengths and parity setups are
     presently untested.
 
@@ -253,7 +253,7 @@ Cypress M8 CY4601 Family Serial Driver
 	together without hacking the adapter to set the line high.
 
 	The driver is smp safe.  Performance with the driver is rather low when using
-	it for transfering files.  This is being worked on, but I would be willing to
+	it for transferring files.  This is being worked on, but I would be willing to
 	accept patches.  An urb queue or packet buffer would likely fit the bill here.
 
 	If you have any questions, problems, patches, feature requests, etc. you can
@@ -297,7 +297,7 @@ Belkin USB Serial Adapter F5U103
       Parity       N,E,O,M,S
       Handshake    None, Software (XON/XOFF), Hardware (CTSRTS,CTSDTR)*
       Break        Set and clear
-      Line contrl  Input/Output query and control **
+      Line control Input/Output query and control **
 
       *  Hardware input flow control is only enabled for firmware
          levels above 2.06.  Read source code comments describing Belkin
@@ -309,7 +309,7 @@ Belkin USB Serial Adapter F5U103
          automatic hardware flow control.
 
   TO DO List:
-    -- Add true modem contol line query capability.  Currently tracks the
+    -- Add true modem control line query capability.  Currently tracks the
        states reported by the interrupt and the states requested.
     -- Add error reporting back to application for UART error conditions.
     -- Add support for flush ioctls.

@@ -61,7 +61,6 @@
  */
 #include <stddef.h>
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 #include <asm/pmac_low_i2c.h>
 #include <asm/prom.h>
 #include <linux/delay.h>

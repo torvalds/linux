@@ -266,10 +266,10 @@ static void __init mpc8272ads_fixup_mdio_pdata(struct platform_device *pdev,
 					      int idx)
 {
 	m82xx_mii_bb_pdata.irq[0] = PHY_INTERRUPT;
-	m82xx_mii_bb_pdata.irq[1] = -1;
-	m82xx_mii_bb_pdata.irq[2] = -1;
+	m82xx_mii_bb_pdata.irq[1] = PHY_POLL;
+	m82xx_mii_bb_pdata.irq[2] = PHY_POLL;
 	m82xx_mii_bb_pdata.irq[3] = PHY_INTERRUPT;
-	m82xx_mii_bb_pdata.irq[31] = -1;
+	m82xx_mii_bb_pdata.irq[31] = PHY_POLL;
 
 
 	m82xx_mii_bb_pdata.mdio_dat.offset =

@@ -37,7 +37,7 @@ static struct input_handler *input_table[8];
 
 /**
  * input_event() - report new input event
- * @handle: device that generated the event
+ * @dev: device that generated the event
  * @type: type of the event
  * @code: event code
  * @value: value of the event
@@ -900,6 +900,15 @@ struct class input_class = {
 };
 EXPORT_SYMBOL_GPL(input_class);
 
+/**
+ * input_allocate_device - allocate memory for new input device
+ *
+ * Returns prepared struct input_dev or NULL.
+ *
+ * NOTE: Use input_free_device() to free devices that have not been
+ * registered; input_unregister_device() should be used for already
+ * registered devices.
+ */
 struct input_dev *input_allocate_device(void)
 {
 	struct input_dev *dev;
@@ -919,6 +928,20 @@ struct input_dev *input_allocate_device(void)
 }
 EXPORT_SYMBOL(input_allocate_device);
 
+/**
+ * input_free_device - free memory occupied by input_dev structure
+ * @dev: input device to free
+ *
+ * This function should only be used if input_register_device()
+ * was not called yet or if it failed. Once device was registered
+ * use input_unregister_device() and memory will be freed once last
+ * refrence to the device is dropped.
+ *
+ * Device should be allocated by input_allocate_device().
+ *
+ * NOTE: If there are references to the input device then memory
+ * will not be freed until last reference is dropped.
+ */
 void input_free_device(struct input_dev *dev)
 {
 	if (dev) {

@@ -87,7 +87,7 @@ static struct at91_cf_data __initdata eb9200_cf_data = {
 };
 
 static struct at91_mmc_data __initdata eb9200_mmc_data = {
-	.is_b		= 0,
+	.slot_b		= 0,
 	.wire4		= 1,
 };
 

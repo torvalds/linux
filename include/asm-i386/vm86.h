@@ -145,26 +145,13 @@ struct vm86plus_struct {
  * at the end of the structure. Look at ptrace.h to see the "normal"
  * setup. For user space layout see 'struct vm86_regs' above.
  */
+#include <asm/ptrace.h>
 
 struct kernel_vm86_regs {
 /*
  * normal regs, with special meaning for the segment descriptors..
  */
-	long ebx;
-	long ecx;
-	long edx;
-	long esi;
-	long edi;
-	long ebp;
-	long eax;
-	long __null_ds;
-	long __null_es;
-	long orig_eax;
-	long eip;
-	unsigned short cs, __csh;
-	long eflags;
-	long esp;
-	unsigned short ss, __ssh;
+	struct pt_regs pt;
 /*
  * these are specific to v86 mode:
  */

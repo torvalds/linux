@@ -158,12 +158,10 @@ static void host_reset(struct hpsb_host *host)
  */
 static inline void calculate_expire(struct csr_control *csr)
 {
-	unsigned long usecs =
-		(csr->split_timeout_hi & 0x07) * USEC_PER_SEC +
-		(csr->split_timeout_lo >> 19) * 125L;
+	unsigned int usecs = (csr->split_timeout_hi & 7) * 1000000 +
+			     (csr->split_timeout_lo >> 19) * 125;
 
-	csr->expire = usecs_to_jiffies(usecs > 100000L ? usecs : 100000L);
-
+	csr->expire = usecs_to_jiffies(usecs > 100000 ? usecs : 100000);
 	HPSB_VERBOSE("CSR: setting expire to %lu, HZ=%u", csr->expire, HZ);
 }
 

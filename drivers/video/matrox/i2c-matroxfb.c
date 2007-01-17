@@ -124,7 +124,7 @@ static int i2c_bus_reg(struct i2c_bit_adapter* b, struct matrox_fb_info* minfo,
 
 static void i2c_bit_bus_del(struct i2c_bit_adapter* b) {
 	if (b->initialized) {
-		i2c_bit_del_bus(&b->adapter);
+		i2c_del_adapter(&b->adapter);
 		b->initialized = 0;
 	}
 }
@@ -146,7 +146,7 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 	unsigned long flags;
 	struct matroxfb_dh_maven_info* m2info;
 
-	m2info = (struct matroxfb_dh_maven_info*)kmalloc(sizeof(*m2info), GFP_KERNEL);
+	m2info = kmalloc(sizeof(*m2info), GFP_KERNEL);
 	if (!m2info)
 		return NULL;
 

@@ -91,8 +91,8 @@ struct xid_frame {
 	__u8  caddr; /* Connection address */
 	__u8  control;
 	__u8  ident; /* Should always be XID_FORMAT */ 
-	__u32 saddr; /* Source device address */
-	__u32 daddr; /* Destination device address */
+	__le32 saddr; /* Source device address */
+	__le32 daddr; /* Destination device address */
 	__u8  flags; /* Discovery flags */
 	__u8  slotnr;
 	__u8  version;
@@ -101,15 +101,15 @@ struct xid_frame {
 struct test_frame {
 	__u8 caddr;          /* Connection address */
 	__u8 control;
-	__u32 saddr;         /* Source device address */
-	__u32 daddr;         /* Destination device address */
+	__le32 saddr;         /* Source device address */
+	__le32 daddr;         /* Destination device address */
 } IRDA_PACK;
 
 struct ua_frame {
 	__u8 caddr;
 	__u8 control;
-	__u32 saddr; /* Source device address */
-	__u32 daddr; /* Dest device address */
+	__le32 saddr; /* Source device address */
+	__le32 daddr; /* Dest device address */
 } IRDA_PACK;
 
 struct dm_frame {
@@ -135,8 +135,8 @@ struct i_frame {
 struct snrm_frame {
 	__u8  caddr;
 	__u8  control;
-	__u32 saddr;
-	__u32 daddr;
+	__le32 saddr;
+	__le32 daddr;
 	__u8  ncaddr;
 } IRDA_PACK;
 

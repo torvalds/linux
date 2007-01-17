@@ -39,8 +39,6 @@ static void copy_page_dma(void *to, void *from)
 
 static void clear_page_dma(void *to)
 {
-	extern unsigned long empty_zero_page[1024];
-
 	/*
 	 * We get invoked quite early on, if the DMAC hasn't been initialized
 	 * yet, fall back on the slow manual implementation.

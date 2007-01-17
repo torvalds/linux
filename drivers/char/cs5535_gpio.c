@@ -82,7 +82,7 @@ static inline u32 cs5535_lowhigh_base(int reg)
 static ssize_t cs5535_gpio_write(struct file *file, const char __user *data,
 				 size_t len, loff_t *ppos)
 {
-	u32	m = iminor(file->f_dentry->d_inode);
+	u32	m = iminor(file->f_path.dentry->d_inode);
 	int	i, j;
 	u32	base = gpio_base + cs5535_lowhigh_base(m);
 	u32	m0, m1;
@@ -117,7 +117,7 @@ static ssize_t cs5535_gpio_write(struct file *file, const char __user *data,
 static ssize_t cs5535_gpio_read(struct file *file, char __user *buf,
 				size_t len, loff_t *ppos)
 {
-	u32	m = iminor(file->f_dentry->d_inode);
+	u32	m = iminor(file->f_path.dentry->d_inode);
 	u32	base = gpio_base + cs5535_lowhigh_base(m);
 	int	rd_bit = 1 << (m & 0x0f);
 	int	i;

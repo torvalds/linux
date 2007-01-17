@@ -77,7 +77,7 @@ struct rsvp_head
 struct rsvp_session
 {
 	struct rsvp_session	*next;
-	u32			dst[RSVP_DST_LEN];
+	__be32			dst[RSVP_DST_LEN];
 	struct tc_rsvp_gpi 	dpi;
 	u8			protocol;
 	u8			tunnelid;
@@ -89,7 +89,7 @@ struct rsvp_session
 struct rsvp_filter
 {
 	struct rsvp_filter	*next;
-	u32			src[RSVP_DST_LEN];
+	__be32			src[RSVP_DST_LEN];
 	struct tc_rsvp_gpi	spi;
 	u8			tunnelhdr;
 
@@ -100,17 +100,17 @@ struct rsvp_filter
 	struct rsvp_session	*sess;
 };
 
-static __inline__ unsigned hash_dst(u32 *dst, u8 protocol, u8 tunnelid)
+static __inline__ unsigned hash_dst(__be32 *dst, u8 protocol, u8 tunnelid)
 {
-	unsigned h = dst[RSVP_DST_LEN-1];
+	unsigned h = (__force __u32)dst[RSVP_DST_LEN-1];
 	h ^= h>>16;
 	h ^= h>>8;
 	return (h ^ protocol ^ tunnelid) & 0xFF;
 }
 
-static __inline__ unsigned hash_src(u32 *src)
+static __inline__ unsigned hash_src(__be32 *src)
 {
-	unsigned h = src[RSVP_DST_LEN-1];
+	unsigned h = (__force __u32)src[RSVP_DST_LEN-1];
 	h ^= h>>16;
 	h ^= h>>8;
 	h ^= h>>4;
@@ -138,7 +138,7 @@ static int rsvp_classify(struct sk_buff *skb, struct tcf_proto *tp,
 	struct rsvp_session *s;
 	struct rsvp_filter *f;
 	unsigned h1, h2;
-	u32 *dst, *src;
+	__be32 *dst, *src;
 	u8 protocol;
 	u8 tunnelid = 0;
 	u8 *xprt;
@@ -410,7 +410,7 @@ static int rsvp_change(struct tcf_proto *tp, unsigned long base,
 	struct rtattr *tb[TCA_RSVP_MAX];
 	struct tcf_exts e;
 	unsigned h1, h2;
-	u32 *dst;
+	__be32 *dst;
 	int err;
 
 	if (opt == NULL)

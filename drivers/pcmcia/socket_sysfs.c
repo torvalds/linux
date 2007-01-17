@@ -188,7 +188,7 @@ static ssize_t pccard_store_resource(struct class_device *dev, const char *buf, 
 	    (s->state & SOCKET_PRESENT) &&
 	    !(s->state & SOCKET_CARDBUS)) {
 		if (try_module_get(s->callback->owner)) {
-			s->callback->requery(s);
+			s->callback->requery(s, 0);
 			module_put(s->callback->owner);
 		}
 	}
@@ -325,7 +325,7 @@ static ssize_t pccard_store_cis(struct kobject *kobj, char *buf, loff_t off, siz
 	if ((s->callback) && (s->state & SOCKET_PRESENT) &&
 	    !(s->state & SOCKET_CARDBUS)) {
 		if (try_module_get(s->callback->owner)) {
-			s->callback->requery(s);
+			s->callback->requery(s, 1);
 			module_put(s->callback->owner);
 		}
 	}

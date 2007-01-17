@@ -38,7 +38,7 @@ qla4xxx_lookup_ddb_by_fw_index(struct scsi_qla_host *ha, uint32_t fw_ddb_index)
 static inline void
 __qla4xxx_enable_intrs(struct scsi_qla_host *ha)
 {
-	if (is_qla4022(ha)) {
+	if (is_qla4022(ha) | is_qla4032(ha)) {
 		writel(set_rmask(IMR_SCSI_INTR_ENABLE),
 		       &ha->reg->u1.isp4022.intr_mask);
 		readl(&ha->reg->u1.isp4022.intr_mask);
@@ -52,7 +52,7 @@ __qla4xxx_enable_intrs(struct scsi_qla_host *ha)
 static inline void
 __qla4xxx_disable_intrs(struct scsi_qla_host *ha)
 {
-	if (is_qla4022(ha)) {
+	if (is_qla4022(ha) | is_qla4032(ha)) {
 		writel(clr_rmask(IMR_SCSI_INTR_ENABLE),
 		       &ha->reg->u1.isp4022.intr_mask);
 		readl(&ha->reg->u1.isp4022.intr_mask);

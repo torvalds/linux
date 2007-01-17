@@ -13,9 +13,9 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
+#include <asm/elf.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
-#include <asm/procinfo.h>
 #include <asm/ptrace.h>
 
 /*

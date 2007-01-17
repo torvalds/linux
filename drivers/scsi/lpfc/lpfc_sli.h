@@ -198,7 +198,7 @@ struct lpfc_sli {
 	int fcp_ring;		/* ring used for FCP initiator commands */
 	int next_ring;
 
-	int ip_ring;		/* ring used for IP network drv cmds */
+	int extra_ring;		/* extra ring used for other protocols */
 
 	struct lpfc_sli_stat slistat;	/* SLI statistical info */
 	struct list_head mboxq;

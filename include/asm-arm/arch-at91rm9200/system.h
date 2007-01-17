@@ -22,6 +22,8 @@
 #define __ASM_ARCH_SYSTEM_H
 
 #include <asm/hardware.h>
+#include <asm/arch/at91_st.h>
+#include <asm/arch/at91_dbgu.h>
 
 static inline void arch_idle(void)
 {
@@ -39,21 +41,13 @@ static inline void arch_idle(void)
 	cpu_do_idle();
 }
 
+void (*at91_arch_reset)(void);
+
 static inline void arch_reset(char mode)
 {
-	/*
-	 * Perform a hardware reset with the use of the Watchdog timer.
-	 */
-	at91_sys_write(AT91_ST_WDMR, AT91_ST_RSTEN | AT91_ST_EXTEN | 1);
-	at91_sys_write(AT91_ST_CR, AT91_ST_WDRST);
-}
-
-#define ARCH_ID_AT91RM9200	0x09200080
-#define ARCH_ID_AT91SAM9261	0x019000a0
-
-static inline unsigned long arch_identify(void)
-{
-	return at91_sys_read(AT91_DBGU_CIDR) & (AT91_CIDR_EPROC | AT91_CIDR_ARCH);
+	/* call the CPU-specific reset function */
+	if (at91_arch_reset)
+		(at91_arch_reset)();
 }
 
 #endif

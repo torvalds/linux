@@ -142,7 +142,7 @@ static u64 sh7750_read_counter(int counter)
  */
 static inline int to_counter(struct file *file)
 {
-	const unsigned char *name = file->f_dentry->d_parent->d_name.name;
+	const unsigned char *name = file->f_path.dentry->d_parent->d_name.name;
 
 	return (int)simple_strtol(name, NULL, 10);
 }

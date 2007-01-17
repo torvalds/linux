@@ -56,8 +56,8 @@
 /* 2*ITNL timeout + 1 second */
 #define AIC94XX_SCB_TIMEOUT  (5*HZ)
 
-extern kmem_cache_t *asd_dma_token_cache;
-extern kmem_cache_t *asd_ascb_cache;
+extern struct kmem_cache *asd_dma_token_cache;
+extern struct kmem_cache *asd_ascb_cache;
 extern char sas_addr_str[2*SAS_ADDR_SIZE + 1];
 
 static inline void asd_stringify_sas_addr(char *p, const u8 *sas_addr)

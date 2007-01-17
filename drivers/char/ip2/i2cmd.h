@@ -367,11 +367,6 @@ static UCHAR cc02[];
 #define CSE_NULL  3  // Replace with a null
 #define CSE_MARK  4  // Replace with a 3-character sequence (as Unix)
 
-#define  CMD_SET_REPLACEMENT(arg,ch)   \
-			(((cmdSyntaxPtr)(ct36a))->cmd[1] = (arg), \
-			(((cmdSyntaxPtr)(ct36a))->cmd[2] = (ch),  \
-			(cmdSyntaxPtr)(ct36a))
-
 #define CSE_REPLACE  0x8	// Replace the errored character with the
 							// replacement character defined here
 

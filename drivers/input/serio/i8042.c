@@ -255,25 +255,10 @@ static int i8042_kbd_write(struct serio *port, unsigned char c)
 static int i8042_aux_write(struct serio *serio, unsigned char c)
 {
 	struct i8042_port *port = serio->port_data;
-	int retval;
 
-/*
- * Send the byte out.
- */
-
-	if (port->mux == -1)
-		retval = i8042_command(&c, I8042_CMD_AUX_SEND);
-	else
-		retval = i8042_command(&c, I8042_CMD_MUX_SEND + port->mux);
-
-/*
- * Make sure the interrupt happens and the character is received even
- * in the case the IRQ isn't wired, so that we can receive further
- * characters later.
- */
-
-	i8042_interrupt(0, NULL);
-	return retval;
+	return i8042_command(&c, port->mux == -1 ?
+					I8042_CMD_AUX_SEND :
+					I8042_CMD_MUX_SEND + port->mux);
 }
 
 /*
@@ -337,23 +322,27 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 		dfl = 0;
 		if (str & I8042_STR_MUXERR) {
 			dbg("MUX error, status is %02x, data is %02x", str, data);
-			switch (data) {
-				default:
 /*
  * When MUXERR condition is signalled the data register can only contain
  * 0xfd, 0xfe or 0xff if implementation follows the spec. Unfortunately
- * it is not always the case. Some KBC just get confused which port the
- * data came from and signal error leaving the data intact. They _do not_
- * revert to legacy mode (actually I've never seen KBC reverting to legacy
- * mode yet, when we see one we'll add proper handling).
- * Anyway, we will assume that the data came from the same serio last byte
+ * it is not always the case. Some KBCs also report 0xfc when there is
+ * nothing connected to the port while others sometimes get confused which
+ * port the data came from and signal error leaving the data intact. They
+ * _do not_ revert to legacy mode (actually I've never seen KBC reverting
+ * to legacy mode yet, when we see one we'll add proper handling).
+ * Anyway, we process 0xfc, 0xfd, 0xfe and 0xff as timeouts, and for the
+ * rest assume that the data came from the same serio last byte
  * was transmitted (if transmission happened not too long ago).
  */
+
+			switch (data) {
+				default:
 					if (time_before(jiffies, last_transmit + HZ/10)) {
 						str = last_str;
 						break;
 					}
 					/* fall through - report timeout */
+				case 0xfc:
 				case 0xfd:
 				case 0xfe: dfl = SERIO_TIMEOUT; data = 0xfe; break;
 				case 0xff: dfl = SERIO_PARITY;  data = 0xfe; break;

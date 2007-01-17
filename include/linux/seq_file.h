@@ -20,7 +20,7 @@ struct seq_file {
 	loff_t index;
 	loff_t version;
 	struct mutex lock;
-	struct seq_operations *op;
+	const struct seq_operations *op;
 	void *private;
 };
 
@@ -31,7 +31,7 @@ struct seq_operations {
 	int (*show) (struct seq_file *m, void *v);
 };
 
-int seq_open(struct file *, struct seq_operations *);
+int seq_open(struct file *, const struct seq_operations *);
 ssize_t seq_read(struct file *, char __user *, size_t, loff_t *);
 loff_t seq_lseek(struct file *, loff_t, int);
 int seq_release(struct inode *, struct file *);

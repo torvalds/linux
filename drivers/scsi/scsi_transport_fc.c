@@ -241,9 +241,9 @@ fc_bitfield_name_search(remote_port_roles, fc_remote_port_role_names)
 #define FC_MGMTSRVR_PORTID		0x00000a
 
 
-static void fc_timeout_deleted_rport(void *data);
-static void fc_timeout_fail_rport_io(void *data);
-static void fc_scsi_scan_rport(void *data);
+static void fc_timeout_deleted_rport(struct work_struct *work);
+static void fc_timeout_fail_rport_io(struct work_struct *work);
+static void fc_scsi_scan_rport(struct work_struct *work);
 
 /*
  * Attribute counts pre object type...
@@ -1613,7 +1613,7 @@ fc_flush_work(struct Scsi_Host *shost)
  * 	1 on success / 0 already queued / < 0 for error
  **/
 static int
-fc_queue_devloss_work(struct Scsi_Host *shost, struct work_struct *work,
+fc_queue_devloss_work(struct Scsi_Host *shost, struct delayed_work *work,
 				unsigned long delay)
 {
 	if (unlikely(!fc_host_devloss_work_q(shost))) {
@@ -1624,9 +1624,6 @@ fc_queue_devloss_work(struct Scsi_Host *shost, struct work_struct *work,
 
 		return -EINVAL;
 	}
-
-	if (delay == 0)
-		return queue_work(fc_host_devloss_work_q(shost), work);
 
 	return queue_delayed_work(fc_host_devloss_work_q(shost), work, delay);
 }
@@ -1712,12 +1709,13 @@ EXPORT_SYMBOL(fc_remove_host);
  * fc_starget_delete - called to delete the scsi decendents of an rport
  *                  (target and all sdevs)
  *
- * @data:	remote port to be operated on.
+ * @work:	remote port to be operated on.
  **/
 static void
-fc_starget_delete(void *data)
+fc_starget_delete(struct work_struct *work)
 {
-	struct fc_rport *rport = (struct fc_rport *)data;
+	struct fc_rport *rport =
+		container_of(work, struct fc_rport, stgt_delete_work);
 	struct Scsi_Host *shost = rport_to_shost(rport);
 	unsigned long flags;
 	struct fc_internal *i = to_fc_internal(shost->transportt);
@@ -1751,12 +1749,13 @@ fc_starget_delete(void *data)
 /**
  * fc_rport_final_delete - finish rport termination and delete it.
  *
- * @data:	remote port to be deleted.
+ * @work:	remote port to be deleted.
  **/
 static void
-fc_rport_final_delete(void *data)
+fc_rport_final_delete(struct work_struct *work)
 {
-	struct fc_rport *rport = (struct fc_rport *)data;
+	struct fc_rport *rport =
+		container_of(work, struct fc_rport, rport_delete_work);
 	struct device *dev = &rport->dev;
 	struct Scsi_Host *shost = rport_to_shost(rport);
 	struct fc_internal *i = to_fc_internal(shost->transportt);
@@ -1770,7 +1769,7 @@ fc_rport_final_delete(void *data)
 
 	/* Delete SCSI target and sdevs */
 	if (rport->scsi_target_id != -1)
-		fc_starget_delete(data);
+		fc_starget_delete(&rport->stgt_delete_work);
 	else if (i->f->dev_loss_tmo_callbk)
 		i->f->dev_loss_tmo_callbk(rport);
 	else if (i->f->terminate_rport_io)
@@ -1829,11 +1828,11 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 	rport->channel = channel;
 	rport->fast_io_fail_tmo = -1;
 
-	INIT_WORK(&rport->dev_loss_work, fc_timeout_deleted_rport, rport);
-	INIT_WORK(&rport->fail_io_work, fc_timeout_fail_rport_io, rport);
-	INIT_WORK(&rport->scan_work, fc_scsi_scan_rport, rport);
-	INIT_WORK(&rport->stgt_delete_work, fc_starget_delete, rport);
-	INIT_WORK(&rport->rport_delete_work, fc_rport_final_delete, rport);
+	INIT_DELAYED_WORK(&rport->dev_loss_work, fc_timeout_deleted_rport);
+	INIT_DELAYED_WORK(&rport->fail_io_work, fc_timeout_fail_rport_io);
+	INIT_WORK(&rport->scan_work, fc_scsi_scan_rport);
+	INIT_WORK(&rport->stgt_delete_work, fc_starget_delete);
+	INIT_WORK(&rport->rport_delete_work, fc_rport_final_delete);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 
@@ -1963,7 +1962,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 			}
 
 			if (match) {
-				struct work_struct *work = 
+				struct delayed_work *work =
 							&rport->dev_loss_work;
 
 				memcpy(&rport->node_name, &ids->node_name,
@@ -2267,12 +2266,13 @@ EXPORT_SYMBOL(fc_remote_port_rolechg);
  *                       was a SCSI target (thus was blocked), and failed
  *                       to return in the alloted time.
  * 
- * @data:	rport target that failed to reappear in the alloted time.
+ * @work:	rport target that failed to reappear in the alloted time.
  **/
 static void
-fc_timeout_deleted_rport(void  *data)
+fc_timeout_deleted_rport(struct work_struct *work)
 {
-	struct fc_rport *rport = (struct fc_rport *)data;
+	struct fc_rport *rport =
+		container_of(work, struct fc_rport, dev_loss_work.work);
 	struct Scsi_Host *shost = rport_to_shost(rport);
 	struct fc_host_attrs *fc_host = shost_to_fc_host(shost);
 	unsigned long flags;
@@ -2366,15 +2366,16 @@ fc_timeout_deleted_rport(void  *data)
  * fc_timeout_fail_rport_io - Timeout handler for a fast io failing on a
  *                       disconnected SCSI target.
  *
- * @data:	rport to terminate io on.
+ * @work:	rport to terminate io on.
  *
  * Notes: Only requests the failure of the io, not that all are flushed
  *    prior to returning.
  **/
 static void
-fc_timeout_fail_rport_io(void  *data)
+fc_timeout_fail_rport_io(struct work_struct *work)
 {
-	struct fc_rport *rport = (struct fc_rport *)data;
+	struct fc_rport *rport =
+		container_of(work, struct fc_rport, fail_io_work.work);
 	struct Scsi_Host *shost = rport_to_shost(rport);
 	struct fc_internal *i = to_fc_internal(shost->transportt);
 
@@ -2387,12 +2388,13 @@ fc_timeout_fail_rport_io(void  *data)
 /**
  * fc_scsi_scan_rport - called to perform a scsi scan on a remote port.
  *
- * @data:	remote port to be scanned.
+ * @work:	remote port to be scanned.
  **/
 static void
-fc_scsi_scan_rport(void *data)
+fc_scsi_scan_rport(struct work_struct *work)
 {
-	struct fc_rport *rport = (struct fc_rport *)data;
+	struct fc_rport *rport =
+		container_of(work, struct fc_rport, scan_work);
 	struct Scsi_Host *shost = rport_to_shost(rport);
 	unsigned long flags;
 

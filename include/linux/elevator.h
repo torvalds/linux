@@ -12,6 +12,8 @@ typedef void (elevator_merge_req_fn) (request_queue_t *, struct request *, struc
 
 typedef void (elevator_merged_fn) (request_queue_t *, struct request *, int);
 
+typedef int (elevator_allow_merge_fn) (request_queue_t *, struct request *, struct bio *);
+
 typedef int (elevator_dispatch_fn) (request_queue_t *, int);
 
 typedef void (elevator_add_req_fn) (request_queue_t *, struct request *);
@@ -21,11 +23,11 @@ typedef void (elevator_completed_req_fn) (request_queue_t *, struct request *);
 typedef int (elevator_may_queue_fn) (request_queue_t *, int);
 
 typedef int (elevator_set_req_fn) (request_queue_t *, struct request *, gfp_t);
-typedef void (elevator_put_req_fn) (request_queue_t *, struct request *);
+typedef void (elevator_put_req_fn) (struct request *);
 typedef void (elevator_activate_req_fn) (request_queue_t *, struct request *);
 typedef void (elevator_deactivate_req_fn) (request_queue_t *, struct request *);
 
-typedef void *(elevator_init_fn) (request_queue_t *, elevator_t *);
+typedef void *(elevator_init_fn) (request_queue_t *);
 typedef void (elevator_exit_fn) (elevator_t *);
 
 struct elevator_ops
@@ -33,6 +35,7 @@ struct elevator_ops
 	elevator_merge_fn *elevator_merge_fn;
 	elevator_merged_fn *elevator_merged_fn;
 	elevator_merge_req_fn *elevator_merge_req_fn;
+	elevator_allow_merge_fn *elevator_allow_merge_fn;
 
 	elevator_dispatch_fn *elevator_dispatch_fn;
 	elevator_add_req_fn *elevator_add_req_fn;

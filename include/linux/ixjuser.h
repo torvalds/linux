@@ -315,7 +315,7 @@ typedef struct {
 * structures.  If the freq0 variable is non-zero, the tone table contents
 * for the tone_index are updated to the frequencies and gains defined.  It
 * should be noted that DTMF tones cannot be reassigned, so if DTMF tone
-* table indexs are used in a cadence the frequency and gain variables will
+* table indexes are used in a cadence the frequency and gain variables will
 * be ignored.
 *
 * If the array elements contain frequency parameters the driver will

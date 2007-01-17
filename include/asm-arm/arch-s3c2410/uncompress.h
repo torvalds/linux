@@ -1,7 +1,7 @@
 /* linux/include/asm-arm/arch-s3c2410/uncompress.h
  *
- * (c) 2003 Simtec Electronics
- *    Ben Dooks <ben@simtec.co.uk>
+ * Copyright (c) 2003 Simtec Electronics
+ *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2410 - uncompress code
  *
@@ -13,6 +13,7 @@
 #ifndef __ASM_ARCH_UNCOMPRESS_H
 #define __ASM_ARCH_UNCOMPRESS_H
 
+typedef unsigned int upf_t;	/* cannot include linux/serial_core.h */
 
 /* defines for UART registers */
 #include "asm/arch/regs-serial.h"

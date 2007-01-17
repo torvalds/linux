@@ -98,7 +98,7 @@
 static char nfs_root_name[256] __initdata = "";
 
 /* Address of NFS server */
-static __u32 servaddr __initdata = 0;
+static __be32 servaddr __initdata = 0;
 
 /* Name of directory to mount */
 static char nfs_path[NFS_MAXPATHLEN] __initdata = { 0, };
@@ -327,7 +327,7 @@ static int __init root_nfs_name(char *name)
  */
 static int __init root_nfs_addr(void)
 {
-	if ((servaddr = root_server_addr) == INADDR_NONE) {
+	if ((servaddr = root_server_addr) == htonl(INADDR_NONE)) {
 		printk(KERN_ERR "Root-NFS: No NFS server available, giving up.\n");
 		return -1;
 	}
@@ -411,7 +411,7 @@ __setup("nfsroot=", nfs_root_setup);
  *  Construct sockaddr_in from address and port number.
  */
 static inline void
-set_sockaddr(struct sockaddr_in *sin, __u32 addr, __u16 port)
+set_sockaddr(struct sockaddr_in *sin, __be32 addr, __be16 port)
 {
 	sin->sin_family = AF_INET;
 	sin->sin_addr.s_addr = addr;
@@ -468,14 +468,13 @@ static int __init root_nfs_ports(void)
 		dprintk("Root-NFS: Portmapper on server returned %d "
 			"as nfsd port\n", port);
 	}
-	nfs_port = htons(nfs_port);
 
 	if ((port = root_nfs_getport(NFS_MNT_PROGRAM, mountd_ver, proto)) < 0) {
 		printk(KERN_ERR "Root-NFS: Unable to get mountd port "
 				"number from server, using default\n");
 		port = mountd_port;
 	}
-	mount_port = htons(port);
+	mount_port = port;
 	dprintk("Root-NFS: mountd port is %d\n", port);
 
 	return 0;
@@ -496,7 +495,7 @@ static int __init root_nfs_get_handle(void)
 	int version = (nfs_data.flags & NFS_MOUNT_VER3) ?
 					NFS_MNT3_VERSION : NFS_MNT_VERSION;
 
-	set_sockaddr(&sin, servaddr, mount_port);
+	set_sockaddr(&sin, servaddr, htons(mount_port));
 	status = nfsroot_mount(&sin, nfs_path, &fh, version, protocol);
 	if (status < 0)
 		printk(KERN_ERR "Root-NFS: Server returned error %d "
@@ -519,6 +518,6 @@ void * __init nfs_root_data(void)
 	 || root_nfs_ports() < 0
 	 || root_nfs_get_handle() < 0)
 		return NULL;
-	set_sockaddr((struct sockaddr_in *) &nfs_data.addr, servaddr, nfs_port);
+	set_sockaddr((struct sockaddr_in *) &nfs_data.addr, servaddr, htons(nfs_port));
 	return (void*)&nfs_data;
 }

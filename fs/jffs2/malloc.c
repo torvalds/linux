@@ -19,16 +19,16 @@
 
 /* These are initialised to NULL in the kernel startup code.
    If you're porting to other operating systems, beware */
-static kmem_cache_t *full_dnode_slab;
-static kmem_cache_t *raw_dirent_slab;
-static kmem_cache_t *raw_inode_slab;
-static kmem_cache_t *tmp_dnode_info_slab;
-static kmem_cache_t *raw_node_ref_slab;
-static kmem_cache_t *node_frag_slab;
-static kmem_cache_t *inode_cache_slab;
+static struct kmem_cache *full_dnode_slab;
+static struct kmem_cache *raw_dirent_slab;
+static struct kmem_cache *raw_inode_slab;
+static struct kmem_cache *tmp_dnode_info_slab;
+static struct kmem_cache *raw_node_ref_slab;
+static struct kmem_cache *node_frag_slab;
+static struct kmem_cache *inode_cache_slab;
 #ifdef CONFIG_JFFS2_FS_XATTR
-static kmem_cache_t *xattr_datum_cache;
-static kmem_cache_t *xattr_ref_cache;
+static struct kmem_cache *xattr_datum_cache;
+static struct kmem_cache *xattr_ref_cache;
 #endif
 
 int __init jffs2_create_slab_caches(void)

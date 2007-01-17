@@ -156,7 +156,7 @@ static int __init pca_isa_init(void)
 
 static void pca_isa_exit(void)
 {
-	i2c_pca_del_bus(&pca_isa_ops);
+	i2c_del_adapter(&pca_isa_ops);
 
 	if (irq > 0) {
 		disable_irq(irq);

@@ -646,7 +646,7 @@ sddr09_read_sg_test_only(struct us_data *us) {
 		return result;
 	}
 
-	buf = (unsigned char *) kmalloc(bulklen, GFP_NOIO);
+	buf = kmalloc(bulklen, GFP_NOIO);
 	if (!buf)
 		return -ENOMEM;
 

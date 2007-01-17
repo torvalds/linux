@@ -43,15 +43,16 @@ struct mtrr_ops {
 	void	(*set_all)(void);
 
 	void	(*get)(unsigned int reg, unsigned long *base,
-		       unsigned int *size, mtrr_type * type);
-	int	(*get_free_region) (unsigned long base, unsigned long size);
-
+		       unsigned long *size, mtrr_type * type);
+	int	(*get_free_region)(unsigned long base, unsigned long size,
+				   int replace_reg);
 	int	(*validate_add_page)(unsigned long base, unsigned long size,
 				     unsigned int type);
 	int	(*have_wrcomb)(void);
 };
 
-extern int generic_get_free_region(unsigned long base, unsigned long size);
+extern int generic_get_free_region(unsigned long base, unsigned long size,
+				   int replace_reg);
 extern int generic_validate_add_page(unsigned long base, unsigned long size,
 				     unsigned int type);
 
@@ -62,17 +63,17 @@ extern int positive_have_wrcomb(void);
 /* library functions for processor-specific routines */
 struct set_mtrr_context {
 	unsigned long flags;
-	unsigned long deftype_lo;
-	unsigned long deftype_hi;
 	unsigned long cr4val;
-	unsigned long ccr3;
+	u32 deftype_lo;
+	u32 deftype_hi;
+	u32 ccr3;
 };
 
 struct mtrr_var_range {
-	unsigned long base_lo;
-	unsigned long base_hi;
-	unsigned long mask_lo;
-	unsigned long mask_hi;
+	u32 base_lo;
+	u32 base_hi;
+	u32 mask_lo;
+	u32 mask_hi;
 };
 
 void set_mtrr_done(struct set_mtrr_context *ctxt);
@@ -92,6 +93,6 @@ extern struct mtrr_ops * mtrr_if;
 extern unsigned int num_var_ranges;
 
 void mtrr_state_warn(void);
-char *mtrr_attrib_to_str(int x);
+const char *mtrr_attrib_to_str(int x);
 void mtrr_wrmsr(unsigned, unsigned, unsigned);
 

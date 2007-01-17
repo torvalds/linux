@@ -337,24 +337,24 @@
 #define CR_MAC_PS_STATE			CTL_REG(0x050C)
 
 #define CR_INTERRUPT			CTL_REG(0x0510)
-#define INT_TX_COMPLETE			0x00000001
-#define INT_RX_COMPLETE			0x00000002
-#define INT_RETRY_FAIL			0x00000004
-#define INT_WAKEUP			0x00000008
-#define INT_DTIM_NOTIFY			0x00000020
-#define INT_CFG_NEXT_BCN		0x00000040
-#define INT_BUS_ABORT			0x00000080
-#define INT_TX_FIFO_READY		0x00000100
-#define INT_UART			0x00000200
-#define INT_TX_COMPLETE_EN		0x00010000
-#define INT_RX_COMPLETE_EN		0x00020000
-#define INT_RETRY_FAIL_EN		0x00040000
-#define INT_WAKEUP_EN			0x00080000
-#define INT_DTIM_NOTIFY_EN		0x00200000
-#define INT_CFG_NEXT_BCN_EN		0x00400000
-#define INT_BUS_ABORT_EN		0x00800000
-#define INT_TX_FIFO_READY_EN		0x01000000
-#define INT_UART_EN			0x02000000
+#define INT_TX_COMPLETE			(1 <<  0)
+#define INT_RX_COMPLETE			(1 <<  1)
+#define INT_RETRY_FAIL			(1 <<  2)
+#define INT_WAKEUP			(1 <<  3)
+#define INT_DTIM_NOTIFY			(1 <<  5)
+#define INT_CFG_NEXT_BCN		(1 <<  6)
+#define INT_BUS_ABORT			(1 <<  7)
+#define INT_TX_FIFO_READY		(1 <<  8)
+#define INT_UART			(1 <<  9)
+#define INT_TX_COMPLETE_EN		(1 << 16)
+#define INT_RX_COMPLETE_EN		(1 << 17)
+#define INT_RETRY_FAIL_EN		(1 << 18)
+#define INT_WAKEUP_EN			(1 << 19)
+#define INT_DTIM_NOTIFY_EN		(1 << 21)
+#define INT_CFG_NEXT_BCN_EN		(1 << 22)
+#define INT_BUS_ABORT_EN		(1 << 23)
+#define INT_TX_FIFO_READY_EN		(1 << 24)
+#define INT_UART_EN			(1 << 25)
 
 #define CR_TSF_LOW_PART			CTL_REG(0x0514)
 #define CR_TSF_HIGH_PART		CTL_REG(0x0518)
@@ -390,26 +390,35 @@
 #define CR_BSSID_P1			CTL_REG(0x0618)
 #define CR_BSSID_P2			CTL_REG(0x061C)
 #define CR_BCN_PLCP_CFG			CTL_REG(0x0620)
+
+/* Group hash table for filtering incoming packets.
+ *
+ * The group hash table is 64 bit large and split over two parts. The first
+ * part is the lower part. The upper 6 bits of the last byte of the target
+ * address are used as index. Packets are received if the hash table bit is
+ * set. This is used for multicast handling, but for broadcasts (address
+ * ff:ff:ff:ff:ff:ff) the highest bit in the second table must also be set.
+ */
 #define CR_GROUP_HASH_P1		CTL_REG(0x0624)
 #define CR_GROUP_HASH_P2		CTL_REG(0x0628)
-#define CR_RX_TIMEOUT			CTL_REG(0x062C)
 
+#define CR_RX_TIMEOUT			CTL_REG(0x062C)
 /* Basic rates supported by the BSS. When producing ACK or CTS messages, the
  * device will use a rate in this table that is less than or equal to the rate
  * of the incoming frame which prompted the response */
 #define CR_BASIC_RATE_TBL		CTL_REG(0x0630)
-#define CR_RATE_1M	0x0001	/* 802.11b */
-#define CR_RATE_2M	0x0002	/* 802.11b */
-#define CR_RATE_5_5M	0x0004	/* 802.11b */
-#define CR_RATE_11M	0x0008	/* 802.11b */
-#define CR_RATE_6M      0x0100	/* 802.11g */
-#define CR_RATE_9M      0x0200	/* 802.11g */
-#define CR_RATE_12M	0x0400	/* 802.11g */
-#define CR_RATE_18M	0x0800	/* 802.11g */
-#define CR_RATE_24M     0x1000	/* 802.11g */
-#define CR_RATE_36M     0x2000	/* 802.11g */
-#define CR_RATE_48M     0x4000	/* 802.11g */
-#define CR_RATE_54M     0x8000	/* 802.11g */
+#define CR_RATE_1M	(1 <<  0)	/* 802.11b */
+#define CR_RATE_2M	(1 <<  1)	/* 802.11b */
+#define CR_RATE_5_5M	(1 <<  2)	/* 802.11b */
+#define CR_RATE_11M	(1 <<  3)	/* 802.11b */
+#define CR_RATE_6M      (1 <<  8)	/* 802.11g */
+#define CR_RATE_9M      (1 <<  9)	/* 802.11g */
+#define CR_RATE_12M	(1 << 10)	/* 802.11g */
+#define CR_RATE_18M	(1 << 11)	/* 802.11g */
+#define CR_RATE_24M     (1 << 12)	/* 802.11g */
+#define CR_RATE_36M     (1 << 13)	/* 802.11g */
+#define CR_RATE_48M     (1 << 14)	/* 802.11g */
+#define CR_RATE_54M     (1 << 15)	/* 802.11g */
 #define CR_RATES_80211G	0xff00
 #define CR_RATES_80211B	0x000f
 
@@ -420,15 +429,24 @@
 #define CR_MANDATORY_RATE_TBL		CTL_REG(0x0634)
 #define CR_RTS_CTS_RATE			CTL_REG(0x0638)
 
+/* These are all bit indexes in CR_RTS_CTS_RATE, so remember to shift. */
+#define RTSCTS_SH_RTS_RATE		0
+#define RTSCTS_SH_EXP_CTS_RATE		4
+#define RTSCTS_SH_RTS_MOD_TYPE		8
+#define RTSCTS_SH_RTS_PMB_TYPE		9
+#define RTSCTS_SH_CTS_RATE		16
+#define RTSCTS_SH_CTS_MOD_TYPE		24
+#define RTSCTS_SH_CTS_PMB_TYPE		25
+
 #define CR_WEP_PROTECT			CTL_REG(0x063C)
 #define CR_RX_THRESHOLD			CTL_REG(0x0640)
 
 /* register for controlling the LEDS */
 #define CR_LED				CTL_REG(0x0644)
 /* masks for controlling LEDs */
-#define LED1				0x0100
-#define LED2				0x0200
-#define LED_SW				0x0400
+#define LED1				(1 <<  8)
+#define LED2				(1 <<  9)
+#define LED_SW				(1 << 10)
 
 /* Seems to indicate that the configuration is over.
  */
@@ -455,18 +473,18 @@
  * registers, so one could argue it is a LOCK bit. But calling it
  * LOCK_PHY_REGS makes it confusing.
  */
-#define UNLOCK_PHY_REGS			0x0080
+#define UNLOCK_PHY_REGS			(1 << 7)
 
 #define CR_DEVICE_STATE			CTL_REG(0x0684)
 #define CR_UNDERRUN_CNT			CTL_REG(0x0688)
 
 #define CR_RX_FILTER			CTL_REG(0x068c)
-#define RX_FILTER_ASSOC_RESPONSE	0x0002
-#define RX_FILTER_REASSOC_RESPONSE	0x0008
-#define RX_FILTER_PROBE_RESPONSE	0x0020
-#define RX_FILTER_BEACON		0x0100
-#define RX_FILTER_DISASSOC		0x0400
-#define RX_FILTER_AUTH			0x0800
+#define RX_FILTER_ASSOC_RESPONSE	(1 <<  1)
+#define RX_FILTER_REASSOC_RESPONSE	(1 <<  3)
+#define RX_FILTER_PROBE_RESPONSE	(1 <<  5)
+#define RX_FILTER_BEACON		(1 <<  8)
+#define RX_FILTER_DISASSOC		(1 << 10)
+#define RX_FILTER_AUTH			(1 << 11)
 #define AP_RX_FILTER			0x0400feff
 #define STA_RX_FILTER			0x0000ffff
 
@@ -794,6 +812,9 @@ void zd_chip_disable_rx(struct zd_chip *chip);
 int zd_chip_enable_hwint(struct zd_chip *chip);
 int zd_chip_disable_hwint(struct zd_chip *chip);
 
+int zd_chip_set_rts_cts_rate_locked(struct zd_chip *chip,
+	u8 rts_rate, int preamble);
+
 static inline int zd_get_encryption_type(struct zd_chip *chip, u32 *type)
 {
 	return zd_ioread32(chip, CR_ENCRYPTION_TYPE, type);
@@ -809,7 +830,17 @@ static inline int zd_chip_get_basic_rates(struct zd_chip *chip, u16 *cr_rates)
 	return zd_ioread16(chip, CR_BASIC_RATE_TBL, cr_rates);
 }
 
-int zd_chip_set_basic_rates(struct zd_chip *chip, u16 cr_rates);
+int zd_chip_set_basic_rates_locked(struct zd_chip *chip, u16 cr_rates);
+
+static inline int zd_chip_set_basic_rates(struct zd_chip *chip, u16 cr_rates)
+{
+	int r;
+
+	mutex_lock(&chip->mutex);
+	r = zd_chip_set_basic_rates_locked(chip, cr_rates);
+	mutex_unlock(&chip->mutex);
+	return r;
+}
 
 static inline int zd_chip_set_rx_filter(struct zd_chip *chip, u32 filter)
 {
@@ -841,5 +872,37 @@ u8 zd_rx_qual_percent(const void *rx_frame, unsigned int size,
 u8 zd_rx_strength_percent(u8 rssi);
 
 u16 zd_rx_rate(const void *rx_frame, const struct rx_status *status);
+
+struct zd_mc_hash {
+	u32 low;
+	u32 high;
+};
+
+static inline void zd_mc_clear(struct zd_mc_hash *hash)
+{
+	hash->low = 0;
+	/* The interfaces must always received broadcasts.
+	 * The hash of the broadcast address ff:ff:ff:ff:ff:ff is 63.
+	 */
+	hash->high = 0x80000000;
+}
+
+static inline void zd_mc_add_all(struct zd_mc_hash *hash)
+{
+	hash->low = hash->high = 0xffffffff;
+}
+
+static inline void zd_mc_add_addr(struct zd_mc_hash *hash, u8 *addr)
+{
+	unsigned int i = addr[5] >> 2;
+	if (i < 32) {
+		hash->low |= 1 << i;
+	} else {
+		hash->high |= 1 << (i-32);
+	}
+}
+
+int zd_chip_set_multicast_hash(struct zd_chip *chip,
+	                       struct zd_mc_hash *hash);
 
 #endif /* _ZD_CHIP_H */

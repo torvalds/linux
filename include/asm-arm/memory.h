@@ -215,6 +215,7 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
  *  virt_addr_valid(k)	indicates whether a virtual address is valid
  */
 #ifndef CONFIG_DISCONTIGMEM
+
 #define ARCH_PFN_OFFSET		PHYS_PFN_OFFSET
 #define pfn_valid(pfn)		((pfn) >= PHYS_PFN_OFFSET && (pfn) < (PHYS_PFN_OFFSET + max_mapnr))
 
@@ -230,6 +231,7 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
  * around in memory.
  */
 #include <linux/numa.h>
+
 #define arch_pfn_to_nid(pfn)	PFN_TO_NID(pfn)
 #define arch_local_page_offset(pfn, nid) LOCAL_MAP_NR((pfn) << PAGE_SHIFT)
 
@@ -255,6 +257,43 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
  *  PHYS_TO_NID is used by the ARM kernel/setup.c
  */
 #define PHYS_TO_NID(addr)	PFN_TO_NID((addr) >> PAGE_SHIFT)
+
+/*
+ * Given a kaddr, ADDR_TO_MAPBASE finds the owning node of the memory
+ * and returns the mem_map of that node.
+ */
+#define ADDR_TO_MAPBASE(kaddr)	NODE_MEM_MAP(KVADDR_TO_NID(kaddr))
+
+/*
+ * Given a page frame number, find the owning node of the memory
+ * and returns the mem_map of that node.
+ */
+#define PFN_TO_MAPBASE(pfn)	NODE_MEM_MAP(PFN_TO_NID(pfn))
+
+#ifdef NODE_MEM_SIZE_BITS
+#define NODE_MEM_SIZE_MASK	((1 << NODE_MEM_SIZE_BITS) - 1)
+
+/*
+ * Given a kernel address, find the home node of the underlying memory.
+ */
+#define KVADDR_TO_NID(addr) \
+	(((unsigned long)(addr) - PAGE_OFFSET) >> NODE_MEM_SIZE_BITS)
+
+/*
+ * Given a page frame number, convert it to a node id.
+ */
+#define PFN_TO_NID(pfn) \
+	(((pfn) - PHYS_PFN_OFFSET) >> (NODE_MEM_SIZE_BITS - PAGE_SHIFT))
+
+/*
+ * Given a kaddr, LOCAL_MEM_MAP finds the owning node of the memory
+ * and returns the index corresponding to the appropriate page in the
+ * node's mem_map.
+ */
+#define LOCAL_MAP_NR(addr) \
+	(((unsigned long)(addr) & NODE_MEM_SIZE_MASK) >> PAGE_SHIFT)
+
+#endif /* NODE_MEM_SIZE_BITS */
 
 #endif /* !CONFIG_DISCONTIGMEM */
 

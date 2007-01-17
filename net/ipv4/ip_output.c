@@ -53,6 +53,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/highmem.h>
 
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -163,7 +164,6 @@ EXPORT_SYMBOL_GPL(ip_build_and_send_pkt);
 static inline int ip_finish_output2(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
-	struct hh_cache *hh = dst->hh;
 	struct net_device *dev = dst->dev;
 	int hh_len = LL_RESERVED_SPACE(dev);
 
@@ -182,16 +182,9 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		skb = skb2;
 	}
 
-	if (hh) {
-		int hh_alen;
-
-		read_lock_bh(&hh->hh_lock);
-		hh_alen = HH_DATA_ALIGN(hh->hh_len);
-  		memcpy(skb->data - hh_alen, hh->hh_data, hh_alen);
-		read_unlock_bh(&hh->hh_lock);
-	        skb_push(skb, hh->hh_len);
-		return hh->hh_output(skb);
-	} else if (dst->neighbour)
+	if (dst->hh)
+		return neigh_hh_output(dst->hh, skb);
+	else if (dst->neighbour)
 		return dst->neighbour->output(skb);
 
 	if (net_ratelimit())
@@ -288,9 +281,8 @@ int ip_output(struct sk_buff *skb)
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
 
-int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
+int ip_queue_xmit(struct sk_buff *skb, struct sock *sk, int ipfragok)
 {
-	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_options *opt = inet->opt;
 	struct rtable *rt;
@@ -342,7 +334,7 @@ packet_routed:
 
 	/* OK, we know where to send it, allocate and build IP header. */
 	iph = (struct iphdr *) skb_push(skb, sizeof(struct iphdr) + (opt ? opt->optlen : 0));
-	*((__u16 *)iph)	= htons((4 << 12) | (5 << 8) | (inet->tos & 0xff));
+	*((__be16 *)iph) = htons((4 << 12) | (5 << 8) | (inet->tos & 0xff));
 	iph->tot_len = htons(skb->len);
 	if (ip_dont_fragment(sk, &rt->u.dst) && !ipfragok)
 		iph->frag_off = htons(IP_DF);
@@ -386,6 +378,7 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	dst_release(to->dst);
 	to->dst = dst_clone(from->dst);
 	to->dev = from->dev;
+	to->mark = from->mark;
 
 	/* Copy the flags to each fragment. */
 	IPCB(to)->flags = IPCB(from)->flags;
@@ -394,7 +387,6 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	to->tc_index = from->tc_index;
 #endif
 #ifdef CONFIG_NETFILTER
-	to->nfmark = from->nfmark;
 	/* Connection association is same as pre-frag packet */
 	nf_conntrack_put(to->nfct);
 	to->nfct = from->nfct;
@@ -683,7 +675,7 @@ ip_generic_getfrag(void *from, char *to, int offset, int len, int odd, struct sk
 		if (memcpy_fromiovecend(to, iov, offset, len) < 0)
 			return -EFAULT;
 	} else {
-		unsigned int csum = 0;
+		__wsum csum = 0;
 		if (csum_partial_copy_fromiovecend(to, iov, offset, len, &csum) < 0)
 			return -EFAULT;
 		skb->csum = csum_block_add(skb->csum, csum, odd);
@@ -691,11 +683,11 @@ ip_generic_getfrag(void *from, char *to, int offset, int len, int odd, struct sk
 	return 0;
 }
 
-static inline unsigned int
+static inline __wsum
 csum_page(struct page *page, int offset, int copy)
 {
 	char *kaddr;
-	unsigned int csum;
+	__wsum csum;
 	kaddr = kmap(page);
 	csum = csum_partial(kaddr + offset, copy, 0);
 	kunmap(page);
@@ -1167,7 +1159,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 		}
 
 		if (skb->ip_summed == CHECKSUM_NONE) {
-			unsigned int csum;
+			__wsum csum;
 			csum = csum_page(page, offset, len);
 			skb->csum = csum_block_add(skb->csum, csum, skb->len);
 		}
@@ -1315,7 +1307,7 @@ void ip_flush_pending_frames(struct sock *sk)
 static int ip_reply_glue_bits(void *dptr, char *to, int offset, 
 			      int len, int odd, struct sk_buff *skb)
 {
-	unsigned int csum;
+	__wsum csum;
 
 	csum = csum_partial_copy_nocheck(dptr+offset, to, len, 0);
 	skb->csum = csum_block_add(skb->csum, csum, odd);
@@ -1385,7 +1377,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 		       &ipc, rt, MSG_DONTWAIT);
 	if ((skb = skb_peek(&sk->sk_write_queue)) != NULL) {
 		if (arg->csumoffset >= 0)
-			*((u16 *)skb->h.raw + arg->csumoffset) = csum_fold(csum_add(skb->csum, arg->csum));
+			*((__sum16 *)skb->h.raw + arg->csumoffset) = csum_fold(csum_add(skb->csum, arg->csum));
 		skb->ip_summed = CHECKSUM_NONE;
 		ip_push_pending_frames(sk);
 	}

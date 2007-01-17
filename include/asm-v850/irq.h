@@ -46,8 +46,6 @@ extern void
 init_irq_handlers (int base_irq, int num, int interval,
 		   struct hw_interrupt_type *irq_type);
 
-typedef void (*irq_handler_t)(int irq, void *data, struct pt_regs *regs);
-
 /* Handle interrupt IRQ.  REGS are the registers at the time of ther
    interrupt.  */
 extern unsigned int handle_irq (int irq, struct pt_regs *regs);

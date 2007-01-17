@@ -268,10 +268,16 @@ cpu_idle (void)
 
 	/* endless idle loop with no priority at all */
 	while (1) {
-		if (can_do_pal_halt)
+		if (can_do_pal_halt) {
 			current_thread_info()->status &= ~TS_POLLING;
-		else
+			/*
+			 * TS_POLLING-cleared state must be visible before we
+			 * test NEED_RESCHED:
+			 */
+			smp_mb();
+		} else {
 			current_thread_info()->status |= TS_POLLING;
+		}
 
 		if (!need_resched()) {
 			void (*idle)(void);

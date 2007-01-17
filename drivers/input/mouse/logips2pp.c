@@ -328,6 +328,7 @@ int ps2pp_init(struct psmouse *psmouse, int set_properties)
 	unsigned char model, buttons;
 	const struct ps2pp_info *model_info;
 	int use_ps2pp = 0;
+	int error;
 
 	param[0] = 0;
 	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRES);
@@ -393,8 +394,14 @@ int ps2pp_init(struct psmouse *psmouse, int set_properties)
 				psmouse->set_resolution = ps2pp_set_resolution;
 				psmouse->disconnect = ps2pp_disconnect;
 
-				device_create_file(&psmouse->ps2dev.serio->dev,
-						   &psmouse_attr_smartscroll.dattr);
+				error = device_create_file(&psmouse->ps2dev.serio->dev,
+							   &psmouse_attr_smartscroll.dattr);
+				if (error) {
+					printk(KERN_ERR
+						"logips2pp.c: failed to create smartscroll "
+						"sysfs attribute, error: %d\n", error);
+					return -1;
+				}
 			}
 		}
 

@@ -71,7 +71,7 @@ void __dump_registers(struct scsi_qla_host *ha)
 		       readw(&ha->reg->u1.isp4010.nvram));
 	}
 
-	else if (is_qla4022(ha)) {
+	else if (is_qla4022(ha) | is_qla4032(ha)) {
 		printk(KERN_INFO "0x%02X intr_mask	 = 0x%08X\n",
 		       (uint8_t) offsetof(struct isp_reg,
 					  u1.isp4022.intr_mask),
@@ -119,7 +119,7 @@ void __dump_registers(struct scsi_qla_host *ha)
 		       readw(&ha->reg->u2.isp4010.port_err_status));
 	}
 
-	else if (is_qla4022(ha)) {
+	else if (is_qla4022(ha) | is_qla4032(ha)) {
 		printk(KERN_INFO "Page 0 Registers:\n");
 		printk(KERN_INFO "0x%02X ext_hw_conf	 = 0x%08X\n",
 		       (uint8_t) offsetof(struct isp_reg,

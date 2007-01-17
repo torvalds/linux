@@ -37,7 +37,6 @@ enum ocfs2_journal_state {
 
 struct ocfs2_super;
 struct ocfs2_dinode;
-struct ocfs2_journal_handle;
 
 struct ocfs2_journal {
 	enum ocfs2_journal_state   j_state;    /* Journals current state   */
@@ -133,46 +132,8 @@ static inline void ocfs2_inode_set_new(struct ocfs2_super *osb,
 	spin_unlock(&trans_inc_lock);
 }
 
-extern kmem_cache_t *ocfs2_lock_cache;
-
-struct ocfs2_journal_lock {
-	struct inode     *jl_inode;
-	struct list_head  jl_lock_list;
-};
-
-struct ocfs2_journal_handle {
-	handle_t            *k_handle; /* kernel handle.                */
-	struct ocfs2_journal        *journal;
-	u32                 flags;     /* see flags below.              */
-	int                 max_buffs; /* Buffs reserved by this handle */
-
-	/* The following two fields are for ocfs2_handle_add_lock */
-	int                 num_locks;
-	struct list_head    locks;     /* A bunch of locks to
-					* release on commit. This
-					* should be a list_head */
-
-	struct list_head     inode_list;
-};
-
-#define OCFS2_HANDLE_STARTED			1
-/* should we sync-commit this handle? */
-#define OCFS2_HANDLE_SYNC			2
-static inline int ocfs2_handle_started(struct ocfs2_journal_handle *handle)
-{
-	return handle->flags & OCFS2_HANDLE_STARTED;
-}
-
-static inline void ocfs2_handle_set_sync(struct ocfs2_journal_handle *handle, int sync)
-{
-	if (sync)
-		handle->flags |= OCFS2_HANDLE_SYNC;
-	else
-		handle->flags &= ~OCFS2_HANDLE_SYNC;
-}
-
 /* Exported only for the journal struct init code in super.c. Do not call. */
-void ocfs2_complete_recovery(void *data);
+void ocfs2_complete_recovery(struct work_struct *work);
 
 /*
  *  Journal Control:
@@ -196,7 +157,7 @@ int    ocfs2_journal_init(struct ocfs2_journal *journal,
 void   ocfs2_journal_shutdown(struct ocfs2_super *osb);
 int    ocfs2_journal_wipe(struct ocfs2_journal *journal,
 			  int full);
-int    ocfs2_journal_load(struct ocfs2_journal *journal);
+int    ocfs2_journal_load(struct ocfs2_journal *journal, int local);
 int    ocfs2_check_journals_nolocks(struct ocfs2_super *osb);
 void   ocfs2_recovery_thread(struct ocfs2_super *osb,
 			     int node_num);
@@ -212,6 +173,9 @@ static inline void ocfs2_start_checkpoint(struct ocfs2_super *osb)
 static inline void ocfs2_checkpoint_inode(struct inode *inode)
 {
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	if (ocfs2_mount_local(osb))
+		return;
 
 	if (!ocfs2_inode_fully_checkpointed(inode)) {
 		/* WARNING: This only kicks off a single
@@ -231,15 +195,14 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
  *  Transaction Handling:
  *  Manage the lifetime of a transaction handle.
  *
- *  ocfs2_alloc_handle     - Only allocate a handle so we can start putting
- *                          cluster locks on it. To actually change blocks,
- *                          call ocfs2_start_trans with the handle returned
- *                          from this function. You may call ocfs2_commit_trans
- *                           at any time in the lifetime of a handle.
  *  ocfs2_start_trans      - Begin a transaction. Give it an upper estimate of
  *                          the number of blocks that will be changed during
  *                          this handle.
- *  ocfs2_commit_trans     - Complete a handle.
+ *  ocfs2_commit_trans - Complete a handle. It might return -EIO if
+ *                       the journal was aborted. The majority of paths don't
+ *                       check the return value as an error there comes too
+ *                       late to do anything (and will be picked up in a
+ *                       later transaction).
  *  ocfs2_extend_trans     - Extend a handle by nblocks credits. This may
  *                          commit the handle to disk in the process, but will
  *                          not release any locks taken during the transaction.
@@ -249,24 +212,16 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
  *  ocfs2_journal_dirty    - Mark a journalled buffer as having dirty data.
  *  ocfs2_journal_dirty_data - Indicate that a data buffer should go out before
  *                             the current handle commits.
- *  ocfs2_handle_add_lock  - Sometimes we need to delay lock release
- *                          until after a transaction has been completed. Use
- *                          ocfs2_handle_add_lock to indicate that a lock needs
- *                          to be released at the end of that handle. Locks
- *                          will be released in the order that they are added.
- *  ocfs2_handle_add_inode - Add a locked inode to a transaction.
  */
 
 /* You must always start_trans with a number of buffs > 0, but it's
  * perfectly legal to go through an entire transaction without having
  * dirtied any buffers. */
-struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb);
-struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
-					       struct ocfs2_journal_handle *handle,
+handle_t		    *ocfs2_start_trans(struct ocfs2_super *osb,
 					       int max_buffs);
-void			     ocfs2_commit_trans(struct ocfs2_journal_handle *handle);
-int			     ocfs2_extend_trans(struct ocfs2_journal_handle *handle,
-						int nblocks);
+int			     ocfs2_commit_trans(struct ocfs2_super *osb,
+						handle_t *handle);
+int			     ocfs2_extend_trans(handle_t *handle, int nblocks);
 
 /*
  * Create access is for when we get a newly created buffer and we're
@@ -283,7 +238,7 @@ int			     ocfs2_extend_trans(struct ocfs2_journal_handle *handle,
 #define OCFS2_JOURNAL_ACCESS_WRITE  1
 #define OCFS2_JOURNAL_ACCESS_UNDO   2
 
-int                  ocfs2_journal_access(struct ocfs2_journal_handle *handle,
+int                  ocfs2_journal_access(handle_t *handle,
 					  struct inode *inode,
 					  struct buffer_head *bh,
 					  int type);
@@ -306,18 +261,10 @@ int                  ocfs2_journal_access(struct ocfs2_journal_handle *handle,
  *	<modify the bh>
  * 	ocfs2_journal_dirty(handle, bh);
  */
-int                  ocfs2_journal_dirty(struct ocfs2_journal_handle *handle,
+int                  ocfs2_journal_dirty(handle_t *handle,
 					 struct buffer_head *bh);
 int                  ocfs2_journal_dirty_data(handle_t *handle,
 					      struct buffer_head *bh);
-int                  ocfs2_handle_add_lock(struct ocfs2_journal_handle *handle,
-					   struct inode *inode);
-/*
- * Use this to protect from other processes reading buffer state while
- * it's in flight.
- */
-void                 ocfs2_handle_add_inode(struct ocfs2_journal_handle *handle,
-					    struct inode *inode);
 
 /*
  *  Credit Macros:

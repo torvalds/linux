@@ -393,6 +393,7 @@ static int sfq_change(struct Qdisc *sch, struct rtattr *opt)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	struct tc_sfq_qopt *ctl = RTA_DATA(opt);
+	unsigned int qlen;
 
 	if (opt->rta_len < RTA_LENGTH(sizeof(*ctl)))
 		return -EINVAL;
@@ -403,8 +404,10 @@ static int sfq_change(struct Qdisc *sch, struct rtattr *opt)
 	if (ctl->limit)
 		q->limit = min_t(u32, ctl->limit, SFQ_DEPTH);
 
+	qlen = sch->q.qlen;
 	while (sch->q.qlen >= q->limit-1)
 		sfq_drop(sch);
+	qdisc_tree_decrease_qlen(sch, qlen - sch->q.qlen);
 
 	del_timer(&q->perturb_timer);
 	if (q->perturb_period) {

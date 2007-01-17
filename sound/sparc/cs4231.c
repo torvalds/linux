@@ -1268,7 +1268,7 @@ static struct snd_pcm_hardware snd_cs4231_playback =
 	.channels_min		= 1,
 	.channels_max		= 2,
 	.buffer_bytes_max	= (32*1024),
-	.period_bytes_min	= 4096,
+	.period_bytes_min	= 64,
 	.period_bytes_max	= (32*1024),
 	.periods_min		= 1,
 	.periods_max		= 1024,
@@ -1288,7 +1288,7 @@ static struct snd_pcm_hardware snd_cs4231_capture =
 	.channels_min		= 1,
 	.channels_max		= 2,
 	.buffer_bytes_max	= (32*1024),
-	.period_bytes_min	= 4096,
+	.period_bytes_min	= 64,
 	.period_bytes_max	= (32*1024),
 	.periods_min		= 1,
 	.periods_max		= 1024,
@@ -1796,7 +1796,7 @@ static irqreturn_t snd_cs4231_sbus_interrupt(int irq, void *dev_id)
 	snd_cs4231_outm(chip, CS4231_IRQ_STATUS, ~CS4231_ALL_IRQS | ~status, 0);
 	spin_unlock_irqrestore(&chip->lock, flags);
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 /*
@@ -1821,7 +1821,6 @@ static int sbus_dma_request(struct cs4231_dma_control *dma_cont, dma_addr_t bus_
 	if (!(csr & test))
 		goto out;
 	err = -EBUSY;
-	csr = sbus_readl(base->regs + APCCSR);
 	test = APC_XINT_CNVA;
 	if ( base->dir == APC_PLAY )
 		test = APC_XINT_PNVA;
@@ -1862,17 +1861,16 @@ static void sbus_dma_enable(struct cs4231_dma_control *dma_cont, int on)
 
 	spin_lock_irqsave(&base->lock, flags);
 	if (!on) {
-		if (base->dir == APC_PLAY) { 
-			sbus_writel(0, base->regs + base->dir + APCNVA); 
-			sbus_writel(1, base->regs + base->dir + APCC); 
-		}
-		else
-		{
-			sbus_writel(0, base->regs + base->dir + APCNC); 
-			sbus_writel(0, base->regs + base->dir + APCVA); 
-		} 
+		sbus_writel(0, base->regs + base->dir + APCNC);
+		sbus_writel(0, base->regs + base->dir + APCNVA);
+		sbus_writel(0, base->regs + base->dir + APCC);
+		sbus_writel(0, base->regs + base->dir + APCVA);
+
+		/* ACK any APC interrupts. */
+		csr = sbus_readl(base->regs + APCCSR);
+		sbus_writel(csr, base->regs + APCCSR);
 	} 
-	udelay(600); 
+	udelay(1000);
 	csr = sbus_readl(base->regs + APCCSR);
 	shift = 0;
 	if ( base->dir == APC_PLAY )

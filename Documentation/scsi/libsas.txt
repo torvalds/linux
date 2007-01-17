@@ -393,7 +393,7 @@ struct sas_task {
 	task_proto -- _one_ of enum sas_proto
 	scatter -- pointer to scatter gather list array
 	num_scatter -- number of elements in scatter
-	total_xfer_len -- total number of bytes expected to be transfered
+	total_xfer_len -- total number of bytes expected to be transferred
 	data_dir -- PCI_DMA_...
 	task_done -- callback when the task has finished execution
 };

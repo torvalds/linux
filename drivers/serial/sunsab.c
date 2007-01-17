@@ -786,8 +786,8 @@ static void sunsab_convert_to_sab(struct uart_sunsab_port *up, unsigned int cfla
 }
 
 /* port->lock is not held.  */
-static void sunsab_set_termios(struct uart_port *port, struct termios *termios,
-			       struct termios *old)
+static void sunsab_set_termios(struct uart_port *port, struct ktermios *termios,
+			       struct ktermios *old)
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
 	unsigned long flags;
@@ -1037,7 +1037,8 @@ static int __devinit sunsab_init_one(struct uart_sunsab_port *up,
 		err = request_irq(up->port.irq, sunsab_interrupt,
 				  IRQF_SHARED, "sab", up);
 		if (err) {
-			of_iounmap(up->port.membase,
+			of_iounmap(&op->resource[0],
+				   up->port.membase,
 				   sizeof(union sab82532_async_regs));
 			return err;
 		}
@@ -1064,7 +1065,8 @@ static int __devinit sab_probe(struct of_device *op, const struct of_device_id *
 			      sizeof(union sab82532_async_regs),
 			      (inst * 2) + 1);
 	if (err) {
-		of_iounmap(up[0].port.membase,
+		of_iounmap(&op->resource[0],
+			   up[0].port.membase,
 			   sizeof(union sab82532_async_regs));
 		free_irq(up[0].port.irq, &up[0]);
 		return err;
@@ -1082,10 +1084,13 @@ static int __devinit sab_probe(struct of_device *op, const struct of_device_id *
 
 static void __devexit sab_remove_one(struct uart_sunsab_port *up)
 {
+	struct of_device *op = to_of_device(up->port.dev);
+
 	uart_remove_one_port(&sunsab_reg, &up->port);
 	if (!(up->port.line & 1))
 		free_irq(up->port.irq, up);
-	of_iounmap(up->port.membase,
+	of_iounmap(&op->resource[0],
+		   up->port.membase,
 		   sizeof(union sab82532_async_regs));
 }
 

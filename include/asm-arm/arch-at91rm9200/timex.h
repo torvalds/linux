@@ -23,6 +23,15 @@
 
 #include <asm/hardware.h>
 
+#if defined(CONFIG_ARCH_AT91RM9200)
+
 #define CLOCK_TICK_RATE		(AT91_SLOW_CLOCK)
+
+#elif defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9261)
+
+#define AT91SAM9_MASTER_CLOCK	99300000
+#define CLOCK_TICK_RATE		(AT91SAM9_MASTER_CLOCK/16)
+
+#endif
 
 #endif

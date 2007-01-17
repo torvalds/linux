@@ -340,6 +340,14 @@ config ITCO_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called iTCO_wdt.
 
+config ITCO_VENDOR_SUPPORT
+	bool "Intel TCO Timer/Watchdog Specific Vendor Support"
+	depends on ITCO_WDT
+	---help---
+	  Add vendor specific support to the intel TCO timer based watchdog
+	  devices. At this moment we only have additional support for some
+	  SuperMicro Inc. motherboards.
+
 config SC1200_WDT
 	tristate "National Semiconductor PC87307/PC97307 (ala SC1200) Watchdog"
 	depends on WATCHDOG && X86
@@ -363,6 +371,20 @@ config SCx200_WDT
 
 	  If compiled as a module, it will be called scx200_wdt.
 
+config PC87413_WDT
+	tristate "NS PC87413 watchdog"
+	depends on WATCHDOG && X86
+	---help---
+	  This is the driver for the hardware watchdog on the PC87413 chipset
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pc87413_wdt.
+
+	  Most people will say N.
+ 
 config 60XX_WDT
 	tristate "SBC-60XX Watchdog Timer"
 	depends on WATCHDOG && X86
@@ -552,6 +574,16 @@ config INDYDOG
 	  watchdog timer that will reboot the machine after a 60 second
 	  timer expired and no process has written to /dev/watchdog during
 	  that time.
+
+config WDT_RM9K_GPI
+	tristate "RM9000/GPI hardware watchdog"
+	depends on WATCHDOG && CPU_RM9000
+	help
+	  Watchdog implementation using the GPI hardware found on
+	  PMC-Sierra RM9xxx CPUs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rm9k_wdt.
 
 # S390 Architecture
 

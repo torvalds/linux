@@ -55,6 +55,12 @@
  */
 ENTRY(startup_32)
 
+#ifdef CONFIG_PARAVIRT
+        movl %cs, %eax
+        testl $0x3, %eax
+        jnz startup_paravirt
+#endif
+
 /*
  * Set segments to known values.
  */
@@ -302,6 +308,7 @@ is386:	movl $2,%ecx		# set MP
 	movl %eax,%cr0
 
 	call check_x87
+	call setup_pda
 	lgdt cpu_gdt_descr
 	lidt idt_descr
 	ljmp $(__KERNEL_CS),$1f
@@ -312,10 +319,13 @@ is386:	movl $2,%ecx		# set MP
 	movl %eax,%ds
 	movl %eax,%es
 
-	xorl %eax,%eax			# Clear FS/GS and LDT
+	xorl %eax,%eax			# Clear FS and LDT
 	movl %eax,%fs
-	movl %eax,%gs
 	lldt %ax
+
+	movl $(__KERNEL_PDA),%eax
+	mov  %eax,%gs
+
 	cld			# gcc2 wants the direction flag cleared at all times
 	pushl $0		# fake return address for unwinder
 #ifdef CONFIG_SMP
@@ -343,6 +353,23 @@ check_x87:
 	ALIGN
 1:	movb $1,X86_HARD_MATH
 	.byte 0xDB,0xE4		/* fsetpm for 287, ignored by 387 */
+	ret
+
+/*
+ * Point the GDT at this CPU's PDA.  On boot this will be
+ * cpu_gdt_table and boot_pda; for secondary CPUs, these will be
+ * that CPU's GDT and PDA.
+ */
+setup_pda:
+	/* get the PDA pointer */
+	movl start_pda, %eax
+
+	/* slot the PDA address into the GDT */
+	mov cpu_gdt_descr+2, %ecx
+	mov %ax, (__KERNEL_PDA+0+2)(%ecx)		/* base & 0x0000ffff */
+	shr $16, %eax
+	mov %al, (__KERNEL_PDA+4+0)(%ecx)		/* base & 0x00ff0000 */
+	mov %ah, (__KERNEL_PDA+4+3)(%ecx)		/* base & 0xff000000 */
 	ret
 
 /*
@@ -465,6 +492,33 @@ ignore_int:
 #endif
 	iret
 
+#ifdef CONFIG_PARAVIRT
+startup_paravirt:
+	cld
+ 	movl $(init_thread_union+THREAD_SIZE),%esp
+
+	/* We take pains to preserve all the regs. */
+	pushl	%edx
+	pushl	%ecx
+	pushl	%eax
+
+	/* paravirt.o is last in link, and that probe fn never returns */
+	pushl	$__start_paravirtprobe
+1:
+	movl	0(%esp), %eax
+	pushl	(%eax)
+	movl	8(%esp), %eax
+	call	*(%esp)
+	popl	%eax
+
+	movl	4(%esp), %eax
+	movl	8(%esp), %ecx
+	movl	12(%esp), %edx
+
+	addl	$4, (%esp)
+	jmp	1b
+#endif
+
 /*
  * Real beginning of normal "text" segment
  */
@@ -484,6 +538,8 @@ ENTRY(empty_zero_page)
  * This starts the data section.
  */
 .data
+ENTRY(start_pda)
+	.long boot_pda
 
 ENTRY(stack_start)
 	.long init_thread_union+THREAD_SIZE
@@ -525,7 +581,7 @@ idt_descr:
 
 # boot GDT descriptor (later on used by CPU#0):
 	.word 0				# 32 bit align gdt_desc.address
-cpu_gdt_descr:
+ENTRY(cpu_gdt_descr)
 	.word GDT_ENTRIES*8-1
 	.long cpu_gdt_table
 
@@ -584,8 +640,8 @@ ENTRY(cpu_gdt_table)
 	.quad 0x00009a000000ffff	/* 0xc0 APM CS 16 code (16 bit) */
 	.quad 0x004092000000ffff	/* 0xc8 APM DS    data */
 
-	.quad 0x0000920000000000	/* 0xd0 - ESPFIX 16-bit SS */
-	.quad 0x0000000000000000	/* 0xd8 - unused */
+	.quad 0x00c0920000000000	/* 0xd0 - ESPFIX SS */
+	.quad 0x00cf92000000ffff	/* 0xd8 - PDA */
 	.quad 0x0000000000000000	/* 0xe0 - unused */
 	.quad 0x0000000000000000	/* 0xe8 - unused */
 	.quad 0x0000000000000000	/* 0xf0 - unused */

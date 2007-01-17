@@ -360,7 +360,8 @@ static int mii_probe (struct net_device *dev)
 	BUG_ON(!phydev);
 	BUG_ON(phydev->attached_dev);
 
-	phydev = phy_connect(dev, phydev->dev.bus_id, &au1000_adjust_link, 0);
+	phydev = phy_connect(dev, phydev->dev.bus_id, &au1000_adjust_link, 0,
+			PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);

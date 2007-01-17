@@ -46,7 +46,7 @@ extern const struct address_space_operations vxfs_immed_aops;
 
 extern struct inode_operations vxfs_immed_symlink_iops;
 
-kmem_cache_t		*vxfs_inode_cachep;
+struct kmem_cache		*vxfs_inode_cachep;
 
 
 #ifdef DIAGNOSTIC
@@ -103,7 +103,7 @@ vxfs_blkiget(struct super_block *sbp, u_long extent, ino_t ino)
 		struct vxfs_inode_info	*vip;
 		struct vxfs_dinode	*dip;
 
-		if (!(vip = kmem_cache_alloc(vxfs_inode_cachep, SLAB_KERNEL)))
+		if (!(vip = kmem_cache_alloc(vxfs_inode_cachep, GFP_KERNEL)))
 			goto fail;
 		dip = (struct vxfs_dinode *)(bp->b_data + offset);
 		memcpy(vip, dip, sizeof(*vip));
@@ -145,7 +145,7 @@ __vxfs_iget(ino_t ino, struct inode *ilistp)
 		struct vxfs_dinode	*dip;
 		caddr_t			kaddr = (char *)page_address(pp);
 
-		if (!(vip = kmem_cache_alloc(vxfs_inode_cachep, SLAB_KERNEL)))
+		if (!(vip = kmem_cache_alloc(vxfs_inode_cachep, GFP_KERNEL)))
 			goto fail;
 		dip = (struct vxfs_dinode *)(kaddr + offset);
 		memcpy(vip, dip, sizeof(*vip));

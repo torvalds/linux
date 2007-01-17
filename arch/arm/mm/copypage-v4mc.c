@@ -19,6 +19,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+#include <asm/cacheflush.h>
 
 #include "mm.h"
 
@@ -69,9 +70,14 @@ mc_copy_user_page(void *from, void *to)
 
 void v4_mc_copy_user_page(void *kto, const void *kfrom, unsigned long vaddr)
 {
+	struct page *page = virt_to_page(kfrom);
+
+	if (test_and_clear_bit(PG_dcache_dirty, &page->flags))
+		__flush_dcache_page(page_mapping(page), page);
+
 	spin_lock(&minicache_lock);
 
-	set_pte(TOP_PTE(0xffff8000), pfn_pte(__pa(kfrom) >> PAGE_SHIFT, minicache_pgprot));
+	set_pte_ext(TOP_PTE(0xffff8000), pfn_pte(__pa(kfrom) >> PAGE_SHIFT, minicache_pgprot), 0);
 	flush_tlb_kernel_page(0xffff8000);
 
 	mc_copy_user_page((void *)0xffff8000, kto);

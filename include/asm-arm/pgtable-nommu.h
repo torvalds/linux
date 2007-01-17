@@ -44,7 +44,6 @@
 #define PAGE_READONLY	__pgprot(0)
 #define PAGE_KERNEL	__pgprot(0)
 
-//extern void paging_init(struct meminfo *, struct machine_desc *);
 #define swapper_pg_dir ((pgd_t *) 0)
 
 #define __swp_type(x)		(0)

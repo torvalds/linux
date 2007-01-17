@@ -207,7 +207,7 @@ out:
 }
 
 void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err, 
-		     u16 port, u32 info, u8 *payload)
+		     __be16 port, u32 info, u8 *payload)
 {
 	struct ipv6_pinfo *np  = inet6_sk(sk);
 	struct icmp6hdr *icmph = (struct icmp6hdr *)skb->h.raw;
@@ -318,13 +318,13 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 			ipv6_addr_copy(&sin->sin6_addr,
 			  (struct in6_addr *)(skb->nh.raw + serr->addr_offset));
 			if (np->sndflow)
-				sin->sin6_flowinfo = *(u32*)(skb->nh.raw + serr->addr_offset - 24) & IPV6_FLOWINFO_MASK;
+				sin->sin6_flowinfo = *(__be32*)(skb->nh.raw + serr->addr_offset - 24) & IPV6_FLOWINFO_MASK;
 			if (ipv6_addr_type(&sin->sin6_addr) & IPV6_ADDR_LINKLOCAL)
 				sin->sin6_scope_id = IP6CB(skb)->iif;
 		} else {
 			ipv6_addr_set(&sin->sin6_addr, 0, 0,
 				      htonl(0xffff),
-				      *(u32*)(skb->nh.raw + serr->addr_offset));
+				      *(__be32*)(skb->nh.raw + serr->addr_offset));
 		}
 	}
 
@@ -397,12 +397,12 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 	}
 
 	if (np->rxopt.bits.rxtclass) {
-		int tclass = (ntohl(*(u32 *)skb->nh.ipv6h) >> 20) & 0xff;
+		int tclass = (ntohl(*(__be32 *)skb->nh.ipv6h) >> 20) & 0xff;
 		put_cmsg(msg, SOL_IPV6, IPV6_TCLASS, sizeof(tclass), &tclass);
 	}
 
-	if (np->rxopt.bits.rxflow && (*(u32*)skb->nh.raw & IPV6_FLOWINFO_MASK)) {
-		u32 flowinfo = *(u32*)skb->nh.raw & IPV6_FLOWINFO_MASK;
+	if (np->rxopt.bits.rxflow && (*(__be32*)skb->nh.raw & IPV6_FLOWINFO_MASK)) {
+		__be32 flowinfo = *(__be32*)skb->nh.raw & IPV6_FLOWINFO_MASK;
 		put_cmsg(msg, SOL_IPV6, IPV6_FLOWINFO, sizeof(flowinfo), &flowinfo);
 	}
 
@@ -560,12 +560,12 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 			}
 
 			if (fl->fl6_flowlabel&IPV6_FLOWINFO_MASK) {
-				if ((fl->fl6_flowlabel^*(u32 *)CMSG_DATA(cmsg))&~IPV6_FLOWINFO_MASK) {
+				if ((fl->fl6_flowlabel^*(__be32 *)CMSG_DATA(cmsg))&~IPV6_FLOWINFO_MASK) {
 					err = -EINVAL;
 					goto exit_f;
 				}
 			}
-			fl->fl6_flowlabel = IPV6_FLOWINFO_MASK & *(u32 *)CMSG_DATA(cmsg);
+			fl->fl6_flowlabel = IPV6_FLOWINFO_MASK & *(__be32 *)CMSG_DATA(cmsg);
 			break;
 
 		case IPV6_2292HOPOPTS:

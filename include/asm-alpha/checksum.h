@@ -7,21 +7,20 @@
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
  */
-extern unsigned short ip_fast_csum(unsigned char * iph, unsigned int ihl);
+extern __sum16 ip_fast_csum(const void *iph, unsigned int ihl);
 
 /*
  * computes the checksum of the TCP/UDP pseudo-header
  * returns a 16-bit checksum, already complemented
  */
-extern unsigned short int csum_tcpudp_magic(unsigned long saddr,
-					   unsigned long daddr,
+extern __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					   unsigned short len,
 					   unsigned short proto,
-					   unsigned int sum);
+					   __wsum sum);
 
-unsigned int csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr,
+__wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 				unsigned short len, unsigned short proto,
-				unsigned int sum);
+				__wsum sum);
 
 /*
  * computes the checksum of a memory block at buff, length len,
@@ -35,7 +34,7 @@ unsigned int csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr,
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-extern unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum);
+extern __wsum csum_partial(const void *buff, int len, __wsum sum);
 
 /*
  * the same as csum_partial, but copies from src while it
@@ -44,9 +43,9 @@ extern unsigned int csum_partial(const unsigned char * buff, int len, unsigned i
  * here even more important to align src and dst on a 32-bit (or even
  * better 64-bit) boundary
  */
-unsigned int csum_partial_copy_from_user(const char __user *src, char *dst, int len, unsigned int sum, int *errp);
+__wsum csum_partial_copy_from_user(const void __user *src, void *dst, int len, __wsum sum, int *errp);
 
-unsigned int csum_partial_copy_nocheck(const char *src, char *dst, int len, unsigned int sum);
+__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum);
 
 
 /*
@@ -54,24 +53,23 @@ unsigned int csum_partial_copy_nocheck(const char *src, char *dst, int len, unsi
  * in icmp.c
  */
 
-extern unsigned short ip_compute_csum(unsigned char * buff, int len);
+extern __sum16 ip_compute_csum(const void *buff, int len);
 
 /*
  *	Fold a partial checksum without adding pseudo headers
  */
 
-static inline unsigned short csum_fold(unsigned int sum)
+static inline __sum16 csum_fold(__wsum csum)
 {
+	u32 sum = (__force u32)csum;
 	sum = (sum & 0xffff) + (sum >> 16);
 	sum = (sum & 0xffff) + (sum >> 16);
-	return ~sum;
+	return (__force __sum16)~sum;
 }
 
 #define _HAVE_ARCH_IPV6_CSUM
-extern unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
-                                          struct in6_addr *daddr,
-                                          __u32 len,
-                                          unsigned short proto,
-                                          unsigned int sum);
-
+extern __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+			       const struct in6_addr *daddr,
+			       __u32 len, unsigned short proto,
+			       __wsum sum);
 #endif

@@ -46,7 +46,7 @@ int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
 	file = vma->vm_file;
 
 	if (file) {
-		struct inode *inode = vma->vm_file->f_dentry->d_inode;
+		struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 		dev = inode->i_sb->s_dev;
 		ino = inode->i_ino;
 	}
@@ -67,7 +67,7 @@ int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
 		if (len < 1)
 			len = 1;
 		seq_printf(m, "%*c", len, ' ');
-		seq_path(m, file->f_vfsmnt, file->f_dentry, "");
+		seq_path(m, file->f_path.mnt, file->f_path.dentry, "");
 	}
 
 	seq_putc(m, '\n');

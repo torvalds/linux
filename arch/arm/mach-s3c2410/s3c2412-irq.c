@@ -98,7 +98,7 @@ s3c2412_irq_unmask(unsigned int irqno)
 	__raw_writel(mask & ~bitval, S3C2410_INTMSK);
 }
 
-static struct irqchip s3c2412_irq_eint0t4 = {
+static struct irq_chip s3c2412_irq_eint0t4 = {
 	.ack	   = s3c2412_irq_ack,
 	.mask	   = s3c2412_irq_mask,
 	.unmask	   = s3c2412_irq_unmask,
@@ -112,7 +112,7 @@ static int s3c2412_irq_add(struct sys_device *sysdev)
 
 	for (irqno = IRQ_EINT0; irqno <= IRQ_EINT3; irqno++) {
 		set_irq_chip(irqno, &s3c2412_irq_eint0t4);
-		set_irq_handler(irqno, do_edge_IRQ);
+		set_irq_handler(irqno, handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 

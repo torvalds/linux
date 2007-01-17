@@ -56,6 +56,9 @@ static int i2o_bus_scan(struct i2o_device *dev)
 /**
  *	i2o_bus_store_scan - Scan the I2O Bus Adapter
  *	@d: device which should be scanned
+ *	@attr: device_attribute
+ *	@buf: output buffer
+ *	@count: buffer size
  *
  *	Returns count.
  */

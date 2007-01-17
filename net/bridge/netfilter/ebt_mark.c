@@ -25,15 +25,15 @@ static int ebt_target_mark(struct sk_buff **pskb, unsigned int hooknr,
 	int action = info->target & -16;
 
 	if (action == MARK_SET_VALUE)
-		(*pskb)->nfmark = info->mark;
+		(*pskb)->mark = info->mark;
 	else if (action == MARK_OR_VALUE)
-		(*pskb)->nfmark |= info->mark;
+		(*pskb)->mark |= info->mark;
 	else if (action == MARK_AND_VALUE)
-		(*pskb)->nfmark &= info->mark;
+		(*pskb)->mark &= info->mark;
 	else
-		(*pskb)->nfmark ^= info->mark;
+		(*pskb)->mark ^= info->mark;
 
-	return info->target | -16;
+	return info->target | ~EBT_VERDICT_BITS;
 }
 
 static int ebt_target_mark_check(const char *tablename, unsigned int hookmask,
@@ -44,13 +44,13 @@ static int ebt_target_mark_check(const char *tablename, unsigned int hookmask,
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_mark_t_info)))
 		return -EINVAL;
-	tmp = info->target | -16;
+	tmp = info->target | ~EBT_VERDICT_BITS;
 	if (BASE_CHAIN && tmp == EBT_RETURN)
 		return -EINVAL;
 	CLEAR_BASE_CHAIN_BIT;
 	if (tmp < -NUM_STANDARD_TARGETS || tmp >= 0)
 		return -EINVAL;
-	tmp = info->target & -16;
+	tmp = info->target & ~EBT_VERDICT_BITS;
 	if (tmp != MARK_SET_VALUE && tmp != MARK_OR_VALUE &&
 	    tmp != MARK_AND_VALUE && tmp != MARK_XOR_VALUE)
 		return -EINVAL;

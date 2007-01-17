@@ -13,6 +13,8 @@ struct fib_rule
 	atomic_t		refcnt;
 	int			ifindex;
 	char			ifname[IFNAMSIZ];
+	u32			mark;
+	u32			mark_mask;
 	u32			pref;
 	u32			flags;
 	u32			table;
@@ -50,12 +52,20 @@ struct fib_rules_ops
 					struct nlmsghdr *,
 					struct fib_rule_hdr *);
 	u32			(*default_pref)(void);
+	size_t			(*nlmsg_payload)(struct fib_rule *);
 
 	int			nlgroup;
 	struct nla_policy	*policy;
 	struct list_head	*rules_list;
 	struct module		*owner;
 };
+
+#define FRA_GENERIC_POLICY \
+	[FRA_IFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 }, \
+	[FRA_PRIORITY]	= { .type = NLA_U32 }, \
+	[FRA_FWMARK]	= { .type = NLA_U32 }, \
+	[FRA_FWMASK]	= { .type = NLA_U32 }, \
+	[FRA_TABLE]     = { .type = NLA_U32 }
 
 static inline void fib_rule_get(struct fib_rule *rule)
 {

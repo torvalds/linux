@@ -582,9 +582,19 @@ static int strrcmp(const char *s, const char *sub)
  *   tosec   = .init.text | .exit.text | .init.data
  *   fromsec = .data
  *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one
+ *
+ * Pattern 3:
+ *   Some symbols belong to init section but still it is ok to reference
+ *   these from non-init sections as these symbols don't have any memory
+ *   allocated for them and symbol address and value are same. So even
+ *   if init section is freed, its ok to reference those symbols.
+ *   For ex. symbols marking the init section boundaries.
+ *   This pattern is identified by
+ *   refsymname = __init_begin, _sinittext, _einittext
  **/
 static int secref_whitelist(const char *modname, const char *tosec,
-			    const char *fromsec, const char *atsym)
+			    const char *fromsec, const char *atsym,
+			    const char *refsymname)
 {
 	int f1 = 1, f2 = 1;
 	const char **s;
@@ -595,6 +605,14 @@ static int secref_whitelist(const char *modname, const char *tosec,
 		"_ops",
 		"_probe",
 		"_probe_one",
+		"_console",
+		NULL
+	};
+
+	const char *pat3refsym[] = {
+		"__init_begin",
+		"_sinittext",
+		"_einittext",
 		NULL
 	};
 
@@ -628,6 +646,11 @@ static int secref_whitelist(const char *modname, const char *tosec,
 		if ((strcmp(fromsec, ".pci_fixup") == 0) &&
 		    (strcmp(tosec, ".init.text") == 0))
 		return 1;
+
+		/* Check for pattern 3 */
+		for (s = pat3refsym; *s; s++)
+			if (strcmp(refsymname, *s) == 0)
+				return 1;
 	}
 	return 0;
 }
@@ -737,7 +760,7 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 	/* check whitelist - we may ignore it */
 	if (before &&
 	    secref_whitelist(modname, secname, fromsec,
-			     elf->strtab + before->st_name))
+			     elf->strtab + before->st_name, refsymname))
 		return;
 
 	if (before && after) {
@@ -911,6 +934,7 @@ static int init_section_ref_ok(const char *name)
 		".toc1",  /* used by ppc64 */
 		".stab",
 		".rodata",
+		".parainstructions",
 		".text.lock",
 		"__bug_table", /* used by powerpc for BUG() */
 		".pci_fixup_header",
@@ -931,6 +955,7 @@ static int init_section_ref_ok(const char *name)
 		".altinstructions",
 		".eh_frame",
 		".debug",
+		".parainstructions",
 		NULL
 	};
 	/* part of section name */
@@ -995,6 +1020,7 @@ static int exit_section_ref_ok(const char *name)
 		"__bug_table", /* used by powerpc for BUG() */
 		".exitcall.exit",
 		".eh_frame",
+		".parainstructions",
 		".stab",
 		"__ex_table",
 		".fixup",

@@ -4,8 +4,8 @@
 #ifdef __KERNEL__
 
 #include <linux/futex.h>
+#include <linux/uaccess.h>
 #include <asm/errno.h>
-#include <asm/uaccess.h>
 
 static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 {
@@ -21,7 +21,9 @@ static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
+	pagefault_disable();
 	ret = uaccess.futex_atomic_op(op, uaddr, oparg, &oldval);
+	pagefault_enable();
 
 	if (!ret) {
 		switch (cmp) {

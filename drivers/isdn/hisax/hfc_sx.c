@@ -1251,8 +1251,10 @@ setstack_2b(struct PStack *st, struct BCState *bcs)
 /* handle L1 state changes */
 /***************************/
 static void
-hfcsx_bh(struct IsdnCardState *cs)
+hfcsx_bh(struct work_struct *work)
 {
+	struct IsdnCardState *cs =
+		container_of(work, struct IsdnCardState, tqueue);
 	u_long flags;
 
 	if (!cs)
@@ -1499,7 +1501,7 @@ setup_hfcsx(struct IsdnCard *card)
 	cs->dbusytimer.function = (void *) hfcsx_dbusy_timer;
 	cs->dbusytimer.data = (long) cs;
 	init_timer(&cs->dbusytimer);
-	INIT_WORK(&cs->tqueue, (void *)(void *) hfcsx_bh, cs);
+	INIT_WORK(&cs->tqueue, hfcsx_bh);
 	cs->readisac = NULL;
 	cs->writeisac = NULL;
 	cs->readisacfifo = NULL;

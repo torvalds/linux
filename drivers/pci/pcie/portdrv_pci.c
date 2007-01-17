@@ -90,7 +90,7 @@ static int __devinit pcie_portdrv_probe (struct pci_dev *dev,
 		return -ENODEV;
 	
 	pci_set_master(dev);
-        if (!dev->irq) {
+        if (!dev->irq && dev->pin) {
 		printk(KERN_WARNING 
 		"%s->Dev[%04x:%04x] has invalid IRQ. Check vendor BIOS\n", 
 		__FUNCTION__, dev->device, dev->vendor);

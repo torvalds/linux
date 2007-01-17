@@ -146,7 +146,7 @@ static int __devinit hydra_probe(struct pci_dev *dev,
 static void __devexit hydra_remove(struct pci_dev *dev)
 {
 	pdregw(hydra_bit_data.data, 0);		/* clear SCLK_OE and SDAT_OE */
-	i2c_bit_del_bus(&hydra_adap);
+	i2c_del_adapter(&hydra_adap);
 	iounmap(hydra_bit_data.data);
 	release_mem_region(pci_resource_start(dev, 0)+
 			   offsetof(struct Hydra, CachePD), 4);

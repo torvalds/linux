@@ -126,6 +126,7 @@ cpci405_setup_arch(void)
 void __init
 bios_fixup(struct pci_controller *hose, struct pcil0_regs *pcip)
 {
+#ifdef CONFIG_PCI
 	unsigned int bar_response, bar;
 
 	/* Disable region first */
@@ -167,6 +168,7 @@ bios_fixup(struct pci_controller *hose, struct pcil0_regs *pcip)
 					PCI_FUNC(hose->first_busno), bar,
 					&bar_response);
 	}
+#endif
 }
 
 void __init

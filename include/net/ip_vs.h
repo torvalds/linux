@@ -988,14 +988,20 @@ extern int ip_vs_make_skb_writable(struct sk_buff **pskb, int len);
 extern void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		struct ip_vs_conn *cp, int dir);
 
-extern u16 ip_vs_checksum_complete(struct sk_buff *skb, int offset);
+extern __sum16 ip_vs_checksum_complete(struct sk_buff *skb, int offset);
 
-static inline u16 ip_vs_check_diff(u32 old, u32 new, u16 oldsum)
+static inline __wsum ip_vs_check_diff4(__be32 old, __be32 new, __wsum oldsum)
 {
-	u32 diff[2] = { old, new };
+	__be32 diff[2] = { ~old, new };
 
-	return csum_fold(csum_partial((char *) diff, sizeof(diff),
-				      oldsum ^ 0xFFFF));
+	return csum_partial((char *) diff, sizeof(diff), oldsum);
+}
+
+static inline __wsum ip_vs_check_diff2(__be16 old, __be16 new, __wsum oldsum)
+{
+	__be16 diff[2] = { ~old, new };
+
+	return csum_partial((char *) diff, sizeof(diff), oldsum);
 }
 
 #endif /* __KERNEL__ */

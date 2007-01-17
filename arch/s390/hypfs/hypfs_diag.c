@@ -379,7 +379,7 @@ static void *diag204_alloc_vbuf(int pages)
 static void *diag204_alloc_rbuf(void)
 {
 	diag204_buf = (void*)__get_free_pages(GFP_KERNEL,0);
-	if (diag204_buf)
+	if (!diag204_buf)
 		return ERR_PTR(-ENOMEM);
 	diag204_buf_pages = 1;
 	return diag204_buf;
@@ -521,7 +521,7 @@ __init int hypfs_diag_init(void)
 	}
 	rc = diag224_get_name_table();
 	if (rc) {
-		diag224_delete_name_table();
+		diag204_free_buffer();
 		printk(KERN_ERR "hypfs: could not get name table.\n");
 	}
 	return rc;

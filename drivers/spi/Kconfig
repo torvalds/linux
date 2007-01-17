@@ -16,7 +16,7 @@ config SPI
 	  controller and a chipselect.  Most SPI slaves don't support
 	  dynamic device discovery; some are even write-only or read-only.
 
-	  SPI is widely used by microcontollers to talk with sensors,
+	  SPI is widely used by microcontrollers to talk with sensors,
 	  eeprom and flash memory, codecs and various other controller
 	  chips, analog to digital (and d-to-a) converters, and more.
 	  MMC and SD cards can be accessed using SPI protocol; and for

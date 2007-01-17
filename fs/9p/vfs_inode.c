@@ -256,7 +256,7 @@ static int
 v9fs_create(struct v9fs_session_info *v9ses, u32 pfid, char *name, u32 perm,
 	u8 mode, char *extension, u32 *fidp, struct v9fs_qid *qid, u32 *iounit)
 {
-	u32 fid;
+	int fid;
 	int err;
 	struct v9fs_fcall *fcall;
 
@@ -310,7 +310,7 @@ static struct v9fs_fid*
 v9fs_clone_walk(struct v9fs_session_info *v9ses, u32 fid, struct dentry *dentry)
 {
 	int err;
-	u32 nfid;
+	int nfid;
 	struct v9fs_fid *ret;
 	struct v9fs_fcall *fcall;
 

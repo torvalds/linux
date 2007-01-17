@@ -50,6 +50,50 @@ ACPI_MODULE_NAME("nsxfobj")
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_get_id
+ *
+ * PARAMETERS:  Handle          - Handle of object whose id is desired
+ *              ret_id          - Where the id will be placed
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: This routine returns the owner id associated with a handle
+ *
+ ******************************************************************************/
+acpi_status acpi_get_id(acpi_handle handle, acpi_owner_id * ret_id)
+{
+	struct acpi_namespace_node *node;
+	acpi_status status;
+
+	/* Parameter Validation */
+
+	if (!ret_id) {
+		return (AE_BAD_PARAMETER);
+	}
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	/* Convert and validate the handle */
+
+	node = acpi_ns_map_handle_to_node(handle);
+	if (!node) {
+		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+		return (AE_BAD_PARAMETER);
+	}
+
+	*ret_id = node->owner_id;
+
+	status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+	return (status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_get_id)
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_get_type
  *
  * PARAMETERS:  Handle          - Handle of object whose type is desired

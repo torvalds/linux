@@ -71,7 +71,7 @@ match_packet(const struct sk_buff *skb,
 		duprintf("Chunk num: %d\toffset: %d\ttype: %d\tlength: %d\tflags: %x\n", 
 				++i, offset, sch->type, htons(sch->length), sch->flags);
 
-		offset += (htons(sch->length) + 3) & ~3;
+		offset += (ntohs(sch->length) + 3) & ~3;
 
 		duprintf("skb->len: %d\toffset: %d\n", skb->len, offset);
 

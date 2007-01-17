@@ -30,7 +30,7 @@
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-extern unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum);
+extern __wsum csum_partial(const void *buff, int len, __wsum sum);
 
 /* the same as csum_partial, but copies from fs:src while it
  * checksums
@@ -41,9 +41,8 @@ extern unsigned int csum_partial(const unsigned char * buff, int len, unsigned i
 
 extern unsigned int __csum_partial_copy_sparc_generic (const unsigned char *, unsigned char *);
 
-static inline unsigned int 
-csum_partial_copy_nocheck (const unsigned char *src, unsigned char *dst, int len,
-			   unsigned int sum)
+static inline __wsum
+csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 {
 	register unsigned int ret asm("o0") = (unsigned int)src;
 	register char *d asm("o1") = dst;
@@ -57,42 +56,36 @@ csum_partial_copy_nocheck (const unsigned char *src, unsigned char *dst, int len
 	: "o2", "o3", "o4", "o5", "o7",
 	  "g2", "g3", "g4", "g5", "g7",
 	  "memory", "cc");
-	return ret;
+	return (__force __wsum)ret;
 }
 
-static inline unsigned int 
-csum_partial_copy_from_user(const unsigned char __user *src, unsigned char *dst, int len,
-			    unsigned int sum, int *err)
+static inline __wsum
+csum_partial_copy_from_user(const void __user *src, void *dst, int len,
+			    __wsum sum, int *err)
   {
-	if (!access_ok (VERIFY_READ, src, len)) {
-		*err = -EFAULT;
-		memset (dst, 0, len);
-		return sum;
-	} else {
-		register unsigned long ret asm("o0") = (unsigned long)src;
-		register char *d asm("o1") = dst;
-		register int l asm("g1") = len;
-		register unsigned int s asm("g7") = sum;
+	register unsigned long ret asm("o0") = (unsigned long)src;
+	register char *d asm("o1") = dst;
+	register int l asm("g1") = len;
+	register __wsum s asm("g7") = sum;
 
-		__asm__ __volatile__ (
-		".section __ex_table,#alloc\n\t"
-		".align 4\n\t"
-		".word 1f,2\n\t"
-		".previous\n"
-		"1:\n\t"
-		"call __csum_partial_copy_sparc_generic\n\t"
-		" st %8, [%%sp + 64]\n"
-		: "=&r" (ret), "=&r" (d), "=&r" (l), "=&r" (s)
-		: "0" (ret), "1" (d), "2" (l), "3" (s), "r" (err)
-		: "o2", "o3", "o4", "o5", "o7", "g2", "g3", "g4", "g5",
-		  "cc", "memory");
-		return ret;
-	}
-  }
+	__asm__ __volatile__ (
+	".section __ex_table,#alloc\n\t"
+	".align 4\n\t"
+	".word 1f,2\n\t"
+	".previous\n"
+	"1:\n\t"
+	"call __csum_partial_copy_sparc_generic\n\t"
+	" st %8, [%%sp + 64]\n"
+	: "=&r" (ret), "=&r" (d), "=&r" (l), "=&r" (s)
+	: "0" (ret), "1" (d), "2" (l), "3" (s), "r" (err)
+	: "o2", "o3", "o4", "o5", "o7", "g2", "g3", "g4", "g5",
+	  "cc", "memory");
+	return (__force __wsum)ret;
+}
   
-static inline unsigned int 
-csum_partial_copy_to_user(const unsigned char *src, unsigned char __user *dst, int len,
-			  unsigned int sum, int *err)
+static inline __wsum
+csum_partial_copy_to_user(const void *src, void __user *dst, int len,
+			  __wsum sum, int *err)
 {
 	if (!access_ok (VERIFY_WRITE, dst, len)) {
 		*err = -EFAULT;
@@ -101,7 +94,7 @@ csum_partial_copy_to_user(const unsigned char *src, unsigned char __user *dst, i
 		register unsigned long ret asm("o0") = (unsigned long)src;
 		register char __user *d asm("o1") = dst;
 		register int l asm("g1") = len;
-		register unsigned int s asm("g7") = sum;
+		register __wsum s asm("g7") = sum;
 
 		__asm__ __volatile__ (
 		".section __ex_table,#alloc\n\t"
@@ -116,7 +109,7 @@ csum_partial_copy_to_user(const unsigned char *src, unsigned char __user *dst, i
 		: "o2", "o3", "o4", "o5", "o7",
 		  "g2", "g3", "g4", "g5",
 		  "cc", "memory");
-		return ret;
+		return (__force __wsum)ret;
 	}
 }
 
@@ -126,10 +119,9 @@ csum_partial_copy_to_user(const unsigned char *src, unsigned char __user *dst, i
 /* ihl is always 5 or greater, almost always is 5, and iph is word aligned
  * the majority of the time.
  */
-static inline unsigned short ip_fast_csum(const unsigned char *iph,
-					  unsigned int ihl)
+static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
-	unsigned short sum;
+	__sum16 sum;
 
 	/* Note: We must read %2 before we touch %0 for the first time,
 	 *       because GCC can legitimately use the same register for
@@ -164,7 +156,7 @@ static inline unsigned short ip_fast_csum(const unsigned char *iph,
 }
 
 /* Fold a partial checksum without adding pseudo headers. */
-static inline unsigned int csum_fold(unsigned int sum)
+static inline __sum16 csum_fold(__wsum sum)
 {
 	unsigned int tmp;
 
@@ -173,23 +165,22 @@ static inline unsigned int csum_fold(unsigned int sum)
 			     "addx\t%1, %%g0, %1\n\t"
 			     "xnor\t%%g0, %1, %0"
 			     : "=&r" (sum), "=r" (tmp)
-			     : "0" (sum), "1" (sum<<16)
+			     : "0" (sum), "1" ((__force u32)sum<<16)
 			     : "cc");
-	return sum;
+	return (__force __sum16)sum;
 }
 
-static inline unsigned long csum_tcpudp_nofold(unsigned long saddr,
-					       unsigned long daddr,
-					       unsigned int len,
+static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+					       unsigned short len,
 					       unsigned short proto,
-					       unsigned int sum)
+					       __wsum sum)
 {
 	__asm__ __volatile__("addcc\t%1, %0, %0\n\t"
 			     "addxcc\t%2, %0, %0\n\t"
 			     "addxcc\t%3, %0, %0\n\t"
 			     "addx\t%0, %%g0, %0\n\t"
 			     : "=r" (sum), "=r" (saddr)
-			     : "r" (daddr), "r" ((proto<<16)+len), "0" (sum),
+			     : "r" (daddr), "r" (proto + len), "0" (sum),
 			       "1" (saddr)
 			     : "cc");
 	return sum;
@@ -199,22 +190,20 @@ static inline unsigned long csum_tcpudp_nofold(unsigned long saddr,
  * computes the checksum of the TCP/UDP pseudo-header
  * returns a 16-bit checksum, already complemented
  */
-static inline unsigned short int csum_tcpudp_magic(unsigned long saddr,
-						   unsigned long daddr,
+static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 						   unsigned short len,
 						   unsigned short proto,
-						   unsigned int sum) 
+						   __wsum sum)
 {
 	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
 }
 
 #define _HAVE_ARCH_IPV6_CSUM
 
-static inline unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
-						 struct in6_addr *daddr,
-						 __u32 len,
-						 unsigned short proto,
-						 unsigned int sum) 
+static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+				      const struct in6_addr *daddr,
+				      __u32 len, unsigned short proto,
+				      __wsum sum)
 {
 	__asm__ __volatile__ (
 		"addcc	%3, %4, %%g4\n\t"
@@ -245,7 +234,7 @@ static inline unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
 }
 
 /* this routine is used for miscellaneous IP-like checksums, mainly in icmp.c */
-static inline unsigned short ip_compute_csum(unsigned char * buff, int len)
+static inline __sum16 ip_compute_csum(const void *buff, int len)
 {
 	return csum_fold(csum_partial(buff, len, 0));
 }

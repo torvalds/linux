@@ -48,7 +48,6 @@ static struct pci_controller *u3_ht;
 static int has_second_ohare;
 #endif /* CONFIG_PPC64 */
 
-extern u8 pci_cache_line_size;
 extern int pcibios_assign_bus_offset;
 
 struct device_node *k2_skiplist[2];
@@ -985,30 +984,23 @@ static int __init add_bridge(struct device_node *dev)
 	return 0;
 }
 
-void __init pmac_pcibios_fixup(void)
+void __devinit pmac_pci_irq_fixup(struct pci_dev *dev)
 {
-	struct pci_dev* dev = NULL;
-
-	for_each_pci_dev(dev) {
-		/* Read interrupt from the device-tree */
-		pci_read_irq_line(dev);
-
 #ifdef CONFIG_PPC32
-		/* Fixup interrupt for the modem/ethernet combo controller.
-		 * on machines with a second ohare chip.
-		 * The number in the device tree (27) is bogus (correct for
-		 * the ethernet-only board but not the combo ethernet/modem
-		 * board). The real interrupt is 28 on the second controller
-		 * -> 28+32 = 60.
-		 */
-		if (has_second_ohare &&
-		    dev->vendor == PCI_VENDOR_ID_DEC &&
-		    dev->device == PCI_DEVICE_ID_DEC_TULIP_PLUS) {
-			dev->irq = irq_create_mapping(NULL, 60);
-			set_irq_type(dev->irq, IRQ_TYPE_LEVEL_LOW);
-		}
-#endif /* CONFIG_PPC32 */
+	/* Fixup interrupt for the modem/ethernet combo controller.
+	 * on machines with a second ohare chip.
+	 * The number in the device tree (27) is bogus (correct for
+	 * the ethernet-only board but not the combo ethernet/modem
+	 * board). The real interrupt is 28 on the second controller
+	 * -> 28+32 = 60.
+	 */
+	if (has_second_ohare &&
+	    dev->vendor == PCI_VENDOR_ID_DEC &&
+	    dev->device == PCI_DEVICE_ID_DEC_TULIP_PLUS) {
+		dev->irq = irq_create_mapping(NULL, 60);
+		set_irq_type(dev->irq, IRQ_TYPE_LEVEL_LOW);
 	}
+#endif /* CONFIG_PPC32 */
 }
 
 #ifdef CONFIG_PPC64

@@ -2471,7 +2471,13 @@ static int parse_audio_format_rates(struct snd_usb_audio *chip, struct audioform
 		fp->nr_rates = nr_rates;
 		fp->rate_min = fp->rate_max = combine_triple(&fmt[8]);
 		for (r = 0, idx = offset + 1; r < nr_rates; r++, idx += 3) {
-			unsigned int rate = fp->rate_table[r] = combine_triple(&fmt[idx]);
+			unsigned int rate = combine_triple(&fmt[idx]);
+			/* C-Media CM6501 mislabels its 96 kHz altsetting */
+			if (rate == 48000 && nr_rates == 1 &&
+			    chip->usb_id == USB_ID(0x0d8c, 0x0201) &&
+			    fp->altsetting == 5 && fp->maxpacksize == 392)
+				rate = 96000;
+			fp->rate_table[r] = rate;
 			if (rate < fp->rate_min)
 				fp->rate_min = rate;
 			else if (rate > fp->rate_max)
@@ -3280,6 +3286,7 @@ static void snd_usb_audio_create_proc(struct snd_usb_audio *chip)
 
 static int snd_usb_audio_free(struct snd_usb_audio *chip)
 {
+	usb_chip[chip->index] = NULL;
 	kfree(chip);
 	return 0;
 }
@@ -3541,7 +3548,6 @@ static void snd_usb_audio_disconnect(struct usb_device *dev, void *ptr)
 		list_for_each(p, &chip->mixer_list) {
 			snd_usb_mixer_disconnect(p);
 		}
-		usb_chip[chip->index] = NULL;
 		mutex_unlock(&register_mutex);
 		snd_card_free_when_closed(card);
 	} else {
@@ -3577,8 +3583,7 @@ static int __init snd_usb_audio_init(void)
 		printk(KERN_WARNING "invalid nrpacks value.\n");
 		return -EINVAL;
 	}
-	usb_register(&usb_audio_driver);
-	return 0;
+	return usb_register(&usb_audio_driver);
 }
 
 

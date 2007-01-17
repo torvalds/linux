@@ -28,6 +28,7 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/arch_hooks.h>
+#include <asm/pda.h>
 
 /* TLB state -- visible externally, indexed physically */
 DEFINE_PER_CPU(struct tlb_state, cpu_tlbstate) ____cacheline_aligned = { &init_mm, 0 };
@@ -422,6 +423,7 @@ find_smp_config(void)
 	     VOYAGER_SUS_IN_CONTROL_PORT);
 
 	current_thread_info()->cpu = boot_cpu_id;
+	write_pda(cpu_number, boot_cpu_id);
 }
 
 /*
@@ -458,7 +460,7 @@ start_secondary(void *unused)
 	/* external functions not defined in the headers */
 	extern void calibrate_delay(void);
 
-	cpu_init();
+	secondary_cpu_init();
 
 	/* OK, we're in the routine */
 	ack_CPI(VIC_CPU_BOOT_CPI);
@@ -577,6 +579,15 @@ do_boot_cpu(__u8 cpu)
 	idle->thread.eip = (unsigned long) start_secondary;
 	/* init_tasks (in sched.c) is indexed logically */
 	stack_start.esp = (void *) idle->thread.esp;
+
+	/* Pre-allocate and initialize the CPU's GDT and PDA so it
+	   doesn't have to do any memory allocation during the
+	   delicate CPU-bringup phase. */
+	if (!init_gdt(cpu, idle)) {
+		printk(KERN_INFO "Couldn't allocate GDT/PDA for CPU %d\n", cpu);
+		cpucount--;
+		return;
+	}
 
 	irq_ctx_init(cpu);
 
@@ -1963,4 +1974,5 @@ void __init
 smp_setup_processor_id(void)
 {
 	current_thread_info()->cpu = hard_smp_processor_id();
+	write_pda(cpu_number, hard_smp_processor_id());
 }

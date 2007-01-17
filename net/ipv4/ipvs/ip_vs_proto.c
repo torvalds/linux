@@ -118,13 +118,7 @@ void ip_vs_protocol_timeout_change(int flags)
 int *
 ip_vs_create_timeout_table(int *table, int size)
 {
-	int *t;
-
-	t = kmalloc(size, GFP_ATOMIC);
-	if (t == NULL)
-		return NULL;
-	memcpy(t, table, size);
-	return t;
+	return kmemdup(table, size, GFP_ATOMIC);
 }
 
 

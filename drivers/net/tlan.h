@@ -170,6 +170,7 @@ typedef u8 TLanBuffer[TLAN_MAX_FRAME_SIZE];
 typedef struct tlan_private_tag {
 	struct net_device       *nextDevice;
 	struct pci_dev		*pciDev;
+	struct net_device       *dev;
 	void			*dmaStorage;
 	dma_addr_t		dmaStorageDMA;
 	unsigned int		dmaSize;

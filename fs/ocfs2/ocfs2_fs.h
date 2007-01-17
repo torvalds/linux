@@ -86,7 +86,7 @@
 	OCFS2_SB(sb)->s_feature_incompat &= ~(mask)
 
 #define OCFS2_FEATURE_COMPAT_SUPP	0
-#define OCFS2_FEATURE_INCOMPAT_SUPP	0
+#define OCFS2_FEATURE_INCOMPAT_SUPP	OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT
 #define OCFS2_FEATURE_RO_COMPAT_SUPP	0
 
 /*
@@ -96,6 +96,18 @@
  */
 #define OCFS2_FEATURE_INCOMPAT_HEARTBEAT_DEV	0x0002
 
+/*
+ * tunefs sets this incompat flag before starting the resize and clears it
+ * at the end. This flag protects users from inadvertently mounting the fs
+ * after an aborted run without fsck-ing.
+ */
+#define OCFS2_FEATURE_INCOMPAT_RESIZE_INPROG    0x0004
+
+/* Used to denote a non-clustered volume */
+#define OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT	0x0008
+
+/* Support for sparse allocation in b-trees */
+#define OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC	0x0010
 
 /*
  * Flags on ocfs2_dinode.i_flags

@@ -213,7 +213,7 @@ static inline void spill_registers(void)
 	unsigned int a0, ps;
 
 	__asm__ __volatile__ (
-		"movi	a14," __stringify (PS_EXCM_MASK) " | 1\n\t"
+		"movi	a14," __stringify (PS_EXCM_BIT) " | 1\n\t"
 		"mov	a12, a0\n\t"
 		"rsr	a13," __stringify(SAR) "\n\t"
 		"xsr	a14," __stringify(PS) "\n\t"

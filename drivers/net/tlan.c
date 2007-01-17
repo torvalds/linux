@@ -296,6 +296,7 @@ static void	TLan_SetMulticastList( struct net_device *);
 static int	TLan_ioctl( struct net_device *dev, struct ifreq *rq, int cmd);
 static int      TLan_probe1( struct pci_dev *pdev, long ioaddr, int irq, int rev, const struct pci_device_id *ent);
 static void	TLan_tx_timeout( struct net_device *dev);
+static void	TLan_tx_timeout_work(struct work_struct *work);
 static int 	tlan_init_one( struct pci_dev *pdev, const struct pci_device_id *ent);
 
 static u32	TLan_HandleInvalid( struct net_device *, u16 );
@@ -562,6 +563,7 @@ static int __devinit TLan_probe1(struct pci_dev *pdev,
 	priv = netdev_priv(dev);
 
 	priv->pciDev = pdev;
+	priv->dev = dev;
 
 	/* Is this a PCI device? */
 	if (pdev) {
@@ -634,7 +636,7 @@ static int __devinit TLan_probe1(struct pci_dev *pdev,
 
 	/* This will be used when we get an adapter error from
 	 * within our irq handler */
-	INIT_WORK(&priv->tlan_tqueue, (void *)(void*)TLan_tx_timeout, dev);
+	INIT_WORK(&priv->tlan_tqueue, TLan_tx_timeout_work);
 
 	spin_lock_init(&priv->lock);
 
@@ -1037,6 +1039,25 @@ static void TLan_tx_timeout(struct net_device *dev)
 	dev->trans_start = jiffies;
 	netif_wake_queue( dev );
 
+}
+
+
+	/***************************************************************
+	 * 	TLan_tx_timeout_work
+	 *
+	 * 	Returns: nothing
+	 *
+	 * 	Params:
+	 * 		work	work item of device which timed out
+	 *
+	 **************************************************************/
+
+static void TLan_tx_timeout_work(struct work_struct *work)
+{
+	TLanPrivateInfo	*priv =
+		container_of(work, TLanPrivateInfo, tlan_tqueue);
+
+	TLan_tx_timeout(priv->dev);
 }
 
 

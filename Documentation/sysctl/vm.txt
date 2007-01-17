@@ -129,7 +129,7 @@ the high water marks for each per cpu page list.
 
 zone_reclaim_mode:
 
-Zone_reclaim_mode allows to set more or less agressive approaches to
+Zone_reclaim_mode allows someone to set more or less aggressive approaches to
 reclaim memory when a zone runs out of memory. If it is set to zero then no
 zone reclaim occurs. Allocations will be satisfied from other zones / nodes
 in the system.

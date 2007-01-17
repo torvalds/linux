@@ -163,8 +163,8 @@ struct pi_protocol {
 
 typedef struct pi_protocol PIP;
 
-extern int pi_register( PIP * );
-extern void pi_unregister ( PIP * );
+extern int paride_register( PIP * );
+extern void paride_unregister ( PIP * );
 
 #endif /* __DRIVERS_PARIDE_H__ */
 /* end of paride.h */

@@ -53,7 +53,10 @@ void static inline set_interrupt_registers(int ip)
 {
 	unsigned long __dummy;
 
-	asm volatile("ldc	%2, r6_bank\n\t"
+	asm volatile(
+#ifdef CONFIG_CPU_HAS_SR_RB
+		     "ldc	%2, r6_bank\n\t"
+#endif
 		     "stc	sr, %0\n\t"
 		     "and	#0xf0, %0\n\t"
 		     "shlr2	%0\n\t"

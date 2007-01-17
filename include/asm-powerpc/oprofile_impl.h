@@ -44,7 +44,9 @@ struct op_powerpc_model {
 			   int num_counters);
 	void (*cpu_setup) (struct op_counter_config *);
 	void (*start) (struct op_counter_config *);
+        void (*global_start) (struct op_counter_config *);
 	void (*stop) (void);
+	void (*global_stop) (void);
 	void (*handle_interrupt) (struct pt_regs *,
 				  struct op_counter_config *);
 	int num_counters;
@@ -54,6 +56,7 @@ extern struct op_powerpc_model op_model_fsl_booke;
 extern struct op_powerpc_model op_model_rs64;
 extern struct op_powerpc_model op_model_power4;
 extern struct op_powerpc_model op_model_7450;
+extern struct op_powerpc_model op_model_cell;
 
 #ifndef CONFIG_FSL_BOOKE
 

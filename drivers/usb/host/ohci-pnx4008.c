@@ -4,7 +4,7 @@
  * driver for Philips PNX4008 USB Host
  *
  * Authors: Dmitry Chigirev <source@mvista.com>
- * 	    Vitaly Wool <vitalywool@gmail.com>
+ *	    Vitaly Wool <vitalywool@gmail.com>
  *
  * register initialization is based on code examples provided by Philips
  * Copyright (c) 2005 Koninklijke Philips Electronics N.V.
@@ -29,7 +29,7 @@
 #include <asm/arch/irqs.h>
 #include <asm/arch/gpio.h>
 
-#define USB_CTRL 	IO_ADDRESS(PNX4008_PWRMAN_BASE + 0x64)
+#define USB_CTRL	IO_ADDRESS(PNX4008_PWRMAN_BASE + 0x64)
 
 /* USB_CTRL bit defines */
 #define USB_SLAVE_HCLK_EN	(1 << 24)
@@ -134,7 +134,7 @@ static int isp1301_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct i2c_client *c;
 
-	c = (struct i2c_client *)kzalloc(sizeof(*c), SLAB_KERNEL);
+	c = (struct i2c_client *)kzalloc(sizeof(*c), GFP_KERNEL);
 
 	if (!c)
 		return -ENOMEM;

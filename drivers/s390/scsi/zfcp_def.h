@@ -1032,9 +1032,9 @@ struct zfcp_data {
 	wwn_t                   init_wwpn;
 	fcp_lun_t               init_fcp_lun;
 	char 			*driver_version;
-	kmem_cache_t		*fsf_req_qtcb_cache;
-	kmem_cache_t		*sr_buffer_cache;
-	kmem_cache_t		*gid_pn_cache;
+	struct kmem_cache		*fsf_req_qtcb_cache;
+	struct kmem_cache		*sr_buffer_cache;
+	struct kmem_cache		*gid_pn_cache;
 };
 
 /**

@@ -726,7 +726,7 @@ static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(const union sctp_addr *l
 	struct sctp_endpoint *ep;
 	int hash;
 
-	hash = sctp_ep_hashfn(laddr->v4.sin_port);
+	hash = sctp_ep_hashfn(ntohs(laddr->v4.sin_port));
 	head = &sctp_ep_hashtable[hash];
 	read_lock(&head->lock);
 	for (epb = head->chain; epb; epb = epb->next) {
@@ -830,7 +830,7 @@ static struct sctp_association *__sctp_lookup_association(
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
-	hash = sctp_assoc_hashfn(local->v4.sin_port, peer->v4.sin_port);
+	hash = sctp_assoc_hashfn(ntohs(local->v4.sin_port), ntohs(peer->v4.sin_port));
 	head = &sctp_assoc_hashtable[hash];
 	read_lock(&head->lock);
 	for (epb = head->chain; epb; epb = epb->next) {
@@ -957,7 +957,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct sk_buff *skb,
 		if (!af)
 			continue;
 
-		af->from_addr_param(paddr, params.addr, ntohs(sh->source), 0);
+		af->from_addr_param(paddr, params.addr, sh->source, 0);
 
 		asoc = __sctp_lookup_association(laddr, paddr, &transport);
 		if (asoc)

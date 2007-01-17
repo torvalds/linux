@@ -7,8 +7,8 @@
  *               Christian Borntraeger (cborntra@de.ibm.com),
  */
 
-#ifndef __CPCMD__
-#define __CPCMD__
+#ifndef _ASM_S390_CPCMD_H
+#define _ASM_S390_CPCMD_H
 
 /*
  * the lowlevel function for cpcmd
@@ -16,9 +16,6 @@
  */
 extern int __cpcmd(const char *cmd, char *response, int rlen, int *response_code);
 
-#ifndef __s390x__
-#define cpcmd __cpcmd
-#else
 /*
  * cpcmd is the in-kernel interface for issuing CP commands
  *
@@ -33,6 +30,5 @@ extern int __cpcmd(const char *cmd, char *response, int rlen, int *response_code
  * NOTE: If the response buffer is not below 2 GB, cpcmd can sleep
  */
 extern int cpcmd(const char *cmd, char *response, int rlen, int *response_code);
-#endif /*__s390x__*/
 
-#endif
+#endif /* _ASM_S390_CPCMD_H */

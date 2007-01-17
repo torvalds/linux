@@ -277,7 +277,7 @@ osf_fstatfs(unsigned long fd, struct osf_statfs __user *buffer, unsigned long bu
 	retval = -EBADF;
 	file = fget(fd);
 	if (file) {
-		retval = do_osf_statfs(file->f_dentry, buffer, bufsiz);
+		retval = do_osf_statfs(file->f_path.dentry, buffer, bufsiz);
 		fput(file);
 	}
 	return retval;
@@ -979,7 +979,7 @@ osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 	long timeout;
 	int ret = -EINVAL;
 	struct fdtable *fdt;
-	int max_fdset;
+	int max_fds;
 
 	timeout = MAX_SCHEDULE_TIMEOUT;
 	if (tvp) {
@@ -1003,9 +1003,9 @@ osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 
 	rcu_read_lock();
 	fdt = files_fdtable(current->files);
-	max_fdset = fdt->max_fdset;
+	max_fds = fdt->max_fds;
 	rcu_read_unlock();
-	if (n < 0 || n > max_fdset)
+	if (n < 0 || n > max_fds)
 		goto out_nofds;
 
 	/*

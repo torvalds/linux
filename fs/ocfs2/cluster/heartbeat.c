@@ -141,7 +141,7 @@ struct o2hb_region {
 	 * recognizes a node going up and down in one iteration */
 	u64			hr_generation;
 
-	struct work_struct	hr_write_timeout_work;
+	struct delayed_work	hr_write_timeout_work;
 	unsigned long		hr_last_timeout_start;
 
 	/* Used during o2hb_check_slot to hold a copy of the block
@@ -156,9 +156,11 @@ struct o2hb_bio_wait_ctxt {
 	int               wc_error;
 };
 
-static void o2hb_write_timeout(void *arg)
+static void o2hb_write_timeout(struct work_struct *work)
 {
-	struct o2hb_region *reg = arg;
+	struct o2hb_region *reg =
+		container_of(work, struct o2hb_region,
+			     hr_write_timeout_work.work);
 
 	mlog(ML_ERROR, "Heartbeat write timeout to device %s after %u "
 	     "milliseconds\n", reg->hr_dev_name,
@@ -1404,7 +1406,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 		goto out;
 	}
 
-	INIT_WORK(&reg->hr_write_timeout_work, o2hb_write_timeout, reg);
+	INIT_DELAYED_WORK(&reg->hr_write_timeout_work, o2hb_write_timeout);
 
 	/*
 	 * A node is considered live after it has beat LIVE_THRESHOLD
@@ -1445,6 +1447,15 @@ out:
 	return ret;
 }
 
+static ssize_t o2hb_region_pid_read(struct o2hb_region *reg,
+                                      char *page)
+{
+	if (!reg->hr_task)
+		return 0;
+
+	return sprintf(page, "%u\n", reg->hr_task->pid);
+}
+
 struct o2hb_region_attribute {
 	struct configfs_attribute attr;
 	ssize_t (*show)(struct o2hb_region *, char *);
@@ -1483,11 +1494,19 @@ static struct o2hb_region_attribute o2hb_region_attr_dev = {
 	.store	= o2hb_region_dev_write,
 };
 
+static struct o2hb_region_attribute o2hb_region_attr_pid = {
+       .attr   = { .ca_owner = THIS_MODULE,
+                   .ca_name = "pid",
+                   .ca_mode = S_IRUGO | S_IRUSR },
+       .show   = o2hb_region_pid_read,
+};
+
 static struct configfs_attribute *o2hb_region_attrs[] = {
 	&o2hb_region_attr_block_bytes.attr,
 	&o2hb_region_attr_start_block.attr,
 	&o2hb_region_attr_blocks.attr,
 	&o2hb_region_attr_dev.attr,
+	&o2hb_region_attr_pid.attr,
 	NULL,
 };
 
@@ -1551,7 +1570,7 @@ static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *g
 	struct o2hb_region *reg = NULL;
 	struct config_item *ret = NULL;
 
-	reg = kcalloc(1, sizeof(struct o2hb_region), GFP_KERNEL);
+	reg = kzalloc(sizeof(struct o2hb_region), GFP_KERNEL);
 	if (reg == NULL)
 		goto out; /* ENOMEM */
 
@@ -1677,7 +1696,7 @@ struct config_group *o2hb_alloc_hb_set(void)
 	struct o2hb_heartbeat_group *hs = NULL;
 	struct config_group *ret = NULL;
 
-	hs = kcalloc(1, sizeof(struct o2hb_heartbeat_group), GFP_KERNEL);
+	hs = kzalloc(sizeof(struct o2hb_heartbeat_group), GFP_KERNEL);
 	if (hs == NULL)
 		goto out;
 

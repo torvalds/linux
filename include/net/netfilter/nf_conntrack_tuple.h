@@ -24,10 +24,10 @@
 
 /* The l3 protocol-specific manipulable parts of the tuple: always in
    network order! */
-union nf_conntrack_man_l3proto {
+union nf_conntrack_address {
 	u_int32_t all[NF_CT_TUPLE_L3SIZE];
-	u_int32_t ip;
-	u_int32_t ip6[4];
+	__be32 ip;
+	__be32 ip6[4];
 };
 
 /* The protocol-specific manipulable parts of the tuple: always in
@@ -38,23 +38,26 @@ union nf_conntrack_man_proto
 	u_int16_t all;
 
 	struct {
-		u_int16_t port;
+		__be16 port;
 	} tcp;
 	struct {
-		u_int16_t port;
+		__be16 port;
 	} udp;
 	struct {
-		u_int16_t id;
+		__be16 id;
 	} icmp;
 	struct {
-		u_int16_t port;
+		__be16 port;
 	} sctp;
+	struct {
+		__be16 key;	/* GRE key is 32bit, PPtP only uses 16bit */
+	} gre;
 };
 
 /* The manipulable part of the tuple. */
 struct nf_conntrack_man
 {
-	union nf_conntrack_man_l3proto u3;
+	union nf_conntrack_address u3;
 	union nf_conntrack_man_proto u;
 	/* Layer 3 protocol */
 	u_int16_t l3num;
@@ -67,27 +70,26 @@ struct nf_conntrack_tuple
 
 	/* These are the parts of the tuple which are fixed. */
 	struct {
-		union {
-			u_int32_t all[NF_CT_TUPLE_L3SIZE];
-			u_int32_t ip;
-			u_int32_t ip6[4];
-		} u3;
+		union nf_conntrack_address u3;
 		union {
 			/* Add other protocols here. */
 			u_int16_t all;
 
 			struct {
-				u_int16_t port;
+				__be16 port;
 			} tcp;
 			struct {
-				u_int16_t port;
+				__be16 port;
 			} udp;
 			struct {
 				u_int8_t type, code;
 			} icmp;
 			struct {
-				u_int16_t port;
+				__be16 port;
 			} sctp;
+			struct {
+				__be16 key;
+			} gre;
 		} u;
 
 		/* The protocol. */

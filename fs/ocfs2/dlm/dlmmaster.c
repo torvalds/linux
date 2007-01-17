@@ -221,7 +221,7 @@ EXPORT_SYMBOL_GPL(dlm_dump_all_mles);
 #endif  /*  0  */
 
 
-static kmem_cache_t *dlm_mle_cache = NULL;
+static struct kmem_cache *dlm_mle_cache = NULL;
 
 
 static void dlm_mle_release(struct kref *kref);
@@ -1939,7 +1939,7 @@ int dlm_dispatch_assert_master(struct dlm_ctxt *dlm,
 			       int ignore_higher, u8 request_from, u32 flags)
 {
 	struct dlm_work_item *item;
-	item = kcalloc(1, sizeof(*item), GFP_NOFS);
+	item = kzalloc(sizeof(*item), GFP_NOFS);
 	if (!item)
 		return -ENOMEM;
 

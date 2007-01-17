@@ -1274,9 +1274,10 @@ static void as_merged_requests(request_queue_t *q, struct request *req,
  *
  * FIXME! dispatch queue is not a queue at all!
  */
-static void as_work_handler(void *data)
+static void as_work_handler(struct work_struct *work)
 {
-	struct request_queue *q = data;
+	struct as_data *ad = container_of(work, struct as_data, antic_work);
+	struct request_queue *q = ad->q;
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
@@ -1317,7 +1318,7 @@ static void as_exit_queue(elevator_t *e)
 /*
  * initialize elevator private data (as_data).
  */
-static void *as_init_queue(request_queue_t *q, elevator_t *e)
+static void *as_init_queue(request_queue_t *q)
 {
 	struct as_data *ad;
 
@@ -1332,7 +1333,7 @@ static void *as_init_queue(request_queue_t *q, elevator_t *e)
 	ad->antic_timer.function = as_antic_timeout;
 	ad->antic_timer.data = (unsigned long)q;
 	init_timer(&ad->antic_timer);
-	INIT_WORK(&ad->antic_work, as_work_handler, q);
+	INIT_WORK(&ad->antic_work, as_work_handler);
 
 	INIT_LIST_HEAD(&ad->fifo_list[REQ_SYNC]);
 	INIT_LIST_HEAD(&ad->fifo_list[REQ_ASYNC]);
@@ -1461,20 +1462,7 @@ static struct elevator_type iosched_as = {
 
 static int __init as_init(void)
 {
-	int ret;
-
-	ret = elv_register(&iosched_as);
-	if (!ret) {
-		/*
-		 * don't allow AS to get unregistered, since we would have
-		 * to browse all tasks in the system and release their
-		 * as_io_context first
-		 */
-		__module_get(THIS_MODULE);
-		return 0;
-	}
-
-	return ret;
+	return elv_register(&iosched_as);
 }
 
 static void __exit as_exit(void)

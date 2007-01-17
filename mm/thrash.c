@@ -7,100 +7,74 @@
  *
  * Simple token based thrashing protection, using the algorithm
  * described in:  http://www.cs.wm.edu/~sjiang/token.pdf
+ *
+ * Sep 2006, Ashwin Chaugule <ashwin.chaugule@celunite.com>
+ * Improved algorithm to pass token:
+ * Each task has a priority which is incremented if it contended
+ * for the token in an interval less than its previous attempt.
+ * If the token is acquired, that task's priority is boosted to prevent
+ * the token from bouncing around too often and to let the task make
+ * some progress in its execution.
  */
+
 #include <linux/jiffies.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/swap.h>
 
 static DEFINE_SPINLOCK(swap_token_lock);
-static unsigned long swap_token_timeout;
-static unsigned long swap_token_check;
-struct mm_struct * swap_token_mm = &init_mm;
+struct mm_struct *swap_token_mm;
+static unsigned int global_faults;
 
-#define SWAP_TOKEN_CHECK_INTERVAL (HZ * 2)
-#define SWAP_TOKEN_TIMEOUT	(300 * HZ)
-/*
- * Currently disabled; Needs further code to work at HZ * 300.
- */
-unsigned long swap_token_default_timeout = SWAP_TOKEN_TIMEOUT;
-
-/*
- * Take the token away if the process had no page faults
- * in the last interval, or if it has held the token for
- * too long.
- */
-#define SWAP_TOKEN_ENOUGH_RSS 1
-#define SWAP_TOKEN_TIMED_OUT 2
-static int should_release_swap_token(struct mm_struct *mm)
-{
-	int ret = 0;
-	if (!mm->recent_pagein)
-		ret = SWAP_TOKEN_ENOUGH_RSS;
-	else if (time_after(jiffies, swap_token_timeout))
-		ret = SWAP_TOKEN_TIMED_OUT;
-	mm->recent_pagein = 0;
-	return ret;
-}
-
-/*
- * Try to grab the swapout protection token.  We only try to
- * grab it once every TOKEN_CHECK_INTERVAL, both to prevent
- * SMP lock contention and to check that the process that held
- * the token before is no longer thrashing.
- */
 void grab_swap_token(void)
 {
-	struct mm_struct *mm;
-	int reason;
+	int current_interval;
 
-	/* We have the token. Let others know we still need it. */
-	if (has_swap_token(current->mm)) {
-		current->mm->recent_pagein = 1;
-		if (unlikely(!swap_token_default_timeout))
-			disable_swap_token();
+	global_faults++;
+
+	current_interval = global_faults - current->mm->faultstamp;
+
+	if (!spin_trylock(&swap_token_lock))
 		return;
+
+	/* First come first served */
+	if (swap_token_mm == NULL) {
+		current->mm->token_priority = current->mm->token_priority + 2;
+		swap_token_mm = current->mm;
+		goto out;
 	}
 
-	if (time_after(jiffies, swap_token_check)) {
-
-		if (!swap_token_default_timeout) {
-			swap_token_check = jiffies + SWAP_TOKEN_CHECK_INTERVAL;
-			return;
+	if (current->mm != swap_token_mm) {
+		if (current_interval < current->mm->last_interval)
+			current->mm->token_priority++;
+		else {
+			current->mm->token_priority--;
+			if (unlikely(current->mm->token_priority < 0))
+				current->mm->token_priority = 0;
 		}
-
-		/* ... or if we recently held the token. */
-		if (time_before(jiffies, current->mm->swap_token_time))
-			return;
-
-		if (!spin_trylock(&swap_token_lock))
-			return;
-
-		swap_token_check = jiffies + SWAP_TOKEN_CHECK_INTERVAL;
-
-		mm = swap_token_mm;
-		if ((reason = should_release_swap_token(mm))) {
-			unsigned long eligible = jiffies;
-			if (reason == SWAP_TOKEN_TIMED_OUT) {
-				eligible += swap_token_default_timeout;
-			}
-			mm->swap_token_time = eligible;
-			swap_token_timeout = jiffies + swap_token_default_timeout;
+		/* Check if we deserve the token */
+		if (current->mm->token_priority >
+				swap_token_mm->token_priority) {
+			current->mm->token_priority += 2;
 			swap_token_mm = current->mm;
 		}
-		spin_unlock(&swap_token_lock);
+	} else {
+		/* Token holder came in again! */
+		current->mm->token_priority += 2;
 	}
-	return;
+
+out:
+	current->mm->faultstamp = global_faults;
+	current->mm->last_interval = current_interval;
+	spin_unlock(&swap_token_lock);
+return;
 }
 
 /* Called on process exit. */
 void __put_swap_token(struct mm_struct *mm)
 {
 	spin_lock(&swap_token_lock);
-	if (likely(mm == swap_token_mm)) {
-		mm->swap_token_time = jiffies + SWAP_TOKEN_CHECK_INTERVAL;
-		swap_token_mm = &init_mm;
-		swap_token_check = jiffies;
-	}
+	if (likely(mm == swap_token_mm))
+		swap_token_mm = NULL;
 	spin_unlock(&swap_token_lock);
 }

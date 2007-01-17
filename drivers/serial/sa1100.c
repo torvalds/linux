@@ -408,8 +408,8 @@ static void sa1100_shutdown(struct uart_port *port)
 }
 
 static void
-sa1100_set_termios(struct uart_port *port, struct termios *termios,
-		   struct termios *old)
+sa1100_set_termios(struct uart_port *port, struct ktermios *termios,
+		   struct ktermios *old)
 {
 	struct sa1100_port *sport = (struct sa1100_port *)port;
 	unsigned long flags;

@@ -61,7 +61,7 @@ static DEFINE_RWLOCK(ip6_fl_lock);
 static DEFINE_RWLOCK(ip6_sk_fl_lock);
 
 
-static __inline__ struct ip6_flowlabel * __fl_lookup(u32 label)
+static __inline__ struct ip6_flowlabel * __fl_lookup(__be32 label)
 {
 	struct ip6_flowlabel *fl;
 
@@ -72,7 +72,7 @@ static __inline__ struct ip6_flowlabel * __fl_lookup(u32 label)
 	return NULL;
 }
 
-static struct ip6_flowlabel * fl_lookup(u32 label)
+static struct ip6_flowlabel * fl_lookup(__be32 label)
 {
 	struct ip6_flowlabel *fl;
 
@@ -153,7 +153,7 @@ static void ip6_fl_gc(unsigned long dummy)
 	write_unlock(&ip6_fl_lock);
 }
 
-static int fl_intern(struct ip6_flowlabel *fl, __u32 label)
+static int fl_intern(struct ip6_flowlabel *fl, __be32 label)
 {
 	fl->label = label & IPV6_FLOWLABEL_MASK;
 
@@ -182,7 +182,7 @@ static int fl_intern(struct ip6_flowlabel *fl, __u32 label)
 
 /* Socket flowlabel lists */
 
-struct ip6_flowlabel * fl6_sock_lookup(struct sock *sk, u32 label)
+struct ip6_flowlabel * fl6_sock_lookup(struct sock *sk, __be32 label)
 {
 	struct ipv6_fl_socklist *sfl;
 	struct ipv6_pinfo *np = inet6_sk(sk);

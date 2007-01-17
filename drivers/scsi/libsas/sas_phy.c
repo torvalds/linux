@@ -30,9 +30,11 @@
 
 /* ---------- Phy events ---------- */
 
-static void sas_phye_loss_of_signal(void *data)
+static void sas_phye_loss_of_signal(struct work_struct *work)
 {
-	struct asd_sas_phy *phy = data;
+	struct asd_sas_event *ev =
+		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_phy *phy = ev->phy;
 
 	sas_begin_event(PHYE_LOSS_OF_SIGNAL, &phy->ha->event_lock,
 			&phy->phy_events_pending);
@@ -40,18 +42,22 @@ static void sas_phye_loss_of_signal(void *data)
 	sas_deform_port(phy);
 }
 
-static void sas_phye_oob_done(void *data)
+static void sas_phye_oob_done(struct work_struct *work)
 {
-	struct asd_sas_phy *phy = data;
+	struct asd_sas_event *ev =
+		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_phy *phy = ev->phy;
 
 	sas_begin_event(PHYE_OOB_DONE, &phy->ha->event_lock,
 			&phy->phy_events_pending);
 	phy->error = 0;
 }
 
-static void sas_phye_oob_error(void *data)
+static void sas_phye_oob_error(struct work_struct *work)
 {
-	struct asd_sas_phy *phy = data;
+	struct asd_sas_event *ev =
+		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_phy *phy = ev->phy;
 	struct sas_ha_struct *sas_ha = phy->ha;
 	struct asd_sas_port *port = phy->port;
 	struct sas_internal *i =
@@ -80,9 +86,11 @@ static void sas_phye_oob_error(void *data)
 	}
 }
 
-static void sas_phye_spinup_hold(void *data)
+static void sas_phye_spinup_hold(struct work_struct *work)
 {
-	struct asd_sas_phy *phy = data;
+	struct asd_sas_event *ev =
+		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_phy *phy = ev->phy;
 	struct sas_ha_struct *sas_ha = phy->ha;
 	struct sas_internal *i =
 		to_sas_internal(sas_ha->core.shost->transportt);
@@ -100,14 +108,14 @@ int sas_register_phys(struct sas_ha_struct *sas_ha)
 {
 	int i;
 
-	static void (*sas_phy_event_fns[PHY_NUM_EVENTS])(void *) = {
+	static const work_func_t sas_phy_event_fns[PHY_NUM_EVENTS] = {
 		[PHYE_LOSS_OF_SIGNAL] = sas_phye_loss_of_signal,
 		[PHYE_OOB_DONE] = sas_phye_oob_done,
 		[PHYE_OOB_ERROR] = sas_phye_oob_error,
 		[PHYE_SPINUP_HOLD] = sas_phye_spinup_hold,
 	};
 
-	static void (*sas_port_event_fns[PORT_NUM_EVENTS])(void *) = {
+	static const work_func_t sas_port_event_fns[PORT_NUM_EVENTS] = {
 		[PORTE_BYTES_DMAED] = sas_porte_bytes_dmaed,
 		[PORTE_BROADCAST_RCVD] = sas_porte_broadcast_rcvd,
 		[PORTE_LINK_RESET_ERR] = sas_porte_link_reset_err,
@@ -122,13 +130,18 @@ int sas_register_phys(struct sas_ha_struct *sas_ha)
 
 		phy->error = 0;
 		INIT_LIST_HEAD(&phy->port_phy_el);
-		for (k = 0; k < PORT_NUM_EVENTS; k++)
-			INIT_WORK(&phy->port_events[k], sas_port_event_fns[k],
-				  phy);
+		for (k = 0; k < PORT_NUM_EVENTS; k++) {
+			INIT_WORK(&phy->port_events[k].work,
+				  sas_port_event_fns[k]);
+			phy->port_events[k].phy = phy;
+		}
 
-		for (k = 0; k < PHY_NUM_EVENTS; k++)
-			INIT_WORK(&phy->phy_events[k], sas_phy_event_fns[k],
-				  phy);
+		for (k = 0; k < PHY_NUM_EVENTS; k++) {
+			INIT_WORK(&phy->phy_events[k].work,
+				  sas_phy_event_fns[k]);
+			phy->phy_events[k].phy = phy;
+		}
+
 		phy->port = NULL;
 		phy->ha = sas_ha;
 		spin_lock_init(&phy->frame_rcvd_lock);

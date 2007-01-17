@@ -78,7 +78,6 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 	struct krb5_ctx		*ctx = gss_ctx->internal_ctx_id;
 	int			signalg;
 	int			sealalg;
-	s32			checksum_type;
 	char			cksumdata[16];
 	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	s32			now;
@@ -86,96 +85,54 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 	s32			seqnum;
 	unsigned char		*ptr = (unsigned char *)read_token->data;
 	int			bodysize;
-	u32			ret = GSS_S_DEFECTIVE_TOKEN;
 
 	dprintk("RPC:      krb5_read_token\n");
 
 	if (g_verify_token_header(&ctx->mech_used, &bodysize, &ptr,
 					read_token->len))
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 
 	if ((*ptr++ != ((KG_TOK_MIC_MSG>>8)&0xff)) ||
 	    (*ptr++ != ( KG_TOK_MIC_MSG    &0xff))   )
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 
 	/* XXX sanity-check bodysize?? */
 
-	/* get the sign and seal algorithms */
-
 	signalg = ptr[0] + (ptr[1] << 8);
-	sealalg = ptr[2] + (ptr[3] << 8);
+	if (signalg != SGN_ALG_DES_MAC_MD5)
+		return GSS_S_DEFECTIVE_TOKEN;
 
-	/* Sanity checks */
+	sealalg = ptr[2] + (ptr[3] << 8);
+	if (sealalg != SEAL_ALG_NONE)
+		return GSS_S_DEFECTIVE_TOKEN;
 
 	if ((ptr[4] != 0xff) || (ptr[5] != 0xff))
-		goto out;
+		return GSS_S_DEFECTIVE_TOKEN;
 
-	if (sealalg != 0xffff)
-		goto out;
+	if (make_checksum("md5", ptr - 2, 8, message_buffer, 0, &md5cksum))
+		return GSS_S_FAILURE;
 
-	/* there are several mappings of seal algorithms to sign algorithms,
-	   but few enough that we can try them all. */
+	if (krb5_encrypt(ctx->seq, NULL, md5cksum.data, md5cksum.data, 16))
+		return GSS_S_FAILURE;
 
-	if ((ctx->sealalg == SEAL_ALG_NONE && signalg > 1) ||
-	    (ctx->sealalg == SEAL_ALG_1 && signalg != SGN_ALG_3) ||
-	    (ctx->sealalg == SEAL_ALG_DES3KD &&
-	     signalg != SGN_ALG_HMAC_SHA1_DES3_KD))
-		goto out;
-
-	/* compute the checksum of the message */
-
-	/* initialize the the cksum */
-	switch (signalg) {
-	case SGN_ALG_DES_MAC_MD5:
-		checksum_type = CKSUMTYPE_RSA_MD5;
-		break;
-	default:
-		ret = GSS_S_DEFECTIVE_TOKEN;
-		goto out;
-	}
-
-	switch (signalg) {
-	case SGN_ALG_DES_MAC_MD5:
-		ret = make_checksum(checksum_type, ptr - 2, 8,
-					 message_buffer, 0, &md5cksum);
-		if (ret)
-			goto out;
-
-		ret = krb5_encrypt(ctx->seq, NULL, md5cksum.data,
-				   md5cksum.data, 16);
-		if (ret)
-			goto out;
-
-		if (memcmp(md5cksum.data + 8, ptr + 14, 8)) {
-			ret = GSS_S_BAD_SIG;
-			goto out;
-		}
-		break;
-	default:
-		ret = GSS_S_DEFECTIVE_TOKEN;
-		goto out;
-	}
+	if (memcmp(md5cksum.data + 8, ptr + 14, 8))
+		return GSS_S_BAD_SIG;
 
 	/* it got through unscathed.  Make sure the context is unexpired */
 
 	now = get_seconds();
 
-	ret = GSS_S_CONTEXT_EXPIRED;
 	if (now > ctx->endtime)
-		goto out;
+		return GSS_S_CONTEXT_EXPIRED;
 
 	/* do sequencing checks */
 
-	ret = GSS_S_BAD_SIG;
-	if ((ret = krb5_get_seq_num(ctx->seq, ptr + 14, ptr + 6, &direction,
-				    &seqnum)))
-		goto out;
+	if (krb5_get_seq_num(ctx->seq, ptr + 14, ptr + 6, &direction, &seqnum))
+		return GSS_S_FAILURE;
 
 	if ((ctx->initiate && direction != 0xff) ||
 	    (!ctx->initiate && direction != 0))
-		goto out;
+		return GSS_S_BAD_SIG;
 
-	ret = GSS_S_COMPLETE;
-out:
-	return ret;
+	return GSS_S_COMPLETE;
 }

@@ -25,14 +25,16 @@
 #ifndef MMC_MMC_PROTOCOL_H
 #define MMC_MMC_PROTOCOL_H
 
-/* Standard MMC commands (3.1)           type  argument     response */
+/* Standard MMC commands (4.1)           type  argument     response */
    /* class 1 */
 #define	MMC_GO_IDLE_STATE         0   /* bc                          */
 #define MMC_SEND_OP_COND          1   /* bcr  [31:0] OCR         R3  */
 #define MMC_ALL_SEND_CID          2   /* bcr                     R2  */
 #define MMC_SET_RELATIVE_ADDR     3   /* ac   [31:16] RCA        R1  */
 #define MMC_SET_DSR               4   /* bc   [31:16] RCA            */
+#define MMC_SWITCH                6   /* ac   [31:0] See below   R1b */
 #define MMC_SELECT_CARD           7   /* ac   [31:16] RCA        R1  */
+#define MMC_SEND_EXT_CSD          8   /* adtc                    R1  */
 #define MMC_SEND_CSD              9   /* ac   [31:16] RCA        R2  */
 #define MMC_SEND_CID             10   /* ac   [31:16] RCA        R2  */
 #define MMC_READ_DAT_UNTIL_STOP  11   /* adtc [31:0] dadr        R1  */
@@ -80,12 +82,37 @@
   /* class 8 */
 /* This is basically the same command as for MMC with some quirks. */
 #define SD_SEND_RELATIVE_ADDR     3   /* bcr                     R6  */
+#define SD_SWITCH                 6   /* adtc [31:0] See below   R1  */
 
   /* Application commands */
 #define SD_APP_SET_BUS_WIDTH      6   /* ac   [1:0] bus width    R1  */
 #define SD_APP_SEND_NUM_WR_BLKS  22   /* adtc                    R1  */
 #define SD_APP_OP_COND           41   /* bcr  [31:0] OCR         R3  */
 #define SD_APP_SEND_SCR          51   /* adtc                    R1  */
+
+/*
+ * MMC_SWITCH argument format:
+ *
+ *	[31:26] Always 0
+ *	[25:24] Access Mode
+ *	[23:16] Location of target Byte in EXT_CSD
+ *	[15:08] Value Byte
+ *	[07:03] Always 0
+ *	[02:00] Command Set
+ */
+
+/*
+ * SD_SWITCH argument format:
+ *
+ *      [31] Check (0) or switch (1)
+ *      [30:24] Reserved (0)
+ *      [23:20] Function group 6
+ *      [19:16] Function group 5
+ *      [15:12] Function group 4
+ *      [11:8] Function group 3
+ *      [7:4] Function group 2
+ *      [3:0] Function group 1
+ */
 
 /*
   MMC status in R1
@@ -230,13 +257,54 @@ struct _mmc_csd {
 
 #define CSD_STRUCT_VER_1_0  0           /* Valid for system specification 1.0 - 1.2 */
 #define CSD_STRUCT_VER_1_1  1           /* Valid for system specification 1.4 - 2.2 */
-#define CSD_STRUCT_VER_1_2  2           /* Valid for system specification 3.1       */
+#define CSD_STRUCT_VER_1_2  2           /* Valid for system specification 3.1 - 3.2 - 3.31 - 4.0 - 4.1 */
+#define CSD_STRUCT_EXT_CSD  3           /* Version is coded in CSD_STRUCTURE in EXT_CSD */
 
 #define CSD_SPEC_VER_0      0           /* Implements system specification 1.0 - 1.2 */
 #define CSD_SPEC_VER_1      1           /* Implements system specification 1.4 */
 #define CSD_SPEC_VER_2      2           /* Implements system specification 2.0 - 2.2 */
-#define CSD_SPEC_VER_3      3           /* Implements system specification 3.1 */
+#define CSD_SPEC_VER_3      3           /* Implements system specification 3.1 - 3.2 - 3.31 */
+#define CSD_SPEC_VER_4      4           /* Implements system specification 4.0 - 4.1 */
 
+/*
+ * EXT_CSD fields
+ */
+
+#define EXT_CSD_BUS_WIDTH	183	/* R/W */
+#define EXT_CSD_HS_TIMING	185	/* R/W */
+#define EXT_CSD_CARD_TYPE	196	/* RO */
+
+/*
+ * EXT_CSD field definitions
+ */
+
+#define EXT_CSD_CMD_SET_NORMAL		(1<<0)
+#define EXT_CSD_CMD_SET_SECURE		(1<<1)
+#define EXT_CSD_CMD_SET_CPSECURE	(1<<2)
+
+#define EXT_CSD_CARD_TYPE_26	(1<<0)	/* Card can run at 26MHz */
+#define EXT_CSD_CARD_TYPE_52	(1<<1)	/* Card can run at 52MHz */
+
+#define EXT_CSD_BUS_WIDTH_1	0	/* Card is in 1 bit mode */
+#define EXT_CSD_BUS_WIDTH_4	1	/* Card is in 4 bit mode */
+#define EXT_CSD_BUS_WIDTH_8	2	/* Card is in 8 bit mode */
+
+/*
+ * MMC_SWITCH access modes
+ */
+
+#define MMC_SWITCH_MODE_CMD_SET		0x00	/* Change the command set */
+#define MMC_SWITCH_MODE_SET_BITS	0x01	/* Set bits which are 1 in value */
+#define MMC_SWITCH_MODE_CLEAR_BITS	0x02	/* Clear bits which are 1 in value */
+#define MMC_SWITCH_MODE_WRITE_BYTE	0x03	/* Set target to value */
+
+/*
+ * SCR field definitions
+ */
+
+#define SCR_SPEC_VER_0      0           /* Implements system specification 1.0 - 1.01 */
+#define SCR_SPEC_VER_1      1           /* Implements system specification 1.10 */
+#define SCR_SPEC_VER_2      2           /* Implements system specification 2.00 */
 
 /*
  * SD bus widths

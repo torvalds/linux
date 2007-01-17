@@ -25,7 +25,7 @@ up into 3 parts because of the length of the line):
 
    1000        0 54165785 4 cd1e6040 25 4 27 3 -1
     |          |    |     |    |     |  | |  | |--> slow start size threshold, 
-    |          |    |     |    |     |  | |  |      or -1 if the treshold
+    |          |    |     |    |     |  | |  |      or -1 if the threshold
     |          |    |     |    |     |  | |  |      is >= 0xFFFF
     |          |    |     |    |     |  | |  |----> sending congestion window
     |          |    |     |    |     |  | |-------> (ack.quick<<1)|ack.pingpong

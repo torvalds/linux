@@ -9,9 +9,8 @@ done it already.
 Now, to use the userland interface for software suspend you need special
 utilities that will read/write the system memory snapshot from/to the
 kernel.  Such utilities are available, for example, from
-<http://www.sisk.pl/kernel/utilities/suspend>.  You may want to have
-a look at them if you are going to develop your own suspend/resume
-utilities.
+<http://suspend.sourceforge.net>.  You may want to have a look at them if you
+are going to develop your own suspend/resume utilities.
 
 The interface consists of a character device providing the open(),
 release(), read(), and write() operations as well as several ioctl()
@@ -21,9 +20,9 @@ be read from /sys/class/misc/snapshot/dev.
 
 The device can be open either for reading or for writing.  If open for
 reading, it is considered to be in the suspend mode.  Otherwise it is
-assumed to be in the resume mode.  The device cannot be open for reading
-and writing.  It is also impossible to have the device open more than once
-at a time.
+assumed to be in the resume mode.  The device cannot be open for simultaneous
+reading and writing.  It is also impossible to have the device open more than
+once at a time.
 
 The ioctl() commands recognized by the device are:
 
@@ -69,9 +68,46 @@ SNAPSHOT_FREE_SWAP_PAGES - free all swap pages allocated with
 SNAPSHOT_SET_SWAP_FILE - set the resume partition (the last ioctl() argument
 	should specify the device's major and minor numbers in the old
 	two-byte format, as returned by the stat() function in the .st_rdev
-	member of the stat structure); it is recommended to always use this
-	call, because the code to set the resume partition could be removed from
-	future kernels
+	member of the stat structure)
+
+SNAPSHOT_SET_SWAP_AREA - set the resume partition and the offset (in <PAGE_SIZE>
+	units) from the beginning of the partition at which the swap header is
+	located (the last ioctl() argument should point to a struct
+	resume_swap_area, as defined in kernel/power/power.h, containing the
+	resume device specification, as for the SNAPSHOT_SET_SWAP_FILE ioctl(),
+	and the offset); for swap partitions the offset is always 0, but it is
+	different to zero for swap files (please see
+	Documentation/swsusp-and-swap-files.txt for details).
+	The SNAPSHOT_SET_SWAP_AREA ioctl() is considered as a replacement for
+	SNAPSHOT_SET_SWAP_FILE which is regarded as obsolete.   It is
+	recommended to always use this call, because the code to set the resume
+	partition may be removed from future kernels
+
+SNAPSHOT_S2RAM - suspend to RAM; using this call causes the kernel to
+	immediately enter the suspend-to-RAM state, so this call must always
+	be preceded by the SNAPSHOT_FREEZE call and it is also necessary
+	to use the SNAPSHOT_UNFREEZE call after the system wakes up.  This call
+	is needed to implement the suspend-to-both mechanism in which the
+	suspend image is first created, as though the system had been suspended
+	to disk, and then the system is suspended to RAM (this makes it possible
+	to resume the system from RAM if there's enough battery power or restore
+	its state on the basis of the saved suspend image otherwise)
+
+SNAPSHOT_PMOPS - enable the usage of the pmops->prepare, pmops->enter and
+	pmops->finish methods (the in-kernel swsusp knows these as the "platform
+	method") which are needed on many machines to (among others) speed up
+	the resume by letting the BIOS skip some steps or to let the system
+	recognise the correct state of the hardware after the resume (in
+	particular on many machines this ensures that unplugged AC
+	adapters get correctly detected and that kacpid does not run wild after
+	the resume).  The last ioctl() argument can take one of the three
+	values, defined in kernel/power/power.h:
+	PMOPS_PREPARE - make the kernel carry out the
+		pm_ops->prepare(PM_SUSPEND_DISK) operation
+	PMOPS_ENTER - make the kernel power off the system by calling
+		pm_ops->enter(PM_SUSPEND_DISK)
+	PMOPS_FINISH - make the kernel carry out the
+		pm_ops->finish(PM_SUSPEND_DISK) operation
 
 The device's read() operation can be used to transfer the snapshot image from
 the kernel.  It has the following limitations:
@@ -91,10 +127,12 @@ unfreeze user space processes frozen by SNAPSHOT_UNFREEZE if they are
 still frozen when the device is being closed).
 
 Currently it is assumed that the userland utilities reading/writing the
-snapshot image from/to the kernel will use a swap partition, called the resume
-partition, as storage space.  However, this is not really required, as they
-can use, for example, a special (blank) suspend partition or a file on a partition
-that is unmounted before SNAPSHOT_ATOMIC_SNAPSHOT and mounted afterwards.
+snapshot image from/to the kernel will use a swap parition, called the resume
+partition, or a swap file as storage space (if a swap file is used, the resume
+partition is the partition that holds this file).  However, this is not really
+required, as they can use, for example, a special (blank) suspend partition or
+a file on a partition that is unmounted before SNAPSHOT_ATOMIC_SNAPSHOT and
+mounted afterwards.
 
 These utilities SHOULD NOT make any assumptions regarding the ordering of
 data within the snapshot image, except for the image header that MAY be

@@ -28,6 +28,7 @@
 #define TIMER_H
 
 #include <linux/timer.h>
+#include <linux/jiffies.h>
 
 #include <asm/param.h>  /* for HZ */
 

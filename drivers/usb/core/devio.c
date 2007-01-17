@@ -561,7 +561,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 		dev = inode->i_private;
 	if (!dev)
 		goto out;
-	ret = usb_autoresume_device(dev, 1);
+	ret = usb_autoresume_device(dev);
 	if (ret)
 		goto out;
 
@@ -609,7 +609,7 @@ static int usbdev_release(struct inode *inode, struct file *file)
 			releaseintf(ps, ifnum);
 	}
 	destroy_all_async(ps);
-	usb_autosuspend_device(dev, 1);
+	usb_autosuspend_device(dev);
 	usb_unlock_device(dev);
 	usb_put_dev(dev);
 	put_pid(ps->disc_pid);
@@ -962,7 +962,11 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 			kfree(dr);
 			return -EFAULT;
 		}
-		snoop(&ps->dev->dev, "control urb\n");
+		snoop(&ps->dev->dev, "control urb: bRequest=%02x "
+			"bRrequestType=%02x wValue=%04x "
+			"wIndex=%04x wLength=%04x\n",
+			dr->bRequest, dr->bRequestType, dr->wValue,
+			dr->wIndex, dr->wLength);
 		break;
 
 	case USBDEVFS_URB_TYPE_BULK:

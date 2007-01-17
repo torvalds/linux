@@ -101,7 +101,7 @@ struct flash_block_list_header { /* just the header of flash_block_list */
 static struct flash_block_list_header rtas_firmware_flash_list = {0, NULL};
 
 /* Use slab cache to guarantee 4k alignment */
-static kmem_cache_t *flash_block_cache = NULL;
+static struct kmem_cache *flash_block_cache = NULL;
 
 #define FLASH_BLOCK_LIST_VERSION (1UL)
 
@@ -193,7 +193,7 @@ static void free_flash_list(struct flash_block_list *f)
 
 static int rtas_flash_release(struct inode *inode, struct file *file)
 {
-	struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
 	struct rtas_update_flash_t *uf;
 	
 	uf = (struct rtas_update_flash_t *) dp->data;
@@ -255,7 +255,7 @@ static void get_flash_status_msg(int status, char *buf)
 static ssize_t rtas_flash_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
-	struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
 	struct rtas_update_flash_t *uf;
 	char msg[RTAS_MSG_MAXLEN];
 	int msglen;
@@ -286,7 +286,7 @@ static ssize_t rtas_flash_read(struct file *file, char __user *buf,
 }
 
 /* constructor for flash_block_cache */
-void rtas_block_ctor(void *ptr, kmem_cache_t *cache, unsigned long flags)
+void rtas_block_ctor(void *ptr, struct kmem_cache *cache, unsigned long flags)
 {
 	memset(ptr, 0, RTAS_BLK_SIZE);
 }
@@ -299,7 +299,7 @@ void rtas_block_ctor(void *ptr, kmem_cache_t *cache, unsigned long flags)
 static ssize_t rtas_flash_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *off)
 {
-	struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
 	struct rtas_update_flash_t *uf;
 	char *p;
 	int next_free;
@@ -391,7 +391,7 @@ static void manage_flash(struct rtas_manage_flash_t *args_buf)
 static ssize_t manage_flash_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
-	struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
 	struct rtas_manage_flash_t *args_buf;
 	char msg[RTAS_MSG_MAXLEN];
 	int msglen;
@@ -421,7 +421,7 @@ static ssize_t manage_flash_read(struct file *file, char __user *buf,
 static ssize_t manage_flash_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *off)
 {
-	struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
 	struct rtas_manage_flash_t *args_buf;
 	const char reject_str[] = "0";
 	const char commit_str[] = "1";
@@ -492,7 +492,7 @@ static int get_validate_flash_msg(struct rtas_validate_flash_t *args_buf,
 static ssize_t validate_flash_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
-	struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
 	struct rtas_validate_flash_t *args_buf;
 	char msg[RTAS_MSG_MAXLEN];
 	int msglen;
@@ -520,7 +520,7 @@ static ssize_t validate_flash_read(struct file *file, char __user *buf,
 static ssize_t validate_flash_write(struct file *file, const char __user *buf,
 				    size_t count, loff_t *off)
 {
-	struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
 	struct rtas_validate_flash_t *args_buf;
 	int rc;
 
@@ -569,7 +569,7 @@ done:
 
 static int validate_flash_release(struct inode *inode, struct file *file)
 {
-	struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
 	struct rtas_validate_flash_t *args_buf;
 
 	args_buf = (struct rtas_validate_flash_t *) dp->data;
@@ -681,13 +681,11 @@ static int initialize_flash_pde_data(const char *rtas_call_name,
 	int *status;
 	int token;
 
-	dp->data = kmalloc(buf_size, GFP_KERNEL);
+	dp->data = kzalloc(buf_size, GFP_KERNEL);
 	if (dp->data == NULL) {
 		remove_flash_pde(dp);
 		return -ENOMEM;
 	}
-
-	memset(dp->data, 0, buf_size);
 
 	/*
 	 * This code assumes that the status int is the first member of the

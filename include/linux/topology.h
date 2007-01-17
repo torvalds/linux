@@ -93,7 +93,7 @@
 	.groups			= NULL,			\
 	.min_interval		= 1,			\
 	.max_interval		= 2,			\
-	.busy_factor		= 8,			\
+	.busy_factor		= 64,			\
 	.imbalance_pct		= 110,			\
 	.cache_nice_tries	= 0,			\
 	.per_cpu_gain		= 25,			\
@@ -194,7 +194,8 @@
 	.wake_idx		= 0, /* unused */	\
 	.forkexec_idx		= 0, /* unused */	\
 	.per_cpu_gain		= 100,			\
-	.flags			= SD_LOAD_BALANCE,	\
+	.flags			= SD_LOAD_BALANCE	\
+				| SD_SERIALIZE,	\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 64,			\
 	.nr_balance_failed	= 0,			\

@@ -27,14 +27,14 @@ config PCI_MULTITHREAD_PROBE
 	  smaller speedup on single processor machines.
 
 	  But it can also cause lots of bad things to happen.  A number
-	  of PCI drivers can not properly handle running in this way,
+	  of PCI drivers cannot properly handle running in this way,
 	  some will just not work properly at all, while others might
 	  decide to blow up power supplies with a huge load all at once,
 	  so use this option at your own risk.
 
 	  It is very unwise to use this option if you are not using a
 	  boot process that can handle devices being created in any
-	  order.  A program that can create persistant block and network
+	  order.  A program that can create persistent block and network
 	  device names (like udev) is a good idea if you wish to use
 	  this option.
 

@@ -625,7 +625,7 @@ int sb_dsp_detect(struct address_info *hw_config, int pci, int pciio, struct sb_
 	 */
 
 
-	detected_devc = (sb_devc *)kmalloc(sizeof(sb_devc), GFP_KERNEL);
+	detected_devc = kmalloc(sizeof(sb_devc), GFP_KERNEL);
 	if (detected_devc == NULL)
 	{
 		printk(KERN_ERR "sb: Can't allocate memory for device information\n");

@@ -6,23 +6,23 @@
 
 /* 8 Bytes */
 struct mcp_dma_addr {
-	u32 high;
-	u32 low;
+	__be32 high;
+	__be32 low;
 };
 
 /* 4 Bytes */
 struct mcp_slot {
-	u16 checksum;
-	u16 length;
+	__sum16 checksum;
+	__be16 length;
 };
 
 /* 64 Bytes */
 struct mcp_cmd {
-	u32 cmd;
-	u32 data0;		/* will be low portion if data > 32 bits */
+	__be32 cmd;
+	__be32 data0;		/* will be low portion if data > 32 bits */
 	/* 8 */
-	u32 data1;		/* will be high portion if data > 32 bits */
-	u32 data2;		/* currently unused.. */
+	__be32 data1;		/* will be high portion if data > 32 bits */
+	__be32 data2;		/* currently unused.. */
 	/* 16 */
 	struct mcp_dma_addr response_addr;
 	/* 24 */
@@ -31,8 +31,8 @@ struct mcp_cmd {
 
 /* 8 Bytes */
 struct mcp_cmd_response {
-	u32 data;
-	u32 result;
+	__be32 data;
+	__be32 result;
 };
 
 /*
@@ -73,10 +73,10 @@ union mcp_pso_or_cumlen {
 
 /* 16 Bytes */
 struct mcp_kreq_ether_send {
-	u32 addr_high;
-	u32 addr_low;
-	u16 pseudo_hdr_offset;
-	u16 length;
+	__be32 addr_high;
+	__be32 addr_low;
+	__be16 pseudo_hdr_offset;
+	__be16 length;
 	u8 pad;
 	u8 rdma_count;
 	u8 cksum_offset;	/* where to start computing cksum */
@@ -85,8 +85,8 @@ struct mcp_kreq_ether_send {
 
 /* 8 Bytes */
 struct mcp_kreq_ether_recv {
-	u32 addr_high;
-	u32 addr_low;
+	__be32 addr_high;
+	__be32 addr_low;
 };
 
 /* Commands */
@@ -219,19 +219,19 @@ enum myri10ge_mcp_cmd_status {
 
 struct mcp_irq_data {
 	/* add new counters at the beginning */
-	u32 future_use[5];
-	u32 dropped_multicast_filtered;
+	__be32 future_use[5];
+	__be32 dropped_multicast_filtered;
 	/* 40 Bytes */
-	u32 send_done_count;
+	__be32 send_done_count;
 
-	u32 link_up;
-	u32 dropped_link_overflow;
-	u32 dropped_link_error_or_filtered;
-	u32 dropped_runt;
-	u32 dropped_overrun;
-	u32 dropped_no_small_buffer;
-	u32 dropped_no_big_buffer;
-	u32 rdma_tags_available;
+	__be32 link_up;
+	__be32 dropped_link_overflow;
+	__be32 dropped_link_error_or_filtered;
+	__be32 dropped_runt;
+	__be32 dropped_overrun;
+	__be32 dropped_no_small_buffer;
+	__be32 dropped_no_big_buffer;
+	__be32 rdma_tags_available;
 
 	u8 tx_stopped;
 	u8 link_down;

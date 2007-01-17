@@ -40,6 +40,7 @@
 #include <linux/slab.h>
 #include <asm/byteorder.h>
 
+#include "dvb_math.h"
 #include "dvb_frontend.h"
 #include "dvb-pll.h"
 #include "or51132.h"
@@ -62,6 +63,7 @@ struct or51132_state
 
 	/* Demodulator private data */
 	fe_modulation_t current_modulation;
+	u32 snr; /* Result of last SNR calculation */
 
 	/* Tuner private data */
 	u32 current_frequency;
@@ -465,124 +467,128 @@ static int or51132_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	return 0;
 }
 
-/* log10-1 table at .5 increments from 1 to 100.5 */
-static unsigned int i100x20log10[] = {
-     0,  352,  602,  795,  954, 1088, 1204, 1306, 1397, 1480,
-  1556, 1625, 1690, 1750, 1806, 1858, 1908, 1955, 2000, 2042,
-  2082, 2121, 2158, 2193, 2227, 2260, 2292, 2322, 2352, 2380,
-  2408, 2434, 2460, 2486, 2510, 2534, 2557, 2580, 2602, 2623,
-  2644, 2664, 2684, 2704, 2723, 2742, 2760, 2778, 2795, 2813,
-  2829, 2846, 2862, 2878, 2894, 2909, 2924, 2939, 2954, 2968,
-  2982, 2996, 3010, 3023, 3037, 3050, 3062, 3075, 3088, 3100,
-  3112, 3124, 3136, 3148, 3159, 3170, 3182, 3193, 3204, 3214,
-  3225, 3236, 3246, 3256, 3266, 3276, 3286, 3296, 3306, 3316,
-  3325, 3334, 3344, 3353, 3362, 3371, 3380, 3389, 3397, 3406,
-  3415, 3423, 3432, 3440, 3448, 3456, 3464, 3472, 3480, 3488,
-  3496, 3504, 3511, 3519, 3526, 3534, 3541, 3549, 3556, 3563,
-  3570, 3577, 3584, 3591, 3598, 3605, 3612, 3619, 3625, 3632,
-  3639, 3645, 3652, 3658, 3665, 3671, 3677, 3683, 3690, 3696,
-  3702, 3708, 3714, 3720, 3726, 3732, 3738, 3744, 3750, 3755,
-  3761, 3767, 3772, 3778, 3784, 3789, 3795, 3800, 3806, 3811,
-  3816, 3822, 3827, 3832, 3838, 3843, 3848, 3853, 3858, 3863,
-  3868, 3874, 3879, 3884, 3888, 3893, 3898, 3903, 3908, 3913,
-  3918, 3922, 3927, 3932, 3936, 3941, 3946, 3950, 3955, 3960,
-  3964, 3969, 3973, 3978, 3982, 3986, 3991, 3995, 4000, 4004,
-};
+/* Calculate SNR estimation (scaled by 2^24)
 
-static unsigned int denom[] = {1,1,100,1000,10000,100000,1000000,10000000,100000000};
+   8-VSB SNR and QAM equations from Oren datasheets
 
-static unsigned int i20Log10(unsigned short val)
+   For 8-VSB:
+     SNR[dB] = 10 * log10(897152044.8282 / MSE^2 ) - K
+
+     Where K = 0 if NTSC rejection filter is OFF; and
+	   K = 3 if NTSC rejection filter is ON
+
+   For QAM64:
+     SNR[dB] = 10 * log10(897152044.8282 / MSE^2 )
+
+   For QAM256:
+     SNR[dB] = 10 * log10(907832426.314266  / MSE^2 )
+
+   We re-write the snr equation as:
+     SNR * 2^24 = 10*(c - 2*intlog10(MSE))
+   Where for QAM256, c = log10(907832426.314266) * 2^24
+   and for 8-VSB and QAM64, c = log10(897152044.8282) * 2^24 */
+
+static u32 calculate_snr(u32 mse, u32 c)
 {
-	unsigned int rntval = 100;
-	unsigned int tmp = val;
-	unsigned int exp = 1;
+	if (mse == 0) /* No signal */
+		return 0;
 
-	while(tmp > 100) {tmp /= 100; exp++;}
-
-	val = (2 * val)/denom[exp];
-	if (exp > 1) rntval = 2000*exp;
-
-	rntval += i100x20log10[val];
-	return rntval;
-}
-
-static int or51132_read_signal_strength(struct dvb_frontend* fe, u16* strength)
-{
-	struct or51132_state* state = fe->demodulator_priv;
-	unsigned char rec_buf[2];
-	unsigned char snd_buf[2];
-	u8 rcvr_stat;
-	u16 snr_equ;
-	u32 signal_strength;
-	int usK;
-
-	snd_buf[0]=0x04;
-	snd_buf[1]=0x02; /* SNR after Equalizer */
-	msleep(30); /* 30ms */
-	if (i2c_writebytes(state,state->config->demod_address,snd_buf,2)) {
-		printk(KERN_WARNING "or51132: read_status write error\n");
-		return -1;
+	mse = 2*intlog10(mse);
+	if (mse > c) {
+		/* Negative SNR, which is possible, but realisticly the
+		demod will lose lock before the signal gets this bad.  The
+		API only allows for unsigned values, so just return 0 */
+		return 0;
 	}
-	msleep(30); /* 30ms */
-	if (i2c_readbytes(state,state->config->demod_address,rec_buf,2)) {
-		printk(KERN_WARNING "or51132: read_status read error\n");
-		return -1;
-	}
-	snr_equ = rec_buf[0] | (rec_buf[1] << 8);
-	dprintk("read_signal_strength snr_equ %x %x (%i)\n",rec_buf[0],rec_buf[1],snr_equ);
-
-	/* Receiver Status */
-	snd_buf[0]=0x04;
-	snd_buf[1]=0x00;
-	msleep(30); /* 30ms */
-	if (i2c_writebytes(state,state->config->demod_address,snd_buf,2)) {
-		printk(KERN_WARNING "or51132: read_signal_strength read_status write error\n");
-		return -1;
-	}
-	msleep(30); /* 30ms */
-	if (i2c_readbytes(state,state->config->demod_address,rec_buf,2)) {
-		printk(KERN_WARNING "or51132: read_signal_strength read_status read error\n");
-		return -1;
-	}
-	dprintk("read_signal_strength read_status %x %x\n",rec_buf[0],rec_buf[1]);
-	rcvr_stat = rec_buf[1];
-	usK = (rcvr_stat & 0x10) ? 3 : 0;
-
-	/* The value reported back from the frontend will be FFFF=100% 0000=0% */
-	signal_strength = (((8952 - i20Log10(snr_equ) - usK*100)/3+5)*65535)/1000;
-	if (signal_strength > 0xffff)
-		*strength = 0xffff;
-	else
-		*strength = signal_strength;
-	dprintk("read_signal_strength %i\n",*strength);
-
-	return 0;
+	return 10*(c - mse);
 }
 
 static int or51132_read_snr(struct dvb_frontend* fe, u16* snr)
 {
 	struct or51132_state* state = fe->demodulator_priv;
-	unsigned char rec_buf[2];
-	unsigned char snd_buf[2];
-	u16 snr_equ;
+	u8 rec_buf[2];
+	u8 snd_buf[2];
+	u32 noise;
+	u32 c;
+	u32 usK;
 
+	/* Register is same for VSB or QAM firmware */
 	snd_buf[0]=0x04;
 	snd_buf[1]=0x02; /* SNR after Equalizer */
 	msleep(30); /* 30ms */
 	if (i2c_writebytes(state,state->config->demod_address,snd_buf,2)) {
-		printk(KERN_WARNING "or51132: read_snr write error\n");
-		return -1;
+		printk(KERN_WARNING "or51132: snr write error\n");
+		return -EREMOTEIO;
 	}
 	msleep(30); /* 30ms */
 	if (i2c_readbytes(state,state->config->demod_address,rec_buf,2)) {
-		printk(KERN_WARNING "or51132: read_snr dvr read error\n");
-		return -1;
+		printk(KERN_WARNING "or51132: snr read error\n");
+		return -EREMOTEIO;
 	}
-	snr_equ = rec_buf[0] | (rec_buf[1] << 8);
-	dprintk("read_snr snr_equ %x %x (%i)\n",rec_buf[0],rec_buf[1],snr_equ);
+	noise = rec_buf[0] | (rec_buf[1] << 8);
+	dprintk("read_snr noise %x %x (%i)\n",rec_buf[0],rec_buf[1],noise);
 
-	*snr = 0xFFFF - snr_equ;
-	dprintk("read_snr %i\n",*snr);
+	/* Read status, contains modulation type for QAM_AUTO and
+	   NTSC filter for VSB */
+	snd_buf[0]=0x04;
+	snd_buf[1]=0x00; /* Status register */
+	msleep(30); /* 30ms */
+	if (i2c_writebytes(state,state->config->demod_address,snd_buf,2)) {
+		printk(KERN_WARNING "or51132: status write error\n");
+		return -EREMOTEIO;
+	}
+	msleep(30); /* 30ms */
+	if (i2c_readbytes(state,state->config->demod_address,rec_buf,2)) {
+		printk(KERN_WARNING "or51132: status read error\n");
+		return -EREMOTEIO;
+	}
+
+	usK = 0;
+	switch (rec_buf[0]) {
+	case 0x06:
+		usK = (rec_buf[1] & 0x10) ? 0x03000000 : 0;
+		/* Fall through to QAM64 case */
+	case 0x43:
+		c = 150204167;
+		break;
+	case 0x45:
+		c = 150290396;
+		break;
+	default:
+		printk(KERN_ERR "or51132: unknown status 0x%02x\n", rec_buf[0]);
+		return -EREMOTEIO;
+	}
+	dprintk("%s: modulation %02x, NTSC rej O%s\n", __FUNCTION__,
+		rec_buf[0], rec_buf[1]&0x10?"n":"ff");
+
+	/* Calculate SNR using noise, c, and NTSC rejection correction */
+	state->snr = calculate_snr(noise, c) - usK;
+	*snr = (state->snr) >> 16;
+
+	dprintk("%s: noise = 0x%08x, snr = %d.%02d dB\n", __FUNCTION__, noise,
+		state->snr >> 24, (((state->snr>>8) & 0xffff) * 100) >> 16);
+
+	return 0;
+}
+
+static int or51132_read_signal_strength(struct dvb_frontend* fe, u16* strength)
+{
+	/* Calculate Strength from SNR up to 35dB */
+	/* Even though the SNR can go higher than 35dB, there is some comfort */
+	/* factor in having a range of strong signals that can show at 100%   */
+	struct or51132_state* state = (struct or51132_state*) fe->demodulator_priv;
+	u16 snr;
+	int ret;
+
+	ret = fe->ops.read_snr(fe, &snr);
+	if (ret != 0)
+		return ret;
+	/* Rather than use the 8.8 value snr, use state->snr which is 8.24 */
+	/* scale the range 0 - 35*2^24 into 0 - 65535 */
+	if (state->snr >= 8960 * 0x10000)
+		*strength = 0xffff;
+	else
+		*strength = state->snr / 8960;
 
 	return 0;
 }

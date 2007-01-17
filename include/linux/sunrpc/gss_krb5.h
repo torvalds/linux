@@ -42,10 +42,6 @@
 
 struct krb5_ctx {
 	int			initiate; /* 1 = initiating, 0 = accepting */
-	int			seed_init;
-	unsigned char		seed[16];
-	int			signalg;
-	int			sealalg;
 	struct crypto_blkcipher	*enc;
 	struct crypto_blkcipher	*seq;
 	s32			endtime;
@@ -117,7 +113,7 @@ enum seal_alg {
 #define ENCTYPE_UNKNOWN         0x01ff
 
 s32
-make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
+make_checksum(char *, char *header, int hdrlen, struct xdr_buf *body,
 		   int body_offset, struct xdr_netobj *cksum);
 
 u32 gss_get_mic_kerberos(struct gss_ctx *, struct xdr_buf *,

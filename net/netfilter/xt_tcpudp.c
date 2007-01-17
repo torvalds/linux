@@ -10,7 +10,7 @@
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 
-MODULE_DESCRIPTION("x_tables match for TCP and UDP, supports IPv4 and IPv6");
+MODULE_DESCRIPTION("x_tables match for TCP and UDP(-Lite), supports IPv4 and IPv6");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("xt_tcp");
 MODULE_ALIAS("xt_udp");
@@ -232,6 +232,24 @@ static struct xt_match xt_tcpudp_match[] = {
 		.match		= udp_match,
 		.matchsize	= sizeof(struct xt_udp),
 		.proto		= IPPROTO_UDP,
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "udplite",
+		.family		= AF_INET,
+		.checkentry	= udp_checkentry,
+		.match		= udp_match,
+		.matchsize	= sizeof(struct xt_udp),
+		.proto		= IPPROTO_UDPLITE,
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "udplite",
+		.family		= AF_INET6,
+		.checkentry	= udp_checkentry,
+		.match		= udp_match,
+		.matchsize	= sizeof(struct xt_udp),
+		.proto		= IPPROTO_UDPLITE,
 		.me		= THIS_MODULE,
 	},
 };

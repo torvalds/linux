@@ -162,6 +162,7 @@ drm_sman_set_manager(drm_sman_t * sman, unsigned int manager,
 
 	return 0;
 }
+EXPORT_SYMBOL(drm_sman_set_manager);
 
 static drm_owner_item_t *drm_sman_get_owner_item(drm_sman_t * sman,
 						 unsigned long owner)

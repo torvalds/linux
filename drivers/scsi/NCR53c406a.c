@@ -220,9 +220,11 @@ static void *addresses[] = {
 static unsigned short ports[] = { 0x230, 0x330, 0x280, 0x290, 0x330, 0x340, 0x300, 0x310, 0x348, 0x350 };
 #define PORT_COUNT ARRAY_SIZE(ports)
 
+#ifndef MODULE
 /* possible interrupt channels */
 static unsigned short intrs[] = { 10, 11, 12, 15 };
 #define INTR_COUNT ARRAY_SIZE(intrs)
+#endif /* !MODULE */
 
 /* signatures for NCR 53c406a based controllers */
 #if USE_BIOS
@@ -605,6 +607,7 @@ static int NCR53c406a_release(struct Scsi_Host *shost)
 	return 0;
 }
 
+#ifndef MODULE
 /* called from init/main.c */
 static int __init NCR53c406a_setup(char *str)
 {
@@ -660,6 +663,8 @@ static int __init NCR53c406a_setup(char *str)
 }
 
 __setup("ncr53c406a=", NCR53c406a_setup);
+
+#endif /* !MODULE */
 
 static const char *NCR53c406a_info(struct Scsi_Host *SChost)
 {

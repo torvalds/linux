@@ -528,9 +528,6 @@ static struct file_system_type v7_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
-extern int sysv_init_icache(void) __init;
-extern void sysv_destroy_icache(void);
-
 static int __init init_sysv_fs(void)
 {
 	int error;

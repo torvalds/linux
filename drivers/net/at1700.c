@@ -908,7 +908,7 @@ int __init init_module(void)
 	return 0;
 }
 
-void
+void __exit
 cleanup_module(void)
 {
 	unregister_netdev(dev_at1700);

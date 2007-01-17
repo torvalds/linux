@@ -1827,7 +1827,7 @@ int __init init_module(void)
 	return n_eepro ? 0 : -ENODEV;
 }
 
-void
+void __exit
 cleanup_module(void)
 {
 	int i;

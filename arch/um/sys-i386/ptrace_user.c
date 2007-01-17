@@ -4,9 +4,9 @@
  */
 
 #include <stdio.h>
+#include <stddef.h>
 #include <errno.h>
 #include <unistd.h>
-#include <linux/stddef.h>
 #include "ptrace_user.h"
 /* Grr, asm/user.h includes asm/ptrace.h, so has to follow ptrace_user.h */
 #include <asm/user.h>

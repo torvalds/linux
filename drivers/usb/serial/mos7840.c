@@ -826,7 +826,7 @@ static int mos7840_open(struct usb_serial_port *port, struct file *filp)
 
 	/* Initialising the write urb pool */
 	for (j = 0; j < NUM_URBS; ++j) {
-		urb = usb_alloc_urb(0, SLAB_ATOMIC);
+		urb = usb_alloc_urb(0, GFP_ATOMIC);
 		mos7840_port->write_urb_pool[j] = urb;
 
 		if (urb == NULL) {
@@ -1931,7 +1931,7 @@ static int mos7840_send_cmd_write_baud_rate(struct moschip_port *mos7840_port,
  *****************************************************************************/
 
 static void mos7840_change_port_settings(struct moschip_port *mos7840_port,
-					 struct termios *old_termios)
+					 struct ktermios *old_termios)
 {
 	struct tty_struct *tty;
 	int baud;
@@ -2118,7 +2118,7 @@ static void mos7840_change_port_settings(struct moschip_port *mos7840_port,
  *****************************************************************************/
 
 static void mos7840_set_termios(struct usb_serial_port *port,
-				struct termios *old_termios)
+				struct ktermios *old_termios)
 {
 	int status;
 	unsigned int cflag;
@@ -2460,12 +2460,6 @@ static int mos7840_ioctl(struct usb_serial_port *port, struct file *file,
 		tty_ldisc_deref(ld);
 		return 0;
 
-	case TCGETS:
-		if (kernel_termios_to_user_termios
-		    ((struct termios __user *)argp, tty->termios))
-			return -EFAULT;
-		return 0;
-
 	case TIOCSERGETLSR:
 		dbg("%s (%d) TIOCSERGETLSR", __FUNCTION__, port->number);
 		return mos7840_get_lsr_info(mos7840_port, argp);
@@ -2596,12 +2590,11 @@ static int mos7840_startup(struct usb_serial *serial)
 
 	/* set up port private structures */
 	for (i = 0; i < serial->num_ports; ++i) {
-		mos7840_port = kmalloc(sizeof(struct moschip_port), GFP_KERNEL);
+		mos7840_port = kzalloc(sizeof(struct moschip_port), GFP_KERNEL);
 		if (mos7840_port == NULL) {
 			err("%s - Out of memory", __FUNCTION__);
 			return -ENOMEM;
 		}
-		memset(mos7840_port, 0, sizeof(struct moschip_port));
 
 		/* Initialize all port interrupt end point to port 0 int endpoint *
 		 * Our device has only one interrupt end point comman to all port */
@@ -2787,7 +2780,7 @@ static int mos7840_startup(struct usb_serial *serial)
 				    i + 1, status);
 
 		}
-		mos7840_port->control_urb = usb_alloc_urb(0, SLAB_ATOMIC);
+		mos7840_port->control_urb = usb_alloc_urb(0, GFP_ATOMIC);
 		mos7840_port->ctrl_buf = kmalloc(16, GFP_KERNEL);
 
 	}

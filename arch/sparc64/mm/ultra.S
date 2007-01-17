@@ -477,6 +477,10 @@ xcall_sync_tick:
 	sethi		%hi(109f), %g7
 	b,pt		%xcc, etrap_irq
 109:	 or		%g7, %lo(109b), %g7
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call		trace_hardirqs_off
+	 nop
+#endif
 	call		smp_synchronize_tick_client
 	 nop
 	clr		%l6
@@ -508,6 +512,10 @@ xcall_report_regs:
 	sethi		%hi(109f), %g7
 	b,pt		%xcc, etrap_irq
 109:	 or		%g7, %lo(109b), %g7
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call		trace_hardirqs_off
+	 nop
+#endif
 	call		__show_regs
 	 add		%sp, PTREGS_OFF, %o0
 	clr		%l6

@@ -68,7 +68,7 @@
 struct icmphdr {
   __u8		type;
   __u8		code;
-  __be16	checksum;
+  __sum16	checksum;
   union {
 	struct {
 		__be16	id;

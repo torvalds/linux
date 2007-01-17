@@ -27,8 +27,8 @@
 
 #ifndef _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
 static inline
-unsigned int csum_and_copy_from_user (const unsigned char __user *src, unsigned char *dst,
-				      int len, int sum, int *err_ptr)
+__wsum csum_and_copy_from_user (const void __user *src, void *dst,
+				      int len, __wsum sum, int *err_ptr)
 {
 	if (access_ok(VERIFY_READ, src, len))
 		return csum_partial_copy_from_user(src, dst, len, sum, err_ptr);
@@ -41,8 +41,8 @@ unsigned int csum_and_copy_from_user (const unsigned char __user *src, unsigned 
 #endif
 
 #ifndef HAVE_CSUM_COPY_USER
-static __inline__ unsigned int csum_and_copy_to_user
-(const unsigned char *src, unsigned char __user *dst, int len, unsigned int sum, int *err_ptr)
+static __inline__ __wsum csum_and_copy_to_user
+(const void *src, void __user *dst, int len, __wsum sum, int *err_ptr)
 {
 	sum = csum_partial(src, len, sum);
 
@@ -53,35 +53,44 @@ static __inline__ unsigned int csum_and_copy_to_user
 	if (len)
 		*err_ptr = -EFAULT;
 
-	return -1; /* invalid checksum */
+	return (__force __wsum)-1; /* invalid checksum */
 }
 #endif
 
-static inline unsigned int csum_add(unsigned int csum, unsigned int addend)
+static inline __wsum csum_add(__wsum csum, __wsum addend)
 {
-	csum += addend;
-	return csum + (csum < addend);
+	u32 res = (__force u32)csum;
+	res += (__force u32)addend;
+	return (__force __wsum)(res + (res < (__force u32)addend));
 }
 
-static inline unsigned int csum_sub(unsigned int csum, unsigned int addend)
+static inline __wsum csum_sub(__wsum csum, __wsum addend)
 {
 	return csum_add(csum, ~addend);
 }
 
-static inline unsigned int
-csum_block_add(unsigned int csum, unsigned int csum2, int offset)
+static inline __wsum
+csum_block_add(__wsum csum, __wsum csum2, int offset)
 {
+	u32 sum = (__force u32)csum2;
 	if (offset&1)
-		csum2 = ((csum2&0xFF00FF)<<8)+((csum2>>8)&0xFF00FF);
-	return csum_add(csum, csum2);
+		sum = ((sum&0xFF00FF)<<8)+((sum>>8)&0xFF00FF);
+	return csum_add(csum, (__force __wsum)sum);
 }
 
-static inline unsigned int
-csum_block_sub(unsigned int csum, unsigned int csum2, int offset)
+static inline __wsum
+csum_block_sub(__wsum csum, __wsum csum2, int offset)
 {
+	u32 sum = (__force u32)csum2;
 	if (offset&1)
-		csum2 = ((csum2&0xFF00FF)<<8)+((csum2>>8)&0xFF00FF);
-	return csum_sub(csum, csum2);
+		sum = ((sum&0xFF00FF)<<8)+((sum>>8)&0xFF00FF);
+	return csum_sub(csum, (__force __wsum)sum);
 }
 
+static inline __wsum csum_unfold(__sum16 n)
+{
+	return (__force __wsum)n;
+}
+
+#define CSUM_MANGLED_0 ((__force __sum16)0xffff)
 #endif

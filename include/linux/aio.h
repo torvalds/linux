@@ -105,13 +105,13 @@ struct kiocb {
 	wait_queue_t		ki_wait;
 	loff_t			ki_pos;
 
+	atomic_t		ki_bio_count;	/* num bio used for this iocb */
 	void			*private;
 	/* State that we remember to be able to restart/retry  */
 	unsigned short		ki_opcode;
 	size_t			ki_nbytes; 	/* copy of iocb->aio_nbytes */
 	char 			__user *ki_buf;	/* remaining iocb->aio_buf */
 	size_t			ki_left; 	/* remaining bytes */
-	long			ki_retried; 	/* just for testing */
 	struct iovec		ki_inline_vec;	/* inline vector */
  	struct iovec		*ki_iovec;
  	unsigned long		ki_nr_segs;
@@ -194,7 +194,7 @@ struct kioctx {
 
 	struct aio_ring_info	ring_info;
 
-	struct work_struct	wq;
+	struct delayed_work	wq;
 };
 
 /* prototypes */
@@ -238,7 +238,6 @@ do {									\
 } while (0)
 
 #define io_wait_to_kiocb(wait) container_of(wait, struct kiocb, ki_wait)
-#define is_retried_kiocb(iocb) ((iocb)->ki_retried > 1)
 
 #include <linux/aio_abi.h>
 

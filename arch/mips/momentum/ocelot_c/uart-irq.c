@@ -60,48 +60,6 @@ static inline void unmask_uart_irq(unsigned int irq)
 }
 
 /*
- * Enables the IRQ in the FPGA
- */
-static void enable_uart_irq(unsigned int irq)
-{
-	unmask_uart_irq(irq);
-}
-
-/*
- * Initialize the IRQ in the FPGA
- */
-static unsigned int startup_uart_irq(unsigned int irq)
-{
-	unmask_uart_irq(irq);
-	return 0;
-}
-
-/*
- * Disables the IRQ in the FPGA
- */
-static void disable_uart_irq(unsigned int irq)
-{
-	mask_uart_irq(irq);
-}
-
-/*
- * Masks and ACKs an IRQ
- */
-static void mask_and_ack_uart_irq(unsigned int irq)
-{
-	mask_uart_irq(irq);
-}
-
-/*
- * End IRQ processing
- */
-static void end_uart_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		unmask_uart_irq(irq);
-}
-
-/*
  * Interrupt handler for interrupts coming from the FPGA chip.
  */
 void ll_uart_irq(void)
@@ -118,28 +76,16 @@ void ll_uart_irq(void)
 	do_IRQ(ls1bit8(irq_src) + 74);
 }
 
-#define shutdown_uart_irq	disable_uart_irq
-
 struct irq_chip uart_irq_type = {
 	.typename = "UART/FPGA",
-	.startup = startup_uart_irq,
-	.shutdown = shutdown_uart_irq,
-	.enable = enable_uart_irq,
-	.disable = disable_uart_irq,
-	.ack = mask_and_ack_uart_irq,
-	.end = end_uart_irq,
+	.ack = mask_uart_irq,
+	.mask = mask_uart_irq,
+	.mask_ack = mask_uart_irq,
+	.unmask = unmask_uart_irq,
 };
 
 void uart_irq_init(void)
 {
-	/* Reset irq handlers pointers to NULL */
-	irq_desc[80].status = IRQ_DISABLED;
-	irq_desc[80].action = 0;
-	irq_desc[80].depth = 2;
-	irq_desc[80].chip = &uart_irq_type;
-
-	irq_desc[81].status = IRQ_DISABLED;
-	irq_desc[81].action = 0;
-	irq_desc[81].depth = 2;
-	irq_desc[81].chip = &uart_irq_type;
+	set_irq_chip_and_handler(80, &uart_irq_type, handle_level_irq);
+	set_irq_chip_and_handler(81, &uart_irq_type, handle_level_irq);
 }

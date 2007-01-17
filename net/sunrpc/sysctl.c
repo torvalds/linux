@@ -18,7 +18,6 @@
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/stats.h>
-#include <linux/sunrpc/xprt.h>
 
 /*
  * Declare the debug flags here
@@ -119,11 +118,6 @@ done:
 }
 
 
-static unsigned int min_slot_table_size = RPC_MIN_SLOT_TABLE;
-static unsigned int max_slot_table_size = RPC_MAX_SLOT_TABLE;
-static unsigned int xprt_min_resvport_limit = RPC_MIN_RESVPORT;
-static unsigned int xprt_max_resvport_limit = RPC_MAX_RESVPORT;
-
 static ctl_table debug_table[] = {
 	{
 		.ctl_name	= CTL_RPCDEBUG,
@@ -157,50 +151,6 @@ static ctl_table debug_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dodebug
 	}, 
-	{
-		.ctl_name	= CTL_SLOTTABLE_UDP,
-		.procname	= "udp_slot_table_entries",
-		.data		= &xprt_udp_slot_table_entries,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
-		.extra1		= &min_slot_table_size,
-		.extra2		= &max_slot_table_size
-	},
-	{
-		.ctl_name	= CTL_SLOTTABLE_TCP,
-		.procname	= "tcp_slot_table_entries",
-		.data		= &xprt_tcp_slot_table_entries,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
-		.extra1		= &min_slot_table_size,
-		.extra2		= &max_slot_table_size
-	},
-	{
-		.ctl_name	= CTL_MIN_RESVPORT,
-		.procname	= "min_resvport",
-		.data		= &xprt_min_resvport,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
-		.extra1		= &xprt_min_resvport_limit,
-		.extra2		= &xprt_max_resvport_limit
-	},
-	{
-		.ctl_name	= CTL_MAX_RESVPORT,
-		.procname	= "max_resvport",
-		.data		= &xprt_max_resvport,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
-		.extra1		= &xprt_min_resvport_limit,
-		.extra2		= &xprt_max_resvport_limit
-	},
 	{ .ctl_name = 0 }
 };
 

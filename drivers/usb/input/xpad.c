@@ -325,7 +325,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		goto fail1;
 
 	xpad->idata = usb_buffer_alloc(udev, XPAD_PKT_LEN,
-				       SLAB_ATOMIC, &xpad->idata_dma);
+				       GFP_ATOMIC, &xpad->idata_dma);
 	if (!xpad->idata)
 		goto fail1;
 

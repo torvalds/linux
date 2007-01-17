@@ -25,6 +25,7 @@
  *							macros to DEFXX.C.
  *		12-Sep-96	LVS		Removed packet request header pointers.
  *		04 Aug 2003	macro		Converted to the DMA API.
+ *		23 Oct 2006	macro		Big-endian host support.
  */
 
 #ifndef _DEFXX_H_
@@ -1344,7 +1345,7 @@ typedef struct
 
 /* Register definition structures are defined for both big and little endian systems */
 
-#ifndef  BIG_ENDIAN
+#ifndef __BIG_ENDIAN
 
 /* Little endian format of Type 1 Producer register */
 
@@ -1402,7 +1403,11 @@ typedef union
 		} index;
 	} PI_TYPE_2_CONSUMER;
 
-#else
+/* Define swapping required by DMA transfers.  */
+#define PI_PDATA_A_INIT_M_BSWAP_INIT	\
+	(PI_PDATA_A_INIT_M_BSWAP_DATA)
+
+#else /* __BIG_ENDIAN */
 
 /* Big endian format of Type 1 Producer register */
 
@@ -1460,7 +1465,11 @@ typedef union
 		} index;
 	} PI_TYPE_2_CONSUMER;
 
-#endif	/* #ifndef BIG_ENDIAN */
+/* Define swapping required by DMA transfers.  */
+#define PI_PDATA_A_INIT_M_BSWAP_INIT	\
+	(PI_PDATA_A_INIT_M_BSWAP_DATA | PI_PDATA_A_INIT_M_BSWAP_LITERAL)
+
+#endif /* __BIG_ENDIAN */
 
 /* Define EISA controller register offsets */
 

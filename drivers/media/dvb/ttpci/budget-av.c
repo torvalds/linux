@@ -360,7 +360,7 @@ static int ciintf_init(struct budget_av *budget_av)
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTLO);
 
 	/* Enable DEBI pins */
-	saa7146_write(saa, MC1, saa7146_read(saa, MC1) | (0x800 << 16) | 0x800);
+	saa7146_write(saa, MC1, MASK_27 | MASK_11);
 
 	/* register CI interface */
 	budget_av->ca.owner = THIS_MODULE;
@@ -386,7 +386,7 @@ static int ciintf_init(struct budget_av *budget_av)
 	return 0;
 
 error:
-	saa7146_write(saa, MC1, saa7146_read(saa, MC1) | (0x800 << 16));
+	saa7146_write(saa, MC1, MASK_27);
 	return result;
 }
 
@@ -403,7 +403,7 @@ static void ciintf_deinit(struct budget_av *budget_av)
 	dvb_ca_en50221_release(&budget_av->ca);
 
 	/* disable DEBI pins */
-	saa7146_write(saa, MC1, saa7146_read(saa, MC1) | (0x800 << 16));
+	saa7146_write(saa, MC1, MASK_27);
 }
 
 
@@ -655,6 +655,10 @@ static struct tda10021_config philips_cu1216_config = {
 	.demod_address = 0x0c,
 };
 
+static struct tda10021_config philips_cu1216_config_altaddress = {
+	.demod_address = 0x0d,
+};
+
 
 
 
@@ -831,7 +835,7 @@ static int philips_sd1878_tda8261_tuner_set_params(struct dvb_frontend *fe,
 		return -EINVAL;
 
 	rc=dvb_pll_configure(&dvb_pll_philips_sd1878_tda8261, buf,
-			params->frequency, 0);
+			     params->frequency, 0);
 	if(rc < 0) return rc;
 
 	if (fe->ops.i2c_gate_ctrl)
@@ -914,6 +918,7 @@ static u8 read_pwm(struct budget_av *budget_av)
 #define SUBID_DVBS_TV_STAR_CI	0x0016
 #define SUBID_DVBS_EASYWATCH_1  0x001a
 #define SUBID_DVBS_EASYWATCH	0x001e
+#define SUBID_DVBC_EASYWATCH	0x002a
 #define SUBID_DVBC_KNC1		0x0020
 #define SUBID_DVBC_KNC1_PLUS	0x0021
 #define SUBID_DVBC_CINERGY1200	0x1156
@@ -947,11 +952,15 @@ static void frontend_init(struct budget_av *budget_av)
 	/* Enable / PowerON Frontend */
 	saa7146_setgpio(saa, 0, SAA7146_GPIO_OUTLO);
 
+	/* Wait for PowerON */
+	msleep(100);
+
 	/* additional setup necessary for the PLUS cards */
 	switch (saa->pci->subsystem_device) {
 		case SUBID_DVBS_KNC1_PLUS:
 		case SUBID_DVBC_KNC1_PLUS:
 		case SUBID_DVBT_KNC1_PLUS:
+		case SUBID_DVBC_EASYWATCH:
 			saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTHI);
 			break;
 	}
@@ -1006,10 +1015,15 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBC_KNC1:
 	case SUBID_DVBC_KNC1_PLUS:
 	case SUBID_DVBC_CINERGY1200:
+	case SUBID_DVBC_EASYWATCH:
 		budget_av->reinitialise_demod = 1;
 		fe = dvb_attach(tda10021_attach, &philips_cu1216_config,
 				     &budget_av->budget.i2c_adap,
 				     read_pwm(budget_av));
+		if (fe == NULL)
+			fe = dvb_attach(tda10021_attach, &philips_cu1216_config_altaddress,
+					     &budget_av->budget.i2c_adap,
+					     read_pwm(budget_av));
 		if (fe) {
 			budget_av->tda10021_poclkp = 1;
 			budget_av->tda10021_set_frontend = fe->ops.set_frontend;
@@ -1242,6 +1256,7 @@ MAKE_BUDGET_INFO(knc1t, "KNC1 DVB-T", BUDGET_KNC1T);
 MAKE_BUDGET_INFO(kncxs, "KNC TV STAR DVB-S", BUDGET_TVSTAR);
 MAKE_BUDGET_INFO(satewpls, "Satelco EasyWatch DVB-S light", BUDGET_TVSTAR);
 MAKE_BUDGET_INFO(satewpls1, "Satelco EasyWatch DVB-S light", BUDGET_KNC1S);
+MAKE_BUDGET_INFO(satewplc, "Satelco EasyWatch DVB-C", BUDGET_KNC1CP);
 MAKE_BUDGET_INFO(knc1sp, "KNC1 DVB-S Plus", BUDGET_KNC1SP);
 MAKE_BUDGET_INFO(knc1cp, "KNC1 DVB-C Plus", BUDGET_KNC1CP);
 MAKE_BUDGET_INFO(knc1tp, "KNC1 DVB-T Plus", BUDGET_KNC1TP);
@@ -1260,6 +1275,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(kncxs, 0x1894, 0x0016),
 	MAKE_EXTENSION_PCI(satewpls, 0x1894, 0x001e),
 	MAKE_EXTENSION_PCI(satewpls1, 0x1894, 0x001a),
+	MAKE_EXTENSION_PCI(satewplc, 0x1894, 0x002a),
 	MAKE_EXTENSION_PCI(knc1c, 0x1894, 0x0020),
 	MAKE_EXTENSION_PCI(knc1cp, 0x1894, 0x0021),
 	MAKE_EXTENSION_PCI(knc1t, 0x1894, 0x0030),
@@ -1277,7 +1293,7 @@ MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 static struct saa7146_extension budget_extension = {
 	.name = "budget_av",
-	.flags = SAA7146_I2C_SHORT_DELAY,
+	.flags = SAA7146_USE_I2C_IRQ,
 
 	.pci_tbl = pci_tbl,
 

@@ -109,7 +109,7 @@ static void hypfs_drop_inode(struct inode *inode)
 
 static int hypfs_open(struct inode *inode, struct file *filp)
 {
-	char *data = filp->f_dentry->d_inode->i_private;
+	char *data = filp->f_path.dentry->d_inode->i_private;
 	struct hypfs_sb_info *fs_info;
 
 	if (filp->f_mode & FMODE_WRITE) {
@@ -174,7 +174,7 @@ static ssize_t hypfs_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct hypfs_sb_info *fs_info;
 	size_t count = iov_length(iov, nr_segs);
 
-	sb = iocb->ki_filp->f_dentry->d_inode->i_sb;
+	sb = iocb->ki_filp->f_path.dentry->d_inode->i_sb;
 	fs_info = sb->s_fs_info;
 	/*
 	 * Currently we only allow one update per second for two reasons:

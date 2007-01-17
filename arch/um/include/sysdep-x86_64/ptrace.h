@@ -108,7 +108,7 @@ union uml_pt_regs {
 		 * file size, while i386 uses FRAME_SIZE.  Therefore, we need
 		 * to use UM_FRAME_SIZE here instead of HOST_FRAME_SIZE.
 		 */
-		unsigned long regs[UM_FRAME_SIZE];
+		unsigned long regs[MAX_REG_NR];
 		unsigned long fp[HOST_FP_SIZE];
                 struct faultinfo faultinfo;
 		long syscall;

@@ -35,23 +35,23 @@ module_init(init_syncookies);
 #define COOKIEBITS 24	/* Upper bits store count */
 #define COOKIEMASK (((__u32)1 << COOKIEBITS) - 1)
 
-static u32 cookie_hash(u32 saddr, u32 daddr, u32 sport, u32 dport,
+static u32 cookie_hash(__be32 saddr, __be32 daddr, __be16 sport, __be16 dport,
 		       u32 count, int c)
 {
 	__u32 tmp[16 + 5 + SHA_WORKSPACE_WORDS];
 
 	memcpy(tmp + 3, syncookie_secret[c], sizeof(syncookie_secret[c]));
-	tmp[0] = saddr;
-	tmp[1] = daddr;
-	tmp[2] = (sport << 16) + dport;
+	tmp[0] = (__force u32)saddr;
+	tmp[1] = (__force u32)daddr;
+	tmp[2] = ((__force u32)sport << 16) + (__force u32)dport;
 	tmp[3] = count;
 	sha_transform(tmp + 16, (__u8 *)tmp, tmp + 16 + 5);
 
 	return tmp[17];
 }
 
-static __u32 secure_tcp_syn_cookie(__u32 saddr, __u32 daddr, __u16 sport,
-				   __u16 dport, __u32 sseq, __u32 count,
+static __u32 secure_tcp_syn_cookie(__be32 saddr, __be32 daddr, __be16 sport,
+				   __be16 dport, __u32 sseq, __u32 count,
 				   __u32 data)
 {
 	/*
@@ -80,8 +80,8 @@ static __u32 secure_tcp_syn_cookie(__u32 saddr, __u32 daddr, __u16 sport,
  * "maxdiff" if the current (passed-in) "count".  The return value
  * is (__u32)-1 if this test fails.
  */
-static __u32 check_tcp_syn_cookie(__u32 cookie, __u32 saddr, __u32 daddr,
-				  __u16 sport, __u16 dport, __u32 sseq,
+static __u32 check_tcp_syn_cookie(__u32 cookie, __be32 saddr, __be32 daddr,
+				  __be16 sport, __be16 dport, __u32 sseq,
 				  __u32 count, __u32 maxdiff)
 {
 	__u32 diff;
@@ -220,7 +220,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	}
 	ireq = inet_rsk(req);
 	treq = tcp_rsk(req);
-	treq->rcv_isn		= htonl(skb->h.th->seq) - 1;
+	treq->rcv_isn		= ntohl(skb->h.th->seq) - 1;
 	treq->snt_isn		= cookie; 
 	req->mss		= mss;
  	ireq->rmt_port		= skb->h.th->source;

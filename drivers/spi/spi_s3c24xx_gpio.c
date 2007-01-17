@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
+#include <linux/workqueue.h>
 #include <linux/platform_device.h>
 
 #include <linux/spi/spi.h>
@@ -22,7 +23,7 @@
 
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/spi-gpio.h>
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 struct s3c2410_spigpio {
 	struct spi_bitbang		 bitbang;

@@ -164,7 +164,7 @@ void vq_req_put(struct c2_dev *c2dev, struct c2_vq_req *r)
  */
 void *vq_repbuf_alloc(struct c2_dev *c2dev)
 {
-	return kmem_cache_alloc(c2dev->host_msg_cache, SLAB_ATOMIC);
+	return kmem_cache_alloc(c2dev->host_msg_cache, GFP_ATOMIC);
 }
 
 /*

@@ -83,7 +83,7 @@ acpi_extract_package(union acpi_object *package,
 		return AE_BAD_DATA;
 	}
 
-	format_string = (char *)format->pointer;
+	format_string = format->pointer;
 
 	/*
 	 * Calculate size_required.
@@ -262,11 +262,10 @@ acpi_evaluate_integer(acpi_handle handle,
 	if (!data)
 		return AE_BAD_PARAMETER;
 
-	element = kmalloc(sizeof(union acpi_object), irqs_disabled() ? GFP_ATOMIC: GFP_KERNEL);
+	element = kzalloc(sizeof(union acpi_object), irqs_disabled() ? GFP_ATOMIC: GFP_KERNEL);
 	if (!element)
 		return AE_NO_MEMORY;
 
-	memset(element, 0, sizeof(union acpi_object));
 	buffer.length = sizeof(union acpi_object);
 	buffer.pointer = element;
 	status = acpi_evaluate_object(handle, pathname, arguments, &buffer);
@@ -321,12 +320,11 @@ acpi_evaluate_string(acpi_handle handle,
 		return AE_BAD_DATA;
 	}
 
-	*data = kmalloc(element->string.length + 1, GFP_KERNEL);
+	*data = kzalloc(element->string.length + 1, GFP_KERNEL);
 	if (!data) {
 		printk(KERN_ERR PREFIX "Memory allocation\n");
 		return -ENOMEM;
 	}
-	memset(*data, 0, element->string.length + 1);
 
 	memcpy(*data, element->string.pointer, element->string.length);
 
@@ -361,7 +359,7 @@ acpi_evaluate_reference(acpi_handle handle,
 	if (ACPI_FAILURE(status))
 		goto end;
 
-	package = (union acpi_object *)buffer.pointer;
+	package = buffer.pointer;
 
 	if ((buffer.length == 0) || !package) {
 		printk(KERN_ERR PREFIX "No return object (len %X ptr %p)\n",

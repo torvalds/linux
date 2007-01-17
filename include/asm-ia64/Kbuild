@@ -10,7 +10,6 @@ header-y += intrinsics.h
 header-y += perfmon_default_smpl.h
 header-y += ptrace_offsets.h
 header-y += rse.h
-header-y += setup.h
 header-y += ucontext.h
 
 unifdef-y += perfmon.h

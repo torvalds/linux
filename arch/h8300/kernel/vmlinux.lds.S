@@ -70,6 +70,7 @@ SECTIONS
 #endif
         .text :
 	{
+	_text = .;
 #if defined(CONFIG_ROMKERNEL)
 	*(.int_redirect)
 #endif

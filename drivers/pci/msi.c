@@ -26,7 +26,7 @@
 
 static DEFINE_SPINLOCK(msi_lock);
 static struct msi_desc* msi_desc[NR_IRQS] = { [0 ... NR_IRQS-1] = NULL };
-static kmem_cache_t* msi_cachep;
+static struct kmem_cache* msi_cachep;
 
 static int pci_msi_enable = 1;
 
@@ -255,10 +255,8 @@ static void enable_msi_mode(struct pci_dev *dev, int pos, int type)
 		pci_write_config_word(dev, msi_control_reg(pos), control);
 		dev->msix_enabled = 1;
 	}
-    	if (pci_find_capability(dev, PCI_CAP_ID_EXP)) {
-		/* PCI Express Endpoint device detected */
-		pci_intx(dev, 0);  /* disable intx */
-	}
+
+	pci_intx(dev, 0);  /* disable intx */
 }
 
 void disable_msi_mode(struct pci_dev *dev, int pos, int type)
@@ -276,10 +274,8 @@ void disable_msi_mode(struct pci_dev *dev, int pos, int type)
 		pci_write_config_word(dev, msi_control_reg(pos), control);
 		dev->msix_enabled = 0;
 	}
-    	if (pci_find_capability(dev, PCI_CAP_ID_EXP)) {
-		/* PCI Express Endpoint device detected */
-		pci_intx(dev, 1);  /* enable intx */
-	}
+
+	pci_intx(dev, 1);  /* enable intx */
 }
 
 static int msi_lookup_irq(struct pci_dev *dev, int type)

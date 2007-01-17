@@ -330,8 +330,6 @@ struct old_linux32_dirent {
 void ia64_elf32_init(struct pt_regs *regs);
 #define ELF_PLAT_INIT(_r, load_addr)	ia64_elf32_init(_r)
 
-#define elf_addr_t	u32
-
 /* This macro yields a bitmask that programs can use to figure out
    what instruction set this CPU supports.  */
 #define ELF_HWCAP	0

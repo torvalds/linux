@@ -110,7 +110,7 @@ lock.
 
 Once the DMA transfer is finished (or timed out) you should disable
 the channel again. You should also check get_dma_residue() to make
-sure that all data has been transfered.
+sure that all data has been transferred.
 
 Example:
 

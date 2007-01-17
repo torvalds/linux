@@ -215,7 +215,7 @@ static int spaceball_connect(struct serio *serio, struct serio_driver *drv)
 	spaceball = kmalloc(sizeof(struct spaceball), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!spaceball || !input_dev)
-		goto fail;
+		goto fail1;
 
 	spaceball->dev = input_dev;
 	snprintf(spaceball->phys, sizeof(spaceball->phys), "%s/input0", serio->phys);
@@ -252,13 +252,17 @@ static int spaceball_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device(spaceball->dev);
+	err = input_register_device(spaceball->dev);
+	if (err)
+		goto fail3;
+
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
 	kfree(spaceball);
 	return err;
 }
@@ -296,8 +300,7 @@ static struct serio_driver spaceball_drv = {
 
 static int __init spaceball_init(void)
 {
-	serio_register_driver(&spaceball_drv);
-	return 0;
+	return serio_register_driver(&spaceball_drv);
 }
 
 static void __exit spaceball_exit(void)

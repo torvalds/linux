@@ -1302,7 +1302,7 @@ int __init init_module(void)
 	} else return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	int this_dev;
 	for (this_dev=0; this_dev<MAX_3C523_CARDS; this_dev++) {

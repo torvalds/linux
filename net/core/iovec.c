@@ -158,9 +158,9 @@ int memcpy_fromiovecend(unsigned char *kdata, struct iovec *iov, int offset,
  *	call to this function will be unaligned also.
  */
 int csum_partial_copy_fromiovecend(unsigned char *kdata, struct iovec *iov,
-				 int offset, unsigned int len, int *csump)
+				 int offset, unsigned int len, __wsum *csump)
 {
-	int csum = *csump;
+	__wsum csum = *csump;
 	int partial_cnt = 0, err = 0;
 
 	/* Skip over the finished iovecs */

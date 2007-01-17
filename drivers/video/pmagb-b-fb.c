@@ -186,7 +186,7 @@ static void __init pmagbbfb_screen_setup(struct fb_info *info)
 static void __init pmagbbfb_osc_setup(struct fb_info *info)
 {
 	static unsigned int pmagbbfb_freqs[] __initdata = {
-		130808, 119843, 104000, 92980, 74367, 72800,
+		130808, 119843, 104000, 92980, 74370, 72800,
 		69197, 66000, 65000, 50350, 36000, 32000, 25175
 	};
 	struct pmagbbfb_par *par = info->par;

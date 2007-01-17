@@ -689,7 +689,6 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 	if (!hid || !input_dev) {
 		err = -ENOMEM;
 		goto fail;
-
 	}
 
 	sprintf(hid->phys, "adb%d:%d.%02x/input", id, default_id, original_handler_id);
@@ -807,7 +806,9 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 
 	input_dev->keycode = hid->keycode;
 
-	input_register_device(input_dev);
+	err = input_register_device(input_dev);
+	if (err)
+		goto fail;
 
 	if (default_id == ADB_KEYBOARD) {
 		/* HACK WARNING!! This should go away as soon there is an utility
@@ -820,7 +821,10 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 	return 0;
 
  fail:	input_free_device(input_dev);
-	kfree(hid);
+	if (hid) {
+		kfree(hid->keycode);
+		kfree(hid);
+	}
 	adbhid[id] = NULL;
 	return err;
 }

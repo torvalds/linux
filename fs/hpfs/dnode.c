@@ -533,10 +533,13 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 			struct buffer_head *bh;
 			struct dnode *d1;
 			struct quad_buffer_head qbh1;
-			if (hpfs_sb(i->i_sb)->sb_chk) if (up != i->i_ino) {
-				hpfs_error(i->i_sb, "bad pointer to fnode, dnode %08x, pointing to %08x, should be %08x", dno, up, i->i_ino);
+			if (hpfs_sb(i->i_sb)->sb_chk)
+			    if (up != i->i_ino) {
+				hpfs_error(i->i_sb,
+					"bad pointer to fnode, dnode %08x, pointing to %08x, should be %08lx",
+					dno, up, (unsigned long)i->i_ino);
 				return;
-			}
+			    }
 			if ((d1 = hpfs_map_dnode(i->i_sb, down, &qbh1))) {
 				d1->up = up;
 				d1->root_dnode = 1;
@@ -851,7 +854,9 @@ struct hpfs_dirent *map_pos_dirent(struct inode *inode, loff_t *posp,
 	/* Going to the next dirent */
 	if ((d = de_next_de(de)) < dnode_end_de(dnode)) {
 		if (!(++*posp & 077)) {
-			hpfs_error(inode->i_sb, "map_pos_dirent: pos crossed dnode boundary; pos = %08x", *posp);
+			hpfs_error(inode->i_sb,
+				"map_pos_dirent: pos crossed dnode boundary; pos = %08llx",
+				(unsigned long long)*posp);
 			goto bail;
 		}
 		/* We're going down the tree */

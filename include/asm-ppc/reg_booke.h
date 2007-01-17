@@ -9,41 +9,9 @@
 #ifndef __ASM_PPC_REG_BOOKE_H__
 #define __ASM_PPC_REG_BOOKE_H__
 
+#include <asm/dcr.h>
+
 #ifndef __ASSEMBLY__
-/* Device Control Registers */
-void __mtdcr(int reg, unsigned int val);
-unsigned int __mfdcr(int reg);
-#define mfdcr(rn)						\
-	({unsigned int rval;					\
-	if (__builtin_constant_p(rn))				\
-		asm volatile("mfdcr %0," __stringify(rn)	\
-		              : "=r" (rval));			\
-	else							\
-		rval = __mfdcr(rn);				\
-	rval;})
-
-#define mtdcr(rn, v)						\
-do {								\
-	if (__builtin_constant_p(rn))				\
-		asm volatile("mtdcr " __stringify(rn) ",%0"	\
-			      : : "r" (v)); 			\
-	else							\
-		__mtdcr(rn, v);					\
-} while (0)
-
-/* R/W of indirect DCRs make use of standard naming conventions for DCRs */
-#define mfdcri(base, reg)			\
-({						\
-	mtdcr(base ## _CFGADDR, base ## _ ## reg);	\
-	mfdcr(base ## _CFGDATA);			\
-})
-
-#define mtdcri(base, reg, data)			\
-do {						\
-	mtdcr(base ## _CFGADDR, base ## _ ## reg);	\
-	mtdcr(base ## _CFGDATA, data);		\
-} while (0)
-
 /* Performance Monitor Registers */
 #define mfpmr(rn)	({unsigned int rval; \
 			asm volatile("mfpmr %0," __stringify(rn) \

@@ -241,7 +241,7 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 	pmsg->data_len        = data_len;
 	pmsg->timestamp_sec   = entry->skb->tstamp.off_sec;
 	pmsg->timestamp_usec  = entry->skb->tstamp.off_usec;
-	pmsg->mark            = entry->skb->nfmark;
+	pmsg->mark            = entry->skb->mark;
 	pmsg->hook            = entry->info->hook;
 	pmsg->hw_protocol     = entry->skb->protocol;
 	
@@ -620,6 +620,7 @@ static ctl_table ipq_root_table[] = {
 	{ .ctl_name = 0 }
 };
 
+#ifdef CONFIG_PROC_FS
 static int
 ipq_get_info(char *buffer, char **start, off_t offset, int length)
 {
@@ -653,6 +654,7 @@ ipq_get_info(char *buffer, char **start, off_t offset, int length)
 		len = 0;
 	return len;
 }
+#endif /* CONFIG_PROC_FS */
 
 static struct nf_queue_handler nfqh = {
 	.name	= "ip6_queue",

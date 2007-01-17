@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include <asm/atomic.h>
 

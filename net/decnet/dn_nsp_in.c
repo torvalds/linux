@@ -804,7 +804,7 @@ got_it:
 				goto free_out;
 		}
 
-		return sk_receive_skb(sk, skb);
+		return sk_receive_skb(sk, skb, 0);
 	}
 
 	return dn_nsp_no_socket(skb, reason);

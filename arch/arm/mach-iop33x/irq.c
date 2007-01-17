@@ -121,7 +121,7 @@ void __init iop33x_init_irq(void)
 
 	for (i = 0; i < NR_IRQS; i++) {
 		set_irq_chip(i, (i < 32) ? &iop33x_irqchip1 : &iop33x_irqchip2);
-		set_irq_handler(i, do_level_IRQ);
+		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 }

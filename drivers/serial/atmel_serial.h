@@ -31,8 +31,8 @@
 #define		ATMEL_US_RSTIT		(1 << 13)		/* Reset Iterations */
 #define		ATMEL_US_RSTNACK	(1 << 14)		/* Reset Non Acknowledge */
 #define		ATMEL_US_RETTO		(1 << 15)		/* Rearm Time-out */
-#define		ATMEL_US_DTREN		(1 << 16)		/* Data Terminal Ready Enable */
-#define		ATMEL_US_DTRDIS		(1 << 17)		/* Data Terminal Ready Disable */
+#define		ATMEL_US_DTREN		(1 << 16)		/* Data Terminal Ready Enable [AT91RM9200 only] */
+#define		ATMEL_US_DTRDIS		(1 << 17)		/* Data Terminal Ready Disable [AT91RM9200 only] */
 #define		ATMEL_US_RTSEN		(1 << 18)		/* Request To Send Enable */
 #define		ATMEL_US_RTSDIS		(1 << 19)		/* Request To Send Disable */
 
@@ -92,9 +92,9 @@
 #define		ATMEL_US_TXBUFE		(1 << 11)		/* Transmission Buffer Empty */
 #define		ATMEL_US_RXBUFF		(1 << 12)		/* Reception Buffer Full */
 #define		ATMEL_US_NACK		(1 << 13)		/* Non Acknowledge */
-#define		ATMEL_US_RIIC		(1 << 16)		/* Ring Indicator Input Change */
-#define		ATMEL_US_DSRIC		(1 << 17)		/* Data Set Ready Input Change */
-#define		ATMEL_US_DCDIC		(1 << 18)		/* Data Carrier Detect Input Change */
+#define		ATMEL_US_RIIC		(1 << 16)		/* Ring Indicator Input Change [AT91RM9200 only] */
+#define		ATMEL_US_DSRIC		(1 << 17)		/* Data Set Ready Input Change [AT91RM9200 only] */
+#define		ATMEL_US_DCDIC		(1 << 18)		/* Data Carrier Detect Input Change [AT91RM9200 only] */
 #define		ATMEL_US_CTSIC		(1 << 19)		/* Clear to Send Input Change */
 #define		ATMEL_US_RI		(1 << 20)		/* RI */
 #define		ATMEL_US_DSR		(1 << 21)		/* DSR */
@@ -106,6 +106,7 @@
 #define ATMEL_US_CSR		0x14			/* Channel Status Register */
 #define ATMEL_US_RHR		0x18			/* Receiver Holding Register */
 #define ATMEL_US_THR		0x1c			/* Transmitter Holding Register */
+#define 	ATMEL_US_SYNH		(1 << 15)		/* Transmit/Receive Sync [SAM9 only] */
 
 #define ATMEL_US_BRGR		0x20			/* Baud Rate Generator Register */
 #define		ATMEL_US_CD		(0xffff << 0)		/* Clock Divider */

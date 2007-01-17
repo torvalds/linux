@@ -261,7 +261,7 @@ pairs are separated with a comma (no spaces allowed). A colon can be
 used instead of the equal mark. The definition is prepended by the
 string st=. Here is an example:
 
-	st=buffer_kbs:64,write_threhold_kbs:60
+	st=buffer_kbs:64,write_threshold_kbs:60
 
 The following syntax used by the old kernel versions is also supported:
 

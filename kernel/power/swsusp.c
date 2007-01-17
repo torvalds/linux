@@ -49,6 +49,7 @@
 #include <linux/bootmem.h>
 #include <linux/syscalls.h>
 #include <linux/highmem.h>
+#include <linux/time.h>
 
 #include "power.h"
 
@@ -64,10 +65,8 @@ int in_suspend __nosavedata = 0;
 
 #ifdef CONFIG_HIGHMEM
 unsigned int count_highmem_pages(void);
-int save_highmem(void);
 int restore_highmem(void);
 #else
-static inline int save_highmem(void) { return 0; }
 static inline int restore_highmem(void) { return 0; }
 static inline unsigned int count_highmem_pages(void) { return 0; }
 #endif
@@ -134,18 +133,18 @@ static int bitmap_set(struct bitmap_page *bitmap, unsigned long bit)
 	return 0;
 }
 
-unsigned long alloc_swap_page(int swap, struct bitmap_page *bitmap)
+sector_t alloc_swapdev_block(int swap, struct bitmap_page *bitmap)
 {
 	unsigned long offset;
 
 	offset = swp_offset(get_swap_page_of_type(swap));
 	if (offset) {
-		if (bitmap_set(bitmap, offset)) {
+		if (bitmap_set(bitmap, offset))
 			swap_free(swp_entry(swap, offset));
-			offset = 0;
-		}
+		else
+			return swapdev_block(swap, offset);
 	}
-	return offset;
+	return 0;
 }
 
 void free_all_swap_pages(int swap, struct bitmap_page *bitmap)
@@ -163,6 +162,34 @@ void free_all_swap_pages(int swap, struct bitmap_page *bitmap)
 			}
 		bitmap = bitmap->next;
 	}
+}
+
+/**
+ *	swsusp_show_speed - print the time elapsed between two events represented by
+ *	@start and @stop
+ *
+ *	@nr_pages -	number of pages processed between @start and @stop
+ *	@msg -		introductory message to print
+ */
+
+void swsusp_show_speed(struct timeval *start, struct timeval *stop,
+			unsigned nr_pages, char *msg)
+{
+	s64 elapsed_centisecs64;
+	int centisecs;
+	int k;
+	int kps;
+
+	elapsed_centisecs64 = timeval_to_ns(stop) - timeval_to_ns(start);
+	do_div(elapsed_centisecs64, NSEC_PER_SEC / 100);
+	centisecs = elapsed_centisecs64;
+	if (centisecs == 0)
+		centisecs = 1;	/* avoid div-by-zero */
+	k = nr_pages * (PAGE_SIZE / 1024);
+	kps = (k * 100) / centisecs;
+	printk("%s %d kbytes in %d.%02d seconds (%d.%02d MB/s)\n", msg, k,
+			centisecs / 100, centisecs % 100,
+			kps / 1000, (kps % 1000) / 10);
 }
 
 /**
@@ -184,23 +211,37 @@ static inline unsigned long __shrink_memory(long tmp)
 
 int swsusp_shrink_memory(void)
 {
-	long size, tmp;
+	long tmp;
 	struct zone *zone;
 	unsigned long pages = 0;
 	unsigned int i = 0;
 	char *p = "-\\|/";
+	struct timeval start, stop;
 
 	printk("Shrinking memory...  ");
+	do_gettimeofday(&start);
 	do {
-		size = 2 * count_highmem_pages();
-		size += size / 50 + count_data_pages() + PAGES_FOR_IO;
+		long size, highmem_size;
+
+		highmem_size = count_highmem_pages();
+		size = count_data_pages() + PAGES_FOR_IO;
 		tmp = size;
+		size += highmem_size;
 		for_each_zone (zone)
-			if (!is_highmem(zone) && populated_zone(zone)) {
-				tmp -= zone->free_pages;
-				tmp += zone->lowmem_reserve[ZONE_NORMAL];
-				tmp += snapshot_additional_pages(zone);
+			if (populated_zone(zone)) {
+				if (is_highmem(zone)) {
+					highmem_size -= zone->free_pages;
+				} else {
+					tmp -= zone->free_pages;
+					tmp += zone->lowmem_reserve[ZONE_NORMAL];
+					tmp += snapshot_additional_pages(zone);
+				}
 			}
+
+		if (highmem_size < 0)
+			highmem_size = 0;
+
+		tmp += highmem_size;
 		if (tmp > 0) {
 			tmp = __shrink_memory(tmp);
 			if (!tmp)
@@ -212,7 +253,9 @@ int swsusp_shrink_memory(void)
 		}
 		printk("\b%c", p[i++%4]);
 	} while (tmp > 0);
+	do_gettimeofday(&stop);
 	printk("\bdone (%lu pages freed)\n", pages);
+	swsusp_show_speed(&start, &stop, pages, "Freed");
 
 	return 0;
 }
@@ -223,6 +266,7 @@ int swsusp_suspend(void)
 
 	if ((error = arch_prepare_suspend()))
 		return error;
+
 	local_irq_disable();
 	/* At this point, device_suspend() has been called, but *not*
 	 * device_power_down(). We *must* device_power_down() now.
@@ -235,23 +279,16 @@ int swsusp_suspend(void)
 		goto Enable_irqs;
 	}
 
-	if ((error = save_highmem())) {
-		printk(KERN_ERR "swsusp: Not enough free pages for highmem\n");
-		goto Restore_highmem;
-	}
-
 	save_processor_state();
 	if ((error = swsusp_arch_suspend()))
 		printk(KERN_ERR "Error %d suspending\n", error);
 	/* Restore control flow magically appears here */
 	restore_processor_state();
-Restore_highmem:
-	restore_highmem();
 	/* NOTE:  device_power_up() is just a resume() for devices
 	 * that suspended with irqs off ... no overall powerup.
 	 */
 	device_power_up();
-Enable_irqs:
+ Enable_irqs:
 	local_irq_enable();
 	return error;
 }
@@ -268,18 +305,23 @@ int swsusp_resume(void)
 		printk(KERN_ERR "Some devices failed to power down, very bad\n");
 	/* We'll ignore saved state, but this gets preempt count (etc) right */
 	save_processor_state();
-	error = swsusp_arch_resume();
-	/* Code below is only ever reached in case of failure. Otherwise
-	 * execution continues at place where swsusp_arch_suspend was called
-         */
-	BUG_ON(!error);
+	error = restore_highmem();
+	if (!error) {
+		error = swsusp_arch_resume();
+		/* The code below is only ever reached in case of a failure.
+		 * Otherwise execution continues at place where
+		 * swsusp_arch_suspend() was called
+        	 */
+		BUG_ON(!error);
+		/* This call to restore_highmem() undos the previous one */
+		restore_highmem();
+	}
 	/* The only reason why swsusp_arch_resume() can fail is memory being
 	 * very tight, so we have to free it as soon as we can to avoid
 	 * subsequent failures
 	 */
 	swsusp_free();
 	restore_processor_state();
-	restore_highmem();
 	touch_softlockup_watchdog();
 	device_power_up();
 	local_irq_enable();

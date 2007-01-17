@@ -52,6 +52,10 @@
 #define	CPU_EZRA_T	4
 #define	CPU_NEHEMIAH	5
 
+/* Flags */
+#define USE_ACPI_C3		(1 << 1)
+#define USE_NORTHBRIDGE		(1 << 2)
+
 static int cpu_model;
 static unsigned int numscales=16;
 static unsigned int fsb;
@@ -68,7 +72,7 @@ static unsigned int minmult, maxmult;
 static int can_scale_voltage;
 static struct acpi_processor *pr = NULL;
 static struct acpi_processor_cx *cx = NULL;
-static int port22_en;
+static u8 longhaul_flags;
 
 /* Module parameters */
 static int scale_voltage;
@@ -80,7 +84,6 @@ static int ignore_latency;
 /* Clock ratios multiplied by 10 */
 static int clock_ratio[32];
 static int eblcr_table[32];
-static unsigned int highest_speed, lowest_speed; /* kHz */
 static int longhaul_version;
 static struct cpufreq_frequency_table *longhaul_table;
 
@@ -178,7 +181,7 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
 	safe_halt();
 	/* Change frequency on next halt or sleep */
 	wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
-	if (port22_en) {
+	if (!cx_address) {
 		ACPI_FLUSH_CPU_CACHE();
 		/* Invoke C1 */
 		halt();
@@ -189,7 +192,6 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
 		/* Dummy op - must do something useless after P_LVL3 read */
 		t = inl(acpi_fadt.xpm_tmr_blk.address);
 	}
-
 	/* Disable bus ratio bit */
 	local_irq_disable();
 	longhaul.bits.RevisionKey = longhaul.bits.RevisionID;
@@ -243,15 +245,14 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	outb(0xFF,0xA1);	/* Overkill */
 	outb(0xFE,0x21);	/* TMR0 only */
 
-	if (pr->flags.bm_control) {
+	if (longhaul_flags & USE_NORTHBRIDGE) {
+		/* Disable AGP and PCI arbiters */
+		outb(3, 0x22);
+	} else if ((pr != NULL) && pr->flags.bm_control) {
  		/* Disable bus master arbitration */
 		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1,
 				  ACPI_MTX_DO_NOT_LOCK);
-	} else if (port22_en) {
-		/* Disable AGP and PCI arbiters */
-		outb(3, 0x22);
 	}
-
 	switch (longhaul_version) {
 
 	/*
@@ -278,22 +279,25 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	 * to work in practice.
 	 */
 	case TYPE_POWERSAVER:
-		/* Don't allow wakeup */
-		acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0,
-				  ACPI_MTX_DO_NOT_LOCK);
-		do_powersaver(cx->address, clock_ratio_index);
+		if (longhaul_flags & USE_ACPI_C3) {
+			/* Don't allow wakeup */
+			acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0,
+					  ACPI_MTX_DO_NOT_LOCK);
+			do_powersaver(cx->address, clock_ratio_index);
+		} else {
+			do_powersaver(0, clock_ratio_index);
+		}
 		break;
 	}
 
-	if (pr->flags.bm_control) {
+	if (longhaul_flags & USE_NORTHBRIDGE) {
+		/* Enable arbiters */
+		outb(0, 0x22);
+	} else if ((pr != NULL) && pr->flags.bm_control) {
 		/* Enable bus master arbitration */
 		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0,
 				  ACPI_MTX_DO_NOT_LOCK);
-	} else if (port22_en) {
-		/* Enable arbiters */
-		outb(0, 0x22);
 	}
-
 	outb(pic2_mask,0xA1);	/* restore mask */
 	outb(pic1_mask,0x21);
 
@@ -314,12 +318,12 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 
 #define ROUNDING	0xf
 
-static int _guess(int guess)
+static int _guess(int guess, int mult)
 {
 	int target;
 
-	target = ((maxmult/10)*guess);
-	if (maxmult%10 != 0)
+	target = ((mult/10)*guess);
+	if (mult%10 != 0)
 		target += (guess/2);
 	target += ROUNDING/2;
 	target &= ~ROUNDING;
@@ -327,17 +331,17 @@ static int _guess(int guess)
 }
 
 
-static int guess_fsb(void)
+static int guess_fsb(int mult)
 {
 	int speed = (cpu_khz/1000);
 	int i;
-	int speeds[3] = { 66, 100, 133 };
+	int speeds[] = { 66, 100, 133, 200 };
 
 	speed += ROUNDING/2;
 	speed &= ~ROUNDING;
 
-	for (i=0; i<3; i++) {
-		if (_guess(speeds[i]) == speed)
+	for (i=0; i<4; i++) {
+		if (_guess(speeds[i], mult) == speed)
 			return speeds[i];
 	}
 	return 0;
@@ -354,9 +358,7 @@ static int __init longhaul_get_ranges(void)
 			130, 150, 160, 140,  -1, 155,  -1, 145 };
 	unsigned int j, k = 0;
 	union msr_longhaul longhaul;
-	unsigned long lo, hi;
-	unsigned int eblcr_fsb_table_v1[] = { 66, 133, 100, -1 };
-	unsigned int eblcr_fsb_table_v2[] = { 133, 100, -1, 66 };
+	int mult = 0;
 
 	switch (longhaul_version) {
 	case TYPE_LONGHAUL_V1:
@@ -364,30 +366,18 @@ static int __init longhaul_get_ranges(void)
 		/* Ugh, Longhaul v1 didn't have the min/max MSRs.
 		   Assume min=3.0x & max = whatever we booted at. */
 		minmult = 30;
-		maxmult = longhaul_get_cpu_mult();
-		rdmsr (MSR_IA32_EBL_CR_POWERON, lo, hi);
-		invalue = (lo & (1<<18|1<<19)) >>18;
-		if (cpu_model==CPU_SAMUEL || cpu_model==CPU_SAMUEL2)
-			fsb = eblcr_fsb_table_v1[invalue];
-		else
-			fsb = guess_fsb();
+		maxmult = mult = longhaul_get_cpu_mult();
 		break;
 
 	case TYPE_POWERSAVER:
 		/* Ezra-T */
 		if (cpu_model==CPU_EZRA_T) {
+			minmult = 30;
 			rdmsrl (MSR_VIA_LONGHAUL, longhaul.val);
 			invalue = longhaul.bits.MaxMHzBR;
 			if (longhaul.bits.MaxMHzBR4)
 				invalue += 16;
-			maxmult=ezra_t_multipliers[invalue];
-
-			invalue = longhaul.bits.MinMHzBR;
-			if (longhaul.bits.MinMHzBR4 == 1)
-				minmult = 30;
-			else
-				minmult = ezra_t_multipliers[invalue];
-			fsb = eblcr_fsb_table_v2[longhaul.bits.MaxMHzFSB];
+			maxmult = mult = ezra_t_multipliers[invalue];
 			break;
 		}
 
@@ -407,21 +397,16 @@ static int __init longhaul_get_ranges(void)
 			 *   But it works, so we don't grumble.
 			 */
 			minmult=40;
-			maxmult=longhaul_get_cpu_mult();
-
-			/* Starting with the 1.2GHz parts, theres a 200MHz bus. */
-			if ((cpu_khz/1000) > 1200)
-				fsb = 200;
-			else
-				fsb = eblcr_fsb_table_v2[longhaul.bits.MaxMHzFSB];
+			maxmult = mult = longhaul_get_cpu_mult();
 			break;
 		}
 	}
+	fsb = guess_fsb(mult);
 
 	dprintk ("MinMult:%d.%dx MaxMult:%d.%dx\n",
 		 minmult/10, minmult%10, maxmult/10, maxmult%10);
 
-	if (fsb == -1) {
+	if (fsb == 0) {
 		printk (KERN_INFO PFX "Invalid (reserved) FSB!\n");
 		return -EINVAL;
 	}
@@ -583,6 +568,10 @@ static int enable_arbiter_disable(void)
 	if (dev == NULL) {
 		reg = 0x76;
 		dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_862X_0, NULL);
+		/* Find CN400 V-Link host bridge */
+		if (dev == NULL)
+			dev = pci_find_device(PCI_VENDOR_ID_VIA, 0x7259, NULL);
+
 	}
 	if (dev != NULL) {
 		/* Enable access to port 0x22 */
@@ -687,27 +676,32 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	/* Find ACPI data for processor */
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
 			    &longhaul_walk_callback, NULL, (void *)&pr);
-	if (pr == NULL)
-		goto err_acpi;
 
-	if (longhaul_version == TYPE_POWERSAVER) {
-		/* Check ACPI support for C3 state */
+	/* Check ACPI support for C3 state */
+	if ((pr != NULL) && (longhaul_version == TYPE_POWERSAVER)) {
 		cx = &pr->power.states[ACPI_STATE_C3];
 		if (cx->address > 0 &&
 		   (cx->latency <= 1000 || ignore_latency != 0) ) {
+			longhaul_flags |= USE_ACPI_C3;
 			goto print_support_type;
 		}
 	}
-	/* Check ACPI support for bus master arbiter disable */
-	if (!pr->flags.bm_control) {
-		if (enable_arbiter_disable()) {
-			port22_en = 1;
-		} else {
-			goto err_acpi;
-		}
+	/* Check if northbridge is friendly */
+	if (enable_arbiter_disable()) {
+		longhaul_flags |= USE_NORTHBRIDGE;
+		goto print_support_type;
 	}
+
+	/* No ACPI C3 or we can't use it */
+	/* Check ACPI support for bus master arbiter disable */
+	if ((pr == NULL) || !(pr->flags.bm_control)) {
+		printk(KERN_ERR PFX
+			"No ACPI support. Unsupported northbridge.\n");
+		return -ENODEV;
+	}
+
 print_support_type:
-	if (!port22_en) {
+	if (!(longhaul_flags & USE_NORTHBRIDGE)) {
 		printk (KERN_INFO PFX "Using ACPI support.\n");
 	} else {
 		printk (KERN_INFO PFX "Using northbridge support.\n");
@@ -732,10 +726,6 @@ print_support_type:
 	cpufreq_frequency_table_get_attr(longhaul_table, policy->cpu);
 
 	return 0;
-
-err_acpi:
-	printk(KERN_ERR PFX "No ACPI support. No VT8601 or VT8623 northbridge. Aborting.\n");
-	return -ENODEV;
 }
 
 static int __devexit longhaul_cpu_exit(struct cpufreq_policy *policy)
@@ -770,8 +760,8 @@ static int __init longhaul_init(void)
 
 #ifdef CONFIG_SMP
 	if (num_online_cpus() > 1) {
-		return -ENODEV;
 		printk(KERN_ERR PFX "More than 1 CPU detected, longhaul disabled.\n");
+		return -ENODEV;
 	}
 #endif
 #ifdef CONFIG_X86_IO_APIC
@@ -783,8 +773,10 @@ static int __init longhaul_init(void)
 	switch (c->x86_model) {
 	case 6 ... 9:
 		return cpufreq_register_driver(&longhaul_driver);
+	case 10:
+		printk(KERN_ERR PFX "Use acpi-cpufreq driver for VIA C7\n");
 	default:
-		printk (KERN_INFO PFX "Unknown VIA CPU. Contact davej@codemonkey.org.uk\n");
+		;;
 	}
 
 	return -ENODEV;

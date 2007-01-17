@@ -59,10 +59,10 @@ struct gpio_methods {
 };
 
 struct gpio_notification {
+	struct delayed_work work;
 	notify_func_t notify;
 	void *data;
 	void *gpio_private;
-	struct work_struct work;
 	struct mutex mutex;
 };
 

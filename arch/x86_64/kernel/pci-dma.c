@@ -296,6 +296,11 @@ __init int iommu_setup(char *p)
 		gart_parse_options(p);
 #endif
 
+#ifdef CONFIG_CALGARY_IOMMU
+		if (!strncmp(p, "calgary", 7))
+			use_calgary = 1;
+#endif /* CONFIG_CALGARY_IOMMU */
+
 		p += strcspn(p, ",");
 		if (*p == ',')
 			++p;

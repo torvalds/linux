@@ -83,5 +83,7 @@ extern u8 iic_get_target_id(int cpu);
 
 extern void spider_init_IRQ(void);
 
+extern void iic_set_interrupt_routing(int cpu, int thread, int priority);
+
 #endif
 #endif /* ASM_CELL_PIC_H */

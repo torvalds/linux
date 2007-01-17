@@ -76,7 +76,9 @@ static inline void __save_init_fpu( struct task_struct *tsk )
 
 #define __unlazy_fpu( tsk ) do { \
 	if (task_thread_info(tsk)->status & TS_USEDFPU) \
-		save_init_fpu( tsk ); \
+		save_init_fpu( tsk ); 			\
+	else						\
+		tsk->fpu_counter = 0;			\
 } while (0)
 
 #define __clear_fpu( tsk )					\
@@ -118,6 +120,7 @@ static inline void save_init_fpu( struct task_struct *tsk )
 extern unsigned short get_fpu_cwd( struct task_struct *tsk );
 extern unsigned short get_fpu_swd( struct task_struct *tsk );
 extern unsigned short get_fpu_mxcsr( struct task_struct *tsk );
+extern asmlinkage void math_state_restore(void);
 
 /*
  * Signal frame handlers...

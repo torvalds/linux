@@ -317,12 +317,8 @@ static inline void tower_delete (struct lego_usb_tower *dev)
 	tower_abort_transfers (dev);
 
 	/* free data structures */
-	if (dev->interrupt_in_urb != NULL) {
-		usb_free_urb (dev->interrupt_in_urb);
-	}
-	if (dev->interrupt_out_urb != NULL) {
-		usb_free_urb (dev->interrupt_out_urb);
-	}
+	usb_free_urb(dev->interrupt_in_urb);
+	usb_free_urb(dev->interrupt_out_urb);
 	kfree (dev->read_buffer);
 	kfree (dev->interrupt_in_buffer);
 	kfree (dev->interrupt_out_buffer);
@@ -502,15 +498,11 @@ static void tower_abort_transfers (struct lego_usb_tower *dev)
 	if (dev->interrupt_in_running) {
 		dev->interrupt_in_running = 0;
 		mb();
-		if (dev->interrupt_in_urb != NULL && dev->udev) {
+		if (dev->udev)
 			usb_kill_urb (dev->interrupt_in_urb);
-		}
 	}
-	if (dev->interrupt_out_busy) {
-		if (dev->interrupt_out_urb != NULL && dev->udev) {
-			usb_kill_urb (dev->interrupt_out_urb);
-		}
-	}
+	if (dev->interrupt_out_busy && dev->udev)
+		usb_kill_urb(dev->interrupt_out_urb);
 
 exit:
 	dbg(2, "%s: leave", __FUNCTION__);
@@ -898,14 +890,11 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 
-		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
-			dev->interrupt_in_endpoint = endpoint;
-		}
-
-		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
-			dev->interrupt_out_endpoint = endpoint;
+		if (usb_endpoint_xfer_int(endpoint)) {
+			if (usb_endpoint_dir_in(endpoint))
+				dev->interrupt_in_endpoint = endpoint;
+			else
+				dev->interrupt_out_endpoint = endpoint;
 		}
 	}
 	if(dev->interrupt_in_endpoint == NULL) {

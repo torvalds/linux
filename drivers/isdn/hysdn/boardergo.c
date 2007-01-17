@@ -71,8 +71,9 @@ ergo_interrupt(int intno, void *dev_id)
 /* may be queued from everywhere (interrupts included).                       */
 /******************************************************************************/
 static void
-ergo_irq_bh(hysdn_card * card)
+ergo_irq_bh(struct work_struct *ugli_api)
 {
+	hysdn_card * card = container_of(ugli_api, hysdn_card, irq_queue);
 	tErgDpram *dpr;
 	int again;
 	unsigned long flags;
@@ -442,7 +443,7 @@ ergo_inithardware(hysdn_card * card)
 	card->writebootseq = ergo_writebootseq;
 	card->waitpofready = ergo_waitpofready;
 	card->set_errlog_state = ergo_set_errlog_state;
-	INIT_WORK(&card->irq_queue, (void *) (void *) ergo_irq_bh, card);
+	INIT_WORK(&card->irq_queue, ergo_irq_bh);
 	card->hysdn_lock = SPIN_LOCK_UNLOCKED;
 
 	return (0);

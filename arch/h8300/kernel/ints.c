@@ -141,7 +141,7 @@ int request_irq(unsigned int irq,
 		return -EBUSY;
 
 	if (use_kmalloc)
-		irq_handle = (irq_handler_t *)kmalloc(sizeof(irq_handler_t), GFP_ATOMIC);
+		irq_handle = kmalloc(sizeof(irq_handler_t), GFP_ATOMIC);
 	else {
 		/* use bootmem allocater */
 		irq_handle = (irq_handler_t *)alloc_bootmem(sizeof(irq_handler_t));

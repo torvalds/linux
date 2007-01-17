@@ -381,8 +381,7 @@ struct serio_driver hil_kbd_serio_drv = {
 
 static int __init hil_kbd_init(void)
 {
-	serio_register_driver(&hil_kbd_serio_drv);
-        return 0;
+	return serio_register_driver(&hil_kbd_serio_drv);
 }
                 
 static void __exit hil_kbd_exit(void)

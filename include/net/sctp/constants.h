@@ -356,7 +356,7 @@ typedef enum {
  * addresses.
  */
 #define IS_IPV4_UNUSABLE_ADDRESS(a) \
-	((INADDR_BROADCAST == *a) || \
+	((htonl(INADDR_BROADCAST) == *a) || \
 	(MULTICAST(*a)) || \
 	(((unsigned char *)(a))[0] == 0) || \
 	((((unsigned char *)(a))[0] == 198) && \

@@ -112,6 +112,7 @@ int gfs2_logd(void *data)
 	struct gfs2_sbd *sdp = data;
 	struct gfs2_holder ji_gh;
 	unsigned long t;
+	int need_flush;
 
 	while (!kthread_should_stop()) {
 		/* Advance the log tail */
@@ -120,8 +121,10 @@ int gfs2_logd(void *data)
 		    gfs2_tune_get(sdp, gt_log_flush_secs) * HZ;
 
 		gfs2_ail1_empty(sdp, DIO_ALL);
-
-		if (time_after_eq(jiffies, t)) {
+		gfs2_log_lock(sdp);
+		need_flush = sdp->sd_log_num_buf > gfs2_tune_get(sdp, gt_incore_log_blocks);
+		gfs2_log_unlock(sdp);
+		if (need_flush || time_after_eq(jiffies, t)) {
 			gfs2_log_flush(sdp, NULL);
 			sdp->sd_log_flush_time = jiffies;
 		}

@@ -43,7 +43,7 @@ struct oprofile_cpu_buffer {
 	unsigned long sample_lost_overflow;
 	unsigned long backtrace_aborted;
 	int cpu;
-	struct work_struct work;
+	struct delayed_work work;
 } ____cacheline_aligned;
 
 extern struct oprofile_cpu_buffer cpu_buffer[];

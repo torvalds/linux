@@ -299,8 +299,8 @@ static inline int solaris_sockmod(unsigned int fd, unsigned int cmd, u32 arg)
 	rcu_read_lock();
 	fdt = files_fdtable(current->files);
 	if (! fdt->fd[fd] ||
-	    ! fdt->fd[fd]->f_dentry ||
-	    ! (ino = fdt->fd[fd]->f_dentry->d_inode) ||
+	    ! fdt->fd[fd]->f_path.dentry ||
+	    ! (ino = fdt->fd[fd]->f_path.dentry->d_inode) ||
 	    ! S_ISSOCK(ino->i_mode)) {
 		rcu_read_unlock();
 		return TBADF;
@@ -480,7 +480,7 @@ static inline int solaris_S(struct file *filp, unsigned int fd, unsigned int cmd
         struct sol_socket_struct *sock;
         struct module_info *mi;
 
-        ino = filp->f_dentry->d_inode;
+        ino = filp->f_path.dentry->d_inode;
         if (!S_ISSOCK(ino->i_mode))
 		return -EBADF;
         sock = filp->private_data;

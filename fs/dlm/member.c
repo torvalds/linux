@@ -186,6 +186,14 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	struct dlm_member *memb, *safe;
 	int i, error, found, pos = 0, neg = 0, low = -1;
 
+	/* previously removed members that we've not finished removing need to
+	   count as a negative change so the "neg" recovery steps will happen */
+
+	list_for_each_entry(memb, &ls->ls_nodes_gone, list) {
+		log_debug(ls, "prev removed member %d", memb->nodeid);
+		neg++;
+	}
+
 	/* move departed members from ls_nodes to ls_nodes_gone */
 
 	list_for_each_entry_safe(memb, safe, &ls->ls_nodes, list) {

@@ -59,9 +59,10 @@
 #define NFSDBG_FACILITY	NFSDBG_PROC
 
 void
-nfs4_renew_state(void *data)
+nfs4_renew_state(struct work_struct *work)
 {
-	struct nfs_client *clp = (struct nfs_client *)data;
+	struct nfs_client *clp =
+		container_of(work, struct nfs_client, cl_renewd.work);
 	struct rpc_cred *cred;
 	long lease, timeout;
 	unsigned long last, now;

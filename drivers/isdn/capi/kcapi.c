@@ -208,9 +208,10 @@ static void notify_down(u32 contr)
 	}
 }
 
-static void notify_handler(void *data)
+static void notify_handler(struct work_struct *work)
 {
-	struct capi_notifier *np = data;
+	struct capi_notifier *np =
+		container_of(work, struct capi_notifier, work);
 
 	switch (np->cmd) {
 	case KCI_CONTRUP:
@@ -235,7 +236,7 @@ static int notify_push(unsigned int cmd, u32 controller, u16 applid, u32 ncci)
 	if (!np)
 		return -ENOMEM;
 
-	INIT_WORK(&np->work, notify_handler, np);
+	INIT_WORK(&np->work, notify_handler);
 	np->cmd = cmd;
 	np->controller = controller;
 	np->applid = applid;
@@ -248,10 +249,11 @@ static int notify_push(unsigned int cmd, u32 controller, u16 applid, u32 ncci)
 	
 /* -------- Receiver ------------------------------------------ */
 
-static void recv_handler(void *_ap)
+static void recv_handler(struct work_struct *work)
 {
 	struct sk_buff *skb;
-	struct capi20_appl *ap = (struct capi20_appl *) _ap;
+	struct capi20_appl *ap =
+		container_of(work, struct capi20_appl, recv_work);
 
 	if ((!ap) || (ap->release_in_progress))
 		return;
@@ -527,7 +529,7 @@ u16 capi20_register(struct capi20_appl *ap)
 	ap->callback = NULL;
 	init_MUTEX(&ap->recv_sem);
 	skb_queue_head_init(&ap->recv_queue);
-	INIT_WORK(&ap->recv_work, recv_handler, (void *)ap);
+	INIT_WORK(&ap->recv_work, recv_handler);
 	ap->release_in_progress = 0;
 
 	write_unlock_irqrestore(&application_lock, flags);

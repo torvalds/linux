@@ -219,21 +219,6 @@ static int airo_config(struct pcmcia_device *link)
 	dev = link->priv;
 
 	DEBUG(0, "airo_config(0x%p)\n", link);
-	
-	/*
-	  This reads the card's CONFIG tuple to find its configuration
-	  registers.
-	*/
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	tuple.Attributes = 0;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = sizeof(buf);
-	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present = parse.config.rmask[0];
 
 	/*
 	  In this loop, we scan the CIS for configuration table entries,
@@ -247,6 +232,10 @@ static int airo_config(struct pcmcia_device *link)
 	  these things without consulting the CIS, and most client drivers
 	  will only use the CIS to fill in implementation-defined details.
 	*/
+	tuple.Attributes = 0;
+	tuple.TupleData = buf;
+	tuple.TupleDataMax = sizeof(buf);
+	tuple.TupleOffset = 0;
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	while (1) {

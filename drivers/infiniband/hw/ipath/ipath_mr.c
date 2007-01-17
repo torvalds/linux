@@ -54,6 +54,8 @@ static inline struct ipath_fmr *to_ifmr(struct ib_fmr *ibfmr)
  * @acc: access flags
  *
  * Returns the memory region on success, otherwise returns an errno.
+ * Note that all DMA addresses should be created via the
+ * struct ib_dma_mapping_ops functions (see ipath_dma.c).
  */
 struct ib_mr *ipath_get_dma_mr(struct ib_pd *pd, int acc)
 {
@@ -149,8 +151,7 @@ struct ib_mr *ipath_reg_phys_mr(struct ib_pd *pd,
 	m = 0;
 	n = 0;
 	for (i = 0; i < num_phys_buf; i++) {
-		mr->mr.map[m]->segs[n].vaddr =
-			phys_to_virt(buffer_list[i].addr);
+		mr->mr.map[m]->segs[n].vaddr = (void *) buffer_list[i].addr;
 		mr->mr.map[m]->segs[n].length = buffer_list[i].size;
 		mr->mr.length += buffer_list[i].size;
 		n++;
@@ -347,7 +348,7 @@ int ipath_map_phys_fmr(struct ib_fmr *ibfmr, u64 * page_list,
 	n = 0;
 	ps = 1 << fmr->page_shift;
 	for (i = 0; i < list_len; i++) {
-		fmr->mr.map[m]->segs[n].vaddr = phys_to_virt(page_list[i]);
+		fmr->mr.map[m]->segs[n].vaddr = (void *) page_list[i];
 		fmr->mr.map[m]->segs[n].length = ps;
 		if (++n == IPATH_SEGSZ) {
 			m++;

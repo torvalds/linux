@@ -42,6 +42,7 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-lcd.h>
 
+#include <asm/arch/h1940.h>
 #include <asm/arch/nand.h>
 #include <asm/arch/fb.h>
 
@@ -224,7 +225,9 @@ static void __init rx3715_init_irq(void)
 
 static void __init rx3715_init_machine(void)
 {
+	memcpy(phys_to_virt(H1940_SUSPEND_RESUMEAT), h1940_pm_return, 1024);
 	s3c2410_pm_init();
+
 	s3c24xx_fb_set_platdata(&rx3715_lcdcfg);
 }
 

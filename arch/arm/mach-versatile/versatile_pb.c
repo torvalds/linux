@@ -81,21 +81,17 @@ static struct amba_device *amba_devs[] __initdata = {
 	&mmc1_device,
 };
 
-static int __init versatile_pb_init(void)
+static void __init versatile_pb_init(void)
 {
 	int i;
 
-	if (machine_is_versatile_pb()) {
-		for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
-			struct amba_device *d = amba_devs[i];
-			amba_device_register(d, &iomem_resource);
-		}
+	versatile_init();
+
+	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
+		struct amba_device *d = amba_devs[i];
+		amba_device_register(d, &iomem_resource);
 	}
-
-	return 0;
 }
-
-arch_initcall(versatile_pb_init);
 
 MACHINE_START(VERSATILE_PB, "ARM-Versatile PB")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
@@ -105,5 +101,5 @@ MACHINE_START(VERSATILE_PB, "ARM-Versatile PB")
 	.map_io		= versatile_map_io,
 	.init_irq	= versatile_init_irq,
 	.timer		= &versatile_timer,
-	.init_machine	= versatile_init,
+	.init_machine	= versatile_pb_init,
 MACHINE_END

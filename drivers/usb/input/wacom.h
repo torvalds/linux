@@ -110,7 +110,6 @@ struct wacom_combo {
 };
 
 extern int wacom_wac_irq(struct wacom_wac * wacom_wac, void * wcombo);
-extern void wacom_sys_irq(struct urb *urb);
 extern void wacom_report_abs(void *wcombo, unsigned int abs_type, int abs_data);
 extern void wacom_report_rel(void *wcombo, unsigned int rel_type, int rel_data);
 extern void wacom_report_key(void *wcombo, unsigned int key_type, int key_data);

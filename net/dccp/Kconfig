@@ -38,6 +38,9 @@ config IP_DCCP_DEBUG
 	---help---
 	  Only use this if you're hacking DCCP.
 
+	  When compiling DCCP as a module, this debugging output can be toggled
+	  by setting the parameter dccp_debug of the `dccp' module to 0 or 1.
+
 	  Just say N.
 
 config NET_DCCPPROBE
@@ -49,7 +52,7 @@ config NET_DCCPPROBE
 	DCCP congestion avoidance modules. If you don't understand
 	what was just said, you don't need it: say N.
 
-	Documentation on how to use the packet generator can be found
+	Documentation on how to use DCCP connection probing can be found
 	at http://linux-net.osdl.org/index.php/DccpProbe
 
 	To compile this code as a module, choose M here: the

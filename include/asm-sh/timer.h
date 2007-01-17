@@ -18,11 +18,32 @@ struct sys_timer {
 
 	struct sys_device	dev;
 	struct sys_timer_ops	*ops;
+
+#ifdef CONFIG_NO_IDLE_HZ
+	struct dyn_tick_timer	*dyn_tick;
+#endif
 };
+
+#ifdef CONFIG_NO_IDLE_HZ
+#define DYN_TICK_ENABLED	(1 << 1)
+
+struct dyn_tick_timer {
+	spinlock_t	lock;
+	unsigned int	state;			/* Current state */
+	int		(*enable)(void);	/* Enables dynamic tick */
+	int		(*disable)(void);	/* Disables dynamic tick */
+	void		(*reprogram)(unsigned long); /* Reprograms the timer */
+	int		(*handler)(int, void *);
+};
+
+void timer_dyn_reprogram(void);
+#else
+#define timer_dyn_reprogram()	do { } while (0)
+#endif
 
 #define TICK_SIZE (tick_nsec / 1000)
 
-extern struct sys_timer tmu_timer;
+extern struct sys_timer tmu_timer, cmt_timer, mtu2_timer;
 extern struct sys_timer *sys_timer;
 
 #ifndef CONFIG_GENERIC_TIME

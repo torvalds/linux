@@ -18,10 +18,11 @@
 #include "tulip.h"
 
 
-void tulip_media_task(void *data)
+void tulip_media_task(struct work_struct *work)
 {
-	struct net_device *dev = data;
-	struct tulip_private *tp = netdev_priv(dev);
+	struct tulip_private *tp =
+		container_of(work, struct tulip_private, media_work);
+	struct net_device *dev = tp->dev;
 	void __iomem *ioaddr = tp->base_addr;
 	u32 csr12 = ioread32(ioaddr + CSR12);
 	int next_tick = 2*HZ;

@@ -33,7 +33,8 @@ ENTRY(empty_zero_page)
 	.long	0x00360000	/* INITRD_START */
 	.long	0x000a0000	/* INITRD_SIZE */
 	.long	0
-	.balign 4096,0,4096
+1:
+	.skip	PAGE_SIZE - empty_zero_page - 1b
 
 	.text	
 /*
@@ -53,8 +54,10 @@ ENTRY(_stext)
 	ldc	r0, sr
 	!			Initialize global interrupt mask
 	mov	#0, r0
+#ifdef CONFIG_CPU_HAS_SR_RB
 	ldc	r0, r6_bank
-
+#endif
+	
 	/*
 	 * Prefetch if possible to reduce cache miss penalty.
 	 *
@@ -68,11 +71,14 @@ ENTRY(_stext)
 	!
 	mov.l	2f, r0
 	mov	r0, r15		! Set initial r15 (stack pointer)
-	mov	#(THREAD_SIZE >> 8), r1
+	mov	#(THREAD_SIZE >> 10), r1
 	shll8	r1		! r1 = THREAD_SIZE
+	shll2	r1
 	sub	r1, r0		!
+#ifdef CONFIG_CPU_HAS_SR_RB
 	ldc	r0, r7_bank	! ... and initial thread_info
-
+#endif
+	
 	!			Clear BSS area
 	mov.l	3f, r1
 	add	#4, r1
@@ -95,7 +101,11 @@ ENTRY(_stext)
 	 nop
 
 	.balign 4
+#if defined(CONFIG_CPU_SH2)
+1:	.long	0x000000F0		! IMASK=0xF
+#else
 1:	.long	0x400080F0		! MD=1, RB=0, BL=0, FD=1, IMASK=0xF
+#endif
 2:	.long	init_thread_union+THREAD_SIZE
 3:	.long	__bss_start
 4:	.long	_end

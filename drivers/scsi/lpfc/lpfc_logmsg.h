@@ -28,7 +28,7 @@
 #define LOG_NODE                      0x80	/* Node table events */
 #define LOG_MISC                      0x400	/* Miscellaneous events */
 #define LOG_SLI                       0x800	/* SLI events */
-#define LOG_CHK_COND                  0x1000	/* FCP Check condition flag */
+#define LOG_FCP_ERROR                 0x1000	/* log errors, not underruns */
 #define LOG_LIBDFC                    0x2000	/* Libdfc events */
 #define LOG_ALL_MSG                   0xffff	/* LOG all messages */
 

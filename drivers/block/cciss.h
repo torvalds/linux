@@ -6,7 +6,6 @@
 #include "cciss_cmd.h"
 
 
-#define NWD		16
 #define NWD_SHIFT	4
 #define MAX_PART	(1 << NWD_SHIFT)
 
@@ -60,6 +59,7 @@ struct ctlr_info
 	__u32	board_id;
 	void __iomem *vaddr;
 	unsigned long paddr;
+	int 	nr_cmds; /* Number of commands allowed on this controller */
 	CfgTable_struct __iomem *cfgtable;
 	int	interrupts_enabled;
 	int	major;
@@ -76,6 +76,7 @@ struct ctlr_info
 	unsigned int intr[4];
 	unsigned int msix_vector;
 	unsigned int msi_vector;
+	int 	cciss_max_sectors;
 	BYTE	cciss_read;
 	BYTE	cciss_write;
 	BYTE	cciss_read_capacity;
@@ -110,7 +111,7 @@ struct ctlr_info
 	int			next_to_run;
 
 	// Disk structures we need to pass back
-	struct gendisk   *gendisk[NWD];
+	struct gendisk   *gendisk[CISS_MAX_LUN];
 #ifdef CONFIG_CISS_SCSI_TAPE
 	void *scsi_ctlr; /* ptr to structure containing scsi related stuff */
 	/* list of block side commands the scsi error handling sucked up */
@@ -282,6 +283,7 @@ struct board_type {
 	__u32	board_id;
 	char	*product_name;
 	struct access_method *access;
+	int nr_cmds; /* Max cmds this kind of ctlr can handle. */
 };
 
 #define CCISS_LOCK(i)	(&hba[i]->lock)

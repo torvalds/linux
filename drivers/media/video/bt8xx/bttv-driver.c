@@ -1793,7 +1793,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		memset(i,0,sizeof(*i));
 		i->index    = n;
 		i->type     = V4L2_INPUT_TYPE_CAMERA;
-		i->audioset = 0;
+		i->audioset = 1;
 		if (i->index == bttv_tvcards[btv->c.type].tuner) {
 			sprintf(i->name, "Television");
 			i->type  = V4L2_INPUT_TYPE_TUNER;
@@ -4050,8 +4050,8 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	       (unsigned long long)pci_resource_start(dev,0));
 	schedule();
 
-	btv->bt848_mmio=ioremap(pci_resource_start(dev,0), 0x1000);
-	if (NULL == ioremap(pci_resource_start(dev,0), 0x1000)) {
+	btv->bt848_mmio = ioremap(pci_resource_start(dev, 0), 0x1000);
+	if (NULL == btv->bt848_mmio) {
 		printk("bttv%d: ioremap() failed\n", btv->c.nr);
 		result = -EIO;
 		goto fail1;

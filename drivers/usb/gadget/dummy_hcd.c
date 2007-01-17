@@ -779,7 +779,7 @@ usb_gadget_register_driver (struct usb_gadget_driver *driver)
 		return -EINVAL;
 	if (dum->driver)
 		return -EBUSY;
-	if (!driver->bind || !driver->unbind || !driver->setup
+	if (!driver->bind || !driver->setup
 			|| driver->speed == USB_SPEED_UNKNOWN)
 		return -EINVAL;
 
@@ -837,7 +837,8 @@ usb_gadget_register_driver (struct usb_gadget_driver *driver)
 err_bind_driver:
 	driver_unregister (&driver->driver);
 err_register:
-	driver->unbind (&dum->gadget);
+	if (driver->unbind)
+		driver->unbind (&dum->gadget);
 	spin_lock_irq (&dum->lock);
 	dum->pullup = 0;
 	set_link_state (dum);
@@ -857,7 +858,7 @@ usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 
 	if (!dum)
 		return -ENODEV;
-	if (!driver || driver != dum->driver)
+	if (!driver || driver != dum->driver || !driver->unbind)
 		return -EINVAL;
 
 	dev_dbg (udc_dev(dum), "unregister gadget driver '%s'\n",

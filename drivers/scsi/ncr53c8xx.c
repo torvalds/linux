@@ -185,7 +185,7 @@ static inline struct list_head *ncr_list_pop(struct list_head *head)
 **	power of 2 cache line size.
 **	Enhanced in linux-2.3.44 to provide a memory pool 
 **	per pcidev to support dynamic dma mapping. (I would 
-**	have preferred a real bus astraction, btw).
+**	have preferred a real bus abstraction, btw).
 **
 **==========================================================
 */
@@ -589,10 +589,12 @@ static int __map_scsi_sg_data(struct device *dev, struct scsi_cmnd *cmd)
 static struct ncr_driver_setup
 	driver_setup			= SCSI_NCR_DRIVER_SETUP;
 
+#ifndef MODULE
 #ifdef	SCSI_NCR_BOOT_COMMAND_LINE_SUPPORT
 static struct ncr_driver_setup
 	driver_safe_setup __initdata	= SCSI_NCR_DRIVER_SAFE_SETUP;
 #endif
+#endif /* !MODULE */
 
 #define initverbose (driver_setup.verbose)
 #define bootverbose (np->verbose)
@@ -641,6 +643,13 @@ static struct ncr_driver_setup
 #define OPT_IARB		26
 #endif
 
+#ifdef MODULE
+#define	ARG_SEP	' '
+#else
+#define	ARG_SEP	','
+#endif
+
+#ifndef MODULE
 static char setup_token[] __initdata = 
 	"tags:"   "mpar:"
 	"spar:"   "disc:"
@@ -660,12 +669,6 @@ static char setup_token[] __initdata =
 #endif
 	;	/* DONNOT REMOVE THIS ';' */
 
-#ifdef MODULE
-#define	ARG_SEP	' '
-#else
-#define	ARG_SEP	','
-#endif
-
 static int __init get_setup_token(char *p)
 {
 	char *cur = setup_token;
@@ -681,7 +684,6 @@ static int __init get_setup_token(char *p)
 	}
 	return 0;
 }
-
 
 static int __init sym53c8xx__setup(char *str)
 {
@@ -804,6 +806,7 @@ static int __init sym53c8xx__setup(char *str)
 #endif /* SCSI_NCR_BOOT_COMMAND_LINE_SUPPORT */
 	return 1;
 }
+#endif /* !MODULE */
 
 /*===================================================================
 **
@@ -1438,7 +1441,7 @@ struct head {
 **	The first four bytes (scr_st[4]) are used inside the script by 
 **	"COPY" commands.
 **	Because source and destination must have the same alignment
-**	in a DWORD, the fields HAVE to be at the choosen offsets.
+**	in a DWORD, the fields HAVE to be at the chosen offsets.
 **		xerr_st		0	(0x34)	scratcha
 **		sync_st		1	(0x05)	sxfer
 **		wide_st		3	(0x03)	scntl3
@@ -1498,7 +1501,7 @@ struct head {
 **	the DSA (data structure address) register points
 **	to this substructure of the ccb.
 **	This substructure contains the header with
-**	the script-processor-changable data and
+**	the script-processor-changeable data and
 **	data blocks for the indirect move commands.
 **
 **----------------------------------------------------------
@@ -5107,7 +5110,7 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 
 /*
 **	This CCB has been skipped by the NCR.
-**	Queue it in the correponding unit queue.
+**	Queue it in the corresponding unit queue.
 */
 static void ncr_ccb_skipped(struct ncb *np, struct ccb *cp)
 {
@@ -5896,8 +5899,8 @@ static void ncr_log_hard_error(struct ncb *np, u16 sist, u_char dstat)
 **
 **	In normal cases, interrupt conditions occur one at a 
 **	time. The ncr is able to stack in some extra registers 
-**	other interrupts that will occurs after the first one.
-**	But severall interrupts may occur at the same time.
+**	other interrupts that will occur after the first one.
+**	But, several interrupts may occur at the same time.
 **
 **	We probably should only try to deal with the normal 
 **	case, but it seems that multiple interrupts occur in 
@@ -6796,7 +6799,7 @@ void ncr_int_sir (struct ncb *np)
 **	The host status field is set to HS_NEGOTIATE to mark this
 **	situation.
 **
-**	If the target doesn't answer this message immidiately
+**	If the target doesn't answer this message immediately
 **	(as required by the standard), the SIR_NEGO_FAIL interrupt
 **	will be raised eventually.
 **	The handler removes the HS_NEGOTIATE status, and sets the
@@ -8321,12 +8324,12 @@ char *ncr53c8xx;	/* command line passed by insmod */
 module_param(ncr53c8xx, charp, 0);
 #endif
 
+#ifndef MODULE
 static int __init ncr53c8xx_setup(char *str)
 {
 	return sym53c8xx__setup(str);
 }
 
-#ifndef MODULE
 __setup("ncr53c8xx=", ncr53c8xx_setup);
 #endif
 

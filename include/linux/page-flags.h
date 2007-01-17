@@ -253,14 +253,10 @@ static inline void SetPageUptodate(struct page *page)
 
 struct page;	/* forward declaration */
 
-int test_clear_page_dirty(struct page *page);
+extern void cancel_dirty_page(struct page *page, unsigned int account_size);
+
 int test_clear_page_writeback(struct page *page);
 int test_set_page_writeback(struct page *page);
-
-static inline void clear_page_dirty(struct page *page)
-{
-	test_clear_page_dirty(page);
-}
 
 static inline void set_page_writeback(struct page *page)
 {

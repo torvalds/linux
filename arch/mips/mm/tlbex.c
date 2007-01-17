@@ -423,6 +423,9 @@ enum label_id {
 	label_invalid,
 	label_second_part,
 	label_leave,
+#ifdef MODULE_START
+	label_module_alloc,
+#endif
 	label_vmalloc,
 	label_vmalloc_done,
 	label_tlbw_hazard,
@@ -455,6 +458,9 @@ static __init void build_label(struct label **lab, u32 *addr,
 
 L_LA(_second_part)
 L_LA(_leave)
+#ifdef MODULE_START
+L_LA(_module_alloc)
+#endif
 L_LA(_vmalloc)
 L_LA(_vmalloc_done)
 L_LA(_tlbw_hazard)
@@ -684,6 +690,13 @@ static void __init il_bgezl(u32 **p, struct reloc **r, unsigned int reg,
 {
 	r_mips_pc16(r, *p, l);
 	i_bgezl(p, reg, 0);
+}
+
+static void __init __attribute__((unused))
+il_bgez(u32 **p, struct reloc **r, unsigned int reg, enum label_id l)
+{
+	r_mips_pc16(r, *p, l);
+	i_bgez(p, reg, 0);
 }
 
 /* The only general purpose registers allowed in TLB handlers. */
@@ -970,7 +983,11 @@ build_get_pmde64(u32 **p, struct label **l, struct reloc **r,
 	 * The vmalloc handling is not in the hotpath.
 	 */
 	i_dmfc0(p, tmp, C0_BADVADDR);
+#ifdef MODULE_START
+	il_bltz(p, r, tmp, label_module_alloc);
+#else
 	il_bltz(p, r, tmp, label_vmalloc);
+#endif
 	/* No i_nop needed here, since the next insn doesn't touch TMP. */
 
 #ifdef CONFIG_SMP
@@ -1023,8 +1040,46 @@ build_get_pgd_vmalloc64(u32 **p, struct label **l, struct reloc **r,
 {
 	long swpd = (long)swapper_pg_dir;
 
+#ifdef MODULE_START
+	long modd = (long)module_pg_dir;
+
+	l_module_alloc(l, *p);
+	/*
+	 * Assumption:
+	 * VMALLOC_START >= 0xc000000000000000UL
+	 * MODULE_START >= 0xe000000000000000UL
+	 */
+	i_SLL(p, ptr, bvaddr, 2);
+	il_bgez(p, r, ptr, label_vmalloc);
+
+	if (in_compat_space_p(MODULE_START) && !rel_lo(MODULE_START)) {
+		i_lui(p, ptr, rel_hi(MODULE_START)); /* delay slot */
+	} else {
+		/* unlikely configuration */
+		i_nop(p); /* delay slot */
+		i_LA(p, ptr, MODULE_START);
+	}
+	i_dsubu(p, bvaddr, bvaddr, ptr);
+
+	if (in_compat_space_p(modd) && !rel_lo(modd)) {
+		il_b(p, r, label_vmalloc_done);
+		i_lui(p, ptr, rel_hi(modd));
+	} else {
+		i_LA_mostly(p, ptr, modd);
+		il_b(p, r, label_vmalloc_done);
+		i_daddiu(p, ptr, ptr, rel_lo(modd));
+	}
+
+	l_vmalloc(l, *p);
+	if (in_compat_space_p(MODULE_START) && !rel_lo(MODULE_START) &&
+	    MODULE_START << 32 == VMALLOC_START)
+		i_dsll32(p, ptr, ptr, 0);	/* typical case */
+	else
+		i_LA(p, ptr, VMALLOC_START);
+#else
 	l_vmalloc(l, *p);
 	i_LA(p, ptr, VMALLOC_START);
+#endif
 	i_dsubu(p, bvaddr, bvaddr, ptr);
 
 	if (in_compat_space_p(swpd) && !rel_lo(swpd)) {

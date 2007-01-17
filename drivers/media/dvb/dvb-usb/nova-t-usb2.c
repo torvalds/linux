@@ -90,9 +90,11 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			deb_rc("raw key code 0x%02x, 0x%02x, 0x%02x to c: %02x d: %02x toggle: %d\n",key[1],key[2],key[3],custom,data,toggle);
 
 			for (i = 0; i < ARRAY_SIZE(haupp_rc_keys); i++) {
-				deb_rc("c: %x, d: %x\n",haupp_rc_keys[i].data,haupp_rc_keys[i].custom);
 				if (haupp_rc_keys[i].data == data &&
 					haupp_rc_keys[i].custom == custom) {
+
+					deb_rc("c: %x, d: %x\n",haupp_rc_keys[i].data,haupp_rc_keys[i].custom);
+
 					*event = haupp_rc_keys[i].event;
 					*state = REMOTE_KEY_PRESSED;
 					if (st->old_toggle == toggle) {
@@ -163,23 +165,23 @@ static struct dvb_usb_device_properties nova_t_properties = {
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 			.pid_filter_count = 32,
 
-	.streaming_ctrl   = dibusb2_0_streaming_ctrl,
-	.pid_filter       = dibusb_pid_filter,
-	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
-	.frontend_attach  = dibusb_dib3000mc_frontend_attach,
-	.tuner_attach     = dibusb_dib3000mc_tuner_attach,
+			.streaming_ctrl   = dibusb2_0_streaming_ctrl,
+			.pid_filter       = dibusb_pid_filter,
+			.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.frontend_attach  = dibusb_dib3000mc_frontend_attach,
+			.tuner_attach     = dibusb_dib3000mc_tuner_attach,
 
-	/* parameter for the MPEG2-data transfer */
-			.stream = {
-				.type = USB_BULK,
-		.count = 7,
-		.endpoint = 0x06,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
+			/* parameter for the MPEG2-data transfer */
+					.stream = {
+						.type = USB_BULK,
+				.count = 7,
+				.endpoint = 0x06,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
 
 			.size_of_priv     = sizeof(struct dibusb_state),
 		}

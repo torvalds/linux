@@ -350,9 +350,10 @@ static void info_server(struct ncp_server *server, unsigned int id, const void *
 	}
 }
 
-void ncpdgram_rcv_proc(void *s)
+void ncpdgram_rcv_proc(struct work_struct *work)
 {
-	struct ncp_server *server = s;
+	struct ncp_server *server =
+		container_of(work, struct ncp_server, rcv.tq);
 	struct socket* sock;
 	
 	sock = server->ncp_sock;
@@ -468,9 +469,10 @@ static void __ncpdgram_timeout_proc(struct ncp_server *server)
 	}
 }
 
-void ncpdgram_timeout_proc(void *s)
+void ncpdgram_timeout_proc(struct work_struct *work)
 {
-	struct ncp_server *server = s;
+	struct ncp_server *server =
+		container_of(work, struct ncp_server, timeout_tq);
 	mutex_lock(&server->rcv.creq_mutex);
 	__ncpdgram_timeout_proc(server);
 	mutex_unlock(&server->rcv.creq_mutex);
@@ -652,18 +654,20 @@ skipdata:;
 	}
 }
 
-void ncp_tcp_rcv_proc(void *s)
+void ncp_tcp_rcv_proc(struct work_struct *work)
 {
-	struct ncp_server *server = s;
+	struct ncp_server *server =
+		container_of(work, struct ncp_server, rcv.tq);
 
 	mutex_lock(&server->rcv.creq_mutex);
 	__ncptcp_rcv_proc(server);
 	mutex_unlock(&server->rcv.creq_mutex);
 }
 
-void ncp_tcp_tx_proc(void *s)
+void ncp_tcp_tx_proc(struct work_struct *work)
 {
-	struct ncp_server *server = s;
+	struct ncp_server *server =
+		container_of(work, struct ncp_server, tx.tq);
 	
 	mutex_lock(&server->rcv.creq_mutex);
 	__ncptcp_try_send(server);

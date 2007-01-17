@@ -146,7 +146,7 @@ or otherwise protected/tainted binaries. The modes are
 	readable by root only. This allows the end user to remove
 	such a dump but not access it directly. For security reasons
 	core dumps in this mode will not overwrite one another or
-	other files. This mode is appropriate when adminstrators are
+	other files. This mode is appropriate when administrators are
 	attempting to debug problems in a normal environment.
 
 ==============================================================

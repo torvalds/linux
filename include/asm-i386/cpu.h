@@ -13,6 +13,9 @@ struct i386_cpu {
 extern int arch_register_cpu(int num);
 #ifdef CONFIG_HOTPLUG_CPU
 extern void arch_unregister_cpu(int);
+extern int enable_cpu_hotplug;
+#else
+#define enable_cpu_hotplug	0
 #endif
 
 DECLARE_PER_CPU(int, cpu_state);

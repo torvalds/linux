@@ -75,14 +75,6 @@ extern void __readwrite_bug(const char *fn);
  */
 #include <asm/arch/io.h>
 
-#ifdef __io_pci
-#warning machine class uses buggy __io_pci
-#endif
-#if defined(__arch_putb) || defined(__arch_putw) || defined(__arch_putl) || \
-    defined(__arch_getb) || defined(__arch_getw) || defined(__arch_getl)
-#warning machine class uses old __arch_putw or __arch_getw
-#endif
-
 /*
  *  IO port access primitives
  *  -------------------------

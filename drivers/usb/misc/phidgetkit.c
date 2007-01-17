@@ -81,8 +81,8 @@ struct interfacekit {
 	unsigned char *data;
 	dma_addr_t data_dma;
 
-	struct work_struct do_notify;
-	struct work_struct do_resubmit;
+	struct delayed_work do_notify;
+	struct delayed_work do_resubmit;
 	unsigned long input_events;
 	unsigned long sensor_events;
 };
@@ -374,19 +374,20 @@ static void interfacekit_irq(struct urb *urb)
 	}
 
 	if (kit->input_events || kit->sensor_events)
-		schedule_work(&kit->do_notify);
+		schedule_delayed_work(&kit->do_notify, 0);
 
 resubmit:
-	status = usb_submit_urb(urb, SLAB_ATOMIC);
+	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status)
 		err("can't resubmit intr, %s-%s/interfacekit0, status %d",
 			kit->udev->bus->bus_name,
 			kit->udev->devpath, status);
 }
 
-static void do_notify(void *data)
+static void do_notify(struct work_struct *work)
 {
-	struct interfacekit *kit = data;
+	struct interfacekit *kit =
+		container_of(work, struct interfacekit, do_notify.work);
 	int i;
 	char sysfs_file[8];
 
@@ -405,9 +406,11 @@ static void do_notify(void *data)
 	}
 }
 
-static void do_resubmit(void *data)
+static void do_resubmit(struct work_struct *work)
 {
-	set_outputs(data);
+	struct interfacekit *kit =
+		container_of(work, struct interfacekit, do_resubmit.work);
+	set_outputs(kit);
 }
 
 #define show_set_output(value)		\
@@ -551,7 +554,7 @@ static int interfacekit_probe(struct usb_interface *intf, const struct usb_devic
 		return -ENODEV;
 
 	endpoint = &interface->endpoint[0].desc;
-	if (!(endpoint->bEndpointAddress & 0x80)) 
+	if (!usb_endpoint_dir_in(endpoint))
 		return -ENODEV;
 	/*
 	 * bmAttributes
@@ -565,7 +568,7 @@ static int interfacekit_probe(struct usb_interface *intf, const struct usb_devic
 
 	kit->dev_no = -1;
 	kit->ifkit = ifkit;
-	kit->data = usb_buffer_alloc(dev, URB_INT_SIZE, SLAB_ATOMIC, &kit->data_dma);
+	kit->data = usb_buffer_alloc(dev, URB_INT_SIZE, GFP_ATOMIC, &kit->data_dma);
 	if (!kit->data)
 		goto out;
 
@@ -575,8 +578,8 @@ static int interfacekit_probe(struct usb_interface *intf, const struct usb_devic
 
 	kit->udev = usb_get_dev(dev);
 	kit->intf = intf;
-	INIT_WORK(&kit->do_notify, do_notify, kit);
-	INIT_WORK(&kit->do_resubmit, do_resubmit, kit);
+	INIT_DELAYED_WORK(&kit->do_notify, do_notify);
+	INIT_DELAYED_WORK(&kit->do_resubmit, do_resubmit);
 	usb_fill_int_urb(kit->irq, kit->udev, pipe, kit->data,
 			maxp > URB_INT_SIZE ? URB_INT_SIZE : maxp,
 			interfacekit_irq, kit, endpoint->bInterval);
@@ -650,8 +653,7 @@ out2:
 		device_remove_file(kit->dev, &dev_output_attrs[i]);
 out:
 	if (kit) {
-		if (kit->irq)
-			usb_free_urb(kit->irq);
+		usb_free_urb(kit->irq);
 		if (kit->data)
 			usb_buffer_free(dev, URB_INT_SIZE, kit->data, kit->data_dma);
 		if (kit->dev)

@@ -26,6 +26,7 @@ struct device_node;
 struct iommu_table;
 struct rtc_time;
 struct file;
+struct pci_controller;
 #ifdef CONFIG_KEXEC
 struct kimage;
 #endif
@@ -84,9 +85,12 @@ struct machdep_calls {
 	unsigned long	(*tce_get)(struct iommu_table *tbl,
 				    long index);
 	void		(*tce_flush)(struct iommu_table *tbl);
-	void		(*iommu_dev_setup)(struct pci_dev *dev);
-	void		(*iommu_bus_setup)(struct pci_bus *bus);
-	void		(*irq_bus_setup)(struct pci_bus *bus);
+	void		(*pci_dma_dev_setup)(struct pci_dev *dev);
+	void		(*pci_dma_bus_setup)(struct pci_bus *bus);
+
+	void __iomem *	(*ioremap)(phys_addr_t addr, unsigned long size,
+				   unsigned long flags);
+	void		(*iounmap)(volatile void __iomem *token);
 #endif /* CONFIG_PPC64 */
 
 	int		(*probe)(void);
@@ -106,6 +110,10 @@ struct machdep_calls {
 	/* Called after scanning the bus, before allocating resources */
 	void		(*pcibios_fixup)(void);
 	int		(*pci_probe_mode)(struct pci_bus *);
+	void		(*pci_irq_fixup)(struct pci_dev *dev);
+
+	/* To setup PHBs when using automatic OF platform driver for PCI */
+	int		(*pci_setup_phb)(struct pci_controller *host);
 
 	void		(*restart)(char *cmd);
 	void		(*power_off)(void);
@@ -198,10 +206,6 @@ struct machdep_calls {
 	 * when a device with no assigned resource is found (initial=1).
 	 * Returns 0 to allow assignment/enabling of the device. */
 	int  (*pcibios_enable_device_hook)(struct pci_dev *, int initial);
-
-	/* For interrupt routing */
-	unsigned char (*pci_swizzle)(struct pci_dev *, unsigned char *);
-	int (*pci_map_irq)(struct pci_dev *, unsigned char, unsigned char);
 
 	/* Called in indirect_* to avoid touching devices */
 	int (*pci_exclude_device)(unsigned char, unsigned char);

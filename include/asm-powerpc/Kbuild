@@ -36,6 +36,7 @@ unifdef-y += posix_types.h
 unifdef-y += ptrace.h
 unifdef-y += seccomp.h
 unifdef-y += signal.h
+unifdef-y += spu_info.h
 unifdef-y += termios.h
 unifdef-y += types.h
 unifdef-y += unistd.h

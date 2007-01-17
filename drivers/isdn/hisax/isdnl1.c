@@ -315,8 +315,10 @@ BChannel_proc_ack(struct BCState *bcs)
 }
 
 void
-BChannel_bh(struct BCState *bcs)
+BChannel_bh(struct work_struct *work)
 {
+	struct BCState *bcs = container_of(work, struct BCState, tqueue);
+
 	if (!bcs)
 		return;
 	if (test_and_clear_bit(B_RCVBUFREADY, &bcs->event))
@@ -362,7 +364,7 @@ init_bcstate(struct IsdnCardState *cs, int bc)
 
 	bcs->cs = cs;
 	bcs->channel = bc;
-	INIT_WORK(&bcs->tqueue, (void *)(void *) BChannel_bh, bcs);
+	INIT_WORK(&bcs->tqueue, BChannel_bh);
 	spin_lock_init(&bcs->aclock);
 	bcs->BC_SetStack = NULL;
 	bcs->BC_Close = NULL;

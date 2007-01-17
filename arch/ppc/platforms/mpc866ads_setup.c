@@ -361,7 +361,7 @@ int __init mpc866ads_init(void)
 
 	fmpi->mii_speed = ((((bd->bi_intfreq + 4999999) / 2500000) / 2) & 0x3F) << 1;
 	/* No PHY interrupt line here */
-	fmpi->irq[0xf] = -1;
+	fmpi->irq[0xf] = PHY_POLL;
 
 /* Since either of the uarts could be used as console, they need to ready */
 #ifdef CONFIG_SERIAL_CPM_SMC1
@@ -380,7 +380,7 @@ int __init mpc866ads_init(void)
 
 	fmpi->mii_speed = ((((bd->bi_intfreq + 4999999) / 2500000) / 2) & 0x3F) << 1;
 	/* No PHY interrupt line here */
-	fmpi->irq[0xf] = -1;
+	fmpi->irq[0xf] = PHY_POLL;
 
 	return 0;
 }

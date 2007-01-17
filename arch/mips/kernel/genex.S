@@ -19,6 +19,7 @@
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
 #include <asm/war.h>
+#include <asm/page.h>
 
 #define PANIC_PIC(msg)					\
 		.set push;				\
@@ -377,6 +378,68 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER mt mt sti silent			/* #25 */
 	BUILD_HANDLER dsp dsp sti silent		/* #26 */
 	BUILD_HANDLER reserved reserved sti verbose	/* others */
+
+	.align	5
+	LEAF(handle_ri_rdhwr_vivt)
+#ifdef CONFIG_MIPS_MT_SMTC
+	PANIC_PIC("handle_ri_rdhwr_vivt called")
+#else
+	.set	push
+	.set	noat
+	.set	noreorder
+	/* check if TLB contains a entry for EPC */
+	MFC0	k1, CP0_ENTRYHI
+	andi	k1, 0xff	/* ASID_MASK */
+	MFC0	k0, CP0_EPC
+	PTR_SRL	k0, PAGE_SHIFT + 1
+	PTR_SLL	k0, PAGE_SHIFT + 1
+	or	k1, k0
+	MTC0	k1, CP0_ENTRYHI
+	mtc0_tlbw_hazard
+	tlbp
+	tlb_probe_hazard
+	mfc0	k1, CP0_INDEX
+	.set	pop
+	bltz	k1, handle_ri	/* slow path */
+	/* fall thru */
+#endif
+	END(handle_ri_rdhwr_vivt)
+
+	LEAF(handle_ri_rdhwr)
+	.set	push
+	.set	noat
+	.set	noreorder
+	/* 0x7c03e83b: rdhwr v1,$29 */
+	MFC0	k1, CP0_EPC
+	lui	k0, 0x7c03
+	lw	k1, (k1)
+	ori	k0, 0xe83b
+	.set	reorder
+	bne	k0, k1, handle_ri	/* if not ours */
+	/* The insn is rdhwr.  No need to check CAUSE.BD here. */
+	get_saved_sp	/* k1 := current_thread_info */
+	.set	noreorder
+	MFC0	k0, CP0_EPC
+#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+	ori	k1, _THREAD_MASK
+	xori	k1, _THREAD_MASK
+	LONG_L	v1, TI_TP_VALUE(k1)
+	LONG_ADDIU	k0, 4
+	jr	k0
+	 rfe
+#else
+	LONG_ADDIU	k0, 4		/* stall on $k0 */
+	MTC0	k0, CP0_EPC
+	/* I hope three instructions between MTC0 and ERET are enough... */
+	ori	k1, _THREAD_MASK
+	xori	k1, _THREAD_MASK
+	LONG_L	v1, TI_TP_VALUE(k1)
+	.set	mips3
+	eret
+	.set	mips0
+#endif
+	.set	pop
+	END(handle_ri_rdhwr)
 
 #ifdef CONFIG_64BIT
 /* A temporary overflow handler used by check_daddi(). */

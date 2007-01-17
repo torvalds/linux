@@ -1190,7 +1190,7 @@ autoconf_fail:
 
 
 	/* ok, we made sense of the hardware ... */
-	dev = kzalloc(sizeof(*dev), SLAB_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 	spin_lock_init (&dev->lock);

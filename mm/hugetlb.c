@@ -44,14 +44,14 @@ static void clear_huge_page(struct page *page, unsigned long addr)
 }
 
 static void copy_huge_page(struct page *dst, struct page *src,
-			   unsigned long addr)
+			   unsigned long addr, struct vm_area_struct *vma)
 {
 	int i;
 
 	might_sleep();
 	for (i = 0; i < HPAGE_SIZE/PAGE_SIZE; i++) {
 		cond_resched();
-		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE);
+		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
 	}
 }
 
@@ -73,7 +73,7 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
 
 	for (z = zonelist->zones; *z; z++) {
 		nid = zone_to_nid(*z);
-		if (cpuset_zone_allowed(*z, GFP_HIGHUSER) &&
+		if (cpuset_zone_allowed_softwall(*z, GFP_HIGHUSER) &&
 		    !list_empty(&hugepage_freelists[nid]))
 			break;
 	}
@@ -109,7 +109,7 @@ static int alloc_fresh_huge_page(void)
 	if (nid == MAX_NUMNODES)
 		nid = first_node(node_online_map);
 	if (page) {
-		page[1].lru.next = (void *)free_huge_page;	/* dtor */
+		set_compound_page_dtor(page, free_huge_page);
 		spin_lock(&hugetlb_lock);
 		nr_huge_pages++;
 		nr_huge_pages_node[page_to_nid(page)]++;
@@ -344,7 +344,6 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 			entry = *src_pte;
 			ptepage = pte_page(entry);
 			get_page(ptepage);
-			add_mm_counter(dst, file_rss, HPAGE_SIZE / PAGE_SIZE);
 			set_huge_pte_at(dst, addr, dst_pte, entry);
 		}
 		spin_unlock(&src->page_table_lock);
@@ -365,6 +364,11 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	pte_t pte;
 	struct page *page;
 	struct page *tmp;
+	/*
+	 * A page gathering list, protected by per file i_mmap_lock. The
+	 * lock is used to avoid list corruption from multiple unmapping
+	 * of the same page since we are using page->lru.
+	 */
 	LIST_HEAD(page_list);
 
 	WARN_ON(!is_vm_hugetlb_page(vma));
@@ -372,13 +376,12 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	BUG_ON(end & ~HPAGE_MASK);
 
 	spin_lock(&mm->page_table_lock);
-
-	/* Update high watermark before we lower rss */
-	update_hiwater_rss(mm);
-
 	for (address = start; address < end; address += HPAGE_SIZE) {
 		ptep = huge_pte_offset(mm, address);
 		if (!ptep)
+			continue;
+
+		if (huge_pmd_unshare(mm, &address, ptep))
 			continue;
 
 		pte = huge_ptep_get_and_clear(mm, address, ptep);
@@ -387,9 +390,7 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 
 		page = pte_page(pte);
 		list_add(&page->lru, &page_list);
-		add_mm_counter(mm, file_rss, (int) -(HPAGE_SIZE / PAGE_SIZE));
 	}
-
 	spin_unlock(&mm->page_table_lock);
 	flush_tlb_range(vma, start, end);
 	list_for_each_entry_safe(page, tmp, &page_list, lru) {
@@ -441,7 +442,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	spin_unlock(&mm->page_table_lock);
-	copy_huge_page(new_page, old_page, address);
+	copy_huge_page(new_page, old_page, address, vma);
 	spin_lock(&mm->page_table_lock);
 
 	ptep = huge_pte_offset(mm, address & HPAGE_MASK);
@@ -515,7 +516,6 @@ retry:
 	if (!pte_none(*ptep))
 		goto backout;
 
-	add_mm_counter(mm, file_rss, HPAGE_SIZE / PAGE_SIZE);
 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
 				&& (vma->vm_flags & VM_SHARED)));
 	set_huge_pte_at(mm, address, ptep, new_pte);
@@ -653,10 +653,13 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 	BUG_ON(address >= end);
 	flush_cache_range(vma, address, end);
 
+	spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
 	spin_lock(&mm->page_table_lock);
 	for (; address < end; address += HPAGE_SIZE) {
 		ptep = huge_pte_offset(mm, address);
 		if (!ptep)
+			continue;
+		if (huge_pmd_unshare(mm, &address, ptep))
 			continue;
 		if (!pte_none(*ptep)) {
 			pte = huge_ptep_get_and_clear(mm, address, ptep);
@@ -666,6 +669,7 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 		}
 	}
 	spin_unlock(&mm->page_table_lock);
+	spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
 
 	flush_tlb_range(vma, start, end);
 }

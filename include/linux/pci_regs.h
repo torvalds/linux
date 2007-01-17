@@ -292,6 +292,12 @@
 #define PCI_MSI_DATA_64		12	/* 16 bits of data for 64-bit devices */
 #define PCI_MSI_MASK_BIT	16	/* Mask bits register */
 
+/* MSI-X registers (these are at offset PCI_MSI_FLAGS) */
+#define PCI_MSIX_FLAGS_QSIZE	0x7FF
+#define PCI_MSIX_FLAGS_ENABLE	(1 << 15)
+#define PCI_MSIX_FLAGS_BIRMASK	(7 << 0)
+#define PCI_MSIX_FLAGS_BITMASK	(1 << 0)
+
 /* CompactPCI Hotswap Register */
 
 #define PCI_CHSWP_CSR		2	/* Control and Status Register */
@@ -469,15 +475,32 @@
 #define PCI_PWR_CAP		12	/* Capability */
 #define  PCI_PWR_CAP_BUDGET(x)	((x) & 1)	/* Included in system budget */
 
-/* Hypertransport sub capability types */
+/*
+ * Hypertransport sub capability types
+ *
+ * Unfortunately there are both 3 bit and 5 bit capability types defined
+ * in the HT spec, catering for that is a little messy. You probably don't
+ * want to use these directly, just use pci_find_ht_capability() and it
+ * will do the right thing for you.
+ */
+#define HT_3BIT_CAP_MASK	0xE0
 #define HT_CAPTYPE_SLAVE	0x00	/* Slave/Primary link configuration */
 #define HT_CAPTYPE_HOST		0x20	/* Host/Secondary link configuration */
+
+#define HT_5BIT_CAP_MASK	0xF8
 #define HT_CAPTYPE_IRQ		0x80	/* IRQ Configuration */
 #define HT_CAPTYPE_REMAPPING_40	0xA0	/* 40 bit address remapping */
 #define HT_CAPTYPE_REMAPPING_64 0xA2	/* 64 bit address remapping */
 #define HT_CAPTYPE_UNITID_CLUMP	0x90	/* Unit ID clumping */
 #define HT_CAPTYPE_EXTCONF	0x98	/* Extended Configuration Space Access */
 #define HT_CAPTYPE_MSI_MAPPING	0xA8	/* MSI Mapping Capability */
+#define  HT_MSI_FLAGS		0x02		/* Offset to flags */
+#define  HT_MSI_FLAGS_ENABLE	0x1		/* Mapping enable */
+#define  HT_MSI_FLAGS_FIXED	0x2		/* Fixed mapping only */
+#define  HT_MSI_FIXED_ADDR	0x00000000FEE00000ULL	/* Fixed addr */
+#define  HT_MSI_ADDR_LO		0x04		/* Offset to low addr bits */
+#define  HT_MSI_ADDR_LO_MASK	0xFFF00000	/* Low address bit mask */
+#define  HT_MSI_ADDR_HI		0x08		/* Offset to high addr bits */
 #define HT_CAPTYPE_DIRECT_ROUTE	0xB0	/* Direct routing configuration */
 #define HT_CAPTYPE_VCSET	0xB8	/* Virtual Channel configuration */
 #define HT_CAPTYPE_ERROR_RETRY	0xC0	/* Retry on error configuration */

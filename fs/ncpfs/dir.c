@@ -402,7 +402,7 @@ static time_t ncp_obtain_mtime(struct dentry *dentry)
 
 static int ncp_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct dentry *dentry = filp->f_dentry;
+	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	struct page *page = NULL;
 	struct ncp_server *server = NCP_SERVER(inode);
@@ -554,7 +554,7 @@ static int
 ncp_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 		struct ncp_cache_control *ctrl, struct ncp_entry_info *entry)
 {
-	struct dentry *newdent, *dentry = filp->f_dentry;
+	struct dentry *newdent, *dentry = filp->f_path.dentry;
 	struct inode *newino, *inode = dentry->d_inode;
 	struct ncp_cache_control ctl = *ctrl;
 	struct qstr qname;
@@ -649,7 +649,7 @@ static void
 ncp_read_volume_list(struct file *filp, void *dirent, filldir_t filldir,
 			struct ncp_cache_control *ctl)
 {
-	struct dentry *dentry = filp->f_dentry;
+	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	struct ncp_server *server = NCP_SERVER(inode);
 	struct ncp_volume_info info;
@@ -685,7 +685,7 @@ static void
 ncp_do_readdir(struct file *filp, void *dirent, filldir_t filldir,
 						struct ncp_cache_control *ctl)
 {
-	struct dentry *dentry = filp->f_dentry;
+	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *dir = dentry->d_inode;
 	struct ncp_server *server = NCP_SERVER(dir);
 	struct nw_search_sequence seq;

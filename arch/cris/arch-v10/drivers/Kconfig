@@ -839,7 +839,7 @@ config ETRAX_DS1302_TRICKLE_CHARGE
 	default "0"
 	help
 	  This controls the initial value of the trickle charge register.
-	  0 = disabled (use this if you are unsure or have a non rechargable battery)
+	  0 = disabled (use this if you are unsure or have a non rechargeable battery)
 	  Otherwise the following values can be OR:ed together to control the
 	  charge current:
 	  1 = 2kohm, 2 = 4kohm, 3 = 4kohm

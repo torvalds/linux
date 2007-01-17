@@ -342,7 +342,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     tuple_t tuple;
     cisparse_t parse;
     u_short buf[32];
-    int i, last_fn, last_ret, ret;
+    int i, last_fn = 0, last_ret = 0, ret;
     kio_addr_t ioaddr;
     cardtype_t cardtype;
     char *card_name = "unknown";
@@ -350,21 +350,9 @@ static int fmvj18x_config(struct pcmcia_device *link)
 
     DEBUG(0, "fmvj18x_config(0x%p)\n", link);
 
-    /*
-       This reads the card's CONFIG tuple to find its configuration
-       registers.
-    */
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     tuple.TupleData = (u_char *)buf;
     tuple.TupleDataMax = 64;
     tuple.TupleOffset = 0;
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-
-    link->conf.ConfigBase = parse.config.base; 
-    link->conf.Present = parse.config.rmask[0];
-
     tuple.DesiredTuple = CISTPL_FUNCE;
     tuple.TupleOffset = 0;
     if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) {
@@ -374,17 +362,12 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
 	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigIndex = parse.cftable_entry.index;
-	tuple.DesiredTuple = CISTPL_MANFID;
-	if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS)
-	    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	else
-	    buf[0] = 0xffff;
-	switch (le16_to_cpu(buf[0])) {
+	switch (link->manf_id) {
 	case MANFID_TDK:
 	    cardtype = TDK;
-	    if (le16_to_cpu(buf[1]) == PRODID_TDK_GN3410
-			|| le16_to_cpu(buf[1]) == PRODID_TDK_NP9610
-			|| le16_to_cpu(buf[1]) == PRODID_TDK_MN3200) {
+	    if (link->card_id == PRODID_TDK_GN3410
+			|| link->card_id == PRODID_TDK_NP9610
+			|| link->card_id == PRODID_TDK_MN3200) {
 		/* MultiFunction Card */
 		link->conf.ConfigBase = 0x800;
 		link->conf.ConfigIndex = 0x47;
@@ -395,11 +378,11 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	    cardtype = CONTEC;
 	    break;
 	case MANFID_FUJITSU:
-	    if (le16_to_cpu(buf[1]) == PRODID_FUJITSU_MBH10302)
+	    if (link->card_id == PRODID_FUJITSU_MBH10302)
                 /* RATOC REX-5588/9822/4886's PRODID are 0004(=MBH10302),
                    but these are MBH10304 based card. */ 
 		cardtype = MBH10304;
-	    else if (le16_to_cpu(buf[1]) == PRODID_FUJITSU_MBH10304)
+	    else if (link->card_id == PRODID_FUJITSU_MBH10304)
 		cardtype = MBH10304;
 	    else
 		cardtype = LA501;
@@ -409,14 +392,9 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	}
     } else {
 	/* old type card */
-	tuple.DesiredTuple = CISTPL_MANFID;
-	if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS)
-	    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	else
-	    buf[0] = 0xffff;
-	switch (le16_to_cpu(buf[0])) {
+	switch (link->manf_id) {
 	case MANFID_FUJITSU:
-	    if (le16_to_cpu(buf[1]) == PRODID_FUJITSU_MBH10304) {
+	    if (link->card_id == PRODID_FUJITSU_MBH10304) {
 		cardtype = XXX10304;    /* MBH10304 with buggy CIS */
 	        link->conf.ConfigIndex = 0x20;
 	    } else {

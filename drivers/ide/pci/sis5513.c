@@ -800,9 +800,10 @@ static unsigned int __devinit init_chipset_sis5513 (struct pci_dev *dev, const c
 
 			if (trueid == 0x5517) { /* SiS 961/961B */
 
-				lpc_bridge = pci_find_slot(0x00, 0x10); /* Bus 0, Dev 2, Fn 0 */
+				lpc_bridge = pci_get_slot(dev->bus, 0x10); /* Bus 0, Dev 2, Fn 0 */
 				pci_read_config_byte(lpc_bridge, PCI_REVISION_ID, &sbrev);
 				pci_read_config_byte(dev, 0x49, &prefctl);
+				pci_dev_put(lpc_bridge);
 
 				if (sbrev == 0x10 && (prefctl & 0x80)) {
 					printk(KERN_INFO "SIS5513: SiS 961B MuTIOL IDE UDMA133 controller\n");

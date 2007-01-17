@@ -167,10 +167,6 @@ config ATM_ZATM_DEBUG
 	  Note that extended debugging may create certain race conditions
 	  itself. Enable this ONLY if you suspect problems with the driver.
 
-#   bool 'Rolfs TI TNETA1570' CONFIG_ATM_TNETA1570 y
-#   if [ "$CONFIG_ATM_TNETA1570" = "y" ]; then
-#      bool '  Enable extended debugging' CONFIG_ATM_TNETA1570_DEBUG n
-#   fi
 config ATM_NICSTAR
 	tristate "IDT 77201 (NICStAR) (ForeRunnerLE)"
 	depends on PCI && ATM && !64BIT
@@ -242,6 +238,7 @@ config ATM_IDT77252_USE_SUNI
 config ATM_AMBASSADOR
 	tristate "Madge Ambassador (Collage PCI 155 Server)"
 	depends on PCI && ATM
+	select BITREVERSE
 	help
 	  This is a driver for ATMizer based ATM card produced by Madge
 	  Networks Ltd. Say Y (or M to compile as a module named ambassador)

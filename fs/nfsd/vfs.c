@@ -99,7 +99,7 @@ static struct raparm_hbucket	raparm_hash[RAPARM_HASH_SIZE];
 /* 
  * Called from nfsd_lookup and encode_dirent. Check if we have crossed 
  * a mount point.
- * Returns -EAGAIN leaving *dpp and *expp unchanged, 
+ * Returns -EAGAIN or -ETIMEDOUT leaving *dpp and *expp unchanged,
  *  or nfs_ok having possibly changed *dpp and *expp
  */
 int
@@ -736,10 +736,10 @@ static int
 nfsd_sync(struct file *filp)
 {
         int err;
-	struct inode *inode = filp->f_dentry->d_inode;
-	dprintk("nfsd: sync file %s\n", filp->f_dentry->d_name.name);
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	dprintk("nfsd: sync file %s\n", filp->f_path.dentry->d_name.name);
 	mutex_lock(&inode->i_mutex);
-	err=nfsd_dosync(filp, filp->f_dentry, filp->f_op);
+	err=nfsd_dosync(filp, filp->f_path.dentry, filp->f_op);
 	mutex_unlock(&inode->i_mutex);
 
 	return err;
@@ -845,7 +845,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	int		host_err;
 
 	err = nfserr_perm;
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 #ifdef MSNFS
 	if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
 		(!lock_may_read(inode, offset, *count)))
@@ -883,7 +883,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		nfsdstats.io_read += host_err;
 		*count = host_err;
 		err = 0;
-		fsnotify_access(file->f_dentry);
+		fsnotify_access(file->f_path.dentry);
 	} else 
 		err = nfserrno(host_err);
 out:
@@ -917,11 +917,11 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	err = nfserr_perm;
 
 	if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
-		(!lock_may_write(file->f_dentry->d_inode, offset, cnt)))
+		(!lock_may_write(file->f_path.dentry->d_inode, offset, cnt)))
 		goto out;
 #endif
 
-	dentry = file->f_dentry;
+	dentry = file->f_path.dentry;
 	inode = dentry->d_inode;
 	exp   = fhp->fh_export;
 
@@ -950,7 +950,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	set_fs(oldfs);
 	if (host_err >= 0) {
 		nfsdstats.io_write += cnt;
-		fsnotify_modify(file->f_dentry);
+		fsnotify_modify(file->f_path.dentry);
 	}
 
 	/* clear setuid/setgid flag after write */
@@ -1885,28 +1885,27 @@ nfsd_racache_init(int cache_size)
 		return 0;
 	if (cache_size < 2*RAPARM_HASH_SIZE)
 		cache_size = 2*RAPARM_HASH_SIZE;
-	raparml = kmalloc(sizeof(struct raparms) * cache_size, GFP_KERNEL);
+	raparml = kcalloc(cache_size, sizeof(struct raparms), GFP_KERNEL);
 
-	if (raparml != NULL) {
-		dprintk("nfsd: allocating %d readahead buffers.\n",
-			cache_size);
-		for (i = 0 ; i < RAPARM_HASH_SIZE ; i++) {
-			raparm_hash[i].pb_head = NULL;
-			spin_lock_init(&raparm_hash[i].pb_lock);
-		}
-		nperbucket = cache_size >> RAPARM_HASH_BITS;
-		memset(raparml, 0, sizeof(struct raparms) * cache_size);
-		for (i = 0; i < cache_size - 1; i++) {
-			if (i % nperbucket == 0)
-				raparm_hash[j++].pb_head = raparml + i;
-			if (i % nperbucket < nperbucket-1)
-				raparml[i].p_next = raparml + i + 1;
-		}
-	} else {
+	if (!raparml) {
 		printk(KERN_WARNING
-		       "nfsd: Could not allocate memory read-ahead cache.\n");
+			"nfsd: Could not allocate memory read-ahead cache.\n");
 		return -ENOMEM;
 	}
+
+	dprintk("nfsd: allocating %d readahead buffers.\n", cache_size);
+	for (i = 0 ; i < RAPARM_HASH_SIZE ; i++) {
+		raparm_hash[i].pb_head = NULL;
+		spin_lock_init(&raparm_hash[i].pb_lock);
+	}
+	nperbucket = cache_size >> RAPARM_HASH_BITS;
+	for (i = 0; i < cache_size - 1; i++) {
+		if (i % nperbucket == 0)
+			raparm_hash[j++].pb_head = raparml + i;
+		if (i % nperbucket < nperbucket-1)
+			raparml[i].p_next = raparml + i + 1;
+	}
+
 	nfsdstats.ra_size = cache_size;
 	return 0;
 }

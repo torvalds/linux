@@ -94,8 +94,6 @@ void bcm1480_time_init(void)
 	 */
 }
 
-#include <asm/sibyte/sb1250.h>
-
 void bcm1480_timer_interrupt(void)
 {
 	int cpu = smp_processor_id();
@@ -119,7 +117,7 @@ void bcm1480_timer_interrupt(void)
 	}
 }
 
-static unsigned int bcm1480_hpt_read(void)
+static cycle_t bcm1480_hpt_read(void)
 {
 	/* We assume this function is called xtime_lock held. */
 	unsigned long count =
@@ -129,6 +127,6 @@ static unsigned int bcm1480_hpt_read(void)
 
 void __init bcm1480_hpt_setup(void)
 {
-	mips_hpt_read = bcm1480_hpt_read;
+	clocksource_mips.read = bcm1480_hpt_read;
 	mips_hpt_frequency = BCM1480_HPT_VALUE;
 }

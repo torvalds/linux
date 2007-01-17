@@ -70,7 +70,20 @@ startup_continue:
 	sgr	%r5,%r5 		# set src,length and pad to zero
 	mvcle	%r2,%r4,0		# clear mem
 	jo	.-4			# branch back, if not finish
+					# set program check new psw mask
+	mvc	__LC_PGM_NEW_PSW(8),.Lpcmsk-.LPG1(%r13)
+	larl	%r1,.Lslowmemdetect	# set program check address
+	stg	%r1,__LC_PGM_NEW_PSW+8
+	lghi	%r1,0xc
+	diag	%r0,%r1,0x260		# get memory size of virtual machine
+	cgr	%r0,%r1			# different? -> old detection routine
+	jne	.Lslowmemdetect
+	aghi	%r1,1			# size is one more than end
+	larl	%r2,memory_chunk
+	stg	%r1,8(%r2)		# store size of chunk
+	j	.Ldonemem
 
+.Lslowmemdetect:
 	l	%r2,.Lrcp-.LPG1(%r13)	# Read SCP forced command word
 .Lservicecall:
 	stosm	.Lpmask-.LPG1(%r13),0x01	# authorize ext interrupts
@@ -139,8 +152,6 @@ startup_continue:
 	.int	0x100000
 
 .Lfchunk:
-					# set program check new psw mask
-	mvc	__LC_PGM_NEW_PSW(8),.Lpcmsk-.LPG1(%r13)
 
 #
 # find memory chunks.
@@ -161,12 +172,15 @@ startup_continue:
 	srl	%r7,28
 	clr	%r6,%r7			# compare cc with last access code
 	je	.Lsame
-	j	.Lchkmem
+	lghi	%r8,0			# no program checks
+	j	.Lsavchk
 .Lsame:
 	algr	%r5,%r1			# add 128KB to end of chunk
 					# no need to check here,
 	brc	12,.Lloop		# this is the same chunk
 .Lchkmem:				# > 16EB or tprot got a program check
+	lghi	%r8,1			# set program check flag
+.Lsavchk:
 	clgr	%r4,%r5			# chunk size > 0?
 	je	.Lchkloop
 	stg	%r4,0(%r3)		# store start address of chunk
@@ -175,8 +189,6 @@ startup_continue:
 	stg	%r0,8(%r3)		# store size of chunk
 	st	%r6,20(%r3)		# store type of chunk
 	la	%r3,24(%r3)
-	larl	%r8,memory_size
-	stg	%r5,0(%r8)		# store memory size
 	ahi	%r10,-1			# update chunk number
 .Lchkloop:
 	lr	%r6,%r7			# set access code to last cc
@@ -195,8 +207,15 @@ startup_continue:
 	chi	%r10, 0			# do we have chunks left?
 	je	.Ldonemem
 .Lhsaskip:
+	chi	%r8,1			# program check ?
+	je	.Lpgmchk
+	lgr	%r4,%r5			# potential new chunk
+	algr	%r5,%r1			# add 128KB to end of chunk
+	j	.Llpcnt
+.Lpgmchk:
 	algr	%r5,%r1			# add 128KB to end of chunk
 	lgr	%r4,%r5			# potential new chunk
+.Llpcnt:
 	clgr	%r5,%r9			# should we go on?
 	jl	.Lloop
 .Ldonemem:

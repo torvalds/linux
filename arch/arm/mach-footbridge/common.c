@@ -78,7 +78,7 @@ static void fb_unmask_irq(unsigned int irq)
 	*CSR_IRQ_ENABLE = fb_irq_mask[_DC21285_INR(irq)];
 }
 
-static struct irqchip fb_chip = {
+static struct irq_chip fb_chip = {
 	.ack	= fb_mask_irq,
 	.mask	= fb_mask_irq,
 	.unmask = fb_unmask_irq,
@@ -96,7 +96,7 @@ static void __init __fb_init_irq(void)
 
 	for (irq = _DC21285_IRQ(0); irq < _DC21285_IRQ(20); irq++) {
 		set_irq_chip(irq, &fb_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 }

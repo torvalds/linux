@@ -51,10 +51,10 @@ static void mce_checkregs (void *info)
 	}
 }
 
-static void mce_work_fn(void *data);
-static DECLARE_WORK(mce_work, mce_work_fn, NULL);
+static void mce_work_fn(struct work_struct *work);
+static DECLARE_DELAYED_WORK(mce_work, mce_work_fn);
 
-static void mce_work_fn(void *data)
+static void mce_work_fn(struct work_struct *work)
 { 
 	on_each_cpu(mce_checkregs, NULL, 1, 1);
 	schedule_delayed_work(&mce_work, MCE_RATE);

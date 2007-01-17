@@ -31,6 +31,7 @@ SECTIONS
   .plt : { *(.plt) }
   .text      :
   {
+    _text = .;
     *(.text)
     SCHED_TEXT
     LOCK_TEXT

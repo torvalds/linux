@@ -563,25 +563,25 @@ static int nat_callforwarding(struct sk_buff **pskb, struct ip_conntrack *ct,
 /****************************************************************************/
 static int __init init(void)
 {
-	BUG_ON(set_h245_addr_hook != NULL);
-	BUG_ON(set_h225_addr_hook != NULL);
-	BUG_ON(set_sig_addr_hook != NULL);
-	BUG_ON(set_ras_addr_hook != NULL);
-	BUG_ON(nat_rtp_rtcp_hook != NULL);
-	BUG_ON(nat_t120_hook != NULL);
-	BUG_ON(nat_h245_hook != NULL);
-	BUG_ON(nat_callforwarding_hook != NULL);
-	BUG_ON(nat_q931_hook != NULL);
+	BUG_ON(rcu_dereference(set_h245_addr_hook) != NULL);
+	BUG_ON(rcu_dereference(set_h225_addr_hook) != NULL);
+	BUG_ON(rcu_dereference(set_sig_addr_hook) != NULL);
+	BUG_ON(rcu_dereference(set_ras_addr_hook) != NULL);
+	BUG_ON(rcu_dereference(nat_rtp_rtcp_hook) != NULL);
+	BUG_ON(rcu_dereference(nat_t120_hook) != NULL);
+	BUG_ON(rcu_dereference(nat_h245_hook) != NULL);
+	BUG_ON(rcu_dereference(nat_callforwarding_hook) != NULL);
+	BUG_ON(rcu_dereference(nat_q931_hook) != NULL);
 
-	set_h245_addr_hook = set_h245_addr;
-	set_h225_addr_hook = set_h225_addr;
-	set_sig_addr_hook = set_sig_addr;
-	set_ras_addr_hook = set_ras_addr;
-	nat_rtp_rtcp_hook = nat_rtp_rtcp;
-	nat_t120_hook = nat_t120;
-	nat_h245_hook = nat_h245;
-	nat_callforwarding_hook = nat_callforwarding;
-	nat_q931_hook = nat_q931;
+	rcu_assign_pointer(set_h245_addr_hook, set_h245_addr);
+	rcu_assign_pointer(set_h225_addr_hook, set_h225_addr);
+	rcu_assign_pointer(set_sig_addr_hook, set_sig_addr);
+	rcu_assign_pointer(set_ras_addr_hook, set_ras_addr);
+	rcu_assign_pointer(nat_rtp_rtcp_hook, nat_rtp_rtcp);
+	rcu_assign_pointer(nat_t120_hook, nat_t120);
+	rcu_assign_pointer(nat_h245_hook, nat_h245);
+	rcu_assign_pointer(nat_callforwarding_hook, nat_callforwarding);
+	rcu_assign_pointer(nat_q931_hook, nat_q931);
 
 	DEBUGP("ip_nat_h323: init success\n");
 	return 0;
@@ -590,16 +590,16 @@ static int __init init(void)
 /****************************************************************************/
 static void __exit fini(void)
 {
-	set_h245_addr_hook = NULL;
-	set_h225_addr_hook = NULL;
-	set_sig_addr_hook = NULL;
-	set_ras_addr_hook = NULL;
-	nat_rtp_rtcp_hook = NULL;
-	nat_t120_hook = NULL;
-	nat_h245_hook = NULL;
-	nat_callforwarding_hook = NULL;
-	nat_q931_hook = NULL;
-	synchronize_net();
+	rcu_assign_pointer(set_h245_addr_hook, NULL);
+	rcu_assign_pointer(set_h225_addr_hook, NULL);
+	rcu_assign_pointer(set_sig_addr_hook, NULL);
+	rcu_assign_pointer(set_ras_addr_hook, NULL);
+	rcu_assign_pointer(nat_rtp_rtcp_hook, NULL);
+	rcu_assign_pointer(nat_t120_hook, NULL);
+	rcu_assign_pointer(nat_h245_hook, NULL);
+	rcu_assign_pointer(nat_callforwarding_hook, NULL);
+	rcu_assign_pointer(nat_q931_hook, NULL);
+	synchronize_rcu();
 }
 
 /****************************************************************************/

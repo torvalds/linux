@@ -1,4 +1,4 @@
-/*   
+/*
  *  Copyright (C) 2003,2004 Aurelien Alleaume <slts@free.fr>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -235,11 +235,9 @@ mgt_init(islpci_private *priv)
 {
 	int i;
 
-	priv->mib = kmalloc(OID_NUM_LAST * sizeof (void *), GFP_KERNEL);
+	priv->mib = kcalloc(OID_NUM_LAST, sizeof (void *), GFP_KERNEL);
 	if (!priv->mib)
 		return -ENOMEM;
-
-	memset(priv->mib, 0, OID_NUM_LAST * sizeof (void *));
 
 	/* Alloc the cache */
 	for (i = 0; i < OID_NUM_LAST; i++) {
@@ -503,7 +501,7 @@ mgt_set_varlen(islpci_private *priv, enum oid_num_t n, void *data, int extra_len
 		}
 		if (ret || response_op == PIMFOR_OP_ERROR)
 			ret = -EIO;
-	} else 
+	} else
 		ret = -EIO;
 
 	/* re-set given data to what it was */
@@ -727,7 +725,7 @@ mgt_commit(islpci_private *priv)
  * MEDIUMLIMIT,BEACONPERIOD,DTIMPERIOD,ATIMWINDOW,LISTENINTERVAL
  * FREQUENCY,EXTENDEDRATES.
  *
- * The way to do this is to set ESSID. Note though that they may get 
+ * The way to do this is to set ESSID. Note though that they may get
  * unlatch before though by setting another OID. */
 #if 0
 void

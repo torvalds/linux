@@ -20,8 +20,8 @@
 #include <linux/module.h>
 
 struct tcpudphdr {
-	uint16_t src;
-	uint16_t dst;
+	__be16 src;
+	__be16 dst;
 };
 
 static int ebt_filter_ip(const struct sk_buff *skb, const struct net_device *in,

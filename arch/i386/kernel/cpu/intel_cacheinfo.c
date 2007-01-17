@@ -480,12 +480,10 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 	if (num_cache_leaves == 0)
 		return -ENOENT;
 
-	cpuid4_info[cpu] = kmalloc(
+	cpuid4_info[cpu] = kzalloc(
 	    sizeof(struct _cpuid4_info) * num_cache_leaves, GFP_KERNEL);
 	if (unlikely(cpuid4_info[cpu] == NULL))
 		return -ENOMEM;
-	memset(cpuid4_info[cpu], 0,
-	    sizeof(struct _cpuid4_info) * num_cache_leaves);
 
 	oldmask = current->cpus_allowed;
 	retval = set_cpus_allowed(current, cpumask_of_cpu(cpu));
@@ -658,17 +656,14 @@ static int __cpuinit cpuid4_cache_sysfs_init(unsigned int cpu)
 		return -ENOENT;
 
 	/* Allocate all required memory */
-	cache_kobject[cpu] = kmalloc(sizeof(struct kobject), GFP_KERNEL);
+	cache_kobject[cpu] = kzalloc(sizeof(struct kobject), GFP_KERNEL);
 	if (unlikely(cache_kobject[cpu] == NULL))
 		goto err_out;
-	memset(cache_kobject[cpu], 0, sizeof(struct kobject));
 
-	index_kobject[cpu] = kmalloc(
+	index_kobject[cpu] = kzalloc(
 	    sizeof(struct _index_kobject ) * num_cache_leaves, GFP_KERNEL);
 	if (unlikely(index_kobject[cpu] == NULL))
 		goto err_out;
-	memset(index_kobject[cpu], 0,
-	    sizeof(struct _index_kobject) * num_cache_leaves);
 
 	return 0;
 

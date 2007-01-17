@@ -15,6 +15,7 @@
 
 #include "gigaset.h"
 #include <linux/crc-ccitt.h>
+#include <linux/bitrev.h>
 
 //#define GIG_M10x_STUFF_VOICE_DATA
 
@@ -302,7 +303,7 @@ static inline int iraw_loop(unsigned char c, unsigned char *src, int numbytes,
 				inputstate |= INS_skip_frame;
 				break;
 			}
-			*__skb_put(skb, 1) = gigaset_invtab[c];
+			*__skb_put(skb, 1) = bitrev8(c);
 		}
 
 		if (unlikely(!numbytes))
@@ -543,7 +544,7 @@ static struct sk_buff *iraw_encode(struct sk_buff *skb, int head, int tail)
 	cp = skb->data;
 	len = skb->len;
 	while (len--) {
-		c = gigaset_invtab[*cp++];
+		c = bitrev8(*cp++);
 		if (c == DLE_FLAG)
 			*(skb_put(iraw_skb, 1)) = c;
 		*(skb_put(iraw_skb, 1)) = c;

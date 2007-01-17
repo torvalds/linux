@@ -66,11 +66,11 @@
  */
 
 struct distr_item {
-	u32 type;
-	u32 lower;
-	u32 upper;
-	u32 ref;
-	u32 key;
+	__be32 type;
+	__be32 lower;
+	__be32 upper;
+	__be32 ref;
+	__be32 key;
 };
 
 /**

@@ -910,7 +910,7 @@ static int snd_ymfpci_playback_open(struct snd_pcm_substream *substream)
 	ypcm = runtime->private_data;
 	ypcm->output_front = 1;
 	ypcm->output_rear = chip->mode_dup4ch ? 1 : 0;
-	ypcm->swap_rear = chip->rear_swap;
+	ypcm->swap_rear = 0;
 	spin_lock_irq(&chip->reg_lock);
 	if (ypcm->output_rear) {
 		ymfpci_open_extension(chip);
@@ -936,6 +936,7 @@ static int snd_ymfpci_playback_spdif_open(struct snd_pcm_substream *substream)
 	ypcm = runtime->private_data;
 	ypcm->output_front = 0;
 	ypcm->output_rear = 1;
+	ypcm->swap_rear = 1;
 	spin_lock_irq(&chip->reg_lock);
 	snd_ymfpci_writew(chip, YDSXGR_SPDIFOUTCTRL,
 			  snd_ymfpci_readw(chip, YDSXGR_SPDIFOUTCTRL) | 2);
@@ -963,6 +964,7 @@ static int snd_ymfpci_playback_4ch_open(struct snd_pcm_substream *substream)
 	ypcm = runtime->private_data;
 	ypcm->output_front = 0;
 	ypcm->output_rear = 1;
+	ypcm->swap_rear = 0;
 	spin_lock_irq(&chip->reg_lock);
 	ymfpci_open_extension(chip);
 	chip->rear_opened++;
@@ -1755,7 +1757,7 @@ static void snd_ymfpci_mixer_free_ac97(struct snd_ac97 *ac97)
 	chip->ac97 = NULL;
 }
 
-int __devinit snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch, int rear_swap)
+int __devinit snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch)
 {
 	struct snd_ac97_template ac97;
 	struct snd_kcontrol *kctl;
@@ -1767,7 +1769,6 @@ int __devinit snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch, int rea
 		.read = snd_ymfpci_codec_read,
 	};
 
-	chip->rear_swap = rear_swap;
 	if ((err = snd_ac97_bus(chip->card, 0, &ops, chip, &chip->ac97_bus)) < 0)
 		return err;
 	chip->ac97_bus->private_free = snd_ymfpci_mixer_free_ac97_bus;
@@ -2025,10 +2026,10 @@ static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 	chip->bank_size_effect = snd_ymfpci_readl(chip, YDSXGR_EFFCTRLSIZE) << 2;
 	chip->work_size = YDSXG_DEFAULT_WORK_SIZE;
 	
-	size = ((playback_ctrl_size + 0x00ff) & ~0x00ff) +
-	       ((chip->bank_size_playback * 2 * YDSXG_PLAYBACK_VOICES + 0x00ff) & ~0x00ff) +
-	       ((chip->bank_size_capture * 2 * YDSXG_CAPTURE_VOICES + 0x00ff) & ~0x00ff) +
-	       ((chip->bank_size_effect * 2 * YDSXG_EFFECT_VOICES + 0x00ff) & ~0x00ff) +
+	size = ALIGN(playback_ctrl_size, 0x100) +
+	       ALIGN(chip->bank_size_playback * 2 * YDSXG_PLAYBACK_VOICES, 0x100) +
+	       ALIGN(chip->bank_size_capture * 2 * YDSXG_CAPTURE_VOICES, 0x100) +
+	       ALIGN(chip->bank_size_effect * 2 * YDSXG_EFFECT_VOICES, 0x100) +
 	       chip->work_size;
 	/* work_ptr must be aligned to 256 bytes, but it's already
 	   covered with the kernel page allocation mechanism */
@@ -2043,8 +2044,8 @@ static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 	chip->bank_base_playback_addr = ptr_addr;
 	chip->ctrl_playback = (u32 *)ptr;
 	chip->ctrl_playback[0] = cpu_to_le32(YDSXG_PLAYBACK_VOICES);
-	ptr += (playback_ctrl_size + 0x00ff) & ~0x00ff;
-	ptr_addr += (playback_ctrl_size + 0x00ff) & ~0x00ff;
+	ptr += ALIGN(playback_ctrl_size, 0x100);
+	ptr_addr += ALIGN(playback_ctrl_size, 0x100);
 	for (voice = 0; voice < YDSXG_PLAYBACK_VOICES; voice++) {
 		chip->voices[voice].number = voice;
 		chip->voices[voice].bank = (struct snd_ymfpci_playback_bank *)ptr;
@@ -2055,8 +2056,8 @@ static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 			ptr_addr += chip->bank_size_playback;
 		}
 	}
-	ptr = (char *)(((unsigned long)ptr + 0x00ff) & ~0x00ff);
-	ptr_addr = (ptr_addr + 0x00ff) & ~0x00ff;
+	ptr = (char *)ALIGN((unsigned long)ptr, 0x100);
+	ptr_addr = ALIGN(ptr_addr, 0x100);
 	chip->bank_base_capture = ptr;
 	chip->bank_base_capture_addr = ptr_addr;
 	for (voice = 0; voice < YDSXG_CAPTURE_VOICES; voice++)
@@ -2065,8 +2066,8 @@ static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 			ptr += chip->bank_size_capture;
 			ptr_addr += chip->bank_size_capture;
 		}
-	ptr = (char *)(((unsigned long)ptr + 0x00ff) & ~0x00ff);
-	ptr_addr = (ptr_addr + 0x00ff) & ~0x00ff;
+	ptr = (char *)ALIGN((unsigned long)ptr, 0x100);
+	ptr_addr = ALIGN(ptr_addr, 0x100);
 	chip->bank_base_effect = ptr;
 	chip->bank_base_effect_addr = ptr_addr;
 	for (voice = 0; voice < YDSXG_EFFECT_VOICES; voice++)
@@ -2075,8 +2076,8 @@ static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 			ptr += chip->bank_size_effect;
 			ptr_addr += chip->bank_size_effect;
 		}
-	ptr = (char *)(((unsigned long)ptr + 0x00ff) & ~0x00ff);
-	ptr_addr = (ptr_addr + 0x00ff) & ~0x00ff;
+	ptr = (char *)ALIGN((unsigned long)ptr, 0x100);
+	ptr_addr = ALIGN(ptr_addr, 0x100);
 	chip->work_base = ptr;
 	chip->work_base_addr = ptr_addr;
 	
@@ -2153,7 +2154,7 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 		snd_dma_free_pages(&chip->work_ptr);
 	
 	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);
+		free_irq(chip->irq, chip);
 	release_and_free_resource(chip->res_reg_area);
 
 	pci_write_config_word(chip->pci, 0x40, chip->old_legacy_ctrl);
@@ -2290,7 +2291,7 @@ int __devinit snd_ymfpci_create(struct snd_card *card,
 	chip->pci = pci;
 	chip->irq = -1;
 	chip->device_id = pci->device;
-	pci_read_config_byte(pci, PCI_REVISION_ID, (u8 *)&chip->rev);
+	pci_read_config_byte(pci, PCI_REVISION_ID, &chip->rev);
 	chip->reg_area_phys = pci_resource_start(pci, 0);
 	chip->reg_area_virt = ioremap_nocache(chip->reg_area_phys, 0x8000);
 	pci_set_master(pci);
@@ -2300,7 +2301,8 @@ int __devinit snd_ymfpci_create(struct snd_card *card,
 		snd_ymfpci_free(chip);
 		return -EBUSY;
 	}
-	if (request_irq(pci->irq, snd_ymfpci_interrupt, IRQF_DISABLED|IRQF_SHARED, "YMFPCI", (void *) chip)) {
+	if (request_irq(pci->irq, snd_ymfpci_interrupt, IRQF_SHARED,
+			"YMFPCI", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_ymfpci_free(chip);
 		return -EBUSY;
@@ -2322,7 +2324,6 @@ int __devinit snd_ymfpci_create(struct snd_card *card,
 		return -EIO;
 	}
 
-	chip->rear_swap = 1;
 	if ((err = snd_ymfpci_ac3_init(chip)) < 0) {
 		snd_ymfpci_free(chip);
 		return err;

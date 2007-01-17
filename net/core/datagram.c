@@ -321,7 +321,7 @@ fault:
 
 static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 				      u8 __user *to, int len,
-				      unsigned int *csump)
+				      __wsum *csump)
 {
 	int start = skb_headlen(skb);
 	int pos = 0;
@@ -350,7 +350,7 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
-			unsigned int csum2;
+			__wsum csum2;
 			int err = 0;
 			u8  *vaddr;
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -386,7 +386,7 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
-				unsigned int csum2 = 0;
+				__wsum csum2 = 0;
 				if (copy > len)
 					copy = len;
 				if (skb_copy_and_csum_datagram(list,
@@ -411,11 +411,11 @@ fault:
 	return -EFAULT;
 }
 
-unsigned int __skb_checksum_complete(struct sk_buff *skb)
+__sum16 __skb_checksum_complete(struct sk_buff *skb)
 {
-	unsigned int sum;
+	__sum16 sum;
 
-	sum = (u16)csum_fold(skb_checksum(skb, 0, skb->len, skb->csum));
+	sum = csum_fold(skb_checksum(skb, 0, skb->len, skb->csum));
 	if (likely(!sum)) {
 		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE))
 			netdev_rx_csum_fault(skb->dev);
@@ -441,7 +441,7 @@ EXPORT_SYMBOL(__skb_checksum_complete);
 int skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 				     int hlen, struct iovec *iov)
 {
-	unsigned int csum;
+	__wsum csum;
 	int chunk = skb->len - hlen;
 
 	/* Skip filled elements.
@@ -460,7 +460,7 @@ int skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 		if (skb_copy_and_csum_datagram(skb, hlen, iov->iov_base,
 					       chunk, &csum))
 			goto fault;
-		if ((unsigned short)csum_fold(csum))
+		if (csum_fold(csum))
 			goto csum_error;
 		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE))
 			netdev_rx_csum_fault(skb->dev);

@@ -27,6 +27,8 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 
+static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh);
+
 /*
  * jbd2_get_transaction: obtain a new transaction_t object.
  *

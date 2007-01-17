@@ -372,8 +372,10 @@ void setup_ntlmv2_rsp(struct cifsSesInfo * ses, char * resp_buf,
 	buf->time = cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
 	get_random_bytes(&buf->client_chal, sizeof(buf->client_chal));
 	buf->reserved2 = 0;
-	buf->names[0].type = 0;
+	buf->names[0].type = cpu_to_le16(NTLMSSP_DOMAIN_TYPE);
 	buf->names[0].length = 0;
+	buf->names[1].type = 0;
+	buf->names[1].length = 0;
 
 	/* calculate buf->ntlmv2_hash */
 	rc = calc_ntlmv2_hash(ses, nls_cp);

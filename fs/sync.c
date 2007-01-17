@@ -6,6 +6,7 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/writeback.h>
 #include <linux/syscalls.h>
 #include <linux/linkage.h>
@@ -93,7 +94,7 @@ long do_fsync(struct file *file, int datasync)
 	 * livelocks in fsync_buffers_list().
 	 */
 	mutex_lock(&mapping->host->i_mutex);
-	err = file->f_op->fsync(file, file->f_dentry, datasync);
+	err = file->f_op->fsync(file, file->f_path.dentry, datasync);
 	if (!ret)
 		ret = err;
 	mutex_unlock(&mapping->host->i_mutex);
@@ -222,7 +223,7 @@ asmlinkage long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
 	if (!file)
 		goto out;
 
-	i_mode = file->f_dentry->d_inode->i_mode;
+	i_mode = file->f_path.dentry->d_inode->i_mode;
 	ret = -ESPIPE;
 	if (!S_ISREG(i_mode) && !S_ISBLK(i_mode) && !S_ISDIR(i_mode) &&
 			!S_ISLNK(i_mode))

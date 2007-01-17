@@ -47,6 +47,9 @@
 #ifdef CONFIG_MIPS_MALTA
 #include <asm/mips-boards/maltaint.h>
 #endif
+#ifdef CONFIG_MIPS_SEAD
+#include <asm/mips-boards/seadint.h>
+#endif
 
 unsigned long cpu_khz;
 
@@ -263,11 +266,13 @@ void __init mips_time_init(void)
 
 void __init plat_timer_setup(struct irqaction *irq)
 {
+#ifdef MSC01E_INT_BASE
 	if (cpu_has_veic) {
 		set_vi_handler (MSC01E_INT_CPUCTR, mips_timer_dispatch);
 		mips_cpu_timer_irq = MSC01E_INT_BASE + MSC01E_INT_CPUCTR;
-	}
-	else {
+	} else
+#endif
+	{
 		if (cpu_has_vint)
 			set_vi_handler (MIPSCPU_INT_CPUCTR, mips_timer_dispatch);
 		mips_cpu_timer_irq = MIPSCPU_INT_BASE + MIPSCPU_INT_CPUCTR;
@@ -288,6 +293,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 	   The effect is that the int remains disabled on the second cpu.
 	   Mark the interrupt with IRQ_PER_CPU to avoid any confusion */
 	irq_desc[mips_cpu_timer_irq].status |= IRQ_PER_CPU;
+	set_irq_handler(mips_cpu_timer_irq, handle_percpu_irq);
 #endif
 
         /* to generate the first timer interrupt */

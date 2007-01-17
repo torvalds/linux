@@ -1,24 +1,24 @@
 /*
  * OHCI HCD (Host Controller Driver) for USB.
- * 
+ *
  * (C) Copyright 1999 Roman Weissgaerber <weissg@vienna.at>
  * (C) Copyright 2000-2002 David Brownell <dbrownell@users.sourceforge.net>
- * 
+ *
  * This file is licenced under the GPL.
  */
 
 /*-------------------------------------------------------------------------*/
 
 /*
- * There's basically three types of memory:
+ * OHCI deals with three types of memory:
  *	- data used only by the HCD ... kmalloc is fine
  *	- async and periodic schedules, shared by HC and HCD ... these
  *	  need to use dma_pool or dma_alloc_coherent
  *	- driver buffers, read/written by HC ... the hcd glue or the
  *	  device driver provides us with dma addresses
  *
- * There's also PCI "register" data, which is memory mapped.
- * No memory seen by this driver is pagable.
+ * There's also "register" data, which is memory mapped.
+ * No memory seen by this driver (or any HCD) may be paged out.
  */
 
 /*-------------------------------------------------------------------------*/

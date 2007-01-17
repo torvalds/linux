@@ -412,7 +412,7 @@ beta-2.1.4 Jul 2000		o Dynamic interface configuration:
 
 beta3-2.1.4 Jul 2000		o X25 M_BIT Problem fix.
 				o Added the Multi-Port PPP
-				  Updated utilites for the Multi-Port PPP.
+				  Updated utilities for the Multi-Port PPP.
 
 2.1.4	Aut 2000
 				o In X25API:
@@ -444,13 +444,13 @@ beta1-2.1.5 	Nov 15 2000
 					
 				o Cpipemon
 					- Added set FT1 commands to the cpipemon. Thus CSU/DSU
-					  configuraiton can be performed using cpipemon.
+					  configuration can be performed using cpipemon.
 					  All systems that cannot run cfgft1 GUI utility should
 					  use cpipemon to configure the on board CSU/DSU.
 
 
 				o Keyboard Led Monitor/Debugger
-					- A new utilty /usr/sbin/wpkbdmon uses keyboard leds
+					- A new utility /usr/sbin/wpkbdmon uses keyboard leds
 					  to convey operational statistic information of the 
 					  Sangoma WANPIPE cards.
 					NUM_LOCK    = Line State  (On=connected,    Off=disconnected)
@@ -464,7 +464,7 @@ beta1-2.1.5 	Nov 15 2000
 					- Appropriate number of devices are dynamically loaded 
 					  based on the number of Sangoma cards found.
 
-					  Note: The kernel configuraiton option 
+					  Note: The kernel configuration option 
 						CONFIG_WANPIPE_CARDS has been taken out.
 					
 				o Fixed the Frame Relay and Chdlc network interfaces so they are

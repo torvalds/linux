@@ -26,6 +26,7 @@
 #include <sound/asound.h>
 #include <sound/memalloc.h>
 #include <linux/poll.h>
+#include <linux/mm.h>
 #include <linux/bitops.h>
 
 #define snd_pcm_substream_chip(substream) ((substream)->private_data)

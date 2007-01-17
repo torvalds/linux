@@ -149,11 +149,10 @@ ip6t_local_hook(unsigned int hook,
 		   int (*okfn)(struct sk_buff *))
 {
 
-	unsigned long nfmark;
 	unsigned int ret;
 	struct in6_addr saddr, daddr;
 	u_int8_t hop_limit;
-	u_int32_t flowlabel;
+	u_int32_t flowlabel, mark;
 
 #if 0
 	/* root is playing with raw sockets. */
@@ -165,10 +164,10 @@ ip6t_local_hook(unsigned int hook,
 	}
 #endif
 
-	/* save source/dest address, nfmark, hoplimit, flowlabel, priority,  */
+	/* save source/dest address, mark, hoplimit, flowlabel, priority,  */
 	memcpy(&saddr, &(*pskb)->nh.ipv6h->saddr, sizeof(saddr));
 	memcpy(&daddr, &(*pskb)->nh.ipv6h->daddr, sizeof(daddr));
-	nfmark = (*pskb)->nfmark;
+	mark = (*pskb)->mark;
 	hop_limit = (*pskb)->nh.ipv6h->hop_limit;
 
 	/* flowlabel and prio (includes version, which shouldn't change either */
@@ -179,7 +178,7 @@ ip6t_local_hook(unsigned int hook,
 	if (ret != NF_DROP && ret != NF_STOLEN 
 		&& (memcmp(&(*pskb)->nh.ipv6h->saddr, &saddr, sizeof(saddr))
 		    || memcmp(&(*pskb)->nh.ipv6h->daddr, &daddr, sizeof(daddr))
-		    || (*pskb)->nfmark != nfmark
+		    || (*pskb)->mark != mark
 		    || (*pskb)->nh.ipv6h->hop_limit != hop_limit))
 		return ip6_route_me_harder(*pskb) == 0 ? ret : NF_DROP;
 

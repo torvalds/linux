@@ -117,7 +117,7 @@ int emu10k1_mpuout_add_buffer(struct emu10k1_card *card, struct midi_hdr *midihd
 	midihdr->flags |= MIDIBUF_INQUEUE;
 	midihdr->flags &= ~MIDIBUF_DONE;
 
-	if ((midiq = (struct midi_queue *) kmalloc(sizeof(struct midi_queue), GFP_KERNEL)) == NULL) {
+	if ((midiq = kmalloc(sizeof(struct midi_queue), GFP_KERNEL)) == NULL) {
 		/* Message lost */
 		return -1;
 	}

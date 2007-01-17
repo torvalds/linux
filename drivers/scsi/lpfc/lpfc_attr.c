@@ -552,10 +552,10 @@ static CLASS_DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 static CLASS_DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
 
 
-static char *lpfc_soft_wwpn_key = "C99G71SL8032A";
+static char *lpfc_soft_wwn_key = "C99G71SL8032A";
 
 static ssize_t
-lpfc_soft_wwpn_enable_store(struct class_device *cdev, const char *buf,
+lpfc_soft_wwn_enable_store(struct class_device *cdev, const char *buf,
 				size_t count)
 {
 	struct Scsi_Host *host = class_to_shost(cdev);
@@ -579,15 +579,15 @@ lpfc_soft_wwpn_enable_store(struct class_device *cdev, const char *buf,
 	if (buf[cnt-1] == '\n')
 		cnt--;
 
-	if ((cnt != strlen(lpfc_soft_wwpn_key)) ||
-	    (strncmp(buf, lpfc_soft_wwpn_key, strlen(lpfc_soft_wwpn_key)) != 0))
+	if ((cnt != strlen(lpfc_soft_wwn_key)) ||
+	    (strncmp(buf, lpfc_soft_wwn_key, strlen(lpfc_soft_wwn_key)) != 0))
 		return -EINVAL;
 
-	phba->soft_wwpn_enable = 1;
+	phba->soft_wwn_enable = 1;
 	return count;
 }
-static CLASS_DEVICE_ATTR(lpfc_soft_wwpn_enable, S_IWUSR, NULL,
-				lpfc_soft_wwpn_enable_store);
+static CLASS_DEVICE_ATTR(lpfc_soft_wwn_enable, S_IWUSR, NULL,
+				lpfc_soft_wwn_enable_store);
 
 static ssize_t
 lpfc_soft_wwpn_show(struct class_device *cdev, char *buf)
@@ -613,12 +613,12 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 	if (buf[cnt-1] == '\n')
 		cnt--;
 
-	if (!phba->soft_wwpn_enable || (cnt < 16) || (cnt > 18) ||
+	if (!phba->soft_wwn_enable || (cnt < 16) || (cnt > 18) ||
 	    ((cnt == 17) && (*buf++ != 'x')) ||
 	    ((cnt == 18) && ((*buf++ != '0') || (*buf++ != 'x'))))
 		return -EINVAL;
 
-	phba->soft_wwpn_enable = 0;
+	phba->soft_wwn_enable = 0;
 
 	memset(wwpn, 0, sizeof(wwpn));
 
@@ -639,6 +639,8 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 	}
 	phba->cfg_soft_wwpn = wwn_to_u64(wwpn);
 	fc_host_port_name(host) = phba->cfg_soft_wwpn;
+	if (phba->cfg_soft_wwnn)
+		fc_host_node_name(host) = phba->cfg_soft_wwnn;
 
 	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
 		   "lpfc%d: Reinitializing to use soft_wwpn\n", phba->brd_no);
@@ -663,6 +665,66 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 }
 static CLASS_DEVICE_ATTR(lpfc_soft_wwpn, S_IRUGO | S_IWUSR,\
 			 lpfc_soft_wwpn_show, lpfc_soft_wwpn_store);
+
+static ssize_t
+lpfc_soft_wwnn_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
+			(unsigned long long)phba->cfg_soft_wwnn);
+}
+
+
+static ssize_t
+lpfc_soft_wwnn_store(struct class_device *cdev, const char *buf, size_t count)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	unsigned int i, j, cnt=count;
+	u8 wwnn[8];
+
+	/* count may include a LF at end of string */
+	if (buf[cnt-1] == '\n')
+		cnt--;
+
+	if (!phba->soft_wwn_enable || (cnt < 16) || (cnt > 18) ||
+	    ((cnt == 17) && (*buf++ != 'x')) ||
+	    ((cnt == 18) && ((*buf++ != '0') || (*buf++ != 'x'))))
+		return -EINVAL;
+
+	/*
+	 * Allow wwnn to be set many times, as long as the enable is set.
+	 * However, once the wwpn is set, everything locks.
+	 */
+
+	memset(wwnn, 0, sizeof(wwnn));
+
+	/* Validate and store the new name */
+	for (i=0, j=0; i < 16; i++) {
+		if ((*buf >= 'a') && (*buf <= 'f'))
+			j = ((j << 4) | ((*buf++ -'a') + 10));
+		else if ((*buf >= 'A') && (*buf <= 'F'))
+			j = ((j << 4) | ((*buf++ -'A') + 10));
+		else if ((*buf >= '0') && (*buf <= '9'))
+			j = ((j << 4) | (*buf++ -'0'));
+		else
+			return -EINVAL;
+		if (i % 2) {
+			wwnn[i/2] = j & 0xff;
+			j = 0;
+		}
+	}
+	phba->cfg_soft_wwnn = wwn_to_u64(wwnn);
+
+	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
+		   "lpfc%d: soft_wwnn set. Value will take effect upon "
+		   "setting of the soft_wwpn\n", phba->brd_no);
+
+	return count;
+}
+static CLASS_DEVICE_ATTR(lpfc_soft_wwnn, S_IRUGO | S_IWUSR,\
+			 lpfc_soft_wwnn_show, lpfc_soft_wwnn_store);
 
 
 static int lpfc_poll = 0;
@@ -802,12 +864,11 @@ static CLASS_DEVICE_ATTR(lpfc_devloss_tmo, S_IRUGO | S_IWUSR,
 # LOG_MBOX                      0x4        Mailbox events
 # LOG_INIT                      0x8        Initialization events
 # LOG_LINK_EVENT                0x10       Link events
-# LOG_IP                        0x20       IP traffic history
 # LOG_FCP                       0x40       FCP traffic history
 # LOG_NODE                      0x80       Node table events
 # LOG_MISC                      0x400      Miscellaneous events
 # LOG_SLI                       0x800      SLI events
-# LOG_CHK_COND                  0x1000     FCP Check condition flag
+# LOG_FCP_ERROR                 0x1000     Only log FCP errors
 # LOG_LIBDFC                    0x2000     LIBDFC events
 # LOG_ALL_MSG                   0xffff     LOG all messages
 */
@@ -916,6 +977,22 @@ LPFC_ATTR_R(multi_ring_support, 1, 1, 2, "Determines number of primary "
 		"SLI rings to spread IOCB entries across");
 
 /*
+# lpfc_multi_ring_rctl:  If lpfc_multi_ring_support is enabled, this
+# identifies what rctl value to configure the additional ring for.
+# Value range is [1,0xff]. Default value is 4 (Unsolicated Data).
+*/
+LPFC_ATTR_R(multi_ring_rctl, FC_UNSOL_DATA, 1,
+	     255, "Identifies RCTL for additional ring configuration");
+
+/*
+# lpfc_multi_ring_type:  If lpfc_multi_ring_support is enabled, this
+# identifies what type value to configure the additional ring for.
+# Value range is [1,0xff]. Default value is 5 (LLC/SNAP).
+*/
+LPFC_ATTR_R(multi_ring_type, FC_LLC_SNAP, 1,
+	     255, "Identifies TYPE for additional ring configuration");
+
+/*
 # lpfc_fdmi_on: controls FDMI support.
 #       0 = no FDMI support
 #       1 = support FDMI without attribute of hostname
@@ -946,6 +1023,15 @@ LPFC_ATTR_R(max_luns, 255, 0, 65535,
 LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 	     "Milliseconds driver will wait between polling FCP ring");
 
+/*
+# lpfc_use_msi: Use MSI (Message Signaled Interrupts) in systems that
+#		support this feature
+#       0  = MSI disabled (default)
+#       1  = MSI enabled
+# Value range is [0,1]. Default value is 0.
+*/
+LPFC_ATTR_R(use_msi, 0, 0, 1, "Use Message Signaled Interrupts, if possible");
+
 
 struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_info,
@@ -974,6 +1060,8 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_lpfc_cr_delay,
 	&class_device_attr_lpfc_cr_count,
 	&class_device_attr_lpfc_multi_ring_support,
+	&class_device_attr_lpfc_multi_ring_rctl,
+	&class_device_attr_lpfc_multi_ring_type,
 	&class_device_attr_lpfc_fdmi_on,
 	&class_device_attr_lpfc_max_luns,
 	&class_device_attr_nport_evt_cnt,
@@ -982,8 +1070,10 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_issue_reset,
 	&class_device_attr_lpfc_poll,
 	&class_device_attr_lpfc_poll_tmo,
+	&class_device_attr_lpfc_use_msi,
+	&class_device_attr_lpfc_soft_wwnn,
 	&class_device_attr_lpfc_soft_wwpn,
-	&class_device_attr_lpfc_soft_wwpn_enable,
+	&class_device_attr_lpfc_soft_wwn_enable,
 	NULL,
 };
 
@@ -1771,6 +1861,8 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_cr_delay_init(phba, lpfc_cr_delay);
 	lpfc_cr_count_init(phba, lpfc_cr_count);
 	lpfc_multi_ring_support_init(phba, lpfc_multi_ring_support);
+	lpfc_multi_ring_rctl_init(phba, lpfc_multi_ring_rctl);
+	lpfc_multi_ring_type_init(phba, lpfc_multi_ring_type);
 	lpfc_lun_queue_depth_init(phba, lpfc_lun_queue_depth);
 	lpfc_fcp_class_init(phba, lpfc_fcp_class);
 	lpfc_use_adisc_init(phba, lpfc_use_adisc);
@@ -1782,9 +1874,11 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_discovery_threads_init(phba, lpfc_discovery_threads);
 	lpfc_max_luns_init(phba, lpfc_max_luns);
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
+	lpfc_use_msi_init(phba, lpfc_use_msi);
 	lpfc_devloss_tmo_init(phba, lpfc_devloss_tmo);
 	lpfc_nodev_tmo_init(phba, lpfc_nodev_tmo);
 	phba->cfg_poll = lpfc_poll;
+	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
 
 	/*

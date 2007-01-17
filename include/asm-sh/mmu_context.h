@@ -10,7 +10,6 @@
 
 #include <asm/cpu/mmu_context.h>
 #include <asm/tlbflush.h>
-#include <asm/pgalloc.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -42,10 +41,8 @@ extern unsigned long mmu_context_cache;
 /*
  * Get MMU context if needed.
  */
-static __inline__ void
-get_mmu_context(struct mm_struct *mm)
+static inline void get_mmu_context(struct mm_struct *mm)
 {
-	extern void flush_tlb_all(void);
 	unsigned long mc = mmu_context_cache;
 
 	/* Check if we have old version of context. */
@@ -61,6 +58,7 @@ get_mmu_context(struct mm_struct *mm)
 		 * Flush all TLB and start new cycle.
 		 */
 		flush_tlb_all();
+
 		/*
 		 * Fix version; Note that we avoid version #0
 		 * to distingush NO_CONTEXT.
@@ -75,11 +73,10 @@ get_mmu_context(struct mm_struct *mm)
  * Initialize the context related info for a new mm_struct
  * instance.
  */
-static __inline__ int init_new_context(struct task_struct *tsk,
+static inline int init_new_context(struct task_struct *tsk,
 				       struct mm_struct *mm)
 {
 	mm->context.id = NO_CONTEXT;
-
 	return 0;
 }
 
@@ -87,12 +84,12 @@ static __inline__ int init_new_context(struct task_struct *tsk,
  * Destroy context related info for an mm_struct that is about
  * to be put to rest.
  */
-static __inline__ void destroy_context(struct mm_struct *mm)
+static inline void destroy_context(struct mm_struct *mm)
 {
 	/* Do nothing */
 }
 
-static __inline__ void set_asid(unsigned long asid)
+static inline void set_asid(unsigned long asid)
 {
 	unsigned long __dummy;
 
@@ -105,7 +102,7 @@ static __inline__ void set_asid(unsigned long asid)
 			        "r" (0xffffff00));
 }
 
-static __inline__ unsigned long get_asid(void)
+static inline unsigned long get_asid(void)
 {
 	unsigned long asid;
 
@@ -120,24 +117,29 @@ static __inline__ unsigned long get_asid(void)
  * After we have set current->mm to a new value, this activates
  * the context for the new mm so we see the new mappings.
  */
-static __inline__ void activate_context(struct mm_struct *mm)
+static inline void activate_context(struct mm_struct *mm)
 {
 	get_mmu_context(mm);
 	set_asid(mm->context.id & MMU_CONTEXT_ASID_MASK);
 }
 
-/* MMU_TTB can be used for optimizing the fault handling.
-   (Currently not used) */
-static __inline__ void switch_mm(struct mm_struct *prev,
-				 struct mm_struct *next,
-				 struct task_struct *tsk)
+/* MMU_TTB is used for optimizing the fault handling. */
+static inline void set_TTB(pgd_t *pgd)
+{
+	ctrl_outl((unsigned long)pgd, MMU_TTB);
+}
+
+static inline pgd_t *get_TTB(void)
+{
+	return (pgd_t *)ctrl_inl(MMU_TTB);
+}
+
+static inline void switch_mm(struct mm_struct *prev,
+			     struct mm_struct *next,
+			     struct task_struct *tsk)
 {
 	if (likely(prev != next)) {
-		unsigned long __pgdir = (unsigned long)next->pgd;
-
-		__asm__ __volatile__("mov.l	%0, %1"
-				     : /* no output */
-				     : "r" (__pgdir), "m" (__m(MMU_TTB)));
+		set_TTB(next->pgd);
 		activate_context(next);
 	}
 }
@@ -147,7 +149,7 @@ static __inline__ void switch_mm(struct mm_struct *prev,
 #define activate_mm(prev, next) \
 	switch_mm((prev),(next),NULL)
 
-static __inline__ void
+static inline void
 enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 }

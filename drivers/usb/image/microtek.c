@@ -796,7 +796,7 @@ static int mts_usb_probe(struct usb_interface *intf,
 
 	new_desc->context.scsi_status = kmalloc(1, GFP_KERNEL);
 	if (!new_desc->context.scsi_status)
-		goto out_kfree2;
+		goto out_free_urb;
 
 	new_desc->usb_dev = dev;
 	new_desc->usb_intf = intf;
@@ -822,18 +822,20 @@ static int mts_usb_probe(struct usb_interface *intf,
 	new_desc->host = scsi_host_alloc(&mts_scsi_host_template,
 			sizeof(new_desc));
 	if (!new_desc->host)
-		goto out_free_urb;
+		goto out_kfree2;
 
 	new_desc->host->hostdata[0] = (unsigned long)new_desc;
 	if (scsi_add_host(new_desc->host, NULL)) {
 		err_retval = -EIO;
-		goto out_free_urb;
+		goto out_host_put;
 	}
 	scsi_scan_host(new_desc->host);
 
 	usb_set_intfdata(intf, new_desc);
 	return 0;
 
+ out_host_put:
+	scsi_host_put(new_desc->host);
  out_kfree2:
 	kfree(new_desc->context.scsi_status);
  out_free_urb:

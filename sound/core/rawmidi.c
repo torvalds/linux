@@ -1385,7 +1385,6 @@ static int snd_rawmidi_alloc_substreams(struct snd_rawmidi *rmidi,
 	struct snd_rawmidi_substream *substream;
 	int idx;
 
-	INIT_LIST_HEAD(&stream->substreams);
 	for (idx = 0; idx < count; idx++) {
 		substream = kzalloc(sizeof(*substream), GFP_KERNEL);
 		if (substream == NULL) {
@@ -1440,6 +1439,9 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 	rmidi->device = device;
 	mutex_init(&rmidi->open_mutex);
 	init_waitqueue_head(&rmidi->open_wait);
+	INIT_LIST_HEAD(&rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT].substreams);
+	INIT_LIST_HEAD(&rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substreams);
+
 	if (id != NULL)
 		strlcpy(rmidi->id, id, sizeof(rmidi->id));
 	if ((err = snd_rawmidi_alloc_substreams(rmidi,

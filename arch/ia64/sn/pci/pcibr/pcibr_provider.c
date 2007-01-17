@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2001-2004, 2006 Silicon Graphics, Inc. All rights reserved.
  */
 
 #include <linux/interrupt.h>
@@ -109,7 +109,6 @@ void *
 pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *controller)
 {
 	int nasid, cnode, j;
-	cnodeid_t near_cnode;
 	struct hubdev_info *hubdev_info;
 	struct pcibus_info *soft;
 	struct sn_flush_device_kernel *sn_flush_device_kernel;
@@ -186,20 +185,6 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 		return NULL;
 	}
 
-	if (prom_bussoft->bs_asic_type == PCIIO_ASIC_TYPE_TIOCP) {
-		/* TIO PCI Bridge: find nearest node with CPUs */
-		int e = sn_hwperf_get_nearest_node(cnode, NULL, &near_cnode);
-
-		if (e < 0) {
-			near_cnode = (cnodeid_t)-1; /* use any node */
-			printk(KERN_WARNING "pcibr_bus_fixup: failed to find "
-				"near node with CPUs to TIO node %d, err=%d\n",
-				cnode, e);
-		}
-		controller->node = near_cnode;
-	}
-	else
-		controller->node = cnode;
 	return soft;
 }
 

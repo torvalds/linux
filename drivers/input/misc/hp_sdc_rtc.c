@@ -695,7 +695,9 @@ static int __init hp_sdc_rtc_init(void)
 
 	if ((ret = hp_sdc_request_timer_irq(&hp_sdc_rtc_isr)))
 		return ret;
-	misc_register(&hp_sdc_rtc_dev);
+	if (misc_register(&hp_sdc_rtc_dev) != 0)
+		printk(KERN_INFO "Could not register misc. dev for i8042 rtc\n");
+
         create_proc_read_entry ("driver/rtc", 0, NULL,
 				hp_sdc_rtc_read_proc, NULL);
 

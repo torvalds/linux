@@ -64,11 +64,10 @@ static inline int nf_bridge_pad(const struct sk_buff *skb)
 
 struct bridge_skb_cb {
 	union {
-		__u32 ipv4;
+		__be32 ipv4;
 	} daddr;
 };
 
-extern int brnf_deferred_hooks;
 #else
 #define nf_bridge_maybe_copy_header(skb)	(0)
 #define nf_bridge_pad(skb)			(0)

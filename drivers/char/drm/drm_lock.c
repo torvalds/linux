@@ -155,6 +155,7 @@ int drm_unlock(struct inode *inode, struct file *filp,
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
 	drm_lock_t lock;
+	unsigned long irqflags;
 
 	if (copy_from_user(&lock, (drm_lock_t __user *) arg, sizeof(lock)))
 		return -EFAULT;
@@ -165,13 +166,23 @@ int drm_unlock(struct inode *inode, struct file *filp,
 		return -EINVAL;
 	}
 
+	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
+
+	if (dev->locked_tasklet_func) {
+		dev->locked_tasklet_func(dev);
+
+		dev->locked_tasklet_func = NULL;
+	}
+
+	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
+
 	atomic_inc(&dev->counts[_DRM_STAT_UNLOCKS]);
 
 	/* kernel_context_switch isn't used by any of the x86 drm
 	 * modules but is required by the Sparc driver.
 	 */
 	if (dev->driver->kernel_context_switch_unlock)
-		dev->driver->kernel_context_switch_unlock(dev, &lock);
+		dev->driver->kernel_context_switch_unlock(dev);
 	else {
 		drm_lock_transfer(dev, &dev->lock.hw_lock->lock,
 				  DRM_KERNEL_CONTEXT);

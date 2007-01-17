@@ -26,6 +26,7 @@
 
 /* The base address of the last MMCONFIG device accessed */
 static u32 mmcfg_last_accessed_device;
+static int mmcfg_last_accessed_cpu;
 
 static DECLARE_BITMAP(fallback_slots, MAX_CHECK_BUS*32);
 
@@ -73,8 +74,11 @@ static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 static void pci_exp_set_dev_base(unsigned int base, int bus, int devfn)
 {
 	u32 dev_base = base | (bus << 20) | (devfn << 12);
-	if (dev_base != mmcfg_last_accessed_device) {
+	int cpu = smp_processor_id();
+	if (dev_base != mmcfg_last_accessed_device ||
+	    cpu != mmcfg_last_accessed_cpu) {
 		mmcfg_last_accessed_device = dev_base;
+		mmcfg_last_accessed_cpu = cpu;
 		set_fixmap_nocache(FIX_PCIE_MCFG, dev_base);
 	}
 }

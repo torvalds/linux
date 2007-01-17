@@ -376,7 +376,7 @@ static int ub_submit_clear_stall(struct ub_dev *sc, struct ub_scsi_cmd *cmd,
     int stalled_pipe);
 static void ub_top_sense_done(struct ub_dev *sc, struct ub_scsi_cmd *scmd);
 static void ub_reset_enter(struct ub_dev *sc, int try);
-static void ub_reset_task(void *arg);
+static void ub_reset_task(struct work_struct *work);
 static int ub_sync_tur(struct ub_dev *sc, struct ub_lun *lun);
 static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
     struct ub_capacity *ret);
@@ -1558,9 +1558,9 @@ static void ub_reset_enter(struct ub_dev *sc, int try)
 	schedule_work(&sc->reset_work);
 }
 
-static void ub_reset_task(void *arg)
+static void ub_reset_task(struct work_struct *work)
 {
-	struct ub_dev *sc = arg;
+	struct ub_dev *sc = container_of(work, struct ub_dev, reset_work);
 	unsigned long flags;
 	struct list_head *p;
 	struct ub_lun *lun;
@@ -2179,7 +2179,7 @@ static int ub_probe(struct usb_interface *intf,
 	usb_init_urb(&sc->work_urb);
 	tasklet_init(&sc->tasklet, ub_scsi_action, (unsigned long)sc);
 	atomic_set(&sc->poison, 0);
-	INIT_WORK(&sc->reset_work, ub_reset_task, sc);
+	INIT_WORK(&sc->reset_work, ub_reset_task);
 	init_waitqueue_head(&sc->reset_wait);
 
 	init_timer(&sc->work_timer);

@@ -72,6 +72,21 @@ config USB_SUSPEND
 
 	  If you are unsure about this, say N here.
 
+config USB_MULTITHREAD_PROBE
+	bool "USB Multi-threaded probe (EXPERIMENTAL)"
+	depends on USB && EXPERIMENTAL
+	default n
+	help
+	  Say Y here if you want the USB core to spawn a new thread for
+	  every USB device that is probed.  This can cause a small speedup
+	  in boot times on systems with a lot of different USB devices.
+
+	  This option should be safe to enable, but if any odd probing
+	  problems are found, please disable it, or dynamically turn it
+	  off in the /sys/module/usbcore/parameters/multithread_probe
+	  file
+
+	  When in doubt, say N.
 
 config USB_OTG
 	bool

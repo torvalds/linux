@@ -341,7 +341,7 @@ static void fetch_decode_regs(struct mctrl_info *mp)
 
 static int init_one_mctrl(struct device_node *dp)
 {
-	struct mctrl_info *mp = kmalloc(sizeof(*mp), GFP_KERNEL);
+	struct mctrl_info *mp = kzalloc(sizeof(*mp), GFP_KERNEL);
 	int portid = of_getintprop_default(dp, "portid", -1);
 	struct linux_prom64_registers *regs;
 	void *pval;
@@ -349,7 +349,6 @@ static int init_one_mctrl(struct device_node *dp)
 
 	if (!mp)
 		return -1;
-	memset(mp, 0, sizeof(*mp));
 	if (portid == -1)
 		goto fail;
 

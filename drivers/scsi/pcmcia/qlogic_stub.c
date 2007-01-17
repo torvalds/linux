@@ -208,18 +208,11 @@ static int qlogic_config(struct pcmcia_device * link)
 
 	DEBUG(0, "qlogic_config(0x%p)\n", link);
 
+	info->manf_id = link->manf_id;
+
 	tuple.TupleData = (cisdata_t *) tuple_data;
 	tuple.TupleDataMax = 64;
 	tuple.TupleOffset = 0;
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-	link->conf.ConfigBase = parse.config.base;
-
-	tuple.DesiredTuple = CISTPL_MANFID;
-	if ((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) && (pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS))
-		info->manf_id = le16_to_cpu(tuple.TupleData[0]);
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));

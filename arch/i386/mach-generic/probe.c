@@ -45,7 +45,9 @@ static int __init parse_apic(char *arg)
 			return 0;
 		}
 	}
-	return -ENOENT;
+
+	/* Parsed again by __setup for debug/verbose */
+	return 0;
 }
 early_param("apic", parse_apic);
 

@@ -17,7 +17,7 @@ static int ebt_filter_802_3(const struct sk_buff *skb, const struct net_device *
 {
 	struct ebt_802_3_info *info = (struct ebt_802_3_info *)data;
 	struct ebt_802_3_hdr *hdr = ebt_802_3_hdr(skb);
-	uint16_t type = hdr->llc.ui.ctrl & IS_UI ? hdr->llc.ui.type : hdr->llc.ni.type;
+	__be16 type = hdr->llc.ui.ctrl & IS_UI ? hdr->llc.ui.type : hdr->llc.ni.type;
 
 	if (info->bitmask & EBT_802_3_SAP) {
 		if (FWINV(info->sap != hdr->llc.ui.ssap, EBT_802_3_SAP)) 

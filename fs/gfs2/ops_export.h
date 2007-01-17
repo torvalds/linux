@@ -15,7 +15,7 @@
 
 extern struct export_operations gfs2_export_ops;
 struct gfs2_fh_obj {
-	struct gfs2_inum this;
+	struct gfs2_inum_host this;
 	__u32            imode;
 };
 

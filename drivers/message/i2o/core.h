@@ -18,7 +18,7 @@ extern struct i2o_driver i2o_exec_driver;
 extern int i2o_exec_lct_get(struct i2o_controller *);
 
 extern int __init i2o_exec_init(void);
-extern void __exit i2o_exec_exit(void);
+extern void i2o_exec_exit(void);
 
 /* driver */
 extern struct bus_type i2o_bus_type;
@@ -26,7 +26,7 @@ extern struct bus_type i2o_bus_type;
 extern int i2o_driver_dispatch(struct i2o_controller *, u32);
 
 extern int __init i2o_driver_init(void);
-extern void __exit i2o_driver_exit(void);
+extern void i2o_driver_exit(void);
 
 /* PCI */
 extern int __init i2o_pci_init(void);

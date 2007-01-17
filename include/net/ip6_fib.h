@@ -50,9 +50,9 @@ struct fib6_node
 	struct fib6_node	*parent;
 	struct fib6_node	*left;
 	struct fib6_node	*right;
-
+#ifdef CONFIG_IPV6_SUBTREES
 	struct fib6_node	*subtree;
-
+#endif
 	struct rt6_info		*leaf;
 
 	__u16			fn_bit;		/* bit key */
@@ -106,6 +106,11 @@ struct rt6_info
 
 	u8				rt6i_protocol;
 };
+
+static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
+{
+	return ((struct rt6_info *)dst)->rt6i_idev;
+}
 
 struct fib6_walker_t
 {

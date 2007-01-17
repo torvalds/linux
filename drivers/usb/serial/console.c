@@ -65,7 +65,7 @@ static int usb_console_setup(struct console *co, char *options)
 	struct usb_serial_port *port;
 	int retval = 0;
 	struct tty_struct *tty;
-	struct termios *termios;
+	struct ktermios *termios;
 
 	dbg ("%s", __FUNCTION__);
 
@@ -166,19 +166,17 @@ static int usb_console_setup(struct console *co, char *options)
 	if (serial->type->set_termios) {
 		/* build up a fake tty structure so that the open call has something
 		 * to look at to get the cflag value */
-		tty = kmalloc (sizeof (*tty), GFP_KERNEL);
+		tty = kzalloc(sizeof(*tty), GFP_KERNEL);
 		if (!tty) {
 			err ("no more memory");
 			return -ENOMEM;
 		}
-		termios = kmalloc (sizeof (*termios), GFP_KERNEL);
+		termios = kzalloc(sizeof(*termios), GFP_KERNEL);
 		if (!termios) {
 			err ("no more memory");
 			kfree (tty);
 			return -ENOMEM;
 		}
-		memset (tty, 0x00, sizeof(*tty));
-		memset (termios, 0x00, sizeof(*termios));
 		termios->c_cflag = cflag;
 		tty->termios = termios;
 		port->tty = tty;

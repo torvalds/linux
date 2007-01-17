@@ -80,12 +80,38 @@ static int amba_resume(struct device *dev)
 	return ret;
 }
 
+#define amba_attr_func(name,fmt,arg...)					\
+static ssize_t name##_show(struct device *_dev,				\
+			   struct device_attribute *attr, char *buf)	\
+{									\
+	struct amba_device *dev = to_amba_device(_dev);			\
+	return sprintf(buf, fmt, arg);					\
+}
+
+#define amba_attr(name,fmt,arg...)	\
+amba_attr_func(name,fmt,arg)		\
+static DEVICE_ATTR(name, S_IRUGO, name##_show, NULL)
+
+amba_attr_func(id, "%08x\n", dev->periphid);
+amba_attr(irq0, "%u\n", dev->irq[0]);
+amba_attr(irq1, "%u\n", dev->irq[1]);
+amba_attr_func(resource, "\t%016llx\t%016llx\t%016lx\n",
+	 (unsigned long long)dev->res.start, (unsigned long long)dev->res.end,
+	 dev->res.flags);
+
+static struct device_attribute amba_dev_attrs[] = {
+	__ATTR_RO(id),
+	__ATTR_RO(resource),
+	__ATTR_NULL,
+};
+
 /*
  * Primecells are part of the Advanced Microcontroller Bus Architecture,
  * so we call the bus "amba".
  */
 static struct bus_type amba_bustype = {
 	.name		= "amba",
+	.dev_attrs	= amba_dev_attrs,
 	.match		= amba_match,
 	.uevent		= amba_uevent,
 	.suspend	= amba_suspend,
@@ -169,21 +195,6 @@ static void amba_device_release(struct device *dev)
 	kfree(d);
 }
 
-#define amba_attr(name,fmt,arg...)				\
-static ssize_t show_##name(struct device *_dev, struct device_attribute *attr, char *buf)	\
-{								\
-	struct amba_device *dev = to_amba_device(_dev);		\
-	return sprintf(buf, fmt, arg);				\
-}								\
-static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
-
-amba_attr(id, "%08x\n", dev->periphid);
-amba_attr(irq0, "%u\n", dev->irq[0]);
-amba_attr(irq1, "%u\n", dev->irq[1]);
-amba_attr(resource, "\t%016llx\t%016llx\t%016lx\n",
-	 (unsigned long long)dev->res.start, (unsigned long long)dev->res.end,
-	 dev->res.flags);
-
 /**
  *	amba_device_register - register an AMBA device
  *	@dev: AMBA device to register
@@ -208,40 +219,46 @@ int amba_device_register(struct amba_device *dev, struct resource *parent)
 		dev_warn(&dev->dev, "coherent dma mask is unset\n");
 
 	ret = request_resource(parent, &dev->res);
-	if (ret == 0) {
-		tmp = ioremap(dev->res.start, SZ_4K);
-		if (!tmp) {
-			ret = -ENOMEM;
-			goto out;
-		}
+	if (ret)
+		goto err_out;
 
-		for (pid = 0, i = 0; i < 4; i++)
-			pid |= (readl(tmp + 0xfe0 + 4 * i) & 255) << (i * 8);
-		for (cid = 0, i = 0; i < 4; i++)
-			cid |= (readl(tmp + 0xff0 + 4 * i) & 255) << (i * 8);
-
-		iounmap(tmp);
-
-		if (cid == 0xb105f00d)
-			dev->periphid = pid;
-
-		if (dev->periphid)
-			ret = device_register(&dev->dev);
-		else
-			ret = -ENODEV;
-
-		if (ret == 0) {
-			device_create_file(&dev->dev, &dev_attr_id);
-			if (dev->irq[0] != NO_IRQ)
-				device_create_file(&dev->dev, &dev_attr_irq0);
-			if (dev->irq[1] != NO_IRQ)
-				device_create_file(&dev->dev, &dev_attr_irq1);
-			device_create_file(&dev->dev, &dev_attr_resource);
-		} else {
- out:
-			release_resource(&dev->res);
-		}
+	tmp = ioremap(dev->res.start, SZ_4K);
+	if (!tmp) {
+		ret = -ENOMEM;
+		goto err_release;
 	}
+
+	for (pid = 0, i = 0; i < 4; i++)
+		pid |= (readl(tmp + 0xfe0 + 4 * i) & 255) << (i * 8);
+	for (cid = 0, i = 0; i < 4; i++)
+		cid |= (readl(tmp + 0xff0 + 4 * i) & 255) << (i * 8);
+
+	iounmap(tmp);
+
+	if (cid == 0xb105f00d)
+		dev->periphid = pid;
+
+	if (!dev->periphid) {
+		ret = -ENODEV;
+		goto err_release;
+	}
+
+	ret = device_register(&dev->dev);
+	if (ret)
+		goto err_release;
+
+	if (dev->irq[0] != NO_IRQ)
+		ret = device_create_file(&dev->dev, &dev_attr_irq0);
+	if (ret == 0 && dev->irq[1] != NO_IRQ)
+		ret = device_create_file(&dev->dev, &dev_attr_irq1);
+	if (ret == 0)
+		return ret;
+
+	device_unregister(&dev->dev);
+
+ err_release:
+	release_resource(&dev->res);
+ err_out:
 	return ret;
 }
 

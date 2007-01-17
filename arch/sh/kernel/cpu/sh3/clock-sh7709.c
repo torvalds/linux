@@ -24,7 +24,7 @@ static int pfc_divisors[]    = { 1, 2, 4, 1, 3, 6, 1, 1 };
 
 static void set_bus_parent(struct clk *clk)
 {
-	struct clk *bus_clk = clk_get("bus_clk");
+	struct clk *bus_clk = clk_get(NULL, "bus_clk");
 	clk->parent = bus_clk;
 	clk_put(bus_clk);
 }

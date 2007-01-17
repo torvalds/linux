@@ -24,7 +24,6 @@ struct hpsb_address_serve {
 /* Only the following structures are of interest to actual highlevel drivers. */
 
 struct hpsb_highlevel {
-	struct module *owner;
 	const char *name;
 
 	/* Any of the following pointers can legally be NULL, except for

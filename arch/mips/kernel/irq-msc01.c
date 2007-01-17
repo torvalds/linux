@@ -45,31 +45,6 @@ static inline void unmask_msc_irq(unsigned int irq)
 }
 
 /*
- * Enables the IRQ on SOC-it
- */
-static void enable_msc_irq(unsigned int irq)
-{
-	unmask_msc_irq(irq);
-}
-
-/*
- * Initialize the IRQ on SOC-it
- */
-static unsigned int startup_msc_irq(unsigned int irq)
-{
-	unmask_msc_irq(irq);
-	return 0;
-}
-
-/*
- * Disables the IRQ on SOC-it
- */
-static void disable_msc_irq(unsigned int irq)
-{
-	mask_msc_irq(irq);
-}
-
-/*
  * Masks and ACKs an IRQ
  */
 static void level_mask_and_ack_msc_irq(unsigned int irq)
@@ -136,25 +111,23 @@ msc_bind_eic_interrupt (unsigned int irq, unsigned int set)
 		    (irq<<MSC01_IC_RAMW_ADDR_SHF) | (set<<MSC01_IC_RAMW_DATA_SHF));
 }
 
-#define shutdown_msc_irq	disable_msc_irq
-
 struct irq_chip msc_levelirq_type = {
 	.typename = "SOC-it-Level",
-	.startup = startup_msc_irq,
-	.shutdown = shutdown_msc_irq,
-	.enable = enable_msc_irq,
-	.disable = disable_msc_irq,
 	.ack = level_mask_and_ack_msc_irq,
+	.mask = mask_msc_irq,
+	.mask_ack = level_mask_and_ack_msc_irq,
+	.unmask = unmask_msc_irq,
+	.eoi = unmask_msc_irq,
 	.end = end_msc_irq,
 };
 
 struct irq_chip msc_edgeirq_type = {
 	.typename = "SOC-it-Edge",
-	.startup =startup_msc_irq,
-	.shutdown = shutdown_msc_irq,
-	.enable = enable_msc_irq,
-	.disable = disable_msc_irq,
 	.ack = edge_mask_and_ack_msc_irq,
+	.mask = mask_msc_irq,
+	.mask_ack = edge_mask_and_ack_msc_irq,
+	.unmask = unmask_msc_irq,
+	.eoi = unmask_msc_irq,
 	.end = end_msc_irq,
 };
 
@@ -175,14 +148,14 @@ void __init init_msc_irqs(unsigned int base, msc_irqmap_t *imp, int nirq)
 
 		switch (imp->im_type) {
 		case MSC01_IRQ_EDGE:
-			irq_desc[base+n].chip = &msc_edgeirq_type;
+			set_irq_chip(base+n, &msc_edgeirq_type);
 			if (cpu_has_veic)
 				MSCIC_WRITE(MSC01_IC_SUP+n*8, MSC01_IC_SUP_EDGE_BIT);
 			else
 				MSCIC_WRITE(MSC01_IC_SUP+n*8, MSC01_IC_SUP_EDGE_BIT | imp->im_lvl);
 			break;
 		case MSC01_IRQ_LEVEL:
-			irq_desc[base+n].chip = &msc_levelirq_type;
+			set_irq_chip(base+n, &msc_levelirq_type);
 			if (cpu_has_veic)
 				MSCIC_WRITE(MSC01_IC_SUP+n*8, 0);
 			else

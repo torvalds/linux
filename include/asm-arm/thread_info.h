@@ -94,8 +94,18 @@ static inline struct thread_info *current_thread_info(void)
 	return (struct thread_info *)(sp & ~(THREAD_SIZE - 1));
 }
 
-extern struct thread_info *alloc_thread_info(struct task_struct *task);
-extern void free_thread_info(struct thread_info *);
+/* thread information allocation */
+#ifdef CONFIG_DEBUG_STACK_USAGE
+#define alloc_thread_info(tsk) \
+	((struct thread_info *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, \
+		THREAD_SIZE_ORDER))
+#else
+#define alloc_thread_info(tsk) \
+	((struct thread_info *)__get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER))
+#endif
+
+#define free_thread_info(info) \
+	free_pages((unsigned long)info, THREAD_SIZE_ORDER);
 
 #define thread_saved_pc(tsk)	\
 	((unsigned long)(pc_pointer(task_thread_info(tsk)->cpu_context.pc)))
@@ -137,6 +147,7 @@ extern void iwmmxt_task_switch(struct thread_info *);
 #define TIF_POLLING_NRFLAG	16
 #define TIF_USING_IWMMXT	17
 #define TIF_MEMDIE		18
+#define TIF_FREEZE		19
 
 #define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
@@ -144,6 +155,7 @@ extern void iwmmxt_task_switch(struct thread_info *);
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
 #define _TIF_USING_IWMMXT	(1 << TIF_USING_IWMMXT)
+#define _TIF_FREEZE		(1 << TIF_FREEZE)
 
 /*
  * Change these and you break ASM code in entry-common.S

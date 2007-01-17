@@ -77,11 +77,15 @@ static int port_cost(struct net_device *dev)
  * Called from work queue to allow for calling functions that
  * might sleep (such as speed check), and to debounce.
  */
-static void port_carrier_check(void *arg)
+static void port_carrier_check(struct work_struct *work)
 {
-	struct net_device *dev = arg;
 	struct net_bridge_port *p;
+	struct net_device *dev;
 	struct net_bridge *br;
+
+	dev = container_of(work, struct net_bridge_port,
+			   carrier_check.work)->dev;
+	work_release(work);
 
 	rtnl_lock();
 	p = dev->br_port;
@@ -276,7 +280,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->port_no = index;
 	br_init_port(p);
 	p->state = BR_STATE_DISABLED;
-	INIT_WORK(&p->carrier_check, port_carrier_check, dev);
+	INIT_DELAYED_WORK_NAR(&p->carrier_check, port_carrier_check);
 	br_stp_port_timer_init(p);
 
 	kobject_init(&p->kobj);

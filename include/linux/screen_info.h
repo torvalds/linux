@@ -42,7 +42,8 @@ struct screen_info {
 	u16 pages;		/* 0x32 */
 	u16 vesa_attributes;	/* 0x34 */
 	u32 capabilities;       /* 0x36 */
-				/* 0x3a -- 0x3f reserved for future expansion */
+				/* 0x3a -- 0x3b reserved for future expansion */
+				/* 0x3c -- 0x3f micro stack for relocatable kernels */
 };
 
 extern struct screen_info screen_info;

@@ -197,7 +197,7 @@ config CPU_ARM940T
 	select CPU_CP15_MPU
 	help
 	  ARM940T is a member of the ARM9TDMI family of general-
-	  purpose microprocessors with MPU and seperate 4KB
+	  purpose microprocessors with MPU and separate 4KB
 	  instruction and 4KB data cases, each with a 4-word line
 	  length.
 
@@ -333,7 +333,7 @@ config CPU_XSCALE
 # XScale Core Version 3
 config CPU_XSC3
 	bool
-	depends on ARCH_IXP23XX
+	depends on ARCH_IXP23XX || ARCH_IOP13XX
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
@@ -580,7 +580,7 @@ config CPU_CACHE_ROUND_ROBIN
 
 config CPU_BPREDICT_DISABLE
 	bool "Disable branch prediction"
-	depends on CPU_ARM1020 || CPU_V6
+	depends on CPU_ARM1020 || CPU_V6 || CPU_XSC3
 	help
 	  Say Y here to disable branch prediction.  If unsure, say N.
 

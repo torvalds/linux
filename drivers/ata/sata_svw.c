@@ -56,6 +56,8 @@
 #define DRV_VERSION	"2.0"
 
 enum {
+	K2_FLAG_NO_ATAPI_DMA		= (1 << 29),
+
 	/* Taskfile registers offsets */
 	K2_SATA_TF_CMD_OFFSET		= 0x00,
 	K2_SATA_TF_DATA_OFFSET		= 0x00,
@@ -83,10 +85,32 @@ enum {
 
 	/* Port stride */
 	K2_SATA_PORT_OFFSET		= 0x100,
+
+	board_svw4			= 0,
+	board_svw8			= 1,
+};
+
+static const struct k2_board_info {
+	unsigned int		n_ports;
+	unsigned long		port_flags;
+} k2_board_info[] = {
+	/* board_svw4 */
+	{ 4, K2_FLAG_NO_ATAPI_DMA },
+
+	/* board_svw8 */
+	{ 8, K2_FLAG_NO_ATAPI_DMA },
 };
 
 static u8 k2_stat_check_status(struct ata_port *ap);
 
+
+static int k2_sata_check_atapi_dma(struct ata_queued_cmd *qc)
+{
+	if (qc->ap->flags & K2_FLAG_NO_ATAPI_DMA)
+		return -1;	/* ATAPI DMA not supported */
+
+	return 0;
+}
 
 static u32 k2_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
@@ -111,26 +135,31 @@ static void k2_sata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 	unsigned int is_addr = tf->flags & ATA_TFLAG_ISADDR;
 
 	if (tf->ctl != ap->last_ctl) {
-		writeb(tf->ctl, ioaddr->ctl_addr);
+		writeb(tf->ctl, (void __iomem *) ioaddr->ctl_addr);
 		ap->last_ctl = tf->ctl;
 		ata_wait_idle(ap);
 	}
 	if (is_addr && (tf->flags & ATA_TFLAG_LBA48)) {
-		writew(tf->feature | (((u16)tf->hob_feature) << 8), ioaddr->feature_addr);
-		writew(tf->nsect | (((u16)tf->hob_nsect) << 8), ioaddr->nsect_addr);
-		writew(tf->lbal | (((u16)tf->hob_lbal) << 8), ioaddr->lbal_addr);
-		writew(tf->lbam | (((u16)tf->hob_lbam) << 8), ioaddr->lbam_addr);
-		writew(tf->lbah | (((u16)tf->hob_lbah) << 8), ioaddr->lbah_addr);
+		writew(tf->feature | (((u16)tf->hob_feature) << 8),
+		       (void __iomem *) ioaddr->feature_addr);
+		writew(tf->nsect | (((u16)tf->hob_nsect) << 8),
+		       (void __iomem *) ioaddr->nsect_addr);
+		writew(tf->lbal | (((u16)tf->hob_lbal) << 8),
+		       (void __iomem *) ioaddr->lbal_addr);
+		writew(tf->lbam | (((u16)tf->hob_lbam) << 8),
+		       (void __iomem *) ioaddr->lbam_addr);
+		writew(tf->lbah | (((u16)tf->hob_lbah) << 8),
+		       (void __iomem *) ioaddr->lbah_addr);
 	} else if (is_addr) {
-		writew(tf->feature, ioaddr->feature_addr);
-		writew(tf->nsect, ioaddr->nsect_addr);
-		writew(tf->lbal, ioaddr->lbal_addr);
-		writew(tf->lbam, ioaddr->lbam_addr);
-		writew(tf->lbah, ioaddr->lbah_addr);
+		writew(tf->feature, (void __iomem *) ioaddr->feature_addr);
+		writew(tf->nsect, (void __iomem *) ioaddr->nsect_addr);
+		writew(tf->lbal, (void __iomem *) ioaddr->lbal_addr);
+		writew(tf->lbam, (void __iomem *) ioaddr->lbam_addr);
+		writew(tf->lbah, (void __iomem *) ioaddr->lbah_addr);
 	}
 
 	if (tf->flags & ATA_TFLAG_DEVICE)
-		writeb(tf->device, ioaddr->device_addr);
+		writeb(tf->device, (void __iomem *) ioaddr->device_addr);
 
 	ata_wait_idle(ap);
 }
@@ -142,12 +171,12 @@ static void k2_sata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	u16 nsect, lbal, lbam, lbah, feature;
 
 	tf->command = k2_stat_check_status(ap);
-	tf->device = readw(ioaddr->device_addr);
-	feature = readw(ioaddr->error_addr);
-	nsect = readw(ioaddr->nsect_addr);
-	lbal = readw(ioaddr->lbal_addr);
-	lbam = readw(ioaddr->lbam_addr);
-	lbah = readw(ioaddr->lbah_addr);
+	tf->device = readw((void __iomem *)ioaddr->device_addr);
+	feature = readw((void __iomem *)ioaddr->error_addr);
+	nsect = readw((void __iomem *)ioaddr->nsect_addr);
+	lbal = readw((void __iomem *)ioaddr->lbal_addr);
+	lbam = readw((void __iomem *)ioaddr->lbam_addr);
+	lbah = readw((void __iomem *)ioaddr->lbah_addr);
 
 	tf->feature = feature;
 	tf->nsect = nsect;
@@ -313,6 +342,7 @@ static const struct ata_port_operations k2_sata_ops = {
 	.check_status		= k2_stat_check_status,
 	.exec_command		= ata_exec_command,
 	.dev_select		= ata_std_dev_select,
+	.check_atapi_dma	= k2_sata_check_atapi_dma,
 	.bmdma_setup		= k2_bmdma_setup_mmio,
 	.bmdma_start		= k2_bmdma_start_mmio,
 	.bmdma_stop		= ata_bmdma_stop,
@@ -359,6 +389,8 @@ static int k2_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	struct ata_probe_ent *probe_ent = NULL;
 	unsigned long base;
 	void __iomem *mmio_base;
+	const struct k2_board_info *board_info =
+			&k2_board_info[ent->driver_data];
 	int pci_dev_busy = 0;
 	int rc;
 	int i;
@@ -424,7 +456,7 @@ static int k2_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 
 	probe_ent->sht = &k2_sata_sht;
 	probe_ent->port_flags = ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				ATA_FLAG_MMIO;
+				ATA_FLAG_MMIO | board_info->port_flags;
 	probe_ent->port_ops = &k2_sata_ops;
 	probe_ent->n_ports = 4;
 	probe_ent->irq = pdev->irq;
@@ -441,7 +473,7 @@ static int k2_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	/* different controllers have different number of ports - currently 4 or 8 */
 	/* All ports are on the same function. Multi-function device is no
 	 * longer available. This should not be seen in any system. */
-	for (i = 0; i < ent->driver_data; i++)
+	for (i = 0; i < board_info->n_ports; i++)
 		k2_sata_setup_port(&probe_ent->port[i], base + i * K2_SATA_PORT_OFFSET);
 
 	pci_set_master(pdev);
@@ -469,11 +501,11 @@ err_out:
  * controller
  * */
 static const struct pci_device_id k2_sata_pci_tbl[] = {
-	{ PCI_VDEVICE(SERVERWORKS, 0x0240), 4 },
-	{ PCI_VDEVICE(SERVERWORKS, 0x0241), 4 },
-	{ PCI_VDEVICE(SERVERWORKS, 0x0242), 8 },
-	{ PCI_VDEVICE(SERVERWORKS, 0x024a), 4 },
-	{ PCI_VDEVICE(SERVERWORKS, 0x024b), 4 },
+	{ PCI_VDEVICE(SERVERWORKS, 0x0240), board_svw4 },
+	{ PCI_VDEVICE(SERVERWORKS, 0x0241), board_svw4 },
+	{ PCI_VDEVICE(SERVERWORKS, 0x0242), board_svw8 },
+	{ PCI_VDEVICE(SERVERWORKS, 0x024a), board_svw4 },
+	{ PCI_VDEVICE(SERVERWORKS, 0x024b), board_svw4 },
 
 	{ }
 };

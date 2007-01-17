@@ -839,7 +839,6 @@ struct journal_s
  */
 
 /* Filing buffers */
-extern void __journal_temp_unlink_buffer(struct journal_head *jh);
 extern void journal_unfile_buffer(journal_t *, struct journal_head *);
 extern void __journal_unfile_buffer(struct journal_head *);
 extern void __journal_refile_buffer(struct journal_head *);
@@ -949,7 +948,7 @@ void journal_put_journal_head(struct journal_head *jh);
 /*
  * handle management
  */
-extern kmem_cache_t *jbd_handle_cache;
+extern struct kmem_cache *jbd_handle_cache;
 
 static inline handle_t *jbd_alloc_handle(gfp_t gfp_flags)
 {

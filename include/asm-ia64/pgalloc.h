@@ -60,7 +60,7 @@ static inline void *pgtable_quicklist_alloc(void)
 static inline void pgtable_quicklist_free(void *pgtable_entry)
 {
 #ifdef CONFIG_NUMA
-	unsigned long nid = page_to_nid(virt_to_page(pgtable_entry));
+	int nid = page_to_nid(virt_to_page(pgtable_entry));
 
 	if (unlikely(nid != numa_node_id())) {
 		free_page((unsigned long)pgtable_entry);

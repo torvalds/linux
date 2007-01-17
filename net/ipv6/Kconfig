@@ -196,10 +196,3 @@ config IPV6_SUBTREES
 
 	  If unsure, say N.
 
-config IPV6_ROUTE_FWMARK
-	bool "IPv6: use netfilter MARK value as routing key"
-	depends on IPV6_MULTIPLE_TABLES && NETFILTER
-	---help---
-	  If you say Y here, you will be able to specify different routes for
-	  packets with different mark values (see iptables(8), MARK target).
-

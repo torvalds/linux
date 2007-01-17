@@ -327,11 +327,10 @@ static void prism2_info_hostscanresults(local_info_t *local,
 	ptr = (u8 *) pos;
 
 	new_count = left / result_size;
-	results = kmalloc(new_count * sizeof(struct hfa384x_hostscan_result),
+	results = kcalloc(new_count, sizeof(struct hfa384x_hostscan_result),
 			  GFP_ATOMIC);
 	if (results == NULL)
 		return;
-	memset(results, 0, new_count * sizeof(struct hfa384x_hostscan_result));
 
 	for (i = 0; i < new_count; i++) {
 		memcpy(&results[i], ptr, copy_len);
@@ -474,9 +473,9 @@ static void handle_info_queue_scanresults(local_info_t *local)
 
 /* Called only as scheduled task after receiving info frames (used to avoid
  * pending too much time in HW IRQ handler). */
-static void handle_info_queue(void *data)
+static void handle_info_queue(struct work_struct *work)
 {
-	local_info_t *local = (local_info_t *) data;
+	local_info_t *local = container_of(work, local_info_t, info_queue);
 
 	if (test_and_clear_bit(PRISM2_INFO_PENDING_LINKSTATUS,
 			       &local->pending_info))
@@ -493,7 +492,7 @@ void hostap_info_init(local_info_t *local)
 {
 	skb_queue_head_init(&local->info_list);
 #ifndef PRISM2_NO_STATION_MODES
-	INIT_WORK(&local->info_queue, handle_info_queue, local);
+	INIT_WORK(&local->info_queue, handle_info_queue);
 #endif /* PRISM2_NO_STATION_MODES */
 }
 

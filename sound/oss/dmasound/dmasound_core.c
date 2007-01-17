@@ -1051,7 +1051,7 @@ static int sq_release(struct inode *inode, struct file *file)
 
 	if (file->f_mode & FMODE_WRITE) {
 		if (write_sq.busy)
-			rc = sq_fsync(file, file->f_dentry);
+			rc = sq_fsync(file, file->f_path.dentry);
 
 		sq_reset_output() ; /* make sure dma is stopped and all is quiet */
 		write_sq_release_buffers();
@@ -1217,7 +1217,7 @@ static int sq_ioctl(struct inode *inode, struct file *file, u_int cmd,
 		if ((file->f_mode & FMODE_READ) && dmasound.mach.record)
 			sq_reset_input() ;
 		if (file->f_mode & FMODE_WRITE) {
-			result = sq_fsync(file, file->f_dentry);
+			result = sq_fsync(file, file->f_path.dentry);
 			sq_reset_output() ;
 		}
 		/* if we are the shared resource owner then release them */

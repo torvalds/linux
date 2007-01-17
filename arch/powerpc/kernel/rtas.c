@@ -303,6 +303,12 @@ int rtas_token(const char *service)
 }
 EXPORT_SYMBOL(rtas_token);
 
+int rtas_service_present(const char *service)
+{
+	return rtas_token(service) != RTAS_UNKNOWN_SERVICE;
+}
+EXPORT_SYMBOL(rtas_service_present);
+
 #ifdef CONFIG_RTAS_ERROR_LOGGING
 /*
  * Return the firmware-specified size of the error log buffer
@@ -810,31 +816,6 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	return 0;
 }
 
-/* This version can't take the spinlock, because it never returns */
-
-struct rtas_args rtas_stop_self_args = {
-	/* The token is initialized for real in setup_system() */
-	.token = RTAS_UNKNOWN_SERVICE,
-	.nargs = 0,
-	.nret = 1,
-	.rets = &rtas_stop_self_args.args[0],
-};
-
-void rtas_stop_self(void)
-{
-	struct rtas_args *rtas_args = &rtas_stop_self_args;
-
-	local_irq_disable();
-
-	BUG_ON(rtas_args->token == RTAS_UNKNOWN_SERVICE);
-
-	printk("cpu %u (hwid %u) Ready to die...\n",
-	       smp_processor_id(), hard_smp_processor_id());
-	enter_rtas(__pa(rtas_args));
-
-	panic("Alas, I survived.\n");
-}
-
 /*
  * Call early during boot, before mem init or bootmem, to retrieve the RTAS
  * informations from the device-tree and allocate the RMO buffer for userland
@@ -879,9 +860,6 @@ void __init rtas_initialize(void)
 #endif
 	rtas_rmo_buf = lmb_alloc_base(RTAS_RMOBUF_MAX, PAGE_SIZE, rtas_region);
 
-#ifdef CONFIG_HOTPLUG_CPU
-	rtas_stop_self_args.token = rtas_token("stop-self");
-#endif /* CONFIG_HOTPLUG_CPU */
 #ifdef CONFIG_RTAS_ERROR_LOGGING
 	rtas_last_error_token = rtas_token("rtas-last-error");
 #endif

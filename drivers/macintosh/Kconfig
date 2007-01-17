@@ -162,7 +162,6 @@ config INPUT_ADBHID
 
 config MAC_EMUMOUSEBTN
 	bool "Support for mouse button 2+3 emulation"
-	depends on INPUT_ADBHID
 	help
 	  This provides generic support for emulating the 2nd and 3rd mouse
 	  button with keypresses.  If you say Y here, the emulation is still
@@ -227,5 +226,12 @@ config WINDFARM_PM112
 config ANSLCD
 	tristate "Support for ANS LCD display"
 	depends on ADB_CUDA && PPC_PMAC
+
+config PMAC_RACKMETER
+	tristate "Support for Apple XServe front panel LEDs"
+	depends on PPC_PMAC
+	help
+	  This driver procides some support to control the front panel
+          blue LEDs "vu-meter" of the XServer macs.
 
 endmenu

@@ -17,7 +17,6 @@
 #include <linux/crypto.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/seq_file.h>

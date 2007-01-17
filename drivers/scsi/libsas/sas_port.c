@@ -181,9 +181,11 @@ void sas_deform_port(struct asd_sas_phy *phy)
 
 /* ---------- SAS port events ---------- */
 
-void sas_porte_bytes_dmaed(void *data)
+void sas_porte_bytes_dmaed(struct work_struct *work)
 {
-	struct asd_sas_phy *phy = data;
+	struct asd_sas_event *ev =
+		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_phy *phy = ev->phy;
 
 	sas_begin_event(PORTE_BYTES_DMAED, &phy->ha->event_lock,
 			&phy->port_events_pending);
@@ -191,11 +193,13 @@ void sas_porte_bytes_dmaed(void *data)
 	sas_form_port(phy);
 }
 
-void sas_porte_broadcast_rcvd(void *data)
+void sas_porte_broadcast_rcvd(struct work_struct *work)
 {
+	struct asd_sas_event *ev =
+		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_phy *phy = ev->phy;
 	unsigned long flags;
 	u32 prim;
-	struct asd_sas_phy *phy = data;
 
 	sas_begin_event(PORTE_BROADCAST_RCVD, &phy->ha->event_lock,
 			&phy->port_events_pending);
@@ -208,9 +212,11 @@ void sas_porte_broadcast_rcvd(void *data)
 	sas_discover_event(phy->port, DISCE_REVALIDATE_DOMAIN);
 }
 
-void sas_porte_link_reset_err(void *data)
+void sas_porte_link_reset_err(struct work_struct *work)
 {
-	struct asd_sas_phy *phy = data;
+	struct asd_sas_event *ev =
+		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_phy *phy = ev->phy;
 
 	sas_begin_event(PORTE_LINK_RESET_ERR, &phy->ha->event_lock,
 			&phy->port_events_pending);
@@ -218,9 +224,11 @@ void sas_porte_link_reset_err(void *data)
 	sas_deform_port(phy);
 }
 
-void sas_porte_timer_event(void *data)
+void sas_porte_timer_event(struct work_struct *work)
 {
-	struct asd_sas_phy *phy = data;
+	struct asd_sas_event *ev =
+		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_phy *phy = ev->phy;
 
 	sas_begin_event(PORTE_TIMER_EVENT, &phy->ha->event_lock,
 			&phy->port_events_pending);
@@ -228,9 +236,11 @@ void sas_porte_timer_event(void *data)
 	sas_deform_port(phy);
 }
 
-void sas_porte_hard_reset(void *data)
+void sas_porte_hard_reset(struct work_struct *work)
 {
-	struct asd_sas_phy *phy = data;
+	struct asd_sas_event *ev =
+		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_phy *phy = ev->phy;
 
 	sas_begin_event(PORTE_HARD_RESET, &phy->ha->event_lock,
 			&phy->port_events_pending);

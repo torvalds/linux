@@ -14,8 +14,10 @@
 
 #ifdef CONFIG_XMON
 extern void xmon_setup(void);
+extern void xmon_register_spus(struct list_head *list);
 #else
 static inline void xmon_setup(void) { };
+static inline void xmon_register_spus(struct list_head *list) { };
 #endif
 
 #endif /* __KERNEL __ */

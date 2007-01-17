@@ -316,7 +316,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	}
 	memset(flow,0,sizeof(*flow));
 	flow->filter_list = NULL;
-	if (!(flow->q = qdisc_create_dflt(sch->dev,&pfifo_qdisc_ops)))
+	if (!(flow->q = qdisc_create_dflt(sch->dev,&pfifo_qdisc_ops,classid)))
 		flow->q = &noop_qdisc;
 	DPRINTK("atm_tc_change: qdisc %p\n",flow->q);
 	flow->sock = sock;
@@ -576,7 +576,8 @@ static int atm_tc_init(struct Qdisc *sch,struct rtattr *opt)
 
 	DPRINTK("atm_tc_init(sch %p,[qdisc %p],opt %p)\n",sch,p,opt);
 	p->flows = &p->link;
-	if(!(p->link.q = qdisc_create_dflt(sch->dev,&pfifo_qdisc_ops)))
+	if(!(p->link.q = qdisc_create_dflt(sch->dev,&pfifo_qdisc_ops,
+					   sch->handle)))
 		p->link.q = &noop_qdisc;
 	DPRINTK("atm_tc_init: link (%p) qdisc %p\n",&p->link,p->link.q);
 	p->link.filter_list = NULL;

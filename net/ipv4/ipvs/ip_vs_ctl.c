@@ -221,10 +221,10 @@ static void update_defense_level(void)
  *	Timer for checking the defense
  */
 #define DEFENSE_TIMER_PERIOD	1*HZ
-static void defense_work_handler(void *data);
-static DECLARE_WORK(defense_work, defense_work_handler, NULL);
+static void defense_work_handler(struct work_struct *work);
+static DECLARE_DELAYED_WORK(defense_work, defense_work_handler);
 
-static void defense_work_handler(void *data)
+static void defense_work_handler(struct work_struct *work)
 {
 	update_defense_level();
 	if (atomic_read(&ip_vs_dropentry))

@@ -13,9 +13,8 @@
 #ifndef _XTENSA_ELF_H
 #define _XTENSA_ELF_H
 
+#include <asm/variant/core.h>
 #include <asm/ptrace.h>
-#include <asm/coprocessor.h>
-#include <xtensa/config/core.h>
 
 /* Xtensa processor ELF architecture-magic number */
 
@@ -118,11 +117,15 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
  * using memcpy().  But we do allow space for such alignment,
  * to allow optimizations of layout and copying.
  */
-
+#if 0
 #define TOTAL_FPREGS_SIZE						\
   	(4 + XTENSA_CPE_LTABLE_SIZE + XTENSA_CP_EXTRA_SIZE)
 #define ELF_NFPREG							\
 	((TOTAL_FPREGS_SIZE + sizeof(elf_fpreg_t) - 1) / sizeof(elf_fpreg_t))
+#else
+#define TOTAL_FPREGS_SIZE	0
+#define ELF_NFPREG		0
+#endif
 
 typedef unsigned int elf_fpreg_t;
 typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];

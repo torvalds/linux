@@ -461,7 +461,7 @@
       This needs the RD-Bit to be disabled on IM_OTHER_SCSI_CMD_CMD which 
       allows data to be written from the system to the device. It is a
       necessary step to be allowed to set blocksize of SCSI-tape-drives and 
-      the tape-speed, whithout confusing the SCSI-Subsystem.
+      the tape-speed, without confusing the SCSI-Subsystem.
    2) The recognition of a tape is included in the check_devices routine.
       This is done by checking for TYPE_TAPE, that is already defined in
       the kernel-scsi-environment. The markup of a tape is done in the 
@@ -710,8 +710,8 @@
       of troubles with some controllers and after I wanted to apply some
       extensions, it jumped out in the same situation, on my w/cache, as like 
       on D. Weinehalls' Model 56, having integrated SCSI. This gave me the 
-      descissive hint to move the code-part out and declare it global. Now,
-      it seems to work by far much better an more stable. Let us see, what
+      decisive hint to move the code-part out and declare it global. Now
+      it seems to work far better and more stable. Let us see what
       the world thinks of it...
    3) By the way, only Sony DAT-drives seem to show density code 0x13. A
       test with a HP drive gave right results, so the problem is vendor-
@@ -822,10 +822,10 @@
    A long period of collecting bugreports from all corners of the world
    now lead to the following corrections to the code:
    1) SCSI-2 F/W support crashed with a COMMAND ERROR. The reason for this 
-      was, that it is possible to disbale Fast-SCSI for the external bus.
-      The feature-control command, where this crash appeared regularly tried
+      was that it is possible to disable Fast-SCSI for the external bus.
+      The feature-control command, where this crash appeared regularly, tried
       to set the maximum speed of 10MHz synchronous transfer speed and that
-      reports a COMMAND ERROR, if external bus Fast-SCSI is disabled. Now,
+      reports a COMMAND ERROR if external bus Fast-SCSI is disabled. Now,
       the feature-command probes down from maximum speed until the adapter 
       stops to complain, which is at the same time the maximum possible
       speed selected in the reference program. So, F/W external can run at
@@ -920,7 +920,7 @@
       completed in such a way, that they are now completely conform to the
       demands in the technical description of IBM. Main candidates were the
       DEVICE_INQUIRY, REQUEST_SENSE and DEVICE_CAPACITY commands. They must
-      be tranferred by bypassing the internal command buffer of the adapter
+      be transferred by bypassing the internal command buffer of the adapter
       or else the response can be a random result. GET_POS_INFO would be more
       safe in usage, if one could use the SUPRESS_EXCEPTION_SHORT, but this
       is not allowed by the technical references of IBM. (Sorry, folks, the

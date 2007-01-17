@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/time.h>
+#include <linux/clocksource.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
@@ -24,33 +25,7 @@
 /* Use timer 1 as system timer */
 #define TIMER_BASE IMX_TIM1_BASE
 
-/*
- * Returns number of us since last clock interrupt.  Note that interrupts
- * will have been disabled by do_gettimeoffset()
- */
-static unsigned long imx_gettimeoffset(void)
-{
-	unsigned long ticks;
-
-	/*
-	 * Get the current number of ticks.  Note that there is a race
-	 * condition between us reading the timer and checking for
-	 * an interrupt.  We get around this by ensuring that the
-	 * counter has not reloaded between our two reads.
-	 */
-	ticks = IMX_TCN(TIMER_BASE);
-
-	/*
-	 * Interrupt pending?  If so, we've reloaded once already.
-	 */
-	if (IMX_TSTAT(TIMER_BASE) & TSTAT_COMP)
-		ticks += LATCH;
-
-	/*
-	 * Convert the ticks to usecs
-	 */
-	return (1000000 / CLK32) * ticks;
-}
+static unsigned long evt_diff;
 
 /*
  * IRQ handler for the timer
@@ -58,14 +33,23 @@ static unsigned long imx_gettimeoffset(void)
 static irqreturn_t
 imx_timer_interrupt(int irq, void *dev_id)
 {
-	write_seqlock(&xtime_lock);
+	uint32_t tstat;
 
 	/* clear the interrupt */
-	if (IMX_TSTAT(TIMER_BASE))
-		IMX_TSTAT(TIMER_BASE) = 0;
+	tstat = IMX_TSTAT(TIMER_BASE);
+	IMX_TSTAT(TIMER_BASE) = 0;
 
-	timer_tick();
-	write_sequnlock(&xtime_lock);
+	if (tstat & TSTAT_COMP) {
+		do {
+
+			write_seqlock(&xtime_lock);
+			timer_tick();
+			write_sequnlock(&xtime_lock);
+			IMX_TCMP(TIMER_BASE) += evt_diff;
+
+		} while (unlikely((int32_t)(IMX_TCMP(TIMER_BASE)
+					- IMX_TCN(TIMER_BASE)) < 0));
+	}
 
 	return IRQ_HANDLED;
 }
@@ -77,9 +61,9 @@ static struct irqaction imx_timer_irq = {
 };
 
 /*
- * Set up timer interrupt, and return the current time in seconds.
+ * Set up timer hardware into expected mode and state.
  */
-static void __init imx_timer_init(void)
+static void __init imx_timer_hardware_init(void)
 {
 	/*
 	 * Initialise to a known state (all timers off, and timing reset)
@@ -87,7 +71,38 @@ static void __init imx_timer_init(void)
 	IMX_TCTL(TIMER_BASE) = 0;
 	IMX_TPRER(TIMER_BASE) = 0;
 	IMX_TCMP(TIMER_BASE) = LATCH - 1;
-	IMX_TCTL(TIMER_BASE) = TCTL_CLK_32 | TCTL_IRQEN | TCTL_TEN;
+
+	IMX_TCTL(TIMER_BASE) = TCTL_FRR | TCTL_CLK_PCLK1 | TCTL_IRQEN | TCTL_TEN;
+	evt_diff = LATCH;
+}
+
+cycle_t imx_get_cycles(void)
+{
+	return IMX_TCN(TIMER_BASE);
+}
+
+static struct clocksource clocksource_imx = {
+	.name 		= "imx_timer1",
+	.rating		= 200,
+	.read		= imx_get_cycles,
+	.mask		= 0xFFFFFFFF,
+	.shift 		= 20,
+	.is_continuous 	= 1,
+};
+
+static int __init imx_clocksource_init(void)
+{
+	clocksource_imx.mult =
+		clocksource_hz2mult(imx_get_perclk1(), clocksource_imx.shift);
+	clocksource_register(&clocksource_imx);
+
+	return 0;
+}
+
+static void __init imx_timer_init(void)
+{
+	imx_timer_hardware_init();
+	imx_clocksource_init();
 
 	/*
 	 * Make irqs happen for the system timer
@@ -97,5 +112,4 @@ static void __init imx_timer_init(void)
 
 struct sys_timer imx_timer = {
 	.init		= imx_timer_init,
-	.offset		= imx_gettimeoffset,
 };

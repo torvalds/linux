@@ -223,12 +223,15 @@ static int cobra_connect(struct gameport *gameport, struct gameport_driver *drv)
 		for (j = 0; cobra_btn[j]; j++)
 			set_bit(cobra_btn[j], input_dev->keybit);
 
-		input_register_device(cobra->dev[i]);
+		err = input_register_device(cobra->dev[i]);
+		if (err)
+			goto fail4;
 	}
 
 	return 0;
 
- fail3:	for (i = 0; i < 2; i++)
+ fail4:	input_free_device(cobra->dev[i]);
+ fail3:	while (--i >= 0)
 		if (cobra->dev[i])
 			input_unregister_device(cobra->dev[i]);
  fail2:	gameport_close(gameport);

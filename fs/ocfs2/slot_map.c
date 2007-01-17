@@ -175,7 +175,7 @@ int ocfs2_init_slot_info(struct ocfs2_super *osb)
 	struct buffer_head *bh = NULL;
 	struct ocfs2_slot_info *si;
 
-	si = kcalloc(1, sizeof(struct ocfs2_slot_info), GFP_KERNEL);
+	si = kzalloc(sizeof(struct ocfs2_slot_info), GFP_KERNEL);
 	if (!si) {
 		status = -ENOMEM;
 		mlog_errno(status);

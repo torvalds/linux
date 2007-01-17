@@ -5,7 +5,7 @@
  * (C) Copyright 2000-2002 David Brownell <dbrownell@users.sourceforge.net>
  * (C) Copyright 2002 Hewlett-Packard Company
  * (C) Copyright 2003-2005 MontaVista Software Inc.
- * 
+ *
  * Bus Glue for PPC On-Chip OHCI driver
  * Tested on Freescale MPC5200 and IBM STB04xxx
  *
@@ -85,7 +85,7 @@ static int usb_hcd_ppc_soc_probe(const struct hc_driver *driver,
  err2:
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
  err1:
- 	usb_put_hcd(hcd);
+	usb_put_hcd(hcd);
 	return retval;
 }
 
@@ -148,7 +148,7 @@ static const struct hc_driver ohci_ppc_soc_hc_driver = {
 	 */
 	.start =		ohci_ppc_soc_start,
 	.stop =			ohci_stop,
-	.shutdown = 		ohci_shutdown,
+	.shutdown =		ohci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -197,7 +197,7 @@ static int ohci_hcd_ppc_soc_drv_remove(struct platform_device *pdev)
 static struct platform_driver ohci_hcd_ppc_soc_driver = {
 	.probe		= ohci_hcd_ppc_soc_drv_probe,
 	.remove		= ohci_hcd_ppc_soc_drv_remove,
-	.shutdown 	= usb_hcd_platform_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 #ifdef	CONFIG_PM
 	/*.suspend	= ohci_hcd_ppc_soc_drv_suspend,*/
 	/*.resume	= ohci_hcd_ppc_soc_drv_resume,*/

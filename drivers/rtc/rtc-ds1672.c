@@ -199,7 +199,7 @@ static int ds1672_probe(struct i2c_adapter *adapter, int address, int kind)
 	struct i2c_client *client;
 	struct rtc_device *rtc;
 
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
+	dev_dbg(adapter->class_dev.dev, "%s\n", __FUNCTION__);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
@@ -237,16 +237,21 @@ static int ds1672_probe(struct i2c_adapter *adapter, int address, int kind)
 	/* read control register */
 	err = ds1672_get_control(client, &control);
 	if (err)
-		goto exit_detach;
+		goto exit_devreg;
 
 	if (control & DS1672_REG_CONTROL_EOSC)
 		dev_warn(&client->dev, "Oscillator not enabled. "
 					"Set time to enable.\n");
 
 	/* Register sysfs hooks */
-	device_create_file(&client->dev, &dev_attr_control);
+	err = device_create_file(&client->dev, &dev_attr_control);
+	if (err)
+		goto exit_devreg;
 
 	return 0;
+
+exit_devreg:
+	rtc_device_unregister(rtc);
 
 exit_detach:
 	i2c_detach_client(client);

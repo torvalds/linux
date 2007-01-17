@@ -60,7 +60,7 @@
  */
 
 #define HASH_SIZE  16
-#define HASH(addr) ((addr^(addr>>4))&0xF)
+#define HASH(addr) (((__force u32)addr^((__force u32)addr>>4))&0xF)
 
 static int ipip6_fb_tunnel_init(struct net_device *dev);
 static int ipip6_tunnel_init(struct net_device *dev);
@@ -76,7 +76,7 @@ static struct ip_tunnel **tunnels[4] = { tunnels_wc, tunnels_l, tunnels_r, tunne
 
 static DEFINE_RWLOCK(ipip6_lock);
 
-static struct ip_tunnel * ipip6_tunnel_lookup(u32 remote, u32 local)
+static struct ip_tunnel * ipip6_tunnel_lookup(__be32 remote, __be32 local)
 {
 	unsigned h0 = HASH(remote);
 	unsigned h1 = HASH(local);
@@ -102,8 +102,8 @@ static struct ip_tunnel * ipip6_tunnel_lookup(u32 remote, u32 local)
 
 static struct ip_tunnel ** ipip6_bucket(struct ip_tunnel *t)
 {
-	u32 remote = t->parms.iph.daddr;
-	u32 local = t->parms.iph.saddr;
+	__be32 remote = t->parms.iph.daddr;
+	__be32 local = t->parms.iph.saddr;
 	unsigned h = 0;
 	int prio = 0;
 
@@ -144,8 +144,8 @@ static void ipip6_tunnel_link(struct ip_tunnel *t)
 
 static struct ip_tunnel * ipip6_tunnel_locate(struct ip_tunnel_parm *parms, int create)
 {
-	u32 remote = parms->iph.daddr;
-	u32 local = parms->iph.saddr;
+	__be32 remote = parms->iph.daddr;
+	__be32 local = parms->iph.saddr;
 	struct ip_tunnel *t, **tp, *nt;
 	struct net_device *dev;
 	unsigned h = 0;
@@ -405,9 +405,9 @@ out:
 /* Returns the embedded IPv4 address if the IPv6 address
    comes from 6to4 (RFC 3056) addr space */
 
-static inline u32 try_6to4(struct in6_addr *v6dst)
+static inline __be32 try_6to4(struct in6_addr *v6dst)
 {
-	u32 dst = 0;
+	__be32 dst = 0;
 
 	if (v6dst->s6_addr16[0] == htons(0x2002)) {
 	        /* 6to4 v6 addr has 16 bits prefix, 32 v4addr, 16 SLA, ... */
@@ -432,7 +432,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct net_device *tdev;			/* Device to other host */
 	struct iphdr  *iph;			/* Our new IP header */
 	int    max_headroom;			/* The extra header space needed */
-	u32    dst = tiph->daddr;
+	__be32 dst = tiph->daddr;
 	int    mtu;
 	struct in6_addr *addr6;	
 	int addr_type;
@@ -809,7 +809,7 @@ static void __exit sit_destroy_tunnels(void)
 	}
 }
 
-void __exit sit_cleanup(void)
+static void __exit sit_cleanup(void)
 {
 	inet_del_protocol(&sit_protocol, IPPROTO_IPV6);
 
@@ -819,7 +819,7 @@ void __exit sit_cleanup(void)
 	rtnl_unlock();
 }
 
-int __init sit_init(void)
+static int __init sit_init(void)
 {
 	int err;
 

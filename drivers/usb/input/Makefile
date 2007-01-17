@@ -11,9 +11,6 @@ usbhid-objs	:= hid-core.o
 ifeq ($(CONFIG_USB_HIDDEV),y)
 	usbhid-objs	+= hiddev.o
 endif
-ifeq ($(CONFIG_USB_HIDINPUT),y)
-	usbhid-objs	+= hid-input.o
-endif
 ifeq ($(CONFIG_HID_PID),y)
 	usbhid-objs	+= hid-pidff.o
 endif

@@ -182,7 +182,7 @@ struct ak4114 {
 	unsigned char rcs0;
 	unsigned char rcs1;
 	struct workqueue_struct *workqueue;
-	struct work_struct work;
+	struct delayed_work work;
 	void *change_callback_private;
 	void (*change_callback)(struct ak4114 *ak4114, unsigned char c0, unsigned char c1);
 };

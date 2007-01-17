@@ -312,6 +312,8 @@
 #define NODE__RAWIP_RECV                          0x00000010UL
 #define NODE__RAWIP_SEND                          0x00000020UL
 #define NODE__ENFORCE_DEST                        0x00000040UL
+#define NODE__DCCP_RECV                           0x00000080UL
+#define NODE__DCCP_SEND                           0x00000100UL
 
 #define NETIF__TCP_RECV                           0x00000001UL
 #define NETIF__TCP_SEND                           0x00000002UL
@@ -319,6 +321,8 @@
 #define NETIF__UDP_SEND                           0x00000008UL
 #define NETIF__RAWIP_RECV                         0x00000010UL
 #define NETIF__RAWIP_SEND                         0x00000020UL
+#define NETIF__DCCP_RECV                          0x00000040UL
+#define NETIF__DCCP_SEND                          0x00000080UL
 
 #define NETLINK_SOCKET__IOCTL                     0x00000001UL
 #define NETLINK_SOCKET__READ                      0x00000002UL
@@ -970,3 +974,31 @@
 #define KEY__LINK                                 0x00000010UL
 #define KEY__SETATTR                              0x00000020UL
 #define KEY__CREATE                               0x00000040UL
+
+#define CONTEXT__TRANSLATE                        0x00000001UL
+#define CONTEXT__CONTAINS                         0x00000002UL
+
+#define DCCP_SOCKET__IOCTL                        0x00000001UL
+#define DCCP_SOCKET__READ                         0x00000002UL
+#define DCCP_SOCKET__WRITE                        0x00000004UL
+#define DCCP_SOCKET__CREATE                       0x00000008UL
+#define DCCP_SOCKET__GETATTR                      0x00000010UL
+#define DCCP_SOCKET__SETATTR                      0x00000020UL
+#define DCCP_SOCKET__LOCK                         0x00000040UL
+#define DCCP_SOCKET__RELABELFROM                  0x00000080UL
+#define DCCP_SOCKET__RELABELTO                    0x00000100UL
+#define DCCP_SOCKET__APPEND                       0x00000200UL
+#define DCCP_SOCKET__BIND                         0x00000400UL
+#define DCCP_SOCKET__CONNECT                      0x00000800UL
+#define DCCP_SOCKET__LISTEN                       0x00001000UL
+#define DCCP_SOCKET__ACCEPT                       0x00002000UL
+#define DCCP_SOCKET__GETOPT                       0x00004000UL
+#define DCCP_SOCKET__SETOPT                       0x00008000UL
+#define DCCP_SOCKET__SHUTDOWN                     0x00010000UL
+#define DCCP_SOCKET__RECVFROM                     0x00020000UL
+#define DCCP_SOCKET__SENDTO                       0x00040000UL
+#define DCCP_SOCKET__RECV_MSG                     0x00080000UL
+#define DCCP_SOCKET__SEND_MSG                     0x00100000UL
+#define DCCP_SOCKET__NAME_BIND                    0x00200000UL
+#define DCCP_SOCKET__NODE_BIND                    0x00400000UL
+#define DCCP_SOCKET__NAME_CONNECT                 0x00800000UL

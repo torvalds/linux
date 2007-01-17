@@ -787,15 +787,20 @@ exp_get_by_name(svc_client *clp, struct vfsmount *mnt, struct dentry *dentry,
 	key.ex_dentry = dentry;
 
 	exp = svc_export_lookup(&key);
-	if (exp != NULL) 
-		switch (cache_check(&svc_export_cache, &exp->h, reqp)) {
+	if (exp != NULL)  {
+		int err;
+
+		err = cache_check(&svc_export_cache, &exp->h, reqp);
+		switch (err) {
 		case 0: break;
 		case -EAGAIN:
-			exp = ERR_PTR(-EAGAIN);
+		case -ETIMEDOUT:
+			exp = ERR_PTR(err);
 			break;
 		default:
 			exp = NULL;
 		}
+	}
 
 	return exp;
 }
@@ -950,6 +955,8 @@ exp_export(struct nfsctl_export *nxp)
 
 	exp = exp_get_by_name(clp, nd.mnt, nd.dentry, NULL);
 
+	memset(&new, 0, sizeof(new));
+
 	/* must make sure there won't be an ex_fsid clash */
 	if ((nxp->ex_flags & NFSEXP_FSID) &&
 	    (fsid_key = exp_get_fsid_key(clp, nxp->ex_dev)) &&
@@ -980,6 +987,9 @@ exp_export(struct nfsctl_export *nxp)
 
 	new.h.expiry_time = NEVER;
 	new.h.flags = 0;
+	new.ex_path = kstrdup(nxp->ex_path, GFP_KERNEL);
+	if (!new.ex_path)
+		goto finish;
 	new.ex_client = clp;
 	new.ex_mnt = nd.mnt;
 	new.ex_dentry = nd.dentry;
@@ -1000,10 +1010,11 @@ exp_export(struct nfsctl_export *nxp)
 		/* failed to create at least one index */
 		exp_do_unexport(exp);
 		cache_flush();
-		err = -ENOMEM;
-	}
-
+	} else
+		err = 0;
 finish:
+	if (new.ex_path)
+		kfree(new.ex_path);
 	if (exp)
 		exp_put(exp);
 	if (fsid_key && !IS_ERR(fsid_key))
@@ -1104,6 +1115,10 @@ exp_rootfh(svc_client *clp, char *path, struct knfsd_fh *f, int maxsize)
 		 path, nd.dentry, clp->name,
 		 inode->i_sb->s_id, inode->i_ino);
 	exp = exp_parent(clp, nd.mnt, nd.dentry, NULL);
+	if (IS_ERR(exp)) {
+		err = PTR_ERR(exp);
+		goto out;
+	}
 	if (!exp) {
 		dprintk("nfsd: exp_rootfh export not found.\n");
 		goto out;
@@ -1159,12 +1174,10 @@ exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
 	mk_fsid_v1(fsidv, 0);
 
 	exp = exp_find(clp, 1, fsidv, creq);
-	if (IS_ERR(exp) && PTR_ERR(exp) == -EAGAIN)
-		return nfserr_dropit;
+	if (IS_ERR(exp))
+		return nfserrno(PTR_ERR(exp));
 	if (exp == NULL)
 		return nfserr_perm;
-	else if (IS_ERR(exp))
-		return nfserrno(PTR_ERR(exp));
 	rv = fh_compose(fhp, exp, exp->ex_dentry, NULL);
 	exp_put(exp);
 	return rv;

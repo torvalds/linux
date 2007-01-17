@@ -53,6 +53,7 @@ struct rpc_clnt {
 	struct dentry *		cl_dentry;	/* inode */
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
+	struct rpc_program *	cl_program;
 	char			cl_inline_name[32];
 };
 

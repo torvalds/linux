@@ -521,14 +521,9 @@ static void __exit unload_pciehpd(void)
 
 }
 
-static int hpdriver_context = 0;
-
 static void pciehp_remove (struct pcie_device *device)
 {
-	printk("%s ENTRY\n", __FUNCTION__);	
-	printk("%s -> Call free_irq for irq = %d\n",  
-		__FUNCTION__, device->irq);
-	free_irq(device->irq, &hpdriver_context);
+	/* XXX - Needs to be adapted to device driver model */
 }
 
 #ifdef CONFIG_PM

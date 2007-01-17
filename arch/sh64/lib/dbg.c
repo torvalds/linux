@@ -383,7 +383,7 @@ void show_excp_regs(char *from, int trapnr, int signr, struct pt_regs *regs)
 /* ======================================================================= */
 
 /*
-** Depending on <base> scan the MMU, Data or Instrction side
+** Depending on <base> scan the MMU, Data or Instruction side
 ** looking for a valid mapping matching Eaddr & asid.
 ** Return -1 if not found or the TLB id entry otherwise.
 ** Note: it works only for 4k pages!

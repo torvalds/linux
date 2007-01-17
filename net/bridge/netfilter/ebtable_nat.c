@@ -30,7 +30,7 @@ static struct ebt_entries initial_chains[] =
 	}
 };
 
-static struct ebt_replace initial_table =
+static struct ebt_replace_kernel initial_table =
 {
 	.name		= "nat",
 	.valid_hooks	= NAT_VALID_HOOKS,

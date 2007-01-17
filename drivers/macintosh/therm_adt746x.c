@@ -24,13 +24,14 @@
 #include <linux/suspend.h>
 #include <linux/kthread.h>
 #include <linux/moduleparam.h>
+#include <linux/freezer.h>
 
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/sections.h>
-#include <asm/of_device.h>
+#include <asm/of_platform.h>
 
 #undef DEBUG
 

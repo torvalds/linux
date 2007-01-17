@@ -452,16 +452,20 @@ struct all_info {
 	struct cg14_par par;
 };
 
-static void cg14_unmap_regs(struct all_info *all)
+static void cg14_unmap_regs(struct of_device *op, struct all_info *all)
 {
 	if (all->par.regs)
-		of_iounmap(all->par.regs, sizeof(struct cg14_regs));
+		of_iounmap(&op->resource[0],
+			   all->par.regs, sizeof(struct cg14_regs));
 	if (all->par.clut)
-		of_iounmap(all->par.clut, sizeof(struct cg14_clut));
+		of_iounmap(&op->resource[0],
+			   all->par.clut, sizeof(struct cg14_clut));
 	if (all->par.cursor)
-		of_iounmap(all->par.cursor, sizeof(struct cg14_cursor));
+		of_iounmap(&op->resource[0],
+			   all->par.cursor, sizeof(struct cg14_cursor));
 	if (all->info.screen_base)
-		of_iounmap(all->info.screen_base, all->par.fbsize);
+		of_iounmap(&op->resource[1],
+			   all->info.screen_base, all->par.fbsize);
 }
 
 static int __devinit cg14_init_one(struct of_device *op)
@@ -506,7 +510,7 @@ static int __devinit cg14_init_one(struct of_device *op)
 
 	if (!all->par.regs || !all->par.clut || !all->par.cursor ||
 	    !all->info.screen_base)
-		cg14_unmap_regs(all);
+		cg14_unmap_regs(op, all);
 
 	is_8mb = (((op->resource[1].end - op->resource[1].start) + 1) ==
 		  (8 * 1024 * 1024));
@@ -541,7 +545,7 @@ static int __devinit cg14_init_one(struct of_device *op)
 	__cg14_reset(&all->par);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		cg14_unmap_regs(all);
+		cg14_unmap_regs(op, all);
 		kfree(all);
 		return -ENOMEM;
 	}
@@ -552,7 +556,7 @@ static int __devinit cg14_init_one(struct of_device *op)
 	err = register_framebuffer(&all->info);
 	if (err < 0) {
 		fb_dealloc_cmap(&all->info.cmap);
-		cg14_unmap_regs(all);
+		cg14_unmap_regs(op, all);
 		kfree(all);
 		return err;
 	}
@@ -574,18 +578,18 @@ static int __devinit cg14_probe(struct of_device *dev, const struct of_device_id
 	return cg14_init_one(op);
 }
 
-static int __devexit cg14_remove(struct of_device *dev)
+static int __devexit cg14_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&dev->dev);
+	struct all_info *all = dev_get_drvdata(&op->dev);
 
 	unregister_framebuffer(&all->info);
 	fb_dealloc_cmap(&all->info.cmap);
 
-	cg14_unmap_regs(all);
+	cg14_unmap_regs(op, all);
 
 	kfree(all);
 
-	dev_set_drvdata(&dev->dev, NULL);
+	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

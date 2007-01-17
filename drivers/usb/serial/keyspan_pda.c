@@ -120,6 +120,8 @@ struct keyspan_pda_private {
 	int			tx_throttled;
 	struct work_struct			wakeup_work;
 	struct work_struct			unthrottle_work;
+	struct usb_serial	*serial;
+	struct usb_serial_port	*port;
 };
 
 
@@ -175,9 +177,11 @@ static struct usb_device_id id_table_fake_xircom [] = {
 };
 #endif
 
-static void keyspan_pda_wakeup_write( struct usb_serial_port *port )
+static void keyspan_pda_wakeup_write(struct work_struct *work)
 {
-
+	struct keyspan_pda_private *priv =
+		container_of(work, struct keyspan_pda_private, wakeup_work);
+	struct usb_serial_port *port = priv->port;
 	struct tty_struct *tty = port->tty;
 
 	/* wake up port processes */
@@ -187,8 +191,11 @@ static void keyspan_pda_wakeup_write( struct usb_serial_port *port )
 	tty_wakeup(tty);
 }
 
-static void keyspan_pda_request_unthrottle( struct usb_serial *serial )
+static void keyspan_pda_request_unthrottle(struct work_struct *work)
 {
+	struct keyspan_pda_private *priv =
+		container_of(work, struct keyspan_pda_private, unthrottle_work);
+	struct usb_serial *serial = priv->serial;
 	int result;
 
 	dbg(" request_unthrottle");
@@ -358,7 +365,7 @@ static void keyspan_pda_break_ctl (struct usb_serial_port *port, int break_state
 
 
 static void keyspan_pda_set_termios (struct usb_serial_port *port, 
-				     struct termios *old_termios)
+				     struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	unsigned int cflag = port->tty->termios->c_cflag;
@@ -765,11 +772,10 @@ static int keyspan_pda_startup (struct usb_serial *serial)
 		return (1); /* error */
 	usb_set_serial_port_data(serial->port[0], priv);
 	init_waitqueue_head(&serial->port[0]->write_wait);
-	INIT_WORK(&priv->wakeup_work, (void *)keyspan_pda_wakeup_write,
-			(void *)(serial->port[0]));
-	INIT_WORK(&priv->unthrottle_work,
-			(void *)keyspan_pda_request_unthrottle,
-			(void *)(serial));
+	INIT_WORK(&priv->wakeup_work, keyspan_pda_wakeup_write);
+	INIT_WORK(&priv->unthrottle_work, keyspan_pda_request_unthrottle);
+	priv->serial = serial;
+	priv->port = serial->port[0];
 	return (0);
 }
 

@@ -288,6 +288,27 @@ nop (unsigned int irq)
 	/* do nothing... */
 }
 
+
+#ifdef CONFIG_KEXEC
+void
+kexec_disable_iosapic(void)
+{
+	struct iosapic_intr_info *info;
+	struct iosapic_rte_info *rte;
+	u8 vec = 0;
+	for (info = iosapic_intr_info; info <
+			iosapic_intr_info + IA64_NUM_VECTORS; ++info, ++vec) {
+		list_for_each_entry(rte, &info->rtes,
+				rte_list) {
+			iosapic_write(rte->addr,
+					IOSAPIC_RTE_LOW(rte->rte_index),
+					IOSAPIC_MASK|vec);
+			iosapic_eoi(rte->addr, vec);
+		}
+	}
+}
+#endif
+
 static void
 mask_irq (unsigned int irq)
 {

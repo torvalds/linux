@@ -1763,8 +1763,8 @@ static unsigned int serial8250_get_divisor(struct uart_port *port, unsigned int 
 }
 
 static void
-serial8250_set_termios(struct uart_port *port, struct termios *termios,
-		       struct termios *old)
+serial8250_set_termios(struct uart_port *port, struct ktermios *termios,
+		       struct ktermios *old)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 	unsigned char cval, fcr = 0;
@@ -2296,7 +2296,7 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	local_irq_restore(flags);
 }
 
-static int serial8250_console_setup(struct console *co, char *options)
+static int __init serial8250_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
 	int baud = 9600;

@@ -19,52 +19,17 @@
 
 #include "sclp.h"
 
-
-#ifdef CONFIG_SMP
-/* Signal completion of shutdown process. All CPUs except the first to enter
- * this function: go to stopped state. First CPU: wait until all other
- * CPUs are in stopped or check stop state. Afterwards, load special PSW
- * to indicate completion. */
-static void
-do_load_quiesce_psw(void * __unused)
-{
-	static atomic_t cpuid = ATOMIC_INIT(-1);
-	psw_t quiesce_psw;
-	int cpu;
-
-	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) != -1)
-		signal_processor(smp_processor_id(), sigp_stop);
-	/* Wait for all other cpus to enter stopped state */
-	for_each_online_cpu(cpu) {
-		if (cpu == smp_processor_id())
-			continue;
-		while(!smp_cpu_not_running(cpu))
-			cpu_relax();
-	}
-	/* Quiesce the last cpu with the special psw */
-	quiesce_psw.mask = PSW_BASE_BITS | PSW_MASK_WAIT;
-	quiesce_psw.addr = 0xfff;
-	__load_psw(quiesce_psw);
-}
-
-/* Shutdown handler. Perform shutdown function on all CPUs. */
-static void
-do_machine_quiesce(void)
-{
-	on_each_cpu(do_load_quiesce_psw, NULL, 0, 0);
-}
-#else
 /* Shutdown handler. Signal completion of shutdown by loading special PSW. */
 static void
 do_machine_quiesce(void)
 {
 	psw_t quiesce_psw;
 
+	smp_send_stop();
 	quiesce_psw.mask = PSW_BASE_BITS | PSW_MASK_WAIT;
 	quiesce_psw.addr = 0xfff;
 	__load_psw(quiesce_psw);
 }
-#endif
 
 /* Handler for quiesce event. Start shutdown procedure. */
 static void

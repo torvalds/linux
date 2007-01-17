@@ -84,7 +84,7 @@ struct inet_timewait_death_row {
 };
 
 extern void inet_twdr_hangman(unsigned long data);
-extern void inet_twdr_twkill_work(void *data);
+extern void inet_twdr_twkill_work(struct work_struct *work);
 extern void inet_twdr_twcal_tick(unsigned long data);
 
 #if (BITS_PER_LONG == 64)

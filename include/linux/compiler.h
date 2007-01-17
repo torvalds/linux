@@ -40,7 +40,7 @@ extern void __chk_io_ptr(void __iomem *);
 #error no compiler-gcc.h file for this gcc version
 #elif __GNUC__ == 4
 # include <linux/compiler-gcc4.h>
-#elif __GNUC__ == 3
+#elif __GNUC__ == 3 && __GNUC_MINOR__ >= 2
 # include <linux/compiler-gcc3.h>
 #else
 # error Sorry, your compiler is too old/not recognized.

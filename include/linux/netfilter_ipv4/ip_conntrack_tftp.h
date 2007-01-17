@@ -4,7 +4,7 @@
 #define TFTP_PORT 69
 
 struct tftphdr {
-	u_int16_t opcode;
+	__be16 opcode;
 };
 
 #define TFTP_OPCODE_READ	1

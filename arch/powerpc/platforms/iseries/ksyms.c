@@ -19,9 +19,3 @@ EXPORT_SYMBOL(HvCall4);
 EXPORT_SYMBOL(HvCall5);
 EXPORT_SYMBOL(HvCall6);
 EXPORT_SYMBOL(HvCall7);
-
-#ifdef CONFIG_SMP
-EXPORT_SYMBOL(local_get_flags);
-EXPORT_SYMBOL(local_irq_disable);
-EXPORT_SYMBOL(local_irq_restore);
-#endif

@@ -23,7 +23,7 @@ static struct ebt_entries initial_chain = {
 	.policy		= EBT_ACCEPT,
 };
 
-static struct ebt_replace initial_table =
+static struct ebt_replace_kernel initial_table =
 {
 	.name		= "broute",
 	.valid_hooks	= 1 << NF_BR_BROUTING,

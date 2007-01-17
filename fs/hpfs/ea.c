@@ -243,8 +243,9 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, char *key, char *data
 		fnode->ea_offs = 0xc4;
 	}
 	if (fnode->ea_offs < 0xc4 || fnode->ea_offs + fnode->acl_size_s + fnode->ea_size_s > 0x200) {
-		hpfs_error(s, "fnode %08x: ea_offs == %03x, ea_size_s == %03x",
-			inode->i_ino, fnode->ea_offs, fnode->ea_size_s);
+		hpfs_error(s, "fnode %08lx: ea_offs == %03x, ea_size_s == %03x",
+			(unsigned long)inode->i_ino,
+			fnode->ea_offs, fnode->ea_size_s);
 		return;
 	}
 	if ((fnode->ea_size_s || !fnode->ea_size_l) &&

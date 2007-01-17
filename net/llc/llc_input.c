@@ -115,8 +115,8 @@ static inline int llc_fixup_skb(struct sk_buff *skb)
 	skb->h.raw += llc_len;
 	skb_pull(skb, llc_len);
 	if (skb->protocol == htons(ETH_P_802_2)) {
-		u16 pdulen = eth_hdr(skb)->h_proto,
-		    data_size = ntohs(pdulen) - llc_len;
+		__be16 pdulen = eth_hdr(skb)->h_proto;
+		u16 data_size = ntohs(pdulen) - llc_len;
 
 		if (unlikely(pskb_trim_rcsum(skb, data_size)))
 			return 0;

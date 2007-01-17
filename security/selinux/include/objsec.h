@@ -23,6 +23,7 @@
 #include <linux/fs.h>
 #include <linux/binfmts.h>
 #include <linux/in.h>
+#include <linux/spinlock.h>
 #include "flask.h"
 #include "avc.h"
 
@@ -108,6 +109,7 @@ struct sk_security_struct {
 		NLBL_REQUIRE,
 		NLBL_LABELED,
 	} nlbl_state;
+	spinlock_t nlbl_lock;		/* protects nlbl_state */
 #endif
 };
 

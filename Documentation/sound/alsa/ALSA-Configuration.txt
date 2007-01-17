@@ -955,7 +955,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		  dmx6fire, dsp24, dsp24_value, dsp24_71, ez8,
 		  phase88, mediastation
     omni	- Omni I/O support for MidiMan M-Audio Delta44/66
-    cs8427_timeout - reset timeout for the CS8427 chip (S/PDIF transciever)
+    cs8427_timeout - reset timeout for the CS8427 chip (S/PDIF transceiver)
                      in msec resolution, default value is 500 (0.5 sec)
 
     This module supports multiple cards and autoprobe. Note: The consumer part

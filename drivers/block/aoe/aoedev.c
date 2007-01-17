@@ -88,7 +88,7 @@ aoedev_newdev(ulong nframes)
  			kfree(d);
 		return NULL;
 	}
-	INIT_WORK(&d->work, aoecmd_sleepwork, d);
+	INIT_WORK(&d->work, aoecmd_sleepwork);
 	spin_lock_init(&d->lock);
 	init_timer(&d->timer);
 	d->timer.data = (ulong) d;

@@ -26,11 +26,11 @@ struct inet_hashinfo;
 
 /* I have no idea if this is a good hash for v6 or not. -DaveM */
 static inline unsigned int inet6_ehashfn(const struct in6_addr *laddr, const u16 lport,
-				const struct in6_addr *faddr, const u16 fport)
+				const struct in6_addr *faddr, const __be16 fport)
 {
-	unsigned int hashent = (lport ^ fport);
+	unsigned int hashent = (lport ^ (__force u16)fport);
 
-	hashent ^= (laddr->s6_addr32[3] ^ faddr->s6_addr32[3]);
+	hashent ^= (__force u32)(laddr->s6_addr32[3] ^ faddr->s6_addr32[3]);
 	hashent ^= hashent >> 16;
 	hashent ^= hashent >> 8;
 	return hashent;
@@ -43,7 +43,7 @@ static inline int inet6_sk_ehashfn(const struct sock *sk)
 	const struct in6_addr *laddr = &np->rcv_saddr;
 	const struct in6_addr *faddr = &np->daddr;
 	const __u16 lport = inet->num;
-	const __u16 fport = inet->dport;
+	const __be16 fport = inet->dport;
 	return inet6_ehashfn(laddr, lport, faddr, fport);
 }
 
@@ -57,7 +57,7 @@ extern void __inet6_hash(struct inet_hashinfo *hashinfo, struct sock *sk);
  */
 extern struct sock *__inet6_lookup_established(struct inet_hashinfo *hashinfo,
 					   const struct in6_addr *saddr,
-					   const u16 sport,
+					   const __be16 sport,
 					   const struct in6_addr *daddr,
 					   const u16 hnum,
 					   const int dif);
@@ -69,7 +69,7 @@ extern struct sock *inet6_lookup_listener(struct inet_hashinfo *hashinfo,
 
 static inline struct sock *__inet6_lookup(struct inet_hashinfo *hashinfo,
 					  const struct in6_addr *saddr,
-					  const u16 sport,
+					  const __be16 sport,
 					  const struct in6_addr *daddr,
 					  const u16 hnum,
 					  const int dif)
@@ -83,8 +83,8 @@ static inline struct sock *__inet6_lookup(struct inet_hashinfo *hashinfo,
 }
 
 extern struct sock *inet6_lookup(struct inet_hashinfo *hashinfo,
-				 const struct in6_addr *saddr, const u16 sport,
-				 const struct in6_addr *daddr, const u16 dport,
+				 const struct in6_addr *saddr, const __be16 sport,
+				 const struct in6_addr *daddr, const __be16 dport,
 				 const int dif);
 #endif /* defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE) */
 #endif /* _INET6_HASHTABLES_H */

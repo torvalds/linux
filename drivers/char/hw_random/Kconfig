@@ -3,17 +3,20 @@
 #
 
 config HW_RANDOM
-	bool "Hardware Random Number Generator Core support"
-	default y
+	tristate "Hardware Random Number Generator Core support"
+	default m
 	---help---
 	  Hardware Random Number Generator Core infrastructure.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rng-core.
 
 	  If unsure, say Y.
 
 config HW_RANDOM_INTEL
 	tristate "Intel HW Random Number Generator support"
 	depends on HW_RANDOM && (X86 || IA64) && PCI
-	default y
+	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on Intel i8xx-based motherboards.
@@ -26,7 +29,7 @@ config HW_RANDOM_INTEL
 config HW_RANDOM_AMD
 	tristate "AMD HW Random Number Generator support"
 	depends on HW_RANDOM && X86 && PCI
-	default y
+	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on AMD 76x-based motherboards.
@@ -39,7 +42,7 @@ config HW_RANDOM_AMD
 config HW_RANDOM_GEODE
 	tristate "AMD Geode HW Random Number Generator support"
 	depends on HW_RANDOM && X86 && PCI
-	default y
+	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on the AMD Geode LX.
@@ -52,7 +55,7 @@ config HW_RANDOM_GEODE
 config HW_RANDOM_VIA
 	tristate "VIA HW Random Number Generator support"
 	depends on HW_RANDOM && X86_32
-	default y
+	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on VIA based motherboards.
@@ -65,7 +68,7 @@ config HW_RANDOM_VIA
 config HW_RANDOM_IXP4XX
 	tristate "Intel IXP4xx NPU HW Random Number Generator support"
 	depends on HW_RANDOM && ARCH_IXP4XX
-	default y
+	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random
 	  Number Generator hardware found on the Intel IXP4xx NPU.
@@ -78,7 +81,7 @@ config HW_RANDOM_IXP4XX
 config HW_RANDOM_OMAP
 	tristate "OMAP Random Number Generator support"
 	depends on HW_RANDOM && (ARCH_OMAP16XX || ARCH_OMAP24XX)
-	default y
+	default HW_RANDOM
  	---help---
  	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on OMAP16xx and OMAP24xx multimedia

@@ -11,8 +11,8 @@
 
 #define RODATA								\
 	. = ALIGN(4096);						\
-	__start_rodata = .;						\
 	.rodata           : AT(ADDR(.rodata) - LOAD_OFFSET) {		\
+		VMLINUX_SYMBOL(__start_rodata) = .;			\
 		*(.rodata) *(.rodata.*)					\
 		*(__vermagic)		/* Kernel version magic */	\
 	}								\
@@ -35,6 +35,9 @@
 		VMLINUX_SYMBOL(__start_pci_fixups_enable) = .;		\
 		*(.pci_fixup_enable)					\
 		VMLINUX_SYMBOL(__end_pci_fixups_enable) = .;		\
+		VMLINUX_SYMBOL(__start_pci_fixups_resume) = .;		\
+		*(.pci_fixup_resume)					\
+		VMLINUX_SYMBOL(__end_pci_fixups_resume) = .;		\
 	}								\
 									\
 	/* RapidIO route ops */						\
@@ -124,12 +127,9 @@
 		VMLINUX_SYMBOL(__start___param) = .;			\
 		*(__param)						\
 		VMLINUX_SYMBOL(__stop___param) = .;			\
+		VMLINUX_SYMBOL(__end_rodata) = .;			\
 	}								\
 									\
-	/* Unwind data binary search table */				\
-	EH_FRAME_HDR							\
-									\
-	__end_rodata = .;						\
 	. = ALIGN(4096);
 
 #define SECURITY_INIT							\
@@ -160,18 +160,6 @@
 		VMLINUX_SYMBOL(__kprobes_text_start) = .;		\
 		*(.kprobes.text)					\
 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
-
-#ifdef CONFIG_STACK_UNWIND
-		/* Unwind data binary search table */
-#define EH_FRAME_HDR							\
-        	.eh_frame_hdr : AT(ADDR(.eh_frame_hdr) - LOAD_OFFSET) {	\
-			VMLINUX_SYMBOL(__start_unwind_hdr) = .;		\
-			*(.eh_frame_hdr)				\
-			VMLINUX_SYMBOL(__end_unwind_hdr) = .;		\
-		}
-#else
-#define EH_FRAME_HDR
-#endif
 
 		/* DWARF debug sections.
 		Symbols in the DWARF debugging sections are relative to
@@ -211,6 +199,14 @@
 		.stab.indexstr 0 : { *(.stab.indexstr) }		\
 		.comment 0 : { *(.comment) }
 
+#define BUG_TABLE							\
+	. = ALIGN(8);							\
+	__bug_table : AT(ADDR(__bug_table) - LOAD_OFFSET) {		\
+		__start___bug_table = .;				\
+		*(__bug_table)						\
+		__stop___bug_table = .;					\
+	}
+
 #define NOTES								\
 		.notes : { *(.note.*) } :note
 
@@ -227,6 +223,7 @@
   	*(.initcall4s.init)						\
   	*(.initcall5.init)						\
   	*(.initcall5s.init)						\
+	*(.initcallrootfs.init)						\
   	*(.initcall6.init)						\
   	*(.initcall6s.init)						\
   	*(.initcall7.init)						\

@@ -922,8 +922,8 @@ sunzilog_convert_to_zs(struct uart_sunzilog_port *up, unsigned int cflag,
 
 /* The port lock is not held.  */
 static void
-sunzilog_set_termios(struct uart_port *port, struct termios *termios,
-		     struct termios *old)
+sunzilog_set_termios(struct uart_port *port, struct ktermios *termios,
+		     struct ktermios *old)
 {
 	struct uart_sunzilog_port *up = (struct uart_sunzilog_port *) port;
 	unsigned long flags;
@@ -1379,13 +1379,15 @@ static int __devinit zs_probe(struct of_device *op, const struct of_device_id *m
 	if (!keyboard_mouse) {
 		err = uart_add_one_port(&sunzilog_reg, &up[0].port);
 		if (err) {
-			of_iounmap(rp, sizeof(struct zilog_layout));
+			of_iounmap(&op->resource[0],
+				   rp, sizeof(struct zilog_layout));
 			return err;
 		}
 		err = uart_add_one_port(&sunzilog_reg, &up[1].port);
 		if (err) {
 			uart_remove_one_port(&sunzilog_reg, &up[0].port);
-			of_iounmap(rp, sizeof(struct zilog_layout));
+			of_iounmap(&op->resource[0],
+				   rp, sizeof(struct zilog_layout));
 			return err;
 		}
 	} else {
@@ -1414,18 +1416,18 @@ static void __devexit zs_remove_one(struct uart_sunzilog_port *up)
 		uart_remove_one_port(&sunzilog_reg, &up->port);
 }
 
-static int __devexit zs_remove(struct of_device *dev)
+static int __devexit zs_remove(struct of_device *op)
 {
-	struct uart_sunzilog_port *up = dev_get_drvdata(&dev->dev);
+	struct uart_sunzilog_port *up = dev_get_drvdata(&op->dev);
 	struct zilog_layout __iomem *regs;
 
 	zs_remove_one(&up[0]);
 	zs_remove_one(&up[1]);
 
 	regs = sunzilog_chip_regs[up[0].port.line / 2];
-	of_iounmap(regs, sizeof(struct zilog_layout));
+	of_iounmap(&op->resource[0], regs, sizeof(struct zilog_layout));
 
-	dev_set_drvdata(&dev->dev, NULL);
+	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

@@ -30,7 +30,7 @@ Caveats
 Features which OCFS2 does not support yet:
 	- sparse files
 	- extended attributes
-	- shared writeable mmap
+	- shared writable mmap
 	- loopback is supported, but data written will not
 	  be cluster coherent.
 	- quotas
@@ -54,3 +54,6 @@ errors=panic		Panic and halt the machine if an error occurs.
 intr		(*)	Allow signals to interrupt cluster operations.
 nointr			Do not allow signals to interrupt cluster
 			operations.
+atime_quantum=60(*)	OCFS2 will not update atime unless this number
+			of seconds has passed since the last update.
+			Set to zero to always update atime.

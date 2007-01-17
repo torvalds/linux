@@ -5706,7 +5706,7 @@ int __init init_module(void)
         return found ? 0 : -ENODEV;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
         int i;
 

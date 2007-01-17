@@ -53,15 +53,6 @@ mpc85xx_exclude_device(u_char bus, u_char devfn)
 	else
 		return PCIBIOS_SUCCESSFUL;
 }
-
-void __init
-mpc85xx_pcibios_fixup(void)
-{
-	struct pci_dev *dev = NULL;
-
-	for_each_pci_dev(dev)
-		pci_read_irq_line(dev);
-}
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_CPM2
@@ -253,8 +244,6 @@ static void __init mpc85xx_ads_setup_arch(void)
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
 		add_bridge(np);
-
-	ppc_md.pcibios_fixup = mpc85xx_pcibios_fixup;
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 #endif
 

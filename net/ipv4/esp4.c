@@ -67,7 +67,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	if (x->encap) {
 		struct xfrm_encap_tmpl *encap = x->encap;
 		struct udphdr *uh;
-		u32 *udpdata32;
+		__be32 *udpdata32;
 
 		uh = (struct udphdr *)esph;
 		uh->source = encap->encap_sport;
@@ -81,7 +81,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 			esph = (struct ip_esp_hdr *)(uh + 1);
 			break;
 		case UDP_ENCAP_ESPINUDP_NON_IKE:
-			udpdata32 = (u32 *)(uh + 1);
+			udpdata32 = (__be32 *)(uh + 1);
 			udpdata32[0] = udpdata32[1] = 0;
 			esph = (struct ip_esp_hdr *)(udpdata32 + 2);
 			break;

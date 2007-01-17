@@ -41,7 +41,7 @@
 #include <linux/reiserfs_xattr.h>
 #include <linux/reiserfs_acl.h>
 #include <asm/uaccess.h>
-#include <asm/checksum.h>
+#include <net/checksum.h>
 #include <linux/smp_lock.h>
 #include <linux/stat.h>
 #include <asm/semaphore.h>
@@ -274,7 +274,7 @@ static struct file *open_xa_file(const struct inode *inode, const char *name,
  */
 static int __xattr_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cpu_key pos_key;	/* key of current position in the directory (key of directory entry) */
 	INITIALIZE_PATH(path_to_entry);
 	struct buffer_head *bh;
@@ -420,7 +420,7 @@ static int __xattr_readdir(struct file *filp, void *dirent, filldir_t filldir)
 static
 int xattr_readdir(struct file *file, filldir_t filler, void *buf)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	int res = -ENOTDIR;
 	if (!file->f_op || !file->f_op->readdir)
 		goto out;
@@ -508,7 +508,7 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 		goto out;
 	}
 
-	xinode = fp->f_dentry->d_inode;
+	xinode = fp->f_path.dentry->d_inode;
 	REISERFS_I(inode)->i_flags |= i_has_xattr_dir;
 
 	/* we need to copy it off.. */
@@ -527,7 +527,7 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	newattrs.ia_size = buffer_size;
 	newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
 	mutex_lock(&xinode->i_mutex);
-	err = notify_change(fp->f_dentry, &newattrs);
+	err = notify_change(fp->f_path.dentry, &newattrs);
 	if (err)
 		goto out_filp;
 
@@ -626,7 +626,7 @@ reiserfs_xattr_get(const struct inode *inode, const char *name, void *buffer,
 		goto out;
 	}
 
-	xinode = fp->f_dentry->d_inode;
+	xinode = fp->f_path.dentry->d_inode;
 	isize = xinode->i_size;
 	REISERFS_I(inode)->i_flags |= i_has_xattr_dir;
 

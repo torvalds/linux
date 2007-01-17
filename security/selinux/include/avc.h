@@ -54,12 +54,12 @@ struct avc_audit_data {
 			char *netif;
 			struct sock *sk;
 			u16 family;
-			u16 dport;
-			u16 sport;
+			__be16 dport;
+			__be16 sport;
 			union {
 				struct {
-					u32 daddr;
-					u32 saddr;
+					__be32 daddr;
+					__be32 saddr;
 				} v4;
 				struct {
 					struct in6_addr daddr;

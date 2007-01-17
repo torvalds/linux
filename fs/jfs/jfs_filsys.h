@@ -29,31 +29,21 @@
 /*
  *	 file system option (superblock flag)
  */
-/* mount time flag to disable journaling to disk */
-#define JFS_NOINTEGRITY 0x00000010
+
+/* directory option */
+#define JFS_UNICODE	0x00000001	/* unicode name */
 
 /* mount time flags for error handling */
 #define JFS_ERR_REMOUNT_RO 0x00000002   /* remount read-only */
 #define JFS_ERR_CONTINUE   0x00000004   /* continue */
 #define JFS_ERR_PANIC      0x00000008   /* panic */
 
+/* Quota support */
 #define	JFS_USRQUOTA	0x00000010
 #define	JFS_GRPQUOTA	0x00000020
 
-/* platform option (conditional compilation) */
-#define JFS_AIX		0x80000000	/* AIX support */
-/*	POSIX name/directory  support */
-
-#define JFS_OS2		0x40000000	/* OS/2 support */
-/*	case-insensitive name/directory support */
-
-#define JFS_DFS		0x20000000	/* DCE DFS LFS support */
-
-#define JFS_LINUX	0x10000000	/* Linux support */
-/*	case-sensitive name/directory support */
-
-/* directory option */
-#define JFS_UNICODE	0x00000001	/* unicode name */
+/* mount time flag to disable journaling to disk */
+#define JFS_NOINTEGRITY 0x00000040
 
 /* commit option */
 #define	JFS_COMMIT	0x00000f00	/* commit option mask */
@@ -61,6 +51,7 @@
 #define	JFS_LAZYCOMMIT	0x00000200	/* lazy commit */
 #define	JFS_TMPFS	0x00000400	/* temporary file system -
 					 * do not log/commit:
+					 * Never implemented
 					 */
 
 /* log logical volume option */
@@ -74,16 +65,25 @@
 #define JFS_SPARSE	0x00020000	/* sparse regular file */
 
 /* DASD Limits		F226941 */
-#define JFS_DASD_ENABLED	0x00040000	/* DASD limits enabled */
-#define	JFS_DASD_PRIME		0x00080000	/* Prime DASD usage on boot */
+#define JFS_DASD_ENABLED 0x00040000	/* DASD limits enabled */
+#define	JFS_DASD_PRIME	0x00080000	/* Prime DASD usage on boot */
 
 /* big endian flag */
-#define	JFS_SWAP_BYTES		0x00100000	/* running on big endian computer */
+#define	JFS_SWAP_BYTES	0x00100000	/* running on big endian computer */
 
 /* Directory index */
-#define JFS_DIR_INDEX		0x00200000	/* Persistant index for */
-						/* directory entries    */
+#define JFS_DIR_INDEX	0x00200000	/* Persistent index for */
 
+/* platform options */
+#define JFS_LINUX	0x10000000	/* Linux support */
+#define JFS_DFS		0x20000000	/* DCE DFS LFS support */
+/*	Never implemented */
+
+#define JFS_OS2		0x40000000	/* OS/2 support */
+/*	case-insensitive name/directory support */
+
+#define JFS_AIX		0x80000000	/* AIX support */
+/*	POSIX name/directory  support - Never implemented*/
 
 /*
  *	buffer cache configuration

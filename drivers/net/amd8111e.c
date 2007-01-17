@@ -1490,32 +1490,7 @@ static void amd8111e_read_regs(struct amd8111e_priv *lp, u32 *buf)
 	buf[12] = readl(mmio + STAT0);
 }
 
-/*
-amd8111e crc generator implementation is different from the kernel
-ether_crc() function.
-*/
-static int amd8111e_ether_crc(int len, char* mac_addr)
-{
-	int i,byte;
-	unsigned char octet;
-	u32 crc= INITCRC;
 
-	for(byte=0; byte < len; byte++){
-		octet = mac_addr[byte];
-		for( i=0;i < 8; i++){
-			/*If the next bit form the input stream is 1,subtract				 the divisor (CRC32) from the dividend(crc).*/
-			if( (octet & 0x1) ^ (crc & 0x1) ){
-				crc >>= 1;
-				crc ^= CRC32;
-			}
-			else
-				crc >>= 1;
-
-			octet >>= 1;
-		}
-	}
-	return crc;
-}
 /*
 This function sets promiscuos mode, all-multi mode or the multicast address
 list to the device.
@@ -1556,7 +1531,7 @@ static void amd8111e_set_multicast_list(struct net_device *dev)
 	mc_filter[1] = mc_filter[0] = 0;
 	for (i = 0, mc_ptr = dev->mc_list; mc_ptr && i < dev->mc_count;
 		     i++, mc_ptr = mc_ptr->next) {
-		bit_num = ( amd8111e_ether_crc(ETH_ALEN,mc_ptr->dmi_addr)							 >> 26 ) & 0x3f;
+		bit_num = (ether_crc_le(ETH_ALEN, mc_ptr->dmi_addr) >> 26) & 0x3f;
 		mc_filter[bit_num >> 5] |= 1 << (bit_num & 31);
 	}
 	amd8111e_writeq(*(u64*)mc_filter,lp->mmio+ LADRF);

@@ -68,7 +68,8 @@ static void **dlm_alloc_pagevec(int pages)
 			goto out_free;
 
 	mlog(0, "Allocated DLM hash pagevec; %d pages (%lu expected), %lu buckets per page\n",
-	     pages, DLM_HASH_PAGES, (unsigned long)DLM_BUCKETS_PER_PAGE);
+	     pages, (unsigned long)DLM_HASH_PAGES,
+	     (unsigned long)DLM_BUCKETS_PER_PAGE);
 	return vec;
 out_free:
 	dlm_free_pagevec(vec, i);
@@ -919,7 +920,7 @@ static int dlm_try_to_join_domain(struct dlm_ctxt *dlm)
 
 	mlog_entry("%p", dlm);
 
-	ctxt = kcalloc(1, sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -1222,7 +1223,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	int i;
 	struct dlm_ctxt *dlm = NULL;
 
-	dlm = kcalloc(1, sizeof(*dlm), GFP_KERNEL);
+	dlm = kzalloc(sizeof(*dlm), GFP_KERNEL);
 	if (!dlm) {
 		mlog_errno(-ENOMEM);
 		goto leave;
@@ -1296,7 +1297,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 
 	spin_lock_init(&dlm->work_lock);
 	INIT_LIST_HEAD(&dlm->work_list);
-	INIT_WORK(&dlm->dispatched_work, dlm_dispatch_work, dlm);
+	INIT_WORK(&dlm->dispatched_work, dlm_dispatch_work);
 
 	kref_init(&dlm->dlm_refs);
 	dlm->dlm_state = DLM_CTXT_NEW;

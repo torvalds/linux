@@ -24,7 +24,7 @@ UPDATE NEWS: version 1.32 - 28 Mar 98
 UPDATE NEWS: version 1.31 - 6 Jul 97
 
    Fixed a bug that caused incorrect SCSI status bytes to be
-   returned from commands sent to LUN's greater than 0. This
+   returned from commands sent to LUNs greater than 0. This
    means that CDROM changers work now! Fixed a bug in the
    handling of command-line arguments when loaded as a module.
    Also put all the header data in in2000.h where it belongs.

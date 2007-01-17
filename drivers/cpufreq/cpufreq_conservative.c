@@ -44,22 +44,24 @@
  * latency of the processor. The governor will work on any processor with 
  * transition latency <= 10mS, using appropriate sampling 
  * rate.
- * For CPUs with transition latency > 10mS (mostly drivers with CPUFREQ_ETERNAL)
- * this governor will not work.
+ * For CPUs with transition latency > 10mS (mostly drivers
+ * with CPUFREQ_ETERNAL), this governor will not work.
  * All times here are in uS.
  */
 static unsigned int 				def_sampling_rate;
 #define MIN_SAMPLING_RATE_RATIO			(2)
 /* for correct statistics, we need at least 10 ticks between each measure */
-#define MIN_STAT_SAMPLING_RATE			(MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10))
-#define MIN_SAMPLING_RATE			(def_sampling_rate / MIN_SAMPLING_RATE_RATIO)
+#define MIN_STAT_SAMPLING_RATE			\
+			(MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10))
+#define MIN_SAMPLING_RATE			\
+			(def_sampling_rate / MIN_SAMPLING_RATE_RATIO)
 #define MAX_SAMPLING_RATE			(500 * def_sampling_rate)
 #define DEF_SAMPLING_RATE_LATENCY_MULTIPLIER	(1000)
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
 #define MAX_SAMPLING_DOWN_FACTOR		(10)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000)
 
-static void do_dbs_timer(void *data);
+static void do_dbs_timer(struct work_struct *work);
 
 struct cpu_dbs_info_s {
 	struct cpufreq_policy 	*cur_policy;
@@ -82,7 +84,7 @@ static unsigned int dbs_enable;	/* number of CPUs using this policy */
  * is recursive for the same process. -Venki
  */
 static DEFINE_MUTEX 	(dbs_mutex);
-static DECLARE_WORK	(dbs_work, do_dbs_timer, NULL);
+static DECLARE_DELAYED_WORK(dbs_work, do_dbs_timer);
 
 struct dbs_tuners {
 	unsigned int 		sampling_rate;
@@ -103,11 +105,16 @@ static struct dbs_tuners dbs_tuners_ins = {
 
 static inline unsigned int get_cpu_idle_time(unsigned int cpu)
 {
-	return	kstat_cpu(cpu).cpustat.idle +
+	unsigned int add_nice = 0, ret;
+
+	if (dbs_tuners_ins.ignore_nice)
+		add_nice = kstat_cpu(cpu).cpustat.nice;
+
+	ret = 	kstat_cpu(cpu).cpustat.idle +
 		kstat_cpu(cpu).cpustat.iowait +
-		( dbs_tuners_ins.ignore_nice ?
-		  kstat_cpu(cpu).cpustat.nice :
-		  0);
+		add_nice;
+
+	return ret;
 }
 
 /************************** sysfs interface ************************/
@@ -420,7 +427,7 @@ static void dbs_check_cpu(int cpu)
 	}
 }
 
-static void do_dbs_timer(void *data)
+static void do_dbs_timer(struct work_struct *work)
 { 
 	int i;
 	lock_cpu_hotplug();
@@ -435,7 +442,6 @@ static void do_dbs_timer(void *data)
 
 static inline void dbs_timer_init(void)
 {
-	INIT_WORK(&dbs_work, do_dbs_timer, NULL);
 	schedule_delayed_work(&dbs_work,
 			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
 	return;
@@ -453,6 +459,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	unsigned int cpu = policy->cpu;
 	struct cpu_dbs_info_s *this_dbs_info;
 	unsigned int j;
+	int rc;
 
 	this_dbs_info = &per_cpu(cpu_dbs_info, cpu);
 
@@ -469,6 +476,13 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			break;
 		 
 		mutex_lock(&dbs_mutex);
+
+		rc = sysfs_create_group(&policy->kobj, &dbs_attr_group);
+		if (rc) {
+			mutex_unlock(&dbs_mutex);
+			return rc;
+		}
+
 		for_each_cpu_mask(j, policy->cpus) {
 			struct cpu_dbs_info_s *j_dbs_info;
 			j_dbs_info = &per_cpu(cpu_dbs_info, j);
@@ -481,7 +495,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		this_dbs_info->enable = 1;
 		this_dbs_info->down_skip = 0;
 		this_dbs_info->requested_freq = policy->cur;
-		sysfs_create_group(&policy->kobj, &dbs_attr_group);
+
 		dbs_enable++;
 		/*
 		 * Start the timerschedule work, when this governor

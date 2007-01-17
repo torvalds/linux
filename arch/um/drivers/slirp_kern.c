@@ -119,4 +119,4 @@ static int register_slirp(void)
 	return 0;
 }
 
-__initcall(register_slirp);
+late_initcall(register_slirp);

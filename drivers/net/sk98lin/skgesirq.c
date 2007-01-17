@@ -1319,7 +1319,7 @@ SK_BOOL	AutoNeg)	/* Is Auto-negotiation used ? */
 	SkXmPhyRead(pAC, IoC, Port, PHY_BCOM_INT_STAT, &Isrc);
 
 #ifdef xDEBUG
-	if ((Isrc & ~(PHY_B_IS_HCT | PHY_B_IS_LCT) ==
+	if ((Isrc & ~(PHY_B_IS_HCT | PHY_B_IS_LCT)) ==
 		(PHY_B_IS_SCR_S_ER | PHY_B_IS_RRS_CHANGE | PHY_B_IS_LRS_CHANGE)) {
 
 		SK_U32	Stat1, Stat2, Stat3;

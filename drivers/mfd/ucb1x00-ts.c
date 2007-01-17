@@ -28,7 +28,7 @@
 #include <linux/string.h>
 #include <linux/input.h>
 #include <linux/device.h>
-#include <linux/suspend.h>
+#include <linux/freezer.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
 

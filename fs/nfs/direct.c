@@ -58,7 +58,7 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
-static kmem_cache_t *nfs_direct_cachep;
+static struct kmem_cache *nfs_direct_cachep;
 
 /*
  * This represents a set of asynchronous requests that we're waiting on
@@ -116,7 +116,7 @@ static inline int put_dreq(struct nfs_direct_req *dreq)
 ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov, loff_t pos, unsigned long nr_segs)
 {
 	dprintk("NFS: nfs_direct_IO (%s) off/no(%Ld/%lu) EINVAL\n",
-			iocb->ki_filp->f_dentry->d_name.name,
+			iocb->ki_filp->f_path.dentry->d_name.name,
 			(long long) pos, nr_segs);
 
 	return -EINVAL;
@@ -143,7 +143,7 @@ static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
 {
 	struct nfs_direct_req *dreq;
 
-	dreq = kmem_cache_alloc(nfs_direct_cachep, SLAB_KERNEL);
+	dreq = kmem_cache_alloc(nfs_direct_cachep, GFP_KERNEL);
 	if (!dreq)
 		return NULL;
 
@@ -307,9 +307,7 @@ static ssize_t nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned lo
 
 		data->task.tk_cookie = (unsigned long) inode;
 
-		lock_kernel();
 		rpc_execute(&data->task);
-		unlock_kernel();
 
 		dfprintk(VFS, "NFS: %5u initiated direct read call (req %s/%Ld, %zu bytes @ offset %Lu)\n",
 				data->task.tk_pid,
@@ -475,9 +473,7 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 
 	dprintk("NFS: %5u initiated commit call\n", data->task.tk_pid);
 
-	lock_kernel();
 	rpc_execute(&data->task);
-	unlock_kernel();
 }
 
 static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode)
@@ -641,9 +637,7 @@ static ssize_t nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned l
 		data->task.tk_priority = RPC_PRIORITY_NORMAL;
 		data->task.tk_cookie = (unsigned long) inode;
 
-		lock_kernel();
 		rpc_execute(&data->task);
-		unlock_kernel();
 
 		dfprintk(VFS, "NFS: %5u initiated direct write call (req %s/%Ld, %zu bytes @ offset %Lu)\n",
 				data->task.tk_pid,
@@ -740,8 +734,8 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, const struct iovec *iov,
 	size_t count = iov[0].iov_len;
 
 	dprintk("nfs: direct read(%s/%s, %lu@%Ld)\n",
-		file->f_dentry->d_parent->d_name.name,
-		file->f_dentry->d_name.name,
+		file->f_path.dentry->d_parent->d_name.name,
+		file->f_path.dentry->d_name.name,
 		(unsigned long) count, (long long) pos);
 
 	if (nr_segs != 1)
@@ -804,8 +798,8 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	size_t count = iov[0].iov_len;
 
 	dfprintk(VFS, "nfs: direct write(%s/%s, %lu@%Ld)\n",
-		file->f_dentry->d_parent->d_name.name,
-		file->f_dentry->d_name.name,
+		file->f_path.dentry->d_parent->d_name.name,
+		file->f_path.dentry->d_name.name,
 		(unsigned long) count, (long long) pos);
 
 	if (nr_segs != 1)

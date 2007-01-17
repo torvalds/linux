@@ -112,6 +112,7 @@ SECTIONS
     /* .exit.text is discarded at runtime, not link time, to deal with
      references from .rodata */
   .exit.text : { *(.exit.text) }
+  .exit.data : { *(.exit.data) }
   . = ALIGN(_PAGE_SIZE);
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }
@@ -139,7 +140,6 @@ SECTIONS
 
   /* Sections to be discarded */
   /DISCARD/ : {
-        *(.exit.data)
         *(.exitcall.exit)
 
 	/* ABI crap starts here */

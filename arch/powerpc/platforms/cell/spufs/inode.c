@@ -33,21 +33,22 @@
 #include <linux/slab.h>
 #include <linux/parser.h>
 
-#include <asm/io.h>
+#include <asm/prom.h>
 #include <asm/semaphore.h>
 #include <asm/spu.h>
 #include <asm/uaccess.h>
 
 #include "spufs.h"
 
-static kmem_cache_t *spufs_inode_cache;
+static struct kmem_cache *spufs_inode_cache;
+char *isolated_loader;
 
 static struct inode *
 spufs_alloc_inode(struct super_block *sb)
 {
 	struct spufs_inode_info *ei;
 
-	ei = kmem_cache_alloc(spufs_inode_cache, SLAB_KERNEL);
+	ei = kmem_cache_alloc(spufs_inode_cache, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 
@@ -64,7 +65,7 @@ spufs_destroy_inode(struct inode *inode)
 }
 
 static void
-spufs_init_once(void *p, kmem_cache_t * cachep, unsigned long flags)
+spufs_init_once(void *p, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct spufs_inode_info *ei = p;
 
@@ -204,7 +205,7 @@ static int spufs_dir_close(struct inode *inode, struct file *file)
 	struct dentry *dir;
 	int ret;
 
-	dir = file->f_dentry;
+	dir = file->f_path.dentry;
 	parent = dir->d_parent->d_inode;
 	ctx = SPUFS_I(dir->d_inode)->i_ctx;
 
@@ -231,6 +232,7 @@ struct file_operations spufs_context_fops = {
 	.readdir	= dcache_readdir,
 	.fsync		= simple_sync_file,
 };
+EXPORT_SYMBOL_GPL(spufs_context_fops);
 
 static int
 spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
@@ -255,10 +257,14 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 		goto out_iput;
 
 	ctx->flags = flags;
-
 	inode->i_op = &spufs_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
-	ret = spufs_fill_dir(dentry, spufs_dir_contents, mode, ctx);
+	if (flags & SPU_CREATE_NOSCHED)
+		ret = spufs_fill_dir(dentry, spufs_dir_nosched_contents,
+					 mode, ctx);
+	else
+		ret = spufs_fill_dir(dentry, spufs_dir_contents, mode, ctx);
+
 	if (ret)
 		goto out_free_ctx;
 
@@ -307,6 +313,20 @@ static int spufs_create_context(struct inode *inode,
 {
 	int ret;
 
+	ret = -EPERM;
+	if ((flags & SPU_CREATE_NOSCHED) &&
+	    !capable(CAP_SYS_NICE))
+		goto out_unlock;
+
+	ret = -EINVAL;
+	if ((flags & (SPU_CREATE_NOSCHED | SPU_CREATE_ISOLATE))
+	    == SPU_CREATE_ISOLATE)
+		goto out_unlock;
+
+	ret = -ENODEV;
+	if ((flags & SPU_CREATE_ISOLATE) && !isolated_loader)
+		goto out_unlock;
+
 	ret = spufs_mkdir(inode, dentry, flags, mode & S_IRWXUGO);
 	if (ret)
 		goto out_unlock;
@@ -343,7 +363,7 @@ static int spufs_gang_close(struct inode *inode, struct file *file)
 	struct dentry *dir;
 	int ret;
 
-	dir = file->f_dentry;
+	dir = file->f_path.dentry;
 	parent = dir->d_parent->d_inode;
 
 	ret = spufs_rmgang(parent, dir);
@@ -540,6 +560,30 @@ spufs_parse_options(char *options, struct inode *root)
 	return 1;
 }
 
+static void
+spufs_init_isolated_loader(void)
+{
+	struct device_node *dn;
+	const char *loader;
+	int size;
+
+	dn = of_find_node_by_path("/spu-isolation");
+	if (!dn)
+		return;
+
+	loader = get_property(dn, "loader", &size);
+	if (!loader)
+		return;
+
+	/* kmalloc should align on a 16 byte boundary..* */
+	isolated_loader = kmalloc(size, GFP_KERNEL);
+	if (!isolated_loader)
+		return;
+
+	memcpy(isolated_loader, loader, size);
+	printk(KERN_INFO "spufs: SPU isolation mode enabled\n");
+}
+
 static int
 spufs_create_root(struct super_block *sb, void *data)
 {
@@ -608,6 +652,7 @@ static struct file_system_type spufs_type = {
 static int __init spufs_init(void)
 {
 	int ret;
+
 	ret = -ENOMEM;
 	spufs_inode_cache = kmem_cache_create("spufs_inode_cache",
 			sizeof(struct spufs_inode_info), 0,
@@ -625,6 +670,12 @@ static int __init spufs_init(void)
 	ret = register_spu_syscalls(&spufs_calls);
 	if (ret)
 		goto out_fs;
+	ret = register_arch_coredump_calls(&spufs_coredump_calls);
+	if (ret)
+		goto out_fs;
+
+	spufs_init_isolated_loader();
+
 	return 0;
 out_fs:
 	unregister_filesystem(&spufs_type);
@@ -638,6 +689,7 @@ module_init(spufs_init);
 static void __exit spufs_exit(void)
 {
 	spu_sched_exit();
+	unregister_arch_coredump_calls(&spufs_coredump_calls);
 	unregister_spu_syscalls(&spufs_calls);
 	unregister_filesystem(&spufs_type);
 	kmem_cache_destroy(spufs_inode_cache);

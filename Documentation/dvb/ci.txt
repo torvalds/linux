@@ -71,7 +71,7 @@ eliminating the need for any additional ioctls.
 The disadvantage is that the driver/hardware has to manage the rest. For
 the application programmer it would be as simple as sending/receiving an
 array to/from the CI ioctls as defined in the Linux DVB API. No changes
-have been made in the API to accomodate this feature.
+have been made in the API to accommodate this feature.
 
 
 * Why the need for another CI interface ?
@@ -102,7 +102,7 @@ This CI interface follows the CI high level interface, which is not
 implemented by most applications. Hence this area is revisited.
 
 This CI interface is quite different in the case that it tries to
-accomodate all other CI based devices, that fall into the other categories
+accommodate all other CI based devices, that fall into the other categories.
 
 This means that this CI interface handles the EN50221 style tags in the
 Application layer only and no session management is taken care of by the

@@ -23,6 +23,7 @@
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
 #include <asm/smp.h>
+#include <asm/firmware.h>
 #include <linux/compiler.h>
 
 #ifdef DEBUG
@@ -193,6 +194,7 @@ static inline void patch_slb_encoding(unsigned int *insn_addr,
 void slb_initialize(void)
 {
 	unsigned long linear_llp, vmalloc_llp, io_llp;
+	unsigned long lflags, vflags;
 	static int slb_encoding_inited;
 	extern unsigned int *slb_miss_kernel_load_linear;
 	extern unsigned int *slb_miss_kernel_load_io;
@@ -225,11 +227,12 @@ void slb_initialize(void)
 #endif
 	}
 
+	get_paca()->stab_rr = SLB_NUM_BOLTED;
+
 	/* On iSeries the bolted entries have already been set up by
 	 * the hypervisor from the lparMap data in head.S */
-#ifndef CONFIG_PPC_ISERIES
- {
-	unsigned long lflags, vflags;
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return;
 
 	lflags = SLB_VSID_KERNEL | linear_llp;
 	vflags = SLB_VSID_KERNEL | vmalloc_llp;
@@ -247,8 +250,4 @@ void slb_initialize(void)
 	 * elsewhere, we'll call _switch() which will bolt in the new
 	 * one. */
 	asm volatile("isync":::"memory");
- }
-#endif /* CONFIG_PPC_ISERIES */
-
-	get_paca()->stab_rr = SLB_NUM_BOLTED;
 }

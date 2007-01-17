@@ -48,46 +48,21 @@ static void emma2rh_sw_irq_disable(unsigned int irq)
 	ll_emma2rh_sw_irq_disable(irq - emma2rh_sw_irq_base);
 }
 
-static unsigned int emma2rh_sw_irq_startup(unsigned int irq)
-{
-	emma2rh_sw_irq_enable(irq);
-	return 0;
-}
-
-#define emma2rh_sw_irq_shutdown emma2rh_sw_irq_disable
-
-static void emma2rh_sw_irq_ack(unsigned int irq)
-{
-	ll_emma2rh_sw_irq_disable(irq - emma2rh_sw_irq_base);
-}
-
-static void emma2rh_sw_irq_end(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		ll_emma2rh_sw_irq_enable(irq - emma2rh_sw_irq_base);
-}
-
 struct irq_chip emma2rh_sw_irq_controller = {
 	.typename = "emma2rh_sw_irq",
-	.startup = emma2rh_sw_irq_startup,
-	.shutdown = emma2rh_sw_irq_shutdown,
-	.enable = emma2rh_sw_irq_enable,
-	.disable = emma2rh_sw_irq_disable,
-	.ack = emma2rh_sw_irq_ack,
-	.end = emma2rh_sw_irq_end,
-	.set_affinity = NULL,
+	.ack = emma2rh_sw_irq_disable,
+	.mask = emma2rh_sw_irq_disable,
+	.mask_ack = emma2rh_sw_irq_disable,
+	.unmask = emma2rh_sw_irq_enable,
 };
 
 void emma2rh_sw_irq_init(u32 irq_base)
 {
 	u32 i;
 
-	for (i = irq_base; i < irq_base + NUM_EMMA2RH_IRQ_SW; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 2;
-		irq_desc[i].chip = &emma2rh_sw_irq_controller;
-	}
+	for (i = irq_base; i < irq_base + NUM_EMMA2RH_IRQ_SW; i++)
+		set_irq_chip_and_handler(i, &emma2rh_sw_irq_controller,
+					 handle_level_irq);
 
 	emma2rh_sw_irq_base = irq_base;
 }
@@ -126,14 +101,6 @@ static void emma2rh_gpio_irq_disable(unsigned int irq)
 	ll_emma2rh_gpio_irq_disable(irq - emma2rh_gpio_irq_base);
 }
 
-static unsigned int emma2rh_gpio_irq_startup(unsigned int irq)
-{
-	emma2rh_gpio_irq_enable(irq);
-	return 0;
-}
-
-#define emma2rh_gpio_irq_shutdown emma2rh_gpio_irq_disable
-
 static void emma2rh_gpio_irq_ack(unsigned int irq)
 {
 	irq -= emma2rh_gpio_irq_base;
@@ -149,25 +116,19 @@ static void emma2rh_gpio_irq_end(unsigned int irq)
 
 struct irq_chip emma2rh_gpio_irq_controller = {
 	.typename = "emma2rh_gpio_irq",
-	.startup = emma2rh_gpio_irq_startup,
-	.shutdown = emma2rh_gpio_irq_shutdown,
-	.enable = emma2rh_gpio_irq_enable,
-	.disable = emma2rh_gpio_irq_disable,
 	.ack = emma2rh_gpio_irq_ack,
+	.mask = emma2rh_gpio_irq_disable,
+	.mask_ack = emma2rh_gpio_irq_ack,
+	.unmask = emma2rh_gpio_irq_enable,
 	.end = emma2rh_gpio_irq_end,
-	.set_affinity = NULL,
 };
 
 void emma2rh_gpio_irq_init(u32 irq_base)
 {
 	u32 i;
 
-	for (i = irq_base; i < irq_base + NUM_EMMA2RH_IRQ_GPIO; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 2;
-		irq_desc[i].chip = &emma2rh_gpio_irq_controller;
-	}
+	for (i = irq_base; i < irq_base + NUM_EMMA2RH_IRQ_GPIO; i++)
+		set_irq_chip(i, &emma2rh_gpio_irq_controller);
 
 	emma2rh_gpio_irq_base = irq_base;
 }

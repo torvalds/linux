@@ -170,7 +170,7 @@ void cn_queue_free_dev(struct cn_queue_dev *dev);
 
 int cn_cb_equal(struct cb_id *, struct cb_id *);
 
-void cn_queue_wrapper(void *data);
+void cn_queue_wrapper(struct work_struct *work);
 
 extern int cn_already_initialized;
 

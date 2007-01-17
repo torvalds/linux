@@ -53,14 +53,6 @@ vrc5477_irq_disable(unsigned int irq)
 	ll_vrc5477_irq_disable(irq - vrc5477_irq_base);
 }
 
-static unsigned int vrc5477_irq_startup(unsigned int irq)
-{
-	vrc5477_irq_enable(irq);
-	return 0;
-}
-
-#define	vrc5477_irq_shutdown	vrc5477_irq_disable
-
 static void
 vrc5477_irq_ack(unsigned int irq)
 {
@@ -91,11 +83,10 @@ vrc5477_irq_end(unsigned int irq)
 
 struct irq_chip vrc5477_irq_controller = {
 	.typename = "vrc5477_irq",
-	.startup = vrc5477_irq_startup,
-	.shutdown = vrc5477_irq_shutdown,
-	.enable = vrc5477_irq_enable,
-	.disable = vrc5477_irq_disable,
 	.ack = vrc5477_irq_ack,
+	.mask = vrc5477_irq_disable,
+	.mask_ack = vrc5477_irq_ack,
+	.unmask = vrc5477_irq_enable,
 	.end = vrc5477_irq_end
 };
 
@@ -103,12 +94,8 @@ void __init vrc5477_irq_init(u32 irq_base)
 {
 	u32 i;
 
-	for (i= irq_base; i< irq_base+ NUM_5477_IRQ; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 1;
-		irq_desc[i].chip = &vrc5477_irq_controller;
-	}
+	for (i= irq_base; i< irq_base+ NUM_5477_IRQ; i++)
+		set_irq_chip(i, &vrc5477_irq_controller);
 
 	vrc5477_irq_base = irq_base;
 }

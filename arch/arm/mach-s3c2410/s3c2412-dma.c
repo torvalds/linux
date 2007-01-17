@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/s3c2412-dma.c
  *
- * (c) 2006 Simtec Electronics
+ * Copyright (c) 2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2412 DMA selection
@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>
+#include <linux/serial_core.h>
 
 #include <asm/dma.h>
 #include <asm/arch/dma.h>

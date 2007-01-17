@@ -88,7 +88,7 @@ int atari_partition(struct parsed_partitions *state, struct block_device *bdev)
 			if (!xrs) {
 				printk (" block %ld read failed\n", partsect);
 				put_dev_sector(sect);
-				return 0;
+				return -1;
 			}
 
 			/* ++roman: sanity check: bit 0 of flg field must be set */

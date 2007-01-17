@@ -33,6 +33,7 @@ SECTIONS
 
 	/* Text and gots */
 	.text : {
+		_text = .;
 		*(.text .text.*)
 		SCHED_TEXT
 		LOCK_TEXT
@@ -61,11 +62,7 @@ SECTIONS
 		__stop___ex_table = .;
 	}
 
-	__bug_table : {
-		__start___bug_table = .;
-		*(__bug_table)
-		__stop___bug_table = .;
-	}
+	BUG_TABLE
 
 /*
  * Init sections discarded at runtime

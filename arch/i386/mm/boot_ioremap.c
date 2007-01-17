@@ -16,6 +16,7 @@
  */
 
 #undef CONFIG_X86_PAE
+#undef CONFIG_PARAVIRT
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>

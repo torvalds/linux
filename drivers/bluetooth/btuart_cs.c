@@ -644,22 +644,7 @@ static int btuart_config(struct pcmcia_device *link)
 	u_short buf[256];
 	cisparse_t parse;
 	cistpl_cftable_entry_t *cf = &parse.cftable_entry;
-	int i, j, try, last_ret, last_fn;
-
-	tuple.TupleData = (cisdata_t *)buf;
-	tuple.TupleOffset = 0;
-	tuple.TupleDataMax = 255;
-	tuple.Attributes = 0;
-
-	/* Get configuration register information */
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	last_ret = first_tuple(link, &tuple, &parse);
-	if (last_ret != CS_SUCCESS) {
-		last_fn = ParseTuple;
-		goto cs_failed;
-	}
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present = parse.config.rmask[0];
+	int i, j, try;
 
 	/* First pass: look for a config entry that looks normal. */
 	tuple.TupleData = (cisdata_t *) buf;
@@ -733,9 +718,6 @@ found_port:
 	link->dev_node = &info->node;
 
 	return 0;
-
-cs_failed:
-	cs_error(link, last_fn, last_ret);
 
 failed:
 	btuart_release(link);

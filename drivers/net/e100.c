@@ -1215,7 +1215,7 @@ static void e100_setup_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb
 *  the literal in the instruction before the code is loaded, the
 *  driver can change the algorithm.
 *
-*  INTDELAY - This loads the dead-man timer with its inital value.
+*  INTDELAY - This loads the dead-man timer with its initial value.
 *    When this timer expires the interrupt is asserted, and the
 *    timer is reset each time a new packet is received.  (see
 *    BUNDLEMAX below to set the limit on number of chained packets)
@@ -1930,9 +1930,8 @@ static int e100_rx_alloc_list(struct nic *nic)
 	nic->rx_to_use = nic->rx_to_clean = NULL;
 	nic->ru_running = RU_UNINITIALIZED;
 
-	if(!(nic->rxs = kmalloc(sizeof(struct rx) * count, GFP_ATOMIC)))
+	if(!(nic->rxs = kcalloc(count, sizeof(struct rx), GFP_ATOMIC)))
 		return -ENOMEM;
-	memset(nic->rxs, 0, sizeof(struct rx) * count);
 
 	for(rx = nic->rxs, i = 0; i < count; rx++, i++) {
 		rx->next = (i + 1 < count) ? rx + 1 : nic->rxs;
@@ -2102,9 +2101,10 @@ static void e100_tx_timeout(struct net_device *netdev)
 	schedule_work(&nic->tx_timeout_task);
 }
 
-static void e100_tx_timeout_task(struct net_device *netdev)
+static void e100_tx_timeout_task(struct work_struct *work)
 {
-	struct nic *nic = netdev_priv(netdev);
+	struct nic *nic = container_of(work, struct nic, tx_timeout_task);
+	struct net_device *netdev = nic->netdev;
 
 	DPRINTK(TX_ERR, DEBUG, "scb.status=0x%02X\n",
 		readb(&nic->csr->scb.status));
@@ -2637,8 +2637,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	nic->blink_timer.function = e100_blink_led;
 	nic->blink_timer.data = (unsigned long)nic;
 
-	INIT_WORK(&nic->tx_timeout_task,
-		(void (*)(void *))e100_tx_timeout_task, netdev);
+	INIT_WORK(&nic->tx_timeout_task, e100_tx_timeout_task);
 
 	if((err = e100_alloc(nic))) {
 		DPRINTK(PROBE, ERR, "Cannot alloc driver memory, aborting.\n");

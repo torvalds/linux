@@ -55,7 +55,7 @@ static inline void omap_init_irda(void) {}
 
 /*-------------------------------------------------------------------------*/
 
-#if	defined(CONFIG_OMAP_RTC) || defined(CONFIG_OMAP_RTC)
+#if defined(CONFIG_RTC_DRV_OMAP) || defined(CONFIG_RTC_DRV_OMAP_MODULE)
 
 #define	OMAP_RTC_BASE		0xfffb4800
 

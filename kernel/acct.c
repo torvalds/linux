@@ -89,7 +89,8 @@ struct acct_glbs {
 	struct timer_list	timer;
 };
 
-static struct acct_glbs acct_globals __cacheline_aligned = {SPIN_LOCK_UNLOCKED};
+static struct acct_glbs acct_globals __cacheline_aligned =
+	{__SPIN_LOCK_UNLOCKED(acct_globals.lock)};
 
 /*
  * Called whenever the timer says to check the free space.
@@ -117,7 +118,7 @@ static int check_free_space(struct file *file)
 	spin_unlock(&acct_globals.lock);
 
 	/* May block */
-	if (vfs_statfs(file->f_dentry, &sbuf))
+	if (vfs_statfs(file->f_path.dentry, &sbuf))
 		return res;
 	suspend = sbuf.f_blocks * SUSPEND;
 	resume = sbuf.f_blocks * RESUME;
@@ -193,7 +194,7 @@ static void acct_file_reopen(struct file *file)
 		add_timer(&acct_globals.timer);
 	}
 	if (old_acct) {
-		mnt_unpin(old_acct->f_vfsmnt);
+		mnt_unpin(old_acct->f_path.mnt);
 		spin_unlock(&acct_globals.lock);
 		do_acct_process(old_acct);
 		filp_close(old_acct, NULL);
@@ -211,7 +212,7 @@ static int acct_on(char *name)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	if (!S_ISREG(file->f_dentry->d_inode->i_mode)) {
+	if (!S_ISREG(file->f_path.dentry->d_inode->i_mode)) {
 		filp_close(file, NULL);
 		return -EACCES;
 	}
@@ -228,11 +229,11 @@ static int acct_on(char *name)
 	}
 
 	spin_lock(&acct_globals.lock);
-	mnt_pin(file->f_vfsmnt);
+	mnt_pin(file->f_path.mnt);
 	acct_file_reopen(file);
 	spin_unlock(&acct_globals.lock);
 
-	mntput(file->f_vfsmnt);	/* it's pinned, now give up active reference */
+	mntput(file->f_path.mnt); /* it's pinned, now give up active reference */
 
 	return 0;
 }
@@ -282,7 +283,7 @@ asmlinkage long sys_acct(const char __user *name)
 void acct_auto_close_mnt(struct vfsmount *m)
 {
 	spin_lock(&acct_globals.lock);
-	if (acct_globals.file && acct_globals.file->f_vfsmnt == m)
+	if (acct_globals.file && acct_globals.file->f_path.mnt == m)
 		acct_file_reopen(NULL);
 	spin_unlock(&acct_globals.lock);
 }
@@ -298,7 +299,7 @@ void acct_auto_close(struct super_block *sb)
 {
 	spin_lock(&acct_globals.lock);
 	if (acct_globals.file &&
-	    acct_globals.file->f_vfsmnt->mnt_sb == sb) {
+	    acct_globals.file->f_path.mnt->mnt_sb == sb) {
 		acct_file_reopen(NULL);
 	}
 	spin_unlock(&acct_globals.lock);
@@ -427,6 +428,7 @@ static void do_acct_process(struct file *file)
 	u64 elapsed;
 	u64 run_time;
 	struct timespec uptime;
+	struct tty_struct *tty;
 
 	/*
 	 * First check to see if there is enough free_space to continue
@@ -483,16 +485,9 @@ static void do_acct_process(struct file *file)
 	ac.ac_ppid = current->parent->tgid;
 #endif
 
-	mutex_lock(&tty_mutex);
-	/* FIXME: Whoever is responsible for current->signal locking needs
-	   to use the same locking all over the kernel and document it */
-	read_lock(&tasklist_lock);
-	ac.ac_tty = current->signal->tty ?
-		old_encode_dev(tty_devnum(current->signal->tty)) : 0;
-	read_unlock(&tasklist_lock);
-	mutex_unlock(&tty_mutex);
-
 	spin_lock_irq(&current->sighand->siglock);
+	tty = current->signal->tty;
+	ac.ac_tty = tty ? old_encode_dev(tty_devnum(tty)) : 0;
 	ac.ac_utime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_utime)));
 	ac.ac_stime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_stime)));
 	ac.ac_flag = pacct->ac_flag;

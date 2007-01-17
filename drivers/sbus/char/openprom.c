@@ -676,7 +676,7 @@ static long openprom_compat_ioctl(struct file *file, unsigned int cmd,
 	case OPROMSETCUR:
 	case OPROMPCI2NODE:
 	case OPROMPATH2NODE:
-		rval = openprom_ioctl(file->f_dentry->d_inode, file, cmd, arg);
+		rval = openprom_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
 		break;
 	}
 

@@ -19,7 +19,7 @@ struct iattr;
 #define GFS2_EA_SIZE(ea) \
 ALIGN(sizeof(struct gfs2_ea_header) + (ea)->ea_name_len + \
       ((GFS2_EA_IS_STUFFED(ea)) ? GFS2_EA_DATA_LEN(ea) : \
-                                  (sizeof(u64) * (ea)->ea_num_ptrs)), 8)
+                                  (sizeof(__be64) * (ea)->ea_num_ptrs)), 8)
 
 #define GFS2_EA_IS_STUFFED(ea) (!(ea)->ea_num_ptrs)
 #define GFS2_EA_IS_LAST(ea) ((ea)->ea_flags & GFS2_EAFLAG_LAST)
@@ -29,13 +29,13 @@ ALIGN(sizeof(struct gfs2_ea_header) + (er)->er_name_len + (er)->er_data_len, 8)
 
 #define GFS2_EAREQ_SIZE_UNSTUFFED(sdp, er) \
 ALIGN(sizeof(struct gfs2_ea_header) + (er)->er_name_len + \
-      sizeof(u64) * DIV_ROUND_UP((er)->er_data_len, (sdp)->sd_jbsize), 8)
+      sizeof(__be64) * DIV_ROUND_UP((er)->er_data_len, (sdp)->sd_jbsize), 8)
 
 #define GFS2_EA2NAME(ea) ((char *)((struct gfs2_ea_header *)(ea) + 1))
 #define GFS2_EA2DATA(ea) (GFS2_EA2NAME(ea) + (ea)->ea_name_len)
 
 #define GFS2_EA2DATAPTRS(ea) \
-((u64 *)(GFS2_EA2NAME(ea) + ALIGN((ea)->ea_name_len, 8)))
+((__be64 *)(GFS2_EA2NAME(ea) + ALIGN((ea)->ea_name_len, 8)))
 
 #define GFS2_EA2NEXT(ea) \
 ((struct gfs2_ea_header *)((char *)(ea) + GFS2_EA_REC_LEN(ea)))

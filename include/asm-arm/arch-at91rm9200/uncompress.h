@@ -22,11 +22,11 @@
 #define __ASM_ARCH_UNCOMPRESS_H
 
 #include <asm/hardware.h>
+#include <asm/arch/at91_dbgu.h>
 
 /*
  * The following code assumes the serial port has already been
- * initialized by the bootloader.  We search for the first enabled
- * port in the most probable order.  If you didn't setup a port in
+ * initialized by the bootloader.  If you didn't setup a port in
  * your bootloader then nothing will appear (which might be desired).
  *
  * This does not append a newline

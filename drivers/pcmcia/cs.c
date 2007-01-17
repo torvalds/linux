@@ -29,6 +29,7 @@
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 

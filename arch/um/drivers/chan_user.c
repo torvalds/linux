@@ -120,7 +120,7 @@ static int winch_thread(void *arg)
 	/* These are synchronization calls between various UML threads on the
 	 * host - since they are not different kernel threads, we cannot use
 	 * kernel semaphores. We don't use SysV semaphores because they are
-	 * persistant. */
+	 * persistent. */
 	count = os_read_file(pipe_fd, &c, sizeof(c));
 	if(count != sizeof(c))
 		printk("winch_thread : failed to read synchronization byte, "

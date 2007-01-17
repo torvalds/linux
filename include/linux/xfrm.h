@@ -211,8 +211,8 @@ struct xfrm_user_tmpl {
 
 struct xfrm_encap_tmpl {
 	__u16		encap_type;
-	__u16		encap_sport;
-	__u16		encap_dport;
+	__be16		encap_sport;
+	__be16		encap_dport;
 	xfrm_address_t	encap_oa;
 };
 
@@ -289,7 +289,9 @@ struct xfrm_usersa_id {
 
 struct xfrm_aevent_id {
 	struct xfrm_usersa_id		sa_id;
+	xfrm_address_t			saddr;
 	__u32				flags;
+	__u32				reqid;
 };
 
 struct xfrm_userspi_info {
@@ -355,7 +357,7 @@ struct xfrm_user_report {
 #define XFRMGRP_EXPIRE		2
 #define XFRMGRP_SA		4
 #define XFRMGRP_POLICY		8
-#define XFRMGRP_REPORT		0x10
+#define XFRMGRP_REPORT		0x20
 #endif
 
 enum xfrm_nlgroups {

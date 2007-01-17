@@ -36,7 +36,6 @@
  * $Id: mthca_cq.c 1369 2004-12-20 16:17:07Z roland $
  */
 
-#include <linux/init.h>
 #include <linux/hardirq.h>
 
 #include <asm/io.h>
@@ -53,6 +52,10 @@ enum {
 
 enum {
 	MTHCA_CQ_ENTRY_SIZE = 0x20
+};
+
+enum {
+	MTHCA_ATOMIC_BYTE_LEN = 8
 };
 
 /*
@@ -600,11 +603,11 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 			break;
 		case MTHCA_OPCODE_ATOMIC_CS:
 			entry->opcode    = IB_WC_COMP_SWAP;
-			entry->byte_len  = be32_to_cpu(cqe->byte_cnt);
+			entry->byte_len  = MTHCA_ATOMIC_BYTE_LEN;
 			break;
 		case MTHCA_OPCODE_ATOMIC_FA:
 			entry->opcode    = IB_WC_FETCH_ADD;
-			entry->byte_len  = be32_to_cpu(cqe->byte_cnt);
+			entry->byte_len  = MTHCA_ATOMIC_BYTE_LEN;
 			break;
 		case MTHCA_OPCODE_BIND_MW:
 			entry->opcode    = IB_WC_BIND_MW;
@@ -970,7 +973,7 @@ void mthca_free_cq(struct mthca_dev *dev,
 	mthca_free_mailbox(dev, mailbox);
 }
 
-int __devinit mthca_init_cq_table(struct mthca_dev *dev)
+int mthca_init_cq_table(struct mthca_dev *dev)
 {
 	int err;
 

@@ -21,6 +21,7 @@
     etc voltage & frequency control is not supported!
 */
 #include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>

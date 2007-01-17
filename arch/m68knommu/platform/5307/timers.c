@@ -3,7 +3,7 @@
 /*
  *	timers.c -- generic ColdFire hardware timer support.
  *
- *	Copyright (C) 1999-2003, Greg Ungerer (gerg@snapgear.com)
+ *	Copyright (C) 1999-2006, Greg Ungerer (gerg@snapgear.com)
  */
 
 /***************************************************************************/
@@ -44,6 +44,14 @@ unsigned int	mcf_timerlevel = 5;
 extern void mcf_settimericr(int timer, int level);
 extern int mcf_timerirqpending(int timer);
 
+#if defined(CONFIG_M532x)
+#define	__raw_readtrr	__raw_readl
+#define	__raw_writetrr	__raw_writel
+#else
+#define	__raw_readtrr	__raw_readw
+#define	__raw_writetrr	__raw_writew
+#endif
+
 /***************************************************************************/
 
 void coldfire_tick(void)
@@ -57,7 +65,7 @@ void coldfire_tick(void)
 void coldfire_timer_init(irqreturn_t (*handler)(int, void *, struct pt_regs *))
 {
 	__raw_writew(MCFTIMER_TMR_DISABLE, TA(MCFTIMER_TMR));
-	__raw_writew(((MCF_BUSCLK / 16) / HZ), TA(MCFTIMER_TRR));
+	__raw_writetrr(((MCF_BUSCLK / 16) / HZ), TA(MCFTIMER_TRR));
 	__raw_writew(MCFTIMER_TMR_ENORI | MCFTIMER_TMR_CLK16 |
 		MCFTIMER_TMR_RESTART | MCFTIMER_TMR_ENABLE, TA(MCFTIMER_TMR));
 
@@ -76,7 +84,7 @@ unsigned long coldfire_timer_offset(void)
 	unsigned long trr, tcn, offset;
 
 	tcn = __raw_readw(TA(MCFTIMER_TCN));
-	trr = __raw_readw(TA(MCFTIMER_TRR));
+	trr = __raw_readtrr(TA(MCFTIMER_TRR));
 	offset = (tcn * (1000000 / HZ)) / trr;
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
@@ -120,7 +128,7 @@ void coldfire_profile_init(void)
 	/* Set up TIMER 2 as high speed profile clock */
 	__raw_writew(MCFTIMER_TMR_DISABLE, PA(MCFTIMER_TMR));
 
-	__raw_writew(((MCF_CLK / 16) / PROFILEHZ), PA(MCFTIMER_TRR));
+	__raw_writetrr(((MCF_CLK / 16) / PROFILEHZ), PA(MCFTIMER_TRR));
 	__raw_writew(MCFTIMER_TMR_ENORI | MCFTIMER_TMR_CLK16 |
 		MCFTIMER_TMR_RESTART | MCFTIMER_TMR_ENABLE, PA(MCFTIMER_TMR));
 

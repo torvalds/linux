@@ -77,7 +77,7 @@ config KGDB_CONSOLE
 
 config XMON
 	bool "Include xmon kernel debugger"
-	depends on DEBUGGER && !PPC_ISERIES
+	depends on DEBUGGER
 	help
 	  Include in-kernel hooks for the xmon kernel monitor/debugger.
 	  Unless you are intending to debug the kernel, say N here.
@@ -98,6 +98,15 @@ config XMON_DEFAULT
 	  xmon is normally disabled unless booted with 'xmon=on'.
 	  Use 'xmon=off' to disable xmon init during runtime.
 
+config XMON_DISASSEMBLY
+	bool "Include disassembly support in xmon"
+	depends on XMON
+	default y
+	help
+	  Include support for disassembling in xmon. You probably want
+	  to say Y here, unless you're building for a memory-constrained
+	  system.
+
 config IRQSTACKS
 	bool "Use separate kernel stacks when processing interrupts"
 	depends on PPC64
@@ -116,7 +125,7 @@ config BDI_SWITCH
 
 config BOOTX_TEXT
 	bool "Support for early boot text console (BootX or OpenFirmware only)"
-	depends PPC_OF && !PPC_ISERIES
+	depends PPC_OF
 	help
 	  Say Y here to see progress messages from the boot firmware in text
 	  mode. Requires either BootX or Open Firmware.

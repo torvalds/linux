@@ -70,7 +70,6 @@ extern irq_cpustat_t irq_stat [NR_CPUS];
 extern void mips_timer_interrupt(void);
 
 static void setup_local_irq(unsigned int irq, int type, int int_req);
-static unsigned int startup_irq(unsigned int irq);
 static void end_irq(unsigned int irq_nr);
 static inline void mask_and_ack_level_irq(unsigned int irq_nr);
 static inline void mask_and_ack_rise_edge_irq(unsigned int irq_nr);
@@ -82,20 +81,6 @@ inline void local_disable_irq(unsigned int irq_nr);
 void	(*board_init_irq)(void);
 
 static DEFINE_SPINLOCK(irq_lock);
-
-
-static unsigned int startup_irq(unsigned int irq_nr)
-{
-	local_enable_irq(irq_nr);
-	return 0;
-}
-
-
-static void shutdown_irq(unsigned int irq_nr)
-{
-	local_disable_irq(irq_nr);
-	return;
-}
 
 
 inline void local_enable_irq(unsigned int irq_nr)
@@ -249,41 +234,37 @@ void restore_local_and_enable(int controller, unsigned long mask)
 
 static struct irq_chip rise_edge_irq_type = {
 	.typename = "Au1000 Rise Edge",
-	.startup = startup_irq,
-	.shutdown = shutdown_irq,
-	.enable = local_enable_irq,
-	.disable = local_disable_irq,
 	.ack = mask_and_ack_rise_edge_irq,
+	.mask = local_disable_irq,
+	.mask_ack = mask_and_ack_rise_edge_irq,
+	.unmask = local_enable_irq,
 	.end = end_irq,
 };
 
 static struct irq_chip fall_edge_irq_type = {
 	.typename = "Au1000 Fall Edge",
-	.startup = startup_irq,
-	.shutdown = shutdown_irq,
-	.enable = local_enable_irq,
-	.disable = local_disable_irq,
 	.ack = mask_and_ack_fall_edge_irq,
+	.mask = local_disable_irq,
+	.mask_ack = mask_and_ack_fall_edge_irq,
+	.unmask = local_enable_irq,
 	.end = end_irq,
 };
 
 static struct irq_chip either_edge_irq_type = {
 	.typename = "Au1000 Rise or Fall Edge",
-	.startup = startup_irq,
-	.shutdown = shutdown_irq,
-	.enable = local_enable_irq,
-	.disable = local_disable_irq,
 	.ack = mask_and_ack_either_edge_irq,
+	.mask = local_disable_irq,
+	.mask_ack = mask_and_ack_either_edge_irq,
+	.unmask = local_enable_irq,
 	.end = end_irq,
 };
 
 static struct irq_chip level_irq_type = {
 	.typename = "Au1000 Level",
-	.startup = startup_irq,
-	.shutdown = shutdown_irq,
-	.enable = local_enable_irq,
-	.disable = local_disable_irq,
 	.ack = mask_and_ack_level_irq,
+	.mask = local_disable_irq,
+	.mask_ack = mask_and_ack_level_irq,
+	.unmask = local_enable_irq,
 	.end = end_irq,
 };
 
@@ -328,31 +309,31 @@ static void setup_local_irq(unsigned int irq_nr, int type, int int_req)
 				au_writel(1<<(irq_nr-32), IC1_CFG2CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG1CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG0SET);
-				irq_desc[irq_nr].chip = &rise_edge_irq_type;
+				set_irq_chip(irq_nr, &rise_edge_irq_type);
 				break;
 			case INTC_INT_FALL_EDGE: /* 0:1:0 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG1SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG0CLR);
-				irq_desc[irq_nr].chip = &fall_edge_irq_type;
+				set_irq_chip(irq_nr, &fall_edge_irq_type);
 				break;
 			case INTC_INT_RISE_AND_FALL_EDGE: /* 0:1:1 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG1SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG0SET);
-				irq_desc[irq_nr].chip = &either_edge_irq_type;
+				set_irq_chip(irq_nr, &either_edge_irq_type);
 				break;
 			case INTC_INT_HIGH_LEVEL: /* 1:0:1 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG1CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG0SET);
-				irq_desc[irq_nr].chip = &level_irq_type;
+				set_irq_chip(irq_nr, &level_irq_type);
 				break;
 			case INTC_INT_LOW_LEVEL: /* 1:1:0 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG1SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG0CLR);
-				irq_desc[irq_nr].chip = &level_irq_type;
+				set_irq_chip(irq_nr, &level_irq_type);
 				break;
 			case INTC_INT_DISABLED: /* 0:0:0 */
 				au_writel(1<<(irq_nr-32), IC1_CFG0CLR);
@@ -380,31 +361,31 @@ static void setup_local_irq(unsigned int irq_nr, int type, int int_req)
 				au_writel(1<<irq_nr, IC0_CFG2CLR);
 				au_writel(1<<irq_nr, IC0_CFG1CLR);
 				au_writel(1<<irq_nr, IC0_CFG0SET);
-				irq_desc[irq_nr].chip = &rise_edge_irq_type;
+				set_irq_chip(irq_nr, &rise_edge_irq_type);
 				break;
 			case INTC_INT_FALL_EDGE: /* 0:1:0 */
 				au_writel(1<<irq_nr, IC0_CFG2CLR);
 				au_writel(1<<irq_nr, IC0_CFG1SET);
 				au_writel(1<<irq_nr, IC0_CFG0CLR);
-				irq_desc[irq_nr].chip = &fall_edge_irq_type;
+				set_irq_chip(irq_nr, &fall_edge_irq_type);
 				break;
 			case INTC_INT_RISE_AND_FALL_EDGE: /* 0:1:1 */
 				au_writel(1<<irq_nr, IC0_CFG2CLR);
 				au_writel(1<<irq_nr, IC0_CFG1SET);
 				au_writel(1<<irq_nr, IC0_CFG0SET);
-				irq_desc[irq_nr].chip = &either_edge_irq_type;
+				set_irq_chip(irq_nr, &either_edge_irq_type);
 				break;
 			case INTC_INT_HIGH_LEVEL: /* 1:0:1 */
 				au_writel(1<<irq_nr, IC0_CFG2SET);
 				au_writel(1<<irq_nr, IC0_CFG1CLR);
 				au_writel(1<<irq_nr, IC0_CFG0SET);
-				irq_desc[irq_nr].chip = &level_irq_type;
+				set_irq_chip(irq_nr, &level_irq_type);
 				break;
 			case INTC_INT_LOW_LEVEL: /* 1:1:0 */
 				au_writel(1<<irq_nr, IC0_CFG2SET);
 				au_writel(1<<irq_nr, IC0_CFG1SET);
 				au_writel(1<<irq_nr, IC0_CFG0CLR);
-				irq_desc[irq_nr].chip = &level_irq_type;
+				set_irq_chip(irq_nr, &level_irq_type);
 				break;
 			case INTC_INT_DISABLED: /* 0:0:0 */
 				au_writel(1<<irq_nr, IC0_CFG0CLR);

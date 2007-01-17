@@ -237,7 +237,7 @@ fail:
 }
 
 static struct inode *gfs2_lookup_root(struct super_block *sb,
-				      struct gfs2_inum *inum)
+				      struct gfs2_inum_host *inum)
 {
 	return gfs2_inode_lookup(sb, inum, DT_DIR);
 }
@@ -246,7 +246,7 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 {
 	struct super_block *sb = sdp->sd_vfs;
 	struct gfs2_holder sb_gh;
-	struct gfs2_inum *inum;
+	struct gfs2_inum_host *inum;
 	struct inode *inode;
 	int error = 0;
 
@@ -867,9 +867,9 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 		error = -EBUSY;
 		goto error;
 	}
-	mutex_lock(&sb->s_bdev->bd_mount_mutex);
+	down(&sb->s_bdev->bd_mount_sem);
 	new = sget(fs_type, test_bdev_super, set_bdev_super, sb->s_bdev);
-	mutex_unlock(&sb->s_bdev->bd_mount_mutex);
+	up(&sb->s_bdev->bd_mount_sem);
 	if (IS_ERR(new)) {
 		error = PTR_ERR(new);
 		goto error;

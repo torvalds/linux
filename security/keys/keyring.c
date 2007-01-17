@@ -706,11 +706,9 @@ int __key_link(struct key *keyring, struct key *key)
 				BUG_ON(size > PAGE_SIZE);
 
 				ret = -ENOMEM;
-				nklist = kmalloc(size, GFP_KERNEL);
+				nklist = kmemdup(klist, size, GFP_KERNEL);
 				if (!nklist)
 					goto error2;
-
-				memcpy(nklist, klist, size);
 
 				/* replace matched key */
 				atomic_inc(&key->usage);

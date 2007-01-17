@@ -156,7 +156,7 @@ int clocksource_register(struct clocksource *c)
 	/* check if clocksource is already registered */
 	if (is_registered_source(c)) {
 		printk("register_clocksource: Cannot register %s. "
-			"Already registered!", c->name);
+		       "Already registered!", c->name);
 		ret = -EBUSY;
 	} else {
 		/* register it */
@@ -186,6 +186,7 @@ void clocksource_reselect(void)
 }
 EXPORT_SYMBOL(clocksource_reselect);
 
+#ifdef CONFIG_SYSFS
 /**
  * sysfs_show_current_clocksources - sysfs interface for current clocksource
  * @dev:	unused
@@ -275,10 +276,10 @@ sysfs_show_available_clocksources(struct sys_device *dev, char *buf)
  * Sysfs setup bits:
  */
 static SYSDEV_ATTR(current_clocksource, 0600, sysfs_show_current_clocksources,
-			sysfs_override_clocksource);
+		   sysfs_override_clocksource);
 
 static SYSDEV_ATTR(available_clocksource, 0600,
-			sysfs_show_available_clocksources, NULL);
+		   sysfs_show_available_clocksources, NULL);
 
 static struct sysdev_class clocksource_sysclass = {
 	set_kset_name("clocksource"),
@@ -307,6 +308,7 @@ static int __init init_clocksource_sysfs(void)
 }
 
 device_initcall(init_clocksource_sysfs);
+#endif /* CONFIG_SYSFS */
 
 /**
  * boot_override_clocksource - boot clock override

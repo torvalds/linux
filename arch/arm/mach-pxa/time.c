@@ -18,6 +18,7 @@
 #include <linux/signal.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/clocksource.h>
 
 #include <asm/system.h>
 #include <asm/hardware.h>
@@ -46,27 +47,6 @@ static int pxa_set_rtc(void)
 	}
 	RCNR = current_time;
 	return 0;
-}
-
-/* IRQs are disabled before entering here from do_gettimeofday() */
-static unsigned long pxa_gettimeoffset (void)
-{
-	long ticks_to_match, elapsed, usec;
-
-	/* Get ticks before next timer match */
-	ticks_to_match = OSMR0 - OSCR;
-
-	/* We need elapsed ticks since last match */
-	elapsed = LATCH - ticks_to_match;
-
-	/* don't get fooled by the workaround in pxa_timer_interrupt() */
-	if (elapsed <= 0)
-		return 0;
-
-	/* Now convert them to usec */
-	usec = (unsigned long)(elapsed * (tick_nsec / 1000))/LATCH;
-
-	return usec;
 }
 
 #ifdef CONFIG_NO_IDLE_HZ
@@ -121,9 +101,24 @@ static struct irqaction pxa_timer_irq = {
 	.handler	= pxa_timer_interrupt,
 };
 
+static cycle_t pxa_get_cycles(void)
+{
+	return OSCR;
+}
+
+static struct clocksource clocksource_pxa = {
+	.name           = "pxa_timer",
+	.rating         = 200,
+	.read           = pxa_get_cycles,
+	.mask           = CLOCKSOURCE_MASK(32),
+	.shift          = 20,
+	.is_continuous  = 1,
+};
+
 static void __init pxa_timer_init(void)
 {
 	struct timespec tv;
+	unsigned long flags;
 
 	set_rtc = pxa_set_rtc;
 
@@ -132,12 +127,20 @@ static void __init pxa_timer_init(void)
 	do_settimeofday(&tv);
 
 	OIER = 0;		/* disable any timer interrupts */
-	OSCR = LATCH*2;		/* push OSCR out of the way */
-	OSMR0 = LATCH;		/* set initial match */
 	OSSR = 0xf;		/* clear status on all timers */
 	setup_irq(IRQ_OST0, &pxa_timer_irq);
+	local_irq_save(flags);
 	OIER = OIER_E0;		/* enable match on timer 0 to cause interrupts */
-	OSCR = 0;		/* initialize free-running timer */
+	OSMR0 = OSCR + LATCH;	/* set initial match */
+	local_irq_restore(flags);
+
+	/*
+	 * OSCR runs continuously on PXA and is not written to,
+	 * so we can use it as clock source directly.
+	 */
+	clocksource_pxa.mult =
+		clocksource_hz2mult(CLOCK_TICK_RATE, clocksource_pxa.shift);
+	clocksource_register(&clocksource_pxa);
 }
 
 #ifdef CONFIG_NO_IDLE_HZ
@@ -210,7 +213,6 @@ struct sys_timer pxa_timer = {
 	.init		= pxa_timer_init,
 	.suspend	= pxa_timer_suspend,
 	.resume		= pxa_timer_resume,
-	.offset		= pxa_gettimeoffset,
 #ifdef CONFIG_NO_IDLE_HZ
 	.dyn_tick	= &pxa_dyn_tick,
 #endif

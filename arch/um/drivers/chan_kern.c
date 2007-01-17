@@ -638,7 +638,7 @@ int chan_out_fd(struct list_head *chans)
 	return -1;
 }
 
-void chan_interrupt(struct list_head *chans, struct work_struct *task,
+void chan_interrupt(struct list_head *chans, struct delayed_work *task,
 		    struct tty_struct *tty, int irq)
 {
 	struct list_head *ele, *next;

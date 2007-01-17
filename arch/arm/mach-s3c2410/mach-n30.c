@@ -20,6 +20,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/kthread.h>
 
@@ -36,8 +37,6 @@
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/iic.h>
-
-#include <linux/serial_core.h>
 
 #include "s3c2410.h"
 #include "clock.h"

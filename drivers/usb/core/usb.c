@@ -200,19 +200,13 @@ static void ksuspend_usb_cleanup(void)
 	destroy_workqueue(ksuspend_usb_wq);
 }
 
-#else
-
-#define ksuspend_usb_init()	0
-#define ksuspend_usb_cleanup()	do {} while (0)
-
-#endif
-
 #ifdef	CONFIG_USB_SUSPEND
 
 /* usb_autosuspend_work - callback routine to autosuspend a USB device */
-static void usb_autosuspend_work(void *_udev)
+static void usb_autosuspend_work(struct work_struct *work)
 {
-	struct usb_device	*udev = _udev;
+	struct usb_device *udev =
+		container_of(work, struct usb_device, autosuspend.work);
 
 	usb_pm_lock(udev);
 	udev->auto_pm = 1;
@@ -222,10 +216,17 @@ static void usb_autosuspend_work(void *_udev)
 
 #else
 
-static void usb_autosuspend_work(void *_udev)
+static void usb_autosuspend_work(struct work_struct *work)
 {}
 
-#endif
+#endif	/* CONFIG_USB_SUSPEND */
+
+#else
+
+#define ksuspend_usb_init()	0
+#define ksuspend_usb_cleanup()	do {} while (0)
+
+#endif	/* CONFIG_PM */
 
 /**
  * usb_alloc_dev - usb device constructor (usbcore-internal)
@@ -304,7 +305,7 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 
 #ifdef	CONFIG_PM
 	mutex_init(&dev->pm_mutex);
-	INIT_WORK(&dev->autosuspend, usb_autosuspend_work, dev);
+	INIT_DELAYED_WORK(&dev->autosuspend, usb_autosuspend_work);
 #endif
 	return dev;
 }
@@ -535,138 +536,6 @@ exit:
 int usb_get_current_frame_number(struct usb_device *dev)
 {
 	return usb_hcd_get_frame_number (dev);
-}
-
-/**
- * usb_endpoint_dir_in - check if the endpoint has IN direction
- * @epd: endpoint to be checked
- *
- * Returns true if the endpoint is of type IN, otherwise it returns false.
- */
-int usb_endpoint_dir_in(const struct usb_endpoint_descriptor *epd)
-{
-	return ((epd->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN);
-}
-
-/**
- * usb_endpoint_dir_out - check if the endpoint has OUT direction
- * @epd: endpoint to be checked
- *
- * Returns true if the endpoint is of type OUT, otherwise it returns false.
- */
-int usb_endpoint_dir_out(const struct usb_endpoint_descriptor *epd)
-{
-	return ((epd->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT);
-}
-
-/**
- * usb_endpoint_xfer_bulk - check if the endpoint has bulk transfer type
- * @epd: endpoint to be checked
- *
- * Returns true if the endpoint is of type bulk, otherwise it returns false.
- */
-int usb_endpoint_xfer_bulk(const struct usb_endpoint_descriptor *epd)
-{
-	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		USB_ENDPOINT_XFER_BULK);
-}
-
-/**
- * usb_endpoint_xfer_int - check if the endpoint has interrupt transfer type
- * @epd: endpoint to be checked
- *
- * Returns true if the endpoint is of type interrupt, otherwise it returns
- * false.
- */
-int usb_endpoint_xfer_int(const struct usb_endpoint_descriptor *epd)
-{
-	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		USB_ENDPOINT_XFER_INT);
-}
-
-/**
- * usb_endpoint_xfer_isoc - check if the endpoint has isochronous transfer type
- * @epd: endpoint to be checked
- *
- * Returns true if the endpoint is of type isochronous, otherwise it returns
- * false.
- */
-int usb_endpoint_xfer_isoc(const struct usb_endpoint_descriptor *epd)
-{
-	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		USB_ENDPOINT_XFER_ISOC);
-}
-
-/**
- * usb_endpoint_is_bulk_in - check if the endpoint is bulk IN
- * @epd: endpoint to be checked
- *
- * Returns true if the endpoint has bulk transfer type and IN direction,
- * otherwise it returns false.
- */
-int usb_endpoint_is_bulk_in(const struct usb_endpoint_descriptor *epd)
-{
-	return (usb_endpoint_xfer_bulk(epd) && usb_endpoint_dir_in(epd));
-}
-
-/**
- * usb_endpoint_is_bulk_out - check if the endpoint is bulk OUT
- * @epd: endpoint to be checked
- *
- * Returns true if the endpoint has bulk transfer type and OUT direction,
- * otherwise it returns false.
- */
-int usb_endpoint_is_bulk_out(const struct usb_endpoint_descriptor *epd)
-{
-	return (usb_endpoint_xfer_bulk(epd) && usb_endpoint_dir_out(epd));
-}
-
-/**
- * usb_endpoint_is_int_in - check if the endpoint is interrupt IN
- * @epd: endpoint to be checked
- *
- * Returns true if the endpoint has interrupt transfer type and IN direction,
- * otherwise it returns false.
- */
-int usb_endpoint_is_int_in(const struct usb_endpoint_descriptor *epd)
-{
-	return (usb_endpoint_xfer_int(epd) && usb_endpoint_dir_in(epd));
-}
-
-/**
- * usb_endpoint_is_int_out - check if the endpoint is interrupt OUT
- * @epd: endpoint to be checked
- *
- * Returns true if the endpoint has interrupt transfer type and OUT direction,
- * otherwise it returns false.
- */
-int usb_endpoint_is_int_out(const struct usb_endpoint_descriptor *epd)
-{
-	return (usb_endpoint_xfer_int(epd) && usb_endpoint_dir_out(epd));
-}
-
-/**
- * usb_endpoint_is_isoc_in - check if the endpoint is isochronous IN
- * @epd: endpoint to be checked
- *
- * Returns true if the endpoint has isochronous transfer type and IN direction,
- * otherwise it returns false.
- */
-int usb_endpoint_is_isoc_in(const struct usb_endpoint_descriptor *epd)
-{
-	return (usb_endpoint_xfer_isoc(epd) && usb_endpoint_dir_in(epd));
-}
-
-/**
- * usb_endpoint_is_isoc_out - check if the endpoint is isochronous OUT
- * @epd: endpoint to be checked
- *
- * Returns true if the endpoint has isochronous transfer type and OUT direction,
- * otherwise it returns false.
- */
-int usb_endpoint_is_isoc_out(const struct usb_endpoint_descriptor *epd)
-{
-	return (usb_endpoint_xfer_isoc(epd) && usb_endpoint_dir_out(epd));
 }
 
 /*-------------------------------------------------------------------*/
@@ -1101,18 +970,6 @@ EXPORT_SYMBOL(__usb_get_extra_descriptor);
 
 EXPORT_SYMBOL(usb_find_device);
 EXPORT_SYMBOL(usb_get_current_frame_number);
-
-EXPORT_SYMBOL_GPL(usb_endpoint_dir_in);
-EXPORT_SYMBOL_GPL(usb_endpoint_dir_out);
-EXPORT_SYMBOL_GPL(usb_endpoint_xfer_bulk);
-EXPORT_SYMBOL_GPL(usb_endpoint_xfer_int);
-EXPORT_SYMBOL_GPL(usb_endpoint_xfer_isoc);
-EXPORT_SYMBOL_GPL(usb_endpoint_is_bulk_in);
-EXPORT_SYMBOL_GPL(usb_endpoint_is_bulk_out);
-EXPORT_SYMBOL_GPL(usb_endpoint_is_int_in);
-EXPORT_SYMBOL_GPL(usb_endpoint_is_int_out);
-EXPORT_SYMBOL_GPL(usb_endpoint_is_isoc_in);
-EXPORT_SYMBOL_GPL(usb_endpoint_is_isoc_out);
 
 EXPORT_SYMBOL (usb_buffer_alloc);
 EXPORT_SYMBOL (usb_buffer_free);

@@ -138,7 +138,7 @@
 EXPORT(stext)					# used for profiling
 EXPORT(_stext)
 
-#if defined(CONFIG_QEMU) || defined(CONFIG_MIPS_SIM)
+#ifdef CONFIG_MIPS_SIM
 	/*
 	 * Give us a fighting chance of running if execution beings at the
 	 * kernel load address.  This is needed because this platform does
@@ -250,6 +250,9 @@ NESTED(smp_bootstrap, 16, sp)
 	 */
 	page	swapper_pg_dir, _PGD_ORDER
 #ifdef CONFIG_64BIT
+#if defined(CONFIG_MODULES) && !defined(CONFIG_BUILD_ELF64)
+	page	module_pg_dir, _PGD_ORDER
+#endif
 	page	invalid_pmd_table, _PMD_ORDER
 #endif
 	page	invalid_pte_table, _PTE_ORDER

@@ -11,6 +11,7 @@
  */
 
 #include <asm/hardware.h>
+#include <asm/arch/at91_aic.h>
 
 	.macro	disable_fiq
 	.endm

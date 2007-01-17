@@ -402,6 +402,9 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 	fb_alloc_cmap(&info->cmap, 256, 0);
 
 	if (register_framebuffer(info) < 0) {
+		iounmap(par->cmap_adr);
+		par->cmap_adr = NULL;
+		iounmap(info->screen_base);
 		kfree(info);
 		release_mem_region(res_start, res_size);
 		return;

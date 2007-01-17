@@ -16,15 +16,18 @@
 
 static void __init check_bugs(void)
 {
-	extern char *get_cpu_subtype(void);
 	extern unsigned long loops_per_jiffy;
-	char *p= &init_utsname()->machine[2]; /* "sh" */
+	char *p = &init_utsname()->machine[2]; /* "sh" */
 
 	cpu_data->loops_per_jiffy = loops_per_jiffy;
 
 	switch (cpu_data->type) {
-	case CPU_SH7604:
+	case CPU_SH7604 ... CPU_SH7619:
 		*p++ = '2';
+		break;
+	case CPU_SH7206:
+		*p++ = '2';
+		*p++ = 'a';
 		break;
 	case CPU_SH7705 ... CPU_SH7300:
 		*p++ = '3';
@@ -32,9 +35,18 @@ static void __init check_bugs(void)
 	case CPU_SH7750 ... CPU_SH4_501:
 		*p++ = '4';
 		break;
-	case CPU_SH7770 ... CPU_SH7781:
+	case CPU_SH7770 ... CPU_SH7785:
 		*p++ = '4';
 		*p++ = 'a';
+		break;
+	case CPU_SH73180 ... CPU_SH7722:
+		*p++ = '4';
+		*p++ = 'a';
+		*p++ = 'l';
+		*p++ = '-';
+		*p++ = 'd';
+		*p++ = 's';
+		*p++ = 'p';
 		break;
 	default:
 		*p++ = '?';

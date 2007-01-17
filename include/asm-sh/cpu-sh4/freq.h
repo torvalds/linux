@@ -10,7 +10,7 @@
 #ifndef __ASM_CPU_SH4_FREQ_H
 #define __ASM_CPU_SH4_FREQ_H
 
-#if defined(CONFIG_CPU_SUBTYPE_SH73180)
+#if defined(CONFIG_CPU_SUBTYPE_SH73180) || defined(CONFIG_CPU_SUBTYPE_SH7722)
 #define FRQCR		        0xa4150000
 #elif defined(CONFIG_CPU_SUBTYPE_SH7780)
 #define	FRQCR			0xffc80000

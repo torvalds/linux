@@ -152,7 +152,7 @@ static struct mpoa_client *find_mpc_by_lec(struct net_device *dev)
 /*
  * Overwrites the old entry or makes a new one.
  */
-struct atm_mpoa_qos *atm_mpoa_add_qos(uint32_t dst_ip, struct atm_qos *qos)
+struct atm_mpoa_qos *atm_mpoa_add_qos(__be32 dst_ip, struct atm_qos *qos)
 {
 	struct atm_mpoa_qos *entry;
 
@@ -177,7 +177,7 @@ struct atm_mpoa_qos *atm_mpoa_add_qos(uint32_t dst_ip, struct atm_qos *qos)
 	return entry;
 }
 
-struct atm_mpoa_qos *atm_mpoa_search_qos(uint32_t dst_ip)
+struct atm_mpoa_qos *atm_mpoa_search_qos(__be32 dst_ip)
 {
 	struct atm_mpoa_qos *qos;
 
@@ -460,11 +460,11 @@ static int send_via_shortcut(struct sk_buff *skb, struct mpoa_client *mpc)
 	in_cache_entry *entry;
 	struct iphdr *iph;
 	char *buff;
-	uint32_t ipaddr = 0;
+	__be32 ipaddr = 0;
 
 	static struct {
 		struct llc_snap_hdr hdr;
-		uint32_t tag;
+		__be32 tag;
 	} tagged_llc_snap_hdr = {
 		{0xaa, 0xaa, 0x03, {0x00, 0x00, 0x00}, {0x88, 0x4c}},
 		0
@@ -559,7 +559,7 @@ static int atm_mpoa_vcc_attach(struct atm_vcc *vcc, void __user *arg)
 	struct mpoa_client *mpc;
 	struct atmmpc_ioc ioc_data;
 	in_cache_entry *in_entry;
-	uint32_t  ipaddr;
+	__be32  ipaddr;
 
 	bytes_left = copy_from_user(&ioc_data, arg, sizeof(struct atmmpc_ioc));
 	if (bytes_left != 0) {
@@ -638,7 +638,7 @@ static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct sk_buff *new_skb;
 	eg_cache_entry *eg;
 	struct mpoa_client *mpc;
-	uint32_t tag;
+	__be32 tag;
 	char *tmp;
 	
 	ddprintk("mpoa: (%s) mpc_push:\n", dev->name);
@@ -683,7 +683,7 @@ static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	}
 
 	tmp = skb->data + sizeof(struct llc_snap_hdr);
-	tag = *(uint32_t *)tmp;
+	tag = *(__be32 *)tmp;
 
 	eg = mpc->eg_ops->get_by_tag(tag, mpc);
 	if (eg == NULL) {
@@ -1029,7 +1029,7 @@ static int mpoa_event_listener(struct notifier_block *mpoa_notifier, unsigned lo
 
 static void MPOA_trigger_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 {
-	uint32_t dst_ip = msg->content.in_info.in_dst_ip;
+	__be32 dst_ip = msg->content.in_info.in_dst_ip;
 	in_cache_entry *entry;
 
 	entry = mpc->in_ops->get(dst_ip, mpc);
@@ -1066,7 +1066,7 @@ static void MPOA_trigger_rcvd(struct k_message *msg, struct mpoa_client *mpc)
  */
 static void check_qos_and_open_shortcut(struct k_message *msg, struct mpoa_client *client, in_cache_entry *entry)
 {
-	uint32_t dst_ip = msg->content.in_info.in_dst_ip;
+	__be32 dst_ip = msg->content.in_info.in_dst_ip;
 	struct atm_mpoa_qos *qos = atm_mpoa_search_qos(dst_ip);
 	eg_cache_entry *eg_entry = client->eg_ops->get_by_src_ip(dst_ip, client);
 
@@ -1102,7 +1102,7 @@ static void check_qos_and_open_shortcut(struct k_message *msg, struct mpoa_clien
 
 static void MPOA_res_reply_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 {
-	uint32_t dst_ip = msg->content.in_info.in_dst_ip;
+	__be32 dst_ip = msg->content.in_info.in_dst_ip;
 	in_cache_entry *entry = mpc->in_ops->get(dst_ip, mpc);
 
 	dprintk("mpoa: (%s) MPOA_res_reply_rcvd: ip %u.%u.%u.%u\n", mpc->dev->name, NIPQUAD(dst_ip));
@@ -1148,8 +1148,8 @@ static void MPOA_res_reply_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 
 static void ingress_purge_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 {
-	uint32_t dst_ip = msg->content.in_info.in_dst_ip;
-	uint32_t mask = msg->ip_mask;
+	__be32 dst_ip = msg->content.in_info.in_dst_ip;
+	__be32 mask = msg->ip_mask;
 	in_cache_entry *entry = mpc->in_ops->get_with_mask(dst_ip, mpc, mask);
 
 	if(entry == NULL){
@@ -1173,7 +1173,7 @@ static void ingress_purge_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 
 static void egress_purge_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 {
-	uint32_t cache_id = msg->content.eg_info.cache_id;
+	__be32 cache_id = msg->content.eg_info.cache_id;
 	eg_cache_entry *entry = mpc->eg_ops->get_by_cache_id(cache_id, mpc);
 	
 	if (entry == NULL) {
@@ -1322,13 +1322,12 @@ static void set_mps_mac_addr_rcvd(struct k_message *msg, struct mpoa_client *cli
 	if(client->number_of_mps_macs)
 		kfree(client->mps_macs);
 	client->number_of_mps_macs = 0;
-	client->mps_macs = kmalloc(ETH_ALEN,GFP_KERNEL);
+	client->mps_macs = kmemdup(msg->MPS_ctrl, ETH_ALEN, GFP_KERNEL);
 	if (client->mps_macs == NULL) {
 		printk("mpoa: set_mps_mac_addr_rcvd: out of memory\n");
 		return;
 	}
 	client->number_of_mps_macs = 1;
-	memcpy(client->mps_macs, msg->MPS_ctrl, ETH_ALEN);
 	
 	return;
 }

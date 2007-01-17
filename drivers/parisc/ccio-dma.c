@@ -486,7 +486,7 @@ typedef unsigned long space_t;
 **   This bit tells U2 to do R/M/W for partial cachelines. "Streaming"
 **   data can avoid this if the mapping covers full cache lines.
 ** o STOP_MOST is needed for atomicity across cachelines.
-**   Apperently only "some EISA devices" need this.
+**   Apparently only "some EISA devices" need this.
 **   Using CONFIG_ISA is hack. Only the IOA with EISA under it needs
 **   to use this hint iff the EISA devices needs this feature.
 **   According to the U2 ERS, STOP_MOST enabled pages hurt performance.

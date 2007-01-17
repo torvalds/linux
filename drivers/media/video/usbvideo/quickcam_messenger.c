@@ -86,6 +86,7 @@ MODULE_DEVICE_TABLE(usb, qcm_table);
 static void qcm_register_input(struct qcm *cam, struct usb_device *dev)
 {
 	struct input_dev *input_dev;
+	int error;
 
 	usb_make_path(dev, cam->input_physname, sizeof(cam->input_physname));
 	strncat(cam->input_physname, "/input0", sizeof(cam->input_physname));
@@ -106,7 +107,13 @@ static void qcm_register_input(struct qcm *cam, struct usb_device *dev)
 
 	input_dev->private = cam;
 
-	input_register_device(cam->input);
+	error = input_register_device(cam->input);
+	if (error) {
+		warn("Failed to register camera's input device, err: %d\n",
+		     error);
+		input_free_device(cam->input);
+		cam->input = NULL;
+	}
 }
 
 static void qcm_unregister_input(struct qcm *cam)
@@ -190,8 +197,7 @@ static int qcm_alloc_int_urb(struct qcm *cam)
 
 static void qcm_free_int(struct qcm *cam)
 {
-	if (cam->button_urb)
-		usb_free_urb(cam->button_urb);
+	usb_free_urb(cam->button_urb);
 }
 #endif /* CONFIG_INPUT */
 

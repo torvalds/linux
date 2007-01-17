@@ -175,6 +175,9 @@ struct omap_udc {
 	unsigned			ep0_reset_config:1;
 	unsigned			ep0_setup:1;
 	struct completion		*done;
+	struct clk			*dc_clk;
+	struct clk			*hhc_clk;
+	unsigned			clk_requested:1;
 };
 
 /*-------------------------------------------------------------------------*/

@@ -95,7 +95,7 @@ typedef struct pegasus {
 	int			dev_index;
 	int			intr_interval;
 	struct tasklet_struct	rx_tl;
-	struct work_struct	carrier_check;
+	struct delayed_work	carrier_check;
 	struct urb		*ctrl_urb, *rx_urb, *tx_urb, *intr_urb;
 	struct sk_buff		*rx_pool[RX_SKBS];
 	struct sk_buff		*rx_skb;

@@ -31,9 +31,9 @@ static irqreturn_t line_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void line_timer_cb(void *arg)
+static void line_timer_cb(struct work_struct *work)
 {
-	struct line *line = arg;
+	struct line *line = container_of(work, struct line, task.work);
 
 	if(!line->throttled)
 		chan_interrupt(&line->chan_list, &line->task, line->tty,
@@ -246,7 +246,7 @@ out_up:
 	return ret;
 }
 
-void line_set_termios(struct tty_struct *tty, struct termios * old)
+void line_set_termios(struct tty_struct *tty, struct ktermios * old)
 {
 	/* nothing */
 }
@@ -443,7 +443,7 @@ int line_open(struct line *lines, struct tty_struct *tty)
 		 * is registered.
 		 */
 		enable_chan(line);
-		INIT_WORK(&line->task, line_timer_cb, line);
+		INIT_DELAYED_WORK(&line->task, line_timer_cb);
 
 		if(!line->sigio){
 			chan_enable_winch(&line->chan_list, tty);

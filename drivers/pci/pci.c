@@ -68,12 +68,14 @@ pci_max_busnr(void)
 
 #endif  /*  0  */
 
-static int __pci_find_next_cap(struct pci_bus *bus, unsigned int devfn, u8 pos, int cap)
+#define PCI_FIND_CAP_TTL	48
+
+static int __pci_find_next_cap_ttl(struct pci_bus *bus, unsigned int devfn,
+				   u8 pos, int cap, int *ttl)
 {
 	u8 id;
-	int ttl = 48;
 
-	while (ttl--) {
+	while ((*ttl)--) {
 		pci_bus_read_config_byte(bus, devfn, pos, &pos);
 		if (pos < 0x40)
 			break;
@@ -89,6 +91,14 @@ static int __pci_find_next_cap(struct pci_bus *bus, unsigned int devfn, u8 pos, 
 	return 0;
 }
 
+static int __pci_find_next_cap(struct pci_bus *bus, unsigned int devfn,
+			       u8 pos, int cap)
+{
+	int ttl = PCI_FIND_CAP_TTL;
+
+	return __pci_find_next_cap_ttl(bus, devfn, pos, cap, &ttl);
+}
+
 int pci_find_next_capability(struct pci_dev *dev, u8 pos, int cap)
 {
 	return __pci_find_next_cap(dev->bus, dev->devfn,
@@ -96,10 +106,10 @@ int pci_find_next_capability(struct pci_dev *dev, u8 pos, int cap)
 }
 EXPORT_SYMBOL_GPL(pci_find_next_capability);
 
-static int __pci_bus_find_cap(struct pci_bus *bus, unsigned int devfn, u8 hdr_type, int cap)
+static int __pci_bus_find_cap_start(struct pci_bus *bus,
+				    unsigned int devfn, u8 hdr_type)
 {
 	u16 status;
-	u8 pos;
 
 	pci_bus_read_config_word(bus, devfn, PCI_STATUS, &status);
 	if (!(status & PCI_STATUS_CAP_LIST))
@@ -108,15 +118,14 @@ static int __pci_bus_find_cap(struct pci_bus *bus, unsigned int devfn, u8 hdr_ty
 	switch (hdr_type) {
 	case PCI_HEADER_TYPE_NORMAL:
 	case PCI_HEADER_TYPE_BRIDGE:
-		pos = PCI_CAPABILITY_LIST;
-		break;
+		return PCI_CAPABILITY_LIST;
 	case PCI_HEADER_TYPE_CARDBUS:
-		pos = PCI_CB_CAPABILITY_LIST;
-		break;
+		return PCI_CB_CAPABILITY_LIST;
 	default:
 		return 0;
 	}
-	return __pci_find_next_cap(bus, devfn, pos, cap);
+
+	return 0;
 }
 
 /**
@@ -140,7 +149,13 @@ static int __pci_bus_find_cap(struct pci_bus *bus, unsigned int devfn, u8 hdr_ty
  */
 int pci_find_capability(struct pci_dev *dev, int cap)
 {
-	return __pci_bus_find_cap(dev->bus, dev->devfn, dev->hdr_type, cap);
+	int pos;
+
+	pos = __pci_bus_find_cap_start(dev->bus, dev->devfn, dev->hdr_type);
+	if (pos)
+		pos = __pci_find_next_cap(dev->bus, dev->devfn, pos, cap);
+
+	return pos;
 }
 
 /**
@@ -158,11 +173,16 @@ int pci_find_capability(struct pci_dev *dev, int cap)
  */
 int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
 {
+	int pos;
 	u8 hdr_type;
 
 	pci_bus_read_config_byte(bus, devfn, PCI_HEADER_TYPE, &hdr_type);
 
-	return __pci_bus_find_cap(bus, devfn, hdr_type & 0x7f, cap);
+	pos = __pci_bus_find_cap_start(bus, devfn, hdr_type & 0x7f);
+	if (pos)
+		pos = __pci_find_next_cap(bus, devfn, pos, cap);
+
+	return pos;
 }
 
 /**
@@ -213,6 +233,75 @@ int pci_find_ext_capability(struct pci_dev *dev, int cap)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pci_find_ext_capability);
+
+static int __pci_find_next_ht_cap(struct pci_dev *dev, int pos, int ht_cap)
+{
+	int rc, ttl = PCI_FIND_CAP_TTL;
+	u8 cap, mask;
+
+	if (ht_cap == HT_CAPTYPE_SLAVE || ht_cap == HT_CAPTYPE_HOST)
+		mask = HT_3BIT_CAP_MASK;
+	else
+		mask = HT_5BIT_CAP_MASK;
+
+	pos = __pci_find_next_cap_ttl(dev->bus, dev->devfn, pos,
+				      PCI_CAP_ID_HT, &ttl);
+	while (pos) {
+		rc = pci_read_config_byte(dev, pos + 3, &cap);
+		if (rc != PCIBIOS_SUCCESSFUL)
+			return 0;
+
+		if ((cap & mask) == ht_cap)
+			return pos;
+
+		pos = __pci_find_next_cap_ttl(dev->bus, dev->devfn,
+					      pos + PCI_CAP_LIST_NEXT,
+					      PCI_CAP_ID_HT, &ttl);
+	}
+
+	return 0;
+}
+/**
+ * pci_find_next_ht_capability - query a device's Hypertransport capabilities
+ * @dev: PCI device to query
+ * @pos: Position from which to continue searching
+ * @ht_cap: Hypertransport capability code
+ *
+ * To be used in conjunction with pci_find_ht_capability() to search for
+ * all capabilities matching @ht_cap. @pos should always be a value returned
+ * from pci_find_ht_capability().
+ *
+ * NB. To be 100% safe against broken PCI devices, the caller should take
+ * steps to avoid an infinite loop.
+ */
+int pci_find_next_ht_capability(struct pci_dev *dev, int pos, int ht_cap)
+{
+	return __pci_find_next_ht_cap(dev, pos + PCI_CAP_LIST_NEXT, ht_cap);
+}
+EXPORT_SYMBOL_GPL(pci_find_next_ht_capability);
+
+/**
+ * pci_find_ht_capability - query a device's Hypertransport capabilities
+ * @dev: PCI device to query
+ * @ht_cap: Hypertransport capability code
+ *
+ * Tell if a device supports a given Hypertransport capability.
+ * Returns an address within the device's PCI configuration space
+ * or 0 in case the device does not support the request capability.
+ * The address points to the PCI capability, of type PCI_CAP_ID_HT,
+ * which has a Hypertransport capability matching @ht_cap.
+ */
+int pci_find_ht_capability(struct pci_dev *dev, int ht_cap)
+{
+	int pos;
+
+	pos = __pci_bus_find_cap_start(dev->bus, dev->devfn, dev->hdr_type);
+	if (pos)
+		pos = __pci_find_next_ht_cap(dev, pos, ht_cap);
+
+	return pos;
+}
+EXPORT_SYMBOL_GPL(pci_find_ht_capability);
 
 /**
  * pci_find_parent_resource - return resource region of parent bus of given region
@@ -490,6 +579,47 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 	kfree(save_state);
 }
 
+
+static int pci_save_pcix_state(struct pci_dev *dev)
+{
+	int pos, i = 0;
+	struct pci_cap_saved_state *save_state;
+	u16 *cap;
+
+	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
+	if (pos <= 0)
+		return 0;
+
+	save_state = kzalloc(sizeof(*save_state) + sizeof(u16), GFP_KERNEL);
+	if (!save_state) {
+		dev_err(&dev->dev, "Out of memory in pci_save_pcie_state\n");
+		return -ENOMEM;
+	}
+	cap = (u16 *)&save_state->data[0];
+
+	pci_read_config_word(dev, pos + PCI_X_CMD, &cap[i++]);
+	pci_add_saved_cap(dev, save_state);
+	return 0;
+}
+
+static void pci_restore_pcix_state(struct pci_dev *dev)
+{
+	int i = 0, pos;
+	struct pci_cap_saved_state *save_state;
+	u16 *cap;
+
+	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_PCIX);
+	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
+	if (!save_state || pos <= 0)
+		return;
+	cap = (u16 *)&save_state->data[0];
+
+	pci_write_config_word(dev, pos + PCI_X_CMD, cap[i++]);
+	pci_remove_saved_cap(save_state);
+	kfree(save_state);
+}
+
+
 /**
  * pci_save_state - save the PCI configuration space of a device before suspending
  * @dev: - PCI device that we're dealing with
@@ -506,6 +636,8 @@ pci_save_state(struct pci_dev *dev)
 	if ((i = pci_save_msix_state(dev)) != 0)
 		return i;
 	if ((i = pci_save_pcie_state(dev)) != 0)
+		return i;
+	if ((i = pci_save_pcix_state(dev)) != 0)
 		return i;
 	return 0;
 }
@@ -538,6 +670,7 @@ pci_restore_state(struct pci_dev *dev)
 				dev->saved_config_space[i]);
 		}
 	}
+	pci_restore_pcix_state(dev);
 	pci_restore_msi_state(dev);
 	pci_restore_msix_state(dev);
 	return 0;
@@ -568,27 +701,48 @@ pci_enable_device_bars(struct pci_dev *dev, int bars)
 }
 
 /**
+ * __pci_enable_device - Initialize device before it's used by a driver.
+ * @dev: PCI device to be initialized
+ *
+ *  Initialize device before it's used by a driver. Ask low-level code
+ *  to enable I/O and memory. Wake up the device if it was suspended.
+ *  Beware, this function can fail.
+ *
+ * Note this function is a backend and is not supposed to be called by
+ * normal code, use pci_enable_device() instead.
+ */
+int
+__pci_enable_device(struct pci_dev *dev)
+{
+	int err;
+
+	err = pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
+	if (err)
+		return err;
+	pci_fixup_device(pci_fixup_enable, dev);
+	return 0;
+}
+
+/**
  * pci_enable_device - Initialize device before it's used by a driver.
  * @dev: PCI device to be initialized
  *
  *  Initialize device before it's used by a driver. Ask low-level code
  *  to enable I/O and memory. Wake up the device if it was suspended.
  *  Beware, this function can fail.
+ *
+ *  Note we don't actually enable the device many times if we call
+ *  this function repeatedly (we just increment the count).
  */
-int
-pci_enable_device(struct pci_dev *dev)
+int pci_enable_device(struct pci_dev *dev)
 {
-	int err;
-
-	if (dev->is_enabled)
-		return 0;
-
-	err = pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
-	if (err)
-		return err;
-	pci_fixup_device(pci_fixup_enable, dev);
-	dev->is_enabled = 1;
-	return 0;
+	int result;
+	if (atomic_add_return(1, &dev->enable_cnt) > 1)
+		return 0;		/* already enabled */
+	result = __pci_enable_device(dev);
+	if (result < 0)
+		atomic_dec(&dev->enable_cnt);
+	return result;
 }
 
 /**
@@ -607,11 +761,17 @@ void __attribute__ ((weak)) pcibios_disable_device (struct pci_dev *dev) {}
  *
  * Signal to the system that the PCI device is not in use by the system
  * anymore.  This only involves disabling PCI bus-mastering, if active.
+ *
+ * Note we don't actually disable the device until all callers of
+ * pci_device_enable() have called pci_device_disable().
  */
 void
 pci_disable_device(struct pci_dev *dev)
 {
 	u16 pci_command;
+
+	if (atomic_sub_return(1, &dev->enable_cnt) != 0)
+		return;
 
 	if (dev->msi_enabled)
 		disable_msi_mode(dev, pci_find_capability(dev, PCI_CAP_ID_MSI),
@@ -628,7 +788,6 @@ pci_disable_device(struct pci_dev *dev)
 	dev->is_busmaster = 0;
 
 	pcibios_disable_device(dev);
-	dev->is_enabled = 0;
 }
 
 /**
@@ -831,22 +990,38 @@ pci_set_master(struct pci_dev *dev)
 	pcibios_set_master(dev);
 }
 
-#ifndef HAVE_ARCH_PCI_MWI
+#ifdef PCI_DISABLE_MWI
+int pci_set_mwi(struct pci_dev *dev)
+{
+	return 0;
+}
+
+void pci_clear_mwi(struct pci_dev *dev)
+{
+}
+
+#else
+
+#ifndef PCI_CACHE_LINE_BYTES
+#define PCI_CACHE_LINE_BYTES L1_CACHE_BYTES
+#endif
+
 /* This can be overridden by arch code. */
-u8 pci_cache_line_size = L1_CACHE_BYTES >> 2;
+/* Don't forget this is measured in 32-bit words, not bytes */
+u8 pci_cache_line_size = PCI_CACHE_LINE_BYTES / 4;
 
 /**
- * pci_generic_prep_mwi - helper function for pci_set_mwi
- * @dev: the PCI device for which MWI is enabled
+ * pci_set_cacheline_size - ensure the CACHE_LINE_SIZE register is programmed
+ * @dev: the PCI device for which MWI is to be enabled
  *
- * Helper function for generic implementation of pcibios_prep_mwi
- * function.  Originally copied from drivers/net/acenic.c.
+ * Helper function for pci_set_mwi.
+ * Originally copied from drivers/net/acenic.c.
  * Copyright 1998-2001 by Jes Sorensen, <jes@trained-monkey.org>.
  *
  * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
  */
 static int
-pci_generic_prep_mwi(struct pci_dev *dev)
+pci_set_cacheline_size(struct pci_dev *dev)
 {
 	u8 cacheline_size;
 
@@ -872,7 +1047,6 @@ pci_generic_prep_mwi(struct pci_dev *dev)
 
 	return -EINVAL;
 }
-#endif /* !HAVE_ARCH_PCI_MWI */
 
 /**
  * pci_set_mwi - enables memory-write-invalidate PCI transaction
@@ -890,12 +1064,7 @@ pci_set_mwi(struct pci_dev *dev)
 	int rc;
 	u16 cmd;
 
-#ifdef HAVE_ARCH_PCI_MWI
-	rc = pcibios_prep_mwi(dev);
-#else
-	rc = pci_generic_prep_mwi(dev);
-#endif
-
+	rc = pci_set_cacheline_size(dev);
 	if (rc)
 		return rc;
 
@@ -926,6 +1095,7 @@ pci_clear_mwi(struct pci_dev *dev)
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
 }
+#endif /* ! PCI_DISABLE_MWI */
 
 /**
  * pci_intx - enables/disables PCI INTx for device dev

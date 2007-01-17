@@ -371,8 +371,6 @@ static void cbq_deactivate_class(struct cbq_class *this)
 					return;
 				}
 			}
-
-			cl = cl_prev->next_alive;
 			return;
 		}
 	} while ((cl_prev = cl) != q->active[prio]);
@@ -1258,6 +1256,8 @@ static unsigned int cbq_drop(struct Qdisc* sch)
 		do {
 			if (cl->q->ops->drop && (len = cl->q->ops->drop(cl->q))) {
 				sch->q.qlen--;
+				if (!cl->q->q.qlen)
+					cbq_deactivate_class(cl);
 				return len;
 			}
 		} while ((cl = cl->next_alive) != cl_head);
@@ -1429,7 +1429,8 @@ static int cbq_init(struct Qdisc *sch, struct rtattr *opt)
 	q->link.sibling = &q->link;
 	q->link.classid = sch->handle;
 	q->link.qdisc = sch;
-	if (!(q->link.q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops)))
+	if (!(q->link.q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
+					    sch->handle)))
 		q->link.q = &noop_qdisc;
 
 	q->link.priority = TC_CBQ_MAXPRIO-1;
@@ -1674,7 +1675,8 @@ static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 
 	if (cl) {
 		if (new == NULL) {
-			if ((new = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops)) == NULL)
+			if ((new = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
+						     cl->classid)) == NULL)
 				return -ENOBUFS;
 		} else {
 #ifdef CONFIG_NET_CLS_POLICE
@@ -1683,9 +1685,8 @@ static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 #endif
 		}
 		sch_tree_lock(sch);
-		*old = cl->q;
-		cl->q = new;
-		sch->q.qlen -= (*old)->q.qlen;
+		*old = xchg(&cl->q, new);
+		qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 		qdisc_reset(*old);
 		sch_tree_unlock(sch);
 
@@ -1700,6 +1701,14 @@ cbq_leaf(struct Qdisc *sch, unsigned long arg)
 	struct cbq_class *cl = (struct cbq_class*)arg;
 
 	return cl ? cl->q : NULL;
+}
+
+static void cbq_qlen_notify(struct Qdisc *sch, unsigned long arg)
+{
+	struct cbq_class *cl = (struct cbq_class *)arg;
+
+	if (cl->q->q.qlen == 0)
+		cbq_deactivate_class(cl);
 }
 
 static unsigned long cbq_get(struct Qdisc *sch, u32 classid)
@@ -1932,7 +1941,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct rtattr **t
 	cl->R_tab = rtab;
 	rtab = NULL;
 	cl->refcnt = 1;
-	if (!(cl->q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops)))
+	if (!(cl->q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, classid)))
 		cl->q = &noop_qdisc;
 	cl->classid = classid;
 	cl->tparent = parent;
@@ -1986,11 +1995,16 @@ static int cbq_delete(struct Qdisc *sch, unsigned long arg)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct cbq_class *cl = (struct cbq_class*)arg;
+	unsigned int qlen;
 
 	if (cl->filters || cl->children || cl == &q->link)
 		return -EBUSY;
 
 	sch_tree_lock(sch);
+
+	qlen = cl->q->q.qlen;
+	qdisc_reset(cl->q);
+	qdisc_tree_decrease_qlen(cl->q, qlen);
 
 	if (cl->next_alive)
 		cbq_deactivate_class(cl);
@@ -2082,6 +2096,7 @@ static void cbq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 static struct Qdisc_class_ops cbq_class_ops = {
 	.graft		=	cbq_graft,
 	.leaf		=	cbq_leaf,
+	.qlen_notify	=	cbq_qlen_notify,
 	.get		=	cbq_get,
 	.put		=	cbq_put,
 	.change		=	cbq_change_class,

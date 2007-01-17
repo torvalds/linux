@@ -200,7 +200,7 @@ nautilus_init_pci(void)
 	bus = pci_scan_bus(0, alpha_mv.pci_ops, hose);
 	hose->bus = bus;
 
-	irongate = pci_find_slot(0, 0);
+	irongate = pci_get_bus_and_slot(0, 0);
 	bus->self = irongate;
 	bus->resource[1] = &irongate_mem;
 

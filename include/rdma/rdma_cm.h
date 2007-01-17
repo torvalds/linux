@@ -77,11 +77,34 @@ struct rdma_route {
 	int num_paths;
 };
 
+struct rdma_conn_param {
+	const void *private_data;
+	u8 private_data_len;
+	u8 responder_resources;
+	u8 initiator_depth;
+	u8 flow_control;
+	u8 retry_count;		/* ignored when accepting */
+	u8 rnr_retry_count;
+	/* Fields below ignored if a QP is created on the rdma_cm_id. */
+	u8 srq;
+	u32 qp_num;
+};
+
+struct rdma_ud_param {
+	const void *private_data;
+	u8 private_data_len;
+	struct ib_ah_attr ah_attr;
+	u32 qp_num;
+	u32 qkey;
+};
+
 struct rdma_cm_event {
 	enum rdma_cm_event_type	 event;
 	int			 status;
-	void			*private_data;
-	u8			 private_data_len;
+	union {
+		struct rdma_conn_param	conn;
+		struct rdma_ud_param	ud;
+	} param;
 };
 
 struct rdma_cm_id;
@@ -204,25 +227,17 @@ void rdma_destroy_qp(struct rdma_cm_id *id);
 int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 		       int *qp_attr_mask);
 
-struct rdma_conn_param {
-	const void *private_data;
-	u8 private_data_len;
-	u8 responder_resources;
-	u8 initiator_depth;
-	u8 flow_control;
-	u8 retry_count;		/* ignored when accepting */
-	u8 rnr_retry_count;
-	/* Fields below ignored if a QP is created on the rdma_cm_id. */
-	u8 srq;
-	u32 qp_num;
-	enum ib_qp_type qp_type;
-};
-
 /**
  * rdma_connect - Initiate an active connection request.
+ * @id: Connection identifier to connect.
+ * @conn_param: Connection information used for connected QPs.
  *
  * Users must have resolved a route for the rdma_cm_id to connect with
  * by having called rdma_resolve_route before calling this routine.
+ *
+ * This call will either connect to a remote QP or obtain remote QP
+ * information for unconnected rdma_cm_id's.  The actual operation is
+ * based on the rdma_cm_id's port space.
  */
 int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
 
@@ -251,6 +266,21 @@ int rdma_listen(struct rdma_cm_id *id, int backlog);
  * previously posted receive buffers would be flushed.
  */
 int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
+
+/**
+ * rdma_notify - Notifies the RDMA CM of an asynchronous event that has
+ * occurred on the connection.
+ * @id: Connection identifier to transition to established.
+ * @event: Asynchronous event.
+ *
+ * This routine should be invoked by users to notify the CM of relevant
+ * communication events.  Events that should be reported to the CM and
+ * when to report them are:
+ *
+ * IB_EVENT_COMM_EST - Used when a message is received on a connected
+ *    QP before an RTU has been received.
+ */
+int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event);
 
 /**
  * rdma_reject - Called to reject a connection request or response.

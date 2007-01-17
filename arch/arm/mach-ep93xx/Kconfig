@@ -9,11 +9,23 @@ config CRUNCH
 
 comment "EP93xx Platforms"
 
+config MACH_ADSSPHERE
+	bool "Support ADS Sphere"
+	help
+	  Say 'Y' here if you want your kernel to support the ADS
+	  Sphere board.
+
 config MACH_EDB9302
 	bool "Support Cirrus Logic EDB9302"
 	help
 	  Say 'Y' here if you want your kernel to support the Cirrus
 	  Logic EDB9302 Evaluation Board.
+
+config MACH_EDB9302A
+	bool "Support Cirrus Logic EDB9302A"
+	help
+	  Say 'Y' here if you want your kernel to support the Cirrus
+	  Logic EDB9302A Evaluation Board.
 
 config MACH_EDB9312
 	bool "Support Cirrus Logic EDB9312"

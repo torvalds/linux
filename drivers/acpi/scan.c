@@ -984,12 +984,11 @@ acpi_add_single_object(struct acpi_device **child,
 	if (!child)
 		return -EINVAL;
 
-	device = kmalloc(sizeof(struct acpi_device), GFP_KERNEL);
+	device = kzalloc(sizeof(struct acpi_device), GFP_KERNEL);
 	if (!device) {
 		printk(KERN_ERR PREFIX "Memory allocation error\n");
 		return -ENOMEM;
 	}
-	memset(device, 0, sizeof(struct acpi_device));
 
 	device->handle = handle;
 	device->parent = parent;

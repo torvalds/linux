@@ -71,7 +71,7 @@ void ax25_rt_device_down(struct net_device *dev)
 	write_unlock(&ax25_route_lock);
 }
 
-static int ax25_rt_add(struct ax25_routes_struct *route)
+static int __must_check ax25_rt_add(struct ax25_routes_struct *route)
 {
 	ax25_route *ax25_rt;
 	ax25_dev *ax25_dev;
@@ -432,11 +432,12 @@ int ax25_rt_autobind(ax25_cb *ax25, ax25_address *addr)
 	}
 
 	if (ax25_rt->digipeat != NULL) {
-		if ((ax25->digipeat = kmalloc(sizeof(ax25_digi), GFP_ATOMIC)) == NULL) {
+		ax25->digipeat = kmemdup(ax25_rt->digipeat, sizeof(ax25_digi),
+					 GFP_ATOMIC);
+		if (ax25->digipeat == NULL) {
 			err = -ENOMEM;
 			goto put;
 		}
-		memcpy(ax25->digipeat, ax25_rt->digipeat, sizeof(ax25_digi));
 		ax25_adjust_path(addr, ax25->digipeat);
 	}
 

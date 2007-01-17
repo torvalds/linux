@@ -75,7 +75,7 @@ with the command.
 
  - otherwise
 	scsi_eh_scmd_add(scmd, 0) is invoked for the command.  See
-	[1-3] for details of this funciton.
+	[1-3] for details of this function.
 
 
 [1-2-2] Completing a scmd w/ timeout

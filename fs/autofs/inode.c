@@ -28,10 +28,11 @@ void autofs_kill_sb(struct super_block *sb)
 	/*
 	 * In the event of a failure in get_sb_nodev the superblock
 	 * info is not present so nothing else has been setup, so
-	 * just exit when we are called from deactivate_super.
+	 * just call kill_anon_super when we are called from
+	 * deactivate_super.
 	 */
 	if (!sbi)
-		return;
+		goto out_kill_sb;
 
 	if ( !sbi->catatonic )
 		autofs_catatonic_mode(sbi); /* Free wait queues, close pipe */
@@ -44,6 +45,7 @@ void autofs_kill_sb(struct super_block *sb)
 
 	kfree(sb->s_fs_info);
 
+out_kill_sb:
 	DPRINTK(("autofs: shutting down\n"));
 	kill_anon_super(sb);
 }
@@ -209,7 +211,6 @@ fail_iput:
 fail_free:
 	kfree(sbi);
 	s->s_fs_info = NULL;
-	kill_anon_super(s);
 fail_unlock:
 	return -EINVAL;
 }

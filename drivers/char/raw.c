@@ -75,7 +75,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 	filp->f_flags |= O_DIRECT;
 	filp->f_mapping = bdev->bd_inode->i_mapping;
 	if (++raw_devices[minor].inuse == 1)
-		filp->f_dentry->d_inode->i_mapping =
+		filp->f_path.dentry->d_inode->i_mapping =
 			bdev->bd_inode->i_mapping;
 	filp->private_data = bdev;
 	mutex_unlock(&raw_mutex);
@@ -127,9 +127,9 @@ raw_ioctl(struct inode *inode, struct file *filp,
 
 static void bind_device(struct raw_config_request *rq)
 {
-	class_device_destroy(raw_class, MKDEV(RAW_MAJOR, rq->raw_minor));
-	class_device_create(raw_class, NULL, MKDEV(RAW_MAJOR, rq->raw_minor),
-				      NULL, "raw%d", rq->raw_minor);
+	device_destroy(raw_class, MKDEV(RAW_MAJOR, rq->raw_minor));
+	device_create(raw_class, NULL, MKDEV(RAW_MAJOR, rq->raw_minor),
+		      "raw%d", rq->raw_minor);
 }
 
 /*
@@ -200,7 +200,7 @@ static int raw_ctl_ioctl(struct inode *inode, struct file *filp,
 			if (rq.block_major == 0 && rq.block_minor == 0) {
 				/* unbind */
 				rawdev->binding = NULL;
-				class_device_destroy(raw_class,
+				device_destroy(raw_class,
 						MKDEV(RAW_MAJOR, rq.raw_minor));
 			} else {
 				rawdev->binding = bdget(dev);
@@ -283,7 +283,7 @@ static int __init raw_init(void)
 		ret = PTR_ERR(raw_class);
 		goto error_region;
 	}
-	class_device_create(raw_class, NULL, MKDEV(RAW_MAJOR, 0), NULL, "rawctl");
+	device_create(raw_class, NULL, MKDEV(RAW_MAJOR, 0), "rawctl");
 
 	return 0;
 
@@ -295,7 +295,7 @@ error:
 
 static void __exit raw_exit(void)
 {
-	class_device_destroy(raw_class, MKDEV(RAW_MAJOR, 0));
+	device_destroy(raw_class, MKDEV(RAW_MAJOR, 0));
 	class_destroy(raw_class);
 	cdev_del(&raw_cdev);
 	unregister_chrdev_region(MKDEV(RAW_MAJOR, 0), MAX_RAW_MINORS);

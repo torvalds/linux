@@ -501,13 +501,12 @@ struct ias_value *irias_new_octseq_value(__u8 *octseq , int len)
 		len = IAS_MAX_OCTET_STRING;
 	value->len = len;
 
-	value->t.oct_seq = kmalloc(len, GFP_ATOMIC);
+	value->t.oct_seq = kmemdup(octseq, len, GFP_ATOMIC);
 	if (value->t.oct_seq == NULL){
 		IRDA_WARNING("%s: Unable to kmalloc!\n", __FUNCTION__);
 		kfree(value);
 		return NULL;
 	}
-	memcpy(value->t.oct_seq, octseq , len);
 	return value;
 }
 
@@ -522,7 +521,6 @@ struct ias_value *irias_new_missing_value(void)
 	}
 
 	value->type = IAS_MISSING;
-	value->len = 0;
 
 	return value;
 }

@@ -779,7 +779,8 @@ static int fs_init_phy(struct net_device *dev)
 	fep->oldspeed = 0;
 	fep->oldduplex = -1;
 	if(fep->fpi->bus_id)
-		phydev = phy_connect(dev, fep->fpi->bus_id, &fs_adjust_link, 0);
+		phydev = phy_connect(dev, fep->fpi->bus_id, &fs_adjust_link, 0,
+				PHY_INTERFACE_MODE_MII);
 	else {
 		printk("No phy bus ID specified in BSP code\n");
 		return -EINVAL;

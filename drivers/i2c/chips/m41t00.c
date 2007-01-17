@@ -209,14 +209,22 @@ m41t00_set(void *arg)
 	buf[m41t00_chip->hour] = (buf[m41t00_chip->hour] & ~0x3f) | (hour& 0x3f);
 	buf[m41t00_chip->day] = (buf[m41t00_chip->day] & ~0x3f) | (day & 0x3f);
 	buf[m41t00_chip->mon] = (buf[m41t00_chip->mon] & ~0x1f) | (mon & 0x1f);
+	buf[m41t00_chip->year] = year;
 
 	if (i2c_master_send(save_client, wbuf, 9) < 0)
 		dev_err(&save_client->dev, "m41t00_set: Write error\n");
 }
 
 static ulong new_time;
+/* well, isn't this API just _lovely_? */
+static void
+m41t00_barf(struct work_struct *unusable)
+{
+	m41t00_set(&new_time);
+}
+
 static struct workqueue_struct *m41t00_wq;
-static DECLARE_WORK(m41t00_work, m41t00_set, &new_time);
+static DECLARE_WORK(m41t00_work, m41t00_barf);
 
 int
 m41t00_set_rtc_time(ulong nowtime)

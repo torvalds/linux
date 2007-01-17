@@ -583,11 +583,11 @@ struct ipw2100_priv {
 	struct tasklet_struct irq_tasklet;
 
 	struct workqueue_struct *workqueue;
-	struct work_struct reset_work;
-	struct work_struct security_work;
-	struct work_struct wx_event_work;
-	struct work_struct hang_check;
-	struct work_struct rf_kill;
+	struct delayed_work reset_work;
+	struct delayed_work security_work;
+	struct delayed_work wx_event_work;
+	struct delayed_work hang_check;
+	struct delayed_work rf_kill;
 
 	u32 interrupts;
 	int tx_interrupts;

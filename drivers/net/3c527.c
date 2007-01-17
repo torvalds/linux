@@ -1659,7 +1659,7 @@ int __init init_module(void)
  *	transmit operations are allowed to start scribbling into memory.
  */
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	unregister_netdev(this_device);
 	cleanup_card(this_device);

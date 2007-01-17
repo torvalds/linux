@@ -267,12 +267,12 @@ adb_probe_task(void *x)
 }
 
 static void
-__adb_probe_task(void *data)
+__adb_probe_task(struct work_struct *bullshit)
 {
 	adb_probe_task_pid = kernel_thread(adb_probe_task, NULL, SIGCHLD | CLONE_KERNEL);
 }
 
-static DECLARE_WORK(adb_reset_work, __adb_probe_task, NULL);
+static DECLARE_WORK(adb_reset_work, __adb_probe_task);
 
 int
 adb_reset_bus(void)
@@ -828,7 +828,7 @@ static ssize_t adb_write(struct file *file, const char __user *buf,
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
 
-	req = (struct adb_request *) kmalloc(sizeof(struct adb_request),
+	req = kmalloc(sizeof(struct adb_request),
 					     GFP_KERNEL);
 	if (req == NULL)
 		return -ENOMEM;

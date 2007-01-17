@@ -25,16 +25,18 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/interrupt.h>
 #include <linux/cpu.h>
 #include <linux/blktrace_api.h>
+#include <linux/fault-inject.h>
 
 /*
  * for max sense size
  */
 #include <scsi/scsi_cmnd.h>
 
-static void blk_unplug_work(void *data);
+static void blk_unplug_work(struct work_struct *work);
 static void blk_unplug_timeout(unsigned long data);
 static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io);
 static void init_request_from_bio(struct request *req, struct bio *bio);
@@ -44,17 +46,17 @@ static struct io_context *current_io_context(gfp_t gfp_flags, int node);
 /*
  * For the allocated request tables
  */
-static kmem_cache_t *request_cachep;
+static struct kmem_cache *request_cachep;
 
 /*
  * For queue allocation
  */
-static kmem_cache_t *requestq_cachep;
+static struct kmem_cache *requestq_cachep;
 
 /*
  * For io context allocations
  */
-static kmem_cache_t *iocontext_cachep;
+static struct kmem_cache *iocontext_cachep;
 
 /*
  * Controlling structure to kblockd
@@ -126,13 +128,6 @@ struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev)
 	return ret;
 }
 EXPORT_SYMBOL(blk_get_backing_dev_info);
-
-void blk_queue_activity_fn(request_queue_t *q, activity_fn *fn, void *data)
-{
-	q->activity_fn = fn;
-	q->activity_data = data;
-}
-EXPORT_SYMBOL(blk_queue_activity_fn);
 
 /**
  * blk_queue_prep_rq - set a prepare_request function for queue
@@ -227,7 +222,7 @@ void blk_queue_make_request(request_queue_t * q, make_request_fn * mfn)
 	if (q->unplug_delay == 0)
 		q->unplug_delay = 1;
 
-	INIT_WORK(&q->unplug_work, blk_unplug_work, q);
+	INIT_WORK(&q->unplug_work, blk_unplug_work);
 
 	q->unplug_timer.function = blk_unplug_timeout;
 	q->unplug_timer.data = (unsigned long)q;
@@ -236,8 +231,6 @@ void blk_queue_make_request(request_queue_t * q, make_request_fn * mfn)
 	 * by default assume old behaviour and bounce for any highmem page
 	 */
 	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
-
-	blk_queue_activity_fn(q, NULL, NULL);
 }
 
 EXPORT_SYMBOL(blk_queue_make_request);
@@ -1412,8 +1405,7 @@ static inline int ll_new_hw_segment(request_queue_t *q,
 	return 1;
 }
 
-static int ll_back_merge_fn(request_queue_t *q, struct request *req, 
-			    struct bio *bio)
+int ll_back_merge_fn(request_queue_t *q, struct request *req, struct bio *bio)
 {
 	unsigned short max_sectors;
 	int len;
@@ -1449,6 +1441,7 @@ static int ll_back_merge_fn(request_queue_t *q, struct request *req,
 
 	return ll_new_hw_segment(q, req, bio);
 }
+EXPORT_SYMBOL(ll_back_merge_fn);
 
 static int ll_front_merge_fn(request_queue_t *q, struct request *req, 
 			     struct bio *bio)
@@ -1631,9 +1624,9 @@ static void blk_backing_dev_unplug(struct backing_dev_info *bdi,
 	}
 }
 
-static void blk_unplug_work(void *data)
+static void blk_unplug_work(struct work_struct *work)
 {
-	request_queue_t *q = data;
+	request_queue_t *q = container_of(work, request_queue_t, unplug_work);
 
 	blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_IO, NULL,
 				q->rq.count[READ] + q->rq.count[WRITE]);
@@ -1919,9 +1912,6 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	}
 
 	q->request_fn		= rfn;
-	q->back_merge_fn       	= ll_back_merge_fn;
-	q->front_merge_fn      	= ll_front_merge_fn;
-	q->merge_requests_fn	= ll_merge_requests_fn;
 	q->prep_rq_fn		= NULL;
 	q->unplug_fn		= generic_unplug_device;
 	q->queue_flags		= (1 << QUEUE_FLAG_CLUSTER);
@@ -2065,15 +2055,16 @@ static void freed_request(request_queue_t *q, int rw, int priv)
  * Returns NULL on failure, with queue_lock held.
  * Returns !NULL on success, with queue_lock *not held*.
  */
-static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
-				   gfp_t gfp_mask)
+static struct request *get_request(request_queue_t *q, int rw_flags,
+				   struct bio *bio, gfp_t gfp_mask)
 {
 	struct request *rq = NULL;
 	struct request_list *rl = &q->rq;
 	struct io_context *ioc = NULL;
+	const int rw = rw_flags & 0x01;
 	int may_queue, priv;
 
-	may_queue = elv_may_queue(q, rw);
+	may_queue = elv_may_queue(q, rw_flags);
 	if (may_queue == ELV_MQUEUE_NO)
 		goto rq_starved;
 
@@ -2121,7 +2112,7 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 
 	spin_unlock_irq(q->queue_lock);
 
-	rq = blk_alloc_request(q, rw, priv, gfp_mask);
+	rq = blk_alloc_request(q, rw_flags, priv, gfp_mask);
 	if (unlikely(!rq)) {
 		/*
 		 * Allocation failed presumably due to memory. Undo anything
@@ -2169,12 +2160,13 @@ out:
  *
  * Called with q->queue_lock held, and returns with it unlocked.
  */
-static struct request *get_request_wait(request_queue_t *q, int rw,
+static struct request *get_request_wait(request_queue_t *q, int rw_flags,
 					struct bio *bio)
 {
+	const int rw = rw_flags & 0x01;
 	struct request *rq;
 
-	rq = get_request(q, rw, bio, GFP_NOIO);
+	rq = get_request(q, rw_flags, bio, GFP_NOIO);
 	while (!rq) {
 		DEFINE_WAIT(wait);
 		struct request_list *rl = &q->rq;
@@ -2182,7 +2174,7 @@ static struct request *get_request_wait(request_queue_t *q, int rw,
 		prepare_to_wait_exclusive(&rl->wait[rw], &wait,
 				TASK_UNINTERRUPTIBLE);
 
-		rq = get_request(q, rw, bio, GFP_NOIO);
+		rq = get_request(q, rw_flags, bio, GFP_NOIO);
 
 		if (!rq) {
 			struct io_context *ioc;
@@ -2322,6 +2314,73 @@ void blk_insert_request(request_queue_t *q, struct request *rq,
 
 EXPORT_SYMBOL(blk_insert_request);
 
+static int __blk_rq_unmap_user(struct bio *bio)
+{
+	int ret = 0;
+
+	if (bio) {
+		if (bio_flagged(bio, BIO_USER_MAPPED))
+			bio_unmap_user(bio);
+		else
+			ret = bio_uncopy_user(bio);
+	}
+
+	return ret;
+}
+
+static int __blk_rq_map_user(request_queue_t *q, struct request *rq,
+			     void __user *ubuf, unsigned int len)
+{
+	unsigned long uaddr;
+	struct bio *bio, *orig_bio;
+	int reading, ret;
+
+	reading = rq_data_dir(rq) == READ;
+
+	/*
+	 * if alignment requirement is satisfied, map in user pages for
+	 * direct dma. else, set up kernel bounce buffers
+	 */
+	uaddr = (unsigned long) ubuf;
+	if (!(uaddr & queue_dma_alignment(q)) && !(len & queue_dma_alignment(q)))
+		bio = bio_map_user(q, NULL, uaddr, len, reading);
+	else
+		bio = bio_copy_user(q, uaddr, len, reading);
+
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
+
+	orig_bio = bio;
+	blk_queue_bounce(q, &bio);
+
+	/*
+	 * We link the bounce buffer in and could have to traverse it
+	 * later so we have to get a ref to prevent it from being freed
+	 */
+	bio_get(bio);
+
+	if (!rq->bio)
+		blk_rq_bio_prep(q, rq, bio);
+	else if (!ll_back_merge_fn(q, rq, bio)) {
+		ret = -EINVAL;
+		goto unmap_bio;
+	} else {
+		rq->biotail->bi_next = bio;
+		rq->biotail = bio;
+
+		rq->data_len += bio->bi_size;
+	}
+
+	return bio->bi_size;
+
+unmap_bio:
+	/* if it was boucned we must call the end io function */
+	bio_endio(bio, bio->bi_size, 0);
+	__blk_rq_unmap_user(orig_bio);
+	bio_put(bio);
+	return ret;
+}
+
 /**
  * blk_rq_map_user - map user data to a request, for REQ_BLOCK_PC usage
  * @q:		request queue where request should be inserted
@@ -2343,42 +2402,47 @@ EXPORT_SYMBOL(blk_insert_request);
  *    unmapping.
  */
 int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
-		    unsigned int len)
+		    unsigned long len)
 {
-	unsigned long uaddr;
-	struct bio *bio;
-	int reading;
+	unsigned long bytes_read = 0;
+	struct bio *bio = NULL;
+	int ret;
 
 	if (len > (q->max_hw_sectors << 9))
 		return -EINVAL;
 	if (!len || !ubuf)
 		return -EINVAL;
 
-	reading = rq_data_dir(rq) == READ;
+	while (bytes_read != len) {
+		unsigned long map_len, end, start;
 
-	/*
-	 * if alignment requirement is satisfied, map in user pages for
-	 * direct dma. else, set up kernel bounce buffers
-	 */
-	uaddr = (unsigned long) ubuf;
-	if (!(uaddr & queue_dma_alignment(q)) && !(len & queue_dma_alignment(q)))
-		bio = bio_map_user(q, NULL, uaddr, len, reading);
-	else
-		bio = bio_copy_user(q, uaddr, len, reading);
+		map_len = min_t(unsigned long, len - bytes_read, BIO_MAX_SIZE);
+		end = ((unsigned long)ubuf + map_len + PAGE_SIZE - 1)
+								>> PAGE_SHIFT;
+		start = (unsigned long)ubuf >> PAGE_SHIFT;
 
-	if (!IS_ERR(bio)) {
-		rq->bio = rq->biotail = bio;
-		blk_rq_bio_prep(q, rq, bio);
+		/*
+		 * A bad offset could cause us to require BIO_MAX_PAGES + 1
+		 * pages. If this happens we just lower the requested
+		 * mapping len by a page so that we can fit
+		 */
+		if (end - start > BIO_MAX_PAGES)
+			map_len -= PAGE_SIZE;
 
-		rq->buffer = rq->data = NULL;
-		rq->data_len = len;
-		return 0;
+		ret = __blk_rq_map_user(q, rq, ubuf, map_len);
+		if (ret < 0)
+			goto unmap_rq;
+		if (!bio)
+			bio = rq->bio;
+		bytes_read += ret;
+		ubuf += ret;
 	}
 
-	/*
-	 * bio is the err-ptr
-	 */
-	return PTR_ERR(bio);
+	rq->buffer = rq->data = NULL;
+	return 0;
+unmap_rq:
+	blk_rq_unmap_user(bio);
+	return ret;
 }
 
 EXPORT_SYMBOL(blk_rq_map_user);
@@ -2389,6 +2453,7 @@ EXPORT_SYMBOL(blk_rq_map_user);
  * @rq:		request to map data to
  * @iov:	pointer to the iovec
  * @iov_count:	number of elements in the iovec
+ * @len:	I/O byte count
  *
  * Description:
  *    Data will be mapped directly for zero copy io, if possible. Otherwise
@@ -2404,7 +2469,7 @@ EXPORT_SYMBOL(blk_rq_map_user);
  *    unmapping.
  */
 int blk_rq_map_user_iov(request_queue_t *q, struct request *rq,
-			struct sg_iovec *iov, int iov_count)
+			struct sg_iovec *iov, int iov_count, unsigned int len)
 {
 	struct bio *bio;
 
@@ -2418,10 +2483,15 @@ int blk_rq_map_user_iov(request_queue_t *q, struct request *rq,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	rq->bio = rq->biotail = bio;
+	if (bio->bi_size != len) {
+		bio_endio(bio, bio->bi_size, 0);
+		bio_unmap_user(bio);
+		return -EINVAL;
+	}
+
+	bio_get(bio);
 	blk_rq_bio_prep(q, rq, bio);
 	rq->buffer = rq->data = NULL;
-	rq->data_len = bio->bi_size;
 	return 0;
 }
 
@@ -2429,24 +2499,33 @@ EXPORT_SYMBOL(blk_rq_map_user_iov);
 
 /**
  * blk_rq_unmap_user - unmap a request with user data
- * @bio:	bio to be unmapped
- * @ulen:	length of user buffer
+ * @bio:	       start of bio list
  *
  * Description:
- *    Unmap a bio previously mapped by blk_rq_map_user().
+ *    Unmap a rq previously mapped by blk_rq_map_user(). The caller must
+ *    supply the original rq->bio from the blk_rq_map_user() return, since
+ *    the io completion may have changed rq->bio.
  */
-int blk_rq_unmap_user(struct bio *bio, unsigned int ulen)
+int blk_rq_unmap_user(struct bio *bio)
 {
-	int ret = 0;
+	struct bio *mapped_bio;
+	int ret = 0, ret2;
 
-	if (bio) {
-		if (bio_flagged(bio, BIO_USER_MAPPED))
-			bio_unmap_user(bio);
-		else
-			ret = bio_uncopy_user(bio);
+	while (bio) {
+		mapped_bio = bio;
+		if (unlikely(bio_flagged(bio, BIO_BOUNCED)))
+			mapped_bio = bio->bi_private;
+
+		ret2 = __blk_rq_unmap_user(mapped_bio);
+		if (ret2 && !ret)
+			ret = ret2;
+
+		mapped_bio = bio;
+		bio = bio->bi_next;
+		bio_put(mapped_bio);
 	}
 
-	return 0;
+	return ret;
 }
 
 EXPORT_SYMBOL(blk_rq_unmap_user);
@@ -2476,11 +2555,8 @@ int blk_rq_map_kern(request_queue_t *q, struct request *rq, void *kbuf,
 	if (rq_data_dir(rq) == WRITE)
 		bio->bi_rw |= (1 << BIO_RW);
 
-	rq->bio = rq->biotail = bio;
 	blk_rq_bio_prep(q, rq, bio);
-
 	rq->buffer = rq->data = NULL;
-	rq->data_len = len;
 	return 0;
 }
 
@@ -2608,9 +2684,6 @@ static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io)
 static inline void add_request(request_queue_t * q, struct request * req)
 {
 	drive_stat_acct(req, req->nr_sectors, 1);
-
-	if (q->activity_fn)
-		q->activity_fn(q->activity_data, rq_data_dir(req));
 
 	/*
 	 * elevator indicated where it wants this request to be
@@ -2745,7 +2818,7 @@ static int attempt_merge(request_queue_t *q, struct request *req,
 	 * will have updated segment counts, update sector
 	 * counts here.
 	 */
-	if (!q->merge_requests_fn(q, req, next))
+	if (!ll_merge_requests_fn(q, req, next))
 		return 0;
 
 	/*
@@ -2835,6 +2908,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 	int el_ret, nr_sectors, barrier, err;
 	const unsigned short prio = bio_prio(bio);
 	const int sync = bio_sync(bio);
+	int rw_flags;
 
 	nr_sectors = bio_sectors(bio);
 
@@ -2861,7 +2935,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 		case ELEVATOR_BACK_MERGE:
 			BUG_ON(!rq_mergeable(req));
 
-			if (!q->back_merge_fn(q, req, bio))
+			if (!ll_back_merge_fn(q, req, bio))
 				break;
 
 			blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE);
@@ -2878,7 +2952,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 		case ELEVATOR_FRONT_MERGE:
 			BUG_ON(!rq_mergeable(req));
 
-			if (!q->front_merge_fn(q, req, bio))
+			if (!ll_front_merge_fn(q, req, bio))
 				break;
 
 			blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE);
@@ -2909,10 +2983,19 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 
 get_rq:
 	/*
+	 * This sync check and mask will be re-done in init_request_from_bio(),
+	 * but we need to set it earlier to expose the sync flag to the
+	 * rq allocator and io schedulers.
+	 */
+	rw_flags = bio_data_dir(bio);
+	if (sync)
+		rw_flags |= REQ_RW_SYNC;
+
+	/*
 	 * Grab a free request. This is might sleep but can not fail.
 	 * Returns with the queue unlocked.
 	 */
-	req = get_request_wait(q, bio_data_dir(bio), bio);
+	req = get_request_wait(q, rw_flags, bio);
 
 	/*
 	 * After dropping the lock and possibly sleeping here, our request
@@ -2970,6 +3053,42 @@ static void handle_bad_sector(struct bio *bio)
 
 	set_bit(BIO_EOF, &bio->bi_flags);
 }
+
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+
+static DECLARE_FAULT_ATTR(fail_make_request);
+
+static int __init setup_fail_make_request(char *str)
+{
+	return setup_fault_attr(&fail_make_request, str);
+}
+__setup("fail_make_request=", setup_fail_make_request);
+
+static int should_fail_request(struct bio *bio)
+{
+	if ((bio->bi_bdev->bd_disk->flags & GENHD_FL_FAIL) ||
+	    (bio->bi_bdev->bd_part && bio->bi_bdev->bd_part->make_it_fail))
+		return should_fail(&fail_make_request, bio->bi_size);
+
+	return 0;
+}
+
+static int __init fail_make_request_debugfs(void)
+{
+	return init_fault_attr_dentries(&fail_make_request,
+					"fail_make_request");
+}
+
+late_initcall(fail_make_request_debugfs);
+
+#else /* CONFIG_FAIL_MAKE_REQUEST */
+
+static inline int should_fail_request(struct bio *bio)
+{
+	return 0;
+}
+
+#endif /* CONFIG_FAIL_MAKE_REQUEST */
 
 /**
  * generic_make_request: hand a buffer to its device driver for I/O
@@ -3056,6 +3175,9 @@ end_io:
 		if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
 			goto end_io;
 
+		if (should_fail_request(bio))
+			goto end_io;
+
 		/*
 		 * If this device has partitions, remap block n
 		 * of partition p to block n+start(p) of the disk.
@@ -3110,10 +3232,12 @@ void submit_bio(int rw, struct bio *bio)
 	BIO_BUG_ON(!bio->bi_size);
 	BIO_BUG_ON(!bio->bi_io_vec);
 	bio->bi_rw |= rw;
-	if (rw & WRITE)
+	if (rw & WRITE) {
 		count_vm_events(PGPGOUT, count);
-	else
+	} else {
+		task_io_account_read(bio->bi_size);
 		count_vm_events(PGPGIN, count);
+	}
 
 	if (unlikely(block_dump)) {
 		char b[BDEVNAME_SIZE];
@@ -3374,8 +3498,6 @@ static void blk_done_softirq(struct softirq_action *h)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
 static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 			  void *hcpu)
 {
@@ -3400,8 +3522,6 @@ static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 static struct notifier_block __devinitdata blk_cpu_notifier = {
 	.notifier_call	= blk_cpu_notify,
 };
-
-#endif /* CONFIG_HOTPLUG_CPU */
 
 /**
  * blk_complete_request - end I/O on a request
@@ -3495,6 +3615,7 @@ void blk_rq_bio_prep(request_queue_t *q, struct request *rq, struct bio *bio)
 	rq->hard_cur_sectors = rq->current_nr_sectors;
 	rq->hard_nr_sectors = rq->nr_sectors = bio_sectors(bio);
 	rq->buffer = bio_data(bio);
+	rq->data_len = bio->bi_size;
 
 	rq->bio = rq->biotail = bio;
 }

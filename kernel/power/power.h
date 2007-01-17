@@ -22,7 +22,9 @@ static inline int pm_suspend_disk(void)
 	return -EPERM;
 }
 #endif
-extern struct semaphore pm_sem;
+
+extern struct mutex pm_mutex;
+
 #define power_attr(_name) \
 static struct subsys_attribute _name##_attr = {	\
 	.attr	= {				\
@@ -42,6 +44,7 @@ extern const void __nosave_begin, __nosave_end;
 extern unsigned long image_size;
 extern int in_suspend;
 extern dev_t swsusp_resume_device;
+extern sector_t swsusp_resume_block;
 
 extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);
@@ -102,8 +105,18 @@ struct snapshot_handle {
 extern unsigned int snapshot_additional_pages(struct zone *zone);
 extern int snapshot_read_next(struct snapshot_handle *handle, size_t count);
 extern int snapshot_write_next(struct snapshot_handle *handle, size_t count);
+extern void snapshot_write_finalize(struct snapshot_handle *handle);
 extern int snapshot_image_loaded(struct snapshot_handle *handle);
-extern void snapshot_free_unused_memory(struct snapshot_handle *handle);
+
+/*
+ * This structure is used to pass the values needed for the identification
+ * of the resume swap area from a user space to the kernel via the
+ * SNAPSHOT_SET_SWAP_AREA ioctl
+ */
+struct resume_swap_area {
+	loff_t offset;
+	u_int32_t dev;
+} __attribute__((packed));
 
 #define SNAPSHOT_IOC_MAGIC	'3'
 #define SNAPSHOT_FREEZE			_IO(SNAPSHOT_IOC_MAGIC, 1)
@@ -117,7 +130,14 @@ extern void snapshot_free_unused_memory(struct snapshot_handle *handle);
 #define SNAPSHOT_FREE_SWAP_PAGES	_IO(SNAPSHOT_IOC_MAGIC, 9)
 #define SNAPSHOT_SET_SWAP_FILE		_IOW(SNAPSHOT_IOC_MAGIC, 10, unsigned int)
 #define SNAPSHOT_S2RAM			_IO(SNAPSHOT_IOC_MAGIC, 11)
-#define SNAPSHOT_IOC_MAXNR	11
+#define SNAPSHOT_PMOPS			_IOW(SNAPSHOT_IOC_MAGIC, 12, unsigned int)
+#define SNAPSHOT_SET_SWAP_AREA		_IOW(SNAPSHOT_IOC_MAGIC, 13, \
+							struct resume_swap_area)
+#define SNAPSHOT_IOC_MAXNR	13
+
+#define PMOPS_PREPARE	1
+#define PMOPS_ENTER	2
+#define PMOPS_FINISH	3
 
 /**
  *	The bitmap is used for tracing allocated swap pages
@@ -141,7 +161,7 @@ struct bitmap_page {
 
 extern void free_bitmap(struct bitmap_page *bitmap);
 extern struct bitmap_page *alloc_bitmap(unsigned int nr_bits);
-extern unsigned long alloc_swap_page(int swap, struct bitmap_page *bitmap);
+extern sector_t alloc_swapdev_block(int swap, struct bitmap_page *bitmap);
 extern void free_all_swap_pages(int swap, struct bitmap_page *bitmap);
 
 extern int swsusp_check(void);
@@ -153,3 +173,7 @@ extern int swsusp_read(void);
 extern int swsusp_write(void);
 extern void swsusp_close(void);
 extern int suspend_enter(suspend_state_t state);
+
+struct timeval;
+extern void swsusp_show_speed(struct timeval *, struct timeval *,
+				unsigned int, char *);

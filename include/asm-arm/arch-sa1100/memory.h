@@ -39,7 +39,6 @@ void sa1111_adjust_zones(int node, unsigned long *size, unsigned long *holes);
 #define __virt_to_bus(x)	 __virt_to_phys(x)
 #define __bus_to_virt(x)	 __phys_to_virt(x)
 
-#ifdef CONFIG_DISCONTIGMEM
 /*
  * Because of the wide memory address space between physical RAM banks on the 
  * SA1100, it's much convenient to use Linux's NUMA support to implement our 
@@ -57,38 +56,7 @@ void sa1111_adjust_zones(int node, unsigned long *size, unsigned long *holes);
  * 	node 2:  0xd0000000 - 0xd7ffffff
  * 	node 3:  0xd8000000 - 0xdfffffff
  */
-
-/*
- * Given a kernel address, find the home node of the underlying memory.
- */
-#define KVADDR_TO_NID(addr) (((unsigned long)(addr) - PAGE_OFFSET) >> 27)
-
-/*
- * Given a page frame number, convert it to a node id.
- */
-#define PFN_TO_NID(pfn)		(((pfn) - PHYS_PFN_OFFSET) >> (27 - PAGE_SHIFT))
-
-/*
- * Given a kaddr, ADDR_TO_MAPBASE finds the owning node of the memory
- * and return the mem_map of that node.
- */
-#define ADDR_TO_MAPBASE(kaddr)	NODE_MEM_MAP(KVADDR_TO_NID(kaddr))
-
-/*
- * Given a page frame number, find the owning node of the memory
- * and return the mem_map of that node.
- */
-#define PFN_TO_MAPBASE(pfn)	NODE_MEM_MAP(PFN_TO_NID(pfn))
-
-/*
- * Given a kaddr, LOCAL_MEM_MAP finds the owning node of the memory
- * and returns the index corresponding to the appropriate page in the
- * node's mem_map.
- */
-#define LOCAL_MAP_NR(addr) \
-	(((unsigned long)(addr) & 0x07ffffff) >> PAGE_SHIFT)
-
-#endif
+#define NODE_MEM_SIZE_BITS	27
 
 /*
  * Cache flushing area - SA1100 zero bank

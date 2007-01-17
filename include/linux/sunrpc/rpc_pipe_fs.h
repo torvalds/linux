@@ -30,7 +30,7 @@ struct rpc_inode {
 #define RPC_PIPE_WAIT_FOR_OPEN	1
 	int flags;
 	struct rpc_pipe_ops *ops;
-	struct work_struct queue_timeout;
+	struct delayed_work queue_timeout;
 };
 
 static inline struct rpc_inode *

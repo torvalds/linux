@@ -27,10 +27,7 @@ config IUCV
 	help
 	  Select this option if you want to use inter-user communication
 	  under VM or VIF. If unsure, say "Y" to enable a fast communication
-	  link between VM guests. At boot time the user ID of the guest needs
-	  to be passed to the kernel. Note that both kernels need to be
-	  compiled with this option and both need to be booted with the user ID
-	  of the other VM guest.
+	  link between VM guests.
 
 config NETIUCV
 	tristate "IUCV network device support (VM only)"

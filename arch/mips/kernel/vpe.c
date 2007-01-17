@@ -1179,7 +1179,7 @@ static ssize_t vpe_write(struct file *file, const char __user * buffer,
 	size_t ret = count;
 	struct vpe *v;
 
-	minor = iminor(file->f_dentry->d_inode);
+	minor = iminor(file->f_path.dentry->d_inode);
 	if ((v = get_vpe(minor)) == NULL)
 		return -ENODEV;
 

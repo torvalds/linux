@@ -273,25 +273,49 @@ int ip_fib_check_default(__be32 gw, struct net_device *dev)
 	return -1;
 }
 
+static inline size_t fib_nlmsg_size(struct fib_info *fi)
+{
+	size_t payload = NLMSG_ALIGN(sizeof(struct rtmsg))
+			 + nla_total_size(4) /* RTA_TABLE */
+			 + nla_total_size(4) /* RTA_DST */
+			 + nla_total_size(4) /* RTA_PRIORITY */
+			 + nla_total_size(4); /* RTA_PREFSRC */
+
+	/* space for nested metrics */
+	payload += nla_total_size((RTAX_MAX * nla_total_size(4)));
+
+	if (fi->fib_nhs) {
+		/* Also handles the special case fib_nhs == 1 */
+
+		/* each nexthop is packed in an attribute */
+		size_t nhsize = nla_total_size(sizeof(struct rtnexthop));
+
+		/* may contain flow and gateway attribute */
+		nhsize += 2 * nla_total_size(4);
+
+		/* all nexthops are packed in a nested attribute */
+		payload += nla_total_size(fi->fib_nhs * nhsize);
+	}
+
+	return payload;
+}
+
 void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 	       int dst_len, u32 tb_id, struct nl_info *info)
 {
 	struct sk_buff *skb;
-	int payload = sizeof(struct rtmsg) + 256;
 	u32 seq = info->nlh ? info->nlh->nlmsg_seq : 0;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(nlmsg_total_size(payload), GFP_KERNEL);
+	skb = nlmsg_new(fib_nlmsg_size(fa->fa_info), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
 
 	err = fib_dump_info(skb, info->pid, seq, event, tb_id,
 			    fa->fa_type, fa->fa_scope, key, dst_len,
 			    fa->fa_tos, fa->fa_info, 0);
-	if (err < 0) {
-		kfree_skb(skb);
-		goto errout;
-	}
+	/* failure implies BUG in fib_nlmsg_size() */
+	BUG_ON(err < 0);
 
 	err = rtnl_notify(skb, info->pid, RTNLGRP_IPV4_ROUTE,
 			  info->nlh, GFP_KERNEL);

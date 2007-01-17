@@ -889,15 +889,16 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		must_configure_manually();
 		dev->board = SAA7134_BOARD_UNKNOWN;
 	}
+	dev->autodetected = card[dev->nr] != dev->board;
 	dev->tuner_type   = saa7134_boards[dev->board].tuner_type;
 	dev->tda9887_conf = saa7134_boards[dev->board].tda9887_conf;
 	if (UNSET != tuner[dev->nr])
 		dev->tuner_type = tuner[dev->nr];
-	printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
-	       dev->name,pci_dev->subsystem_vendor,
-	       pci_dev->subsystem_device,saa7134_boards[dev->board].name,
-	       dev->board, card[dev->nr] == dev->board ?
-	       "insmod option" : "autodetected");
+		printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
+		dev->name,pci_dev->subsystem_vendor,
+		pci_dev->subsystem_device,saa7134_boards[dev->board].name,
+		dev->board, dev->autodetected ?
+		"autodetected" : "insmod option");
 
 	/* get mmio */
 	if (!request_mem_region(pci_resource_start(pci_dev,0),

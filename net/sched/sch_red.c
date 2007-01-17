@@ -175,12 +175,14 @@ static void red_destroy(struct Qdisc *sch)
 	qdisc_destroy(q->qdisc);
 }
 
-static struct Qdisc *red_create_dflt(struct net_device *dev, u32 limit)
+static struct Qdisc *red_create_dflt(struct Qdisc *sch, u32 limit)
 {
-	struct Qdisc *q = qdisc_create_dflt(dev, &bfifo_qdisc_ops);
+	struct Qdisc *q;
 	struct rtattr *rta;
 	int ret;
 
+	q = qdisc_create_dflt(sch->dev, &bfifo_qdisc_ops,
+			      TC_H_MAKE(sch->handle, 1));
 	if (q) {
 		rta = kmalloc(RTA_LENGTH(sizeof(struct tc_fifo_qopt)),
 		              GFP_KERNEL);
@@ -219,7 +221,7 @@ static int red_change(struct Qdisc *sch, struct rtattr *opt)
 	ctl = RTA_DATA(tb[TCA_RED_PARMS-1]);
 
 	if (ctl->limit > 0) {
-		child = red_create_dflt(sch->dev, ctl->limit);
+		child = red_create_dflt(sch, ctl->limit);
 		if (child == NULL)
 			return -ENOMEM;
 	}
@@ -227,8 +229,10 @@ static int red_change(struct Qdisc *sch, struct rtattr *opt)
 	sch_tree_lock(sch);
 	q->flags = ctl->flags;
 	q->limit = ctl->limit;
-	if (child)
+	if (child) {
+		qdisc_tree_decrease_qlen(q->qdisc, q->qdisc->q.qlen);
 		qdisc_destroy(xchg(&q->qdisc, child));
+	}
 
 	red_set_parms(&q->parms, ctl->qth_min, ctl->qth_max, ctl->Wlog,
 				 ctl->Plog, ctl->Scell_log,
@@ -306,8 +310,8 @@ static int red_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 
 	sch_tree_lock(sch);
 	*old = xchg(&q->qdisc, new);
+	qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 	qdisc_reset(*old);
-	sch->q.qlen = 0;
 	sch_tree_unlock(sch);
 	return 0;
 }

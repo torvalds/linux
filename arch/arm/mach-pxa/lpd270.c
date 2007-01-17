@@ -75,7 +75,7 @@ static struct irq_chip lpd270_irq_chip = {
 	.unmask		= lpd270_unmask_irq,
 };
 
-static void lpd270_irq_handler(unsigned int irq, struct irqdesc *desc)
+static void lpd270_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long pending;
 
@@ -105,7 +105,7 @@ static void __init lpd270_init_irq(void)
 	/* setup extra LogicPD PXA270 irqs */
 	for (irq = LPD270_IRQ(2); irq <= LPD270_IRQ(4); irq++) {
 		set_irq_chip(irq, &lpd270_irq_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 	set_irq_chained_handler(IRQ_GPIO(0), lpd270_irq_handler);

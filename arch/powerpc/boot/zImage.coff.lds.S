@@ -21,6 +21,10 @@ SECTIONS
     *(.got2)
     __got2_end = .;
 
+    _dtb_start = .;
+    *(.kernel:dtb)
+    _dtb_end = .;
+
     _vmlinux_start =  .;
     *(.kernel:vmlinux.strip)
     _vmlinux_end =  .;

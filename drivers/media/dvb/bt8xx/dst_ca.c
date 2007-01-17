@@ -480,7 +480,7 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 	struct ca_msg *hw_buffer;
 	int result = 0;
 
-	if ((hw_buffer = (struct ca_msg *) kmalloc(sizeof (struct ca_msg), GFP_KERNEL)) == NULL) {
+	if ((hw_buffer = kmalloc(sizeof (struct ca_msg), GFP_KERNEL)) == NULL) {
 		dprintk(verbose, DST_CA_ERROR, 1, " Memory allocation failure");
 		return -ENOMEM;
 	}

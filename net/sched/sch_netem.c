@@ -287,13 +287,10 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 			psched_tdiff_t delay = PSCHED_TDIFF(cb->time_to_send, now);
 
 			if (q->qdisc->ops->requeue(skb, q->qdisc) != NET_XMIT_SUCCESS) {
+				qdisc_tree_decrease_qlen(q->qdisc, 1);
 				sch->qstats.drops++;
-
-				/* After this qlen is confused */
 				printk(KERN_ERR "netem: queue discpline %s could not requeue\n",
 				       q->qdisc->ops->id);
-
-				sch->q.qlen--;
 			}
 
 			mod_timer(&q->timer, jiffies + PSCHED_US2JIFFIE(delay));
@@ -574,7 +571,8 @@ static int netem_init(struct Qdisc *sch, struct rtattr *opt)
 	q->timer.function = netem_watchdog;
 	q->timer.data = (unsigned long) sch;
 
-	q->qdisc = qdisc_create_dflt(sch->dev, &tfifo_qdisc_ops);
+	q->qdisc = qdisc_create_dflt(sch->dev, &tfifo_qdisc_ops,
+				     TC_H_MAKE(sch->handle, 1));
 	if (!q->qdisc) {
 		pr_debug("netem: qdisc create failed\n");
 		return -ENOMEM;
@@ -661,8 +659,8 @@ static int netem_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 
 	sch_tree_lock(sch);
 	*old = xchg(&q->qdisc, new);
+	qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
 	qdisc_reset(*old);
-	sch->q.qlen = 0;
 	sch_tree_unlock(sch);
 
 	return 0;

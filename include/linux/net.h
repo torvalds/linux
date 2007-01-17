@@ -19,7 +19,6 @@
 #define _LINUX_NET_H
 
 #include <linux/wait.h>
-#include <linux/random.h>
 #include <asm/socket.h>
 
 struct poll_table_struct;
@@ -57,6 +56,7 @@ typedef enum {
 
 #ifdef __KERNEL__
 #include <linux/stringify.h>
+#include <linux/random.h>
 
 #define SOCK_ASYNC_NOSPACE	0
 #define SOCK_ASYNC_WAITDATA	1
@@ -196,7 +196,7 @@ extern struct socket *sockfd_lookup(int fd, int *err);
 extern int	     net_ratelimit(void);
 
 #define net_random()		random32()
-#define net_srandom(seed)	srandom32(seed)
+#define net_srandom(seed)	srandom32((__force u32)seed)
 
 extern int   	     kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 				    struct kvec *vec, size_t num, size_t len);

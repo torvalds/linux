@@ -69,7 +69,10 @@ static void op_powerpc_cpu_start(void *dummy)
 
 static int op_powerpc_start(void)
 {
-	on_each_cpu(op_powerpc_cpu_start, NULL, 0, 1);
+	if (model->global_start)
+		model->global_start(ctr);
+	if (model->start)
+		on_each_cpu(op_powerpc_cpu_start, NULL, 0, 1);
 	return 0;
 }
 
@@ -80,7 +83,10 @@ static inline void op_powerpc_cpu_stop(void *dummy)
 
 static void op_powerpc_stop(void)
 {
-	on_each_cpu(op_powerpc_cpu_stop, NULL, 0, 1);
+	if (model->stop)
+		on_each_cpu(op_powerpc_cpu_stop, NULL, 0, 1);
+        if (model->global_stop)
+                model->global_stop();
 }
 
 static int op_powerpc_create_files(struct super_block *sb, struct dentry *root)
@@ -141,6 +147,11 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 
 	switch (cur_cpu_spec->oprofile_type) {
 #ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_CELL_NATIVE
+		case PPC_OPROFILE_CELL:
+			model = &op_model_cell;
+			break;
+#endif
 		case PPC_OPROFILE_RS64:
 			model = &op_model_rs64;
 			break;

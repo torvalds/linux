@@ -55,9 +55,9 @@ static inline void ccids_read_unlock(void)
 #define ccids_read_unlock() do { } while(0)
 #endif
 
-static kmem_cache_t *ccid_kmem_cache_create(int obj_size, const char *fmt,...)
+static struct kmem_cache *ccid_kmem_cache_create(int obj_size, const char *fmt,...)
 {
-	kmem_cache_t *slab;
+	struct kmem_cache *slab;
 	char slab_name_fmt[32], *slab_name;
 	va_list args;
 
@@ -75,7 +75,7 @@ static kmem_cache_t *ccid_kmem_cache_create(int obj_size, const char *fmt,...)
 	return slab;
 }
 
-static void ccid_kmem_cache_destroy(kmem_cache_t *slab)
+static void ccid_kmem_cache_destroy(struct kmem_cache *slab)
 {
 	if (slab != NULL) {
 		const char *name = kmem_cache_name(slab);

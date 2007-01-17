@@ -229,10 +229,10 @@ static int sl_realloc_bufs(struct slip *sl, int mtu)
 	if (len < 576 * 2)
 		len = 576 * 2;
 
-	xbuff = (unsigned char *) kmalloc (len + 4, GFP_ATOMIC);
-	rbuff = (unsigned char *) kmalloc (len + 4, GFP_ATOMIC);
+	xbuff = kmalloc(len + 4, GFP_ATOMIC);
+	rbuff = kmalloc(len + 4, GFP_ATOMIC);
 #ifdef SL_INCLUDE_CSLIP
-	cbuff = (unsigned char *) kmalloc (len + 4, GFP_ATOMIC);
+	cbuff = kmalloc(len + 4, GFP_ATOMIC);
 #endif
 
 

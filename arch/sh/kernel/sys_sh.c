@@ -33,14 +33,15 @@
  */
 asmlinkage int sys_pipe(unsigned long r4, unsigned long r5,
 	unsigned long r6, unsigned long r7,
-	struct pt_regs regs)
+	struct pt_regs __regs)
 {
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	int fd[2];
 	int error;
 
 	error = do_pipe(fd);
 	if (!error) {
-		regs.regs[1] = fd[1];
+		regs->regs[1] = fd[1];
 		return fd[0];
 	}
 	return error;
@@ -50,6 +51,7 @@ unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
 
 EXPORT_SYMBOL(shm_align_mask);
 
+#ifdef CONFIG_MMU
 /*
  * To avoid cache aliases, we map the shared page with same color.
  */
@@ -135,6 +137,7 @@ full_search:
 			addr = COLOUR_ALIGN(addr, pgoff);
 	}
 }
+#endif /* CONFIG_MMU */
 
 static inline long
 do_mmap2(unsigned long addr, unsigned long len, unsigned long prot, 
@@ -311,6 +314,12 @@ asmlinkage int sys_fadvise64_64_wrapper(int fd, u32 offset0, u32 offset1,
 #endif
 }
 
+#if defined(CONFIG_CPU_SH2) || defined(CONFIG_CPU_SH2A)
+#define SYSCALL_ARG3	"trapa #0x23"
+#else
+#define SYSCALL_ARG3	"trapa #0x13"
+#endif
+
 /*
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
@@ -321,7 +330,7 @@ int kernel_execve(const char *filename, char *const argv[], char *const envp[])
 	register long __sc4 __asm__ ("r4") = (long) filename;
 	register long __sc5 __asm__ ("r5") = (long) argv;
 	register long __sc6 __asm__ ("r6") = (long) envp;
-	__asm__ __volatile__ ("trapa	#0x13" : "=z" (__sc0)
+	__asm__ __volatile__ (SYSCALL_ARG3 : "=z" (__sc0)	
 			: "0" (__sc0), "r" (__sc4), "r" (__sc5), "r" (__sc6)
 			: "memory");
 	return __sc0;

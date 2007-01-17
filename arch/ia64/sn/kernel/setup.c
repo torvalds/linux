@@ -388,6 +388,14 @@ void __init sn_setup(char **cmdline_p)
 	ia64_sn_plat_set_error_handling_features();	// obsolete
 	ia64_sn_set_os_feature(OSF_MCA_SLV_TO_OS_INIT_SLV);
 	ia64_sn_set_os_feature(OSF_FEAT_LOG_SBES);
+	/*
+	 * Note: The calls to notify the PROM of ACPI and PCI Segment
+	 *	 support must be done prior to acpi_load_tables(), as
+	 *	 an ACPI capable PROM will rebuild the DSDT as result
+	 *	 of the call.
+	 */
+	ia64_sn_set_os_feature(OSF_PCISEGMENT_ENABLE);
+	ia64_sn_set_os_feature(OSF_ACPI_ENABLE);
 
 
 #if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
@@ -412,6 +420,16 @@ void __init sn_setup(char **cmdline_p)
 
 	if (! vga_console_membase)
 		sn_scan_pcdp();
+
+	/*
+	 *	Setup legacy IO space.
+	 *	vga_console_iobase maps to PCI IO Space address 0 on the
+	 * 	bus containing the VGA console.
+	 */
+	if (vga_console_iobase) {
+		io_space[0].mmio_base = vga_console_iobase;
+		io_space[0].sparse = 0;
+	}
 
 	if (vga_console_membase) {
 		/* usable vga ... make tty0 the preferred default console */
@@ -562,7 +580,7 @@ void __cpuinit sn_cpu_init(void)
 	int slice;
 	int cnode;
 	int i;
-	static int wars_have_been_checked;
+	static int wars_have_been_checked, set_cpu0_number;
 
 	cpuid = smp_processor_id();
 	if (cpuid == 0 && IS_MEDUSA()) {
@@ -587,8 +605,16 @@ void __cpuinit sn_cpu_init(void)
 	/*
 	 * Don't check status. The SAL call is not supported on all PROMs
 	 * but a failure is harmless.
+	 * Architechtuallly, cpu_init is always called twice on cpu 0. We
+	 * should set cpu_number on cpu 0 once.
 	 */
-	(void) ia64_sn_set_cpu_number(cpuid);
+	if (cpuid == 0) {
+		if (!set_cpu0_number) {
+			(void) ia64_sn_set_cpu_number(cpuid);
+			set_cpu0_number = 1;
+		}
+	} else
+		(void) ia64_sn_set_cpu_number(cpuid);
 
 	/*
 	 * The boot cpu makes this call again after platform initialization is
@@ -750,6 +776,14 @@ int sn_prom_feature_available(int id)
 	if (id >= BITS_PER_LONG * MAX_PROM_FEATURE_SETS)
 		return 0;
 	return test_bit(id, sn_prom_features);
+}
+
+void
+sn_kernel_launch_event(void)
+{
+	/* ignore status until we understand possible failure, if any*/
+	if (ia64_sn_kernel_launch_event())
+		printk(KERN_ERR "KEXEC is not supported in this PROM, Please update the PROM.\n");
 }
 EXPORT_SYMBOL(sn_prom_feature_available);
 

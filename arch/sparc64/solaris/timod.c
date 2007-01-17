@@ -147,7 +147,7 @@ static void timod_wake_socket(unsigned int fd)
 
 	SOLD("wakeing socket");
 	fdt = files_fdtable(current->files);
-	sock = SOCKET_I(fdt->fd[fd]->f_dentry->d_inode);
+	sock = SOCKET_I(fdt->fd[fd]->f_path.dentry->d_inode);
 	wake_up_interruptible(&sock->wait);
 	read_lock(&sock->sk->sk_callback_lock);
 	if (sock->fasync_list && !test_bit(SOCK_ASYNC_WAITDATA, &sock->flags))
@@ -361,7 +361,7 @@ int timod_putmsg(unsigned int fd, char __user *ctl_buf, int ctl_len,
 
 	fdt = files_fdtable(current->files);
 	filp = fdt->fd[fd];
-	ino = filp->f_dentry->d_inode;
+	ino = filp->f_path.dentry->d_inode;
 	sock = (struct sol_socket_struct *)filp->private_data;
 	SOLD("entry");
 	if (get_user(ret, (int __user *)A(ctl_buf)))
@@ -644,7 +644,7 @@ int timod_getmsg(unsigned int fd, char __user *ctl_buf, int ctl_maxlen, s32 __us
 	SOLDD(("%u %p %d %p %p %d %p %d\n", fd, ctl_buf, ctl_maxlen, ctl_len, data_buf, data_maxlen, data_len, *flags_p));
 	fdt = files_fdtable(current->files);
 	filp = fdt->fd[fd];
-	ino = filp->f_dentry->d_inode;
+	ino = filp->f_path.dentry->d_inode;
 	sock = (struct sol_socket_struct *)filp->private_data;
 	SOLDD(("%p %p\n", sock->pfirst, sock->pfirst ? sock->pfirst->next : NULL));
 	if ( ctl_maxlen > 0 && !sock->pfirst && SOCKET_I(ino)->type == SOCK_STREAM
@@ -865,7 +865,7 @@ asmlinkage int solaris_getmsg(unsigned int fd, u32 arg1, u32 arg2, u32 arg3)
 	filp = fdt->fd[fd];
 	if(!filp) goto out;
 
-	ino = filp->f_dentry->d_inode;
+	ino = filp->f_path.dentry->d_inode;
 	if (!ino || !S_ISSOCK(ino->i_mode))
 		goto out;
 
@@ -933,7 +933,7 @@ asmlinkage int solaris_putmsg(unsigned int fd, u32 arg1, u32 arg2, u32 arg3)
 	filp = fdt->fd[fd];
 	if(!filp) goto out;
 
-	ino = filp->f_dentry->d_inode;
+	ino = filp->f_path.dentry->d_inode;
 	if (!ino) goto out;
 
 	if (!S_ISSOCK(ino->i_mode) &&

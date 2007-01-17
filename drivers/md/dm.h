@@ -33,6 +33,25 @@
 #define SECTOR_SHIFT 9
 
 /*
+ * Definitions of return values from target end_io function.
+ */
+#define DM_ENDIO_INCOMPLETE	1
+#define DM_ENDIO_REQUEUE	2
+
+/*
+ * Definitions of return values from target map function.
+ */
+#define DM_MAPIO_SUBMITTED	0
+#define DM_MAPIO_REMAPPED	1
+#define DM_MAPIO_REQUEUE	DM_ENDIO_REQUEUE
+
+/*
+ * Suspend feature flags
+ */
+#define DM_SUSPEND_LOCKFS_FLAG		(1 << 0)
+#define DM_SUSPEND_NOFLUSH_FLAG		(1 << 1)
+
+/*
  * List of devices that a metadevice uses and should open/close.
  */
 struct dm_dev {

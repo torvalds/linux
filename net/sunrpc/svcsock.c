@@ -32,6 +32,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/file.h>
+#include <linux/freezer.h>
 #include <net/sock.h>
 #include <net/checksum.h>
 #include <net/ip.h>
@@ -83,6 +84,35 @@ static struct cache_deferred_req *svc_defer(struct cache_req *req);
  *   http://www.connectathon.org/talks96/nfstcp.pdf
  */
 static int svc_conn_age_period = 6*60;
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+static struct lock_class_key svc_key[2];
+static struct lock_class_key svc_slock_key[2];
+
+static inline void svc_reclassify_socket(struct socket *sock)
+{
+	struct sock *sk = sock->sk;
+	BUG_ON(sk->sk_lock.owner != NULL);
+	switch (sk->sk_family) {
+	case AF_INET:
+		sock_lock_init_class_and_name(sk, "slock-AF_INET-NFSD",
+		    &svc_slock_key[0], "sk_lock-AF_INET-NFSD", &svc_key[0]);
+		break;
+
+	case AF_INET6:
+		sock_lock_init_class_and_name(sk, "slock-AF_INET6-NFSD",
+		    &svc_slock_key[1], "sk_lock-AF_INET6-NFSD", &svc_key[1]);
+		break;
+
+	default:
+		BUG();
+	}
+}
+#else
+static inline void svc_reclassify_socket(struct socket *sock)
+{
+}
+#endif
 
 /*
  * Queue up an idle server thread.  Must have pool->sp_lock held.
@@ -1555,6 +1585,8 @@ svc_create_socket(struct svc_serv *serv, int protocol, struct sockaddr_in *sin)
 
 	if ((error = sock_create_kern(PF_INET, type, protocol, &sock)) < 0)
 		return error;
+
+	svc_reclassify_socket(sock);
 
 	if (type == SOCK_STREAM)
 		sock->sk->sk_reuse = 1; /* allow address reuse */

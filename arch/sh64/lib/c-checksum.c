@@ -118,24 +118,24 @@ static unsigned long do_csum(const unsigned char *buff, int len)
 
 /* computes the checksum of a memory block at buff, length len,
    and adds in "sum" (32-bit)  */
-unsigned int csum_partial(const unsigned char *buff, int len, unsigned int sum)
+__wsum csum_partial(const void *buff, int len, __wsum sum)
 {
 	unsigned long long result = do_csum(buff, len);
 
 	/* add in old sum, and carry.. */
-	result += sum;
+	result += (__force u32)sum;
 	/* 32+c bits -> 32 bits */
 	result = (result & 0xffffffff) + (result >> 32);
 
 	pr_debug("csum_partial, buff %p len %d sum 0x%x result=0x%016Lx\n",
 		buff, len, sum, result);
 
-	return result;
+	return (__force __wsum)result;
 }
 
 /* Copy while checksumming, otherwise like csum_partial.  */
-unsigned int
-csum_partial_copy(const unsigned char *src, unsigned char *dst, int len, unsigned int sum)
+__wsum
+csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 {
 	sum = csum_partial(src, len, sum);
 	memcpy(dst, src, len);
@@ -145,9 +145,9 @@ csum_partial_copy(const unsigned char *src, unsigned char *dst, int len, unsigne
 
 /* Copy from userspace and compute checksum.  If we catch an exception
    then zero the rest of the buffer.  */
-unsigned int
-csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst, int len,
-			    unsigned int sum, int *err_ptr)
+__wsum
+csum_partial_copy_from_user(const void __user *src, void *dst, int len,
+			    __wsum sum, int *err_ptr)
 {
 	int missing;
 
@@ -166,9 +166,9 @@ csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst, int le
 }
 
 /* Copy to userspace and compute checksum.  */
-unsigned int
+__wsum
 csum_partial_copy_to_user(const unsigned char *src, unsigned char *dst, int len,
-			  unsigned int sum, int *err_ptr)
+			  __wsum sum, int *err_ptr)
 {
 	sum = csum_partial(src, len, sum);
 
@@ -182,28 +182,24 @@ csum_partial_copy_to_user(const unsigned char *src, unsigned char *dst, int len,
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
  */
-unsigned short ip_fast_csum(unsigned char *iph, unsigned int ihl)
+__sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
 	pr_debug("ip_fast_csum %p,%d\n", iph, ihl);
 
-	return ~do_csum(iph, ihl * 4);
+	return (__force __sum16)~do_csum(iph, ihl * 4);
 }
 
-unsigned int csum_tcpudp_nofold(unsigned long saddr,
-				unsigned long daddr,
+__wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 				unsigned short len,
-				unsigned short proto, unsigned int sum)
+				unsigned short proto, __wsum sum)
 {
 	unsigned long long result;
 
 	pr_debug("ntohs(0x%x)=0x%x\n", 0xdead, ntohs(0xdead));
 	pr_debug("htons(0x%x)=0x%x\n", 0xdead, htons(0xdead));
 
-	result = ((unsigned long long) saddr +
-		  (unsigned long long) daddr +
-		  (unsigned long long) sum +
-		  ((unsigned long long) ntohs(len) << 16) +
-		  ((unsigned long long) proto << 8));
+	result = (__force u64) saddr + (__force u64) daddr +
+		 (__force u64) sum + ((len + proto) << 8);
 
 	/* Fold down to 32-bits so we don't loose in the typedef-less
 	   network stack.  */
@@ -215,16 +211,5 @@ unsigned int csum_tcpudp_nofold(unsigned long saddr,
 	pr_debug("%s saddr %x daddr %x len %x proto %x sum %x result %08Lx\n",
 		__FUNCTION__, saddr, daddr, len, proto, sum, result);
 
-	return result;
-}
-
-// Post SIM:
-unsigned int
-csum_partial_copy_nocheck(const unsigned char *src, unsigned char *dst, int len, unsigned int sum)
-{
-	//  unsigned dummy;
-	pr_debug("csum_partial_copy_nocheck src %p dst %p len %d\n", src, dst,
-		len);
-
-	return csum_partial_copy(src, dst, len, sum);
+	return (__wsum)result;
 }

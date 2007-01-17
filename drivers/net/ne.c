@@ -867,7 +867,7 @@ static void cleanup_card(struct net_device *dev)
 	release_region(dev->base_addr, NE_IO_EXTENT);
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	int this_dev;
 

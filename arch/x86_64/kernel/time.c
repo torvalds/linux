@@ -563,7 +563,7 @@ static unsigned int cpufreq_delayed_issched = 0;
 static unsigned int cpufreq_init = 0;
 static struct work_struct cpufreq_delayed_get_work;
 
-static void handle_cpufreq_delayed_get(void *v)
+static void handle_cpufreq_delayed_get(struct work_struct *v)
 {
 	unsigned int cpu;
 	for_each_online_cpu(cpu) {
@@ -639,7 +639,7 @@ static struct notifier_block time_cpufreq_notifier_block = {
 
 static int __init cpufreq_tsc(void)
 {
-	INIT_WORK(&cpufreq_delayed_get_work, handle_cpufreq_delayed_get, NULL);
+	INIT_WORK(&cpufreq_delayed_get_work, handle_cpufreq_delayed_get);
 	if (!cpufreq_register_notifier(&time_cpufreq_notifier_block,
 				       CPUFREQ_TRANSITION_NOTIFIER))
 		cpufreq_init = 1;
@@ -656,6 +656,25 @@ core_initcall(cpufreq_tsc);
  */
 
 #define TICK_COUNT 100000000
+#define TICK_MIN   5000
+
+/*
+ * Some platforms take periodic SMI interrupts with 5ms duration. Make sure none
+ * occurs between the reads of the hpet & TSC.
+ */
+static void __init read_hpet_tsc(int *hpet, int *tsc)
+{
+	int tsc1, tsc2, hpet1;
+
+	do {
+		tsc1 = get_cycles_sync();
+		hpet1 = hpet_readl(HPET_COUNTER);
+		tsc2 = get_cycles_sync();
+	} while (tsc2 - tsc1 > TICK_MIN);
+	*hpet = hpet1;
+	*tsc = tsc2;
+}
+
 
 static unsigned int __init hpet_calibrate_tsc(void)
 {
@@ -666,13 +685,11 @@ static unsigned int __init hpet_calibrate_tsc(void)
 	local_irq_save(flags);
 	local_irq_disable();
 
-	hpet_start = hpet_readl(HPET_COUNTER);
-	rdtscl(tsc_start);
+	read_hpet_tsc(&hpet_start, &tsc_start);
 
 	do {
 		local_irq_disable();
-		hpet_now = hpet_readl(HPET_COUNTER);
-		tsc_now = get_cycles_sync();
+		read_hpet_tsc(&hpet_now, &tsc_now);
 		local_irq_restore(flags);
 	} while ((tsc_now - tsc_start) < TICK_COUNT &&
 		 (hpet_now - hpet_start) < TICK_COUNT);

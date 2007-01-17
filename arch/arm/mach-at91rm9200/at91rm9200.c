@@ -14,8 +14,10 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/arch/at91rm9200.h>
+#include <asm/arch/at91_pmc.h>
+#include <asm/arch/at91_st.h>
 
-#include <asm/hardware.h>
 #include "generic.h"
 #include "clock.h"
 
@@ -26,32 +28,12 @@ static struct map_desc at91rm9200_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= AT91_VA_BASE_SPI,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_SPI),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= AT91_VA_BASE_EMAC,
 		.pfn		= __phys_to_pfn(AT91RM9200_BASE_EMAC),
 		.length		= SZ_16K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= AT91_VA_BASE_TWI,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_TWI),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_VA_BASE_MCI,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_MCI),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_VA_BASE_UDP,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_UDP),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_SRAM_VIRT_BASE,
+		.virtual	= AT91_IO_VIRT_BASE - AT91RM9200_SRAM_SIZE,
 		.pfn		= __phys_to_pfn(AT91RM9200_SRAM_BASE),
 		.length		= AT91RM9200_SRAM_SIZE,
 		.type		= MT_DEVICE,
@@ -222,6 +204,16 @@ static struct at91_gpio_bank at91rm9200_gpio[] = {
 	}
 };
 
+static void at91rm9200_reset(void)
+{
+	/*
+	 * Perform a hardware reset with the use of the Watchdog timer.
+	 */
+	at91_sys_write(AT91_ST_WDMR, AT91_ST_RSTEN | AT91_ST_EXTEN | 1);
+	at91_sys_write(AT91_ST_CR, AT91_ST_WDRST);
+}
+
+
 /* --------------------------------------------------------------------
  *  AT91RM9200 processor initialization
  * -------------------------------------------------------------------- */
@@ -229,6 +221,12 @@ void __init at91rm9200_initialize(unsigned long main_clock, unsigned short banks
 {
 	/* Map peripherals */
 	iotable_init(at91rm9200_io_desc, ARRAY_SIZE(at91rm9200_io_desc));
+
+	at91_arch_reset = at91rm9200_reset;
+	at91_extern_irq = (1 << AT91RM9200_ID_IRQ0) | (1 << AT91RM9200_ID_IRQ1)
+			| (1 << AT91RM9200_ID_IRQ2) | (1 << AT91RM9200_ID_IRQ3)
+			| (1 << AT91RM9200_ID_IRQ4) | (1 << AT91RM9200_ID_IRQ5)
+			| (1 << AT91RM9200_ID_IRQ6);
 
 	/* Init clock subsystem */
 	at91_clock_init(main_clock);

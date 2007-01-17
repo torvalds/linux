@@ -23,7 +23,7 @@
 #include <asm/appldata.h>
 #include <asm/monwriter.h>
 
-#define MONWRITE_MAX_DATALEN	4024
+#define MONWRITE_MAX_DATALEN	4010
 
 static int mon_max_bufs = 255;
 static int mon_buf_count;

@@ -1827,8 +1827,8 @@ static int __devinit snd_rme9652_initialize_memory(struct snd_rme9652 *rme9652)
 
 	/* Align to bus-space 64K boundary */
 
-	cb_bus = (rme9652->capture_dma_buf.addr + 0xFFFF) & ~0xFFFFl;
-	pb_bus = (rme9652->playback_dma_buf.addr + 0xFFFF) & ~0xFFFFl;
+	cb_bus = ALIGN(rme9652->capture_dma_buf.addr, 0x10000ul);
+	pb_bus = ALIGN(rme9652->playback_dma_buf.addr, 0x10000ul);
 
 	/* Tell the card where it is */
 
@@ -2500,7 +2500,8 @@ static int __devinit snd_rme9652_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	
-	if (request_irq(pci->irq, snd_rme9652_interrupt, IRQF_DISABLED|IRQF_SHARED, "rme9652", (void *)rme9652)) {
+	if (request_irq(pci->irq, snd_rme9652_interrupt, IRQF_SHARED,
+			"rme9652", rme9652)) {
 		snd_printk(KERN_ERR "unable to request IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}

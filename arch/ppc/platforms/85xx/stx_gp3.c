@@ -123,7 +123,7 @@ gp3_setup_arch(void)
 
 	mdata->irq[2] = MPC85xx_IRQ_EXT5;
 	mdata->irq[4] = MPC85xx_IRQ_EXT5;
-	mdata->irq[31] = -1;
+	mdata->irq[31] = PHY_POLL;
 
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);

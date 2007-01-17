@@ -13,7 +13,7 @@
 #include <asm/page.h>
 
 /* Page table allocation/freeing. */
-extern kmem_cache_t *pgtable_cache;
+extern struct kmem_cache *pgtable_cache;
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {

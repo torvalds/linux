@@ -22,10 +22,10 @@
 #include <net/checksum.h>
 #include <linux/netfilter_ipv4.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
-#include <net/netfilter/nf_conntrack_protocol.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
 
-unsigned long nf_ct_icmp_timeout __read_mostly = 30*HZ;
+static unsigned long nf_ct_icmp_timeout __read_mostly = 30*HZ;
 
 #if 0
 #define DEBUGP printk
@@ -152,7 +152,7 @@ icmp_error_message(struct sk_buff *skb,
 		struct icmphdr icmp;
 		struct iphdr ip;
 	} _in, *inside;
-	struct nf_conntrack_protocol *innerproto;
+	struct nf_conntrack_l4proto *innerproto;
 	struct nf_conntrack_tuple_hash *h;
 	int dataoff;
 
@@ -170,7 +170,7 @@ icmp_error_message(struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
-	innerproto = __nf_ct_proto_find(PF_INET, inside->ip.protocol);
+	innerproto = __nf_ct_l4proto_find(PF_INET, inside->ip.protocol);
 	dataoff = skb->nh.iph->ihl*4 + sizeof(inside->icmp);
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuple(skb, dataoff, dataoff + inside->ip.ihl*4, PF_INET,
@@ -311,7 +311,7 @@ static int icmp_nfattr_to_tuple(struct nfattr *tb[],
 	tuple->dst.u.icmp.code =
 			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMP_CODE-1]);
 	tuple->src.u.icmp.id =
-			*(u_int16_t *)NFA_DATA(tb[CTA_PROTO_ICMP_ID-1]);
+			*(__be16 *)NFA_DATA(tb[CTA_PROTO_ICMP_ID-1]);
 
 	if (tuple->dst.u.icmp.type >= sizeof(invmap)
 	    || !invmap[tuple->dst.u.icmp.type])
@@ -321,11 +321,42 @@ static int icmp_nfattr_to_tuple(struct nfattr *tb[],
 }
 #endif
 
-struct nf_conntrack_protocol nf_conntrack_protocol_icmp =
+#ifdef CONFIG_SYSCTL
+static struct ctl_table_header *icmp_sysctl_header;
+static struct ctl_table icmp_sysctl_table[] = {
+	{
+		.ctl_name	= NET_NF_CONNTRACK_ICMP_TIMEOUT,
+		.procname	= "nf_conntrack_icmp_timeout",
+		.data		= &nf_ct_icmp_timeout,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+        {
+		.ctl_name = 0
+	}
+};
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+static struct ctl_table icmp_compat_sysctl_table[] = {
+	{
+		.ctl_name	= NET_IPV4_NF_CONNTRACK_ICMP_TIMEOUT,
+		.procname	= "ip_conntrack_icmp_timeout",
+		.data		= &nf_ct_icmp_timeout,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+        {
+		.ctl_name = 0
+	}
+};
+#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
+#endif /* CONFIG_SYSCTL */
+
+struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 {
-	.list			= { NULL, NULL },
 	.l3proto		= PF_INET,
-	.proto			= IPPROTO_ICMP,
+	.l4proto		= IPPROTO_ICMP,
 	.name			= "icmp",
 	.pkt_to_tuple		= icmp_pkt_to_tuple,
 	.invert_tuple		= icmp_invert_tuple,
@@ -341,6 +372,12 @@ struct nf_conntrack_protocol nf_conntrack_protocol_icmp =
 	.tuple_to_nfattr	= icmp_tuple_to_nfattr,
 	.nfattr_to_tuple	= icmp_nfattr_to_tuple,
 #endif
+#ifdef CONFIG_SYSCTL
+	.ctl_table_header	= &icmp_sysctl_header,
+	.ctl_table		= icmp_sysctl_table,
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+	.ctl_compat_table	= icmp_compat_sysctl_table,
+#endif
+#endif
 };
-
-EXPORT_SYMBOL(nf_conntrack_protocol_icmp);
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_icmp);

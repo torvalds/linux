@@ -51,7 +51,7 @@ static struct page *ecryptfs_get1page(struct file *file, int index)
 	struct inode *inode;
 	struct address_space *mapping;
 
-	dentry = file->f_dentry;
+	dentry = file->f_path.dentry;
 	inode = dentry->d_inode;
 	mapping = inode->i_mapping;
 	page = read_cache_page(mapping, index,
@@ -84,7 +84,7 @@ int write_zeros(struct file *file, pgoff_t index, int start, int num_zeros);
 int ecryptfs_fill_zeros(struct file *file, loff_t new_length)
 {
 	int rc = 0;
-	struct dentry *dentry = file->f_dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	pgoff_t old_end_page_index = 0;
 	pgoff_t index = old_end_page_index;
@@ -218,7 +218,7 @@ int ecryptfs_do_readpage(struct file *file, struct page *page,
 	char *lower_page_data;
 	const struct address_space_operations *lower_a_ops;
 
-	dentry = file->f_dentry;
+	dentry = file->f_path.dentry;
 	lower_file = ecryptfs_file_to_lower(file);
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	inode = dentry->d_inode;
@@ -275,9 +275,9 @@ static int ecryptfs_readpage(struct file *file, struct page *page)
 	int rc = 0;
 	struct ecryptfs_crypt_stat *crypt_stat;
 
-	BUG_ON(!(file && file->f_dentry && file->f_dentry->d_inode));
-	crypt_stat =
-		&ecryptfs_inode_to_private(file->f_dentry->d_inode)->crypt_stat;
+	BUG_ON(!(file && file->f_path.dentry && file->f_path.dentry->d_inode));
+	crypt_stat = &ecryptfs_inode_to_private(file->f_path.dentry->d_inode)
+			->crypt_stat;
 	if (!crypt_stat
 	    || !ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_ENCRYPTED)
 	    || ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_NEW_FILE)) {
@@ -638,8 +638,8 @@ static int ecryptfs_commit_write(struct file *file, struct page *page,
 	lower_inode = ecryptfs_inode_to_lower(inode);
 	lower_file = ecryptfs_file_to_lower(file);
 	mutex_lock(&lower_inode->i_mutex);
-	crypt_stat =
-		&ecryptfs_inode_to_private(file->f_dentry->d_inode)->crypt_stat;
+	crypt_stat = &ecryptfs_inode_to_private(file->f_path.dentry->d_inode)
+				->crypt_stat;
 	if (ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_NEW_FILE)) {
 		ecryptfs_printk(KERN_DEBUG, "ECRYPTFS_NEW_FILE flag set in "
 			"crypt_stat at memory location [%p]\n", crypt_stat);

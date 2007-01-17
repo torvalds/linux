@@ -3,8 +3,7 @@
  *
  * Note: This driver is a cleanroom reimplementation based on reverse
  *      engineered documentation written by Carl-Daniel Hailfinger
- *      and Andrew de Quincey. It's neither supported nor endorsed
- *      by NVIDIA Corp. Use at your own risk.
+ *      and Andrew de Quincey.
  *
  * NVIDIA, nForce and other NVIDIA marks are trademarks or registered
  * trademarks of NVIDIA Corporation in the United States and other
@@ -14,7 +13,7 @@
  * Copyright (C) 2004 Andrew de Quincey (wol support)
  * Copyright (C) 2004 Carl-Daniel Hailfinger (invalid MAC handling, insane
  *		IRQ rate fixes, bigendian fixes, cleanups, verification)
- * Copyright (c) 2004 NVIDIA Corporation
+ * Copyright (c) 2004,5,6 NVIDIA Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -110,6 +109,8 @@
  *	0.55: 22 Mar 2006: Add flow control (pause frame).
  *	0.56: 22 Mar 2006: Additional ethtool config and moduleparam support.
  *	0.57: 14 May 2006: Mac address set in probe/remove and order corrections.
+ *	0.58: 30 Oct 2006: Added support for sideband management unit.
+ *	0.59: 30 Oct 2006: Added support for recoverable error.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -126,7 +127,7 @@
 #else
 #define DRIVERNAPI
 #endif
-#define FORCEDETH_VERSION		"0.57"
+#define FORCEDETH_VERSION		"0.59"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -174,11 +175,12 @@
 #define DEV_HAS_PAUSEFRAME_TX   0x0200  /* device supports tx pause frames */
 #define DEV_HAS_STATISTICS      0x0400  /* device supports hw statistics */
 #define DEV_HAS_TEST_EXTENDED   0x0800  /* device supports extended diagnostic test */
+#define DEV_HAS_MGMT_UNIT       0x1000  /* device supports management unit */
 
 enum {
 	NvRegIrqStatus = 0x000,
 #define NVREG_IRQSTAT_MIIEVENT	0x040
-#define NVREG_IRQSTAT_MASK		0x1ff
+#define NVREG_IRQSTAT_MASK		0x81ff
 	NvRegIrqMask = 0x004,
 #define NVREG_IRQ_RX_ERROR		0x0001
 #define NVREG_IRQ_RX			0x0002
@@ -189,15 +191,16 @@ enum {
 #define NVREG_IRQ_LINK			0x0040
 #define NVREG_IRQ_RX_FORCED		0x0080
 #define NVREG_IRQ_TX_FORCED		0x0100
+#define NVREG_IRQ_RECOVER_ERROR		0x8000
 #define NVREG_IRQMASK_THROUGHPUT	0x00df
 #define NVREG_IRQMASK_CPU		0x0040
 #define NVREG_IRQ_TX_ALL		(NVREG_IRQ_TX_ERR|NVREG_IRQ_TX_OK|NVREG_IRQ_TX_FORCED)
 #define NVREG_IRQ_RX_ALL		(NVREG_IRQ_RX_ERROR|NVREG_IRQ_RX|NVREG_IRQ_RX_NOBUF|NVREG_IRQ_RX_FORCED)
-#define NVREG_IRQ_OTHER			(NVREG_IRQ_TIMER|NVREG_IRQ_LINK)
+#define NVREG_IRQ_OTHER			(NVREG_IRQ_TIMER|NVREG_IRQ_LINK|NVREG_IRQ_RECOVER_ERROR)
 
 #define NVREG_IRQ_UNKNOWN	(~(NVREG_IRQ_RX_ERROR|NVREG_IRQ_RX|NVREG_IRQ_RX_NOBUF|NVREG_IRQ_TX_ERR| \
 					NVREG_IRQ_TX_OK|NVREG_IRQ_TIMER|NVREG_IRQ_LINK|NVREG_IRQ_RX_FORCED| \
-					NVREG_IRQ_TX_FORCED))
+					NVREG_IRQ_TX_FORCED|NVREG_IRQ_RECOVER_ERROR))
 
 	NvRegUnknownSetupReg6 = 0x008,
 #define NVREG_UNKSETUP6_VAL		3
@@ -222,6 +225,16 @@ enum {
 #define NVREG_MAC_RESET_ASSERT	0x0F3
 	NvRegTransmitterControl = 0x084,
 #define NVREG_XMITCTL_START	0x01
+#define NVREG_XMITCTL_MGMT_ST	0x40000000
+#define NVREG_XMITCTL_SYNC_MASK		0x000f0000
+#define NVREG_XMITCTL_SYNC_NOT_READY	0x0
+#define NVREG_XMITCTL_SYNC_PHY_INIT	0x00040000
+#define NVREG_XMITCTL_MGMT_SEMA_MASK	0x00000f00
+#define NVREG_XMITCTL_MGMT_SEMA_FREE	0x0
+#define NVREG_XMITCTL_HOST_SEMA_MASK	0x0000f000
+#define NVREG_XMITCTL_HOST_SEMA_ACQ	0x0000f000
+#define NVREG_XMITCTL_HOST_LOADED	0x00004000
+#define NVREG_XMITCTL_TX_PATH_EN	0x01000000
 	NvRegTransmitterStatus = 0x088,
 #define NVREG_XMITSTAT_BUSY	0x01
 
@@ -237,6 +250,7 @@ enum {
 #define NVREG_OFFLOAD_NORMAL	RX_NIC_BUFSIZE
 	NvRegReceiverControl = 0x094,
 #define NVREG_RCVCTL_START	0x01
+#define NVREG_RCVCTL_RX_PATH_EN	0x01000000
 	NvRegReceiverStatus = 0x98,
 #define NVREG_RCVSTAT_BUSY	0x01
 
@@ -304,8 +318,8 @@ enum {
 #define NVREG_MIISTAT_LINKCHANGE	0x0008
 #define NVREG_MIISTAT_MASK		0x000f
 #define NVREG_MIISTAT_MASK2		0x000f
-	NvRegUnknownSetupReg4 = 0x184,
-#define NVREG_UNKSETUP4_VAL	8
+	NvRegMIIMask = 0x184,
+#define NVREG_MII_LINKCHANGE		0x0008
 
 	NvRegAdapterControl = 0x188,
 #define NVREG_ADAPTCTL_START	0x02
@@ -707,6 +721,7 @@ struct fe_priv {
 	unsigned int phy_model;
 	u16 gigabit;
 	int intr_test;
+	int recover_error;
 
 	/* General data: RO fields */
 	dma_addr_t ring_addr;
@@ -719,6 +734,7 @@ struct fe_priv {
 	u32 driver_data;
 	u32 register_size;
 	int rx_csum;
+	u32 mac_in_use;
 
 	void __iomem *base;
 
@@ -1155,16 +1171,21 @@ static void nv_start_rx(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	u32 rx_ctrl = readl(base + NvRegReceiverControl);
 
 	dprintk(KERN_DEBUG "%s: nv_start_rx\n", dev->name);
 	/* Already running? Stop it. */
-	if (readl(base + NvRegReceiverControl) & NVREG_RCVCTL_START) {
-		writel(0, base + NvRegReceiverControl);
+	if ((readl(base + NvRegReceiverControl) & NVREG_RCVCTL_START) && !np->mac_in_use) {
+		rx_ctrl &= ~NVREG_RCVCTL_START;
+		writel(rx_ctrl, base + NvRegReceiverControl);
 		pci_push(base);
 	}
 	writel(np->linkspeed, base + NvRegLinkSpeed);
 	pci_push(base);
-	writel(NVREG_RCVCTL_START, base + NvRegReceiverControl);
+        rx_ctrl |= NVREG_RCVCTL_START;
+        if (np->mac_in_use)
+		rx_ctrl &= ~NVREG_RCVCTL_RX_PATH_EN;
+	writel(rx_ctrl, base + NvRegReceiverControl);
 	dprintk(KERN_DEBUG "%s: nv_start_rx to duplex %d, speed 0x%08x.\n",
 				dev->name, np->duplex, np->linkspeed);
 	pci_push(base);
@@ -1172,39 +1193,59 @@ static void nv_start_rx(struct net_device *dev)
 
 static void nv_stop_rx(struct net_device *dev)
 {
+	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	u32 rx_ctrl = readl(base + NvRegReceiverControl);
 
 	dprintk(KERN_DEBUG "%s: nv_stop_rx\n", dev->name);
-	writel(0, base + NvRegReceiverControl);
+	if (!np->mac_in_use)
+		rx_ctrl &= ~NVREG_RCVCTL_START;
+	else
+		rx_ctrl |= NVREG_RCVCTL_RX_PATH_EN;
+	writel(rx_ctrl, base + NvRegReceiverControl);
 	reg_delay(dev, NvRegReceiverStatus, NVREG_RCVSTAT_BUSY, 0,
 			NV_RXSTOP_DELAY1, NV_RXSTOP_DELAY1MAX,
 			KERN_INFO "nv_stop_rx: ReceiverStatus remained busy");
 
 	udelay(NV_RXSTOP_DELAY2);
-	writel(0, base + NvRegLinkSpeed);
+	if (!np->mac_in_use)
+		writel(0, base + NvRegLinkSpeed);
 }
 
 static void nv_start_tx(struct net_device *dev)
 {
+	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	u32 tx_ctrl = readl(base + NvRegTransmitterControl);
 
 	dprintk(KERN_DEBUG "%s: nv_start_tx\n", dev->name);
-	writel(NVREG_XMITCTL_START, base + NvRegTransmitterControl);
+	tx_ctrl |= NVREG_XMITCTL_START;
+	if (np->mac_in_use)
+		tx_ctrl &= ~NVREG_XMITCTL_TX_PATH_EN;
+	writel(tx_ctrl, base + NvRegTransmitterControl);
 	pci_push(base);
 }
 
 static void nv_stop_tx(struct net_device *dev)
 {
+	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	u32 tx_ctrl = readl(base + NvRegTransmitterControl);
 
 	dprintk(KERN_DEBUG "%s: nv_stop_tx\n", dev->name);
-	writel(0, base + NvRegTransmitterControl);
+	if (!np->mac_in_use)
+		tx_ctrl &= ~NVREG_XMITCTL_START;
+	else
+		tx_ctrl |= NVREG_XMITCTL_TX_PATH_EN;
+	writel(tx_ctrl, base + NvRegTransmitterControl);
 	reg_delay(dev, NvRegTransmitterStatus, NVREG_XMITSTAT_BUSY, 0,
 			NV_TXSTOP_DELAY1, NV_TXSTOP_DELAY1MAX,
 			KERN_INFO "nv_stop_tx: TransmitterStatus remained busy");
 
 	udelay(NV_TXSTOP_DELAY2);
-	writel(readl(base + NvRegTransmitPoll) & NVREG_TRANSMITPOLL_MAC_ADDR_REV, base + NvRegTransmitPoll);
+	if (!np->mac_in_use)
+		writel(readl(base + NvRegTransmitPoll) & NVREG_TRANSMITPOLL_MAC_ADDR_REV,
+		       base + NvRegTransmitPoll);
 }
 
 static void nv_txrx_reset(struct net_device *dev)
@@ -2443,6 +2484,23 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 			printk(KERN_DEBUG "%s: received irq with unknown events 0x%x. Please report\n",
 						dev->name, events);
 		}
+		if (unlikely(events & NVREG_IRQ_RECOVER_ERROR)) {
+			spin_lock(&np->lock);
+			/* disable interrupts on the nic */
+			if (!(np->msi_flags & NV_MSI_X_ENABLED))
+				writel(0, base + NvRegIrqMask);
+			else
+				writel(np->irqmask, base + NvRegIrqMask);
+			pci_push(base);
+
+			if (!np->in_shutdown) {
+				np->nic_poll_irq = np->irqmask;
+				np->recover_error = 1;
+				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
+			}
+			spin_unlock(&np->lock);
+			break;
+		}
 #ifdef CONFIG_FORCEDETH_NAPI
 		if (events & NVREG_IRQ_RX_ALL) {
 			netif_rx_schedule(dev);
@@ -2544,14 +2602,15 @@ static int nv_napi_poll(struct net_device *dev, int *budget)
 	int pkts, limit = min(*budget, dev->quota);
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	unsigned long flags;
 
 	pkts = nv_rx_process(dev, limit);
 
 	if (nv_alloc_rx(dev)) {
-		spin_lock_irq(&np->lock);
+		spin_lock_irqsave(&np->lock, flags);
 		if (!np->in_shutdown)
 			mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
-		spin_unlock_irq(&np->lock);
+		spin_unlock_irqrestore(&np->lock, flags);
 	}
 
 	if (pkts < limit) {
@@ -2559,13 +2618,15 @@ static int nv_napi_poll(struct net_device *dev, int *budget)
 		netif_rx_complete(dev);
 
 		/* re-enable receive interrupts */
-		spin_lock_irq(&np->lock);
+		spin_lock_irqsave(&np->lock, flags);
+
 		np->irqmask |= NVREG_IRQ_RX_ALL;
 		if (np->msi_flags & NV_MSI_X_ENABLED)
 			writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
 		else
 			writel(np->irqmask, base + NvRegIrqMask);
-		spin_unlock_irq(&np->lock);
+
+		spin_unlock_irqrestore(&np->lock, flags);
 		return 0;
 	} else {
 		/* used up our quantum, so reschedule */
@@ -2672,6 +2733,20 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 			nv_linkchange(dev);
 			spin_unlock_irqrestore(&np->lock, flags);
 			np->link_timeout = jiffies + LINK_TIMEOUT;
+		}
+		if (events & NVREG_IRQ_RECOVER_ERROR) {
+			spin_lock_irq(&np->lock);
+			/* disable interrupts on the nic */
+			writel(NVREG_IRQ_OTHER, base + NvRegIrqMask);
+			pci_push(base);
+
+			if (!np->in_shutdown) {
+				np->nic_poll_irq |= NVREG_IRQ_OTHER;
+				np->recover_error = 1;
+				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
+			}
+			spin_unlock_irq(&np->lock);
+			break;
 		}
 		if (events & (NVREG_IRQ_UNKNOWN)) {
 			printk(KERN_DEBUG "%s: received irq with unknown events 0x%x. Please report\n",
@@ -2901,6 +2976,42 @@ static void nv_do_nic_poll(unsigned long data)
 		}
 	}
 	np->nic_poll_irq = 0;
+
+	if (np->recover_error) {
+		np->recover_error = 0;
+		printk(KERN_INFO "forcedeth: MAC in recoverable error state\n");
+		if (netif_running(dev)) {
+			netif_tx_lock_bh(dev);
+			spin_lock(&np->lock);
+			/* stop engines */
+			nv_stop_rx(dev);
+			nv_stop_tx(dev);
+			nv_txrx_reset(dev);
+			/* drain rx queue */
+			nv_drain_rx(dev);
+			nv_drain_tx(dev);
+			/* reinit driver view of the rx queue */
+			set_bufsize(dev);
+			if (nv_init_ring(dev)) {
+				if (!np->in_shutdown)
+					mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
+			}
+			/* reinit nic view of the rx queue */
+			writel(np->rx_buf_sz, base + NvRegOffloadConfig);
+			setup_hw_rings(dev, NV_SETUP_RX_RING | NV_SETUP_TX_RING);
+			writel( ((np->rx_ring_size-1) << NVREG_RINGSZ_RXSHIFT) + ((np->tx_ring_size-1) << NVREG_RINGSZ_TXSHIFT),
+				base + NvRegRingSizes);
+			pci_push(base);
+			writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
+			pci_push(base);
+
+			/* restart rx engine */
+			nv_start_rx(dev);
+			nv_start_tx(dev);
+			spin_unlock(&np->lock);
+			netif_tx_unlock_bh(dev);
+		}
+	}
 
 	/* FIXME: Do we need synchronize_irq(dev->irq) here? */
 
@@ -4030,6 +4141,40 @@ static void nv_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	/* nothing to do */
 };
 
+/* The mgmt unit and driver use a semaphore to access the phy during init */
+static int nv_mgmt_acquire_sema(struct net_device *dev)
+{
+	u8 __iomem *base = get_hwbase(dev);
+	int i;
+	u32 tx_ctrl, mgmt_sema;
+
+	for (i = 0; i < 10; i++) {
+		mgmt_sema = readl(base + NvRegTransmitterControl) & NVREG_XMITCTL_MGMT_SEMA_MASK;
+		if (mgmt_sema == NVREG_XMITCTL_MGMT_SEMA_FREE)
+			break;
+		msleep(500);
+	}
+
+	if (mgmt_sema != NVREG_XMITCTL_MGMT_SEMA_FREE)
+		return 0;
+
+	for (i = 0; i < 2; i++) {
+		tx_ctrl = readl(base + NvRegTransmitterControl);
+		tx_ctrl |= NVREG_XMITCTL_HOST_SEMA_ACQ;
+		writel(tx_ctrl, base + NvRegTransmitterControl);
+
+		/* verify that semaphore was acquired */
+		tx_ctrl = readl(base + NvRegTransmitterControl);
+		if (((tx_ctrl & NVREG_XMITCTL_HOST_SEMA_MASK) == NVREG_XMITCTL_HOST_SEMA_ACQ) &&
+		    ((tx_ctrl & NVREG_XMITCTL_MGMT_SEMA_MASK) == NVREG_XMITCTL_MGMT_SEMA_FREE))
+			return 1;
+		else
+			udelay(50);
+	}
+
+	return 0;
+}
+
 static int nv_open(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
@@ -4085,7 +4230,7 @@ static int nv_open(struct net_device *dev)
 			NV_SETUP5_DELAY, NV_SETUP5_DELAYMAX,
 			KERN_INFO "open: SetupReg5, Bit 31 remained off\n");
 
-	writel(0, base + NvRegUnknownSetupReg4);
+	writel(0, base + NvRegMIIMask);
 	writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
 	writel(NVREG_MIISTAT_MASK2, base + NvRegMIIStatus);
 
@@ -4111,7 +4256,7 @@ static int nv_open(struct net_device *dev)
 	writel((np->phyaddr << NVREG_ADAPTCTL_PHYSHIFT)|NVREG_ADAPTCTL_PHYVALID|NVREG_ADAPTCTL_RUNNING,
 			base + NvRegAdapterControl);
 	writel(NVREG_MIISPEED_BIT8|NVREG_MIIDELAY, base + NvRegMIISpeed);
-	writel(NVREG_UNKSETUP4_VAL, base + NvRegUnknownSetupReg4);
+	writel(NVREG_MII_LINKCHANGE, base + NvRegMIIMask);
 	if (np->wolenabled)
 		writel(NVREG_WAKEUPFLAGS_ENABLE , base + NvRegWakeUpFlags);
 
@@ -4230,6 +4375,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	u8 __iomem *base;
 	int err, i;
 	u32 powerstate, txreg;
+	u32 phystate_orig = 0, phystate;
+	int phyinitialized = 0;
 
 	dev = alloc_etherdev(sizeof(struct fe_priv));
 	err = -ENOMEM;
@@ -4514,6 +4661,39 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->need_linktimer = 0;
 	}
 
+	/* clear phy state and temporarily halt phy interrupts */
+	writel(0, base + NvRegMIIMask);
+	phystate = readl(base + NvRegAdapterControl);
+	if (phystate & NVREG_ADAPTCTL_RUNNING) {
+		phystate_orig = 1;
+		phystate &= ~NVREG_ADAPTCTL_RUNNING;
+		writel(phystate, base + NvRegAdapterControl);
+	}
+	writel(NVREG_MIISTAT_MASK, base + NvRegMIIStatus);
+
+	if (id->driver_data & DEV_HAS_MGMT_UNIT) {
+		/* management unit running on the mac? */
+		if (readl(base + NvRegTransmitterControl) & NVREG_XMITCTL_SYNC_PHY_INIT) {
+			np->mac_in_use = readl(base + NvRegTransmitterControl) & NVREG_XMITCTL_MGMT_ST;
+			dprintk(KERN_INFO "%s: mgmt unit is running. mac in use %x.\n", pci_name(pci_dev), np->mac_in_use);
+			for (i = 0; i < 5000; i++) {
+				msleep(1);
+				if (nv_mgmt_acquire_sema(dev)) {
+					/* management unit setup the phy already? */
+					if ((readl(base + NvRegTransmitterControl) & NVREG_XMITCTL_SYNC_MASK) ==
+					    NVREG_XMITCTL_SYNC_PHY_INIT) {
+						/* phy is inited by mgmt unit */
+						phyinitialized = 1;
+						dprintk(KERN_INFO "%s: Phy already initialized by mgmt unit.\n", pci_name(pci_dev));
+					} else {
+						/* we need to init the phy */
+					}
+					break;
+				}
+			}
+		}
+	}
+
 	/* find a suitable phy */
 	for (i = 1; i <= 32; i++) {
 		int id1, id2;
@@ -4545,8 +4725,16 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		goto out_error;
 	}
 
-	/* reset it */
-	phy_init(dev);
+	if (!phyinitialized) {
+		/* reset it */
+		phy_init(dev);
+	} else {
+		/* see if it is a gigabit phy */
+		u32 mii_status = mii_rw(dev, np->phyaddr, MII_BMSR, MII_READ);
+		if (mii_status & PHY_GIGABIT) {
+			np->gigabit = PHY_GIGABIT;
+		}
+	}
 
 	/* set default link speed settings */
 	np->linkspeed = NVREG_LINKSPEED_FORCE|NVREG_LINKSPEED_10;
@@ -4565,6 +4753,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	return 0;
 
 out_error:
+	if (phystate_orig)
+		writel(phystate|NVREG_ADAPTCTL_RUNNING, base + NvRegAdapterControl);
 	pci_set_drvdata(pci_dev, NULL);
 out_freering:
 	free_rings(dev);
@@ -4602,6 +4792,50 @@ static void __devexit nv_remove(struct pci_dev *pci_dev)
 	free_netdev(dev);
 	pci_set_drvdata(pci_dev, NULL);
 }
+
+#ifdef CONFIG_PM
+static int nv_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct fe_priv *np = netdev_priv(dev);
+
+	if (!netif_running(dev))
+		goto out;
+
+	netif_device_detach(dev);
+
+	// Gross.
+	nv_close(dev);
+
+	pci_save_state(pdev);
+	pci_enable_wake(pdev, pci_choose_state(pdev, state), np->wolenabled);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+out:
+	return 0;
+}
+
+static int nv_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	int rc = 0;
+
+	if (!netif_running(dev))
+		goto out;
+
+	netif_device_attach(dev);
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_enable_wake(pdev, PCI_D0, 0);
+
+	rc = nv_open(dev);
+out:
+	return rc;
+}
+#else
+#define nv_suspend NULL
+#define nv_resume NULL
+#endif /* CONFIG_PM */
 
 static struct pci_device_id pci_tbl[] = {
 	{	/* nForce Ethernet Controller */
@@ -4658,43 +4892,59 @@ static struct pci_device_id pci_tbl[] = {
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_14),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_15),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP61 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_16),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP61 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_17),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP61 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_18),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP61 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_19),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_20),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_21),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_22),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_23),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+	},
+	{	/* MCP67 Ethernet Controller */
+		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_24),
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+	},
+	{	/* MCP67 Ethernet Controller */
+		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_25),
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+	},
+	{	/* MCP67 Ethernet Controller */
+		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_26),
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+	},
+	{	/* MCP67 Ethernet Controller */
+		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_27),
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{0,},
 };
@@ -4704,8 +4954,9 @@ static struct pci_driver driver = {
 	.id_table = pci_tbl,
 	.probe = nv_probe,
 	.remove = __devexit_p(nv_remove),
+	.suspend = nv_suspend,
+	.resume	= nv_resume,
 };
-
 
 static int __init init_nic(void)
 {

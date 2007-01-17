@@ -8,6 +8,7 @@
 
 struct request;
 struct scatterlist;
+struct Scsi_Host;
 struct scsi_device;
 
 
@@ -72,6 +73,9 @@ struct scsi_cmnd {
 	unsigned short use_sg;	/* Number of pieces of scatter-gather */
 	unsigned short sglist_len;	/* size of malloc'd scatter-gather list */
 
+	/* offset in cmd we are at (for multi-transfer tgt cmds) */
+	unsigned offset;
+
 	unsigned underflow;	/* Return error if less than
 				   this amount is transferred */
 
@@ -119,7 +123,10 @@ struct scsi_cmnd {
 };
 
 extern struct scsi_cmnd *scsi_get_command(struct scsi_device *, gfp_t);
+extern struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *, gfp_t);
 extern void scsi_put_command(struct scsi_cmnd *);
+extern void __scsi_put_command(struct Scsi_Host *, struct scsi_cmnd *,
+			       struct device *);
 extern void scsi_io_completion(struct scsi_cmnd *, unsigned int);
 extern void scsi_finish_command(struct scsi_cmnd *cmd);
 extern void scsi_req_abort_cmd(struct scsi_cmnd *cmd);
@@ -127,5 +134,8 @@ extern void scsi_req_abort_cmd(struct scsi_cmnd *cmd);
 extern void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
 				 size_t *offset, size_t *len);
 extern void scsi_kunmap_atomic_sg(void *virt);
+
+extern struct scatterlist *scsi_alloc_sgtable(struct scsi_cmnd *, gfp_t);
+extern void scsi_free_sgtable(struct scatterlist *, int);
 
 #endif /* _SCSI_SCSI_CMND_H */

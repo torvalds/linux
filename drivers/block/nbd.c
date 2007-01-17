@@ -355,14 +355,30 @@ harderror:
 	return NULL;
 }
 
+static ssize_t pid_show(struct gendisk *disk, char *page)
+{
+	return sprintf(page, "%ld\n",
+		(long) ((struct nbd_device *)disk->private_data)->pid);
+}
+
+static struct disk_attribute pid_attr = {
+	.attr = { .name = "pid", .mode = S_IRUGO },
+	.show = pid_show,
+};
+
 static void nbd_do_it(struct nbd_device *lo)
 {
 	struct request *req;
 
 	BUG_ON(lo->magic != LO_MAGIC);
 
+	lo->pid = current->pid;
+	sysfs_create_file(&lo->disk->kobj, &pid_attr.attr);
+
 	while ((req = nbd_read_stat(lo)) != NULL)
 		nbd_end_request(req);
+
+	sysfs_remove_file(&lo->disk->kobj, &pid_attr.attr);
 	return;
 }
 
@@ -521,7 +537,7 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		error = -EINVAL;
 		file = fget(arg);
 		if (file) {
-			inode = file->f_dentry->d_inode;
+			inode = file->f_path.dentry->d_inode;
 			if (S_ISSOCK(inode->i_mode)) {
 				lo->file = file;
 				lo->sock = SOCKET_I(inode);

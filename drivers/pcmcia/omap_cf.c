@@ -220,7 +220,7 @@ static int __devinit omap_cf_probe(struct device *dev)
 	if (irq < 0)
 		return -EINVAL;
 
-	cf = kcalloc(1, sizeof *cf, GFP_KERNEL);
+	cf = kzalloc(sizeof *cf, GFP_KERNEL);
 	if (!cf)
 		return -ENOMEM;
 	init_timer(&cf->timer);

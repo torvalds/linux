@@ -12,7 +12,6 @@
 
 #include <linux/module.h>
 
-#include "dccp.h"
 #include "ccid.h"
 #include "feat.h"
 
@@ -23,9 +22,17 @@ int dccp_feat_change(struct dccp_minisock *dmsk, u8 type, u8 feature,
 {
 	struct dccp_opt_pend *opt;
 
-	dccp_pr_debug("feat change type=%d feat=%d\n", type, feature);
+	dccp_feat_debug(type, feature, *val);
 
-	/* XXX sanity check feat change request */
+	if (!dccp_feat_is_valid_type(type)) {
+		DCCP_WARN("option type %d invalid in negotiation\n", type);
+		return 1;
+	}
+	if (!dccp_feat_is_valid_length(type, feature, len)) {
+		DCCP_WARN("invalid length %d\n", len);
+		return 1;
+	}
+	/* XXX add further sanity checks */
 
 	/* check if that feature is already being negotiated */
 	list_for_each_entry(opt, &dmsk->dccpms_pending, dccpop_node) {
@@ -95,14 +102,14 @@ static int dccp_feat_update_ccid(struct sock *sk, u8 type, u8 new_ccid_nr)
 /* XXX taking only u8 vals */
 static int dccp_feat_update(struct sock *sk, u8 type, u8 feat, u8 val)
 {
-	dccp_pr_debug("changing [%d] feat %d to %d\n", type, feat, val);
+	dccp_feat_debug(type, feat, val);
 
 	switch (feat) {
 	case DCCPF_CCID:
 		return dccp_feat_update_ccid(sk, type, val);
 	default:
-		dccp_pr_debug("IMPLEMENT changing [%d] feat %d to %d\n",
-			      type, feat, val);
+		dccp_pr_debug("UNIMPLEMENTED: %s(%d, ...)\n",
+			      dccp_feat_typename(type), feat);
 		break;
 	}
 	return 0;
@@ -162,7 +169,8 @@ static int dccp_feat_reconcile(struct sock *sk, struct dccp_opt_pend *opt,
 			break;
 
 		default:
-			WARN_ON(1); /* XXX implement res */
+			DCCP_BUG("Fell through, feat=%d", opt->dccpop_feat);
+			/* XXX implement res */
 			return -EFAULT;
 		}
 
@@ -265,10 +273,10 @@ static int dccp_feat_nn(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 	u8 *copy;
 	int rc;
 
-	/* NN features must be change L */
-	if (type == DCCPO_CHANGE_R) {
-		dccp_pr_debug("received CHANGE_R %d for NN feat %d\n",
-			      type, feature);
+	/* NN features must be Change L (sec. 6.3.2) */
+	if (type != DCCPO_CHANGE_L) {
+		dccp_pr_debug("received %s for NN feature %d\n",
+				dccp_feat_typename(type), feature);
 		return -EFAULT;
 	}
 
@@ -279,12 +287,11 @@ static int dccp_feat_nn(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 	if (opt == NULL)
 		return -ENOMEM;
 
-	copy = kmalloc(len, GFP_ATOMIC);
+	copy = kmemdup(val, len, GFP_ATOMIC);
 	if (copy == NULL) {
 		kfree(opt);
 		return -ENOMEM;
 	}
-	memcpy(copy, val, len);
 
 	opt->dccpop_type = DCCPO_CONFIRM_R; /* NN can only confirm R */
 	opt->dccpop_feat = feature;
@@ -299,7 +306,8 @@ static int dccp_feat_nn(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 		return rc;
 	}
 
-	dccp_pr_debug("Confirming NN feature %d (val=%d)\n", feature, *copy);
+	dccp_feat_debug(type, feature, *copy);
+
 	list_add_tail(&opt->dccpop_node, &dmsk->dccpms_conf);
 
 	return 0;
@@ -318,14 +326,19 @@ static void dccp_feat_empty_confirm(struct dccp_minisock *dmsk,
 		return;
 	}
 
-	opt->dccpop_type = type == DCCPO_CHANGE_L ? DCCPO_CONFIRM_R :
-						    DCCPO_CONFIRM_L;
+	switch (type) {
+	case DCCPO_CHANGE_L: opt->dccpop_type = DCCPO_CONFIRM_R; break;
+	case DCCPO_CHANGE_R: opt->dccpop_type = DCCPO_CONFIRM_L; break;
+	default:	     DCCP_WARN("invalid type %d\n", type); return;
+
+	}
 	opt->dccpop_feat = feature;
 	opt->dccpop_val	 = NULL;
 	opt->dccpop_len	 = 0;
 
 	/* change feature */
-	dccp_pr_debug("Empty confirm feature %d type %d\n", feature, type);
+	dccp_pr_debug("Empty %s(%d)\n", dccp_feat_typename(type), feature);
+
 	list_add_tail(&opt->dccpop_node, &dmsk->dccpms_conf);
 }
 
@@ -359,7 +372,7 @@ int dccp_feat_change_recv(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 {
 	int rc;
 
-	dccp_pr_debug("got feat change type=%d feat=%d\n", type, feature);
+	dccp_feat_debug(type, feature, *val);
 
 	/* figure out if it's SP or NN feature */
 	switch (feature) {
@@ -375,6 +388,8 @@ int dccp_feat_change_recv(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 
 	/* XXX implement other features */
 	default:
+		dccp_pr_debug("UNIMPLEMENTED: not handling %s(%d, ...)\n",
+			      dccp_feat_typename(type), feature);
 		rc = -EFAULT;
 		break;
 	}
@@ -403,20 +418,27 @@ int dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 	u8 t;
 	struct dccp_opt_pend *opt;
 	struct dccp_minisock *dmsk = dccp_msk(sk);
-	int rc = 1;
+	int found = 0;
 	int all_confirmed = 1;
 
-	dccp_pr_debug("got feat confirm type=%d feat=%d\n", type, feature);
-
-	/* XXX sanity check type & feat */
+	dccp_feat_debug(type, feature, *val);
 
 	/* locate our change request */
-	t = type == DCCPO_CONFIRM_L ? DCCPO_CHANGE_R : DCCPO_CHANGE_L;
+	switch (type) {
+	case DCCPO_CONFIRM_L: t = DCCPO_CHANGE_R; break;
+	case DCCPO_CONFIRM_R: t = DCCPO_CHANGE_L; break;
+	default:	      DCCP_WARN("invalid type %d\n", type);
+			      return 1;
+
+	}
+	/* XXX sanity check feature value */
 
 	list_for_each_entry(opt, &dmsk->dccpms_pending, dccpop_node) {
 		if (!opt->dccpop_conf && opt->dccpop_type == t &&
 		    opt->dccpop_feat == feature) {
-			/* we found it */
+			found = 1;
+			dccp_pr_debug("feature %d found\n", opt->dccpop_feat);
+
 			/* XXX do sanity check */
 
 			opt->dccpop_conf = 1;
@@ -425,9 +447,7 @@ int dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 			dccp_feat_update(sk, opt->dccpop_type,
 					 opt->dccpop_feat, *val);
 
-			dccp_pr_debug("feat %d type %d confirmed %d\n",
-				      feature, type, *val);
-			rc = 0;
+			/* XXX check the return value of dccp_feat_update */
 			break;
 		}
 
@@ -446,9 +466,9 @@ int dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 		inet_csk_clear_xmit_timer(sk, ICSK_TIME_RETRANS);
 	}
 
-	if (rc)
-		dccp_pr_debug("feat %d type %d never requested\n",
-			      feature, type);
+	if (!found)
+		dccp_pr_debug("%s(%d, ...) never requested\n",
+			      dccp_feat_typename(type), feature);
 	return 0;
 }
 
@@ -501,20 +521,18 @@ int dccp_feat_clone(struct sock *oldsk, struct sock *newsk)
 	list_for_each_entry(opt, &olddmsk->dccpms_pending, dccpop_node) {
 		struct dccp_opt_pend *newopt;
 		/* copy the value of the option */
-		u8 *val = kmalloc(opt->dccpop_len, GFP_ATOMIC);
+		u8 *val = kmemdup(opt->dccpop_val, opt->dccpop_len, GFP_ATOMIC);
 
 		if (val == NULL)
 			goto out_clean;
-		memcpy(val, opt->dccpop_val, opt->dccpop_len);
 
-		newopt = kmalloc(sizeof(*newopt), GFP_ATOMIC);
+		newopt = kmemdup(opt, sizeof(*newopt), GFP_ATOMIC);
 		if (newopt == NULL) {
 			kfree(val);
 			goto out_clean;
 		}
 
 		/* insert the option */
-		memcpy(newopt, opt, sizeof(*newopt));
 		newopt->dccpop_val = val;
 		list_add_tail(&newopt->dccpop_node, &newdmsk->dccpms_pending);
 
@@ -545,10 +563,9 @@ static int __dccp_feat_init(struct dccp_minisock *dmsk, u8 type, u8 feat,
 			    u8 *val, u8 len)
 {
 	int rc = -ENOMEM;
-	u8 *copy = kmalloc(len, GFP_KERNEL);
+	u8 *copy = kmemdup(val, len, GFP_KERNEL);
 
 	if (copy != NULL) {
-		memcpy(copy, val, len);
 		rc = dccp_feat_change(dmsk, type, feat, copy, len, GFP_KERNEL);
 		if (rc)
 			kfree(copy);
@@ -583,3 +600,45 @@ out:
 }
 
 EXPORT_SYMBOL_GPL(dccp_feat_init);
+
+#ifdef CONFIG_IP_DCCP_DEBUG
+const char *dccp_feat_typename(const u8 type)
+{
+	switch(type) {
+	case DCCPO_CHANGE_L:  return("ChangeL");
+	case DCCPO_CONFIRM_L: return("ConfirmL");
+	case DCCPO_CHANGE_R:  return("ChangeR");
+	case DCCPO_CONFIRM_R: return("ConfirmR");
+	/* the following case must not appear in feature negotation  */
+	default:	      dccp_pr_debug("unknown type %d [BUG!]\n", type);
+	}
+	return NULL;
+}
+
+EXPORT_SYMBOL_GPL(dccp_feat_typename);
+
+const char *dccp_feat_name(const u8 feat)
+{
+	static const char *feature_names[] = {
+		[DCCPF_RESERVED]	= "Reserved",
+		[DCCPF_CCID]		= "CCID",
+		[DCCPF_SHORT_SEQNOS]	= "Allow Short Seqnos",
+		[DCCPF_SEQUENCE_WINDOW]	= "Sequence Window",
+		[DCCPF_ECN_INCAPABLE]	= "ECN Incapable",
+		[DCCPF_ACK_RATIO]	= "Ack Ratio",
+		[DCCPF_SEND_ACK_VECTOR]	= "Send ACK Vector",
+		[DCCPF_SEND_NDP_COUNT]	= "Send NDP Count",
+		[DCCPF_MIN_CSUM_COVER]	= "Min. Csum Coverage",
+		[DCCPF_DATA_CHECKSUM]	= "Send Data Checksum",
+	};
+	if (feat >= DCCPF_MIN_CCID_SPECIFIC)
+		return "CCID-specific";
+
+	if (dccp_feat_is_reserved(feat))
+		return feature_names[DCCPF_RESERVED];
+
+	return feature_names[feat];
+}
+
+EXPORT_SYMBOL_GPL(dccp_feat_name);
+#endif /* CONFIG_IP_DCCP_DEBUG */

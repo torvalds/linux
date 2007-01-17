@@ -34,7 +34,7 @@
 #include <linux/timer.h>
 #include <linux/platform_device.h>
 
-#include <xtensa/simcall.h>
+#include <asm/platform/simcall.h>
 
 #define DRIVER_NAME "iss-netdev"
 #define ETH_MAX_PACKET 1500

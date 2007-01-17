@@ -131,19 +131,26 @@ static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 				   unsigned int event)
 {
 	unsigned int cpu = policy->cpu;
+	int rc = 0;
+
 	switch (event) {
 	case CPUFREQ_GOV_START:
 		if (!cpu_online(cpu))
 			return -EINVAL;
 		BUG_ON(!policy->cur);
 		mutex_lock(&userspace_mutex);
+		rc = sysfs_create_file (&policy->kobj,
+					&freq_attr_scaling_setspeed.attr);
+		if (rc)
+			goto start_out;
+
 		cpu_is_managed[cpu] = 1;
 		cpu_min_freq[cpu] = policy->min;
 		cpu_max_freq[cpu] = policy->max;
 		cpu_cur_freq[cpu] = policy->cur;
 		cpu_set_freq[cpu] = policy->cur;
-		sysfs_create_file (&policy->kobj, &freq_attr_scaling_setspeed.attr);
 		dprintk("managing cpu %u started (%u - %u kHz, currently %u kHz)\n", cpu, cpu_min_freq[cpu], cpu_max_freq[cpu], cpu_cur_freq[cpu]);
+start_out:
 		mutex_unlock(&userspace_mutex);
 		break;
 	case CPUFREQ_GOV_STOP:
@@ -180,7 +187,7 @@ static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 		mutex_unlock(&userspace_mutex);
 		break;
 	}
-	return 0;
+	return rc;
 }
 
 

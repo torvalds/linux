@@ -59,7 +59,7 @@ the following things on the "Kernel Hacking" tab:
 Then build as usual, download to the board and execute. Note that if
 "Immediate activation" was selected, then the kernel will wait for GDB to
 attach. If not, then the kernel will boot immediately and GDB will have to
-interupt it or wait for an exception to occur if before doing anything with
+interrupt it or wait for an exception to occur before doing anything with
 the kernel.
 
 

@@ -283,7 +283,9 @@ static int interact_connect(struct gameport *gameport, struct gameport_driver *d
 	for (i = 0; (t = interact_type[interact->type].btn[i]) >= 0; i++)
 		set_bit(t, input_dev->keybit);
 
-	input_register_device(interact->dev);
+	err = input_register_device(interact->dev);
+	if (err)
+		goto fail2;
 
 	return 0;
 

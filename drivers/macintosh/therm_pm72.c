@@ -129,6 +129,7 @@
 #include <asm/sections.h>
 #include <asm/of_device.h>
 #include <asm/macio.h>
+#include <asm/of_platform.h>
 
 #include "therm_pm72.h"
 
@@ -2236,14 +2237,14 @@ static int __init therm_pm72_init(void)
 		return -ENODEV;
 	}
 
-	of_register_driver(&fcu_of_platform_driver);
+	of_register_platform_driver(&fcu_of_platform_driver);
 	
 	return 0;
 }
 
 static void __exit therm_pm72_exit(void)
 {
-	of_unregister_driver(&fcu_of_platform_driver);
+	of_unregister_platform_driver(&fcu_of_platform_driver);
 
 	if (of_dev)
 		of_device_unregister(of_dev);

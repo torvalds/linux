@@ -224,14 +224,14 @@ static void ixp23xx_irq_edge_unmask(unsigned int irq)
 	*intr_reg |= (1 << (irq % 32));
 }
 
-static struct irqchip ixp23xx_irq_level_chip = {
+static struct irq_chip ixp23xx_irq_level_chip = {
 	.ack		= ixp23xx_irq_mask,
 	.mask		= ixp23xx_irq_mask,
 	.unmask		= ixp23xx_irq_level_unmask,
 	.set_type	= ixp23xx_irq_set_type
 };
 
-static struct irqchip ixp23xx_irq_edge_chip = {
+static struct irq_chip ixp23xx_irq_edge_chip = {
 	.ack		= ixp23xx_irq_ack,
 	.mask		= ixp23xx_irq_mask,
 	.unmask		= ixp23xx_irq_edge_unmask,
@@ -251,11 +251,11 @@ static void ixp23xx_pci_irq_unmask(unsigned int irq)
 /*
  * TODO: Should this just be done at ASM level?
  */
-static void pci_handler(unsigned int irq, struct irqdesc *desc)
+static void pci_handler(unsigned int irq, struct irq_desc *desc)
 {
 	u32 pci_interrupt;
 	unsigned int irqno;
-	struct irqdesc *int_desc;
+	struct irq_desc *int_desc;
 
 	pci_interrupt = *IXP23XX_PCI_XSCALE_INT_STATUS;
 
@@ -276,7 +276,7 @@ static void pci_handler(unsigned int irq, struct irqdesc *desc)
 	desc->chip->unmask(irq);
 }
 
-static struct irqchip ixp23xx_pci_irq_chip = {
+static struct irq_chip ixp23xx_pci_irq_chip = {
 	.ack	= ixp23xx_pci_irq_mask,
 	.mask	= ixp23xx_pci_irq_mask,
 	.unmask	= ixp23xx_pci_irq_unmask
@@ -287,11 +287,11 @@ static void ixp23xx_config_irq(unsigned int irq, enum ixp23xx_irq_type type)
 	switch (type) {
 	case IXP23XX_IRQ_LEVEL:
 		set_irq_chip(irq, &ixp23xx_irq_level_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		break;
 	case IXP23XX_IRQ_EDGE:
 		set_irq_chip(irq, &ixp23xx_irq_edge_chip);
-		set_irq_handler(irq, do_edge_IRQ);
+		set_irq_handler(irq, handle_edge_irq);
 		break;
 	}
 	set_irq_flags(irq, IRQF_VALID);
@@ -322,7 +322,7 @@ void __init ixp23xx_init_irq(void)
 
 	for (irq = IRQ_IXP23XX_INTA; irq <= IRQ_IXP23XX_INTB; irq++) {
 		set_irq_chip(irq, &ixp23xx_pci_irq_chip);
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 

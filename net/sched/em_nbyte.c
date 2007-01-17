@@ -34,11 +34,9 @@ static int em_nbyte_change(struct tcf_proto *tp, void *data, int data_len,
 		return -EINVAL;
 
 	em->datalen = sizeof(*nbyte) + nbyte->len;
-	em->data = (unsigned long) kmalloc(em->datalen, GFP_KERNEL);
+	em->data = (unsigned long)kmemdup(data, em->datalen, GFP_KERNEL);
 	if (em->data == 0UL)
 		return -ENOBUFS;
-
-	memcpy((void *) em->data, data, em->datalen);
 
 	return 0;
 }

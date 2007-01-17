@@ -8,11 +8,11 @@
  * to split all of those into 16-bit components, then add.
  */
 
-static inline unsigned int
-csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr, unsigned short len,
-		   unsigned short proto, unsigned int sum)
+static inline __wsum
+csum_tcpudp_nofold(__be32 saddr, __be32 daddr, unsigned short len,
+		   unsigned short proto, __wsum sum)
 {
-	int res;
+	__wsum res;
 	__asm__ ("add.d %2, %0\n\t"
 		 "ax\n\t"
 		 "add.d %3, %0\n\t"
@@ -21,7 +21,7 @@ csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr, unsigned short len,
 		 "ax\n\t"
 		 "addq 0, %0\n"
 	: "=r" (res)
-	: "0" (sum), "r" (daddr), "r" (saddr), "r" ((ntohs(len) << 16) + (proto << 8)));
+	: "0" (sum), "r" (daddr), "r" (saddr), "r" ((len + proto) << 8));
 
 	return res;
 }	

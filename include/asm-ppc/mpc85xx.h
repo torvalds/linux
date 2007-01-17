@@ -44,14 +44,6 @@
 #include <platforms/85xx/tqm85xx.h>
 #endif
 
-#define _IO_BASE        isa_io_base
-#define _ISA_MEM_BASE   isa_mem_base
-#ifdef CONFIG_PCI
-#define PCI_DRAM_OFFSET pci_dram_offset
-#else
-#define PCI_DRAM_OFFSET 0
-#endif
-
 /*
  * The "residual" board information structure the boot loader passes
  * into the kernel.

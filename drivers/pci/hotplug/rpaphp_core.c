@@ -356,7 +356,7 @@ static int __init rpaphp_init(void)
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 	init_MUTEX(&rpaphp_sem);
 
-	while ((dn = of_find_node_by_type(dn, "pci")))
+	while ((dn = of_find_node_by_name(dn, "pci")))
 		rpaphp_add_slot(dn);
 
 	return 0;

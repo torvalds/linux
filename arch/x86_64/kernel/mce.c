@@ -306,8 +306,8 @@ void mce_log_therm_throt_event(unsigned int cpu, __u64 status)
  */
 
 static int check_interval = 5 * 60; /* 5 minutes */
-static void mcheck_timer(void *data);
-static DECLARE_WORK(mcheck_work, mcheck_timer, NULL);
+static void mcheck_timer(struct work_struct *work);
+static DECLARE_DELAYED_WORK(mcheck_work, mcheck_timer);
 
 static void mcheck_check_cpu(void *info)
 {
@@ -315,7 +315,7 @@ static void mcheck_check_cpu(void *info)
 		do_machine_check(NULL, 0);
 }
 
-static void mcheck_timer(void *data)
+static void mcheck_timer(struct work_struct *work)
 {
 	on_each_cpu(mcheck_check_cpu, NULL, 1, 1);
 	schedule_delayed_work(&mcheck_work, check_interval * HZ);
@@ -641,7 +641,6 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 	return err;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void mce_remove_device(unsigned int cpu)
 {
 	int i;
@@ -652,6 +651,7 @@ static void mce_remove_device(unsigned int cpu)
 	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_tolerant);
 	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_check_interval);
 	sysdev_unregister(&per_cpu(device_mce,cpu));
+	memset(&per_cpu(device_mce, cpu).kobj, 0, sizeof(struct kobject));
 }
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
@@ -674,7 +674,6 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 static struct notifier_block mce_cpu_notifier = {
 	.notifier_call = mce_cpu_callback,
 };
-#endif
 
 static __init int mce_init_device(void)
 {

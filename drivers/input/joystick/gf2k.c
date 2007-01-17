@@ -341,7 +341,9 @@ static int gf2k_connect(struct gameport *gameport, struct gameport_driver *drv)
 		input_dev->absflat[gf2k_abs[i]] = (i < 2) ? 24 : 0;
 	}
 
-	input_register_device(gf2k->dev);
+	err = input_register_device(gf2k->dev);
+	if (err)
+		goto fail2;
 
 	return 0;
 

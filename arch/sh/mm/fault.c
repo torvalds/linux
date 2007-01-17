@@ -26,13 +26,19 @@ extern void die(const char *,struct pt_regs *,long);
  * and the problem, and then passes it off to one of the appropriate
  * routines.
  */
-asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
-			      unsigned long address)
+asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
+					unsigned long writeaccess,
+					unsigned long address)
 {
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
 	unsigned long page;
+	int si_code;
+	siginfo_t info;
+
+	trace_hardirqs_on();
+	local_irq_enable();
 
 #ifdef CONFIG_SH_KGDB
 	if (kgdb_nofault && kgdb_bus_err_hook)
@@ -41,6 +47,46 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 
 	tsk = current;
 	mm = tsk->mm;
+	si_code = SEGV_MAPERR;
+
+	if (unlikely(address >= TASK_SIZE)) {
+		/*
+		 * Synchronize this task's top level page-table
+		 * with the 'reference' page table.
+		 *
+		 * Do _not_ use "tsk" here. We might be inside
+		 * an interrupt in the middle of a task switch..
+		 */
+		int offset = pgd_index(address);
+		pgd_t *pgd, *pgd_k;
+		pud_t *pud, *pud_k;
+		pmd_t *pmd, *pmd_k;
+
+		pgd = get_TTB() + offset;
+		pgd_k = swapper_pg_dir + offset;
+
+		/* This will never happen with the folded page table. */
+		if (!pgd_present(*pgd)) {
+			if (!pgd_present(*pgd_k))
+				goto bad_area_nosemaphore;
+			set_pgd(pgd, *pgd_k);
+			return;
+		}
+
+		pud = pud_offset(pgd, address);
+		pud_k = pud_offset(pgd_k, address);
+		if (pud_present(*pud) || !pud_present(*pud_k))
+			goto bad_area_nosemaphore;
+		set_pud(pud, *pud_k);
+
+		pmd = pmd_offset(pud, address);
+		pmd_k = pmd_offset(pud_k, address);
+		if (pmd_present(*pmd) || !pmd_present(*pmd_k))
+			goto bad_area_nosemaphore;
+		set_pmd(pmd, *pmd_k);
+
+		return;
+	}
 
 	/*
 	 * If we're in an interrupt or have no user
@@ -65,6 +111,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
  * we can handle it..
  */
 good_area:
+	si_code = SEGV_ACCERR;
 	if (writeaccess) {
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
@@ -104,10 +151,13 @@ survive:
 bad_area:
 	up_read(&mm->mmap_sem);
 
+bad_area_nosemaphore:
 	if (user_mode(regs)) {
-		tsk->thread.address = address;
-		tsk->thread.error_code = writeaccess;
-		force_sig(SIGSEGV, tsk);
+		info.si_signo = SIGSEGV;
+		info.si_errno = 0;
+		info.si_code = si_code;
+		info.si_addr = (void *) address;
+		force_sig_info(SIGSEGV, &info, tsk);
 		return;
 	}
 
@@ -127,11 +177,9 @@ no_context:
 		printk(KERN_ALERT "Unable to handle kernel paging request");
 	printk(" at virtual address %08lx\n", address);
 	printk(KERN_ALERT "pc = %08lx\n", regs->pc);
-	asm volatile("mov.l	%1, %0"
-		     : "=r" (page)
-		     : "m" (__m(MMU_TTB)));
+	page = (unsigned long)get_TTB();
 	if (page) {
-		page = ((unsigned long *) page)[address >> 22];
+		page = ((unsigned long *) page)[address >> PGDIR_SHIFT];
 		printk(KERN_ALERT "*pde = %08lx\n", page);
 		if (page & _PAGE_PRESENT) {
 			page &= PAGE_MASK;
@@ -166,98 +214,13 @@ do_sigbus:
 	 * Send a sigbus, regardless of whether we were in kernel
 	 * or user mode.
 	 */
-	tsk->thread.address = address;
-	tsk->thread.error_code = writeaccess;
-	tsk->thread.trap_no = 14;
-	force_sig(SIGBUS, tsk);
+	info.si_signo = SIGBUS;
+	info.si_errno = 0;
+	info.si_code = BUS_ADRERR;
+	info.si_addr = (void *)address;
+	force_sig_info(SIGBUS, &info, tsk);
 
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs))
 		goto no_context;
-}
-
-#ifdef CONFIG_SH_STORE_QUEUES
-/*
- * This is a special case for the SH-4 store queues, as pages for this
- * space still need to be faulted in before it's possible to flush the
- * store queue cache for writeout to the remapped region.
- */
-#define P3_ADDR_MAX		(P4SEG_STORE_QUE + 0x04000000)
-#else
-#define P3_ADDR_MAX		P4SEG
-#endif
-
-/*
- * Called with interrupts disabled.
- */
-asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
-					 unsigned long writeaccess,
-					 unsigned long address)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	pte_t entry;
-	struct mm_struct *mm = current->mm;
-	spinlock_t *ptl;
-	int ret = 1;
-
-#ifdef CONFIG_SH_KGDB
-	if (kgdb_nofault && kgdb_bus_err_hook)
-		kgdb_bus_err_hook();
-#endif
-
-	/*
-	 * We don't take page faults for P1, P2, and parts of P4, these
-	 * are always mapped, whether it be due to legacy behaviour in
-	 * 29-bit mode, or due to PMB configuration in 32-bit mode.
-	 */
-	if (address >= P3SEG && address < P3_ADDR_MAX) {
-		pgd = pgd_offset_k(address);
-		mm = NULL;
-	} else {
-		if (unlikely(address >= TASK_SIZE || !mm))
-			return 1;
-
-		pgd = pgd_offset(mm, address);
-	}
-
-	pud = pud_offset(pgd, address);
-	if (pud_none_or_clear_bad(pud))
-		return 1;
-	pmd = pmd_offset(pud, address);
-	if (pmd_none_or_clear_bad(pmd))
-		return 1;
-
-	if (mm)
-		pte = pte_offset_map_lock(mm, pmd, address, &ptl);
-	else
-		pte = pte_offset_kernel(pmd, address);
-
-	entry = *pte;
-	if (unlikely(pte_none(entry) || pte_not_present(entry)))
-		goto unlock;
-	if (unlikely(writeaccess && !pte_write(entry)))
-		goto unlock;
-
-	if (writeaccess)
-		entry = pte_mkdirty(entry);
-	entry = pte_mkyoung(entry);
-
-#ifdef CONFIG_CPU_SH4
-	/*
-	 * ITLB is not affected by "ldtlb" instruction.
-	 * So, we need to flush the entry by ourselves.
-	 */
-	__flush_tlb_page(get_asid(), address & PAGE_MASK);
-#endif
-
-	set_pte(pte, entry);
-	update_mmu_cache(NULL, address, entry);
-	ret = 0;
-unlock:
-	if (mm)
-		pte_unmap_unlock(pte, ptl);
-	return ret;
 }

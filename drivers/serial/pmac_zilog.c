@@ -1262,8 +1262,8 @@ static void pmz_irda_setup(struct uart_pmac_port *uap, unsigned long *baud)
 }
 
 
-static void __pmz_set_termios(struct uart_port *port, struct termios *termios,
-			      struct termios *old)
+static void __pmz_set_termios(struct uart_port *port, struct ktermios *termios,
+			      struct ktermios *old)
 {
 	struct uart_pmac_port *uap = to_pmz(port);
 	unsigned long baud;
@@ -1273,7 +1273,7 @@ static void __pmz_set_termios(struct uart_port *port, struct termios *termios,
 	if (ZS_IS_ASLEEP(uap))
 		return;
 
-	memcpy(&uap->termios_cache, termios, sizeof(struct termios));
+	memcpy(&uap->termios_cache, termios, sizeof(struct ktermios));
 
 	/* XXX Check which revs of machines actually allow 1 and 4Mb speeds
 	 * on the IR dongle. Note that the IRTTY driver currently doesn't know
@@ -1313,8 +1313,8 @@ static void __pmz_set_termios(struct uart_port *port, struct termios *termios,
 }
 
 /* The port lock is not held.  */
-static void pmz_set_termios(struct uart_port *port, struct termios *termios,
-			    struct termios *old)
+static void pmz_set_termios(struct uart_port *port, struct ktermios *termios,
+			    struct ktermios *old)
 {
 	struct uart_pmac_port *uap = to_pmz(port);
 	unsigned long flags;

@@ -30,9 +30,10 @@
 #include <linux/kprobes.h>
 #include <linux/kexec.h>
 #include <linux/unwind.h>
+#include <linux/uaccess.h>
+#include <linux/bug.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/atomic.h>
 #include <asm/debugreg.h>
@@ -108,12 +109,7 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 	preempt_enable_no_resched();
 }
 
-static int kstack_depth_to_print = 12;
-#ifdef CONFIG_STACK_UNWIND
-static int call_trace = 1;
-#else
-#define call_trace (-1)
-#endif
+int kstack_depth_to_print = 12;
 
 #ifdef CONFIG_KALLSYMS
 void printk_address(unsigned long address)
@@ -216,24 +212,7 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 	return NULL;
 }
 
-struct ops_and_data {
-	struct stacktrace_ops *ops;
-	void *data;
-};
-
-static int dump_trace_unwind(struct unwind_frame_info *info, void *context)
-{
-	struct ops_and_data *oad = (struct ops_and_data *)context;
-	int n = 0;
-
-	while (unwind(info) == 0 && UNW_PC(info)) {
-		n++;
-		oad->ops->address(oad->data, UNW_PC(info));
-		if (arch_unw_user_mode(info))
-			break;
-	}
-	return n;
-}
+#define MSG(txt) ops->warning(data, txt)
 
 /*
  * x86-64 can have upto three kernel stacks: 
@@ -248,61 +227,24 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
         return p > t && p < t + THREAD_SIZE - 3;
 }
 
-void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * stack,
+void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
+		unsigned long *stack,
 		struct stacktrace_ops *ops, void *data)
 {
-	const unsigned cpu = smp_processor_id();
-	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
+	const unsigned cpu = get_cpu();
+	unsigned long *irqstack_end = (unsigned long*)cpu_pda(cpu)->irqstackptr;
 	unsigned used = 0;
 	struct thread_info *tinfo;
 
 	if (!tsk)
 		tsk = current;
 
-	if (call_trace >= 0) {
-		int unw_ret = 0;
-		struct unwind_frame_info info;
-		struct ops_and_data oad = { .ops = ops, .data = data };
-
-		if (regs) {
-			if (unwind_init_frame_info(&info, tsk, regs) == 0)
-				unw_ret = dump_trace_unwind(&info, &oad);
-		} else if (tsk == current)
-			unw_ret = unwind_init_running(&info, dump_trace_unwind, &oad);
-		else {
-			if (unwind_init_blocked(&info, tsk) == 0)
-				unw_ret = dump_trace_unwind(&info, &oad);
-		}
-		if (unw_ret > 0) {
-			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
-				ops->warning_symbol(data, "DWARF2 unwinder stuck at %s\n",
-					     UNW_PC(&info));
-				if ((long)UNW_SP(&info) < 0) {
-					ops->warning(data, "Leftover inexact backtrace:\n");
-					stack = (unsigned long *)UNW_SP(&info);
-					if (!stack)
-						return;
-				} else
-					ops->warning(data, "Full inexact backtrace again:\n");
-			} else if (call_trace >= 1)
-				return;
-			else
-				ops->warning(data, "Full inexact backtrace again:\n");
-		} else
-			ops->warning(data, "Inexact backtrace:\n");
-	}
 	if (!stack) {
 		unsigned long dummy;
 		stack = &dummy;
 		if (tsk && tsk != current)
 			stack = (unsigned long *)tsk->thread.rsp;
 	}
-	/*
-	 * Align the stack pointer on word boundary, later loops
-	 * rely on that (and corruption / debug info bugs can cause
-	 * unaligned values here):
-	 */
-	stack = (unsigned long *)((unsigned long)stack & ~(sizeof(long)-1));
 
 	/*
 	 * Print function call entries within a stack. 'cond' is the
@@ -312,9 +254,9 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 #define HANDLE_STACK(cond) \
 	do while (cond) { \
 		unsigned long addr = *stack++; \
-		if (oops_in_progress ? 		\
-			__kernel_text_address(addr) : \
-			kernel_text_address(addr)) { \
+		/* Use unlocked access here because except for NMIs	\
+		   we should be already protected against module unloads */ \
+		if (__kernel_text_address(addr)) { \
 			/* \
 			 * If the address is either in the text segment of the \
 			 * kernel, or in the region which contains vmalloc'ed \
@@ -377,9 +319,10 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 	/*
 	 * This handles the process stack:
 	 */
-	tinfo = current_thread_info();
+	tinfo = task_thread_info(tsk);
 	HANDLE_STACK (valid_stack_ptr(tinfo, stack));
 #undef HANDLE_STACK
+	put_cpu();
 }
 EXPORT_SYMBOL(dump_trace);
 
@@ -516,30 +459,15 @@ bad:
 	printk("\n");
 }	
 
-void handle_BUG(struct pt_regs *regs)
-{ 
-	struct bug_frame f;
-	long len;
-	const char *prefix = "";
+int is_valid_bugaddr(unsigned long rip)
+{
+	unsigned short ud2;
 
-	if (user_mode(regs))
-		return; 
-	if (__copy_from_user(&f, (const void __user *) regs->rip,
-			     sizeof(struct bug_frame)))
-		return; 
-	if (f.filename >= 0 ||
-	    f.ud2[0] != 0x0f || f.ud2[1] != 0x0b) 
-		return;
-	len = __strnlen_user((char *)(long)f.filename, PATH_MAX) - 1;
-	if (len < 0 || len >= PATH_MAX)
-		f.filename = (int)(long)"unmapped filename";
-	else if (len > 50) {
-		f.filename += len - 50;
-		prefix = "...";
-	}
-	printk("----------- [cut here ] --------- [please bite here ] ---------\n");
-	printk(KERN_ALERT "Kernel BUG at %s%.50s:%d\n", prefix, (char *)(long)f.filename, f.line);
-} 
+	if (__copy_from_user(&ud2, (const void __user *) rip, sizeof(ud2)))
+		return 0;
+
+	return ud2 == 0x0b0f;
+}
 
 #ifdef CONFIG_BUG
 void out_of_line_bug(void)
@@ -619,7 +547,9 @@ void die(const char * str, struct pt_regs * regs, long err)
 {
 	unsigned long flags = oops_begin();
 
-	handle_BUG(regs);
+	if (!user_mode(regs))
+		report_bug(regs->rip);
+
 	__die(str, regs, err);
 	oops_end(flags);
 	do_exit(SIGSEGV); 
@@ -786,8 +716,7 @@ mem_parity_error(unsigned char reason, struct pt_regs * regs)
 {
 	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x.\n",
 		reason);
-	printk(KERN_EMERG "You probably have a hardware problem with your "
-		"RAM chips\n");
+	printk(KERN_EMERG "You have some hardware problem, likely on the PCI bus.\n");
 
 	if (panic_on_unrecovered_nmi)
 		panic("NMI: Not continuing");
@@ -1193,21 +1122,3 @@ static int __init kstack_setup(char *s)
 	return 0;
 }
 early_param("kstack", kstack_setup);
-
-#ifdef CONFIG_STACK_UNWIND
-static int __init call_trace_setup(char *s)
-{
-	if (!s)
-		return -EINVAL;
-	if (strcmp(s, "old") == 0)
-		call_trace = -1;
-	else if (strcmp(s, "both") == 0)
-		call_trace = 0;
-	else if (strcmp(s, "newfallback") == 0)
-		call_trace = 1;
-	else if (strcmp(s, "new") == 0)
-		call_trace = 2;
-	return 0;
-}
-early_param("call_trace", call_trace_setup);
-#endif

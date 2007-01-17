@@ -275,6 +275,25 @@ static void ufs_change_blocknr(struct inode *inode, unsigned int baseblk,
 	UFSD("EXIT\n");
 }
 
+static void ufs_clear_frags(struct inode *inode, sector_t beg, unsigned int n,
+			    int sync)
+{
+	struct buffer_head *bh;
+	sector_t end = beg + n;
+
+	for (; beg < end; ++beg) {
+		bh = sb_getblk(inode->i_sb, beg);
+		lock_buffer(bh);
+		memset(bh->b_data, 0, inode->i_sb->s_blocksize);
+		set_buffer_uptodate(bh);
+		mark_buffer_dirty(bh);
+		unlock_buffer(bh);
+		if (IS_SYNC(inode) || sync)
+			sync_dirty_buffer(bh);
+		brelse(bh);
+	}
+}
+
 unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 			   unsigned goal, unsigned count, int * err, struct page *locked_page)
 {
@@ -350,6 +369,8 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 			*p = cpu_to_fs32(sb, result);
 			*err = 0;
 			UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
+			ufs_clear_frags(inode, result + oldcount, newcount - oldcount,
+					locked_page != NULL);
 		}
 		unlock_super(sb);
 		UFSD("EXIT, result %u\n", result);
@@ -363,6 +384,8 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 	if (result) {
 		*err = 0;
 		UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
+		ufs_clear_frags(inode, result + oldcount, newcount - oldcount,
+				locked_page != NULL);
 		unlock_super(sb);
 		UFSD("EXIT, result %u\n", result);
 		return result;
@@ -398,6 +421,8 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 		*p = cpu_to_fs32(sb, result);
 		*err = 0;
 		UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
+		ufs_clear_frags(inode, result + oldcount, newcount - oldcount,
+				locked_page != NULL);
 		unlock_super(sb);
 		if (newcount < request)
 			ufs_free_fragments (inode, result + newcount, request - newcount);

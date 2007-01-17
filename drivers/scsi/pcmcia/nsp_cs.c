@@ -1629,7 +1629,6 @@ static int nsp_cs_probe(struct pcmcia_device *link)
 	/* General socket configuration */
 	link->conf.Attributes	 = CONF_ENABLE_IRQ;
 	link->conf.IntType	 = INT_MEMORY_AND_IO;
-	link->conf.Present	 = PRESENT_OPTION;
 
 	ret = nsp_cs_config(link);
 
@@ -1685,16 +1684,10 @@ static int nsp_cs_config(struct pcmcia_device *link)
 
 	nsp_dbg(NSP_DEBUG_INIT, "in");
 
-	tuple.DesiredTuple    = CISTPL_CONFIG;
 	tuple.Attributes      = 0;
 	tuple.TupleData	      = tuple_data;
 	tuple.TupleDataMax    = sizeof(tuple_data);
 	tuple.TupleOffset     = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	CS_CHECK(GetTupleData,	pcmcia_get_tuple_data(link, &tuple));
-	CS_CHECK(ParseTuple,	pcmcia_parse_tuple(link, &tuple, &parse));
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present    = parse.config.rmask[0];
 
 	/* Look up the current Vcc */
 	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &conf));

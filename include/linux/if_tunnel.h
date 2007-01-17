@@ -19,10 +19,10 @@ struct ip_tunnel_parm
 {
 	char			name[IFNAMSIZ];
 	int			link;
-	__u16			i_flags;
-	__u16			o_flags;
-	__u32			i_key;
-	__u32			o_key;
+	__be16			i_flags;
+	__be16			o_flags;
+	__be32			i_key;
+	__be32			o_key;
 	struct iphdr		iph;
 };
 

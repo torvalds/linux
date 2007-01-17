@@ -3,57 +3,39 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 1994 - 1997, 1999, 2000  Ralf Baechle (ralf@gnu.org)
+ * Copyright (c) 1994 - 1997, 1999, 2000, 06  Ralf Baechle (ralf@linux-mips.org)
  * Copyright (c) 1999, 2000  Silicon Graphics, Inc.
  */
 #ifndef _ASM_BITOPS_H
 #define _ASM_BITOPS_H
 
 #include <linux/compiler.h>
+#include <linux/irqflags.h>
 #include <linux/types.h>
+#include <asm/barrier.h>
 #include <asm/bug.h>
 #include <asm/byteorder.h>		/* sigh ... */
 #include <asm/cpu-features.h>
+#include <asm/sgidefs.h>
+#include <asm/war.h>
 
 #if (_MIPS_SZLONG == 32)
 #define SZLONG_LOG 5
 #define SZLONG_MASK 31UL
 #define __LL		"ll	"
 #define __SC		"sc	"
-#define cpu_to_lelongp(x) cpu_to_le32p((__u32 *) (x))
 #elif (_MIPS_SZLONG == 64)
 #define SZLONG_LOG 6
 #define SZLONG_MASK 63UL
 #define __LL		"lld	"
 #define __SC		"scd	"
-#define cpu_to_lelongp(x) cpu_to_le64p((__u64 *) (x))
 #endif
-
-#ifdef __KERNEL__
-
-#include <linux/irqflags.h>
-#include <asm/sgidefs.h>
-#include <asm/war.h>
 
 /*
  * clear_bit() doesn't provide any barrier for the compiler.
  */
 #define smp_mb__before_clear_bit()	smp_mb()
 #define smp_mb__after_clear_bit()	smp_mb()
-
-/*
- * Only disable interrupt for kernel mode stuff to keep usermode stuff
- * that dares to use kernel include files alive.
- */
-
-#define __bi_flags			unsigned long flags
-#define __bi_local_irq_save(x)		local_irq_save(x)
-#define __bi_local_irq_restore(x)	local_irq_restore(x)
-#else
-#define __bi_flags
-#define __bi_local_irq_save(x)
-#define __bi_local_irq_restore(x)
-#endif /* __KERNEL__ */
 
 /*
  * set_bit - Atomically set a bit in memory
@@ -93,13 +75,13 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 	} else {
 		volatile unsigned long *a = addr;
 		unsigned long mask;
-		__bi_flags;
+		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << (nr & SZLONG_MASK);
-		__bi_local_irq_save(flags);
+		local_irq_save(flags);
 		*a |= mask;
-		__bi_local_irq_restore(flags);
+		local_irq_restore(flags);
 	}
 }
 
@@ -141,13 +123,13 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 	} else {
 		volatile unsigned long *a = addr;
 		unsigned long mask;
-		__bi_flags;
+		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << (nr & SZLONG_MASK);
-		__bi_local_irq_save(flags);
+		local_irq_save(flags);
 		*a &= ~mask;
-		__bi_local_irq_restore(flags);
+		local_irq_restore(flags);
 	}
 }
 
@@ -191,13 +173,13 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 	} else {
 		volatile unsigned long *a = addr;
 		unsigned long mask;
-		__bi_flags;
+		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << (nr & SZLONG_MASK);
-		__bi_local_irq_save(flags);
+		local_irq_save(flags);
 		*a ^= mask;
-		__bi_local_irq_restore(flags);
+		local_irq_restore(flags);
 	}
 }
 
@@ -223,9 +205,6 @@ static inline int test_and_set_bit(unsigned long nr,
 		"	" __SC	"%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
-#ifdef CONFIG_SMP
-		"	sync						\n"
-#endif
 		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
@@ -245,9 +224,6 @@ static inline int test_and_set_bit(unsigned long nr,
 		"	" __SC	"%2, %1					\n"
 		"	beqz	%2, 1b					\n"
 		"	 and	%2, %0, %3				\n"
-#ifdef CONFIG_SMP
-		"	sync						\n"
-#endif
 		"	.set	pop					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
@@ -258,17 +234,19 @@ static inline int test_and_set_bit(unsigned long nr,
 		volatile unsigned long *a = addr;
 		unsigned long mask;
 		int retval;
-		__bi_flags;
+		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << (nr & SZLONG_MASK);
-		__bi_local_irq_save(flags);
+		local_irq_save(flags);
 		retval = (mask & *a) != 0;
 		*a |= mask;
-		__bi_local_irq_restore(flags);
+		local_irq_restore(flags);
 
 		return retval;
 	}
+
+	smp_mb();
 }
 
 /*
@@ -294,9 +272,6 @@ static inline int test_and_clear_bit(unsigned long nr,
 		"	" __SC 	"%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
-#ifdef CONFIG_SMP
-		"	sync						\n"
-#endif
 		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
@@ -317,9 +292,6 @@ static inline int test_and_clear_bit(unsigned long nr,
 		"	" __SC 	"%2, %1					\n"
 		"	beqz	%2, 1b					\n"
 		"	 and	%2, %0, %3				\n"
-#ifdef CONFIG_SMP
-		"	sync						\n"
-#endif
 		"	.set	pop					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
@@ -330,17 +302,19 @@ static inline int test_and_clear_bit(unsigned long nr,
 		volatile unsigned long *a = addr;
 		unsigned long mask;
 		int retval;
-		__bi_flags;
+		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << (nr & SZLONG_MASK);
-		__bi_local_irq_save(flags);
+		local_irq_save(flags);
 		retval = (mask & *a) != 0;
 		*a &= ~mask;
-		__bi_local_irq_restore(flags);
+		local_irq_restore(flags);
 
 		return retval;
 	}
+
+	smp_mb();
 }
 
 /*
@@ -365,9 +339,6 @@ static inline int test_and_change_bit(unsigned long nr,
 		"	" __SC	"%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
-#ifdef CONFIG_SMP
-		"	sync						\n"
-#endif
 		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
@@ -387,9 +358,6 @@ static inline int test_and_change_bit(unsigned long nr,
 		"	" __SC	"\t%2, %1				\n"
 		"	beqz	%2, 1b					\n"
 		"	 and	%2, %0, %3				\n"
-#ifdef CONFIG_SMP
-		"	sync						\n"
-#endif
 		"	.set	pop					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
@@ -399,22 +367,20 @@ static inline int test_and_change_bit(unsigned long nr,
 	} else {
 		volatile unsigned long *a = addr;
 		unsigned long mask, retval;
-		__bi_flags;
+		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << (nr & SZLONG_MASK);
-		__bi_local_irq_save(flags);
+		local_irq_save(flags);
 		retval = (mask & *a) != 0;
 		*a ^= mask;
-		__bi_local_irq_restore(flags);
+		local_irq_restore(flags);
 
 		return retval;
 	}
-}
 
-#undef __bi_flags
-#undef __bi_local_irq_save
-#undef __bi_local_irq_restore
+	smp_mb();
+}
 
 #include <asm-generic/bitops/non-atomic.h>
 

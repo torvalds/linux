@@ -20,7 +20,7 @@
 #include <linux/err.h>
 #include "internal.h"
 
-static kmem_cache_t	*key_jar;
+static struct kmem_cache	*key_jar;
 struct rb_root		key_serial_tree; /* tree of keys indexed by serial */
 DEFINE_SPINLOCK(key_serial_lock);
 
@@ -30,8 +30,8 @@ DEFINE_SPINLOCK(key_user_lock);
 static LIST_HEAD(key_types_list);
 static DECLARE_RWSEM(key_types_sem);
 
-static void key_cleanup(void *data);
-static DECLARE_WORK(key_cleanup_task, key_cleanup, NULL);
+static void key_cleanup(struct work_struct *work);
+static DECLARE_WORK(key_cleanup_task, key_cleanup);
 
 /* we serialise key instantiation and link */
 DECLARE_RWSEM(key_construction_sem);
@@ -285,16 +285,14 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	}
 
 	/* allocate and initialise the key and its description */
-	key = kmem_cache_alloc(key_jar, SLAB_KERNEL);
+	key = kmem_cache_alloc(key_jar, GFP_KERNEL);
 	if (!key)
 		goto no_memory_2;
 
 	if (desc) {
-		key->description = kmalloc(desclen, GFP_KERNEL);
+		key->description = kmemdup(desc, desclen, GFP_KERNEL);
 		if (!key->description)
 			goto no_memory_3;
-
-		memcpy(key->description, desc, desclen);
 	}
 
 	atomic_set(&key->usage, 1);
@@ -552,7 +550,7 @@ EXPORT_SYMBOL(key_negate_and_link);
  * do cleaning up in process context so that we don't have to disable
  * interrupts all over the place
  */
-static void key_cleanup(void *data)
+static void key_cleanup(struct work_struct *work)
 {
 	struct rb_node *_n;
 	struct key *key;

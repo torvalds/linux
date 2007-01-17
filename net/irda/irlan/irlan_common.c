@@ -995,7 +995,7 @@ static int __irlan_insert_param(struct sk_buff *skb, char *param, int type,
 {
 	__u8 *frame;
 	__u8 param_len;
-	__u16 tmp_le; /* Temporary value in little endian format */
+	__le16 tmp_le; /* Temporary value in little endian format */
 	int n=0;
 	
 	if (skb == NULL) {

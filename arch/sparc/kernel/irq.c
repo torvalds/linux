@@ -425,7 +425,7 @@ int request_fast_irq(unsigned int irq,
 	}
 	
 	if (action == NULL)
-	    action = (struct irqaction *)kmalloc(sizeof(struct irqaction),
+	    action = kmalloc(sizeof(struct irqaction),
 						 GFP_ATOMIC);
 	
 	if (!action) { 
@@ -528,7 +528,7 @@ int request_irq(unsigned int irq,
 	}
 	
 	if (action == NULL)
-		action = (struct irqaction *)kmalloc(sizeof(struct irqaction),
+		action = kmalloc(sizeof(struct irqaction),
 						     GFP_ATOMIC);
 	
 	if (!action) { 

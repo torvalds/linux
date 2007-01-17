@@ -218,13 +218,13 @@ static void shutdown_opsput_lanpld_irq(unsigned int irq)
 
 static struct hw_interrupt_type opsput_lanpld_irq_type =
 {
-	"OPSPUT-PLD-LAN-IRQ",
-	startup_opsput_lanpld_irq,
-	shutdown_opsput_lanpld_irq,
-	enable_opsput_lanpld_irq,
-	disable_opsput_lanpld_irq,
-	mask_and_ack_opsput_lanpld,
-	end_opsput_lanpld_irq
+	.typename = "OPSPUT-PLD-LAN-IRQ",
+	.startup = startup_opsput_lanpld_irq,
+	.shutdown = shutdown_opsput_lanpld_irq,
+	.enable = enable_opsput_lanpld_irq,
+	.disable = disable_opsput_lanpld_irq,
+	.ack = mask_and_ack_opsput_lanpld,
+	.end = end_opsput_lanpld_irq
 };
 
 /*
@@ -374,7 +374,6 @@ void __init init_IRQ(void)
 	disable_opsput_pld_irq(PLD_IRQ_SIO0_SND);
 #endif  /* CONFIG_SERIAL_M32R_PLDSIO */
 
-#if defined(CONFIG_M32R_CFC)
 	/* INT#1: CFC IREQ on PLD */
 	irq_desc[PLD_IRQ_CFIREQ].status = IRQ_DISABLED;
 	irq_desc[PLD_IRQ_CFIREQ].chip = &opsput_pld_irq_type;
@@ -398,8 +397,6 @@ void __init init_IRQ(void)
 	irq_desc[PLD_IRQ_CFC_EJECT].depth = 1;	/* disable nested irq */
 	pld_icu_data[irq2pldirq(PLD_IRQ_CFC_EJECT)].icucr = PLD_ICUCR_IEN|PLD_ICUCR_ISMOD02;	/* 'H' edge sense */
 	disable_opsput_pld_irq(PLD_IRQ_CFC_EJECT);
-#endif /* CONFIG_M32R_CFC */
-
 
 	/*
 	 * INT0# is used for LAN, DIO

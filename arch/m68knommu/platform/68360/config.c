@@ -114,7 +114,7 @@ void BSP_gettod (int *yearp, int *monp, int *dayp,
 {
 }
 
-int BSP_hwclk(int op, struct hwclk_time *t)
+int BSP_hwclk(int op, struct rtc_time *t)
 {
   if (!op) {
     /* read */

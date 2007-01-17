@@ -9,7 +9,7 @@ int arr3_protected;
 
 static void
 cyrix_get_arr(unsigned int reg, unsigned long *base,
-	      unsigned int *size, mtrr_type * type)
+	      unsigned long *size, mtrr_type * type)
 {
 	unsigned long flags;
 	unsigned char arr, ccr3, rcr, shift;
@@ -77,7 +77,7 @@ cyrix_get_arr(unsigned int reg, unsigned long *base,
 }
 
 static int
-cyrix_get_free_region(unsigned long base, unsigned long size)
+cyrix_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 /*  [SUMMARY] Get a free ARR.
     <base> The starting (base) address of the region.
     <size> The size (in bytes) of the region.
@@ -86,9 +86,24 @@ cyrix_get_free_region(unsigned long base, unsigned long size)
 {
 	int i;
 	mtrr_type ltype;
-	unsigned long lbase;
-	unsigned int  lsize;
+	unsigned long lbase, lsize;
 
+	switch (replace_reg) {
+	case 7:
+		if (size < 0x40)
+			break;
+	case 6:
+	case 5:
+	case 4:
+		return replace_reg;
+	case 3:
+		if (arr3_protected)
+			break;
+	case 2:
+	case 1:
+	case 0:
+		return replace_reg;
+	}
 	/* If we are to set up a region >32M then look at ARR7 immediately */
 	if (size > 0x2000) {
 		cyrix_get_arr(7, &lbase, &lsize, &ltype);
@@ -214,7 +229,7 @@ static void cyrix_set_arr(unsigned int reg, unsigned long base,
 
 typedef struct {
 	unsigned long base;
-	unsigned int size;
+	unsigned long size;
 	mtrr_type type;
 } arr_state_t;
 

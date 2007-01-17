@@ -211,8 +211,10 @@ static int do_video_stillpicture(unsigned int fd, unsigned int cmd, unsigned lon
 	up_native =
 		compat_alloc_user_space(sizeof(struct video_still_picture));
 
-	put_user(compat_ptr(fp), &up_native->iFrame);
-	put_user(size, &up_native->size);
+	err =  put_user(compat_ptr(fp), &up_native->iFrame);
+	err |= put_user(size, &up_native->size);
+	if (err)
+		return -EFAULT;
 
 	err = sys_ioctl(fd, cmd, (unsigned long) up_native);
 
@@ -236,8 +238,10 @@ static int do_video_set_spu_palette(unsigned int fd, unsigned int cmd, unsigned 
 	err |= get_user(length, &up->length);
 
 	up_native = compat_alloc_user_space(sizeof(struct video_spu_palette));
-	put_user(compat_ptr(palp), &up_native->palette);
-	put_user(length, &up_native->length);
+	err  = put_user(compat_ptr(palp), &up_native->palette);
+	err |= put_user(length, &up_native->length);
+	if (err)
+		return -EFAULT;
 
 	err = sys_ioctl(fd, cmd, (unsigned long) up_native);
 
@@ -1173,7 +1177,7 @@ static int cdrom_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long ar
 static int vt_check(struct file *file)
 {
 	struct tty_struct *tty;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	
 	if (file->f_op->ioctl != tty_ioctl)
 		return -EINVAL;
@@ -2043,16 +2047,19 @@ static int serial_struct_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
         struct serial_struct ss;
         mm_segment_t oldseg = get_fs();
         __u32 udata;
+	unsigned int base;
 
         if (cmd == TIOCSSERIAL) {
                 if (!access_ok(VERIFY_READ, ss32, sizeof(SS32)))
                         return -EFAULT;
                 if (__copy_from_user(&ss, ss32, offsetof(SS32, iomem_base)))
 			return -EFAULT;
-                __get_user(udata, &ss32->iomem_base);
+                if (__get_user(udata, &ss32->iomem_base))
+			return -EFAULT;
                 ss.iomem_base = compat_ptr(udata);
-                __get_user(ss.iomem_reg_shift, &ss32->iomem_reg_shift);
-                __get_user(ss.port_high, &ss32->port_high);
+                if (__get_user(ss.iomem_reg_shift, &ss32->iomem_reg_shift) ||
+		    __get_user(ss.port_high, &ss32->port_high))
+			return -EFAULT;
                 ss.iomap_base = 0UL;
         }
         set_fs(KERNEL_DS);
@@ -2063,12 +2070,12 @@ static int serial_struct_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
                         return -EFAULT;
                 if (__copy_to_user(ss32,&ss,offsetof(SS32,iomem_base)))
 			return -EFAULT;
-                __put_user((unsigned long)ss.iomem_base  >> 32 ?
-                            0xffffffff : (unsigned)(unsigned long)ss.iomem_base,
-                            &ss32->iomem_base);
-                __put_user(ss.iomem_reg_shift, &ss32->iomem_reg_shift);
-                __put_user(ss.port_high, &ss32->port_high);
-
+		base = (unsigned long)ss.iomem_base  >> 32 ?
+			0xffffffff : (unsigned)(unsigned long)ss.iomem_base;
+		if (__put_user(base, &ss32->iomem_base) ||
+		    __put_user(ss.iomem_reg_shift, &ss32->iomem_reg_shift) ||
+		    __put_user(ss.port_high, &ss32->port_high))
+			return -EFAULT;
         }
         return err;
 }
@@ -2397,6 +2404,7 @@ HANDLE_IOCTL(SIOCGIFMAP, dev_ifsioc)
 HANDLE_IOCTL(SIOCSIFMAP, dev_ifsioc)
 HANDLE_IOCTL(SIOCGIFADDR, dev_ifsioc)
 HANDLE_IOCTL(SIOCSIFADDR, dev_ifsioc)
+HANDLE_IOCTL(SIOCSIFHWBROADCAST, dev_ifsioc)
 
 /* ioctls used by appletalk ddp.c */
 HANDLE_IOCTL(SIOCATALKDIFADDR, dev_ifsioc)

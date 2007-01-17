@@ -356,7 +356,7 @@ static int apm_open(struct inode * inode, struct file * filp)
 {
 	struct apm_user *as;
 
-	as = (struct apm_user *)kzalloc(sizeof(*as), GFP_KERNEL);
+	as = kzalloc(sizeof(*as), GFP_KERNEL);
 	if (as) {
 		/*
 		 * XXX - this is a tiny bit broken, when we consider BSD

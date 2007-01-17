@@ -27,8 +27,7 @@
 	relocate_kernel:
 		basr	%r13,0		# base address
 	.base:
-		stnsm	sys_msk-.base(%r13),0xf8	# disable DAT and IRQs
-		spx	zero64-.base(%r13)	# absolute addressing mode
+		stnsm	sys_msk-.base(%r13),0xfb	# disable DAT
 		stctg	%c0,%c15,ctlregs-.base(%r13)
 		stmg	%r0,%r15,gprregs-.base(%r13)
 		lghi	%r0,3
@@ -100,8 +99,6 @@
 		lpsw	0		# hopefully start new kernel...
 
 		.align	8
-	zero64:
-		.quad	0
 	load_psw:
 		.long	0x00080000,0x80000000
 	sys_msk:

@@ -52,4 +52,10 @@ struct ifa_cacheinfo
 	__u32	tstamp; /* updated timestamp, hundredths of seconds */
 };
 
+/* backwards compatibility for userspace */
+#ifndef __KERNEL__
+#define IFA_RTA(r)  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ifaddrmsg))))
+#define IFA_PAYLOAD(n) NLMSG_PAYLOAD(n,sizeof(struct ifaddrmsg))
+#endif
+
 #endif

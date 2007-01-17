@@ -54,7 +54,7 @@ typedef unsigned int	__kernel_old_dev_t;
 #define	__FD_CLR(d, set)	((set)->fds_bits[__FDELT(d)] &= ~__FDMASK(d))
 #define	__FD_ISSET(d, set)	(((set)->fds_bits[__FDELT(d)] & __FDMASK(d)) != 0)
 #define	__FD_ZERO(set)	\
-  ((void) memset ((__ptr_t) (set), 0, sizeof (__kernel_fd_set)))
+  ((void) memset ((void *) (set), 0, sizeof (__kernel_fd_set)))
 
 #  else /* !__GNUC__ */
 

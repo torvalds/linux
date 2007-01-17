@@ -35,9 +35,9 @@ struct prefix_info {
 #else
 #error "Please fix <asm/byteorder.h>"
 #endif
-	__u32			valid;
-	__u32			prefered;
-	__u32			reserved2;
+	__be32			valid;
+	__be32			prefered;
+	__be32			reserved2;
 
 	struct in6_addr		prefix;
 };
@@ -183,7 +183,7 @@ static __inline__ u8 ipv6_addr_hash(const struct in6_addr *addr)
 	 * This will include the IEEE address token on links that support it.
 	 */
 
-	word = addr->s6_addr32[2] ^ addr->s6_addr32[3];
+	word = (__force u32)(addr->s6_addr32[2] ^ addr->s6_addr32[3]);
 	word ^= (word >> 16);
 	word ^= (word >> 8);
 

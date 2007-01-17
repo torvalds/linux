@@ -12,7 +12,7 @@
 #include <linux/console.h>
 #include <linux/tty.h>
 #include <linux/init.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #ifdef CONFIG_SH_STANDARD_BIOS
 #include <asm/sh_bios.h>
@@ -62,17 +62,9 @@ static struct console bios_console = {
 #include <linux/serial_core.h>
 #include "../../../drivers/serial/sh-sci.h"
 
-#ifdef CONFIG_CPU_SH4
-#define SCIF_REG	0xffe80000
-#elif defined(CONFIG_CPU_SUBTYPE_SH72060)
-#define SCIF_REG	0xfffe9800
-#else
-#error "Undefined SCIF for this subtype"
-#endif
-
 static struct uart_port scif_port = {
-	.mapbase	= SCIF_REG,
-	.membase	= (char __iomem *)SCIF_REG,
+	.mapbase	= CONFIG_EARLY_SCIF_CONSOLE_PORT,
+	.membase	= (char __iomem *)CONFIG_EARLY_SCIF_CONSOLE_PORT,
 };
 
 static void scif_sercon_putc(int c)
@@ -113,23 +105,29 @@ static struct console scif_console = {
 	.index		= -1,
 };
 
+#if defined(CONFIG_CPU_SH4) && !defined(CONFIG_SH_STANDARD_BIOS)
+/*
+ * Simple SCIF init, primarily aimed at SH7750 and other similar SH-4
+ * devices that aren't using sh-ipl+g.
+ */
 static void scif_sercon_init(int baud)
 {
-	ctrl_outw(0, SCIF_REG + 8);
-	ctrl_outw(0, SCIF_REG);
+	ctrl_outw(0, scif_port.mapbase + 8);
+	ctrl_outw(0, scif_port.mapbase);
 
 	/* Set baud rate */
 	ctrl_outb((CONFIG_SH_PCLK_FREQ + 16 * baud) /
-		  (32 * baud) - 1, SCIF_REG + 4);
+		  (32 * baud) - 1, scif_port.mapbase + 4);
 
-	ctrl_outw(12, SCIF_REG + 24);
-	ctrl_outw(8, SCIF_REG + 24);
-	ctrl_outw(0, SCIF_REG + 32);
-	ctrl_outw(0x60, SCIF_REG + 16);
-	ctrl_outw(0, SCIF_REG + 36);
-	ctrl_outw(0x30, SCIF_REG + 8);
+	ctrl_outw(12, scif_port.mapbase + 24);
+	ctrl_outw(8, scif_port.mapbase + 24);
+	ctrl_outw(0, scif_port.mapbase + 32);
+	ctrl_outw(0x60, scif_port.mapbase + 16);
+	ctrl_outw(0, scif_port.mapbase + 36);
+	ctrl_outw(0x30, scif_port.mapbase + 8);
 }
-#endif
+#endif /* CONFIG_CPU_SH4 && !CONFIG_SH_STANDARD_BIOS */
+#endif /* CONFIG_EARLY_SCIF_CONSOLE */
 
 /*
  * Setup a default console, if more than one is compiled in, rely on the
@@ -146,16 +144,16 @@ static struct console *early_console =
 	;
 
 static int __initdata keep_early;
+static int early_console_initialized;
 
-int __init setup_early_printk(char *opt)
+int __init setup_early_printk(char *buf)
 {
-	char *space;
-	char buf[256];
+	if (!buf)
+		return 0;
 
-	strlcpy(buf, opt, sizeof(buf));
-	space = strchr(buf, ' ');
-	if (space)
-		*space = 0;
+	if (early_console_initialized)
+		return 0;
+	early_console_initialized = 1;
 
 	if (strstr(buf, "keep"))
 		keep_early = 1;
@@ -168,7 +166,7 @@ int __init setup_early_printk(char *opt)
 	if (!strncmp(buf, "serial", 6)) {
 		early_console = &scif_console;
 
-#ifdef CONFIG_CPU_SH4
+#if defined(CONFIG_CPU_SH4) && !defined(CONFIG_SH_STANDARD_BIOS)
 		scif_sercon_init(115200);
 #endif
 	}
@@ -177,12 +175,14 @@ int __init setup_early_printk(char *opt)
 	if (likely(early_console))
 		register_console(early_console);
 
-	return 1;
+	return 0;
 }
-__setup("earlyprintk=", setup_early_printk);
+early_param("earlyprintk", setup_early_printk);
 
 void __init disable_early_printk(void)
 {
+	if (!early_console_initialized || !early_console)
+		return;
 	if (!keep_early) {
 		printk("disabling early console\n");
 		unregister_console(early_console);

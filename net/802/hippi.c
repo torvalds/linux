@@ -36,7 +36,6 @@
 #include <net/arp.h>
 #include <net/sock.h>
 #include <asm/uaccess.h>
-#include <asm/checksum.h>
 #include <asm/system.h>
 
 /*

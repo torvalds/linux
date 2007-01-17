@@ -169,9 +169,11 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 			exp = exp_find(rqstp->rq_client, 0, tfh, &rqstp->rq_chandle);
 		}
 
-		error = nfserr_dropit;
-		if (IS_ERR(exp) && PTR_ERR(exp) == -EAGAIN)
+		if (IS_ERR(exp) && (PTR_ERR(exp) == -EAGAIN
+				|| PTR_ERR(exp) == -ETIMEDOUT)) {
+			error = nfserrno(PTR_ERR(exp));
 			goto out;
+		}
 
 		error = nfserr_stale; 
 		if (!exp || IS_ERR(exp))

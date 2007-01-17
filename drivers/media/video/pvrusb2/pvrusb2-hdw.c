@@ -356,28 +356,6 @@ static int ctrl_freq_set(struct pvr2_ctrl *cptr,int m,int v)
 	return 0;
 }
 
-static int ctrl_hres_max_get(struct pvr2_ctrl *cptr,int *vp)
-{
-	/* If we're dealing with a 24xxx device, force the horizontal
-	   maximum to be 720 no matter what, since we can't get the device
-	   to work properly with any other value.  Otherwise just return
-	   the normal value. */
-	*vp = cptr->info->def.type_int.max_value;
-	if (cptr->hdw->hdw_type == PVR2_HDW_TYPE_24XXX) *vp = 720;
-	return 0;
-}
-
-static int ctrl_hres_min_get(struct pvr2_ctrl *cptr,int *vp)
-{
-	/* If we're dealing with a 24xxx device, force the horizontal
-	   minimum to be 720 no matter what, since we can't get the device
-	   to work properly with any other value.  Otherwise just return
-	   the normal value. */
-	*vp = cptr->info->def.type_int.min_value;
-	if (cptr->hdw->hdw_type == PVR2_HDW_TYPE_24XXX) *vp = 720;
-	return 0;
-}
-
 static int ctrl_vres_max_get(struct pvr2_ctrl *cptr,int *vp)
 {
 	/* Actual maximum depends on the video standard in effect. */
@@ -758,10 +736,6 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.default_value = 720,
 		DEFREF(res_hor),
 		DEFINT(19,720),
-		/* Hook in check for clamp on horizontal resolution in
-		   order to avoid unsolved problem involving cx25840. */
-		.get_max_value = ctrl_hres_max_get,
-		.get_min_value = ctrl_hres_min_get,
 	},{
 		.desc = "Vertical capture resolution",
 		.name = "resolution_ver",
@@ -1953,8 +1927,8 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	return hdw;
  fail:
 	if (hdw) {
-		if (hdw->ctl_read_urb) usb_free_urb(hdw->ctl_read_urb);
-		if (hdw->ctl_write_urb) usb_free_urb(hdw->ctl_write_urb);
+		usb_free_urb(hdw->ctl_read_urb);
+		usb_free_urb(hdw->ctl_write_urb);
 		if (hdw->ctl_read_buffer) kfree(hdw->ctl_read_buffer);
 		if (hdw->ctl_write_buffer) kfree(hdw->ctl_write_buffer);
 		if (hdw->controls) kfree(hdw->controls);
@@ -2575,12 +2549,10 @@ static void pvr2_ctl_timeout(unsigned long data)
 	struct pvr2_hdw *hdw = (struct pvr2_hdw *)data;
 	if (hdw->ctl_write_pend_flag || hdw->ctl_read_pend_flag) {
 		hdw->ctl_timeout_flag = !0;
-		if (hdw->ctl_write_pend_flag && hdw->ctl_write_urb) {
+		if (hdw->ctl_write_pend_flag)
 			usb_unlink_urb(hdw->ctl_write_urb);
-		}
-		if (hdw->ctl_read_pend_flag && hdw->ctl_read_urb) {
+		if (hdw->ctl_read_pend_flag)
 			usb_unlink_urb(hdw->ctl_read_urb);
-		}
 	}
 }
 

@@ -38,7 +38,7 @@ ntfs_index_context *ntfs_index_ctx_get(ntfs_inode *idx_ni)
 {
 	ntfs_index_context *ictx;
 
-	ictx = kmem_cache_alloc(ntfs_index_ctx_cache, SLAB_NOFS);
+	ictx = kmem_cache_alloc(ntfs_index_ctx_cache, GFP_NOFS);
 	if (ictx)
 		*ictx = (ntfs_index_context){ .idx_ni = idx_ni };
 	return ictx;

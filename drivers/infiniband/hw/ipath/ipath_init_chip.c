@@ -347,10 +347,9 @@ done:
 static int init_chip_reset(struct ipath_devdata *dd,
 			   struct ipath_portdata **pdp)
 {
-	struct ipath_portdata *pd;
 	u32 rtmp;
 
-	*pdp = pd = dd->ipath_pd[0];
+	*pdp = dd->ipath_pd[0];
 	/* ensure chip does no sends or receives while we re-initialize */
 	dd->ipath_control = dd->ipath_sendctrl = dd->ipath_rcvctrl = 0U;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl, 0);

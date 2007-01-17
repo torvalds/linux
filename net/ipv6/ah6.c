@@ -354,10 +354,9 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (!pskb_may_pull(skb, ah_hlen))
 		goto out;
 
-	tmp_hdr = kmalloc(hdr_len, GFP_ATOMIC);
+	tmp_hdr = kmemdup(skb->nh.raw, hdr_len, GFP_ATOMIC);
 	if (!tmp_hdr)
 		goto out;
-	memcpy(tmp_hdr, skb->nh.raw, hdr_len);
 	if (ipv6_clear_mutable_options(skb->nh.ipv6h, hdr_len, XFRM_POLICY_IN))
 		goto free_out;
 	skb->nh.ipv6h->priority    = 0;
@@ -397,7 +396,7 @@ out:
 }
 
 static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt, 
-                    int type, int code, int offset, __u32 info)
+                    int type, int code, int offset, __be32 info)
 {
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
 	struct ip_auth_hdr *ah = (struct ip_auth_hdr*)(skb->data+offset);

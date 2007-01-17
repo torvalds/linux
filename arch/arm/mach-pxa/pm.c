@@ -83,7 +83,8 @@ int pxa_pm_enter(suspend_state_t state)
 
 #ifdef CONFIG_IWMMXT
 	/* force any iWMMXt context to ram **/
-	iwmmxt_task_disable(NULL);
+	if (elf_hwcap & HWCAP_IWMMXT)
+		iwmmxt_task_disable(NULL);
 #endif
 
 	/* preserve current time */

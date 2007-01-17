@@ -62,9 +62,9 @@ struct acpiphp_slot;
 struct slot {
 	struct hotplug_slot	*hotplug_slot;
 	struct acpiphp_slot	*acpi_slot;
+	struct hotplug_slot_info info;
+	char name[SLOT_NAME_SIZE];
 };
-
-
 
 /**
  * struct acpiphp_bridge - PCI bridge information

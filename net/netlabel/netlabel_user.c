@@ -46,6 +46,10 @@
 #include "netlabel_cipso_v4.h"
 #include "netlabel_user.h"
 
+/* do not do any auditing if audit_enabled == 0, see kernel/audit.c for
+ * details */
+extern int audit_enabled;
+
 /*
  * NetLabel NETLINK Setup Functions
  */
@@ -100,6 +104,9 @@ struct audit_buffer *netlbl_audit_start_common(int type,
 	struct audit_buffer *audit_buf;
 	char *secctx;
 	u32 secctx_len;
+
+	if (audit_enabled == 0)
+		return NULL;
 
 	audit_buf = audit_log_start(audit_ctx, GFP_ATOMIC, type);
 	if (audit_buf == NULL)

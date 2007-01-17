@@ -130,7 +130,7 @@ void __init omap_init_irq(void)
 
 	for (i = 0; i < nr_irqs; i++) {
 		set_irq_chip(i, &omap_irq_chip);
-		set_irq_handler(i, do_level_IRQ);
+		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 }

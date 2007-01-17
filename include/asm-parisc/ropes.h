@@ -14,7 +14,7 @@
 #endif
 
 /*
-** The number of pdir entries to "free" before issueing
+** The number of pdir entries to "free" before issuing
 ** a read to PCOM register to flush out PCOM writes.
 ** Interacts with allocation granularity (ie 4 or 8 entries
 ** allocated and free'd/purged at a time might make this

@@ -10,6 +10,7 @@
  */
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <asm/r7780rp.h>
 

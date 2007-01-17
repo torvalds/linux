@@ -14,17 +14,16 @@
  * which always checksum on 4 octet boundaries.  ihl is the number
  * of 32-bit words and is always >= 5.
  */
-extern unsigned short ip_fast_csum(unsigned char * iph, unsigned int ihl);
+extern __sum16 ip_fast_csum(const void *iph, unsigned int ihl);
 
 /*
  * computes the checksum of the TCP/UDP pseudo-header
  * returns a 16-bit checksum, already complemented
  */
-extern unsigned short csum_tcpudp_magic(unsigned long saddr,
-					unsigned long daddr,
+extern __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					unsigned short len,
 					unsigned short proto,
-					unsigned int sum);
+					__wsum sum);
 
 /*
  * computes the checksum of a memory block at buff, length len,
@@ -38,8 +37,7 @@ extern unsigned short csum_tcpudp_magic(unsigned long saddr,
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-extern unsigned int csum_partial(const unsigned char * buff, int len,
-				 unsigned int sum);
+extern __wsum csum_partial(const void *buff, int len, __wsum sum);
 
 /*
  * Computes the checksum of a memory block at src, length len,
@@ -51,20 +49,15 @@ extern unsigned int csum_partial(const unsigned char * buff, int len,
  * Like csum_partial, this must be called with even lengths,
  * except for the last fragment.
  */
-extern unsigned int csum_partial_copy_generic(const char *src, char *dst,
-					      int len, unsigned int sum,
+extern __wsum csum_partial_copy_generic(const void *src, void *dst,
+					      int len, __wsum sum,
 					      int *src_err, int *dst_err);
 /*
  * the same as csum_partial, but copies from src to dst while it
  * checksums.
  */
-unsigned int csum_partial_copy_nocheck(const char *src, 
-				       char *dst, 
-				       int len, 
-				       unsigned int sum);
-
 #define csum_partial_copy_from_user(src, dst, len, sum, errp)   \
-        csum_partial_copy_generic((src), (dst), (len), (sum), (errp), NULL)
+        csum_partial_copy_generic((__force const void *)(src), (dst), (len), (sum), (errp), NULL)
 
 #define csum_partial_copy_nocheck(src, dst, len, sum)   \
         csum_partial_copy_generic((src), (dst), (len), (sum), NULL, NULL)
@@ -74,7 +67,7 @@ unsigned int csum_partial_copy_nocheck(const char *src,
  * turns a 32-bit partial checksum (e.g. from csum_partial) into a
  * 1's complement 16-bit checksum.
  */
-static inline unsigned int csum_fold(unsigned int sum)
+static inline __sum16 csum_fold(__wsum sum)
 {
 	unsigned int tmp;
 
@@ -83,41 +76,32 @@ static inline unsigned int csum_fold(unsigned int sum)
 	/* if there is a carry from adding the two 16-bit halves,
 	   it will carry from the lower half into the upper half,
 	   giving us the correct sum in the upper half. */
-	sum = ~(sum + tmp) >> 16;
-	return sum;
+	return (__force __sum16)(~((__force u32)sum + tmp) >> 16);
 }
 
 /*
  * this routine is used for miscellaneous IP-like checksums, mainly
  * in icmp.c
  */
-static inline unsigned short ip_compute_csum(unsigned char * buff, int len)
+static inline __sum16 ip_compute_csum(const void *buff, int len)
 {
 	return csum_fold(csum_partial(buff, len, 0));
 }
 
-#ifdef __powerpc64__
-static inline u32 csum_tcpudp_nofold(u32 saddr,
-                                     u32 daddr,
+static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
                                      unsigned short len,
                                      unsigned short proto,
-                                     unsigned int sum)
+                                     __wsum sum)
 {
-	unsigned long s = sum;
+#ifdef __powerpc64__
+	unsigned long s = (__force u32)sum;
 
-	s += saddr;
-	s += daddr;
-	s += (proto << 16) + len;
+	s += (__force u32)saddr;
+	s += (__force u32)daddr;
+	s += proto + len;
 	s += (s >> 32);
-	return (u32) s;
-}
+	return (__force __wsum) s;
 #else
-static inline unsigned long csum_tcpudp_nofold(unsigned long saddr,
-						   unsigned long daddr,
-						   unsigned short len,
-						   unsigned short proto,
-						   unsigned int sum)
-{
     __asm__("\n\
 	addc %0,%0,%1 \n\
 	adde %0,%0,%2 \n\
@@ -125,10 +109,9 @@ static inline unsigned long csum_tcpudp_nofold(unsigned long saddr,
 	addze %0,%0 \n\
 	"
 	: "=r" (sum)
-	: "r" (daddr), "r"(saddr), "r"((proto<<16)+len), "0"(sum));
-    return sum;
-}
-
+	: "r" (daddr), "r"(saddr), "r"(proto + len), "0"(sum));
+	return sum;
 #endif
+}
 #endif /* __KERNEL__ */
 #endif

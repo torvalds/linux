@@ -42,6 +42,7 @@
 #include <linux/tty_flip.h>
 #include <linux/sysrq.h>
 
+#include <asm/firmware.h>
 #include <asm/iseries/vio.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_event.h>
@@ -61,10 +62,7 @@
 static DEFINE_SPINLOCK(consolelock);
 static DEFINE_SPINLOCK(consoleloglock);
 
-#ifdef CONFIG_MAGIC_SYSRQ
 static int vio_sysrq_pressed;
-extern int sysrq_enabled;
-#endif
 
 #define VIOCHAR_NUM_BUF		16
 
@@ -936,8 +934,10 @@ static void vioHandleData(struct HvLpEvent *event)
 	 */
 	num_pushed = 0;
 	for (index = 0; index < cevent->len; index++) {
-#ifdef CONFIG_MAGIC_SYSRQ
-		if (sysrq_enabled) {
+		/*
+		 * Will be optimized away if !CONFIG_MAGIC_SYSRQ:
+		 */
+		if (sysrq_on()) {
 			/* 0x0f is the ascii character for ^O */
 			if (cevent->data[index] == '\x0f') {
 				vio_sysrq_pressed = 1;
@@ -956,7 +956,6 @@ static void vioHandleData(struct HvLpEvent *event)
 				continue;
 			}
 		}
-#endif
 		/*
 		 * The sysrq sequence isn't included in this check if
 		 * sysrq is enabled and compiled into the kernel because
@@ -1062,6 +1061,9 @@ static int __init viocons_init2(void)
 	atomic_t wait_flag;
 	int rc;
 
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return -ENODEV;
+
 	/* +2 for fudge */
 	rc = viopath_open(HvLpConfig_getPrimaryLpIndex(),
 			viomajorsubtype_chario, VIOCHAR_WINDOW + 2);
@@ -1146,6 +1148,9 @@ static int __init viocons_init2(void)
 static int __init viocons_init(void)
 {
 	int i;
+
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return -ENODEV;
 
 	printk(VIOCONS_KERN_INFO "registering console\n");
 	for (i = 0; i < VTTY_PORTS; i++) {

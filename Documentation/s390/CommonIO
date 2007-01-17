@@ -74,7 +74,7 @@ Command line parameters
 
   Note: While already known devices can be added to the list of devices to be
         ignored, there will be no effect on then. However, if such a device
-        disappears and then reappeares, it will then be ignored.
+	disappears and then reappears, it will then be ignored.
 
   For example,
 	"echo add 0.0.a000-0.0.accc, 0.0.af00-0.0.afff > /proc/cio_ignore"
@@ -82,7 +82,7 @@ Command line parameters
   devices.
 
   The devices can be specified either by bus id (0.0.abcd) or, for 2.4 backward
-  compatibilty, by the device number in hexadecimal (0xabcd or abcd).
+  compatibility, by the device number in hexadecimal (0xabcd or abcd).
 
 
 * /proc/s390dbf/cio_*/ (S/390 debug feature)

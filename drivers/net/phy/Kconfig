@@ -56,13 +56,19 @@ config SMSC_PHY
 	---help---
 	  Currently supports the LAN83C185 PHY
 
+config BROADCOM_PHY
+	tristate "Drivers for Broadcom PHYs"
+	depends on PHYLIB
+	---help---
+	  Currently supports the BCM5411, BCM5421 and BCM5461 PHYs.
+
 config FIXED_PHY
 	tristate "Drivers for PHY emulation on fixed speed/link"
 	depends on PHYLIB
 	---help---
 	  Adds the driver to PHY layer to cover the boards that do not have any PHY bound,
-	  but with the ability to manipulate with speed/link in software. The relavant MII
-	  speed/duplex parameters could be effectively handled in user-specified  fuction.
+	  but with the ability to manipulate the speed/link in software. The relevant MII
+	  speed/duplex parameters could be effectively handled in a user-specified function.
 	  Currently tested with mpc866ads.
 
 config FIXED_MII_10_FDX

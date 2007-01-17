@@ -266,7 +266,7 @@ static void fcp_report_map_done(fc_channel *fc, int i, int status)
 			printk ("FC: Bad magic from REPORT_AL_MAP on %s - %08x\n", fc->name, p->magic);
 			fc->state = FC_STATE_OFFLINE;
 		} else {
-			fc->posmap = (fcp_posmap *)kzalloc(sizeof(fcp_posmap)+p->len, GFP_KERNEL);
+			fc->posmap = kzalloc(sizeof(fcp_posmap)+p->len, GFP_KERNEL);
 			if (!fc->posmap) {
 				printk("FC: Not enough memory, offlining channel\n");
 				fc->state = FC_STATE_OFFLINE;
@@ -355,7 +355,7 @@ void fcp_register(fc_channel *fc, u8 type, int unregister)
 			for (i = fc->can_queue; i < fc->scsi_bitmap_end; i++)
 				set_bit (i, fc->scsi_bitmap);
 			fc->scsi_free = fc->can_queue;
-			fc->cmd_slots = (fcp_cmnd **)kzalloc(slots * sizeof(fcp_cmnd*), GFP_KERNEL);
+			fc->cmd_slots = kzalloc(slots * sizeof(fcp_cmnd*), GFP_KERNEL);
 			fc->abort_count = 0;
 		} else {
 			fc->scsi_name[0] = 0;
@@ -933,7 +933,7 @@ int fcp_scsi_dev_reset(struct scsi_cmnd *SCpnt)
         DECLARE_MUTEX_LOCKED(sem);
 
 	if (!fc->rst_pkt) {
-		fc->rst_pkt = (struct scsi_cmnd *) kmalloc(sizeof(SCpnt), GFP_KERNEL);
+		fc->rst_pkt = kmalloc(sizeof(SCpnt), GFP_KERNEL);
 		if (!fc->rst_pkt) return FAILED;
 		
 		fcmd = FCP_CMND(fc->rst_pkt);
@@ -1107,7 +1107,7 @@ int fc_do_plogi(fc_channel *fc, unsigned char alpa, fc_wwn *node, fc_wwn *nport)
 	logi *l;
 	int status;
 
-	l = (logi *)kzalloc(2 * sizeof(logi), GFP_KERNEL);
+	l = kzalloc(2 * sizeof(logi), GFP_KERNEL);
 	if (!l) return -ENOMEM;
 	l->code = LS_PLOGI;
 	memcpy (&l->nport_wwn, &fc->wwn_nport, sizeof(fc_wwn));
@@ -1141,7 +1141,7 @@ int fc_do_prli(fc_channel *fc, unsigned char alpa)
 	prli *p;
 	int status;
 
-	p = (prli *)kzalloc(2 * sizeof(prli), GFP_KERNEL);
+	p = kzalloc(2 * sizeof(prli), GFP_KERNEL);
 	if (!p) return -ENOMEM;
 	p->code = LS_PRLI;
 	p->params[0] = 0x08002000;

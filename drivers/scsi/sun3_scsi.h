@@ -221,7 +221,7 @@ struct sun3_udc_regs {
  *
  */
 
-
+#include "NCR5380.h"
 
 #if NDEBUG & NDEBUG_ARBITRATION
 #define ARB_PRINTK(format, args...) \

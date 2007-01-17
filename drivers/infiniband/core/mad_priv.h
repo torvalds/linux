@@ -73,7 +73,7 @@ struct ib_mad_private_header {
 	struct ib_mad_list_head mad_list;
 	struct ib_mad_recv_wc recv_wc;
 	struct ib_wc wc;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	u64 mapping;
 } __attribute__ ((packed));
 
 struct ib_mad_private {
@@ -102,7 +102,7 @@ struct ib_mad_agent_private {
 	struct list_head send_list;
 	struct list_head wait_list;
 	struct list_head done_list;
-	struct work_struct timed_work;
+	struct delayed_work timed_work;
 	unsigned long timeout;
 	struct list_head local_list;
 	struct work_struct local_work;
@@ -126,8 +126,8 @@ struct ib_mad_send_wr_private {
 	struct list_head agent_list;
 	struct ib_mad_agent_private *mad_agent_priv;
 	struct ib_mad_send_buf send_buf;
-	DECLARE_PCI_UNMAP_ADDR(header_mapping)
-	DECLARE_PCI_UNMAP_ADDR(payload_mapping)
+	u64 header_mapping;
+	u64 payload_mapping;
 	struct ib_send_wr send_wr;
 	struct ib_sge sg_list[IB_MAD_SEND_REQ_MAX_SG];
 	__be64 tid;

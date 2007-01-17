@@ -141,21 +141,19 @@ static int iforce_serio_connect(struct serio *serio, struct serio_driver *drv)
 	serio_set_drvdata(serio, iforce);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		serio_set_drvdata(serio, NULL);
-		kfree(iforce);
-		return err;
-	}
+	if (err)
+		goto fail1;
 
 	err = iforce_init_device(iforce);
-	if (err) {
-		serio_close(serio);
-		serio_set_drvdata(serio, NULL);
-		kfree(iforce);
-		return -ENODEV;
-	}
+	if (err)
+		goto fail2;
 
 	return 0;
+
+ fail2:	serio_close(serio);
+ fail1:	serio_set_drvdata(serio, NULL);
+	kfree(iforce);
+	return err;
 }
 
 static void iforce_serio_disconnect(struct serio *serio)

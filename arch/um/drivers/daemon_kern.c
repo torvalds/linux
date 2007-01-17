@@ -98,4 +98,4 @@ static int register_daemon(void)
 	return 0;
 }
 
-__initcall(register_daemon);
+late_initcall(register_daemon);

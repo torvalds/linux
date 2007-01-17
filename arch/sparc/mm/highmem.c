@@ -35,7 +35,7 @@ void *kmap_atomic(struct page *page, enum km_type type)
 	unsigned long vaddr;
 
 	/* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
-	inc_preempt_count();
+	pagefault_disable();
 	if (!PageHighMem(page))
 		return page_address(page);
 
@@ -70,8 +70,7 @@ void kunmap_atomic(void *kvaddr, enum km_type type)
 	unsigned long idx = type + KM_TYPE_NR*smp_processor_id();
 
 	if (vaddr < FIXADDR_START) { // FIXME
-		dec_preempt_count();
-		preempt_check_resched();
+		pagefault_enable();
 		return;
 	}
 
@@ -97,8 +96,7 @@ void kunmap_atomic(void *kvaddr, enum km_type type)
 #endif
 #endif
 
-	dec_preempt_count();
-	preempt_check_resched();
+	pagefault_enable();
 }
 
 /* We may be fed a pagetable here by ptep_to_xxx and others. */

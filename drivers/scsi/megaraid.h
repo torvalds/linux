@@ -801,7 +801,8 @@ typedef struct {
 				   clustering is available */
 	u32	flag;
 
-	unsigned long	base;
+	unsigned long		base;
+	void __iomem		*mmio_base;
 
 	/* mbox64 with mbox not aligned on 16-byte boundry */
 	mbox64_t	*una_mbox64;

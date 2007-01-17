@@ -17,6 +17,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>
+#include <linux/serial_core.h>
 #include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
@@ -60,7 +61,6 @@ static struct map_desc s3c2412_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),
 	IODESC_ENT(LCD),
 	IODESC_ENT(TIMER),
-	IODESC_ENT(ADC),
 	IODESC_ENT(WATCHDOG),
 };
 

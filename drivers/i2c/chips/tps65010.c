@@ -82,7 +82,7 @@ struct tps65010 {
 	struct i2c_client	client;
 	struct mutex		lock;
 	int			irq;
-	struct work_struct	work;
+	struct delayed_work	work;
 	struct dentry		*file;
 	unsigned		charging:1;
 	unsigned		por:1;
@@ -328,7 +328,7 @@ static void tps65010_interrupt(struct tps65010 *tps)
 {
 	u8 tmp = 0, mask, poll;
 
-	/* IRQs won't trigger irqs for certain events, but we can get
+	/* IRQs won't trigger for certain events, but we can get
 	 * others by polling (normally, with external power applied).
 	 */
 	poll = 0;
@@ -411,10 +411,11 @@ static void tps65010_interrupt(struct tps65010 *tps)
 }
 
 /* handle IRQs and polling using keventd for now */
-static void tps65010_work(void *_tps)
+static void tps65010_work(struct work_struct *work)
 {
-	struct tps65010		*tps = _tps;
+	struct tps65010		*tps;
 
+	tps = container_of(work, struct tps65010, work.work);
 	mutex_lock(&tps->lock);
 
 	tps65010_interrupt(tps);
@@ -452,7 +453,7 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
 
 	disable_irq_nosync(irq);
 	set_bit(FLAG_IRQ_ENABLE, &tps->flags);
-	(void) schedule_work(&tps->work);
+	(void) schedule_work(&tps->work.work);
 	return IRQ_HANDLED;
 }
 
@@ -465,13 +466,15 @@ static int __exit tps65010_detach_client(struct i2c_client *client)
 	struct tps65010		*tps;
 
 	tps = container_of(client, struct tps65010, client);
+	free_irq(tps->irq, tps);
 #ifdef	CONFIG_ARM
 	if (machine_is_omap_h2())
 		omap_free_gpio(58);
 	if (machine_is_omap_osk())
 		omap_free_gpio(OMAP_MPUIO(1));
 #endif
-	free_irq(tps->irq, tps);
+	cancel_delayed_work(&tps->work);
+	flush_scheduled_work();
 	debugfs_remove(tps->file);
 	if (i2c_detach_client(client) == 0)
 		kfree(tps);
@@ -505,7 +508,7 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 		return 0;
 
 	mutex_init(&tps->lock);
-	INIT_WORK(&tps->work, tps65010_work, tps);
+	INIT_DELAYED_WORK(&tps->work, tps65010_work);
 	tps->irq = -1;
 	tps->client.addr = address;
 	tps->client.adapter = bus;
@@ -620,7 +623,7 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 	(void) i2c_smbus_write_byte_data(&tps->client, TPS_MASK3, 0x0f
 		| i2c_smbus_read_byte_data(&tps->client, TPS_MASK3));
 
-	tps65010_work(tps);
+	tps65010_work(&tps->work.work);
 
 	tps->file = debugfs_create_file(DRIVER_NAME, S_IRUGO, NULL,
 				tps, DEBUG_FOPS);
@@ -672,7 +675,7 @@ int tps65010_set_vbus_draw(unsigned mA)
 			&& test_and_set_bit(
 				FLAG_VBUS_CHANGED, &the_tps->flags)) {
 		/* gadget drivers call this in_irq() */
-		(void) schedule_work(&the_tps->work);
+		(void) schedule_work(&the_tps->work.work);
 	}
 	local_irq_restore(flags);
 

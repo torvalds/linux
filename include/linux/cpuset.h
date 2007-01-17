@@ -23,16 +23,26 @@ extern void cpuset_fork(struct task_struct *p);
 extern void cpuset_exit(struct task_struct *p);
 extern cpumask_t cpuset_cpus_allowed(struct task_struct *p);
 extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
+#define cpuset_current_mems_allowed (current->mems_allowed)
 void cpuset_init_current_mems_allowed(void);
 void cpuset_update_task_memory_state(void);
 #define cpuset_nodes_subset_current_mems_allowed(nodes) \
 		nodes_subset((nodes), current->mems_allowed)
 int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl);
 
-extern int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask);
-static int inline cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
+extern int __cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask);
+extern int __cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask);
+
+static int inline cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask)
 {
-	return number_of_cpusets <= 1 || __cpuset_zone_allowed(z, gfp_mask);
+	return number_of_cpusets <= 1 ||
+		__cpuset_zone_allowed_softwall(z, gfp_mask);
+}
+
+static int inline cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask)
+{
+	return number_of_cpusets <= 1 ||
+		__cpuset_zone_allowed_hardwall(z, gfp_mask);
 }
 
 extern int cpuset_excl_nodes_overlap(const struct task_struct *p);
@@ -83,6 +93,7 @@ static inline nodemask_t cpuset_mems_allowed(struct task_struct *p)
 	return node_possible_map;
 }
 
+#define cpuset_current_mems_allowed (node_online_map)
 static inline void cpuset_init_current_mems_allowed(void) {}
 static inline void cpuset_update_task_memory_state(void) {}
 #define cpuset_nodes_subset_current_mems_allowed(nodes) (1)
@@ -92,7 +103,12 @@ static inline int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
 	return 1;
 }
 
-static inline int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
+static inline int cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask)
+{
+	return 1;
+}
+
+static inline int cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask)
 {
 	return 1;
 }

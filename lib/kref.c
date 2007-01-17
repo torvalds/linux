@@ -52,12 +52,7 @@ int kref_put(struct kref *kref, void (*release)(struct kref *kref))
 	WARN_ON(release == NULL);
 	WARN_ON(release == (void (*)(struct kref *))kfree);
 
-	/*
-	 * if current count is one, we are the last user and can release object
-	 * right now, avoiding an atomic operation on 'refcount'
-	 */
-	if ((atomic_read(&kref->refcount) == 1) ||
-	    (atomic_dec_and_test(&kref->refcount))) {
+	if (atomic_dec_and_test(&kref->refcount)) {
 		release(kref);
 		return 1;
 	}

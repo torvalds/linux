@@ -6,6 +6,7 @@
  * Copyright (C) 2002 Paul Mundt
  */
 
+#include <linux/irqflags.h>
 #include <asm/types.h>
 
 /*
@@ -131,103 +132,6 @@ static inline unsigned long tas(volatile int *m)
 
 #define set_mb(var, value) do { xchg(&var, value); } while (0)
 
-/* Interrupt Control */
-#ifdef CONFIG_CPU_HAS_SR_RB
-static inline void local_irq_enable(void)
-{
-	unsigned long __dummy0, __dummy1;
-
-	__asm__ __volatile__("stc	sr, %0\n\t"
-			     "and	%1, %0\n\t"
-			     "stc	r6_bank, %1\n\t"
-			     "or	%1, %0\n\t"
-			     "ldc	%0, sr"
-			     : "=&r" (__dummy0), "=r" (__dummy1)
-			     : "1" (~0x000000f0)
-			     : "memory");
-}
-#else
-static inline void local_irq_enable(void)
-{
-	unsigned long __dummy0, __dummy1;
-
-	__asm__ __volatile__ (
-		"stc	sr, %0\n\t"
-		"and	%1, %0\n\t"
-		"ldc	%0, sr\n\t"
-		: "=&r" (__dummy0), "=r" (__dummy1)
-		: "1" (~0x000000f0)
-		: "memory");
-}
-#endif
-
-static inline void local_irq_disable(void)
-{
-	unsigned long __dummy;
-	__asm__ __volatile__("stc	sr, %0\n\t"
-			     "or	#0xf0, %0\n\t"
-			     "ldc	%0, sr"
-			     : "=&z" (__dummy)
-			     : /* no inputs */
-			     : "memory");
-}
-
-static inline void set_bl_bit(void)
-{
-	unsigned long __dummy0, __dummy1;
-
-	__asm__ __volatile__ ("stc	sr, %0\n\t"
-			     "or	%2, %0\n\t"
-			     "and	%3, %0\n\t"
-			     "ldc	%0, sr"
-			     : "=&r" (__dummy0), "=r" (__dummy1)
-			     : "r" (0x10000000), "r" (0xffffff0f)
-			     : "memory");
-}
-
-static inline void clear_bl_bit(void)
-{
-	unsigned long __dummy0, __dummy1;
-
-	__asm__ __volatile__ ("stc	sr, %0\n\t"
-			     "and	%2, %0\n\t"
-			     "ldc	%0, sr"
-			     : "=&r" (__dummy0), "=r" (__dummy1)
-			     : "1" (~0x10000000)
-			     : "memory");
-}
-
-#define local_save_flags(x) \
-	__asm__("stc sr, %0; and #0xf0, %0" : "=&z" (x) :/**/: "memory" )
-
-#define irqs_disabled()			\
-({					\
-	unsigned long flags;		\
-	local_save_flags(flags);	\
-	(flags != 0);			\
-})
-
-static inline unsigned long local_irq_save(void)
-{
-	unsigned long flags, __dummy;
-
-	__asm__ __volatile__("stc	sr, %1\n\t"
-			     "mov	%1, %0\n\t"
-			     "or	#0xf0, %0\n\t"
-			     "ldc	%0, sr\n\t"
-			     "mov	%1, %0\n\t"
-			     "and	#0xf0, %0"
-			     : "=&z" (flags), "=&r" (__dummy)
-			     :/**/
-			     : "memory" );
-	return flags;
-}
-
-#define local_irq_restore(x) do {			\
-	if ((x & 0x000000f0) != 0x000000f0)		\
-		local_irq_enable();			\
-} while (0)
-
 /*
  * Jump to P2 area.
  * When handling TLB or caches, we need to do it from P2 area.
@@ -263,9 +167,6 @@ do {							\
 		"2:"					\
 		: "=&r" (__dummy));			\
 } while (0)
-
-/* For spinlocks etc */
-#define local_irq_save(x)	x = local_irq_save()
 
 static inline unsigned long xchg_u32(volatile u32 *m, unsigned long val)
 {

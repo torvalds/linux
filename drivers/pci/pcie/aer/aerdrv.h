@@ -118,7 +118,7 @@ extern struct bus_type pcie_port_bus_type;
 extern void aer_enable_rootport(struct aer_rpc *rpc);
 extern void aer_delete_rootport(struct aer_rpc *rpc);
 extern int aer_init(struct pcie_device *dev);
-extern void aer_isr(void *context);
+extern void aer_isr(struct work_struct *work);
 extern void aer_print_error(struct pci_dev *dev, struct aer_err_info *info);
 extern int aer_osc_setup(struct pci_dev *dev);
 

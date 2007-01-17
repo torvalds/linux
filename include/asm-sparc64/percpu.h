@@ -5,6 +5,16 @@
 
 #ifdef CONFIG_SMP
 
+#ifdef CONFIG_MODULES
+# define PERCPU_MODULE_RESERVE 8192
+#else
+# define PERCPU_MODULE_RESERVE 0
+#endif
+
+#define PERCPU_ENOUGH_ROOM \
+	(ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES) + \
+	 PERCPU_MODULE_RESERVE)
+
 extern void setup_per_cpu_areas(void);
 
 extern unsigned long __per_cpu_base;

@@ -105,8 +105,13 @@ extern struct page *kimage_alloc_control_pages(struct kimage *image,
 						unsigned int order);
 extern void crash_kexec(struct pt_regs *);
 int kexec_should_crash(struct task_struct *);
+void crash_save_cpu(struct pt_regs *regs, int cpu);
 extern struct kimage *kexec_image;
 extern struct kimage *kexec_crash_image;
+
+#ifndef kexec_flush_icache_page
+#define kexec_flush_icache_page(page)
+#endif
 
 #define KEXEC_ON_CRASH  0x00000001
 #define KEXEC_ARCH_MASK 0xffff0000
@@ -122,6 +127,8 @@ extern struct kimage *kexec_crash_image;
 #define KEXEC_ARCH_IA_64   (50 << 16)
 #define KEXEC_ARCH_S390    (22 << 16)
 #define KEXEC_ARCH_SH      (42 << 16)
+#define KEXEC_ARCH_MIPS_LE (10 << 16)
+#define KEXEC_ARCH_MIPS    ( 8 << 16)
 
 #define KEXEC_FLAGS    (KEXEC_ON_CRASH)  /* List of defined/legal kexec flags */
 
@@ -130,6 +137,7 @@ extern struct kimage *kexec_crash_image;
 extern struct resource crashk_res;
 typedef u32 note_buf_t[MAX_NOTE_BYTES/4];
 extern note_buf_t *crash_notes;
+
 
 #else /* !CONFIG_KEXEC */
 struct pt_regs;

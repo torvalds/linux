@@ -2,7 +2,8 @@ if ARCH_AT91
 
 menu "Atmel AT91 System-on-Chip"
 
-comment "Atmel AT91 Processors"
+choice
+	prompt "Atmel AT91 Processor"
 
 config ARCH_AT91RM9200
 	bool "AT91RM9200"
@@ -12,6 +13,8 @@ config ARCH_AT91SAM9260
 
 config ARCH_AT91SAM9261
 	bool "AT91SAM9261"
+
+endchoice
 
 # ----------------------------------------------------------
 
@@ -32,7 +35,6 @@ config ARCH_AT91RM9200DK
 	help
 	  Select this if you are using Atmel's AT91RM9200-DK Development board.
 	  (Discontinued)
-
 
 config MACH_AT91RM9200EK
 	bool "Atmel AT91RM9200-EK Evaluation Kit"
@@ -90,6 +92,13 @@ if ARCH_AT91SAM9260
 
 comment "AT91SAM9260 Board Type"
 
+config MACH_AT91SAM9260EK
+	bool "Atmel AT91SAM9260-EK Evaluation Kit"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using Atmel's AT91SAM9260-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3933>
+
 endif
 
 # ----------------------------------------------------------
@@ -98,8 +107,31 @@ if ARCH_AT91SAM9261
 
 comment "AT91SAM9261 Board Type"
 
+config MACH_AT91SAM9261EK
+	bool "Atmel AT91SAM9261-EK Evaluation Kit"
+	depends on ARCH_AT91SAM9261
+	help
+	  Select this if you are using Atmel's AT91SAM9261-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3820>
+
 endif
 
+# ----------------------------------------------------------
+
+comment "AT91 Board Options"
+
+config MTD_AT91_DATAFLASH_CARD
+	bool "Enable DataFlash Card support"
+	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK)
+	help
+	  Enable support for the DataFlash card.
+
+config MTD_NAND_AT91_BUSWIDTH_16
+	bool "Enable 16-bit data bus interface to NAND flash"
+	depends on (MACH_AT91SAM9261EK || MACH_AT91SAM9260EK)
+	help
+	  On AT91SAM926x boards both types of NAND flash can be present
+	  (8 and 16 bit data bus width).
 
 # ----------------------------------------------------------
 

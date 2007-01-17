@@ -8,6 +8,7 @@
 
 #include <linux/miscdevice.h>
 #include <linux/lock_dlm_plock.h>
+#include <linux/poll.h>
 
 #include "lock_dlm.h"
 

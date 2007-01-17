@@ -20,7 +20,7 @@ extern void pmac_get_rtc_time(struct rtc_time *);
 extern int pmac_set_rtc_time(struct rtc_time *);
 extern void pmac_read_rtc_time(void);
 extern void pmac_calibrate_decr(void);
-extern void pmac_pcibios_fixup(void);
+extern void pmac_pci_irq_fixup(struct pci_dev *);
 extern void pmac_pci_init(void);
 extern unsigned long pmac_ide_get_base(int index);
 extern void pmac_ide_init_hwif_ports(hw_regs_t *hw,

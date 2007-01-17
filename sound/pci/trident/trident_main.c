@@ -3380,8 +3380,8 @@ static int __devinit snd_trident_tlb_alloc(struct snd_trident *trident)
 		snd_printk(KERN_ERR "trident: unable to allocate TLB buffer\n");
 		return -ENOMEM;
 	}
-	trident->tlb.entries = (unsigned int*)(((unsigned long)trident->tlb.buffer.area + SNDRV_TRIDENT_MAX_PAGES * 4 - 1) & ~(SNDRV_TRIDENT_MAX_PAGES * 4 - 1));
-	trident->tlb.entries_dmaaddr = (trident->tlb.buffer.addr + SNDRV_TRIDENT_MAX_PAGES * 4 - 1) & ~(SNDRV_TRIDENT_MAX_PAGES * 4 - 1);
+	trident->tlb.entries = (unsigned int*)ALIGN((unsigned long)trident->tlb.buffer.area, SNDRV_TRIDENT_MAX_PAGES * 4);
+	trident->tlb.entries_dmaaddr = ALIGN(trident->tlb.buffer.addr, SNDRV_TRIDENT_MAX_PAGES * 4);
 	/* allocate shadow TLB page table (virtual addresses) */
 	trident->tlb.shadow_entries = vmalloc(SNDRV_TRIDENT_MAX_PAGES*sizeof(unsigned long));
 	if (trident->tlb.shadow_entries == NULL) {
@@ -3608,7 +3608,7 @@ int __devinit snd_trident_create(struct snd_card *card,
 	}
 	trident->port = pci_resource_start(pci, 0);
 
-	if (request_irq(pci->irq, snd_trident_interrupt, IRQF_DISABLED|IRQF_SHARED,
+	if (request_irq(pci->irq, snd_trident_interrupt, IRQF_SHARED,
 			"Trident Audio", trident)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_trident_free(trident);

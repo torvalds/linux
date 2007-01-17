@@ -181,7 +181,7 @@ for new threads, without the need of another syscall.]
 So there is virtually zero overhead for tasks not using robust futexes,
 and even for robust futex users, there is only one extra syscall per
 thread lifetime, and the cleanup operation, if it happens, is fast and
-straightforward. The kernel doesnt have any internal distinction between
+straightforward. The kernel doesn't have any internal distinction between
 robust and normal futexes.
 
 If a futex is found to be held at exit time, the kernel sets the

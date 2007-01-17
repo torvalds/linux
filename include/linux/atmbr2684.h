@@ -86,8 +86,8 @@ struct atm_backend_br2684 {
  * efficient per-if in/out filters, this support will be removed
  */
 struct br2684_filter {
-	__u32	prefix;		/* network byte order */
-	__u32	netmask;	/* 0 = disable filter */
+	__be32	prefix;		/* network byte order */
+	__be32	netmask;	/* 0 = disable filter */
 };
 
 struct br2684_filter_set {

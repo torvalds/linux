@@ -36,7 +36,7 @@
 
 /* Have we found an MP table */
 int smp_found_config;
-unsigned int __initdata maxcpus = NR_CPUS;
+unsigned int __cpuinitdata maxcpus = NR_CPUS;
 
 /*
  * Various Linux-internal data structures created from the
@@ -102,9 +102,9 @@ static int __init mpf_checksum(unsigned char *mp, int len)
  */
 
 static int mpc_record; 
-static struct mpc_config_translation *translation_table[MAX_MPC_ENTRY] __initdata;
+static struct mpc_config_translation *translation_table[MAX_MPC_ENTRY] __cpuinitdata;
 
-static void __devinit MP_processor_info (struct mpc_config_processor *m)
+static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 {
  	int ver, apicid;
 	physid_mask_t phys_cpu;
@@ -249,8 +249,6 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 		mp_current_pci_id++;
 	} else if (strncmp(str, BUSTYPE_MCA, sizeof(BUSTYPE_MCA)-1) == 0) {
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_MCA;
-	} else if (strncmp(str, BUSTYPE_NEC98, sizeof(BUSTYPE_NEC98)-1) == 0) {
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_NEC98;
 	} else {
 		printk(KERN_WARNING "Unknown bustype %s - ignoring\n", str);
 	}
@@ -824,7 +822,7 @@ void __init mp_register_lapic_address(u64 address)
 	Dprintk("Boot CPU = %d\n", boot_cpu_physical_apicid);
 }
 
-void __devinit mp_register_lapic (u8 id, u8 enabled)
+void __cpuinit mp_register_lapic (u8 id, u8 enabled)
 {
 	struct mpc_config_processor processor;
 	int boot_cpu = 0;

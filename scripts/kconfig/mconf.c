@@ -890,14 +890,19 @@ int main(int ac, char **av)
 	do {
 		conf(&rootmenu);
 		dialog_clear();
-		res = dialog_yesno(NULL,
-				   _("Do you wish to save your "
-				     "new kernel configuration?\n"
-				     "<ESC><ESC> to continue."),
-				   6, 60);
+		if (conf_get_changed())
+			res = dialog_yesno(NULL,
+					   _("Do you wish to save your "
+					     "new kernel configuration?\n"
+					     "<ESC><ESC> to continue."),
+					   6, 60);
+		else
+			res = -1;
 	} while (res == KEY_ESC);
 	end_dialog();
-	if (res == 0) {
+
+	switch (res) {
+	case 0:
 		if (conf_write(NULL)) {
 			fprintf(stderr, _("\n\n"
 				"Error during writing of the kernel configuration.\n"
@@ -905,11 +910,13 @@ int main(int ac, char **av)
 				"\n\n"));
 			return 1;
 		}
+	case -1:
 		printf(_("\n\n"
 			"*** End of Linux kernel configuration.\n"
 			"*** Execute 'make' to build the kernel or try 'make help'."
 			"\n\n"));
-	} else {
+		break;
+	default:
 		fprintf(stderr, _("\n\n"
 			"Your kernel configuration changes were NOT saved."
 			"\n\n"));

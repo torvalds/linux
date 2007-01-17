@@ -33,7 +33,6 @@
 #include <asm/ip32/ip32_ints.h>
 
 #include <asm/io.h>
-#include <asm/checksum.h>
 #include <asm/scatterlist.h>
 #include <linux/dma-mapping.h>
 

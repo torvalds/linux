@@ -97,11 +97,12 @@ acpi_find_root_pointer(u32 flags, struct acpi_pointer *rsdp_address);
 
 acpi_status acpi_load_tables(void);
 
-#ifdef ACPI_FUTURE_USAGE
 acpi_status acpi_load_table(struct acpi_table_header *table_ptr);
 
-acpi_status acpi_unload_table(acpi_table_type table_type);
+acpi_status acpi_unload_table_id(acpi_table_type table_type, acpi_owner_id id);
 
+#ifdef ACPI_FUTURE_USAGE
+acpi_status acpi_unload_table(acpi_table_type table_type);
 acpi_status
 acpi_get_table_header(acpi_table_type table_type,
 		      u32 instance, struct acpi_table_header *out_table_header);
@@ -179,6 +180,8 @@ acpi_get_next_object(acpi_object_type type,
 		     acpi_handle child, acpi_handle * out_handle);
 
 acpi_status acpi_get_type(acpi_handle object, acpi_object_type * out_type);
+
+acpi_status acpi_get_id(acpi_handle object, acpi_owner_id * out_type);
 
 acpi_status acpi_get_parent(acpi_handle object, acpi_handle * out_handle);
 

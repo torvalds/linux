@@ -558,6 +558,14 @@ lpfc_cmpl_ct_cmd_rsnn_nn(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	return;
 }
 
+static void
+lpfc_cmpl_ct_cmd_rff_id(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
+			 struct lpfc_iocbq * rspiocb)
+{
+	lpfc_cmpl_ct_cmd_rft_id(phba, cmdiocb, rspiocb);
+	return;
+}
+
 void
 lpfc_get_hba_sym_node_name(struct lpfc_hba * phba, uint8_t * symbp)
 {
@@ -629,6 +637,8 @@ lpfc_ns_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 		bpl->tus.f.bdeSize = RNN_REQUEST_SZ;
 	else if (cmdcode == SLI_CTNS_RSNN_NN)
 		bpl->tus.f.bdeSize = RSNN_REQUEST_SZ;
+	else if (cmdcode == SLI_CTNS_RFF_ID)
+		bpl->tus.f.bdeSize = RFF_REQUEST_SZ;
 	else
 		bpl->tus.f.bdeSize = 0;
 	bpl->tus.w = le32_to_cpu(bpl->tus.w);
@@ -658,6 +668,17 @@ lpfc_ns_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 		CtReq->un.rft.PortId = be32_to_cpu(phba->fc_myDID);
 		CtReq->un.rft.fcpReg = 1;
 		cmpl = lpfc_cmpl_ct_cmd_rft_id;
+		break;
+
+	case SLI_CTNS_RFF_ID:
+		CtReq->CommandResponse.bits.CmdRsp =
+			be16_to_cpu(SLI_CTNS_RFF_ID);
+		CtReq->un.rff.PortId = be32_to_cpu(phba->fc_myDID);
+		CtReq->un.rff.feature_res = 0;
+		CtReq->un.rff.feature_tgt = 0;
+		CtReq->un.rff.type_code = FC_FCP_DATA;
+		CtReq->un.rff.feature_init = 1;
+		cmpl = lpfc_cmpl_ct_cmd_rff_id;
 		break;
 
 	case SLI_CTNS_RNN_ID:
@@ -934,7 +955,8 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 			ae = (ATTRIBUTE_ENTRY *) ((uint8_t *) rh + size);
 			ae->ad.bits.AttrType = be16_to_cpu(OS_NAME_VERSION);
 			sprintf(ae->un.OsNameVersion, "%s %s %s",
-				init_utsname()->sysname, init_utsname()->release,
+				init_utsname()->sysname,
+				init_utsname()->release,
 				init_utsname()->version);
 			len = strlen(ae->un.OsNameVersion);
 			len += (len & 3) ? (4 - (len & 3)) : 4;

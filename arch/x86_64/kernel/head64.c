@@ -57,10 +57,12 @@ void __init x86_64_start_kernel(char * real_mode_data)
 {
 	int i;
 
-	for (i = 0; i < 256; i++)
+	/* clear bss before set_intr_gate with early_idt_handler */
+	clear_bss();
+
+	for (i = 0; i < IDT_ENTRIES; i++)
 		set_intr_gate(i, early_idt_handler);
 	asm volatile("lidt %0" :: "m" (idt_descr));
-	clear_bss();
 
 	early_printk("Kernel alive\n");
 

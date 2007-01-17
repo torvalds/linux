@@ -506,7 +506,7 @@ static ssize_t gpio_read(struct file *file, char __user *buf, size_t len,
 	unsigned int pin;
 	char value = '0';
 
-	pin = iminor(file->f_dentry->d_inode);
+	pin = iminor(file->f_path.dentry->d_inode);
 	if (pin >= giu_nr_pins)
 		return -EBADF;
 
@@ -530,7 +530,7 @@ static ssize_t gpio_write(struct file *file, const char __user *data,
 	char c;
 	int retval = 0;
 
-	pin = iminor(file->f_dentry->d_inode);
+	pin = iminor(file->f_path.dentry->d_inode);
 	if (pin >= giu_nr_pins)
 		return -EBADF;
 

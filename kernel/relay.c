@@ -138,7 +138,7 @@ depopulate:
  */
 struct rchan_buf *relay_create_buf(struct rchan *chan)
 {
-	struct rchan_buf *buf = kcalloc(1, sizeof(struct rchan_buf), GFP_KERNEL);
+	struct rchan_buf *buf = kzalloc(sizeof(struct rchan_buf), GFP_KERNEL);
 	if (!buf)
 		return NULL;
 
@@ -302,15 +302,16 @@ static struct rchan_callbacks default_channel_callbacks = {
 
 /**
  *	wakeup_readers - wake up readers waiting on a channel
- *	@private: the channel buffer
+ *	@work: work struct that contains the the channel buffer
  *
  *	This is the work function used to defer reader waking.  The
  *	reason waking is deferred is that calling directly from write
  *	causes problems if you're writing from say the scheduler.
  */
-static void wakeup_readers(void *private)
+static void wakeup_readers(struct work_struct *work)
 {
-	struct rchan_buf *buf = private;
+	struct rchan_buf *buf =
+		container_of(work, struct rchan_buf, wake_readers.work);
 	wake_up_interruptible(&buf->read_wait);
 }
 
@@ -321,14 +322,14 @@ static void wakeup_readers(void *private)
  *
  *	See relay_reset for description of effect.
  */
-static inline void __relay_reset(struct rchan_buf *buf, unsigned int init)
+static void __relay_reset(struct rchan_buf *buf, unsigned int init)
 {
 	size_t i;
 
 	if (init) {
 		init_waitqueue_head(&buf->read_wait);
 		kref_init(&buf->kref);
-		INIT_WORK(&buf->wake_readers, NULL, NULL);
+		INIT_DELAYED_WORK(&buf->wake_readers, NULL);
 	} else {
 		cancel_delayed_work(&buf->wake_readers);
 		flush_scheduled_work();
@@ -417,7 +418,7 @@ static struct rchan_buf *relay_open_buf(struct rchan *chan,
  *	The channel buffer and channel buffer data structure are then freed
  *	automatically when the last reference is given up.
  */
-static inline void relay_close_buf(struct rchan_buf *buf)
+static void relay_close_buf(struct rchan_buf *buf)
 {
 	buf->finalized = 1;
 	cancel_delayed_work(&buf->wake_readers);
@@ -425,7 +426,7 @@ static inline void relay_close_buf(struct rchan_buf *buf)
 	kref_put(&buf->kref, relay_remove_buf);
 }
 
-static inline void setup_callbacks(struct rchan *chan,
+static void setup_callbacks(struct rchan *chan,
 				   struct rchan_callbacks *cb)
 {
 	if (!cb) {
@@ -478,7 +479,7 @@ struct rchan *relay_open(const char *base_filename,
 	if (!(subbuf_size && n_subbufs))
 		return NULL;
 
-	chan = kcalloc(1, sizeof(struct rchan), GFP_KERNEL);
+	chan = kzalloc(sizeof(struct rchan), GFP_KERNEL);
 	if (!chan)
 		return NULL;
 
@@ -549,7 +550,8 @@ size_t relay_switch_subbuf(struct rchan_buf *buf, size_t length)
 			buf->padding[old_subbuf];
 		smp_mb();
 		if (waitqueue_active(&buf->read_wait)) {
-			PREPARE_WORK(&buf->wake_readers, wakeup_readers, buf);
+			PREPARE_DELAYED_WORK(&buf->wake_readers,
+					     wakeup_readers);
 			schedule_delayed_work(&buf->wake_readers, 1);
 		}
 	}
@@ -944,11 +946,10 @@ typedef int (*subbuf_actor_t) (size_t read_start,
 /*
  *	relay_file_read_subbufs - read count bytes, bridging subbuf boundaries
  */
-static inline ssize_t relay_file_read_subbufs(struct file *filp,
-					      loff_t *ppos,
-					      subbuf_actor_t subbuf_actor,
-					      read_actor_t actor,
-					      read_descriptor_t *desc)
+static ssize_t relay_file_read_subbufs(struct file *filp, loff_t *ppos,
+					subbuf_actor_t subbuf_actor,
+					read_actor_t actor,
+					read_descriptor_t *desc)
 {
 	struct rchan_buf *buf = filp->private_data;
 	size_t read_start, avail;
@@ -957,7 +958,7 @@ static inline ssize_t relay_file_read_subbufs(struct file *filp,
 	if (!desc->count)
 		return 0;
 
-	mutex_lock(&filp->f_dentry->d_inode->i_mutex);
+	mutex_lock(&filp->f_path.dentry->d_inode->i_mutex);
 	do {
 		if (!relay_file_read_avail(buf, *ppos))
 			break;
@@ -977,7 +978,7 @@ static inline ssize_t relay_file_read_subbufs(struct file *filp,
 			*ppos = relay_file_read_end_pos(buf, read_start, ret);
 		}
 	} while (desc->count && ret);
-	mutex_unlock(&filp->f_dentry->d_inode->i_mutex);
+	mutex_unlock(&filp->f_path.dentry->d_inode->i_mutex);
 
 	return desc->written;
 }
@@ -1011,7 +1012,7 @@ static ssize_t relay_file_sendfile(struct file *filp,
 				       actor, &desc);
 }
 
-struct file_operations relay_file_operations = {
+const struct file_operations relay_file_operations = {
 	.open		= relay_file_open,
 	.poll		= relay_file_poll,
 	.mmap		= relay_file_mmap,

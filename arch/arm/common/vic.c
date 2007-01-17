@@ -27,14 +27,14 @@
 
 static void vic_mask_irq(unsigned int irq)
 {
-	void __iomem *base = get_irq_chipdata(irq);
+	void __iomem *base = get_irq_chip_data(irq);
 	irq &= 31;
 	writel(1 << irq, base + VIC_INT_ENABLE_CLEAR);
 }
 
 static void vic_unmask_irq(unsigned int irq)
 {
-	void __iomem *base = get_irq_chipdata(irq);
+	void __iomem *base = get_irq_chip_data(irq);
 	irq &= 31;
 	writel(1 << irq, base + VIC_INT_ENABLE);
 }
@@ -88,10 +88,10 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 		unsigned int irq = irq_start + i;
 
 		set_irq_chip(irq, &vic_chip);
-		set_irq_chipdata(irq, base);
+		set_irq_chip_data(irq, base);
 
 		if (vic_sources & (1 << i)) {
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
 	}

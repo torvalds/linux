@@ -636,10 +636,9 @@ static struct audit_rule *audit_krule_to_rule(struct audit_krule *krule)
 	struct audit_rule *rule;
 	int i;
 
-	rule = kmalloc(sizeof(*rule), GFP_KERNEL);
+	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 	if (unlikely(!rule))
 		return NULL;
-	memset(rule, 0, sizeof(*rule));
 
 	rule->flags = krule->flags | krule->listnr;
 	rule->action = krule->action;
@@ -801,8 +800,8 @@ static inline int audit_dupe_selinux_field(struct audit_field *df,
 
 	/* our own copy of se_str */
 	se_str = kstrdup(sf->se_str, GFP_KERNEL);
-	if (unlikely(IS_ERR(se_str)))
-	    return -ENOMEM;
+	if (unlikely(!se_str))
+		return -ENOMEM;
 	df->se_str = se_str;
 
 	/* our own (refreshed) copy of se_rule */

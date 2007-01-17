@@ -14,6 +14,7 @@ unifdef-y += posix_types.h
 unifdef-y += ptrace.h
 unifdef-y += resource.h
 unifdef-y += sembuf.h
+unifdef-y += setup.h
 unifdef-y += shmbuf.h
 unifdef-y += sigcontext.h
 unifdef-y += siginfo.h

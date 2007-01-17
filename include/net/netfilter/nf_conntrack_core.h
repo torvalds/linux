@@ -13,6 +13,9 @@
 #define _NF_CONNTRACK_CORE_H
 
 #include <linux/netfilter.h>
+#include <net/netfilter/nf_conntrack_l3proto.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
+#include <net/netfilter/nf_conntrack_ecache.h>
 
 /* This header is used to share core functionality between the
    standalone connection tracking module, and the compatibility layer's use
@@ -29,7 +32,7 @@ extern struct nf_conntrack_l3proto *nf_ct_find_l3proto(u_int16_t pf);
 /* Like above, but you already have conntrack read lock. */
 extern struct nf_conntrack_l3proto *__nf_ct_find_l3proto(u_int16_t l3proto);
 
-struct nf_conntrack_protocol;
+struct nf_conntrack_l4proto;
 
 extern int
 nf_ct_get_tuple(const struct sk_buff *skb,
@@ -39,13 +42,13 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 		u_int8_t protonum,
 		struct nf_conntrack_tuple *tuple,
 		const struct nf_conntrack_l3proto *l3proto,
-		const struct nf_conntrack_protocol *protocol);
+		const struct nf_conntrack_l4proto *l4proto);
 
 extern int
 nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 		   const struct nf_conntrack_tuple *orig,
 		   const struct nf_conntrack_l3proto *l3proto,
-		   const struct nf_conntrack_protocol *protocol);
+		   const struct nf_conntrack_l4proto *l4proto);
 
 /* Find a connection corresponding to a tuple. */
 extern struct nf_conntrack_tuple_hash *
@@ -70,7 +73,14 @@ static inline int nf_conntrack_confirm(struct sk_buff **pskb)
 
 extern void __nf_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb);
 
+int
+print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
+	    struct nf_conntrack_l3proto *l3proto,
+	    struct nf_conntrack_l4proto *proto);
+
 extern struct list_head *nf_conntrack_hash;
 extern struct list_head nf_conntrack_expect_list;
 extern rwlock_t nf_conntrack_lock ;
+extern struct list_head unconfirmed;
+
 #endif /* _NF_CONNTRACK_CORE_H */

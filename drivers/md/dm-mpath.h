@@ -11,7 +11,7 @@
 
 struct dm_dev;
 
-struct path {
+struct dm_path {
 	struct dm_dev *dev;	/* Read-only */
 	unsigned is_active;	/* Read-only */
 
@@ -20,6 +20,6 @@ struct path {
 };
 
 /* Callback for hwh_pg_init_fn to use when complete */
-void dm_pg_init_complete(struct path *path, unsigned err_flags);
+void dm_pg_init_complete(struct dm_path *path, unsigned err_flags);
 
 #endif

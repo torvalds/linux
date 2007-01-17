@@ -565,7 +565,7 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		} else {
 			struct sk_buff *free_it = next;
 
-			/* Old fragmnet is completely overridden with
+			/* Old fragment is completely overridden with
 			 * new one drop it.
 			 */
 			next = next->next;

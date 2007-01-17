@@ -57,12 +57,12 @@ static void isofs_put_super(struct super_block *sb)
 static void isofs_read_inode(struct inode *);
 static int isofs_statfs (struct dentry *, struct kstatfs *);
 
-static kmem_cache_t *isofs_inode_cachep;
+static struct kmem_cache *isofs_inode_cachep;
 
 static struct inode *isofs_alloc_inode(struct super_block *sb)
 {
 	struct iso_inode_info *ei;
-	ei = kmem_cache_alloc(isofs_inode_cachep, SLAB_KERNEL);
+	ei = kmem_cache_alloc(isofs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -73,7 +73,7 @@ static void isofs_destroy_inode(struct inode *inode)
 	kmem_cache_free(isofs_inode_cachep, ISOFS_I(inode));
 }
 
-static void init_once(void *foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void *foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct iso_inode_info *ei = foo;
 

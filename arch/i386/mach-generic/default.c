@@ -18,7 +18,7 @@
 #include <asm/mach-default/mach_mpparse.h>
 
 /* should be called last. */
-static __init int probe_default(void)
+static int probe_default(void)
 { 
 	return 1;
 } 

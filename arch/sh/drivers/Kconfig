@@ -1,0 +1,9 @@
+menu "Additional SuperH Device Drivers"
+
+config PUSH_SWITCH
+	tristate "Push switch support"
+	help
+	  This enables support for the push switch framework, a simple
+	  framework that allows for sysfs driven switch status reporting.
+
+endmenu

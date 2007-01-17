@@ -2307,7 +2307,7 @@ static int __devinit snd_via82xx_create(struct snd_card *card,
 	if (request_irq(pci->irq,
 			chip_type == TYPE_VIA8233 ?
 			snd_via8233_interrupt :	snd_via686_interrupt,
-			IRQF_DISABLED|IRQF_SHARED,
+			IRQF_SHARED,
 			card->driver, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_via82xx_free(chip);
@@ -2366,7 +2366,7 @@ struct dxs_whitelist {
 
 static int __devinit check_dxs_list(struct pci_dev *pci, int revision)
 {
-	static struct dxs_whitelist whitelist[] = {
+	static struct dxs_whitelist whitelist[] __devinitdata = {
 		{ .subvendor = 0x1005, .subdevice = 0x4710, .action = VIA_DXS_ENABLE }, /* Avance Logic Mobo */
 		{ .subvendor = 0x1019, .subdevice = 0x0996, .action = VIA_DXS_48K },
 		{ .subvendor = 0x1019, .subdevice = 0x0a81, .action = VIA_DXS_NO_VRA }, /* ECS K7VTA3 v8.0 */
@@ -2427,7 +2427,7 @@ static int __devinit check_dxs_list(struct pci_dev *pci, int revision)
 		{ .subvendor = 0x4005, .subdevice = 0x4710, .action = VIA_DXS_SRC },	/* MSI K7T266 Pro2 (MS-6380 V2.0) BIOS 3.7 */
 		{ } /* terminator */
 	};
-	struct dxs_whitelist *w;
+	const struct dxs_whitelist *w;
 	unsigned short subsystem_vendor;
 	unsigned short subsystem_device;
 

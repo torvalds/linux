@@ -11,7 +11,7 @@
 #include <linux/cpumask.h>
 #include <linux/percpu.h>
 
-extern kmem_cache_t *pgtable_cache[];
+extern struct kmem_cache *pgtable_cache[];
 
 #ifdef CONFIG_PPC_64K_PAGES
 #define PTE_CACHE_NUM	0

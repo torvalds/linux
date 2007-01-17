@@ -49,6 +49,7 @@
 #include <asm/uaccess.h>
 #include <net/ieee80211.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include "airo.h"
 

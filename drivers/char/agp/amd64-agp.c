@@ -459,7 +459,7 @@ static const struct aper_size_info_32 nforce3_sizes[5] =
 
 /* Handle shadow device of the Nvidia NForce3 */
 /* CHECK-ME original 2.4 version set up some IORRs. Check if that is needed. */
-static int __devinit nforce3_agp_init(struct pci_dev *pdev)
+static int nforce3_agp_init(struct pci_dev *pdev)
 {
 	u32 tmp, apbase, apbar, aplimit;
 	struct pci_dev *dev1;
@@ -649,6 +649,15 @@ static struct pci_device_id agp_amd64_pci_table[] = {
 	.device		= PCI_DEVICE_ID_VIA_8380_0,
 	.subvendor	= PCI_ANY_ID,
 	.subdevice	= PCI_ANY_ID,
+	},
+	/* VIA K8M890 / K8N890 */
+	{
+	.class          = (PCI_CLASS_BRIDGE_HOST << 8),
+	.class_mask     = ~0,
+	.vendor         = PCI_VENDOR_ID_VIA,
+	.device         = PCI_DEVICE_ID_VIA_K8M890CE,
+	.subvendor      = PCI_ANY_ID,
+	.subdevice      = PCI_ANY_ID,
 	},
 	/* VIA K8T890 */
 	{

@@ -179,6 +179,7 @@ struct tape_char_data {
 /* Block Frontend Data */
 struct tape_blk_data
 {
+	struct tape_device *	device;
 	/* Block device request queue. */
 	request_queue_t *	request_queue;
 	spinlock_t		request_queue_lock;
@@ -240,7 +241,7 @@ struct tape_device {
 #endif
 
 	/* Function to start or stop the next request later. */
-	struct work_struct		tape_dnr;
+	struct delayed_work		tape_dnr;
 };
 
 /* Externals from tape_core.c */

@@ -108,6 +108,7 @@ static int tuner_stereo(struct i2c_client *c)
 		case TUNER_PHILIPS_FM1216ME_MK3:
 		case TUNER_PHILIPS_FM1236_MK3:
 		case TUNER_PHILIPS_FM1256_IH3:
+		case TUNER_LG_NTSC_TAPE:
 			stereo = ((status & TUNER_SIGNAL) == TUNER_STEREO_MK3);
 			break;
 		default:
@@ -421,6 +422,7 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	case TUNER_PHILIPS_FM1216ME_MK3:
 	case TUNER_PHILIPS_FM1236_MK3:
 	case TUNER_PHILIPS_FMD1216ME_MK3:
+	case TUNER_LG_NTSC_TAPE:
 		buffer[3] = 0x19;
 		break;
 	case TUNER_TNF_5335MF:
@@ -465,6 +467,8 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 			config |= TDA9887_INTERCARRIER;
 /*		if (params->port1_set_for_fm_mono)
 			config &= ~TDA9887_PORT1_ACTIVE;*/
+		if (params->fm_gain_normal)
+			config |= TDA9887_GAIN_NORMAL;
 		i2c_clients_command(c->adapter, TDA9887_SET_CONFIG, &config);
 	}
 	if (4 != (rc = i2c_master_send(c,buffer,4)))

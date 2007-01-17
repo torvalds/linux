@@ -521,11 +521,19 @@ static int adi_connect(struct gameport *gameport, struct gameport_driver *drv)
 	for (i = 0; i < 2; i++)
 		if (port->adi[i].length > 0) {
 			adi_init_center(port->adi + i);
-			input_register_device(port->adi[i].dev);
+			err = input_register_device(port->adi[i].dev);
+			if (err)
+				goto fail3;
 		}
 
 	return 0;
 
+ fail3: while (--i >= 0) {
+		if (port->adi[i].length > 0) {
+			input_unregister_device(port->adi[i].dev);
+			port->adi[i].dev = NULL;
+		}
+	}
  fail2:	for (i = 0; i < 2; i++)
 		if (port->adi[i].dev)
 			input_free_device(port->adi[i].dev);

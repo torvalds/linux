@@ -186,7 +186,7 @@ static int i2o_cfg_parms(unsigned long arg, unsigned int type)
 	if (!dev)
 		return -ENXIO;
 
-	ops = (u8 *) kmalloc(kcmd.oplen, GFP_KERNEL);
+	ops = kmalloc(kcmd.oplen, GFP_KERNEL);
 	if (!ops)
 		return -ENOMEM;
 
@@ -199,7 +199,7 @@ static int i2o_cfg_parms(unsigned long arg, unsigned int type)
 	 * It's possible to have a _very_ large table
 	 * and that the user asks for all of it at once...
 	 */
-	res = (u8 *) kmalloc(65536, GFP_KERNEL);
+	res = kmalloc(65536, GFP_KERNEL);
 	if (!res) {
 		kfree(ops);
 		return -ENOMEM;
@@ -265,7 +265,11 @@ static int i2o_cfg_swdl(unsigned long arg)
 		return -ENOMEM;
 	}
 
-	__copy_from_user(buffer.virt, kxfer.buf, fragsize);
+	if (__copy_from_user(buffer.virt, kxfer.buf, fragsize)) {
+		i2o_msg_nop(c, msg);
+		i2o_dma_free(&c->pdev->dev, &buffer);
+		return -EFAULT;
+	}
 
 	msg->u.head[0] = cpu_to_le32(NINE_WORD_MSG_SIZE | SGL_OFFSET_7);
 	msg->u.head[1] =
@@ -516,7 +520,6 @@ static int i2o_cfg_evt_get(unsigned long arg, struct file *fp)
 	return 0;
 }
 
-#ifdef CONFIG_I2O_EXT_ADAPTEC
 #ifdef CONFIG_COMPAT
 static int i2o_cfg_passthru32(struct file *file, unsigned cmnd,
 			      unsigned long arg)
@@ -759,6 +762,7 @@ static long i2o_cfg_compat_ioctl(struct file *file, unsigned cmd,
 
 #endif
 
+#ifdef CONFIG_I2O_EXT_ADAPTEC
 static int i2o_cfg_passthru(unsigned long arg)
 {
 	struct i2o_cmd_passthru __user *cmd =

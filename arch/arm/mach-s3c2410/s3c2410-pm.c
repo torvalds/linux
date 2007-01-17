@@ -32,6 +32,7 @@
 #include <asm/mach-types.h>
 
 #include <asm/arch/regs-gpio.h>
+#include <asm/arch/h1940.h>
 
 #include "cpu.h"
 #include "pm.h"
@@ -52,12 +53,41 @@ static void s3c2410_pm_prepare(void)
 	DBG("GSTATUS3 0x%08x\n", __raw_readl(S3C2410_GSTATUS3));
 	DBG("GSTATUS4 0x%08x\n", __raw_readl(S3C2410_GSTATUS4));
 
+	if (machine_is_h1940()) {
+		void *base = phys_to_virt(H1940_SUSPEND_CHECK);
+		unsigned long ptr;
+		unsigned long calc = 0;
+
+		/* generate check for the bootloader to check on resume */
+
+		for (ptr = 0; ptr < 0x40000; ptr += 0x400)
+			calc += __raw_readl(base+ptr);
+
+		__raw_writel(calc, phys_to_virt(H1940_SUSPEND_CHECKSUM));
+	}
+
+	/* the RX3715 uses similar code and the same H1940 and the
+	 * same offsets for resume and checksum pointers */
+
+	if (machine_is_rx3715()) {
+		void *base = phys_to_virt(H1940_SUSPEND_CHECK);
+		unsigned long ptr;
+		unsigned long calc = 0;
+
+		/* generate check for the bootloader to check on resume */
+
+		for (ptr = 0; ptr < 0x40000; ptr += 0x4)
+			calc += __raw_readl(base+ptr);
+
+		__raw_writel(calc, phys_to_virt(H1940_SUSPEND_CHECKSUM));
+	}
+
 	if ( machine_is_aml_m5900() )
 		s3c2410_gpio_setpin(S3C2410_GPF2, 1);
 
 }
 
-int s3c2410_pm_resume(struct sys_device *dev)
+static int s3c2410_pm_resume(struct sys_device *dev)
 {
 	unsigned long tmp;
 
@@ -81,6 +111,7 @@ static int s3c2410_pm_add(struct sys_device *dev)
 	return 0;
 }
 
+#if defined(CONFIG_CPU_S3C2410)
 static struct sysdev_driver s3c2410_pm_driver = {
 	.add		= s3c2410_pm_add,
 	.resume		= s3c2410_pm_resume,
@@ -94,7 +125,9 @@ static int __init s3c2410_pm_drvinit(void)
 }
 
 arch_initcall(s3c2410_pm_drvinit);
+#endif
 
+#if defined(CONFIG_CPU_S3C2440)
 static struct sysdev_driver s3c2440_pm_driver = {
 	.add		= s3c2410_pm_add,
 	.resume		= s3c2410_pm_resume,
@@ -106,7 +139,9 @@ static int __init s3c2440_pm_drvinit(void)
 }
 
 arch_initcall(s3c2440_pm_drvinit);
+#endif
 
+#if defined(CONFIG_CPU_S3C2442)
 static struct sysdev_driver s3c2442_pm_driver = {
 	.add		= s3c2410_pm_add,
 	.resume		= s3c2410_pm_resume,
@@ -118,3 +153,4 @@ static int __init s3c2442_pm_drvinit(void)
 }
 
 arch_initcall(s3c2442_pm_drvinit);
+#endif

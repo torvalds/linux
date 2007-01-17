@@ -68,6 +68,7 @@ ep405_setup_arch(void)
 void __init
 bios_fixup(struct pci_controller *hose, struct pcil0_regs *pcip)
 {
+#ifdef CONFIG_PCI
 	unsigned int bar_response, bar;
 	/*
 	 * Expected PCI mapping:
@@ -130,6 +131,7 @@ bios_fixup(struct pci_controller *hose, struct pcil0_regs *pcip)
 		    PCI_FUNC(hose->first_busno), bar, bar_response);
 	}
 	/* end work arround */
+#endif
 }
 
 void __init

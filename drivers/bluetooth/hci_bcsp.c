@@ -330,7 +330,7 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 	   reliable packet if the number of packets sent but not yet ack'ed
 	   is < than the winsize */
 
-	spin_lock_irqsave(&bcsp->unack.lock, flags);
+	spin_lock_irqsave_nested(&bcsp->unack.lock, flags, SINGLE_DEPTH_NESTING);
 
 	if (bcsp->unack.qlen < BCSP_TXWINSIZE && (skb = skb_dequeue(&bcsp->rel)) != NULL) {
 		struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len, bt_cb(skb)->pkt_type);
@@ -696,7 +696,7 @@ static void bcsp_timed_event(unsigned long arg)
 
 	BT_DBG("hu %p retransmitting %u pkts", hu, bcsp->unack.qlen);
 
-	spin_lock_irqsave(&bcsp->unack.lock, flags);
+	spin_lock_irqsave_nested(&bcsp->unack.lock, flags, SINGLE_DEPTH_NESTING);
 
 	while ((skb = __skb_dequeue_tail(&bcsp->unack)) != NULL) {
 		bcsp->msgq_txseq = (bcsp->msgq_txseq - 1) & 0x07;

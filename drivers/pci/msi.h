@@ -6,14 +6,6 @@
 #ifndef MSI_H
 #define MSI_H
 
-/*
- * MSI-X Address Register
- */
-#define PCI_MSIX_FLAGS_QSIZE		0x7FF
-#define PCI_MSIX_FLAGS_ENABLE		(1 << 15)
-#define PCI_MSIX_FLAGS_BIRMASK		(7 << 0)
-#define PCI_MSIX_FLAGS_BITMASK		(1 << 0)
-
 #define PCI_MSIX_ENTRY_SIZE			16
 #define  PCI_MSIX_ENTRY_LOWER_ADDR_OFFSET	0
 #define  PCI_MSIX_ENTRY_UPPER_ADDR_OFFSET	4

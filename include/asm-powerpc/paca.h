@@ -93,7 +93,8 @@ struct paca_struct {
 	u64 stab_rr;			/* stab/slb round-robin counter */
 	u64 saved_r1;			/* r1 save for RTAS calls */
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
-	u8 proc_enabled;		/* irq soft-enable flag */
+	u8 soft_enabled;		/* irq soft-enable flag */
+	u8 hard_enabled;		/* set if irqs are enabled in MSR */
 	u8 io_sync;			/* writel() needs spin_unlock sync */
 
 	/* Stuff for accurate time accounting */

@@ -45,6 +45,13 @@ void write_pci_config(u8 bus, u8 slot, u8 func, u8 offset,
 	outl(val, 0xcfc);
 }
 
+void write_pci_config_byte(u8 bus, u8 slot, u8 func, u8 offset, u8 val)
+{
+	PDprintk("%x writing to %x: %x\n", slot, offset, val);
+	outl(0x80000000 | (bus<<16) | (slot<<11) | (func<<8) | offset, 0xcf8);
+	outb(val, 0xcfc);
+}
+
 int early_pci_allowed(void)
 {
 	return (pci_probe & (PCI_PROBE_CONF1|PCI_PROBE_NOEARLY)) ==

@@ -60,6 +60,11 @@ Randy Dunlap, Georg Acher, Deti Fliegl, Thomas Sailer, Roman Weissgaerber, \
 Alan Stern"
 #define DRIVER_DESC "USB Universal Host Controller Interface driver"
 
+/* for flakey hardware, ignore overcurrent indicators */
+static int ignore_oc;
+module_param(ignore_oc, bool, S_IRUGO);
+MODULE_PARM_DESC(ignore_oc, "ignore hardware overcurrent indications");
+
 /*
  * debug = 0, no debugging messages
  * debug = 1, dump failed URBs except for stalls
@@ -81,7 +86,7 @@ MODULE_PARM_DESC(debug, "Debug level");
 static char *errbuf;
 #define ERRBUF_LEN    (32 * 1024)
 
-static kmem_cache_t *uhci_up_cachep;	/* urb_priv */
+static struct kmem_cache *uhci_up_cachep;	/* urb_priv */
 
 static void suspend_rh(struct uhci_hcd *uhci, enum uhci_rh_state new_state);
 static void wakeup_rh(struct uhci_hcd *uhci);
@@ -169,6 +174,11 @@ static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 {
 	int port;
 
+	/* If we have to ignore overcurrent events then almost by definition
+	 * we can't depend on resume-detect interrupts. */
+	if (ignore_oc)
+		return 1;
+
 	switch (to_pci_dev(uhci_dev(uhci))->vendor) {
 	    default:
 		break;
@@ -199,24 +209,16 @@ static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 
 static int remote_wakeup_is_broken(struct uhci_hcd *uhci)
 {
-	static struct dmi_system_id broken_wakeup_table[] = {
-		{
-			.ident = "Asus A7V8X",
-			.matches = {
-				DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK"),
-				DMI_MATCH(DMI_BOARD_NAME, "A7V8X"),
-				DMI_MATCH(DMI_BOARD_VERSION, "REV 1.xx"),
-			}
-		},
-		{ }
-	};
 	int port;
+	char *sys_info;
+	static char bad_Asus_board[] = "A7V8X";
 
 	/* One of Asus's motherboards has a bug which causes it to
 	 * wake up immediately from suspend-to-RAM if any of the ports
 	 * are connected.  In such cases we will not set EGSM.
 	 */
-	if (dmi_check_system(broken_wakeup_table)) {
+	sys_info = dmi_get_system_info(DMI_BOARD_NAME);
+	if (sys_info && !strcmp(sys_info, bad_Asus_board)) {
 		for (port = 0; port < uhci->rh_numports; ++port) {
 			if (inw(uhci->io_addr + USBPORTSC1 + port * 2) &
 					USBPORTSC_CCS)
@@ -255,7 +257,9 @@ __acquires(uhci->lock)
 	int_enable = USBINTR_RESUME;
 	if (remote_wakeup_is_broken(uhci))
 		egsm_enable = 0;
-	if (resume_detect_interrupts_are_broken(uhci) || !egsm_enable)
+	if (resume_detect_interrupts_are_broken(uhci) || !egsm_enable ||
+			!device_may_wakeup(
+				&uhci_to_hcd(uhci)->self.root_hub->dev))
 		uhci->working_RD = int_enable = 0;
 
 	outw(int_enable, uhci->io_addr + USBINTR);
@@ -921,7 +925,8 @@ static int __init uhci_hcd_init(void)
 {
 	int retval = -ENOMEM;
 
-	printk(KERN_INFO DRIVER_DESC " " DRIVER_VERSION "\n");
+	printk(KERN_INFO DRIVER_DESC " " DRIVER_VERSION "%s\n",
+			ignore_oc ? ", overcurrent ignored" : "");
 
 	if (usb_disabled())
 		return -ENODEV;

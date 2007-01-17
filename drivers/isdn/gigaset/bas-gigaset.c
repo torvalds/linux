@@ -572,7 +572,7 @@ static int atread_submit(struct cardstate *cs, int timeout)
 			     ucs->rcvbuf, ucs->rcvbuf_size,
 			     read_ctrl_callback, cs->inbuf);
 
-	if ((ret = usb_submit_urb(ucs->urb_cmd_in, SLAB_ATOMIC)) != 0) {
+	if ((ret = usb_submit_urb(ucs->urb_cmd_in, GFP_ATOMIC)) != 0) {
 		update_basstate(ucs, 0, BS_ATRDPEND);
 		dev_err(cs->dev, "could not submit HD_READ_ATMESSAGE: %s\n",
 			get_usb_rcmsg(ret));
@@ -747,7 +747,7 @@ static void read_int_callback(struct urb *urb)
 	check_pending(ucs);
 
 resubmit:
-	rc = usb_submit_urb(urb, SLAB_ATOMIC);
+	rc = usb_submit_urb(urb, GFP_ATOMIC);
 	if (unlikely(rc != 0 && rc != -ENODEV)) {
 		dev_err(cs->dev, "could not resubmit interrupt URB: %s\n",
 			get_usb_rcmsg(rc));
@@ -807,7 +807,7 @@ static void read_iso_callback(struct urb *urb)
 			urb->number_of_packets = BAS_NUMFRAMES;
 			gig_dbg(DEBUG_ISO, "%s: isoc read overrun/resubmit",
 				__func__);
-			rc = usb_submit_urb(urb, SLAB_ATOMIC);
+			rc = usb_submit_urb(urb, GFP_ATOMIC);
 			if (unlikely(rc != 0 && rc != -ENODEV)) {
 				dev_err(bcs->cs->dev,
 					"could not resubmit isochronous read "
@@ -900,7 +900,7 @@ static int starturbs(struct bc_state *bcs)
 		}
 
 		dump_urb(DEBUG_ISO, "Initial isoc read", urb);
-		if ((rc = usb_submit_urb(urb, SLAB_ATOMIC)) != 0)
+		if ((rc = usb_submit_urb(urb, GFP_ATOMIC)) != 0)
 			goto error;
 	}
 
@@ -935,7 +935,7 @@ static int starturbs(struct bc_state *bcs)
 	/* submit two URBs, keep third one */
 	for (k = 0; k < 2; ++k) {
 		dump_urb(DEBUG_ISO, "Initial isoc write", urb);
-		rc = usb_submit_urb(ubc->isoouturbs[k].urb, SLAB_ATOMIC);
+		rc = usb_submit_urb(ubc->isoouturbs[k].urb, GFP_ATOMIC);
 		if (rc != 0)
 			goto error;
 	}
@@ -1042,7 +1042,7 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 		return 0;	/* no data to send */
 	urb->number_of_packets = nframe;
 
-	rc = usb_submit_urb(urb, SLAB_ATOMIC);
+	rc = usb_submit_urb(urb, GFP_ATOMIC);
 	if (unlikely(rc)) {
 		if (rc == -ENODEV)
 			/* device removed - give up silently */
@@ -1341,7 +1341,7 @@ static void read_iso_tasklet(unsigned long data)
 		urb->dev = bcs->cs->hw.bas->udev;
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->number_of_packets = BAS_NUMFRAMES;
-		rc = usb_submit_urb(urb, SLAB_ATOMIC);
+		rc = usb_submit_urb(urb, GFP_ATOMIC);
 		if (unlikely(rc != 0 && rc != -ENODEV)) {
 			dev_err(cs->dev,
 				"could not resubmit isochronous read URB: %s\n",
@@ -1458,7 +1458,7 @@ static void write_ctrl_callback(struct urb *urb)
 			   ucs->retry_ctrl);
 		/* urb->dev is clobbered by USB subsystem */
 		urb->dev = ucs->udev;
-		rc = usb_submit_urb(urb, SLAB_ATOMIC);
+		rc = usb_submit_urb(urb, GFP_ATOMIC);
 		if (unlikely(rc)) {
 			dev_err(&ucs->interface->dev,
 				"could not resubmit request 0x%02x: %s\n",
@@ -1517,7 +1517,7 @@ static int req_submit(struct bc_state *bcs, int req, int val, int timeout)
 			     (unsigned char*) &ucs->dr_ctrl, NULL, 0,
 			     write_ctrl_callback, ucs);
 	ucs->retry_ctrl = 0;
-	ret = usb_submit_urb(ucs->urb_ctrl, SLAB_ATOMIC);
+	ret = usb_submit_urb(ucs->urb_ctrl, GFP_ATOMIC);
 	if (unlikely(ret)) {
 		dev_err(bcs->cs->dev, "could not submit request 0x%02x: %s\n",
 			req, get_usb_rcmsg(ret));
@@ -1763,7 +1763,7 @@ static int atwrite_submit(struct cardstate *cs, unsigned char *buf, int len)
 			     usb_sndctrlpipe(ucs->udev, 0),
 			     (unsigned char*) &ucs->dr_cmd_out, buf, len,
 			     write_command_callback, cs);
-	rc = usb_submit_urb(ucs->urb_cmd_out, SLAB_ATOMIC);
+	rc = usb_submit_urb(ucs->urb_cmd_out, GFP_ATOMIC);
 	if (unlikely(rc)) {
 		update_basstate(ucs, 0, BS_ATWRPEND);
 		dev_err(cs->dev, "could not submit HD_WRITE_ATMESSAGE: %s\n",
@@ -1853,20 +1853,24 @@ static int gigaset_write_cmd(struct cardstate *cs,
 {
 	struct cmdbuf_t *cb;
 	unsigned long flags;
-	int status;
+	int rc;
 
 	gigaset_dbg_buffer(atomic_read(&cs->mstate) != MS_LOCKED ?
 			     DEBUG_TRANSCMD : DEBUG_LOCKCMD,
 			   "CMD Transmit", len, buf);
 
-	if (len <= 0)
-		return 0;			/* nothing to do */
+	if (len <= 0) {
+		/* nothing to do */
+		rc = 0;
+		goto notqueued;
+	}
 
 	if (len > IF_WRITEBUF)
 		len = IF_WRITEBUF;
 	if (!(cb = kmalloc(sizeof(struct cmdbuf_t) + len, GFP_ATOMIC))) {
 		dev_err(cs->dev, "%s: out of memory\n", __func__);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto notqueued;
 	}
 
 	memcpy(cb->buf, buf, len);
@@ -1891,11 +1895,21 @@ static int gigaset_write_cmd(struct cardstate *cs,
 	if (unlikely(!cs->connected)) {
 		spin_unlock_irqrestore(&cs->lock, flags);
 		gig_dbg(DEBUG_USBREQ, "%s: not connected", __func__);
+		/* flush command queue */
+		spin_lock_irqsave(&cs->cmdlock, flags);
+		while (cs->cmdbuf != NULL)
+			complete_cb(cs);
+		spin_unlock_irqrestore(&cs->cmdlock, flags);
 		return -ENODEV;
 	}
-	status = start_cbsend(cs);
+	rc = start_cbsend(cs);
 	spin_unlock_irqrestore(&cs->lock, flags);
-	return status < 0 ? status : len;
+	return rc < 0 ? rc : len;
+
+notqueued:			/* request handled without queuing */
+	if (wake_tasklet)
+		tasklet_schedule(wake_tasklet);
+	return rc;
 }
 
 /* gigaset_write_room
@@ -1964,20 +1978,15 @@ static int gigaset_freebcshw(struct bc_state *bcs)
 
 	/* kill URBs and tasklets before freeing - better safe than sorry */
 	atomic_set(&ubc->running, 0);
-	for (i = 0; i < BAS_OUTURBS; ++i)
-		if (ubc->isoouturbs[i].urb) {
-			gig_dbg(DEBUG_INIT, "%s: killing iso out URB %d",
-				__func__, i);
-			usb_kill_urb(ubc->isoouturbs[i].urb);
-			usb_free_urb(ubc->isoouturbs[i].urb);
-		}
-	for (i = 0; i < BAS_INURBS; ++i)
-		if (ubc->isoinurbs[i]) {
-			gig_dbg(DEBUG_INIT, "%s: killing iso in URB %d",
-				__func__, i);
-			usb_kill_urb(ubc->isoinurbs[i]);
-			usb_free_urb(ubc->isoinurbs[i]);
-		}
+	gig_dbg(DEBUG_INIT, "%s: killing iso URBs", __func__);
+	for (i = 0; i < BAS_OUTURBS; ++i) {
+		usb_kill_urb(ubc->isoouturbs[i].urb);
+		usb_free_urb(ubc->isoouturbs[i].urb);
+	}
+	for (i = 0; i < BAS_INURBS; ++i) {
+		usb_kill_urb(ubc->isoinurbs[i]);
+		usb_free_urb(ubc->isoinurbs[i]);
+	}
 	tasklet_kill(&ubc->sent_tasklet);
 	tasklet_kill(&ubc->rcvd_tasklet);
 	kfree(ubc->isooutbuf);
@@ -2099,55 +2108,32 @@ static void freeurbs(struct cardstate *cs)
 	struct bas_bc_state *ubc;
 	int i, j;
 
+	gig_dbg(DEBUG_INIT, "%s: killing URBs", __func__);
 	for (j = 0; j < 2; ++j) {
 		ubc = cs->bcs[j].hw.bas;
-		for (i = 0; i < BAS_OUTURBS; ++i)
-			if (ubc->isoouturbs[i].urb) {
-				usb_kill_urb(ubc->isoouturbs[i].urb);
-				gig_dbg(DEBUG_INIT,
-					"%s: isoc output URB %d/%d unlinked",
-					__func__, j, i);
-				usb_free_urb(ubc->isoouturbs[i].urb);
-				ubc->isoouturbs[i].urb = NULL;
-			}
-		for (i = 0; i < BAS_INURBS; ++i)
-			if (ubc->isoinurbs[i]) {
-				usb_kill_urb(ubc->isoinurbs[i]);
-				gig_dbg(DEBUG_INIT,
-					"%s: isoc input URB %d/%d unlinked",
-					__func__, j, i);
-				usb_free_urb(ubc->isoinurbs[i]);
-				ubc->isoinurbs[i] = NULL;
-			}
+		for (i = 0; i < BAS_OUTURBS; ++i) {
+			usb_kill_urb(ubc->isoouturbs[i].urb);
+			usb_free_urb(ubc->isoouturbs[i].urb);
+			ubc->isoouturbs[i].urb = NULL;
+		}
+		for (i = 0; i < BAS_INURBS; ++i) {
+			usb_kill_urb(ubc->isoinurbs[i]);
+			usb_free_urb(ubc->isoinurbs[i]);
+			ubc->isoinurbs[i] = NULL;
+		}
 	}
-	if (ucs->urb_int_in) {
-		usb_kill_urb(ucs->urb_int_in);
-		gig_dbg(DEBUG_INIT, "%s: interrupt input URB unlinked",
-			__func__);
-		usb_free_urb(ucs->urb_int_in);
-		ucs->urb_int_in = NULL;
-	}
-	if (ucs->urb_cmd_out) {
-		usb_kill_urb(ucs->urb_cmd_out);
-		gig_dbg(DEBUG_INIT, "%s: command output URB unlinked",
-			__func__);
-		usb_free_urb(ucs->urb_cmd_out);
-		ucs->urb_cmd_out = NULL;
-	}
-	if (ucs->urb_cmd_in) {
-		usb_kill_urb(ucs->urb_cmd_in);
-		gig_dbg(DEBUG_INIT, "%s: command input URB unlinked",
-			__func__);
-		usb_free_urb(ucs->urb_cmd_in);
-		ucs->urb_cmd_in = NULL;
-	}
-	if (ucs->urb_ctrl) {
-		usb_kill_urb(ucs->urb_ctrl);
-		gig_dbg(DEBUG_INIT, "%s: control output URB unlinked",
-			__func__);
-		usb_free_urb(ucs->urb_ctrl);
-		ucs->urb_ctrl = NULL;
-	}
+	usb_kill_urb(ucs->urb_int_in);
+	usb_free_urb(ucs->urb_int_in);
+	ucs->urb_int_in = NULL;
+	usb_kill_urb(ucs->urb_cmd_out);
+	usb_free_urb(ucs->urb_cmd_out);
+	ucs->urb_cmd_out = NULL;
+	usb_kill_urb(ucs->urb_cmd_in);
+	usb_free_urb(ucs->urb_cmd_in);
+	ucs->urb_cmd_in = NULL;
+	usb_kill_urb(ucs->urb_ctrl);
+	usb_free_urb(ucs->urb_ctrl);
+	ucs->urb_ctrl = NULL;
 }
 
 /* gigaset_probe
@@ -2218,21 +2204,21 @@ static int gigaset_probe(struct usb_interface *interface,
 	 * - three for the different uses of the default control pipe
 	 * - three for each isochronous pipe
 	 */
-	if (!(ucs->urb_int_in = usb_alloc_urb(0, SLAB_KERNEL)) ||
-	    !(ucs->urb_cmd_in = usb_alloc_urb(0, SLAB_KERNEL)) ||
-	    !(ucs->urb_cmd_out = usb_alloc_urb(0, SLAB_KERNEL)) ||
-	    !(ucs->urb_ctrl = usb_alloc_urb(0, SLAB_KERNEL)))
+	if (!(ucs->urb_int_in = usb_alloc_urb(0, GFP_KERNEL)) ||
+	    !(ucs->urb_cmd_in = usb_alloc_urb(0, GFP_KERNEL)) ||
+	    !(ucs->urb_cmd_out = usb_alloc_urb(0, GFP_KERNEL)) ||
+	    !(ucs->urb_ctrl = usb_alloc_urb(0, GFP_KERNEL)))
 		goto allocerr;
 
 	for (j = 0; j < 2; ++j) {
 		ubc = cs->bcs[j].hw.bas;
 		for (i = 0; i < BAS_OUTURBS; ++i)
 			if (!(ubc->isoouturbs[i].urb =
-			      usb_alloc_urb(BAS_NUMFRAMES, SLAB_KERNEL)))
+			      usb_alloc_urb(BAS_NUMFRAMES, GFP_KERNEL)))
 				goto allocerr;
 		for (i = 0; i < BAS_INURBS; ++i)
 			if (!(ubc->isoinurbs[i] =
-			      usb_alloc_urb(BAS_NUMFRAMES, SLAB_KERNEL)))
+			      usb_alloc_urb(BAS_NUMFRAMES, GFP_KERNEL)))
 				goto allocerr;
 	}
 
@@ -2246,7 +2232,7 @@ static int gigaset_probe(struct usb_interface *interface,
 					(endpoint->bEndpointAddress) & 0x0f),
 			 ucs->int_in_buf, 3, read_int_callback, cs,
 			 endpoint->bInterval);
-	if ((rc = usb_submit_urb(ucs->urb_int_in, SLAB_KERNEL)) != 0) {
+	if ((rc = usb_submit_urb(ucs->urb_int_in, GFP_KERNEL)) != 0) {
 		dev_err(cs->dev, "could not submit interrupt URB: %s\n",
 			get_usb_rcmsg(rc));
 		goto error;

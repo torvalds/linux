@@ -346,7 +346,7 @@ Possible modes:
       depending on the load of the system. If the driver detects that the
       system load is too high, the driver tries to shield the system against 
       too much network load by enabling interrupt moderation. If - at a later
-      time - the CPU utilizaton decreases again (or if the network load is 
+      time - the CPU utilization decreases again (or if the network load is 
       negligible) the interrupt moderation will automatically be disabled.
 
 Interrupt moderation should be used when the driver has to handle one or more

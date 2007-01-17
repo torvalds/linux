@@ -83,7 +83,7 @@ static int __devinit rtc_sysfs_add_device(struct class_device *class_dev,
 {
 	int err;
 
-	dev_info(class_dev->dev, "rtc intf: sysfs\n");
+	dev_dbg(class_dev->dev, "rtc intf: sysfs\n");
 
 	err = sysfs_create_group(&class_dev->kobj, &rtc_attr_group);
 	if (err)

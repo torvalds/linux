@@ -471,6 +471,7 @@ struct dlm_ls {
 	char			*ls_recover_buf;
 	int			ls_recover_nodeid; /* for debugging */
 	uint64_t		ls_rcom_seq;
+	spinlock_t		ls_rcom_spin;
 	struct list_head	ls_recover_list;
 	spinlock_t		ls_recover_list_lock;
 	int			ls_recover_list_count;
@@ -488,7 +489,8 @@ struct dlm_ls {
 #define LSFL_RUNNING		1
 #define LSFL_RECOVERY_STOP	2
 #define LSFL_RCOM_READY		3
-#define LSFL_UEVENT_WAIT	4
+#define LSFL_RCOM_WAIT		4
+#define LSFL_UEVENT_WAIT	5
 
 /* much of this is just saving user space pointers associated with the
    lock that we pass back to the user lib with an ast */

@@ -178,14 +178,20 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
  * the interrupt, and we need to make sure the entry is fully populated
  * before that happens.
  */
+static void
+__ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
+{
+	union entry_union eu;
+	eu.entry = e;
+	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
+	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
+}
+
 static void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
 	unsigned long flags;
-	union entry_union eu;
-	eu.entry = e;
 	spin_lock_irqsave(&ioapic_lock, flags);
-	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
-	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
+	__ioapic_write_entry(apic, pin, e);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
@@ -750,6 +756,22 @@ static int assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result)
 	return vector;
 }
 
+static void __clear_irq_vector(int irq)
+{
+	cpumask_t mask;
+	int cpu, vector;
+
+	BUG_ON(!irq_vector[irq]);
+
+	vector = irq_vector[irq];
+	cpus_and(mask, irq_domain[irq], cpu_online_map);
+	for_each_cpu_mask(cpu, mask)
+		per_cpu(vector_irq, cpu)[vector] = -1;
+
+	irq_vector[irq] = 0;
+	irq_domain[irq] = CPU_MASK_NONE;
+}
+
 void __setup_vector_irq(int cpu)
 {
 	/* Initialize vector_irq on a new cpu */
@@ -794,27 +816,65 @@ static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 					      handle_edge_irq, "edge");
 	}
 }
+static void __init setup_IO_APIC_irq(int apic, int pin, int idx, int irq)
+{
+	struct IO_APIC_route_entry entry;
+	int vector;
+	unsigned long flags;
+
+
+	/*
+	 * add it to the IO-APIC irq-routing table:
+	 */
+	memset(&entry,0,sizeof(entry));
+
+	entry.delivery_mode = INT_DELIVERY_MODE;
+	entry.dest_mode = INT_DEST_MODE;
+	entry.mask = 0;				/* enable IRQ */
+	entry.dest.logical.logical_dest = cpu_mask_to_apicid(TARGET_CPUS);
+
+	entry.trigger = irq_trigger(idx);
+	entry.polarity = irq_polarity(idx);
+
+	if (irq_trigger(idx)) {
+		entry.trigger = 1;
+		entry.mask = 1;
+		entry.dest.logical.logical_dest = cpu_mask_to_apicid(TARGET_CPUS);
+	}
+
+	if (!apic && !IO_APIC_IRQ(irq))
+		return;
+
+	if (IO_APIC_IRQ(irq)) {
+		cpumask_t mask;
+		vector = assign_irq_vector(irq, TARGET_CPUS, &mask);
+		if (vector < 0)
+			return;
+
+		entry.dest.logical.logical_dest = cpu_mask_to_apicid(mask);
+		entry.vector = vector;
+
+		ioapic_register_intr(irq, vector, IOAPIC_AUTO);
+		if (!apic && (irq < 16))
+			disable_8259A_irq(irq);
+	}
+
+	ioapic_write_entry(apic, pin, entry);
+
+	spin_lock_irqsave(&ioapic_lock, flags);
+	set_native_irq_info(irq, TARGET_CPUS);
+	spin_unlock_irqrestore(&ioapic_lock, flags);
+
+}
 
 static void __init setup_IO_APIC_irqs(void)
 {
-	struct IO_APIC_route_entry entry;
-	int apic, pin, idx, irq, first_notcon = 1, vector;
-	unsigned long flags;
+	int apic, pin, idx, irq, first_notcon = 1;
 
 	apic_printk(APIC_VERBOSE, KERN_DEBUG "init IO_APIC IRQs\n");
 
 	for (apic = 0; apic < nr_ioapics; apic++) {
 	for (pin = 0; pin < nr_ioapic_registers[apic]; pin++) {
-
-		/*
-		 * add it to the IO-APIC irq-routing table:
-		 */
-		memset(&entry,0,sizeof(entry));
-
-		entry.delivery_mode = INT_DELIVERY_MODE;
-		entry.dest_mode = INT_DEST_MODE;
-		entry.mask = 0;				/* enable IRQ */
-		entry.dest.logical.logical_dest = cpu_mask_to_apicid(TARGET_CPUS);
 
 		idx = find_irq_entry(apic,pin,mp_INT);
 		if (idx == -1) {
@@ -826,39 +886,11 @@ static void __init setup_IO_APIC_irqs(void)
 			continue;
 		}
 
-		entry.trigger = irq_trigger(idx);
-		entry.polarity = irq_polarity(idx);
-
-		if (irq_trigger(idx)) {
-			entry.trigger = 1;
-			entry.mask = 1;
-			entry.dest.logical.logical_dest = cpu_mask_to_apicid(TARGET_CPUS);
-		}
-
 		irq = pin_2_irq(idx, apic, pin);
 		add_pin_to_irq(irq, apic, pin);
 
-		if (!apic && !IO_APIC_IRQ(irq))
-			continue;
+		setup_IO_APIC_irq(apic, pin, idx, irq);
 
-		if (IO_APIC_IRQ(irq)) {
-			cpumask_t mask;
-			vector = assign_irq_vector(irq, TARGET_CPUS, &mask);
-			if (vector < 0)
-				continue;
-
-			entry.dest.logical.logical_dest = cpu_mask_to_apicid(mask);
-			entry.vector = vector;
-
-			ioapic_register_intr(irq, vector, IOAPIC_AUTO);
-			if (!apic && (irq < 16))
-				disable_8259A_irq(irq);
-		}
-		ioapic_write_entry(apic, pin, entry);
-
-		spin_lock_irqsave(&ioapic_lock, flags);
-		set_native_irq_info(irq, TARGET_CPUS);
-		spin_unlock_irqrestore(&ioapic_lock, flags);
 	}
 	}
 
@@ -1837,7 +1869,7 @@ void destroy_irq(unsigned int irq)
 	dynamic_irq_cleanup(irq);
 
 	spin_lock_irqsave(&vector_lock, flags);
-	irq_vector[irq] = 0;
+	__clear_irq_vector(irq);
 	spin_unlock_irqrestore(&vector_lock, flags);
 }
 
@@ -2139,7 +2171,15 @@ void __init setup_ioapic_dest(void)
 			if (irq_entry == -1)
 				continue;
 			irq = pin_2_irq(irq_entry, ioapic, pin);
-			set_ioapic_affinity_irq(irq, TARGET_CPUS);
+
+			/* setup_IO_APIC_irqs could fail to get vector for some device
+			 * when you have too many devices, because at that time only boot
+			 * cpu is online.
+			 */
+			if(!irq_vector[irq])
+				setup_IO_APIC_irq(ioapic, pin, irq_entry, irq);
+			else
+				set_ioapic_affinity_irq(irq, TARGET_CPUS);
 		}
 
 	}

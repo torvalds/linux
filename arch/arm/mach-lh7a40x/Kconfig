@@ -8,7 +8,7 @@ config MACH_KEV7A400
 	help
 	  Say Y here if you are using the Sharp KEV7A400 development
 	  board.  This hardware is discontinued, so I'd be very
-	  suprised if you wanted this option.
+	  surprised if you wanted this option.
 
 config MACH_LPD7A400
 	bool "LPD7A400 Card Engine"

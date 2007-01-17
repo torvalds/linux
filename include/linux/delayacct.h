@@ -30,7 +30,7 @@
 #ifdef CONFIG_TASK_DELAY_ACCT
 
 extern int delayacct_on;	/* Delay accounting turned on/off */
-extern kmem_cache_t *delayacct_cache;
+extern struct kmem_cache *delayacct_cache;
 extern void delayacct_init(void);
 extern void __delayacct_tsk_init(struct task_struct *);
 extern void __delayacct_tsk_exit(struct task_struct *);

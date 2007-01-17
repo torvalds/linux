@@ -190,7 +190,10 @@ sun4v_res_mondo:
 	mov	%g1, %g4
 	ba,pt	%xcc, etrap_irq
 	 rd	%pc, %g7
-
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call		trace_hardirqs_off
+	 nop
+#endif
 	/* Log the event.  */
 	add	%sp, PTREGS_OFF, %o0
 	call	sun4v_resum_error
@@ -216,7 +219,10 @@ sun4v_res_mondo_queue_full:
 	wrpr	%g0, 15, %pil
 	ba,pt	%xcc, etrap_irq
 	 rd	%pc, %g7
-
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call		trace_hardirqs_off
+	 nop
+#endif
 	call	sun4v_resum_overflow
 	 add	%sp, PTREGS_OFF, %o0
 
@@ -295,7 +301,10 @@ sun4v_nonres_mondo:
 	mov	%g1, %g4
 	ba,pt	%xcc, etrap_irq
 	 rd	%pc, %g7
-
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call		trace_hardirqs_off
+	 nop
+#endif
 	/* Log the event.  */
 	add	%sp, PTREGS_OFF, %o0
 	call	sun4v_nonresum_error
@@ -321,7 +330,10 @@ sun4v_nonres_mondo_queue_full:
 	wrpr	%g0, 15, %pil
 	ba,pt	%xcc, etrap_irq
 	 rd	%pc, %g7
-
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call		trace_hardirqs_off
+	 nop
+#endif
 	call	sun4v_nonresum_overflow
 	 add	%sp, PTREGS_OFF, %o0
 

@@ -149,7 +149,7 @@ static int warrior_connect(struct serio *serio, struct serio_driver *drv)
 	warrior = kzalloc(sizeof(struct warrior), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!warrior || !input_dev)
-		goto fail;
+		goto fail1;
 
 	warrior->dev = input_dev;
 	snprintf(warrior->phys, sizeof(warrior->phys), "%s/input0", serio->phys);
@@ -176,13 +176,17 @@ static int warrior_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto fail;
+		goto fail2;
 
-	input_register_device(warrior->dev);
+	err = input_register_device(warrior->dev);
+	if (err)
+		goto fail3;
+
 	return 0;
 
- fail:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+ fail3:	serio_close(serio);
+ fail2:	serio_set_drvdata(serio, NULL);
+ fail1:	input_free_device(input_dev);
 	kfree(warrior);
 	return err;
 }
@@ -220,8 +224,7 @@ static struct serio_driver warrior_drv = {
 
 static int __init warrior_init(void)
 {
-	serio_register_driver(&warrior_drv);
-	return 0;
+	return serio_register_driver(&warrior_drv);
 }
 
 static void __exit warrior_exit(void)

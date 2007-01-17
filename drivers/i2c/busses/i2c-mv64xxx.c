@@ -529,6 +529,8 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	platform_set_drvdata(pd, drv_data);
 	i2c_set_adapdata(&drv_data->adapter, drv_data);
 
+	mv64xxx_i2c_hw_init(drv_data);
+
 	if (request_irq(drv_data->irq, mv64xxx_i2c_intr, 0,
 			MV64XXX_I2C_CTLR_NAME, drv_data)) {
 		dev_err(&drv_data->adapter.dev,
@@ -541,8 +543,6 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 			"mv64xxx: Can't add i2c adapter, rc: %d\n", -rc);
 		goto exit_free_irq;
 	}
-
-	mv64xxx_i2c_hw_init(drv_data);
 
 	return 0;
 

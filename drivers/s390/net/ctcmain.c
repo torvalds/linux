@@ -1646,7 +1646,7 @@ add_channel(struct ccw_device *cdev, enum channel_types type)
 		return -1;
 	}
 	memset(ch, 0, sizeof (struct channel));
-	if ((ch->ccw = (struct ccw1 *) kmalloc(8*sizeof(struct ccw1),
+	if ((ch->ccw = kmalloc(8*sizeof(struct ccw1),
 					       GFP_KERNEL | GFP_DMA)) == NULL) {
 		kfree(ch);
 		ctc_pr_warn("ctc: Out of memory in add_channel\n");
@@ -1693,7 +1693,7 @@ add_channel(struct ccw_device *cdev, enum channel_types type)
 		return -1;
 	}
 	fsm_newstate(ch->fsm, CH_STATE_IDLE);
-	if ((ch->irb = (struct irb *) kmalloc(sizeof (struct irb),
+	if ((ch->irb = kmalloc(sizeof (struct irb),
 					      GFP_KERNEL)) == NULL) {
 		ctc_pr_warn("ctc: Out of memory in add_channel\n");
 		kfree_fsm(ch->fsm);
@@ -2535,7 +2535,7 @@ ctc_print_statistics(struct ctc_priv *priv)
 	DBF_TEXT(trace, 4, __FUNCTION__);
 	if (!priv)
 		return;
-	sbuf = (char *)kmalloc(2048, GFP_KERNEL);
+	sbuf = kmalloc(2048, GFP_KERNEL);
 	if (sbuf == NULL)
 		return;
 	p = sbuf;

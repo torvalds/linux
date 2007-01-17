@@ -39,7 +39,7 @@ struct buffer_head *ocfs2_find_entry(const char *name,
 				     struct inode *dir,
 				     struct ocfs2_dir_entry **res_dir);
 int ocfs2_orphan_del(struct ocfs2_super *osb,
-		     struct ocfs2_journal_handle *handle,
+		     handle_t *handle,
 		     struct inode *orphan_dir_inode,
 		     struct inode *inode,
 		     struct buffer_head *orphan_dir_bh);

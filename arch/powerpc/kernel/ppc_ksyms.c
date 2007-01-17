@@ -49,6 +49,10 @@
 #include <asm/commproc.h>
 #endif
 
+#ifdef CONFIG_PPC64
+EXPORT_SYMBOL(local_irq_restore);
+#endif
+
 #ifdef CONFIG_PPC32
 extern void transfer_to_handler(void);
 extern void do_IRQ(struct pt_regs *regs);
@@ -204,7 +208,7 @@ EXPORT_SYMBOL(mmu_hash_lock); /* For MOL */
 extern long *intercept_table;
 EXPORT_SYMBOL(intercept_table);
 #endif /* CONFIG_PPC_STD_MMU_32 */
-#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_DCR_NATIVE
 EXPORT_SYMBOL(__mtdcr);
 EXPORT_SYMBOL(__mfdcr);
 #endif

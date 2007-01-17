@@ -266,7 +266,7 @@ static struct scsi_host_template *the_template = NULL;
 	(struct NCR5380_hostdata *)(in)->hostdata
 #define	HOSTDATA(in) ((struct NCR5380_hostdata *)(in)->hostdata)
 
-#define	NEXT(cmd)	((struct scsi_cmnd *)((cmd)->host_scribble))
+#define	NEXT(cmd)	(*(struct scsi_cmnd **)&((cmd)->host_scribble))
 #define	NEXTADDR(cmd)	((struct scsi_cmnd **)&((cmd)->host_scribble))
 
 #define	HOSTNO		instance->host_no
@@ -650,7 +650,7 @@ __inline__ void NCR5380_print_phase(struct Scsi_Host *instance) { };
 #include <linux/interrupt.h>
 
 static volatile int main_running = 0;
-static DECLARE_WORK(NCR5380_tqueue, (void (*)(void*))NCR5380_main, NULL);
+static DECLARE_WORK(NCR5380_tqueue, NCR5380_main);
 
 static __inline__ void queue_main(void)
 {
@@ -1031,7 +1031,7 @@ static int NCR5380_queue_command(struct scsi_cmnd *cmd,
  *  reenable them.  This prevents reentrancy and kernel stack overflow.
  */ 	
     
-static void NCR5380_main (void *bl)
+static void NCR5380_main (struct work_struct *bl)
 {
     struct scsi_cmnd *tmp, *prev;
     struct Scsi_Host *instance = first_instance;
@@ -1271,7 +1271,7 @@ static irqreturn_t NCR5380_intr (int irq, void *dev_id)
 	NCR_PRINT(NDEBUG_INTR);
 	if ((NCR5380_read(STATUS_REG) & (SR_SEL|SR_IO)) == (SR_SEL|SR_IO)) {
 	    done = 0;
-	    ENABLE_IRQ();
+//	    ENABLE_IRQ();
 	    INT_PRINTK("scsi%d: SEL interrupt\n", HOSTNO);
 	    NCR5380_reselect(instance);
 	    (void) NCR5380_read(RESET_PARITY_INTERRUPT_REG);
@@ -1304,7 +1304,7 @@ static irqreturn_t NCR5380_intr (int irq, void *dev_id)
 		INT_PRINTK("scsi%d: PHASE MISM or EOP interrupt\n", HOSTNO);
 		NCR5380_dma_complete( instance );
 		done = 0;
-		ENABLE_IRQ();
+//		ENABLE_IRQ();
 	    } else
 #endif /* REAL_DMA */
 	    {

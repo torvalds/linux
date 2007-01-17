@@ -60,6 +60,7 @@ enum ib_cm_state {
 };
 
 enum ib_cm_lap_state {
+	IB_CM_LAP_UNINIT,
 	IB_CM_LAP_IDLE,
 	IB_CM_LAP_SENT,
 	IB_CM_LAP_RCVD,
@@ -443,13 +444,20 @@ int ib_send_cm_drep(struct ib_cm_id *cm_id,
 		    u8 private_data_len);
 
 /**
- * ib_cm_establish - Forces a connection state to established.
+ * ib_cm_notify - Notifies the CM of an event reported to the consumer.
  * @cm_id: Connection identifier to transition to established.
+ * @event: Type of event.
  *
- * This routine should be invoked by users who receive messages on a
- * connected QP before an RTU has been received.
+ * This routine should be invoked by users to notify the CM of relevant
+ * communication events.  Events that should be reported to the CM and
+ * when to report them are:
+ *
+ * IB_EVENT_COMM_EST - Used when a message is received on a connected
+ *    QP before an RTU has been received.
+ * IB_EVENT_PATH_MIG - Notifies the CM that the connection has failed over
+ *   to the alternate path.
  */
-int ib_cm_establish(struct ib_cm_id *cm_id);
+int ib_cm_notify(struct ib_cm_id *cm_id, enum ib_event_type event);
 
 /**
  * ib_send_cm_rej - Sends a connection rejection message to the

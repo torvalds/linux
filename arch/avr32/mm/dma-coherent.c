@@ -11,7 +11,7 @@
 #include <asm/addrspace.h>
 #include <asm/cacheflush.h>
 
-void dma_cache_sync(void *vaddr, size_t size, int direction)
+void dma_cache_sync(struct device *dev, void *vaddr, size_t size, int direction)
 {
 	/*
 	 * No need to sync an uncached area

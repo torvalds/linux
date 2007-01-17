@@ -26,6 +26,14 @@ config MMU
 	bool
 	default y
 
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
 config TIME_INTERPOLATION
 	bool
 	default y
@@ -33,6 +41,14 @@ config TIME_INTERPOLATION
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
+
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
 
 config AUDIT_ARCH
 	bool

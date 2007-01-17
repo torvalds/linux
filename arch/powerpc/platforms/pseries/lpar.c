@@ -282,7 +282,7 @@ void vpa_init(int cpu)
 	}
 }
 
-long pSeries_lpar_hpte_insert(unsigned long hpte_group,
+static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
  			      unsigned long va, unsigned long pa,
  			      unsigned long rflags, unsigned long vflags,
  			      int psize)
@@ -506,7 +506,7 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
  * Take a spinlock around flushes to avoid bouncing the hypervisor tlbie
  * lock.
  */
-void pSeries_lpar_flush_hash_range(unsigned long number, int local)
+static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 {
 	int i;
 	unsigned long flags = 0;

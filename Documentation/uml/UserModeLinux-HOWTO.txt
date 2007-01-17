@@ -1477,7 +1477,7 @@
 
 
 
-  Making it world-writeable looks bad, but it seems not to be
+  Making it world-writable looks bad, but it seems not to be
   exploitable as a security hole.  However, it does allow anyone to cre-
   ate useless tap devices (useless because they can't configure them),
   which is a DOS attack.  A somewhat more secure alternative would to be

@@ -667,7 +667,7 @@ isdn_ppp_poll(struct file *file, poll_table * wait)
 
 	if (is->debug & 0x2)
 		printk(KERN_DEBUG "isdn_ppp_poll: minor: %d\n",
-				iminor(file->f_dentry->d_inode));
+				iminor(file->f_path.dentry->d_inode));
 
 	/* just registers wait_queue hook. This doesn't really wait. */
 	poll_wait(file, &is->wq, wait);
@@ -717,7 +717,7 @@ isdn_ppp_fill_rq(unsigned char *buf, int len, int proto, int slot)
 		printk(KERN_DEBUG "ippp: device not activated.\n");
 		return 0;
 	}
-	nbuf = (unsigned char *) kmalloc(len + 4, GFP_ATOMIC);
+	nbuf = kmalloc(len + 4, GFP_ATOMIC);
 	if (!nbuf) {
 		printk(KERN_WARNING "ippp: Can't alloc buf\n");
 		return 0;
@@ -876,14 +876,12 @@ isdn_ppp_init(void)
 #endif /* CONFIG_ISDN_MPP */
 
 	for (i = 0; i < ISDN_MAX_CHANNELS; i++) {
-		if (!(ippp_table[i] = (struct ippp_struct *)
-		      kmalloc(sizeof(struct ippp_struct), GFP_KERNEL))) {
+		if (!(ippp_table[i] = kzalloc(sizeof(struct ippp_struct), GFP_KERNEL))) {
 			printk(KERN_WARNING "isdn_ppp_init: Could not alloc ippp_table\n");
 			for (j = 0; j < i; j++)
 				kfree(ippp_table[j]);
 			return -1;
 		}
-		memset((char *) ippp_table[i], 0, sizeof(struct ippp_struct));
 		spin_lock_init(&ippp_table[i]->buflock);
 		ippp_table[i]->state = 0;
 		ippp_table[i]->first = ippp_table[i]->rq + NUM_RCV_BUFFS - 1;
@@ -1529,10 +1527,8 @@ static int isdn_ppp_mp_bundle_array_init(void)
 {
 	int i;
 	int sz = ISDN_MAX_CHANNELS*sizeof(ippp_bundle);
-	if( (isdn_ppp_bundle_arr = (ippp_bundle*)kmalloc(sz, 
-							GFP_KERNEL)) == NULL )
+	if( (isdn_ppp_bundle_arr = kzalloc(sz, GFP_KERNEL)) == NULL )
 		return -ENOMEM;
-	memset(isdn_ppp_bundle_arr, 0, sz);
 	for( i = 0; i < ISDN_MAX_CHANNELS; i++ )
 		spin_lock_init(&isdn_ppp_bundle_arr[i].lock);
 	return 0;
@@ -2246,13 +2242,12 @@ static void isdn_ppp_ccp_xmit_reset(struct ippp_struct *is, int proto,
 static struct ippp_ccp_reset *isdn_ppp_ccp_reset_alloc(struct ippp_struct *is)
 {
 	struct ippp_ccp_reset *r;
-	r = kmalloc(sizeof(struct ippp_ccp_reset), GFP_KERNEL);
+	r = kzalloc(sizeof(struct ippp_ccp_reset), GFP_KERNEL);
 	if(!r) {
 		printk(KERN_ERR "ippp_ccp: failed to allocate reset data"
 		       " structure - no mem\n");
 		return NULL;
 	}
-	memset(r, 0, sizeof(struct ippp_ccp_reset));
 	printk(KERN_DEBUG "ippp_ccp: allocated reset data structure %p\n", r);
 	is->reset = r;
 	return r;
@@ -2338,13 +2333,13 @@ static struct ippp_ccp_reset_state *isdn_ppp_ccp_reset_alloc_state(struct ippp_s
 		       id);
 		return NULL;
 	} else {
-		rs = kmalloc(sizeof(struct ippp_ccp_reset_state), GFP_KERNEL);
+		rs = kzalloc(sizeof(struct ippp_ccp_reset_state), GFP_KERNEL);
 		if(!rs)
 			return NULL;
-		memset(rs, 0, sizeof(struct ippp_ccp_reset_state));
 		rs->state = CCPResetIdle;
 		rs->is = is;
 		rs->id = id;
+		init_timer(&rs->timer);
 		rs->timer.data = (unsigned long)rs;
 		rs->timer.function = isdn_ppp_ccp_timer_callback;
 		is->reset->rs[id] = rs;
@@ -2536,6 +2531,11 @@ static struct sk_buff *isdn_ppp_decompress(struct sk_buff *skb,struct ippp_struc
   		rsparm.maxdlen = IPPP_RESET_MAXDATABYTES;
   
   		skb_out = dev_alloc_skb(is->mru + PPP_HDRLEN);
+  		if (!skb_out) {
+  			kfree_skb(skb);
+  			printk(KERN_ERR "ippp: decomp memory allocation failure\n");
+			return NULL;
+  		}
 		len = ipc->decompress(stat, skb, skb_out, &rsparm);
 		kfree_skb(skb);
 		if (len <= 0) {

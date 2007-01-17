@@ -34,7 +34,7 @@ DEFINE_PER_CPU(struct hcall_stats[HCALL_STAT_ARRAY_SIZE], hcall_stats);
  */
 static void *hc_start(struct seq_file *m, loff_t *pos)
 {
-	if ((int)*pos < HCALL_STAT_ARRAY_SIZE)
+	if ((int)*pos < (HCALL_STAT_ARRAY_SIZE-1))
 		return (void *)(unsigned long)(*pos + 1);
 
 	return NULL;
@@ -57,7 +57,7 @@ static int hc_show(struct seq_file *m, void *p)
 	struct hcall_stats *hs = (struct hcall_stats *)m->private;
 
 	if (hs[h_num].num_calls) {
-		if (!cpu_has_feature(CPU_FTR_PURR))
+		if (cpu_has_feature(CPU_FTR_PURR))
 			seq_printf(m, "%lu %lu %lu %lu\n", h_num<<2,
 				   hs[h_num].num_calls,
 				   hs[h_num].tb_total,
@@ -85,7 +85,7 @@ static int hcall_inst_seq_open(struct inode *inode, struct file *file)
 
 	rc = seq_open(file, &hcall_inst_seq_ops);
 	seq = file->private_data;
-	seq->private = file->f_dentry->d_inode->i_private;
+	seq->private = file->f_path.dentry->d_inode->i_private;
 
 	return rc;
 }

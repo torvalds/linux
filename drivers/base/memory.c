@@ -290,9 +290,8 @@ static CLASS_ATTR(block_size_bytes, 0444, print_block_size, NULL);
 
 static int block_size_init(void)
 {
-	sysfs_create_file(&memory_sysdev_class.kset.kobj,
-		&class_attr_block_size_bytes.attr);
-	return 0;
+	return sysfs_create_file(&memory_sysdev_class.kset.kobj,
+				&class_attr_block_size_bytes.attr);
 }
 
 /*
@@ -323,12 +322,14 @@ static CLASS_ATTR(probe, 0700, NULL, memory_probe_store);
 
 static int memory_probe_init(void)
 {
-	sysfs_create_file(&memory_sysdev_class.kset.kobj,
-		&class_attr_probe.attr);
-	return 0;
+	return sysfs_create_file(&memory_sysdev_class.kset.kobj,
+				&class_attr_probe.attr);
 }
 #else
-#define memory_probe_init(...)	do {} while (0)
+static inline int memory_probe_init(void)
+{
+	return 0;
+}
 #endif
 
 /*
@@ -431,9 +432,12 @@ int __init memory_dev_init(void)
 {
 	unsigned int i;
 	int ret;
+	int err;
 
 	memory_sysdev_class.kset.uevent_ops = &memory_uevent_ops;
 	ret = sysdev_class_register(&memory_sysdev_class);
+	if (ret)
+		goto out;
 
 	/*
 	 * Create entries for memory sections that were found
@@ -442,11 +446,19 @@ int __init memory_dev_init(void)
 	for (i = 0; i < NR_MEM_SECTIONS; i++) {
 		if (!valid_section_nr(i))
 			continue;
-		add_memory_block(0, __nr_to_section(i), MEM_ONLINE, 0);
+		err = add_memory_block(0, __nr_to_section(i), MEM_ONLINE, 0);
+		if (!ret)
+			ret = err;
 	}
 
-	memory_probe_init();
-	block_size_init();
-
+	err = memory_probe_init();
+	if (!ret)
+		ret = err;
+	err = block_size_init();
+	if (!ret)
+		ret = err;
+out:
+	if (ret)
+		printk(KERN_ERR "%s() failed: %d\n", __FUNCTION__, ret);
 	return ret;
 }

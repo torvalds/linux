@@ -267,6 +267,10 @@ static int tuner_fixup_std(struct tuner *t)
 {
 	if ((t->std & V4L2_STD_PAL) == V4L2_STD_PAL) {
 		switch (pal[0]) {
+		case '6':
+			tuner_dbg ("insmod fixup: PAL => PAL-60\n");
+			t->std = V4L2_STD_PAL_60;
+			break;
 		case 'b':
 		case 'B':
 		case 'g':
@@ -443,6 +447,10 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 			printk("%02x ",buffer[i]);
 		printk("\n");
 	}
+	/* HACK: This test were added to avoid tuner to probe tda9840 and tea6415c on the MXB card */
+	if (adap->id == I2C_HW_SAA7146 && addr < 0x4a)
+		return -ENODEV;
+
 	/* autodetection code based on the i2c addr */
 	if (!no_autodetect) {
 		switch (addr) {

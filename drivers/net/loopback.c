@@ -229,9 +229,11 @@ struct net_device loopback_dev = {
 };
 
 /* Setup and register the loopback device. */
-int __init loopback_init(void)
+static int __init loopback_init(void)
 {
 	return register_netdev(&loopback_dev);
 };
+
+module_init(loopback_init);
 
 EXPORT_SYMBOL(loopback_dev);

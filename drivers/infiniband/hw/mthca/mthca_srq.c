@@ -120,7 +120,7 @@ static void mthca_arbel_init_srq_context(struct mthca_dev *dev,
 
 	memset(context, 0, sizeof *context);
 
-	logsize = long_log2(srq->max) + srq->wqe_shift;
+	logsize = ilog2(srq->max);
 	context->state_logsize_srqn = cpu_to_be32(logsize << 24 | srq->srqn);
 	context->lkey = cpu_to_be32(srq->mr.ibmr.lkey);
 	context->db_index = cpu_to_be32(srq->db_index);
@@ -213,7 +213,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	if (!mthca_is_memfree(dev) && (ds > dev->limits.max_desc_sz))
 		return -EINVAL;
 
-	srq->wqe_shift = long_log2(ds);
+	srq->wqe_shift = ilog2(ds);
 
 	srq->srqn = mthca_alloc(&dev->srq_table.alloc);
 	if (srq->srqn == -1)
@@ -715,7 +715,7 @@ int mthca_max_srq_sge(struct mthca_dev *dev)
 		     sizeof (struct mthca_data_seg));
 }
 
-int __devinit mthca_init_srq_table(struct mthca_dev *dev)
+int mthca_init_srq_table(struct mthca_dev *dev)
 {
 	int err;
 

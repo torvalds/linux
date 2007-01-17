@@ -57,9 +57,6 @@ static int ocfs2_recover_node(struct ocfs2_super *osb,
 static int __ocfs2_recovery_thread(void *arg);
 static int ocfs2_commit_cache(struct ocfs2_super *osb);
 static int ocfs2_wait_on_mount(struct ocfs2_super *osb);
-static void ocfs2_handle_cleanup_locks(struct ocfs2_journal *journal,
-				       struct ocfs2_journal_handle *handle);
-static void ocfs2_commit_unstarted_handle(struct ocfs2_journal_handle *handle);
 static int ocfs2_journal_toggle_dirty(struct ocfs2_super *osb,
 				      int dirty);
 static int ocfs2_trylock_journal(struct ocfs2_super *osb,
@@ -113,46 +110,18 @@ finally:
 	return status;
 }
 
-struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb)
-{
-	struct ocfs2_journal_handle *retval = NULL;
-
-	retval = kcalloc(1, sizeof(*retval), GFP_NOFS);
-	if (!retval) {
-		mlog(ML_ERROR, "Failed to allocate memory for journal "
-		     "handle!\n");
-		return NULL;
-	}
-
-	retval->max_buffs = 0;
-	retval->num_locks = 0;
-	retval->k_handle = NULL;
-
-	INIT_LIST_HEAD(&retval->locks);
-	INIT_LIST_HEAD(&retval->inode_list);
-	retval->journal = osb->journal;
-
-	return retval;
-}
-
 /* pass it NULL and it will allocate a new handle object for you.  If
  * you pass it a handle however, it may still return error, in which
  * case it has free'd the passed handle for you. */
-struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
-					       struct ocfs2_journal_handle *handle,
-					       int max_buffs)
+handle_t *ocfs2_start_trans(struct ocfs2_super *osb, int max_buffs)
 {
-	int ret;
 	journal_t *journal = osb->journal->j_journal;
-
-	mlog_entry("(max_buffs = %d)\n", max_buffs);
+	handle_t *handle;
 
 	BUG_ON(!osb || !osb->journal->j_journal);
 
-	if (ocfs2_is_hard_readonly(osb)) {
-		ret = -EROFS;
-		goto done_free;
-	}
+	if (ocfs2_is_hard_readonly(osb))
+		return ERR_PTR(-EROFS);
 
 	BUG_ON(osb->journal->j_state == OCFS2_JOURNAL_FREE);
 	BUG_ON(max_buffs <= 0);
@@ -163,154 +132,41 @@ struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 		BUG();
 	}
 
-	if (!handle)
-		handle = ocfs2_alloc_handle(osb);
-	if (!handle) {
-		ret = -ENOMEM;
-		mlog(ML_ERROR, "Failed to allocate memory for journal "
-		     "handle!\n");
-		goto done_free;
-	}
-
-	handle->max_buffs = max_buffs;
-
 	down_read(&osb->journal->j_trans_barrier);
 
-	/* actually start the transaction now */
-	handle->k_handle = journal_start(journal, max_buffs);
-	if (IS_ERR(handle->k_handle)) {
+	handle = journal_start(journal, max_buffs);
+	if (IS_ERR(handle)) {
 		up_read(&osb->journal->j_trans_barrier);
 
-		ret = PTR_ERR(handle->k_handle);
-		handle->k_handle = NULL;
-		mlog_errno(ret);
+		mlog_errno(PTR_ERR(handle));
 
 		if (is_journal_aborted(journal)) {
 			ocfs2_abort(osb->sb, "Detected aborted journal");
-			ret = -EROFS;
+			handle = ERR_PTR(-EROFS);
 		}
-		goto done_free;
+	} else {
+		if (!ocfs2_mount_local(osb))
+			atomic_inc(&(osb->journal->j_num_trans));
 	}
 
-	atomic_inc(&(osb->journal->j_num_trans));
-	handle->flags |= OCFS2_HANDLE_STARTED;
-
-	mlog_exit_ptr(handle);
 	return handle;
-
-done_free:
-	if (handle)
-		ocfs2_commit_unstarted_handle(handle); /* will kfree handle */
-
-	mlog_exit(ret);
-	return ERR_PTR(ret);
 }
 
-void ocfs2_handle_add_inode(struct ocfs2_journal_handle *handle,
-			    struct inode *inode)
+int ocfs2_commit_trans(struct ocfs2_super *osb,
+		       handle_t *handle)
 {
-	BUG_ON(!handle);
-	BUG_ON(!inode);
-
-	atomic_inc(&inode->i_count);
-
-	/* we're obviously changing it... */
-	mutex_lock(&inode->i_mutex);
-
-	/* sanity check */
-	BUG_ON(OCFS2_I(inode)->ip_handle);
-	BUG_ON(!list_empty(&OCFS2_I(inode)->ip_handle_list));
-
-	OCFS2_I(inode)->ip_handle = handle;
-	list_move_tail(&(OCFS2_I(inode)->ip_handle_list), &(handle->inode_list));
-}
-
-static void ocfs2_handle_unlock_inodes(struct ocfs2_journal_handle *handle)
-{
-	struct list_head *p, *n;
-	struct inode *inode;
-	struct ocfs2_inode_info *oi;
-
-	list_for_each_safe(p, n, &handle->inode_list) {
-		oi = list_entry(p, struct ocfs2_inode_info,
-				ip_handle_list);
-		inode = &oi->vfs_inode;
-
-		OCFS2_I(inode)->ip_handle = NULL;
-		list_del_init(&OCFS2_I(inode)->ip_handle_list);
-
-		mutex_unlock(&inode->i_mutex);
-		iput(inode);
-	}
-}
-
-/* This is trivial so we do it out of the main commit
- * paths. Beware, it can be called from start_trans too! */
-static void ocfs2_commit_unstarted_handle(struct ocfs2_journal_handle *handle)
-{
-	mlog_entry_void();
-
-	BUG_ON(handle->flags & OCFS2_HANDLE_STARTED);
-
-	ocfs2_handle_unlock_inodes(handle);
-	/* You are allowed to add journal locks before the transaction
-	 * has started. */
-	ocfs2_handle_cleanup_locks(handle->journal, handle);
-
-	kfree(handle);
-
-	mlog_exit_void();
-}
-
-void ocfs2_commit_trans(struct ocfs2_journal_handle *handle)
-{
-	handle_t *jbd_handle;
-	int retval;
-	struct ocfs2_journal *journal = handle->journal;
-
-	mlog_entry_void();
+	int ret;
+	struct ocfs2_journal *journal = osb->journal;
 
 	BUG_ON(!handle);
 
-	if (!(handle->flags & OCFS2_HANDLE_STARTED)) {
-		ocfs2_commit_unstarted_handle(handle);
-		mlog_exit_void();
-		return;
-	}
-
-	/* release inode semaphores we took during this transaction */
-	ocfs2_handle_unlock_inodes(handle);
-
-	/* ocfs2_extend_trans may have had to call journal_restart
-	 * which will always commit the transaction, but may return
-	 * error for any number of reasons. If this is the case, we
-	 * clear k_handle as it's not valid any more. */
-	if (handle->k_handle) {
-		jbd_handle = handle->k_handle;
-
-		if (handle->flags & OCFS2_HANDLE_SYNC)
-			jbd_handle->h_sync = 1;
-		else
-			jbd_handle->h_sync = 0;
-
-		/* actually stop the transaction. if we've set h_sync,
-		 * it'll have been committed when we return */
-		retval = journal_stop(jbd_handle);
-		if (retval < 0) {
-			mlog_errno(retval);
-			mlog(ML_ERROR, "Could not commit transaction\n");
-			BUG();
-		}
-
-		handle->k_handle = NULL; /* it's been free'd in journal_stop */
-	}
-
-	ocfs2_handle_cleanup_locks(journal, handle);
+	ret = journal_stop(handle);
+	if (ret < 0)
+		mlog_errno(ret);
 
 	up_read(&journal->j_trans_barrier);
 
-	kfree(handle);
-	mlog_exit_void();
+	return ret;
 }
 
 /*
@@ -326,20 +182,18 @@ void ocfs2_commit_trans(struct ocfs2_journal_handle *handle)
  * good because transaction ids haven't yet been recorded on the
  * cluster locks associated with this handle.
  */
-int ocfs2_extend_trans(struct ocfs2_journal_handle *handle,
-		       int nblocks)
+int ocfs2_extend_trans(handle_t *handle, int nblocks)
 {
 	int status;
 
 	BUG_ON(!handle);
-	BUG_ON(!(handle->flags & OCFS2_HANDLE_STARTED));
 	BUG_ON(!nblocks);
 
 	mlog_entry_void();
 
 	mlog(0, "Trying to extend transaction by %d blocks\n", nblocks);
 
-	status = journal_extend(handle->k_handle, nblocks);
+	status = journal_extend(handle, nblocks);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -347,15 +201,12 @@ int ocfs2_extend_trans(struct ocfs2_journal_handle *handle,
 
 	if (status > 0) {
 		mlog(0, "journal_extend failed, trying journal_restart\n");
-		status = journal_restart(handle->k_handle, nblocks);
+		status = journal_restart(handle, nblocks);
 		if (status < 0) {
-			handle->k_handle = NULL;
 			mlog_errno(status);
 			goto bail;
 		}
-		handle->max_buffs = nblocks;
-	} else
-		handle->max_buffs += nblocks;
+	}
 
 	status = 0;
 bail:
@@ -364,7 +215,7 @@ bail:
 	return status;
 }
 
-int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
+int ocfs2_journal_access(handle_t *handle,
 			 struct inode *inode,
 			 struct buffer_head *bh,
 			 int type)
@@ -374,7 +225,6 @@ int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
 	BUG_ON(!inode);
 	BUG_ON(!handle);
 	BUG_ON(!bh);
-	BUG_ON(!(handle->flags & OCFS2_HANDLE_STARTED));
 
 	mlog_entry("bh->b_blocknr=%llu, type=%d (\"%s\"), bh->b_size = %zu\n",
 		   (unsigned long long)bh->b_blocknr, type,
@@ -403,11 +253,11 @@ int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
 	switch (type) {
 	case OCFS2_JOURNAL_ACCESS_CREATE:
 	case OCFS2_JOURNAL_ACCESS_WRITE:
-		status = journal_get_write_access(handle->k_handle, bh);
+		status = journal_get_write_access(handle, bh);
 		break;
 
 	case OCFS2_JOURNAL_ACCESS_UNDO:
-		status = journal_get_undo_access(handle->k_handle, bh);
+		status = journal_get_undo_access(handle, bh);
 		break;
 
 	default:
@@ -424,17 +274,15 @@ int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
 	return status;
 }
 
-int ocfs2_journal_dirty(struct ocfs2_journal_handle *handle,
+int ocfs2_journal_dirty(handle_t *handle,
 			struct buffer_head *bh)
 {
 	int status;
 
-	BUG_ON(!(handle->flags & OCFS2_HANDLE_STARTED));
-
 	mlog_entry("(bh->b_blocknr=%llu)\n",
 		   (unsigned long long)bh->b_blocknr);
 
-	status = journal_dirty_metadata(handle->k_handle, bh);
+	status = journal_dirty_metadata(handle, bh);
 	if (status < 0)
 		mlog(ML_ERROR, "Could not dirty metadata buffer. "
 		     "(bh->b_blocknr=%llu)\n",
@@ -454,59 +302,6 @@ int ocfs2_journal_dirty_data(handle_t *handle,
 	 * error here. */
 
 	return err;
-}
-
-/* We always assume you're adding a metadata lock at level 'ex' */
-int ocfs2_handle_add_lock(struct ocfs2_journal_handle *handle,
-			  struct inode *inode)
-{
-	int status;
-	struct ocfs2_journal_lock *lock;
-
-	BUG_ON(!inode);
-
-	lock = kmem_cache_alloc(ocfs2_lock_cache, GFP_NOFS);
-	if (!lock) {
-		status = -ENOMEM;
-		mlog_errno(-ENOMEM);
-		goto bail;
-	}
-
-	if (!igrab(inode))
-		BUG();
-	lock->jl_inode = inode;
-
-	list_add_tail(&(lock->jl_lock_list), &(handle->locks));
-	handle->num_locks++;
-
-	status = 0;
-bail:
-	mlog_exit(status);
-	return status;
-}
-
-static void ocfs2_handle_cleanup_locks(struct ocfs2_journal *journal,
-				       struct ocfs2_journal_handle *handle)
-{
-	struct list_head *p, *n;
-	struct ocfs2_journal_lock *lock;
-	struct inode *inode;
-
-	list_for_each_safe(p, n, &(handle->locks)) {
-		lock = list_entry(p, struct ocfs2_journal_lock,
-				  jl_lock_list);
-		list_del(&lock->jl_lock_list);
-		handle->num_locks--;
-
-		inode = lock->jl_inode;
-		ocfs2_meta_unlock(inode, 1);
-		if (atomic_read(&inode->i_count) == 1)
-			mlog(ML_ERROR,
-			     "Inode %llu, I'm doing a last iput for!",
-			     (unsigned long long)OCFS2_I(inode)->ip_blkno);
-		iput(inode);
-		kmem_cache_free(ocfs2_lock_cache, lock);
-	}
 }
 
 #define OCFS2_DEFAULT_COMMIT_INTERVAL 	(HZ * 5)
@@ -562,8 +357,7 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	/* Skip recovery waits here - journal inode metadata never
 	 * changes in a live cluster so it can be considered an
 	 * exception to the rule. */
-	status = ocfs2_meta_lock_full(inode, NULL, &bh, 1,
-				      OCFS2_META_LOCK_RECOVERY);
+	status = ocfs2_meta_lock_full(inode, &bh, 1, OCFS2_META_LOCK_RECOVERY);
 	if (status < 0) {
 		if (status != -ERESTARTSYS)
 			mlog(ML_ERROR, "Could not get lock on journal!\n");
@@ -715,9 +509,23 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 
 	BUG_ON(atomic_read(&(osb->journal->j_num_trans)) != 0);
 
-	status = ocfs2_journal_toggle_dirty(osb, 0);
-	if (status < 0)
-		mlog_errno(status);
+	if (ocfs2_mount_local(osb)) {
+		journal_lock_updates(journal->j_journal);
+		status = journal_flush(journal->j_journal);
+		journal_unlock_updates(journal->j_journal);
+		if (status < 0)
+			mlog_errno(status);
+	}
+
+	if (status == 0) {
+		/*
+		 * Do not toggle if flush was unsuccessful otherwise
+		 * will leave dirty metadata in a "clean" journal
+		 */
+		status = ocfs2_journal_toggle_dirty(osb, 0);
+		if (status < 0)
+			mlog_errno(status);
+	}
 
 	/* Shutdown the kernel journal system */
 	journal_destroy(journal->j_journal);
@@ -757,7 +565,7 @@ static void ocfs2_clear_journal_error(struct super_block *sb,
 	}
 }
 
-int ocfs2_journal_load(struct ocfs2_journal *journal)
+int ocfs2_journal_load(struct ocfs2_journal *journal, int local)
 {
 	int status = 0;
 	struct ocfs2_super *osb;
@@ -784,14 +592,18 @@ int ocfs2_journal_load(struct ocfs2_journal *journal)
 	}
 
 	/* Launch the commit thread */
-	osb->commit_task = kthread_run(ocfs2_commit_thread, osb, "ocfs2cmt");
-	if (IS_ERR(osb->commit_task)) {
-		status = PTR_ERR(osb->commit_task);
+	if (!local) {
+		osb->commit_task = kthread_run(ocfs2_commit_thread, osb,
+					       "ocfs2cmt");
+		if (IS_ERR(osb->commit_task)) {
+			status = PTR_ERR(osb->commit_task);
+			osb->commit_task = NULL;
+			mlog(ML_ERROR, "unable to launch ocfs2commit thread, "
+			     "error=%d", status);
+			goto done;
+		}
+	} else
 		osb->commit_task = NULL;
-		mlog(ML_ERROR, "unable to launch ocfs2commit thread, error=%d",
-		     status);
-		goto done;
-	}
 
 done:
 	mlog_exit(status);
@@ -911,11 +723,12 @@ struct ocfs2_la_recovery_item {
  * NOTE: This function can and will sleep on recovery of other nodes
  * during cluster locking, just like any other ocfs2 process.
  */
-void ocfs2_complete_recovery(void *data)
+void ocfs2_complete_recovery(struct work_struct *work)
 {
 	int ret;
-	struct ocfs2_super *osb = data;
-	struct ocfs2_journal *journal = osb->journal;
+	struct ocfs2_journal *journal =
+		container_of(work, struct ocfs2_journal, j_recovery_work);
+	struct ocfs2_super *osb = journal->j_osb;
 	struct ocfs2_dinode *la_dinode, *tl_dinode;
 	struct ocfs2_la_recovery_item *item;
 	struct list_head *p, *n;
@@ -1160,8 +973,7 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 	}
 	SET_INODE_JOURNAL(inode);
 
-	status = ocfs2_meta_lock_full(inode, NULL, &bh, 1,
-				      OCFS2_META_LOCK_RECOVERY);
+	status = ocfs2_meta_lock_full(inode, &bh, 1, OCFS2_META_LOCK_RECOVERY);
 	if (status < 0) {
 		mlog(0, "status returned from ocfs2_meta_lock=%d\n", status);
 		if (status != -ERESTARTSYS)
@@ -1350,7 +1162,7 @@ static int ocfs2_trylock_journal(struct ocfs2_super *osb,
 	SET_INODE_JOURNAL(inode);
 
 	flags = OCFS2_META_LOCK_RECOVERY | OCFS2_META_LOCK_NOQUEUE;
-	status = ocfs2_meta_lock_full(inode, NULL, NULL, 1, flags);
+	status = ocfs2_meta_lock_full(inode, NULL, 1, flags);
 	if (status < 0) {
 		if (status != -EAGAIN)
 			mlog_errno(status);
@@ -1433,7 +1245,7 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 	}	
 
 	mutex_lock(&orphan_dir_inode->i_mutex);
-	status = ocfs2_meta_lock(orphan_dir_inode, NULL, NULL, 0);
+	status = ocfs2_meta_lock(orphan_dir_inode, NULL, 0);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out;

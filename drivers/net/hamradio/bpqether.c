@@ -88,11 +88,6 @@
 
 static char banner[] __initdata = KERN_INFO "AX.25: bpqether driver version 004\n";
 
-static unsigned char ax25_bcast[AX25_ADDR_LEN] =
-	{'Q' << 1, 'S' << 1, 'T' << 1, ' ' << 1, ' ' << 1, ' ' << 1, '0' << 1};
-static unsigned char ax25_defaddr[AX25_ADDR_LEN] =
-	{'L' << 1, 'I' << 1, 'N' << 1, 'U' << 1, 'X' << 1, ' ' << 1, '1' << 1};
-
 static char bcast_addr[6]={0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 
 static char bpq_eth_addr[6];
@@ -487,8 +482,8 @@ static void bpq_setup(struct net_device *dev)
 	dev->do_ioctl	     = bpq_ioctl;
 	dev->destructor	     = free_netdev;
 
-	memcpy(dev->broadcast, ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr,  ax25_defaddr, AX25_ADDR_LEN);
+	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
+	memcpy(dev->dev_addr,  &ax25_defaddr, AX25_ADDR_LEN);
 
 	dev->flags      = 0;
 

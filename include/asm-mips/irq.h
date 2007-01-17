@@ -24,8 +24,6 @@ static inline int irq_canonicalize(int irq)
 #define irq_canonicalize(irq) (irq)	/* Sane hardware, sane code ... */
 #endif
 
-extern asmlinkage unsigned int do_IRQ(unsigned int irq);
-
 #ifdef CONFIG_MIPS_MT_SMTC
 /*
  * Clear interrupt mask handling "backstop" if irq_hwmask
@@ -33,17 +31,15 @@ extern asmlinkage unsigned int do_IRQ(unsigned int irq);
  * functions will take over re-enabling the low-level mask.
  * Otherwise it will be done on return from exception.
  */
-#define __DO_IRQ_SMTC_HOOK()						\
+#define __DO_IRQ_SMTC_HOOK(irq)						\
 do {									\
 	if (irq_hwmask[irq] & 0x0000ff00)				\
 		write_c0_tccontext(read_c0_tccontext() &		\
 		                   ~(irq_hwmask[irq] & 0x0000ff00));	\
 } while (0)
 #else
-#define __DO_IRQ_SMTC_HOOK() do { } while (0)
+#define __DO_IRQ_SMTC_HOOK(irq) do { } while (0)
 #endif
-
-#ifdef CONFIG_PREEMPT
 
 /*
  * do_IRQ handles all normal device IRQ's (the special
@@ -56,12 +52,10 @@ do {									\
 #define do_IRQ(irq)							\
 do {									\
 	irq_enter();							\
-	__DO_IRQ_SMTC_HOOK();						\
-	__do_IRQ((irq));						\
+	__DO_IRQ_SMTC_HOOK(irq);					\
+	generic_handle_irq(irq);					\
 	irq_exit();							\
 } while (0)
-
-#endif
 
 extern void arch_init_irq(void);
 extern void spurious_interrupt(void);

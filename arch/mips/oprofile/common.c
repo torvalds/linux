@@ -83,6 +83,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	case CPU_74K:
 	case CPU_SB1:
 	case CPU_SB1A:
+	case CPU_R10000:
+	case CPU_R12000:
+	case CPU_R14000:
 		lmodel = &op_model_mipsxx_ops;
 		break;
 

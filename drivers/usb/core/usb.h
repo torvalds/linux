@@ -64,14 +64,13 @@ static inline void usb_pm_unlock(struct usb_device *udev) {}
 
 #define USB_AUTOSUSPEND_DELAY	(HZ*2)
 
-extern void usb_autosuspend_device(struct usb_device *udev, int dec_busy_cnt);
-extern int usb_autoresume_device(struct usb_device *udev, int inc_busy_cnt);
+extern void usb_autosuspend_device(struct usb_device *udev);
+extern int usb_autoresume_device(struct usb_device *udev);
 
 #else
 
-#define usb_autosuspend_device(udev, dec_busy_cnt)	do {} while (0)
-static inline int usb_autoresume_device(struct usb_device *udev,
-		int inc_busy_cnt)
+#define usb_autosuspend_device(udev)	do {} while (0)
+static inline int usb_autoresume_device(struct usb_device *udev)
 {
 	return 0;
 }

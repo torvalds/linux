@@ -34,7 +34,7 @@ static void iomd_unmask_irq_a(unsigned int irq)
 	iomd_writeb(val | mask, IOMD_IRQMASKA);
 }
 
-static struct irqchip iomd_a_chip = {
+static struct irq_chip iomd_a_chip = {
 	.ack	= iomd_ack_irq_a,
 	.mask	= iomd_mask_irq_a,
 	.unmask = iomd_unmask_irq_a,
@@ -58,7 +58,7 @@ static void iomd_unmask_irq_b(unsigned int irq)
 	iomd_writeb(val | mask, IOMD_IRQMASKB);
 }
 
-static struct irqchip iomd_b_chip = {
+static struct irq_chip iomd_b_chip = {
 	.ack	= iomd_mask_irq_b,
 	.mask	= iomd_mask_irq_b,
 	.unmask = iomd_unmask_irq_b,
@@ -82,7 +82,7 @@ static void iomd_unmask_irq_dma(unsigned int irq)
 	iomd_writeb(val | mask, IOMD_DMAMASK);
 }
 
-static struct irqchip iomd_dma_chip = {
+static struct irq_chip iomd_dma_chip = {
 	.ack	= iomd_mask_irq_dma,
 	.mask	= iomd_mask_irq_dma,
 	.unmask = iomd_unmask_irq_dma,
@@ -106,7 +106,7 @@ static void iomd_unmask_irq_fiq(unsigned int irq)
 	iomd_writeb(val | mask, IOMD_FIQMASK);
 }
 
-static struct irqchip iomd_fiq_chip = {
+static struct irq_chip iomd_fiq_chip = {
 	.ack	= iomd_mask_irq_fiq,
 	.mask	= iomd_mask_irq_fiq,
 	.unmask = iomd_unmask_irq_fiq,
@@ -134,19 +134,19 @@ void __init rpc_init_irq(void)
 		switch (irq) {
 		case 0 ... 7:
 			set_irq_chip(irq, &iomd_a_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 
 		case 8 ... 15:
 			set_irq_chip(irq, &iomd_b_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 
 		case 16 ... 21:
 			set_irq_chip(irq, &iomd_dma_chip);
-			set_irq_handler(irq, do_level_IRQ);
+			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 

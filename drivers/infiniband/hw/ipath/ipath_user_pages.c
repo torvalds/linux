@@ -214,9 +214,10 @@ struct ipath_user_pages_work {
 	unsigned long num_pages;
 };
 
-static void user_pages_account(void *ptr)
+static void user_pages_account(struct work_struct *_work)
 {
-	struct ipath_user_pages_work *work = ptr;
+	struct ipath_user_pages_work *work =
+		container_of(_work, struct ipath_user_pages_work, work);
 
 	down_write(&work->mm->mmap_sem);
 	work->mm->locked_vm -= work->num_pages;
@@ -242,7 +243,7 @@ void ipath_release_user_pages_on_close(struct page **p, size_t num_pages)
 
 	goto bail;
 
-	INIT_WORK(&work->work, user_pages_account, work);
+	INIT_WORK(&work->work, user_pages_account);
 	work->mm = mm;
 	work->num_pages = num_pages;
 

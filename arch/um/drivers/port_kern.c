@@ -132,7 +132,7 @@ static int port_accept(struct port_list *port)
 DECLARE_MUTEX(ports_sem);
 struct list_head ports = LIST_HEAD_INIT(ports);
 
-void port_work_proc(void *unused)
+void port_work_proc(struct work_struct *unused)
 {
 	struct port_list *port;
 	struct list_head *ele;
@@ -150,7 +150,7 @@ void port_work_proc(void *unused)
 	local_irq_restore(flags);
 }
 
-DECLARE_WORK(port_work, port_work_proc, NULL);
+DECLARE_WORK(port_work, port_work_proc);
 
 static irqreturn_t port_interrupt(int irq, void *data)
 {

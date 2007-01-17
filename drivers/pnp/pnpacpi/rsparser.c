@@ -298,7 +298,7 @@ static void pnpacpi_parse_dma_option(struct pnp_option *option, struct acpi_reso
 
 	if (p->channel_count == 0)
 		return;
-	dma = kcalloc(1, sizeof(struct pnp_dma), GFP_KERNEL);
+	dma = kzalloc(sizeof(struct pnp_dma), GFP_KERNEL);
 	if (!dma)
 		return;
 
@@ -354,7 +354,7 @@ static void pnpacpi_parse_irq_option(struct pnp_option *option,
 
 	if (p->interrupt_count == 0)
 		return;
-	irq = kcalloc(1, sizeof(struct pnp_irq), GFP_KERNEL);
+	irq = kzalloc(sizeof(struct pnp_irq), GFP_KERNEL);
 	if (!irq)
 		return;
 
@@ -375,7 +375,7 @@ static void pnpacpi_parse_ext_irq_option(struct pnp_option *option,
 
 	if (p->interrupt_count == 0)
 		return;
-	irq = kcalloc(1, sizeof(struct pnp_irq), GFP_KERNEL);
+	irq = kzalloc(sizeof(struct pnp_irq), GFP_KERNEL);
 	if (!irq)
 		return;
 
@@ -396,7 +396,7 @@ pnpacpi_parse_port_option(struct pnp_option *option,
 
 	if (io->address_length == 0)
 		return;
-	port = kcalloc(1, sizeof(struct pnp_port), GFP_KERNEL);
+	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
 	if (!port)
 		return;
 	port->min = io->minimum;
@@ -417,7 +417,7 @@ pnpacpi_parse_fixed_port_option(struct pnp_option *option,
 
 	if (io->address_length == 0)
 		return;
-	port = kcalloc(1, sizeof(struct pnp_port), GFP_KERNEL);
+	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
 	if (!port)
 		return;
 	port->min = port->max = io->address;
@@ -436,7 +436,7 @@ pnpacpi_parse_mem24_option(struct pnp_option *option,
 
 	if (p->address_length == 0)
 		return;
-	mem = kcalloc(1, sizeof(struct pnp_mem), GFP_KERNEL);
+	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
 	if (!mem)
 		return;
 	mem->min = p->minimum;
@@ -459,7 +459,7 @@ pnpacpi_parse_mem32_option(struct pnp_option *option,
 
 	if (p->address_length == 0)
 		return;
-	mem = kcalloc(1, sizeof(struct pnp_mem), GFP_KERNEL);
+	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
 	if (!mem)
 		return;
 	mem->min = p->minimum;
@@ -482,7 +482,7 @@ pnpacpi_parse_fixed_mem32_option(struct pnp_option *option,
 
 	if (p->address_length == 0)
 		return;
-	mem = kcalloc(1, sizeof(struct pnp_mem), GFP_KERNEL);
+	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
 	if (!mem)
 		return;
 	mem->min = mem->max = p->address;
@@ -514,7 +514,7 @@ pnpacpi_parse_address_option(struct pnp_option *option, struct acpi_resource *r)
 		return;
 
 	if (p->resource_type == ACPI_MEMORY_RANGE) {
-		mem = kcalloc(1, sizeof(struct pnp_mem), GFP_KERNEL);
+		mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
 		if (!mem)
 			return;
 		mem->min = mem->max = p->minimum;
@@ -524,7 +524,7 @@ pnpacpi_parse_address_option(struct pnp_option *option, struct acpi_resource *r)
 		    ACPI_READ_WRITE_MEMORY) ? IORESOURCE_MEM_WRITEABLE : 0;
 		pnp_register_mem_resource(option, mem);
 	} else if (p->resource_type == ACPI_IO_RANGE) {
-		port = kcalloc(1, sizeof(struct pnp_port), GFP_KERNEL);
+		port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
 		if (!port)
 			return;
 		port->min = port->max = p->minimum;
@@ -721,7 +721,7 @@ int pnpacpi_build_resource_template(acpi_handle handle,
 	if (!res_cnt)
 		return -EINVAL;
 	buffer->length = sizeof(struct acpi_resource) * (res_cnt + 1) + 1;
-	buffer->pointer = kcalloc(1, buffer->length - 1, GFP_KERNEL);
+	buffer->pointer = kzalloc(buffer->length - 1, GFP_KERNEL);
 	if (!buffer->pointer)
 		return -ENOMEM;
 	pnp_dbg("Res cnt %d", res_cnt);

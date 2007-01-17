@@ -156,7 +156,7 @@ ia64_init_addr_space (void)
 	 * the problem.  When the process attempts to write to the register backing store
 	 * for the first time, it will get a SEGFAULT in this case.
 	 */
-	vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
+	vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 	if (vma) {
 		memset(vma, 0, sizeof(*vma));
 		vma->vm_mm = current->mm;
@@ -175,7 +175,7 @@ ia64_init_addr_space (void)
 
 	/* map NaT-page at address zero to speed up speculative dereferencing of NULL: */
 	if (!(current->personality & MMAP_PAGE_ZERO)) {
-		vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
+		vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 		if (vma) {
 			memset(vma, 0, sizeof(*vma));
 			vma->vm_mm = current->mm;
@@ -543,7 +543,8 @@ virtual_memmap_init (u64 start, u64 end, void *arg)
 
 	if (map_start < map_end)
 		memmap_init_zone((unsigned long)(map_end - map_start),
-				 args->nid, args->zone, page_to_pfn(map_start));
+				 args->nid, args->zone, page_to_pfn(map_start),
+				 MEMMAP_EARLY);
 	return 0;
 }
 
@@ -552,7 +553,7 @@ memmap_init (unsigned long size, int nid, unsigned long zone,
 	     unsigned long start_pfn)
 {
 	if (!vmem_map)
-		memmap_init_zone(size, nid, zone, start_pfn);
+		memmap_init_zone(size, nid, zone, start_pfn, MEMMAP_EARLY);
 	else {
 		struct page *start;
 		struct memmap_init_callback_data args;
@@ -595,14 +596,9 @@ find_largest_hole (u64 start, u64 end, void *arg)
 }
 
 int __init
-register_active_ranges(u64 start, u64 end, void *nid)
+register_active_ranges(u64 start, u64 end, void *arg)
 {
-	BUG_ON(nid == NULL);
-	BUG_ON(*(unsigned long *)nid >= MAX_NUMNODES);
-
-	add_active_range(*(unsigned long *)nid,
-				__pa(start) >> PAGE_SHIFT,
-				__pa(end) >> PAGE_SHIFT);
+	add_active_range(0, __pa(start) >> PAGE_SHIFT, __pa(end) >> PAGE_SHIFT);
 	return 0;
 }
 #endif /* CONFIG_VIRTUAL_MEM_MAP */

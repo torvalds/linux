@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/dma.c
  *
- * (c) 2003-2005,2006 Simtec Electronics
+ * Copyright (c) 2003-2005,2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2410 DMA core
@@ -40,7 +40,7 @@
 
 /* io map for dma */
 static void __iomem *dma_base;
-static kmem_cache_t *dma_kmem;
+static struct kmem_cache *dma_kmem;
 
 struct s3c24xx_dma_selection dma_sel;
 
@@ -1053,11 +1053,11 @@ int s3c2410_dma_config(dmach_t channel,
 	if (chan == NULL)
 		return -EINVAL;
 
-	printk("Initial dcon is %08x\n", dcon);
+	pr_debug("%s: Initial dcon is %08x\n", __FUNCTION__, dcon);
 
 	dcon |= chan->dcon & dma_sel.dcon_mask;
 
-	printk("New dcon is %08x\n", dcon);
+	pr_debug("%s: New dcon is %08x\n", __FUNCTION__, dcon);
 
 	switch (xferunit) {
 	case 1:
@@ -1271,7 +1271,7 @@ struct sysdev_class dma_sysclass = {
 
 /* kmem cache implementation */
 
-static void s3c2410_dma_cache_ctor(void *p, kmem_cache_t *c, unsigned long f)
+static void s3c2410_dma_cache_ctor(void *p, struct kmem_cache *c, unsigned long f)
 {
 	memset(p, 0, sizeof(struct s3c2410_dma_buf));
 }

@@ -511,7 +511,7 @@ struct snd_ac97 {
 #ifdef CONFIG_SND_AC97_POWER_SAVE
 	unsigned int power_up;	/* power states */
 	struct workqueue_struct *power_workq;
-	struct work_struct power_work;
+	struct delayed_work power_work;
 #endif
 	struct device dev;
 };

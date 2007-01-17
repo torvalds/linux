@@ -13,6 +13,7 @@ OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)
 ENTRY(phys_startup_64)
 jiffies_64 = jiffies;
+_proxy_pda = 0;
 PHDRS {
 	text PT_LOAD FLAGS(5);	/* R_E */
 	data PT_LOAD FLAGS(7);	/* RWE */
@@ -51,14 +52,7 @@ SECTIONS
 
   RODATA
 
-#ifdef CONFIG_STACK_UNWIND
-  . = ALIGN(8);
-  .eh_frame : AT(ADDR(.eh_frame) - LOAD_OFFSET) {
-	__start_unwind = .;
-  	*(.eh_frame)
-	__end_unwind = .;
-  }
-#endif
+  BUG_TABLE
 
   . = ALIGN(PAGE_SIZE);        /* Align data segment to page size boundary */
 				/* Data */
@@ -227,9 +221,7 @@ SECTIONS
   /* Sections to be discarded */
   /DISCARD/ : {
 	*(.exitcall.exit)
-#ifndef CONFIG_UNWIND_INFO
 	*(.eh_frame)
-#endif
 	}
 
   STABS_DEBUG

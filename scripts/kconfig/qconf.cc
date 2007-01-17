@@ -38,6 +38,8 @@
 static QApplication *configApp;
 static ConfigSettings *configSettings;
 
+QAction *ConfigMainWindow::saveAction;
+
 static inline QString qgettext(const char* str)
 {
 	return QString::fromLocal8Bit(gettext(str));
@@ -798,7 +800,7 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 			QAction *action;
 
 			headerPopup = new QPopupMenu(this);
-			action = new QAction("Show Name", 0, this);
+			action = new QAction(NULL, "Show Name", 0, this);
 			  action->setToggleAction(TRUE);
 			  connect(action, SIGNAL(toggled(bool)),
 				  parent(), SLOT(setShowName(bool)));
@@ -806,7 +808,7 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 				  action, SLOT(setOn(bool)));
 			  action->setOn(showName);
 			  action->addTo(headerPopup);
-			action = new QAction("Show Range", 0, this);
+			action = new QAction(NULL, "Show Range", 0, this);
 			  action->setToggleAction(TRUE);
 			  connect(action, SIGNAL(toggled(bool)),
 				  parent(), SLOT(setShowRange(bool)));
@@ -814,7 +816,7 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 				  action, SLOT(setOn(bool)));
 			  action->setOn(showRange);
 			  action->addTo(headerPopup);
-			action = new QAction("Show Data", 0, this);
+			action = new QAction(NULL, "Show Data", 0, this);
 			  action->setToggleAction(TRUE);
 			  connect(action, SIGNAL(toggled(bool)),
 				  parent(), SLOT(setShowData(bool)));
@@ -915,7 +917,7 @@ void ConfigView::updateListAll(void)
 }
 
 ConfigInfoView::ConfigInfoView(QWidget* parent, const char *name)
-	: Parent(parent, name), menu(0)
+	: Parent(parent, name), menu(0), sym(0)
 {
 	if (name) {
 		configSettings->beginGroup(name);
@@ -951,6 +953,7 @@ void ConfigInfoView::setInfo(struct menu *m)
 	if (menu == m)
 		return;
 	menu = m;
+	sym = NULL;
 	if (!menu)
 		clear();
 	else
@@ -1161,7 +1164,7 @@ void ConfigInfoView::expr_print_help(void *data, struct symbol *sym, const char 
 QPopupMenu* ConfigInfoView::createPopupMenu(const QPoint& pos)
 {
 	QPopupMenu* popup = Parent::createPopupMenu(pos);
-	QAction* action = new QAction("Show Debug Info", 0, popup);
+	QAction* action = new QAction(NULL,"Show Debug Info", 0, popup);
 	  action->setToggleAction(TRUE);
 	  connect(action, SIGNAL(toggled(bool)), SLOT(setShowDebug(bool)));
 	  connect(this, SIGNAL(showDebugChanged(bool)), action, SLOT(setOn(bool)));
@@ -1306,8 +1309,11 @@ ConfigMainWindow::ConfigMainWindow(void)
 	  connect(quitAction, SIGNAL(activated()), SLOT(close()));
 	QAction *loadAction = new QAction("Load", QPixmap(xpm_load), "&Load", CTRL+Key_L, this);
 	  connect(loadAction, SIGNAL(activated()), SLOT(loadConfig()));
-	QAction *saveAction = new QAction("Save", QPixmap(xpm_save), "&Save", CTRL+Key_S, this);
+	saveAction = new QAction("Save", QPixmap(xpm_save), "&Save", CTRL+Key_S, this);
 	  connect(saveAction, SIGNAL(activated()), SLOT(saveConfig()));
+	conf_set_changed_callback(conf_changed);
+	// Set saveAction's initial state
+	conf_changed();
 	QAction *saveAsAction = new QAction("Save As...", "Save &As...", 0, this);
 	  connect(saveAsAction, SIGNAL(activated()), SLOT(saveConfigAs()));
 	QAction *searchAction = new QAction("Search", "&Search", CTRL+Key_F, this);
@@ -1585,7 +1591,7 @@ void ConfigMainWindow::showFullView(void)
  */
 void ConfigMainWindow::closeEvent(QCloseEvent* e)
 {
-	if (!sym_change_count) {
+	if (!conf_get_changed()) {
 		e->accept();
 		return;
 	}
@@ -1656,6 +1662,12 @@ void ConfigMainWindow::saveSettings(void)
 
 	configSettings->writeSizes("/split1", split1->sizes());
 	configSettings->writeSizes("/split2", split2->sizes());
+}
+
+void ConfigMainWindow::conf_changed(void)
+{
+	if (saveAction)
+		saveAction->setEnabled(conf_get_changed());
 }
 
 void fixup_rootmenu(struct menu *menu)

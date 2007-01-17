@@ -50,7 +50,6 @@
 #include <asm/semaphore.h>
 #include <asm/hvcall.h>
 #include <asm/atomic.h>
-#include <asm/iommu.h>
 #include <asm/vio.h>
 #include <asm/uaccess.h>
 #include <linux/seq_file.h>
@@ -1000,8 +999,6 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	adapter->mac_addr = 0;
 	memcpy(&adapter->mac_addr, mac_addr_p, 6);
 
-	adapter->liobn = dev->iommu_table->it_index;
-
 	netdev->irq = dev->irq;
 	netdev->open               = ibmveth_open;
 	netdev->poll               = ibmveth_poll;
@@ -1115,7 +1112,6 @@ static int ibmveth_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "%s %s\n\n", ibmveth_driver_string, ibmveth_driver_version);
 
 	seq_printf(seq, "Unit Address:    0x%x\n", adapter->vdev->unit_address);
-	seq_printf(seq, "LIOBN:           0x%lx\n", adapter->liobn);
 	seq_printf(seq, "Current MAC:     %02X:%02X:%02X:%02X:%02X:%02X\n",
 		   current_mac[0], current_mac[1], current_mac[2],
 		   current_mac[3], current_mac[4], current_mac[5]);

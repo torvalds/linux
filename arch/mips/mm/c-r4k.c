@@ -323,7 +323,6 @@ static void __init r4k_blast_scache_setup(void)
 static inline void local_r4k_flush_cache_all(void * args)
 {
 	r4k_blast_dcache();
-	r4k_blast_icache();
 }
 
 static void r4k_flush_cache_all(void)
@@ -359,21 +358,19 @@ static void r4k___flush_cache_all(void)
 static inline void local_r4k_flush_cache_range(void * args)
 {
 	struct vm_area_struct *vma = args;
-	int exec;
 
 	if (!(cpu_context(smp_processor_id(), vma->vm_mm)))
 		return;
 
-	exec = vma->vm_flags & VM_EXEC;
-	if (cpu_has_dc_aliases || exec)
-		r4k_blast_dcache();
-	if (exec)
-		r4k_blast_icache();
+	r4k_blast_dcache();
 }
 
 static void r4k_flush_cache_range(struct vm_area_struct *vma,
 	unsigned long start, unsigned long end)
 {
+	if (!cpu_has_dc_aliases)
+		return;
+
 	r4k_on_each_cpu(local_r4k_flush_cache_range, vma, 1, 1);
 }
 
@@ -384,18 +381,21 @@ static inline void local_r4k_flush_cache_mm(void * args)
 	if (!cpu_context(smp_processor_id(), mm))
 		return;
 
-	r4k_blast_dcache();
-	r4k_blast_icache();
-
 	/*
 	 * Kludge alert.  For obscure reasons R4000SC and R4400SC go nuts if we
 	 * only flush the primary caches but R10000 and R12000 behave sane ...
+	 * R4000SC and R4400SC indexed S-cache ops also invalidate primary
+	 * caches, so we can bail out early.
 	 */
 	if (current_cpu_data.cputype == CPU_R4000SC ||
 	    current_cpu_data.cputype == CPU_R4000MC ||
 	    current_cpu_data.cputype == CPU_R4400SC ||
-	    current_cpu_data.cputype == CPU_R4400MC)
+	    current_cpu_data.cputype == CPU_R4400MC) {
 		r4k_blast_scache();
+		return;
+	}
+
+	r4k_blast_dcache();
 }
 
 static void r4k_flush_cache_mm(struct mm_struct *mm)

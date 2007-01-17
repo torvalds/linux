@@ -209,7 +209,9 @@ void ax25_register_sysctl(void)
 	}
 
 	for (n = 0, ax25_dev = ax25_dev_list; ax25_dev != NULL; ax25_dev = ax25_dev->next) {
-		ctl_table *child = kmalloc(sizeof(ax25_param_table), GFP_ATOMIC);
+		struct ctl_table *child = kmemdup(ax25_param_table,
+						  sizeof(ax25_param_table),
+						  GFP_ATOMIC);
 		if (!child) {
 			while (n--)
 				kfree(ax25_table[n].child);
@@ -217,7 +219,6 @@ void ax25_register_sysctl(void)
 			spin_unlock_bh(&ax25_dev_lock);
 			return;
 		}
-		memcpy(child, ax25_param_table, sizeof(ax25_param_table));
 		ax25_table[n].child = ax25_dev->systable = child;
 		ax25_table[n].ctl_name     = n + 1;
 		ax25_table[n].procname     = ax25_dev->dev->name;

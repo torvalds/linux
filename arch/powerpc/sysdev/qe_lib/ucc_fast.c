@@ -216,14 +216,12 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 		return -EINVAL;
 	}
 
-	uccf = (struct ucc_fast_private *)
-		 kmalloc(sizeof(struct ucc_fast_private), GFP_KERNEL);
+	uccf = kzalloc(sizeof(struct ucc_fast_private), GFP_KERNEL);
 	if (!uccf) {
 		uccf_err
 		    ("ucc_fast_init: No memory for UCC slow data structure!");
 		return -ENOMEM;
 	}
-	memset(uccf, 0, sizeof(struct ucc_fast_private));
 
 	/* Fill fast UCC structure */
 	uccf->uf_info = uf_info;

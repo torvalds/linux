@@ -57,7 +57,7 @@ EXPORT_SYMBOL(__inet6_hash);
  */
 struct sock *__inet6_lookup_established(struct inet_hashinfo *hashinfo,
 					   const struct in6_addr *saddr,
-					   const u16 sport,
+					   const __be16 sport,
 					   const struct in6_addr *daddr,
 					   const u16 hnum,
 					   const int dif)
@@ -146,8 +146,8 @@ struct sock *inet6_lookup_listener(struct inet_hashinfo *hashinfo,
 EXPORT_SYMBOL_GPL(inet6_lookup_listener);
 
 struct sock *inet6_lookup(struct inet_hashinfo *hashinfo,
-			  const struct in6_addr *saddr, const u16 sport,
-			  const struct in6_addr *daddr, const u16 dport,
+			  const struct in6_addr *saddr, const __be16 sport,
+			  const struct in6_addr *daddr, const __be16 dport,
 			  const int dif)
 {
 	struct sock *sk;

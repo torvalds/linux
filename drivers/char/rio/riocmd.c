@@ -556,7 +556,7 @@ struct CmdBlk *RIOGetCmdBlk(void)
 {
 	struct CmdBlk *CmdBlkP;
 
-	CmdBlkP = (struct CmdBlk *)kmalloc(sizeof(struct CmdBlk), GFP_ATOMIC);
+	CmdBlkP = kmalloc(sizeof(struct CmdBlk), GFP_ATOMIC);
 	if (CmdBlkP)
 		memset(CmdBlkP, 0, sizeof(struct CmdBlk));
 	return CmdBlkP;
@@ -922,7 +922,7 @@ int RIOUnUse(unsigned long iPortP, struct CmdBlk *CmdBlkP)
 ** 
 ** Packet is an actual packet structure to be filled in with the packet
 ** information associated with the command. You need to fill in everything,
-** as the command processore doesn't process the command packet in any way.
+** as the command processor doesn't process the command packet in any way.
 ** 
 ** The PreFuncP is called before the packet is enqueued on the host rup.
 ** PreFuncP is called as (*PreFuncP)(PreArg, CmdBlkP);. PreFuncP must

@@ -212,7 +212,7 @@ There are some minimal guarantees that may be expected of a CPU:
 
 	STORE *X = c, d = LOAD *X
 
-     (Loads and stores overlap if they are targetted at overlapping pieces of
+     (Loads and stores overlap if they are targeted at overlapping pieces of
      memory).
 
 And there are a number of things that _must_ or _must_not_ be assumed:

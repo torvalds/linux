@@ -392,10 +392,10 @@ static int afs_dir_readdir(struct file *file, void *cookie, filldir_t filldir)
 	unsigned fpos;
 	int ret;
 
-	_enter("{%Ld,{%lu}}", file->f_pos, file->f_dentry->d_inode->i_ino);
+	_enter("{%Ld,{%lu}}", file->f_pos, file->f_path.dentry->d_inode->i_ino);
 
 	fpos = file->f_pos;
-	ret = afs_dir_iterate(file->f_dentry->d_inode, &fpos, cookie, filldir);
+	ret = afs_dir_iterate(file->f_path.dentry->d_inode, &fpos, cookie, filldir);
 	file->f_pos = fpos;
 
 	_leave(" = %d", ret);

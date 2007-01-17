@@ -150,6 +150,21 @@ static inline void *ipz_qeit_reset(struct ipz_queue *queue)
 	return ipz_qeit_get(queue);
 }
 
+/*
+ * return the q_offset corresponding to an absolute address
+ */
+int ipz_queue_abs_to_offset(struct ipz_queue *queue, u64 addr, u64 *q_offset);
+
+/*
+ * return the next queue offset. don't modify the queue.
+ */
+static inline u64 ipz_queue_advance_offset(struct ipz_queue *queue, u64 offset)
+{
+	offset += queue->qe_size;
+	if (offset >= queue->queue_length) offset = 0;
+	return offset;
+}
+
 /* struct generic page table */
 struct ipz_pt {
 	u64 entries[EHCA_PT_ENTRIES];

@@ -127,11 +127,12 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 		if (stack + 1 > endstack)
 			break;
 		if (i % 8 == 0)
-			printk(KERN_EMERG "\n       ");
-		printk(KERN_EMERG " %08lx", *stack++);
+			printk("\n" KERN_EMERG "       ");
+		printk(" %08lx", *stack++);
 	}
+	printk("\n");
 
-	printk(KERN_EMERG "\nCall Trace:");
+	printk(KERN_EMERG "Call Trace:");
 	i = 0;
 	while (stack + 1 <= endstack) {
 		addr = *stack++;
@@ -146,12 +147,12 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 		if (((addr >= (unsigned long) &_start) &&
 		     (addr <= (unsigned long) &_etext))) {
 			if (i % 4 == 0)
-				printk(KERN_EMERG "\n       ");
-			printk(KERN_EMERG " [<%08lx>]", addr);
+				printk("\n" KERN_EMERG "       ");
+			printk(" [<%08lx>]", addr);
 			i++;
 		}
 	}
-	printk(KERN_EMERG "\n");
+	printk("\n");
 }
 
 void bad_super_trap(struct frame *fp)

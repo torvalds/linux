@@ -51,6 +51,7 @@
 #include <net/inet_common.h>
 #include <net/tcp.h>
 #include <net/udp.h>
+#include <net/udplite.h>
 #include <net/xfrm.h>
 
 #include <asm/uaccess.h>
@@ -239,6 +240,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			struct sk_buff *pktopt;
 
 			if (sk->sk_protocol != IPPROTO_UDP &&
+			    sk->sk_protocol != IPPROTO_UDPLITE &&
 			    sk->sk_protocol != IPPROTO_TCP)
 				break;
 
@@ -276,11 +278,15 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 				sk->sk_family = PF_INET;
 				tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 			} else {
+				struct proto *prot = &udp_prot;
+
+				if (sk->sk_protocol == IPPROTO_UDPLITE)
+					prot = &udplite_prot;
 				local_bh_disable();
 				sock_prot_dec_use(sk->sk_prot);
-				sock_prot_inc_use(&udp_prot);
+				sock_prot_inc_use(prot);
 				local_bh_enable();
-				sk->sk_prot = &udp_prot;
+				sk->sk_prot = prot;
 				sk->sk_socket->ops = &inet_dgram_ops;
 				sk->sk_family = PF_INET;
 			}
@@ -813,6 +819,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 	case IPV6_ADDRFORM:
 		if (sk->sk_protocol != IPPROTO_UDP &&
+		    sk->sk_protocol != IPPROTO_UDPLITE &&
 		    sk->sk_protocol != IPPROTO_TCP)
 			return -EINVAL;
 		if (sk->sk_state != TCP_ESTABLISHED)
@@ -971,12 +978,27 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_UNICAST_HOPS:
-		val = np->hop_limit;
-		break;
-
 	case IPV6_MULTICAST_HOPS:
-		val = np->mcast_hops;
+	{
+		struct dst_entry *dst;
+
+		if (optname == IPV6_UNICAST_HOPS)
+			val = np->hop_limit;
+		else
+			val = np->mcast_hops;
+
+		dst = sk_dst_get(sk);
+		if (dst) {
+			if (val < 0)
+				val = dst_metric(dst, RTAX_HOPLIMIT);
+			if (val < 0)
+				val = ipv6_get_hoplimit(dst->dev);
+			dst_release(dst);
+		}
+		if (val < 0)
+			val = ipv6_devconf.hop_limit;
 		break;
+	}
 
 	case IPV6_MULTICAST_LOOP:
 		val = np->mc_loop;

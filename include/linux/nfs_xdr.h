@@ -785,8 +785,6 @@ struct nfs_rpc_ops {
 	int	(*readlink)(struct inode *, struct page *, unsigned int,
 			    unsigned int);
 	int	(*read)    (struct nfs_read_data *);
-	int	(*write)   (struct nfs_write_data *);
-	int	(*commit)  (struct nfs_write_data *);
 	int	(*create)  (struct inode *, struct dentry *,
 			    struct iattr *, int, struct nameidata *);
 	int	(*remove)  (struct inode *, struct qstr *);

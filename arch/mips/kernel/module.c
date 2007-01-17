@@ -29,6 +29,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <asm/pgtable.h>	/* MODULE_START */
 
 struct mips_hi16 {
 	struct mips_hi16 *next;
@@ -43,9 +44,23 @@ static DEFINE_SPINLOCK(dbe_lock);
 
 void *module_alloc(unsigned long size)
 {
+#ifdef MODULE_START
+	struct vm_struct *area;
+
+	size = PAGE_ALIGN(size);
+	if (!size)
+		return NULL;
+
+	area = __get_vm_area(size, VM_ALLOC, MODULE_START, MODULE_END);
+	if (!area)
+		return NULL;
+
+	return __vmalloc_area(area, GFP_KERNEL, PAGE_KERNEL);
+#else
 	if (size == 0)
 		return NULL;
 	return vmalloc(size);
+#endif
 }
 
 /* Free memory returned from module_alloc */

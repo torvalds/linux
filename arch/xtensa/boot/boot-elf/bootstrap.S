@@ -1,7 +1,4 @@
 
-#include <xtensa/config/specreg.h>
-#include <xtensa/config/core.h>
-
 #include <asm/bootparam.h>
 
 

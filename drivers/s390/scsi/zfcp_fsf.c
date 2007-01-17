@@ -109,7 +109,7 @@ zfcp_fsf_req_alloc(mempool_t *pool, int req_flags)
 			ptr = kmalloc(size, GFP_ATOMIC);
 		else
 			ptr = kmem_cache_alloc(zfcp_data.fsf_req_qtcb_cache,
-					       SLAB_ATOMIC);
+					       GFP_ATOMIC);
 	}
 
 	if (unlikely(!ptr))

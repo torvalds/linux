@@ -1023,7 +1023,7 @@ static int snd_mixer_oss_build_input(struct snd_mixer_oss *mixer, struct snd_mix
 	}
 	up_read(&mixer->card->controls_rwsem);
 	if (slot.present != 0) {
-		pslot = (struct slot *)kmalloc(sizeof(slot), GFP_KERNEL);
+		pslot = kmalloc(sizeof(slot), GFP_KERNEL);
 		if (! pslot)
 			return -ENOMEM;
 		*pslot = slot;

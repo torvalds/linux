@@ -356,6 +356,7 @@ static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 
 static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 {
+	struct ata_eh_info *ehi = &ap->eh_info;
 	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
 	u8 status;
 
@@ -427,6 +428,10 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 
 	/* kick HSM in the ass */
 	ata_hsm_move(ap, qc, status, 0);
+
+	if (unlikely(qc->err_mask) && (qc->tf.protocol == ATA_PROT_DMA ||
+				       qc->tf.protocol == ATA_PROT_ATAPI_DMA))
+		ata_ehi_push_desc(ehi, "BMDMA2 stat 0x%x", bmdma2);
 
 	return;
 
@@ -534,6 +539,7 @@ static void sil_thaw(struct ata_port *ap)
  */
 static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
 {
+	int print_info = ap->eh_context.i.flags & ATA_EHI_PRINTINFO;
 	unsigned int n, quirks = 0;
 	unsigned char model_num[41];
 
@@ -549,16 +555,18 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
 	if (slow_down ||
 	    ((ap->flags & SIL_FLAG_MOD15WRITE) &&
 	     (quirks & SIL_QUIRK_MOD15WRITE))) {
-		ata_dev_printk(dev, KERN_INFO, "applying Seagate errata fix "
-			       "(mod15write workaround)\n");
+		if (print_info)
+			ata_dev_printk(dev, KERN_INFO, "applying Seagate "
+				       "errata fix (mod15write workaround)\n");
 		dev->max_sectors = 15;
 		return;
 	}
 
 	/* limit to udma5 */
 	if (quirks & SIL_QUIRK_UDMA5MAX) {
-		ata_dev_printk(dev, KERN_INFO,
-			       "applying Maxtor errata fix %s\n", model_num);
+		if (print_info)
+			ata_dev_printk(dev, KERN_INFO, "applying Maxtor "
+				       "errata fix %s\n", model_num);
 		dev->udma_mask &= ATA_UDMA5;
 		return;
 	}
