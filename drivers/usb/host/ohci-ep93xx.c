@@ -169,7 +169,7 @@ static int ohci_hcd_ep93xx_drv_remove(struct platform_device *pdev)
 static int ohci_hcd_ep93xx_drv_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-	struct ochi_hcd *ohci = hcd_to_ohci(hcd);
+	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
