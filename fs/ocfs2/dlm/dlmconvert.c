@@ -479,25 +479,14 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 		}
 		lock = NULL;
 	}
-	if (!lock) {
-		__dlm_print_one_lock_resource(res);
-		list_for_each(iter, &res->granted) {
-			lock = list_entry(iter, struct dlm_lock, list);
-			if (lock->ml.node == cnv->node_idx) {
-				mlog(ML_ERROR, "There is something here "
-				     "for node %u, lock->ml.cookie=%llu, "
-				     "cnv->cookie=%llu\n", cnv->node_idx,
-				     (unsigned long long)lock->ml.cookie,
-				     (unsigned long long)cnv->cookie);
-				break;
-			}
-		}
-		lock = NULL;
-	}
 	spin_unlock(&res->spinlock);
 	if (!lock) {
 		status = DLM_IVLOCKID;
-		dlm_error(status);
+		mlog(ML_ERROR, "did not find lock to convert on grant queue! "
+			       "cookie=%u:%llu\n",
+			       dlm_get_lock_cookie_node(cnv->cookie),
+			       dlm_get_lock_cookie_seq(cnv->cookie));
+		__dlm_print_one_lock_resource(res);
 		goto leave;
 	}
 
@@ -537,12 +526,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 	}
 
 leave:
-	if (!lock)
-		mlog(ML_ERROR, "did not find lock to convert on grant queue! "
-			       "cookie=%u:%llu\n",
-			       dlm_get_lock_cookie_node(cnv->cookie),
-			       dlm_get_lock_cookie_seq(cnv->cookie));
-	else
+	if (lock)
 		dlm_lock_put(lock);
 
 	/* either queue the ast or release it, if reserved */
