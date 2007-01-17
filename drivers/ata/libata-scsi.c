@@ -372,7 +372,7 @@ struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 		if (cmd->use_sg) {
 			qc->__sg = (struct scatterlist *) cmd->request_buffer;
 			qc->n_elem = cmd->use_sg;
-		} else {
+		} else if (cmd->request_bufflen) {
 			qc->__sg = &qc->sgent;
 			qc->n_elem = 1;
 		}
