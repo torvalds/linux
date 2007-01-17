@@ -1392,16 +1392,16 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	spin_lock (&dev->lock);
 	dev->setup_abort = 0;
 	if (dev->state == STATE_DEV_UNCONNECTED) {
-
-		dev->state = STATE_DEV_CONNECTED;
-		dev->dev->bMaxPacketSize0 = gadget->ep0->maxpacket;
-
 #ifdef	CONFIG_USB_GADGET_DUALSPEED
 		if (gadget->speed == USB_SPEED_HIGH && dev->hs_config == 0) {
+			spin_unlock(&dev->lock);
 			ERROR (dev, "no high speed config??\n");
 			return -EINVAL;
 		}
 #endif	/* CONFIG_USB_GADGET_DUALSPEED */
+
+		dev->state = STATE_DEV_CONNECTED;
+		dev->dev->bMaxPacketSize0 = gadget->ep0->maxpacket;
 
 		INFO (dev, "connected\n");
 		event = next_event (dev, GADGETFS_CONNECT);
