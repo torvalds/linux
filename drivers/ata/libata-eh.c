@@ -1979,6 +1979,10 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 
 		ehc->tries[dev->devno] = ATA_EH_DEV_TRIES;
 
+		/* collect port action mask recorded in dev actions */
+		ehc->i.action |= ehc->i.dev_action[i] & ~ATA_EH_PERDEV_MASK;
+		ehc->i.dev_action[i] &= ATA_EH_PERDEV_MASK;
+
 		/* process hotplug request */
 		if (dev->flags & ATA_DFLAG_DETACH)
 			ata_eh_detach_dev(dev);
