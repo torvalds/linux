@@ -1327,6 +1327,20 @@ static int w83793_detect(struct i2c_adapter *adapter, int address, int kind)
 		data->has_pwm |= 0x80;
 	}
 
+	tmp = w83793_read_value(client, W83793_REG_FANIN_SEL);
+	if ((tmp & 0x01) && (val & 0x08)) {	/* fan 9, second location */
+		data->has_fan |= 0x100;
+	}
+	if ((tmp & 0x02) && (val & 0x10)) {	/* fan 10, second location */
+		data->has_fan |= 0x200;
+	}
+	if ((tmp & 0x04) && (val & 0x20)) {	/* fan 11, second location */
+		data->has_fan |= 0x400;
+	}
+	if ((tmp & 0x08) && (val & 0x40)) {	/* fan 12, second location */
+		data->has_fan |= 0x800;
+	}
+
 	/* check the temp1-6 mode, ignore former AMDSI selected inputs */
 	tmp = w83793_read_value(client,W83793_REG_TEMP_MODE[0]);
 	if (tmp & 0x01)
