@@ -1698,6 +1698,21 @@ out:
 	return error;
 }
 
+/**
+ * vfs_lock_file - file byte range lock
+ * @filp: The file to apply the lock to
+ * @cmd: type of locking operation (F_SETLK, F_GETLK, etc.)
+ * @fl: The lock to be applied
+ */
+int vfs_lock_file(struct file *filp, unsigned int cmd, struct file_lock *fl)
+{
+	if (filp->f_op && filp->f_op->lock)
+		return filp->f_op->lock(filp, cmd, fl);
+	else
+		return posix_lock_file(filp, fl);
+}
+EXPORT_SYMBOL_GPL(vfs_lock_file);
+
 /* Apply the lock described by l to an open file descriptor.
  * This implements both the F_SETLK and F_SETLKW commands of fcntl().
  */
@@ -1760,21 +1775,17 @@ again:
 	if (error)
 		goto out;
 
-	if (filp->f_op && filp->f_op->lock != NULL)
-		error = filp->f_op->lock(filp, cmd, file_lock);
-	else {
-		for (;;) {
-			error = posix_lock_file(filp, file_lock);
-			if (error != -EAGAIN || cmd == F_SETLK)
-				break;
-			error = wait_event_interruptible(file_lock->fl_wait,
-					!file_lock->fl_next);
-			if (!error)
-				continue;
-
-			locks_delete_block(file_lock);
+	for (;;) {
+		error = vfs_lock_file(filp, cmd, file_lock);
+		if (error != -EAGAIN || cmd == F_SETLK)
 			break;
-		}
+		error = wait_event_interruptible(file_lock->fl_wait,
+				!file_lock->fl_next);
+		if (!error)
+			continue;
+
+		locks_delete_block(file_lock);
+		break;
 	}
 
 	/*
@@ -1890,21 +1901,17 @@ again:
 	if (error)
 		goto out;
 
-	if (filp->f_op && filp->f_op->lock != NULL)
-		error = filp->f_op->lock(filp, cmd, file_lock);
-	else {
-		for (;;) {
-			error = posix_lock_file(filp, file_lock);
-			if (error != -EAGAIN || cmd == F_SETLK64)
-				break;
-			error = wait_event_interruptible(file_lock->fl_wait,
-					!file_lock->fl_next);
-			if (!error)
-				continue;
-
-			locks_delete_block(file_lock);
+	for (;;) {
+		error = vfs_lock_file(filp, cmd, file_lock);
+		if (error != -EAGAIN || cmd == F_SETLK64)
 			break;
-		}
+		error = wait_event_interruptible(file_lock->fl_wait,
+				!file_lock->fl_next);
+		if (!error)
+			continue;
+
+		locks_delete_block(file_lock);
+		break;
 	}
 
 	/*
@@ -1949,10 +1956,7 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 	lock.fl_ops = NULL;
 	lock.fl_lmops = NULL;
 
-	if (filp->f_op && filp->f_op->lock != NULL)
-		filp->f_op->lock(filp, F_SETLK, &lock);
-	else
-		posix_lock_file(filp, &lock);
+	vfs_lock_file(filp, F_SETLK, &lock);
 
 	if (lock.fl_ops && lock.fl_ops->fl_release_private)
 		lock.fl_ops->fl_release_private(&lock);
