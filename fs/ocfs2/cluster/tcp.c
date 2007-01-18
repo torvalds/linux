@@ -688,6 +688,7 @@ static void o2net_handler_put(struct o2net_msg_handler *nmh)
  * be given to the handler if their payload is longer than the max. */
 int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 			   o2net_msg_handler_func *func, void *data,
+			   o2net_post_msg_handler_func *post_func,
 			   struct list_head *unreg_list)
 {
 	struct o2net_msg_handler *nmh = NULL;
@@ -722,6 +723,7 @@ int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 
 	nmh->nh_func = func;
 	nmh->nh_func_data = data;
+	nmh->nh_post_func = post_func;
 	nmh->nh_msg_type = msg_type;
 	nmh->nh_max_len = max_len;
 	nmh->nh_key = key;
@@ -1049,6 +1051,7 @@ static int o2net_process_message(struct o2net_sock_container *sc,
 	int ret = 0, handler_status;
 	enum  o2net_system_error syserr;
 	struct o2net_msg_handler *nmh = NULL;
+	void *ret_data = NULL;
 
 	msglog(hdr, "processing message\n");
 
@@ -1101,7 +1104,7 @@ static int o2net_process_message(struct o2net_sock_container *sc,
 	sc->sc_msg_type = be16_to_cpu(hdr->msg_type);
 	handler_status = (nmh->nh_func)(hdr, sizeof(struct o2net_msg) +
 					     be16_to_cpu(hdr->data_len),
-					nmh->nh_func_data);
+					nmh->nh_func_data, &ret_data);
 	do_gettimeofday(&sc->sc_tv_func_stop);
 
 out_respond:
@@ -1111,6 +1114,13 @@ out_respond:
 	hdr = NULL;
 	mlog(0, "sending handler status %d, syserr %d returned %d\n",
 	     handler_status, syserr, ret);
+
+	if (nmh) {
+		BUG_ON(ret_data != NULL && nmh->nh_post_func == NULL);
+		if (nmh->nh_post_func)
+			(nmh->nh_post_func)(handler_status, nmh->nh_func_data,
+					    ret_data);
+	}
 
 out:
 	if (nmh)

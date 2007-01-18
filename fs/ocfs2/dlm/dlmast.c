@@ -263,7 +263,8 @@ void dlm_do_local_bast(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 
 
 
-int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data)
+int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
+			  void **ret_data)
 {
 	int ret;
 	unsigned int locklen;

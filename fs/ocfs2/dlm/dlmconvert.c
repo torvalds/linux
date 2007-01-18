@@ -418,7 +418,8 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
  * returns: DLM_NORMAL, DLM_IVLOCKID, DLM_BADARGS,
  *          status from __dlmconvert_master
  */
-int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
+int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
+			     void **ret_data)
 {
 	struct dlm_ctxt *dlm = data;
 	struct dlm_convert_lock *cnv = (struct dlm_convert_lock *)msg->buf;

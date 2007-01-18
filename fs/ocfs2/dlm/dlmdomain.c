@@ -95,10 +95,14 @@ static DECLARE_WAIT_QUEUE_HEAD(dlm_domain_events);
 
 #define DLM_DOMAIN_BACKOFF_MS 200
 
-static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data);
-static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data);
-static int dlm_cancel_join_handler(struct o2net_msg *msg, u32 len, void *data);
-static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data);
+static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
+				  void **ret_data);
+static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data,
+				     void **ret_data);
+static int dlm_cancel_join_handler(struct o2net_msg *msg, u32 len, void *data,
+				   void **ret_data);
+static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data,
+				   void **ret_data);
 
 static void dlm_unregister_domain_handlers(struct dlm_ctxt *dlm);
 
@@ -466,7 +470,8 @@ static void __dlm_print_nodes(struct dlm_ctxt *dlm)
 	printk("\n");
 }
 
-static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data)
+static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data,
+				   void **ret_data)
 {
 	struct dlm_ctxt *dlm = data;
 	unsigned int node;
@@ -630,7 +635,8 @@ void dlm_unregister_domain(struct dlm_ctxt *dlm)
 }
 EXPORT_SYMBOL_GPL(dlm_unregister_domain);
 
-static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data)
+static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
+				  void **ret_data)
 {
 	struct dlm_query_join_request *query;
 	enum dlm_query_join_response response;
@@ -707,7 +713,8 @@ respond:
 	return response;
 }
 
-static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data)
+static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data,
+				     void **ret_data)
 {
 	struct dlm_assert_joined *assert;
 	struct dlm_ctxt *dlm = NULL;
@@ -744,7 +751,8 @@ static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data)
 	return 0;
 }
 
-static int dlm_cancel_join_handler(struct o2net_msg *msg, u32 len, void *data)
+static int dlm_cancel_join_handler(struct o2net_msg *msg, u32 len, void *data,
+				   void **ret_data)
 {
 	struct dlm_cancel_join *cancel;
 	struct dlm_ctxt *dlm = NULL;
@@ -1086,105 +1094,105 @@ static int dlm_register_domain_handlers(struct dlm_ctxt *dlm)
 	status = o2net_register_handler(DLM_MASTER_REQUEST_MSG, dlm->key,
 					sizeof(struct dlm_master_request),
 					dlm_master_request_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_ASSERT_MASTER_MSG, dlm->key,
 					sizeof(struct dlm_assert_master),
 					dlm_assert_master_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_CREATE_LOCK_MSG, dlm->key,
 					sizeof(struct dlm_create_lock),
 					dlm_create_lock_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_CONVERT_LOCK_MSG, dlm->key,
 					DLM_CONVERT_LOCK_MAX_LEN,
 					dlm_convert_lock_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_UNLOCK_LOCK_MSG, dlm->key,
 					DLM_UNLOCK_LOCK_MAX_LEN,
 					dlm_unlock_lock_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_PROXY_AST_MSG, dlm->key,
 					DLM_PROXY_AST_MAX_LEN,
 					dlm_proxy_ast_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_EXIT_DOMAIN_MSG, dlm->key,
 					sizeof(struct dlm_exit_domain),
 					dlm_exit_domain_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_DEREF_LOCKRES_MSG, dlm->key,
 					sizeof(struct dlm_deref_lockres),
 					dlm_deref_lockres_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_MIGRATE_REQUEST_MSG, dlm->key,
 					sizeof(struct dlm_migrate_request),
 					dlm_migrate_request_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_MIG_LOCKRES_MSG, dlm->key,
 					DLM_MIG_LOCKRES_MAX_LEN,
 					dlm_mig_lockres_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_MASTER_REQUERY_MSG, dlm->key,
 					sizeof(struct dlm_master_requery),
 					dlm_master_requery_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_LOCK_REQUEST_MSG, dlm->key,
 					sizeof(struct dlm_lock_request),
 					dlm_request_all_locks_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_RECO_DATA_DONE_MSG, dlm->key,
 					sizeof(struct dlm_reco_data_done),
 					dlm_reco_data_done_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_BEGIN_RECO_MSG, dlm->key,
 					sizeof(struct dlm_begin_reco),
 					dlm_begin_reco_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_FINALIZE_RECO_MSG, dlm->key,
 					sizeof(struct dlm_finalize_reco),
 					dlm_finalize_reco_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
@@ -1478,21 +1486,21 @@ static int dlm_register_net_handlers(void)
 	status = o2net_register_handler(DLM_QUERY_JOIN_MSG, DLM_MOD_KEY,
 					sizeof(struct dlm_query_join_request),
 					dlm_query_join_handler,
-					NULL, &dlm_join_handlers);
+					NULL, NULL, &dlm_join_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_ASSERT_JOINED_MSG, DLM_MOD_KEY,
 					sizeof(struct dlm_assert_joined),
 					dlm_assert_joined_handler,
-					NULL, &dlm_join_handlers);
+					NULL, NULL, &dlm_join_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_CANCEL_JOIN_MSG, DLM_MOD_KEY,
 					sizeof(struct dlm_cancel_join),
 					dlm_cancel_join_handler,
-					NULL, &dlm_join_handlers);
+					NULL, NULL, &dlm_join_handlers);
 
 bail:
 	if (status < 0)

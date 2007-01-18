@@ -1469,7 +1469,8 @@ out:
  *
  * if possible, TRIM THIS DOWN!!!
  */
-int dlm_master_request_handler(struct o2net_msg *msg, u32 len, void *data)
+int dlm_master_request_handler(struct o2net_msg *msg, u32 len, void *data,
+			       void **ret_data)
 {
 	u8 response = DLM_MASTER_RESP_MAYBE;
 	struct dlm_ctxt *dlm = data;
@@ -1800,7 +1801,8 @@ again:
  *
  * if possible, TRIM THIS DOWN!!!
  */
-int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data)
+int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data,
+			      void **ret_data)
 {
 	struct dlm_ctxt *dlm = data;
 	struct dlm_master_list_entry *mle = NULL;
@@ -2265,7 +2267,8 @@ int dlm_drop_lockres_ref(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 	return ret;
 }
 
-int dlm_deref_lockres_handler(struct o2net_msg *msg, u32 len, void *data)
+int dlm_deref_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
+			      void **ret_data)
 {
 	struct dlm_ctxt *dlm = data;
 	struct dlm_deref_lockres *deref = (struct dlm_deref_lockres *)msg->buf;
@@ -2948,7 +2951,8 @@ static int dlm_do_migrate_request(struct dlm_ctxt *dlm,
  * we will have no mle in the list to start with.  now we can add an mle for
  * the migration and this should be the only one found for those scanning the
  * list.  */
-int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data)
+int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
+				void **ret_data)
 {
 	struct dlm_ctxt *dlm = data;
 	struct dlm_lock_resource *res = NULL;
