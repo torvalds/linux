@@ -3765,8 +3765,8 @@ e1000_update_stats(struct e1000_adapter *adapter)
  * @data: pointer to a network interface device structure
  **/
 
-static
-irqreturn_t e1000_intr_msi(int irq, void *data)
+static irqreturn_t
+e1000_intr_msi(int irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -3774,49 +3774,27 @@ irqreturn_t e1000_intr_msi(int irq, void *data)
 #ifndef CONFIG_E1000_NAPI
 	int i;
 #endif
+	uint32_t icr = E1000_READ_REG(hw, ICR);
 
-	/* this code avoids the read of ICR but has to get 1000 interrupts
-	 * at every link change event before it will notice the change */
-	if (++adapter->detect_link >= 1000) {
-		uint32_t icr = E1000_READ_REG(hw, ICR);
 #ifdef CONFIG_E1000_NAPI
-		/* read ICR disables interrupts using IAM, so keep up with our
-		 * enable/disable accounting */
-		atomic_inc(&adapter->irq_sem);
+	/* read ICR disables interrupts using IAM, so keep up with our
+	 * enable/disable accounting */
+	atomic_inc(&adapter->irq_sem);
 #endif
-		adapter->detect_link = 0;
-		if ((icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) &&
-		    (icr & E1000_ICR_INT_ASSERTED)) {
-			hw->get_link_status = 1;
-			/* 80003ES2LAN workaround--
-			* For packet buffer work-around on link down event;
-			* disable receives here in the ISR and
-			* reset adapter in watchdog
-			*/
-			if (netif_carrier_ok(netdev) &&
-			    (adapter->hw.mac_type == e1000_80003es2lan)) {
-				/* disable receives */
-				uint32_t rctl = E1000_READ_REG(hw, RCTL);
-				E1000_WRITE_REG(hw, RCTL, rctl & ~E1000_RCTL_EN);
-			}
-			/* guard against interrupt when we're going down */
-			if (!test_bit(__E1000_DOWN, &adapter->flags))
-				mod_timer(&adapter->watchdog_timer,
-				          jiffies + 1);
+	if (icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+		hw->get_link_status = 1;
+		/* 80003ES2LAN workaround-- For packet buffer work-around on
+		 * link down event; disable receives here in the ISR and reset
+		 * adapter in watchdog */
+		if (netif_carrier_ok(netdev) &&
+		    (adapter->hw.mac_type == e1000_80003es2lan)) {
+			/* disable receives */
+			uint32_t rctl = E1000_READ_REG(hw, RCTL);
+			E1000_WRITE_REG(hw, RCTL, rctl & ~E1000_RCTL_EN);
 		}
-	} else {
-		E1000_WRITE_REG(hw, ICR, (0xffffffff & ~(E1000_ICR_RXSEQ |
-		                                         E1000_ICR_LSC)));
-		/* bummer we have to flush here, but things break otherwise as
-		 * some event appears to be lost or delayed and throughput
-		 * drops.  In almost all tests this flush is un-necessary */
-		E1000_WRITE_FLUSH(hw);
-#ifdef CONFIG_E1000_NAPI
-		/* Interrupt Auto-Mask (IAM)...upon writing ICR, interrupts are
-		 * masked.  No need for the IMC write, but it does mean we
-		 * should account for it ASAP. */
-		atomic_inc(&adapter->irq_sem);
-#endif
+		/* guard against interrupt when we're going down */
+		if (!test_bit(__E1000_DOWN, &adapter->flags))
+			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
 #ifdef CONFIG_E1000_NAPI
