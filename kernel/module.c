@@ -537,6 +537,8 @@ static int already_uses(struct module *a, struct module *b)
 static int use_module(struct module *a, struct module *b)
 {
 	struct module_use *use;
+	int no_warn;
+
 	if (b == NULL || already_uses(a, b)) return 1;
 
 	if (!strong_try_module_get(b))
@@ -552,6 +554,7 @@ static int use_module(struct module *a, struct module *b)
 
 	use->module_which_uses = a;
 	list_add(&use->list, &b->modules_which_use_me);
+	no_warn = sysfs_create_link(b->holders_dir, &a->mkobj.kobj, a->name);
 	return 1;
 }
 
@@ -569,6 +572,7 @@ static void module_unload_free(struct module *mod)
 				module_put(i);
 				list_del(&use->list);
 				kfree(use);
+				sysfs_remove_link(i->holders_dir, mod->name);
 				/* There can be at most one match. */
 				break;
 			}
@@ -1106,9 +1110,7 @@ static void module_remove_modinfo_attrs(struct module *mod)
 	kfree(mod->modinfo_attrs);
 }
 
-static int mod_sysfs_setup(struct module *mod,
-			   struct kernel_param *kparam,
-			   unsigned int num_params)
+static int mod_sysfs_init(struct module *mod)
 {
 	int err;
 
@@ -1125,15 +1127,30 @@ static int mod_sysfs_setup(struct module *mod,
 	kobj_set_kset_s(&mod->mkobj, module_subsys);
 	mod->mkobj.mod = mod;
 
-	/* delay uevent until full sysfs population */
 	kobject_init(&mod->mkobj.kobj);
+
+out:
+	return err;
+}
+
+static int mod_sysfs_setup(struct module *mod,
+			   struct kernel_param *kparam,
+			   unsigned int num_params)
+{
+	int err;
+
+	/* delay uevent until full sysfs population */
 	err = kobject_add(&mod->mkobj.kobj);
 	if (err)
 		goto out;
 
+	mod->holders_dir = kobject_add_dir(&mod->mkobj.kobj, "holders");
+	if (!mod->holders_dir)
+		goto out_unreg;
+
 	err = module_param_sysfs_setup(mod, kparam, num_params);
 	if (err)
-		goto out_unreg_drivers;
+		goto out_unreg_holders;
 
 	err = module_add_modinfo_attrs(mod);
 	if (err)
@@ -1144,7 +1161,9 @@ static int mod_sysfs_setup(struct module *mod,
 
 out_unreg_param:
 	module_param_sysfs_remove(mod);
-out_unreg_drivers:
+out_unreg_holders:
+	kobject_unregister(mod->holders_dir);
+out_unreg:
 	kobject_del(&mod->mkobj.kobj);
 	kobject_put(&mod->mkobj.kobj);
 out:
@@ -1157,6 +1176,8 @@ static void mod_kobject_remove(struct module *mod)
 	module_param_sysfs_remove(mod);
 	if (mod->mkobj.drivers_dir)
 		kobject_unregister(mod->mkobj.drivers_dir);
+	if (mod->holders_dir)
+		kobject_unregister(mod->holders_dir);
 
 	kobject_unregister(&mod->mkobj.kobj);
 }
@@ -1760,6 +1781,10 @@ static struct module *load_module(void __user *umod,
 
 	/* Now we've moved module, initialize linked lists, etc. */
 	module_unload_init(mod);
+
+	/* Initialize kobject, so we can reference it. */
+	if (mod_sysfs_init(mod) != 0)
+		goto cleanup;
 
 	/* Set up license info based on the info section */
 	set_license(mod, get_modinfo(sechdrs, infoindex, "license"));
