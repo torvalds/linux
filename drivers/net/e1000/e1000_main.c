@@ -4020,10 +4020,13 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 
 			if (cleaned) {
 				struct sk_buff *skb = buffer_info->skb;
-				unsigned int segs = skb_shinfo(skb)->gso_segs;
+				unsigned int segs, bytecount;
+				segs = skb_shinfo(skb)->gso_segs ?: 1;
+				/* multiply data chunks by size of headers */
+				bytecount = ((segs - 1) * skb_headlen(skb)) +
+				            skb->len;
 				total_tx_packets += segs;
-				total_tx_packets++;
-				total_tx_bytes += skb->len;
+				total_tx_bytes += bytecount;
 			}
 			e1000_unmap_and_free_tx_resource(adapter, buffer_info);
 			tx_desc->upper.data = 0;
