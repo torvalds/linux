@@ -205,6 +205,7 @@ struct w83793_data {
 
 	u8 has_pwm;
 	u8 has_temp;
+	u8 has_vid;
 	u8 pwm_enable;		/* Register value, each Temp has 1 bit */
 	u8 pwm_uptime;		/* Register value */
 	u8 pwm_downtime;	/* Register value */
@@ -1025,9 +1026,12 @@ static struct sensor_device_attribute_2 w83793_left_pwm[] = {
 	SENSOR_ATTR_PWM(8),
 };
 
-static struct sensor_device_attribute_2 sda_single_files[] = {
+static struct sensor_device_attribute_2 w83793_vid[] = {
 	SENSOR_ATTR_2(cpu0_vid, S_IRUGO, show_vid, NULL, NOT_USED, 0),
 	SENSOR_ATTR_2(cpu1_vid, S_IRUGO, show_vid, NULL, NOT_USED, 1),
+};
+
+static struct sensor_device_attribute_2 sda_single_files[] = {
 	SENSOR_ATTR_2(vrm, S_IWUSR | S_IRUGO, show_vrm, store_vrm,
 		      NOT_USED, NOT_USED),
 	SENSOR_ATTR_2(chassis, S_IWUSR | S_IRUGO, show_alarm_beep,
@@ -1079,6 +1083,9 @@ static int w83793_detach_client(struct i2c_client *client)
 
 		for (i = 0; i < ARRAY_SIZE(sda_single_files); i++)
 			device_remove_file(dev, &sda_single_files[i].dev_attr);
+
+		for (i = 0; i < ARRAY_SIZE(w83793_vid); i++)
+			device_remove_file(dev, &w83793_vid[i].dev_attr);
 
 		for (i = 0; i < ARRAY_SIZE(w83793_left_fan); i++)
 			device_remove_file(dev, &w83793_left_fan[i].dev_attr);
@@ -1358,10 +1365,25 @@ static int w83793_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (tmp & 0x02)
 		data->has_temp |= 0x20;
 
+	/* Detect the VID usage and ignore unused input */
+	tmp = w83793_read_value(client, W83793_REG_MFC);
+	if (!(tmp & 0x29))
+		data->has_vid |= 0x1;	/* has VIDA */
+	if (tmp & 0x80)
+		data->has_vid |= 0x2;	/* has VIDB */
+
 	/* Register sysfs hooks */
 	for (i = 0; i < ARRAY_SIZE(w83793_sensor_attr_2); i++) {
 		err = device_create_file(dev,
 					 &w83793_sensor_attr_2[i].dev_attr);
+		if (err)
+			goto exit_remove;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(w83793_vid); i++) {
+		if (!(data->has_vid & (1 << i)))
+			continue;
+		err = device_create_file(dev, &w83793_vid[i].dev_attr);
 		if (err)
 			goto exit_remove;
 	}
@@ -1428,6 +1450,9 @@ exit_remove:
 
 	for (i = 0; i < ARRAY_SIZE(sda_single_files); i++)
 		device_remove_file(dev, &sda_single_files[i].dev_attr);
+
+	for (i = 0; i < ARRAY_SIZE(w83793_vid); i++)
+		device_remove_file(dev, &w83793_vid[i].dev_attr);
 
 	for (i = 0; i < ARRAY_SIZE(w83793_left_fan); i++)
 		device_remove_file(dev, &w83793_left_fan[i].dev_attr);
@@ -1593,8 +1618,10 @@ static struct w83793_data *w83793_update_device(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(data->alarms); i++)
 		data->alarms[i] =
 		    w83793_read_value(client, W83793_REG_ALARM(i));
-	data->vid[0] = w83793_read_value(client, W83793_REG_VID_INA);
-	data->vid[1] = w83793_read_value(client, W83793_REG_VID_INB);
+	if (data->has_vid & 0x01)
+		data->vid[0] = w83793_read_value(client, W83793_REG_VID_INA);
+	if (data->has_vid & 0x02)
+		data->vid[1] = w83793_read_value(client, W83793_REG_VID_INB);
 	w83793_update_nonvolatile(dev);
 	data->last_updated = jiffies;
 	data->valid = 1;
