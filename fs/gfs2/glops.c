@@ -319,39 +319,6 @@ static void inode_go_unlock(struct gfs2_holder *gh)
 }
 
 /**
- * inode_greedy -
- * @gl: the glock
- *
- */
-
-static void inode_greedy(struct gfs2_glock *gl)
-{
-	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_inode *ip = gl->gl_object;
-	unsigned int quantum = gfs2_tune_get(sdp, gt_greedy_quantum);
-	unsigned int max = gfs2_tune_get(sdp, gt_greedy_max);
-	unsigned int new_time;
-
-	spin_lock(&ip->i_spin);
-
-	if (time_after(ip->i_last_pfault + quantum, jiffies)) {
-		new_time = ip->i_greedy + quantum;
-		if (new_time > max)
-			new_time = max;
-	} else {
-		new_time = ip->i_greedy - quantum;
-		if (!new_time || new_time > max)
-			new_time = 1;
-	}
-
-	ip->i_greedy = new_time;
-
-	spin_unlock(&ip->i_spin);
-
-	iput(&ip->i_inode);
-}
-
-/**
  * rgrp_go_demote_ok - Check to see if it's ok to unlock a RG's glock
  * @gl: the glock
  *
@@ -492,7 +459,6 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 	.go_demote_ok = inode_go_demote_ok,
 	.go_lock = inode_go_lock,
 	.go_unlock = inode_go_unlock,
-	.go_greedy = inode_greedy,
 	.go_type = LM_TYPE_INODE,
 };
 

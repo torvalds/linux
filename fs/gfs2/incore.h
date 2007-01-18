@@ -111,7 +111,6 @@ struct gfs2_glock_operations {
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
 	void (*go_callback) (struct gfs2_glock *gl, unsigned int state);
-	void (*go_greedy) (struct gfs2_glock *gl);
 	const int go_type;
 };
 
@@ -120,7 +119,6 @@ enum {
 	HIF_MUTEX		= 0,
 	HIF_PROMOTE		= 1,
 	HIF_DEMOTE		= 2,
-	HIF_GREEDY		= 3,
 
 	/* States */
 	HIF_ALLOCED		= 4,
@@ -149,7 +147,6 @@ enum {
 	GLF_STICKY		= 2,
 	GLF_DIRTY		= 5,
 	GLF_SKIP_WAITERS2	= 6,
-	GLF_GREEDY		= 7,
 };
 
 struct gfs2_glock {
@@ -166,7 +163,7 @@ struct gfs2_glock {
 	unsigned long gl_ip;
 	struct list_head gl_holders;
 	struct list_head gl_waiters1;	/* HIF_MUTEX */
-	struct list_head gl_waiters2;	/* HIF_DEMOTE, HIF_GREEDY */
+	struct list_head gl_waiters2;	/* HIF_DEMOTE */
 	struct list_head gl_waiters3;	/* HIF_PROMOTE */
 
 	const struct gfs2_glock_operations *gl_ops;
@@ -235,7 +232,6 @@ struct gfs2_inode {
 
 	spinlock_t i_spin;
 	struct rw_semaphore i_rw_mutex;
-	unsigned int i_greedy;
 	unsigned long i_last_pfault;
 
 	struct buffer_head *i_cache[GFS2_MAX_META_HEIGHT];
@@ -423,9 +419,6 @@ struct gfs2_tune {
 	unsigned int gt_complain_secs;
 	unsigned int gt_reclaim_limit; /* Max num of glocks in reclaim list */
 	unsigned int gt_entries_per_readdir;
-	unsigned int gt_greedy_default;
-	unsigned int gt_greedy_quantum;
-	unsigned int gt_greedy_max;
 	unsigned int gt_statfs_quantum;
 	unsigned int gt_statfs_slow;
 };

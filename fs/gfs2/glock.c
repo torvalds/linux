@@ -34,11 +34,6 @@
 #include "super.h"
 #include "util.h"
 
-struct greedy {
-	struct gfs2_holder gr_gh;
-	struct delayed_work gr_work;
-};
-
 struct gfs2_gl_hash_bucket {
         struct hlist_head hb_list;
 };
@@ -618,30 +613,6 @@ static int rq_demote(struct gfs2_holder *gh)
 }
 
 /**
- * rq_greedy - process a queued request to drop greedy status
- * @gh: the glock holder
- *
- * Returns: 1 if the queue is blocked
- */
-
-static int rq_greedy(struct gfs2_holder *gh)
-{
-	struct gfs2_glock *gl = gh->gh_gl;
-
-	list_del_init(&gh->gh_list);
-	/*  gh->gh_error never examined.  */
-	clear_bit(GLF_GREEDY, &gl->gl_flags);
-	spin_unlock(&gl->gl_spin);
-
-	gfs2_holder_uninit(gh);
-	kfree(container_of(gh, struct greedy, gr_gh));
-
-	spin_lock(&gl->gl_spin);
-
-	return 0;
-}
-
-/**
  * run_queue - process holder structures on a glock
  * @gl: the glock
  *
@@ -671,8 +642,6 @@ static void run_queue(struct gfs2_glock *gl)
 
 			if (test_bit(HIF_DEMOTE, &gh->gh_iflags))
 				blocked = rq_demote(gh);
-			else if (test_bit(HIF_GREEDY, &gh->gh_iflags))
-				blocked = rq_greedy(gh);
 			else
 				gfs2_assert_warn(gl->gl_sbd, 0);
 
@@ -1334,68 +1303,6 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	clear_bit(GLF_LOCK, &gl->gl_flags);
 	run_queue(gl);
 	spin_unlock(&gl->gl_spin);
-}
-
-static void greedy_work(struct work_struct *work)
-{
-	struct greedy *gr = container_of(work, struct greedy, gr_work.work);
-	struct gfs2_holder *gh = &gr->gr_gh;
-	struct gfs2_glock *gl = gh->gh_gl;
-	const struct gfs2_glock_operations *glops = gl->gl_ops;
-
-	clear_bit(GLF_SKIP_WAITERS2, &gl->gl_flags);
-
-	if (glops->go_greedy)
-		glops->go_greedy(gl);
-
-	spin_lock(&gl->gl_spin);
-
-	if (list_empty(&gl->gl_waiters2)) {
-		clear_bit(GLF_GREEDY, &gl->gl_flags);
-		spin_unlock(&gl->gl_spin);
-		gfs2_holder_uninit(gh);
-		kfree(gr);
-	} else {
-		gfs2_glock_hold(gl);
-		list_add_tail(&gh->gh_list, &gl->gl_waiters2);
-		run_queue(gl);
-		spin_unlock(&gl->gl_spin);
-		gfs2_glock_put(gl);
-	}
-}
-
-/**
- * gfs2_glock_be_greedy -
- * @gl:
- * @time:
- *
- * Returns: 0 if go_greedy will be called, 1 otherwise
- */
-
-int gfs2_glock_be_greedy(struct gfs2_glock *gl, unsigned int time)
-{
-	struct greedy *gr;
-	struct gfs2_holder *gh;
-
-	if (!time || gl->gl_sbd->sd_args.ar_localcaching ||
-	    test_and_set_bit(GLF_GREEDY, &gl->gl_flags))
-		return 1;
-
-	gr = kmalloc(sizeof(struct greedy), GFP_KERNEL);
-	if (!gr) {
-		clear_bit(GLF_GREEDY, &gl->gl_flags);
-		return 1;
-	}
-	gh = &gr->gr_gh;
-
-	gfs2_holder_init(gl, 0, 0, gh);
-	set_bit(HIF_GREEDY, &gh->gh_iflags);
-	INIT_DELAYED_WORK(&gr->gr_work, greedy_work);
-
-	set_bit(GLF_SKIP_WAITERS2, &gl->gl_flags);
-	schedule_delayed_work(&gr->gr_work, time);
-
-	return 0;
 }
 
 /**

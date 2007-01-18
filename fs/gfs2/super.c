@@ -77,9 +77,6 @@ void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_complain_secs = 10;
 	gt->gt_reclaim_limit = 5000;
 	gt->gt_entries_per_readdir = 32;
-	gt->gt_greedy_default = HZ / 10;
-	gt->gt_greedy_quantum = HZ / 40;
-	gt->gt_greedy_max = HZ / 4;
 	gt->gt_statfs_quantum = 30;
 	gt->gt_statfs_slow = 0;
 }
