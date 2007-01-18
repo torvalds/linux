@@ -457,6 +457,8 @@ ChangeLog
 
 Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 
+2.1.28:
+	- Fix a deadlock.
 2.1.27:
 	- Implement page migration support so the kernel can move memory used
 	  by NTFS files and directories around for management purposes.
