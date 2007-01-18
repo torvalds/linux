@@ -204,6 +204,7 @@ struct w83793_data {
 	u8 temp_fan_map[6];	/* Temp controls which pwm fan, bit field */
 
 	u8 has_pwm;
+	u8 has_temp;
 	u8 pwm_enable;		/* Register value, each Temp has 1 bit */
 	u8 pwm_uptime;		/* Register value */
 	u8 pwm_downtime;	/* Register value */
@@ -554,8 +555,7 @@ store_temp_mode(struct device *dev, struct device_attribute *attr,
 	if ((val == 6) && (index < 4)) {
 		val -= 3;
 	} else if ((val == 3 && index < 4)
-		|| (val == 4 && index >= 4)
-		|| val == 0) {
+		|| (val == 4 && index >= 4)) {
 		/* transform diode or thermistor into internal enable */
 		val = !!val;
 	} else {
@@ -986,12 +986,6 @@ static struct sensor_device_attribute_2 w83793_sensor_attr_2[] = {
 	SENSOR_ATTR_IN(7),
 	SENSOR_ATTR_IN(8),
 	SENSOR_ATTR_IN(9),
-	SENSOR_ATTR_TEMP(1),
-	SENSOR_ATTR_TEMP(2),
-	SENSOR_ATTR_TEMP(3),
-	SENSOR_ATTR_TEMP(4),
-	SENSOR_ATTR_TEMP(5),
-	SENSOR_ATTR_TEMP(6),
 	SENSOR_ATTR_FAN(1),
 	SENSOR_ATTR_FAN(2),
 	SENSOR_ATTR_FAN(3),
@@ -1000,6 +994,15 @@ static struct sensor_device_attribute_2 w83793_sensor_attr_2[] = {
 	SENSOR_ATTR_PWM(1),
 	SENSOR_ATTR_PWM(2),
 	SENSOR_ATTR_PWM(3),
+};
+
+static struct sensor_device_attribute_2 w83793_temp[] = {
+	SENSOR_ATTR_TEMP(1),
+	SENSOR_ATTR_TEMP(2),
+	SENSOR_ATTR_TEMP(3),
+	SENSOR_ATTR_TEMP(4),
+	SENSOR_ATTR_TEMP(5),
+	SENSOR_ATTR_TEMP(6),
 };
 
 /* Fan6-Fan12 */
@@ -1082,6 +1085,9 @@ static int w83793_detach_client(struct i2c_client *client)
 
 		for (i = 0; i < ARRAY_SIZE(w83793_left_pwm); i++)
 			device_remove_file(dev, &w83793_left_pwm[i].dev_attr);
+
+		for (i = 0; i < ARRAY_SIZE(w83793_temp); i++)
+			device_remove_file(dev, &w83793_temp[i].dev_attr);
 	}
 
 	if ((err = i2c_detach_client(client)))
@@ -1194,6 +1200,7 @@ static int w83793_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct w83793_data *data;
 	int files_fan = ARRAY_SIZE(w83793_left_fan) / 7;
 	int files_pwm = ARRAY_SIZE(w83793_left_pwm) / 5;
+	int files_temp = ARRAY_SIZE(w83793_temp) / 6;
 	int err = 0;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
@@ -1320,6 +1327,23 @@ static int w83793_detect(struct i2c_adapter *adapter, int address, int kind)
 		data->has_pwm |= 0x80;
 	}
 
+	/* check the temp1-6 mode, ignore former AMDSI selected inputs */
+	tmp = w83793_read_value(client,W83793_REG_TEMP_MODE[0]);
+	if (tmp & 0x01)
+		data->has_temp |= 0x01;
+	if (tmp & 0x04)
+		data->has_temp |= 0x02;
+	if (tmp & 0x10)
+		data->has_temp |= 0x04;
+	if (tmp & 0x40)
+		data->has_temp |= 0x08;
+
+	tmp = w83793_read_value(client,W83793_REG_TEMP_MODE[1]);
+	if (tmp & 0x01)
+		data->has_temp |= 0x10;
+	if (tmp & 0x02)
+		data->has_temp |= 0x20;
+
 	/* Register sysfs hooks */
 	for (i = 0; i < ARRAY_SIZE(w83793_sensor_attr_2); i++) {
 		err = device_create_file(dev,
@@ -1333,6 +1357,19 @@ static int w83793_detect(struct i2c_adapter *adapter, int address, int kind)
 		if (err)
 			goto exit_remove;
 
+	}
+
+	for (i = 0; i < 6; i++) {
+		int j;
+		if (!(data->has_temp & (1 << i)))
+			continue;
+		for (j = 0; j < files_temp; j++) {
+			err = device_create_file(dev,
+						&w83793_temp[(i) * files_temp
+								+ j].dev_attr);
+			if (err)
+				goto exit_remove;
+		}
 	}
 
 	for (i = 5; i < 12; i++) {
@@ -1383,6 +1420,9 @@ exit_remove:
 
 	for (i = 0; i < ARRAY_SIZE(w83793_left_pwm); i++)
 		device_remove_file(dev, &w83793_left_pwm[i].dev_attr);
+
+	for (i = 0; i < ARRAY_SIZE(w83793_temp); i++)
+		device_remove_file(dev, &w83793_temp[i].dev_attr);
 
 	if (data->lm75[0] != NULL) {
 		i2c_detach_client(data->lm75[0]);
@@ -1435,6 +1475,8 @@ static void w83793_update_nonvolatile(struct device *dev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(data->temp_fan_map); i++) {
+		if (!(data->has_temp & (1 << i)))
+			continue;
 		data->temp_fan_map[i] =
 		    w83793_read_value(client, W83793_REG_TEMP_FAN_MAP(i));
 		for (j = 1; j < 5; j++) {
@@ -1517,9 +1559,12 @@ static struct w83793_data *w83793_update_device(struct device *dev)
 		    w83793_read_value(client, W83793_REG_FAN(i) + 1);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(data->temp); i++)
+	for (i = 0; i < ARRAY_SIZE(data->temp); i++) {
+		if (!(data->has_temp & (1 << i)))
+			continue;
 		data->temp[i][TEMP_READ] =
 		    w83793_read_value(client, W83793_REG_TEMP[i][TEMP_READ]);
+	}
 
 	data->temp_low_bits =
 	    w83793_read_value(client, W83793_REG_TEMP_LOW_BITS);
