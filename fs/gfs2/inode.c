@@ -281,16 +281,14 @@ out:
 }
 
 /**
- * gfs2_change_nlink - Change nlink count on inode
+ * gfs2_change_nlink_i - Change nlink count on inode
  * @ip: The GFS2 inode
  * @diff: The change in the nlink count required
  *
  * Returns: errno
  */
-
-int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
+int gfs2_change_nlink_i(struct gfs2_inode *ip, int diff)
 {
-	struct gfs2_sbd *sdp = ip->i_inode.i_sb->s_fs_info;
 	struct buffer_head *dibh;
 	u32 nlink;
 	int error;
@@ -322,6 +320,20 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	brelse(dibh);
 	mark_inode_dirty(&ip->i_inode);
 
+	return error;
+}
+
+int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
+{
+	struct gfs2_sbd *sdp = ip->i_inode.i_sb->s_fs_info;
+	int error;
+
+	/* update the nlink */
+	error = gfs2_change_nlink_i(ip, diff);
+	if (error)
+		return error;
+
+	/* return meta data block back to rg */
 	if (ip->i_inode.i_nlink == 0) {
 		struct gfs2_rgrpd *rgd;
 		struct gfs2_holder ri_gh, rg_gh;

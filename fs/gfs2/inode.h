@@ -40,6 +40,7 @@ int gfs2_inode_refresh(struct gfs2_inode *ip);
 
 int gfs2_dinode_dealloc(struct gfs2_inode *inode);
 int gfs2_change_nlink(struct gfs2_inode *ip, int diff);
+int gfs2_change_nlink_i(struct gfs2_inode *ip, int diff);
 struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 			   int is_root, struct nameidata *nd);
 struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
