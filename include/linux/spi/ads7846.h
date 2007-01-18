@@ -5,6 +5,12 @@
  *
  * It's OK if the min/max values are zero.
  */
+enum ads7846_filter {
+	ADS7846_FILTER_OK,
+	ADS7846_FILTER_REPEAT,
+	ADS7846_FILTER_IGNORE,
+};
+
 struct ads7846_platform_data {
 	u16	model;			/* 7843, 7845, 7846. */
 	u16	vref_delay_usecs;	/* 0 for external vref; etc */
@@ -21,5 +27,9 @@ struct ads7846_platform_data {
 	u16	debounce_rep;		/* additional consecutive good readings
 					 * required after the first two */
 	int	(*get_pendown_state)(void);
+	int	(*filter_init)	(struct ads7846_platform_data *pdata,
+				 void **filter_data);
+	int	(*filter)	(void *filter_data, int data_idx, int *val);
+	void	(*filter_cleanup)(void *filter_data);
 };
 
