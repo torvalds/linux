@@ -117,6 +117,7 @@ static const u16 W83793_REG_IN[][3] = {
 /* Low Bits of Vcore A/B Vtt Read/High/Low */
 static const u16 W83793_REG_IN_LOW_BITS[] = { 0x1b, 0x68, 0x69 };
 static u8 scale_in[] = { 2, 2, 2, 16, 16, 16, 8, 24, 24, 16 };
+static u8 scale_in_add[] = { 0, 0, 0, 0, 0, 0, 0, 150, 150, 0 };
 
 #define W83793_REG_FAN(index)		(0x23 + 2 * (index))	/* High byte */
 #define W83793_REG_FAN_MIN(index)	(0x90 + 2 * (index))	/* High byte */
@@ -500,7 +501,7 @@ store_temp(struct device *dev, struct device_attribute *attr,
 	each has 4 mode:(2 bits)
 	0:	Stop monitor
 	1:	Use internal temp sensor(default)
-	2:	Use sensor in AMD CPU and get result by AMDSI
+	2:	Reserved
 	3:	Use sensor in Intel CPU and get result by PECI
 
 	TR1-TR2
@@ -509,8 +510,8 @@ store_temp(struct device *dev, struct device_attribute *attr,
 	1:	To enable temp sensors monitor
 */
 
-/* 0 disable, 5 AMDSI, 6 PECI */
-static u8 TO_TEMP_MODE[] = { 0, 0, 5, 6 };
+/* 0 disable, 6 PECI */
+static u8 TO_TEMP_MODE[] = { 0, 0, 0, 6 };
 
 static ssize_t
 show_temp_mode(struct device *dev, struct device_attribute *attr, char *buf)
@@ -550,7 +551,7 @@ store_temp_mode(struct device *dev, struct device_attribute *attr,
 	u8 val = simple_strtoul(buf, NULL, 10);
 
 	/* transform the sysfs interface values into table above */
-	if ((val == 5 || val == 6) && (index < 4)) {
+	if ((val == 6) && (index < 4)) {
 		val -= 3;
 	} else if ((val == 3 && index < 4)
 		|| (val == 4 && index >= 4)
@@ -839,7 +840,9 @@ show_in(struct device *dev, struct device_attribute *attr, char *buf)
 		val <<= 2;
 		val += (data->in_low_bits[nr] >> (index * 2)) & 0x3;
 	}
-	return sprintf(buf, "%d\n", val * scale_in[index]);
+	/* voltage inputs 5VDD and 5VSB needs 150mV offset */
+	val = val * scale_in[index] + scale_in_add[index];
+	return sprintf(buf, "%d\n", val);
 }
 
 static ssize_t
@@ -859,6 +862,10 @@ store_in(struct device *dev, struct device_attribute *attr,
 	     scale_in[index] / 2) / scale_in[index];
 	mutex_lock(&data->update_lock);
 	if (index > 2) {
+		/* fix the limit values of 5VDD and 5VSB to ALARM mechanism */
+		if (1 == nr || 2 == nr) {
+			val -= scale_in_add[index] / scale_in[index];
+		}
 		val = SENSORS_LIMIT(val, 0, 255);
 	} else {
 		val = SENSORS_LIMIT(val, 0, 0x3FF);
