@@ -357,7 +357,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	else
 		drop_nlink(&ip->i_inode);
 
-	ip->i_inode.i_ctime.tv_sec = get_seconds();
+	ip->i_inode.i_ctime = CURRENT_TIME_SEC;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
