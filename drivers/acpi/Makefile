@@ -37,7 +37,7 @@ endif
 
 obj-y				+= sleep/
 obj-y				+= bus.o glue.o
-obj-y				+= scan.o motherboard.o
+obj-y				+= scan.o
 obj-$(CONFIG_ACPI_AC) 		+= ac.o
 obj-$(CONFIG_ACPI_BATTERY)	+= battery.o
 obj-$(CONFIG_ACPI_BUTTON)	+= button.o
