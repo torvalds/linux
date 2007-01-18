@@ -2028,6 +2028,22 @@ posix_unblock_lock(struct file *filp, struct file_lock *waiter)
 
 EXPORT_SYMBOL(posix_unblock_lock);
 
+/**
+ * vfs_cancel_lock - file byte range unblock lock
+ * @filp: The file to apply the unblock to
+ * @fl: The lock to be unblocked
+ *
+ * Used by lock managers to cancel blocked requests
+ */
+int vfs_cancel_lock(struct file *filp, struct file_lock *fl)
+{
+	if (filp->f_op && filp->f_op->lock)
+		return filp->f_op->lock(filp, F_CANCELLK, fl);
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(vfs_cancel_lock);
+
 static void lock_get_status(char* out, struct file_lock *fl, int id, char *pfx)
 {
 	struct inode *inode = NULL;
