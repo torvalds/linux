@@ -371,7 +371,7 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 	if (unlikely(i8042_suppress_kbd_ack))
 		if (port_no == I8042_KBD_PORT_NO &&
 		    (data == 0xfa || data == 0xfe)) {
-			i8042_suppress_kbd_ack = 0;
+			i8042_suppress_kbd_ack--;
 			goto out;
 		}
 
@@ -838,13 +838,14 @@ static long i8042_panic_blink(long count)
 	led ^= 0x01 | 0x04;
 	while (i8042_read_status() & I8042_STR_IBF)
 		DELAY;
-	i8042_suppress_kbd_ack = 1;
+	dbg("%02x -> i8042 (panic blink)", 0xed);
+	i8042_suppress_kbd_ack = 2;
 	i8042_write_data(0xed); /* set leds */
 	DELAY;
 	while (i8042_read_status() & I8042_STR_IBF)
 		DELAY;
 	DELAY;
-	i8042_suppress_kbd_ack = 1;
+	dbg("%02x -> i8042 (panic blink)", led);
 	i8042_write_data(led);
 	DELAY;
 	last_blink = count;
