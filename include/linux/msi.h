@@ -7,11 +7,10 @@ struct msi_msg {
 	u32	data;		/* 16 bits of msi message data */
 };
 
-/* Heper functions */
+/* Helper functions */
 extern void mask_msi_irq(unsigned int irq);
 extern void unmask_msi_irq(unsigned int irq);
 extern void read_msi_msg(unsigned int irq, struct msi_msg *msg);
-
 extern void write_msi_msg(unsigned int irq, struct msi_msg *msg);
 
 struct msi_desc {

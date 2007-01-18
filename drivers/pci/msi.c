@@ -49,8 +49,8 @@ static void msi_set_mask_bit(unsigned int irq, int flag)
 	switch (entry->msi_attrib.type) {
 	case PCI_CAP_ID_MSI:
 		if (entry->msi_attrib.maskbit) {
-			int		pos;
-			u32		mask_bits;
+			int pos;
+			u32 mask_bits;
 
 			pos = (long)entry->mask_base;
 			pci_read_config_dword(entry->dev, pos, &mask_bits);
@@ -162,6 +162,7 @@ void unmask_msi_irq(unsigned int irq)
 }
 
 static int msi_free_irq(struct pci_dev* dev, int irq);
+
 static int msi_init(void)
 {
 	static int status = -ENOMEM;
@@ -291,7 +292,7 @@ static int msi_lookup_irq(struct pci_dev *dev, int type)
 			continue;
 		spin_unlock_irqrestore(&msi_lock, flags);
 		/* This pre-assigned MSI irq for this device
-		   already exits. Override dev->irq with this irq */
+		   already exists. Override dev->irq with this irq */
 		dev->irq = irq;
 		return 0;
 	}
@@ -458,7 +459,7 @@ void pci_restore_msix_state(struct pci_dev *dev)
 	pci_write_config_word(dev, msi_control_reg(pos), save);
 	enable_msi_mode(dev, pos, PCI_CAP_ID_MSIX);
 }
-#endif
+#endif	/* CONFIG_PM */
 
 /**
  * msi_capability_init - configure device's MSI capability structure
