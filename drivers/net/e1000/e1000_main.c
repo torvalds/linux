@@ -2583,15 +2583,22 @@ e1000_watchdog(unsigned long data)
 
 	if (link) {
 		if (!netif_carrier_ok(netdev)) {
+			uint32_t ctrl;
 			boolean_t txb2b = 1;
 			e1000_get_speed_and_duplex(&adapter->hw,
 			                           &adapter->link_speed,
 			                           &adapter->link_duplex);
 
-			DPRINTK(LINK, INFO, "NIC Link is Up %d Mbps %s\n",
-			       adapter->link_speed,
-			       adapter->link_duplex == FULL_DUPLEX ?
-			       "Full Duplex" : "Half Duplex");
+			ctrl = E1000_READ_REG(&adapter->hw, CTRL);
+			DPRINTK(LINK, INFO, "NIC Link is Up %d Mbps %s, "
+			        "Flow Control: %s\n",
+			        adapter->link_speed,
+			        adapter->link_duplex == FULL_DUPLEX ?
+			        "Full Duplex" : "Half Duplex",
+			        ((ctrl & E1000_CTRL_TFCE) && (ctrl &
+			        E1000_CTRL_RFCE)) ? "RX/TX" : ((ctrl &
+			        E1000_CTRL_RFCE) ? "RX" : ((ctrl &
+			        E1000_CTRL_TFCE) ? "TX" : "None" )));
 
 			/* tweak tx_queue_len according to speed/duplex
 			 * and adjust the timeout factor */
