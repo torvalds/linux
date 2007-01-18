@@ -710,6 +710,10 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	 * may not.  So we stick to very-portable 8 bit words, both RX and TX.
 	 */
 	spi->bits_per_word = 8;
+	spi->mode = SPI_MODE_1;
+	err = spi_setup(spi);
+	if (err < 0)
+		return err;
 
 	ts = kzalloc(sizeof(struct ads7846), GFP_KERNEL);
 	input_dev = input_allocate_device();
