@@ -176,6 +176,10 @@ static int dlm_purge_lockres(struct dlm_ctxt *dlm,
 	     res->lockname.name, master);
 
 	if (!master) {
+		spin_lock(&res->spinlock);
+		/* This ensures that clear refmap is sent after the set */
+		__dlm_wait_on_lockres_flags(res, DLM_LOCK_RES_SETREF_INPROG);
+		spin_unlock(&res->spinlock);
 		/* drop spinlock to do messaging, retake below */
 		spin_unlock(&dlm->spinlock);
 		/* clear our bit from the master's refmap, ignore errors */

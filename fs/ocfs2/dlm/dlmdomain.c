@@ -1101,7 +1101,8 @@ static int dlm_register_domain_handlers(struct dlm_ctxt *dlm)
 	status = o2net_register_handler(DLM_ASSERT_MASTER_MSG, dlm->key,
 					sizeof(struct dlm_assert_master),
 					dlm_assert_master_handler,
-					dlm, NULL, &dlm->dlm_domain_handlers);
+					dlm, dlm_assert_master_post_handler,
+					&dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 

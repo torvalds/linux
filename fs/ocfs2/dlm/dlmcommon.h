@@ -224,6 +224,7 @@ static inline void __dlm_set_joining_node(struct dlm_ctxt *dlm,
 #define DLM_LOCK_RES_MIGRATING            0x00000020
 #define DLM_LOCK_RES_DROPPING_REF         0x00000040
 #define DLM_LOCK_RES_BLOCK_DIRTY          0x00001000
+#define DLM_LOCK_RES_SETREF_INPROG        0x00002000
 
 /* max milliseconds to wait to sync up a network failure with a node death */
 #define DLM_NODE_DEATH_WAIT_MAX (5 * 1000)
@@ -879,6 +880,7 @@ int dlm_master_request_handler(struct o2net_msg *msg, u32 len, void *data,
 			       void **ret_data);
 int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data,
 			      void **ret_data);
+void dlm_assert_master_post_handler(int status, void *data, void *ret_data);
 int dlm_deref_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 			      void **ret_data);
 int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,

@@ -2036,8 +2036,12 @@ ok:
 
 done:
 	ret = 0;
-	if (res)
-		dlm_lockres_put(res);
+	if (res) {
+		spin_lock(&res->spinlock);
+		res->state |= DLM_LOCK_RES_SETREF_INPROG;
+		spin_unlock(&res->spinlock);
+		*ret_data = (void *)res;
+	}
 	dlm_put(dlm);
 	if (master_request) {
 		mlog(0, "need to tell master to reassert\n");
@@ -2064,9 +2068,23 @@ kill:
 	__dlm_print_one_lock_resource(res);
 	spin_unlock(&res->spinlock);
 	spin_unlock(&dlm->spinlock);
-	dlm_lockres_put(res);
+	*ret_data = (void *)res; 
 	dlm_put(dlm);
 	return -EINVAL;
+}
+
+void dlm_assert_master_post_handler(int status, void *data, void *ret_data)
+{
+	struct dlm_lock_resource *res = (struct dlm_lock_resource *)ret_data;
+
+	if (ret_data) {
+		spin_lock(&res->spinlock);
+		res->state &= ~DLM_LOCK_RES_SETREF_INPROG;
+		spin_unlock(&res->spinlock);
+		wake_up(&res->wq);
+		dlm_lockres_put(res);
+	}
+	return;
 }
 
 int dlm_dispatch_assert_master(struct dlm_ctxt *dlm,
