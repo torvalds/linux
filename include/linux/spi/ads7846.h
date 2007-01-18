@@ -14,6 +14,8 @@ enum ads7846_filter {
 struct ads7846_platform_data {
 	u16	model;			/* 7843, 7845, 7846. */
 	u16	vref_delay_usecs;	/* 0 for external vref; etc */
+	int	keep_vref_on:1;		/* set to keep vref on for differential
+					 * measurements as well */
 	u16	x_plate_ohms;
 	u16	y_plate_ohms;
 

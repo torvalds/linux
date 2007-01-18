@@ -145,15 +145,16 @@ struct ads7846 {
 #define	MAX_12BIT	((1<<12)-1)
 
 /* leave ADC powered up (disables penirq) between differential samples */
-#define	READ_12BIT_DFR(x) (ADS_START | ADS_A2A1A0_d_ ## x \
-	| ADS_12_BIT | ADS_DFR)
+#define	READ_12BIT_DFR(x, adc, vref) (ADS_START | ADS_A2A1A0_d_ ## x \
+	| ADS_12_BIT | ADS_DFR | \
+	(adc ? ADS_PD10_ADC_ON : 0) | (vref ? ADS_PD10_REF_ON : 0))
 
-#define	READ_Y	(READ_12BIT_DFR(y)  | ADS_PD10_ADC_ON)
-#define	READ_Z1	(READ_12BIT_DFR(z1) | ADS_PD10_ADC_ON)
-#define	READ_Z2	(READ_12BIT_DFR(z2) | ADS_PD10_ADC_ON)
+#define	READ_Y(vref)	(READ_12BIT_DFR(y,  1, vref))
+#define	READ_Z1(vref)	(READ_12BIT_DFR(z1, 1, vref))
+#define	READ_Z2(vref)	(READ_12BIT_DFR(z2, 1, vref))
 
-#define	READ_X	(READ_12BIT_DFR(x)  | ADS_PD10_ADC_ON)
-#define	PWRDOWN	(READ_12BIT_DFR(y)  | ADS_PD10_PDOWN)	/* LAST */
+#define	READ_X(vref)	(READ_12BIT_DFR(x,  1, vref))
+#define	PWRDOWN		(READ_12BIT_DFR(y,  0, 0))	/* LAST */
 
 /* single-ended samples need to first power up reference voltage;
  * we leave both ADC and VREF powered
@@ -161,8 +162,8 @@ struct ads7846 {
 #define	READ_12BIT_SER(x) (ADS_START | ADS_A2A1A0_ ## x \
 	| ADS_12_BIT | ADS_SER)
 
-#define	REF_ON	(READ_12BIT_DFR(x) | ADS_PD10_ALL_ON)
-#define	REF_OFF	(READ_12BIT_DFR(y) | ADS_PD10_PDOWN)
+#define	REF_ON	(READ_12BIT_DFR(x, 1, 1))
+#define	REF_OFF	(READ_12BIT_DFR(y, 0, 0))
 
 /*--------------------------------------------------------------------------*/
 
@@ -670,6 +671,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	struct ads7846_platform_data	*pdata = spi->dev.platform_data;
 	struct spi_message		*m;
 	struct spi_transfer		*x;
+	int				vref;
 	int				err;
 
 	if (!spi->irq) {
@@ -767,6 +769,8 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	input_set_abs_params(input_dev, ABS_PRESSURE,
 			pdata->pressure_min, pdata->pressure_max, 0, 0);
 
+	vref = pdata->keep_vref_on;
+
 	/* set up the transfers to read touchscreen state; this assumes we
 	 * use formula #2 for pressure, not #3.
 	 */
@@ -776,7 +780,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	spi_message_init(m);
 
 	/* y- still on; turn on only y+ (and ADC) */
-	ts->read_y = READ_Y;
+	ts->read_y = READ_Y(vref);
 	x->tx_buf = &ts->read_y;
 	x->len = 1;
 	spi_message_add_tail(x, m);
@@ -794,7 +798,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	/* turn y- off, x+ on, then leave in lowpower */
 	x++;
-	ts->read_x = READ_X;
+	ts->read_x = READ_X(vref);
 	x->tx_buf = &ts->read_x;
 	x->len = 1;
 	spi_message_add_tail(x, m);
@@ -813,7 +817,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		spi_message_init(m);
 
 		x++;
-		ts->read_z1 = READ_Z1;
+		ts->read_z1 = READ_Z1(vref);
 		x->tx_buf = &ts->read_z1;
 		x->len = 1;
 		spi_message_add_tail(x, m);
@@ -830,7 +834,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		spi_message_init(m);
 
 		x++;
-		ts->read_z2 = READ_Z2;
+		ts->read_z2 = READ_Z2(vref);
 		x->tx_buf = &ts->read_z2;
 		x->len = 1;
 		spi_message_add_tail(x, m);
