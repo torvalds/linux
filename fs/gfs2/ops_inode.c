@@ -553,7 +553,6 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	int alloc_required;
 	unsigned int x;
 	int error;
-	struct gfs2_rgrpd *rgd;
 
 	if (ndentry->d_inode) {
 		nip = GFS2_I(ndentry->d_inode);
@@ -685,12 +684,12 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
 					 al->al_rgd->rd_ri.ri_length +
 					 4 * RES_DINODE + 4 * RES_LEAF +
-					 RES_STATFS + RES_QUOTA + 1, 0);
+					 RES_STATFS + RES_QUOTA + 4, 0);
 		if (error)
 			goto out_ipreserv;
 	} else {
 		error = gfs2_trans_begin(sdp, 4 * RES_DINODE +
-					 5 * RES_LEAF + 1, 0);
+					 5 * RES_LEAF + 4, 0);
 		if (error)
 			goto out_gunlock;
 	}
@@ -704,25 +703,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			error = gfs2_dir_del(ndip, &ndentry->d_name);
 			if (error)
 				goto out_end_trans;
-			error = gfs2_change_nlink_i(nip, -1);
-			if ((!error) && (nip->i_inode.i_nlink == 0)) {
-				error = -EIO;
-				rgd = gfs2_blk2rgrpd(sdp, nip->i_num.no_addr);
-				if (rgd) {
-					struct gfs2_holder nlink_rg_gh;
-					if (rgd != nip->i_alloc.al_rgd)
-						error = gfs2_glock_nq_init(
-						rgd->rd_gl, LM_ST_EXCLUSIVE,
-						0, &nlink_rg_gh);
-					else
-						error = 0;
-                			if (!error) {
-						gfs2_unlink_di(&nip->i_inode);
-						if (rgd != nip->i_alloc.al_rgd)
-							gfs2_glock_dq_uninit(&nlink_rg_gh);
-					}
-				}
-			}
+			error = gfs2_change_nlink(nip, -1);
 		}
 		if (error)
 			goto out_end_trans;

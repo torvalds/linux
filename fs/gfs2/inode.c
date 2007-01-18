@@ -281,13 +281,13 @@ out:
 }
 
 /**
- * gfs2_change_nlink_i - Change nlink count on inode
+ * gfs2_change_nlink - Change nlink count on inode
  * @ip: The GFS2 inode
  * @diff: The change in the nlink count required
  *
  * Returns: errno
  */
-int gfs2_change_nlink_i(struct gfs2_inode *ip, int diff)
+int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 {
 	struct buffer_head *dibh;
 	u32 nlink;
@@ -320,40 +320,52 @@ int gfs2_change_nlink_i(struct gfs2_inode *ip, int diff)
 	brelse(dibh);
 	mark_inode_dirty(&ip->i_inode);
 
+	if (ip->i_inode.i_nlink == 0)
+		error = gfs2_change_nlink_i(ip);
+
 	return error;
 }
 
-int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
+int gfs2_change_nlink_i(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = ip->i_inode.i_sb->s_fs_info;
-	int error;
+	struct gfs2_inode *rindex = GFS2_I(sdp->sd_rindex);
+	struct gfs2_glock *ri_gl = rindex->i_gl;
+	struct gfs2_rgrpd *rgd;
+	struct gfs2_holder ri_gh, rg_gh;
+	int existing, error;
 
-	/* update the nlink */
-	error = gfs2_change_nlink_i(ip, diff);
-	if (error)
-		return error;
-
-	/* return meta data block back to rg */
-	if (ip->i_inode.i_nlink == 0) {
-		struct gfs2_rgrpd *rgd;
-		struct gfs2_holder ri_gh, rg_gh;
-
+	/* if we come from rename path, we could have the lock already */
+	existing = gfs2_glock_is_locked_by_me(ri_gl);
+	if (!existing) {
 		error = gfs2_rindex_hold(sdp, &ri_gh);
 		if (error)
 			goto out;
-		error = -EIO;
-		rgd = gfs2_blk2rgrpd(sdp, ip->i_num.no_addr);
-		if (!rgd)
-			goto out_norgrp;
+	}
+
+	/* find the matching rgd */
+	error = -EIO;
+	rgd = gfs2_blk2rgrpd(sdp, ip->i_num.no_addr);
+	if (!rgd)
+		goto out_norgrp;
+
+	/*
+	 * Eventually we may want to move rgd(s) to a linked list
+	 * and piggyback the free logic into one of gfs2 daemons
+	 * to gain some performance.
+	 */
+	if (!rgd->rd_gl || !gfs2_glock_is_locked_by_me(rgd->rd_gl)) {
 		error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, &rg_gh);
 		if (error)
 			goto out_norgrp;
 
 		gfs2_unlink_di(&ip->i_inode); /* mark inode unlinked */
 		gfs2_glock_dq_uninit(&rg_gh);
-out_norgrp:
-		gfs2_glock_dq_uninit(&ri_gh);
 	}
+
+out_norgrp:
+	if (!existing)
+		gfs2_glock_dq_uninit(&ri_gh);
 out:
 	return error;
 }
