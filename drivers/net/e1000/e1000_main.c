@@ -3814,7 +3814,7 @@ e1000_intr_msi(int irq, void *data)
 
 	for (i = 0; i < E1000_MAX_INTR; i++)
 		if (unlikely(!adapter->clean_rx(adapter, adapter->rx_ring) &
-		   !e1000_clean_tx_irq(adapter, adapter->tx_ring)))
+		   e1000_clean_tx_irq(adapter, adapter->tx_ring)))
 			break;
 
 	if (likely(adapter->itr_setting & 3))
@@ -3917,7 +3917,7 @@ e1000_intr(int irq, void *data)
 
 	for (i = 0; i < E1000_MAX_INTR; i++)
 		if (unlikely(!adapter->clean_rx(adapter, adapter->rx_ring) &
-		   !e1000_clean_tx_irq(adapter, adapter->tx_ring)))
+		   e1000_clean_tx_irq(adapter, adapter->tx_ring)))
 			break;
 
 	if (likely(adapter->itr_setting & 3))
@@ -3967,7 +3967,7 @@ e1000_clean(struct net_device *poll_dev, int *budget)
 	poll_dev->quota -= work_done;
 
 	/* If no Tx and not enough Rx work done, exit the polling mode */
-	if ((!tx_cleaned && (work_done == 0)) ||
+	if ((tx_cleaned && (work_done < work_to_do)) ||
 	   !netif_running(poll_dev)) {
 quit_polling:
 		if (likely(adapter->itr_setting & 3))
@@ -3997,7 +3997,7 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 #ifdef CONFIG_E1000_NAPI
 	unsigned int count = 0;
 #endif
-	boolean_t cleaned = FALSE;
+	boolean_t cleaned = TRUE;
 	unsigned int total_tx_bytes=0, total_tx_packets=0;
 
 	i = tx_ring->next_to_clean;
@@ -4028,7 +4028,10 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 #ifdef CONFIG_E1000_NAPI
 #define E1000_TX_WEIGHT 64
 		/* weight of a sort for tx, to avoid endless transmit cleanup */
-		if (count++ == E1000_TX_WEIGHT) break;
+		if (count++ == E1000_TX_WEIGHT) {
+			cleaned = FALSE;
+			break;
+		}
 #endif
 	}
 
