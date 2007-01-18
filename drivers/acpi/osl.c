@@ -75,6 +75,54 @@ static acpi_osd_handler acpi_irq_handler;
 static void *acpi_irq_context;
 static struct workqueue_struct *kacpid_wq;
 
+static void __init acpi_request_region (struct acpi_generic_address *addr,
+	unsigned int length, char *desc)
+{
+	struct resource *res;
+
+	if (!addr->address || !length)
+		return;
+
+	if (addr->address_space_id == ACPI_ADR_SPACE_SYSTEM_IO)
+		res = request_region(addr->address, length, desc);
+	else if (addr->address_space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		res = request_mem_region(addr->address, length, desc);
+}
+
+static int __init acpi_reserve_resources(void)
+{
+	acpi_request_region(&acpi_fadt.xpm1a_evt_blk, acpi_fadt.pm1_evt_len,
+		"ACPI PM1a_EVT_BLK");
+
+	acpi_request_region(&acpi_fadt.xpm1b_evt_blk, acpi_fadt.pm1_evt_len,
+		"ACPI PM1b_EVT_BLK");
+
+	acpi_request_region(&acpi_fadt.xpm1a_cnt_blk, acpi_fadt.pm1_cnt_len,
+		"ACPI PM1a_CNT_BLK");
+
+	acpi_request_region(&acpi_fadt.xpm1b_cnt_blk, acpi_fadt.pm1_cnt_len,
+		"ACPI PM1b_CNT_BLK");
+
+	if (acpi_fadt.pm_tm_len == 4)
+		acpi_request_region(&acpi_fadt.xpm_tmr_blk, 4, "ACPI PM_TMR");
+
+	acpi_request_region(&acpi_fadt.xpm2_cnt_blk, acpi_fadt.pm2_cnt_len,
+		"ACPI PM2_CNT_BLK");
+
+	/* Length of GPE blocks must be a non-negative multiple of 2 */
+
+	if (!(acpi_fadt.gpe0_blk_len & 0x1))
+		acpi_request_region(&acpi_fadt.xgpe0_blk,
+			       acpi_fadt.gpe0_blk_len, "ACPI GPE0_BLK");
+
+	if (!(acpi_fadt.gpe1_blk_len & 0x1))
+		acpi_request_region(&acpi_fadt.xgpe1_blk,
+			       acpi_fadt.gpe1_blk_len, "ACPI GPE1_BLK");
+
+	return 0;
+}
+device_initcall(acpi_reserve_resources);
+
 acpi_status acpi_os_initialize(void)
 {
 	return AE_OK;
