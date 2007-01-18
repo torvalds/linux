@@ -126,6 +126,8 @@ EXPORT_SYMBOL_GPL(kobject_get_path);
  */
 void kobject_init(struct kobject * kobj)
 {
+	if (!kobj)
+		return;
 	kref_init(&kobj->kref);
 	INIT_LIST_HEAD(&kobj->entry);
 	init_waitqueue_head(&kobj->poll);
@@ -366,6 +368,8 @@ out:
 
 void kobject_del(struct kobject * kobj)
 {
+	if (!kobj)
+		return;
 	sysfs_remove_dir(kobj);
 	unlink(kobj);
 }
@@ -377,6 +381,8 @@ void kobject_del(struct kobject * kobj)
 
 void kobject_unregister(struct kobject * kobj)
 {
+	if (!kobj)
+		return;
 	pr_debug("kobject %s: unregistering\n",kobject_name(kobj));
 	kobject_uevent(kobj, KOBJ_REMOVE);
 	kobject_del(kobj);
@@ -523,6 +529,8 @@ int kset_add(struct kset * k)
 
 int kset_register(struct kset * k)
 {
+	if (!k)
+		return -EINVAL;
 	kset_init(k);
 	return kset_add(k);
 }
@@ -535,6 +543,8 @@ int kset_register(struct kset * k)
 
 void kset_unregister(struct kset * k)
 {
+	if (!k)
+		return;
 	kobject_unregister(&k->kobj);
 }
 
@@ -586,6 +596,9 @@ int subsystem_register(struct subsystem * s)
 {
 	int error;
 
+	if (!s)
+		return -EINVAL;
+
 	subsystem_init(s);
 	pr_debug("subsystem %s: registering\n",s->kset.kobj.name);
 
@@ -598,6 +611,8 @@ int subsystem_register(struct subsystem * s)
 
 void subsystem_unregister(struct subsystem * s)
 {
+	if (!s)
+		return;
 	pr_debug("subsystem %s: unregistering\n",s->kset.kobj.name);
 	kset_unregister(&s->kset);
 }
@@ -612,6 +627,10 @@ void subsystem_unregister(struct subsystem * s)
 int subsys_create_file(struct subsystem * s, struct subsys_attribute * a)
 {
 	int error = 0;
+
+	if (!s || !a)
+		return -EINVAL;
+
 	if (subsys_get(s)) {
 		error = sysfs_create_file(&s->kset.kobj,&a->attr);
 		subsys_put(s);
