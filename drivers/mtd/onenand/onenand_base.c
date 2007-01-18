@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/mtd/onenand/onenand_base.c
  *
- *  Copyright (C) 2005-2006 Samsung Electronics
+ *  Copyright (C) 2005-2007 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -581,8 +581,7 @@ static int onenand_check_bufferram(struct mtd_info *mtd, loff_t addr)
 	int i;
 
 	block = (int) (addr >> this->erase_shift);
-	page = (int) (addr >> this->page_shift);
-	page &= this->page_mask;
+	page = (int) (addr >> this->page_shift) & this->page_mask;
 
 	i = ONENAND_CURRENT_BUFFERRAM(this);
 
@@ -611,8 +610,7 @@ static int onenand_update_bufferram(struct mtd_info *mtd, loff_t addr,
 	int i;
 
 	block = (int) (addr >> this->erase_shift);
-	page = (int) (addr >> this->page_shift);
-	page &= this->page_mask;
+	page = (int) (addr >> this->page_shift) & this->page_mask;
 
 	/* Invalidate BufferRAM */
 	for (i = 0; i < MAX_BUFFERRAM; i++) {
@@ -713,8 +711,6 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	/* Grab the lock and see if the device is available */
 	onenand_get_device(mtd, FL_READING);
-
-	/* TODO handling oob */
 
 	stats = mtd->ecc_stats;
 
@@ -1812,12 +1808,13 @@ static int onenand_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
 #endif	/* CONFIG_MTD_ONENAND_OTP */
 
 /**
- * onenand_lock_scheme - Check and set OneNAND lock scheme
+ * onenand_check_features - Check and set OneNAND features
  * @param mtd		MTD data structure
  *
- * Check and set OneNAND lock scheme
+ * Check and set OneNAND features
+ * - lock scheme
  */
-static void onenand_lock_scheme(struct mtd_info *mtd)
+static void onenand_check_features(struct mtd_info *mtd)
 {
 	struct onenand_chip *this = mtd->priv;
 	unsigned int density, process;
@@ -1971,8 +1968,8 @@ static int onenand_probe(struct mtd_info *mtd)
 
 	mtd->size = this->chipsize;
 
-	/* Check OneNAND lock scheme */
-	onenand_lock_scheme(mtd);
+	/* Check OneNAND features */
+	onenand_check_features(mtd);
 
 	return 0;
 }
