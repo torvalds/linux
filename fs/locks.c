@@ -801,7 +801,7 @@ out:
 	return error;
 }
 
-static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request, struct file_lock *conflock)
+static int __posix_lock_file(struct inode *inode, struct file_lock *request, struct file_lock *conflock)
 {
 	struct file_lock *fl;
 	struct file_lock *new_fl = NULL;
@@ -1007,6 +1007,7 @@ static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request
  * posix_lock_file - Apply a POSIX-style lock to a file
  * @filp: The file to apply the lock to
  * @fl: The lock to be applied
+ * @conflock: Place to return a copy of the conflicting lock, if found.
  *
  * Add a POSIX style lock to a file.
  * We merge adjacent & overlapping locks whenever possible.
@@ -1016,26 +1017,12 @@ static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request
  * whether or not a lock was successfully freed by testing the return
  * value for -ENOENT.
  */
-int posix_lock_file(struct file *filp, struct file_lock *fl)
-{
-	return __posix_lock_file_conf(filp->f_path.dentry->d_inode, fl, NULL);
-}
-EXPORT_SYMBOL(posix_lock_file);
-
-/**
- * posix_lock_file_conf - Apply a POSIX-style lock to a file
- * @filp: The file to apply the lock to
- * @fl: The lock to be applied
- * @conflock: Place to return a copy of the conflicting lock, if found.
- *
- * Except for the conflock parameter, acts just like posix_lock_file.
- */
-int posix_lock_file_conf(struct file *filp, struct file_lock *fl,
+int posix_lock_file(struct file *filp, struct file_lock *fl,
 			struct file_lock *conflock)
 {
-	return __posix_lock_file_conf(filp->f_path.dentry->d_inode, fl, conflock);
+	return __posix_lock_file(filp->f_path.dentry->d_inode, fl, conflock);
 }
-EXPORT_SYMBOL(posix_lock_file_conf);
+EXPORT_SYMBOL(posix_lock_file);
 
 /**
  * posix_lock_file_wait - Apply a POSIX-style lock to a file
@@ -1051,7 +1038,7 @@ int posix_lock_file_wait(struct file *filp, struct file_lock *fl)
 	int error;
 	might_sleep ();
 	for (;;) {
-		error = posix_lock_file(filp, fl);
+		error = posix_lock_file(filp, fl, NULL);
 		if ((error != -EAGAIN) || !(fl->fl_flags & FL_SLEEP))
 			break;
 		error = wait_event_interruptible(fl->fl_wait, !fl->fl_next);
@@ -1123,7 +1110,7 @@ int locks_mandatory_area(int read_write, struct inode *inode,
 	fl.fl_end = offset + count - 1;
 
 	for (;;) {
-		error = __posix_lock_file_conf(inode, &fl, NULL);
+		error = __posix_lock_file(inode, &fl, NULL);
 		if (error != -EAGAIN)
 			break;
 		if (!(fl.fl_flags & FL_SLEEP))
@@ -1703,13 +1690,21 @@ out:
  * @filp: The file to apply the lock to
  * @cmd: type of locking operation (F_SETLK, F_GETLK, etc.)
  * @fl: The lock to be applied
+ * @conf: Place to return a copy of the conflicting lock, if found.
+ *
+ * A caller that doesn't care about the conflicting lock may pass NULL
+ * as the final argument.
+ *
+ * If the filesystem defines a private ->lock() method, then @conf will
+ * be left unchanged; so a caller that cares should initialize it to
+ * some acceptable default.
  */
-int vfs_lock_file(struct file *filp, unsigned int cmd, struct file_lock *fl)
+int vfs_lock_file(struct file *filp, unsigned int cmd, struct file_lock *fl, struct file_lock *conf)
 {
 	if (filp->f_op && filp->f_op->lock)
 		return filp->f_op->lock(filp, cmd, fl);
 	else
-		return posix_lock_file(filp, fl);
+		return posix_lock_file(filp, fl, conf);
 }
 EXPORT_SYMBOL_GPL(vfs_lock_file);
 
@@ -1776,7 +1771,7 @@ again:
 		goto out;
 
 	for (;;) {
-		error = vfs_lock_file(filp, cmd, file_lock);
+		error = vfs_lock_file(filp, cmd, file_lock, NULL);
 		if (error != -EAGAIN || cmd == F_SETLK)
 			break;
 		error = wait_event_interruptible(file_lock->fl_wait,
@@ -1902,7 +1897,7 @@ again:
 		goto out;
 
 	for (;;) {
-		error = vfs_lock_file(filp, cmd, file_lock);
+		error = vfs_lock_file(filp, cmd, file_lock, NULL);
 		if (error != -EAGAIN || cmd == F_SETLK64)
 			break;
 		error = wait_event_interruptible(file_lock->fl_wait,
@@ -1956,7 +1951,7 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 	lock.fl_ops = NULL;
 	lock.fl_lmops = NULL;
 
-	vfs_lock_file(filp, F_SETLK, &lock);
+	vfs_lock_file(filp, F_SETLK, &lock, NULL);
 
 	if (lock.fl_ops && lock.fl_ops->fl_release_private)
 		lock.fl_ops->fl_release_private(&lock);
