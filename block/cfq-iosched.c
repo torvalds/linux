@@ -693,9 +693,6 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	if (cfq_cfqq_wait_request(cfqq))
 		del_timer(&cfqd->idle_slice_timer);
 
-	if (!preempted && !cfq_cfqq_dispatched(cfqq))
-		cfq_schedule_dispatch(cfqd);
-
 	cfq_clear_cfqq_must_dispatch(cfqq);
 	cfq_clear_cfqq_wait_request(cfqq);
 	cfq_clear_cfqq_queue_new(cfqq);
@@ -1102,8 +1099,10 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	BUG_ON(cfqq->allocated[READ] + cfqq->allocated[WRITE]);
 	BUG_ON(cfq_cfqq_on_rr(cfqq));
 
-	if (unlikely(cfqd->active_queue == cfqq))
+	if (unlikely(cfqd->active_queue == cfqq)) {
 		__cfq_slice_expired(cfqd, cfqq, 0, 0);
+		cfq_schedule_dispatch(cfqd);
+	}
 
 	/*
 	 * it's on the empty list and still hashed
@@ -1158,8 +1157,10 @@ static void cfq_free_io_context(struct io_context *ioc)
 
 static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
-	if (unlikely(cfqq == cfqd->active_queue))
+	if (unlikely(cfqq == cfqd->active_queue)) {
 		__cfq_slice_expired(cfqd, cfqq, 0, 0);
+		cfq_schedule_dispatch(cfqd);
+	}
 
 	cfq_put_queue(cfqq);
 }
@@ -1564,7 +1565,6 @@ cfq_update_idle_window(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	else
 		cfq_clear_cfqq_idle_window(cfqq);
 }
-
 
 /*
  * Check if new_cfqq should preempt the currently active queue. Return 0 for
