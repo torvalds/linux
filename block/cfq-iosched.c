@@ -1471,22 +1471,8 @@ err:
 static void
 cfq_update_io_thinktime(struct cfq_data *cfqd, struct cfq_io_context *cic)
 {
-	unsigned long elapsed, ttime;
-
-	/*
-	 * if this context already has stuff queued, thinktime is from
-	 * last queue not last end
-	 */
-#if 0
-	if (time_after(cic->last_end_request, cic->last_queue))
-		elapsed = jiffies - cic->last_end_request;
-	else
-		elapsed = jiffies - cic->last_queue;
-#else
-		elapsed = jiffies - cic->last_end_request;
-#endif
-
-	ttime = min(elapsed, 2UL * cfqd->cfq_slice_idle);
+	unsigned long elapsed = jiffies - cic->last_end_request;
+	unsigned long ttime = min(elapsed, 2UL * cfqd->cfq_slice_idle);
 
 	cic->ttime_samples = (7*cic->ttime_samples + 256) / 8;
 	cic->ttime_total = (7*cic->ttime_total + 256*ttime) / 8;
@@ -1649,7 +1635,6 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	cfq_update_io_seektime(cic, rq);
 	cfq_update_idle_window(cfqd, cfqq, cic);
 
-	cic->last_queue = jiffies;
 	cic->last_request_pos = rq->sector + rq->nr_sectors;
 
 	if (cfqq == cfqd->active_queue) {
