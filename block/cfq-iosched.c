@@ -885,16 +885,17 @@ static inline struct request *cfq_check_fifo(struct cfq_queue *cfqq)
 
 	if (cfq_cfqq_fifo_expire(cfqq))
 		return NULL;
+
+	cfq_mark_cfqq_fifo_expire(cfqq);
+
 	if (list_empty(&cfqq->fifo))
 		return NULL;
 
 	fifo = cfq_cfqq_class_sync(cfqq);
 	rq = rq_entry_fifo(cfqq->fifo.next);
 
-	if (time_after(jiffies, rq->start_time + cfqd->cfq_fifo_expire[fifo])) {
-		cfq_mark_cfqq_fifo_expire(cfqq);
+	if (time_after(jiffies, rq->start_time + cfqd->cfq_fifo_expire[fifo]))
 		return rq;
-	}
 
 	return NULL;
 }
