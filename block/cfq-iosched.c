@@ -171,6 +171,7 @@ enum cfqq_state_flags {
 	CFQ_CFQQ_FLAG_idle_window,	/* slice idling enabled */
 	CFQ_CFQQ_FLAG_prio_changed,	/* task priority has changed */
 	CFQ_CFQQ_FLAG_queue_new,	/* queue never been serviced */
+	CFQ_CFQQ_FLAG_slice_new,	/* no requests dispatched in slice */
 };
 
 #define CFQ_CFQQ_FNS(name)						\
@@ -196,6 +197,7 @@ CFQ_CFQQ_FNS(fifo_expire);
 CFQ_CFQQ_FNS(idle_window);
 CFQ_CFQQ_FNS(prio_changed);
 CFQ_CFQQ_FNS(queue_new);
+CFQ_CFQQ_FNS(slice_new);
 #undef CFQ_CFQQ_FNS
 
 static struct cfq_queue *cfq_find_cfq_hash(struct cfq_data *, unsigned int, unsigned short);
@@ -228,6 +230,42 @@ static inline pid_t cfq_queue_pid(struct task_struct *task, int rw, int is_sync)
 		return task->pid;
 
 	return CFQ_KEY_ASYNC;
+}
+
+/*
+ * Scale schedule slice based on io priority. Use the sync time slice only
+ * if a queue is marked sync and has sync io queued. A sync queue with async
+ * io only, should not get full sync slice length.
+ */
+static inline int
+cfq_prio_to_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
+{
+	const int base_slice = cfqd->cfq_slice[cfq_cfqq_sync(cfqq)];
+
+	WARN_ON(cfqq->ioprio >= IOPRIO_BE_NR);
+
+	return base_slice + (base_slice/CFQ_SLICE_SCALE * (4 - cfqq->ioprio));
+}
+
+static inline void
+cfq_set_prio_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
+{
+	cfqq->slice_end = cfq_prio_to_slice(cfqd, cfqq) + jiffies;
+}
+
+/*
+ * We need to wrap this check in cfq_cfqq_slice_new(), since ->slice_end
+ * isn't valid until the first request from the dispatch is activated
+ * and the slice time set.
+ */
+static inline int cfq_slice_used(struct cfq_queue *cfqq)
+{
+	if (cfq_cfqq_slice_new(cfqq))
+		return 0;
+	if (time_before(jiffies, cfqq->slice_end))
+		return 0;
+
+	return 1;
 }
 
 /*
@@ -632,6 +670,7 @@ __cfq_set_active_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 		cfqq->slice_left = 0;
 		cfq_clear_cfqq_must_alloc_slice(cfqq);
 		cfq_clear_cfqq_fifo_expire(cfqq);
+		cfq_mark_cfqq_slice_new(cfqq);
 	}
 
 	cfqd->active_queue = cfqq;
@@ -660,7 +699,7 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	 * store what was left of this slice, if the queue idled out
 	 * or was preempted
 	 */
-	if (time_after(cfqq->slice_end, now))
+	if (cfq_slice_used(cfqq))
 		cfqq->slice_left = cfqq->slice_end - now;
 	else
 		cfqq->slice_left = 0;
@@ -858,27 +897,6 @@ static inline struct request *cfq_check_fifo(struct cfq_queue *cfqq)
 	return NULL;
 }
 
-/*
- * Scale schedule slice based on io priority. Use the sync time slice only
- * if a queue is marked sync and has sync io queued. A sync queue with async
- * io only, should not get full sync slice length.
- */
-static inline int
-cfq_prio_to_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
-{
-	const int base_slice = cfqd->cfq_slice[cfq_cfqq_sync(cfqq)];
-
-	WARN_ON(cfqq->ioprio >= IOPRIO_BE_NR);
-
-	return base_slice + (base_slice/CFQ_SLICE_SCALE * (4 - cfqq->ioprio));
-}
-
-static inline void
-cfq_set_prio_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
-{
-	cfqq->slice_end = cfq_prio_to_slice(cfqd, cfqq) + jiffies;
-}
-
 static inline int
 cfq_prio_to_maxrq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
@@ -894,7 +912,6 @@ cfq_prio_to_maxrq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
  */
 static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 {
-	unsigned long now = jiffies;
 	struct cfq_queue *cfqq;
 
 	cfqq = cfqd->active_queue;
@@ -904,7 +921,7 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 	/*
 	 * slice has expired
 	 */
-	if (!cfq_cfqq_must_dispatch(cfqq) && time_after(now, cfqq->slice_end))
+	if (!cfq_cfqq_must_dispatch(cfqq) && cfq_slice_used(cfqq))
 		goto expire;
 
 	/*
@@ -913,7 +930,7 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 	 */
 	if (!RB_EMPTY_ROOT(&cfqq->sort_list))
 		goto keep_queue;
-	else if (cfq_cfqq_dispatched(cfqq)) {
+	else if (cfq_cfqq_slice_new(cfqq) || cfq_cfqq_dispatched(cfqq)) {
 		cfqq = NULL;
 		goto keep_queue;
 	} else if (cfq_cfqq_class_sync(cfqq)) {
@@ -965,20 +982,15 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	} while (dispatched < max_dispatch);
 
 	/*
-	 * if slice end isn't set yet, set it.
-	 */
-	if (!cfqq->slice_end)
-		cfq_set_prio_slice(cfqd, cfqq);
-
-	/*
 	 * expire an async queue immediately if it has used up its slice. idle
 	 * queue always expire after 1 dispatch round.
 	 */
 	if ((!cfq_cfqq_sync(cfqq) &&
 	    cfqd->dispatch_slice >= cfq_prio_to_maxrq(cfqd, cfqq)) ||
-	    cfq_class_idle(cfqq) ||
-	    !cfq_cfqq_idle_window(cfqq))
+	    cfq_class_idle(cfqq)) {
+		cfqq->slice_end = jiffies + 1;
 		cfq_slice_expired(cfqd, 0);
+	}
 
 	return dispatched;
 }
@@ -1612,7 +1624,8 @@ static void cfq_preempt_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	BUG_ON(!cfq_cfqq_on_rr(cfqq));
 	list_move(&cfqq->cfq_list, &cfqd->cur_rr);
 
-	cfqq->slice_end = cfqq->slice_left + jiffies;
+	cfqq->slice_end = 0;
+	cfq_mark_cfqq_slice_new(cfqq);
 }
 
 /*
@@ -1722,7 +1735,11 @@ static void cfq_completed_request(request_queue_t *q, struct request *rq)
 	 * or if we want to idle in case it has no pending requests.
 	 */
 	if (cfqd->active_queue == cfqq) {
-		if (time_after(now, cfqq->slice_end))
+		if (cfq_cfqq_slice_new(cfqq)) {
+			cfq_set_prio_slice(cfqd, cfqq);
+			cfq_clear_cfqq_slice_new(cfqq);
+		}
+		if (cfq_slice_used(cfqq))
 			cfq_slice_expired(cfqd, 0);
 		else if (sync && RB_EMPTY_ROOT(&cfqq->sort_list)) {
 			if (!cfq_arm_slice_timer(cfqd, cfqq))
@@ -1901,12 +1918,10 @@ static void cfq_idle_slice_timer(unsigned long data)
 	spin_lock_irqsave(cfqd->queue->queue_lock, flags);
 
 	if ((cfqq = cfqd->active_queue) != NULL) {
-		unsigned long now = jiffies;
-
 		/*
 		 * expired
 		 */
-		if (time_after(now, cfqq->slice_end))
+		if (cfq_slice_used(cfqq))
 			goto expire;
 
 		/*
