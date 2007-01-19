@@ -1568,8 +1568,6 @@ static void blocking_cb(struct gfs2_sbd *sdp, struct lm_lockname *name,
 	if (!gl)
 		return;
 
-	if (gl->gl_ops->go_callback)
-		gl->gl_ops->go_callback(gl, state);
 	handle_callback(gl, state);
 
 	spin_lock(&gl->gl_spin);

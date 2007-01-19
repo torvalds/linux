@@ -110,7 +110,6 @@ struct gfs2_glock_operations {
 	int (*go_demote_ok) (struct gfs2_glock *gl);
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
-	void (*go_callback) (struct gfs2_glock *gl, unsigned int state);
 	const int go_type;
 };
 
