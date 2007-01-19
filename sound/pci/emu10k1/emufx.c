@@ -655,13 +655,66 @@ snd_emu10k1_look_for_ctl(struct snd_emu10k1 *emu, struct snd_ctl_elem_id *id)
 	return NULL;
 }
 
+#define MAX_TLV_SIZE	256
+
+static unsigned int *copy_tlv(unsigned int __user *_tlv)
+{
+	unsigned int data[2];
+	unsigned int *tlv;
+
+	if (!_tlv)
+		return NULL;
+	if (copy_from_user(data, _tlv, sizeof(data)))
+		return NULL;
+	if (data[1] >= MAX_TLV_SIZE)
+		return NULL;
+	tlv = kmalloc(data[1] * 4 + sizeof(data), GFP_KERNEL);
+	if (!tlv)
+		return NULL;
+	memcpy(tlv, data, sizeof(data));
+	if (copy_from_user(tlv + 2, _tlv + 2, data[1])) {
+		kfree(tlv);
+		return NULL;
+	}
+	return tlv;
+}
+
+static int copy_gctl(struct snd_emu10k1 *emu,
+		     struct snd_emu10k1_fx8010_control_gpr *gctl,
+		     struct snd_emu10k1_fx8010_control_gpr __user *_gctl,
+		     int idx)
+{
+	struct snd_emu10k1_fx8010_control_old_gpr __user *octl;
+
+	if (emu->support_tlv)
+		return copy_from_user(gctl, &_gctl[idx], sizeof(*gctl));
+	octl = (struct snd_emu10k1_fx8010_control_old_gpr __user *)_gctl;
+	if (copy_from_user(gctl, &octl[idx], sizeof(*octl)))
+		return -EFAULT;
+	gctl->tlv = NULL;
+	return 0;
+}
+
+static int copy_gctl_to_user(struct snd_emu10k1 *emu,
+		     struct snd_emu10k1_fx8010_control_gpr __user *_gctl,
+		     struct snd_emu10k1_fx8010_control_gpr *gctl,
+		     int idx)
+{
+	struct snd_emu10k1_fx8010_control_old_gpr __user *octl;
+
+	if (emu->support_tlv)
+		return copy_to_user(&_gctl[idx], gctl, sizeof(*gctl));
+	
+	octl = (struct snd_emu10k1_fx8010_control_old_gpr __user *)_gctl;
+	return copy_to_user(&octl[idx], gctl, sizeof(*octl));
+}
+
 static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 				       struct snd_emu10k1_fx8010_code *icode)
 {
 	unsigned int i;
 	struct snd_ctl_elem_id __user *_id;
 	struct snd_ctl_elem_id id;
-	struct snd_emu10k1_fx8010_control_gpr __user *_gctl;
 	struct snd_emu10k1_fx8010_control_gpr *gctl;
 	int err;
 	
@@ -676,9 +729,8 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 	if (! gctl)
 		return -ENOMEM;
 	err = 0;
-	for (i = 0, _gctl = icode->gpr_add_controls;
-	     i < icode->gpr_add_control_count; i++, _gctl++) {
-		if (copy_from_user(gctl, _gctl, sizeof(*gctl))) {
+	for (i = 0; i < icode->gpr_add_control_count; i++) {
+		if (copy_gctl(emu, gctl, icode->gpr_add_controls, i)) {
 			err = -EFAULT;
 			goto __error;
 		}
@@ -697,10 +749,9 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 			goto __error;
 		}
 	}
-	for (i = 0, _gctl = icode->gpr_list_controls;
-	     i < icode->gpr_list_control_count; i++, _gctl++) {
+	for (i = 0; i < icode->gpr_list_control_count; i++) {
 	     	/* FIXME: we need to check the WRITE access */
-		if (copy_from_user(gctl, _gctl, sizeof(*gctl))) {
+		if (copy_gctl(emu, gctl, icode->gpr_list_controls, i)) {
 			err = -EFAULT;
 			goto __error;
 		}
@@ -718,13 +769,14 @@ static void snd_emu10k1_ctl_private_free(struct snd_kcontrol *kctl)
 	kctl->private_value = 0;
 	list_del(&ctl->list);
 	kfree(ctl);
+	if (kctl->tlv.p)
+		kfree(kctl->tlv.p);
 }
 
 static int snd_emu10k1_add_controls(struct snd_emu10k1 *emu,
 				    struct snd_emu10k1_fx8010_code *icode)
 {
 	unsigned int i, j;
-	struct snd_emu10k1_fx8010_control_gpr __user *_gctl;
 	struct snd_emu10k1_fx8010_control_gpr *gctl;
 	struct snd_emu10k1_fx8010_ctl *ctl, *nctl;
 	struct snd_kcontrol_new knew;
@@ -740,9 +792,8 @@ static int snd_emu10k1_add_controls(struct snd_emu10k1 *emu,
 		goto __error;
 	}
 
-	for (i = 0, _gctl = icode->gpr_add_controls;
-	     i < icode->gpr_add_control_count; i++, _gctl++) {
-		if (copy_from_user(gctl, _gctl, sizeof(*gctl))) {
+	for (i = 0; i < icode->gpr_add_control_count; i++) {
+		if (copy_gctl(emu, gctl, icode->gpr_add_controls, i)) {
 			err = -EFAULT;
 			goto __error;
 		}
@@ -763,11 +814,10 @@ static int snd_emu10k1_add_controls(struct snd_emu10k1 *emu,
 		knew.device = gctl->id.device;
 		knew.subdevice = gctl->id.subdevice;
 		knew.info = snd_emu10k1_gpr_ctl_info;
-		if (gctl->tlv.p) {
-			knew.tlv.p = gctl->tlv.p;
+		knew.tlv.p = copy_tlv(gctl->tlv);
+		if (knew.tlv.p)
 			knew.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 				SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		} 
 		knew.get = snd_emu10k1_gpr_ctl_get;
 		knew.put = snd_emu10k1_gpr_ctl_put;
 		memset(nctl, 0, sizeof(*nctl));
@@ -785,12 +835,14 @@ static int snd_emu10k1_add_controls(struct snd_emu10k1 *emu,
 			ctl = kmalloc(sizeof(*ctl), GFP_KERNEL);
 			if (ctl == NULL) {
 				err = -ENOMEM;
+				kfree(knew.tlv.p);
 				goto __error;
 			}
 			knew.private_value = (unsigned long)ctl;
 			*ctl = *nctl;
 			if ((err = snd_ctl_add(emu->card, kctl = snd_ctl_new1(&knew, emu))) < 0) {
 				kfree(ctl);
+				kfree(knew.tlv.p);
 				goto __error;
 			}
 			kctl->private_free = snd_emu10k1_ctl_private_free;
@@ -841,7 +893,6 @@ static int snd_emu10k1_list_controls(struct snd_emu10k1 *emu,
 	unsigned int i = 0, j;
 	unsigned int total = 0;
 	struct snd_emu10k1_fx8010_control_gpr *gctl;
-	struct snd_emu10k1_fx8010_control_gpr __user *_gctl;
 	struct snd_emu10k1_fx8010_ctl *ctl;
 	struct snd_ctl_elem_id *id;
 	struct list_head *list;
@@ -850,11 +901,11 @@ static int snd_emu10k1_list_controls(struct snd_emu10k1 *emu,
 	if (! gctl)
 		return -ENOMEM;
 
-	_gctl = icode->gpr_list_controls;	
 	list_for_each(list, &emu->fx8010.gpr_ctl) {
 		ctl = emu10k1_gpr_ctl(list);
 		total++;
-		if (_gctl && i < icode->gpr_list_control_count) {
+		if (icode->gpr_list_controls &&
+		    i < icode->gpr_list_control_count) {
 			memset(gctl, 0, sizeof(*gctl));
 			id = &ctl->kcontrol->id;
 			gctl->id.iface = id->iface;
@@ -871,11 +922,11 @@ static int snd_emu10k1_list_controls(struct snd_emu10k1 *emu,
 			gctl->min = ctl->min;
 			gctl->max = ctl->max;
 			gctl->translation = ctl->translation;
-			if (copy_to_user(_gctl, gctl, sizeof(*gctl))) {
+			if (copy_gctl_to_user(emu, icode->gpr_list_controls,
+					      gctl, i)) {
 				kfree(gctl);
 				return -EFAULT;
 			}
-			_gctl++;
 			i++;
 		}
 	}
@@ -1026,7 +1077,7 @@ snd_emu10k1_init_mono_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
 	ctl->gpr[0] = gpr + 0; ctl->value[0] = defval;
 	ctl->min = 0;
 	ctl->max = 100;
-	ctl->tlv.p = snd_emu10k1_db_scale1;
+	ctl->tlv = snd_emu10k1_db_scale1;
 	ctl->translation = EMU10K1_GPR_TRANSLATION_TABLE100;	
 }
 
@@ -1041,7 +1092,7 @@ snd_emu10k1_init_stereo_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
 	ctl->gpr[1] = gpr + 1; ctl->value[1] = defval;
 	ctl->min = 0;
 	ctl->max = 100;
-	ctl->tlv.p = snd_emu10k1_db_scale1;
+	ctl->tlv = snd_emu10k1_db_scale1;
 	ctl->translation = EMU10K1_GPR_TRANSLATION_TABLE100;
 }
 
@@ -1566,7 +1617,9 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	seg = snd_enter_user();
 	icode->gpr_add_control_count = nctl;
 	icode->gpr_add_controls = (struct snd_emu10k1_fx8010_control_gpr __user *)controls;
+	emu->support_tlv = 1; /* support TLV */
 	err = snd_emu10k1_icode_poke(emu, icode);
+	emu->support_tlv = 0; /* clear again */
 	snd_leave_user(seg);
 
  __err:
@@ -2183,7 +2236,9 @@ static int __devinit _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	seg = snd_enter_user();
 	icode->gpr_add_control_count = i;
 	icode->gpr_add_controls = (struct snd_emu10k1_fx8010_control_gpr __user *)controls;
+	emu->support_tlv = 1; /* support TLV */
 	err = snd_emu10k1_icode_poke(emu, icode);
+	emu->support_tlv = 0; /* clear again */
 	snd_leave_user(seg);
 	if (err >= 0)
 		err = snd_emu10k1_ipcm_poke(emu, ipcm);
@@ -2327,6 +2382,9 @@ static int snd_emu10k1_fx8010_ioctl(struct snd_hwdep * hw, struct file *file, un
 	int res;
 	
 	switch (cmd) {
+	case SNDRV_EMU10K1_IOCTL_PVERSION:
+		emu->support_tlv = 1;
+		return put_user(SNDRV_EMU10K1_VERSION, (int __user *)argp);
 	case SNDRV_EMU10K1_IOCTL_INFO:
 		info = kmalloc(sizeof(*info), GFP_KERNEL);
 		if (!info)

@@ -1449,6 +1449,7 @@ struct snd_emu10k1 {
 	unsigned int tos_link: 1,		/* tos link detected */
 		rear_ac97: 1,			/* rear channels are on AC'97 */
 		enable_ir: 1;
+	unsigned int support_tlv :1;
 	/* Contains profile of card capabilities */
 	const struct snd_emu_chip_details *card_capabilities;
 	unsigned int audigy;			/* is Audigy? */
@@ -1901,11 +1902,20 @@ struct snd_emu10k1_fx8010_control_gpr {
 	unsigned int value[32];		/* initial values */
 	unsigned int min;		/* minimum range */
 	unsigned int max;		/* maximum range */
-	union {
-		snd_kcontrol_tlv_rw_t *c;
-		unsigned int *p;
-	} tlv;
 	unsigned int translation;	/* translation type (EMU10K1_GPR_TRANSLATION*) */
+	unsigned int *tlv;
+};
+
+/* old ABI without TLV support */
+struct snd_emu10k1_fx8010_control_old_gpr {
+	struct snd_ctl_elem_id id;
+	unsigned int vcount;
+	unsigned int count;
+	unsigned short gpr[32];
+	unsigned int value[32];
+	unsigned int min;
+	unsigned int max;
+	unsigned int translation;
 };
 
 struct snd_emu10k1_fx8010_code {
@@ -1956,6 +1966,8 @@ struct snd_emu10k1_fx8010_pcm_rec {
 	unsigned int res2;		/* reserved */
 };
 
+#define SNDRV_EMU10K1_VERSION		SNDRV_PROTOCOL_VERSION(1, 0, 1)
+
 #define SNDRV_EMU10K1_IOCTL_INFO	_IOR ('H', 0x10, struct snd_emu10k1_fx8010_info)
 #define SNDRV_EMU10K1_IOCTL_CODE_POKE	_IOW ('H', 0x11, struct snd_emu10k1_fx8010_code)
 #define SNDRV_EMU10K1_IOCTL_CODE_PEEK	_IOWR('H', 0x12, struct snd_emu10k1_fx8010_code)
@@ -1964,6 +1976,7 @@ struct snd_emu10k1_fx8010_pcm_rec {
 #define SNDRV_EMU10K1_IOCTL_TRAM_PEEK	_IOWR('H', 0x22, struct snd_emu10k1_fx8010_tram)
 #define SNDRV_EMU10K1_IOCTL_PCM_POKE	_IOW ('H', 0x30, struct snd_emu10k1_fx8010_pcm_rec)
 #define SNDRV_EMU10K1_IOCTL_PCM_PEEK	_IOWR('H', 0x31, struct snd_emu10k1_fx8010_pcm_rec)
+#define SNDRV_EMU10K1_IOCTL_PVERSION	_IOR ('H', 0x40, int)
 #define SNDRV_EMU10K1_IOCTL_STOP	_IO  ('H', 0x80)
 #define SNDRV_EMU10K1_IOCTL_CONTINUE	_IO  ('H', 0x81)
 #define SNDRV_EMU10K1_IOCTL_ZERO_TRAM_COUNTER _IO ('H', 0x82)
