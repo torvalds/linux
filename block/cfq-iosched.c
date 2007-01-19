@@ -147,8 +147,8 @@ struct cfq_queue {
 	struct list_head fifo;
 
 	unsigned long slice_end;
-	unsigned long slice_left;
 	unsigned long service_last;
+	long slice_resid;
 
 	/* number of requests that are on the dispatch list */
 	int on_dispatch[2];
@@ -251,6 +251,14 @@ static inline void
 cfq_set_prio_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	cfqq->slice_end = cfq_prio_to_slice(cfqd, cfqq) + jiffies;
+	cfqq->slice_end += cfqq->slice_resid;
+
+	/*
+	 * Don't carry over residual for more than one slice, we only want
+	 * to slightly correct the fairness. Carrying over forever would
+	 * easily introduce oscillations.
+	 */
+	cfqq->slice_resid = 0;
 }
 
 /*
@@ -667,7 +675,6 @@ __cfq_set_active_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 		del_timer(&cfqd->idle_class_timer);
 
 		cfqq->slice_end = 0;
-		cfqq->slice_left = 0;
 		cfq_clear_cfqq_must_alloc_slice(cfqq);
 		cfq_clear_cfqq_fifo_expire(cfqq);
 		cfq_mark_cfqq_slice_new(cfqq);
@@ -683,8 +690,6 @@ static void
 __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		    int preempted)
 {
-	unsigned long now = jiffies;
-
 	if (cfq_cfqq_wait_request(cfqq))
 		del_timer(&cfqd->idle_slice_timer);
 
@@ -699,10 +704,8 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	 * store what was left of this slice, if the queue idled out
 	 * or was preempted
 	 */
-	if (cfq_slice_used(cfqq))
-		cfqq->slice_left = cfqq->slice_end - now;
-	else
-		cfqq->slice_left = 0;
+	if (!cfq_cfqq_slice_new(cfqq))
+		cfqq->slice_resid = cfqq->slice_end - jiffies;
 
 	cfq_resort_rr_list(cfqq, preempted);
 
@@ -1364,10 +1367,7 @@ retry:
 		hlist_add_head(&cfqq->cfq_hash, &cfqd->cfq_hash[hashval]);
 		atomic_set(&cfqq->ref, 0);
 		cfqq->cfqd = cfqd;
-		/*
-		 * set ->slice_left to allow preemption for a new process
-		 */
-		cfqq->slice_left = 2 * cfqd->cfq_slice_idle;
+
 		cfq_mark_cfqq_idle_window(cfqq);
 		cfq_mark_cfqq_prio_changed(cfqq);
 		cfq_mark_cfqq_queue_new(cfqq);
@@ -1586,11 +1586,6 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	if (!cfq_cfqq_wait_request(new_cfqq))
 		return 0;
 	/*
-	 * if it doesn't have slice left, forget it
-	 */
-	if (new_cfqq->slice_left < cfqd->cfq_slice_idle)
-		return 0;
-	/*
 	 * if the new request is sync, but the currently running queue is
 	 * not, let the sync request have priority.
 	 */
@@ -1613,9 +1608,6 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 static void cfq_preempt_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	cfq_slice_expired(cfqd, 1);
-
-	if (!cfqq->slice_left)
-		cfqq->slice_left = cfq_prio_to_slice(cfqd, cfqq) / 2;
 
 	/*
 	 * Put the new queue at the front of the of the current list,
