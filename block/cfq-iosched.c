@@ -1057,6 +1057,14 @@ cfq_dispatch_requests(request_queue_t *q, int force)
 		if (prev_cfqq == cfqq)
 			break;
 
+		/*
+		 * So we have dispatched before in this round, if the
+		 * next queue has idling enabled (must be sync), don't
+		 * allow it service until the previous have continued.
+		 */
+		if (cfqd->rq_in_driver && cfq_cfqq_idle_window(cfqq))
+			break;
+
 		cfq_clear_cfqq_must_dispatch(cfqq);
 		cfq_clear_cfqq_wait_request(cfqq);
 		del_timer(&cfqd->idle_slice_timer);
@@ -1066,14 +1074,6 @@ cfq_dispatch_requests(request_queue_t *q, int force)
 			max_dispatch = 1;
 
 		dispatched += __cfq_dispatch_requests(cfqd, cfqq, max_dispatch);
-
-		/*
-		 * If the dispatch cfqq has idling enabled and is still
-		 * the active queue, break out.
-		 */
-		if (cfq_cfqq_idle_window(cfqq) && cfqd->active_queue)
-			break;
-
 		prev_cfqq = cfqq;
 	}
 
