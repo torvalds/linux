@@ -162,15 +162,15 @@ struct cfq_queue {
 };
 
 enum cfqq_state_flags {
-	CFQ_CFQQ_FLAG_on_rr = 0,
-	CFQ_CFQQ_FLAG_wait_request,
-	CFQ_CFQQ_FLAG_must_alloc,
-	CFQ_CFQQ_FLAG_must_alloc_slice,
-	CFQ_CFQQ_FLAG_must_dispatch,
-	CFQ_CFQQ_FLAG_fifo_expire,
-	CFQ_CFQQ_FLAG_idle_window,
-	CFQ_CFQQ_FLAG_prio_changed,
-	CFQ_CFQQ_FLAG_queue_new,
+	CFQ_CFQQ_FLAG_on_rr = 0,	/* on round-robin busy list */
+	CFQ_CFQQ_FLAG_wait_request,	/* waiting for a request */
+	CFQ_CFQQ_FLAG_must_alloc,	/* must be allowed rq alloc */
+	CFQ_CFQQ_FLAG_must_alloc_slice,	/* per-slice must_alloc flag */
+	CFQ_CFQQ_FLAG_must_dispatch,	/* must dispatch, even if expired */
+	CFQ_CFQQ_FLAG_fifo_expire,	/* FIFO checked in this slice */
+	CFQ_CFQQ_FLAG_idle_window,	/* slice idling enabled */
+	CFQ_CFQQ_FLAG_prio_changed,	/* task priority has changed */
+	CFQ_CFQQ_FLAG_queue_new,	/* queue never been serviced */
 };
 
 #define CFQ_CFQQ_FNS(name)						\
