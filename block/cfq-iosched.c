@@ -822,14 +822,13 @@ static struct cfq_queue *cfq_set_active_queue(struct cfq_data *cfqd)
 
 #define CIC_SEEKY(cic) ((cic)->seek_mean > (128 * 1024))
 
-static int cfq_arm_slice_timer(struct cfq_data *cfqd, struct cfq_queue *cfqq)
-
+static int cfq_arm_slice_timer(struct cfq_data *cfqd)
 {
+	struct cfq_queue *cfqq = cfqd->active_queue;
 	struct cfq_io_context *cic;
 	unsigned long sl;
 
 	WARN_ON(!RB_EMPTY_ROOT(&cfqq->sort_list));
-	WARN_ON(cfqq != cfqd->active_queue);
 
 	/*
 	 * idle is disabled, either manually or by past process history
@@ -937,7 +936,7 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 		cfqq = NULL;
 		goto keep_queue;
 	} else if (cfq_cfqq_class_sync(cfqq)) {
-		if (cfq_arm_slice_timer(cfqd, cfqq))
+		if (cfq_arm_slice_timer(cfqd))
 			return NULL;
 	}
 
@@ -1734,7 +1733,7 @@ static void cfq_completed_request(request_queue_t *q, struct request *rq)
 		if (cfq_slice_used(cfqq))
 			cfq_slice_expired(cfqd, 0);
 		else if (sync && RB_EMPTY_ROOT(&cfqq->sort_list)) {
-			if (!cfq_arm_slice_timer(cfqd, cfqq))
+			if (!cfq_arm_slice_timer(cfqd))
 				cfq_schedule_dispatch(cfqd);
 		}
 	}
