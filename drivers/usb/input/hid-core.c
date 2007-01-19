@@ -106,18 +106,18 @@ static void hid_reset(struct work_struct *work)
 
 	if (test_bit(HID_CLEAR_HALT, &usbhid->iofl)) {
 		dev_dbg(&usbhid->intf->dev, "clear halt\n");
-		rc = usb_clear_halt(to_usb_device(hid->dev), usbhid->urbin->pipe);
+		rc = usb_clear_halt(hid_to_usb_dev(hid), usbhid->urbin->pipe);
 		clear_bit(HID_CLEAR_HALT, &usbhid->iofl);
 		hid_start_in(hid);
 	}
 
 	else if (test_bit(HID_RESET_PENDING, &usbhid->iofl)) {
 		dev_dbg(&usbhid->intf->dev, "resetting device\n");
-		rc = rc_lock = usb_lock_device_for_reset(to_usb_device(hid->dev), usbhid->intf);
+		rc = rc_lock = usb_lock_device_for_reset(hid_to_usb_dev(hid), usbhid->intf);
 		if (rc_lock >= 0) {
-			rc = usb_reset_composite_device(to_usb_device(hid->dev), usbhid->intf);
+			rc = usb_reset_composite_device(hid_to_usb_dev(hid), usbhid->intf);
 			if (rc_lock)
-				usb_unlock_device(to_usb_device(hid->dev));
+				usb_unlock_device(hid_to_usb_dev(hid));
 		}
 		clear_bit(HID_RESET_PENDING, &usbhid->iofl);
 	}
@@ -129,8 +129,8 @@ static void hid_reset(struct work_struct *work)
 		break;
 	default:
 		err("can't reset device, %s-%s/input%d, status %d",
-				to_usb_device(hid->dev)->bus->bus_name,
-				to_usb_device(hid->dev)->devpath,
+				hid_to_usb_dev(hid)->bus->bus_name,
+				hid_to_usb_dev(hid)->devpath,
 				usbhid->ifnum, rc);
 		/* FALLTHROUGH */
 	case -EHOSTUNREACH:
@@ -217,8 +217,8 @@ static void hid_irq_in(struct urb *urb)
 		clear_bit(HID_IN_RUNNING, &usbhid->iofl);
 		if (status != -EPERM) {
 			err("can't resubmit intr, %s-%s/input%d, status %d",
-					to_usb_device(hid->dev)->bus->bus_name,
-					to_usb_device(hid->dev)->devpath,
+					hid_to_usb_dev(hid)->bus->bus_name,
+					hid_to_usb_dev(hid)->devpath,
 					usbhid->ifnum, status);
 			hid_io_error(hid);
 		}
@@ -251,7 +251,7 @@ static int hid_submit_out(struct hid_device *hid)
 
 	hid_output_report(report, usbhid->outbuf);
 	usbhid->urbout->transfer_buffer_length = ((report->size - 1) >> 3) + 1 + (report->id > 0);
-	usbhid->urbout->dev = to_usb_device(hid->dev);
+	usbhid->urbout->dev = hid_to_usb_dev(hid);
 
 	dbg("submitting out urb");
 
@@ -276,13 +276,13 @@ static int hid_submit_ctrl(struct hid_device *hid)
 	len = ((report->size - 1) >> 3) + 1 + (report->id > 0);
 	if (dir == USB_DIR_OUT) {
 		hid_output_report(report, usbhid->ctrlbuf);
-		usbhid->urbctrl->pipe = usb_sndctrlpipe(to_usb_device(hid->dev), 0);
+		usbhid->urbctrl->pipe = usb_sndctrlpipe(hid_to_usb_dev(hid), 0);
 		usbhid->urbctrl->transfer_buffer_length = len;
 	} else {
 		int maxpacket, padlen;
 
-		usbhid->urbctrl->pipe = usb_rcvctrlpipe(to_usb_device(hid->dev), 0);
-		maxpacket = usb_maxpacket(to_usb_device(hid->dev), usbhid->urbctrl->pipe, 0);
+		usbhid->urbctrl->pipe = usb_rcvctrlpipe(hid_to_usb_dev(hid), 0);
+		maxpacket = usb_maxpacket(hid_to_usb_dev(hid), usbhid->urbctrl->pipe, 0);
 		if (maxpacket > 0) {
 			padlen = (len + maxpacket - 1) / maxpacket;
 			padlen *= maxpacket;
@@ -292,7 +292,7 @@ static int hid_submit_ctrl(struct hid_device *hid)
 			padlen = 0;
 		usbhid->urbctrl->transfer_buffer_length = padlen;
 	}
-	usbhid->urbctrl->dev = to_usb_device(hid->dev);
+	usbhid->urbctrl->dev = hid_to_usb_dev(hid);
 
 	usbhid->cr->bRequestType = USB_TYPE_CLASS | USB_RECIP_INTERFACE | dir;
 	usbhid->cr->bRequest = (dir == USB_DIR_OUT) ? HID_REQ_SET_REPORT : HID_REQ_GET_REPORT;
@@ -1187,7 +1187,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 
 	hid->version = le16_to_cpu(hdesc->bcdHID);
 	hid->country = hdesc->bCountryCode;
-	hid->dev = &dev->dev;
+	hid->dev = &intf->dev;
 	usbhid->intf = intf;
 	usbhid->ifnum = interface->desc.bInterfaceNumber;
 
@@ -1282,7 +1282,7 @@ static void hid_disconnect(struct usb_interface *intf)
 	usb_free_urb(usbhid->urbctrl);
 	usb_free_urb(usbhid->urbout);
 
-	hid_free_buffers(to_usb_device(hid->dev), hid);
+	hid_free_buffers(hid_to_usb_dev(hid), hid);
 	hid_free_device(hid);
 }
 

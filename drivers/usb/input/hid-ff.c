@@ -33,6 +33,7 @@
 #include <linux/usb.h>
 
 #include <linux/hid.h>
+#include "usbhid.h"
 
 /*
  * This table contains pointers to initializers. To add support for new
@@ -70,8 +71,8 @@ static struct hid_ff_initializer inits[] = {
 int hid_ff_init(struct hid_device* hid)
 {
 	struct hid_ff_initializer *init;
-	int vendor = le16_to_cpu(to_usb_device(hid->dev)->descriptor.idVendor);
-	int product = le16_to_cpu(to_usb_device(hid->dev)->descriptor.idProduct);
+	int vendor = le16_to_cpu(hid_to_usb_dev(hid)->descriptor.idVendor);
+	int product = le16_to_cpu(hid_to_usb_dev(hid)->descriptor.idProduct);
 
 	for (init = inits; init->idVendor; init++)
 		if (init->idVendor == vendor && init->idProduct == product)
