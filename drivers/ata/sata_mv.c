@@ -523,8 +523,7 @@ static const struct ata_port_info mv_port_info[] = {
 	},
 	{  /* chip_7042 */
 		.sht		= &mv_sht,
-		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS |
-				   MV_FLAG_DUAL_HC),
+		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv_iie_ops,
@@ -544,6 +543,8 @@ static const struct pci_device_id mv_pci_tbl[] = {
 	{ PCI_VDEVICE(MARVELL, 0x6081), chip_608x },
 
 	{ PCI_VDEVICE(ADAPTEC2, 0x0241), chip_604x },
+
+	{ PCI_VDEVICE(TTI, 0x2310), chip_7042 },
 
 	{ }			/* terminate list */
 };
