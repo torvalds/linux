@@ -963,24 +963,7 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 				  BLACKBIRD_MPEG_CAPTURE,
 				  BLACKBIRD_RAW_BITS_NONE);
 
-		if (UNSET == core->tuner_type)
-			return -EINVAL;
-		if (f->tuner != 0)
-			return -EINVAL;
-		if (0 == radio && f->type != V4L2_TUNER_ANALOG_TV)
-			return -EINVAL;
-		if (1 == radio && f->type != V4L2_TUNER_RADIO)
-			return -EINVAL;
-		mutex_lock(&core->lock);
-		core->freq = f->frequency;
-		cx88_newstation(core);
-		cx88_call_i2c_clients(core,VIDIOC_S_FREQUENCY,f);
-
-		/* When changing channels it is required to reset TVAUDIO */
-		msleep (10);
-		cx88_set_tvaudio(core);
-
-		mutex_unlock(&core->lock);
+		cx88_set_freq (core,f);
 
 		blackbird_initialize_codec(dev);
 		cx88_set_scale(dev->core, dev->width, dev->height,
