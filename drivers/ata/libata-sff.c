@@ -1006,14 +1006,17 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		      unsigned int n_ports)
 {
+	struct device *dev = &pdev->dev;
 	struct ata_probe_ent *probe_ent = NULL;
 	struct ata_port_info *port[2];
 	u8 mask;
 	unsigned int legacy_mode = 0;
-	int disable_dev_on_err = 1;
 	int rc;
 
 	DPRINTK("ENTER\n");
+
+	if (!devres_open_group(dev, NULL, GFP_KERNEL))
+		return -ENOMEM;
 
 	BUG_ON(n_ports < 1 || n_ports > 2);
 
@@ -1031,9 +1034,9 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	   boot for the primary video which is BIOS enabled
          */
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
-		return rc;
+		goto err_out;
 
 	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
 		u8 tmp8;
@@ -1049,7 +1052,8 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		   left a device in compatibility mode */
 		if (legacy_mode) {
 			printk(KERN_ERR "ata: Compatibility mode ATA is not supported on this platform, skipping.\n");
-			return -EOPNOTSUPP;
+			rc = -EOPNOTSUPP;
+			goto err_out;
 		}
 #endif
 	}
@@ -1057,13 +1061,13 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	if (!legacy_mode) {
 		rc = pci_request_regions(pdev, DRV_NAME);
 		if (rc) {
-			disable_dev_on_err = 0;
+			pcim_pin_device(pdev);
 			goto err_out;
 		}
 	} else {
 		/* Deal with combined mode hack. This side of the logic all
 		   goes away once the combined mode hack is killed in 2.6.21 */
-		if (!request_region(ATA_PRIMARY_CMD, 8, "libata")) {
+		if (!devm_request_region(dev, ATA_PRIMARY_CMD, 8, "libata")) {
 			struct resource *conflict, res;
 			res.start = ATA_PRIMARY_CMD;
 			res.end = ATA_PRIMARY_CMD + 8 - 1;
@@ -1073,7 +1077,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 			if (!strcmp(conflict->name, "libata"))
 				legacy_mode |= ATA_PORT_PRIMARY;
 			else {
-				disable_dev_on_err = 0;
+				pcim_pin_device(pdev);
 				printk(KERN_WARNING "ata: 0x%0X IDE port busy\n" \
 						    "ata: conflict with %s\n",
 						    ATA_PRIMARY_CMD,
@@ -1082,7 +1086,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		} else
 			legacy_mode |= ATA_PORT_PRIMARY;
 
-		if (!request_region(ATA_SECONDARY_CMD, 8, "libata")) {
+		if (!devm_request_region(dev, ATA_SECONDARY_CMD, 8, "libata")) {
 			struct resource *conflict, res;
 			res.start = ATA_SECONDARY_CMD;
 			res.end = ATA_SECONDARY_CMD + 8 - 1;
@@ -1092,7 +1096,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 			if (!strcmp(conflict->name, "libata"))
 				legacy_mode |= ATA_PORT_SECONDARY;
 			else {
-				disable_dev_on_err = 0;
+				pcim_pin_device(pdev);
 				printk(KERN_WARNING "ata: 0x%X IDE port busy\n" \
 						    "ata: conflict with %s\n",
 						    ATA_SECONDARY_CMD,
@@ -1112,16 +1116,16 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	/* we have legacy mode, but all ports are unavailable */
 	if (legacy_mode == (1 << 3)) {
 		rc = -EBUSY;
-		goto err_out_regions;
+		goto err_out;
 	}
 
 	/* TODO: If we get no DMA mask we should fall back to PIO */
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		goto err_out;
 	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		goto err_out;
 
 	if (legacy_mode) {
 		probe_ent = ata_pci_init_legacy_port(pdev, port, legacy_mode);
@@ -1133,40 +1137,22 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	}
 	if (!probe_ent) {
 		rc = -ENOMEM;
-		goto err_out_regions;
+		goto err_out;
 	}
 
 	pci_set_master(pdev);
 
 	if (!ata_device_add(probe_ent)) {
 		rc = -ENODEV;
-		goto err_out_ent;
+		goto err_out;
 	}
 
-	kfree(probe_ent);
-
+	devm_kfree(dev, probe_ent);
+	devres_remove_group(dev, NULL);
 	return 0;
 
-err_out_ent:
-	kfree(probe_ent);
-err_out_regions:
-	/* All this conditional stuff is needed for the combined mode hack
-	   until 2.6.21 when it can go */
-	if (legacy_mode) {
-		pci_release_region(pdev, 4);
-		if (legacy_mode & ATA_PORT_PRIMARY) {
-			release_region(ATA_PRIMARY_CMD, 8);
-			pci_release_region(pdev, 1);
-		}
-		if (legacy_mode & ATA_PORT_SECONDARY) {
-			release_region(ATA_SECONDARY_CMD, 8);
-			pci_release_region(pdev, 3);
-		}
-	} else
-		pci_release_regions(pdev);
 err_out:
-	if (disable_dev_on_err)
-		pci_disable_device(pdev);
+	devres_release_group(dev, NULL);
 	return rc;
 }
 

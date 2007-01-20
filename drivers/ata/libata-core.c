@@ -5486,27 +5486,24 @@ void ata_host_resume(struct ata_host *host)
  *	LOCKING:
  *	Inherited from caller.
  */
-
-int ata_port_start (struct ata_port *ap)
+int ata_port_start(struct ata_port *ap)
 {
 	struct device *dev = ap->dev;
 	int rc;
 
-	ap->prd = dma_alloc_coherent(dev, ATA_PRD_TBL_SZ, &ap->prd_dma, GFP_KERNEL);
+	ap->prd = dmam_alloc_coherent(dev, ATA_PRD_TBL_SZ, &ap->prd_dma,
+				      GFP_KERNEL);
 	if (!ap->prd)
 		return -ENOMEM;
 
 	rc = ata_pad_alloc(ap, dev);
-	if (rc) {
-		dma_free_coherent(dev, ATA_PRD_TBL_SZ, ap->prd, ap->prd_dma);
+	if (rc)
 		return rc;
-	}
 
-	DPRINTK("prd alloc, virt %p, dma %llx\n", ap->prd, (unsigned long long) ap->prd_dma);
-
+	DPRINTK("prd alloc, virt %p, dma %llx\n", ap->prd,
+		(unsigned long long)ap->prd_dma);
 	return 0;
 }
-
 
 /**
  *	ata_port_stop - Undo ata_port_start()
@@ -5519,12 +5516,11 @@ int ata_port_start (struct ata_port *ap)
  *	LOCKING:
  *	Inherited from caller.
  */
-
 void ata_port_stop (struct ata_port *ap)
 {
 	struct device *dev = ap->dev;
 
-	dma_free_coherent(dev, ATA_PRD_TBL_SZ, ap->prd, ap->prd_dma);
+	dmam_free_coherent(dev, ATA_PRD_TBL_SZ, ap->prd, ap->prd_dma);
 	ata_pad_free(ap, dev);
 }
 
@@ -5707,6 +5703,27 @@ static struct ata_port * ata_port_add(const struct ata_probe_ent *ent,
 	return ap;
 }
 
+static void ata_host_release(struct device *gendev, void *res)
+{
+	struct ata_host *host = dev_get_drvdata(gendev);
+	int i;
+
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+
+		if (!ap)
+			continue;
+
+		if (ap->ops->port_stop)
+			ap->ops->port_stop(ap);
+
+		scsi_host_put(ap->scsi_host);
+	}
+
+	if (host->ops->host_stop)
+		host->ops->host_stop(host);
+}
+
 /**
  *	ata_sas_host_init - Initialize a host struct
  *	@host:	host to initialize
@@ -5759,11 +5776,17 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		dev_printk(KERN_ERR, dev, "is not available: No interrupt assigned.\n");
 		return 0;
 	}
-	/* alloc a container for our list of ATA ports (buses) */
-	host = kzalloc(sizeof(struct ata_host) +
-		       (ent->n_ports * sizeof(void *)), GFP_KERNEL);
-	if (!host)
+
+	if (!devres_open_group(dev, ata_device_add, GFP_KERNEL))
 		return 0;
+
+	/* alloc a container for our list of ATA ports (buses) */
+	host = devres_alloc(ata_host_release, sizeof(struct ata_host) +
+			    (ent->n_ports * sizeof(void *)), GFP_KERNEL);
+	if (!host)
+		goto err_out;
+	devres_add(dev, host);
+	dev_set_drvdata(dev, host);
 
 	ata_host_init(host, dev, ent->_host_flags, ent->port_ops);
 	host->n_ports = ent->n_ports;
@@ -5821,8 +5844,8 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	}
 
 	/* obtain irq, that may be shared between channels */
-	rc = request_irq(ent->irq, ent->port_ops->irq_handler, ent->irq_flags,
-			 DRV_NAME, host);
+	rc = devm_request_irq(dev, ent->irq, ent->port_ops->irq_handler,
+			      ent->irq_flags, DRV_NAME, host);
 	if (rc) {
 		dev_printk(KERN_ERR, dev, "irq %lu request failed: %d\n",
 			   ent->irq, rc);
@@ -5835,14 +5858,18 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		   so trap it now */
 		BUG_ON(ent->irq == ent->irq2);
 
-		rc = request_irq(ent->irq2, ent->port_ops->irq_handler, ent->irq_flags,
-			 DRV_NAME, host);
+		rc = devm_request_irq(dev, ent->irq2,
+				ent->port_ops->irq_handler, ent->irq_flags,
+				DRV_NAME, host);
 		if (rc) {
 			dev_printk(KERN_ERR, dev, "irq %lu request failed: %d\n",
 				   ent->irq2, rc);
-			goto err_out_free_irq;
+			goto err_out;
 		}
 	}
+
+	/* resource acquisition complete */
+	devres_close_group(dev, ata_device_add);
 
 	/* perform each probe synchronously */
 	DPRINTK("probe begin\n");
@@ -5912,24 +5939,13 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		ata_scsi_scan_host(ap);
 	}
 
-	dev_set_drvdata(dev, host);
-
 	VPRINTK("EXIT, returning %u\n", ent->n_ports);
 	return ent->n_ports; /* success */
 
-err_out_free_irq:
-	free_irq(ent->irq, host);
-err_out:
-	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap = host->ports[i];
-		if (ap) {
-			ap->ops->port_stop(ap);
-			scsi_host_put(ap->scsi_host);
-		}
-	}
-
-	kfree(host);
-	VPRINTK("EXIT, returning 0\n");
+ err_out:
+	devres_release_group(dev, ata_device_add);
+	dev_set_drvdata(dev, NULL);
+	VPRINTK("EXIT, returning %d\n", rc);
 	return 0;
 }
 
@@ -6018,66 +6034,10 @@ void ata_host_detach(struct ata_host *host)
  *	LOCKING:
  *	Inherited from calling layer (may sleep).
  */
-
 void ata_host_remove(struct ata_host *host)
 {
-	unsigned int i;
-
 	ata_host_detach(host);
-
-	free_irq(host->irq, host);
-	if (host->irq2)
-		free_irq(host->irq2, host);
-
-	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap = host->ports[i];
-
-		ata_scsi_release(ap->scsi_host);
-
-		if ((ap->flags & ATA_FLAG_NO_LEGACY) == 0) {
-			struct ata_ioports *ioaddr = &ap->ioaddr;
-
-			/* FIXME: Add -ac IDE pci mods to remove these special cases */
-			if (ioaddr->cmd_addr == ATA_PRIMARY_CMD)
-				release_region(ATA_PRIMARY_CMD, 8);
-			else if (ioaddr->cmd_addr == ATA_SECONDARY_CMD)
-				release_region(ATA_SECONDARY_CMD, 8);
-		}
-
-		scsi_host_put(ap->scsi_host);
-	}
-
-	if (host->ops->host_stop)
-		host->ops->host_stop(host);
-
-	kfree(host);
-}
-
-/**
- *	ata_scsi_release - SCSI layer callback hook for host unload
- *	@shost: libata host to be unloaded
- *
- *	Performs all duties necessary to shut down a libata port...
- *	Kill port kthread, disable port, and release resources.
- *
- *	LOCKING:
- *	Inherited from SCSI layer.
- *
- *	RETURNS:
- *	One.
- */
-
-int ata_scsi_release(struct Scsi_Host *shost)
-{
-	struct ata_port *ap = ata_shost_to_port(shost);
-
-	DPRINTK("ENTER\n");
-
-	ap->ops->port_disable(ap);
-	ap->ops->port_stop(ap);
-
-	DPRINTK("EXIT\n");
-	return 1;
+	devres_release_group(host->dev, ata_device_add);
 }
 
 struct ata_probe_ent *
@@ -6085,7 +6045,11 @@ ata_probe_ent_alloc(struct device *dev, const struct ata_port_info *port)
 {
 	struct ata_probe_ent *probe_ent;
 
-	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
+	/* XXX - the following if can go away once all LLDs are managed */
+	if (!list_empty(&dev->devres_head))
+		probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
+	else
+		probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
 	if (!probe_ent) {
 		printk(KERN_ERR DRV_NAME "(%s): out of memory\n",
 		       kobject_name(&(dev->kobj)));
@@ -6139,7 +6103,11 @@ void ata_pci_host_stop (struct ata_host *host)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
 
-	pci_iounmap(pdev, host->mmio_base);
+	/* XXX - the following if can go away once all LLDs are managed */
+	if (!list_empty(&host->dev->devres_head))
+		pcim_iounmap(pdev, host->mmio_base);
+	else
+		pci_iounmap(pdev, host->mmio_base);
 }
 
 /**
@@ -6155,17 +6123,19 @@ void ata_pci_host_stop (struct ata_host *host)
  *	LOCKING:
  *	Inherited from PCI layer (may sleep).
  */
-
-void ata_pci_remove_one (struct pci_dev *pdev)
+void ata_pci_remove_one(struct pci_dev *pdev)
 {
 	struct device *dev = pci_dev_to_dev(pdev);
 	struct ata_host *host = dev_get_drvdata(dev);
 
-	ata_host_remove(host);
-
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-	dev_set_drvdata(dev, NULL);
+	/* XXX - the following if can go away once all LLDs are managed */
+	if (!list_empty(&host->dev->devres_head)) {
+		ata_host_remove(host);
+		pci_release_regions(pdev);
+		pci_disable_device(pdev);
+		dev_set_drvdata(dev, NULL);
+	} else
+		ata_host_detach(host);
 }
 
 /* move to PCI subsystem */
@@ -6219,7 +6189,11 @@ int ata_pci_device_do_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
-	rc = pci_enable_device(pdev);
+	/* XXX - the following if can go away once all LLDs are managed */
+	if (!list_empty(&pdev->dev.devres_head))
+		rc = pcim_enable_device(pdev);
+	else
+		rc = pci_enable_device(pdev);
 	if (rc) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "failed to enable device after resume (%d)\n", rc);
@@ -6458,7 +6432,6 @@ EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_destroy);
 EXPORT_SYMBOL_GPL(ata_scsi_change_queue_depth);
-EXPORT_SYMBOL_GPL(ata_scsi_release);
 EXPORT_SYMBOL_GPL(ata_host_intr);
 EXPORT_SYMBOL_GPL(sata_scr_valid);
 EXPORT_SYMBOL_GPL(sata_scr_read);

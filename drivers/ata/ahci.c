@@ -1784,37 +1784,24 @@ err_out:
 	return rc;
 }
 
-static void ahci_remove_one (struct pci_dev *pdev)
+static void ahci_remove_one(struct pci_dev *pdev)
 {
 	struct device *dev = pci_dev_to_dev(pdev);
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
-	unsigned int i;
-	int have_msi;
 
-	ata_host_detach(host);
+	ata_host_remove(host);
 
-	have_msi = hpriv->flags & AHCI_FLAG_MSI;
-	free_irq(host->irq, host);
-
-	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap = host->ports[i];
-
-		ata_scsi_release(ap->scsi_host);
-		scsi_host_put(ap->scsi_host);
-	}
-
-	kfree(hpriv);
 	pci_iounmap(pdev, host->mmio_base);
-	kfree(host);
 
-	if (have_msi)
+	if (hpriv->flags & AHCI_FLAG_MSI)
 		pci_disable_msi(pdev);
 	else
 		pci_intx(pdev, 0);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	dev_set_drvdata(dev, NULL);
+	kfree(hpriv);
 }
 
 static int __init ahci_init(void)

@@ -31,7 +31,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <asm/scatterlist.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/ata.h>
 #include <linux/workqueue.h>
 #include <scsi/scsi_host.h>
@@ -726,7 +726,6 @@ extern void ata_host_remove(struct ata_host *host);
 extern int ata_scsi_detect(struct scsi_host_template *sht);
 extern int ata_scsi_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 extern int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *));
-extern int ata_scsi_release(struct Scsi_Host *host);
 extern void ata_sas_port_destroy(struct ata_port *);
 extern struct ata_port *ata_sas_port_alloc(struct ata_host *,
 					   struct ata_port_info *, struct Scsi_Host *);
@@ -1227,14 +1226,14 @@ static inline unsigned int __ac_err_mask(u8 status)
 static inline int ata_pad_alloc(struct ata_port *ap, struct device *dev)
 {
 	ap->pad_dma = 0;
-	ap->pad = dma_alloc_coherent(dev, ATA_DMA_PAD_BUF_SZ,
-				     &ap->pad_dma, GFP_KERNEL);
+	ap->pad = dmam_alloc_coherent(dev, ATA_DMA_PAD_BUF_SZ,
+				      &ap->pad_dma, GFP_KERNEL);
 	return (ap->pad == NULL) ? -ENOMEM : 0;
 }
 
 static inline void ata_pad_free(struct ata_port *ap, struct device *dev)
 {
-	dma_free_coherent(dev, ATA_DMA_PAD_BUF_SZ, ap->pad, ap->pad_dma);
+	dmam_free_coherent(dev, ATA_DMA_PAD_BUF_SZ, ap->pad, ap->pad_dma);
 }
 
 static inline struct ata_port *ata_shost_to_port(struct Scsi_Host *host)
