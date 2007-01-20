@@ -502,8 +502,6 @@ static void pdc_atapi_pkt(struct ata_queued_cmd *qc)
 		feature = PDC_FEATURE_ATAPI_PIO;
 		/* set byte counter register to real transfer byte count */
 		nbytes = qc->nbytes;
-		if (!nbytes)
-			nbytes = qc->nsect << 9;
 		if (nbytes > 0xffff)
 			nbytes = 0xffff;
 	} else {
