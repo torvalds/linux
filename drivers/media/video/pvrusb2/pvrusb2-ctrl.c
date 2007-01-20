@@ -515,9 +515,8 @@ int pvr2_ctrl_sym_to_value(struct pvr2_ctrl *cptr,
 			}
 			if (maskptr) *maskptr = ~0;
 		} else if (cptr->info->type == pvr2_ctl_bool) {
-			ret = parse_token(
-				ptr,len,valptr,boolNames,
-				sizeof(boolNames)/sizeof(boolNames[0]));
+			ret = parse_token(ptr,len,valptr,boolNames,
+					  ARRAY_SIZE(boolNames));
 			if (ret == 1) {
 				*valptr = *valptr ? !0 : 0;
 			} else if (ret == 0) {

@@ -98,8 +98,7 @@ static int msp3400_check(struct pvr2_msp3400_handler *ctxt)
 	unsigned long msk;
 	unsigned int idx;
 
-	for (idx = 0; idx < sizeof(msp3400_ops)/sizeof(msp3400_ops[0]);
-	     idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(msp3400_ops); idx++) {
 		msk = 1 << idx;
 		if (ctxt->stale_mask & msk) continue;
 		if (msp3400_ops[idx].check(ctxt)) {
@@ -115,8 +114,7 @@ static void msp3400_update(struct pvr2_msp3400_handler *ctxt)
 	unsigned long msk;
 	unsigned int idx;
 
-	for (idx = 0; idx < sizeof(msp3400_ops)/sizeof(msp3400_ops[0]);
-	     idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(msp3400_ops); idx++) {
 		msk = 1 << idx;
 		if (!(ctxt->stale_mask & msk)) continue;
 		ctxt->stale_mask &= ~msk;
@@ -159,8 +157,7 @@ int pvr2_i2c_msp3400_setup(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 	ctxt->i2c_handler.func_table = &msp3400_funcs;
 	ctxt->client = cp;
 	ctxt->hdw = hdw;
-	ctxt->stale_mask = (1 << (sizeof(msp3400_ops)/
-				  sizeof(msp3400_ops[0]))) - 1;
+	ctxt->stale_mask = (1 << ARRAY_SIZE(msp3400_ops)) - 1;
 	cp->handler = &ctxt->i2c_handler;
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c 0x%x msp3400 V4L2 handler set up",
 		   cp->client->addr);

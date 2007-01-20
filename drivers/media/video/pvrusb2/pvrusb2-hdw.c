@@ -723,7 +723,7 @@ static void ctrl_stdenumcur_clear_dirty(struct pvr2_ctrl *cptr)
 
 #define DEFENUM(tab) \
 	.type = pvr2_ctl_enum, \
-	.def.type_enum.count = (sizeof(tab)/sizeof((tab)[0])), \
+	.def.type_enum.count = ARRAY_SIZE(tab), \
 	.def.type_enum.value_names = tab
 
 #define DEFBOOL \
