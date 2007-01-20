@@ -1657,7 +1657,7 @@ static struct video_device cx8800_video_template =
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
 	.tvnorms              = CX88_NORMS,
-	.current_norm         = V4L2_STD_PAL_BG,
+       .current_norm         = V4L2_STD_NTSC_M,
 };
 
 static const struct file_operations radio_fops =

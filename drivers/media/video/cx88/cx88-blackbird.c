@@ -1233,7 +1233,7 @@ static struct video_device cx8802_mpeg_template =
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_s_std         = vidioc_s_std,
 	.tvnorms              = CX88_NORMS,
-	.current_norm         = V4L2_STD_PAL_BG,
+       .current_norm         = V4L2_STD_NTSC_M,
 };
 
 /* ------------------------------------------------------------------ */
