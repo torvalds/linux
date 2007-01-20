@@ -5,6 +5,11 @@
  *
  * (c) 2003 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *
+ * (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *     - Multituner support
+ *     - video_ioctl2 conversion
+ *     - PAL/M fixes
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -631,22 +636,22 @@ int cx88_reset(struct cx88_core *core)
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int inline norm_swidth(struct cx88_tvnorm *norm)
+static unsigned int inline norm_swidth(struct v4l2_tvnorm *norm)
 {
 	return (norm->id & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 754 : 922;
 }
 
-static unsigned int inline norm_hdelay(struct cx88_tvnorm *norm)
+static unsigned int inline norm_hdelay(struct v4l2_tvnorm *norm)
 {
 	return (norm->id & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 135 : 186;
 }
 
-static unsigned int inline norm_vdelay(struct cx88_tvnorm *norm)
+static unsigned int inline norm_vdelay(struct v4l2_tvnorm *norm)
 {
 	return (norm->id & V4L2_STD_625_50) ? 0x24 : 0x18;
 }
 
-static unsigned int inline norm_fsc8(struct cx88_tvnorm *norm)
+static unsigned int inline norm_fsc8(struct v4l2_tvnorm *norm)
 {
 	if (norm->id & V4L2_STD_PAL_M)
 		return 28604892;      // 3.575611 MHz
@@ -666,7 +671,7 @@ static unsigned int inline norm_fsc8(struct cx88_tvnorm *norm)
 	return 35468950;      // 4.43361875 MHz +/- 5 Hz
 }
 
-static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
+static unsigned int inline norm_htotal(struct v4l2_tvnorm *norm)
 {
 
 	unsigned int fsc4=norm_fsc8(norm)/2;
@@ -677,7 +682,7 @@ static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
 				((fsc4+262)/525*1001+15000)/30000;
 }
 
-static unsigned int inline norm_vbipack(struct cx88_tvnorm *norm)
+static unsigned int inline norm_vbipack(struct v4l2_tvnorm *norm)
 {
 	return (norm->id & V4L2_STD_625_50) ? 511 : 400;
 }
@@ -826,7 +831,7 @@ int cx88_stop_audio_dma(struct cx88_core *core)
 
 static int set_tvaudio(struct cx88_core *core)
 {
-	struct cx88_tvnorm *norm = core->tvnorm;
+	struct v4l2_tvnorm *norm = core->tvnorm;
 
 	if (CX88_VMUX_TELEVISION != INPUT(core->input)->type)
 		return 0;
@@ -874,7 +879,7 @@ static int set_tvaudio(struct cx88_core *core)
 
 
 
-int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
+int cx88_set_tvnorm(struct cx88_core *core, struct v4l2_tvnorm *norm)
 {
 	u32 fsc8;
 	u32 adc_clock;
@@ -882,6 +887,7 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 	u32 step_db,step_dr;
 	u64 tmp64;
 	u32 bdelay,agcdelay,htotal;
+	u32 cxiformat, cxoformat;
 
 	core->tvnorm = norm;
 	fsc8       = norm_fsc8(norm);
@@ -890,9 +896,32 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 	step_db    = fsc8;
 	step_dr    = fsc8;
 
-	if (norm->id & V4L2_STD_SECAM) {
+	if (norm->id & V4L2_STD_NTSC_M_JP) {
+		cxiformat = VideoFormatNTSCJapan;
+		cxoformat = 0x181f0008;
+	} else if (norm->id & V4L2_STD_PAL_M) {
+		cxiformat = VideoFormatPALM;
+		cxoformat = 0x1c1f0008;
+	} else if (norm->id & V4L2_STD_PAL_N) {
+		cxiformat = VideoFormatPALN;
+		cxoformat = 0x1c1f0008;
+	} else if (norm->id & V4L2_STD_PAL_Nc) {
+		cxiformat = VideoFormatPALNC;
+		cxoformat = 0x1c1f0008;
+	} else if (norm->id & V4L2_STD_PAL_60) {
+		cxiformat = VideoFormatPAL60;
+		cxoformat = 0x181f0008;
+	} else if (norm->id & V4L2_STD_NTSC) {
+		cxiformat = VideoFormatNTSC;
+		cxoformat = 0x181f0008;
+	} else if (norm->id & V4L2_STD_SECAM) {
+		cxiformat = VideoFormatSECAM;
+		cxoformat = 0x181f0008;
 		step_db = 4250000 * 8;
 		step_dr = 4406250 * 8;
+	} else { /* PAL */
+		cxiformat = VideoFormatPAL;
+		cxoformat = 0x181f0008;
 	}
 
 	dprintk(1,"set_tvnorm: \"%s\" fsc8=%d adc=%d vdec=%d db/dr=%d/%d\n",
@@ -900,13 +929,13 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 	set_pll(core,2,vdec_clock);
 
 	dprintk(1,"set_tvnorm: MO_INPUT_FORMAT  0x%08x [old=0x%08x]\n",
-		norm->cxiformat, cx_read(MO_INPUT_FORMAT) & 0x0f);
-	cx_andor(MO_INPUT_FORMAT, 0xf, norm->cxiformat);
+		cxiformat, cx_read(MO_INPUT_FORMAT) & 0x0f);
+	cx_andor(MO_INPUT_FORMAT, 0xf, cxiformat);
 
 	// FIXME: as-is from DScaler
 	dprintk(1,"set_tvnorm: MO_OUTPUT_FORMAT 0x%08x [old=0x%08x]\n",
-		norm->cxoformat, cx_read(MO_OUTPUT_FORMAT));
-	cx_write(MO_OUTPUT_FORMAT, norm->cxoformat);
+		cxoformat, cx_read(MO_OUTPUT_FORMAT));
+	cx_write(MO_OUTPUT_FORMAT, cxoformat);
 
 	// MO_SCONV_REG = adc clock / video dec clock * 2^17
 	tmp64  = adc_clock * (u64)(1 << 17);

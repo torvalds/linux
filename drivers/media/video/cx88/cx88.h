@@ -82,20 +82,13 @@ enum cx8802_board_access {
 /* ----------------------------------------------------------- */
 /* tv norms                                                    */
 
-struct cx88_tvnorm {
-	char                   *name;
-	v4l2_std_id            id;
-	u32                    cxiformat;
-	u32                    cxoformat;
-};
-
-static unsigned int inline norm_maxw(struct cx88_tvnorm *norm)
+static unsigned int inline norm_maxw(struct v4l2_tvnorm *norm)
 {
 	return (norm->id & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 720 : 768;
 }
 
 
-static unsigned int inline norm_maxh(struct cx88_tvnorm *norm)
+static unsigned int inline norm_maxh(struct v4l2_tvnorm *norm)
 {
 	return (norm->id & V4L2_STD_625_50) ? 576 : 480;
 }
@@ -319,7 +312,7 @@ struct cx88_core {
 
 	/* state info */
 	struct task_struct         *kthread;
-	struct cx88_tvnorm         *tvnorm;
+	struct v4l2_tvnorm         *tvnorm;
 	u32                        tvaudio;
 	u32                        audiomode_manual;
 	u32                        audiomode_current;
@@ -536,7 +529,7 @@ extern void cx88_sram_channel_dump(struct cx88_core *core,
 
 extern int cx88_set_scale(struct cx88_core *core, unsigned int width,
 			  unsigned int height, enum v4l2_field field);
-extern int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm);
+extern int cx88_set_tvnorm(struct cx88_core *core, struct v4l2_tvnorm *norm);
 
 extern struct video_device *cx88_vdev_init(struct cx88_core *core,
 					   struct pci_dev *pci,
@@ -553,7 +546,10 @@ extern int cx88_stop_audio_dma(struct cx88_core *core);
 /* ----------------------------------------------------------- */
 /* cx88-vbi.c                                                  */
 
-void cx8800_vbi_fmt(struct cx8800_dev *dev, struct v4l2_format *f);
+/* Can be used as g_vbi_fmt, try_vbi_fmt and s_vbi_fmt */
+int cx8800_vbi_fmt (struct file *file, void *priv,
+					struct v4l2_format *f);
+
 /*
 int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
 			 struct cx88_dmaqueue *q,
