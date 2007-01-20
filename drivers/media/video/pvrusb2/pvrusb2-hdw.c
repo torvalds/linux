@@ -39,8 +39,6 @@
 
 #define TV_MIN_FREQ     55250000L
 #define TV_MAX_FREQ    850000000L
-#define RADIO_MIN_FREQ  87000000L
-#define RADIO_MAX_FREQ 108000000L
 
 struct usb_device_id pvr2_device_table[] = {
 	[PVR2_HDW_TYPE_29XXX] = { USB_DEVICE(0x2040, 0x2900) },
@@ -432,34 +430,48 @@ static void ctrl_cleardirty_input(struct pvr2_ctrl *cptr)
 	cptr->hdw->input_dirty = 0;
 }
 
-static int ctrl_freq_check(struct pvr2_ctrl *cptr,int v)
-{
-	/* Both ranges are simultaneously considered legal, in order to
-	   permit implicit mode switching, i.e. set a frequency in the
-	   other range and the mode will switch */
-	return (((v >= RADIO_MIN_FREQ) && (v <= RADIO_MAX_FREQ)) ||
-		((v >= TV_MIN_FREQ) && (v <= TV_MAX_FREQ)));
-}
 
 static int ctrl_freq_max_get(struct pvr2_ctrl *cptr, int *vp)
 {
-	/* Actual maximum depends on radio/tv mode */
-	if (cptr->hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
-		*vp = RADIO_MAX_FREQ;
-	} else {
-		*vp = TV_MAX_FREQ;
+	unsigned long fv;
+	struct pvr2_hdw *hdw = cptr->hdw;
+	if (hdw->tuner_signal_stale) {
+		pvr2_i2c_core_status_poll(hdw);
 	}
+	fv = hdw->tuner_signal_info.rangehigh;
+	if (!fv) {
+		/* Safety fallback */
+		*vp = TV_MAX_FREQ;
+		return 0;
+	}
+	if (hdw->tuner_signal_info.capability & V4L2_TUNER_CAP_LOW) {
+		fv = (fv * 125) / 2;
+	} else {
+		fv = fv * 62500;
+	}
+	*vp = fv;
 	return 0;
 }
 
 static int ctrl_freq_min_get(struct pvr2_ctrl *cptr, int *vp)
 {
-	/* Actual minimum depends on radio/tv mode */
-	if (cptr->hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
-		*vp = RADIO_MIN_FREQ;
-	} else {
-		*vp = TV_MIN_FREQ;
+	unsigned long fv;
+	struct pvr2_hdw *hdw = cptr->hdw;
+	if (hdw->tuner_signal_stale) {
+		pvr2_i2c_core_status_poll(hdw);
 	}
+	fv = hdw->tuner_signal_info.rangelow;
+	if (!fv) {
+		/* Safety fallback */
+		*vp = TV_MIN_FREQ;
+		return 0;
+	}
+	if (hdw->tuner_signal_info.capability & V4L2_TUNER_CAP_LOW) {
+		fv = (fv * 125) / 2;
+	} else {
+		fv = fv * 62500;
+	}
+	*vp = fv;
 	return 0;
 }
 
@@ -630,9 +642,7 @@ static int ctrl_audio_modes_present_get(struct pvr2_ctrl *cptr,int *vp)
 	int val = 0;
 	unsigned int subchan;
 	struct pvr2_hdw *hdw = cptr->hdw;
-	if (hdw->tuner_signal_stale) {
-		pvr2_i2c_core_status_poll(hdw);
-	}
+	pvr2_i2c_core_status_poll(hdw);
 	subchan = hdw->tuner_signal_info.rxsubchans;
 	if (subchan & V4L2_TUNER_SUB_MONO) {
 		val |= (1 << V4L2_TUNER_MODE_MONO);
@@ -870,10 +880,9 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.get_value = ctrl_freq_get,
 		.is_dirty = ctrl_freq_is_dirty,
 		.clear_dirty = ctrl_freq_clear_dirty,
-		DEFINT(TV_MIN_FREQ,TV_MAX_FREQ),
+		DEFINT(0,0),
 		/* Hook in check for input value (tv/radio) and adjust
 		   max/min values accordingly */
-		.check_value = ctrl_freq_check,
 		.get_max_value = ctrl_freq_max_get,
 		.get_min_value = ctrl_freq_min_get,
 	},{
@@ -887,10 +896,9 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.name = "freq_table_value",
 		.set_value = ctrl_channelfreq_set,
 		.get_value = ctrl_channelfreq_get,
-		DEFINT(TV_MIN_FREQ,TV_MAX_FREQ),
+		DEFINT(0,0),
 		/* Hook in check for input value (tv/radio) and adjust
 		   max/min values accordingly */
-		.check_value = ctrl_freq_check,
 		.get_max_value = ctrl_freq_max_get,
 		.get_min_value = ctrl_freq_min_get,
 	},{
