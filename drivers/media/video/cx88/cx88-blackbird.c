@@ -956,12 +956,31 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 	}
 	case VIDIOC_S_FREQUENCY:
 	{
+		struct v4l2_frequency *f = arg;
+
 		blackbird_api_cmd(fh->dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
 				  BLACKBIRD_END_NOW,
 				  BLACKBIRD_MPEG_CAPTURE,
 				  BLACKBIRD_RAW_BITS_NONE);
 
-		cx88_do_ioctl(inode, file, 0, dev->core, cmd, arg, cx88_ioctl_hook);
+		if (UNSET == core->tuner_type)
+			return -EINVAL;
+		if (f->tuner != 0)
+			return -EINVAL;
+		if (0 == radio && f->type != V4L2_TUNER_ANALOG_TV)
+			return -EINVAL;
+		if (1 == radio && f->type != V4L2_TUNER_RADIO)
+			return -EINVAL;
+		mutex_lock(&core->lock);
+		core->freq = f->frequency;
+		cx88_newstation(core);
+		cx88_call_i2c_clients(core,VIDIOC_S_FREQUENCY,f);
+
+		/* When changing channels it is required to reset TVAUDIO */
+		msleep (10);
+		cx88_set_tvaudio(core);
+
+		mutex_unlock(&core->lock);
 
 		blackbird_initialize_codec(dev);
 		cx88_set_scale(dev->core, dev->width, dev->height,
@@ -985,11 +1004,17 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 		return blackbird_querymenu(dev, arg);
 	case VIDIOC_QUERYCTRL:
 	{
-		struct v4l2_queryctrl *c = arg;
+		struct v4l2_queryctrl *qctrl = arg;
 
-		if (blackbird_queryctrl(dev, c) == 0)
+		if (blackbird_queryctrl(dev, qctrl) == 0)
 			return 0;
-		return cx88_do_ioctl(inode, file, 0, dev->core, cmd, arg, mpeg_do_ioctl);
+
+		struct v4l2_queryctrl *qctrl = arg;
+
+		qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
+			if (unlikely(qctrl->id == 0))
+				return -EINVAL;
+		return cx8800_ctrl_query(qctrl);
 	}
 
 	default:
@@ -1164,42 +1189,6 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 		return 0;
 	}
 
-
-	/* --- controls ---------------------------------------------- */
-	case VIDIOC_QUERYCTRL:
-	{
-		struct v4l2_queryctrl *qctrl = arg;
-
-		qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
-			if (unlikely(qctrl->id == 0))
-				return -EINVAL;
-		return cx8800_ctrl_query(qctrl);
-	}
-	/* --- tuner ioctls ------------------------------------------ */
-	case VIDIOC_S_FREQUENCY:
-	{
-		struct v4l2_frequency *f = arg;
-
-		if (UNSET == core->tuner_type)
-			return -EINVAL;
-		if (f->tuner != 0)
-			return -EINVAL;
-		if (0 == radio && f->type != V4L2_TUNER_ANALOG_TV)
-			return -EINVAL;
-		if (1 == radio && f->type != V4L2_TUNER_RADIO)
-			return -EINVAL;
-		mutex_lock(&core->lock);
-		core->freq = f->frequency;
-		cx88_newstation(core);
-		cx88_call_i2c_clients(core,VIDIOC_S_FREQUENCY,f);
-
-		/* When changing channels it is required to reset TVAUDIO */
-		msleep (10);
-		cx88_set_tvaudio(core);
-
-		mutex_unlock(&core->lock);
-		return 0;
-	}
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	/* ioctls to allow direct acces to the cx2388x registers */
 	case VIDIOC_INT_G_REGISTER:
