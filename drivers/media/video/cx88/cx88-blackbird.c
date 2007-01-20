@@ -816,8 +816,7 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 		cap->capabilities =
 			V4L2_CAP_VIDEO_CAPTURE |
 			V4L2_CAP_READWRITE     |
-			V4L2_CAP_STREAMING     |
-			0;
+			V4L2_CAP_STREAMING;
 		if (UNSET != core->tuner_type)
 			cap->capabilities |= V4L2_CAP_TUNER;
 
@@ -928,6 +927,21 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 		return cx2341x_ext_ctrls(&dev->params, f, cmd);
 	}
 	case VIDIOC_S_EXT_CTRLS:
+	{
+		struct v4l2_ext_controls *f = arg;
+		struct cx2341x_mpeg_params p;
+		int err;
+
+		if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
+			return -EINVAL;
+		p = dev->params;
+		err = cx2341x_ext_ctrls(&p, VIDIOC_S_EXT_CTRLS, cmd);
+		if (err == 0 && cmd == VIDIOC_S_EXT_CTRLS) {
+			err = cx2341x_update(dev, blackbird_mbox_func, &dev->params, &p);
+			dev->params = p;
+		}
+		return err;
+	}
 	case VIDIOC_TRY_EXT_CTRLS:
 	{
 		struct v4l2_ext_controls *f = arg;
@@ -937,11 +951,7 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 		if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
 			return -EINVAL;
 		p = dev->params;
-		err = cx2341x_ext_ctrls(&p, f, cmd);
-		if (err == 0 && cmd == VIDIOC_S_EXT_CTRLS) {
-			err = cx2341x_update(dev, blackbird_mbox_func, &dev->params, &p);
-			dev->params = p;
-		}
+		err = cx2341x_ext_ctrls(&p, VIDIOC_TRY_EXT_CTRLS, cmd);
 		return err;
 	}
 	case VIDIOC_S_FREQUENCY:
@@ -1006,46 +1016,6 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
        }
 
 	switch (cmd) {
-	/* ---------- tv norms ---------- */
-	case VIDIOC_ENUMSTD:
-	{
-		struct v4l2_standard *e = arg;
-		unsigned int i;
-
-		i = e->index;
-		if (i >= ARRAY_SIZE(tvnorms))
-			return -EINVAL;
-		err = v4l2_video_std_construct(e, tvnorms[e->index].id,
-					       tvnorms[e->index].name);
-		e->index = i;
-		if (err < 0)
-			return err;
-		return 0;
-	}
-	case VIDIOC_G_STD:
-	{
-		v4l2_std_id *id = arg;
-
-		*id = core->tvnorm;
-		return 0;
-	}
-	case VIDIOC_S_STD:
-	{
-		v4l2_std_id *id = arg;
-		unsigned int i;
-
-		for(i = 0; i < ARRAY_SIZE(tvnorms); i++)
-			if (*id & tvnorms[i].id)
-				break;
-		if (i == ARRAY_SIZE(tvnorms))
-			return -EINVAL;
-
-		mutex_lock(&core->lock);
-		cx88_set_tvnorm(core,tvnorms[i].id);
-		mutex_unlock(&core->lock);
-		return 0;
-	}
-
 	/* ------ input switching ---------- */
 	case VIDIOC_ENUMINPUT:
 	{
@@ -1079,6 +1049,28 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 			i->std |= tvnorms[n].id;
 		return 0;
 	}
+	case VIDIOC_G_CTRL:
+		return cx88_get_control(core,arg);
+	case VIDIOC_S_CTRL:
+		return cx88_set_control(core,arg);
+
+	case VIDIOC_G_FREQUENCY:
+	{
+		struct v4l2_frequency *f = arg;
+
+		memset(f,0,sizeof(*f));
+
+		if (UNSET == core->tuner_type)
+			return -EINVAL;
+
+		/* f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV; */
+		f->type = radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
+		f->frequency = core->freq;
+
+		cx88_call_i2c_clients(core,VIDIOC_G_FREQUENCY,f);
+
+		return 0;
+	}
 	case VIDIOC_G_INPUT:
 	{
 		unsigned int *i = arg;
@@ -1100,23 +1092,6 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 	}
 
 
-
-	/* --- controls ---------------------------------------------- */
-	case VIDIOC_QUERYCTRL:
-	{
-		struct v4l2_queryctrl *qctrl = arg;
-
-		qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
-			if (unlikely(qctrl->id == 0))
-				return -EINVAL;
-		return cx8800_ctrl_query(qctrl);
-	}
-	case VIDIOC_G_CTRL:
-		return cx88_get_control(core,arg);
-	case VIDIOC_S_CTRL:
-		return cx88_set_control(core,arg);
-
-	/* --- tuner ioctls ------------------------------------------ */
 	case VIDIOC_G_TUNER:
 	{
 		struct v4l2_tuner *t = arg;
@@ -1149,23 +1124,58 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 		cx88_set_stereo(core, t->audmode, 1);
 		return 0;
 	}
-	case VIDIOC_G_FREQUENCY:
+	/* ---------- tv norms ---------- */
+	case VIDIOC_S_STD:
 	{
-		struct v4l2_frequency *f = arg;
+		v4l2_std_id *id = arg;
+		unsigned int i;
 
-		memset(f,0,sizeof(*f));
-
-		if (UNSET == core->tuner_type)
+		for(i = 0; i < ARRAY_SIZE(tvnorms); i++)
+			if (*id & tvnorms[i].id)
+				break;
+		if (i == ARRAY_SIZE(tvnorms))
 			return -EINVAL;
 
-		/* f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV; */
-		f->type = radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
-		f->frequency = core->freq;
-
-		cx88_call_i2c_clients(core,VIDIOC_G_FREQUENCY,f);
-
+		mutex_lock(&core->lock);
+		cx88_set_tvnorm(core,tvnorms[i].id);
+		mutex_unlock(&core->lock);
 		return 0;
 	}
+	case VIDIOC_ENUMSTD:
+	{
+		struct v4l2_standard *e = arg;
+		unsigned int i;
+
+		i = e->index;
+		if (i >= ARRAY_SIZE(tvnorms))
+			return -EINVAL;
+		err = v4l2_video_std_construct(e, tvnorms[e->index].id,
+					       tvnorms[e->index].name);
+		e->index = i;
+		if (err < 0)
+			return err;
+		return 0;
+	}
+	case VIDIOC_G_STD:
+	{
+		v4l2_std_id *id = arg;
+
+		*id = core->tvnorm;
+		return 0;
+	}
+
+
+	/* --- controls ---------------------------------------------- */
+	case VIDIOC_QUERYCTRL:
+	{
+		struct v4l2_queryctrl *qctrl = arg;
+
+		qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
+			if (unlikely(qctrl->id == 0))
+				return -EINVAL;
+		return cx8800_ctrl_query(qctrl);
+	}
+	/* --- tuner ioctls ------------------------------------------ */
 	case VIDIOC_S_FREQUENCY:
 	{
 		struct v4l2_frequency *f = arg;
