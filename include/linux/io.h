@@ -28,6 +28,23 @@ void __iowrite64_copy(void __iomem *to, const void *from, size_t count);
 int ioremap_page_range(unsigned long addr, unsigned long end,
 		       unsigned long phys_addr, pgprot_t prot);
 
+/*
+ * Managed iomap interface
+ */
+void __iomem * devm_ioport_map(struct device *dev, unsigned long port,
+			       unsigned int nr);
+void devm_ioport_unmap(struct device *dev, void __iomem *addr);
+
+void __iomem * devm_ioremap(struct device *dev, unsigned long offset,
+			    unsigned long size);
+void __iomem * devm_ioremap_nocache(struct device *dev, unsigned long offset,
+				    unsigned long size);
+void devm_iounmap(struct device *dev, void __iomem *addr);
+
+void __iomem * pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen);
+void pcim_iounmap(struct pci_dev *pdev, void __iomem *addr);
+void __iomem * const * pcim_iomap_table(struct pci_dev *pdev);
+
 /**
  *	check_signature		-	find BIOS signatures
  *	@io_addr: mmio address to check
