@@ -498,7 +498,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		ret = 0;
 		switch(vf->type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-			int lmin,lmax;
+			int lmin,lmax,ldef;
 			struct pvr2_ctrl *hcp,*vcp;
 			int h = vf->fmt.pix.height;
 			int w = vf->fmt.pix.width;
@@ -507,14 +507,20 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 			lmin = pvr2_ctrl_get_min(hcp);
 			lmax = pvr2_ctrl_get_max(hcp);
-			if (w < lmin) {
+			ldef = pvr2_ctrl_get_def(hcp);
+			if (w == -1) {
+				w = ldef;
+			} else if (w < lmin) {
 				w = lmin;
 			} else if (w > lmax) {
 				w = lmax;
 			}
 			lmin = pvr2_ctrl_get_min(vcp);
 			lmax = pvr2_ctrl_get_max(vcp);
-			if (h < lmin) {
+			ldef = pvr2_ctrl_get_def(vcp);
+			if (h == -1) {
+				h = ldef;
+			} else if (h < lmin) {
 				h = lmin;
 			} else if (h > lmax) {
 				h = lmax;
