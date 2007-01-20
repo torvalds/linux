@@ -2443,10 +2443,9 @@ static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 		cptr = hdw->controls + idx;
 		if (cptr->info->is_dirty == 0) continue;
 		if (!cptr->info->is_dirty(cptr)) continue;
-		if (!commit_flag) {
-			commit_flag = !0;
-		}
+		commit_flag = !0;
 
+		if (!(pvrusb2_debug & PVR2_TRACE_CTL)) continue;
 		bcnt = scnprintf(buf,sizeof(buf),"\"%s\" <-- ",
 				 cptr->info->name);
 		value = 0;
