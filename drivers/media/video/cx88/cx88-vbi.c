@@ -33,13 +33,13 @@ int cx8800_vbi_fmt (struct file *file, void *priv,
 	f->fmt.vbi.count[0] = VBI_LINE_COUNT;
 	f->fmt.vbi.count[1] = VBI_LINE_COUNT;
 
-	if (dev->core->tvnorm->id & V4L2_STD_525_60) {
+	if (dev->core->tvnorm & V4L2_STD_525_60) {
 		/* ntsc */
 		f->fmt.vbi.sampling_rate = 28636363;
 		f->fmt.vbi.start[0] = 10;
 		f->fmt.vbi.start[1] = 273;
 
-	} else if (dev->core->tvnorm->id & V4L2_STD_625_50) {
+	} else if (dev->core->tvnorm & V4L2_STD_625_50) {
 		/* pal */
 		f->fmt.vbi.sampling_rate = 35468950;
 		f->fmt.vbi.start[0] = 7 -1;

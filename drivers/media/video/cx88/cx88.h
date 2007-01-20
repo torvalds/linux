@@ -50,6 +50,13 @@
 /* ----------------------------------------------------------- */
 /* defines and enums                                           */
 
+/* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
+#define CX88_NORMS (\
+	V4L2_STD_NTSC_M|  V4L2_STD_NTSC_M_JP|  V4L2_STD_NTSC_443 | \
+	V4L2_STD_PAL_BG|  V4L2_STD_PAL_DK   |  V4L2_STD_PAL_I    | \
+	V4L2_STD_PAL_M |  V4L2_STD_PAL_N    |  V4L2_STD_PAL_Nc   | \
+	V4L2_STD_PAL_60|  V4L2_STD_SECAM_L  |  V4L2_STD_SECAM_DK )
+
 #define FORMAT_FLAGS_PACKED       0x01
 #define FORMAT_FLAGS_PLANAR       0x02
 
@@ -82,15 +89,15 @@ enum cx8802_board_access {
 /* ----------------------------------------------------------- */
 /* tv norms                                                    */
 
-static unsigned int inline norm_maxw(struct v4l2_tvnorm *norm)
+static unsigned int inline norm_maxw(v4l2_std_id norm)
 {
-	return (norm->id & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 720 : 768;
+	return (norm & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 720 : 768;
 }
 
 
-static unsigned int inline norm_maxh(struct v4l2_tvnorm *norm)
+static unsigned int inline norm_maxh(v4l2_std_id norm)
 {
-	return (norm->id & V4L2_STD_625_50) ? 576 : 480;
+	return (norm & V4L2_STD_625_50) ? 576 : 480;
 }
 
 /* ----------------------------------------------------------- */
@@ -312,7 +319,7 @@ struct cx88_core {
 
 	/* state info */
 	struct task_struct         *kthread;
-	struct v4l2_tvnorm         *tvnorm;
+	v4l2_std_id                tvnorm;
 	u32                        tvaudio;
 	u32                        audiomode_manual;
 	u32                        audiomode_current;
@@ -529,7 +536,7 @@ extern void cx88_sram_channel_dump(struct cx88_core *core,
 
 extern int cx88_set_scale(struct cx88_core *core, unsigned int width,
 			  unsigned int height, enum v4l2_field field);
-extern int cx88_set_tvnorm(struct cx88_core *core, struct v4l2_tvnorm *norm);
+extern int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm);
 
 extern struct video_device *cx88_vdev_init(struct cx88_core *core,
 					   struct pci_dev *pci,
@@ -630,8 +637,6 @@ int cx8802_resume_common(struct pci_dev *pci_dev);
 
 /* ----------------------------------------------------------- */
 /* cx88-video.c*/
-extern unsigned int cx88_tvnormsize;
-extern struct v4l2_tvnorm cx88_tvnorms[];
 extern const u32 cx88_user_ctrls[];
 extern int cx8800_ctrl_query(struct v4l2_queryctrl *qctrl);
 int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i);

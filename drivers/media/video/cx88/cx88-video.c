@@ -86,56 +86,7 @@ static LIST_HEAD(cx8800_devlist);
 /* ------------------------------------------------------------------- */
 /* static data                                                         */
 
-struct v4l2_tvnorm cx88_tvnorms[] = {
-	{
-		.name      = "NTSC-M",
-		.id        = V4L2_STD_NTSC_M,
-	},{
-		.name      = "NTSC-JP",
-		.id        = V4L2_STD_NTSC_M_JP,
-	},{
-		.name      = "NTSC-4.43",
-		.id        = V4L2_STD_NTSC_443,
-	},{
-		.name      = "PAL-BG",
-		.id        = V4L2_STD_PAL_BG,
-	},{
-		.name      = "PAL-DK",
-		.id        = V4L2_STD_PAL_DK,
-	},{
-		.name      = "PAL-I",
-		.id        = V4L2_STD_PAL_I,
-	},{
-		.name      = "PAL-M",
-		.id        = V4L2_STD_PAL_M,
-	},{
-		.name      = "PAL-N",
-		.id        = V4L2_STD_PAL_N,
-	},{
-		.name      = "PAL-Nc",
-		.id        = V4L2_STD_PAL_Nc,
-	},{
-		.name      = "PAL-60",
-		.id        = V4L2_STD_PAL_60,
-	},{
-		.name      = "SECAM-L",
-		.id        = V4L2_STD_SECAM_L,
-	},{
-		.name      = "SECAM-DK",
-		.id        = V4L2_STD_SECAM_DK,
-	}
-};
-EXPORT_SYMBOL(cx88_tvnorms);
-
-unsigned int cx88_tvnormsize=ARRAY_SIZE(cx88_tvnorms);
-EXPORT_SYMBOL(cx88_tvnormsize);
-
-static struct v4l2_tvnorm radionorms[] = {
-	{
-		.name      = "RADIO",
-		.id        = 0,
-	}
-};
+v4l2_std_id radionorms[] = { 0 };
 
 static struct cx8800_fmt formats[] = {
 	{
@@ -999,7 +950,7 @@ int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 
 		value = ((ctl->value - c->off) << c->shift) & c->mask;
 
-		if (core->tvnorm->id & V4L2_STD_SECAM) {
+		if (core->tvnorm & V4L2_STD_SECAM) {
 			/* For SECAM, both U and V sat should be equal */
 			value=value<<8|value;
 		} else {
@@ -1242,13 +1193,14 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	return 0;
 }
 
-static int vidioc_s_std (struct file *file, void *priv, unsigned int i)
+static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *tvnorms)
 {
 	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
 
 	mutex_lock(&core->lock);
-	cx88_set_tvnorm(core,&cx88_tvnorms[i]);
+	cx88_set_tvnorm(core,*tvnorms);
 	mutex_unlock(&core->lock);
+
 	return 0;
 }
 
@@ -1280,8 +1232,7 @@ int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i)
 	if ((CX88_VMUX_TELEVISION == INPUT(n)->type) ||
 		(CX88_VMUX_CABLE      == INPUT(n)->type))
 		i->type = V4L2_INPUT_TYPE_TUNER;
-	for (n = 0; n < ARRAY_SIZE(cx88_tvnorms); n++)
-		i->std |= cx88_tvnorms[n].id;
+		i->std = CX88_NORMS;
 	return 0;
 }
 EXPORT_SYMBOL(cx88_enum_input);
@@ -1703,8 +1654,8 @@ static struct video_device cx8800_video_template =
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
-	.tvnorms              = cx88_tvnorms,
-	.tvnormsize           = ARRAY_SIZE(cx88_tvnorms),
+	.tvnorms              = CX88_NORMS,
+	.current_norm         = V4L2_STD_PAL_BG,
 };
 
 static const struct file_operations radio_fops =
@@ -1736,8 +1687,6 @@ static struct video_device cx8800_radio_template =
 	.vidioc_s_ctrl        = vidioc_s_ctrl,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
-	.tvnorms              = radionorms,
-	.tvnormsize           = ARRAY_SIZE(radionorms),
 };
 
 /* ----------------------------------------------------------- */
@@ -1815,7 +1764,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* initialize driver struct */
 	spin_lock_init(&dev->slock);
-	core->tvnorm = cx88_tvnorms;
+	core->tvnorm = cx8800_video_template.current_norm;
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
@@ -1896,7 +1845,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* initial device configuration */
 	mutex_lock(&core->lock);
-	cx88_set_tvnorm(core,cx88_tvnorms);
+	cx88_set_tvnorm(core,core->tvnorm);
 	init_controls(core);
 	cx88_video_mux(core,0);
 	mutex_unlock(&core->lock);
