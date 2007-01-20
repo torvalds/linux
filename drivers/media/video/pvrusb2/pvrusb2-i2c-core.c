@@ -605,6 +605,12 @@ void pvr2_i2c_core_status_poll(struct pvr2_hdw *hdw)
 			cp->status_poll(cp);
 		}
 		hdw->tuner_signal_stale = 0;
+		pvr2_trace(PVR2_TRACE_CHIPS,"i2c status poll"
+			   " type=%u strength=%u audio=0x%x cap=0x%x"
+			   " low=%u hi=%u",
+			   vtp->type,
+			   vtp->signal,vtp->rxsubchans,vtp->capability,
+			   vtp->rangelow,vtp->rangehigh);
 	} while (0); mutex_unlock(&hdw->i2c_list_lock);
 }
 
