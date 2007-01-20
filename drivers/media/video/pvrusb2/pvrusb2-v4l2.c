@@ -914,11 +914,10 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 		return -EIO;
 	}
 
-	fhp = kmalloc(sizeof(*fhp),GFP_KERNEL);
+	fhp = kzalloc(sizeof(*fhp),GFP_KERNEL);
 	if (!fhp) {
 		return -ENOMEM;
 	}
-	memset(fhp,0,sizeof(*fhp));
 
 	init_waitqueue_head(&fhp->wait_data);
 	fhp->dev_info = dip;
@@ -1183,19 +1182,16 @@ struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
 {
 	struct pvr2_v4l2 *vp;
 
-	vp = kmalloc(sizeof(*vp),GFP_KERNEL);
+	vp = kzalloc(sizeof(*vp),GFP_KERNEL);
 	if (!vp) return vp;
-	memset(vp,0,sizeof(*vp));
-	vp->dev_video = kmalloc(sizeof(*vp->dev_video),GFP_KERNEL);
-	vp->dev_radio = kmalloc(sizeof(*vp->dev_radio),GFP_KERNEL);
+	vp->dev_video = kzalloc(sizeof(*vp->dev_video),GFP_KERNEL);
+	vp->dev_radio = kzalloc(sizeof(*vp->dev_radio),GFP_KERNEL);
 	if (!(vp->dev_video && vp->dev_radio)) {
 		kfree(vp->dev_video);
 		kfree(vp->dev_radio);
 		kfree(vp);
 		return NULL;
 	}
-	memset(vp->dev_video,0,sizeof(*vp->dev_video));
-	memset(vp->dev_radio,0,sizeof(*vp->dev_radio));
 	pvr2_channel_init(&vp->channel,mnp);
 	pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr2_v4l2 id=%p",vp);
 
