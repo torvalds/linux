@@ -354,6 +354,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		ret = pvr2_ctrl_set_value(
 			pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_AUDIOMODE),
 			vt->audmode);
+		break;
 	}
 
 	case VIDIOC_S_FREQUENCY:
