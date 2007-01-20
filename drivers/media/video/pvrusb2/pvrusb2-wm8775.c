@@ -105,8 +105,7 @@ static int wm8775_check(struct pvr2_v4l_wm8775 *ctxt)
 	unsigned long msk;
 	unsigned int idx;
 
-	for (idx = 0; idx < sizeof(wm8775_ops)/sizeof(wm8775_ops[0]);
-	     idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(wm8775_ops); idx++) {
 		msk = 1 << idx;
 		if (ctxt->stale_mask & msk) continue;
 		if (wm8775_ops[idx].check(ctxt)) {
@@ -122,8 +121,7 @@ static void wm8775_update(struct pvr2_v4l_wm8775 *ctxt)
 	unsigned long msk;
 	unsigned int idx;
 
-	for (idx = 0; idx < sizeof(wm8775_ops)/sizeof(wm8775_ops[0]);
-	     idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(wm8775_ops); idx++) {
 		msk = 1 << idx;
 		if (!(ctxt->stale_mask & msk)) continue;
 		ctxt->stale_mask &= ~msk;
@@ -154,8 +152,7 @@ int pvr2_i2c_wm8775_setup(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 	ctxt->handler.func_table = &hfuncs;
 	ctxt->client = cp;
 	ctxt->hdw = hdw;
-	ctxt->stale_mask = (1 << (sizeof(wm8775_ops)/
-				  sizeof(wm8775_ops[0]))) - 1;
+	ctxt->stale_mask = (1 << ARRAY_SIZE(wm8775_ops)) - 1;
 	cp->handler = &ctxt->handler;
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c 0x%x wm8775 V4L2 handler set up",
 		   cp->client->addr);

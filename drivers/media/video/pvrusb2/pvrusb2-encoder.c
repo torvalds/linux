@@ -169,25 +169,23 @@ static int pvr2_encoder_cmd(void *ctxt,
 
 	*/
 
-	if (arg_cnt_send > (sizeof(wrData)/sizeof(wrData[0]))-4) {
+	if (arg_cnt_send > (ARRAY_SIZE(wrData) - 4)) {
 		pvr2_trace(
 			PVR2_TRACE_ERROR_LEGS,
 			"Failed to write cx23416 command"
 			" - too many input arguments"
 			" (was given %u limit %u)",
-			arg_cnt_send,
-			(unsigned int)(sizeof(wrData)/sizeof(wrData[0])) - 4);
+			arg_cnt_send, ARRAY_SIZE(wrData) - 4);
 		return -EINVAL;
 	}
 
-	if (arg_cnt_recv > (sizeof(rdData)/sizeof(rdData[0]))-4) {
+	if (arg_cnt_recv > (ARRAY_SIZE(rdData) - 4)) {
 		pvr2_trace(
 			PVR2_TRACE_ERROR_LEGS,
 			"Failed to write cx23416 command"
 			" - too many return arguments"
 			" (was given %u limit %u)",
-			arg_cnt_recv,
-			(unsigned int)(sizeof(rdData)/sizeof(rdData[0])) - 4);
+			arg_cnt_recv, ARRAY_SIZE(rdData) - 4);
 		return -EINVAL;
 	}
 
@@ -201,7 +199,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 		for (idx = 0; idx < arg_cnt_send; idx++) {
 			wrData[idx+4] = argp[idx];
 		}
-		for (; idx < (sizeof(wrData)/sizeof(wrData[0]))-4; idx++) {
+		for (; idx < ARRAY_SIZE(wrData) - 4; idx++) {
 			wrData[idx+4] = 0;
 		}
 
@@ -245,8 +243,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 		if (ret) break;
 		wrData[0] = 0x7;
 		ret = pvr2_encoder_read_words(
-			hdw,0,rdData,
-			sizeof(rdData)/sizeof(rdData[0]));
+			hdw,0,rdData, ARRAY_SIZE(rdData));
 		if (ret) break;
 		for (idx = 0; idx < arg_cnt_recv; idx++) {
 			argp[idx] = rdData[idx+4];
@@ -269,13 +266,13 @@ static int pvr2_encoder_vcmd(struct pvr2_hdw *hdw, int cmd,
 	unsigned int idx;
 	u32 data[12];
 
-	if (args > sizeof(data)/sizeof(data[0])) {
+	if (args > ARRAY_SIZE(data)) {
 		pvr2_trace(
 			PVR2_TRACE_ERROR_LEGS,
 			"Failed to write cx23416 command"
 			" - too many arguments"
 			" (was given %u limit %u)",
-			args,(unsigned int)(sizeof(data)/sizeof(data[0])));
+			args, ARRAY_SIZE(data));
 		return -EINVAL;
 	}
 

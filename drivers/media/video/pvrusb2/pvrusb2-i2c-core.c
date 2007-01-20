@@ -976,8 +976,7 @@ static void do_i2c_scan(struct pvr2_hdw *hdw)
 	printk("%s: i2c scan beginning\n",hdw->name);
 	for (i = 0; i < 128; i++) {
 		msg[0].addr = i;
-		rc = i2c_transfer(&hdw->i2c_adap,msg,
-				  sizeof(msg)/sizeof(msg[0]));
+		rc = i2c_transfer(&hdw->i2c_adap,msg, ARRAY_SIZE(msg));
 		if (rc != 1) continue;
 		printk("%s: i2c scan: found device @ 0x%x\n",hdw->name,i);
 	}

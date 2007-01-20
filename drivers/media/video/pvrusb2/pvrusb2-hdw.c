@@ -74,12 +74,10 @@ static const char *pvr2_client_29xxx[] = {
 
 static struct pvr2_string_table pvr2_client_lists[] = {
 	[PVR2_HDW_TYPE_29XXX] = {
-		pvr2_client_29xxx,
-		sizeof(pvr2_client_29xxx)/sizeof(pvr2_client_29xxx[0]),
+		pvr2_client_29xxx, ARRAY_SIZE(pvr2_client_29xxx)
 	},
 	[PVR2_HDW_TYPE_24XXX] = {
-		pvr2_client_24xxx,
-		sizeof(pvr2_client_24xxx)/sizeof(pvr2_client_24xxx[0]),
+		pvr2_client_24xxx, ARRAY_SIZE(pvr2_client_24xxx)
 	},
 };
 
@@ -212,7 +210,7 @@ static const struct pvr2_mpeg_ids mpeg_ids[] = {
 		.id = V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_BOTTOM,
 	}
 };
-#define MPEGDEF_COUNT (sizeof(mpeg_ids)/sizeof(mpeg_ids[0]))
+#define MPEGDEF_COUNT ARRAY_SIZE(mpeg_ids)
 
 
 static const char *control_values_srate[] = {
@@ -984,7 +982,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 	}
 };
 
-#define CTRLDEF_COUNT (sizeof(control_defs)/sizeof(control_defs[0]))
+#define CTRLDEF_COUNT ARRAY_SIZE(control_defs)
 
 
 const char *pvr2_config_get_name(enum pvr2_config cfg)
@@ -1133,12 +1131,10 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	};
 	static const struct pvr2_string_table fw_file_defs[] = {
 		[PVR2_HDW_TYPE_29XXX] = {
-			fw_files_29xxx,
-			sizeof(fw_files_29xxx)/sizeof(fw_files_29xxx[0]),
+			fw_files_29xxx, ARRAY_SIZE(fw_files_29xxx)
 		},
 		[PVR2_HDW_TYPE_24XXX] = {
-			fw_files_24xxx,
-			sizeof(fw_files_24xxx)/sizeof(fw_files_24xxx[0]),
+			fw_files_24xxx, ARRAY_SIZE(fw_files_24xxx)
 		},
 	};
 	hdw->fw1_state = FW1_STATE_FAILED; // default result
@@ -1225,8 +1221,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	trace_firmware("pvr2_upload_firmware2");
 
 	ret = pvr2_locate_firmware(hdw,&fw_entry,"encoder",
-				   sizeof(fw_files)/sizeof(fw_files[0]),
-				   fw_files);
+				   ARRAY_SIZE(fw_files), fw_files);
 	if (ret < 0) return ret;
 	fwidx = ret;
 	ret = 0;
@@ -1933,8 +1928,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	struct pvr2_ctl_info *ciptr;
 
 	hdw_type = devid - pvr2_device_table;
-	if (hdw_type >=
-	    sizeof(pvr2_device_names)/sizeof(pvr2_device_names[0])) {
+	if (hdw_type >= ARRAY_SIZE(pvr2_device_names)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Bogus device type of %u reported",hdw_type);
 		return NULL;

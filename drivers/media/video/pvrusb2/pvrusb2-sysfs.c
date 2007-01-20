@@ -493,7 +493,7 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	unsigned int cnt,acnt;
 	int ret;
 
-	if ((ctl_id < 0) || (ctl_id >= (sizeof(funcs)/sizeof(funcs[0])))) {
+	if ((ctl_id < 0) || (ctl_id >= ARRAY_SIZE(funcs))) {
 		return;
 	}
 
