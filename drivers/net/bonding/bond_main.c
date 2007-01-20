@@ -4756,14 +4756,19 @@ int bond_create(char *name, struct bond_params *params, struct bonding **newbond
 
 	rtnl_unlock(); /* allows sysfs registration of net device */
 	res = bond_create_sysfs_entry(bond_dev->priv);
-	goto done;
+	if (res < 0) {
+		rtnl_lock();
+		goto out_bond;
+	}
+
+	return 0;
+
 out_bond:
 	bond_deinit(bond_dev);
 out_netdev:
 	free_netdev(bond_dev);
 out_rtnl:
 	rtnl_unlock();
-done:
 	return res;
 }
 
