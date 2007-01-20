@@ -53,6 +53,76 @@ MODULE_PARM_DESC(debug,"enable debug messages [blackbird]");
 
 /* ------------------------------------------------------------------ */
 
+
+struct cx88_tvnorm {
+	char                   *name;
+	v4l2_std_id            id;
+	u32                    cxiformat;
+	u32                    cxoformat;
+};
+
+static struct cx88_tvnorm tvnorms[] = {
+	{
+		.name      = "NTSC-M",
+		.id        = V4L2_STD_NTSC_M,
+		.cxiformat = VideoFormatNTSC,
+		.cxoformat = 0x181f0008,
+	},{
+		.name      = "NTSC-JP",
+		.id        = V4L2_STD_NTSC_M_JP,
+		.cxiformat = VideoFormatNTSCJapan,
+		.cxoformat = 0x181f0008,
+	},{
+		.name      = "PAL-BG",
+		.id        = V4L2_STD_PAL_BG,
+		.cxiformat = VideoFormatPAL,
+		.cxoformat = 0x181f0008,
+	},{
+		.name      = "PAL-DK",
+		.id        = V4L2_STD_PAL_DK,
+		.cxiformat = VideoFormatPAL,
+		.cxoformat = 0x181f0008,
+	},{
+		.name      = "PAL-I",
+		.id        = V4L2_STD_PAL_I,
+		.cxiformat = VideoFormatPAL,
+		.cxoformat = 0x181f0008,
+	},{
+		.name      = "PAL-M",
+		.id        = V4L2_STD_PAL_M,
+		.cxiformat = VideoFormatPALM,
+		.cxoformat = 0x1c1f0008,
+	},{
+		.name      = "PAL-N",
+		.id        = V4L2_STD_PAL_N,
+		.cxiformat = VideoFormatPALN,
+		.cxoformat = 0x1c1f0008,
+	},{
+		.name      = "PAL-Nc",
+		.id        = V4L2_STD_PAL_Nc,
+		.cxiformat = VideoFormatPALNC,
+		.cxoformat = 0x1c1f0008,
+	},{
+		.name      = "PAL-60",
+		.id        = V4L2_STD_PAL_60,
+		.cxiformat = VideoFormatPAL60,
+		.cxoformat = 0x181f0008,
+	},{
+		.name      = "SECAM-L",
+		.id        = V4L2_STD_SECAM_L,
+		.cxiformat = VideoFormatSECAM,
+		.cxoformat = 0x181f0008,
+	},{
+		.name      = "SECAM-DK",
+		.id        = V4L2_STD_SECAM_DK,
+		.cxiformat = VideoFormatSECAM,
+		.cxoformat = 0x181f0008,
+	}
+};
+int cx88_do_ioctl( struct inode *inode, struct file *file,
+		   int radio, struct cx88_core *core, unsigned int cmd,
+		   void *arg, v4l2_kioctl driver_ioctl );
+
 #define BLACKBIRD_FIRM_IMAGE_SIZE 256*1024
 
 /* defines below are from ivtv-driver.h */
@@ -520,7 +590,7 @@ static void blackbird_codec_settings(struct cx8802_dev *dev)
 
 	dev->params.width = dev->width;
 	dev->params.height = dev->height;
-	dev->params.is_50hz = (dev->core->tvnorm->id & V4L2_STD_625_50) != 0;
+	dev->params.is_50hz = (dev->core->tvnorm & V4L2_STD_625_50) != 0;
 
 	cx2341x_update(dev, blackbird_mbox_func, NULL, &dev->params);
 }
@@ -918,6 +988,240 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 	return 0;
 }
 
+int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
+		  struct cx88_core *core, unsigned int cmd, void *arg, v4l2_kioctl driver_ioctl)
+{
+	int err;
+
+       if (debug) {
+	       if (debug > 1) {
+		       if (_IOC_DIR(cmd) & _IOC_WRITE)
+			       v4l_printk_ioctl_arg("cx88(w)",cmd, arg);
+		       else if (!_IOC_DIR(cmd) & _IOC_READ) {
+			       v4l_print_ioctl("cx88", cmd);
+		       }
+	       } else
+		       v4l_print_ioctl(core->name,cmd);
+
+       }
+
+	switch (cmd) {
+	/* ---------- tv norms ---------- */
+	case VIDIOC_ENUMSTD:
+	{
+		struct v4l2_standard *e = arg;
+		unsigned int i;
+
+		i = e->index;
+		if (i >= ARRAY_SIZE(tvnorms))
+			return -EINVAL;
+		err = v4l2_video_std_construct(e, tvnorms[e->index].id,
+					       tvnorms[e->index].name);
+		e->index = i;
+		if (err < 0)
+			return err;
+		return 0;
+	}
+	case VIDIOC_G_STD:
+	{
+		v4l2_std_id *id = arg;
+
+		*id = core->tvnorm;
+		return 0;
+	}
+	case VIDIOC_S_STD:
+	{
+		v4l2_std_id *id = arg;
+		unsigned int i;
+
+		for(i = 0; i < ARRAY_SIZE(tvnorms); i++)
+			if (*id & tvnorms[i].id)
+				break;
+		if (i == ARRAY_SIZE(tvnorms))
+			return -EINVAL;
+
+		mutex_lock(&core->lock);
+		cx88_set_tvnorm(core,tvnorms[i].id);
+		mutex_unlock(&core->lock);
+		return 0;
+	}
+
+	/* ------ input switching ---------- */
+	case VIDIOC_ENUMINPUT:
+	{
+		static const char *iname[] = {
+			[ CX88_VMUX_COMPOSITE1 ] = "Composite1",
+			[ CX88_VMUX_COMPOSITE2 ] = "Composite2",
+			[ CX88_VMUX_COMPOSITE3 ] = "Composite3",
+			[ CX88_VMUX_COMPOSITE4 ] = "Composite4",
+			[ CX88_VMUX_SVIDEO     ] = "S-Video",
+			[ CX88_VMUX_TELEVISION ] = "Television",
+			[ CX88_VMUX_CABLE      ] = "Cable TV",
+			[ CX88_VMUX_DVB        ] = "DVB",
+			[ CX88_VMUX_DEBUG      ] = "for debug only",
+		};
+		struct v4l2_input *i = arg;
+		unsigned int n;
+
+		n = i->index;
+		if (n >= 4)
+			return -EINVAL;
+		if (0 == INPUT(n)->type)
+			return -EINVAL;
+		memset(i,0,sizeof(*i));
+		i->index = n;
+		i->type  = V4L2_INPUT_TYPE_CAMERA;
+		strcpy(i->name,iname[INPUT(n)->type]);
+		if ((CX88_VMUX_TELEVISION == INPUT(n)->type) ||
+		    (CX88_VMUX_CABLE      == INPUT(n)->type))
+			i->type = V4L2_INPUT_TYPE_TUNER;
+		for (n = 0; n < ARRAY_SIZE(tvnorms); n++)
+			i->std |= tvnorms[n].id;
+		return 0;
+	}
+	case VIDIOC_G_INPUT:
+	{
+		unsigned int *i = arg;
+
+		*i = core->input;
+		return 0;
+	}
+	case VIDIOC_S_INPUT:
+	{
+		unsigned int *i = arg;
+
+		if (*i >= 4)
+			return -EINVAL;
+		mutex_lock(&core->lock);
+		cx88_newstation(core);
+		cx88_video_mux(core,*i);
+		mutex_unlock(&core->lock);
+		return 0;
+	}
+
+
+
+	/* --- controls ---------------------------------------------- */
+	case VIDIOC_QUERYCTRL:
+	{
+		struct v4l2_queryctrl *qctrl = arg;
+
+		qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
+			if (unlikely(qctrl->id == 0))
+				return -EINVAL;
+		return cx8800_ctrl_query(qctrl);
+	}
+	case VIDIOC_G_CTRL:
+		return cx88_get_control(core,arg);
+	case VIDIOC_S_CTRL:
+		return cx88_set_control(core,arg);
+
+	/* --- tuner ioctls ------------------------------------------ */
+	case VIDIOC_G_TUNER:
+	{
+		struct v4l2_tuner *t = arg;
+		u32 reg;
+
+		if (UNSET == core->tuner_type)
+			return -EINVAL;
+		if (0 != t->index)
+			return -EINVAL;
+
+		memset(t,0,sizeof(*t));
+		strcpy(t->name, "Television");
+		t->type       = V4L2_TUNER_ANALOG_TV;
+		t->capability = V4L2_TUNER_CAP_NORM;
+		t->rangehigh  = 0xffffffffUL;
+
+		cx88_get_stereo(core ,t);
+		reg = cx_read(MO_DEVICE_STATUS);
+		t->signal = (reg & (1<<5)) ? 0xffff : 0x0000;
+		return 0;
+	}
+	case VIDIOC_S_TUNER:
+	{
+		struct v4l2_tuner *t = arg;
+
+		if (UNSET == core->tuner_type)
+			return -EINVAL;
+		if (0 != t->index)
+			return -EINVAL;
+		cx88_set_stereo(core, t->audmode, 1);
+		return 0;
+	}
+	case VIDIOC_G_FREQUENCY:
+	{
+		struct v4l2_frequency *f = arg;
+
+		memset(f,0,sizeof(*f));
+
+		if (UNSET == core->tuner_type)
+			return -EINVAL;
+
+		/* f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV; */
+		f->type = radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
+		f->frequency = core->freq;
+
+		cx88_call_i2c_clients(core,VIDIOC_G_FREQUENCY,f);
+
+		return 0;
+	}
+	case VIDIOC_S_FREQUENCY:
+	{
+		struct v4l2_frequency *f = arg;
+
+		if (UNSET == core->tuner_type)
+			return -EINVAL;
+		if (f->tuner != 0)
+			return -EINVAL;
+		if (0 == radio && f->type != V4L2_TUNER_ANALOG_TV)
+			return -EINVAL;
+		if (1 == radio && f->type != V4L2_TUNER_RADIO)
+			return -EINVAL;
+		mutex_lock(&core->lock);
+		core->freq = f->frequency;
+		cx88_newstation(core);
+		cx88_call_i2c_clients(core,VIDIOC_S_FREQUENCY,f);
+
+		/* When changing channels it is required to reset TVAUDIO */
+		msleep (10);
+		cx88_set_tvaudio(core);
+
+		mutex_unlock(&core->lock);
+		return 0;
+	}
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	/* ioctls to allow direct acces to the cx2388x registers */
+	case VIDIOC_INT_G_REGISTER:
+	{
+		struct v4l2_register *reg = arg;
+
+		if (reg->i2c_id != 0)
+			return -EINVAL;
+		/* cx2388x has a 24-bit register space */
+		reg->val = cx_read(reg->reg&0xffffff);
+		return 0;
+	}
+	case VIDIOC_INT_S_REGISTER:
+	{
+		struct v4l2_register *reg = arg;
+
+		if (reg->i2c_id != 0)
+			return -EINVAL;
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		cx_write(reg->reg&0xffffff, reg->val);
+		return 0;
+	}
+#endif
+
+	default:
+		return v4l_compat_translate_ioctl(inode,file,cmd,arg,
+						  driver_ioctl);
+	}
+	return 0;
+}
+
 int (*cx88_ioctl_hook)(struct inode *inode, struct file *file,
 			unsigned int cmd, void *arg);
 unsigned int (*cx88_ioctl_translator)(unsigned int cmd);
@@ -1164,7 +1468,7 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 	cx2341x_fill_defaults(&dev->params);
 	dev->params.port = CX2341X_PORT_STREAMING;
 
-	if (core->tvnorm->id & V4L2_STD_525_60) {
+	if (core->tvnorm & V4L2_STD_525_60) {
 		dev->height = 480;
 	} else {
 		dev->height = 576;
