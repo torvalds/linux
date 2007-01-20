@@ -160,8 +160,6 @@ static struct ata_port_operations winbond_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /**
@@ -288,7 +286,7 @@ static __exit void winbond_exit(void)
 	int i;
 
 	for (i = 0; i < nr_winbond_host; i++) {
-		ata_host_remove(winbond_host[i]);
+		ata_host_detach(winbond_host[i]);
 		release_region(winbond_data[i].config, 2);
 		platform_device_unregister(winbond_data[i].platform_dev);
 	}

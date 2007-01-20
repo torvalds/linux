@@ -523,7 +523,7 @@ static int inic_port_start(struct ata_port *ap)
 	int rc;
 
 	/* alloc and initialize private data */
-	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
+	pp = devm_kzalloc(ap->host->dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
 		return -ENOMEM;
 	ap->private_data = pp;
@@ -543,12 +543,6 @@ static int inic_port_start(struct ata_port *ap)
 	init_port(ap);
 
 	return 0;
-}
-
-static void inic_port_stop(struct ata_port *ap)
-{
-	ata_port_stop(ap);
-	kfree(ap->private_data);
 }
 
 static struct ata_port_operations inic_port_ops = {
@@ -583,8 +577,6 @@ static struct ata_port_operations inic_port_ops = {
 	.port_resume		= inic_port_resume,
 
 	.port_start		= inic_port_start,
-	.port_stop		= inic_port_stop,
-	.host_stop		= ata_pci_host_stop
 };
 
 static struct ata_port_info inic_port_info = {
@@ -675,42 +667,37 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc)
-		goto err_out;
+		return rc;
 
-	rc = -ENOMEM;
 	mmio_base = pci_iomap(pdev, MMIO_BAR, 0);
 	if (!mmio_base)
-		goto err_out_regions;
+		return -ENOMEM;
 
 	/* Set dma_mask.  This devices doesn't support 64bit addressing. */
 	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "32-bit DMA enable failed\n");
-		goto err_out_map;
+		return rc;
 	}
 
 	rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "32-bit consistent DMA enable failed\n");
-		goto err_out_map;
+		return rc;
 	}
 
-	rc = -ENOMEM;
-	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
-	if (!probe_ent)
-		goto err_out_map;
-
-	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
-	if (!hpriv)
-		goto err_out_ent;
+	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
+	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
+	if (!probe_ent || !hpriv)
+		return -ENOMEM;
 
 	probe_ent->dev = &pdev->dev;
 	INIT_LIST_HEAD(&probe_ent->node);
@@ -749,30 +736,17 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "failed to initialize controller\n");
-		goto err_out_hpriv;
+		return rc;
 	}
 
 	pci_set_master(pdev);
 
-	rc = -ENODEV;
 	if (!ata_device_add(probe_ent))
-		goto err_out_hpriv;
+		return -ENODEV;
 
-	kfree(probe_ent);
+	devm_kfree(&pdev->dev, probe_ent);
 
 	return 0;
-
- err_out_hpriv:
-	kfree(hpriv);
- err_out_ent:
-	kfree(probe_ent);
- err_out_map:
-	pci_iounmap(pdev, mmio_base);
- err_out_regions:
-	pci_release_regions(pdev);
- err_out:
-	pci_disable_device(pdev);
-	return rc;
 }
 
 static const struct pci_device_id inic_pci_tbl[] = {

@@ -191,8 +191,6 @@ static struct ata_port_operations qdi6500_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static struct ata_port_operations qdi6580_port_ops = {
@@ -219,8 +217,6 @@ static struct ata_port_operations qdi6580_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /**
@@ -382,7 +378,7 @@ static __exit void qdi_exit(void)
 	int i;
 
 	for (i = 0; i < nr_qdi_host; i++) {
-		ata_host_remove(qdi_host[i]);
+		ata_host_detach(qdi_host[i]);
 		/* Free the control resource. The 6580 dual channel has the resources
 		 * claimed as a pair of 2 byte resources so we need no special cases...
 		 */

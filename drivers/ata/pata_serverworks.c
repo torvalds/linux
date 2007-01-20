@@ -354,8 +354,6 @@ static struct ata_port_operations serverworks_osb4_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static struct ata_port_operations serverworks_csb_port_ops = {
@@ -389,8 +387,6 @@ static struct ata_port_operations serverworks_csb_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static int serverworks_fixup_osb4(struct pci_dev *pdev)

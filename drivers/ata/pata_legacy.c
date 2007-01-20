@@ -170,8 +170,6 @@ static struct ata_port_operations simple_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static struct ata_port_operations legacy_port_ops = {
@@ -195,8 +193,6 @@ static struct ata_port_operations legacy_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -305,8 +301,6 @@ static struct ata_port_operations pdc20230_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -357,8 +351,6 @@ static struct ata_port_operations ht6560a_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -420,8 +412,6 @@ static struct ata_port_operations ht6560b_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -538,8 +528,6 @@ static struct ata_port_operations opti82c611a_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -668,8 +656,6 @@ static struct ata_port_operations opti82c46x_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 
@@ -689,21 +675,19 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 	struct legacy_data *ld = &legacy_data[nr_legacy_host];
 	struct ata_probe_ent ae;
 	struct platform_device *pdev;
-	int ret = -EBUSY;
 	struct ata_port_operations *ops = &legacy_port_ops;
 	int pio_modes = pio_mask;
 	u32 mask = (1 << port);
-
-	if (request_region(io, 8, "pata_legacy") == NULL)
-		return -EBUSY;
-	if (request_region(ctrl, 1, "pata_legacy") == NULL)
-		goto fail_io;
+	int ret;
 
 	pdev = platform_device_register_simple(DRV_NAME, nr_legacy_host, NULL, 0);
-	if (IS_ERR(pdev)) {
-		ret = PTR_ERR(pdev);
-		goto fail_dev;
-	}
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	ret = -EBUSY;
+	if (devm_request_region(&pdev->dev, io, 8, "pata_legacy") == NULL ||
+	    devm_request_region(&pdev->dev, ctrl, 1, "pata_legacy") == NULL)
+		goto fail;
 
 	if (ht6560a & mask) {
 		ops = &ht6560a_port_ops;
@@ -776,21 +760,16 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 	ata_std_ports(&ae.port[0]);
 	ae.private_data = ld;
 
-	ret = ata_device_add(&ae);
-	if (ret == 0) {
-		ret = -ENODEV;
+	ret = -ENODEV;
+	if (!ata_device_add(&ae))
 		goto fail;
-	}
+
 	legacy_host[nr_legacy_host++] = dev_get_drvdata(&pdev->dev);
 	ld->platform_dev = pdev;
 	return 0;
 
 fail:
 	platform_device_unregister(pdev);
-fail_dev:
-	release_region(ctrl, 1);
-fail_io:
-	release_region(io, 8);
 	return ret;
 }
 
@@ -923,15 +902,11 @@ static __exit void legacy_exit(void)
 
 	for (i = 0; i < nr_legacy_host; i++) {
 		struct legacy_data *ld = &legacy_data[i];
-		struct ata_port *ap =legacy_host[i]->ports[0];
-		unsigned long io = ap->ioaddr.cmd_addr;
-		unsigned long ctrl = ap->ioaddr.ctl_addr;
-		ata_host_remove(legacy_host[i]);
+
+		ata_host_detach(legacy_host[i]);
 		platform_device_unregister(ld->platform_dev);
 		if (ld->timing)
 			release_region(ld->timing, 2);
-		release_region(io, 8);
-		release_region(ctrl, 1);
 	}
 }
 

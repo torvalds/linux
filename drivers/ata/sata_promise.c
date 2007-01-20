@@ -43,7 +43,6 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
-#include <asm/io.h>
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_promise"
@@ -121,7 +120,6 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 static irqreturn_t pdc_interrupt (int irq, void *dev_instance);
 static void pdc_eng_timeout(struct ata_port *ap);
 static int pdc_port_start(struct ata_port *ap);
-static void pdc_port_stop(struct ata_port *ap);
 static void pdc_pata_phy_reset(struct ata_port *ap);
 static void pdc_qc_prep(struct ata_queued_cmd *qc);
 static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
@@ -130,7 +128,6 @@ static int pdc_check_atapi_dma(struct ata_queued_cmd *qc);
 static int pdc_old_check_atapi_dma(struct ata_queued_cmd *qc);
 static void pdc_irq_clear(struct ata_port *ap);
 static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc);
-static void pdc_host_stop(struct ata_host *host);
 static void pdc_freeze(struct ata_port *ap);
 static void pdc_thaw(struct ata_port *ap);
 static void pdc_error_handler(struct ata_port *ap);
@@ -177,8 +174,6 @@ static const struct ata_port_operations pdc_sata_ops = {
 	.scr_read		= pdc_sata_scr_read,
 	.scr_write		= pdc_sata_scr_write,
 	.port_start		= pdc_port_start,
-	.port_stop		= pdc_port_stop,
-	.host_stop		= pdc_host_stop,
 };
 
 /* First-generation chips need a more restrictive ->check_atapi_dma op */
@@ -204,8 +199,6 @@ static const struct ata_port_operations pdc_old_sata_ops = {
 	.scr_read		= pdc_sata_scr_read,
 	.scr_write		= pdc_sata_scr_write,
 	.port_start		= pdc_port_start,
-	.port_stop		= pdc_port_stop,
-	.host_stop		= pdc_host_stop,
 };
 
 static const struct ata_port_operations pdc_pata_ops = {
@@ -227,8 +220,6 @@ static const struct ata_port_operations pdc_pata_ops = {
 	.irq_clear		= pdc_irq_clear,
 
 	.port_start		= pdc_port_start,
-	.port_stop		= pdc_port_stop,
-	.host_stop		= pdc_host_stop,
 };
 
 static const struct ata_port_info pdc_port_info[] = {
@@ -332,17 +323,13 @@ static int pdc_port_start(struct ata_port *ap)
 	if (rc)
 		return rc;
 
-	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
-	if (!pp) {
-		rc = -ENOMEM;
-		goto err_out;
-	}
+	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
+	if (!pp)
+		return -ENOMEM;
 
-	pp->pkt = dma_alloc_coherent(dev, 128, &pp->pkt_dma, GFP_KERNEL);
-	if (!pp->pkt) {
-		rc = -ENOMEM;
-		goto err_out_kfree;
-	}
+	pp->pkt = dmam_alloc_coherent(dev, 128, &pp->pkt_dma, GFP_KERNEL);
+	if (!pp->pkt)
+		return -ENOMEM;
 
 	ap->private_data = pp;
 
@@ -357,36 +344,7 @@ static int pdc_port_start(struct ata_port *ap)
 	}
 
 	return 0;
-
-err_out_kfree:
-	kfree(pp);
-err_out:
-	ata_port_stop(ap);
-	return rc;
 }
-
-
-static void pdc_port_stop(struct ata_port *ap)
-{
-	struct device *dev = ap->host->dev;
-	struct pdc_port_priv *pp = ap->private_data;
-
-	ap->private_data = NULL;
-	dma_free_coherent(dev, 128, pp->pkt, pp->pkt_dma);
-	kfree(pp);
-	ata_port_stop(ap);
-}
-
-
-static void pdc_host_stop(struct ata_host *host)
-{
-	struct pdc_host_priv *hp = host->private_data;
-
-	ata_pci_host_stop(host);
-
-	kfree(hp);
-}
-
 
 static void pdc_reset_port(struct ata_port *ap)
 {
@@ -924,56 +882,49 @@ static void pdc_host_init(unsigned int chip_id, struct ata_probe_ent *pe)
 static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
-	struct ata_probe_ent *probe_ent = NULL;
+	struct ata_probe_ent *probe_ent;
 	struct pdc_host_priv *hp;
 	unsigned long base;
 	void __iomem *mmio_base;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
-	int pci_dev_busy = 0;
 	int rc;
 	u8 tmp;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc) {
-		pci_dev_busy = 1;
-		goto err_out;
+		pcim_pin_device(pdev);
+		return rc;
 	}
 
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 
-	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL) {
-		rc = -ENOMEM;
-		goto err_out_regions;
-	}
+	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
+	if (probe_ent == NULL)
+		return -ENOMEM;
 
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
-	mmio_base = pci_iomap(pdev, 3, 0);
-	if (mmio_base == NULL) {
-		rc = -ENOMEM;
-		goto err_out_free_ent;
-	}
+	mmio_base = pcim_iomap(pdev, 3, 0);
+	if (mmio_base == NULL)
+		return -ENOMEM;
 	base = (unsigned long) mmio_base;
 
-	hp = kzalloc(sizeof(*hp), GFP_KERNEL);
-	if (hp == NULL) {
-		rc = -ENOMEM;
-		goto err_out_free_ent;
-	}
+	hp = devm_kzalloc(&pdev->dev, sizeof(*hp), GFP_KERNEL);
+	if (hp == NULL)
+		return -ENOMEM;
 
 	probe_ent->private_data = hp;
 
@@ -1043,22 +994,11 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	/* initialize adapter */
 	pdc_host_init(board_idx, probe_ent);
 
-	/* FIXME: Need any other frees than hp? */
 	if (!ata_device_add(probe_ent))
-		kfree(hp);
+		return -ENODEV;
 
-	kfree(probe_ent);
-
+	devm_kfree(&pdev->dev, probe_ent);
 	return 0;
-
-err_out_free_ent:
-	kfree(probe_ent);
-err_out_regions:
-	pci_release_regions(pdev);
-err_out:
-	if (!pci_dev_busy)
-		pci_disable_device(pdev);
-	return rc;
 }
 
 

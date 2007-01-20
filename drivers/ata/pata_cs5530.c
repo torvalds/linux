@@ -216,8 +216,6 @@ static struct ata_port_operations cs5530_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static struct dmi_system_id palmax_dmi_table[] = {

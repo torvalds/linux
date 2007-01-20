@@ -44,7 +44,6 @@
 #include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
-#include <asm/io.h>
 
 #define DRV_NAME	"sata_via"
 #define DRV_VERSION	"2.0"
@@ -146,8 +145,6 @@ static const struct ata_port_operations vt6420_sata_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
 };
 
 static const struct ata_port_operations vt6421_pata_ops = {
@@ -180,8 +177,6 @@ static const struct ata_port_operations vt6421_pata_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 
 	.port_start		= vt6421_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
 };
 
 static const struct ata_port_operations vt6421_sata_ops = {
@@ -214,8 +209,6 @@ static const struct ata_port_operations vt6421_sata_ops = {
 	.scr_write		= svia_scr_write,
 
 	.port_start		= vt6421_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
 };
 
 static struct ata_port_info vt6420_port_info = {
@@ -446,7 +439,7 @@ static struct ata_probe_ent *vt6421_init_probe_ent(struct pci_dev *pdev)
 	struct ata_probe_ent *probe_ent;
 	unsigned int i;
 
-	probe_ent = kmalloc(sizeof(*probe_ent), GFP_KERNEL);
+	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
 	if (!probe_ent)
 		return NULL;
 
@@ -517,20 +510,19 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_probe_ent *probe_ent;
 	int board_id = (int) ent->driver_data;
 	const int *bar_sizes;
-	int pci_dev_busy = 0;
 	u8 tmp8;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc) {
-		pci_dev_busy = 1;
-		goto err_out;
+		pcim_pin_device(pdev);
+		return rc;
 	}
 
 	if (board_id == vt6420) {
@@ -539,8 +531,7 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 			dev_printk(KERN_ERR, &pdev->dev,
 				   "SATA master/slave not supported (0x%x)\n",
 		       		   (int) tmp8);
-			rc = -EIO;
-			goto err_out_regions;
+			return -EIO;
 		}
 
 		bar_sizes = &svia_bar_sizes[0];
@@ -556,16 +547,15 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 				i,
 			        (unsigned long long)pci_resource_start(pdev, i),
 			        (unsigned long long)pci_resource_len(pdev, i));
-			rc = -ENODEV;
-			goto err_out_regions;
+			return -ENODEV;
 		}
 
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 
 	if (board_id == vt6420)
 		probe_ent = vt6420_init_probe_ent(pdev);
@@ -574,26 +564,18 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (!probe_ent) {
 		dev_printk(KERN_ERR, &pdev->dev, "out of memory\n");
-		rc = -ENOMEM;
-		goto err_out_regions;
+		return -ENOMEM;
 	}
 
 	svia_configure(pdev);
 
 	pci_set_master(pdev);
 
-	/* FIXME: check ata_device_add return value */
-	ata_device_add(probe_ent);
-	kfree(probe_ent);
+	if (!ata_device_add(probe_ent))
+		return -ENODEV;
 
+	devm_kfree(&pdev->dev, probe_ent);
 	return 0;
-
-err_out_regions:
-	pci_release_regions(pdev);
-err_out:
-	if (!pci_dev_busy)
-		pci_disable_device(pdev);
-	return rc;
 }
 
 static int __init svia_init(void)

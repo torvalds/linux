@@ -154,7 +154,6 @@ struct piix_host_priv {
 
 static int piix_init_one (struct pci_dev *pdev,
 				    const struct pci_device_id *ent);
-static void piix_host_stop(struct ata_host *host);
 static void piix_pata_error_handler(struct ata_port *ap);
 static void ich_pata_error_handler(struct ata_port *ap);
 static void piix_sata_error_handler(struct ata_port *ap);
@@ -311,8 +310,6 @@ static const struct ata_port_operations piix_pata_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= piix_host_stop,
 };
 
 static const struct ata_port_operations ich_pata_ops = {
@@ -344,8 +341,6 @@ static const struct ata_port_operations ich_pata_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= piix_host_stop,
 };
 
 static const struct ata_port_operations piix_sata_ops = {
@@ -374,8 +369,6 @@ static const struct ata_port_operations piix_sata_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= piix_host_stop,
 };
 
 static const struct piix_map_db ich5_map_db = {
@@ -1072,6 +1065,7 @@ static void __devinit piix_init_sata_map(struct pci_dev *pdev,
 static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
+	struct device *dev = &pdev->dev;
 	struct ata_port_info port_info[2];
 	struct ata_port_info *ppinfo[2] = { &port_info[0], &port_info[1] };
 	struct piix_host_priv *hpriv;
@@ -1085,7 +1079,7 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!in_module_init)
 		return -ENODEV;
 
-	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
+	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
 		return -ENOMEM;
 
@@ -1133,15 +1127,6 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		port_info[1].udma_mask = 0;
 	}
 	return ata_pci_init_one(pdev, ppinfo, 2);
-}
-
-static void piix_host_stop(struct ata_host *host)
-{
-	struct piix_host_priv *hpriv = host->private_data;
-
-	ata_host_stop(host);
-
-	kfree(hpriv);
 }
 
 static int __init piix_init(void)

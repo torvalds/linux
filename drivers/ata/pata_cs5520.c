@@ -199,8 +199,6 @@ static struct ata_port_operations cs5520_port_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
 };
 
 static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
@@ -294,7 +292,7 @@ static void __devexit cs5520_remove_one(struct pci_dev *pdev)
 	struct device *dev = pci_dev_to_dev(pdev);
 	struct ata_host *host = dev_get_drvdata(dev);
 
-	ata_host_remove(host);
+	ata_host_detach(host);
 	dev_set_drvdata(dev, NULL);
 }
 

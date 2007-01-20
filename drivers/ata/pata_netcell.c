@@ -97,8 +97,6 @@ static const struct ata_port_operations netcell_ops = {
 
 	/* Generic PATA PCI ATA helpers */
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
 };
 
 

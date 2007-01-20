@@ -300,8 +300,6 @@ static struct ata_port_operations pdc2024x_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static struct ata_port_operations pdc2026x_port_ops = {
@@ -334,8 +332,6 @@ static struct ata_port_operations pdc2026x_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)

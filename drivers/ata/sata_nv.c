@@ -363,8 +363,6 @@ static const struct ata_port_operations nv_generic_ops = {
 	.scr_read		= nv_scr_read,
 	.scr_write		= nv_scr_write,
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_pci_host_stop,
 };
 
 static const struct ata_port_operations nv_nf2_ops = {
@@ -390,8 +388,6 @@ static const struct ata_port_operations nv_nf2_ops = {
 	.scr_read		= nv_scr_read,
 	.scr_write		= nv_scr_write,
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_pci_host_stop,
 };
 
 static const struct ata_port_operations nv_ck804_ops = {
@@ -417,7 +413,6 @@ static const struct ata_port_operations nv_ck804_ops = {
 	.scr_read		= nv_scr_read,
 	.scr_write		= nv_scr_write,
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
 	.host_stop		= nv_ck804_host_stop,
 };
 
@@ -928,11 +923,9 @@ static int nv_adma_port_start(struct ata_port *ap)
 	if (rc)
 		return rc;
 
-	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
-	if (!pp) {
-		rc = -ENOMEM;
-		goto err_out;
-	}
+	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
+	if (!pp)
+		return -ENOMEM;
 
 	mmio = ap->host->mmio_base + NV_ADMA_PORT +
 	       ap->port_no * NV_ADMA_PORT_SIZE;
@@ -941,13 +934,10 @@ static int nv_adma_port_start(struct ata_port *ap)
 	pp->notifier_clear_block = pp->gen_block +
 	       NV_ADMA_NOTIFIER_CLEAR + (4 * ap->port_no);
 
-	mem = dma_alloc_coherent(dev, NV_ADMA_PORT_PRIV_DMA_SZ,
-				 &mem_dma, GFP_KERNEL);
-
-	if (!mem) {
-		rc = -ENOMEM;
-		goto err_out_kfree;
-	}
+	mem = dmam_alloc_coherent(dev, NV_ADMA_PORT_PRIV_DMA_SZ,
+				  &mem_dma, GFP_KERNEL);
+	if (!mem)
+		return -ENOMEM;
 	memset(mem, 0, NV_ADMA_PORT_PRIV_DMA_SZ);
 
 	/*
@@ -993,28 +983,15 @@ static int nv_adma_port_start(struct ata_port *ap)
 	readl( mmio + NV_ADMA_CTL );	/* flush posted write */
 
 	return 0;
-
-err_out_kfree:
-	kfree(pp);
-err_out:
-	ata_port_stop(ap);
-	return rc;
 }
 
 static void nv_adma_port_stop(struct ata_port *ap)
 {
-	struct device *dev = ap->host->dev;
 	struct nv_adma_port_priv *pp = ap->private_data;
 	void __iomem *mmio = pp->ctl_block;
 
 	VPRINTK("ENTER\n");
-
 	writew(0, mmio + NV_ADMA_CTL);
-
-	ap->private_data = NULL;
-	dma_free_coherent(dev, NV_ADMA_PORT_PRIV_DMA_SZ, pp->cpb, pp->cpb_dma);
-	kfree(pp);
-	ata_port_stop(ap);
 }
 
 static int nv_adma_port_suspend(struct ata_port *ap, pm_message_t mesg)
@@ -1433,7 +1410,6 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_port_info *ppi[2];
 	struct ata_probe_ent *probe_ent;
 	struct nv_host_priv *hpriv;
-	int pci_dev_busy = 0;
 	int rc;
 	u32 bar;
 	unsigned long base;
@@ -1450,14 +1426,14 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
-		goto err_out;
+		return rc;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc) {
-		pci_dev_busy = 1;
-		goto err_out_disable;
+		pcim_pin_device(pdev);
+		return rc;
 	}
 
 	if(type >= CK804 && adma_enabled) {
@@ -1471,28 +1447,27 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if(!mask_set) {
 		rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 		if (rc)
-			goto err_out_regions;
+			return rc;
 		rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
 		if (rc)
-			goto err_out_regions;
+			return rc;
 	}
 
 	rc = -ENOMEM;
 
-	hpriv = kmalloc(sizeof(*hpriv), GFP_KERNEL);
+	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
-		goto err_out_regions;
+		return -ENOMEM;
 
 	ppi[0] = ppi[1] = &nv_port_info[type];
 	probe_ent = ata_pci_init_native_mode(pdev, ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
 	if (!probe_ent)
-		goto err_out_regions;
+		return -ENOMEM;
 
-	probe_ent->mmio_base = pci_iomap(pdev, 5, 0);
-	if (!probe_ent->mmio_base) {
-		rc = -EIO;
-		goto err_out_free_ent;
-	}
+	probe_ent->mmio_base = pcim_iomap(pdev, 5, 0);
+	if (!probe_ent->mmio_base)
+		return -EIO;
+
 	probe_ent->private_data = hpriv;
 	hpriv->type = type;
 
@@ -1515,28 +1490,15 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (type == ADMA) {
 		rc = nv_adma_host_init(probe_ent);
 		if (rc)
-			goto err_out_iounmap;
+			return rc;
 	}
 
 	rc = ata_device_add(probe_ent);
 	if (rc != NV_PORTS)
-		goto err_out_iounmap;
+		return -ENODEV;
 
-	kfree(probe_ent);
-
+	devm_kfree(&pdev->dev, probe_ent);
 	return 0;
-
-err_out_iounmap:
-	pci_iounmap(pdev, probe_ent->mmio_base);
-err_out_free_ent:
-	kfree(probe_ent);
-err_out_regions:
-	pci_release_regions(pdev);
-err_out_disable:
-	if (!pci_dev_busy)
-		pci_disable_device(pdev);
-err_out:
-	return rc;
 }
 
 static void nv_remove_one (struct pci_dev *pdev)
@@ -1602,8 +1564,6 @@ static void nv_ck804_host_stop(struct ata_host *host)
 	pci_read_config_byte(pdev, NV_MCP_SATA_CFG_20, &regval);
 	regval &= ~NV_MCP_SATA_CFG_20_SATA_SPACE_EN;
 	pci_write_config_byte(pdev, NV_MCP_SATA_CFG_20, regval);
-
-	ata_pci_host_stop(host);
 }
 
 static void nv_adma_host_stop(struct ata_host *host)

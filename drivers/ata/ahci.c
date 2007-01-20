@@ -45,7 +45,6 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
-#include <asm/io.h>
 
 #define DRV_NAME	"ahci"
 #define DRV_VERSION	"2.0"
@@ -166,9 +165,6 @@ enum {
 	PORT_CMD_ICC_PARTIAL	= (0x2 << 28), /* Put i/f in partial state */
 	PORT_CMD_ICC_SLUMBER	= (0x6 << 28), /* Put i/f in slumber state */
 
-	/* hpriv->flags bits */
-	AHCI_FLAG_MSI		= (1 << 0),
-
 	/* ap->flags bits */
 	AHCI_FLAG_NO_NCQ		= (1 << 24),
 	AHCI_FLAG_IGN_IRQ_IF_ERR	= (1 << 25), /* ignore IRQ_IF_ERR */
@@ -191,7 +187,6 @@ struct ahci_sg {
 };
 
 struct ahci_host_priv {
-	unsigned long		flags;
 	u32			cap;	/* cache of HOST_CAP register */
 	u32			port_map; /* cache of HOST_PORTS_IMPL reg */
 };
@@ -229,7 +224,6 @@ static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg);
 static int ahci_port_resume(struct ata_port *ap);
 static int ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
 static int ahci_pci_device_resume(struct pci_dev *pdev);
-static void ahci_remove_one (struct pci_dev *pdev);
 
 static struct scsi_host_template ahci_sht = {
 	.module			= THIS_MODULE,
@@ -441,9 +435,9 @@ static struct pci_driver ahci_pci_driver = {
 	.name			= DRV_NAME,
 	.id_table		= ahci_pci_tbl,
 	.probe			= ahci_init_one,
+	.remove			= ata_pci_remove_one,
 	.suspend		= ahci_pci_device_suspend,
 	.resume			= ahci_pci_device_resume,
-	.remove			= ahci_remove_one,
 };
 
 
@@ -1426,23 +1420,18 @@ static int ahci_port_start(struct ata_port *ap)
 	dma_addr_t mem_dma;
 	int rc;
 
-	pp = kmalloc(sizeof(*pp), GFP_KERNEL);
+	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
 		return -ENOMEM;
-	memset(pp, 0, sizeof(*pp));
 
 	rc = ata_pad_alloc(ap, dev);
-	if (rc) {
-		kfree(pp);
+	if (rc)
 		return rc;
-	}
 
-	mem = dma_alloc_coherent(dev, AHCI_PORT_PRIV_DMA_SZ, &mem_dma, GFP_KERNEL);
-	if (!mem) {
-		ata_pad_free(ap, dev);
-		kfree(pp);
+	mem = dmam_alloc_coherent(dev, AHCI_PORT_PRIV_DMA_SZ, &mem_dma,
+				  GFP_KERNEL);
+	if (!mem)
 		return -ENOMEM;
-	}
 	memset(mem, 0, AHCI_PORT_PRIV_DMA_SZ);
 
 	/*
@@ -1484,9 +1473,7 @@ static int ahci_port_start(struct ata_port *ap)
 
 static void ahci_port_stop(struct ata_port *ap)
 {
-	struct device *dev = ap->host->dev;
 	struct ahci_host_priv *hpriv = ap->host->private_data;
-	struct ahci_port_priv *pp = ap->private_data;
 	void __iomem *mmio = ap->host->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	const char *emsg = NULL;
@@ -1496,12 +1483,6 @@ static void ahci_port_stop(struct ata_port *ap)
 	rc = ahci_deinit_port(port_mmio, hpriv->cap, &emsg);
 	if (rc)
 		ata_port_printk(ap, KERN_WARNING, "%s (%d)\n", emsg, rc);
-
-	ap->private_data = NULL;
-	dma_free_coherent(dev, AHCI_PORT_PRIV_DMA_SZ,
-			  pp->cmd_slot, pp->cmd_slot_dma);
-	ata_pad_free(ap, dev);
-	kfree(pp);
 }
 
 static void ahci_setup_port(struct ata_ioports *port, unsigned long base,
@@ -1669,15 +1650,15 @@ static void ahci_print_info(struct ata_probe_ent *probe_ent)
 		);
 }
 
-static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
+static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
-	struct ata_probe_ent *probe_ent = NULL;
+	unsigned int board_idx = (unsigned int) ent->driver_data;
+	struct device *dev = &pdev->dev;
+	struct ata_probe_ent *probe_ent;
 	struct ahci_host_priv *hpriv;
 	unsigned long base;
 	void __iomem *mmio_base;
-	unsigned int board_idx = (unsigned int) ent->driver_data;
-	int have_msi, pci_dev_busy = 0;
 	int rc;
 
 	VPRINTK("ENTER\n");
@@ -1694,46 +1675,34 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 			return -ENODEV;
 	}
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc) {
-		pci_dev_busy = 1;
-		goto err_out;
+		pcim_pin_device(pdev);
+		return rc;
 	}
 
-	if (pci_enable_msi(pdev) == 0)
-		have_msi = 1;
-	else {
+	if (pci_enable_msi(pdev))
 		pci_intx(pdev, 1);
-		have_msi = 0;
-	}
 
-	probe_ent = kmalloc(sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL) {
-		rc = -ENOMEM;
-		goto err_out_msi;
-	}
+	probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
+	if (probe_ent == NULL)
+		return -ENOMEM;
 
-	memset(probe_ent, 0, sizeof(*probe_ent));
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
-	mmio_base = pci_iomap(pdev, AHCI_PCI_BAR, 0);
-	if (mmio_base == NULL) {
-		rc = -ENOMEM;
-		goto err_out_free_ent;
-	}
+	mmio_base = pcim_iomap(pdev, AHCI_PCI_BAR, 0);
+	if (mmio_base == NULL)
+		return -ENOMEM;
 	base = (unsigned long) mmio_base;
 
-	hpriv = kmalloc(sizeof(*hpriv), GFP_KERNEL);
-	if (!hpriv) {
-		rc = -ENOMEM;
-		goto err_out_iounmap;
-	}
-	memset(hpriv, 0, sizeof(*hpriv));
+	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
+	if (!hpriv)
+		return -ENOMEM;
 
 	probe_ent->sht		= ahci_port_info[board_idx].sht;
 	probe_ent->port_flags	= ahci_port_info[board_idx].flags;
@@ -1746,13 +1715,10 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	probe_ent->mmio_base = mmio_base;
 	probe_ent->private_data = hpriv;
 
-	if (have_msi)
-		hpriv->flags |= AHCI_FLAG_MSI;
-
 	/* initialize adapter */
 	rc = ahci_host_init(probe_ent);
 	if (rc)
-		goto err_out_hpriv;
+		return rc;
 
 	if (!(probe_ent->port_flags & AHCI_FLAG_NO_NCQ) &&
 	    (hpriv->cap & HOST_CAP_NCQ))
@@ -1760,48 +1726,11 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ahci_print_info(probe_ent);
 
-	/* FIXME: check ata_device_add return value */
-	ata_device_add(probe_ent);
-	kfree(probe_ent);
+	if (!ata_device_add(probe_ent))
+		return -ENODEV;
 
+	devm_kfree(dev, probe_ent);
 	return 0;
-
-err_out_hpriv:
-	kfree(hpriv);
-err_out_iounmap:
-	pci_iounmap(pdev, mmio_base);
-err_out_free_ent:
-	kfree(probe_ent);
-err_out_msi:
-	if (have_msi)
-		pci_disable_msi(pdev);
-	else
-		pci_intx(pdev, 0);
-	pci_release_regions(pdev);
-err_out:
-	if (!pci_dev_busy)
-		pci_disable_device(pdev);
-	return rc;
-}
-
-static void ahci_remove_one(struct pci_dev *pdev)
-{
-	struct device *dev = pci_dev_to_dev(pdev);
-	struct ata_host *host = dev_get_drvdata(dev);
-	struct ahci_host_priv *hpriv = host->private_data;
-
-	ata_host_remove(host);
-
-	pci_iounmap(pdev, host->mmio_base);
-
-	if (hpriv->flags & AHCI_FLAG_MSI)
-		pci_disable_msi(pdev);
-	else
-		pci_intx(pdev, 0);
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-	dev_set_drvdata(dev, NULL);
-	kfree(hpriv);
 }
 
 static int __init ahci_init(void)

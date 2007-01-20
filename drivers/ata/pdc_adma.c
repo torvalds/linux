@@ -42,7 +42,6 @@
 #include <linux/sched.h>
 #include <linux/device.h>
 #include <scsi/scsi_host.h>
-#include <asm/io.h>
 #include <linux/libata.h>
 
 #define DRV_NAME	"pdc_adma"
@@ -550,48 +549,28 @@ static int adma_port_start(struct ata_port *ap)
 	if (rc)
 		return rc;
 	adma_enter_reg_mode(ap);
-	rc = -ENOMEM;
-	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
+	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
-		goto err_out;
-	pp->pkt = dma_alloc_coherent(dev, ADMA_PKT_BYTES, &pp->pkt_dma,
-								GFP_KERNEL);
+		return -ENOMEM;
+	pp->pkt = dmam_alloc_coherent(dev, ADMA_PKT_BYTES, &pp->pkt_dma,
+				      GFP_KERNEL);
 	if (!pp->pkt)
-		goto err_out_kfree;
+		return -ENOMEM;
 	/* paranoia? */
 	if ((pp->pkt_dma & 7) != 0) {
 		printk("bad alignment for pp->pkt_dma: %08x\n",
 						(u32)pp->pkt_dma);
-		dma_free_coherent(dev, ADMA_PKT_BYTES,
-						pp->pkt, pp->pkt_dma);
-		goto err_out_kfree;
+		return -ENOMEM;
 	}
 	memset(pp->pkt, 0, ADMA_PKT_BYTES);
 	ap->private_data = pp;
 	adma_reinit_engine(ap);
 	return 0;
-
-err_out_kfree:
-	kfree(pp);
-err_out:
-	ata_port_stop(ap);
-	return rc;
 }
 
 static void adma_port_stop(struct ata_port *ap)
 {
-	struct device *dev = ap->host->dev;
-	struct adma_port_priv *pp = ap->private_data;
-
 	adma_reset_engine(ADMA_REGS(ap->host->mmio_base, ap->port_no));
-	if (pp != NULL) {
-		ap->private_data = NULL;
-		if (pp->pkt != NULL)
-			dma_free_coherent(dev, ADMA_PKT_BYTES,
-					pp->pkt, pp->pkt_dma);
-		kfree(pp);
-	}
-	ata_port_stop(ap);
 }
 
 static void adma_host_stop(struct ata_host *host)
@@ -600,8 +579,6 @@ static void adma_host_stop(struct ata_host *host)
 
 	for (port_no = 0; port_no < ADMA_PORTS; ++port_no)
 		adma_reset_engine(ADMA_REGS(host->mmio_base, port_no));
-
-	ata_pci_host_stop(host);
 }
 
 static void adma_host_init(unsigned int chip_id,
@@ -649,34 +626,28 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc)
-		goto err_out;
+		return rc;
 
-	if ((pci_resource_flags(pdev, 4) & IORESOURCE_MEM) == 0) {
-		rc = -ENODEV;
-		goto err_out_regions;
-	}
+	if ((pci_resource_flags(pdev, 4) & IORESOURCE_MEM) == 0)
+		return -ENODEV;
 
-	mmio_base = pci_iomap(pdev, 4, 0);
-	if (mmio_base == NULL) {
-		rc = -ENOMEM;
-		goto err_out_regions;
-	}
+	mmio_base = pcim_iomap(pdev, 4, 0);
+	if (mmio_base == NULL)
+		return -ENOMEM;
 
 	rc = adma_set_dma_masks(pdev, mmio_base);
 	if (rc)
-		goto err_out_iounmap;
+		return rc;
 
-	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL) {
-		rc = -ENOMEM;
-		goto err_out_iounmap;
-	}
+	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
+	if (probe_ent == NULL)
+		return -ENOMEM;
 
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
@@ -703,19 +674,11 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 	/* initialize adapter */
 	adma_host_init(board_idx, probe_ent);
 
-	rc = ata_device_add(probe_ent);
-	kfree(probe_ent);
-	if (rc != ADMA_PORTS)
-		goto err_out_iounmap;
-	return 0;
+	if (!ata_device_add(probe_ent))
+		return -ENODEV;
 
-err_out_iounmap:
-	pci_iounmap(pdev, mmio_base);
-err_out_regions:
-	pci_release_regions(pdev);
-err_out:
-	pci_disable_device(pdev);
-	return rc;
+	devm_kfree(&pdev->dev, probe_ent);
+	return 0;
 }
 
 static int __init adma_ata_init(void)

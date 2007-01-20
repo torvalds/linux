@@ -42,7 +42,6 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
-#include <asm/io.h>
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_sx4"
@@ -156,11 +155,9 @@ static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance);
 static void pdc_eng_timeout(struct ata_port *ap);
 static void pdc_20621_phy_reset (struct ata_port *ap);
 static int pdc_port_start(struct ata_port *ap);
-static void pdc_port_stop(struct ata_port *ap);
 static void pdc20621_qc_prep(struct ata_queued_cmd *qc);
 static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
 static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
-static void pdc20621_host_stop(struct ata_host *host);
 static unsigned int pdc20621_dimm_init(struct ata_probe_ent *pe);
 static int pdc20621_detect_dimm(struct ata_probe_ent *pe);
 static unsigned int pdc20621_i2c_read(struct ata_probe_ent *pe,
@@ -210,8 +207,6 @@ static const struct ata_port_operations pdc_20621_ops = {
 	.irq_handler		= pdc20621_interrupt,
 	.irq_clear		= pdc20621_irq_clear,
 	.port_start		= pdc_port_start,
-	.port_stop		= pdc_port_stop,
-	.host_stop		= pdc20621_host_stop,
 };
 
 static const struct ata_port_info pdc_port_info[] = {
@@ -243,18 +238,6 @@ static struct pci_driver pdc_sata_pci_driver = {
 };
 
 
-static void pdc20621_host_stop(struct ata_host *host)
-{
-	struct pci_dev *pdev = to_pci_dev(host->dev);
-	struct pdc_host_priv *hpriv = host->private_data;
-	void __iomem *dimm_mmio = hpriv->dimm_mmio;
-
-	pci_iounmap(pdev, dimm_mmio);
-	kfree(hpriv);
-
-	pci_iounmap(pdev, host->mmio_base);
-}
-
 static int pdc_port_start(struct ata_port *ap)
 {
 	struct device *dev = ap->host->dev;
@@ -265,42 +248,18 @@ static int pdc_port_start(struct ata_port *ap)
 	if (rc)
 		return rc;
 
-	pp = kmalloc(sizeof(*pp), GFP_KERNEL);
-	if (!pp) {
-		rc = -ENOMEM;
-		goto err_out;
-	}
-	memset(pp, 0, sizeof(*pp));
+	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
+	if (!pp)
+		return -ENOMEM;
 
-	pp->pkt = dma_alloc_coherent(dev, 128, &pp->pkt_dma, GFP_KERNEL);
-	if (!pp->pkt) {
-		rc = -ENOMEM;
-		goto err_out_kfree;
-	}
+	pp->pkt = dmam_alloc_coherent(dev, 128, &pp->pkt_dma, GFP_KERNEL);
+	if (!pp->pkt)
+		return -ENOMEM;
 
 	ap->private_data = pp;
 
 	return 0;
-
-err_out_kfree:
-	kfree(pp);
-err_out:
-	ata_port_stop(ap);
-	return rc;
 }
-
-
-static void pdc_port_stop(struct ata_port *ap)
-{
-	struct device *dev = ap->host->dev;
-	struct pdc_port_priv *pp = ap->private_data;
-
-	ap->private_data = NULL;
-	dma_free_coherent(dev, 128, pp->pkt, pp->pkt_dma);
-	kfree(pp);
-	ata_port_stop(ap);
-}
-
 
 static void pdc_20621_phy_reset (struct ata_port *ap)
 {
@@ -1365,65 +1324,53 @@ static void pdc_20621_init(struct ata_probe_ent *pe)
 static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
-	struct ata_probe_ent *probe_ent = NULL;
+	struct ata_probe_ent *probe_ent;
 	unsigned long base;
 	void __iomem *mmio_base;
-	void __iomem *dimm_mmio = NULL;
-	struct pdc_host_priv *hpriv = NULL;
+	void __iomem *dimm_mmio;
+	struct pdc_host_priv *hpriv;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
-	int pci_dev_busy = 0;
 	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc) {
-		pci_dev_busy = 1;
-		goto err_out;
+		pcim_pin_device(pdev);
+		return rc;
 	}
 
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 
-	probe_ent = kmalloc(sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL) {
-		rc = -ENOMEM;
-		goto err_out_regions;
-	}
+	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
+	if (probe_ent == NULL)
+		return -ENOMEM;
 
-	memset(probe_ent, 0, sizeof(*probe_ent));
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
-	mmio_base = pci_iomap(pdev, 3, 0);
-	if (mmio_base == NULL) {
-		rc = -ENOMEM;
-		goto err_out_free_ent;
-	}
+	mmio_base = pcim_iomap(pdev, 3, 0);
+	if (mmio_base == NULL)
+		return -ENOMEM;
 	base = (unsigned long) mmio_base;
 
-	hpriv = kmalloc(sizeof(*hpriv), GFP_KERNEL);
-	if (!hpriv) {
-		rc = -ENOMEM;
-		goto err_out_iounmap;
-	}
-	memset(hpriv, 0, sizeof(*hpriv));
+	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
+	if (!hpriv)
+		return -ENOMEM;
 
-	dimm_mmio = pci_iomap(pdev, 4, 0);
-	if (!dimm_mmio) {
-		kfree(hpriv);
-		rc = -ENOMEM;
-		goto err_out_iounmap;
-	}
+	dimm_mmio = pcim_iomap(pdev, 4, 0);
+	if (!dimm_mmio)
+		return -ENOMEM;
 
 	hpriv->dimm_mmio = dimm_mmio;
 
@@ -1451,31 +1398,15 @@ static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *
 
 	/* initialize adapter */
 	/* initialize local dimm */
-	if (pdc20621_dimm_init(probe_ent)) {
-		rc = -ENOMEM;
-		goto err_out_iounmap_dimm;
-	}
+	if (pdc20621_dimm_init(probe_ent))
+		return -ENOMEM;
 	pdc_20621_init(probe_ent);
 
-	/* FIXME: check ata_device_add return value */
-	ata_device_add(probe_ent);
-	kfree(probe_ent);
+	if (!ata_device_add(probe_ent))
+		return -ENODEV;
 
+	devm_kfree(&pdev->dev, probe_ent);
 	return 0;
-
-err_out_iounmap_dimm:		/* only get to this label if 20621 */
-	kfree(hpriv);
-	pci_iounmap(pdev, dimm_mmio);
-err_out_iounmap:
-	pci_iounmap(pdev, mmio_base);
-err_out_free_ent:
-	kfree(probe_ent);
-err_out_regions:
-	pci_release_regions(pdev);
-err_out:
-	if (!pci_dev_busy)
-		pci_disable_device(pdev);
-	return rc;
 }
 
 

@@ -28,7 +28,6 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
-#include <asm/io.h>
 
 #define DRV_NAME	"sata_sil24"
 #define DRV_VERSION	"0.3"
@@ -341,8 +340,6 @@ static void sil24_thaw(struct ata_port *ap);
 static void sil24_error_handler(struct ata_port *ap);
 static void sil24_post_internal_cmd(struct ata_queued_cmd *qc);
 static int sil24_port_start(struct ata_port *ap);
-static void sil24_port_stop(struct ata_port *ap);
-static void sil24_host_stop(struct ata_host *host);
 static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 #ifdef CONFIG_PM
 static int sil24_pci_device_resume(struct pci_dev *pdev);
@@ -362,7 +359,7 @@ static struct pci_driver sil24_pci_driver = {
 	.name			= DRV_NAME,
 	.id_table		= sil24_pci_tbl,
 	.probe			= sil24_init_one,
-	.remove			= ata_pci_remove_one, /* safe? */
+	.remove			= ata_pci_remove_one,
 #ifdef CONFIG_PM
 	.suspend		= ata_pci_device_suspend,
 	.resume			= sil24_pci_device_resume,
@@ -416,8 +413,6 @@ static const struct ata_port_operations sil24_ops = {
 	.post_internal_cmd	= sil24_post_internal_cmd,
 
 	.port_start		= sil24_port_start,
-	.port_stop		= sil24_port_stop,
-	.host_stop		= sil24_host_stop,
 };
 
 /*
@@ -938,13 +933,6 @@ static void sil24_post_internal_cmd(struct ata_queued_cmd *qc)
 		sil24_init_port(ap);
 }
 
-static inline void sil24_cblk_free(struct sil24_port_priv *pp, struct device *dev)
-{
-	const size_t cb_size = sizeof(*pp->cmd_block) * SIL24_MAX_CMDS;
-
-	dma_free_coherent(dev, cb_size, pp->cmd_block, pp->cmd_block_dma);
-}
-
 static int sil24_port_start(struct ata_port *ap)
 {
 	struct device *dev = ap->host->dev;
@@ -952,22 +940,22 @@ static int sil24_port_start(struct ata_port *ap)
 	union sil24_cmd_block *cb;
 	size_t cb_size = sizeof(*cb) * SIL24_MAX_CMDS;
 	dma_addr_t cb_dma;
-	int rc = -ENOMEM;
+	int rc;
 
-	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
+	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
-		goto err_out;
+		return -ENOMEM;
 
 	pp->tf.command = ATA_DRDY;
 
-	cb = dma_alloc_coherent(dev, cb_size, &cb_dma, GFP_KERNEL);
+	cb = dmam_alloc_coherent(dev, cb_size, &cb_dma, GFP_KERNEL);
 	if (!cb)
-		goto err_out_pp;
+		return -ENOMEM;
 	memset(cb, 0, cb_size);
 
 	rc = ata_pad_alloc(ap, dev);
 	if (rc)
-		goto err_out_pad;
+		return rc;
 
 	pp->cmd_block = cb;
 	pp->cmd_block_dma = cb_dma;
@@ -975,33 +963,6 @@ static int sil24_port_start(struct ata_port *ap)
 	ap->private_data = pp;
 
 	return 0;
-
-err_out_pad:
-	sil24_cblk_free(pp, dev);
-err_out_pp:
-	kfree(pp);
-err_out:
-	return rc;
-}
-
-static void sil24_port_stop(struct ata_port *ap)
-{
-	struct device *dev = ap->host->dev;
-	struct sil24_port_priv *pp = ap->private_data;
-
-	sil24_cblk_free(pp, dev);
-	ata_pad_free(ap, dev);
-	kfree(pp);
-}
-
-static void sil24_host_stop(struct ata_host *host)
-{
-	struct sil24_host_priv *hpriv = host->private_data;
-	struct pci_dev *pdev = to_pci_dev(host->dev);
-
-	pci_iounmap(pdev, hpriv->host_base);
-	pci_iounmap(pdev, hpriv->port_base);
-	kfree(hpriv);
 }
 
 static void sil24_init_controller(struct pci_dev *pdev, int n_ports,
@@ -1066,43 +1027,38 @@ static void sil24_init_controller(struct pci_dev *pdev, int n_ports,
 static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version = 0;
+	struct device *dev = &pdev->dev;
 	unsigned int board_id = (unsigned int)ent->driver_data;
 	struct ata_port_info *pinfo = &sil24_port_info[board_id];
-	struct ata_probe_ent *probe_ent = NULL;
-	struct sil24_host_priv *hpriv = NULL;
-	void __iomem *host_base = NULL;
-	void __iomem *port_base = NULL;
+	struct ata_probe_ent *probe_ent;
+	struct sil24_host_priv *hpriv;
+	void __iomem *host_base;
+	void __iomem *port_base;
 	int i, rc;
 	u32 tmp;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc)
-		goto out_disable;
+		return rc;
 
-	rc = -ENOMEM;
 	/* map mmio registers */
-	host_base = pci_iomap(pdev, 0, 0);
-	if (!host_base)
-		goto out_free;
-	port_base = pci_iomap(pdev, 2, 0);
-	if (!port_base)
-		goto out_free;
+	host_base = pcim_iomap(pdev, 0, 0);
+	port_base = pcim_iomap(pdev, 2, 0);
+	if (!host_base || !port_base)
+		return -ENOMEM;
 
 	/* allocate & init probe_ent and hpriv */
-	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
-	if (!probe_ent)
-		goto out_free;
-
-	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
-	if (!hpriv)
-		goto out_free;
+	probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
+	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
+	if (!probe_ent || !hpriv)
+		return -ENOMEM;
 
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
@@ -1132,7 +1088,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			if (rc) {
 				dev_printk(KERN_ERR, &pdev->dev,
 					   "64-bit DMA enable failed\n");
-				goto out_free;
+				return rc;
 			}
 		}
 	} else {
@@ -1140,13 +1096,13 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (rc) {
 			dev_printk(KERN_ERR, &pdev->dev,
 				   "32-bit DMA enable failed\n");
-			goto out_free;
+			return rc;
 		}
 		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
 			dev_printk(KERN_ERR, &pdev->dev,
 				   "32-bit consistent DMA enable failed\n");
-			goto out_free;
+			return rc;
 		}
 	}
 
@@ -1176,23 +1132,11 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	/* FIXME: check ata_device_add return value */
-	ata_device_add(probe_ent);
+	if (!ata_device_add(probe_ent))
+		return -ENODEV;
 
-	kfree(probe_ent);
+	devm_kfree(dev, probe_ent);
 	return 0;
-
- out_free:
-	if (host_base)
-		pci_iounmap(pdev, host_base);
-	if (port_base)
-		pci_iounmap(pdev, port_base);
-	kfree(probe_ent);
-	kfree(hpriv);
-	pci_release_regions(pdev);
- out_disable:
-	pci_disable_device(pdev);
-	return rc;
 }
 
 #ifdef CONFIG_PM

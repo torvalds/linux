@@ -258,8 +258,6 @@ static struct ata_port_operations atiixp_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static int atiixp_init_one(struct pci_dev *dev, const struct pci_device_id *id)

@@ -34,7 +34,6 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
-#include <asm/io.h>
 
 #define DRV_NAME	"sata_mv"
 #define DRV_VERSION	"0.7"
@@ -342,7 +341,6 @@ static u32 mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in);
 static void mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
 static void mv_phy_reset(struct ata_port *ap);
 static void __mv_phy_reset(struct ata_port *ap, int can_sleep);
-static void mv_host_stop(struct ata_host *host);
 static int mv_port_start(struct ata_port *ap);
 static void mv_port_stop(struct ata_port *ap);
 static void mv_qc_prep(struct ata_queued_cmd *qc);
@@ -418,7 +416,6 @@ static const struct ata_port_operations mv5_ops = {
 
 	.port_start		= mv_port_start,
 	.port_stop		= mv_port_stop,
-	.host_stop		= mv_host_stop,
 };
 
 static const struct ata_port_operations mv6_ops = {
@@ -446,7 +443,6 @@ static const struct ata_port_operations mv6_ops = {
 
 	.port_start		= mv_port_start,
 	.port_stop		= mv_port_stop,
-	.host_stop		= mv_host_stop,
 };
 
 static const struct ata_port_operations mv_iie_ops = {
@@ -474,7 +470,6 @@ static const struct ata_port_operations mv_iie_ops = {
 
 	.port_start		= mv_port_start,
 	.port_stop		= mv_port_stop,
-	.host_stop		= mv_host_stop,
 };
 
 static const struct ata_port_info mv_port_info[] = {
@@ -809,35 +804,6 @@ static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 	}
 }
 
-/**
- *      mv_host_stop - Host specific cleanup/stop routine.
- *      @host: host data structure
- *
- *      Disable ints, cleanup host memory, call general purpose
- *      host_stop.
- *
- *      LOCKING:
- *      Inherited from caller.
- */
-static void mv_host_stop(struct ata_host *host)
-{
-	struct mv_host_priv *hpriv = host->private_data;
-	struct pci_dev *pdev = to_pci_dev(host->dev);
-
-	if (hpriv->hp_flags & MV_HP_FLAG_MSI) {
-		pci_disable_msi(pdev);
-	} else {
-		pci_intx(pdev, 0);
-	}
-	kfree(hpriv);
-	ata_host_stop(host);
-}
-
-static inline void mv_priv_free(struct mv_port_priv *pp, struct device *dev)
-{
-	dma_free_coherent(dev, MV_PORT_PRIV_DMA_SZ, pp->crpb, pp->crpb_dma);
-}
-
 static void mv_edma_cfg(struct mv_host_priv *hpriv, void __iomem *port_mmio)
 {
 	u32 cfg = readl(port_mmio + EDMA_CFG_OFS);
@@ -883,22 +849,21 @@ static int mv_port_start(struct ata_port *ap)
 	void __iomem *port_mmio = mv_ap_base(ap);
 	void *mem;
 	dma_addr_t mem_dma;
-	int rc = -ENOMEM;
+	int rc;
 
-	pp = kmalloc(sizeof(*pp), GFP_KERNEL);
+	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
-		goto err_out;
-	memset(pp, 0, sizeof(*pp));
+		return -ENOMEM;
 
-	mem = dma_alloc_coherent(dev, MV_PORT_PRIV_DMA_SZ, &mem_dma,
-				 GFP_KERNEL);
+	mem = dmam_alloc_coherent(dev, MV_PORT_PRIV_DMA_SZ, &mem_dma,
+				  GFP_KERNEL);
 	if (!mem)
-		goto err_out_pp;
+		return -ENOMEM;
 	memset(mem, 0, MV_PORT_PRIV_DMA_SZ);
 
 	rc = ata_pad_alloc(ap, dev);
 	if (rc)
-		goto err_out_priv;
+		return rc;
 
 	/* First item in chunk of DMA memory:
 	 * 32-slot command request table (CRQB), 32 bytes each in size
@@ -951,13 +916,6 @@ static int mv_port_start(struct ata_port *ap)
 	 */
 	ap->private_data = pp;
 	return 0;
-
-err_out_priv:
-	mv_priv_free(pp, dev);
-err_out_pp:
-	kfree(pp);
-err_out:
-	return rc;
 }
 
 /**
@@ -971,18 +929,11 @@ err_out:
  */
 static void mv_port_stop(struct ata_port *ap)
 {
-	struct device *dev = ap->host->dev;
-	struct mv_port_priv *pp = ap->private_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ap->host->lock, flags);
 	mv_stop_dma(ap);
 	spin_unlock_irqrestore(&ap->host->lock, flags);
-
-	ap->private_data = NULL;
-	ata_pad_free(ap, dev);
-	mv_priv_free(pp, dev);
-	kfree(pp);
 }
 
 /**
@@ -2342,49 +2293,41 @@ static void mv_print_info(struct ata_probe_ent *probe_ent)
 static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version = 0;
-	struct ata_probe_ent *probe_ent = NULL;
+	struct device *dev = &pdev->dev;
+	struct ata_probe_ent *probe_ent;
 	struct mv_host_priv *hpriv;
 	unsigned int board_idx = (unsigned int)ent->driver_data;
 	void __iomem *mmio_base;
-	int pci_dev_busy = 0, rc;
+	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
-	if (rc) {
+	rc = pcim_enable_device(pdev);
+	if (rc)
 		return rc;
-	}
 	pci_set_master(pdev);
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc) {
-		pci_dev_busy = 1;
-		goto err_out;
+		pcim_pin_device(pdev);
+		return rc;
 	}
 
-	probe_ent = kmalloc(sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL) {
-		rc = -ENOMEM;
-		goto err_out_regions;
-	}
+	probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
+	if (probe_ent == NULL)
+		return -ENOMEM;
 
-	memset(probe_ent, 0, sizeof(*probe_ent));
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
-	mmio_base = pci_iomap(pdev, MV_PRIMARY_BAR, 0);
-	if (mmio_base == NULL) {
-		rc = -ENOMEM;
-		goto err_out_free_ent;
-	}
+	mmio_base = pcim_iomap(pdev, MV_PRIMARY_BAR, 0);
+	if (mmio_base == NULL)
+		return -ENOMEM;
 
-	hpriv = kmalloc(sizeof(*hpriv), GFP_KERNEL);
-	if (!hpriv) {
-		rc = -ENOMEM;
-		goto err_out_iounmap;
-	}
-	memset(hpriv, 0, sizeof(*hpriv));
+	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
+	if (!hpriv)
+		return -ENOMEM;
 
 	probe_ent->sht = mv_port_info[board_idx].sht;
 	probe_ent->port_flags = mv_port_info[board_idx].flags;
@@ -2399,48 +2342,21 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* initialize adapter */
 	rc = mv_init_host(pdev, probe_ent, board_idx);
-	if (rc) {
-		goto err_out_hpriv;
-	}
+	if (rc)
+		return rc;
 
 	/* Enable interrupts */
-	if (msi && pci_enable_msi(pdev) == 0) {
-		hpriv->hp_flags |= MV_HP_FLAG_MSI;
-	} else {
+	if (msi && !pci_enable_msi(pdev))
 		pci_intx(pdev, 1);
-	}
 
 	mv_dump_pci_cfg(pdev, 0x68);
 	mv_print_info(probe_ent);
 
-	if (ata_device_add(probe_ent) == 0) {
-		rc = -ENODEV;		/* No devices discovered */
-		goto err_out_dev_add;
-	}
+	if (ata_device_add(probe_ent) == 0)
+		return -ENODEV;
 
-	kfree(probe_ent);
+	devm_kfree(dev, probe_ent);
 	return 0;
-
-err_out_dev_add:
-	if (MV_HP_FLAG_MSI & hpriv->hp_flags) {
-		pci_disable_msi(pdev);
-	} else {
-		pci_intx(pdev, 0);
-	}
-err_out_hpriv:
-	kfree(hpriv);
-err_out_iounmap:
-	pci_iounmap(pdev, mmio_base);
-err_out_free_ent:
-	kfree(probe_ent);
-err_out_regions:
-	pci_release_regions(pdev);
-err_out:
-	if (!pci_dev_busy) {
-		pci_disable_device(pdev);
-	}
-
-	return rc;
 }
 
 static int __init mv_init(void)

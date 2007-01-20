@@ -33,7 +33,6 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
-#include <asm/io.h>
 
 #define DRV_NAME	"pata_pdc2027x"
 #define DRV_VERSION	"0.74-ac5"
@@ -62,7 +61,6 @@ enum {
 };
 
 static int pdc2027x_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
-static void pdc2027x_remove_one(struct pci_dev *pdev);
 static void pdc2027x_error_handler(struct ata_port *ap);
 static void pdc2027x_set_piomode(struct ata_port *ap, struct ata_device *adev);
 static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev);
@@ -123,7 +121,7 @@ static struct pci_driver pdc2027x_pci_driver = {
 	.name			= DRV_NAME,
 	.id_table		= pdc2027x_pci_tbl,
 	.probe			= pdc2027x_init_one,
-	.remove			= __devexit_p(pdc2027x_remove_one),
+	.remove			= ata_pci_remove_one,
 };
 
 static struct scsi_host_template pdc2027x_sht = {
@@ -171,8 +169,6 @@ static struct ata_port_operations pdc2027x_pata100_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_pci_host_stop,
 };
 
 static struct ata_port_operations pdc2027x_pata133_ops = {
@@ -205,8 +201,6 @@ static struct ata_port_operations pdc2027x_pata133_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_pci_host_stop,
 };
 
 static struct ata_port_info pdc2027x_port_info[] = {
@@ -755,7 +749,7 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 	static int printed_version;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
 
-	struct ata_probe_ent *probe_ent = NULL;
+	struct ata_probe_ent *probe_ent;
 	unsigned long base;
 	void __iomem *mmio_base;
 	int rc;
@@ -763,37 +757,33 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc)
-		goto err_out;
+		return rc;
 
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 
 	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 
 	/* Prepare the probe entry */
-	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL) {
-		rc = -ENOMEM;
-		goto err_out_regions;
-	}
+	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
+	if (probe_ent == NULL)
+		return -ENOMEM;
 
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
-	mmio_base = pci_iomap(pdev, 5, 0);
-	if (!mmio_base) {
-		rc = -ENOMEM;
-		goto err_out_free_ent;
-	}
+	mmio_base = pcim_iomap(pdev, 5, 0);
+	if (!mmio_base)
+		return -ENOMEM;
 
 	base = (unsigned long) mmio_base;
 
@@ -820,32 +810,13 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 
 	/* initialize adapter */
 	if (pdc_hardware_init(pdev, probe_ent, board_idx) != 0)
-		goto err_out_free_ent;
+		return -EIO;
 
-	ata_device_add(probe_ent);
-	kfree(probe_ent);
+	if (!ata_device_add(probe_ent))
+		return -ENODEV;
 
+	devm_kfree(&pdev->dev, probe_ent);
 	return 0;
-
-err_out_free_ent:
-	kfree(probe_ent);
-err_out_regions:
-	pci_release_regions(pdev);
-err_out:
-	pci_disable_device(pdev);
-	return rc;
-}
-
-/**
- * pdc2027x_remove_one - Called to remove a single instance of the
- * adapter.
- *
- * @dev: The PCI device to remove.
- * FIXME: module load/unload not working yet
- */
-static void __devexit pdc2027x_remove_one(struct pci_dev *pdev)
-{
-	ata_pci_remove_one(pdev);
 }
 
 /**

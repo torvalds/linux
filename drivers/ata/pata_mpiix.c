@@ -194,8 +194,6 @@ static struct ata_port_operations mpiix_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
@@ -258,24 +256,6 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	return -ENODEV;
 }
 
-/**
- *	mpiix_remove_one	-	device unload
- *	@pdev: PCI device being removed
- *
- *	Handle an unplug/unload event for a PCI device. Unload the
- *	PCI driver but do not use the default handler as we *MUST NOT*
- *	disable the device as it has other functions.
- */
-
-static void __devexit mpiix_remove_one(struct pci_dev *pdev)
-{
-	struct device *dev = pci_dev_to_dev(pdev);
-	struct ata_host *host = dev_get_drvdata(dev);
-
-	ata_host_remove(host);
-	dev_set_drvdata(dev, NULL);
-}
-
 static const struct pci_device_id mpiix[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82371MX), },
 
@@ -286,7 +266,7 @@ static struct pci_driver mpiix_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= mpiix,
 	.probe 		= mpiix_init_one,
-	.remove		= mpiix_remove_one,
+	.remove		= ata_pci_remove_one,
 	.suspend	= ata_pci_device_suspend,
 	.resume		= ata_pci_device_resume,
 };

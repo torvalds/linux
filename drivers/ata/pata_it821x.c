@@ -594,14 +594,10 @@ static int it821x_port_start(struct ata_port *ap)
 	if (ret < 0)
 		return ret;
 
-	ap->private_data = kmalloc(sizeof(struct it821x_dev), GFP_KERNEL);
-	if (ap->private_data == NULL) {
-		ata_port_stop(ap);
+	itdev = devm_kzalloc(&pdev->dev, sizeof(struct it821x_dev), GFP_KERNEL);
+	if (itdev == NULL)
 		return -ENOMEM;
-	}
-
-	itdev = ap->private_data;
-	memset(itdev, 0, sizeof(struct it821x_dev));
+	ap->private_data = itdev;
 
 	pci_read_config_byte(pdev, 0x50, &conf);
 
@@ -630,20 +626,6 @@ static int it821x_port_start(struct ata_port *ap)
 	}
 
 	return 0;
-}
-
-/**
- *	it821x_port_stop	-	port shutdown
- *	@ap: ATA port being removed
- *
- *	Release the private objects we added in it821x_port_start
- */
-
-static void it821x_port_stop(struct ata_port *ap) {
-	kfree(ap->private_data);
-	ap->private_data = NULL;	/* We want an OOPS if we reuse this
-					   too late! */
-	ata_port_stop(ap);
 }
 
 static struct scsi_host_template it821x_sht = {
@@ -698,8 +680,6 @@ static struct ata_port_operations it821x_smart_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= it821x_port_start,
-	.port_stop	= it821x_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static struct ata_port_operations it821x_passthru_port_ops = {
@@ -734,8 +714,6 @@ static struct ata_port_operations it821x_passthru_port_ops = {
 	.irq_handler	= ata_interrupt,
 
 	.port_start	= it821x_port_start,
-	.port_stop	= it821x_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static void __devinit it821x_disable_raid(struct pci_dev *pdev)

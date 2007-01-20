@@ -59,8 +59,6 @@ static struct ata_port_operations isapnp_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /**
@@ -120,7 +118,7 @@ static void isapnp_remove_one(struct pnp_dev *idev)
 	struct device *dev = &idev->dev;
 	struct ata_host *host = dev_get_drvdata(dev);
 
-	ata_host_remove(host);
+	ata_host_detach(host);
 	dev_set_drvdata(dev, NULL);
 }
 

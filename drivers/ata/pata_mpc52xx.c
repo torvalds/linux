@@ -17,7 +17,6 @@
 #include <linux/delay.h>
 #include <linux/libata.h>
 
-#include <asm/io.h>
 #include <asm/types.h>
 #include <asm/prom.h>
 #include <asm/of_platform.h>
@@ -300,8 +299,6 @@ static struct ata_port_operations mpc52xx_ata_port_ops = {
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
 };
 
 static struct ata_probe_ent mpc52xx_ata_probe_ent = {
@@ -353,7 +350,7 @@ mpc52xx_ata_remove_one(struct device *dev)
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct mpc52xx_ata_priv *priv = host->private_data;
 
-	ata_host_remove(host);
+	ata_host_detach(host);
 
 	return priv;
 }
@@ -369,8 +366,8 @@ mpc52xx_ata_probe(struct of_device *op, const struct of_device_id *match)
 	unsigned int ipb_freq;
 	struct resource res_mem;
 	int ata_irq = NO_IRQ;
-	struct mpc52xx_ata __iomem *ata_regs = NULL;
-	struct mpc52xx_ata_priv *priv = NULL;
+	struct mpc52xx_ata __iomem *ata_regs;
+	struct mpc52xx_ata_priv *priv;
 	int rv;
 
 	/* Get ipb frequency */
@@ -397,16 +394,17 @@ mpc52xx_ata_probe(struct of_device *op, const struct of_device_id *match)
 	}
 
 	/* Request mem region */
-	if (!request_mem_region(res_mem.start,
-				sizeof(struct mpc52xx_ata), DRV_NAME)) {
+	if (!devm_request_mem_region(&op->dev, res_mem.start,
+				     sizeof(struct mpc52xx_ata), DRV_NAME)) {
 		printk(KERN_ERR DRV_NAME ": "
 			"Error while requesting mem region\n");
-		irq_dispose_mapping(ata_irq);
-		return -EBUSY;
+		rv = -EBUSY;
+		goto err;
 	}
 
 	/* Remap registers */
-	ata_regs = ioremap(res_mem.start, sizeof(struct mpc52xx_ata));
+	ata_regs = devm_ioremap(&op->dev, res_mem.start,
+				sizeof(struct mpc52xx_ata));
 	if (!ata_regs) {
 		printk(KERN_ERR DRV_NAME ": "
 			"Error while mapping register set\n");
@@ -415,7 +413,8 @@ mpc52xx_ata_probe(struct of_device *op, const struct of_device_id *match)
 	}
 
 	/* Prepare our private structure */
-	priv = kmalloc(sizeof(struct mpc52xx_ata_priv), GFP_ATOMIC);
+	priv = devm_kzalloc(&op->dev, sizeof(struct mpc52xx_ata_priv),
+			    GFP_ATOMIC);
 	if (!priv) {
 		printk(KERN_ERR DRV_NAME ": "
 			"Error while allocating private structure\n");
@@ -448,15 +447,7 @@ mpc52xx_ata_probe(struct of_device *op, const struct of_device_id *match)
 
 	/* Error path */
 err:
-	kfree(priv);
-
-	if (ata_regs)
-		iounmap(ata_regs);
-
-	release_mem_region(res_mem.start, sizeof(struct mpc52xx_ata));
-
 	irq_dispose_mapping(ata_irq);
-
 	return rv;
 }
 
@@ -464,27 +455,9 @@ static int
 mpc52xx_ata_remove(struct of_device *op)
 {
 	struct mpc52xx_ata_priv *priv;
-	struct resource res_mem;
-	int rv;
 
-	/* Unregister */
 	priv = mpc52xx_ata_remove_one(&op->dev);
-
-	/* Free everything */
-	iounmap(priv->ata_regs);
-
-	rv = of_address_to_resource(op->node, 0, &res_mem);
-	if (rv) {
-		printk(KERN_ERR DRV_NAME ": "
-			"Error while parsing device node resource\n");
-		printk(KERN_ERR DRV_NAME ": "
-			"Zone may not be properly released\n");
-	} else
-		release_mem_region(res_mem.start, sizeof(struct mpc52xx_ata));
-
 	irq_dispose_mapping(priv->ata_irq);
-
-	kfree(priv);
 
 	return 0;
 }

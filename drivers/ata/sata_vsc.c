@@ -94,13 +94,6 @@ enum {
 			      VSC_SATA_INT_ERROR_P    | VSC_SATA_INT_ERROR_R | \
 			      VSC_SATA_INT_ERROR_E    | VSC_SATA_INT_ERROR_M | \
 			      VSC_SATA_INT_PHY_CHANGE),
-
-	/* Host private flags (hp_flags) */
-	VSC_SATA_HP_FLAG_MSI    = (1 << 0),
-};
-
-struct vsc_sata_host_priv {
-	u32	hp_flags;
 };
 
 #define is_vsc_sata_int_err(port_idx, int_status) \
@@ -121,20 +114,6 @@ static void vsc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
 	if (sc_reg > SCR_CONTROL)
 		return;
 	writel(val, (void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
-}
-
-
-static void vsc_sata_host_stop(struct ata_host *host)
-{
-	struct vsc_sata_host_priv *hpriv = host->private_data;
-	struct pci_dev *pdev = to_pci_dev(host->dev);
-
-	if (hpriv->hp_flags & VSC_SATA_HP_FLAG_MSI)
-		pci_disable_msi(pdev);
-	else
-		pci_intx(pdev, 0);
-	kfree (hpriv);
-	ata_pci_host_stop(host);
 }
 
 
@@ -331,8 +310,6 @@ static const struct ata_port_operations vsc_sata_ops = {
 	.scr_read		= vsc_sata_scr_read,
 	.scr_write		= vsc_sata_scr_write,
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= vsc_sata_host_stop,
 };
 
 static void __devinit vsc_sata_setup_port(struct ata_ioports *port, unsigned long base)
@@ -361,31 +338,27 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 {
 	static int printed_version;
 	struct ata_probe_ent *probe_ent = NULL;
-	struct vsc_sata_host_priv *hpriv;
 	unsigned long base;
-	int pci_dev_busy = 0;
 	void __iomem *mmio_base;
 	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
 	/*
 	 * Check if we have needed resource mapped.
 	 */
-	if (pci_resource_len(pdev, 0) == 0) {
-		rc = -ENODEV;
-		goto err_out;
-	}
+	if (pci_resource_len(pdev, 0) == 0)
+		return -ENODEV;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc) {
-		pci_dev_busy = 1;
-		goto err_out;
+		pcim_pin_device(pdev);
+		return rc;
 	}
 
 	/*
@@ -393,44 +366,29 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	 */
 	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 	rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 
-	probe_ent = kmalloc(sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL) {
-		rc = -ENOMEM;
-		goto err_out_regions;
-	}
-
-	memset(probe_ent, 0, sizeof(*probe_ent));
+	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
+	if (probe_ent == NULL)
+		return -ENOMEM;
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
-	mmio_base = pci_iomap(pdev, 0, 0);
-	if (mmio_base == NULL) {
-		rc = -ENOMEM;
-		goto err_out_free_ent;
-	}
+	mmio_base = pcim_iomap(pdev, 0, 0);
+	if (mmio_base == NULL)
+		return -ENOMEM;
 	base = (unsigned long) mmio_base;
-
-	hpriv = kmalloc(sizeof(*hpriv), GFP_KERNEL);
-	if (!hpriv) {
-		rc = -ENOMEM;
-		goto err_out_iounmap;
-	}
-	memset(hpriv, 0, sizeof(*hpriv));
 
 	/*
 	 * Due to a bug in the chip, the default cache line size can't be used
 	 */
 	pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, 0x80);
 
-	if (pci_enable_msi(pdev) == 0) {
-		hpriv->hp_flags |= VSC_SATA_HP_FLAG_MSI;
+	if (pci_enable_msi(pdev) == 0)
 		pci_intx(pdev, 0);
-	}
 	else
 		probe_ent->irq_flags = IRQF_SHARED;
 
@@ -441,7 +399,6 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	probe_ent->n_ports = 4;
 	probe_ent->irq = pdev->irq;
 	probe_ent->mmio_base = mmio_base;
-	probe_ent->private_data = hpriv;
 
 	/* We don't care much about the PIO/UDMA masks, but the core won't like us
 	 * if we don't fill these
@@ -466,22 +423,11 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	 */
 	pci_write_config_dword(pdev, 0x98, 0);
 
-	/* FIXME: check ata_device_add return value */
-	ata_device_add(probe_ent);
+	if (!ata_device_add(probe_ent))
+		return -ENODEV;
 
-	kfree(probe_ent);
+	devm_kfree(&pdev->dev, probe_ent);
 	return 0;
-
-err_out_iounmap:
-	pci_iounmap(pdev, mmio_base);
-err_out_free_ent:
-	kfree(probe_ent);
-err_out_regions:
-	pci_release_regions(pdev);
-err_out:
-	if (!pci_dev_busy)
-		pci_disable_device(pdev);
-	return rc;
 }
 
 static const struct pci_device_id vsc_sata_pci_tbl[] = {

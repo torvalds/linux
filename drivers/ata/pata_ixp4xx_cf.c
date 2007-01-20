@@ -95,14 +95,6 @@ static void ixp4xx_irq_clear(struct ata_port *ap)
 {
 }
 
-static void ixp4xx_host_stop (struct ata_host *host)
-{
-	struct ixp4xx_pata_data *data = host->dev->platform_data;
-
-	iounmap(data->cs0);
-	iounmap(data->cs1);
-}
-
 static struct scsi_host_template ixp4xx_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
@@ -141,8 +133,6 @@ static struct ata_port_operations ixp4xx_port_ops = {
 	.irq_clear	= ixp4xx_irq_clear,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ixp4xx_host_stop,
 
 	.phy_reset	= ixp4xx_phy_reset,
 };
@@ -195,8 +185,8 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 
 	pdev->dev.coherent_dma_mask = DMA_32BIT_MASK;
 
-	data->cs0 = ioremap(cs0->start, 0x1000);
-	data->cs1 = ioremap(cs1->start, 0x1000);
+	data->cs0 = devm_ioremap(&pdev->dev, cs0->start, 0x1000);
+	data->cs1 = devm_ioremap(&pdev->dev, cs1->start, 0x1000);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq)
@@ -238,7 +228,7 @@ static __devexit int ixp4xx_pata_remove(struct platform_device *dev)
 {
 	struct ata_host *host = platform_get_drvdata(dev);
 
-	ata_host_remove(host);
+	ata_host_detach(host);
 	platform_set_drvdata(dev, NULL);
 
 	return 0;
