@@ -321,13 +321,39 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 	case VIDIOC_ENUMAUDIO:
 	{
+		/* pkt: FIXME: We are returning one "fake" input here
+		   which could very well be called "whatever_we_like".
+		   This is for apps that want to see an audio input
+		   just to feel comfortable, as well as to test if
+		   it can do stereo or sth. There is actually no guarantee
+		   that the actual audio input cannot change behind the app's
+		   back, but most applications should not mind that either.
+
+		   Hopefully, mplayer people will work with us on this (this
+		   whole mess is to support mplayer pvr://), or Hans will come
+		   up with a more standard way to say "we have inputs but we
+		   don 't want you to change them independent of video" which
+		   will sort this mess.
+		 */
+		struct v4l2_audio *vin = arg;
 		ret = -EINVAL;
+		if (vin->index > 0) break;
+		strncpy(vin->name, "PVRUSB2 Audio",14);
+		vin->capability = V4L2_AUDCAP_STEREO;
+		ret = 0;
+		break;
 		break;
 	}
 
 	case VIDIOC_G_AUDIO:
 	{
-		ret = -EINVAL;
+		/* pkt: FIXME: see above comment (VIDIOC_ENUMAUDIO) */
+		struct v4l2_audio *vin = arg;
+		memset(vin,0,sizeof(*vin));
+		vin->index = 0;
+		strncpy(vin->name, "PVRUSB2 Audio",14);
+		vin->capability = V4L2_AUDCAP_STEREO;
+		ret = 0;
 		break;
 	}
 
