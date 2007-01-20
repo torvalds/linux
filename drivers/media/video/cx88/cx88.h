@@ -645,13 +645,6 @@ int cx88_get_control(struct cx88_core *core, struct v4l2_control *ctl);
 int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl);
 int cx88_video_mux(struct cx88_core *core, unsigned int input);
 
-/* ----------------------------------------------------------- */
-/* cx88-blackbird.c                                            */
-/* used by cx88-ivtv ioctl emulation layer                     */
-extern int (*cx88_ioctl_hook)(struct inode *inode, struct file *file,
-			      unsigned int cmd, void *arg);
-extern unsigned int (*cx88_ioctl_translator)(unsigned int cmd);
-
 /*
  * Local variables:
  * c-basic-offset: 8
