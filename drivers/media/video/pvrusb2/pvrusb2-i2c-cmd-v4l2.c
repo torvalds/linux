@@ -140,6 +140,29 @@ const struct pvr2_i2c_op pvr2_i2c_op_v4l2_volume = {
 };
 
 
+static void set_audiomode(struct pvr2_hdw *hdw)
+{
+	struct v4l2_tuner vt;
+	memset(&vt,0,sizeof(vt));
+	vt.audmode = hdw->audiomode_val;
+	pvr2_i2c_core_cmd(hdw,VIDIOC_S_TUNER,&vt);
+}
+
+
+static int check_audiomode(struct pvr2_hdw *hdw)
+{
+	return (hdw->input_dirty ||
+		hdw->audiomode_dirty);
+}
+
+
+const struct pvr2_i2c_op pvr2_i2c_op_v4l2_audiomode = {
+	.check = check_audiomode,
+	.update = set_audiomode,
+	.name = "v4l2_audiomode",
+};
+
+
 static void set_frequency(struct pvr2_hdw *hdw)
 {
 	unsigned long fv;

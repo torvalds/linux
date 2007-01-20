@@ -43,13 +43,6 @@ static void set_stereo(struct pvr2_msp3400_handler *ctxt)
 
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c msp3400 v4l2 set_stereo");
 
-	if (hdw->input_val == PVR2_CVAL_INPUT_TV) {
-		struct v4l2_tuner vt;
-		memset(&vt,0,sizeof(vt));
-		vt.audmode = hdw->audiomode_val;
-		pvr2_i2c_client_cmd(ctxt->client,VIDIOC_S_TUNER,&vt);
-	}
-
 	route.input = MSP_INPUT_DEFAULT;
 	route.output = MSP_OUTPUT(MSP_SC_IN_DSP_SCART1);
 	switch (hdw->input_val) {
@@ -77,8 +70,7 @@ static void set_stereo(struct pvr2_msp3400_handler *ctxt)
 static int check_stereo(struct pvr2_msp3400_handler *ctxt)
 {
 	struct pvr2_hdw *hdw = ctxt->hdw;
-	return (hdw->input_dirty ||
-		hdw->audiomode_dirty);
+	return hdw->input_dirty;
 }
 
 
