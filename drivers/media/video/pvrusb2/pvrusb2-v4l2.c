@@ -636,6 +636,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_ext_control *ctrl;
 		unsigned int idx;
 		int val;
+		ret = 0;
 		for (idx = 0; idx < ctls->count; idx++) {
 			ctrl = ctls->controls + idx;
 			ret = pvr2_ctrl_get_value(
@@ -658,6 +659,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			(struct v4l2_ext_controls *)arg;
 		struct v4l2_ext_control *ctrl;
 		unsigned int idx;
+		ret = 0;
 		for (idx = 0; idx < ctls->count; idx++) {
 			ctrl = ctls->controls + idx;
 			ret = pvr2_ctrl_set_value(
@@ -680,6 +682,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		unsigned int idx;
 		/* For the moment just validate that the requested control
 		   actually exists. */
+		ret = 0;
 		for (idx = 0; idx < ctls->count; idx++) {
 			ctrl = ctls->controls + idx;
 			pctl = pvr2_hdw_get_ctrl_v4l(hdw,ctrl->id);
