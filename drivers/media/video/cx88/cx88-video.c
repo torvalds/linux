@@ -414,8 +414,7 @@ void res_free(struct cx8800_dev *dev, struct cx8800_fh *fh, unsigned int bits)
 
 /* ------------------------------------------------------------------ */
 
-/* static int video_mux(struct cx8800_dev *dev, unsigned int input) */
-static int video_mux(struct cx88_core *core, unsigned int input)
+int cx88_video_mux(struct cx88_core *core, unsigned int input)
 {
 	/* struct cx88_core *core = dev->core; */
 
@@ -454,6 +453,7 @@ static int video_mux(struct cx88_core *core, unsigned int input)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(cx88_video_mux);
 
 /* ------------------------------------------------------------------ */
 
@@ -1310,7 +1310,7 @@ static int vidioc_s_input (struct file *file, void *priv, unsigned int i)
 
 	mutex_lock(&core->lock);
 	cx88_newstation(core);
-	video_mux(core,i);
+	cx88_video_mux(core,i);
 	mutex_unlock(&core->lock);
 	return 0;
 }
@@ -1898,7 +1898,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	mutex_lock(&core->lock);
 	cx88_set_tvnorm(core,cx88_tvnorms);
 	init_controls(core);
-	video_mux(core,0);
+	cx88_video_mux(core,0);
 	mutex_unlock(&core->lock);
 
 	/* start tvaudio thread */
