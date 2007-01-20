@@ -1143,7 +1143,8 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		nr_ptr = vbi_nr;
 		break;
 	case VFL_TYPE_RADIO:
-		dip->config = pvr2_config_pcm;
+		dip->stream = &vp->channel.mc_head->video_stream;
+		dip->config = pvr2_config_mpeg;
 		dip->minor_type = pvr2_v4l_type_radio;
 		nr_ptr = radio_nr;
 		break;
