@@ -199,18 +199,6 @@ static int decoder_detect(struct pvr2_i2c_client *cp)
 }
 
 
-static int decoder_is_tuned(struct pvr2_v4l_cx2584x *ctxt)
-{
-	struct v4l2_tuner vt;
-	int ret;
-
-	memset(&vt,0,sizeof(vt));
-	ret = pvr2_i2c_client_cmd(ctxt->client,VIDIOC_G_TUNER,&vt);
-	if (ret < 0) return -EINVAL;
-	return vt.signal ? 1 : 0;
-}
-
-
 static unsigned int decoder_describe(struct pvr2_v4l_cx2584x *ctxt,
 				     char *buf,unsigned int cnt)
 {
@@ -252,7 +240,6 @@ int pvr2_i2c_cx2584x_v4l_setup(struct pvr2_hdw *hdw,
 	ctxt->ctrl.ctxt = ctxt;
 	ctxt->ctrl.detach = (void (*)(void *))decoder_detach;
 	ctxt->ctrl.enable = (void (*)(void *,int))decoder_enable;
-	ctxt->ctrl.tuned = (int (*)(void *))decoder_is_tuned;
 	ctxt->ctrl.force_reset = (void (*)(void*))decoder_reset;
 	ctxt->client = cp;
 	ctxt->hdw = hdw;

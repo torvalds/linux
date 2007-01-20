@@ -137,17 +137,10 @@ struct pvr2_ctrl {
 };
 
 
-struct pvr2_audio_stat {
-	void *ctxt;
-	void (*detach)(void *);
-	int (*status)(void *);
-};
-
 struct pvr2_decoder_ctrl {
 	void *ctxt;
 	void (*detach)(void *);
 	void (*enable)(void *,int);
-	int (*tuned)(void *);
 	void (*force_reset)(void *);
 };
 
@@ -266,6 +259,10 @@ struct pvr2_hdw {
 	unsigned int freqSelector;       /* 0=radio 1=television */
 	int freqDirty;
 
+	/* Current tuner info - this information is polled from the I2C bus */
+	struct v4l2_tuner tuner_signal_info;
+	int tuner_signal_stale;
+
 	/* Video standard handling */
 	v4l2_std_id std_mask_eeprom; // Hardware supported selections
 	v4l2_std_id std_mask_avail;  // Which standards we may select from
@@ -296,11 +293,6 @@ struct pvr2_hdw {
 	int eeprom_addr;
 
 	enum pvr2_config config;
-
-	/* Information about what audio signal we're hearing */
-	int flag_stereo;
-	int flag_bilingual;
-	struct pvr2_audio_stat *audio_stat;
 
 	/* Control state needed for cx2341x module */
 	struct cx2341x_mpeg_params enc_cur_state;

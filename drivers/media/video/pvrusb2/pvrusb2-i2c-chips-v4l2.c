@@ -59,6 +59,7 @@ void pvr2_i2c_probe(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 			(1 << OP_FREQ) |
 			(1 << OP_SIZE) |
 			(1 << OP_LOG));
+	cp->status_poll = pvr2_v4l2_cmd_status_poll;
 
 	if (id == I2C_DRIVERID_MSP3400) {
 		if (pvr2_i2c_msp3400_setup(hdw,cp)) {

@@ -264,7 +264,6 @@ static void pvr2_hdw_set_cur_freq(struct pvr2_hdw *,unsigned long);
 static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl);
 static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw);
 static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw);
-static unsigned int pvr2_hdw_get_signal_status_internal(struct pvr2_hdw *hdw);
 static void pvr2_hdw_internal_find_stdenum(struct pvr2_hdw *hdw);
 static void pvr2_hdw_internal_set_std_avail(struct pvr2_hdw *hdw);
 static void pvr2_hdw_render_useless_unlocked(struct pvr2_hdw *hdw);
@@ -623,8 +622,34 @@ static void ctrl_stdcur_clear_dirty(struct pvr2_ctrl *cptr)
 
 static int ctrl_signal_get(struct pvr2_ctrl *cptr,int *vp)
 {
-	*vp = ((pvr2_hdw_get_signal_status_internal(cptr->hdw) &
-		PVR2_SIGNAL_OK) ? 1 : 0);
+	struct pvr2_hdw *hdw = cptr->hdw;
+	pvr2_i2c_core_status_poll(hdw);
+	*vp = hdw->tuner_signal_info.signal;
+	return 0;
+}
+
+static int ctrl_audio_modes_present_get(struct pvr2_ctrl *cptr,int *vp)
+{
+	int val = 0;
+	unsigned int subchan;
+	struct pvr2_hdw *hdw = cptr->hdw;
+	if (hdw->tuner_signal_stale) {
+		pvr2_i2c_core_status_poll(hdw);
+	}
+	subchan = hdw->tuner_signal_info.rxsubchans;
+	if (subchan & V4L2_TUNER_SUB_MONO) {
+		val |= (1 << V4L2_TUNER_MODE_MONO);
+	}
+	if (subchan & V4L2_TUNER_SUB_STEREO) {
+		val |= (1 << V4L2_TUNER_MODE_STEREO);
+	}
+	if (subchan & V4L2_TUNER_SUB_LANG1) {
+		val |= (1 << V4L2_TUNER_MODE_LANG1);
+	}
+	if (subchan & V4L2_TUNER_SUB_LANG2) {
+		val |= (1 << V4L2_TUNER_MODE_LANG2);
+	}
+	*vp = val;
 	return 0;
 }
 
@@ -898,7 +923,20 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.desc = "Signal Present",
 		.name = "signal_present",
 		.get_value = ctrl_signal_get,
-		DEFBOOL,
+		DEFINT(0,65535),
+	},{
+		.desc = "Audio Modes Present",
+		.name = "audio_modes_present",
+		.get_value = ctrl_audio_modes_present_get,
+		/* For this type we "borrow" the V4L2_TUNER_MODE enum from
+		   v4l.  Nothing outside of this module cares about this,
+		   but I reuse it in order to also reuse the
+		   control_values_audiomode string table. */
+		DEFMASK(((1 << V4L2_TUNER_MODE_MONO)|
+			 (1 << V4L2_TUNER_MODE_STEREO)|
+			 (1 << V4L2_TUNER_MODE_LANG1)|
+			 (1 << V4L2_TUNER_MODE_LANG2)),
+			control_values_audiomode),
 	},{
 		.desc = "Video Standards Available Mask",
 		.name = "video_standard_mask_available",
@@ -1957,6 +1995,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		   hdw,pvr2_device_names[hdw_type]);
 	if (!hdw) goto fail;
 	memset(hdw,0,sizeof(*hdw));
+	hdw->tuner_signal_stale = !0;
 	cx2341x_fill_defaults(&hdw->enc_ctl_state);
 
 	hdw->control_cnt = CTRLDEF_COUNT;
@@ -2178,9 +2217,6 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 	if (hdw->vid_stream) {
 		pvr2_stream_destroy(hdw->vid_stream);
 		hdw->vid_stream = NULL;
-	}
-	if (hdw->audio_stat) {
-		hdw->audio_stat->detach(hdw->audio_stat->ctxt);
 	}
 	if (hdw->decoder_ctrl) {
 		hdw->decoder_ctrl->detach(hdw->decoder_ctrl->ctxt);
@@ -2547,34 +2583,6 @@ const char *pvr2_hdw_get_driver_name(struct pvr2_hdw *hdw)
 }
 
 
-/* Return bit mask indicating signal status */
-static unsigned int pvr2_hdw_get_signal_status_internal(struct pvr2_hdw *hdw)
-{
-	unsigned int msk = 0;
-	switch (hdw->input_val) {
-	case PVR2_CVAL_INPUT_TV:
-	case PVR2_CVAL_INPUT_RADIO:
-		if (hdw->decoder_ctrl &&
-		    hdw->decoder_ctrl->tuned(hdw->decoder_ctrl->ctxt)) {
-			msk |= PVR2_SIGNAL_OK;
-			if (hdw->audio_stat &&
-			    hdw->audio_stat->status(hdw->audio_stat->ctxt)) {
-				if (hdw->flag_stereo) {
-					msk |= PVR2_SIGNAL_STEREO;
-				}
-				if (hdw->flag_bilingual) {
-					msk |= PVR2_SIGNAL_SAP;
-				}
-			}
-		}
-		break;
-	default:
-		msk |= PVR2_SIGNAL_OK | PVR2_SIGNAL_STEREO;
-	}
-	return msk;
-}
-
-
 int pvr2_hdw_is_hsm(struct pvr2_hdw *hdw)
 {
 	int result;
@@ -2590,14 +2598,25 @@ int pvr2_hdw_is_hsm(struct pvr2_hdw *hdw)
 }
 
 
-/* Return bit mask indicating signal status */
-unsigned int pvr2_hdw_get_signal_status(struct pvr2_hdw *hdw)
+/* Execute poll of tuner status */
+void pvr2_hdw_execute_tuner_poll(struct pvr2_hdw *hdw)
 {
-	unsigned int msk = 0;
 	LOCK_TAKE(hdw->big_lock); do {
-		msk = pvr2_hdw_get_signal_status_internal(hdw);
+		pvr2_i2c_core_status_poll(hdw);
 	} while (0); LOCK_GIVE(hdw->big_lock);
-	return msk;
+}
+
+
+/* Return information about the tuner */
+int pvr2_hdw_get_tuner_status(struct pvr2_hdw *hdw,struct v4l2_tuner *vtp)
+{
+	LOCK_TAKE(hdw->big_lock); do {
+		if (hdw->tuner_signal_stale) {
+			pvr2_i2c_core_status_poll(hdw);
+		}
+		memcpy(vtp,&hdw->tuner_signal_info,sizeof(struct v4l2_tuner));
+	} while (0); LOCK_GIVE(hdw->big_lock);
+	return 0;
 }
 
 

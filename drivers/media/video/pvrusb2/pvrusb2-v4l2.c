@@ -95,25 +95,6 @@ static struct v4l2_capability pvr_capability ={
 	.reserved       = {0,0,0,0}
 };
 
-static struct v4l2_tuner pvr_v4l2_tuners[]= {
-	{
-		.index      = 0,
-		.name       = "TV Tuner",
-		.type           = V4L2_TUNER_ANALOG_TV,
-		.capability     = (V4L2_TUNER_CAP_NORM |
-				   V4L2_TUNER_CAP_STEREO |
-				   V4L2_TUNER_CAP_LANG1 |
-				   V4L2_TUNER_CAP_LANG2),
-		.rangelow   = 0,
-		.rangehigh  = 0,
-		.rxsubchans     = V4L2_TUNER_SUB_STEREO,
-		.audmode        = V4L2_TUNER_MODE_STEREO,
-		.signal         = 0,
-		.afc            = 0,
-		.reserved       = {0,0,0,0}
-	}
-};
-
 static struct v4l2_fmtdesc pvr_fmtdesc [] = {
 	{
 		.index          = 0,
@@ -358,34 +339,8 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_TUNER:
 	{
 		struct v4l2_tuner *vt = (struct v4l2_tuner *)arg;
-		unsigned int status_mask;
-		int val;
-		if (vt->index !=0) break;
-
-		status_mask = pvr2_hdw_get_signal_status(hdw);
-
-		memcpy(vt, &pvr_v4l2_tuners[vt->index],
-		       sizeof(struct v4l2_tuner));
-
-		vt->signal = 0;
-		if (status_mask & PVR2_SIGNAL_OK) {
-			if (status_mask & PVR2_SIGNAL_STEREO) {
-				vt->rxsubchans = V4L2_TUNER_SUB_STEREO;
-			} else {
-				vt->rxsubchans = V4L2_TUNER_SUB_MONO;
-			}
-			if (status_mask & PVR2_SIGNAL_SAP) {
-				vt->rxsubchans |= (V4L2_TUNER_SUB_LANG1 |
-						   V4L2_TUNER_SUB_LANG2);
-			}
-			vt->signal = 65535;
-		}
-
-		val = 0;
-		ret = pvr2_ctrl_get_value(
-			pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_AUDIOMODE),
-			&val);
-		vt->audmode = val;
+		pvr2_hdw_execute_tuner_poll(hdw);
+		ret = pvr2_hdw_get_tuner_status(hdw,vt);
 		break;
 	}
 
@@ -405,8 +360,27 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	{
 		const struct v4l2_frequency *vf = (struct v4l2_frequency *)arg;
 		unsigned long fv;
-		fv = vf->frequency;
+		struct v4l2_tuner vt;
+		int cur_input;
+		struct pvr2_ctrl *ctrlp;
+		ret = pvr2_hdw_get_tuner_status(hdw,&vt);
+		if (ret != 0) break;
+		ctrlp = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT);
+		ret = pvr2_ctrl_get_value(ctrlp,&cur_input);
+		if (ret != 0) break;
 		if (vf->type == V4L2_TUNER_RADIO) {
+			if (cur_input != PVR2_CVAL_INPUT_RADIO) {
+				pvr2_ctrl_set_value(ctrlp,
+						    PVR2_CVAL_INPUT_RADIO);
+			}
+		} else {
+			if (cur_input == PVR2_CVAL_INPUT_RADIO) {
+				pvr2_ctrl_set_value(ctrlp,
+						    PVR2_CVAL_INPUT_TV);
+			}
+		}
+		fv = vf->frequency;
+		if (vt.capability & V4L2_TUNER_CAP_LOW) {
 			fv = (fv * 125) / 2;
 		} else {
 			fv = fv * 62500;
@@ -420,7 +394,10 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct v4l2_frequency *vf = (struct v4l2_frequency *)arg;
 		int val = 0;
-		int cur_input = PVR2_CVAL_INPUT_TV;
+		int cur_input;
+		struct v4l2_tuner vt;
+		ret = pvr2_hdw_get_tuner_status(hdw,&vt);
+		if (ret != 0) break;
 		ret = pvr2_ctrl_get_value(
 			pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_FREQUENCY),
 			&val);
@@ -429,14 +406,16 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT),
 			&cur_input);
 		if (cur_input == PVR2_CVAL_INPUT_RADIO) {
-			val = (val * 2) / 125;
-			vf->frequency = val;
 			vf->type = V4L2_TUNER_RADIO;
 		} else {
-			val /= 62500;
-			vf->frequency = val;
 			vf->type = V4L2_TUNER_ANALOG_TV;
 		}
+		if (vt.capability & V4L2_TUNER_CAP_LOW) {
+			val = (val * 2) / 125;
+		} else {
+			val /= 62500;
+		}
+		vf->frequency = val;
 		break;
 	}
 

@@ -590,6 +590,27 @@ static int handler_check(struct pvr2_i2c_client *cp)
 
 #define BUFSIZE 500
 
+
+void pvr2_i2c_core_status_poll(struct pvr2_hdw *hdw)
+{
+	struct list_head *item;
+	struct pvr2_i2c_client *cp;
+	mutex_lock(&hdw->i2c_list_lock); do {
+		struct v4l2_tuner *vtp = &hdw->tuner_signal_info;
+		memset(vtp,0,sizeof(vtp));
+		list_for_each(item,&hdw->i2c_clients) {
+			cp = list_entry(item,struct pvr2_i2c_client,list);
+			if (!cp->detected_flag) continue;
+			if (!cp->status_poll) continue;
+			cp->status_poll(cp);
+		}
+		hdw->tuner_signal_stale = 0;
+	} while (0); mutex_unlock(&hdw->i2c_list_lock);
+}
+
+
+/* Issue various I2C operations to bring chip-level drivers into sync with
+   state stored in this driver. */
 void pvr2_i2c_core_sync(struct pvr2_hdw *hdw)
 {
 	unsigned long msk;
@@ -876,6 +897,7 @@ static int pvr2_i2c_attach_inform(struct i2c_client *client)
 		  client->addr,cp);
 	if (!cp) return -ENOMEM;
 	memset(cp,0,sizeof(*cp));
+	cp->hdw = hdw;
 	INIT_LIST_HEAD(&cp->list);
 	cp->client = client;
 	mutex_lock(&hdw->i2c_list_lock); do {

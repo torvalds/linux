@@ -44,12 +44,6 @@
 #define PVR2_CVAL_INPUT_COMPOSITE 2
 #define PVR2_CVAL_INPUT_RADIO 3
 
-/* Values that pvr2_hdw_get_signal_status() returns */
-#define PVR2_SIGNAL_OK     0x0001
-#define PVR2_SIGNAL_STEREO 0x0002
-#define PVR2_SIGNAL_SAP    0x0004
-
-
 /* Subsystem definitions - these are various pieces that can be
    independently stopped / started.  Usually you don't want to mess with
    this directly (let the driver handle things itself), but it is useful
@@ -155,8 +149,11 @@ int pvr2_hdw_commit_ctl(struct pvr2_hdw *);
 /* Return name for this driver instance */
 const char *pvr2_hdw_get_driver_name(struct pvr2_hdw *);
 
-/* Return PVR2_SIGNAL_XXXX bit mask indicating signal status */
-unsigned int pvr2_hdw_get_signal_status(struct pvr2_hdw *);
+/* Mark tuner status stale so that it will be re-fetched */
+void pvr2_hdw_execute_tuner_poll(struct pvr2_hdw *);
+
+/* Return information about the tuner */
+int pvr2_hdw_get_tuner_status(struct pvr2_hdw *,struct v4l2_tuner *);
 
 /* Query device and see if it thinks it is on a high-speed USB link */
 int pvr2_hdw_is_hsm(struct pvr2_hdw *);
