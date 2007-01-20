@@ -66,7 +66,9 @@ static void set_input(struct pvr2_v4l_decoder *ctxt)
 		route.input = SAA7115_SVIDEO2;
 		break;
 	case PVR2_CVAL_INPUT_RADIO:
-		// ????? No idea yet what to do here
+		// In radio mode, we mute the video, but point at one
+		// spot just to stay consistent
+		route.input = SAA7115_COMPOSITE5;
 	default:
 		return;
 	}
