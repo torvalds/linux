@@ -94,6 +94,9 @@ static struct v4l2_tvnorm tvnorms[] = {
 		.name      = "NTSC-JP",
 		.id        = V4L2_STD_NTSC_M_JP,
 	},{
+		.name      = "NTSC-4.43",
+		.id        = V4L2_STD_NTSC_443,
+	},{
 		.name      = "PAL-BG",
 		.id        = V4L2_STD_PAL_BG,
 	},{
