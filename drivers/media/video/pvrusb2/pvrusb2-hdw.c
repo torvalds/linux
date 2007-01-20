@@ -94,7 +94,6 @@ static int procreload = 0;
 static int tuner[PVR_NUM] = { [0 ... PVR_NUM-1] = -1 };
 static int tolerance[PVR_NUM] = { [0 ... PVR_NUM-1] = 0 };
 static int video_std[PVR_NUM] = { [0 ... PVR_NUM-1] = 0 };
-static int auto_mode_switch[PVR_NUM];
 static int init_pause_msec = 0;
 
 module_param(ctlchg, int, S_IRUGO|S_IWUSR);
@@ -112,8 +111,6 @@ module_param_array(video_std,    int, NULL, 0444);
 MODULE_PARM_DESC(video_std,"specify initial video standard");
 module_param_array(tolerance,    int, NULL, 0444);
 MODULE_PARM_DESC(tolerance,"specify stream error tolerance");
-module_param_array(auto_mode_switch,    int, NULL, 0444);
-MODULE_PARM_DESC(auto_mode_switch,"Enable TV/Radio automatic mode switch based on freq");
 
 #define PVR2_CTL_WRITE_ENDPOINT  0x01
 #define PVR2_CTL_READ_ENDPOINT   0x81
@@ -759,7 +756,6 @@ VCREATE_FUNCS(audiomode)
 VCREATE_FUNCS(res_hor)
 VCREATE_FUNCS(res_ver)
 VCREATE_FUNCS(srate)
-VCREATE_FUNCS(automodeswitch)
 
 /* Table definition of all controls which can be manipulated */
 static const struct pvr2_ctl_info control_defs[] = {
@@ -858,12 +854,6 @@ static const struct pvr2_ctl_info control_defs[] = {
 		   depending on the standard. */
 		.get_max_value = ctrl_vres_max_get,
 		.get_min_value = ctrl_vres_min_get,
-	},{
-		.desc = "Automatic TV / Radio mode switch based on frequency",
-		.name = "auto_mode_switch",
-		.default_value = 0,
-		DEFREF(automodeswitch),
-		DEFBOOL,
 	},{
 		.v4l_id = V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ,
 		.default_value = V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000,
@@ -1022,71 +1012,28 @@ unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *hdw)
    driver-core side effects of this action. */
 void pvr2_hdw_set_cur_freq(struct pvr2_hdw *hdw,unsigned long val)
 {
-	int mode = 0;
-
-	/* If hdw->automodeswitch_val is set, then we do something clever:
-	   Look at the desired frequency and see if it looks like FM or TV.
-	   Execute a possible mode switch based on this result.  Otherwise
-	   we use the current input setting to determine which frequency
-	   register we need to adjust. */
-	if (hdw->automodeswitch_val) {
-		/* Note that since FM RADIO frequency range sits *inside*
-		   the TV spectrum that we must therefore check the radio
-		   range first... */
-		if ((val >= RADIO_MIN_FREQ) && (val <= RADIO_MAX_FREQ)) {
-			mode = 1;
-		} else if ((val >= TV_MIN_FREQ) && (val <= TV_MAX_FREQ)) {
-			mode = 2;
-		}
-	} else {
-		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
-			mode = 1;
-		} else {
-			mode = 2;
-		}
-	}
-
-	switch (mode) {
-	case 1:
+	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
 		if (hdw->freqSelector) {
 			/* Swing over to radio frequency selection */
 			hdw->freqSelector = 0;
 			hdw->freqDirty = !0;
 		}
-		if (hdw->input_val == PVR2_CVAL_INPUT_TV) {
-			/* Force switch to radio mode */
-			hdw->input_val = PVR2_CVAL_INPUT_RADIO;
-			hdw->input_dirty = !0;
-		}
 		if (hdw->freqValRadio != val) {
 			hdw->freqValRadio = val;
 			hdw->freqSlotRadio = 0;
-			if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
-				hdw->freqDirty = !0;
-			}
+			hdw->freqDirty = !0;
 		}
-		break;
-	case 2:
+	} else {
 		if (!(hdw->freqSelector)) {
 			/* Swing over to television frequency selection */
 			hdw->freqSelector = 1;
 			hdw->freqDirty = !0;
 		}
-		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
-			/* Force switch to television mode */
-			hdw->input_val = PVR2_CVAL_INPUT_TV;
-			hdw->input_dirty = !0;
-		}
 		if (hdw->freqValTelevision != val) {
 			hdw->freqValTelevision = val;
 			hdw->freqSlotTelevision = 0;
-			if (hdw->input_val == PVR2_CVAL_INPUT_TV) {
-				hdw->freqDirty = !0;
-			}
+			hdw->freqDirty = !0;
 		}
-		break;
-	default:
-		break;
 	}
 }
 
@@ -1838,11 +1785,6 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	hdw->freqValTelevision = 175250000L;
 	/* 104.3 MHz, a usable FM station for my area */
 	hdw->freqValRadio = 104300000L;
-
-	/* Default value for auto mode switch based on module option */
-	if ((hdw->unit_number >= 0) && (hdw->unit_number < PVR_NUM)) {
-		hdw->automodeswitch_val = auto_mode_switch[hdw->unit_number];
-	}
 
 	// Do not use pvr2_reset_ctl_endpoints() here.  It is not
 	// thread-safe against the normal pvr2_send_request() mechanism.

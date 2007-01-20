@@ -318,7 +318,6 @@ struct pvr2_hdw {
 	VCREATE_DATA(res_hor);
 	VCREATE_DATA(res_ver);
 	VCREATE_DATA(srate);
-	VCREATE_DATA(automodeswitch);
 #undef VCREATE_DATA
 
 	struct pvr2_ctld_info *mpeg_ctrl_info;
