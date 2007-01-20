@@ -1189,8 +1189,8 @@ struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
 	vp->dev_video = kmalloc(sizeof(*vp->dev_video),GFP_KERNEL);
 	vp->dev_radio = kmalloc(sizeof(*vp->dev_radio),GFP_KERNEL);
 	if (!(vp->dev_video && vp->dev_radio)) {
-		if (vp->dev_video) kfree(vp->dev_video);
-		if (vp->dev_radio) kfree(vp->dev_radio);
+		kfree(vp->dev_video);
+		kfree(vp->dev_radio);
 		kfree(vp);
 		return NULL;
 	}
