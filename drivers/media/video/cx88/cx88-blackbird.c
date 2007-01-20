@@ -119,9 +119,6 @@ static struct cx88_tvnorm tvnorms[] = {
 		.cxoformat = 0x181f0008,
 	}
 };
-int cx88_do_ioctl( struct inode *inode, struct file *file,
-		   int radio, struct cx88_core *core, unsigned int cmd,
-		   void *arg, v4l2_kioctl driver_ioctl );
 
 #define BLACKBIRD_FIRM_IMAGE_SIZE 256*1024
 
@@ -1000,30 +997,6 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 		return cx8800_ctrl_query(qctrl);
 	}
 
-	default:
-		return cx88_do_ioctl(inode, file, 0, dev->core, cmd, arg, cx88_ioctl_hook);
-	}
-	return 0;
-}
-
-int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
-		  struct cx88_core *core, unsigned int cmd, void *arg, v4l2_kioctl driver_ioctl)
-{
-	int err;
-
-       if (debug) {
-	       if (debug > 1) {
-		       if (_IOC_DIR(cmd) & _IOC_WRITE)
-			       v4l_printk_ioctl_arg("cx88(w)",cmd, arg);
-		       else if (!_IOC_DIR(cmd) & _IOC_READ) {
-			       v4l_print_ioctl("cx88", cmd);
-		       }
-	       } else
-		       v4l_print_ioctl(core->name,cmd);
-
-       }
-
-	switch (cmd) {
 	/* ------ input switching ---------- */
 	case VIDIOC_ENUMINPUT:
 	{
