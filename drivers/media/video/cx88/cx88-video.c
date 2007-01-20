@@ -86,7 +86,7 @@ static LIST_HEAD(cx8800_devlist);
 /* ------------------------------------------------------------------- */
 /* static data                                                         */
 
-static struct v4l2_tvnorm tvnorms[] = {
+struct v4l2_tvnorm cx88_tvnorms[] = {
 	{
 		.name      = "NTSC-M",
 		.id        = V4L2_STD_NTSC_M,
@@ -125,6 +125,10 @@ static struct v4l2_tvnorm tvnorms[] = {
 		.id        = V4L2_STD_SECAM_DK,
 	}
 };
+EXPORT_SYMBOL(cx88_tvnorms);
+
+unsigned int cx88_tvnormsize=ARRAY_SIZE(cx88_tvnorms);
+EXPORT_SYMBOL(cx88_tvnormsize);
 
 static struct v4l2_tvnorm radionorms[] = {
 	{
@@ -932,10 +936,8 @@ video_mmap(struct file *file, struct vm_area_struct * vma)
 /* ------------------------------------------------------------------ */
 /* VIDEO CTRL IOCTLS                                                  */
 
-static int vidioc_g_ctrl (struct file *file, void *priv,
-				struct v4l2_control *ctl)
+int cx88_get_control (struct cx88_core  *core, struct v4l2_control *ctl)
 {
-	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
 	struct cx88_ctrl  *c    = NULL;
 	u32 value;
 	int i;
@@ -964,8 +966,9 @@ static int vidioc_g_ctrl (struct file *file, void *priv,
 				value,c->mask, c->sreg ? " [shadowed]" : "");
 	return 0;
 }
+EXPORT_SYMBOL(cx88_get_control);
 
-static int set_control(struct cx88_core *core, struct v4l2_control *ctl)
+int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 {
 	struct cx88_ctrl *c = NULL;
 	u32 value,mask;
@@ -1019,6 +1022,7 @@ static int set_control(struct cx88_core *core, struct v4l2_control *ctl)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(cx88_set_control);
 
 static void init_controls(struct cx88_core *core)
 {
@@ -1029,7 +1033,7 @@ static void init_controls(struct cx88_core *core)
 		ctrl.id=cx8800_ctls[i].v.id;
 		ctrl.value=cx8800_ctls[i].v.default_value;
 
-		set_control(core, &ctrl);
+		cx88_set_control(core, &ctrl);
 	}
 }
 
@@ -1179,7 +1183,6 @@ static int vidiocgmbuf (struct file *file, void *priv, struct video_mbuf *mbuf)
 }
 #endif
 
-
 static int vidioc_reqbufs (struct file *file, void *priv, struct v4l2_requestbuffers *p)
 {
 	struct cx8800_fh  *fh   = priv;
@@ -1244,17 +1247,14 @@ static int vidioc_s_std (struct file *file, void *priv, unsigned int i)
 	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
 
 	mutex_lock(&core->lock);
-	cx88_set_tvnorm(core,&tvnorms[i]);
+	cx88_set_tvnorm(core,&cx88_tvnorms[i]);
 	mutex_unlock(&core->lock);
 	return 0;
 }
 
 /* only one input in this sample driver */
-static int vidioc_enum_input (struct file *file, void *priv,
-				struct v4l2_input *i)
+int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i)
 {
-	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
-
 	static const char *iname[] = {
 		[ CX88_VMUX_COMPOSITE1 ] = "Composite1",
 		[ CX88_VMUX_COMPOSITE2 ] = "Composite2",
@@ -1280,9 +1280,17 @@ static int vidioc_enum_input (struct file *file, void *priv,
 	if ((CX88_VMUX_TELEVISION == INPUT(n)->type) ||
 		(CX88_VMUX_CABLE      == INPUT(n)->type))
 		i->type = V4L2_INPUT_TYPE_TUNER;
-	for (n = 0; n < ARRAY_SIZE(tvnorms); n++)
-		i->std |= tvnorms[n].id;
+	for (n = 0; n < ARRAY_SIZE(cx88_tvnorms); n++)
+		i->std |= cx88_tvnorms[n].id;
 	return 0;
+}
+EXPORT_SYMBOL(cx88_enum_input);
+
+static int vidioc_enum_input (struct file *file, void *priv,
+				struct v4l2_input *i)
+{
+	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
+	return cx88_enum_input (core,i);
 }
 
 static int vidioc_g_input (struct file *file, void *priv, unsigned int *i)
@@ -1318,13 +1326,20 @@ static int vidioc_queryctrl (struct file *file, void *priv,
 	return cx8800_ctrl_query(qctrl);
 }
 
+static int vidioc_g_ctrl (struct file *file, void *priv,
+				struct v4l2_control *ctl)
+{
+	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
+	return
+		cx88_get_control(core,ctl);
+}
+
 static int vidioc_s_ctrl (struct file *file, void *priv,
 				struct v4l2_control *ctl)
 {
 	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
-
 	return
-		set_control(core,ctl);
+		cx88_set_control(core,ctl);
 }
 
 static int vidioc_g_tuner (struct file *file, void *priv,
@@ -1379,20 +1394,14 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_frequency (struct file *file, void *priv,
+int cx88_set_freq (struct cx88_core  *core,
 				struct v4l2_frequency *f)
 {
-	struct cx8800_fh  *fh   = priv;
-	struct cx88_core  *core = fh->dev->core;
-
 	if (unlikely(UNSET == core->tuner_type))
 		return -EINVAL;
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
-	if (unlikely(0 == fh->radio && f->type != V4L2_TUNER_ANALOG_TV))
-		return -EINVAL;
-	if (unlikely(1 == fh->radio && f->type != V4L2_TUNER_RADIO))
-		return -EINVAL;
+
 	mutex_lock(&core->lock);
 	core->freq = f->frequency;
 	cx88_newstation(core);
@@ -1403,7 +1412,24 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 	cx88_set_tvaudio(core);
 
 	mutex_unlock(&core->lock);
+
 	return 0;
+}
+EXPORT_SYMBOL(cx88_set_freq);
+
+static int vidioc_s_frequency (struct file *file, void *priv,
+				struct v4l2_frequency *f)
+{
+	struct cx8800_fh  *fh   = priv;
+	struct cx88_core  *core = fh->dev->core;
+
+	if (unlikely(0 == fh->radio && f->type != V4L2_TUNER_ANALOG_TV))
+		return -EINVAL;
+	if (unlikely(1 == fh->radio && f->type != V4L2_TUNER_RADIO))
+		return -EINVAL;
+
+	return
+		cx88_set_freq (core,f);
 }
 
 
@@ -1677,8 +1703,8 @@ static struct video_device cx8800_video_template =
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
-	.tvnorms              = tvnorms,
-	.tvnormsize           = ARRAY_SIZE(tvnorms),
+	.tvnorms              = cx88_tvnorms,
+	.tvnormsize           = ARRAY_SIZE(cx88_tvnorms),
 };
 
 static const struct file_operations radio_fops =
@@ -1789,7 +1815,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* initialize driver struct */
 	spin_lock_init(&dev->slock);
-	core->tvnorm = tvnorms;
+	core->tvnorm = cx88_tvnorms;
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
@@ -1870,7 +1896,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* initial device configuration */
 	mutex_lock(&core->lock);
-	cx88_set_tvnorm(core,tvnorms);
+	cx88_set_tvnorm(core,cx88_tvnorms);
 	init_controls(core);
 	video_mux(core,0);
 	mutex_unlock(&core->lock);
@@ -2040,8 +2066,6 @@ static void cx8800_fini(void)
 
 module_init(cx8800_init);
 module_exit(cx8800_fini);
-
-EXPORT_SYMBOL(cx88_do_ioctl);
 
 /* ----------------------------------------------------------- */
 /*

@@ -629,12 +629,16 @@ int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state);
 int cx8802_resume_common(struct pci_dev *pci_dev);
 
 /* ----------------------------------------------------------- */
-/* cx88-video.c                                                */
-extern int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
-				struct cx88_core *core, unsigned int cmd,
-				void *arg, v4l2_kioctl driver_ioctl);
+/* cx88-video.c*/
+extern unsigned int cx88_tvnormsize;
+extern struct v4l2_tvnorm cx88_tvnorms[];
 extern const u32 cx88_user_ctrls[];
 extern int cx8800_ctrl_query(struct v4l2_queryctrl *qctrl);
+int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i);
+int cx88_set_freq (struct cx88_core  *core,struct v4l2_frequency *f);
+int cx88_get_control(struct cx88_core *core, struct v4l2_control *ctl);
+int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl);
+int cx88_video_mux(struct cx88_core *core, unsigned int input);
 
 /* ----------------------------------------------------------- */
 /* cx88-blackbird.c                                            */
