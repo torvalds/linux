@@ -231,9 +231,8 @@ int pvr2_i2c_cx2584x_v4l_setup(struct pvr2_hdw *hdw,
 	if (cp->handler) return 0;
 	if (!decoder_detect(cp)) return 0;
 
-	ctxt = kmalloc(sizeof(*ctxt),GFP_KERNEL);
+	ctxt = kzalloc(sizeof(*ctxt),GFP_KERNEL);
 	if (!ctxt) return 0;
-	memset(ctxt,0,sizeof(*ctxt));
 
 	ctxt->handler.func_data = ctxt;
 	ctxt->handler.func_table = &hfuncs;

@@ -1934,20 +1934,18 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		return NULL;
 	}
 
-	hdw = kmalloc(sizeof(*hdw),GFP_KERNEL);
+	hdw = kzalloc(sizeof(*hdw),GFP_KERNEL);
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_create: hdw=%p, type \"%s\"",
 		   hdw,pvr2_device_names[hdw_type]);
 	if (!hdw) goto fail;
-	memset(hdw,0,sizeof(*hdw));
 	hdw->tuner_signal_stale = !0;
 	cx2341x_fill_defaults(&hdw->enc_ctl_state);
 
 	hdw->control_cnt = CTRLDEF_COUNT;
 	hdw->control_cnt += MPEGDEF_COUNT;
-	hdw->controls = kmalloc(sizeof(struct pvr2_ctrl) * hdw->control_cnt,
+	hdw->controls = kzalloc(sizeof(struct pvr2_ctrl) * hdw->control_cnt,
 				GFP_KERNEL);
 	if (!hdw->controls) goto fail;
-	memset(hdw->controls,0,sizeof(struct pvr2_ctrl) * hdw->control_cnt);
 	hdw->hdw_type = hdw_type;
 	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;
@@ -1961,11 +1959,9 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		cptr->info = control_defs+idx;
 	}
 	/* Define and configure additional controls from cx2341x module. */
-	hdw->mpeg_ctrl_info = kmalloc(
+	hdw->mpeg_ctrl_info = kzalloc(
 		sizeof(*(hdw->mpeg_ctrl_info)) * MPEGDEF_COUNT, GFP_KERNEL);
 	if (!hdw->mpeg_ctrl_info) goto fail;
-	memset(hdw->mpeg_ctrl_info,0,
-	       sizeof(*(hdw->mpeg_ctrl_info)) * MPEGDEF_COUNT);
 	for (idx = 0; idx < MPEGDEF_COUNT; idx++) {
 		cptr = hdw->controls + idx + CTRLDEF_COUNT;
 		ciptr = &(hdw->mpeg_ctrl_info[idx].info);
@@ -2608,13 +2604,11 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw, int enable_flag)
 		pvr2_trace(PVR2_TRACE_FIRMWARE,
 			   "Preparing to suck out CPU firmware");
 		hdw->fw_size = 0x2000;
-		hdw->fw_buffer = kmalloc(hdw->fw_size,GFP_KERNEL);
+		hdw->fw_buffer = kzalloc(hdw->fw_size,GFP_KERNEL);
 		if (!hdw->fw_buffer) {
 			hdw->fw_size = 0;
 			break;
 		}
-
-		memset(hdw->fw_buffer,0,hdw->fw_size);
 
 		/* We have to hold the CPU during firmware upload. */
 		pvr2_hdw_cpureset_assert(hdw,1);

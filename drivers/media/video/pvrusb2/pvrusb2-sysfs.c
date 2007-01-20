@@ -501,9 +501,8 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,ctl_id);
 	if (!cptr) return;
 
-	cip = kmalloc(sizeof(*cip),GFP_KERNEL);
+	cip = kzalloc(sizeof(*cip),GFP_KERNEL);
 	if (!cip) return;
-	memset(cip,0,sizeof(*cip));
 	pvr2_sysfs_trace("Creating pvr2_sysfs_ctl_item id=%p",cip);
 
 	cip->cptr = cptr;
@@ -613,9 +612,8 @@ static void pvr2_sysfs_add_debugifc(struct pvr2_sysfs *sfp)
 	struct pvr2_sysfs_debugifc *dip;
 	int ret;
 
-	dip = kmalloc(sizeof(*dip),GFP_KERNEL);
+	dip = kzalloc(sizeof(*dip),GFP_KERNEL);
 	if (!dip) return;
-	memset(dip,0,sizeof(*dip));
 	dip->attr_debugcmd.attr.owner = THIS_MODULE;
 	dip->attr_debugcmd.attr.name = "debugcmd";
 	dip->attr_debugcmd.attr.mode = S_IRUGO|S_IWUSR|S_IWGRP;
@@ -768,9 +766,8 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 
 	usb_dev = pvr2_hdw_get_dev(sfp->channel.hdw);
 	if (!usb_dev) return;
-	class_dev = kmalloc(sizeof(*class_dev),GFP_KERNEL);
+	class_dev = kzalloc(sizeof(*class_dev),GFP_KERNEL);
 	if (!class_dev) return;
-	memset(class_dev,0,sizeof(*class_dev));
 
 	pvr2_sysfs_trace("Creating class_dev id=%p",class_dev);
 
@@ -862,9 +859,8 @@ struct pvr2_sysfs *pvr2_sysfs_create(struct pvr2_context *mp,
 				     struct pvr2_sysfs_class *class_ptr)
 {
 	struct pvr2_sysfs *sfp;
-	sfp = kmalloc(sizeof(*sfp),GFP_KERNEL);
+	sfp = kzalloc(sizeof(*sfp),GFP_KERNEL);
 	if (!sfp) return sfp;
-	memset(sfp,0,sizeof(*sfp));
 	pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr2_sysfs id=%p",sfp);
 	pvr2_channel_init(&sfp->channel,mp);
 	sfp->channel.check_func = pvr2_sysfs_internal_check;
@@ -885,9 +881,8 @@ static int pvr2_sysfs_hotplug(struct class_device *cd,char **envp,
 struct pvr2_sysfs_class *pvr2_sysfs_class_create(void)
 {
 	struct pvr2_sysfs_class *clp;
-	clp = kmalloc(sizeof(*clp),GFP_KERNEL);
+	clp = kzalloc(sizeof(*clp),GFP_KERNEL);
 	if (!clp) return clp;
-	memset(clp,0,sizeof(*clp));
 	pvr2_sysfs_trace("Creating pvr2_sysfs_class id=%p",clp);
 	clp->class.name = "pvrusb2";
 	clp->class.class_release = pvr2_sysfs_class_release;

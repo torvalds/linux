@@ -359,9 +359,8 @@ struct v4l2_standard *pvr2_std_create_enum(unsigned int *countptr,
 		   std_cnt);
 	if (!std_cnt) return NULL; // paranoia
 
-	stddefs = kmalloc(sizeof(struct v4l2_standard) * std_cnt,
+	stddefs = kzalloc(sizeof(struct v4l2_standard) * std_cnt,
 			  GFP_KERNEL);
-	memset(stddefs,0,sizeof(struct v4l2_standard) * std_cnt);
 	for (idx = 0; idx < std_cnt; idx++) stddefs[idx].index = idx;
 
 	idx = 0;

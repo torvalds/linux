@@ -897,12 +897,11 @@ static int pvr2_i2c_attach_inform(struct i2c_client *client)
 	struct pvr2_hdw *hdw = (struct pvr2_hdw *)(client->adapter->algo_data);
 	struct pvr2_i2c_client *cp;
 	int fl = !(hdw->i2c_pend_types & PVR2_I2C_PEND_ALL);
-	cp = kmalloc(sizeof(*cp),GFP_KERNEL);
+	cp = kzalloc(sizeof(*cp),GFP_KERNEL);
 	trace_i2c("i2c_attach [client=%s @ 0x%x ctxt=%p]",
 		  client->name,
 		  client->addr,cp);
 	if (!cp) return -ENOMEM;
-	memset(cp,0,sizeof(*cp));
 	cp->hdw = hdw;
 	INIT_LIST_HEAD(&cp->list);
 	cp->client = client;
