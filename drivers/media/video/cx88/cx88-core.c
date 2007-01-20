@@ -899,6 +899,9 @@ int cx88_set_tvnorm(struct cx88_core *core, struct v4l2_tvnorm *norm)
 	if (norm->id & V4L2_STD_NTSC_M_JP) {
 		cxiformat = VideoFormatNTSCJapan;
 		cxoformat = 0x181f0008;
+	} else if (norm->id & V4L2_STD_NTSC_443) {
+		cxiformat = VideoFormatNTSC443;
+		cxoformat = 0x181f0008;
 	} else if (norm->id & V4L2_STD_PAL_M) {
 		cxiformat = VideoFormatPALM;
 		cxoformat = 0x1c1f0008;
@@ -915,10 +918,11 @@ int cx88_set_tvnorm(struct cx88_core *core, struct v4l2_tvnorm *norm)
 		cxiformat = VideoFormatNTSC;
 		cxoformat = 0x181f0008;
 	} else if (norm->id & V4L2_STD_SECAM) {
-		cxiformat = VideoFormatSECAM;
-		cxoformat = 0x181f0008;
 		step_db = 4250000 * 8;
 		step_dr = 4406250 * 8;
+
+		cxiformat = VideoFormatSECAM;
+		cxoformat = 0x181f0008;
 	} else { /* PAL */
 		cxiformat = VideoFormatPAL;
 		cxoformat = 0x181f0008;
