@@ -597,7 +597,7 @@ void pvr2_i2c_core_status_poll(struct pvr2_hdw *hdw)
 	struct pvr2_i2c_client *cp;
 	mutex_lock(&hdw->i2c_list_lock); do {
 		struct v4l2_tuner *vtp = &hdw->tuner_signal_info;
-		memset(vtp,0,sizeof(vtp));
+		memset(vtp,0,sizeof(*vtp));
 		list_for_each(item,&hdw->i2c_clients) {
 			cp = list_entry(item,struct pvr2_i2c_client,list);
 			if (!cp->detected_flag) continue;
