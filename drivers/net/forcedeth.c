@@ -518,12 +518,6 @@ union ring_type {
 #define TX_RING_MIN		64
 #define RING_MAX_DESC_VER_1	1024
 #define RING_MAX_DESC_VER_2_3	16384
-/*
- * Difference between the get and put pointers for the tx ring.
- * This is used to throttle the amount of data outstanding in the
- * tx ring.
- */
-#define TX_LIMIT_DIFFERENCE	1
 
 /* rx/tx mac addr + type + vlan + align + slack*/
 #define NV_RX_HEADERS		(64)
@@ -777,8 +771,7 @@ struct fe_priv {
 	union ring_type tx_ring;
 	u32 tx_flags;
 	int tx_ring_size;
-	int tx_limit_start;
-	int tx_limit_stop;
+	int tx_stop;
 
 	/* vlan fields */
 	struct vlan_group *vlangrp;
@@ -1583,9 +1576,10 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	empty_slots = nv_get_empty_tx_slots(np);
-	if ((empty_slots - np->tx_limit_stop) <= entries) {
+	if (empty_slots <= entries) {
 		spin_lock_irq(&np->lock);
 		netif_stop_queue(dev);
+		np->tx_stop = 1;
 		spin_unlock_irq(&np->lock);
 		return NETDEV_TX_BUSY;
 	}
@@ -1704,9 +1698,10 @@ static int nv_start_xmit_optimized(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	empty_slots = nv_get_empty_tx_slots(np);
-	if ((empty_slots - np->tx_limit_stop) <= entries) {
+	if (empty_slots <= entries) {
 		spin_lock_irq(&np->lock);
 		netif_stop_queue(dev);
+		np->tx_stop = 1;
 		spin_unlock_irq(&np->lock);
 		return NETDEV_TX_BUSY;
 	}
@@ -1813,6 +1808,7 @@ static void nv_tx_done(struct net_device *dev)
 	struct fe_priv *np = netdev_priv(dev);
 	u32 flags;
 	struct sk_buff *skb;
+	struct ring_desc* orig_get_tx = np->get_tx.orig;
 
 	while (np->get_tx.orig != np->put_tx.orig) {
 		flags = le32_to_cpu(np->get_tx.orig->flaglen);
@@ -1858,8 +1854,10 @@ static void nv_tx_done(struct net_device *dev)
 		if (np->get_tx_ctx++ == np->last_tx_ctx)
 			np->get_tx_ctx = np->first_tx_ctx;
 	}
-	if (nv_get_empty_tx_slots(np) > np->tx_limit_start)
+	if ((np->tx_stop == 1) && (np->get_tx.orig != orig_get_tx)) {
+		np->tx_stop = 0;
 		netif_wake_queue(dev);
+	}
 }
 
 static void nv_tx_done_optimized(struct net_device *dev)
@@ -1867,6 +1865,7 @@ static void nv_tx_done_optimized(struct net_device *dev)
 	struct fe_priv *np = netdev_priv(dev);
 	u32 flags;
 	struct sk_buff *skb;
+	struct ring_desc_ex* orig_get_tx = np->get_tx.ex;
 
 	while (np->get_tx.ex == np->put_tx.ex) {
 		flags = le32_to_cpu(np->get_tx.ex->flaglen);
@@ -1895,8 +1894,10 @@ static void nv_tx_done_optimized(struct net_device *dev)
 		if (np->get_tx_ctx++ == np->last_tx_ctx)
 			np->get_tx_ctx = np->first_tx_ctx;
 	}
-	if (nv_get_empty_tx_slots(np) > np->tx_limit_start)
+	if ((np->tx_stop == 1) && (np->get_tx.ex != orig_get_tx)) {
+		np->tx_stop = 0;
 		netif_wake_queue(dev);
+	}
 }
 
 /*
@@ -4001,8 +4002,6 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 	/* set new values */
 	np->rx_ring_size = ring->rx_pending;
 	np->tx_ring_size = ring->tx_pending;
-	np->tx_limit_stop = TX_LIMIT_DIFFERENCE;
-	np->tx_limit_start = TX_LIMIT_DIFFERENCE;
 	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 		np->rx_ring.orig = (struct ring_desc*)rxtx_ring;
 		np->tx_ring.orig = &np->rx_ring.orig[np->rx_ring_size];
@@ -4967,8 +4966,6 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 
 	np->rx_ring_size = RX_RING_DEFAULT;
 	np->tx_ring_size = TX_RING_DEFAULT;
-	np->tx_limit_stop = TX_LIMIT_DIFFERENCE;
-	np->tx_limit_start = TX_LIMIT_DIFFERENCE;
 
 	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 		np->rx_ring.orig = pci_alloc_consistent(pci_dev,
