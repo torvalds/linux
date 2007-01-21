@@ -383,6 +383,17 @@ static int m9206_firmware_download(struct usb_device *udev, const struct firmwar
 	return ret;
 }
 
+static struct qt1010_config megasky_qt1010_config = {
+	.i2c_address = 0xc4
+};
+
+static int megasky_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	return dvb_attach(qt1010_attach,
+			  adap->fe, &adap->dev->i2c_adap,
+			  &megasky_qt1010_config) == NULL ? -ENODEV : 0;
+}
+
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties megasky_properties;
 
@@ -442,7 +453,7 @@ static struct dvb_usb_device_properties megasky_properties = {
 		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
 
 		.frontend_attach  = megasky_frontend_attach,
-		.tuner_attach     = qt1010_tuner_attach,
+		.tuner_attach     = megasky_tuner_attach,
 
 		.stream = {
 			.type = USB_BULK,
