@@ -850,10 +850,8 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 			  1 << (node_id - 32));
 	}
 	flush_writes(ohci);
-
-	spin_unlock_irqrestore(&ohci->lock, flags);
-
  out:
+	spin_unlock_irqrestore(&ohci->lock, flags);
 	return retval;
 }
 
