@@ -64,7 +64,6 @@ struct sbp2_device {
 
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
 #define SBP2_MAX_SECTORS		255	/* Max sectors supported */
-#define SBP2_MAX_CMDS			8	/* This should be safe */
 
 #define SBP2_ORB_NULL			0x80000000
 
@@ -1010,8 +1009,8 @@ static struct scsi_host_template scsi_driver_template = {
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,
 	.use_clustering		= ENABLE_CLUSTERING,
-	.cmd_per_lun		= 1,	/* SBP2_MAX_CMDS, */
-	.can_queue		= 1,		/* SBP2_MAX_CMDS, */
+	.cmd_per_lun		= 1,
+	.can_queue		= 1,
 };
 
 static int add_scsi_devices(struct fw_unit *unit)
