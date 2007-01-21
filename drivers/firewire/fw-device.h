@@ -48,7 +48,7 @@ struct fw_device {
 static inline struct fw_device *
 fw_device(struct device *dev)
 {
-        return container_of(dev, struct fw_device, device);
+	return container_of(dev, struct fw_device, device);
 }
 
 struct fw_device *fw_device_get(struct fw_device *device);
@@ -63,7 +63,7 @@ struct fw_unit {
 static inline struct fw_unit *
 fw_unit(struct device *dev)
 {
-        return container_of(dev, struct fw_unit, device);
+	return container_of(dev, struct fw_unit, device);
 }
 
 #define CSR_OFFSET	0x40
@@ -119,7 +119,7 @@ struct fw_driver {
 static inline struct fw_driver *
 fw_driver(struct device_driver *drv)
 {
-        return container_of(drv, struct fw_driver, driver);
+	return container_of(drv, struct fw_driver, driver);
 }
 
 extern const struct file_operations fw_device_ops;

@@ -341,7 +341,6 @@ const struct fw_address_region fw_csr_region =
 	{ 0xfffff0000000ULL, 0xfffff0000800ull };
 const struct fw_address_region fw_unit_space_region =
 	{ 0xfffff0000900ull, 0x1000000000000ull };
-
 EXPORT_SYMBOL(fw_low_memory_region);
 EXPORT_SYMBOL(fw_high_memory_region);
 EXPORT_SYMBOL(fw_private_region);
@@ -355,7 +354,6 @@ EXPORT_SYMBOL(fw_unit_space_region);
  * parameters passed to the callback give the details of the
  * particular request
  */
-
 int
 fw_core_add_address_handler(struct fw_address_handler *handler,
 			    const struct fw_address_region *region)
@@ -385,7 +383,6 @@ fw_core_add_address_handler(struct fw_address_handler *handler,
 
 	return ret;
 }
-
 EXPORT_SYMBOL(fw_core_add_address_handler);
 
 /**
@@ -396,7 +393,6 @@ EXPORT_SYMBOL(fw_core_add_address_handler);
  * length are set to the start and the length respectively for the
  * deallocated region, payload is set to NULL.
  */
-
 void fw_core_remove_address_handler(struct fw_address_handler *handler)
 {
 	unsigned long flags;
@@ -405,7 +401,6 @@ void fw_core_remove_address_handler(struct fw_address_handler *handler)
 	list_del(&handler->link);
 	spin_unlock_irqrestore(&address_handler_lock, flags);
 }
-
 EXPORT_SYMBOL(fw_core_remove_address_handler);
 
 struct fw_request {
@@ -552,7 +547,6 @@ fw_send_response(struct fw_card *card, struct fw_request *request, int rcode)
 
 	card->driver->send_response(card, &request->response);
 }
-
 EXPORT_SYMBOL(fw_send_response);
 
 void
@@ -613,7 +607,6 @@ fw_core_handle_request(struct fw_card *card,
 					  request->data, request->length,
 					  handler->callback_data);
 }
-
 EXPORT_SYMBOL(fw_core_handle_request);
 
 void
@@ -677,7 +670,6 @@ fw_core_handle_response(struct fw_card *card,
 
 	t->callback(card, rcode, data, data_length, t->callback_data);
 }
-
 EXPORT_SYMBOL(fw_core_handle_response);
 
 MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");

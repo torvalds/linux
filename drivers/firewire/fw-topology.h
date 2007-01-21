@@ -37,7 +37,7 @@ struct fw_port {
 
 struct fw_node {
 	u16 node_id;
-        u8 color;
+	u8 color;
 	u8 port_count;
 	unsigned link_on : 1;
 	unsigned initiated_reset : 1;
@@ -48,19 +48,19 @@ struct fw_node {
 
 	atomic_t ref_count;
 
-        /* For serializing node topology into a list. */
+	/* For serializing node topology into a list. */
 	struct list_head link;
 
 	/* Upper layer specific data. */
 	void *data;
 
-        struct fw_port ports[0];
+	struct fw_port ports[0];
 };
 
 static inline struct fw_node *
 fw_node(struct list_head *l)
 {
-        return list_entry (l, struct fw_node, link);
+	return list_entry (l, struct fw_node, link);
 }
 
 static inline struct fw_node *

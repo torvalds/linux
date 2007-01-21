@@ -33,15 +33,15 @@
 #define TCODE_READ_QUADLET_RESPONSE	6
 #define TCODE_READ_BLOCK_RESPONSE	7
 #define TCODE_CYCLE_START		8
-#define TCODE_LOCK_REQUEST       	9
-#define TCODE_STREAM_DATA        	10
-#define TCODE_LOCK_RESPONSE      	11
+#define TCODE_LOCK_REQUEST		9
+#define TCODE_STREAM_DATA		10
+#define TCODE_LOCK_RESPONSE		11
 
 #define RCODE_COMPLETE			0x0
-#define RCODE_CONFLICT_ERROR     	0x4
-#define RCODE_DATA_ERROR         	0x5
-#define RCODE_TYPE_ERROR         	0x6
-#define RCODE_ADDRESS_ERROR      	0x7
+#define RCODE_CONFLICT_ERROR		0x4
+#define RCODE_DATA_ERROR		0x5
+#define RCODE_TYPE_ERROR		0x6
+#define RCODE_ADDRESS_ERROR		0x7
 
 #define SCODE_100			0x0
 #define SCODE_200			0x1
@@ -122,13 +122,13 @@ struct fw_cdev_create_iso_context {
 };
 
 struct fw_cdev_iso_packet {
-        __u16 payload_length;	/* Length of indirect payload. */
+	__u16 payload_length;	/* Length of indirect payload. */
 	__u32 interrupt : 1;	/* Generate interrupt on this packet */
 	__u32 skip : 1;		/* Set to not send packet at all. */
 	__u32 tag : 2;
 	__u32 sy : 4;
 	__u32 header_length : 8;	/* Length of immediate header. */
-        __u32 header[0];
+	__u32 header[0];
 };
 
 struct fw_cdev_queue_iso {

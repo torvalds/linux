@@ -444,5 +444,4 @@ fw_core_handle_bus_reset(struct fw_card *card,
 
 	spin_unlock_irqrestore(&card->lock, flags);
 }
-
 EXPORT_SYMBOL(fw_core_handle_bus_reset);

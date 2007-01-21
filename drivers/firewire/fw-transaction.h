@@ -36,9 +36,9 @@
 #define TCODE_READ_QUADLET_RESPONSE	6
 #define TCODE_READ_BLOCK_RESPONSE	7
 #define TCODE_CYCLE_START		8
-#define TCODE_LOCK_REQUEST       	9
-#define TCODE_STREAM_DATA        	10
-#define TCODE_LOCK_RESPONSE      	11
+#define TCODE_LOCK_REQUEST		9
+#define TCODE_STREAM_DATA		10
+#define TCODE_LOCK_RESPONSE		11
 
 #define TCODE_IS_BLOCK_PACKET(tcode)	(((tcode) &  1) != 0)
 #define TCODE_IS_REQUEST(tcode)		(((tcode) &  2) == 0)
@@ -61,26 +61,26 @@
 #define SCODE_400			0x2
 #define SCODE_BETA			0x3
 
-#define EXTCODE_MASK_SWAP        0x1
-#define EXTCODE_COMPARE_SWAP     0x2
-#define EXTCODE_FETCH_ADD        0x3
-#define EXTCODE_LITTLE_ADD       0x4
-#define EXTCODE_BOUNDED_ADD      0x5
-#define EXTCODE_WRAP_ADD         0x6
+#define EXTCODE_MASK_SWAP	0x1
+#define EXTCODE_COMPARE_SWAP	0x2
+#define EXTCODE_FETCH_ADD	0x3
+#define EXTCODE_LITTLE_ADD	0x4
+#define EXTCODE_BOUNDED_ADD	0x5
+#define EXTCODE_WRAP_ADD	0x6
 
-#define ACK_COMPLETE             0x1
-#define ACK_PENDING              0x2
-#define ACK_BUSY_X               0x4
-#define ACK_BUSY_A               0x5
-#define ACK_BUSY_B               0x6
-#define ACK_DATA_ERROR           0xd
-#define ACK_TYPE_ERROR           0xe
+#define ACK_COMPLETE		0x1
+#define ACK_PENDING		0x2
+#define ACK_BUSY_X		0x4
+#define ACK_BUSY_A		0x5
+#define ACK_BUSY_B		0x6
+#define ACK_DATA_ERROR		0xd
+#define ACK_TYPE_ERROR		0xe
 
-#define RCODE_COMPLETE           0x0
-#define RCODE_CONFLICT_ERROR     0x4
-#define RCODE_DATA_ERROR         0x5
-#define RCODE_TYPE_ERROR         0x6
-#define RCODE_ADDRESS_ERROR      0x7
+#define RCODE_COMPLETE		0x0
+#define RCODE_CONFLICT_ERROR	0x4
+#define RCODE_DATA_ERROR	0x5
+#define RCODE_TYPE_ERROR	0x6
+#define RCODE_ADDRESS_ERROR	0x7
 
 /* Juju specific rcodes */
 #define RCODE_SEND_ERROR	0x10
@@ -94,10 +94,10 @@
 
 #define LOCAL_BUS 0xffc0
 
-#define SELFID_PORT_CHILD        0x3
-#define SELFID_PORT_PARENT       0x2
-#define SELFID_PORT_NCONN        0x1
-#define SELFID_PORT_NONE         0x0
+#define SELFID_PORT_CHILD	0x3
+#define SELFID_PORT_PARENT	0x2
+#define SELFID_PORT_NCONN	0x1
+#define SELFID_PORT_NONE	0x0
 
 #define PHY_PACKET_CONFIG	0x0
 #define PHY_PACKET_LINK_ON	0x1
@@ -162,54 +162,54 @@ typedef void (*fw_bus_reset_callback_t)(struct fw_card *handle,
 					void *callback_data);
 
 struct fw_packet {
-        int speed;
-        int generation;
-        u32 header[4];
-        size_t header_length;
-        void *payload;
-        size_t payload_length;
-        u32 timestamp;
+	int speed;
+	int generation;
+	u32 header[4];
+	size_t header_length;
+	void *payload;
+	size_t payload_length;
+	u32 timestamp;
 
-        dma_addr_t payload_bus;
+	dma_addr_t payload_bus;
 
-        /* This callback is called when the packet transmission has
-         * completed; for successful transmission, the status code is
-         * the ack received from the destination, otherwise it's a
-         * negative errno: ENOMEM, ESTALE, ETIMEDOUT, ENODEV, EIO.
-         * The callback can be called from tasklet context and thus
-         * must never block.
-         */
-        fw_packet_callback_t callback;
+	/* This callback is called when the packet transmission has
+	 * completed; for successful transmission, the status code is
+	 * the ack received from the destination, otherwise it's a
+	 * negative errno: ENOMEM, ESTALE, ETIMEDOUT, ENODEV, EIO.
+	 * The callback can be called from tasklet context and thus
+	 * must never block.
+	 */
+	fw_packet_callback_t callback;
 	int status;
-        struct list_head link;
+	struct list_head link;
 };
 
 struct fw_transaction {
-        int node_id; /* The generation is implied; it is always the current. */
-        int tlabel;
-        int timestamp;
-        struct list_head link;
+	int node_id; /* The generation is implied; it is always the current. */
+	int tlabel;
+	int timestamp;
+	struct list_head link;
 
-        struct fw_packet packet;
+	struct fw_packet packet;
 
 	/* The data passed to the callback is valid only during the
 	 * callback.  */
-        fw_transaction_callback_t callback;
-        void *callback_data;
+	fw_transaction_callback_t callback;
+	void *callback_data;
 };
 
 static inline struct fw_packet *
 fw_packet(struct list_head *l)
 {
-        return list_entry (l, struct fw_packet, link);
+	return list_entry (l, struct fw_packet, link);
 }
 
 struct fw_address_handler {
-        u64 offset;
-        size_t length;
-        fw_address_callback_t address_callback;
-        void *callback_data;
-        struct list_head link;
+	u64 offset;
+	size_t length;
+	fw_address_callback_t address_callback;
+	void *callback_data;
+	struct list_head link;
 };
 
 
@@ -236,22 +236,22 @@ struct fw_card {
 	const struct fw_card_driver *driver;
 	struct device *device;
 
-        int node_id;
-        int generation;
-        /* This is the generation used for timestamping incoming requests. */
-        int request_generation;
-        int current_tlabel, tlabel_mask;
-        struct list_head transaction_list;
+	int node_id;
+	int generation;
+	/* This is the generation used for timestamping incoming requests. */
+	int request_generation;
+	int current_tlabel, tlabel_mask;
+	struct list_head transaction_list;
 	struct timer_list flush_timer;
 
-        unsigned long long guid;
+	unsigned long long guid;
 	int max_receive;
 	int link_speed;
 	int config_rom_generation;
 
-        /* We need to store up to 4 self ID for a maximum of 63 devices. */
-        int self_id_count;
-        u32 self_ids[252];
+	/* We need to store up to 4 self ID for a maximum of 63 devices. */
+	int self_id_count;
+	u32 self_ids[252];
 
 	spinlock_t lock; /* Take this lock when handling the lists in
 			  * this struct. */
@@ -282,13 +282,13 @@ void fw_card_put(struct fw_card *card);
  * scatter-gather streaming (e.g. assembling video frame automatically). */
 
 struct fw_iso_packet {
-        u16 payload_length;	/* Length of indirect payload. */
+	u16 payload_length;	/* Length of indirect payload. */
 	u32 interrupt : 1;	/* Generate interrupt on this packet */
 	u32 skip : 1;		/* Set to not send packet at all. */
 	u32 tag : 2;
 	u32 sy : 4;
 	u32 header_length : 8;	/* Length of immediate header. */
-        u32 header[0];
+	u32 header[0];
 };
 
 #define FW_ISO_CONTEXT_TRANSMIT	0
@@ -335,25 +335,25 @@ fw_iso_context_send(struct fw_iso_context *ctx,
 		    int channel, int speed, int cycle);
 
 struct fw_card_driver {
-        const char *name;
+	const char *name;
 
-        /* Enable the given card with the given initial config rom.
-         * This function is expected to activate the card, and either
-         * enable the PHY or set the link_on bit and initiate a bus
-         * reset. */
-        int (*enable) (struct fw_card *card, u32 *config_rom, size_t length);
+	/* Enable the given card with the given initial config rom.
+	 * This function is expected to activate the card, and either
+	 * enable the PHY or set the link_on bit and initiate a bus
+	 * reset. */
+	int (*enable) (struct fw_card *card, u32 *config_rom, size_t length);
 
-        int (*update_phy_reg) (struct fw_card *card, int address,
-                               int clear_bits, int set_bits);
+	int (*update_phy_reg) (struct fw_card *card, int address,
+			       int clear_bits, int set_bits);
 
-        /* Update the config rom for an enabled card.  This function
-         * should change the config rom that is presented on the bus
-         * an initiate a bus reset. */
-        int (*set_config_rom) (struct fw_card *card,
+	/* Update the config rom for an enabled card.  This function
+	 * should change the config rom that is presented on the bus
+	 * an initiate a bus reset. */
+	int (*set_config_rom) (struct fw_card *card,
 			       u32 *config_rom, size_t length);
 
-        void (*send_request) (struct fw_card *card, struct fw_packet *packet);
-        void (*send_response) (struct fw_card *card, struct fw_packet *packet);
+	void (*send_request) (struct fw_card *card, struct fw_packet *packet);
+	void (*send_response) (struct fw_card *card, struct fw_packet *packet);
 
 	/* Allow the specified node ID to do direct DMA out and in of
 	 * host memory.  The card will disable this for all node when
@@ -419,8 +419,8 @@ fw_core_handle_request(struct fw_card *card,
 		       u32 length, u32 *payload);
 void
 fw_core_handle_response(struct fw_card *card,
-                        int speed, int ack, int timestamp,
-                        u32 length, u32 *payload);
+			int speed, int ack, int timestamp,
+			u32 length, u32 *payload);
 
 
 #endif /* __fw_transaction_h */

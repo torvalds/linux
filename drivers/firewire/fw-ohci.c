@@ -963,9 +963,8 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 	 * element so that head == tail means buffer full. */
 
 	memset(ctx->head_descriptor, 0, sizeof *ctx->head_descriptor);
-	ctx->head_descriptor->control          =
-		cpu_to_le16(descriptor_output_last);
-	ctx->head_descriptor->transfer_status  = cpu_to_le16(0x8011);
+	ctx->head_descriptor->control = cpu_to_le16(descriptor_output_last);
+	ctx->head_descriptor->transfer_status = cpu_to_le16(0x8011);
 	ctx->head_descriptor++;
 
 	return &ctx->base;

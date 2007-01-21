@@ -76,12 +76,12 @@ generate_config_rom (struct fw_card *card, size_t *config_rom_length)
 	static u32 config_rom[256];
 	int i, j, length;
 
-        /* Initialize contents of config rom buffer.  On the OHCI
-         * controller, block reads to the config rom accesses the host
-         * memory, but quadlet read access the hardware bus info block
-         * registers.  That's just crack, but it means we should make
-         * sure the contents of bus info block in host memory mathces
-         * the version stored in the OHCI registers. */
+	/* Initialize contents of config rom buffer.  On the OHCI
+	 * controller, block reads to the config rom accesses the host
+	 * memory, but quadlet read access the hardware bus info block
+	 * registers.  That's just crack, but it means we should make
+	 * sure the contents of bus info block in host memory mathces
+	 * the version stored in the OHCI registers. */
 
 	memset(config_rom, 0, sizeof config_rom);
 	config_rom[0] = bib_crc_length(4) | bib_info_length(4) | bib_crc(0);
@@ -263,13 +263,13 @@ fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
 	static int index;
 
 	card->index = index++;
-        card->driver = driver;
+	card->driver = driver;
 	card->device = device;
-        card->current_tlabel = 0;
-        card->tlabel_mask = 0;
+	card->current_tlabel = 0;
+	card->tlabel_mask = 0;
 	card->color = 0;
 
-        INIT_LIST_HEAD(&card->transaction_list);
+	INIT_LIST_HEAD(&card->transaction_list);
 	spin_lock_init(&card->lock);
 	setup_timer(&card->flush_timer,
 		    flush_timer_callback, (unsigned long)card);
@@ -307,7 +307,7 @@ fw_card_add(struct fw_card *card,
 
 	retval = device_add(&card->card_device);
 	if (retval < 0) {
-                fw_error("Failed to register card device.");
+		fw_error("Failed to register card device.");
 		return retval;
 	}
 
@@ -358,13 +358,13 @@ dummy_set_config_rom(struct fw_card *card,
 static void
 dummy_send_request(struct fw_card *card, struct fw_packet *packet)
 {
-        packet->callback(packet, card, -ENODEV);
+	packet->callback(packet, card, -ENODEV);
 }
 
 static void
 dummy_send_response(struct fw_card *card, struct fw_packet *packet)
 {
-        packet->callback(packet, card, -ENODEV);
+	packet->callback(packet, card, -ENODEV);
 }
 
 static int
@@ -375,12 +375,12 @@ dummy_enable_phys_dma(struct fw_card *card,
 }
 
 static struct fw_card_driver dummy_driver = {
-        .name            = "dummy",
+	.name            = "dummy",
 	.enable          = dummy_enable,
 	.update_phy_reg  = dummy_update_phy_reg,
 	.set_config_rom  = dummy_set_config_rom,
-        .send_request    = dummy_send_request,
-        .send_response   = dummy_send_response,
+	.send_request    = dummy_send_request,
+	.send_response   = dummy_send_response,
 	.enable_phys_dma = dummy_enable_phys_dma
 };
 
@@ -428,13 +428,6 @@ EXPORT_SYMBOL(fw_card_put);
 int
 fw_core_initiate_bus_reset(struct fw_card *card, int short_reset)
 {
-        u32 address;
-
-        if (short_reset)
-                address = 5;
-        else
-                address = 1;
-
-        return card->driver->update_phy_reg(card, address, 0, 0x40);
+	return card->driver->update_phy_reg(card, short_reset ? 5 : 1, 0, 0x40);
 }
 EXPORT_SYMBOL(fw_core_initiate_bus_reset);

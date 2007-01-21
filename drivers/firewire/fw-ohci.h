@@ -63,7 +63,7 @@
 #define   OHCI1394_PhyControl_Read(addr)	(((addr) << 8) | 0x00008000)
 #define   OHCI1394_PhyControl_ReadDone		0x80000000
 #define   OHCI1394_PhyControl_ReadData(r)	(((r) & 0x00ff0000) >> 16)
-#define   OHCI1394_PhyControl_Write(addr, data) (((addr) << 8) | (data) | 0x00004000)
+#define   OHCI1394_PhyControl_Write(addr, data)	(((addr) << 8) | (data) | 0x00004000)
 #define   OHCI1394_PhyControl_WriteDone		0x00004000
 #define OHCI1394_IsochronousCycleTimer        0x0F0
 #define OHCI1394_AsReqFilterHiSet             0x100
@@ -109,27 +109,27 @@
 #define OHCI1394_IsoRcvContextMatch(n)        (0x410 + 32 * (n))
 
 /* Interrupts Mask/Events */
-#define OHCI1394_reqTxComplete           0x00000001
-#define OHCI1394_respTxComplete          0x00000002
-#define OHCI1394_ARRQ                    0x00000004
-#define OHCI1394_ARRS                    0x00000008
-#define OHCI1394_RQPkt                   0x00000010
-#define OHCI1394_RSPkt                   0x00000020
-#define OHCI1394_isochTx                 0x00000040
-#define OHCI1394_isochRx                 0x00000080
-#define OHCI1394_postedWriteErr          0x00000100
-#define OHCI1394_lockRespErr             0x00000200
-#define OHCI1394_selfIDComplete          0x00010000
-#define OHCI1394_busReset                0x00020000
-#define OHCI1394_phy                     0x00080000
-#define OHCI1394_cycleSynch              0x00100000
-#define OHCI1394_cycle64Seconds          0x00200000
-#define OHCI1394_cycleLost               0x00400000
-#define OHCI1394_cycleInconsistent       0x00800000
-#define OHCI1394_unrecoverableError      0x01000000
-#define OHCI1394_cycleTooLong            0x02000000
-#define OHCI1394_phyRegRcvd              0x04000000
-#define OHCI1394_masterIntEnable         0x80000000
+#define OHCI1394_reqTxComplete		0x00000001
+#define OHCI1394_respTxComplete		0x00000002
+#define OHCI1394_ARRQ			0x00000004
+#define OHCI1394_ARRS			0x00000008
+#define OHCI1394_RQPkt			0x00000010
+#define OHCI1394_RSPkt			0x00000020
+#define OHCI1394_isochTx		0x00000040
+#define OHCI1394_isochRx		0x00000080
+#define OHCI1394_postedWriteErr		0x00000100
+#define OHCI1394_lockRespErr		0x00000200
+#define OHCI1394_selfIDComplete		0x00010000
+#define OHCI1394_busReset		0x00020000
+#define OHCI1394_phy			0x00080000
+#define OHCI1394_cycleSynch		0x00100000
+#define OHCI1394_cycle64Seconds		0x00200000
+#define OHCI1394_cycleLost		0x00400000
+#define OHCI1394_cycleInconsistent	0x00800000
+#define OHCI1394_unrecoverableError	0x01000000
+#define OHCI1394_cycleTooLong		0x02000000
+#define OHCI1394_phyRegRcvd		0x04000000
+#define OHCI1394_masterIntEnable	0x80000000
 
 #define OHCI1394_evt_no_status		0x0
 #define OHCI1394_evt_long_packet	0x2

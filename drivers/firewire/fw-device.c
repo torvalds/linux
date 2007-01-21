@@ -34,7 +34,6 @@ void fw_csr_iterator_init(struct fw_csr_iterator *ci, u32 * p)
 	ci->p = p + 1;
 	ci->end = ci->p + (p[0] >> 16);
 }
-
 EXPORT_SYMBOL(fw_csr_iterator_init);
 
 int fw_csr_iterator_next(struct fw_csr_iterator *ci, int *key, int *value)
@@ -44,7 +43,6 @@ int fw_csr_iterator_next(struct fw_csr_iterator *ci, int *key, int *value)
 
 	return ci->p++ < ci->end;
 }
-
 EXPORT_SYMBOL(fw_csr_iterator_next);
 
 static int is_fw_unit(struct device *dev);
@@ -158,7 +156,6 @@ struct bus_type fw_bus_type = {
 	.match = fw_unit_match,
 	.uevent = fw_unit_uevent
 };
-
 EXPORT_SYMBOL(fw_bus_type);
 
 extern struct fw_device *fw_device_get(struct fw_device *device)
@@ -196,7 +193,6 @@ int fw_device_enable_phys_dma(struct fw_device *device)
 						     device->node_id,
 						     device->generation);
 }
-
 EXPORT_SYMBOL(fw_device_enable_phys_dma);
 
 static ssize_t
