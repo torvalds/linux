@@ -685,7 +685,7 @@ static const struct fw_device_id sbp2_id_table[] = {
 	{
 		.match_flags  = FW_MATCH_SPECIFIER_ID | FW_MATCH_VERSION,
 		.specifier_id = SBP2_UNIT_SPEC_ID_ENTRY,
-		.version      = SBP2_SW_VERSION_ENTRY
+		.version      = SBP2_SW_VERSION_ENTRY,
 	},
 	{ }
 };

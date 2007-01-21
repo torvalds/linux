@@ -612,6 +612,6 @@ const struct file_operations fw_device_ops = {
 	.mmap		= fw_device_op_mmap,
 
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= fw_device_op_compat_ioctl
+	.compat_ioctl	= fw_device_op_compat_ioctl,
 #endif
 };

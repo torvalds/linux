@@ -154,7 +154,7 @@ fw_unit_uevent(struct device *dev, char **envp, int num_envp,
 struct bus_type fw_bus_type = {
 	.name = "fw",
 	.match = fw_unit_match,
-	.uevent = fw_unit_uevent
+	.uevent = fw_unit_uevent,
 };
 EXPORT_SYMBOL(fw_bus_type);
 
@@ -209,8 +209,8 @@ show_modalias_attribute(struct device *dev,
 }
 
 static struct device_attribute modalias_attribute = {
-	.attr = {.name = "modalias",.mode = S_IRUGO},
-	.show = show_modalias_attribute
+	.attr = { .name = "modalias", .mode = S_IRUGO, },
+	.show = show_modalias_attribute,
 };
 
 static ssize_t
@@ -225,7 +225,7 @@ show_config_rom_attribute(struct device *dev,
 }
 
 static struct device_attribute config_rom_attribute = {
-	.attr = {.name = "config_rom",.mode = S_IRUGO},
+	.attr = {.name = "config_rom", .mode = S_IRUGO,},
 	.show = show_config_rom_attribute,
 };
 

@@ -27,7 +27,7 @@ enum {
 	FW_NODE_UPDATED =   0x01,
 	FW_NODE_DESTROYED = 0x02,
 	FW_NODE_LINK_ON =   0x03,
-	FW_NODE_LINK_OFF =  0x04
+	FW_NODE_LINK_OFF =  0x04,
 };
 
 struct fw_port {

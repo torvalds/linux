@@ -381,7 +381,7 @@ static struct fw_card_driver dummy_driver = {
 	.set_config_rom  = dummy_set_config_rom,
 	.send_request    = dummy_send_request,
 	.send_response   = dummy_send_response,
-	.enable_phys_dma = dummy_enable_phys_dma
+	.enable_phys_dma = dummy_enable_phys_dma,
 };
 
 void

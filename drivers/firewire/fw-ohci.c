@@ -1157,7 +1157,7 @@ static const struct fw_card_driver ohci_driver = {
 	.allocate_iso_context	= ohci_allocate_iso_context,
 	.free_iso_context	= ohci_free_iso_context,
 	.queue_iso		= ohci_queue_iso,
-	.send_iso		= ohci_send_iso
+	.send_iso		= ohci_send_iso,
 };
 
 static int software_reset(struct fw_ohci *ohci)

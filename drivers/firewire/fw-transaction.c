@@ -332,15 +332,15 @@ static DEFINE_SPINLOCK(address_handler_lock);
 static LIST_HEAD(address_handler_list);
 
 const struct fw_address_region fw_low_memory_region =
-	{ 0x000000000000ull, 0x000100000000ull };
+	{ .start = 0x000000000000ULL, .end = 0x000100000000ULL,  };
 const struct fw_address_region fw_high_memory_region =
-	{ 0x000100000000ull, 0xffffe0000000ull };
+	{ .start = 0x000100000000ULL, .end = 0xffffe0000000ULL,  };
 const struct fw_address_region fw_private_region =
-	{ 0xffffe0000000ull, 0xfffff0000000ull };
+	{ .start = 0xffffe0000000ULL, .end = 0xfffff0000000ULL,  };
 const struct fw_address_region fw_csr_region =
-	{ 0xfffff0000000ULL, 0xfffff0000800ull };
+	{ .start = 0xfffff0000000ULL, .end = 0xfffff0000800ULL,  };
 const struct fw_address_region fw_unit_space_region =
-	{ 0xfffff0000900ull, 0x1000000000000ull };
+	{ .start = 0xfffff0000900ULL, .end = 0x1000000000000ULL, };
 EXPORT_SYMBOL(fw_low_memory_region);
 EXPORT_SYMBOL(fw_high_memory_region);
 EXPORT_SYMBOL(fw_private_region);
@@ -692,7 +692,7 @@ static const u32 vendor_textual_descriptor_data[] = {
 static struct fw_descriptor vendor_textual_descriptor = {
 	.length = ARRAY_SIZE(vendor_textual_descriptor_data),
 	.key = 0x81000000,
-	.data = vendor_textual_descriptor_data
+	.data = vendor_textual_descriptor_data,
 };
 
 static int __init fw_core_init(void)

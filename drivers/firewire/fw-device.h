@@ -28,7 +28,7 @@
 enum fw_device_state {
 	FW_DEVICE_INITIALIZING,
 	FW_DEVICE_RUNNING,
-	FW_DEVICE_SHUTDOWN
+	FW_DEVICE_SHUTDOWN,
 };
 
 struct fw_device {
