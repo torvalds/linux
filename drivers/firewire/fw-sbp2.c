@@ -1012,7 +1012,6 @@ static struct scsi_host_template scsi_driver_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.cmd_per_lun		= 1,	/* SBP2_MAX_CMDS, */
 	.can_queue		= 1,		/* SBP2_MAX_CMDS, */
-	.emulated		= 1,
 };
 
 static int add_scsi_devices(struct fw_unit *unit)
