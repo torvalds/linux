@@ -22,6 +22,10 @@
 #include <asm/thread_info.h>
 #include <asm/system.h>
 
+#if (PHYS_OFFSET & 0x001fffff)
+#error "PHYS_OFFSET must be at an even 2MiB boundary!"
+#endif
+
 #define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
 #define KERNEL_RAM_PADDR	(PHYS_OFFSET + TEXT_OFFSET)
 
@@ -251,7 +255,8 @@ __create_page_tables:
 	 * Then map first 1MB of ram in case it contains our boot params.
 	 */
 	add	r0, r4, #PAGE_OFFSET >> 18
-	orr	r6, r7, #PHYS_OFFSET
+	orr	r6, r7, #(PHYS_OFFSET & 0xff000000)
+	orr	r6, r6, #(PHYS_OFFSET & 0x00e00000)
 	str	r6, [r0]
 
 #ifdef CONFIG_XIP_KERNEL
