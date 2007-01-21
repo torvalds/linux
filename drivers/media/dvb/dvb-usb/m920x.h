@@ -18,9 +18,18 @@
 #define M9206_FW	0x30
 
 #define M9206_MAX_FILTERS 8
+
+#define M9206_I2C_TUNER	0
+#define M9206_I2C_DEMOD	1
+#define M9206_I2C_MAX	2
+
 struct m9206_state {
 	u16 filters[M9206_MAX_FILTERS];
 	int filtering_enabled;
 	int rep_count;
+	struct {
+		unsigned char addr;
+		unsigned char magic;
+	}i2c_r[M9206_I2C_MAX];
 };
 #endif

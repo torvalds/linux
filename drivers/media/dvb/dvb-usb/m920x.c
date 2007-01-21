@@ -134,6 +134,7 @@ static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+	struct m9206_state *m = d->priv;
 	int i;
 	int ret = 0;
 
@@ -144,8 +145,6 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int nu
 		return -EINVAL;
 
 	for (i = 0; i < num; i++) {
-		u8 w_len;
-
 		if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].addr, 0x80)) != 0)
 			goto unlock;
 
@@ -153,13 +152,19 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int nu
 			goto unlock;
 
 		if (i + 1 < num && msg[i + 1].flags & I2C_M_RD) {
-			/* Possibly device dependant */
-			if (msg[i].addr == d->adapter[0].pll_addr)
-				w_len = 0xc5;
-			else
-				w_len = 0x1f;
+			int i2c_i;
 
-			if ((ret = m9206_write(d->udev, M9206_I2C, w_len, 0x80)) != 0)
+			for (i2c_i = 0; i2c_i < M9206_I2C_MAX; i2c_i++)
+				if (msg[i].addr == m->i2c_r[i2c_i].addr)
+					break;
+
+			if (i2c_i >= M9206_I2C_MAX) {
+				deb_rc("No magic for i2c addr!\n");
+				ret = -EINVAL;
+				goto unlock;
+			}
+
+			if ((ret = m9206_write(d->udev, M9206_I2C, m->i2c_r[i2c_i].magic, 0x80)) != 0)
 				goto unlock;
 
 			if ((ret = m9206_read(d->udev, M9206_I2C, 0x0, 0x60, msg[i + 1].buf, msg[i + 1].len)) != 0)
@@ -238,11 +243,17 @@ static struct mt352_config megasky_mt352_config = {
 
 static int megasky_frontend_attach(struct dvb_usb_adapter *adap)
 {
+	struct m9206_state *m = adap->dev->priv;
+
 	deb_rc("megasky_frontend_attach!\n");
 
-	if ((adap->fe = dvb_attach(mt352_attach, &megasky_mt352_config, &adap->dev->i2c_adap)) != NULL)
-		return 0;
-	return -EIO;
+	m->i2c_r[M9206_I2C_DEMOD].addr = megasky_mt352_config.demod_address;
+	m->i2c_r[M9206_I2C_DEMOD].magic = 0x1f;
+
+	if ((adap->fe = dvb_attach(mt352_attach, &megasky_mt352_config, &adap->dev->i2c_adap)) == NULL)
+		return -EIO;
+
+	return 0;
 }
 
 static int m9206_set_filter(struct dvb_usb_adapter *adap, int type, int idx, int pid)
@@ -389,9 +400,16 @@ static struct qt1010_config megasky_qt1010_config = {
 
 static int megasky_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	return dvb_attach(qt1010_attach,
-			  adap->fe, &adap->dev->i2c_adap,
-			  &megasky_qt1010_config) == NULL ? -ENODEV : 0;
+	struct m9206_state *m = adap->dev->priv;
+
+	m->i2c_r[M9206_I2C_TUNER].addr = megasky_qt1010_config.i2c_address;
+	m->i2c_r[M9206_I2C_TUNER].magic = 0xc5;
+
+	if (dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap,
+		       &megasky_qt1010_config) == NULL)
+		return -ENODEV;
+
+	return 0;
 }
 
 /* DVB USB Driver stuff */
