@@ -24,8 +24,8 @@ static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
 {
 	int ret;
 	u16 index;
-	u8 usb_buf[6]; /* enough for all known requests, read returns 5 and write 6 bytes */
-
+	u8 usb_buf[6]; /* enough for all known requests,
+			  read returns 5 and write 6 bytes */
 	switch (wlen) {
 	case 1:
 		index = wbuf[0] << 8;
@@ -40,7 +40,7 @@ static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
 	}
 
 	ret = usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0), operation,
-			      USB_TYPE_VENDOR | USB_DIR_IN, addr, index, usb_buf,
+			      USB_TYPE_VENDOR|USB_DIR_IN, addr, index, usb_buf,
 			      sizeof(usb_buf), AU6610_USB_TIMEOUT);
 
 	if (ret < 0)
@@ -56,7 +56,8 @@ static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
 	return ret;
 }
 
-static int au6610_i2c_msg(struct dvb_usb_device *d, u8 addr, u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
+static int au6610_i2c_msg(struct dvb_usb_device *d, u8 addr,
+			  u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
 {
 	u8 request;
 	u8 wo = (rbuf == NULL || rlen == 0); /* write-only */
@@ -72,7 +73,8 @@ static int au6610_i2c_msg(struct dvb_usb_device *d, u8 addr, u8 *wbuf, u16 wlen,
 
 
 /* I2C */
-static int au6610_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int num)
+static int au6610_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
+			   int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i;
@@ -87,7 +89,8 @@ static int au6610_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int n
 		/* write/read request */
 		if (i+1 < num && (msg[i+1].flags & I2C_M_RD)) {
 			if (au6610_i2c_msg(d, msg[i].addr, msg[i].buf,
-					   msg[i].len, msg[i+1].buf, msg[i+1].len) < 0)
+					   msg[i].len, msg[i+1].buf,
+					   msg[i+1].len) < 0)
 				break;
 			i++;
 		} else if (au6610_i2c_msg(d, msg[i].addr, msg[i].buf,
@@ -143,13 +146,14 @@ static struct qt1010_config au6610_qt1010_config = {
 static int au6610_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	/* TODO FIXME; probably I2C gate.
-	QT1010 tuner does not respond before we write 0x1a to ZL10353 demodulator
-	register 0x62. This ought to be done somewhere in demodulator initialization.
+	QT1010 tuner does not respond before we write 0x1a to ZL10353 demod
+	register 0x62. This ought to be done somewhere in demod initialization.
 	This solution is temporary hack. */
+
 	u8 buf[2] = { 0x62, 0x1a };
-	struct i2c_msg msg = {
-		.addr = au6610_zl10353_config.demod_address, .flags = 0, .buf = buf, .len = 2
-	};
+	struct i2c_msg msg = { .addr = au6610_zl10353_config.demod_address,
+			       .flags = 0, .buf = buf, .len = 2	};
+
 	if (i2c_transfer(&adap->dev->i2c_adap, &msg, 1) != 1) {
 		printk(KERN_WARNING "au6610 tuner attach failed\n");
 		return -EREMOTEIO;
@@ -162,7 +166,8 @@ static int au6610_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties au6610_properties;
 
-static int au6610_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int au6610_probe(struct usb_interface *intf,
+			const struct usb_device_id *id)
 {
 	struct dvb_usb_device *d;
 	struct usb_host_interface *alt;
