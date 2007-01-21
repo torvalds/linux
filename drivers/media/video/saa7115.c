@@ -71,6 +71,7 @@ I2C_CLIENT_INSMOD;
 struct saa711x_state {
 	v4l2_std_id std;
 	int input;
+	int output;
 	int enable;
 	int radio;
 	int bright;
@@ -1301,7 +1302,7 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 		struct v4l2_routing *route = arg;
 
 		route->input = state->input;
-		route->output = 0;
+		route->output = state->output;
 		break;
 	}
 
@@ -1309,7 +1310,7 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 	{
 		struct v4l2_routing *route = arg;
 
-		v4l_dbg(1, debug, client, "decoder set input %d\n", route->input);
+		v4l_dbg(1, debug, client, "decoder set input %d output %d\n", route->input, route->output);
 		/* saa7113 does not have these inputs */
 		if (state->ident == V4L2_IDENT_SAA7113 &&
 		    (route->input == SAA7115_COMPOSITE4 ||
@@ -1318,10 +1319,12 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 		}
 		if (route->input > SAA7115_SVIDEO3)
 			return -EINVAL;
-		if (state->input == route->input)
+		if (route->output > SAA7115_IPORT_ON)
+			return -EINVAL;
+		if (state->input == route->input && state->output == route->output)
 			break;
-		v4l_dbg(1, debug, client, "now setting %s input\n",
-			(route->input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite");
+		v4l_dbg(1, debug, client, "now setting %s input %s output\n",
+			(route->input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite", (route->output == SAA7115_IPORT_ON) ? "iport on" : "iport off");
 		state->input = route->input;
 
 		/* select mode */
@@ -1333,6 +1336,14 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 		saa711x_write(client, R_09_LUMA_CNTL,
 			      (saa711x_read(client, R_09_LUMA_CNTL) & 0x7f) |
 			       (state->input >= SAA7115_SVIDEO0 ? 0x80 : 0x0));
+
+		state->output = route->output;
+		if (state->ident == V4L2_IDENT_SAA7114 ||
+			state->ident == V4L2_IDENT_SAA7115) {
+			saa711x_write(client, R_83_X_PORT_I_O_ENA_AND_OUT_CLK,
+			      (saa711x_read(client, R_83_X_PORT_I_O_ENA_AND_OUT_CLK) & 0xfe) |
+			       (state->output & 0x01));
+		}
 		break;
 	}
 
@@ -1492,6 +1503,7 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 		return -ENOMEM;
 	}
 	state->input = -1;
+	state->output = SAA7115_IPORT_ON;
 	state->enable = 1;
 	state->radio = 0;
 	state->bright = 128;
@@ -1550,7 +1562,7 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 
 static int saa711x_probe(struct i2c_adapter *adapter)
 {
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
+	if (adapter->class & I2C_CLASS_TV_ANALOG || adapter->class & I2C_CLASS_TV_DIGITAL)
 		return i2c_probe(adapter, &addr_data, &saa711x_attach);
 	return 0;
 }
