@@ -1,6 +1,6 @@
 /* DVB USB compliant linux driver for Sigmatek DVB-110 DVB-T USB2.0 receiver
  *
- * Copyright (C) 2006 Antti Palosaari (crope@iki.fi)
+ * Copyright (C) 2006 Antti Palosaari <crope@iki.fi>
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the Free
@@ -18,7 +18,6 @@
 static int dvb_usb_au6610_debug;
 module_param_named(debug, dvb_usb_au6610_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
-
 
 static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
 			  u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
@@ -127,7 +126,6 @@ static struct zl10353_config au6610_zl10353_config = {
 	.parallel_ts = 1,
 };
 
-
 static int au6610_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	if ((adap->fe = dvb_attach(zl10353_attach, &au6610_zl10353_config,
@@ -136,6 +134,29 @@ static int au6610_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	return -EIO;
+}
+
+static struct qt1010_config au6610_qt1010_config = {
+	.i2c_address = 0xc4
+};
+
+static int au6610_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	/* TODO FIXME; probably I2C gate.
+	QT1010 tuner does not respond before we write 0x1a to ZL10353 demodulator
+	register 0x62. This ought to be done somewhere in demodulator initialization.
+	This solution is temporary hack. */
+	u8 buf[2] = { 0x62, 0x1a };
+	struct i2c_msg msg = {
+		.addr = au6610_zl10353_config.demod_address, .flags = 0, .buf = buf, .len = 2
+	};
+	if (i2c_transfer(&adap->dev->i2c_adap, &msg, 1) != 1) {
+		printk(KERN_WARNING "au6610 tuner attach failed\n");
+		return -EREMOTEIO;
+	}
+	return dvb_attach(qt1010_attach,
+			  adap->fe, &adap->dev->i2c_adap,
+			  &au6610_qt1010_config) == NULL ? -ENODEV : 0;
 }
 
 /* DVB USB Driver stuff */
@@ -180,7 +201,7 @@ static struct dvb_usb_device_properties au6610_properties = {
 	.adapter = {
 		{
 			.frontend_attach  = au6610_zl10353_frontend_attach,
-			.tuner_attach     = qt1010_tuner_attach,
+			.tuner_attach     = au6610_qt1010_tuner_attach,
 
 			.stream = {
 				.type = USB_ISOC,

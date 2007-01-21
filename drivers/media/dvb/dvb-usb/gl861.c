@@ -116,6 +116,29 @@ static int gl861_frontend_attach(struct dvb_usb_adapter *adap)
 	return -EIO;
 }
 
+static struct qt1010_config gl861_qt1010_config = {
+	.i2c_address = 0xc4
+};
+
+static int gl861_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	/* TODO FIXME; probably I2C gate.
+	QT1010 tuner does not respond before we write 0x1a to ZL10353 demodulator
+	register 0x62. This ought to be done somewhere in demodulator initialization.
+	This solution is temporary hack. */
+	u8 buf[2] = { 0x62, 0x1a };
+	struct i2c_msg msg = {
+		.addr = gl861_zl10353_config.demod_address, .flags = 0, .buf = buf, .len = 2
+	};
+	if (i2c_transfer(&adap->dev->i2c_adap, &msg, 1) != 1) {
+		printk(KERN_WARNING "gl861 tuner attach failed\n");
+		return -EREMOTEIO;
+	}
+	return dvb_attach(qt1010_attach,
+			  adap->fe, &adap->dev->i2c_adap,
+			  &gl861_qt1010_config) == NULL ? -ENODEV : 0;
+}
+
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties gl861_properties;
 
@@ -161,7 +184,7 @@ static struct dvb_usb_device_properties gl861_properties = {
 	.adapter = {{
 
 		.frontend_attach  = gl861_frontend_attach,
-		.tuner_attach     = qt1010_tuner_attach,
+		.tuner_attach     = gl861_tuner_attach,
 
 		.stream = {
 			.type = USB_BULK,
