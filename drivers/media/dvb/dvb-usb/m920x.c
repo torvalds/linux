@@ -39,7 +39,8 @@ static struct dvb_usb_rc_key megasky_rc_keys [] = {
 	{ 0x0, 0x0e, KEY_COFFEE }, /* "MTS" */
 };
 
-static inline int m9206_read(struct usb_device *udev, u8 request, u16 value, u16 index, void *data, int size)
+static inline int m9206_read(struct usb_device *udev, u8 request, u16 value,\
+			     u16 index, void *data, int size)
 {
 	int ret;
 
@@ -55,7 +56,8 @@ static inline int m9206_read(struct usb_device *udev, u8 request, u16 value, u16
 	return 0;
 }
 
-static inline int m9206_write(struct usb_device *udev, u8 request, u16 value, u16 index)
+static inline int m9206_write(struct usb_device *udev, u8 request,
+			      u16 value, u16 index)
 {
 	int ret;
 
@@ -131,7 +133,8 @@ static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 }
 
 /* I2C */
-static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int num)
+static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
+			  int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	struct m9206_state *m = d->priv;
@@ -256,7 +259,8 @@ static int megasky_frontend_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int m9206_set_filter(struct dvb_usb_adapter *adap, int type, int idx, int pid)
+static int m9206_set_filter(struct dvb_usb_adapter *adap, int type, int idx,
+			    int pid)
 {
 	int ret = 0;
 
@@ -323,7 +327,8 @@ static int m9206_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return m9206_update_filters(adap);
 }
 
-static int m9206_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
+static int m9206_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid,
+			    int onoff)
 {
 	struct m9206_state *m = adap->dev->priv;
 
@@ -332,7 +337,8 @@ static int m9206_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, in
 	return m9206_update_filters(adap);
 }
 
-static int m9206_firmware_download(struct usb_device *udev, const struct firmware *fw)
+static int m9206_firmware_download(struct usb_device *udev,
+				   const struct firmware *fw)
 {
 	u16 value, index, size;
 	u8 read[4], *buff;
@@ -415,7 +421,8 @@ static int megasky_tuner_attach(struct dvb_usb_adapter *adap)
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties megasky_properties;
 
-static int m920x_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int m920x_probe(struct usb_interface *intf,
+		       const struct usb_device_id *id)
 {
 	struct dvb_usb_device *d;
 	struct usb_host_interface *alt;
@@ -430,7 +437,8 @@ static int m920x_probe(struct usb_interface *intf, const struct usb_device_id *i
 			return -ENODEV;
 		}
 
-		ret = usb_set_interface(d->udev, alt->desc.bInterfaceNumber, alt->desc.bAlternateSetting);
+		ret = usb_set_interface(d->udev, alt->desc.bInterfaceNumber,
+					alt->desc.bAlternateSetting);
 		if (ret < 0)
 			return ret;
 
