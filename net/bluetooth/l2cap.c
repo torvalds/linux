@@ -585,6 +585,12 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_
 		goto done;
 	}
 
+	if (la->l2_psm > 0 && btohs(la->l2_psm) < 0x1001 &&
+				!capable(CAP_NET_BIND_SERVICE)) {
+		err = -EACCES;
+		goto done;
+	}
+		
 	write_lock_bh(&l2cap_sk_list.lock);
 
 	if (la->l2_psm && __l2cap_get_sock_by_addr(la->l2_psm, &la->l2_bdaddr)) {
