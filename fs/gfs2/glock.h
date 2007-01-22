@@ -82,10 +82,6 @@ void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 void gfs2_holder_reinit(unsigned int state, unsigned flags,
 			struct gfs2_holder *gh);
 void gfs2_holder_uninit(struct gfs2_holder *gh);
-
-void gfs2_glock_xmote_th(struct gfs2_glock *gl, unsigned int state, int flags);
-void gfs2_glock_drop_th(struct gfs2_glock *gl);
-
 int gfs2_glock_nq(struct gfs2_holder *gh);
 int gfs2_glock_poll(struct gfs2_holder *gh);
 int gfs2_glock_wait(struct gfs2_holder *gh);

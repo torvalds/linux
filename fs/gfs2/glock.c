@@ -43,6 +43,8 @@ typedef void (*glock_examiner) (struct gfs2_glock * gl);
 static int gfs2_dump_lockstate(struct gfs2_sbd *sdp);
 static int dump_glock(struct gfs2_glock *gl);
 static int dump_inode(struct gfs2_inode *ip);
+static void gfs2_glock_xmote_th(struct gfs2_holder *gh);
+static void gfs2_glock_drop_th(struct gfs2_glock *gl);
 
 #define GFS2_GL_HASH_SHIFT      15
 #define GFS2_GL_HASH_SIZE       (1 << GFS2_GL_HASH_SHIFT)
@@ -524,7 +526,6 @@ static int rq_promote(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	const struct gfs2_glock_operations *glops = gl->gl_ops;
 
 	if (!relaxed_state_ok(gl->gl_state, gh->gh_state, gh->gh_flags)) {
 		if (list_empty(&gl->gl_holders)) {
@@ -539,7 +540,7 @@ static int rq_promote(struct gfs2_holder *gh)
 				gfs2_reclaim_glock(sdp);
 			}
 
-			glops->go_xmote_th(gl, gh->gh_state, gh->gh_flags);
+			gfs2_glock_xmote_th(gh);
 			spin_lock(&gl->gl_spin);
 		}
 		return 1;
@@ -577,7 +578,6 @@ static int rq_promote(struct gfs2_holder *gh)
 static int rq_demote(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	const struct gfs2_glock_operations *glops = gl->gl_ops;
 
 	if (!list_empty(&gl->gl_holders))
 		return 1;
@@ -595,9 +595,9 @@ static int rq_demote(struct gfs2_holder *gh)
 
 		if (gh->gh_state == LM_ST_UNLOCKED ||
 		    gl->gl_state != LM_ST_EXCLUSIVE)
-			glops->go_drop_th(gl);
+			gfs2_glock_drop_th(gl);
 		else
-			glops->go_xmote_th(gl, gh->gh_state, gh->gh_flags);
+			gfs2_glock_xmote_th(gh);
 
 		spin_lock(&gl->gl_spin);
 	}
@@ -909,22 +909,25 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
  *
  */
 
-void gfs2_glock_xmote_th(struct gfs2_glock *gl, unsigned int state, int flags)
+void gfs2_glock_xmote_th(struct gfs2_holder *gh)
 {
+	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
+	int flags = gh->gh_flags;
+	unsigned state = gh->gh_state;
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	int lck_flags = flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB |
 				 LM_FLAG_NOEXP | LM_FLAG_ANY |
 				 LM_FLAG_PRIORITY);
 	unsigned int lck_ret;
 
+	if (glops->go_xmote_th)
+		glops->go_xmote_th(gl);
+
 	gfs2_assert_warn(sdp, test_bit(GLF_LOCK, &gl->gl_flags));
 	gfs2_assert_warn(sdp, queue_empty(gl, &gl->gl_holders));
 	gfs2_assert_warn(sdp, state != LM_ST_UNLOCKED);
 	gfs2_assert_warn(sdp, state != gl->gl_state);
-
-	if (gl->gl_state == LM_ST_EXCLUSIVE && glops->go_sync)
-		glops->go_sync(gl);
 
 	gfs2_glock_hold(gl);
 	gl->gl_req_bh = xmote_bh;
@@ -994,18 +997,18 @@ static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
  *
  */
 
-void gfs2_glock_drop_th(struct gfs2_glock *gl)
+static void gfs2_glock_drop_th(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	unsigned int ret;
 
+	if (glops->go_drop_th)
+		glops->go_drop_th(gl);
+
 	gfs2_assert_warn(sdp, test_bit(GLF_LOCK, &gl->gl_flags));
 	gfs2_assert_warn(sdp, queue_empty(gl, &gl->gl_holders));
 	gfs2_assert_warn(sdp, gl->gl_state != LM_ST_UNLOCKED);
-
-	if (gl->gl_state == LM_ST_EXCLUSIVE && glops->go_sync)
-		glops->go_sync(gl);
 
 	gfs2_glock_hold(gl);
 	gl->gl_req_bh = drop_bh;
