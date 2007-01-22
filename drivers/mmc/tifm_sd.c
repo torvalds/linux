@@ -173,9 +173,6 @@ static unsigned int tifm_sd_op_flags(struct mmc_command *cmd)
 	case MMC_RSP_R3:
 		rc |= TIFM_MMCSD_RSP_R3;
 		break;
-	case MMC_RSP_R6:
-		rc |= TIFM_MMCSD_RSP_R6;
-		break;
 	default:
 		BUG();
 	}
