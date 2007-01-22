@@ -2570,6 +2570,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
+		.gpiomask       = 1 << 21,
 		.inputs = {{
 			.name   = name_tv,
 			.vmux   = 1,
@@ -2578,15 +2579,20 @@ struct saa7134_board saa7134_boards[] = {
 		},{
 			.name   = name_comp1,
 			.vmux   = 3,
-			.amux   = LINE1,
+			.amux   = LINE2,	/* unconfirmed, taken from Philips driver */
+		},{
+			.name   = name_comp2,
+			.vmux   = 0,		/* untested, Composite over S-Video */
+			.amux   = LINE2,
 		},{
 			.name   = name_svideo,
-			.vmux   = 0,
-			.amux   = LINE1,
+			.vmux   = 8,
+			.amux   = LINE2,
 		}},
 		.radio = {
 			.name   = name_radio,
-			.amux   = LINE1,
+			.amux   = TV,
+			.gpio   = 0x0200000,
 		},
 	},
 	[SAA7134_BOARD_CINERGY250PCI] = {
