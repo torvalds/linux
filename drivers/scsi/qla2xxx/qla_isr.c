@@ -134,11 +134,11 @@ qla2300_intr_handler(int irq, void *dev_id)
 		if (stat & HSR_RISC_PAUSED) {
 			hccr = RD_REG_WORD(&reg->hccr);
 			if (hccr & (BIT_15 | BIT_13 | BIT_11 | BIT_8))
-				qla_printk(KERN_INFO, ha,
-				    "Parity error -- HCCR=%x.\n", hccr);
+				qla_printk(KERN_INFO, ha, "Parity error -- "
+				    "HCCR=%x, Dumping firmware!\n", hccr);
 			else
-				qla_printk(KERN_INFO, ha,
-				    "RISC paused -- HCCR=%x.\n", hccr);
+				qla_printk(KERN_INFO, ha, "RISC paused -- "
+				    "HCCR=%x, Dumping firmware!\n", hccr);
 
 			/*
 			 * Issue a "HARD" reset in order for the RISC
@@ -147,6 +147,8 @@ qla2300_intr_handler(int irq, void *dev_id)
 			 */
 			WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
 			RD_REG_WORD(&reg->hccr);
+
+			ha->isp_ops.fw_dump(ha, 1);
 			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
 			break;
 		} else if ((stat & HSR_RISC_INT) == 0)
@@ -475,6 +477,8 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			set_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
 		}
 		set_bit(REGISTER_FC4_NEEDED, &ha->dpc_flags);
+
+		ha->flags.gpsc_supported = 1;
 		break;
 
 	case MBA_CHG_IN_CONNECTION:	/* Change in connection mode */
@@ -1440,8 +1444,7 @@ qla24xx_intr_handler(int irq, void *dev_id)
 
 			qla_printk(KERN_INFO, ha, "RISC paused -- HCCR=%x, "
 			    "Dumping firmware!\n", hccr);
-			qla24xx_fw_dump(ha, 1);
-
+			ha->isp_ops.fw_dump(ha, 1);
 			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
 			break;
 		} else if ((stat & HSRX_RISC_INT) == 0)

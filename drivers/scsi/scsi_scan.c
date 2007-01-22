@@ -133,12 +133,10 @@ struct async_scan_data {
 /**
  * scsi_complete_async_scans - Wait for asynchronous scans to complete
  *
- * Asynchronous scans add themselves to the scanning_hosts list.  Once
- * that list is empty, we know that the scans are complete.  Rather than
- * waking up periodically to check the state of the list, we pretend to be
- * a scanning task by adding ourselves at the end of the list and going to
- * sleep.  When the task before us wakes us up, we take ourselves off the
- * list and return.
+ * When this function returns, any host which started scanning before
+ * this function was called will have finished its scan.  Hosts which
+ * started scanning after this function was called may or may not have
+ * finished.
  */
 int scsi_complete_async_scans(void)
 {
@@ -171,6 +169,11 @@ int scsi_complete_async_scans(void)
 
 	spin_lock(&async_scan_lock);
 	list_del(&data->list);
+	if (!list_empty(&scanning_hosts)) {
+		struct async_scan_data *next = list_entry(scanning_hosts.next,
+				struct async_scan_data, list);
+		complete(&next->prev_finished);
+	}
  done:
 	spin_unlock(&async_scan_lock);
 
@@ -739,6 +742,14 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		sdev->no_uld_attach = 1;
 
 	switch (sdev->type = (inq_result[0] & 0x1f)) {
+	case TYPE_RBC:
+		/* RBC devices can return SCSI-3 compliance and yet
+		 * still not support REPORT LUNS, so make them act as
+		 * BLIST_NOREPORTLUN unless BLIST_REPORTLUN2 is
+		 * specifically set */
+		if ((*bflags & BLIST_REPORTLUN2) == 0)
+			*bflags |= BLIST_NOREPORTLUN;
+		/* fall through */
 	case TYPE_TAPE:
 	case TYPE_DISK:
 	case TYPE_PRINTER:
@@ -749,11 +760,17 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	case TYPE_ENCLOSURE:
 	case TYPE_COMM:
 	case TYPE_RAID:
-	case TYPE_RBC:
 		sdev->writeable = 1;
 		break;
-	case TYPE_WORM:
 	case TYPE_ROM:
+		/* MMC devices can return SCSI-3 compliance and yet
+		 * still not support REPORT LUNS, so make them act as
+		 * BLIST_NOREPORTLUN unless BLIST_REPORTLUN2 is
+		 * specifically set */
+		if ((*bflags & BLIST_REPORTLUN2) == 0)
+			*bflags |= BLIST_NOREPORTLUN;
+		/* fall through */
+	case TYPE_WORM:
 		sdev->writeable = 0;
 		break;
 	default:

@@ -749,7 +749,7 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 				if (!offset)
 					crypto_hash_update(
 							&tcp_conn->rx_hash,
-							&sg[i], 1);
+							&sg[i], sg[i].length);
 				else
 					partial_sg_digest_update(
 							&tcp_conn->rx_hash,
@@ -1777,13 +1777,13 @@ iscsi_tcp_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	tcp_conn->tx_hash.tfm = crypto_alloc_hash("crc32c", 0,
 						  CRYPTO_ALG_ASYNC);
 	tcp_conn->tx_hash.flags = 0;
-	if (!tcp_conn->tx_hash.tfm)
+	if (IS_ERR(tcp_conn->tx_hash.tfm))
 		goto free_tcp_conn;
 
 	tcp_conn->rx_hash.tfm = crypto_alloc_hash("crc32c", 0,
 						  CRYPTO_ALG_ASYNC);
 	tcp_conn->rx_hash.flags = 0;
-	if (!tcp_conn->rx_hash.tfm)
+	if (IS_ERR(tcp_conn->rx_hash.tfm))
 		goto free_tx_tfm;
 
 	return cls_conn;
@@ -2044,13 +2044,11 @@ iscsi_tcp_conn_get_param(struct iscsi_cls_conn *cls_conn,
 		sk = tcp_conn->sock->sk;
 		if (sk->sk_family == PF_INET) {
 			inet = inet_sk(sk);
-			len = sprintf(buf, "%u.%u.%u.%u\n",
+			len = sprintf(buf, NIPQUAD_FMT "\n",
 				      NIPQUAD(inet->daddr));
 		} else {
 			np = inet6_sk(sk);
-			len = sprintf(buf,
-				"%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
-				NIP6(np->daddr));
+			len = sprintf(buf, NIP6_FMT "\n", NIP6(np->daddr));
 		}
 		mutex_unlock(&conn->xmitmutex);
 		break;

@@ -3,9 +3,9 @@
  *      For use with LSI Logic PCI chip/adapter(s)
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2005 LSI Logic Corporation
+ *  Copyright (c) 1999-2007 LSI Logic Corporation
  *  (mailto:mpt_linux_developer@lsil.com)
- *  Copyright (c) 2005-2006 Dell
+ *  Copyright (c) 2005-2007 Dell
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -75,6 +75,7 @@
 MODULE_AUTHOR(MODULEAUTHOR);
 MODULE_DESCRIPTION(my_NAME);
 MODULE_LICENSE("GPL");
+MODULE_VERSION(my_VERSION);
 
 static int mpt_pt_clear;
 module_param(mpt_pt_clear, int, 0);
@@ -245,7 +246,8 @@ static void mptsas_print_device_pg0(SasDevicePage0_t *pg0)
 	printk("Parent Handle=0x%X\n" ,le16_to_cpu(pg0->ParentDevHandle));
 	printk("Enclosure Handle=0x%X\n", le16_to_cpu(pg0->EnclosureHandle));
 	printk("Slot=0x%X\n", le16_to_cpu(pg0->Slot));
-	printk("SAS Address=0x%llX\n", le64_to_cpu(sas_address));
+	printk("SAS Address=0x%llX\n", (unsigned long long)
+	    le64_to_cpu(sas_address));
 	printk("Target ID=0x%X\n", pg0->TargetID);
 	printk("Bus=0x%X\n", pg0->Bus);
 	/* The PhyNum field specifies the PHY number of the parent
@@ -349,9 +351,9 @@ mptsas_port_delete(struct mptsas_portinfo_details * port_details)
 	phy_info = port_info->phy_info;
 
 	dsaswideprintk((KERN_DEBUG "%s: [%p]: num_phys=%02d "
-	    	"bitmask=0x%016llX\n",
-		__FUNCTION__, port_details, port_details->num_phys,
-		    port_details->phy_bitmask));
+	    "bitmask=0x%016llX\n", __FUNCTION__, port_details,
+	    port_details->num_phys, (unsigned long long)
+	    port_details->phy_bitmask));
 
 	for (i = 0; i < port_info->num_phys; i++, phy_info++) {
 		if(phy_info->port_details != port_details)
@@ -476,7 +478,7 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 	for (i = 0 ; i < port_info->num_phys ; i++, phy_info++) {
 		sas_address = phy_info->attached.sas_address;
 		dsaswideprintk((KERN_DEBUG "phy_id=%d sas_address=0x%018llX\n",
-			i, sas_address));
+		    i, (unsigned long long)sas_address));
 		if (!sas_address)
 			continue;
 		port_details = phy_info->port_details;
@@ -495,8 +497,8 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 				    (1 << phy_info->phy_id);
 			phy_info->sas_port_add_phy=1;
 			dsaswideprintk((KERN_DEBUG "\t\tForming port\n\t\t"
-				"phy_id=%d sas_address=0x%018llX\n",
-				i, sas_address));
+			    "phy_id=%d sas_address=0x%018llX\n",
+			    i, (unsigned long long)sas_address));
 			phy_info->port_details = port_details;
 		}
 
@@ -512,8 +514,9 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 			if (phy_info_cmp->port_details == port_details )
 				continue;
 			dsaswideprintk((KERN_DEBUG
-				"\t\tphy_id=%d sas_address=0x%018llX\n",
-				j, phy_info_cmp->attached.sas_address));
+			    "\t\tphy_id=%d sas_address=0x%018llX\n",
+			    j, (unsigned long long)
+			    phy_info_cmp->attached.sas_address));
 			if (phy_info_cmp->port_details) {
 				port_details->rphy =
 				    mptsas_get_rphy(phy_info_cmp);
@@ -546,11 +549,10 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 		if (!port_details)
 			continue;
 		dsaswideprintk((KERN_DEBUG
-			"%s: [%p]: phy_id=%02d num_phys=%02d "
-		    	"bitmask=0x%016llX\n",
-			__FUNCTION__,
-			port_details, i, port_details->num_phys,
-			port_details->phy_bitmask));
+		    "%s: [%p]: phy_id=%02d num_phys=%02d "
+		    "bitmask=0x%016llX\n", __FUNCTION__,
+		    port_details, i, port_details->num_phys,
+		    (unsigned long long)port_details->phy_bitmask));
 		dsaswideprintk((KERN_DEBUG"\t\tport = %p rphy=%p\n",
 			port_details->port, port_details->rphy));
 	}
@@ -2079,8 +2081,10 @@ mptsas_persist_clear_table(struct work_struct *work)
 static void
 mptsas_reprobe_lun(struct scsi_device *sdev, void *data)
 {
+	int rc;
+
 	sdev->no_uld_attach = data ? 1 : 0;
-	scsi_device_reprobe(sdev);
+	rc = scsi_device_reprobe(sdev);
 }
 
 static void

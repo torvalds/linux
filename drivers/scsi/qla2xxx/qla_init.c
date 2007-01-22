@@ -2103,40 +2103,7 @@ qla2x00_iidma_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 	}
 }
 
-/*
- * qla2x00_update_fcport
- *	Updates device on list.
- *
- * Input:
- *	ha = adapter block pointer.
- *	fcport = port structure pointer.
- *
- * Return:
- *	0  - Success
- *  BIT_0 - error
- *
- * Context:
- *	Kernel context.
- */
-void
-qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
-{
-	fcport->ha = ha;
-	fcport->login_retry = 0;
-	fcport->port_login_retry_count = ha->port_down_retry_count *
-	    PORT_RETRY_TIME;
-	atomic_set(&fcport->port_down_timer, ha->port_down_retry_count *
-	    PORT_RETRY_TIME);
-	fcport->flags &= ~FCF_LOGIN_NEEDED;
-
-	qla2x00_iidma_fcport(ha, fcport);
-
-	atomic_set(&fcport->state, FCS_ONLINE);
-
-	qla2x00_reg_remote_port(ha, fcport);
-}
-
-void
+static void
 qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 {
 	struct fc_rport_identifiers rport_ids;
@@ -2176,6 +2143,39 @@ qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 	if (rport->scsi_target_id != -1 &&
 	    rport->scsi_target_id < ha->host->max_id)
 		fcport->os_target_id = rport->scsi_target_id;
+}
+
+/*
+ * qla2x00_update_fcport
+ *	Updates device on list.
+ *
+ * Input:
+ *	ha = adapter block pointer.
+ *	fcport = port structure pointer.
+ *
+ * Return:
+ *	0  - Success
+ *  BIT_0 - error
+ *
+ * Context:
+ *	Kernel context.
+ */
+void
+qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
+{
+	fcport->ha = ha;
+	fcport->login_retry = 0;
+	fcport->port_login_retry_count = ha->port_down_retry_count *
+	    PORT_RETRY_TIME;
+	atomic_set(&fcport->port_down_timer, ha->port_down_retry_count *
+	    PORT_RETRY_TIME);
+	fcport->flags &= ~FCF_LOGIN_NEEDED;
+
+	qla2x00_iidma_fcport(ha, fcport);
+
+	atomic_set(&fcport->state, FCS_ONLINE);
+
+	qla2x00_reg_remote_port(ha, fcport);
 }
 
 /*
@@ -3476,9 +3476,11 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 
 	/* Set host adapter parameters. */
 	ha->flags.disable_risc_code_load = 0;
-	ha->flags.enable_lip_reset = 1;
-	ha->flags.enable_lip_full_login = 1;
-	ha->flags.enable_target_reset = 1;
+	ha->flags.enable_lip_reset = 0;
+	ha->flags.enable_lip_full_login =
+	    le32_to_cpu(nv->host_p) & BIT_10 ? 1: 0;
+	ha->flags.enable_target_reset =
+	    le32_to_cpu(nv->host_p) & BIT_11 ? 1: 0;
 	ha->flags.enable_led_scheme = 0;
 	ha->flags.disable_serdes = le32_to_cpu(nv->host_p) & BIT_5 ? 1: 0;
 

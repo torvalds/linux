@@ -1602,6 +1602,7 @@ typedef struct fc_port {
 
 #define CT_REJECT_RESPONSE	0x8001
 #define CT_ACCEPT_RESPONSE	0x8002
+#define CT_REASON_INVALID_COMMAND_CODE	0x01
 #define CT_REASON_CANNOT_PERFORM	0x09
 #define CT_EXPL_ALREADY_REGISTERED	0x10
 
@@ -2079,6 +2080,7 @@ typedef struct scsi_qla_host {
 		uint32_t	msi_enabled		:1;
 		uint32_t	msix_enabled		:1;
 		uint32_t	disable_serdes		:1;
+		uint32_t	gpsc_supported		:1;
 	} flags;
 
 	atomic_t	loop_state;
