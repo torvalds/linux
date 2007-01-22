@@ -773,6 +773,12 @@ initialize_secondary(void)
 #endif
 
 	/*
+	 * switch to the per CPU GDT we already set up
+	 * in do_boot_cpu()
+	 */
+	cpu_set_gdt(current_thread_info()->cpu);
+
+	/*
 	 * We don't actually need to load the full TSS,
 	 * basically just the stack pointer and the eip.
 	 */
