@@ -379,8 +379,8 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 			ehci->reset_done [i] = 0;
 		if ((temp & mask) != 0
 				|| ((temp & PORT_RESUME) != 0
-					&& time_after (jiffies,
-						ehci->reset_done [i]))) {
+					&& time_after_eq(jiffies,
+						ehci->reset_done[i]))) {
 			if (i < 7)
 			    buf [0] |= 1 << (i + 1);
 			else
@@ -554,31 +554,45 @@ static int ehci_hub_control (
 			status |= 1 << USB_PORT_FEAT_C_OVER_CURRENT;
 
 		/* whoever resumes must GetPortStatus to complete it!! */
-		if ((temp & PORT_RESUME)
-				&& time_after (jiffies,
-					ehci->reset_done [wIndex])) {
-			status |= 1 << USB_PORT_FEAT_C_SUSPEND;
-			ehci->reset_done [wIndex] = 0;
+		if (temp & PORT_RESUME) {
 
-			/* stop resume signaling */
-			temp = ehci_readl(ehci, status_reg);
-			ehci_writel(ehci,
+			/* Remote Wakeup received? */
+			if (!ehci->reset_done[wIndex]) {
+				/* resume signaling for 20 msec */
+				ehci->reset_done[wIndex] = jiffies
+						+ msecs_to_jiffies(20);
+				/* check the port again */
+				mod_timer(&ehci_to_hcd(ehci)->rh_timer,
+						ehci->reset_done[wIndex]);
+			}
+
+			/* resume completed? */
+			else if (time_after_eq(jiffies,
+					ehci->reset_done[wIndex])) {
+				status |= 1 << USB_PORT_FEAT_C_SUSPEND;
+				ehci->reset_done[wIndex] = 0;
+
+				/* stop resume signaling */
+				temp = ehci_readl(ehci, status_reg);
+				ehci_writel(ehci,
 					temp & ~(PORT_RWC_BITS | PORT_RESUME),
 					status_reg);
-			retval = handshake(ehci, status_reg,
+				retval = handshake(ehci, status_reg,
 					   PORT_RESUME, 0, 2000 /* 2msec */);
-			if (retval != 0) {
-				ehci_err (ehci, "port %d resume error %d\n",
-					wIndex + 1, retval);
-				goto error;
+				if (retval != 0) {
+					ehci_err(ehci,
+						"port %d resume error %d\n",
+						wIndex + 1, retval);
+					goto error;
+				}
+				temp &= ~(PORT_SUSPEND|PORT_RESUME|(3<<10));
 			}
-			temp &= ~(PORT_SUSPEND|PORT_RESUME|(3<<10));
 		}
 
 		/* whoever resets must GetPortStatus to complete it!! */
 		if ((temp & PORT_RESET)
-				&& time_after (jiffies,
-					ehci->reset_done [wIndex])) {
+				&& time_after_eq(jiffies,
+					ehci->reset_done[wIndex])) {
 			status |= 1 << USB_PORT_FEAT_C_RESET;
 			ehci->reset_done [wIndex] = 0;
 
