@@ -2471,14 +2471,16 @@ static int __devinit ehea_probe(struct ibmebus_dev *dev,
 
 	adapter_handle = (u64*)get_property(dev->ofdev.node, "ibm,hea-handle",
 					    NULL);
-	if (!adapter_handle) {
+	if (adapter_handle)
+		adapter->handle = *adapter_handle;
+
+	if (!adapter->handle) {
 		dev_err(&dev->ofdev.dev, "failed getting handle for adapter"
 			" '%s'\n", dev->ofdev.node->full_name);
 		ret = -ENODEV;
 		goto out_free_ad;
 	}
 
-	adapter->handle = *adapter_handle;
 	adapter->pd = EHEA_PD_ID;
 
 	dev->ofdev.dev.driver_data = adapter;
