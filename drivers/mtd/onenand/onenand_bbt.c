@@ -168,8 +168,8 @@ static int onenand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt)
  * marked good / bad blocks and writes the bad block table(s) to
  * the selected place.
  *
- * The bad block table memory is allocated here. It must be freed
- * by calling the onenand_free_bbt function.
+ * The bad block table memory is allocated here. It is freed
+ * by the onenand_release function.
  *
  */
 int onenand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)

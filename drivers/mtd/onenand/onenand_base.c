@@ -2133,8 +2133,11 @@ void onenand_release(struct mtd_info *mtd)
 	del_mtd_device (mtd);
 
 	/* Free bad block table memory, if allocated */
-	if (this->bbm)
+	if (this->bbm) {
+		struct bbm_info *bbm = this->bbm;
+		kfree(bbm->bbt);
 		kfree(this->bbm);
+	}
 	/* Buffer allocated by onenand_scan */
 	if (this->options & ONENAND_PAGEBUF_ALLOC)
 		kfree(this->page_buf);
