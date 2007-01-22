@@ -2150,8 +2150,8 @@ static ssize_t l2cap_sysfs_show(struct class *dev, char *buf)
 
 		str += sprintf(str, "%s %s %d %d 0x%4.4x 0x%4.4x %d %d 0x%x\n",
 				batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
-				sk->sk_state, pi->psm, pi->scid, pi->dcid, pi->imtu,
-				pi->omtu, pi->link_mode);
+				sk->sk_state, btohs(pi->psm), pi->scid, pi->dcid,
+				pi->imtu, pi->omtu, pi->link_mode);
 	}
 
 	read_unlock_bh(&l2cap_sk_list.lock);
