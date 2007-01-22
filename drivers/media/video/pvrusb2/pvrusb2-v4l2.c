@@ -365,6 +365,10 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_TUNER:
 	{
 		struct v4l2_tuner *vt = (struct v4l2_tuner *)arg;
+
+		if (vt->index != 0)
+			break;
+
 		pvr2_hdw_execute_tuner_poll(hdw);
 		ret = pvr2_hdw_get_tuner_status(hdw,vt);
 		break;
