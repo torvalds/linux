@@ -68,7 +68,7 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 
 	printk(KERN_INFO "Scanning device for bad blocks\n");
 
-	len = 1;
+	len = 2;
 
 	/* We need only read few bytes from the OOB area */
 	scanlen = ooblen = 0;
