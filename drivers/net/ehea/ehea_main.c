@@ -558,12 +558,12 @@ static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param)
 	u32 qp_token;
 
 	eqe = ehea_poll_eq(port->qp_eq);
-	ehea_debug("eqe=%p", eqe);
+
 	while (eqe) {
-		ehea_debug("*eqe=%lx", *(u64*)eqe);
-		eqe = ehea_poll_eq(port->qp_eq);
 		qp_token = EHEA_BMASK_GET(EHEA_EQE_QP_TOKEN, eqe->entry);
-		ehea_debug("next eqe=%p", eqe);
+		ehea_error("QP aff_err: entry=0x%lx, token=0x%x",
+			   eqe->entry, qp_token);
+		eqe = ehea_poll_eq(port->qp_eq);
 	}
 
 	return IRQ_HANDLED;
