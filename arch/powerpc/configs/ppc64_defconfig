@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.20-rc3
-# Tue Jan  2 15:32:44 2007
+# Linux kernel version: 2.6.20-rc5
+# Mon Jan 22 22:28:58 2007
 #
 CONFIG_PPC64=y
 CONFIG_64BIT=y
@@ -246,7 +246,6 @@ CONFIG_PPC_I8259=y
 CONFIG_PCI=y
 CONFIG_PCI_DOMAINS=y
 # CONFIG_PCIEPORTBUS is not set
-# CONFIG_PCI_MULTITHREAD_PROBE is not set
 # CONFIG_PCI_DEBUG is not set
 
 #
