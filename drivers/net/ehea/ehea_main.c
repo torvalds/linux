@@ -642,6 +642,8 @@ int ehea_sense_port_attr(struct ehea_port *port)
 		break;
 	}
 
+	port->autoneg = 1;
+
 	/* Number of default QPs */
 	port->num_def_qps = cb0->num_default_qps;
 
@@ -2333,8 +2335,6 @@ static int ehea_setup_single_port(struct ehea_port *port,
 	}
 
 	INIT_LIST_HEAD(&port->mc_list->list);
-
-	ehea_set_portspeed(port, EHEA_SPEED_AUTONEG);
 
 	ret = ehea_sense_port_attr(port);
 	if (ret)
