@@ -97,9 +97,6 @@ struct connection {
 	struct socket *sock;	/* NULL if not connected */
 	uint32_t nodeid;	/* So we know who we are in the list */
 	struct rw_semaphore sock_sem; /* Stop connect races */
-	struct list_head read_list;   /* On this list when ready for reading */
-	struct list_head write_list;  /* On this list when ready for writing */
-	struct list_head state_list;  /* On this list when ready to connect */
 	unsigned long flags;	/* bit 1,2 = We are on the read/write lists */
 #define CF_READ_PENDING 1
 #define CF_WRITE_PENDING 2
@@ -391,7 +388,7 @@ static int accept_from_sock(struct connection *con)
 	if (result < 0)
 		return -ENOMEM;
 
-	down_read(&con->sock_sem);
+	down_read_nested(&con->sock_sem, 0);
 
 	result = -ENOTCONN;
 	if (con->sock == NULL)
@@ -434,7 +431,7 @@ static int accept_from_sock(struct connection *con)
 		result = -ENOMEM;
 		goto accept_err;
 	}
-	down_write(&newcon->sock_sem);
+	down_write_nested(&newcon->sock_sem, 1);
 	if (newcon->sock) {
 		struct connection *othercon = newcon->othercon;
 
