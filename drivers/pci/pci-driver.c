@@ -150,8 +150,7 @@ const struct pci_device_id *pci_match_id(const struct pci_device_id *ids,
 }
 
 /**
- * pci_match_device - Tell if a PCI device structure has a matching
- *                    PCI device id structure
+ * pci_match_device - Tell if a PCI device structure has a matching PCI device id structure
  * @drv: the PCI driver to match against
  * @dev: the PCI device structure to match against
  *
