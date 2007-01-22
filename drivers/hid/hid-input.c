@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/usb/input.h>
 
 #undef DEBUG
 
@@ -364,9 +363,22 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 
 		case HID_UP_LED:
-			if (((usage->hid - 1) & 0xffff) >= LED_MAX)
-				goto ignore;
-			map_led((usage->hid - 1) & 0xffff);
+
+			switch (usage->hid & 0xffff) {                        /* HID-Value:                   */
+				case 0x01:  map_led (LED_NUML);     break;    /*   "Num Lock"                 */
+				case 0x02:  map_led (LED_CAPSL);    break;    /*   "Caps Lock"                */
+				case 0x03:  map_led (LED_SCROLLL);  break;    /*   "Scroll Lock"              */
+				case 0x04:  map_led (LED_COMPOSE);  break;    /*   "Compose"                  */
+				case 0x05:  map_led (LED_KANA);     break;    /*   "Kana"                     */
+				case 0x27:  map_led (LED_SLEEP);    break;    /*   "Stand-By"                 */
+				case 0x4c:  map_led (LED_SUSPEND);  break;    /*   "System Suspend"           */
+				case 0x09:  map_led (LED_MUTE);     break;    /*   "Mute"                     */
+				case 0x4b:  map_led (LED_MISC);     break;    /*   "Generic Indicator"        */
+				case 0x19:  map_led (LED_MAIL);     break;    /*   "Message Waiting"          */
+				case 0x4d:  map_led (LED_CHARGING); break;    /*   "External Power Connected" */
+
+				default: goto ignore;
+			}
 			break;
 
 		case HID_UP_DIGITIZER:
