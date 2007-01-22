@@ -45,18 +45,14 @@ This driver implements support for Winbond W83793G/W83793R chips.
   temp5-6 have a 1 degree Celsiis resolution.
 
 * Temperature sensor types
-  Temp1-4 have 3 possible types. It can be read from (and written to)
+  Temp1-4 have 2 possible types. It can be read from (and written to)
   temp[1-4]_type.
-  - If the value of 0, the related temperature channel stops
-    monitoring.
   - If the value is 3, it starts monitoring using a remote termal diode
     (default).
-  - If the value is 5, it starts monitoring using the temperature sensor
-    in AMD CPU and get result by AMDSI.
   - If the value is 6, it starts monitoring using the temperature sensor
     in Intel CPU and get result by PECI.
   Temp5-6 can be connected to external thermistors (value of
-  temp[5-6]_type is 4). They can also be disabled (value is 0).
+  temp[5-6]_type is 4).
 
 * Alarm mechanism
   For voltage sensors, an alarm triggers if the measured value is below
