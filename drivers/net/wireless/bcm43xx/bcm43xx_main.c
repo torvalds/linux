@@ -2701,8 +2701,8 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 		sb_id_hi = bcm43xx_read32(bcm, BCM43xx_CIR_SB_ID_HI);
 
 		/* extract core_id, core_rev, core_vendor */
-		core_id = (sb_id_hi & 0xFFF0) >> 4;
-		core_rev = (sb_id_hi & 0xF);
+		core_id = (sb_id_hi & 0x8FF0) >> 4;
+		core_rev = ((sb_id_hi & 0xF) | ((sb_id_hi & 0x7000) >> 8));
 		core_vendor = (sb_id_hi & 0xFFFF0000) >> 16;
 
 		dprintk(KERN_INFO PFX "Core %d: ID 0x%x, rev 0x%x, vendor 0x%x\n",
@@ -2873,7 +2873,10 @@ static int bcm43xx_wireless_core_init(struct bcm43xx_private *bcm,
 		sbimconfiglow = bcm43xx_read32(bcm, BCM43xx_CIR_SBIMCONFIGLOW);
 		sbimconfiglow &= ~ BCM43xx_SBIMCONFIGLOW_REQUEST_TOUT_MASK;
 		sbimconfiglow &= ~ BCM43xx_SBIMCONFIGLOW_SERVICE_TOUT_MASK;
-		sbimconfiglow |= 0x32;
+		if (bcm->bustype == BCM43xx_BUSTYPE_PCI)
+			sbimconfiglow |= 0x32;
+		else
+			sbimconfiglow |= 0x53;
 		bcm43xx_write32(bcm, BCM43xx_CIR_SBIMCONFIGLOW, sbimconfiglow);
 	}
 
@@ -3077,7 +3080,7 @@ static int bcm43xx_setup_backplane_pci_connection(struct bcm43xx_private *bcm,
 	if (err)
 		goto out;
 
-	if (bcm->current_core->rev < 6 ||
+	if (bcm->current_core->rev < 6 &&
 		bcm->current_core->id == BCM43xx_COREID_PCI) {
 		value = bcm43xx_read32(bcm, BCM43xx_CIR_SBINTVEC);
 		value |= (1 << backplane_flag_nr);

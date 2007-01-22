@@ -765,17 +765,18 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	struct cp_private *cp = netdev_priv(dev);
 	unsigned entry;
 	u32 eor, flags;
+	unsigned long intr_flags;
 #if CP_VLAN_TAG_USED
 	u32 vlan_tag = 0;
 #endif
 	int mss = 0;
 
-	spin_lock_irq(&cp->lock);
+	spin_lock_irqsave(&cp->lock, intr_flags);
 
 	/* This is a hard error, log it. */
 	if (TX_BUFFS_AVAIL(cp) <= (skb_shinfo(skb)->nr_frags + 1)) {
 		netif_stop_queue(dev);
-		spin_unlock_irq(&cp->lock);
+		spin_unlock_irqrestore(&cp->lock, intr_flags);
 		printk(KERN_ERR PFX "%s: BUG! Tx Ring full when queue awake!\n",
 		       dev->name);
 		return 1;
@@ -908,7 +909,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	if (TX_BUFFS_AVAIL(cp) <= (MAX_SKB_FRAGS + 1))
 		netif_stop_queue(dev);
 
-	spin_unlock_irq(&cp->lock);
+	spin_unlock_irqrestore(&cp->lock, intr_flags);
 
 	cpw8(TxPoll, NormalTxPoll);
 	dev->trans_start = jiffies;
