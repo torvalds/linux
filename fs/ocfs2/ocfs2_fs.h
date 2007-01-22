@@ -85,7 +85,7 @@
 #define OCFS2_CLEAR_INCOMPAT_FEATURE(sb,mask)			\
 	OCFS2_SB(sb)->s_feature_incompat &= ~(mask)
 
-#define OCFS2_FEATURE_COMPAT_SUPP	0
+#define OCFS2_FEATURE_COMPAT_SUPP	OCFS2_FEATURE_COMPAT_BACKUP_SB
 #define OCFS2_FEATURE_INCOMPAT_SUPP	OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT
 #define OCFS2_FEATURE_RO_COMPAT_SUPP	0
 
@@ -108,6 +108,20 @@
 
 /* Support for sparse allocation in b-trees */
 #define OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC	0x0010
+
+/*
+ * backup superblock flag is used to indicate that this volume
+ * has backup superblocks.
+ */
+#define OCFS2_FEATURE_COMPAT_BACKUP_SB		0x0001
+
+/* The byte offset of the first backup block will be 1G.
+ * The following will be 4G, 16G, 64G, 256G and 1T.
+ */
+#define OCFS2_BACKUP_SB_START			1 << 30
+
+/* the max backup superblock nums */
+#define OCFS2_MAX_BACKUP_SUPERBLOCKS	6
 
 /*
  * Flags on ocfs2_dinode.i_flags
@@ -566,6 +580,20 @@ static inline int ocfs2_truncate_recs_per_inode(struct super_block *sb)
 
 	return size / sizeof(struct ocfs2_truncate_rec);
 }
+
+static inline u64 ocfs2_backup_super_blkno(struct super_block *sb, int index)
+{
+	u64 offset = OCFS2_BACKUP_SB_START;
+
+	if (index >= 0 && index < OCFS2_MAX_BACKUP_SUPERBLOCKS) {
+		offset <<= (2 * index);
+		offset /= sb->s_blocksize;
+		return offset;
+	}
+
+	return 0;
+
+}
 #else
 static inline int ocfs2_fast_symlink_chars(int blocksize)
 {
@@ -630,6 +658,19 @@ static inline int ocfs2_truncate_recs_per_inode(int blocksize)
 		offsetof(struct ocfs2_dinode, id2.i_dealloc.tl_recs);
 
 	return size / sizeof(struct ocfs2_truncate_rec);
+}
+
+static inline uint64_t ocfs2_backup_super_blkno(int blocksize, int index)
+{
+	uint64_t offset = OCFS2_BACKUP_SB_START;
+
+	if (index >= 0 && index < OCFS2_MAX_BACKUP_SUPERBLOCKS) {
+		offset <<= (2 * index);
+		offset /= blocksize;
+		return offset;
+	}
+
+	return 0;
 }
 #endif  /* __KERNEL__ */
 
