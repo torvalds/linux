@@ -22,6 +22,7 @@
 #include "pvrusb2-i2c-core.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
+#include "pvrusb2-fx2-cmd.h"
 
 #define trace_i2c(...) pvr2_trace(PVR2_TRACE_I2C,__VA_ARGS__)
 
@@ -66,7 +67,7 @@ static int pvr2_i2c_write(struct pvr2_hdw *hdw, /* Context */
 	memset(hdw->cmd_buffer, 0, sizeof(hdw->cmd_buffer));
 
 	/* Set up command buffer for an I2C write */
-	hdw->cmd_buffer[0] = 0x08;      /* write prefix */
+	hdw->cmd_buffer[0] = FX2CMD_I2C_WRITE;      /* write prefix */
 	hdw->cmd_buffer[1] = i2c_addr;  /* i2c addr of chip */
 	hdw->cmd_buffer[2] = length;    /* length of what follows */
 	if (length) memcpy(hdw->cmd_buffer + 3, data, length);
@@ -128,7 +129,7 @@ static int pvr2_i2c_read(struct pvr2_hdw *hdw, /* Context */
 	memset(hdw->cmd_buffer, 0, sizeof(hdw->cmd_buffer));
 
 	/* Set up command buffer for an I2C write followed by a read */
-	hdw->cmd_buffer[0] = 0x09;  /* read prefix */
+	hdw->cmd_buffer[0] = FX2CMD_I2C_READ;  /* read prefix */
 	hdw->cmd_buffer[1] = dlen;  /* arg length */
 	hdw->cmd_buffer[2] = rlen;  /* answer length. Device will send one
 				       more byte (status). */
@@ -221,7 +222,7 @@ static int i2c_24xxx_ir(struct pvr2_hdw *hdw,
 
 	/* Issue a command to the FX2 to read the IR receiver. */
 	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = 0xec;
+		hdw->cmd_buffer[0] = FX2CMD_GET_IR_CODE;
 		stat = pvr2_send_request(hdw,
 					 hdw->cmd_buffer,1,
 					 hdw->cmd_buffer,4);

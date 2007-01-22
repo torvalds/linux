@@ -366,8 +366,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct v4l2_tuner *vt = (struct v4l2_tuner *)arg;
 
-		if (vt->index != 0)
-			break;
+		if (vt->index != 0) break; /* Only answer for the 1st tuner */
 
 		pvr2_hdw_execute_tuner_poll(hdw);
 		ret = pvr2_hdw_get_tuner_status(hdw,vt);

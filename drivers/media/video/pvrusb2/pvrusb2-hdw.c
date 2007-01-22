@@ -36,6 +36,7 @@
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-encoder.h"
 #include "pvrusb2-debug.h"
+#include "pvrusb2-fx2-cmd.h"
 
 #define TV_MIN_FREQ     55250000L
 #define TV_MAX_FREQ    850000000L
@@ -1647,7 +1648,7 @@ static int pvr2_hdw_check_firmware(struct pvr2_hdw *hdw)
 	   firmware needs be loaded. */
 	int result;
 	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = 0xeb;
+		hdw->cmd_buffer[0] = FX2CMD_GET_EEPROM_ADDR;
 		result = pvr2_send_request_ex(hdw,HZ*1,!0,
 					   hdw->cmd_buffer,1,
 					   hdw->cmd_buffer,1);
@@ -2526,7 +2527,7 @@ int pvr2_hdw_is_hsm(struct pvr2_hdw *hdw)
 {
 	int result;
 	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = 0x0b;
+		hdw->cmd_buffer[0] = FX2CMD_GET_USB_SPEED;
 		result = pvr2_send_request(hdw,
 					   hdw->cmd_buffer,1,
 					   hdw->cmd_buffer,1);
@@ -2976,7 +2977,7 @@ int pvr2_write_register(struct pvr2_hdw *hdw, u16 reg, u32 data)
 
 	LOCK_TAKE(hdw->ctl_lock);
 
-	hdw->cmd_buffer[0] = 0x04;  /* write register prefix */
+	hdw->cmd_buffer[0] = FX2CMD_REG_WRITE;  /* write register prefix */
 	PVR2_DECOMPOSE_LE(hdw->cmd_buffer,1,data);
 	hdw->cmd_buffer[5] = 0;
 	hdw->cmd_buffer[6] = (reg >> 8) & 0xff;
@@ -2997,7 +2998,7 @@ static int pvr2_read_register(struct pvr2_hdw *hdw, u16 reg, u32 *data)
 
 	LOCK_TAKE(hdw->ctl_lock);
 
-	hdw->cmd_buffer[0] = 0x05;  /* read register prefix */
+	hdw->cmd_buffer[0] = FX2CMD_REG_READ;  /* read register prefix */
 	hdw->cmd_buffer[1] = 0;
 	hdw->cmd_buffer[2] = 0;
 	hdw->cmd_buffer[3] = 0;
@@ -3121,7 +3122,7 @@ int pvr2_hdw_cmd_deep_reset(struct pvr2_hdw *hdw)
 	LOCK_TAKE(hdw->ctl_lock); do {
 		pvr2_trace(PVR2_TRACE_INIT,"Requesting uproc hard reset");
 		hdw->flag_ok = !0;
-		hdw->cmd_buffer[0] = 0xdd;
+		hdw->cmd_buffer[0] = FX2CMD_DEEP_RESET;
 		status = pvr2_send_request(hdw,hdw->cmd_buffer,1,NULL,0);
 	} while (0); LOCK_GIVE(hdw->ctl_lock);
 	return status;
@@ -3133,7 +3134,7 @@ int pvr2_hdw_cmd_powerup(struct pvr2_hdw *hdw)
 	int status;
 	LOCK_TAKE(hdw->ctl_lock); do {
 		pvr2_trace(PVR2_TRACE_INIT,"Requesting powerup");
-		hdw->cmd_buffer[0] = 0xde;
+		hdw->cmd_buffer[0] = FX2CMD_POWER_ON;
 		status = pvr2_send_request(hdw,hdw->cmd_buffer,1,NULL,0);
 	} while (0); LOCK_GIVE(hdw->ctl_lock);
 	return status;
@@ -3166,7 +3167,8 @@ static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl)
 {
 	int status;
 	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = (runFl ? 0x36 : 0x37);
+		hdw->cmd_buffer[0] =
+			(runFl ? FX2CMD_STREAMING_ON : FX2CMD_STREAMING_OFF);
 		status = pvr2_send_request(hdw,hdw->cmd_buffer,1,NULL,0);
 	} while (0); LOCK_GIVE(hdw->ctl_lock);
 	if (!status) {
@@ -3265,7 +3267,7 @@ static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw)
 {
 	int result;
 	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = 0xeb;
+		hdw->cmd_buffer[0] = FX2CMD_GET_EEPROM_ADDR;
 		result = pvr2_send_request(hdw,
 					   hdw->cmd_buffer,1,
 					   hdw->cmd_buffer,1);

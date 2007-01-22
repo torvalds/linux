@@ -26,6 +26,7 @@
 #include "pvrusb2-encoder.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
+#include "pvrusb2-fx2-cmd.h"
 
 
 
@@ -57,7 +58,7 @@ static int pvr2_encoder_write_words(struct pvr2_hdw *hdw,
 		chunkCnt = 8;
 		if (chunkCnt > dlen) chunkCnt = dlen;
 		memset(hdw->cmd_buffer,0,sizeof(hdw->cmd_buffer));
-		hdw->cmd_buffer[0] = 0x01;
+		hdw->cmd_buffer[0] = FX2CMD_MEM_WRITE_DWORD;
 		for (idx = 0; idx < chunkCnt; idx++) {
 			hdw->cmd_buffer[1+(idx*7)+6] = 0x44 + idx + offs;
 			PVR2_DECOMPOSE_LE(hdw->cmd_buffer, 1+(idx*7),
@@ -98,7 +99,8 @@ static int pvr2_encoder_read_words(struct pvr2_hdw *hdw,int statusFl,
 		chunkCnt = 16;
 		if (chunkCnt > dlen) chunkCnt = dlen;
 		memset(hdw->cmd_buffer,0,sizeof(hdw->cmd_buffer));
-		hdw->cmd_buffer[0] = statusFl ? 0x02 : 0x28;
+		hdw->cmd_buffer[0] =
+			(statusFl ? FX2CMD_MEM_READ_DWORD : FX2CMD_MEM_READ_64BYTES);
 		hdw->cmd_buffer[7] = 0x44 + offs;
 		ret = pvr2_send_request(hdw,
 					hdw->cmd_buffer,8,
