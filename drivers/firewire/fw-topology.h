@@ -57,13 +57,13 @@ struct fw_node {
         struct fw_port ports[0];
 };
 
-extern inline struct fw_node *
+static inline struct fw_node *
 fw_node(struct list_head *l)
 {
         return list_entry (l, struct fw_node, link);
 }
 
-extern inline struct fw_node *
+static inline struct fw_node *
 fw_node_get(struct fw_node *node)
 {
 	atomic_inc(&node->ref_count);
@@ -71,7 +71,7 @@ fw_node_get(struct fw_node *node)
 	return node;
 }
 
-extern inline void
+static inline void
 fw_node_put(struct fw_node *node)
 {
 	if (atomic_dec_and_test(&node->ref_count))

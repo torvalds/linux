@@ -147,7 +147,7 @@ struct fw_ohci {
 	struct iso_context *ir_context_list;
 };
 
-extern inline struct fw_ohci *fw_ohci(struct fw_card *card)
+static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 {
 	return container_of(card, struct fw_ohci, card);
 }
@@ -174,17 +174,17 @@ extern inline struct fw_ohci *fw_ohci(struct fw_card *card)
 
 static char ohci_driver_name[] = KBUILD_MODNAME;
 
-extern inline void reg_write(const struct fw_ohci *ohci, int offset, u32 data)
+static inline void reg_write(const struct fw_ohci *ohci, int offset, u32 data)
 {
 	writel(data, ohci->registers + offset);
 }
 
-extern inline u32 reg_read(const struct fw_ohci *ohci, int offset)
+static inline u32 reg_read(const struct fw_ohci *ohci, int offset)
 {
 	return readl(ohci->registers + offset);
 }
 
-extern inline void flush_writes(const struct fw_ohci *ohci)
+static inline void flush_writes(const struct fw_ohci *ohci)
 {
 	/* Do a dummy read to flush writes. */
 	reg_read(ohci, OHCI1394_Version);

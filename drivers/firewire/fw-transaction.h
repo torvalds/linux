@@ -198,7 +198,7 @@ struct fw_transaction {
         void *callback_data;
 };
 
-extern inline struct fw_packet *
+static inline struct fw_packet *
 fw_packet(struct list_head *l)
 {
         return list_entry (l, struct fw_packet, link);

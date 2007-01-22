@@ -92,7 +92,7 @@ static int get_port_type(u32 *sid, int port_index)
 	return (sid[index] >> shift) & 0x03;
 }
 
-struct fw_node *fw_node_create(u32 sid, int port_count, int color)
+static struct fw_node *fw_node_create(u32 sid, int port_count, int color)
 {
 	struct fw_node *node;
 

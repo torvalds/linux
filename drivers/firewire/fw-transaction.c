@@ -106,7 +106,7 @@ transmit_complete_callback(struct fw_packet *packet,
 	}
 }
 
-void
+static void
 fw_fill_packet(struct fw_packet *packet, int tcode, int tlabel,
 	       int node_id, int generation, int speed,
 	       unsigned long long offset, void *payload, size_t length)
