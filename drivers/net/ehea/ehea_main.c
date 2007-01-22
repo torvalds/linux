@@ -998,7 +998,7 @@ static int ehea_configure_port(struct ehea_port *port)
 		     | EHEA_BMASK_SET(PXLY_RC_JUMBO_FRAME, 1);
 
 	for (i = 0; i < port->num_def_qps; i++)
-		cb0->default_qpn_arr[i] = port->port_res[i].qp->init_attr.qp_nr;
+		cb0->default_qpn_arr[i] = port->port_res[0].qp->init_attr.qp_nr;
 
 	if (netif_msg_ifup(port))
 		ehea_dump(cb0, sizeof(*cb0), "ehea_configure_port");
