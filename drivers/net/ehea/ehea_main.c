@@ -730,10 +730,7 @@ int ehea_set_portspeed(struct ehea_port *port, u32 port_speed)
 		}
 	} else {
 		if (hret == H_AUTHORITY) {
-			ehea_info("Hypervisor denied setting port speed. Either"
-				  " this partition is not authorized to set "
-				  "port speed or another partition has modified"
-				  " port speed first.");
+			ehea_info("Hypervisor denied setting port speed");
 			ret = -EPERM;
 		} else {
 			ret = -EIO;
@@ -1487,11 +1484,12 @@ out:
 
 static void ehea_promiscuous_error(u64 hret, int enable)
 {
-	ehea_info("Hypervisor denied %sabling promiscuous mode.%s",
-		  enable == 1 ? "en" : "dis",
-		  hret != H_AUTHORITY ? "" : " Another partition owning a "
-		  "logical port on the same physical port might have altered "
-		  "promiscuous mode first.");
+	if (hret == H_AUTHORITY)
+		ehea_info("Hypervisor denied %sabling promiscuous mode",
+			  enable == 1 ? "en" : "dis");
+	else
+		ehea_error("failed %sabling promiscuous mode",
+			   enable == 1 ? "en" : "dis");
 }
 
 static void ehea_promiscuous(struct net_device *dev, int enable)
