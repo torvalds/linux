@@ -819,6 +819,11 @@ static int cinergyt2_register_rc(struct cinergyt2 *cinergyt2)
 		set_bit(rc_keys[i + 2], input_dev->keybit);
 	input_dev->keycodesize = 0;
 	input_dev->keycodemax = 0;
+	input_dev->id.bustype = BUS_USB;
+	input_dev->id.vendor = cinergyt2->udev->descriptor.idVendor;
+	input_dev->id.product = cinergyt2->udev->descriptor.idProduct;
+	input_dev->id.version = 1;
+	input_dev->cdev.dev = &cinergyt2->udev->dev;
 
 	err = input_register_device(input_dev);
 	if (err) {
