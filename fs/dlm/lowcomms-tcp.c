@@ -327,6 +327,9 @@ static int receive_from_sock(struct connection *con)
 
 	if (ret <= 0)
 		goto out_close;
+	if (ret == -EAGAIN)
+		goto out_resched;
+
 	if (ret == len)
 		call_again_soon = 1;
 	cbuf_add(&con->cb, ret);
@@ -359,8 +362,7 @@ out_resched:
 	if (!test_and_set_bit(CF_READ_PENDING, &con->flags))
 		queue_work(recv_workqueue, &con->rwork);
 	up_read(&con->sock_sem);
-	cond_resched();
-	return 0;
+	return -EAGAIN;
 
 out_close:
 	up_read(&con->sock_sem);
@@ -381,6 +383,7 @@ static int accept_from_sock(struct connection *con)
 	int len;
 	int nodeid;
 	struct connection *newcon;
+	struct connection *addcon;
 
 	memset(&peeraddr, 0, sizeof(peeraddr));
 	result = sock_create_kern(dlm_local_addr.ss_family, SOCK_STREAM,
@@ -454,12 +457,13 @@ static int accept_from_sock(struct connection *con)
 		othercon->sock = newsock;
 		newsock->sk->sk_user_data = othercon;
 		add_sock(newsock, othercon);
+		addcon = othercon;
 	}
 	else {
 		newsock->sk->sk_user_data = newcon;
 		newcon->rx_action = receive_from_sock;
 		add_sock(newsock, newcon);
-
+		addcon = newcon;
 	}
 
 	up_write(&newcon->sock_sem);
@@ -469,8 +473,8 @@ static int accept_from_sock(struct connection *con)
 	 * beween processing the accept adding the socket
 	 * to the read_sockets list
 	 */
-	if (!test_and_set_bit(CF_READ_PENDING, &newcon->flags))
-		queue_work(recv_workqueue, &newcon->rwork);
+	if (!test_and_set_bit(CF_READ_PENDING, &addcon->flags))
+		queue_work(recv_workqueue, &addcon->rwork);
 	up_read(&con->sock_sem);
 
 	return 0;
@@ -610,8 +614,7 @@ static struct socket *create_listen_sock(struct connection *con,
 
 	result = sock->ops->listen(sock, 5);
 	if (result < 0) {
-		printk("dlm: Can't listen on port %d\n",
-		       dlm_config.ci_tcp_port);
+		printk("dlm: Can't listen on port %d\n", dlm_config.ci_tcp_port);
 		sock_release(sock);
 		sock = NULL;
 		goto create_out;
@@ -811,7 +814,7 @@ send_error:
 
 out_connect:
 	up_read(&con->sock_sem);
-	lowcomms_connect_sock(con);
+	connect_to_sock(con);
 	return;
 }
 
@@ -873,9 +876,8 @@ static void process_send_sockets(struct work_struct *work)
 		connect_to_sock(con);
 	}
 
-	if (test_and_clear_bit(CF_WRITE_PENDING, &con->flags)) {
-		send_to_sock(con);
-	}
+	clear_bit(CF_WRITE_PENDING, &con->flags);
+	send_to_sock(con);
 }
 
 
