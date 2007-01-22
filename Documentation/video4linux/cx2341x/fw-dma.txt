@@ -22,6 +22,8 @@ urged to choose a smaller block size and learn the scatter-gather technique.
 
 Mailbox #10 is reserved for DMA transfer information.
 
+Note: the hardware expects little-endian data ('intel format').
+
 Flow
 ====
 
@@ -64,7 +66,7 @@ addresses are the physical memory location of the target DMA buffer.
 
 Each S-G array element is a struct of three 32-bit words. The first word is
 the source address, the second is the destination address. Both take up the
-entire 32 bits. The lowest 16 bits of the third word is the transfer byte
+entire 32 bits. The lowest 18 bits of the third word is the transfer byte
 count. The high-bit of the third word is the "last" flag. The last-flag tells
 the card to raise the DMA_DONE interrupt. From hard personal experience, if
 you forget to set this bit, the card will still "work" but the stream will
@@ -78,8 +80,8 @@ Array Element:
 
 - 32-bit Source Address
 - 32-bit Destination Address
-- 16-bit reserved (high bit is the last flag)
-- 16-bit byte count
+- 14-bit reserved (high bit is the last flag)
+- 18-bit byte count
 
 DMA Transfer Status
 ===================
@@ -87,8 +89,8 @@ DMA Transfer Status
 Register 0x0004 holds the DMA Transfer Status:
 
 Bit
-4   Scatter-Gather array error
-3   DMA write error
-2   DMA read error
-1   write completed
 0   read completed
+1   write completed
+2   DMA read error
+3   DMA write error
+4   Scatter-Gather array error

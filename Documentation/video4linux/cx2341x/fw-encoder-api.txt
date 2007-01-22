@@ -498,12 +498,14 @@ Name 	CX2341X_ENC_GET_PREV_DMA_INFO_MB_9
 Enum 	203/0xCB
 Description
 	Returns information on the previous DMA transfer in conjunction with
-	bit 27 of the interrupt mask. Uses mailbox 9.
+	bit 27 or 18 of the interrupt mask. Uses mailbox 9.
 Result[0]
 	Status bits:
-	    Bit 0 set indicates transfer complete
-	    Bit 2 set indicates transfer error
-	    Bit 4 set indicates linked list error
+		0   read completed
+		1   write completed
+		2   DMA read error
+		3   DMA write error
+		4   Scatter-Gather array error
 Result[1]
 	DMA type
 Result[2]
