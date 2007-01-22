@@ -2,7 +2,7 @@
  * inode.h - Defines for inode structures NTFS Linux kernel driver. Part of
  *	     the Linux-NTFS project.
  *
- * Copyright (c) 2001-2005 Anton Altaparmakov
+ * Copyright (c) 2001-2007 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -101,8 +101,6 @@ struct _ntfs_inode {
 	runlist attr_list_rl;	/* Run list for the attribute list value. */
 	union {
 		struct { /* It is a directory, $MFT, or an index inode. */
-			struct inode *bmp_ino;	/* Attribute inode for the
-						   index $BITMAP. */
 			u32 block_size;		/* Size of an index block. */
 			u32 vcn_size;		/* Size of a vcn in this
 						   index. */
@@ -299,8 +297,6 @@ extern ntfs_inode *ntfs_new_extent_inode(struct super_block *sb,
 extern void ntfs_clear_extent_inode(ntfs_inode *ni);
 
 extern int ntfs_read_inode_mount(struct inode *vi);
-
-extern void ntfs_put_inode(struct inode *vi);
 
 extern int ntfs_show_options(struct seq_file *sf, struct vfsmount *mnt);
 
