@@ -88,14 +88,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khubd_wait);
 static struct task_struct *khubd_task;
 
 /* multithreaded probe logic */
-static int multithread_probe =
-#ifdef CONFIG_USB_MULTITHREAD_PROBE
-	1;
-#else
-	0;
-#endif
-module_param(multithread_probe, bool, S_IRUGO);
-MODULE_PARM_DESC(multithread_probe, "Run each USB device probe in a new thread");
+static int multithread_probe = 0;
 
 /* cycle leds on hubs that aren't blinking for attention */
 static int blinkenlights = 0;
