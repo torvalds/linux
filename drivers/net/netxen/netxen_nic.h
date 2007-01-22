@@ -63,12 +63,11 @@
 
 #include "netxen_nic_hw.h"
 
-#define NETXEN_NIC_BUILD_NO     "4"
+#define NETXEN_NIC_BUILD_NO     "1"
 #define _NETXEN_NIC_LINUX_MAJOR 3
 #define _NETXEN_NIC_LINUX_MINOR 3
-#define _NETXEN_NIC_LINUX_SUBVERSION 2
-#define NETXEN_NIC_LINUX_VERSIONID  "3.3.2" "-" NETXEN_NIC_BUILD_NO
-#define NETXEN_NIC_FW_VERSIONID "3.3.2"
+#define _NETXEN_NIC_LINUX_SUBVERSION 3
+#define NETXEN_NIC_LINUX_VERSIONID  "3.3.3" "-" NETXEN_NIC_BUILD_NO
 
 #define RCV_DESC_RINGSIZE	\
 	(sizeof(struct rcv_desc) * adapter->max_rx_desc_count)

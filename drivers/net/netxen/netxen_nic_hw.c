@@ -984,7 +984,8 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 		       _NETXEN_NIC_LINUX_MAJOR, fw_major);
 		adapter->driver_mismatch = 1;
 	}
-	if (fw_minor != _NETXEN_NIC_LINUX_MINOR) {
+	if (fw_minor != _NETXEN_NIC_LINUX_MINOR &&
+			fw_minor != (_NETXEN_NIC_LINUX_MINOR + 1)) {
 		printk(KERN_ERR "The mismatch in driver version and firmware "
 		       "version minor number\n"
 		       "Driver version minor number = %d \t"
