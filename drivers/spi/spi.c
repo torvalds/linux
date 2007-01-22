@@ -193,7 +193,7 @@ struct spi_device *__init_or_module
 spi_new_device(struct spi_master *master, struct spi_board_info *chip)
 {
 	struct spi_device	*proxy;
-	struct device		*dev = master->cdev.dev;
+	struct device		*dev = &master->dev;
 	int			status;
 
 	/* NOTE:  caller did any chip->bus_num checks necessary */
@@ -215,7 +215,7 @@ spi_new_device(struct spi_master *master, struct spi_board_info *chip)
 	proxy->modalias = chip->modalias;
 
 	snprintf(proxy->dev.bus_id, sizeof proxy->dev.bus_id,
-			"%s.%u", master->cdev.class_id,
+			"%s.%u", master->dev.bus_id,
 			chip->chip_select);
 	proxy->dev.parent = dev;
 	proxy->dev.bus = &spi_bus_type;
@@ -290,7 +290,7 @@ static void __init_or_module
 scan_boardinfo(struct spi_master *master)
 {
 	struct boardinfo	*bi;
-	struct device		*dev = master->cdev.dev;
+	struct device		*dev = master->dev.parent;
 
 	down(&board_lock);
 	list_for_each_entry(bi, &board_list, list) {
@@ -319,18 +319,18 @@ scan_boardinfo(struct spi_master *master)
 
 /*-------------------------------------------------------------------------*/
 
-static void spi_master_release(struct class_device *cdev)
+static void spi_master_release(struct device *dev)
 {
 	struct spi_master *master;
 
-	master = container_of(cdev, struct spi_master, cdev);
+	master = container_of(dev, struct spi_master, dev);
 	kfree(master);
 }
 
 static struct class spi_master_class = {
 	.name		= "spi_master",
 	.owner		= THIS_MODULE,
-	.release	= spi_master_release,
+	.dev_release	= spi_master_release,
 };
 
 
@@ -364,9 +364,9 @@ spi_alloc_master(struct device *dev, unsigned size)
 	if (!master)
 		return NULL;
 
-	class_device_initialize(&master->cdev);
-	master->cdev.class = &spi_master_class;
-	master->cdev.dev = get_device(dev);
+	device_initialize(&master->dev);
+	master->dev.class = &spi_master_class;
+	master->dev.parent = get_device(dev);
 	spi_master_set_devdata(master, &master[1]);
 
 	return master;
@@ -396,7 +396,7 @@ int __init_or_module
 spi_register_master(struct spi_master *master)
 {
 	static atomic_t		dyn_bus_id = ATOMIC_INIT((1<<16) - 1);
-	struct device		*dev = master->cdev.dev;
+	struct device		*dev = master->dev.parent;
 	int			status = -ENODEV;
 	int			dynamic = 0;
 
@@ -412,12 +412,12 @@ spi_register_master(struct spi_master *master)
 	/* register the device, then userspace will see it.
 	 * registration fails if the bus ID is in use.
 	 */
-	snprintf(master->cdev.class_id, sizeof master->cdev.class_id,
+	snprintf(master->dev.bus_id, sizeof master->dev.bus_id,
 		"spi%u", master->bus_num);
-	status = class_device_add(&master->cdev);
+	status = device_add(&master->dev);
 	if (status < 0)
 		goto done;
-	dev_dbg(dev, "registered master %s%s\n", master->cdev.class_id,
+	dev_dbg(dev, "registered master %s%s\n", master->dev.bus_id,
 			dynamic ? " (dynamic)" : "");
 
 	/* populate children from any spi device tables */
@@ -449,8 +449,8 @@ void spi_unregister_master(struct spi_master *master)
 {
 	int dummy;
 
-	dummy = device_for_each_child(master->cdev.dev, NULL, __unregister);
-	class_device_unregister(&master->cdev);
+	dummy = device_for_each_child(&master->dev, NULL, __unregister);
+	device_unregister(&master->dev);
 }
 EXPORT_SYMBOL_GPL(spi_unregister_master);
 
@@ -471,7 +471,7 @@ struct spi_master *spi_busnum_to_master(u16 bus_num)
 
 	down(&spi_master_class.sem);
 	list_for_each_entry(cdev, &spi_master_class.children, node) {
-		m = container_of(cdev, struct spi_master, cdev);
+		m = container_of(cdev, struct spi_master, dev.kobj);
 		if (m->bus_num == bus_num) {
 			master = spi_master_get(m);
 			break;

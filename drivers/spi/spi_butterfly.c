@@ -246,7 +246,7 @@ static void butterfly_attach(struct parport *p)
 	 * and no way to be selective about what it binds to.
 	 */
 
-	/* FIXME where should master->cdev.dev come from?
+	/* FIXME where should master->dev.parent come from?
 	 * e.g. /sys/bus/pnp0/00:0b, some PCI thing, etc
 	 * setting up a platform device like this is an ugly kluge...
 	 */
@@ -386,7 +386,7 @@ static void butterfly_detach(struct parport *p)
 	butterfly = NULL;
 
 	/* stop() unregisters child devices too */
-	pdev = to_platform_device(pp->bitbang.master->cdev.dev);
+	pdev = to_platform_device(pp->bitbang.master->dev.parent);
 	status = spi_bitbang_stop(&pp->bitbang);
 
 	/* turn off VCC */
