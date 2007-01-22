@@ -391,10 +391,6 @@ void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 	gh->gh_flags = flags;
 	gh->gh_error = 0;
 	gh->gh_iflags = 0;
-
-	if (gh->gh_state == LM_ST_EXCLUSIVE)
-		gh->gh_flags |= GL_LOCAL_EXCL;
-
 	gfs2_glock_hold(gl);
 }
 
@@ -412,9 +408,6 @@ void gfs2_holder_reinit(unsigned int state, unsigned flags, struct gfs2_holder *
 {
 	gh->gh_state = state;
 	gh->gh_flags = flags;
-	if (gh->gh_state == LM_ST_EXCLUSIVE)
-		gh->gh_flags |= GL_LOCAL_EXCL;
-
 	gh->gh_iflags &= 1 << HIF_ALLOCED;
 	gh->gh_ip = (unsigned long)__builtin_return_address(0);
 }
@@ -557,11 +550,11 @@ static int rq_promote(struct gfs2_holder *gh)
 		set_bit(GLF_LOCK, &gl->gl_flags);
 	} else {
 		struct gfs2_holder *next_gh;
-		if (gh->gh_flags & GL_LOCAL_EXCL)
+		if (gh->gh_state == LM_ST_EXCLUSIVE)
 			return 1;
 		next_gh = list_entry(gl->gl_holders.next, struct gfs2_holder,
 				     gh_list);
-		if (next_gh->gh_flags & GL_LOCAL_EXCL)
+		if (next_gh->gh_state == LM_ST_EXCLUSIVE)
 			 return 1;
 	}
 
@@ -1363,10 +1356,7 @@ static int glock_compare(const void *arg_a, const void *arg_b)
 		return 1;
 	if (a->ln_number < b->ln_number)
 		return -1;
-	if (gh_a->gh_state == LM_ST_SHARED && gh_b->gh_state == LM_ST_EXCLUSIVE)
-		return 1;
-	if (!(gh_a->gh_flags & GL_LOCAL_EXCL) && (gh_b->gh_flags & GL_LOCAL_EXCL))
-		return 1;
+	BUG_ON(gh_a->gh_gl->gl_ops->go_type == gh_b->gh_gl->gl_ops->go_type);
 	return 0;
 }
 

@@ -295,7 +295,7 @@ static int inode_go_lock(struct gfs2_holder *gh)
 
 	if ((ip->i_di.di_flags & GFS2_DIF_TRUNC_IN_PROG) &&
 	    (gl->gl_state == LM_ST_EXCLUSIVE) &&
-	    (gh->gh_flags & GL_LOCAL_EXCL))
+	    (gh->gh_state == LM_ST_EXCLUSIVE))
 		error = gfs2_truncatei_resume(ip);
 
 	return error;

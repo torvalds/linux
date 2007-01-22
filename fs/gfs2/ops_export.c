@@ -216,8 +216,7 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_obj)
 	}
 
 	error = gfs2_glock_nq_num(sdp, inum->no_addr, &gfs2_inode_glops,
-				  LM_ST_SHARED, LM_FLAG_ANY | GL_LOCAL_EXCL,
-				  &i_gh);
+				  LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 	if (error)
 		return ERR_PTR(error);
 
