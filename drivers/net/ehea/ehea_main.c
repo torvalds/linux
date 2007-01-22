@@ -575,8 +575,9 @@ static struct ehea_port *ehea_get_port(struct ehea_adapter *adapter,
 	int i;
 
 	for (i = 0; i < adapter->num_ports; i++)
-		if (adapter->port[i]->logical_port_id == logical_port)
-			return adapter->port[i];
+		if (adapter->port[i])
+	                if (adapter->port[i]->logical_port_id == logical_port)
+				return adapter->port[i];
 	return NULL;
 }
 
