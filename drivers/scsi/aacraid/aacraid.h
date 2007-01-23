@@ -1810,6 +1810,7 @@ int aac_dev_ioctl(struct aac_dev *dev, int cmd, void __user *arg);
 int aac_do_ioctl(struct aac_dev * dev, int cmd, void __user *arg);
 int aac_rx_init(struct aac_dev *dev);
 int aac_rkt_init(struct aac_dev *dev);
+int aac_nark_init(struct aac_dev *dev);
 int aac_sa_init(struct aac_dev *dev);
 int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw_fib, int wait, struct fib * fibptr, unsigned long *nonotify);
 unsigned int aac_response_normal(struct aac_queue * q);
