@@ -566,4 +566,11 @@ struct paravirt_ops paravirt_ops = {
 	.irq_enable_sysexit = native_irq_enable_sysexit,
 	.iret = native_iret,
 };
-EXPORT_SYMBOL(paravirt_ops);
+
+/*
+ * NOTE: CONFIG_PARAVIRT is experimental and the paravirt_ops
+ * semantics are subject to change. Hence we only do this
+ * internal-only export of this, until it gets sorted out and
+ * all lowlevel CPU ops used by modules are separately exported.
+ */
+EXPORT_SYMBOL_GPL(paravirt_ops);
