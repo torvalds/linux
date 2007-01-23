@@ -286,6 +286,7 @@ int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 
 	return 0;
 }
+EXPORT_SYMBOL(phy_ethtool_sset);
 
 int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 {
@@ -302,7 +303,7 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 
 	return 0;
 }
-
+EXPORT_SYMBOL(phy_ethtool_gset);
 
 /* Note that this function is currently incompatible with the
  * PHYCONTROL layer.  It changes registers without regard to

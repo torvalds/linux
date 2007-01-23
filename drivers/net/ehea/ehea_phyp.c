@@ -94,6 +94,7 @@ static long ehea_plpar_hcall9(unsigned long opcode,
 {
 	long ret;
 	int i, sleep_msecs;
+	u8 cb_cat;
 
 	for (i = 0; i < 5; i++) {
 		ret = plpar_hcall9(opcode, outs,
@@ -106,7 +107,13 @@ static long ehea_plpar_hcall9(unsigned long opcode,
 			continue;
 		}
 
-		if (ret < H_SUCCESS)
+		cb_cat = EHEA_BMASK_GET(H_MEHEAPORT_CAT, arg2);
+
+		if ((ret < H_SUCCESS) && !(((ret == H_AUTHORITY)
+		    && (opcode == H_MODIFY_HEA_PORT))
+		    && (((cb_cat == H_PORT_CB4) && ((arg3 == H_PORT_CB4_JUMBO)
+		    || (arg3 == H_PORT_CB4_SPEED))) || ((cb_cat == H_PORT_CB7)
+		    && (arg3 == H_PORT_CB7_DUCQPN)))))
 			ehea_error("opcode=%lx ret=%lx"
 				   " arg1=%lx arg2=%lx arg3=%lx arg4=%lx"
 				   " arg5=%lx arg6=%lx arg7=%lx arg8=%lx"
@@ -120,7 +127,6 @@ static long ehea_plpar_hcall9(unsigned long opcode,
 				   outs[0], outs[1], outs[2], outs[3],
 				   outs[4], outs[5], outs[6], outs[7],
 				   outs[8]);
-
 		return ret;
 	}
 
