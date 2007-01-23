@@ -233,7 +233,7 @@ static void usb_autosuspend_work(struct work_struct *work)
  * @parent: hub to which device is connected; null to allocate a root hub
  * @bus: bus used to access the device
  * @port1: one-based index of port; ignored for root hubs
- * Context: !in_interrupt ()
+ * Context: !in_interrupt()
  *
  * Only hub drivers (including virtual root hub drivers for host
  * controllers) should ever call this.
@@ -277,22 +277,22 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 	 * as stable:  bus->busnum changes easily from modprobe order,
 	 * cardbus or pci hotplugging, and so on.
 	 */
-	if (unlikely (!parent)) {
-		dev->devpath [0] = '0';
+	if (unlikely(!parent)) {
+		dev->devpath[0] = '0';
 
 		dev->dev.parent = bus->controller;
-		sprintf (&dev->dev.bus_id[0], "usb%d", bus->busnum);
+		sprintf(&dev->dev.bus_id[0], "usb%d", bus->busnum);
 	} else {
 		/* match any labeling on the hubs; it's one-based */
-		if (parent->devpath [0] == '0')
-			snprintf (dev->devpath, sizeof dev->devpath,
+		if (parent->devpath[0] == '0')
+			snprintf(dev->devpath, sizeof dev->devpath,
 				"%d", port1);
 		else
-			snprintf (dev->devpath, sizeof dev->devpath,
+			snprintf(dev->devpath, sizeof dev->devpath,
 				"%s.%d", parent->devpath, port1);
 
 		dev->dev.parent = &parent->dev;
-		sprintf (&dev->dev.bus_id[0], "%d-%s",
+		sprintf(&dev->dev.bus_id[0], "%d-%s",
 			bus->busnum, dev->devpath);
 
 		/* hub driver sets up TT records */
@@ -463,7 +463,7 @@ static struct usb_device *match_device(struct usb_device *dev,
 	/* see if this device matches */
 	if ((vendor_id == le16_to_cpu(dev->descriptor.idVendor)) &&
 	    (product_id == le16_to_cpu(dev->descriptor.idProduct))) {
-		dev_dbg (&dev->dev, "matched this device!\n");
+		dev_dbg(&dev->dev, "matched this device!\n");
 		ret_dev = usb_get_dev(dev);
 		goto exit;
 	}
@@ -535,7 +535,7 @@ exit:
  */
 int usb_get_current_frame_number(struct usb_device *dev)
 {
-	return usb_hcd_get_frame_number (dev);
+	return usb_hcd_get_frame_number(dev);
 }
 
 /*-------------------------------------------------------------------*/
@@ -593,7 +593,7 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
  *
  * When the buffer is no longer used, free it with usb_buffer_free().
  */
-void *usb_buffer_alloc (
+void *usb_buffer_alloc(
 	struct usb_device *dev,
 	size_t size,
 	gfp_t mem_flags,
@@ -602,7 +602,7 @@ void *usb_buffer_alloc (
 {
 	if (!dev || !dev->bus)
 		return NULL;
-	return hcd_buffer_alloc (dev->bus, size, mem_flags, dma);
+	return hcd_buffer_alloc(dev->bus, size, mem_flags, dma);
 }
 
 /**
@@ -616,7 +616,7 @@ void *usb_buffer_alloc (
  * been allocated using usb_buffer_alloc(), and the parameters must match
  * those provided in that allocation request. 
  */
-void usb_buffer_free (
+void usb_buffer_free(
 	struct usb_device *dev,
 	size_t size,
 	void *addr,
@@ -627,7 +627,7 @@ void usb_buffer_free (
 		return;
 	if (!addr)
 		return;
-	hcd_buffer_free (dev->bus, size, addr, dma);
+	hcd_buffer_free(dev->bus, size, addr, dma);
 }
 
 /**
@@ -647,7 +647,7 @@ void usb_buffer_free (
  * Reverse the effect of this call with usb_buffer_unmap().
  */
 #if 0
-struct urb *usb_buffer_map (struct urb *urb)
+struct urb *usb_buffer_map(struct urb *urb)
 {
 	struct usb_bus		*bus;
 	struct device		*controller;
@@ -659,14 +659,14 @@ struct urb *usb_buffer_map (struct urb *urb)
 		return NULL;
 
 	if (controller->dma_mask) {
-		urb->transfer_dma = dma_map_single (controller,
+		urb->transfer_dma = dma_map_single(controller,
 			urb->transfer_buffer, urb->transfer_buffer_length,
-			usb_pipein (urb->pipe)
+			usb_pipein(urb->pipe)
 				? DMA_FROM_DEVICE : DMA_TO_DEVICE);
-		if (usb_pipecontrol (urb->pipe))
-			urb->setup_dma = dma_map_single (controller,
+		if (usb_pipecontrol(urb->pipe))
+			urb->setup_dma = dma_map_single(controller,
 					urb->setup_packet,
-					sizeof (struct usb_ctrlrequest),
+					sizeof(struct usb_ctrlrequest),
 					DMA_TO_DEVICE);
 	// FIXME generic api broken like pci, can't report errors
 	// if (urb->transfer_dma == DMA_ADDR_INVALID) return 0;
@@ -689,7 +689,7 @@ struct urb *usb_buffer_map (struct urb *urb)
  * usb_buffer_dmasync - synchronize DMA and CPU view of buffer(s)
  * @urb: urb whose transfer_buffer/setup_packet will be synchronized
  */
-void usb_buffer_dmasync (struct urb *urb)
+void usb_buffer_dmasync(struct urb *urb)
 {
 	struct usb_bus		*bus;
 	struct device		*controller;
@@ -702,14 +702,14 @@ void usb_buffer_dmasync (struct urb *urb)
 		return;
 
 	if (controller->dma_mask) {
-		dma_sync_single (controller,
+		dma_sync_single(controller,
 			urb->transfer_dma, urb->transfer_buffer_length,
-			usb_pipein (urb->pipe)
+			usb_pipein(urb->pipe)
 				? DMA_FROM_DEVICE : DMA_TO_DEVICE);
-		if (usb_pipecontrol (urb->pipe))
-			dma_sync_single (controller,
+		if (usb_pipecontrol(urb->pipe))
+			dma_sync_single(controller,
 					urb->setup_dma,
-					sizeof (struct usb_ctrlrequest),
+					sizeof(struct usb_ctrlrequest),
 					DMA_TO_DEVICE);
 	}
 }
@@ -722,7 +722,7 @@ void usb_buffer_dmasync (struct urb *urb)
  * Reverses the effect of usb_buffer_map().
  */
 #if 0
-void usb_buffer_unmap (struct urb *urb)
+void usb_buffer_unmap(struct urb *urb)
 {
 	struct usb_bus		*bus;
 	struct device		*controller;
@@ -735,14 +735,14 @@ void usb_buffer_unmap (struct urb *urb)
 		return;
 
 	if (controller->dma_mask) {
-		dma_unmap_single (controller,
+		dma_unmap_single(controller,
 			urb->transfer_dma, urb->transfer_buffer_length,
-			usb_pipein (urb->pipe)
+			usb_pipein(urb->pipe)
 				? DMA_FROM_DEVICE : DMA_TO_DEVICE);
-		if (usb_pipecontrol (urb->pipe))
-			dma_unmap_single (controller,
+		if (usb_pipecontrol(urb->pipe))
+			dma_unmap_single(controller,
 					urb->setup_dma,
-					sizeof (struct usb_ctrlrequest),
+					sizeof(struct usb_ctrlrequest),
 					DMA_TO_DEVICE);
 	}
 	urb->transfer_flags &= ~(URB_NO_TRANSFER_DMA_MAP
@@ -783,15 +783,15 @@ int usb_buffer_map_sg(const struct usb_device *dev, unsigned pipe,
 	struct device		*controller;
 
 	if (!dev
-			|| usb_pipecontrol (pipe)
+			|| usb_pipecontrol(pipe)
 			|| !(bus = dev->bus)
 			|| !(controller = bus->controller)
 			|| !controller->dma_mask)
 		return -1;
 
 	// FIXME generic api broken like pci, can't report errors
-	return dma_map_sg (controller, sg, nents,
-			usb_pipein (pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+	return dma_map_sg(controller, sg, nents,
+			usb_pipein(pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 
 /* XXX DISABLED, no users currently.  If you wish to re-enable this
@@ -823,8 +823,8 @@ void usb_buffer_dmasync_sg(const struct usb_device *dev, unsigned pipe,
 			|| !controller->dma_mask)
 		return;
 
-	dma_sync_sg (controller, sg, n_hw_ents,
-			usb_pipein (pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+	dma_sync_sg(controller, sg, n_hw_ents,
+			usb_pipein(pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 #endif
 
@@ -849,8 +849,8 @@ void usb_buffer_unmap_sg(const struct usb_device *dev, unsigned pipe,
 			|| !controller->dma_mask)
 		return;
 
-	dma_unmap_sg (controller, sg, n_hw_ents,
-			usb_pipein (pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+	dma_unmap_sg(controller, sg, n_hw_ents,
+			usb_pipein(pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 
 /* format to disable USB on kernel command line is: nousb */
@@ -871,7 +871,7 @@ static int __init usb_init(void)
 {
 	int retval;
 	if (nousb) {
-		pr_info ("%s: USB support disabled\n", usbcore_name);
+		pr_info("%s: USB support disabled\n", usbcore_name);
 		return 0;
 	}
 
@@ -971,19 +971,19 @@ EXPORT_SYMBOL(__usb_get_extra_descriptor);
 EXPORT_SYMBOL(usb_find_device);
 EXPORT_SYMBOL(usb_get_current_frame_number);
 
-EXPORT_SYMBOL (usb_buffer_alloc);
-EXPORT_SYMBOL (usb_buffer_free);
+EXPORT_SYMBOL(usb_buffer_alloc);
+EXPORT_SYMBOL(usb_buffer_free);
 
 #if 0
-EXPORT_SYMBOL (usb_buffer_map);
-EXPORT_SYMBOL (usb_buffer_dmasync);
-EXPORT_SYMBOL (usb_buffer_unmap);
+EXPORT_SYMBOL(usb_buffer_map);
+EXPORT_SYMBOL(usb_buffer_dmasync);
+EXPORT_SYMBOL(usb_buffer_unmap);
 #endif
 
-EXPORT_SYMBOL (usb_buffer_map_sg);
+EXPORT_SYMBOL(usb_buffer_map_sg);
 #if 0
-EXPORT_SYMBOL (usb_buffer_dmasync_sg);
+EXPORT_SYMBOL(usb_buffer_dmasync_sg);
 #endif
-EXPORT_SYMBOL (usb_buffer_unmap_sg);
+EXPORT_SYMBOL(usb_buffer_unmap_sg);
 
 MODULE_LICENSE("GPL");
