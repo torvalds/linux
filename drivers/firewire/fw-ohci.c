@@ -169,9 +169,6 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 #define OHCI1394_PCI_HCI_Control	0x40
 #define SELF_ID_BUF_SIZE		0x800
 
-/* FIXME: Move this to linux/pci_ids.h */
-#define PCI_CLASS_SERIAL_FIREWIRE_OHCI	0x0c0010
-
 static char ohci_driver_name[] = KBUILD_MODNAME;
 
 static inline void reg_write(const struct fw_ohci *ohci, int offset, u32 data)
