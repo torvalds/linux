@@ -482,7 +482,7 @@ static int rq_mutex(struct gfs2_holder *gh)
 	list_del_init(&gh->gh_list);
 	/*  gh->gh_error never examined.  */
 	set_bit(GLF_LOCK, &gl->gl_flags);
-	clear_bit(HIF_WAIT, &gh->gh_flags);
+	clear_bit(HIF_WAIT, &gh->gh_iflags);
 	smp_mb();
 	wake_up_bit(&gh->gh_iflags, HIF_WAIT);
 
