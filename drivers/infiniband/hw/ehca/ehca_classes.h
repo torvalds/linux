@@ -119,13 +119,14 @@ struct ehca_qp {
 	struct ipz_qp_handle ipz_qp_handle;
 	struct ehca_pfqp pf;
 	struct ib_qp_init_attr init_attr;
-	u64 uspace_squeue;
-	u64 uspace_rqueue;
-	u64 uspace_fwh;
 	struct ehca_cq *send_cq;
 	struct ehca_cq *recv_cq;
 	unsigned int sqerr_purgeflag;
 	struct hlist_node list_entries;
+	/* mmap counter for resources mapped into user space */
+	u32 mm_count_squeue;
+	u32 mm_count_rqueue;
+	u32 mm_count_galpa;
 };
 
 /* must be power of 2 */
@@ -142,13 +143,14 @@ struct ehca_cq {
 	struct ipz_cq_handle ipz_cq_handle;
 	struct ehca_pfcq pf;
 	spinlock_t cb_lock;
-	u64 uspace_queue;
-	u64 uspace_fwh;
 	struct hlist_head qp_hashtab[QP_HASHTAB_LEN];
 	struct list_head entry;
 	u32 nr_callbacks;
 	spinlock_t task_lock;
 	u32 ownpid;
+	/* mmap counter for resources mapped into user space */
+	u32 mm_count_queue;
+	u32 mm_count_galpa;
 };
 
 enum ehca_mr_flag {
@@ -283,7 +285,6 @@ extern int ehca_port_act_time;
 extern int ehca_use_hp_mr;
 
 struct ipzu_queue_resp {
-	u64 queue;        /* points to first queue entry */
 	u32 qe_size;      /* queue entry size */
 	u32 act_nr_of_sg;
 	u32 queue_length; /* queue length allocated in bytes */
@@ -296,7 +297,6 @@ struct ehca_create_cq_resp {
 	u32 cq_number;
 	u32 token;
 	struct ipzu_queue_resp ipz_queue;
-	struct h_galpas galpas;
 };
 
 struct ehca_create_qp_resp {
@@ -309,7 +309,6 @@ struct ehca_create_qp_resp {
 	u32 dummy; /* padding for 8 byte alignment */
 	struct ipzu_queue_resp ipz_squeue;
 	struct ipzu_queue_resp ipz_rqueue;
-	struct h_galpas galpas;
 };
 
 struct ehca_alloc_cq_parms {
