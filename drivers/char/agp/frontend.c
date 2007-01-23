@@ -892,6 +892,9 @@ static int agpioc_allocate_wrap(struct agp_file_private *priv, void __user *arg)
 	if (copy_from_user(&alloc, arg, sizeof(struct agp_allocate)))
 		return -EFAULT;
 
+	if (alloc.type >= AGP_USER_TYPES)
+		return -EINVAL;
+
 	memory = agp_allocate_memory_wrap(alloc.pg_count, alloc.type);
 
 	if (memory == NULL)
