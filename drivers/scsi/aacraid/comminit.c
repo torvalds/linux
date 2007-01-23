@@ -95,7 +95,7 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	init->HostPhysMemPages = cpu_to_le32(AAC_MAX_HOSTPHYSMEMPAGES);
 
 	init->InitFlags = 0;
-	if (dev->new_comm_interface) {
+	if (dev->comm_interface == AAC_COMM_MESSAGE) {
 		init->InitFlags = cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED);
 		dprintk((KERN_WARNING"aacraid: New Comm Interface enabled\n"));
 	}
@@ -297,21 +297,23 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 		- sizeof(struct aac_fibhdr)
 		- sizeof(struct aac_write) + sizeof(struct sgentry))
 			/ sizeof(struct sgentry);
-	dev->new_comm_interface = 0;
+	dev->comm_interface = AAC_COMM_PRODUCER;
 	dev->raw_io_64 = 0;
 	if ((!aac_adapter_sync_cmd(dev, GET_ADAPTER_PROPERTIES,
 		0, 0, 0, 0, 0, 0, status+0, status+1, status+2, NULL, NULL)) &&
 	 		(status[0] == 0x00000001)) {
 		if (status[1] & AAC_OPT_NEW_COMM_64)
 			dev->raw_io_64 = 1;
-		if (status[1] & AAC_OPT_NEW_COMM)
-			dev->new_comm_interface = dev->a_ops.adapter_send != 0;
-		if (dev->new_comm_interface && (status[2] > dev->base_size)) {
+		if (dev->a_ops.adapter_comm &&
+		    (status[1] & AAC_OPT_NEW_COMM))
+			dev->comm_interface = AAC_COMM_MESSAGE;
+		if ((dev->comm_interface == AAC_COMM_MESSAGE) &&
+		    (status[2] > dev->base_size)) {
 			aac_adapter_ioremap(dev, 0);
 			dev->base_size = status[2];
 			if (aac_adapter_ioremap(dev, status[2])) {
 				/* remap failed, go back ... */
-				dev->new_comm_interface = 0;
+				dev->comm_interface = AAC_COMM_PRODUCER;
 				if (aac_adapter_ioremap(dev, AAC_MIN_FOOTPRINT_SIZE)) {
 					printk(KERN_WARNING
 					  "aacraid: unable to map adapter.\n");

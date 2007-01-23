@@ -5,6 +5,7 @@
 #define _nblank(x) #x
 #define nblank(x) _nblank(x)[0]
 
+#include <linux/interrupt.h>
 
 /*------------------------------------------------------------------------------
  *              D E F I N E S
@@ -488,13 +489,20 @@ struct fib;
 
 struct adapter_ops
 {
+	/* Low level operations */
 	void (*adapter_interrupt)(struct aac_dev *dev);
 	void (*adapter_notify)(struct aac_dev *dev, u32 event);
 	void (*adapter_disable_int)(struct aac_dev *dev);
+	void (*adapter_enable_int)(struct aac_dev *dev);
 	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4);
 	int  (*adapter_check_health)(struct aac_dev *dev);
-	int  (*adapter_send)(struct fib * fib);
+	/* Transport operations */
 	int  (*adapter_ioremap)(struct aac_dev * dev, u32 size);
+	irqreturn_t (*adapter_intr)(int irq, void *dev_id);
+	/* Packet operations */
+	int  (*adapter_deliver)(struct fib * fib);
+	/* Administrative operations */
+	int  (*adapter_comm)(struct aac_dev * dev, int comm);
 };
 
 /*
@@ -1018,7 +1026,9 @@ struct aac_dev
 	u8			nondasd_support; 
 	u8			dac_support;
 	u8			raid_scsi_mode;
-	u8			new_comm_interface;
+	u8			comm_interface;
+#	define AAC_COMM_PRODUCER 0
+#	define AAC_COMM_MESSAGE  1
 	/* macro side-effects BEWARE */
 #	define			raw_io_interface \
 	  init->InitStructRevision==cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4)
@@ -1036,17 +1046,23 @@ struct aac_dev
 #define aac_adapter_disable_int(dev) \
 	(dev)->a_ops.adapter_disable_int(dev)
 
+#define aac_adapter_enable_int(dev) \
+	(dev)->a_ops.adapter_enable_int(dev)
+
 #define aac_adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4) \
 	(dev)->a_ops.adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4)
 
 #define aac_adapter_check_health(dev) \
 	(dev)->a_ops.adapter_check_health(dev)
 
-#define aac_adapter_send(fib) \
-	((fib)->dev)->a_ops.adapter_send(fib)
-
 #define aac_adapter_ioremap(dev, size) \
 	(dev)->a_ops.adapter_ioremap(dev, size)
+
+#define aac_adapter_deliver(fib) \
+	((fib)->dev)->a_ops.adapter_deliver(fib)
+
+#define aac_adapter_comm(dev,comm) \
+	(dev)->a_ops.adapter_comm(dev, comm)
 
 #define FIB_CONTEXT_FLAG_TIMED_OUT		(0x00000001)
 
@@ -1795,6 +1811,7 @@ int aac_do_ioctl(struct aac_dev * dev, int cmd, void __user *arg);
 int aac_rx_init(struct aac_dev *dev);
 int aac_rkt_init(struct aac_dev *dev);
 int aac_sa_init(struct aac_dev *dev);
+int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw_fib, int wait, struct fib * fibptr, unsigned long *nonotify);
 unsigned int aac_response_normal(struct aac_queue * q);
 unsigned int aac_command_normal(struct aac_queue * q);
 unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index);
