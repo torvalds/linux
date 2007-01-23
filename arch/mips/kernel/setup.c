@@ -563,3 +563,6 @@ int __init dsp_disable(char *s)
 }
 
 __setup("nodsp", dsp_disable);
+
+unsigned long kernelsp[NR_CPUS];
+unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;

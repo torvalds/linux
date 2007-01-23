@@ -499,3 +499,18 @@ void free_initmem(void)
 			__pa_symbol(&__init_begin),
 			__pa_symbol(&__init_end));
 }
+
+unsigned long pgd_current[NR_CPUS];
+/*
+ * On 64-bit we've got three-level pagetables with a slightly
+ * different layout ...
+ */
+#define __page_aligned(order) __attribute__((__aligned__(PAGE_SIZE<<order)))
+pgd_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned(PGD_ORDER);
+#ifdef CONFIG_64BIT
+#ifdef MODULE_START
+pgd_t module_pg_dir[PTRS_PER_PGD] __page_aligned(PGD_ORDER);
+#endif
+pmd_t invalid_pmd_table[PTRS_PER_PMD] __page_aligned(PMD_ORDER);
+#endif
+pte_t invalid_pte_table[PTRS_PER_PTE] __page_aligned(PTE_ORDER);
