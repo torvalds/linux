@@ -6308,7 +6308,6 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 	int rc;
 
 	ENTER;
-	pci_unblock_user_cfg_access(ioa_cfg->pdev);
 	rc = pci_restore_state(ioa_cfg->pdev);
 
 	if (rc != PCIBIOS_SUCCESSFUL) {
@@ -6349,6 +6348,24 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
+ * ipr_reset_bist_done - BIST has completed on the adapter.
+ * @ipr_cmd:	ipr command struct
+ *
+ * Description: Unblock config space and resume the reset process.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_CONTINUE
+ **/
+static int ipr_reset_bist_done(struct ipr_cmnd *ipr_cmd)
+{
+	ENTER;
+	pci_unblock_user_cfg_access(ipr_cmd->ioa_cfg->pdev);
+	ipr_cmd->job_step = ipr_reset_restore_cfg_space;
+	LEAVE;
+	return IPR_RC_JOB_CONTINUE;
+}
+
+/**
  * ipr_reset_start_bist - Run BIST on the adapter.
  * @ipr_cmd:	ipr command struct
  *
@@ -6370,7 +6387,7 @@ static int ipr_reset_start_bist(struct ipr_cmnd *ipr_cmd)
 		ipr_cmd->ioasa.ioasc = cpu_to_be32(IPR_IOASC_PCI_ACCESS_ERROR);
 		rc = IPR_RC_JOB_CONTINUE;
 	} else {
-		ipr_cmd->job_step = ipr_reset_restore_cfg_space;
+		ipr_cmd->job_step = ipr_reset_bist_done;
 		ipr_reset_start_timer(ipr_cmd, IPR_WAIT_FOR_BIST_TIMEOUT);
 		rc = IPR_RC_JOB_RETURN;
 	}
