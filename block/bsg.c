@@ -983,10 +983,19 @@ int bsg_register_disk(struct gendisk *disk)
 	bsg_device_nr++;
 	bcd->disk = disk;
 	bcd->class_dev = class_device_create(bsg_class, NULL, dev, bcd->dev, "%s", disk->disk_name);
+	if (!bcd->class_dev)
+		goto err;
 	list_add_tail(&bcd->list, &bsg_class_list);
-	sysfs_create_link(&q->kobj, &bcd->class_dev->kobj, "bsg");
+	if (sysfs_create_link(&q->kobj, &bcd->class_dev->kobj, "bsg"))
+		goto err;
 	mutex_unlock(&bsg_mutex);
 	return 0;
+err:
+	bsg_device_nr--;
+	if (bcd->class_dev)
+		class_device_destroy(bsg_class, MKDEV(BSG_MAJOR, bcd->minor));
+	mutex_unlock(&bsg_mutex);
+	return -ENOMEM;
 }
 
 static int __init bsg_init(void)
