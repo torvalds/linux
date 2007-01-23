@@ -486,6 +486,7 @@ enum aac_log_level {
 
 struct aac_dev;
 struct fib;
+struct scsi_cmnd;
 
 struct adapter_ops
 {
@@ -501,6 +502,10 @@ struct adapter_ops
 	irqreturn_t (*adapter_intr)(int irq, void *dev_id);
 	/* Packet operations */
 	int  (*adapter_deliver)(struct fib * fib);
+	int  (*adapter_bounds)(struct aac_dev * dev, struct scsi_cmnd * cmd, u64 lba);
+	int  (*adapter_read)(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32 count);
+	int  (*adapter_write)(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32 count);
+	int  (*adapter_scsi)(struct fib * fib, struct scsi_cmnd * cmd);
 	/* Administrative operations */
 	int  (*adapter_comm)(struct aac_dev * dev, int comm);
 };
@@ -1060,6 +1065,18 @@ struct aac_dev
 
 #define aac_adapter_deliver(fib) \
 	((fib)->dev)->a_ops.adapter_deliver(fib)
+
+#define aac_adapter_bounds(dev,cmd,lba) \
+	dev->a_ops.adapter_bounds(dev,cmd,lba)
+
+#define aac_adapter_read(fib,cmd,lba,count) \
+	((fib)->dev)->a_ops.adapter_read(fib,cmd,lba,count)
+
+#define aac_adapter_write(fib,cmd,lba,count) \
+	((fib)->dev)->a_ops.adapter_write(fib,cmd,lba,count)
+
+#define aac_adapter_scsi(fib,cmd) \
+	((fib)->dev)->a_ops.adapter_scsi(fib,cmd)
 
 #define aac_adapter_comm(dev,comm) \
 	(dev)->a_ops.adapter_comm(dev, comm)
@@ -1783,7 +1800,6 @@ static inline u32 cap_to_cyls(sector_t capacity, u32 divisor)
 	return (u32)capacity;
 }
 
-struct scsi_cmnd;
 /* SCp.phase values */
 #define AAC_OWNER_MIDLEVEL	0x101
 #define AAC_OWNER_LOWLEVEL	0x102
