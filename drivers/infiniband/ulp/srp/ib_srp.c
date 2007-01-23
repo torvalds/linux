@@ -1621,18 +1621,30 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 		switch (token) {
 		case SRP_OPT_ID_EXT:
 			p = match_strdup(args);
+			if (!p) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			target->id_ext = cpu_to_be64(simple_strtoull(p, NULL, 16));
 			kfree(p);
 			break;
 
 		case SRP_OPT_IOC_GUID:
 			p = match_strdup(args);
+			if (!p) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			target->ioc_guid = cpu_to_be64(simple_strtoull(p, NULL, 16));
 			kfree(p);
 			break;
 
 		case SRP_OPT_DGID:
 			p = match_strdup(args);
+			if (!p) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			if (strlen(p) != 32) {
 				printk(KERN_WARNING PFX "bad dest GID parameter '%s'\n", p);
 				kfree(p);
@@ -1656,6 +1668,10 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 
 		case SRP_OPT_SERVICE_ID:
 			p = match_strdup(args);
+			if (!p) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			target->service_id = cpu_to_be64(simple_strtoull(p, NULL, 16));
 			kfree(p);
 			break;
@@ -1693,6 +1709,10 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 
 		case SRP_OPT_INITIATOR_EXT:
 			p = match_strdup(args);
+			if (!p) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			target->initiator_ext = cpu_to_be64(simple_strtoull(p, NULL, 16));
 			kfree(p);
 			break;
