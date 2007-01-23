@@ -190,6 +190,12 @@ static struct page *blk_get_page(unsigned long addr, size_t count, int rw,
 	return pvec->page[pvec->idx++];
 }
 
+/* return a page back to pvec array */
+static void blk_unget_page(struct page *page, struct pvec *pvec)
+{
+	pvec->page[--pvec->idx] = page;
+}
+
 static ssize_t
 blkdev_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 		 loff_t pos, unsigned long nr_segs)
@@ -278,6 +284,8 @@ same_bio:
 				count = min(count, nbytes);
 				goto same_bio;
 			}
+		} else {
+			blk_unget_page(page, &pvec);
 		}
 
 		/* bio is ready, submit it */
