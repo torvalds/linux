@@ -884,6 +884,10 @@ asmlinkage long sys_mbind(unsigned long start, unsigned long len,
 	err = get_nodes(&nodes, nmask, maxnode);
 	if (err)
 		return err;
+#ifdef CONFIG_CPUSETS
+	/* Restrict the nodes to the allowed nodes in the cpuset */
+	nodes_and(nodes, nodes, current->mems_allowed);
+#endif
 	return do_mbind(start, len, mode, &nodes, flags);
 }
 
