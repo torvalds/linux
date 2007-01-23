@@ -10,7 +10,6 @@
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
-#include <linux/qic117.h>
 
 /*
  * Structures and definitions for mag tape io control commands
@@ -116,32 +115,6 @@ struct	mtget {
 #define MT_ISFTAPE_UNKNOWN	0x800000 /* obsolete */
 #define MT_ISFTAPE_FLAG	0x800000
 
-struct mt_tape_info {
-	long t_type;		/* device type id (mt_type) */
-	char *t_name;		/* descriptive name */
-};
-
-#define MT_TAPE_INFO	{ \
-	{MT_ISUNKNOWN,		"Unknown type of tape device"}, \
-	{MT_ISQIC02,		"Generic QIC-02 tape streamer"}, \
-	{MT_ISWT5150,		"Wangtek 5150, QIC-150"}, \
-	{MT_ISARCHIVE_5945L2,	"Archive 5945L-2"}, \
-	{MT_ISCMSJ500,		"CMS Jumbo 500"}, \
-	{MT_ISTDC3610,		"Tandberg TDC 3610, QIC-24"}, \
-	{MT_ISARCHIVE_VP60I,	"Archive VP60i, QIC-02"}, \
-	{MT_ISARCHIVE_2150L,	"Archive Viper 2150L"}, \
-	{MT_ISARCHIVE_2060L,	"Archive Viper 2060L"}, \
-	{MT_ISARCHIVESC499,	"Archive SC-499 QIC-36 controller"}, \
-	{MT_ISQIC02_ALL_FEATURES, "Generic QIC-02 tape, all features"}, \
-	{MT_ISWT5099EEN24,	"Wangtek 5099-een24, 60MB"}, \
-	{MT_ISTEAC_MT2ST,	"Teac MT-2ST 155mb data cassette drive"}, \
-	{MT_ISEVEREX_FT40A,	"Everex FT40A, QIC-40"}, \
-	{MT_ISONSTREAM_SC,      "OnStream SC-, DI-, DP-, or USB tape drive"}, \
-	{MT_ISSCSI1,		"Generic SCSI-1 tape"}, \
-	{MT_ISSCSI2,		"Generic SCSI-2 tape"}, \
-	{0, NULL} \
-}
-
 
 /* structure for MTIOCPOS - mag tape get position command */
 
@@ -150,130 +123,11 @@ struct	mtpos {
 };
 
 
-/*  structure for MTIOCVOLINFO, query information about the volume
- *  currently positioned at (zftape)
- */
-struct mtvolinfo {
-	unsigned int mt_volno;   /* vol-number */
-	unsigned int mt_blksz;   /* blocksize used when recording */
-	unsigned int mt_rawsize; /* raw tape space consumed, in kb */
-	unsigned int mt_size;    /* volume size after decompression, in kb */
-	unsigned int mt_cmpr:1;  /* this volume has been compressed */
-};
-
-/* raw access to a floppy drive, read and write an arbitrary segment.
- * For ftape/zftape to support formatting etc.
- */
-#define MT_FT_RD_SINGLE  0
-#define MT_FT_RD_AHEAD   1
-#define MT_FT_WR_ASYNC   0 /* start tape only when all buffers are full     */
-#define MT_FT_WR_MULTI   1 /* start tape, continue until buffers are empty  */
-#define MT_FT_WR_SINGLE  2 /* write a single segment and stop afterwards    */
-#define MT_FT_WR_DELETE  3 /* write deleted data marks, one segment at time */
-
-struct mtftseg
-{            
-	unsigned mt_segno;   /* the segment to read or write */
-	unsigned mt_mode;    /* modes for read/write (sync/async etc.) */
-	int      mt_result;  /* result of r/w request, not of the ioctl */
-	void    __user *mt_data;    /* User space buffer: must be 29kb */
-};
-
-/* get tape capacity (ftape/zftape)
- */
-struct mttapesize {
-	unsigned long mt_capacity; /* entire, uncompressed capacity 
-				    * of a cartridge
-				    */
-	unsigned long mt_used;     /* what has been used so far, raw 
-				    * uncompressed amount
-				    */
-};
-
-/*  possible values of the ftfmt_op field
- */
-#define FTFMT_SET_PARMS		1 /* set software parms */
-#define FTFMT_GET_PARMS		2 /* get software parms */
-#define FTFMT_FORMAT_TRACK	3 /* start formatting a tape track   */
-#define FTFMT_STATUS		4 /* monitor formatting a tape track */
-#define FTFMT_VERIFY		5 /* verify the given segment        */
-
-struct ftfmtparms {
-	unsigned char  ft_qicstd;   /* QIC-40/QIC-80/QIC-3010/QIC-3020 */
-	unsigned char  ft_fmtcode;  /* Refer to the QIC specs */
-	unsigned char  ft_fhm;      /* floppy head max */
-	unsigned char  ft_ftm;      /* floppy track max */
-	unsigned short ft_spt;      /* segments per track */
-	unsigned short ft_tpc;      /* tracks per cartridge */
-};
-
-struct ftfmttrack {
-	unsigned int  ft_track;   /* track to format */
-	unsigned char ft_gap3;    /* size of gap3, for FORMAT_TRK */
-};
-
-struct ftfmtstatus {
-	unsigned int  ft_segment;  /* segment currently being formatted */
-};
-
-struct ftfmtverify {
-	unsigned int  ft_segment;   /* segment to verify */
-	unsigned long ft_bsm;       /* bsm as result of VERIFY cmd */
-};
-
-struct mtftformat {
-	unsigned int fmt_op;      /* operation to perform */
-	union fmt_arg {
-		struct ftfmtparms  fmt_parms;  /* format parameters */
-		struct ftfmttrack  fmt_track;  /* ctrl while formatting */
-		struct ftfmtstatus fmt_status;
-		struct ftfmtverify fmt_verify; /* for verifying */ 
-	} fmt_arg;
-};
-
-struct mtftcmd {
-	unsigned int ft_wait_before; /* timeout to wait for drive to get ready 
-				      * before command is sent. Milliseconds
-				      */
-	qic117_cmd_t ft_cmd;         /* command to send */
-	unsigned char ft_parm_cnt;   /* zero: no parm is sent. */
-	unsigned char ft_parms[3];   /* parameter(s) to send to
-				      * the drive. The parms are nibbles
-				      * driver sends cmd + 2 step pulses */
-	unsigned int ft_result_bits; /* if non zero, number of bits
-				      *	returned by the tape drive
-				      */
-	unsigned int ft_result;      /* the result returned by the tape drive*/
-	unsigned int ft_wait_after;  /* timeout to wait for drive to get ready
-				      * after command is sent. 0: don't wait */
-	int ft_status;	             /* status returned by ready wait
-				      * undefined if timeout was 0.
-				      */
-	int ft_error;                /* error code if error status was set by 
-				      * command
-				      */
-};
-
 /* mag tape io control commands */
 #define	MTIOCTOP	_IOW('m', 1, struct mtop)	/* do a mag tape op */
 #define	MTIOCGET	_IOR('m', 2, struct mtget)	/* get tape status */
 #define	MTIOCPOS	_IOR('m', 3, struct mtpos)	/* get tape position */
 
-/* The next two are used by the QIC-02 driver for runtime reconfiguration.
- * See tpqic02.h for struct mtconfiginfo.
- */
-#define	MTIOCGETCONFIG	_IOR('m', 4, struct mtconfiginfo) /* get tape config */
-#define	MTIOCSETCONFIG	_IOW('m', 5, struct mtconfiginfo) /* set tape config */
-
-/* the next six are used by the floppy ftape drivers and its frontends
- * sorry, but MTIOCTOP commands are write only.
- */
-#define	MTIOCRDFTSEG    _IOWR('m', 6, struct mtftseg)  /* read a segment */
-#define	MTIOCWRFTSEG    _IOWR('m', 7, struct mtftseg)   /* write a segment */
-#define MTIOCVOLINFO	_IOR('m',  8, struct mtvolinfo) /* info about volume */
-#define MTIOCGETSIZE    _IOR('m',  9, struct mttapesize)/* get cartridge size*/
-#define MTIOCFTFORMAT   _IOWR('m', 10, struct mtftformat) /* format ftape */
-#define MTIOCFTCMD	_IOWR('m', 11, struct mtftcmd) /* send QIC-117 cmd */
 
 /* Generic Mag Tape (device independent) status macros for examining
  * mt_gstat -- HP-UX compatible.
