@@ -199,65 +199,6 @@ static struct i2c_algorithm m9206_i2c_algo = {
 	.functionality = m9206_i2c_func,
 };
 
-/* Callbacks for DVB USB */
-static int megasky_identify_state(struct usb_device *udev,
-				  struct dvb_usb_device_properties *props,
-				  struct dvb_usb_device_description **desc,
-				  int *cold)
-{
-	struct usb_host_interface *alt;
-
-	alt = usb_altnum_to_altsetting(usb_ifnum_to_if(udev, 0), 1);
-	*cold = (alt == NULL) ? 1 : 0;
-
-	return 0;
-}
-
-static int megasky_mt352_demod_init(struct dvb_frontend *fe)
-{
-	u8 config[] = { CONFIG, 0x3d };
-	u8 clock[] = { CLOCK_CTL, 0x30 };
-	u8 reset[] = { RESET, 0x80 };
-	u8 adc_ctl[] = { ADC_CTL_1, 0x40 };
-	u8 agc[] = { AGC_TARGET, 0x1c, 0x20 };
-	u8 sec_agc[] = { 0x69, 0x00, 0xff, 0xff, 0x40, 0xff, 0x00, 0x40, 0x40 };
-	u8 unk1[] = { 0x93, 0x1a };
-	u8 unk2[] = { 0xb5, 0x7a };
-
-	mt352_write(fe, config, ARRAY_SIZE(config));
-	mt352_write(fe, clock, ARRAY_SIZE(clock));
-	mt352_write(fe, reset, ARRAY_SIZE(reset));
-	mt352_write(fe, adc_ctl, ARRAY_SIZE(adc_ctl));
-	mt352_write(fe, agc, ARRAY_SIZE(agc));
-	mt352_write(fe, sec_agc, ARRAY_SIZE(sec_agc));
-	mt352_write(fe, unk1, ARRAY_SIZE(unk1));
-	mt352_write(fe, unk2, ARRAY_SIZE(unk2));
-
-	deb_rc("Demod init!\n");
-
-	return 0;
-}
-
-static struct mt352_config megasky_mt352_config = {
-	.demod_address = 0x1e,
-	.no_tuner = 1,
-	.demod_init = megasky_mt352_demod_init,
-};
-
-static int megasky_frontend_attach(struct dvb_usb_adapter *adap)
-{
-	struct m9206_state *m = adap->dev->priv;
-
-	deb_rc("megasky_frontend_attach!\n");
-
-	m->i2c_r[M9206_I2C_DEMOD].addr = megasky_mt352_config.demod_address;
-	m->i2c_r[M9206_I2C_DEMOD].magic = 0x1f;
-
-	if ((adap->fe = dvb_attach(mt352_attach, &megasky_mt352_config, &adap->dev->i2c_adap)) == NULL)
-		return -EIO;
-
-	return 0;
-}
 
 static int m9206_set_filter(struct dvb_usb_adapter *adap, int type, int idx,
 			    int pid)
@@ -400,11 +341,71 @@ static int m9206_firmware_download(struct usb_device *udev,
 	return ret;
 }
 
+/* Callbacks for DVB USB */
+static int megasky_identify_state(struct usb_device *udev,
+				  struct dvb_usb_device_properties *props,
+				  struct dvb_usb_device_description **desc,
+				  int *cold)
+{
+	struct usb_host_interface *alt;
+
+	alt = usb_altnum_to_altsetting(usb_ifnum_to_if(udev, 0), 1);
+	*cold = (alt == NULL) ? 1 : 0;
+
+	return 0;
+}
+
+static int megasky_mt352_demod_init(struct dvb_frontend *fe)
+{
+	u8 config[] = { CONFIG, 0x3d };
+	u8 clock[] = { CLOCK_CTL, 0x30 };
+	u8 reset[] = { RESET, 0x80 };
+	u8 adc_ctl[] = { ADC_CTL_1, 0x40 };
+	u8 agc[] = { AGC_TARGET, 0x1c, 0x20 };
+	u8 sec_agc[] = { 0x69, 0x00, 0xff, 0xff, 0x40, 0xff, 0x00, 0x40, 0x40 };
+	u8 unk1[] = { 0x93, 0x1a };
+	u8 unk2[] = { 0xb5, 0x7a };
+
+	mt352_write(fe, config, ARRAY_SIZE(config));
+	mt352_write(fe, clock, ARRAY_SIZE(clock));
+	mt352_write(fe, reset, ARRAY_SIZE(reset));
+	mt352_write(fe, adc_ctl, ARRAY_SIZE(adc_ctl));
+	mt352_write(fe, agc, ARRAY_SIZE(agc));
+	mt352_write(fe, sec_agc, ARRAY_SIZE(sec_agc));
+	mt352_write(fe, unk1, ARRAY_SIZE(unk1));
+	mt352_write(fe, unk2, ARRAY_SIZE(unk2));
+
+	deb_rc("Demod init!\n");
+
+	return 0;
+}
+
+static struct mt352_config megasky_mt352_config = {
+	.demod_address = 0x1e,
+	.no_tuner = 1,
+	.demod_init = megasky_mt352_demod_init,
+};
+
+static int megasky_mt352_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct m9206_state *m = adap->dev->priv;
+
+	deb_rc("megasky_frontend_attach!\n");
+
+	m->i2c_r[M9206_I2C_DEMOD].addr = megasky_mt352_config.demod_address;
+	m->i2c_r[M9206_I2C_DEMOD].magic = 0x1f;
+
+	if ((adap->fe = dvb_attach(mt352_attach, &megasky_mt352_config, &adap->dev->i2c_adap)) == NULL)
+		return -EIO;
+
+	return 0;
+}
+
 static struct qt1010_config megasky_qt1010_config = {
 	.i2c_address = 0xc4
 };
 
-static int megasky_tuner_attach(struct dvb_usb_adapter *adap)
+static int megasky_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct m9206_state *m = adap->dev->priv;
 
@@ -478,8 +479,8 @@ static struct dvb_usb_device_properties megasky_properties = {
 		.pid_filter       = m9206_pid_filter,
 		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
 
-		.frontend_attach  = megasky_frontend_attach,
-		.tuner_attach     = megasky_tuner_attach,
+		.frontend_attach  = megasky_mt352_frontend_attach,
+		.tuner_attach     = megasky_qt1010_tuner_attach,
 
 		.stream = {
 			.type = USB_BULK,
