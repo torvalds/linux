@@ -1254,7 +1254,7 @@ S:	Maintained
 
 ETHERNET BRIDGE
 P:	Stephen Hemminger
-M:	shemminger@osdl.org
+M:	shemminger@linux-foundation.org
 L:	bridge@osdl.org
 W:	http://bridge.sourceforge.net/
 S:	Maintained
@@ -2277,7 +2277,7 @@ S:	Maintained
 
 NETEM NETWORK EMULATOR
 P:	Stephen Hemminger
-M:	shemminger@osdl.org
+M:	shemminger@linux-foundation.org
 L:	netem@osdl.org
 S:	Maintained
 
@@ -3081,7 +3081,7 @@ S:	Maintained
 
 SKGE, SKY2 10/100/1000 GIGABIT ETHERNET DRIVERS
 P:	Stephen Hemminger
-M:	shemminger@osdl.org
+M:	shemminger@linux-foundation.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 
