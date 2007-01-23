@@ -238,7 +238,7 @@ static ssize_t ioctl_send_request(struct client *client, void __user *arg)
 
 	fw_send_request(device->card, &response->transaction,
 			request.tcode,
-			device->node->node_id | LOCAL_BUS,
+			device->node->node_id,
 			device->card->generation,
 			device->node->max_speed,
 			request.offset,

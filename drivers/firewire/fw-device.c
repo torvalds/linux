@@ -257,7 +257,7 @@ static int read_rom(struct fw_device *device, int index, u32 * data)
 
 	offset = 0xfffff0000400ULL + index * 4;
 	fw_send_request(device->card, &t, TCODE_READ_QUADLET_REQUEST,
-			device->node_id | LOCAL_BUS,
+			device->node_id,
 			device->generation, SCODE_100,
 			offset, NULL, 4, complete_transaction, &callback_data);
 
@@ -447,7 +447,7 @@ static void fw_device_init(struct work_struct *work)
 			device->config_rom_retries++;
 			schedule_delayed_work(&device->work, RETRY_DELAY);
 		} else {
-			fw_notify("giving up on config rom for node id %d\n",
+			fw_notify("giving up on config rom for node id %x\n",
 				  device->node_id);
 			fw_device_release(&device->device);
 		}

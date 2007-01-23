@@ -328,7 +328,7 @@ sbp2_send_orb(struct sbp2_orb *orb, struct fw_unit *unit,
 	spin_unlock_irqrestore(&device->card->lock, flags);
 
 	fw_send_request(device->card, &orb->t, TCODE_WRITE_BLOCK_REQUEST,
-			node_id | LOCAL_BUS, generation,
+			node_id, generation,
 			device->node->max_speed, offset,
 			&orb->pointer, sizeof orb->pointer,
 			complete_transaction, orb);
@@ -485,7 +485,7 @@ static int sbp2_agent_reset(struct fw_unit *unit)
 		return -ENOMEM;
 
 	fw_send_request(device->card, t, TCODE_WRITE_QUADLET_REQUEST,
-			sd->node_id | LOCAL_BUS, sd->generation, SCODE_400,
+			sd->node_id, sd->generation, SCODE_400,
 			sd->command_block_agent_address + SBP2_AGENT_RESET,
 			&zero, sizeof zero, complete_agent_reset_write, t);
 
@@ -586,7 +586,7 @@ static int sbp2_probe(struct device *dev)
 
 	sd->generation   = generation;
 	sd->node_id      = node_id;
-	sd->address_high = (LOCAL_BUS | local_node_id) << 16;
+	sd->address_high = local_node_id << 16;
 
 	/* Get command block agent offset and login id. */
 	sd->command_block_agent_address =
@@ -663,7 +663,7 @@ static void sbp2_reconnect(struct work_struct *work)
 
 	sd->generation   = generation;
 	sd->node_id      = node_id;
-	sd->address_high = (LOCAL_BUS | local_node_id) << 16;
+	sd->address_high = local_node_id << 16;
 }
 
 static void sbp2_update(struct fw_unit *unit)

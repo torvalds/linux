@@ -102,7 +102,7 @@ static struct fw_node *fw_node_create(u32 sid, int port_count, int color)
 		return NULL;
 
 	node->color = color;
-	node->node_id = self_id_phy_id(sid);
+	node->node_id = LOCAL_BUS | self_id_phy_id(sid);
 	node->link_on = self_id_link_on(sid);
 	node->phy_speed = self_id_phy_speed(sid);
 	node->port_count = port_count;

@@ -828,10 +828,10 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	unsigned long flags;
-	int retval = 0;
+	int n, retval = 0;
 
-	/* FIXME: make sure this bitmask is cleared when we clear the
-	 * busReset interrupt bit. */
+	/* FIXME:  Make sure this bitmask is cleared when we clear the busReset
+	 * interrupt bit.  Clear physReqResourceAllBuses on bus reset. */
 
 	spin_lock_irqsave(&ohci->lock, flags);
 
@@ -840,12 +840,15 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 		goto out;
 	}
 
-	if (node_id < 32) {
-		reg_write(ohci, OHCI1394_PhyReqFilterLoSet, 1 << node_id);
-	} else {
-		reg_write(ohci, OHCI1394_PhyReqFilterHiSet,
-			  1 << (node_id - 32));
-	}
+	/* NOTE, if the node ID contains a non-local bus ID, physical DMA is
+	 * enabled for _all_ nodes on remote buses. */
+
+	n = (node_id & 0xffc0) == LOCAL_BUS ? node_id & 0x3f : 63;
+	if (n < 32)
+		reg_write(ohci, OHCI1394_PhyReqFilterLoSet, 1 << n);
+	else
+		reg_write(ohci, OHCI1394_PhyReqFilterHiSet, 1 << (n - 32));
+
 	flush_writes(ohci);
  out:
 	spin_unlock_irqrestore(&ohci->lock, flags);

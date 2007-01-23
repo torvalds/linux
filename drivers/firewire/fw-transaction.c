@@ -56,7 +56,7 @@
 #define header_get_extended_tcode(q)	(((q) >> 0) & 0xffff)
 
 #define phy_config_gap_count(gap_count)	(((gap_count) << 16) | (1 << 22))
-#define phy_config_root_id(node_id)	(((node_id) << 24) | (1 << 23))
+#define phy_config_root_id(node_id)	((((node_id) & 0x3f) << 24) | (1 << 23))
 #define phy_identifier(id)		((id) << 30)
 
 static void
@@ -123,7 +123,7 @@ fw_fill_packet(struct fw_packet *packet, int tcode, int tlabel,
 		header_retry(RETRY_X) |
 		header_tlabel(tlabel) |
 		header_tcode(tcode) |
-		header_destination(node_id | LOCAL_BUS);
+		header_destination(node_id);
 	packet->header[1] =
 		header_offset_high(offset >> 32) | header_source(0);
 	packet->header[2] =
@@ -190,7 +190,7 @@ fw_fill_packet(struct fw_packet *packet, int tcode, int tlabel,
  * @param tcode the tcode for this transaction.  Do not use
  *   TCODE_LOCK_REQUEST directly, insted use TCODE_LOCK_MASK_SWAP
  *   etc. to specify tcode and ext_tcode.
- * @param node_id the node_id of the destination node
+ * @param node_id the destination node ID (bus ID and PHY ID concatenated)
  * @param generation the generation for which node_id is valid
  * @param speed the speed to use for sending the request
  * @param offset the 48 bit offset on the destination node
