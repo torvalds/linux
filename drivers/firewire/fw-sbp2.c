@@ -968,11 +968,27 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	return 0;
 }
 
+static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
+{
+	struct fw_unit *unit = (struct fw_unit *)sdev->host->hostdata[0];
+	struct sbp2_device *sd = unit->device.driver_data;
+
+	sdev->allow_restart = 1;
+
+	if (sd->workarounds & SBP2_WORKAROUND_INQUIRY_36)
+		sdev->inquiry_len = 36;
+	return 0;
+}
+
 static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
 {
 	struct fw_unit *unit = (struct fw_unit *)sdev->host->hostdata[0];
 	struct sbp2_device *sd = unit->device.driver_data;
 
+	sdev->use_10_for_rw = 1;
+
+	if (sdev->type == TYPE_ROM)
+		sdev->use_10_for_ms = 1;
 	if (sdev->type == TYPE_DISK &&
 	    sd->workarounds & SBP2_WORKAROUND_MODE_SENSE_8)
 		sdev->skip_ms_page_8 = 1;
@@ -1004,6 +1020,7 @@ static struct scsi_host_template scsi_driver_template = {
 	.name			= "SBP-2 IEEE-1394",
 	.proc_name		= (char *)sbp2_driver_name,
 	.queuecommand		= sbp2_scsi_queuecommand,
+	.slave_alloc		= sbp2_scsi_slave_alloc,
 	.slave_configure	= sbp2_scsi_slave_configure,
 	.eh_abort_handler	= sbp2_scsi_abort,
 	.this_id		= -1,
