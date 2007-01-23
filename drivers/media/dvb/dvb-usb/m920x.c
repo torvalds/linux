@@ -458,8 +458,7 @@ static struct usb_device_id m920x_table [] = {
 MODULE_DEVICE_TABLE (usb, m920x_table);
 
 static struct dvb_usb_device_properties megasky_properties = {
-	.caps = DVB_USB_IS_AN_I2C_ADAPTER | DVB_USB_ADAP_HAS_PID_FILTER |
-		DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = "dvb-usb-megasky-02.fw",
@@ -475,6 +474,9 @@ static struct dvb_usb_device_properties megasky_properties = {
 	.identify_state   = megasky_identify_state,
 	.num_adapters = 1,
 	.adapter = {{
+		.caps = DVB_USB_ADAP_HAS_PID_FILTER |
+			DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+
 		.pid_filter_count = 8,
 		.pid_filter       = m9206_pid_filter,
 		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
