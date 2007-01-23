@@ -77,8 +77,9 @@ module_param(regdebug, int, 0644);
 static int checkecc = 1;
 module_param(checkecc, int, 0644);
 
-static int slowtiming = 0;
-module_param(slowtiming, int, 0644);
+static int numtimings;
+static int timing[3];
+module_param_array(timing, int, &numtimings, 0644);
 
 /* Hrm. Why isn't this already conditional on something in the struct device? */
 #define cafe_dev_dbg(dev, args...) do { if (debug) dev_dbg(dev, ##args); } while(0)
@@ -528,6 +529,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 {
 	struct mtd_info *mtd;
 	struct cafe_priv *cafe;
+	uint32_t timing1, timing2, timing3;
 	uint32_t ctrl;
 	int err = 0;
 
@@ -579,27 +581,41 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		cafe->nand.block_bad = cafe_nand_block_bad;
 	}
 
+	if (numtimings && numtimings != 3) {
+		dev_warn(&cafe->pdev->dev, "%d timing register values ignored; precisely three are required\n", numtimings);
+	}
+
+	if (numtimings == 3) {
+		timing1 = timing[0];
+		timing2 = timing[1];
+		timing3 = timing[2];
+		cafe_dev_dbg(&cafe->pdev->dev, "Using provided timings (%08x %08x %08x)\n",
+			     timing1, timing2, timing3);
+	} else {
+		timing1 = cafe_readl(cafe, NAND_TIMING1);
+		timing2 = cafe_readl(cafe, NAND_TIMING2);
+		timing3 = cafe_readl(cafe, NAND_TIMING3);
+
+		if (timing1 | timing2 | timing3) {
+			cafe_dev_dbg(&cafe->pdev->dev, "Timing registers already set (%08x %08x %08x)\n", timing1, timing2, timing3);
+		} else {
+			dev_warn(&cafe->pdev->dev, "Timing registers unset; using most conservative defaults\n");
+			timing1 = timing2 = timing3 = 0xffffffff;
+		}
+	}
+
 	/* Start off by resetting the NAND controller completely */
 	cafe_writel(cafe, 1, NAND_RESET);
 	cafe_writel(cafe, 0, NAND_RESET);
 
-	cafe_writel(cafe, 0xffffffff, NAND_IRQ_MASK);
+	cafe_writel(cafe, timing1, NAND_TIMING1);
+	cafe_writel(cafe, timing2, NAND_TIMING2);
+	cafe_writel(cafe, timing3, NAND_TIMING3);
 
-	/* Timings from Marvell's test code (not verified or calculated by us) */
-	if (!slowtiming) {
-		cafe_writel(cafe, 0x01010a0a, NAND_TIMING1);
-		cafe_writel(cafe, 0x24121212, NAND_TIMING2);
-		cafe_writel(cafe, 0x11000000, NAND_TIMING3);
-	} else {
-		cafe_writel(cafe, 0xffffffff, NAND_TIMING1);
-		cafe_writel(cafe, 0xffffffff, NAND_TIMING2);
-		cafe_writel(cafe, 0xffffffff, NAND_TIMING3);
-	}
 	cafe_writel(cafe, 0xffffffff, NAND_IRQ_MASK);
 	err = request_irq(pdev->irq, &cafe_nand_interrupt, SA_SHIRQ, "CAFE NAND", mtd);
 	if (err) {
 		dev_warn(&pdev->dev, "Could not register IRQ %d\n", pdev->irq);
-
 		goto out_free_dma;
 	}
 #if 1
