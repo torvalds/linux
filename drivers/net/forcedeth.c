@@ -210,7 +210,7 @@ enum {
  * NVREG_POLL_DEFAULT=97 would result in an interval length of 1 ms
  */
 	NvRegPollingInterval = 0x00c,
-#define NVREG_POLL_DEFAULT_THROUGHPUT	970
+#define NVREG_POLL_DEFAULT_THROUGHPUT	970 /* backup tx cleanup if loop max reached */
 #define NVREG_POLL_DEFAULT_CPU	13
 	NvRegMSIMap0 = 0x020,
 	NvRegMSIMap1 = 0x024,
@@ -1859,14 +1859,15 @@ static void nv_tx_done(struct net_device *dev)
 	}
 }
 
-static void nv_tx_done_optimized(struct net_device *dev)
+static void nv_tx_done_optimized(struct net_device *dev, int limit)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u32 flags;
 	struct ring_desc_ex* orig_get_tx = np->get_tx.ex;
 
 	while ((np->get_tx.ex != np->put_tx.ex) &&
-	       !((flags = le32_to_cpu(np->get_tx.ex->flaglen)) & NV_TX_VALID)) {
+	       !((flags = le32_to_cpu(np->get_tx.ex->flaglen)) & NV_TX_VALID) &&
+	       (limit-- > 0)) {
 
 		dprintk(KERN_DEBUG "%s: nv_tx_done_optimized: flags 0x%x.\n",
 					dev->name, flags);
@@ -1973,7 +1974,7 @@ static void nv_tx_timeout(struct net_device *dev)
 	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
 		nv_tx_done(dev);
 	else
-		nv_tx_done_optimized(dev);
+		nv_tx_done_optimized(dev, np->tx_ring_size);
 
 	/* 3) if there are dead entries: clear everything */
 	if (np->get_tx_ctx != np->put_tx_ctx) {
@@ -2899,7 +2900,7 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 			break;
 
 		spin_lock(&np->lock);
-		nv_tx_done_optimized(dev);
+		nv_tx_done_optimized(dev, TX_WORK_PER_LOOP);
 		spin_unlock(&np->lock);
 
 #ifdef CONFIG_FORCEDETH_NAPI
@@ -3006,7 +3007,7 @@ static irqreturn_t nv_nic_irq_tx(int foo, void *data)
 			break;
 
 		spin_lock_irqsave(&np->lock, flags);
-		nv_tx_done_optimized(dev);
+		nv_tx_done_optimized(dev, TX_WORK_PER_LOOP);
 		spin_unlock_irqrestore(&np->lock, flags);
 
 		if (unlikely(events & (NVREG_IRQ_TX_ERR))) {
@@ -3162,6 +3163,11 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
 		if (!(events & np->irqmask))
 			break;
+
+		/* check tx in case we reached max loop limit in tx isr */
+		spin_lock_irqsave(&np->lock, flags);
+		nv_tx_done_optimized(dev, TX_WORK_PER_LOOP);
+		spin_unlock_irqrestore(&np->lock, flags);
 
 		if (events & NVREG_IRQ_LINK) {
 			spin_lock_irqsave(&np->lock, flags);
