@@ -250,20 +250,6 @@ struct ehca_ucontext {
 	struct ib_ucontext ib_ucontext;
 };
 
-struct ehca_module *ehca_module_new(void);
-
-int ehca_module_delete(struct ehca_module *me);
-
-int ehca_eq_ctor(struct ehca_eq *eq);
-
-int ehca_eq_dtor(struct ehca_eq *eq);
-
-struct ehca_shca *ehca_shca_new(void);
-
-int ehca_shca_delete(struct ehca_shca *me);
-
-struct ehca_sport *ehca_sport_new(struct ehca_shca *anchor);
-
 int ehca_init_pd_cache(void);
 void ehca_cleanup_pd_cache(void);
 int ehca_init_cq_cache(void);
