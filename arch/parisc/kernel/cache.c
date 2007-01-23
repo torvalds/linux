@@ -89,7 +89,7 @@ show_cache_info(struct seq_file *m)
 
 	seq_printf(m, "I-cache\t\t: %ld KB\n", 
 		cache_info.ic_size/1024 );
-	if (cache_info.dc_loop == 1)
+	if (cache_info.dc_loop != 1)
 		snprintf(buf, 32, "%lu-way associative", cache_info.dc_loop);
 	seq_printf(m, "D-cache\t\t: %ld KB (%s%s, %s)\n",
 		cache_info.dc_size/1024,
