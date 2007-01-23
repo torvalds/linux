@@ -1453,6 +1453,22 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		ret=vfd->vidioc_log_status(file, fh);
 		break;
 	}
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	case VIDIOC_INT_G_REGISTER:
+	{
+		struct v4l2_register *p=arg;
+		if (vfd->vidioc_g_register)
+			ret=vfd->vidioc_g_register(file, fh, p);
+		break;
+	}
+	case VIDIOC_INT_S_REGISTER:
+	{
+		struct v4l2_register *p=arg;
+		if (vfd->vidioc_s_register)
+			ret=vfd->vidioc_s_register(file, fh, p);
+		break;
+	}
+#endif
 	} /* switch */
 
 	if (vfd->debug & V4L2_DEBUG_IOCTL_ARG) {

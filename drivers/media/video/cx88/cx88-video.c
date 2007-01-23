@@ -1385,6 +1385,32 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 		cx88_set_freq (core,f);
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int vidioc_g_register (struct file *file, void *fh,
+				struct v4l2_register *reg)
+{
+	struct cx88_core *core = ((struct cx8800_fh*)fh)->dev->core;
+
+	if (reg->i2c_id != 0)
+		return -EINVAL;
+	/* cx2388x has a 24-bit register space */
+	reg->val = cx_read(reg->reg&0xffffff);
+	return 0;
+}
+
+static int vidioc_s_register (struct file *file, void *fh,
+				struct v4l2_register *reg)
+{
+	struct cx88_core *core = ((struct cx8800_fh*)fh)->dev->core;
+
+	if (reg->i2c_id != 0)
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	cx_write(reg->reg&0xffffff, reg->val);
+	return 0;
+}
+#endif
 
 /* ----------------------------------------------------------- */
 /* RADIO ESPECIFIC IOCTLS                                      */
@@ -1656,8 +1682,12 @@ static struct video_device cx8800_video_template =
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register    = vidioc_g_register,
+	.vidioc_s_register    = vidioc_s_register,
+#endif
 	.tvnorms              = CX88_NORMS,
-       .current_norm         = V4L2_STD_NTSC_M,
+	.current_norm         = V4L2_STD_NTSC_M,
 };
 
 static const struct file_operations radio_fops =
