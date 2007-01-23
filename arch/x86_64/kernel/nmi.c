@@ -302,8 +302,6 @@ int __init setup_nmi_watchdog(char *str)
 	if ((nmi >= NMI_INVALID) || (nmi < NMI_NONE))
 		return 0;
 
-	if ((nmi == NMI_LOCAL_APIC) && (nmi_known_cpu() == 0))
-		return 0;  /* no lapic support */
 	nmi_watchdog = nmi;
 	return 1;
 }
