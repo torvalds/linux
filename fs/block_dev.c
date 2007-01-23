@@ -146,7 +146,7 @@ static int blk_end_aio(struct bio *bio, unsigned int bytes_done, int error)
 		iocb->ki_nbytes = -EIO;
 
 	if (atomic_dec_and_test(bio_count)) {
-		if (iocb->ki_nbytes < 0)
+		if ((long)iocb->ki_nbytes < 0)
 			aio_complete(iocb, iocb->ki_nbytes, 0);
 		else
 			aio_complete(iocb, iocb->ki_left, 0);
