@@ -1033,15 +1033,13 @@ static void ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 {
 	partition_t *partition;
 
-	partition = kmalloc(sizeof(partition_t), GFP_KERNEL);
+	partition = kzalloc(sizeof(partition_t), GFP_KERNEL);
 
 	if (!partition) {
 		printk(KERN_WARNING "No memory to scan for FTL on %s\n",
 		       mtd->name);
 		return;
 	}
-
-	memset(partition, 0, sizeof(partition_t));
 
 	partition->mbd.mtd = mtd;
 
@@ -1054,7 +1052,7 @@ static void ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		       le32_to_cpu(partition->header.FormattedSize) >> 10);
 #endif
 		partition->mbd.size = le32_to_cpu(partition->header.FormattedSize) >> 9;
-		partition->mbd.blksize = SECTOR_SIZE;
+
 		partition->mbd.tr = tr;
 		partition->mbd.devnum = -1;
 		if (!add_mtd_blktrans_dev((void *)partition))
@@ -1076,6 +1074,7 @@ struct mtd_blktrans_ops ftl_tr = {
 	.name		= "ftl",
 	.major		= FTL_MAJOR,
 	.part_bits	= PART_BITS,
+	.blksize 	= SECTOR_SIZE,
 	.readsect	= ftl_readsect,
 	.writesect	= ftl_writesect,
 	.getgeo		= ftl_getgeo,

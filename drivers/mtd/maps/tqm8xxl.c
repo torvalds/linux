@@ -134,14 +134,13 @@ int __init init_tqm_mtd(void)
 
 		printk(KERN_INFO "%s: chip probing count %d\n", __FUNCTION__, idx);
 
-		map_banks[idx] = (struct map_info *)kmalloc(sizeof(struct map_info), GFP_KERNEL);
+		map_banks[idx] = kzalloc(sizeof(struct map_info), GFP_KERNEL);
 		if(map_banks[idx] == NULL) {
 			ret = -ENOMEM;
 			/* FIXME: What if some MTD devices were probed already? */
 			goto error_mem;
 		}
 
-		memset((void *)map_banks[idx], 0, sizeof(struct map_info));
 		map_banks[idx]->name = (char *)kmalloc(16, GFP_KERNEL);
 
 		if (!map_banks[idx]->name) {

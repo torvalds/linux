@@ -643,13 +643,12 @@ static struct mtd_info *amd_flash_probe(struct map_info *map)
 	int reg_idx;
 	int offset;
 
-	mtd = (struct mtd_info*)kmalloc(sizeof(*mtd), GFP_KERNEL);
+	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
 	if (!mtd) {
 		printk(KERN_WARNING
 		       "%s: kmalloc failed for info structure\n", map->name);
 		return NULL;
 	}
-	memset(mtd, 0, sizeof(*mtd));
 	mtd->priv = map;
 
 	memset(&temp, 0, sizeof(temp));

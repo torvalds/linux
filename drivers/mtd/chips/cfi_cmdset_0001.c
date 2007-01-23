@@ -337,12 +337,11 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 	struct mtd_info *mtd;
 	int i;
 
-	mtd = kmalloc(sizeof(*mtd), GFP_KERNEL);
+	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
 	if (!mtd) {
 		printk(KERN_ERR "Failed to allocate memory for MTD device\n");
 		return NULL;
 	}
-	memset(mtd, 0, sizeof(*mtd));
 	mtd->priv = map;
 	mtd->type = MTD_NORFLASH;
 
@@ -2224,6 +2223,8 @@ static int cfi_intelext_suspend(struct mtd_info *mtd)
 		case FL_CFI_QUERY:
 		case FL_JEDEC_QUERY:
 			if (chip->oldstate == FL_READY) {
+				/* place the chip in a known state before suspend */
+				map_write(map, CMD(0xFF), cfi->chips[i].start);
 				chip->oldstate = chip->state;
 				chip->state = FL_PM_SUSPENDED;
 				/* No need to wake_up() on this state change -

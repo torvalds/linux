@@ -178,8 +178,8 @@ __jffs2_dbg_acct_paranoia_check_nolock(struct jffs2_sb_info *c,
 	while (ref2) {
 		uint32_t totlen = ref_totlen(c, jeb, ref2);
 
-		if (ref2->flash_offset < jeb->offset ||
-				ref2->flash_offset > jeb->offset + c->sector_size) {
+		if (ref_offset(ref2) < jeb->offset ||
+				ref_offset(ref2) > jeb->offset + c->sector_size) {
 			JFFS2_ERROR("node_ref %#08x shouldn't be in block at %#08x.\n",
 				ref_offset(ref2), jeb->offset);
 			goto error;
