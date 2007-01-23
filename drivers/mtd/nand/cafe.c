@@ -618,7 +618,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		dev_warn(&pdev->dev, "Could not register IRQ %d\n", pdev->irq);
 		goto out_free_dma;
 	}
-#if 1
+
 	/* Disable master reset, enable NAND clock */
 	ctrl = cafe_readl(cafe, GLOBAL_CTRL);
 	ctrl &= 0xffffeff0;
@@ -645,32 +645,8 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	cafe_writel(cafe, 0x80000007, GLOBAL_IRQ_MASK);
 	cafe_dev_dbg(&cafe->pdev->dev, "Control %x, IRQ mask %x\n",
 		cafe_readl(cafe, GLOBAL_CTRL), cafe_readl(cafe, GLOBAL_IRQ_MASK));
-#endif
-#if 1
-	mtd->writesize=2048;
-	mtd->oobsize = 0x40;
-	memset(cafe->dmabuf, 0x5a, 2112);
-	cafe->nand.cmdfunc(mtd, NAND_CMD_READID, 0, -1);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-#endif
-#if 0
-	cafe->nand.cmdfunc(mtd, NAND_CMD_READ0, 0, 0);
-	//	nand_wait_ready(mtd);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-#endif
-#if 0
-	writel(0x84600070, cafe->mmio);
-	udelay(10);
-	cafe_dev_dbg(&cafe->pdev->dev, "Status %x\n", cafe_readl(cafe, NAND_NONMEM));
-#endif
-	/* Scan to find existance of the device */
+
+	/* Scan to find existence of the device */
 	if (nand_scan_ident(mtd, 1)) {
 		err = -ENXIO;
 		goto out_irq;
@@ -774,13 +750,4 @@ module_exit(cafe_nand_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");
-MODULE_DESCRIPTION("NAND flash driver for OLPC CAFE chip");
-
-/* Correct ECC for 2048 bytes of 0xff:
-   41 a0 71 65 54 27 f3 93 ec a9 be ed 0b a1 */
-
-/* dwmw2's B-test board, in case of completely screwing it:
-Bad eraseblock 2394 at 0x12b40000
-Bad eraseblock 2627 at 0x14860000
-Bad eraseblock 3349 at 0x1a2a0000
-*/
+MODULE_DESCRIPTION("NAND flash driver for OLPC CAFÉ chip");
