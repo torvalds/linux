@@ -156,7 +156,7 @@ show_regs (struct pt_regs *regs)
 }
 
 void
-do_notify_resume_user (sigset_t *oldset, struct sigscratch *scr, long in_syscall)
+do_notify_resume_user (sigset_t *unused, struct sigscratch *scr, long in_syscall)
 {
 	if (fsys_mode(current, &scr->pt)) {
 		/* defer signal-handling etc. until we return to privilege-level 0.  */
@@ -171,8 +171,8 @@ do_notify_resume_user (sigset_t *oldset, struct sigscratch *scr, long in_syscall
 #endif
 
 	/* deal with pending signal delivery */
-	if (test_thread_flag(TIF_SIGPENDING))
-		ia64_do_signal(oldset, scr, in_syscall);
+	if (test_thread_flag(TIF_SIGPENDING)||test_thread_flag(TIF_RESTORE_SIGMASK))
+		ia64_do_signal(scr, in_syscall);
 }
 
 static int pal_halt        = 1;

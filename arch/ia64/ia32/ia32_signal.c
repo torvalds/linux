@@ -452,59 +452,20 @@ sigact_set_handler (struct k_sigaction *sa, unsigned int handler, unsigned int r
 		sa->sa.sa_handler = (__sighandler_t) (((unsigned long) restorer << 32) | handler);
 }
 
-long
-__ia32_rt_sigsuspend (compat_sigset_t *sset, unsigned int sigsetsize, struct sigscratch *scr)
+asmlinkage long
+sys32_sigsuspend (int history0, int history1, old_sigset_t mask)
 {
-	extern long ia64_do_signal (sigset_t *oldset, struct sigscratch *scr, long in_syscall);
-	sigset_t oldset, set;
-
-	scr->scratch_unat = 0;	/* avoid leaking kernel bits to user level */
-	memset(&set, 0, sizeof(set));
-
-	memcpy(&set.sig, &sset->sig, sigsetsize);
-
-	sigdelsetmask(&set, ~_BLOCKABLE);
-
+	mask &= _BLOCKABLE;
 	spin_lock_irq(&current->sighand->siglock);
-	{
-		oldset = current->blocked;
-		current->blocked = set;
-		recalc_sigpending();
-	}
+	current->saved_sigmask = current->blocked;
+	siginitset(&current->blocked, mask);
+	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	/*
-	 * The return below usually returns to the signal handler.  We need to pre-set the
-	 * correct error code here to ensure that the right values get saved in sigcontext
-	 * by ia64_do_signal.
-	 */
-	scr->pt.r8 = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (ia64_do_signal(&oldset, scr, 1))
-			return -EINTR;
-	}
-}
-
-asmlinkage long
-ia32_rt_sigsuspend (compat_sigset_t __user *uset, unsigned int sigsetsize, struct sigscratch *scr)
-{
-	compat_sigset_t set;
-
-	if (sigsetsize > sizeof(compat_sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&set.sig, &uset->sig, sigsetsize))
-		return -EFAULT;
-
-	return __ia32_rt_sigsuspend(&set, sigsetsize, scr);
-}
-
-asmlinkage long
-ia32_sigsuspend (unsigned int mask, struct sigscratch *scr)
-{
-	return __ia32_rt_sigsuspend((compat_sigset_t *) &mask, sizeof(mask), scr);
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_thread_flag(TIF_RESTORE_SIGMASK);
+	return -ERESTARTNOHAND;
 }
 
 asmlinkage long

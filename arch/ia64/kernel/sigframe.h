@@ -22,4 +22,4 @@ struct sigframe {
 	struct sigcontext sc;
 };
 
-extern long ia64_do_signal (sigset_t *, struct sigscratch *, long);
+extern void ia64_do_signal (struct sigscratch *, long);
