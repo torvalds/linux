@@ -1786,7 +1786,7 @@ static void clear_glock(struct gfs2_glock *gl)
 	}
 
 	if (gfs2_glmutex_trylock(gl)) {
-		if (list_empty(gl, &gl->gl_holders) &&
+		if (list_empty(&gl->gl_holders) &&
 		    gl->gl_state != LM_ST_UNLOCKED)
 			handle_callback(gl, LM_ST_UNLOCKED);
 		gfs2_glmutex_unlock(gl);
