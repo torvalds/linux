@@ -61,7 +61,12 @@ Install kexec-tools
 
 2) Download the kexec-tools user-space package from the following URL:
 
-http://www.kernel.org/pub/linux/kernel/people/horms/kexec-tools/kexec-tools-testing-20061214.tar.gz
+http://www.kernel.org/pub/linux/kernel/people/horms/kexec-tools/kexec-tools-testing.tar.gz
+
+This is a symlink to the latest version, which at the time of writing is
+20061214, the only release of kexec-tools-testing so far. As other versions
+are made released, the older onese will remain available at
+http://www.kernel.org/pub/linux/kernel/people/horms/kexec-tools/
 
 Note: Latest kexec-tools-testing git tree is available at
 
@@ -71,11 +76,11 @@ http://www.kernel.org/git/?p=linux/kernel/git/horms/kexec-tools-testing.git;a=su
 
 3) Unpack the tarball with the tar command, as follows:
 
-   tar xvpzf kexec-tools-testing-20061214.tar.gz
+   tar xvpzf kexec-tools-testing.tar.gz
 
-4) Change to the kexec-tools-1.101 directory, as follows:
+4) Change to the kexec-tools directory, as follows:
 
-   cd kexec-tools-testing-20061214
+   cd kexec-tools-testing-VERSION
 
 5) Configure the package, as follows:
 
