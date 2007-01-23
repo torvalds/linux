@@ -7,12 +7,22 @@
 #endif
 
 /*
- * In parisc assembly a semicolon marks a comment.
- * Because of that we use an exclamation mark to seperate independend lines.
+ * In parisc assembly a semicolon marks a comment while a
+ * exclamation mark is used to seperate independend lines.
  */
 #define ENTRY(name) \
-	.globl name !\
+	.export name !\
 	ALIGN !\
 name:
+
+#ifdef CONFIG_64BIT
+#define ENDPROC(name) \
+	END(name)
+#else
+#define ENDPROC(name) \
+	.type name, @function !\
+	END(name)
+#endif
+
 
 #endif  /* __ASM_PARISC_LINKAGE_H */
