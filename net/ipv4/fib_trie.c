@@ -1989,6 +1989,10 @@ static struct node *fib_trie_get_next(struct fib_trie_iter *iter)
 	unsigned cindex = iter->index;
 	struct tnode *p;
 
+	/* A single entry routing table */
+	if (!tn)
+		return NULL;
+
 	pr_debug("get_next iter={node=%p index=%d depth=%d}\n",
 		 iter->tnode, iter->index, iter->depth);
 rescan:
@@ -2037,11 +2041,18 @@ static struct node *fib_trie_get_first(struct fib_trie_iter *iter,
 	if(!iter)
 		return NULL;
 
-	if (n && IS_TNODE(n)) {
-		iter->tnode = (struct tnode *) n;
-		iter->trie = t;
-		iter->index = 0;
-		iter->depth = 1;
+	if (n) {
+		if (IS_TNODE(n)) {
+			iter->tnode = (struct tnode *) n;
+			iter->trie = t;
+			iter->index = 0;
+			iter->depth = 1;
+		} else {
+			iter->tnode = NULL;
+			iter->trie  = t;
+			iter->index = 0;
+			iter->depth = 0;
+		}
 		return n;
 	}
 	return NULL;
