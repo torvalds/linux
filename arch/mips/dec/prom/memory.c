@@ -122,7 +122,7 @@ unsigned long __init prom_free_prom_memory(void)
 		addr += PAGE_SIZE;
 	}
 
-	printk("Freeing unused PROM memory: %ldk freed\n",
+	printk("Freeing unused PROM memory: %ldkb freed\n",
 	       (end - PAGE_SIZE) >> 10);
 
 	return end - PAGE_SIZE;

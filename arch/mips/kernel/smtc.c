@@ -4,6 +4,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 
 #include <asm/cpu.h>
 #include <asm/processor.h>
@@ -270,9 +271,12 @@ void smtc_configure_tlb(void)
 		 * of their initialization in smtc_cpu_setup().
 		 */
 
-		tlbsiz = tlbsiz & 0x3f;	/* MIPS32 limits TLB indices to 64 */
-		cpu_data[0].tlbsize = tlbsiz;
+		/* MIPS32 limits TLB indices to 64 */
+		if (tlbsiz > 64)
+			tlbsiz = 64;
+		cpu_data[0].tlbsize = current_cpu_data.tlbsize = tlbsiz;
 		smtc_status |= SMTC_TLB_SHARED;
+		local_flush_tlb_all();
 
 		printk("TLB of %d entry pairs shared by %d VPEs\n",
 			tlbsiz, vpes);
@@ -1043,6 +1047,8 @@ void smtc_ipi_replay(void)
 		}
 	}
 }
+
+EXPORT_SYMBOL(smtc_ipi_replay);
 
 void smtc_idle_loop_hook(void)
 {
