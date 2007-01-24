@@ -44,11 +44,11 @@ static int populate_dir(struct kobject * kobj)
 	return error;
 }
 
-static int create_dir(struct kobject * kobj)
+static int create_dir(struct kobject * kobj, struct dentry *shadow_parent)
 {
 	int error = 0;
 	if (kobject_name(kobj)) {
-		error = sysfs_create_dir(kobj);
+		error = sysfs_create_dir(kobj, shadow_parent);
 		if (!error) {
 			if ((error = populate_dir(kobj)))
 				sysfs_remove_dir(kobj);
@@ -158,9 +158,10 @@ static void unlink(struct kobject * kobj)
 /**
  *	kobject_add - add an object to the hierarchy.
  *	@kobj:	object.
+ *	@shadow_parent: sysfs directory to add to.
  */
 
-int kobject_add(struct kobject * kobj)
+int kobject_shadow_add(struct kobject * kobj, struct dentry *shadow_parent)
 {
 	int error = 0;
 	struct kobject * parent;
@@ -191,7 +192,7 @@ int kobject_add(struct kobject * kobj)
 	}
 	kobj->parent = parent;
 
-	error = create_dir(kobj);
+	error = create_dir(kobj, shadow_parent);
 	if (error) {
 		/* unlink does the kobject_put() for us */
 		unlink(kobj);
@@ -210,6 +211,15 @@ int kobject_add(struct kobject * kobj)
 	}
 
 	return error;
+}
+
+/**
+ *	kobject_add - add an object to the hierarchy.
+ *	@kobj:	object.
+ */
+int kobject_add(struct kobject * kobj)
+{
+	return kobject_shadow_add(kobj, NULL);
 }
 
 
@@ -304,7 +314,29 @@ int kobject_rename(struct kobject * kobj, const char *new_name)
 	kobj = kobject_get(kobj);
 	if (!kobj)
 		return -EINVAL;
-	error = sysfs_rename_dir(kobj, new_name);
+	if (!kobj->parent)
+		return -EINVAL;
+	error = sysfs_rename_dir(kobj, kobj->parent->dentry, new_name);
+	kobject_put(kobj);
+
+	return error;
+}
+
+/**
+ *	kobject_rename - change the name of an object
+ *	@kobj:	object in question.
+ *	@new_name: object's new name
+ */
+
+int kobject_shadow_rename(struct kobject * kobj, struct dentry *new_parent,
+			  const char *new_name)
+{
+	int error = 0;
+
+	kobj = kobject_get(kobj);
+	if (!kobj)
+		return -EINVAL;
+	error = sysfs_rename_dir(kobj, new_parent, new_name);
 	kobject_put(kobj);
 
 	return error;

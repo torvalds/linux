@@ -2,6 +2,7 @@
 extern struct vfsmount * sysfs_mount;
 extern struct kmem_cache *sysfs_dir_cachep;
 
+extern void sysfs_delete_inode(struct inode *inode);
 extern struct inode * sysfs_new_inode(mode_t mode, struct sysfs_dirent *);
 extern int sysfs_create(struct dentry *, int mode, int (*init)(struct inode *));
 
@@ -112,3 +113,7 @@ static inline void sysfs_put(struct sysfs_dirent * sd)
 		release_sysfs_dirent(sd);
 }
 
+static inline int sysfs_is_shadowed_inode(struct inode *inode)
+{
+	return S_ISDIR(inode->i_mode) && inode->i_op->follow_link;
+}
