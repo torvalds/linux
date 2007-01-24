@@ -77,6 +77,7 @@ extern int cpm_dpfree(uint offset);
 extern uint cpm_dpalloc_fixed(uint offset, uint size, uint align);
 extern void cpm_dpdump(void);
 extern void *cpm_dpram_addr(uint offset);
+extern uint cpm_dpram_phys(u8* addr);
 extern void cpm_setbrg(uint brg, uint rate);
 
 extern uint m8xx_cpm_hostalloc(uint size);
