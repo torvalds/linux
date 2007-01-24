@@ -4,6 +4,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 
 #include <asm/cpu.h>
 #include <asm/processor.h>
@@ -1046,6 +1047,8 @@ void smtc_ipi_replay(void)
 		}
 	}
 }
+
+EXPORT_SYMBOL(smtc_ipi_replay);
 
 void smtc_idle_loop_hook(void)
 {
