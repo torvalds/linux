@@ -128,7 +128,8 @@ static struct bsg_command *__bsg_alloc_command(struct bsg_device *bd)
 	bc = kmem_cache_alloc(bsg_cmd_cachep, GFP_USER);
 	if (unlikely(!bc)) {
 		spin_lock_irq(&bd->lock);
-		goto alloc_fail;
+		bd->queued_cmds--;
+		goto out;
 	}
 
 	memset(bc, 0, sizeof(*bc));
@@ -136,8 +137,6 @@ static struct bsg_command *__bsg_alloc_command(struct bsg_device *bd)
 	INIT_LIST_HEAD(&bc->list);
 	dprintk("%s: returning free cmd %p\n", bd->name, bc);
 	return bc;
-alloc_fail:
-	bd->queued_cmds--;
 out:
 	spin_unlock_irq(&bd->lock);
 	return bc;
