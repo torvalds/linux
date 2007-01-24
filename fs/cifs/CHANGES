@@ -1,3 +1,7 @@
+Version 1.47
+------------
+Fix oops in list_del during mount caused by unaligned string.
+
 Version 1.46
 ------------
 Support deep tree mounts.  Better support OS/2, Win9x (DOS) time stamps.

@@ -182,11 +182,14 @@ static int decode_unicode_ssetup(char ** pbcc_area, int bleft, struct cifsSesInf
 	cFYI(1,("bleft %d",bleft));
 
 
-	/* word align, if bytes remaining is not even */
-	if(bleft % 2) {
-		bleft--;
-		data++;
-	}
+	/* SMB header is unaligned, so cifs servers word align start of
+	   Unicode strings */
+	data++;
+	bleft--; /* Windows servers do not always double null terminate
+		    their final Unicode string - in which case we
+		    now will not attempt to decode the byte of junk
+		    which follows it */
+		    
 	words_left = bleft / 2;
 
 	/* save off server operating system */
