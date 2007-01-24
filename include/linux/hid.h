@@ -431,8 +431,8 @@ struct hid_device {							/* device report descriptor */
 
 	/* device-specific function pointers */
 	int (*hidinput_input_event) (struct input_dev *, unsigned int, unsigned int, int);
-	int (*hidinput_open) (struct input_dev *);
-	void (*hidinput_close) (struct input_dev *);
+	int (*hid_open) (struct hid_device *);
+	void (*hid_close) (struct hid_device *);
 
 	/* hiddev event handler */
 	void (*hiddev_hid_event) (struct hid_device *, struct hid_field *field,

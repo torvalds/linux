@@ -805,6 +805,18 @@ int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int 
 }
 EXPORT_SYMBOL_GPL(hidinput_find_field);
 
+static int hidinput_open(struct input_dev *dev)
+{
+	struct hid_device *hid = dev->private;
+	return hid->hid_open(hid);
+}
+
+static void hidinput_close(struct input_dev *dev)
+{
+	struct hid_device *hid = dev->private;
+	hid->hid_close(hid);
+}
+
 /*
  * Register the input device; print a message.
  * Configure the input layer interface
@@ -851,8 +863,8 @@ int hidinput_connect(struct hid_device *hid)
 
 				input_dev->private = hid;
 				input_dev->event = hid->hidinput_input_event;
-				input_dev->open = hid->hidinput_open;
-				input_dev->close = hid->hidinput_close;
+				input_dev->open = hidinput_open;
+				input_dev->close = hidinput_close;
 
 				input_dev->name = hid->name;
 				input_dev->phys = hid->phys;

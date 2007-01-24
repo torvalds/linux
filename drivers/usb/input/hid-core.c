@@ -529,18 +529,6 @@ void usbhid_close(struct hid_device *hid)
 		usb_kill_urb(usbhid->urbin);
 }
 
-static int hidinput_open(struct input_dev *dev)
-{
-	struct hid_device *hid = dev->private;
-	return usbhid_open(hid);
-}
-
-static void hidinput_close(struct input_dev *dev)
-{
-	struct hid_device *hid = dev->private;
-	usbhid_close(hid);
-}
-
 #define USB_VENDOR_ID_PANJIT		0x134c
 
 #define USB_VENDOR_ID_TURBOX		0x062a
@@ -1241,8 +1229,8 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	usbhid->urbctrl->transfer_dma = usbhid->ctrlbuf_dma;
 	usbhid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
 	hid->hidinput_input_event = usb_hidinput_input_event;
-	hid->hidinput_open = hidinput_open;
-	hid->hidinput_close = hidinput_close;
+	hid->hid_open = usbhid_open;
+	hid->hid_close = usbhid_close;
 #ifdef CONFIG_USB_HIDDEV
 	hid->hiddev_hid_event = hiddev_hid_event;
 	hid->hiddev_report_event = hiddev_report_event;
