@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt3x2n"
-#define DRV_VERSION	"0.3"
+#define DRV_VERSION	"0.3.2"
 
 enum {
 	HPT_PCI_FAST	=	(1 << 31),
@@ -297,11 +297,11 @@ static int hpt3x2n_pair_idle(struct ata_port *ap)
 	return 0;
 }
 
-static int hpt3x2n_use_dpll(struct ata_port *ap, int reading)
+static int hpt3x2n_use_dpll(struct ata_port *ap, int writing)
 {
 	long flags = (long)ap->host->private_data;
 	/* See if we should use the DPLL */
-	if (reading == 0)
+	if (writing)
 		return USE_DPLL;	/* Needed for write */
 	if (flags & PCI66)
 		return USE_DPLL;	/* Needed at 66Mhz */
