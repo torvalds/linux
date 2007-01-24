@@ -431,6 +431,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x040: map_key_clear(KEY_MENU);		break;
 				case 0x045: map_key_clear(KEY_RADIO);		break;
 
+				case 0x083: map_key_clear(KEY_LAST);		break;
 				case 0x088: map_key_clear(KEY_PC);		break;
 				case 0x089: map_key_clear(KEY_TV);		break;
 				case 0x08a: map_key_clear(KEY_WWW);		break;
@@ -448,6 +449,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x096: map_key_clear(KEY_TAPE);		break;
 				case 0x097: map_key_clear(KEY_TV2);		break;
 				case 0x098: map_key_clear(KEY_SAT);		break;
+				case 0x09a: map_key_clear(KEY_PVR);		break;
 
 				case 0x09c: map_key_clear(KEY_CHANNELUP);	break;
 				case 0x09d: map_key_clear(KEY_CHANNELDOWN);	break;
