@@ -20,6 +20,9 @@
 #include <asm/arch/board.h>
 #include <asm/arch/init.h>
 
+
+#define	SW2_DEFAULT		/* MMCI and UART_A available */
+
 struct eth_addr {
 	u8 addr[6];
 };
@@ -86,9 +89,13 @@ static void __init set_hw_addr(struct platform_device *pdev)
 
 void __init setup_board(void)
 {
-	at32_map_usart(1, 0);	/* /dev/ttyS0 */
-	at32_map_usart(2, 1);	/* /dev/ttyS1 */
-	at32_map_usart(3, 2);	/* /dev/ttyS2 */
+#ifdef	SW2_DEFAULT
+	at32_map_usart(1, 0);	/* USART 1/A: /dev/ttyS0, DB9 */
+#else
+	at32_map_usart(0, 1);	/* USART 0/B: /dev/ttyS1, IRDA */
+#endif
+	/* USART 2/unused: expansion connector */
+	at32_map_usart(3, 2);	/* USART 3/C: /dev/ttyS2, DB9 */
 
 	at32_setup_serial_console(0);
 }
@@ -97,8 +104,11 @@ static int __init atstk1002_init(void)
 {
 	at32_add_system_devices();
 
+#ifdef	SW2_DEFAULT
 	at32_add_device_usart(0);
+#else
 	at32_add_device_usart(1);
+#endif
 	at32_add_device_usart(2);
 
 	set_hw_addr(at32_add_device_eth(0, &eth_data[0]));

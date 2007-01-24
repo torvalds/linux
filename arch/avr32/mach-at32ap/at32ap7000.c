@@ -521,7 +521,7 @@ static struct atmel_uart_data atmel_usart0_data = {
 };
 static struct resource atmel_usart0_resource[] = {
 	PBMEM(0xffe00c00),
-	IRQ(7),
+	IRQ(6),
 };
 DEFINE_DEV_DATA(atmel_usart, 0);
 DEV_CLK(usart, atmel_usart0, pba, 4);
@@ -583,7 +583,7 @@ static inline void configure_usart3_pins(void)
 	select_peripheral(PB(17), PERIPH_B, 0);	/* TXD	*/
 }
 
-static struct platform_device *at32_usarts[4];
+static struct platform_device *__initdata at32_usarts[4];
 
 void __init at32_map_usart(unsigned int hw_id, unsigned int line)
 {
