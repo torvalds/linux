@@ -22,37 +22,13 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
-#include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/ptrace.h>
-#include <linux/mman.h>
-#include <linux/mm.h>
-#include <linux/swap.h>
-#include <linux/stddef.h>
-#include <linux/vmalloc.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/bootmem.h>
 #include <linux/highmem.h>
 #include <linux/dma-mapping.h>
-#include <linux/hardirq.h>
-
-#include <asm/pgalloc.h>
-#include <asm/prom.h>
-#include <asm/io.h>
-#include <asm/mmu_context.h>
-#include <asm/pgtable.h>
-#include <asm/mmu.h>
-#include <asm/uaccess.h>
-#include <asm/smp.h>
-#include <asm/machdep.h>
-
-int map_page(unsigned long va, phys_addr_t pa, int flags);
 
 #include <asm/tlbflush.h>
 
