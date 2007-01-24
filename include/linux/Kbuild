@@ -129,7 +129,6 @@ header-y += posix_types.h
 header-y += ppdev.h
 header-y += prctl.h
 header-y += ps2esdi.h
-header-y += qic117.h
 header-y += qnxtypes.h
 header-y += quotaio_v1.h
 header-y += quotaio_v2.h

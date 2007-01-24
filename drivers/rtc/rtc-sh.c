@@ -492,10 +492,10 @@ static int sh_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 
 	spin_lock_irq(&rtc->lock);
 
-	/* disable alarm interrupt and clear flag */
+	/* disable alarm interrupt and clear the alarm flag */
 	rcr1 = readb(rtc->regbase + RCR1);
-	rcr1 &= ~RCR1_AF;
-	writeb(rcr1 & ~RCR1_AIE, rtc->regbase + RCR1);
+	rcr1 &= ~(RCR1_AF|RCR1_AIE);
+	writeb(rcr1, rtc->regbase + RCR1);
 
 	rtc->rearm_aie = 0;
 
@@ -510,8 +510,10 @@ static int sh_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 		mon += 1;
 	sh_rtc_write_alarm_value(rtc, mon, RMONAR);
 
-	/* Restore interrupt activation status */
-	writeb(rcr1, rtc->regbase + RCR1);
+	if (wkalrm->enabled) {
+		rcr1 |= RCR1_AIE;
+		writeb(rcr1, rtc->regbase + RCR1);
+	}
 
 	spin_unlock_irq(&rtc->lock);
 

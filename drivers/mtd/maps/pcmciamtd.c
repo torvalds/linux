@@ -735,11 +735,10 @@ static int pcmciamtd_probe(struct pcmcia_device *link)
 	struct pcmciamtd_dev *dev;
 
 	/* Create new memory card device */
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) return -ENOMEM;
 	DEBUG(1, "dev=0x%p", dev);
 
-	memset(dev, 0, sizeof(*dev));
 	dev->p_dev = link;
 	link->priv = dev;
 

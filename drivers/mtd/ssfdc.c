@@ -172,13 +172,12 @@ static int read_raw_oob(struct mtd_info *mtd, loff_t offs, uint8_t *buf)
 
 	ops.mode = MTD_OOB_RAW;
 	ops.ooboffs = 0;
-	ops.ooblen = mtd->oobsize;
-	ops.len = OOB_SIZE;
+	ops.ooblen = OOB_SIZE;
 	ops.oobbuf = buf;
 	ops.datbuf = NULL;
 
 	ret = mtd->read_oob(mtd, offs, &ops);
-	if (ret < 0 || ops.retlen != OOB_SIZE)
+	if (ret < 0 || ops.oobretlen != OOB_SIZE)
 		return -1;
 
 	return 0;
@@ -312,7 +311,6 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	ssfdc->mbd.mtd = mtd;
 	ssfdc->mbd.devnum = -1;
-	ssfdc->mbd.blksize = SECTOR_SIZE;
 	ssfdc->mbd.tr = tr;
 	ssfdc->mbd.readonly = 1;
 
@@ -447,6 +445,7 @@ static struct mtd_blktrans_ops ssfdcr_tr = {
 	.name		= "ssfdc",
 	.major		= SSFDCR_MAJOR,
 	.part_bits	= SSFDCR_PARTN_BITS,
+	.blksize	= SECTOR_SIZE,
 	.getgeo		= ssfdcr_getgeo,
 	.readsect	= ssfdcr_readsect,
 	.add_mtd	= ssfdcr_add_mtd,

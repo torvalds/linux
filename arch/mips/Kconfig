@@ -1568,6 +1568,20 @@ config MIPS_MT_FPAFF
 	depends on MIPS_MT
 	default y
 
+config MIPS_MT_SMTC_INSTANT_REPLAY
+	bool "Low-latency Dispatch of Deferred SMTC IPIs"
+	depends on MIPS_MT_SMTC
+	default y
+	help
+	  SMTC pseudo-interrupts between TCs are deferred and queued
+	  if the target TC is interrupt-inhibited (IXMT). In the first
+	  SMTC prototypes, these queued IPIs were serviced on return
+	  to user mode, or on entry into the kernel idle loop. The
+	  INSTANT_REPLAY option dispatches them as part of local_irq_restore()
+	  processing, which adds runtime overhead (hence the option to turn
+	  it off), but ensures that IPIs are handled promptly even under
+	  heavy I/O interrupt load.
+
 config MIPS_VPE_LOADER_TOM
 	bool "Load VPE program into memory hidden from linux"
 	depends on MIPS_VPE_LOADER

@@ -179,6 +179,7 @@
  * ECC Status Reigser FF00h (R)
  */
 #define ONENAND_ECC_1BIT		(1 << 0)
+#define ONENAND_ECC_1BIT_ALL		(0x5555)
 #define ONENAND_ECC_2BIT		(1 << 1)
 #define ONENAND_ECC_2BIT_ALL		(0xAAAA)
 

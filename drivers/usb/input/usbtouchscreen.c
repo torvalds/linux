@@ -66,7 +66,7 @@ struct usbtouch_device_info {
 
 	void (*process_pkt) (struct usbtouch_usb *usbtouch, unsigned char *pkt, int len);
 	int  (*get_pkt_len) (unsigned char *pkt, int len);
-	int  (*read_data)   (unsigned char *pkt, int *x, int *y, int *touch, int *press);
+	int  (*read_data)   (struct usbtouch_usb *usbtouch, unsigned char *pkt);
 	int  (*init)        (struct usbtouch_usb *usbtouch);
 };
 
@@ -85,6 +85,9 @@ struct usbtouch_usb {
 	struct usbtouch_device_info *type;
 	char name[128];
 	char phys[64];
+
+	int x, y;
+	int touch, press;
 };
 
 
@@ -161,14 +164,14 @@ static struct usb_device_id usbtouch_devices[] = {
 #define EGALAX_PKT_TYPE_REPT		0x80
 #define EGALAX_PKT_TYPE_DIAG		0x0A
 
-static int egalax_read_data(unsigned char *pkt, int *x, int *y, int *touch, int *press)
+static int egalax_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	if ((pkt[0] & EGALAX_PKT_TYPE_MASK) != EGALAX_PKT_TYPE_REPT)
 		return 0;
 
-	*x = ((pkt[3] & 0x0F) << 7) | (pkt[4] & 0x7F);
-	*y = ((pkt[1] & 0x0F) << 7) | (pkt[2] & 0x7F);
-	*touch = pkt[0] & 0x01;
+	dev->x = ((pkt[3] & 0x0F) << 7) | (pkt[4] & 0x7F);
+	dev->y = ((pkt[1] & 0x0F) << 7) | (pkt[2] & 0x7F);
+	dev->touch = pkt[0] & 0x01;
 
 	return 1;
 }
@@ -195,11 +198,11 @@ static int egalax_get_pkt_len(unsigned char *buf, int len)
  * PanJit Part
  */
 #ifdef CONFIG_USB_TOUCHSCREEN_PANJIT
-static int panjit_read_data(unsigned char *pkt, int *x, int *y, int *touch, int *press)
+static int panjit_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
-	*x = ((pkt[2] & 0x0F) << 8) | pkt[1];
-	*y = ((pkt[4] & 0x0F) << 8) | pkt[3];
-	*touch = pkt[0] & 0x01;
+	dev->x = ((pkt[2] & 0x0F) << 8) | pkt[1];
+	dev->y = ((pkt[4] & 0x0F) << 8) | pkt[3];
+	dev->touch = pkt[0] & 0x01;
 
 	return 1;
 }
@@ -215,11 +218,11 @@ static int panjit_read_data(unsigned char *pkt, int *x, int *y, int *touch, int 
 #define MTOUCHUSB_RESET                 7
 #define MTOUCHUSB_REQ_CTRLLR_ID         10
 
-static int mtouch_read_data(unsigned char *pkt, int *x, int *y, int *touch, int *press)
+static int mtouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
-	*x = (pkt[8] << 8) | pkt[7];
-	*y = (pkt[10] << 8) | pkt[9];
-	*touch = (pkt[2] & 0x40) ? 1 : 0;
+	dev->x = (pkt[8] << 8) | pkt[7];
+	dev->y = (pkt[10] << 8) | pkt[9];
+	dev->touch = (pkt[2] & 0x40) ? 1 : 0;
 
 	return 1;
 }
@@ -260,14 +263,32 @@ static int mtouch_init(struct usbtouch_usb *usbtouch)
  * ITM Part
  */
 #ifdef CONFIG_USB_TOUCHSCREEN_ITM
-static int itm_read_data(unsigned char *pkt, int *x, int *y, int *touch, int *press)
+static int itm_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
-	*x = ((pkt[0] & 0x1F) << 7) | (pkt[3] & 0x7F);
-	*y = ((pkt[1] & 0x1F) << 7) | (pkt[4] & 0x7F);
-	*press = ((pkt[2] & 0x01) << 7) | (pkt[5] & 0x7F);
-	*touch = ~pkt[7] & 0x20;
+	int touch;
+	/*
+	 * ITM devices report invalid x/y data if not touched.
+	 * if the screen was touched before but is not touched any more
+	 * report touch as 0 with the last valid x/y data once. then stop
+	 * reporting data until touched again.
+	 */
+	dev->press = ((pkt[2] & 0x01) << 7) | (pkt[5] & 0x7F);
 
-	return *touch;
+	touch = ~pkt[7] & 0x20;
+	if (!touch) {
+		if (dev->touch) {
+			dev->touch = 0;
+			return 1;
+		}
+
+		return 0;
+	}
+
+	dev->x = ((pkt[0] & 0x1F) << 7) | (pkt[3] & 0x7F);
+	dev->y = ((pkt[1] & 0x1F) << 7) | (pkt[4] & 0x7F);
+	dev->touch = touch;
+
+	return 1;
 }
 #endif
 
@@ -276,7 +297,7 @@ static int itm_read_data(unsigned char *pkt, int *x, int *y, int *touch, int *pr
  * eTurboTouch part
  */
 #ifdef CONFIG_USB_TOUCHSCREEN_ETURBO
-static int eturbo_read_data(unsigned char *pkt, int *x, int *y, int *touch, int *press)
+static int eturbo_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	unsigned int shift;
 
@@ -285,9 +306,9 @@ static int eturbo_read_data(unsigned char *pkt, int *x, int *y, int *touch, int 
 		return 0;
 
 	shift = (6 - (pkt[0] & 0x03));
-	*x = ((pkt[3] << 7) | pkt[4]) >> shift;
-	*y = ((pkt[1] << 7) | pkt[2]) >> shift;
-	*touch = (pkt[0] & 0x10) ? 1 : 0;
+	dev->x = ((pkt[3] << 7) | pkt[4]) >> shift;
+	dev->y = ((pkt[1] << 7) | pkt[2]) >> shift;
+	dev->touch = (pkt[0] & 0x10) ? 1 : 0;
 
 	return 1;
 }
@@ -307,14 +328,14 @@ static int eturbo_get_pkt_len(unsigned char *buf, int len)
  * Gunze part
  */
 #ifdef CONFIG_USB_TOUCHSCREEN_GUNZE
-static int gunze_read_data(unsigned char *pkt, int *x, int *y, int *touch, int *press)
+static int gunze_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	if (!(pkt[0] & 0x80) || ((pkt[1] | pkt[2] | pkt[3]) & 0x80))
 		return 0;
 
-	*x = ((pkt[0] & 0x1F) << 7) | (pkt[2] & 0x7F);
-	*y = ((pkt[1] & 0x1F) << 7) | (pkt[3] & 0x7F);
-	*touch = pkt[0] & 0x20;
+	dev->x = ((pkt[0] & 0x1F) << 7) | (pkt[2] & 0x7F);
+	dev->y = ((pkt[1] & 0x1F) << 7) | (pkt[3] & 0x7F);
+	dev->touch = pkt[0] & 0x20;
 
 	return 1;
 }
@@ -383,11 +404,11 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 }
 
 
-static int dmc_tsc10_read_data(unsigned char *pkt, int *x, int *y, int *touch, int *press)
+static int dmc_tsc10_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
-	*x = ((pkt[2] & 0x03) << 8) | pkt[1];
-	*y = ((pkt[4] & 0x03) << 8) | pkt[3];
-	*touch = pkt[0] & 0x01;
+	dev->x = ((pkt[2] & 0x03) << 8) | pkt[1];
+	dev->y = ((pkt[4] & 0x03) << 8) | pkt[3];
+	dev->touch = pkt[0] & 0x01;
 
 	return 1;
 }
@@ -492,23 +513,22 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 static void usbtouch_process_pkt(struct usbtouch_usb *usbtouch,
                                  unsigned char *pkt, int len)
 {
-	int x, y, touch, press;
 	struct usbtouch_device_info *type = usbtouch->type;
 
-	if (!type->read_data(pkt, &x, &y, &touch, &press))
+	if (!type->read_data(usbtouch, pkt))
 			return;
 
-	input_report_key(usbtouch->input, BTN_TOUCH, touch);
+	input_report_key(usbtouch->input, BTN_TOUCH, usbtouch->touch);
 
 	if (swap_xy) {
-		input_report_abs(usbtouch->input, ABS_X, y);
-		input_report_abs(usbtouch->input, ABS_Y, x);
+		input_report_abs(usbtouch->input, ABS_X, usbtouch->y);
+		input_report_abs(usbtouch->input, ABS_Y, usbtouch->x);
 	} else {
-		input_report_abs(usbtouch->input, ABS_X, x);
-		input_report_abs(usbtouch->input, ABS_Y, y);
+		input_report_abs(usbtouch->input, ABS_X, usbtouch->x);
+		input_report_abs(usbtouch->input, ABS_Y, usbtouch->y);
 	}
 	if (type->max_press)
-		input_report_abs(usbtouch->input, ABS_PRESSURE, press);
+		input_report_abs(usbtouch->input, ABS_PRESSURE, usbtouch->press);
 	input_sync(usbtouch->input);
 }
 

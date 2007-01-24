@@ -134,9 +134,9 @@ Do not send more than 15 patches at once to the vger mailing lists!!!
 
 
 Linus Torvalds is the final arbiter of all changes accepted into the
-Linux kernel.  His e-mail address is <torvalds@osdl.org>.  He gets
-a lot of e-mail, so typically you should do your best to -avoid- sending
-him e-mail.
+Linux kernel.  His e-mail address is <torvalds@linux-foundation.org>. 
+He gets a lot of e-mail, so typically you should do your best to -avoid-
+sending him e-mail. 
 
 Patches which are bug fixes, are "obvious" changes, or similarly
 require little discussion should be sent or CC'd to Linus.  Patches

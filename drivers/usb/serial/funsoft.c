@@ -27,7 +27,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 static int funsoft_ioctl(struct usb_serial_port *port, struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
-	struct termios t;
+	struct ktermios t;
 
 	dbg("%s - port %d, cmd 0x%04x", __FUNCTION__, port->number, cmd);
 

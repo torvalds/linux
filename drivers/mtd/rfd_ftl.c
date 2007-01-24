@@ -787,7 +787,6 @@ static void rfd_ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	if (scan_header(part) == 0) {
 		part->mbd.size = part->sector_count;
-		part->mbd.blksize = SECTOR_SIZE;
 		part->mbd.tr = tr;
 		part->mbd.devnum = -1;
 		if (!(mtd->flags & MTD_WRITEABLE))
@@ -829,6 +828,8 @@ struct mtd_blktrans_ops rfd_ftl_tr = {
 	.name		= "rfd",
 	.major		= RFD_FTL_MAJOR,
 	.part_bits	= PART_BITS,
+	.blksize 	= SECTOR_SIZE,
+
 	.readsect	= rfd_ftl_readsect,
 	.writesect	= rfd_ftl_writesect,
 	.getgeo		= rfd_ftl_getgeo,

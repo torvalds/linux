@@ -23,7 +23,7 @@
 
 #define MTD_CHAR_MAJOR 90
 #define MTD_BLOCK_MAJOR 31
-#define MAX_MTD_DEVICES 16
+#define MAX_MTD_DEVICES 32
 
 #define MTD_ERASE_PENDING      	0x01
 #define MTD_ERASING		0x02
@@ -75,15 +75,12 @@ typedef enum {
  * struct mtd_oob_ops - oob operation operands
  * @mode:	operation mode
  *
- * @len:	number of bytes to write/read. When a data buffer is given
- *		(datbuf != NULL) this is the number of data bytes. When
- *		no data buffer is available this is the number of oob bytes.
+ * @len:	number of data bytes to write/read
  *
- * @retlen:	number of bytes written/read. When a data buffer is given
- *		(datbuf != NULL) this is the number of data bytes. When
- *		no data buffer is available this is the number of oob bytes.
+ * @retlen:	number of data bytes written/read
  *
- * @ooblen:	number of oob bytes per page
+ * @ooblen:	number of oob bytes to write/read
+ * @oobretlen:	number of oob bytes written/read
  * @ooboffs:	offset of oob data in the oob area (only relevant when
  *		mode = MTD_OOB_PLACE)
  * @datbuf:	data buffer - if NULL only oob data are read/written
@@ -94,6 +91,7 @@ struct mtd_oob_ops {
 	size_t		len;
 	size_t		retlen;
 	size_t		ooblen;
+	size_t		oobretlen;
 	uint32_t	ooboffs;
 	uint8_t		*datbuf;
 	uint8_t		*oobbuf;
@@ -202,11 +200,20 @@ struct mtd_info {
 
 	/* ECC status information */
 	struct mtd_ecc_stats ecc_stats;
+	/* Subpage shift (NAND) */
+	int subpage_sft;
 
 	void *priv;
 
 	struct module *owner;
 	int usecount;
+
+	/* If the driver is something smart, like UBI, it may need to maintain
+	 * its own reference counting. The below functions are only for driver.
+	 * The driver may register its callbacks. These callbacks are not
+	 * supposed to be called by MTD users */
+	int (*get_device) (struct mtd_info *mtd);
+	void (*put_device) (struct mtd_info *mtd);
 };
 
 
@@ -216,6 +223,7 @@ extern int add_mtd_device(struct mtd_info *mtd);
 extern int del_mtd_device (struct mtd_info *mtd);
 
 extern struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num);
+extern struct mtd_info *get_mtd_device_nm(const char *name);
 
 extern void put_mtd_device(struct mtd_info *mtd);
 

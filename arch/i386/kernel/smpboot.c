@@ -596,6 +596,12 @@ static void __cpuinit start_secondary(void *unused)
 void __devinit initialize_secondary(void)
 {
 	/*
+	 * switch to the per CPU GDT we already set up
+	 * in do_boot_cpu()
+	 */
+	cpu_set_gdt(current_thread_info()->cpu);
+
+	/*
 	 * We don't actually need to load the full TSS,
 	 * basically just the stack pointer and the eip.
 	 */
@@ -971,9 +977,6 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 	printk("Booting processor %d/%d eip %lx\n", cpu, apicid, start_eip);
 	/* Stack for startup_32 can be just as for start_secondary onwards */
 	stack_start.esp = (void *) idle->thread.esp;
-
-	start_pda = cpu_pda(cpu);
-	cpu_gdt_descr = per_cpu(cpu_gdt_descr, cpu);
 
 	irq_ctx_init(cpu);
 

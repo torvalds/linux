@@ -274,7 +274,7 @@ static int FNAME(fix_write_pf)(struct kvm_vcpu *vcpu,
 	struct kvm_mmu_page *page;
 
 	if (is_writeble_pte(*shadow_ent))
-		return 0;
+		return !user || (*shadow_ent & PT_USER_MASK);
 
 	writable_shadow = *shadow_ent & PT_SHADOW_WRITABLE_MASK;
 	if (user) {

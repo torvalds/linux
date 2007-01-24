@@ -13,6 +13,7 @@
 #define __LINUX_MTD_ONENAND_H
 
 #include <linux/spinlock.h>
+#include <linux/completion.h>
 #include <linux/mtd/onenand_regs.h>
 #include <linux/mtd/bbm.h>
 
@@ -33,7 +34,6 @@ typedef enum {
 	FL_WRITING,
 	FL_ERASING,
 	FL_SYNCING,
-	FL_UNLOCKING,
 	FL_LOCKING,
 	FL_RESETING,
 	FL_OTPING,
@@ -88,6 +88,7 @@ struct onenand_bufferram {
  *			operation is in progress
  * @state:		[INTERN] the current state of the OneNAND device
  * @page_buf:		data buffer
+ * @subpagesize:	[INTERN] holds the subpagesize
  * @ecclayout:		[REPLACEABLE] the default ecc placement scheme
  * @bbm:		[REPLACEABLE] pointer to Bad Block Management
  * @priv:		[OPTIONAL] pointer to private chip date
@@ -120,11 +121,15 @@ struct onenand_chip {
 	int (*block_markbad)(struct mtd_info *mtd, loff_t ofs);
 	int (*scan_bbt)(struct mtd_info *mtd);
 
+	struct completion	complete;
+	int			irq;
+
 	spinlock_t		chip_lock;
 	wait_queue_head_t	wq;
 	onenand_state_t		state;
 	unsigned char		*page_buf;
 
+	int			subpagesize;
 	struct nand_ecclayout	*ecclayout;
 
 	void			*bbm;
@@ -138,6 +143,7 @@ struct onenand_chip {
 #define ONENAND_CURRENT_BUFFERRAM(this)		(this->bufferram_index)
 #define ONENAND_NEXT_BUFFERRAM(this)		(this->bufferram_index ^ 1)
 #define ONENAND_SET_NEXT_BUFFERRAM(this)	(this->bufferram_index ^= 1)
+#define ONENAND_SET_PREV_BUFFERRAM(this)	(this->bufferram_index ^= 1)
 
 #define ONENAND_GET_SYS_CFG1(this)					\
 	(this->read_word(this->base + ONENAND_REG_SYS_CFG1))

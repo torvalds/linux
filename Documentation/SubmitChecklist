@@ -72,3 +72,7 @@ kernel patches.
 
     If the new code is substantial, addition of subsystem-specific fault
     injection might be appropriate.
+
+22: Newly-added code has been compiled with `gcc -W'.  This will generate
+    lots of noise, but is good for finding bugs like "warning: comparison
+    between signed and unsigned".

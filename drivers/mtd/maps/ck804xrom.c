@@ -1,8 +1,10 @@
 /*
- * amd76xrom.c
+ * ck804xrom.c
  *
  * Normal mappings of chips in physical memory
- * $Id: amd76xrom.c,v 1.21 2005/11/07 11:14:26 gleixner Exp $
+ *
+ * Dave Olsen <dolsen@lnxi.com>
+ * Ryan Jackson <rjackson@lnxi.com>
  */
 
 #include <linux/module.h>
@@ -20,15 +22,13 @@
 #include <linux/list.h>
 
 
-#define xstr(s) str(s)
-#define str(s) #s
-#define MOD_NAME xstr(KBUILD_BASENAME)
+#define MOD_NAME KBUILD_BASENAME
 
 #define ADDRESS_NAME_LEN 18
 
-#define ROM_PROBE_STEP_SIZE (64*1024) /* 64KiB */
+#define ROM_PROBE_STEP_SIZE (64*1024)
 
-struct amd76xrom_window {
+struct ck804xrom_window {
 	void __iomem *virt;
 	unsigned long phys;
 	unsigned long size;
@@ -37,7 +37,7 @@ struct amd76xrom_window {
 	struct pci_dev *pdev;
 };
 
-struct amd76xrom_map_info {
+struct ck804xrom_map_info {
 	struct list_head list;
 	struct map_info map;
 	struct mtd_info *mtd;
@@ -45,44 +45,44 @@ struct amd76xrom_map_info {
 	char map_name[sizeof(MOD_NAME) + 2 + ADDRESS_NAME_LEN];
 };
 
+
 /* The 2 bits controlling the window size are often set to allow reading
  * the BIOS, but too small to allow writing, since the lock registers are
  * 4MiB lower in the address space than the data.
  *
  * This is intended to prevent flashing the bios, perhaps accidentally.
  *
- * This parameter allows the normal driver to over-ride the BIOS settings.
+ * This parameter allows the normal driver to override the BIOS settings.
  *
  * The bits are 6 and 7.  If both bits are set, it is a 5MiB window.
  * If only the 7 Bit is set, it is a 4MiB window.  Otherwise, a
  * 64KiB window.
  *
  */
-static uint win_size_bits;
+static uint win_size_bits = 0;
 module_param(win_size_bits, uint, 0);
-MODULE_PARM_DESC(win_size_bits, "ROM window size bits override for 0x43 byte, normally set by BIOS.");
+MODULE_PARM_DESC(win_size_bits, "ROM window size bits override for 0x88 byte, normally set by BIOS.");
 
-static struct amd76xrom_window amd76xrom_window = {
-	.maps = LIST_HEAD_INIT(amd76xrom_window.maps),
+static struct ck804xrom_window ck804xrom_window = {
+	.maps = LIST_HEAD_INIT(ck804xrom_window.maps),
 };
 
-static void amd76xrom_cleanup(struct amd76xrom_window *window)
+static void ck804xrom_cleanup(struct ck804xrom_window *window)
 {
-	struct amd76xrom_map_info *map, *scratch;
+	struct ck804xrom_map_info *map, *scratch;
 	u8 byte;
 
 	if (window->pdev) {
 		/* Disable writes through the rom window */
-		pci_read_config_byte(window->pdev, 0x40, &byte);
-		pci_write_config_byte(window->pdev, 0x40, byte & ~1);
-		pci_dev_put(window->pdev);
+		pci_read_config_byte(window->pdev, 0x6d, &byte);
+		pci_write_config_byte(window->pdev, 0x6d, byte & ~1);
 	}
 
 	/* Free all of the mtd devices */
 	list_for_each_entry_safe(map, scratch, &window->maps, list) {
-		if (map->rsrc.parent) {
+		if (map->rsrc.parent)
 			release_resource(&map->rsrc);
-		}
+
 		del_mtd_device(map->mtd);
 		map_destroy(map->mtd);
 		list_del(&map->list);
@@ -96,22 +96,22 @@ static void amd76xrom_cleanup(struct amd76xrom_window *window)
 		window->virt = NULL;
 		window->phys = 0;
 		window->size = 0;
-		window->pdev = NULL;
 	}
+	pci_dev_put(window->pdev);
 }
 
 
-static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
+static int __devinit ck804xrom_init_one (struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
 	static char *rom_probe_types[] = { "cfi_probe", "jedec_probe", NULL };
 	u8 byte;
-	struct amd76xrom_window *window = &amd76xrom_window;
-	struct amd76xrom_map_info *map = NULL;
+	struct ck804xrom_window *window = &ck804xrom_window;
+	struct ck804xrom_map_info *map = NULL;
 	unsigned long map_top;
 
-	/* Remember the pci dev I find the window in - already have a ref */
-	window->pdev = pdev;
+	/* Remember the pci dev I find the window in */
+	window->pdev = pci_dev_get(pdev);
 
 	/* Enable the selected rom window.  This is often incorrectly
 	 * set up by the BIOS, and the 4MiB offset for the lock registers
@@ -120,26 +120,26 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 	 * This 'write, then read' approach leaves the bits for
 	 * other uses of the hardware info.
 	 */
-	pci_read_config_byte(pdev, 0x43, &byte);
-	pci_write_config_byte(pdev, 0x43, byte | win_size_bits );
+        pci_read_config_byte(pdev, 0x88, &byte);
+        pci_write_config_byte(pdev, 0x88, byte | win_size_bits );
+
 
 	/* Assume the rom window is properly setup, and find it's size */
-	pci_read_config_byte(pdev, 0x43, &byte);
-	if ((byte & ((1<<7)|(1<<6))) == ((1<<7)|(1<<6))) {
+	pci_read_config_byte(pdev, 0x88, &byte);
+
+	if ((byte & ((1<<7)|(1<<6))) == ((1<<7)|(1<<6)))
 		window->phys = 0xffb00000; /* 5MiB */
-	}
-	else if ((byte & (1<<7)) == (1<<7)) {
+	else if ((byte & (1<<7)) == (1<<7))
 		window->phys = 0xffc00000; /* 4MiB */
-	}
-	else {
+	else
 		window->phys = 0xffff0000; /* 64KiB */
-	}
+
 	window->size = 0xffffffffUL - window->phys + 1UL;
 
 	/*
 	 * Try to reserve the window mem region.  If this fails then
 	 * it is likely due to a fragment of the window being
-	 * "reseved" by the BIOS.  In the case that the
+	 * "reserved" by the BIOS.  In the case that the
 	 * request_mem_region() fails then once the rom size is
 	 * discovered we will try to reserve the unreserved fragment.
 	 */
@@ -151,7 +151,7 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 		window->rsrc.parent = NULL;
 		printk(KERN_ERR MOD_NAME
 			" %s(): Unable to register resource"
-			" 0x%.16llx-0x%.16llx - kernel bug?\n",
+			" 0x%.016llx-0x%.016llx - kernel bug?\n",
 			__func__,
 			(unsigned long long)window->rsrc.start,
 			(unsigned long long)window->rsrc.end);
@@ -159,8 +159,8 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 
 
 	/* Enable writes through the rom window */
-	pci_read_config_byte(pdev, 0x40, &byte);
-	pci_write_config_byte(pdev, 0x40, byte | 1);
+	pci_read_config_byte(pdev, 0x6d, &byte);
+	pci_write_config_byte(pdev, 0x6d, byte | 1);
 
 	/* FIXME handle registers 0x80 - 0x8C the bios region locks */
 
@@ -172,26 +172,28 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 		goto out;
 	}
 
-	/* Get the first address to look for an rom chip at */
+	/* Get the first address to look for a rom chip at */
 	map_top = window->phys;
 #if 1
 	/* The probe sequence run over the firmware hub lock
 	 * registers sets them to 0x7 (no access).
-	 * Probe at most the last 4M of the address space.
+	 * Probe at most the last 4MiB of the address space.
 	 */
-	if (map_top < 0xffc00000) {
+	if (map_top < 0xffc00000)
 		map_top = 0xffc00000;
-	}
 #endif
-	/* Loop  through and look for rom chips */
+	/* Loop  through and look for rom chips.  Since we don't know the
+	 * starting address for each chip, probe every ROM_PROBE_STEP_SIZE
+	 * bytes from the starting address of the window.
+	 */
 	while((map_top - 1) < 0xffffffffUL) {
 		struct cfi_private *cfi;
 		unsigned long offset;
 		int i;
 
-		if (!map) {
+		if (!map)
 			map = kmalloc(sizeof(*map), GFP_KERNEL);
-		}
+
 		if (!map) {
 			printk(KERN_ERR MOD_NAME ": kmalloc failed");
 			goto out;
@@ -259,9 +261,8 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 		map->map.virt = window->virt;
 		map->map.phys = window->phys;
 		cfi = map->map.fldrv_priv;
-		for(i = 0; i < cfi->numchips; i++) {
+		for(i = 0; i < cfi->numchips; i++)
 			cfi->chips[i].start += offset;
-		}
 
 		/* Now that the mtd devices is complete claim and export it */
 		map->mtd->owner = THIS_MODULE;
@@ -282,72 +283,74 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 
  out:
 	/* Free any left over map structures */
-	kfree(map);
+	if (map)
+		kfree(map);
+
 	/* See if I have any map structures */
 	if (list_empty(&window->maps)) {
-		amd76xrom_cleanup(window);
+		ck804xrom_cleanup(window);
 		return -ENODEV;
 	}
 	return 0;
 }
 
 
-static void __devexit amd76xrom_remove_one (struct pci_dev *pdev)
+static void __devexit ck804xrom_remove_one (struct pci_dev *pdev)
 {
-	struct amd76xrom_window *window = &amd76xrom_window;
+	struct ck804xrom_window *window = &ck804xrom_window;
 
-	amd76xrom_cleanup(window);
+	ck804xrom_cleanup(window);
 }
 
-static struct pci_device_id amd76xrom_pci_tbl[] = {
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_VIPER_7410,
-		PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_VIPER_7440,
-		PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_AMD, 0x7468 }, /* amd8111 support */
+static struct pci_device_id ck804xrom_pci_tbl[] = {
+	{ PCI_VENDOR_ID_NVIDIA, 0x0051,
+        PCI_ANY_ID, PCI_ANY_ID, }, /* nvidia ck804 */
 	{ 0, }
 };
 
-MODULE_DEVICE_TABLE(pci, amd76xrom_pci_tbl);
+MODULE_DEVICE_TABLE(pci, ck804xrom_pci_tbl);
 
 #if 0
-static struct pci_driver amd76xrom_driver = {
+static struct pci_driver ck804xrom_driver = {
 	.name =		MOD_NAME,
-	.id_table =	amd76xrom_pci_tbl,
-	.probe =	amd76xrom_init_one,
-	.remove =	amd76xrom_remove_one,
+	.id_table =	ck804xrom_pci_tbl,
+	.probe =	ck804xrom_init_one,
+	.remove =	ck804xrom_remove_one,
 };
 #endif
 
-static int __init init_amd76xrom(void)
+static int __init init_ck804xrom(void)
 {
 	struct pci_dev *pdev;
 	struct pci_device_id *id;
+	int retVal;
 	pdev = NULL;
-	for(id = amd76xrom_pci_tbl; id->vendor; id++) {
-		pdev = pci_get_device(id->vendor, id->device, NULL);
-		if (pdev) {
+
+	for(id = ck804xrom_pci_tbl; id->vendor; id++) {
+		pdev = pci_find_device(id->vendor, id->device, NULL);
+		if (pdev)
 			break;
-		}
 	}
 	if (pdev) {
-		return amd76xrom_init_one(pdev, &amd76xrom_pci_tbl[0]);
+		retVal = ck804xrom_init_one(pdev, &ck804xrom_pci_tbl[0]);
+		pci_dev_put(pdev);
+		return retVal;
 	}
 	return -ENXIO;
 #if 0
-	return pci_register_driver(&amd76xrom_driver);
+	return pci_module_init(&ck804xrom_driver);
 #endif
 }
 
-static void __exit cleanup_amd76xrom(void)
+static void __exit cleanup_ck804xrom(void)
 {
-	amd76xrom_remove_one(amd76xrom_window.pdev);
+	ck804xrom_remove_one(ck804xrom_window.pdev);
 }
 
-module_init(init_amd76xrom);
-module_exit(cleanup_amd76xrom);
+module_init(init_ck804xrom);
+module_exit(cleanup_ck804xrom);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Eric Biederman <ebiederman@lnxi.com>");
-MODULE_DESCRIPTION("MTD map driver for BIOS chips on the AMD76X southbridge");
+MODULE_AUTHOR("Eric Biederman <ebiederman@lnxi.com>, Dave Olsen <dolsen@lnxi.com>");
+MODULE_DESCRIPTION("MTD map driver for BIOS chips on the Nvidia ck804 southbridge");
 

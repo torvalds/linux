@@ -168,19 +168,16 @@ static int register_device(char *name, unsigned long start, unsigned long length
 		E("slram: Cannot allocate new MTD device.\n");
 		return(-ENOMEM);
 	}
-	(*curmtd)->mtdinfo = kmalloc(sizeof(struct mtd_info), GFP_KERNEL);
+	(*curmtd)->mtdinfo = kzalloc(sizeof(struct mtd_info), GFP_KERNEL);
 	(*curmtd)->next = NULL;
 
 	if ((*curmtd)->mtdinfo)	{
-		memset((char *)(*curmtd)->mtdinfo, 0, sizeof(struct mtd_info));
 		(*curmtd)->mtdinfo->priv =
-			kmalloc(sizeof(slram_priv_t), GFP_KERNEL);
+			kzalloc(sizeof(slram_priv_t), GFP_KERNEL);
 
 		if (!(*curmtd)->mtdinfo->priv) {
 			kfree((*curmtd)->mtdinfo);
 			(*curmtd)->mtdinfo = NULL;
-		} else {
-			memset((*curmtd)->mtdinfo->priv,0,sizeof(slram_priv_t));
 		}
 	}
 
