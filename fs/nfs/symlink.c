@@ -50,7 +50,9 @@ static void *nfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode *inode = dentry->d_inode;
 	struct page *page;
-	void *err = ERR_PTR(nfs_revalidate_mapping(inode, inode->i_mapping));
+	void *err;
+
+	err = ERR_PTR(nfs_revalidate_mapping_nolock(inode, inode->i_mapping));
 	if (err)
 		goto read_failed;
 	page = read_cache_page(&inode->i_data, 0,
