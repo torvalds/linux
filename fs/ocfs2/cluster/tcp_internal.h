@@ -155,6 +155,8 @@ struct o2net_sock_container {
 	struct timeval 		sc_tv_func_stop;
 	u32			sc_msg_key;
 	u16			sc_msg_type;
+
+	struct mutex		sc_send_lock;
 };
 
 struct o2net_msg_handler {

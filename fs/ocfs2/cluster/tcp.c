@@ -556,6 +556,8 @@ static void o2net_register_callbacks(struct sock *sk,
 	sk->sk_data_ready = o2net_data_ready;
 	sk->sk_state_change = o2net_state_change;
 
+	mutex_init(&sc->sc_send_lock);
+
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
@@ -858,10 +860,12 @@ static void o2net_sendpage(struct o2net_sock_container *sc,
 	ssize_t ret;
 
 
+	mutex_lock(&sc->sc_send_lock);
 	ret = sc->sc_sock->ops->sendpage(sc->sc_sock,
 					 virt_to_page(kmalloced_virt),
 					 (long)kmalloced_virt & ~PAGE_MASK,
 					 size, MSG_DONTWAIT);
+	mutex_unlock(&sc->sc_send_lock);
 	if (ret != size) {
 		mlog(ML_ERROR, "sendpage of size %zu to " SC_NODEF_FMT 
 		     " failed with %zd\n", size, SC_NODEF_ARGS(sc), ret);
@@ -976,8 +980,10 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 
 	/* finally, convert the message header to network byte-order
 	 * and send */
+	mutex_lock(&sc->sc_send_lock);
 	ret = o2net_send_tcp_msg(sc->sc_sock, vec, veclen,
 				 sizeof(struct o2net_msg) + caller_bytes);
+	mutex_unlock(&sc->sc_send_lock);
 	msglog(msg, "sending returned %d\n", ret);
 	if (ret < 0) {
 		mlog(0, "error returned from o2net_send_tcp_msg=%d\n", ret);
@@ -1109,8 +1115,10 @@ static int o2net_process_message(struct o2net_sock_container *sc,
 
 out_respond:
 	/* this destroys the hdr, so don't use it after this */
+	mutex_lock(&sc->sc_send_lock);
 	ret = o2net_send_status_magic(sc->sc_sock, hdr, syserr,
 				      handler_status);
+	mutex_unlock(&sc->sc_send_lock);
 	hdr = NULL;
 	mlog(0, "sending handler status %d, syserr %d returned %d\n",
 	     handler_status, syserr, ret);
