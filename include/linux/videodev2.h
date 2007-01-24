@@ -1271,6 +1271,17 @@ struct v4l2_streamparm
 };
 
 /*
+ *	A D V A N C E D   D E B U G G I N G
+ */
+
+/* VIDIOC_DBG_G_REGISTER and VIDIOC_DBG_S_REGISTER */
+struct v4l2_register {
+	__u32 i2c_id; /* I2C driver ID of the I2C chip, or 0 for the host */
+	__u32 reg;
+	__u32 val;
+};
+
+/*
  *	I O C T L   C O D E S   F O R   V I D E O   D E V I C E S
  *
  */
@@ -1339,6 +1350,9 @@ struct v4l2_streamparm
 #define VIDIOC_ENUM_FRAMESIZES	_IOWR ('V', 74, struct v4l2_frmsizeenum)
 #define VIDIOC_ENUM_FRAMEINTERVALS	_IOWR ('V', 75, struct v4l2_frmivalenum)
 #endif
+/* only implemented if CONFIG_VIDEO_ADV_DEBUG is defined */
+#define	VIDIOC_DBG_S_REGISTER 	_IOW ('d', 100, struct v4l2_register)
+#define	VIDIOC_DBG_G_REGISTER 	_IOWR('d', 101, struct v4l2_register)
 
 #ifdef __OLD_VIDIOC_
 /* for compatibility, will go away some day */

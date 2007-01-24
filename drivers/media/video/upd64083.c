@@ -139,7 +139,7 @@ static int upd64083_command(struct i2c_client *client, unsigned int cmd, void *a
 		break;
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	case VIDIOC_INT_G_REGISTER:
+	case VIDIOC_DBG_G_REGISTER:
 	{
 		struct v4l2_register *reg = arg;
 
@@ -149,7 +149,7 @@ static int upd64083_command(struct i2c_client *client, unsigned int cmd, void *a
 		break;
 	}
 
-	case VIDIOC_INT_S_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 	{
 		struct v4l2_register *reg = arg;
 		u8 addr = reg->reg & 0xff;

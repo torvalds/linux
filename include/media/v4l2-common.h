@@ -99,13 +99,6 @@ u32 v4l2_ctrl_next(const u32 * const *ctrl_classes, u32 id);
 
 /* Internal ioctls */
 
-/* VIDIOC_INT_G_REGISTER and VIDIOC_INT_S_REGISTER */
-struct v4l2_register {
-	u32 i2c_id; 		/* I2C driver ID of the I2C chip. 0 for the I2C adapter. */
-	unsigned long reg;
-	u32 val;
-};
-
 /* VIDIOC_INT_DECODE_VBI_LINE */
 struct v4l2_decode_vbi_line {
 	u32 is_second_field;	/* Set to 0 for the first (odd) field,
@@ -175,9 +168,7 @@ enum v4l2_chip_ident {
    Replacement of TUNER_SET_STANDBY. */
 #define VIDIOC_INT_S_STANDBY 	     _IOW('d', 94, u32)
 
-/* only implemented if CONFIG_VIDEO_ADV_DEBUG is defined */
-#define	VIDIOC_INT_S_REGISTER 		_IOW ('d', 100, struct v4l2_register)
-#define	VIDIOC_INT_G_REGISTER 		_IOWR('d', 101, struct v4l2_register)
+/* 100, 101 used by  VIDIOC_DBG_[SG]_REGISTER */
 
 /* Generic reset command. The argument selects which subsystems to reset.
    Passing 0 will always reset the whole chip. */

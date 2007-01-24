@@ -400,9 +400,10 @@ static const char *v4l2_int_ioctls[] = {
 	[_IOC_NR(TUNER_SET_STANDBY)]           = "TUNER_SET_STANDBY",
 	[_IOC_NR(TDA9887_SET_CONFIG)]          = "TDA9887_SET_CONFIG",
 
+	[_IOC_NR(VIDIOC_DBG_S_REGISTER)]       = "VIDIOC_DBG_S_REGISTER",
+	[_IOC_NR(VIDIOC_DBG_G_REGISTER)]       = "VIDIOC_DBG_G_REGISTER",
+
 	[_IOC_NR(VIDIOC_INT_S_TUNER_MODE)]     = "VIDIOC_INT_S_TUNER_MODE",
-	[_IOC_NR(VIDIOC_INT_S_REGISTER)]       = "VIDIOC_INT_S_REGISTER",
-	[_IOC_NR(VIDIOC_INT_G_REGISTER)]       = "VIDIOC_INT_G_REGISTER",
 	[_IOC_NR(VIDIOC_INT_RESET)]            = "VIDIOC_INT_RESET",
 	[_IOC_NR(VIDIOC_INT_AUDIO_CLOCK_FREQ)] = "VIDIOC_INT_AUDIO_CLOCK_FREQ",
 	[_IOC_NR(VIDIOC_INT_DECODE_VBI_LINE)]  = "VIDIOC_INT_DECODE_VBI_LINE",
@@ -753,11 +754,11 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 				p->id,p->index,p->name);
 		break;
 	}
-	case VIDIOC_INT_G_REGISTER:
-	case VIDIOC_INT_S_REGISTER:
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 	{
 		struct v4l2_register *p=arg;
-		printk ("%s: i2c_id=%d, reg=%lu, val=%d\n", s,
+		printk ("%s: i2c_id=%d, reg=%d, val=%d\n", s,
 				p->i2c_id,p->reg,p->val);
 
 		break;

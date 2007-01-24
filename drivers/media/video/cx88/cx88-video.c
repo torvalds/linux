@@ -1405,8 +1405,6 @@ static int vidioc_s_register (struct file *file, void *fh,
 
 	if (reg->i2c_id != 0)
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	cx_write(reg->reg&0xffffff, reg->val);
 	return 0;
 }

@@ -1454,17 +1454,19 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	case VIDIOC_INT_G_REGISTER:
+	case VIDIOC_DBG_G_REGISTER:
 	{
 		struct v4l2_register *p=arg;
 		if (vfd->vidioc_g_register)
 			ret=vfd->vidioc_g_register(file, fh, p);
 		break;
 	}
-	case VIDIOC_INT_S_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 	{
 		struct v4l2_register *p=arg;
-		if (vfd->vidioc_s_register)
+		if (!capable(CAP_SYS_ADMIN))
+			ret=-EPERM;
+		else if (vfd->vidioc_s_register)
 			ret=vfd->vidioc_s_register(file, fh, p);
 		break;
 	}

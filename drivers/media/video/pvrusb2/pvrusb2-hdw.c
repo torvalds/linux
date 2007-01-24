@@ -3277,7 +3277,7 @@ static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw)
 
 
 int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
-			     u32 chip_id,unsigned long reg_id,
+			     u32 chip_id, u32 reg_id,
 			     int setFl,u32 *val_ptr)
 {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -3295,8 +3295,8 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 			cp = list_entry(item,struct pvr2_i2c_client,list);
 			if (cp->client->driver->id != chip_id) continue;
 			stat = pvr2_i2c_client_cmd(
-				cp,(setFl ? VIDIOC_INT_S_REGISTER :
-				    VIDIOC_INT_G_REGISTER),&req);
+				cp,(setFl ? VIDIOC_DBG_S_REGISTER :
+				    VIDIOC_DBG_G_REGISTER),&req);
 			if (!setFl) *val_ptr = req.val;
 			okFl = !0;
 			break;

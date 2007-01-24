@@ -77,9 +77,6 @@ int v4l_compat_translate_ioctl(struct inode *inode, struct file *file,
 extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
 				unsigned long arg);
 
-/* Forward definition of v4l2-common.h defined structure */
-struct v4l2_register;
-
 /*
  * Newer version of video_device, handled by videodev2.c
  * 	This version moves redundant code from video device code to

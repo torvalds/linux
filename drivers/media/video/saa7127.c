@@ -614,7 +614,7 @@ static int saa7127_command(struct i2c_client *client,
 		break;
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	case VIDIOC_INT_G_REGISTER:
+	case VIDIOC_DBG_G_REGISTER:
 	{
 		struct v4l2_register *reg = arg;
 
@@ -624,7 +624,7 @@ static int saa7127_command(struct i2c_client *client,
 		break;
 	}
 
-	case VIDIOC_INT_S_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 	{
 		struct v4l2_register *reg = arg;
 

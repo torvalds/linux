@@ -628,7 +628,7 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	/* ioctls to allow direct access to the
 	 * cx25840 registers for testing */
-	case VIDIOC_INT_G_REGISTER:
+	case VIDIOC_DBG_G_REGISTER:
 	{
 		struct v4l2_register *reg = arg;
 
@@ -638,7 +638,7 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		break;
 	}
 
-	case VIDIOC_INT_S_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 	{
 		struct v4l2_register *reg = arg;
 
