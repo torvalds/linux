@@ -370,3 +370,7 @@ struct op {
 	u32 (* const fn)(int dd, int dn, int dm, u32 fpscr);
 	u32 flags;
 };
+
+#ifdef CONFIG_SMP
+extern void vfp_save_state(void *location, u32 fpexc);
+#endif
