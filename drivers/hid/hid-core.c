@@ -543,6 +543,7 @@ void hid_free_device(struct hid_device *device)
 	}
 
 	kfree(device->rdesc);
+	kfree(device->collection);
 	kfree(device);
 }
 EXPORT_SYMBOL_GPL(hid_free_device);
