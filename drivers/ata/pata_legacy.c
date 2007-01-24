@@ -96,6 +96,7 @@ static int pio_mask = 0x1F;		/* PIO range for autospeed devices */
 /**
  *	legacy_set_mode		-	mode setting
  *	@ap: IDE interface
+ *	@unused: Device that failed when error is returned
  *
  *	Use a non standard set_mode function. We don't want to be tuned.
  *
@@ -105,7 +106,7 @@ static int pio_mask = 0x1F;		/* PIO range for autospeed devices */
  *	expand on this as per hdparm in the base kernel.
  */
 
-static void legacy_set_mode(struct ata_port *ap)
+static int legacy_set_mode(struct ata_port *ap, struct ata_device **unused)
 {
 	int i;
 
@@ -118,6 +119,7 @@ static void legacy_set_mode(struct ata_port *ap)
 			dev->flags |= ATA_DFLAG_PIO;
 		}
 	}
+	return 0;
 }
 
 static struct scsi_host_template legacy_sht = {
