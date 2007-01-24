@@ -48,6 +48,9 @@ config GENERIC_IOMAP
 config GENERIC_TIME
 	def_bool n
 
+config SYS_SUPPORTS_APM_EMULATION
+	bool
+
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 
@@ -126,6 +129,7 @@ config SH_7751_SYSTEMH
 
 config SH_HP6XX
 	bool "HP6XX"
+	select SYS_SUPPORTS_APM_EMULATION
 	help
 	  Select HP6XX if configuring for a HP jornada HP6xx.
 	  More information (hardware only) at
@@ -694,9 +698,6 @@ depends on EXPERIMENTAL
 
 source kernel/power/Kconfig
 
-config APM
-	bool "Advanced Power Management Emulation"
-	depends on PM
 endmenu
 
 source "net/Kconfig"
