@@ -166,7 +166,7 @@ static void vlsi_proc_pdev(struct seq_file *seq, struct pci_dev *pdev)
 	unsigned i;
 
 	seq_printf(seq, "\n%s (vid/did: %04x/%04x)\n",
-		   PCIDEV_NAME(pdev), (int)pdev->vendor, (int)pdev->device);
+		   pci_name(pdev), (int)pdev->vendor, (int)pdev->device);
 	seq_printf(seq, "pci-power-state: %u\n", (unsigned) pdev->current_state);
 	seq_printf(seq, "resources: irq=%u / io=0x%04x / dma_mask=0x%016Lx\n",
 		   pdev->irq, (unsigned)pci_resource_start(pdev, 0), (unsigned long long)pdev->dma_mask);
@@ -1401,7 +1401,7 @@ static void vlsi_tx_timeout(struct net_device *ndev)
 
 	if (vlsi_start_hw(idev))
 		IRDA_ERROR("%s: failed to restart hw - %s(%s) unusable!\n",
-			   __FUNCTION__, PCIDEV_NAME(idev->pdev), ndev->name);
+			   __FUNCTION__, pci_name(idev->pdev), ndev->name);
 	else
 		netif_start_queue(ndev);
 }
@@ -1643,7 +1643,7 @@ vlsi_irda_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pdev->current_state = 0; /* hw must be running now */
 
 	IRDA_MESSAGE("%s: IrDA PCI controller %s detected\n",
-		     drivername, PCIDEV_NAME(pdev));
+		     drivername, pci_name(pdev));
 
 	if ( !pci_resource_start(pdev,0)
 	     || !(pci_resource_flags(pdev,0) & IORESOURCE_IO) ) {
@@ -1728,7 +1728,7 @@ static void __devexit vlsi_irda_remove(struct pci_dev *pdev)
 
 	pci_set_drvdata(pdev, NULL);
 
-	IRDA_MESSAGE("%s: %s removed\n", drivername, PCIDEV_NAME(pdev));
+	IRDA_MESSAGE("%s: %s removed\n", drivername, pci_name(pdev));
 }
 
 #ifdef CONFIG_PM
@@ -1748,7 +1748,7 @@ static int vlsi_irda_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	if (!ndev) {
 		IRDA_ERROR("%s - %s: no netdevice \n",
-			   __FUNCTION__, PCIDEV_NAME(pdev));
+			   __FUNCTION__, pci_name(pdev));
 		return 0;
 	}
 	idev = ndev->priv;	
@@ -1759,7 +1759,7 @@ static int vlsi_irda_suspend(struct pci_dev *pdev, pm_message_t state)
 			pdev->current_state = state.event;
 		}
 		else
-			IRDA_ERROR("%s - %s: invalid suspend request %u -> %u\n", __FUNCTION__, PCIDEV_NAME(pdev), pdev->current_state, state.event);
+			IRDA_ERROR("%s - %s: invalid suspend request %u -> %u\n", __FUNCTION__, pci_name(pdev), pdev->current_state, state.event);
 		up(&idev->sem);
 		return 0;
 	}
@@ -1787,7 +1787,7 @@ static int vlsi_irda_resume(struct pci_dev *pdev)
 
 	if (!ndev) {
 		IRDA_ERROR("%s - %s: no netdevice \n",
-			   __FUNCTION__, PCIDEV_NAME(pdev));
+			   __FUNCTION__, pci_name(pdev));
 		return 0;
 	}
 	idev = ndev->priv;	
@@ -1795,7 +1795,7 @@ static int vlsi_irda_resume(struct pci_dev *pdev)
 	if (pdev->current_state == 0) {
 		up(&idev->sem);
 		IRDA_WARNING("%s - %s: already resumed\n",
-			     __FUNCTION__, PCIDEV_NAME(pdev));
+			     __FUNCTION__, pci_name(pdev));
 		return 0;
 	}
 	
