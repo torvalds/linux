@@ -73,7 +73,7 @@ static char *check[] = {
 	"twofish", "serpent", "sha384", "sha512", "md4", "aes", "cast6",
 	"arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
-	NULL
+	"camellia", NULL
 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
@@ -972,6 +972,20 @@ static void do_test(void)
 		test_cipher("pcbc(fcrypt)", DECRYPT, fcrypt_pcbc_dec_tv_template,
 			    FCRYPT_DEC_TEST_VECTORS);
 
+		//CAMELLIA
+		test_cipher("ecb(camellia)", ENCRYPT,
+			    camellia_enc_tv_template,
+			    CAMELLIA_ENC_TEST_VECTORS);
+		test_cipher("ecb(camellia)", DECRYPT,
+			    camellia_dec_tv_template,
+			    CAMELLIA_DEC_TEST_VECTORS);
+		test_cipher("cbc(camellia)", ENCRYPT,
+			    camellia_cbc_enc_tv_template,
+			    CAMELLIA_CBC_ENC_TEST_VECTORS);
+		test_cipher("cbc(camellia)", DECRYPT,
+			    camellia_cbc_dec_tv_template,
+			    CAMELLIA_CBC_DEC_TEST_VECTORS);
+
 		test_hash("sha384", sha384_tv_template, SHA384_TEST_VECTORS);
 		test_hash("sha512", sha512_tv_template, SHA512_TEST_VECTORS);
 		test_hash("wp512", wp512_tv_template, WP512_TEST_VECTORS);
@@ -1196,6 +1210,21 @@ static void do_test(void)
 			    FCRYPT_DEC_TEST_VECTORS);
 		break;
 
+	case 32:
+		test_cipher("ecb(camellia)", ENCRYPT,
+			    camellia_enc_tv_template,
+			    CAMELLIA_ENC_TEST_VECTORS);
+		test_cipher("ecb(camellia)", DECRYPT,
+			    camellia_dec_tv_template,
+			    CAMELLIA_DEC_TEST_VECTORS);
+		test_cipher("cbc(camellia)", ENCRYPT,
+			    camellia_cbc_enc_tv_template,
+			    CAMELLIA_CBC_ENC_TEST_VECTORS);
+		test_cipher("cbc(camellia)", DECRYPT,
+			    camellia_cbc_dec_tv_template,
+			    CAMELLIA_CBC_DEC_TEST_VECTORS);
+		break;
+
 	case 100:
 		test_hash("hmac(md5)", hmac_md5_tv_template,
 			  HMAC_MD5_TEST_VECTORS);
@@ -1287,6 +1316,17 @@ static void do_test(void)
 				  des_speed_template);
 		test_cipher_speed("cbc(des)", DECRYPT, sec, NULL, 0,
 				  des_speed_template);
+		break;
+
+	case 205:
+		test_cipher_speed("ecb(camellia)", ENCRYPT, sec, NULL, 0,
+				camellia_speed_template);
+		test_cipher_speed("ecb(camellia)", DECRYPT, sec, NULL, 0,
+				camellia_speed_template);
+		test_cipher_speed("cbc(camellia)", ENCRYPT, sec, NULL, 0,
+				camellia_speed_template);
+		test_cipher_speed("cbc(camellia)", DECRYPT, sec, NULL, 0,
+				camellia_speed_template);
 		break;
 
 	case 300:
