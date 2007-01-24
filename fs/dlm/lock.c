@@ -3018,7 +3018,7 @@ int dlm_receive_message(struct dlm_header *hd, int nodeid, int recovery)
 {
 	struct dlm_message *ms = (struct dlm_message *) hd;
 	struct dlm_ls *ls;
-	int error;
+	int error = 0;
 
 	if (!recovery)
 		dlm_message_in(ms);
@@ -3135,7 +3135,7 @@ int dlm_receive_message(struct dlm_header *hd, int nodeid, int recovery)
  out:
 	dlm_put_lockspace(ls);
 	dlm_astd_wake();
-	return 0;
+	return error;
 }
 
 
