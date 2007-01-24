@@ -15,6 +15,10 @@
 #include <platforms/fads.h>
 #endif
 
+#if defined(CONFIG_MPC86XADS)
+#include <platforms/8xx/mpc86xads.h>
+#endif
+
 #if defined(CONFIG_MPC885ADS)
 #include <platforms/8xx/mpc885ads.h>
 #endif
