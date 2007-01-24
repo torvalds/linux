@@ -754,6 +754,11 @@ static void add_to_waiters(struct dlm_lkb *lkb, int mstype)
 	mutex_unlock(&ls->ls_waiters_mutex);
 }
 
+/* We clear the RESEND flag because we might be taking an lkb off the waiters
+   list as part of process_requestqueue (e.g. a lookup that has an optimized
+   request reply on the requestqueue) between dlm_recover_waiters_pre() which
+   set RESEND and dlm_recover_waiters_post() */
+
 static int _remove_from_waiters(struct dlm_lkb *lkb)
 {
 	int error = 0;
@@ -764,6 +769,7 @@ static int _remove_from_waiters(struct dlm_lkb *lkb)
 		goto out;
 	}
 	lkb->lkb_wait_type = 0;
+	lkb->lkb_flags &= ~DLM_IFL_RESEND;
 	list_del(&lkb->lkb_wait_reply);
 	unhold_lkb(lkb);
  out:
