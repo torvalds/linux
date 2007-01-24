@@ -1299,6 +1299,7 @@ int security_load_policy(void *data, size_t len)
 		avc_ss_reset(seqno);
 		selnl_notify_policyload(seqno);
 		selinux_netlbl_cache_invalidate();
+		atomic_inc(&flow_cache_genid);
 		return 0;
 	}
 
@@ -1354,6 +1355,7 @@ int security_load_policy(void *data, size_t len)
 	avc_ss_reset(seqno);
 	selnl_notify_policyload(seqno);
 	selinux_netlbl_cache_invalidate();
+	atomic_inc(&flow_cache_genid);
 
 	return 0;
 
@@ -1853,6 +1855,7 @@ out:
 	if (!rc) {
 		avc_ss_reset(seqno);
 		selnl_notify_policyload(seqno);
+		atomic_inc(&flow_cache_genid);
 	}
 	return rc;
 }

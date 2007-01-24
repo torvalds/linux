@@ -1,6 +1,8 @@
 #ifndef _IF_TUNNEL_H_
 #define _IF_TUNNEL_H_
 
+#include <linux/types.h>
+
 #define SIOCGETTUNNEL   (SIOCDEVPRIVATE + 0)
 #define SIOCADDTUNNEL   (SIOCDEVPRIVATE + 1)
 #define SIOCDELTUNNEL   (SIOCDEVPRIVATE + 2)
