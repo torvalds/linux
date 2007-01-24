@@ -1291,7 +1291,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (ap->ops->post_internal_cmd)
 		ap->ops->post_internal_cmd(qc);
 
-	if (qc->flags & ATA_QCFLAG_FAILED && !qc->err_mask) {
+	if ((qc->flags & ATA_QCFLAG_FAILED) && !qc->err_mask) {
 		if (ata_msg_warn(ap))
 			ata_dev_printk(dev, KERN_WARNING,
 				"zero err_mask for failed "
@@ -2492,7 +2492,7 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		dev = &ap->device[i];
 
-		/* don't udpate suspended devices' xfer mode */
+		/* don't update suspended devices' xfer mode */
 		if (!ata_dev_ready(dev))
 			continue;
 
