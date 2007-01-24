@@ -349,7 +349,8 @@ static int setkey(struct crypto_tfm *tfm, const u8 *key,
 	return cipher->setkey(tfm, key, keylen);
 }
 
-static unsigned int crypto_blkcipher_ctxsize(struct crypto_alg *alg)
+static unsigned int crypto_blkcipher_ctxsize(struct crypto_alg *alg, u32 type,
+					     u32 mask)
 {
 	struct blkcipher_alg *cipher = &alg->cra_blkcipher;
 	unsigned int len = alg->cra_ctxsize;
@@ -362,7 +363,7 @@ static unsigned int crypto_blkcipher_ctxsize(struct crypto_alg *alg)
 	return len;
 }
 
-static int crypto_init_blkcipher_ops(struct crypto_tfm *tfm)
+static int crypto_init_blkcipher_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 {
 	struct blkcipher_tfm *crt = &tfm->crt_blkcipher;
 	struct blkcipher_alg *alg = &tfm->__crt_alg->cra_blkcipher;

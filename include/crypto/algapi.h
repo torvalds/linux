@@ -18,8 +18,8 @@ struct module;
 struct seq_file;
 
 struct crypto_type {
-	unsigned int (*ctxsize)(struct crypto_alg *alg);
-	int (*init)(struct crypto_tfm *tfm);
+	unsigned int (*ctxsize)(struct crypto_alg *alg, u32 type, u32 mask);
+	int (*init)(struct crypto_tfm *tfm, u32 type, u32 mask);
 	void (*exit)(struct crypto_tfm *tfm);
 	void (*show)(struct seq_file *m, struct crypto_alg *alg);
 };

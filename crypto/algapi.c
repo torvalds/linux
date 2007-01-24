@@ -401,7 +401,7 @@ struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
 	if (unlikely((alg->cra_flags ^ type) & mask))
 		goto out_put_alg;
 
-	tfm = __crypto_alloc_tfm(alg);
+	tfm = __crypto_alloc_tfm(alg, type, mask);
 	if (IS_ERR(tfm))
 		goto out_put_alg;
 

@@ -212,12 +212,12 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_alg_mod_lookup);
 
-static int crypto_init_ops(struct crypto_tfm *tfm)
+static int crypto_init_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 {
-	const struct crypto_type *type = tfm->__crt_alg->cra_type;
+	const struct crypto_type *type_obj = tfm->__crt_alg->cra_type;
 
-	if (type)
-		return type->init(tfm);
+	if (type_obj)
+		return type_obj->init(tfm, type, mask);
 
 	switch (crypto_tfm_alg_type(tfm)) {
 	case CRYPTO_ALG_TYPE_CIPHER:
@@ -266,14 +266,14 @@ static void crypto_exit_ops(struct crypto_tfm *tfm)
 	}
 }
 
-static unsigned int crypto_ctxsize(struct crypto_alg *alg)
+static unsigned int crypto_ctxsize(struct crypto_alg *alg, u32 type, u32 mask)
 {
-	const struct crypto_type *type = alg->cra_type;
+	const struct crypto_type *type_obj = alg->cra_type;
 	unsigned int len;
 
 	len = alg->cra_alignmask & ~(crypto_tfm_ctx_alignment() - 1);
-	if (type)
-		return len + type->ctxsize(alg);
+	if (type_obj)
+		return len + type_obj->ctxsize(alg, type, mask);
 
 	switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
 	default:
@@ -303,20 +303,21 @@ void crypto_shoot_alg(struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_shoot_alg);
 
-struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg)
+struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
+				      u32 mask)
 {
 	struct crypto_tfm *tfm = NULL;
 	unsigned int tfm_size;
 	int err = -ENOMEM;
 
-	tfm_size = sizeof(*tfm) + crypto_ctxsize(alg);
+	tfm_size = sizeof(*tfm) + crypto_ctxsize(alg, type, mask);
 	tfm = kzalloc(tfm_size, GFP_KERNEL);
 	if (tfm == NULL)
 		goto out_err;
 
 	tfm->__crt_alg = alg;
 
-	err = crypto_init_ops(tfm);
+	err = crypto_init_ops(tfm, type, mask);
 	if (err)
 		goto out_free_tfm;
 
@@ -372,7 +373,7 @@ struct crypto_tfm *crypto_alloc_base(const char *alg_name, u32 type, u32 mask)
 			goto err;
 		}
 
-		tfm = __crypto_alloc_tfm(alg);
+		tfm = __crypto_alloc_tfm(alg, type, mask);
 		if (!IS_ERR(tfm))
 			return tfm;
 
