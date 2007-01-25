@@ -294,12 +294,6 @@ static int msi_lookup_irq(struct pci_dev *dev, int type)
 	return -EACCES;
 }
 
-void pci_scan_msi_device(struct pci_dev *dev)
-{
-	if (!dev)
-		return;
-}
-
 #ifdef CONFIG_PM
 int pci_save_msi_state(struct pci_dev *dev)
 {

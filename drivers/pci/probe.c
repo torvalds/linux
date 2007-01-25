@@ -945,7 +945,6 @@ pci_scan_single_device(struct pci_bus *bus, int devfn)
 		return NULL;
 
 	pci_device_add(dev, bus);
-	pci_scan_msi_device(dev);
 
 	return dev;
 }

@@ -625,7 +625,6 @@ struct msix_entry {
 
 
 #ifndef CONFIG_PCI_MSI
-static inline void pci_scan_msi_device(struct pci_dev *dev) {}
 static inline int pci_enable_msi(struct pci_dev *dev) {return -1;}
 static inline void pci_disable_msi(struct pci_dev *dev) {}
 static inline int pci_enable_msix(struct pci_dev* dev,
@@ -633,7 +632,6 @@ static inline int pci_enable_msix(struct pci_dev* dev,
 static inline void pci_disable_msix(struct pci_dev *dev) {}
 static inline void msi_remove_pci_irq_vectors(struct pci_dev *dev) {}
 #else
-extern void pci_scan_msi_device(struct pci_dev *dev);
 extern int pci_enable_msi(struct pci_dev *dev);
 extern void pci_disable_msi(struct pci_dev *dev);
 extern int pci_enable_msix(struct pci_dev* dev,
