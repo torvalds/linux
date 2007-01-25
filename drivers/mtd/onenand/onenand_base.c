@@ -909,41 +909,51 @@ static int onenand_verify_oob(struct mtd_info *mtd, const u_char *buf, loff_t to
 }
 
 /**
- * onenand_verify_page - [GENERIC] verify the chip contents after a write
- * @param mtd		MTD device structure
- * @param buf		the databuffer to verify
+ * onenand_verify - [GENERIC] verify the chip contents after a write
+ * @param mtd          MTD device structure
+ * @param buf          the databuffer to verify
+ * @param addr         offset to read from
+ * @param len          number of bytes to read and compare
  *
- * Check DataRAM area directly
  */
-static int onenand_verify_page(struct mtd_info *mtd, u_char *buf, loff_t addr)
+static int onenand_verify(struct mtd_info *mtd, const u_char *buf, loff_t addr, size_t len)
 {
 	struct onenand_chip *this = mtd->priv;
-	void __iomem *dataram0, *dataram1;
+	void __iomem *dataram;
 	int ret = 0;
+	int thislen, column;
 
-	/* In partial page write, just skip it */
-	if ((addr & (mtd->writesize - 1)) != 0)
-		return 0;
+	while (len != 0) {
+		thislen = min_t(int, mtd->writesize, len);
+		column = addr & (mtd->writesize - 1);
+		if (column + thislen > mtd->writesize)
+			thislen = mtd->writesize - column;
 
-	this->command(mtd, ONENAND_CMD_READ, addr, mtd->writesize);
+		this->command(mtd, ONENAND_CMD_READ, addr, mtd->writesize);
 
-	ret = this->wait(mtd, FL_READING);
-	if (ret)
-		return ret;
+		onenand_update_bufferram(mtd, addr, 0);
 
-	onenand_update_bufferram(mtd, addr, 1);
+		ret = this->wait(mtd, FL_READING);
+		if (ret)
+			return ret;
 
-	/* Check, if the two dataram areas are same */
-	dataram0 = this->base + ONENAND_DATARAM;
-	dataram1 = dataram0 + mtd->writesize;
+		onenand_update_bufferram(mtd, addr, 1);
 
-	if (memcmp(dataram0, dataram1, mtd->writesize))
-		return -EBADMSG;
+		dataram = this->base + ONENAND_DATARAM;
+		dataram += onenand_bufferram_offset(mtd, ONENAND_DATARAM);
+
+		if (memcmp(buf, dataram + column, thislen))
+			return -EBADMSG;
+
+		len -= thislen;
+		buf += thislen;
+		addr += thislen;
+	}
 
 	return 0;
 }
 #else
-#define onenand_verify_page(...)	(0)
+#define onenand_verify(...)		(0)
 #define onenand_verify_oob(...)		(0)
 #endif
 
@@ -1025,7 +1035,7 @@ static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
 		}
 
 		/* Only check verify write turn on */
-		ret = onenand_verify_page(mtd, (u_char *) wbuf, to);
+		ret = onenand_verify(mtd, (u_char *) wbuf, to, thislen);
 		if (ret) {
 			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write: verify failed %d\n", ret);
 			break;
