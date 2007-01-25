@@ -1700,9 +1700,6 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_NVIDIA,  PCI_DEVICE_ID_NVIDIA_CK804_PCIE,
 			quirk_nvidia_ck804_pcie_aer_ext_cap);
 
 #ifdef CONFIG_PCI_MSI
-/* To disable MSI globally */
-int pci_msi_quirk;
-
 /* The Serverworks PCI-X chipset does not support MSI. We cannot easily rely
  * on setting PCI_BUS_FLAGS_NO_MSI in its bus flags because there are actually
  * some other busses controlled by the chipset even if Linux is not aware of it.
@@ -1711,8 +1708,8 @@ int pci_msi_quirk;
  */
 static void __init quirk_svw_msi(struct pci_dev *dev)
 {
-	pci_msi_quirk = 1;
-	printk(KERN_WARNING "PCI: MSI quirk detected. pci_msi_quirk set.\n");
+	pci_no_msi();
+	printk(KERN_WARNING "PCI: MSI quirk detected. MSI deactivated.\n");
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_GCNB_LE, quirk_svw_msi);
 

@@ -170,13 +170,6 @@ static int msi_init(void)
 	if (!status)
 		return status;
 
-	if (pci_msi_quirk) {
-		pci_msi_enable = 0;
-		printk(KERN_WARNING "PCI: MSI quirk detected. MSI disabled.\n");
-		status = -EINVAL;
-		return status;
-	}
-
 	status = msi_cache_init();
 	if (status < 0) {
 		pci_msi_enable = 0;
