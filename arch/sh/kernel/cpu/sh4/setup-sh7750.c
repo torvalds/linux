@@ -101,7 +101,7 @@ static struct ipr_data sh7750_ipr_map[] = {
 	{ 35, 2,  8, 7 }, /* DMAC DMTE1 */
 	{ 36, 2,  8, 7 }, /* DMAC DMTE2 */
 	{ 37, 2,  8, 7 }, /* DMAC DMTE3 */
-	{ 28, 2,  8, 7 }, /* DMAC DMAE */
+	{ 38, 2,  8, 7 }, /* DMAC DMAE */
 };
 
 static struct ipr_data sh7751_ipr_map[] = {

@@ -3,6 +3,17 @@
 
 #define DMAOR_INIT	( 0x8000 | DMAOR_DME )
 
+/* SH7751/7760/7780 DMA IRQ sources */
+#define DMTE0_IRQ	34
+#define DMTE1_IRQ	35
+#define DMTE2_IRQ	36
+#define DMTE3_IRQ	37
+#define DMTE4_IRQ	44
+#define DMTE5_IRQ	45
+#define DMTE6_IRQ	46
+#define DMTE7_IRQ	47
+#define DMAE_IRQ	38
+
 #ifdef CONFIG_CPU_SH4A
 #define SH_DMAC_BASE	0xfc808020
 
