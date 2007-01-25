@@ -51,7 +51,6 @@
  * Grep for inline FIXME comments below.
  */
 
-#include <linux/blkdev.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -2012,7 +2011,6 @@ static int sbp2scsi_slave_configure(struct scsi_device *sdev)
 {
 	struct sbp2_lu *lu = (struct sbp2_lu *)sdev->host->hostdata[0];
 
-	blk_queue_dma_alignment(sdev->request_queue, (512 - 1));
 	sdev->use_10_for_rw = 1;
 
 	if (sdev->type == TYPE_ROM)
