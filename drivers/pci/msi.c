@@ -295,7 +295,7 @@ static int msi_lookup_irq(struct pci_dev *dev, int type)
 }
 
 #ifdef CONFIG_PM
-int pci_save_msi_state(struct pci_dev *dev)
+static int __pci_save_msi_state(struct pci_dev *dev)
 {
 	int pos, i = 0;
 	u16 control;
@@ -333,7 +333,7 @@ int pci_save_msi_state(struct pci_dev *dev)
 	return 0;
 }
 
-void pci_restore_msi_state(struct pci_dev *dev)
+static void __pci_restore_msi_state(struct pci_dev *dev)
 {
 	int i = 0, pos;
 	u16 control;
@@ -361,7 +361,7 @@ void pci_restore_msi_state(struct pci_dev *dev)
 	kfree(save_state);
 }
 
-int pci_save_msix_state(struct pci_dev *dev)
+static int __pci_save_msix_state(struct pci_dev *dev)
 {
 	int pos;
 	int temp;
@@ -409,7 +409,20 @@ int pci_save_msix_state(struct pci_dev *dev)
 	return 0;
 }
 
-void pci_restore_msix_state(struct pci_dev *dev)
+int pci_save_msi_state(struct pci_dev *dev)
+{
+	int rc;
+
+	rc = __pci_save_msi_state(dev);
+	if (rc)
+		return rc;
+
+	rc = __pci_save_msix_state(dev);
+
+	return rc;
+}
+
+static void __pci_restore_msix_state(struct pci_dev *dev)
 {
 	u16 save;
 	int pos;
@@ -445,6 +458,12 @@ void pci_restore_msix_state(struct pci_dev *dev)
 
 	pci_write_config_word(dev, msi_control_reg(pos), save);
 	enable_msi_mode(dev, pos, PCI_CAP_ID_MSIX);
+}
+
+void pci_restore_msi_state(struct pci_dev *dev)
+{
+	__pci_restore_msi_state(dev);
+	__pci_restore_msix_state(dev);
 }
 #endif	/* CONFIG_PM */
 

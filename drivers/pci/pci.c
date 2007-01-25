@@ -634,8 +634,6 @@ pci_save_state(struct pci_dev *dev)
 		pci_read_config_dword(dev, i * 4,&dev->saved_config_space[i]);
 	if ((i = pci_save_msi_state(dev)) != 0)
 		return i;
-	if ((i = pci_save_msix_state(dev)) != 0)
-		return i;
 	if ((i = pci_save_pcie_state(dev)) != 0)
 		return i;
 	if ((i = pci_save_pcix_state(dev)) != 0)
@@ -673,7 +671,7 @@ pci_restore_state(struct pci_dev *dev)
 	}
 	pci_restore_pcix_state(dev);
 	pci_restore_msi_state(dev);
-	pci_restore_msix_state(dev);
+
 	return 0;
 }
 
