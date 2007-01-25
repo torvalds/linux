@@ -11,9 +11,6 @@
 
 #include "lock_dlm.h"
 
-extern int gdlm_drop_count;
-extern int gdlm_drop_period;
-
 extern struct lm_lockops gdlm_ops;
 
 static int __init init_lock_dlm(void)
@@ -39,9 +36,6 @@ static int __init init_lock_dlm(void)
 		gfs2_unregister_lockproto(&gdlm_ops);
 		return error;
 	}
-
-	gdlm_drop_count = GDLM_DROP_COUNT;
-	gdlm_drop_period = GDLM_DROP_PERIOD;
 
 	printk(KERN_INFO
 	       "Lock_DLM (built %s %s) installed\n", __DATE__, __TIME__);
