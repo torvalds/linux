@@ -152,8 +152,9 @@ static inline int au1xmmc_card_inserted(struct au1xmmc_host *host)
 		? 1 : 0;
 }
 
-static inline int au1xmmc_card_readonly(struct au1xmmc_host *host)
+static int au1xmmc_card_readonly(struct mmc_host *mmc)
 {
+	struct au1xmmc_host *host = mmc_priv(mmc);
 	return (bcsr->status & au1xmmc_card_table[host->id].wpstatus)
 		? 1 : 0;
 }
@@ -878,6 +879,7 @@ static void au1xmmc_init_dma(struct au1xmmc_host *host)
 static const struct mmc_host_ops au1xmmc_ops = {
 	.request	= au1xmmc_request,
 	.set_ios	= au1xmmc_set_ios,
+	.get_ro		= au1xmmc_card_readonly,
 };
 
 static int __devinit au1xmmc_probe(struct platform_device *pdev)
