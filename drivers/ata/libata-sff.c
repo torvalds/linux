@@ -870,7 +870,8 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 			pci_resource_start(pdev, 1) | ATA_PCI_CTL_OFS;
 		bmdma = pci_resource_start(pdev, 4);
 		if (bmdma) {
-			if (inb(bmdma + 2) & 0x80)
+			if ((!(port[p]->flags & ATA_FLAG_IGN_SIMPLEX)) &&
+			    (inb(bmdma + 2) & 0x80))
 				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 			probe_ent->port[p].bmdma_addr = bmdma;
 		}
@@ -886,7 +887,8 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 		bmdma = pci_resource_start(pdev, 4);
 		if (bmdma) {
 			bmdma += 8;
-			if(inb(bmdma + 2) & 0x80)
+			if ((!(port[p]->flags & ATA_FLAG_IGN_SIMPLEX)) &&
+			    (inb(bmdma + 2) & 0x80))
 				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 			probe_ent->port[p].bmdma_addr = bmdma;
 		}
@@ -920,7 +922,8 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 		probe_ent->port[0].ctl_addr = ATA_PRIMARY_CTL;
 		if (bmdma) {
 			probe_ent->port[0].bmdma_addr = bmdma;
-			if (inb(bmdma + 2) & 0x80)
+			if ((!(port[0]->flags & ATA_FLAG_IGN_SIMPLEX)) &&
+			    (inb(bmdma + 2) & 0x80))
 				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 		}
 		ata_std_ports(&probe_ent->port[0]);
@@ -937,7 +940,8 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 		probe_ent->port[1].ctl_addr = ATA_SECONDARY_CTL;
 		if (bmdma) {
 			probe_ent->port[1].bmdma_addr = bmdma + 8;
-			if (inb(bmdma + 10) & 0x80)
+			if ((!(port[1]->flags & ATA_FLAG_IGN_SIMPLEX)) &&
+			    (inb(bmdma + 10) & 0x80))
 				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 		}
 		ata_std_ports(&probe_ent->port[1]);
