@@ -1411,6 +1411,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This module supports multiple cards.
 
+  Module snd-portman2x4
+  ---------------------
+
+    Module for Midiman Portman 2x4 parallel port MIDI interface
+
+    This module supports multiple cards.
+
   Module snd-powermac (on ppc only)
   ---------------------------------
 
