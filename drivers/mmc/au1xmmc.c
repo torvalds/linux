@@ -194,6 +194,8 @@ static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
 	u32 mmccmd = (cmd->opcode << SD_CMD_CI_SHIFT);
 
 	switch (mmc_resp_type(cmd)) {
+	case MMC_RSP_NONE:
+		break;
 	case MMC_RSP_R1:
 		mmccmd |= SD_CMD_RT_1;
 		break;
@@ -206,6 +208,10 @@ static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
 	case MMC_RSP_R3:
 		mmccmd |= SD_CMD_RT_3;
 		break;
+	default:
+		printk(KERN_INFO "au1xmmc: unhandled response type %02x\n",
+			mmc_resp_type(cmd));
+		return MMC_ERR_INVALID;
 	}
 
 	switch(cmd->opcode) {
