@@ -231,6 +231,20 @@ static int vidioc_g_audio (struct file *file, void *priv,
 	return 0;
 }
 
+static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
+{
+	if (i != 0)
+		return -EINVAL;
+	return 0;
+}
+
+
 static int vidioc_s_audio (struct file *file, void *priv,
 			   struct v4l2_audio *a)
 {
@@ -326,6 +340,8 @@ static struct video_device maxiradio_radio =
 	.vidioc_s_tuner     = vidioc_s_tuner,
 	.vidioc_g_audio     = vidioc_g_audio,
 	.vidioc_s_audio     = vidioc_s_audio,
+	.vidioc_g_input     = vidioc_g_input,
+	.vidioc_s_input     = vidioc_s_input,
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
 	.vidioc_queryctrl   = vidioc_queryctrl,
