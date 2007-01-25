@@ -827,7 +827,8 @@ void ata_bmdma_error_handler(struct ata_port *ap)
  */
 void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc)
 {
-	ata_bmdma_stop(qc);
+	if (qc->ap->ioaddr.bmdma_addr)
+		ata_bmdma_stop(qc);
 }
 
 #ifdef CONFIG_PCI
