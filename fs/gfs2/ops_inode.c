@@ -1018,7 +1018,7 @@ static int gfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	}
 
 	generic_fillattr(inode, stat);
-	if (unlock);
+	if (unlock)
 		gfs2_glock_dq_uninit(&gh);
 
 	return 0;
