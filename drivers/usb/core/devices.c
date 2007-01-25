@@ -164,10 +164,10 @@ static const char *class_decode(const int class)
 	for (ix = 0; clas_info[ix].class != -1; ix++)
 		if (clas_info[ix].class == class)
 			break;
-	return (clas_info[ix].class_name);
+	return clas_info[ix].class_name;
 }
 
-static char *usb_dump_endpoint_descriptor (
+static char *usb_dump_endpoint_descriptor(
 	int speed,
 	char *start,
 	char *end,
@@ -212,9 +212,9 @@ static char *usb_dump_endpoint_descriptor (
 		break;
 	case USB_ENDPOINT_XFER_INT:
 		type = "Int.";
-		if (speed == USB_SPEED_HIGH) {
+		if (speed == USB_SPEED_HIGH)
 			interval = 1 << (desc->bInterval - 1);
-		} else
+		else
 			interval = desc->bInterval;
 		break;
 	default:	/* "can't happen" */
@@ -347,7 +347,7 @@ static char *usb_dump_device_descriptor(char *start, char *end, const struct usb
 
 	if (start > end)
 		return start;
-	start += sprintf (start, format_device1,
+	start += sprintf(start, format_device1,
 			  bcdUSB >> 8, bcdUSB & 0xff,
 			  desc->bDeviceClass,
 			  class_decode (desc->bDeviceClass),
@@ -367,7 +367,7 @@ static char *usb_dump_device_descriptor(char *start, char *end, const struct usb
 /*
  * Dump the different strings that this device holds.
  */
-static char *usb_dump_device_strings (char *start, char *end, struct usb_device *dev)
+static char *usb_dump_device_strings(char *start, char *end, struct usb_device *dev)
 {
 	if (start > end)
 		return start;
@@ -399,7 +399,7 @@ static char *usb_dump_desc(char *start, char *end, struct usb_device *dev)
 	if (start > end)
 		return start;
 	
-	start = usb_dump_device_strings (start, end, dev);
+	start = usb_dump_device_strings(start, end, dev);
 
 	for (i = 0; i < dev->descriptor.bNumConfigurations; i++) {
 		if (start > end)
