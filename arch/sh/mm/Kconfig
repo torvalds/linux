@@ -151,6 +151,7 @@ config CPU_SUBTYPE_SH7760
 	bool "Support SH7760 processor"
 	select CPU_SH4
 	select CPU_HAS_INTC2_IRQ
+	select CPU_HAS_IPR_IRQ
 
 config CPU_SUBTYPE_SH4_202
 	bool "Support SH4-202 processor"
