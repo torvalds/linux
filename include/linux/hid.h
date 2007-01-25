@@ -472,16 +472,6 @@ struct hid_descriptor {
 	struct hid_class_descriptor desc[1];
 } __attribute__ ((packed));
 
-#ifdef DEBUG
-#include "hid-debug.h"
-#else
-#define hid_dump_input(a,b)	do { } while (0)
-#define hid_dump_device(c)	do { } while (0)
-#define hid_dump_field(a,b)	do { } while (0)
-#define resolv_usage(a)		do { } while (0)
-#define resolv_event(a,b)	do { } while (0)
-#endif
-
 /* Applications from HID Usage Tables 4/8/99 Version 1.1 */
 /* We ignore a few input applications that are not widely used */
 #define IS_INPUT_APPLICATION(a) (((a >= 0x00010000) && (a <= 0x00010008)) || (a == 0x00010080) || (a == 0x000c0001))

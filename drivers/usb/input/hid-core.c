@@ -35,6 +35,7 @@
 
 #include <linux/hid.h>
 #include <linux/hiddev.h>
+#include <linux/hid-debug.h>
 #include "usbhid.h"
 
 /*

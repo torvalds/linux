@@ -28,11 +28,11 @@
 #include <linux/input.h>
 #include <linux/wait.h>
 
-#undef DEBUG
 #undef DEBUG_DATA
 
 #include <linux/hid.h>
 #include <linux/hiddev.h>
+#include <linux/hid-debug.h>
 
 /*
  * Version Information

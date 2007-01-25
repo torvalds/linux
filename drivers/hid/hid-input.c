@@ -34,6 +34,7 @@
 #undef DEBUG
 
 #include <linux/hid.h>
+#include <linux/hid-debug.h>
 
 static int hid_pb_fnmode = 1;
 module_param_named(pb_fnmode, hid_pb_fnmode, int, 0644);
@@ -254,7 +255,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 #ifdef DEBUG
 	printk(KERN_DEBUG "Mapping: ");
-	resolv_usage(usage->hid);
+	hid_resolv_usage(usage->hid);
 	printk(" ---> ");
 #endif
 
@@ -682,8 +683,8 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			field->dpad = usage->code;
 	}
 
-#ifdef DEBUG
-	resolv_event(usage->type, usage->code);
+	hid_resolv_event(usage->type, usage->code);
+#ifdef CONFIG_HID_DEBUG
 	printk("\n");
 #endif
 	return;
