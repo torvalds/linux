@@ -229,7 +229,7 @@ static int init_endpoint_class(void)
 	kref_init(&ep_class->kref);
 	ep_class->class = class_create(THIS_MODULE, "usb_endpoint");
 	if (IS_ERR(ep_class->class)) {
-		result = IS_ERR(ep_class->class);
+		result = PTR_ERR(ep_class->class);
 		goto class_create_error;
 	}
 
