@@ -220,6 +220,26 @@ static int vidioc_s_tuner (struct file *file, void *priv,
 	return 0;
 }
 
+static int vidioc_g_audio (struct file *file, void *priv,
+			   struct v4l2_audio *a)
+{
+	if (a->index > 1)
+		return -EINVAL;
+
+	strcpy(a->name, "Radio");
+	a->capability = V4L2_AUDCAP_STEREO;
+	return 0;
+}
+
+static int vidioc_s_audio (struct file *file, void *priv,
+			   struct v4l2_audio *a)
+{
+	if (a->index != 0)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int vidioc_s_frequency (struct file *file, void *priv,
 			       struct v4l2_frequency *f)
 {
@@ -304,6 +324,8 @@ static struct video_device maxiradio_radio =
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
+	.vidioc_g_audio     = vidioc_g_audio,
+	.vidioc_s_audio     = vidioc_s_audio,
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
 	.vidioc_queryctrl   = vidioc_queryctrl,
