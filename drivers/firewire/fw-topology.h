@@ -23,6 +23,12 @@
 #define __fw_topology_h
 
 enum {
+	FW_TOPOLOGY_A =		0x01,
+	FW_TOPOLOGY_B =		0x02,
+	FW_TOPOLOGY_MIXED =	0x03,
+};
+
+enum {
 	FW_NODE_CREATED =   0x00,
 	FW_NODE_UPDATED =   0x01,
 	FW_NODE_DESTROYED = 0x02,
@@ -42,10 +48,11 @@ struct fw_node {
 	unsigned link_on : 1;
 	unsigned initiated_reset : 1;
 	unsigned b_path : 1;
-	u8 phy_speed; /* As in the self ID packet. */
-	u8 max_speed; /* Minimum of all phy-speeds and port speeds on
-		       * the path from the local node to this node. */
-
+	u8 phy_speed : 3; /* As in the self ID packet. */
+	u8 max_speed : 5; /* Minimum of all phy-speeds and port speeds on
+			   * the path from the local node to this node. */
+	u8 max_depth : 4; /* Maximum depth to any leaf node */
+	u8 max_hops : 4;  /* Max hops in this sub tree */
 	atomic_t ref_count;
 
 	/* For serializing node topology into a list. */

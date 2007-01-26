@@ -186,14 +186,17 @@ fw_core_remove_descriptor (struct fw_descriptor *desc)
 }
 EXPORT_SYMBOL(fw_core_remove_descriptor);
 
+static const char gap_count_table[] = {
+	63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
+};
+
 static void
 fw_card_irm_work(struct work_struct *work)
 {
-	struct fw_card *card =
-		container_of(work, struct fw_card, work.work);
+	struct fw_card *card = container_of(work, struct fw_card, work.work);
 	struct fw_device *root;
 	unsigned long flags;
-	int new_irm_id, generation;
+	int root_id, new_irm_id, gap_count, generation, do_reset = 0;
 
 	/* FIXME: This simple bus management unconditionally picks a
 	 * cycle master if the current root can't do it.  We need to
@@ -206,35 +209,50 @@ fw_card_irm_work(struct work_struct *work)
 
 	generation = card->generation;
 	root = card->root_node->data;
+	root_id = card->root_node->node_id;
 
-	if (root == NULL)
+	if (root == NULL) {
 		/* Either link_on is false, or we failed to read the
 		 * config rom.  In either case, pick another root. */
 		new_irm_id = card->local_node->node_id;
-	else if (root->state != FW_DEVICE_RUNNING)
+	} else if (root->state != FW_DEVICE_RUNNING) {
 		/* If we haven't probed this device yet, bail out now
 		 * and let's try again once that's done. */
-		new_irm_id = -1;
-	else if (root->config_rom[2] & bib_cmc)
+		new_irm_id = root_id;
+	} else if (root->config_rom[2] & bib_cmc) {
 		/* FIXME: I suppose we should set the cmstr bit in the
 		 * STATE_CLEAR register of this node, as described in
 		 * 1394-1995, 8.4.2.6.  Also, send out a force root
 		 * packet for this node. */
-		new_irm_id = -1;
-	else
+		new_irm_id = root_id;
+	} else {
 		/* Current root has an active link layer and we
 		 * successfully read the config rom, but it's not
 		 * cycle master capable. */
 		new_irm_id = card->local_node->node_id;
+	}
 
-	if (card->irm_retries++ > 5)
-		new_irm_id = -1;
+	/* Now figure out what gap count to set. */
+	if (card->topology_type == FW_TOPOLOGY_A &&
+	    card->root_node->max_hops < ARRAY_SIZE(gap_count_table))
+		gap_count = gap_count_table[card->root_node->max_hops];
+	else
+		gap_count = 63;
+
+	/* Finally, figure out if we should do a reset or not.  If we've
+	 * done less that 5 resets with the same physical topology and we
+	 * have either a new root or a new gap count setting, let's do it. */
+
+	if (card->irm_retries++ < 5 &&
+	    (card->gap_count != gap_count || new_irm_id != root_id))
+		do_reset = 1;
 
 	spin_unlock_irqrestore(&card->lock, flags);
 
-	if (new_irm_id > 0) {
-		fw_notify("Trying to become root (card %d)\n", card->index);
-		fw_send_force_root(card, new_irm_id, generation);
+	if (do_reset) {
+		fw_notify("phy config: card %d, new root=%x, gap_count=%d\n",
+			  card->index, new_irm_id, gap_count);
+		fw_send_phy_config(card, new_irm_id, generation, gap_count);
 		fw_core_initiate_bus_reset(card, 1);
 	}
 }

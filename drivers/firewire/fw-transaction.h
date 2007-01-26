@@ -259,6 +259,8 @@ struct fw_card {
 	struct fw_node *root_node;
 	struct fw_node *irm_node;
 	int color;
+	int gap_count;
+	int topology_type;
 
 	int index;
 
@@ -386,8 +388,8 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 
 void fw_flush_transactions(struct fw_card *card);
 
-void
-fw_send_force_root(struct fw_card *card, int node_id, int generation);
+void fw_send_phy_config(struct fw_card *card,
+			int node_id, int generation, int gap_count);
 
 /* Called by the topology code to inform the device code of node
  * activity; found, lost, or updated nodes */

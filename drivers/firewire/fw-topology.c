@@ -113,6 +113,44 @@ static struct fw_node *fw_node_create(u32 sid, int port_count, int color)
 	return node;
 }
 
+/* Compute the maximum hop count for this node and it's children.  The
+ * maximum hop count is the maximum number of connections between any
+ * two nodes in the subtree rooted at this node.  We need this for
+ * setting the gap count.  As we build the tree bottom up in
+ * build_tree() below, this is fairly easy to do: for each node we
+ * maintain the max hop count and the max depth, ie the number of hops
+ * to the furthest leaf.  Computing the max hop count breaks down into
+ * two cases: either the path goes through this node, in which case
+ * the hop count is the sum of the two biggest child depths plus 2.
+ * Or it could be the case that the max hop path is entirely
+ * containted in a child tree, in which case the max hop count is just
+ * the max hop count of this child.
+ */
+static void update_hop_count(struct fw_node *node)
+{
+	int depths[2] = { -1, -1 };
+	int max_child_hops = 0;
+	int i;
+
+	for (i = 0; i < node->port_count; i++) {
+		if (node->ports[i].node == NULL)
+			continue;
+
+		if (node->ports[i].node->max_hops > max_child_hops)
+			max_child_hops = node->ports[i].node->max_hops;
+
+		if (node->ports[i].node->max_depth > depths[0]) {
+			depths[1] = depths[0];
+			depths[0] = node->ports[i].node->max_depth;
+		} else if (node->ports[i].node->max_depth > depths[1])
+			depths[1] = node->ports[i].node->max_depth;
+	}
+
+	node->max_depth = depths[0] + 1;
+	node->max_hops = max(max_child_hops, depths[0] + depths[1] + 2);
+}
+
+
 /**
  * build_tree - Build the tree representation of the topology
  * @self_ids: array of self IDs to create the tree from
@@ -131,6 +169,7 @@ static struct fw_node *build_tree(struct fw_card *card)
 	struct list_head stack, *h;
 	u32 *sid, *next_sid, *end, q;
 	int i, port_count, child_port_count, phy_id, parent_count, stack_depth;
+	int gap_count, topology_type;
 
 	local_node = NULL;
 	node = NULL;
@@ -140,6 +179,8 @@ static struct fw_node *build_tree(struct fw_card *card)
 	end = sid + card->self_id_count;
 	phy_id = 0;
 	card->irm_node = NULL;
+	gap_count = self_id_gap_count(*sid);
+	topology_type = 0;
 
 	while (sid < end) {
 		next_sid = count_ports(sid, &port_count, &child_port_count);
@@ -178,6 +219,11 @@ static struct fw_node *build_tree(struct fw_card *card)
 
 		if (self_id_contender(q))
 			card->irm_node = node;
+
+		if (node->phy_speed == SCODE_BETA)
+			topology_type |= FW_TOPOLOGY_B;
+		else
+			topology_type |= FW_TOPOLOGY_A;
 
 		parent_count = 0;
 
@@ -223,11 +269,21 @@ static struct fw_node *build_tree(struct fw_card *card)
 		list_add_tail(&node->link, &stack);
 		stack_depth += 1 - child_port_count;
 
+		/* If all PHYs does not report the same gap count
+		 * setting, we fall back to 63 which will force a gap
+		 * count reconfiguration and a reset. */
+		if (self_id_gap_count(q) != gap_count)
+			gap_count = 63;
+
+		update_hop_count(node);
+
 		sid = next_sid;
 		phy_id++;
 	}
 
 	card->root_node = node;
+	card->gap_count = gap_count;
+	card->topology_type = topology_type;
 
 	return local_node;
 }
@@ -286,7 +342,8 @@ report_found_node(struct fw_card *card,
 	int b_path = (node->phy_speed == SCODE_BETA);
 
 	if (parent != NULL) {
-		node->max_speed = min(parent->max_speed, node->phy_speed);
+		node->max_speed = min((u8)parent->max_speed,
+				      (u8)node->phy_speed);
 		node->b_path = parent->b_path && b_path;
 	} else {
 		node->max_speed = node->phy_speed;
@@ -329,7 +386,7 @@ static void move_tree(struct fw_node *node0, struct fw_node *node1, int port)
  * as we go.
  */
 static void
-update_tree(struct fw_card *card, struct fw_node *root, int *changed)
+update_tree(struct fw_card *card, struct fw_node *root)
 {
 	struct list_head list0, list1;
 	struct fw_node *node0, *node1;
@@ -342,7 +399,6 @@ update_tree(struct fw_card *card, struct fw_node *root, int *changed)
 
 	node0 = fw_node(list0.next);
 	node1 = fw_node(list1.next);
-	*changed = 0;
 
 	while (&node0->link != &list0) {
 
@@ -358,6 +414,7 @@ update_tree(struct fw_card *card, struct fw_node *root, int *changed)
 		node0->color = card->color;
 		node0->link_on = node1->link_on;
 		node0->initiated_reset = node1->initiated_reset;
+		node0->max_hops = node1->max_hops;
 		node1->color = card->color;
 		fw_node_event(card, node0, event);
 
@@ -386,7 +443,6 @@ update_tree(struct fw_card *card, struct fw_node *root, int *changed)
 				for_each_fw_node(card, node0->ports[i].node,
 						 report_lost_node);
 				node0->ports[i].node = NULL;
-				*changed = 1;
 			} else if (node1->ports[i].node) {
 				/* One or more node were connected to
 				 * this port. Move the new nodes into
@@ -395,7 +451,6 @@ update_tree(struct fw_card *card, struct fw_node *root, int *changed)
 				move_tree(node0, node1, i);
 				for_each_fw_node(card, node0->ports[i].node,
 						 report_found_node);
-				*changed = 1;
 			}
 		}
 
@@ -411,11 +466,16 @@ fw_core_handle_bus_reset(struct fw_card *card,
 {
 	struct fw_node *local_node;
 	unsigned long flags;
-	int changed;
 
 	fw_flush_transactions(card);
 
 	spin_lock_irqsave(&card->lock, flags);
+
+	/* If the new topology has a different self_id_count the topology
+	 * changed, either nodes were added or removed. In that case we
+	 * reset the IRM reset counter. */
+	if (card->self_id_count != self_id_count)
+		card->irm_retries = 0;
 
 	card->node_id = node_id;
 	card->self_id_count = self_id_count;
@@ -433,9 +493,7 @@ fw_core_handle_bus_reset(struct fw_card *card,
 		card->local_node = local_node;
 		for_each_fw_node(card, local_node, report_found_node);
 	} else {
-		update_tree(card, local_node, &changed);
-		if (changed)
-			card->irm_retries = 0;
+		update_tree(card, local_node);
 	}
 
 	/* If we're not the root node, we may have to do some IRM work. */

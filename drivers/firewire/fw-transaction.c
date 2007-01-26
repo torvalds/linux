@@ -274,11 +274,15 @@ static void send_phy_packet(struct fw_card *card, u32 data, int generation)
 	card->driver->send_request(card, packet);
 }
 
-void fw_send_force_root(struct fw_card *card, int node_id, int generation)
+void fw_send_phy_config(struct fw_card *card,
+			int node_id, int generation, int gap_count)
 {
 	u32 q;
 
-	q = phy_identifier(PHY_PACKET_CONFIG) | phy_config_root_id(node_id);
+	q = phy_identifier(PHY_PACKET_CONFIG) |
+		phy_config_root_id(node_id) |
+		phy_config_gap_count(gap_count);
+
 	send_phy_packet(card, q, generation);
 }
 
