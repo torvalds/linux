@@ -186,19 +186,22 @@ config ACPI_ASUS
 
 	  Note: display switching code is currently considered EXPERIMENTAL,
 	  toying with these values may even lock your machine.
-          
+
           All settings are changed via /proc/acpi/asus directory entries. Owner
           and group for these entries can be set with asus_uid and asus_gid
           parameters.
-          
+
           More information and a userspace daemon for handling the extra buttons
           at <http://sourceforge.net/projects/acpi4asus/>.
-          
+
           If you have an ACPI-compatible ASUS laptop, say Y or M here. This
           driver is still under development, so if your laptop is unsupported or
           something works not quite as expected, please use the mailing list
-          available on the above page (acpi4asus-user@lists.sourceforge.net)
-          
+          available on the above page (acpi4asus-user@lists.sourceforge.net).
+
+	  NOTE: This driver is deprecated and will probably be removed soon,
+	  use asus-laptop instead.
+
 config ACPI_IBM
 	tristate "IBM ThinkPad Laptop Extras"
 	depends on X86
