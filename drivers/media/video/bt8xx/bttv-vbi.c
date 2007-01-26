@@ -224,7 +224,7 @@ static void vbi_buffer_release(struct videobuf_queue *q, struct videobuf_buffer 
 	struct bttv_buffer *buf = container_of(vb,struct bttv_buffer,vb);
 
 	dprintk("free %p\n",vb);
-	bttv_dma_free(&fh->cap,fh->btv,buf);
+	bttv_dma_free(q,fh->btv,buf);
 }
 
 struct videobuf_queue_ops bttv_vbi_qops = {

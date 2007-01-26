@@ -1880,7 +1880,7 @@ static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	struct bttv_buffer *buf = container_of(vb,struct bttv_buffer,vb);
 	struct bttv_fh *fh = q->priv_data;
 
-	bttv_dma_free(&fh->cap,fh->btv,buf);
+	bttv_dma_free(q,fh->btv,buf);
 }
 
 static struct videobuf_queue_ops bttv_video_qops = {
