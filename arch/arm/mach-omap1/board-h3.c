@@ -294,9 +294,11 @@ static int h3_select_irda(struct device *dev, int state)
 	return err;
 }
 
-static void set_trans_mode(void *data)
+static void set_trans_mode(struct work_struct *work)
 {
-	int *mode = data;
+	struct omap_irda_config *irda_config =
+		container_of(work, struct omap_irda_config, gpio_expa.work);
+	int mode = irda_config->mode;
 	unsigned char expa;
 	int err = 0;
 
@@ -306,7 +308,7 @@ static void set_trans_mode(void *data)
 
 	expa &= ~0x03;
 
-	if (*mode & IR_SIRMODE) {
+	if (mode & IR_SIRMODE) {
 		expa |= 0x01;
 	} else { /* MIR/FIR */
 		expa |= 0x03;
@@ -321,9 +323,9 @@ static int h3_transceiver_mode(struct device *dev, int mode)
 {
 	struct omap_irda_config *irda_config = dev->platform_data;
 
+	irda_config->mode = mode;
 	cancel_delayed_work(&irda_config->gpio_expa);
-	PREPARE_WORK(&irda_config->gpio_expa, set_trans_mode, &mode);
-#error this is not permitted - mode is an argument variable
+	PREPARE_DELAYED_WORK(&irda_config->gpio_expa, set_trans_mode);
 	schedule_delayed_work(&irda_config->gpio_expa, 0);
 
 	return 0;
