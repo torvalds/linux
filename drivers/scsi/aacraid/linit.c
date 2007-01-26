@@ -398,11 +398,15 @@ static int aac_slave_configure(struct scsi_device *sdev)
 		sdev->skip_ms_page_3f = 1;
 	}
 	if ((sdev->type == TYPE_DISK) &&
-			!expose_physicals &&
 			(sdev_channel(sdev) != CONTAINER_CHANNEL)) {
-		struct aac_dev *aac = (struct aac_dev *)sdev->host->hostdata;
-		if (!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))
-			sdev->no_uld_attach = 1;
+		if (expose_physicals == 0)
+			return -ENXIO;
+		if (expose_physicals < 0) {
+			struct aac_dev *aac =
+				(struct aac_dev *)sdev->host->hostdata;
+			if (!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))
+				sdev->no_uld_attach = 1;
+		}
 	}
 	if (sdev->tagged_supported && (sdev->type == TYPE_DISK) &&
 			(sdev_channel(sdev) == CONTAINER_CHANNEL)) {
