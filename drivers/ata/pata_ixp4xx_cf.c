@@ -23,9 +23,9 @@
 #include <scsi/scsi_host.h>
 
 #define DRV_NAME	"pata_ixp4xx_cf"
-#define DRV_VERSION	"0.1.1"
+#define DRV_VERSION	"0.1.1ac1"
 
-static void ixp4xx_set_mode(struct ata_port *ap)
+static int ixp4xx_set_mode(struct ata_port *ap, struct ata_device *adev)
 {
 	int i;
 
@@ -38,6 +38,7 @@ static void ixp4xx_set_mode(struct ata_port *ap)
 			dev->flags |= ATA_DFLAG_PIO;
 		}
 	}
+	return 0;
 }
 
 static void ixp4xx_phy_reset(struct ata_port *ap)

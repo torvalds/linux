@@ -52,19 +52,20 @@ static void rz1000_error_handler(struct ata_port *ap)
 /**
  *	rz1000_set_mode		-	mode setting function
  *	@ap: ATA interface
+ *	@unused: returned device on set_mode failure
  *
  *	Use a non standard set_mode function. We don't want to be tuned. We
  *	would prefer to be BIOS generic but for the fact our hardware is
  *	whacked out.
  */
 
-static void rz1000_set_mode(struct ata_port *ap)
+static int rz1000_set_mode(struct ata_port *ap, struct ata_device **unused)
 {
 	int i;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
-		if (ata_dev_enabled(dev)) {
+		if (ata_dev_ready(dev)) {
 			/* We don't really care */
 			dev->pio_mode = XFER_PIO_0;
 			dev->xfer_mode = XFER_PIO_0;
@@ -72,6 +73,7 @@ static void rz1000_set_mode(struct ata_port *ap)
 			dev->flags |= ATA_DFLAG_PIO;
 		}
 	}
+	return 0;
 }
 
 

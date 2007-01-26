@@ -484,6 +484,7 @@ config PPC_MAPLE
 	select PPC_970_NAP
 	select PPC_NATIVE
 	select PPC_RTAS
+	select ATA_NONSTANDARD if ATA
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
