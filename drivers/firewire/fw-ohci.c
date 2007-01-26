@@ -170,6 +170,8 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 #define OHCI1394_PCI_HCI_Control	0x40
 #define SELF_ID_BUF_SIZE		0x800
 
+#define MAX_STOP_CONTEXT_LOOPS		1000
+
 static char ohci_driver_name[] = KBUILD_MODNAME;
 
 static inline void reg_write(const struct fw_ohci *ohci, int offset, u32 data)
@@ -224,6 +226,13 @@ static void ar_context_tasklet(unsigned long data)
 	struct fw_ohci *ohci = ctx->ohci;
 	struct fw_packet p;
 	u32 status, length, tcode;
+	int i;
+
+	/* FIXME: We stop and restart the ar context here, what if we
+	 * stop while a receive is in progress? Maybe we could just
+	 * loop the context back to itself and use it in buffer fill
+	 * mode as intended... */
+	reg_write(ctx->ohci, ctx->control_clear, CONTEXT_RUN);
 
 	/* FIXME: What to do about evt_* errors? */
 	length    = le16_to_cpu(ctx->descriptor.req_count) -
@@ -287,12 +296,14 @@ static void ar_context_tasklet(unsigned long data)
 	dma_sync_single_for_device(ohci->card.device, ctx->descriptor_bus,
 				   sizeof ctx->descriptor_bus, DMA_TO_DEVICE);
 
-	/* FIXME: We stop and restart the ar context here, what if we
-	 * stop while a receive is in progress? Maybe we could just
-	 * loop the context back to itself and use it in buffer fill
-	 * mode as intended... */
+	/* Make sure the active bit is 0 before we reprogram the DMA. */
+	for (i = 0; i < MAX_STOP_CONTEXT_LOOPS; i++)
+		if (!(reg_read(ctx->ohci,
+			       ctx->control_clear) & CONTEXT_ACTIVE))
+			break;
+	if (i == MAX_STOP_CONTEXT_LOOPS)
+		fw_error("Failed to stop ar context\n");
 
-	reg_write(ctx->ohci, ctx->control_clear, CONTEXT_RUN);
 	ar_context_run(ctx);
 }
 
