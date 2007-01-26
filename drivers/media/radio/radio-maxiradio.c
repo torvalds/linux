@@ -226,7 +226,7 @@ static int vidioc_g_audio (struct file *file, void *priv,
 	if (a->index > 1)
 		return -EINVAL;
 
-	strcpy(a->name, "Radio");
+	strcpy(a->name, "FM");
 	a->capability = V4L2_AUDCAP_STEREO;
 	return 0;
 }
