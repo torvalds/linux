@@ -449,6 +449,8 @@ static void fw_device_init(struct work_struct *work)
 		} else {
 			fw_notify("giving up on config rom for node id %x\n",
 				  device->node_id);
+			if (device->node == device->card->root_node)
+				schedule_delayed_work(&device->card->work, 0);
 			fw_device_release(&device->device);
 		}
 		return;

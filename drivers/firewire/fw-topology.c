@@ -476,12 +476,13 @@ fw_core_handle_bus_reset(struct fw_card *card,
 	 * changed, either nodes were added or removed. In that case we
 	 * reset the IRM reset counter. */
 	if (card->self_id_count != self_id_count)
-		card->irm_retries = 0;
+		card->bm_retries = 0;
 
 	card->node_id = node_id;
 	card->self_id_count = self_id_count;
 	card->generation = generation;
 	memcpy(card->self_ids, self_ids, self_id_count * 4);
+	card->reset_jiffies = jiffies;
 
 	local_node = build_tree(card);
 
@@ -497,9 +498,7 @@ fw_core_handle_bus_reset(struct fw_card *card,
 		update_tree(card, local_node);
 	}
 
-	/* If we're not the root node, we may have to do some IRM work. */
-	if (card->local_node != card->root_node)
-		schedule_delayed_work(&card->work, 0);
+	schedule_delayed_work(&card->work, 0);
 
 	spin_unlock_irqrestore(&card->lock, flags);
 }

@@ -92,7 +92,7 @@ generate_config_rom (struct fw_card *card, size_t *config_rom_length)
 		bib_generation(card->config_rom_generation++ % 14 + 2) |
 		bib_max_rom(2) |
 		bib_max_receive(card->max_receive) |
-		bib_isc | bib_cmc | bib_imc;
+		bib_bmc | bib_isc | bib_cmc | bib_imc;
 	config_rom[3] = card->guid >> 32;
 	config_rom[4] = card->guid;
 
@@ -190,48 +190,137 @@ static const char gap_count_table[] = {
 	63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
 };
 
+struct bm_data {
+	struct fw_transaction t;
+	struct {
+		__be32 arg;
+		__be32 data;
+	} lock;
+	u32 old;
+	int rcode;
+	struct completion done;
+};
+
 static void
-fw_card_irm_work(struct work_struct *work)
+complete_bm_lock(struct fw_card *card, int rcode,
+		 void *payload, size_t length, void *data)
+{
+	struct bm_data *bmd = data;
+
+	if (rcode == RCODE_COMPLETE)
+		bmd->old = be32_to_cpu(*(__be32 *) payload);
+	bmd->rcode = rcode;
+	complete(&bmd->done);
+}
+
+static void
+fw_card_bm_work(struct work_struct *work)
 {
 	struct fw_card *card = container_of(work, struct fw_card, work.work);
 	struct fw_device *root;
+	struct bm_data bmd;
 	unsigned long flags;
-	int root_id, new_irm_id, gap_count, generation, do_reset = 0;
-
-	/* FIXME: This simple bus management unconditionally picks a
-	 * cycle master if the current root can't do it.  We need to
-	 * not do this if there is a bus manager already.  Also, some
-	 * hubs set the contender bit, which is bogus, so we should
-	 * probably do a little sanity check on the IRM (like, read
-	 * the bandwidth register) if it's not us. */
+	int root_id, new_root_id, irm_id, gap_count, generation, grace;
+	int do_reset = 0;
 
 	spin_lock_irqsave(&card->lock, flags);
 
 	generation = card->generation;
 	root = card->root_node->data;
 	root_id = card->root_node->node_id;
+	grace = time_after(jiffies, card->reset_jiffies + DIV_ROUND_UP(HZ, 10));
+
+	if (card->bm_generation + 1 == generation ||
+	    (card->bm_generation != generation && grace)) {
+		/* This first step is to figure out who is IRM and
+		 * then try to become bus manager.  If the IRM is not
+		 * well defined (e.g. does not have an active link
+		 * layer or does not responds to our lock request, we
+		 * will have to do a little vigilante bus management.
+		 * In that case, we do a goto into the gap count logic
+		 * so that when we do the reset, we still optimize the
+		 * gap count.  That could well save a reset in the
+		 * next generation. */
+
+		irm_id = card->irm_node->node_id;
+		if (!card->irm_node->link_on) {
+			new_root_id = card->local_node->node_id;
+			fw_notify("IRM has link off, making local node (%02x) root.\n",
+				  new_root_id);
+			goto pick_me;
+		}
+
+		bmd.lock.arg = cpu_to_be32(0x3f);
+		bmd.lock.data = cpu_to_be32(card->local_node->node_id);
+
+		spin_unlock_irqrestore(&card->lock, flags);
+
+		init_completion(&bmd.done);
+		fw_send_request(card, &bmd.t, TCODE_LOCK_COMPARE_SWAP,
+				irm_id, generation,
+				SCODE_100, CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
+				&bmd.lock, sizeof bmd.lock,
+				complete_bm_lock, &bmd);
+		wait_for_completion(&bmd.done);
+
+		if (bmd.rcode == RCODE_GENERATION) {
+			/* Another bus reset happened. Just return,
+			 * the BM work has been rescheduled. */
+			return;
+		}
+
+		if (bmd.rcode == RCODE_COMPLETE && bmd.old != 0x3f)
+			/* Somebody else is BM, let them do the work. */
+			return;
+
+		spin_lock_irqsave(&card->lock, flags);
+		if (bmd.rcode != RCODE_COMPLETE) {
+			/* The lock request failed, maybe the IRM
+			 * isn't really IRM capable after all. Let's
+			 * do a bus reset and pick the local node as
+			 * root, and thus, IRM. */
+			new_root_id = card->local_node->node_id;
+			fw_notify("BM lock failed, making local node (%02x) root.\n",
+				  new_root_id);
+			goto pick_me;
+		}
+	} else if (card->bm_generation != generation) {
+		/* OK, we weren't BM in the last generation, and it's
+		 * less than 100ms since last bus reset. Reschedule
+		 * this task 100ms from now. */
+		spin_unlock_irqrestore(&card->lock, flags);
+		schedule_delayed_work(&card->work, DIV_ROUND_UP(HZ, 10));
+		return;
+	}
+
+	/* We're bus manager for this generation, so next step is to
+	 * make sure we have an active cycle master and do gap count
+	 * optimization. */
+	card->bm_generation = generation;
 
 	if (root == NULL) {
 		/* Either link_on is false, or we failed to read the
 		 * config rom.  In either case, pick another root. */
-		new_irm_id = card->local_node->node_id;
+		new_root_id = card->local_node->node_id;
 	} else if (root->state != FW_DEVICE_RUNNING) {
 		/* If we haven't probed this device yet, bail out now
 		 * and let's try again once that's done. */
-		new_irm_id = root_id;
+		spin_unlock_irqrestore(&card->lock, flags);
+		return;
 	} else if (root->config_rom[2] & bib_cmc) {
 		/* FIXME: I suppose we should set the cmstr bit in the
 		 * STATE_CLEAR register of this node, as described in
 		 * 1394-1995, 8.4.2.6.  Also, send out a force root
 		 * packet for this node. */
-		new_irm_id = root_id;
+		new_root_id = root_id;
 	} else {
 		/* Current root has an active link layer and we
 		 * successfully read the config rom, but it's not
 		 * cycle master capable. */
-		new_irm_id = card->local_node->node_id;
+		new_root_id = card->local_node->node_id;
 	}
 
+ pick_me:
 	/* Now figure out what gap count to set. */
 	if (card->topology_type == FW_TOPOLOGY_A &&
 	    card->root_node->max_hops < ARRAY_SIZE(gap_count_table))
@@ -243,16 +332,16 @@ fw_card_irm_work(struct work_struct *work)
 	 * done less that 5 resets with the same physical topology and we
 	 * have either a new root or a new gap count setting, let's do it. */
 
-	if (card->irm_retries++ < 5 &&
-	    (card->gap_count != gap_count || new_irm_id != root_id))
+	if (card->bm_retries++ < 5 &&
+	    (card->gap_count != gap_count || new_root_id != root_id))
 		do_reset = 1;
 
 	spin_unlock_irqrestore(&card->lock, flags);
 
 	if (do_reset) {
 		fw_notify("phy config: card %d, new root=%x, gap_count=%d\n",
-			  card->index, new_irm_id, gap_count);
-		fw_send_phy_config(card, new_irm_id, generation, gap_count);
+			  card->index, new_root_id, gap_count);
+		fw_send_phy_config(card, new_root_id, generation, gap_count);
 		fw_core_initiate_bus_reset(card, 1);
 	}
 }
@@ -294,7 +383,7 @@ fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
 
 	card->local_node = NULL;
 
-	INIT_DELAYED_WORK(&card->work, fw_card_irm_work);
+	INIT_DELAYED_WORK(&card->work, fw_card_bm_work);
 
 	card->card_device.bus     = &fw_bus_type;
 	card->card_device.release = release_card;

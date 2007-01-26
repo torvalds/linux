@@ -276,6 +276,7 @@ struct fw_card {
 	int current_tlabel, tlabel_mask;
 	struct list_head transaction_list;
 	struct timer_list flush_timer;
+	unsigned long reset_jiffies;
 
 	unsigned long long guid;
 	int max_receive;
@@ -301,9 +302,10 @@ struct fw_card {
 
 	struct list_head link;
 
-	/* Work struct for IRM duties. */
+	/* Work struct for BM duties. */
 	struct delayed_work work;
-	int irm_retries;
+	int bm_retries;
+	int bm_generation;
 };
 
 struct fw_card *fw_card_get(struct fw_card *card);
