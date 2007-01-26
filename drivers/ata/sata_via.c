@@ -211,7 +211,7 @@ static void svia_noop_freeze(struct ata_port *ap)
 	 * certain way.  Leave it alone and just clear pending IRQ.
 	 */
 	ata_chk_status(ap);
-	ap->ops->irq_clear(ap);
+	ata_bmdma_irq_clear(ap);
 }
 
 /**
