@@ -992,16 +992,6 @@ static inline int fix_read_pf(u64 *shadow_ent)
 	return 0;
 }
 
-static int may_access(u64 pte, int write, int user)
-{
-
-	if (user && !(pte & PT_USER_MASK))
-		return 0;
-	if (write && !(pte & PT_WRITABLE_MASK))
-		return 0;
-	return 1;
-}
-
 static void paging_free(struct kvm_vcpu *vcpu)
 {
 	nonpaging_free(vcpu);
