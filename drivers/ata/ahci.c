@@ -903,7 +903,7 @@ static int ahci_hardreset(struct ata_port *ap, unsigned int *class)
 
 	/* clear D2H reception area to properly wait for D2H FIS */
 	ata_tf_init(ap->device, &tf);
-	tf.command = 0xff;
+	tf.command = 0x80;
 	ata_tf_to_fis(&tf, d2h_fis, 0);
 
 	rc = sata_std_hardreset(ap, class);
