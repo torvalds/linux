@@ -11,6 +11,8 @@ menu "Processor type and features"
 
 config IA64
 	bool
+	select PCI if (!IA64_HP_SIM)
+	select ACPI if (!IA64_HP_SIM)
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -84,8 +86,6 @@ choice
 
 config IA64_GENERIC
 	bool "generic"
-	select ACPI
-	select PCI
 	select NUMA
 	select ACPI_NUMA
 	help
