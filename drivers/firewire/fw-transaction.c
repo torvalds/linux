@@ -426,15 +426,15 @@ free_response_callback(struct fw_packet *packet,
 
 static void
 fw_fill_response(struct fw_packet *response,
-		 u32 *request, u32 *data, size_t length)
+		 struct fw_packet *request, void *data)
 {
 	int tcode, tlabel, extended_tcode, source, destination;
 
-	tcode          = header_get_tcode(request[0]);
-	tlabel         = header_get_tlabel(request[0]);
-	source         = header_get_destination(request[0]);
-	destination    = header_get_source(request[1]);
-	extended_tcode = header_get_extended_tcode(request[3]);
+	tcode          = header_get_tcode(request->header[0]);
+	tlabel         = header_get_tlabel(request->header[0]);
+	source         = header_get_destination(request->header[0]);
+	destination    = header_get_source(request->header[1]);
+	extended_tcode = header_get_extended_tcode(request->header[3]);
 
 	response->header[0] =
 		header_retry(RETRY_1) |
@@ -463,11 +463,11 @@ fw_fill_response(struct fw_packet *response,
 	case TCODE_LOCK_REQUEST:
 		response->header[0] |= header_tcode(tcode + 2);
 		response->header[3] =
-			header_data_length(length) |
+			header_data_length(request->payload_length) |
 			header_extended_tcode(extended_tcode);
 		response->header_length = 16;
 		response->payload = data;
-		response->payload_length = length;
+		response->payload_length = request->payload_length;
 		break;
 
 	default:
@@ -477,24 +477,23 @@ fw_fill_response(struct fw_packet *response,
 }
 
 static struct fw_request *
-allocate_request(u32 *header, int ack,
-		 int speed, int timestamp, int generation)
+allocate_request(struct fw_packet *p)
 {
 	struct fw_request *request;
 	u32 *data, length;
-	int request_tcode;
+	int request_tcode, t;
 
-	request_tcode = header_get_tcode(header[0]);
+	request_tcode = header_get_tcode(p->header[0]);
 	switch (request_tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
-		data = &header[3];
+		data = &p->header[3];
 		length = 4;
 		break;
 
 	case TCODE_WRITE_BLOCK_REQUEST:
 	case TCODE_LOCK_REQUEST:
-		data = &header[4];
-		length = header_get_data_length(header[3]);
+		data = p->payload;
+		length = header_get_data_length(p->header[3]);
 		break;
 
 	case TCODE_READ_QUADLET_REQUEST:
@@ -504,7 +503,7 @@ allocate_request(u32 *header, int ack,
 
 	case TCODE_READ_BLOCK_REQUEST:
 		data = NULL;
-		length = header_get_data_length(header[3]);
+		length = header_get_data_length(p->header[3]);
 		break;
 
 	default:
@@ -516,16 +515,22 @@ allocate_request(u32 *header, int ack,
 	if (request == NULL)
 		return NULL;
 
-	request->response.speed = speed;
-	request->response.timestamp = timestamp;
-	request->response.generation = generation;
-	request->response.callback = free_response_callback;
-	request->ack = ack;
-	request->length = length;
-	if (data)
-		memcpy(request->data, data, length);
+	t = (p->timestamp & 0x1fff) + 4000;
+	if (t >= 8000)
+		t = (p->timestamp & ~0x1fff) + 0x2000 + t - 8000;
+	else
+		t = (p->timestamp & ~0x1fff) + t;
 
-	fw_fill_response(&request->response, header, request->data, length);
+	request->response.speed = p->speed;
+	request->response.timestamp = t;
+	request->response.generation = p->generation;
+	request->response.callback = free_response_callback;
+	request->ack = p->ack;
+	request->length = p->payload_length;
+	if (data)
+		memcpy(request->data, p->payload, p->payload_length);
+
+	fw_fill_response(&request->response, p, request->data);
 
 	return request;
 }
@@ -554,31 +559,23 @@ fw_send_response(struct fw_card *card, struct fw_request *request, int rcode)
 EXPORT_SYMBOL(fw_send_response);
 
 void
-fw_core_handle_request(struct fw_card *card,
-		       int speed, int ack, int timestamp,
-		       int generation, u32 length, u32 *header)
+fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 {
 	struct fw_address_handler *handler;
 	struct fw_request *request;
 	unsigned long long offset;
 	unsigned long flags;
-	int tcode, destination, source, t;
+	int tcode, destination, source;
 
-	if (length > 2048) {
+	if (p->payload_length > 2048) {
 		/* FIXME: send error response. */
 		return;
 	}
 
-	if (ack != ACK_PENDING && ack != ACK_COMPLETE)
+	if (p->ack != ACK_PENDING && p->ack != ACK_COMPLETE)
 		return;
 
-	t = (timestamp & 0x1fff) + 4000;
-	if (t >= 8000)
-		t = (timestamp & ~0x1fff) + 0x2000 + t - 8000;
-	else
-		t = (timestamp & ~0x1fff) + t;
-
-	request = allocate_request(header, ack, speed, t, generation);
+	request = allocate_request(p);
 	if (request == NULL) {
 		/* FIXME: send statically allocated busy packet. */
 		return;
@@ -586,10 +583,10 @@ fw_core_handle_request(struct fw_card *card,
 
 	offset      =
 		((unsigned long long)
-		 header_get_offset_high(header[1]) << 32) | header[2];
-	tcode       = header_get_tcode(header[0]);
-	destination = header_get_destination(header[0]);
-	source      = header_get_source(header[0]);
+		 header_get_offset_high(p->header[1]) << 32) | p->header[2];
+	tcode       = header_get_tcode(p->header[0]);
+	destination = header_get_destination(p->header[0]);
+	source      = header_get_source(p->header[0]);
 
 	spin_lock_irqsave(&address_handler_lock, flags);
 	handler = lookup_enclosing_address_handler(&address_handler_list,
@@ -607,16 +604,14 @@ fw_core_handle_request(struct fw_card *card,
 	else
 		handler->address_callback(card, request,
 					  tcode, destination, source,
-					  generation, speed, offset,
+					  p->generation, p->speed, offset,
 					  request->data, request->length,
 					  handler->callback_data);
 }
 EXPORT_SYMBOL(fw_core_handle_request);
 
 void
-fw_core_handle_response(struct fw_card *card,
-			int speed, int ack, int timestamp,
-			u32 length, u32 *header)
+fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 {
 	struct fw_transaction *t;
 	unsigned long flags;
@@ -624,11 +619,11 @@ fw_core_handle_response(struct fw_card *card,
 	size_t data_length;
 	int tcode, tlabel, destination, source, rcode;
 
-	tcode       = header_get_tcode(header[0]);
-	tlabel      = header_get_tlabel(header[0]);
-	destination = header_get_destination(header[0]);
-	source      = header_get_source(header[1]);
-	rcode       = header_get_rcode(header[1]);
+	tcode       = header_get_tcode(p->header[0]);
+	tlabel      = header_get_tlabel(p->header[0]);
+	destination = header_get_destination(p->header[0]);
+	source      = header_get_source(p->header[1]);
+	rcode       = header_get_rcode(p->header[1]);
 
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(t, &card->transaction_list, link) {
@@ -650,7 +645,7 @@ fw_core_handle_response(struct fw_card *card,
 
 	switch (tcode) {
 	case TCODE_READ_QUADLET_RESPONSE:
-		data = (u32 *) &header[3];
+		data = (u32 *) &p->header[3];
 		data_length = 4;
 		break;
 
@@ -661,8 +656,8 @@ fw_core_handle_response(struct fw_card *card,
 
 	case TCODE_READ_BLOCK_RESPONSE:
 	case TCODE_LOCK_RESPONSE:
-		data = &header[4];
-		data_length = header_get_data_length(header[3]);
+		data = &p->header[4];
+		data_length = header_get_data_length(p->header[3]);
 		break;
 
 	default:

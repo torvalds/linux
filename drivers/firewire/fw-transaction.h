@@ -180,7 +180,7 @@ struct fw_packet {
 	 * must never block.
 	 */
 	fw_packet_callback_t callback;
-	int status;
+	int ack;
 	struct list_head link;
 };
 
@@ -415,14 +415,9 @@ fw_core_handle_bus_reset(struct fw_card *card,
 			 int node_id, int generation,
 			 int self_id_count, u32 *self_ids);
 void
-fw_core_handle_request(struct fw_card *card,
-		       int speed, int ack, int timestamp,
-		       int generation,
-		       u32 length, u32 *payload);
-void
-fw_core_handle_response(struct fw_card *card,
-			int speed, int ack, int timestamp,
-			u32 length, u32 *payload);
+fw_core_handle_request(struct fw_card *card, struct fw_packet *request);
 
+void
+fw_core_handle_response(struct fw_card *card, struct fw_packet *packet);
 
 #endif /* __fw_transaction_h */

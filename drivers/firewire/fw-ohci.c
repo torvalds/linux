@@ -221,24 +221,48 @@ static void ar_context_tasklet(unsigned long data)
 {
 	struct ar_context *ctx = (struct ar_context *)data;
 	struct fw_ohci *ohci = ctx->ohci;
-	u32 status;
-	int length, speed, ack, timestamp, tcode;
+	struct fw_packet p;
+	u32 status, length, tcode;
 
 	/* FIXME: What to do about evt_* errors? */
 	length    = le16_to_cpu(ctx->descriptor.req_count) -
 		le16_to_cpu(ctx->descriptor.res_count) - 4;
 	status    = le32_to_cpu(ctx->buffer[length / 4]);
-	ack       = ((status >> 16) & 0x1f) - 16;
-	speed     = (status >> 21) & 0x7;
-	timestamp = status & 0xffff;
 
-	ctx->buffer[0] = le32_to_cpu(ctx->buffer[0]);
-	ctx->buffer[1] = le32_to_cpu(ctx->buffer[1]);
-	ctx->buffer[2] = le32_to_cpu(ctx->buffer[2]);
+	p.ack        = ((status >> 16) & 0x1f) - 16;
+	p.speed      = (status >> 21) & 0x7;
+	p.timestamp  = status & 0xffff;
+	p.generation = ohci->request_generation;
 
-	tcode = (ctx->buffer[0] >> 4) & 0x0f;
-	if (TCODE_IS_BLOCK_PACKET(tcode))
-		ctx->buffer[3] = le32_to_cpu(ctx->buffer[3]);
+	p.header[0] = le32_to_cpu(ctx->buffer[0]);
+	p.header[1] = le32_to_cpu(ctx->buffer[1]);
+	p.header[2] = le32_to_cpu(ctx->buffer[2]);
+
+	tcode = (p.header[0] >> 4) & 0x0f;
+	switch (tcode) {
+	case TCODE_WRITE_QUADLET_REQUEST:
+	case TCODE_READ_QUADLET_RESPONSE:
+		p.header[3] = ctx->buffer[3];
+		p.header_length = 16;
+		break;
+
+	case TCODE_WRITE_BLOCK_REQUEST:
+	case TCODE_READ_BLOCK_REQUEST :
+	case TCODE_READ_BLOCK_RESPONSE:
+	case TCODE_LOCK_REQUEST:
+	case TCODE_LOCK_RESPONSE:
+		p.header[3] = le32_to_cpu(ctx->buffer[3]);
+		p.header_length = 16;
+		break;
+
+	case TCODE_WRITE_RESPONSE:
+	case TCODE_READ_QUADLET_REQUEST:
+		p.header_length = 12;
+		break;
+	}
+
+	p.payload = (void *) ctx->buffer + p.header_length;
+	p.payload_length = length - p.header_length;
 
 	/* The OHCI bus reset handler synthesizes a phy packet with
 	 * the new generation number when a bus reset happens (see
@@ -248,15 +272,12 @@ static void ar_context_tasklet(unsigned long data)
 	 * we use the unique tlabel for finding the matching
 	 * request. */
 
-	if (ack + 16 == 0x09)
+	if (p.ack + 16 == 0x09)
 		ohci->request_generation = (ctx->buffer[2] >> 16) & 0xff;
 	else if (ctx == &ohci->ar_request_ctx)
-		fw_core_handle_request(&ohci->card, speed, ack, timestamp,
-				       ohci->request_generation,
-				       length, ctx->buffer);
+		fw_core_handle_request(&ohci->card, &p);
 	else
-		fw_core_handle_response(&ohci->card, speed, ack, timestamp,
-					length, ctx->buffer);
+		fw_core_handle_response(&ohci->card, &p);
 
 	ctx->descriptor.data_address = cpu_to_le32(ctx->buffer_bus);
 	ctx->descriptor.req_count    = cpu_to_le16(sizeof ctx->buffer);
@@ -323,15 +344,15 @@ do_packet_callbacks(struct fw_ohci *ohci, struct list_head *list)
 	struct fw_packet *p, *next;
 
 	list_for_each_entry_safe(p, next, list, link)
-		p->callback(p, &ohci->card, p->status);
+		p->callback(p, &ohci->card, p->ack);
 }
 
 static void
 complete_transmission(struct fw_packet *packet,
-		      int status, struct list_head *list)
+		      int ack, struct list_head *list)
 {
 	list_move_tail(&packet->link, list);
-	packet->status = status;
+	packet->ack = ack;
 }
 
 /* This function prepares the first packet in the context queue for
