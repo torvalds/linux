@@ -416,12 +416,8 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 	sb = file_inode->i_sb;
 	v9ses = v9fs_inode2v9ses(file_inode);
 	v9fid = v9fs_fid_lookup(file);
-
-	if (!v9fid) {
-		dprintk(DEBUG_ERROR,
-			"no v9fs_fid\n");
-		return -EBADF;
-	}
+	if(IS_ERR(v9fid))
+		return PTR_ERR(v9fid);
 
 	fid = v9fid->fid;
 	if (fid < 0) {
@@ -433,11 +429,13 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 	result = v9fs_t_remove(v9ses, fid, &fcall);
 	if (result < 0) {
 		PRINT_FCALL_ERROR("remove fails", fcall);
+		goto Error;
 	}
 
 	v9fs_put_idpool(fid, &v9ses->fidpool);
 	v9fs_fid_destroy(v9fid);
 
+Error:
 	kfree(fcall);
 	return result;
 }
@@ -473,9 +471,13 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	inode = NULL;
 	vfid = NULL;
 	v9ses = v9fs_inode2v9ses(dir);
-	dfid = v9fs_fid_lookup(dentry->d_parent);
-	perm = unixmode2p9mode(v9ses, mode);
+	dfid = v9fs_fid_clone(dentry->d_parent);
+	if(IS_ERR(dfid)) {
+		err = PTR_ERR(dfid);
+		goto error;
+	}
 
+	perm = unixmode2p9mode(v9ses, mode);
 	if (nd && nd->flags & LOOKUP_OPEN)
 		flags = nd->intent.open.flags - 1;
 	else
@@ -485,9 +487,10 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 		perm, v9fs_uflags2omode(flags), NULL, &fid, &qid, &iounit);
 
 	if (err)
-		goto error;
+		goto clunk_dfid;
 
 	vfid = v9fs_clone_walk(v9ses, dfid->fid, dentry);
+	v9fs_fid_clunk(v9ses, dfid);
 	if (IS_ERR(vfid)) {
 		err = PTR_ERR(vfid);
 		vfid = NULL;
@@ -525,6 +528,9 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	return 0;
 
+clunk_dfid:
+	v9fs_fid_clunk(v9ses, dfid);
+
 error:
 	if (vfid)
 		v9fs_fid_destroy(vfid);
@@ -551,7 +557,12 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	inode = NULL;
 	vfid = NULL;
 	v9ses = v9fs_inode2v9ses(dir);
-	dfid = v9fs_fid_lookup(dentry->d_parent);
+	dfid = v9fs_fid_clone(dentry->d_parent);
+	if(IS_ERR(dfid)) {
+		err = PTR_ERR(dfid);
+		goto error;
+	}
+
 	perm = unixmode2p9mode(v9ses, mode | S_IFDIR);
 
 	err = v9fs_create(v9ses, dfid->fid, (char *) dentry->d_name.name,
@@ -559,37 +570,36 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	if (err) {
 		dprintk(DEBUG_ERROR, "create error %d\n", err);
-		goto error;
-	}
-
-	err = v9fs_t_clunk(v9ses, fid);
-	if (err) {
-		dprintk(DEBUG_ERROR, "clunk error %d\n", err);
-		goto error;
+		goto clean_up_dfid;
 	}
 
 	vfid = v9fs_clone_walk(v9ses, dfid->fid, dentry);
 	if (IS_ERR(vfid)) {
 		err = PTR_ERR(vfid);
 		vfid = NULL;
-		goto error;
+		goto clean_up_dfid;
 	}
 
+	v9fs_fid_clunk(v9ses, dfid);
 	inode = v9fs_inode_from_fid(v9ses, vfid->fid, dir->i_sb);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		inode = NULL;
-		goto error;
+		goto clean_up_fids;
 	}
 
 	dentry->d_op = &v9fs_dentry_operations;
 	d_instantiate(dentry, inode);
 	return 0;
 
-error:
+clean_up_fids:
 	if (vfid)
 		v9fs_fid_destroy(vfid);
 
+clean_up_dfid:
+	v9fs_fid_clunk(v9ses, dfid);
+
+error:
 	return err;
 }
 
@@ -622,27 +632,22 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	dentry->d_op = &v9fs_dentry_operations;
 	dirfid = v9fs_fid_lookup(dentry->d_parent);
 
-	if (!dirfid) {
-		dprintk(DEBUG_ERROR, "no dirfid\n");
-		return ERR_PTR(-EINVAL);
-	}
+	if(IS_ERR(dirfid))
+		return ERR_PTR(PTR_ERR(dirfid));
 
 	dirfidnum = dirfid->fid;
-
-	if (dirfidnum < 0) {
-		dprintk(DEBUG_ERROR, "no dirfid for inode %p, #%lu\n",
-			dir, dir->i_ino);
-		return ERR_PTR(-EBADF);
-	}
 
 	newfid = v9fs_get_idpool(&v9ses->fidpool);
 	if (newfid < 0) {
 		eprintk(KERN_WARNING, "newfid fails!\n");
-		return ERR_PTR(-ENOSPC);
+		result = -ENOSPC;
+		goto Release_Dirfid;
 	}
 
 	result = v9fs_t_walk(v9ses, dirfidnum, newfid,
 		(char *)dentry->d_name.name, &fcall);
+
+	up(&dirfid->lock);
 
 	if (result < 0) {
 		if (fcall && fcall->id == RWALK)
@@ -701,8 +706,12 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	return NULL;
 
-      FreeFcall:
+Release_Dirfid:
+	up(&dirfid->lock);
+
+FreeFcall:
 	kfree(fcall);
+
 	return ERR_PTR(result);
 }
 
@@ -746,10 +755,8 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct inode *old_inode = old_dentry->d_inode;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(old_inode);
 	struct v9fs_fid *oldfid = v9fs_fid_lookup(old_dentry);
-	struct v9fs_fid *olddirfid =
-	    v9fs_fid_lookup(old_dentry->d_parent);
-	struct v9fs_fid *newdirfid =
-	    v9fs_fid_lookup(new_dentry->d_parent);
+	struct v9fs_fid *olddirfid;
+	struct v9fs_fid *newdirfid;
 	struct v9fs_wstat wstat;
 	struct v9fs_fcall *fcall = NULL;
 	int fid = -1;
@@ -759,16 +766,26 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	dprintk(DEBUG_VFS, "\n");
 
-	if ((!oldfid) || (!olddirfid) || (!newdirfid)) {
-		dprintk(DEBUG_ERROR, "problem with arguments\n");
-		return -EBADF;
+	if(IS_ERR(oldfid))
+		return PTR_ERR(oldfid);
+
+	olddirfid = v9fs_fid_clone(old_dentry->d_parent);
+	if(IS_ERR(olddirfid)) {
+		retval = PTR_ERR(olddirfid);
+		goto Release_lock;
+	}
+
+	newdirfid = v9fs_fid_clone(new_dentry->d_parent);
+	if(IS_ERR(newdirfid)) {
+		retval = PTR_ERR(newdirfid);
+		goto Clunk_olddir;
 	}
 
 	/* 9P can only handle file rename in the same directory */
 	if (memcmp(&olddirfid->qid, &newdirfid->qid, sizeof(newdirfid->qid))) {
 		dprintk(DEBUG_ERROR, "old dir and new dir are different\n");
 		retval = -EXDEV;
-		goto FreeFcallnBail;
+		goto Clunk_newdir;
 	}
 
 	fid = oldfid->fid;
@@ -779,7 +796,7 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		dprintk(DEBUG_ERROR, "no fid for old file #%lu\n",
 			old_inode->i_ino);
 		retval = -EBADF;
-		goto FreeFcallnBail;
+		goto Clunk_newdir;
 	}
 
 	v9fs_blank_wstat(&wstat);
@@ -788,11 +805,20 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	retval = v9fs_t_wstat(v9ses, fid, &wstat, &fcall);
 
-      FreeFcallnBail:
 	if (retval < 0)
 		PRINT_FCALL_ERROR("wstat error", fcall);
 
 	kfree(fcall);
+
+Clunk_newdir:
+	v9fs_fid_clunk(v9ses, newdirfid);
+
+Clunk_olddir:
+	v9fs_fid_clunk(v9ses, olddirfid);
+
+Release_lock:
+	up(&oldfid->lock);
+
 	return retval;
 }
 
@@ -810,15 +836,12 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 {
 	struct v9fs_fcall *fcall = NULL;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dentry->d_inode);
-	struct v9fs_fid *fid = v9fs_fid_lookup(dentry);
+	struct v9fs_fid *fid = v9fs_fid_clone(dentry);
 	int err = -EPERM;
 
 	dprintk(DEBUG_VFS, "dentry: %p\n", dentry);
-	if (!fid) {
-		dprintk(DEBUG_ERROR,
-			"couldn't find fid associated with dentry\n");
-		return -EBADF;
-	}
+	if(IS_ERR(fid))
+		return PTR_ERR(fid);
 
 	err = v9fs_t_stat(v9ses, fid->fid, &fcall);
 
@@ -831,6 +854,7 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	}
 
 	kfree(fcall);
+	v9fs_fid_clunk(v9ses, fid);
 	return err;
 }
 
@@ -844,18 +868,14 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dentry->d_inode);
-	struct v9fs_fid *fid = v9fs_fid_lookup(dentry);
+	struct v9fs_fid *fid = v9fs_fid_clone(dentry);
 	struct v9fs_fcall *fcall = NULL;
 	struct v9fs_wstat wstat;
 	int res = -EPERM;
 
 	dprintk(DEBUG_VFS, "\n");
-
-	if (!fid) {
-		dprintk(DEBUG_ERROR,
-			"Couldn't find fid associated with dentry\n");
-		return -EBADF;
-	}
+	if(IS_ERR(fid))
+		return PTR_ERR(fid);
 
 	v9fs_blank_wstat(&wstat);
 	if (iattr->ia_valid & ATTR_MODE)
@@ -887,6 +907,7 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (res >= 0)
 		res = inode_setattr(dentry->d_inode, iattr);
 
+	v9fs_fid_clunk(v9ses, fid);
 	return res;
 }
 
@@ -987,18 +1008,15 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 
 	struct v9fs_fcall *fcall = NULL;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dentry->d_inode);
-	struct v9fs_fid *fid = v9fs_fid_lookup(dentry);
+	struct v9fs_fid *fid = v9fs_fid_clone(dentry);
 
-	if (!fid) {
-		dprintk(DEBUG_ERROR, "could not resolve fid from dentry\n");
-		retval = -EBADF;
-		goto FreeFcall;
-	}
+	if(IS_ERR(fid))
+		return PTR_ERR(fid);
 
 	if (!v9ses->extended) {
 		retval = -EBADF;
 		dprintk(DEBUG_ERROR, "not extended\n");
-		goto FreeFcall;
+		goto ClunkFid;
 	}
 
 	dprintk(DEBUG_VFS, " %s\n", dentry->d_name.name);
@@ -1009,8 +1027,10 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 		goto FreeFcall;
 	}
 
-	if (!fcall)
-		return -EIO;
+	if (!fcall) {
+		retval = -EIO;
+		goto ClunkFid;
+	}
 
 	if (!(fcall->params.rstat.stat.mode & V9FS_DMSYMLINK)) {
 		retval = -EINVAL;
@@ -1028,8 +1048,11 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 		fcall->params.rstat.stat.extension.str, buffer);
 	retval = buflen;
 
-      FreeFcall:
+FreeFcall:
 	kfree(fcall);
+
+ClunkFid:
+	v9fs_fid_clunk(v9ses, fid);
 
 	return retval;
 }
@@ -1123,52 +1146,58 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
 	int err;
 	u32 fid, perm;
 	struct v9fs_session_info *v9ses;
-	struct v9fs_fid *dfid, *vfid;
-	struct inode *inode;
+	struct v9fs_fid *dfid, *vfid = NULL;
+	struct inode *inode = NULL;
 
-	inode = NULL;
-	vfid = NULL;
 	v9ses = v9fs_inode2v9ses(dir);
-	dfid = v9fs_fid_lookup(dentry->d_parent);
-	perm = unixmode2p9mode(v9ses, mode);
-
 	if (!v9ses->extended) {
 		dprintk(DEBUG_ERROR, "not extended\n");
 		return -EPERM;
 	}
 
+	dfid = v9fs_fid_clone(dentry->d_parent);
+	if(IS_ERR(dfid)) {
+		err = PTR_ERR(dfid);
+		goto error;
+	}
+
+	perm = unixmode2p9mode(v9ses, mode);
+
 	err = v9fs_create(v9ses, dfid->fid, (char *) dentry->d_name.name,
 		perm, V9FS_OREAD, (char *) extension, &fid, NULL, NULL);
 
 	if (err)
-		goto error;
+		goto clunk_dfid;
 
 	err = v9fs_t_clunk(v9ses, fid);
 	if (err)
-		goto error;
+		goto clunk_dfid;
 
 	vfid = v9fs_clone_walk(v9ses, dfid->fid, dentry);
 	if (IS_ERR(vfid)) {
 		err = PTR_ERR(vfid);
 		vfid = NULL;
-		goto error;
+		goto clunk_dfid;
 	}
 
 	inode = v9fs_inode_from_fid(v9ses, vfid->fid, dir->i_sb);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		inode = NULL;
-		goto error;
+		goto free_vfid;
 	}
 
 	dentry->d_op = &v9fs_dentry_operations;
 	d_instantiate(dentry, inode);
 	return 0;
 
-error:
-	if (vfid)
-		v9fs_fid_destroy(vfid);
+free_vfid:
+	v9fs_fid_destroy(vfid);
 
+clunk_dfid:
+	v9fs_fid_clunk(v9ses, dfid);
+
+error:
 	return err;
 
 }
@@ -1209,26 +1238,29 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 	      struct dentry *dentry)
 {
 	int retval;
+	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
 	struct v9fs_fid *oldfid;
 	char *name;
 
 	dprintk(DEBUG_VFS, " %lu,%s,%s\n", dir->i_ino, dentry->d_name.name,
 		old_dentry->d_name.name);
 
-	oldfid = v9fs_fid_lookup(old_dentry);
-	if (!oldfid) {
-		dprintk(DEBUG_ERROR, "can't find oldfid\n");
-		return -EPERM;
-	}
+	oldfid = v9fs_fid_clone(old_dentry);
+	if(IS_ERR(oldfid))
+		return PTR_ERR(oldfid);
 
 	name = __getname();
-	if (unlikely(!name))
-		return -ENOMEM;
+	if (unlikely(!name)) {
+		retval = -ENOMEM;
+		goto clunk_fid;
+	}
 
 	sprintf(name, "%d\n", oldfid->fid);
 	retval = v9fs_vfs_mkspecial(dir, dentry, V9FS_DMLINK, name);
 	__putname(name);
 
+clunk_fid:
+	v9fs_fid_clunk(v9ses, oldfid);
 	return retval;
 }
 
