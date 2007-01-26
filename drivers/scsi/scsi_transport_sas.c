@@ -1299,7 +1299,7 @@ EXPORT_SYMBOL(sas_rphy_add);
  * Note:
  *   This function must only be called on a remote
  *   PHY that has not sucessfully been added using
- *   sas_rphy_add().
+ *   sas_rphy_add() (or has been sas_rphy_remove()'d)
  */
 void sas_rphy_free(struct sas_rphy *rphy)
 {
@@ -1318,18 +1318,30 @@ void sas_rphy_free(struct sas_rphy *rphy)
 EXPORT_SYMBOL(sas_rphy_free);
 
 /**
- * sas_rphy_delete  --  remove SAS remote PHY
- * @rphy:	SAS remote PHY to remove
+ * sas_rphy_delete  --  remove and free SAS remote PHY
+ * @rphy:	SAS remote PHY to remove and free
  *
- * Removes the specified SAS remote PHY.
+ * Removes the specified SAS remote PHY and frees it.
  */
 void
 sas_rphy_delete(struct sas_rphy *rphy)
 {
+	sas_rphy_remove(rphy);
+	sas_rphy_free(rphy);
+}
+EXPORT_SYMBOL(sas_rphy_delete);
+
+/**
+ * sas_rphy_remove  --  remove SAS remote PHY
+ * @rphy:	SAS remote phy to remove
+ *
+ * Removes the specified SAS remote PHY.
+ */
+void
+sas_rphy_remove(struct sas_rphy *rphy)
+{
 	struct device *dev = &rphy->dev;
 	struct sas_port *parent = dev_to_sas_port(dev->parent);
-	struct Scsi_Host *shost = dev_to_shost(parent->dev.parent);
-	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 
 	switch (rphy->identify.device_type) {
 	case SAS_END_DEVICE:
@@ -1345,17 +1357,10 @@ sas_rphy_delete(struct sas_rphy *rphy)
 
 	transport_remove_device(dev);
 	device_del(dev);
-	transport_destroy_device(dev);
-
-	mutex_lock(&sas_host->lock);
-	list_del(&rphy->list);
-	mutex_unlock(&sas_host->lock);
 
 	parent->rphy = NULL;
-
-	put_device(dev);
 }
-EXPORT_SYMBOL(sas_rphy_delete);
+EXPORT_SYMBOL(sas_rphy_remove);
 
 /**
  * scsi_is_sas_rphy  --  check if a struct device represents a SAS remote PHY
