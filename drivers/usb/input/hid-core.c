@@ -485,7 +485,7 @@ static int hid_get_class_descriptor(struct usb_device *dev, int ifnum,
 {
 	int result, retries = 4;
 
-	memset(buf,0,size);	// Make sure we parse really received data
+	memset(buf, 0, size);
 
 	do {
 		result = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
