@@ -293,6 +293,18 @@ static struct platform_device osk5912_kp_device = {
 	.resource	= osk5912_kp_resources,
 };
 
+static struct omap_backlight_config mistral_bl_data = {
+	.default_intensity	= 0xa0,
+};
+
+static struct platform_device mistral_bl_device = {
+	.name		= "omap-bl",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &mistral_bl_data,
+	},
+};
+
 static struct platform_device osk5912_lcd_device = {
 	.name		= "lcd_osk",
 	.id		= -1,
@@ -300,6 +312,7 @@ static struct platform_device osk5912_lcd_device = {
 
 static struct platform_device *mistral_devices[] __initdata = {
 	&osk5912_kp_device,
+	&mistral_bl_device,
 	&osk5912_lcd_device,
 };
 
@@ -404,6 +417,15 @@ static void __init osk_mistral_init(void)
 #endif
 	} else
 		printk(KERN_ERR "OSK+Mistral: wakeup button is awol\n");
+
+	/* LCD:  backlight, and power; power controls other devices on the
+	 * board, like the touchscreen, EEPROM, and wakeup (!) switch.
+	 */
+	omap_cfg_reg(PWL);
+	if (omap_request_gpio(2) == 0) {
+		omap_set_gpio_direction(2, 0 /* out */);
+		omap_set_gpio_dataout(2, 1 /* on */);
+	}
 
 	platform_add_devices(mistral_devices, ARRAY_SIZE(mistral_devices));
 }
