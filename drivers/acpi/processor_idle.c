@@ -1090,7 +1090,7 @@ static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 		seq_printf(seq, "latency[%03d] usage[%08d] duration[%020llu]\n",
 			   pr->power.states[i].latency,
 			   pr->power.states[i].usage,
-			   pr->power.states[i].time);
+			   (unsigned long long)pr->power.states[i].time);
 	}
 
       end:

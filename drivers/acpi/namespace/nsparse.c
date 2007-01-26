@@ -124,7 +124,7 @@ acpi_ns_one_complete_parse(acpi_native_uint pass_number,
 	/* Parse the AML */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "*PARSE* pass %d parse\n",
-			  pass_number));
+			  (unsigned)pass_number));
 	status = acpi_ps_parse_aml(walk_state);
 
 	acpi_ps_delete_parse_tree(parse_root);
