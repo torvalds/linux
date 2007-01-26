@@ -625,8 +625,19 @@ static void sas_port_release(struct device *dev)
 static void sas_port_create_link(struct sas_port *port,
 				 struct sas_phy *phy)
 {
-	sysfs_create_link(&port->dev.kobj, &phy->dev.kobj, phy->dev.bus_id);
-	sysfs_create_link(&phy->dev.kobj, &port->dev.kobj, "port");
+	int res;
+
+	res = sysfs_create_link(&port->dev.kobj, &phy->dev.kobj,
+				phy->dev.bus_id);
+	if (res)
+		goto err;
+	res = sysfs_create_link(&phy->dev.kobj, &port->dev.kobj, "port");
+	if (res)
+		goto err;
+	return;
+err:
+	printk(KERN_ERR "%s: Cannot create port links, err=%d\n",
+	       __FUNCTION__, res);
 }
 
 static void sas_port_delete_link(struct sas_port *port,
@@ -864,13 +875,20 @@ EXPORT_SYMBOL(sas_port_delete_phy);
 
 void sas_port_mark_backlink(struct sas_port *port)
 {
+	int res;
 	struct device *parent = port->dev.parent->parent->parent;
 
 	if (port->is_backlink)
 		return;
 	port->is_backlink = 1;
-	sysfs_create_link(&port->dev.kobj, &parent->kobj,
-			  parent->bus_id);
+	res = sysfs_create_link(&port->dev.kobj, &parent->kobj,
+				parent->bus_id);
+	if (res)
+		goto err;
+	return;
+err:
+	printk(KERN_ERR "%s: Cannot create port backlink, err=%d\n",
+	       __FUNCTION__, res);
 
 }
 EXPORT_SYMBOL(sas_port_mark_backlink);
