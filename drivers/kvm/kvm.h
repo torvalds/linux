@@ -242,6 +242,7 @@ struct kvm_vcpu {
 	u64 pdptrs[4]; /* pae */
 	u64 shadow_efer;
 	u64 apic_base;
+	u64 ia32_misc_enable_msr;
 	int nmsrs;
 	struct vmx_msr_entry *guest_msrs;
 	struct vmx_msr_entry *host_msrs;
