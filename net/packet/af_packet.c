@@ -359,6 +359,10 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	if (dev == NULL)
 		goto out_unlock;
 	
+	err = -ENETDOWN;
+	if (!(dev->flags & IFF_UP))
+		goto out_unlock;
+
 	/*
 	 *	You may not queue a frame bigger than the mtu. This is the lowest level
 	 *	raw protocol and you must do your own fragmentation at this level.
@@ -405,10 +409,6 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
 	if (err)
-		goto out_free;
-
-	err = -ENETDOWN;
-	if (!(dev->flags & IFF_UP))
 		goto out_free;
 
 	/*
@@ -738,6 +738,10 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (sock->type == SOCK_RAW)
 		reserve = dev->hard_header_len;
 
+	err = -ENETDOWN;
+	if (!(dev->flags & IFF_UP))
+		goto out_unlock;
+
 	err = -EMSGSIZE;
 	if (len > dev->mtu+reserve)
 		goto out_unlock;
@@ -769,10 +773,6 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb->protocol = proto;
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
-
-	err = -ENETDOWN;
-	if (!(dev->flags & IFF_UP))
-		goto out_free;
 
 	/*
 	 *	Now send it
