@@ -48,7 +48,7 @@
 
 #define header_get_tcode(q)		(((q) >> 4) & 0x0f)
 #define header_get_tlabel(q)		(((q) >> 10) & 0x3f)
-#define header_get_rcode(q)		(((q) >> 4) & 0x0f)
+#define header_get_rcode(q)		(((q) >> 12) & 0x0f)
 #define header_get_destination(q)	(((q) >> 16) & 0xffff)
 #define header_get_source(q)		(((q) >> 16) & 0xffff)
 #define header_get_offset_high(q)	(((q) >> 0) & 0xffff)
