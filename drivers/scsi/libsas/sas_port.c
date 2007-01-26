@@ -46,7 +46,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 
 	if (port) {
 		if (memcmp(port->attached_sas_addr, phy->attached_sas_addr,
-			   SAS_ADDR_SIZE) == 0)
+			   SAS_ADDR_SIZE) != 0)
 			sas_deform_port(phy);
 		else {
 			SAS_DPRINTK("%s: phy%d belongs to port%d already(%d)!\n",
