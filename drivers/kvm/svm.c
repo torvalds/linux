@@ -680,14 +680,14 @@ static void svm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
 
 static void svm_get_idt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
 {
-	dt->limit = vcpu->svm->vmcb->save.ldtr.limit;
-	dt->base = vcpu->svm->vmcb->save.ldtr.base;
+	dt->limit = vcpu->svm->vmcb->save.idtr.limit;
+	dt->base = vcpu->svm->vmcb->save.idtr.base;
 }
 
 static void svm_set_idt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
 {
-	vcpu->svm->vmcb->save.ldtr.limit = dt->limit;
-	vcpu->svm->vmcb->save.ldtr.base = dt->base ;
+	vcpu->svm->vmcb->save.idtr.limit = dt->limit;
+	vcpu->svm->vmcb->save.idtr.base = dt->base ;
 }
 
 static void svm_get_gdt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
