@@ -502,6 +502,7 @@ static void init_vmcb(struct vmcb *vmcb)
 				(1ULL << INTERCEPT_IOIO_PROT) |
 				(1ULL << INTERCEPT_MSR_PROT) |
 				(1ULL << INTERCEPT_TASK_SWITCH) |
+				(1ULL << INTERCEPT_SHUTDOWN) |
 				(1ULL << INTERCEPT_VMRUN) |
 				(1ULL << INTERCEPT_VMMCALL) |
 				(1ULL << INTERCEPT_VMLOAD) |
@@ -892,6 +893,19 @@ static int pf_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 0;
 }
 
+static int shutdown_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	/*
+	 * VMCB is undefined after a SHUTDOWN intercept
+	 * so reinitialize it.
+	 */
+	memset(vcpu->svm->vmcb, 0, PAGE_SIZE);
+	init_vmcb(vcpu->svm->vmcb);
+
+	kvm_run->exit_reason = KVM_EXIT_SHUTDOWN;
+	return 0;
+}
+
 static int io_get_override(struct kvm_vcpu *vcpu,
 			  struct vmcb_seg **seg,
 			  int *addr_override)
@@ -1249,6 +1263,7 @@ static int (*svm_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[SVM_EXIT_IOIO] 		  	= io_interception,
 	[SVM_EXIT_MSR]				= msr_interception,
 	[SVM_EXIT_TASK_SWITCH]			= task_switch_interception,
+	[SVM_EXIT_SHUTDOWN]			= shutdown_interception,
 	[SVM_EXIT_VMRUN]			= invalid_op_interception,
 	[SVM_EXIT_VMMCALL]			= invalid_op_interception,
 	[SVM_EXIT_VMLOAD]			= invalid_op_interception,

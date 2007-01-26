@@ -46,6 +46,7 @@ enum kvm_exit_reason {
 	KVM_EXIT_HLT              = 5,
 	KVM_EXIT_MMIO             = 6,
 	KVM_EXIT_IRQ_WINDOW_OPEN  = 7,
+	KVM_EXIT_SHUTDOWN         = 8,
 };
 
 /* for KVM_RUN */
