@@ -759,6 +759,7 @@ extern void ata_port_queue_task(struct ata_port *ap, work_func_t fn,
 extern u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
 			     unsigned long interval_msec,
 			     unsigned long timeout_msec);
+extern unsigned int ata_dev_try_classify(struct ata_port *, unsigned int, u8 *);
 
 /*
  * Default driver ops implementations
