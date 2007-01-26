@@ -148,6 +148,16 @@ show_maxchild(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR(maxchild, S_IRUGO, show_maxchild, NULL);
 
+static ssize_t
+show_quirks(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+
+	udev = to_usb_device(dev);
+	return sprintf(buf, "0x%x\n", udev->quirks);
+}
+static DEVICE_ATTR(quirks, S_IRUGO, show_quirks, NULL);
+
 /* Descriptor fields */
 #define usb_descriptor_attr_le16(field, format_string)			\
 static ssize_t								\
@@ -204,6 +214,7 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_devnum.attr,
 	&dev_attr_version.attr,
 	&dev_attr_maxchild.attr,
+	&dev_attr_quirks.attr,
 	NULL,
 };
 static struct attribute_group dev_attr_grp = {

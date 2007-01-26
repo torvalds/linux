@@ -13,6 +13,7 @@ extern void usb_disable_interface (struct usb_device *dev,
 		struct usb_interface *intf);
 extern void usb_release_interface_cache(struct kref *ref);
 extern void usb_disable_device (struct usb_device *dev, int skip_ep0);
+extern void usb_detect_quirks(struct usb_device *udev);
 
 extern int usb_get_device_descriptor(struct usb_device *dev,
 		unsigned int size);

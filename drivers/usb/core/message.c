@@ -11,6 +11,7 @@
 #include <linux/timer.h>
 #include <linux/ctype.h>
 #include <linux/device.h>
+#include <linux/usb/quirks.h>
 #include <asm/byteorder.h>
 #include <asm/scatterlist.h>
 
@@ -685,7 +686,10 @@ static int usb_string_sub(struct usb_device *dev, unsigned int langid,
 
 	/* Try to read the string descriptor by asking for the maximum
 	 * possible number of bytes */
-	rc = usb_get_string(dev, langid, index, buf, 255);
+	if (dev->quirks & USB_QUIRK_STRING_FETCH_255)
+		rc = -EIO;
+	else
+		rc = usb_get_string(dev, langid, index, buf, 255);
 
 	/* If that failed try to read the descriptor length, then
 	 * ask for just that many bytes */

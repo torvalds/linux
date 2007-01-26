@@ -388,6 +388,7 @@ struct usb_device {
 	struct usb_device *children[USB_MAXCHILDREN];
 
 	int pm_usage_cnt;		/* usage counter for autosuspend */
+	u32 quirks;			/* quirks of the whole device */
 #ifdef CONFIG_PM
 	struct delayed_work autosuspend; /* for delayed autosuspends */
 	struct mutex pm_mutex;		/* protects PM operations */

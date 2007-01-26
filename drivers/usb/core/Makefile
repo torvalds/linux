@@ -4,7 +4,7 @@
 
 usbcore-objs	:= usb.o hub.o hcd.o urb.o message.o driver.o \
 			config.o file.o buffer.o sysfs.o endpoint.o \
-			devio.o notify.o generic.o
+			devio.o notify.o generic.o quirks.o
 
 ifeq ($(CONFIG_PCI),y)
 	usbcore-objs	+= hcd-pci.o
