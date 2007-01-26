@@ -723,6 +723,8 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 		scsi_deactivate_tcq(scsi_dev, 1);
 	}
 
+	scsi_dev->allow_restart = 1;
+
 	return 0;
 }
 
