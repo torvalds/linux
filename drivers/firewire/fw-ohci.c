@@ -121,6 +121,7 @@ struct fw_ohci {
 	dma_addr_t self_id_bus;
 	__le32 *self_id_cpu;
 	struct tasklet_struct bus_reset_tasklet;
+	int node_id;
 	int generation;
 	int request_generation;
 
@@ -538,29 +539,45 @@ at_context_init(struct at_context *ctx, struct fw_ohci *ohci, u32 control_set)
 	return 0;
 }
 
+#define header_get_destination(q)	(((q) >> 16) & 0xffff)
+
 static void
 at_context_transmit(struct at_context *ctx, struct fw_packet *packet)
 {
 	LIST_HEAD(list);
 	unsigned long flags;
-	int was_empty;
+	int local;
 
 	spin_lock_irqsave(&ctx->ohci->lock, flags);
 
-	was_empty = list_empty(&ctx->list);
-	list_add_tail(&packet->link, &ctx->list);
-	if (was_empty)
-		at_context_setup_packet(ctx, &list);
+	if (header_get_destination(packet->header[0]) == ctx->ohci->node_id &&
+	    ctx->ohci->generation == packet->generation) {
+		local = 1;
+	} else {
+		list_add_tail(&packet->link, &ctx->list);
+		if (ctx->list.next == &packet->link)
+			at_context_setup_packet(ctx, &list);
+		local = 0;
+	}
 
 	spin_unlock_irqrestore(&ctx->ohci->lock, flags);
 
 	do_packet_callbacks(ctx->ohci, &list);
+
+	if (local) {
+		packet->ack = ACK_PENDING;
+		packet->callback(packet, &ctx->ohci->card, packet->ack);
+		if (ctx == &ctx->ohci->at_request_ctx)
+			fw_core_handle_request(&ctx->ohci->card, packet);
+		else
+			fw_core_handle_response(&ctx->ohci->card, packet);
+	}
 }
 
 static void bus_reset_tasklet(unsigned long data)
 {
 	struct fw_ohci *ohci = (struct fw_ohci *)data;
-	int self_id_count, i, j, reg, node_id;
+	int self_id_count, i, j, reg;
 	int generation, new_generation;
 	unsigned long flags;
 
@@ -569,7 +586,7 @@ static void bus_reset_tasklet(unsigned long data)
 		fw_error("node ID not valid, new bus reset in progress\n");
 		return;
 	}
-	node_id = reg & 0xffff;
+	ohci->node_id = reg & 0xffff;
 
 	/* The count in the SelfIDCount register is the number of
 	 * bytes in the self ID receive buffer.  Since we also receive
@@ -638,7 +655,7 @@ static void bus_reset_tasklet(unsigned long data)
 
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
-	fw_core_handle_bus_reset(&ohci->card, node_id, generation,
+	fw_core_handle_bus_reset(&ohci->card, ohci->node_id, generation,
 				 self_id_count, ohci->self_id_buffer);
 }
 

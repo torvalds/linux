@@ -532,11 +532,6 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 {
 	struct fw_device *device;
 
-	/* Ignore events for the local node (i.e. the node that
-	 * corresponds to the ieee1394 controller in this linux box). */
-	if (node == card->local_node)
-		return;
-
 	switch (event) {
 	case FW_NODE_CREATED:
 	case FW_NODE_LINK_ON:
