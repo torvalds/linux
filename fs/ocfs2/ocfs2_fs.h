@@ -587,7 +587,7 @@ static inline u64 ocfs2_backup_super_blkno(struct super_block *sb, int index)
 
 	if (index >= 0 && index < OCFS2_MAX_BACKUP_SUPERBLOCKS) {
 		offset <<= (2 * index);
-		offset /= sb->s_blocksize;
+		offset >>= sb->s_blocksize_bits;
 		return offset;
 	}
 
