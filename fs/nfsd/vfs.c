@@ -822,7 +822,8 @@ nfsd_read_actor(read_descriptor_t *desc, struct page *page, unsigned long offset
 		rqstp->rq_res.page_len = size;
 	} else if (page != pp[-1]) {
 		get_page(page);
-		put_page(*pp);
+		if (*pp)
+			put_page(*pp);
 		*pp = page;
 		rqstp->rq_resused++;
 		rqstp->rq_res.page_len += size;

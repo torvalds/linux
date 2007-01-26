@@ -1278,6 +1278,8 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 				schedule_timeout_uninterruptible(msecs_to_jiffies(500));
 			rqstp->rq_pages[i] = p;
 		}
+	rqstp->rq_pages[i++] = NULL; /* this might be seen in nfs_read_actor */
+	BUG_ON(pages >= RPCSVC_MAXPAGES);
 
 	/* Make arg->head point to first page and arg->pages point to rest */
 	arg = &rqstp->rq_arg;
