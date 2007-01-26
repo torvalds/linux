@@ -158,7 +158,7 @@ static int __init mpc8360_declare_of_platform_devices(void)
 }
 device_initcall(mpc8360_declare_of_platform_devices);
 
-void __init mpc8360_sys_init_IRQ(void)
+static void __init mpc8360_sys_init_IRQ(void)
 {
 
 	struct device_node *np;
