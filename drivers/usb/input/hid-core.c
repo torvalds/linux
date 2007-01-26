@@ -221,23 +221,6 @@ static void hid_irq_in(struct urb *urb)
 	}
 }
 
-/*
- * Find a report field with a specified HID usage.
- */
-#if 0
-struct hid_field *hid_find_field_by_usage(struct hid_device *hid, __u32 wanted_usage, int type)
-{
-	struct hid_report *report;
-	int i;
-
-	list_for_each_entry(report, &hid->report_enum[type].report_list, list)
-		for (i = 0; i < report->maxfield; i++)
-			if (report->field[i]->logical == wanted_usage)
-				return report->field[i];
-	return NULL;
-}
-#endif  /*  0  */
-
 static int hid_submit_out(struct hid_device *hid)
 {
 	struct hid_report *report;
