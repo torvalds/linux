@@ -40,6 +40,8 @@
 #include <linux/types.h>
 #include <linux/err.h>
 #include <linux/proc_fs.h>
+#include <linux/backlight.h>
+#include <linux/fb.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <acpi/acpi_drivers.h>
@@ -54,6 +56,14 @@
 #define ASUS_HOTK_HID           "ATK0100"
 #define ASUS_HOTK_FILE          "asus-laptop"
 #define ASUS_HOTK_PREFIX        "\\_SB.ATKD."
+
+/*
+ * Some events we use, same for all Asus
+ */
+#define ATKD_BR_UP       0x10
+#define ATKD_BR_DOWN     0x20
+#define ATKD_LCD_ON      0x33
+#define ATKD_LCD_OFF     0x34
 
 /*
  * Known bits returned by \_SB.ATKD.HWRS
@@ -71,6 +81,7 @@
 #define TLED_ON     0x08	//touchpad LED
 #define RLED_ON     0x10        //Record LED
 #define PLED_ON     0x20        //Phone LED
+#define LCD_ON      0x40        //LCD backlight
 
 #define ASUS_LOG    ASUS_HOTK_FILE ": "
 #define ASUS_ERR    KERN_ERR    ASUS_LOG
@@ -100,6 +111,19 @@ ASUS_HANDLE(pled_set, ASUS_HOTK_PREFIX "PLED"); /* A7J */
 ASUS_HANDLE(wl_switch, ASUS_HOTK_PREFIX "WLED");
 ASUS_HANDLE(bt_switch, ASUS_HOTK_PREFIX "BLED");
 ASUS_HANDLE(wireless_status, ASUS_HOTK_PREFIX "RSTS"); /* All new models */
+
+/* Brightness */
+ASUS_HANDLE(brightness_set, ASUS_HOTK_PREFIX "SPLV");
+ASUS_HANDLE(brightness_get, ASUS_HOTK_PREFIX "GPLV");
+
+/* Backlight */
+ASUS_HANDLE(lcd_switch, "\\_SB.PCI0.SBRG.EC0._Q10", /* All new models */
+	    "\\_SB.PCI0.ISA.EC0._Q10", /* A1x */
+	    "\\_SB.PCI0.PX40.ECD0._Q10", /* L3C */
+	    "\\_SB.PCI0.PX40.EC0.Q10", /* M1A */
+	    "\\_SB.PCI0.LPCB.EC0._Q10", /* P30 */
+	    "\\_SB.PCI0.PX40.Q10", /* S1x */
+	    "\\Q10");  /* A2x, L2D, L3D, M2E */
 
 /*
  * This is the main structure, we can use it to store anything interesting
@@ -136,6 +160,21 @@ static struct acpi_driver asus_hotk_driver = {
 		.add = asus_hotk_add,
 		.remove = asus_hotk_remove,
 		},
+};
+
+/* The backlight device /sys/class/backlight */
+static struct backlight_device *asus_backlight_device;
+
+/*
+ * The backlight class declaration
+ */
+static int read_brightness(struct backlight_device *bd);
+static int update_bl_status(struct backlight_device *bd);
+static struct backlight_properties asusbl_data = {
+	       .owner          = THIS_MODULE,
+	       .get_brightness = read_brightness,
+	       .update_status  = update_bl_status,
+	       .max_brightness = 15,
 };
 
 /* These functions actually update the LED's, and are called from a
@@ -252,6 +291,86 @@ ASUS_LED_HANDLER(mled, MLED_ON, 1);
 ASUS_LED_HANDLER(pled, PLED_ON, 0);
 ASUS_LED_HANDLER(rled, RLED_ON, 0);
 ASUS_LED_HANDLER(tled, TLED_ON, 0);
+
+static int get_lcd_state(void)
+{
+	return read_status(LCD_ON);
+}
+
+static int set_lcd_state(int value)
+{
+	int lcd = 0;
+	acpi_status status = 0;
+
+	lcd = value ? 1 : 0;
+
+	if (lcd == get_lcd_state())
+		return 0;
+
+	if(lcd_switch_handle) {
+		status = acpi_evaluate_object(lcd_switch_handle,
+					      NULL, NULL, NULL);
+
+		if (ACPI_FAILURE(status))
+			printk(ASUS_WARNING "Error switching LCD\n");
+	}
+
+	write_status(NULL, lcd, LCD_ON, 0);
+	return 0;
+}
+
+static void lcd_blank(int blank)
+{
+	struct backlight_device *bd = asus_backlight_device;
+
+	if(bd) {
+		down(&bd->sem);
+		if(likely(bd->props)) {
+			bd->props->power = blank;
+			if(likely(bd->props->update_status))
+			   bd->props->update_status(bd);
+		}
+		up(&bd->sem);
+	}
+}
+
+static int read_brightness(struct backlight_device *bd)
+{
+	int value;
+
+	if (!read_acpi_int(brightness_get_handle, NULL, &value, NULL))
+		printk(ASUS_WARNING "Error reading brightness\n");
+
+	return value;
+}
+
+static int set_brightness(struct backlight_device *bd, int value)
+{
+	int ret = 0;
+
+	value = (0 < value) ? ((15 < value) ? 15 : value) : 0;
+	/* 0 <= value <= 15 */
+
+	if (!write_acpi_int(brightness_set_handle, NULL, value, NULL)) {
+		printk(ASUS_WARNING "Error changing brightness\n");
+		ret = -EIO;
+	}
+
+	return ret;
+}
+
+static int update_bl_status(struct backlight_device *bd)
+{
+	int rv;
+	int value = bd->props->brightness;
+
+	rv = set_brightness(bd, value);
+	if(rv)
+		return rv;
+
+	value = (bd->props->power == FB_BLANK_UNBLANK) ? 1 : 0;
+	return set_lcd_state(value);
+}
 
 /*
  * Platform device handlers
@@ -377,6 +496,18 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 	/* TODO Find a better way to handle events count. */
 	if (!hotk)
 		return;
+
+	/*
+	 * We need to tell the backlight device when the backlight power is
+	 * switched
+	 */
+	if (event == ATKD_LCD_ON) {
+		write_status(NULL, 1, LCD_ON, 0);
+		lcd_blank(FB_BLANK_UNBLANK);
+	} else if(event == ATKD_LCD_OFF) {
+		write_status(NULL, 0, LCD_ON, 0);
+		lcd_blank(FB_BLANK_POWERDOWN);
+	}
 
 	acpi_bus_generate_event(hotk->device, event,
 				hotk->event_count[event % 128]++);
@@ -547,6 +678,11 @@ static int asus_hotk_get_info(void)
 
 	ASUS_HANDLE_INIT(wireless_status);
 
+	ASUS_HANDLE_INIT(brightness_set);
+	ASUS_HANDLE_INIT(brightness_get);
+
+	ASUS_HANDLE_INIT(lcd_switch);
+
 	kfree(model);
 
 	return AE_OK;
@@ -611,9 +747,12 @@ static int asus_hotk_add(struct acpi_device *device)
 
 	asus_hotk_found = 1;
 
-	/* WLED and BLED are on by  default */
+	/* WLED and BLED are on by default */
 	write_status(bt_switch_handle, 1, BT_ON, 0);
 	write_status(wl_switch_handle, 1, WL_ON, 0);
+
+	/* LCD Backlight is on by default */
+	write_status(NULL, 1, LCD_ON, 0);
 
       end:
 	if (result) {
@@ -642,6 +781,12 @@ static int asus_hotk_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
+static void asus_backlight_exit(void)
+{
+	if(asus_backlight_device)
+		backlight_device_unregister(asus_backlight_device);
+}
+
 #define  ASUS_LED_UNREGISTER(object)				\
 	if(object##_led.class_dev				\
 	   && !IS_ERR(object##_led.class_dev))			\
@@ -659,6 +804,7 @@ static void asus_led_exit(void)
 
 static void __exit asus_laptop_exit(void)
 {
+	asus_backlight_exit();
 	asus_led_exit();
 
 	acpi_bus_unregister_driver(&asus_hotk_driver);
@@ -667,6 +813,34 @@ static void __exit asus_laptop_exit(void)
         platform_driver_unregister(&asuspf_driver);
 
 	kfree(asus_info);
+}
+
+static int asus_backlight_init(struct device * dev)
+{
+	struct backlight_device *bd;
+
+	if(brightness_set_handle && lcd_switch_handle) {
+		bd = backlight_device_register (ASUS_HOTK_FILE, dev,
+						NULL, &asusbl_data);
+		if (IS_ERR (bd)) {
+			printk(ASUS_ERR
+			       "Could not register asus backlight device\n");
+			asus_backlight_device = NULL;
+			return PTR_ERR(bd);
+		}
+
+		asus_backlight_device = bd;
+
+		down(&bd->sem);
+		if(likely(bd->props)) {
+			bd->props->brightness = read_brightness(NULL);
+			bd->props->power = FB_BLANK_UNBLANK;
+			if(likely(bd->props->update_status))
+			   bd->props->update_status(bd);
+		}
+		up(&bd->sem);
+	}
+	return 0;
 }
 
 static int asus_led_register(acpi_handle handle,
@@ -739,6 +913,10 @@ static int __init asus_laptop_init(void)
 
 	dev = acpi_get_physical_device(hotk->device->handle);
 
+	result = asus_backlight_init(dev);
+	if(result)
+		goto fail_backlight;
+
 	result = asus_led_init(dev);
 	if(result)
 		goto fail_led;
@@ -778,6 +956,9 @@ fail_platform_driver:
 	asus_led_exit();
 
 fail_led:
+	asus_backlight_exit();
+
+fail_backlight:
 
 	return result;
 }
