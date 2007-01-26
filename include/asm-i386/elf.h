@@ -168,50 +168,6 @@ do if (vdso_enabled) {						\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_COMPAT_BASE);	\
 } while (0)
 
-/*
- * These macros parameterize elf_core_dump in fs/binfmt_elf.c to write out
- * extra segments containing the vsyscall DSO contents.  Dumping its
- * contents makes post-mortem fully interpretable later without matching up
- * the same kernel and hardware config to see what PC values meant.
- * Dumping its extra ELF program headers includes all the other information
- * a debugger needs to easily find how the vsyscall DSO was being used.
- */
-#define ELF_CORE_EXTRA_PHDRS		(VDSO_HIGH_EHDR->e_phnum)
-#define ELF_CORE_WRITE_EXTRA_PHDRS					      \
-do {									      \
-	const struct elf_phdr *const vsyscall_phdrs =			      \
-		(const struct elf_phdr *) (VDSO_HIGH_BASE		      \
-					   + VDSO_HIGH_EHDR->e_phoff);    \
-	int i;								      \
-	Elf32_Off ofs = 0;						      \
-	for (i = 0; i < VDSO_HIGH_EHDR->e_phnum; ++i) {		      \
-		struct elf_phdr phdr = vsyscall_phdrs[i];		      \
-		if (phdr.p_type == PT_LOAD) {				      \
-			BUG_ON(ofs != 0);				      \
-			ofs = phdr.p_offset = offset;			      \
-			phdr.p_memsz = PAGE_ALIGN(phdr.p_memsz);	      \
-			phdr.p_filesz = phdr.p_memsz;			      \
-			offset += phdr.p_filesz;			      \
-		}							      \
-		else							      \
-			phdr.p_offset += ofs;				      \
-		phdr.p_paddr = 0; /* match other core phdrs */		      \
-		DUMP_WRITE(&phdr, sizeof(phdr));			      \
-	}								      \
-} while (0)
-#define ELF_CORE_WRITE_EXTRA_DATA					      \
-do {									      \
-	const struct elf_phdr *const vsyscall_phdrs =			      \
-		(const struct elf_phdr *) (VDSO_HIGH_BASE		      \
-					   + VDSO_HIGH_EHDR->e_phoff);    \
-	int i;								      \
-	for (i = 0; i < VDSO_HIGH_EHDR->e_phnum; ++i) {		      \
-		if (vsyscall_phdrs[i].p_type == PT_LOAD)		      \
-			DUMP_WRITE((void *) vsyscall_phdrs[i].p_vaddr,	      \
-				   PAGE_ALIGN(vsyscall_phdrs[i].p_memsz));    \
-	}								      \
-} while (0)
-
 #endif
 
 #endif
