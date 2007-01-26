@@ -1145,15 +1145,22 @@ struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
 	init_timer(&dn_db->timer);
 
 	dn_db->uptime = jiffies;
+
+	dn_db->neigh_parms = neigh_parms_alloc(dev, &dn_neigh_table);
+	if (!dn_db->neigh_parms) {
+		dev->dn_ptr = NULL;
+		kfree(dn_db);
+		return NULL;
+	}
+
 	if (dn_db->parms.up) {
 		if (dn_db->parms.up(dev) < 0) {
+			neigh_parms_release(&dn_neigh_table, dn_db->neigh_parms);
 			dev->dn_ptr = NULL;
 			kfree(dn_db);
 			return NULL;
 		}
 	}
-
-	dn_db->neigh_parms = neigh_parms_alloc(dev, &dn_neigh_table);
 
 	dn_dev_sysctl_register(dev, &dn_db->parms);
 
