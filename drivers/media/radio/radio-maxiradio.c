@@ -45,10 +45,18 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 
-#define DRIVER_VERSION	"0.76"
+#define DRIVER_VERSION	"0.77"
 
 #include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
-#define RADIO_VERSION KERNEL_VERSION(0,7,6)
+#define RADIO_VERSION KERNEL_VERSION(0,7,7)
+
+static struct video_device maxiradio_radio;
+
+#define dprintk(num, fmt, arg...)                                          \
+	do {                                                               \
+		if (maxiradio_radio.debug >= num)                          \
+			printk(KERN_DEBUG "%s: " fmt,                      \
+				maxiradio_radio.name, ## arg); } while (0)
 
 static struct v4l2_queryctrl radio_qctrl[] = {
 	{
@@ -83,8 +91,9 @@ module_param(radio_nr, int, 0);
 #define FREQ_IF         171200 /* 10.7*16000   */
 #define FREQ_STEP       200    /* 12.5*16      */
 
-#define FREQ2BITS(x)	((( (unsigned int)(x)+FREQ_IF+(FREQ_STEP<<1))\
-			/(FREQ_STEP<<2))<<2) /* (x==fmhz*16*1000) -> bits */
+/* (x==fmhz*16*1000) -> bits */
+#define FREQ2BITS(x)	((( (unsigned int)(x)+FREQ_IF+(FREQ_STEP<<1)) \
+			/(FREQ_STEP<<2))<<2)
 
 #define BITS2FREQ(x)	((x) * FREQ_STEP - FREQ_IF)
 
@@ -113,7 +122,7 @@ static struct radio_device
 
 static void outbit(unsigned long bit, __u16 io)
 {
-	if(bit != 0)
+	if (bit != 0)
 		{
 			outb(  power|wren|data     ,io); udelay(4);
 			outb(  power|wren|data|clk ,io); udelay(4);
@@ -129,14 +138,20 @@ static void outbit(unsigned long bit, __u16 io)
 
 static void turn_power(__u16 io, int p)
 {
-	if(p != 0) outb(power, io); else outb(0,io);
+	if (p != 0) {
+		dprintk(1, "Radio powered on\n");
+		outb(power, io);
+	} else {
+		dprintk(1, "Radio powered off\n");
+		outb(0,io);
+	}
 }
 
-
-static void set_freq(__u16 io, __u32 data)
+static void set_freq(__u16 io, __u32 freq)
 {
 	unsigned long int si;
 	int bl;
+	int data = FREQ2BITS(freq);
 
 	/* TEA5757 shift register bits (see pdf) */
 
@@ -155,20 +170,31 @@ static void set_freq(__u16 io, __u32 data)
 	outbit(0,io); // 16  search level
 
 	si = 0x8000;
-	for(bl = 1; bl <= 16 ; bl++) { outbit(data & si,io); si >>=1; }
+	for (bl = 1; bl <= 16 ; bl++) {
+		outbit(data & si,io);
+		si >>=1;
+	}
 
-	outb(power,io);
+	dprintk(1, "Radio freq set to %d.%02d MHz\n",
+				freq / 16000,
+				freq % 16000 * 100 / 16000);
+
+	turn_power(io, 1);
 }
 
 static int get_stereo(__u16 io)
 {
-	outb(power,io); udelay(4);
+	outb(power,io);
+	udelay(4);
+
 	return !(inb(io) & mo_st);
 }
 
 static int get_tune(__u16 io)
 {
-	outb(power+clk,io); udelay(4);
+	outb(power+clk,io);
+	udelay(4);
+
 	return !(inb(io) & mo_st);
 }
 
@@ -234,6 +260,7 @@ static int vidioc_g_audio (struct file *file, void *priv,
 static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
 {
 	*i = 0;
+
 	return 0;
 }
 
@@ -241,6 +268,7 @@ static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 {
 	if (i != 0)
 		return -EINVAL;
+
 	return 0;
 }
 
@@ -260,11 +288,17 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 	struct video_device *dev = video_devdata(file);
 	struct radio_device *card=dev->priv;
 
-	if (f->frequency < FREQ_LO || f->frequency > FREQ_HI)
+	if (f->frequency < FREQ_LO || f->frequency > FREQ_HI) {
+		dprintk(1, "radio freq (%d.%02d MHz) out of range (%d-%d)\n",
+					f->frequency / 16000,
+					f->frequency % 16000 * 100 / 16000,
+					FREQ_LO / 16000, FREQ_HI / 16000);
+
 		return -EINVAL;
+	}
 
 	card->freq = f->frequency;
-	set_freq(card->io, FREQ2BITS(card->freq));
+	set_freq(card->io, card->freq);
 	msleep(125);
 
 	return 0;
@@ -278,6 +312,10 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = card->freq;
+
+	dprintk(4, "radio freq is %d.%02d MHz",
+				f->frequency / 16000,
+				f->frequency % 16000 * 100 / 16000);
 
 	return 0;
 }
@@ -293,6 +331,7 @@ static int vidioc_queryctrl (struct file *file, void *priv,
 			return (0);
 		}
 	}
+
 	return -EINVAL;
 }
 
@@ -307,6 +346,7 @@ static int vidioc_g_ctrl (struct file *file, void *priv,
 			ctrl->value=card->muted;
 			return (0);
 	}
+
 	return -EINVAL;
 }
 
@@ -322,9 +362,10 @@ static int vidioc_s_ctrl (struct file *file, void *priv,
 			if(card->muted)
 				turn_power(card->io, 0);
 			else
-				set_freq(card->io, FREQ2BITS(card->freq));
+				set_freq(card->io, card->freq);
 			return 0;
 	}
+
 	return -EINVAL;
 }
 
@@ -347,7 +388,6 @@ static struct video_device maxiradio_radio =
 	.vidioc_queryctrl   = vidioc_queryctrl,
 	.vidioc_g_ctrl      = vidioc_g_ctrl,
 	.vidioc_s_ctrl      = vidioc_s_ctrl,
-
 };
 
 static int __devinit maxiradio_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
