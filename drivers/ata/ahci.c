@@ -1178,7 +1178,8 @@ static void ahci_host_intr(struct ata_port *ap)
 		ata_port_printk(ap, KERN_INFO, "Spurious SDB FIS during NCQ "
 				"issue=0x%x SAct=0x%x FIS=%08x:%08x%s\n",
 				readl(port_mmio + PORT_CMD_ISSUE),
-				readl(port_mmio + PORT_SCR_ACT), f[0], f[1],
+				readl(port_mmio + PORT_SCR_ACT),
+				le32_to_cpu(f[0]), le32_to_cpu(f[1]),
 				pp->ncq_saw_spurious_sdb_cnt < 10 ?
 				"" : ", shutting up");
 
