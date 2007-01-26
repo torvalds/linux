@@ -767,7 +767,7 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	/* 9P can only handle file rename in the same directory */
 	if (memcmp(&olddirfid->qid, &newdirfid->qid, sizeof(newdirfid->qid))) {
 		dprintk(DEBUG_ERROR, "old dir and new dir are different\n");
-		retval = -EPERM;
+		retval = -EXDEV;
 		goto FreeFcallnBail;
 	}
 
