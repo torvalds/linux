@@ -136,11 +136,6 @@ static int digest(struct hash_desc *desc,
 	return final(desc, out);
 }
 
-int crypto_init_digest_flags(struct crypto_tfm *tfm, u32 flags)
-{
-	return flags ? -EINVAL : 0;
-}
-
 int crypto_init_digest_ops(struct crypto_tfm *tfm)
 {
 	struct hash_tfm *ops = &tfm->crt_hash;

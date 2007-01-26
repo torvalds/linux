@@ -396,7 +396,7 @@ struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn)
 		return ERR_PTR(-EAGAIN);
 	}
 
-	tfm = __crypto_alloc_tfm(alg, 0);
+	tfm = __crypto_alloc_tfm(alg);
 	if (IS_ERR(tfm))
 		crypto_mod_put(alg);
 
