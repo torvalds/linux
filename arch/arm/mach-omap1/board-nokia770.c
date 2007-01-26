@@ -16,6 +16,8 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/workqueue.h>
+#include <linux/delay.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
