@@ -143,11 +143,8 @@ extern int dump_task_extended_fpu (struct task_struct *, struct user_fxsr_struct
 # define VDSO_PRELINK		0
 #endif
 
-#define VDSO_COMPAT_SYM(x) \
-		(VDSO_COMPAT_BASE + (unsigned long)(x) - VDSO_PRELINK)
-
 #define VDSO_SYM(x) \
-		(VDSO_BASE + (unsigned long)(x) - VDSO_PRELINK)
+		(VDSO_COMPAT_BASE + (unsigned long)(x) - VDSO_PRELINK)
 
 #define VDSO_HIGH_EHDR		((const struct elfhdr *) VDSO_HIGH_BASE)
 #define VDSO_EHDR		((const struct elfhdr *) VDSO_COMPAT_BASE)
@@ -156,10 +153,12 @@ extern void __kernel_vsyscall;
 
 #define VDSO_ENTRY		VDSO_SYM(&__kernel_vsyscall)
 
+#ifndef CONFIG_COMPAT_VDSO
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES
 struct linux_binprm;
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
                                        int executable_stack);
+#endif
 
 extern unsigned int vdso_enabled;
 

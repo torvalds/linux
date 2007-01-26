@@ -100,6 +100,7 @@ int __init sysenter_setup(void)
 	return 0;
 }
 
+#ifndef CONFIG_COMPAT_VDSO
 static struct page *syscall_nopage(struct vm_area_struct *vma,
 				unsigned long adr, int *type)
 {
@@ -187,3 +188,4 @@ int in_gate_area_no_task(unsigned long addr)
 {
 	return 0;
 }
+#endif
