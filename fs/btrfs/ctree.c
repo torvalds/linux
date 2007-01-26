@@ -615,9 +615,9 @@ int del_ptr(struct ctree_root *root, struct ctree_path *path, int level)
 			if (node->header.nritems) {
 				push_node_right(root, path, level);
 			}
-			path->slots[level+1] = tslot;
 			if (node->header.nritems)
 				break;
+			path->slots[level+1] = tslot;
 		}
 		if (node == root->node) {
 			printf("root is now null!\n");
@@ -632,22 +632,15 @@ int del_ptr(struct ctree_root *root, struct ctree_path *path, int level)
 	return 0;
 }
 
-int del_item(struct ctree_root *root, struct key *key)
+int del_item(struct ctree_root *root, struct ctree_path *path)
 {
-	int ret;
 	int slot;
 	struct leaf *leaf;
-	struct ctree_path path;
 	int doff;
 	int dsize;
 
-	init_path(&path);
-	ret = search_slot(root, key, &path);
-	if (ret != 0)
-		return -1;
-
-	leaf = (struct leaf *)path.nodes[0];
-	slot = path.slots[0];
+	leaf = (struct leaf *)path->nodes[0];
+	slot = path->slots[0];
 	doff = leaf->items[slot].offset;
 	dsize = leaf->items[slot].size;
 
@@ -665,23 +658,26 @@ int del_item(struct ctree_root *root, struct key *key)
 	}
 	leaf->header.nritems -= 1;
 	if (leaf->header.nritems == 0) {
+		if (leaf == (struct leaf *)root->node)
+			root->node = NULL;
+		else
+			del_ptr(root, path, 1);
 		free(leaf);
-		del_ptr(root, &path, 1);
 	} else {
 		if (slot == 0)
-			fixup_low_keys(&path, &leaf->items[0].key, 1);
+			fixup_low_keys(path, &leaf->items[0].key, 1);
 		if (leaf_space_used(leaf, 0, leaf->header.nritems) <
 		    LEAF_DATA_SIZE / 4) {
 			/* push_leaf_left fixes the path.
 			 * make sure the path still points to our leaf
 			 * for possible call to del_ptr below
 			 */
-			slot = path.slots[1];
-			push_leaf_left(root, &path, 1);
-			path.slots[1] = slot;
+			slot = path->slots[1];
+			push_leaf_left(root, path, 1);
 			if (leaf->header.nritems == 0) {
 				free(leaf);
-				del_ptr(root, &path, 1);
+				path->slots[1] = slot;
+				del_ptr(root, path, 1);
 			}
 		}
 	}
@@ -753,11 +749,12 @@ int main() {
 	struct leaf *first_node = malloc(sizeof(struct leaf));
 	struct ctree_root root;
 	struct key ins;
+	struct key last = { (u64)-1, 0, 0};
 	char *buf;
 	int i;
 	int num;
 	int ret;
-	int run_size = 10000000;
+	int run_size = 100000;
 	int max_key = 100000000;
 	int tree_size = 0;
 	struct ctree_path path;
@@ -783,8 +780,6 @@ int main() {
 	for (i = 0; i < run_size; i++) {
 		num = next_key(i, max_key);
 		ins.objectid = num;
-		ins.offset = 0;
-		ins.flags = 0;
 		init_path(&path);
 		ret = search_slot(&root, &ins, &path);
 		if (ret) {
@@ -800,11 +795,56 @@ int main() {
 	printf("all searches good\n");
 	i = 0;
 	srand(55);
-	for (i = 0; i < run_size; i++) {
+	for (i = 0 ; i < run_size/4; i++) {
 		num = next_key(i, max_key);
 		ins.objectid = num;
-		del_item(&root, &ins);
+		init_path(&path);
+		ret = search_slot(&root, &ins, &path);
+		if (ret)
+			continue;
+		ret = del_item(&root, &path);
+		if (ret != 0)
+			BUG();
+		tree_size--;
+	}
+	srand(128);
+	for (i = 0; i < run_size; i++) {
+		buf = malloc(64);
+		num = next_key(i, max_key);
+		sprintf(buf, "string-%d", num);
+		ins.objectid = num;
+		ret = insert_item(&root, &ins, buf, strlen(buf));
+		if (!ret)
+			tree_size++;
+	}
+	while(root.node) {
+		struct leaf *leaf;
+		int slot;
+		ins.objectid = (u64)-1;
+		init_path(&path);
+		ret = search_slot(&root, &ins, &path);
+		if (ret == 0)
+			BUG();
+
+		leaf = (struct leaf *)(path.nodes[0]);
+		slot = path.slots[0];
+		if (slot != leaf->header.nritems)
+			BUG();
+		while(path.slots[0] > 0) {
+			path.slots[0] -= 1;
+			slot = path.slots[0];
+			leaf = (struct leaf *)(path.nodes[0]);
+
+			if (comp_keys(&last, &leaf->items[slot].key) <= 0)
+				BUG();
+			memcpy(&last, &leaf->items[slot].key, sizeof(last));
+			ret = del_item(&root, &path);
+			if (ret != 0)
+				BUG();
+			tree_size--;
+		}
 	}
 	print_tree(root.node);
+	printf("tree size is now %d\n", tree_size);
 	return 0;
 }
