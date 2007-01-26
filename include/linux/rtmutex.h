@@ -16,7 +16,7 @@
 #include <linux/plist.h>
 #include <linux/spinlock_types.h>
 
-/*
+/**
  * The rt_mutex structure
  *
  * @wait_lock:	spinlock to protect the structure
@@ -71,7 +71,7 @@ struct hrtimer_sleeper;
 #define DEFINE_RT_MUTEX(mutexname) \
 	struct rt_mutex mutexname = __RT_MUTEX_INITIALIZER(mutexname)
 
-/***
+/**
  * rt_mutex_is_locked - is the mutex locked
  * @lock: the mutex to be queried
  *

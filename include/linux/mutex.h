@@ -105,7 +105,7 @@ do {							\
 extern void __mutex_init(struct mutex *lock, const char *name,
 			 struct lock_class_key *key);
 
-/***
+/**
  * mutex_is_locked - is the mutex locked
  * @lock: the mutex to be queried
  *
