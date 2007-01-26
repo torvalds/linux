@@ -3339,7 +3339,7 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 static int __devinit sky2_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
-	struct net_device *dev, *dev1 = NULL;
+	struct net_device *dev;
 	struct sky2_hw *hw;
 	int err, using_dac = 0;
 
@@ -3423,8 +3423,10 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	       hw->chip_id, hw->chip_rev);
 
 	dev = sky2_init_netdev(hw, 0, using_dac);
-	if (!dev)
+	if (!dev) {
+		err = -ENOMEM;
 		goto err_out_free_pci;
+	}
 
 	if (!disable_msi && pci_enable_msi(pdev) == 0) {
 		err = sky2_test_msi(hw);
@@ -3452,13 +3454,19 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	sky2_show_addr(dev);
 
-	if (hw->ports > 1 && (dev1 = sky2_init_netdev(hw, 1, using_dac))) {
-		if (register_netdev(dev1) == 0)
+	if (hw->ports > 1) {
+		struct net_device *dev1;
+
+		dev1 = sky2_init_netdev(hw, 1, using_dac);
+		if (!dev1) {
+			printk(KERN_WARNING PFX
+			       "allocation of second port failed\n");
+		}
+		else if (!(err = register_netdev(dev1)))
 			sky2_show_addr(dev1);
 		else {
-			/* Failure to register second port need not be fatal */
 			printk(KERN_WARNING PFX
-			       "register of second port failed\n");
+			       "register of second port failed (%d)\n", err);
 			hw->dev[1] = NULL;
 			free_netdev(dev1);
 		}
