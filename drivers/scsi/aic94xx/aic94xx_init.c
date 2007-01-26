@@ -79,6 +79,7 @@ static struct scsi_host_template aic94xx_sht = {
 	.sg_tablesize		= SG_ALL,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.use_clustering		= ENABLE_CLUSTERING,
+	.eh_device_reset_handler	= sas_eh_device_reset_handler,
 };
 
 static int __devinit asd_map_memio(struct asd_ha_struct *asd_ha)
