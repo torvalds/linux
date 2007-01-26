@@ -632,6 +632,8 @@ struct ata_port_operations {
 
 	irq_handler_t irq_handler;
 	void (*irq_clear) (struct ata_port *);
+	u8 (*irq_on) (struct ata_port *);
+	u8 (*irq_ack) (struct ata_port *ap, unsigned int chk_drq);
 
 	u32 (*scr_read) (struct ata_port *ap, unsigned int sc_reg);
 	void (*scr_write) (struct ata_port *ap, unsigned int sc_reg,
@@ -813,6 +815,10 @@ extern void ata_scsi_slave_destroy(struct scsi_device *sdev);
 extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
 				       int queue_depth);
 extern struct ata_device *ata_dev_pair(struct ata_device *adev);
+extern u8 ata_irq_on(struct ata_port *ap);
+extern u8 ata_dummy_irq_on(struct ata_port *ap);
+extern u8 ata_irq_ack(struct ata_port *ap, unsigned int chk_drq);
+extern u8 ata_dummy_irq_ack(struct ata_port *ap, unsigned int chk_drq);
 
 /*
  * Timing helpers
@@ -1145,42 +1151,6 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	/* init result_tf such that it indicates normal completion */
 	qc->result_tf.command = ATA_DRDY;
 	qc->result_tf.feature = 0;
-}
-
-/**
- *	ata_irq_ack - Acknowledge a device interrupt.
- *	@ap: Port on which interrupts are enabled.
- *
- *	Wait up to 10 ms for legacy IDE device to become idle (BUSY
- *	or BUSY+DRQ clear).  Obtain dma status and port status from
- *	device.  Clear the interrupt.  Return port status.
- *
- *	LOCKING:
- */
-
-static inline u8 ata_irq_ack(struct ata_port *ap, unsigned int chk_drq)
-{
-	unsigned int bits = chk_drq ? ATA_BUSY | ATA_DRQ : ATA_BUSY;
-	u8 host_stat, post_stat, status;
-
-	status = ata_busy_wait(ap, bits, 1000);
-	if (status & bits)
-		if (ata_msg_err(ap))
-			printk(KERN_ERR "abnormal status 0x%X\n", status);
-
-	/* get controller status; clear intr, err bits */
-	host_stat = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-	iowrite8(host_stat | ATA_DMA_INTR | ATA_DMA_ERR,
-		 ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-
-	post_stat = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-
-	if (ata_msg_intr(ap))
-		printk(KERN_INFO "%s: irq ack: host_stat 0x%X, new host_stat 0x%X, drv_stat 0x%X\n",
-			__FUNCTION__,
-			host_stat, post_stat, status);
-
-	return status;
 }
 
 static inline int ata_try_flush_cache(const struct ata_device *dev)
