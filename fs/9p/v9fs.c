@@ -457,14 +457,19 @@ static int __init init_v9fs(void)
 
 	v9fs_error_init();
 
-	printk(KERN_INFO "Installing v9fs 9P2000 file system support\n");
+	printk(KERN_INFO "Installing v9fs 9p2000 file system support\n");
 
 	ret = v9fs_mux_global_init();
-	if (!ret)
+	if (ret) {
+		printk(KERN_WARNING "v9fs: starting mux failed\n");
 		return ret;
+	}
 	ret = register_filesystem(&v9fs_fs_type);
-	if (!ret)
+	if (ret) {
+		printk(KERN_WARNING "v9fs: registering file system failed\n");
 		v9fs_mux_global_exit();
+	}
+
 	return ret;
 }
 
