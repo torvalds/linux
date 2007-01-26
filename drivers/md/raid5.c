@@ -2680,7 +2680,7 @@ static int chunk_aligned_read(request_queue_t *q, struct bio * raid_bio)
 	mdk_rdev_t *rdev;
 
 	if (!in_chunk_boundary(mddev, raid_bio)) {
-		printk("chunk_aligned_read : non aligned\n");
+		PRINTK("chunk_aligned_read : non aligned\n");
 		return 0;
 	}
 	/*
