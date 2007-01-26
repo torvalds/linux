@@ -112,8 +112,8 @@ static struct resource i2c_resources1[] = {
 /* DMA not used; works around erratum writing to non-empty i2c fifo */
 
 static struct platform_device omap_i2c_device1 = {
-        .name           = "i2c_omap",
-        .id             = 1,
+	.name           = "i2c_omap",
+	.id             = 1,
 	.num_resources	= ARRAY_SIZE(i2c_resources1),
 	.resource	= i2c_resources1,
 };

@@ -24,7 +24,7 @@
 #include <asm/arch/mux.h>
 #include <asm/arch/gpio.h>
 
-#if 	defined(CONFIG_I2C_OMAP) || defined(CONFIG_I2C_OMAP_MODULE)
+#if	defined(CONFIG_I2C_OMAP) || defined(CONFIG_I2C_OMAP_MODULE)
 
 #define OMAP2_I2C_BASE2		0x48072000
 #define OMAP2_I2C_INT2		57
@@ -42,8 +42,8 @@ static struct resource i2c_resources2[] = {
 };
 
 static struct platform_device omap_i2c_device2 = {
-        .name           = "i2c_omap",
-        .id             = 2,
+	.name           = "i2c_omap",
+	.id             = 2,
 	.num_resources	= ARRAY_SIZE(i2c_resources2),
 	.resource	= i2c_resources2,
 };
