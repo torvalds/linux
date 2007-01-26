@@ -125,6 +125,23 @@ ASUS_HANDLE(lcd_switch, "\\_SB.PCI0.SBRG.EC0._Q10", /* All new models */
 	    "\\_SB.PCI0.PX40.Q10", /* S1x */
 	    "\\Q10");  /* A2x, L2D, L3D, M2E */
 
+/* Display */
+ASUS_HANDLE(display_set, ASUS_HOTK_PREFIX "SDSP");
+ASUS_HANDLE(display_get,
+	    "\\_SB.PCI0.P0P1.VGA.GETD", /*  A6B, A6K A6R A7D F3JM L4R M6R A3G
+					    M6A M6V VX-1 V6J V6V W3Z */
+	    "\\_SB.PCI0.P0P2.VGA.GETD", /* A3E A4K, A4D A4L A6J A7J A8J Z71V M9V
+					   S5A M5A z33A W1Jc W2V */
+	    "\\_SB.PCI0.P0P3.VGA.GETD", /* A6V A6Q */
+	    "\\_SB.PCI0.P0PA.VGA.GETD", /* A6T, A6M */
+	    "\\_SB.PCI0.PCI1.VGAC.NMAP", /* L3C */
+	    "\\_SB.PCI0.VGA.GETD", /* Z96F */
+	    "\\ACTD", /* A2D */
+	    "\\ADVG", /* A4G Z71A W1N W5A W5F M2N M3N M5N M6N S1N S5N */
+	    "\\DNXT", /* P30 */
+	    "\\INFB", /* A2H D1 L2D L3D L3H L2E L5D L5C M1A M2E L4L W3V */
+	    "\\SSTE"); /* A3F A6F A3N A3L M6N W3N W6A */
+
 /*
  * This is the main structure, we can use it to store anything interesting
  * about the hotk device
@@ -491,6 +508,60 @@ static ssize_t store_bluetooth(struct device *dev, struct device_attribute *attr
 	return store_status(buf, count, bt_switch_handle, BT_ON, 0);
 }
 
+/*
+ * Display
+ */
+static void set_display(int value)
+{
+	/* no sanity check needed for now */
+	if (!write_acpi_int(display_set_handle, NULL, value, NULL))
+		printk(ASUS_WARNING "Error setting display\n");
+	return;
+}
+
+static int read_display(void)
+{
+	int value = 0;
+
+	/* In most of the case, we know how to set the display, but sometime
+	   we can't read it */
+	if(display_get_handle) {
+		if (!read_acpi_int(display_get_handle, NULL, &value, NULL))
+			printk(ASUS_WARNING "Error reading display status\n");
+	}
+
+	value &= 0x0F;		/* needed for some models, shouldn't hurt others */
+
+	return value;
+}
+/*
+ * Now, *this* one could be more user-friendly, but so far, no-one has
+ * complained. The significance of bits is the same as in store_disp()
+ */
+static ssize_t show_disp(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", read_display());
+}
+
+/*
+ * Experimental support for display switching. As of now: 1 should activate
+ * the LCD output, 2 should do for CRT, 4 for TV-Out and 8 for DVI.
+ * Any combination (bitwise) of these will suffice. I never actually tested 4
+ * displays hooked up simultaneously, so be warned. See the acpi4asus README
+ * for more info.
+ */
+static ssize_t store_disp(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	int rv, value;
+
+	rv = parse_arg(buf, count, &value);
+	if (rv > 0)
+		set_display(value);
+	return rv;
+}
+
 static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 {
 	/* TODO Find a better way to handle events count. */
@@ -535,11 +606,13 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 static ASUS_CREATE_DEVICE_ATTR(infos);
 static ASUS_CREATE_DEVICE_ATTR(wlan);
 static ASUS_CREATE_DEVICE_ATTR(bluetooth);
+static ASUS_CREATE_DEVICE_ATTR(display);
 
 static struct attribute *asuspf_attributes[] = {
         &dev_attr_infos.attr,
         &dev_attr_wlan.attr,
         &dev_attr_bluetooth.attr,
+        &dev_attr_display.attr,
         NULL
 };
 
@@ -567,6 +640,12 @@ static void asus_hotk_add_fs(void)
 	if (bt_switch_handle)
 		ASUS_SET_DEVICE_ATTR(bluetooth, 0644,
 				     show_bluetooth, store_bluetooth);
+
+	if (display_set_handle && display_get_handle)
+		ASUS_SET_DEVICE_ATTR(display, 0644, show_disp, store_disp);
+	else if(display_set_handle)
+		ASUS_SET_DEVICE_ATTR(display, 0200, NULL, store_disp);
+
 }
 
 static int asus_handle_init(char *name, acpi_handle *handle,
@@ -682,6 +761,9 @@ static int asus_hotk_get_info(void)
 	ASUS_HANDLE_INIT(brightness_get);
 
 	ASUS_HANDLE_INIT(lcd_switch);
+
+	ASUS_HANDLE_INIT(display_set);
+	ASUS_HANDLE_INIT(display_get);
 
 	kfree(model);
 
