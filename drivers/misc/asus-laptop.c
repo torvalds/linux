@@ -104,6 +104,9 @@ ASUS_HANDLE(tled_set, ASUS_HOTK_PREFIX "TLED");
 ASUS_HANDLE(rled_set, ASUS_HOTK_PREFIX "RLED"); /* W1JC */
 ASUS_HANDLE(pled_set, ASUS_HOTK_PREFIX "PLED"); /* A7J */
 
+/* LEDD */
+ASUS_HANDLE(ledd_set, ASUS_HOTK_PREFIX "SLCM");
+
 /* Bluetooth and WLAN
  * WLED and BLED are not handled like other XLED, because in some dsdt
  * they also control the WLAN/Bluetooth device.
@@ -151,6 +154,7 @@ struct asus_hotk {
 	struct acpi_device *device;	//the device we are in
 	acpi_handle handle;	//the handle of the hotk device
 	char status;		//status of the hotk, for LEDs, ...
+	u32 ledd_status;	//status of the LED display
 	u16 event_count[128];	//count for each event TODO make this better
 };
 
@@ -479,6 +483,30 @@ static ssize_t store_status(const char *buf, size_t count,
 }
 
 /*
+ * LEDD display
+ */
+static ssize_t show_ledd(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%08x\n", hotk->ledd_status);
+}
+
+static ssize_t store_ledd(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	int rv, value;
+
+	rv = parse_arg(buf, count, &value);
+	if (rv > 0) {
+		if (!write_acpi_int(ledd_set_handle, NULL, value, NULL))
+			printk(ASUS_WARNING "LED display write failed\n");
+		else
+			hotk->ledd_status = (u32) value;
+	}
+	return rv;
+}
+
+/*
  * WLAN
  */
 static ssize_t show_wlan(struct device *dev,
@@ -607,12 +635,14 @@ static ASUS_CREATE_DEVICE_ATTR(infos);
 static ASUS_CREATE_DEVICE_ATTR(wlan);
 static ASUS_CREATE_DEVICE_ATTR(bluetooth);
 static ASUS_CREATE_DEVICE_ATTR(display);
+static ASUS_CREATE_DEVICE_ATTR(ledd);
 
 static struct attribute *asuspf_attributes[] = {
         &dev_attr_infos.attr,
         &dev_attr_wlan.attr,
         &dev_attr_bluetooth.attr,
         &dev_attr_display.attr,
+        &dev_attr_ledd.attr,
         NULL
 };
 
@@ -645,6 +675,9 @@ static void asus_hotk_add_fs(void)
 		ASUS_SET_DEVICE_ATTR(display, 0644, show_disp, store_disp);
 	else if(display_set_handle)
 		ASUS_SET_DEVICE_ATTR(display, 0200, NULL, store_disp);
+
+	if (ledd_set_handle)
+		ASUS_SET_DEVICE_ATTR(ledd, 0644, show_ledd, store_ledd);
 
 }
 
@@ -741,6 +774,8 @@ static int asus_hotk_get_info(void)
 	ASUS_HANDLE_INIT(rled_set);
 	ASUS_HANDLE_INIT(pled_set);
 
+	ASUS_HANDLE_INIT(ledd_set);
+
 	/*
 	 * The HWRS method return informations about the hardware.
 	 * 0x80 bit is for WLAN, 0x100 for Bluetooth.
@@ -835,6 +870,9 @@ static int asus_hotk_add(struct acpi_device *device)
 
 	/* LCD Backlight is on by default */
 	write_status(NULL, 1, LCD_ON, 0);
+
+	/* LED display is off by default */
+	hotk->ledd_status = 0xFFF;
 
       end:
 	if (result) {
