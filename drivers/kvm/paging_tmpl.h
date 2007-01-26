@@ -71,7 +71,7 @@ struct guest_walker {
  */
 static int FNAME(walk_addr)(struct guest_walker *walker,
 			    struct kvm_vcpu *vcpu, gva_t addr,
-			    int write_fault, int user_fault)
+			    int write_fault, int user_fault, int fetch_fault)
 {
 	hpa_t hpa;
 	struct kvm_memory_slot *slot;
@@ -123,6 +123,11 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 		if (user_fault && !(*ptep & PT_USER_MASK))
 			goto access_error;
 
+#if PTTYPE == 64
+		if (fetch_fault && is_nx(vcpu) && (*ptep & PT64_NX_MASK))
+			goto access_error;
+#endif
+
 		if (!(*ptep & PT_ACCESSED_MASK))
 			*ptep |= PT_ACCESSED_MASK; 	/* avoid rmw */
 
@@ -169,6 +174,8 @@ err:
 		walker->error_code |= PFERR_WRITE_MASK;
 	if (user_fault)
 		walker->error_code |= PFERR_USER_MASK;
+	if (fetch_fault)
+		walker->error_code |= PFERR_FETCH_MASK;
 	return 0;
 }
 
@@ -372,6 +379,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 {
 	int write_fault = error_code & PFERR_WRITE_MASK;
 	int user_fault = error_code & PFERR_USER_MASK;
+	int fetch_fault = error_code & PFERR_FETCH_MASK;
 	struct guest_walker walker;
 	u64 *shadow_pte;
 	int fixed;
@@ -388,7 +396,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	/*
 	 * Look up the shadow pte for the faulting address.
 	 */
-	r = FNAME(walk_addr)(&walker, vcpu, addr, write_fault, user_fault);
+	r = FNAME(walk_addr)(&walker, vcpu, addr, write_fault, user_fault,
+			     fetch_fault);
 
 	/*
 	 * The page is not mapped by the guest.  Let the guest handle it.
@@ -437,7 +446,7 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
 	pt_element_t guest_pte;
 	gpa_t gpa;
 
-	FNAME(walk_addr)(&walker, vcpu, vaddr, 0, 0);
+	FNAME(walk_addr)(&walker, vcpu, vaddr, 0, 0, 0);
 	guest_pte = *walker.ptep;
 	FNAME(release_walker)(&walker);
 
