@@ -672,8 +672,8 @@ EXPORT_SYMBOL(scsi_eh_finish_cmd);
  *    XXX: Long term this code should go away, but that needs an audit of
  *         all LLDDs first.
  **/
-static int scsi_eh_get_sense(struct list_head *work_q,
-			     struct list_head *done_q)
+int scsi_eh_get_sense(struct list_head *work_q,
+		      struct list_head *done_q)
 {
 	struct scsi_cmnd *scmd, *next;
 	int rtn;
@@ -715,6 +715,7 @@ static int scsi_eh_get_sense(struct list_head *work_q,
 
 	return list_empty(work_q);
 }
+EXPORT_SYMBOL_GPL(scsi_eh_get_sense);
 
 /**
  * scsi_try_to_abort_cmd - Ask host to abort a running command.
@@ -1411,9 +1412,9 @@ static void scsi_restart_operations(struct Scsi_Host *shost)
  * @eh_done_q:	list_head for processed commands.
  *
  **/
-static void scsi_eh_ready_devs(struct Scsi_Host *shost,
-			       struct list_head *work_q,
-			       struct list_head *done_q)
+void scsi_eh_ready_devs(struct Scsi_Host *shost,
+			struct list_head *work_q,
+			struct list_head *done_q)
 {
 	if (!scsi_eh_stu(shost, work_q, done_q))
 		if (!scsi_eh_bus_device_reset(shost, work_q, done_q))
@@ -1421,6 +1422,7 @@ static void scsi_eh_ready_devs(struct Scsi_Host *shost,
 				if (!scsi_eh_host_reset(work_q, done_q))
 					scsi_eh_offline_sdevs(work_q, done_q);
 }
+EXPORT_SYMBOL_GPL(scsi_eh_ready_devs);
 
 /**
  * scsi_eh_flush_done_q - finish processed commands or retry them.
