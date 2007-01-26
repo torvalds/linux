@@ -540,38 +540,136 @@ at_context_init(struct at_context *ctx, struct fw_ohci *ohci, u32 control_set)
 }
 
 #define header_get_destination(q)	(((q) >> 16) & 0xffff)
+#define header_get_tcode(q)		(((q) >> 4) & 0x0f)
+#define header_get_offset_high(q)	(((q) >> 0) & 0xffff)
+#define header_get_data_length(q)	(((q) >> 16) & 0xffff)
+#define header_get_extended_tcode(q)	(((q) >> 0) & 0xffff)
+
+static void
+handle_local_rom(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
+{
+	struct fw_packet response;
+	int tcode, length, i;
+
+	tcode = header_get_tcode(packet->header[0]);
+	if (TCODE_IS_BLOCK_PACKET(tcode))
+		length = header_get_data_length(packet->header[3]);
+	else
+		length = 4;
+
+	i = csr - CSR_CONFIG_ROM;
+	if (i + length > CONFIG_ROM_SIZE) {
+		fw_fill_response(&response, packet->header,
+				 RCODE_ADDRESS_ERROR, NULL, 0);
+	} else if (!TCODE_IS_READ_REQUEST(tcode)) {
+		fw_fill_response(&response, packet->header,
+				 RCODE_TYPE_ERROR, NULL, 0);
+	} else {
+		fw_fill_response(&response, packet->header, RCODE_COMPLETE,
+				 (void *) ohci->config_rom + i, length);
+	}
+
+	fw_core_handle_response(&ohci->card, &response);
+}
+
+static void
+handle_local_lock(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
+{
+	struct fw_packet response;
+	int tcode, length, ext_tcode, sel;
+	__be32 *payload, lock_old;
+	u32 lock_arg, lock_data;
+
+	tcode = header_get_tcode(packet->header[0]);
+	length = header_get_data_length(packet->header[3]);
+	payload = packet->payload;
+	ext_tcode = header_get_extended_tcode(packet->header[3]);
+
+	if (tcode == TCODE_LOCK_REQUEST &&
+	    ext_tcode == EXTCODE_COMPARE_SWAP && length == 8) {
+		lock_arg = be32_to_cpu(payload[0]);
+		lock_data = be32_to_cpu(payload[1]);
+	} else if (tcode == TCODE_READ_QUADLET_REQUEST) {
+		lock_arg = 0;
+		lock_data = 0;
+	} else {
+		fw_fill_response(&response, packet->header,
+				 RCODE_TYPE_ERROR, NULL, 0);
+		goto out;
+	}
+
+	sel = (csr - CSR_BUS_MANAGER_ID) / 4;
+	reg_write(ohci, OHCI1394_CSRData, lock_data);
+	reg_write(ohci, OHCI1394_CSRCompareData, lock_arg);
+	reg_write(ohci, OHCI1394_CSRControl, sel);
+
+	if (reg_read(ohci, OHCI1394_CSRControl) & 0x80000000)
+		lock_old = cpu_to_be32(reg_read(ohci, OHCI1394_CSRData));
+	else
+		fw_notify("swap not done yet\n");
+
+	fw_fill_response(&response, packet->header,
+			 RCODE_COMPLETE, &lock_old, sizeof lock_old);
+ out:
+	fw_core_handle_response(&ohci->card, &response);
+}
+
+static void
+handle_local_request(struct at_context *ctx, struct fw_packet *packet)
+{
+	u64 offset;
+	u32 csr;
+
+	packet->ack = ACK_PENDING;
+	packet->callback(packet, &ctx->ohci->card, packet->ack);
+
+	offset =
+		((unsigned long long)
+		 header_get_offset_high(packet->header[1]) << 32) |
+		packet->header[2];
+	csr = offset - CSR_REGISTER_BASE;
+
+	/* Handle config rom reads. */
+	if (csr >= CSR_CONFIG_ROM && csr < CSR_CONFIG_ROM_END)
+		handle_local_rom(ctx->ohci, packet, csr);
+	else switch (csr) {
+	case CSR_BUS_MANAGER_ID:
+	case CSR_BANDWIDTH_AVAILABLE:
+	case CSR_CHANNELS_AVAILABLE_HI:
+	case CSR_CHANNELS_AVAILABLE_LO:
+		handle_local_lock(ctx->ohci, packet, csr);
+		break;
+	default:
+		if (ctx == &ctx->ohci->at_request_ctx)
+			fw_core_handle_request(&ctx->ohci->card, packet);
+		else
+			fw_core_handle_response(&ctx->ohci->card, packet);
+		break;
+	}
+}
 
 static void
 at_context_transmit(struct at_context *ctx, struct fw_packet *packet)
 {
 	LIST_HEAD(list);
 	unsigned long flags;
-	int local;
 
 	spin_lock_irqsave(&ctx->ohci->lock, flags);
 
 	if (header_get_destination(packet->header[0]) == ctx->ohci->node_id &&
 	    ctx->ohci->generation == packet->generation) {
-		local = 1;
-	} else {
-		list_add_tail(&packet->link, &ctx->list);
-		if (ctx->list.next == &packet->link)
-			at_context_setup_packet(ctx, &list);
-		local = 0;
+		spin_unlock_irqrestore(&ctx->ohci->lock, flags);
+		handle_local_request(ctx, packet);
+		return;
 	}
+
+	list_add_tail(&packet->link, &ctx->list);
+	if (ctx->list.next == &packet->link)
+		at_context_setup_packet(ctx, &list);
 
 	spin_unlock_irqrestore(&ctx->ohci->lock, flags);
 
 	do_packet_callbacks(ctx->ohci, &list);
-
-	if (local) {
-		packet->ack = ACK_PENDING;
-		packet->callback(packet, &ctx->ohci->card, packet->ack);
-		if (ctx == &ctx->ohci->at_request_ctx)
-			fw_core_handle_request(&ctx->ohci->card, packet);
-		else
-			fw_core_handle_response(&ctx->ohci->card, packet);
-	}
 }
 
 static void bus_reset_tasklet(unsigned long data)

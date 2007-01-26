@@ -425,7 +425,7 @@ free_response_callback(struct fw_packet *packet,
 	kfree(request);
 }
 
-static void
+void
 fw_fill_response(struct fw_packet *response, u32 *request_header,
 		 int rcode, void *payload, size_t length)
 {
@@ -457,7 +457,10 @@ fw_fill_response(struct fw_packet *response, u32 *request_header,
 	case TCODE_READ_QUADLET_REQUEST:
 		response->header[0] |=
 			header_tcode(TCODE_READ_QUADLET_RESPONSE);
-		response->header[3] = *(u32 *)payload;
+		if (payload != NULL)
+			response->header[3] = *(u32 *)payload;
+		else
+			response->header[3] = 0;
 		response->header_length = 16;
 		response->payload_length = 0;
 		break;
@@ -478,6 +481,7 @@ fw_fill_response(struct fw_packet *response, u32 *request_header,
 		return;
 	}
 }
+EXPORT_SYMBOL(fw_fill_response);
 
 static struct fw_request *
 allocate_request(struct fw_packet *p)
@@ -529,9 +533,9 @@ allocate_request(struct fw_packet *p)
 	request->response.generation = p->generation;
 	request->response.callback = free_response_callback;
 	request->ack = p->ack;
-	request->length = p->payload_length;
+	request->length = length;
 	if (data)
-		memcpy(request->data, p->payload, p->payload_length);
+		memcpy(request->data, p->payload, length);
 
 	memcpy(request->request_header, p->header, sizeof p->header);
 
@@ -656,7 +660,7 @@ fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 
 	case TCODE_READ_BLOCK_RESPONSE:
 	case TCODE_LOCK_RESPONSE:
-		data = &p->header[4];
+		data = p->payload;
 		data_length = header_get_data_length(p->header[3]);
 		break;
 

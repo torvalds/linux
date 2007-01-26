@@ -40,6 +40,7 @@
 #define TCODE_STREAM_DATA		10
 #define TCODE_LOCK_RESPONSE		11
 
+#define TCODE_IS_READ_REQUEST(tcode)	(((tcode) & ~1) == 4)
 #define TCODE_IS_BLOCK_PACKET(tcode)	(((tcode) &  1) != 0)
 #define TCODE_IS_REQUEST(tcode)		(((tcode) &  2) == 0)
 #define TCODE_IS_RESPONSE(tcode)	(((tcode) &  2) != 0)
@@ -102,6 +103,34 @@
 #define PHY_PACKET_CONFIG	0x0
 #define PHY_PACKET_LINK_ON	0x1
 #define PHY_PACKET_SELF_ID	0x2
+
+#define CSR_REGISTER_BASE		0xfffff0000000ULL
+
+/* register offsets relative to CSR_REGISTER_BASE */
+#define CSR_STATE_CLEAR			0x0
+#define CSR_STATE_SET			0x4
+#define CSR_NODE_IDS			0x8
+#define CSR_RESET_START			0xc
+#define CSR_SPLIT_TIMEOUT_HI		0x18
+#define CSR_SPLIT_TIMEOUT_LO		0x1c
+#define CSR_CYCLE_TIME			0x200
+#define CSR_BUS_TIME			0x204
+#define CSR_BUSY_TIMEOUT		0x210
+#define CSR_BUS_MANAGER_ID		0x21c
+#define CSR_BANDWIDTH_AVAILABLE		0x220
+#define CSR_CHANNELS_AVAILABLE		0x224
+#define CSR_CHANNELS_AVAILABLE_HI	0x224
+#define CSR_CHANNELS_AVAILABLE_LO	0x228
+#define CSR_BROADCAST_CHANNEL		0x234
+#define CSR_CONFIG_ROM			0x400
+#define CSR_CONFIG_ROM_END		0x800
+#define CSR_FCP_COMMAND			0xB00
+#define CSR_FCP_RESPONSE		0xD00
+#define CSR_FCP_END			0xF00
+#define CSR_TOPOLOGY_MAP		0x1000
+#define CSR_TOPOLOGY_MAP_END		0x1400
+#define CSR_SPEED_MAP			0x2000
+#define CSR_SPEED_MAP_END		0x3000
 
 #define fw_notify(s, args...) printk(KERN_NOTICE KBUILD_MODNAME ": " s, ## args)
 #define fw_error(s, args...) printk(KERN_ERR KBUILD_MODNAME ": " s, ## args)
@@ -227,6 +256,8 @@ extern const struct fw_address_region fw_unit_space_region;
 int fw_core_add_address_handler(struct fw_address_handler *handler,
 				const struct fw_address_region *region);
 void fw_core_remove_address_handler(struct fw_address_handler *handler);
+void fw_fill_response(struct fw_packet *response, u32 *request_header,
+		      int rcode, void *payload, size_t length);
 void fw_send_response(struct fw_card *card,
 		      struct fw_request *request, int rcode);
 
