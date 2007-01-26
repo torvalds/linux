@@ -107,9 +107,9 @@ transmit_complete_callback(struct fw_packet *packet,
 }
 
 static void
-fw_fill_packet(struct fw_packet *packet, int tcode, int tlabel,
-	       int node_id, int generation, int speed,
-	       unsigned long long offset, void *payload, size_t length)
+fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
+		int node_id, int generation, int speed,
+		unsigned long long offset, void *payload, size_t length)
 {
 	int ext_tcode;
 
@@ -240,8 +240,8 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 	t->callback = callback;
 	t->callback_data = callback_data;
 
-	fw_fill_packet(&t->packet, tcode, t->tlabel,
-		       node_id, generation, speed, offset, payload, length);
+	fw_fill_request(&t->packet, tcode, t->tlabel,
+			node_id, generation, speed, offset, payload, length);
 	t->packet.callback = transmit_complete_callback;
 
 	card->driver->send_request(card, &t->packet);
@@ -409,6 +409,7 @@ EXPORT_SYMBOL(fw_core_remove_address_handler);
 
 struct fw_request {
 	struct fw_packet response;
+	u32 request_header[4];
 	int ack;
 	u32 length;
 	u32 data[0];
@@ -425,22 +426,24 @@ free_response_callback(struct fw_packet *packet,
 }
 
 static void
-fw_fill_response(struct fw_packet *response,
-		 struct fw_packet *request, void *data)
+fw_fill_response(struct fw_packet *response, u32 *request_header,
+		 int rcode, void *payload, size_t length)
 {
 	int tcode, tlabel, extended_tcode, source, destination;
 
-	tcode          = header_get_tcode(request->header[0]);
-	tlabel         = header_get_tlabel(request->header[0]);
-	source         = header_get_destination(request->header[0]);
-	destination    = header_get_source(request->header[1]);
-	extended_tcode = header_get_extended_tcode(request->header[3]);
+	tcode          = header_get_tcode(request_header[0]);
+	tlabel         = header_get_tlabel(request_header[0]);
+	source         = header_get_destination(request_header[0]);
+	destination    = header_get_source(request_header[1]);
+	extended_tcode = header_get_extended_tcode(request_header[3]);
 
 	response->header[0] =
 		header_retry(RETRY_1) |
 		header_tlabel(tlabel) |
 		header_destination(destination);
-	response->header[1] = header_source(source);
+	response->header[1] =
+		header_source(source) |
+		header_rcode(rcode);
 	response->header[2] = 0;
 
 	switch (tcode) {
@@ -454,7 +457,7 @@ fw_fill_response(struct fw_packet *response,
 	case TCODE_READ_QUADLET_REQUEST:
 		response->header[0] |=
 			header_tcode(TCODE_READ_QUADLET_RESPONSE);
-		response->header[3] = 0;
+		response->header[3] = *(u32 *)payload;
 		response->header_length = 16;
 		response->payload_length = 0;
 		break;
@@ -463,11 +466,11 @@ fw_fill_response(struct fw_packet *response,
 	case TCODE_LOCK_REQUEST:
 		response->header[0] |= header_tcode(tcode + 2);
 		response->header[3] =
-			header_data_length(request->payload_length) |
+			header_data_length(length) |
 			header_extended_tcode(extended_tcode);
 		response->header_length = 16;
-		response->payload = data;
-		response->payload_length = request->payload_length;
+		response->payload = payload;
+		response->payload_length = length;
 		break;
 
 	default:
@@ -530,7 +533,7 @@ allocate_request(struct fw_packet *p)
 	if (data)
 		memcpy(request->data, p->payload, p->payload_length);
 
-	fw_fill_response(&request->response, p, request->data);
+	memcpy(request->request_header, p->header, sizeof p->header);
 
 	return request;
 }
@@ -538,21 +541,18 @@ allocate_request(struct fw_packet *p)
 void
 fw_send_response(struct fw_card *card, struct fw_request *request, int rcode)
 {
-	int response_tcode;
-
 	/* Broadcast packets are reported as ACK_COMPLETE, so this
 	 * check is sufficient to ensure we don't send response to
 	 * broadcast packets or posted writes. */
 	if (request->ack != ACK_PENDING)
 		return;
 
-	request->response.header[1] |= header_rcode(rcode);
-	response_tcode = header_get_tcode(request->response.header[0]);
-	if (rcode != RCODE_COMPLETE)
-		/* Clear the data_length field. */
-		request->response.header[3] &= 0xffff;
-	else if (response_tcode == TCODE_READ_QUADLET_RESPONSE)
-		request->response.header[3] = request->data[0];
+	if (rcode == RCODE_COMPLETE)
+		fw_fill_response(&request->response, request->request_header,
+				 rcode, request->data, request->length);
+	else
+		fw_fill_response(&request->response, request->request_header,
+				 rcode, NULL, 0);
 
 	card->driver->send_response(card, &request->response);
 }
