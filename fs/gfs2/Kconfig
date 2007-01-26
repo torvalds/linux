@@ -38,6 +38,7 @@ config GFS2_FS_LOCKING_DLM
 	select IP_SCTP if DLM_SCTP
 	select CONFIGFS_FS
 	select DLM
+	select SYSFS
 	help
 	Multiple node locking module for GFS2
 
