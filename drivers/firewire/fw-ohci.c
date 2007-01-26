@@ -376,7 +376,7 @@ at_context_setup_packet(struct at_context *ctx, struct list_head *list)
 						     packet->payload_length,
 						     DMA_TO_DEVICE);
 		if (packet->payload_bus == 0) {
-			complete_transmission(packet, -ENOMEM, list);
+			complete_transmission(packet, RCODE_SEND_ERROR, list);
 			return;
 		}
 
@@ -438,7 +438,7 @@ at_context_setup_packet(struct at_context *ctx, struct list_head *list)
 		/* We dont return error codes from this function; all
 		 * transmission errors are reported through the
 		 * callback. */
-		complete_transmission(packet, -ESTALE, list);
+		complete_transmission(packet, RCODE_GENERATION, list);
 	}
 }
 
@@ -484,26 +484,26 @@ static void at_context_tasklet(unsigned long data)
 		switch (evt) {
 		case OHCI1394_evt_timeout:
 			/* Async response transmit timed out. */
-			complete_transmission(packet, -ETIMEDOUT, &list);
+			complete_transmission(packet, RCODE_CANCELLED, &list);
 			break;
 
 		case OHCI1394_evt_flushed:
 			/* The packet was flushed should give same
 			 * error as when we try to use a stale
 			 * generation count. */
-			complete_transmission(packet, -ESTALE, &list);
+			complete_transmission(packet,
+					      RCODE_GENERATION, &list);
 			break;
 
 		case OHCI1394_evt_missing_ack:
-			/* This would be a higher level software
-			 * error, it is using a valid (current)
-			 * generation count, but the node is not on
-			 * the bus. */
-			complete_transmission(packet, -ENODEV, &list);
+			/* Using a valid (current) generation count,
+			 * but the node is not on the bus or not
+			 * sending acks. */
+			complete_transmission(packet, RCODE_NO_ACK, &list);
 			break;
 
 		default:
-			complete_transmission(packet, -EIO, &list);
+			complete_transmission(packet, RCODE_SEND_ERROR, &list);
 			break;
 		}
 	} else

@@ -93,15 +93,15 @@ transmit_complete_callback(struct fw_packet *packet,
 		close_transaction(t, card, RCODE_BUSY, NULL, 0);
 		break;
 	case ACK_DATA_ERROR:
+		close_transaction(t, card, RCODE_DATA_ERROR, NULL, 0);
+		break;
 	case ACK_TYPE_ERROR:
-		close_transaction(t, card, RCODE_SEND_ERROR, NULL, 0);
+		close_transaction(t, card, RCODE_TYPE_ERROR, NULL, 0);
 		break;
 	default:
-		/* FIXME: In this case, status is a negative errno,
-		 * corresponding to an OHCI specific transmit error
-		 * code.  We should map that to an RCODE instead of
-		 * just the generic RCODE_SEND_ERROR. */
-		close_transaction(t, card, RCODE_SEND_ERROR, NULL, 0);
+		/* In this case the ack is really a juju specific
+		 * rcode, so just forward that to the callback. */
+		close_transaction(t, card, status, NULL, 0);
 		break;
 	}
 }

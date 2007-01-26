@@ -87,6 +87,8 @@
 #define RCODE_SEND_ERROR	0x10
 #define RCODE_CANCELLED		0x11
 #define RCODE_BUSY		0x12
+#define RCODE_GENERATION	0x13
+#define RCODE_NO_ACK		0x14
 
 #define RETRY_1	0x00
 #define RETRY_X	0x01
