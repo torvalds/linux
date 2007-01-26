@@ -2992,9 +2992,9 @@ SOFTWARE RAID (Multiple Disks) SUPPORT
 P:	Ingo Molnar
 M:	mingo@redhat.com
 P:	Neil Brown
-M:	neilb@cse.unsw.edu.au
+M:	neilb@suse.de
 L:	linux-raid@vger.kernel.org
-S:	Maintained
+S:	Supported
 
 SOFTWARE SUSPEND:
 P:	Pavel Machek
