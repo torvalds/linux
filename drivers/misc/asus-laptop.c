@@ -40,6 +40,7 @@
 #include <linux/types.h>
 #include <linux/err.h>
 #include <linux/proc_fs.h>
+#include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
@@ -53,6 +54,14 @@
 #define ASUS_HOTK_HID           "ATK0100"
 #define ASUS_HOTK_FILE          "asus-laptop"
 #define ASUS_HOTK_PREFIX        "\\_SB.ATKD."
+
+/*
+ * Flags for hotk status
+ */
+#define MLED_ON     0x04	//mail LED
+#define TLED_ON     0x08	//touchpad LED
+#define RLED_ON     0x10        //Record LED
+#define PLED_ON     0x20        //Phone LED
 
 #define ASUS_LOG    ASUS_HOTK_FILE ": "
 #define ASUS_ERR    KERN_ERR    ASUS_LOG
@@ -68,6 +77,12 @@ MODULE_LICENSE("GPL");
 #define ASUS_HANDLE(object, paths...)					\
 	static acpi_handle  object##_handle = NULL;			\
 	static char *object##_paths[] = { paths }
+
+/* LED */
+ASUS_HANDLE(mled_set, ASUS_HOTK_PREFIX "MLED");
+ASUS_HANDLE(tled_set, ASUS_HOTK_PREFIX "TLED");
+ASUS_HANDLE(rled_set, ASUS_HOTK_PREFIX "RLED"); /* W1JC */
+ASUS_HANDLE(pled_set, ASUS_HOTK_PREFIX "PLED"); /* A7J */
 
 /*
  * This is the main structure, we can use it to store anything interesting
@@ -106,6 +121,28 @@ static struct acpi_driver asus_hotk_driver = {
 		},
 };
 
+/* These functions actually update the LED's, and are called from a
+ * workqueue. By doing this as separate work rather than when the LED
+ * subsystem asks, we avoid messing with the Asus ACPI stuff during a
+ * potentially bad time, such as a timer interrupt. */
+static struct workqueue_struct *led_workqueue;
+
+#define ASUS_LED(object, ledname)					\
+	static void object##_led_set(struct led_classdev *led_cdev,	\
+				     enum led_brightness value);	\
+	static void object##_led_update(struct work_struct *ignored);	\
+	static int object##_led_wk;					\
+	DECLARE_WORK(object##_led_work, object##_led_update);		\
+	static struct led_classdev object##_led = {			\
+		.name           = "asus:" ledname,			\
+		.brightness_set = object##_led_set,			\
+	}
+
+ASUS_LED(mled, "mail");
+ASUS_LED(tled, "touchpad");
+ASUS_LED(rled, "record");
+ASUS_LED(pled, "phone");
+
 /*
  * This function evaluates an ACPI method, given an int as parameter, the
  * method is searched within the scope of the handle, can be NULL. The output
@@ -143,6 +180,43 @@ static int read_acpi_int(acpi_handle handle, const char *method, int *val,
 	*val = out_obj.integer.value;
 	return (status == AE_OK) && (out_obj.type == ACPI_TYPE_INTEGER);
 }
+
+/* Generic LED functions */
+static int read_status(int mask)
+{
+	return (hotk->status & mask) ? 1 : 0;
+}
+
+static void write_status(acpi_handle handle, int out, int mask,
+		      int invert)
+{
+	hotk->status = (out) ? (hotk->status | mask) : (hotk->status & ~mask);
+
+	if (invert)		/* invert target value */
+		out = !out & 0x1;
+
+	if (handle && !write_acpi_int(handle, NULL, out, NULL))
+		printk(ASUS_WARNING " write failed\n");
+}
+
+/* /sys/class/led handlers */
+#define ASUS_LED_HANDLER(object, mask, invert)				\
+	static void object##_led_set(struct led_classdev *led_cdev,	\
+				     enum led_brightness value)		\
+	{								\
+		object##_led_wk = value;				\
+		queue_work(led_workqueue, &object##_led_work);		\
+	}								\
+	static void object##_led_update(struct work_struct *ignored)	\
+	{								\
+		int value = object##_led_wk;				\
+		write_status(object##_set_handle, value, (mask), (invert)); \
+	}
+
+ASUS_LED_HANDLER(mled, MLED_ON, 1);
+ASUS_LED_HANDLER(pled, PLED_ON, 0);
+ASUS_LED_HANDLER(rled, RLED_ON, 0);
+ASUS_LED_HANDLER(tled, TLED_ON, 0);
 
 /*
  * Platform device handlers
@@ -361,6 +435,11 @@ static int asus_hotk_get_info(void)
 	if(*string)
 		printk(ASUS_NOTICE "  %s model detected\n", string);
 
+	ASUS_HANDLE_INIT(mled_set);
+	ASUS_HANDLE_INIT(tled_set);
+	ASUS_HANDLE_INIT(rled_set);
+	ASUS_HANDLE_INIT(pled_set);
+
 	kfree(model);
 
 	return AE_OK;
@@ -452,8 +531,25 @@ static int asus_hotk_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
+#define  ASUS_LED_UNREGISTER(object)				\
+	if(object##_led.class_dev				\
+	   && !IS_ERR(object##_led.class_dev))			\
+		led_classdev_unregister(&object##_led)
+
+static void asus_led_exit(void)
+{
+	ASUS_LED_UNREGISTER(mled);
+	ASUS_LED_UNREGISTER(tled);
+	ASUS_LED_UNREGISTER(pled);
+	ASUS_LED_UNREGISTER(rled);
+
+	destroy_workqueue(led_workqueue);
+}
+
 static void __exit asus_laptop_exit(void)
 {
+	asus_led_exit();
+
 	acpi_bus_unregister_driver(&asus_hotk_driver);
         sysfs_remove_group(&asuspf_device->dev.kobj, &asuspf_attribute_group);
         platform_device_unregister(asuspf_device);
@@ -462,8 +558,48 @@ static void __exit asus_laptop_exit(void)
 	kfree(asus_info);
 }
 
+static int asus_led_register(acpi_handle handle,
+			     struct led_classdev * ldev,
+			     struct device * dev)
+{
+	if(!handle)
+		return 0;
+
+	return led_classdev_register(dev, ldev);
+}
+#define ASUS_LED_REGISTER(object, device)				\
+	asus_led_register(object##_set_handle, &object##_led, device)
+
+static int asus_led_init(struct device * dev)
+{
+	int rv;
+
+	rv = ASUS_LED_REGISTER(mled, dev);
+	if(rv)
+		return rv;
+
+	rv = ASUS_LED_REGISTER(tled, dev);
+	if(rv)
+		return rv;
+
+	rv = ASUS_LED_REGISTER(rled, dev);
+	if(rv)
+		return rv;
+
+	rv = ASUS_LED_REGISTER(pled, dev);
+	if(rv)
+		return rv;
+
+	led_workqueue = create_singlethread_workqueue("led_workqueue");
+	if(!led_workqueue)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int __init asus_laptop_init(void)
 {
+	struct device *dev;
 	int result;
 
 	if (acpi_disabled)
@@ -489,6 +625,12 @@ static int __init asus_laptop_init(void)
 		acpi_bus_unregister_driver(&asus_hotk_driver);
 		return -ENODEV;
 	}
+
+	dev = acpi_get_physical_device(hotk->device->handle);
+
+	result = asus_led_init(dev);
+	if(result)
+		goto fail_led;
 
         /* Register platform stuff */
 	result = platform_driver_register(&asuspf_driver);
@@ -522,6 +664,9 @@ fail_platform_device1:
         platform_driver_unregister(&asuspf_driver);
 
 fail_platform_driver:
+	asus_led_exit();
+
+fail_led:
 
 	return result;
 }

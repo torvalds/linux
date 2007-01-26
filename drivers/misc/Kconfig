@@ -74,6 +74,7 @@ config ASUS_LAPTOP
         depends on X86
         depends on ACPI
 	depends on EXPERIMENTAL && !ACPI_ASUS
+	depends on LEDS_CLASS
         ---help---
 	  This is the new Linux driver for Asus laptops. It may also support some
 	  MEDION, JVC or VICTOR laptops. It makes all the extra buttons generate
