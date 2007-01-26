@@ -660,5 +660,6 @@ void sas_init_dev(struct domain_device *);
 
 void sas_task_abort(struct sas_task *);
 int __sas_task_abort(struct sas_task *);
+int sas_eh_device_reset_handler(struct scsi_cmnd *cmd);
 
 #endif /* _SASLIB_H_ */
