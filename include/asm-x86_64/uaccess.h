@@ -157,7 +157,7 @@ do {									\
 	  case 1: __put_user_asm(x,ptr,retval,"b","b","iq",-EFAULT); break;\
 	  case 2: __put_user_asm(x,ptr,retval,"w","w","ir",-EFAULT); break;\
 	  case 4: __put_user_asm(x,ptr,retval,"l","k","ir",-EFAULT); break;\
-	  case 8: __put_user_asm(x,ptr,retval,"q","","ir",-EFAULT); break;\
+	  case 8: __put_user_asm(x,ptr,retval,"q","","Zr",-EFAULT); break;\
 	  default: __put_user_bad();					\
 	}								\
 } while (0)
