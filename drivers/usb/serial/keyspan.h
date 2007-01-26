@@ -229,7 +229,6 @@ struct ezusb_hex_record {
 #define	keyspan_usa28_product_id		0x010f
 #define	keyspan_usa28x_product_id		0x0110
 #define	keyspan_usa28xa_product_id		0x0115
-#define	keyspan_usa28xb_product_id		0x0110
 #define	keyspan_usa49w_product_id		0x010a
 #define	keyspan_usa49wlc_product_id		0x012a
 
@@ -511,7 +510,6 @@ static struct usb_device_id keyspan_ids_combined[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28x_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xa_product_id) },
-	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xb_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa49w_product_id)},
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa49wlc_product_id)},
 	{ } /* Terminating entry */
@@ -559,7 +557,6 @@ static struct usb_device_id keyspan_2port_ids[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28x_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xa_product_id) },
-	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xb_product_id) },
 	{ } /* Terminating entry */
 };
 
