@@ -525,12 +525,15 @@ config PPC_IBM_CELL_BLADE
 	select UDBG_RTAS_CONSOLE
 
 config PPC_PS3
-	bool "Sony PS3"
+	bool "Sony PS3 (incomplete)"
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_CELL
 	help
 	  This option enables support for the Sony PS3 game console
 	  and other platforms using the PS3 hypervisor.
+	  Support for this platform is not yet complete, so
+	  enabling this will not result in a bootable kernel on a
+	  PS3 system.
 
 config PPC_NATIVE
 	bool
