@@ -410,6 +410,8 @@ static const struct ata_port_operations mv5_ops = {
 
 	.irq_handler		= mv_interrupt,
 	.irq_clear		= mv_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
 
 	.scr_read		= mv5_scr_read,
 	.scr_write		= mv5_scr_write,
@@ -437,6 +439,8 @@ static const struct ata_port_operations mv6_ops = {
 
 	.irq_handler		= mv_interrupt,
 	.irq_clear		= mv_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
 
 	.scr_read		= mv_scr_read,
 	.scr_write		= mv_scr_write,
@@ -464,6 +468,8 @@ static const struct ata_port_operations mv_iie_ops = {
 
 	.irq_handler		= mv_interrupt,
 	.irq_clear		= mv_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
 
 	.scr_read		= mv_scr_read,
 	.scr_write		= mv_scr_write,

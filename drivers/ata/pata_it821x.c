@@ -678,6 +678,8 @@ static struct ata_port_operations it821x_smart_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= it821x_port_start,
 };
@@ -712,6 +714,8 @@ static struct ata_port_operations it821x_passthru_port_ops = {
 
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_handler	= ata_interrupt,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= it821x_port_start,
 };
