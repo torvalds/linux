@@ -21,6 +21,8 @@ extern int usb_set_configuration(struct usb_device *dev, int configuration);
 
 extern void usb_kick_khubd(struct usb_device *dev);
 extern void usb_resume_root_hub(struct usb_device *dev);
+extern int usb_match_device(struct usb_device *dev,
+			    const struct usb_device_id *id);
 
 extern int  usb_hub_init(void);
 extern void usb_hub_cleanup(void);
