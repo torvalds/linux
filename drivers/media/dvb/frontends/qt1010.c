@@ -149,6 +149,9 @@ static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
 	priv->frequency = freq;
 
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
+
 	/* reg 05 base value */
 	if      (freq < 290000000) reg05 = 0x14; /* 290 MHz */
 	else if (freq < 610000000) reg05 = 0x34; /* 610 MHz */
@@ -242,6 +245,9 @@ static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 	if (debug)
 		qt1010_dump_regs(priv);
 
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
+
 	return 0;
 }
 
@@ -276,7 +282,6 @@ static int qt1010_init_meas1(struct qt1010_priv *priv, u8 oper, u8 reg, u8 reg_i
 
 	return qt1010_writereg(priv, 0x1e, 0x00);
 }
-
 
 static u8 qt1010_init_meas2(struct qt1010_priv *priv, u8 reg_init_val, u8 *retval)
 {
@@ -346,6 +351,9 @@ static int qt1010_init(struct dvb_frontend *fe)
 		{ QT1010_WR, 0x06, 0x44 },
 		{ QT1010_WR, 0x08, 0x08 }
 	};
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
 
 	for (i = 0; i < sizeof(i2c_data) / sizeof(*i2c_data); i++) {
 		switch (i2c_data[i].oper) {
@@ -430,12 +438,18 @@ struct dvb_frontend * qt1010_attach(struct dvb_frontend *fe,
 	priv->cfg      = cfg;
 	priv->i2c      = i2c;
 
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
+
 
 	/* Try to detect tuner chip. Probably this is not correct register. */
 	if (qt1010_readreg(priv, 0x29, &id) != 0 || (id != 0x39)) {
 		kfree(priv);
 		return NULL;
 	}
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
 
 	printk(KERN_INFO "Quantek QT1010 successfully identified.\n");
 	memcpy(&fe->ops.tuner_ops, &qt1010_tuner_ops, sizeof(struct dvb_tuner_ops));

@@ -145,19 +145,6 @@ static struct qt1010_config au6610_qt1010_config = {
 
 static int au6610_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	/* TODO FIXME; probably I2C gate.
-	QT1010 tuner does not respond before we write 0x1a to ZL10353 demod
-	register 0x62. This ought to be done somewhere in demod initialization.
-	This solution is temporary hack. */
-
-	u8 buf[2] = { 0x62, 0x1a };
-	struct i2c_msg msg = { .addr = au6610_zl10353_config.demod_address,
-			       .flags = 0, .buf = buf, .len = 2	};
-
-	if (i2c_transfer(&adap->dev->i2c_adap, &msg, 1) != 1) {
-		printk(KERN_WARNING "au6610 tuner attach failed\n");
-		return -EREMOTEIO;
-	}
 	return dvb_attach(qt1010_attach,
 			  adap->fe, &adap->dev->i2c_adap,
 			  &au6610_qt1010_config) == NULL ? -ENODEV : 0;
