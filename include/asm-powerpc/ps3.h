@@ -39,6 +39,17 @@ union ps3_firmware_version {
 
 int ps3_get_firmware_version(union ps3_firmware_version *v);
 
+/* 'Other OS' area */
+
+enum ps3_param_av_multi_out {
+	PS3_PARAM_AV_MULTI_OUT_NTSC = 0,
+	PS3_PARAM_AV_MULTI_OUT_PAL_RGB = 1,
+	PS3_PARAM_AV_MULTI_OUT_PAL_YCBCR = 2,
+	PS3_PARAM_AV_MULTI_OUT_SECAM = 3,
+};
+
+enum ps3_param_av_multi_out ps3_os_area_get_av_multi_out(void);
+
 /**
  * struct ps3_device_id - HV bus device identifier from the system repository
  * @bus_id: HV bus id, {1..} (zero invalid)

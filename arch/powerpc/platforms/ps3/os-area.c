@@ -67,13 +67,6 @@ enum {
 };
 
 enum {
-	PARAM_AV_MULTI_OUT_NTSC = 0,
-	PARAM_AV_MULTI_OUT_PAL_RGB = 1,
-	PARAM_AV_MULTI_OUT_PAL_YCBCR = 2,
-	PARAM_AV_MULTI_OUT_SECAM = 3,
-};
-
-enum {
 	PARAM_CTRL_BUTTON_O_IS_YES = 0,
 	PARAM_CTRL_BUTTON_X_IS_YES = 1,
 };
@@ -257,3 +250,13 @@ u64 ps3_os_area_rtc_diff(void)
 {
 	return saved_params.rtc_diff ? saved_params.rtc_diff : 946684800UL;
 }
+
+/**
+ * ps3_os_area_get_av_multi_out - Returns the default video mode.
+ */
+
+enum ps3_param_av_multi_out ps3_os_area_get_av_multi_out(void)
+{
+    return saved_params.av_multi_out;
+}
+EXPORT_SYMBOL_GPL(ps3_os_area_get_av_multi_out);
