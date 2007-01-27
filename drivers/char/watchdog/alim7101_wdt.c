@@ -78,7 +78,7 @@ static struct pci_dev *alim7101_pmu;
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __stringify(CONFIG_WATCHDOG_NOWAYOUT) ")");
+		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	Whack the dog
