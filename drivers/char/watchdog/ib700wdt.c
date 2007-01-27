@@ -3,8 +3,8 @@
  *
  *	(c) Copyright 2001 Charles Howes <chowes@vsol.net>
  *
- *      Based on advantechwdt.c which is based on acquirewdt.c which
- *       is based on wdt.c.
+ *	Based on advantechwdt.c which is based on acquirewdt.c which
+ *	is based on wdt.c.
  *
  *	(c) Copyright 2000-2001 Marek Michalkiewicz <marekm@linux.org.pl>
  *
@@ -25,9 +25,9 @@
  *
  *	(c) Copyright 1995    Alan Cox <alan@redhat.com>
  *
- *      14-Dec-2001 Matt Domsch <Matt_Domsch@dell.com>
- *           Added nowayout module option to override CONFIG_WATCHDOG_NOWAYOUT
- *           Added timeout module option to override default
+ *	14-Dec-2001 Matt Domsch <Matt_Domsch@dell.com>
+ *	     Added nowayout module option to override CONFIG_WATCHDOG_NOWAYOUT
+ *	     Added timeout module option to override default
  *
  */
 
@@ -201,6 +201,7 @@ ibwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	  break;
 
 	case WDIOC_GETSTATUS:
+	case WDIOC_GETBOOTSTATUS:
 	  return put_user(0, p);
 
 	case WDIOC_KEEPALIVE:
@@ -246,11 +247,12 @@ static int
 ibwdt_close(struct inode *inode, struct file *file)
 {
 	spin_lock(&ibwdt_lock);
-	if (expect_close == 42)
+	if (expect_close == 42) {
 		ibwdt_disable();
-	else
+	} else {
 		printk(KERN_CRIT PFX "WDT device closed unexpectedly.  WDT will not stop!\n");
-
+		ibwdt_ping();
+	}
 	clear_bit(0, &ibwdt_is_open);
 	expect_close = 0;
 	spin_unlock(&ibwdt_lock);
