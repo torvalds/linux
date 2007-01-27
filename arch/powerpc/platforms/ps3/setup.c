@@ -41,11 +41,6 @@
 #define DBG(fmt...) do{if(0)printk(fmt);}while(0)
 #endif
 
-static void ps3_show_cpuinfo(struct seq_file *m)
-{
-	seq_printf(m, "machine\t\t: %s\n", ppc_md.name);
-}
-
 static void ps3_power_save(void)
 {
 	/*
@@ -156,7 +151,6 @@ define_machine(ps3) {
 	.name				= "PS3",
 	.probe				= ps3_probe,
 	.setup_arch			= ps3_setup_arch,
-	.show_cpuinfo			= ps3_show_cpuinfo,
 	.init_IRQ			= ps3_init_IRQ,
 	.panic				= ps3_panic,
 	.get_boot_time			= ps3_get_boot_time,
