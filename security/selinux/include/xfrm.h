@@ -37,6 +37,11 @@ int selinux_xfrm_sock_rcv_skb(u32 sid, struct sk_buff *skb,
 int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
 			struct avc_audit_data *ad, u8 proto);
 int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall);
+
+static inline void selinux_xfrm_notify_policyload(void)
+{
+	atomic_inc(&flow_cache_genid);
+}
 #else
 static inline int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
 			struct avc_audit_data *ad)
@@ -54,6 +59,10 @@ static inline int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int
 {
 	*sid = SECSID_NULL;
 	return 0;
+}
+
+static inline void selinux_xfrm_notify_policyload(void)
+{
 }
 #endif
 
