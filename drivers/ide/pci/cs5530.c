@@ -374,7 +374,7 @@ static struct pci_driver driver = {
 	.probe		= cs5530_init_one,
 };
 
-static int cs5530_ide_init(void)
+static int __init cs5530_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

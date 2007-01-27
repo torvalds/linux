@@ -355,7 +355,7 @@ static struct pci_driver driver = {
 	.probe		= trm290_init_one,
 };
 
-static int trm290_ide_init(void)
+static int __init trm290_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

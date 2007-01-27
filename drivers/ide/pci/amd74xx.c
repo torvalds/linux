@@ -544,7 +544,7 @@ static struct pci_driver driver = {
 	.probe		= amd74xx_probe,
 };
 
-static int amd74xx_ide_init(void)
+static int __init amd74xx_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }
