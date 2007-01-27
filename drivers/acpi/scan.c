@@ -891,7 +891,7 @@ static int acpi_device_set_context(struct acpi_device *device, int type)
 static void acpi_device_get_debug_info(struct acpi_device *device,
 				       acpi_handle handle, int type)
 {
-#ifdef CONFIG_ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DEBUG_OUTPUT
 	char *type_string = NULL;
 	char name[80] = { '?', '\0' };
 	struct acpi_buffer buffer = { sizeof(name), name };
@@ -928,7 +928,7 @@ static void acpi_device_get_debug_info(struct acpi_device *device,
 	}
 
 	printk(KERN_DEBUG "Found %s %s [%p]\n", type_string, name, handle);
-#endif				/*CONFIG_ACPI_DEBUG_OUTPUT */
+#endif				/* ACPI_DEBUG_OUTPUT */
 }
 
 static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
