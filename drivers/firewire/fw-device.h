@@ -24,6 +24,7 @@
 
 #include <linux/fs.h>
 #include <linux/cdev.h>
+#include <asm/atomic.h>
 
 enum fw_device_state {
 	FW_DEVICE_INITIALIZING,
@@ -32,7 +33,7 @@ enum fw_device_state {
 };
 
 struct fw_device {
-	int state;
+	atomic_t state;
 	struct fw_node *node;
 	int node_id;
 	int generation;

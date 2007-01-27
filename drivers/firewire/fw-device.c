@@ -494,7 +494,7 @@ static void fw_device_init(struct work_struct *work)
 	 * necessary.  We have to use the atomic cmpxchg here to avoid
 	 * racing with the FW_NODE_DESTROYED case in
 	 * fw_node_event(). */
-	if (cmpxchg(&device->state,
+	if (atomic_cmpxchg(&device->state,
 		    FW_DEVICE_INITIALIZING,
 		    FW_DEVICE_RUNNING) == FW_DEVICE_SHUTDOWN)
 		fw_device_shutdown(&device->work.work);
@@ -551,7 +551,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 * device_for_each_child() in FW_NODE_UPDATED is
 		 * doesn't freak out. */
 		device_initialize(&device->device);
-		device->state = FW_DEVICE_INITIALIZING;
+		atomic_set(&device->state, FW_DEVICE_INITIALIZING);
 		device->card = fw_card_get(card);
 		device->node = fw_node_get(node);
 		device->node_id = node->node_id;
@@ -596,7 +596,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 * the device in shutdown state to have that code fail
 		 * to create the device. */
 		device = node->data;
-		if (xchg(&device->state,
+		if (atomic_xchg(&device->state,
 			 FW_DEVICE_SHUTDOWN) == FW_DEVICE_RUNNING) {
 			INIT_DELAYED_WORK(&device->work, fw_device_shutdown);
 			schedule_delayed_work(&device->work, 0);

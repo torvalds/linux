@@ -302,7 +302,7 @@ fw_card_bm_work(struct work_struct *work)
 		/* Either link_on is false, or we failed to read the
 		 * config rom.  In either case, pick another root. */
 		new_root_id = card->local_node->node_id;
-	} else if (root->state != FW_DEVICE_RUNNING) {
+	} else if (atomic_read(&root->state) != FW_DEVICE_RUNNING) {
 		/* If we haven't probed this device yet, bail out now
 		 * and let's try again once that's done. */
 		spin_unlock_irqrestore(&card->lock, flags);
