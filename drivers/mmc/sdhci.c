@@ -37,6 +37,7 @@ static unsigned int debug_quirks = 0;
 #define SDHCI_QUIRK_FORCE_DMA				(1<<1)
 /* Controller doesn't like some resets when there is no card inserted. */
 #define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
+#define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -63,6 +64,14 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_ENE,
+		.device		= PCI_DEVICE_ID_ENE_CB712_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE,
 	},
 
 	{	/* Generic SD host controller */
@@ -674,10 +683,17 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 	if (host->power == power)
 		return;
 
-	writeb(0, host->ioaddr + SDHCI_POWER_CONTROL);
-
-	if (power == (unsigned short)-1)
+	if (power == (unsigned short)-1) {
+		writeb(0, host->ioaddr + SDHCI_POWER_CONTROL);
 		goto out;
+	}
+
+	/*
+	 * Spec says that we should clear the power reg before setting
+	 * a new value. Some controllers don't seem to like this though.
+	 */
+	if (!(host->chip->quirks & SDHCI_QUIRK_SINGLE_POWER_WRITE))
+		writeb(0, host->ioaddr + SDHCI_POWER_CONTROL);
 
 	pwr = SDHCI_POWER_ON;
 
