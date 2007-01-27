@@ -111,7 +111,7 @@ static void __init ps3_smp_setup_cpu(int cpu)
 	BUILD_BUG_ON(PPC_MSG_DEBUGGER_BREAK != 3);
 
 	for (i = 0; i < MSG_COUNT; i++) {
-		result = ps3_alloc_event_irq(&virqs[i]);
+		result = ps3_alloc_event_irq(cpu, &virqs[i]);
 
 		if (result)
 			continue;

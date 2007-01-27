@@ -36,15 +36,140 @@
 #endif
 
 /**
+ * struct ps3_bmp - a per cpu irq status and mask bitmap structure
+ * @status: 256 bit status bitmap indexed by plug
+ * @unused_1:
+ * @mask: 256 bit mask bitmap indexed by plug
+ * @unused_2:
+ * @lock:
+ * @ipi_debug_brk_mask:
+ *
+ * The HV mantains per SMT thread mappings of HV outlet to HV plug on
+ * behalf of the guest.  These mappings are implemented as 256 bit guest
+ * supplied bitmaps indexed by plug number.  The addresses of the bitmaps
+ * are registered with the HV through lv1_configure_irq_state_bitmap().
+ *
+ * The HV supports 256 plugs per thread, assigned as {0..255}, for a total
+ * of 512 plugs supported on a processor.  To simplify the logic this
+ * implementation equates HV plug value to Linux virq value, constrains each
+ * interrupt to have a system wide unique plug number, and limits the range
+ * of the plug values to map into the first dword of the bitmaps.  This
+ * gives a usable range of plug values of  {NUM_ISA_INTERRUPTS..63}.  Note
+ * that there is no constraint on how many in this set an individual thread
+ * can acquire.
+ */
+
+struct ps3_bmp {
+	struct {
+		u64 status;
+		u64 unused_1[3];
+		u64 mask;
+		u64 unused_2[3];
+	};
+	u64 ipi_debug_brk_mask;
+	spinlock_t lock;
+};
+
+/**
+ * struct ps3_private - a per cpu data structure
+ * @bmp: ps3_bmp structure
+ * @node: HV logical_ppe_id
+ * @cpu: HV thread_id
+ */
+
+struct ps3_private {
+	struct ps3_bmp bmp __attribute__ ((aligned (64)));
+	u64 node;
+	unsigned int cpu;
+};
+
+static DEFINE_PER_CPU(struct ps3_private, ps3_private);
+
+static int ps3_connect_irq(enum ps3_cpu_binding cpu, unsigned long outlet,
+	unsigned int *virq)
+{
+	int result;
+	struct ps3_private *pd;
+
+	/* This defines the default interrupt distribution policy. */
+
+	if (cpu == PS3_BINDING_CPU_ANY)
+		cpu = 0;
+
+	pd = &per_cpu(ps3_private, cpu);
+
+	*virq = irq_create_mapping(NULL, outlet);
+
+	if (*virq == NO_IRQ) {
+		pr_debug("%s:%d: irq_create_mapping failed: outlet %lu\n",
+			__func__, __LINE__, outlet);
+		result = -ENOMEM;
+		goto fail_create;
+	}
+
+	/* Binds outlet to cpu + virq. */
+
+	result = lv1_connect_irq_plug_ext(pd->node, pd->cpu, *virq, outlet, 0);
+
+	if (result) {
+		pr_info("%s:%d: lv1_connect_irq_plug_ext failed: %s\n",
+		__func__, __LINE__, ps3_result(result));
+		result = -EPERM;
+		goto fail_connect;
+	}
+
+	pr_debug("%s:%d: outlet %lu => cpu %u, virq %u\n", __func__, __LINE__,
+		outlet, cpu, *virq);
+
+	result = set_irq_chip_data(*virq, pd);
+
+	if (result) {
+		pr_debug("%s:%d: set_irq_chip_data failed\n",
+			__func__, __LINE__);
+		goto fail_set;
+	}
+
+	return result;
+
+fail_set:
+	lv1_disconnect_irq_plug_ext(pd->node, pd->cpu, *virq);
+fail_connect:
+	irq_dispose_mapping(*virq);
+fail_create:
+	return result;
+}
+
+static void ps3_disconnect_irq(unsigned int virq)
+{
+	int result;
+	const struct ps3_private *pd = get_irq_chip_data(virq);
+
+	pr_debug("%s:%d: node %lu, cpu %d, virq %u\n", __func__, __LINE__,
+		pd->node, pd->cpu, virq);
+
+	result = lv1_disconnect_irq_plug_ext(pd->node, pd->cpu, virq);
+
+	if (result)
+		pr_info("%s:%d: lv1_disconnect_irq_plug_ext failed: %s\n",
+		__func__, __LINE__, ps3_result(result));
+
+	set_irq_chip_data(virq, NULL);
+	irq_dispose_mapping(virq);
+}
+
+/**
  * ps3_alloc_io_irq - Assign a virq to a system bus device.
- * interrupt_id: The device interrupt id read from the system repository.
+ * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
+ * serviced on.
+ * @interrupt_id: The device interrupt id read from the system repository.
  * @virq: The assigned Linux virq.
  *
  * An io irq represents a non-virtualized device interrupt.  interrupt_id
  * coresponds to the interrupt number of the interrupt controller.
  */
 
-int ps3_alloc_io_irq(unsigned int interrupt_id, unsigned int *virq)
+int ps3_alloc_io_irq(enum ps3_cpu_binding cpu, unsigned int interrupt_id,
+	unsigned int *virq)
 {
 	int result;
 	unsigned long outlet;
@@ -57,12 +182,10 @@ int ps3_alloc_io_irq(unsigned int interrupt_id, unsigned int *virq)
 		return result;
 	}
 
-	*virq = irq_create_mapping(NULL, outlet);
+	result = ps3_connect_irq(cpu, outlet, virq);
+	BUG_ON(result);
 
-	pr_debug("%s:%d: interrupt_id %u => outlet %lu, virq %u\n",
-		__func__, __LINE__, interrupt_id, outlet, *virq);
-
-	return 0;
+	return result;
 }
 
 int ps3_free_io_irq(unsigned int virq)
@@ -75,13 +198,15 @@ int ps3_free_io_irq(unsigned int virq)
 		pr_debug("%s:%d: lv1_destruct_io_irq_outlet failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 
-	irq_dispose_mapping(virq);
+	ps3_disconnect_irq(virq);
 
 	return result;
 }
 
 /**
  * ps3_alloc_event_irq - Allocate a virq for use with a system event.
+ * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
+ * serviced on.
  * @virq: The assigned Linux virq.
  *
  * The virq can be used with lv1_connect_interrupt_event_receive_port() to
@@ -89,7 +214,7 @@ int ps3_free_io_irq(unsigned int virq)
  * events.
  */
 
-int ps3_alloc_event_irq(unsigned int *virq)
+int ps3_alloc_event_irq(enum ps3_cpu_binding cpu, unsigned int *virq)
 {
 	int result;
 	unsigned long outlet;
@@ -103,12 +228,10 @@ int ps3_alloc_event_irq(unsigned int *virq)
 		return result;
 	}
 
-	*virq = irq_create_mapping(NULL, outlet);
+	result = ps3_connect_irq(cpu, outlet, virq);
+	BUG_ON(result);
 
-	pr_debug("%s:%d: outlet %lu, virq %u\n", __func__, __LINE__, outlet,
-		*virq);
-
-	return 0;
+	return result;
 }
 
 int ps3_free_event_irq(unsigned int virq)
@@ -123,7 +246,7 @@ int ps3_free_event_irq(unsigned int virq)
 		pr_debug("%s:%d: lv1_destruct_event_receive_port failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 
-	irq_dispose_mapping(virq);
+	ps3_disconnect_irq(virq);
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
 	return result;
@@ -136,6 +259,8 @@ int ps3_send_event_locally(unsigned int virq)
 
 /**
  * ps3_connect_event_irq - Assign a virq to a system bus device.
+ * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
+ * serviced on.
  * @did: The HV device identifier read from the system repository.
  * @interrupt_id: The device interrupt id read from the system repository.
  * @virq: The assigned Linux virq.
@@ -144,12 +269,13 @@ int ps3_send_event_locally(unsigned int virq)
  * coresponds to the software interrupt number.
  */
 
-int ps3_connect_event_irq(const struct ps3_device_id *did,
-	unsigned int interrupt_id, unsigned int *virq)
+int ps3_connect_event_irq(enum ps3_cpu_binding cpu,
+	const struct ps3_device_id *did, unsigned int interrupt_id,
+	unsigned int *virq)
 {
 	int result;
 
-	result = ps3_alloc_event_irq(virq);
+	result = ps3_alloc_event_irq(cpu, virq);
 
 	if (result)
 		return result;
@@ -196,6 +322,8 @@ int ps3_disconnect_event_irq(const struct ps3_device_id *did,
 
 /**
  * ps3_alloc_vuart_irq - Configure the system virtual uart virq.
+ * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
+ * serviced on.
  * @virt_addr_bmp: The caller supplied virtual uart interrupt bitmap.
  * @virq: The assigned Linux virq.
  *
@@ -203,13 +331,14 @@ int ps3_disconnect_event_irq(const struct ps3_device_id *did,
  * freeing the interrupt will return a wrong state error.
  */
 
-int ps3_alloc_vuart_irq(void* virt_addr_bmp, unsigned int *virq)
+int ps3_alloc_vuart_irq(enum ps3_cpu_binding cpu, void* virt_addr_bmp,
+	unsigned int *virq)
 {
 	int result;
 	unsigned long outlet;
-	unsigned long lpar_addr;
+	u64 lpar_addr;
 
-	BUG_ON(!is_kernel_addr((unsigned long)virt_addr_bmp));
+	BUG_ON(!is_kernel_addr((u64)virt_addr_bmp));
 
 	lpar_addr = ps3_mm_phys_to_lpar(__pa(virt_addr_bmp));
 
@@ -221,12 +350,10 @@ int ps3_alloc_vuart_irq(void* virt_addr_bmp, unsigned int *virq)
 		return result;
 	}
 
-	*virq = irq_create_mapping(NULL, outlet);
+	result = ps3_connect_irq(cpu, outlet, virq);
+	BUG_ON(result);
 
-	pr_debug("%s:%d: outlet %lu, virq %u\n", __func__, __LINE__,
-		outlet, *virq);
-
-	return 0;
+	return result;
 }
 
 int ps3_free_vuart_irq(unsigned int virq)
@@ -241,21 +368,23 @@ int ps3_free_vuart_irq(unsigned int virq)
 		return result;
 	}
 
-	irq_dispose_mapping(virq);
+	ps3_disconnect_irq(virq);
 
 	return result;
 }
 
 /**
  * ps3_alloc_spe_irq - Configure an spe virq.
+ * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
+ * serviced on.
  * @spe_id: The spe_id returned from lv1_construct_logical_spe().
  * @class: The spe interrupt class {0,1,2}.
  * @virq: The assigned Linux virq.
  *
  */
 
-int ps3_alloc_spe_irq(unsigned long spe_id, unsigned int class,
-	unsigned int *virq)
+int ps3_alloc_spe_irq(enum ps3_cpu_binding cpu, unsigned long spe_id,
+	unsigned int class, unsigned int *virq)
 {
 	int result;
 	unsigned long outlet;
@@ -270,74 +399,23 @@ int ps3_alloc_spe_irq(unsigned long spe_id, unsigned int class,
 		return result;
 	}
 
-	*virq = irq_create_mapping(NULL, outlet);
+	result = ps3_connect_irq(cpu, outlet, virq);
+	BUG_ON(result);
 
-	pr_debug("%s:%d: spe_id %lu, class %u, outlet %lu, virq %u\n",
-		__func__, __LINE__, spe_id, class, outlet, *virq);
-
-	return 0;
+	return result;
 }
 
 int ps3_free_spe_irq(unsigned int virq)
 {
-	irq_dispose_mapping(virq);
+	ps3_disconnect_irq(virq);
 	return 0;
 }
 
 #define PS3_INVALID_OUTLET ((irq_hw_number_t)-1)
 #define PS3_PLUG_MAX 63
 
-/**
- * struct ps3_bmp - a per cpu irq status and mask bitmap structure
- * @status: 256 bit status bitmap indexed by plug
- * @unused_1:
- * @mask: 256 bit mask bitmap indexed by plug
- * @unused_2:
- * @lock:
- * @ipi_debug_brk_mask:
- *
- * The HV mantains per SMT thread mappings of HV outlet to HV plug on
- * behalf of the guest.  These mappings are implemented as 256 bit guest
- * supplied bitmaps indexed by plug number.  The address of the bitmaps are
- * registered with the HV through lv1_configure_irq_state_bitmap().
- *
- * The HV supports 256 plugs per thread, assigned as {0..255}, for a total
- * of 512 plugs supported on a processor.  To simplify the logic this
- * implementation equates HV plug value to linux virq value, constrains each
- * interrupt to have a system wide unique plug number, and limits the range
- * of the plug values to map into the first dword of the bitmaps.  This
- * gives a usable range of plug values of  {NUM_ISA_INTERRUPTS..63}.  Note
- * that there is no constraint on how many in this set an individual thread
- * can aquire.
- */
-
-struct ps3_bmp {
-	struct {
-		unsigned long status;
-		unsigned long unused_1[3];
-		unsigned long mask;
-		unsigned long unused_2[3];
-	} __attribute__ ((aligned (64)));
-
-	spinlock_t lock;
-	unsigned long ipi_debug_brk_mask;
-};
-
-/**
- * struct ps3_private - a per cpu data structure
- * @bmp: ps3_bmp structure
- * @node: HV logical_ppe_id
- * @cpu: HV thread_id
- */
-
-struct ps3_private {
-	struct ps3_bmp bmp;
-	unsigned long node;
-	unsigned int cpu;
-};
-
 #if defined(DEBUG)
-static void _dump_64_bmp(const char *header, const unsigned long *p, unsigned cpu,
+static void _dump_64_bmp(const char *header, const u64 *p, unsigned cpu,
 	const char* func, int line)
 {
 	pr_debug("%s:%d: %s %u {%04lx_%04lx_%04lx_%04lx}\n",
@@ -347,7 +425,7 @@ static void _dump_64_bmp(const char *header, const unsigned long *p, unsigned cp
 }
 
 static void __attribute__ ((unused)) _dump_256_bmp(const char *header,
-	const unsigned long *p, unsigned cpu, const char* func, int line)
+	const u64 *p, unsigned cpu, const char* func, int line)
 {
 	pr_debug("%s:%d: %s %u {%016lx:%016lx:%016lx:%016lx}\n",
 		func, line, header, cpu, p[0], p[1], p[2], p[3]);
@@ -381,9 +459,9 @@ static void dump_bmp(struct ps3_private* pd) {};
 static void ps3_chip_mask(unsigned int virq)
 {
 	struct ps3_private *pd = get_irq_chip_data(virq);
-	unsigned long bit = 0x8000000000000000UL >> virq;
-	unsigned long *p = &pd->bmp.mask;
-	unsigned long old;
+	u64 bit = 0x8000000000000000UL >> virq;
+	u64 *p = &pd->bmp.mask;
+	u64 old;
 	unsigned long flags;
 
 	pr_debug("%s:%d: cpu %u, virq %d\n", __func__, __LINE__, pd->cpu, virq);
@@ -405,9 +483,9 @@ static void ps3_chip_mask(unsigned int virq)
 static void ps3_chip_unmask(unsigned int virq)
 {
 	struct ps3_private *pd = get_irq_chip_data(virq);
-	unsigned long bit = 0x8000000000000000UL >> virq;
-	unsigned long *p = &pd->bmp.mask;
-	unsigned long old;
+	u64 bit = 0x8000000000000000UL >> virq;
+	u64 *p = &pd->bmp.mask;
+	u64 old;
 	unsigned long flags;
 
 	pr_debug("%s:%d: cpu %u, virq %d\n", __func__, __LINE__, pd->cpu, virq);
@@ -441,45 +519,18 @@ static struct irq_chip irq_chip = {
 
 static void ps3_host_unmap(struct irq_host *h, unsigned int virq)
 {
-	int result;
-	const struct ps3_private *pd = get_irq_chip_data(virq);
-
-	pr_debug("%s:%d: node %lu, cpu %d, virq %u\n", __func__, __LINE__,
-		pd->node, pd->cpu, virq);
-
-	lv1_disconnect_irq_plug_ext(pd->node, pd->cpu, virq);
-
-	result = set_irq_chip_data(virq, NULL);
-	BUG_ON(result);
+	set_irq_chip_data(virq, NULL);
 }
-
-static DEFINE_PER_CPU(struct ps3_private, ps3_private);
 
 static int ps3_host_map(struct irq_host *h, unsigned int virq,
 	irq_hw_number_t hwirq)
 {
-	int result;
-	struct ps3_private *pd = &__get_cpu_var(ps3_private);
-
-	pr_debug("%s:%d: node %lu, cpu %d, hwirq %lu => virq %u\n", __func__,
-		__LINE__, pd->node, pd->cpu, hwirq, virq);
-
-	/* Binds this virq to pd->cpu (current cpu) */
-
-	result = lv1_connect_irq_plug_ext(pd->node, pd->cpu, virq, hwirq, 0);
-
-	if (result) {
-		pr_info("%s:%d: lv1_connect_irq_plug_ext failed:"
-			" %s\n", __func__, __LINE__, ps3_result(result));
-		return -EPERM;
-	}
-
-	result = set_irq_chip_data(virq, pd);
-	BUG_ON(result);
+	pr_debug("%s:%d: hwirq %lu, virq %u\n", __func__, __LINE__, hwirq,
+		virq);
 
 	set_irq_chip_and_handler(virq, &irq_chip, handle_fasteoi_irq);
 
-	return result;
+	return 0;
 }
 
 static struct irq_host_ops ps3_host_ops = {
@@ -500,7 +551,7 @@ void __init ps3_register_ipi_debug_brk(unsigned int cpu, unsigned int virq)
 unsigned int ps3_get_irq(void)
 {
 	struct ps3_private *pd = &__get_cpu_var(ps3_private);
-	unsigned long x = (pd->bmp.status & pd->bmp.mask);
+	u64 x = (pd->bmp.status & pd->bmp.mask);
 	unsigned int plug;
 
 	/* check for ipi break first to stop this cpu ASAP */

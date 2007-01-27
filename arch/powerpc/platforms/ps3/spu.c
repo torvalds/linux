@@ -267,20 +267,20 @@ static int __init setup_interrupts(struct spu *spu)
 {
 	int result;
 
-	result = ps3_alloc_spe_irq(spu_pdata(spu)->spe_id, 0,
-		&spu->irqs[0]);
+	result = ps3_alloc_spe_irq(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
+		0, &spu->irqs[0]);
 
 	if (result)
 		goto fail_alloc_0;
 
-	result = ps3_alloc_spe_irq(spu_pdata(spu)->spe_id, 1,
-		&spu->irqs[1]);
+	result = ps3_alloc_spe_irq(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
+		1, &spu->irqs[1]);
 
 	if (result)
 		goto fail_alloc_1;
 
-	result = ps3_alloc_spe_irq(spu_pdata(spu)->spe_id, 2,
-		&spu->irqs[2]);
+	result = ps3_alloc_spe_irq(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
+		2, &spu->irqs[2]);
 
 	if (result)
 		goto fail_alloc_2;

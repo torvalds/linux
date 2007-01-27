@@ -140,19 +140,28 @@ unsigned long ps3_mm_phys_to_lpar(unsigned long phys_addr);
 
 /* inrerrupt routines */
 
-int ps3_alloc_io_irq(unsigned int interrupt_id, unsigned int *virq);
+enum ps3_cpu_binding {
+	PS3_BINDING_CPU_ANY = -1,
+	PS3_BINDING_CPU_0 = 0,
+	PS3_BINDING_CPU_1 = 1,
+};
+
+int ps3_alloc_io_irq(enum ps3_cpu_binding cpu, unsigned int interrupt_id,
+	unsigned int *virq);
 int ps3_free_io_irq(unsigned int virq);
-int ps3_alloc_event_irq(unsigned int *virq);
+int ps3_alloc_event_irq(enum ps3_cpu_binding cpu, unsigned int *virq);
 int ps3_free_event_irq(unsigned int virq);
 int ps3_send_event_locally(unsigned int virq);
-int ps3_connect_event_irq(const struct ps3_device_id *did,
-	unsigned int interrupt_id, unsigned int *virq);
+int ps3_connect_event_irq(enum ps3_cpu_binding cpu,
+	const struct ps3_device_id *did, unsigned int interrupt_id,
+	unsigned int *virq);
 int ps3_disconnect_event_irq(const struct ps3_device_id *did,
 	unsigned int interrupt_id, unsigned int virq);
-int ps3_alloc_vuart_irq(void* virt_addr_bmp, unsigned int *virq);
-int ps3_free_vuart_irq(unsigned int virq);
-int ps3_alloc_spe_irq(unsigned long spe_id, unsigned int class,
+int ps3_alloc_vuart_irq(enum ps3_cpu_binding cpu, void* virt_addr_bmp,
 	unsigned int *virq);
+int ps3_free_vuart_irq(unsigned int virq);
+int ps3_alloc_spe_irq(enum ps3_cpu_binding cpu, unsigned long spe_id,
+	unsigned int class, unsigned int *virq);
 int ps3_free_spe_irq(unsigned int virq);
 
 /* lv1 result codes */
