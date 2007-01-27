@@ -32,6 +32,7 @@
 #include <asm/udbg.h>
 #include <asm/prom.h>
 #include <asm/lv1call.h>
+#include <asm/ps3.h>
 
 #include "platform.h"
 
@@ -40,6 +41,19 @@
 #else
 #define DBG(fmt...) do{if(0)printk(fmt);}while(0)
 #endif
+
+int ps3_get_firmware_version(union ps3_firmware_version *v)
+{
+	int result = lv1_get_version_info(&v->raw);
+
+	if (result) {
+		v->raw = 0;
+		return -1;
+	}
+
+	return result;
+}
+EXPORT_SYMBOL_GPL(ps3_get_firmware_version);
 
 static void ps3_power_save(void)
 {
@@ -69,7 +83,13 @@ static void ps3_panic(char *str)
 
 static void __init ps3_setup_arch(void)
 {
+	union ps3_firmware_version v;
+
 	DBG(" -> %s:%d\n", __func__, __LINE__);
+
+	ps3_get_firmware_version(&v);
+	printk(KERN_INFO "PS3 firmware version %u.%u.%u\n", v.major, v.minor,
+		v.rev);
 
 	ps3_spu_set_platform();
 	ps3_map_htab();

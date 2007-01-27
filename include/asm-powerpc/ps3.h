@@ -27,6 +27,18 @@
 #include <linux/device.h>
 #include <scsi/scsi.h>
 
+union ps3_firmware_version {
+	u64 raw;
+	struct {
+		u16 pad;
+		u16 major;
+		u16 minor;
+		u16 rev;
+	};
+};
+
+int ps3_get_firmware_version(union ps3_firmware_version *v);
+
 /**
  * struct ps3_device_id - HV bus device identifier from the system repository
  * @bus_id: HV bus id, {1..} (zero invalid)
