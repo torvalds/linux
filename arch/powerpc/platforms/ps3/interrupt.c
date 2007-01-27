@@ -48,6 +48,9 @@
  * behalf of the guest.  These mappings are implemented as 256 bit guest
  * supplied bitmaps indexed by plug number.  The addresses of the bitmaps
  * are registered with the HV through lv1_configure_irq_state_bitmap().
+ * The HV requires that the 512 bits of status + mask not cross a page
+ * boundary.  PS3_BMP_MINALIGN is used to define this minimal 64 byte
+ * alignment.
  *
  * The HV supports 256 plugs per thread, assigned as {0..255}, for a total
  * of 512 plugs supported on a processor.  To simplify the logic this
@@ -58,6 +61,8 @@
  * that there is no constraint on how many in this set an individual thread
  * can acquire.
  */
+
+#define PS3_BMP_MINALIGN 64
 
 struct ps3_bmp {
 	struct {
@@ -78,7 +83,7 @@ struct ps3_bmp {
  */
 
 struct ps3_private {
-	struct ps3_bmp bmp __attribute__ ((aligned (64)));
+	struct ps3_bmp bmp __attribute__ ((aligned (PS3_BMP_MINALIGN)));
 	u64 node;
 	unsigned int cpu;
 };
