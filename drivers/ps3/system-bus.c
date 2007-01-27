@@ -50,7 +50,7 @@ int ps3_mmio_region_create(struct ps3_mmio_region *r)
 	if (result) {
 		pr_debug("%s:%d: lv1_map_device_mmio_region failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
-		r->lpar_addr = r->len = r->bus_addr = 0;
+		r->lpar_addr = 0;
 	}
 
 	dump_mmio_region(r);
@@ -62,13 +62,13 @@ int ps3_free_mmio_region(struct ps3_mmio_region *r)
 	int result;
 
 	result = lv1_unmap_device_mmio_region(r->did.bus_id, r->did.dev_id,
-		r->bus_addr);
+		r->lpar_addr);
 
 	if (result)
 		pr_debug("%s:%d: lv1_unmap_device_mmio_region failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 
-	r->lpar_addr = r->len = r->bus_addr = 0;
+	r->lpar_addr = 0;
 	return result;
 }
 
