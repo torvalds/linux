@@ -300,6 +300,10 @@ static struct notifier_block ibwdt_notifier = {
 	.notifier_call = ibwdt_notify_sys,
 };
 
+/*
+ *	Init & exit routines
+ */
+
 static int __init ibwdt_init(void)
 {
 	int res;
@@ -307,11 +311,6 @@ static int __init ibwdt_init(void)
 	printk(KERN_INFO PFX "WDT driver for IB700 single board computer initialising.\n");
 
 	spin_lock_init(&ibwdt_lock);
-	res = misc_register(&ibwdt_miscdev);
-	if (res) {
-		printk (KERN_ERR PFX "failed to register misc device\n");
-		goto out_nomisc;
-	}
 
 #if WDT_START != WDT_STOP
 	if (!request_region(WDT_STOP, 1, "IB700 WDT")) {
@@ -326,13 +325,22 @@ static int __init ibwdt_init(void)
 		res = -EIO;
 		goto out_nostartreg;
 	}
+
 	res = register_reboot_notifier(&ibwdt_notifier);
 	if (res) {
 		printk (KERN_ERR PFX "Failed to register reboot notifier.\n");
 		goto out_noreboot;
 	}
+
+	res = misc_register(&ibwdt_miscdev);
+	if (res) {
+		printk (KERN_ERR PFX "failed to register misc device\n");
+		goto out_nomisc;
+	}
 	return 0;
 
+out_nomisc:
+	unregister_reboot_notifier(&ibwdt_notifier);
 out_noreboot:
 	release_region(WDT_START, 1);
 out_nostartreg:
@@ -340,8 +348,6 @@ out_nostartreg:
 	release_region(WDT_STOP, 1);
 #endif
 out_nostopreg:
-	misc_deregister(&ibwdt_miscdev);
-out_nomisc:
 	return res;
 }
 
@@ -350,10 +356,10 @@ ibwdt_exit(void)
 {
 	misc_deregister(&ibwdt_miscdev);
 	unregister_reboot_notifier(&ibwdt_notifier);
+	release_region(WDT_START,1);
 #if WDT_START != WDT_STOP
 	release_region(WDT_STOP,1);
 #endif
-	release_region(WDT_START,1);
 }
 
 module_init(ibwdt_init);
