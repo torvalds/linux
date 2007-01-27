@@ -342,8 +342,9 @@ report_found_node(struct fw_card *card,
 	int b_path = (node->phy_speed == SCODE_BETA);
 
 	if (parent != NULL) {
-		node->max_speed = min((u8)parent->max_speed,
-				      (u8)node->phy_speed);
+		/* min() macro doesn't work here with gcc 3.4 */
+		node->max_speed = parent->max_speed < node->phy_speed ?
+					parent->max_speed : node->phy_speed;
 		node->b_path = parent->b_path && b_path;
 	} else {
 		node->max_speed = node->phy_speed;
