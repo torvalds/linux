@@ -277,10 +277,10 @@ enum ps3_interrupt_type {
 	PS3_INTERRUPT_TYPE_OTHER = 5,
 };
 
-enum ps3_region_type {
-	PS3_REGION_TYPE_SB_OHCI = 3,
-	PS3_REGION_TYPE_SB_EHCI = 4,
-	PS3_REGION_TYPE_SB_GPIO = 5,
+enum ps3_reg_type {
+	PS3_REG_TYPE_SB_OHCI = 3,
+	PS3_REG_TYPE_SB_EHCI = 4,
+	PS3_REG_TYPE_SB_GPIO = 5,
 };
 
 int ps3_repository_read_dev_str(unsigned int bus_index,
@@ -294,13 +294,13 @@ int ps3_repository_read_dev_intr(unsigned int bus_index,
 	enum ps3_interrupt_type *intr_type, unsigned int *interrupt_id);
 int ps3_repository_read_dev_reg_type(unsigned int bus_index,
 	unsigned int dev_index, unsigned int reg_index,
-	enum ps3_region_type *reg_type);
+	enum ps3_reg_type *reg_type);
 int ps3_repository_read_dev_reg_addr(unsigned int bus_index,
 	unsigned int dev_index, unsigned int reg_index, u64 *bus_addr,
 	u64 *len);
 int ps3_repository_read_dev_reg(unsigned int bus_index,
 	unsigned int dev_index, unsigned int reg_index,
-	enum ps3_region_type *reg_type, u64 *bus_addr, u64 *len);
+	enum ps3_reg_type *reg_type, u64 *bus_addr, u64 *len);
 
 /* repository bus enumerators */
 
@@ -322,8 +322,8 @@ static inline int ps3_repository_find_first_device(
 }
 int ps3_repository_find_interrupt(const struct ps3_repository_device *dev,
 	enum ps3_interrupt_type intr_type, unsigned int *interrupt_id);
-int ps3_repository_find_region(const struct ps3_repository_device *dev,
-	enum ps3_region_type reg_type, u64 *bus_addr, u64 *len);
+int ps3_repository_find_reg(const struct ps3_repository_device *dev,
+	enum ps3_reg_type reg_type, u64 *bus_addr, u64 *len);
 
 /* repository block device info */
 

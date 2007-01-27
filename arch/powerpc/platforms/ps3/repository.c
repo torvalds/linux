@@ -257,7 +257,7 @@ int ps3_repository_read_dev_type(unsigned int bus_index,
 
 int ps3_repository_read_dev_intr(unsigned int bus_index,
 	unsigned int dev_index, unsigned int intr_index,
-	unsigned int *intr_type, unsigned int* interrupt_id)
+	enum ps3_interrupt_type *intr_type, unsigned int* interrupt_id)
 {
 	int result;
 	u64 v1;
@@ -275,7 +275,8 @@ int ps3_repository_read_dev_intr(unsigned int bus_index,
 }
 
 int ps3_repository_read_dev_reg_type(unsigned int bus_index,
-	unsigned int dev_index, unsigned int reg_index, unsigned int *reg_type)
+	unsigned int dev_index, unsigned int reg_index,
+	enum ps3_reg_type *reg_type)
 {
 	int result;
 	u64 v1;
@@ -302,8 +303,8 @@ int ps3_repository_read_dev_reg_addr(unsigned int bus_index,
 }
 
 int ps3_repository_read_dev_reg(unsigned int bus_index,
-	unsigned int dev_index, unsigned int reg_index, unsigned int *reg_type,
-	u64 *bus_addr, u64 *len)
+	unsigned int dev_index, unsigned int reg_index,
+	enum ps3_reg_type *reg_type, u64 *bus_addr, u64 *len)
 {
 	int result = ps3_repository_read_dev_reg_type(bus_index, dev_index,
 		reg_index, reg_type);
@@ -343,7 +344,7 @@ int ps3_repository_dump_resource_info(unsigned int bus_index,
 	}
 
 	for (res_index = 0; res_index < 10; res_index++) {
-		enum ps3_region_type reg_type;
+		enum ps3_reg_type reg_type;
 		u64 bus_addr;
 		u64 len;
 
@@ -487,7 +488,8 @@ static int find_device(unsigned int bus_index, unsigned int num_dev,
 			break;
 	}
 
-	BUG_ON(dev_index == num_dev);
+	if (dev_index == num_dev)
+		return -1;
 
 	pr_debug("%s:%d: found dev_type %u at dev_index %u\n",
 		__func__, __LINE__, dev_type, dev_index);
@@ -521,7 +523,7 @@ int ps3_repository_find_device (enum ps3_bus_type bus_type,
 	pr_debug("%s:%d: find bus_type %u, dev_type %u\n", __func__, __LINE__,
 		bus_type, dev_type);
 
-	dev->bus_index = UINT_MAX;
+	BUG_ON(start_dev && start_dev->bus_index > 10);
 
 	for (bus_index = start_dev ? start_dev->bus_index : 0; bus_index < 10;
 		bus_index++) {
@@ -532,13 +534,15 @@ int ps3_repository_find_device (enum ps3_bus_type bus_type,
 		if (result) {
 			pr_debug("%s:%d read_bus_type failed\n",
 				__func__, __LINE__);
+			dev->bus_index = UINT_MAX;
 			return result;
 		}
 		if (x == bus_type)
 			break;
 	}
 
-	BUG_ON(bus_index == 10);
+	if (bus_index >= 10)
+		return -ENODEV;
 
 	pr_debug("%s:%d: found bus_type %u at bus_index %u\n",
 		__func__, __LINE__, bus_type, bus_index);
@@ -604,7 +608,8 @@ int ps3_repository_find_interrupt(const struct ps3_repository_device *dev,
 		}
 	}
 
-	BUG_ON(res_index == 10);
+	if (res_index == 10)
+		return -ENODEV;
 
 	pr_debug("%s:%d: found intr_type %u at res_index %u\n",
 		__func__, __LINE__, intr_type, res_index);
@@ -612,8 +617,8 @@ int ps3_repository_find_interrupt(const struct ps3_repository_device *dev,
 	return result;
 }
 
-int ps3_repository_find_region(const struct ps3_repository_device *dev,
-	enum ps3_region_type reg_type, u64 *bus_addr, u64 *len)
+int ps3_repository_find_reg(const struct ps3_repository_device *dev,
+	enum ps3_reg_type reg_type, u64 *bus_addr, u64 *len)
 {
 	int result = 0;
 	unsigned int res_index;
@@ -623,7 +628,7 @@ int ps3_repository_find_region(const struct ps3_repository_device *dev,
 	*bus_addr = *len = 0;
 
 	for (res_index = 0; res_index < 10; res_index++) {
-		enum ps3_region_type t;
+		enum ps3_reg_type t;
 		u64 a;
 		u64 l;
 
@@ -643,7 +648,8 @@ int ps3_repository_find_region(const struct ps3_repository_device *dev,
 		}
 	}
 
-	BUG_ON(res_index == 10);
+	if (res_index == 10)
+		return -ENODEV;
 
 	pr_debug("%s:%d: found reg_type %u at res_index %u\n",
 		__func__, __LINE__, reg_type, res_index);
