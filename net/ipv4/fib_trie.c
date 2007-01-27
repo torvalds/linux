@@ -2290,16 +2290,17 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		return 0;
 
+	if (!NODE_PARENT(n)) {
+		if (iter->trie == trie_local)
+			seq_puts(seq, "<local>:\n");
+		else
+			seq_puts(seq, "<main>:\n");
+	}
+
 	if (IS_TNODE(n)) {
 		struct tnode *tn = (struct tnode *) n;
 		__be32 prf = htonl(MASK_PFX(tn->key, tn->pos));
 
-		if (!NODE_PARENT(n)) {
-			if (iter->trie == trie_local)
-				seq_puts(seq, "<local>:\n");
-			else
-				seq_puts(seq, "<main>:\n");
-		} 
 		seq_indent(seq, iter->depth-1);
 		seq_printf(seq, "  +-- %d.%d.%d.%d/%d %d %d %d\n",
 			   NIPQUAD(prf), tn->pos, tn->bits, tn->full_children, 
