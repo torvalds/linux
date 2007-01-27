@@ -1699,6 +1699,7 @@ static int gs_setup_class(struct usb_gadget *gadget,
 			memcpy(&port->port_line_coding, req->buf, ret);
 			spin_unlock(&port->port_lock);
 		}
+		ret = 0;
 		break;
 
 	case USB_CDC_REQ_GET_LINE_CODING:
