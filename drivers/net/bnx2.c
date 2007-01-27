@@ -42,7 +42,6 @@
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/checksum.h>
-#define BCM_TSO 1
 #include <linux/workqueue.h>
 #include <linux/crc32.h>
 #include <linux/prefetch.h>
