@@ -3647,7 +3647,7 @@ S:	Maintained
 W83L51xD SD/MMC CARD INTERFACE DRIVER
 P:	Pierre Ossman
 M:	drzeus-wbsd@drzeus.cx
-L:	wbsd-devel@list.drzeus.cx
+L:	linux-kernel@vger.kernel.org
 W:	http://projects.drzeus.cx/wbsd
 S:	Maintained
 
