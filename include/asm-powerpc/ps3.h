@@ -163,6 +163,9 @@ int ps3_free_vuart_irq(unsigned int virq);
 int ps3_alloc_spe_irq(enum ps3_cpu_binding cpu, unsigned long spe_id,
 	unsigned int class, unsigned int *virq);
 int ps3_free_spe_irq(unsigned int virq);
+int ps3_alloc_irq(enum ps3_cpu_binding cpu, unsigned long outlet,
+	unsigned int *virq);
+int ps3_free_irq(unsigned int virq);
 
 /* lv1 result codes */
 

@@ -85,7 +85,7 @@ struct ps3_private {
 
 static DEFINE_PER_CPU(struct ps3_private, ps3_private);
 
-static int ps3_connect_irq(enum ps3_cpu_binding cpu, unsigned long outlet,
+int ps3_alloc_irq(enum ps3_cpu_binding cpu, unsigned long outlet,
 	unsigned int *virq)
 {
 	int result;
@@ -138,8 +138,9 @@ fail_connect:
 fail_create:
 	return result;
 }
+EXPORT_SYMBOL_GPL(ps3_alloc_irq);
 
-static void ps3_disconnect_irq(unsigned int virq)
+int ps3_free_irq(unsigned int virq)
 {
 	int result;
 	const struct ps3_private *pd = get_irq_chip_data(virq);
@@ -155,7 +156,9 @@ static void ps3_disconnect_irq(unsigned int virq)
 
 	set_irq_chip_data(virq, NULL);
 	irq_dispose_mapping(virq);
+	return result;
 }
+EXPORT_SYMBOL_GPL(ps3_free_irq);
 
 /**
  * ps3_alloc_io_irq - Assign a virq to a system bus device.
@@ -182,7 +185,7 @@ int ps3_alloc_io_irq(enum ps3_cpu_binding cpu, unsigned int interrupt_id,
 		return result;
 	}
 
-	result = ps3_connect_irq(cpu, outlet, virq);
+	result = ps3_alloc_irq(cpu, outlet, virq);
 	BUG_ON(result);
 
 	return result;
@@ -198,7 +201,7 @@ int ps3_free_io_irq(unsigned int virq)
 		pr_debug("%s:%d: lv1_destruct_io_irq_outlet failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 
-	ps3_disconnect_irq(virq);
+	ps3_free_irq(virq);
 
 	return result;
 }
@@ -228,7 +231,7 @@ int ps3_alloc_event_irq(enum ps3_cpu_binding cpu, unsigned int *virq)
 		return result;
 	}
 
-	result = ps3_connect_irq(cpu, outlet, virq);
+	result = ps3_alloc_irq(cpu, outlet, virq);
 	BUG_ON(result);
 
 	return result;
@@ -246,7 +249,7 @@ int ps3_free_event_irq(unsigned int virq)
 		pr_debug("%s:%d: lv1_destruct_event_receive_port failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 
-	ps3_disconnect_irq(virq);
+	ps3_free_irq(virq);
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
 	return result;
@@ -350,7 +353,7 @@ int ps3_alloc_vuart_irq(enum ps3_cpu_binding cpu, void* virt_addr_bmp,
 		return result;
 	}
 
-	result = ps3_connect_irq(cpu, outlet, virq);
+	result = ps3_alloc_irq(cpu, outlet, virq);
 	BUG_ON(result);
 
 	return result;
@@ -368,7 +371,7 @@ int ps3_free_vuart_irq(unsigned int virq)
 		return result;
 	}
 
-	ps3_disconnect_irq(virq);
+	ps3_free_irq(virq);
 
 	return result;
 }
@@ -399,7 +402,7 @@ int ps3_alloc_spe_irq(enum ps3_cpu_binding cpu, unsigned long spe_id,
 		return result;
 	}
 
-	result = ps3_connect_irq(cpu, outlet, virq);
+	result = ps3_alloc_irq(cpu, outlet, virq);
 	BUG_ON(result);
 
 	return result;
@@ -407,9 +410,10 @@ int ps3_alloc_spe_irq(enum ps3_cpu_binding cpu, unsigned long spe_id,
 
 int ps3_free_spe_irq(unsigned int virq)
 {
-	ps3_disconnect_irq(virq);
+	ps3_free_irq(virq);
 	return 0;
 }
+
 
 #define PS3_INVALID_OUTLET ((irq_hw_number_t)-1)
 #define PS3_PLUG_MAX 63
