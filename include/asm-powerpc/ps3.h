@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
+#include <scsi/scsi.h>
 
 /**
  * struct ps3_device_id - HV bus device identifier from the system repository
@@ -255,9 +256,12 @@ enum ps3_bus_type {
 };
 
 enum ps3_dev_type {
+	PS3_DEV_TYPE_STOR_DISK = TYPE_DISK,	/* 0 */
 	PS3_DEV_TYPE_SB_GELIC = 3,
 	PS3_DEV_TYPE_SB_USB = 4,
+	PS3_DEV_TYPE_STOR_ROM = TYPE_ROM,	/* 5 */
 	PS3_DEV_TYPE_SB_GPIO = 6,
+	PS3_DEV_TYPE_STOR_FLASH = TYPE_RBC,	/* 14 */
 };
 
 int ps3_repository_read_bus_str(unsigned int bus_index, const char *bus_str,
@@ -327,21 +331,27 @@ int ps3_repository_find_reg(const struct ps3_repository_device *dev,
 
 /* repository block device info */
 
-int ps3_repository_read_dev_port(unsigned int bus_index,
+int ps3_repository_read_stor_dev_port(unsigned int bus_index,
 	unsigned int dev_index, u64 *port);
-int ps3_repository_read_dev_blk_size(unsigned int bus_index,
+int ps3_repository_read_stor_dev_blk_size(unsigned int bus_index,
 	unsigned int dev_index, u64 *blk_size);
-int ps3_repository_read_dev_num_blocks(unsigned int bus_index,
+int ps3_repository_read_stor_dev_num_blocks(unsigned int bus_index,
 	unsigned int dev_index, u64 *num_blocks);
-int ps3_repository_read_dev_num_regions(unsigned int bus_index,
+int ps3_repository_read_stor_dev_num_regions(unsigned int bus_index,
 	unsigned int dev_index, unsigned int *num_regions);
-int ps3_repository_read_dev_region_id(unsigned int bus_index,
+int ps3_repository_read_stor_dev_region_id(unsigned int bus_index,
 	unsigned int dev_index, unsigned int region_index,
 	unsigned int *region_id);
-int ps3_repository_read_dev_region_size(unsigned int bus_index,
+int ps3_repository_read_stor_dev_region_size(unsigned int bus_index,
 	unsigned int dev_index,	unsigned int region_index, u64 *region_size);
-int ps3_repository_read_dev_region_start(unsigned int bus_index,
+int ps3_repository_read_stor_dev_region_start(unsigned int bus_index,
 	unsigned int dev_index, unsigned int region_index, u64 *region_start);
+int ps3_repository_read_stor_dev_info(unsigned int bus_index,
+	unsigned int dev_index, u64 *port, u64 *blk_size,
+	u64 *num_blocks, unsigned int *num_regions);
+int ps3_repository_read_stor_dev_region(unsigned int bus_index,
+	unsigned int dev_index, unsigned int region_index,
+	unsigned int *region_id, u64 *region_start, u64 *region_size);
 
 /* repository pu and memory info */
 
