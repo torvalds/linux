@@ -122,7 +122,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" _
 
 
 /*
- *	Kernel methods.
+ *	Watchdog Operations
  */
 
 static void
@@ -131,6 +131,31 @@ ibwdt_ping(void)
 	/* Write a watchdog value */
 	outb_p(wd_margin, WDT_START);
 }
+
+static void
+ibwdt_disable(void)
+{
+	outb_p(0, WDT_STOP);
+}
+
+static int
+ibwdt_set_heartbeat(int t)
+{
+	int i;
+
+	if ((t < 0) || (t > 30))
+		return -EINVAL;
+
+	for (i = 0x0F; i > -1; i--)
+		if (wd_times[i] > t)
+			break;
+	wd_margin = i;
+	return 0;
+}
+
+/*
+ *	/dev/watchdog handling
+ */
 
 static ssize_t
 ibwdt_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
@@ -159,7 +184,7 @@ static int
 ibwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	  unsigned long arg)
 {
-	int i, new_margin;
+	int new_margin;
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
 
@@ -185,12 +210,8 @@ ibwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	case WDIOC_SETTIMEOUT:
 	  if (get_user(new_margin, p))
 		  return -EFAULT;
-	  if ((new_margin < 0) || (new_margin > 30))
+	  if (ibwdt_set_heartbeat(new_margin))
 		  return -EINVAL;
-	  for (i = 0x0F; i > -1; i--)
-		  if (wd_times[i] > new_margin)
-			  break;
-	  wd_margin = i;
 	  ibwdt_ping();
 	  /* Fall */
 
@@ -226,7 +247,7 @@ ibwdt_close(struct inode *inode, struct file *file)
 {
 	spin_lock(&ibwdt_lock);
 	if (expect_close == 42)
-		outb_p(0, WDT_STOP);
+		ibwdt_disable();
 	else
 		printk(KERN_CRIT PFX "WDT device closed unexpectedly.  WDT will not stop!\n");
 
@@ -246,7 +267,7 @@ ibwdt_notify_sys(struct notifier_block *this, unsigned long code,
 {
 	if (code == SYS_DOWN || code == SYS_HALT) {
 		/* Turn the WDT off */
-		outb_p(0, WDT_STOP);
+		ibwdt_disable();
 	}
 	return NOTIFY_DONE;
 }
