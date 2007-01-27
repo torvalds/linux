@@ -59,7 +59,7 @@ struct os_area_header {
 	u32 ldr_format;
 	u32 ldr_size;
 	u32 _reserved_2[6];
-} __attribute__ ((packed));
+};
 
 enum {
 	PARAM_BOOT_FLAG_GAME_OS = 0,
@@ -114,7 +114,7 @@ struct os_area_params {
 	u8 dns_primary[4];
 	u8 dns_secondary[4];
 	u8 _reserved_5[8];
-} __attribute__ ((packed));
+};
 
 /**
  * struct saved_params - Static working copies of data from the 'Other OS' area.
