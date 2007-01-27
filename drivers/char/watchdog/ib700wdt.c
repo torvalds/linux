@@ -42,16 +42,20 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/moduleparam.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
+static struct platform_device *ibwdt_platform_device;
 static unsigned long ibwdt_is_open;
 static spinlock_t ibwdt_lock;
 static char expect_close;
 
-#define PFX "ib700wdt: "
+/* Module information */
+#define DRV_NAME "ib700wdt"
+#define PFX DRV_NAME ": "
 
 /*
  *
@@ -326,11 +330,9 @@ static struct notifier_block ibwdt_notifier = {
  *	Init & exit routines
  */
 
-static int __init ibwdt_init(void)
+static int __devinit ibwdt_probe(struct platform_device *dev)
 {
 	int res;
-
-	printk(KERN_INFO PFX "WDT driver for IB700 single board computer initialising.\n");
 
 	spin_lock_init(&ibwdt_lock);
 
@@ -373,8 +375,7 @@ out_nostopreg:
 	return res;
 }
 
-static void __exit
-ibwdt_exit(void)
+static int __devexit ibwdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&ibwdt_miscdev);
 	unregister_reboot_notifier(&ibwdt_notifier);
@@ -382,6 +383,46 @@ ibwdt_exit(void)
 #if WDT_START != WDT_STOP
 	release_region(WDT_STOP,1);
 #endif
+	return 0;
+}
+
+static struct platform_driver ibwdt_driver = {
+	.probe		= ibwdt_probe,
+	.remove		= __devexit_p(ibwdt_remove),
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= DRV_NAME,
+	},
+};
+
+static int __init ibwdt_init(void)
+{
+	int err;
+
+	printk(KERN_INFO PFX "WDT driver for IB700 single board computer initialising.\n");
+
+	err = platform_driver_register(&ibwdt_driver);
+	if (err)
+		return err;
+
+	ibwdt_platform_device = platform_device_register_simple(DRV_NAME, -1, NULL, 0);
+	if (IS_ERR(ibwdt_platform_device)) {
+		err = PTR_ERR(ibwdt_platform_device);
+		goto unreg_platform_driver;
+	}
+
+	return 0;
+
+unreg_platform_driver:
+	platform_driver_unregister(&ibwdt_driver);
+	return err;
+}
+
+static void __exit ibwdt_exit(void)
+{
+	platform_device_unregister(ibwdt_platform_device);
+	platform_driver_unregister(&ibwdt_driver);
+	printk(KERN_INFO PFX "Watchdog Module Unloaded.\n");
 }
 
 module_init(ibwdt_init);
