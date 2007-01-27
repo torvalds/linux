@@ -85,7 +85,8 @@ static int grow(rh_info_t * info, int max_blocks)
 	info->flags &= ~RHIF_STATIC_BLOCK;
 
 	/* add all new blocks to the free list */
-	for (i = 0, blk = block + info->max_blocks; i < new_blocks; i++, blk++)
+	blk = block + info->max_blocks - new_blocks;
+	for (i = 0; i < new_blocks; i++, blk++)
 		list_add(&blk->list, &info->empty_list);
 
 	return 0;
