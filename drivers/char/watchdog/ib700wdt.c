@@ -128,14 +128,20 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" _
 static void
 ibwdt_ping(void)
 {
+	spin_lock(&ibwdt_lock);
+
 	/* Write a watchdog value */
 	outb_p(wd_margin, WDT_START);
+
+	spin_unlock(&ibwdt_lock);
 }
 
 static void
 ibwdt_disable(void)
 {
+	spin_lock(&ibwdt_lock);
 	outb_p(0, WDT_STOP);
+	spin_unlock(&ibwdt_lock);
 }
 
 static int
@@ -218,7 +224,26 @@ ibwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 	case WDIOC_GETTIMEOUT:
 	  return put_user(wd_times[wd_margin], p);
-	  break;
+
+	case WDIOC_SETOPTIONS:
+	{
+	  int options, retval = -EINVAL;
+
+	  if (get_user(options, p))
+	    return -EFAULT;
+
+	  if (options & WDIOS_DISABLECARD) {
+	    ibwdt_disable();
+	    retval = 0;
+	  }
+
+	  if (options & WDIOS_ENABLECARD) {
+	    ibwdt_ping();
+	    retval = 0;
+	  }
+
+	  return retval;
+	}
 
 	default:
 	  return -ENOTTY;
@@ -229,9 +254,7 @@ ibwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 static int
 ibwdt_open(struct inode *inode, struct file *file)
 {
-	spin_lock(&ibwdt_lock);
 	if (test_and_set_bit(0, &ibwdt_is_open)) {
-		spin_unlock(&ibwdt_lock);
 		return -EBUSY;
 	}
 	if (nowayout)
@@ -239,14 +262,12 @@ ibwdt_open(struct inode *inode, struct file *file)
 
 	/* Activate */
 	ibwdt_ping();
-	spin_unlock(&ibwdt_lock);
 	return nonseekable_open(inode, file);
 }
 
 static int
 ibwdt_close(struct inode *inode, struct file *file)
 {
-	spin_lock(&ibwdt_lock);
 	if (expect_close == 42) {
 		ibwdt_disable();
 	} else {
@@ -255,7 +276,6 @@ ibwdt_close(struct inode *inode, struct file *file)
 	}
 	clear_bit(0, &ibwdt_is_open);
 	expect_close = 0;
-	spin_unlock(&ibwdt_lock);
 	return 0;
 }
 
