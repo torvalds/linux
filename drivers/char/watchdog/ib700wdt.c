@@ -36,9 +36,7 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/ioport.h>
-#include <linux/notifier.h>
 #include <linux/fs.h>
-#include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/moduleparam.h>
@@ -284,21 +282,6 @@ ibwdt_close(struct inode *inode, struct file *file)
 }
 
 /*
- *	Notifier for system down
- */
-
-static int
-ibwdt_notify_sys(struct notifier_block *this, unsigned long code,
-	void *unused)
-{
-	if (code == SYS_DOWN || code == SYS_HALT) {
-		/* Turn the WDT off */
-		ibwdt_disable();
-	}
-	return NOTIFY_DONE;
-}
-
-/*
  *	Kernel Interfaces
  */
 
@@ -315,15 +298,6 @@ static struct miscdevice ibwdt_miscdev = {
 	.minor = WATCHDOG_MINOR,
 	.name = "watchdog",
 	.fops = &ibwdt_fops,
-};
-
-/*
- *	The WDT needs to learn about soft shutdowns in order to
- *	turn the timebomb registers off.
- */
-
-static struct notifier_block ibwdt_notifier = {
-	.notifier_call = ibwdt_notify_sys,
 };
 
 /*
@@ -350,12 +324,6 @@ static int __devinit ibwdt_probe(struct platform_device *dev)
 		goto out_nostartreg;
 	}
 
-	res = register_reboot_notifier(&ibwdt_notifier);
-	if (res) {
-		printk (KERN_ERR PFX "Failed to register reboot notifier.\n");
-		goto out_noreboot;
-	}
-
 	res = misc_register(&ibwdt_miscdev);
 	if (res) {
 		printk (KERN_ERR PFX "failed to register misc device\n");
@@ -364,8 +332,6 @@ static int __devinit ibwdt_probe(struct platform_device *dev)
 	return 0;
 
 out_nomisc:
-	unregister_reboot_notifier(&ibwdt_notifier);
-out_noreboot:
 	release_region(WDT_START, 1);
 out_nostartreg:
 #if WDT_START != WDT_STOP
@@ -378,7 +344,6 @@ out_nostopreg:
 static int __devexit ibwdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&ibwdt_miscdev);
-	unregister_reboot_notifier(&ibwdt_notifier);
 	release_region(WDT_START,1);
 #if WDT_START != WDT_STOP
 	release_region(WDT_STOP,1);
@@ -386,9 +351,16 @@ static int __devexit ibwdt_remove(struct platform_device *dev)
 	return 0;
 }
 
+static void ibwdt_shutdown(struct platform_device *dev)
+{
+	/* Turn the WDT off if we have a soft shutdown */
+	ibwdt_disable();
+}
+
 static struct platform_driver ibwdt_driver = {
 	.probe		= ibwdt_probe,
 	.remove		= __devexit_p(ibwdt_remove),
+	.shutdown	= ibwdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= DRV_NAME,
