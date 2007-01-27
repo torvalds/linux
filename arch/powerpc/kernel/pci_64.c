@@ -1430,7 +1430,7 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 
 	for (ln = pci_root_buses.next; ln != &pci_root_buses; ln = ln->next) {
 		bus = pci_bus_b(ln);
-		if (in_bus >= bus->number && in_bus < (bus->number + bus->subordinate))
+		if (in_bus >= bus->number && in_bus <= bus->subordinate)
 			break;
 		bus = NULL;
 	}
