@@ -2267,11 +2267,7 @@ static void dv1394_remove_host (struct hpsb_host *host)
 {
 	struct video_card *video;
 	unsigned long flags;
-	int id = host->id;
-
-	/* We only work with the OHCI-1394 driver */
-	if (strcmp(host->driver->name, OHCI1394_DRIVER_NAME))
-		return;
+	int id = host->id, found_ohci_card = 0;
 
 	/* find the corresponding video_cards */
 	do {
@@ -2284,6 +2280,7 @@ static void dv1394_remove_host (struct hpsb_host *host)
 			if ((tmp_vid->id >> 2) == id) {
 				list_del(&tmp_vid->list);
 				video = tmp_vid;
+				found_ohci_card = 1;
 				break;
 			}
 		}
@@ -2293,8 +2290,9 @@ static void dv1394_remove_host (struct hpsb_host *host)
 			dv1394_un_init(video);
 	} while (video != NULL);
 
-	class_device_destroy(hpsb_protocol_class,
-		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)));
+	if (found_ohci_card)
+		class_device_destroy(hpsb_protocol_class, MKDEV(IEEE1394_MAJOR,
+			   IEEE1394_MINOR_BLOCK_DV1394 * 16 + (host->id << 2)));
 }
 
 static void dv1394_add_host (struct hpsb_host *host)
