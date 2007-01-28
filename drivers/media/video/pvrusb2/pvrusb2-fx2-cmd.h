@@ -29,6 +29,7 @@
 
 #define FX2CMD_REG_WRITE        0x04
 #define FX2CMD_REG_READ         0x05
+#define FX2CMD_MEMSEL           0x06
 
 #define FX2CMD_I2C_WRITE        0x08
 #define FX2CMD_I2C_READ         0x09
@@ -37,6 +38,8 @@
 
 #define FX2CMD_STREAMING_ON     0x36
 #define FX2CMD_STREAMING_OFF    0x37
+
+#define FX2CMD_FWPOST1          0x52
 
 #define FX2CMD_POWER_OFF        0xdc
 #define FX2CMD_POWER_ON         0xde

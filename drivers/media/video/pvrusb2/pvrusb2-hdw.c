@@ -271,8 +271,6 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 				unsigned int timeout,int probe_fl,
 				void *write_data,unsigned int write_len,
 				void *read_data,unsigned int read_len);
-static int pvr2_write_u16(struct pvr2_hdw *hdw, u16 data, int res);
-static int pvr2_write_u8(struct pvr2_hdw *hdw, u8 data, int res);
 
 static int ctrl_channelfreq_get(struct pvr2_ctrl *cptr,int *vp)
 {
@@ -1248,8 +1246,13 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	ret |= pvr2_write_register(hdw, 0xaa04, 0x00057810); /*unknown*/
 	ret |= pvr2_write_register(hdw, 0xaa10, 0x00148500); /*unknown*/
 	ret |= pvr2_write_register(hdw, 0xaa18, 0x00840000); /*unknown*/
-	ret |= pvr2_write_u8(hdw, 0x52, 0);
-	ret |= pvr2_write_u16(hdw, 0x0600, 0);
+	LOCK_TAKE(hdw->ctl_lock); do {
+		hdw->cmd_buffer[0] = FX2CMD_FWPOST1;
+		ret |= pvr2_send_request(hdw,hdw->cmd_buffer,1,0,0);
+		hdw->cmd_buffer[0] = FX2CMD_MEMSEL;
+		hdw->cmd_buffer[1] = 0;
+		ret |= pvr2_send_request(hdw,hdw->cmd_buffer,2,0,0);
+	} while (0); LOCK_GIVE(hdw->ctl_lock);
 
 	if (ret) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
@@ -1311,7 +1314,11 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 
 	ret |= pvr2_write_register(hdw, 0x9054, 0xffffffff); /*reset hw blocks*/
 	ret |= pvr2_write_register(hdw, 0x9058, 0xffffffe8); /*VPU ctrl*/
-	ret |= pvr2_write_u16(hdw, 0x0600, 0);
+	LOCK_TAKE(hdw->ctl_lock); do {
+		hdw->cmd_buffer[0] = FX2CMD_MEMSEL;
+		hdw->cmd_buffer[1] = 0;
+		ret |= pvr2_send_request(hdw,hdw->cmd_buffer,2,0,0);
+	} while (0); LOCK_GIVE(hdw->ctl_lock);
 
 	if (ret) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
@@ -3009,39 +3016,6 @@ static int pvr2_read_register(struct pvr2_hdw *hdw, u16 reg, u32 *data)
 
 	ret |= pvr2_send_request(hdw, hdw->cmd_buffer, 8, hdw->cmd_buffer, 4);
 	*data = PVR2_COMPOSE_LE(hdw->cmd_buffer,0);
-
-	LOCK_GIVE(hdw->ctl_lock);
-
-	return ret;
-}
-
-
-static int pvr2_write_u16(struct pvr2_hdw *hdw, u16 data, int res)
-{
-	int ret;
-
-	LOCK_TAKE(hdw->ctl_lock);
-
-	hdw->cmd_buffer[0] = (data >> 8) & 0xff;
-	hdw->cmd_buffer[1] = data & 0xff;
-
-	ret = pvr2_send_request(hdw, hdw->cmd_buffer, 2, hdw->cmd_buffer, res);
-
-	LOCK_GIVE(hdw->ctl_lock);
-
-	return ret;
-}
-
-
-static int pvr2_write_u8(struct pvr2_hdw *hdw, u8 data, int res)
-{
-	int ret;
-
-	LOCK_TAKE(hdw->ctl_lock);
-
-	hdw->cmd_buffer[0] = data;
-
-	ret = pvr2_send_request(hdw, hdw->cmd_buffer, 1, hdw->cmd_buffer, res);
 
 	LOCK_GIVE(hdw->ctl_lock);
 
