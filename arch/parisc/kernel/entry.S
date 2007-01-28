@@ -2249,7 +2249,7 @@ syscall_do_resched:
 ENDPROC(syscall_exit)
 
 
-ENTRY(get_register)
+get_register:
 	/*
 	 * get_register is used by the non access tlb miss handlers to
 	 * copy the value of the general register specified in r8 into
@@ -2326,10 +2326,9 @@ ENTRY(get_register)
 	copy    %r30,%r1
 	bv      %r0(%r25)    /* r31 */
 	copy    %r31,%r1
-ENDPROC(get_register)
 
 
-ENTRY(set_register)
+set_register:
 	/*
 	 * set_register is used by the non access tlb miss handlers to
 	 * copy the value of r1 into the general register specified in
@@ -2401,5 +2400,4 @@ ENTRY(set_register)
 	copy    %r1,%r30
 	bv      %r0(%r25)    /* r31 */
 	copy    %r1,%r31
-ENDPROC(set_register)
 
