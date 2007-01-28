@@ -192,37 +192,6 @@ static struct msi_desc* alloc_msi_entry(void)
 	return entry;
 }
 
-static int create_msi_irq(void)
-{
-	struct msi_desc *entry;
-	int irq;
-
-	entry = alloc_msi_entry();
-	if (!entry)
-		return -ENOMEM;
-
-	irq = create_irq();
-	if (irq < 0) {
-		kmem_cache_free(msi_cachep, entry);
-		return -EBUSY;
-	}
-
-	set_irq_msi(irq, entry);
-
-	return irq;
-}
-
-static void destroy_msi_irq(unsigned int irq)
-{
-	struct msi_desc *entry;
-
-	entry = get_irq_msi(irq);
-	set_irq_chip(irq, NULL);
-	set_irq_msi(irq, NULL);
-	destroy_irq(irq);
-	kmem_cache_free(msi_cachep, entry);
-}
-
 static void enable_msi_mode(struct pci_dev *dev, int pos, int type)
 {
 	u16 control;
@@ -438,7 +407,6 @@ void pci_restore_msi_state(struct pci_dev *dev)
  **/
 static int msi_capability_init(struct pci_dev *dev)
 {
-	int status;
 	struct msi_desc *entry;
 	int pos, irq;
 	u16 control;
@@ -446,13 +414,10 @@ static int msi_capability_init(struct pci_dev *dev)
    	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	pci_read_config_word(dev, msi_control_reg(pos), &control);
 	/* MSI Entry Initialization */
-	irq = create_msi_irq();
-	if (irq < 0)
-		return irq;
+	entry = alloc_msi_entry();
+	if (!entry)
+		return -ENOMEM;
 
-	entry = get_irq_msi(irq);
-	entry->link.head = irq;
-	entry->link.tail = irq;
 	entry->msi_attrib.type = PCI_CAP_ID_MSI;
 	entry->msi_attrib.is_64 = is_64bit_address(control);
 	entry->msi_attrib.entry_nr = 0;
@@ -478,14 +443,16 @@ static int msi_capability_init(struct pci_dev *dev)
 			maskbits);
 	}
 	/* Configure MSI capability structure */
-	status = arch_setup_msi_irq(irq, dev);
-	if (status < 0) {
-		destroy_msi_irq(irq);
-		return status;
+	irq = arch_setup_msi_irq(dev, entry);
+	if (irq < 0) {
+		kmem_cache_free(msi_cachep, entry);
+		return irq;
 	}
-
+	entry->link.head = irq;
+	entry->link.tail = irq;
 	dev->first_msi_irq = irq;
 	set_irq_msi(irq, entry);
+
 	/* Set MSI enabled bits	 */
 	enable_msi_mode(dev, pos, PCI_CAP_ID_MSI);
 
@@ -507,7 +474,6 @@ static int msix_capability_init(struct pci_dev *dev,
 				struct msix_entry *entries, int nvec)
 {
 	struct msi_desc *head = NULL, *tail = NULL, *entry = NULL;
-	int status;
 	int irq, pos, i, j, nr_entries, temp = 0;
 	unsigned long phys_addr;
 	u32 table_offset;
@@ -530,13 +496,11 @@ static int msix_capability_init(struct pci_dev *dev,
 
 	/* MSI-X Table Initialization */
 	for (i = 0; i < nvec; i++) {
-		irq = create_msi_irq();
-		if (irq < 0)
+		entry = alloc_msi_entry();
+		if (!entry)
 			break;
 
-		entry = get_irq_msi(irq);
  		j = entries[i].entry;
- 		entries[i].vector = irq;
 		entry->msi_attrib.type = PCI_CAP_ID_MSIX;
 		entry->msi_attrib.is_64 = 1;
 		entry->msi_attrib.entry_nr = j;
@@ -545,6 +509,14 @@ static int msix_capability_init(struct pci_dev *dev,
 		entry->msi_attrib.pos = pos;
 		entry->dev = dev;
 		entry->mask_base = base;
+
+		/* Configure MSI-X capability structure */
+		irq = arch_setup_msi_irq(dev, entry);
+		if (irq < 0) {
+			kmem_cache_free(msi_cachep, entry);
+			break;
+		}
+ 		entries[i].vector = irq;
 		if (!head) {
 			entry->link.head = irq;
 			entry->link.tail = irq;
@@ -557,12 +529,6 @@ static int msix_capability_init(struct pci_dev *dev,
 		}
 		temp = irq;
 		tail = entry;
-		/* Configure MSI-X capability structure */
-		status = arch_setup_msi_irq(irq, dev);
-		if (status < 0) {
-			destroy_msi_irq(irq);
-			break;
-		}
 
 		set_irq_msi(irq, entry);
 	}
@@ -706,8 +672,6 @@ static int msi_free_irq(struct pci_dev* dev, int irq)
 	int head, entry_nr, type;
 	void __iomem *base;
 
-	arch_teardown_msi_irq(irq);
-
 	entry = get_irq_msi(irq);
 	if (!entry || entry->dev != dev) {
 		return -EINVAL;
@@ -718,9 +682,9 @@ static int msi_free_irq(struct pci_dev* dev, int irq)
 	base = entry->mask_base;
 	get_irq_msi(entry->link.head)->link.tail = entry->link.tail;
 	get_irq_msi(entry->link.tail)->link.head = entry->link.head;
-	entry->dev = NULL;
 
-	destroy_msi_irq(irq);
+	arch_teardown_msi_irq(irq);
+	kmem_cache_free(msi_cachep, entry);
 
 	if (type == PCI_CAP_ID_MSIX) {
 		writel(1, base + entry_nr * PCI_MSIX_ENTRY_SIZE +
