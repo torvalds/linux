@@ -7,7 +7,7 @@
  *    Copyright (C) 2001-2003 Grant Grundler <grundler with parisc-linux.org>
  *    Copyright (C) 2002-2003 Matthew Wilcox <willy at parisc-linux.org>
  *    Copyright (C) 2002 Randolph Chung <tausq at parisc-linux.org>
- *    Copyright (C) 2002-2003 Helge Deller <deller with parisc-linux.org>
+ *    Copyright (C) 2002-2007 Helge Deller <deller with parisc-linux.org>
  * 
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ EXPORT_SYMBOL(__cmpxchg_u32);
 #ifdef CONFIG_SMP
 EXPORT_SYMBOL(__atomic_hash);
 #endif
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 EXPORT_SYMBOL(__xchg64);
 EXPORT_SYMBOL(__cmpxchg_u64);
 #endif
@@ -58,7 +58,7 @@ EXPORT_SYMBOL(fixup_get_user_skip_2);
 EXPORT_SYMBOL(fixup_put_user_skip_1);
 EXPORT_SYMBOL(fixup_put_user_skip_2);
 
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 /* Needed so insmod can set dp value */
 extern int $global$;
 EXPORT_SYMBOL($global$);
@@ -135,7 +135,7 @@ EXPORT_SYMBOL(__muldi3);
 asmlinkage void * __canonicalize_funcptr_for_compare(void *);
 EXPORT_SYMBOL(__canonicalize_funcptr_for_compare);
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 extern void __divdi3(void);
 extern void __udivdi3(void);
 extern void __umoddi3(void);
@@ -147,7 +147,7 @@ EXPORT_SYMBOL(__umoddi3);
 EXPORT_SYMBOL(__moddi3);
 #endif
 
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 extern void $$dyncall(void);
 EXPORT_SYMBOL($$dyncall);
 #endif

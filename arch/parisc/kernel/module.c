@@ -97,7 +97,7 @@ static inline int in_local_section(struct module *me, void *loc, void *dot)
 }
 
 
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 struct got_entry {
 	Elf32_Addr addr;
 };
@@ -177,7 +177,7 @@ void *module_alloc(unsigned long size)
 	return vmalloc(size);
 }
 
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 static inline unsigned long count_gots(const Elf_Rela *rela, unsigned long n)
 {
 	return 0;
@@ -320,7 +320,7 @@ int module_frob_arch_sections(CONST Elf_Ehdr *hdr,
 	return 0;
 }
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 static Elf64_Word get_got(struct module *me, unsigned long value, long addend)
 {
 	unsigned int i;
@@ -343,9 +343,9 @@ static Elf64_Word get_got(struct module *me, unsigned long value, long addend)
 	       value);
 	return i * sizeof(struct got_entry);
 }
-#endif /* __LP64__ */
+#endif /* CONFIG_64BIT */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 static Elf_Addr get_fdesc(struct module *me, unsigned long value)
 {
 	Elf_Fdesc *fdesc = me->module_core + me->arch.fdesc_offset;
@@ -369,7 +369,7 @@ static Elf_Addr get_fdesc(struct module *me, unsigned long value)
 	fdesc->gp = (Elf_Addr)me->module_core + me->arch.got_offset;
 	return (Elf_Addr)fdesc;
 }
-#endif /* __LP64__ */
+#endif /* CONFIG_64BIT */
 
 enum elf_stub_type {
 	ELF_STUB_GOT,
@@ -395,7 +395,7 @@ static Elf_Addr get_stub(struct module *me, unsigned long value, long addend,
 			i * sizeof(struct stub_entry);
 	}
 
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 /* for 32-bit the stub looks like this:
  * 	ldil L'XXX,%r1
  * 	be,n R'XXX(%sr4,%r1)
@@ -473,7 +473,7 @@ int apply_relocate(Elf_Shdr *sechdrs,
 	return -ENOEXEC;
 }
 
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 int apply_relocate_add(Elf_Shdr *sechdrs,
 		       const char *strtab,
 		       unsigned int symindex,

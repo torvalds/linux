@@ -10,7 +10,7 @@
  *    Copyright (C) 2000 Grant Grundler <grundler at parisc-linux.org>
  *    Copyright (C) 2001 Richard Hirst <rhirst with parisc-linux.org>
  *    Copyright (C) 2001-2002 Ryan Bradetich <rbrad at parisc-linux.org>
- *    Copyright (C) 2001 Helge Deller <deller at parisc-linux.org>
+ *    Copyright (C) 2001-2007 Helge Deller <deller at parisc-linux.org>
  *    Copyright (C) 2000-2001 Thomas Bogendoerfer <tsbogend at parisc-linux.org>
  *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
  *    Copyright (C) 2005-2006 Kyle McMartin <kyle at parisc-linux.org>

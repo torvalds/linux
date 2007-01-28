@@ -17,7 +17,7 @@ raw_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] __lock_aligned = {
 };
 #endif
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 unsigned long __xchg64(unsigned long x, unsigned long *ptr)
 {
 	unsigned long temp, flags;
@@ -56,7 +56,7 @@ unsigned long __xchg8(char x, char *ptr)
 }
 
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 unsigned long __cmpxchg_u64(volatile unsigned long *ptr, unsigned long old, unsigned long new)
 {
 	unsigned long flags;

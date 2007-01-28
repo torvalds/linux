@@ -64,7 +64,7 @@ static int printbinary(char *buf, unsigned long x, int nbits)
 	return nbits;
 }
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define RFMT "%016lx"
 #else
 #define RFMT "%08lx"
@@ -837,7 +837,7 @@ int __init check_ivt(void *iva)
 	return 0;
 }
 	
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 extern const void fault_vector_11;
 #endif
 extern const void fault_vector_20;
@@ -849,7 +849,7 @@ void __init trap_init(void)
 	if (boot_cpu_data.cpu_type >= pcxu)
 		iva = (void *) &fault_vector_20;
 	else
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 		panic("Can't boot 64-bit OS on PA1.1 processor!");
 #else
 		iva = (void *) &fault_vector_11;

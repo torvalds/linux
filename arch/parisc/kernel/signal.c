@@ -62,7 +62,7 @@
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #include "sys32.h"
 #endif
 
@@ -103,7 +103,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 	sigset_t set;
 	unsigned long usp = (regs->gr[30] & ~(0x01UL));
 	unsigned long sigframe_size = PARISC_RT_SIGFRAME_SIZE;
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	compat_sigset_t compat_set;
 	struct compat_rt_sigframe __user * compat_frame;
 	
@@ -117,7 +117,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 		(usp - sigframe_size);
 	DBG(2,"sys_rt_sigreturn: frame is %p\n", frame);
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	compat_frame = (struct compat_rt_sigframe __user *)frame;
 	
 	if (is_compat_task()) {
@@ -139,7 +139,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 	spin_unlock_irq(&current->sighand->siglock);
 
 	/* Good thing we saved the old gr[30], eh? */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	if (is_compat_task()) {
 		DBG(1,"sys_rt_sigreturn: compat_frame->uc.uc_mcontext 0x%p\n",
 				&compat_frame->uc.uc_mcontext);
@@ -251,7 +251,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	unsigned long rp, usp;
 	unsigned long haddr, sigframe_size;
 	int err = 0;
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	compat_int_t compat_val;
 	struct compat_rt_sigframe __user * compat_frame;
 	compat_sigset_t compat_set;
@@ -265,7 +265,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	DBG(1,"setup_rt_frame: frame %p info %p\n", frame, info);
 
 	
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 
 	compat_frame = (struct compat_rt_sigframe __user *)frame;
 	
@@ -345,7 +345,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	haddr = A(ka->sa.sa_handler);
 	/* The sa_handler may be a pointer to a function descriptor */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	if (is_compat_task()) {
 #endif
 		if (haddr & PA_PLABEL_FDESC) {
@@ -360,7 +360,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			haddr = fdesc.addr;
 			regs->gr[19] = fdesc.gp;
 		}
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	} else {
 		Elf64_Fdesc fdesc;
 		Elf64_Fdesc __user *ufdesc = (Elf64_Fdesc __user *)A(haddr & ~3);
@@ -380,19 +380,19 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* The syscall return path will create IAOQ values from r31.
 	 */
 	sigframe_size = PARISC_RT_SIGFRAME_SIZE;
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	if (is_compat_task())
 		sigframe_size = PARISC_RT_SIGFRAME_SIZE32;
 #endif
 	if (in_syscall) {
 		regs->gr[31] = haddr;
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 		if (!test_thread_flag(TIF_32BIT))
 			sigframe_size |= 1;
 #endif
 	} else {
 		unsigned long psw = USER_PSW;
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 		if (!test_thread_flag(TIF_32BIT))
 			psw |= PSW_W;
 #endif
@@ -417,7 +417,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->gr[2]  = rp;                /* userland return pointer */
 	regs->gr[26] = sig;               /* signal number */
 	
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	if (is_compat_task()) {
 		regs->gr[25] = A(&compat_frame->info); /* siginfo pointer */
 		regs->gr[24] = A(&compat_frame->uc);   /* ucontext pointer */

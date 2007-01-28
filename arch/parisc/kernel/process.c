@@ -13,7 +13,7 @@
  *    Copyright (C) 2000 Grant Grundler <grundler with parisc-linux.org>
  *    Copyright (C) 2001 Alan Modra <amodra at parisc-linux.org>
  *    Copyright (C) 2001-2002 Ryan Bradetich <rbrad at parisc-linux.org>
- *    Copyright (C) 2001-2002 Helge Deller <deller at parisc-linux.org>
+ *    Copyright (C) 2001-2007 Helge Deller <deller at parisc-linux.org>
  *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
  *
  *
@@ -303,7 +303,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		 * Copy function and argument to be called from
 		 * ret_from_kernel_thread.
 		 */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 		cregs->gr[27] = pregs->gr[27];
 #endif
 		cregs->gr[26] = pregs->gr[26];

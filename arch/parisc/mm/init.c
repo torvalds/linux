@@ -6,7 +6,7 @@
  *    changed by Philipp Rumpf
  *  Copyright 1999 Philipp Rumpf (prumpf@tux.org)
  *  Copyright 2004 Randolph Chung (tausq@debian.org)
- *  Copyright 2006 Helge Deller (deller@gmx.de)
+ *  Copyright 2006-2007 Helge Deller (deller@gmx.de)
  *
  */
 
@@ -66,11 +66,11 @@ static struct resource sysram_resources[MAX_PHYSMEM_RANGES] __read_mostly;
 physmem_range_t pmem_ranges[MAX_PHYSMEM_RANGES] __read_mostly;
 int npmem_ranges __read_mostly;
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define MAX_MEM         (~0UL)
-#else /* !__LP64__ */
+#else /* !CONFIG_64BIT */
 #define MAX_MEM         (3584U*1024U*1024U)
-#endif /* !__LP64__ */
+#endif /* !CONFIG_64BIT */
 
 static unsigned long mem_limit __read_mostly = MAX_MEM;
 
