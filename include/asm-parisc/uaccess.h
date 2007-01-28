@@ -67,6 +67,11 @@ struct exception_table_entry {
 	long fixup;          /* fixup routine */
 };
 
+#define ASM_EXCEPTIONTABLE_ENTRY( fault_addr, except_addr )\
+	".section __ex_table,\"aw\"\n"			   \
+	ASM_WORD_INSN #fault_addr ", " #except_addr "\n\t" \
+	".previous\n"
+
 /*
  * The page fault handler stores, in a per-cpu area, the following information
  * if a fixup routine is available.
@@ -106,21 +111,15 @@ struct exception_data {
 })
 
 #define __get_kernel_asm(ldx,ptr)                       \
-	__asm__("\n1:\t" ldx "\t0(%2),%0\n"             \
-		"\t.section __ex_table,\"aw\"\n"        \
-		"\t" ASM_WORD_INSN			\
-			"1b,fixup_get_user_skip_1\n"	\
-		"\t.previous"                          	\
+	__asm__("\n1:\t" ldx "\t0(%2),%0\n\t"		\
+		ASM_EXCEPTIONTABLE_ENTRY(1b, fixup_get_user_skip_1)\
 		: "=r"(__gu_val), "=r"(__gu_err)        \
 		: "r"(ptr), "1"(__gu_err)		\
 		: "r1");
 
 #define __get_user_asm(ldx,ptr)                         \
-	__asm__("\n1:\t" ldx "\t0(%%sr3,%2),%0\n"       \
-		"\t.section __ex_table,\"aw\"\n"	\
-		"\t" ASM_WORD_INSN			\
-			"1b,fixup_get_user_skip_1\n"	\
-		"\t.previous"				\
+	__asm__("\n1:\t" ldx "\t0(%%sr3,%2),%0\n\t"	\
+		ASM_EXCEPTIONTABLE_ENTRY(1b,fixup_get_user_skip_1)\
 		: "=r"(__gu_val), "=r"(__gu_err)        \
 		: "r"(ptr), "1"(__gu_err)		\
 		: "r1");
@@ -164,22 +163,16 @@ struct exception_data {
 
 #define __put_kernel_asm(stx,x,ptr)                         \
 	__asm__ __volatile__ (                              \
-		"\n1:\t" stx "\t%2,0(%1)\n"                 \
-		"\t.section __ex_table,\"aw\"\n"            \
-		"\t" ASM_WORD_INSN			    \
-			"1b,fixup_put_user_skip_1\n"	    \
-		"\t.previous"                               \
+		"\n1:\t" stx "\t%2,0(%1)\n\t"		    \
+		ASM_EXCEPTIONTABLE_ENTRY(1b,fixup_put_user_skip_1)\
 		: "=r"(__pu_err)                            \
 		: "r"(ptr), "r"(x), "0"(__pu_err)	    \
 	    	: "r1")
 
 #define __put_user_asm(stx,x,ptr)                           \
 	__asm__ __volatile__ (                              \
-		"\n1:\t" stx "\t%2,0(%%sr3,%1)\n"           \
-		"\t.section __ex_table,\"aw\"\n"            \
-		"\t" ASM_WORD_INSN			    \
-			"1b,fixup_put_user_skip_1\n"	    \
-		"\t.previous"                               \
+		"\n1:\t" stx "\t%2,0(%%sr3,%1)\n\t"	    \
+		ASM_EXCEPTIONTABLE_ENTRY(1b,fixup_put_user_skip_1)\
 		: "=r"(__pu_err)                            \
 		: "r"(ptr), "r"(x), "0"(__pu_err)	    \
 		: "r1")
@@ -192,12 +185,10 @@ struct exception_data {
 	u32 hi = (__val64) >> 32;			    \
 	u32 lo = (__val64) & 0xffffffff;		    \
 	__asm__ __volatile__ (				    \
-		"\n1:\tstw %2,0(%1)\n"			    \
-		"\n2:\tstw %3,4(%1)\n"			    \
-		"\t.section __ex_table,\"aw\"\n"	    \
-		 "\t.word\t1b,fixup_put_user_skip_2\n"	    \
-		 "\t.word\t2b,fixup_put_user_skip_1\n"	    \
-		 "\t.previous"				    \
+		"\n1:\tstw %2,0(%1)"			    \
+		"\n2:\tstw %3,4(%1)\n\t"		    \
+		ASM_EXCEPTIONTABLE_ENTRY(1b,fixup_put_user_skip_2)\
+		ASM_EXCEPTIONTABLE_ENTRY(2b,fixup_put_user_skip_1)\
 		: "=r"(__pu_err)                            \
 		: "r"(ptr), "r"(hi), "r"(lo), "0"(__pu_err) \
 		: "r1");				    \
@@ -208,12 +199,10 @@ struct exception_data {
 	u32 hi = (__val64) >> 32;			    \
 	u32 lo = (__val64) & 0xffffffff;		    \
 	__asm__ __volatile__ (				    \
-		"\n1:\tstw %2,0(%%sr3,%1)\n"		    \
-		"\n2:\tstw %3,4(%%sr3,%1)\n"		    \
-		"\t.section __ex_table,\"aw\"\n"	    \
-		 "\t.word\t1b,fixup_put_user_skip_2\n"	    \
-		 "\t.word\t2b,fixup_put_user_skip_1\n"	    \
-		 "\t.previous"				    \
+		"\n1:\tstw %2,0(%%sr3,%1)"		    \
+		"\n2:\tstw %3,4(%%sr3,%1)\n\t"		    \
+		ASM_EXCEPTIONTABLE_ENTRY(1b,fixup_put_user_skip_2)\
+		ASM_EXCEPTIONTABLE_ENTRY(2b,fixup_put_user_skip_1)\
 		: "=r"(__pu_err)                            \
 		: "r"(ptr), "r"(hi), "r"(lo), "0"(__pu_err) \
 		: "r1");				    \

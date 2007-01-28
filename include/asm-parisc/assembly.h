@@ -31,9 +31,13 @@
 #define STREGM	std,ma
 #define SHRREG	shrd
 #define SHLREG	shld
+#define ADDIB   addib,*
+#define CMPB    cmpb,*
+#define ANDCM   andcm,*
 #define RP_OFFSET	16
 #define FRAME_SIZE	128
 #define CALLEE_REG_FRAME_SIZE	144
+#define ASM_ULONG_INSN	.dword
 #else	/* CONFIG_64BIT */
 #define LDREG	ldw
 #define STREG	stw
@@ -42,9 +46,13 @@
 #define STREGM	stwm
 #define SHRREG	shr
 #define SHLREG	shlw
+#define ADDIB   addib,
+#define CMPB    cmpb,
+#define ANDCM   andcm
 #define RP_OFFSET	20
 #define FRAME_SIZE	64
 #define CALLEE_REG_FRAME_SIZE	128
+#define ASM_ULONG_INSN	.word
 #endif
 
 #define CALLEE_SAVE_FRAME_SIZE (CALLEE_REG_FRAME_SIZE + CALLEE_FLOAT_FRAME_SIZE)

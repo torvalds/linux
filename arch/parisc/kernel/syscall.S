@@ -23,19 +23,7 @@
 	 */
 #define KILL_INSN	break	0,0
 
-#ifdef CONFIG_64BIT
-	.level          2.0w
-#else
-	.level		1.1
-#endif
-
-/* on 64bit pad to 64bit values */
-#ifdef CONFIG_64BIT
-#define ULONG_WORD(x)	.word 0, x
-#else
-#define ULONG_WORD(x)	.word x
-#endif
-
+	.level          LEVEL
 
 	.text
 
@@ -603,16 +591,10 @@ cas_action:
 	   the other for the store. Either return -EFAULT.
 	   Each of the entries must be relocated. */
 	.section __ex_table,"aw"
-	ULONG_WORD(2b - linux_gateway_page)
-	ULONG_WORD(3b - linux_gateway_page)
+	ASM_ULONG_INSN (1b - linux_gateway_page), (3b - linux_gateway_page)
+	ASM_ULONG_INSN (2b - linux_gateway_page), (3b - linux_gateway_page)
 	.previous
 
-	.section __ex_table,"aw"
-	ULONG_WORD(1b - linux_gateway_page)
-	ULONG_WORD(3b - linux_gateway_page)
-	.previous
-
-end_compare_and_swap:
 
 	/* Make sure nothing else is placed on this page */
 	.align ASM_PAGE_SIZE
@@ -622,7 +604,7 @@ ENTRY(end_linux_gateway_page)
 	/* Relocate symbols assuming linux_gateway_page is mapped
 	   to virtual address 0x0 */
 
-#define LWS_ENTRY(_name_) ULONG_WORD(lws_##_name_ - linux_gateway_page)
+#define LWS_ENTRY(_name_) ASM_ULONG_INSN (lws_##_name_ - linux_gateway_page)
 
 	.section .rodata,"a"
 

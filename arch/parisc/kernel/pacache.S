@@ -27,19 +27,10 @@
  */
 
 #ifdef CONFIG_64BIT
-#define ADDIB	addib,*
-#define CMPB	cmpb,*
-#define ANDCM	andcm,*
-
 	.level	2.0w
 #else
-#define ADDIB	addib,
-#define CMPB	cmpb,
-#define ANDCM	andcm
-
 	.level	2.0
 #endif
-
 
 #include <asm/psw.h>
 #include <asm/assembly.h>

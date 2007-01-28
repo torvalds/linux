@@ -14,10 +14,10 @@
 #define	PARISC_BUG_BREAK_ASM	"break 0x1f, 0x1fff"
 #define	PARISC_BUG_BREAK_INSN	0x03ffe01f  /* PARISC_BUG_BREAK_ASM */
 
-#ifdef CONFIG_64BIT
-#define ASM_ULONG_INSN		".dword"
+#if defined(CONFIG_64BIT)
+#define ASM_WORD_INSN		".dword\t"
 #else
-#define ASM_ULONG_INSN		".word"
+#define ASM_WORD_INSN		".word\t"
 #endif
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
@@ -26,7 +26,7 @@
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
 			     "\t.pushsection __bug_table,\"a\"\n"	\
-			     "2:\t" ASM_ULONG_INSN " 1b, %c0\n"		\
+			     "2:\t" ASM_WORD_INSN "1b, %c0\n"		\
 			     "\t.short %c1, %c2\n"			\
 			     "\t.org 2b+%c3\n"				\
 			     "\t.popsection"				\
@@ -49,7 +49,7 @@
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
 			     "\t.pushsection __bug_table,\"a\"\n"	\
-			     "2:\t" ASM_ULONG_INSN " 1b, %c0\n"		\
+			     "2:\t" ASM_WORD_INSN "1b, %c0\n"		\
 			     "\t.short %c1, %c2\n"			\
 			     "\t.org 2b+%c3\n"				\
 			     "\t.popsection"				\
@@ -63,7 +63,7 @@
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
 			     "\t.pushsection __bug_table,\"a\"\n"	\
-			     "2:\t" ASM_ULONG_INSN " 1b\n"		\
+			     "2:\t" ASM_WORD_INSN "1b\n"		\
 			     "\t.short %c0\n"				\
 			     "\t.org 2b+%c1\n"				\
 			     "\t.popsection"				\
