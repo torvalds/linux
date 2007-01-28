@@ -136,7 +136,7 @@ static __inline__ unsigned long __ffs(unsigned long x)
 	unsigned long ret;
 
 	__asm__(
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 		" ldi       63,%1\n"
 		" extrd,u,*<>  %0,63,32,%%r0\n"
 		" extrd,u,*TR  %0,31,32,%0\n"	/* move top 32-bits down */

@@ -73,7 +73,7 @@
 
 #ifdef __ASSEMBLY__
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 /* the 64-bit pa gnu assembler unfortunately defaults to .level 1.1 or 2.0 so
  * work around that for now... */
 	.level 2.0w
@@ -164,7 +164,7 @@
 	.endm
 
 	.macro loadgp
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	ldil		L%__gp, %r27
 	ldo		R%__gp(%r27), %r27
 #else
@@ -342,7 +342,7 @@
 	fldd,mb	-8(%r30),   %fr12
 	.endm
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	.macro	callee_save
 	std,ma	  %r3,	 CALLEE_REG_FRAME_SIZE(%r30)
 	mfctl	  %cr27, %r3
@@ -385,7 +385,7 @@
 	ldd,mb	-CALLEE_REG_FRAME_SIZE(%r30),    %r3
 	.endm
 
-#else /* ! __LP64__ */
+#else /* ! CONFIG_64BIT */
 
 	.macro	callee_save
 	stw,ma	 %r3,	CALLEE_REG_FRAME_SIZE(%r30)
@@ -428,7 +428,7 @@
 	mtctl	%r3, %cr27
 	ldw,mb	-CALLEE_REG_FRAME_SIZE(%r30),   %r3
 	.endm
-#endif /* ! __LP64__ */
+#endif /* ! CONFIG_64BIT */
 
 	.macro	save_specials	regs
 
@@ -449,7 +449,7 @@
 	mtctl	 %r0,	%cr18
 	SAVE_CR  (%cr18, PT_IAOQ1(\regs))
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/* cr11 (sar) is a funny one.  5 bits on PA1.1 and 6 bit on PA2.0
 	 * For PA2.0 mtsar or mtctl always write 6 bits, but mfctl only
 	 * reads 5 bits.  Use mfctl,w to read all six bits.  Otherwise

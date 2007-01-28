@@ -38,7 +38,7 @@
 #define DEFAULT_TASK_SIZE32	(0xFFF00000UL)
 #define DEFAULT_MAP_BASE32	(0x40000000UL)
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define DEFAULT_TASK_SIZE       (MAX_ADDRESS-0xf000000)
 #define DEFAULT_MAP_BASE        (0x200000000UL)
 #else
@@ -273,7 +273,7 @@ on downward growing arches, it looks like this:
  * it in here from the current->personality
  */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define USER_WIDE_MODE	(!test_thread_flag(TIF_32BIT))
 #else
 #define USER_WIDE_MODE	0

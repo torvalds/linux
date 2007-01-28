@@ -67,7 +67,7 @@ static inline unsigned long long gsc_readq(unsigned long addr)
 {
 	unsigned long long ret;
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	__asm__ __volatile__(
 	"	ldda	0(%1),%0\n"
 	:  "=r" (ret) : "r" (addr) );
@@ -108,7 +108,7 @@ static inline void gsc_writel(unsigned int val, unsigned long addr)
 
 static inline void gsc_writeq(unsigned long long val, unsigned long addr)
 {
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	__asm__ __volatile__(
 	"	stda	%0,0(%1)\n"
 	: :  "r" (val), "r" (addr) );

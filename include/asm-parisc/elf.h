@@ -220,7 +220,7 @@ typedef struct elf64_fdesc {
  * macros, and then it includes fs/binfmt_elf.c to provide an alternate
  * elf binary handler for 32 bit binaries (on the 64 bit kernel).
  */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define ELF_CLASS       ELFCLASS64
 #else
 #define ELF_CLASS	ELFCLASS32

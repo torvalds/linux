@@ -35,7 +35,7 @@ extern struct node_map_data node_data[];
 #define PFNNID_MAP_MAX  512     /* support 512GB */
 extern unsigned char pfnnid_map[PFNNID_MAP_MAX];
 
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 #define pfn_is_io(pfn) ((pfn & (0xf0000000UL >> PAGE_SHIFT)) == (0xf0000000UL >> PAGE_SHIFT))
 #else
 /* io can be 0xf0f0f0f0f0xxxxxx or 0xfffffffff0000000 */

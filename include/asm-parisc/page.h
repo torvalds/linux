@@ -105,7 +105,7 @@ extern int npmem_ranges;
 /* WARNING: The definitions below must match exactly to sizeof(pte_t)
  * etc
  */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define BITS_PER_PTE_ENTRY	3
 #define BITS_PER_PMD_ENTRY	2
 #define BITS_PER_PGD_ENTRY	2

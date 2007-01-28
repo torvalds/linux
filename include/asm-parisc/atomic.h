@@ -58,7 +58,7 @@ extern void __xchg_called_with_bad_pointer(void);
 /* __xchg32/64 defined in arch/parisc/lib/bitops.c */
 extern unsigned long __xchg8(char, char *);
 extern unsigned long __xchg32(int, int *);
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 extern unsigned long __xchg64(unsigned long, unsigned long *);
 #endif
 
@@ -67,7 +67,7 @@ static __inline__ unsigned long
 __xchg(unsigned long x, __volatile__ void * ptr, int size)
 {
 	switch(size) {
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	case 8: return __xchg64(x,(unsigned long *) ptr);
 #endif
 	case 4: return __xchg32((int) x, (int *) ptr);
@@ -81,7 +81,7 @@ __xchg(unsigned long x, __volatile__ void * ptr, int size)
 /*
 ** REVISIT - Abandoned use of LDCW in xchg() for now:
 ** o need to test sizeof(*ptr) to avoid clearing adjacent bytes
-** o and while we are at it, could __LP64__ code use LDCD too?
+** o and while we are at it, could CONFIG_64BIT code use LDCD too?
 **
 **	if (__builtin_constant_p(x) && (x == NULL))
 **		if (((unsigned long)p & 0xf) == 0)
@@ -105,7 +105,7 @@ static __inline__ unsigned long
 __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new_, int size)
 {
 	switch(size) {
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	case 8: return __cmpxchg_u64((unsigned long *)ptr, old, new_);
 #endif
 	case 4: return __cmpxchg_u32((unsigned int *)ptr, (unsigned int) old, (unsigned int) new_);
@@ -218,7 +218,7 @@ static __inline__ int atomic_read(const atomic_t *v)
 #define smp_mb__before_atomic_inc()	smp_mb()
 #define smp_mb__after_atomic_inc()	smp_mb()
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 
 typedef struct { volatile s64 counter; } atomic64_t;
 
@@ -270,7 +270,7 @@ atomic64_read(const atomic64_t *v)
 #define atomic64_dec_and_test(v)	(atomic64_dec_return(v) == 0)
 #define atomic64_sub_and_test(i,v)	(atomic64_sub_return((i),(v)) == 0)
 
-#endif /* __LP64__ */
+#endif /* CONFIG_64BIT */
 
 #include <asm-generic/atomic.h>
 
