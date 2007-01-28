@@ -39,6 +39,7 @@ void dynamic_irq_init(unsigned int irq)
 	desc->chip = &no_irq_chip;
 	desc->handle_irq = handle_bad_irq;
 	desc->depth = 1;
+	desc->msi_desc = NULL;
 	desc->handler_data = NULL;
 	desc->chip_data = NULL;
 	desc->action = NULL;
@@ -74,6 +75,9 @@ void dynamic_irq_cleanup(unsigned int irq)
 		WARN_ON(1);
 		return;
 	}
+	desc->msi_desc = NULL;
+	desc->handler_data = NULL;
+	desc->chip_data = NULL;
 	desc->handle_irq = handle_bad_irq;
 	desc->chip = &no_irq_chip;
 	spin_unlock_irqrestore(&desc->lock, flags);
@@ -160,6 +164,30 @@ int set_irq_data(unsigned int irq, void *data)
 	return 0;
 }
 EXPORT_SYMBOL(set_irq_data);
+
+/**
+ *	set_irq_data - set irq type data for an irq
+ *	@irq:	Interrupt number
+ *	@data:	Pointer to interrupt specific data
+ *
+ *	Set the hardware irq controller data for an irq
+ */
+int set_irq_msi(unsigned int irq, struct msi_desc *entry)
+{
+	struct irq_desc *desc;
+	unsigned long flags;
+
+	if (irq >= NR_IRQS) {
+		printk(KERN_ERR
+		       "Trying to install msi data for IRQ%d\n", irq);
+		return -EINVAL;
+	}
+	desc = irq_desc + irq;
+	spin_lock_irqsave(&desc->lock, flags);
+	desc->msi_desc = entry;
+	spin_unlock_irqrestore(&desc->lock, flags);
+	return 0;
+}
 
 /**
  *	set_irq_chip_data - set irq chip data for an irq
