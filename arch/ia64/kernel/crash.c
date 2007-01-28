@@ -118,6 +118,11 @@ machine_crash_shutdown(struct pt_regs *pt)
 static void
 machine_kdump_on_init(void)
 {
+	if (!ia64_kimage) {
+		printk(KERN_NOTICE "machine_kdump_on_init(): "
+				"kdump not configured\n");
+		return;
+	}
 	local_irq_disable();
 	kexec_disable_iosapic();
 	machine_kexec(ia64_kimage);

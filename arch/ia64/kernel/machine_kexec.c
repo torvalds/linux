@@ -82,6 +82,7 @@ static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 	unsigned long vector;
 	int ii;
 
+	BUG_ON(!image);
 	if (image->type == KEXEC_TYPE_CRASH) {
 		crash_save_this_cpu();
 		current->thread.ksp = (__u64)info->sw - 16;
@@ -120,6 +121,7 @@ static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 
 void machine_kexec(struct kimage *image)
 {
+	BUG_ON(!image);
 	unw_init_running(ia64_machine_kexec, image);
 	for(;;);
 }
