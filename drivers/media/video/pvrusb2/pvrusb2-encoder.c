@@ -35,34 +35,41 @@
 #define IVTV_MBOX_DRIVER_DONE 0x00000002
 #define IVTV_MBOX_DRIVER_BUSY 0x00000001
 
+#define MBOX_BASE 0x44
+
 
 static int pvr2_encoder_write_words(struct pvr2_hdw *hdw,
+				    unsigned int offs,
 				    const u32 *data, unsigned int dlen)
 {
-	unsigned int idx;
+	unsigned int idx,addr;
+	unsigned int bAddr;
 	int ret;
-	unsigned int offs = 0;
 	unsigned int chunkCnt;
 
 	/*
 
 	Format: First byte must be 0x01.  Remaining 32 bit words are
-	spread out into chunks of 7 bytes each, little-endian ordered,
-	offset at zero within each 2 blank bytes following and a
-	single byte that is 0x44 plus the offset of the word.  Repeat
-	request for additional words, with offset adjusted
-	accordingly.
+	spread out into chunks of 7 bytes each, with the first 4 bytes
+	being the data word (little endian), and the next 3 bytes
+	being the address where that data word is to be written (big
+	endian).  Repeat request for additional words, with offset
+	adjusted accordingly.
 
 	*/
 	while (dlen) {
 		chunkCnt = 8;
 		if (chunkCnt > dlen) chunkCnt = dlen;
 		memset(hdw->cmd_buffer,0,sizeof(hdw->cmd_buffer));
-		hdw->cmd_buffer[0] = FX2CMD_MEM_WRITE_DWORD;
+		bAddr = 0;
+		hdw->cmd_buffer[bAddr++] = FX2CMD_MEM_WRITE_DWORD;
 		for (idx = 0; idx < chunkCnt; idx++) {
-			hdw->cmd_buffer[1+(idx*7)+6] = 0x44 + idx + offs;
-			PVR2_DECOMPOSE_LE(hdw->cmd_buffer, 1+(idx*7),
-					  data[idx]);
+			addr = idx + offs;
+			hdw->cmd_buffer[bAddr+6] = (addr & 0xffu);
+			hdw->cmd_buffer[bAddr+5] = ((addr>>8) & 0xffu);
+			hdw->cmd_buffer[bAddr+4] = ((addr>>16) & 0xffu);
+			PVR2_DECOMPOSE_LE(hdw->cmd_buffer, bAddr,data[idx]);
+			bAddr += 7;
 		}
 		ret = pvr2_send_request(hdw,
 					hdw->cmd_buffer,1+(chunkCnt*7),
@@ -77,34 +84,42 @@ static int pvr2_encoder_write_words(struct pvr2_hdw *hdw,
 }
 
 
-static int pvr2_encoder_read_words(struct pvr2_hdw *hdw,int statusFl,
+static int pvr2_encoder_read_words(struct pvr2_hdw *hdw,
+				   unsigned int offs,
 				   u32 *data, unsigned int dlen)
 {
 	unsigned int idx;
 	int ret;
-	unsigned int offs = 0;
 	unsigned int chunkCnt;
 
 	/*
 
 	Format: First byte must be 0x02 (status check) or 0x28 (read
 	back block of 32 bit words).  Next 6 bytes must be zero,
-	followed by a single byte of 0x44+offset for portion to be
-	read.  Returned data is packed set of 32 bits words that were
-	read.
+	followed by a single byte of MBOX_BASE+offset for portion to
+	be read.  Returned data is packed set of 32 bits words that
+	were read.
 
 	*/
 
 	while (dlen) {
 		chunkCnt = 16;
 		if (chunkCnt > dlen) chunkCnt = dlen;
-		memset(hdw->cmd_buffer,0,sizeof(hdw->cmd_buffer));
+		if (chunkCnt < 16) chunkCnt = 1;
 		hdw->cmd_buffer[0] =
-			(statusFl ? FX2CMD_MEM_READ_DWORD : FX2CMD_MEM_READ_64BYTES);
-		hdw->cmd_buffer[7] = 0x44 + offs;
+			((chunkCnt == 1) ?
+			 FX2CMD_MEM_READ_DWORD : FX2CMD_MEM_READ_64BYTES);
+		hdw->cmd_buffer[1] = 0;
+		hdw->cmd_buffer[2] = 0;
+		hdw->cmd_buffer[3] = 0;
+		hdw->cmd_buffer[4] = 0;
+		hdw->cmd_buffer[5] = ((offs>>16) & 0xffu);
+		hdw->cmd_buffer[6] = ((offs>>8) & 0xffu);
+		hdw->cmd_buffer[7] = (offs & 0xffu);
 		ret = pvr2_send_request(hdw,
 					hdw->cmd_buffer,8,
-					hdw->cmd_buffer,chunkCnt * 4);
+					hdw->cmd_buffer,
+					(chunkCnt == 1 ? 4 : 16 * 4));
 		if (ret) return ret;
 
 		for (idx = 0; idx < chunkCnt; idx++) {
@@ -131,6 +146,8 @@ static int pvr2_encoder_cmd(void *ctxt,
 			    u32 *argp)
 {
 	unsigned int poll_count;
+	unsigned int try_count = 0;
+	int retry_flag;
 	int ret = 0;
 	unsigned int idx;
 	/* These sizes look to be limited by the FX2 firmware implementation */
@@ -142,14 +159,15 @@ static int pvr2_encoder_cmd(void *ctxt,
 	/*
 
 	The encoder seems to speak entirely using blocks 32 bit words.
-	In ivtv driver terms, this is a mailbox which we populate with
-	data and watch what the hardware does with it.  The first word
-	is a set of flags used to control the transaction, the second
-	word is the command to execute, the third byte is zero (ivtv
-	driver suggests that this is some kind of return value), and
-	the fourth byte is a specified timeout (windows driver always
-	uses 0x00060000 except for one case when it is zero).  All
-	successive words are the argument words for the command.
+	In ivtv driver terms, this is a mailbox at MBOX_BASE which we
+	populate with data and watch what the hardware does with it.
+	The first word is a set of flags used to control the
+	transaction, the second word is the command to execute, the
+	third byte is zero (ivtv driver suggests that this is some
+	kind of return value), and the fourth byte is a specified
+	timeout (windows driver always uses 0x00060000 except for one
+	case when it is zero).  All successive words are the argument
+	words for the command.
 
 	First, write out the entire set of words, with the first word
 	being zero.
@@ -158,13 +176,10 @@ static int pvr2_encoder_cmd(void *ctxt,
 	IVTV_MBOX_DRIVER_DONE | IVTV_DRIVER_BUSY this time (which
 	probably means "go").
 
-	Next, read back 16 words as status.  Check the first word,
+	Next, read back the return count words.  Check the first word,
 	which should have IVTV_MBOX_FIRMWARE_DONE set.  If however
 	that bit is not set, then the command isn't done so repeat the
-	read.
-
-	Next, read back 32 words and compare with the original
-	arugments.  Hopefully they will match.
+	read until it is set.
 
 	Finally, write out just the first word again, but set it to
 	0x0 this time (which probably means "idle").
@@ -194,6 +209,9 @@ static int pvr2_encoder_cmd(void *ctxt,
 
 	LOCK_TAKE(hdw->ctl_lock); do {
 
+		retry_flag = 0;
+		try_count++;
+		ret = 0;
 		wrData[0] = 0;
 		wrData[1] = cmd;
 		wrData[2] = 0;
@@ -205,54 +223,70 @@ static int pvr2_encoder_cmd(void *ctxt,
 			wrData[idx+4] = 0;
 		}
 
-		ret = pvr2_encoder_write_words(hdw,wrData,idx);
+		ret = pvr2_encoder_write_words(hdw,MBOX_BASE,wrData,idx);
 		if (ret) break;
 		wrData[0] = IVTV_MBOX_DRIVER_DONE|IVTV_MBOX_DRIVER_BUSY;
-		ret = pvr2_encoder_write_words(hdw,wrData,1);
+		ret = pvr2_encoder_write_words(hdw,MBOX_BASE,wrData,1);
 		if (ret) break;
 		poll_count = 0;
 		while (1) {
-			if (poll_count < 10000000) poll_count++;
-			ret = pvr2_encoder_read_words(hdw,!0,rdData,1);
-			if (ret) break;
+			poll_count++;
+			ret = pvr2_encoder_read_words(hdw,MBOX_BASE,rdData,
+						      arg_cnt_recv+4);
+			if (ret) {
+				break;
+			}
 			if (rdData[0] & IVTV_MBOX_FIRMWARE_DONE) {
 				break;
 			}
-			if (poll_count == 100) {
+			if (rdData[0] && (poll_count < 1000)) continue;
+			if (!rdData[0]) {
+				retry_flag = !0;
+				pvr2_trace(
+					PVR2_TRACE_ERROR_LEGS,
+					"Encoder timed out waiting for us"
+					"; arranging to retry");
+			} else {
 				pvr2_trace(
 					PVR2_TRACE_ERROR_LEGS,
 					"***WARNING*** device's encoder"
 					" appears to be stuck"
 					" (status=0%08x)",rdData[0]);
-				pvr2_trace(
-					PVR2_TRACE_ERROR_LEGS,
-					"Encoder command: 0x%02x",cmd);
-				for (idx = 4; idx < arg_cnt_send; idx++) {
-					pvr2_trace(
-						PVR2_TRACE_ERROR_LEGS,
-						"Encoder arg%d: 0x%08x",
-						idx-3,wrData[idx]);
-				}
-				pvr2_trace(
-					PVR2_TRACE_ERROR_LEGS,
-					"Giving up waiting."
-					"  It is likely that"
-					" this is a bad idea...");
-				ret = -EBUSY;
-				break;
 			}
+			pvr2_trace(
+				PVR2_TRACE_ERROR_LEGS,
+				"Encoder command: 0x%02x",cmd);
+			for (idx = 4; idx < arg_cnt_send; idx++) {
+				pvr2_trace(
+					PVR2_TRACE_ERROR_LEGS,
+					"Encoder arg%d: 0x%08x",
+					idx-3,wrData[idx]);
+			}
+			ret = -EBUSY;
+			break;
 		}
-		if (ret) break;
+		if (retry_flag) {
+			if (try_count < 20) continue;
+			pvr2_trace(
+				PVR2_TRACE_ERROR_LEGS,
+				"Too many retries...");
+			ret = -EBUSY;
+		}
+		if (ret) {
+			pvr2_trace(
+				PVR2_TRACE_ERROR_LEGS,
+				"Giving up on command."
+				"  It is likely that"
+				" this is a bad idea...");
+			break;
+		}
 		wrData[0] = 0x7;
-		ret = pvr2_encoder_read_words(
-			hdw,0,rdData, ARRAY_SIZE(rdData));
-		if (ret) break;
 		for (idx = 0; idx < arg_cnt_recv; idx++) {
 			argp[idx] = rdData[idx+4];
 		}
 
 		wrData[0] = 0x0;
-		ret = pvr2_encoder_write_words(hdw,wrData,1);
+		ret = pvr2_encoder_write_words(hdw,MBOX_BASE,wrData,1);
 		if (ret) break;
 
 	} while(0); LOCK_GIVE(hdw->ctl_lock);
