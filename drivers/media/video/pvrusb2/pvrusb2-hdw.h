@@ -222,7 +222,7 @@ void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *,
    setFl   - true to set the register, false to read it
    val_ptr - storage location for source / result. */
 int pvr2_hdw_register_access(struct pvr2_hdw *,
-			     u32 chip_id,u32 reg_id,
+			     u32 chip_id,u64 reg_id,
 			     int setFl,u32 *val_ptr);
 
 /* The following entry points are all lower level things you normally don't

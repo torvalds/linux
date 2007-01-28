@@ -738,10 +738,6 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	}
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	case VIDIOC_DBG_S_REGISTER:
-		if (!capable(CAP_SYS_ADMIN)) {
-			ret = -EPERM;
-			break;
-		} /* fall through */
 	case VIDIOC_DBG_G_REGISTER:
 	{
 		u32 val;
