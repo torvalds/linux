@@ -143,6 +143,14 @@ static ssize_t is_enabled_show(struct device *dev,
 	return sprintf (buf, "%u\n", atomic_read(&pdev->enable_cnt));
 }
 
+#ifdef CONFIG_NUMA
+static ssize_t
+numa_node_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf (buf, "%d\n", dev->numa_node);
+}
+#endif
+
 static ssize_t
 msi_bus_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -194,6 +202,9 @@ struct device_attribute pci_dev_attrs[] = {
 	__ATTR_RO(irq),
 	__ATTR_RO(local_cpus),
 	__ATTR_RO(modalias),
+#ifdef CONFIG_NUMA
+	__ATTR_RO(numa_node),
+#endif
 	__ATTR(enable, 0600, is_enabled_show, is_enabled_store),
 	__ATTR(broken_parity_status,(S_IRUGO|S_IWUSR),
 		broken_parity_status_show,broken_parity_status_store),
