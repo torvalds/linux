@@ -193,11 +193,6 @@ static struct msi_desc* alloc_msi_entry(void)
 	return entry;
 }
 
-static void attach_msi_entry(struct msi_desc *entry, int irq)
-{
-	msi_desc[irq] = entry;
-}
-
 static int create_msi_irq(void)
 {
 	struct msi_desc *entry;
@@ -491,7 +486,7 @@ static int msi_capability_init(struct pci_dev *dev)
 	}
 
 	dev->first_msi_irq = irq;
-	attach_msi_entry(entry, irq);
+	msi_desc[irq] = entry;
 	/* Set MSI enabled bits	 */
 	enable_msi_mode(dev, pos, PCI_CAP_ID_MSI);
 
@@ -570,7 +565,7 @@ static int msix_capability_init(struct pci_dev *dev,
 			break;
 		}
 
-		attach_msi_entry(entry, irq);
+		msi_desc[irq] = entry;
 	}
 	if (i != nvec) {
 		int avail = i - 1;
