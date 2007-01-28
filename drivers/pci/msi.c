@@ -854,13 +854,10 @@ void pci_disable_msix(struct pci_dev* dev)
  **/
 void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 {
-	int pos;
-
 	if (!pci_msi_enable || !dev)
  		return;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
-	if (pos > 0 && dev->msi_enabled) {
+	if (dev->msi_enabled) {
 		if (irq_has_action(dev->first_msi_irq)) {
 			printk(KERN_WARNING "PCI: %s: msi_remove_pci_irq_vectors() "
 			       "called without free_irq() on MSI irq %d\n",
@@ -869,8 +866,7 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 		} else /* Release MSI irq assigned to this device */
 			msi_free_irq(dev, dev->first_msi_irq);
 	}
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
-	if (pos > 0 && dev->msix_enabled) {
+	if (dev->msix_enabled) {
 		int irq, head, tail = 0, warning = 0;
 		void __iomem *base = NULL;
 
