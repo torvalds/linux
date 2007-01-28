@@ -35,7 +35,6 @@
 
 #define ANALOG_TUNER_VES1820 1
 #define ANALOG_TUNER_STV0297 2
-#define ANALOG_TUNER_VBI     0x100
 
 extern int av7110_debug;
 

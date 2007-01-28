@@ -817,20 +817,15 @@ int av7110_init_v4l(struct av7110 *av7110)
 		saa7146_vv_release(dev);
 		return -ENODEV;
 	}
-	if (saa7146_register_device(&av7110->vbi_dev, dev, "av7110", VFL_TYPE_VBI)) {
+	if (saa7146_register_device(&av7110->vbi_dev, dev, "av7110", VFL_TYPE_VBI))
 		ERR(("cannot register vbi v4l2 device. skipping.\n"));
-	} else {
-		if (av7110->analog_tuner_flags)
-			av7110->analog_tuner_flags |= ANALOG_TUNER_VBI;
-	}
 	return 0;
 }
 
 int av7110_exit_v4l(struct av7110 *av7110)
 {
 	saa7146_unregister_device(&av7110->v4l_dev, av7110->dev);
-	if (av7110->analog_tuner_flags & ANALOG_TUNER_VBI)
-		saa7146_unregister_device(&av7110->vbi_dev, av7110->dev);
+	saa7146_unregister_device(&av7110->vbi_dev, av7110->dev);
 	return 0;
 }
 
