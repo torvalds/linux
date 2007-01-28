@@ -511,7 +511,7 @@ int hpux_sysfs(int opcode, unsigned long arg1, unsigned long arg2)
 
 
 /* Table of syscall names and handle for unimplemented routines */
-static const char *syscall_names[] = {
+static const char * const syscall_names[] = {
 	"nosys",                  /* 0 */
 	"exit",                  
 	"fork",                  
