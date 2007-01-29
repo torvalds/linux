@@ -65,6 +65,7 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_spi.h>
+#include <scsi/scsi_dbg.h>
 
 #include "mptbase.h"
 #include "mptscsih.h"
@@ -454,6 +455,56 @@ mptspi_target_destroy(struct scsi_target *starget)
 	starget->hostdata = NULL;
 }
 
+/**
+ *	mptspi_print_write_nego - negotiation parameters debug info that is being sent
+ *	@hd: Pointer to a SCSI HOST structure
+ *	@starget: SCSI target
+ *	@ii: negotiation parameters
+ *
+ */
+static void
+mptspi_print_write_nego(struct _MPT_SCSI_HOST *hd, struct scsi_target *starget, u32 ii)
+{
+	ddvprintk((MYIOC_s_INFO_FMT "id=%d Requested = 0x%08x"
+	    " ( %s factor = 0x%02x @ offset = 0x%02x %s%s%s%s%s%s%s%s)\n",
+	    hd->ioc->name, starget->id, ii,
+	    ii & MPI_SCSIDEVPAGE0_NP_WIDE ? "Wide ": "",
+	    ((ii >> 8) & 0xFF), ((ii >> 16) & 0xFF),
+	    ii & MPI_SCSIDEVPAGE0_NP_IU ? "IU ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_DT ? "DT ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_QAS ? "QAS ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_HOLD_MCS ? "HOLDMCS ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_WR_FLOW ? "WRFLOW ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_RD_STRM ? "RDSTRM ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_RTI ? "RTI ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_PCOMP_EN ? "PCOMP ": ""));
+}
+
+/**
+ *	mptspi_print_read_nego - negotiation parameters debug info that is being read
+ *	@hd: Pointer to a SCSI HOST structure
+ *	@starget: SCSI target
+ *	@ii: negotiation parameters
+ *
+ */
+static void
+mptspi_print_read_nego(struct _MPT_SCSI_HOST *hd, struct scsi_target *starget, u32 ii)
+{
+	ddvprintk((MYIOC_s_INFO_FMT "id=%d Read = 0x%08x"
+	    " ( %s factor = 0x%02x @ offset = 0x%02x %s%s%s%s%s%s%s%s)\n",
+	    hd->ioc->name, starget->id, ii,
+	    ii & MPI_SCSIDEVPAGE0_NP_WIDE ? "Wide ": "",
+	    ((ii >> 8) & 0xFF), ((ii >> 16) & 0xFF),
+	    ii & MPI_SCSIDEVPAGE0_NP_IU ? "IU ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_DT ? "DT ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_QAS ? "QAS ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_HOLD_MCS ? "HOLDMCS ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_WR_FLOW ? "WRFLOW ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_RD_STRM ? "RDSTRM ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_RTI ? "RTI ": "",
+	    ii & MPI_SCSIDEVPAGE0_NP_PCOMP_EN ? "PCOMP ": ""));
+}
+
 static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 			     struct _CONFIG_PAGE_SCSI_DEVICE_0 *pass_pg0)
 {
@@ -506,6 +557,8 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 	}
 	err = 0;
 	memcpy(pass_pg0, pg0, size);
+
+	mptspi_print_read_nego(hd, starget, le32_to_cpu(pg0->NegotiatedParameters));
 
  out_free:
 	dma_free_coherent(&ioc->pcidev->dev, size, pg0, pg0_dma);
@@ -681,6 +734,12 @@ static int mptspi_slave_configure(struct scsi_device *sdev)
 
 	mptspi_initTarget(hd, vtarget, sdev);
 
+	ddvprintk((MYIOC_s_INFO_FMT "id=%d min_period=0x%02x"
+		" max_offset=0x%02x max_width=%d\n", hd->ioc->name,
+		sdev->id, spi_min_period(scsi_target(sdev)),
+		spi_max_offset(scsi_target(sdev)),
+		spi_max_width(scsi_target(sdev))));
+
 	if ((sdev->channel == 1 ||
 	     !(mptspi_is_raid(hd, sdev->id))) &&
 	    !spi_initial_dv(sdev->sdev_target))
@@ -707,6 +766,11 @@ mptspi_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 		done(SCpnt);
 		return 0;
 	}
+
+#ifdef MPT_DEBUG_DV
+	if (spi_dv_pending(scsi_target(SCpnt->device)))
+		scsi_print_command(SCpnt);
+#endif
 
 	return mptscsih_qcmd(SCpnt,done);
 }
@@ -805,6 +869,8 @@ static int mptspi_write_spi_device_pg1(struct scsi_target *starget,
 	pg1->Header.PageLength = hdr.PageLength;
 	pg1->Header.PageNumber = hdr.PageNumber;
 	pg1->Header.PageType = hdr.PageType;
+
+	mptspi_print_write_nego(hd, starget, le32_to_cpu(pg1->RequestedParameters));
 
 	if (mpt_config(ioc, &cfg)) {
 		starget_printk(KERN_ERR, starget, "mpt_config failed\n");

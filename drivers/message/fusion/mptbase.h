@@ -791,12 +791,6 @@ typedef struct _mpt_sge {
 #define ddvprintk(x)
 #endif
 
-#ifdef MPT_DEBUG_NEGO
-#define dnegoprintk(x)  printk x
-#else
-#define dnegoprintk(x)
-#endif
-
 #if defined(MPT_DEBUG_DV) || defined(MPT_DEBUG_DV_TINY)
 #define ddvtprintk(x)  printk x
 #else
