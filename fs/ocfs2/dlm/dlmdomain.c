@@ -48,6 +48,36 @@
 #define MLOG_MASK_PREFIX (ML_DLM|ML_DLM_DOMAIN)
 #include "cluster/masklog.h"
 
+/*
+ * ocfs2 node maps are array of long int, which limits to send them freely
+ * across the wire due to endianness issues. To workaround this, we convert
+ * long ints to byte arrays. Following 3 routines are helper functions to
+ * set/test/copy bits within those array of bytes
+ */
+static inline void byte_set_bit(u8 nr, u8 map[])
+{
+	map[nr >> 3] |= (1UL << (nr & 7));
+}
+
+static inline int byte_test_bit(u8 nr, u8 map[])
+{
+	return ((1UL << (nr & 7)) & (map[nr >> 3])) != 0;
+}
+
+static inline void byte_copymap(u8 dmap[], unsigned long smap[],
+			unsigned int sz)
+{
+	unsigned int nn;
+
+	if (!sz)
+		return;
+
+	memset(dmap, 0, ((sz + 7) >> 3));
+	for (nn = 0 ; nn < sz; nn++)
+		if (test_bit(nn, smap))
+			byte_set_bit(nn, dmap);
+}
+
 static void dlm_free_pagevec(void **vec, int pages)
 {
 	while (pages--)
@@ -641,6 +671,7 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 	struct dlm_query_join_request *query;
 	enum dlm_query_join_response response;
 	struct dlm_ctxt *dlm = NULL;
+	u8 nodenum;
 
 	query = (struct dlm_query_join_request *) msg->buf;
 
@@ -664,6 +695,25 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 
 	spin_lock(&dlm_domain_lock);
 	dlm = __dlm_lookup_domain_full(query->domain, query->name_len);
+	if (!dlm)
+		goto unlock_respond;
+
+	/*
+	 * There is a small window where the joining node may not see the
+	 * node(s) that just left but still part of the cluster. DISALLOW
+	 * join request if joining node has different node map.
+	 */
+	nodenum=0;
+	while (nodenum < O2NM_MAX_NODES) {
+		if (test_bit(nodenum, dlm->domain_map)) {
+			if (!byte_test_bit(nodenum, query->node_map)) {
+				response = JOIN_DISALLOW;
+				goto unlock_respond;
+			}
+		}
+		nodenum++;
+	}
+
 	/* Once the dlm ctxt is marked as leaving then we don't want
 	 * to be put in someone's domain map. 
 	 * Also, explicitly disallow joining at certain troublesome
@@ -705,6 +755,7 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 
 		spin_unlock(&dlm->spinlock);
 	}
+unlock_respond:
 	spin_unlock(&dlm_domain_lock);
 
 respond:
@@ -853,6 +904,9 @@ static int dlm_request_join(struct dlm_ctxt *dlm,
 	join_msg.node_idx = dlm->node_num;
 	join_msg.name_len = strlen(dlm->name);
 	memcpy(join_msg.domain, dlm->name, join_msg.name_len);
+
+	/* copy live node map to join message */
+	byte_copymap(join_msg.node_map, dlm->live_nodes_map, O2NM_MAX_NODES);
 
 	status = o2net_send_message(DLM_QUERY_JOIN_MSG, DLM_MOD_KEY, &join_msg,
 				    sizeof(join_msg), node, &retval);

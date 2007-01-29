@@ -625,12 +625,16 @@ struct dlm_begin_reco
 };
 
 
+#define BITS_PER_BYTE 8
+#define BITS_TO_BYTES(bits) (((bits)+BITS_PER_BYTE-1)/BITS_PER_BYTE)
+
 struct dlm_query_join_request
 {
 	u8 node_idx;
 	u8 pad1[2];
 	u8 name_len;
 	u8 domain[O2NM_MAX_NAME_LEN];
+	u8 node_map[BITS_TO_BYTES(O2NM_MAX_NODES)];
 };
 
 struct dlm_assert_joined
