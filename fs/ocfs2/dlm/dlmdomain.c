@@ -707,6 +707,9 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 	while (nodenum < O2NM_MAX_NODES) {
 		if (test_bit(nodenum, dlm->domain_map)) {
 			if (!byte_test_bit(nodenum, query->node_map)) {
+				mlog(0, "disallow join as node %u does not "
+				     "have node %u in its nodemap\n",
+				     query->node_idx, nodenum);
 				response = JOIN_DISALLOW;
 				goto unlock_respond;
 			}
@@ -732,15 +735,15 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 			/* Disallow parallel joins. */
 			response = JOIN_DISALLOW;
 		} else if (dlm->reco.state & DLM_RECO_STATE_ACTIVE) {
-			mlog(ML_NOTICE, "node %u trying to join, but recovery "
+			mlog(0, "node %u trying to join, but recovery "
 			     "is ongoing.\n", bit);
 			response = JOIN_DISALLOW;
 		} else if (test_bit(bit, dlm->recovery_map)) {
-			mlog(ML_NOTICE, "node %u trying to join, but it "
+			mlog(0, "node %u trying to join, but it "
 			     "still needs recovery.\n", bit);
 			response = JOIN_DISALLOW;
 		} else if (test_bit(bit, dlm->domain_map)) {
-			mlog(ML_NOTICE, "node %u trying to join, but it "
+			mlog(0, "node %u trying to join, but it "
 			     "is still in the domain! needs recovery?\n",
 			     bit);
 			response = JOIN_DISALLOW;
