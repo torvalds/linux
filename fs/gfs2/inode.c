@@ -280,50 +280,6 @@ out:
 	return error;
 }
 
-static int gfs2_change_nlink_i(struct gfs2_inode *ip)
-{
-	struct gfs2_sbd *sdp = ip->i_inode.i_sb->s_fs_info;
-	struct gfs2_inode *rindex = GFS2_I(sdp->sd_rindex);
-	struct gfs2_glock *ri_gl = rindex->i_gl;
-	struct gfs2_rgrpd *rgd;
-	struct gfs2_holder ri_gh, rg_gh;
-	int existing, error;
-
-	/* if we come from rename path, we could have the lock already */
-	existing = gfs2_glock_is_locked_by_me(ri_gl);
-	if (!existing) {
-		error = gfs2_rindex_hold(sdp, &ri_gh);
-		if (error)
-			goto out;
-	}
-
-	/* find the matching rgd */
-	error = -EIO;
-	rgd = gfs2_blk2rgrpd(sdp, ip->i_num.no_addr);
-	if (!rgd)
-		goto out_norgrp;
-
-	/*
-	 * Eventually we may want to move rgd(s) to a linked list
-	 * and piggyback the free logic into one of gfs2 daemons
-	 * to gain some performance.
-	 */
-	if (!rgd->rd_gl || !gfs2_glock_is_locked_by_me(rgd->rd_gl)) {
-		error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, &rg_gh);
-		if (error)
-			goto out_norgrp;
-
-		gfs2_unlink_di(&ip->i_inode); /* mark inode unlinked */
-		gfs2_glock_dq_uninit(&rg_gh);
-	}
-
-out_norgrp:
-	if (!existing)
-		gfs2_glock_dq_uninit(&ri_gh);
-out:
-	return error;
-}
-
 /**
  * gfs2_change_nlink - Change nlink count on inode
  * @ip: The GFS2 inode
@@ -365,7 +321,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	mark_inode_dirty(&ip->i_inode);
 
 	if (ip->i_inode.i_nlink == 0)
-		error = gfs2_change_nlink_i(ip);
+		gfs2_unlink_di(&ip->i_inode); /* mark inode unlinked */
 
 	return error;
 }
