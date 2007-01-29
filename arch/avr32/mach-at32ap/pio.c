@@ -385,9 +385,6 @@ void __init at32_init_pio(struct platform_device *pdev)
 	 */
 	pio->gpio_mask = ~0UL;
 
-	pio_writel(pio, ODR, ~0UL);
-	pio_writel(pio, PER, ~0UL);
-
 	/* start with irqs disabled and acked */
 	pio_writel(pio, IDR, ~0UL);
 	(void) pio_readl(pio, ISR);
