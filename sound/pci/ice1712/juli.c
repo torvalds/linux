@@ -125,7 +125,7 @@ static void juli_akm_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 	snd_akm4xxx_reset(ak, 0);
 }
 
-static struct snd_akm4xxx akm_juli_dac __devinitdata = {
+static const struct snd_akm4xxx akm_juli_dac __devinitdata = {
 	.type = SND_AK4358,
 	.num_dacs = 2,
 	.ops = {
@@ -206,7 +206,7 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
  * hence the driver needs to sets up it properly.
  */
 
-static unsigned char juli_eeprom[] __devinitdata = {
+static const unsigned char juli_eeprom[] __devinitdata = {
 	[ICE_EEP2_SYSCONF]     = 0x20,	/* clock 512, mpu401, 1xADC, 1xDACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
 	[ICE_EEP2_I2S]         = 0xf8,	/* vol, 96k, 24bit, 192k */
@@ -223,7 +223,7 @@ static unsigned char juli_eeprom[] __devinitdata = {
 };
 
 /* entry point */
-struct snd_ice1712_card_info snd_vt1724_juli_cards[] __devinitdata = {
+const struct snd_ice1712_card_info snd_vt1724_juli_cards[] __devinitdata = {
 	{
 		.subvendor = VT1724_SUBDEVICE_JULI,
 		.name = "ESI Juli@",

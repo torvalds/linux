@@ -364,7 +364,7 @@ static DECLARE_TLV_DB_SCALE(db_scale_adc, 0, 150, 0);
  * mixers
  */
 
-static struct snd_kcontrol_new stac_controls[] __devinitdata = {
+static const struct snd_kcontrol_new stac_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -475,7 +475,7 @@ static int __devinit prodigy192_add_controls(struct snd_ice1712 *ice)
  */
 static int __devinit prodigy192_init(struct snd_ice1712 *ice)
 {
-	static unsigned short stac_inits_prodigy[] = {
+	static const unsigned short stac_inits_prodigy[] = {
 		STAC946X_RESET, 0,
 /*		STAC946X_MASTER_VOLUME, 0,
 		STAC946X_LF_VOLUME, 0,
@@ -486,7 +486,7 @@ static int __devinit prodigy192_init(struct snd_ice1712 *ice)
 		STAC946X_LFE_VOLUME, 0,*/
 		(unsigned short)-1
 	};
-	unsigned short *p;
+	const unsigned short *p;
 
 	/* prodigy 192 */
 	ice->num_total_dacs = 6;
@@ -506,7 +506,7 @@ static int __devinit prodigy192_init(struct snd_ice1712 *ice)
  * hence the driver needs to sets up it properly.
  */
 
-static unsigned char prodigy71_eeprom[] __devinitdata = {
+static const unsigned char prodigy71_eeprom[] __devinitdata = {
 	[ICE_EEP2_SYSCONF]     = 0x2b,	/* clock 512, mpu401, spdif-in/ADC, 4DACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
 	[ICE_EEP2_I2S]         = 0xf8,	/* vol, 96k, 24bit, 192k */
@@ -524,7 +524,7 @@ static unsigned char prodigy71_eeprom[] __devinitdata = {
 
 
 /* entry point */
-struct snd_ice1712_card_info snd_vt1724_prodigy192_cards[] __devinitdata = {
+const struct snd_ice1712_card_info snd_vt1724_prodigy192_cards[] __devinitdata = {
 	{
 		.subvendor = VT1724_SUBDEVICE_PRODIGY192VE,
 		.name = "Audiotrak Prodigy 192",

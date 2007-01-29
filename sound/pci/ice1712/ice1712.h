@@ -514,8 +514,8 @@ struct snd_ice1712_card_info {
 	unsigned int mpu401_2_info_flags;
 	const char *mpu401_1_name;
 	const char *mpu401_2_name;
-	unsigned int eeprom_size;
-	unsigned char *eeprom_data;
+	const unsigned int eeprom_size;
+	const unsigned char *eeprom_data;
 };
 
 
