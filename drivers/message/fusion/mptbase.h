@@ -485,10 +485,24 @@ typedef	struct _SasCfgData {
 						 */
 }SasCfgData;
 
+/*
+ * Inactive volume link list of raid component data
+ * @inactive_list
+ */
+struct inactive_raid_component_info {
+	struct 	 list_head list;
+	u8		 volumeID;		/* volume target id */
+	u8		 volumeBus;		/* volume channel */
+	IOC_3_PHYS_DISK	 d;			/* phys disk info */
+};
+
 typedef	struct _RaidCfgData {
 	IOCPage2_t	*pIocPg2;		/* table of Raid Volumes */
 	IOCPage3_t	*pIocPg3;		/* table of physical disks */
-	int		 isRaid;		/* bit field, 1 if RAID */
+	struct semaphore	inactive_list_mutex;
+	struct list_head	inactive_list; /* link list for physical
+						disk that belong in
+						inactive volumes */
 }RaidCfgData;
 
 typedef struct _FcCfgData {
@@ -611,6 +625,8 @@ typedef struct _MPT_ADAPTER
 	u8			 persist_reply_frame[MPT_DEFAULT_FRAME_SIZE]; /* persist reply */
 	LANPage0_t		 lan_cnfg_page0;
 	LANPage1_t		 lan_cnfg_page1;
+
+	u8			 ir_firmware; /* =1 if IR firmware detected */
 	/*
 	 * Description: errata_flag_1064
 	 * If a PCIX read occurs within 1 or 2 cycles after the chip receives
@@ -1043,6 +1059,7 @@ extern void	 mpt_alloc_fw_memory(MPT_ADAPTER *ioc, int size);
 extern void	 mpt_free_fw_memory(MPT_ADAPTER *ioc);
 extern int	 mpt_findImVolumes(MPT_ADAPTER *ioc);
 extern int	 mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode);
+extern int	 mpt_raid_phys_disk_pg0(MPT_ADAPTER *ioc, u8 phys_disk_num, pRaidPhysDiskPage0_t phys_disk);
 
 /*
  *  Public data decl's...

@@ -2244,6 +2244,7 @@ mptscsih_bios_param(struct scsi_device * sdev, struct block_device *bdev,
 int
 mptscsih_is_phys_disk(MPT_ADAPTER *ioc, u8 channel, u8 id)
 {
+	struct inactive_raid_component_info *component_info;
 	int i;
 	int rc = 0;
 
@@ -2257,6 +2258,21 @@ mptscsih_is_phys_disk(MPT_ADAPTER *ioc, u8 channel, u8 id)
 		}
 	}
 
+	/*
+	 * Check inactive list for matching phys disks
+	 */
+	if (list_empty(&ioc->raid_data.inactive_list))
+		goto out;
+
+	down(&ioc->raid_data.inactive_list_mutex);
+	list_for_each_entry(component_info, &ioc->raid_data.inactive_list,
+	    list) {
+		if ((component_info->d.PhysDiskID == id) &&
+		    (component_info->d.PhysDiskBus == channel))
+			rc = 1;
+	}
+	up(&ioc->raid_data.inactive_list_mutex);
+
  out:
 	return rc;
 }
@@ -2265,6 +2281,7 @@ EXPORT_SYMBOL(mptscsih_is_phys_disk);
 u8
 mptscsih_raid_id_to_num(MPT_ADAPTER *ioc, u8 channel, u8 id)
 {
+	struct inactive_raid_component_info *component_info;
 	int i;
 	int rc = -ENXIO;
 
@@ -2277,6 +2294,21 @@ mptscsih_raid_id_to_num(MPT_ADAPTER *ioc, u8 channel, u8 id)
 			goto out;
 		}
 	}
+
+	/*
+	 * Check inactive list for matching phys disks
+	 */
+	if (list_empty(&ioc->raid_data.inactive_list))
+		goto out;
+
+	down(&ioc->raid_data.inactive_list_mutex);
+	list_for_each_entry(component_info, &ioc->raid_data.inactive_list,
+	    list) {
+		if ((component_info->d.PhysDiskID == id) &&
+		    (component_info->d.PhysDiskBus == channel))
+			rc = component_info->d.PhysDiskNum;
+	}
+	up(&ioc->raid_data.inactive_list_mutex);
 
  out:
 	return rc;

@@ -94,12 +94,14 @@ static int	mptsasTaskCtx = -1;
 static int	mptsasInternalCtx = -1; /* Used only for internal commands */
 static int	mptsasMgmtCtx = -1;
 
+static void mptsas_hotplug_work(struct work_struct *work);
 
 enum mptsas_hotplug_action {
 	MPTSAS_ADD_DEVICE,
 	MPTSAS_DEL_DEVICE,
 	MPTSAS_ADD_RAID,
 	MPTSAS_DEL_RAID,
+	MPTSAS_ADD_INACTIVE_VOLUME,
 	MPTSAS_IGNORE_EVENT,
 };
 
@@ -108,14 +110,15 @@ struct mptsas_hotplug_event {
 	MPT_ADAPTER		*ioc;
 	enum mptsas_hotplug_action event_type;
 	u64			sas_address;
-	u32			channel;
-	u32			id;
+	u8			channel;
+	u8			id;
 	u32			device_info;
 	u16			handle;
 	u16			parent_handle;
 	u8			phy_id;
-	u8			phys_disk_num;
-	u8			phys_disk_num_valid;
+	u8			phys_disk_num_valid;	/* hrc (hidden raid component) */
+	u8			phys_disk_num;		/* hrc - unique index*/
+	u8			hidden_raid_component;	/* hrc - don't expose*/
 };
 
 struct mptsas_discovery_event {
@@ -140,6 +143,7 @@ struct mptsas_devinfo {
 	u8	port_id;	/* sas physical port this device
 				   is assoc'd with */
 	u8	id;		/* logical target id of this device */
+	u32	phys_disk_num;	/* phys disk id, for csmi-ioctls */
 	u8	channel;	/* logical bus number of this device */
 	u64	sas_address;    /* WWN of this device,
 				   SATA is assigned by HBA,expander */
@@ -711,6 +715,7 @@ mptsas_target_alloc(struct scsi_target *starget)
 						channel, id);
 				vtarget->tflags |=
 				    MPT_TARGET_FLAGS_RAID_COMPONENT;
+				p->phy_info[i].attached.phys_disk_num = id;
 			}
 			mutex_unlock(&hd->ioc->sas_topology_mutex);
 			goto out;
@@ -1272,6 +1277,7 @@ mptsas_sas_device_pg0(MPT_ADAPTER *ioc, struct mptsas_devinfo *device_info,
 	device_info->phy_id = buffer->PhyNum;
 	device_info->port_id = buffer->PhysicalPort;
 	device_info->id = buffer->TargetID;
+	device_info->phys_disk_num = ~0;
 	device_info->channel = buffer->Bus;
 	memcpy(&sas_address, &buffer->SASAddress, sizeof(__le64));
 	device_info->sas_address = le64_to_cpu(sas_address);
@@ -1983,6 +1989,8 @@ mptsas_scan_sas_topology(MPT_ADAPTER *ioc)
 	/*
 	  Reporting RAID volumes.
 	*/
+	if (!ioc->ir_firmware)
+		goto out;
 	if (!ioc->raid_data.pIocPg2)
 		goto out;
 	if (!ioc->raid_data.pIocPg2->NumActiveVolumes)
@@ -2041,11 +2049,11 @@ mptsas_find_phyinfo_by_sas_address(MPT_ADAPTER *ioc, u64 sas_address)
 	mutex_lock(&ioc->sas_topology_mutex);
 	list_for_each_entry(port_info, &ioc->sas_topology, list) {
 		for (i = 0; i < port_info->num_phys; i++) {
-			if (port_info->phy_info[i].attached.sas_address
-			    != sas_address)
-				continue;
 			if (!mptsas_is_end_device(
 				&port_info->phy_info[i].attached))
+				continue;
+			if (port_info->phy_info[i].attached.sas_address
+			    != sas_address)
 				continue;
 			phy_info = &port_info->phy_info[i];
 			break;
@@ -2056,7 +2064,7 @@ mptsas_find_phyinfo_by_sas_address(MPT_ADAPTER *ioc, u64 sas_address)
 }
 
 static struct mptsas_phyinfo *
-mptsas_find_phyinfo_by_target(MPT_ADAPTER *ioc, u32 id)
+mptsas_find_phyinfo_by_target(MPT_ADAPTER *ioc, u8 channel, u8 id)
 {
 	struct mptsas_portinfo *port_info;
 	struct mptsas_phyinfo *phy_info = NULL;
@@ -2065,10 +2073,39 @@ mptsas_find_phyinfo_by_target(MPT_ADAPTER *ioc, u32 id)
 	mutex_lock(&ioc->sas_topology_mutex);
 	list_for_each_entry(port_info, &ioc->sas_topology, list) {
 		for (i = 0; i < port_info->num_phys; i++) {
-			if (port_info->phy_info[i].attached.id != id)
-				continue;
 			if (!mptsas_is_end_device(
 				&port_info->phy_info[i].attached))
+				continue;
+			if (port_info->phy_info[i].attached.id != id)
+				continue;
+			if (port_info->phy_info[i].attached.channel != channel)
+				continue;
+			phy_info = &port_info->phy_info[i];
+			break;
+		}
+	}
+	mutex_unlock(&ioc->sas_topology_mutex);
+	return phy_info;
+}
+
+static struct mptsas_phyinfo *
+mptsas_find_phyinfo_by_phys_disk_num(MPT_ADAPTER *ioc, u8 channel, u8 id)
+{
+	struct mptsas_portinfo *port_info;
+	struct mptsas_phyinfo *phy_info = NULL;
+	int i;
+
+	mutex_lock(&ioc->sas_topology_mutex);
+	list_for_each_entry(port_info, &ioc->sas_topology, list) {
+		for (i = 0; i < port_info->num_phys; i++) {
+			if (!mptsas_is_end_device(
+				&port_info->phy_info[i].attached))
+				continue;
+			if (port_info->phy_info[i].attached.phys_disk_num == ~0)
+				continue;
+			if (port_info->phy_info[i].attached.phys_disk_num != id)
+				continue;
+			if (port_info->phy_info[i].attached.channel != channel)
 				continue;
 			phy_info = &port_info->phy_info[i];
 			break;
@@ -2105,6 +2142,76 @@ mptsas_reprobe_target(struct scsi_target *starget, int uld_attach)
 			mptsas_reprobe_lun);
 }
 
+static void
+mptsas_adding_inactive_raid_components(MPT_ADAPTER *ioc, u8 channel, u8 id)
+{
+	CONFIGPARMS			cfg;
+	ConfigPageHeader_t		hdr;
+	dma_addr_t			dma_handle;
+	pRaidVolumePage0_t		buffer = NULL;
+	RaidPhysDiskPage0_t 		phys_disk;
+	int				i;
+	struct mptsas_hotplug_event 	*ev;
+
+	memset(&cfg, 0 , sizeof(CONFIGPARMS));
+	memset(&hdr, 0 , sizeof(ConfigPageHeader_t));
+	hdr.PageType = MPI_CONFIG_PAGETYPE_RAID_VOLUME;
+	cfg.pageAddr = (channel << 8) + id;
+	cfg.cfghdr.hdr = &hdr;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
+
+	if (mpt_config(ioc, &cfg) != 0)
+		goto out;
+
+	if (!hdr.PageLength)
+		goto out;
+
+	buffer = pci_alloc_consistent(ioc->pcidev, hdr.PageLength * 4,
+	    &dma_handle);
+
+	if (!buffer)
+		goto out;
+
+	cfg.physAddr = dma_handle;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
+
+	if (mpt_config(ioc, &cfg) != 0)
+		goto out;
+
+	if (!(buffer->VolumeStatus.Flags &
+	    MPI_RAIDVOL0_STATUS_FLAG_VOLUME_INACTIVE))
+		goto out;
+
+	if (!buffer->NumPhysDisks)
+		goto out;
+
+	for (i = 0; i < buffer->NumPhysDisks; i++) {
+
+		if (mpt_raid_phys_disk_pg0(ioc,
+		    buffer->PhysDisk[i].PhysDiskNum, &phys_disk) != 0)
+			continue;
+
+		ev = kzalloc(sizeof(*ev), GFP_ATOMIC);
+		if (!ev) {
+			printk(KERN_WARNING "mptsas: lost hotplug event\n");
+			goto out;
+		}
+
+		INIT_WORK(&ev->work, mptsas_hotplug_work);
+		ev->ioc = ioc;
+		ev->id = phys_disk.PhysDiskID;
+		ev->channel = phys_disk.PhysDiskBus;
+		ev->phys_disk_num_valid = 1;
+		ev->phys_disk_num = phys_disk.PhysDiskNum;
+		ev->event_type = MPTSAS_ADD_DEVICE;
+		schedule_work(&ev->work);
+	}
+
+ out:
+	if (buffer)
+		pci_free_consistent(ioc->pcidev, hdr.PageLength * 4, buffer,
+		    dma_handle);
+}
 /*
  * Work queue thread to handle SAS hotplug events
  */
@@ -2113,6 +2220,7 @@ mptsas_hotplug_work(struct work_struct *work)
 {
 	struct mptsas_hotplug_event *ev =
 		container_of(work, struct mptsas_hotplug_event, work);
+
 	MPT_ADAPTER *ioc = ev->ioc;
 	struct mptsas_phyinfo *phy_info;
 	struct sas_rphy *rphy;
@@ -2125,17 +2233,43 @@ mptsas_hotplug_work(struct work_struct *work)
 	VirtTarget *vtarget;
 	VirtDevice *vdevice;
 
-
 	mutex_lock(&ioc->sas_discovery_mutex);
 	switch (ev->event_type) {
 	case MPTSAS_DEL_DEVICE:
 
-		phy_info = mptsas_find_phyinfo_by_target(ioc, ev->id);
+		phy_info = NULL;
+		if (ev->phys_disk_num_valid) {
+			if (ev->hidden_raid_component){
+				if (mptsas_sas_device_pg0(ioc, &sas_device,
+				    (MPI_SAS_DEVICE_PGAD_FORM_BUS_TARGET_ID <<
+				     MPI_SAS_DEVICE_PGAD_FORM_SHIFT),
+				    (ev->channel << 8) + ev->id)) {
+					dfailprintk((MYIOC_s_ERR_FMT
+					"%s: exit at line=%d\n", ioc->name,
+						__FUNCTION__, __LINE__));
+					break;
+				}
+				phy_info = mptsas_find_phyinfo_by_sas_address(
+				    ioc, sas_device.sas_address);
+			}else
+				phy_info = mptsas_find_phyinfo_by_phys_disk_num(
+				    ioc, ev->channel, ev->phys_disk_num);
+		}
+
+		if (!phy_info)
+			phy_info = mptsas_find_phyinfo_by_target(ioc,
+			    ev->channel, ev->id);
 
 		/*
 		 * Sanity checks, for non-existing phys and remote rphys.
 		 */
-		if (!phy_info || !phy_info->port_details) {
+		if (!phy_info){
+			dfailprintk((MYIOC_s_ERR_FMT
+				"%s: exit at line=%d\n", ioc->name,
+				__FUNCTION__, __LINE__));
+			break;
+		}
+		if (!phy_info->port_details) {
 			dfailprintk((MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
 			       	__FUNCTION__, __LINE__));
@@ -2148,6 +2282,7 @@ mptsas_hotplug_work(struct work_struct *work)
 			       	__FUNCTION__, __LINE__));
 			break;
 		}
+
 		port = mptsas_get_port(phy_info);
 		if (!port) {
 			dfailprintk((MYIOC_s_ERR_FMT
@@ -2170,28 +2305,38 @@ mptsas_hotplug_work(struct work_struct *work)
 			/*
 			 * Handling  RAID components
 			 */
-			if (ev->phys_disk_num_valid) {
+			if (ev->phys_disk_num_valid &&
+			    ev->hidden_raid_component) {
+				printk(MYIOC_s_INFO_FMT
+				    "RAID Hidding: channel=%d, id=%d, "
+				    "physdsk %d \n", ioc->name, ev->channel,
+				    ev->id, ev->phys_disk_num);
 				vtarget->id = ev->phys_disk_num;
-				vtarget->tflags |= MPT_TARGET_FLAGS_RAID_COMPONENT;
+				vtarget->tflags |=
+				    MPT_TARGET_FLAGS_RAID_COMPONENT;
 				mptsas_reprobe_target(starget, 1);
-				break;
+				phy_info->attached.phys_disk_num =
+				    ev->phys_disk_num;
+			break;
 			}
 
 			vtarget->deleted = 1;
 			mptsas_target_reset(ioc, vtarget);
 		}
 
-		if (phy_info->attached.device_info & MPI_SAS_DEVICE_INFO_SSP_TARGET)
+		if (phy_info->attached.device_info &
+		    MPI_SAS_DEVICE_INFO_SSP_TARGET)
 			ds = "ssp";
-		if (phy_info->attached.device_info & MPI_SAS_DEVICE_INFO_STP_TARGET)
+		if (phy_info->attached.device_info &
+		    MPI_SAS_DEVICE_INFO_STP_TARGET)
 			ds = "stp";
-		if (phy_info->attached.device_info & MPI_SAS_DEVICE_INFO_SATA_DEVICE)
+		if (phy_info->attached.device_info &
+		    MPI_SAS_DEVICE_INFO_SATA_DEVICE)
 			ds = "sata";
 
 		printk(MYIOC_s_INFO_FMT
 		       "removing %s device, channel %d, id %d, phy %d\n",
 		       ioc->name, ds, ev->channel, ev->id, phy_info->phy_id);
-
 #ifdef MPT_DEBUG_SAS_WIDE
 		dev_printk(KERN_DEBUG, &port->dev,
 		    "delete port (%d)\n", port->port_identifier);
@@ -2209,14 +2354,14 @@ mptsas_hotplug_work(struct work_struct *work)
 		 */
 		if (mptsas_sas_device_pg0(ioc, &sas_device,
 		    (MPI_SAS_DEVICE_PGAD_FORM_BUS_TARGET_ID <<
-		     MPI_SAS_DEVICE_PGAD_FORM_SHIFT), ev->id)) {
+		     MPI_SAS_DEVICE_PGAD_FORM_SHIFT),
+			(ev->channel << 8) + ev->id)) {
 				dfailprintk((MYIOC_s_ERR_FMT
 					"%s: exit at line=%d\n", ioc->name,
 					__FUNCTION__, __LINE__));
 			break;
 		}
 
-		ssleep(2);
 		__mptsas_discovery_work(ioc);
 
 		phy_info = mptsas_find_phyinfo_by_sas_address(ioc,
@@ -2230,7 +2375,8 @@ mptsas_hotplug_work(struct work_struct *work)
 		}
 
 		starget = mptsas_get_starget(phy_info);
-		if (starget) {
+		if (starget && (!ev->hidden_raid_component)){
+
 			vtarget = starget->hostdata;
 
 			if (!vtarget) {
@@ -2243,9 +2389,15 @@ mptsas_hotplug_work(struct work_struct *work)
 			 * Handling  RAID components
 			 */
 			if (vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT) {
-				vtarget->tflags &= ~MPT_TARGET_FLAGS_RAID_COMPONENT;
+				printk(MYIOC_s_INFO_FMT
+				    "RAID Exposing: channel=%d, id=%d, "
+				    "physdsk %d \n", ioc->name, ev->channel,
+				    ev->id, ev->phys_disk_num);
+				vtarget->tflags &=
+				    ~MPT_TARGET_FLAGS_RAID_COMPONENT;
 				vtarget->id = ev->id;
 				mptsas_reprobe_target(starget, 0);
+				phy_info->attached.phys_disk_num = ~0;
 			}
 			break;
 		}
@@ -2254,8 +2406,10 @@ mptsas_hotplug_work(struct work_struct *work)
 			dfailprintk((MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
 			       	__FUNCTION__, __LINE__));
+			if (ev->channel) printk("%d\n", __LINE__);
 			break;
 		}
+
 		port = mptsas_get_port(phy_info);
 		if (!port) {
 			dfailprintk((MYIOC_s_ERR_FMT
@@ -2263,15 +2417,17 @@ mptsas_hotplug_work(struct work_struct *work)
 			       	__FUNCTION__, __LINE__));
 			break;
 		}
-
 		memcpy(&phy_info->attached, &sas_device,
 		    sizeof(struct mptsas_devinfo));
 
-		if (phy_info->attached.device_info & MPI_SAS_DEVICE_INFO_SSP_TARGET)
+		if (phy_info->attached.device_info &
+		    MPI_SAS_DEVICE_INFO_SSP_TARGET)
 			ds = "ssp";
-		if (phy_info->attached.device_info & MPI_SAS_DEVICE_INFO_STP_TARGET)
+		if (phy_info->attached.device_info &
+		    MPI_SAS_DEVICE_INFO_STP_TARGET)
 			ds = "stp";
-		if (phy_info->attached.device_info & MPI_SAS_DEVICE_INFO_SATA_DEVICE)
+		if (phy_info->attached.device_info &
+		    MPI_SAS_DEVICE_INFO_SATA_DEVICE)
 			ds = "sata";
 
 		printk(MYIOC_s_INFO_FMT
@@ -2312,18 +2468,22 @@ mptsas_hotplug_work(struct work_struct *work)
 		break;
 	case MPTSAS_DEL_RAID:
 		sdev = scsi_device_lookup(ioc->sh, MPTSAS_RAID_CHANNEL,
-	    	    ev->id, 0);
+		    ev->id, 0);
 		if (!sdev)
 			break;
 		printk(MYIOC_s_INFO_FMT
 		       "removing raid volume, channel %d, id %d\n",
 		       ioc->name, MPTSAS_RAID_CHANNEL, ev->id);
-		vdevice = sdev->hostdata;
 		vdevice->vtarget->deleted = 1;
 		mptsas_target_reset(ioc, vdevice->vtarget);
+		vdevice = sdev->hostdata;
 		scsi_remove_device(sdev);
 		scsi_device_put(sdev);
 		mpt_findImVolumes(ioc);
+		break;
+	case MPTSAS_ADD_INACTIVE_VOLUME:
+		mptsas_adding_inactive_raid_components(ioc,
+		    ev->channel, ev->id);
 		break;
 	case MPTSAS_IGNORE_EVENT:
 	default:
@@ -2332,7 +2492,6 @@ mptsas_hotplug_work(struct work_struct *work)
 
 	mutex_unlock(&ioc->sas_discovery_mutex);
 	kfree(ev);
-
 }
 
 static void
@@ -2386,15 +2545,20 @@ mptsas_send_sas_event(MPT_ADAPTER *ioc,
 		    mptsas_persist_clear_table);
 		schedule_work(&ioc->sas_persist_task);
 		break;
+	/*
+	 * TODO, handle other events
+	 */
 	case MPI_EVENT_SAS_DEV_STAT_RC_SMART_DATA:
-	/* TODO */
+	case MPI_EVENT_SAS_DEV_STAT_RC_UNSUPPORTED:
 	case MPI_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET:
-	/* TODO */
+	case MPI_EVENT_SAS_DEV_STAT_RC_TASK_ABORT_INTERNAL:
+	case MPI_EVENT_SAS_DEV_STAT_RC_ABORT_TASK_SET_INTERNAL:
+	case MPI_EVENT_SAS_DEV_STAT_RC_CLEAR_TASK_SET_INTERNAL:
+	case MPI_EVENT_SAS_DEV_STAT_RC_QUERY_TASK_INTERNAL:
 	default:
 		break;
 	}
 }
-
 static void
 mptsas_send_raid_event(MPT_ADAPTER *ioc,
 		EVENT_DATA_RAID *raid_event_data)
@@ -2415,31 +2579,36 @@ mptsas_send_raid_event(MPT_ADAPTER *ioc,
 	INIT_WORK(&ev->work, mptsas_hotplug_work);
 	ev->ioc = ioc;
 	ev->id = raid_event_data->VolumeID;
+	ev->channel = raid_event_data->VolumeBus;
 	ev->event_type = MPTSAS_IGNORE_EVENT;
 
 	switch (raid_event_data->ReasonCode) {
 	case MPI_EVENT_RAID_RC_PHYSDISK_DELETED:
+		ev->phys_disk_num_valid = 1;
+		ev->phys_disk_num = raid_event_data->PhysDiskNum;
 		ev->event_type = MPTSAS_ADD_DEVICE;
 		break;
 	case MPI_EVENT_RAID_RC_PHYSDISK_CREATED:
-		ioc->raid_data.isRaid = 1;
 		ev->phys_disk_num_valid = 1;
 		ev->phys_disk_num = raid_event_data->PhysDiskNum;
+		ev->hidden_raid_component = 1;
 		ev->event_type = MPTSAS_DEL_DEVICE;
 		break;
 	case MPI_EVENT_RAID_RC_PHYSDISK_STATUS_CHANGED:
 		switch (state) {
 		case MPI_PD_STATE_ONLINE:
-			ioc->raid_data.isRaid = 1;
+		case MPI_PD_STATE_NOT_COMPATIBLE:
 			ev->phys_disk_num_valid = 1;
 			ev->phys_disk_num = raid_event_data->PhysDiskNum;
+			ev->hidden_raid_component = 1;
 			ev->event_type = MPTSAS_ADD_DEVICE;
 			break;
 		case MPI_PD_STATE_MISSING:
-		case MPI_PD_STATE_NOT_COMPATIBLE:
 		case MPI_PD_STATE_OFFLINE_AT_HOST_REQUEST:
 		case MPI_PD_STATE_FAILED_AT_HOST_REQUEST:
 		case MPI_PD_STATE_OFFLINE_FOR_ANOTHER_REASON:
+			ev->phys_disk_num_valid = 1;
+			ev->phys_disk_num = raid_event_data->PhysDiskNum;
 			ev->event_type = MPTSAS_DEL_DEVICE;
 			break;
 		default:
@@ -2496,6 +2665,35 @@ mptsas_send_discovery_event(MPT_ADAPTER *ioc,
 	schedule_work(&ev->work);
 };
 
+/*
+ * mptsas_send_ir2_event - handle exposing hidden disk when
+ * an inactive raid volume is added
+ *
+ * @ioc: Pointer to MPT_ADAPTER structure
+ * @ir2_data
+ *
+ */
+static void
+mptsas_send_ir2_event(MPT_ADAPTER *ioc, PTR_MPI_EVENT_DATA_IR2 ir2_data)
+{
+	struct mptsas_hotplug_event *ev;
+
+	if (ir2_data->ReasonCode !=
+	    MPI_EVENT_IR2_RC_FOREIGN_CFG_DETECTED)
+		return;
+
+	ev = kzalloc(sizeof(*ev), GFP_ATOMIC);
+	if (!ev)
+		return;
+
+	INIT_WORK(&ev->work, mptsas_hotplug_work);
+	ev->ioc = ioc;
+	ev->id = ir2_data->TargetID;
+	ev->channel = ir2_data->Bus;
+	ev->event_type = MPTSAS_ADD_INACTIVE_VOLUME;
+
+	schedule_work(&ev->work);
+};
 
 static int
 mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
@@ -2534,6 +2732,10 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 	 case MPI_EVENT_SAS_DISCOVERY:
 		mptsas_send_discovery_event(ioc,
 			(EVENT_DATA_SAS_DISCOVERY *)reply->Data);
+		break;
+	case MPI_EVENT_IR2:
+		mptsas_send_ir2_event(ioc,
+		    (PTR_MPI_EVENT_DATA_IR2)reply->Data);
 		break;
 	default:
 		rc = mptscsih_event_process(ioc, reply);
@@ -2742,7 +2944,7 @@ static void __devexit mptsas_remove(struct pci_dev *pdev)
 	struct mptsas_portinfo *p, *n;
 	int i;
 
-	ioc->sas_discovery_ignore_events=1;
+	ioc->sas_discovery_ignore_events = 1;
 	sas_remove_host(ioc->sh);
 
 	mutex_lock(&ioc->sas_topology_mutex);

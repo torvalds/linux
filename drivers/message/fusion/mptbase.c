@@ -184,6 +184,7 @@ static void	mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info);
 static void	mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info);
 static void	mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info);
 static int	mpt_read_ioc_pg_3(MPT_ADAPTER *ioc);
+static void	mpt_inactive_raid_list_free(MPT_ADAPTER *ioc);
 
 /* module entry point */
 static int  __init    fusion_init  (void);
@@ -1815,6 +1816,13 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 	 *	and we try GetLanConfigPages again...
 	 */
 	if ((ret == 0) && (reason == MPT_HOSTEVENT_IOC_BRINGUP)) {
+
+		/*
+		 * Initalize link list for inactive raid volumes.
+		 */
+		init_MUTEX(&ioc->raid_data.inactive_list_mutex);
+		INIT_LIST_HEAD(&ioc->raid_data.inactive_list);
+
 		if (ioc->bus_type == SAS) {
 
 			/* clear persistency table */
@@ -2021,6 +2029,8 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 	}
 
 	kfree(ioc->spi_data.nvram);
+	mpt_inactive_raid_list_free(ioc);
+	kfree(ioc->raid_data.pIocPg2);
 	kfree(ioc->raid_data.pIocPg3);
 	ioc->spi_data.nvram = NULL;
 	ioc->raid_data.pIocPg3 = NULL;
@@ -2417,6 +2427,9 @@ GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
 			facts->FWVersion.Word = le32_to_cpu(facts->FWVersion.Word);
 
 		facts->ProductID = le16_to_cpu(facts->ProductID);
+		if ((ioc->facts.ProductID & MPI_FW_HEADER_PID_PROD_MASK)
+		    > MPI_FW_HEADER_PID_PROD_TARGET_SCSI)
+			ioc->ir_firmware = 1;
 		facts->CurrentHostMfaHighAddr =
 				le32_to_cpu(facts->CurrentHostMfaHighAddr);
 		facts->GlobalCredits = le16_to_cpu(facts->GlobalCredits);
@@ -2735,9 +2748,7 @@ SendPortEnable(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
 
 	/* RAID FW may take a long time to enable
 	 */
-	if (((ioc->facts.ProductID & MPI_FW_HEADER_PID_PROD_MASK)
-	    > MPI_FW_HEADER_PID_PROD_TARGET_SCSI) ||
-	    (ioc->bus_type == SAS)) {
+	if (ioc->ir_firmware || ioc->bus_type == SAS) {
 		rc = mpt_handshake_req_reply_wait(ioc, req_sz,
 		(u32*)&port_enable, reply_sz, (u16*)&reply_buf,
 		300 /*seconds*/, sleepFlag);
@@ -4325,8 +4336,8 @@ mptbase_raid_process_event_data(MPT_ADAPTER *ioc,
 	if ((reason >= MPI_EVENT_RAID_RC_PHYSDISK_CREATED &&
 	     reason <= MPI_EVENT_RAID_RC_PHYSDISK_STATUS_CHANGED) ||
 	    (reason == MPI_EVENT_RAID_RC_SMART_DATA)) {
-		printk(MYIOC_s_INFO_FMT "RAID STATUS CHANGE for PhysDisk %d\n",
-			ioc->name, disk);
+		printk(MYIOC_s_INFO_FMT "RAID STATUS CHANGE for PhysDisk %d id=%d\n",
+			ioc->name, disk, volume);
 	} else {
 		printk(MYIOC_s_INFO_FMT "RAID STATUS CHANGE for VolumeID %d\n",
 			ioc->name, volume);
@@ -4727,7 +4738,187 @@ mpt_readScsiDevicePageHeaders(MPT_ADAPTER *ioc, int portnum)
 	return 0;
 }
 
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+/**
+ * mpt_inactive_raid_list_free
+ *
+ * This clears this link list.
+ *
+ * @ioc - pointer to per adapter structure
+ *
+ **/
+static void
+mpt_inactive_raid_list_free(MPT_ADAPTER *ioc)
+{
+	struct inactive_raid_component_info *component_info, *pNext;
+
+	if (list_empty(&ioc->raid_data.inactive_list))
+		return;
+
+	down(&ioc->raid_data.inactive_list_mutex);
+	list_for_each_entry_safe(component_info, pNext,
+	    &ioc->raid_data.inactive_list, list) {
+		list_del(&component_info->list);
+		kfree(component_info);
+	}
+	up(&ioc->raid_data.inactive_list_mutex);
+}
+
+/**
+ * mpt_inactive_raid_volumes
+ *
+ * This sets up link list of phy_disk_nums for devices belonging in an inactive volume
+ *
+ * @ioc - pointer to per adapter structure
+ * @channel - volume channel
+ * @id - volume target id
+ *
+ *
+ **/
+static void
+mpt_inactive_raid_volumes(MPT_ADAPTER *ioc, u8 channel, u8 id)
+{
+	CONFIGPARMS			cfg;
+	ConfigPageHeader_t		hdr;
+	dma_addr_t			dma_handle;
+	pRaidVolumePage0_t		buffer = NULL;
+	int				i;
+	RaidPhysDiskPage0_t 		phys_disk;
+	struct inactive_raid_component_info *component_info;
+	int				handle_inactive_volumes;
+
+	memset(&cfg, 0 , sizeof(CONFIGPARMS));
+	memset(&hdr, 0 , sizeof(ConfigPageHeader_t));
+	hdr.PageType = MPI_CONFIG_PAGETYPE_RAID_VOLUME;
+	cfg.pageAddr = (channel << 8) + id;
+	cfg.cfghdr.hdr = &hdr;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
+
+	if (mpt_config(ioc, &cfg) != 0)
+		goto out;
+
+	if (!hdr.PageLength)
+		goto out;
+
+	buffer = pci_alloc_consistent(ioc->pcidev, hdr.PageLength * 4,
+	    &dma_handle);
+
+	if (!buffer)
+		goto out;
+
+	cfg.physAddr = dma_handle;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
+
+	if (mpt_config(ioc, &cfg) != 0)
+		goto out;
+
+	if (!buffer->NumPhysDisks)
+		goto out;
+
+	handle_inactive_volumes =
+	   (buffer->VolumeStatus.Flags & MPI_RAIDVOL0_STATUS_FLAG_VOLUME_INACTIVE ||
+	   (buffer->VolumeStatus.Flags & MPI_RAIDVOL0_STATUS_FLAG_ENABLED) == 0 ||
+	    buffer->VolumeStatus.State == MPI_RAIDVOL0_STATUS_STATE_FAILED ||
+	    buffer->VolumeStatus.State == MPI_RAIDVOL0_STATUS_STATE_MISSING) ? 1 : 0;
+
+	if (!handle_inactive_volumes)
+		goto out;
+
+	down(&ioc->raid_data.inactive_list_mutex);
+	for (i = 0; i < buffer->NumPhysDisks; i++) {
+		if(mpt_raid_phys_disk_pg0(ioc,
+		    buffer->PhysDisk[i].PhysDiskNum, &phys_disk) != 0)
+			continue;
+
+		if ((component_info = kmalloc(sizeof (*component_info),
+		 GFP_KERNEL)) == NULL)
+			continue;
+
+		component_info->volumeID = id;
+		component_info->volumeBus = channel;
+		component_info->d.PhysDiskNum = phys_disk.PhysDiskNum;
+		component_info->d.PhysDiskBus = phys_disk.PhysDiskBus;
+		component_info->d.PhysDiskID = phys_disk.PhysDiskID;
+		component_info->d.PhysDiskIOC = phys_disk.PhysDiskIOC;
+
+		list_add_tail(&component_info->list,
+		    &ioc->raid_data.inactive_list);
+	}
+	up(&ioc->raid_data.inactive_list_mutex);
+
+ out:
+	if (buffer)
+		pci_free_consistent(ioc->pcidev, hdr.PageLength * 4, buffer,
+		    dma_handle);
+}
+
+/**
+ *	mpt_raid_phys_disk_pg0 - returns phys disk page zero
+ *	@ioc: Pointer to a Adapter Structure
+ *	@phys_disk_num: io unit unique phys disk num generated by the ioc
+ *	@phys_disk: requested payload data returned
+ *
+ *	Return:
+ *	0 on success
+ *	-EFAULT if read of config page header fails or data pointer not NULL
+ *	-ENOMEM if pci_alloc failed
+ **/
+int
+mpt_raid_phys_disk_pg0(MPT_ADAPTER *ioc, u8 phys_disk_num, pRaidPhysDiskPage0_t phys_disk)
+{
+	CONFIGPARMS		 	cfg;
+	ConfigPageHeader_t	 	hdr;
+	dma_addr_t			dma_handle;
+	pRaidPhysDiskPage0_t		buffer = NULL;
+	int				rc;
+
+	memset(&cfg, 0 , sizeof(CONFIGPARMS));
+	memset(&hdr, 0 , sizeof(ConfigPageHeader_t));
+
+	hdr.PageType = MPI_CONFIG_PAGETYPE_RAID_PHYSDISK;
+	cfg.cfghdr.hdr = &hdr;
+	cfg.physAddr = -1;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
+
+	if (mpt_config(ioc, &cfg) != 0) {
+		rc = -EFAULT;
+		goto out;
+	}
+
+	if (!hdr.PageLength) {
+		rc = -EFAULT;
+		goto out;
+	}
+
+	buffer = pci_alloc_consistent(ioc->pcidev, hdr.PageLength * 4,
+	    &dma_handle);
+
+	if (!buffer) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	cfg.physAddr = dma_handle;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
+	cfg.pageAddr = phys_disk_num;
+
+	if (mpt_config(ioc, &cfg) != 0) {
+		rc = -EFAULT;
+		goto out;
+	}
+
+	rc = 0;
+	memcpy(phys_disk, buffer, sizeof(*buffer));
+	phys_disk->MaxLBA = le32_to_cpu(buffer->MaxLBA);
+
+ out:
+
+	if (buffer)
+		pci_free_consistent(ioc->pcidev, hdr.PageLength * 4, buffer,
+		    dma_handle);
+
+	return rc;
+}
+
 /**
  *	mpt_findImVolumes - Identify IDs of hidden disks and RAID Volumes
  *	@ioc: Pointer to a Adapter Strucutre
@@ -4737,21 +4928,27 @@ mpt_readScsiDevicePageHeaders(MPT_ADAPTER *ioc, int portnum)
  *	0 on success
  *	-EFAULT if read of config page header fails or data pointer not NULL
  *	-ENOMEM if pci_alloc failed
- */
+ **/
 int
 mpt_findImVolumes(MPT_ADAPTER *ioc)
 {
 	IOCPage2_t		*pIoc2;
 	u8			*mem;
-	ConfigPageIoc2RaidVol_t	*pIocRv;
 	dma_addr_t		 ioc2_dma;
 	CONFIGPARMS		 cfg;
 	ConfigPageHeader_t	 header;
-	int			 jj;
 	int			 rc = 0;
 	int			 iocpage2sz;
-	u8			 nVols, nPhys;
-	u8			 vid, vbus, vioc;
+	int			 i;
+
+	if (!ioc->ir_firmware)
+		return 0;
+
+	/* Free the old page
+	 */
+	kfree(ioc->raid_data.pIocPg2);
+	ioc->raid_data.pIocPg2 = NULL;
+	mpt_inactive_raid_list_free(ioc);
 
 	/* Read IOCP2 header then the page.
 	 */
@@ -4779,55 +4976,23 @@ mpt_findImVolumes(MPT_ADAPTER *ioc)
 	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 	cfg.physAddr = ioc2_dma;
 	if (mpt_config(ioc, &cfg) != 0)
-		goto done_and_free;
+		goto out;
 
-	if ( (mem = (u8 *)ioc->raid_data.pIocPg2) == NULL ) {
-		mem = kmalloc(iocpage2sz, GFP_ATOMIC);
-		if (mem) {
-			ioc->raid_data.pIocPg2 = (IOCPage2_t *) mem;
-		} else {
-			goto done_and_free;
-		}
-	}
+	mem = kmalloc(iocpage2sz, GFP_KERNEL);
+	if (!mem)
+		goto out;
+
 	memcpy(mem, (u8 *)pIoc2, iocpage2sz);
+	ioc->raid_data.pIocPg2 = (IOCPage2_t *) mem;
 
-	/* Identify RAID Volume Id's */
-	nVols = pIoc2->NumActiveVolumes;
-	if ( nVols == 0) {
-		/* No RAID Volume.
-		 */
-		goto done_and_free;
-	} else {
-		/* At least 1 RAID Volume
-		 */
-		pIocRv = pIoc2->RaidVolume;
-		ioc->raid_data.isRaid = 0;
-		for (jj = 0; jj < nVols; jj++, pIocRv++) {
-			vid = pIocRv->VolumeID;
-			vbus = pIocRv->VolumeBus;
-			vioc = pIocRv->VolumeIOC;
+	mpt_read_ioc_pg_3(ioc);
 
-			/* find the match
-			 */
-			if (vbus == 0) {
-				ioc->raid_data.isRaid |= (1 << vid);
-			} else {
-				/* Error! Always bus 0
-				 */
-			}
-		}
-	}
+	for (i = 0; i < pIoc2->NumActiveVolumes ; i++)
+		mpt_inactive_raid_volumes(ioc,
+		    pIoc2->RaidVolume[i].VolumeBus,
+		    pIoc2->RaidVolume[i].VolumeID);
 
-	/* Identify Hidden Physical Disk Id's */
-	nPhys = pIoc2->NumActivePhysDisks;
-	if (nPhys == 0) {
-		/* No physical disks.
-		 */
-	} else {
-		mpt_read_ioc_pg_3(ioc);
-	}
-
-done_and_free:
+ out:
 	pci_free_consistent(ioc->pcidev, iocpage2sz, pIoc2, ioc2_dma);
 
 	return rc;
@@ -4880,7 +5045,7 @@ mpt_read_ioc_pg_3(MPT_ADAPTER *ioc)
 	cfg.physAddr = ioc3_dma;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 	if (mpt_config(ioc, &cfg) == 0) {
-		mem = kmalloc(iocpage3sz, GFP_ATOMIC);
+		mem = kmalloc(iocpage3sz, GFP_KERNEL);
 		if (mem) {
 			memcpy(mem, (u8 *)pIoc3, iocpage3sz);
 			ioc->raid_data.pIocPg3 = (IOCPage3_t *) mem;
@@ -6833,6 +6998,7 @@ EXPORT_SYMBOL(mpt_findImVolumes);
 EXPORT_SYMBOL(mpt_alloc_fw_memory);
 EXPORT_SYMBOL(mpt_free_fw_memory);
 EXPORT_SYMBOL(mptbase_sas_persist_operation);
+EXPORT_SYMBOL(mpt_raid_phys_disk_pg0);
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**

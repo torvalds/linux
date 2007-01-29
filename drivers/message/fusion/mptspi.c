@@ -1363,8 +1363,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/*
 	 * If RAID Firmware Detected, setup virtual channel
 	 */
-	if ((ioc->facts.ProductID & MPI_FW_HEADER_PID_PROD_MASK)
-	    > MPI_FW_HEADER_PID_PROD_TARGET_SCSI)
+	if (ioc->ir_firmware)
 		sh->max_channel = 1;
 	else
 		sh->max_channel = 0;
