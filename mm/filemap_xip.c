@@ -183,7 +183,7 @@ __xip_unmap (struct address_space * mapping,
 		address = vma->vm_start +
 			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
-		page = ZERO_PAGE(address);
+		page = ZERO_PAGE(0);
 		pte = page_check_address(page, mm, address, &ptl);
 		if (pte) {
 			/* Nuke the page table entry. */
@@ -246,7 +246,7 @@ xip_file_nopage(struct vm_area_struct * area,
 		__xip_unmap(mapping, pgoff);
 	} else {
 		/* not shared and writable, use ZERO_PAGE() */
-		page = ZERO_PAGE(address);
+		page = ZERO_PAGE(0);
 	}
 
 out:
