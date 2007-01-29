@@ -1563,14 +1563,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&ha->list);
 	INIT_LIST_HEAD(&ha->fcports);
 
-	/*
-	 * These locks are used to prevent more than one CPU
-	 * from modifying the queue at the same time. The
-	 * higher level "host_lock" will reduce most
-	 * contention for these locks.
-	 */
-	spin_lock_init(&ha->mbx_reg_lock);
-
 	qla2x00_config_dma_addressing(ha);
 	if (qla2x00_mem_alloc(ha)) {
 		qla_printk(KERN_WARNING, ha,

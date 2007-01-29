@@ -2338,8 +2338,6 @@ typedef struct scsi_qla_host {
 #define MBX_INTR_WAIT	2
 #define MBX_UPDATE_FLASH_ACTIVE	3
 
-	spinlock_t	mbx_reg_lock;   /* Mbx Cmd Register Lock */
-
 	struct semaphore mbx_cmd_sem;	/* Serialialize mbx access */
 	struct semaphore mbx_intr_sem;  /* Used for completion notification */
 

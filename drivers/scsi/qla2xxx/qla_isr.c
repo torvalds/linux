@@ -86,12 +86,8 @@ qla2100_intr_handler(int irq, void *dev_id)
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
-		spin_lock_irqsave(&ha->mbx_reg_lock, flags);
-
 		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 		up(&ha->mbx_intr_sem);
-
-		spin_unlock_irqrestore(&ha->mbx_reg_lock, flags);
 	}
 
 	return (IRQ_HANDLED);
@@ -197,12 +193,8 @@ qla2300_intr_handler(int irq, void *dev_id)
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
-		spin_lock_irqsave(&ha->mbx_reg_lock, flags);
-
 		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 		up(&ha->mbx_intr_sem);
-
-		spin_unlock_irqrestore(&ha->mbx_reg_lock, flags);
 	}
 
 	return (IRQ_HANDLED);
@@ -1491,12 +1483,8 @@ qla24xx_intr_handler(int irq, void *dev_id)
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
-		spin_lock_irqsave(&ha->mbx_reg_lock, flags);
-
 		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 		up(&ha->mbx_intr_sem);
-
-		spin_unlock_irqrestore(&ha->mbx_reg_lock, flags);
 	}
 
 	return IRQ_HANDLED;
@@ -1629,12 +1617,8 @@ qla24xx_msix_default(int irq, void *dev_id)
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
-		spin_lock_irqsave(&ha->mbx_reg_lock, flags);
-
 		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 		up(&ha->mbx_intr_sem);
-
-		spin_unlock_irqrestore(&ha->mbx_reg_lock, flags);
 	}
 
 	return IRQ_HANDLED;
