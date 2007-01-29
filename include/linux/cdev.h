@@ -6,6 +6,10 @@
 #include <linux/kdev_t.h>
 #include <linux/list.h>
 
+struct file_operations;
+struct inode;
+struct module;
+
 struct cdev {
 	struct kobject kobj;
 	struct module *owner;
