@@ -1805,13 +1805,13 @@ out:
 	ready(sk, bytes);
 }
 
-static int o2net_open_listening_sock(__be16 port)
+static int o2net_open_listening_sock(__be32 addr, __be16 port)
 {
 	struct socket *sock = NULL;
 	int ret;
 	struct sockaddr_in sin = {
 		.sin_family = PF_INET,
-		.sin_addr = { .s_addr = (__force u32)htonl(INADDR_ANY) },
+		.sin_addr = { .s_addr = (__force u32)addr },
 		.sin_port = (__force u16)port,
 	};
 
@@ -1834,15 +1834,15 @@ static int o2net_open_listening_sock(__be16 port)
 	sock->sk->sk_reuse = 1;
 	ret = sock->ops->bind(sock, (struct sockaddr *)&sin, sizeof(sin));
 	if (ret < 0) {
-		mlog(ML_ERROR, "unable to bind socket to port %d, ret=%d\n",
-		     ntohs(port), ret);
+		mlog(ML_ERROR, "unable to bind socket at %u.%u.%u.%u:%u, "
+		     "ret=%d\n", NIPQUAD(addr), ntohs(port), ret);
 		goto out;
 	}
 
 	ret = sock->ops->listen(sock, 64);
 	if (ret < 0) {
-		mlog(ML_ERROR, "unable to listen on port %d, ret=%d\n",
-		     ntohs(port), ret);
+		mlog(ML_ERROR, "unable to listen on %u.%u.%u.%u:%u, ret=%d\n",
+		     NIPQUAD(addr), ntohs(port), ret);
 	}
 
 out:
@@ -1875,7 +1875,8 @@ int o2net_start_listening(struct o2nm_node *node)
 		return -ENOMEM; /* ? */
 	}
 
-	ret = o2net_open_listening_sock(node->nd_ipv4_port);
+	ret = o2net_open_listening_sock(node->nd_ipv4_address,
+					node->nd_ipv4_port);
 	if (ret) {
 		destroy_workqueue(o2net_wq);
 		o2net_wq = NULL;
