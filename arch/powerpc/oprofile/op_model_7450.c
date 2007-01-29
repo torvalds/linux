@@ -137,9 +137,9 @@ static void fsl7450_start(struct op_counter_config *ctr)
 
 	for (i = 0; i < NUM_CTRS; ++i) {
 		if (ctr[i].enabled)
-			ctr_write(i, reset_value[i]);
+			classic_ctr_write(i, reset_value[i]);
 		else
-			ctr_write(i, 0);
+			classic_ctr_write(i, 0);
 	}
 
 	/* Clear the freeze bit, and enable the interrupt.
@@ -179,13 +179,13 @@ static void fsl7450_handle_interrupt(struct pt_regs *regs,
 	is_kernel = is_kernel_addr(pc);
 
 	for (i = 0; i < NUM_CTRS; ++i) {
-		val = ctr_read(i);
+		val = classic_ctr_read(i);
 		if (val < 0) {
 			if (oprofile_running && ctr[i].enabled) {
 				oprofile_add_ext_sample(pc, regs, i, is_kernel);
-				ctr_write(i, reset_value[i]);
+				classic_ctr_write(i, reset_value[i]);
 			} else {
-				ctr_write(i, 0);
+				classic_ctr_write(i, 0);
 			}
 		}
 	}

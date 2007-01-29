@@ -137,10 +137,10 @@ static void rs64_start(struct op_counter_config *ctr)
 
 	for (i = 0; i < num_counters; ++i) {
 		if (ctr[i].enabled) {
-			ctr_write(i, reset_value[i]);
+			classic_ctr_write(i, reset_value[i]);
 			ctrl_write(i, ctr[i].event);
 		} else {
-			ctr_write(i, 0);
+			classic_ctr_write(i, 0);
 		}
 	}
 
@@ -186,13 +186,13 @@ static void rs64_handle_interrupt(struct pt_regs *regs,
 	mtmsrd(mfmsr() | MSR_PMM);
 
 	for (i = 0; i < num_counters; ++i) {
-		val = ctr_read(i);
+		val = classic_ctr_read(i);
 		if (val < 0) {
 			if (ctr[i].enabled) {
 				oprofile_add_ext_sample(pc, regs, i, is_kernel);
-				ctr_write(i, reset_value[i]);
+				classic_ctr_write(i, reset_value[i]);
 			} else {
-				ctr_write(i, 0);
+				classic_ctr_write(i, 0);
 			}
 		}
 	}
