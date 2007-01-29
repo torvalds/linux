@@ -885,21 +885,24 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	link_stat_t stat_buf;
 	struct fc_host_statistics *pfc_host_stat;
 
+	rval = QLA_FUNCTION_FAILED;
 	pfc_host_stat = &ha->fc_host_stat;
 	memset(pfc_host_stat, -1, sizeof(struct fc_host_statistics));
 
 	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		rval = qla24xx_get_isp_stats(ha, (uint32_t *)&stat_buf,
 		    sizeof(stat_buf) / 4, mb_stat);
-	} else {
+	} else if (atomic_read(&ha->loop_state) == LOOP_READY &&
+		    !test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags) &&
+		    !test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) &&
+		    !ha->dpc_active) {
+		/* Must be in a 'READY' state for statistics retrieval. */
 		rval = qla2x00_get_link_status(ha, ha->loop_id, &stat_buf,
 		    mb_stat);
 	}
-	if (rval != 0) {
-		qla_printk(KERN_WARNING, ha,
-		    "Unable to retrieve host statistics (%d).\n", mb_stat[0]);
-		return pfc_host_stat;
-	}
+
+	if (rval != QLA_SUCCESS)
+		goto done;
 
 	pfc_host_stat->link_failure_count = stat_buf.link_fail_cnt;
 	pfc_host_stat->loss_of_sync_count = stat_buf.loss_sync_cnt;
@@ -907,7 +910,7 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	pfc_host_stat->prim_seq_protocol_err_count = stat_buf.prim_seq_err_cnt;
 	pfc_host_stat->invalid_tx_word_count = stat_buf.inval_xmit_word_cnt;
 	pfc_host_stat->invalid_crc_count = stat_buf.inval_crc_cnt;
-
+done:
 	return pfc_host_stat;
 }
 
