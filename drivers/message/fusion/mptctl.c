@@ -313,7 +313,7 @@ static void mptctl_timeout_expired (MPT_IOCTL *ioctl)
 		 */
 		dctlprintk((MYIOC_s_INFO_FMT "Calling HardReset! \n",
 			 ioctl->ioc->name));
-		mpt_HardResetHandler(ioctl->ioc, NO_SLEEP);
+		mpt_HardResetHandler(ioctl->ioc, CAN_SLEEP);
 	}
 	return;
 

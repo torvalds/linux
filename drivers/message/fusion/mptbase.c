@@ -916,7 +916,7 @@ mpt_add_sge(char *pAddr, u32 flagslength, dma_addr_t dma_addr)
 int
 mpt_send_handshake_request(int handle, MPT_ADAPTER *ioc, int reqBytes, u32 *req, int sleepFlag)
 {
-	int		 r = 0;
+	int	r = 0;
 	u8	*req_as_bytes;
 	int	 ii;
 
@@ -3219,6 +3219,9 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 	u32 diag1val = 0;
 #endif
 
+	/* Clear any existing interrupts */
+	CHIPREG_WRITE32(&ioc->chip->IntStatus, 0);
+
 	if (ioc->pcidev->device == MPI_MANUFACTPAGE_DEVID_SAS1078) {
 		drsprintk((MYIOC_s_WARN_FMT "%s: Doorbell=%p; 1078 reset "
 			"address=%p\n",  ioc->name, __FUNCTION__,
@@ -3238,7 +3241,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 			        " count=%d\n",
 				ioc->name, doorbell, count));
 			if (doorbell == MPI_IOC_STATE_READY) {
-				return 0;
+				return 1;
 			}
 
 			/* wait 1 sec */
@@ -3249,9 +3252,6 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 		}
 		return -1;
 	}
-
-	/* Clear any existing interrupts */
-	CHIPREG_WRITE32(&ioc->chip->IntStatus, 0);
 
 	/* Use "Diagnostic reset" method! (only thing available!) */
 	diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
@@ -3968,7 +3968,7 @@ WaitForDoorbellAck(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 		}
 	} else {
 		while (--cntdn) {
-			mdelay (1);
+			udelay (1000);
 			intstat = CHIPREG_READ32(&ioc->chip->IntStatus);
 			if (! (intstat & MPI_HIS_IOP_DOORBELL_STATUS))
 				break;
@@ -4020,7 +4020,7 @@ WaitForDoorbellInt(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 			intstat = CHIPREG_READ32(&ioc->chip->IntStatus);
 			if (intstat & MPI_HIS_DOORBELL_INTERRUPT)
 				break;
-			mdelay(1);
+			udelay (1000);
 			count++;
 		}
 	}
