@@ -987,6 +987,22 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		if (lscsi_status != 0) {
 			cp->result = DID_OK << 16 | lscsi_status;
 
+			if (lscsi_status == SAM_STAT_TASK_SET_FULL) {
+				DEBUG2(printk(KERN_INFO
+				    "scsi(%ld): QUEUE FULL status detected "
+				    "0x%x-0x%x.\n", ha->host_no, comp_status,
+				    scsi_status));
+
+				/*
+				 * Adjust queue depth for all luns on the
+				 * port.
+				 */
+				fcport->last_queue_full = jiffies;
+				starget_for_each_device(
+				    cp->device->sdev_target, fcport,
+				    qla2x00_adjust_sdev_qdepth_down);
+				break;
+			}
 			if (lscsi_status != SS_CHECK_CONDITION)
 				break;
 
