@@ -32,6 +32,11 @@
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME("acpi_system")
+#ifdef MODULE_PARAM_PREFIX
+#undef MODULE_PARAM_PREFIX
+#endif
+#define MODULE_PARAM_PREFIX "acpi."
+
 #define ACPI_SYSTEM_CLASS		"system"
 #define ACPI_SYSTEM_DRIVER_NAME		"ACPI System Driver"
 #define ACPI_SYSTEM_DEVICE_NAME		"System"
@@ -41,9 +46,23 @@ ACPI_MODULE_NAME("acpi_system")
 #define ACPI_SYSTEM_FILE_FADT		"fadt"
 extern struct fadt_descriptor acpi_fadt;
 
+/*
+ * Make ACPICA version work as module param
+ */
+static int param_get_acpica_version(char *buffer, struct kernel_param *kp) {
+	int result;
+
+	result = sprintf(buffer, "%x", ACPI_CA_VERSION);
+
+	return result;
+}
+
+module_param_call(acpica_version, NULL, param_get_acpica_version, NULL, 0444);
+
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
+#ifdef CONFIG_ACPI_PROCFS
 
 static int acpi_system_read_info(struct seq_file *seq, void *offset)
 {
@@ -63,6 +82,7 @@ static const struct file_operations acpi_system_info_ops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
+#endif
 
 static ssize_t acpi_system_read_dsdt(struct file *, char __user *, size_t,
 				     loff_t *);
@@ -128,6 +148,7 @@ static int __init acpi_system_init(void)
 	if (acpi_disabled)
 		return 0;
 
+#ifdef CONFIG_ACPI_PROCFS
 	/* 'info' [R] */
 	name = ACPI_SYSTEM_FILE_INFO;
 	entry = create_proc_entry(name, S_IRUGO, acpi_root_dir);
@@ -136,6 +157,7 @@ static int __init acpi_system_init(void)
 	else {
 		entry->proc_fops = &acpi_system_info_ops;
 	}
+#endif
 
 	/* 'dsdt' [R] */
 	name = ACPI_SYSTEM_FILE_DSDT;
@@ -159,7 +181,9 @@ static int __init acpi_system_init(void)
       Error:
 	remove_proc_entry(ACPI_SYSTEM_FILE_FADT, acpi_root_dir);
 	remove_proc_entry(ACPI_SYSTEM_FILE_DSDT, acpi_root_dir);
+#ifdef CONFIG_ACPI_PROCFS
 	remove_proc_entry(ACPI_SYSTEM_FILE_INFO, acpi_root_dir);
+#endif
 
 	error = -EFAULT;
 	goto Done;
