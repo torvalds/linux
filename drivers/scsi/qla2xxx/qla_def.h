@@ -2046,6 +2046,27 @@ struct isp_operations {
 		uint32_t);
 };
 
+/* MSI-X Support *************************************************************/
+
+#define QLA_MSIX_CHIP_REV_24XX	3
+#define QLA_MSIX_FW_MODE(m)	(((m) & (BIT_7|BIT_8|BIT_9)) >> 7)
+#define QLA_MSIX_FW_MODE_1(m)	(QLA_MSIX_FW_MODE(m) == 1)
+
+#define QLA_MSIX_DEFAULT	0x00
+#define QLA_MSIX_RSP_Q		0x01
+
+#define QLA_MSIX_ENTRIES	2
+#define QLA_MIDX_DEFAULT	0
+#define QLA_MIDX_RSP_Q		1
+
+struct scsi_qla_host;
+
+struct qla_msix_entry {
+	int have_irq;
+	uint16_t msix_vector;
+	uint16_t msix_entry;
+};
+
 /*
  * Linux Host Adapter structure
  */
@@ -2356,6 +2377,7 @@ typedef struct scsi_qla_host {
 
 	uint8_t		host_str[16];
 	uint32_t	pci_attr;
+	uint16_t	chip_revision;
 
 	uint16_t	product_id[4];
 
@@ -2389,6 +2411,8 @@ typedef struct scsi_qla_host {
 	uint16_t	zio_mode;
 	uint16_t	zio_timer;
 	struct fc_host_statistics fc_host_stat;
+
+	struct qla_msix_entry msix_entries[QLA_MSIX_ENTRIES];
 } scsi_qla_host_t;
 
 

@@ -1612,15 +1612,9 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host->max_lun = MAX_LUNS;
 	host->transportt = qla2xxx_transport_template;
 
-	ret = request_irq(pdev->irq, ha->isp_ops.intr_handler,
-	    IRQF_DISABLED|IRQF_SHARED, QLA2XXX_DRIVER_NAME, ha);
-	if (ret) {
-		qla_printk(KERN_WARNING, ha,
-		    "Failed to reserve interrupt %d already in use.\n",
-		    pdev->irq);
+	ret = qla2x00_request_irqs(ha);
+	if (ret)
 		goto probe_failed;
-	}
-	host->irq = pdev->irq;
 
 	/* Initialized the timer */
 	qla2x00_start_timer(ha, qla2x00_timer, WATCH_INTERVAL);
@@ -1750,9 +1744,7 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 
 	qla2x00_mem_free(ha);
 
-	/* Detach interrupts */
-	if (ha->host->irq)
-		free_irq(ha->host->irq, ha);
+	qla2x00_free_irqs(ha);
 
 	/* release io space registers  */
 	if (ha->iobase)
