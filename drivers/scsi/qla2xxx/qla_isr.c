@@ -1725,12 +1725,14 @@ qla2x00_request_irqs(scsi_qla_host_t *ha)
 skip_msix:
 	ret = request_irq(ha->pdev->irq, ha->isp_ops.intr_handler,
 	    IRQF_DISABLED|IRQF_SHARED, QLA2XXX_DRIVER_NAME, ha);
-	if (ret) {
+	if (!ret) {
+		ha->flags.inta_enabled = 1;
+		ha->host->irq = ha->pdev->irq;
+	} else {
 		qla_printk(KERN_WARNING, ha,
 		    "Failed to reserve interrupt %d already in use.\n",
 		    ha->pdev->irq);
 	}
-	ha->host->irq = ha->pdev->irq;
 
 	return ret;
 }
@@ -1741,6 +1743,6 @@ qla2x00_free_irqs(scsi_qla_host_t *ha)
 
 	if (ha->flags.msix_enabled)
 		qla24xx_disable_msix(ha);
-	else if (ha->host->irq)
+	else if (ha->flags.inta_enabled)
 		free_irq(ha->host->irq, ha);
 }

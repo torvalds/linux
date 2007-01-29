@@ -2097,6 +2097,7 @@ typedef struct scsi_qla_host {
 		uint32_t	enable_lip_full_login	:1;
 		uint32_t	enable_target_reset	:1;
 		uint32_t	enable_led_scheme	:1;
+		uint32_t	inta_enabled		:1;
 		uint32_t	msi_enabled		:1;
 		uint32_t	msix_enabled		:1;
 		uint32_t	disable_serdes		:1;
