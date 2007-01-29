@@ -357,8 +357,8 @@ static int aureon_oversampling_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 }
 #endif
 
-static DECLARE_TLV_DB_SCALE(db_scale_dac, -19125, 75, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_adc, 0, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_dac, -19125, 75, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_adc, 0, 150, 0);
 
 /*
  * mixers

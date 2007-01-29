@@ -296,7 +296,7 @@ static const u32 db_table[101] = {
 };
 
 /* EMU10k1/EMU10k2 DSP control db gain */
-static DECLARE_TLV_DB_SCALE(snd_emu10k1_db_scale1, -4000, 40, 1);
+static const DECLARE_TLV_DB_SCALE(snd_emu10k1_db_scale1, -4000, 40, 1);
 
 static const u32 onoff_table[2] = {
 	0x00000000, 0x00000001
@@ -657,7 +657,7 @@ snd_emu10k1_look_for_ctl(struct snd_emu10k1 *emu, struct snd_ctl_elem_id *id)
 
 #define MAX_TLV_SIZE	256
 
-static unsigned int *copy_tlv(unsigned int __user *_tlv)
+static unsigned int *copy_tlv(const unsigned int __user *_tlv)
 {
 	unsigned int data[2];
 	unsigned int *tlv;

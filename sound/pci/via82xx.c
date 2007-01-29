@@ -1699,7 +1699,7 @@ static int snd_via8233_pcmdxs_volume_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_dxs, -9450, 150, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_dxs, -9450, 150, 1);
 
 static struct snd_kcontrol_new snd_via8233_pcmdxs_volume_control __devinitdata = {
 	.name = "PCM Playback Volume",

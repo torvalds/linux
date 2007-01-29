@@ -54,7 +54,7 @@ static int patch_build_controls(struct snd_ac97 * ac97, const struct snd_kcontro
 
 /* replace with a new TLV */
 static void reset_tlv(struct snd_ac97 *ac97, const char *name,
-		      unsigned int *tlv)
+		      const unsigned int *tlv)
 {
 	struct snd_ctl_elem_id sid;
 	struct snd_kcontrol *kctl;
@@ -1569,7 +1569,7 @@ static const struct snd_kcontrol_new snd_ac97_controls_ad1885[] = {
 	AC97_SINGLE("Line Jack Sense", AC97_AD_JACK_SPDIF, 8, 1, 1), /* inverted */
 };
 
-static DECLARE_TLV_DB_SCALE(db_scale_6bit_6db_max, -8850, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_6bit_6db_max, -8850, 150, 0);
 
 static int patch_ad1885_specific(struct snd_ac97 * ac97)
 {
@@ -2527,7 +2527,7 @@ static const struct snd_kcontrol_new snd_ac97_spdif_controls_alc650[] = {
 	/* AC97_SINGLE("IEC958 Input Monitor", AC97_ALC650_MULTICH, 13, 1, 0), */
 };
 
-static DECLARE_TLV_DB_SCALE(db_scale_5bit_3db_max, -4350, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit_3db_max, -4350, 150, 0);
 
 static int patch_alc650_specific(struct snd_ac97 * ac97)
 {

@@ -1055,7 +1055,7 @@ static int snd_cs4281_put_volume(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_dsp, -4650, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_dsp, -4650, 150, 0);
 
 static struct snd_kcontrol_new snd_cs4281_fm_vol = 
 {

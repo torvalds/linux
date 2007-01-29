@@ -34,7 +34,7 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable " ECHOCARD_NAME " soundcard.");
 
 static unsigned int channels_list[10] = {1, 2, 4, 6, 8, 10, 12, 14, 16, 999999};
-static DECLARE_TLV_DB_SCALE(db_scale_output_gain, -12800, 100, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_output_gain, -12800, 100, 1);
 
 static int get_firmware(const struct firmware **fw_entry,
 			const struct firmware *frm, struct echoaudio *chip)
@@ -1085,7 +1085,7 @@ static int snd_echo_input_gain_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_input_gain, -2500, 50, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_input_gain, -2500, 50, 0);
 
 static struct snd_kcontrol_new snd_echo_line_input_gain __devinitdata = {
 	.name = "Line Capture Volume",

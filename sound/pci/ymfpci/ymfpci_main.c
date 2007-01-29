@@ -1504,7 +1504,7 @@ static int snd_ymfpci_put_single(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static DECLARE_TLV_DB_LINEAR(db_scale_native, TLV_DB_GAIN_MUTE, 0);
+static const DECLARE_TLV_DB_LINEAR(db_scale_native, TLV_DB_GAIN_MUTE, 0);
 
 #define YMFPCI_DOUBLE(xname, xindex, reg) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \

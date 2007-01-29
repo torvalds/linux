@@ -565,7 +565,7 @@ static int pontis_gpio_data_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	return changed;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_volume, -6400, 50, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_volume, -6400, 50, 1);
 
 /*
  * mixers

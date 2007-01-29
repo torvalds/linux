@@ -74,8 +74,8 @@
 
 #include "ca0106.h"
 
-static DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale1, -5175, 25, 1);
-static DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale2, -10350, 50, 1);
+static const DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale1, -5175, 25, 1);
+static const DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale2, -10350, 50, 1);
 
 static int snd_ca0106_shared_spdif_info(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *uinfo)

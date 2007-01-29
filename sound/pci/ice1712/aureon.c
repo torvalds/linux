@@ -664,11 +664,11 @@ static int aureon_ac97_mmute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_wm_dac, -12700, 100, 1);
-static DECLARE_TLV_DB_SCALE(db_scale_wm_pcm, -6400, 50, 1);
-static DECLARE_TLV_DB_SCALE(db_scale_wm_adc, -1200, 100, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_ac97_master, -4650, 150, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_ac97_gain, -3450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_wm_dac, -12700, 100, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_wm_pcm, -6400, 50, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_wm_adc, -1200, 100, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_ac97_master, -4650, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_ac97_gain, -3450, 150, 0);
 
 /*
  * Logarithmic volume values for WM8770

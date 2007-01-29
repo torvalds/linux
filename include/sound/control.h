@@ -49,7 +49,7 @@ struct snd_kcontrol_new {
 	snd_kcontrol_put_t *put;
 	union {
 		snd_kcontrol_tlv_rw_t *c;
-		unsigned int *p;
+		const unsigned int *p;
 	} tlv;
 	unsigned long private_value;
 };
@@ -69,7 +69,7 @@ struct snd_kcontrol {
 	snd_kcontrol_put_t *put;
 	union {
 		snd_kcontrol_tlv_rw_t *c;
-		unsigned int *p;
+		const unsigned int *p;
 	} tlv;
 	unsigned long private_value;
 	void *private_data;

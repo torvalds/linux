@@ -697,8 +697,8 @@ static int phase28_oversampling_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	return 0;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_wm_dac, -12700, 100, 1);
-static DECLARE_TLV_DB_SCALE(db_scale_wm_pcm, -6400, 50, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_wm_dac, -12700, 100, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_wm_pcm, -6400, 50, 1);
 
 static const struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
 	{

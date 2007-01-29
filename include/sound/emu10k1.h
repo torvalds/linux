@@ -1903,7 +1903,7 @@ struct snd_emu10k1_fx8010_control_gpr {
 	unsigned int min;		/* minimum range */
 	unsigned int max;		/* maximum range */
 	unsigned int translation;	/* translation type (EMU10K1_GPR_TRANSLATION*) */
-	unsigned int *tlv;
+	const unsigned int *tlv;
 };
 
 /* old ABI without TLV support */

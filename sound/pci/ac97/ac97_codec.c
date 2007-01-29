@@ -1190,13 +1190,13 @@ static int snd_ac97_cmute_new_stereo(struct snd_card *card, char *name, int reg,
 /*
  * set dB information
  */
-static DECLARE_TLV_DB_SCALE(db_scale_4bit, -4500, 300, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_5bit, -4650, 150, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_4bit, -4500, 300, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit, -4650, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
 
-static unsigned int *find_db_scale(unsigned int maxval)
+static const unsigned int *find_db_scale(unsigned int maxval)
 {
 	switch (maxval) {
 	case 0x0f: return db_scale_4bit;
@@ -1206,8 +1206,8 @@ static unsigned int *find_db_scale(unsigned int maxval)
 	return NULL;
 }
 
-static void set_tlv_db_scale(struct snd_kcontrol *kctl, unsigned int *tlv)
-{	
+static void set_tlv_db_scale(struct snd_kcontrol *kctl, const unsigned int *tlv)
+{
 	kctl->tlv.p = tlv;
 	if (tlv)
 		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;

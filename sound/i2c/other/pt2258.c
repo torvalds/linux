@@ -185,7 +185,7 @@ static int pt2258_switch_put(struct snd_kcontrol *kcontrol,
 	return -EIO;
 }
 
-static DECLARE_TLV_DB_SCALE(pt2258_db_scale, -7900, 100, 0);
+static const DECLARE_TLV_DB_SCALE(pt2258_db_scale, -7900, 100, 0);
 
 int snd_pt2258_build_controls(struct snd_pt2258 *pt)
 {

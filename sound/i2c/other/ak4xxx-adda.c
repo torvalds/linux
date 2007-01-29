@@ -162,17 +162,17 @@ static const unsigned char vol_cvt_datt[128] = {
 /*
  * dB tables
  */
-static DECLARE_TLV_DB_SCALE(db_scale_vol_datt, -6350, 50, 1);
-static DECLARE_TLV_DB_SCALE(db_scale_8bit, -12750, 50, 1);
-static DECLARE_TLV_DB_SCALE(db_scale_7bit, -6350, 50, 1);
-static DECLARE_TLV_DB_LINEAR(db_scale_linear, TLV_DB_GAIN_MUTE, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_vol_datt, -6350, 50, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_8bit, -12750, 50, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_7bit, -6350, 50, 1);
+static const DECLARE_TLV_DB_LINEAR(db_scale_linear, TLV_DB_GAIN_MUTE, 0);
 
 /*
  * initialize all the ak4xxx chips
  */
 void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 {
-	static unsigned char inits_ak4524[] = {
+	static const unsigned char inits_ak4524[] = {
 		0x00, 0x07, /* 0: all power up */
 		0x01, 0x00, /* 1: ADC/DAC reset */
 		0x02, 0x60, /* 2: 24bit I2S */

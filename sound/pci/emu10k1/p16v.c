@@ -785,7 +785,7 @@ static int snd_p16v_capture_channel_put(struct snd_kcontrol *kcontrol,
 	}
         return change;
 }
-static DECLARE_TLV_DB_SCALE(snd_p16v_db_scale1, -5175, 25, 1);
+static const DECLARE_TLV_DB_SCALE(snd_p16v_db_scale1, -5175, 25, 1);
 
 #define P16V_VOL(xname,xreg,xhl) { \
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
