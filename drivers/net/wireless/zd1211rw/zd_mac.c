@@ -156,7 +156,7 @@ void zd_mac_clear(struct zd_mac *mac)
 static int reset_mode(struct zd_mac *mac)
 {
 	struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
-	struct zd_ioreq32 ioreqs[3] = {
+	struct zd_ioreq32 ioreqs[] = {
 		{ CR_RX_FILTER, STA_RX_FILTER },
 		{ CR_SNIFFER_ON, 0U },
 	};
@@ -164,10 +164,9 @@ static int reset_mode(struct zd_mac *mac)
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
 		ioreqs[0].value = 0xffffffff;
 		ioreqs[1].value = 0x1;
-		ioreqs[2].value = ENC_SNIFFER;
 	}
 
-	return zd_iowrite32a(&mac->chip, ioreqs, 3);
+	return zd_iowrite32a(&mac->chip, ioreqs, ARRAY_SIZE(ioreqs));
 }
 
 int zd_mac_open(struct net_device *netdev)
