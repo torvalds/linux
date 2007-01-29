@@ -1264,6 +1264,8 @@ bail:
 static int dlm_join_domain(struct dlm_ctxt *dlm)
 {
 	int status;
+	unsigned int backoff;
+	unsigned int total_backoff = 0;
 
 	BUG_ON(!dlm);
 
@@ -1295,15 +1297,24 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 	}
 
 	do {
-		unsigned int backoff;
 		status = dlm_try_to_join_domain(dlm);
 
 		/* If we're racing another node to the join, then we
 		 * need to back off temporarily and let them
 		 * complete. */
+#define	DLM_JOIN_TIMEOUT_MSECS	90000
 		if (status == -EAGAIN) {
 			if (signal_pending(current)) {
 				status = -ERESTARTSYS;
+				goto bail;
+			}
+
+			if (total_backoff >
+			    msecs_to_jiffies(DLM_JOIN_TIMEOUT_MSECS)) {
+				status = -ERESTARTSYS;
+				mlog(ML_NOTICE, "Timed out joining dlm domain "
+				     "%s after %u msecs\n", dlm->name,
+				     jiffies_to_msecs(total_backoff));
 				goto bail;
 			}
 
@@ -1316,6 +1327,7 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 			 */
 			backoff = (unsigned int)(jiffies & 0x3);
 			backoff *= DLM_DOMAIN_BACKOFF_MS;
+			total_backoff += backoff;
 			mlog(0, "backoff %d\n", backoff);
 			msleep(backoff);
 		}
