@@ -1355,6 +1355,39 @@ qla2x00_configure_hba(scsi_qla_host_t *ha)
 	return(rval);
 }
 
+static inline void
+qla2x00_set_model_info(scsi_qla_host_t *ha, uint8_t *model, size_t len, char *def)
+{
+	char *st, *en;
+	uint16_t index;
+
+	if (memcmp(model, BINZERO, len) != 0) {
+		strncpy(ha->model_number, model, len);
+		st = en = ha->model_number;
+		en += len - 1;
+		while (en > st) {
+			if (*en != 0x20 && *en != 0x00)
+				break;
+			*en-- = '\0';
+		}
+
+		index = (ha->pdev->subsystem_device & 0xff);
+		if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_QLOGIC &&
+		    index < QLA_MODEL_NAMES)
+			ha->model_desc = qla2x00_model_name[index * 2 + 1];
+	} else {
+		index = (ha->pdev->subsystem_device & 0xff);
+		if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_QLOGIC &&
+		    index < QLA_MODEL_NAMES) {
+			strcpy(ha->model_number,
+			    qla2x00_model_name[index * 2]);
+			ha->model_desc = qla2x00_model_name[index * 2 + 1];
+		} else {
+			strcpy(ha->model_number, def);
+		}
+	}
+}
+
 /*
 * NVRAM configuration for ISP 2xxx
 *
@@ -1493,33 +1526,8 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 				strcpy(ha->model_number, "QLA2300");
 			}
 		} else {
-			if (rval == 0 &&
-			    memcmp(nv->model_number, BINZERO,
-				    sizeof(nv->model_number)) != 0) {
-				char *st, *en;
-
-				strncpy(ha->model_number, nv->model_number,
-				    sizeof(nv->model_number));
-				st = en = ha->model_number;
-				en += sizeof(nv->model_number) - 1;
-				while (en > st) {
-					if (*en != 0x20 && *en != 0x00)
-						break;
-					*en-- = '\0';
-				}
-			} else {
-				uint16_t        index;
-
-				index = (ha->pdev->subsystem_device & 0xff);
-				if (index < QLA_MODEL_NAMES) {
-					strcpy(ha->model_number,
-					    qla2x00_model_name[index * 2]);
-					ha->model_desc =
-					    qla2x00_model_name[index * 2 + 1];
-				} else {
-					strcpy(ha->model_number, "QLA23xx");
-				}
-			}
+			qla2x00_set_model_info(ha, nv->model_number,
+			    sizeof(nv->model_number), "QLA23xx");
 		}
 	} else if (IS_QLA2200(ha)) {
 		nv->firmware_options[0] |= BIT_2;
@@ -3444,25 +3452,8 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	/*
 	 * Setup driver NVRAM options.
 	 */
-	if (memcmp(nv->model_name, BINZERO, sizeof(nv->model_name)) != 0) {
-		char *st, *en;
-		uint16_t index;
-
-		strncpy(ha->model_number, nv->model_name,
-		    sizeof(nv->model_name));
-		st = en = ha->model_number;
-		en += sizeof(nv->model_name) - 1;
-		while (en > st) {
-			if (*en != 0x20 && *en != 0x00)
-				break;
-			*en-- = '\0';
-		}
-
-		index = (ha->pdev->subsystem_device & 0xff);
-		if (index < QLA_MODEL_NAMES)
-			ha->model_desc = qla2x00_model_name[index * 2 + 1];
-	} else
-		strcpy(ha->model_number, "QLA2462");
+	qla2x00_set_model_info(ha, nv->model_name, sizeof(nv->model_name),
+	    "QLA2462");
 
 	/* Use alternate WWN? */
 	if (nv->host_p & __constant_cpu_to_le32(BIT_15)) {
