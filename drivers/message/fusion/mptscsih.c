@@ -487,6 +487,90 @@ mptscsih_issue_sep_command(MPT_ADAPTER *ioc, VirtTarget *vtarget,
 	mpt_put_msg_frame(ioc->DoneCtx, ioc, mf);
 }
 
+#ifdef MPT_DEBUG_REPLY
+/**
+ *	mptscsih_iocstatus_info_scsiio - IOCSTATUS information for SCSIIO
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *	@ioc_status: U32 IOCStatus word from IOC
+ *	@scsi_status: U8 sam status from target
+ *	@scsi_state: U8 scsi state
+ *	@sc: original scsi cmnd pointer
+ *	@mf: Pointer to MPT request frame
+ *
+ *	Refer to lsi/mpi.h.
+ **/
+static void
+mptscsih_iocstatus_info_scsiio(MPT_ADAPTER *ioc, u32 ioc_status,
+    u8 scsi_status, u8 scsi_state, struct scsi_cmnd *sc)
+{
+	char extend_desc[EVENT_DESCR_STR_SZ];
+	char *desc = NULL;
+
+	switch (ioc_status) {
+
+	case MPI_IOCSTATUS_SCSI_INVALID_BUS: /* 0x0041 */
+		desc = "SCSI Invalid Bus";
+		break;
+
+	case MPI_IOCSTATUS_SCSI_INVALID_TARGETID: /* 0x0042 */
+		desc = "SCSI Invalid TargetID";
+		break;
+
+	case MPI_IOCSTATUS_SCSI_DEVICE_NOT_THERE: /* 0x0043 */
+		/*
+		 * Inquiry is issued for device scanning
+		 */
+		if (sc->cmnd[0] != 0x12)
+			desc = "SCSI Device Not There";
+		break;
+
+	case MPI_IOCSTATUS_SCSI_DATA_OVERRUN: /* 0x0044 */
+		desc = "SCSI Data Overrun";
+		break;
+
+	case MPI_IOCSTATUS_SCSI_IO_DATA_ERROR: /* 0x0046 */
+		desc = "SCSI I/O Data Error";
+		break;
+
+	case MPI_IOCSTATUS_SCSI_PROTOCOL_ERROR: /* 0x0047 */
+		desc = "SCSI Protocol Error";
+		break;
+
+	case MPI_IOCSTATUS_SCSI_TASK_TERMINATED: /* 0x0048 */
+		desc = "SCSI Task Terminated";
+		break;
+
+	case MPI_IOCSTATUS_SCSI_RESIDUAL_MISMATCH: /* 0x0049 */
+		desc = "SCSI Residual Mismatch";
+		break;
+
+	case MPI_IOCSTATUS_SCSI_TASK_MGMT_FAILED: /* 0x004A */
+		desc = "SCSI Task Management Failed";
+		break;
+
+	case MPI_IOCSTATUS_SCSI_IOC_TERMINATED: /* 0x004B */
+		desc = "SCSI IOC Terminated";
+		break;
+
+	case MPI_IOCSTATUS_SCSI_EXT_TERMINATED: /* 0x004C */
+		desc = "SCSI Ext Terminated";
+		break;
+	}
+
+	if (!desc)
+		return;
+
+	snprintf(extend_desc, EVENT_DESCR_STR_SZ,
+	    "[%d:%d:%d:%d] cmd=%02Xh, sam_status=%02Xh state=%02Xh",
+		sc->device->host->host_no,
+		sc->device->channel, sc->device->id, sc->device->lun,
+		sc->cmnd[0], scsi_status, scsi_state);
+
+	printk(MYIOC_s_INFO_FMT "IOCStatus(0x%04X): %s: %s\n",
+	    ioc->name, ioc_status, desc, extend_desc);
+}
+#endif
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  *	mptscsih_io_done - Main SCSI IO callback routine registered to
@@ -573,12 +657,14 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 		u32	 xfer_cnt;
 		u16	 status;
 		u8	 scsi_state, scsi_status;
+		u32	 log_info;
 
 		status = le16_to_cpu(pScsiReply->IOCStatus) & MPI_IOCSTATUS_MASK;
 		scsi_state = pScsiReply->SCSIState;
 		scsi_status = pScsiReply->SCSIStatus;
 		xfer_cnt = le32_to_cpu(pScsiReply->TransferCount);
 		sc->resid = sc->request_bufflen - xfer_cnt;
+		log_info = le32_to_cpu(pScsiReply->IOCLogInfo);
 
 		/*
 		 *  if we get a data underrun indication, yet no data was
@@ -593,13 +679,6 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 			status = MPI_IOCSTATUS_SUCCESS;
 		}
 
-		dreplyprintk((KERN_NOTICE "Reply ha=%d id=%d lun=%d:\n"
-			"IOCStatus=%04xh SCSIState=%02xh SCSIStatus=%02xh\n"
-			"resid=%d bufflen=%d xfer_cnt=%d\n",
-			ioc->id, sc->device->id, sc->device->lun,
-			status, scsi_state, scsi_status, sc->resid,
-			sc->request_bufflen, xfer_cnt));
-
 		if (scsi_state & MPI_SCSI_STATE_AUTOSENSE_VALID)
 			mptscsih_copy_sense_data(sc, hd, mf, pScsiReply);
 
@@ -608,9 +687,10 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 		 */
 		if (scsi_state & MPI_SCSI_STATE_RESPONSE_INFO_VALID &&
 		    pScsiReply->ResponseInfo) {
-			printk(KERN_NOTICE "ha=%d id=%d lun=%d: "
+			printk(KERN_NOTICE "[%d:%d:%d:%d] "
 			"FCP_ResponseInfo=%08xh\n",
-			ioc->id, sc->device->id, sc->device->lun,
+			sc->device->host->host_no, sc->device->channel,
+			sc->device->id, sc->device->lun,
 			le32_to_cpu(pScsiReply->ResponseInfo));
 		}
 
@@ -655,9 +735,8 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 			if ( ioc->bus_type == SAS ) {
 				u16 ioc_status = le16_to_cpu(pScsiReply->IOCStatus);
 				if (ioc_status & MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE) {
-					u32 log_info = le32_to_cpu(mr->u.reply.IOCLogInfo);
-					log_info &=SAS_LOGINFO_MASK;
-					if (log_info == SAS_LOGINFO_NEXUS_LOSS) {
+					if ((log_info & SAS_LOGINFO_MASK)
+					    == SAS_LOGINFO_NEXUS_LOSS) {
 						sc->result = (DID_BUS_BUSY << 16);
 						break;
 					}
@@ -695,7 +774,8 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 			else /* Sufficient data transfer occurred */
 				sc->result = (DID_OK << 16) | scsi_status;
 			dreplyprintk((KERN_NOTICE
-			    "RESIDUAL_MISMATCH: result=%x on id=%d\n", sc->result, sc->device->id));
+			    "RESIDUAL_MISMATCH: result=%x on channel=%d id=%d\n",
+			    sc->result, sc->device->channel, sc->device->id));
 			break;
 
 		case MPI_IOCSTATUS_SCSI_DATA_UNDERRUN:		/* 0x0045 */
@@ -808,7 +888,28 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 
 		}	/* switch(status) */
 
-		dreplyprintk((KERN_NOTICE "  sc->result is %08xh\n", sc->result));
+#ifdef MPT_DEBUG_REPLY
+		if (sc->result) {
+
+			mptscsih_iocstatus_info_scsiio(ioc, status,
+			    scsi_status, scsi_state, sc);
+
+			dreplyprintk(("%s: [%d:%d:%d:%d] cmd=0x%02x "
+			    "result=0x%08x\n\tiocstatus=0x%04X "
+			    "scsi_state=0x%02X scsi_status=0x%02X "
+			    "loginfo=0x%08X\n", __FUNCTION__,
+			    sc->device->host->host_no, sc->device->channel, sc->device->id,
+			    sc->device->lun, sc->cmnd[0], sc->result, status,
+			    scsi_state, scsi_status, log_info));
+
+			dreplyprintk(("%s: [%d:%d:%d:%d] resid=%d "
+			    "bufflen=%d xfer_cnt=%d\n", __FUNCTION__,
+			    sc->device->host->host_no, sc->device->channel, sc->device->id,
+			    sc->device->lun, sc->resid, sc->request_bufflen,
+			    xfer_cnt));
+		}
+#endif
+
 	} /* end of address reply case */
 
 	/* Unmap the DMA buffers, if any. */

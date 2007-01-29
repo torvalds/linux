@@ -172,6 +172,9 @@
 #define MPT_SCSI_SG_DEPTH	40
 #endif
 
+/* debug print string length used for events and iocstatus */
+# define EVENT_DESCR_STR_SZ             100
+
 #ifdef __KERNEL__	/* { */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
