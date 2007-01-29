@@ -1062,15 +1062,19 @@ svc_tcp_recvfrom(struct svc_rqst *rqstp)
 			 *  bit set in the fragment length header.
 			 *  But apparently no known nfs clients send fragmented
 			 *  records. */
-			printk(KERN_NOTICE "RPC: bad TCP reclen 0x%08lx (non-terminal)\n",
-			       (unsigned long) svsk->sk_reclen);
+			if (net_ratelimit())
+				printk(KERN_NOTICE "RPC: bad TCP reclen 0x%08lx"
+				       " (non-terminal)\n",
+				       (unsigned long) svsk->sk_reclen);
 			goto err_delete;
 		}
 		svsk->sk_reclen &= 0x7fffffff;
 		dprintk("svc: TCP record, %d bytes\n", svsk->sk_reclen);
 		if (svsk->sk_reclen > serv->sv_max_mesg) {
-			printk(KERN_NOTICE "RPC: bad TCP reclen 0x%08lx (large)\n",
-			       (unsigned long) svsk->sk_reclen);
+			if (net_ratelimit())
+				printk(KERN_NOTICE "RPC: bad TCP reclen 0x%08lx"
+				       " (large)\n",
+				       (unsigned long) svsk->sk_reclen);
 			goto err_delete;
 		}
 	}

@@ -59,7 +59,6 @@
 #include <asm/uaccess.h>
 
 #define NFSDDBG_FACILITY		NFSDDBG_FILEOP
-#define NFSD_PARANOIA
 
 
 /* We must ignore files (but only files) which might have mandatory
