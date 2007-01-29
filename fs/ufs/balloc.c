@@ -233,7 +233,7 @@ static void ufs_change_blocknr(struct inode *inode, unsigned int baseblk,
 {
 	unsigned int blk_per_page = 1 << (PAGE_CACHE_SHIFT - inode->i_blkbits);
 	struct address_space *mapping = inode->i_mapping;
-	pgoff_t index, cur_index = locked_page->index;
+	pgoff_t index, cur_index;
 	unsigned int i, j;
 	struct page *page;
 	struct buffer_head *head, *bh;
@@ -241,7 +241,10 @@ static void ufs_change_blocknr(struct inode *inode, unsigned int baseblk,
 	UFSD("ENTER, ino %lu, count %u, oldb %u, newb %u\n",
 	      inode->i_ino, count, oldb, newb);
 
+	BUG_ON(!locked_page);
 	BUG_ON(!PageLocked(locked_page));
+
+	cur_index = locked_page->index;
 
 	for (i = 0; i < count; i += blk_per_page) {
 		index = (baseblk+i) >> (PAGE_CACHE_SHIFT - inode->i_blkbits);
