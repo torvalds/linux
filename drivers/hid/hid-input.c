@@ -35,6 +35,11 @@
 
 #include <linux/hid.h>
 
+static int hid_pb_fnmode = 1;
+module_param_named(pb_fnmode, hid_pb_fnmode, int, 0644);
+MODULE_PARM_DESC(pb_fnmode,
+		"Mode of fn key on PowerBooks (0 = disabled, 1 = fkeyslast, 2 = fkeysfirst)");
+
 #define unk	KEY_UNKNOWN
 
 static const unsigned char hid_keyboard[256] = {
@@ -154,7 +159,7 @@ static int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
 		return 1;
 	}
 
-	if (hid->pb_fnmode) {
+	if (hid_pb_fnmode) {
 		int do_translate;
 
 		trans = find_translation(powerbook_fn_keys, usage->code);
@@ -163,8 +168,8 @@ static int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
 				do_translate = 1;
 			else if (trans->flags & POWERBOOK_FLAG_FKEY)
 				do_translate =
-					(hid->pb_fnmode == 2 &&  (hid->quirks & HID_QUIRK_POWERBOOK_FN_ON)) ||
-					(hid->pb_fnmode == 1 && !(hid->quirks & HID_QUIRK_POWERBOOK_FN_ON));
+					(hid_pb_fnmode == 2 &&  (hid->quirks & HID_QUIRK_POWERBOOK_FN_ON)) ||
+					(hid_pb_fnmode == 1 && !(hid->quirks & HID_QUIRK_POWERBOOK_FN_ON));
 			else
 				do_translate = (hid->quirks & HID_QUIRK_POWERBOOK_FN_ON);
 
