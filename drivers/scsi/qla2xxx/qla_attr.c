@@ -653,6 +653,43 @@ qla2x00_beacon_store(struct class_device *cdev, const char *buf,
 	return count;
 }
 
+static ssize_t
+qla2x00_optrom_bios_version_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", ha->bios_revision[1],
+	    ha->bios_revision[0]);
+}
+
+static ssize_t
+qla2x00_optrom_efi_version_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", ha->efi_revision[1],
+	    ha->efi_revision[0]);
+}
+
+static ssize_t
+qla2x00_optrom_fcode_version_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", ha->fcode_revision[1],
+	    ha->fcode_revision[0]);
+}
+
+static ssize_t
+qla2x00_optrom_fw_version_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d %d\n",
+	    ha->fw_revision[0], ha->fw_revision[1], ha->fw_revision[2],
+	    ha->fw_revision[3]);
+}
+
 static CLASS_DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show,
 	NULL);
 static CLASS_DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
@@ -669,6 +706,14 @@ static CLASS_DEVICE_ATTR(zio_timer, S_IRUGO | S_IWUSR, qla2x00_zio_timer_show,
     qla2x00_zio_timer_store);
 static CLASS_DEVICE_ATTR(beacon, S_IRUGO | S_IWUSR, qla2x00_beacon_show,
     qla2x00_beacon_store);
+static CLASS_DEVICE_ATTR(optrom_bios_version, S_IRUGO,
+    qla2x00_optrom_bios_version_show, NULL);
+static CLASS_DEVICE_ATTR(optrom_efi_version, S_IRUGO,
+    qla2x00_optrom_efi_version_show, NULL);
+static CLASS_DEVICE_ATTR(optrom_fcode_version, S_IRUGO,
+    qla2x00_optrom_fcode_version_show, NULL);
+static CLASS_DEVICE_ATTR(optrom_fw_version, S_IRUGO,
+    qla2x00_optrom_fw_version_show, NULL);
 
 struct class_device_attribute *qla2x00_host_attrs[] = {
 	&class_device_attr_driver_version,
@@ -683,6 +728,10 @@ struct class_device_attribute *qla2x00_host_attrs[] = {
 	&class_device_attr_zio,
 	&class_device_attr_zio_timer,
 	&class_device_attr_beacon,
+	&class_device_attr_optrom_bios_version,
+	&class_device_attr_optrom_efi_version,
+	&class_device_attr_optrom_fcode_version,
+	&class_device_attr_optrom_fw_version,
 	NULL,
 };
 

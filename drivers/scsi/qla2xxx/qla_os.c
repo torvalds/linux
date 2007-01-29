@@ -1482,6 +1482,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->isp_ops.fw_dump		= qla2100_fw_dump;
 	ha->isp_ops.read_optrom		= qla2x00_read_optrom_data;
 	ha->isp_ops.write_optrom	= qla2x00_write_optrom_data;
+	ha->isp_ops.get_flash_version	= qla2x00_get_flash_version;
 	if (IS_QLA2100(ha)) {
 		host->max_id = MAX_TARGETS_2100;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT_2100;
@@ -1547,6 +1548,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->isp_ops.beacon_on = qla24xx_beacon_on;
 		ha->isp_ops.beacon_off = qla24xx_beacon_off;
 		ha->isp_ops.beacon_blink = qla24xx_beacon_blink;
+		ha->isp_ops.get_flash_version = qla24xx_get_flash_version;
 		ha->gid_list_info_size = 8;
 		ha->optrom_size = OPTROM_SIZE_24XX;
 	}

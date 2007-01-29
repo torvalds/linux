@@ -2044,6 +2044,8 @@ struct isp_operations {
 		uint32_t, uint32_t);
 	int (*write_optrom) (struct scsi_qla_host *, uint8_t *, uint32_t,
 		uint32_t);
+
+	int (*get_flash_version) (struct scsi_qla_host *, void *);
 };
 
 /* MSI-X Support *************************************************************/
@@ -2399,6 +2401,15 @@ typedef struct scsi_qla_host {
 #define QLA_SWAITING	0
 #define QLA_SREADING	1
 #define QLA_SWRITING	2
+
+        /* PCI expansion ROM image information. */
+#define ROM_CODE_TYPE_BIOS	0
+#define ROM_CODE_TYPE_FCODE	1
+#define ROM_CODE_TYPE_EFI	3
+	uint8_t		bios_revision[2];
+	uint8_t		efi_revision[2];
+	uint8_t		fcode_revision[16];
+	uint32_t	fw_revision[4];
 
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;

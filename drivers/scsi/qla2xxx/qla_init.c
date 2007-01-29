@@ -84,6 +84,8 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 
 	ha->isp_ops.reset_chip(ha);
 
+	ha->isp_ops.get_flash_version(ha, ha->request_ring);
+
 	qla_printk(KERN_INFO, ha, "Configure NVRAM parameters...\n");
 
 	ha->isp_ops.nvram_config(ha);
@@ -3108,6 +3110,8 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 			}
 		}
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+		ha->isp_ops.get_flash_version(ha, ha->request_ring);
 
 		ha->isp_ops.nvram_config(ha);
 
