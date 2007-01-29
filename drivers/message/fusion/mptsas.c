@@ -83,6 +83,12 @@ MODULE_PARM_DESC(mpt_pt_clear,
 		" Clear persistency table: enable=1  "
 		"(default=MPTSCSIH_PT_CLEAR=0)");
 
+/* scsi-mid layer global parmeter is max_report_luns, which is 511 */
+#define MPTSAS_MAX_LUN (16895)
+static int max_lun = MPTSAS_MAX_LUN;
+module_param(max_lun, int, 0);
+MODULE_PARM_DESC(max_lun, " max lun, default=16895 ");
+
 static int	mptsasDoneCtx = -1;
 static int	mptsasTaskCtx = -1;
 static int	mptsasInternalCtx = -1; /* Used only for internal commands */
@@ -568,12 +574,12 @@ mptsas_target_reset(MPT_ADAPTER *ioc, VirtTarget * vtarget)
 
 	if (mptscsih_TMHandler(hd,
 	     MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET,
-	     vtarget->bus_id, vtarget->target_id, 0, 0, 5) < 0) {
+	     vtarget->channel, vtarget->id, 0, 0, 5) < 0) {
 		hd->tmPending = 0;
 		hd->tmState = TM_STATE_NONE;
 		printk(MYIOC_s_WARN_FMT
 	       "Error processing TaskMgmt id=%d TARGET_RESET\n",
-			ioc->name, vtarget->target_id);
+			ioc->name, vtarget->id);
 	}
 }
 
@@ -661,8 +667,7 @@ mptsas_target_alloc(struct scsi_target *starget)
 	struct Scsi_Host *host = dev_to_shost(&starget->dev);
 	MPT_SCSI_HOST		*hd = (MPT_SCSI_HOST *)host->hostdata;
 	VirtTarget		*vtarget;
-	u32			target_id;
-	u32			channel;
+	u8			id, channel;
 	struct sas_rphy		*rphy;
 	struct mptsas_portinfo	*p;
 	int 			 i;
@@ -673,15 +678,19 @@ mptsas_target_alloc(struct scsi_target *starget)
 
 	vtarget->starget = starget;
 	vtarget->ioc_id = hd->ioc->id;
-	vtarget->tflags = MPT_TARGET_FLAGS_Q_YES|MPT_TARGET_FLAGS_VALID_INQUIRY;
-
-	target_id = starget->id;
+	vtarget->tflags = MPT_TARGET_FLAGS_Q_YES;
+	id = starget->id;
 	channel = 0;
 
-	hd->Targets[target_id] = vtarget;
-
-	if (starget->channel == MPTSAS_RAID_CHANNEL)
+	/*
+	 * RAID volumes placed beyond the last expected port.
+	 */
+	if (starget->channel == MPTSAS_RAID_CHANNEL) {
+		for (i=0; i < hd->ioc->raid_data.pIocPg2->NumActiveVolumes; i++)
+			if (id == hd->ioc->raid_data.pIocPg2->RaidVolume[i].VolumeID)
+				channel = hd->ioc->raid_data.pIocPg2->RaidVolume[i].VolumeBus;
 		goto out;
+	}
 
 	rphy = dev_to_rphy(starget->dev.parent);
 	mutex_lock(&hd->ioc->sas_topology_mutex);
@@ -690,16 +699,16 @@ mptsas_target_alloc(struct scsi_target *starget)
 			if (p->phy_info[i].attached.sas_address !=
 					rphy->identify.sas_address)
 				continue;
-			target_id = p->phy_info[i].attached.id;
+			id = p->phy_info[i].attached.id;
 			channel = p->phy_info[i].attached.channel;
 			mptsas_set_starget(&p->phy_info[i], starget);
 
 			/*
 			 * Exposing hidden raid components
 			 */
-			if (mptscsih_is_phys_disk(hd->ioc, target_id)) {
-				target_id = mptscsih_raid_id_to_num(hd,
-						target_id);
+			if (mptscsih_is_phys_disk(hd->ioc, channel, id)) {
+				id = mptscsih_raid_id_to_num(hd->ioc,
+						channel, id);
 				vtarget->tflags |=
 				    MPT_TARGET_FLAGS_RAID_COMPONENT;
 			}
@@ -713,8 +722,8 @@ mptsas_target_alloc(struct scsi_target *starget)
 	return -ENXIO;
 
  out:
-	vtarget->target_id = target_id;
-	vtarget->bus_id = channel;
+	vtarget->id = id;
+	vtarget->channel = channel;
 	starget->hostdata = vtarget;
 	return 0;
 }
@@ -786,7 +795,8 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 			 * Exposing hidden raid components
 			 */
 			if (mptscsih_is_phys_disk(hd->ioc,
-					p->phy_info[i].attached.id))
+			    p->phy_info[i].attached.channel,
+			    p->phy_info[i].attached.id))
 				sdev->no_uld_attach = 1;
 			mutex_unlock(&hd->ioc->sas_topology_mutex);
 			goto out;
@@ -808,12 +818,13 @@ mptsas_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
 	VirtDevice	*vdev = SCpnt->device->hostdata;
 
-//	scsi_print_command(SCpnt);
-	if (vdev->vtarget->deleted) {
+	if (!vdev || !vdev->vtarget || vdev->vtarget->deleted) {
 		SCpnt->result = DID_NO_CONNECT << 16;
 		done(SCpnt);
 		return 0;
 	}
+
+//	scsi_print_command(SCpnt);
 
 	return mptscsih_qcmd(SCpnt,done);
 }
@@ -1976,7 +1987,7 @@ mptsas_scan_sas_topology(MPT_ADAPTER *ioc)
 		goto out;
 	if (!ioc->raid_data.pIocPg2->NumActiveVolumes)
 		goto out;
-	for (i=0; i<ioc->raid_data.pIocPg2->NumActiveVolumes; i++) {
+	for (i = 0; i < ioc->raid_data.pIocPg2->NumActiveVolumes; i++) {
 		scsi_add_device(ioc->sh, MPTSAS_RAID_CHANNEL,
 		    ioc->raid_data.pIocPg2->RaidVolume[i].VolumeID, 0);
 	}
@@ -2160,7 +2171,7 @@ mptsas_hotplug_work(struct work_struct *work)
 			 * Handling  RAID components
 			 */
 			if (ev->phys_disk_num_valid) {
-				vtarget->target_id = ev->phys_disk_num;
+				vtarget->id = ev->phys_disk_num;
 				vtarget->tflags |= MPT_TARGET_FLAGS_RAID_COMPONENT;
 				mptsas_reprobe_target(starget, 1);
 				break;
@@ -2233,7 +2244,7 @@ mptsas_hotplug_work(struct work_struct *work)
 			 */
 			if (vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT) {
 				vtarget->tflags &= ~MPT_TARGET_FLAGS_RAID_COMPONENT;
-				vtarget->target_id = ev->id;
+				vtarget->id = ev->id;
 				mptsas_reprobe_target(starget, 0);
 			}
 			break;
@@ -2611,12 +2622,11 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* set 16 byte cdb's */
 	sh->max_cmd_len = 16;
 
-	sh->max_id = ioc->pfacts->MaxDevices + 1;
+	sh->max_id = ioc->pfacts[0].PortSCSIID;
+	sh->max_lun = max_lun;
 
 	sh->transportt = mptsas_transport_template;
 
-	sh->max_lun = MPT_LAST_LUN + 1;
-	sh->max_channel = 0;
 	sh->this_id = ioc->pfacts[0].PortSCSIID;
 
 	/* Required entry.
@@ -2675,19 +2685,6 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dprintk((MYIOC_s_INFO_FMT "ScsiLookup @ %p\n",
 		 ioc->name, hd->ScsiLookup));
-
-	/* Allocate memory for the device structures.
-	 * A non-Null pointer at an offset
-	 * indicates a device exists.
-	 * max_id = 1 + maximum id (hosts.h)
-	 */
-	hd->Targets = kcalloc(sh->max_id, sizeof(void *), GFP_ATOMIC);
-	if (!hd->Targets) {
-		error = -ENOMEM;
-		goto out_mptsas_probe;
-	}
-
-	dprintk((KERN_INFO "  vtarget @ %p\n", hd->Targets));
 
 	/* Clear the TM flags
 	 */

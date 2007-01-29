@@ -82,6 +82,10 @@ static int mpt_msi_enable;
 module_param(mpt_msi_enable, int, 0);
 MODULE_PARM_DESC(mpt_msi_enable, " MSI Support Enable (default=0)");
 
+static int mpt_channel_mapping;
+module_param(mpt_channel_mapping, int, 0);
+MODULE_PARM_DESC(mpt_channel_mapping, " Mapping id's to channels (default=0)");
+
 #ifdef MFCNT
 static int mfcounter = 0;
 #define PRINT_MF_COUNT 20000
@@ -2505,6 +2509,7 @@ GetPortFacts(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
 	int			 ii;
 	int			 req_sz;
 	int			 reply_sz;
+	int			 max_id;
 
 	/* IOC *must* NOT be in RESET state! */
 	if (ioc->last_state == MPI_IOC_STATE_RESET) {
@@ -2552,6 +2557,21 @@ GetPortFacts(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
 	pfacts->MaxPersistentIDs = le16_to_cpu(pfacts->MaxPersistentIDs);
 	pfacts->MaxLanBuckets = le16_to_cpu(pfacts->MaxLanBuckets);
 
+	max_id = (ioc->bus_type == SAS) ? pfacts->PortSCSIID :
+	    pfacts->MaxDevices;
+	ioc->devices_per_bus = (max_id > 255) ? 256 : max_id;
+	ioc->number_of_buses = (ioc->devices_per_bus < 256) ? 1 : max_id/256;
+
+	/*
+	 * Place all the devices on channels
+	 *
+	 * (for debuging)
+	 */
+	if (mpt_channel_mapping) {
+		ioc->devices_per_bus = 1;
+		ioc->number_of_buses = (max_id > 255) ? 255 : max_id;
+	}
+
 	return 0;
 }
 
@@ -2592,13 +2612,8 @@ SendIocInit(MPT_ADAPTER *ioc, int sleepFlag)
 	ddlprintk((MYIOC_s_INFO_FMT "upload_fw %d facts.Flags=%x\n",
 		   ioc->name, ioc->upload_fw, ioc->facts.Flags));
 
-	if(ioc->bus_type == SAS)
-		ioc_init.MaxDevices = ioc->facts.MaxDevices;
-	else if(ioc->bus_type == FC)
-		ioc_init.MaxDevices = MPT_MAX_FC_DEVICES;
-	else
-		ioc_init.MaxDevices = MPT_MAX_SCSI_DEVICES;
-	ioc_init.MaxBuses = MPT_MAX_BUS;
+	ioc_init.MaxDevices = (U8)ioc->devices_per_bus;
+	ioc_init.MaxBuses = (U8)ioc->number_of_buses;
 	dinitprintk((MYIOC_s_INFO_FMT "facts.MsgVersion=%x\n",
 		   ioc->name, ioc->facts.MsgVersion));
 	if (ioc->facts.MsgVersion >= MPI_VERSION_01_05) {

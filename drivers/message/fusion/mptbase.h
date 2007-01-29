@@ -334,8 +334,8 @@ typedef struct _VirtTarget {
 	struct scsi_target	*starget;
 	u8			 tflags;
 	u8			 ioc_id;
-	u8			 target_id;
-	u8			 bus_id;
+	u8			 id;
+	u8			 channel;
 	u8			 minSyncFactor;	/* 0xFF is async */
 	u8			 maxOffset;	/* 0 if async */
 	u8			 maxWidth;	/* 0 if narrow, 1 if wide */
@@ -344,13 +344,12 @@ typedef struct _VirtTarget {
 	u8			 type;		/* byte 0 of Inquiry data */
 	u8			 deleted;	/* target in process of being removed */
 	u32			 num_luns;
-	u32			 luns[8];		/* Max LUNs is 256 */
 } VirtTarget;
 
 typedef struct _VirtDevice {
 	VirtTarget		*vtarget;
 	u8			 configured_lun;
-	u32			 lun;
+	int			 lun;
 } VirtDevice;
 
 /*
@@ -412,7 +411,7 @@ typedef struct _MPT_IOCTL {
 	u8			 rsvd;
 	u8			 status;	/* current command status */
 	u8			 reset;		/* 1 if bus reset allowed */
-	u8			 target;	/* target for reset */
+	u8			 id;		/* target for reset */
 	struct mutex		 ioctl_mutex;
 } MPT_IOCTL;
 
@@ -528,6 +527,8 @@ typedef struct _MPT_ADAPTER
 	u32			 mem_phys;	/* == f4020000 (mmap) */
 	u32			 pio_mem_phys;	/* Programmed IO (downloadboot) */
 	int			 mem_size;	/* mmap memory size */
+	int			 number_of_buses;
+	int			 devices_per_bus;
 	int			 alloc_total;
 	u32			 last_state;
 	int			 active;
@@ -957,7 +958,6 @@ typedef struct _MPT_SCSI_HOST {
 	int			  port;
 	u32			  pad0;
 	struct scsi_cmnd	**ScsiLookup;
-	VirtTarget		**Targets;
 	MPT_LOCAL_REPLY		 *pLocal;		/* used for internal commands */
 	struct timer_list	  timer;
 		/* Pool of memory for holding SCpnts before doing

@@ -8,6 +8,7 @@
 #EXTRA_CFLAGS += -DMPT_DEBUG_INIT
 #EXTRA_CFLAGS += -DMPT_DEBUG_EXIT
 #EXTRA_CFLAGS += -DMPT_DEBUG_FAIL
+#EXTRA_CFLAGS += -DMPT_DEBUG_TM
 
 #
 # driver/module specifics...
@@ -22,7 +23,6 @@
 #  For mptscsih:
 #CFLAGS_mptscsih.o += -DMPT_DEBUG_DV
 #CFLAGS_mptscsih.o += -DMPT_DEBUG_NEGO
-#CFLAGS_mptscsih.o += -DMPT_DEBUG_TM
 #CFLAGS_mptscsih.o += -DMPT_DEBUG_SCSI
 #CFLAGS_mptscsih.o += -DMPT_DEBUG_REPLY
 #
