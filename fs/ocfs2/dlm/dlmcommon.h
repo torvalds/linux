@@ -180,6 +180,11 @@ struct dlm_assert_master_priv
 	unsigned ignore_higher:1;
 };
 
+struct dlm_deref_lockres_priv
+{
+	struct dlm_lock_resource *deref_res;
+	u8 deref_node;
+};
 
 struct dlm_work_item
 {
@@ -191,6 +196,7 @@ struct dlm_work_item
 		struct dlm_request_all_locks_priv ral;
 		struct dlm_mig_lockres_priv ml;
 		struct dlm_assert_master_priv am;
+		struct dlm_deref_lockres_priv dl;
 	} u;
 };
 
