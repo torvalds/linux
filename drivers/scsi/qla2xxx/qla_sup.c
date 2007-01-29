@@ -611,7 +611,6 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 					    flash_conf_to_access_addr(0x0339),
 					    (fdata & 0xff00) | ((fdata << 16) &
 					    0xff0000) | ((fdata >> 16) & 0xff));
-				fdata = (faddr & sec_mask) << 2;
 				ret = qla24xx_write_flash_dword(ha, conf_addr,
 				    (fdata & 0xff00) |((fdata << 16) &
 				    0xff0000) | ((fdata >> 16) & 0xff));
