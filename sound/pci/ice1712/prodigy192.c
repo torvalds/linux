@@ -507,19 +507,19 @@ static int __devinit prodigy192_init(struct snd_ice1712 *ice)
  */
 
 static unsigned char prodigy71_eeprom[] __devinitdata = {
-	0x2b,	/* SYSCONF: clock 512, mpu401, spdif-in/ADC, 4DACs */
-	0x80,	/* ACLINK: I2S */
-	0xf8,	/* I2S: vol, 96k, 24bit, 192k */
-	0xc3,	/* SPDIF: out-en, out-int, spdif-in */
-	0xff,	/* GPIO_DIR */
-	0xff,	/* GPIO_DIR1 */
-	0xbf,	/* GPIO_DIR2 */
-	0x00,	/* GPIO_MASK */
-	0x00,	/* GPIO_MASK1 */
-	0x00,	/* GPIO_MASK2 */
-	0x00,	/* GPIO_STATE */
-	0x00,	/* GPIO_STATE1 */
-	0x00,	/* GPIO_STATE2 */
+	[ICE_EEP2_SYSCONF]     = 0x2b,	/* clock 512, mpu401, spdif-in/ADC, 4DACs */
+	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
+	[ICE_EEP2_I2S]         = 0xf8,	/* vol, 96k, 24bit, 192k */
+	[ICE_EEP2_SPDIF]       = 0xc3,	/* out-en, out-int, spdif-in */
+	[ICE_EEP2_GPIO_DIR]    = 0xff,
+	[ICE_EEP2_GPIO_DIR1]   = 0xff,
+	[ICE_EEP2_GPIO_DIR2]   = 0xbf,
+	[ICE_EEP2_GPIO_MASK]   = 0x00,
+	[ICE_EEP2_GPIO_MASK1]  = 0x00,
+	[ICE_EEP2_GPIO_MASK2]  = 0x00,
+	[ICE_EEP2_GPIO_STATE]  = 0x00,
+	[ICE_EEP2_GPIO_STATE1] = 0x00,
+	[ICE_EEP2_GPIO_STATE2] = 0x00,
 };
 
 
