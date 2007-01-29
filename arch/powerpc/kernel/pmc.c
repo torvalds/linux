@@ -17,6 +17,7 @@
 #include <linux/module.h>
 
 #include <asm/processor.h>
+#include <asm/cputable.h>
 #include <asm/pmc.h>
 
 #ifndef MMCR0_PMA0
@@ -28,7 +29,8 @@ static void dummy_perf(struct pt_regs *regs)
 #if defined(CONFIG_FSL_BOOKE) && !defined(CONFIG_E200)
 	mtpmr(PMRN_PMGC0, mfpmr(PMRN_PMGC0) & ~PMGC0_PMIE);
 #elif defined(CONFIG_PPC64) || defined(CONFIG_6xx)
-	mtspr(SPRN_MMCR0, mfspr(SPRN_MMCR0) & ~(MMCR0_PMXE|MMCR0_PMA0));
+	if (cur_cpu_spec->pmc_type == PPC_PMC_IBM)
+		mtspr(SPRN_MMCR0, mfspr(SPRN_MMCR0) & ~(MMCR0_PMXE|MMCR0_PMA0));
 #else
 	mtspr(SPRN_MMCR0, mfspr(SPRN_MMCR0) & ~MMCR0_PMXE);
 #endif

@@ -462,6 +462,13 @@
 #define SPRN_SIAR	780
 #define SPRN_SDAR	781
 
+#define PA6T_SPRN_PMC0	787
+#define PA6T_SPRN_PMC1	788
+#define PA6T_SPRN_PMC2	789
+#define PA6T_SPRN_PMC3	790
+#define PA6T_SPRN_PMC4	791
+#define PA6T_SPRN_PMC5	792
+
 #else /* 32-bit */
 #define SPRN_MMCR0	952	/* Monitor Mode Control Register 0 */
 #define   MMCR0_FC	0x80000000UL /* freeze counters */
