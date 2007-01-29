@@ -71,8 +71,8 @@ struct snd_akm4xxx {
 	} type;
 
 	/* (array) information of combined codecs */
-	struct snd_akm4xxx_dac_channel *dac_info;
-	struct snd_akm4xxx_adc_channel *adc_info;
+	const struct snd_akm4xxx_dac_channel *dac_info;
+	const struct snd_akm4xxx_adc_channel *adc_info;
 
 	struct snd_ak4xxx_ops ops;
 };

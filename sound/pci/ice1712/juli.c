@@ -146,7 +146,7 @@ static int __devinit juli_add_controls(struct snd_ice1712 *ice)
  */
 static int __devinit juli_init(struct snd_ice1712 *ice)
 {
-	static unsigned char ak4114_init_vals[] = {
+	static const unsigned char ak4114_init_vals[] = {
 		/* AK4117_REG_PWRDN */	AK4114_RST | AK4114_PWN | AK4114_OCKS0 | AK4114_OCKS1,
 		/* AK4114_REQ_FORMAT */	AK4114_DIF_I24I2S,
 		/* AK4114_REG_IO0 */	AK4114_TX1E,
@@ -154,7 +154,7 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
 		/* AK4114_REG_INT0_MASK */ 0,
 		/* AK4114_REG_INT1_MASK */ 0
 	};
-	static unsigned char ak4114_init_txcsb[] = {
+	static const unsigned char ak4114_init_txcsb[] = {
 		0x41, 0x02, 0x2c, 0x00, 0x00
 	};
 	int err;

@@ -74,7 +74,7 @@ static int snd_ak4117_dev_free(struct snd_device *device)
 }
 
 int snd_ak4117_create(struct snd_card *card, ak4117_read_t *read, ak4117_write_t *write,
-		      unsigned char pgm[5], void *private_data, struct ak4117 **r_ak4117)
+		      const unsigned char pgm[5], void *private_data, struct ak4117 **r_ak4117)
 {
 	struct ak4117 *chip;
 	int err = 0;

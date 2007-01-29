@@ -140,7 +140,7 @@ EXPORT_SYMBOL(snd_akm4xxx_reset);
  * Used for AK4524 input/ouput attenuation, AK4528, and
  * AK5365 input attenuation
  */
-static unsigned char vol_cvt_datt[128] = {
+static const unsigned char vol_cvt_datt[128] = {
 	0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03, 0x04,
 	0x04, 0x04, 0x04, 0x05, 0x05, 0x05, 0x06, 0x06,
 	0x06, 0x07, 0x07, 0x08, 0x08, 0x08, 0x09, 0x0a,
@@ -184,7 +184,7 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0x07, 0x00, /* 7: DAC right muted */
 		0xff, 0xff
 	};
-	static unsigned char inits_ak4528[] = {
+	static const unsigned char inits_ak4528[] = {
 		0x00, 0x07, /* 0: all power up */
 		0x01, 0x00, /* 1: ADC/DAC reset */
 		0x02, 0x60, /* 2: 24bit I2S */
@@ -194,7 +194,7 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0x05, 0x00, /* 5: ADC right muted */
 		0xff, 0xff
 	};
-	static unsigned char inits_ak4529[] = {
+	static const unsigned char inits_ak4529[] = {
 		0x09, 0x01, /* 9: ATS=0, RSTN=1 */
 		0x0a, 0x3f, /* A: all power up, no zero/overflow detection */
 		0x00, 0x0c, /* 0: TDM=0, 24bit I2S, SMUTE=0 */
@@ -210,7 +210,7 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0x08, 0x55, /* 8: deemphasis all off */
 		0xff, 0xff
 	};
-	static unsigned char inits_ak4355[] = {
+	static const unsigned char inits_ak4355[] = {
 		0x01, 0x02, /* 1: reset and soft-mute */
 		0x00, 0x06, /* 0: mode3(i2s), disable auto-clock detect,
 			     * disable DZF, sharp roll-off, RSTN#=0 */
@@ -227,7 +227,7 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0x01, 0x01, /* 1: un-reset, unmute */
 		0xff, 0xff
 	};
-	static unsigned char inits_ak4358[] = {
+	static const unsigned char inits_ak4358[] = {
 		0x01, 0x02, /* 1: reset and soft-mute */
 		0x00, 0x06, /* 0: mode3(i2s), disable auto-clock detect,
 			     * disable DZF, sharp roll-off, RSTN#=0 */
@@ -246,7 +246,7 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0x01, 0x01, /* 1: un-reset, unmute */
 		0xff, 0xff
 	};
-	static unsigned char inits_ak4381[] = {
+	static const unsigned char inits_ak4381[] = {
 		0x00, 0x0c, /* 0: mode3(i2s), disable auto-clock detect */
 		0x01, 0x02, /* 1: de-emphasis off, normal speed,
 			     * sharp roll-off, DZF off */
@@ -259,7 +259,8 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 	};
 
 	int chip, num_chips;
-	unsigned char *ptr, reg, data, *inits;
+	const unsigned char *ptr, *inits;
+	unsigned char reg, data;
 
 	memset(ak->images, 0, sizeof(ak->images));
 	memset(ak->volumes, 0, sizeof(ak->volumes));

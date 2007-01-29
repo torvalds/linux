@@ -185,18 +185,18 @@ static int revo51_i2c_init(struct snd_ice1712 *ice,
 
 #define AK_DAC(xname,xch) { .name = xname, .num_channels = xch }
 
-static struct snd_akm4xxx_dac_channel revo71_front[] = {
+static const struct snd_akm4xxx_dac_channel revo71_front[] = {
 	AK_DAC("PCM Playback Volume", 2)
 };
 
-static struct snd_akm4xxx_dac_channel revo71_surround[] = {
+static const struct snd_akm4xxx_dac_channel revo71_surround[] = {
 	AK_DAC("PCM Center Playback Volume", 1),
 	AK_DAC("PCM LFE Playback Volume", 1),
 	AK_DAC("PCM Side Playback Volume", 2),
 	AK_DAC("PCM Rear Playback Volume", 2),
 };
 
-static struct snd_akm4xxx_dac_channel revo51_dac[] = {
+static const struct snd_akm4xxx_dac_channel revo51_dac[] = {
 	AK_DAC("PCM Playback Volume", 2),
 	AK_DAC("PCM Center Playback Volume", 1),
 	AK_DAC("PCM LFE Playback Volume", 1),
@@ -210,7 +210,7 @@ static const char *revo51_adc_input_names[] = {
 	NULL
 };
 
-static struct snd_akm4xxx_adc_channel revo51_adc[] = {
+static const struct snd_akm4xxx_adc_channel revo51_adc[] = {
 	{
 		.name = "PCM Capture Volume",
 		.switch_name = "PCM Capture Switch",
@@ -219,7 +219,7 @@ static struct snd_akm4xxx_adc_channel revo51_adc[] = {
 	},
 };
 
-static struct snd_akm4xxx akm_revo_front __devinitdata = {
+static const struct snd_akm4xxx akm_revo_front __devinitdata = {
 	.type = SND_AK4381,
 	.num_dacs = 2,
 	.ops = {
@@ -320,11 +320,11 @@ static void ap192_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 #endif
 }
 
-static struct snd_akm4xxx_dac_channel ap192_dac[] = {
+static const struct snd_akm4xxx_dac_channel ap192_dac[] = {
 	AK_DAC("PCM Playback Volume", 2)
 };
 
-static struct snd_akm4xxx akm_ap192 __devinitdata = {
+static const struct snd_akm4xxx akm_ap192 __devinitdata = {
 	.type = SND_AK4358,
 	.num_dacs = 2,
 	.ops = {
