@@ -1163,7 +1163,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 	case MSR_K6_STAR:
 		vcpu->svm->vmcb->save.star = data;
 		break;
-#ifdef CONFIG_X86_64_
+#ifdef CONFIG_X86_64
 	case MSR_LSTAR:
 		vcpu->svm->vmcb->save.lstar = data;
 		break;
