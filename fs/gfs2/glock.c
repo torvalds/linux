@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/lm_interface.h>
 #include <linux/wait.h>
+#include <linux/rwsem.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"
@@ -45,6 +46,7 @@ static int dump_glock(struct gfs2_glock *gl);
 static int dump_inode(struct gfs2_inode *ip);
 static void gfs2_glock_xmote_th(struct gfs2_holder *gh);
 static void gfs2_glock_drop_th(struct gfs2_glock *gl);
+static DECLARE_RWSEM(gfs2_umount_flush_sem);
 
 #define GFS2_GL_HASH_SHIFT      15
 #define GFS2_GL_HASH_SIZE       (1 << GFS2_GL_HASH_SHIFT)
@@ -1578,12 +1580,14 @@ void gfs2_glock_cb(void *cb_data, unsigned int type, void *data)
 		struct lm_async_cb *async = data;
 		struct gfs2_glock *gl;
 
+		down_read(&gfs2_umount_flush_sem);
 		gl = gfs2_glock_find(sdp, &async->lc_name);
 		if (gfs2_assert_warn(sdp, gl))
 			return;
 		if (!gfs2_assert_warn(sdp, gl->gl_req_bh))
 			gl->gl_req_bh(gl, async->lc_ret);
 		gfs2_glock_put(gl);
+		up_read(&gfs2_umount_flush_sem);
 		return;
 	}
 
@@ -1828,7 +1832,9 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait)
 			t = jiffies;
 		}
 
+		down_write(&gfs2_umount_flush_sem);
 		invalidate_inodes(sdp->sd_vfs);
+		up_write(&gfs2_umount_flush_sem);
 		msleep(10);
 	}
 }
