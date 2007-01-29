@@ -140,6 +140,8 @@ qla2x00_sysfs_write_nvram(struct kobject *kobj, char *buf, loff_t off,
 	ha->isp_ops.write_nvram(ha, (uint8_t *)buf, ha->nvram_base, count);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
+	set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
+
 	return (count);
 }
 
