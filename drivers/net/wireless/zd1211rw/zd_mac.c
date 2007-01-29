@@ -1114,8 +1114,6 @@ static void zd_mac_rx(struct zd_mac *mac, struct sk_buff *skb)
 	{
 		ieee->stats.rx_errors++;
 		ieee->stats.rx_length_errors++;
-		dev_dbg_f(zd_mac_dev(mac), "Packet with length %u to small.\n",
-			 skb->len);
 		goto free_skb;
 	}
 
