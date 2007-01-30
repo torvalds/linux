@@ -379,9 +379,10 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		spin_unlock_irq(&md->lock);
 	}
 
+flush_queue:
+
 	mmc_card_release_host(card);
 
-flush_queue:
 	spin_lock_irq(&md->lock);
 	while (ret) {
 		ret = end_that_request_chunk(req, 0,
