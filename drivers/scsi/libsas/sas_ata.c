@@ -100,7 +100,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	dev = qc->ap->private_data;
 
 	spin_lock_irqsave(dev->sata_dev.ap->lock, flags);
-	if (stat->stat == SAS_PROTO_RESPONSE) {
+	if (stat->stat == SAS_PROTO_RESPONSE || stat->stat == SAM_GOOD) {
 		ata_tf_from_fis(resp->ending_fis, &dev->sata_dev.tf);
 		qc->err_mask |= ac_err_mask(dev->sata_dev.tf.command);
 		dev->sata_dev.sstatus = resp->sstatus;
