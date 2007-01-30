@@ -283,8 +283,14 @@ static int skp_epaddr_len(const char *dptr, const char *limit, int *shift)
 {
 	int s = *shift;
 
-	for (; dptr <= limit && *dptr != '@'; dptr++)
+	/* Search for @, but stop at the end of the line.
+	 * We are inside a sip: URI, so we don't need to worry about
+	 * continuation lines. */
+	while (dptr <= limit &&
+	       *dptr != '@' && *dptr != '\r' && *dptr != '\n') {
 		(*shift)++;
+		dptr++;
+	}
 
 	if (*dptr == '@') {
 		dptr++;
