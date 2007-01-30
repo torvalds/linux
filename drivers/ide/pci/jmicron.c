@@ -93,8 +93,9 @@ static int __devinit ata66_jmicron(ide_hwif_t *hwif)
 			return 0;
 		return 1;
 	case PORT_SATA:
-		return 1;
+		break;
 	}
+	return 1; /* Avoid bogus "control reaches end of non-void function" */
 }
 
 static void jmicron_tuneproc (ide_drive_t *drive, byte mode_wanted)

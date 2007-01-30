@@ -1598,12 +1598,11 @@ M:	ipslinux@adaptec.com
 W:	http://www.developer.ibm.com/welcome/netfinity/serveraid.html
 S:	Supported 
 
-IDE DRIVER [GENERAL]
+IDE SUBSYSTEM
 P:	Bartlomiej Zolnierkiewicz
-M:	B.Zolnierkiewicz@elka.pw.edu.pl
-L:	linux-kernel@vger.kernel.org
+M:	bzolnier@gmail.com
 L:	linux-ide@vger.kernel.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/bart/ide-2.6.git
+T:	quilt kernel.org/pub/linux/kernel/people/bart/pata-2.6/
 S:	Maintained
 
 IDE/ATAPI CDROM DRIVER

@@ -382,7 +382,7 @@ static struct pci_driver driver = {
 	.probe		= opti621_init_one,
 };
 
-static int opti621_ide_init(void)
+static int __init opti621_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }
