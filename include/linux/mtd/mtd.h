@@ -120,16 +120,6 @@ struct mtd_info {
 	u_int32_t ecctype;
 	u_int32_t eccsize;
 
-	/*
-	 * Reuse some of the above unused fields in the case of NOR flash
-	 * with configurable programming regions to avoid modifying the
-	 * user visible structure layout/size.  Only valid when the
-	 * MTD_PROGRAM_REGIONS flag is set.
-	 * (Maybe we should have an union for those?)
-	 */
-#define MTD_PROGREGION_CTRLMODE_VALID(mtd)  (mtd)->oobsize
-#define MTD_PROGREGION_CTRLMODE_INVALID(mtd)  (mtd)->ecctype
-
 	// Kernel-only stuff starts here.
 	char *name;
 	int index;

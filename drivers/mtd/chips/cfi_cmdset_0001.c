@@ -560,13 +560,11 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 			struct cfi_intelext_programming_regioninfo *prinfo;
 			prinfo = (struct cfi_intelext_programming_regioninfo *)&extp->extra[offs];
 			mtd->writesize = cfi->interleave << prinfo->ProgRegShift;
-			MTD_PROGREGION_CTRLMODE_VALID(mtd) = cfi->interleave * prinfo->ControlValid;
-			MTD_PROGREGION_CTRLMODE_INVALID(mtd) = cfi->interleave * prinfo->ControlInvalid;
 			mtd->flags &= ~MTD_BIT_WRITEABLE;
 			printk(KERN_DEBUG "%s: program region size/ctrl_valid/ctrl_inval = %d/%d/%d\n",
 			       map->name, mtd->writesize,
-			       MTD_PROGREGION_CTRLMODE_VALID(mtd),
-			       MTD_PROGREGION_CTRLMODE_INVALID(mtd));
+			       cfi->interleave * prinfo->ControlValid,
+			       cfi->interleave * prinfo->ControlInvalid);
 		}
 
 		/*
