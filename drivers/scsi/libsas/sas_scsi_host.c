@@ -421,8 +421,29 @@ struct sas_phy *find_local_sas_phy(struct domain_device *dev)
 	return exphy->phy;
 }
 
-/* Attempt to send a target reset message to a device */
+/* Attempt to send a LUN reset message to a device */
 int sas_eh_device_reset_handler(struct scsi_cmnd *cmd)
+{
+	struct domain_device *dev = cmd_to_domain_dev(cmd);
+	struct sas_internal *i =
+		to_sas_internal(dev->port->ha->core.shost->transportt);
+	struct scsi_lun lun;
+	int res;
+
+	int_to_scsilun(cmd->device->lun, &lun);
+
+	if (!i->dft->lldd_lu_reset)
+		return FAILED;
+
+	res = i->dft->lldd_lu_reset(dev, lun.scsi_lun);
+	if (res == TMF_RESP_FUNC_SUCC || res == TMF_RESP_FUNC_COMPLETE)
+		return SUCCESS;
+
+	return FAILED;
+}
+
+/* Attempt to send a phy (bus) reset */
+int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 {
 	struct domain_device *dev = cmd_to_domain_dev(cmd);
 	struct sas_phy *phy = find_local_sas_phy(dev);
@@ -430,7 +451,7 @@ int sas_eh_device_reset_handler(struct scsi_cmnd *cmd)
 
 	res = sas_phy_reset(phy, 1);
 	if (res)
-		SAS_DPRINTK("Device reset of %s failed 0x%x\n",
+		SAS_DPRINTK("Bus reset of %s failed 0x%x\n",
 			    phy->dev.kobj.k_name,
 			    res);
 	if (res == TMF_RESP_FUNC_SUCC || res == TMF_RESP_FUNC_COMPLETE)
@@ -443,10 +464,20 @@ int sas_eh_device_reset_handler(struct scsi_cmnd *cmd)
 static int try_to_reset_cmd_device(struct Scsi_Host *shost,
 				   struct scsi_cmnd *cmd)
 {
-	if (!shost->hostt->eh_device_reset_handler)
-		return FAILED;
+	int res;
 
-	return shost->hostt->eh_device_reset_handler(cmd);
+	if (!shost->hostt->eh_device_reset_handler)
+		goto try_bus_reset;
+
+	res = shost->hostt->eh_device_reset_handler(cmd);
+	if (res == SUCCESS)
+		return res;
+
+try_bus_reset:
+	if (shost->hostt->eh_bus_reset_handler)
+		return shost->hostt->eh_bus_reset_handler(cmd);
+
+	return FAILED;
 }
 
 static int sas_eh_handle_sas_errors(struct Scsi_Host *shost,
@@ -976,3 +1007,4 @@ EXPORT_SYMBOL_GPL(sas_task_abort);
 EXPORT_SYMBOL_GPL(sas_phy_reset);
 EXPORT_SYMBOL_GPL(sas_phy_enable);
 EXPORT_SYMBOL_GPL(sas_eh_device_reset_handler);
+EXPORT_SYMBOL_GPL(sas_eh_bus_reset_handler);
