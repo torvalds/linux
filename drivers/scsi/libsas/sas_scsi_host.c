@@ -216,8 +216,12 @@ int sas_queuecommand(struct scsi_cmnd *cmd,
 		struct sas_task *task;
 
 		if (dev_is_sata(dev)) {
+			unsigned long flags;
+
+			spin_lock_irqsave(dev->sata_dev.ap->lock, flags);
 			res = ata_sas_queuecmd(cmd, scsi_done,
 					       dev->sata_dev.ap);
+			spin_unlock_irqrestore(dev->sata_dev.ap->lock, flags);
 			goto out;
 		}
 

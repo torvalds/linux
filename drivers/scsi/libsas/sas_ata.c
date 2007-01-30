@@ -92,7 +92,9 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct task_status_struct *stat = &task->task_status;
 	struct ata_task_resp *resp = (struct ata_task_resp *)stat->buf;
 	enum ata_completion_errors ac;
+	unsigned long flags;
 
+	spin_lock_irqsave(dev->sata_dev.ap->lock, flags);
 	if (stat->stat == SAS_PROTO_RESPONSE) {
 		ata_tf_from_fis(resp->ending_fis, &dev->sata_dev.tf);
 		qc->err_mask |= ac_err_mask(dev->sata_dev.tf.command);
@@ -113,6 +115,8 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	ata_qc_complete(qc);
+	spin_unlock_irqrestore(dev->sata_dev.ap->lock, flags);
+
 	list_del_init(&task->list);
 	sas_free_task(task);
 }
