@@ -353,4 +353,39 @@ static inline void *ps3_system_bus_get_driver_data(
 
 extern struct bus_type ps3_system_bus_type;
 
+/* vuart routines */
+
+struct ps3_vuart_stats {
+	unsigned long bytes_written;
+	unsigned long bytes_read;
+	unsigned long tx_interrupts;
+	unsigned long rx_interrupts;
+	unsigned long disconnect_interrupts;
+};
+
+/**
+ * struct ps3_vuart_port_device - a device on a vuart port
+ */
+
+struct ps3_vuart_port_device {
+	enum ps3_match_id match_id;
+	struct device core;
+
+	/* private driver variables */
+	unsigned int port_number;
+	u64 interrupt_mask;
+	struct {
+		spinlock_t lock;
+		struct list_head head;
+	} tx_list;
+	struct {
+		unsigned long bytes_held;
+		spinlock_t lock;
+		struct list_head head;
+	} rx_list;
+	struct ps3_vuart_stats stats;
+};
+
+int ps3_vuart_port_device_register(struct ps3_vuart_port_device *dev);
+
 #endif
