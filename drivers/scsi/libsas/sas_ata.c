@@ -123,7 +123,7 @@ static void sas_ata_task_done(struct sas_task *task)
 
 static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 {
-	int res = -ENOMEM;
+	int res;
 	struct sas_task *task;
 	struct domain_device *dev = qc->ap->private_data;
 	struct sas_ha_struct *sas_ha = dev->port->ha;
@@ -135,7 +135,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 
 	task = sas_alloc_task(GFP_ATOMIC);
 	if (!task)
-		goto out;
+		return AC_ERR_SYSTEM;
 	task->dev = dev;
 	task->task_proto = SAS_PROTOCOL_STP;
 	task->task_done = sas_ata_task_done;
@@ -187,12 +187,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		SAS_DPRINTK("lldd_execute_task returned: %d\n", res);
 
 		sas_free_task(task);
-		if (res == -SAS_QUEUE_FULL)
-			return -ENOMEM;
+		return AC_ERR_SYSTEM;
 	}
 
-out:
-	return res;
+	return 0;
 }
 
 static u8 sas_ata_check_status(struct ata_port *ap)
