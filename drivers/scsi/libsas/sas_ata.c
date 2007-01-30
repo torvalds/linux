@@ -88,11 +88,16 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 static void sas_ata_task_done(struct sas_task *task)
 {
 	struct ata_queued_cmd *qc = task->uldd_task;
-	struct domain_device *dev = qc->ap->private_data;
+	struct domain_device *dev;
 	struct task_status_struct *stat = &task->task_status;
 	struct ata_task_resp *resp = (struct ata_task_resp *)stat->buf;
 	enum ata_completion_errors ac;
 	unsigned long flags;
+
+	if (!qc)
+		goto qc_already_gone;
+
+	dev = qc->ap->private_data;
 
 	spin_lock_irqsave(dev->sata_dev.ap->lock, flags);
 	if (stat->stat == SAS_PROTO_RESPONSE) {
@@ -114,9 +119,11 @@ static void sas_ata_task_done(struct sas_task *task)
 		}
 	}
 
+	qc->lldd_task = NULL;
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(dev->sata_dev.ap->lock, flags);
 
+qc_already_gone:
 	list_del_init(&task->list);
 	sas_free_task(task);
 }
@@ -166,6 +173,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	task->scatter = qc->__sg;
 	task->ata_task.retry_count = 1;
 	task->task_state_flags = SAS_TASK_STATE_PENDING;
+	qc->lldd_task = task;
 
 	switch (qc->tf.protocol) {
 	case ATA_PROT_NCQ:
@@ -237,8 +245,24 @@ static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 	if (qc->flags & ATA_QCFLAG_FAILED)
 		qc->err_mask |= AC_ERR_OTHER;
 
-	if (qc->err_mask)
-		SAS_DPRINTK("%s: Failure; reset phy!\n", __FUNCTION__);
+	if (qc->err_mask) {
+		/*
+		 * Find the sas_task and kill it.  By this point,
+		 * libata has decided to kill the qc, so we needn't
+		 * bother with sas_ata_task_done.  But we still
+		 * ought to abort the task.
+		 */
+		struct sas_task *task = qc->lldd_task;
+		struct domain_device *dev = qc->ap->private_data;
+
+		qc->lldd_task = NULL;
+		if (task) {
+			task->uldd_task = NULL;
+			__sas_task_abort(task);
+		}
+
+		sas_phy_reset(dev->port->phy, 1);
+	}
 }
 
 static void sas_ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
