@@ -1289,7 +1289,11 @@ static unsigned int powernowk8_get (unsigned int cpu)
 	if (query_current_values_with_pending_wait(data))
 		goto out;
 
-	khz = find_khz_freq_from_fid(data->currfid);
+	if (cpu_family == CPU_HW_PSTATE)
+		khz = find_khz_freq_from_fiddid(data->currfid, data->currdid);
+	else
+		khz = find_khz_freq_from_fid(data->currfid);
+
 
 out:
 	set_cpus_allowed(current, oldmask);
