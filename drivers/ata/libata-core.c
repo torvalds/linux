@@ -1250,6 +1250,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		ata_sg_init(qc, sg, n_elem);
 		qc->nsect = buflen / ATA_SECT_SIZE;
+		qc->nbytes = buflen;
 	}
 
 	qc->private_data = &wait;
