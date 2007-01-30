@@ -2844,7 +2844,6 @@ int try_to_free_buffers(struct page *page)
 
 	spin_lock(&mapping->private_lock);
 	ret = drop_buffers(page, &buffers_to_free);
-	spin_unlock(&mapping->private_lock);
 
 	/*
 	 * If the filesystem writes its buffers by hand (eg ext3)
@@ -2855,9 +2854,14 @@ int try_to_free_buffers(struct page *page)
 	 * Also, during truncate, discard_buffer will have marked all
 	 * the page's buffers clean.  We discover that here and clean
 	 * the page also.
+	 *
+	 * private_lock must be held over this entire operation in order
+	 * to synchronise against __set_page_dirty_buffers and prevent the
+	 * dirty bit from being lost.
 	 */
 	if (ret)
 		cancel_dirty_page(page, PAGE_CACHE_SIZE);
+	spin_unlock(&mapping->private_lock);
 out:
 	if (buffers_to_free) {
 		struct buffer_head *bh = buffers_to_free;
