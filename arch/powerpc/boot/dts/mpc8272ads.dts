@@ -65,8 +65,8 @@
                #size-cells = <1>;
                #interrupt-cells = <2>;
                device_type = "soc";
-               ranges = < 0 0 2 00000000 f0000000 00053000>;
-               reg = <f0000000 0>;
+               ranges = <00000000 f0000000 00053000>;
+               reg = <f0000000 10000>;
 
                mdio@0 {
                        device_type = "mdio";
@@ -130,8 +130,8 @@
                        #interrupt-cells = <2>;
                        device_type = "cpm";
                        model = "CPM2";
-                       ranges = <00000000 00000000 3ffff>;
-                       reg = <10d80 3280>;
+                       ranges = <00000000 00000000 20000>;
+                       reg = <0 20000>;
                        command-proc = <119c0>;
                        brg-frequency = <17D7840>;
                        cpm_clk = <BEBC200>;

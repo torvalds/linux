@@ -17,6 +17,12 @@
 #ifdef CONFIG_CPM2
 #include <asm/cpm2.h>
 
+#if defined(CONFIG_8260)
+#include <asm/mpc8260.h>
+#elif defined(CONFIG_85xx)
+#include <asm/mpc85xx.h>
+#endif
+
 #define cpm2_map(member)						\
 ({									\
 	u32 offset = offsetof(cpm2_map_t, member);			\
