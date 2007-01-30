@@ -678,6 +678,29 @@ static struct domain_device *sas_ex_discover_end_dev(
 	return NULL;
 }
 
+/* See if this phy is part of a wide port */
+static int sas_ex_join_wide_port(struct domain_device *parent, int phy_id)
+{
+	struct ex_phy *phy = &parent->ex_dev.ex_phy[phy_id];
+	int i;
+
+	for (i = 0; i < parent->ex_dev.num_phys; i++) {
+		struct ex_phy *ephy = &parent->ex_dev.ex_phy[i];
+
+		if (ephy == phy)
+			continue;
+
+		if (!memcmp(phy->attached_sas_addr, ephy->attached_sas_addr,
+			    SAS_ADDR_SIZE) && ephy->port) {
+			sas_port_add_phy(ephy->port, phy->phy);
+			phy->phy_state = PHY_DEVICE_DISCOVERED;
+			return 0;
+		}
+	}
+
+	return -ENODEV;
+}
+
 static struct domain_device *sas_ex_discover_expander(
 	struct domain_device *parent, int phy_id)
 {
@@ -807,6 +830,13 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 			    "reported 0x%x. Forgotten\n",
 			    SAS_ADDR(ex_phy->attached_sas_addr), res);
 		sas_disable_routing(dev, ex_phy->attached_sas_addr);
+		return res;
+	}
+
+	res = sas_ex_join_wide_port(dev, phy_id);
+	if (!res) {
+		SAS_DPRINTK("Attaching ex phy%d to wide port %016llx\n",
+			    phy_id, SAS_ADDR(ex_phy->attached_sas_addr));
 		return res;
 	}
 
