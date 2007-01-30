@@ -455,6 +455,8 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 		      "Dell Latitude D620", STAC_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cb,
 		      "Dell Latitude 120L", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cc,
+		      "Dell Latitude D820", STAC_REF),
 	{} /* terminator */
 };
 
