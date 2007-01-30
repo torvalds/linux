@@ -312,7 +312,7 @@ static int skp_epaddr_len(struct nf_conn *ct, const char *dptr,
 		dptr++;
 	}
 
-	if (*dptr == '@') {
+	if (dptr <= limit && *dptr == '@') {
 		dptr++;
 		(*shift)++;
 	} else
