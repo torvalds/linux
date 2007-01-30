@@ -232,7 +232,7 @@ static void sas_ata_phy_reset(struct ata_port *ap)
 			SAS_DPRINTK("%s: Unknown SATA command set: %d.\n",
 				    __FUNCTION__,
 				    dev->sata_dev.command_set);
-			ap->device[0].class = ATA_DEV_ATA;
+			ap->device[0].class = ATA_DEV_UNKNOWN;
 			break;
 	}
 
