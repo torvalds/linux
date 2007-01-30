@@ -288,6 +288,8 @@ extern struct aper_size_info_16 agp3_generic_sizes[];
 extern int agp_off;
 extern int agp_try_unsupported_boot;
 
+long compat_agp_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+
 /* Chipset independant registers (from AGP Spec) */
 #define AGP_APBASE	0x10
 
