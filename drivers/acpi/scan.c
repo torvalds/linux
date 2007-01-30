@@ -888,49 +888,6 @@ static int acpi_device_set_context(struct acpi_device *device, int type)
 	return result;
 }
 
-static void acpi_device_get_debug_info(struct acpi_device *device,
-				       acpi_handle handle, int type)
-{
-#ifdef ACPI_DEBUG_OUTPUT
-	char *type_string = NULL;
-	char name[80] = { '?', '\0' };
-	struct acpi_buffer buffer = { sizeof(name), name };
-
-	switch (type) {
-	case ACPI_BUS_TYPE_DEVICE:
-		type_string = "Device";
-		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-		break;
-	case ACPI_BUS_TYPE_POWER:
-		type_string = "Power Resource";
-		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-		break;
-	case ACPI_BUS_TYPE_PROCESSOR:
-		type_string = "Processor";
-		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-		break;
-	case ACPI_BUS_TYPE_SYSTEM:
-		type_string = "System";
-		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-		break;
-	case ACPI_BUS_TYPE_THERMAL:
-		type_string = "Thermal Zone";
-		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-		break;
-	case ACPI_BUS_TYPE_POWER_BUTTON:
-		type_string = "Power Button";
-		sprintf(name, "PWRB");
-		break;
-	case ACPI_BUS_TYPE_SLEEP_BUTTON:
-		type_string = "Sleep Button";
-		sprintf(name, "SLPB");
-		break;
-	}
-
-	printk(KERN_DEBUG "Found %s %s [%p]\n", type_string, name, handle);
-#endif				/* ACPI_DEBUG_OUTPUT */
-}
-
 static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 {
 	int result = 0;
@@ -1075,8 +1032,6 @@ acpi_add_single_object(struct acpi_device **child,
 
 	if ((result = acpi_device_set_context(device, type)))
 		goto end;
-
-	acpi_device_get_debug_info(device, handle, type);
 
 	acpi_device_register(device, parent);
 
