@@ -2373,7 +2373,6 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	/* Fill in remaining MTD driver data */
 	mtd->type = MTD_NANDFLASH;
 	mtd->flags = MTD_CAP_NANDFLASH;
-	mtd->ecctype = MTD_ECC_SW;
 	mtd->erase = onenand_erase;
 	mtd->point = NULL;
 	mtd->unpoint = NULL;

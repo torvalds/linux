@@ -117,8 +117,6 @@ struct mtd_info {
 	u_int32_t writesize;
 
 	u_int32_t oobsize;   // Amount of OOB data per block (e.g. 16)
-	u_int32_t ecctype;
-	u_int32_t eccsize;
 
 	// Kernel-only stuff starts here.
 	char *name;
