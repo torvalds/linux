@@ -654,19 +654,40 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C686_4,	quirk_vi
  *	VIA bridges which have VLink
  */
 
-static const struct pci_device_id via_vlink_fixup_tbl[] = {
-	/* Internal devices need IRQ line routing, pre VLink */
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C686), 0 },
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_8231), 17 },
-	/* Devices with VLink */
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_8233_0), 17},
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_8233A), 17 },
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_8233C_0), 17 },
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_8235), 16 },
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_8237), 15 },
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_8237A), 15 },
-	{ 0, },
-};
+static int via_vlink_dev_lo = -1, via_vlink_dev_hi = 18;
+
+static void quirk_via_bridge(struct pci_dev *dev)
+{
+	/* See what bridge we have and find the device ranges */
+	switch (dev->device) {
+	case PCI_DEVICE_ID_VIA_82C686:
+		/* 82C686 is special */
+		via_vlink_dev_lo = 7;
+		via_vlink_dev_hi = 7;
+		break;
+	case PCI_DEVICE_ID_VIA_8237:
+	case PCI_DEVICE_ID_VIA_8237A:
+		via_vlink_dev_lo = 15;
+		break;
+	case PCI_DEVICE_ID_VIA_8235:
+		via_vlink_dev_lo = 16;
+		break;
+	case PCI_DEVICE_ID_VIA_8231:
+	case PCI_DEVICE_ID_VIA_8233_0:
+	case PCI_DEVICE_ID_VIA_8233A:
+	case PCI_DEVICE_ID_VIA_8233C_0:
+		via_vlink_dev_lo = 17;
+		break;
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C686,	quirk_via_bridge);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8231,		quirk_via_bridge);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8233_0,	quirk_via_bridge);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8233A,	quirk_via_bridge);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8233C_0,	quirk_via_bridge);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8235,		quirk_via_bridge);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237,		quirk_via_bridge);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237A,	quirk_via_bridge);
 
 /**
  *	quirk_via_vlink		-	VIA VLink IRQ number update
@@ -675,35 +696,20 @@ static const struct pci_device_id via_vlink_fixup_tbl[] = {
  *	If the device we are dealing with is on a PIC IRQ we need to
  *	ensure that the IRQ line register which usually is not relevant
  *	for PCI cards, is actually written so that interrupts get sent
- *	to the right place
+ *	to the right place.
+ *	We only do this on systems where a VIA south bridge was detected,
+ *	and only for VIA devices on the motherboard (see quirk_via_bridge
+ *	above).
  */
 
 static void quirk_via_vlink(struct pci_dev *dev)
 {
-	const struct pci_device_id *via_vlink_fixup;
-	static int dev_lo = -1, dev_hi = 18;
 	u8 irq, new_irq;
 
-	/* Check if we have VLink and cache the result */
-
-	/* Checked already - no */
-	if (dev_lo == -2)
+	/* Check if we have VLink at all */
+	if (via_vlink_dev_lo == -1)
 		return;
 
-	/* Not checked - see what bridge we have and find the device
-	   ranges */
-
-	if (dev_lo == -1) {
-		via_vlink_fixup = pci_find_present(via_vlink_fixup_tbl);
-		if (via_vlink_fixup == NULL) {
-			dev_lo = -2;
-			return;
-		}
-		dev_lo = via_vlink_fixup->driver_data;
-		/* 82C686 is special - 0/0 */
-		if (dev_lo == 0)
-			dev_hi = 0;
-	}
 	new_irq = dev->irq;
 
 	/* Don't quirk interrupts outside the legacy IRQ range */
@@ -711,8 +717,8 @@ static void quirk_via_vlink(struct pci_dev *dev)
 		return;
 
 	/* Internal device ? */
-	if (dev->bus->number != 0 || PCI_SLOT(dev->devfn) > dev_hi ||
-		PCI_SLOT(dev->devfn) < dev_lo)
+	if (dev->bus->number != 0 || PCI_SLOT(dev->devfn) > via_vlink_dev_hi ||
+	    PCI_SLOT(dev->devfn) < via_vlink_dev_lo)
 		return;
 
 	/* This is an internal VLink device on a PIC interrupt. The BIOS
