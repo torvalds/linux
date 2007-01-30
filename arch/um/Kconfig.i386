@@ -36,14 +36,14 @@ choice
 
 	So, if you do not know what to do here, say 'Default split'.
 
-	config HOST_VMSPLIT_3G
-		bool "Default split (3G/1G user/kernel host split)"
-	config HOST_VMSPLIT_3G_OPT
-		bool "3G/1G user/kernel host split (for full 1G low memory)"
-	config HOST_VMSPLIT_2G
-		bool "2G/2G user/kernel host split"
-	config HOST_VMSPLIT_1G
-		bool "1G/3G user/kernel host split"
+config HOST_VMSPLIT_3G
+	bool "Default split (3G/1G user/kernel host split)"
+config HOST_VMSPLIT_3G_OPT
+	bool "3G/1G user/kernel host split (for full 1G low memory)"
+config HOST_VMSPLIT_2G
+	bool "2G/2G user/kernel host split"
+config HOST_VMSPLIT_1G
+	bool "1G/3G user/kernel host split"
 endchoice
 
 config TOP_ADDR
