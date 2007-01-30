@@ -47,9 +47,6 @@
 
 /* ---------- SCSI Host glue ---------- */
 
-#define TO_SAS_TASK(_scsi_cmd)  ((void *)(_scsi_cmd)->host_scribble)
-#define ASSIGN_SAS_TASK(_sc, _t) do { (_sc)->host_scribble = (void *) _t; } while (0)
-
 static void sas_scsi_task_done(struct sas_task *task)
 {
 	struct task_status_struct *ts = &task->task_status;
@@ -1015,6 +1012,11 @@ void sas_task_abort(struct sas_task *task)
 		if (!del_timer(&task->timer))
 			return;
 		task->timer.function(task->timer.data);
+		return;
+	}
+
+	if (dev_is_sata(task->dev)) {
+		sas_ata_task_abort(task);
 		return;
 	}
 

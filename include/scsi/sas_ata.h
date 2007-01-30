@@ -36,4 +36,6 @@ static inline int dev_is_sata(struct domain_device *dev)
 int sas_ata_init_host_and_port(struct domain_device *found_dev,
 			       struct scsi_target *starget);
 
+void sas_ata_task_abort(struct sas_task *task);
+
 #endif /* _SAS_ATA_H_ */

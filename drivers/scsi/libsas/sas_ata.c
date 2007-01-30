@@ -30,6 +30,8 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_sas.h>
 #include "../scsi_sas_internal.h"
+#include "../scsi_transport_api.h"
+#include <scsi/scsi_eh.h>
 
 static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 {
@@ -91,6 +93,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct domain_device *dev;
 	struct task_status_struct *stat = &task->task_status;
 	struct ata_task_resp *resp = (struct ata_task_resp *)stat->buf;
+	struct sas_ha_struct *sas_ha;
 	enum ata_completion_errors ac;
 	unsigned long flags;
 
@@ -98,6 +101,7 @@ static void sas_ata_task_done(struct sas_task *task)
 		goto qc_already_gone;
 
 	dev = qc->ap->private_data;
+	sas_ha = dev->port->ha;
 
 	spin_lock_irqsave(dev->sata_dev.ap->lock, flags);
 	if (stat->stat == SAS_PROTO_RESPONSE || stat->stat == SAM_GOOD) {
@@ -123,6 +127,20 @@ static void sas_ata_task_done(struct sas_task *task)
 		ASSIGN_SAS_TASK(qc->scsicmd, NULL);
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(dev->sata_dev.ap->lock, flags);
+
+	/*
+	 * If the sas_task has an ata qc, a scsi_cmnd and the aborted
+	 * flag is set, then we must have come in via the libsas EH
+	 * functions.  When we exit this function, we need to put the
+	 * scsi_cmnd on the list of finished errors.  The ata_qc_complete
+	 * call cleans up the libata side of things but we're protected
+	 * from the scsi_cmnd going away because the scsi_cmnd is owned
+	 * by the EH, making libata's call to scsi_done a NOP.
+	 */
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (qc->scsicmd && task->task_state_flags & SAS_TASK_STATE_ABORTED)
+		scsi_eh_finish_cmd(qc->scsicmd, &sas_ha->eh_done_q);
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 qc_already_gone:
 	list_del_init(&task->list);
@@ -259,15 +277,18 @@ static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 		 * ought to abort the task.
 		 */
 		struct sas_task *task = qc->lldd_task;
-		struct domain_device *dev = qc->ap->private_data;
+		unsigned long flags;
 
 		qc->lldd_task = NULL;
 		if (task) {
+			/* Should this be a AT(API) device reset? */
+			spin_lock_irqsave(&task->task_state_lock, flags);
+			task->task_state_flags |= SAS_TASK_NEED_DEV_RESET;
+			spin_unlock_irqrestore(&task->task_state_lock, flags);
+
 			task->uldd_task = NULL;
 			__sas_task_abort(task);
 		}
-
-		sas_phy_reset(dev->port->phy, 1);
 	}
 }
 
@@ -368,4 +389,24 @@ int sas_ata_init_host_and_port(struct domain_device *found_dev,
 	found_dev->sata_dev.ap = ap;
 
 	return 0;
+}
+
+void sas_ata_task_abort(struct sas_task *task)
+{
+	struct ata_queued_cmd *qc = task->uldd_task;
+	struct completion *waiting;
+
+	/* Bounce SCSI-initiated commands to the SCSI EH */
+	if (qc->scsicmd) {
+		scsi_req_abort_cmd(qc->scsicmd);
+		scsi_schedule_eh(qc->scsicmd->device->host);
+		return;
+	}
+
+	/* Internal command, fake a timeout and complete. */
+	qc->flags &= ~ATA_QCFLAG_ACTIVE;
+	qc->flags |= ATA_QCFLAG_FAILED;
+	qc->err_mask |= AC_ERR_TIMEOUT;
+	waiting = qc->private_data;
+	complete(waiting);
 }
