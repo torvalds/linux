@@ -810,6 +810,8 @@ static void asd_init_lseq_mdp(struct asd_ha_struct *asd_ha,  int lseq)
 	/* No delay for the first NOTIFY to be sent to the attached target. */
 	asd_write_reg_word(asd_ha, LmSEQ_NOTIFY_TIMER_DOWN_COUNT(lseq),
 			   ASD_NOTIFY_DOWN_COUNT);
+	asd_write_reg_word(asd_ha, LmSEQ_NOTIFY_TIMER_INITIAL_COUNT(lseq),
+			   ASD_NOTIFY_DOWN_COUNT);
 
 	/* LSEQ Mode dependent, mode 0 and 1, page 1 setup. */
 	for (i = 0; i < 2; i++)	{
