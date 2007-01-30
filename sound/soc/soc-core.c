@@ -1234,7 +1234,7 @@ platform_err:
 		codec_dev->remove(pdev);
 
 cpu_dai_err:
-	for (i--; i > 0; i--) {
+	for (i--; i >= 0; i--) {
 		struct snd_soc_cpu_dai *cpu_dai = machine->dai_link[i].cpu_dai;
 		if (cpu_dai->remove)
 			cpu_dai->remove(pdev);
