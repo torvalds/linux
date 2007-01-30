@@ -55,12 +55,14 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 
 int dma_set_mask(struct device *dev, u64 mask);
 
-#define dma_sync_single_for_cpu(dev, addr, size, dir)	  do { } while (0)
-#define dma_sync_single_for_device(dev, addr, size, dir)  do { } while (0)
-#define dma_sync_single_range(dev, addr, off, size, dir)  do { } while (0)
-#define dma_sync_sg_for_cpu(dev, sg, nents, dir)	  do { } while (0)
-#define dma_sync_sg_for_device(dev, sg, nents, dir)	  do { } while (0)
-#define dma_cache_sync(dev, va, size, dir)		  do { } while (0)
+#define dma_sync_single_for_cpu(dev, addr, size, dir)	  ((void)0)
+#define dma_sync_single_for_device(dev, addr, size, dir)  ((void)0)
+#define dma_sync_single_range(dev, addr, off, size, dir)  ((void)0)
+#define dma_sync_sg_for_cpu(dev, sg, nents, dir)	  ((void)0)
+#define dma_sync_sg_for_device(dev, sg, nents, dir)	  ((void)0)
+#define dma_cache_sync(dev, va, size, dir)		  ((void)0)
+#define dma_sync_single_range_for_cpu(dev, addr, offset, size, dir)	((void)0)
+#define dma_sync_single_range_for_device(dev, addr, offset, size, dir)	((void)0)
 
 #define dma_get_cache_alignment()			  L1_CACHE_BYTES
 
