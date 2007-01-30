@@ -119,6 +119,8 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	qc->lldd_task = NULL;
+	if (qc->scsicmd)
+		ASSIGN_SAS_TASK(qc->scsicmd, NULL);
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(dev->sata_dev.ap->lock, flags);
 
@@ -184,6 +186,9 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		break;
 	}
 
+	if (qc->scsicmd)
+		ASSIGN_SAS_TASK(qc->scsicmd, task);
+
 	if (sas_ha->lldd_max_execute_num < 2)
 		res = i->dft->lldd_execute_task(task, 1, GFP_ATOMIC);
 	else
@@ -193,6 +198,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (res) {
 		SAS_DPRINTK("lldd_execute_task returned: %d\n", res);
 
+		if (qc->scsicmd)
+			ASSIGN_SAS_TASK(qc->scsicmd, NULL);
 		sas_free_task(task);
 		return AC_ERR_SYSTEM;
 	}
