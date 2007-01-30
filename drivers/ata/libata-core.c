@@ -1037,7 +1037,7 @@ static unsigned int ata_id_xfermask(const u16 *id)
 		 * the PIO timing number for the maximum. Turn it into
 		 * a mask.
 		 */
-		u8 mode = id[ATA_ID_OLD_PIO_MODES] & 0xFF;
+		u8 mode = (id[ATA_ID_OLD_PIO_MODES] >> 8) & 0xFF;
 		if (mode < 5)	/* Valid PIO range */
                 	pio_mask = (2 << mode) - 1;
 		else
