@@ -607,7 +607,7 @@ find_thread_for_addr (struct task_struct *child, unsigned long addr)
 	 */
  	list_for_each_safe(this, next, &current->children) {
 		p = list_entry(this, struct task_struct, sibling);
-		if (p->mm != mm)
+		if (p->tgid != child->tgid)
 			continue;
 		if (thread_matches(p, addr)) {
 			child = p;
