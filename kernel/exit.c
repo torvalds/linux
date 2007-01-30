@@ -396,7 +396,7 @@ void daemonize(const char *name, ...)
 	current->fs = fs;
 	atomic_inc(&fs->count);
 
-	put_and_finalize_nsproxy(current->nsproxy);
+	exit_task_namespaces(current);
 	current->nsproxy = init_task.nsproxy;
 	get_task_namespaces(current);
 
@@ -853,7 +853,6 @@ static void exit_notify(struct task_struct *tsk)
 fastcall NORET_TYPE void do_exit(long code)
 {
 	struct task_struct *tsk = current;
-	struct nsproxy *ns;
 	int group_dead;
 
 	profile_task_exit(tsk);
@@ -939,9 +938,8 @@ fastcall NORET_TYPE void do_exit(long code)
 
 	tsk->exit_code = code;
 	proc_exit_connector(tsk);
-	ns = preexit_task_namespaces(tsk);
 	exit_notify(tsk);
-	exit_task_namespaces(tsk, ns);
+	exit_task_namespaces(tsk);
 #ifdef CONFIG_NUMA
 	mpol_free(tsk->mempolicy);
 	tsk->mempolicy = NULL;

@@ -1265,7 +1265,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	return p;
 
 bad_fork_cleanup_namespaces:
-	put_and_finalize_nsproxy(p->nsproxy);
+	exit_task_namespaces(p);
 bad_fork_cleanup_keys:
 	exit_keys(p);
 bad_fork_cleanup_mm:
@@ -1711,7 +1711,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	}
 
 	if (new_nsproxy)
-		put_and_finalize_nsproxy(new_nsproxy);
+		put_nsproxy(new_nsproxy);
 
 bad_unshare_cleanup_ipc:
 	if (new_ipc)
