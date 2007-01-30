@@ -31,8 +31,6 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 
-#undef DEBUG
-
 #include <linux/hid.h>
 #include <linux/hid-debug.h>
 
@@ -253,7 +251,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 	field->hidinput = hidinput;
 
-#ifdef DEBUG
+#ifdef CONFIG_HID_DEBUG
 	printk(KERN_DEBUG "Mapping: ");
 	hid_resolv_usage(usage->hid);
 	printk(" ---> ");
@@ -690,7 +688,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 	return;
 
 ignore:
-#ifdef DEBUG
+#ifdef CONFIG_HID_DEBUG
 	printk("IGNORED\n");
 #endif
 	return;

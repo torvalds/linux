@@ -28,7 +28,6 @@
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
-//#include <linux/input.h>
 #include <linux/hid.h>
 
 struct hid_usage_entry {
