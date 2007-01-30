@@ -26,8 +26,9 @@
 
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
-#include <asm/ps3.h>
 #include <asm/lv1call.h>
+
+#include "platform.h"
 
 /* spu_management_ops */
 

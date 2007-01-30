@@ -18,8 +18,9 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <asm/ps3.h>
 #include <asm/lv1call.h>
+
+#include "platform.h"
 
 enum ps3_vendor_id {
 	PS3_VENDOR_ID_NONE = 0,

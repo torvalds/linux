@@ -22,7 +22,6 @@
 #include <linux/io.h>
 
 #include <asm/lmb.h>
-#include <asm/ps3.h>
 
 #include "platform.h"
 

@@ -25,9 +25,10 @@
 #include <linux/err.h>
 
 #include <asm/udbg.h>
-#include <asm/ps3.h>
 #include <asm/lv1call.h>
 #include <asm/firmware.h>
+
+#include "platform.h"
 
 #define dump_mmio_region(_a) _dump_mmio_region(_a, __func__, __LINE__)
 static void _dump_mmio_region(const struct ps3_mmio_region* r,
@@ -158,7 +159,7 @@ static int ps3_system_bus_remove(struct device *_dev)
 }
 
 struct bus_type ps3_system_bus_type = {
-        .name = "ps3_system_bus",
+	.name = "ps3_system_bus",
 	.match = ps3_system_bus_match,
 	.probe = ps3_system_bus_probe,
 	.remove = ps3_system_bus_remove,
