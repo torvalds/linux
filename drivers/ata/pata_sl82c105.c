@@ -139,13 +139,13 @@ static void sl82c105_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	switch(adev->dma_mode) {
 		case XFER_MW_DMA_0:
-			sl82c105_configure_piomode(ap, adev, 1);
+			sl82c105_configure_piomode(ap, adev, 0);
 			break;
 		case XFER_MW_DMA_1:
 			sl82c105_configure_piomode(ap, adev, 3);
 			break;
 		case XFER_MW_DMA_2:
-			sl82c105_configure_piomode(ap, adev, 3);
+			sl82c105_configure_piomode(ap, adev, 4);
 			break;
 		default:
 			BUG();
