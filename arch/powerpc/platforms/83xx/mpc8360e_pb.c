@@ -31,6 +31,7 @@
 #include <linux/initrd.h>
 
 #include <asm/of_device.h>
+#include <asm/of_platform.h>
 #include <asm/system.h>
 #include <asm/atomic.h>
 #include <asm/time.h>
