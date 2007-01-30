@@ -59,8 +59,6 @@
 #define DBELL_TID(x)		(*(u8 *)(x + DOORBELL_TID_OFFSET))
 #define DBELL_INF(x)		(*(u16 *)(x + DOORBELL_INFO_OFFSET))
 
-#define is_power_of_2(x)	(((x) & ((x) - 1)) == 0)
-
 struct rio_atmu_regs {
 	u32 rowtar;
 	u32 pad1;

@@ -44,6 +44,17 @@ int __ilog2_u64(u64 n)
 #endif
 
 /*
+ *  Determine whether some value is a power of two, where zero is
+ * *not* considered a power of two.
+ */
+
+static inline __attribute__((const))
+bool is_power_of_2(unsigned long n)
+{
+	return (n != 0 && ((n & (n - 1)) == 0));
+}
+
+/*
  * round up to nearest power of two
  */
 static inline __attribute__((const))
