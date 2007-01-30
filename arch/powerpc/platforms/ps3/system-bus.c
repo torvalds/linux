@@ -272,10 +272,29 @@ static void ps3_unmap_single(struct device *_dev, dma_addr_t dma_addr,
 static int ps3_map_sg(struct device *_dev, struct scatterlist *sg, int nents,
 	enum dma_data_direction direction)
 {
+	struct ps3_system_bus_device *dev = to_ps3_system_bus_device(_dev);
+	int i;
+
 #if defined(CONFIG_PS3_DYNAMIC_DMA)
 	BUG_ON("do");
+	return -EPERM;
+#else
+	for (i = 0; i < nents; i++, sg++) {
+		int result = ps3_dma_map(dev->d_region,
+			page_to_phys(sg->page) + sg->offset, sg->length,
+			&sg->dma_address);
+
+		if (result) {
+			pr_debug("%s:%d: ps3_dma_map failed (%d)\n",
+				__func__, __LINE__, result);
+			return -EINVAL;
+		}
+
+		sg->dma_length = sg->length;
+	}
+
+	return nents;
 #endif
-	return 0;
 }
 
 static void ps3_unmap_sg(struct device *_dev, struct scatterlist *sg,
@@ -288,7 +307,7 @@ static void ps3_unmap_sg(struct device *_dev, struct scatterlist *sg,
 
 static int ps3_dma_supported(struct device *_dev, u64 mask)
 {
-	return 1;
+	return mask >= DMA_32BIT_MASK;
 }
 
 static struct dma_mapping_ops ps3_dma_ops = {
