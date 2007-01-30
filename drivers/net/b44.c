@@ -757,7 +757,7 @@ static void b44_recycle_rx(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 		                             dest_idx * sizeof(dest_desc),
 		                             DMA_BIDIRECTIONAL);
 
-	pci_dma_sync_single_for_device(bp->pdev, src_desc->addr,
+	pci_dma_sync_single_for_device(bp->pdev, le32_to_cpu(src_desc->addr),
 				       RX_PKT_BUF_SZ,
 				       PCI_DMA_FROMDEVICE);
 }
