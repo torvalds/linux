@@ -1701,7 +1701,7 @@ irqreturn_t t1_interrupt(int irq, void *cookie)
 
 	writel(F_PL_INTR_SGE_DATA, adapter->regs + A_PL_CAUSE);
 
-	if (likely(responses_pending(adapter))
+	if (likely(responses_pending(adapter)))
 		work_done = process_responses(adapter, -1);
 	else
 		work_done = t1_slow_intr_handler(adapter);
