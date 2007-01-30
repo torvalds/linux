@@ -39,7 +39,7 @@ static inline void put_pid_ns(struct pid_namespace *ns)
 
 static inline struct task_struct *child_reaper(struct task_struct *tsk)
 {
-	return tsk->nsproxy->pid_ns->child_reaper;
+	return init_pid_ns.child_reaper;
 }
 
 #endif /* _LINUX_PID_NS_H */
