@@ -1125,7 +1125,9 @@ static int sdhci_resume (struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	pci_enable_device(pdev);
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
 
 	for (i = 0;i < chip->num_slots;i++) {
 		if (!chip->hosts[i])
