@@ -28,7 +28,7 @@ void vfp_testing_entry(void);
 void vfp_support_entry(void);
 
 void (*vfp_vector)(void) = vfp_testing_entry;
-union vfp_state *last_VFP_context;
+union vfp_state *last_VFP_context[NR_CPUS];
 
 /*
  * Dual-use variable.
@@ -41,13 +41,35 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 {
 	struct thread_info *thread = v;
 	union vfp_state *vfp;
+	__u32 cpu = thread->cpu;
 
 	if (likely(cmd == THREAD_NOTIFY_SWITCH)) {
+		u32 fpexc = fmrx(FPEXC);
+
+#ifdef CONFIG_SMP
+		/*
+		 * On SMP, if VFP is enabled, save the old state in
+		 * case the thread migrates to a different CPU. The
+		 * restoring is done lazily.
+		 */
+		if ((fpexc & FPEXC_ENABLE) && last_VFP_context[cpu]) {
+			vfp_save_state(last_VFP_context[cpu], fpexc);
+			last_VFP_context[cpu]->hard.cpu = cpu;
+		}
+		/*
+		 * Thread migration, just force the reloading of the
+		 * state on the new CPU in case the VFP registers
+		 * contain stale data.
+		 */
+		if (thread->vfpstate.hard.cpu != cpu)
+			last_VFP_context[cpu] = NULL;
+#endif
+
 		/*
 		 * Always disable VFP so we can lazily save/restore the
 		 * old state.
 		 */
-		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_ENABLE);
+		fmxr(FPEXC, fpexc & ~FPEXC_ENABLE);
 		return NOTIFY_DONE;
 	}
 
@@ -68,8 +90,8 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 	}
 
 	/* flush and release case: Per-thread VFP cleanup. */
-	if (last_VFP_context == vfp)
-		last_VFP_context = NULL;
+	if (last_VFP_context[cpu] == vfp)
+		last_VFP_context[cpu] = NULL;
 
 	return NOTIFY_DONE;
 }

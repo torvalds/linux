@@ -33,14 +33,14 @@
 #define			AT91_SDRAMC_NC_9	(1 << 0)
 #define			AT91_SDRAMC_NC_10	(2 << 0)
 #define			AT91_SDRAMC_NC_11	(3 << 0)
-#define 	AT91_SDRAMC_NR		(3 << 2)		/* Number of Row Bits */
+#define		AT91_SDRAMC_NR		(3 << 2)		/* Number of Row Bits */
 #define			AT91_SDRAMC_NR_11	(0 << 2)
 #define			AT91_SDRAMC_NR_12	(1 << 2)
 #define			AT91_SDRAMC_NR_13	(2 << 2)
-#define 	AT91_SDRAMC_NB		(1 << 4)		/* Number of Banks */
+#define		AT91_SDRAMC_NB		(1 << 4)		/* Number of Banks */
 #define			AT91_SDRAMC_NB_2	(0 << 4)
-#define 		AT91_SDRAMC_NB_4	(1 << 4)
-#define 	AT91_SDRAMC_CAS		(3 << 5)		/* CAS Latency */
+#define			AT91_SDRAMC_NB_4	(1 << 4)
+#define		AT91_SDRAMC_CAS		(3 << 5)		/* CAS Latency */
 #define			AT91_SDRAMC_CAS_1	(1 << 5)
 #define			AT91_SDRAMC_CAS_2	(2 << 5)
 #define			AT91_SDRAMC_CAS_3	(3 << 5)
@@ -110,10 +110,10 @@
 #define AT91_SMC_MODE(n)	(AT91_SMC + 0x0c + ((n)*0x10))	/* Mode Register for CS n */
 #define		AT91_SMC_READMODE	(1 <<  0)			/* Read Mode */
 #define		AT91_SMC_WRITEMODE	(1 <<  1)			/* Write Mode */
-#define		AT91_SMC_EXNWMODE	(3 <<  5)			/* NWAIT Mode */
-#define			AT91_SMC_EXNWMODE_DISABLE	(0 << 5)
-#define			AT91_SMC_EXNWMODE_FROZEN	(2 << 5)
-#define			AT91_SMC_EXNWMODE_READY		(3 << 5)
+#define		AT91_SMC_EXNWMODE	(3 <<  4)			/* NWAIT Mode */
+#define			AT91_SMC_EXNWMODE_DISABLE	(0 << 4)
+#define			AT91_SMC_EXNWMODE_FROZEN	(2 << 4)
+#define			AT91_SMC_EXNWMODE_READY		(3 << 4)
 #define		AT91_SMC_BAT		(1 <<  8)			/* Byte Access Type */
 #define			AT91_SMC_BAT_SELECT		(0 << 8)
 #define			AT91_SMC_BAT_WRITE		(1 << 8)
