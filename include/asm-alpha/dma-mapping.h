@@ -41,9 +41,9 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 #define dma_map_single(dev, va, size, dir)	virt_to_phys(va)
 #define dma_map_page(dev, page, off, size, dir)	(page_to_pa(page) + off)
 
-#define dma_unmap_single(dev, addr, size, dir)	do { } while (0)
-#define dma_unmap_page(dev, addr, size, dir)	do { } while (0)
-#define dma_unmap_sg(dev, sg, nents, dir)	do { } while (0)
+#define dma_unmap_single(dev, addr, size, dir)	((void)0)
+#define dma_unmap_page(dev, addr, size, dir)	((void)0)
+#define dma_unmap_sg(dev, sg, nents, dir)	((void)0)
 
 #define dma_mapping_error(addr)  (0)
 
