@@ -496,6 +496,13 @@ static struct resource pio3_resource[] = {
 DEFINE_DEV(pio, 3);
 DEV_CLK(mck, pio3, pba, 13);
 
+static struct resource pio4_resource[] = {
+	PBMEM(0xffe03800),
+	IRQ(17),
+};
+DEFINE_DEV(pio, 4);
+DEV_CLK(mck, pio4, pba, 14);
+
 void __init at32_add_system_devices(void)
 {
 	system_manager.eim_first_irq = EIM_IRQ_BASE;
@@ -509,6 +516,7 @@ void __init at32_add_system_devices(void)
 	platform_device_register(&pio1_device);
 	platform_device_register(&pio2_device);
 	platform_device_register(&pio3_device);
+	platform_device_register(&pio4_device);
 }
 
 /* --------------------------------------------------------------------
@@ -860,6 +868,7 @@ struct clk *at32_clock_list[] = {
 	&pio1_mck,
 	&pio2_mck,
 	&pio3_mck,
+	&pio4_mck,
 	&atmel_usart0_usart,
 	&atmel_usart1_usart,
 	&atmel_usart2_usart,
@@ -880,6 +889,7 @@ void __init at32_portmux_init(void)
 	at32_init_pio(&pio1_device);
 	at32_init_pio(&pio2_device);
 	at32_init_pio(&pio3_device);
+	at32_init_pio(&pio4_device);
 }
 
 void __init at32_clock_init(void)

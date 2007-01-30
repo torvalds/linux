@@ -19,6 +19,7 @@
 #include <asm/setup.h>
 #include <asm/arch/board.h>
 #include <asm/arch/init.h>
+#include <asm/arch/portmux.h>
 
 
 #define	SW2_DEFAULT		/* MMCI and UART_A available */
@@ -102,6 +103,28 @@ void __init setup_board(void)
 
 static int __init atstk1002_init(void)
 {
+	/*
+	 * ATSTK1000 uses 32-bit SDRAM interface. Reserve the
+	 * SDRAM-specific pins so that nobody messes with them.
+	 */
+	at32_reserve_pin(GPIO_PIN_PE(0));	/* DATA[16]	*/
+	at32_reserve_pin(GPIO_PIN_PE(1));	/* DATA[17]	*/
+	at32_reserve_pin(GPIO_PIN_PE(2));	/* DATA[18]	*/
+	at32_reserve_pin(GPIO_PIN_PE(3));	/* DATA[19]	*/
+	at32_reserve_pin(GPIO_PIN_PE(4));	/* DATA[20]	*/
+	at32_reserve_pin(GPIO_PIN_PE(5));	/* DATA[21]	*/
+	at32_reserve_pin(GPIO_PIN_PE(6));	/* DATA[22]	*/
+	at32_reserve_pin(GPIO_PIN_PE(7));	/* DATA[23]	*/
+	at32_reserve_pin(GPIO_PIN_PE(8));	/* DATA[24]	*/
+	at32_reserve_pin(GPIO_PIN_PE(9));	/* DATA[25]	*/
+	at32_reserve_pin(GPIO_PIN_PE(10));	/* DATA[26]	*/
+	at32_reserve_pin(GPIO_PIN_PE(11));	/* DATA[27]	*/
+	at32_reserve_pin(GPIO_PIN_PE(12));	/* DATA[28]	*/
+	at32_reserve_pin(GPIO_PIN_PE(13));	/* DATA[29]	*/
+	at32_reserve_pin(GPIO_PIN_PE(14));	/* DATA[30]	*/
+	at32_reserve_pin(GPIO_PIN_PE(15));	/* DATA[31]	*/
+	at32_reserve_pin(GPIO_PIN_PE(26));	/* SDCS		*/
+
 	at32_add_system_devices();
 
 #ifdef	SW2_DEFAULT
