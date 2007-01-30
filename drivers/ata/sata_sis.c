@@ -40,6 +40,7 @@
 #include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
+#include "libata.h"
 
 #define DRV_NAME	"sata_sis"
 #define DRV_VERSION	"0.7"
@@ -254,9 +255,6 @@ static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 
 static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	/* Provided by the PATA driver */
-	extern struct ata_port_info sis_info133;
-
 	static int printed_version;
 	struct ata_probe_ent *probe_ent = NULL;
 	int rc;

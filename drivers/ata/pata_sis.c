@@ -32,6 +32,7 @@
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 #include <linux/ata.h>
+#include "libata.h"
 
 #define DRV_NAME	"pata_sis"
 #define DRV_VERSION	"0.4.5"
@@ -781,7 +782,7 @@ static struct ata_port_info sis_info100_early = {
 	.pio_mask	= 0x1f,	/* pio0-4 */
 	.port_ops	= &sis_66_ops,
 };
-static struct ata_port_info sis_info133 = {
+struct ata_port_info sis_info133 = {
 	.sht		= &sis_sht,
 	.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 	.pio_mask	= 0x1f,	/* pio0-4 */
