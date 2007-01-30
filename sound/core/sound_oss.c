@@ -106,7 +106,7 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 	int cidx = SNDRV_MINOR_OSS_CARD(minor);
 	int track2 = -1;
 	int register1 = -1, register2 = -1;
-	struct device *carddev = NULL;
+	struct device *carddev = snd_card_get_device_link(card);
 
 	if (card && card->number >= 8)
 		return 0; /* ignore silently */
@@ -134,8 +134,6 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_DMMIDI1);
 		break;
 	}
-	if (card)
-		carddev = card->dev;
 	register1 = register_sound_special_device(f_ops, minor, carddev);
 	if (register1 != minor)
 		goto __end;
