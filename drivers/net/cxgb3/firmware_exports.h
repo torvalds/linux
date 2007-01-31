@@ -1,27 +1,33 @@
-/* 
- * ----------------------------------------------------------------------------
- * >>>>>>>>>>>>>>>>>>>>>>>>>>>>> COPYRIGHT NOTICE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
- * ----------------------------------------------------------------------------
- * Copyright 2004 (C) Chelsio Communications, Inc. (Chelsio)
+/*
+ * Copyright (c) 2004-2007 Chelsio, Inc. All rights reserved.
  *
- * Chelsio Communications, Inc. owns the sole copyright to this software.
- * You may not make a copy, you may not derive works herefrom, and you may
- * not distribute this work to others. Other restrictions of rights may apply
- * as well. This is unpublished, confidential information. All rights reserved.
- * This software contains confidential information and trade secrets of Chelsio
- * Communications, Inc. Use, disclosure, or reproduction is prohibited without
- * the prior express written permission of Chelsio Communications, Inc.
- * ----------------------------------------------------------------------------
- * >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Warranty <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
- * ----------------------------------------------------------------------------
- * CHELSIO MAKES NO WARRANTY OF ANY KIND WITH REGARD TO THE USE OF THIS
- * SOFTWARE, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
- * ----------------------------------------------------------------------------
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
  *
- * This is the firmware_exports.h header file, firmware interface defines.
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
  *
- * Written January 2005 by felix marti (felix@chelsio.com)
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 #ifndef _FIRMWARE_EXPORTS_H_
 #define _FIRMWARE_EXPORTS_H_
