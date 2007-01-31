@@ -2328,8 +2328,6 @@ static inline void tp_wr_indirect(struct adapter *adap, unsigned int addr,
 
 static void tp_config(struct adapter *adap, const struct tp_params *p)
 {
-	unsigned int v;
-
 	t3_write_reg(adap, A_TP_GLOBAL_CONFIG, F_TXPACINGENABLE | F_PATHMTU |
 		     F_IPCHECKSUMOFFLOAD | F_UDPCHECKSUMOFFLOAD |
 		     F_TCPCHECKSUMOFFLOAD | V_IPTTL(64));
@@ -2348,15 +2346,11 @@ static void tp_config(struct adapter *adap, const struct tp_params *p)
 			 adap->params.rev > 0 ? F_ENABLEESND : F_T3A_ENABLEESND,
 			 0);
 
-	v = t3_read_reg(adap, A_TP_PC_CONFIG);
-	v &= ~(F_ENABLEEPCMDAFULL | F_ENABLEOCSPIFULL);
-	t3_write_reg(adap, A_TP_PC_CONFIG, v | F_TXDEFERENABLE |
-		     F_MODULATEUNIONMODE | F_HEARBEATDACK |
-		     F_TXCONGESTIONMODE | F_RXCONGESTIONMODE);
-
-	v = t3_read_reg(adap, A_TP_PC_CONFIG2);
-	v &= ~F_CHDRAFULL;
-	t3_write_reg(adap, A_TP_PC_CONFIG2, v);
+	t3_set_reg_field(adap, A_TP_PC_CONFIG,
+			 F_ENABLEEPCMDAFULL | F_ENABLEOCSPIFULL,
+			 F_TXDEFERENABLE | F_HEARBEATDACK | F_TXCONGESTIONMODE |
+			 F_RXCONGESTIONMODE);
+	t3_set_reg_field(adap, A_TP_PC_CONFIG2, F_CHDRAFULL, 0);
 
 	if (adap->params.rev > 0) {
 		tp_wr_indirect(adap, A_TP_EGRESS_CONFIG, F_REWRITEFORCETOSIZE);
