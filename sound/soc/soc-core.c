@@ -77,6 +77,25 @@ static int pmdown_time = 5000;
 module_param(pmdown_time, int, 0);
 MODULE_PARM_DESC(pmdown_time, "DAPM stream powerdown time (msecs)");
 
+/*
+ * This function forces any delayed work to be queued and run.
+ */
+static int run_delayed_work(struct delayed_work *dwork)
+{
+	int ret;
+
+	/* cancel any work waiting to be queued. */
+	ret = cancel_delayed_work(dwork);
+
+	/* if there was any work waiting then we run it now and
+	 * wait for it's completion */
+	if (ret) {
+		schedule_delayed_work(dwork, 0);
+		flush_scheduled_work();
+	}
+	return ret;
+}
+
 #ifdef CONFIG_SND_SOC_AC97_BUS
 /* unregister ac97 codec */
 static int soc_ac97_dev_unregister(struct snd_soc_codec *codec)
@@ -1101,7 +1120,7 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 	}
 
 	/* close any waiting streams and save state */
-	flush_scheduled_work();
+	run_delayed_work(&socdev->delayed_work);
 	codec->suspend_dapm_state = codec->dapm_state;
 
 	for(i = 0; i < codec->num_dai; i++) {
@@ -1254,6 +1273,8 @@ static int soc_remove(struct platform_device *pdev)
 	struct snd_soc_machine *machine = socdev->machine;
 	struct snd_soc_platform *platform = socdev->platform;
 	struct snd_soc_codec_device *codec_dev = socdev->codec_dev;
+
+	run_delayed_work(&socdev->delayed_work);
 
 	if (platform->remove)
 		platform->remove(pdev);
