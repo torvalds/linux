@@ -29,8 +29,6 @@
  * the project's page is at http://www.linuxtv.org/dvb/
  */
 
-#include "budget.h"
-
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -38,6 +36,8 @@
 #include <linux/input.h>
 #include <linux/spinlock.h>
 #include <media/ir-common.h>
+
+#include "budget.h"
 
 #include "dvb_ca_en50221.h"
 #include "stv0299.h"
