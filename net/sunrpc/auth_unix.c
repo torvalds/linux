@@ -39,7 +39,8 @@ static struct rpc_credops	unix_credops;
 static struct rpc_auth *
 unx_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 {
-	dprintk("RPC: creating UNIX authenticator for client %p\n", clnt);
+	dprintk("RPC:       creating UNIX authenticator for client %p\n",
+			clnt);
 	if (atomic_inc_return(&unix_auth.au_count) == 0)
 		unix_cred_cache.nextgc = jiffies + (unix_cred_cache.expire >> 1);
 	return &unix_auth;
@@ -48,7 +49,7 @@ unx_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 static void
 unx_destroy(struct rpc_auth *auth)
 {
-	dprintk("RPC: destroying UNIX authenticator %p\n", auth);
+	dprintk("RPC:       destroying UNIX authenticator %p\n", auth);
 	rpcauth_free_credcache(auth);
 }
 
@@ -67,8 +68,8 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	struct unx_cred	*cred;
 	int		i;
 
-	dprintk("RPC:      allocating UNIX cred for uid %d gid %d\n",
-				acred->uid, acred->gid);
+	dprintk("RPC:       allocating UNIX cred for uid %d gid %d\n",
+			acred->uid, acred->gid);
 
 	if (!(cred = kmalloc(sizeof(*cred), GFP_KERNEL)))
 		return ERR_PTR(-ENOMEM);

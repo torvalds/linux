@@ -215,7 +215,8 @@ int cache_check(struct cache_detail *detail,
 		if (rv == -EAGAIN)
 			rv = -ENOENT;
 	} else if (rv == -EAGAIN || age > refresh_age/2) {
-		dprintk("Want update, refage=%ld, age=%ld\n", refresh_age, age);
+		dprintk("RPC:       Want update, refage=%ld, age=%ld\n",
+				refresh_age, age);
 		if (!test_and_set_bit(CACHE_PENDING, &h->flags)) {
 			switch (cache_make_upcall(detail, h)) {
 			case -EINVAL:

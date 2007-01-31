@@ -317,7 +317,7 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 	for (i = 0; i < serv->sv_nrpools; i++) {
 		struct svc_pool *pool = &serv->sv_pools[i];
 
-		dprintk("initialising pool %u for %s\n",
+		dprintk("svc: initialising pool %u for %s\n",
 				i, serv->sv_name);
 
 		pool->sp_id = i;
@@ -368,7 +368,7 @@ svc_destroy(struct svc_serv *serv)
 {
 	struct svc_sock	*svsk;
 
-	dprintk("RPC: svc_destroy(%s, %d)\n",
+	dprintk("svc: svc_destroy(%s, %d)\n",
 				serv->sv_program->pg_name,
 				serv->sv_nrthreads);
 
@@ -654,7 +654,7 @@ svc_register(struct svc_serv *serv, int proto, unsigned short port)
 			if (progp->pg_vers[i] == NULL)
 				continue;
 
-			dprintk("RPC: svc_register(%s, %s, %d, %d)%s\n",
+			dprintk("svc: svc_register(%s, %s, %d, %d)%s\n",
 					progp->pg_name,
 					proto == IPPROTO_UDP?  "udp" : "tcp",
 					port,
