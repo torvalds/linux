@@ -2463,6 +2463,7 @@ static int parse_audio_format_rates(struct snd_usb_audio *chip, struct audioform
 		 * build the rate table and bitmap flags
 		 */
 		int r, idx, c;
+		unsigned int nonzero_rates = 0;
 		/* this table corresponds to the SNDRV_PCM_RATE_XXX bit */
 		static unsigned int conv_rates[] = {
 			5512, 8000, 11025, 16000, 22050, 32000, 44100, 48000,
@@ -2485,6 +2486,7 @@ static int parse_audio_format_rates(struct snd_usb_audio *chip, struct audioform
 			    fp->altsetting == 5 && fp->maxpacksize == 392)
 				rate = 96000;
 			fp->rate_table[r] = rate;
+			nonzero_rates |= rate;
 			if (rate < fp->rate_min)
 				fp->rate_min = rate;
 			else if (rate > fp->rate_max)
@@ -2499,6 +2501,10 @@ static int parse_audio_format_rates(struct snd_usb_audio *chip, struct audioform
 			}
 			if (!found)
 				fp->needs_knot = 1;
+		}
+		if (!nonzero_rates) {
+			hwc_debug("All rates were zero. Skipping format!\n");
+			return -1;
 		}
 		if (fp->needs_knot)
 			fp->rates |= SNDRV_PCM_RATE_KNOT;
