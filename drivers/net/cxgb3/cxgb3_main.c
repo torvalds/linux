@@ -665,11 +665,8 @@ static int cxgb_up(struct adapter *adap)
 
 	if (!(adap->flags & FULL_INIT_DONE)) {
 		err = t3_check_fw_version(adap);
-		if (err) {
-			dev_err(&adap->pdev->dev,
-				"adapter FW is not compatible with driver\n");
+		if (err)
 			goto out;
-		}
 
 		err = init_dummy_netdevs(adap);
 		if (err)
@@ -1002,10 +999,14 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strcpy(info->bus_info, pci_name(adapter->pdev));
 	if (!fw_vers)
 		strcpy(info->fw_version, "N/A");
-	else
+	else {
 		snprintf(info->fw_version, sizeof(info->fw_version),
-			 "%s %u.%u", (fw_vers >> 24) ? "T" : "N",
-			 (fw_vers >> 12) & 0xfff, fw_vers & 0xfff);
+			 "%s %u.%u.%u",
+			 G_FW_VERSION_TYPE(fw_vers) ? "T" : "N",
+			 G_FW_VERSION_MAJOR(fw_vers),
+			 G_FW_VERSION_MINOR(fw_vers),
+			 G_FW_VERSION_MICRO(fw_vers));
+	}
 }
 
 static void get_strings(struct net_device *dev, u32 stringset, u8 * data)

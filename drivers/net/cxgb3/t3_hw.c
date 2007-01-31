@@ -826,6 +826,11 @@ static int t3_write_flash(struct adapter *adapter, unsigned int addr,
 	return 0;
 }
 
+enum fw_version_type {
+	FW_VERSION_N3,
+	FW_VERSION_T3
+};
+
 /**
  *	t3_get_fw_version - read the firmware version
  *	@adapter: the adapter
@@ -849,19 +854,21 @@ int t3_check_fw_version(struct adapter *adapter)
 {
 	int ret;
 	u32 vers;
+	unsigned int type, major, minor;
 
 	ret = t3_get_fw_version(adapter, &vers);
 	if (ret)
 		return ret;
 
-	/* Minor 0xfff means the FW is an internal development-only version. */
-	if ((vers & 0xfff) == 0xfff)
+	type = G_FW_VERSION_TYPE(vers);
+	major = G_FW_VERSION_MAJOR(vers);
+	minor = G_FW_VERSION_MINOR(vers);
+
+	if (type == FW_VERSION_T3 && major == 3 && minor == 1)
 		return 0;
 
-	if (vers == 0x1002009)
-		return 0;
-
-	CH_ERR(adapter, "found wrong FW version, driver needs version 2.9\n");
+	CH_ERR(adapter, "found wrong FW version(%u.%u), "
+	       "driver needs version 3.1\n", major, minor);
 	return -EINVAL;
 }
 
