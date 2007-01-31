@@ -2199,14 +2199,12 @@ static irqreturn_t t3b_intr_napi(int irq, void *cookie)
 	if (likely(map & 1)) {
 		dev = adap->sge.qs[0].netdev;
 
-		BUG_ON(napi_is_scheduled(dev));
 		if (likely(__netif_rx_schedule_prep(dev)))
 			__netif_rx_schedule(dev);
 	}
 	if (map & 2) {
 		dev = adap->sge.qs[1].netdev;
 
-		BUG_ON(napi_is_scheduled(dev));
 		if (likely(__netif_rx_schedule_prep(dev)))
 			__netif_rx_schedule(dev);
 	}
