@@ -616,25 +616,23 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 
 	case 9:
 		longhaul_version = TYPE_POWERSAVER;
-		numscales=32;
+		numscales = 32;
+		memcpy(clock_ratio,
+		       nehemiah_clock_ratio,
+		       sizeof(nehemiah_clock_ratio));
+		memcpy(eblcr_table, nehemiah_eblcr, sizeof(nehemiah_eblcr));
 		switch (c->x86_mask) {
 		case 0 ... 1:
 			cpu_model = CPU_NEHEMIAH;
 			cpuname = "C3 'Nehemiah A' [C5N]";
-			memcpy (clock_ratio, nehemiah_a_clock_ratio, sizeof(nehemiah_a_clock_ratio));
-			memcpy (eblcr_table, nehemiah_a_eblcr, sizeof(nehemiah_a_eblcr));
 			break;
 		case 2 ... 4:
 			cpu_model = CPU_NEHEMIAH;
 			cpuname = "C3 'Nehemiah B' [C5N]";
-			memcpy (clock_ratio, nehemiah_b_clock_ratio, sizeof(nehemiah_b_clock_ratio));
-			memcpy (eblcr_table, nehemiah_b_eblcr, sizeof(nehemiah_b_eblcr));
 			break;
 		case 5 ... 15:
 			cpu_model = CPU_NEHEMIAH_C;
 			cpuname = "C3 'Nehemiah C' [C5N]";
-			memcpy (clock_ratio, nehemiah_c_clock_ratio, sizeof(nehemiah_c_clock_ratio));
-			memcpy (eblcr_table, nehemiah_c_eblcr, sizeof(nehemiah_c_eblcr));
 			break;
 		}
 		break;
