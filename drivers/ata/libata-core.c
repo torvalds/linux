@@ -59,6 +59,9 @@
 
 #include "libata.h"
 
+#define DRV_VERSION	"2.10"	/* must be exactly four chars */
+
+
 /* debounce timing parameters in msecs { interval, duration, timeout } */
 const unsigned long sata_deb_timing_normal[]		= {   5,  100, 2000 };
 const unsigned long sata_deb_timing_hotplug[]		= {  25,  500, 2000 };

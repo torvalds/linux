@@ -29,7 +29,6 @@
 #define __LIBATA_H__
 
 #define DRV_NAME	"libata"
-#define DRV_VERSION	"2.00"	/* must be exactly four chars */
 
 struct ata_scsi_args {
 	struct ata_device	*dev;

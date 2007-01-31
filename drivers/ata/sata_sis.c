@@ -42,6 +42,7 @@
 #include <linux/libata.h>
 #include "libata.h"
 
+#undef DRV_NAME		/* already defined in libata.h, for libata-core */
 #define DRV_NAME	"sata_sis"
 #define DRV_VERSION	"0.7"
 
