@@ -824,8 +824,13 @@ int av7110_init_v4l(struct av7110 *av7110)
 
 int av7110_exit_v4l(struct av7110 *av7110)
 {
+	struct saa7146_dev* dev = av7110->dev;
+
 	saa7146_unregister_device(&av7110->v4l_dev, av7110->dev);
 	saa7146_unregister_device(&av7110->vbi_dev, av7110->dev);
+
+	saa7146_vv_release(dev);
+
 	return 0;
 }
 
