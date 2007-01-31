@@ -18,7 +18,7 @@
 #include <linux/mtd/compatmac.h>
 
 extern int onenand_do_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
-			       size_t *retlen, u_char *buf);
+			       size_t *retlen, u_char *buf, mtd_oob_mode_t mode);
 
 /**
  * check_short_pattern - [GENERIC] check if a pattern is in the buffer
@@ -91,7 +91,7 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 			/* No need to read pages fully,
 			 * just read required OOB bytes */
 			ret = onenand_do_read_oob(mtd, from + j * mtd->writesize + bd->offs,
-						  readlen, &retlen, &buf[0]);
+						  readlen, &retlen, &buf[0], MTD_OOB_PLACE);
 
 			/* If it is a initial bad block, just ignore it */
 			if (ret && !(ret & ONENAND_CTRL_LOAD))
