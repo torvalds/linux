@@ -48,10 +48,32 @@ struct smc_config {
 	unsigned int	nwe_controlled:1;
 
 	/*
+	 * 0: NWAIT is disabled
+	 * 1: Reserved
+	 * 2: NWAIT is frozen mode
+	 * 3: NWAIT in ready mode
+	 */
+	unsigned int	nwait_mode:2;
+
+	/*
 	 * 0: Byte select access type
 	 * 1: Byte write access type
 	 */
 	unsigned int	byte_write:1;
+
+	/*
+	 * Number of clock cycles before data is released after
+	 * the rising edge of the read controlling signal
+	 *
+	 * Total cycles from SMC is tdf_cycles + 1
+	 */
+	unsigned int	tdf_cycles:4;
+
+	/*
+	 * 0: TDF optimization disabled
+	 * 1: TDF optimization enabled
+	 */
+	unsigned int	tdf_mode:1;
 };
 
 extern int smc_set_configuration(int cs, const struct smc_config *config);
