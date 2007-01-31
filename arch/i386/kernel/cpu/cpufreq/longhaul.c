@@ -51,6 +51,7 @@
 #define	CPU_EZRA	3
 #define	CPU_EZRA_T	4
 #define	CPU_NEHEMIAH	5
+#define	CPU_NEHEMIAH_C	6
 
 /* Flags */
 #define USE_ACPI_C3		(1 << 1)
@@ -349,66 +350,46 @@ static int guess_fsb(int mult)
 
 static int __init longhaul_get_ranges(void)
 {
-	unsigned long invalue;
-	unsigned int ezra_t_multipliers[32]= {
-			90,  30,  40, 100,  55,  35,  45,  95,
-			50,  70,  80,  60, 120,  75,  85,  65,
-			-1, 110, 120,  -1, 135, 115, 125, 105,
-			130, 150, 160, 140,  -1, 155,  -1, 145 };
 	unsigned int j, k = 0;
-	union msr_longhaul longhaul;
-	int mult = 0;
+	int mult;
 
+	/* Get current frequency */
+	mult = longhaul_get_cpu_mult();
+	if (mult == -1) {
+		printk(KERN_INFO PFX "Invalid (reserved) multiplier!\n");
+		return -EINVAL;
+	}
+	fsb = guess_fsb(mult);
+	if (fsb == 0) {
+		printk(KERN_INFO PFX "Invalid (reserved) FSB!\n");
+		return -EINVAL;
+	}
+	/* Get max multiplier - as we always did.
+	 * Longhaul MSR is usefull only when voltage scaling is enabled.
+	 * C3 is booting at max anyway. */
+	maxmult = mult;
+	/* Get min multiplier */
 	switch (longhaul_version) {
 	case TYPE_LONGHAUL_V1:
 	case TYPE_LONGHAUL_V2:
-		/* Ugh, Longhaul v1 didn't have the min/max MSRs.
-		   Assume min=3.0x & max = whatever we booted at. */
 		minmult = 30;
-		maxmult = mult = longhaul_get_cpu_mult();
 		break;
 
 	case TYPE_POWERSAVER:
 		/* Ezra-T */
-		if (cpu_model==CPU_EZRA_T) {
+		if (cpu_model == CPU_EZRA_T)
 			minmult = 30;
-			rdmsrl (MSR_VIA_LONGHAUL, longhaul.val);
-			invalue = longhaul.bits.MaxMHzBR;
-			if (longhaul.bits.MaxMHzBR4)
-				invalue += 16;
-			maxmult = mult = ezra_t_multipliers[invalue];
-			break;
-		}
-
 		/* Nehemiah */
-		if (cpu_model==CPU_NEHEMIAH) {
-			rdmsrl (MSR_VIA_LONGHAUL, longhaul.val);
-
-			/*
-			 * TODO: This code works, but raises a lot of questions.
-			 * - Some Nehemiah's seem to have broken Min/MaxMHzBR's.
-			 *   We get around this by using a hardcoded multiplier of 4.0x
-			 *   for the minimimum speed, and the speed we booted up at for the max.
-			 *   This is done in longhaul_get_cpu_mult() by reading the EBLCR register.
-			 * - According to some VIA documentation EBLCR is only
-			 *   in pre-Nehemiah C3s. How this still works is a mystery.
-			 *   We're possibly using something undocumented and unsupported,
-			 *   But it works, so we don't grumble.
-			 */
-			minmult=40;
-			maxmult = mult = longhaul_get_cpu_mult();
-			break;
-		}
+		else if (cpu_model == CPU_NEHEMIAH)
+			minmult = 50;
+		/* Nehemiah C */
+		else if (cpu_model == CPU_NEHEMIAH_C)
+			minmult = 40;
+		break;
 	}
-	fsb = guess_fsb(mult);
 
 	dprintk ("MinMult:%d.%dx MaxMult:%d.%dx\n",
 		 minmult/10, minmult%10, maxmult/10, maxmult%10);
-
-	if (fsb == 0) {
-		printk (KERN_INFO PFX "Invalid (reserved) FSB!\n");
-		return -EINVAL;
-	}
 
 	highest_speed = calc_speed(maxmult);
 	lowest_speed = calc_speed(minmult);
@@ -634,21 +615,23 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		break;
 
 	case 9:
-		cpu_model = CPU_NEHEMIAH;
 		longhaul_version = TYPE_POWERSAVER;
 		numscales=32;
 		switch (c->x86_mask) {
 		case 0 ... 1:
+			cpu_model = CPU_NEHEMIAH;
 			cpuname = "C3 'Nehemiah A' [C5N]";
 			memcpy (clock_ratio, nehemiah_a_clock_ratio, sizeof(nehemiah_a_clock_ratio));
 			memcpy (eblcr_table, nehemiah_a_eblcr, sizeof(nehemiah_a_eblcr));
 			break;
 		case 2 ... 4:
+			cpu_model = CPU_NEHEMIAH;
 			cpuname = "C3 'Nehemiah B' [C5N]";
 			memcpy (clock_ratio, nehemiah_b_clock_ratio, sizeof(nehemiah_b_clock_ratio));
 			memcpy (eblcr_table, nehemiah_b_eblcr, sizeof(nehemiah_b_eblcr));
 			break;
 		case 5 ... 15:
+			cpu_model = CPU_NEHEMIAH_C;
 			cpuname = "C3 'Nehemiah C' [C5N]";
 			memcpy (clock_ratio, nehemiah_c_clock_ratio, sizeof(nehemiah_c_clock_ratio));
 			memcpy (eblcr_table, nehemiah_c_eblcr, sizeof(nehemiah_c_eblcr));
