@@ -85,6 +85,10 @@ typedef enum {
  *		mode = MTD_OOB_PLACE)
  * @datbuf:	data buffer - if NULL only oob data are read/written
  * @oobbuf:	oob data buffer
+ *
+ * Note, it is allowed to read more then one OOB area at one go, but not write.
+ * The interface assumes that the OOB write requests program only one page's
+ * OOB area.
  */
 struct mtd_oob_ops {
 	mtd_oob_mode_t	mode;
