@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/timer.h>
 #include <linux/cache.h>
+#include <linux/mutex.h>
 #include "t3cdev.h"
 #include <asm/semaphore.h>
 #include <asm/bitops.h>
