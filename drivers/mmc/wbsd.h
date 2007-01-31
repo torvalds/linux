@@ -154,7 +154,6 @@ struct wbsd_host
 
 	struct scatterlist*	cur_sg;		/* Current SG entry */
 	unsigned int		num_sg;		/* Number of entries left */
-	void*			mapped_sg;	/* vaddr of mapped sg */
 
 	unsigned int		offset;		/* Offset into current entry */
 	unsigned int		remain;		/* Data left in curren entry */

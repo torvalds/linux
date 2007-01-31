@@ -272,16 +272,9 @@ static inline int wbsd_next_sg(struct wbsd_host *host)
 	return host->num_sg;
 }
 
-static inline char *wbsd_kmap_sg(struct wbsd_host *host)
+static inline char *wbsd_sg_to_buffer(struct wbsd_host *host)
 {
-	host->mapped_sg = kmap_atomic(host->cur_sg->page, KM_BIO_SRC_IRQ) +
-		host->cur_sg->offset;
-	return host->mapped_sg;
-}
-
-static inline void wbsd_kunmap_sg(struct wbsd_host *host)
-{
-	kunmap_atomic(host->mapped_sg, KM_BIO_SRC_IRQ);
+	return page_address(host->cur_sg->page) + host->cur_sg->offset;
 }
 
 static inline void wbsd_sg_to_dma(struct wbsd_host *host, struct mmc_data *data)
@@ -302,12 +295,11 @@ static inline void wbsd_sg_to_dma(struct wbsd_host *host, struct mmc_data *data)
 	 * we do not transfer too much.
 	 */
 	for (i = 0; i < len; i++) {
-		sgbuf = kmap_atomic(sg[i].page, KM_BIO_SRC_IRQ) + sg[i].offset;
+		sgbuf = page_address(sg[i].page) + sg[i].offset;
 		if (size < sg[i].length)
 			memcpy(dmabuf, sgbuf, size);
 		else
 			memcpy(dmabuf, sgbuf, sg[i].length);
-		kunmap_atomic(sgbuf, KM_BIO_SRC_IRQ);
 		dmabuf += sg[i].length;
 
 		if (size < sg[i].length)
@@ -347,7 +339,7 @@ static inline void wbsd_dma_to_sg(struct wbsd_host *host, struct mmc_data *data)
 	 * we do not transfer too much.
 	 */
 	for (i = 0; i < len; i++) {
-		sgbuf = kmap_atomic(sg[i].page, KM_BIO_SRC_IRQ) + sg[i].offset;
+		sgbuf = page_address(sg[i].page) + sg[i].offset;
 		if (size < sg[i].length)
 			memcpy(sgbuf, dmabuf, size);
 		else
@@ -497,7 +489,7 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 	if (data->bytes_xfered == host->size)
 		return;
 
-	buffer = wbsd_kmap_sg(host) + host->offset;
+	buffer = wbsd_sg_to_buffer(host) + host->offset;
 
 	/*
 	 * Drain the fifo. This has a tendency to loop longer
@@ -526,17 +518,13 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 			/*
 			 * Transfer done?
 			 */
-			if (data->bytes_xfered == host->size) {
-				wbsd_kunmap_sg(host);
+			if (data->bytes_xfered == host->size)
 				return;
-			}
 
 			/*
 			 * End of scatter list entry?
 			 */
 			if (host->remain == 0) {
-				wbsd_kunmap_sg(host);
-
 				/*
 				 * Get next entry. Check if last.
 				 */
@@ -554,12 +542,10 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 					return;
 				}
 
-				buffer = wbsd_kmap_sg(host);
+				buffer = wbsd_sg_to_buffer(host);
 			}
 		}
 	}
-
-	wbsd_kunmap_sg(host);
 
 	/*
 	 * This is a very dirty hack to solve a
@@ -583,7 +569,7 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 	if (data->bytes_xfered == host->size)
 		return;
 
-	buffer = wbsd_kmap_sg(host) + host->offset;
+	buffer = wbsd_sg_to_buffer(host) + host->offset;
 
 	/*
 	 * Fill the fifo. This has a tendency to loop longer
@@ -612,17 +598,13 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 			/*
 			 * Transfer done?
 			 */
-			if (data->bytes_xfered == host->size) {
-				wbsd_kunmap_sg(host);
+			if (data->bytes_xfered == host->size)
 				return;
-			}
 
 			/*
 			 * End of scatter list entry?
 			 */
 			if (host->remain == 0) {
-				wbsd_kunmap_sg(host);
-
 				/*
 				 * Get next entry. Check if last.
 				 */
@@ -640,12 +622,10 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 					return;
 				}
 
-				buffer = wbsd_kmap_sg(host);
+				buffer = wbsd_sg_to_buffer(host);
 			}
 		}
 	}
-
-	wbsd_kunmap_sg(host);
 
 	/*
 	 * The controller stops sending interrupts for
