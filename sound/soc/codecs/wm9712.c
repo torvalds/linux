@@ -692,10 +692,8 @@ static int wm9712_soc_probe(struct platform_device *pdev)
 	codec->reg_cache =
 		kzalloc(sizeof(u16) * ARRAY_SIZE(wm9712_reg), GFP_KERNEL);
 	if (codec->reg_cache == NULL) {
-		kfree(codec->ac97);
-		kfree(socdev->codec);
-		socdev->codec = NULL;
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto cache_err;
 	}
 	memcpy(codec->reg_cache, wm9712_reg, sizeof(u16) * ARRAY_SIZE(wm9712_reg));
 	codec->reg_cache_size = sizeof(u16) * ARRAY_SIZE(wm9712_reg);
@@ -712,8 +710,10 @@ static int wm9712_soc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
 	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
-	if (ret < 0)
-		goto err;
+	if (ret < 0) {
+		printk(KERN_ERR "wm9712: failed to register AC97 codec\n");
+		goto codec_err;
+	}
 
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
@@ -733,8 +733,10 @@ static int wm9712_soc_probe(struct platform_device *pdev)
 	wm9712_add_controls(codec);
 	wm9712_add_widgets(codec);
 	ret = snd_soc_register_card(socdev);
-	if (ret < 0)
+	if (ret < 0) {
+		printk(KERN_ERR "wm9712: failed to register card\n");
 		goto reset_err;
+	}
 
 	return 0;
 
@@ -744,8 +746,10 @@ reset_err:
 pcm_err:
 	snd_soc_free_ac97_codec(codec);
 
-err:
-	kfree(socdev->codec->reg_cache);
+codec_err:
+	kfree(codec->reg_cache);
+
+cache_err:
 	kfree(socdev->codec);
 	socdev->codec = NULL;
 	return ret;
