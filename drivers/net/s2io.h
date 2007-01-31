@@ -616,10 +616,8 @@ typedef struct ring_info {
 	 */
 	rx_curr_get_info_t rx_curr_get_info;
 
-#ifndef CONFIG_S2IO_NAPI
 	/* Index to the absolute position of the put pointer of Rx ring */
 	int put_pos;
-#endif
 
 	/* Buffer Address store. */
 	buffAdd_t **ba;
@@ -738,13 +736,11 @@ typedef struct lro {
 /* Structure representing one instance of the NIC */
 struct s2io_nic {
 	int rxd_mode;
-#ifdef CONFIG_S2IO_NAPI
 	/*
 	 * Count of packets to be processed in a given iteration, it will be indicated
 	 * by the quota field of the device structure when NAPI is enabled.
 	 */
 	int pkts_to_process;
-#endif
 	struct net_device *dev;
 	mac_info_t mac_control;
 	struct config_param config;
@@ -775,9 +771,7 @@ struct s2io_nic {
 	atomic_t rx_bufs_left[MAX_RX_RINGS];
 
 	spinlock_t tx_lock;
-#ifndef CONFIG_S2IO_NAPI
 	spinlock_t put_lock;
-#endif
 
 #define PROMISC     1
 #define ALL_MULTI   2
@@ -985,9 +979,7 @@ static void s2io_tasklet(unsigned long dev_addr);
 static void s2io_set_multicast(struct net_device *dev);
 static int rx_osm_handler(ring_info_t *ring_data, RxD_t * rxdp);
 static void s2io_link(nic_t * sp, int link);
-#if defined(CONFIG_S2IO_NAPI)
 static int s2io_poll(struct net_device *dev, int *budget);
-#endif
 static void s2io_init_pci(nic_t * sp);
 static int s2io_set_mac_addr(struct net_device *dev, u8 * addr);
 static void s2io_alarm_handle(unsigned long data);
