@@ -113,7 +113,7 @@ gss_mech_register(struct gss_api_mech *gm)
 	spin_lock(&registered_mechs_lock);
 	list_add(&gm->gm_list, &registered_mechs);
 	spin_unlock(&registered_mechs_lock);
-	dprintk("RPC:      registered gss mechanism %s\n", gm->gm_name);
+	dprintk("RPC:       registered gss mechanism %s\n", gm->gm_name);
 	return 0;
 }
 
@@ -125,7 +125,7 @@ gss_mech_unregister(struct gss_api_mech *gm)
 	spin_lock(&registered_mechs_lock);
 	list_del(&gm->gm_list);
 	spin_unlock(&registered_mechs_lock);
-	dprintk("RPC:      unregistered gss mechanism %s\n", gm->gm_name);
+	dprintk("RPC:       unregistered gss mechanism %s\n", gm->gm_name);
 	gss_mech_free(gm);
 }
 
@@ -298,7 +298,7 @@ gss_unwrap(struct gss_ctx	*ctx_id,
 u32
 gss_delete_sec_context(struct gss_ctx	**context_handle)
 {
-	dprintk("RPC:      gss_delete_sec_context deleting %p\n",
+	dprintk("RPC:       gss_delete_sec_context deleting %p\n",
 			*context_handle);
 
 	if (!*context_handle)
