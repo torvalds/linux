@@ -520,25 +520,6 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 		/* ioctls to allow direct acces to the NT100x registers */
 		case VIDIOC_DBG_G_REGISTER:
-		{
-			struct v4l2_register *reg = arg;
-			int errCode;
-
-			if (reg->i2c_id != 0)
-				return -EINVAL;
-			/* NT100x has a 8-bit register space */
-			errCode = usbvision_read_reg(usbvision, reg->reg&0xff);
-			if (errCode < 0) {
-				err("%s: VIDIOC_DBG_G_REGISTER failed: error %d", __FUNCTION__, errCode);
-			}
-			else {
-				reg->val=(unsigned char)errCode;
-				PDEBUG(DBG_IOCTL, "VIDIOC_DBG_G_REGISTER reg=0x%02X, value=0x%02X",
-							(unsigned int)reg->reg, reg->val);
-				errCode = 0; // No error
-			}
-			return errCode;
-		}
 		case VIDIOC_DBG_S_REGISTER:
 		{
 			struct v4l2_register *reg = arg;
@@ -548,15 +529,22 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 				return -EINVAL;
 			if (!capable(CAP_SYS_ADMIN))
 				return -EPERM;
-			errCode = usbvision_write_reg(usbvision, reg->reg&0xff, reg->val);
+			/* NT100x has a 8-bit register space */
+			if (cmd == VIDIOC_DBG_G_REGISTER)
+				errCode = usbvision_read_reg(usbvision, reg->reg&0xff);
+			else
+				errCode = usbvision_write_reg(usbvision, reg->reg&0xff, reg->val);
 			if (errCode < 0) {
-				err("%s: VIDIOC_DBG_S_REGISTER failed: error %d", __FUNCTION__, errCode);
+				err("%s: VIDIOC_DBG_%c_REGISTER failed: error %d", __FUNCTION__,
+				    cmd == VIDIOC_DBG_G_REGISTER ? 'G' : 'S', errCode);
+				return errCode;
 			}
-			else {
-				PDEBUG(DBG_IOCTL, "VIDIOC_DBG_S_REGISTER reg=0x%02X, value=0x%02X",
-							(unsigned int)reg->reg, reg->val);
-				errCode = 0;
-			}
+			if (cmd == VIDIOC_DBG_S_REGISTER)
+				reg->val = (u8)errCode;
+
+			PDEBUG(DBG_IOCTL, "VIDIOC_DBG_%c_REGISTER reg=0x%02X, value=0x%02X",
+			       cmd == VIDIOC_DBG_G_REGISTER ? 'G' : 'S',
+			       (unsigned int)reg->reg, reg->val);
 			return 0;
 		}
 #endif

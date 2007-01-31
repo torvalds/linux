@@ -1457,7 +1457,9 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_DBG_G_REGISTER:
 	{
 		struct v4l2_register *p=arg;
-		if (vfd->vidioc_g_register)
+		if (!capable(CAP_SYS_ADMIN))
+			ret=-EPERM;
+		else if (vfd->vidioc_g_register)
 			ret=vfd->vidioc_g_register(file, fh, p);
 		break;
 	}

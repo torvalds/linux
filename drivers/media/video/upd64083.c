@@ -140,26 +140,18 @@ static int upd64083_command(struct i2c_client *client, unsigned int cmd, void *a
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	case VIDIOC_DBG_G_REGISTER:
-	{
-		struct v4l2_register *reg = arg;
-
-		if (reg->i2c_id != I2C_DRIVERID_UPD64083)
-			return -EINVAL;
-		reg->val = upd64083_read(client, reg->reg & 0xff);
-		break;
-	}
-
 	case VIDIOC_DBG_S_REGISTER:
 	{
 		struct v4l2_register *reg = arg;
-		u8 addr = reg->reg & 0xff;
-		u8 val = reg->val & 0xff;
 
 		if (reg->i2c_id != I2C_DRIVERID_UPD64083)
 			return -EINVAL;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		upd64083_write(client, addr, val);
+		if (cmd == VIDIOC_DBG_G_REGISTER)
+			reg->val = upd64083_read(client, reg->reg & 0xff);
+		else
+			upd64083_write(client, reg->reg & 0xff, reg->val & 0xff);
 		break;
 	}
 #endif

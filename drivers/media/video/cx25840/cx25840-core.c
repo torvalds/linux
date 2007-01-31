@@ -629,15 +629,6 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 	/* ioctls to allow direct access to the
 	 * cx25840 registers for testing */
 	case VIDIOC_DBG_G_REGISTER:
-	{
-		struct v4l2_register *reg = arg;
-
-		if (reg->i2c_id != I2C_DRIVERID_CX25840)
-			return -EINVAL;
-		reg->val = cx25840_read(client, reg->reg & 0x0fff);
-		break;
-	}
-
 	case VIDIOC_DBG_S_REGISTER:
 	{
 		struct v4l2_register *reg = arg;
@@ -646,7 +637,10 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 			return -EINVAL;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		cx25840_write(client, reg->reg & 0x0fff, reg->val & 0xff);
+		if (cmd == VIDIOC_DBG_G_REGISTER)
+			reg->val = cx25840_read(client, reg->reg & 0x0fff);
+		else
+			cx25840_write(client, reg->reg & 0x0fff, reg->val & 0xff);
 		break;
 	}
 #endif
