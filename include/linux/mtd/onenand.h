@@ -63,7 +63,6 @@ struct onenand_bufferram {
  *			partly be set to inform onenand_scan about
  * @erase_shift:	[INTERN] number of address bits in a block
  * @page_shift:		[INTERN] number of address bits in a page
- * @ppb_shift:		[INTERN] number of address bits in a pages per block
  * @page_mask:		[INTERN] a page per block mask
  * @bufferram_index:	[INTERN] BufferRAM index
  * @bufferram:		[INTERN] BufferRAM info
@@ -103,7 +102,6 @@ struct onenand_chip {
 
 	unsigned int		erase_shift;
 	unsigned int		page_shift;
-	unsigned int		ppb_shift;	/* Pages per block shift */
 	unsigned int		page_mask;
 
 	unsigned int		bufferram_index;

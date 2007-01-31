@@ -1966,13 +1966,12 @@ static int onenand_probe(struct mtd_info *mtd)
 	/* The data buffer size is equal to page size */
 	mtd->writesize = this->read_word(this->base + ONENAND_REG_DATA_BUFFER_SIZE);
 	mtd->oobsize = mtd->writesize >> 5;
-	/* Pagers per block is always 64 in OneNAND */
+	/* Pages per a block are always 64 in OneNAND */
 	mtd->erasesize = mtd->writesize << 6;
 
 	this->erase_shift = ffs(mtd->erasesize) - 1;
 	this->page_shift = ffs(mtd->writesize) - 1;
-	this->ppb_shift = (this->erase_shift - this->page_shift);
-	this->page_mask = (mtd->erasesize / mtd->writesize) - 1;
+	this->page_mask = (1 << (this->erase_shift - this->page_shift)) - 1;
 
 	/* REVIST: Multichip handling */
 
