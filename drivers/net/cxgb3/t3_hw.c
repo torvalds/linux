@@ -1181,7 +1181,6 @@ static int t3_handle_intr_status(struct adapter *adapter, unsigned int reg,
 static void pci_intr_handler(struct adapter *adapter)
 {
 	static const struct intr_info pcix1_intr_info[] = {
-		{ F_PEXERR, "PCI PEX error", -1, 1 },
 		{F_MSTDETPARERR, "PCI master detected parity error", -1, 1},
 		{F_SIGTARABT, "PCI signaled target abort", -1, 1},
 		{F_RCVTARABT, "PCI received target abort", -1, 1},
@@ -1218,6 +1217,7 @@ static void pci_intr_handler(struct adapter *adapter)
 static void pcie_intr_handler(struct adapter *adapter)
 {
 	static const struct intr_info pcie_intr_info[] = {
+		{F_PEXERR, "PCI PEX error", -1, 1},
 		{F_UNXSPLCPLERRR,
 		 "PCI unexpected split completion DMA read error", -1, 1},
 		{F_UNXSPLCPLERRC,
