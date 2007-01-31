@@ -327,7 +327,7 @@ static int __init init_ck804xrom(void)
 	pdev = NULL;
 
 	for(id = ck804xrom_pci_tbl; id->vendor; id++) {
-		pdev = pci_find_device(id->vendor, id->device, NULL);
+		pdev = pci_get_device(id->vendor, id->device, NULL);
 		if (pdev)
 			break;
 	}
