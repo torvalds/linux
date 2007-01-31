@@ -793,7 +793,8 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 	data->task.tk_priority = flush_task_priority(how);
 	data->task.tk_cookie = (unsigned long)inode;
 
-	dprintk("NFS: %4d initiated write call (req %s/%Ld, %u bytes @ offset %Lu)\n",
+	dprintk("NFS: %5u initiated write call "
+		"(req %s/%Ld, %u bytes @ offset %Lu)\n",
 		data->task.tk_pid,
 		inode->i_sb->s_id,
 		(long long)NFS_FILEID(inode),
@@ -1075,7 +1076,7 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 	struct nfs_writeres	*resp = &data->res;
 	int status;
 
-	dprintk("NFS: %4d nfs_writeback_done (status %d)\n",
+	dprintk("NFS: %5u nfs_writeback_done (status %d)\n",
 		task->tk_pid, task->tk_status);
 
 	/*
@@ -1191,7 +1192,7 @@ static void nfs_commit_rpcsetup(struct list_head *head,
 	data->task.tk_priority = flush_task_priority(how);
 	data->task.tk_cookie = (unsigned long)inode;
 	
-	dprintk("NFS: %4d initiated commit call\n", data->task.tk_pid);
+	dprintk("NFS: %5u initiated commit call\n", data->task.tk_pid);
 }
 
 /*
@@ -1232,7 +1233,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 	struct nfs_write_data	*data = calldata;
 	struct nfs_page		*req;
 
-        dprintk("NFS: %4d nfs_commit_done (status %d)\n",
+        dprintk("NFS: %5u nfs_commit_done (status %d)\n",
                                 task->tk_pid, task->tk_status);
 
 	/* Call the NFS version-specific code */
