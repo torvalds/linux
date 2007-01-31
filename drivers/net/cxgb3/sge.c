@@ -1198,6 +1198,14 @@ static void restart_ctrlq(unsigned long data)
 		     F_SELEGRCNTX | V_EGRCNTX(q->cntxt_id));
 }
 
+/*
+ * Send a management message through control queue 0
+ */
+int t3_mgmt_tx(struct adapter *adap, struct sk_buff *skb)
+{
+	return ctrl_xmit(adap, &adap->sge.qs[0].txq[TXQ_CTRL], skb);
+}
+
 /**
  *	write_ofld_wr - write an offload work request
  *	@adap: the adapter

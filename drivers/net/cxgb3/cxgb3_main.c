@@ -649,6 +649,37 @@ static void init_port_mtus(struct adapter *adapter)
 	t3_write_reg(adapter, A_TP_MTU_PORT_TABLE, mtus);
 }
 
+static void send_pktsched_cmd(struct adapter *adap, int sched, int qidx, int lo,
+			      int hi, int port)
+{
+	struct sk_buff *skb;
+	struct mngt_pktsched_wr *req;
+
+	skb = alloc_skb(sizeof(*req), GFP_KERNEL | __GFP_NOFAIL);
+	req = (struct mngt_pktsched_wr *)skb_put(skb, sizeof(*req));
+	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_MNGT));
+	req->mngt_opcode = FW_MNGTOPCODE_PKTSCHED_SET;
+	req->sched = sched;
+	req->idx = qidx;
+	req->min = lo;
+	req->max = hi;
+	req->binding = port;
+	t3_mgmt_tx(adap, skb);
+}
+
+static void bind_qsets(struct adapter *adap)
+{
+	int i, j;
+
+	for_each_port(adap, i) {
+		const struct port_info *pi = adap2pinfo(adap, i);
+
+		for (j = 0; j < pi->nqsets; ++j)
+			send_pktsched_cmd(adap, 1, pi->first_qset + j, -1,
+					  -1, i);
+	}
+}
+
 /**
  *	cxgb_up - enable the adapter
  *	@adapter: adapter being enabled
@@ -708,6 +739,11 @@ static int cxgb_up(struct adapter *adap)
 
 	t3_sge_start(adap);
 	t3_intr_enable(adap);
+
+	if ((adap->flags & (USING_MSIX | QUEUES_BOUND)) == USING_MSIX)
+		bind_qsets(adap);
+	adap->flags |= QUEUES_BOUND;
+
 out:
 	return err;
 irq_err:
@@ -1830,34 +1866,18 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 		break;
 	}
 	case CHELSIO_SET_PKTSCHED:{
-		struct sk_buff *skb;
 		struct ch_pktsched_params p;
-		struct mngt_pktsched_wr *req;
 
-		if (!(adapter->flags & FULL_INIT_DONE))
-			return -EIO;	/* uP must be up and running */
+		if (!capable(CAP_NET_ADMIN))
+				return -EPERM;
+		if (!adapter->open_device_map)
+				return -EAGAIN;	/* uP and SGE must be running */
 		if (copy_from_user(&p, useraddr, sizeof(p)))
-			return -EFAULT;
-		skb = alloc_skb(sizeof(*req), GFP_KERNEL);
-		if (!skb)
-			return -ENOMEM;
-		req =
-			(struct mngt_pktsched_wr *)skb_put(skb,
-							sizeof(*req));
-		req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_MNGT));
-		req->mngt_opcode = FW_MNGTOPCODE_PKTSCHED_SET;
-		req->sched = p.sched;
-		req->idx = p.idx;
-		req->min = p.min;
-		req->max = p.max;
-		req->binding = p.binding;
-		printk(KERN_INFO
-			"pktsched: sched %u idx %u min %u max %u binding %u\n",
-			req->sched, req->idx, req->min, req->max,
-			req->binding);
-		skb->priority = 1;
-		offload_tx(&adapter->tdev, skb);
+				return -EFAULT;
+		send_pktsched_cmd(adapter, p.sched, p.idx, p.min, p.max,
+				  p.binding);
 		break;
+			
 	}
 	default:
 		return -EOPNOTSUPP;
