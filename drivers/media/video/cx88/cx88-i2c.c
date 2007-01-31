@@ -145,6 +145,7 @@ void cx88_call_i2c_clients(struct cx88_core *core, unsigned int cmd, void *arg)
 	if (0 != core->i2c_rc)
 		return;
 
+#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 	if ( (core->dvbdev) && (core->dvbdev->dvb.frontend) ) {
 		if (core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl)
 			core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl(core->dvbdev->dvb.frontend, 1);
@@ -154,6 +155,7 @@ void cx88_call_i2c_clients(struct cx88_core *core, unsigned int cmd, void *arg)
 		if (core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl)
 			core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl(core->dvbdev->dvb.frontend, 0);
 	} else
+#endif
 		i2c_clients_command(&core->i2c_adap, cmd, arg);
 }
 

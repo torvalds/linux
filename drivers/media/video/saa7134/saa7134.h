@@ -41,7 +41,9 @@
 #include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 #include <media/video-buf-dvb.h>
+#endif
 
 #ifndef TRUE
 # define TRUE (1==1)
@@ -532,9 +534,11 @@ struct saa7134_dev {
 	struct work_struct         empress_workqueue;
 	int                        empress_started;
 
+#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 	/* SAA7134_MPEG_DVB only */
 	struct videobuf_dvb        dvb;
 	int (*original_demod_sleep)(struct dvb_frontend* fe);
+#endif
 };
 
 /* ----------------------------------------------------------- */

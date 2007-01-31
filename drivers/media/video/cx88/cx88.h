@@ -31,7 +31,9 @@
 #include <media/video-buf.h>
 #include <media/cx2341x.h>
 #include <media/audiochip.h>
+#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 #include <media/video-buf-dvb.h>
+#endif
 
 #include "btcx-risc.h"
 #include "cx88-reg.h"
@@ -313,9 +315,11 @@ struct cx88_core {
 	unsigned int               tuner_formats;
 
 	/* config info -- dvb */
+#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 	struct dvb_pll_desc        *pll_desc;
 	unsigned int               pll_addr;
 	int 			   (*prev_set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
+#endif
 
 	/* state info */
 	struct task_struct         *kthread;
@@ -460,12 +464,14 @@ struct cx8802_dev {
 	int                        width;
 	int                        height;
 
+#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 	/* for dvb only */
 	struct videobuf_dvb        dvb;
 	void*                      fe_handle;
 	int                        (*fe_release)(void *handle);
 
 	void			   *card_priv;
+#endif
 	/* for switching modulation types */
 	unsigned char              ts_gen_cntrl;
 

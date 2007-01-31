@@ -39,11 +39,6 @@
 #include "pwc-uncompress.h"
 #include <media/pwc-ioctl.h>
 
-/* Turn some debugging options on/off */
-#ifndef CONFIG_PWC_DEBUG
-#define CONFIG_PWC_DEBUG 1
-#endif
-
 /* Version block */
 #define PWC_MAJOR	10
 #define PWC_MINOR	0
@@ -76,7 +71,7 @@
 #define PWC_DEBUG_TRACE(fmt, args...) PWC_DEBUG(TRACE, fmt, ##args)
 
 
-#if CONFIG_PWC_DEBUG
+#ifdef CONFIG_USB_PWC_DEBUG
 
 #define PWC_DEBUG_LEVEL	(PWC_DEBUG_LEVEL_MODULE)
 
@@ -270,7 +265,7 @@ extern "C" {
 #endif
 
 /* Global variables */
-#if CONFIG_PWC_DEBUG
+#ifdef CONFIG_USB_PWC_DEBUG
 extern int pwc_trace;
 #endif
 extern int pwc_mbufs;

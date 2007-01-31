@@ -14,7 +14,3 @@ obj-$(CONFIG_VIDEO_SAA7134_DVB) += saa7134-dvb.o
 EXTRA_CFLAGS += -Idrivers/media/video
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -Idrivers/media/dvb/frontends
-
-extra-cflags-$(CONFIG_VIDEO_BUF_DVB) += -DHAVE_VIDEO_BUF_DVB=1
-
-EXTRA_CFLAGS += $(extra-cflags-y) $(extra-cflags-m)
