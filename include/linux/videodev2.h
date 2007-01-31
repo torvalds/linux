@@ -1276,8 +1276,8 @@ struct v4l2_streamparm
 
 /* VIDIOC_DBG_G_REGISTER and VIDIOC_DBG_S_REGISTER */
 struct v4l2_register {
+	__u64 reg;
 	__u32 i2c_id; /* I2C driver ID of the I2C chip, or 0 for the host */
-	__u32 reg;
 	__u32 val;
 };
 

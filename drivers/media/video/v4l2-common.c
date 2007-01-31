@@ -754,15 +754,17 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 				p->id,p->index,p->name);
 		break;
 	}
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	case VIDIOC_DBG_G_REGISTER:
 	case VIDIOC_DBG_S_REGISTER:
 	{
 		struct v4l2_register *p=arg;
-		printk ("%s: i2c_id=%d, reg=%d, val=%d\n", s,
-				p->i2c_id,p->reg,p->val);
+		printk ("%s: i2c_id=%d, reg=%llu, val=%u\n", s,
+				p->i2c_id,(unsigned long long)p->reg,p->val);
 
 		break;
 	}
+#endif
 	case VIDIOC_REQBUFS:
 	{
 		struct v4l2_requestbuffers *p=arg;
