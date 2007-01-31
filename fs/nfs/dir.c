@@ -637,7 +637,7 @@ int nfs_fsync_dir(struct file *filp, struct dentry *dentry, int datasync)
  * In the case it has, we assume that the dentries are untrustworthy
  * and may need to be looked up again.
  */
-static inline int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
+static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 {
 	if (IS_ROOT(dentry))
 		return 1;
@@ -650,6 +650,12 @@ static inline int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
 {
 	dentry->d_fsdata = (void *)verf;
+}
+
+static void nfs_refresh_verifier(struct dentry * dentry, unsigned long verf)
+{
+	if (time_after(verf, (unsigned long)dentry->d_fsdata))
+		nfs_set_verifier(dentry, verf);
 }
 
 /*
@@ -785,7 +791,7 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 		goto out_bad;
 
 	nfs_renew_times(dentry);
-	nfs_set_verifier(dentry, verifier);
+	nfs_refresh_verifier(dentry, verifier);
  out_valid:
 	unlock_kernel();
 	dput(parent);
@@ -1085,7 +1091,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	verifier = nfs_save_change_attribute(dir);
 	ret = nfs4_open_revalidate(dir, dentry, openflags, nd);
 	if (!ret)
-		nfs_set_verifier(dentry, verifier);
+		nfs_refresh_verifier(dentry, verifier);
 	unlock_kernel();
 out:
 	dput(parent);
@@ -1159,9 +1165,12 @@ static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 		dentry = alias;
 	}
 
-out_renew:
 	nfs_renew_times(dentry);
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
+	return dentry;
+out_renew:
+	nfs_renew_times(dentry);
+	nfs_refresh_verifier(dentry, nfs_save_change_attribute(dir));
 	return dentry;
 }
 
@@ -1700,7 +1709,7 @@ out:
 	if (!error) {
 		d_move(old_dentry, new_dentry);
 		nfs_renew_times(new_dentry);
-		nfs_set_verifier(new_dentry, nfs_save_change_attribute(new_dir));
+		nfs_refresh_verifier(new_dentry, nfs_save_change_attribute(new_dir));
 	}
 
 	/* new dentry created? */
