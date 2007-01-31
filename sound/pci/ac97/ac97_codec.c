@@ -990,6 +990,7 @@ static int snd_ac97_free(struct snd_ac97 *ac97)
 	if (ac97) {
 #ifdef CONFIG_SND_AC97_POWER_SAVE
 		cancel_delayed_work(&ac97->power_work);
+		flush_scheduled_work();
 #endif
 		snd_ac97_proc_done(ac97);
 		if (ac97->bus)
@@ -2415,6 +2416,10 @@ void snd_ac97_suspend(struct snd_ac97 *ac97)
 		return;
 	if (ac97->build_ops->suspend)
 		ac97->build_ops->suspend(ac97);
+#ifdef CONFIG_SND_AC97_POWER_SAVE
+	cancel_delayed_work(&ac97->power_work);
+	flush_scheduled_work();
+#endif
 	snd_ac97_powerdown(ac97);
 }
 

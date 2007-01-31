@@ -66,6 +66,7 @@ static void snd_ak4114_free(struct ak4114 *chip)
 {
 	chip->init = 1;	/* don't schedule new work */
 	mb();
+	cancel_delayed_work(&chip->work);
 	flush_scheduled_work();
 	kfree(chip);
 }
@@ -97,6 +98,7 @@ int snd_ak4114_create(struct snd_card *card,
 	chip->read = read;
 	chip->write = write;
 	chip->private_data = private_data;
+	INIT_DELAYED_WORK(&chip->work, ak4114_stats);
 
 	for (reg = 0; reg < 7; reg++)
 		chip->regmap[reg] = pgm[reg];
@@ -149,7 +151,6 @@ void snd_ak4114_reinit(struct ak4114 *chip)
 	reg_write(chip, AK4114_REG_PWRDN, old | AK4114_RST | AK4114_PWN);
 	/* bring up statistics / event queing */
 	chip->init = 0;
-	INIT_DELAYED_WORK(&chip->work, ak4114_stats);
 	schedule_delayed_work(&chip->work, HZ / 10);
 }
 
