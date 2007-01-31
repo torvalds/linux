@@ -30,6 +30,8 @@
 #undef SUCCESS
 #define SUCCESS 0
 #define FAILURE -1
+#define S2IO_MINUS_ONE 0xFFFFFFFFFFFFFFFFULL
+#define S2IO_MAX_PCI_CONFIG_SPACE_REINIT 100
 
 #define CHECKBIT(value, nbit) (value & (1 << nbit))
 
@@ -537,9 +539,9 @@ typedef struct _RxD_block {
 
 #define SIZE_OF_BLOCK	4096
 
-#define RXD_MODE_1	0
-#define RXD_MODE_3A	1
-#define RXD_MODE_3B	2
+#define RXD_MODE_1	0 /* One Buffer mode */
+#define RXD_MODE_3A	1 /* Three Buffer mode */
+#define RXD_MODE_3B	2 /* Two Buffer mode */
 
 /* Structure to hold virtual addresses of Buf0 and Buf1 in
  * 2buf mode. */
@@ -849,8 +851,9 @@ struct s2io_nic {
 	spinlock_t	rx_lock;
 	atomic_t	isr_cnt;
 	u64 *ufo_in_band_v;
-#define VPD_PRODUCT_NAME_LEN 50
-	u8  product_name[VPD_PRODUCT_NAME_LEN];
+#define VPD_STRING_LEN 80
+	u8  product_name[VPD_STRING_LEN];
+	u8  serial_num[VPD_STRING_LEN];
 };
 
 #define RESET_ERROR 1;
@@ -974,11 +977,13 @@ static void tx_intr_handler(fifo_info_t *fifo_data);
 static void alarm_intr_handler(struct s2io_nic *sp);
 
 static int s2io_starter(void);
+static void s2io_closer(void);
 static void s2io_tx_watchdog(struct net_device *dev);
 static void s2io_tasklet(unsigned long dev_addr);
 static void s2io_set_multicast(struct net_device *dev);
 static int rx_osm_handler(ring_info_t *ring_data, RxD_t * rxdp);
 static void s2io_link(nic_t * sp, int link);
+static void s2io_reset(nic_t * sp);
 static int s2io_poll(struct net_device *dev, int *budget);
 static void s2io_init_pci(nic_t * sp);
 static int s2io_set_mac_addr(struct net_device *dev, u8 * addr);
@@ -990,13 +995,17 @@ s2io_msix_ring_handle(int irq, void *dev_id);
 static irqreturn_t
 s2io_msix_fifo_handle(int irq, void *dev_id);
 static irqreturn_t s2io_isr(int irq, void *dev_id);
-static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag);
+static int verify_xena_quiescence(nic_t *sp);
 static const struct ethtool_ops netdev_ethtool_ops;
 static void s2io_set_link(struct work_struct *work);
 static int s2io_set_swapper(nic_t * sp);
 static void s2io_card_down(nic_t *nic);
 static int s2io_card_up(nic_t *nic);
 static int get_xena_rev_id(struct pci_dev *pdev);
+static int wait_for_cmd_complete(void *addr, u64 busy_bit);
+static int s2io_add_isr(nic_t * sp);
+static void s2io_rem_isr(nic_t * sp);
+
 static void restore_xmsi_data(nic_t *nic);
 
 static int s2io_club_tcp_session(u8 *buffer, u8 **tcp, u32 *tcp_len, lro_t **lro, RxD_t *rxdp, nic_t *sp);

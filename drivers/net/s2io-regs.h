@@ -300,6 +300,7 @@ typedef struct _XENA_dev_config {
 	u64 gpio_control;
 #define GPIO_CTRL_GPIO_0		BIT(8)
 	u64 misc_control;
+#define FAULT_BEHAVIOUR			BIT(0)
 #define EXT_REQ_EN			BIT(1)
 #define MISC_LINK_STABILITY_PRD(val)   vBIT(val,29,3)
 
