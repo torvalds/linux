@@ -1311,12 +1311,13 @@ UNUSUAL_DEV(  0x0fce, 0xd008, 0x0000, 0x0000,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_NO_WP_DETECT ),
 
-/* Reported by Jan Mate <mate@fiit.stuba.sk> */
+/* Reported by Jan Mate <mate@fiit.stuba.sk>
+ * and by Soeren Sonnenburg <kernel@nn7.de> */
 UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"P990i",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY ),
+		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
 
 /* Reported by Emmanuel Vasilakis <evas@forthnet.gr> */
 UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,
