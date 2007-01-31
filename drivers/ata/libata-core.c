@@ -1540,6 +1540,8 @@ int ata_dev_configure(struct ata_device *dev)
 	const u16 *id = dev->id;
 	unsigned int xfer_mask;
 	char revbuf[7];		/* XYZ-99\0 */
+	char fwrevbuf[ATA_ID_FW_REV_LEN+1];
+	char modelbuf[ATA_ID_PROD_LEN+1];
 	int rc;
 
 	if (!ata_dev_enabled(dev) && ata_msg_info(ap)) {
@@ -1594,6 +1596,16 @@ int ata_dev_configure(struct ata_device *dev)
 
 		dev->n_sectors = ata_id_n_sectors(id);
 
+		/* SCSI only uses 4-char revisions, dump full 8 chars from ATA */
+		ata_id_c_string(dev->id, fwrevbuf, ATA_ID_FW_REV_OFS,
+				sizeof(fwrevbuf));
+
+		ata_id_c_string(dev->id, modelbuf, ATA_ID_PROD_OFS,
+				sizeof(modelbuf));
+
+		if (dev->id[59] & 0x100)
+			dev->multi_count = dev->id[59] & 0xff;
+
 		if (ata_id_has_lba(id)) {
 			const char *lba_desc;
 			char ncq_desc[20];
@@ -1613,13 +1625,16 @@ int ata_dev_configure(struct ata_device *dev)
 			ata_dev_config_ncq(dev, ncq_desc, sizeof(ncq_desc));
 
 			/* print device info to dmesg */
-			if (ata_msg_drv(ap) && print_info)
-				ata_dev_printk(dev, KERN_INFO, "%s, "
-					"max %s, %Lu sectors: %s %s\n",
-					revbuf,
-					ata_mode_string(xfer_mask),
+			if (ata_msg_drv(ap) && print_info) {
+				ata_dev_printk(dev, KERN_INFO,
+					"%s: %s, %s, max %s\n",
+					revbuf, modelbuf, fwrevbuf,
+					ata_mode_string(xfer_mask));
+				ata_dev_printk(dev, KERN_INFO,
+					"%Lu sectors, multi %u: %s %s\n",
 					(unsigned long long)dev->n_sectors,
-					lba_desc, ncq_desc);
+					dev->multi_count, lba_desc, ncq_desc);
+			}
 		} else {
 			/* CHS */
 
@@ -1636,22 +1651,17 @@ int ata_dev_configure(struct ata_device *dev)
 			}
 
 			/* print device info to dmesg */
-			if (ata_msg_drv(ap) && print_info)
-				ata_dev_printk(dev, KERN_INFO, "%s, "
-					"max %s, %Lu sectors: CHS %u/%u/%u\n",
-					revbuf,
-					ata_mode_string(xfer_mask),
-					(unsigned long long)dev->n_sectors,
-					dev->cylinders, dev->heads,
-					dev->sectors);
-		}
-
-		if (dev->id[59] & 0x100) {
-			dev->multi_count = dev->id[59] & 0xff;
-			if (ata_msg_drv(ap) && print_info)
+			if (ata_msg_drv(ap) && print_info) {
 				ata_dev_printk(dev, KERN_INFO,
-					"ata%u: dev %u multi count %u\n",
-					ap->id, dev->devno, dev->multi_count);
+					"%s: %s, %s, max %s\n",
+					revbuf,	modelbuf, fwrevbuf,
+					ata_mode_string(xfer_mask));
+				ata_dev_printk(dev, KERN_INFO, 
+					"%Lu sectors, multi %u, CHS %u/%u/%u\n",
+					(unsigned long long)dev->n_sectors,
+					dev->multi_count, dev->cylinders,
+					dev->heads, dev->sectors);
+			}
 		}
 
 		dev->cdb_len = 16;
