@@ -15,7 +15,7 @@
 
 #define TBD 0
 
-typedef struct _XENA_dev_config {
+struct XENA_dev_config {
 /* Convention: mHAL_XXX is mask, vHAL_XXX is value */
 
 /* General Control-Status Registers */
@@ -852,9 +852,9 @@ typedef struct _XENA_dev_config {
 #define SPI_CONTROL_DONE		BIT(6)
 	u64 spi_data;
 #define SPI_DATA_WRITE(data,len)	vBIT(data,0,len)
-} XENA_dev_config_t;
+};
 
-#define XENA_REG_SPACE	sizeof(XENA_dev_config_t)
+#define XENA_REG_SPACE	sizeof(struct XENA_dev_config)
 #define	XENA_EEPROM_SPACE (0x01 << 11)
 
 #endif				/* _REGS_H */
