@@ -171,7 +171,7 @@ static void pxamci_start_cmd(struct pxamci_host *host, struct mmc_command *cmd, 
 
 #define RSP_TYPE(x)	((x) & ~(MMC_RSP_BUSY|MMC_RSP_OPCODE))
 	switch (RSP_TYPE(mmc_resp_type(cmd))) {
-	case RSP_TYPE(MMC_RSP_R1): /* r1, r1b, r6 */
+	case RSP_TYPE(MMC_RSP_R1): /* r1, r1b, r6, r7 */
 		cmdat |= CMDAT_RESP_SHORT;
 		break;
 	case RSP_TYPE(MMC_RSP_R3):

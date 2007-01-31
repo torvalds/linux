@@ -459,7 +459,8 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 		tbl = kmalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
 				   phb->node);
 		iommu_table_setparms(phb, dn, tbl);
-		dev->dev.archdata.dma_data = iommu_init_table(tbl, phb->node);
+		PCI_DN(dn)->iommu_table = iommu_init_table(tbl, phb->node);
+		dev->dev.archdata.dma_data = PCI_DN(dn)->iommu_table;
 		return;
 	}
 

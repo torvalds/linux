@@ -24,12 +24,13 @@
 #define MAX_I2O_CONTROLLERS	32
 
 #include <linux/ioctl.h>
+#include <linux/types.h>
 
 /*
  * I2O Control IOCTLs and structures
  */
 #define I2O_MAGIC_NUMBER	'i'
-#define I2OGETIOPS		_IOR(I2O_MAGIC_NUMBER,0,u8[MAX_I2O_CONTROLLERS])
+#define I2OGETIOPS		_IOR(I2O_MAGIC_NUMBER,0,__u8[MAX_I2O_CONTROLLERS])
 #define I2OHRTGET		_IOWR(I2O_MAGIC_NUMBER,1,struct i2o_cmd_hrtlct)
 #define I2OLCTGET		_IOWR(I2O_MAGIC_NUMBER,2,struct i2o_cmd_hrtlct)
 #define I2OPARMSET		_IOWR(I2O_MAGIC_NUMBER,3,struct i2o_cmd_psetget)
@@ -37,7 +38,7 @@
 #define I2OSWDL 		_IOWR(I2O_MAGIC_NUMBER,5,struct i2o_sw_xfer)
 #define I2OSWUL 		_IOWR(I2O_MAGIC_NUMBER,6,struct i2o_sw_xfer)
 #define I2OSWDEL		_IOWR(I2O_MAGIC_NUMBER,7,struct i2o_sw_xfer)
-#define I2OVALIDATE		_IOR(I2O_MAGIC_NUMBER,8,u32)
+#define I2OVALIDATE		_IOR(I2O_MAGIC_NUMBER,8,__u32)
 #define I2OHTML 		_IOWR(I2O_MAGIC_NUMBER,9,struct i2o_html)
 #define I2OEVTREG		_IOW(I2O_MAGIC_NUMBER,10,struct i2o_evt_id)
 #define I2OEVTGET		_IOR(I2O_MAGIC_NUMBER,11,struct i2o_evt_info)

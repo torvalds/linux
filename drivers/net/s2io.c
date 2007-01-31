@@ -556,10 +556,9 @@ static int init_shared_mem(struct s2io_nic *nic)
 		}
 	}
 
-	nic->ufo_in_band_v = kmalloc((sizeof(u64) * size), GFP_KERNEL);
+	nic->ufo_in_band_v = kcalloc(size, sizeof(u64), GFP_KERNEL);
 	if (!nic->ufo_in_band_v)
 		return -ENOMEM;
-	memset(nic->ufo_in_band_v, 0, size);
 
 	/* Allocation and initialization of RXDs in Rings */
 	size = 0;

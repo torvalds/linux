@@ -55,11 +55,9 @@ static struct mtd_info *map_ram_probe(struct map_info *map)
 #endif
 	/* OK. It seems to be RAM. */
 
-	mtd = kmalloc(sizeof(*mtd), GFP_KERNEL);
+	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
 	if (!mtd)
 		return NULL;
-
-	memset(mtd, 0, sizeof(*mtd));
 
 	map->fldrv = &mapram_chipdrv;
 	mtd->priv = map;

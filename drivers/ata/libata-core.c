@@ -1037,7 +1037,7 @@ static unsigned int ata_id_xfermask(const u16 *id)
 		 * the PIO timing number for the maximum. Turn it into
 		 * a mask.
 		 */
-		u8 mode = id[ATA_ID_OLD_PIO_MODES] & 0xFF;
+		u8 mode = (id[ATA_ID_OLD_PIO_MODES] >> 8) & 0xFF;
 		if (mode < 5)	/* Valid PIO range */
                 	pio_mask = (2 << mode) - 1;
 		else
@@ -2431,18 +2431,8 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 	int i, rc = 0, used_dma = 0, found = 0;
 
 	/* has private set_mode? */
-	if (ap->ops->set_mode) {
-		/* FIXME: make ->set_mode handle no device case and
-		 * return error code and failing device on failure.
-		 */
-		for (i = 0; i < ATA_MAX_DEVICES; i++) {
-			if (ata_dev_ready(&ap->device[i])) {
-				ap->ops->set_mode(ap);
-				break;
-			}
-		}
-		return 0;
-	}
+	if (ap->ops->set_mode)
+		return ap->ops->set_mode(ap, r_failed_dev);
 
 	/* step 1: calculate xfer_mask */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {

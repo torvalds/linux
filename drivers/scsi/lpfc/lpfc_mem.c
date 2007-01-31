@@ -56,6 +56,9 @@ lpfc_mem_alloc(struct lpfc_hba * phba)
 
 	pool->elements = kmalloc(sizeof(struct lpfc_dmabuf) *
 					 LPFC_MBUF_POOL_SIZE, GFP_KERNEL);
+	if (!pool->elements)
+		goto fail_free_lpfc_mbuf_pool;
+
 	pool->max_count = 0;
 	pool->current_count = 0;
 	for ( i = 0; i < LPFC_MBUF_POOL_SIZE; i++) {
@@ -82,10 +85,11 @@ lpfc_mem_alloc(struct lpfc_hba * phba)
  fail_free_mbox_pool:
 	mempool_destroy(phba->mbox_mem_pool);
  fail_free_mbuf_pool:
-	while (--i)
+	while (i--)
 		pci_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
 						 pool->elements[i].phys);
 	kfree(pool->elements);
+ fail_free_lpfc_mbuf_pool:
 	pci_pool_destroy(phba->lpfc_mbuf_pool);
  fail_free_dma_buf_pool:
 	pci_pool_destroy(phba->lpfc_scsi_dma_buf_pool);

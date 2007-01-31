@@ -1562,7 +1562,7 @@ static int sctp_process_missing_param(const struct sctp_association *asoc,
 	if (*errp) {
 		report.num_missing = htonl(1);
 		report.type = paramtype;
-		sctp_init_cause(*errp, SCTP_ERROR_INV_PARAM,
+		sctp_init_cause(*errp, SCTP_ERROR_MISS_PARAM,
 				&report, sizeof(report));
 	}
 
@@ -1775,7 +1775,9 @@ int sctp_verify_init(const struct sctp_association *asoc,
 
 	/* Verify stream values are non-zero. */
 	if ((0 == peer_init->init_hdr.num_outbound_streams) ||
-	    (0 == peer_init->init_hdr.num_inbound_streams)) {
+	    (0 == peer_init->init_hdr.num_inbound_streams) ||
+	    (0 == peer_init->init_hdr.init_tag) ||
+	    (SCTP_DEFAULT_MINWINDOW > ntohl(peer_init->init_hdr.a_rwnd))) {
 
 		sctp_process_inv_mandatory(asoc, chunk, errp);
 		return 0;

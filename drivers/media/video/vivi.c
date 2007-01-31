@@ -270,10 +270,15 @@ static void gen_line(struct sg_to_addr to_addr[],int inipos,int pages,int wmax,
 	char *p,*s,*basep;
 	struct page *pg;
 	u8   chr,r,g,b,color;
+	unsigned long flags;
+	spinlock_t spinlock;
+
+	spin_lock_init(&spinlock);
 
 	/* Get first addr pointed to pixel position */
 	oldpg=get_addr_pos(pos,pages,to_addr);
 	pg=pfn_to_page(sg_dma_address(to_addr[oldpg].sg) >> PAGE_SHIFT);
+	spin_lock_irqsave(&spinlock,flags);
 	basep = kmap_atomic(pg, KM_BOUNCE_READ)+to_addr[oldpg].sg->offset;
 
 	/* We will just duplicate the second pixel at the packet */
@@ -376,6 +381,8 @@ static void gen_line(struct sg_to_addr to_addr[],int inipos,int pages,int wmax,
 
 end:
 	kunmap_atomic(basep, KM_BOUNCE_READ);
+	spin_unlock_irqrestore(&spinlock,flags);
+
 }
 static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 {

@@ -1037,48 +1037,49 @@ eh_host_reset_lock:
 static int
 qla2x00_loop_reset(scsi_qla_host_t *ha)
 {
-	int status = QLA_SUCCESS;
+	int ret;
 	struct fc_port *fcport;
 
-	if (ha->flags.enable_lip_reset) {
-		status = qla2x00_lip_reset(ha);
+	if (ha->flags.enable_lip_full_login) {
+		ret = qla2x00_full_login_lip(ha);
+		if (ret != QLA_SUCCESS) {
+			DEBUG2_3(printk("%s(%ld): bus_reset failed: "
+			    "full_login_lip=%d.\n", __func__, ha->host_no,
+			    ret));
+		}
+		atomic_set(&ha->loop_state, LOOP_DOWN);
+		atomic_set(&ha->loop_down_timer, LOOP_DOWN_TIME);
+		qla2x00_mark_all_devices_lost(ha, 0);
+		qla2x00_wait_for_loop_ready(ha);
 	}
 
-	if (status == QLA_SUCCESS && ha->flags.enable_target_reset) {
+	if (ha->flags.enable_lip_reset) {
+		ret = qla2x00_lip_reset(ha);
+		if (ret != QLA_SUCCESS) {
+			DEBUG2_3(printk("%s(%ld): bus_reset failed: "
+			    "lip_reset=%d.\n", __func__, ha->host_no, ret));
+		}
+		qla2x00_wait_for_loop_ready(ha);
+	}
+
+	if (ha->flags.enable_target_reset) {
 		list_for_each_entry(fcport, &ha->fcports, list) {
 			if (fcport->port_type != FCT_TARGET)
 				continue;
 
-			status = qla2x00_device_reset(ha, fcport);
-			if (status != QLA_SUCCESS)
-				break;
+			ret = qla2x00_device_reset(ha, fcport);
+			if (ret != QLA_SUCCESS) {
+				DEBUG2_3(printk("%s(%ld): bus_reset failed: "
+				    "target_reset=%d d_id=%x.\n", __func__,
+				    ha->host_no, ret, fcport->d_id.b24));
+			}
 		}
-	}
-
-	if (status == QLA_SUCCESS &&
-		((!ha->flags.enable_target_reset &&
-		  !ha->flags.enable_lip_reset) ||
-		ha->flags.enable_lip_full_login)) {
-
-		status = qla2x00_full_login_lip(ha);
 	}
 
 	/* Issue marker command only when we are going to start the I/O */
 	ha->marker_needed = 1;
 
-	if (status) {
-		/* Empty */
-		DEBUG2_3(printk("%s(%ld): **** FAILED ****\n",
-				__func__,
-				ha->host_no));
-	} else {
-		/* Empty */
-		DEBUG3(printk("%s(%ld): exiting normally.\n",
-				__func__,
-				ha->host_no));
-	}
-
-	return(status);
+	return QLA_SUCCESS;
 }
 
 /*
@@ -1413,7 +1414,9 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	sht = &qla2x00_driver_template;
 	if (pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2422 ||
-	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2432)
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2432 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP5422 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP5432)
 		sht = &qla24xx_driver_template;
 	host = scsi_host_alloc(sht, sizeof(scsi_qla_host_t));
 	if (host == NULL) {

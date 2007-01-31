@@ -2725,6 +2725,7 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 	del_timer_sync(&nic->watchdog);
 	netif_carrier_off(nic->netdev);
 
+	netif_device_detach(netdev);
 	pci_save_state(pdev);
 
 	if ((nic->flags & wol_magic) | e100_asf(nic)) {
@@ -2736,6 +2737,7 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 	}
 
 	pci_disable_device(pdev);
+	free_irq(pdev->irq, netdev);
 	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;

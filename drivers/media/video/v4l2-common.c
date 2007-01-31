@@ -90,8 +90,15 @@ MODULE_LICENSE("GPL");
 char *v4l2_norm_to_name(v4l2_std_id id)
 {
 	char *name;
+	u32 myid = id;
 
-	switch (id) {
+	/* HACK: ppc32 architecture doesn't have __ucmpdi2 function to handle
+	   64 bit comparations. So, on that architecture, with some gcc variants,
+	   compilation fails. Currently, the max value is 30bit wide.
+	 */
+	BUG_ON(myid != id);
+
+	switch (myid) {
 	case V4L2_STD_PAL:
 		name="PAL";		break;
 	case V4L2_STD_PAL_BG:

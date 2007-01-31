@@ -159,7 +159,8 @@ static inline __wsum csum_tcpudp_nofold(__be32 saddr,
 #endif
 	"	.set	pop"
 	: "=r" (sum)
-	: "0" (daddr), "r"(saddr),
+	: "0" ((__force unsigned long)daddr),
+	  "r" ((__force unsigned long)saddr),
 #ifdef __MIPSEL__
 	  "r" ((proto + len) << 8),
 #else

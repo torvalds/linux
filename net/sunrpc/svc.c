@@ -26,7 +26,6 @@
 #include <linux/sunrpc/clnt.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCDSP
-#define RPC_PARANOIA 1
 
 /*
  * Mode for mapping cpus to pools.
@@ -872,15 +871,15 @@ svc_process(struct svc_rqst *rqstp)
 	return 0;
 
 err_short_len:
-#ifdef RPC_PARANOIA
-	printk("svc: short len %Zd, dropping request\n", argv->iov_len);
-#endif
+	if (net_ratelimit())
+		printk("svc: short len %Zd, dropping request\n", argv->iov_len);
+
 	goto dropit;			/* drop request */
 
 err_bad_dir:
-#ifdef RPC_PARANOIA
-	printk("svc: bad direction %d, dropping request\n", dir);
-#endif
+	if (net_ratelimit())
+		printk("svc: bad direction %d, dropping request\n", dir);
+
 	serv->sv_stats->rpcbadfmt++;
 	goto dropit;			/* drop request */
 
@@ -909,9 +908,10 @@ err_bad_prog:
 	goto sendit;
 
 err_bad_vers:
-#ifdef RPC_PARANOIA
-	printk("svc: unknown version (%d)\n", vers);
-#endif
+	if (net_ratelimit())
+		printk("svc: unknown version (%d for prog %d, %s)\n",
+		       vers, prog, progp->pg_name);
+
 	serv->sv_stats->rpcbadfmt++;
 	svc_putnl(resv, RPC_PROG_MISMATCH);
 	svc_putnl(resv, progp->pg_lovers);
@@ -919,17 +919,17 @@ err_bad_vers:
 	goto sendit;
 
 err_bad_proc:
-#ifdef RPC_PARANOIA
-	printk("svc: unknown procedure (%d)\n", proc);
-#endif
+	if (net_ratelimit())
+		printk("svc: unknown procedure (%d)\n", proc);
+
 	serv->sv_stats->rpcbadfmt++;
 	svc_putnl(resv, RPC_PROC_UNAVAIL);
 	goto sendit;
 
 err_garbage:
-#ifdef RPC_PARANOIA
-	printk("svc: failed to decode args\n");
-#endif
+	if (net_ratelimit())
+		printk("svc: failed to decode args\n");
+
 	rpc_stat = rpc_garbage_args;
 err_bad:
 	serv->sv_stats->rpcbadfmt++;

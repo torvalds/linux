@@ -56,6 +56,7 @@ static int x25_receive_data(struct sk_buff *skb, struct x25_neigh *nb)
 			sk_add_backlog(sk, skb);
 		}
 		bh_unlock_sock(sk);
+		sock_put(sk);
 		return queued;
 	}
 

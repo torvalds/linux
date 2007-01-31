@@ -507,7 +507,7 @@ static struct pci_driver driver = {
 #endif
 };
 
-static int sc1200_ide_init(void)
+static int __init sc1200_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

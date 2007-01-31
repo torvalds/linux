@@ -1169,8 +1169,9 @@ static int setup(struct spi_device *spi)
 				spi->bits_per_word - 16 : spi->bits_per_word)
 			| SSCR0_SSE
 			| (spi->bits_per_word > 16 ? SSCR0_EDSS : 0);
-	chip->cr1 |= (((spi->mode & SPI_CPHA) != 0) << 4)
-			| (((spi->mode & SPI_CPOL) != 0) << 3);
+	chip->cr1 &= ~(SSCR1_SPO | SSCR1_SPH);
+	chip->cr1 |= (((spi->mode & SPI_CPHA) != 0) ? SSCR1_SPH : 0)
+			| (((spi->mode & SPI_CPOL) != 0) ? SSCR1_SPO : 0);
 
 	/* NOTE:  PXA25x_SSP _could_ use external clocking ... */
 	if (drv_data->ssp_type != PXA25x_SSP)

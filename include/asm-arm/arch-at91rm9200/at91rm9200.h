@@ -274,7 +274,7 @@
 #define AT91_PD19_TPK7		(1 << 19)	/* B: ETM Trace Packet Port 7 */
 #define AT91_PD20_NPCS3		(1 << 20)	/* A: SPI Peripheral Chip Select 3 */
 #define AT91_PD20_TPK8		(1 << 20)	/* B: ETM Trace Packet Port 8 */
-#define AT91_PD21_RTS0		(1 << 21)  	/* A: USART Ready To Send 0 */
+#define AT91_PD21_RTS0		(1 << 21)	/* A: USART Ready To Send 0 */
 #define AT91_PD21_TPK9		(1 << 21)	/* B: ETM Trace Packet Port 9 */
 #define AT91_PD22_RTS1		(1 << 22)	/* A: USART Ready To Send 1 */
 #define AT91_PD22_TPK10		(1 << 22)	/* B: ETM Trace Packet Port 10 */

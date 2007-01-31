@@ -30,7 +30,7 @@
 
 #include <net/tcp.h>
 
-MODULE_AUTHOR("Stephen Hemminger <shemminger@osdl.org>");
+MODULE_AUTHOR("Stephen Hemminger <shemminger@linux-foundation.org>");
 MODULE_DESCRIPTION("TCP cwnd snooper");
 MODULE_LICENSE("GPL");
 

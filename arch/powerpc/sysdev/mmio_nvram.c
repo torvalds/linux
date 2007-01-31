@@ -80,33 +80,39 @@ static ssize_t mmio_nvram_get_size(void)
 int __init mmio_nvram_init(void)
 {
 	struct device_node *nvram_node;
-	const unsigned long *buffer;
-	int proplen;
 	unsigned long nvram_addr;
+	struct resource r;
 	int ret;
 
-	ret = -ENODEV;
 	nvram_node = of_find_node_by_type(NULL, "nvram");
-	if (!nvram_node)
-		goto out;
+	if (!nvram_node) {
+		printk(KERN_WARNING "nvram: no node found in device-tree\n");
+		return -ENODEV;
+	}
 
-	ret = -EIO;
-	buffer = get_property(nvram_node, "reg", &proplen);
-	if (proplen != 2*sizeof(unsigned long))
+	ret = of_address_to_resource(nvram_node, 0, &r);
+	if (ret) {
+		printk(KERN_WARNING "nvram: failed to get address (err %d)\n",
+		       ret);
 		goto out;
-
-	ret = -ENODEV;
-	nvram_addr = buffer[0];
-	mmio_nvram_len = buffer[1];
-	if ( (!mmio_nvram_len) || (!nvram_addr) )
+	}
+	nvram_addr = r.start;
+	mmio_nvram_len = r.end - r.start + 1;
+	if ( (!mmio_nvram_len) || (!nvram_addr) ) {
+		printk(KERN_WARNING "nvram: address or lenght is 0\n");
+		ret = -EIO;
 		goto out;
+	}
 
 	mmio_nvram_start = ioremap(nvram_addr, mmio_nvram_len);
-	if (!mmio_nvram_start)
+	if (!mmio_nvram_start) {
+		printk(KERN_WARNING "nvram: failed to ioremap\n");
+		ret = -ENOMEM;
 		goto out;
+	}
 
-	printk(KERN_INFO "mmio NVRAM, %luk mapped to %p\n",
-	       mmio_nvram_len >> 10, mmio_nvram_start);
+	printk(KERN_INFO "mmio NVRAM, %luk at 0x%lx mapped to %p\n",
+	       mmio_nvram_len >> 10, nvram_addr, mmio_nvram_start);
 
 	ppc_md.nvram_read	= mmio_nvram_read;
 	ppc_md.nvram_write	= mmio_nvram_write;

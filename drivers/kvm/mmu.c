@@ -143,6 +143,7 @@ static int dbg = 1;
 #define PFERR_PRESENT_MASK (1U << 0)
 #define PFERR_WRITE_MASK (1U << 1)
 #define PFERR_USER_MASK (1U << 2)
+#define PFERR_FETCH_MASK (1U << 4)
 
 #define PT64_ROOT_LEVEL 4
 #define PT32_ROOT_LEVEL 2
@@ -166,6 +167,11 @@ static int is_write_protection(struct kvm_vcpu *vcpu)
 static int is_cpuid_PSE36(void)
 {
 	return 1;
+}
+
+static int is_nx(struct kvm_vcpu *vcpu)
+{
+	return vcpu->shadow_efer & EFER_NX;
 }
 
 static int is_present_pte(unsigned long pte)
@@ -990,16 +996,6 @@ static inline int fix_read_pf(u64 *shadow_ent)
 
 	}
 	return 0;
-}
-
-static int may_access(u64 pte, int write, int user)
-{
-
-	if (user && !(pte & PT_USER_MASK))
-		return 0;
-	if (write && !(pte & PT_WRITABLE_MASK))
-		return 0;
-	return 1;
 }
 
 static void paging_free(struct kvm_vcpu *vcpu)

@@ -379,6 +379,7 @@ static int rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int			retval;
 	struct net_device	*net = dev->net;
+	struct cdc_state	*info = (void *) &dev->data;
 	union {
 		void			*buf;
 		struct rndis_msg_hdr	*header;
@@ -397,7 +398,7 @@ static int rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 		return -ENOMEM;
 	retval = usbnet_generic_cdc_bind(dev, intf);
 	if (retval < 0)
-		goto done;
+		goto fail;
 
 	net->hard_header_len += sizeof (struct rndis_data_hdr);
 
@@ -412,10 +413,7 @@ static int rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (unlikely(retval < 0)) {
 		/* it might not even be an RNDIS device!! */
 		dev_err(&intf->dev, "RNDIS init failed, %d\n", retval);
-fail:
-		usb_driver_release_interface(driver_of(intf),
-			((struct cdc_state *)&(dev->data))->data);
-		goto done;
+		goto fail_and_release;
 	}
 	dev->hard_mtu = le32_to_cpu(u.init_c->max_transfer_size);
 	/* REVISIT:  peripheral "alignment" request is ignored ... */
@@ -431,7 +429,7 @@ fail:
 	retval = rndis_command(dev, u.header);
 	if (unlikely(retval < 0)) {
 		dev_err(&intf->dev, "rndis get ethaddr, %d\n", retval);
-		goto fail;
+		goto fail_and_release;
 	}
 	tmp = le32_to_cpu(u.get_c->offset);
 	if (unlikely((tmp + 8) > (1024 - ETH_ALEN)
@@ -439,7 +437,7 @@ fail:
 		dev_err(&intf->dev, "rndis ethaddr off %d len %d ?\n",
 			tmp, le32_to_cpu(u.get_c->len));
 		retval = -EDOM;
-		goto fail;
+		goto fail_and_release;
 	}
 	memcpy(net->dev_addr, tmp + (char *)&u.get_c->request_id, ETH_ALEN);
 
@@ -455,11 +453,18 @@ fail:
 	retval = rndis_command(dev, u.header);
 	if (unlikely(retval < 0)) {
 		dev_err(&intf->dev, "rndis set packet filter, %d\n", retval);
-		goto fail;
+		goto fail_and_release;
 	}
 
 	retval = 0;
-done:
+
+	kfree(u.buf);
+	return retval;
+
+fail_and_release:
+	usb_set_intfdata(info->data, NULL);
+	usb_driver_release_interface(driver_of(intf), info->data);
+fail:
 	kfree(u.buf);
 	return retval;
 }

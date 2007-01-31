@@ -109,10 +109,10 @@ static int ufs_trunc_direct (struct inode * inode)
 	tmp = fs32_to_cpu(sb, *p);
 	if (!tmp )
 		ufs_panic (sb, "ufs_trunc_direct", "internal error");
+	frag2 -= frag1;
 	frag1 = ufs_fragnum (frag1);
-	frag2 = ufs_fragnum (frag2);
 
-	ufs_free_fragments (inode, tmp + frag1, frag2 - frag1);
+	ufs_free_fragments(inode, tmp + frag1, frag2);
 	mark_inode_dirty(inode);
 	frag_to_free = tmp + frag1;
 

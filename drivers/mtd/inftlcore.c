@@ -67,17 +67,16 @@ static void inftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	DEBUG(MTD_DEBUG_LEVEL3, "INFTL: add_mtd for %s\n", mtd->name);
 
-	inftl = kmalloc(sizeof(*inftl), GFP_KERNEL);
+	inftl = kzalloc(sizeof(*inftl), GFP_KERNEL);
 
 	if (!inftl) {
 		printk(KERN_WARNING "INFTL: Out of memory for data structures\n");
 		return;
 	}
-	memset(inftl, 0, sizeof(*inftl));
 
 	inftl->mbd.mtd = mtd;
 	inftl->mbd.devnum = -1;
-	inftl->mbd.blksize = 512;
+
 	inftl->mbd.tr = tr;
 
 	if (INFTL_mount(inftl) < 0) {
@@ -163,10 +162,9 @@ int inftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 	ops.ooblen = len;
 	ops.oobbuf = buf;
 	ops.datbuf = NULL;
-	ops.len = len;
 
 	res = mtd->read_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
-	*retlen = ops.retlen;
+	*retlen = ops.oobretlen;
 	return res;
 }
 
@@ -184,10 +182,9 @@ int inftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 	ops.ooblen = len;
 	ops.oobbuf = buf;
 	ops.datbuf = NULL;
-	ops.len = len;
 
 	res = mtd->write_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
-	*retlen = ops.retlen;
+	*retlen = ops.oobretlen;
 	return res;
 }
 
@@ -945,6 +942,7 @@ static struct mtd_blktrans_ops inftl_tr = {
 	.name		= "inftl",
 	.major		= INFTL_MAJOR,
 	.part_bits	= INFTL_PARTN_BITS,
+	.blksize 	= 512,
 	.getgeo		= inftl_getgeo,
 	.readsect	= inftl_readblock,
 	.writesect	= inftl_writeblock,

@@ -260,7 +260,7 @@ static int iscsi_scsi_cmd_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	}
 
 	if (rhdr->cmd_status == SAM_STAT_CHECK_CONDITION) {
-		int senselen;
+		uint16_t senselen;
 
 		if (datalen < 2) {
 invalid_datalen:
@@ -270,12 +270,12 @@ invalid_datalen:
 			goto out;
 		}
 
-		senselen = (data[0] << 8) | data[1];
+		senselen = be16_to_cpu(*(uint16_t *)data);
 		if (datalen < senselen)
 			goto invalid_datalen;
 
 		memcpy(sc->sense_buffer, data + 2,
-		       min(senselen, SCSI_SENSE_BUFFERSIZE));
+		       min_t(uint16_t, senselen, SCSI_SENSE_BUFFERSIZE));
 		debug_scsi("copied %d bytes of sense\n",
 			   min(senselen, SCSI_SENSE_BUFFERSIZE));
 	}

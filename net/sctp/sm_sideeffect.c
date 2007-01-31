@@ -217,7 +217,7 @@ static int sctp_gen_sack(struct sctp_association *asoc, int force,
 
 		asoc->peer.sack_needed = 0;
 
-		error = sctp_outq_tail(&asoc->outqueue, sack);
+		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(sack));
 
 		/* Stop the SACK timer.  */
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,

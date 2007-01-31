@@ -177,6 +177,7 @@ enum {
 					      * Register FIS clearing BSY */
 	ATA_FLAG_DEBUGMSG	= (1 << 13),
 	ATA_FLAG_SETXFER_POLLING= (1 << 14), /* use polling for SETXFER */
+	ATA_FLAG_IGN_SIMPLEX	= (1 << 15), /* ignore SIMPLEX */
 
 	/* The following flag belongs to ap->pflags but is kept in
 	 * ap->flags because it's referenced in many LLDs and will be
@@ -612,11 +613,11 @@ struct ata_port_operations {
 	void (*dev_select)(struct ata_port *ap, unsigned int device);
 
 	void (*phy_reset) (struct ata_port *ap); /* obsolete */
-	void (*set_mode) (struct ata_port *ap);
+	int  (*set_mode) (struct ata_port *ap, struct ata_device **r_failed_dev);
 
 	void (*post_set_mode) (struct ata_port *ap);
 
-	int (*check_atapi_dma) (struct ata_queued_cmd *qc);
+	int  (*check_atapi_dma) (struct ata_queued_cmd *qc);
 
 	void (*bmdma_setup) (struct ata_queued_cmd *qc);
 	void (*bmdma_start) (struct ata_queued_cmd *qc);
@@ -1143,12 +1144,15 @@ static inline void ata_tf_init(struct ata_device *dev, struct ata_taskfile *tf)
 
 static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 {
+	qc->dma_dir = DMA_NONE;
 	qc->__sg = NULL;
 	qc->flags = 0;
 	qc->cursect = qc->cursg = qc->cursg_ofs = 0;
 	qc->nsect = 0;
 	qc->nbytes = qc->curbytes = 0;
+	qc->n_elem = 0;
 	qc->err_mask = 0;
+	qc->pad_len = 0;
 
 	ata_tf_init(qc->dev, &qc->tf);
 

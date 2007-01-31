@@ -51,15 +51,22 @@ static inline void truncate_partial_page(struct page *page, unsigned partial)
 		do_invalidatepage(page, partial);
 }
 
+/*
+ * This cancels just the dirty bit on the kernel page itself, it
+ * does NOT actually remove dirty bits on any mmap's that may be
+ * around. It also leaves the page tagged dirty, so any sync
+ * activity will still find it on the dirty lists, and in particular,
+ * clear_page_dirty_for_io() will still look at the dirty bits in
+ * the VM.
+ *
+ * Doing this should *normally* only ever be done when a page
+ * is truncated, and is not actually mapped anywhere at all. However,
+ * fs/buffer.c does this when it notices that somebody has cleaned
+ * out all the buffers on a page without actually doing it through
+ * the VM. Can you say "ext3 is horribly ugly"? Tought you could.
+ */
 void cancel_dirty_page(struct page *page, unsigned int account_size)
 {
-	/* If we're cancelling the page, it had better not be mapped any more */
-	if (page_mapped(page)) {
-		static unsigned int warncount;
-
-		WARN_ON(++warncount < 5);
-	}
-		
 	if (TestClearPageDirty(page)) {
 		struct address_space *mapping = page->mapping;
 		if (mapping && mapping_cap_account_dirty(mapping)) {
@@ -422,7 +429,6 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 		pagevec_release(&pvec);
 		cond_resched();
 	}
-	WARN_ON_ONCE(ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(invalidate_inode_pages2_range);

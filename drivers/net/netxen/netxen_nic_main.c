@@ -1144,7 +1144,7 @@ static int __init netxen_init_module(void)
 	if ((netxen_workq = create_singlethread_workqueue("netxen")) == 0)
 		return -ENOMEM;
 
-	return pci_module_init(&netxen_driver);
+	return pci_register_driver(&netxen_driver);
 }
 
 module_init(netxen_init_module);

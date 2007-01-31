@@ -322,10 +322,6 @@ static int acpi_processor_get_performance_info(struct acpi_processor *pr)
 	if (result)
 		return result;
 
-	result = acpi_processor_get_platform_limit(pr);
-	if (result)
-		return result;
-
 	return 0;
 }
 

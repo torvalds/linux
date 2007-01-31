@@ -173,7 +173,7 @@ static struct pci_driver driver = {
 	.probe		= triflex_init_one,
 };
 
-static int triflex_ide_init(void)
+static int __init triflex_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

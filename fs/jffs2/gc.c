@@ -838,6 +838,8 @@ static int jffs2_garbage_collect_deletion_dirent(struct jffs2_sb_info *c, struct
 
 		for (raw = f->inocache->nodes; raw != (void *)f->inocache; raw = raw->next_in_ino) {
 
+			cond_resched();
+
 			/* We only care about obsolete ones */
 			if (!(ref_obsolete(raw)))
 				continue;

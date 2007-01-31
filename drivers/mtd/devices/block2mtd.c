@@ -295,10 +295,9 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 	if (!devname)
 		return NULL;
 
-	dev = kmalloc(sizeof(struct block2mtd_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct block2mtd_dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
-	memset(dev, 0, sizeof(*dev));
 
 	/* Get a handle on the device */
 	bdev = open_bdev_excl(devname, O_RDWR, NULL);

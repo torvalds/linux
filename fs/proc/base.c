@@ -371,9 +371,11 @@ static int mounts_open(struct inode *inode, struct file *file)
 
 	if (task) {
 		task_lock(task);
-		ns = task->nsproxy->mnt_ns;
-		if (ns)
-			get_mnt_ns(ns);
+		if (task->nsproxy) {
+			ns = task->nsproxy->mnt_ns;
+			if (ns)
+				get_mnt_ns(ns);
+		}
 		task_unlock(task);
 		put_task_struct(task);
 	}

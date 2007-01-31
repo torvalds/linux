@@ -898,7 +898,7 @@ static int ax88772_link_reset(struct usbnet *dev)
 
 static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	int ret;
+	int ret, embd_phy;
 	void *buf;
 	u16 rx_ctl;
 	struct asix_data *data = (struct asix_data *)&dev->data;
@@ -919,13 +919,15 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 			AX_GPIO_RSE | AX_GPIO_GPO_2 | AX_GPIO_GPO2EN, 5)) < 0)
 		goto out2;
 
+	/* 0x10 is the phy id of the embedded 10/100 ethernet phy */
+	embd_phy = ((asix_get_phy_addr(dev) & 0x1f) == 0x10 ? 1 : 0);
 	if ((ret = asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT,
-				1, 0, 0, buf)) < 0) {
+				embd_phy, 0, 0, buf)) < 0) {
 		dbg("Select PHY #1 failed: %d", ret);
 		goto out2;
 	}
 
-	if ((ret = asix_sw_reset(dev, AX_SWRESET_IPPD)) < 0)
+	if ((ret = asix_sw_reset(dev, AX_SWRESET_IPPD | AX_SWRESET_PRL)) < 0)
 		goto out2;
 
 	msleep(150);
@@ -933,8 +935,14 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		goto out2;
 
 	msleep(150);
-	if ((ret = asix_sw_reset(dev, AX_SWRESET_IPRL | AX_SWRESET_PRL)) < 0)
-		goto out2;
+	if (embd_phy) {
+		if ((ret = asix_sw_reset(dev, AX_SWRESET_IPRL)) < 0)
+			goto out2;
+	}
+	else {
+		if ((ret = asix_sw_reset(dev, AX_SWRESET_PRTE)) < 0)
+			goto out2;
+	}
 
 	msleep(150);
 	rx_ctl = asix_read_rx_ctl(dev);

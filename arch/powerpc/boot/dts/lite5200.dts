@@ -10,6 +10,12 @@
  * option) any later version.
  */
 
+/*
+ * WARNING: Do not depend on this tree layout remaining static just yet.
+ * The MPC5200 device tree conventions are still in flux
+ * Keep an eye on the linuxppc-dev mailing list for more details
+ */
+
 / {
 	model = "Lite5200";
 	compatible = "lite5200\0lite52xx\0mpc5200\0mpc52xx";

@@ -775,11 +775,6 @@ static struct device_node *scan_OF_for_pci_bus(struct pci_bus *bus)
 	np = scan_OF_for_pci_dev(parent, bus->self->devfn);
 	of_node_put(parent);
 
-	/* sanity check */
-	if (strcmp(np->type, "pci") != 0)
-		printk(KERN_WARNING "pci: wrong type \"%s\" for bridge %s\n",
-		       np->type, np->full_name);
-
 	return np;
 }
 

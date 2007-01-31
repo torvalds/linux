@@ -77,7 +77,7 @@ static struct pci_driver driver = {
 	.probe		= rz1000_init_one,
 };
 
-static int rz1000_ide_init(void)
+static int __init rz1000_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

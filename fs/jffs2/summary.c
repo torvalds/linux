@@ -26,14 +26,12 @@
 
 int jffs2_sum_init(struct jffs2_sb_info *c)
 {
-	c->summary = kmalloc(sizeof(struct jffs2_summary), GFP_KERNEL);
+	c->summary = kzalloc(sizeof(struct jffs2_summary), GFP_KERNEL);
 
 	if (!c->summary) {
 		JFFS2_WARNING("Can't allocate memory for summary information!\n");
 		return -ENOMEM;
 	}
-
-	memset(c->summary, 0, sizeof(struct jffs2_summary));
 
 	c->summary->sum_buf = vmalloc(c->sector_size);
 
@@ -397,6 +395,8 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 
 	for (i=0; i<je32_to_cpu(summary->sum_num); i++) {
 		dbg_summary("processing summary index %d\n", i);
+
+		cond_resched();
 
 		/* Make sure there's a spare ref for dirty space */
 		err = jffs2_prealloc_raw_node_refs(c, jeb, 2);

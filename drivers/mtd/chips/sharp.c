@@ -112,17 +112,15 @@ static struct mtd_info *sharp_probe(struct map_info *map)
 	struct sharp_info *sharp = NULL;
 	int width;
 
-	mtd = kmalloc(sizeof(*mtd), GFP_KERNEL);
+	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
 	if(!mtd)
 		return NULL;
 
-	sharp = kmalloc(sizeof(*sharp), GFP_KERNEL);
+	sharp = kzalloc(sizeof(*sharp), GFP_KERNEL);
 	if(!sharp) {
 		kfree(mtd);
 		return NULL;
 	}
-
-	memset(mtd, 0, sizeof(*mtd));
 
 	width = sharp_probe_map(map,mtd);
 	if(!width){
@@ -143,7 +141,6 @@ static struct mtd_info *sharp_probe(struct map_info *map)
 	mtd->writesize = 1;
 	mtd->name = map->name;
 
-	memset(sharp, 0, sizeof(*sharp));
 	sharp->chipshift = 23;
 	sharp->numchips = 1;
 	sharp->chips[0].start = 0;

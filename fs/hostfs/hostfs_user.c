@@ -295,11 +295,11 @@ int do_rmdir(const char *file)
 	return(0);
 }
 
-int do_mknod(const char *file, int mode, int dev)
+int do_mknod(const char *file, int mode, unsigned int major, unsigned int minor)
 {
 	int err;
 
-	err = mknod(file, mode, dev);
+	err = mknod(file, mode, makedev(major, minor));
 	if(err) return(-errno);
 	return(0);
 }

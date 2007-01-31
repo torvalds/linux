@@ -1782,6 +1782,7 @@ done:
 }
 
 extern void pnpide_init(void);
+extern void pnpide_exit(void);
 extern void h8300_ide_init(void);
 
 /*
@@ -2093,6 +2094,10 @@ void cleanup_module (void)
 
 	for (index = 0; index < MAX_HWIFS; ++index)
 		ide_unregister(index);
+
+#ifdef CONFIG_BLK_DEV_IDEPNP
+	pnpide_exit();
+#endif
 
 #ifdef CONFIG_PROC_FS
 	proc_ide_destroy();

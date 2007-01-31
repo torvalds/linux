@@ -331,7 +331,6 @@ out:
 	local_irq_restore(flags);
 	put_cpu();
 }
-EXPORT_SYMBOL_GPL(profile_hits);
 
 static int __devinit profile_cpu_callback(struct notifier_block *info,
 					unsigned long action, void *__cpu)
@@ -400,6 +399,8 @@ void profile_hits(int type, void *__pc, unsigned int nr_hits)
 	atomic_add(nr_hits, &prof_buffer[min(pc, prof_len - 1)]);
 }
 #endif /* !CONFIG_SMP */
+
+EXPORT_SYMBOL_GPL(profile_hits);
 
 void profile_tick(int type)
 {

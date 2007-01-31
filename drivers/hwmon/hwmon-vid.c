@@ -93,7 +93,7 @@ int vid_from_reg(int val, u8 vrm)
 	case 110:		/* Intel Conroe */
 				/* compute in uV, round to mV */
 		val &= 0xff;
-		if(((val & 0x7e) == 0xfe) || (!(val & 0x7e)))
+		if (val < 0x02 || val > 0xb2)
 			return 0;
 		return((1600000 - (val - 2) * 6250 + 500) / 1000);
 	case 24:                /* Opteron processor */

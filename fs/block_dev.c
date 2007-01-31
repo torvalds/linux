@@ -146,7 +146,7 @@ static int blk_end_aio(struct bio *bio, unsigned int bytes_done, int error)
 		iocb->ki_nbytes = -EIO;
 
 	if (atomic_dec_and_test(bio_count)) {
-		if (iocb->ki_nbytes < 0)
+		if ((long)iocb->ki_nbytes < 0)
 			aio_complete(iocb, iocb->ki_nbytes, 0);
 		else
 			aio_complete(iocb, iocb->ki_left, 0);
@@ -188,6 +188,12 @@ static struct page *blk_get_page(unsigned long addr, size_t count, int rw,
 		pvec->idx = 0;
 	}
 	return pvec->page[pvec->idx++];
+}
+
+/* return a page back to pvec array */
+static void blk_unget_page(struct page *page, struct pvec *pvec)
+{
+	pvec->page[--pvec->idx] = page;
 }
 
 static ssize_t
@@ -278,6 +284,8 @@ same_bio:
 				count = min(count, nbytes);
 				goto same_bio;
 			}
+		} else {
+			blk_unget_page(page, &pvec);
 		}
 
 		/* bio is ready, submit it */

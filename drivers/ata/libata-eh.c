@@ -1796,7 +1796,7 @@ static int ata_eh_suspend(struct ata_port *ap, struct ata_device **r_failed_dev)
 		*r_failed_dev = dev;
 
 	DPRINTK("EXIT\n");
-	return 0;
+	return rc;
 }
 
 /**
@@ -1978,6 +1978,10 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		dev = &ap->device[i];
 
 		ehc->tries[dev->devno] = ATA_EH_DEV_TRIES;
+
+		/* collect port action mask recorded in dev actions */
+		ehc->i.action |= ehc->i.dev_action[i] & ~ATA_EH_PERDEV_MASK;
+		ehc->i.dev_action[i] &= ATA_EH_PERDEV_MASK;
 
 		/* process hotplug request */
 		if (dev->flags & ATA_DFLAG_DETACH)

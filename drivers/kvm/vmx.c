@@ -1717,7 +1717,8 @@ again:
 	vmcs_writel(HOST_GS_BASE, segment_base(gs_sel));
 #endif
 
-	do_interrupt_requests(vcpu, kvm_run);
+	if (!vcpu->mmio_read_completed)
+		do_interrupt_requests(vcpu, kvm_run);
 
 	if (vcpu->guest_debug.enabled)
 		kvm_guest_debug_pre(vcpu);
@@ -1824,7 +1825,7 @@ again:
 #endif
 		"setbe %0 \n\t"
 		"popf \n\t"
-	      : "=g" (fail)
+	      : "=q" (fail)
 	      : "r"(vcpu->launched), "d"((unsigned long)HOST_RSP),
 		"c"(vcpu),
 		[rax]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_RAX])),

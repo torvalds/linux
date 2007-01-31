@@ -1613,7 +1613,7 @@ static struct pci_driver driver = {
 	.probe		= hpt366_init_one,
 };
 
-static int hpt366_ide_init(void)
+static int __init hpt366_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

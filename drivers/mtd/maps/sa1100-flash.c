@@ -273,13 +273,11 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 	/*
 	 * Allocate the map_info structs in one go.
 	 */
-	info = kmalloc(size, GFP_KERNEL);
+	info = kzalloc(size, GFP_KERNEL);
 	if (!info) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	memset(info, 0, size);
 
 	if (plat->init) {
 		ret = plat->init();

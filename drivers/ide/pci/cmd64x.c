@@ -793,7 +793,7 @@ static struct pci_driver driver = {
 	.probe		= cmd64x_init_one,
 };
 
-static int cmd64x_ide_init(void)
+static int __init cmd64x_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

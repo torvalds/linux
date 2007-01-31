@@ -5,7 +5,7 @@
  *          LSIFC9xx/LSI409xx Fibre Channel
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2005 LSI Logic Corporation
+ *  Copyright (c) 1999-2007 LSI Logic Corporation
  *  (mailto:mpt_linux_developer@lsil.com)
  *
  */

@@ -490,16 +490,14 @@ int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 
 	/* Set up the call info struct and execute the task */
 	status = task->tk_status;
-	if (status != 0) {
-		rpc_release_task(task);
+	if (status != 0)
 		goto out;
-	}
 	atomic_inc(&task->tk_count);
 	status = rpc_execute(task);
 	if (status == 0)
 		status = task->tk_status;
-	rpc_put_task(task);
 out:
+	rpc_put_task(task);
 	rpc_restore_sigmask(&oldset);
 	return status;
 }
@@ -537,7 +535,7 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 	if (status == 0)
 		rpc_execute(task);
 	else
-		rpc_release_task(task);
+		rpc_put_task(task);
 
 	rpc_restore_sigmask(&oldset);		
 	return status;

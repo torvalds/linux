@@ -700,9 +700,10 @@ static char *keys[KEY_MAX + 1] = {
 
 static char *relatives[REL_MAX + 1] = {
 	[REL_X] = "X",			[REL_Y] = "Y",
-	[REL_Z] = "Z",			[REL_HWHEEL] = "HWheel",
-	[REL_DIAL] = "Dial",		[REL_WHEEL] = "Wheel",
-	[REL_MISC] = "Misc",
+	[REL_Z] = "Z",			[REL_RX] = "Rx",
+	[REL_RY] = "Ry",		[REL_RZ] = "Rz",
+	[REL_HWHEEL] = "HWheel",	[REL_DIAL] = "Dial",
+	[REL_WHEEL] = "Wheel",		[REL_MISC] = "Misc",
 };
 
 static char *absolutes[ABS_MAX + 1] = {

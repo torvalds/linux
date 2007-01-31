@@ -57,8 +57,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.5.3"
-#define DRV_MODULE_RELDATE	"January 8, 2007"
+#define DRV_MODULE_VERSION	"1.5.4"
+#define DRV_MODULE_RELDATE	"January 24, 2007"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -5845,9 +5845,11 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	reg = REG_RD_IND(bp, BNX2_SHM_HDR_SIGNATURE);
 
 	if ((reg & BNX2_SHM_HDR_SIGNATURE_SIG_MASK) ==
-	    BNX2_SHM_HDR_SIGNATURE_SIG)
-		bp->shmem_base = REG_RD_IND(bp, BNX2_SHM_HDR_ADDR_0);
-	else
+	    BNX2_SHM_HDR_SIGNATURE_SIG) {
+		u32 off = PCI_FUNC(pdev->devfn) << 2;
+
+		bp->shmem_base = REG_RD_IND(bp, BNX2_SHM_HDR_ADDR_0 + off);
+	} else
 		bp->shmem_base = HOST_VIEW_SHMEM_BASE;
 
 	/* Get the permanent MAC address.  First we need to make sure the

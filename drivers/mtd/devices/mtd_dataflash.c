@@ -480,7 +480,7 @@ add_dataflash(struct spi_device *spi, char *name,
 	device->writesize = pagesize;
 	device->owner = THIS_MODULE;
 	device->type = MTD_DATAFLASH;
-	device->flags = MTD_CAP_NORFLASH;
+	device->flags = MTD_WRITEABLE;
 	device->erase = dataflash_erase;
 	device->read = dataflash_read;
 	device->write = dataflash_write;

@@ -29,6 +29,7 @@
 #include <linux/fsl_devices.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
+#include <linux/workqueue.h>
 
 #include <asm/of_platform.h>
 #include <asm/uaccess.h>
@@ -472,7 +473,7 @@ static void put_enet_addr_container(struct enet_addr_container *enet_addr_cont)
 	kfree(enet_addr_cont);
 }
 
-static int set_mac_addr(__be16 __iomem *reg, u8 *mac)
+static void set_mac_addr(__be16 __iomem *reg, u8 *mac)
 {
 	out_be16(&reg[0], ((u16)mac[5] << 8) | mac[4]);
 	out_be16(&reg[1], ((u16)mac[3] << 8) | mac[2]);
@@ -3920,10 +3921,11 @@ static irqreturn_t phy_interrupt(int irq, void *dev_id)
 }
 
 /* Scheduled by the phy_interrupt/timer to handle PHY changes */
-static void ugeth_phy_change(void *data)
+static void ugeth_phy_change(struct work_struct *work)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct ucc_geth_private *ugeth = netdev_priv(dev);
+	struct ucc_geth_private *ugeth =
+		container_of(work, struct ucc_geth_private, tq);
+	struct net_device *dev = ugeth->dev;
 	struct ucc_geth *ug_regs;
 	int result = 0;
 
@@ -4080,7 +4082,7 @@ static int ucc_geth_open(struct net_device *dev)
 #endif				/* CONFIG_UGETH_NAPI */
 
 	/* Set up the PHY change work queue */
-	INIT_WORK(&ugeth->tq, ugeth_phy_change, dev);
+	INIT_WORK(&ugeth->tq, ugeth_phy_change);
 
 	init_timer(&ugeth->phy_info_timer);
 	ugeth->phy_info_timer.function = &ugeth_phy_startup_timer;

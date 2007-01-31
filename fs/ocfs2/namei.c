@@ -932,14 +932,15 @@ static int ocfs2_unlink(struct inode *dir,
 		goto leave;
 	}
 
-	if (S_ISDIR(inode->i_mode)) {
+	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	if (S_ISDIR(inode->i_mode))
 		drop_nlink(dir);
-		status = ocfs2_mark_inode_dirty(handle, dir,
-						parent_node_bh);
-		if (status < 0) {
-			mlog_errno(status);
+
+	status = ocfs2_mark_inode_dirty(handle, dir, parent_node_bh);
+	if (status < 0) {
+		mlog_errno(status);
+		if (S_ISDIR(inode->i_mode))
 			inc_nlink(dir);
-		}
 	}
 
 leave:
@@ -1068,6 +1069,7 @@ static int ocfs2_rename(struct inode *old_dir,
 	char orphan_name[OCFS2_ORPHAN_NAMELEN + 1];
 	struct buffer_head *orphan_entry_bh = NULL;
 	struct buffer_head *newfe_bh = NULL;
+	struct buffer_head *old_inode_bh = NULL;
 	struct buffer_head *insert_entry_bh = NULL;
 	struct ocfs2_super *osb = NULL;
 	u64 newfe_blkno;
@@ -1079,7 +1081,7 @@ static int ocfs2_rename(struct inode *old_dir,
 	struct buffer_head *new_de_bh = NULL, *old_de_bh = NULL; // bhs for above
 	struct buffer_head *old_inode_de_bh = NULL; // if old_dentry is a dir,
 						    // this is the 1st dirent bh
-	nlink_t old_dir_nlink = old_dir->i_nlink, new_dir_nlink = new_dir->i_nlink;
+	nlink_t old_dir_nlink = old_dir->i_nlink;
 
 	/* At some point it might be nice to break this function up a
 	 * bit. */
@@ -1139,12 +1141,11 @@ static int ocfs2_rename(struct inode *old_dir,
 	}
 
 	/*
-	 * Though we don't require an inode meta data update if
-	 * old_inode is not a directory, we lock anyway here to ensure
-	 * the vote thread on other nodes won't have to concurrently
-	 * downconvert the inode and the dentry locks.
+	 * Aside from allowing a meta data update, the locking here
+	 * also ensures that the vote thread on other nodes won't have
+	 * to concurrently downconvert the inode and the dentry locks.
 	 */
-	status = ocfs2_meta_lock(old_inode, NULL, 1);
+	status = ocfs2_meta_lock(old_inode, &old_inode_bh, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -1355,6 +1356,7 @@ static int ocfs2_rename(struct inode *old_dir,
 
 	old_inode->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(old_inode);
+	ocfs2_mark_inode_dirty(handle, old_inode, old_inode_bh);
 
 	/* now that the name has been added to new_dir, remove the old name */
 	status = ocfs2_delete_entry(handle, old_dir, old_de, old_de_bh);
@@ -1384,27 +1386,22 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 	}
 	mark_inode_dirty(old_dir);
-	if (new_inode)
+	ocfs2_mark_inode_dirty(handle, old_dir, old_dir_bh);
+	if (new_inode) {
 		mark_inode_dirty(new_inode);
+		ocfs2_mark_inode_dirty(handle, new_inode, newfe_bh);
+	}
 
-	if (old_dir != new_dir)
-		if (new_dir_nlink != new_dir->i_nlink) {
-			if (!new_dir_bh) {
-				mlog(ML_ERROR, "need to change nlink for new "
-				     "dir %llu from %d to %d but bh is NULL\n",
-				     (unsigned long long)OCFS2_I(new_dir)->ip_blkno,
-				     (int)new_dir_nlink, new_dir->i_nlink);
-			} else {
-				struct ocfs2_dinode *fe;
-				status = ocfs2_journal_access(handle,
-							      new_dir,
-							      new_dir_bh,
-							      OCFS2_JOURNAL_ACCESS_WRITE);
-				fe = (struct ocfs2_dinode *) new_dir_bh->b_data;
-				fe->i_links_count = cpu_to_le16(new_dir->i_nlink);
-				status = ocfs2_journal_dirty(handle, new_dir_bh);
-			}
-		}
+	if (old_dir != new_dir) {
+		/* Keep the same times on both directories.*/
+		new_dir->i_ctime = new_dir->i_mtime = old_dir->i_ctime;
+
+		/*
+		 * This will also pick up the i_nlink change from the
+		 * block above.
+		 */
+		ocfs2_mark_inode_dirty(handle, new_dir, new_dir_bh);
+	}
 
 	if (old_dir_nlink != old_dir->i_nlink) {
 		if (!old_dir_bh) {
@@ -1455,6 +1452,8 @@ bail:
 		iput(new_inode);
 	if (newfe_bh)
 		brelse(newfe_bh);
+	if (old_inode_bh)
+		brelse(old_inode_bh);
 	if (old_dir_bh)
 		brelse(old_dir_bh);
 	if (new_dir_bh)
@@ -1826,6 +1825,13 @@ static int __ocfs2_add_entry(handle_t *handle,
 		     (le16_to_cpu(de->rec_len) >= rec_len)) ||
 		    (le16_to_cpu(de->rec_len) >=
 		     (OCFS2_DIR_REC_LEN(de->name_len) + rec_len))) {
+			dir->i_mtime = dir->i_ctime = CURRENT_TIME;
+			retval = ocfs2_mark_inode_dirty(handle, dir, parent_fe_bh);
+			if (retval < 0) {
+				mlog_errno(retval);
+				goto bail;
+			}
+
 			status = ocfs2_journal_access(handle, dir, insert_bh,
 						      OCFS2_JOURNAL_ACCESS_WRITE);
 			/* By now the buffer is marked for journaling */
@@ -1848,7 +1854,6 @@ static int __ocfs2_add_entry(handle_t *handle,
 			de->name_len = namelen;
 			memcpy(de->name, name, namelen);
 
-			dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 			dir->i_version++;
 			status = ocfs2_journal_dirty(handle, insert_bh);
 			retval = 0;

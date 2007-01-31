@@ -19,6 +19,10 @@ config ATA
 
 if ATA
 
+config ATA_NONSTANDARD
+       bool
+       default n
+
 config SATA_AHCI
 	tristate "AHCI SATA support"
 	depends on PCI

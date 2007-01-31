@@ -1080,7 +1080,6 @@ static ssize_t usbvision_v4l2_read(struct file *file, char *buf,
 	int noblock = file->f_flags & O_NONBLOCK;
 	unsigned long lock_flags;
 
-	int frmx = -1;
 	int ret,i;
 	struct usbvision_frame *frame;
 
@@ -1155,7 +1154,7 @@ static ssize_t usbvision_v4l2_read(struct file *file, char *buf,
 		frame->bytes_read = 0;
 
 		/* Mark it as available to be used again. */
-		usbvision->frame[frmx].grabstate = FrameState_Unused;
+		frame->grabstate = FrameState_Unused;
 /* 	} */
 
 	return count;

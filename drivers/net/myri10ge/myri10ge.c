@@ -71,7 +71,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.1.0"
+#define MYRI10GE_VERSION_STR "1.2.0"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -273,6 +273,10 @@ MODULE_PARM_DESC(myri10ge_debug, "Debug level (0=none,...,16=all)");
 static int myri10ge_fill_thresh = 256;
 module_param(myri10ge_fill_thresh, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(myri10ge_fill_thresh, "Number of empty rx slots allowed\n");
+
+static int myri10ge_wcfifo = 1;
+module_param(myri10ge_wcfifo, int, S_IRUGO);
+MODULE_PARM_DESC(myri10ge_wcfifo, "Enable WC Fifo when WC is enabled\n");
 
 #define MYRI10GE_FW_OFFSET 1024*1024
 #define MYRI10GE_HIGHPART_TO_U32(X) \
@@ -1714,7 +1718,7 @@ static int myri10ge_open(struct net_device *dev)
 		goto abort_with_irq;
 	}
 
-	if (mgp->mtrr >= 0) {
+	if (myri10ge_wcfifo && mgp->mtrr >= 0) {
 		mgp->tx.wc_fifo = (u8 __iomem *) mgp->sram + MXGEFW_ETH_SEND_4;
 		mgp->rx_small.wc_fifo =
 		    (u8 __iomem *) mgp->sram + MXGEFW_ETH_RECV_SMALL;
@@ -2878,7 +2882,6 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->hard_start_xmit = myri10ge_xmit;
 	netdev->get_stats = myri10ge_get_stats;
 	netdev->base_addr = mgp->iomem_base;
-	netdev->irq = pdev->irq;
 	netdev->change_mtu = myri10ge_change_mtu;
 	netdev->set_multicast_list = myri10ge_set_multicast_list;
 	netdev->set_mac_address = myri10ge_set_mac_address;
@@ -2887,6 +2890,15 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->features |= NETIF_F_HIGHDMA;
 	netdev->poll = myri10ge_poll;
 	netdev->weight = myri10ge_napi_weight;
+
+	/* make sure we can get an irq, and that MSI can be
+	 * setup (if available).  Also ensure netdev->irq
+	 * is set to correct value if MSI is enabled */
+	status = myri10ge_request_irq(mgp);
+	if (status != 0)
+		goto abort_with_firmware;
+	netdev->irq = pdev->irq;
+	myri10ge_free_irq(mgp);
 
 	/* Save configuration space to be restored if the
 	 * nic resets due to a parity error */
@@ -2903,8 +2915,9 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "register_netdev failed: %d\n", status);
 		goto abort_with_state;
 	}
-	dev_info(dev, "%d, tx bndry %d, fw %s, WC %s\n",
-		 pdev->irq, mgp->tx.boundary, mgp->fw_name,
+	dev_info(dev, "%s IRQ %d, tx bndry %d, fw %s, WC %s\n",
+		 (mgp->msi_enabled ? "MSI" : "xPIC"),
+		 netdev->irq, mgp->tx.boundary, mgp->fw_name,
 		 (mgp->mtrr >= 0 ? "Enabled" : "Disabled"));
 
 	return 0;
