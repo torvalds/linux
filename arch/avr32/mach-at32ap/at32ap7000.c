@@ -18,6 +18,7 @@
 #include <asm/arch/sm.h>
 
 #include "clock.h"
+#include "hmatrix.h"
 #include "pio.h"
 #include "sm.h"
 
@@ -465,6 +466,42 @@ static struct clk pico_clk = {
 	.get_rate	= cpu_clk_get_rate,
 	.users		= 1,
 };
+
+/* --------------------------------------------------------------------
+ * HMATRIX
+ * -------------------------------------------------------------------- */
+
+static struct clk hmatrix_clk = {
+	.name		= "hmatrix_clk",
+	.parent		= &pbb_clk,
+	.mode		= pbb_clk_mode,
+	.get_rate	= pbb_clk_get_rate,
+	.index		= 2,
+	.users		= 1,
+};
+#define HMATRIX_BASE	((void __iomem *)0xfff00800)
+
+#define hmatrix_readl(reg)					\
+	__raw_readl((HMATRIX_BASE) + HMATRIX_##reg)
+#define hmatrix_writel(reg,value)				\
+	__raw_writel((value), (HMATRIX_BASE) + HMATRIX_##reg)
+
+/*
+ * Set bits in the HMATRIX Special Function Register (SFR) used by the
+ * External Bus Interface (EBI). This can be used to enable special
+ * features like CompactFlash support, NAND Flash support, etc. on
+ * certain chipselects.
+ */
+static inline void set_ebi_sfr_bits(u32 mask)
+{
+	u32 sfr;
+
+	clk_enable(&hmatrix_clk);
+	sfr = hmatrix_readl(SFR4);
+	sfr |= mask;
+	hmatrix_writel(SFR4, sfr);
+	clk_disable(&hmatrix_clk);
+}
 
 /* --------------------------------------------------------------------
  *  PIO
@@ -950,6 +987,7 @@ struct clk *at32_clock_list[] = {
 	&pbb_clk,
 	&at32_sm_pclk,
 	&at32_intc0_pclk,
+	&hmatrix_clk,
 	&ebi_clk,
 	&hramc_clk,
 	&smc0_pclk,
