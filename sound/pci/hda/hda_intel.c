@@ -1503,6 +1503,31 @@ static int azx_dev_free(struct snd_device *device)
 }
 
 /*
+ * white/black-listing for position_fix
+ */
+static const struct snd_pci_quirk position_fix_list[] __devinitdata = {
+	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_NONE),
+	{}
+};
+
+static int __devinit check_position_fix(struct azx *chip, int fix)
+{
+	const struct snd_pci_quirk *q;
+
+	if (fix == POS_FIX_AUTO) {
+		q = snd_pci_quirk_lookup(chip->pci, position_fix_list);
+		if (q) {
+			snd_printdd(KERN_INFO
+				    "hda_intel: position_fix set to %d "
+				    "for device %04x:%04x\n",
+				    q->value, q->subvendor, q->subdevice);
+			return q->value;
+		}
+	}
+	return fix;
+}
+
+/*
  * constructor
  */
 static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
@@ -1536,7 +1561,8 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->driver_type = driver_type;
 	chip->msi = enable_msi;
 
-	chip->position_fix = position_fix;
+	chip->position_fix = check_position_fix(chip, position_fix);
+
 	chip->single_cmd = single_cmd;
 
 #if BITS_PER_LONG != 64
