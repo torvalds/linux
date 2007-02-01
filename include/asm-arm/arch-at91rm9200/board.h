@@ -69,6 +69,10 @@ struct at91_eth_data {
 };
 extern void __init at91_add_device_eth(struct at91_eth_data *data);
 
+#if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9263)
+#define eth_platform_data	at91_eth_data
+#endif
+
  /* USB Host */
 struct at91_usbh_data {
 	u8		ports;		/* number of ports on root hub */

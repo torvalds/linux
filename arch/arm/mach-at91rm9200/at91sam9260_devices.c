@@ -128,7 +128,7 @@ void __init at91_add_device_udc(struct at91_udc_data *data) {}
 
 #if defined(CONFIG_MACB) || defined(CONFIG_MACB_MODULE)
 static u64 eth_dmamask = 0xffffffffUL;
-static struct eth_platform_data eth_data;
+static struct at91_eth_data eth_data;
 
 static struct resource eth_resources[] = {
 	[0] = {
@@ -155,7 +155,7 @@ static struct platform_device at91sam9260_eth_device = {
 	.num_resources	= ARRAY_SIZE(eth_resources),
 };
 
-void __init at91_add_device_eth(struct eth_platform_data *data)
+void __init at91_add_device_eth(struct at91_eth_data *data)
 {
 	if (!data)
 		return;
@@ -192,7 +192,7 @@ void __init at91_add_device_eth(struct eth_platform_data *data)
 	platform_device_register(&at91sam9260_eth_device);
 }
 #else
-void __init at91_add_device_eth(struct eth_platform_data *data) {}
+void __init at91_add_device_eth(struct at91_eth_data *data) {}
 #endif
 
 
