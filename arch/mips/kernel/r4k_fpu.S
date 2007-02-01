@@ -193,8 +193,9 @@ LEAF(_restore_fp_context32)
 	jr	ra
 	 li	v0, 0					# success
 	END(_restore_fp_context32)
-	.set	reorder
 #endif
+
+	.set	reorder
 
 	.type	fault@function
 	.ent	fault
