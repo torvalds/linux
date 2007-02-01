@@ -3393,7 +3393,7 @@ static void inline ipv6_store_devconf(struct ipv6_devconf *cnf,
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	array[DEVCONF_ACCEPT_RA_RTR_PREF] = cnf->accept_ra_rtr_pref;
 	array[DEVCONF_RTR_PROBE_INTERVAL] = cnf->rtr_probe_interval;
-#ifdef CONFIV_IPV6_ROUTE_INFO
+#ifdef CONFIG_IPV6_ROUTE_INFO
 	array[DEVCONF_ACCEPT_RA_RT_INFO_MAX_PLEN] = cnf->accept_ra_rt_info_max_plen;
 #endif
 #endif
@@ -3898,7 +3898,7 @@ static struct addrconf_sysctl_table
 			.proc_handler	=	&proc_dointvec_jiffies,
 			.strategy	=	&sysctl_jiffies,
 		},
-#ifdef CONFIV_IPV6_ROUTE_INFO
+#ifdef CONFIG_IPV6_ROUTE_INFO
 		{
 			.ctl_name	=	NET_IPV6_ACCEPT_RA_RT_INFO_MAX_PLEN,
 			.procname	=	"accept_ra_rt_info_max_plen",

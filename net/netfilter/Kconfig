@@ -628,7 +628,7 @@ config NETFILTER_XT_MATCH_TCPMSS
 
 config NETFILTER_XT_MATCH_HASHLIMIT
 	tristate '"hashlimit" match support'
-	depends on NETFILTER_XTABLES
+	depends on NETFILTER_XTABLES && (IP6_NF_IPTABLES || IP6_NF_IPTABLES=n)
 	help
 	  This option adds a `hashlimit' match.
 

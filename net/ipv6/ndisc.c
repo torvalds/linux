@@ -1413,6 +1413,13 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
  		return;
  	}
 
+	if (!ipv6_addr_equal(&skb->nh.ipv6h->daddr, target) &&
+	    !(ipv6_addr_type(target) & IPV6_ADDR_LINKLOCAL)) {
+		ND_PRINTK2(KERN_WARNING
+			"ICMPv6 Redirect: target address is not link-local.\n");
+		return;
+	}
+
 	ndisc_flow_init(&fl, NDISC_REDIRECT, &saddr_buf, &skb->nh.ipv6h->saddr,
 			dev->ifindex);
 
