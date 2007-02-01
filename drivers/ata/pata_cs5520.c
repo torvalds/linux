@@ -99,9 +99,9 @@ static void cs5520_set_timings(struct ata_port *ap, struct ata_device *adev, int
 static void cs5520_enable_dma(struct ata_port *ap, struct ata_device *adev)
 {
 	/* Set the DMA enable/disable flag */
-	u8 reg = inb(ap->ioaddr.bmdma_addr + 0x02);
+	u8 reg = ioread8(ap->ioaddr.bmdma_addr + 0x02);
 	reg |= 1<<(adev->devno + 5);
-	outb(reg, ap->ioaddr.bmdma_addr + 0x02);
+	iowrite8(reg, ap->ioaddr.bmdma_addr + 0x02);
 }
 
 /**
@@ -193,7 +193,7 @@ static struct ata_port_operations cs5520_port_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
@@ -204,6 +204,7 @@ static struct ata_port_operations cs5520_port_ops = {
 static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	u8 pcicfg;
+	void *iomap[5];
 	static struct ata_probe_ent probe[2];
 	int ports = 0;
 
@@ -234,6 +235,16 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 		return -ENODEV;
 	}
 
+	/* Map IO ports */
+	iomap[0] = devm_ioport_map(&dev->dev, 0x1F0, 8);
+	iomap[1] = devm_ioport_map(&dev->dev, 0x3F6, 1);
+	iomap[2] = devm_ioport_map(&dev->dev, 0x170, 8);
+	iomap[3] = devm_ioport_map(&dev->dev, 0x376, 1);
+	iomap[4] = pcim_iomap(dev, 2, 0);
+
+	if (!iomap[0] || !iomap[1] || !iomap[2] || !iomap[3] || !iomap[4])
+		return -ENOMEM;
+
 	/* We have to do our own plumbing as the PCI setup for this
 	   chipset is non-standard so we can't punt to the libata code */
 
@@ -247,10 +258,10 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 	probe[0].irq_flags = 0;
 	probe[0].port_flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST;
 	probe[0].n_ports = 1;
-	probe[0].port[0].cmd_addr = 0x1F0;
-	probe[0].port[0].ctl_addr = 0x3F6;
-	probe[0].port[0].altstatus_addr = 0x3F6;
-	probe[0].port[0].bmdma_addr = pci_resource_start(dev, 2);
+	probe[0].port[0].cmd_addr = iomap[0];
+	probe[0].port[0].ctl_addr = iomap[1];
+	probe[0].port[0].altstatus_addr = iomap[1];
+	probe[0].port[0].bmdma_addr = iomap[4];
 
 	/* The secondary lurks at different addresses but is otherwise
 	   the same beastie */
@@ -258,10 +269,10 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 	probe[1] = probe[0];
 	INIT_LIST_HEAD(&probe[1].node);
 	probe[1].irq = 15;
-	probe[1].port[0].cmd_addr = 0x170;
-	probe[1].port[0].ctl_addr = 0x376;
-	probe[1].port[0].altstatus_addr = 0x376;
-	probe[1].port[0].bmdma_addr = pci_resource_start(dev, 2) + 8;
+	probe[1].port[0].cmd_addr = iomap[2];
+	probe[1].port[0].ctl_addr = iomap[3];
+	probe[1].port[0].altstatus_addr = iomap[3];
+	probe[1].port[0].bmdma_addr = iomap[4] + 8;
 
 	/* Let libata fill in the port details */
 	ata_std_ports(&probe[0].port[0]);

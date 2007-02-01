@@ -95,18 +95,18 @@ static void opti_error_handler(struct ata_port *ap)
 
 static void opti_write_reg(struct ata_port *ap, u8 val, int reg)
 {
-	unsigned long regio = ap->ioaddr.cmd_addr;
+	void __iomem *regio = ap->ioaddr.cmd_addr;
 
 	/* These 3 unlock the control register access */
-	inw(regio + 1);
-	inw(regio + 1);
-	outb(3, regio + 2);
+	ioread16(regio + 1);
+	ioread16(regio + 1);
+	iowrite8(3, regio + 2);
 
 	/* Do the I/O */
-	outb(val, regio + reg);
+	iowrite8(val, regio + reg);
 
 	/* Relock */
-	outb(0x83, regio + 2);
+	iowrite8(0x83, regio + 2);
 }
 
 /**
@@ -124,7 +124,7 @@ static void opti_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	struct ata_device *pair = ata_dev_pair(adev);
 	int clock;
 	int pio = adev->pio_mode - XFER_PIO_0;
-	unsigned long regio = ap->ioaddr.cmd_addr;
+	void __iomem *regio = ap->ioaddr.cmd_addr;
 	u8 addr;
 
 	/* Address table precomputed with prefetch off and a DCLK of 2 */
@@ -137,8 +137,8 @@ static void opti_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		{ 0x58, 0x44, 0x32, 0x22, 0x21 }
 	};
 
-	outb(0xff, regio + 5);
-	clock = inw(regio + 5) & 1;
+	iowrite8(0xff, regio + 5);
+	clock = ioread16(regio + 5) & 1;
 
 	/*
  	 *	As with many controllers the address setup time is shared
@@ -205,7 +205,7 @@ static struct ata_port_operations opti_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,

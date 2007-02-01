@@ -634,24 +634,24 @@ static void hpt370_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u8 dma_stat = inb(ap->ioaddr.bmdma_addr + 2);
+	u8 dma_stat = ioread8(ap->ioaddr.bmdma_addr + 2);
 	u8 dma_cmd;
-	unsigned long bmdma = ap->ioaddr.bmdma_addr;
+	void __iomem *bmdma = ap->ioaddr.bmdma_addr;
 
 	if (dma_stat & 0x01) {
 		udelay(20);
-		dma_stat = inb(bmdma + 2);
+		dma_stat = ioread8(bmdma + 2);
 	}
 	if (dma_stat & 0x01) {
 		/* Clear the engine */
 		pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 		udelay(10);
 		/* Stop DMA */
-		dma_cmd = inb(bmdma );
-		outb(dma_cmd & 0xFE, bmdma);
+		dma_cmd = ioread8(bmdma );
+		iowrite8(dma_cmd & 0xFE, bmdma);
 		/* Clear Error */
-		dma_stat = inb(bmdma + 2);
-		outb(dma_stat | 0x06 , bmdma + 2);
+		dma_stat = ioread8(bmdma + 2);
+		iowrite8(dma_stat | 0x06 , bmdma + 2);
 		/* Clear the engine */
 		pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 		udelay(10);
@@ -796,7 +796,7 @@ static struct ata_port_operations hpt370_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
@@ -833,7 +833,7 @@ static struct ata_port_operations hpt370a_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
@@ -871,7 +871,7 @@ static struct ata_port_operations hpt372_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
@@ -909,7 +909,7 @@ static struct ata_port_operations hpt374_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,

@@ -100,22 +100,24 @@ static void winbond_data_xfer(struct ata_device *adev, unsigned char *buf, unsig
 
 	if (ata_id_has_dword_io(adev->id)) {
 		if (write_data)
-			outsl(ap->ioaddr.data_addr, buf, buflen >> 2);
+			iowrite32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 		else
-			insl(ap->ioaddr.data_addr, buf, buflen >> 2);
+			ioread32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 
 		if (unlikely(slop)) {
 			u32 pad;
 			if (write_data) {
 				memcpy(&pad, buf + buflen - slop, slop);
-				outl(le32_to_cpu(pad), ap->ioaddr.data_addr);
+				pad = le32_to_cpu(pad);
+				iowrite32(pad, ap->ioaddr.data_addr);
 			} else {
-				pad = cpu_to_le16(inl(ap->ioaddr.data_addr));
+				pad = ioread32(ap->ioaddr.data_addr);
+				pad = cpu_to_le16(pad);
 				memcpy(buf + buflen - slop, &pad, slop);
 			}
 		}
 	} else
-		ata_pio_data_xfer(adev, buf, buflen, write_data);
+		ata_data_xfer(adev, buf, buflen, write_data);
 }
 
 static struct scsi_host_template winbond_sht = {
@@ -197,6 +199,8 @@ static __init int winbond_init_one(unsigned long port)
 		return 0;
 
 	for (i = 0; i < 2 ; i ++) {
+		unsigned long cmd_port = 0x1F0 - (0x80 * i);
+		void __iomem *cmd_addr, *ctl_addr;
 
 		if (reg & (1 << i)) {
 			/*
@@ -206,6 +210,13 @@ static __init int winbond_init_one(unsigned long port)
 			pdev = platform_device_register_simple(DRV_NAME, nr_winbond_host, NULL, 0);
 			if (IS_ERR(pdev))
 				return PTR_ERR(pdev);
+
+			cmd_addr = devm_ioport_map(&pdev->dev, cmd_port, 8);
+			ctl_addr = devm_ioport_map(&pdev->dev, cmd_port + 0x0206, 1);
+			if (!cmd_addr || !ctl_addr) {
+				platform_device_unregister(pdev);
+				return -ENOMEM;
+			}
 
 			memset(&ae, 0, sizeof(struct ata_probe_ent));
 			INIT_LIST_HEAD(&ae.node);
@@ -220,9 +231,9 @@ static __init int winbond_init_one(unsigned long port)
 			ae.irq = 14 + i;
 			ae.irq_flags = 0;
 			ae.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
-			ae.port[0].cmd_addr = 0x1F0 - (0x80 * i);
-			ae.port[0].altstatus_addr = ae.port[0].cmd_addr + 0x0206;
-			ae.port[0].ctl_addr = ae.port[0].altstatus_addr;
+			ae.port[0].cmd_addr = cmd_addr;
+			ae.port[0].altstatus_addr = ctl_addr;
+			ae.port[0].ctl_addr = ctl_addr;
 			ata_std_ports(&ae.port[0]);
 			/*
 			 *	Hook in a private data structure per channel

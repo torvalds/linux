@@ -54,6 +54,8 @@
 #define NV_ADMA_DMA_BOUNDARY		0xffffffffUL
 
 enum {
+	NV_MMIO_BAR			= 5,
+
 	NV_PORTS			= 2,
 	NV_PIO_MASK			= 0x1f,
 	NV_MWDMA_MASK			= 0x07,
@@ -357,7 +359,7 @@ static const struct ata_port_operations nv_generic_ops = {
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= nv_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 	.irq_handler		= nv_generic_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.scr_read		= nv_scr_read,
@@ -382,7 +384,7 @@ static const struct ata_port_operations nv_nf2_ops = {
 	.thaw			= nv_nf2_thaw,
 	.error_handler		= nv_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 	.irq_handler		= nv_nf2_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.scr_read		= nv_scr_read,
@@ -407,7 +409,7 @@ static const struct ata_port_operations nv_ck804_ops = {
 	.thaw			= nv_ck804_thaw,
 	.error_handler		= nv_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 	.irq_handler		= nv_ck804_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.scr_read		= nv_scr_read,
@@ -434,7 +436,7 @@ static const struct ata_port_operations nv_adma_ops = {
 	.thaw			= nv_ck804_thaw,
 	.error_handler		= nv_adma_error_handler,
 	.post_internal_cmd	= nv_adma_bmdma_stop,
-	.data_xfer		= ata_mmio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 	.irq_handler		= nv_adma_interrupt,
 	.irq_clear		= nv_adma_irq_clear,
 	.scr_read		= nv_scr_read,
@@ -736,7 +738,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 
 			/* if in ATA register mode, use standard ata interrupt handler */
 			if (pp->flags & NV_ADMA_PORT_REGISTER_MODE) {
-				u8 irq_stat = readb(host->mmio_base + NV_INT_STATUS_CK804)
+				u8 irq_stat = readb(host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804)
 					>> (NV_INT_PORT_SHIFT * i);
 				if(ata_tag_valid(ap->active_tag))
 					/** NV_INT_DEV indication seems unreliable at times
@@ -827,7 +829,7 @@ static void nv_adma_irq_clear(struct ata_port *ap)
 	u16 status = readw(mmio + NV_ADMA_STAT);
 	u32 notifier = readl(mmio + NV_ADMA_NOTIFIER);
 	u32 notifier_error = readl(mmio + NV_ADMA_NOTIFIER_ERROR);
-	unsigned long dma_stat_addr = ap->ioaddr.bmdma_addr + ATA_DMA_STATUS;
+	void __iomem *dma_stat_addr = ap->ioaddr.bmdma_addr + ATA_DMA_STATUS;
 
 	/* clear ADMA status */
 	writew(status, mmio + NV_ADMA_STAT);
@@ -835,7 +837,7 @@ static void nv_adma_irq_clear(struct ata_port *ap)
 	       pp->notifier_clear_block);
 
 	/** clear legacy status */
-	outb(inb(dma_stat_addr), dma_stat_addr);
+	iowrite8(ioread8(dma_stat_addr), dma_stat_addr);
 }
 
 static void nv_adma_bmdma_setup(struct ata_queued_cmd *qc)
@@ -851,15 +853,15 @@ static void nv_adma_bmdma_setup(struct ata_queued_cmd *qc)
 	}
 
 	/* load PRD table addr. */
-	outl(ap->prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
+	iowrite32(ap->prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
 
 	/* specify data direction, triple-check start bit is clear */
-	dmactl = inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+	dmactl = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 	dmactl &= ~(ATA_DMA_WR | ATA_DMA_START);
 	if (!rw)
 		dmactl |= ATA_DMA_WR;
 
-	outb(dmactl, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+	iowrite8(dmactl, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 
 	/* issue r/w command */
 	ata_exec_command(ap, &qc->tf);
@@ -877,9 +879,9 @@ static void nv_adma_bmdma_start(struct ata_queued_cmd *qc)
 	}
 
 	/* start host DMA transaction */
-	dmactl = inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-	outb(dmactl | ATA_DMA_START,
-	     ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+	dmactl = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+	iowrite8(dmactl | ATA_DMA_START,
+		 ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 }
 
 static void nv_adma_bmdma_stop(struct ata_queued_cmd *qc)
@@ -891,8 +893,8 @@ static void nv_adma_bmdma_stop(struct ata_queued_cmd *qc)
 		return;
 
 	/* clear start/stop bit */
-	outb(inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD) & ~ATA_DMA_START,
-		ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+	iowrite8(ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD) & ~ATA_DMA_START,
+		 ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 
 	/* one-PIO-cycle guaranteed wait, per spec, for HDMA1:0 transition */
 	ata_altstatus(ap);        /* dummy read */
@@ -904,7 +906,7 @@ static u8 nv_adma_bmdma_status(struct ata_port *ap)
 
 	WARN_ON(!(pp->flags & NV_ADMA_PORT_REGISTER_MODE));
 
-	return inb(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
+	return ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 }
 
 static int nv_adma_port_start(struct ata_port *ap)
@@ -927,10 +929,10 @@ static int nv_adma_port_start(struct ata_port *ap)
 	if (!pp)
 		return -ENOMEM;
 
-	mmio = ap->host->mmio_base + NV_ADMA_PORT +
+	mmio = ap->host->iomap[NV_MMIO_BAR] + NV_ADMA_PORT +
 	       ap->port_no * NV_ADMA_PORT_SIZE;
 	pp->ctl_block = mmio;
-	pp->gen_block = ap->host->mmio_base + NV_ADMA_GEN;
+	pp->gen_block = ap->host->iomap[NV_MMIO_BAR] + NV_ADMA_GEN;
 	pp->notifier_clear_block = pp->gen_block +
 	       NV_ADMA_NOTIFIER_CLEAR + (4 * ap->port_no);
 
@@ -1046,26 +1048,26 @@ static int nv_adma_port_resume(struct ata_port *ap)
 
 static void nv_adma_setup_port(struct ata_probe_ent *probe_ent, unsigned int port)
 {
-	void __iomem *mmio = probe_ent->mmio_base;
+	void __iomem *mmio = probe_ent->iomap[NV_MMIO_BAR];
 	struct ata_ioports *ioport = &probe_ent->port[port];
 
 	VPRINTK("ENTER\n");
 
 	mmio += NV_ADMA_PORT + port * NV_ADMA_PORT_SIZE;
 
-	ioport->cmd_addr	= (unsigned long) mmio;
-	ioport->data_addr	= (unsigned long) mmio + (ATA_REG_DATA * 4);
+	ioport->cmd_addr	= mmio;
+	ioport->data_addr	= mmio + (ATA_REG_DATA * 4);
 	ioport->error_addr	=
-	ioport->feature_addr	= (unsigned long) mmio + (ATA_REG_ERR * 4);
-	ioport->nsect_addr	= (unsigned long) mmio + (ATA_REG_NSECT * 4);
-	ioport->lbal_addr	= (unsigned long) mmio + (ATA_REG_LBAL * 4);
-	ioport->lbam_addr	= (unsigned long) mmio + (ATA_REG_LBAM * 4);
-	ioport->lbah_addr	= (unsigned long) mmio + (ATA_REG_LBAH * 4);
-	ioport->device_addr	= (unsigned long) mmio + (ATA_REG_DEVICE * 4);
+	ioport->feature_addr	= mmio + (ATA_REG_ERR * 4);
+	ioport->nsect_addr	= mmio + (ATA_REG_NSECT * 4);
+	ioport->lbal_addr	= mmio + (ATA_REG_LBAL * 4);
+	ioport->lbam_addr	= mmio + (ATA_REG_LBAM * 4);
+	ioport->lbah_addr	= mmio + (ATA_REG_LBAH * 4);
+	ioport->device_addr	= mmio + (ATA_REG_DEVICE * 4);
 	ioport->status_addr	=
-	ioport->command_addr	= (unsigned long) mmio + (ATA_REG_STATUS * 4);
+	ioport->command_addr	= mmio + (ATA_REG_STATUS * 4);
 	ioport->altstatus_addr	=
-	ioport->ctl_addr	= (unsigned long) mmio + 0x20;
+	ioport->ctl_addr	= mmio + 0x20;
 }
 
 static int nv_adma_host_init(struct ata_probe_ent *probe_ent)
@@ -1252,7 +1254,7 @@ static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance)
 	irqreturn_t ret;
 
 	spin_lock(&host->lock);
-	irq_stat = inb(host->ports[0]->ioaddr.scr_addr + NV_INT_STATUS);
+	irq_stat = ioread8(host->ports[0]->ioaddr.scr_addr + NV_INT_STATUS);
 	ret = nv_do_interrupt(host, irq_stat);
 	spin_unlock(&host->lock);
 
@@ -1266,7 +1268,7 @@ static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance)
 	irqreturn_t ret;
 
 	spin_lock(&host->lock);
-	irq_stat = readb(host->mmio_base + NV_INT_STATUS_CK804);
+	irq_stat = readb(host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804);
 	ret = nv_do_interrupt(host, irq_stat);
 	spin_unlock(&host->lock);
 
@@ -1278,7 +1280,7 @@ static u32 nv_scr_read (struct ata_port *ap, unsigned int sc_reg)
 	if (sc_reg > SCR_CONTROL)
 		return 0xffffffffU;
 
-	return ioread32((void __iomem *)ap->ioaddr.scr_addr + (sc_reg * 4));
+	return ioread32(ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
@@ -1286,36 +1288,36 @@ static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 	if (sc_reg > SCR_CONTROL)
 		return;
 
-	iowrite32(val, (void __iomem *)ap->ioaddr.scr_addr + (sc_reg * 4));
+	iowrite32(val, ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 static void nv_nf2_freeze(struct ata_port *ap)
 {
-	unsigned long scr_addr = ap->host->ports[0]->ioaddr.scr_addr;
+	void __iomem *scr_addr = ap->host->ports[0]->ioaddr.scr_addr;
 	int shift = ap->port_no * NV_INT_PORT_SHIFT;
 	u8 mask;
 
-	mask = inb(scr_addr + NV_INT_ENABLE);
+	mask = ioread8(scr_addr + NV_INT_ENABLE);
 	mask &= ~(NV_INT_ALL << shift);
-	outb(mask, scr_addr + NV_INT_ENABLE);
+	iowrite8(mask, scr_addr + NV_INT_ENABLE);
 }
 
 static void nv_nf2_thaw(struct ata_port *ap)
 {
-	unsigned long scr_addr = ap->host->ports[0]->ioaddr.scr_addr;
+	void __iomem *scr_addr = ap->host->ports[0]->ioaddr.scr_addr;
 	int shift = ap->port_no * NV_INT_PORT_SHIFT;
 	u8 mask;
 
-	outb(NV_INT_ALL << shift, scr_addr + NV_INT_STATUS);
+	iowrite8(NV_INT_ALL << shift, scr_addr + NV_INT_STATUS);
 
-	mask = inb(scr_addr + NV_INT_ENABLE);
+	mask = ioread8(scr_addr + NV_INT_ENABLE);
 	mask |= (NV_INT_MASK << shift);
-	outb(mask, scr_addr + NV_INT_ENABLE);
+	iowrite8(mask, scr_addr + NV_INT_ENABLE);
 }
 
 static void nv_ck804_freeze(struct ata_port *ap)
 {
-	void __iomem *mmio_base = ap->host->mmio_base;
+	void __iomem *mmio_base = ap->host->iomap[NV_MMIO_BAR];
 	int shift = ap->port_no * NV_INT_PORT_SHIFT;
 	u8 mask;
 
@@ -1326,7 +1328,7 @@ static void nv_ck804_freeze(struct ata_port *ap)
 
 static void nv_ck804_thaw(struct ata_port *ap)
 {
-	void __iomem *mmio_base = ap->host->mmio_base;
+	void __iomem *mmio_base = ap->host->iomap[NV_MMIO_BAR];
 	int shift = ap->port_no * NV_INT_PORT_SHIFT;
 	u8 mask;
 
@@ -1412,7 +1414,7 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct nv_host_priv *hpriv;
 	int rc;
 	u32 bar;
-	unsigned long base;
+	void __iomem *base;
 	unsigned long type = ent->driver_data;
 	int mask_set = 0;
 
@@ -1464,15 +1466,14 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!probe_ent)
 		return -ENOMEM;
 
-	probe_ent->mmio_base = pcim_iomap(pdev, 5, 0);
-	if (!probe_ent->mmio_base)
+	if (!pcim_iomap(pdev, NV_MMIO_BAR, 0))
 		return -EIO;
+	probe_ent->iomap = pcim_iomap_table(pdev);
 
 	probe_ent->private_data = hpriv;
 	hpriv->type = type;
 
-	base = (unsigned long)probe_ent->mmio_base;
-
+	base = probe_ent->iomap[NV_MMIO_BAR];
 	probe_ent->port[0].scr_addr = base + NV_PORT0_SCR_REG_OFFSET;
 	probe_ent->port[1].scr_addr = base + NV_PORT1_SCR_REG_OFFSET;
 

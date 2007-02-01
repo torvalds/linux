@@ -295,7 +295,7 @@ static struct ata_port_operations mpc52xx_ata_port_ops = {
 	.error_handler		= mpc52xx_ata_error_handler,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_mmio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.port_start		= ata_port_start,
@@ -308,7 +308,7 @@ static struct ata_probe_ent mpc52xx_ata_probe_ent = {
 	.pio_mask	= 0x1f,		/* Up to PIO4 */
 	.mwdma_mask	= 0x00,		/* No MWDMA   */
 	.udma_mask	= 0x00,		/* No UDMA    */
-	.port_flags	= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST | ATA_FLAG_MMIO,
+	.port_flags	= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 	.irq_flags	= 0,
 };
 
@@ -324,18 +324,18 @@ mpc52xx_ata_init_one(struct device *dev, struct mpc52xx_ata_priv *priv)
 	ae->irq = priv->ata_irq;
 
 	aio->cmd_addr		= 0;	/* Don't have a classic reg block */
-	aio->altstatus_addr	= (unsigned long)&priv->ata_regs->tf_control;
-	aio->ctl_addr		= (unsigned long)&priv->ata_regs->tf_control;
-	aio->data_addr		= (unsigned long)&priv->ata_regs->tf_data;
-	aio->error_addr		= (unsigned long)&priv->ata_regs->tf_features;
-	aio->feature_addr	= (unsigned long)&priv->ata_regs->tf_features;
-	aio->nsect_addr		= (unsigned long)&priv->ata_regs->tf_sec_count;
-	aio->lbal_addr		= (unsigned long)&priv->ata_regs->tf_sec_num;
-	aio->lbam_addr		= (unsigned long)&priv->ata_regs->tf_cyl_low;
-	aio->lbah_addr		= (unsigned long)&priv->ata_regs->tf_cyl_high;
-	aio->device_addr	= (unsigned long)&priv->ata_regs->tf_dev_head;
-	aio->status_addr	= (unsigned long)&priv->ata_regs->tf_command;
-	aio->command_addr	= (unsigned long)&priv->ata_regs->tf_command;
+	aio->altstatus_addr	= &priv->ata_regs->tf_control;
+	aio->ctl_addr		= &priv->ata_regs->tf_control;
+	aio->data_addr		= &priv->ata_regs->tf_data;
+	aio->error_addr		= &priv->ata_regs->tf_features;
+	aio->feature_addr	= &priv->ata_regs->tf_features;
+	aio->nsect_addr		= &priv->ata_regs->tf_sec_count;
+	aio->lbal_addr		= &priv->ata_regs->tf_sec_num;
+	aio->lbam_addr		= &priv->ata_regs->tf_cyl_low;
+	aio->lbah_addr		= &priv->ata_regs->tf_cyl_high;
+	aio->device_addr	= &priv->ata_regs->tf_dev_head;
+	aio->status_addr	= &priv->ata_regs->tf_command;
+	aio->command_addr	= &priv->ata_regs->tf_command;
 
 	ae->private_data = priv;
 

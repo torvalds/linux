@@ -49,6 +49,8 @@
 #define DRV_VERSION	"2.0"
 
 enum {
+	SIL_MMIO_BAR		= 5,
+
 	/*
 	 * host flags
 	 */
@@ -200,7 +202,7 @@ static const struct ata_port_operations sil_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_mmio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 	.freeze			= sil_freeze,
 	.thaw			= sil_thaw,
 	.error_handler		= ata_bmdma_error_handler,
@@ -295,7 +297,8 @@ static void sil_post_set_mode (struct ata_port *ap)
 {
 	struct ata_host *host = ap->host;
 	struct ata_device *dev;
-	void __iomem *addr = host->mmio_base + sil_port[ap->port_no].xfer_mode;
+	void __iomem *mmio_base = host->iomap[SIL_MMIO_BAR];
+	void __iomem *addr = mmio_base + sil_port[ap->port_no].xfer_mode;
 	u32 tmp, dev_mode[2];
 	unsigned int i;
 
@@ -318,9 +321,9 @@ static void sil_post_set_mode (struct ata_port *ap)
 	readl(addr);	/* flush */
 }
 
-static inline unsigned long sil_scr_addr(struct ata_port *ap, unsigned int sc_reg)
+static inline void __iomem *sil_scr_addr(struct ata_port *ap, unsigned int sc_reg)
 {
-	unsigned long offset = ap->ioaddr.scr_addr;
+	void __iomem *offset = ap->ioaddr.scr_addr;
 
 	switch (sc_reg) {
 	case SCR_STATUS:
@@ -339,7 +342,7 @@ static inline unsigned long sil_scr_addr(struct ata_port *ap, unsigned int sc_re
 
 static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
-	void __iomem *mmio = (void __iomem *) sil_scr_addr(ap, sc_reg);
+	void __iomem *mmio = sil_scr_addr(ap, sc_reg);
 	if (mmio)
 		return readl(mmio);
 	return 0xffffffffU;
@@ -347,7 +350,7 @@ static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg)
 
 static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
-	void __iomem *mmio = (void __iomem *) sil_scr_addr(ap, sc_reg);
+	void __iomem *mmio = sil_scr_addr(ap, sc_reg);
 	if (mmio)
 		writel(val, mmio);
 }
@@ -442,7 +445,7 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 static irqreturn_t sil_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
-	void __iomem *mmio_base = host->mmio_base;
+	void __iomem *mmio_base = host->iomap[SIL_MMIO_BAR];
 	int handled = 0;
 	int i;
 
@@ -474,7 +477,7 @@ static irqreturn_t sil_interrupt(int irq, void *dev_instance)
 
 static void sil_freeze(struct ata_port *ap)
 {
-	void __iomem *mmio_base = ap->host->mmio_base;
+	void __iomem *mmio_base = ap->host->iomap[SIL_MMIO_BAR];
 	u32 tmp;
 
 	/* global IRQ mask doesn't block SATA IRQ, turn off explicitly */
@@ -489,7 +492,7 @@ static void sil_freeze(struct ata_port *ap)
 
 static void sil_thaw(struct ata_port *ap)
 {
-	void __iomem *mmio_base = ap->host->mmio_base;
+	void __iomem *mmio_base = ap->host->iomap[SIL_MMIO_BAR];
 	u32 tmp;
 
 	/* clear IRQ */
@@ -621,7 +624,6 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	static int printed_version;
 	struct device *dev = &pdev->dev;
 	struct ata_probe_ent *probe_ent;
-	unsigned long base;
 	void __iomem *mmio_base;
 	int rc;
 	unsigned int i;
@@ -633,11 +635,11 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	rc = pci_request_regions(pdev, DRV_NAME);
-	if (rc) {
+	rc = pcim_iomap_regions(pdev, 1 << SIL_MMIO_BAR, DRV_NAME);
+	if (rc == -EBUSY)
 		pcim_pin_device(pdev);
+	if (rc)
 		return rc;
-	}
 
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
@@ -662,20 +664,16 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
        	probe_ent->irq_flags = IRQF_SHARED;
 	probe_ent->port_flags = sil_port_info[ent->driver_data].flags;
 
-	mmio_base = pcim_iomap(pdev, 5, 0);
-	if (mmio_base == NULL)
-		return -ENOMEM;
+	probe_ent->iomap = pcim_iomap_table(pdev);
 
-	probe_ent->mmio_base = mmio_base;
-
-	base = (unsigned long) mmio_base;
+	mmio_base = probe_ent->iomap[SIL_MMIO_BAR];
 
 	for (i = 0; i < probe_ent->n_ports; i++) {
-		probe_ent->port[i].cmd_addr = base + sil_port[i].tf;
+		probe_ent->port[i].cmd_addr = mmio_base + sil_port[i].tf;
 		probe_ent->port[i].altstatus_addr =
-		probe_ent->port[i].ctl_addr = base + sil_port[i].ctl;
-		probe_ent->port[i].bmdma_addr = base + sil_port[i].bmdma;
-		probe_ent->port[i].scr_addr = base + sil_port[i].scr;
+		probe_ent->port[i].ctl_addr = mmio_base + sil_port[i].ctl;
+		probe_ent->port[i].bmdma_addr = mmio_base + sil_port[i].bmdma;
+		probe_ent->port[i].scr_addr = mmio_base + sil_port[i].scr;
 		ata_std_ports(&probe_ent->port[i]);
 	}
 
@@ -702,7 +700,7 @@ static int sil_pci_device_resume(struct pci_dev *pdev)
 		return rc;
 
 	sil_init_controller(pdev, host->n_ports, host->ports[0]->flags,
-			    host->mmio_base);
+			    host->iomap[SIL_MMIO_BAR]);
 	ata_host_resume(host);
 
 	return 0;

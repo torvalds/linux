@@ -57,7 +57,7 @@ static int marvell_pre_reset(struct ata_port *ap)
 	switch(ap->port_no)
 	{
 	case 0:
-		if (inb(ap->ioaddr.bmdma_addr + 1) & 1)
+		if (ioread8(ap->ioaddr.bmdma_addr + 1) & 1)
 			ap->cbl = ATA_CBL_PATA40;
 		else
 			ap->cbl = ATA_CBL_PATA80;
@@ -129,7 +129,7 @@ static const struct ata_port_operations marvell_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	/* Timeout handling */
 	.irq_handler		= ata_interrupt,

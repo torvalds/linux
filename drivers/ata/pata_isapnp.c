@@ -53,7 +53,7 @@ static struct ata_port_operations isapnp_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
@@ -73,6 +73,7 @@ static struct ata_port_operations isapnp_port_ops = {
 static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev_id)
 {
 	struct ata_probe_ent ae;
+	void __iomem *cmd_addr, *ctl_addr;
 
 	if (pnp_port_valid(idev, 0) == 0)
 		return -ENODEV;
@@ -80,6 +81,10 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 	/* FIXME: Should selected polled PIO here not fail */
 	if (pnp_irq_valid(idev, 0) == 0)
 		return -ENODEV;
+
+	cmd_addr = devm_ioport_map(&idev->dev, pnp_port_start(idev, 0), 8);
+	if (!cmd_addr)
+		return -ENOMEM;
 
 	memset(&ae, 0, sizeof(struct ata_probe_ent));
 	INIT_LIST_HEAD(&ae.node);
@@ -91,11 +96,13 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 	ae.irq = pnp_irq(idev, 0);
 	ae.irq_flags = 0;
 	ae.port_flags = ATA_FLAG_SLAVE_POSS;
-	ae.port[0].cmd_addr = pnp_port_start(idev, 0);
+	ae.port[0].cmd_addr = cmd_addr;
 
 	if (pnp_port_valid(idev, 1) == 0) {
-		ae.port[0].altstatus_addr = pnp_port_start(idev, 1);
-		ae.port[0].ctl_addr = pnp_port_start(idev, 1);
+		ctl_addr = devm_ioport_map(&idev->dev,
+					   pnp_port_start(idev, 1), 1);
+		ae.port[0].altstatus_addr = ctl_addr;
+		ae.port[0].ctl_addr = ctl_addr;
 		ae.port_flags |= ATA_FLAG_SRST;
 	}
 	ata_std_ports(&ae.port[0]);

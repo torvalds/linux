@@ -140,9 +140,9 @@ static struct ata_port_operations ixp4xx_port_ops = {
 static void ixp4xx_setup_port(struct ata_ioports *ioaddr,
 				struct ixp4xx_pata_data *data)
 {
-	ioaddr->cmd_addr	= (unsigned long) data->cs0;
-	ioaddr->altstatus_addr	= (unsigned long) data->cs1 + 0x06;
-	ioaddr->ctl_addr	= (unsigned long) data->cs1 + 0x06;
+	ioaddr->cmd_addr	= data->cs0;
+	ioaddr->altstatus_addr	= data->cs1 + 0x06;
+	ioaddr->ctl_addr	= data->cs1 + 0x06;
 
 	ata_std_ports(ioaddr);
 
@@ -152,19 +152,19 @@ static void ixp4xx_setup_port(struct ata_ioports *ioaddr,
 	 * ixp4xx in little endian mode.
 	 */
 
-	ioaddr->data_addr	^= 0x02;
-	ioaddr->cmd_addr	^= 0x03;
-	ioaddr->altstatus_addr	^= 0x03;
-	ioaddr->ctl_addr	^= 0x03;
-	ioaddr->error_addr	^= 0x03;
-	ioaddr->feature_addr	^= 0x03;
-	ioaddr->nsect_addr	^= 0x03;
-	ioaddr->lbal_addr 	^= 0x03;
-	ioaddr->lbam_addr	^= 0x03;
-	ioaddr->lbah_addr	^= 0x03;
-	ioaddr->device_addr	^= 0x03;
-	ioaddr->status_addr	^= 0x03;
-	ioaddr->command_addr	^= 0x03;
+	*(unsigned long *)&ioaddr->data_addr		^= 0x02;
+	*(unsigned long *)&ioaddr->cmd_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->altstatus_addr	^= 0x03;
+	*(unsigned long *)&ioaddr->ctl_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->error_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->feature_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->nsect_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->lbal_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->lbam_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->lbah_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->device_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->status_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->command_addr		^= 0x03;
 #endif
 }
 

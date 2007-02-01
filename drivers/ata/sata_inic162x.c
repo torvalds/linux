@@ -147,7 +147,7 @@ static const int scr_map[] = {
 
 static void __iomem * inic_port_base(struct ata_port *ap)
 {
-	return ap->host->mmio_base + ap->port_no * PORT_SIZE;
+	return ap->host->iomap[MMIO_BAR] + ap->port_no * PORT_SIZE;
 }
 
 static void __inic_set_pirq_mask(struct ata_port *ap, u8 mask)
@@ -324,7 +324,7 @@ static void inic_host_intr(struct ata_port *ap)
 static irqreturn_t inic_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
-	void __iomem *mmio_base = host->mmio_base;
+	void __iomem *mmio_base = host->iomap[MMIO_BAR];
 	u16 host_irq_stat;
 	int i, handled = 0;;
 
@@ -566,7 +566,7 @@ static struct ata_port_operations inic_port_ops = {
 
 	.qc_prep	 	= ata_qc_prep,
 	.qc_issue		= inic_qc_issue,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	.freeze			= inic_freeze,
 	.thaw			= inic_thaw,
@@ -638,7 +638,7 @@ static int inic_pci_device_resume(struct pci_dev *pdev)
 {
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 	struct inic_host_priv *hpriv = host->private_data;
-	void __iomem *mmio_base = host->mmio_base;
+	void __iomem *mmio_base = host->iomap[MMIO_BAR];
 	int rc;
 
 	ata_pci_device_do_resume(pdev);
@@ -661,7 +661,7 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_port_info *pinfo = &inic_port_info;
 	struct ata_probe_ent *probe_ent;
 	struct inic_host_priv *hpriv;
-	void __iomem *mmio_base;
+	void __iomem * const *iomap;
 	int i, rc;
 
 	if (!printed_version++)
@@ -675,9 +675,10 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	mmio_base = pci_iomap(pdev, MMIO_BAR, 0);
-	if (!mmio_base)
-		return -ENOMEM;
+	rc = pcim_iomap_regions(pdev, 0x3f, DRV_NAME);
+	if (rc)
+		return rc;
+	iomap = pcim_iomap_table(pdev);
 
 	/* Set dma_mask.  This devices doesn't support 64bit addressing. */
 	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
@@ -713,26 +714,25 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	probe_ent->irq = pdev->irq;
 	probe_ent->irq_flags = SA_SHIRQ;
 
-	probe_ent->mmio_base = mmio_base;
+	probe_ent->iomap = iomap;
 
 	for (i = 0; i < NR_PORTS; i++) {
 		struct ata_ioports *port = &probe_ent->port[i];
-		unsigned long port_base =
-			(unsigned long)mmio_base + i * PORT_SIZE;
+		void __iomem *port_base = iomap[MMIO_BAR] + i * PORT_SIZE;
 
-		port->cmd_addr = pci_resource_start(pdev, 2 * i);
+		port->cmd_addr = iomap[2 * i];
 		port->altstatus_addr =
-		port->ctl_addr =
-			pci_resource_start(pdev, 2 * i + 1) | ATA_PCI_CTL_OFS;
+		port->ctl_addr = (void __iomem *)
+			((unsigned long)iomap[2 * i + 1] | ATA_PCI_CTL_OFS);
 		port->scr_addr = port_base + PORT_SCR;
 
 		ata_std_ports(port);
 	}
 
 	probe_ent->private_data = hpriv;
-	hpriv->cached_hctl = readw(mmio_base + HOST_CTL);
+	hpriv->cached_hctl = readw(iomap[MMIO_BAR] + HOST_CTL);
 
-	rc = init_controller(mmio_base, hpriv->cached_hctl);
+	rc = init_controller(iomap[MMIO_BAR], hpriv->cached_hctl);
 	if (rc) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "failed to initialize controller\n");

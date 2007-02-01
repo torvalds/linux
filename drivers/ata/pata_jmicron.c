@@ -161,7 +161,7 @@ static const struct ata_port_operations jmicron_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	/* IRQ-related hooks */
 	.irq_handler		= ata_interrupt,

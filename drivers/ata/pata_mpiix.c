@@ -188,7 +188,7 @@ static struct ata_port_operations mpiix_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= mpiix_qc_issue_prot,
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
@@ -199,10 +199,11 @@ static struct ata_port_operations mpiix_port_ops = {
 static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	/* Single threaded by the PCI probe logic */
-	static struct ata_probe_ent probe[2];
+	static struct ata_probe_ent probe;
 	static int printed_version;
+	void __iomem *cmd_addr, *ctl_addr;
 	u16 idetim;
-	int enabled;
+	int irq;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &dev->dev, "version " DRV_VERSION "\n");
@@ -215,43 +216,43 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!(idetim & ENABLED))
 		return -ENODEV;
 
+	if (!(idetim & SECONDARY)) {
+		irq = 14;
+		cmd_addr = devm_ioport_map(&dev->dev, 0x1F0, 8);
+		ctl_addr = devm_ioport_map(&dev->dev, 0x3F6, 1);
+	} else {
+		irq = 15;
+		cmd_addr = devm_ioport_map(&dev->dev, 0x170, 8);
+		ctl_addr = devm_ioport_map(&dev->dev, 0x376, 1);
+	}
+
+	if (!cmd_addr || !ctl_addr)
+		return -ENOMEM;
+
 	/* We do our own plumbing to avoid leaking special cases for whacko
 	   ancient hardware into the core code. There are two issues to
 	   worry about.  #1 The chip is a bridge so if in legacy mode and
 	   without BARs set fools the setup.  #2 If you pci_disable_device
 	   the MPIIX your box goes castors up */
 
-	INIT_LIST_HEAD(&probe[0].node);
-	probe[0].dev = pci_dev_to_dev(dev);
-	probe[0].port_ops = &mpiix_port_ops;
-	probe[0].sht = &mpiix_sht;
-	probe[0].pio_mask = 0x1F;
-	probe[0].irq = 14;
-	probe[0].irq_flags = SA_SHIRQ;
-	probe[0].port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
-	probe[0].n_ports = 1;
-	probe[0].port[0].cmd_addr = 0x1F0;
-	probe[0].port[0].ctl_addr = 0x3F6;
-	probe[0].port[0].altstatus_addr = 0x3F6;
-
-	/* The secondary lurks at different addresses but is otherwise
-	   the same beastie */
-
-	INIT_LIST_HEAD(&probe[1].node);
-	probe[1] = probe[0];
-	probe[1].irq = 15;
-	probe[1].port[0].cmd_addr = 0x170;
-	probe[1].port[0].ctl_addr = 0x376;
-	probe[1].port[0].altstatus_addr = 0x376;
+	INIT_LIST_HEAD(&probe.node);
+	probe.dev = pci_dev_to_dev(dev);
+	probe.port_ops = &mpiix_port_ops;
+	probe.sht = &mpiix_sht;
+	probe.pio_mask = 0x1F;
+	probe.irq = irq;
+	probe.irq_flags = SA_SHIRQ;
+	probe.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
+	probe.n_ports = 1;
+	probe.port[0].cmd_addr = cmd_addr;
+	probe.port[0].ctl_addr = ctl_addr;
+	probe.port[0].altstatus_addr = ctl_addr;
 
 	/* Let libata fill in the port details */
-	ata_std_ports(&probe[0].port[0]);
-	ata_std_ports(&probe[1].port[0]);
+	ata_std_ports(&probe.port[0]);
 
 	/* Now add the port that is active */
-	enabled = (idetim & SECONDARY) ? 1 : 0;
-
-	if (ata_device_add(&probe[enabled]))
+	if (ata_device_add(&probe))
 		return 0;
 	return -ENODEV;
 }

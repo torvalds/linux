@@ -348,21 +348,21 @@ typedef int (*ata_reset_fn_t)(struct ata_port *ap, unsigned int *classes);
 typedef void (*ata_postreset_fn_t)(struct ata_port *ap, unsigned int *classes);
 
 struct ata_ioports {
-	unsigned long		cmd_addr;
-	unsigned long		data_addr;
-	unsigned long		error_addr;
-	unsigned long		feature_addr;
-	unsigned long		nsect_addr;
-	unsigned long		lbal_addr;
-	unsigned long		lbam_addr;
-	unsigned long		lbah_addr;
-	unsigned long		device_addr;
-	unsigned long		status_addr;
-	unsigned long		command_addr;
-	unsigned long		altstatus_addr;
-	unsigned long		ctl_addr;
-	unsigned long		bmdma_addr;
-	unsigned long		scr_addr;
+	void __iomem		*cmd_addr;
+	void __iomem		*data_addr;
+	void __iomem		*error_addr;
+	void __iomem		*feature_addr;
+	void __iomem		*nsect_addr;
+	void __iomem		*lbal_addr;
+	void __iomem		*lbam_addr;
+	void __iomem		*lbah_addr;
+	void __iomem		*device_addr;
+	void __iomem		*status_addr;
+	void __iomem		*command_addr;
+	void __iomem		*altstatus_addr;
+	void __iomem		*ctl_addr;
+	void __iomem		*bmdma_addr;
+	void __iomem		*scr_addr;
 };
 
 struct ata_probe_ent {
@@ -381,7 +381,7 @@ struct ata_probe_ent {
 	unsigned int		irq_flags;
 	unsigned long		port_flags;
 	unsigned long		_host_flags;
-	void __iomem		*mmio_base;
+	void __iomem * const	*iomap;
 	void			*private_data;
 
 	/* port_info for the secondary port.  Together with irq2, it's
@@ -398,7 +398,7 @@ struct ata_host {
 	struct device 		*dev;
 	unsigned long		irq;
 	unsigned long		irq2;
-	void __iomem		*mmio_base;
+	void __iomem * const	*iomap;
 	unsigned int		n_ports;
 	void			*private_data;
 	const struct ata_port_operations *ops;
@@ -768,12 +768,10 @@ extern u8 ata_altstatus(struct ata_port *ap);
 extern void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf);
 extern int ata_port_start (struct ata_port *ap);
 extern irqreturn_t ata_interrupt (int irq, void *dev_instance);
-extern void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
-			       unsigned int buflen, int write_data);
-extern void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf,
-			      unsigned int buflen, int write_data);
-extern void ata_pio_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
-			      unsigned int buflen, int write_data);
+extern void ata_data_xfer(struct ata_device *adev, unsigned char *buf,
+			  unsigned int buflen, int write_data);
+extern void ata_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
+				unsigned int buflen, int write_data);
 extern void ata_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_noop_qc_prep(struct ata_queued_cmd *qc);
 extern unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc);
@@ -1084,10 +1082,9 @@ static inline u8 ata_wait_idle(struct ata_port *ap)
 	u8 status = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
 
 	if (status != 0xff && (status & (ATA_BUSY | ATA_DRQ))) {
-		unsigned long l = ap->ioaddr.status_addr;
 		if (ata_msg_warn(ap))
-			printk(KERN_WARNING "ATA: abnormal status 0x%X on port 0x%lX\n",
-				status, l);
+			printk(KERN_WARNING "ATA: abnormal status 0x%X on port 0x%p\n",
+				status, ap->ioaddr.status_addr);
 	}
 
 	return status;
@@ -1172,20 +1169,11 @@ static inline u8 ata_irq_ack(struct ata_port *ap, unsigned int chk_drq)
 			printk(KERN_ERR "abnormal status 0x%X\n", status);
 
 	/* get controller status; clear intr, err bits */
-	if (ap->flags & ATA_FLAG_MMIO) {
-		void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
-		host_stat = readb(mmio + ATA_DMA_STATUS);
-		writeb(host_stat | ATA_DMA_INTR | ATA_DMA_ERR,
-		       mmio + ATA_DMA_STATUS);
+	host_stat = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
+	iowrite8(host_stat | ATA_DMA_INTR | ATA_DMA_ERR,
+		 ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 
-		post_stat = readb(mmio + ATA_DMA_STATUS);
-	} else {
-		host_stat = inb(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-		outb(host_stat | ATA_DMA_INTR | ATA_DMA_ERR,
-		     ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-
-		post_stat = inb(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-	}
+	post_stat = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 
 	if (ata_msg_intr(ap))
 		printk(KERN_INFO "%s: irq ack: host_stat 0x%X, new host_stat 0x%X, drv_stat 0x%X\n",

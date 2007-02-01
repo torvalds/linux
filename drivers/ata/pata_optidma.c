@@ -91,12 +91,12 @@ static void optidma_error_handler(struct ata_port *ap)
 
 static void optidma_unlock(struct ata_port *ap)
 {
-	unsigned long regio = ap->ioaddr.cmd_addr;
+	void __iomem *regio = ap->ioaddr.cmd_addr;
 
 	/* These 3 unlock the control register access */
-	inw(regio + 1);
-	inw(regio + 1);
-	outb(3, regio + 2);
+	ioread16(regio + 1);
+	ioread16(regio + 1);
+	iowrite8(3, regio + 2);
 }
 
 /**
@@ -108,10 +108,10 @@ static void optidma_unlock(struct ata_port *ap)
 
 static void optidma_lock(struct ata_port *ap)
 {
-	unsigned long regio = ap->ioaddr.cmd_addr;
+	void __iomem *regio = ap->ioaddr.cmd_addr;
 
 	/* Relock */
-	outb(0x83, regio + 2);
+	iowrite8(0x83, regio + 2);
 }
 
 /**
@@ -133,7 +133,7 @@ static void optidma_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
 	struct ata_device *pair = ata_dev_pair(adev);
 	int pio = adev->pio_mode - XFER_PIO_0;
 	int dma = adev->dma_mode - XFER_MW_DMA_0;
-	unsigned long regio = ap->ioaddr.cmd_addr;
+	void __iomem *regio = ap->ioaddr.cmd_addr;
 	u8 addr;
 
 	/* Address table precomputed with a DCLK of 2 */
@@ -178,20 +178,20 @@ static void optidma_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
 
 	/* Commence primary programming sequence */
 	/* First we load the device number into the timing select */
-	outb(adev->devno, regio + MISC_REG);
+	iowrite8(adev->devno, regio + MISC_REG);
 	/* Now we load the data timings into read data/write data */
 	if (mode < XFER_MW_DMA_0) {
-		outb(data_rec_timing[pci_clock][pio], regio + READ_REG);
-		outb(data_rec_timing[pci_clock][pio], regio + WRITE_REG);
+		iowrite8(data_rec_timing[pci_clock][pio], regio + READ_REG);
+		iowrite8(data_rec_timing[pci_clock][pio], regio + WRITE_REG);
 	} else if (mode < XFER_UDMA_0) {
-		outb(dma_data_rec_timing[pci_clock][dma], regio + READ_REG);
-		outb(dma_data_rec_timing[pci_clock][dma], regio + WRITE_REG);
+		iowrite8(dma_data_rec_timing[pci_clock][dma], regio + READ_REG);
+		iowrite8(dma_data_rec_timing[pci_clock][dma], regio + WRITE_REG);
 	}
 	/* Finally we load the address setup into the misc register */
-	outb(addr | adev->devno, regio + MISC_REG);
+	iowrite8(addr | adev->devno, regio + MISC_REG);
 
 	/* Programming sequence complete, timing 0 dev 0, timing 1 dev 1 */
-	outb(0x85, regio + CNTRL_REG);
+	iowrite8(0x85, regio + CNTRL_REG);
 
 	/* Switch back to IDE mode */
 	optidma_lock(ap);
@@ -389,7 +389,7 @@ static struct ata_port_operations optidma_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
@@ -422,7 +422,7 @@ static struct ata_port_operations optiplus_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,

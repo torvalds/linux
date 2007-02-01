@@ -60,6 +60,9 @@ struct sil24_port_multiplier {
 };
 
 enum {
+	SIL24_HOST_BAR		= 0,
+	SIL24_PORT_BAR		= 2,
+
 	/*
 	 * Global controller registers (128 bytes @ BAR0)
 	 */
@@ -320,12 +323,6 @@ struct sil24_port_priv {
 	struct ata_taskfile tf;			/* Cached taskfile registers */
 };
 
-/* ap->host->private_data */
-struct sil24_host_priv {
-	void __iomem *host_base;	/* global controller control (128 bytes @BAR0) */
-	void __iomem *port_base;	/* port registers (4 * 8192 bytes @BAR2) */
-};
-
 static void sil24_dev_config(struct ata_port *ap, struct ata_device *dev);
 static u8 sil24_check_status(struct ata_port *ap);
 static u32 sil24_scr_read(struct ata_port *ap, unsigned sc_reg);
@@ -462,7 +459,7 @@ static int sil24_tag(int tag)
 
 static void sil24_dev_config(struct ata_port *ap, struct ata_device *dev)
 {
-	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	void __iomem *port = ap->ioaddr.cmd_addr;
 
 	if (dev->cdb_len == 16)
 		writel(PORT_CS_CDB16, port + PORT_CTRL_STAT);
@@ -473,7 +470,7 @@ static void sil24_dev_config(struct ata_port *ap, struct ata_device *dev)
 static inline void sil24_update_tf(struct ata_port *ap)
 {
 	struct sil24_port_priv *pp = ap->private_data;
-	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	void __iomem *port = ap->ioaddr.cmd_addr;
 	struct sil24_prb __iomem *prb = port;
 	u8 fis[6 * 4];
 
@@ -496,7 +493,7 @@ static int sil24_scr_map[] = {
 
 static u32 sil24_scr_read(struct ata_port *ap, unsigned sc_reg)
 {
-	void __iomem *scr_addr = (void __iomem *)ap->ioaddr.scr_addr;
+	void __iomem *scr_addr = ap->ioaddr.scr_addr;
 	if (sc_reg < ARRAY_SIZE(sil24_scr_map)) {
 		void __iomem *addr;
 		addr = scr_addr + sil24_scr_map[sc_reg] * 4;
@@ -507,7 +504,7 @@ static u32 sil24_scr_read(struct ata_port *ap, unsigned sc_reg)
 
 static void sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val)
 {
-	void __iomem *scr_addr = (void __iomem *)ap->ioaddr.scr_addr;
+	void __iomem *scr_addr = ap->ioaddr.scr_addr;
 	if (sc_reg < ARRAY_SIZE(sil24_scr_map)) {
 		void __iomem *addr;
 		addr = scr_addr + sil24_scr_map[sc_reg] * 4;
@@ -523,7 +520,7 @@ static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 
 static int sil24_init_port(struct ata_port *ap)
 {
-	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	void __iomem *port = ap->ioaddr.cmd_addr;
 	u32 tmp;
 
 	writel(PORT_CS_INIT, port + PORT_CTRL_STAT);
@@ -539,7 +536,7 @@ static int sil24_init_port(struct ata_port *ap)
 
 static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 {
-	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	void __iomem *port = ap->ioaddr.cmd_addr;
 	struct sil24_port_priv *pp = ap->private_data;
 	struct sil24_prb *prb = &pp->cmd_block[0].ata.prb;
 	dma_addr_t paddr = pp->cmd_block_dma;
@@ -599,7 +596,7 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 
 static int sil24_hardreset(struct ata_port *ap, unsigned int *class)
 {
-	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	void __iomem *port = ap->ioaddr.cmd_addr;
 	const char *reason;
 	int tout_msec, rc;
 	u32 tmp;
@@ -716,7 +713,7 @@ static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct sil24_port_priv *pp = ap->private_data;
-	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	void __iomem *port = ap->ioaddr.cmd_addr;
 	unsigned int tag = sil24_tag(qc->tag);
 	dma_addr_t paddr;
 	void __iomem *activate;
@@ -737,7 +734,7 @@ static void sil24_irq_clear(struct ata_port *ap)
 
 static void sil24_freeze(struct ata_port *ap)
 {
-	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	void __iomem *port = ap->ioaddr.cmd_addr;
 
 	/* Port-wide IRQ mask in HOST_CTRL doesn't really work, clear
 	 * PORT_IRQ_ENABLE instead.
@@ -747,7 +744,7 @@ static void sil24_freeze(struct ata_port *ap)
 
 static void sil24_thaw(struct ata_port *ap)
 {
-	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	void __iomem *port = ap->ioaddr.cmd_addr;
 	u32 tmp;
 
 	/* clear IRQ */
@@ -760,7 +757,7 @@ static void sil24_thaw(struct ata_port *ap)
 
 static void sil24_error_intr(struct ata_port *ap)
 {
-	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	void __iomem *port = ap->ioaddr.cmd_addr;
 	struct ata_eh_info *ehi = &ap->eh_info;
 	int freeze = 0;
 	u32 irq_stat;
@@ -838,7 +835,7 @@ static void sil24_finish_qc(struct ata_queued_cmd *qc)
 
 static inline void sil24_host_intr(struct ata_port *ap)
 {
-	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	void __iomem *port = ap->ioaddr.cmd_addr;
 	u32 slot_stat, qc_active;
 	int rc;
 
@@ -873,12 +870,12 @@ static inline void sil24_host_intr(struct ata_port *ap)
 static irqreturn_t sil24_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
-	struct sil24_host_priv *hpriv = host->private_data;
+	void __iomem *host_base = host->iomap[SIL24_HOST_BAR];
 	unsigned handled = 0;
 	u32 status;
 	int i;
 
-	status = readl(hpriv->host_base + HOST_IRQ_STAT);
+	status = readl(host_base + HOST_IRQ_STAT);
 
 	if (status == 0xffffffff) {
 		printk(KERN_ERR DRV_NAME ": IRQ status == 0xffffffff, "
@@ -1031,7 +1028,6 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned int board_id = (unsigned int)ent->driver_data;
 	struct ata_port_info *pinfo = &sil24_port_info[board_id];
 	struct ata_probe_ent *probe_ent;
-	struct sil24_host_priv *hpriv;
 	void __iomem *host_base;
 	void __iomem *port_base;
 	int i, rc;
@@ -1044,20 +1040,15 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	rc = pci_request_regions(pdev, DRV_NAME);
+	rc = pcim_iomap_regions(pdev,
+				(1 << SIL24_HOST_BAR) | (1 << SIL24_PORT_BAR),
+				DRV_NAME);
 	if (rc)
 		return rc;
 
-	/* map mmio registers */
-	host_base = pcim_iomap(pdev, 0, 0);
-	port_base = pcim_iomap(pdev, 2, 0);
-	if (!host_base || !port_base)
-		return -ENOMEM;
-
-	/* allocate & init probe_ent and hpriv */
+	/* allocate & init probe_ent */
 	probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
-	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
-	if (!probe_ent || !hpriv)
+	if (!probe_ent)
 		return -ENOMEM;
 
 	probe_ent->dev = pci_dev_to_dev(pdev);
@@ -1073,10 +1064,10 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	probe_ent->irq = pdev->irq;
 	probe_ent->irq_flags = IRQF_SHARED;
-	probe_ent->private_data = hpriv;
+	probe_ent->iomap = pcim_iomap_table(pdev);
 
-	hpriv->host_base = host_base;
-	hpriv->port_base = port_base;
+	host_base = probe_ent->iomap[SIL24_HOST_BAR];
+	port_base = probe_ent->iomap[SIL24_PORT_BAR];
 
 	/*
 	 * Configure the device
@@ -1118,11 +1109,10 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	for (i = 0; i < probe_ent->n_ports; i++) {
-		unsigned long portu =
-			(unsigned long)port_base + i * PORT_REGS_SIZE;
+		void __iomem *port = port_base + i * PORT_REGS_SIZE;
 
-		probe_ent->port[i].cmd_addr = portu;
-		probe_ent->port[i].scr_addr = portu + PORT_SCONTROL;
+		probe_ent->port[i].cmd_addr = port;
+		probe_ent->port[i].scr_addr = port + PORT_SCONTROL;
 
 		ata_std_ports(&probe_ent->port[i]);
 	}
@@ -1143,7 +1133,8 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 static int sil24_pci_device_resume(struct pci_dev *pdev)
 {
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
-	struct sil24_host_priv *hpriv = host->private_data;
+	void __iomem *host_base = host->iomap[SIL24_HOST_BAR];
+	void __iomem *port_base = host->iomap[SIL24_PORT_BAR];
 	int rc;
 
 	rc = ata_pci_device_do_resume(pdev);
@@ -1151,10 +1142,10 @@ static int sil24_pci_device_resume(struct pci_dev *pdev)
 		return rc;
 
 	if (pdev->dev.power.power_state.event == PM_EVENT_SUSPEND)
-		writel(HOST_CTRL_GLOBAL_RST, hpriv->host_base + HOST_CTRL);
+		writel(HOST_CTRL_GLOBAL_RST, host_base + HOST_CTRL);
 
 	sil24_init_controller(pdev, host->n_ports, host->ports[0]->flags,
-			      hpriv->host_base, hpriv->port_base);
+			      host_base, port_base);
 
 	ata_host_resume(host);
 

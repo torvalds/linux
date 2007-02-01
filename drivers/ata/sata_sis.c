@@ -117,7 +117,7 @@ static const struct ata_port_operations sis_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= ata_bmdma_error_handler,
@@ -223,11 +223,11 @@ static u32 sis_scr_read (struct ata_port *ap, unsigned int sc_reg)
 
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
 
-	val = inl(ap->ioaddr.scr_addr + (sc_reg * 4));
+	val = ioread32(ap->ioaddr.scr_addr + (sc_reg * 4));
 
 	if ((pdev->device == 0x0182) || (pdev->device == 0x0183) || (pdev->device == 0x1182) ||
 	    (pdev->device == 0x1183) || (pmr & SIS_PMR_COMBINED))
-		val2 = inl(ap->ioaddr.scr_addr + (sc_reg * 4) + 0x10);
+		val2 = ioread32(ap->ioaddr.scr_addr + (sc_reg * 4) + 0x10);
 
 	return (val | val2) &  0xfffffffb;
 }
@@ -245,10 +245,10 @@ static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 	if (ap->flags & SIS_FLAG_CFGSCR)
 		sis_scr_cfg_write(ap, sc_reg, val);
 	else {
-		outl(val, ap->ioaddr.scr_addr + (sc_reg * 4));
+		iowrite32(val, ap->ioaddr.scr_addr + (sc_reg * 4));
 		if ((pdev->device == 0x0182) || (pdev->device == 0x0183) || (pdev->device == 0x1182) ||
 		    (pdev->device == 0x1183) || (pmr & SIS_PMR_COMBINED))
-			outl(val, ap->ioaddr.scr_addr + (sc_reg * 4)+0x10);
+			iowrite32(val, ap->ioaddr.scr_addr + (sc_reg * 4)+0x10);
 	}
 }
 
@@ -353,10 +353,14 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 
 	if (!(probe_ent->port_flags & SIS_FLAG_CFGSCR)) {
-		probe_ent->port[0].scr_addr =
-			pci_resource_start(pdev, SIS_SCR_PCI_BAR);
-		probe_ent->port[1].scr_addr =
-			pci_resource_start(pdev, SIS_SCR_PCI_BAR) + port2_start;
+		void *mmio;
+
+		mmio = pcim_iomap(pdev, SIS_SCR_PCI_BAR, 0);
+		if (!mmio)
+			return -ENOMEM;
+
+		probe_ent->port[0].scr_addr = mmio;
+		probe_ent->port[1].scr_addr = mmio + port2_start;
 	}
 
 	pci_set_master(pdev);

@@ -83,7 +83,7 @@ static struct ata_port_operations pata_platform_port_ops = {
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
 
-	.data_xfer		= ata_pio_data_xfer_noirq,
+	.data_xfer		= ata_data_xfer_noirq,
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
@@ -134,7 +134,6 @@ static int __devinit pata_platform_probe(struct platform_device *pdev)
 	struct resource *io_res, *ctl_res;
 	struct ata_probe_ent ae;
 	unsigned int mmio;
-	int ret;
 
 	/*
 	 * Simple resource validation ..
@@ -188,48 +187,29 @@ static int __devinit pata_platform_probe(struct platform_device *pdev)
 	 * Handle the MMIO case
 	 */
 	if (mmio) {
-		ae.port_flags |= ATA_FLAG_MMIO;
-
-		ae.port[0].cmd_addr = (unsigned long)
-			devm_ioremap(&pdev->dev, io_res->start,
-				     io_res->end - io_res->start + 1);
-		if (unlikely(!ae.port[0].cmd_addr)) {
-			dev_err(&pdev->dev, "failed to remap IO base\n");
-			return -ENXIO;
-		}
-
-		ae.port[0].ctl_addr = (unsigned long)
-			devm_ioremap(&pdev->dev, ctl_res->start,
-				     ctl_res->end - ctl_res->start + 1);
-		if (unlikely(!ae.port[0].ctl_addr)) {
-			dev_err(&pdev->dev, "failed to remap CTL base\n");
-			ret = -ENXIO;
-			goto bad_remap;
-		}
+		ae.port[0].cmd_addr = devm_ioremap(&pdev->dev, io_res->start,
+				io_res->end - io_res->start + 1);
+		ae.port[0].ctl_addr = devm_ioremap(&pdev->dev, ctl_res->start,
+				ctl_res->end - ctl_res->start + 1);
 	} else {
-		ae.port[0].cmd_addr = io_res->start;
-		ae.port[0].ctl_addr = ctl_res->start;
+		ae.port[0].cmd_addr = devm_ioport_map(&pdev->dev, io_res->start,
+				io_res->end - io_res->start + 1);
+		ae.port[0].ctl_addr = devm_ioport_map(&pdev->dev, ctl_res->start,
+				ctl_res->end - ctl_res->start + 1);
+	}
+	if (!ae.port[0].cmd_addr || !ae.port[0].ctl_addr) {
+		dev_err(&pdev->dev, "failed to map IO/CTL base\n");
+		return -ENOMEM;
 	}
 
 	ae.port[0].altstatus_addr = ae.port[0].ctl_addr;
 
 	pata_platform_setup_port(&ae.port[0], pdev->dev.platform_data);
 
-	if (unlikely(ata_device_add(&ae) == 0)) {
-		ret = -ENODEV;
-		goto add_failed;
-	}
+	if (unlikely(ata_device_add(&ae) == 0))
+		return -ENODEV;
 
 	return 0;
-
-add_failed:
-	if (ae.port[0].ctl_addr && mmio)
-		iounmap((void __iomem *)ae.port[0].ctl_addr);
-bad_remap:
-	if (ae.port[0].cmd_addr && mmio)
-		iounmap((void __iomem *)ae.port[0].cmd_addr);
-
-	return ret;
 }
 
 /**

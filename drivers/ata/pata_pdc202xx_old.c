@@ -170,17 +170,17 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
 	struct ata_taskfile *tf = &qc->tf;
 	int sel66 = ap->port_no ? 0x08: 0x02;
 
-	unsigned long master = ap->host->ports[0]->ioaddr.bmdma_addr;
-	unsigned long clock = master + 0x11;
-	unsigned long atapi_reg = master + 0x20 + (4 * ap->port_no);
+	void __iomem *master = ap->host->ports[0]->ioaddr.bmdma_addr;
+	void __iomem *clock = master + 0x11;
+	void __iomem *atapi_reg = master + 0x20 + (4 * ap->port_no);
 
 	u32 len;
 
 	/* Check we keep host level locking here */
 	if (adev->dma_mode >= XFER_UDMA_2)
-		outb(inb(clock) | sel66, clock);
+		iowrite8(ioread8(clock) | sel66, clock);
 	else
-		outb(inb(clock) & ~sel66, clock);
+		iowrite8(ioread8(clock) & ~sel66, clock);
 
 	/* The DMA clocks may have been trashed by a reset. FIXME: make conditional
 	   and move to qc_issue ? */
@@ -196,7 +196,7 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
 		else
 			len |= 0x05000000;
 
-		outl(len, atapi_reg);
+		iowrite32(len, atapi_reg);
 	}
 
 	/* Activate DMA */
@@ -219,19 +219,19 @@ static void pdc2026x_bmdma_stop(struct ata_queued_cmd *qc)
 
 	int sel66 = ap->port_no ? 0x08: 0x02;
 	/* The clock bits are in the same register for both channels */
-	unsigned long master = ap->host->ports[0]->ioaddr.bmdma_addr;
-	unsigned long clock = master + 0x11;
-	unsigned long atapi_reg = master + 0x20 + (4 * ap->port_no);
+	void __iomem *master = ap->host->ports[0]->ioaddr.bmdma_addr;
+	void __iomem *clock = master + 0x11;
+	void __iomem *atapi_reg = master + 0x20 + (4 * ap->port_no);
 
 	/* Cases the state machine will not complete correctly */
 	if (tf->protocol == ATA_PROT_ATAPI_DMA || ( tf->flags & ATA_TFLAG_LBA48)) {
-		outl(0, atapi_reg);
-		outb(inb(clock) & ~sel66, clock);
+		iowrite32(0, atapi_reg);
+		iowrite8(ioread8(clock) & ~sel66, clock);
 	}
 	/* Check we keep host level locking here */
 	/* Flip back to 33Mhz for PIO */
 	if (adev->dma_mode >= XFER_UDMA_2)
-		outb(inb(clock) & ~sel66, clock);
+		iowrite8(ioread8(clock) & ~sel66, clock);
 
 	ata_bmdma_stop(qc);
 }
@@ -294,7 +294,7 @@ static struct ata_port_operations pdc2024x_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
@@ -326,7 +326,7 @@ static struct ata_port_operations pdc2026x_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,

@@ -404,7 +404,7 @@ static const struct ata_port_operations mv5_ops = {
 
 	.qc_prep		= mv_qc_prep,
 	.qc_issue		= mv_qc_issue,
-	.data_xfer		= ata_mmio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	.eng_timeout		= mv_eng_timeout,
 
@@ -431,7 +431,7 @@ static const struct ata_port_operations mv6_ops = {
 
 	.qc_prep		= mv_qc_prep,
 	.qc_issue		= mv_qc_issue,
-	.data_xfer		= ata_mmio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	.eng_timeout		= mv_eng_timeout,
 
@@ -458,7 +458,7 @@ static const struct ata_port_operations mv_iie_ops = {
 
 	.qc_prep		= mv_qc_prep_iie,
 	.qc_issue		= mv_qc_issue,
-	.data_xfer		= ata_mmio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	.eng_timeout		= mv_eng_timeout,
 
@@ -615,7 +615,7 @@ static inline void __iomem *mv_port_base(void __iomem *base, unsigned int port)
 
 static inline void __iomem *mv_ap_base(struct ata_port *ap)
 {
-	return mv_port_base(ap->host->mmio_base, ap->port_no);
+	return mv_port_base(ap->host->iomap[MV_PRIMARY_BAR], ap->port_no);
 }
 
 static inline int mv_get_hc_count(unsigned long port_flags)
@@ -1299,7 +1299,7 @@ static void mv_err_intr(struct ata_port *ap, int reset_allowed)
  */
 static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 {
-	void __iomem *mmio = host->mmio_base;
+	void __iomem *mmio = host->iomap[MV_PRIMARY_BAR];
 	void __iomem *hc_mmio = mv_hc_base(mmio, hc);
 	struct ata_queued_cmd *qc;
 	u32 hc_irq_cause;
@@ -1342,8 +1342,7 @@ static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 		} else {
 			/* PIO: check for device (drive) interrupt */
 			if ((DEV_IRQ << hard_port) & hc_irq_cause) {
-				ata_status = readb((void __iomem *)
-					   ap->ioaddr.status_addr);
+				ata_status = readb(ap->ioaddr.status_addr);
 				handled = 1;
 				/* ignore spurious intr if drive still BUSY */
 				if (ata_status & ATA_BUSY) {
@@ -1403,7 +1402,7 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	unsigned int hc, handled = 0, n_hcs;
-	void __iomem *mmio = host->mmio_base;
+	void __iomem *mmio = host->iomap[MV_PRIMARY_BAR];
 	struct mv_host_priv *hpriv;
 	u32 irq_stat;
 
@@ -1479,22 +1478,24 @@ static unsigned int mv5_scr_offset(unsigned int sc_reg_in)
 
 static u32 mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in)
 {
-	void __iomem *mmio = mv5_phy_base(ap->host->mmio_base, ap->port_no);
+	void __iomem *mmio = ap->host->iomap[MV_PRIMARY_BAR];
+	void __iomem *addr = mv5_phy_base(mmio, ap->port_no);
 	unsigned int ofs = mv5_scr_offset(sc_reg_in);
 
 	if (ofs != 0xffffffffU)
-		return readl(mmio + ofs);
+		return readl(addr + ofs);
 	else
 		return (u32) ofs;
 }
 
 static void mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 {
-	void __iomem *mmio = mv5_phy_base(ap->host->mmio_base, ap->port_no);
+	void __iomem *mmio = ap->host->iomap[MV_PRIMARY_BAR];
+	void __iomem *addr = mv5_phy_base(mmio, ap->port_no);
 	unsigned int ofs = mv5_scr_offset(sc_reg_in);
 
 	if (ofs != 0xffffffffU)
-		writelfl(val, mmio + ofs);
+		writelfl(val, addr + ofs);
 }
 
 static void mv5_reset_bus(struct pci_dev *pdev, void __iomem *mmio)
@@ -1856,7 +1857,7 @@ static void mv_channel_reset(struct mv_host_priv *hpriv, void __iomem *mmio,
 static void mv_stop_and_reset(struct ata_port *ap)
 {
 	struct mv_host_priv *hpriv = ap->host->private_data;
-	void __iomem *mmio = ap->host->mmio_base;
+	void __iomem *mmio = ap->host->iomap[MV_PRIMARY_BAR];
 
 	mv_stop_dma(ap);
 
@@ -1954,10 +1955,10 @@ comreset_retry:
 			break;
 	}
 
-	tf.lbah = readb((void __iomem *) ap->ioaddr.lbah_addr);
-	tf.lbam = readb((void __iomem *) ap->ioaddr.lbam_addr);
-	tf.lbal = readb((void __iomem *) ap->ioaddr.lbal_addr);
-	tf.nsect = readb((void __iomem *) ap->ioaddr.nsect_addr);
+	tf.lbah = readb(ap->ioaddr.lbah_addr);
+	tf.lbam = readb(ap->ioaddr.lbam_addr);
+	tf.lbal = readb(ap->ioaddr.lbal_addr);
+	tf.nsect = readb(ap->ioaddr.nsect_addr);
 
 	dev->class = ata_dev_classify(&tf);
 	if (!ata_dev_enabled(dev)) {
@@ -1989,17 +1990,17 @@ static void mv_phy_reset(struct ata_port *ap)
  */
 static void mv_eng_timeout(struct ata_port *ap)
 {
+	void __iomem *mmio = ap->host->iomap[MV_PRIMARY_BAR];
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 
 	ata_port_printk(ap, KERN_ERR, "Entering mv_eng_timeout\n");
 	DPRINTK("All regs @ start of eng_timeout\n");
-	mv_dump_all_regs(ap->host->mmio_base, ap->port_no,
-			 to_pci_dev(ap->host->dev));
+	mv_dump_all_regs(mmio, ap->port_no, to_pci_dev(ap->host->dev));
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
         printk(KERN_ERR "mmio_base %p ap %p qc %p scsi_cmnd %p &cmnd %p\n",
-	       ap->host->mmio_base, ap, qc, qc->scsicmd, &qc->scsicmd->cmnd);
+	       mmio, ap, qc, qc->scsicmd, &qc->scsicmd->cmnd);
 
 	spin_lock_irqsave(&ap->host->lock, flags);
 	mv_err_intr(ap, 0);
@@ -2027,7 +2028,7 @@ static void mv_eng_timeout(struct ata_port *ap)
  */
 static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 {
-	unsigned long shd_base = (unsigned long) port_mmio + SHD_BLK_OFS;
+	void __iomem *shd_base = port_mmio + SHD_BLK_OFS;
 	unsigned serr_ofs;
 
 	/* PIO related setup
@@ -2175,7 +2176,7 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 			unsigned int board_idx)
 {
 	int rc = 0, n_hc, port, hc;
-	void __iomem *mmio = probe_ent->mmio_base;
+	void __iomem *mmio = probe_ent->iomap[MV_PRIMARY_BAR];
 	struct mv_host_priv *hpriv = probe_ent->private_data;
 
 	/* global interrupt mask */
@@ -2297,7 +2298,6 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_probe_ent *probe_ent;
 	struct mv_host_priv *hpriv;
 	unsigned int board_idx = (unsigned int)ent->driver_data;
-	void __iomem *mmio_base;
 	int rc;
 
 	if (!printed_version++)
@@ -2308,11 +2308,11 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return rc;
 	pci_set_master(pdev);
 
-	rc = pci_request_regions(pdev, DRV_NAME);
-	if (rc) {
+	rc = pcim_iomap_regions(pdev, 1 << MV_PRIMARY_BAR, DRV_NAME);
+	if (rc == -EBUSY)
 		pcim_pin_device(pdev);
+	if (rc)
 		return rc;
-	}
 
 	probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
 	if (probe_ent == NULL)
@@ -2320,10 +2320,6 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
-
-	mmio_base = pcim_iomap(pdev, MV_PRIMARY_BAR, 0);
-	if (mmio_base == NULL)
-		return -ENOMEM;
 
 	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
@@ -2337,7 +2333,7 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	probe_ent->irq = pdev->irq;
 	probe_ent->irq_flags = IRQF_SHARED;
-	probe_ent->mmio_base = mmio_base;
+	probe_ent->iomap = pcim_iomap_table(pdev);
 	probe_ent->private_data = hpriv;
 
 	/* initialize adapter */

@@ -108,7 +108,7 @@ static const struct ata_port_operations uli_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
@@ -188,6 +188,7 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	int rc;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
 	struct uli_priv *hpriv;
+	void __iomem * const *iomap;
 
 	if (!printed_version++)
 		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
@@ -220,24 +221,26 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	probe_ent->private_data = hpriv;
 
+	iomap = pcim_iomap_table(pdev);
+
 	switch (board_idx) {
 	case uli_5287:
 		hpriv->scr_cfg_addr[0] = ULI5287_BASE;
 		hpriv->scr_cfg_addr[1] = ULI5287_BASE + ULI5287_OFFS;
        		probe_ent->n_ports = 4;
 
-       		probe_ent->port[2].cmd_addr = pci_resource_start(pdev, 0) + 8;
+		probe_ent->port[2].cmd_addr = iomap[0] + 8;
 		probe_ent->port[2].altstatus_addr =
-		probe_ent->port[2].ctl_addr =
-			(pci_resource_start(pdev, 1) | ATA_PCI_CTL_OFS) + 4;
-		probe_ent->port[2].bmdma_addr = pci_resource_start(pdev, 4) + 16;
+		probe_ent->port[2].ctl_addr = (void __iomem *)
+			((unsigned long)iomap[1] | ATA_PCI_CTL_OFS) + 4;
+		probe_ent->port[2].bmdma_addr = iomap[4] + 16;
 		hpriv->scr_cfg_addr[2] = ULI5287_BASE + ULI5287_OFFS*4;
 
-		probe_ent->port[3].cmd_addr = pci_resource_start(pdev, 2) + 8;
+		probe_ent->port[3].cmd_addr = iomap[2] + 8;
 		probe_ent->port[3].altstatus_addr =
-		probe_ent->port[3].ctl_addr =
-			(pci_resource_start(pdev, 3) | ATA_PCI_CTL_OFS) + 4;
-		probe_ent->port[3].bmdma_addr = pci_resource_start(pdev, 4) + 24;
+		probe_ent->port[3].ctl_addr = (void __iomem *)
+			((unsigned long)iomap[3] | ATA_PCI_CTL_OFS) + 4;
+		probe_ent->port[3].bmdma_addr = iomap[4] + 24;
 		hpriv->scr_cfg_addr[3] = ULI5287_BASE + ULI5287_OFFS*5;
 
 		ata_std_ports(&probe_ent->port[2]);

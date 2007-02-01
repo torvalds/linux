@@ -492,7 +492,7 @@ static int it821x_smart_set_mode(struct ata_port *ap, struct ata_device **unused
 	/* Bits 5 and 6 indicate if DMA is active on master/slave */
 	/* It is possible that BMDMA isn't allocated */
 	if (ap->ioaddr.bmdma_addr)
-		dma_enabled = inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+		dma_enabled = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
@@ -674,7 +674,7 @@ static struct ata_port_operations it821x_smart_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= it821x_smart_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
@@ -708,7 +708,7 @@ static struct ata_port_operations it821x_passthru_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= it821x_passthru_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_handler	= ata_interrupt,

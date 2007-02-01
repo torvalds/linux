@@ -601,112 +601,46 @@ void ata_dev_disable(struct ata_device *dev)
 }
 
 /**
- *	ata_pio_devchk - PATA device presence detection
- *	@ap: ATA channel to examine
- *	@device: Device to examine (starting at zero)
- *
- *	This technique was originally described in
- *	Hale Landis's ATADRVR (www.ata-atapi.com), and
- *	later found its way into the ATA/ATAPI spec.
- *
- *	Write a pattern to the ATA shadow registers,
- *	and if a device is present, it will respond by
- *	correctly storing and echoing back the
- *	ATA shadow register contents.
- *
- *	LOCKING:
- *	caller.
- */
-
-static unsigned int ata_pio_devchk(struct ata_port *ap,
-				   unsigned int device)
-{
-	struct ata_ioports *ioaddr = &ap->ioaddr;
-	u8 nsect, lbal;
-
-	ap->ops->dev_select(ap, device);
-
-	outb(0x55, ioaddr->nsect_addr);
-	outb(0xaa, ioaddr->lbal_addr);
-
-	outb(0xaa, ioaddr->nsect_addr);
-	outb(0x55, ioaddr->lbal_addr);
-
-	outb(0x55, ioaddr->nsect_addr);
-	outb(0xaa, ioaddr->lbal_addr);
-
-	nsect = inb(ioaddr->nsect_addr);
-	lbal = inb(ioaddr->lbal_addr);
-
-	if ((nsect == 0x55) && (lbal == 0xaa))
-		return 1;	/* we found a device */
-
-	return 0;		/* nothing found */
-}
-
-/**
- *	ata_mmio_devchk - PATA device presence detection
- *	@ap: ATA channel to examine
- *	@device: Device to examine (starting at zero)
- *
- *	This technique was originally described in
- *	Hale Landis's ATADRVR (www.ata-atapi.com), and
- *	later found its way into the ATA/ATAPI spec.
- *
- *	Write a pattern to the ATA shadow registers,
- *	and if a device is present, it will respond by
- *	correctly storing and echoing back the
- *	ATA shadow register contents.
- *
- *	LOCKING:
- *	caller.
- */
-
-static unsigned int ata_mmio_devchk(struct ata_port *ap,
-				    unsigned int device)
-{
-	struct ata_ioports *ioaddr = &ap->ioaddr;
-	u8 nsect, lbal;
-
-	ap->ops->dev_select(ap, device);
-
-	writeb(0x55, (void __iomem *) ioaddr->nsect_addr);
-	writeb(0xaa, (void __iomem *) ioaddr->lbal_addr);
-
-	writeb(0xaa, (void __iomem *) ioaddr->nsect_addr);
-	writeb(0x55, (void __iomem *) ioaddr->lbal_addr);
-
-	writeb(0x55, (void __iomem *) ioaddr->nsect_addr);
-	writeb(0xaa, (void __iomem *) ioaddr->lbal_addr);
-
-	nsect = readb((void __iomem *) ioaddr->nsect_addr);
-	lbal = readb((void __iomem *) ioaddr->lbal_addr);
-
-	if ((nsect == 0x55) && (lbal == 0xaa))
-		return 1;	/* we found a device */
-
-	return 0;		/* nothing found */
-}
-
-/**
  *	ata_devchk - PATA device presence detection
  *	@ap: ATA channel to examine
  *	@device: Device to examine (starting at zero)
  *
- *	Dispatch ATA device presence detection, depending
- *	on whether we are using PIO or MMIO to talk to the
- *	ATA shadow registers.
+ *	This technique was originally described in
+ *	Hale Landis's ATADRVR (www.ata-atapi.com), and
+ *	later found its way into the ATA/ATAPI spec.
+ *
+ *	Write a pattern to the ATA shadow registers,
+ *	and if a device is present, it will respond by
+ *	correctly storing and echoing back the
+ *	ATA shadow register contents.
  *
  *	LOCKING:
  *	caller.
  */
 
-static unsigned int ata_devchk(struct ata_port *ap,
-				    unsigned int device)
+static unsigned int ata_devchk(struct ata_port *ap, unsigned int device)
 {
-	if (ap->flags & ATA_FLAG_MMIO)
-		return ata_mmio_devchk(ap, device);
-	return ata_pio_devchk(ap, device);
+	struct ata_ioports *ioaddr = &ap->ioaddr;
+	u8 nsect, lbal;
+
+	ap->ops->dev_select(ap, device);
+
+	iowrite8(0x55, ioaddr->nsect_addr);
+	iowrite8(0xaa, ioaddr->lbal_addr);
+
+	iowrite8(0xaa, ioaddr->nsect_addr);
+	iowrite8(0x55, ioaddr->lbal_addr);
+
+	iowrite8(0x55, ioaddr->nsect_addr);
+	iowrite8(0xaa, ioaddr->lbal_addr);
+
+	nsect = ioread8(ioaddr->nsect_addr);
+	lbal = ioread8(ioaddr->lbal_addr);
+
+	if ((nsect == 0x55) && (lbal == 0xaa))
+		return 1;	/* we found a device */
+
+	return 0;		/* nothing found */
 }
 
 /**
@@ -926,11 +860,7 @@ void ata_std_dev_select (struct ata_port *ap, unsigned int device)
 	else
 		tmp = ATA_DEVICE_OBS | ATA_DEV1;
 
-	if (ap->flags & ATA_FLAG_MMIO) {
-		writeb(tmp, (void __iomem *) ap->ioaddr.device_addr);
-	} else {
-		outb(tmp, ap->ioaddr.device_addr);
-	}
+	iowrite8(tmp, ap->ioaddr.device_addr);
 	ata_pause(ap);		/* needed; also flushes, for mmio */
 }
 
@@ -2616,13 +2546,8 @@ static void ata_bus_post_reset(struct ata_port *ap, unsigned int devmask)
 		u8 nsect, lbal;
 
 		ap->ops->dev_select(ap, 1);
-		if (ap->flags & ATA_FLAG_MMIO) {
-			nsect = readb((void __iomem *) ioaddr->nsect_addr);
-			lbal = readb((void __iomem *) ioaddr->lbal_addr);
-		} else {
-			nsect = inb(ioaddr->nsect_addr);
-			lbal = inb(ioaddr->lbal_addr);
-		}
+		nsect = ioread8(ioaddr->nsect_addr);
+		lbal = ioread8(ioaddr->lbal_addr);
 		if ((nsect == 1) && (lbal == 1))
 			break;
 		if (time_after(jiffies, timeout)) {
@@ -2650,19 +2575,11 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
 	DPRINTK("ata%u: bus reset via SRST\n", ap->id);
 
 	/* software reset.  causes dev0 to be selected */
-	if (ap->flags & ATA_FLAG_MMIO) {
-		writeb(ap->ctl, (void __iomem *) ioaddr->ctl_addr);
-		udelay(20);	/* FIXME: flush */
-		writeb(ap->ctl | ATA_SRST, (void __iomem *) ioaddr->ctl_addr);
-		udelay(20);	/* FIXME: flush */
-		writeb(ap->ctl, (void __iomem *) ioaddr->ctl_addr);
-	} else {
-		outb(ap->ctl, ioaddr->ctl_addr);
-		udelay(10);
-		outb(ap->ctl | ATA_SRST, ioaddr->ctl_addr);
-		udelay(10);
-		outb(ap->ctl, ioaddr->ctl_addr);
-	}
+	iowrite8(ap->ctl, ioaddr->ctl_addr);
+	udelay(20);	/* FIXME: flush */
+	iowrite8(ap->ctl | ATA_SRST, ioaddr->ctl_addr);
+	udelay(20);	/* FIXME: flush */
+	iowrite8(ap->ctl, ioaddr->ctl_addr);
 
 	/* spec mandates ">= 2ms" before checking status.
 	 * We wait 150ms, because that was the magic delay used for
@@ -2763,10 +2680,7 @@ void ata_bus_reset(struct ata_port *ap)
 
 	if (ap->flags & (ATA_FLAG_SATA_RESET | ATA_FLAG_SRST)) {
 		/* set up device control for ATA_FLAG_SATA_RESET */
-		if (ap->flags & ATA_FLAG_MMIO)
-			writeb(ap->ctl, (void __iomem *) ioaddr->ctl_addr);
-		else
-			outb(ap->ctl, ioaddr->ctl_addr);
+		iowrite8(ap->ctl, ioaddr->ctl_addr);
 	}
 
 	DPRINTK("EXIT\n");
@@ -3159,12 +3073,8 @@ void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
 	}
 
 	/* set up device control */
-	if (ap->ioaddr.ctl_addr) {
-		if (ap->flags & ATA_FLAG_MMIO)
-			writeb(ap->ctl, (void __iomem *) ap->ioaddr.ctl_addr);
-		else
-			outb(ap->ctl, ap->ioaddr.ctl_addr);
-	}
+	if (ap->ioaddr.ctl_addr)
+		iowrite8(ap->ctl, ap->ioaddr.ctl_addr);
 
 	DPRINTK("EXIT\n");
 }
@@ -3880,53 +3790,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
 }
 
 /**
- *	ata_mmio_data_xfer - Transfer data by MMIO
- *	@adev: device for this I/O
- *	@buf: data buffer
- *	@buflen: buffer length
- *	@write_data: read/write
- *
- *	Transfer data from/to the device data register by MMIO.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-
-void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
-			unsigned int buflen, int write_data)
-{
-	struct ata_port *ap = adev->ap;
-	unsigned int i;
-	unsigned int words = buflen >> 1;
-	u16 *buf16 = (u16 *) buf;
-	void __iomem *mmio = (void __iomem *)ap->ioaddr.data_addr;
-
-	/* Transfer multiple of 2 bytes */
-	if (write_data) {
-		for (i = 0; i < words; i++)
-			writew(le16_to_cpu(buf16[i]), mmio);
-	} else {
-		for (i = 0; i < words; i++)
-			buf16[i] = cpu_to_le16(readw(mmio));
-	}
-
-	/* Transfer trailing 1 byte, if any. */
-	if (unlikely(buflen & 0x01)) {
-		u16 align_buf[1] = { 0 };
-		unsigned char *trailing_buf = buf + buflen - 1;
-
-		if (write_data) {
-			memcpy(align_buf, trailing_buf, 1);
-			writew(le16_to_cpu(align_buf[0]), mmio);
-		} else {
-			align_buf[0] = cpu_to_le16(readw(mmio));
-			memcpy(trailing_buf, align_buf, 1);
-		}
-	}
-}
-
-/**
- *	ata_pio_data_xfer - Transfer data by PIO
+ *	ata_data_xfer - Transfer data by PIO
  *	@adev: device to target
  *	@buf: data buffer
  *	@buflen: buffer length
@@ -3937,18 +3801,17 @@ void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
  *	LOCKING:
  *	Inherited from caller.
  */
-
-void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf,
-		       unsigned int buflen, int write_data)
+void ata_data_xfer(struct ata_device *adev, unsigned char *buf,
+		   unsigned int buflen, int write_data)
 {
 	struct ata_port *ap = adev->ap;
 	unsigned int words = buflen >> 1;
 
 	/* Transfer multiple of 2 bytes */
 	if (write_data)
-		outsw(ap->ioaddr.data_addr, buf, words);
+		iowrite16_rep(ap->ioaddr.data_addr, buf, words);
 	else
-		insw(ap->ioaddr.data_addr, buf, words);
+		ioread16_rep(ap->ioaddr.data_addr, buf, words);
 
 	/* Transfer trailing 1 byte, if any. */
 	if (unlikely(buflen & 0x01)) {
@@ -3957,16 +3820,16 @@ void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf,
 
 		if (write_data) {
 			memcpy(align_buf, trailing_buf, 1);
-			outw(le16_to_cpu(align_buf[0]), ap->ioaddr.data_addr);
+			iowrite16(le16_to_cpu(align_buf[0]), ap->ioaddr.data_addr);
 		} else {
-			align_buf[0] = cpu_to_le16(inw(ap->ioaddr.data_addr));
+			align_buf[0] = cpu_to_le16(ioread16(ap->ioaddr.data_addr));
 			memcpy(trailing_buf, align_buf, 1);
 		}
 	}
 }
 
 /**
- *	ata_pio_data_xfer_noirq - Transfer data by PIO
+ *	ata_data_xfer_noirq - Transfer data by PIO
  *	@adev: device to target
  *	@buf: data buffer
  *	@buflen: buffer length
@@ -3978,13 +3841,12 @@ void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf,
  *	LOCKING:
  *	Inherited from caller.
  */
-
-void ata_pio_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
-				    unsigned int buflen, int write_data)
+void ata_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
+			 unsigned int buflen, int write_data)
 {
 	unsigned long flags;
 	local_irq_save(flags);
-	ata_pio_data_xfer(adev, buf, buflen, write_data);
+	ata_data_xfer(adev, buf, buflen, write_data);
 	local_irq_restore(flags);
 }
 
@@ -5770,7 +5632,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	host->n_ports = ent->n_ports;
 	host->irq = ent->irq;
 	host->irq2 = ent->irq2;
-	host->mmio_base = ent->mmio_base;
+	host->iomap = ent->iomap;
 	host->private_data = ent->private_data;
 
 	/* register each port bound to this device */
@@ -5808,8 +5670,8 @@ int ata_device_add(const struct ata_probe_ent *ent)
 				(ap->pio_mask << ATA_SHIFT_PIO);
 
 		/* print per-port info to dmesg */
-		ata_port_printk(ap, KERN_INFO, "%cATA max %s cmd 0x%lX "
-				"ctl 0x%lX bmdma 0x%lX irq %d\n",
+		ata_port_printk(ap, KERN_INFO, "%cATA max %s cmd 0x%p "
+				"ctl 0x%p bmdma 0x%p irq %d\n",
 				ap->flags & ATA_FLAG_SATA ? 'S' : 'P',
 				ata_mode_string(xfer_mode_mask),
 				ap->ioaddr.cmd_addr,
@@ -6328,9 +6190,8 @@ EXPORT_SYMBOL_GPL(ata_altstatus);
 EXPORT_SYMBOL_GPL(ata_exec_command);
 EXPORT_SYMBOL_GPL(ata_port_start);
 EXPORT_SYMBOL_GPL(ata_interrupt);
-EXPORT_SYMBOL_GPL(ata_mmio_data_xfer);
-EXPORT_SYMBOL_GPL(ata_pio_data_xfer);
-EXPORT_SYMBOL_GPL(ata_pio_data_xfer_noirq);
+EXPORT_SYMBOL_GPL(ata_data_xfer);
+EXPORT_SYMBOL_GPL(ata_data_xfer_noirq);
 EXPORT_SYMBOL_GPL(ata_qc_prep);
 EXPORT_SYMBOL_GPL(ata_noop_qc_prep);
 EXPORT_SYMBOL_GPL(ata_bmdma_setup);

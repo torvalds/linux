@@ -131,22 +131,24 @@ static void qdi_data_xfer(struct ata_device *adev, unsigned char *buf, unsigned 
 
 	if (ata_id_has_dword_io(adev->id)) {
 		if (write_data)
-			outsl(ap->ioaddr.data_addr, buf, buflen >> 2);
+			iowrite32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 		else
-			insl(ap->ioaddr.data_addr, buf, buflen >> 2);
+			ioread32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 
 		if (unlikely(slop)) {
 			u32 pad;
 			if (write_data) {
 				memcpy(&pad, buf + buflen - slop, slop);
-				outl(le32_to_cpu(pad), ap->ioaddr.data_addr);
+				pad = le32_to_cpu(pad);
+				iowrite32(pad, ap->ioaddr.data_addr);
 			} else {
-				pad = cpu_to_le32(inl(ap->ioaddr.data_addr));
+				pad = ioread32(ap->ioaddr.data_addr);
+				pad = cpu_to_le32(pad);
 				memcpy(buf + buflen - slop, &pad, slop);
 			}
 		}
 	} else
-		ata_pio_data_xfer(adev, buf, buflen, write_data);
+		ata_data_xfer(adev, buf, buflen, write_data);
 }
 
 static struct scsi_host_template qdi_sht = {
@@ -234,9 +236,8 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 {
 	struct ata_probe_ent ae;
 	struct platform_device *pdev;
+	void __iomem *io_addr, *ctl_addr;
 	int ret;
-
-	unsigned long ctrl = io + 0x206;
 
 	/*
 	 *	Fill in a probe structure first of all
@@ -245,6 +246,12 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 	pdev = platform_device_register_simple(DRV_NAME, nr_qdi_host, NULL, 0);
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
+
+	ret = -ENOMEM;
+	io_addr = devm_ioport_map(&pdev->dev, io, 8);
+	ctl_addr = devm_ioport_map(&pdev->dev, io + 0x206, 1);
+	if (!io_addr || !ctl_addr)
+		goto fail;
 
 	memset(&ae, 0, sizeof(struct ata_probe_ent));
 	INIT_LIST_HEAD(&ae.node);
@@ -263,9 +270,9 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 	ae.irq = irq;
 	ae.irq_flags = 0;
 	ae.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
-	ae.port[0].cmd_addr = io;
-	ae.port[0].altstatus_addr = ctrl;
-	ae.port[0].ctl_addr =	ctrl;
+	ae.port[0].cmd_addr = io_addr;
+	ae.port[0].altstatus_addr = ctl_addr;
+	ae.port[0].ctl_addr = ctl_addr;
 	ata_std_ports(&ae.port[0]);
 
 	/*
@@ -278,14 +285,17 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 	qdi_data[nr_qdi_host].platform_dev = pdev;
 
 	printk(KERN_INFO DRV_NAME": qd%d at 0x%lx.\n", type, io);
-	ret = ata_device_add(&ae);
-	if (ret == 0) {
-		platform_device_unregister(pdev);
-		return -ENODEV;
-	}
+
+	ret = -ENODEV;
+	if (!ata_device_add(&ae))
+		goto fail;
 
 	qdi_host[nr_qdi_host++] = dev_get_drvdata(&pdev->dev);
 	return 0;
+
+ fail:
+	platform_device_unregister(pdev);
+	return ret;
 }
 
 /**
