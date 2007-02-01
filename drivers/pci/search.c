@@ -200,11 +200,8 @@ static struct pci_dev * pci_find_subsys(unsigned int vendor,
 	 * can cause some machines to crash.  So here we detect and flag that
 	 * situation and bail out early.
 	 */
-	if (unlikely(list_empty(&pci_devices))) {
-		printk(KERN_INFO "pci_find_subsys() called while pci_devices "
-				"is still empty\n");
+	if (unlikely(list_empty(&pci_devices)))
 		return NULL;
-	}
 	down_read(&pci_bus_sem);
 	n = from ? from->global_list.next : pci_devices.next;
 
@@ -278,11 +275,8 @@ pci_get_subsys(unsigned int vendor, unsigned int device,
 	 * can cause some machines to crash.  So here we detect and flag that
 	 * situation and bail out early.
 	 */
-	if (unlikely(list_empty(&pci_devices))) {
-		printk(KERN_NOTICE "pci_get_subsys() called while pci_devices "
-				"is still empty\n");
+	if (unlikely(list_empty(&pci_devices)))
 		return NULL;
-	}
 	down_read(&pci_bus_sem);
 	n = from ? from->global_list.next : pci_devices.next;
 
