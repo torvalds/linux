@@ -36,6 +36,8 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	int			port;
 	int			mask;
 
+	ehci_dbg(ehci, "suspend root hub\n");
+
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep(5);
 
