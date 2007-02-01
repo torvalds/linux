@@ -2477,6 +2477,12 @@ L:	orinoco-devel@lists.sourceforge.net
 W:	http://www.nongnu.org/orinoco/
 S:	Maintained
 
+PA SEMI ETHERNET DRIVER
+P:	Olof Johansson
+M:	olof@lixom.net
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 PARALLEL PORT SUPPORT
 P:	Phil Blundell
 M:	philb@gnu.org
