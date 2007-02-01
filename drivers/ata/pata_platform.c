@@ -47,23 +47,6 @@ static int pata_platform_set_mode(struct ata_port *ap, struct ata_device **unuse
 	return 0;
 }
 
-static void pata_platform_host_stop(struct ata_host *host)
-{
-	int i;
-
-	/*
-	 * Unmap the bases for MMIO
-	 */
-	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap = host->ports[i];
-
-		if (ap->flags & ATA_FLAG_MMIO) {
-			iounmap((void __iomem *)ap->ioaddr.ctl_addr);
-			iounmap((void __iomem *)ap->ioaddr.cmd_addr);
-		}
-	}
-}
-
 static struct scsi_host_template pata_platform_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
@@ -106,8 +89,6 @@ static struct ata_port_operations pata_platform_port_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= pata_platform_host_stop
 };
 
 static void pata_platform_setup_port(struct ata_ioports *ioaddr,
@@ -209,15 +190,17 @@ static int __devinit pata_platform_probe(struct platform_device *pdev)
 	if (mmio) {
 		ae.port_flags |= ATA_FLAG_MMIO;
 
-		ae.port[0].cmd_addr = (unsigned long)ioremap(io_res->start,
-				io_res->end - io_res->start + 1);
+		ae.port[0].cmd_addr = (unsigned long)
+			devm_ioremap(&pdev->dev, io_res->start,
+				     io_res->end - io_res->start + 1);
 		if (unlikely(!ae.port[0].cmd_addr)) {
 			dev_err(&pdev->dev, "failed to remap IO base\n");
 			return -ENXIO;
 		}
 
-		ae.port[0].ctl_addr = (unsigned long)ioremap(ctl_res->start,
-				ctl_res->end - ctl_res->start + 1);
+		ae.port[0].ctl_addr = (unsigned long)
+			devm_ioremap(&pdev->dev, ctl_res->start,
+				     ctl_res->end - ctl_res->start + 1);
 		if (unlikely(!ae.port[0].ctl_addr)) {
 			dev_err(&pdev->dev, "failed to remap CTL base\n");
 			ret = -ENXIO;
@@ -261,7 +244,7 @@ static int __devexit pata_platform_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ata_host *host = dev_get_drvdata(dev);
 
-	ata_host_remove(host);
+	ata_host_detach(host);
 	dev_set_drvdata(dev, NULL);
 
 	return 0;
