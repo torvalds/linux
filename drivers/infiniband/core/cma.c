@@ -2494,7 +2494,7 @@ static int cma_init(void)
 	next_port = (next_port % (sysctl_local_port_range[1] -
 				  sysctl_local_port_range[0])) +
 		    sysctl_local_port_range[0];
-	cma_wq = create_singlethread_workqueue("rdma_cm_wq");
+	cma_wq = create_singlethread_workqueue("rdma_cm");
 	if (!cma_wq)
 		return -ENOMEM;
 
