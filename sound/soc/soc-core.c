@@ -1522,7 +1522,7 @@ EXPORT_SYMBOL_GPL(snd_soc_get_rate);
  *
  * Returns 0 for success, else error.
  */
-int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char * xid)
+int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid)
 {
 	struct snd_soc_codec *codec = socdev->codec;
 	struct snd_soc_machine *machine = socdev->machine;
