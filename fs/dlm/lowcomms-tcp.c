@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -109,7 +109,6 @@ struct connection {
 	struct page *rx_page;
 	struct cbuf cb;
 	int retries;
-	atomic_t waiting_requests;
 #define MAX_CONNECT_RETRIES 3
 	struct connection *othercon;
 	struct work_struct rwork; /* Receive workqueue */
@@ -278,8 +277,11 @@ static int receive_from_sock(struct connection *con)
 
 	mutex_lock(&con->sock_mutex);
 
-	if (con->sock == NULL)
-		goto out;
+	if (con->sock == NULL) {
+		ret = -EAGAIN;
+		goto out_close;
+	}
+
 	if (con->rx_page == NULL) {
 		/*
 		 * This doesn't need to be atomic, but I think it should
@@ -352,7 +354,6 @@ static int receive_from_sock(struct connection *con)
 		con->rx_page = NULL;
 	}
 
-out:
 	if (call_again_soon)
 		goto out_resched;
 	mutex_unlock(&con->sock_mutex);
@@ -370,6 +371,9 @@ out_close:
 		close_connection(con, false);
 		/* Reconnect when there is something to send */
 	}
+	/* Don't return success if we really got EOF */
+	if (ret == 0)
+		ret = -EAGAIN;
 
 	return ret;
 }
@@ -847,7 +851,6 @@ int dlm_lowcomms_close(int nodeid)
 	if (con) {
 		clean_one_writequeue(con);
 		close_connection(con, true);
-		atomic_set(&con->waiting_requests, 0);
 	}
 	return 0;
 
