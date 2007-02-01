@@ -661,9 +661,11 @@ static void quirk_via_bridge(struct pci_dev *dev)
 	/* See what bridge we have and find the device ranges */
 	switch (dev->device) {
 	case PCI_DEVICE_ID_VIA_82C686:
-		/* 82C686 is special */
-		via_vlink_dev_lo = 7;
-		via_vlink_dev_hi = 7;
+		/* The VT82C686 is special, it attaches to PCI and can have
+		   any device number. All its subdevices are functions of
+		   that single device. */
+		via_vlink_dev_lo = PCI_SLOT(dev->devfn);
+		via_vlink_dev_hi = PCI_SLOT(dev->devfn);
 		break;
 	case PCI_DEVICE_ID_VIA_8237:
 	case PCI_DEVICE_ID_VIA_8237A:
