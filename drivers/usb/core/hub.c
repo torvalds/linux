@@ -1904,6 +1904,7 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 	struct usb_hub		*hub = usb_get_intfdata (intf);
 	struct usb_device	*hdev = hub->hdev;
 	unsigned		port1;
+	int			status = 0;
 
 	/* fail if children aren't already suspended */
 	for (port1 = 1; port1 <= hdev->maxchild; port1++) {
@@ -1927,24 +1928,18 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 
 	dev_dbg(&intf->dev, "%s\n", __FUNCTION__);
 
-	/* "global suspend" of the downstream HC-to-USB interface */
-	if (!hdev->parent) {
-		struct usb_bus	*bus = hdev->bus;
-		if (bus) {
-			int	status = hcd_bus_suspend (bus);
-
-			if (status != 0) {
-				dev_dbg(&hdev->dev, "'global' suspend %d\n",
-					status);
-				return status;
-			}
-		} else
-			return -EOPNOTSUPP;
-	}
-
 	/* stop khubd and related activity */
 	hub_quiesce(hub);
-	return 0;
+
+	/* "global suspend" of the downstream HC-to-USB interface */
+	if (!hdev->parent) {
+		status = hcd_bus_suspend(hdev->bus);
+		if (status != 0) {
+			dev_dbg(&hdev->dev, "'global' suspend %d\n", status);
+			hub_activate(hub);
+		}
+	}
+	return status;
 }
 
 static int hub_resume(struct usb_interface *intf)
