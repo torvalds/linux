@@ -524,7 +524,8 @@ static acpi_status acpi_tb_load_namespace(void)
 		/*
 		 * DSDT table has been found
 		 */
-		acpi_tb_delete_table(ACPI_TABLE_INDEX_DSDT);
+		acpi_tb_delete_table(&acpi_gbl_root_table_list.
+				     tables[ACPI_TABLE_INDEX_DSDT]);
 		acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].pointer =
 		    table;
 		acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].length =
