@@ -582,26 +582,25 @@ u8 acpi_ut_valid_acpi_name(u32 name)
  *
  ******************************************************************************/
 
-acpi_name acpi_ut_repair_name(acpi_name name)
+acpi_name acpi_ut_repair_name(char *name)
 {
-	char *name_ptr = ACPI_CAST_PTR(char, &name);
-	char new_name[ACPI_NAME_SIZE];
 	acpi_native_uint i;
+	char new_name[ACPI_NAME_SIZE];
 
 	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		new_name[i] = name_ptr[i];
+		new_name[i] = name[i];
 
 		/*
 		 * Replace a bad character with something printable, yet technically
 		 * still invalid. This prevents any collisions with existing "good"
 		 * names in the namespace.
 		 */
-		if (!acpi_ut_valid_acpi_char(name_ptr[i], i)) {
+		if (!acpi_ut_valid_acpi_char(name[i], i)) {
 			new_name[i] = '*';
 		}
 	}
 
-	return (*ACPI_CAST_PTR(u32, new_name));
+	return (*(u32 *) new_name);
 }
 
 /*******************************************************************************

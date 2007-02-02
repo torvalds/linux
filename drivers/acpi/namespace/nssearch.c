@@ -321,7 +321,8 @@ acpi_ns_search_and_enter(u32 target_name,
 	 * even though there are a few bad names.
 	 */
 	if (!acpi_ut_valid_acpi_name(target_name)) {
-		target_name = acpi_ut_repair_name(target_name);
+		target_name =
+		    acpi_ut_repair_name(ACPI_CAST_PTR(char, &target_name));
 
 		/* Report warning only if in strict mode or debug mode */
 

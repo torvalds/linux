@@ -566,7 +566,7 @@ char *acpi_ut_get_node_name(void *object)
 	/* Name must be a valid ACPI name */
 
 	if (!acpi_ut_valid_acpi_name(node->name.integer)) {
-		node->name.integer = acpi_ut_repair_name(node->name.integer);
+		node->name.integer = acpi_ut_repair_name(node->name.ascii);
 	}
 
 	/* Return the name */
