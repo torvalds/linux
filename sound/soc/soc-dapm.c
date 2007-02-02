@@ -1239,6 +1239,9 @@ int snd_soc_dapm_stream_event(struct snd_soc_codec *codec,
 {
 	struct snd_soc_dapm_widget *w;
 
+	if (stream == NULL)
+		return 0;
+
 	mutex_lock(&codec->mutex);
 	list_for_each_entry(w, &codec->dapm_widgets, list)
 	{
