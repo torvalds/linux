@@ -126,10 +126,6 @@ config MTD_NAND_S3C2410_HWECC
 	  incorrect ECC generation, and if using these, the default of
 	  software ECC is preferable.
 
-	  If you lay down a device with the hardware ECC, then you will
-	  currently not be able to switch to software, as there is no
-	  implementation for ECC method used by the S3C2410
-
 config MTD_NAND_NDFC
 	tristate "NDFC NanD Flash Controller"
 	depends on MTD_NAND && 44x
