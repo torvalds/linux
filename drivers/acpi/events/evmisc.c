@@ -67,8 +67,6 @@ static const char *acpi_notify_value_names[] = {
 
 static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context);
 
-static void ACPI_SYSTEM_XFACE acpi_ev_global_lock_thread(void *context);
-
 static u32 acpi_ev_global_lock_handler(void *context);
 
 /*******************************************************************************
@@ -282,43 +280,19 @@ static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ev_global_lock_thread
- *
- * PARAMETERS:  Context         - From thread interface, not used
- *
- * RETURN:      None
- *
- * DESCRIPTION: Invoked by SCI interrupt handler upon acquisition of the
- *              Global Lock.  Simply signal all threads that are waiting
- *              for the lock.
- *
- ******************************************************************************/
-
-static void ACPI_SYSTEM_XFACE acpi_ev_global_lock_thread(void *context)
-{
-	acpi_status status;
-
-	/* Signal the thread that is waiting for the lock */
-
-	/* Send a unit to the semaphore */
-
-	status = acpi_os_signal_semaphore(acpi_gbl_global_lock_semaphore, 1);
-	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "Could not signal Global Lock semaphore"));
-	}
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_ev_global_lock_handler
  *
  * PARAMETERS:  Context         - From thread interface, not used
  *
- * RETURN:      ACPI_INTERRUPT_HANDLED or ACPI_INTERRUPT_NOT_HANDLED
+ * RETURN:      ACPI_INTERRUPT_HANDLED
  *
  * DESCRIPTION: Invoked directly from the SCI handler when a global lock
- *              release interrupt occurs.  Grab the global lock and queue
- *              the global lock thread for execution
+ *              release interrupt occurs. Attempt to acquire the global lock,
+ *              if successful, signal the thread waiting for the lock.
+ *
+ * NOTE: Assumes that the semaphore can be signaled from interrupt level. If
+ * this is not possible for some reason, a separate thread will have to be
+ * scheduled to do this.
  *
  ******************************************************************************/
 
@@ -338,7 +312,13 @@ static u32 acpi_ev_global_lock_handler(void *context)
 		/* Got the lock, now wake all threads waiting for it */
 
 		acpi_gbl_global_lock_acquired = TRUE;
-		acpi_ev_global_lock_thread(context);
+		/* Send a unit to the semaphore */
+
+		if (ACPI_FAILURE(acpi_os_signal_semaphore(
+			acpi_gbl_global_lock_semaphore, 1))) {
+			ACPI_ERROR((AE_INFO,
+				    "Could not signal Global Lock semaphore"));
+		}
 	}
 
 	return (ACPI_INTERRUPT_HANDLED);
@@ -480,7 +460,7 @@ acpi_status acpi_ev_release_global_lock(void)
 
 	ACPI_FUNCTION_TRACE(ev_release_global_lock);
 
-	/* Lock must be acquired */
+	/* Lock must be already acquired */
 
 	if (!acpi_gbl_global_lock_acquired) {
 		ACPI_WARNING((AE_INFO,
