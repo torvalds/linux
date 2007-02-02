@@ -76,12 +76,17 @@ static int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct pxa2xx_runtime_data *prtd = runtime->private_data;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct pxa2xx_pcm_dma_params *dma = rtd->cpu_dai->dma_data;
+	struct pxa2xx_pcm_dma_params *dma = rtd->dai->cpu_dai->dma_data;
 	size_t totsize = params_buffer_bytes(params);
 	size_t period = params_period_bytes(params);
 	pxa_dma_desc *dma_desc;
 	dma_addr_t dma_buff_phys, next_desc_phys;
 	int ret;
+
+	/* return if this is a bufferless transfer e.g.
+	 * codec <--> BT codec or GSM modem -- lg FIXME */
+	 if (!dma)
+	 	return 0;
 
 	/* this may get called several times by oss emulation
 	 * with different params */
@@ -225,6 +230,10 @@ static int pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 	ret = snd_pcm_hw_constraint_step(runtime, 0,
 		SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 32);
 	if (ret)
+		goto out;
+
+	ret = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (ret < 0)
 		goto out;
 
 	prtd = kzalloc(sizeof(struct pxa2xx_runtime_data), GFP_KERNEL);

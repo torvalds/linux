@@ -28,21 +28,7 @@ struct pxa2xx_gpio {
 	u32 frm;
 };
 
-/* pxa2xx DAI ID's */
-#define PXA2XX_DAI_AC97_HIFI	0
-#define PXA2XX_DAI_AC97_AUX		1
-#define PXA2XX_DAI_AC97_MIC		2
-#define PXA2XX_DAI_I2S			0
-#define PXA2XX_DAI_SSP1			0
-#define PXA2XX_DAI_SSP2			1
-#define PXA2XX_DAI_SSP3			2
-
-extern struct snd_soc_cpu_dai pxa_ac97_dai[3];
-extern struct snd_soc_cpu_dai pxa_i2s_dai;
-extern struct snd_soc_cpu_dai pxa_ssp_dai[3];
-
 /* platform data */
 extern struct snd_soc_platform pxa2xx_soc_platform;
-extern struct snd_ac97_bus_ops pxa2xx_ac97_ops;
 
 #endif
