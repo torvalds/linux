@@ -1116,6 +1116,8 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 
 		if (rdmsr_safe(index, &data_low, &data_high) < 0)
 			continue;
+		if (wrmsr_safe(index, data_low, data_high) < 0)
+			continue;
 		data = data_low | ((u64)data_high << 32);
 		vcpu->host_msrs[j].index = index;
 		vcpu->host_msrs[j].reserved = 0;

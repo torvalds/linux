@@ -164,7 +164,7 @@ void __init smp4d_boot_cpus(void)
 	local_flush_cache_all();
 }
 
-int smp4d_boot_one_cpu(int i)
+int __cpuinit smp4d_boot_one_cpu(int i)
 {
 			extern unsigned long sun4d_cpu_startup;
 			unsigned long *entry = &sun4d_cpu_startup;
