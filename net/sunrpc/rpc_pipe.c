@@ -589,7 +589,7 @@ __rpc_mkdir(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode;
 
-	inode = rpc_get_inode(dir->i_sb, S_IFDIR | S_IRUSR | S_IXUSR);
+	inode = rpc_get_inode(dir->i_sb, S_IFDIR | S_IRUGO | S_IXUGO);
 	if (!inode)
 		goto out_err;
 	inode->i_ino = iunique(dir->i_sb, 100);
