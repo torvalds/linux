@@ -1560,20 +1560,6 @@ static void ata_dev_config_ncq(struct ata_device *dev,
 		snprintf(desc, desc_sz, "NCQ (depth %d/%d)", hdepth, ddepth);
 }
 
-static void ata_set_port_max_cmd_len(struct ata_port *ap)
-{
-	int i;
-
-	if (ap->scsi_host) {
-		unsigned int len = 0;
-
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			len = max(len, ap->device[i].cdb_len);
-
-		ap->scsi_host->max_cmd_len = len;
-	}
-}
-
 /**
  *	ata_dev_configure - Configure the specified ATA/ATAPI device
  *	@dev: Target device to configure
@@ -1772,8 +1758,6 @@ int ata_dev_configure(struct ata_device *dev)
 "fault or invalid emulation. Contact drive vendor for information.\n");
 		}
 	}
-
-	ata_set_port_max_cmd_len(ap);
 
 	/* limit bridge transfers to udma5, 200 sectors */
 	if (ata_dev_knobble(dev)) {
@@ -5670,7 +5654,7 @@ static void ata_port_init_shost(struct ata_port *ap, struct Scsi_Host *shost)
 	shost->max_id = 16;
 	shost->max_lun = 1;
 	shost->max_channel = 1;
-	shost->max_cmd_len = 12;
+	shost->max_cmd_len = 16;
 }
 
 /**
