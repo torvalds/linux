@@ -42,14 +42,10 @@ typedef enum {
 
 /**
  * struct onenand_bufferram - OneNAND BufferRAM Data
- * @block:		block address in BufferRAM
- * @page:		page address in BufferRAM
- * @valid:		valid flag
+ * @blockpage:		block & page address in BufferRAM
  */
 struct onenand_bufferram {
-	int block;
-	int page;
-	int valid;
+	int	blockpage;
 };
 
 /**

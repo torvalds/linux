@@ -577,19 +577,22 @@ static int onenand_write_bufferram(struct mtd_info *mtd, int area,
 static int onenand_check_bufferram(struct mtd_info *mtd, loff_t addr)
 {
 	struct onenand_chip *this = mtd->priv;
-	int block, page;
-	int i;
+	int blockpage;
+	unsigned int i;
 
-	block = (int) (addr >> this->erase_shift);
-	page = (int) (addr >> this->page_shift) & this->page_mask;
-
-	i = ONENAND_CURRENT_BUFFERRAM(this);
+	blockpage = (int) (addr >> this->page_shift);
 
 	/* Is there valid data? */
-	if (this->bufferram[i].block == block &&
-	    this->bufferram[i].page == page &&
-	    this->bufferram[i].valid)
+	i = ONENAND_CURRENT_BUFFERRAM(this);
+	if (this->bufferram[i].blockpage == blockpage)
 		return 1;
+
+	/* Check another BufferRAM */
+	i = ONENAND_NEXT_BUFFERRAM(this);
+	if (this->bufferram[i].blockpage == blockpage) {
+		ONENAND_SET_NEXT_BUFFERRAM(this);
+		return 1;
+	}
 
 	return 0;
 }
@@ -602,30 +605,26 @@ static int onenand_check_bufferram(struct mtd_info *mtd, loff_t addr)
  *
  * Update BufferRAM information
  */
-static int onenand_update_bufferram(struct mtd_info *mtd, loff_t addr,
+static void onenand_update_bufferram(struct mtd_info *mtd, loff_t addr,
 		int valid)
 {
 	struct onenand_chip *this = mtd->priv;
-	int block, page;
-	int i;
+	int blockpage;
+	unsigned int i;
 
-	block = (int) (addr >> this->erase_shift);
-	page = (int) (addr >> this->page_shift) & this->page_mask;
+	blockpage = (int) (addr >> this->page_shift);
 
-	/* Invalidate BufferRAM */
-	for (i = 0; i < MAX_BUFFERRAM; i++) {
-		if (this->bufferram[i].block == block &&
-		    this->bufferram[i].page == page)
-			this->bufferram[i].valid = 0;
-	}
+	/* Invalidate another BufferRAM */
+	i = ONENAND_NEXT_BUFFERRAM(this);
+	if (this->bufferram[i].blockpage == blockpage) {
+		this->bufferram[i].blockpage = -1;
 
 	/* Update BufferRAM */
 	i = ONENAND_CURRENT_BUFFERRAM(this);
-	this->bufferram[i].block = block;
-	this->bufferram[i].page = page;
-	this->bufferram[i].valid = valid;
-
-	return 0;
+	if (valid)
+		this->bufferram[i].blockpage = blockpage;
+	else
+		this->bufferram[i].blockpage = -1;
 }
 
 /**
