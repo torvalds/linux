@@ -63,7 +63,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20060828
+#define ACPI_CA_VERSION                 0x20060831
 
 /*
  * OS name, used for the _OS object.  The _OS object is essentially obsolete,
@@ -158,8 +158,8 @@
 
 /* Sizes for ACPI table headers */
 
-#define ACPI_OEM_ID_SIZE        6
-#define ACPI_OEM_TABLE_ID_SIZE  8
+#define ACPI_OEM_ID_SIZE                6
+#define ACPI_OEM_TABLE_ID_SIZE          8
 
 /* Constants used in searching for the RSDP in low memory */
 
