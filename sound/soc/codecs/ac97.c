@@ -26,22 +26,7 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#define AC97_VERSION "0.5"
-
-#define AC97_DIR \
-	(SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE)
-
-#define AC97_RATES \
-	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
-	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
-	SNDRV_PCM_RATE_48000)
-
-/* may need to expand this */
-static struct snd_soc_dai_mode soc_ac97[] = {
-	{0, 0,	SNDRV_PCM_FMTBIT_S16_LE,	AC97_RATES},
-	{0, 0,	SNDRV_PCM_FMTBIT_S18_3LE,	AC97_RATES},
-	{0, 0,	SNDRV_PCM_FMTBIT_S20_3LE,	AC97_RATES},
-};
+#define AC97_VERSION "0.6"
 
 static int ac97_prepare(struct snd_pcm_substream *substream)
 {
@@ -55,21 +40,25 @@ static int ac97_prepare(struct snd_pcm_substream *substream)
 	return snd_ac97_set_rate(codec->ac97, reg, runtime->rate);
 }
 
+#define STD_AC97_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
+		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
+
 static struct snd_soc_codec_dai ac97_dai = {
 	.name = "AC97 HiFi",
 	.playback = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 1,
-		.channels_max = 2,},
+		.channels_max = 2,
+		.rates = STD_AC97_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.capture = {
 		.stream_name = "AC97 Capture",
 		.channels_min = 1,
-		.channels_max = 2,},
+		.channels_max = 2,
+		.rates = STD_AC97_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = {
 		.prepare = ac97_prepare,},
-	.caps = {
-		.num_modes = ARRAY_SIZE(soc_ac97),
-		.mode = soc_ac97,},
 };
 
 static unsigned int ac97_read(struct snd_soc_codec *codec,
