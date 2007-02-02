@@ -206,15 +206,9 @@ static void sdhci_deactivate_led(struct sdhci_host *host)
  *                                                                           *
 \*****************************************************************************/
 
-static inline char* sdhci_kmap_sg(struct sdhci_host* host)
+static inline char* sdhci_sg_to_buffer(struct sdhci_host* host)
 {
-	host->mapped_sg = kmap_atomic(host->cur_sg->page, KM_BIO_SRC_IRQ);
-	return host->mapped_sg + host->cur_sg->offset;
-}
-
-static inline void sdhci_kunmap_sg(struct sdhci_host* host)
-{
-	kunmap_atomic(host->mapped_sg, KM_BIO_SRC_IRQ);
+	return page_address(host->cur_sg->page) + host->cur_sg->offset;
 }
 
 static inline int sdhci_next_sg(struct sdhci_host* host)
@@ -249,7 +243,7 @@ static void sdhci_read_block_pio(struct sdhci_host *host)
 	chunk_remain = 0;
 	data = 0;
 
-	buffer = sdhci_kmap_sg(host) + host->offset;
+	buffer = sdhci_sg_to_buffer(host) + host->offset;
 
 	while (blksize) {
 		if (chunk_remain == 0) {
@@ -273,16 +267,13 @@ static void sdhci_read_block_pio(struct sdhci_host *host)
 		}
 
 		if (host->remain == 0) {
-			sdhci_kunmap_sg(host);
 			if (sdhci_next_sg(host) == 0) {
 				BUG_ON(blksize != 0);
 				return;
 			}
-			buffer = sdhci_kmap_sg(host);
+			buffer = sdhci_sg_to_buffer(host);
 		}
 	}
-
-	sdhci_kunmap_sg(host);
 }
 
 static void sdhci_write_block_pio(struct sdhci_host *host)
@@ -299,7 +290,7 @@ static void sdhci_write_block_pio(struct sdhci_host *host)
 	data = 0;
 
 	bytes = 0;
-	buffer = sdhci_kmap_sg(host) + host->offset;
+	buffer = sdhci_sg_to_buffer(host) + host->offset;
 
 	while (blksize) {
 		size = min(host->size, host->remain);
@@ -323,16 +314,13 @@ static void sdhci_write_block_pio(struct sdhci_host *host)
 		}
 
 		if (host->remain == 0) {
-			sdhci_kunmap_sg(host);
 			if (sdhci_next_sg(host) == 0) {
 				BUG_ON(blksize != 0);
 				return;
 			}
-			buffer = sdhci_kmap_sg(host);
+			buffer = sdhci_sg_to_buffer(host);
 		}
 	}
-
-	sdhci_kunmap_sg(host);
 }
 
 static void sdhci_transfer_pio(struct sdhci_host *host)
