@@ -193,21 +193,28 @@ acpi_ns_walk_namespace(acpi_object_type type,
 		    acpi_ns_get_next_node(ACPI_TYPE_ANY, parent_node,
 					  child_node);
 		if (child_node) {
-			/*
-			 * Found node, Get the type if we are not
-			 * searching for ANY
-			 */
+
+			/* Found node, Get the type if we are not searching for ANY */
+
 			if (type != ACPI_TYPE_ANY) {
 				child_type = child_node->type;
 			}
 
+			/*
+			 * 1) Type must match
+			 * 2) Permanent namespace nodes are OK
+			 * 3) Ignore temporary nodes unless told otherwise. Typically,
+			 *    the temporary nodes can cause a race condition where they can
+			 *    be deleted during the execution of the user function. Only the
+			 *    debugger namespace dump will examine the temporary nodes.
+			 */
 			if ((child_type == type) &&
 			    (!(child_node->flags & ANOBJ_TEMPORARY) ||
 			     (child_node->flags & ANOBJ_TEMPORARY)
 			     && (flags & ACPI_NS_WALK_TEMP_NODES))) {
 				/*
-				 * Found a matching node, invoke the user
-				 * callback function
+				 * Found a matching node, invoke the user callback function.
+				 * Unlock the namespace if flag is set.
 				 */
 				if (flags & ACPI_NS_WALK_UNLOCK) {
 					mutex_status =
@@ -219,8 +226,9 @@ acpi_ns_walk_namespace(acpi_object_type type,
 					}
 				}
 
-				status = user_function(child_node, level,
-						       context, return_value);
+				status =
+				    user_function(child_node, level, context,
+						  return_value);
 
 				if (flags & ACPI_NS_WALK_UNLOCK) {
 					mutex_status =
@@ -254,20 +262,17 @@ acpi_ns_walk_namespace(acpi_object_type type,
 			}
 
 			/*
-			 * Depth first search:
-			 * Attempt to go down another level in the namespace
-			 * if we are allowed to.  Don't go any further if we
-			 * have reached the caller specified maximum depth
-			 * or if the user function has specified that the
-			 * maximum depth has been reached.
+			 * Depth first search: Attempt to go down another level in the
+			 * namespace if we are allowed to.  Don't go any further if we have
+			 * reached the caller specified maximum depth or if the user
+			 * function has specified that the maximum depth has been reached.
 			 */
 			if ((level < max_depth) && (status != AE_CTRL_DEPTH)) {
 				if (acpi_ns_get_next_node
 				    (ACPI_TYPE_ANY, child_node, NULL)) {
-					/*
-					 * There is at least one child of this
-					 * node, visit the onde
-					 */
+
+					/* There is at least one child of this node, visit it */
+
 					level++;
 					parent_node = child_node;
 					child_node = NULL;
@@ -275,9 +280,8 @@ acpi_ns_walk_namespace(acpi_object_type type,
 			}
 		} else {
 			/*
-			 * No more children of this node (acpi_ns_get_next_node
-			 * failed), go back upwards in the namespace tree to
-			 * the node's parent.
+			 * No more children of this node (acpi_ns_get_next_node failed), go
+			 * back upwards in the namespace tree to the node's parent.
 			 */
 			level--;
 			child_node = parent_node;
