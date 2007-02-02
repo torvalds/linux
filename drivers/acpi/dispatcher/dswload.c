@@ -196,6 +196,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		 * one of the opcodes that actually opens a scope
 		 */
 		switch (node->type) {
+		case ACPI_TYPE_ANY:
 		case ACPI_TYPE_LOCAL_SCOPE:	/* Scope  */
 		case ACPI_TYPE_DEVICE:
 		case ACPI_TYPE_POWER:
@@ -669,6 +670,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		 * one of the opcodes that actually opens a scope
 		 */
 		switch (node->type) {
+		case ACPI_TYPE_ANY:
 		case ACPI_TYPE_LOCAL_SCOPE:	/* Scope */
 		case ACPI_TYPE_DEVICE:
 		case ACPI_TYPE_POWER:
