@@ -226,7 +226,7 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(status);
 	}
 
-	if (!op) {
+	if (!*op) {
 		return_ACPI_STATUS(AE_CTRL_PARSE_CONTINUE);
 	}
 
