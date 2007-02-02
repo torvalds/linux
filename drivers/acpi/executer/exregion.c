@@ -209,11 +209,10 @@ acpi_ex_system_memory_space_handler(u32 function,
 			*value = (acpi_integer) ACPI_GET32(logical_addr_ptr);
 			break;
 
-#if ACPI_MACHINE_WIDTH != 16
 		case 64:
 			*value = (acpi_integer) ACPI_GET64(logical_addr_ptr);
 			break;
-#endif
+
 		default:
 			/* bit_width was already validated */
 			break;
@@ -235,11 +234,9 @@ acpi_ex_system_memory_space_handler(u32 function,
 			ACPI_SET32(logical_addr_ptr) = (u32) * value;
 			break;
 
-#if ACPI_MACHINE_WIDTH != 16
 		case 64:
 			ACPI_SET64(logical_addr_ptr) = (u64) * value;
 			break;
-#endif
 
 		default:
 			/* bit_width was already validated */

@@ -788,8 +788,8 @@ acpi_hw_low_level_read(u32 width, u32 * value, struct acpi_generic_address *reg)
 
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 
-		status = acpi_os_read_port((acpi_io_address) address,
-					   value, width);
+		status =
+		    acpi_os_read_port((acpi_io_address) address, value, width);
 		break;
 
 	default:
@@ -800,8 +800,7 @@ acpi_hw_low_level_read(u32 width, u32 * value, struct acpi_generic_address *reg)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_IO,
 			  "Read:  %8.8X width %2d from %8.8X%8.8X (%s)\n",
-			  *value, width,
-			  ACPI_FORMAT_UINT64(address),
+			  *value, width, ACPI_FORMAT_UINT64(address),
 			  acpi_ut_get_region_name(reg->space_id)));
 
 	return (status);
@@ -858,8 +857,8 @@ acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address * reg)
 
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 
-		status = acpi_os_write_port((acpi_io_address) address,
-					    value, width);
+		status = acpi_os_write_port((acpi_io_address) address, value,
+					    width);
 		break;
 
 	default:
@@ -870,8 +869,7 @@ acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address * reg)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_IO,
 			  "Wrote: %8.8X width %2d   to %8.8X%8.8X (%s)\n",
-			  value, width,
-			  ACPI_FORMAT_UINT64(address),
+			  value, width, ACPI_FORMAT_UINT64(address),
 			  acpi_ut_get_region_name(reg->space_id)));
 
 	return (status);

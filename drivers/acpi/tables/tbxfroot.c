@@ -98,8 +98,6 @@ static acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp)
 	return (AE_OK);
 }
 
-#if ACPI_MACHINE_WIDTH != 16
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_tb_find_rsdp
@@ -275,5 +273,3 @@ static u8 *acpi_tb_scan_memory_for_rsdp(u8 * start_address, u32 length)
 			  start_address));
 	return_PTR(NULL);
 }
-
-#endif

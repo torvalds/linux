@@ -796,12 +796,12 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 		    (u8) (gpe_block->block_base_number +
 			  (i * ACPI_GPE_REGISTER_WIDTH));
 
-		ACPI_STORE_ADDRESS(this_register->status_address.address,
-				   (gpe_block->block_address.address + i));
+		this_register->status_address.address =
+		    gpe_block->block_address.address + i;
 
-		ACPI_STORE_ADDRESS(this_register->enable_address.address,
-				   (gpe_block->block_address.address
-				    + i + gpe_block->register_count));
+		this_register->enable_address.address =
+		    gpe_block->block_address.address + i +
+		    gpe_block->register_count;
 
 		this_register->status_address.space_id =
 		    gpe_block->block_address.space_id;
