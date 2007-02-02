@@ -301,6 +301,7 @@ static inline int pdc2027x_port_enabled(struct ata_port *ap)
 /**
  *	pdc2027x_prereset - prereset for PATA host controller
  *	@ap: Target port
+ *	@deadline: deadline jiffies for the operation
  *
  *	Probeinit including cable detection.
  *
@@ -308,12 +309,12 @@ static inline int pdc2027x_port_enabled(struct ata_port *ap)
  *	None (inherited from caller).
  */
 
-static int pdc2027x_prereset(struct ata_port *ap)
+static int pdc2027x_prereset(struct ata_port *ap, unsigned long deadline)
 {
 	/* Check whether port enabled */
 	if (!pdc2027x_port_enabled(ap))
 		return -ENOENT;
-	return ata_std_prereset(ap);
+	return ata_std_prereset(ap, deadline);
 }
 
 /**

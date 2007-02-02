@@ -33,7 +33,7 @@ enum {
 	ATIIXP_IDE_UDMA_MODE 	= 0x56
 };
 
-static int atiixp_pre_reset(struct ata_port *ap)
+static int atiixp_pre_reset(struct ata_port *ap, unsigned long deadline)
 {
 	static const struct pci_bits atiixp_enable_bits[] = {
 		{ 0x48, 1, 0x01, 0x00 },
@@ -44,7 +44,7 @@ static int atiixp_pre_reset(struct ata_port *ap)
 	if (!pci_test_config_bits(pdev, &atiixp_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	return ata_std_prereset(ap);
+	return ata_std_prereset(ap, deadline);
 }
 
 static void atiixp_error_handler(struct ata_port *ap)

@@ -220,7 +220,7 @@ static int hpt36x_cable_detect(struct ata_port *ap)
 	return ATA_CBL_PATA80;
 }
 
-static int hpt36x_pre_reset(struct ata_port *ap)
+static int hpt36x_pre_reset(struct ata_port *ap, unsigned long deadline)
 {
 	static const struct pci_bits hpt36x_enable_bits[] = {
 		{ 0x50, 1, 0x04, 0x04 },
@@ -231,7 +231,7 @@ static int hpt36x_pre_reset(struct ata_port *ap)
 	if (!pci_test_config_bits(pdev, &hpt36x_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	return ata_std_prereset(ap);
+	return ata_std_prereset(ap, deadline);
 }
 
 /**

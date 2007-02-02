@@ -72,6 +72,7 @@
 /**
  *	cs5535_cable_detect	-	detect cable type
  *	@ap: Port to detect on
+ *	@deadline: deadline jiffies for the operation
  *
  *	Perform cable detection for ATA66 capable cable. Return a libata
  *	cable type.

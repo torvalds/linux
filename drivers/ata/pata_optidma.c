@@ -48,11 +48,12 @@ static int pci_clock;	/* 0 = 33 1 = 25 */
 /**
  *	optidma_pre_reset		-	probe begin
  *	@ap: ATA port
+ *	@deadline: deadline jiffies for the operation
  *
  *	Set up cable type and use generic probe init
  */
 
-static int optidma_pre_reset(struct ata_port *ap)
+static int optidma_pre_reset(struct ata_port *ap, unsigned long deadline)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	static const struct pci_bits optidma_enable_bits = {
@@ -62,7 +63,7 @@ static int optidma_pre_reset(struct ata_port *ap)
 	if (ap->port_no && !pci_test_config_bits(pdev, &optidma_enable_bits))
 		return -ENOENT;
 
-	return ata_std_prereset(ap);
+	return ata_std_prereset(ap, deadline);
 }
 
 /**

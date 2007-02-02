@@ -1405,7 +1405,8 @@ static void nv_ck804_thaw(struct ata_port *ap)
 	writeb(mask, mmio_base + NV_INT_ENABLE_CK804);
 }
 
-static int nv_hardreset(struct ata_port *ap, unsigned int *class)
+static int nv_hardreset(struct ata_port *ap, unsigned int *class,
+			unsigned long deadline)
 {
 	unsigned int dummy;
 
@@ -1413,7 +1414,7 @@ static int nv_hardreset(struct ata_port *ap, unsigned int *class)
 	 * some controllers.  Don't classify on hardreset.  For more
 	 * info, see http://bugme.osdl.org/show_bug.cgi?id=3352
 	 */
-	return sata_std_hardreset(ap, &dummy);
+	return sata_std_hardreset(ap, &dummy, deadline);
 }
 
 static void nv_error_handler(struct ata_port *ap)

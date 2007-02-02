@@ -154,7 +154,7 @@ static int via_cable_detect(struct ata_port *ap) {
 	return ATA_CBL_PATA40;
 }
 
-static int via_pre_reset(struct ata_port *ap)
+static int via_pre_reset(struct ata_port *ap, unsigned long deadline)
 {
 	const struct via_isa_bridge *config = ap->host->private_data;
 
@@ -167,7 +167,8 @@ static int via_pre_reset(struct ata_port *ap)
 		if (!pci_test_config_bits(pdev, &via_enable_bits[ap->port_no]))
 			return -ENOENT;
 	}
-	return ata_std_prereset(ap);
+
+	return ata_std_prereset(ap, deadline);
 }
 
 

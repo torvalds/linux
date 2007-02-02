@@ -1558,14 +1558,14 @@ static void ata_eh_report(struct ata_port *ap)
 }
 
 static int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
-			unsigned int *classes)
+			unsigned int *classes, unsigned long deadline)
 {
 	int i, rc;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
 		classes[i] = ATA_DEV_UNKNOWN;
 
-	rc = reset(ap, classes);
+	rc = reset(ap, classes, deadline);
 	if (rc)
 		return rc;
 
@@ -1624,7 +1624,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		ehc->i.action |= ATA_EH_HARDRESET;
 
 	if (prereset) {
-		rc = prereset(ap);
+		rc = prereset(ap, jiffies + 40 * HZ);
 		if (rc) {
 			if (rc == -ENOENT) {
 				ata_port_printk(ap, KERN_DEBUG,
@@ -1676,7 +1676,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	else
 		ehc->i.flags |= ATA_EHI_DID_SOFTRESET;
 
-	rc = ata_do_reset(ap, reset, classes);
+	rc = ata_do_reset(ap, reset, classes, jiffies + 40 * HZ);
 
 	did_followup_srst = 0;
 	if (reset == hardreset &&
@@ -1693,7 +1693,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		}
 
 		ata_eh_about_to_do(ap, NULL, ATA_EH_RESET_MASK);
-		rc = ata_do_reset(ap, reset, classes);
+		rc = ata_do_reset(ap, reset, classes, jiffies + 40 * HZ);
 
 		if (rc == 0 && classify &&
 		    classes[0] == ATA_DEV_UNKNOWN) {

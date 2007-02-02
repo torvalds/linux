@@ -25,11 +25,12 @@
 /**
  *	marvell_pre_reset	-	check for 40/80 pin
  *	@ap: Port
+ *	@deadline: deadline jiffies for the operation
  *
  *	Perform the PATA port setup we need.
  */
 
-static int marvell_pre_reset(struct ata_port *ap)
+static int marvell_pre_reset(struct ata_port *ap, unsigned long deadline)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 devices;
@@ -67,6 +68,7 @@ static int marvell_cable_detect(struct ata_port *ap)
 	case 1: /* Legacy SATA port */
 		return ATA_CBL_SATA;
 	}
+
 	BUG();
 	return 0;	/* Our BUG macro needs the right markup */
 }

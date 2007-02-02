@@ -307,11 +307,12 @@ static unsigned long hpt370a_filter(struct ata_device *adev, unsigned long mask)
 /**
  *	hpt37x_pre_reset	-	reset the hpt37x bus
  *	@ap: ATA port to reset
+ *	@deadline: deadline jiffies for the operation
  *
  *	Perform the initial reset handling for the 370/372 and 374 func 0
  */
 
-static int hpt37x_pre_reset(struct ata_port *ap)
+static int hpt37x_pre_reset(struct ata_port *ap, unsigned long deadline)
 {
 	u8 scr2, ata66;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -338,7 +339,7 @@ static int hpt37x_pre_reset(struct ata_port *ap)
 	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 	udelay(100);
 
-	return ata_std_prereset(ap);
+	return ata_std_prereset(ap, deadline);
 }
 
 /**
@@ -353,7 +354,7 @@ static void hpt37x_error_handler(struct ata_port *ap)
 	ata_bmdma_drive_eh(ap, hpt37x_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
 }
 
-static int hpt374_pre_reset(struct ata_port *ap)
+static int hpt374_pre_reset(struct ata_port *ap, unsigned long deadline)
 {
 	static const struct pci_bits hpt37x_enable_bits[] = {
 		{ 0x50, 1, 0x04, 0x04 },
@@ -388,7 +389,7 @@ static int hpt374_pre_reset(struct ata_port *ap)
 	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 	udelay(100);
 
-	return ata_std_prereset(ap);
+	return ata_std_prereset(ap, deadline);
 }
 
 /**

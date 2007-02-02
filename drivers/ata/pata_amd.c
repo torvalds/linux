@@ -121,12 +121,13 @@ static void timing_setup(struct ata_port *ap, struct ata_device *adev, int offse
 /**
  *	amd_probe_init		-	perform reset handling
  *	@ap: ATA port
+ *	@deadline: deadline jiffies for the operation
  *
  *	Reset sequence checking enable bits to see which ports are
  *	active.
  */
 
-static int amd_pre_reset(struct ata_port *ap)
+static int amd_pre_reset(struct ata_port *ap, unsigned long deadline)
 {
 	static const struct pci_bits amd_enable_bits[] = {
 		{ 0x40, 1, 0x02, 0x02 },
@@ -138,8 +139,7 @@ static int amd_pre_reset(struct ata_port *ap)
 	if (!pci_test_config_bits(pdev, &amd_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	return ata_std_prereset(ap);
-
+	return ata_std_prereset(ap, deadline);
 }
 
 static void amd_error_handler(struct ata_port *ap)
@@ -227,7 +227,8 @@ static void amd133_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	space for us.
  */
 
-static int nv_pre_reset(struct ata_port *ap) {
+static int nv_pre_reset(struct ata_port *ap, unsigned long deadline)
+{
 	static const struct pci_bits nv_enable_bits[] = {
 		{ 0x50, 1, 0x02, 0x02 },
 		{ 0x50, 1, 0x01, 0x01 }
@@ -238,7 +239,7 @@ static int nv_pre_reset(struct ata_port *ap) {
 	if (!pci_test_config_bits(pdev, &nv_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	return ata_std_prereset(ap);
+	return ata_std_prereset(ap, deadline);
 }
 
 static void nv_error_handler(struct ata_port *ap)

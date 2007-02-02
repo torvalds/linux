@@ -348,8 +348,9 @@ struct ata_queued_cmd;
 
 /* typedefs */
 typedef void (*ata_qc_cb_t) (struct ata_queued_cmd *qc);
-typedef int (*ata_prereset_fn_t)(struct ata_port *ap);
-typedef int (*ata_reset_fn_t)(struct ata_port *ap, unsigned int *classes);
+typedef int (*ata_prereset_fn_t)(struct ata_port *ap, unsigned long deadline);
+typedef int (*ata_reset_fn_t)(struct ata_port *ap, unsigned int *classes,
+			      unsigned long deadline);
 typedef void (*ata_postreset_fn_t)(struct ata_port *ap, unsigned int *classes);
 
 struct ata_ioports {
@@ -688,13 +689,17 @@ extern void __sata_phy_reset(struct ata_port *ap);
 extern void sata_phy_reset(struct ata_port *ap);
 extern void ata_bus_reset(struct ata_port *ap);
 extern int sata_set_spd(struct ata_port *ap);
-extern int sata_phy_debounce(struct ata_port *ap, const unsigned long *param);
-extern int sata_phy_resume(struct ata_port *ap, const unsigned long *param);
-extern int ata_std_prereset(struct ata_port *ap);
-extern int ata_std_softreset(struct ata_port *ap, unsigned int *classes);
-extern int sata_port_hardreset(struct ata_port *ap,
-			       const unsigned long *timing);
-extern int sata_std_hardreset(struct ata_port *ap, unsigned int *class);
+extern int sata_phy_debounce(struct ata_port *ap, const unsigned long *param,
+			     unsigned long deadline);
+extern int sata_phy_resume(struct ata_port *ap, const unsigned long *param,
+			   unsigned long deadline);
+extern int ata_std_prereset(struct ata_port *ap, unsigned long deadline);
+extern int ata_std_softreset(struct ata_port *ap, unsigned int *classes,
+			     unsigned long deadline);
+extern int sata_port_hardreset(struct ata_port *ap, const unsigned long *timing,
+			       unsigned long deadline);
+extern int sata_std_hardreset(struct ata_port *ap, unsigned int *class,
+			      unsigned long deadline);
 extern void ata_std_postreset(struct ata_port *ap, unsigned int *classes);
 extern void ata_port_disable(struct ata_port *);
 extern void ata_std_ports(struct ata_ioports *ioaddr);
@@ -750,6 +755,7 @@ extern void ata_host_resume(struct ata_host *host);
 extern int ata_ratelimit(void);
 extern int ata_busy_sleep(struct ata_port *ap,
 			  unsigned long timeout_pat, unsigned long timeout);
+extern int ata_wait_ready(struct ata_port *ap, unsigned long deadline);
 extern void ata_port_queue_task(struct ata_port *ap, work_func_t fn,
 				void *data, unsigned long delay);
 extern u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
