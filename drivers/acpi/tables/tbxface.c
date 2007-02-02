@@ -54,6 +54,29 @@ static acpi_status acpi_tb_load_namespace(void);
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_allocate_root_table
+ *
+ * PARAMETERS:  initial_table_count - Size of initial_table_array, in number of
+ *                                    struct acpi_table_desc structures
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Allocate a root table array. Used by i_aSL compiler and
+ *              acpi_initialize_tables.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_allocate_root_table(u32 initial_table_count)
+{
+
+	acpi_gbl_root_table_list.size = initial_table_count;
+	acpi_gbl_root_table_list.flags = ACPI_ROOT_ALLOW_RESIZE;
+
+	return (acpi_tb_resize_root_table_list());
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_initialize_tables
  *
  * PARAMETERS:  initial_table_array - Pointer to an array of pre-allocated
@@ -79,7 +102,7 @@ static acpi_status acpi_tb_load_namespace(void);
  ******************************************************************************/
 
 acpi_status __init
-acpi_initialize_tables(struct acpi_table_desc *initial_table_array,
+acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
 		       u32 initial_table_count, u8 allow_resize)
 {
 	acpi_physical_address rsdp_address;
@@ -92,10 +115,7 @@ acpi_initialize_tables(struct acpi_table_desc *initial_table_array,
 	 * Allocate the table array if requested
 	 */
 	if (!initial_table_array) {
-		acpi_gbl_root_table_list.size = initial_table_count;
-		acpi_gbl_root_table_list.flags = ACPI_ROOT_ALLOW_RESIZE;
-
-		status = acpi_tb_resize_root_table_list();
+		status = acpi_allocate_root_table(initial_table_count);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}

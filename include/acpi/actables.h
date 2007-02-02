@@ -44,6 +44,8 @@
 #ifndef __ACTABLES_H__
 #define __ACTABLES_H__
 
+acpi_status acpi_allocate_root_table(u32 initial_table_count);
+
 /*
  * tbfadt - FADT parse/convert/validate
  */
