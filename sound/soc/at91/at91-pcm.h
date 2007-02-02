@@ -16,13 +16,15 @@
  * published by the Free Software Foundation.
  */
 
+#ifndef _AT91_PCM_H
+#define _AT91_PCM_H
+
 #include <asm/arch/hardware.h>
 
 struct at91_ssc_periph {
 	void __iomem	*base;
 	u32		pid;
 };
-
 
 /*
  * Registers and status bits that are required by the PCM driver.
@@ -44,7 +46,6 @@ struct at91_ssc_mask {
 	u32	pdc_disable;		/* PDC recv/trans disable */
 };
 
-
 /*
  * This structure, shared between the PCM driver and the interface,
  * contains all information required by the PCM driver to perform the
@@ -63,9 +64,9 @@ struct at91_pcm_dma_params {
 	void (*dma_intr_handler)(u32, struct snd_pcm_substream *);
 };
 
-extern struct snd_soc_cpu_dai at91_i2s_dai[3];
 extern struct snd_soc_platform at91_soc_platform;
-
 
 #define at91_ssc_read(a)	((unsigned long) __raw_readl(a))
 #define at91_ssc_write(a,v)	__raw_writel((v),(a))
+
+#endif /* _AT91_PCM_H */

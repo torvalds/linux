@@ -125,7 +125,7 @@ static int at91_pcm_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 	runtime->dma_bytes = params_buffer_bytes(params);
 
-	prtd->params = rtd->cpu_dai->dma_data;
+	prtd->params = rtd->dai->cpu_dai->dma_data;
 	prtd->params->dma_intr_handler = at91_pcm_dma_irq;
 
 	prtd->dma_buffer = runtime->dma_addr;
@@ -363,6 +363,7 @@ static void at91_pcm_free_dma_buffers(struct snd_pcm *pcm)
 	}
 }
 
+#ifdef CONFIG_PM
 static int at91_pcm_suspend(struct platform_device *pdev,
 	struct snd_soc_cpu_dai *dai)
 {
@@ -410,6 +411,10 @@ static int at91_pcm_resume(struct platform_device *pdev,
 	at91_ssc_write(params->ssc_base + AT91_PDC_PTCR, params->mask->pdc_enable);
 	return 0;
 }
+#else
+#define at91_pcm_suspend	NULL
+#define at91_pcm_resume		NULL
+#endif
 
 struct snd_soc_platform at91_soc_platform = {
 	.name		= "at91-audio",
