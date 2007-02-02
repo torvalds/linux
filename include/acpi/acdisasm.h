@@ -140,7 +140,9 @@ extern const char *acpi_gbl_match_ops[];
 
 extern struct acpi_dmtable_info acpi_dm_table_info_asf0[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf1[];
+extern struct acpi_dmtable_info acpi_dm_table_info_asf1a[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf2[];
+extern struct acpi_dmtable_info acpi_dm_table_info_asf2a[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf3[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf4[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf_hdr[];
@@ -322,7 +324,7 @@ acpi_dm_resource_template(struct acpi_op_walk_info *info,
 			  union acpi_parse_object *op,
 			  u8 * byte_data, u32 byte_count);
 
-u8 acpi_dm_is_resource_template(union acpi_parse_object *op);
+acpi_status acpi_dm_is_resource_template(union acpi_parse_object *op);
 
 void acpi_dm_indent(u32 level);
 
