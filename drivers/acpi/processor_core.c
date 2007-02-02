@@ -431,7 +431,7 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	 * Check to see if we have bus mastering arbitration control.  This
 	 * is required for proper C3 usage (to maintain cache coherency).
 	 */
-	if (acpi_fadt.pm2_control_block && acpi_fadt.pm2_control_length) {
+	if (acpi_gbl_FADT.pm2_control_block && acpi_gbl_FADT.pm2_control_length) {
 		pr->flags.bm_control = 1;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Bus mastering arbitration control present\n"));
@@ -490,8 +490,8 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 			    object.processor.pblk_length);
 	else {
 		pr->throttling.address = object.processor.pblk_address;
-		pr->throttling.duty_offset = acpi_fadt.duty_offset;
-		pr->throttling.duty_width = acpi_fadt.duty_width;
+		pr->throttling.duty_offset = acpi_gbl_FADT.duty_offset;
+		pr->throttling.duty_width = acpi_gbl_FADT.duty_width;
 
 		pr->pblk = object.processor.pblk_address;
 

@@ -627,15 +627,15 @@ void __init acpi_early_init(void)
 			acpi_sci_flags.trigger = 3;
 
 		/* Set PIC-mode SCI trigger type */
-		acpi_pic_sci_set_trigger(acpi_fadt.sci_int,
+		acpi_pic_sci_set_trigger(acpi_gbl_FADT.sci_interrupt,
 					 acpi_sci_flags.trigger);
 	} else {
 		extern int acpi_sci_override_gsi;
 		/*
-		 * now that acpi_fadt is initialized,
+		 * now that acpi_gbl_FADT is initialized,
 		 * update it with result from INT_SRC_OVR parsing
 		 */
-		acpi_fadt.sci_int = acpi_sci_override_gsi;
+		acpi_gbl_FADT.sci_interrupt = acpi_sci_override_gsi;
 	}
 #endif
 

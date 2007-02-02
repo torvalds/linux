@@ -160,7 +160,7 @@ static inline u32 ticks_elapsed(u32 t1, u32 t2)
 {
 	if (t2 >= t1)
 		return (t2 - t1);
-	else if (!(acpi_fadt.flags & ACPI_FADT_32BIT_TIMER))
+	else if (!(acpi_gbl_FADT.flags & ACPI_FADT_32BIT_TIMER))
 		return (((0x00FFFFFF - t1) + t2) & 0x00FFFFFF);
 	else
 		return ((0xFFFFFFFF - t1) + t2);
@@ -234,7 +234,7 @@ static void acpi_cstate_enter(struct acpi_processor_cx *cstate)
 		/* Dummy wait op - must do something useless after P_LVL2 read
 		   because chipsets cannot guarantee that STPCLK# signal
 		   gets asserted in time to freeze execution properly. */
-		unused = inl(acpi_fadt.xpm_timer_block.address);
+		unused = inl(acpi_gbl_FADT.xpm_timer_block.address);
 	}
 }
 
@@ -334,7 +334,7 @@ static void acpi_processor_idle(void)
 	 * detection phase, to work cleanly with logical CPU hotplug.
 	 */
 	if ((cx->type != ACPI_STATE_C1) && (num_online_cpus() > 1) && 
-	    !pr->flags.has_cst && !(acpi_fadt.flags & ACPI_FADT_C2_MP_SUPPORTED))
+	    !pr->flags.has_cst && !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
 		cx = &pr->power.states[ACPI_STATE_C1];
 #endif
 
@@ -380,11 +380,11 @@ static void acpi_processor_idle(void)
 
 	case ACPI_STATE_C2:
 		/* Get start time (ticks) */
-		t1 = inl(acpi_fadt.xpm_timer_block.address);
+		t1 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 		/* Invoke C2 */
 		acpi_cstate_enter(cx);
 		/* Get end time (ticks) */
-		t2 = inl(acpi_fadt.xpm_timer_block.address);
+		t2 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 
 #ifdef CONFIG_GENERIC_TIME
 		/* TSC halts in C2, so notify users */
@@ -415,11 +415,11 @@ static void acpi_processor_idle(void)
 		}
 
 		/* Get start time (ticks) */
-		t1 = inl(acpi_fadt.xpm_timer_block.address);
+		t1 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 		/* Invoke C3 */
 		acpi_cstate_enter(cx);
 		/* Get end time (ticks) */
-		t2 = inl(acpi_fadt.xpm_timer_block.address);
+		t2 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 		if (pr->flags.bm_check) {
 			/* Enable bus master arbitration */
 			atomic_dec(&c3_cpu_count);
@@ -451,7 +451,7 @@ static void acpi_processor_idle(void)
 #ifdef CONFIG_HOTPLUG_CPU
 	/* Don't do promotion/demotion */
 	if ((cx->type == ACPI_STATE_C1) && (num_online_cpus() > 1) &&
-	    !pr->flags.has_cst && !(acpi_fadt.flags & ACPI_FADT_C2_MP_SUPPORTED)) {
+	    !pr->flags.has_cst && !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED)) {
 		next_state = cx;
 		goto end;
 	}
@@ -622,7 +622,7 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	 * an SMP system. 
 	 */
 	if ((num_online_cpus() > 1) &&
-	    !(acpi_fadt.flags & ACPI_FADT_C2_MP_SUPPORTED))
+	    !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
 		return -ENODEV;
 #endif
 
@@ -631,8 +631,8 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	pr->power.states[ACPI_STATE_C3].address = pr->pblk + 5;
 
 	/* determine latencies from FADT */
-	pr->power.states[ACPI_STATE_C2].latency = acpi_fadt.C2latency;
-	pr->power.states[ACPI_STATE_C3].latency = acpi_fadt.C3latency;
+	pr->power.states[ACPI_STATE_C2].latency = acpi_gbl_FADT.C2latency;
+	pr->power.states[ACPI_STATE_C3].latency = acpi_gbl_FADT.C3latency;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "lvl2[0x%08x] lvl3[0x%08x]\n",
@@ -878,7 +878,7 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 		 * WBINVD should be set in fadt, for C3 state to be
 		 * supported on when bm_check is not required.
 		 */
-		if (!(acpi_fadt.flags & ACPI_FADT_WBINVD)) {
+		if (!(acpi_gbl_FADT.flags & ACPI_FADT_WBINVD)) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "Cache invalidation should work properly"
 					  " for C3 to be enabled on SMP systems\n"));
@@ -1158,9 +1158,9 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 	if (!pr)
 		return -EINVAL;
 
-	if (acpi_fadt.cst_control && !nocst) {
+	if (acpi_gbl_FADT.cst_control && !nocst) {
 		status =
-		    acpi_os_write_port(acpi_fadt.smi_command, acpi_fadt.cst_control, 8);
+		    acpi_os_write_port(acpi_gbl_FADT.smi_command, acpi_gbl_FADT.cst_control, 8);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"Notifying BIOS of _CST ability failed"));

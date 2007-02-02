@@ -669,16 +669,6 @@ struct acpi_srat_mem_affinity {
 #define ACPI_SRAT_MEM_HOT_PLUGGABLE (1<<1)	/* 01: Memory region is hot pluggable */
 #define ACPI_SRAT_MEM_NON_VOLATILE  (1<<2)	/* 02: Memory region is non-volatile */
 
-/* Memory types */
-
-enum acpi_address_range_id {
-	ACPI_ADDRESS_RANGE_MEMORY = 1,
-	ACPI_ADDRESS_RANGE_RESERVED = 2,
-	ACPI_ADDRESS_RANGE_ACPI = 3,
-	ACPI_ADDRESS_RANGE_NVS = 4,
-	ACPI_ADDRESS_RANGE_COUNT = 5
-};
-
 /*******************************************************************************
  *
  * TCPA - Trusted Computing Platform Alliance table

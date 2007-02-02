@@ -357,7 +357,7 @@ static void __init acpi_sci_ioapic_setup(u32 gsi, u16 polarity, u16 trigger)
 
 	/*
 	 * stash over-ride to indicate we've been here
-	 * and for later update of acpi_fadt
+	 * and for later update of acpi_gbl_FADT
 	 */
 	acpi_sci_override_gsi = gsi;
 	return;
@@ -376,7 +376,7 @@ acpi_parse_int_src_ovr(acpi_table_entry_header * header,
 
 	acpi_table_print_madt_entry(header);
 
-	if (intsrc->bus_irq == acpi_fadt.sci_int) {
+	if (intsrc->bus_irq == acpi_gbl_FADT.sci_interrupt) {
 		acpi_sci_ioapic_setup(intsrc->global_irq,
 				      intsrc->flags.polarity,
 				      intsrc->flags.trigger);
@@ -709,9 +709,9 @@ extern u32 pmtmr_ioport;
 
 static int __init acpi_parse_fadt(struct acpi_table_header *header)
 {
-	struct fadt_descriptor *fadt = NULL;
+	struct acpi_table_fadt *fadt = NULL;
 
-	fadt = (struct fadt_descriptor *)header;
+	fadt = (struct acpi_table_fadt *)header;
 	if (!fadt) {
 		printk(KERN_WARNING PREFIX "Unable to map FADT\n");
 		return 0;
@@ -873,7 +873,7 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 	 * pretend we got one so we can set the SCI flags.
 	 */
 	if (!acpi_sci_override_gsi)
-		acpi_sci_ioapic_setup(acpi_fadt.sci_int, 0, 0);
+		acpi_sci_ioapic_setup(acpi_gbl_FADT.sci_interrupt, 0, 0);
 
 	/* Fill in identity legacy mapings where no override */
 	mp_config_acpi_legacy_irqs();

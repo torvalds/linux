@@ -353,7 +353,7 @@ int acpi_processor_notify_smm(struct module *calling_module)
 	is_done = -EIO;
 
 	/* Can't write pstate_control to smi_command if either value is zero */
-	if ((!acpi_fadt.smi_command) || (!acpi_fadt.pstate_control)) {
+	if ((!acpi_gbl_FADT.smi_command) || (!acpi_gbl_FADT.pstate_control)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No SMI port or pstate_control\n"));
 		module_put(calling_module);
 		return 0;
@@ -361,15 +361,15 @@ int acpi_processor_notify_smm(struct module *calling_module)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Writing pstate_control [0x%x] to smi_command [0x%x]\n",
-			  acpi_fadt.pstate_control, acpi_fadt.smi_command));
+			  acpi_gbl_FADT.pstate_control, acpi_gbl_FADT.smi_command));
 
-	status = acpi_os_write_port(acpi_fadt.smi_command,
-				    (u32) acpi_fadt.pstate_control, 8);
+	status = acpi_os_write_port(acpi_gbl_FADT.smi_command,
+				    (u32) acpi_gbl_FADT.pstate_control, 8);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"Failed to write pstate_control [0x%x] to "
-				"smi_command [0x%x]", acpi_fadt.pstate_control,
-				acpi_fadt.smi_command));
+				"smi_command [0x%x]", acpi_gbl_FADT.pstate_control,
+				acpi_gbl_FADT.smi_command));
 		module_put(calling_module);
 		return status;
 	}

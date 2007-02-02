@@ -245,7 +245,7 @@ acpi_os_install_interrupt_handler(u32 gsi, acpi_osd_handler handler,
 	 * FADT. It may not be the same if an interrupt source override exists
 	 * for the SCI.
 	 */
-	gsi = acpi_fadt.sci_int;
+	gsi = acpi_gbl_FADT.sci_interrupt;
 	if (acpi_gsi_to_irq(gsi, &irq) < 0) {
 		printk(KERN_ERR PREFIX "SCI (ACPI GSI %d) not registered\n",
 		       gsi);

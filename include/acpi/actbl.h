@@ -236,9 +236,6 @@ struct acpi_table_fadt {
 	struct acpi_generic_address xgpe1_block;	/* 64-bit Extended General Purpose Event 1 Reg Blk address */
 };
 
-#define fadt_descriptor acpi_table_fadt
-#define sci_int sci_interrupt
-
 /* FADT flags */
 
 #define ACPI_FADT_WBINVD            (1)	/* 00: The wbinvd instruction works properly */
