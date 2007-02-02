@@ -78,7 +78,7 @@ static acpi_status acpi_tb_load_namespace(void);
  *
  ******************************************************************************/
 
-acpi_status
+acpi_status __init
 acpi_initialize_tables(struct acpi_table_desc *initial_table_array,
 		       u32 initial_table_count, u8 allow_resize)
 {
@@ -131,8 +131,6 @@ acpi_initialize_tables(struct acpi_table_desc *initial_table_array,
 	    acpi_tb_parse_root_table(rsdp_address, ACPI_TABLE_ORIGIN_MAPPED);
 	return_ACPI_STATUS(status);
 }
-
-ACPI_EXPORT_SYMBOL(acpi_initialize_tables)
 
 /*******************************************************************************
  *
@@ -363,6 +361,10 @@ acpi_get_table(char *signature,
 		    acpi_tb_verify_table(&acpi_gbl_root_table_list.tables[i]);
 		if (ACPI_SUCCESS(status)) {
 			*out_table = acpi_gbl_root_table_list.tables[i].pointer;
+		}
+
+		if (!acpi_gbl_permanent_mmap) {
+			acpi_gbl_root_table_list.tables[i].pointer = 0;
 		}
 
 		return (status);

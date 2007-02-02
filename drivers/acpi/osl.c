@@ -36,6 +36,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/nmi.h>
+#include <linux/acpi.h>
 #include <acpi/acpi.h>
 #include <asm/io.h>
 #include <acpi/acpi_bus.h>
@@ -136,53 +137,43 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 #endif
 }
 
-acpi_status acpi_os_get_root_pointer(u32 flags, struct acpi_pointer *addr)
+acpi_physical_address __init acpi_os_get_root_pointer(void)
 {
 	if (efi_enabled) {
-		addr->pointer_type = ACPI_PHYSICAL_POINTER;
 		if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
-			addr->pointer.physical = efi.acpi20;
+			return efi.acpi20;
 		else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
-			addr->pointer.physical = efi.acpi;
+			return efi.acpi;
 		else {
 			printk(KERN_ERR PREFIX
 			       "System description tables not found\n");
-			return AE_NOT_FOUND;
+			return 0;
 		}
-	} else {
-		if (ACPI_FAILURE(acpi_find_root_pointer(flags, addr))) {
-			printk(KERN_ERR PREFIX
-			       "System description tables not found\n");
-			return AE_NOT_FOUND;
-		}
-	}
-
-	return AE_OK;
+	} else
+		return acpi_find_rsdp();
 }
 
-acpi_status
-acpi_os_map_memory(acpi_physical_address phys, acpi_size size,
-		   void __iomem ** virt)
+void __iomem *acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
 	if (phys > ULONG_MAX) {
 		printk(KERN_ERR PREFIX "Cannot map memory that high\n");
-		return AE_BAD_PARAMETER;
+		return 0;
 	}
-	/*
-	 * ioremap checks to ensure this is in reserved space
-	 */
-	*virt = ioremap((unsigned long)phys, size);
-
-	if (!*virt)
-		return AE_NO_MEMORY;
-
-	return AE_OK;
+	if (acpi_gbl_permanent_mmap)
+		/*
+		* ioremap checks to ensure this is in reserved space
+		*/
+		return ioremap((unsigned long)phys, size);
+	else
+		return __acpi_map_table((unsigned long)phys, size);
 }
 EXPORT_SYMBOL_GPL(acpi_os_map_memory);
 
 void acpi_os_unmap_memory(void __iomem * virt, acpi_size size)
 {
-	iounmap(virt);
+	if (acpi_gbl_permanent_mmap) {
+		iounmap(virt);
+	}
 }
 EXPORT_SYMBOL_GPL(acpi_os_unmap_memory);
 

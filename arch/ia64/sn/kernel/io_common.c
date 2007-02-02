@@ -25,7 +25,6 @@
 #include "xtalk/xwidgetdev.h"
 #include <linux/acpi.h>
 #include <asm/sn/sn2/sn_hwperf.h>
-#include <asm/sn/acpi.h>
 
 extern void sn_init_cpei_timer(void);
 extern void register_sn_procfs(void);
@@ -36,7 +35,6 @@ extern void sn_more_slot_fixup(struct pci_dev *, struct pcidev_info *);
 extern void sn_legacy_pci_window_fixup(struct pci_controller *, u64, u64);
 extern void sn_io_acpi_init(void);
 extern void sn_io_init(void);
-
 
 static struct list_head sn_sysdata_list;
 
@@ -49,6 +47,15 @@ struct sysdata_el {
 int sn_ioif_inited;		/* SN I/O infrastructure initialized? */
 
 struct sn_pcibus_provider *sn_pci_provider[PCIIO_ASIC_MAX_TYPES];	/* indexed by asic type */
+
+int sn_acpi_base_support()
+{
+	struct acpi_table_header *header;
+	(void)acpi_get_table_by_index(ACPI_TABLE_INDEX_DSDT, &header);
+	if (header && header->oem_revision >= 0x20101)
+		return 1;
+	return 0;
+}
 
 /*
  * Hooks and struct for unsupported pci providers
@@ -286,7 +293,7 @@ void sn_pci_fixup_slot(struct pci_dev *dev)
 	list_add_tail(&pcidev_info->pdi_list,
 		      &(SN_PLATFORM_DATA(dev->bus)->pcidev_info));
 
-	if (SN_ACPI_BASE_SUPPORT())
+	if (sn_acpi_base_support())
 		sn_acpi_slot_fixup(dev, pcidev_info);
 	else
 		sn_more_slot_fixup(dev, pcidev_info);
@@ -498,7 +505,7 @@ void __devinit
 sn_pci_fixup_bus(struct pci_bus *bus)
 {
 
-	if (SN_ACPI_BASE_SUPPORT())
+	if (sn_acpi_base_support())
 		sn_acpi_bus_fixup(bus);
 	else
 		sn_bus_fixup(bus);
@@ -546,7 +553,7 @@ sn_io_early_init(void)
 
 	printk(KERN_INFO "ACPI  DSDT OEM Rev 0x%x\n",
 	       acpi_gbl_DSDT->oem_revision);
-	if (SN_ACPI_BASE_SUPPORT())
+	if (sn_acpi_base_support())
 		sn_io_acpi_init();
 	else
 		sn_io_init();

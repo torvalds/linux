@@ -39,7 +39,6 @@ ACPI_MODULE_NAME("acpi_system")
 #define ACPI_SYSTEM_FILE_EVENT		"event"
 #define ACPI_SYSTEM_FILE_DSDT		"dsdt"
 #define ACPI_SYSTEM_FILE_FADT		"fadt"
-extern struct fadt_descriptor acpi_fadt;
 
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
@@ -76,17 +75,16 @@ acpi_system_read_dsdt(struct file *file,
 		      char __user * buffer, size_t count, loff_t * ppos)
 {
 	acpi_status status = AE_OK;
-	struct acpi_buffer dsdt = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_table_header *dsdt = NULL;
 	ssize_t res;
 
 
-	status = acpi_get_table(ACPI_TABLE_ID_DSDT, 1, &dsdt);
+	status = acpi_get_table(ACPI_SIG_DSDT, 1, &dsdt);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
 	res = simple_read_from_buffer(buffer, count, ppos,
-				      dsdt.pointer, dsdt.length);
-	kfree(dsdt.pointer);
+				      dsdt, dsdt->length);
 
 	return res;
 }
@@ -103,17 +101,16 @@ acpi_system_read_fadt(struct file *file,
 		      char __user * buffer, size_t count, loff_t * ppos)
 {
 	acpi_status status = AE_OK;
-	struct acpi_buffer fadt = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_table_header *fadt = NULL;
 	ssize_t res;
 
 
-	status = acpi_get_table(ACPI_TABLE_ID_FADT, 1, &fadt);
+	status = acpi_get_table(ACPI_SIG_FADT, 1, &fadt);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
 	res = simple_read_from_buffer(buffer, count, ppos,
-				      fadt.pointer, fadt.length);
-	kfree(fadt.pointer);
+				      fadt, fadt->length);
 
 	return res;
 }

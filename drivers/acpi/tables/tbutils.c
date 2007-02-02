@@ -545,7 +545,7 @@ acpi_tb_get_root_table_entry(u8 * table_entry,
  *
  ******************************************************************************/
 
-acpi_status
+acpi_status __init
 acpi_tb_parse_root_table(acpi_physical_address rsdp_address, u8 flags)
 {
 	struct acpi_table_rsdp *rsdp;

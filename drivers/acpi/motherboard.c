@@ -134,41 +134,41 @@ static void __init acpi_request_region (struct acpi_generic_address *addr,
 	if (!addr->address || !length)
 		return;
 
-	if (addr->address_space_id == ACPI_ADR_SPACE_SYSTEM_IO)
+	if (addr->space_id == ACPI_ADR_SPACE_SYSTEM_IO)
 		request_region(addr->address, length, desc);
-	else if (addr->address_space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+	else if (addr->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
 		request_mem_region(addr->address, length, desc);
 }
 
 static void __init acpi_reserve_resources(void)
 {
-	acpi_request_region(&acpi_gbl_FADT->xpm1a_evt_blk,
-			       acpi_gbl_FADT->pm1_evt_len, "ACPI PM1a_EVT_BLK");
+	acpi_request_region(&acpi_gbl_FADT.xpm1a_event_block,
+			       acpi_gbl_FADT.pm1_event_length, "ACPI PM1a_EVT_BLK");
 
-	acpi_request_region(&acpi_gbl_FADT->xpm1b_evt_blk,
-			       acpi_gbl_FADT->pm1_evt_len, "ACPI PM1b_EVT_BLK");
+	acpi_request_region(&acpi_gbl_FADT.xpm1b_event_block,
+			       acpi_gbl_FADT.pm1_event_length, "ACPI PM1b_EVT_BLK");
 
-	acpi_request_region(&acpi_gbl_FADT->xpm1a_cnt_blk,
-			       acpi_gbl_FADT->pm1_cnt_len, "ACPI PM1a_CNT_BLK");
+	acpi_request_region(&acpi_gbl_FADT.xpm1a_control_block,
+			       acpi_gbl_FADT.pm1_control_length, "ACPI PM1a_CNT_BLK");
 
-	acpi_request_region(&acpi_gbl_FADT->xpm1b_cnt_blk,
-			       acpi_gbl_FADT->pm1_cnt_len, "ACPI PM1b_CNT_BLK");
+	acpi_request_region(&acpi_gbl_FADT.xpm1b_control_block,
+			       acpi_gbl_FADT.pm1_control_length, "ACPI PM1b_CNT_BLK");
 
-	if (acpi_gbl_FADT->pm_tm_len == 4)
-		acpi_request_region(&acpi_gbl_FADT->xpm_tmr_blk, 4, "ACPI PM_TMR");
+	if (acpi_gbl_FADT.pm_timer_length == 4)
+		acpi_request_region(&acpi_gbl_FADT.xpm_timer_block, 4, "ACPI PM_TMR");
 
-	acpi_request_region(&acpi_gbl_FADT->xpm2_cnt_blk,
-			       acpi_gbl_FADT->pm2_cnt_len, "ACPI PM2_CNT_BLK");
+	acpi_request_region(&acpi_gbl_FADT.xpm2_control_block,
+			       acpi_gbl_FADT.pm2_control_length, "ACPI PM2_CNT_BLK");
 
 	/* Length of GPE blocks must be a non-negative multiple of 2 */
 
-	if (!(acpi_gbl_FADT->gpe0_blk_len & 0x1))
-		acpi_request_region(&acpi_gbl_FADT->xgpe0_blk,
-			       acpi_gbl_FADT->gpe0_blk_len, "ACPI GPE0_BLK");
+	if (!(acpi_gbl_FADT.gpe0_block_length & 0x1))
+		acpi_request_region(&acpi_gbl_FADT.xgpe0_block,
+			       acpi_gbl_FADT.gpe0_block_length, "ACPI GPE0_BLK");
 
-	if (!(acpi_gbl_FADT->gpe1_blk_len & 0x1))
-		acpi_request_region(&acpi_gbl_FADT->xgpe1_blk,
-			       acpi_gbl_FADT->gpe1_blk_len, "ACPI GPE1_BLK");
+	if (!(acpi_gbl_FADT.gpe1_block_length & 0x1))
+		acpi_request_region(&acpi_gbl_FADT.xgpe1_block,
+			       acpi_gbl_FADT.gpe1_block_length, "ACPI GPE1_BLK");
 }
 
 static int __init acpi_motherboard_init(void)

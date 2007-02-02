@@ -236,6 +236,9 @@ struct acpi_table_fadt {
 	struct acpi_generic_address xgpe1_block;	/* 64-bit Extended General Purpose Event 1 Reg Blk address */
 };
 
+#define fadt_descriptor acpi_table_fadt
+#define sci_int sci_interrupt
+
 /* FADT flags */
 
 #define ACPI_FADT_WBINVD            (1)	/* 00: The wbinvd instruction works properly */
@@ -289,6 +292,8 @@ enum acpi_prefered_pm_profiles {
 /*
  * Get the remaining ACPI tables
  */
+/*
+ Don't include any new tables definitions for now.
 #include <acpi/actbl1.h>
-
+*/
 #endif				/* __ACTBL_H__ */

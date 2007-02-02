@@ -44,7 +44,7 @@ struct acpi_blacklist_item {
 	char oem_id[7];
 	char oem_table_id[9];
 	u32 oem_revision;
-	acpi_table_type table;
+	char *table;
 	enum acpi_blacklist_predicates oem_revision_predicate;
 	char *reason;
 	u32 is_critical_error;
@@ -56,18 +56,18 @@ struct acpi_blacklist_item {
  */
 static struct acpi_blacklist_item acpi_blacklist[] __initdata = {
 	/* Compaq Presario 1700 */
-	{"PTLTD ", "  DSDT  ", 0x06040000, ACPI_DSDT, less_than_or_equal,
+	{"PTLTD ", "  DSDT  ", 0x06040000, ACPI_SIG_DSDT, less_than_or_equal,
 	 "Multiple problems", 1},
 	/* Sony FX120, FX140, FX150? */
-	{"SONY  ", "U0      ", 0x20010313, ACPI_DSDT, less_than_or_equal,
+	{"SONY  ", "U0      ", 0x20010313, ACPI_SIG_DSDT, less_than_or_equal,
 	 "ACPI driver problem", 1},
 	/* Compaq Presario 800, Insyde BIOS */
-	{"INT440", "SYSFexxx", 0x00001001, ACPI_DSDT, less_than_or_equal,
+	{"INT440", "SYSFexxx", 0x00001001, ACPI_SIG_DSDT, less_than_or_equal,
 	 "Does not use _REG to protect EC OpRegions", 1},
 	/* IBM 600E - _ADR should return 7, but it returns 1 */
-	{"IBM   ", "TP600E  ", 0x00000105, ACPI_DSDT, less_than_or_equal,
+	{"IBM   ", "TP600E  ", 0x00000105, ACPI_SIG_DSDT, less_than_or_equal,
 	 "Incorrect _ADR", 1},
-	{"ASUS\0\0", "P2B-S   ", 0, ACPI_DSDT, all_versions,
+	{"ASUS\0\0", "P2B-S   ", 0, ACPI_SIG_DSDT, all_versions,
 	 "Bogus PCI routing", 1},
 
 	{""}
@@ -106,8 +106,7 @@ int __init acpi_blacklisted(void)
 	struct acpi_table_header *table_header;
 
 	while (acpi_blacklist[i].oem_id[0] != '\0') {
-		if (acpi_get_table_header_early
-		    (acpi_blacklist[i].table, &table_header)) {
+		if (acpi_get_table_header(acpi_blacklist[i].table, 0, &table_header)) {
 			i++;
 			continue;
 		}

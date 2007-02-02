@@ -76,7 +76,7 @@ const char *acpi_get_sysname(void)
 {
 #ifdef CONFIG_IA64_GENERIC
 	unsigned long rsdp_phys;
-	struct acpi20_table_rsdp *rsdp;
+	struct acpi_table_rsdp *rsdp;
 	struct acpi_table_xsdt *xsdt;
 	struct acpi_table_header *hdr;
 
@@ -87,8 +87,8 @@ const char *acpi_get_sysname(void)
 		return "dig";
 	}
 
-	rsdp = (struct acpi20_table_rsdp *)__va(rsdp_phys);
-	if (strncmp(rsdp->signature, RSDP_SIG, sizeof(RSDP_SIG) - 1)) {
+	rsdp = (struct acpi_table_rsdp *)__va(rsdp_phys);
+	if (strncmp(rsdp->signature, ACPI_SIG_RSDP, sizeof(ACPI_SIG_RSDP) - 1)) {
 		printk(KERN_ERR
 		       "ACPI 2.0 RSDP signature incorrect, default to \"dig\"\n");
 		return "dig";
@@ -96,7 +96,7 @@ const char *acpi_get_sysname(void)
 
 	xsdt = (struct acpi_table_xsdt *)__va(rsdp->xsdt_address);
 	hdr = &xsdt->header;
-	if (strncmp(hdr->signature, XSDT_SIG, sizeof(XSDT_SIG) - 1)) {
+	if (strncmp(hdr->signature, ACPI_SIG_XSDT, sizeof(ACPI_SIG_XSDT) - 1)) {
 		printk(KERN_ERR
 		       "ACPI 2.0 XSDT signature incorrect, default to \"dig\"\n");
 		return "dig";

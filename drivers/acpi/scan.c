@@ -1333,7 +1333,7 @@ static int acpi_bus_scan_fixed(struct acpi_device *root)
 	/*
 	 * Enumerate all fixed-feature devices.
 	 */
-	if (acpi_fadt.pwr_button == 0) {
+	if ((acpi_fadt.flags & ACPI_FADT_POWER_BUTTON) == 0) {
 		result = acpi_add_single_object(&device, acpi_root,
 						NULL,
 						ACPI_BUS_TYPE_POWER_BUTTON);
@@ -1341,7 +1341,7 @@ static int acpi_bus_scan_fixed(struct acpi_device *root)
 			result = acpi_start_single_object(device);
 	}
 
-	if (acpi_fadt.sleep_button == 0) {
+	if ((acpi_fadt.flags & ACPI_FADT_SLEEP_BUTTON) == 0) {
 		result = acpi_add_single_object(&device, acpi_root,
 						NULL,
 						ACPI_BUS_TYPE_SLEEP_BUTTON);

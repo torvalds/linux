@@ -1,4 +1,4 @@
-/* 
+/*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
@@ -16,7 +16,6 @@
 #include <asm/sn/pda.h>
 #include <asm/sn/sn_cpuid.h>
 #include <asm/sn/shub_mmr.h>
-#include <asm/sn/acpi.h>
 
 #define IS_LEGACY_VGA_IOPORT(p) \
 	(((p) >= 0x3b0 && (p) <= 0x3bb) || ((p) >= 0x3c0 && (p) <= 0x3df))
@@ -26,9 +25,12 @@
  * @port: port to convert
  *
  * Legacy in/out instructions are converted to ld/st instructions
- * on IA64.  This routine will convert a port number into a valid 
+ * on IA64.  This routine will convert a port number into a valid
  * SN i/o address.  Used by sn_in*() and sn_out*().
  */
+
+extern int sn_acpi_base_support();
+
 void *sn_io_addr(unsigned long port)
 {
 	if (!IS_RUNNING_ON_SIMULATOR()) {
@@ -37,7 +39,7 @@ void *sn_io_addr(unsigned long port)
 		/* On sn2, legacy I/O ports don't point at anything */
 		if (port < (64 * 1024))
 			return NULL;
-		if (SN_ACPI_BASE_SUPPORT())
+		if (sn_acpi_base_support())
 			return (__ia64_mk_io_addr(port));
 		else
 			return ((void *)(port | __IA64_UNCACHED_OFFSET));

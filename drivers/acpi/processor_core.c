@@ -431,7 +431,7 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	 * Check to see if we have bus mastering arbitration control.  This
 	 * is required for proper C3 usage (to maintain cache coherency).
 	 */
-	if (acpi_fadt.V1_pm2_cnt_blk && acpi_fadt.pm2_cnt_len) {
+	if (acpi_fadt.pm2_control_block && acpi_fadt.pm2_control_length) {
 		pr->flags.bm_control = 1;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Bus mastering arbitration control present\n"));

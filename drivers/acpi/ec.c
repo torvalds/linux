@@ -872,9 +872,7 @@ static int __init acpi_ec_get_real_ecdt(void)
 	acpi_status status;
 	struct acpi_table_ecdt *ecdt_ptr;
 
-	status = acpi_get_firmware_table("ECDT", 1, ACPI_LOGICAL_ADDRESSING,
-					 (struct acpi_table_header **)
-					 &ecdt_ptr);
+	status = acpi_get_table("ECDT", 1, (struct acpi_table_header **)&ecdt_ptr);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 

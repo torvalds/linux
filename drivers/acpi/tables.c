@@ -74,6 +74,7 @@ static unsigned long sdt_pa;	/* Physical Address */
 static unsigned long sdt_count;	/* Table count */
 
 static struct acpi_table_sdt sdt_entry[ACPI_MAX_TABLES] __initdata;
+static struct acpi_table_desc initial_tables[ACPI_MAX_TABLES] __initdata;
 
 void acpi_table_print(struct acpi_table_header *header, unsigned long phys_addr)
 {
@@ -284,12 +285,12 @@ acpi_get_table_header_early(enum acpi_table_id id,
 		struct fadt_descriptor *fadt =
 		    (struct fadt_descriptor *)*header;
 
-		if (fadt->revision == 3 && fadt->Xdsdt) {
+		if (fadt->header.revision == 3 && fadt->Xdsdt) {
 			*header = (void *)__acpi_map_table(fadt->Xdsdt,
 							   sizeof(struct
 								  acpi_table_header));
-		} else if (fadt->V1_dsdt) {
-			*header = (void *)__acpi_map_table(fadt->V1_dsdt,
+		} else if (fadt->dsdt) {
+			*header = (void *)__acpi_map_table(fadt->dsdt,
 							   sizeof(struct
 								  acpi_table_header));
 		} else
@@ -410,12 +411,11 @@ static int __init acpi_table_get_sdt(struct acpi_table_rsdp *rsdp)
 
 	/* First check XSDT (but only on ACPI 2.0-compatible systems) */
 
-	if ((rsdp->revision >= 2) &&
-	    (((struct acpi20_table_rsdp *)rsdp)->xsdt_address)) {
+	if ((rsdp->revision >= 2) && rsdp->xsdt_physical_address) {
 
 		struct acpi_table_xsdt *mapped_xsdt = NULL;
 
-		sdt_pa = ((struct acpi20_table_rsdp *)rsdp)->xsdt_address;
+		sdt_pa = rsdp->xsdt_physical_address;
 
 		/* map in just the header */
 		header = (struct acpi_table_header *)
@@ -457,16 +457,16 @@ static int __init acpi_table_get_sdt(struct acpi_table_rsdp *rsdp)
 		}
 
 		for (i = 0; i < sdt_count; i++)
-			sdt_entry[i].pa = (unsigned long)mapped_xsdt->entry[i];
+			sdt_entry[i].pa = (unsigned long)mapped_xsdt->table_offset_entry[i];
 	}
 
 	/* Then check RSDT */
 
-	else if (rsdp->rsdt_address) {
+	else if (rsdp->rsdt_physical_address) {
 
 		struct acpi_table_rsdt *mapped_rsdt = NULL;
 
-		sdt_pa = rsdp->rsdt_address;
+		sdt_pa = rsdp->rsdt_physical_address;
 
 		/* map in just the header */
 		header = (struct acpi_table_header *)
@@ -507,7 +507,7 @@ static int __init acpi_table_get_sdt(struct acpi_table_rsdp *rsdp)
 		}
 
 		for (i = 0; i < sdt_count; i++)
-			sdt_entry[i].pa = (unsigned long)mapped_rsdt->entry[i];
+			sdt_entry[i].pa = (unsigned long)mapped_rsdt->table_offset_entry[i];
 	}
 
 	else {
@@ -599,13 +599,10 @@ int __init acpi_table_init(void)
 
 	if (rsdp->revision < 2)
 		result =
-		    acpi_table_compute_checksum(rsdp,
-						sizeof(struct acpi_table_rsdp));
+		    acpi_table_compute_checksum(rsdp, ACPI_RSDP_REV0_SIZE);
 	else
 		result =
-		    acpi_table_compute_checksum(rsdp,
-						((struct acpi20_table_rsdp *)
-						 rsdp)->length);
+		    acpi_table_compute_checksum(rsdp, rsdp->length);
 
 	if (result) {
 		printk(KERN_WARNING "  >>> ERROR: Invalid checksum\n");
@@ -616,6 +613,8 @@ int __init acpi_table_init(void)
 
 	if (acpi_table_get_sdt(rsdp))
 		return -ENODEV;
+
+	acpi_initialize_tables(initial_tables, ACPI_MAX_TABLES, 0);
 
 	return 0;
 }

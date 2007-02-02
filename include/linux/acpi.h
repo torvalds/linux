@@ -53,56 +53,10 @@ enum acpi_irq_model_id {
 
 extern enum acpi_irq_model_id	acpi_irq_model;
 
-
-/* Root System Description Pointer (RSDP) */
-
-struct acpi_table_rsdp {
-	char			signature[8];
-	u8			checksum;
-	char			oem_id[6];
-	u8			revision;
-	u32			rsdt_address;
-} __attribute__ ((packed));
-
-struct acpi20_table_rsdp {
-	char			signature[8];
-	u8			checksum;
-	char			oem_id[6];
-	u8			revision;
-	u32			rsdt_address;
-	u32			length;
-	u64			xsdt_address;
-	u8			ext_checksum;
-	u8			reserved[3];
-} __attribute__ ((packed));
-
 typedef struct {
 	u8			type;
 	u8			length;
 } __attribute__ ((packed)) acpi_table_entry_header;
-
-/* Root System Description Table (RSDT) */
-
-struct acpi_table_rsdt {
-	struct acpi_table_header header;
-	u32			entry[8];
-} __attribute__ ((packed));
-
-/* Extended System Description Table (XSDT) */
-
-struct acpi_table_xsdt {
-	struct acpi_table_header header;
-	u64			entry[1];
-} __attribute__ ((packed));
-
-/* Fixed ACPI Description Table (FADT) */
-
-struct acpi_table_fadt {
-	struct acpi_table_header header;
-	u32 facs_addr;
-	u32 dsdt_addr;
-	/* ... */
-} __attribute__ ((packed));
 
 /* Multiple APIC Description Table (MADT) */
 

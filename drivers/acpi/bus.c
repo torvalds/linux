@@ -44,9 +44,6 @@ ACPI_MODULE_NAME("acpi_bus")
 extern void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger);
 #endif
 
-struct fadt_descriptor acpi_fadt;
-EXPORT_SYMBOL(acpi_fadt);
-
 struct acpi_device *acpi_root;
 struct proc_dir_entry *acpi_root_dir;
 EXPORT_SYMBOL(acpi_root_dir);
@@ -582,11 +579,12 @@ static int __init acpi_bus_init_irq(void)
 	return 0;
 }
 
+acpi_native_uint acpi_gbl_permanent_mmap;
+
+
 void __init acpi_early_init(void)
 {
 	acpi_status status = AE_OK;
-	struct acpi_buffer buffer = { sizeof(acpi_fadt), &acpi_fadt };
-
 
 	if (acpi_disabled)
 		return;
@@ -596,6 +594,15 @@ void __init acpi_early_init(void)
 	/* enable workarounds, unless strict ACPI spec. compliance */
 	if (!acpi_strict)
 		acpi_gbl_enable_interpreter_slack = TRUE;
+
+	acpi_gbl_permanent_mmap = 1;
+
+	status = acpi_reallocate_root_table();
+	if (ACPI_FAILURE(status)) {
+		printk(KERN_ERR PREFIX
+		       "Unable to reallocate ACPI tables\n");
+		goto error0;
+	}
 
 	status = acpi_initialize_subsystem();
 	if (ACPI_FAILURE(status)) {
@@ -611,14 +618,6 @@ void __init acpi_early_init(void)
 		goto error0;
 	}
 
-	/*
-	 * Get a separate copy of the FADT for use by other drivers.
-	 */
-	status = acpi_get_table(ACPI_TABLE_ID_FADT, 1, &buffer);
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR PREFIX "Unable to get the FADT\n");
-		goto error0;
-	}
 #ifdef CONFIG_X86
 	if (!acpi_ioapic) {
 		extern acpi_interrupt_flags acpi_sci_flags;

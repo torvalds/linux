@@ -147,6 +147,8 @@ ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_leave_wake_gpes_disabled, TRUE);
  */
 ACPI_EXTERN struct acpi_internal_rsdt acpi_gbl_root_table_list;
 ACPI_EXTERN struct acpi_table_fadt acpi_gbl_FADT;
+#define acpi_fadt acpi_gbl_FADT
+extern acpi_native_uint acpi_gbl_permanent_mmap;
 
 /*
  * Handle both ACPI 1.0 and ACPI 2.0 Integer widths. The integer width is
