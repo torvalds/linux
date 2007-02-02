@@ -49,34 +49,6 @@ ACPI_MODULE_NAME("hwacpi")
 
 /******************************************************************************
  *
- * FUNCTION:    acpi_hw_initialize
- *
- * PARAMETERS:  None
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Initialize and validate the various ACPI registers defined in
- *              the FADT.
- *
- ******************************************************************************/
-acpi_status acpi_hw_initialize(void)
-{
-	acpi_status status;
-
-	ACPI_FUNCTION_TRACE(hw_initialize);
-
-	/* Sanity check the FADT for valid values */
-
-	status = acpi_ut_validate_fadt();
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
-	return_ACPI_STATUS(AE_OK);
-}
-
-/******************************************************************************
- *
  * FUNCTION:    acpi_hw_set_mode
  *
  * PARAMETERS:  Mode            - SYS_MODE_ACPI or SYS_MODE_LEGACY
@@ -86,7 +58,6 @@ acpi_status acpi_hw_initialize(void)
  * DESCRIPTION: Transitions the system into the requested mode.
  *
  ******************************************************************************/
-
 acpi_status acpi_hw_set_mode(u32 mode)
 {
 

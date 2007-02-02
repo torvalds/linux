@@ -127,20 +127,6 @@ acpi_status acpi_enable_subsystem(u32 flags)
 
 	ACPI_FUNCTION_TRACE(acpi_enable_subsystem);
 
-	/*
-	 * We must initialize the hardware before we can enable ACPI.
-	 * The values from the FADT are validated here.
-	 */
-	if (!(flags & ACPI_NO_HARDWARE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Initializing ACPI hardware\n"));
-
-		status = acpi_hw_initialize();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-
 	/* Enable ACPI mode */
 
 	if (!(flags & ACPI_NO_ACPI_ENABLE)) {

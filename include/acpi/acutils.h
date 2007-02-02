@@ -141,8 +141,6 @@ acpi_status acpi_ut_hardware_initialize(void);
 
 void acpi_ut_subsystem_shutdown(void);
 
-acpi_status acpi_ut_validate_fadt(void);
-
 /*
  * utclib - Local implementations of C library functions
  */
