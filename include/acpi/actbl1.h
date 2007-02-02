@@ -97,6 +97,8 @@ struct acpi_subtable_header {
  *
  * ASF - Alert Standard Format table (Signature "ASF!")
  *
+ * Conforms to the Alert Standard Format Specification V2.0, 23 April 2003
+ *
  ******************************************************************************/
 
 struct acpi_table_asf {
