@@ -214,4 +214,6 @@ void acpi_db_prep_namestring(char *name);
 
 struct acpi_namespace_node *acpi_db_local_ns_lookup(char *name);
 
+void acpi_db_uint32_to_hex_string(u32 value, char *buffer);
+
 #endif				/* __ACDEBUG_H__ */

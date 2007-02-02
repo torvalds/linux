@@ -872,12 +872,30 @@ struct acpi_bit_register_info {
  ****************************************************************************/
 
 struct acpi_db_method_info {
-	acpi_handle thread_gate;
+	acpi_handle main_thread_gate;
+	acpi_handle thread_complete_gate;
+	u32 *threads;
+	u32 num_threads;
+	u32 num_created;
+	u32 num_completed;
+
 	char *name;
-	char **args;
 	u32 flags;
 	u32 num_loops;
 	char pathname[128];
+	char **args;
+
+	/*
+	 * Arguments to be passed to method for the command
+	 * Threads -
+	 *   the Number of threads, ID of current thread and
+	 *   Index of current thread inside all them created.
+	 */
+	char init_args;
+	char *arguments[4];
+	char num_threads_str[11];
+	char id_of_thread_str[11];
+	char index_of_thread_str[11];
 };
 
 struct acpi_integrity_info {
