@@ -547,6 +547,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 	acpi_status status;
 	acpi_object_type object_type;
 	char *buffer_ptr;
+	u32 flags;
 
 	ACPI_FUNCTION_TRACE(ds_load2_begin_op);
 
@@ -752,12 +753,20 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 			break;
 		}
 
-		/* Add new entry into namespace */
+		flags = ACPI_NS_NO_UPSEARCH;
+		if (walk_state->pass_number == 3) {
+
+			/* Execution mode, node cannot already exist */
+
+			flags |= ACPI_NS_ERROR_IF_FOUND;
+		}
+
+		/* Add new entry or lookup existing entry */
 
 		status =
 		    acpi_ns_lookup(walk_state->scope_info, buffer_ptr,
-				   object_type, ACPI_IMODE_LOAD_PASS2,
-				   ACPI_NS_NO_UPSEARCH, walk_state, &(node));
+				   object_type, ACPI_IMODE_LOAD_PASS2, flags,
+				   walk_state, &node);
 		break;
 	}
 
