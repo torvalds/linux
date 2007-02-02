@@ -289,8 +289,7 @@ enum acpi_prefered_pm_profiles {
 /*
  * Get the remaining ACPI tables
  */
-/*
- Don't include any new tables definitions for now.
+
 #include <acpi/actbl1.h>
-*/
+
 #endif				/* __ACTBL_H__ */

@@ -60,15 +60,6 @@ typedef struct {
 
 /* Multiple APIC Description Table (MADT) */
 
-struct acpi_table_madt {
-	struct acpi_table_header header;
-	u32			lapic_address;
-	struct {
-		u32			pcat_compat:1;
-		u32			reserved:31;
-	}			flags;
-} __attribute__ ((packed));
-
 enum acpi_madt_entry_id {
 	ACPI_MADT_LAPIC = 0,
 	ACPI_MADT_IOAPIC,
@@ -185,15 +176,6 @@ struct acpi_gen_regaddr {
 	u32 addrh;
 } __attribute__ ((packed));
 
-struct acpi_table_hpet {
-	struct acpi_table_header header;
-	u32 id;
-	struct acpi_gen_regaddr addr;
-	u8 number;
-	u16 min_tick;
-	u8 page_protect;
-} __attribute__ ((packed));
-
 /*
  * Simple Boot Flags
  * http://www.microsoft.com/whdc/hwdev/resources/specs/simp_bios.mspx
@@ -217,12 +199,6 @@ struct acpi_table_sbf
  * System Resource Affinity Table (SRAT)
  * http://www.microsoft.com/whdc/hwdev/platform/proc/SRAT.mspx
  */
-
-struct acpi_table_srat {
-	struct acpi_table_header header;
-	u32			table_revision;
-	u64			reserved;
-} __attribute__ ((packed));
 
 enum acpi_srat_entry_id {
 	ACPI_SRAT_PROCESSOR_AFFINITY = 0,
@@ -267,36 +243,6 @@ enum acpi_address_range_id {
 	ACPI_ADDRESS_RANGE_COUNT
 };
 
-/*
- * System Locality Information Table (SLIT)
- *   see http://devresource.hp.com/devresource/docs/techpapers/ia64/slit.pdf
- */
-
-struct acpi_table_slit {
-	struct acpi_table_header header;
-	u64			localities;
-	u8			entry[1];	/* real size = localities^2 */
-} __attribute__ ((packed));
-
-/* Smart Battery Description Table (SBST) */
-
-struct acpi_table_sbst {
-	struct acpi_table_header header;
-	u32			warning;	/* Warn user */
-	u32			low;		/* Critical sleep */
-	u32			critical;	/* Critical shutdown */
-} __attribute__ ((packed));
-
-/* Embedded Controller Boot Resources Table (ECDT) */
-
-struct acpi_table_ecdt {
-	struct acpi_table_header 	header;
-	struct acpi_generic_address	ec_control;
-	struct acpi_generic_address	ec_data;
-	u32				uid;
-	u8				gpe_bit;
-	char				ec_id[0];
-} __attribute__ ((packed));
 
 /* PCI MMCONFIG */
 
@@ -308,11 +254,6 @@ struct acpi_table_mcfg_config {
 	u8				start_bus_number;
 	u8				end_bus_number;
 	u8				reserved[4];
-} __attribute__ ((packed));
-struct acpi_table_mcfg {
-	struct acpi_table_header	header;
-	u8				reserved[8];
-	struct acpi_table_mcfg_config	config[0];
 } __attribute__ ((packed));
 
 /* Table Handlers */
