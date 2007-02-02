@@ -377,7 +377,7 @@ static int acpi_processor_remove_fs(struct acpi_device *device)
 /* Use the acpiid in MADT to map cpus in case of SMP */
 
 #ifndef CONFIG_SMP
-#define convert_acpiid_to_cpu(acpi_id) (-1)
+static int get_cpu_id(acpi_handle handle, u32 acpi_id) {return -1;}
 #else
 
 static struct acpi_table_madt *madt;
@@ -483,7 +483,7 @@ exit:
 	return apic_id;
 }
 
-static int get_apic_id(acpi_handle handle, u32 acpi_id)
+static int get_cpu_id(acpi_handle handle, u32 acpi_id)
 {
 	int i;
 	int apic_id = -1;
@@ -506,7 +506,7 @@ static int get_apic_id(acpi_handle handle, u32 acpi_id)
                                  Driver Interface
    -------------------------------------------------------------------------- */
 
-static int acpi_processor_get_info(struct acpi_processor *pr)
+static int acpi_processor_get_info(struct acpi_processor *pr, unsigned has_uid)
 {
 	acpi_status status = 0;
 	union acpi_object object = { 0 };
@@ -535,24 +535,35 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "No bus mastering arbitration control\n"));
 
-	/*
-	 * Evalute the processor object.  Note that it is common on SMP to
-	 * have the first (boot) processor with a valid PBLK address while
-	 * all others have a NULL address.
-	 */
-	status = acpi_evaluate_object(pr->handle, NULL, NULL, &buffer);
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR PREFIX "Evaluating processor object\n");
-		return -ENODEV;
+	/* Check if it is a Device with HID and UID */
+	if (has_uid) {
+		unsigned long value;
+		status = acpi_evaluate_integer(pr->handle, METHOD_NAME__UID,
+						NULL, &value);
+		if (ACPI_FAILURE(status)) {
+			printk(KERN_ERR PREFIX "Evaluating processor _UID\n");
+			return -ENODEV;
+		}
+		pr->acpi_id = value;
+	} else {
+		/*
+		* Evalute the processor object.  Note that it is common on SMP to
+		* have the first (boot) processor with a valid PBLK address while
+		* all others have a NULL address.
+		*/
+		status = acpi_evaluate_object(pr->handle, NULL, NULL, &buffer);
+		if (ACPI_FAILURE(status)) {
+			printk(KERN_ERR PREFIX "Evaluating processor object\n");
+			return -ENODEV;
+		}
+
+		/*
+		* TBD: Synch processor ID (via LAPIC/LSAPIC structures) on SMP.
+		*      >>> 'acpi_get_processor_id(acpi_id, &id)' in arch/xxx/acpi.c
+		*/
+		pr->acpi_id = object.processor.proc_id;
 	}
-
-	/*
-	 * TBD: Synch processor ID (via LAPIC/LSAPIC structures) on SMP.
-	 *      >>> 'acpi_get_processor_id(acpi_id, &id)' in arch/xxx/acpi.c
-	 */
-	pr->acpi_id = object.processor.proc_id;
-
-	cpu_index = get_apic_id(pr->handle, pr->acpi_id);
+	cpu_index = get_cpu_id(pr->handle, pr->acpi_id);
 
 	/* Handle UP system running SMP kernel, with no LAPIC in MADT */
 	if (!cpu0_initialized && (cpu_index == -1) &&
@@ -621,7 +632,7 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 
 	pr = acpi_driver_data(device);
 
-	result = acpi_processor_get_info(pr);
+	result = acpi_processor_get_info(pr, device->flags.unique_id);
 	if (result) {
 		/* Processor is physically not present */
 		return 0;
