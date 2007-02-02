@@ -131,6 +131,8 @@ acpi_tb_print_table_header(acpi_physical_address address,
 			   ((struct acpi_table_rsdp *)header)->revision,
 			   ((struct acpi_table_rsdp *)header)->oem_id));
 	} else {
+		/* Standard ACPI table with full common header */
+
 		ACPI_INFO((AE_INFO,
 			   "%4.4s @ 0x%p/0x%04X (v%3.3d %6.6s %8.8s 0x%08X %4.4s 0x%08X)",
 			   header->signature, ACPI_CAST_PTR(void, address),
@@ -160,7 +162,7 @@ acpi_tb_init_generic_address(struct acpi_generic_address *new_gas_struct,
 			     u8 bit_width, u64 address)
 {
 
-	ACPI_STORE_ADDRESS(new_gas_struct->address, address);
+	ACPI_MOVE_64_TO_64(&new_gas_struct->address, &address);
 	new_gas_struct->space_id = ACPI_ADR_SPACE_SYSTEM_IO;
 	new_gas_struct->bit_width = bit_width;
 	new_gas_struct->bit_offset = 0;
@@ -284,13 +286,15 @@ static void acpi_tb_convert_fadt(void)
 		    ACPI_ADD_PTR(struct acpi_generic_address, &acpi_gbl_FADT,
 				 fadt_conversion_table[i].target);
 
+		/* Expand only if the X target is null */
+
 		if (!target->address) {
 			acpi_tb_init_generic_address(target,
 						     *ACPI_ADD_PTR(u8,
 								   &acpi_gbl_FADT,
 								   fadt_conversion_table
 								   [i].length),
-						     *ACPI_ADD_PTR(u64,
+						     *ACPI_ADD_PTR(u32,
 								   &acpi_gbl_FADT,
 								   fadt_conversion_table
 								   [i].source));
@@ -301,6 +305,10 @@ static void acpi_tb_convert_fadt(void)
 	 * Calculate separate GAS structs for the PM1 Enable registers.
 	 * These addresses do not appear (directly) in the FADT, so it is
 	 * useful to calculate them once, here.
+	 *
+	 * The PM event blocks are split into two register blocks, first is the
+	 * PM Status Register block, followed immediately by the PM Enable Register
+	 * block. Each is of length (pm1_event_length/2)
 	 */
 	pm1_register_length = (u8) ACPI_DIV_2(acpi_gbl_FADT.pm1_event_length);
 
@@ -308,17 +316,16 @@ static void acpi_tb_convert_fadt(void)
 
 	acpi_tb_init_generic_address(&acpi_gbl_xpm1a_enable,
 				     pm1_register_length,
-				     (u64) (acpi_gbl_FADT.xpm1a_event_block.
-					    address + pm1_register_length));
+				     (acpi_gbl_FADT.xpm1a_event_block.address +
+				      pm1_register_length));
 
 	/* PM1B is optional; leave null if not present */
 
 	if (acpi_gbl_FADT.xpm1b_event_block.address) {
 		acpi_tb_init_generic_address(&acpi_gbl_xpm1b_enable,
 					     pm1_register_length,
-					     (u64) (acpi_gbl_FADT.
-						    xpm1b_event_block.address +
-						    pm1_register_length));
+					     (acpi_gbl_FADT.xpm1b_event_block.
+					      address + pm1_register_length));
 	}
 
 	/* Global FADT is the new common V2.0 FADT  */
