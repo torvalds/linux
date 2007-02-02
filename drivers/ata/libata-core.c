@@ -3023,6 +3023,9 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 		return 0;
 	}
 
+	/* wait a while before checking status, see SRST for more info */
+	msleep(150);
+
 	if (ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT)) {
 		ata_port_printk(ap, KERN_ERR,
 				"COMRESET failed (device not ready)\n");
