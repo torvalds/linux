@@ -887,9 +887,11 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 		return 0;
 	}
 
+	/* Note: revision '(device_id & 0x0f) == 2' was never built. The
+	   marking skips from 0x1 == 22 to 0x3 == 23. */
 	v4l_info(client, "cx25%3x-2%x found @ 0x%x (%s)\n",
 		    (device_id & 0xfff0) >> 4,
-		    (device_id & 0x0f) < 3 ? (device_id & 0x0f) + 1 : 3,
+		    (device_id & 0x0f) < 3 ? (device_id & 0x0f) + 1 : (device_id & 0x0f),
 		    address << 1, adapter->name);
 
 	i2c_set_clientdata(client, state);
