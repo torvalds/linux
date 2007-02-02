@@ -55,9 +55,10 @@
 
 #define WM8750_CACHE_REGNUM 0x2a
 
+#define WM8750_SYSCLK	0
+
 struct wm8750_setup_data {
 	unsigned short i2c_address;
-	unsigned int mclk;
 };
 
 extern struct snd_soc_codec_dai wm8750_dai;
