@@ -67,6 +67,7 @@ acpi_status acpi_initialize_subsystem(void)
 
 	ACPI_FUNCTION_TRACE(acpi_initialize_subsystem);
 
+	acpi_gbl_startup_flags = ACPI_SUBSYSTEM_INITIALIZE;
 	ACPI_DEBUG_EXEC(acpi_ut_init_stack_ptr_trace());
 
 	/* Initialize the OS-Dependent layer */

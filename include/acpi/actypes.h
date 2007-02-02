@@ -412,7 +412,8 @@ typedef u64 acpi_integer;
 /*
  * Initialization state
  */
-#define ACPI_INITIALIZED_OK             0x01
+#define ACPI_SUBSYSTEM_INITIALIZE       0x01
+#define ACPI_INITIALIZED_OK             0x02
 
 /*
  * Power state values
