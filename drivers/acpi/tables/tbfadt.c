@@ -52,6 +52,10 @@ static void inline
 acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 			     u8 bit_width, u64 address);
 
+static void acpi_tb_convert_fadt(void);
+
+static void acpi_tb_validate_fadt(void);
+
 /* Table for conversion of FADT to common internal format and FADT validation */
 
 typedef struct acpi_fadt_info {
@@ -178,33 +182,13 @@ void acpi_tb_parse_fadt(acpi_native_uint table_index, u8 flags)
 	 */
 	(void)acpi_tb_verify_checksum(table, length);
 
-	/*
-	 * If the FADT is larger than what we know about, we have a problem.
-	 * Truncate the table, but make some noise.
-	 */
-	if (length > sizeof(struct acpi_table_fadt)) {
-		ACPI_WARNING((AE_INFO,
-			      "FADT (revision %u) is too large, truncating length 0x%X to 0x%X",
-			      table->revision, length,
-			      sizeof(struct acpi_table_fadt)));
-	}
+	/* Obtain a local copy of the FADT in common ACPI 2.0+ format */
 
-	/* Copy the entire FADT locally. Zero first for tb_convert_fadt */
-
-	ACPI_MEMSET(&acpi_gbl_FADT, 0, sizeof(struct acpi_table_fadt));
-	ACPI_MEMCPY(&acpi_gbl_FADT, table,
-		    ACPI_MIN(length, sizeof(struct acpi_table_fadt)));
+	acpi_tb_create_local_fadt(table, length);
 
 	/* All done with the real FADT, unmap it */
 
 	acpi_os_unmap_memory(table, length);
-
-	/*
-	 * 1) Convert the local copy of the FADT to the common internal format
-	 * 2) Validate some of the important values within the FADT
-	 */
-	acpi_tb_convert_fadt();
-	acpi_tb_validate_fadt(&acpi_gbl_FADT);
 
 	/* Obtain the DSDT and FACS tables via their addresses within the FADT */
 
@@ -213,6 +197,49 @@ void acpi_tb_parse_fadt(acpi_native_uint table_index, u8 flags)
 
 	acpi_tb_install_table((acpi_physical_address) acpi_gbl_FADT.Xfacs,
 			      flags, ACPI_SIG_FACS, ACPI_TABLE_INDEX_FACS);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_create_local_fadt
+ *
+ * PARAMETERS:  Table               - Pointer to BIOS FADT
+ *              Length              - Length of the table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Get a local copy of the FADT and convert it to a common format.
+ *              Performs validation on some important FADT fields.
+ *
+ ******************************************************************************/
+
+void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
+{
+
+	/*
+	 * Check if the FADT is larger than what we know about (ACPI 2.0 version).
+	 * Truncate the table, but make some noise.
+	 */
+	if (length > sizeof(struct acpi_table_fadt)) {
+		ACPI_WARNING((AE_INFO,
+			      "FADT (revision %u) is longer than ACPI 2.0 version, truncating length 0x%X to 0x%X",
+			      table->revision, length,
+			      sizeof(struct acpi_table_fadt)));
+	}
+
+	/* Copy the entire FADT locally. Zero first for tb_convert_fadt */
+
+	ACPI_MEMSET(&acpi_gbl_FADT, 0, sizeof(struct acpi_table_fadt));
+
+	ACPI_MEMCPY(&acpi_gbl_FADT, table,
+		    ACPI_MIN(length, sizeof(struct acpi_table_fadt)));
+
+	/*
+	 * 1) Convert the local copy of the FADT to the common internal format
+	 * 2) Validate some of the important values within the FADT
+	 */
+	acpi_tb_convert_fadt();
+	acpi_tb_validate_fadt();
 }
 
 /*******************************************************************************
@@ -244,7 +271,7 @@ void acpi_tb_parse_fadt(acpi_native_uint table_index, u8 flags)
  *
  ******************************************************************************/
 
-void acpi_tb_convert_fadt(void)
+static void acpi_tb_convert_fadt(void)
 {
 	u8 pm1_register_length;
 	struct acpi_generic_address *target;
@@ -337,7 +364,7 @@ void acpi_tb_convert_fadt(void)
  *
  ******************************************************************************/
 
-void acpi_tb_validate_fadt(struct acpi_table_fadt *table)
+static void acpi_tb_validate_fadt(void)
 {
 	u32 *address32;
 	struct acpi_generic_address *address64;
@@ -351,10 +378,14 @@ void acpi_tb_validate_fadt(struct acpi_table_fadt *table)
 		/* Generate pointers to the 32-bit and 64-bit addresses and get the length */
 
 		address64 =
-		    ACPI_ADD_PTR(struct acpi_generic_address, table,
+		    ACPI_ADD_PTR(struct acpi_generic_address, &acpi_gbl_FADT,
 				 fadt_info_table[i].target);
-		address32 = ACPI_ADD_PTR(u32, table, fadt_info_table[i].source);
-		length = *ACPI_ADD_PTR(u8, table, fadt_info_table[i].length);
+		address32 =
+		    ACPI_ADD_PTR(u32, &acpi_gbl_FADT,
+				 fadt_info_table[i].source);
+		length =
+		    *ACPI_ADD_PTR(u8, &acpi_gbl_FADT,
+				  fadt_info_table[i].length);
 
 		if (fadt_info_table[i].type & ACPI_FADT_REQUIRED) {
 			/*

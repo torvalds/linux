@@ -51,9 +51,7 @@ acpi_status acpi_allocate_root_table(u32 initial_table_count);
  */
 void acpi_tb_parse_fadt(acpi_native_uint table_index, u8 flags);
 
-void acpi_tb_convert_fadt(void);
-
-void acpi_tb_validate_fadt(struct acpi_table_fadt *table);
+void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length);
 
 /*
  * tbfind - find ACPI table
