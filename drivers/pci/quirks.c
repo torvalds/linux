@@ -1262,8 +1262,8 @@ static void quirk_jmicron_dualfn(struct pci_dev *pdev)
 			pci_read_config_dword(pdev, 0x40, &conf);
 			/* Enable dual function mode, AHCI on fn 0, IDE fn1 */
 			/* Set the class codes correctly and then direct IDE 0 */
-			conf &= ~0x000F0200;	/* Clear bit 9 and 16-19 */
-			conf |=  0x00C20002;	/* Set bit 1, 17, 22, 23 */
+			conf &= ~0x000FF200; /* Clear bit 9 and 12-19 */
+			conf |=  0x00C2A102; /* Set 1, 8, 13, 15, 17, 22, 23 */
 			pci_write_config_dword(pdev, 0x40, conf);
 
 			/* Reconfigure so that the PCI scanner discovers the
