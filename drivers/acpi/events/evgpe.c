@@ -570,7 +570,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"While evaluating GPE method [%4.4s]",
+					"while evaluating GPE method [%4.4s]",
 					acpi_ut_get_node_name
 					(local_gpe_event_info.dispatch.
 					 method_node)));
