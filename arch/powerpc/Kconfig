@@ -539,6 +539,16 @@ config PPC_PS3
 	  This option enables support for the Sony PS3 game console
 	  and other platforms using the PS3 hypervisor.
 
+config PPC_CELLEB
+	bool "Toshiba's Cell Reference Set 'Celleb' Architecture"
+	depends on PPC_MULTIPLATFORM && PPC64
+	select PPC_CELL
+	select PPC_OF_PLATFORM_PCI
+	select HAS_TXX9_SERIAL
+	select PPC_UDBG_BEAT
+	select USB_OHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_MMIO
+
 config PPC_NATIVE
 	bool
 	depends on PPC_MULTIPLATFORM
@@ -550,6 +560,11 @@ config PPC_NATIVE
 config UDBG_RTAS_CONSOLE
 	bool "RTAS based debug console"
 	depends on PPC_RTAS
+	default n
+
+config PPC_UDBG_BEAT
+	bool "BEAT based debug console"
+	depends on PPC_CELLEB
 	default n
 
 config XICS

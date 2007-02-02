@@ -185,6 +185,13 @@ config PPC_EARLY_DEBUG_ISERIES
 	  Select this to enable early debugging for legacy iSeries. You need
 	  to hit "Ctrl-x Ctrl-x" to see the messages on the console.
 
+config PPC_EARLY_DEBUG_BEAT
+	bool "Beat HV Console"
+	depends on PPC_CELLEB
+	select PPC_UDBG_BEAT
+	help
+	  Select this to enable early debugging for Celleb with Beat.
+
 endchoice
 
 endmenu

@@ -19,4 +19,5 @@ obj-$(CONFIG_PPC_MAPLE)		+= maple/
 obj-$(CONFIG_PPC_PASEMI)	+= pasemi/
 obj-$(CONFIG_PPC_CELL)		+= cell/
 obj-$(CONFIG_PPC_PS3)		+= ps3/
+obj-$(CONFIG_PPC_CELLEB)	+= celleb/
 obj-$(CONFIG_EMBEDDED6xx)	+= embedded6xx/
