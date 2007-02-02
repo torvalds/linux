@@ -720,6 +720,7 @@ void acpi_ut_init_globals(void)
 
 	/* GPE support */
 
+	acpi_gpe_count = 0;
 	acpi_gbl_gpe_xrupt_list_head = NULL;
 	acpi_gbl_gpe_fadt_blocks[0] = NULL;
 	acpi_gbl_gpe_fadt_blocks[1] = NULL;
@@ -779,3 +780,4 @@ void acpi_ut_init_globals(void)
 
 ACPI_EXPORT_SYMBOL(acpi_dbg_level)
 ACPI_EXPORT_SYMBOL(acpi_dbg_layer)
+ACPI_EXPORT_SYMBOL(acpi_gpe_count)
