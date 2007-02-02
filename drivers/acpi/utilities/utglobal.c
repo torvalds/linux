@@ -727,6 +727,10 @@ void acpi_ut_init_globals(void)
 	acpi_gbl_lowest_stack_pointer = ACPI_SIZE_MAX;
 #endif
 
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+	acpi_gbl_display_final_mem_stats = FALSE;
+#endif
+
 	return_VOID;
 }
 

@@ -200,6 +200,7 @@ ACPI_EXTERN spinlock_t _acpi_gbl_hardware_lock;	/* For ACPI H/W except GPE regis
 
 ACPI_EXTERN struct acpi_memory_list *acpi_gbl_global_list;
 ACPI_EXTERN struct acpi_memory_list *acpi_gbl_ns_node_list;
+ACPI_EXTERN u8 acpi_gbl_display_final_mem_stats;
 #endif
 
 /* Object caches */
