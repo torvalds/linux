@@ -88,7 +88,7 @@ void acpi_ex_enter_interpreter(void)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE(ex_reacquire_interpreter);
+	ACPI_FUNCTION_TRACE(ex_enter_interpreter);
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_INTERPRETER);
 	if (ACPI_FAILURE(status)) {
@@ -116,7 +116,6 @@ void acpi_ex_enter_interpreter(void)
 
 void acpi_ex_reacquire_interpreter(void)
 {
-
 	ACPI_FUNCTION_TRACE(ex_reacquire_interpreter);
 
 	/*
@@ -185,7 +184,6 @@ void acpi_ex_exit_interpreter(void)
 
 void acpi_ex_relinquish_interpreter(void)
 {
-
 	ACPI_FUNCTION_TRACE(ex_relinquish_interpreter);
 
 	/*
