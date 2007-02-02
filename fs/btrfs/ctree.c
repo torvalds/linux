@@ -20,6 +20,11 @@ static void release_path(struct ctree_root *root, struct ctree_path *p)
 	}
 }
 
+/*
+ * The leaf data grows from end-to-front in the node.
+ * this returns the address of the start of the last item,
+ * which is the stop of the leaf data stack
+ */
 static inline unsigned int leaf_data_end(struct leaf *leaf)
 {
 	unsigned int nr = leaf->header.nritems;
@@ -28,6 +33,11 @@ static inline unsigned int leaf_data_end(struct leaf *leaf)
 	return leaf->items[nr-1].offset;
 }
 
+/*
+ * The space between the end of the leaf items and
+ * the start of the leaf data.  IOW, how much room
+ * the leaf has left for both items and data
+ */
 static inline int leaf_free_space(struct leaf *leaf)
 {
 	int data_end = leaf_data_end(leaf);
@@ -36,6 +46,9 @@ static inline int leaf_free_space(struct leaf *leaf)
 	return (char *)(leaf->data + data_end) - (char *)items_end;
 }
 
+/*
+ * compare two keys in a memcmp fashion
+ */
 int comp_keys(struct key *k1, struct key *k2)
 {
 	if (k1->objectid > k2->objectid)
@@ -52,6 +65,16 @@ int comp_keys(struct key *k1, struct key *k2)
 		return -1;
 	return 0;
 }
+
+/*
+ * search for key in the array p.  items p are item_size apart
+ * and there are 'max' items in p
+ * the slot in the array is returned via slot, and it points to
+ * the place where you would insert key if it is not found in
+ * the array.
+ *
+ * slot may point to max if the key is bigger than all of the keys
+ */
 int generic_bin_search(char *p, int item_size, struct key *key,
 		       int max, int *slot)
 {
@@ -92,6 +115,14 @@ int bin_search(struct node *c, struct key *key, int *slot)
 	return -1;
 }
 
+/*
+ * look for key in the tree.  path is filled in with nodes along the way
+ * if key is found, we return zero and you can find the item in the leaf
+ * level of the path (level 0)
+ *
+ * If the key isn't found, the path points to the slot where it should
+ * be inserted.
+ */
 int search_slot(struct ctree_root *root, struct key *key, struct ctree_path *p)
 {
 	struct tree_buffer *b = root->node;
@@ -120,12 +151,18 @@ int search_slot(struct ctree_root *root, struct key *key, struct ctree_path *p)
 	return -1;
 }
 
+/*
+ * adjust the pointers going up the tree, starting at level
+ * making sure the right key of each node is points to 'key'.
+ * This is used after shifting pointers to the left, so it stops
+ * fixing up pointers when a given leaf/node is not in slot 0 of the
+ * higher levels
+ */
 static void fixup_low_keys(struct ctree_root *root,
 			   struct ctree_path *path, struct key *key,
 			   int level)
 {
 	int i;
-	/* adjust the pointers going up the tree */
 	for (i = level; i < MAX_LEVEL; i++) {
 		struct node *t;
 		int tslot = path->slots[i];
@@ -139,64 +176,16 @@ static void fixup_low_keys(struct ctree_root *root,
 	}
 }
 
-int __insert_ptr(struct ctree_root *root,
-		struct ctree_path *path, struct key *key,
-		u64 blocknr, int slot, int level)
-{
-	struct node *c;
-	struct node *lower;
-	struct key *lower_key;
-	int nritems;
-	/* need a new root */
-	if (!path->nodes[level]) {
-		struct tree_buffer *t;
-		t = alloc_free_block(root);
-		c = &t->node;
-		memset(c, 0, sizeof(c));
-		c->header.nritems = 2;
-		c->header.flags = node_level(level);
-		c->header.blocknr = t->blocknr;
-		lower = &path->nodes[level-1]->node;
-		if (is_leaf(lower->header.flags))
-			lower_key = &((struct leaf *)lower)->items[0].key;
-		else
-			lower_key = lower->keys;
-		memcpy(c->keys, lower_key, sizeof(struct key));
-		memcpy(c->keys + 1, key, sizeof(struct key));
-		c->blockptrs[0] = path->nodes[level-1]->blocknr;
-		c->blockptrs[1] = blocknr;
-		/* the path has an extra ref to root->node */
-		tree_block_release(root, root->node);
-		root->node = t;
-		t->count++;
-		write_tree_block(root, t);
-		path->nodes[level] = t;
-		path->slots[level] = 0;
-		if (c->keys[1].objectid == 0)
-			BUG();
-		return 0;
-	}
-	lower = &path->nodes[level]->node;
-	nritems = lower->header.nritems;
-	if (slot > nritems)
-		BUG();
-	if (nritems == NODEPTRS_PER_BLOCK)
-		BUG();
-	if (slot != nritems) {
-		memmove(lower->keys + slot + 1, lower->keys + slot,
-			(nritems - slot) * sizeof(struct key));
-		memmove(lower->blockptrs + slot + 1, lower->blockptrs + slot,
-			(nritems - slot) * sizeof(u64));
-	}
-	memcpy(lower->keys + slot, key, sizeof(struct key));
-	lower->blockptrs[slot] = blocknr;
-	lower->header.nritems++;
-	if (lower->keys[1].objectid == 0)
-			BUG();
-	write_tree_block(root, path->nodes[level]);
-	return 0;
-}
-
+/*
+ * try to push data from one node into the next node left in the
+ * tree.  The src node is found at specified level in the path.
+ * If some bytes were pushed, return 0, otherwise return 1.
+ *
+ * Lower nodes/leaves in the path are not touched, higher nodes may
+ * be modified to reflect the push.
+ *
+ * The path is altered to reflect the push.
+ */
 int push_node_left(struct ctree_root *root, struct ctree_path *path, int level)
 {
 	int slot;
@@ -259,6 +248,16 @@ int push_node_left(struct ctree_root *root, struct ctree_path *path, int level)
 	return 0;
 }
 
+/*
+ * try to push data from one node into the next node right in the
+ * tree.  The src node is found at specified level in the path.
+ * If some bytes were pushed, return 0, otherwise return 1.
+ *
+ * Lower nodes/leaves in the path are not touched, higher nodes may
+ * be modified to reflect the push.
+ *
+ * The path is altered to reflect the push.
+ */
 int push_node_right(struct ctree_root *root, struct ctree_path *path, int level)
 {
 	int slot;
@@ -270,8 +269,11 @@ int push_node_right(struct ctree_root *root, struct ctree_path *path, int level)
 	int dst_nritems;
 	int src_nritems;
 
+	/* can't push from the root */
 	if (level == MAX_LEVEL - 1 || path->nodes[level + 1] == 0)
 		return 1;
+
+	/* only try to push inside the node higher up */
 	slot = path->slots[level + 1];
 	if (slot == NODEPTRS_PER_BLOCK - 1)
 		return 1;
@@ -315,7 +317,7 @@ int push_node_right(struct ctree_root *root, struct ctree_path *path, int level)
 	write_tree_block(root, t);
 	write_tree_block(root, src_buffer);
 
-	/* then fixup the leaf pointer in the path */
+	/* then fixup the pointers in the path */
 	if (path->slots[level] >= src->header.nritems) {
 		path->slots[level] -= src->header.nritems;
 		tree_block_release(root, path->nodes[level]);
@@ -327,6 +329,76 @@ int push_node_right(struct ctree_root *root, struct ctree_path *path, int level)
 	return 0;
 }
 
+/*
+ * worker function to insert a single pointer in a node.
+ * the node should have enough room for the pointer already
+ * slot and level indicate where you want the key to go, and
+ * blocknr is the block the key points to.
+ */
+int __insert_ptr(struct ctree_root *root,
+		struct ctree_path *path, struct key *key,
+		u64 blocknr, int slot, int level)
+{
+	struct node *c;
+	struct node *lower;
+	struct key *lower_key;
+	int nritems;
+	/* need a new root */
+	if (!path->nodes[level]) {
+		struct tree_buffer *t;
+		t = alloc_free_block(root);
+		c = &t->node;
+		memset(c, 0, sizeof(c));
+		c->header.nritems = 2;
+		c->header.flags = node_level(level);
+		c->header.blocknr = t->blocknr;
+		lower = &path->nodes[level-1]->node;
+		if (is_leaf(lower->header.flags))
+			lower_key = &((struct leaf *)lower)->items[0].key;
+		else
+			lower_key = lower->keys;
+		memcpy(c->keys, lower_key, sizeof(struct key));
+		memcpy(c->keys + 1, key, sizeof(struct key));
+		c->blockptrs[0] = path->nodes[level-1]->blocknr;
+		c->blockptrs[1] = blocknr;
+		/* the path has an extra ref to root->node */
+		tree_block_release(root, root->node);
+		root->node = t;
+		t->count++;
+		write_tree_block(root, t);
+		path->nodes[level] = t;
+		path->slots[level] = 0;
+		if (c->keys[1].objectid == 0)
+			BUG();
+		return 0;
+	}
+	lower = &path->nodes[level]->node;
+	nritems = lower->header.nritems;
+	if (slot > nritems)
+		BUG();
+	if (nritems == NODEPTRS_PER_BLOCK)
+		BUG();
+	if (slot != nritems) {
+		memmove(lower->keys + slot + 1, lower->keys + slot,
+			(nritems - slot) * sizeof(struct key));
+		memmove(lower->blockptrs + slot + 1, lower->blockptrs + slot,
+			(nritems - slot) * sizeof(u64));
+	}
+	memcpy(lower->keys + slot, key, sizeof(struct key));
+	lower->blockptrs[slot] = blocknr;
+	lower->header.nritems++;
+	if (lower->keys[1].objectid == 0)
+			BUG();
+	write_tree_block(root, path->nodes[level]);
+	return 0;
+}
+
+
+/*
+ * insert a key,blocknr pair into the tree at a given level
+ * If the node at that level in the path doesn't have room,
+ * it is split or shifted as appropriate.
+ */
 int insert_ptr(struct ctree_root *root,
 		struct ctree_path *path, struct key *key,
 		u64 blocknr, int level)
@@ -340,6 +412,15 @@ int insert_ptr(struct ctree_root *root,
 	int mid;
 	int bal_start = -1;
 
+	/*
+	 * check to see if we need to make room in the node for this
+	 * pointer.  If we do, keep walking the tree, making sure there
+	 * is enough room in each level for the required insertions.
+	 *
+	 * The bal array is filled in with any nodes to be inserted
+	 * due to splitting.  Once we've done all the splitting required
+	 * do the inserts based on the data in the bal array.
+	 */
 	memset(bal, 0, ARRAY_SIZE(bal));
 	while(t && t->node.header.nritems == NODEPTRS_PER_BLOCK) {
 		c = &t->node;
@@ -373,6 +454,11 @@ int insert_ptr(struct ctree_root *root,
 		bal_level += 1;
 		t = path->nodes[bal_level];
 	}
+	/*
+	 * bal_start tells us the first level in the tree that needed to
+	 * be split.  Go through the bal array inserting the new nodes
+	 * as needed.  The path is fixed as we go.
+	 */
 	while(bal_start > 0) {
 		b_buffer = bal[bal_start];
 		c = &path->nodes[bal_start]->node;
@@ -390,10 +476,16 @@ int insert_ptr(struct ctree_root *root,
 		if (!bal[bal_start])
 			break;
 	}
+	/* Now that the tree has room, insert the requested pointer */
 	return __insert_ptr(root, path, key, blocknr, path->slots[level] + 1,
 			    level);
 }
 
+/*
+ * how many bytes are required to store the items in a leaf.  start
+ * and nr indicate which items in the leaf to check.  This totals up the
+ * space used both by the item structs and the item data
+ */
 int leaf_space_used(struct leaf *l, int start, int nr)
 {
 	int data_len;
@@ -407,6 +499,10 @@ int leaf_space_used(struct leaf *l, int start, int nr)
 	return data_len;
 }
 
+/*
+ * push some data in the path leaf to the left, trying to free up at
+ * least data_size bytes.  returns zero if the push worked, nonzero otherwise
+ */
 int push_leaf_left(struct ctree_root *root, struct ctree_path *path,
 		   int data_size)
 {
@@ -498,6 +594,10 @@ int push_leaf_left(struct ctree_root *root, struct ctree_path *path,
 	return 0;
 }
 
+/*
+ * split the path's leaf in two, making sure there is at least data_size
+ * available for the resulting leaf level of the path.
+ */
 int split_leaf(struct ctree_root *root, struct ctree_path *path, int data_size)
 {
 	struct tree_buffer *l_buf = path->nodes[0];
@@ -548,9 +648,10 @@ int split_leaf(struct ctree_root *root, struct ctree_path *path, int data_size)
 	       l->data + leaf_data_end(l), data_copy_size);
 	rt_data_off = LEAF_DATA_SIZE -
 		     (l->items[mid].offset + l->items[mid].size);
-	for (i = 0; i < right->header.nritems; i++) {
+
+	for (i = 0; i < right->header.nritems; i++)
 		right->items[i].offset += rt_data_off;
-	}
+
 	l->header.nritems = mid;
 	ret = insert_ptr(root, path, &right->items[0].key,
 			  right_buffer->blocknr, 1);
@@ -570,6 +671,10 @@ int split_leaf(struct ctree_root *root, struct ctree_path *path, int data_size)
 	return ret;
 }
 
+/*
+ * Given a key and some data, insert an item into the tree.
+ * This does all the path init required, making room in the tree if needed.
+ */
 int insert_item(struct ctree_root *root, struct key *key,
 			  void *data, int data_size)
 {
@@ -582,6 +687,7 @@ int insert_item(struct ctree_root *root, struct key *key,
 	unsigned int data_end;
 	struct ctree_path path;
 
+	/* create a root if there isn't one */
 	if (!root->node) {
 		struct tree_buffer *t;
 		t = alloc_free_block(root);
@@ -602,6 +708,8 @@ int insert_item(struct ctree_root *root, struct key *key,
 	slot_orig = path.slots[0];
 	leaf_buf = path.nodes[0];
 	leaf = &leaf_buf->leaf;
+
+	/* make room if needed */
 	if (leaf_free_space(leaf) <  sizeof(struct item) + data_size) {
 		split_leaf(root, &path, data_size);
 		leaf_buf = path.nodes[0];
@@ -638,6 +746,7 @@ int insert_item(struct ctree_root *root, struct key *key,
 		        data_end, old_data - data_end);
 		data_end = old_data;
 	}
+	/* copy the new data in */
 	memcpy(&leaf->items[slot].key, key, sizeof(struct key));
 	leaf->items[slot].offset = data_end - data_size;
 	leaf->items[slot].size = data_size;
@@ -650,6 +759,14 @@ int insert_item(struct ctree_root *root, struct key *key,
 	return 0;
 }
 
+/*
+ * delete the pointer from a given level in the path.  The path is not
+ * fixed up, so after calling this it is not valid at that level.
+ *
+ * If the delete empties a node, the node is removed from the tree,
+ * continuing all the way the root if required.  The root is converted into
+ * a leaf if all the nodes are emptied.
+ */
 int del_ptr(struct ctree_root *root, struct ctree_path *path, int level)
 {
 	int slot;
@@ -705,6 +822,10 @@ int del_ptr(struct ctree_root *root, struct ctree_path *path, int level)
 	return 0;
 }
 
+/*
+ * delete the item at the leaf level in path.  If that empties
+ * the leaf, remove it from the tree
+ */
 int del_item(struct ctree_root *root, struct ctree_path *path)
 {
 	int slot;
@@ -732,6 +853,7 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 			(leaf->header.nritems - slot - 1));
 	}
 	leaf->header.nritems -= 1;
+	/* delete the leaf if we've emptied it */
 	if (leaf->header.nritems == 0) {
 		if (leaf_buf == root->node) {
 			leaf->header.flags = node_level(0);
@@ -742,6 +864,7 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 		if (slot == 0)
 			fixup_low_keys(root, path, &leaf->items[0].key, 1);
 		write_tree_block(root, leaf_buf);
+		/* delete the leaf if it is mostly empty */
 		if (leaf_space_used(leaf, 0, leaf->header.nritems) <
 		    LEAF_DATA_SIZE / 4) {
 			/* push_leaf_left fixes the path.
@@ -837,7 +960,7 @@ int main() {
 	int i;
 	int num;
 	int ret;
-	int run_size = 1000000;
+	int run_size = 25000;
 	int max_key = 100000000;
 	int tree_size = 0;
 	struct ctree_path path;
