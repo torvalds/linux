@@ -54,6 +54,29 @@ acpi_tb_get_root_table_entry(u8 * table_entry,
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_tb_tables_loaded
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      TRUE if required ACPI tables are loaded
+ *
+ * DESCRIPTION: Determine if the minimum required ACPI tables are present
+ *              (FADT, FACS, DSDT)
+ *
+ ******************************************************************************/
+
+u8 acpi_tb_tables_loaded(void)
+{
+
+	if (acpi_gbl_root_table_list.count >= 3) {
+		return (TRUE);
+	}
+
+	return (FALSE);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_tb_print_table_header
  *
  * PARAMETERS:  Address             - Table physical address

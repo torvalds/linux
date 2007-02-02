@@ -65,6 +65,14 @@ acpi_status acpi_enable(void)
 
 	ACPI_FUNCTION_TRACE(acpi_enable);
 
+	/* ACPI tables must be present */
+
+	if (!acpi_tb_tables_loaded()) {
+		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
+	}
+
+	/* Check current mode */
+
 	if (acpi_hw_get_mode() == ACPI_SYS_MODE_ACPI) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
 				  "System is already in ACPI mode\n"));
