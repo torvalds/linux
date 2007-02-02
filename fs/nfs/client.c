@@ -1030,7 +1030,7 @@ error:
  * Create an NFS4 referral server record
  */
 struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
-					       struct nfs_fh *fh)
+					       struct nfs_fh *mntfh)
 {
 	struct nfs_client *parent_client;
 	struct nfs_server *server, *parent_server;
@@ -1069,8 +1069,13 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	BUG_ON(!server->nfs_client->rpc_ops);
 	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
+	/* Probe the root fh to retrieve its FSID and filehandle */
+	error = nfs4_path_walk(server, mntfh, data->mnt_path);
+	if (error < 0)
+		goto error;
+
 	/* probe the filesystem info for this server filesystem */
-	error = nfs_probe_fsinfo(server, fh, &fattr);
+	error = nfs_probe_fsinfo(server, mntfh, &fattr);
 	if (error < 0)
 		goto error;
 
