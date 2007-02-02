@@ -279,13 +279,14 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	acpi_native_uint table_index;
 	acpi_physical_address address;
 	struct acpi_table_header table_header;
+	struct acpi_table_desc table_desc;
 	acpi_integer temp;
 	u32 i;
 
 	ACPI_FUNCTION_TRACE(ex_load_op);
 
 	/* Object can be either an op_region or a Field */
-
+	ACPI_MEMSET(&table_desc, 0, sizeof(struct acpi_table_desc));
 	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
 	case ACPI_TYPE_REGION:
 
@@ -408,10 +409,13 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		goto cleanup;
 	}
 
+	table_desc.pointer = table_ptr;
+	table_desc.length = table_ptr->length;
+	table_desc.flags = ACPI_TABLE_ORIGIN_ALLOCATED;
 	/*
 	 * Install the new table into the local data structures
 	 */
-	status = acpi_tb_add_table(table_ptr, &table_index);
+	status = acpi_tb_add_table(&table_desc, &table_index);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}

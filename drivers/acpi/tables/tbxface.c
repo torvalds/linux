@@ -220,16 +220,25 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 {
 	acpi_status status;
 	acpi_native_uint table_index;
+	struct acpi_table_desc table_desc;
+
+	if (!table_ptr)
+		return AE_BAD_PARAMETER;
+
+	ACPI_MEMSET(&table_desc, 0, sizeof(struct acpi_table_desc));
+	table_desc.pointer = table_ptr;
+	table_desc.length = table_ptr->length;
+	table_desc.flags = ACPI_TABLE_ORIGIN_UNKNOWN;
 
 	/*
 	 * Install the new table into the local data structures
 	 */
-	status = acpi_tb_add_table(table_ptr, &table_index);
+	status = acpi_tb_add_table(&table_desc, &table_index);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		return status;
 	}
 	status = acpi_ns_load_table(table_index, acpi_gbl_root_node);
-	return_ACPI_STATUS(status);
+	return status;
 }
 
 ACPI_EXPORT_SYMBOL(acpi_load_table)
@@ -240,8 +249,7 @@ ACPI_EXPORT_SYMBOL(acpi_load_table)
  *
  * PARAMETERS:  Signature           - ACPI signature of needed table
  *              Instance            - Which instance (for SSDTs)
- *              out_table_header    - Where the pointer to the table header
- *                                    is returned
+ *              out_table_header    - The pointer to the table header to fill
  *
  * RETURN:      Status and pointer to mapped table header
  *
@@ -254,10 +262,11 @@ ACPI_EXPORT_SYMBOL(acpi_load_table)
 acpi_status
 acpi_get_table_header(char *signature,
 		      acpi_native_uint instance,
-		      struct acpi_table_header **out_table_header)
+		      struct acpi_table_header *out_table_header)
 {
 	acpi_native_uint i;
 	acpi_native_uint j;
+	struct acpi_table_header *header;
 
 	/* Parameter validation */
 
@@ -279,16 +288,31 @@ acpi_get_table_header(char *signature,
 			continue;
 		}
 
-		*out_table_header =
-		    acpi_tb_map(acpi_gbl_root_table_list.tables[i].address,
-				(u32) sizeof(struct acpi_table_header),
-				acpi_gbl_root_table_list.tables[i].
-				flags & ACPI_TABLE_ORIGIN_MASK);
-
-		if (!(*out_table_header)) {
-			return (AE_NO_MEMORY);
+		if (!acpi_gbl_root_table_list.tables[i].pointer) {
+			if ((acpi_gbl_root_table_list.tables[i].
+			     flags & ACPI_TABLE_ORIGIN_MASK) ==
+			    ACPI_TABLE_ORIGIN_MAPPED) {
+				header =
+				    acpi_os_map_memory(acpi_gbl_root_table_list.
+						       tables[i].address,
+						       sizeof(struct
+							      acpi_table_header));
+				if (!header) {
+					return AE_NO_MEMORY;
+				}
+				ACPI_MEMCPY(out_table_header, header,
+					    sizeof(struct acpi_table_header));
+				acpi_os_unmap_memory(header,
+						     sizeof(struct
+							    acpi_table_header));
+			} else {
+				return AE_NOT_FOUND;
+			}
+		} else {
+			ACPI_MEMCPY(out_table_header,
+				    acpi_gbl_root_table_list.tables[i].pointer,
+				    sizeof(struct acpi_table_header));
 		}
-
 		return (AE_OK);
 	}
 

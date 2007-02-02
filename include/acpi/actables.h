@@ -69,7 +69,7 @@ acpi_status acpi_tb_resize_root_table_list(void);
 acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc);
 
 acpi_status
-acpi_tb_add_table(struct acpi_table_header *table,
+acpi_tb_add_table(struct acpi_table_desc *table_desc,
 		  acpi_native_uint * table_index);
 
 acpi_status
@@ -77,7 +77,7 @@ acpi_tb_store_table(acpi_physical_address address,
 		    struct acpi_table_header *table,
 		    u32 length, u8 flags, acpi_native_uint * table_index);
 
-void acpi_tb_delete_table(acpi_native_uint table_index);
+void acpi_tb_delete_table(struct acpi_table_desc *table_desc);
 
 void acpi_tb_terminate(void);
 
@@ -112,9 +112,5 @@ acpi_tb_install_table(acpi_physical_address address,
 
 acpi_status
 acpi_tb_parse_root_table(acpi_physical_address rsdp_address, u8 flags);
-
-void *acpi_tb_map(acpi_physical_address address, u32 length, u32 flags);
-
-void acpi_tb_unmap(void *pointer, u32 length, u32 flags);
 
 #endif				/* __ACTABLES_H__ */

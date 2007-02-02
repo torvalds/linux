@@ -61,16 +61,19 @@ ACPI_MODULE_NAME("tbinstal")
  *****************************************************************************/
 acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
 {
-	acpi_status status;
+	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE(tb_verify_table);
 
 	/* Map the table if necessary */
 
 	if (!table_desc->pointer) {
-		table_desc->pointer =
-		    acpi_tb_map(table_desc->address, table_desc->length,
-				table_desc->flags & ACPI_TABLE_ORIGIN_MASK);
+		if ((table_desc->flags & ACPI_TABLE_ORIGIN_MASK) ==
+		    ACPI_TABLE_ORIGIN_MAPPED) {
+			table_desc->pointer =
+			    acpi_os_map_memory(table_desc->address,
+					       table_desc->length);
+		}
 		if (!table_desc->pointer) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -78,14 +81,15 @@ acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
 
 	/* FACS is the odd table, has no standard ACPI header and no checksum */
 
-	if (ACPI_COMPARE_NAME(&(table_desc->signature), ACPI_SIG_FACS)) {
-		return_ACPI_STATUS(AE_OK);
+	if (!ACPI_COMPARE_NAME(&table_desc->signature, ACPI_SIG_FACS)) {
+
+		/* Always calculate checksum, ignore bad checksum if requested */
+
+		status =
+		    acpi_tb_verify_checksum(table_desc->pointer,
+					    table_desc->length);
 	}
 
-	/* Always calculate checksum, ignore bad checksum if requested */
-
-	status =
-	    acpi_tb_verify_checksum(table_desc->pointer, table_desc->length);
 	return_ACPI_STATUS(status);
 }
 
@@ -93,7 +97,7 @@ acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
  *
  * FUNCTION:    acpi_tb_add_table
  *
- * PARAMETERS:  Table               - Pointer to the table header
+ * PARAMETERS:  table_desc          - Table descriptor
  *              table_index         - Where the table index is returned
  *
  * RETURN:      Status
@@ -103,7 +107,7 @@ acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
  ******************************************************************************/
 
 acpi_status
-acpi_tb_add_table(struct acpi_table_header *table,
+acpi_tb_add_table(struct acpi_table_desc *table_desc,
 		  acpi_native_uint * table_index)
 {
 	acpi_native_uint i;
@@ -111,6 +115,25 @@ acpi_tb_add_table(struct acpi_table_header *table,
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE(tb_add_table);
+
+	if (!table_desc->pointer) {
+		status = acpi_tb_verify_table(table_desc);
+		if (ACPI_FAILURE(status) || !table_desc->pointer) {
+			return_ACPI_STATUS(status);
+		}
+	}
+
+	/* The table must be either an SSDT or a PSDT */
+
+	if ((!ACPI_COMPARE_NAME(table_desc->pointer->signature, ACPI_SIG_PSDT))
+	    &&
+	    (!ACPI_COMPARE_NAME(table_desc->pointer->signature, ACPI_SIG_SSDT)))
+	{
+		ACPI_ERROR((AE_INFO,
+			    "Table has invalid signature [%4.4s], must be SSDT or PSDT",
+			    table_desc->pointer->signature));
+		return_ACPI_STATUS(AE_BAD_SIGNATURE);
+	}
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
@@ -127,18 +150,17 @@ acpi_tb_add_table(struct acpi_table_header *table,
 			}
 		}
 
-		length = ACPI_MIN(table->length,
-				  acpi_gbl_root_table_list.tables[i].pointer->
-				  length);
-		if (ACPI_MEMCMP
-		    (table, acpi_gbl_root_table_list.tables[i].pointer,
-		     length)) {
+		length = ACPI_MIN(table_desc->length,
+				  acpi_gbl_root_table_list.tables[i].length);
+		if (ACPI_MEMCMP(table_desc->pointer,
+				acpi_gbl_root_table_list.tables[i].pointer,
+				length)) {
 			continue;
 		}
 
 		/* Table is already registered */
 
-		ACPI_FREE(table);
+		acpi_tb_delete_table(table_desc);
 		*table_index = i;
 		goto release;
 	}
@@ -146,14 +168,14 @@ acpi_tb_add_table(struct acpi_table_header *table,
 	/*
 	 * Add the table to the global table list
 	 */
-	status = acpi_tb_store_table(ACPI_TO_INTEGER(table),
-				     table, table->length,
-				     ACPI_TABLE_ORIGIN_ALLOCATED, table_index);
+	status = acpi_tb_store_table(table_desc->address, table_desc->pointer,
+				     table_desc->length, table_desc->flags,
+				     table_index);
 	if (ACPI_FAILURE(status)) {
 		goto release;
 	}
 
-	acpi_tb_print_table_header(0, table);
+	acpi_tb_print_table_header(table_desc->address, table_desc->pointer);
 
       release:
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
@@ -282,25 +304,20 @@ acpi_tb_store_table(acpi_physical_address address,
  *
  ******************************************************************************/
 
-void acpi_tb_delete_table(acpi_native_uint table_index)
+void acpi_tb_delete_table(struct acpi_table_desc *table_desc)
 {
-	struct acpi_table_desc *table_desc;
-
-	/* table_index assumed valid */
-
-	table_desc = &acpi_gbl_root_table_list.tables[table_index];
-
 	/* Table must be mapped or allocated */
-
 	if (!table_desc->pointer) {
 		return;
 	}
-
-	if (table_desc->flags & ACPI_TABLE_ORIGIN_MAPPED) {
-		acpi_tb_unmap(table_desc->pointer, table_desc->length,
-			      table_desc->flags & ACPI_TABLE_ORIGIN_MASK);
-	} else if (table_desc->flags & ACPI_TABLE_ORIGIN_ALLOCATED) {
+	switch (table_desc->flags & ACPI_TABLE_ORIGIN_MASK) {
+	case ACPI_TABLE_ORIGIN_MAPPED:
+		acpi_os_unmap_memory(table_desc->pointer, table_desc->length);
+		break;
+	case ACPI_TABLE_ORIGIN_ALLOCATED:
 		ACPI_FREE(table_desc->pointer);
+		break;
+	default:;
 	}
 
 	table_desc->pointer = NULL;
@@ -329,7 +346,7 @@ void acpi_tb_terminate(void)
 	/* Delete the individual tables */
 
 	for (i = 0; i < acpi_gbl_root_table_list.count; ++i) {
-		acpi_tb_delete_table(i);
+		acpi_tb_delete_table(&acpi_gbl_root_table_list.tables[i]);
 	}
 
 	/*

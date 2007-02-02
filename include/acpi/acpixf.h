@@ -109,7 +109,7 @@ acpi_status acpi_unload_table_id(acpi_owner_id id);
 acpi_status
 acpi_get_table_header(acpi_string signature,
 		      acpi_native_uint instance,
-		      struct acpi_table_header **out_table_header);
+		      struct acpi_table_header *out_table_header);
 
 acpi_status
 acpi_get_table(acpi_string signature,

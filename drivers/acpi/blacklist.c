@@ -103,7 +103,7 @@ int __init acpi_blacklisted(void)
 {
 	int i = 0;
 	int blacklisted = 0;
-	struct acpi_table_header *table_header;
+	struct acpi_table_header table_header;
 
 	while (acpi_blacklist[i].oem_id[0] != '\0') {
 		if (acpi_get_table_header(acpi_blacklist[i].table, 0, &table_header)) {
@@ -111,13 +111,13 @@ int __init acpi_blacklisted(void)
 			continue;
 		}
 
-		if (strncmp(acpi_blacklist[i].oem_id, table_header->oem_id, 6)) {
+		if (strncmp(acpi_blacklist[i].oem_id, table_header.oem_id, 6)) {
 			i++;
 			continue;
 		}
 
 		if (strncmp
-		    (acpi_blacklist[i].oem_table_id, table_header->oem_table_id,
+		    (acpi_blacklist[i].oem_table_id, table_header.oem_table_id,
 		     8)) {
 			i++;
 			continue;
@@ -126,14 +126,14 @@ int __init acpi_blacklisted(void)
 		if ((acpi_blacklist[i].oem_revision_predicate == all_versions)
 		    || (acpi_blacklist[i].oem_revision_predicate ==
 			less_than_or_equal
-			&& table_header->oem_revision <=
+			&& table_header.oem_revision <=
 			acpi_blacklist[i].oem_revision)
 		    || (acpi_blacklist[i].oem_revision_predicate ==
 			greater_than_or_equal
-			&& table_header->oem_revision >=
+			&& table_header.oem_revision >=
 			acpi_blacklist[i].oem_revision)
 		    || (acpi_blacklist[i].oem_revision_predicate == equal
-			&& table_header->oem_revision ==
+			&& table_header.oem_revision ==
 			acpi_blacklist[i].oem_revision)) {
 
 			printk(KERN_ERR PREFIX
