@@ -195,8 +195,8 @@ void acpi_tb_parse_fadt(acpi_native_uint table_index, u8 flags)
  *
  * DESCRIPTION: Converts all versions of the FADT to a common internal format.
  *
- * NOTE:        acpi_gbl_FADT must be of size (struct acpi_table_fadt), and must contain
- *              a copy of the actual FADT.
+ * NOTE:        acpi_gbl_FADT must be of size (struct acpi_table_fadt),
+ *              and must contain a copy of the actual FADT.
  *
  * ACPICA will use the "X" fields of the FADT for all addresses.
  *
@@ -292,9 +292,10 @@ static void acpi_tb_convert_fadt(void)
  *
  * PARAMETERS:  None
  *
- * RETURN:      Status
+ * RETURN:      None
  *
- * DESCRIPTION: Validate various ACPI registers in the FADT
+ * DESCRIPTION: Validate various ACPI registers in the FADT. For problems,
+ *              issue a message, but no status is returned.
  *
  ******************************************************************************/
 
@@ -375,6 +376,6 @@ static void acpi_tb_validate_fadt(void)
 static void acpi_tb_fadt_register_error(char *register_name, u32 value)
 {
 
-	ACPI_WARNING((AE_INFO, "Invalid FADT value \"%s\" = %X",
+	ACPI_WARNING((AE_INFO, "Invalid FADT value in field \"%s\" = %X",
 		      register_name, value));
 }
