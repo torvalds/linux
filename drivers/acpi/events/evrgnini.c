@@ -432,6 +432,9 @@ acpi_ev_default_region_setup(acpi_handle handle,
  *              a PCI address in the scope of the definition.  This address is
  *              required to perform an access to PCI config space.
  *
+ * MUTEX:       Interpreter should be unlocked, because we may run the _REG
+ *              method for this region.
+ *
  ******************************************************************************/
 
 acpi_status
