@@ -58,41 +58,6 @@
 #define ACPI_INIT_GLOBAL(a,b) a
 #endif
 
-/*
- * Keep local copies of these FADT-based registers.  NOTE: These globals
- * are first in this file for alignment reasons on 64-bit systems.
- */
-ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1a_enable;
-ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_enable;
-
-/*****************************************************************************
- *
- * Debug support
- *
- ****************************************************************************/
-
-/* Runtime configuration of debug print levels */
-
-extern u32 acpi_dbg_level;
-extern u32 acpi_dbg_layer;
-
-/* Procedure nesting level for debug output */
-
-extern u32 acpi_gbl_nesting_level;
-
-/* Event counters */
-
-ACPI_EXTERN u32 acpi_gpe_count;
-
-/* Support for dynamic control method tracing mechanism */
-
-ACPI_EXTERN u32 acpi_gbl_original_dbg_level;
-ACPI_EXTERN u32 acpi_gbl_original_dbg_layer;
-ACPI_EXTERN acpi_name acpi_gbl_trace_method_name;
-ACPI_EXTERN u32 acpi_gbl_trace_dbg_level;
-ACPI_EXTERN u32 acpi_gbl_trace_dbg_layer;
-ACPI_EXTERN u32 acpi_gbl_trace_flags;
-
 /*****************************************************************************
  *
  * Runtime configuration (static defaults that can be overriden at runtime)
@@ -139,6 +104,34 @@ ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_leave_wake_gpes_disabled, TRUE);
 
 /*****************************************************************************
  *
+ * Debug support
+ *
+ ****************************************************************************/
+
+/* Runtime configuration of debug print levels */
+
+extern u32 acpi_dbg_level;
+extern u32 acpi_dbg_layer;
+
+/* Procedure nesting level for debug output */
+
+extern u32 acpi_gbl_nesting_level;
+
+/* Event counters */
+
+ACPI_EXTERN u32 acpi_gpe_count;
+
+/* Support for dynamic control method tracing mechanism */
+
+ACPI_EXTERN u32 acpi_gbl_original_dbg_level;
+ACPI_EXTERN u32 acpi_gbl_original_dbg_layer;
+ACPI_EXTERN acpi_name acpi_gbl_trace_method_name;
+ACPI_EXTERN u32 acpi_gbl_trace_dbg_level;
+ACPI_EXTERN u32 acpi_gbl_trace_dbg_layer;
+ACPI_EXTERN u32 acpi_gbl_trace_flags;
+
+/*****************************************************************************
+ *
  * ACPI Table globals
  *
  ****************************************************************************/
@@ -153,6 +146,11 @@ ACPI_EXTERN struct acpi_internal_rsdt acpi_gbl_root_table_list;
 ACPI_EXTERN struct acpi_table_fadt acpi_gbl_FADT;
 #define acpi_fadt acpi_gbl_FADT
 extern acpi_native_uint acpi_gbl_permanent_mmap;
+
+/* These addresses are calculated from FADT address values */
+
+ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1a_enable;
+ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_enable;
 
 /*
  * Handle both ACPI 1.0 and ACPI 2.0 Integer widths. The integer width is

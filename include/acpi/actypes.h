@@ -592,7 +592,7 @@ typedef u32 acpi_event_status;
  *  | | |  +--- Type of dispatch -- to method, handler, or none
  *  | | +--- Enabled for runtime?
  *  | +--- Enabled for wake?
- *  +--- System state when GPE ocurred (running/waking)
+ *  +--- Unused
  */
 #define ACPI_GPE_XRUPT_TYPE_MASK        (u8) 0x01
 #define ACPI_GPE_LEVEL_TRIGGERED        (u8) 0x01
@@ -617,10 +617,6 @@ typedef u32 acpi_event_status;
 #define ACPI_GPE_WAKE_DISABLED          (u8) 0x00	/* Default */
 
 #define ACPI_GPE_ENABLE_MASK            (u8) 0x60	/* Both run/wake */
-
-#define ACPI_GPE_SYSTEM_MASK            (u8) 0x80
-#define ACPI_GPE_SYSTEM_RUNNING         (u8) 0x80
-#define ACPI_GPE_SYSTEM_WAKING          (u8) 0x00
 
 /*
  * Flags for GPE and Lock interfaces
