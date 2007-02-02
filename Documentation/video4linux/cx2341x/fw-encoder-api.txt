@@ -680,7 +680,7 @@ Description
 	the value.
 Param[0]
 	Command number:
-	 1=set initial SCR value when starting encoding.
+	 1=set initial SCR value when starting encoding (works).
 	 2=set quality mode (apparently some test setting).
 	 3=setup advanced VIM protection handling (supposedly only for the cx23416
 	   for raw YUV).
@@ -689,7 +689,11 @@ Param[0]
 	 4=generate artificial PTS timestamps
 	 5=USB flush mode
 	 6=something to do with the quantization matrix
-	 7=set navigation pack insertion for DVD
+	 7=set navigation pack insertion for DVD: adds 0xbf (private stream 2)
+	   packets to the MPEG. The size of these packets is 2048 bytes (including
+	   the header of 6 bytes: 0x000001bf + length). The payload is zeroed and
+	   it is up to the application to fill them in. These packets are apparently
+	   inserted every four frames.
 	 8=enable scene change detection (seems to be a failure)
 	 9=set history parameters of the video input module
 	10=set input field order of VIM
