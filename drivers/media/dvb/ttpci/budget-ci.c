@@ -878,6 +878,17 @@ static struct tda1004x_config philips_tdm1316l_config = {
 	.request_firmware = philips_tdm1316l_request_firmware,
 };
 
+static struct tda1004x_config philips_tdm1316l_config_invert = {
+
+	.demod_address = 0x8,
+	.invert = 1,
+	.invert_oclk = 0,
+	.xtal_freq = TDA10046_XTAL_4M,
+	.agc_config = TDA10046_AGC_DEFAULT,
+	.if_freq = TDA10046_FREQ_3617,
+	.request_firmware = philips_tdm1316l_request_firmware,
+};
+
 static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
@@ -1101,9 +1112,8 @@ static void frontend_init(struct budget_ci *budget_ci)
 
 	case 0x1012:		// TT DVB-T CI budget (tda10046/Philips tdm1316l(tda6651tt))
 		budget_ci->tuner_pll_address = 0x60;
-		philips_tdm1316l_config.invert = 1;
 		budget_ci->budget.dvb_frontend =
-			dvb_attach(tda10046_attach, &philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
+			dvb_attach(tda10046_attach, &philips_tdm1316l_config_invert, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.init = philips_tdm1316l_tuner_init;
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.set_params = philips_tdm1316l_tuner_set_params;
