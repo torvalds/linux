@@ -40,6 +40,7 @@
 
 #include "../codecs/wm9712.h"
 #include "pxa2xx-pcm.h"
+#include "pxa2xx-ac97.h"
 
 static struct snd_soc_machine tosa;
 
@@ -228,12 +229,14 @@ static struct snd_soc_dai_link tosa_dai[] = {
 	.cpu_dai = &pxa_ac97_dai[PXA2XX_DAI_AC97_HIFI],
 	.codec_dai = &wm9712_dai[WM9712_DAI_AC97_HIFI],
 	.init = tosa_ac97_init,
+	.ops = &tosa_ops,
 },
 {
 	.name = "AC97 Aux",
 	.stream_name = "AC97 Aux",
 	.cpu_dai = &pxa_ac97_dai[PXA2XX_DAI_AC97_AUX],
 	.codec_dai = &wm9712_dai[WM9712_DAI_AC97_AUX],
+	.ops = &tosa_ops,
 },
 };
 
@@ -241,7 +244,6 @@ static struct snd_soc_machine tosa = {
 	.name = "Tosa",
 	.dai_link = tosa_dai,
 	.num_links = ARRAY_SIZE(tosa_dai),
-	.ops = &tosa_ops,
 };
 
 static struct snd_soc_device tosa_snd_devdata = {
