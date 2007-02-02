@@ -844,6 +844,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  asus-laptop	ASUS F2/F3 laptops
 	  auto		auto-config reading BIOS (default)
 
+	ALC861VD/660VD
+	  3stack	3-jack
+	  3stack-dig	3-jack with SPDIF OUT
+	  6stack-dig	6-jack with SPDIF OUT
+	  3stack-660	3-jack (for ALC660VD)
+	  auto		auto-config reading BIOS (default)
+
 	CMI9880
 	  minimal	3-jack in back
 	  min_fp	3-jack in back, 2-jack in front
