@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:27:47 2007
+# Tue Feb 20 21:47:31 2007
 #
 CONFIG_MIPS=y
 
@@ -451,6 +451,7 @@ CONFIG_MTD_NAND_VERIFY_WRITE=y
 # CONFIG_MTD_NAND_ECC_SMC is not set
 CONFIG_MTD_NAND_IDS=y
 # CONFIG_MTD_NAND_DISKONCHIP is not set
+# CONFIG_MTD_NAND_BASLER_EXCITE is not set
 # CONFIG_MTD_NAND_CAFE is not set
 # CONFIG_MTD_NAND_NANDSIM is not set
 
@@ -467,6 +468,7 @@ CONFIG_MTD_NAND_IDS=y
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -638,6 +640,7 @@ CONFIG_NETDEVICES=y
 # CONFIG_TIGON3 is not set
 # CONFIG_BNX2 is not set
 CONFIG_QLA3XXX=m
+# CONFIG_ATL1 is not set
 
 #
 # Ethernet (10000 Mbit)
@@ -1008,6 +1011,7 @@ CONFIG_USB_HID=m
 # CONFIG_USB_RIO500 is not set
 # CONFIG_USB_LEGOTOWER is not set
 # CONFIG_USB_LCD is not set
+# CONFIG_USB_BERRY_CHARGE is not set
 # CONFIG_USB_LED is not set
 # CONFIG_USB_CYPRESS_CY7C63 is not set
 # CONFIG_USB_CYTHERM is not set
@@ -1277,6 +1281,7 @@ CONFIG_ENABLE_MUST_CHECK=y
 CONFIG_LOG_BUF_SHIFT=14
 CONFIG_CROSSCOMPILE=y
 CONFIG_CMDLINE=""
+CONFIG_SYS_SUPPORTS_KGDB=y
 
 #
 # Security options

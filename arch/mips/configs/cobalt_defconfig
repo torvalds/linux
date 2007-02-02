@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Mon Feb 19 14:51:58 2007
+# Tue Feb 20 21:47:24 2007
 #
 CONFIG_MIPS=y
 
@@ -425,7 +425,7 @@ CONFIG_MTD_CFI_UTIL=y
 # CONFIG_MTD_COMPLEX_MAPPINGS is not set
 CONFIG_MTD_PHYSMAP=y
 CONFIG_MTD_PHYSMAP_START=0x0
-CONFIG_MTD_PHYSMAP_LEN=0
+CONFIG_MTD_PHYSMAP_LEN=0x0
 CONFIG_MTD_PHYSMAP_BANKWIDTH=0
 # CONFIG_MTD_PLATRAM is not set
 
@@ -449,7 +449,6 @@ CONFIG_MTD_PHYSMAP_BANKWIDTH=0
 # NAND Flash Device Drivers
 #
 # CONFIG_MTD_NAND is not set
-# CONFIG_MTD_NAND_CAFE is not set
 
 #
 # OneNAND Flash Device Drivers
@@ -464,6 +463,7 @@ CONFIG_MTD_PHYSMAP_BANKWIDTH=0
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -658,6 +658,7 @@ CONFIG_TULIP=y
 # CONFIG_TIGON3 is not set
 # CONFIG_BNX2 is not set
 CONFIG_QLA3XXX=y
+# CONFIG_ATL1 is not set
 
 #
 # Ethernet (10000 Mbit)

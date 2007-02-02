@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:27:46 2007
+# Tue Feb 20 21:47:30 2007
 #
 CONFIG_MIPS=y
 
@@ -391,6 +391,7 @@ CONFIG_CONNECTOR=m
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -520,6 +521,7 @@ CONFIG_NET_ETHERNET=y
 # CONFIG_TIGON3 is not set
 # CONFIG_BNX2 is not set
 CONFIG_QLA3XXX=m
+# CONFIG_ATL1 is not set
 
 #
 # Ethernet (10000 Mbit)
@@ -914,6 +916,7 @@ CONFIG_ENABLE_MUST_CHECK=y
 CONFIG_LOG_BUF_SHIFT=14
 CONFIG_CROSSCOMPILE=y
 CONFIG_CMDLINE="console=ttyS0,115200 root=/dev/nfs rw nfsroot=192.168.1.1:/mnt/disk2/fs.gal ip=192.168.1.211:192.168.1.1:::gt::"
+CONFIG_SYS_SUPPORTS_KGDB=y
 
 #
 # Security options

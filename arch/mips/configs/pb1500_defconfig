@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:28:02 2007
+# Tue Feb 20 21:47:37 2007
 #
 CONFIG_MIPS=y
 
@@ -541,7 +541,6 @@ CONFIG_MTD_ALCHEMY=y
 # NAND Flash Device Drivers
 #
 # CONFIG_MTD_NAND is not set
-# CONFIG_MTD_NAND_CAFE is not set
 
 #
 # OneNAND Flash Device Drivers
@@ -556,6 +555,7 @@ CONFIG_MTD_ALCHEMY=y
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -745,6 +745,7 @@ CONFIG_MIPS_AU1X00_ENET=y
 # CONFIG_TIGON3 is not set
 # CONFIG_BNX2 is not set
 CONFIG_QLA3XXX=m
+# CONFIG_ATL1 is not set
 
 #
 # Ethernet (10000 Mbit)
@@ -1213,6 +1214,7 @@ CONFIG_ENABLE_MUST_CHECK=y
 CONFIG_LOG_BUF_SHIFT=14
 CONFIG_CROSSCOMPILE=y
 CONFIG_CMDLINE=""
+CONFIG_SYS_SUPPORTS_KGDB=y
 
 #
 # Security options

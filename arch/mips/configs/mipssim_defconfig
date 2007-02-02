@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:27:56 2007
+# Tue Feb 20 21:47:35 2007
 #
 CONFIG_MIPS=y
 
@@ -436,6 +436,7 @@ CONFIG_FIB_RULES=y
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -878,7 +879,6 @@ CONFIG_FORCED_INLINING=y
 CONFIG_CROSSCOMPILE=y
 CONFIG_CMDLINE="nfsroot=192.168.192.169:/u1/mipsel,timeo=20 ip=dhcp"
 # CONFIG_DEBUG_STACK_USAGE is not set
-# CONFIG_KGDB is not set
 # CONFIG_RUNTIME_DEBUG is not set
 # CONFIG_MIPS_UNCACHED is not set
 

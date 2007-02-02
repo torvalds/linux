@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:28:09 2007
+# Tue Feb 20 21:47:40 2007
 #
 CONFIG_MIPS=y
 
@@ -661,6 +661,7 @@ CONFIG_PARPORT_NOT_PC=y
 # Plug and Play support
 #
 # CONFIG_PNP is not set
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -1397,6 +1398,7 @@ CONFIG_USB_AUERSWALD=m
 CONFIG_USB_RIO500=m
 CONFIG_USB_LEGOTOWER=m
 CONFIG_USB_LCD=m
+# CONFIG_USB_BERRY_CHARGE is not set
 CONFIG_USB_LED=m
 # CONFIG_USB_CYPRESS_CY7C63 is not set
 CONFIG_USB_CYTHERM=m

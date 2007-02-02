@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:28:00 2007
+# Tue Feb 20 21:47:36 2007
 #
 CONFIG_MIPS=y
 
@@ -392,6 +392,7 @@ CONFIG_PROC_EVENTS=y
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -522,6 +523,7 @@ CONFIG_GALILEO_64240_ETH=y
 # CONFIG_TIGON3 is not set
 # CONFIG_BNX2 is not set
 CONFIG_QLA3XXX=y
+# CONFIG_ATL1 is not set
 
 #
 # Ethernet (10000 Mbit)

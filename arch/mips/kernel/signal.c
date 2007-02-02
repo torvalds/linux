@@ -89,6 +89,9 @@ int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	for (i = 1; i < 32; i++)
 		err |= __put_user(regs->regs[i], &sc->sc_regs[i]);
 
+#ifdef CONFIG_CPU_HAS_SMARTMIPS
+	err |= __put_user(regs->acx, &sc->sc_acx);
+#endif
 	err |= __put_user(regs->hi, &sc->sc_mdhi);
 	err |= __put_user(regs->lo, &sc->sc_mdlo);
 	if (cpu_has_dsp) {
@@ -132,6 +135,10 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	err |= __get_user(regs->cp0_epc, &sc->sc_pc);
+
+#ifdef CONFIG_CPU_HAS_SMARTMIPS
+	err |= __get_user(regs->acx, &sc->sc_acx);
+#endif
 	err |= __get_user(regs->hi, &sc->sc_mdhi);
 	err |= __get_user(regs->lo, &sc->sc_mdlo);
 	if (cpu_has_dsp) {
