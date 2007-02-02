@@ -620,15 +620,16 @@ void __init acpi_early_init(void)
 
 #ifdef CONFIG_X86
 	if (!acpi_ioapic) {
-		extern acpi_interrupt_flags acpi_sci_flags;
+		extern u8 acpi_sci_flags;
 
 		/* compatible (0) means level (3) */
-		if (acpi_sci_flags.trigger == 0)
-			acpi_sci_flags.trigger = 3;
-
+		if (!(acpi_sci_flags & ACPI_MADT_TRIGGER_MASK)) {
+			acpi_sci_flags &= ~ACPI_MADT_TRIGGER_MASK;
+			acpi_sci_flags |= ACPI_MADT_TRIGGER_LEVEL;
+		}
 		/* Set PIC-mode SCI trigger type */
 		acpi_pic_sci_set_trigger(acpi_gbl_FADT.sci_interrupt,
-					 acpi_sci_flags.trigger);
+					 (acpi_sci_flags & ACPI_MADT_TRIGGER_MASK) >> 2);
 	} else {
 		extern int acpi_sci_override_gsi;
 		/*

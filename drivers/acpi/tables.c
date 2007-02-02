@@ -43,90 +43,92 @@ static char *mps_inti_flags_trigger[] = { "dfl", "edge", "res", "level" };
 
 static struct acpi_table_desc initial_tables[ACPI_MAX_TABLES] __initdata;
 
-void acpi_table_print_madt_entry(acpi_table_entry_header * header)
+void acpi_table_print_madt_entry(struct acpi_subtable_header * header)
 {
 	if (!header)
 		return;
 
 	switch (header->type) {
 
-	case ACPI_MADT_LAPIC:
+	case ACPI_MADT_TYPE_LOCAL_APIC:
 		{
-			struct acpi_table_lapic *p =
-			    (struct acpi_table_lapic *)header;
+			struct acpi_madt_local_apic *p =
+			    (struct acpi_madt_local_apic *)header;
 			printk(KERN_INFO PREFIX
 			       "LAPIC (acpi_id[0x%02x] lapic_id[0x%02x] %s)\n",
-			       p->acpi_id, p->id,
-			       p->flags.enabled ? "enabled" : "disabled");
+			       p->processor_id, p->id,
+			       (p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
 		}
 		break;
 
-	case ACPI_MADT_IOAPIC:
+	case ACPI_MADT_TYPE_IO_APIC:
 		{
-			struct acpi_table_ioapic *p =
-			    (struct acpi_table_ioapic *)header;
+			struct acpi_madt_io_apic *p =
+			    (struct acpi_madt_io_apic *)header;
 			printk(KERN_INFO PREFIX
 			       "IOAPIC (id[0x%02x] address[0x%08x] gsi_base[%d])\n",
 			       p->id, p->address, p->global_irq_base);
 		}
 		break;
 
-	case ACPI_MADT_INT_SRC_OVR:
+	case ACPI_MADT_TYPE_INTERRUPT_OVERRIDE:
 		{
-			struct acpi_table_int_src_ovr *p =
-			    (struct acpi_table_int_src_ovr *)header;
+			struct acpi_madt_interrupt_override *p =
+			    (struct acpi_madt_interrupt_override *)header;
 			printk(KERN_INFO PREFIX
 			       "INT_SRC_OVR (bus %d bus_irq %d global_irq %d %s %s)\n",
-			       p->bus, p->bus_irq, p->global_irq,
-			       mps_inti_flags_polarity[p->flags.polarity],
-			       mps_inti_flags_trigger[p->flags.trigger]);
-			if (p->flags.reserved)
+			       p->bus, p->source_irq, p->global_irq,
+			       mps_inti_flags_polarity[p->inti_flags & ACPI_MADT_POLARITY_MASK],
+			       mps_inti_flags_trigger[(p->inti_flags & ACPI_MADT_TRIGGER_MASK) >> 2]);
+			if (p->inti_flags  &
+			    ~(ACPI_MADT_POLARITY_MASK | ACPI_MADT_TRIGGER_MASK))
 				printk(KERN_INFO PREFIX
 				       "INT_SRC_OVR unexpected reserved flags: 0x%x\n",
-				       p->flags.reserved);
+				       p->inti_flags  &
+					~(ACPI_MADT_POLARITY_MASK | ACPI_MADT_TRIGGER_MASK));
 
 		}
 		break;
 
-	case ACPI_MADT_NMI_SRC:
+	case ACPI_MADT_TYPE_NMI_SOURCE:
 		{
-			struct acpi_table_nmi_src *p =
-			    (struct acpi_table_nmi_src *)header;
+			struct acpi_madt_nmi_source *p =
+			    (struct acpi_madt_nmi_source *)header;
 			printk(KERN_INFO PREFIX
 			       "NMI_SRC (%s %s global_irq %d)\n",
-			       mps_inti_flags_polarity[p->flags.polarity],
-			       mps_inti_flags_trigger[p->flags.trigger],
+			       mps_inti_flags_polarity[p->inti_flags & ACPI_MADT_POLARITY_MASK],
+			       mps_inti_flags_trigger[(p->inti_flags & ACPI_MADT_TRIGGER_MASK) >> 2],
 			       p->global_irq);
 		}
 		break;
 
-	case ACPI_MADT_LAPIC_NMI:
+	case ACPI_MADT_TYPE_LOCAL_APIC_NMI:
 		{
-			struct acpi_table_lapic_nmi *p =
-			    (struct acpi_table_lapic_nmi *)header;
+			struct acpi_madt_local_apic_nmi *p =
+			    (struct acpi_madt_local_apic_nmi *)header;
 			printk(KERN_INFO PREFIX
 			       "LAPIC_NMI (acpi_id[0x%02x] %s %s lint[0x%x])\n",
-			       p->acpi_id,
-			       mps_inti_flags_polarity[p->flags.polarity],
-			       mps_inti_flags_trigger[p->flags.trigger],
+			       p->processor_id,
+			       mps_inti_flags_polarity[p->inti_flags & ACPI_MADT_POLARITY_MASK	],
+			       mps_inti_flags_trigger[(p->inti_flags & ACPI_MADT_TRIGGER_MASK) >> 2],
 			       p->lint);
 		}
 		break;
 
-	case ACPI_MADT_LAPIC_ADDR_OVR:
+	case ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE:
 		{
-			struct acpi_table_lapic_addr_ovr *p =
-			    (struct acpi_table_lapic_addr_ovr *)header;
+			struct acpi_madt_local_apic_override *p =
+			    (struct acpi_madt_local_apic_override *)header;
 			printk(KERN_INFO PREFIX
 			       "LAPIC_ADDR_OVR (address[%p])\n",
 			       (void *)(unsigned long)p->address);
 		}
 		break;
 
-	case ACPI_MADT_IOSAPIC:
+	case ACPI_MADT_TYPE_IO_SAPIC:
 		{
-			struct acpi_table_iosapic *p =
-			    (struct acpi_table_iosapic *)header;
+			struct acpi_madt_io_sapic *p =
+			    (struct acpi_madt_io_sapic *)header;
 			printk(KERN_INFO PREFIX
 			       "IOSAPIC (id[0x%x] address[%p] gsi_base[%d])\n",
 			       p->id, (void *)(unsigned long)p->address,
@@ -134,26 +136,26 @@ void acpi_table_print_madt_entry(acpi_table_entry_header * header)
 		}
 		break;
 
-	case ACPI_MADT_LSAPIC:
+	case ACPI_MADT_TYPE_LOCAL_SAPIC:
 		{
-			struct acpi_table_lsapic *p =
-			    (struct acpi_table_lsapic *)header;
+			struct acpi_madt_local_sapic *p =
+			    (struct acpi_madt_local_sapic *)header;
 			printk(KERN_INFO PREFIX
 			       "LSAPIC (acpi_id[0x%02x] lsapic_id[0x%02x] lsapic_eid[0x%02x] %s)\n",
-			       p->acpi_id, p->id, p->eid,
-			       p->flags.enabled ? "enabled" : "disabled");
+			       p->processor_id, p->id, p->eid,
+			       (p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
 		}
 		break;
 
-	case ACPI_MADT_PLAT_INT_SRC:
+	case ACPI_MADT_TYPE_INTERRUPT_SOURCE:
 		{
-			struct acpi_table_plat_int_src *p =
-			    (struct acpi_table_plat_int_src *)header;
+			struct acpi_madt_interrupt_source *p =
+			    (struct acpi_madt_interrupt_source *)header;
 			printk(KERN_INFO PREFIX
 			       "PLAT_INT_SRC (%s %s type[0x%x] id[0x%04x] eid[0x%x] iosapic_vector[0x%x] global_irq[0x%x]\n",
-			       mps_inti_flags_polarity[p->flags.polarity],
-			       mps_inti_flags_trigger[p->flags.trigger],
-			       p->type, p->id, p->eid, p->iosapic_vector,
+			       mps_inti_flags_polarity[p->inti_flags & ACPI_MADT_POLARITY_MASK],
+			       mps_inti_flags_trigger[(p->inti_flags & ACPI_MADT_TRIGGER_MASK) >> 2],
+			       p->type, p->id, p->eid, p->io_sapic_vector,
 			       p->global_irq);
 		}
 		break;
@@ -175,7 +177,7 @@ acpi_table_parse_madt_family(char *id,
 			     unsigned int max_entries)
 {
 	struct acpi_table_header *madt = NULL;
-	acpi_table_entry_header *entry;
+	struct acpi_subtable_header *entry;
 	unsigned int count = 0;
 	unsigned long madt_end;
 
@@ -183,7 +185,6 @@ acpi_table_parse_madt_family(char *id,
 		return -EINVAL;
 
 	/* Locate the MADT (if exists). There should only be one. */
-
 	acpi_get_table(id, 0, &madt);
 
 	if (!madt) {
@@ -195,17 +196,17 @@ acpi_table_parse_madt_family(char *id,
 
 	/* Parse all entries looking for a match. */
 
-	entry = (acpi_table_entry_header *)
+	entry = (struct acpi_subtable_header *)
 	    ((unsigned long)madt + madt_size);
 
-	while (((unsigned long)entry) + sizeof(acpi_table_entry_header) <
+	while (((unsigned long)entry) + sizeof(struct acpi_subtable_header) <
 	       madt_end) {
 		if (entry->type == entry_id
 		    && (!max_entries || count++ < max_entries))
 			if (handler(entry, madt_end))
 				return -EINVAL;
 
-		entry = (acpi_table_entry_header *)
+		entry = (struct acpi_subtable_header *)
 		    ((unsigned long)entry + entry->length);
 	}
 	if (max_entries && count > max_entries) {
@@ -217,10 +218,10 @@ acpi_table_parse_madt_family(char *id,
 }
 
 int __init
-acpi_table_parse_madt(enum acpi_madt_entry_id id,
+acpi_table_parse_madt(enum acpi_madt_type id,
 		      acpi_madt_entry_handler handler, unsigned int max_entries)
 {
-	return acpi_table_parse_madt_family("APIC",
+	return acpi_table_parse_madt_family(ACPI_SIG_MADT,
 					    sizeof(struct acpi_table_madt), id,
 					    handler, max_entries);
 }
@@ -228,7 +229,6 @@ acpi_table_parse_madt(enum acpi_madt_entry_id id,
 int __init acpi_table_parse(char *id, acpi_table_handler handler)
 {
 	struct acpi_table_header *table = NULL;
-
 	if (!handler)
 		return -EINVAL;
 
@@ -245,9 +245,10 @@ int __init acpi_table_parse(char *id, acpi_table_handler handler)
  *
  * find RSDP, find and checksum SDT/XSDT.
  * checksum all tables, print SDT/XSDT
- * 
+ *
  * result: sdt_entry[] is initialized
  */
+
 
 int __init acpi_table_init(void)
 {

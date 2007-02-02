@@ -58,106 +58,6 @@ typedef struct {
 	u8			length;
 } __attribute__ ((packed)) acpi_table_entry_header;
 
-/* Multiple APIC Description Table (MADT) */
-
-enum acpi_madt_entry_id {
-	ACPI_MADT_LAPIC = 0,
-	ACPI_MADT_IOAPIC,
-	ACPI_MADT_INT_SRC_OVR,
-	ACPI_MADT_NMI_SRC,
-	ACPI_MADT_LAPIC_NMI,
-	ACPI_MADT_LAPIC_ADDR_OVR,
-	ACPI_MADT_IOSAPIC,
-	ACPI_MADT_LSAPIC,
-	ACPI_MADT_PLAT_INT_SRC,
-	ACPI_MADT_ENTRY_COUNT
-};
-
-typedef struct {
-	u16			polarity:2;
-	u16			trigger:2;
-	u16			reserved:12;
-} __attribute__ ((packed)) acpi_interrupt_flags;
-
-struct acpi_table_lapic {
-	acpi_table_entry_header	header;
-	u8			acpi_id;
-	u8			id;
-	struct {
-		u32			enabled:1;
-		u32			reserved:31;
-	}			flags;
-} __attribute__ ((packed));
-
-struct acpi_table_ioapic {
-	acpi_table_entry_header	header;
-	u8			id;
-	u8			reserved;
-	u32			address;
-	u32			global_irq_base;
-} __attribute__ ((packed));
-
-struct acpi_table_int_src_ovr {
-	acpi_table_entry_header	header;
-	u8			bus;
-	u8			bus_irq;
-	u32			global_irq;
-	acpi_interrupt_flags	flags;
-} __attribute__ ((packed));
-
-struct acpi_table_nmi_src {
-	acpi_table_entry_header	header;
-	acpi_interrupt_flags	flags;
-	u32			global_irq;
-} __attribute__ ((packed));
-
-struct acpi_table_lapic_nmi {
-	acpi_table_entry_header	header;
-	u8			acpi_id;
-	acpi_interrupt_flags	flags;
-	u8			lint;
-} __attribute__ ((packed));
-
-struct acpi_table_lapic_addr_ovr {
-	acpi_table_entry_header	header;
-	u8			reserved[2];
-	u64			address;
-} __attribute__ ((packed));
-
-struct acpi_table_iosapic {
-	acpi_table_entry_header	header;
-	u8			id;
-	u8			reserved;
-	u32			global_irq_base;
-	u64			address;
-} __attribute__ ((packed));
-
-struct acpi_table_lsapic {
-	acpi_table_entry_header	header;
-	u8			acpi_id;
-	u8			id;
-	u8			eid;
-	u8			reserved[3];
-	struct {
-		u32			enabled:1;
-		u32			reserved:31;
-	}			flags;
-} __attribute__ ((packed));
-
-struct acpi_table_plat_int_src {
-	acpi_table_entry_header	header;
-	acpi_interrupt_flags	flags;
-	u8			type;	/* See acpi_interrupt_type */
-	u8			id;
-	u8			eid;
-	u8			iosapic_vector;
-	u32			global_irq;
-	struct {
-		u32			cpei_override_flag:1;
-		u32			reserved:31;
-	}			plint_flags;
-} __attribute__ ((packed));
-
 enum acpi_interrupt_id {
 	ACPI_INTERRUPT_PMI	= 1,
 	ACPI_INTERRUPT_INIT,
@@ -285,7 +185,7 @@ typedef int (*acpi_table_handler) (struct acpi_table_header *header);
 
 extern acpi_table_handler acpi_table_ops[ACPI_TABLE_COUNT];
 
-typedef int (*acpi_madt_entry_handler) (acpi_table_entry_header *header, const unsigned long end);
+typedef int (*acpi_madt_entry_handler) (struct acpi_subtable_header *header, const unsigned long end);
 
 char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
 unsigned long acpi_find_rsdp (void);
@@ -295,11 +195,11 @@ int acpi_numa_init (void);
 
 int acpi_table_init (void);
 int acpi_table_parse (char *id, acpi_table_handler handler);
-int acpi_table_parse_madt (enum acpi_madt_entry_id id, acpi_madt_entry_handler handler, unsigned int max_entries);
+int acpi_table_parse_madt (enum acpi_madt_type id, acpi_madt_entry_handler handler, unsigned int max_entries);
 int acpi_table_parse_srat (enum acpi_srat_entry_id id, acpi_madt_entry_handler handler, unsigned int max_entries);
 int acpi_parse_mcfg (struct acpi_table_header *header);
 void acpi_table_print (struct acpi_table_header *header, unsigned long phys_addr);
-void acpi_table_print_madt_entry (acpi_table_entry_header *madt);
+void acpi_table_print_madt_entry (struct acpi_subtable_header *madt);
 void acpi_table_print_srat_entry (acpi_table_entry_header *srat);
 
 /* the following four functions are architecture-dependent */
