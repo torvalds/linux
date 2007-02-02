@@ -318,9 +318,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		obj_desc->package.node = parent->common.node;
 	}
 
-	obj_desc->package.count = package_length;
-
-	/* Count the number of items in the package list */
+	/* Count the *actual* number of items in the package list */
 
 	arg = op->common.value.arg;
 	arg = arg->common.next;
@@ -329,11 +327,24 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	}
 
 	/*
-	 * The package length (number of elements) will be the greater
-	 * of the specified length and the length of the initializer list
+	 * The number of elements in the package will be the lesser of the
+	 * specified element count and the length of the initializer list.
+	 *
+	 * Even though the ASL compilers do not allow this to happen (for the
+	 * fixed length package opcode), some BIOS code modifies the AML on the
+	 * fly to adjust the package length, and this code compensates for that.
+	 * This also provides compatibility with other AML interpreters.
 	 */
-	if (package_list_length > package_length) {
-		obj_desc->package.count = package_list_length;
+	obj_desc->package.count = package_length;
+
+	if (package_list_length != package_length) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				  "Package length mismatch, using lesser of %X(Length Arg) and %X(AML Length)\n",
+				  package_length, package_list_length));
+
+		if (package_list_length < package_length) {
+			obj_desc->package.count = package_list_length;
+		}
 	}
 
 	/*
@@ -356,7 +367,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	 */
 	arg = op->common.value.arg;
 	arg = arg->common.next;
-	for (i = 0; arg; i++) {
+	for (i = 0; i < obj_desc->package.count; i++) {
 		if (arg->common.aml_opcode == AML_INT_RETURN_VALUE_OP) {
 
 			/* Object (package or buffer) is already built */
