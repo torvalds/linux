@@ -73,6 +73,8 @@ static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context);
 
 static u32 acpi_ev_global_lock_handler(void *context);
 
+static acpi_status acpi_ev_remove_global_lock_handler(void);
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ev_is_notify_object
@@ -376,6 +378,31 @@ acpi_status acpi_ev_init_global_lock_handler(void)
 	return_ACPI_STATUS(status);
 }
 
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ev_remove_global_lock_handler
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Remove the handler for the Global Lock
+ *
+ ******************************************************************************/
+
+static acpi_status acpi_ev_remove_global_lock_handler(void)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(ev_remove_global_lock_handler);
+
+	acpi_gbl_global_lock_present = FALSE;
+	status = acpi_remove_fixed_event_handler(ACPI_EVENT_GLOBAL,
+						 acpi_ev_global_lock_handler);
+
+	return_ACPI_STATUS(status);
+}
+
 /******************************************************************************
  *
  * FUNCTION:    acpi_ev_acquire_global_lock
@@ -553,6 +580,12 @@ void acpi_ev_terminate(void)
 		status = acpi_ev_remove_sci_handler();
 		if (ACPI_FAILURE(status)) {
 			ACPI_ERROR((AE_INFO, "Could not remove SCI handler"));
+		}
+
+		status = acpi_ev_remove_global_lock_handler();
+		if (ACPI_FAILURE(status)) {
+			ACPI_ERROR((AE_INFO,
+				    "Could not remove Global Lock handler"));
 		}
 	}
 
