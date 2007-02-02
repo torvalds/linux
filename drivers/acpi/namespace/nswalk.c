@@ -194,24 +194,28 @@ acpi_ns_walk_namespace(acpi_object_type type,
 					  child_node);
 		if (child_node) {
 
-			/* Found node, Get the type if we are not searching for ANY */
+			/* Found next child, get the type if we are not searching for ANY */
 
 			if (type != ACPI_TYPE_ANY) {
 				child_type = child_node->type;
 			}
 
 			/*
-			 * 1) Type must match
-			 * 2) Permanent namespace nodes are OK
-			 * 3) Ignore temporary nodes unless told otherwise. Typically,
-			 *    the temporary nodes can cause a race condition where they can
-			 *    be deleted during the execution of the user function. Only the
-			 *    debugger namespace dump will examine the temporary nodes.
+			 * Ignore all temporary namespace nodes (created during control
+			 * method execution) unless told otherwise. These temporary nodes
+			 * can cause a race condition because they can be deleted during the
+			 * execution of the user function (if the namespace is unlocked before
+			 * invocation of the user function.) Only the debugger namespace dump
+			 * will examine the temporary nodes.
 			 */
-			if ((child_type == type) &&
-			    (!(child_node->flags & ANOBJ_TEMPORARY) ||
-			     (child_node->flags & ANOBJ_TEMPORARY)
-			     && (flags & ACPI_NS_WALK_TEMP_NODES))) {
+			if ((child_node->flags & ANOBJ_TEMPORARY) &&
+			    !(flags & ACPI_NS_WALK_TEMP_NODES)) {
+				status = AE_CTRL_DEPTH;
+			}
+
+			/* Type must match requested type */
+
+			else if (child_type == type) {
 				/*
 				 * Found a matching node, invoke the user callback function.
 				 * Unlock the namespace if flag is set.
