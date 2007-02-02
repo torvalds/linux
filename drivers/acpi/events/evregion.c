@@ -291,7 +291,6 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 			       u32 bit_width, acpi_integer * value)
 {
 	acpi_status status;
-	acpi_status status2;
 	acpi_adr_space_handler handler;
 	acpi_adr_space_setup region_setup;
 	union acpi_operand_object *handler_desc;
@@ -345,7 +344,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		 * setup will potentially execute control methods
 		 * (e.g., _REG method for this region)
 		 */
-		acpi_ex_exit_interpreter();
+		acpi_ex_relinquish_interpreter();
 
 		status = region_setup(region_obj, ACPI_REGION_ACTIVATE,
 				      handler_desc->address_space.context,
@@ -353,10 +352,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 
 		/* Re-enter the interpreter */
 
-		status2 = acpi_ex_enter_interpreter();
-		if (ACPI_FAILURE(status2)) {
-			return_ACPI_STATUS(status2);
-		}
+		acpi_ex_reacquire_interpreter();
 
 		/* Check for failure of the Region Setup */
 
@@ -409,7 +405,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		 * exit the interpreter because the handler *might* block -- we don't
 		 * know what it will do, so we can't hold the lock on the intepreter.
 		 */
-		acpi_ex_exit_interpreter();
+		acpi_ex_relinquish_interpreter();
 	}
 
 	/* Call the handler */
@@ -430,10 +426,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		 * We just returned from a non-default handler, we must re-enter the
 		 * interpreter
 		 */
-		status2 = acpi_ex_enter_interpreter();
-		if (ACPI_FAILURE(status2)) {
-			return_ACPI_STATUS(status2);
-		}
+		acpi_ex_reacquire_interpreter();
 	}
 
 	return_ACPI_STATUS(status);
