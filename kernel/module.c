@@ -653,19 +653,10 @@ static void wait_for_zero_refcount(struct module *mod)
 	mutex_lock(&module_mutex);
 }
 
-asmlinkage long
-sys_delete_module(const char __user *name_user, unsigned int flags)
+int delete_module(const char *name, unsigned int flags)
 {
 	struct module *mod;
-	char name[MODULE_NAME_LEN];
 	int ret, forced = 0;
-
-	if (!capable(CAP_SYS_MODULE))
-		return -EPERM;
-
-	if (strncpy_from_user(name, name_user, MODULE_NAME_LEN-1) < 0)
-		return -EFAULT;
-	name[MODULE_NAME_LEN-1] = '\0';
 
 	if (mutex_lock_interruptible(&module_mutex) != 0)
 		return -EINTR;
@@ -725,6 +716,21 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
  out:
 	mutex_unlock(&module_mutex);
 	return ret;
+}
+
+asmlinkage long
+sys_delete_module(const char __user *name_user, unsigned int flags)
+{
+	char name[MODULE_NAME_LEN];
+
+	if (!capable(CAP_SYS_MODULE))
+		return -EPERM;
+
+	if (strncpy_from_user(name, name_user, MODULE_NAME_LEN-1) < 0)
+		return -EFAULT;
+	name[MODULE_NAME_LEN-1] = '\0';
+
+	return delete_module(name, flags);
 }
 
 static void print_unload_info(struct seq_file *m, struct module *mod)

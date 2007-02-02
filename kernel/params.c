@@ -714,6 +714,7 @@ static int __init param_sysfs_init(void)
 	}
 
 	param_sysfs_builtin();
+	kmod_sysfs_init();
 
 	return 0;
 }
