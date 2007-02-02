@@ -289,6 +289,14 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 
 		ACPI_MEM_TRACKING(cache->total_allocated++);
 
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+		if ((cache->total_allocated - cache->total_freed) >
+		    cache->max_occupied) {
+			cache->max_occupied =
+			    cache->total_allocated - cache->total_freed;
+		}
+#endif
+
 		/* Avoid deadlock with ACPI_ALLOCATE_ZEROED */
 
 		status = acpi_ut_release_mutex(ACPI_MTX_CACHES);

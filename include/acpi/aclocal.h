@@ -954,6 +954,8 @@ struct acpi_memory_list {
 
 	u32 total_allocated;
 	u32 total_freed;
+	u32 max_occupied;
+	u32 total_size;
 	u32 current_total_size;
 	u32 requests;
 	u32 hits;

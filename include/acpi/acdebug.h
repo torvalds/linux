@@ -159,6 +159,10 @@ void
 acpi_db_create_execution_threads(char *num_threads_arg,
 				 char *num_loops_arg, char *method_name_arg);
 
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+u32 acpi_db_get_cache_info(struct acpi_memory_list *cache);
+#endif
+
 /*
  * dbfileio - Debugger file I/O commands
  */
