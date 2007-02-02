@@ -79,7 +79,7 @@ static int __init blacklist_by_year(void)
 {
 	int year = dmi_get_year(DMI_BIOS_DATE);
 	/* Doesn't exist? Likely an old system */
-	if (year == -1) 
+	if (year == -1)
 		return 1;
 	/* 0? Likely a buggy new BIOS */
 	if (year == 0)

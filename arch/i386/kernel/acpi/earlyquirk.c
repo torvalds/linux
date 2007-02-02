@@ -30,7 +30,7 @@ static int __init check_bridge(int vendor, int device)
 	   is enabled. */
 	if (!acpi_use_timer_override && vendor == PCI_VENDOR_ID_NVIDIA) {
 		nvidia_hpet_detected = 0;
-		acpi_table_parse("HPET", nvidia_hpet_check);
+		acpi_table_parse(ACPI_SIG_HPET, nvidia_hpet_check);
 		if (nvidia_hpet_detected == 0) {
 			acpi_skip_timer_override = 1;
 			  printk(KERN_INFO "Nvidia board "

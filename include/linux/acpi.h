@@ -53,11 +53,6 @@ enum acpi_irq_model_id {
 
 extern enum acpi_irq_model_id	acpi_irq_model;
 
-typedef struct {
-	u8			type;
-	u8			length;
-} __attribute__ ((packed)) acpi_table_entry_header;
-
 enum acpi_interrupt_id {
 	ACPI_INTERRUPT_PMI	= 1,
 	ACPI_INTERRUPT_INIT,
@@ -66,74 +61,6 @@ enum acpi_interrupt_id {
 };
 
 #define	ACPI_SPACE_MEM		0
-
-struct acpi_gen_regaddr {
-	u8  space_id;
-	u8  bit_width;
-	u8  bit_offset;
-	u8  resv;
-	u32 addrl;
-	u32 addrh;
-} __attribute__ ((packed));
-
-/*
- * Simple Boot Flags
- * http://www.microsoft.com/whdc/hwdev/resources/specs/simp_bios.mspx
- */
-struct acpi_table_sbf
-{
-	u8 sbf_signature[4];
-	u32 sbf_len;
-	u8 sbf_revision;
-	u8 sbf_csum;
-	u8 sbf_oemid[6];
-	u8 sbf_oemtable[8];
-	u8 sbf_revdata[4];
-	u8 sbf_creator[4];
-	u8 sbf_crearev[4];
-	u8 sbf_cmos;
-	u8 sbf_spare[3];
-} __attribute__ ((packed));
-
-/*
- * System Resource Affinity Table (SRAT)
- * http://www.microsoft.com/whdc/hwdev/platform/proc/SRAT.mspx
- */
-
-enum acpi_srat_entry_id {
-	ACPI_SRAT_PROCESSOR_AFFINITY = 0,
-	ACPI_SRAT_MEMORY_AFFINITY,
-	ACPI_SRAT_ENTRY_COUNT
-};
-
-struct acpi_table_processor_affinity {
-	acpi_table_entry_header	header;
-	u8			proximity_domain;
-	u8			apic_id;
-	struct {
-		u32			enabled:1;
-		u32			reserved:31;
-	}			flags;
-	u8			lsapic_eid;
-	u8			reserved[7];
-} __attribute__ ((packed));
-
-struct acpi_table_memory_affinity {
-	acpi_table_entry_header	header;
-	u8			proximity_domain;
-	u8			reserved1[5];
-	u32			base_addr_lo;
-	u32			base_addr_hi;
-	u32			length_lo;
-	u32			length_hi;
-	u32			memory_type;	/* See acpi_address_range_id */
-	struct {
-		u32			enabled:1;
-		u32			hot_pluggable:1;
-		u32			reserved:30;
-	}			flags;
-	u64			reserved2;
-} __attribute__ ((packed));
 
 enum acpi_address_range_id {
 	ACPI_ADDRESS_RANGE_MEMORY = 1,
@@ -144,46 +71,9 @@ enum acpi_address_range_id {
 };
 
 
-/* PCI MMCONFIG */
-
-/* Defined in PCI Firmware Specification 3.0 */
-struct acpi_table_mcfg_config {
-	u32				base_address;
-	u32				base_reserved;
-	u16				pci_segment_group_number;
-	u8				start_bus_number;
-	u8				end_bus_number;
-	u8				reserved[4];
-} __attribute__ ((packed));
-
 /* Table Handlers */
 
-enum acpi_table_id {
-	ACPI_TABLE_UNKNOWN = 0,
-	ACPI_APIC,
-	ACPI_BOOT,
-	ACPI_DBGP,
-	ACPI_DSDT,
-	ACPI_ECDT,
-	ACPI_ETDT,
-	ACPI_FADT,
-	ACPI_FACS,
-	ACPI_OEMX,
-	ACPI_PSDT,
-	ACPI_SBST,
-	ACPI_SLIT,
-	ACPI_SPCR,
-	ACPI_SRAT,
-	ACPI_SSDT,
-	ACPI_SPMI,
-	ACPI_HPET,
-	ACPI_MCFG,
-	ACPI_TABLE_COUNT
-};
-
-typedef int (*acpi_table_handler) (struct acpi_table_header *header);
-
-extern acpi_table_handler acpi_table_ops[ACPI_TABLE_COUNT];
+typedef int (*acpi_table_handler) (struct acpi_table_header *table);
 
 typedef int (*acpi_madt_entry_handler) (struct acpi_subtable_header *header, const unsigned long end);
 
@@ -196,11 +86,10 @@ int acpi_numa_init (void);
 int acpi_table_init (void);
 int acpi_table_parse (char *id, acpi_table_handler handler);
 int acpi_table_parse_madt (enum acpi_madt_type id, acpi_madt_entry_handler handler, unsigned int max_entries);
-int acpi_table_parse_srat (enum acpi_srat_entry_id id, acpi_madt_entry_handler handler, unsigned int max_entries);
+int acpi_table_parse_srat (enum acpi_srat_type id, acpi_madt_entry_handler handler, unsigned int max_entries);
 int acpi_parse_mcfg (struct acpi_table_header *header);
-void acpi_table_print (struct acpi_table_header *header, unsigned long phys_addr);
 void acpi_table_print_madt_entry (struct acpi_subtable_header *madt);
-void acpi_table_print_srat_entry (acpi_table_entry_header *srat);
+void acpi_table_print_srat_entry (struct acpi_subtable_header *srat);
 
 /* the following four functions are architecture-dependent */
 #ifdef CONFIG_HAVE_ARCH_PARSE_SRAT
@@ -211,8 +100,8 @@ void acpi_table_print_srat_entry (acpi_table_entry_header *srat);
 #define acpi_numa_arch_fixup() do {} while (0)
 #else
 void acpi_numa_slit_init (struct acpi_table_slit *slit);
-void acpi_numa_processor_affinity_init (struct acpi_table_processor_affinity *pa);
-void acpi_numa_memory_affinity_init (struct acpi_table_memory_affinity *ma);
+void acpi_numa_processor_affinity_init (struct acpi_srat_cpu_affinity *pa);
+void acpi_numa_memory_affinity_init (struct acpi_srat_mem_affinity *ma);
 void acpi_numa_arch_fixup(void);
 #endif
 
@@ -227,7 +116,7 @@ int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base);
 
 extern int acpi_mp_config;
 
-extern struct acpi_table_mcfg_config *pci_mmcfg_config;
+extern struct acpi_mcfg_allocation *pci_mmcfg_config;
 extern int pci_mmcfg_config_num;
 
 extern int sbf_port;

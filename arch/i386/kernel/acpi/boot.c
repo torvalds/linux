@@ -166,7 +166,7 @@ char *__acpi_map_table(unsigned long phys, unsigned long size)
 
 #ifdef CONFIG_PCI_MMCONFIG
 /* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
-struct acpi_table_mcfg_config *pci_mmcfg_config;
+struct acpi_mcfg_allocation *pci_mmcfg_config;
 int pci_mmcfg_config_num;
 
 int __init acpi_parse_mcfg(struct acpi_table_header *header)
@@ -179,17 +179,13 @@ int __init acpi_parse_mcfg(struct acpi_table_header *header)
 		return -EINVAL;
 
 	mcfg = (struct acpi_table_mcfg *)header;
-	if (!mcfg) {
-		printk(KERN_WARNING PREFIX "Unable to map MCFG\n");
-		return -ENODEV;
-	}
 
 	/* how many config structures do we have */
 	pci_mmcfg_config_num = 0;
 	i = header->length - sizeof(struct acpi_table_mcfg);
-	while (i >= sizeof(struct acpi_table_mcfg_config)) {
+	while (i >= sizeof(struct acpi_mcfg_allocation)) {
 		++pci_mmcfg_config_num;
-		i -= sizeof(struct acpi_table_mcfg_config);
+		i -= sizeof(struct acpi_mcfg_allocation);
 	};
 	if (pci_mmcfg_config_num == 0) {
 		printk(KERN_ERR PREFIX "MMCONFIG has no entries\n");
@@ -206,7 +202,7 @@ int __init acpi_parse_mcfg(struct acpi_table_header *header)
 
 	memcpy(pci_mmcfg_config, &mcfg[1], config_size);
 	for (i = 0; i < pci_mmcfg_config_num; ++i) {
-		if (pci_mmcfg_config[i].base_reserved) {
+		if (pci_mmcfg_config[i].address > 0xFFFFFFFF) {
 			printk(KERN_ERR PREFIX
 			       "MMCONFIG not in low 4GB of memory\n");
 			kfree(pci_mmcfg_config);
@@ -220,14 +216,14 @@ int __init acpi_parse_mcfg(struct acpi_table_header *header)
 #endif				/* CONFIG_PCI_MMCONFIG */
 
 #ifdef CONFIG_X86_LOCAL_APIC
-static int __init acpi_parse_madt(struct acpi_table_header *header)
+static int __init acpi_parse_madt(struct acpi_table_header *table)
 {
 	struct acpi_table_madt *madt = NULL;
 
-	if (!header|| !cpu_has_apic)
+	if (!cpu_has_apic)
 		return -EINVAL;
 
-	madt = (struct acpi_table_madt *)header;
+	madt = (struct acpi_table_madt *)table;
 	if (!madt) {
 		printk(KERN_WARNING PREFIX "Unable to map MADT\n");
 		return -ENODEV;
