@@ -280,7 +280,7 @@ acpi_tb_get_root_table_entry(u8 * table_entry,
 #if ACPI_MACHINE_WIDTH == 32
 		if (address64 > ACPI_UINT32_MAX) {
 
-			/* Will truncate 64-bit address to 32 bits */
+			/* Will truncate 64-bit address to 32 bits, issue warning */
 
 			ACPI_WARNING((AE_INFO,
 				      "64-bit Physical Address in XSDT is too large (%8.8X%8.8X), truncating",
