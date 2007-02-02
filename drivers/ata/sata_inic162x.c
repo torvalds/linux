@@ -429,11 +429,6 @@ static int inic_hardreset(struct ata_port *ap, unsigned int *class)
 	/* hammer it into sane state */
 	inic_reset_port(port_base);
 
-	if (ata_port_offline(ap)) {
-		*class = ATA_DEV_NONE;
-		return 0;
-	}
-
 	val = readw(idma_ctl);
 	writew(val | IDMA_CTL_RST_ATA, idma_ctl);
 	readw(idma_ctl);	/* flush */
@@ -443,15 +438,16 @@ static int inic_hardreset(struct ata_port *ap, unsigned int *class)
 	rc = sata_phy_resume(ap, timing);
 	if (rc) {
 		ata_port_printk(ap, KERN_WARNING, "failed to resume "
-				"link for reset (errno=%d)\n", rc);
+				"link after reset (errno=%d)\n", rc);
 		return rc;
 	}
-
-	msleep(150);
 
 	*class = ATA_DEV_NONE;
 	if (ata_port_online(ap)) {
 		struct ata_taskfile tf;
+
+		/* wait a while before checking status */
+		msleep(150);
 
 		if (ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT)) {
 			ata_port_printk(ap, KERN_WARNING,
