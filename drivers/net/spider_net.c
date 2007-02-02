@@ -1925,6 +1925,8 @@ spider_net_stop(struct net_device *netdev)
 	/* release chains */
 	spider_net_release_tx_chain(card, 1);
 
+	spider_net_free_rx_chain_contents(card);
+
 	spider_net_free_chain(card, &card->tx_chain);
 	spider_net_free_chain(card, &card->rx_chain);
 

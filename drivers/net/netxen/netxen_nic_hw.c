@@ -95,7 +95,7 @@ void netxen_nic_set_multi(struct net_device *netdev)
 	struct netxen_port *port = netdev_priv(netdev);
 	struct netxen_adapter *adapter = port->adapter;
 	struct dev_mc_list *mc_ptr;
-	__le32 netxen_mac_addr_cntl_data = 0;
+	__u32 netxen_mac_addr_cntl_data = 0;
 
 	mc_ptr = netdev->mc_list;
 	if (netdev->flags & IFF_PROMISC) {
@@ -236,8 +236,9 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	}
 	memset(addr, 0, sizeof(struct netxen_ring_ctx));
 	adapter->ctx_desc = (struct netxen_ring_ctx *)addr;
-	adapter->ctx_desc->cmd_consumer_offset = adapter->ctx_desc_phys_addr
-	    + sizeof(struct netxen_ring_ctx);
+	adapter->ctx_desc->cmd_consumer_offset =
+	    cpu_to_le64(adapter->ctx_desc_phys_addr +
+			sizeof(struct netxen_ring_ctx));
 	adapter->cmd_consumer = (uint32_t *) (((char *)addr) +
 					      sizeof(struct netxen_ring_ctx));
 
@@ -253,11 +254,10 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 		return -ENOMEM;
 	}
 
-	adapter->ctx_desc->cmd_ring_addr_lo =
-	    hw->cmd_desc_phys_addr & 0xffffffffUL;
-	adapter->ctx_desc->cmd_ring_addr_hi =
-	    ((u64) hw->cmd_desc_phys_addr >> 32);
-	adapter->ctx_desc->cmd_ring_size = adapter->max_tx_desc_count;
+	adapter->ctx_desc->cmd_ring_addr =
+		cpu_to_le64(hw->cmd_desc_phys_addr);
+	adapter->ctx_desc->cmd_ring_size =
+		cpu_to_le32(adapter->max_tx_desc_count);
 
 	hw->cmd_desc_head = (struct cmd_desc_type0 *)addr;
 
@@ -278,12 +278,10 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 				return err;
 			}
 			rcv_desc->desc_head = (struct rcv_desc *)addr;
-			adapter->ctx_desc->rcv_ctx[ring].rcv_ring_addr_lo =
-			    rcv_desc->phys_addr & 0xffffffffUL;
-			adapter->ctx_desc->rcv_ctx[ring].rcv_ring_addr_hi =
-			    ((u64) rcv_desc->phys_addr >> 32);
+			adapter->ctx_desc->rcv_ctx[ring].rcv_ring_addr =
+			    cpu_to_le64(rcv_desc->phys_addr);
 			adapter->ctx_desc->rcv_ctx[ring].rcv_ring_size =
-			    rcv_desc->max_rx_desc_count;
+			    cpu_to_le32(rcv_desc->max_rx_desc_count);
 		}
 
 		addr = netxen_alloc(adapter->ahw.pdev, STATUS_DESC_RINGSIZE,
@@ -297,11 +295,10 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 			return err;
 		}
 		recv_ctx->rcv_status_desc_head = (struct status_desc *)addr;
-		adapter->ctx_desc->sts_ring_addr_lo =
-		    recv_ctx->rcv_status_desc_phys_addr & 0xffffffffUL;
-		adapter->ctx_desc->sts_ring_addr_hi =
-		    ((u64) recv_ctx->rcv_status_desc_phys_addr >> 32);
-		adapter->ctx_desc->sts_ring_size = adapter->max_rx_desc_count;
+		adapter->ctx_desc->sts_ring_addr =
+		    cpu_to_le64(recv_ctx->rcv_status_desc_phys_addr);
+		adapter->ctx_desc->sts_ring_size =
+		    cpu_to_le32(adapter->max_rx_desc_count);
 
 	}
 	/* Window = 1 */
@@ -387,10 +384,6 @@ void netxen_tso_check(struct netxen_adapter *adapter,
 	}
 	adapter->stats.xmitcsummed++;
 	desc->tcp_hdr_offset = skb->h.raw - skb->data;
-	netxen_set_cmd_desc_totallength(desc,
-					cpu_to_le32
-					(netxen_get_cmd_desc_totallength
-					 (desc)));
 	desc->ip_hdr_offset = skb->nh.raw - skb->data;
 }
 
@@ -867,9 +860,9 @@ netxen_crb_writelit_adapter(struct netxen_adapter *adapter, unsigned long off,
 void netxen_nic_set_link_parameters(struct netxen_port *port)
 {
 	struct netxen_adapter *adapter = port->adapter;
-	__le32 status;
-	__le32 autoneg;
-	__le32 mode;
+	__u32 status;
+	__u32 autoneg;
+	__u32 mode;
 
 	netxen_nic_read_w0(adapter, NETXEN_NIU_MODE, &mode);
 	if (netxen_get_niu_enable_ge(mode)) {	/* Gb 10/100/1000 Mbps mode */
