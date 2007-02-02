@@ -227,6 +227,16 @@ struct acpi_table_desc {
 	u8 flags;
 };
 
+/* Flags for above */
+
+#define ACPI_TABLE_ORIGIN_UNKNOWN       (0)
+#define ACPI_TABLE_ORIGIN_MAPPED        (1)
+#define ACPI_TABLE_ORIGIN_ALLOCATED     (2)
+#define ACPI_TABLE_ORIGIN_MASK          (3)
+#define ACPI_TABLE_IS_LOADED            (4)
+
+/* One internal RSDT for table management */
+
 struct acpi_internal_rsdt {
 	struct acpi_table_desc *tables;
 	u32 count;
@@ -234,14 +244,11 @@ struct acpi_internal_rsdt {
 	u8 flags;
 };
 
-/* Flags for both structs above */
+/* Flags for above */
 
-#define ACPI_TABLE_ORIGIN_UNKNOWN       (0)
-#define ACPI_TABLE_ORIGIN_MAPPED        (1)
-#define ACPI_TABLE_ORIGIN_ALLOCATED     (2)
-#define ACPI_TABLE_ORIGIN_MASK          (3)
-#define ACPI_TABLE_FLAGS_LOADED         (4)
-#define ACPI_TABLE_FLAGS_ALLOW_RESIZE   (8)
+#define ACPI_ROOT_ORIGIN_UNKNOWN        (0)	/* ~ORIGIN_ALLOCATED */
+#define ACPI_ROOT_ORIGIN_ALLOCATED      (1)
+#define ACPI_ROOT_ALLOW_RESIZE          (2)
 
 /* Predefined (fixed) table indexes */
 

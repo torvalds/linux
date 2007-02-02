@@ -94,9 +94,11 @@ acpi_tb_print_table_header(acpi_physical_address address,
 
 u8 acpi_tb_checksum(u8 * buffer, acpi_native_uint length);
 
-void acpi_tb_convert_fadt(struct acpi_table_fadt *fadt);
+acpi_status
+acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length);
 
-acpi_status acpi_tb_parse_root_table(struct acpi_table_rsdp *rsdp, u8 flags);
+acpi_status
+acpi_tb_parse_root_table(acpi_physical_address rsdp_address, u8 flags);
 
 void *acpi_tb_map(acpi_physical_address address, u32 length, u32 flags);
 

@@ -996,9 +996,13 @@ acpi_ut_info(char *module_name, u32 line_number, char *format, ...)
 {
 	va_list args;
 
-	acpi_os_printf("ACPI (%s-%04d): ", module_name, line_number);
+	/*
+	 * Removed module_name, line_number, and acpica version, not needed
+	 * for info output
+	 */
+	acpi_os_printf("ACPI: ");
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
-	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
+	acpi_os_printf("\n");
 }

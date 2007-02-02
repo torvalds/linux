@@ -82,9 +82,8 @@ acpi_status
 acpi_initialize_tables(struct acpi_table_desc *initial_table_array,
 		       u32 initial_table_count, u8 allow_resize)
 {
-	acpi_physical_address address;
+	acpi_physical_address rsdp_address;
 	acpi_status status;
-	struct acpi_table_rsdp *rsdp;
 
 	ACPI_FUNCTION_TRACE(acpi_initialize_tables);
 
@@ -94,7 +93,7 @@ acpi_initialize_tables(struct acpi_table_desc *initial_table_array,
 	 */
 	if (!initial_table_array) {
 		acpi_gbl_root_table_list.size = initial_table_count;
-		acpi_gbl_root_table_list.flags = ACPI_TABLE_FLAGS_ALLOW_RESIZE;
+		acpi_gbl_root_table_list.flags = ACPI_ROOT_ALLOW_RESIZE;
 
 		status = acpi_tb_resize_root_table_list();
 		if (ACPI_FAILURE(status)) {
@@ -103,37 +102,33 @@ acpi_initialize_tables(struct acpi_table_desc *initial_table_array,
 	} else {
 		/* Root Table Array has been statically allocated by the host */
 
+		ACPI_MEMSET(initial_table_array,
+			    initial_table_count *
+			    sizeof(struct acpi_table_desc), 0);
+
 		acpi_gbl_root_table_list.tables = initial_table_array;
 		acpi_gbl_root_table_list.size = initial_table_count;
-		acpi_gbl_root_table_list.flags = ACPI_TABLE_ORIGIN_UNKNOWN;
+		acpi_gbl_root_table_list.flags = ACPI_ROOT_ORIGIN_UNKNOWN;
 		if (allow_resize) {
-			acpi_gbl_root_table_list.flags =
-			    ACPI_TABLE_FLAGS_ALLOW_RESIZE;
+			acpi_gbl_root_table_list.flags |=
+			    ACPI_ROOT_ALLOW_RESIZE;
 		}
 	}
 
-	/* Get the RSDP and map it */
+	/* Get the address of the RSDP */
 
-	address = acpi_os_get_root_pointer();
-	if (!address) {
+	rsdp_address = acpi_os_get_root_pointer();
+	if (!rsdp_address) {
 		return_ACPI_STATUS(AE_NOT_FOUND);
 	}
-
-	rsdp = acpi_os_map_memory(address, sizeof(struct acpi_table_rsdp));
-	if (!rsdp) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
-	}
-
-	ACPI_INFO((AE_INFO, "%.8s @ 0x%p",
-		   rsdp->signature, ACPI_CAST_PTR(void, address)));
 
 	/*
 	 * Get the root table (RSDT or XSDT) and extract all entries to the local
 	 * Root Table Array. This array contains the information of the RSDT/XSDT
 	 * in a common, more useable format.
 	 */
-	status = acpi_tb_parse_root_table(rsdp, ACPI_TABLE_ORIGIN_MAPPED);
-	acpi_os_unmap_memory(rsdp, sizeof(struct acpi_table_rsdp));
+	status =
+	    acpi_tb_parse_root_table(rsdp_address, ACPI_TABLE_ORIGIN_MAPPED);
 	return_ACPI_STATUS(status);
 }
 
@@ -164,8 +159,7 @@ acpi_status acpi_reallocate_root_table(void)
 	 * Only reallocate the root table if the host provided a static buffer
 	 * for the table array in the call to acpi_initialize_tables.
 	 */
-	if ((acpi_gbl_root_table_list.flags & ACPI_TABLE_ORIGIN_MASK) !=
-	    ACPI_TABLE_ORIGIN_UNKNOWN) {
+	if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
 		return_ACPI_STATUS(AE_SUPPORT);
 	}
 
@@ -185,7 +179,7 @@ acpi_status acpi_reallocate_root_table(void)
 	acpi_gbl_root_table_list.size = acpi_gbl_root_table_list.count;
 	acpi_gbl_root_table_list.tables = tables;
 	acpi_gbl_root_table_list.flags =
-	    ACPI_TABLE_ORIGIN_ALLOCATED | ACPI_TABLE_FLAGS_ALLOW_RESIZE;
+	    ACPI_ROOT_ORIGIN_ALLOCATED | ACPI_ROOT_ALLOW_RESIZE;
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -247,6 +241,12 @@ acpi_get_table_header(char *signature,
 	acpi_native_uint i;
 	acpi_native_uint j;
 
+	/* Parameter validation */
+
+	if (!signature || !out_table_header) {
+		return (AE_BAD_PARAMETER);
+	}
+
 	/*
 	 * Walk the root table list
 	 */
@@ -267,7 +267,7 @@ acpi_get_table_header(char *signature,
 				acpi_gbl_root_table_list.tables[i].
 				flags & ACPI_TABLE_ORIGIN_MASK);
 
-		if (!out_table_header) {
+		if (!(*out_table_header)) {
 			return (AE_NO_MEMORY);
 		}
 
@@ -339,6 +339,12 @@ acpi_get_table(char *signature,
 	acpi_native_uint j;
 	acpi_status status;
 
+	/* Parameter validation */
+
+	if (!signature || !out_table) {
+		return (AE_BAD_PARAMETER);
+	}
+
 	/*
 	 * Walk the root table list
 	 */
@@ -386,6 +392,12 @@ acpi_get_table_by_index(acpi_native_uint table_index,
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_get_table_by_index);
+
+	/* Parameter validation */
+
+	if (!table) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 

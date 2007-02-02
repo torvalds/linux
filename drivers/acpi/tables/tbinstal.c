@@ -61,7 +61,7 @@ ACPI_MODULE_NAME("tbinstal")
  *****************************************************************************/
 acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
 {
-	u8 checksum;
+	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(tb_verify_table);
 
@@ -84,17 +84,9 @@ acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
 
 	/* Always calculate checksum, ignore bad checksum if requested */
 
-	checksum = acpi_tb_checksum(ACPI_CAST_PTR(void, table_desc->pointer),
-				    table_desc->length);
-
-#if (ACPI_CHECKSUM_ABORT)
-
-	if (checksum) {
-		return_ACPI_STATUS(AE_BAD_CHECKSUM);
-	}
-#endif
-
-	return_ACPI_STATUS(AE_OK);
+	status =
+	    acpi_tb_verify_checksum(table_desc->pointer, table_desc->length);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
@@ -188,7 +180,7 @@ acpi_status acpi_tb_resize_root_table_list(void)
 
 	/* allow_resize flag is a parameter to acpi_initialize_tables */
 
-	if (!(acpi_gbl_root_table_list.flags & ACPI_TABLE_FLAGS_ALLOW_RESIZE)) {
+	if (!(acpi_gbl_root_table_list.flags & ACPI_ROOT_ALLOW_RESIZE)) {
 		ACPI_ERROR((AE_INFO,
 			    "Resize of Root Table Array is not allowed"));
 		return_ACPI_STATUS(AE_SUPPORT);
@@ -212,18 +204,14 @@ acpi_status acpi_tb_resize_root_table_list(void)
 			    acpi_gbl_root_table_list.size *
 			    sizeof(struct acpi_table_desc));
 
-		if (acpi_gbl_root_table_list.flags & ACPI_TABLE_ORIGIN_MASK ==
-		    ACPI_TABLE_ORIGIN_ALLOCATED) {
+		if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
 			ACPI_FREE(acpi_gbl_root_table_list.tables);
 		}
 	}
 
 	acpi_gbl_root_table_list.tables = tables;
 	acpi_gbl_root_table_list.size += ACPI_ROOT_TABLE_SIZE_INCREMENT;
-	acpi_gbl_root_table_list.flags = (u8) (ACPI_TABLE_ORIGIN_ALLOCATED |
-					       (acpi_gbl_root_table_list.
-						flags &
-						~ACPI_TABLE_ORIGIN_MASK));
+	acpi_gbl_root_table_list.flags |= (u8) ACPI_ROOT_ORIGIN_ALLOCATED;
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -348,8 +336,7 @@ void acpi_tb_terminate(void)
 	 * Delete the root table array if allocated locally. Array cannot be
 	 * mapped, so we don't need to check for that flag.
 	 */
-	if ((acpi_gbl_root_table_list.flags & ACPI_TABLE_ORIGIN_MASK) ==
-	    ACPI_TABLE_ORIGIN_ALLOCATED) {
+	if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
 		ACPI_FREE(acpi_gbl_root_table_list.tables);
 	}
 
@@ -497,7 +484,7 @@ u8 acpi_tb_is_table_loaded(acpi_native_uint table_index)
 	if (table_index < acpi_gbl_root_table_list.count) {
 		is_loaded = (u8)
 		    (acpi_gbl_root_table_list.tables[table_index].
-		     flags & ACPI_TABLE_FLAGS_LOADED);
+		     flags & ACPI_TABLE_IS_LOADED);
 	}
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
@@ -524,10 +511,10 @@ void acpi_tb_set_table_loaded_flag(acpi_native_uint table_index, u8 is_loaded)
 	if (table_index < acpi_gbl_root_table_list.count) {
 		if (is_loaded) {
 			acpi_gbl_root_table_list.tables[table_index].flags |=
-			    ACPI_TABLE_FLAGS_LOADED;
+			    ACPI_TABLE_IS_LOADED;
 		} else {
 			acpi_gbl_root_table_list.tables[table_index].flags &=
-			    ~ACPI_TABLE_FLAGS_LOADED;
+			    ~ACPI_TABLE_IS_LOADED;
 		}
 	}
 

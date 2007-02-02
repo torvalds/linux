@@ -199,8 +199,8 @@ struct acpi_table_fadt {
 	u32 pm1b_control_block;	/* Port address of Power Mgt 1b Control Reg Blk */
 	u32 pm2_control_block;	/* Port address of Power Mgt 2 Control Reg Blk */
 	u32 pm_timer_block;	/* Port address of Power Mgt Timer Ctrl Reg Blk */
-	u32 gpe0_block;		/* Port addr of General Purpose acpi_event 0 Reg Blk */
-	u32 gpe1_block;		/* Port addr of General Purpose acpi_event 1 Reg Blk */
+	u32 gpe0_block;		/* Port addr of General Purpose Event 0 Reg Blk */
+	u32 gpe1_block;		/* Port addr of General Purpose Event 1 Reg Blk */
 	u8 pm1_event_length;	/* Byte Length of ports at pm1_x_evt_blk */
 	u8 pm1_control_length;	/* Byte Length of ports at pm1_x_cnt_blk */
 	u8 pm2_control_length;	/* Byte Length of ports at pm2_cnt_blk */
@@ -226,14 +226,14 @@ struct acpi_table_fadt {
 	u8 reserved4[3];	/* These three bytes must be zero */
 	u64 Xfacs;		/* 64-bit physical address of FACS */
 	u64 Xdsdt;		/* 64-bit physical address of DSDT */
-	struct acpi_generic_address xpm1a_event_block;	/* Extended Power Mgt 1a acpi_event Reg Blk address */
-	struct acpi_generic_address xpm1b_event_block;	/* Extended Power Mgt 1b acpi_event Reg Blk address */
+	struct acpi_generic_address xpm1a_event_block;	/* Extended Power Mgt 1a Event Reg Blk address */
+	struct acpi_generic_address xpm1b_event_block;	/* Extended Power Mgt 1b Event Reg Blk address */
 	struct acpi_generic_address xpm1a_control_block;	/* Extended Power Mgt 1a Control Reg Blk address */
 	struct acpi_generic_address xpm1b_control_block;	/* Extended Power Mgt 1b Control Reg Blk address */
 	struct acpi_generic_address xpm2_control_block;	/* Extended Power Mgt 2 Control Reg Blk address */
 	struct acpi_generic_address xpm_timer_block;	/* Extended Power Mgt Timer Ctrl Reg Blk address */
-	struct acpi_generic_address xgpe0_block;	/* Extended General Purpose acpi_event 0 Reg Blk address */
-	struct acpi_generic_address xgpe1_block;	/* Extended General Purpose acpi_event 1 Reg Blk address */
+	struct acpi_generic_address xgpe0_block;	/* Extended General Purpose Event 0 Reg Blk address */
+	struct acpi_generic_address xgpe1_block;	/* Extended General Purpose Event 1 Reg Blk address */
 };
 
 /* FADT flags */
