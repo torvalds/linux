@@ -367,7 +367,7 @@ struct acpi_gpe_event_info {
 	union acpi_gpe_dispatch_info dispatch;	/* Either Method or Handler */
 	struct acpi_gpe_register_info *register_info;	/* Backpointer to register info */
 	u8 flags;		/* Misc info about this GPE */
-	u8 register_bit;	/* This GPE bit within the register */
+	u8 gpe_number;		/* This GPE */
 };
 
 /* Information about a GPE register pair, one per each status/enable pair in an array */

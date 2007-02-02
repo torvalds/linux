@@ -819,7 +819,8 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 		/* Init the event_info for each GPE within this register */
 
 		for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
-			this_event->register_bit = acpi_gbl_decode_to8bit[j];
+			this_event->gpe_number =
+			    (u8) (this_register->base_gpe_number + j);
 			this_event->register_info = this_register;
 			this_event++;
 		}

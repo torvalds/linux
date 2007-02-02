@@ -121,7 +121,9 @@ acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info,
 	if (!gpe_register_info) {
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
-	register_bit = gpe_event_info->register_bit;
+	register_bit = (u8)
+	    (1 <<
+	     (gpe_event_info->gpe_number - gpe_register_info->base_gpe_number));
 
 	/* 1) Disable case.  Simply clear all enable bits */
 
@@ -458,8 +460,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 
 				/* Examine one GPE bit */
 
-				if (enabled_status_byte &
-				    acpi_gbl_decode_to8bit[j]) {
+				if (enabled_status_byte & (1 << j)) {
 					/*
 					 * Found an active GPE. Dispatch the event to a handler
 					 * or method.
