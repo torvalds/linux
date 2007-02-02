@@ -196,7 +196,7 @@ dohash(char *out, char *in, char *key, int forw)
 	char c[28];
 	char d[28];
 	char *cd;
-	char ki[16][48];
+	char (*ki)[48];
 	char *pd1;
 	char l[32], r[32];
 	char *rl;
@@ -204,6 +204,10 @@ dohash(char *out, char *in, char *key, int forw)
 	/* Have to reduce stack usage */
 	pk1 = kmalloc(56+56+64+64,GFP_KERNEL);
 	if(pk1 == NULL)
+		return;
+
+	ki = kmalloc(16*48, GFP_KERNEL);
+	if(ki == NULL)
 		return;
 
 	cd = pk1 + 56;
@@ -243,6 +247,7 @@ dohash(char *out, char *in, char *key, int forw)
 		er = kmalloc(48+48+32+32+32, GFP_KERNEL);
 		if(er == NULL) {
 			kfree(pk1);
+			kfree(ki);
 			return;
 		}
 		erk = er+48;
@@ -290,6 +295,7 @@ dohash(char *out, char *in, char *key, int forw)
 
 	permute(out, rl, perm6, 64);
 	kfree(pk1);
+	kfree(ki);
 }
 
 static void
