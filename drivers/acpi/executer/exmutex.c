@@ -329,6 +329,12 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
  *
  * DESCRIPTION: Release all mutexes held by this thread
  *
+ * NOTE: This function is called as the thread is exiting the interpreter.
+ * Mutexes are not released when an individual control method is exited, but
+ * only when the parent thread actually exits the interpreter. This allows one
+ * method to acquire a mutex, and a different method to release it, as long as
+ * this is performed underneath a single parent control method.
+ *
  ******************************************************************************/
 
 void acpi_ex_release_all_mutexes(struct acpi_thread_state *thread)
@@ -346,7 +352,7 @@ void acpi_ex_release_all_mutexes(struct acpi_thread_state *thread)
 
 		obj_desc->mutex.prev = NULL;
 		obj_desc->mutex.next = NULL;
-		obj_desc->mutex.acquisition_depth = 1;
+		obj_desc->mutex.acquisition_depth = 0;
 
 		/* Release the mutex, special case for Global Lock */
 
