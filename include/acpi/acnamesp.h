@@ -65,9 +65,13 @@
 #define ACPI_NS_ERROR_IF_FOUND      0x08
 #define ACPI_NS_PREFIX_IS_SCOPE     0x10
 #define ACPI_NS_EXTERNAL            0x20
+#define ACPI_NS_TEMPORARY           0x40
 
-#define ACPI_NS_WALK_UNLOCK         TRUE
-#define ACPI_NS_WALK_NO_UNLOCK      FALSE
+/* Flags for acpi_ns_walk_namespace */
+
+#define ACPI_NS_WALK_NO_UNLOCK      0
+#define ACPI_NS_WALK_UNLOCK         0x01
+#define ACPI_NS_WALK_TEMP_NODES     0x02
 
 /*
  * nsinit - Namespace initialization
@@ -92,7 +96,7 @@ acpi_status
 acpi_ns_walk_namespace(acpi_object_type type,
 		       acpi_handle start_object,
 		       u32 max_depth,
-		       u8 unlock_before_callback,
+		       u32 flags,
 		       acpi_walk_callback user_function,
 		       void *context, void **return_value);
 

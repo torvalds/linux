@@ -756,9 +756,9 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		flags = ACPI_NS_NO_UPSEARCH;
 		if (walk_state->pass_number == 3) {
 
-			/* Execution mode, node cannot already exist */
+			/* Execution mode, node cannot already exist, node is temporary */
 
-			flags |= ACPI_NS_ERROR_IF_FOUND;
+			flags |= (ACPI_NS_ERROR_IF_FOUND | ACPI_NS_TEMPORARY);
 		}
 
 		/* Add new entry or lookup existing entry */

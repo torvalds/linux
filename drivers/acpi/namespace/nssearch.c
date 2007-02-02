@@ -402,6 +402,10 @@ acpi_ns_search_and_enter(u32 target_name,
 	}
 #endif
 
+	if (flags & ACPI_NS_TEMPORARY) {
+		new_node->flags |= ANOBJ_TEMPORARY;
+	}
+
 	/* Install the new object into the parent's list of children */
 
 	acpi_ns_install_node(walk_state, node, new_node, type);

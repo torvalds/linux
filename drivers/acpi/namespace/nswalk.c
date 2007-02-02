@@ -126,7 +126,7 @@ struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type,
  * PARAMETERS:  Type                - acpi_object_type to search for
  *              start_node          - Handle in namespace where search begins
  *              max_depth           - Depth to which search is to reach
- *              unlock_before_callback- Whether to unlock the NS before invoking
+ *              Flags               - Whether to unlock the NS before invoking
  *                                    the callback routine
  *              user_function       - Called when an object of "Type" is found
  *              Context             - Passed to user function
@@ -153,7 +153,7 @@ acpi_status
 acpi_ns_walk_namespace(acpi_object_type type,
 		       acpi_handle start_node,
 		       u32 max_depth,
-		       u8 unlock_before_callback,
+		       u32 flags,
 		       acpi_walk_callback user_function,
 		       void *context, void **return_value)
 {
@@ -201,12 +201,15 @@ acpi_ns_walk_namespace(acpi_object_type type,
 				child_type = child_node->type;
 			}
 
-			if (child_type == type) {
+			if ((child_type == type) &&
+			    (!(child_node->flags & ANOBJ_TEMPORARY) ||
+			     (child_node->flags & ANOBJ_TEMPORARY)
+			     && (flags & ACPI_NS_WALK_TEMP_NODES))) {
 				/*
 				 * Found a matching node, invoke the user
 				 * callback function
 				 */
-				if (unlock_before_callback) {
+				if (flags & ACPI_NS_WALK_UNLOCK) {
 					mutex_status =
 					    acpi_ut_release_mutex
 					    (ACPI_MTX_NAMESPACE);
@@ -219,7 +222,7 @@ acpi_ns_walk_namespace(acpi_object_type type,
 				status = user_function(child_node, level,
 						       context, return_value);
 
-				if (unlock_before_callback) {
+				if (flags & ACPI_NS_WALK_UNLOCK) {
 					mutex_status =
 					    acpi_ut_acquire_mutex
 					    (ACPI_MTX_NAMESPACE);
