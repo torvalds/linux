@@ -214,7 +214,7 @@ acpi_status acpi_ns_root_initialize(void)
 					/* Create additional counting semaphore for global lock */
 
 					status =
-					    acpi_os_create_semaphore(1, 1,
+					    acpi_os_create_semaphore(1, 0,
 								     &acpi_gbl_global_lock_semaphore);
 					if (ACPI_FAILURE(status)) {
 						acpi_ut_remove_reference
