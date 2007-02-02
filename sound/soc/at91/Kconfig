@@ -13,12 +13,20 @@ config SND_AT91_SOC_I2S
 	tristate
 
 config SND_AT91_SOC_ETI_B1_WM8731
-	tristate "SoC I2S Audio support for Endrelia ETI-B1 board"
-	depends on SND_AT91_SOC && MACH_ETI_B1
+	tristate "SoC I2S Audio support for WM8731-based Endrelia ETI-B1 boards"
+	depends on SND_AT91_SOC && (MACH_ETI_B1 || MACH_ETI_C1)
 	select SND_AT91_SOC_I2S
 	select SND_SOC_WM8731
 	help
-	  Say Y if you want to add support for SoC audio on Endrelia
-          ETI-B1 board.
+	  Say Y if you want to add support for SoC audio on WM8731-based
+	  Endrelia Technologies Inc ETI-B1 or ETI-C1 boards.
+
+config SND_AT91_SOC_ETI_SLAVE
+	bool "Run codec in slave Mode on Endrelia boards"
+	depends on SND_AT91_SOC_ETI_B1_WM8731
+	default n
+	help
+	  Say Y if you want to run with the AT91 SSC generating the BCLK
+	  and LRC signals on Endrelia boards.
 
 endmenu
