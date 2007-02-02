@@ -227,82 +227,6 @@ acpi_status acpi_ex_system_do_suspend(acpi_integer how_long)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ex_system_acquire_mutex
- *
- * PARAMETERS:  time_desc       - Maximum time to wait for the mutex
- *              obj_desc        - The object descriptor for this op
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Provides an access point to perform synchronization operations
- *              within the AML.  This function will cause a lock to be generated
- *              for the Mutex pointed to by obj_desc.
- *
- ******************************************************************************/
-
-acpi_status
-acpi_ex_system_acquire_mutex(union acpi_operand_object * time_desc,
-			     union acpi_operand_object * obj_desc)
-{
-	acpi_status status = AE_OK;
-
-	ACPI_FUNCTION_TRACE_PTR(ex_system_acquire_mutex, obj_desc);
-
-	if (!obj_desc) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
-	}
-
-	/* Support for the _GL_ Mutex object -- go get the global lock */
-
-	if (obj_desc->mutex.os_mutex == ACPI_GLOBAL_LOCK) {
-		status =
-		    acpi_ev_acquire_global_lock((u16) time_desc->integer.value);
-		return_ACPI_STATUS(status);
-	}
-
-	status = acpi_ex_system_wait_mutex(obj_desc->mutex.os_mutex,
-					   (u16) time_desc->integer.value);
-	return_ACPI_STATUS(status);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ex_system_release_mutex
- *
- * PARAMETERS:  obj_desc        - The object descriptor for this op
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Provides an access point to perform synchronization operations
- *              within the AML.  This operation is a request to release a
- *              previously acquired Mutex.  If the Mutex variable is set then
- *              it will be decremented.
- *
- ******************************************************************************/
-
-acpi_status acpi_ex_system_release_mutex(union acpi_operand_object *obj_desc)
-{
-	acpi_status status = AE_OK;
-
-	ACPI_FUNCTION_TRACE(ex_system_release_mutex);
-
-	if (!obj_desc) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
-	}
-
-	/* Support for the _GL_ Mutex object -- release the global lock */
-
-	if (obj_desc->mutex.os_mutex == ACPI_GLOBAL_LOCK) {
-		status = acpi_ev_release_global_lock();
-		return_ACPI_STATUS(status);
-	}
-
-	acpi_os_release_mutex(obj_desc->mutex.os_mutex);
-	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_ex_system_signal_event
  *
  * PARAMETERS:  obj_desc        - The object descriptor for this op
@@ -314,7 +238,7 @@ acpi_status acpi_ex_system_release_mutex(union acpi_operand_object *obj_desc)
  *
  ******************************************************************************/
 
-acpi_status acpi_ex_system_signal_event(union acpi_operand_object *obj_desc)
+acpi_status acpi_ex_system_signal_event(union acpi_operand_object * obj_desc)
 {
 	acpi_status status = AE_OK;
 

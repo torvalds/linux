@@ -197,6 +197,7 @@ ACPI_EXTERN struct acpi_mutex_info acpi_gbl_mutex_info[ACPI_NUM_MUTEX];
 /*
  * Global lock semaphore works in conjunction with the actual HW global lock
  */
+ACPI_EXTERN acpi_mutex acpi_gbl_global_lock_mutex;
 ACPI_EXTERN acpi_semaphore acpi_gbl_global_lock_semaphore;
 
 /*
@@ -240,7 +241,6 @@ ACPI_EXTERN struct acpi_walk_state *acpi_gbl_breakpoint_walk;
 
 /* Misc */
 
-ACPI_EXTERN u32 acpi_gbl_global_lock_thread_count;
 ACPI_EXTERN u32 acpi_gbl_original_mode;
 ACPI_EXTERN u32 acpi_gbl_rsdp_original_location;
 ACPI_EXTERN u32 acpi_gbl_ns_lookup_count;

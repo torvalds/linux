@@ -51,7 +51,6 @@
 #define ACPI_SERIALIZED                 0xFF
 
 typedef u32 acpi_mutex_handle;
-#define ACPI_GLOBAL_LOCK                (acpi_semaphore) (-1)
 
 /* Total number of aml opcodes defined */
 
