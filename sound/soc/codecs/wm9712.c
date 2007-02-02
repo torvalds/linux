@@ -34,23 +34,6 @@ static unsigned int ac97_read(struct snd_soc_codec *codec,
 static int ac97_write(struct snd_soc_codec *codec,
 	unsigned int reg, unsigned int val);
 
-#define AC97_DIR \
-	(SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE)
-
-#define AC97_RATES \
-	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
-	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
-	SNDRV_PCM_RATE_48000)
-
-/* may need to expand this */
-static struct snd_soc_dai_mode ac97_modes[] = {
-	{
-		.pcmfmt = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S18_3LE,
-		.pcmrate = AC97_RATES,
-		.pcmdir = AC97_DIR,
-	},
-};
-
 /*
  * WM9712 register cache
  */
@@ -554,35 +537,38 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream)
 	return ac97_write(codec, AC97_PCM_SURR_DAC_RATE, runtime->rate);
 }
 
+#define WM9712_AC97_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
+		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
+
 struct snd_soc_codec_dai wm9712_dai[] = {
 {
 	.name = "AC97 HiFi",
 	.playback = {
 		.stream_name = "HiFi Playback",
 		.channels_min = 1,
-		.channels_max = 2,},
+		.channels_max = 2,
+		.rates = WM9712_AC97_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.capture = {
 		.stream_name = "HiFi Capture",
 		.channels_min = 1,
-		.channels_max = 2,},
+		.channels_max = 2,
+		.rates = WM9712_AC97_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = {
 		.prepare = ac97_prepare,},
-	.caps = {
-		.num_modes = ARRAY_SIZE(ac97_modes),
-		.mode = ac97_modes,},
-	},
-	{
+},
+{
 	.name = "AC97 Aux",
 	.playback = {
 		.stream_name = "Aux Playback",
 		.channels_min = 1,
-		.channels_max = 1,},
+		.channels_max = 1,
+		.rates = WM9712_AC97_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = {
 		.prepare = ac97_aux_prepare,},
-	.caps = {
-		.num_modes = ARRAY_SIZE(ac97_modes),
-		.mode = ac97_modes,},
-	},
+}
 };
 EXPORT_SYMBOL_GPL(wm9712_dai);
 
