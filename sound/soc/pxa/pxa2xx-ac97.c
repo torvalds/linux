@@ -31,26 +31,11 @@
 #include <asm/arch/audio.h>
 
 #include "pxa2xx-pcm.h"
+#include "pxa2xx-ac97.h"
 
 static DEFINE_MUTEX(car_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(gsr_wq);
 static volatile long gsr_bits;
-
-#define AC97_DIR \
-	(SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE)
-
-#define AC97_RATES \
-	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
-	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
-
-/* may need to expand this */
-static struct snd_soc_dai_mode pxa2xx_ac97_modes[] = {
-	{
-		.pcmfmt = SNDRV_PCM_FMTBIT_S16_LE,
-		.pcmrate = AC97_RATES,
-		.pcmdir = AC97_DIR,
-	},
-};
 
 /*
  * Beware PXA27x bugs:
@@ -334,11 +319,12 @@ static int pxa2xx_ac97_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		rtd->cpu_dai->dma_data = &pxa2xx_ac97_pcm_stereo_out;
+		cpu_dai->dma_data = &pxa2xx_ac97_pcm_stereo_out;
 	else
-		rtd->cpu_dai->dma_data = &pxa2xx_ac97_pcm_stereo_in;
+		cpu_dai->dma_data = &pxa2xx_ac97_pcm_stereo_in;
 
 	return 0;
 }
@@ -347,11 +333,12 @@ static int pxa2xx_ac97_hw_aux_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		rtd->cpu_dai->dma_data = &pxa2xx_ac97_pcm_aux_mono_out;
+		cpu_dai->dma_data = &pxa2xx_ac97_pcm_aux_mono_out;
 	else
-		rtd->cpu_dai->dma_data = &pxa2xx_ac97_pcm_aux_mono_in;
+		cpu_dai->dma_data = &pxa2xx_ac97_pcm_aux_mono_in;
 
 	return 0;
 }
@@ -360,14 +347,19 @@ static int pxa2xx_ac97_hw_mic_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return -ENODEV;
 	else
-		rtd->cpu_dai->dma_data = &pxa2xx_ac97_pcm_mic_mono_in;
+		cpu_dai->dma_data = &pxa2xx_ac97_pcm_mic_mono_in;
 
 	return 0;
 }
+
+#define PXA2XX_AC97_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
+		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | \
+		SNDRV_PCM_RATE_48000)
 
 /*
  * There is only 1 physical AC97 interface for pxa2xx, but it
@@ -385,16 +377,17 @@ struct snd_soc_cpu_dai pxa_ac97_dai[] = {
 	.playback = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 2,
-		.channels_max = 2,},
+		.channels_max = 2,
+		.rates = PXA2XX_AC97_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.capture = {
 		.stream_name = "AC97 Capture",
 		.channels_min = 2,
-		.channels_max = 2,},
+		.channels_max = 2,
+		.rates = PXA2XX_AC97_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = {
 		.hw_params = pxa2xx_ac97_hw_params,},
-	.caps = {
-		.num_modes = ARRAY_SIZE(pxa2xx_ac97_modes),
-		.mode = pxa2xx_ac97_modes,},
 },
 {
 	.name = "pxa2xx-ac97-aux",
@@ -403,16 +396,17 @@ struct snd_soc_cpu_dai pxa_ac97_dai[] = {
 	.playback = {
 		.stream_name = "AC97 Aux Playback",
 		.channels_min = 1,
-		.channels_max = 1,},
+		.channels_max = 1,
+		.rates = PXA2XX_AC97_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.capture = {
 		.stream_name = "AC97 Aux Capture",
 		.channels_min = 1,
-		.channels_max = 1,},
+		.channels_max = 1,
+		.rates = PXA2XX_AC97_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = {
 		.hw_params = pxa2xx_ac97_hw_aux_params,},
-	.caps = {
-		.num_modes = ARRAY_SIZE(pxa2xx_ac97_modes),
-		.mode = pxa2xx_ac97_modes,},
 },
 {
 	.name = "pxa2xx-ac97-mic",
@@ -421,12 +415,12 @@ struct snd_soc_cpu_dai pxa_ac97_dai[] = {
 	.capture = {
 		.stream_name = "AC97 Mic Capture",
 		.channels_min = 1,
-		.channels_max = 1,},
+		.channels_max = 1,
+		.rates = PXA2XX_AC97_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = {
 		.hw_params = pxa2xx_ac97_hw_mic_params,},
-	.caps = {
-		.num_modes = ARRAY_SIZE(pxa2xx_ac97_modes),
-		.mode = pxa2xx_ac97_modes,},},
+},
 };
 
 EXPORT_SYMBOL_GPL(pxa_ac97_dai);
