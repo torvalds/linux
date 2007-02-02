@@ -495,6 +495,7 @@ struct ata_device {
 
 	/* error history */
 	struct ata_ering	ering;
+	int			spdn_cnt;
 	unsigned int		horkage;	/* List of broken features */
 #ifdef CONFIG_SATA_ACPI
 	/* ACPI objects info */
