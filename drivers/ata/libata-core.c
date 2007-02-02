@@ -600,6 +600,8 @@ void ata_dev_disable(struct ata_device *dev)
 {
 	if (ata_dev_enabled(dev) && ata_msg_drv(dev->ap)) {
 		ata_dev_printk(dev, KERN_WARNING, "disabled\n");
+		ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO0 |
+					     ATA_DNXFER_QUIET);
 		dev->class++;
 	}
 }
@@ -1778,9 +1780,8 @@ int ata_bus_probe(struct ata_port *ap)
 {
 	unsigned int classes[ATA_MAX_DEVICES];
 	int tries[ATA_MAX_DEVICES];
-	int i, rc, down_xfermask;
+	int i, rc;
 	struct ata_device *dev;
-	int dnxfer_sel;
 
 	ata_port_probe(ap);
 
@@ -1788,8 +1789,6 @@ int ata_bus_probe(struct ata_port *ap)
 		tries[i] = ATA_PROBE_MAX_TRIES;
 
  retry:
-	down_xfermask = 0;
-
 	/* reset and determine device classes */
 	ap->ops->phy_reset(ap);
 
@@ -1837,10 +1836,8 @@ int ata_bus_probe(struct ata_port *ap)
 
 	/* configure transfer mode */
 	rc = ata_set_mode(ap, &dev);
-	if (rc) {
-		down_xfermask = 1;
+	if (rc)
 		goto fail;
-	}
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
 		if (ata_dev_enabled(&ap->device[i]))
@@ -1852,27 +1849,29 @@ int ata_bus_probe(struct ata_port *ap)
 	return -ENODEV;
 
  fail:
+	tries[dev->devno]--;
+
 	switch (rc) {
 	case -EINVAL:
-	case -ENODEV:
+		/* eeek, something went very wrong, give up */
 		tries[dev->devno] = 0;
 		break;
+
+	case -ENODEV:
+		/* give it just one more chance */
+		tries[dev->devno] = min(tries[dev->devno], 1);
 	case -EIO:
-		sata_down_spd_limit(ap);
-		/* fall through */
-	default:
-		tries[dev->devno]--;
-		dnxfer_sel = ATA_DNXFER_ANY;
-		if (tries[dev->devno] == 1)
-			dnxfer_sel = ATA_DNXFER_FORCE_PIO0;
-		if (down_xfermask && ata_down_xfermask_limit(dev, dnxfer_sel))
-			tries[dev->devno] = 0;
+		if (tries[dev->devno] == 1) {
+			/* This is the last chance, better to slow
+			 * down than lose it.
+			 */
+			sata_down_spd_limit(ap);
+			ata_down_xfermask_limit(dev, ATA_DNXFER_PIO);
+		}
 	}
 
-	if (!tries[dev->devno]) {
-		ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO0);
+	if (!tries[dev->devno])
 		ata_dev_disable(dev);
-	}
 
 	goto retry;
 }

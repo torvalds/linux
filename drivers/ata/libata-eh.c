@@ -1964,8 +1964,7 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 {
 	struct ata_eh_context *ehc = &ap->eh_context;
 	struct ata_device *dev;
-	int down_xfermask, i, rc;
-	int dnxfer_sel;
+	int i, rc;
 
 	DPRINTK("ENTER\n");
 
@@ -1994,7 +1993,6 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	}
 
  retry:
-	down_xfermask = 0;
 	rc = 0;
 
 	/* if UNLOADING, finish immediately */
@@ -2039,10 +2037,8 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	/* configure transfer mode if necessary */
 	if (ehc->i.flags & ATA_EHI_SETMODE) {
 		rc = ata_set_mode(ap, &dev);
-		if (rc) {
-			down_xfermask = 1;
+		if (rc)
 			goto dev_fail;
-		}
 		ehc->i.flags &= ~ATA_EHI_SETMODE;
 	}
 
@@ -2054,22 +2050,27 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	goto out;
 
  dev_fail:
+	ehc->tries[dev->devno]--;
+
 	switch (rc) {
-	case -ENODEV:
-		/* device missing, schedule probing */
-		ehc->i.probe_mask |= (1 << dev->devno);
 	case -EINVAL:
+		/* eeek, something went very wrong, give up */
 		ehc->tries[dev->devno] = 0;
 		break;
+
+	case -ENODEV:
+		/* device missing or wrong IDENTIFY data, schedule probing */
+		ehc->i.probe_mask |= (1 << dev->devno);
+		/* give it just one more chance */
+		ehc->tries[dev->devno] = min(ehc->tries[dev->devno], 1);
 	case -EIO:
-		sata_down_spd_limit(ap);
-	default:
-		ehc->tries[dev->devno]--;
-		dnxfer_sel = ATA_DNXFER_ANY;
-		if (ehc->tries[dev->devno] == 1)
-			dnxfer_sel = ATA_DNXFER_FORCE_PIO0;
-		if (down_xfermask && ata_down_xfermask_limit(dev, dnxfer_sel))
-			ehc->tries[dev->devno] = 0;
+		if (ehc->tries[dev->devno] == 1) {
+			/* This is the last chance, better to slow
+			 * down than lose it.
+			 */
+			sata_down_spd_limit(ap);
+			ata_down_xfermask_limit(dev, ATA_DNXFER_PIO);
+		}
 	}
 
 	if (ata_dev_enabled(dev) && !ehc->tries[dev->devno]) {
