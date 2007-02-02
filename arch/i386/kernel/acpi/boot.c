@@ -169,16 +169,16 @@ char *__acpi_map_table(unsigned long phys, unsigned long size)
 struct acpi_table_mcfg_config *pci_mmcfg_config;
 int pci_mmcfg_config_num;
 
-int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
+int __init acpi_parse_mcfg(struct acpi_table_header *header)
 {
 	struct acpi_table_mcfg *mcfg;
 	unsigned long i;
 	int config_size;
 
-	if (!phys_addr || !size)
+	if (!header)
 		return -EINVAL;
 
-	mcfg = (struct acpi_table_mcfg *)__acpi_map_table(phys_addr, size);
+	mcfg = (struct acpi_table_mcfg *)header;
 	if (!mcfg) {
 		printk(KERN_WARNING PREFIX "Unable to map MCFG\n");
 		return -ENODEV;
@@ -186,7 +186,7 @@ int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
 
 	/* how many config structures do we have */
 	pci_mmcfg_config_num = 0;
-	i = size - sizeof(struct acpi_table_mcfg);
+	i = header->length - sizeof(struct acpi_table_mcfg);
 	while (i >= sizeof(struct acpi_table_mcfg_config)) {
 		++pci_mmcfg_config_num;
 		i -= sizeof(struct acpi_table_mcfg_config);
@@ -220,14 +220,14 @@ int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
 #endif				/* CONFIG_PCI_MMCONFIG */
 
 #ifdef CONFIG_X86_LOCAL_APIC
-static int __init acpi_parse_madt(unsigned long phys_addr, unsigned long size)
+static int __init acpi_parse_madt(struct acpi_table_header *header)
 {
 	struct acpi_table_madt *madt = NULL;
 
-	if (!phys_addr || !size || !cpu_has_apic)
+	if (!header|| !cpu_has_apic)
 		return -EINVAL;
 
-	madt = (struct acpi_table_madt *)__acpi_map_table(phys_addr, size);
+	madt = (struct acpi_table_madt *)header;
 	if (!madt) {
 		printk(KERN_WARNING PREFIX "Unable to map MADT\n");
 		return -ENODEV;
@@ -619,14 +619,14 @@ acpi_scan_rsdp(unsigned long start, unsigned long length)
 	return 0;
 }
 
-static int __init acpi_parse_sbf(unsigned long phys_addr, unsigned long size)
+static int __init acpi_parse_sbf(struct acpi_table_header *header)
 {
 	struct acpi_table_sbf *sb;
 
-	if (!phys_addr || !size)
+	if (!header)
 		return -EINVAL;
 
-	sb = (struct acpi_table_sbf *)__acpi_map_table(phys_addr, size);
+	sb = (struct acpi_table_sbf *)header;
 	if (!sb) {
 		printk(KERN_WARNING PREFIX "Unable to map SBF\n");
 		return -ENODEV;
@@ -639,16 +639,16 @@ static int __init acpi_parse_sbf(unsigned long phys_addr, unsigned long size)
 
 #ifdef CONFIG_HPET_TIMER
 
-static int __init acpi_parse_hpet(unsigned long phys, unsigned long size)
+static int __init acpi_parse_hpet(struct acpi_table_header *header)
 {
 	struct acpi_table_hpet *hpet_tbl;
 	struct resource *hpet_res;
 	resource_size_t res_start;
 
-	if (!phys || !size)
+	if (!header)
 		return -EINVAL;
 
-	hpet_tbl = (struct acpi_table_hpet *)__acpi_map_table(phys, size);
+	hpet_tbl = (struct acpi_table_hpet *)header;
 	if (!hpet_tbl) {
 		printk(KERN_WARNING PREFIX "Unable to map HPET\n");
 		return -ENODEV;
@@ -707,11 +707,11 @@ static int __init acpi_parse_hpet(unsigned long phys, unsigned long size)
 extern u32 pmtmr_ioport;
 #endif
 
-static int __init acpi_parse_fadt(unsigned long phys, unsigned long size)
+static int __init acpi_parse_fadt(struct acpi_table_header *header)
 {
 	struct fadt_descriptor *fadt = NULL;
 
-	fadt = (struct fadt_descriptor *)__acpi_map_table(phys, size);
+	fadt = (struct fadt_descriptor *)header;
 	if (!fadt) {
 		printk(KERN_WARNING PREFIX "Unable to map FADT\n");
 		return 0;
@@ -901,7 +901,7 @@ static void __init acpi_process_madt(void)
 #ifdef CONFIG_X86_LOCAL_APIC
 	int count, error;
 
-	count = acpi_table_parse(ACPI_APIC, acpi_parse_madt);
+	count = acpi_table_parse("APIC", acpi_parse_madt);
 	if (count >= 1) {
 
 		/*
@@ -1197,7 +1197,7 @@ int __init acpi_boot_table_init(void)
 		return error;
 	}
 
-	acpi_table_parse(ACPI_BOOT, acpi_parse_sbf);
+	acpi_table_parse("BOOT", acpi_parse_sbf);
 
 	/*
 	 * blacklist may disable ACPI entirely
@@ -1225,19 +1225,19 @@ int __init acpi_boot_init(void)
 	if (acpi_disabled && !acpi_ht)
 		return 1;
 
-	acpi_table_parse(ACPI_BOOT, acpi_parse_sbf);
+	acpi_table_parse("BOOT", acpi_parse_sbf);
 
 	/*
 	 * set sci_int and PM timer address
 	 */
-	acpi_table_parse(ACPI_FADT, acpi_parse_fadt);
+	acpi_table_parse(ACPI_SIG_FADT, acpi_parse_fadt);
 
 	/*
 	 * Process the Multiple APIC Description Table (MADT), if present
 	 */
 	acpi_process_madt();
 
-	acpi_table_parse(ACPI_HPET, acpi_parse_hpet);
+	acpi_table_parse("HPET", acpi_parse_hpet);
 
 	return 0;
 }

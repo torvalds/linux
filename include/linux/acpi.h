@@ -340,7 +340,7 @@ enum acpi_table_id {
 	ACPI_TABLE_COUNT
 };
 
-typedef int (*acpi_table_handler) (unsigned long phys_addr, unsigned long size);
+typedef int (*acpi_table_handler) (struct acpi_table_header *header);
 
 extern acpi_table_handler acpi_table_ops[ACPI_TABLE_COUNT];
 
@@ -353,11 +353,10 @@ int acpi_boot_table_init (void);
 int acpi_numa_init (void);
 
 int acpi_table_init (void);
-int acpi_table_parse (enum acpi_table_id id, acpi_table_handler handler);
-int acpi_get_table_header_early (enum acpi_table_id id, struct acpi_table_header **header);
+int acpi_table_parse (char *id, acpi_table_handler handler);
 int acpi_table_parse_madt (enum acpi_madt_entry_id id, acpi_madt_entry_handler handler, unsigned int max_entries);
 int acpi_table_parse_srat (enum acpi_srat_entry_id id, acpi_madt_entry_handler handler, unsigned int max_entries);
-int acpi_parse_mcfg (unsigned long phys_addr, unsigned long size);
+int acpi_parse_mcfg (struct acpi_table_header *header);
 void acpi_table_print (struct acpi_table_header *header, unsigned long phys_addr);
 void acpi_table_print_madt_entry (acpi_table_entry_header *madt);
 void acpi_table_print_srat_entry (acpi_table_entry_header *srat);
