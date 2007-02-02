@@ -413,7 +413,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	 */
 	status = acpi_tb_add_table(table_ptr, &table_index);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		goto cleanup;
 	}
 
 	status =
