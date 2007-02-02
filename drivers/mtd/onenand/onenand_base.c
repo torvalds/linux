@@ -810,8 +810,7 @@ static int onenand_transfer_auto_oob(struct mtd_info *mtd, uint8_t *buf, int col
 			readend += free->offset - lastgap;
 		lastgap = free->offset + free->length;
 	}
-	this->read_bufferram(mtd, ONENAND_SPARERAM, oob_buf + readcol,
-			     readcol, readend - readcol);
+	this->read_bufferram(mtd, ONENAND_SPARERAM, oob_buf, 0, mtd->oobsize);
 	for (free = this->ecclayout->oobfree; free->length; ++free) {
 		int free_end = free->offset + free->length;
 		if (free->offset < readend && free_end > readcol) {
@@ -926,13 +925,12 @@ out:
 static int onenand_read_oob(struct mtd_info *mtd, loff_t from,
 			    struct mtd_oob_ops *ops)
 {
-	switch (ops->mode)
-	{
+	switch (ops->mode) {
 	case MTD_OOB_PLACE:
 	case MTD_OOB_AUTO:
 		break;
 	case MTD_OOB_RAW:
-		return -EINVAL; /* Not implemented yet */
+		/* Not implemented yet */
 	default:
 		return -EINVAL;
 	}
@@ -1143,7 +1141,6 @@ static int onenand_fill_auto_oob(struct mtd_info *mtd, u_char *oob_buf,
 			writeend += free->offset - lastgap;
 		lastgap = free->offset + free->length;
 	}
-	writeend = mtd->oobsize;
 	for (free = this->ecclayout->oobfree; free->length; ++free) {
 		int free_end = free->offset + free->length;
 		if (free->offset < writeend && free_end > writecol) {
@@ -1264,13 +1261,12 @@ out:
 static int onenand_write_oob(struct mtd_info *mtd, loff_t to,
 			     struct mtd_oob_ops *ops)
 {
-	switch (ops->mode)
-	{
+	switch (ops->mode) {
 	case MTD_OOB_PLACE:
 	case MTD_OOB_AUTO:
 		break;
 	case MTD_OOB_RAW:
-		return -EINVAL; /* Not implemented yet */
+		/* Not implemented yet */
 	default:
 		return -EINVAL;
 	}
