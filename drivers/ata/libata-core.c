@@ -3338,7 +3338,11 @@ static void ata_wait_spinup(struct ata_port *ap, unsigned long deadline)
  *	@ap: ATA port to be reset
  *	@deadline: deadline jiffies for the operation
  *
- *	@ap is about to be reset.  Initialize it.
+ *	@ap is about to be reset.  Initialize it.  Failure from
+ *	prereset makes libata abort whole reset sequence and give up
+ *	that port, so prereset should be best-effort.  It does its
+ *	best to prepare for reset sequence but if things go wrong, it
+ *	should just whine, not fail.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep)
@@ -3368,19 +3372,23 @@ int ata_std_prereset(struct ata_port *ap, unsigned long deadline)
 	/* if SATA, resume phy */
 	if (ap->cbl == ATA_CBL_SATA) {
 		rc = sata_phy_resume(ap, timing, deadline);
-		if (rc && rc != -EOPNOTSUPP) {
-			/* phy resume failed */
+		/* whine about phy resume failure but proceed */
+		if (rc && rc != -EOPNOTSUPP)
 			ata_port_printk(ap, KERN_WARNING, "failed to resume "
 					"link for reset (errno=%d)\n", rc);
-			return rc;
-		}
 	}
 
 	/* Wait for !BSY if the controller can wait for the first D2H
 	 * Reg FIS and we don't know that no device is attached.
 	 */
-	if (!(ap->flags & ATA_FLAG_SKIP_D2H_BSY) && !ata_port_offline(ap))
-		ata_wait_ready(ap, deadline);
+	if (!(ap->flags & ATA_FLAG_SKIP_D2H_BSY) && !ata_port_offline(ap)) {
+		rc = ata_wait_ready(ap, deadline);
+		if (rc) {
+			ata_port_printk(ap, KERN_WARNING, "device not ready "
+					"(errno=%d), forcing hardreset\n", rc);
+			ehc->i.action |= ATA_EH_HARDRESET;
+		}
+	}
 
 	return 0;
 }
