@@ -187,8 +187,7 @@ acpi_processor_power_activate(struct acpi_processor *pr,
 		case ACPI_STATE_C3:
 			/* Disable bus master reload */
 			if (new->type != ACPI_STATE_C3 && pr->flags.bm_check)
-				acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0,
-						  ACPI_MTX_DO_NOT_LOCK);
+				acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0);
 			break;
 		}
 	}
@@ -198,8 +197,7 @@ acpi_processor_power_activate(struct acpi_processor *pr,
 	case ACPI_STATE_C3:
 		/* Enable bus master reload */
 		if (old->type != ACPI_STATE_C3 && pr->flags.bm_check)
-			acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 1,
-					  ACPI_MTX_DO_NOT_LOCK);
+			acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 1);
 		break;
 	}
 
@@ -291,12 +289,10 @@ static void acpi_processor_idle(void)
 
 		pr->power.bm_activity <<= diff;
 
-		acpi_get_register(ACPI_BITREG_BUS_MASTER_STATUS,
-				  &bm_status, ACPI_MTX_DO_NOT_LOCK);
+		acpi_get_register(ACPI_BITREG_BUS_MASTER_STATUS, &bm_status);
 		if (bm_status) {
 			pr->power.bm_activity |= 0x1;
-			acpi_set_register(ACPI_BITREG_BUS_MASTER_STATUS,
-					  1, ACPI_MTX_DO_NOT_LOCK);
+			acpi_set_register(ACPI_BITREG_BUS_MASTER_STATUS, 1);
 		}
 		/*
 		 * PIIX4 Erratum #18: Note that BM_STS doesn't always reflect
@@ -411,8 +407,7 @@ static void acpi_processor_idle(void)
 				 * All CPUs are trying to go to C3
 				 * Disable bus master arbitration
 				 */
-				acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1,
-						  ACPI_MTX_DO_NOT_LOCK);
+				acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1);
 			}
 		} else {
 			/* SMP with no shared cache... Invalidate cache  */
@@ -428,8 +423,7 @@ static void acpi_processor_idle(void)
 		if (pr->flags.bm_check) {
 			/* Enable bus master arbitration */
 			atomic_dec(&c3_cpu_count);
-			acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0,
-					  ACPI_MTX_DO_NOT_LOCK);
+			acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0);
 		}
 
 #ifdef CONFIG_GENERIC_TIME
@@ -890,8 +884,7 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 					  " for C3 to be enabled on SMP systems\n"));
 			return;
 		}
-		acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD,
-				  0, ACPI_MTX_DO_NOT_LOCK);
+		acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0);
 	}
 
 	/*

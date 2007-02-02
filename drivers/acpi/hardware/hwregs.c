@@ -54,17 +54,15 @@ ACPI_MODULE_NAME("hwregs")
  *
  * FUNCTION:    acpi_hw_clear_acpi_status
  *
- * PARAMETERS:  Flags           - Lock the hardware or not
+ * PARAMETERS:  None
  *
- * RETURN:      none
+ * RETURN:      None
  *
  * DESCRIPTION: Clears all fixed and general purpose status bits
  *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
  *
- * NOTE: TBD: Flags parameter is obsolete, to be removed
- *
  ******************************************************************************/
-acpi_status acpi_hw_clear_acpi_status(u32 flags)
+acpi_status acpi_hw_clear_acpi_status(void)
 {
 	acpi_status status;
 	acpi_cpu_flags lock_flags = 0;
@@ -253,18 +251,15 @@ struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id)
  *
  * PARAMETERS:  register_id     - ID of ACPI bit_register to access
  *              return_value    - Value that was read from the register
- *              Flags           - Lock the hardware or not
  *
  * RETURN:      Status and the value read from specified Register. Value
  *              returned is normalized to bit0 (is shifted all the way right)
  *
  * DESCRIPTION: ACPI bit_register read function.
  *
- * NOTE: TBD: Flags parameter is obsolete, to be removed
- *
  ******************************************************************************/
 
-acpi_status acpi_get_register(u32 register_id, u32 * return_value, u32 flags)
+acpi_status acpi_get_register(u32 register_id, u32 * return_value)
 {
 	u32 register_value = 0;
 	struct acpi_bit_register_info *bit_reg_info;
@@ -312,16 +307,13 @@ ACPI_EXPORT_SYMBOL(acpi_get_register)
  * PARAMETERS:  register_id     - ID of ACPI bit_register to access
  *              Value           - (only used on write) value to write to the
  *                                Register, NOT pre-normalized to the bit pos
- *              Flags           - Lock the hardware or not
  *
  * RETURN:      Status
  *
  * DESCRIPTION: ACPI Bit Register write function.
  *
- * NOTE: TBD: Flags parameter is obsolete, to be removed
- *
  ******************************************************************************/
-acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
+acpi_status acpi_set_register(u32 register_id, u32 value)
 {
 	u32 register_value = 0;
 	struct acpi_bit_register_info *bit_reg_info;

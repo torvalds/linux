@@ -157,7 +157,7 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 	 */
 	status =
 	    acpi_set_register(acpi_gbl_fixed_event_info[event].
-			      enable_register_id, 1, ACPI_MTX_LOCK);
+			      enable_register_id, 1);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -166,7 +166,7 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 
 	status =
 	    acpi_get_register(acpi_gbl_fixed_event_info[event].
-			      enable_register_id, &value, ACPI_MTX_LOCK);
+			      enable_register_id, &value);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -356,14 +356,14 @@ acpi_status acpi_disable_event(u32 event, u32 flags)
 	 */
 	status =
 	    acpi_set_register(acpi_gbl_fixed_event_info[event].
-			      enable_register_id, 0, ACPI_MTX_LOCK);
+			      enable_register_id, 0);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
 	status =
 	    acpi_get_register(acpi_gbl_fixed_event_info[event].
-			      enable_register_id, &value, ACPI_MTX_LOCK);
+			      enable_register_id, &value);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -409,7 +409,7 @@ acpi_status acpi_clear_event(u32 event)
 	 */
 	status =
 	    acpi_set_register(acpi_gbl_fixed_event_info[event].
-			      status_register_id, 1, ACPI_MTX_LOCK);
+			      status_register_id, 1);
 
 	return_ACPI_STATUS(status);
 }
@@ -498,7 +498,7 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 
 	status =
 	    acpi_get_register(acpi_gbl_fixed_event_info[event].
-			      status_register_id, event_status, ACPI_MTX_LOCK);
+			      status_register_id, event_status);
 
 	return_ACPI_STATUS(status);
 }

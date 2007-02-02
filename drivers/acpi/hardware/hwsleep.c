@@ -277,15 +277,14 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 
 	/* Clear wake status */
 
-	status =
-	    acpi_set_register(ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_DO_NOT_LOCK);
+	status = acpi_set_register(ACPI_BITREG_WAKE_STATUS, 1);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
 	/* Clear all fixed and general purpose status bits */
 
-	status = acpi_hw_clear_acpi_status(ACPI_MTX_DO_NOT_LOCK);
+	status = acpi_hw_clear_acpi_status();
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -398,8 +397,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 	/* Wait until we enter sleep state */
 
 	do {
-		status = acpi_get_register(ACPI_BITREG_WAKE_STATUS, &in_value,
-					   ACPI_MTX_DO_NOT_LOCK);
+		status = acpi_get_register(ACPI_BITREG_WAKE_STATUS, &in_value);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -432,13 +430,12 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 
 	ACPI_FUNCTION_TRACE(acpi_enter_sleep_state_s4bios);
 
-	status =
-	    acpi_set_register(ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_DO_NOT_LOCK);
+	status = acpi_set_register(ACPI_BITREG_WAKE_STATUS, 1);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_hw_clear_acpi_status(ACPI_MTX_DO_NOT_LOCK);
+	status = acpi_hw_clear_acpi_status();
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -465,8 +462,7 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 
 	do {
 		acpi_os_stall(1000);
-		status = acpi_get_register(ACPI_BITREG_WAKE_STATUS, &in_value,
-					   ACPI_MTX_DO_NOT_LOCK);
+		status = acpi_get_register(ACPI_BITREG_WAKE_STATUS, &in_value);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -599,13 +595,11 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 
 	(void)
 	    acpi_set_register(acpi_gbl_fixed_event_info
-			      [ACPI_EVENT_POWER_BUTTON].enable_register_id, 1,
-			      ACPI_MTX_DO_NOT_LOCK);
+			      [ACPI_EVENT_POWER_BUTTON].enable_register_id, 1);
 
 	(void)
 	    acpi_set_register(acpi_gbl_fixed_event_info
-			      [ACPI_EVENT_POWER_BUTTON].status_register_id, 1,
-			      ACPI_MTX_DO_NOT_LOCK);
+			      [ACPI_EVENT_POWER_BUTTON].status_register_id, 1);
 
 	arg.integer.value = ACPI_SST_WORKING;
 	status = acpi_evaluate_object(NULL, METHOD_NAME__SST, &arg_list, NULL);
