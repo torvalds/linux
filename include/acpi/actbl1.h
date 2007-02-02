@@ -148,7 +148,21 @@ struct acpi_asf_alert {
 	u8 deassert_mask;
 	u8 alerts;
 	u8 data_length;
-	u8 array[1];
+};
+
+struct acpi_asf_alert_data {
+	u8 address;
+	u8 command;
+	u8 mask;
+	u8 value;
+	u8 sensor_type;
+	u8 type;
+	u8 offset;
+	u8 source_type;
+	u8 severity;
+	u8 sensor_number;
+	u8 entity;
+	u8 instance;
 };
 
 /* 2: ASF Remote Control */
@@ -158,7 +172,13 @@ struct acpi_asf_remote {
 	u8 controls;
 	u8 data_length;
 	u16 reserved2;
-	u8 array[1];
+};
+
+struct acpi_asf_control_data {
+	u8 function;
+	u8 address;
+	u8 command;
+	u8 value;
 };
 
 /* 3: ASF RMCP Boot Options */
@@ -180,7 +200,6 @@ struct acpi_asf_address {
 	struct acpi_asf_header header;
 	u8 eprom_address;
 	u8 devices;
-	u8 smbus_addresses[1];
 };
 
 /*******************************************************************************
