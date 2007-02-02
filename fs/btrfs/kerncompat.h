@@ -6,6 +6,7 @@
 #define BITS_PER_LONG 64
 #define __GFP_BITS_SHIFT 20
 #define __GFP_BITS_MASK ((int)((1 << __GFP_BITS_SHIFT) - 1))
+#define GFP_KERNEL 0
 #define __read_mostly
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define __force

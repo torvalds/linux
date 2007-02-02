@@ -1,7 +1,12 @@
 
-ctree: ctree.o
-	gcc -g -O2 -Wall -o ctree ctree.c
+CFLAGS= -g -Wall
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<
+
+ctree: ctree.o disk-io.h ctree.h disk-io.o radix-tree.o radix-tree.h
+	gcc $(CFLAGS) -o ctree ctree.o disk-io.o radix-tree.o
 
 clean:
-	rm ctree ctree.o
+	rm ctree *.o
 
