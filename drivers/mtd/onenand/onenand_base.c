@@ -616,7 +616,7 @@ static void onenand_update_bufferram(struct mtd_info *mtd, loff_t addr,
 
 	/* Invalidate another BufferRAM */
 	i = ONENAND_NEXT_BUFFERRAM(this);
-	if (this->bufferram[i].blockpage == blockpage) {
+	if (this->bufferram[i].blockpage == blockpage)
 		this->bufferram[i].blockpage = -1;
 
 	/* Update BufferRAM */
@@ -889,7 +889,7 @@ int onenand_do_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
 
 		if (ret) {
 			DEBUG(MTD_DEBUG_LEVEL0, "onenand_read_oob: read failed = 0x%x\n", ret);
-			goto out;
+			break;
 		}
 
 		read += thislen;
@@ -907,7 +907,6 @@ int onenand_do_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
 		}
 	}
 
-out:
 	/* Deselect and wake up anyone waiting on the device */
 	onenand_release_device(mtd);
 
@@ -1099,7 +1098,6 @@ static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
 		}
 
 		written += thislen;
-
 		if (written == len)
 			break;
 
@@ -1223,17 +1221,16 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 		ret = this->wait(mtd, FL_WRITING);
 		if (ret) {
 			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write_oob: write failed %d\n", ret);
-			goto out;
+			break;
 		}
 
 		ret = onenand_verify_oob(mtd, this->page_buf, to);
 		if (ret) {
 			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write_oob: verify failed %d\n", ret);
-			goto out;
+			break;
 		}
 
 		written += thislen;
-
 		if (written == len)
 			break;
 
@@ -1242,7 +1239,6 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 		column = 0;
 	}
 
-out:
 	/* Deselect and wake up anyone waiting on the device */
 	onenand_release_device(mtd);
 
