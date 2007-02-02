@@ -361,7 +361,6 @@ static int __nlm_async_call(struct nlm_rqst *req, u32 proc, struct rpc_message *
 {
 	struct nlm_host	*host = req->a_host;
 	struct rpc_clnt	*clnt;
-	int status = -ENOLCK;
 
 	dprintk("lockd: call procedure %d on %s (async)\n",
 			(int)proc, host->h_name);
@@ -373,12 +372,10 @@ static int __nlm_async_call(struct nlm_rqst *req, u32 proc, struct rpc_message *
 	msg->rpc_proc = &clnt->cl_procinfo[proc];
 
         /* bootstrap and kick off the async RPC call */
-        status = rpc_call_async(clnt, msg, RPC_TASK_ASYNC, tk_ops, req);
-	if (status == 0)
-		return 0;
+        return rpc_call_async(clnt, msg, RPC_TASK_ASYNC, tk_ops, req);
 out_err:
-	nlm_release_call(req);
-	return status;
+	tk_ops->rpc_release(req);
+	return -ENOLCK;
 }
 
 int nlm_async_call(struct nlm_rqst *req, u32 proc, const struct rpc_call_ops *tk_ops)
