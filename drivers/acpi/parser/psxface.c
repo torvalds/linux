@@ -260,7 +260,7 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 
 	/* Create and initialize a new walk state */
 
-	info->pass_number = 3;
+	info->pass_number = ACPI_IMODE_EXECUTE;
 	walk_state =
 	    acpi_ds_create_walk_state(info->obj_desc->method.owner_id, NULL,
 				      NULL, NULL);

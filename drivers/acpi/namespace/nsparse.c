@@ -160,10 +160,10 @@ acpi_ns_parse_table(acpi_native_uint table_index,
 	 * each Parser Op subtree is deleted when it is finished.  This saves
 	 * a great deal of memory, and allows a small cache of parse objects
 	 * to service the entire parse.  The second pass of the parse then
-	 * performs another complete parse of the AML..
+	 * performs another complete parse of the AML.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start pass 1\n"));
-	status = acpi_ns_one_complete_parse(1, table_index);
+	status = acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS1, table_index);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -178,7 +178,7 @@ acpi_ns_parse_table(acpi_native_uint table_index,
 	 * parse objects are all cached.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start pass 2\n"));
-	status = acpi_ns_one_complete_parse(2, table_index);
+	status = acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS2, table_index);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}

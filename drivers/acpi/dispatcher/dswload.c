@@ -754,7 +754,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		}
 
 		flags = ACPI_NS_NO_UPSEARCH;
-		if (walk_state->pass_number == 3) {
+		if (walk_state->pass_number == ACPI_IMODE_EXECUTE) {
 
 			/* Execution mode, node cannot already exist, node is temporary */
 

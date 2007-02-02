@@ -382,7 +382,8 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 
 	status = acpi_ds_init_aml_walk(next_walk_state, NULL, method_node,
 				       obj_desc->method.aml_start,
-				       obj_desc->method.aml_length, info, 3);
+				       obj_desc->method.aml_length, info,
+				       ACPI_IMODE_EXECUTE);
 
 	ACPI_FREE(info);
 	if (ACPI_FAILURE(status)) {

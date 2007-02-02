@@ -162,7 +162,7 @@ struct acpi_mutex_info {
 typedef enum {
 	ACPI_IMODE_LOAD_PASS1 = 0x01,
 	ACPI_IMODE_LOAD_PASS2 = 0x02,
-	ACPI_IMODE_EXECUTE = 0x0E
+	ACPI_IMODE_EXECUTE = 0x03
 } acpi_interpreter_mode;
 
 union acpi_name_union {
