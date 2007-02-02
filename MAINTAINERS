@@ -3593,6 +3593,12 @@ M:	ysato@users.sourceforge.jp
 W:	http://uclinux-h8.sourceforge.jp/
 S:	Supported
 
+UFS FILESYSTEM
+P: Evgeniy Dushistov
+M: dushistov@mail.ru
+L: linux-kernel@vger.kernel.org
+S: Maintained
+
 USB DIAMOND RIO500 DRIVER
 P:	Cesar Miquel
 M:	miquel@df.uba.ar
