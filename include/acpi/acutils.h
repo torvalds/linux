@@ -453,6 +453,8 @@ acpi_ut_short_divide(acpi_integer in_dividend,
 /*
  * utmisc
  */
+const char *acpi_ut_validate_exception(acpi_status status);
+
 u8 acpi_ut_is_aml_table(struct acpi_table_header *table);
 
 acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id);
