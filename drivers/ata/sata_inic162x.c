@@ -453,7 +453,8 @@ static int inic_hardreset(struct ata_port *ap, unsigned int *class,
 		msleep(150);
 
 		rc = ata_wait_ready(ap, deadline);
-		if (rc && rc != -ENODEV) {
+		/* link occupied, -ENODEV too is an error */
+		if (rc) {
 			ata_port_printk(ap, KERN_WARNING, "device not ready "
 					"after hardreset (errno=%d)\n", rc);
 			return rc;

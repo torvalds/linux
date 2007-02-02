@@ -3027,15 +3027,18 @@ static int ata_bus_post_reset(struct ata_port *ap, unsigned int devmask,
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	unsigned int dev0 = devmask & (1 << 0);
 	unsigned int dev1 = devmask & (1 << 1);
-	int rc;
+	int rc, ret = 0;
 
 	/* if device 0 was found in ata_devchk, wait for its
 	 * BSY bit to clear
 	 */
 	if (dev0) {
 		rc = ata_wait_ready(ap, deadline);
-		if (rc && rc != -ENODEV)
-			return rc;
+		if (rc) {
+			if (rc != -ENODEV)
+				return rc;
+			ret = rc;
+		}
 	}
 
 	/* if device 1 was found in ata_devchk, wait for
@@ -3055,8 +3058,11 @@ static int ata_bus_post_reset(struct ata_port *ap, unsigned int devmask,
 	}
 	if (dev1) {
 		rc = ata_wait_ready(ap, deadline);
-		if (rc && rc != -ENODEV)
-			return rc;
+		if (rc) {
+			if (rc != -ENODEV)
+				return rc;
+			ret = rc;
+		}
 	}
 
 	/* is all this really necessary? */
@@ -3066,7 +3072,7 @@ static int ata_bus_post_reset(struct ata_port *ap, unsigned int devmask,
 	if (dev0)
 		ap->ops->dev_select(ap, 0);
 
-	return 0;
+	return ret;
 }
 
 static int ata_bus_softreset(struct ata_port *ap, unsigned int devmask,
@@ -3100,7 +3106,7 @@ static int ata_bus_softreset(struct ata_port *ap, unsigned int devmask,
 	 * pulldown resistor.
 	 */
 	if (ata_check_status(ap) == 0xFF)
-		return 0;
+		return -ENODEV;
 
 	return ata_bus_post_reset(ap, devmask, deadline);
 }
@@ -3131,6 +3137,7 @@ void ata_bus_reset(struct ata_port *ap)
 	unsigned int slave_possible = ap->flags & ATA_FLAG_SLAVE_POSS;
 	u8 err;
 	unsigned int dev0, dev1 = 0, devmask = 0;
+	int rc;
 
 	DPRINTK("ENTER, host %u, port %u\n", ap->print_id, ap->port_no);
 
@@ -3152,9 +3159,11 @@ void ata_bus_reset(struct ata_port *ap)
 	ap->ops->dev_select(ap, 0);
 
 	/* issue bus reset */
-	if (ap->flags & ATA_FLAG_SRST)
-		if (ata_bus_softreset(ap, devmask, jiffies + 40 * HZ))
+	if (ap->flags & ATA_FLAG_SRST) {
+		rc = ata_bus_softreset(ap, devmask, jiffies + 40 * HZ);
+		if (rc && rc != -ENODEV)
 			goto err_out;
+	}
 
 	/*
 	 * determine by signature whether we have ATA or ATAPI devices
@@ -3417,7 +3426,8 @@ int ata_std_softreset(struct ata_port *ap, unsigned int *classes,
 	/* issue bus reset */
 	DPRINTK("about to softreset, devmask=%x\n", devmask);
 	rc = ata_bus_softreset(ap, devmask, deadline);
-	if (rc) {
+	/* if link is occupied, -ENODEV too is an error */
+	if (rc && (rc != -ENODEV || sata_scr_valid(ap))) {
 		ata_port_printk(ap, KERN_ERR, "SRST failed (errno=%d)\n", rc);
 		return rc;
 	}
@@ -3534,7 +3544,8 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class,
 	msleep(150);
 
 	rc = ata_wait_ready(ap, deadline);
-	if (rc && rc != -ENODEV) {
+	/* link occupied, -ENODEV too is an error */
+	if (rc) {
 		ata_port_printk(ap, KERN_ERR,
 				"COMRESET failed (errno=%d)\n", rc);
 		return rc;

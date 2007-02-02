@@ -960,15 +960,13 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class,
 	 */
 	msleep(150);
 
-	*class = ATA_DEV_NONE;
-	if (ata_port_online(ap)) {
-		rc = ata_wait_ready(ap, deadline);
-		if (rc && rc != -ENODEV) {
-			reason = "device not ready";
-			goto fail;
-		}
-		*class = ahci_dev_classify(ap);
+	rc = ata_wait_ready(ap, deadline);
+	/* link occupied, -ENODEV too is an error */
+	if (rc) {
+		reason = "device not ready";
+		goto fail;
 	}
+	*class = ahci_dev_classify(ap);
 
 	DPRINTK("EXIT, class=%u\n", *class);
 	return 0;
