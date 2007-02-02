@@ -2373,6 +2373,9 @@ static int skge_up(struct net_device *dev)
 	size_t rx_size, tx_size;
 	int err;
 
+	if (!is_valid_ether_addr(dev->dev_addr))
+		return -EINVAL;
+
 	if (netif_msg_ifup(skge))
 		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
 
@@ -3567,11 +3570,10 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 	if (!dev)
 		goto err_out_led_off;
 
+	/* Some motherboards are broken and has zero in ROM. */
 	if (!is_valid_ether_addr(dev->dev_addr)) {
-		printk(KERN_ERR PFX "%s: bad (zero?) ethernet address in rom\n",
+		printk(KERN_WARNING PFX "%s: bad (zero?) ethernet address in rom\n",
 		       pci_name(pdev));
-		err = -EIO;
-		goto err_out_free_netdev;
 	}
 
 	err = register_netdev(dev);
