@@ -2360,15 +2360,6 @@ int ata_down_xfermask_limit(struct ata_device *dev, unsigned int sel)
 		udma_mask = 0;
 		break;
 
-	case ATA_DNXFER_ANY:
-		/* don't gear down to MWDMA from UDMA, go directly to PIO */
-		if (xfer_mask & ATA_MASK_UDMA)
-			xfer_mask &= ~ATA_MASK_MWDMA;
-
-		highbit = fls(xfer_mask) - 1;
-		xfer_mask &= ~(1 << highbit);
-		break;
-
 	default:
 		BUG();
 	}

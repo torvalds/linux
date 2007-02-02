@@ -48,7 +48,6 @@ enum {
 	ATA_DNXFER_40C		= 2,	/* apply 40c cable limit */
 	ATA_DNXFER_FORCE_PIO	= 3,	/* force PIO */
 	ATA_DNXFER_FORCE_PIO0	= 4,	/* force PIO0 */
-	ATA_DNXFER_ANY		= 5,	/* speed down any */
 
 	ATA_DNXFER_QUIET	= (1 << 31),
 };
