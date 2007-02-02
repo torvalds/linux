@@ -101,6 +101,7 @@ typedef const struct acpi_dmtable_info {
 #define ACPI_DMT_MADT                   24
 #define ACPI_DMT_SRAT                   25
 #define ACPI_DMT_EXIT                   26
+#define ACPI_DMT_SIG                    27
 
 typedef
 void (*ACPI_TABLE_HANDLER) (struct acpi_table_header * table);
@@ -109,6 +110,7 @@ struct acpi_dmtable_data {
 	char *signature;
 	struct acpi_dmtable_info *table_info;
 	ACPI_TABLE_HANDLER table_handler;
+	char *name;
 };
 
 struct acpi_op_walk_info {
