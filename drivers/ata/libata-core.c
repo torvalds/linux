@@ -1780,6 +1780,7 @@ int ata_bus_probe(struct ata_port *ap)
 	int tries[ATA_MAX_DEVICES];
 	int i, rc, down_xfermask;
 	struct ata_device *dev;
+	int dnxfer_sel;
 
 	ata_port_probe(ap);
 
@@ -1861,13 +1862,15 @@ int ata_bus_probe(struct ata_port *ap)
 		/* fall through */
 	default:
 		tries[dev->devno]--;
-		if (down_xfermask &&
-		    ata_down_xfermask_limit(dev, tries[dev->devno] == 1))
+		dnxfer_sel = ATA_DNXFER_ANY;
+		if (tries[dev->devno] == 1)
+			dnxfer_sel = ATA_DNXFER_FORCE_PIO0;
+		if (down_xfermask && ata_down_xfermask_limit(dev, dnxfer_sel))
 			tries[dev->devno] = 0;
 	}
 
 	if (!tries[dev->devno]) {
-		ata_down_xfermask_limit(dev, 1);
+		ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO0);
 		ata_dev_disable(dev);
 	}
 
@@ -2300,7 +2303,7 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 /**
  *	ata_down_xfermask_limit - adjust dev xfer masks downward
  *	@dev: Device to adjust xfer masks
- *	@force_pio0: Force PIO0
+ *	@sel: ATA_DNXFER_* selector
  *
  *	Adjust xfer masks of @dev downward.  Note that this function
  *	does not apply the change.  Invoking ata_set_mode() afterwards
@@ -2312,37 +2315,87 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
  *	RETURNS:
  *	0 on success, negative errno on failure
  */
-int ata_down_xfermask_limit(struct ata_device *dev, int force_pio0)
+int ata_down_xfermask_limit(struct ata_device *dev, unsigned int sel)
 {
-	unsigned long xfer_mask;
-	int highbit;
+	char buf[32];
+	unsigned int orig_mask, xfer_mask;
+	unsigned int pio_mask, mwdma_mask, udma_mask;
+	int quiet, highbit;
 
-	xfer_mask = ata_pack_xfermask(dev->pio_mask, dev->mwdma_mask,
-				      dev->udma_mask);
+	quiet = !!(sel & ATA_DNXFER_QUIET);
+	sel &= ~ATA_DNXFER_QUIET;
 
-	if (!xfer_mask)
-		goto fail;
-	/* don't gear down to MWDMA from UDMA, go directly to PIO */
-	if (xfer_mask & ATA_MASK_UDMA)
-		xfer_mask &= ~ATA_MASK_MWDMA;
+	xfer_mask = orig_mask = ata_pack_xfermask(dev->pio_mask,
+						  dev->mwdma_mask,
+						  dev->udma_mask);
+	ata_unpack_xfermask(xfer_mask, &pio_mask, &mwdma_mask, &udma_mask);
 
-	highbit = fls(xfer_mask) - 1;
-	xfer_mask &= ~(1 << highbit);
-	if (force_pio0)
-		xfer_mask &= 1 << ATA_SHIFT_PIO;
-	if (!xfer_mask)
-		goto fail;
+	switch (sel) {
+	case ATA_DNXFER_PIO:
+		highbit = fls(pio_mask) - 1;
+		pio_mask &= ~(1 << highbit);
+		break;
+
+	case ATA_DNXFER_DMA:
+		if (udma_mask) {
+			highbit = fls(udma_mask) - 1;
+			udma_mask &= ~(1 << highbit);
+			if (!udma_mask)
+				return -ENOENT;
+		} else if (mwdma_mask) {
+			highbit = fls(mwdma_mask) - 1;
+			mwdma_mask &= ~(1 << highbit);
+			if (!mwdma_mask)
+				return -ENOENT;
+		}
+		break;
+
+	case ATA_DNXFER_40C:
+		udma_mask &= ATA_UDMA_MASK_40C;
+		break;
+
+	case ATA_DNXFER_FORCE_PIO0:
+		pio_mask &= 1;
+	case ATA_DNXFER_FORCE_PIO:
+		mwdma_mask = 0;
+		udma_mask = 0;
+		break;
+
+	case ATA_DNXFER_ANY:
+		/* don't gear down to MWDMA from UDMA, go directly to PIO */
+		if (xfer_mask & ATA_MASK_UDMA)
+			xfer_mask &= ~ATA_MASK_MWDMA;
+
+		highbit = fls(xfer_mask) - 1;
+		xfer_mask &= ~(1 << highbit);
+		break;
+
+	default:
+		BUG();
+	}
+
+	xfer_mask &= ata_pack_xfermask(pio_mask, mwdma_mask, udma_mask);
+
+	if (!(xfer_mask & ATA_MASK_PIO) || xfer_mask == orig_mask)
+		return -ENOENT;
+
+	if (!quiet) {
+		if (xfer_mask & (ATA_MASK_MWDMA | ATA_MASK_UDMA))
+			snprintf(buf, sizeof(buf), "%s:%s",
+				 ata_mode_string(xfer_mask),
+				 ata_mode_string(xfer_mask & ATA_MASK_PIO));
+		else
+			snprintf(buf, sizeof(buf), "%s",
+				 ata_mode_string(xfer_mask));
+
+		ata_dev_printk(dev, KERN_WARNING,
+			       "limiting speed to %s\n", buf);
+	}
 
 	ata_unpack_xfermask(xfer_mask, &dev->pio_mask, &dev->mwdma_mask,
 			    &dev->udma_mask);
 
-	ata_dev_printk(dev, KERN_WARNING, "limiting speed to %s\n",
-		       ata_mode_string(xfer_mask));
-
 	return 0;
-
- fail:
-	return -EINVAL;
 }
 
 static int ata_dev_set_mode(struct ata_device *dev)

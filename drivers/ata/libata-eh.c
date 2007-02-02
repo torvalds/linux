@@ -1276,7 +1276,7 @@ static int ata_eh_speed_down(struct ata_device *dev, int is_io,
 		return ATA_EH_HARDRESET;
 
 	/* lower transfer mode */
-	if (ata_down_xfermask_limit(dev, 0) == 0)
+	if (ata_down_xfermask_limit(dev, ATA_DNXFER_ANY) == 0)
 		return ATA_EH_SOFTRESET;
 
 	ata_dev_printk(dev, KERN_ERR,
@@ -1965,6 +1965,7 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	struct ata_eh_context *ehc = &ap->eh_context;
 	struct ata_device *dev;
 	int down_xfermask, i, rc;
+	int dnxfer_sel;
 
 	DPRINTK("ENTER\n");
 
@@ -2064,8 +2065,10 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		sata_down_spd_limit(ap);
 	default:
 		ehc->tries[dev->devno]--;
-		if (down_xfermask &&
-		    ata_down_xfermask_limit(dev, ehc->tries[dev->devno] == 1))
+		dnxfer_sel = ATA_DNXFER_ANY;
+		if (ehc->tries[dev->devno] == 1)
+			dnxfer_sel = ATA_DNXFER_FORCE_PIO0;
+		if (down_xfermask && ata_down_xfermask_limit(dev, dnxfer_sel))
 			ehc->tries[dev->devno] = 0;
 	}
 
