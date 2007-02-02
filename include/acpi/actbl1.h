@@ -61,6 +61,7 @@
 #define ACPI_SIG_BOOT           "BOOT"	/* Simple Boot Flag Table */
 #define ACPI_SIG_CPEP           "CPEP"	/* Corrected Platform Error Polling table */
 #define ACPI_SIG_DBGP           "DBGP"	/* Debug Port table */
+#define ACPI_SIG_DMAR           "DMAR"	/* DMA Remapping table */
 #define ACPI_SIG_ECDT           "ECDT"	/* Embedded Controller Boot Resources Table */
 #define ACPI_SIG_HPET           "HPET"	/* High Precision Event Timer table */
 #define ACPI_SIG_MADT           "APIC"	/* Multiple APIC Description Table */
@@ -225,6 +226,78 @@ struct acpi_table_dbgp {
 	u8 reserved[3];
 	struct acpi_generic_address debug_port;
 };
+
+/*******************************************************************************
+ *
+ * DMAR - DMA Remapping table
+ *
+ ******************************************************************************/
+
+struct acpi_table_dmar {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u8 width;		/* Host Address Width */
+	u8 reserved[11];
+};
+
+/* DMAR subtable header */
+
+struct acpi_dmar_header {
+	u16 type;
+	u16 length;
+	u8 flags;
+	u8 reserved[3];
+};
+
+/* Values for subtable type in struct acpi_dmar_header */
+
+enum acpi_dmar_type {
+	ACPI_DMAR_TYPE_HARDWARE_UNIT = 0,
+	ACPI_DMAR_TYPE_RESERVED_MEMORY = 1,
+	ACPI_DMAR_TYPE_RESERVED = 2	/* 2 and greater are reserved */
+};
+
+struct acpi_dmar_device_scope {
+	u8 entry_type;
+	u8 length;
+	u8 segment;
+	u8 bus;
+};
+
+/* Values for entry_type in struct acpi_dmar_device_scope */
+
+enum acpi_dmar_scope_type {
+	ACPI_DMAR_SCOPE_TYPE_NOT_USED = 0,
+	ACPI_DMAR_SCOPE_TYPE_ENDPOINT = 1,
+	ACPI_DMAR_SCOPE_TYPE_BRIDGE = 2,
+	ACPI_DMAR_SCOPE_TYPE_RESERVED = 3	/* 3 and greater are reserved */
+};
+
+/*
+ * DMAR Sub-tables, correspond to Type in struct acpi_dmar_header
+ */
+
+/* 0: Hardware Unit Definition */
+
+struct acpi_dmar_hardware_unit {
+	struct acpi_dmar_header header;
+	u64 address;		/* Register Base Address */
+};
+
+/* Flags */
+
+#define ACPI_DMAR_INCLUDE_ALL       (1)
+
+/* 1: Reserved Memory Defininition */
+
+struct acpi_dmar_reserved_memory {
+	struct acpi_dmar_header header;
+	u64 address;		/* 4_k aligned base address */
+	u64 end_address;	/* 4_k aligned limit address */
+};
+
+/* Flags */
+
+#define ACPI_DMAR_ALLOW_ALL         (1)
 
 /*******************************************************************************
  *

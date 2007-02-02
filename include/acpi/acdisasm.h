@@ -97,9 +97,10 @@ typedef const struct acpi_dmtable_info {
 #define ACPI_DMT_CHKSUM                 20
 #define ACPI_DMT_SPACEID                21
 #define ACPI_DMT_GAS                    22
-#define ACPI_DMT_MADT                   23
-#define ACPI_DMT_SRAT                   24
-#define ACPI_DMT_EXIT                   25
+#define ACPI_DMT_DMAR                   23
+#define ACPI_DMT_MADT                   24
+#define ACPI_DMT_SRAT                   25
+#define ACPI_DMT_EXIT                   26
 
 typedef
 void (*ACPI_TABLE_HANDLER) (struct acpi_table_header * table);
@@ -147,6 +148,11 @@ extern struct acpi_dmtable_info acpi_dm_table_info_boot[];
 extern struct acpi_dmtable_info acpi_dm_table_info_cpep[];
 extern struct acpi_dmtable_info acpi_dm_table_info_cpep0[];
 extern struct acpi_dmtable_info acpi_dm_table_info_dbgp[];
+extern struct acpi_dmtable_info acpi_dm_table_info_dmar[];
+extern struct acpi_dmtable_info acpi_dm_table_info_dmar_hdr[];
+extern struct acpi_dmtable_info acpi_dm_table_info_dmar_scope[];
+extern struct acpi_dmtable_info acpi_dm_table_info_dmar0[];
+extern struct acpi_dmtable_info acpi_dm_table_info_dmar1[];
 extern struct acpi_dmtable_info acpi_dm_table_info_ecdt[];
 extern struct acpi_dmtable_info acpi_dm_table_info_facs[];
 extern struct acpi_dmtable_info acpi_dm_table_info_fadt1[];
@@ -200,6 +206,8 @@ void acpi_dm_line_header2(u32 offset, u32 byte_length, char *name, u32 value);
 void acpi_dm_dump_asf(struct acpi_table_header *table);
 
 void acpi_dm_dump_cpep(struct acpi_table_header *table);
+
+void acpi_dm_dump_dmar(struct acpi_table_header *table);
 
 void acpi_dm_dump_fadt(struct acpi_table_header *table);
 
