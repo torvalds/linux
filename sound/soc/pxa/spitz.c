@@ -37,6 +37,7 @@
 #include <asm/mach-types.h>
 #include "../codecs/wm8750.h"
 #include "pxa2xx-pcm.h"
+#include "pxa2xx-i2s.h"
 
 #define SPITZ_HP        0
 #define SPITZ_MIC       1
@@ -121,8 +122,59 @@ static int spitz_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int spitz_hw_params(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_codec_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	unsigned int clk = 0;
+	int ret = 0;
+
+	switch (params_rate(params)) {
+	case 8000:
+	case 16000:
+	case 48000:
+	case 96000:
+		clk = 12288000;
+		break;
+	case 11025:
+	case 22050:
+	case 44100:
+		clk = 11289600;
+		break;
+	}
+
+	/* set codec DAI configuration */
+	ret = codec_dai->dai_ops.set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+	if (ret < 0)
+		return ret;
+
+	/* set cpu DAI configuration */
+	ret = cpu_dai->dai_ops.set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+	if (ret < 0)
+		return ret;
+
+	/* set the codec system clock for DAC and ADC */
+	ret = codec_dai->dai_ops.set_sysclk(codec_dai, WM8750_SYSCLK, clk,
+		SND_SOC_CLOCK_IN);
+	if (ret < 0)
+		return ret;
+
+	/* set the I2S system clock as input (unused) */
+	ret = cpu_dai->dai_ops.set_sysclk(cpu_dai, PXA2XX_I2S_SYSCLK, 0,
+		SND_SOC_CLOCK_IN);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static struct snd_soc_ops spitz_ops = {
 	.startup = spitz_startup,
+	.hw_params = spitz_hw_params,
 };
 
 static int spitz_get_jack(struct snd_kcontrol *kcontrol,
@@ -276,37 +328,6 @@ static int spitz_wm8750_init(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static unsigned int spitz_config_sysclk(struct snd_soc_pcm_runtime *rtd,
-	struct snd_soc_clock_info *info)
-{
-	if (info->bclk_master & SND_SOC_DAIFMT_CBS_CFS) {
-		/* pxa2xx is i2s master  */
-		switch (info->rate) {
-		case 11025:
-		case 22050:
-		case 44100:
-		case 88200:
-			/* configure codec digital filters
-			 * for 11.025, 22.05, 44.1, 88.2 */
-			rtd->codec_dai->config_sysclk(rtd->codec_dai, info,
-				11289600);
-		break;
-		default:
-			/* configure codec digital filters for all other rates */
-			rtd->codec_dai->config_sysclk(rtd->codec_dai, info,
-				SPITZ_AUDIO_CLOCK);
-		break;
-		}
-		/* configure pxa2xx i2s interface clocks as master */
-		return rtd->cpu_dai->config_sysclk(rtd->cpu_dai, info,
-			SPITZ_AUDIO_CLOCK);
-	} else {
-		/* codec is i2s master - only configure codec DAI clock */
-		return rtd->codec_dai->config_sysclk(rtd->codec_dai, info,
-			SPITZ_AUDIO_CLOCK);
-	}
-}
-
 /* spitz digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link spitz_dai = {
 	.name = "wm8750",
@@ -314,7 +335,7 @@ static struct snd_soc_dai_link spitz_dai = {
 	.cpu_dai = &pxa_i2s_dai,
 	.codec_dai = &wm8750_dai,
 	.init = spitz_wm8750_init,
-	.config_sysclk = spitz_config_sysclk,
+	.ops = &spitz_ops,
 };
 
 /* spitz audio machine driver */
@@ -322,7 +343,6 @@ static struct snd_soc_machine snd_soc_machine_spitz = {
 	.name = "Spitz",
 	.dai_link = &spitz_dai,
 	.num_links = 1,
-	.ops = &spitz_ops,
 };
 
 /* spitz audio private data */
