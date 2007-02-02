@@ -207,8 +207,10 @@ dohash(char *out, char *in, char *key, int forw)
 		return;
 
 	ki = kmalloc(16*48, GFP_KERNEL);
-	if(ki == NULL)
+	if(ki == NULL) {
+		kfree(pk1);
 		return;
+	}
 
 	cd = pk1 + 56;
 	pd1= cd  + 56;
