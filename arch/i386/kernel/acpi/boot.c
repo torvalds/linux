@@ -92,11 +92,6 @@ static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
 #warning ACPI uses CMPXCHG, i486 and later hardware
 #endif
 
-#define MAX_MADT_ENTRIES	256
-u8 x86_acpiid_to_apicid[MAX_MADT_ENTRIES] =
-    {[0 ... MAX_MADT_ENTRIES - 1] = 0xff };
-EXPORT_SYMBOL(x86_acpiid_to_apicid);
-
 /* --------------------------------------------------------------------------
                               Boot-time Configuration
    -------------------------------------------------------------------------- */
@@ -252,10 +247,6 @@ acpi_parse_lapic(struct acpi_subtable_header * header, const unsigned long end)
 		return -EINVAL;
 
 	acpi_table_print_madt_entry(header);
-
-	/* Record local apic id only when enabled */
-	if (processor->lapic_flags & ACPI_MADT_ENABLED)
-		x86_acpiid_to_apicid[processor->processor_id] = processor->id;
 
 	/*
 	 * We need to register disabled CPU as well to permit
@@ -563,14 +554,6 @@ EXPORT_SYMBOL(acpi_map_lsapic);
 
 int acpi_unmap_lsapic(int cpu)
 {
-	int i;
-
-	for_each_possible_cpu(i) {
-		if (x86_acpiid_to_apicid[i] == x86_cpu_to_apicid[cpu]) {
-			x86_acpiid_to_apicid[i] = -1;
-			break;
-		}
-	}
 	x86_cpu_to_apicid[cpu] = -1;
 	cpu_clear(cpu, cpu_present_map);
 	num_processors--;

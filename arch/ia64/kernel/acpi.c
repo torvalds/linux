@@ -67,11 +67,6 @@ EXPORT_SYMBOL(pm_power_off);
 unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
 
-#define MAX_SAPICS 256
-u16 ia64_acpiid_to_sapicid[MAX_SAPICS] = {[0 ... MAX_SAPICS - 1] = -1 };
-
-EXPORT_SYMBOL(ia64_acpiid_to_sapicid);
-
 const char *acpi_get_sysname(void)
 {
 #ifdef CONFIG_IA64_GENERIC
@@ -200,8 +195,6 @@ acpi_parse_lsapic(struct acpi_subtable_header * header, const unsigned long end)
 		smp_boot_data.cpu_phys_id[available_cpus] =
 		    (lsapic->id << 8) | lsapic->eid;
 #endif
-		ia64_acpiid_to_sapicid[lsapic->processor_id] =
-		    (lsapic->id << 8) | lsapic->eid;
 		++available_cpus;
 	}
 
@@ -880,7 +873,6 @@ int acpi_map_lsapic(acpi_handle handle, int *pcpu)
 
 	cpu_set(cpu, cpu_present_map);
 	ia64_cpu_to_sapicid[cpu] = physid;
-	ia64_acpiid_to_sapicid[lsapic->processor_id] = ia64_cpu_to_sapicid[cpu];
 
 	*pcpu = cpu;
 	return (0);
@@ -890,14 +882,6 @@ EXPORT_SYMBOL(acpi_map_lsapic);
 
 int acpi_unmap_lsapic(int cpu)
 {
-	int i;
-
-	for (i = 0; i < MAX_SAPICS; i++) {
-		if (ia64_acpiid_to_sapicid[i] == ia64_cpu_to_sapicid[cpu]) {
-			ia64_acpiid_to_sapicid[i] = -1;
-			break;
-		}
-	}
 	ia64_cpu_to_sapicid[cpu] = -1;
 	cpu_clear(cpu, cpu_present_map);
 

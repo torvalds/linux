@@ -375,30 +375,126 @@ static int acpi_processor_remove_fs(struct acpi_device *device)
 }
 
 /* Use the acpiid in MADT to map cpus in case of SMP */
+
 #ifndef CONFIG_SMP
 #define convert_acpiid_to_cpu(acpi_id) (-1)
 #else
 
+static struct acpi_table_madt *madt;
+
+static int map_lapic_id(struct acpi_subtable_header *entry,
+		 u32 acpi_id, int *apic_id)
+{
+	struct acpi_madt_local_apic *lapic =
+		(struct acpi_madt_local_apic *)entry;
+	if ((lapic->lapic_flags & ACPI_MADT_ENABLED) &&
+	    lapic->processor_id == acpi_id) {
+		*apic_id = lapic->id;
+		return 1;
+	}
+	return 0;
+}
+
+static int map_lsapic_id(struct acpi_subtable_header *entry,
+		  u32 acpi_id, int *apic_id)
+{
+	struct acpi_madt_local_sapic *lsapic =
+		(struct acpi_madt_local_sapic *)entry;
+	/* Only check enabled APICs*/
+	if (lsapic->lapic_flags & ACPI_MADT_ENABLED) {
+		/* First check against id */
+		if (lsapic->processor_id == acpi_id) {
+			*apic_id = lsapic->id;
+			return 1;
+		/* Check against optional uid */
+		} else if (entry->length >= 16 &&
+			lsapic->uid == acpi_id) {
+			*apic_id = lsapic->uid;
+			return 1;
+		}
+	}
+	return 0;
+}
+
 #ifdef CONFIG_IA64
-#define arch_acpiid_to_apicid 	ia64_acpiid_to_sapicid
 #define arch_cpu_to_apicid 	ia64_cpu_to_sapicid
-#define ARCH_BAD_APICID		(0xffff)
 #else
-#define arch_acpiid_to_apicid 	x86_acpiid_to_apicid
 #define arch_cpu_to_apicid 	x86_cpu_to_apicid
-#define ARCH_BAD_APICID		(0xff)
 #endif
 
-static int convert_acpiid_to_cpu(u8 acpi_id)
+static int map_madt_entry(u32 acpi_id)
 {
-	u16 apic_id;
+	unsigned long madt_end, entry;
+	int apic_id = -1;
+
+	if (!madt)
+		return apic_id;
+
+	entry = (unsigned long)madt;
+	madt_end = entry + madt->header.length;
+
+	/* Parse all entries looking for a match. */
+
+	entry += sizeof(struct acpi_table_madt);
+	while (entry + sizeof(struct acpi_subtable_header) < madt_end) {
+		struct acpi_subtable_header *header =
+			(struct acpi_subtable_header *)entry;
+		if (header->type == ACPI_MADT_TYPE_LOCAL_APIC) {
+			if (map_lapic_id(header, acpi_id, &apic_id))
+				break;
+		} else if (header->type == ACPI_MADT_TYPE_LOCAL_SAPIC) {
+			if (map_lsapic_id(header, acpi_id, &apic_id))
+				break;
+		}
+		entry += header->length;
+	}
+	return apic_id;
+}
+
+static int map_mat_entry(acpi_handle handle, u32 acpi_id)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	struct acpi_subtable_header *header;
+	int apic_id = -1;
+
+	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_MAT", NULL, &buffer)))
+		goto exit;
+
+	if (!buffer.length || !buffer.pointer)
+		goto exit;
+
+	obj = buffer.pointer;
+	if (obj->type != ACPI_TYPE_BUFFER ||
+	    obj->buffer.length < sizeof(struct acpi_subtable_header)) {
+		goto exit;
+	}
+
+	header = (struct acpi_subtable_header *)obj->buffer.pointer;
+	if (header->type == ACPI_MADT_TYPE_LOCAL_APIC) {
+		map_lapic_id(header, acpi_id, &apic_id);
+	} else if (header->type == ACPI_MADT_TYPE_LOCAL_SAPIC) {
+		map_lsapic_id(header, acpi_id, &apic_id);
+	}
+
+exit:
+	if (buffer.pointer)
+		kfree(buffer.pointer);
+	return apic_id;
+}
+
+static int get_apic_id(acpi_handle handle, u32 acpi_id)
+{
 	int i;
+	int apic_id = -1;
 
-	apic_id = arch_acpiid_to_apicid[acpi_id];
-	if (apic_id == ARCH_BAD_APICID)
-		return -1;
+	apic_id = map_mat_entry(handle, acpi_id);
+	if (apic_id == -1)
+		apic_id = map_madt_entry(acpi_id);
+	if (apic_id == -1)
+		return apic_id;
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for (i = 0; i < NR_CPUS; ++i) {
 		if (arch_cpu_to_apicid[i] == apic_id)
 			return i;
 	}
@@ -456,7 +552,7 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	 */
 	pr->acpi_id = object.processor.proc_id;
 
-	cpu_index = convert_acpiid_to_cpu(pr->acpi_id);
+	cpu_index = get_apic_id(pr->handle, pr->acpi_id);
 
 	/* Handle UP system running SMP kernel, with no LAPIC in MADT */
 	if (!cpu0_initialized && (cpu_index == -1) &&
@@ -473,7 +569,7 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	 *  less than the max # of CPUs. They should be ignored _iff
 	 *  they are physically not present.
 	 */
-	if (cpu_index == -1) {
+	if (pr->id == -1) {
 		if (ACPI_FAILURE
 		    (acpi_processor_hotadd_init(pr->handle, &pr->id))) {
 			return -ENODEV;
@@ -894,6 +990,12 @@ static int __init acpi_processor_init(void)
 
 	memset(&processors, 0, sizeof(processors));
 	memset(&errata, 0, sizeof(errata));
+
+#ifdef CONFIG_SMP
+	if (ACPI_FAILURE(acpi_get_table(ACPI_SIG_MADT, 0,
+				(struct acpi_table_header **)&madt)))
+		madt = 0;
+#endif
 
 	acpi_processor_dir = proc_mkdir(ACPI_PROCESSOR_CLASS, acpi_root_dir);
 	if (!acpi_processor_dir)
