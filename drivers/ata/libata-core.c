@@ -3304,35 +3304,6 @@ int sata_phy_resume(struct ata_port *ap, const unsigned long *params,
 	return sata_phy_debounce(ap, params, deadline);
 }
 
-static void ata_wait_spinup(struct ata_port *ap, unsigned long deadline)
-{
-	struct ata_eh_context *ehc = &ap->eh_context;
-	unsigned long end, secs;
-	int rc;
-
-	/* first, debounce phy if SATA */
-	if (ap->cbl == ATA_CBL_SATA) {
-		rc = sata_phy_debounce(ap, sata_deb_timing_hotplug, deadline);
-
-		/* if debounced successfully and offline, no need to wait */
-		if ((rc == 0 || rc == -EOPNOTSUPP) && ata_port_offline(ap))
-			return;
-	}
-
-	/* okay, let's give the drive time to spin up */
-	end = ehc->i.hotplug_timestamp + ATA_SPINUP_WAIT * HZ / 1000;
-	secs = ((end - jiffies) + HZ - 1) / HZ;
-
-	if (time_after(jiffies, end))
-		return;
-
-	if (secs > 5)
-		ata_port_printk(ap, KERN_INFO, "waiting for device to spin up "
-				"(%lu secs)\n", secs);
-
-	schedule_timeout_uninterruptible(end - jiffies);
-}
-
 /**
  *	ata_std_prereset - prepare for reset
  *	@ap: ATA port to be reset
@@ -3356,14 +3327,10 @@ int ata_std_prereset(struct ata_port *ap, unsigned long deadline)
 	const unsigned long *timing = sata_ehc_deb_timing(ehc);
 	int rc;
 
-	/* handle link resume & hotplug spinup */
+	/* handle link resume */
 	if ((ehc->i.flags & ATA_EHI_RESUME_LINK) &&
 	    (ap->flags & ATA_FLAG_HRST_TO_RESUME))
 		ehc->i.action |= ATA_EH_HARDRESET;
-
-	if ((ehc->i.flags & ATA_EHI_HOTPLUGGED) &&
-	    (ap->flags & ATA_FLAG_SKIP_D2H_BSY))
-		ata_wait_spinup(ap, deadline);
 
 	/* if we're about to do hardreset, nothing more to do */
 	if (ehc->i.action & ATA_EH_HARDRESET)

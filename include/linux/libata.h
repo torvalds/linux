@@ -296,17 +296,7 @@ enum {
 
 	/* how hard are we gonna try to probe/recover devices */
 	ATA_PROBE_MAX_TRIES	= 3,
-	ATA_EH_RESET_TRIES	= 3,
 	ATA_EH_DEV_TRIES	= 3,
-
-	/* Drive spinup time (time from power-on to the first D2H FIS)
-	 * in msecs - 8s currently.  Failing to get ready in this time
-	 * isn't critical.  It will result in reset failure for
-	 * controllers which can't wait for the first D2H FIS.  libata
-	 * will retry, so it just has to be long enough to spin up
-	 * most devices.
-	 */
-	ATA_SPINUP_WAIT		= 8000,
 
 	/* Horkage types. May be set by libata or controller on drives
 	   (some horkage may be drive/controller pair dependant */
@@ -495,7 +485,6 @@ struct ata_eh_info {
 	unsigned int		dev_action[ATA_MAX_DEVICES]; /* dev EH action */
 	unsigned int		flags;		/* ATA_EHI_* flags */
 
-	unsigned long		hotplug_timestamp;
 	unsigned int		probe_mask;
 
 	char			desc[ATA_EH_DESC_LEN];
@@ -925,12 +914,7 @@ extern void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 
 static inline void __ata_ehi_hotplugged(struct ata_eh_info *ehi)
 {
-	if (ehi->flags & ATA_EHI_HOTPLUGGED)
-		return;
-
 	ehi->flags |= ATA_EHI_HOTPLUGGED | ATA_EHI_RESUME_LINK;
-	ehi->hotplug_timestamp = jiffies;
-
 	ehi->action |= ATA_EH_SOFTRESET;
 	ehi->probe_mask |= (1 << ATA_MAX_DEVICES) - 1;
 }
