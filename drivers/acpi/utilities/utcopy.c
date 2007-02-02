@@ -719,6 +719,15 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		acpi_ut_add_reference(source_desc->reference.object);
 		break;
 
+	case ACPI_TYPE_REGION:
+		/*
+		 * We copied the Region Handler, so we now must add a reference
+		 */
+		if (dest_desc->region.handler) {
+			acpi_ut_add_reference(dest_desc->region.handler);
+		}
+		break;
+
 	default:
 		/* Nothing to do for other simple objects */
 		break;
