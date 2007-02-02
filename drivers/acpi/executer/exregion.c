@@ -155,16 +155,15 @@ acpi_ex_system_memory_space_handler(u32 function,
 
 		/* Create a new mapping starting at the address given */
 
-		status = acpi_os_map_memory(address, window_size,
-					    (void **)&mem_info->
-					    mapped_logical_address);
-		if (ACPI_FAILURE(status)) {
+		mem_info->mapped_logical_address =
+		    acpi_os_map_memory((acpi_native_uint) address, window_size);
+		if (!mem_info->mapped_logical_address) {
 			ACPI_ERROR((AE_INFO,
 				    "Could not map memory at %8.8X%8.8X, size %X",
 				    ACPI_FORMAT_UINT64(address),
 				    (u32) window_size));
 			mem_info->mapped_length = 0;
-			return_ACPI_STATUS(status);
+			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
 		/* Save the physical address and mapping size */

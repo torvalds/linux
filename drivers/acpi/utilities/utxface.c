@@ -398,7 +398,6 @@ acpi_status acpi_get_system_info(struct acpi_buffer * out_buffer)
 {
 	struct acpi_system_info *info_ptr;
 	acpi_status status;
-	u32 i;
 
 	ACPI_FUNCTION_TRACE(acpi_get_system_info);
 
@@ -431,9 +430,7 @@ acpi_status acpi_get_system_info(struct acpi_buffer * out_buffer)
 
 	/* Timer resolution - 24 or 32 bits  */
 
-	if (!acpi_gbl_FADT) {
-		info_ptr->timer_resolution = 0;
-	} else if (acpi_gbl_FADT->tmr_val_ext == 0) {
+	if (acpi_gbl_FADT.flags & ACPI_FADT_32BIT_TIMER) {
 		info_ptr->timer_resolution = 24;
 	} else {
 		info_ptr->timer_resolution = 32;
@@ -448,13 +445,6 @@ acpi_status acpi_get_system_info(struct acpi_buffer * out_buffer)
 
 	info_ptr->debug_layer = acpi_dbg_layer;
 	info_ptr->debug_level = acpi_dbg_level;
-
-	/* Current status of the ACPI tables, per table type */
-
-	info_ptr->num_table_types = ACPI_TABLE_ID_MAX + 1;
-	for (i = 0; i < (ACPI_TABLE_ID_MAX + 1); i++) {
-		info_ptr->table_info[i].count = acpi_gbl_table_lists[i].count;
-	}
 
 	return_ACPI_STATUS(AE_OK);
 }

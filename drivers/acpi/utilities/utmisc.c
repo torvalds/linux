@@ -67,9 +67,9 @@ u8 acpi_ut_is_aml_table(struct acpi_table_header *table)
 
 	/* These are the only tables that contain executable AML */
 
-	if (ACPI_COMPARE_NAME(table->signature, DSDT_SIG) ||
-	    ACPI_COMPARE_NAME(table->signature, PSDT_SIG) ||
-	    ACPI_COMPARE_NAME(table->signature, SSDT_SIG)) {
+	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT) ||
+	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_PSDT) ||
+	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_SSDT)) {
 		return (TRUE);
 	}
 
@@ -418,7 +418,7 @@ u32 acpi_ut_dword_byte_swap(u32 value)
 void acpi_ut_set_integer_width(u8 revision)
 {
 
-	if (revision <= 1) {
+	if (revision < 2) {
 
 		/* 32-bit case */
 

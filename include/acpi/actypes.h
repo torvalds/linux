@@ -191,7 +191,7 @@ typedef s32 acpi_native_int;
 
 typedef u64 acpi_table_ptr;
 typedef u32 acpi_io_address;
-typedef u64 acpi_physical_address;
+typedef u32 acpi_physical_address;
 
 #define ACPI_MAX_PTR                    ACPI_UINT32_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT32_MAX
@@ -310,36 +310,6 @@ typedef acpi_native_uint acpi_size;
  * Independent types
  *
  ******************************************************************************/
-
-/*
- * Pointer overlays to avoid lots of typecasting for
- * code that accepts both physical and logical pointers.
- */
-union acpi_pointers {
-	acpi_physical_address physical;
-	void *logical;
-	acpi_table_ptr value;
-};
-
-struct acpi_pointer {
-	u32 pointer_type;
-	union acpi_pointers pointer;
-};
-
-/* pointer_types for above */
-
-#define ACPI_PHYSICAL_POINTER           0x01
-#define ACPI_LOGICAL_POINTER            0x02
-
-/* Processor mode */
-
-#define ACPI_PHYSICAL_ADDRESSING        0x04
-#define ACPI_LOGICAL_ADDRESSING         0x08
-#define ACPI_MEMORY_MODE                0x0C
-
-#define ACPI_PHYSMODE_PHYSPTR           ACPI_PHYSICAL_ADDRESSING | ACPI_PHYSICAL_POINTER
-#define ACPI_LOGMODE_PHYSPTR            ACPI_LOGICAL_ADDRESSING  | ACPI_PHYSICAL_POINTER
-#define ACPI_LOGMODE_LOGPTR             ACPI_LOGICAL_ADDRESSING  | ACPI_LOGICAL_POINTER
 
 /* Logical defines and NULL */
 
@@ -489,21 +459,6 @@ typedef u64 acpi_integer;
 #define ACPI_NOTIFY_FREQUENCY_MISMATCH  (u8) 5
 #define ACPI_NOTIFY_BUS_MODE_MISMATCH   (u8) 6
 #define ACPI_NOTIFY_POWER_FAULT         (u8) 7
-
-/*
- *  Table types.  These values are passed to the table related APIs
- */
-typedef u32 acpi_table_type;
-
-#define ACPI_TABLE_ID_RSDP              (acpi_table_type) 0
-#define ACPI_TABLE_ID_DSDT              (acpi_table_type) 1
-#define ACPI_TABLE_ID_FADT              (acpi_table_type) 2
-#define ACPI_TABLE_ID_FACS              (acpi_table_type) 3
-#define ACPI_TABLE_ID_PSDT              (acpi_table_type) 4
-#define ACPI_TABLE_ID_SSDT              (acpi_table_type) 5
-#define ACPI_TABLE_ID_XSDT              (acpi_table_type) 6
-#define ACPI_TABLE_ID_MAX               6
-#define ACPI_NUM_TABLE_TYPES            (ACPI_TABLE_ID_MAX+1)
 
 /*
  * Types associated with ACPI names and objects.  The first group of
@@ -816,13 +771,6 @@ struct acpi_buffer {
 #define ACPI_SYS_MODES_MASK             0x0003
 
 /*
- * ACPI Table Info.  One per ACPI table _type_
- */
-struct acpi_table_info {
-	u32 count;
-};
-
-/*
  * System info returned by acpi_get_system_info()
  */
 struct acpi_system_info {
@@ -833,8 +781,6 @@ struct acpi_system_info {
 	u32 reserved2;
 	u32 debug_level;
 	u32 debug_layer;
-	u32 num_table_types;
-	struct acpi_table_info table_info[ACPI_TABLE_ID_MAX + 1];
 };
 
 /*

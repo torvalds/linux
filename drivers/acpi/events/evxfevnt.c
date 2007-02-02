@@ -65,13 +65,6 @@ acpi_status acpi_enable(void)
 
 	ACPI_FUNCTION_TRACE(acpi_enable);
 
-	/* Make sure we have the FADT */
-
-	if (!acpi_gbl_FADT) {
-		ACPI_WARNING((AE_INFO, "No FADT information present!"));
-		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
-	}
-
 	if (acpi_hw_get_mode() == ACPI_SYS_MODE_ACPI) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
 				  "System is already in ACPI mode\n"));
@@ -110,11 +103,6 @@ acpi_status acpi_disable(void)
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE(acpi_disable);
-
-	if (!acpi_gbl_FADT) {
-		ACPI_WARNING((AE_INFO, "No FADT information present!"));
-		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
-	}
 
 	if (acpi_hw_get_mode() == ACPI_SYS_MODE_LEGACY) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,

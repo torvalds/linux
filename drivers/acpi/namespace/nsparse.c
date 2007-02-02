@@ -45,6 +45,7 @@
 #include <acpi/acnamesp.h>
 #include <acpi/acparser.h>
 #include <acpi/acdispat.h>
+#include <acpi/actables.h>
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsparse")
@@ -62,13 +63,23 @@ ACPI_MODULE_NAME("nsparse")
  *
  ******************************************************************************/
 acpi_status
-acpi_ns_one_complete_parse(u8 pass_number, struct acpi_table_desc *table_desc)
+acpi_ns_one_complete_parse(acpi_native_uint pass_number,
+			   acpi_native_uint table_index)
 {
 	union acpi_parse_object *parse_root;
 	acpi_status status;
+	acpi_native_uint aml_length;
+	u8 *aml_start;
 	struct acpi_walk_state *walk_state;
+	struct acpi_table_header *table;
+	acpi_owner_id owner_id;
 
 	ACPI_FUNCTION_TRACE(ns_one_complete_parse);
+
+	status = acpi_tb_get_owner_id(table_index, &owner_id);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	/* Create and init a Root Node */
 
@@ -79,19 +90,34 @@ acpi_ns_one_complete_parse(u8 pass_number, struct acpi_table_desc *table_desc)
 
 	/* Create and initialize a new walk state */
 
-	walk_state = acpi_ds_create_walk_state(table_desc->owner_id,
-					       NULL, NULL, NULL);
+	walk_state = acpi_ds_create_walk_state(owner_id, NULL, NULL, NULL);
 	if (!walk_state) {
 		acpi_ps_free_op(parse_root);
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	status = acpi_ds_init_aml_walk(walk_state, parse_root, NULL,
-				       table_desc->aml_start,
-				       table_desc->aml_length, NULL,
-				       pass_number);
+	status = acpi_get_table_by_index(table_index, &table);
 	if (ACPI_FAILURE(status)) {
 		acpi_ds_delete_walk_state(walk_state);
+		acpi_ps_free_op(parse_root);
+		return_ACPI_STATUS(status);
+	}
+
+	/* Table must consist of at least a complete header */
+
+	if (table->length < sizeof(struct acpi_table_header)) {
+		status = AE_BAD_HEADER;
+	} else {
+		aml_start = (u8 *) table + sizeof(struct acpi_table_header);
+		aml_length = table->length - sizeof(struct acpi_table_header);
+		status = acpi_ds_init_aml_walk(walk_state, parse_root, NULL,
+					       aml_start, aml_length, NULL,
+					       (u8) pass_number);
+	}
+
+	if (ACPI_FAILURE(status)) {
+		acpi_ds_delete_walk_state(walk_state);
+		acpi_ps_delete_parse_tree(parse_root);
 		return_ACPI_STATUS(status);
 	}
 
@@ -119,7 +145,7 @@ acpi_ns_one_complete_parse(u8 pass_number, struct acpi_table_desc *table_desc)
  ******************************************************************************/
 
 acpi_status
-acpi_ns_parse_table(struct acpi_table_desc *table_desc,
+acpi_ns_parse_table(acpi_native_uint table_index,
 		    struct acpi_namespace_node *start_node)
 {
 	acpi_status status;
@@ -137,7 +163,7 @@ acpi_ns_parse_table(struct acpi_table_desc *table_desc,
 	 * performs another complete parse of the AML..
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start pass 1\n"));
-	status = acpi_ns_one_complete_parse(1, table_desc);
+	status = acpi_ns_one_complete_parse(1, table_index);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -152,7 +178,7 @@ acpi_ns_parse_table(struct acpi_table_desc *table_desc,
 	 * parse objects are all cached.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start pass 2\n"));
-	status = acpi_ns_one_complete_parse(2, table_desc);
+	status = acpi_ns_one_complete_parse(2, table_index);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}

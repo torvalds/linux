@@ -70,13 +70,6 @@ acpi_status acpi_ev_initialize_events(void)
 
 	ACPI_FUNCTION_TRACE(ev_initialize_events);
 
-	/* Make sure we have ACPI tables */
-
-	if (!acpi_gbl_DSDT) {
-		ACPI_WARNING((AE_INFO, "No ACPI tables present!"));
-		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
-	}
-
 	/*
 	 * Initialize the Fixed and General Purpose Events. This is done prior to
 	 * enabling SCIs to prevent interrupts from occurring before the handlers are

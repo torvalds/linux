@@ -51,6 +51,10 @@
 /*
  * Global interfaces
  */
+acpi_status
+acpi_initialize_tables(struct acpi_table_desc *initial_storage,
+		       u32 initial_table_count, u8 allow_resize);
+
 acpi_status acpi_initialize_subsystem(void);
 
 acpi_status acpi_enable_subsystem(u32 flags);
@@ -92,30 +96,28 @@ void acpi_free(void *address);
 /*
  * ACPI table manipulation interfaces
  */
-acpi_status
-acpi_find_root_pointer(u32 flags, struct acpi_pointer *rsdp_address);
+acpi_status acpi_reallocate_root_table(void);
+
+acpi_status acpi_find_root_pointer(acpi_native_uint * rsdp_address);
 
 acpi_status acpi_load_tables(void);
 
 acpi_status acpi_load_table(struct acpi_table_header *table_ptr);
 
-acpi_status acpi_unload_table_id(acpi_table_type table_type, acpi_owner_id id);
-
-#ifdef ACPI_FUTURE_USAGE
-acpi_status acpi_unload_table(acpi_table_type table_type);
-acpi_status
-acpi_get_table_header(acpi_table_type table_type,
-		      u32 instance, struct acpi_table_header *out_table_header);
-#endif				/*  ACPI_FUTURE_USAGE  */
+acpi_status acpi_unload_table_id(acpi_owner_id id);
 
 acpi_status
-acpi_get_table(acpi_table_type table_type,
-	       u32 instance, struct acpi_buffer *ret_buffer);
+acpi_get_table_header(acpi_string signature,
+		      acpi_native_uint instance,
+		      struct acpi_table_header **out_table_header);
 
 acpi_status
-acpi_get_firmware_table(acpi_string signature,
-			u32 instance,
-			u32 flags, struct acpi_table_header **table_pointer);
+acpi_get_table(acpi_string signature,
+	       acpi_native_uint instance, struct acpi_table_header **out_table);
+
+acpi_status
+acpi_get_table_by_index(acpi_native_uint table_index,
+			struct acpi_table_header **out_table);
 
 /*
  * Namespace and name interfaces

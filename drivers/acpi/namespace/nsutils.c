@@ -770,13 +770,6 @@ void acpi_ns_terminate(void)
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Namespace freed\n"));
-
-	/*
-	 * 2) Now we can delete the ACPI tables
-	 */
-	acpi_tb_delete_all_tables();
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "ACPI Tables freed\n"));
-
 	return_VOID;
 }
 

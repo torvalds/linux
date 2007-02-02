@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: tbutils - Table manipulation utilities
+ * Module Name: tbutils   - table utilities
  *
  *****************************************************************************/
 
@@ -48,295 +48,507 @@
 ACPI_MODULE_NAME("tbutils")
 
 /* Local prototypes */
-#ifdef ACPI_OBSOLETE_FUNCTIONS
-acpi_status
-acpi_tb_handle_to_object(u16 table_id, struct acpi_table_desc **table_desc);
-#endif
+static void acpi_tb_parse_fadt(struct acpi_table_fadt *fadt, u8 flags);
+
+static void inline
+acpi_tb_init_generic_address(struct acpi_generic_address *new_gas_struct,
+			     u8 bit_width, acpi_physical_address address);
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_tb_is_table_installed
+ * FUNCTION:    acpi_tb_print_table_header
  *
- * PARAMETERS:  new_table_desc      - Descriptor for new table being installed
+ * PARAMETERS:  Address             - Table physical address
+ *              Header              - Table header
  *
- * RETURN:      Status - AE_ALREADY_EXISTS if the table is already installed
+ * RETURN:      None
  *
- * DESCRIPTION: Determine if an ACPI table is already installed
- *
- * MUTEX:       Table data structures should be locked
+ * DESCRIPTION: Print an ACPI table header
  *
  ******************************************************************************/
 
-acpi_status acpi_tb_is_table_installed(struct acpi_table_desc *new_table_desc)
+void
+acpi_tb_print_table_header(acpi_physical_address address,
+			   struct acpi_table_header *header)
 {
-	struct acpi_table_desc *table_desc;
 
-	ACPI_FUNCTION_TRACE(tb_is_table_installed);
+	ACPI_INFO((AE_INFO,
+		   "%4.4s @ 0x%p Length 0x%04X (v%3.3d %6.6s %8.8s 0x%08X %4.4s 0x%08X)",
+		   header->signature, ACPI_CAST_PTR(void, address),
+		   header->length, header->revision, header->oem_id,
+		   header->oem_table_id, header->oem_revision,
+		   header->asl_compiler_id, header->asl_compiler_revision));
+}
 
-	/* Get the list descriptor and first table descriptor */
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_init_generic_address
+ *
+ * PARAMETERS:  new_gas_struct      - GAS struct to be initialized
+ *              bit_width           - Width of this register
+ *              Address             - Address of the register
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Initialize a GAS structure.
+ *
+ ******************************************************************************/
 
-	table_desc = acpi_gbl_table_lists[new_table_desc->type].next;
+static void inline
+acpi_tb_init_generic_address(struct acpi_generic_address *new_gas_struct,
+			     u8 bit_width, acpi_physical_address address)
+{
 
-	/* Examine all installed tables of this type */
+	ACPI_STORE_ADDRESS(new_gas_struct->address, address);
+	new_gas_struct->space_id = ACPI_ADR_SPACE_SYSTEM_IO;
+	new_gas_struct->bit_width = bit_width;
+	new_gas_struct->bit_offset = 0;
+	new_gas_struct->access_width = 0;
+}
 
-	while (table_desc) {
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_checksum
+ *
+ * PARAMETERS:  Buffer          - Pointer to memory region to be checked
+ *              Length          - Length of this memory region
+ *
+ * RETURN:      Checksum (u8)
+ *
+ * DESCRIPTION: Calculates circular checksum of memory region.
+ *
+ ******************************************************************************/
+
+u8 acpi_tb_checksum(u8 * buffer, acpi_native_uint length)
+{
+	u8 sum = 0;
+	u8 *end = buffer + length;
+
+	while (buffer < end) {
+		sum = (u8) (sum + *(buffer++));
+	}
+
+	return sum;
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_convert_fadt
+ *
+ * PARAMETERS:  Fadt                - FADT table to be converted
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Converts a BIOS supplied ACPI 1.0 FADT to a local
+ *              ACPI 2.0 FADT. If the BIOS supplied a 2.0 FADT then it is simply
+ *              copied to the local FADT.  The ACPI CA software uses this
+ *              local FADT. Thus a significant amount of special #ifdef
+ *              type codeing is saved.
+ *
+ ******************************************************************************/
+
+void acpi_tb_convert_fadt(struct acpi_table_fadt *fadt)
+{
+
+	/*
+	 * Convert table pointers to 64-bit fields
+	 */
+	if (!acpi_gbl_FADT.Xfacs) {
+		acpi_gbl_FADT.Xfacs = (u64) acpi_gbl_FADT.facs;
+	}
+
+	if (!acpi_gbl_FADT.Xdsdt) {
+		acpi_gbl_FADT.Xdsdt = (u64) acpi_gbl_FADT.dsdt;
+	}
+
+	/*
+	 * Convert the V1.0 block addresses to V2.0 GAS structures
+	 */
+	acpi_tb_init_generic_address(&acpi_gbl_FADT.xpm1a_event_block,
+				     acpi_gbl_FADT.pm1_event_length,
+				     (acpi_physical_address) acpi_gbl_FADT.
+				     pm1a_event_block);
+	acpi_tb_init_generic_address(&acpi_gbl_FADT.xpm1b_event_block,
+				     acpi_gbl_FADT.pm1_event_length,
+				     (acpi_physical_address) acpi_gbl_FADT.
+				     pm1b_event_block);
+	acpi_tb_init_generic_address(&acpi_gbl_FADT.xpm1a_control_block,
+				     acpi_gbl_FADT.pm1_control_length,
+				     (acpi_physical_address) acpi_gbl_FADT.
+				     pm1a_control_block);
+	acpi_tb_init_generic_address(&acpi_gbl_FADT.xpm1b_control_block,
+				     acpi_gbl_FADT.pm1_control_length,
+				     (acpi_physical_address) acpi_gbl_FADT.
+				     pm1b_control_block);
+	acpi_tb_init_generic_address(&acpi_gbl_FADT.xpm2_control_block,
+				     acpi_gbl_FADT.pm2_control_length,
+				     (acpi_physical_address) acpi_gbl_FADT.
+				     pm2_control_block);
+	acpi_tb_init_generic_address(&acpi_gbl_FADT.xpm_timer_block,
+				     acpi_gbl_FADT.pm_timer_length,
+				     (acpi_physical_address) acpi_gbl_FADT.
+				     pm_timer_block);
+	acpi_tb_init_generic_address(&acpi_gbl_FADT.xgpe0_block, 0,
+				     (acpi_physical_address) acpi_gbl_FADT.
+				     gpe0_block);
+	acpi_tb_init_generic_address(&acpi_gbl_FADT.xgpe1_block, 0,
+				     (acpi_physical_address) acpi_gbl_FADT.
+				     gpe1_block);
+
+	/*
+	 * Create separate GAS structs for the PM1 Enable registers
+	 */
+	acpi_tb_init_generic_address(&acpi_gbl_xpm1a_enable,
+				     (u8) ACPI_DIV_2(acpi_gbl_FADT.
+						     pm1_event_length),
+				     (acpi_physical_address)
+				     (acpi_gbl_FADT.xpm1a_event_block.address +
+				      ACPI_DIV_2(acpi_gbl_FADT.
+						 pm1_event_length)));
+
+	/*
+	 * PM1B is optional; leave null if not present
+	 */
+	if (acpi_gbl_FADT.xpm1b_event_block.address) {
+		acpi_tb_init_generic_address(&acpi_gbl_xpm1b_enable,
+					     (u8) ACPI_DIV_2(acpi_gbl_FADT.
+							     pm1_event_length),
+					     (acpi_physical_address)
+					     (acpi_gbl_FADT.xpm1b_event_block.
+					      address +
+					      ACPI_DIV_2(acpi_gbl_FADT.
+							 pm1_event_length)));
+	}
+
+	/* Global FADT is the new common V2.0 FADT  */
+
+	acpi_gbl_FADT.header.length = sizeof(struct acpi_table_fadt);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_parse_fadt
+ *
+ * PARAMETERS:  Fadt                - Pointer to FADT table
+ *              Flags               - Flags
+ *
+ * RETURN:      none
+ *
+ * DESCRIPTION: This function is called to initialise the FADT, DSDT and FACS
+ *              tables (FADT contains the addresses of the DSDT and FACS)
+ *
+ ******************************************************************************/
+
+static void acpi_tb_parse_fadt(struct acpi_table_fadt *fadt, u8 flags)
+{
+	acpi_physical_address dsdt_address =
+	    (acpi_physical_address) fadt->Xdsdt;
+	acpi_physical_address facs_address =
+	    (acpi_physical_address) fadt->Xfacs;
+	struct acpi_table_header *table;
+
+	if (!dsdt_address) {
+		goto no_dsdt;
+	}
+
+	table =
+	    acpi_os_map_memory(dsdt_address, sizeof(struct acpi_table_header));
+	if (!table) {
+		goto no_dsdt;
+	}
+
+	/* Initialize the DSDT table */
+
+	ACPI_MOVE_32_TO_32(&
+			   (acpi_gbl_root_table_list.
+			    tables[ACPI_TABLE_INDEX_DSDT].signature),
+			   ACPI_SIG_DSDT);
+
+	acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].address =
+	    dsdt_address;
+	acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].length =
+	    table->length;
+	acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].flags = flags;
+
+	acpi_tb_print_table_header(dsdt_address, table);
+
+	/* Global integer width is based upon revision of the DSDT */
+
+	acpi_ut_set_integer_width(table->revision);
+	acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
+
+      no_dsdt:
+	if (!facs_address) {
+		return;
+	}
+
+	table =
+	    acpi_os_map_memory(facs_address, sizeof(struct acpi_table_header));
+	if (!table) {
+		return;
+	}
+
+	/* Initialize the FACS table */
+
+	ACPI_MOVE_32_TO_32(&
+			   (acpi_gbl_root_table_list.
+			    tables[ACPI_TABLE_INDEX_FACS].signature),
+			   ACPI_SIG_FACS);
+
+	acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_FACS].address =
+	    facs_address;
+	acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_FACS].length =
+	    table->length;
+	acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_FACS].flags = flags;
+
+	ACPI_INFO((AE_INFO, "%4.4s @ 0x%p",
+		   table->signature, ACPI_CAST_PTR(void, facs_address)));
+
+	acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_parse_root_table
+ *
+ * PARAMETERS:  Rsdp                    - Pointer to the RSDP
+ *              Flags                   - Flags
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: This function is called to parse the Root System Description
+ *              Table (RSDT or XSDT)
+ *
+ * NOTE:        Tables are mapped (not copied) for efficiency. The FACS must
+ *              be mapped and cannot be copied because it contains the actual
+ *              memory location of the ACPI Global Lock.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_tb_parse_root_table(struct acpi_table_rsdp *rsdp, u8 flags)
+{
+	struct acpi_table_header *table;
+	acpi_physical_address address;
+	u32 length;
+	u8 *table_entry;
+	acpi_native_uint i;
+	acpi_native_uint pointer_size;
+	u32 table_count;
+	u8 checksum;
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(tb_parse_root_table);
+
+	/* Differentiate between RSDT and XSDT root tables */
+
+	if (rsdp->revision > 1 && rsdp->xsdt_physical_address) {
 		/*
-		 * If the table lengths match, perform a full bytewise compare. This
-		 * means that we will allow tables with duplicate oem_table_id(s), as
-		 * long as the tables are different in some way.
-		 *
-		 * Checking if the table has been loaded into the namespace means that
-		 * we don't check for duplicate tables during the initial installation
-		 * of tables within the RSDT/XSDT.
+		 * Root table is an XSDT (64-bit physical addresses). We must use the
+		 * XSDT if the revision is > 1 and the XSDT pointer is present, as per
+		 * the ACPI specification.
 		 */
-		if ((table_desc->loaded_into_namespace) &&
-		    (table_desc->pointer->length ==
-		     new_table_desc->pointer->length)
-		    &&
-		    (!ACPI_MEMCMP
-		     (table_desc->pointer, new_table_desc->pointer,
-		      new_table_desc->pointer->length))) {
+		address = (acpi_native_uint) rsdp->xsdt_physical_address;
+		pointer_size = sizeof(u64);
+	} else {
+		/* Root table is an RSDT (32-bit physical addresses) */
 
-			/* Match: this table is already installed */
+		address = (acpi_native_uint) rsdp->rsdt_physical_address;
+		pointer_size = sizeof(u32);
+	}
 
-			ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
-					  "Table [%4.4s] already installed: Rev %X OemTableId [%8.8s]\n",
-					  new_table_desc->pointer->signature,
-					  new_table_desc->pointer->revision,
-					  new_table_desc->pointer->
-					  oem_table_id));
+	/* Map the table header to get the full table length */
 
-			new_table_desc->owner_id = table_desc->owner_id;
-			new_table_desc->installed_desc = table_desc;
+	table = acpi_os_map_memory(address, sizeof(struct acpi_table_header));
+	if (!table) {
+		return (AE_NO_MEMORY);
+	}
 
-			return_ACPI_STATUS(AE_ALREADY_EXISTS);
+	/* Get the length of the full table, verify length and map entire table */
+
+	length = table->length;
+	acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
+
+	if (length < sizeof(struct acpi_table_header)) {
+		ACPI_ERROR((AE_INFO, "Invalid length 0x%X in RSDT/XSDT",
+			    length));
+		return (AE_INVALID_TABLE_LENGTH);
+	}
+
+	table = acpi_os_map_memory(address, length);
+	if (!table) {
+		return (AE_NO_MEMORY);
+	}
+
+	/* Validate the root table checksum */
+
+	checksum = acpi_tb_checksum(ACPI_CAST_PTR(u8, table), length);
+#if (ACPI_CHECKSUM_ABORT)
+
+	if (checksum) {
+		acpi_os_unmap_memory(table, length);
+		return (AE_BAD_CHECKSUM);
+	}
+#endif
+
+	acpi_tb_print_table_header(address, table);
+
+	/* Calculate the number of tables described in the root table */
+
+	table_count =
+	    (table->length - sizeof(struct acpi_table_header)) / pointer_size;
+
+	/* Setup loop */
+
+	table_entry =
+	    ACPI_CAST_PTR(u8, table) + sizeof(struct acpi_table_header);
+	acpi_gbl_root_table_list.count = 2;
+
+	/*
+	 * Initialize the ACPI table entries
+	 * First two entries in the table array are reserved for the DSDT and FACS
+	 */
+	for (i = 0; i < table_count; ++i, table_entry += pointer_size) {
+
+		/* Ensure there is room for another table entry */
+
+		if (acpi_gbl_root_table_list.count >=
+		    acpi_gbl_root_table_list.size) {
+			status = acpi_tb_resize_root_table_list();
+			if (ACPI_FAILURE(status)) {
+				ACPI_WARNING((AE_INFO,
+					      "Truncating %u table entries!",
+					      (unsigned)
+					      (acpi_gbl_root_table_list.size -
+					       acpi_gbl_root_table_list.
+					       count)));
+				break;
+			}
 		}
 
-		/* Get next table on the list */
+		/* Get the physical address (32-bit for RSDT, 64-bit for XSDT) */
 
-		table_desc = table_desc->next;
+		if (pointer_size == sizeof(u32)) {
+			acpi_gbl_root_table_list.
+			    tables[acpi_gbl_root_table_list.count].address =
+			    (acpi_physical_address) (*ACPI_CAST_PTR
+						     (u32, table_entry));
+		} else {
+			acpi_gbl_root_table_list.
+			    tables[acpi_gbl_root_table_list.count].address =
+			    (acpi_physical_address) (*ACPI_CAST_PTR
+						     (u64, table_entry));
+		}
+
+		acpi_gbl_root_table_list.count++;
+	}
+
+	/*
+	 * It is not possible to map more than one entry in some environments,
+	 * so unmap the root table here before mapping other tables
+	 */
+	acpi_os_unmap_memory(table, length);
+
+	/* Initialize all tables other than the DSDT and FACS */
+
+	for (i = 2; i < acpi_gbl_root_table_list.count; i++) {
+		address = acpi_gbl_root_table_list.tables[i].address;
+		length = sizeof(struct acpi_table_header);
+
+		table = acpi_os_map_memory(address, length);
+		if (!table) {
+			continue;
+		}
+
+		acpi_gbl_root_table_list.tables[i].length = table->length;
+		acpi_gbl_root_table_list.tables[i].flags = flags;
+
+		ACPI_MOVE_32_TO_32(&
+				   (acpi_gbl_root_table_list.tables[i].
+				    signature), table->signature);
+
+		acpi_tb_print_table_header(address, table);
+
+		/*
+		 * Special case for the FADT because of multiple versions -
+		 * get a local copy and convert to common format
+		 */
+		if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_FADT)) {
+			acpi_os_unmap_memory(table, length);
+			length = table->length;
+
+			table = acpi_os_map_memory(address, length);
+			if (!table) {
+				continue;
+			}
+
+			/* Copy the entire FADT locally */
+
+			ACPI_MEMCPY(&acpi_gbl_FADT, table,
+				    ACPI_MIN(table->length,
+					     sizeof(struct acpi_table_fadt)));
+
+			/* Small table means old revision, convert to new */
+
+			if (table->length < sizeof(struct acpi_table_fadt)) {
+				acpi_tb_convert_fadt(ACPI_CAST_PTR
+						     (struct acpi_table_fadt,
+						      table));
+			}
+
+			/* Unmap original FADT */
+
+			acpi_os_unmap_memory(table, length);
+			acpi_tb_parse_fadt(&acpi_gbl_FADT, flags);
+		} else {
+			acpi_os_unmap_memory(table, length);
+		}
 	}
 
 	return_ACPI_STATUS(AE_OK);
 }
 
-/*******************************************************************************
+/******************************************************************************
  *
- * FUNCTION:    acpi_tb_validate_table_header
+ * FUNCTION:    acpi_tb_map
  *
- * PARAMETERS:  table_header        - Logical pointer to the table
+ * PARAMETERS:  Address             - Address to be mapped
+ *              Length              - Length to be mapped
+ *              Flags               - Logical or physical addressing mode
  *
- * RETURN:      Status
+ * RETURN:      Pointer to mapped region
  *
- * DESCRIPTION: Check an ACPI table header for validity
+ * DESCRIPTION: Maps memory according to flag
  *
- * NOTE:  Table pointers are validated as follows:
- *          1) Table pointer must point to valid physical memory
- *          2) Signature must be 4 ASCII chars, even if we don't recognize the
- *             name
- *          3) Table must be readable for length specified in the header
- *          4) Table checksum must be valid (with the exception of the FACS
- *              which has no checksum because it contains variable fields)
- *
- ******************************************************************************/
+ *****************************************************************************/
 
-acpi_status
-acpi_tb_validate_table_header(struct acpi_table_header *table_header)
-{
-	acpi_name signature;
-
-	ACPI_FUNCTION_ENTRY();
-
-	/* Verify that this is a valid address */
-
-	if (!acpi_os_readable(table_header, sizeof(struct acpi_table_header))) {
-		ACPI_ERROR((AE_INFO,
-			    "Cannot read table header at %p", table_header));
-
-		return (AE_BAD_ADDRESS);
-	}
-
-	/* Ensure that the signature is 4 ASCII characters */
-
-	ACPI_MOVE_32_TO_32(&signature, table_header->signature);
-	if (!acpi_ut_valid_acpi_name(signature)) {
-		ACPI_ERROR((AE_INFO, "Invalid table signature 0x%8.8X",
-			    signature));
-
-		ACPI_DUMP_BUFFER(table_header,
-				 sizeof(struct acpi_table_header));
-		return (AE_BAD_SIGNATURE);
-	}
-
-	/* Validate the table length */
-
-	if (table_header->length < sizeof(struct acpi_table_header)) {
-		ACPI_ERROR((AE_INFO,
-			    "Invalid length 0x%X in table with signature %4.4s",
-			    (u32) table_header->length,
-			    ACPI_CAST_PTR(char, &signature)));
-
-		ACPI_DUMP_BUFFER(table_header,
-				 sizeof(struct acpi_table_header));
-		return (AE_BAD_HEADER);
-	}
-
-	return (AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_tb_sum_table
- *
- * PARAMETERS:  Buffer              - Buffer to sum
- *              Length              - Size of the buffer
- *
- * RETURN:      8 bit sum of buffer
- *
- * DESCRIPTION: Computes an 8 bit sum of the buffer(length) and returns it.
- *
- ******************************************************************************/
-
-u8 acpi_tb_sum_table(void *buffer, u32 length)
-{
-	acpi_native_uint i;
-	u8 sum = 0;
-
-	if (!buffer || !length) {
-		return (0);
-	}
-
-	for (i = 0; i < length; i++) {
-		sum = (u8) (sum + ((u8 *) buffer)[i]);
-	}
-	return (sum);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_tb_generate_checksum
- *
- * PARAMETERS:  Table               - Pointer to a valid ACPI table (with a
- *                                    standard ACPI header)
- *
- * RETURN:      8 bit checksum of buffer
- *
- * DESCRIPTION: Computes an 8 bit checksum of the table.
- *
- ******************************************************************************/
-
-u8 acpi_tb_generate_checksum(struct acpi_table_header * table)
-{
-	u8 checksum;
-
-	/* Sum the entire table as-is */
-
-	checksum = acpi_tb_sum_table(table, table->length);
-
-	/* Subtract off the existing checksum value in the table */
-
-	checksum = (u8) (checksum - table->checksum);
-
-	/* Compute the final checksum */
-
-	checksum = (u8) (0 - checksum);
-	return (checksum);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_tb_set_checksum
- *
- * PARAMETERS:  Table               - Pointer to a valid ACPI table (with a
- *                                    standard ACPI header)
- *
- * RETURN:      None. Sets the table checksum field
- *
- * DESCRIPTION: Computes an 8 bit checksum of the table and inserts the
- *              checksum into the table header.
- *
- ******************************************************************************/
-
-void acpi_tb_set_checksum(struct acpi_table_header *table)
+void *acpi_tb_map(acpi_physical_address address, u32 length, u32 flags)
 {
 
-	table->checksum = acpi_tb_generate_checksum(table);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_tb_verify_table_checksum
- *
- * PARAMETERS:  *table_header           - ACPI table to verify
- *
- * RETURN:      8 bit checksum of table
- *
- * DESCRIPTION: Generates an 8 bit checksum of table and returns and compares
- *              it to the existing checksum value.
- *
- ******************************************************************************/
-
-acpi_status
-acpi_tb_verify_table_checksum(struct acpi_table_header *table_header)
-{
-	u8 checksum;
-
-	ACPI_FUNCTION_TRACE(tb_verify_table_checksum);
-
-	/* Compute the checksum on the table */
-
-	checksum = acpi_tb_generate_checksum(table_header);
-
-	/* Checksum ok? */
-
-	if (checksum == table_header->checksum) {
-		return_ACPI_STATUS(AE_OK);
+	if (flags == ACPI_TABLE_ORIGIN_MAPPED) {
+		return (acpi_os_map_memory(address, length));
+	} else {
+		return (ACPI_CAST_PTR(void, address));
 	}
-
-	ACPI_WARNING((AE_INFO,
-		      "Incorrect checksum in table [%4.4s] - is %2.2X, should be %2.2X",
-		      table_header->signature, table_header->checksum,
-		      checksum));
-
-	return_ACPI_STATUS(AE_BAD_CHECKSUM);
 }
 
-#ifdef ACPI_OBSOLETE_FUNCTIONS
-/*******************************************************************************
+/******************************************************************************
  *
- * FUNCTION:    acpi_tb_handle_to_object
+ * FUNCTION:    acpi_tb_unmap
  *
- * PARAMETERS:  table_id            - Id for which the function is searching
- *              table_desc          - Pointer to return the matching table
- *                                      descriptor.
+ * PARAMETERS:  Pointer             - To mapped region
+ *              Length              - Length to be unmapped
+ *              Flags               - Logical or physical addressing mode
  *
- * RETURN:      Search the tables to find one with a matching table_id and
- *              return a pointer to that table descriptor.
+ * RETURN:      None
  *
- ******************************************************************************/
+ * DESCRIPTION: Unmaps memory according to flag
+ *
+ *****************************************************************************/
 
-acpi_status
-acpi_tb_handle_to_object(u16 table_id,
-			 struct acpi_table_desc **return_table_desc)
+void acpi_tb_unmap(void *pointer, u32 length, u32 flags)
 {
-	u32 i;
-	struct acpi_table_desc *table_desc;
 
-	ACPI_FUNCTION_NAME(tb_handle_to_object);
-
-	for (i = 0; i < ACPI_TABLE_MAX; i++) {
-		table_desc = acpi_gbl_table_lists[i].next;
-		while (table_desc) {
-			if (table_desc->table_id == table_id) {
-				*return_table_desc = table_desc;
-				return (AE_OK);
-			}
-
-			table_desc = table_desc->next;
-		}
+	if (flags == ACPI_TABLE_ORIGIN_MAPPED) {
+		acpi_os_unmap_memory(pointer, length);
 	}
-
-	ACPI_ERROR((AE_INFO, "TableId=%X does not exist", table_id));
-	return (AE_BAD_PARAMETER);
 }
-#endif

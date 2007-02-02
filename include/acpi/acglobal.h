@@ -140,46 +140,22 @@ ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_leave_wake_gpes_disabled, TRUE);
  ****************************************************************************/
 
 /*
- * Table pointers.
- * Although these pointers are somewhat redundant with the global acpi_table,
- * they are convenient because they are typed pointers.
+ * acpi_gbl_root_table_list is the master list of ACPI tables found in the
+ * RSDT/XSDT.
  *
- * These tables are single-table only; meaning that there can be at most one
- * of each in the system.  Each global points to the actual table.
+ * acpi_gbl_FADT is a local copy of the FADT, converted to a common format.
  */
-ACPI_EXTERN u32 acpi_gbl_table_flags;
-ACPI_EXTERN u32 acpi_gbl_rsdt_table_count;
-ACPI_EXTERN struct rsdp_descriptor *acpi_gbl_RSDP;
-ACPI_EXTERN struct xsdt_descriptor *acpi_gbl_XSDT;
-ACPI_EXTERN struct fadt_descriptor *acpi_gbl_FADT;
-ACPI_EXTERN struct acpi_table_header *acpi_gbl_DSDT;
-ACPI_EXTERN struct facs_descriptor *acpi_gbl_FACS;
-ACPI_EXTERN struct acpi_common_facs acpi_gbl_common_fACS;
-/*
- * Since there may be multiple SSDTs and PSDTs, a single pointer is not
- * sufficient; Therefore, there isn't one!
- */
-
-/* The root table can be either an RSDT or an XSDT */
-
-ACPI_EXTERN u8 acpi_gbl_root_table_type;
-#define     ACPI_TABLE_TYPE_RSDT        'R'
-#define     ACPI_TABLE_TYPE_XSDT        'X'
+ACPI_EXTERN struct acpi_internal_rsdt acpi_gbl_root_table_list;
+ACPI_EXTERN struct acpi_table_fadt acpi_gbl_FADT;
 
 /*
- * Handle both ACPI 1.0 and ACPI 2.0 Integer widths:
- * If we are executing a method that exists in a 32-bit ACPI table,
- * use only the lower 32 bits of the (internal) 64-bit Integer.
+ * Handle both ACPI 1.0 and ACPI 2.0 Integer widths. The integer width is
+ * determined by the revision of the DSDT: If the DSDT revision is less than
+ * 2, use only the lower 32 bits of the internal 64-bit Integer.
  */
 ACPI_EXTERN u8 acpi_gbl_integer_bit_width;
 ACPI_EXTERN u8 acpi_gbl_integer_byte_width;
 ACPI_EXTERN u8 acpi_gbl_integer_nybble_width;
-
-/*
- * ACPI Table info arrays
- */
-extern struct acpi_table_list acpi_gbl_table_lists[ACPI_TABLE_ID_MAX + 1];
-extern struct acpi_table_support acpi_gbl_table_data[ACPI_TABLE_ID_MAX + 1];
 
 /*****************************************************************************
  *
@@ -188,7 +164,7 @@ extern struct acpi_table_support acpi_gbl_table_data[ACPI_TABLE_ID_MAX + 1];
  ****************************************************************************/
 
 /*
- * Predefined mutex objects.  This array contains the
+ * Predefined mutex objects. This array contains the
  * actual OS mutex handles, indexed by the local ACPI_MUTEX_HANDLEs.
  * (The table maps local handles to the real OS handles)
  */

@@ -51,6 +51,7 @@
 #define ACPI_SERIALIZED                 0xFF
 
 typedef u32 acpi_mutex_handle;
+#define ACPI_GLOBAL_LOCK                (acpi_semaphore) (-1)
 
 /* Total number of aml opcodes defined */
 
@@ -79,8 +80,8 @@ union acpi_parse_object;
  * table below also!
  */
 #define ACPI_MTX_INTERPRETER            0	/* AML Interpreter, main lock */
-#define ACPI_MTX_TABLES                 1	/* Data for ACPI tables */
-#define ACPI_MTX_NAMESPACE              2	/* ACPI Namespace */
+#define ACPI_MTX_NAMESPACE              1	/* ACPI Namespace */
+#define ACPI_MTX_TABLES                 2	/* Data for ACPI tables */
 #define ACPI_MTX_EVENTS                 3	/* Data for ACPI events */
 #define ACPI_MTX_CACHES                 4	/* Internal caches, general purposes */
 #define ACPI_MTX_MEMORY                 5	/* Debug memory tracking lists */
@@ -218,24 +219,34 @@ struct acpi_namespace_node {
  * ACPI Table Descriptor.  One per ACPI table
  */
 struct acpi_table_desc {
-	struct acpi_table_desc *prev;
-	struct acpi_table_desc *next;
-	struct acpi_table_desc *installed_desc;
+	acpi_physical_address address;
 	struct acpi_table_header *pointer;
-	u8 *aml_start;
-	u64 physical_address;
-	acpi_size length;
-	u32 aml_length;
+	u32 length;		/* Length fixed at 32 bits */
+	union acpi_name_union signature;
 	acpi_owner_id owner_id;
-	u8 type;
-	u8 allocation;
-	u8 loaded_into_namespace;
+	u8 flags;
 };
 
-struct acpi_table_list {
-	struct acpi_table_desc *next;
+struct acpi_internal_rsdt {
+	struct acpi_table_desc *tables;
 	u32 count;
+	u32 size;
+	u8 flags;
 };
+
+/* Flags for both structs above */
+
+#define ACPI_TABLE_ORIGIN_UNKNOWN       (0)
+#define ACPI_TABLE_ORIGIN_MAPPED        (1)
+#define ACPI_TABLE_ORIGIN_ALLOCATED     (2)
+#define ACPI_TABLE_ORIGIN_MASK          (3)
+#define ACPI_TABLE_FLAGS_LOADED         (4)
+#define ACPI_TABLE_FLAGS_ALLOW_RESIZE   (8)
+
+/* Predefined (fixed) table indexes */
+
+#define ACPI_TABLE_INDEX_DSDT           (0)
+#define ACPI_TABLE_INDEX_FACS           (1)
 
 struct acpi_find_context {
 	char *search_for;

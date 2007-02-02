@@ -43,6 +43,7 @@
  */
 
 #include <acpi/acpi.h>
+#include <acpi/actables.h>
 
 #define _COMPONENT          ACPI_HARDWARE
 ACPI_MODULE_NAME("hwsleep")
@@ -62,17 +63,32 @@ ACPI_MODULE_NAME("hwsleep")
 acpi_status
 acpi_set_firmware_waking_vector(acpi_physical_address physical_address)
 {
+	struct acpi_table_facs *facs;
+	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_set_firmware_waking_vector);
 
+	/* Get the FACS */
+
+	status =
+	    acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
+				    (struct acpi_table_header **)&facs);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
 	/* Set the vector */
 
-	if (acpi_gbl_common_fACS.vector_width == 32) {
-		*(ACPI_CAST_PTR
-		  (u32, acpi_gbl_common_fACS.firmware_waking_vector))
-		    = (u32) physical_address;
+	if ((facs->length < 32) || (!(facs->xfirmware_waking_vector))) {
+		/*
+		 * ACPI 1.0 FACS or short table or optional X_ field is zero
+		 */
+		facs->firmware_waking_vector = (u32) physical_address;
 	} else {
-		*acpi_gbl_common_fACS.firmware_waking_vector = physical_address;
+		/*
+		 * ACPI 2.0 FACS with valid X_ field
+		 */
+		facs->xfirmware_waking_vector = physical_address;
 	}
 
 	return_ACPI_STATUS(AE_OK);
@@ -97,6 +113,8 @@ ACPI_EXPORT_SYMBOL(acpi_set_firmware_waking_vector)
 acpi_status
 acpi_get_firmware_waking_vector(acpi_physical_address * physical_address)
 {
+	struct acpi_table_facs *facs;
+	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_get_firmware_waking_vector);
 
@@ -104,16 +122,29 @@ acpi_get_firmware_waking_vector(acpi_physical_address * physical_address)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
+	/* Get the FACS */
+
+	status =
+	    acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
+				    (struct acpi_table_header **)&facs);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
 	/* Get the vector */
 
-	if (acpi_gbl_common_fACS.vector_width == 32) {
-		*physical_address = (acpi_physical_address)
-		    *
-		    (ACPI_CAST_PTR
-		     (u32, acpi_gbl_common_fACS.firmware_waking_vector));
-	} else {
+	if ((facs->length < 32) || (!(facs->xfirmware_waking_vector))) {
+		/*
+		 * ACPI 1.0 FACS or short table or optional X_ field is zero
+		 */
 		*physical_address =
-		    *acpi_gbl_common_fACS.firmware_waking_vector;
+		    (acpi_physical_address) facs->firmware_waking_vector;
+	} else {
+		/*
+		 * ACPI 2.0 FACS with valid X_ field
+		 */
+		*physical_address =
+		    (acpi_physical_address) facs->xfirmware_waking_vector;
 	}
 
 	return_ACPI_STATUS(AE_OK);
@@ -429,8 +460,8 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 
 	ACPI_FLUSH_CPU_CACHE();
 
-	status = acpi_os_write_port(acpi_gbl_FADT->smi_cmd,
-				    (u32) acpi_gbl_FADT->S4bios_req, 8);
+	status = acpi_os_write_port(acpi_gbl_FADT.smi_command,
+				    (u32) acpi_gbl_FADT.S4bios_request, 8);
 
 	do {
 		acpi_os_stall(1000);

@@ -63,6 +63,10 @@ static const char *acpi_notify_value_names[] = {
 };
 #endif
 
+/* Pointer to FACS needed for the Global Lock */
+
+static struct acpi_table_facs *facs = NULL;
+
 /* Local prototypes */
 
 static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context);
@@ -306,7 +310,7 @@ static u32 acpi_ev_global_lock_handler(void *context)
 	 * If we don't get it now, it will be marked pending and we will
 	 * take another interrupt when it becomes free.
 	 */
-	ACPI_ACQUIRE_GLOBAL_LOCK(acpi_gbl_common_fACS.global_lock, acquired);
+	ACPI_ACQUIRE_GLOBAL_LOCK(facs, acquired);
 	if (acquired) {
 
 		/* Got the lock, now wake all threads waiting for it */
@@ -341,6 +345,13 @@ acpi_status acpi_ev_init_global_lock_handler(void)
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ev_init_global_lock_handler);
+
+	status =
+	    acpi_get_table(ACPI_SIG_FACS, 0,
+			   (struct acpi_table_header **)&facs);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	acpi_gbl_global_lock_present = TRUE;
 	status = acpi_install_fixed_event_handler(ACPI_EVENT_GLOBAL,
@@ -414,7 +425,7 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 
 	/* Attempt to acquire the actual hardware lock */
 
-	ACPI_ACQUIRE_GLOBAL_LOCK(acpi_gbl_common_fACS.global_lock, acquired);
+	ACPI_ACQUIRE_GLOBAL_LOCK(facs, acquired);
 	if (acquired) {
 
 		/* We got the lock */
@@ -438,6 +449,7 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 	 */
 	status = acpi_ex_system_wait_semaphore(acpi_gbl_global_lock_semaphore,
 					       ACPI_WAIT_FOREVER);
+
 	return_ACPI_STATUS(status);
 }
 
@@ -472,8 +484,7 @@ acpi_status acpi_ev_release_global_lock(void)
 
 		/* Allow any thread to release the lock */
 
-		ACPI_RELEASE_GLOBAL_LOCK(acpi_gbl_common_fACS.global_lock,
-					 pending);
+		ACPI_RELEASE_GLOBAL_LOCK(facs, pending);
 
 		/*
 		 * If the pending bit was set, we must write GBL_RLS to the control
