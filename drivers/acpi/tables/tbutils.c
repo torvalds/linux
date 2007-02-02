@@ -60,6 +60,10 @@ static void inline
 acpi_tb_init_generic_address(struct acpi_generic_address *new_gas_struct,
 			     u8 bit_width, u64 address);
 
+static acpi_physical_address
+acpi_tb_get_root_table_entry(u8 * table_entry,
+			     acpi_native_uint table_entry_size);
+
 /* Table used for conversion of FADT to common format */
 
 typedef struct acpi_fadt_conversion {
@@ -126,10 +130,14 @@ acpi_tb_print_table_header(acpi_physical_address address,
 
 		ACPI_INFO((AE_INFO, "RSDP @ 0x%p/0x%04X (v%3.3d %6.6s)",
 			   ACPI_CAST_PTR(void, address),
-			   (((struct acpi_table_rsdp *)header)->revision > 0) ?
-			   ((struct acpi_table_rsdp *)header)->length : 20,
-			   ((struct acpi_table_rsdp *)header)->revision,
-			   ((struct acpi_table_rsdp *)header)->oem_id));
+			   (ACPI_CAST_PTR(struct acpi_table_rsdp, header)->
+			    revision >
+			    0) ? ACPI_CAST_PTR(struct acpi_table_rsdp,
+					       header)->length : 20,
+			   ACPI_CAST_PTR(struct acpi_table_rsdp,
+					 header)->revision,
+			   ACPI_CAST_PTR(struct acpi_table_rsdp,
+					 header)->oem_id));
 	} else {
 		/* Standard ACPI table with full common header */
 
@@ -278,8 +286,8 @@ static void acpi_tb_convert_fadt(void)
 	}
 
 	/*
-	 * Expand the V1.0 addresses to the "X" generic address structs,
-	 * as necessary.
+	 * Expand the 32-bit V1.0 addresses to the 64-bit "X" generic address
+	 * structures as necessary.
 	 */
 	for (i = 0; i < ACPI_FADT_CONVERSION_ENTRIES; i++) {
 		target =
@@ -294,10 +302,11 @@ static void acpi_tb_convert_fadt(void)
 								   &acpi_gbl_FADT,
 								   fadt_conversion_table
 								   [i].length),
-						     *ACPI_ADD_PTR(u32,
-								   &acpi_gbl_FADT,
-								   fadt_conversion_table
-								   [i].source));
+						     (u64) * ACPI_ADD_PTR(u32,
+									  &acpi_gbl_FADT,
+									  fadt_conversion_table
+									  [i].
+									  source));
 		}
 	}
 
@@ -444,7 +453,7 @@ static void acpi_tb_parse_fadt(acpi_native_uint table_index, u8 flags)
 
 	/* Copy the entire FADT locally */
 
-	ACPI_MEMSET(&acpi_gbl_FADT, sizeof(struct acpi_table_fadt), 0);
+	ACPI_MEMSET(&acpi_gbl_FADT, 0, sizeof(struct acpi_table_fadt));
 
 	ACPI_MEMCPY(&acpi_gbl_FADT, table,
 		    ACPI_MIN(length, sizeof(struct acpi_table_fadt)));
@@ -461,6 +470,61 @@ static void acpi_tb_parse_fadt(acpi_native_uint table_index, u8 flags)
 
 	acpi_tb_install_table((acpi_physical_address) acpi_gbl_FADT.Xfacs,
 			      flags, ACPI_SIG_FACS, ACPI_TABLE_INDEX_FACS);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_get_root_table_entry
+ *
+ * PARAMETERS:  table_entry         - Pointer to the RSDT/XSDT table entry
+ *              table_entry_size    - sizeof 32 or 64 (RSDT or XSDT)
+ *
+ * RETURN:      Physical address extracted from the root table
+ *
+ * DESCRIPTION: Get one root table entry. Handles 32-bit and 64-bit cases on
+ *              both 32-bit and 64-bit platforms
+ *
+ * NOTE:        acpi_physical_address is 32-bit on 32-bit platforms, 64-bit on
+ *              64-bit platforms.
+ *
+ ******************************************************************************/
+
+static acpi_physical_address
+acpi_tb_get_root_table_entry(u8 * table_entry,
+			     acpi_native_uint table_entry_size)
+{
+	u64 address64;
+
+	/*
+	 * Get the table physical address (32-bit for RSDT, 64-bit for XSDT):
+	 * Note: Addresses are 32-bit aligned (not 64) in both RSDT and XSDT
+	 */
+	if (table_entry_size == sizeof(u32)) {
+		/*
+		 * 32-bit platform, RSDT: Return 32-bit table entry
+		 * 64-bit platform, RSDT: Expand 32-bit to 64-bit and return
+		 */
+		return ((acpi_physical_address)
+			(*ACPI_CAST_PTR(u32, table_entry)));
+	} else {
+		/*
+		 * 32-bit platform, XSDT: Truncate 64-bit to 32-bit and return
+		 * 64-bit platform, XSDT: Move (unaligned) 64-bit to local, return 64-bit
+		 */
+		ACPI_MOVE_64_TO_64(&address64, table_entry);
+
+#if ACPI_MACHINE_WIDTH == 32
+		if (address64 > ACPI_UINT32_MAX) {
+
+			/* Will truncate 64-bit address to 32 bits */
+
+			ACPI_WARNING((AE_INFO,
+				      "64-bit Physical Address in XSDT is too large (%8.8X%8.8X), truncating",
+				      ACPI_FORMAT_UINT64(address64)));
+		}
+#endif
+		return ((acpi_physical_address) (address64));
+	}
 }
 
 /*******************************************************************************
@@ -567,8 +631,8 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address, u8 flags)
 	/* Calculate the number of tables described in the root table */
 
 	table_count =
-	    (table->length -
-	     sizeof(struct acpi_table_header)) / table_entry_size;
+	    (u32) ((table->length -
+		    sizeof(struct acpi_table_header)) / table_entry_size);
 
 	/*
 	 * First two entries in the table array are reserved for the DSDT and FACS,
@@ -599,32 +663,11 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address, u8 flags)
 			}
 		}
 
-		/*
-		 * Get the table physical address (32-bit for RSDT, 64-bit for XSDT)
-		 */
-		if ((table_entry_size == sizeof(u32)) ||
-		    (sizeof(acpi_physical_address) == sizeof(u32))) {
-			/*
-			 * 32-bit platform, RSDT: Move 32-bit to 32-bit
-			 * 32-bit platform, XSDT: Truncate 64-bit to 32-bit
-			 * 64-bit platform, RSDT: Expand 32-bit to 64-bit
-			 *
-			 * Note: Addresses are 32-bit aligned in both RSDT and XSDT
-			 */
-			acpi_gbl_root_table_list.
-			    tables[acpi_gbl_root_table_list.count].address =
-			    (acpi_physical_address) (*ACPI_CAST_PTR
-						     (u32, table_entry));
-		} else {
-			/*
-			 * 64-bit platform, XSDT: Move 64-bit to 64-bit
-			 *
-			 * Note: 64-bit addresses are only 32-bit aligned in the XSDT
-			 */
-			ACPI_MOVE_64_TO_64(&acpi_gbl_root_table_list.
-					   tables[acpi_gbl_root_table_list.
-						  count].address, table_entry);
-		}
+		/* Get the table physical address (32-bit for RSDT, 64-bit for XSDT) */
+
+		acpi_gbl_root_table_list.tables[acpi_gbl_root_table_list.count].
+		    address =
+		    acpi_tb_get_root_table_entry(table_entry, table_entry_size);
 
 		table_entry += table_entry_size;
 		acpi_gbl_root_table_list.count++;

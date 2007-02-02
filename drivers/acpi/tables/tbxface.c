@@ -102,9 +102,9 @@ acpi_initialize_tables(struct acpi_table_desc *initial_table_array,
 	} else {
 		/* Root Table Array has been statically allocated by the host */
 
-		ACPI_MEMSET(initial_table_array,
+		ACPI_MEMSET(initial_table_array, 0,
 			    initial_table_count *
-			    sizeof(struct acpi_table_desc), 0);
+			    sizeof(struct acpi_table_desc));
 
 		acpi_gbl_root_table_list.tables = initial_table_array;
 		acpi_gbl_root_table_list.size = initial_table_count;
