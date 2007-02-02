@@ -31,6 +31,9 @@
 
 #define WM8731_CACHEREGNUM 	10
 
+#define WM8731_SYSCLK	0
+#define WM8731_DAI		0
+
 struct wm8731_setup_data {
 	unsigned short i2c_address;
 };
