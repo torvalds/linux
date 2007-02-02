@@ -1291,9 +1291,9 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	mmc->ocr_avail = 0;
 	if (caps & SDHCI_CAN_VDD_330)
 		mmc->ocr_avail |= MMC_VDD_32_33|MMC_VDD_33_34;
-	else if (caps & SDHCI_CAN_VDD_300)
+	if (caps & SDHCI_CAN_VDD_300)
 		mmc->ocr_avail |= MMC_VDD_29_30|MMC_VDD_30_31;
-	else if (caps & SDHCI_CAN_VDD_180)
+	if (caps & SDHCI_CAN_VDD_180)
 		mmc->ocr_avail |= MMC_VDD_17_18|MMC_VDD_18_19;
 
 	if ((host->max_clk > 25000000) && !(caps & SDHCI_CAN_DO_HISPD)) {
