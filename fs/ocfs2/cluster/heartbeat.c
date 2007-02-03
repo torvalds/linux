@@ -1682,7 +1682,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(o2hb_register_callback);
 
-int o2hb_unregister_callback(struct o2hb_callback_func *hc)
+void o2hb_unregister_callback(struct o2hb_callback_func *hc)
 {
 	BUG_ON(hc->hc_magic != O2HB_CB_MAGIC);
 
@@ -1690,15 +1690,13 @@ int o2hb_unregister_callback(struct o2hb_callback_func *hc)
 	     __builtin_return_address(0), hc);
 
 	if (list_empty(&hc->hc_item))
-		return 0;
+		return;
 
 	down_write(&o2hb_callback_sem);
 
 	list_del_init(&hc->hc_item);
 
 	up_write(&o2hb_callback_sem);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(o2hb_unregister_callback);
 
