@@ -367,7 +367,7 @@ struct usb_debug_descriptor {
 	/* bulk endpoints with 8 byte maxpacket */
 	__u8  bDebugInEndpoint;
 	__u8  bDebugOutEndpoint;
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -396,7 +396,7 @@ struct usb_security_descriptor {
 
 	__le16 wTotalLength;
 	__u8  bNumEncryptionTypes;
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -410,7 +410,7 @@ struct usb_key_descriptor {
 	__u8  tTKID[3];
 	__u8  bReserved;
 	__u8  bKeyData[0];
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -426,7 +426,7 @@ struct usb_encryption_descriptor {
 #define	USB_ENC_TYPE_RSA_1		3	/* rsa3072/sha1 auth */
 	__u8  bEncryptionValue;		/* use in SET_ENCRYPTION */
 	__u8  bAuthKeyIndex;
-};
+} __attribute__((packed));
 
 
 /*-------------------------------------------------------------------------*/
@@ -438,7 +438,7 @@ struct usb_bos_descriptor {
 
 	__le16 wTotalLength;
 	__u8  bNumDeviceCaps;
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -447,7 +447,7 @@ struct usb_dev_cap_header {
 	__u8  bLength;
 	__u8  bDescriptorType;
 	__u8  bDevCapabilityType;
-};
+} __attribute__((packed));
 
 #define	USB_CAP_TYPE_WIRELESS_USB	1
 
@@ -475,7 +475,7 @@ struct usb_wireless_cap_descriptor {	/* Ultra Wide Band */
 	__u8  bmFFITXPowerInfo;	/* FFI power levels */
 	__le16 bmBandGroup;
 	__u8  bReserved;
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -496,7 +496,7 @@ struct usb_wireless_ep_comp_descriptor {
 #define USB_ENDPOINT_SWITCH_NO		0
 #define USB_ENDPOINT_SWITCH_SWITCH	1
 #define USB_ENDPOINT_SWITCH_SCALE	2
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -512,7 +512,7 @@ struct usb_handshake {
 	__u8 CDID[16];
 	__u8 nonce[16];
 	__u8 MIC[8];
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -524,7 +524,7 @@ struct usb_connection_context {
 	__u8 CHID[16];		/* persistent host id */
 	__u8 CDID[16];		/* device id (unique w/in host context) */
 	__u8 CK[16];		/* connection key */
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
