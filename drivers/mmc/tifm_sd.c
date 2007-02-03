@@ -107,14 +107,9 @@ struct tifm_sd {
 
 };
 
-static char* tifm_sd_kmap_atomic(struct mmc_data *data)
+static char* tifm_sd_data_buffer(struct mmc_data *data)
 {
-	return kmap_atomic(data->sg->page, KM_BIO_SRC_IRQ) + data->sg->offset;
-}
-
-static void tifm_sd_kunmap_atomic(char *buffer, struct mmc_data *data)
-{
-	kunmap_atomic(buffer - data->sg->offset, KM_BIO_SRC_IRQ);
+	return page_address(data->sg->page) + data->sg->offset;
 }
 
 static int tifm_sd_transfer_data(struct tifm_dev *sock, struct tifm_sd *host,
@@ -127,18 +122,17 @@ static int tifm_sd_transfer_data(struct tifm_dev *sock, struct tifm_sd *host,
 	if (host_status & TIFM_MMCSD_BRS) {
 		/* in non-dma rx mode BRS fires when fifo is still not empty */
 		if (no_dma && (cmd->data->flags & MMC_DATA_READ)) {
-			buffer = tifm_sd_kmap_atomic(host->req->data);
+			buffer = tifm_sd_data_buffer(host->req->data);
 			while (host->buffer_size > host->buffer_pos) {
 				t_val = readl(sock->addr + SOCK_MMCSD_DATA);
 				buffer[host->buffer_pos++] = t_val & 0xff;
 				buffer[host->buffer_pos++] =
 							(t_val >> 8) & 0xff;
 			}
-			tifm_sd_kunmap_atomic(buffer, host->req->data);
 		}
 		return 1;
 	} else if (no_dma) {
-		buffer = tifm_sd_kmap_atomic(host->req->data);
+		buffer = tifm_sd_data_buffer(host->req->data);
 		if ((cmd->data->flags & MMC_DATA_READ) &&
 				(host_status & TIFM_MMCSD_AF)) {
 			for (cnt = 0; cnt < TIFM_MMCSD_FIFO_SIZE; cnt++) {
@@ -163,7 +157,6 @@ static int tifm_sd_transfer_data(struct tifm_dev *sock, struct tifm_sd *host,
 				}
 			}
 		}
-		tifm_sd_kunmap_atomic(buffer, host->req->data);
 	}
 	return 0;
 }
