@@ -90,11 +90,8 @@ enum v4l2_buf_type {
 	V4L2_BUF_TYPE_VIDEO_OVERLAY      = 3,
 	V4L2_BUF_TYPE_VBI_CAPTURE        = 4,
 	V4L2_BUF_TYPE_VBI_OUTPUT         = 5,
-#if 1
-	/* Experimental Sliced VBI */
 	V4L2_BUF_TYPE_SLICED_VBI_CAPTURE = 6,
 	V4L2_BUF_TYPE_SLICED_VBI_OUTPUT  = 7,
-#endif
 	V4L2_BUF_TYPE_PRIVATE            = 0x80,
 };
 
@@ -186,10 +183,8 @@ struct v4l2_capability
 #define V4L2_CAP_VIDEO_OVERLAY		0x00000004  /* Can do video overlay */
 #define V4L2_CAP_VBI_CAPTURE		0x00000010  /* Is a raw VBI capture device */
 #define V4L2_CAP_VBI_OUTPUT		0x00000020  /* Is a raw VBI output device */
-#if 1
 #define V4L2_CAP_SLICED_VBI_CAPTURE	0x00000040  /* Is a sliced VBI capture device */
 #define V4L2_CAP_SLICED_VBI_OUTPUT	0x00000080  /* Is a sliced VBI output device */
-#endif
 #define V4L2_CAP_RDS_CAPTURE		0x00000100  /* RDS data capture */
 
 #define V4L2_CAP_TUNER			0x00010000  /* has a tuner */
@@ -1179,7 +1174,6 @@ struct v4l2_vbi_format
 #define V4L2_VBI_UNSYNC		(1<< 0)
 #define V4L2_VBI_INTERLACED	(1<< 1)
 
-#if 1
 /* Sliced VBI
  *
  *    This implements is a proposal V4L2 API to allow SLICED VBI
@@ -1233,7 +1227,6 @@ struct v4l2_sliced_vbi_data
 	__u32   reserved;       /* must be 0 */
 	__u8    data[48];
 };
-#endif
 
 /*
  *	A G G R E G A T E   S T R U C T U R E S
@@ -1249,9 +1242,7 @@ struct v4l2_format
 		struct v4l2_pix_format		pix;     // V4L2_BUF_TYPE_VIDEO_CAPTURE
 		struct v4l2_window		win;     // V4L2_BUF_TYPE_VIDEO_OVERLAY
 		struct v4l2_vbi_format		vbi;     // V4L2_BUF_TYPE_VBI_CAPTURE
-#if 1
 		struct v4l2_sliced_vbi_format	sliced;  // V4L2_BUF_TYPE_SLICED_VBI_CAPTURE
-#endif
 		__u8	raw_data[200];                   // user-defined
 	} fmt;
 };
@@ -1339,9 +1330,7 @@ struct v4l2_register {
 #define VIDIOC_ENUMAUDOUT	_IOWR ('V', 66, struct v4l2_audioout)
 #define VIDIOC_G_PRIORITY       _IOR  ('V', 67, enum v4l2_priority)
 #define VIDIOC_S_PRIORITY       _IOW  ('V', 68, enum v4l2_priority)
-#if 1
 #define VIDIOC_G_SLICED_VBI_CAP _IOWR ('V', 69, struct v4l2_sliced_vbi_cap)
-#endif
 #define VIDIOC_LOG_STATUS       _IO   ('V', 70)
 #define VIDIOC_G_EXT_CTRLS	_IOWR ('V', 71, struct v4l2_ext_controls)
 #define VIDIOC_S_EXT_CTRLS	_IOWR ('V', 72, struct v4l2_ext_controls)
