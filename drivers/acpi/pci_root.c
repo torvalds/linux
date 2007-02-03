@@ -117,6 +117,19 @@ void acpi_pci_unregister_driver(struct acpi_pci_driver *driver)
 
 EXPORT_SYMBOL(acpi_pci_unregister_driver);
 
+acpi_handle acpi_get_pci_rootbridge_handle(unsigned int seg, unsigned int bus)
+{
+	struct acpi_pci_root *tmp;
+	
+	list_for_each_entry(tmp, &acpi_pci_roots, node) {
+		if ((tmp->id.segment == (u16) seg) && (tmp->id.bus == (u16) bus))
+			return tmp->device->handle;
+	}
+	return NULL;		
+}
+
+EXPORT_SYMBOL_GPL(acpi_get_pci_rootbridge_handle);
+
 static acpi_status
 get_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 {
