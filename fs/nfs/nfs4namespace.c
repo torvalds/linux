@@ -131,7 +131,6 @@ static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
 		.authflavor = NFS_SB(mnt_parent->mnt_sb)->client->cl_auth->au_flavor,
 	};
 	char *page = NULL, *page2 = NULL;
-	char *devname;
 	int loc, s, error;
 
 	if (locations == NULL || locations->nlocations <= 0)
@@ -152,12 +151,6 @@ static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
 	error = nfs4_validate_fspath(mnt_parent, dentry, locations, page, page2);
 	if (error < 0) {
 		mnt = ERR_PTR(error);
-		goto out;
-	}
-
-	devname = nfs_devname(mnt_parent, dentry, page, PAGE_SIZE);
-	if (IS_ERR(devname)) {
-		mnt = (struct vfsmount *)devname;
 		goto out;
 	}
 
@@ -195,7 +188,11 @@ static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
 			addr.sin_port = htons(NFS_PORT);
 			mountdata.addr = &addr;
 
-			mnt = vfs_kern_mount(&nfs4_referral_fs_type, 0, devname, &mountdata);
+			snprintf(page, PAGE_SIZE, "%s:%s",
+					mountdata.hostname,
+					mountdata.mnt_path);
+
+			mnt = vfs_kern_mount(&nfs4_referral_fs_type, 0, page, &mountdata);
 			if (!IS_ERR(mnt)) {
 				break;
 			}
