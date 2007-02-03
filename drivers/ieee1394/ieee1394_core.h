@@ -127,6 +127,9 @@ int hpsb_send_packet_and_wait(struct hpsb_packet *packet);
  * progress, 0 otherwise. */
 int hpsb_reset_bus(struct hpsb_host *host, int type);
 
+int hpsb_read_cycle_timer(struct hpsb_host *host, u32 *cycle_timer,
+			  u64 *local_time);
+
 /*
  * The following functions are exported for host driver module usage.  All of
  * them are safe to use in interrupt contexts, although some are quite
