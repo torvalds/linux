@@ -91,13 +91,12 @@ typedef int (*acpi_op_remove) (struct acpi_device * device, int type);
 typedef int (*acpi_op_lock) (struct acpi_device * device, int type);
 typedef int (*acpi_op_start) (struct acpi_device * device);
 typedef int (*acpi_op_stop) (struct acpi_device * device, int type);
-typedef int (*acpi_op_suspend) (struct acpi_device * device, int state);
-typedef int (*acpi_op_resume) (struct acpi_device * device, int state);
+typedef int (*acpi_op_suspend) (struct acpi_device * device, pm_message_t state);
+typedef int (*acpi_op_resume) (struct acpi_device * device);
 typedef int (*acpi_op_scan) (struct acpi_device * device);
 typedef int (*acpi_op_bind) (struct acpi_device * device);
 typedef int (*acpi_op_unbind) (struct acpi_device * device);
-typedef int (*acpi_op_match) (struct acpi_device * device,
-			      struct acpi_driver * driver);
+typedef int (*acpi_op_shutdown) (struct acpi_device * device);
 
 struct acpi_bus_ops {
 	u32 acpi_op_add:1;
@@ -110,7 +109,7 @@ struct acpi_bus_ops {
 	u32 acpi_op_scan:1;
 	u32 acpi_op_bind:1;
 	u32 acpi_op_unbind:1;
-	u32 acpi_op_match:1;
+	u32 acpi_op_shutdown:1;
 	u32 reserved:21;
 };
 
@@ -125,16 +124,16 @@ struct acpi_device_ops {
 	acpi_op_scan scan;
 	acpi_op_bind bind;
 	acpi_op_unbind unbind;
-	acpi_op_match match;
+	acpi_op_shutdown shutdown;
 };
 
 struct acpi_driver {
-	struct list_head node;
 	char name[80];
 	char class[80];
-	atomic_t references;
 	char *ids;		/* Supported Hardware IDs */
 	struct acpi_device_ops ops;
+	struct device_driver drv;
+	struct module *owner;
 };
 
 /*
@@ -184,7 +183,7 @@ struct acpi_device_dir {
 
 typedef char acpi_bus_id[5];
 typedef unsigned long acpi_bus_address;
-typedef char acpi_hardware_id[9];
+typedef char acpi_hardware_id[15];
 typedef char acpi_unique_id[9];
 typedef char acpi_device_name[40];
 typedef char acpi_device_class[20];
@@ -295,11 +294,14 @@ struct acpi_device {
 	struct acpi_device_ops ops;
 	struct acpi_driver *driver;
 	void *driver_data;
-	struct kobject kobj;
 	struct device dev;
+	struct acpi_bus_ops bus_ops;	/* workaround for different code path for hotplug */
+	enum acpi_bus_removal_type removal_type; /* indicate for different removal type */
 };
 
 #define acpi_driver_data(d)	((d)->driver_data)
+#define to_acpi_device(d)	container_of(d, struct acpi_device, dev)
+#define to_acpi_driver(d)	container_of(d, struct acpi_driver, drv)
 
 /*
  * Events

@@ -33,8 +33,7 @@
 ACPI_MODULE_NAME("acpi_motherboard")
 
 /* Dell use PNP0C01 instead of PNP0C02 */
-#define ACPI_MB_HID1			"PNP0C01"
-#define ACPI_MB_HID2			"PNP0C02"
+#define ACPI_MB_HID			"PNP0C01,PNP0C02"
 /**
  * Doesn't care about legacy IO ports, only IO ports beyond 0x1000 are reserved
  * Doesn't care about the failure of 'request_region', since other may reserve
@@ -110,19 +109,10 @@ static int acpi_motherboard_add(struct acpi_device *device)
 	return 0;
 }
 
-static struct acpi_driver acpi_motherboard_driver1 = {
+static struct acpi_driver acpi_motherboard_driver = {
 	.name = "motherboard",
 	.class = "",
-	.ids = ACPI_MB_HID1,
-	.ops = {
-		.add = acpi_motherboard_add,
-		},
-};
-
-static struct acpi_driver acpi_motherboard_driver2 = {
-	.name = "motherboard",
-	.class = "",
-	.ids = ACPI_MB_HID2,
+	.ids = ACPI_MB_HID,
 	.ops = {
 		.add = acpi_motherboard_add,
 		},
@@ -173,8 +163,7 @@ static void __init acpi_reserve_resources(void)
 
 static int __init acpi_motherboard_init(void)
 {
-	acpi_bus_register_driver(&acpi_motherboard_driver1);
-	acpi_bus_register_driver(&acpi_motherboard_driver2);
+	acpi_bus_register_driver(&acpi_motherboard_driver);
 	/*
 	 * Guarantee motherboard IO reservation first
 	 * This module must run after scan.c
