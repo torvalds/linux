@@ -16,6 +16,7 @@
 #include <asm/sn/pda.h>
 #include <asm/sn/sn_cpuid.h>
 #include <asm/sn/shub_mmr.h>
+#include <asm/sn/acpi.h>
 
 #define IS_LEGACY_VGA_IOPORT(p) \
 	(((p) >= 0x3b0 && (p) <= 0x3bb) || ((p) >= 0x3c0 && (p) <= 0x3df))
@@ -29,8 +30,6 @@
  * SN i/o address.  Used by sn_in*() and sn_out*().
  */
 
-extern int sn_acpi_base_support();
-
 void *sn_io_addr(unsigned long port)
 {
 	if (!IS_RUNNING_ON_SIMULATOR()) {
@@ -39,7 +38,7 @@ void *sn_io_addr(unsigned long port)
 		/* On sn2, legacy I/O ports don't point at anything */
 		if (port < (64 * 1024))
 			return NULL;
-		if (sn_acpi_base_support())
+		if (SN_ACPI_BASE_SUPPORT())
 			return (__ia64_mk_io_addr(port));
 		else
 			return ((void *)(port | __IA64_UNCACHED_OFFSET));
