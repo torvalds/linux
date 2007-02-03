@@ -1206,7 +1206,6 @@ struct v4l2_sliced_vbi_format
 #define V4L2_SLICED_VBI_525             (V4L2_SLICED_CAPTION_525)
 #define V4L2_SLICED_VBI_625             (V4L2_SLICED_TELETEXT_B | V4L2_SLICED_VPS | V4L2_SLICED_WSS_625)
 
-
 struct v4l2_sliced_vbi_cap
 {
 	__u16   service_set;
