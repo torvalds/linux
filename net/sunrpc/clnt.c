@@ -486,17 +486,13 @@ int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 	/* Mask signals on RPC calls _and_ GSS_AUTH upcalls */
 	rpc_task_sigmask(task, &oldset);
 
-	rpc_call_setup(task, msg, 0);
-
 	/* Set up the call info struct and execute the task */
+	rpc_call_setup(task, msg, 0);
+	if (task->tk_status == 0) {
+		atomic_inc(&task->tk_count);
+		rpc_execute(task);
+	}
 	status = task->tk_status;
-	if (status != 0)
-		goto out;
-	atomic_inc(&task->tk_count);
-	status = rpc_execute(task);
-	if (status == 0)
-		status = task->tk_status;
-out:
 	rpc_put_task(task);
 	rpc_restore_sigmask(&oldset);
 	return status;

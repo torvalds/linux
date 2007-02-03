@@ -625,7 +625,7 @@ void rpc_release_calldata(const struct rpc_call_ops *ops, void *calldata)
 /*
  * This is the RPC `scheduler' (or rather, the finite state machine).
  */
-static int __rpc_execute(struct rpc_task *task)
+static void __rpc_execute(struct rpc_task *task)
 {
 	int		status = 0;
 
@@ -679,9 +679,9 @@ static int __rpc_execute(struct rpc_task *task)
 		if (RPC_IS_ASYNC(task)) {
 			/* Careful! we may have raced... */
 			if (RPC_IS_QUEUED(task))
-				return 0;
+				return;
 			if (rpc_test_and_set_running(task))
-				return 0;
+				return;
 			continue;
 		}
 
@@ -710,7 +710,6 @@ static int __rpc_execute(struct rpc_task *task)
 	dprintk("RPC: %4d, return %d, status %d\n", task->tk_pid, status, task->tk_status);
 	/* Release all resources associated with the task */
 	rpc_release_task(task);
-	return status;
 }
 
 /*
@@ -722,12 +721,11 @@ static int __rpc_execute(struct rpc_task *task)
  *	 released. In particular note that tk_release() will have
  *	 been called, so your task memory may have been freed.
  */
-int
-rpc_execute(struct rpc_task *task)
+void rpc_execute(struct rpc_task *task)
 {
 	rpc_set_active(task);
 	rpc_set_running(task);
-	return __rpc_execute(task);
+	__rpc_execute(task);
 }
 
 static void rpc_async_schedule(struct work_struct *work)
