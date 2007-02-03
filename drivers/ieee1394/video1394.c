@@ -489,6 +489,9 @@ static void wakeup_dma_ir_ctx(unsigned long l)
 			reset_ir_status(d, i);
 			d->buffer_status[d->buffer_prg_assignment[i]] = VIDEO1394_BUFFER_READY;
 			do_gettimeofday(&d->buffer_time[d->buffer_prg_assignment[i]]);
+			dma_region_sync_for_cpu(&d->dma,
+				d->buffer_prg_assignment[i] * d->buf_size,
+				d->buf_size);
 		}
 	}
 
@@ -1096,6 +1099,8 @@ static long video1394_ioctl(struct file *file,
 			DBGMSG(ohci->host->id, "Starting iso transmit DMA ctx=%d",
 			       d->ctx);
 			put_timestamp(ohci, d, d->last_buffer);
+			dma_region_sync_for_device(&d->dma,
+				v.buffer * d->buf_size, d->buf_size);
 
 			/* Tell the controller where the first program is */
 			reg_write(ohci, d->cmdPtr,
@@ -1111,6 +1116,9 @@ static long video1394_ioctl(struct file *file,
 				      "Waking up iso transmit dma ctx=%d",
 				      d->ctx);
 				put_timestamp(ohci, d, d->last_buffer);
+				dma_region_sync_for_device(&d->dma,
+					v.buffer * d->buf_size, d->buf_size);
+
 				reg_write(ohci, d->ctrlSet, 0x1000);
 			}
 		}
