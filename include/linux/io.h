@@ -22,6 +22,8 @@
 #include <asm/io.h>
 #include <asm/page.h>
 
+struct device;
+
 void __iowrite32_copy(void __iomem *to, const void *from, size_t count);
 void __iowrite64_copy(void __iomem *to, const void *from, size_t count);
 
