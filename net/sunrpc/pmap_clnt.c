@@ -62,7 +62,10 @@ static inline void pmap_map_free(struct portmap_args *map)
 
 static void pmap_map_release(void *data)
 {
-	pmap_map_free(data);
+	struct portmap_args *map = data;
+
+	xprt_put(map->pm_xprt);
+	pmap_map_free(map);
 }
 
 static const struct rpc_call_ops pmap_getport_ops = {
@@ -133,7 +136,7 @@ void rpc_getport(struct rpc_task *task)
 	status = -EIO;
 	child = rpc_run_task(pmap_clnt, RPC_TASK_ASYNC, &pmap_getport_ops, map);
 	if (IS_ERR(child))
-		goto bailout;
+		goto bailout_nofree;
 	rpc_put_task(child);
 
 	task->tk_xprt->stat.bind_count++;
@@ -222,7 +225,6 @@ static void pmap_getport_done(struct rpc_task *child, void *data)
 			child->tk_pid, status, map->pm_port);
 
 	pmap_wake_portmap_waiters(xprt, status);
-	xprt_put(xprt);
 }
 
 /**
