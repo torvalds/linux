@@ -503,8 +503,6 @@ struct bcm43xx_sprominfo {
 	u8 et1macaddr[6];
 	u8 et0phyaddr:5;
 	u8 et1phyaddr:5;
-	u8 et0mdcport:1;
-	u8 et1mdcport:1;
 	u8 boardrev;
 	u8 locale:4;
 	u8 antennas_aphy:2;

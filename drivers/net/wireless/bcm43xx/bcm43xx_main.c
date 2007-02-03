@@ -851,8 +851,6 @@ static int bcm43xx_sprom_extract(struct bcm43xx_private *bcm)
 	value = sprom[BCM43xx_SPROM_ETHPHY];
 	bcm->sprom.et0phyaddr = (value & 0x001F);
 	bcm->sprom.et1phyaddr = (value & 0x03E0) >> 5;
-	bcm->sprom.et0mdcport = (value & (1 << 14)) >> 14;
-	bcm->sprom.et1mdcport = (value & (1 << 15)) >> 15;
 
 	/* boardrev, antennas, locale */
 	value = sprom[BCM43xx_SPROM_BOARDREV];
