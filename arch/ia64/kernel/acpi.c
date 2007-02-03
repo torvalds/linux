@@ -422,8 +422,8 @@ static int get_memory_proximity_domain(struct acpi_srat_mem_affinity *ma)
 	int pxm;
 
 	pxm = ma->proximity_domain;
-	if (ia64_platform_is("sn2"))
-		pxm += ma->reserved << 8;
+	if (!ia64_platform_is("sn2"))
+		pxm &= 0xff;
 
 	return pxm;
 }
