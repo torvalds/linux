@@ -26,7 +26,7 @@
  *  Pontus Fuchs   - Helper functions, cleanup
  *  Johann Wiesner - Small compile fixes
  *  John Belmonte  - ACPI code for Toshiba laptop was a good starting point.
- *  Éric Burghard  - LED display support for W1N
+ *  ï¿½ic Burghard  - LED display support for W1N
  *
  */
 
@@ -1128,7 +1128,6 @@ static int asus_model_match(char *model)
 static int asus_hotk_get_info(void)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_buffer dsdt = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *model = NULL;
 	int bsts_result;
 	char *string = NULL;
@@ -1142,11 +1141,9 @@ static int asus_hotk_get_info(void)
 	 * HID), this bit will be moved. A global variable asus_info contains
 	 * the DSDT header.
 	 */
-	status = acpi_get_table(ACPI_TABLE_ID_DSDT, 1, &dsdt);
+	status = acpi_get_table(ACPI_SIG_DSDT, 1, &asus_info);
 	if (ACPI_FAILURE(status))
 		printk(KERN_WARNING "  Couldn't get the DSDT table header\n");
-	else
-		asus_info = dsdt.pointer;
 
 	/* We have to write 0 on init this far for all ASUS models */
 	if (!write_acpi_int(hotk->handle, "INIT", 0, &buffer)) {
@@ -1357,8 +1354,6 @@ static void __exit asus_acpi_exit(void)
 
 	acpi_bus_unregister_driver(&asus_hotk_driver);
 	remove_proc_entry(PROC_ASUS, acpi_root_dir);
-
-	kfree(asus_info);
 
 	return;
 }

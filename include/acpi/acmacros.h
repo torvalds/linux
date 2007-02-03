@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,35 +55,18 @@
 #define ACPI_SET_BIT(target,bit)        ((target) |= (bit))
 #define ACPI_CLEAR_BIT(target,bit)      ((target) &= ~(bit))
 #define ACPI_MIN(a,b)                   (((a)<(b))?(a):(b))
+#define ACPI_MAX(a,b)                   (((a)>(b))?(a):(b))
 
 /* Size calculation */
 
 #define ACPI_ARRAY_LENGTH(x)            (sizeof(x) / sizeof((x)[0]))
 
-#if ACPI_MACHINE_WIDTH == 16
-
-/*
- * For 16-bit addresses, we have to assume that the upper 32 bits
- * (out of 64) are zero.
- */
-#define ACPI_LODWORD(l)                 ((u32)(l))
-#define ACPI_HIDWORD(l)                 ((u32)(0))
-
-#define ACPI_GET_ADDRESS(a)             ((a).lo)
-#define ACPI_STORE_ADDRESS(a,b)         {(a).hi=0;(a).lo=(u32)(b);}
-#define ACPI_VALID_ADDRESS(a)           ((a).hi | (a).lo)
-
-#else
 #ifdef ACPI_NO_INTEGER64_SUPPORT
 /*
  * acpi_integer is 32-bits, no 64-bit support on this platform
  */
 #define ACPI_LODWORD(l)                 ((u32)(l))
 #define ACPI_HIDWORD(l)                 ((u32)(0))
-
-#define ACPI_GET_ADDRESS(a)             (a)
-#define ACPI_STORE_ADDRESS(a,b)         ((a)=(b))
-#define ACPI_VALID_ADDRESS(a)           (a)
 
 #else
 
@@ -92,11 +75,6 @@
  */
 #define ACPI_LODWORD(l)                 ((u32)(u64)(l))
 #define ACPI_HIDWORD(l)                 ((u32)(((*(struct uint64_struct *)(void *)(&l))).hi))
-
-#define ACPI_GET_ADDRESS(a)             (a)
-#define ACPI_STORE_ADDRESS(a,b)         ((a)=(acpi_physical_address)(b))
-#define ACPI_VALID_ADDRESS(a)           (a)
-#endif
 #endif
 
 /*
@@ -134,15 +112,8 @@
 #define ACPI_TO_POINTER(i)              ACPI_ADD_PTR (void,(void *) NULL,(acpi_native_uint) i)
 #define ACPI_TO_INTEGER(p)              ACPI_PTR_DIFF (p,(void *) NULL)
 #define ACPI_OFFSET(d,f)                (acpi_size) ACPI_PTR_DIFF (&(((d *)0)->f),(void *) NULL)
-
-#if ACPI_MACHINE_WIDTH == 16
-#define ACPI_STORE_POINTER(d,s)         ACPI_MOVE_32_TO_32(d,s)
-#define ACPI_PHYSADDR_TO_PTR(i)         (void *)(i)
-#define ACPI_PTR_TO_PHYSADDR(i)         (u32) ACPI_CAST_PTR (u8,(i))
-#else
 #define ACPI_PHYSADDR_TO_PTR(i)         ACPI_TO_POINTER(i)
 #define ACPI_PTR_TO_PHYSADDR(i)         ACPI_TO_INTEGER(i)
-#endif
 
 #ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
 #define ACPI_COMPARE_NAME(a,b)          (*ACPI_CAST_PTR (u32,(a)) == *ACPI_CAST_PTR (u32,(b)))
@@ -223,28 +194,6 @@
 
 /* The hardware supports unaligned transfers, just do the little-endian move */
 
-#if ACPI_MACHINE_WIDTH == 16
-
-/* No 64-bit integers */
-/* 16-bit source, 16/32/64 destination */
-
-#define ACPI_MOVE_16_TO_16(d,s)         *(u16 *)(void *)(d) = *(u16 *)(void *)(s)
-#define ACPI_MOVE_16_TO_32(d,s)         *(u32 *)(void *)(d) = *(u16 *)(void *)(s)
-#define ACPI_MOVE_16_TO_64(d,s)         ACPI_MOVE_16_TO_32(d,s)
-
-/* 32-bit source, 16/32/64 destination */
-
-#define ACPI_MOVE_32_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)	/* Truncate to 16 */
-#define ACPI_MOVE_32_TO_32(d,s)         *(u32 *)(void *)(d) = *(u32 *)(void *)(s)
-#define ACPI_MOVE_32_TO_64(d,s)         ACPI_MOVE_32_TO_32(d,s)
-
-/* 64-bit source, 16/32/64 destination */
-
-#define ACPI_MOVE_64_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)	/* Truncate to 16 */
-#define ACPI_MOVE_64_TO_32(d,s)         ACPI_MOVE_32_TO_32(d,s)	/* Truncate to 32 */
-#define ACPI_MOVE_64_TO_64(d,s)         ACPI_MOVE_32_TO_32(d,s)
-
-#else
 /* 16-bit source, 16/32/64 destination */
 
 #define ACPI_MOVE_16_TO_16(d,s)         *(u16 *)(void *)(d) = *(u16 *)(void *)(s)
@@ -262,7 +211,6 @@
 #define ACPI_MOVE_64_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)	/* Truncate to 16 */
 #define ACPI_MOVE_64_TO_32(d,s)         ACPI_MOVE_32_TO_32(d,s)	/* Truncate to 32 */
 #define ACPI_MOVE_64_TO_64(d,s)         *(u64 *)(void *)(d) = *(u64 *)(void *)(s)
-#endif
 
 #else
 /*
@@ -307,10 +255,7 @@
 
 /* Macros based on machine integer width */
 
-#if ACPI_MACHINE_WIDTH == 16
-#define ACPI_MOVE_SIZE_TO_16(d,s)       ACPI_MOVE_16_TO_16(d,s)
-
-#elif ACPI_MACHINE_WIDTH == 32
+#if ACPI_MACHINE_WIDTH == 32
 #define ACPI_MOVE_SIZE_TO_16(d,s)       ACPI_MOVE_32_TO_16(d,s)
 
 #elif ACPI_MACHINE_WIDTH == 64
@@ -693,16 +638,6 @@
 #define ACPI_DEBUGGER_EXEC(a)           a
 #else
 #define ACPI_DEBUGGER_EXEC(a)
-#endif
-
-/*
- * For 16-bit code, we want to shrink some things even though
- * we are using ACPI_DEBUG_OUTPUT to get the debug output
- */
-#if ACPI_MACHINE_WIDTH == 16
-#undef ACPI_DEBUG_ONLY_MEMBERS
-#undef _VERBOSE_STRUCTURES
-#define ACPI_DEBUG_ONLY_MEMBERS(a)
 #endif
 
 #ifdef ACPI_DEBUG_OUTPUT

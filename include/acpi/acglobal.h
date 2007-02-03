@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,37 +58,6 @@
 #define ACPI_INIT_GLOBAL(a,b) a
 #endif
 
-/*
- * Keep local copies of these FADT-based registers.  NOTE: These globals
- * are first in this file for alignment reasons on 64-bit systems.
- */
-ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1a_enable;
-ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_enable;
-
-/*****************************************************************************
- *
- * Debug support
- *
- ****************************************************************************/
-
-/* Runtime configuration of debug print levels */
-
-extern u32 acpi_dbg_level;
-extern u32 acpi_dbg_layer;
-
-/* Procedure nesting level for debug output */
-
-extern u32 acpi_gbl_nesting_level;
-
-/* Support for dynamic control method tracing mechanism */
-
-ACPI_EXTERN u32 acpi_gbl_original_dbg_level;
-ACPI_EXTERN u32 acpi_gbl_original_dbg_layer;
-ACPI_EXTERN acpi_name acpi_gbl_trace_method_name;
-ACPI_EXTERN u32 acpi_gbl_trace_dbg_level;
-ACPI_EXTERN u32 acpi_gbl_trace_dbg_layer;
-ACPI_EXTERN u32 acpi_gbl_trace_flags;
-
 /*****************************************************************************
  *
  * Runtime configuration (static defaults that can be overriden at runtime)
@@ -135,51 +104,61 @@ ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_leave_wake_gpes_disabled, TRUE);
 
 /*****************************************************************************
  *
+ * Debug support
+ *
+ ****************************************************************************/
+
+/* Runtime configuration of debug print levels */
+
+extern u32 acpi_dbg_level;
+extern u32 acpi_dbg_layer;
+
+/* Procedure nesting level for debug output */
+
+extern u32 acpi_gbl_nesting_level;
+
+/* Event counters */
+
+ACPI_EXTERN u32 acpi_gpe_count;
+
+/* Support for dynamic control method tracing mechanism */
+
+ACPI_EXTERN u32 acpi_gbl_original_dbg_level;
+ACPI_EXTERN u32 acpi_gbl_original_dbg_layer;
+ACPI_EXTERN acpi_name acpi_gbl_trace_method_name;
+ACPI_EXTERN u32 acpi_gbl_trace_dbg_level;
+ACPI_EXTERN u32 acpi_gbl_trace_dbg_layer;
+ACPI_EXTERN u32 acpi_gbl_trace_flags;
+
+/*****************************************************************************
+ *
  * ACPI Table globals
  *
  ****************************************************************************/
 
 /*
- * Table pointers.
- * Although these pointers are somewhat redundant with the global acpi_table,
- * they are convenient because they are typed pointers.
+ * acpi_gbl_root_table_list is the master list of ACPI tables found in the
+ * RSDT/XSDT.
  *
- * These tables are single-table only; meaning that there can be at most one
- * of each in the system.  Each global points to the actual table.
+ * acpi_gbl_FADT is a local copy of the FADT, converted to a common format.
  */
-ACPI_EXTERN u32 acpi_gbl_table_flags;
-ACPI_EXTERN u32 acpi_gbl_rsdt_table_count;
-ACPI_EXTERN struct rsdp_descriptor *acpi_gbl_RSDP;
-ACPI_EXTERN struct xsdt_descriptor *acpi_gbl_XSDT;
-ACPI_EXTERN struct fadt_descriptor *acpi_gbl_FADT;
-ACPI_EXTERN struct acpi_table_header *acpi_gbl_DSDT;
-ACPI_EXTERN struct facs_descriptor *acpi_gbl_FACS;
-ACPI_EXTERN struct acpi_common_facs acpi_gbl_common_fACS;
-/*
- * Since there may be multiple SSDTs and PSDTs, a single pointer is not
- * sufficient; Therefore, there isn't one!
- */
+ACPI_EXTERN struct acpi_internal_rsdt acpi_gbl_root_table_list;
+ACPI_EXTERN struct acpi_table_fadt acpi_gbl_FADT;
+extern acpi_native_uint acpi_gbl_permanent_mmap;
 
-/* The root table can be either an RSDT or an XSDT */
+/* These addresses are calculated from FADT address values */
 
-ACPI_EXTERN u8 acpi_gbl_root_table_type;
-#define     ACPI_TABLE_TYPE_RSDT        'R'
-#define     ACPI_TABLE_TYPE_XSDT        'X'
+ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1a_enable;
+ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_enable;
 
 /*
- * Handle both ACPI 1.0 and ACPI 2.0 Integer widths:
- * If we are executing a method that exists in a 32-bit ACPI table,
- * use only the lower 32 bits of the (internal) 64-bit Integer.
+ * Handle both ACPI 1.0 and ACPI 2.0 Integer widths. The integer width is
+ * determined by the revision of the DSDT: If the DSDT revision is less than
+ * 2, use only the lower 32 bits of the internal 64-bit Integer.
  */
 ACPI_EXTERN u8 acpi_gbl_integer_bit_width;
 ACPI_EXTERN u8 acpi_gbl_integer_byte_width;
 ACPI_EXTERN u8 acpi_gbl_integer_nybble_width;
-
-/*
- * ACPI Table info arrays
- */
-extern struct acpi_table_list acpi_gbl_table_lists[ACPI_TABLE_ID_MAX + 1];
-extern struct acpi_table_support acpi_gbl_table_data[ACPI_TABLE_ID_MAX + 1];
 
 /*****************************************************************************
  *
@@ -188,7 +167,7 @@ extern struct acpi_table_support acpi_gbl_table_data[ACPI_TABLE_ID_MAX + 1];
  ****************************************************************************/
 
 /*
- * Predefined mutex objects.  This array contains the
+ * Predefined mutex objects. This array contains the
  * actual OS mutex handles, indexed by the local ACPI_MUTEX_HANDLEs.
  * (The table maps local handles to the real OS handles)
  */
@@ -197,6 +176,7 @@ ACPI_EXTERN struct acpi_mutex_info acpi_gbl_mutex_info[ACPI_NUM_MUTEX];
 /*
  * Global lock semaphore works in conjunction with the actual HW global lock
  */
+ACPI_EXTERN acpi_mutex acpi_gbl_global_lock_mutex;
 ACPI_EXTERN acpi_semaphore acpi_gbl_global_lock_semaphore;
 
 /*
@@ -220,6 +200,7 @@ ACPI_EXTERN spinlock_t _acpi_gbl_hardware_lock;	/* For ACPI H/W except GPE regis
 
 ACPI_EXTERN struct acpi_memory_list *acpi_gbl_global_list;
 ACPI_EXTERN struct acpi_memory_list *acpi_gbl_ns_node_list;
+ACPI_EXTERN u8 acpi_gbl_display_final_mem_stats;
 #endif
 
 /* Object caches */
@@ -240,7 +221,6 @@ ACPI_EXTERN struct acpi_walk_state *acpi_gbl_breakpoint_walk;
 
 /* Misc */
 
-ACPI_EXTERN u32 acpi_gbl_global_lock_thread_count;
 ACPI_EXTERN u32 acpi_gbl_original_mode;
 ACPI_EXTERN u32 acpi_gbl_rsdp_original_location;
 ACPI_EXTERN u32 acpi_gbl_ns_lookup_count;
@@ -260,11 +240,18 @@ ACPI_EXTERN u8 acpi_gbl_system_awake_and_running;
 
 extern u8 acpi_gbl_shutdown;
 extern u32 acpi_gbl_startup_flags;
-extern const u8 acpi_gbl_decode_to8bit[8];
 extern const char *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT];
 extern const char *acpi_gbl_highest_dstate_names[4];
 extern const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES];
 extern const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS];
+
+/* Exception codes */
+
+extern char const *acpi_gbl_exception_names_env[];
+extern char const *acpi_gbl_exception_names_pgm[];
+extern char const *acpi_gbl_exception_names_tbl[];
+extern char const *acpi_gbl_exception_names_aml[];
+extern char const *acpi_gbl_exception_names_ctrl[];
 
 /*****************************************************************************
  *

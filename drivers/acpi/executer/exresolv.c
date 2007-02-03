@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -141,7 +141,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 	acpi_status status = AE_OK;
 	union acpi_operand_object *stack_desc;
 	void *temp_node;
-	union acpi_operand_object *obj_desc;
+	union acpi_operand_object *obj_desc = NULL;
 	u16 opcode;
 
 	ACPI_FUNCTION_TRACE(ex_resolve_object_to_value);
@@ -299,8 +299,6 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 		status = acpi_ds_get_package_arguments(stack_desc);
 		break;
 
-		/* These cases may never happen here, but just in case.. */
-
 	case ACPI_TYPE_BUFFER_FIELD:
 	case ACPI_TYPE_LOCAL_REGION_FIELD:
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
@@ -314,6 +312,10 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 		status =
 		    acpi_ex_read_data_from_field(walk_state, stack_desc,
 						 &obj_desc);
+
+		/* Remove a reference to the original operand, then override */
+
+		acpi_ut_remove_reference(*stack_ptr);
 		*stack_ptr = (void *)obj_desc;
 		break;
 

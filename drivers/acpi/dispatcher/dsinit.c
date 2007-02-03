@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@
 #include <acpi/acpi.h>
 #include <acpi/acdispat.h>
 #include <acpi/acnamesp.h>
+#include <acpi/actables.h>
 
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsinit")
@@ -90,7 +91,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 	 * We are only interested in NS nodes owned by the table that
 	 * was just loaded
 	 */
-	if (node->owner_id != info->table_desc->owner_id) {
+	if (node->owner_id != info->owner_id) {
 		return (AE_OK);
 	}
 
@@ -150,13 +151,20 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
  ******************************************************************************/
 
 acpi_status
-acpi_ds_initialize_objects(struct acpi_table_desc * table_desc,
+acpi_ds_initialize_objects(acpi_native_uint table_index,
 			   struct acpi_namespace_node * start_node)
 {
 	acpi_status status;
 	struct acpi_init_walk_info info;
+	struct acpi_table_header *table;
+	acpi_owner_id owner_id;
 
 	ACPI_FUNCTION_TRACE(ds_initialize_objects);
+
+	status = acpi_tb_get_owner_id(table_index, &owner_id);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "**** Starting initialization of namespace objects ****\n"));
@@ -166,7 +174,8 @@ acpi_ds_initialize_objects(struct acpi_table_desc * table_desc,
 	info.op_region_count = 0;
 	info.object_count = 0;
 	info.device_count = 0;
-	info.table_desc = table_desc;
+	info.table_index = table_index;
+	info.owner_id = owner_id;
 
 	/* Walk entire namespace from the supplied root */
 
@@ -176,10 +185,14 @@ acpi_ds_initialize_objects(struct acpi_table_desc * table_desc,
 		ACPI_EXCEPTION((AE_INFO, status, "During WalkNamespace"));
 	}
 
+	status = acpi_get_table_by_index(table_index, &table);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
 			      "\nTable [%4.4s](id %4.4X) - %hd Objects with %hd Devices %hd Methods %hd Regions\n",
-			      table_desc->pointer->signature,
-			      table_desc->owner_id, info.object_count,
+			      table->signature, owner_id, info.object_count,
 			      info.device_count, info.method_count,
 			      info.op_region_count));
 

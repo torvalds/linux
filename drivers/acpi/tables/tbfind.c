@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: pswalk - Parser routines to walk parsed op tree(s)
+ * Module Name: tbfind   - find table
  *
  *****************************************************************************/
 
@@ -42,68 +42,85 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/acparser.h>
+#include <acpi/actables.h>
 
-#define _COMPONENT          ACPI_PARSER
-ACPI_MODULE_NAME("pswalk")
+#define _COMPONENT          ACPI_TABLES
+ACPI_MODULE_NAME("tbfind")
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ps_delete_parse_tree
+ * FUNCTION:    acpi_tb_find_table
  *
- * PARAMETERS:  subtree_root        - Root of tree (or subtree) to delete
+ * PARAMETERS:  Signature           - String with ACPI table signature
+ *              oem_id              - String with the table OEM ID
+ *              oem_table_id        - String with the OEM Table ID
+ *              table_index         - Where the table index is returned
  *
- * RETURN:      None
+ * RETURN:      Status and table index
  *
- * DESCRIPTION: Delete a portion of or an entire parse tree.
+ * DESCRIPTION: Find an ACPI table (in the RSDT/XSDT) that matches the
+ *              Signature, OEM ID and OEM Table ID. Returns an index that can
+ *              be used to get the table header or entire table.
  *
  ******************************************************************************/
-void acpi_ps_delete_parse_tree(union acpi_parse_object *subtree_root)
+acpi_status
+acpi_tb_find_table(char *signature,
+		   char *oem_id,
+		   char *oem_table_id, acpi_native_uint * table_index)
 {
-	union acpi_parse_object *op = subtree_root;
-	union acpi_parse_object *next = NULL;
-	union acpi_parse_object *parent = NULL;
+	acpi_native_uint i;
+	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_PTR(ps_delete_parse_tree, subtree_root);
+	ACPI_FUNCTION_TRACE(tb_find_table);
 
-	/* Visit all nodes in the subtree */
+	for (i = 0; i < acpi_gbl_root_table_list.count; ++i) {
+		if (ACPI_MEMCMP(&(acpi_gbl_root_table_list.tables[i].signature),
+				signature, ACPI_NAME_SIZE)) {
 
-	while (op) {
+			/* Not the requested table */
 
-		/* Check if we are not ascending */
+			continue;
+		}
 
-		if (op != parent) {
+		/* Table with matching signature has been found */
 
-			/* Look for an argument or child of the current op */
+		if (!acpi_gbl_root_table_list.tables[i].pointer) {
 
-			next = acpi_ps_get_arg(op, 0);
-			if (next) {
+			/* Table is not currently mapped, map it */
 
-				/* Still going downward in tree (Op is not completed yet) */
+			status =
+			    acpi_tb_verify_table(&acpi_gbl_root_table_list.
+						 tables[i]);
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
+			}
 
-				op = next;
+			if (!acpi_gbl_root_table_list.tables[i].pointer) {
 				continue;
 			}
 		}
 
-		/* No more children, this Op is complete. */
+		/* Check for table match on all IDs */
 
-		next = op->common.next;
-		parent = op->common.parent;
+		if (!ACPI_MEMCMP
+		    (acpi_gbl_root_table_list.tables[i].pointer->signature,
+		     signature, ACPI_NAME_SIZE) && (!oem_id[0]
+						    ||
+						    !ACPI_MEMCMP
+						    (acpi_gbl_root_table_list.
+						     tables[i].pointer->oem_id,
+						     oem_id, ACPI_OEM_ID_SIZE))
+		    && (!oem_table_id[0]
+			|| !ACPI_MEMCMP(acpi_gbl_root_table_list.tables[i].
+					pointer->oem_table_id, oem_table_id,
+					ACPI_OEM_TABLE_ID_SIZE))) {
+			*table_index = i;
 
-		acpi_ps_free_op(op);
-
-		/* If we are back to the starting point, the walk is complete. */
-
-		if (op == subtree_root) {
-			return_VOID;
-		}
-		if (next) {
-			op = next;
-		} else {
-			op = parent;
+			ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
+					  "Found table [%4.4s]\n", signature));
+			return_ACPI_STATUS(AE_OK);
 		}
 	}
 
-	return_VOID;
+	return_ACPI_STATUS(AE_NOT_FOUND);
 }

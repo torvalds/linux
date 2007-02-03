@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -196,6 +196,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		 * one of the opcodes that actually opens a scope
 		 */
 		switch (node->type) {
+		case ACPI_TYPE_ANY:
 		case ACPI_TYPE_LOCAL_SCOPE:	/* Scope  */
 		case ACPI_TYPE_DEVICE:
 		case ACPI_TYPE_POWER:
@@ -546,6 +547,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 	acpi_status status;
 	acpi_object_type object_type;
 	char *buffer_ptr;
+	u32 flags;
 
 	ACPI_FUNCTION_TRACE(ds_load2_begin_op);
 
@@ -669,6 +671,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		 * one of the opcodes that actually opens a scope
 		 */
 		switch (node->type) {
+		case ACPI_TYPE_ANY:
 		case ACPI_TYPE_LOCAL_SCOPE:	/* Scope */
 		case ACPI_TYPE_DEVICE:
 		case ACPI_TYPE_POWER:
@@ -750,12 +753,20 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 			break;
 		}
 
-		/* Add new entry into namespace */
+		flags = ACPI_NS_NO_UPSEARCH;
+		if (walk_state->pass_number == ACPI_IMODE_EXECUTE) {
+
+			/* Execution mode, node cannot already exist, node is temporary */
+
+			flags |= (ACPI_NS_ERROR_IF_FOUND | ACPI_NS_TEMPORARY);
+		}
+
+		/* Add new entry or lookup existing entry */
 
 		status =
 		    acpi_ns_lookup(walk_state->scope_info, buffer_ptr,
-				   object_type, ACPI_IMODE_LOAD_PASS2,
-				   ACPI_NS_NO_UPSEARCH, walk_state, &(node));
+				   object_type, ACPI_IMODE_LOAD_PASS2, flags,
+				   walk_state, &node);
 		break;
 	}
 
