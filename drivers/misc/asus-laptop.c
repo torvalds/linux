@@ -777,7 +777,6 @@ static int asus_handle_init(char *name, acpi_handle * handle,
 static int asus_hotk_get_info(void)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_buffer dsdt = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *model = NULL;
 	int bsts_result, hwrs_result;
 	char *string = NULL;
@@ -791,11 +790,9 @@ static int asus_hotk_get_info(void)
 	 * HID), this bit will be moved. A global variable asus_info contains
 	 * the DSDT header.
 	 */
-	status = acpi_get_table(ACPI_TABLE_ID_DSDT, 1, &dsdt);
+	status = acpi_get_table(ACPI_SIG_DSDT, 1, &asus_info);
 	if (ACPI_FAILURE(status))
 		printk(ASUS_WARNING "Couldn't get the DSDT table header\n");
-	else
-		asus_info = dsdt.pointer;
 
 	/* We have to write 0 on init this far for all ASUS models */
 	if (!write_acpi_int(hotk->handle, "INIT", 0, &buffer)) {
@@ -1014,8 +1011,6 @@ static void __exit asus_laptop_exit(void)
 	sysfs_remove_group(&asuspf_device->dev.kobj, &asuspf_attribute_group);
 	platform_device_unregister(asuspf_device);
 	platform_driver_unregister(&asuspf_driver);
-
-	kfree(asus_info);
 }
 
 static int asus_backlight_init(struct device *dev)
