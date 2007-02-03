@@ -958,25 +958,25 @@ static int qla4xxx_start_firmware_from_flash(struct scsi_qla_host *ha)
 	return status;
 }
 
-int ql4xxx_lock_drvr_wait(struct scsi_qla_host *a)
+int ql4xxx_lock_drvr_wait(struct scsi_qla_host *ha)
 {
-#define QL4_LOCK_DRVR_WAIT	300
-#define QL4_LOCK_DRVR_SLEEP	100
+#define QL4_LOCK_DRVR_WAIT	30
+#define QL4_LOCK_DRVR_SLEEP	1
 
 	int drvr_wait = QL4_LOCK_DRVR_WAIT;
 	while (drvr_wait) {
-		if (ql4xxx_lock_drvr(a) == 0) {
-			msleep(QL4_LOCK_DRVR_SLEEP);
+		if (ql4xxx_lock_drvr(ha) == 0) {
+			ssleep(QL4_LOCK_DRVR_SLEEP);
 			if (drvr_wait) {
 				DEBUG2(printk("scsi%ld: %s: Waiting for "
-					      "Global Init Semaphore...n",
-					      a->host_no,
-					      __func__));
+					      "Global Init Semaphore(%d)...n",
+					      ha->host_no,
+					      __func__, drvr_wait));
 			}
 			drvr_wait -= QL4_LOCK_DRVR_SLEEP;
 		} else {
 			DEBUG2(printk("scsi%ld: %s: Global Init Semaphore "
-				      "acquired.n", a->host_no, __func__));
+				      "acquired.n", ha->host_no, __func__));
 			return QLA_SUCCESS;
 		}
 	}
