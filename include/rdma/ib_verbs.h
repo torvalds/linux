@@ -45,6 +45,7 @@
 #include <linux/device.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
+#include <linux/kref.h>
 
 #include <asm/atomic.h>
 #include <asm/scatterlist.h>
