@@ -469,19 +469,13 @@ static void sbp2util_write_doorbell(struct work_struct *work)
 static int sbp2util_create_command_orb_pool(struct sbp2_lu *lu)
 {
 	struct sbp2_fwhost_info *hi = lu->hi;
-	int i;
-	unsigned long flags, orbs;
 	struct sbp2_command_info *cmd;
+	int i, orbs = sbp2_serialize_io ? 2 : SBP2_MAX_CMDS;
 
-	orbs = sbp2_serialize_io ? 2 : SBP2_MAX_CMDS;
-
-	spin_lock_irqsave(&lu->cmd_orb_lock, flags);
 	for (i = 0; i < orbs; i++) {
-		cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
-		if (!cmd) {
-			spin_unlock_irqrestore(&lu->cmd_orb_lock, flags);
+		cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+		if (!cmd)
 			return -ENOMEM;
-		}
 		cmd->command_orb_dma = dma_map_single(hi->host->device.parent,
 						&cmd->command_orb,
 						sizeof(struct sbp2_command_orb),
@@ -493,7 +487,6 @@ static int sbp2util_create_command_orb_pool(struct sbp2_lu *lu)
 		INIT_LIST_HEAD(&cmd->list);
 		list_add_tail(&cmd->list, &lu->cmd_orb_completed);
 	}
-	spin_unlock_irqrestore(&lu->cmd_orb_lock, flags);
 	return 0;
 }
 
@@ -870,11 +863,8 @@ static int sbp2_start_device(struct sbp2_lu *lu)
 	if (!lu->login_orb)
 		goto alloc_fail;
 
-	if (sbp2util_create_command_orb_pool(lu)) {
-		SBP2_ERR("sbp2util_create_command_orb_pool failed!");
-		sbp2_remove_device(lu);
-		return -ENOMEM;
-	}
+	if (sbp2util_create_command_orb_pool(lu))
+		goto alloc_fail;
 
 	/* Wait a second before trying to log in. Previously logged in
 	 * initiators need a chance to reconnect. */
