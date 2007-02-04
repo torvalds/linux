@@ -590,6 +590,16 @@ M:	ecashin@coraid.com
 W:	http://www.coraid.com/support/linux
 S:	Supported
 
+ATL1 ETHERNET DRIVER
+P:	Jay Cliburn
+M:	jcliburn@gmail.com
+P:	Chris Snook
+M:	csnook@redhat.com
+L:	atl1-devel@lists.sourceforge.net
+W:	http://sourceforge.net/projects/atl1
+W:	http://atl1.sourceforge.net
+S:	Maintained
+
 ATM
 P:	Chas Williams
 M:	chas@cmf.nrl.navy.mil
