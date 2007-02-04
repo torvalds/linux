@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 PA Semi, Inc
+ * Copyright (C) 2006-2007 PA Semi, Inc
  *
  * Authors: Kip Walker, PA Semi
  *	    Olof Johansson, PA Semi
@@ -87,9 +87,6 @@ void __init pas_setup_arch(void)
 	/* Setup SMP callback */
 	smp_ops = &pas_smp_ops;
 #endif
-	/* no iommu yet */
-	pci_dma_ops = &dma_direct_ops;
-
 	/* Lookup PCI hosts */
 	pas_pci_init();
 
@@ -207,6 +204,11 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 	return !!(srr1 & 0x2);
 }
 
+static void __init pas_init_early(void)
+{
+	iommu_init_early_pasemi();
+}
+
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
@@ -220,6 +222,8 @@ static int __init pas_probe(void)
 
 	hpte_init_native();
 
+	alloc_iobmap_l2();
+
 	return 1;
 }
 
@@ -227,6 +231,7 @@ define_machine(pas) {
 	.name			= "PA Semi PA6T-1682M",
 	.probe			= pas_probe,
 	.setup_arch		= pas_setup_arch,
+	.init_early		= pas_init_early,
 	.init_IRQ		= pas_init_IRQ,
 	.get_irq		= mpic_get_irq,
 	.restart		= pas_restart,

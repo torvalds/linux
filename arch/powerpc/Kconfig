@@ -720,6 +720,7 @@ source arch/powerpc/platforms/86xx/Kconfig
 source arch/powerpc/platforms/8xx/Kconfig
 source arch/powerpc/platforms/cell/Kconfig
 source arch/powerpc/platforms/ps3/Kconfig
+source arch/powerpc/platforms/pasemi/Kconfig
 
 menu "Kernel options"
 
