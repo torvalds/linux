@@ -392,6 +392,12 @@
 #define SPRN_HSRR0	0x13A	/* Save/Restore Register 0 */
 #define SPRN_HSRR1	0x13B	/* Save/Restore Register 1 */
 
+#define SPRN_TBCTL	0x35f	/* PA6T Timebase control register */
+#define   TBCTL_FREEZE		0x0000000000000000ull /* Freeze all tbs */
+#define   TBCTL_RESTART		0x0000000100000000ull /* Restart all tbs */
+#define   TBCTL_UPDATE_UPPER	0x0000000200000000ull /* Set upper 32 bits */
+#define   TBCTL_UPDATE_LOWER	0x0000000300000000ull /* Set lower 32 bits */
+
 #ifndef SPRN_SVR
 #define SPRN_SVR	0x11E	/* System Version Register */
 #endif

@@ -48,13 +48,36 @@ static void pas_restart(char *cmd)
 }
 
 #ifdef CONFIG_SMP
+static DEFINE_SPINLOCK(timebase_lock);
+
+static void __devinit pas_give_timebase(void)
+{
+	unsigned long tb;
+
+	spin_lock(&timebase_lock);
+	mtspr(SPRN_TBCTL, TBCTL_FREEZE);
+	tb = mftb();
+	mtspr(SPRN_TBCTL, TBCTL_UPDATE_LOWER | (tb & 0xffffffff));
+	mtspr(SPRN_TBCTL, TBCTL_UPDATE_UPPER | (tb >> 32));
+	mtspr(SPRN_TBCTL, TBCTL_RESTART);
+	spin_unlock(&timebase_lock);
+	pr_debug("pas_give_timebase: cpu %d gave tb %lx\n",
+		 smp_processor_id(), tb);
+}
+
+static void __devinit pas_take_timebase(void)
+{
+	pr_debug("pas_take_timebase: cpu %d has tb %lx\n",
+		 smp_processor_id(), mftb());
+}
+
 struct smp_ops_t pas_smp_ops = {
 	.probe		= smp_mpic_probe,
 	.message_pass	= smp_mpic_message_pass,
 	.kick_cpu	= smp_generic_kick_cpu,
 	.setup_cpu	= smp_mpic_setup_cpu,
-	.give_timebase	= smp_generic_give_timebase,
-	.take_timebase	= smp_generic_take_timebase,
+	.give_timebase	= pas_give_timebase,
+	.take_timebase	= pas_take_timebase,
 };
 #endif /* CONFIG_SMP */
 
