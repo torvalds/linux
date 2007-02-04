@@ -56,6 +56,8 @@ static inline void grackle_set_loop_snoop(struct pci_controller *bp, int enable)
 void __init setup_grackle(struct pci_controller *hose)
 {
 	setup_indirect_pci(hose, 0xfec00000, 0xfee00000);
+	if (machine_is_compatible("PowerMac1,1"))
+		pci_assign_all_buses = 1;
 	if (machine_is_compatible("AAPL,PowerBook1998"))
 		grackle_set_loop_snoop(hose, 1);
 #if 0	/* Disabled for now, HW problems ??? */
