@@ -47,6 +47,8 @@ void __init udbg_early_init(void)
 	udbg_init_iseries();
 #elif defined(CONFIG_PPC_EARLY_DEBUG_BEAT)
 	udbg_init_debug_beat();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_PAS_REALMODE)
+	udbg_init_pas_realmode();
 #endif
 }
 

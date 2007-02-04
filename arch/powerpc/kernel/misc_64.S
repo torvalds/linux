@@ -311,6 +311,46 @@ _GLOBAL(real_writeb)
 	blr
 #endif /* defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_MAPLE) */
 
+#ifdef CONFIG_PPC_PASEMI
+
+/* No support in all binutils for these yet, so use defines */
+#define LBZCIX(RT,RA,RB)  .long (0x7c0006aa|(RT<<21)|(RA<<16)|(RB << 11))
+#define STBCIX(RS,RA,RB)  .long (0x7c0007aa|(RS<<21)|(RA<<16)|(RB << 11))
+
+
+_GLOBAL(real_205_readb)
+	mfmsr	r7
+	ori	r0,r7,MSR_DR
+	xori	r0,r0,MSR_DR
+	sync
+	mtmsrd	r0
+	sync
+	isync
+	LBZCIX(r3,0,r3)
+	isync
+	mtmsrd	r7
+	sync
+	isync
+	blr
+
+_GLOBAL(real_205_writeb)
+	mfmsr	r7
+	ori	r0,r7,MSR_DR
+	xori	r0,r0,MSR_DR
+	sync
+	mtmsrd	r0
+	sync
+	isync
+	STBCIX(r3,0,r4)
+	isync
+	mtmsrd	r7
+	sync
+	isync
+	blr
+
+#endif /* CONFIG_PPC_PASEMI */
+
+
 #ifdef CONFIG_CPU_FREQ_PMAC64
 /*
  * SCOM access functions for 970 (FX only for now)

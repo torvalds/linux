@@ -185,6 +185,13 @@ config PPC_EARLY_DEBUG_ISERIES
 	  Select this to enable early debugging for legacy iSeries. You need
 	  to hit "Ctrl-x Ctrl-x" to see the messages on the console.
 
+config PPC_EARLY_DEBUG_PAS_REALMODE
+	bool "PA Semi real mode"
+	depends on PPC_PASEMI
+	help
+	  Select this to enable early debugging for PA Semi.
+	  Output will be on UART0.
+
 config PPC_EARLY_DEBUG_BEAT
 	bool "Beat HV Console"
 	depends on PPC_CELLEB
