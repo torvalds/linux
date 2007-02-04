@@ -318,31 +318,19 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 
 #define ROUNDING	0xf
 
-static int _guess(int guess, int mult)
-{
-	int target;
-
-	target = ((mult/10)*guess);
-	if (mult%10 != 0)
-		target += (guess/2);
-	target += ROUNDING/2;
-	target &= ~ROUNDING;
-	return target;
-}
-
-
 static int guess_fsb(int mult)
 {
-	int speed = (cpu_khz/1000);
+	int speed = cpu_khz / 1000;
 	int i;
-	int speeds[] = { 66, 100, 133, 200 };
+	int speeds[] = { 666, 1000, 1333, 2000 };
+	int f_max, f_min;
 
-	speed += ROUNDING/2;
-	speed &= ~ROUNDING;
-
-	for (i=0; i<4; i++) {
-		if (_guess(speeds[i], mult) == speed)
-			return speeds[i];
+	for (i = 0; i < 4; i++) {
+		f_max = ((speeds[i] * mult) + 50) / 100;
+		f_max += (ROUNDING / 2);
+		f_min = f_max - ROUNDING;
+		if ((speed <= f_max) && (speed >= f_min))
+			return speeds[i] / 10;
 	}
 	return 0;
 }
